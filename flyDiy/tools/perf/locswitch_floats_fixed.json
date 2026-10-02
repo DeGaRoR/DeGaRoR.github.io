@@ -1,0 +1,333 @@
+{
+ "label": "floats_fixed",
+ "build": "floats",
+ "trips": [
+  {
+   "name": "garage -> world (first)",
+   "kind": "rollout",
+   "pressed": "bGo",
+   "ms": 19,
+   "wall": 0.2,
+   "ran": [],
+   "anim": "refused: no wheels to roll on (floats)",
+   "steps": [],
+   "frames": 4,
+   "worstFrame": 133,
+   "screenMs": 0,
+   "screens": [],
+   "tasks200": 0,
+   "tasks1s": 0,
+   "worstTask": 113,
+   "links": {
+    "n": 3,
+    "pending": 0,
+    "sumS": 0.2,
+    "worstS": 0.1,
+    "over5s": 0
+   },
+   "why": []
+  },
+  {
+   "name": "world -> garage",
+   "kind": "rollin",
+   "pressed": "ok",
+   "ms": 259,
+   "wall": 0.3,
+   "ran": [
+    "shed",
+    "board",
+    "frames"
+   ],
+   "anim": null,
+   "steps": [
+    "shed 0.0 s",
+    "board 0.0 s",
+    "frames 0.1 s"
+   ],
+   "frames": 6,
+   "worstFrame": 83,
+   "screenMs": 178,
+   "screens": [
+    [
+     87212,
+     "loading",
+     true
+    ],
+    [
+     87324,
+     "landing",
+     true
+    ],
+    [
+     87390,
+     "gone",
+     true
+    ]
+   ],
+   "tasks200": 0,
+   "tasks1s": 0,
+   "worstTask": 67,
+   "links": {
+    "n": 8,
+    "pending": 3,
+    "sumS": 0.3,
+    "worstS": 0.1,
+    "over5s": 0
+   },
+   "why": [
+    {
+     "id": "shed"
+    },
+    {
+     "id": "board"
+    },
+    {
+     "id": "frames"
+    }
+   ]
+  }
+ ],
+ "scenes": [
+  {
+   "scene": "water taxi @SEA",
+   "frames": 837,
+   "fps": 55.8,
+   "uneven": 0.008,
+   "p50": 16.7,
+   "p99": 33.4,
+   "worst": 49.9,
+   "over100": 0,
+   "cap30": 0.07,
+   "tasks200": 0,
+   "tasks1s": 0,
+   "taskWorst": 55,
+   "onGround": 0.89,
+   "screenS": 0
+  }
+ ],
+ "load": 65.8,
+ "bootInfo": {
+  "pace": true,
+  "hooked": true,
+  "fr": 34,
+  "state": {
+   "mode": "auto",
+   "cap": 60,
+   "legacy": false,
+   "steps": 4,
+   "dt": 0.11680000000000292,
+   "stats": {
+    "down": 0,
+    "up": 0,
+    "trialsFailed": 0,
+    "guarded": 0,
+    "cut": 0
+   },
+   "holdUpS": 0,
+   "dilation": 0.8143518721008335,
+   "stepMs": 0,
+   "otherMs": 47.7064997104424,
+   "droppedS": 0,
+   "workMs": 0,
+   "rateFps": 0,
+   "trials": 0,
+   "simw": false
+  },
+  "trips": [
+   "boot: world town parking trees ring settle snapshot bake spec images upload worldCompile frames craft"
+  ],
+  "boot": [
+   [
+    "step",
+    "treeBins",
+    2285,
+    5
+   ],
+   [
+    "step",
+    "aircraft",
+    2305,
+    656
+   ],
+   [
+    "step",
+    "garage",
+    2970,
+    615
+   ],
+   [
+    "step",
+    "editor",
+    3605,
+    77
+   ],
+   [
+    "step",
+    "seed",
+    3792,
+    1394
+   ],
+   [
+    "step",
+    "world",
+    5249,
+    9141
+   ],
+   [
+    "step",
+    "town",
+    14811,
+    8105
+   ],
+   [
+    "step",
+    "parking",
+    22921,
+    105
+   ],
+   [
+    "step",
+    "trees",
+    23031,
+    0
+   ],
+   [
+    "step",
+    "ring",
+    23036,
+    589
+   ],
+   [
+    "step",
+    "settle",
+    23629,
+    13274
+   ],
+   [
+    "step",
+    "parked",
+    36908,
+    4264
+   ],
+   [
+    "step",
+    "snapshot",
+    41324,
+    1113
+   ],
+   [
+    "step",
+    "bake",
+    42529,
+    4721
+   ],
+   [
+    "step",
+    "spec",
+    47251,
+    397
+   ],
+   [
+    "step",
+    "restore",
+    48051,
+    106
+   ],
+   [
+    "step",
+    "images",
+    48394,
+    95
+   ],
+   [
+    "step",
+    "upload",
+    48543,
+    1592
+   ],
+   [
+    "step",
+    "worldCompile",
+    50141,
+    12715
+   ],
+   [
+    "step",
+    "compile",
+    62861,
+    800
+   ],
+   [
+    "step",
+    "firstFrame",
+    63666,
+    279
+   ],
+   [
+    "step",
+    "frames",
+    64023,
+    1227
+   ],
+   [
+    "step",
+    "craft",
+    65282,
+    286
+   ],
+   [
+    "step",
+    "recheck",
+    65624,
+    5
+   ],
+   [
+    "gone",
+    "",
+    65736,
+    null
+   ]
+  ],
+  "fr3": 164,
+  "pending": [
+   [
+    5521,
+    63464,
+    "?",
+    "",
+    null
+   ],
+   [
+    24041,
+    44944,
+    "?",
+    "",
+    null
+   ],
+   [
+    24055,
+    44929,
+    "?",
+    "",
+    null
+   ]
+  ]
+ },
+ "bootSettle": {
+  "n": 1445,
+  "ms": 13274,
+  "rest": true,
+  "near": 0,
+  "fill": {
+   "live": 250,
+   "base": 250,
+   "fill": 85,
+   "queued": 0,
+   "busy": false,
+   "budgetMs": 4,
+   "trees": 685120,
+   "gens": 335
+  }
+ },
+ "exceptions": []
+}

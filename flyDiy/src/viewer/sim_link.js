@@ -433,7 +433,12 @@ const SIM_LINK = (() => {
       if (sim.fuel && V.fuel) merge(sim.fuel, V.fuel, 3);
       if (sim.hydro && V.hydro) {
         const H = sim.hydro, h = V.hydro; H.wet = h.wet; H.tick = h.tick;
-        for (let i = 0; i < H.floats.length && i < h.floats.length; i++) { const a = H.floats[i], b = h.floats[i]; a.wet = b.wet; merge(a.out, b.out, 2); for (let j = 0; j < a.lam.length && j < b.lam.length; j++) a.lam[j] = b.lam[j]; }
+        for (let i = 0; i < H.floats.length && i < h.floats.length; i++) { const a = H.floats[i], b = h.floats[i]; a.wet = b.wet; merge(a.out, b.out, 2); for (let j = 0; j < a.lam.length && j < b.lam.length; j++) a.lam[j] = b.lam[j];
+          // G1180: the world vertices from the nodes just mirrored (sim_host keeps its tables), the wet panels from the worker
+          if (a.ctx && a.ctx.fill && a.out.W) a.ctx.fill(a.out.W);
+          if (b.per && a.out.per) { for (const o of a.out.per) o.wet = 0;
+            for (let j = 0; j + 15 <= b.per.length; j += 15) { const o = a.out.per[b.per[j]]; if (!o) continue; o.wet = b.per[j + 1]; o.A = b.per[j + 2];
+              let q = j + 3; for (const v of [o.c, o.n, o.Fp, o.Fm]) { v[0] = b.per[q++]; v[1] = b.per[q++]; v[2] = b.per[q++]; } } } }
       }
       const c = V.snapCtl;
       if (c) {

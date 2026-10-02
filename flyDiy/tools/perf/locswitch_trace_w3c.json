@@ -1,0 +1,1316 @@
+{
+ "label": "trace_w3c",
+ "build": "cub",
+ "trips": [
+  {
+   "name": "garage -> world (first)",
+   "kind": "rollout",
+   "pressed": "bGo",
+   "ms": 9086,
+   "wall": 9.2,
+   "ran": [],
+   "anim": "played",
+   "steps": [],
+   "frames": 531,
+   "worstFrame": 300,
+   "screenMs": 0,
+   "screens": [],
+   "tasks200": 1,
+   "tasks1s": 0,
+   "worstTask": 257,
+   "links": {
+    "n": 1,
+    "pending": 0,
+    "sumS": 0,
+    "worstS": 0,
+    "over5s": 0
+   },
+   "trace": null,
+   "bootLog": [],
+   "why": []
+  },
+  {
+   "name": "world -> garage",
+   "kind": "rollin",
+   "pressed": "ok",
+   "ms": 310,
+   "wall": 0.5,
+   "ran": [
+    "shed",
+    "board",
+    "frames"
+   ],
+   "anim": null,
+   "steps": [
+    "shed 0.1 s",
+    "board 0.0 s",
+    "frames 0.1 s"
+   ],
+   "frames": 11,
+   "worstFrame": 133,
+   "screenMs": 140,
+   "screens": [
+    [
+     55576,
+     "loading",
+     true
+    ],
+    [
+     55716,
+     "gone",
+     true
+    ]
+   ],
+   "tasks200": 0,
+   "tasks1s": 0,
+   "worstTask": 71,
+   "links": {
+    "n": 10,
+    "pending": 3,
+    "sumS": 0.8,
+    "worstS": 0.2,
+    "over5s": 0
+   },
+   "trace": null,
+   "bootLog": [
+    {
+     "k": "note",
+     "t": 55369,
+     "text": ""
+    },
+    {
+     "k": "show",
+     "t": 55369,
+     "set": "garage"
+    },
+    {
+     "k": "run",
+     "t": 55370,
+     "set": "garage",
+     "steps": 3
+    },
+    {
+     "k": "step",
+     "t": 55370,
+     "id": "shed",
+     "ms": 69
+    },
+    {
+     "k": "frame1",
+     "t": 55509
+    },
+    {
+     "k": "step",
+     "t": 55512,
+     "id": "board",
+     "ms": 5
+    },
+    {
+     "k": "step",
+     "t": 55584,
+     "id": "frames",
+     "ms": 70
+    },
+    {
+     "k": "landing",
+     "t": 55658
+    },
+    {
+     "k": "ready",
+     "t": 55679
+    },
+    {
+     "k": "gone",
+     "t": 55679
+    }
+   ],
+   "why": [
+    {
+     "id": "shed"
+    },
+    {
+     "id": "board"
+    },
+    {
+     "id": "frames"
+    }
+   ]
+  },
+  {
+   "name": "garage -> world @w3",
+   "kind": "rollout",
+   "pressed": "edRoll",
+   "ms": 31091,
+   "wall": 31.6,
+   "ran": [
+    "town",
+    "parking",
+    "ring",
+    "settle"
+   ],
+   "anim": "played",
+   "steps": [
+    "town 0.0 s",
+    "parking 0.0 s",
+    "ring 0.2 s",
+    "settle ?"
+   ],
+   "frames": 534,
+   "worstFrame": 22259,
+   "screenMs": 22534,
+   "screens": [
+    [
+     56173,
+     "gone",
+     false
+    ],
+    [
+     64993,
+     "loading",
+     true
+    ],
+    [
+     87527,
+     "gone",
+     true
+    ]
+   ],
+   "tasks200": 1,
+   "tasks1s": 0,
+   "worstTask": 352,
+   "links": {
+    "n": 7,
+    "pending": 0,
+    "sumS": 3,
+    "worstS": 0.6,
+    "over5s": 0
+   },
+   "trace": {
+    "a": [
+     [
+      8999,
+      142,
+      "item",
+      "tw_s_summit/wc",
+      "",
+      null
+     ],
+     [
+      8999,
+      143,
+      "item",
+      "tw_s_summit/patrol",
+      "",
+      null
+     ],
+     [
+      8999,
+      144,
+      "item",
+      "tw_s_summit/shed",
+      "",
+      null
+     ],
+     [
+      8999,
+      145,
+      "item",
+      "tw_s_summit/pilothut",
+      "",
+      null
+     ],
+     [
+      8999,
+      146,
+      "item",
+      "tw_s_summit/lodge",
+      "",
+      null
+     ],
+     [
+      8999,
+      147,
+      "item",
+      "tw_s_summit/groomer",
+      "",
+      null
+     ],
+     [
+      8999,
+      150,
+      "item",
+      "tw_s_summit/station",
+      "",
+      null
+     ],
+     [
+      9000,
+      151,
+      "item",
+      "tw_s_valley/station",
+      "",
+      null
+     ],
+     [
+      9000,
+      153,
+      "item",
+      "tw_s_valley/cafe",
+      "",
+      null
+     ],
+     [
+      9000,
+      156,
+      "item",
+      "tw_s_valley/tickets",
+      "",
+      null
+     ],
+     [
+      9000,
+      161,
+      "item",
+      "tw_s_valley/shop",
+      "",
+      null
+     ],
+     [
+      9000,
+      166,
+      "item",
+      "tw_s_valley/motel",
+      "",
+      null
+     ]
+    ],
+    "s": [
+     [
+      134,
+      "0|||||0|gone||fill busy false q 0 live 247 base 247 fill 84|objs 0|pk q 0 async false cookPend 0 cookAll false allDone true waiting 0 pend 0|settled false"
+     ],
+     [
+      516,
+      "0|||||0|gone||fill busy false q 0 live 247 base 247 fill 84|objs 11331|pk q 0 async false cookPend 0 cookAll false allDone true waiting 0 pend 0|settled false"
+     ],
+     [
+      9128,
+      "25|142|tw_s_summit/wc|item|true|25|loading|ring|fill busy true q 87 live 264 base 208 fill 64|objs 11967|pk q 0 async false cookPend 0 cookAll false allDone true waiting 0 pend 0|settled false"
+     ],
+     [
+      9286,
+      "25|142|tw_s_summit/wc|item|true|25|loading|ring|fill busy true q 85 live 264 base 208 fill 66|objs 11967|pk q 0 async false cookPend 0 cookAll false allDone true waiting 0 pend 0|settled false"
+     ],
+     [
+      9473,
+      "23|144|tw_s_summit/shed|item|true|23|loading|settle|fill busy true q 85 live 264 base 208 fill 66|objs 11967|pk q 0 async true cookPend 0 cookAll false allDone true waiting 0 pend 0|settled false"
+     ],
+     [
+      9732,
+      "23|144|tw_s_summit/shed|item|true|23|loading|settle|fill busy true q 84 live 264 base 208 fill 67|objs 11967|pk q 0 async true cookPend 0 cookAll false allDone true waiting 0 pend 0|settled false"
+     ],
+     [
+      9869,
+      "23|144|tw_s_summit/shed|item|true|23|loading|settle|fill busy true q 84 live 264 base 208 fill 67|objs 12005|pk q 0 async true cookPend 0 cookAll false allDone true waiting 0 pend 0|settled false"
+     ],
+     [
+      9994,
+      "23|144|tw_s_summit/shed|item|true|23|loading|settle|fill busy true q 83 live 264 base 208 fill 68|objs 12005|pk q 0 async true cookPend 0 cookAll false allDone true waiting 0 pend 0|settled false"
+     ],
+     [
+      10078,
+      "23|144|tw_s_summit/shed|item|true|23|loading|settle|fill busy true q 82 live 264 base 208 fill 69|objs 12005|pk q 0 async true cookPend 0 cookAll false allDone true waiting 0 pend 0|settled false"
+     ],
+     [
+      10199,
+      "22|145|tw_s_summit/pilothut|item|true|22|loading|settle|fill busy true q 82 live 264 base 208 fill 70|objs 12005|pk q 0 async true cookPend 0 cookAll false allDone true waiting 0 pend 0|settled false"
+     ],
+     [
+      10388,
+      "22|145|tw_s_summit/pilothut|item|true|22|loading|settle|fill busy true q 81 live 264 base 208 fill 71|objs 12005|pk q 0 async true cookPend 0 cookAll false allDone true waiting 0 pend 0|settled false"
+     ],
+     [
+      10469,
+      "22|145|tw_s_summit/pilothut|item|true|22|loading|settle|fill busy true q 80 live 264 base 208 fill 71|objs 12046|pk q 0 async true cookPend 0 cookAll false allDone true waiting 0 pend 0|settled false"
+     ],
+     [
+      10612,
+      "21|146|tw_s_summit/lodge|item|true|21|loading|settle|fill busy true q 80 live 264 base 208 fill 71|objs 12046|pk q 0 async true cookPend 0 cookAll false allDone true waiting 0 pend 0|settled false"
+     ],
+     [
+      10735,
+      "21|146|tw_s_summit/lodge|item|true|21|loading|settle|fill busy true q 78 live 264 base 208 fill 73|objs 12046|pk q 0 async true cookPend 0 cookAll false allDone true waiting 0 pend 0|settled false"
+     ],
+     [
+      10946,
+      "21|146|tw_s_summit/lodge|item|true|21|loading|settle|fill busy true q 77 live 264 base 208 fill 75|objs 12046|pk q 0 async true cookPend 0 cookAll false allDone true waiting 0 pend 0|settled false"
+     ],
+     [
+      11086,
+      "20|147|tw_s_summit/groomer|item|true|20|loading|settle|fill busy true q 76 live 264 base 208 fill 75|objs 12046|pk q 0 async true cookPend 0 cookAll false allDone true waiting 0 pend 0|settled false"
+     ],
+     [
+      11230,
+      "20|147|tw_s_summit/groomer|item|true|20|loading|settle|fill busy true q 75 live 264 base 208 fill 76|objs 12113|pk q 0 async true cookPend 0 cookAll false allDone true waiting 0 pend 0|settled false"
+     ],
+     [
+      11402,
+      "20|147|tw_s_summit/groomer|item|true|20|loading|settle|fill busy true q 75 live 264 base 208 fill 77|objs 12113|pk q 0 async true cookPend 0 cookAll false allDone true waiting 0 pend 0|settled false"
+     ],
+     [
+      11516,
+      "18|149|ob:tw_o16||false|18|loading|settle|fill busy true q 73 live 264 base 208 fill 78|objs 12113|pk q 0 async true cookPend 0 cookAll false allDone true waiting 0 pend 0|settled false"
+     ],
+     [
+      11625,
+      "17|150|tw_s_summit/station|item|true|17|loading|settle|fill busy true q 73 live 264 base 208 fill 78|objs 12113|pk q 0 async true cookPend 0 cookAll false allDone true waiting 0 pend 0|settled false"
+     ],
+     [
+      11706,
+      "17|150|tw_s_summit/station|item|true|17|loading|settle|fill busy true q 72 live 264 base 208 fill 79|objs 12113|pk q 0 async true cookPend 0 cookAll false allDone true waiting 0 pend 0|settled false"
+     ],
+     [
+      11813,
+      "17|150|tw_s_summit/station|item|true|17|loading|settle|fill busy true q 72 live 264 base 208 fill 79|objs 12143|pk q 0 async true cookPend 0 cookAll false allDone true waiting 0 pend 0|settled false"
+     ],
+     [
+      12010,
+      "14|153|tw_s_valley/cafe|item|true|14|loading|settle|fill busy true q 71 live 264 base 208 fill 80|objs 12143|pk q 0 async true cookPend 0 cookAll false allDone true waiting 0 pend 0|settled false"
+     ],
+     [
+      12222,
+      "14|153|tw_s_valley/cafe|item|true|14|loading|settle|fill busy true q 71 live 264 base 208 fill 81|objs 12143|pk q 0 async true cookPend 0 cookAll false allDone true waiting 0 pend 0|settled false"
+     ],
+     [
+      12317,
+      "14|153|tw_s_valley/cafe|item|true|14|loading|settle|fill busy true q 70 live 264 base 208 fill 82|objs 12143|pk q 0 async true cookPend 0 cookAll false allDone true waiting 0 pend 0|settled false"
+     ],
+     [
+      12438,
+      "13|154|ob:tw_o12||false|13|loading|settle|fill busy true q 69 live 264 base 208 fill 82|objs 12249|pk q 0 async true cookPend 0 cookAll false allDone true waiting 0 pend 0|settled false"
+     ],
+     [
+      12602,
+      "13|154|ob:tw_o12||false|13|loading|settle|fill busy true q 67 live 264 base 208 fill 84|objs 12249|pk q 0 async true cookPend 0 cookAll false allDone true waiting 0 pend 0|settled false"
+     ],
+     [
+      12722,
+      "13|154|ob:tw_o12||false|13|loading|settle|fill busy true q 67 live 264 base 208 fill 85|objs 12249|pk q 0 async true cookPend 0 cookAll false allDone true waiting 0 pend 0|settled false"
+     ],
+     [
+      12813,
+      "12|155|ob:tw_o14||false|12|loading|settle|fill busy true q 66 live 264 base 208 fill 85|objs 12249|pk q 0 async true cookPend 0 cookAll false allDone true waiting 0 pend 0|settled false"
+     ],
+     [
+      12939,
+      "12|155|ob:tw_o14||false|12|loading|settle|fill busy true q 65 live 264 base 208 fill 86|objs 12266|pk q 0 async true cookPend 0 cookAll false allDone true waiting 0 pend 0|settled false"
+     ],
+     [
+      13075,
+      "10|157|ob:tw_o13||false|10|loading|settle|fill busy true q 65 live 264 base 208 fill 86|objs 12266|pk q 0 async true cookPend 0 cookAll false allDone true waiting 0 pend 0|settled false"
+     ],
+     [
+      13137,
+      "10|157|ob:tw_o13||false|10|loading|settle|fill busy true q 64 live 264 base 208 fill 87|objs 12266|pk q 0 async true cookPend 0 cookAll false allDone true waiting 0 pend 0|settled false"
+     ],
+     [
+      13306,
+      "10|157|ob:tw_o13||false|10|loading|settle|fill busy true q 60 live 264 base 208 fill 91|objs 12266|pk q 0 async true cookPend 0 cookAll false allDone true waiting 0 pend 0|settled false"
+     ],
+     [
+      13437,
+      "9|158|ob:tw_o10||false|9|loading|settle|fill busy true q 59 live 264 base 208 fill 92|objs 12291|pk q 0 async true cookPend 0 cookAll false allDone true waiting 0 pend 0|settled false"
+     ],
+     [
+      13579,
+      "5|162|ob:tw_o7||false|5|loading|settle|fill busy true q 59 live 264 base 208 fill 92|objs 12291|pk q 0 async true cookPend 0 cookAll false allDone true waiting 0 pend 0|settled false"
+     ],
+     [
+      13714,
+      "5|162|ob:tw_o7||false|5|loading|settle|fill busy true q 58 live 264 base 208 fill 93|objs 12291|pk q 0 async true cookPend 0 cookAll false allDone true waiting 0 pend 0|settled false"
+     ],
+     [
+      13826,
+      "5|162|ob:tw_o7||false|5|loading|settle|fill busy true q 57 live 264 base 208 fill 94|objs 12291|pk q 0 async true cookPend 0 cookAll false allDone true waiting 0 pend 0|settled false"
+     ],
+     [
+      13918,
+      "5|162|ob:tw_o7||false|5|loading|settle|fill busy true q 56 live 264 base 208 fill 95|objs 12342|pk q 0 async true cookPend 0 cookAll false allDone true waiting 0 pend 0|settled false"
+     ],
+     [
+      14054,
+      "0|||||0|loading|settle|fill busy true q 56 live 264 base 208 fill 96|objs 12342|pk q 0 async true cookPend 0 cookAll false allDone true waiting 0 pend 0|settled false"
+     ],
+     [
+      14107,
+      "0|||||0|loading|settle|fill busy true q 55 live 264 base 209 fill 96|objs 12342|pk q 0 async true cookPend 0 cookAll false allDone true waiting 0 pend 0|settled false"
+     ],
+     [
+      14206,
+      "0|||||0|loading|settle|fill busy true q 51 live 264 base 212 fill 96|objs 12342|pk q 0 async true cookPend 0 cookAll false allDone true waiting 0 pend 0|settled false"
+     ],
+     [
+      14306,
+      "0|||||0|loading|settle|fill busy true q 49 live 264 base 214 fill 96|objs 12342|pk q 0 async true cookPend 0 cookAll false allDone true waiting 0 pend 0|settled false"
+     ],
+     [
+      14419,
+      "0|||||0|loading|settle|fill busy true q 47 live 264 base 217 fill 96|objs 12414|pk q 0 async true cookPend 0 cookAll false allDone true waiting 0 pend 0|settled false"
+     ],
+     [
+      14514,
+      "0|||||0|loading|settle|fill busy true q 42 live 264 base 221 fill 96|objs 12414|pk q 0 async true cookPend 0 cookAll false allDone true waiting 0 pend 0|settled false"
+     ],
+     [
+      14613,
+      "0|||||0|loading|settle|fill busy true q 40 live 264 base 223 fill 96|objs 12414|pk q 0 async true cookPend 0 cookAll false allDone true waiting 0 pend 0|settled false"
+     ],
+     [
+      14720,
+      "0|||||0|loading|settle|fill busy true q 38 live 264 base 226 fill 96|objs 12414|pk q 0 async true cookPend 0 cookAll false allDone true waiting 0 pend 0|settled false"
+     ],
+     [
+      14814,
+      "0|||||0|loading|settle|fill busy true q 35 live 264 base 228 fill 96|objs 12414|pk q 0 async true cookPend 0 cookAll false allDone true waiting 0 pend 0|settled false"
+     ],
+     [
+      14907,
+      "0|||||0|loading|settle|fill busy true q 34 live 264 base 230 fill 96|objs 12423|pk q 0 async true cookPend 0 cookAll false allDone true waiting 0 pend 0|settled false"
+     ],
+     [
+      15016,
+      "0|||||0|loading|settle|fill busy true q 28 live 264 base 235 fill 96|objs 12423|pk q 0 async true cookPend 0 cookAll false allDone true waiting 0 pend 0|settled false"
+     ],
+     [
+      15116,
+      "0|||||0|loading|settle|fill busy true q 24 live 264 base 239 fill 96|objs 12423|pk q 0 async true cookPend 0 cookAll false allDone true waiting 0 pend 0|settled false"
+     ],
+     [
+      15213,
+      "0|||||0|loading|settle|fill busy true q 20 live 264 base 243 fill 96|objs 12423|pk q 0 async true cookPend 0 cookAll false allDone true waiting 0 pend 0|settled false"
+     ],
+     [
+      15314,
+      "0|||||0|loading|settle|fill busy true q 18 live 264 base 245 fill 96|objs 12423|pk q 0 async true cookPend 0 cookAll false allDone true waiting 0 pend 0|settled false"
+     ],
+     [
+      15415,
+      "0|||||0|loading|settle|fill busy true q 16 live 264 base 247 fill 96|objs 12431|pk q 0 async true cookPend 0 cookAll false allDone true waiting 0 pend 0|settled false"
+     ],
+     [
+      15528,
+      "0|||||0|loading|settle|fill busy true q 14 live 264 base 250 fill 96|objs 12431|pk q 0 async true cookPend 0 cookAll false allDone true waiting 0 pend 0|settled false"
+     ],
+     [
+      15607,
+      "0|||||0|loading|settle|fill busy true q 12 live 264 base 252 fill 96|objs 12431|pk q 0 async true cookPend 0 cookAll false allDone true waiting 0 pend 0|settled false"
+     ],
+     [
+      15714,
+      "0|||||0|loading|settle|fill busy true q 6 live 264 base 257 fill 96|objs 12431|pk q 0 async true cookPend 0 cookAll false allDone true waiting 0 pend 0|settled false"
+     ],
+     [
+      15814,
+      "0|||||0|loading|settle|fill busy true q 5 live 264 base 258 fill 96|objs 12431|pk q 0 async true cookPend 0 cookAll false allDone true waiting 0 pend 0|settled false"
+     ],
+     [
+      15910,
+      "0|||||0|loading|settle|fill busy true q 3 live 264 base 261 fill 96|objs 12438|pk q 0 async true cookPend 0 cookAll false allDone true waiting 0 pend 0|settled false"
+     ],
+     [
+      16006,
+      "0|||||0|loading|settle|fill busy false q 0 live 264 base 264 fill 96|objs 12438|pk q 0 async true cookPend 0 cookAll false allDone true waiting 0 pend 0|settled false"
+     ],
+     [
+      16416,
+      "0|||||0|loading|settle|fill busy false q 0 live 264 base 264 fill 96|objs 12439|pk q 0 async true cookPend 0 cookAll false allDone true waiting 0 pend 0|settled false"
+     ],
+     [
+      16917,
+      "0|||||0|loading|settle|fill busy false q 0 live 264 base 264 fill 96|objs 12440|pk q 0 async true cookPend 0 cookAll false allDone true waiting 0 pend 0|settled false"
+     ],
+     [
+      20408,
+      "0|||||0|loading|settle|fill busy false q 0 live 264 base 264 fill 96|objs 12441|pk q 0 async true cookPend 0 cookAll false allDone true waiting 0 pend 0|settled false"
+     ],
+     [
+      31584,
+      "0|||||0|gone|settle|fill busy false q 0 live 264 base 264 fill 96|objs 12441|pk q 0 async false cookPend 0 cookAll false allDone true waiting 0 pend 0|settled false"
+     ]
+    ]
+   },
+   "bootLog": [
+    {
+     "k": "note",
+     "t": 64899,
+     "text": ""
+    },
+    {
+     "k": "show",
+     "t": 64899,
+     "set": "rollout"
+    },
+    {
+     "k": "run",
+     "t": 64899,
+     "set": "rollout",
+     "steps": 8
+    },
+    {
+     "k": "step",
+     "t": 64902,
+     "id": "town",
+     "ms": 1,
+     "programs": 377
+    },
+    {
+     "k": "frame1",
+     "t": 64960
+    },
+    {
+     "k": "step",
+     "t": 64961,
+     "id": "parking",
+     "ms": 0,
+     "programs": 377
+    },
+    {
+     "k": "step",
+     "t": 65014,
+     "id": "ring",
+     "ms": 199,
+     "programs": 377
+    },
+    {
+     "k": "step",
+     "t": 65249,
+     "id": "settle"
+    },
+    {
+     "k": "fail",
+     "t": 87132,
+     "reason": "nothing landed for 20 s",
+     "missing": [],
+     "failed": []
+    },
+    {
+     "k": "gone",
+     "t": 87133
+    }
+   ],
+   "why": [
+    {
+     "id": "town",
+     "why": "key",
+     "diff": {
+      "was": "at -154,712",
+      "now": "at -681,-2381"
+     }
+    },
+    {
+     "id": "parking",
+     "why": "key",
+     "diff": {
+      "was": "at -154,712",
+      "now": "at -681,-2381"
+     }
+    },
+    {
+     "id": "ring",
+     "why": "key",
+     "diff": {
+      "was": "at -154,712",
+      "now": "at -681,-2381"
+     }
+    },
+    {
+     "id": "settle",
+     "why": "key",
+     "diff": {
+      "was": "at -154,712",
+      "now": "at -681,-2381"
+     }
+    }
+   ]
+  },
+  {
+   "name": "world -> garage @w3",
+   "kind": "rollin",
+   "pressed": "ok",
+   "ms": 189,
+   "wall": 0.3,
+   "ran": [
+    "shed",
+    "board",
+    "frames"
+   ],
+   "anim": null,
+   "steps": [
+    "shed 0.0 s",
+    "board 0.0 s",
+    "frames 0.0 s"
+   ],
+   "frames": 6,
+   "worstFrame": 67,
+   "screenMs": 83,
+   "screens": [
+    [
+     90475,
+     "loading",
+     true
+    ],
+    [
+     90558,
+     "gone",
+     true
+    ]
+   ],
+   "tasks200": 0,
+   "tasks1s": 0,
+   "worstTask": 53,
+   "links": {
+    "n": 4,
+    "pending": 3,
+    "sumS": 0.1,
+    "worstS": 0.1,
+    "over5s": 0
+   },
+   "trace": {
+    "a": [
+     [
+      8999,
+      142,
+      "item",
+      "tw_s_summit/wc",
+      "",
+      null
+     ],
+     [
+      8999,
+      143,
+      "item",
+      "tw_s_summit/patrol",
+      "",
+      null
+     ],
+     [
+      8999,
+      144,
+      "item",
+      "tw_s_summit/shed",
+      "",
+      null
+     ],
+     [
+      8999,
+      145,
+      "item",
+      "tw_s_summit/pilothut",
+      "",
+      null
+     ],
+     [
+      8999,
+      146,
+      "item",
+      "tw_s_summit/lodge",
+      "",
+      null
+     ],
+     [
+      8999,
+      147,
+      "item",
+      "tw_s_summit/groomer",
+      "",
+      null
+     ],
+     [
+      8999,
+      150,
+      "item",
+      "tw_s_summit/station",
+      "",
+      null
+     ],
+     [
+      9000,
+      151,
+      "item",
+      "tw_s_valley/station",
+      "",
+      null
+     ],
+     [
+      9000,
+      153,
+      "item",
+      "tw_s_valley/cafe",
+      "",
+      null
+     ],
+     [
+      9000,
+      156,
+      "item",
+      "tw_s_valley/tickets",
+      "",
+      null
+     ],
+     [
+      9000,
+      161,
+      "item",
+      "tw_s_valley/shop",
+      "",
+      null
+     ],
+     [
+      9000,
+      166,
+      "item",
+      "tw_s_valley/motel",
+      "",
+      null
+     ]
+    ],
+    "s": [
+     [
+      134,
+      "0|||||0|gone||fill busy false q 0 live 247 base 247 fill 84|objs 0|pk q 0 async false cookPend 0 cookAll false allDone true waiting 0 pend 0|settled false"
+     ],
+     [
+      516,
+      "0|||||0|gone||fill busy false q 0 live 247 base 247 fill 84|objs 11331|pk q 0 async false cookPend 0 cookAll false allDone true waiting 0 pend 0|settled false"
+     ],
+     [
+      9128,
+      "25|142|tw_s_summit/wc|item|true|25|loading|ring|fill busy true q 87 live 264 base 208 fill 64|objs 11967|pk q 0 async false cookPend 0 cookAll false allDone true waiting 0 pend 0|settled false"
+     ],
+     [
+      9286,
+      "25|142|tw_s_summit/wc|item|true|25|loading|ring|fill busy true q 85 live 264 base 208 fill 66|objs 11967|pk q 0 async false cookPend 0 cookAll false allDone true waiting 0 pend 0|settled false"
+     ],
+     [
+      9473,
+      "23|144|tw_s_summit/shed|item|true|23|loading|settle|fill busy true q 85 live 264 base 208 fill 66|objs 11967|pk q 0 async true cookPend 0 cookAll false allDone true waiting 0 pend 0|settled false"
+     ],
+     [
+      9732,
+      "23|144|tw_s_summit/shed|item|true|23|loading|settle|fill busy true q 84 live 264 base 208 fill 67|objs 11967|pk q 0 async true cookPend 0 cookAll false allDone true waiting 0 pend 0|settled false"
+     ],
+     [
+      9869,
+      "23|144|tw_s_summit/shed|item|true|23|loading|settle|fill busy true q 84 live 264 base 208 fill 67|objs 12005|pk q 0 async true cookPend 0 cookAll false allDone true waiting 0 pend 0|settled false"
+     ],
+     [
+      9994,
+      "23|144|tw_s_summit/shed|item|true|23|loading|settle|fill busy true q 83 live 264 base 208 fill 68|objs 12005|pk q 0 async true cookPend 0 cookAll false allDone true waiting 0 pend 0|settled false"
+     ],
+     [
+      10078,
+      "23|144|tw_s_summit/shed|item|true|23|loading|settle|fill busy true q 82 live 264 base 208 fill 69|objs 12005|pk q 0 async true cookPend 0 cookAll false allDone true waiting 0 pend 0|settled false"
+     ],
+     [
+      10199,
+      "22|145|tw_s_summit/pilothut|item|true|22|loading|settle|fill busy true q 82 live 264 base 208 fill 70|objs 12005|pk q 0 async true cookPend 0 cookAll false allDone true waiting 0 pend 0|settled false"
+     ],
+     [
+      10388,
+      "22|145|tw_s_summit/pilothut|item|true|22|loading|settle|fill busy true q 81 live 264 base 208 fill 71|objs 12005|pk q 0 async true cookPend 0 cookAll false allDone true waiting 0 pend 0|settled false"
+     ],
+     [
+      10469,
+      "22|145|tw_s_summit/pilothut|item|true|22|loading|settle|fill busy true q 80 live 264 base 208 fill 71|objs 12046|pk q 0 async true cookPend 0 cookAll false allDone true waiting 0 pend 0|settled false"
+     ],
+     [
+      10612,
+      "21|146|tw_s_summit/lodge|item|true|21|loading|settle|fill busy true q 80 live 264 base 208 fill 71|objs 12046|pk q 0 async true cookPend 0 cookAll false allDone true waiting 0 pend 0|settled false"
+     ],
+     [
+      10735,
+      "21|146|tw_s_summit/lodge|item|true|21|loading|settle|fill busy true q 78 live 264 base 208 fill 73|objs 12046|pk q 0 async true cookPend 0 cookAll false allDone true waiting 0 pend 0|settled false"
+     ],
+     [
+      10946,
+      "21|146|tw_s_summit/lodge|item|true|21|loading|settle|fill busy true q 77 live 264 base 208 fill 75|objs 12046|pk q 0 async true cookPend 0 cookAll false allDone true waiting 0 pend 0|settled false"
+     ],
+     [
+      11086,
+      "20|147|tw_s_summit/groomer|item|true|20|loading|settle|fill busy true q 76 live 264 base 208 fill 75|objs 12046|pk q 0 async true cookPend 0 cookAll false allDone true waiting 0 pend 0|settled false"
+     ],
+     [
+      11230,
+      "20|147|tw_s_summit/groomer|item|true|20|loading|settle|fill busy true q 75 live 264 base 208 fill 76|objs 12113|pk q 0 async true cookPend 0 cookAll false allDone true waiting 0 pend 0|settled false"
+     ],
+     [
+      11402,
+      "20|147|tw_s_summit/groomer|item|true|20|loading|settle|fill busy true q 75 live 264 base 208 fill 77|objs 12113|pk q 0 async true cookPend 0 cookAll false allDone true waiting 0 pend 0|settled false"
+     ],
+     [
+      11516,
+      "18|149|ob:tw_o16||false|18|loading|settle|fill busy true q 73 live 264 base 208 fill 78|objs 12113|pk q 0 async true cookPend 0 cookAll false allDone true waiting 0 pend 0|settled false"
+     ],
+     [
+      11625,
+      "17|150|tw_s_summit/station|item|true|17|loading|settle|fill busy true q 73 live 264 base 208 fill 78|objs 12113|pk q 0 async true cookPend 0 cookAll false allDone true waiting 0 pend 0|settled false"
+     ],
+     [
+      11706,
+      "17|150|tw_s_summit/station|item|true|17|loading|settle|fill busy true q 72 live 264 base 208 fill 79|objs 12113|pk q 0 async true cookPend 0 cookAll false allDone true waiting 0 pend 0|settled false"
+     ],
+     [
+      11813,
+      "17|150|tw_s_summit/station|item|true|17|loading|settle|fill busy true q 72 live 264 base 208 fill 79|objs 12143|pk q 0 async true cookPend 0 cookAll false allDone true waiting 0 pend 0|settled false"
+     ],
+     [
+      12010,
+      "14|153|tw_s_valley/cafe|item|true|14|loading|settle|fill busy true q 71 live 264 base 208 fill 80|objs 12143|pk q 0 async true cookPend 0 cookAll false allDone true waiting 0 pend 0|settled false"
+     ],
+     [
+      12222,
+      "14|153|tw_s_valley/cafe|item|true|14|loading|settle|fill busy true q 71 live 264 base 208 fill 81|objs 12143|pk q 0 async true cookPend 0 cookAll false allDone true waiting 0 pend 0|settled false"
+     ],
+     [
+      12317,
+      "14|153|tw_s_valley/cafe|item|true|14|loading|settle|fill busy true q 70 live 264 base 208 fill 82|objs 12143|pk q 0 async true cookPend 0 cookAll false allDone true waiting 0 pend 0|settled false"
+     ],
+     [
+      12438,
+      "13|154|ob:tw_o12||false|13|loading|settle|fill busy true q 69 live 264 base 208 fill 82|objs 12249|pk q 0 async true cookPend 0 cookAll false allDone true waiting 0 pend 0|settled false"
+     ],
+     [
+      12602,
+      "13|154|ob:tw_o12||false|13|loading|settle|fill busy true q 67 live 264 base 208 fill 84|objs 12249|pk q 0 async true cookPend 0 cookAll false allDone true waiting 0 pend 0|settled false"
+     ],
+     [
+      12722,
+      "13|154|ob:tw_o12||false|13|loading|settle|fill busy true q 67 live 264 base 208 fill 85|objs 12249|pk q 0 async true cookPend 0 cookAll false allDone true waiting 0 pend 0|settled false"
+     ],
+     [
+      12813,
+      "12|155|ob:tw_o14||false|12|loading|settle|fill busy true q 66 live 264 base 208 fill 85|objs 12249|pk q 0 async true cookPend 0 cookAll false allDone true waiting 0 pend 0|settled false"
+     ],
+     [
+      12939,
+      "12|155|ob:tw_o14||false|12|loading|settle|fill busy true q 65 live 264 base 208 fill 86|objs 12266|pk q 0 async true cookPend 0 cookAll false allDone true waiting 0 pend 0|settled false"
+     ],
+     [
+      13075,
+      "10|157|ob:tw_o13||false|10|loading|settle|fill busy true q 65 live 264 base 208 fill 86|objs 12266|pk q 0 async true cookPend 0 cookAll false allDone true waiting 0 pend 0|settled false"
+     ],
+     [
+      13137,
+      "10|157|ob:tw_o13||false|10|loading|settle|fill busy true q 64 live 264 base 208 fill 87|objs 12266|pk q 0 async true cookPend 0 cookAll false allDone true waiting 0 pend 0|settled false"
+     ],
+     [
+      13306,
+      "10|157|ob:tw_o13||false|10|loading|settle|fill busy true q 60 live 264 base 208 fill 91|objs 12266|pk q 0 async true cookPend 0 cookAll false allDone true waiting 0 pend 0|settled false"
+     ],
+     [
+      13437,
+      "9|158|ob:tw_o10||false|9|loading|settle|fill busy true q 59 live 264 base 208 fill 92|objs 12291|pk q 0 async true cookPend 0 cookAll false allDone true waiting 0 pend 0|settled false"
+     ],
+     [
+      13579,
+      "5|162|ob:tw_o7||false|5|loading|settle|fill busy true q 59 live 264 base 208 fill 92|objs 12291|pk q 0 async true cookPend 0 cookAll false allDone true waiting 0 pend 0|settled false"
+     ],
+     [
+      13714,
+      "5|162|ob:tw_o7||false|5|loading|settle|fill busy true q 58 live 264 base 208 fill 93|objs 12291|pk q 0 async true cookPend 0 cookAll false allDone true waiting 0 pend 0|settled false"
+     ],
+     [
+      13826,
+      "5|162|ob:tw_o7||false|5|loading|settle|fill busy true q 57 live 264 base 208 fill 94|objs 12291|pk q 0 async true cookPend 0 cookAll false allDone true waiting 0 pend 0|settled false"
+     ],
+     [
+      13918,
+      "5|162|ob:tw_o7||false|5|loading|settle|fill busy true q 56 live 264 base 208 fill 95|objs 12342|pk q 0 async true cookPend 0 cookAll false allDone true waiting 0 pend 0|settled false"
+     ],
+     [
+      14054,
+      "0|||||0|loading|settle|fill busy true q 56 live 264 base 208 fill 96|objs 12342|pk q 0 async true cookPend 0 cookAll false allDone true waiting 0 pend 0|settled false"
+     ],
+     [
+      14107,
+      "0|||||0|loading|settle|fill busy true q 55 live 264 base 209 fill 96|objs 12342|pk q 0 async true cookPend 0 cookAll false allDone true waiting 0 pend 0|settled false"
+     ],
+     [
+      14206,
+      "0|||||0|loading|settle|fill busy true q 51 live 264 base 212 fill 96|objs 12342|pk q 0 async true cookPend 0 cookAll false allDone true waiting 0 pend 0|settled false"
+     ],
+     [
+      14306,
+      "0|||||0|loading|settle|fill busy true q 49 live 264 base 214 fill 96|objs 12342|pk q 0 async true cookPend 0 cookAll false allDone true waiting 0 pend 0|settled false"
+     ],
+     [
+      14419,
+      "0|||||0|loading|settle|fill busy true q 47 live 264 base 217 fill 96|objs 12414|pk q 0 async true cookPend 0 cookAll false allDone true waiting 0 pend 0|settled false"
+     ],
+     [
+      14514,
+      "0|||||0|loading|settle|fill busy true q 42 live 264 base 221 fill 96|objs 12414|pk q 0 async true cookPend 0 cookAll false allDone true waiting 0 pend 0|settled false"
+     ],
+     [
+      14613,
+      "0|||||0|loading|settle|fill busy true q 40 live 264 base 223 fill 96|objs 12414|pk q 0 async true cookPend 0 cookAll false allDone true waiting 0 pend 0|settled false"
+     ],
+     [
+      14720,
+      "0|||||0|loading|settle|fill busy true q 38 live 264 base 226 fill 96|objs 12414|pk q 0 async true cookPend 0 cookAll false allDone true waiting 0 pend 0|settled false"
+     ],
+     [
+      14814,
+      "0|||||0|loading|settle|fill busy true q 35 live 264 base 228 fill 96|objs 12414|pk q 0 async true cookPend 0 cookAll false allDone true waiting 0 pend 0|settled false"
+     ],
+     [
+      14907,
+      "0|||||0|loading|settle|fill busy true q 34 live 264 base 230 fill 96|objs 12423|pk q 0 async true cookPend 0 cookAll false allDone true waiting 0 pend 0|settled false"
+     ],
+     [
+      15016,
+      "0|||||0|loading|settle|fill busy true q 28 live 264 base 235 fill 96|objs 12423|pk q 0 async true cookPend 0 cookAll false allDone true waiting 0 pend 0|settled false"
+     ],
+     [
+      15116,
+      "0|||||0|loading|settle|fill busy true q 24 live 264 base 239 fill 96|objs 12423|pk q 0 async true cookPend 0 cookAll false allDone true waiting 0 pend 0|settled false"
+     ],
+     [
+      15213,
+      "0|||||0|loading|settle|fill busy true q 20 live 264 base 243 fill 96|objs 12423|pk q 0 async true cookPend 0 cookAll false allDone true waiting 0 pend 0|settled false"
+     ],
+     [
+      15314,
+      "0|||||0|loading|settle|fill busy true q 18 live 264 base 245 fill 96|objs 12423|pk q 0 async true cookPend 0 cookAll false allDone true waiting 0 pend 0|settled false"
+     ],
+     [
+      15415,
+      "0|||||0|loading|settle|fill busy true q 16 live 264 base 247 fill 96|objs 12431|pk q 0 async true cookPend 0 cookAll false allDone true waiting 0 pend 0|settled false"
+     ],
+     [
+      15528,
+      "0|||||0|loading|settle|fill busy true q 14 live 264 base 250 fill 96|objs 12431|pk q 0 async true cookPend 0 cookAll false allDone true waiting 0 pend 0|settled false"
+     ],
+     [
+      15607,
+      "0|||||0|loading|settle|fill busy true q 12 live 264 base 252 fill 96|objs 12431|pk q 0 async true cookPend 0 cookAll false allDone true waiting 0 pend 0|settled false"
+     ],
+     [
+      15714,
+      "0|||||0|loading|settle|fill busy true q 6 live 264 base 257 fill 96|objs 12431|pk q 0 async true cookPend 0 cookAll false allDone true waiting 0 pend 0|settled false"
+     ],
+     [
+      15814,
+      "0|||||0|loading|settle|fill busy true q 5 live 264 base 258 fill 96|objs 12431|pk q 0 async true cookPend 0 cookAll false allDone true waiting 0 pend 0|settled false"
+     ],
+     [
+      15910,
+      "0|||||0|loading|settle|fill busy true q 3 live 264 base 261 fill 96|objs 12438|pk q 0 async true cookPend 0 cookAll false allDone true waiting 0 pend 0|settled false"
+     ],
+     [
+      16006,
+      "0|||||0|loading|settle|fill busy false q 0 live 264 base 264 fill 96|objs 12438|pk q 0 async true cookPend 0 cookAll false allDone true waiting 0 pend 0|settled false"
+     ],
+     [
+      16416,
+      "0|||||0|loading|settle|fill busy false q 0 live 264 base 264 fill 96|objs 12439|pk q 0 async true cookPend 0 cookAll false allDone true waiting 0 pend 0|settled false"
+     ],
+     [
+      16917,
+      "0|||||0|loading|settle|fill busy false q 0 live 264 base 264 fill 96|objs 12440|pk q 0 async true cookPend 0 cookAll false allDone true waiting 0 pend 0|settled false"
+     ],
+     [
+      20408,
+      "0|||||0|loading|settle|fill busy false q 0 live 264 base 264 fill 96|objs 12441|pk q 0 async true cookPend 0 cookAll false allDone true waiting 0 pend 0|settled false"
+     ],
+     [
+      31584,
+      "0|||||0|gone|settle|fill busy false q 0 live 264 base 264 fill 96|objs 12441|pk q 0 async false cookPend 0 cookAll false allDone true waiting 0 pend 0|settled false"
+     ],
+     [
+      31778,
+      "0|||||0|gone|settle|fill busy false q 0 live 264 base 264 fill 96|objs 12457|pk q 0 async false cookPend 0 cookAll false allDone true waiting 0 pend 0|settled false"
+     ],
+     [
+      33707,
+      "0|||||0|gone|settle|fill busy false q 0 live 264 base 264 fill 96|objs 12456|pk q 0 async false cookPend 0 cookAll false allDone true waiting 0 pend 0|settled false"
+     ],
+     [
+      34480,
+      "0|||||0|loading|board|fill busy false q 0 live 264 base 264 fill 96|objs 12456|pk q 0 async false cookPend 0 cookAll false allDone true waiting 0 pend 0|settled false"
+     ],
+     [
+      34563,
+      "0|||||0|gone||fill busy false q 0 live 264 base 264 fill 96|objs 12456|pk q 0 async false cookPend 0 cookAll false allDone true waiting 0 pend 0|settled false"
+     ]
+    ]
+   },
+   "bootLog": [
+    {
+     "k": "note",
+     "t": 90332,
+     "text": ""
+    },
+    {
+     "k": "show",
+     "t": 90332,
+     "set": "garage"
+    },
+    {
+     "k": "run",
+     "t": 90332,
+     "set": "garage",
+     "steps": 3
+    },
+    {
+     "k": "step",
+     "t": 90333,
+     "id": "shed",
+     "ms": 7
+    },
+    {
+     "k": "frame1",
+     "t": 90393
+    },
+    {
+     "k": "step",
+     "t": 90394,
+     "id": "board",
+     "ms": 3
+    },
+    {
+     "k": "step",
+     "t": 90443,
+     "id": "frames",
+     "ms": 49
+    },
+    {
+     "k": "landing",
+     "t": 90498
+    },
+    {
+     "k": "ready",
+     "t": 90521
+    },
+    {
+     "k": "gone",
+     "t": 90521
+    }
+   ],
+   "why": [
+    {
+     "id": "shed"
+    },
+    {
+     "id": "board"
+    },
+    {
+     "id": "frames"
+    }
+   ]
+  }
+ ],
+ "scenes": [],
+ "load": 40.3,
+ "bootInfo": {
+  "pace": true,
+  "hooked": true,
+  "fr": 51,
+  "state": {
+   "mode": "auto",
+   "cap": 60,
+   "legacy": false,
+   "steps": 1,
+   "dt": 0.016700000000004364,
+   "stats": {
+    "down": 0,
+    "up": 0,
+    "trialsFailed": 0,
+    "guarded": 0,
+    "cut": 0
+   },
+   "holdUpS": 0,
+   "dilation": 0.8250036096914252,
+   "stepMs": 0,
+   "otherMs": 33.086922454351225,
+   "droppedS": 0,
+   "workMs": 0,
+   "rateFps": 0,
+   "trials": 0,
+   "simw": false
+  },
+  "trips": [
+   "boot: world town parking trees ring settle snapshot bake spec images upload worldCompile frames craft"
+  ],
+  "boot": [
+   [
+    "step",
+    "treeBins",
+    2292,
+    1
+   ],
+   [
+    "step",
+    "aircraft",
+    2314,
+    683
+   ],
+   [
+    "step",
+    "garage",
+    3004,
+    544
+   ],
+   [
+    "step",
+    "editor",
+    3566,
+    92
+   ],
+   [
+    "step",
+    "seed",
+    3770,
+    1194
+   ],
+   [
+    "step",
+    "world",
+    5063,
+    7002
+   ],
+   [
+    "step",
+    "town",
+    12448,
+    7381
+   ],
+   [
+    "step",
+    "parking",
+    19834,
+    245
+   ],
+   [
+    "step",
+    "trees",
+    20083,
+    0
+   ],
+   [
+    "step",
+    "ring",
+    20088,
+    785
+   ],
+   [
+    "step",
+    "settle",
+    20877,
+    10644
+   ],
+   [
+    "step",
+    "parked",
+    31526,
+    0
+   ],
+   [
+    "step",
+    "snapshot",
+    31531,
+    1005
+   ],
+   [
+    "step",
+    "bake",
+    32602,
+    979
+   ],
+   [
+    "step",
+    "spec",
+    33582,
+    306
+   ],
+   [
+    "step",
+    "restore",
+    34063,
+    9
+   ],
+   [
+    "step",
+    "images",
+    34186,
+    93
+   ],
+   [
+    "step",
+    "upload",
+    34396,
+    1228
+   ],
+   [
+    "step",
+    "worldCompile",
+    35630,
+    150
+   ],
+   [
+    "step",
+    "compile",
+    35785,
+    2314
+   ],
+   [
+    "step",
+    "firstFrame",
+    38104,
+    229
+   ],
+   [
+    "step",
+    "frames",
+    38386,
+    1610
+   ],
+   [
+    "step",
+    "craft",
+    40034,
+    65
+   ],
+   [
+    "step",
+    "recheck",
+    40128,
+    4
+   ],
+   [
+    "gone",
+    "",
+    40230,
+    null
+   ]
+  ],
+  "fr3": 207
+ },
+ "bootSettle": {
+  "n": 1108,
+  "ms": 10644,
+  "rest": true,
+  "near": 0,
+  "fill": {
+   "live": 247,
+   "base": 247,
+   "fill": 84,
+   "queued": 0,
+   "busy": false,
+   "budgetMs": 4,
+   "trees": 454057,
+   "gens": 331
+  }
+ },
+ "exceptions": []
+}

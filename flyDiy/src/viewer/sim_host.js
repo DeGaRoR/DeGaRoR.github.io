@@ -185,6 +185,15 @@ function simHostFetchBoot(base, name, opts) {
 // plain data, for a structured clone: numbers, strings, booleans, arrays and
 // objects to `depth`, small typed arrays copied; functions, getters and the
 // `skip` keys dropped
+// G1180: a float's wet panels, flat - SIM_HOST_PANEL numbers each: index, wet, A, then c, n, Fp, Fm (3 each)
+const SIM_HOST_PANEL = 15;
+function simHostPanels(per) {
+  let n = 0; for (const o of per) if (o.wet) n++;
+  const f = new Float64Array(n * SIM_HOST_PANEL); let j = 0;
+  per.forEach((o, i) => { if (!o.wet) return; f[j++] = i; f[j++] = o.wet; f[j++] = o.A;
+    for (const v of [o.c, o.n, o.Fp, o.Fm]) { f[j++] = v[0]; f[j++] = v[1]; f[j++] = v[2]; } });
+  return f;
+}
 function simHostPlain(o, depth, skip) {
   if (o === null || typeof o !== 'object') return typeof o === 'function' ? undefined : o;
   if (ArrayBuffer.isView(o)) return o.length <= 64 ? Array.from(o) : undefined;
@@ -552,7 +561,11 @@ function makeSimHost(CORE, init, keptWorld) {
       out: simHostPlain(sim.out, 3, ['hydro']),
       eng: simHostPlain(sim.eng, 3),
       fuel: simHostPlain(sim.fuel, 3),
-      hydro: HY ? { wet: HY.wet, tick: HY.tick, floats: HY.floats.map(fx => ({ side: fx.side, wet: fx.wet, out: simHostPlain(fx.out, 2), lam: fx.lam.slice() })) } : null,
+      // G1180 (LOC-SWITCH): a float's tables of vectors (W, dq, per) do not survive the plain copy at depth 2 - they
+      // came over as arrays of undefined and the page's spray threw on every frame under the worker (the water taxi
+      // drew nothing for 16 s). They stay here: the page refills W from the mirrored nodes (ctx.fill), and gets the
+      // WET panels the spray reads, flat (simHostPanels)
+      hydro: HY ? { wet: HY.wet, tick: HY.tick, floats: HY.floats.map(fx => ({ side: fx.side, wet: fx.wet, out: simHostPlain(fx.out, 2, ['W', 'dq', 'per', 'd']), per: simHostPanels(fx.out.per), lam: fx.lam.slice() })) } : null,
       wheels: sim.wheelContacts ? sim.wheelContacts() : null,
       ctl: simHostPlain(sim.ctl, 3),
       ap: A, apNew,

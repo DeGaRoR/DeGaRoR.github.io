@@ -1,0 +1,281 @@
+{
+ "label": "before_cub",
+ "build": "cub",
+ "trips": [
+  {
+   "name": "garage -> world (first)",
+   "kind": "rollout",
+   "pressed": "bGo",
+   "ms": 9103,
+   "wall": 9.3,
+   "ran": [],
+   "anim": "played",
+   "steps": [],
+   "frames": 530,
+   "worstFrame": 284,
+   "screenMs": 0,
+   "screens": [
+    [
+     72671,
+     "gone",
+     true
+    ],
+    [
+     73087,
+     "gone",
+     false
+    ]
+   ],
+   "tasks200": 1,
+   "tasks1s": 0,
+   "worstTask": 252,
+   "links": {
+    "n": 1,
+    "pending": 0,
+    "sumS": 0,
+    "worstS": 0,
+    "over5s": 0
+   }
+  },
+  {
+   "name": "world -> garage",
+   "kind": "rollin",
+   "pressed": "ok",
+   "ms": 308,
+   "wall": 0.4,
+   "ran": [
+    "shed",
+    "board",
+    "frames"
+   ],
+   "anim": null,
+   "steps": [
+    "shed 0.1 s",
+    "board 0.0 s",
+    "frames 0.1 s"
+   ],
+   "frames": 6,
+   "worstFrame": 150,
+   "screenMs": 172,
+   "screens": [
+    [
+     85061,
+     "loading",
+     true
+    ],
+    [
+     85233,
+     "gone",
+     true
+    ]
+   ],
+   "tasks200": 0,
+   "tasks1s": 0,
+   "worstTask": 73,
+   "links": {
+    "n": 9,
+    "pending": 3,
+    "sumS": 0.4,
+    "worstS": 0.1,
+    "over5s": 0
+   }
+  },
+  {
+   "name": "garage -> world @w3",
+   "kind": "rollout",
+   "pressed": "edRoll",
+   "ms": 30997,
+   "wall": 31.3,
+   "ran": [
+    "town",
+    "parking",
+    "ring",
+    "settle"
+   ],
+   "anim": "played",
+   "steps": [
+    "town 0.0 s",
+    "parking 0.0 s",
+    "ring 0.1 s",
+    "settle ?"
+   ],
+   "frames": 535,
+   "worstFrame": 22159,
+   "screenMs": 22310,
+   "screens": [
+    [
+     85687,
+     "gone",
+     false
+    ],
+    [
+     94405,
+     "loading",
+     true
+    ],
+    [
+     116715,
+     "gone",
+     true
+    ]
+   ],
+   "tasks200": 1,
+   "tasks1s": 0,
+   "worstTask": 252,
+   "links": {
+    "n": 7,
+    "pending": 0,
+    "sumS": 3,
+    "worstS": 0.7,
+    "over5s": 0
+   }
+  },
+  {
+   "name": "world -> garage @w3",
+   "kind": "rollin",
+   "pressed": "ok",
+   "ms": 195,
+   "wall": 0.3,
+   "ran": [
+    "shed",
+    "board",
+    "frames"
+   ],
+   "anim": null,
+   "steps": [
+    "shed 0.0 s",
+    "board 0.0 s",
+    "frames 0.0 s"
+   ],
+   "frames": 6,
+   "worstFrame": 67,
+   "screenMs": 82,
+   "screens": [
+    [
+     119827,
+     "loading",
+     true
+    ],
+    [
+     119909,
+     "gone",
+     true
+    ]
+   ],
+   "tasks200": 0,
+   "tasks1s": 0,
+   "worstTask": 56,
+   "links": {
+    "n": 4,
+    "pending": 3,
+    "sumS": 0.1,
+    "worstS": 0.1,
+    "over5s": 0
+   }
+  },
+  {
+   "name": "garage -> world @mn_strip",
+   "kind": "rollout",
+   "pressed": "edRoll",
+   "ms": 24148,
+   "wall": 24.4,
+   "ran": [
+    "town",
+    "parking",
+    "ring",
+    "settle",
+    "images",
+    "upload",
+    "worldCompile",
+    "frames"
+   ],
+   "anim": "played",
+   "steps": [
+    "town 4.3 s",
+    "parking 0.0 s",
+    "ring 0.6 s",
+    "settle 9.4 s",
+    "images 0.0 s",
+    "upload 0.1 s",
+    "worldCompile 0.4 s",
+    "frames 0.2 s"
+   ],
+   "frames": 541,
+   "worstFrame": 15156,
+   "screenMs": 15253,
+   "screens": [
+    [
+     120385,
+     "gone",
+     false
+    ],
+    [
+     129023,
+     "loading",
+     true
+    ],
+    [
+     144276,
+     "gone",
+     true
+    ]
+   ],
+   "tasks200": 0,
+   "tasks1s": 0,
+   "worstTask": 177,
+   "links": {
+    "n": 13,
+    "pending": 0,
+    "sumS": 1.7,
+    "worstS": 0.4,
+    "over5s": 0
+   }
+  },
+  {
+   "name": "world -> garage @mn_strip",
+   "kind": "rollin",
+   "pressed": "ok",
+   "ms": 265,
+   "wall": 0.5,
+   "ran": [
+    "shed",
+    "board",
+    "frames"
+   ],
+   "anim": null,
+   "steps": [
+    "shed 0.1 s",
+    "board 0.0 s",
+    "frames 0.1 s"
+   ],
+   "frames": 15,
+   "worstFrame": 100,
+   "screenMs": 132,
+   "screens": [
+    [
+     147631,
+     "loading",
+     true
+    ],
+    [
+     147763,
+     "gone",
+     true
+    ]
+   ],
+   "tasks200": 0,
+   "tasks1s": 0,
+   "worstTask": 69,
+   "links": {
+    "n": 5,
+    "pending": 3,
+    "sumS": 0,
+    "worstS": 0,
+    "over5s": 0
+   }
+  }
+ ],
+ "scenes": [],
+ "load": 72.6,
+ "exceptions": []
+}

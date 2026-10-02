@@ -1,0 +1,608 @@
+{
+ "label": "after_cub",
+ "build": "cub",
+ "trips": [
+  {
+   "name": "garage -> world (first)",
+   "kind": "rollout",
+   "pressed": "bGo",
+   "ms": 9097,
+   "wall": 9.2,
+   "ran": [],
+   "anim": "played",
+   "steps": [],
+   "frames": 413,
+   "worstFrame": 283,
+   "screenMs": 0,
+   "screens": [],
+   "tasks200": 1,
+   "tasks1s": 0,
+   "worstTask": 267,
+   "links": {
+    "n": 1,
+    "pending": 0,
+    "sumS": 0,
+    "worstS": 0,
+    "over5s": 0
+   },
+   "why": []
+  },
+  {
+   "name": "world -> garage",
+   "kind": "rollin",
+   "pressed": "ok",
+   "ms": 275,
+   "wall": 0.5,
+   "ran": [
+    "shed",
+    "board",
+    "frames"
+   ],
+   "anim": null,
+   "steps": [
+    "shed 0.1 s",
+    "board 0.0 s",
+    "frames 0.0 s"
+   ],
+   "frames": 10,
+   "worstFrame": 150,
+   "screenMs": 118,
+   "screens": [
+    [
+     87004,
+     "loading",
+     true
+    ],
+    [
+     87122,
+     "gone",
+     true
+    ]
+   ],
+   "tasks200": 0,
+   "tasks1s": 0,
+   "worstTask": 70,
+   "links": {
+    "n": 10,
+    "pending": 3,
+    "sumS": 0.4,
+    "worstS": 0.1,
+    "over5s": 0
+   },
+   "why": [
+    {
+     "id": "shed"
+    },
+    {
+     "id": "board"
+    },
+    {
+     "id": "frames"
+    }
+   ]
+  },
+  {
+   "name": "garage -> world @w3",
+   "kind": "rollout",
+   "pressed": "edRoll",
+   "ms": 15096,
+   "wall": 15.4,
+   "ran": [
+    "town",
+    "parking",
+    "ring",
+    "settle",
+    "images",
+    "upload",
+    "worldCompile",
+    "frames"
+   ],
+   "anim": "played",
+   "steps": [
+    "town 0.0 s",
+    "parking 0.0 s",
+    "ring 0.4 s",
+    "settle 4.9 s",
+    "images 0.0 s",
+    "upload 0.1 s",
+    "worldCompile 0.4 s",
+    "frames 0.2 s"
+   ],
+   "frames": 538,
+   "worstFrame": 6102,
+   "screenMs": 6361,
+   "screens": [
+    [
+     87560,
+     "gone",
+     false
+    ],
+    [
+     96381,
+     "loading",
+     true
+    ],
+    [
+     102742,
+     "gone",
+     true
+    ]
+   ],
+   "tasks200": 1,
+   "tasks1s": 0,
+   "worstTask": 204,
+   "links": {
+    "n": 15,
+    "pending": 0,
+    "sumS": 3.6,
+    "worstS": 0.6,
+    "over5s": 0
+   },
+   "why": [
+    {
+     "id": "town",
+     "why": "key",
+     "diff": {
+      "was": "at -154,712",
+      "now": "at -681,-2381"
+     }
+    },
+    {
+     "id": "parking",
+     "why": "key",
+     "diff": {
+      "was": "at -154,712",
+      "now": "at -681,-2381"
+     }
+    },
+    {
+     "id": "ring",
+     "why": "key",
+     "diff": {
+      "was": "at -154,712",
+      "now": "at -681,-2381"
+     }
+    },
+    {
+     "id": "settle",
+     "why": "key",
+     "diff": {
+      "was": "at -154,712",
+      "now": "at -681,-2381"
+     }
+    },
+    {
+     "id": "images",
+     "why": "dep town"
+    },
+    {
+     "id": "upload",
+     "why": "dep town"
+    },
+    {
+     "id": "worldCompile",
+     "why": "dep town"
+    },
+    {
+     "id": "frames",
+     "why": "dep town"
+    }
+   ]
+  },
+  {
+   "name": "world -> garage @w3",
+   "kind": "rollin",
+   "pressed": "ok",
+   "ms": 220,
+   "wall": 0.4,
+   "ran": [
+    "shed",
+    "board",
+    "frames"
+   ],
+   "anim": null,
+   "steps": [
+    "shed 0.0 s",
+    "board 0.0 s",
+    "frames 0.1 s"
+   ],
+   "frames": 11,
+   "worstFrame": 67,
+   "screenMs": 138,
+   "screens": [
+    [
+     105896,
+     "loading",
+     true
+    ],
+    [
+     106034,
+     "gone",
+     true
+    ]
+   ],
+   "tasks200": 0,
+   "tasks1s": 0,
+   "worstTask": 54,
+   "links": {
+    "n": 5,
+    "pending": 3,
+    "sumS": 0,
+    "worstS": 0,
+    "over5s": 0
+   },
+   "why": [
+    {
+     "id": "shed"
+    },
+    {
+     "id": "board"
+    },
+    {
+     "id": "frames"
+    }
+   ]
+  },
+  {
+   "name": "garage -> world @mn_strip",
+   "kind": "rollout",
+   "pressed": "edRoll",
+   "ms": 23210,
+   "wall": 23.4,
+   "ran": [
+    "town",
+    "parking",
+    "ring",
+    "settle",
+    "images",
+    "upload",
+    "worldCompile",
+    "frames"
+   ],
+   "anim": "played",
+   "steps": [
+    "town 3.6 s",
+    "parking 0.0 s",
+    "ring 0.3 s",
+    "settle 9.7 s",
+    "images 0.0 s",
+    "upload 0.1 s",
+    "worldCompile 0.2 s",
+    "frames 0.2 s"
+   ],
+   "frames": 537,
+   "worstFrame": 14222,
+   "screenMs": 14339,
+   "screens": [
+    [
+     106466,
+     "gone",
+     false
+    ],
+    [
+     115342,
+     "loading",
+     true
+    ],
+    [
+     129681,
+     "gone",
+     true
+    ]
+   ],
+   "tasks200": 0,
+   "tasks1s": 0,
+   "worstTask": 115,
+   "links": {
+    "n": 7,
+    "pending": 0,
+    "sumS": 0.9,
+    "worstS": 0.3,
+    "over5s": 0
+   },
+   "why": [
+    {
+     "id": "town",
+     "why": "key",
+     "diff": {
+      "was": "at -681,-2381",
+      "now": "at 7282,-15320"
+     }
+    },
+    {
+     "id": "parking",
+     "why": "key",
+     "diff": {
+      "was": "at -681,-2381",
+      "now": "at 7282,-15320"
+     }
+    },
+    {
+     "id": "ring",
+     "why": "no key"
+    },
+    {
+     "id": "settle",
+     "why": "key",
+     "diff": {
+      "was": "at -681,-2381",
+      "now": "at 7282,-15320"
+     }
+    },
+    {
+     "id": "images",
+     "why": "dep town"
+    },
+    {
+     "id": "upload",
+     "why": "dep town"
+    },
+    {
+     "id": "worldCompile",
+     "why": "dep town"
+    },
+    {
+     "id": "frames",
+     "why": "dep town"
+    }
+   ]
+  },
+  {
+   "name": "world -> garage @mn_strip",
+   "kind": "rollin",
+   "pressed": "ok",
+   "ms": 262,
+   "wall": 0.3,
+   "ran": [
+    "shed",
+    "board",
+    "frames"
+   ],
+   "anim": null,
+   "steps": [
+    "shed 0.1 s",
+    "board 0.0 s",
+    "frames 0.1 s"
+   ],
+   "frames": 6,
+   "worstFrame": 117,
+   "screenMs": 151,
+   "screens": [
+    [
+     132783,
+     "loading",
+     true
+    ],
+    [
+     132934,
+     "gone",
+     true
+    ]
+   ],
+   "tasks200": 0,
+   "tasks1s": 0,
+   "worstTask": 72,
+   "links": {
+    "n": 4,
+    "pending": 3,
+    "sumS": 0,
+    "worstS": 0,
+    "over5s": 0
+   },
+   "why": [
+    {
+     "id": "shed"
+    },
+    {
+     "id": "board"
+    },
+    {
+     "id": "frames"
+    }
+   ]
+  }
+ ],
+ "scenes": [],
+ "load": 71.6,
+ "bootInfo": {
+  "pace": true,
+  "hooked": true,
+  "fr": 39,
+  "state": {
+   "mode": "auto",
+   "cap": 60,
+   "legacy": false,
+   "steps": 2,
+   "dt": 0.03340000000000873,
+   "stats": {
+    "down": 0,
+    "up": 0,
+    "trialsFailed": 0,
+    "guarded": 0,
+    "cut": 0
+   },
+   "holdUpS": 0,
+   "dilation": 0.8580664127231074,
+   "stepMs": 0,
+   "otherMs": 33.12368574668393,
+   "droppedS": 0,
+   "workMs": 0,
+   "rateFps": 0,
+   "trials": 0,
+   "simw": false
+  },
+  "trips": [
+   "boot: world town parking trees ring settle snapshot bake spec images upload worldCompile frames craft"
+  ],
+  "boot": [
+   [
+    "step",
+    "treeBins",
+    2929,
+    2
+   ],
+   [
+    "step",
+    "aircraft",
+    2957,
+    1117
+   ],
+   [
+    "step",
+    "garage",
+    4084,
+    638
+   ],
+   [
+    "step",
+    "editor",
+    4746,
+    76
+   ],
+   [
+    "step",
+    "seed",
+    4927,
+    1134
+   ],
+   [
+    "step",
+    "world",
+    6542,
+    8404
+   ],
+   [
+    "step",
+    "town",
+    15427,
+    9376
+   ],
+   [
+    "step",
+    "parking",
+    24807,
+    212
+   ],
+   [
+    "step",
+    "trees",
+    25024,
+    0
+   ],
+   [
+    "step",
+    "ring",
+    25031,
+    1222
+   ],
+   [
+    "step",
+    "settle",
+    26258,
+    12156
+   ],
+   [
+    "step",
+    "parked",
+    38418,
+    0
+   ],
+   [
+    "step",
+    "snapshot",
+    38422,
+    1153
+   ],
+   [
+    "step",
+    "bake",
+    40032,
+    7246
+   ],
+   [
+    "step",
+    "spec",
+    47283,
+    995
+   ],
+   [
+    "step",
+    "restore",
+    48868,
+    13
+   ],
+   [
+    "step",
+    "images",
+    48950,
+    75
+   ],
+   [
+    "step",
+    "upload",
+    49089,
+    3647
+   ],
+   [
+    "step",
+    "worldCompile",
+    52756,
+    15450
+   ],
+   [
+    "step",
+    "compile",
+    68212,
+    933
+   ],
+   [
+    "step",
+    "firstFrame",
+    69149,
+    372
+   ],
+   [
+    "step",
+    "frames",
+    69550,
+    1371
+   ],
+   [
+    "step",
+    "craft",
+    70966,
+    386
+   ],
+   [
+    "step",
+    "recheck",
+    71425,
+    5
+   ],
+   [
+    "gone",
+    "",
+    71539,
+    null
+   ]
+  ],
+  "fr3": 183
+ },
+ "bootSettle": {
+  "n": 1062,
+  "ms": 12155,
+  "rest": true,
+  "near": 0,
+  "fill": {
+   "live": 247,
+   "base": 247,
+   "fill": 84,
+   "queued": 0,
+   "busy": false,
+   "budgetMs": 4,
+   "trees": 454057,
+   "gens": 331
+  }
+ },
+ "exceptions": []
+}

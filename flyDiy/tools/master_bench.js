@@ -129,8 +129,12 @@ function plan(places) {
 
 // ---- frame and task statistics ----------------------------------------------------------------------------------------
 // fr rows: [now, dt, cap, Vg, agl, onG]; lt rows: [start, duration]
-function stat(fr, lt, t0, t1) {
-  const f = fr.filter(r => r[0] > t0 && r[0] <= t1 && r[1] > 0);
+// G1180 (LOC-SWITCH): sc - the loading screens' spans [from, to] (the page's own BOOT, sampled): the loop draws nothing
+// under a screen (holdRender), so the interval that spans one is the SCREEN, not a frame - a roll-out's 22 s screen
+// read as "a 22 s frame". Those intervals leave the frame statistics; the screen's seconds are reported apart (screenS)
+function stat(fr, lt, t0, t1, sc) {
+  const under = r => (sc || []).some(w => w[0] < r[0] && (w[1] == null ? Infinity : w[1]) > r[0] - r[1]);
+  const f = fr.filter(r => r[0] > t0 && r[0] <= t1 && r[1] > 0 && !under(r));
   if (f.length < 5) return null;
   const d = f.map(r => r[1]), s = d.slice().sort((a, b) => a - b), q = p => s[Math.min(s.length - 1, Math.floor(s.length * p))];
   let n = 0, ch = 0, prev = null;
@@ -139,7 +143,8 @@ function stat(fr, lt, t0, t1) {
   return { frames: f.length, fps: +(1000 * f.length / (t1 - t0)).toFixed(1), uneven: n ? +(ch / n).toFixed(3) : null,
     p50: +q(0.5).toFixed(1), p99: +q(0.99).toFixed(1), worst: +s[s.length - 1].toFixed(1), over100: d.filter(x => x > 100).length,
     cap30: +(f.filter(r => r[2] === 30).length / f.length).toFixed(2), tasks200: tasks.filter(x => x >= 200).length, tasks1s: tasks.filter(x => x >= 1000).length,
-    taskWorst: tasks.length ? Math.max(...tasks) : 0, onGround: +(f.filter(r => r[5] > 0).length / f.length).toFixed(2) };
+    taskWorst: tasks.length ? Math.max(...tasks) : 0, onGround: +(f.filter(r => r[5] > 0).length / f.length).toFixed(2),
+    screenS: +((sc || []).reduce((a, w) => a + Math.max(0, Math.min(t1, w[1] == null ? t1 : w[1]) - Math.max(t0, w[0])), 0) / 1000).toFixed(1) };
 }
 
 // ---- what the page is given before its first script --------------------------------------------------------------------
@@ -163,13 +168,16 @@ function preScript(build, gfx, patch) {
         if (R.fr.length > 200000) R.fr.splice(0, 50000);
         return end(workMs, physMs, steps, now); }; };
     hook();
+    // G1180: the loading screens' spans (BOOT.state other than 'gone'), every 50 ms: [from, to] (to null: still up)
+    R.sc = []; setInterval(function () { var up = !!(window.BOOT && BOOT.state && BOOT.state !== 'gone'), L = R.sc[R.sc.length - 1], t = Math.round(performance.now());
+      if (up && !(L && L[1] == null)) R.sc.push([t, null]); else if (!up && L && L[1] == null) L[1] = t; }, 50);
     // G1177: EVERY PROGRAM LINK TIMED (progtime_hook's way: linkProgram issued, KHR_parallel_shader_compile's COMPLETION_STATUS
     // polled - never blocks). A warm load whose links run to seconds is a program cache that did not hit (train 21's
     // ratchet: a full GPU disk cache read as a 13 s worldCompile on every run), and the report says so per load
     R.ln = []; var P2 = WebGL2RenderingContext.prototype, lk = P2.linkProgram, pend = [], gl0 = null;
-    P2.linkProgram = function (p) { gl0 = this; var e = [performance.now(), -1, p]; R.ln.push(e); pend.push(e); return lk.apply(this, arguments); };
+    P2.linkProgram = function (p) { gl0 = this; var e = [performance.now(), -1, p, this]; R.ln.push(e); pend.push(e);   /* G1180: e[3], its own context - a bake renderer links too */ return lk.apply(this, arguments); };
     var poll = function () { if (gl0 && pend.length) { var t = performance.now(), keep = [];
-      for (var i = 0; i < pend.length; i++) { var e = pend[i], ok = true; try { ok = gl0.getProgramParameter(e[2], 0x91B1); } catch (x) {} if (ok) { e[1] = t - e[0]; e[2] = null; } else keep.push(e); }
+      for (var i = 0; i < pend.length; i++) { var e = pend[i], ok = true; try { ok = e[3].getProgramParameter(e[2], 0x91B1); } catch (x) {} if (ok) { e[1] = t - e[0]; e[2] = e[3] = null; } else keep.push(e); }
       pend = keep; } setTimeout(poll, 25); };
     poll(); })();`);
   return L.join('\n');
@@ -221,7 +229,7 @@ async function browser(udd) {
   const ws = new WebSocket(tgt.webSocketDebuggerUrl); await new Promise(r => ws.onopen = r);
   let id = 0; const waits = new Map(), exc = [];
   ws.onmessage = e => { const m = JSON.parse(e.data); if (m.id && waits.has(m.id)) { waits.get(m.id)(m); waits.delete(m.id); }
-    if (m.method === 'Runtime.exceptionThrown') exc.push((m.params.exceptionDetails.exception && m.params.exceptionDetails.exception.description || m.params.exceptionDetails.text || '').split('\n')[0]); };
+    if (m.method === 'Runtime.exceptionThrown') exc.push((m.params.exceptionDetails.exception && m.params.exceptionDetails.exception.description || m.params.exceptionDetails.text || '').split('\n').slice(0, process.env.MB_STACK ? 6 : 1).join(' | ')); };   // (G1180: MB_STACK=1 keeps the stack's head)
   const cmd = (method, params) => new Promise(r => { const i = ++id; waits.set(i, r); ws.send(JSON.stringify({ id: i, method, params: params || {} })); });
   const ev = async (expr, ms) => {
     const p = cmd('Runtime.evaluate', { expression: expr, awaitPromise: true, returnByValue: true });
@@ -275,15 +283,15 @@ async function sweep() {
   // a page-session helper: scenes and trips on the open page
   const session = (b, label) => {
     const now = () => b.ev('performance.now()');
-    const pull = async () => JSON.parse(await b.ev('JSON.stringify({ fr: __MB.fr.slice(-30000), lt: __MB.lt })', 20000));
-    const scene = async (build, name, sec, extra) => { const t0 = await now(); await sleep(sec * 1000); const t1 = await now(); const d = await pull(); const st = stat(d.fr, d.lt, t0, t1);
+    const pull = async () => JSON.parse(await b.ev('JSON.stringify({ fr: __MB.fr.slice(-30000), lt: __MB.lt, sc: __MB.sc || [] })', 20000));
+    const scene = async (build, name, sec, extra) => { const t0 = await now(); await sleep(sec * 1000); const t1 = await now(); const d = await pull(); const st = stat(d.fr, d.lt, t0, t1, d.sc);
       const row = Object.assign({ build, scene: name, sec }, st || { frames: 0 }, extra || {}); R.scenes.push(row);
       log(name.padEnd(28) + ' ' + (st ? st.fps + ' fps, uneven ' + (100 * st.uneven).toFixed(0) + ' %, p99 ' + st.p99 + ', worst ' + st.worst + ' ms, tasks>=200 ' + st.tasks200 : 'no frames')); return row; };
     const trip = async (build, name, kind, action, extra) => {
       const n0 = await b.ev(A.trips), t0 = await now(), w0 = Date.now(); const pressed = await b.ev(action);
       let d = null; const tEnd = Date.now() + 300000;
       while (Date.now() < tEnd) { d = JSON.parse(await b.ev(A.lastTrip, 30000)); if (d.n > n0 && d.kind === kind && d.done && d.boot === 'gone') break; d = null; await sleep(150); }
-      const t1 = await now(); const fr = await pull(); const st = stat(fr.fr, fr.lt, t0, t1);
+      const t1 = await now(); const fr = await pull(); const st = stat(fr.fr, fr.lt, t0, t1, fr.sc);
       const row = Object.assign({ build, load: name, kind, pressed, tripMs: d ? d.ms : null, wallSec: +((Date.now() - w0) / 1000).toFixed(1), ran: d ? d.ran : null, anim: d ? d.anim : null,
         frames: st, links: await b.links(t0, t1) }, extra || {}); R.loads.push(row);
       log(name.padEnd(28) + ' ' + (d ? (d.ms / 1000).toFixed(1) + ' s (wall ' + row.wallSec + ' s) ran [' + d.ran.join(' ') + ']' : 'NOT DONE (' + pressed + ')')); return row; };
@@ -360,6 +368,8 @@ async function sweep() {
     const B = BUILDS[wk]; log('== ' + B.label + ' (warm)');
     const l = await b.load(BASE, preScript(B.build, null, B.patch));
     await loadRow(b, wk, 'warm: navigation -> garage', l, true);
+    // G1180: the places from this page when no land build listed them (--builds none: the water alone had no low pass)
+    if (!places) { places = JSON.parse(await b.ev('(async () => { for (let i = 0; i < 100 && !(window.FLIGHT_PROBE && FLIGHT_PROBE.world && FLIGHT_PROBE.world()); i++) await new Promise(r => setTimeout(r, 100)); return ' + A.places + '; })()')); R.meta.places = places; }
     await S.trip(wk, 'garage -> world (the SEA lane)', 'rollout', A.rollOut); await S.flying();
     await b.ev(A.cam('chase')); await S.scene(wk, 'water taxi @SEA', SECS.water);
     for (const p of (places || []).filter(q => q.kind === 'water')) {
@@ -408,7 +418,7 @@ function table(R) {
   L.push('', 'LOADS (s)');
   if (R.profile) L.push('  profile ' + R.profile.udd + (R.profile.fresh ? ' (fresh, warmed once)' : ' (reused)') + ' · GPU cache ' + (R.profile.cache || []).map(c => c.at + ' ' + c.cache.gpuCache + ' MB').join(', '));
   for (const l of R.loads) L.push('  ' + (l.build + ' ').padEnd(8) + (l.load || '').padEnd(42) + ' ' + f(l.sec != null ? l.sec : l.tripMs != null ? (l.tripMs / 1000).toFixed(1) : null).padStart(7)
-    + (l.wallSec != null ? '  (wall ' + l.wallSec + ')' : '') + (l.frames ? '  frames ' + l.frames.fps + ' fps, worst ' + l.frames.worst + ' ms' : '')
+    + (l.wallSec != null ? '  (wall ' + l.wallSec + ')' : '') + (l.frames ? (l.frames.screenS ? '  screen ' + l.frames.screenS + ' s' : '') + '  frames ' + l.frames.fps + ' fps, worst ' + l.frames.worst + ' ms, task ' + l.frames.taskWorst + ' ms' : '')
     + (l.links ? '  links ' + l.links.n + ' (worst ' + l.links.worstS + ' s' + (l.links.over5s ? ', ' + l.links.over5s + ' > 5 s' : '') + ')' : '') + (l.cacheVerdict ? '  cache: ' + l.cacheVerdict : ''));
   L.push('', 'SCENES  build | scene | fps delivered | uneven | p50 / p99 / worst ms | >100 ms | at 30 cap | tasks >=200 ms / >=1 s (worst)');
   for (const s of R.scenes) L.push('  ' + (s.build + ' ').padEnd(18) + (s.scene + ' ').padEnd(26) + f(s.fps).padStart(6) + '  ' + (s.uneven == null ? '-' : (100 * s.uneven).toFixed(0) + ' %').padStart(5)
@@ -440,4 +450,4 @@ if (require.main === module) (async () => {
   process.exit(0);
 })().catch(e => { console.error('master_bench: ' + (e && e.stack || e)); process.exit(1); });
 
-module.exports = { stat, plan, compare, table, A, BASELINES };
+module.exports = { stat, plan, compare, table, A, BASELINES, BUILDS, browser, preScript, serve, serveRoot, cacheMB };

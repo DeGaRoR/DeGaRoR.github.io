@@ -2901,7 +2901,17 @@ function make(THREE, scene, world, rec0, opts) {
     return n;
   }
   // a promise that settles when the worker next answers (the town step waits on it rather than spinning)
-  const hwWait = () => (HWQ.order.length && !HWQ.arrived.has(HWQ.order[0]) && hwOn() ? HWK.next() : null);
+  // G1180 (LOC-SWITCH): ...ONLY FOR AN ANSWER THAT IS OWED. The head may be an entry the page builds itself (an obstacle,
+  // a hangar's shell after a miss: never sent, never answered) - waited on, the worker's last message was already in
+  // and the wait never woke: the roll-out's 'settle' hung to the screen's watchdog (w3: 22 s, the step and every step
+  // after it lost), and a float build's ONE LOADING died at 'settle' (the loop never started: no frame in the game)
+  const hwWait = () => {
+    if (!HWQ.order.length || !hwOn()) return null;
+    const j = HWQ.jobs.get(HWQ.order[0]);
+    if (!j || !j.remote || HWQ.arrived.has(HWQ.order[0])) return null;   // (placed here, or arrived: no wait)
+    if (!j.sent) hwPump();
+    return HWK.next();
+  };
   // THE PREFETCH (G831): the town step's dispatch made as soon as the queue exists (the world step's rebuild), from the
   // point and reach the town step will use (o.anchor: app.js's stand, o.prefetchReach: render_world's PREM_BOOT) - the
   // same sort of the same queue, so the same order, the same tallies, the same bits; the worker generates while the page

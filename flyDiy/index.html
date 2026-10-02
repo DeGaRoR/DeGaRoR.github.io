@@ -42372,7 +42372,7 @@ if (typeof module !== 'undefined')
   module.exports = { TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, RWY_LIGHTS, runwayLightStrips, runwayLightSite, runwayLightPoints, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, atmosWater, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, CLIMATE, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, decodeAnimal, decodeAnimalClips, registerAnimal, animalList, animalClips, animalClip, ANIMAL_REG, makeSim, HYDRO, makeBus, vortexKernel, makeAutopilot, makeTestPilot, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, seatOnGround, placeAtLineup, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, POLARS, PAR, RHO, hyp2, hyp3, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genPlanePair, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, genTrueBox, genNetEig, genRigidFloatOf, GEN_BOX_N, GEN_BOX_KMIN, GEN_NET_MAX, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC, GP_PARKED_FOOT, GP_PARKED_DEFAULT, GP_CLEAR, GP_HALF_DEFAULT, parkedFoot, gpParkedDist, gpClearWay };
 </script>
 <script type="text/x-flydiy">window.BOOT&&BOOT.phase('core','reading the model')</script>
-<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='04c9015f760b';window.FLYDIY_BUILD='09162762dd0a'</script>
+<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='04c9015f760b';window.FLYDIY_BUILD='e8690a3b3d0f'</script>
 <script type="text/x-flydiy" src="src/models/pa18_model.js?v=d854feec"></script>
 <script type="text/x-flydiy" src="src/models/c172_model.js?v=52c3ced6"></script>
 <script type="text/x-flydiy" src="src/models/d112_model.js?v=3678040d"></script>
@@ -143073,6 +143073,15 @@ function simHostFetchBoot(base, name, opts) {
 // plain data, for a structured clone: numbers, strings, booleans, arrays and
 // objects to `depth`, small typed arrays copied; functions, getters and the
 // `skip` keys dropped
+// G1180: a float's wet panels, flat - SIM_HOST_PANEL numbers each: index, wet, A, then c, n, Fp, Fm (3 each)
+const SIM_HOST_PANEL = 15;
+function simHostPanels(per) {
+  let n = 0; for (const o of per) if (o.wet) n++;
+  const f = new Float64Array(n * SIM_HOST_PANEL); let j = 0;
+  per.forEach((o, i) => { if (!o.wet) return; f[j++] = i; f[j++] = o.wet; f[j++] = o.A;
+    for (const v of [o.c, o.n, o.Fp, o.Fm]) { f[j++] = v[0]; f[j++] = v[1]; f[j++] = v[2]; } });
+  return f;
+}
 function simHostPlain(o, depth, skip) {
   if (o === null || typeof o !== 'object') return typeof o === 'function' ? undefined : o;
   if (ArrayBuffer.isView(o)) return o.length <= 64 ? Array.from(o) : undefined;
@@ -143440,7 +143449,11 @@ function makeSimHost(CORE, init, keptWorld) {
       out: simHostPlain(sim.out, 3, ['hydro']),
       eng: simHostPlain(sim.eng, 3),
       fuel: simHostPlain(sim.fuel, 3),
-      hydro: HY ? { wet: HY.wet, tick: HY.tick, floats: HY.floats.map(fx => ({ side: fx.side, wet: fx.wet, out: simHostPlain(fx.out, 2), lam: fx.lam.slice() })) } : null,
+      // G1180 (LOC-SWITCH): a float's tables of vectors (W, dq, per) do not survive the plain copy at depth 2 - they
+      // came over as arrays of undefined and the page's spray threw on every frame under the worker (the water taxi
+      // drew nothing for 16 s). They stay here: the page refills W from the mirrored nodes (ctx.fill), and gets the
+      // WET panels the spray reads, flat (simHostPanels)
+      hydro: HY ? { wet: HY.wet, tick: HY.tick, floats: HY.floats.map(fx => ({ side: fx.side, wet: fx.wet, out: simHostPlain(fx.out, 2, ['W', 'dq', 'per', 'd']), per: simHostPanels(fx.out.per), lam: fx.lam.slice() })) } : null,
       wheels: sim.wheelContacts ? sim.wheelContacts() : null,
       ctl: simHostPlain(sim.ctl, 3),
       ap: A, apNew,
@@ -144387,7 +144400,12 @@ const SIM_LINK = (() => {
       if (sim.fuel && V.fuel) merge(sim.fuel, V.fuel, 3);
       if (sim.hydro && V.hydro) {
         const H = sim.hydro, h = V.hydro; H.wet = h.wet; H.tick = h.tick;
-        for (let i = 0; i < H.floats.length && i < h.floats.length; i++) { const a = H.floats[i], b = h.floats[i]; a.wet = b.wet; merge(a.out, b.out, 2); for (let j = 0; j < a.lam.length && j < b.lam.length; j++) a.lam[j] = b.lam[j]; }
+        for (let i = 0; i < H.floats.length && i < h.floats.length; i++) { const a = H.floats[i], b = h.floats[i]; a.wet = b.wet; merge(a.out, b.out, 2); for (let j = 0; j < a.lam.length && j < b.lam.length; j++) a.lam[j] = b.lam[j];
+          // G1180: the world vertices from the nodes just mirrored (sim_host keeps its tables), the wet panels from the worker
+          if (a.ctx && a.ctx.fill && a.out.W) a.ctx.fill(a.out.W);
+          if (b.per && a.out.per) { for (const o of a.out.per) o.wet = 0;
+            for (let j = 0; j + 15 <= b.per.length; j += 15) { const o = a.out.per[b.per[j]]; if (!o) continue; o.wet = b.per[j + 1]; o.A = b.per[j + 2];
+              let q = j + 3; for (const v of [o.c, o.n, o.Fp, o.Fm]) { v[0] = b.per[q++]; v[1] = b.per[q++]; v[2] = b.per[q++]; } } } }
       }
       const c = V.snapCtl;
       if (c) {
@@ -152888,7 +152906,7 @@ window.FLYDIY_WORLD_COMPOSE = function () {
 <script type="text/x-flydiy" src="src/viewer/scenery_life.js?v=7b78ce7e"></script>
 <script type="text/x-flydiy" src="src/viewer/premises_build.js?v=aabddd56"></script>
 <script type="text/x-flydiy" src="src/viewer/house_tarr.js?v=9cadc7a7"></script>
-<script type="text/x-flydiy" src="src/viewer/render_premises.js?v=7f19b220"></script>
+<script type="text/x-flydiy" src="src/viewer/render_premises.js?v=802869d6"></script>
 <script type="text/x-flydiy">
 (() => {
   // THE LOADING SCREEN (LOADING S1, 2026-09-14): src/viewer/boot.js ran before
@@ -159797,6 +159815,9 @@ window.FLYDIY_WORLD_COMPOSE = function () {
   // lifted. `rollHold` is the screen's hold on the FLIGHT: set with the screen, cleared by its done callback (a
   // roll-in over it and every roll-out clear it too); the loop steps nothing and owes the frame clock nothing.
   let rollHold = false;
+  // G1180 (LOC-SWITCH): the two holds, read by the rigs (tools/perf/locswitch_probe.js) - a stall with no long task
+  // under it is the loop holding its draw, and which hold says why
+  if (typeof window !== 'undefined') window.FLYDIY_HOLDS = () => ({ holdRender, rollHold, craftAway, inGarage, running });
   const framesRendered = n => (typeof renderer.compileAsync !== 'function') ? null   // the harness: no frames to wait for
     : new Promise(res => { frameWait = { n, res }; });
   // G732 (B1-LAG): NEVER DRAW AHEAD OF THE LINKS. A screen's first frame waited synchronously (getProgramInfoLog under
@@ -160113,6 +160134,10 @@ window.FLYDIY_WORLD_COMPOSE = function () {
   // keyed by the catch-up compile and linked under the screen (GATE ROUNDTRIP: 10 links left in the first 40 frames)
   // the world's update, over and over at the stand until its streamers rest (the 'settle' step above); in the shed the
   // eye stands beside the stand for it (worldSettle's), in the world it is the flight's own
+  // G1180 (LOC-SWITCH): A SCREEN STEP NEVER SLEEPS ON THE HOUSE WORKER ALONE. Its wait (render_premises hwWait: the next
+  // message) is raced with a quarter second - a wake that never comes (an answer already in, an entry the page builds
+  // itself at the head) costs a look again, not the step: 'settle' hung on one to the screen's 20-30 s watchdog
+  const workerNap = p => Promise.race([p, new Promise(r => setTimeout(r, 250))]);
   function worldAtRest() {
     if (!WF || !WF.worldUpdate || typeof renderer.compileAsync !== 'function') return;
     const a = inGarage ? standAnchor() : sim.cgPos(); if (!a) return;
@@ -160134,7 +160159,7 @@ window.FLYDIY_WORLD_COMPOSE = function () {
       const tick = () => {
         // G830: the premises' stream waiting on the house worker - wait for its answer, not in updates
         const hw = WF.premises && WF.premises.hwWait ? WF.premises.hwWait() : null;
-        if (hw) { hw.then(() => setTimeout(tick, 0)); return; }
+        if (hw) { workerNap(hw).then(() => setTimeout(tick, 0)); return; }
         const t0 = performance.now();
         const keep = inGarage ? camera.position.clone() : null;
         if (keep) camera.position.set(a[0] + 16, a[1] + 6, a[2] + 16);
@@ -160219,7 +160244,7 @@ window.FLYDIY_WORLD_COMPOSE = function () {
           let r; try { r = WF.premisesPrewarm(cg, { budgetMs: 40 }); } catch (e) { console.warn('town:', e && e.message); res(); return; }
           built += r.built || 0;
           BOOT.phase('town', 'building the field ' + built + ' / ' + (built + (r.near || 0)), (built + (r.near || 0)) ? built / (built + (r.near || 0)) : 1);
-          if (r.done) res(); else if (r.wait) r.wait.then(() => setTimeout(tick, 0)); else setTimeout(tick, 0);   // G830: the house worker's next answer
+          if (r.done) res(); else if (r.wait) workerNap(r.wait).then(() => setTimeout(tick, 0)); else setTimeout(tick, 0);   // G830: the house worker's next answer
         };
         tick();
       });

@@ -67754,3 +67754,57 @@ the control-to-picture chain was measured.
   ring's delay can be tightened safely (G1166's p90 measured above). Next in line: B, the worker's step phase-locked to
   the page's frame (the 9 ms boundary wait), with GATE SIMWORKER and determinism as its bar.
 - GATES (node): SIMWORKER, PACE, BOOT, BUILD, UISMOKE - PASS (the probe's branch and G1166b's).
+## G1180-G1182 - LOC-SWITCH: THE "FREEZE" WAS A SCREEN STEP HUNG ON THE HOUSE WORKER; THE FLOATPLANES' DEAD LOOP; THE WATER MEASURED (2026-10-02, LOC-SWITCH for A0, local GPU)
+
+A0's findings on the master bench (15d18675): a garage -> world trip to any place but HOME had "a frame of seconds" (w3 31 s,
+worst 22.2 s); the floatplanes' SEA lane 48-58 s and their way back 20 s; the water scenes recorded no frame.
+**THERE WAS NO LONG TASK.** Every trip's worst main-thread task was 0.84 s at most (w3 0.25 s). The "worst frame" was the
+ROLL-OUT SCREEN: the loop draws nothing under it (holdRender), so the bench's ring saw one 22 s interval. What the player
+saw at w3: the loading screen, "the world settling round the stand · 20 to build", 22 s.
+**G1180 THE HANG (render_premises.js hwWait, app.js workerNap).** tools/perf/locswitch_probe.js traced the w3 trip (the
+house worker's every answer, the stream, the forest fill, the parked queue, the scene's object count, every 100 ms): the
+worker had answered everything 5 s into 'settle', the fill was idle at 15.7 s, the parked queue empty - and 'settle' never
+finished: BOOT's watchdog lifted the screen at "nothing landed for 20 s", and the steps after it (images, upload,
+worldCompile, frames) NEVER RAN. hwWait() waited for the worker's next message whenever the queue's head had not
+"arrived" - but an obstacle entry (ob:...) is built ON THE PAGE, never sent, never answered: at the head after the
+worker's last message, the wait never woke. Now hwWait waits only for an answer that is owed (a remote entry, sent - or
+sent now), and both screen steps that sleep on the worker ('town', 'settle') race it with 250 ms (workerNap): a lost wake
+costs a look again, not the step.
+**THE SAME HANG KILLED THE FLOATPLANES' ONE LOADING.** At the SEA stand the boot's own 'settle' hung: "nothing landed for
+30 s" at 54.7 s, and every boot step after it was lost - snapshot, bake, spec, the world's compile, firstFrame (which starts
+loop()). So a float build ran with NO FRAME LOOP AT ALL: the SEA lane re-ran the aircraft's steps under its screen and
+died on the watchdog again (48-58 s, 132-134 links), the way back's 'frames' step waited 20 s for frames that never came,
+and the water scenes recorded nothing - not the rig (the page never reloads: A0's guess), the game.
+**G1181 THE SPRAY THREW ON EVERY FRAME UNDER THE SIM WORKER (sim_host.js, sim_link.js).** With the loop alive the water taxi
+froze 16 s on its first picture (the sim running: 3 -> 65 km/h under it), no long task: syncWaterFx threw every frame
+(`out.W[F.edge.K]` undefined -> 32_hydro baryOf). The worker's snapshot copied each float's `out` plain at depth 2 - its
+tables of vectors (W, dq, per) arrived as arrays of undefined, and sim_link's merge put them in place of the page's. Node
+never runs the worker: no gate saw it. Now the worker keeps those tables; the page refills W from the nodes it has just
+mirrored (ctx.fill) and gets the WET panels the spray reads, flat (simHostPanels: 15 numbers a panel).
+**G1182 THE BENCH (tools/master_bench.js).** The loading screens' spans recorded (BOOT.state, every 50 ms): an interval
+under a screen leaves the frame statistics, the screen's seconds are reported apart (`screenS`, the LOADS rows: "screen
+6.4 s ... frames ..., worst ..., task ..."). The water's low pass needs the places: read on the floatplane's page when no
+land build listed them (`--builds none --only water,pass` ran no pass). Every link polled on ITS OWN context (the parked
+bake renderer links too: they read "pending" forever on the page's). MB_STACK=1 keeps an exception's stack head. Exported:
+browser, preScript, serve, serveRoot, cacheMB, BUILDS (for the probe). window.FLYDIY_HOLDS() (app.js): the loop's two holds.
+**tools/perf/locswitch_probe.js** - one build's trips step by step (BOOT's step timings, the screen, frames in/out, the long
+tasks, the keys that moved, a screenshot half-way); `--trace` the worker / stream / fill / parked timeline; `--gfx`, `--page`.
+
+MEASURED (RTX 3080, fresh profiles, the Cub = default; before = 15d18675, after = e8690a3b3d0f):
+- HOME, first roll-out: 9.1 s, worst frame 284 ms, worst task 252 ms -> 9.1 s, 283 ms, 267 ms (no change; boot settle at rest).
+- w3: 31.0 s (screen 22.3 s, 'settle' lost to the watchdog, 4 steps skipped), worst task 252 ms -> 15.1 s (screen 6.4 s:
+  settle 4.9 s at rest, then images, upload, worldCompile 0.4 s, frames 0.2 s), worst task 204 ms. The other 8.7 s is the shot.
+- mn_strip: 24.1 s (screen 15.3 s), worst task 177 ms -> 23.2 s (screen 14.3 s: town 3.6 s, settle 9.7 s), worst task 115 ms.
+  It never hung: that screen is real work (the Jumbo mine's premises from the worker, the forest round a new stand), every
+  task under 0.2 s. Shortening it is its own chantier (the worker's IndexedDB cache already makes a second visit cheaper).
+- Cessna floats: navigation -> garage 55.8 s "ready" (the watchdog) + SEA lane 57.2 s + way back 20.1 s, no frame ->
+  62.6 s (the full one loading) + SEA lane 0.0 s + way back 0.3 s. Twin floatplane: 48.4 s / 20.1 s -> 0.0 s / 0.2 s, load
+  74.8 s (a fresh profile: 5 cold links > 5 s, "MISS suspected" - the float programs' first visit).
+- THE WATER (master_bench --builds none --only water,pass, D:/uls4): Cessna floats water taxi 59.6 fps, uneven 1 %, p99 16.8,
+  worst 50 ms; low pass @SEA 59.4 fps, 1 %. Twin floatplane water taxi 59.4 fps, 2 %, p99 17; low pass 59.8 fps, 1 %.
+  Zero exceptions (before the G1181 fix: 16 s frozen, 13.8-21.5 fps).
+- tools/perf/: locswitch_before_cub.json, locswitch_after_cub.json, locswitch_trace_w3c.json (the hang's timeline),
+  locswitch_floats_fixed.json, master_bench_locswitch_water_after2.{json,txt}.
+GATES: FRAMECOST, ROUNDTRIP, STAND, BUILD, FLOATS, SEAPLANE PASS (run_gates --all). Parked aeroplanes re-cooked on e8690a3b3d0f. OPEN: the master bench's 2 exceptions "Cannot destructure property 'clamp' of
+'K'" (not ours by name in src - a vendor or worker bundle; MB_STACK=1 on the next master bench will say where). w2, nv_strip
+and tw_ski were not re-measured (their screens, 3-10 s, were not the hang: under the watchdog's 20 s).

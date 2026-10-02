@@ -6905,6 +6905,9 @@
   // lifted. `rollHold` is the screen's hold on the FLIGHT: set with the screen, cleared by its done callback (a
   // roll-in over it and every roll-out clear it too); the loop steps nothing and owes the frame clock nothing.
   let rollHold = false;
+  // G1180 (LOC-SWITCH): the two holds, read by the rigs (tools/perf/locswitch_probe.js) - a stall with no long task
+  // under it is the loop holding its draw, and which hold says why
+  if (typeof window !== 'undefined') window.FLYDIY_HOLDS = () => ({ holdRender, rollHold, craftAway, inGarage, running });
   const framesRendered = n => (typeof renderer.compileAsync !== 'function') ? null   // the harness: no frames to wait for
     : new Promise(res => { frameWait = { n, res }; });
   // G732 (B1-LAG): NEVER DRAW AHEAD OF THE LINKS. A screen's first frame waited synchronously (getProgramInfoLog under
@@ -7221,6 +7224,10 @@
   // keyed by the catch-up compile and linked under the screen (GATE ROUNDTRIP: 10 links left in the first 40 frames)
   // the world's update, over and over at the stand until its streamers rest (the 'settle' step above); in the shed the
   // eye stands beside the stand for it (worldSettle's), in the world it is the flight's own
+  // G1180 (LOC-SWITCH): A SCREEN STEP NEVER SLEEPS ON THE HOUSE WORKER ALONE. Its wait (render_premises hwWait: the next
+  // message) is raced with a quarter second - a wake that never comes (an answer already in, an entry the page builds
+  // itself at the head) costs a look again, not the step: 'settle' hung on one to the screen's 20-30 s watchdog
+  const workerNap = p => Promise.race([p, new Promise(r => setTimeout(r, 250))]);
   function worldAtRest() {
     if (!WF || !WF.worldUpdate || typeof renderer.compileAsync !== 'function') return;
     const a = inGarage ? standAnchor() : sim.cgPos(); if (!a) return;
@@ -7242,7 +7249,7 @@
       const tick = () => {
         // G830: the premises' stream waiting on the house worker - wait for its answer, not in updates
         const hw = WF.premises && WF.premises.hwWait ? WF.premises.hwWait() : null;
-        if (hw) { hw.then(() => setTimeout(tick, 0)); return; }
+        if (hw) { workerNap(hw).then(() => setTimeout(tick, 0)); return; }
         const t0 = performance.now();
         const keep = inGarage ? camera.position.clone() : null;
         if (keep) camera.position.set(a[0] + 16, a[1] + 6, a[2] + 16);
@@ -7327,7 +7334,7 @@
           let r; try { r = WF.premisesPrewarm(cg, { budgetMs: 40 }); } catch (e) { console.warn('town:', e && e.message); res(); return; }
           built += r.built || 0;
           BOOT.phase('town', 'building the field ' + built + ' / ' + (built + (r.near || 0)), (built + (r.near || 0)) ? built / (built + (r.near || 0)) : 1);
-          if (r.done) res(); else if (r.wait) r.wait.then(() => setTimeout(tick, 0)); else setTimeout(tick, 0);   // G830: the house worker's next answer
+          if (r.done) res(); else if (r.wait) workerNap(r.wait).then(() => setTimeout(tick, 0)); else setTimeout(tick, 0);   // G830: the house worker's next answer
         };
         tick();
       });
