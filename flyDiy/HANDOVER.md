@@ -67852,5 +67852,5 @@ BEFORE / AFTER (FRAMECOST, baseline = train 22's; the rows were dead since train
   stand/draws.shadow        169 / 169 (no ALLOW)       179 / 179 (no ALLOW)
   stand/tris.shadow         3 133 573.5 / same         3 264 881.5 / same
   ALLOW rows tagged G1119   4 -> 0                     GATE FRAMECOST: PASS
-The `rise` field stays in the ALLOW mechanism (no row uses it now). Gates: FRAMECOST, ROUNDTRIP, STAND, BUILD (below).
+The `rise` field stays in the ALLOW mechanism (no row uses it now). Gates (--no-build, on this branch): FRAMECOST, ROUNDTRIP, STAND, BUILD all PASS.
 NOT DONE (not needed): no change to flRevealStart, nearTag or any LOD; no per-frame work added.
