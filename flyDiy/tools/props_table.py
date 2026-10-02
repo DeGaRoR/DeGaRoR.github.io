@@ -197,7 +197,8 @@ PROPS = [
       '2.8 m tall; goes against a wall since only its front face is worked',
       dir='bandsaw_prep', tex=1024),
     P('jointer', 'machine', 'surface planer', 'jointer', 'jointer.glb',
-      '2.7 m of table, wants length along a wall, not across the floor'),
+      '2.7 m of table, wants length along a wall, not across the floor',
+      dir='jointer_prep', tex=1024),
     P('thicknesser', 'machine', 'thicknesser', 'thicknesser', 'thicknesser.glb',
       'the pair to the jointer - one flattens a face, the other brings it to '
       'thickness, so they stand together', dir='thicknesser_prep', tex=1024),

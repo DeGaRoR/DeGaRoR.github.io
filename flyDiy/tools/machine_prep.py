@@ -95,14 +95,59 @@ bm.free()
 for uv in list(lo.data.uv_layers):
     lo.data.uv_layers.remove(uv)
 hi.hide_render = False
-dec = lo.modifiers.new('dec', 'DECIMATE')
-dec.decimate_type = 'COLLAPSE'
-dec.use_collapse_triangulate = True
-dec.ratio = TARGET / max(1, tris_of(lo))
-bpy.context.view_layer.objects.active = lo
-for o in bpy.context.scene.objects:
-    o.select_set(o == lo)
-bpy.ops.object.modifier_apply(modifier='dec')
+from mathutils.bvhtree import BVHTree
+TOL = 0.01          # 1 cm: past this a welded vertex is a feature the cut lost
+welded = lo.data.copy()
+
+
+def collapse(group=None):
+    """quadric collapse of the welded mesh to TARGET, optionally weighting a
+    vertex group (protected vertices collapse last); returns its deviation:
+    every welded vertex's distance to the cut surface"""
+    lo.data = welded.copy()
+    dec = lo.modifiers.new('dec', 'DECIMATE')
+    dec.decimate_type = 'COLLAPSE'
+    dec.use_collapse_triangulate = True
+    dec.ratio = TARGET / max(1, tris_of(lo))
+    if group:
+        dec.vertex_group = group
+        # the modifier's weight means MAY decimate: the protected vertices
+        # are the group, inverted (weight 0 = left where the scan put them)
+        dec.vertex_group_factor = 10.0
+        dec.invert_vertex_group = True
+    bpy.context.view_layer.objects.active = lo
+    for o in bpy.context.scene.objects:
+        o.select_set(o == lo)
+    bpy.ops.object.modifier_apply(modifier='dec')
+    bm_ = bmesh.new(); bm_.from_mesh(lo.data)
+    tree = BVHTree.FromBMesh(bm_)
+    bm_.free()
+    return [tree.find_nearest(v.co)[3] for v in welded.vertices]
+
+
+def dev_rep(d):
+    s_ = sorted(d)
+    return dict(p99=round(s_[int(.99 * len(s_))], 4), max=round(s_[-1], 4),
+                over_tol=sum(1 for x in d if x > TOL))
+
+
+# PASS 1 plain; PASS 2 with every vertex it moved past TOL (and its ring)
+# weighted: a thin rod's tip, a lever, a wire - the silhouette - survives,
+# and the budget comes out of the flat panels instead
+d1 = collapse()
+log('pass 1 deviation', dev_rep(d1))
+hit = set(i for i, x in enumerate(d1) if x > TOL)
+for e in welded.edges:
+    a, b = e.vertices
+    if a in hit or b in hit:
+        hit.add(a); hit.add(b)
+lo.data = welded           # (3.x keeps the group NAMES on the mesh: swap first)
+vg = lo.vertex_groups.new(name='keep')
+vg.add(sorted(hit), 1.0, 'REPLACE')
+d2 = collapse('keep')
+lo.vertex_groups.clear()
+devrep = dict(pass1=dev_rep(d1), pass2=dev_rep(d2), protected=len(hit))
+log('pass 2 deviation', devrep['pass2'], 'protected', len(hit))
 # collapse leaves slivers on the scan noise; a pass of degenerate-dissolve
 bm = bmesh.new()
 bm.from_mesh(lo.data)
@@ -301,7 +346,7 @@ kw = dict(filepath=OUT, export_format='GLB', use_selection=True, export_apply=Tr
           export_image_format='AUTO', export_yup=True, export_texcoords=True)
 bpy.ops.export_scene.gltf(**kw)
 os.makedirs(os.path.dirname(REP), exist_ok=True)
-json.dump(dict(key=KEY, src=SRC, src_tris=src_tris, lo_tris=lo_tris, target=TARGET,
+json.dump(dict(key=KEY, src=SRC, src_tris=src_tris, lo_tris=lo_tris, target=TARGET, deviation=devrep,
                size=SIZE, dims=[round(d, 3) for d in dims], uv=uvrep,
                src_bytes=os.path.getsize(SRC), out_bytes=os.path.getsize(OUT),
                seconds=round(time.time() - t0, 1)),

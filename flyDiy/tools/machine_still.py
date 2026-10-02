@@ -39,12 +39,12 @@ r1, lo1, hi1 = load(os.path.join(A, KEY + '_prep', KEY + '.glb'))
 span = max(hi0.x - lo0.x, hi0.y - lo0.y) * 1.15
 c0 = (lo0 + hi0) / 2
 c1 = (lo1 + hi1) / 2
-# lay them out across the camera's right vector so they stand side by side
+# each centred on the same spot, rendered alone under the same camera, and
+# the two frames joined: a side-by-side layout gives each its own perspective
 az = math.radians(AZ)
-right = Vector((math.cos(az + math.pi / 2), math.sin(az + math.pi / 2), 0))
-for roots, c, s in ((r0, c0, -0.5), (r1, c1, 0.5)):
+for roots, c in ((r0, c0), (r1, c1)):
     for o in roots:
-        o.location += Vector((-c.x, -c.y, -min(lo0.z, lo1.z))) + right * span * s
+        o.location += Vector((-c.x, -c.y, -min(lo0.z, lo1.z)))
 h = hi0.z - lo0.z
 cam_d = bpy.data.cameras.new('cam'); cam_d.lens = 35
 cam = bpy.data.objects.new('cam', cam_d); sc.collection.objects.link(cam)
@@ -64,9 +64,36 @@ sc.render.engine = 'CYCLES'
 sc.cycles.device = 'CPU'
 sc.cycles.samples = 24
 sc.cycles.use_denoising = True
-sc.render.resolution_x = 1600
-sc.render.resolution_y = 800
-sc.render.filepath = OUT
+sc.render.resolution_x = 900
+sc.render.resolution_y = 900
 sc.view_settings.view_transform = 'Standard'
-bpy.ops.render.render(write_still=True)
+import numpy as np
+
+
+def kids(roots):
+    out = []
+    for r in roots:
+        out.append(r); out.extend(r.children_recursive)
+    return out
+
+
+frames = []
+for show, hide in ((r0, r1), (r1, r0)):
+    for o in kids(show):
+        o.hide_render = False
+    for o in kids(hide):
+        o.hide_render = True
+    tmp = OUT + '.tmp.png'
+    sc.render.filepath = tmp
+    bpy.ops.render.render(write_still=True)
+    im = bpy.data.images.load(tmp)
+    frames.append(np.array(im.pixels[:]).reshape(900, 900, 4))
+    bpy.data.images.remove(im)
+    os.remove(tmp)
+both = np.concatenate(frames, axis=1)
+out = bpy.data.images.new('still', 1800, 900, alpha=False)
+out.pixels[:] = both.ravel()
+out.filepath_raw = OUT
+out.file_format = 'PNG'
+out.save()
 print('[machine_still] wrote', OUT)
