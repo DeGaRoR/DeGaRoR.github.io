@@ -68085,3 +68085,19 @@ NEXT (not done): (1) the heavy seven cost 40-58 s on every COLD load and every i
 splat program's FXC compile is the lever (one of its two sources is linked twice in the same load: two three.js keys for
 one GLSL - program_census.js shows it as a re-link); (2) metla_ab1's +18 s for the town (METLA-RETURN) was measured in one
 session too, but on the SAME slots for both sides (each slot Cub then metal), so its town-on/off comparison stands.
+
+## TRAIN 24 LANDED - FRIENDLY WELCOME'S FIRST TRAIN (2026-10-02, A0 the coordinator)
+
+Cargo (on train 23 = 81855c74): MEM-DIET G1200-G1204 (tools/perf/heap_steps.js + heap_track_page.js; GPU_ONLY_GEO drops a
+draw-only geometry's CPU copy after upload - far-terrain quads, the town's TARR merges, the patch LODs; the forest's rung parts
+share one instance buffer; the patch build's scratch grids no longer held by closures. Retained after the load 2233 -> 1974 MB,
+peak 2773 -> 2609 MB: halving not met, the world uploads at first light - MEM-BUDGET next), CESSNA-LINKS G1220-G1224 (the metal's
+"+20 s / 7 links over 5 s" was the rig's slot: in one Chrome the heavy seven programs hit and miss the cache on alternate loads;
+metla_ab / master_bench now open a fresh Chrome per load; tools/perf/cessna_links.js). MEM-DIET's branch cook was dropped at
+the assembly (orphaned by the train's own re-cook; ~11 MB kept out of the history).
+Measured (fresh profile D:/u24), vs train 23: Cub 31 fps / 4 %, metal 31 / 5 %, load times within slack. ONE RATCHET RED, CLEARED:
+the Cub cockpit 56.05 -> 51.85 fps on its two ratchet runs (12 % / 20 % doubled frames - the pacing settling late), the metal
+cockpit fine. A 4-run ABBA against train 23's build (fresh profile D:/uab24): stand 59.8 / 59.3 (A) vs 59.3 / 58.9 (B), taxi 56.1
+/ 56.0 vs 56.0 / 55.8, 7 % doubled on all four - EQUAL. The cockpit baseline is taken from the ABBA's B runs. Battery: one flake,
+ROLLANIM's G1037 72.7 vs 64 bytes a frame under the full battery; alone it passes (twice on train 24, once on train 23).
+FRAMECOST PASS, baseline re-taken.
