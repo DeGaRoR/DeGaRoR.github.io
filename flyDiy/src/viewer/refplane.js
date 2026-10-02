@@ -370,6 +370,13 @@ function disposeBuilt() {
     if (boxHelper.parent) boxHelper.parent.remove(boxHelper);
     boxHelper.geometry.dispose(); boxHelper = null;
   }
+  // G1252: the reference's maps go with it - texCache outlived every switch, so each reference ever shown
+  // stayed decoded (the C172's nine at ~24 MiB with mips once uploaded). The shared flat 1x1s are not ours
+  if (built && texCache[built.model]) {
+    var own = texCache[built.model].__own || [];
+    for (var ti = 0; ti < own.length; ti++) own[ti].dispose();
+    delete texCache[built.model];
+  }
   if (!body) { built = null; return; }
   body.traverse(function (o) { if (o.geometry) o.geometry.dispose(); });
   if (built) for (var mk in built.mats) built.mats[mk].dispose();
@@ -457,10 +464,14 @@ function build(key) {
 // White clay is the DEFAULT because it is what a reference actually wants, and
 // because the C172 carries 18 maps there is no reason to decode until somebody
 // asks to see the livery.
+// G1252 ONLY THE BOUND MAPS (QUICK-BYTES): applyFinish binds decl.tex and nothing else, so a map no built
+// material names as its `tex` (the C172's six normal / metal-roughness images) is never fetched
 function loadTexs(modelKey, payload, done) {
   if (texCache[modelKey]) return done(texCache[modelKey]);
-  var out = {}, srcs = payload.texs || {}, n = 0, t;
+  var out = {}, all = payload.texs || {}, mt = payload.mats || {}, srcs = {}, n = 0, t;
+  for (var mk in (built ? built.mats : mt)) { var d = mt[mk]; if (d && d.tex && all[d.tex] != null) srcs[d.tex] = all[d.tex]; }
   for (t in srcs) n++;
+  Object.defineProperty(out, '__own', { value: [] });   // the textures this cache loaded (disposeBuilt's), not enumerated
   texCache[modelKey] = out;
   if (!n) return done(out);
   var landed = function () { if (--n <= 0) done(out); };
@@ -469,6 +480,7 @@ function loadTexs(modelKey, payload, done) {
     if (Array.isArray(srcs[t])) { out[t] = TEX_FLAT(srcs[t], ''); landed(); continue; }
     out[t] = new THREE.TextureLoader().load(srcs[t], landed, undefined, landed);
     out[t].anisotropy = window.FLYDIY_ANISO || 4;
+    out.__own.push(out[t]);
   }
 }
 
