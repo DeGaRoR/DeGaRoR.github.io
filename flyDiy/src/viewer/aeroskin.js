@@ -1191,8 +1191,14 @@ function aeroHeight(kind, S, row) {
 }
 
 function aeroDetailTex(THREE, key) {
-  if (AERO_TEX_CACHE[key]) return AERO_TEX_CACHE[key];
   const row = AERO_FINISH[key] || AERO_FINISH.fabric;
+  // G1254 ONE TEXTURE PER SHEET (QUICK-BYTES): a baked sheet is cached under its SOURCE ('sheet:maple'), not the
+  // finish - ply and maple both draw the maple sheet, and each held its own 512-square copy (1.33 MiB with mips).
+  // The sheet's pixels and sampling are the same whichever row asks (wrap, linear, anisotropy below); a finish's
+  // own scalars (tile, nrm, rough, hs/bs...) are its material's uniforms (aeroFinishU), never baked in here
+  const sk = row.sheet ? 'sheet:' + row.sheet : key;
+  if (AERO_TEX_CACHE[sk]) return AERO_TEX_CACHE[sk];
+  if (sk !== key && AERO_TEX_CACHE[key]) return AERO_TEX_CACHE[key];   // a sheet row whose payload never loaded: its procedural bake
   // THE BAKED PAYLOAD PATH (G125): a row claiming a `sheet` takes the scanned
   // pack from wood_tex.js — same packing, same names, same tile metres, which
   // is the swap this loader promised at G67. The canvas starts NEUTRAL
@@ -1231,7 +1237,7 @@ function aeroDetailTex(THREE, key) {
       ctx.fillRect(0, 0, S, S);
       pay.img.addEventListener('load', draw);
     }
-    return (AERO_TEX_CACHE[key] = t);
+    return (AERO_TEX_CACHE[sk] = t);
   }
   const S = AERO_TEX;
   const H = aeroHeight(row.bake, S, row);
