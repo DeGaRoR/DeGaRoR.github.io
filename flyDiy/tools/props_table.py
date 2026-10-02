@@ -200,7 +200,7 @@ PROPS = [
       '2.7 m of table, wants length along a wall, not across the floor'),
     P('thicknesser', 'machine', 'thicknesser', 'thicknesser', 'thicknesser.glb',
       'the pair to the jointer - one flattens a face, the other brings it to '
-      'thickness, so they stand together'),
+      'thickness, so they stand together', dir='thicknesser_prep', tex=1024),
 
     # ---- handling ----------------------------------------------------------
     P('handtruck', 'handling', 'sack truck', 'hand_truck',
