@@ -67940,3 +67940,17 @@ stand on their own: with the town off the scenes are unchanged (0 bakes), and th
 anywhere.
 GATES (node, run_gates --only, this build): PREMISES, FRAMECOST, ROUNDTRIP, STAND, BOOT, BUILD, PREMCOOK, PREMRASTER, TREE, TREES,
 METKIT, LIFE - all PASS (BATTERY: PASS). The parked aeroplanes re-cooked on this build (36736e179a7a).
+
+## TRAIN 23 LANDED - THE PERFORMANCE RELEASE'S LAST TRAIN (2026-10-02, A0 the coordinator)
+
+Cargo (on train 22 + reports ff4eecf1): G1119.1 (the reveal's stand shadow was the old baseline's undercount: the four rise
+rows deleted, no src change), METLA-RETURN G1190-G1195 (the lazy generators after HOUSE_KIT; the town's 200 ms frame = lazy
+raster bakes, three readers fixed - traffic past its cull distance, the far tier reads the composer, the fill's budget per row;
+metla_ab.js; the town STAYS OFF: loading +18 s from ~12 300 uncooked tiles at boot, the Cub's town-on taxi 16 % uneven),
+Friendly Welcome's first two: `?gfx=<preset>` picks and keeps a preset before the load, the flight recorder logs
+webglcontextlost / restored; futureDesigns/FRIENDLY-WELCOME-BUDGETS.md (the device budgets).
+
+Measured (fresh profile D:/u23), vs train 22: Cub 31.05 fps / 4 % / garage 39.3 s / first flight 42.6 s; metal 31 / 5 % /
+39.0 / 42.4 s; cockpit 56.05 / 55.2 fps, 1-2 %. RATCHET PASS (nothing admitted), full battery GREEN, FRAMECOST PASS
+(baseline re-taken). Note for CESSNA-LINKS: under the ratchet's own warm-up the metal's garage equals the Cub's; the ~20 s
+gap shows in master_bench / metla_ab loads.
