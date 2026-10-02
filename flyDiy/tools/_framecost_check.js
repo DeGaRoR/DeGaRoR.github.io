@@ -71,17 +71,10 @@ const TOL = { rel: 0.01, abs: 2 };
 //      { key: 'boot/rollout:compile/', build: '*', why: 'the contact-shadow pass links its programs under the screen', g: 'G1101' }
 // An entry admits a rise until the next --update takes it into the baseline; then it is dead and should go.
 const ALLOW = [
-  // G1119 REVEALCAM (the reveal places its eye at once, app.js flRevealStart): the reveal's first frame updates the world from
-  // the stand's own eye (it read the camera the shed left, ~750 m off, and replanted 271 cover-ring cells), so the eye-keyed
-  // levels by the stand (the parked aeroplanes' detailed rungs, LOD-switched meshes, the near-tier houses) switch detailed
-  // there, as the player stands there - and FRAMECOST's stand view, farther off, counts them stepping back on their own
-  // budgets. Measured cooked on the ring-idle baseline (2026-10-01, A0's ruling): +36 / +36.5 shadow draws, +346 734 /
-  // +346 776 shadow tris (parkcook=0: +215 377 / +202 053); IDENTICAL with the tracking shot (?rollanim=follow).
-  // G1119.1 snaps those levels at the reveal and drops these rows
-  { key: 'stand/draws.shadow', build: 'cub', rise: 37, why: 'G1119 revealcam: the stand\'s eye-keyed levels switched detailed on the reveal\'s first frame, counted stepping back from FRAMECOST\'s farther stand view (+36 measured)', g: 'G1119' },
-  { key: 'stand/tris.shadow', build: 'cub', rise: 350200, why: 'G1119 revealcam: the same levels\' shadow triangles (+346 734 cooked, +1 %)', g: 'G1119' },
-  { key: 'stand/draws.shadow', build: 'cessna', rise: 37.5, why: 'G1119 revealcam: the stand\'s eye-keyed levels switched detailed on the reveal\'s first frame, counted stepping back from FRAMECOST\'s farther stand view (+36.5 measured)', g: 'G1119' },
-  { key: 'stand/tris.shadow', build: 'cessna', rise: 350250, why: 'G1119 revealcam: the same levels\' shadow triangles (+346 776 cooked, +1 %)', g: 'G1119' },
+  // (G1119.1: the four G1119 REVEALCAM rise rows are gone. The stand's +36 shadow draws were never a reveal-eye cost but
+  // the OLD baseline's undercount: before G1119 the stand's near casters streamed in late and render_world's 30-frame
+  // nearTag pass put them in the near map INSIDE the counted window (odd frames 29 -> 63 at frame 8); with the eye
+  // placed at once they are tagged before it - the same count at --warm 6 and 300, both builds. HANDOVER G1119.1)
   // B1-LAG (2026-09-28): the parked tree rungs' stand-ins compiled lit and through their depth variants under the roll-out
   // screen - two tree materials and their two depth programs no warm-up had met (R1's +32 s link in the taxi, 567 ms)
   { key: 'boot/rollout:images/links', build: '*', upTo: 6, why: 'the parked rungs\' programs linked under the screen (rungPrelink), not in the taxi', g: 'G730' },

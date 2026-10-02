@@ -67825,3 +67825,32 @@ Measured (fresh profile D:/u22b), vs train 21: Cub 31.15 fps / uneven 0.04 / fir
 re-taken). NOT IN THIS TRAIN: G1119.1 (a cloud session; no branch yet). BACKLOG added: mn_strip's 23 s of real loading
 work (town 3.6 + settle 9.7, no task over 0.2 s); w2 / nv_strip / tw_ski not re-measured; LAZY-GEN (with the town on,
 tools/_sport_gen.js / _marine_gen.js run before _house_kit.js - world_boot.js:65 - fix with Metlakatla's return).
+
+## G1119.1 - THE REVEAL'S "STAND SHADOW" WAS THE OLD BASELINE'S UNDERCOUNT: NOTHING TO SNAP, THE RISE ROWS GONE (2026-10-02, a cloud session for A0; branch claude/g1119-1-snap on f4c249d0)
+
+THE ASK: snap the eye-keyed levels the reveal's first frame sets by the stand (G1119, app.js flRevealStart), so FRAMECOST's
+stand view counts a settled state, and drop the four G1119 ALLOW rows by RISE. **Result: no snap is needed - the stand view
+ALREADY counts a settled state; the rows were admitting the gap to an unsettled one. Rows deleted, no src change, no new ALLOW.**
+
+THE PROOF (node census, cooked, a per-frame dump of the counted stand window; the far map redraws every 2nd frame, so the
+shadow rows alternate and the median is the pair's mean):
+- master (eye placed at once): Cub 275/63 shadow draws every pair, the SAME at --warm 6 and --warm 300 (median 169,
+  3 133 573.5 tris); Cessna 285/73 at both (median 179, 3 264 881.5). Held, not a transient - and no hysteresis either.
+- G1119 reverted (the `placeCamera()` line off): the counted window itself CHANGES mid-way - odd frames 29 -> 63, even
+  245 -> 279 at frame 8 of 12 (median 154: the old baseline's number). At --warm 300 it settles to 279/63 (median 171) -
+  the master's state within 2 draws (master: 2 fewer draws, 56 k (1.8 %) more tris; main 914 vs 924 draws -
+  the levels each eye's history left, not traced further).
+- WHAT JOINS AT FRAME 8 (FRAMECOST_SHADOW_PASSES tallies): the near map's two viewports (sunNear:0/1) gain the stand's
+  houses (2+4), poles (1+1), the parked aeroplane (3), and 5+21 plain meshes - render_world's nearTag, which tags the
+  near casters round the aeroplane ONCE EVERY 30 FRAMES. Before G1119 the first flight frame read the shed's eye
+  (~750 m off), so the stand's casters streamed in late and the next 30-frame pass landed inside FRAMECOST's window;
+  with the eye placed at once they are tagged before it. Not a level stepping back: the near map's real casters,
+  counted late by the old tree. The game sees the same thing within half a second either way.
+
+BEFORE / AFTER (FRAMECOST, baseline = train 22's; the rows were dead since train 21 re-took the baseline with G1119 in):
+  row                       cub before/after          cessna before/after
+  stand/draws.shadow        169 / 169 (no ALLOW)       179 / 179 (no ALLOW)
+  stand/tris.shadow         3 133 573.5 / same         3 264 881.5 / same
+  ALLOW rows tagged G1119   4 -> 0                     GATE FRAMECOST: PASS
+The `rise` field stays in the ALLOW mechanism (no row uses it now). Gates: FRAMECOST, ROUNDTRIP, STAND, BUILD (below).
+NOT DONE (not needed): no change to flRevealStart, nearTag or any LOD; no per-frame work added.
