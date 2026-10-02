@@ -1,0 +1,673 @@
+{
+ "date": "2026-10-02T16:25:36.272Z",
+ "order": [
+  "B"
+ ],
+ "builds": [
+  "cub"
+ ],
+ "udd": "D:/umr1",
+ "fresh": false,
+ "rows": [
+  {
+   "side": "B",
+   "build": "cub",
+   "garage": 61.6,
+   "rollout": 9.2,
+   "firstFlight": 70.8,
+   "rollFrames": {
+    "frames": 410,
+    "fps": 44.5,
+    "uneven": 0.02,
+    "p50": 16.7,
+    "p99": 33.5,
+    "worst": 283.4,
+    "over100": 1,
+    "cap30": 0.29,
+    "tasks200": 1,
+    "tasks1s": 0,
+    "taskWorst": 264,
+    "onGround": 1,
+    "screenS": 0
+   },
+   "links": {
+    "n": 394,
+    "pending": 2,
+    "sumS": 164.6,
+    "worstS": 12.2,
+    "over5s": 1
+   },
+   "taxi": {
+    "scene": "taxi",
+    "st": {
+     "frames": 494,
+     "fps": 32.9,
+     "uneven": 0.122,
+     "p50": 33.3,
+     "p99": 33.5,
+     "worst": 50.1,
+     "over100": 0,
+     "cap30": 0.77,
+     "tasks200": 0,
+     "tasks1s": 0,
+     "taskWorst": 0,
+     "onGround": 1,
+     "screenS": 0
+    },
+    "rec": {
+     "long": [],
+     "ev": []
+    },
+    "tasks": [],
+    "t0": 75182.10000002384,
+    "raster": {
+     "baked": 0,
+     "bakeMs": 0,
+     "evicted": 106,
+     "decoded": 494,
+     "tiles": 42616,
+     "mb": 48,
+     "cookedCells": 89,
+     "cooked": {
+      "taken": 89,
+      "stale": 3
+     },
+     "total": {
+      "baked": 15419,
+      "bakeMs": 12834,
+      "evicted": 44385
+     }
+    },
+    "cpu": null
+   },
+   "pass": {
+    "scene": "pass",
+    "st": {
+     "frames": 455,
+     "fps": 30.3,
+     "uneven": 0.106,
+     "p50": 33.3,
+     "p99": 50.1,
+     "worst": 183.4,
+     "over100": 1,
+     "cap30": 0.9,
+     "tasks200": 0,
+     "tasks1s": 0,
+     "taskWorst": 193,
+     "onGround": 0.02,
+     "screenS": 0
+    },
+    "rec": {
+     "long": [
+      {
+       "t": 99827,
+       "dt": 33,
+       "work": 193,
+       "gpu": 0,
+       "slots": {
+        "world": 157,
+        "cover": 19,
+        "render": 15
+       }
+      },
+      {
+       "t": 100010,
+       "dt": 183,
+       "work": 17,
+       "gpu": 0,
+       "slots": {
+        "cover": 2,
+        "render": 9
+       }
+      }
+     ],
+     "ev": [
+      [
+       94091.5,
+       "freeze",
+       850.4,
+       null
+      ],
+      [
+       98343.1,
+       "longtask",
+       56,
+       "window"
+      ],
+      [
+       98441.5,
+       "longtask",
+       52,
+       "window"
+      ],
+      [
+       98993.5,
+       "longtask",
+       62,
+       "window"
+      ],
+      [
+       99827.1,
+       "longtask",
+       193,
+       "window"
+      ],
+      [
+       99810.6,
+       "loaf",
+       209.9,
+       "blocking 144ms, render 193ms; FrameRequestCallback loop 193ms"
+      ],
+      [
+       101191.1,
+       "gc",
+       null,
+       "1075 MB freed"
+      ]
+     ]
+    },
+    "tasks": [
+     [
+      99827,
+      193
+     ],
+     [
+      98994,
+      62
+     ],
+     [
+      98343,
+      56
+     ],
+     [
+      98442,
+      52
+     ]
+    ],
+    "t0": 94150.80000001192,
+    "raster": {
+     "baked": 498,
+     "bakeMs": 227.6,
+     "evicted": 312,
+     "decoded": 465,
+     "tiles": 45364,
+     "mb": 48,
+     "cookedCells": 89,
+     "cooked": {
+      "taken": 89,
+      "stale": 3
+     },
+     "total": {
+      "baked": 15975,
+      "bakeMs": 13084,
+      "evicted": 44838
+     }
+    },
+    "cpu": {
+     "self": [
+      [
+       "(idle)@:0",
+       28
+      ],
+      [
+       "Ma@index.html:4917",
+       21.4
+      ],
+      [
+       "updateMatrixWorld@index.html:4917",
+       11.3
+      ],
+      [
+       "Yh@index.html:9136",
+       8.9
+      ],
+      [
+       "(garbage collector)@:0",
+       8
+      ],
+      [
+       "poseModel@:3242",
+       6.1
+      ],
+      [
+       "(anon)@:4722",
+       4.8
+      ],
+      [
+       "(program)@:0",
+       4.6
+      ],
+      [
+       "bedKeep@:114",
+       4.6
+      ],
+      [
+       "applySkinDeform@:19371",
+       4.4
+      ],
+      [
+       "bindVertexArray@:0",
+       3.5
+      ],
+      [
+       "a@index.html:4921",
+       3.2
+      ],
+      [
+       "speciesWeight@:4094",
+       3.1
+      ],
+      [
+       "lg@index.html:9136",
+       3.1
+      ],
+      [
+       "terrainH@:2754",
+       3.1
+      ],
+      [
+       "setValue@index.html:9034",
+       3.1
+      ],
+      [
+       "ef@index.html:9136",
+       3.1
+      ],
+      [
+       "toArray@index.html:4917",
+       3.1
+      ],
+      [
+       "terrainH@:3344",
+       3.1
+      ],
+      [
+       "lakeAt@:4299",
+       3
+      ],
+      [
+       "w.onmessage@:816",
+       3
+      ],
+      [
+       "nearTree@:1160",
+       3
+      ],
+      [
+       "move@:10333",
+       1.8
+      ],
+      [
+       "applyMatrix4@index.html:4917",
+       1.7
+      ],
+      [
+       "coverAt@:8771",
+       1.7
+      ]
+     ],
+     "incl": [
+      [
+       "(root)@:0",
+       191.8
+      ],
+      [
+       "loop@:11283",
+       148.1
+      ],
+      [
+       "worldUpdate@:6169",
+       72.3
+      ],
+      [
+       "Jd.render@index.html:9136",
+       66.9
+      ],
+      [
+       "renderer.render@:267",
+       66.9
+      ],
+      [
+       "render@:484",
+       65.4
+      ],
+      [
+       "fillStep@:5054",
+       47.6
+      ],
+      [
+       "fillUpdate@:5009",
+       47.6
+      ],
+      [
+       "Jd.renderBufferDirect@index.html:9136",
+       29.5
+      ],
+      [
+       "build@:4712",
+       29.2
+      ],
+      [
+       "ef@index.html:9136",
+       28.1
+      ],
+      [
+       "vl@index.html:9136",
+       28.1
+      ],
+      [
+       "jd@index.html:9136",
+       28.1
+      ],
+      [
+       "(idle)@:0",
+       28
+      ],
+      [
+       "(anon)@:4722",
+       24.4
+      ],
+      [
+       "Ma@index.html:4917",
+       21.4
+      ],
+      [
+       "Yh@index.html:9136",
+       18.5
+      ],
+      [
+       "walk@:4641",
+       18.4
+      ],
+      [
+       "og@index.html:9136",
+       16.8
+      ],
+      [
+       "(anon)@:4747",
+       16.6
+      ],
+      [
+       "(anon)@:4746",
+       16.6
+      ],
+      [
+       "update@:738",
+       13.7
+      ],
+      [
+       "updateMatrixWorld@index.html:4917",
+       11.3
+      ],
+      [
+       "buildCell@:503",
+       10.6
+      ],
+      [
+       "poseModel@:3242",
+       10.5
+      ]
+     ],
+     "stacks": [
+      [
+       28,
+       "(idle)"
+      ],
+      [
+       16.6,
+       "loop>worldUpdate>fillUpdate>fillStep>build>(anon)>(anon)>(anon)>(anon)>Ma"
+      ],
+      [
+       8,
+       "(garbage collector)"
+      ],
+      [
+       6.1,
+       "loop>poseModel"
+      ],
+      [
+       4.8,
+       "loop>worldUpdate>fillUpdate>fillStep>build>(anon)"
+      ],
+      [
+       4.6,
+       "(program)"
+      ],
+      [
+       4.6,
+       "loop>render>renderer.render>Jd.render>Yh>Yh>Yh>Yh>Yh"
+      ],
+      [
+       4.6,
+       "loop>worldUpdate>update>buildCell>bedKeep"
+      ],
+      [
+       4.4,
+       "loop>poseModel>applySkinDeform"
+      ],
+      [
+       3.5,
+       "loop>render>renderer.render>Jd.render>jd>vl>ef>Jd.renderBufferDirect>o>c>bindVertexArray"
+      ],
+      [
+       3.3,
+       "loop>render>renderer.render>Jd.render>updateMatrixWorld>updateMatrixWorld>updateMatrixWorld>updateMatrixWorld>updateMatrixWorld"
+      ],
+      [
+       3.1,
+       "loop>worldUpdate>fillUpdate>fillStep>walk>poolPick>speciesWeight"
+      ],
+      [
+       3.1,
+       "loop>render>renderer.render>Jd.render>jd>vl>ef>Jd.renderBufferDirect>og>lg"
+      ],
+      [
+       3.1,
+       "loop>render>renderer.render>Jd.render>jd>vl>ef>Jd.renderBufferDirect>og>upload>setValue>setValue"
+      ],
+      [
+       3.1,
+       "loop>render>renderer.render>Jd.render>jd>vl>ef"
+      ],
+      [
+       3.1,
+       "loop>worldUpdate>fillUpdate>fillStep>build>farRegister>Ma"
+      ],
+      [
+       3.1,
+       "loop>worldUpdate>fillUpdate>fillStep>build>(anon)>toArray"
+      ],
+      [
+       3,
+       "loop>worldUpdate>fillUpdate>fillStep>walk>terrainH>tV2>lakeAt"
+      ],
+      [
+       3,
+       "loop>render>renderer.render>Jd.render>updateMatrixWorld>updateMatrixWorld>updateMatrixWorld>updateMatrixWorld"
+      ],
+      [
+       3,
+       "w.onmessage"
+      ],
+      [
+       3,
+       "loop>worldUpdate>fillUpdate>fillStep>walk>nearTree"
+      ],
+      [
+       1.8,
+       "loop>worldUpdate>tick>moveTraffic>R.move>move"
+      ],
+      [
+       1.7,
+       "loop>render>renderer.render>Jd.render>updateMatrixWorld>updateMatrixWorld>updateMatrixWorld>updateMatrixWorld>updateMatrixWorld>updateMatrixWorld"
+      ],
+      [
+       1.7,
+       "loop>render>renderer.render>Jd.render>Yh>Yh>Yh>Yh>Yh>Yh>Yh>Yh>Yh>Yh>Yh>Yh>Yh>Yh>Yh>applyMatrix4"
+      ],
+      [
+       1.7,
+       "loop>worldUpdate>fillUpdate>fillStep>build>impMerged>Ma"
+      ],
+      [
+       1.7,
+       "loop>worldUpdate>update>buildCell>subGrid>coverAt>coverAt>coverAt"
+      ],
+      [
+       1.7,
+       "loop>render>renderer.render>Jd.render>updateMatrixWorld>updateMatrixWorld"
+      ],
+      [
+       1.6,
+       "loop>render>renderer.render>Jd.render>Yh>Yh>Yh>Yh>Yh>a>l>a"
+      ],
+      [
+       1.6,
+       "loop>worldUpdate>fillUpdate>fillStep>walk>codeAt>terrainH>tV2>terrainH"
+      ],
+      [
+       1.6,
+       "loop>render>renderer.render>Jd.render>Yh>Yh>Yh>intersectsFrustum>intersectsObject"
+      ],
+      [
+       1.6,
+       "loop>render>renderer.render>Jd.render>h>LS"
+      ],
+      [
+       1.6,
+       "loop>worldUpdate>fillUpdate>fillStep>walk>codeAt>vnoise"
+      ],
+      [
+       1.6,
+       "loop>render>renderer.render>Jd.render>jd>vl>ef>Jd.renderBufferDirect>c>drawElementsInstanced"
+      ],
+      [
+       1.6,
+       "loop>render>renderer.render>Jd.render>jd>vl>ef>Jd.renderBufferDirect>og>i"
+      ],
+      [
+       1.6,
+       "loop>render>renderer.render>Jd.render>jd>vl>ef>Jd.renderBufferDirect>o>f"
+      ],
+      [
+       1.5,
+       "loop>render>renderer.render>Jd.render>Yh>Yh>Yh>Yh>Yh>a"
+      ],
+      [
+       1.5,
+       "loop>render>renderer.render>Jd.render>Yh>Yh>Yh>Yh>a>l>a"
+      ],
+      [
+       1.5,
+       "loop>render>renderer.render>Jd.render>sm.render>SM.render>WS.render>x>x>x>x>x"
+      ],
+      [
+       1.5,
+       "loop>render>renderer.render>Jd.render>jd>vl>ef>Jd.renderBufferDirect"
+      ],
+      [
+       1.5,
+       "loop>worldUpdate>FINE.update"
+      ]
+     ],
+     "bake": [
+      [
+       128.4,
+       "loop>worldUpdate>FARLOD.update>buildQuad>(anon)>patchOf>terrainH>grHeight>grBake"
+      ],
+      [
+       51.3,
+       "loop>worldUpdate>fillUpdate>fillStep>walk>codeAt>terrainH>grHeight>grBake"
+      ],
+      [
+       33.6,
+       "loop>worldUpdate>fillUpdate>fillStep>walk>forestHere>islandSurface>terrainH>grHeight>grBake"
+      ],
+      [
+       9.3,
+       "loop>worldUpdate>fillUpdate>fillStep>walk>poolPick>terrainH>grHeight>grBake"
+      ]
+     ],
+     "tasks": [
+      [
+       99827,
+       193
+      ]
+     ]
+    },
+    "pilot": "CLIMB"
+   },
+   "check": {
+    "town": true,
+    "cut": 0,
+    "SPORT_GEN": true,
+    "MARINE_GEN": true,
+    "sportEntries": 2,
+    "marineEntries": 26,
+    "stats": {
+     "houses": 95,
+     "objects": 42,
+     "queued": 558
+    },
+    "kit": {
+     "want": true,
+     "status": "decoded",
+     "err": null,
+     "island": "jolene",
+     "table": 522,
+     "kitPlots": 375,
+     "instances": 426,
+     "lots": 0,
+     "outKit": 0,
+     "outBuilt": 0,
+     "outHidden": 0,
+     "hits": 0,
+     "hitTris": 0,
+     "rebuilt": 0,
+     "tableMs": 413,
+     "packMs": 481,
+     "hostMs": 215,
+     "pack": {
+      "src": "media/townkit/townkit_2e8c3968b3e6.bin",
+      "bytes": 4949098
+     },
+     "host": {
+      "houses": 426,
+      "looks": 421,
+      "geos": 302,
+      "verts": 1194228,
+      "tris": [
+       577482,
+       65504,
+       620
+      ],
+      "mb": 35.63652420043945,
+      "tickMs": 0.09999996423721313,
+      "tickSum": 9.29999977350235,
+      "ticks": 2244,
+      "cullMs": 33.00000023841858,
+      "culls": 1592,
+      "changes": 426,
+      "draws": 1,
+      "missing": [],
+      "slotless": 0,
+      "buildMs": 214,
+      "mode": "batch",
+      "missingLayers": 0,
+      "waiting": false,
+      "tries": 5,
+      "rungs": {
+       "lod0": 0,
+       "lod1": 0,
+       "box": 426,
+       "partners": 0,
+       "none": 0
+      },
+      "lookCount": 421
+     }
+    }
+   },
+   "exceptions": []
+  }
+ ]
+}

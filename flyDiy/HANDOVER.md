@@ -67854,3 +67854,89 @@ BEFORE / AFTER (FRAMECOST, baseline = train 22's; the rows were dead since train
   ALLOW rows tagged G1119   4 -> 0                     GATE FRAMECOST: PASS
 The `rise` field stays in the ALLOW mechanism (no row uses it now). Gates (--no-build, on this branch): FRAMECOST, ROUNDTRIP, STAND, BUILD all PASS.
 NOT DONE (not needed): no change to flRevealStart, nearTag or any LOD; no per-frame work added.
+## G1190-G1195 - METLA-RETURN: THE LAZY GENERATORS; THE TOWN'S 200 ms FRAME WAS LAZY RASTER BAKES OVER METLAKATLA (FIXED); THE A/B FAILS THE RULE ON LOADING - THE TOWN STAYS OFF (2026-10-02, METLA-RETURN for A0, local GPU)
+
+THE USER'S RULE (2026-10-02): Metlakatla returns if, with the town ON against OFF: no frame over 100 ms; unevenness <= 15 %;
+loading no worse. **VERDICT: frames PASS, unevenness borderline (the Cub's taxi 16 %), LOADING FAILS (+18 s to the garage).
+The town stays OFF** (step 4 not done: no default changed, no gate touched).
+
+**G1190 LAZY-GEN (world_boot.js).** tools/_sport_gen.js / _marine_gen.js read window.HOUSE_KIT at load; on index.html the
+FLYDIY_LAZY call ran in the promote's composition task, BEFORE the world pack's external tags (tools/_house_kit.js among
+them) were appended - the two generators ran first and threw ("Cannot destructure property 'clamp' of 'K'"), SPORT_GEN /
+MARINE_GEN stayed undefined, and Metlakatla's ball park, hard court and 26 harbour items never composed. Now they are asked
+for at once when HOUSE_KIT is in (dev.html), else from the capture-phase `load` of the script that brings it (a script's
+load fires right after it runs; the generators queue behind the pack's remaining tags, long before the roll-out's premises
+step, which waits on FLYDIY_LAZY.pending()). PROOF (every town-on load of the A/B, 4/4): SPORT_GEN and MARINE_GEN defined,
+the composed items 2 sport/ + 26 marine/ (render_premises items()), 0 exceptions (8/8 loads).
+
+**THE 200 ms FRAME (master bench 15d18675: stress:town low pass @HOME, worst 200 ms, task 184 ms).** Reproduced (183 ms)
+with tools/perf/metla_ab.js; the flight recorder's row split + a CDP CPU profile of the scene (every caller of grBake over
+the scene): ALL of it was the premises' ground raster BAKING LAZILY over Metlakatla. The cook (tools/premises_cook.js) ships
+the 'default' variant everywhere but the 'town' variant only within REACH (1 km of HOME's stand). With the town on, the page
+takes 89 of the 92 shipped cells (the 3 others are default-only cells inside Metlakatla), and the town's 45 own cells (4 683
+tiles, 8.9-10.4 km from HOME; node, composeVariant + rasterCellSig) bake on first read: 1-1.6 ms a 16 m tile, and the 48 MB
+tile cache (GR_CAP) thrashes past its cap. Before: taxi 545 bakes / 15 s, pass 1 138, the boot 16 689 (14.6 s of CPU); the
+cache evicted 2 569 tiles in one pass. Three readers at HOME:
+- **G1192 THE TRAFFIC (render_premises.js moveTraffic/syncTraffic).** Every car on every road read the ground (heightAt +
+  the tilt's four reads) every frame wherever the eye was - Metlakatla's streets walked their cars into new tiles, ~76
+  bakes a second. Now a road keeps its world box and its cars' farthest draw (props.js propCullDist: 730 x the prop's
+  diagonal, ~3.6 km a car, ~9 km a bus) + 50 m: past it the cars ADVANCE along the road (the same law) and are not posed
+  (no ground read, no obstacle move) - nothing of them can be drawn there. Taxi bakes 545 -> 0. (Outside the cook's LIFTS:
+  PREMCOOK holds.)
+- **G1193 THE FAR TIER (render_world.js patchOf, farComposedH).** Where the premises' patch covers, the far tier took
+  min(DEM, world.terrainH) - the raster - for sparse vertices: each read baked a whole tile, and one quad's rebuild in the
+  pass baked ~1 000 tiles = 128 ms of the 183. It now reads the COMPOSER (overlay.terrainH over premises.base: the analytic
+  source the raster is baked from, the raster being it to GR_TOL = 1 cm) - for a visual mesh sunk metres under the ground.
+- **G1194 THE FOREST FILL (render_world.js fillStep).** The island's base ring reaches 9 km (FAR_FILL): its edge crosses
+  Metlakatla as the eye moves; a walk slice of 8 rows (6.4 m apart over a 1 024 m chunk) over uncooked ground baked ~190
+  tiles (~100 ms) before the budget was read. The budget is now read after EVERY row (8 at most, as before): the same
+  points in the same order (walk's rows are pure), spread over more frames.
+After: the town-on pass bakes 202 (Cub) / 830 (metal) tiles over 15 s, spread out; worst frame 50.2 ms, worst task 57 ms.
+
+**G1191 THE RIG: tools/perf/metla_ab.js** (on master_bench.js's exports - the same scenes and recorder). Per slot of
+--order (A = off, B = ?town=1) and build: navigation -> garage, the first roll-out (first flight = both), taxi chase 15 s,
+the low pass @HOME 15 s. Per scene: master_bench's statistics; the flight recorder's rows over --long ms, by dt OR work (a
+row's t is its frame's START, so the long frame is the row before the long interval), with their slot split; the
+recorder's events; the raster's delta (baked, bakeMs, evicted, decoded, cooked cells taken/stale); the town check (the
+generators, the composed sport/marine items, the kit's stats). --cpuprof <scene>: a CDP profile (--cpuus, default 1000) -
+the heaviest stacks inside the long tasks and every grBake caller over the scene. Exceptions per load.
+Kept: tools/perf/metla_diag3.json (the raster's counters before G1192-G1194), metla_diag7.json (the grBake callers after
+G1192: FARLOD 128 ms, the fill 94 ms).
+
+**G1195 THE A/B** (RTX 3080, fresh profile D:/umr2 warmed once, the parked aeroplanes cooked on this build, ABBA,
+tools/perf/metla_ab1.json). fps / uneven / p99 / worst frame / worst task (ms); pass bakes = lazy raster tiles in the pass;
+boot bakes = the page's lazy tiles by the taxi:
+
+| slot | town | build | garage s | first flight s | TAXI chase @HOME | LOW PASS @HOME | pass bakes | boot bakes |
+|---|---|---|---|---|---|---|---|---|
+| A1 | off | Cub | 44.5 | 53.5 | 32.4 / 10 % / 33.5 / 50.1 / 0 | 30.4 / 7 % / 33.5 / 50 / 0 | 0 | 0 |
+| A1 | off | metal | 66.6 | 75.9 | 32.3 / 10 % / 33.5 / 33.5 / 0 | 30.7 / 8 % / 50 / 66.7 / 68 | 0 | 0 |
+| B2 | ON | Cub | 65.3 | 74.4 | 33.9 / 16 % / 33.5 / 33.5 / 0 | 30.9 / 8 % / 33.5 / 50.1 / 56 | 202 | 12 284 |
+| B2 | ON | metal | 81.0 | 90.3 | 32.9 / 13 % / 33.5 / 33.5 / 0 | 31.1 / 7 % / 33.6 / 50.2 / 57 | 830 | 12 282 |
+| B3 | ON | Cub | 61.3 | 70.5 | 33.7 / 16 % / 33.5 / 33.6 / 0 | 30.9 / 6 % / 49.9 / 50.1 / 57 | 202 | 12 284 |
+| B3 | ON | metal | 86.6 | 96.0 | 33.2 / 15 % / 33.5 / 50 / 0 | 31.1 / 8 % / 50 / 50.1 / 57 | 830 | 12 284 |
+| A4 | off | Cub | 45.9 | 55.1 | 33.4 / 13 % / 33.5 / 50.2 / 0 | 31.2 / 4 % / 33.5 / 50 / 55 | 0 | 0 |
+| A4 | off | metal | 64.6 | 73.9 | 33.1 / 12 % / 33.5 / 49.9 / 0 | 31.2 / 5 % / 33.5 / 50 / 58 | 0 | 0 |
+
+Against the rule: (1) no frame over 100 ms - PASS (worst 50.2 ms with the town on, 66.7 off; 167-200 ms on before the
+fixes). (2) unevenness <= 15 % - the pass 6-8 % PASS; the taxi: metal 13-15 % PASS, **the Cub 16 % on both runs (off
+10-13 %)**. (3) loading - **FAIL**: the garage +18 s (Cub 45.2 -> 63.3 s, metal 65.6 -> 83.8 s, medians), the roll-out
+equal (9.0-9.4 s). The metal's 7 links over 5 s are on BOTH sides (its programs miss this profile's cache on every load -
+not the town's).
+WHY THE LOAD: the town page still bakes ~12 300 raster tiles (~10.5 s of main-thread CPU, grStats.bakeMs) before the taxi -
+Metlakatla's uncooked ground read while the garage boots. Not profiled further: the boot's readers are the next step's
+first measurement.
+
+**NEXT, IF METLAKATLA IS TO RETURN** (A0 / the user decide): COOK THE TOWN VARIANT EVERYWHERE (premises_cook.js EVERYWHERE =
+['default', 'town'] - the RASTER-ON rule: "every cell for the variant the page flies"). Measured with --report (node,
+nothing written): raster 137 cells (default 92, town 134, 89 shared), raw 45.4 -> 133 MB, SHIPPED 5.63 -> 19.74 MB (+14 MB
+in git history at every re-cook of those cells). Before that lands, the three fetchers (build.js ISLAND_LOADER, sim_host.js
+simHostFetchBoot, house_worker.js fetchCook) fetch EVERY cell of every variant and keep the bytes on the boot object (28_island
+premCook): they should fetch only the cells `in` the variant they compose, else the town-off page pays the town's 14 MB and
+its 88 MB raw, three times. Cooking would also remove the bakes when flying over Metlakatla itself (the near ring, the
+stream, the fill there) - not measured here: every scene of the rule is at HOME. Then the Cub's taxi unevenness (16 % on,
+0 bakes in the taxi) is its own look; the far town (the kit host's 426 boxes, 1 draw) is the first suspect. The fixes above
+stand on their own: with the town off the scenes are unchanged (0 bakes), and the traffic and the fill cost nothing more
+anywhere.
+GATES (node, run_gates --only, this build): PREMISES, FRAMECOST, ROUNDTRIP, STAND, BOOT, BUILD, PREMCOOK, PREMRASTER, TREE, TREES,
+METKIT, LIFE - all PASS (BATTERY: PASS). The parked aeroplanes re-cooked on this build (36736e179a7a).

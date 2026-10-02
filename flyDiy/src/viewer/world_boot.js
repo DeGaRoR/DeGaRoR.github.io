@@ -62,7 +62,17 @@ window.FLYDIY_WORLD_COMPOSE = function () {
   // THE GENERATORS ONLY SOME PLACES NAME (AS1, G909): _sport_gen.js and _marine_gen.js load on demand (build.js
   // MANIFEST.lazy) - asked for here when the placed record names a sport/ or marine/ key (Metlakatla's: the town on),
   // long before the roll-out composes the places (render_world's premises step waits for them)
-  try { if (typeof premisesPlaced === 'string' && window.FLYDIY_LAZY && /"(sport|marine)\//.test(premisesPlaced)) window.FLYDIY_LAZY(['_sport_gen', '_marine_gen']); } catch (e) {}
+  // G1190 (METLA-RETURN): both read window.HOUSE_KIT at load, and on index.html this line runs in the promote's composition
+  // task, before the world pack's external tags (tools/_house_kit.js among them) are appended - asked for now they ran
+  // first and threw ("Cannot destructure property 'clamp' of 'K'"). So they are asked for once HOUSE_KIT is in: at
+  // once when it is (dev.html), else from the load event of the script that brings it (a script's load fires right
+  // after it runs; the generators are then queued behind the pack's remaining tags, long before the roll-out)
+  try { if (typeof premisesPlaced === 'string' && window.FLYDIY_LAZY && /"(sport|marine)\//.test(premisesPlaced)) {
+    const gens = () => window.FLYDIY_LAZY(['_sport_gen', '_marine_gen']);
+    if (window.HOUSE_KIT) gens();
+    else { const kit = () => { if (!window.HOUSE_KIT) return; document.removeEventListener('load', kit, true); gens(); };
+      document.addEventListener('load', kit, true); }
+  } } catch (e) {}
   // THE ISLAND (W2): the loader fetched the data world's files when ?world= named one
   // G999: the island loader's promote decoded it in a task of its own (window.ISLAND_MADE, build.js) - taken when it is
   // this boot's island, decoded here otherwise (dev.html, a harness)

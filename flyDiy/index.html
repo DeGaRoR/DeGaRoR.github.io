@@ -42372,7 +42372,7 @@ if (typeof module !== 'undefined')
   module.exports = { TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, RWY_LIGHTS, runwayLightStrips, runwayLightSite, runwayLightPoints, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, atmosWater, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, CLIMATE, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, decodeAnimal, decodeAnimalClips, registerAnimal, animalList, animalClips, animalClip, ANIMAL_REG, makeSim, HYDRO, makeBus, vortexKernel, makeAutopilot, makeTestPilot, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, seatOnGround, placeAtLineup, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, POLARS, PAR, RHO, hyp2, hyp3, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genPlanePair, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, genTrueBox, genNetEig, genRigidFloatOf, GEN_BOX_N, GEN_BOX_KMIN, GEN_NET_MAX, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC, GP_PARKED_FOOT, GP_PARKED_DEFAULT, GP_CLEAR, GP_HALF_DEFAULT, parkedFoot, gpParkedDist, gpClearWay };
 </script>
 <script type="text/x-flydiy">window.BOOT&&BOOT.phase('core','reading the model')</script>
-<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='04c9015f760b';window.FLYDIY_BUILD='96dcdfb5343c'</script>
+<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='04c9015f760b';window.FLYDIY_BUILD='36736e179a7a'</script>
 <script type="text/x-flydiy" src="src/models/pa18_model.js?v=d854feec"></script>
 <script type="text/x-flydiy" src="src/models/c172_model.js?v=52c3ced6"></script>
 <script type="text/x-flydiy" src="src/models/d112_model.js?v=3678040d"></script>
@@ -120595,6 +120595,8 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         });
         return t;
       })();
+      const farComposedH = (x, z) => { const P = world.premises, O = P && P.overlay;
+        return O && O.terrainH && P.base ? O.terrainH(x, z, P.base.terrainH(x, z)) : world.terrainH(x, z); };
       const patchOf = n => {
         let P = FARLOD.cache.get(n.fid); if (P) { P.used = FARLOD.stamp; return P; }
         const [ox, oz, s] = boxOf(n), step = s / Pn, nh = hts(n);
@@ -120612,7 +120614,11 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
           // clearing flattened or a road cut 4.5 km or more from the origin was hidden under it. Where
           // the premises' own patch covers, the tier drops to the COMPOSED ground (a cut deeper than
           // the sink must not poke through) and the ring's 4 m under it - the ring's own rule
-          if (farSinkOn) { const sk = groundSink(x, z); if (sk) y = Math.min(y, world.terrainH(x, z)) - sk; }
+          // G1193 (METLA-RETURN): read off the COMPOSER (farComposedH), not the raster - the raster bakes a 16 m tile
+          // (up to 65^2 lattice nodes) to answer one of these sparse reads, and over a town the cook does not ship (the
+          // town on: Metlakatla) one quad's rebuild baked ~1 000 tiles in a frame (the low pass's 130 ms). The raster
+          // is the composer's answer to GR_TOL (1 cm); this mesh is sunk metres under it
+          if (farSinkOn) { const sk = groundSink(x, z); if (sk) y = Math.min(y, farComposedH(x, z)) - sk; }
           pos[k * 3] = x; pos[k * 3 + 1] = y; pos[k * 3 + 2] = z;
           const t = islandUV ? islandUV(x, z) : [(x - BX0) / SIZE, 1 - (z - BZ0) / SIZE]; uv[k * 2] = t[0]; uv[k * 2 + 1] = t[1];
         }
@@ -123325,8 +123331,11 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
             cur = { c2, part: q.part, recs: SHAPE.list.map(() => []), gz: 0, walkMs: 0 };
           }
           const t = performance.now();
-          const g1 = Math.min(NG, cur.gz + 8);
-          walk(cur.c2.cx, cur.c2.cz, cur.recs, cur.gz, g1, cur.part);
+          // G1194 (METLA-RETURN): up to 8 rows, the budget read after EACH - a row over ground the premises cook does not
+          // ship (the 9 km ring's edge over Metlakatla, the town on) bakes its raster tiles lazily, ~190 of them in 8
+          // rows: one 100+ ms frame. The same rows in the same order (walk's points do not depend on the slicing)
+          let g1 = cur.gz;
+          do { walk(cur.c2.cx, cur.c2.cz, cur.recs, g1, g1 + 1, cur.part); g1++; } while (g1 < NG && g1 < cur.gz + 8 && performance.now() - t0 < budgetMs);
           cur.walkMs += performance.now() - t; cur.gz = g1;
           if (g1 >= NG) {
             const c2 = cur.c2, part = cur.part;
@@ -152866,7 +152875,17 @@ window.FLYDIY_WORLD_COMPOSE = function () {
   // THE GENERATORS ONLY SOME PLACES NAME (AS1, G909): _sport_gen.js and _marine_gen.js load on demand (build.js
   // MANIFEST.lazy) - asked for here when the placed record names a sport/ or marine/ key (Metlakatla's: the town on),
   // long before the roll-out composes the places (render_world's premises step waits for them)
-  try { if (typeof premisesPlaced === 'string' && window.FLYDIY_LAZY && /"(sport|marine)\//.test(premisesPlaced)) window.FLYDIY_LAZY(['_sport_gen', '_marine_gen']); } catch (e) {}
+  // G1190 (METLA-RETURN): both read window.HOUSE_KIT at load, and on index.html this line runs in the promote's composition
+  // task, before the world pack's external tags (tools/_house_kit.js among them) are appended - asked for now they ran
+  // first and threw ("Cannot destructure property 'clamp' of 'K'"). So they are asked for once HOUSE_KIT is in: at
+  // once when it is (dev.html), else from the load event of the script that brings it (a script's load fires right
+  // after it runs; the generators are then queued behind the pack's remaining tags, long before the roll-out)
+  try { if (typeof premisesPlaced === 'string' && window.FLYDIY_LAZY && /"(sport|marine)\//.test(premisesPlaced)) {
+    const gens = () => window.FLYDIY_LAZY(['_sport_gen', '_marine_gen']);
+    if (window.HOUSE_KIT) gens();
+    else { const kit = () => { if (!window.HOUSE_KIT) return; document.removeEventListener('load', kit, true); gens(); };
+      document.addEventListener('load', kit, true); }
+  } } catch (e) {}
   // THE ISLAND (W2): the loader fetched the data world's files when ?world= named one
   // G999: the island loader's promote decoded it in a task of its own (window.ISLAND_MADE, build.js) - taken when it is
   // this boot's island, decoded here otherwise (dev.html, a harness)
@@ -152923,7 +152942,7 @@ window.FLYDIY_WORLD_COMPOSE = function () {
 <script type="text/x-flydiy" src="src/viewer/scenery_life.js?v=7b78ce7e"></script>
 <script type="text/x-flydiy" src="src/viewer/premises_build.js?v=aabddd56"></script>
 <script type="text/x-flydiy" src="src/viewer/house_tarr.js?v=9cadc7a7"></script>
-<script type="text/x-flydiy" src="src/viewer/render_premises.js?v=802869d6"></script>
+<script type="text/x-flydiy" src="src/viewer/render_premises.js?v=62ae1deb"></script>
 <script type="text/x-flydiy">
 (() => {
   // THE LOADING SCREEN (LOADING S1, 2026-09-14): src/viewer/boot.js ran before

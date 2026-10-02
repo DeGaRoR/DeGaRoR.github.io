@@ -2333,6 +2333,8 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         });
         return t;
       })();
+      const farComposedH = (x, z) => { const P = world.premises, O = P && P.overlay;
+        return O && O.terrainH && P.base ? O.terrainH(x, z, P.base.terrainH(x, z)) : world.terrainH(x, z); };
       const patchOf = n => {
         let P = FARLOD.cache.get(n.fid); if (P) { P.used = FARLOD.stamp; return P; }
         const [ox, oz, s] = boxOf(n), step = s / Pn, nh = hts(n);
@@ -2350,7 +2352,11 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
           // clearing flattened or a road cut 4.5 km or more from the origin was hidden under it. Where
           // the premises' own patch covers, the tier drops to the COMPOSED ground (a cut deeper than
           // the sink must not poke through) and the ring's 4 m under it - the ring's own rule
-          if (farSinkOn) { const sk = groundSink(x, z); if (sk) y = Math.min(y, world.terrainH(x, z)) - sk; }
+          // G1193 (METLA-RETURN): read off the COMPOSER (farComposedH), not the raster - the raster bakes a 16 m tile
+          // (up to 65^2 lattice nodes) to answer one of these sparse reads, and over a town the cook does not ship (the
+          // town on: Metlakatla) one quad's rebuild baked ~1 000 tiles in a frame (the low pass's 130 ms). The raster
+          // is the composer's answer to GR_TOL (1 cm); this mesh is sunk metres under it
+          if (farSinkOn) { const sk = groundSink(x, z); if (sk) y = Math.min(y, farComposedH(x, z)) - sk; }
           pos[k * 3] = x; pos[k * 3 + 1] = y; pos[k * 3 + 2] = z;
           const t = islandUV ? islandUV(x, z) : [(x - BX0) / SIZE, 1 - (z - BZ0) / SIZE]; uv[k * 2] = t[0]; uv[k * 2 + 1] = t[1];
         }
@@ -5063,8 +5069,11 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
             cur = { c2, part: q.part, recs: SHAPE.list.map(() => []), gz: 0, walkMs: 0 };
           }
           const t = performance.now();
-          const g1 = Math.min(NG, cur.gz + 8);
-          walk(cur.c2.cx, cur.c2.cz, cur.recs, cur.gz, g1, cur.part);
+          // G1194 (METLA-RETURN): up to 8 rows, the budget read after EACH - a row over ground the premises cook does not
+          // ship (the 9 km ring's edge over Metlakatla, the town on) bakes its raster tiles lazily, ~190 of them in 8
+          // rows: one 100+ ms frame. The same rows in the same order (walk's points do not depend on the slicing)
+          let g1 = cur.gz;
+          do { walk(cur.c2.cx, cur.c2.cz, cur.recs, g1, g1 + 1, cur.part); g1++; } while (g1 < NG && g1 < cur.gz + 8 && performance.now() - t0 < budgetMs);
           cur.walkMs += performance.now() - t; cur.gz = g1;
           if (g1 >= NG) {
             const c2 = cur.c2, part = cur.part;

@@ -1225,13 +1225,25 @@ function make(THREE, scene, world, rec0, opts) {
         if (TRAFFIC_HITBOX) hitAdd(grp, 'traffic', 0.5, id => { car.hit = id; });
         cars.push(car);
       }
-      TRAFFIC.set(id, { key: trafficKey(rd), cars, pr, w: rd.w, L });
+      // G1192 (METLA-RETURN): the road's box in the world and the farthest its cars can be drawn (props.js propCullDist)
+      const F = O.frame, box = [Infinity, Infinity, -Infinity, -Infinity];
+      for (const q of rd.pts) { const w = F.toWorld(q[0], q[1]); box[0] = Math.min(box[0], w[0] - rd.w); box[1] = Math.min(box[1], w[1] - rd.w); box[2] = Math.max(box[2], w[0] + rd.w); box[3] = Math.max(box[3], w[1] + rd.w); }
+      const reach = 50 + Math.max(0, ...cars.map(c => (typeof propCullDist === 'function' ? propCullDist(c.key) : 0) || Infinity));
+      TRAFFIC.set(id, { key: trafficKey(rd), cars, pr, w: rd.w, L, box, reach });
       moveTraffic(TRAFFIC.get(id), 0);
     }
     stats.traffic = 0; for (const [, t] of TRAFFIC) stats.traffic += t.cars.length;
   }
-  function moveTraffic(t, dt) {
-    const F = O.frame, off = Math.max(0.9, Math.min(1.6, t.w / 4));
+  // G1192 (METLA-RETURN): A ROAD OUT OF SIGHT DRIVES ON, UNPOSED. Every car on every road read the ground (heightAt and
+  // the tilt's four reads) every frame, wherever the eye was: with the town on, Metlakatla's streets 9-10 km from HOME
+  // walked their cars through raster tiles the cook does not ship, ~76 lazy bakes a second, and the churn pushed the
+  // 48 MB tile cache past its cap - the stand's own tiles evicted and read back in bursts (the low pass's 150-180 ms
+  // frame, the forest fill's walk). Past `reach` (its cars' own cull distance) of the road's box nothing of it can be
+  // drawn: its cars advance along the road (the same law, so they are where they would be), the pose waits until the
+  // eye comes within reach. eye null (the build's first placing, a host with no eye): posed, as before
+  function moveTraffic(t, dt, eye) {
+    const F = O.frame, off = Math.max(0.9, Math.min(1.6, t.w / 4)), b = t.box;
+    const pose = !eye || !b || Math.hypot(Math.max(b[0] - eye.x, 0, eye.x - b[2]), Math.max(b[1] - eye.z, 0, eye.z - b[3])) <= t.reach;
     for (const c of t.cars) {
       // the one ahead in my direction: slow to its speed inside two lengths, else my own
       let gap = Infinity, vAhead = c.v0;
@@ -1240,6 +1252,7 @@ function make(THREE, scene, world, rec0, opts) {
       c.v += (tgt - c.v) * Math.min(1, dt * 1.5);
       c.s += c.dir * c.v * dt;
       if (c.s > t.L) { c.s = 2 * t.L - c.s; c.dir = -1; } else if (c.s < 0) { c.s = -c.s; c.dir = 1; }
+      if (!pose) continue;
       const a = t.pr.at(c.s), tx = a.tg[0] * c.dir, tz = a.tg[1] * c.dir;
       const rx = -tz, rz = tx;                                    // the right-hand side of the direction of travel (x right, z toward the viewer, y up)
       const w = F.toWorld(a.p[0] + rx * off, a.p[1] + rz * off);
@@ -2023,7 +2036,7 @@ function make(THREE, scene, world, rec0, opts) {
       if (on2 !== D.on2) { D.on2 = on2; for (const m of D.list2) if (!m.userData.merged) m.visible = on2; }
     }
   }
-  function tick(dt) { if (RISE.list.length) riseTick(); if (++freezeTick % 60 === 0) freezeStatic(true); detailTick(); if (LIFE) LIFE.tick(); hitPendingStep(); for (const [, t] of TRAMS) t.run.tick(dt).apply(); for (const [, t] of TRAFFIC) moveTraffic(t, dt); if (ANIM) stats.animalsShown = ANIM.tick(dt); return TRAMS.size + TRAFFIC.size + (ANIM ? ANIM.stats.animals : 0); }
+  function tick(dt) { if (RISE.list.length) riseTick(); if (++freezeTick % 60 === 0) freezeStatic(true); detailTick(); if (LIFE) LIFE.tick(); hitPendingStep(); for (const [, t] of TRAMS) t.run.tick(dt).apply(); if (TRAFFIC.size) { const e = o.eye && o.eye(); for (const [, t] of TRAFFIC) moveTraffic(t, dt, e); } if (ANIM) stats.animalsShown = ANIM.tick(dt); return TRAMS.size + TRAFFIC.size + (ANIM ? ANIM.stats.animals : 0); }
 
   // ---- the handles ----------------------------------------------------------------
   const discGeo = new THREE.CircleGeometry(1, 20); discGeo.rotateX(-Math.PI / 2);

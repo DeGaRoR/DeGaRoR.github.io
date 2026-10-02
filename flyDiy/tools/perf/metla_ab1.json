@@ -1,0 +1,1621 @@
+{
+ "date": "2026-10-02T16:45:50.688Z",
+ "order": [
+  "A",
+  "B",
+  "B",
+  "A"
+ ],
+ "builds": [
+  "cub",
+  "metal"
+ ],
+ "udd": "D:/umr2",
+ "fresh": true,
+ "rows": [
+  {
+   "side": "A",
+   "build": "cub",
+   "garage": 44.5,
+   "rollout": 9,
+   "firstFlight": 53.5,
+   "rollFrames": {
+    "frames": 414,
+    "fps": 46,
+    "uneven": 0.017,
+    "p50": 16.7,
+    "p99": 33.4,
+    "worst": 66.7,
+    "over100": 0,
+    "cap30": 0.29,
+    "tasks200": 0,
+    "tasks1s": 0,
+    "taskWorst": 0,
+    "onGround": 1,
+    "screenS": 0
+   },
+   "links": {
+    "n": 386,
+    "pending": 2,
+    "sumS": 298,
+    "worstS": 3.9,
+    "over5s": 0
+   },
+   "taxi": {
+    "scene": "taxi",
+    "st": {
+     "frames": 486,
+     "fps": 32.4,
+     "uneven": 0.103,
+     "p50": 33.3,
+     "p99": 33.5,
+     "worst": 50.1,
+     "over100": 0,
+     "cap30": 0.81,
+     "tasks200": 0,
+     "tasks1s": 0,
+     "taskWorst": 0,
+     "onGround": 1,
+     "screenS": 0
+    },
+    "rec": {
+     "long": [],
+     "ev": [
+      [
+       58180.8,
+       "gc",
+       null,
+       "10 MB freed"
+      ]
+     ]
+    },
+    "tasks": [],
+    "t0": 57779.299999952316,
+    "raster": {
+     "baked": 0,
+     "bakeMs": 0,
+     "evicted": 305,
+     "decoded": 373,
+     "tiles": 37354,
+     "mb": 48,
+     "cookedCells": 92,
+     "cooked": {
+      "taken": 92,
+      "stale": 0
+     },
+     "total": {
+      "baked": 0,
+      "bakeMs": 0,
+      "evicted": 16419
+     }
+    },
+    "cpu": null
+   },
+   "pass": {
+    "scene": "pass",
+    "st": {
+     "frames": 457,
+     "fps": 30.4,
+     "uneven": 0.066,
+     "p50": 33.3,
+     "p99": 33.5,
+     "worst": 50,
+     "over100": 0,
+     "cap30": 0.92,
+     "tasks200": 0,
+     "tasks1s": 0,
+     "taskWorst": 0,
+     "onGround": 0,
+     "screenS": 0
+    },
+    "rec": {
+     "long": [],
+     "ev": [
+      [
+       78328,
+       "gc",
+       null,
+       "203 MB freed"
+      ],
+      [
+       80459.5,
+       "gc",
+       null,
+       "778 MB freed"
+      ]
+     ]
+    },
+    "tasks": [],
+    "t0": 75823.09999996424,
+    "raster": {
+     "baked": 0,
+     "bakeMs": 0,
+     "evicted": 66,
+     "decoded": 398,
+     "tiles": 38538,
+     "mb": 48,
+     "cookedCells": 92,
+     "cooked": {
+      "taken": 92,
+      "stale": 0
+     },
+     "total": {
+      "baked": 0,
+      "bakeMs": 0,
+      "evicted": 16944
+     }
+    },
+    "cpu": null,
+    "pilot": "CLIMB"
+   },
+   "check": {
+    "town": false,
+    "cut": 231,
+    "SPORT_GEN": false,
+    "MARINE_GEN": false,
+    "sportEntries": 0,
+    "marineEntries": 0,
+    "stats": {
+     "houses": 95,
+     "objects": 42,
+     "queued": 78
+    },
+    "kit": {
+     "want": false,
+     "status": "off",
+     "err": null,
+     "island": null,
+     "table": 0,
+     "kitPlots": 0,
+     "instances": 0,
+     "lots": 0,
+     "outKit": 0,
+     "outBuilt": 0,
+     "outHidden": 0,
+     "hits": 0,
+     "hitTris": 0,
+     "rebuilt": 0,
+     "tableMs": 0,
+     "packMs": 0,
+     "hostMs": 0,
+     "pack": null,
+     "host": null
+    }
+   },
+   "exceptions": []
+  },
+  {
+   "side": "A",
+   "build": "metal",
+   "garage": 66.6,
+   "rollout": 9.3,
+   "firstFlight": 75.9,
+   "rollFrames": {
+    "frames": 420,
+    "fps": 45.2,
+    "uneven": 0.017,
+    "p50": 16.7,
+    "p99": 33.5,
+    "worst": 233.4,
+    "over100": 1,
+    "cap30": 0.29,
+    "tasks200": 1,
+    "tasks1s": 0,
+    "taskWorst": 206,
+    "onGround": 1,
+    "screenS": 0
+   },
+   "links": {
+    "n": 390,
+    "pending": 2,
+    "sumS": 367.5,
+    "worstS": 41.7,
+    "over5s": 7
+   },
+   "taxi": {
+    "scene": "taxi",
+    "st": {
+     "frames": 485,
+     "fps": 32.3,
+     "uneven": 0.103,
+     "p50": 33.3,
+     "p99": 33.5,
+     "worst": 33.5,
+     "over100": 0,
+     "cap30": 0.8,
+     "tasks200": 0,
+     "tasks1s": 0,
+     "taskWorst": 0,
+     "onGround": 1,
+     "screenS": 0
+    },
+    "rec": {
+     "long": [],
+     "ev": [
+      [
+       86646.7,
+       "gc",
+       null,
+       "75 MB freed"
+      ]
+     ]
+    },
+    "tasks": [],
+    "t0": 80157.90000003576,
+    "raster": {
+     "baked": 0,
+     "bakeMs": 0,
+     "evicted": 211,
+     "decoded": 366,
+     "tiles": 37391,
+     "mb": 48,
+     "cookedCells": 92,
+     "cooked": {
+      "taken": 92,
+      "stale": 0
+     },
+     "total": {
+      "baked": 0,
+      "bakeMs": 0,
+      "evicted": 16468
+     }
+    },
+    "cpu": null
+   },
+   "pass": {
+    "scene": "pass",
+    "st": {
+     "frames": 461,
+     "fps": 30.7,
+     "uneven": 0.08,
+     "p50": 33.3,
+     "p99": 50,
+     "worst": 66.7,
+     "over100": 0,
+     "cap30": 0.9,
+     "tasks200": 0,
+     "tasks1s": 0,
+     "taskWorst": 68,
+     "onGround": 0,
+     "screenS": 0
+    },
+    "rec": {
+     "long": [],
+     "ev": [
+      [
+       98871.4,
+       "longtask",
+       58,
+       "window"
+      ],
+      [
+       100520.2,
+       "longtask",
+       56,
+       "window"
+      ],
+      [
+       112458.1,
+       "longtask",
+       68,
+       "window"
+      ]
+     ]
+    },
+    "tasks": [
+     [
+      112458,
+      68
+     ],
+     [
+      98871,
+      58
+     ],
+     [
+      100520,
+      56
+     ]
+    ],
+    "t0": 98202.40000003576,
+    "raster": {
+     "baked": 0,
+     "bakeMs": 0,
+     "evicted": 170,
+     "decoded": 1298,
+     "tiles": 39323,
+     "mb": 47.9,
+     "cookedCells": 92,
+     "cooked": {
+      "taken": 92,
+      "stale": 0
+     },
+     "total": {
+      "baked": 0,
+      "bakeMs": 0,
+      "evicted": 17138
+     }
+    },
+    "cpu": null,
+    "pilot": "CLIMB"
+   },
+   "check": {
+    "town": false,
+    "cut": 231,
+    "SPORT_GEN": false,
+    "MARINE_GEN": false,
+    "sportEntries": 0,
+    "marineEntries": 0,
+    "stats": {
+     "houses": 95,
+     "objects": 42,
+     "queued": 78
+    },
+    "kit": {
+     "want": false,
+     "status": "off",
+     "err": null,
+     "island": null,
+     "table": 0,
+     "kitPlots": 0,
+     "instances": 0,
+     "lots": 0,
+     "outKit": 0,
+     "outBuilt": 0,
+     "outHidden": 0,
+     "hits": 0,
+     "hitTris": 0,
+     "rebuilt": 0,
+     "tableMs": 0,
+     "packMs": 0,
+     "hostMs": 0,
+     "pack": null,
+     "host": null
+    }
+   },
+   "exceptions": []
+  },
+  {
+   "side": "B",
+   "build": "cub",
+   "garage": 65.3,
+   "rollout": 9.1,
+   "firstFlight": 74.4,
+   "rollFrames": {
+    "frames": 531,
+    "fps": 58.4,
+    "uneven": 0.009,
+    "p50": 16.7,
+    "p99": 16.9,
+    "worst": 200.1,
+    "over100": 1,
+    "cap30": 0,
+    "tasks200": 0,
+    "tasks1s": 0,
+    "taskWorst": 174,
+    "onGround": 1,
+    "screenS": 0
+   },
+   "links": {
+    "n": 399,
+    "pending": 2,
+    "sumS": 295,
+    "worstS": 3.3,
+    "over5s": 0
+   },
+   "taxi": {
+    "scene": "taxi",
+    "st": {
+     "frames": 508,
+     "fps": 33.9,
+     "uneven": 0.162,
+     "p50": 33.3,
+     "p99": 33.5,
+     "worst": 33.5,
+     "over100": 0,
+     "cap30": 0.7,
+     "tasks200": 0,
+     "tasks1s": 0,
+     "taskWorst": 0,
+     "onGround": 1,
+     "screenS": 0
+    },
+    "rec": {
+     "long": [],
+     "ev": []
+    },
+    "tasks": [],
+    "t0": 78744.80000001192,
+    "raster": {
+     "baked": 0,
+     "bakeMs": 0,
+     "evicted": 106,
+     "decoded": 493,
+     "tiles": 42616,
+     "mb": 48,
+     "cookedCells": 89,
+     "cooked": {
+      "taken": 89,
+      "stale": 3
+     },
+     "total": {
+      "baked": 12284,
+      "bakeMs": 10516,
+      "evicted": 35831
+     }
+    },
+    "cpu": null
+   },
+   "pass": {
+    "scene": "pass",
+    "st": {
+     "frames": 463,
+     "fps": 30.9,
+     "uneven": 0.082,
+     "p50": 33.3,
+     "p99": 33.5,
+     "worst": 50.1,
+     "over100": 0,
+     "cap30": 0.91,
+     "tasks200": 0,
+     "tasks1s": 0,
+     "taskWorst": 56,
+     "onGround": 0,
+     "screenS": 0
+    },
+    "rec": {
+     "long": [],
+     "ev": [
+      [
+       103158.6,
+       "gc",
+       null,
+       "355 MB freed"
+      ],
+      [
+       103874.9,
+       "longtask",
+       52,
+       "window"
+      ],
+      [
+       106809.3,
+       "longtask",
+       56,
+       "window"
+      ]
+     ]
+    },
+    "tasks": [
+     [
+      106809,
+      56
+     ],
+     [
+      103875,
+      52
+     ]
+    ],
+    "t0": 96788.19999998808,
+    "raster": {
+     "baked": 202,
+     "bakeMs": 100.4,
+     "evicted": 164,
+     "decoded": 448,
+     "tiles": 45196,
+     "mb": 48,
+     "cookedCells": 89,
+     "cooked": {
+      "taken": 89,
+      "stale": 3
+     },
+     "total": {
+      "baked": 12544,
+      "bakeMs": 10639,
+      "evicted": 36136
+     }
+    },
+    "cpu": null,
+    "pilot": "CLIMB"
+   },
+   "check": {
+    "town": true,
+    "cut": 0,
+    "SPORT_GEN": true,
+    "MARINE_GEN": true,
+    "sportEntries": 2,
+    "marineEntries": 26,
+    "stats": {
+     "houses": 95,
+     "objects": 42,
+     "queued": 558
+    },
+    "kit": {
+     "want": true,
+     "status": "decoded",
+     "err": null,
+     "island": "jolene",
+     "table": 522,
+     "kitPlots": 375,
+     "instances": 426,
+     "lots": 0,
+     "outKit": 0,
+     "outBuilt": 0,
+     "outHidden": 0,
+     "hits": 0,
+     "hitTris": 0,
+     "rebuilt": 0,
+     "tableMs": 348,
+     "packMs": 468,
+     "hostMs": 214,
+     "pack": {
+      "src": "media/townkit/townkit_2e8c3968b3e6.bin",
+      "bytes": 4949098
+     },
+     "host": {
+      "houses": 426,
+      "looks": 421,
+      "geos": 302,
+      "verts": 1194228,
+      "tris": [
+       577482,
+       65504,
+       620
+      ],
+      "mb": 35.63652420043945,
+      "tickMs": 0.10000002384185791,
+      "tickSum": 8.400000035762787,
+      "ticks": 2377,
+      "cullMs": 38.50000113248825,
+      "culls": 1666,
+      "changes": 426,
+      "draws": 1,
+      "missing": [],
+      "slotless": 0,
+      "buildMs": 214,
+      "mode": "batch",
+      "missingLayers": 0,
+      "waiting": false,
+      "tries": 5,
+      "rungs": {
+       "lod0": 0,
+       "lod1": 0,
+       "box": 426,
+       "partners": 0,
+       "none": 0
+      },
+      "lookCount": 421
+     }
+    }
+   },
+   "exceptions": []
+  },
+  {
+   "side": "B",
+   "build": "metal",
+   "garage": 81,
+   "rollout": 9.3,
+   "firstFlight": 90.3,
+   "rollFrames": {
+    "frames": 537,
+    "fps": 57.9,
+    "uneven": 0.007,
+    "p50": 16.7,
+    "p99": 16.8,
+    "worst": 233.5,
+    "over100": 1,
+    "cap30": 0,
+    "tasks200": 1,
+    "tasks1s": 0,
+    "taskWorst": 207,
+    "onGround": 1,
+    "screenS": 0
+   },
+   "links": {
+    "n": 390,
+    "pending": 2,
+    "sumS": 391.7,
+    "worstS": 39.7,
+    "over5s": 7
+   },
+   "taxi": {
+    "scene": "taxi",
+    "st": {
+     "frames": 494,
+     "fps": 32.9,
+     "uneven": 0.134,
+     "p50": 33.3,
+     "p99": 33.5,
+     "worst": 33.5,
+     "over100": 0,
+     "cap30": 0.77,
+     "tasks200": 0,
+     "tasks1s": 0,
+     "taskWorst": 0,
+     "onGround": 1,
+     "screenS": 0
+    },
+    "rec": {
+     "long": [],
+     "ev": [
+      [
+       94349.8,
+       "gc",
+       null,
+       "17 MB freed"
+      ],
+      [
+       106060.6,
+       "gc",
+       null,
+       "61 MB freed"
+      ]
+     ]
+    },
+    "tasks": [],
+    "t0": 94522.5,
+    "raster": {
+     "baked": 0,
+     "bakeMs": 0,
+     "evicted": 111,
+     "decoded": 495,
+     "tiles": 42612,
+     "mb": 47.9,
+     "cookedCells": 89,
+     "cooked": {
+      "taken": 89,
+      "stale": 3
+     },
+     "total": {
+      "baked": 12282,
+      "bakeMs": 10894,
+      "evicted": 35805
+     }
+    },
+    "cpu": null
+   },
+   "pass": {
+    "scene": "pass",
+    "st": {
+     "frames": 467,
+     "fps": 31.1,
+     "uneven": 0.067,
+     "p50": 33.3,
+     "p99": 33.6,
+     "worst": 50.2,
+     "over100": 0,
+     "cap30": 0.91,
+     "tasks200": 0,
+     "tasks1s": 0,
+     "taskWorst": 57,
+     "onGround": 0,
+     "screenS": 0
+    },
+    "rec": {
+     "long": [],
+     "ev": [
+      [
+       116329.4,
+       "gc",
+       null,
+       "182 MB freed"
+      ],
+      [
+       117551.5,
+       "longtask",
+       57,
+       "window"
+      ]
+     ]
+    },
+    "tasks": [
+     [
+      117552,
+      57
+     ]
+    ],
+    "t0": 112580,
+    "raster": {
+     "baked": 830,
+     "bakeMs": 420.2,
+     "evicted": 971,
+     "decoded": 1360,
+     "tiles": 46341,
+     "mb": 47.9,
+     "cookedCells": 89,
+     "cooked": {
+      "taken": 89,
+      "stale": 3
+     },
+     "total": {
+      "baked": 13112,
+      "bakeMs": 11314,
+      "evicted": 36873
+     }
+    },
+    "cpu": null,
+    "pilot": "CLIMB"
+   },
+   "check": {
+    "town": true,
+    "cut": 0,
+    "SPORT_GEN": true,
+    "MARINE_GEN": true,
+    "sportEntries": 2,
+    "marineEntries": 26,
+    "stats": {
+     "houses": 95,
+     "objects": 42,
+     "queued": 558
+    },
+    "kit": {
+     "want": true,
+     "status": "decoded",
+     "err": null,
+     "island": "jolene",
+     "table": 522,
+     "kitPlots": 375,
+     "instances": 426,
+     "lots": 0,
+     "outKit": 0,
+     "outBuilt": 0,
+     "outHidden": 0,
+     "hits": 0,
+     "hitTris": 0,
+     "rebuilt": 0,
+     "tableMs": 349,
+     "packMs": 463,
+     "hostMs": 211,
+     "pack": {
+      "src": "media/townkit/townkit_2e8c3968b3e6.bin",
+      "bytes": 4949098
+     },
+     "host": {
+      "houses": 426,
+      "looks": 421,
+      "geos": 302,
+      "verts": 1194228,
+      "tris": [
+       577482,
+       65504,
+       620
+      ],
+      "mb": 35.63652420043945,
+      "tickMs": 0,
+      "tickSum": 14.600000083446503,
+      "ticks": 2325,
+      "cullMs": 25.099999964237213,
+      "culls": 954,
+      "changes": 426,
+      "draws": 0,
+      "missing": [],
+      "slotless": 0,
+      "buildMs": 211,
+      "mode": "batch",
+      "missingLayers": 0,
+      "waiting": false,
+      "tries": 5,
+      "rungs": {
+       "lod0": 0,
+       "lod1": 0,
+       "box": 426,
+       "partners": 0,
+       "none": 0
+      },
+      "lookCount": 421
+     }
+    }
+   },
+   "exceptions": []
+  },
+  {
+   "side": "B",
+   "build": "cub",
+   "garage": 61.3,
+   "rollout": 9.2,
+   "firstFlight": 70.5,
+   "rollFrames": {
+    "frames": 532,
+    "fps": 58.2,
+    "uneven": 0.011,
+    "p50": 16.7,
+    "p99": 16.8,
+    "worst": 216.7,
+    "over100": 1,
+    "cap30": 0,
+    "tasks200": 0,
+    "tasks1s": 0,
+    "taskWorst": 182,
+    "onGround": 1,
+    "screenS": 0
+   },
+   "links": {
+    "n": 393,
+    "pending": 2,
+    "sumS": 257.7,
+    "worstS": 3.3,
+    "over5s": 0
+   },
+   "taxi": {
+    "scene": "taxi",
+    "st": {
+     "frames": 505,
+     "fps": 33.7,
+     "uneven": 0.157,
+     "p50": 33.3,
+     "p99": 33.5,
+     "worst": 33.6,
+     "over100": 0,
+     "cap30": 0.71,
+     "tasks200": 0,
+     "tasks1s": 0,
+     "taskWorst": 0,
+     "onGround": 1,
+     "screenS": 0
+    },
+    "rec": {
+     "long": [],
+     "ev": []
+    },
+    "tasks": [],
+    "t0": 74796.69999998808,
+    "raster": {
+     "baked": 0,
+     "bakeMs": 0,
+     "evicted": 104,
+     "decoded": 493,
+     "tiles": 42616,
+     "mb": 48,
+     "cookedCells": 89,
+     "cooked": {
+      "taken": 89,
+      "stale": 3
+     },
+     "total": {
+      "baked": 12284,
+      "bakeMs": 10557,
+      "evicted": 35993
+     }
+    },
+    "cpu": null
+   },
+   "pass": {
+    "scene": "pass",
+    "st": {
+     "frames": 464,
+     "fps": 30.9,
+     "uneven": 0.063,
+     "p50": 33.3,
+     "p99": 49.9,
+     "worst": 50.1,
+     "over100": 0,
+     "cap30": 0.91,
+     "tasks200": 0,
+     "tasks1s": 0,
+     "taskWorst": 57,
+     "onGround": 0,
+     "screenS": 0
+    },
+    "rec": {
+     "long": [],
+     "ev": [
+      [
+       99988.3,
+       "longtask",
+       57,
+       "window"
+      ],
+      [
+       101002.1,
+       "gc",
+       null,
+       "1125 MB freed"
+      ],
+      [
+       102921.1,
+       "longtask",
+       52,
+       "window"
+      ]
+     ]
+    },
+    "tasks": [
+     [
+      99988,
+      57
+     ],
+     [
+      102921,
+      52
+     ]
+    ],
+    "t0": 92865.60000002384,
+    "raster": {
+     "baked": 202,
+     "bakeMs": 103.9,
+     "evicted": 164,
+     "decoded": 439,
+     "tiles": 45190,
+     "mb": 48,
+     "cookedCells": 89,
+     "cooked": {
+      "taken": 89,
+      "stale": 3
+     },
+     "total": {
+      "baked": 12544,
+      "bakeMs": 10684,
+      "evicted": 36299
+     }
+    },
+    "cpu": null,
+    "pilot": "CLIMB"
+   },
+   "check": {
+    "town": true,
+    "cut": 0,
+    "SPORT_GEN": true,
+    "MARINE_GEN": true,
+    "sportEntries": 2,
+    "marineEntries": 26,
+    "stats": {
+     "houses": 95,
+     "objects": 42,
+     "queued": 558
+    },
+    "kit": {
+     "want": true,
+     "status": "decoded",
+     "err": null,
+     "island": "jolene",
+     "table": 522,
+     "kitPlots": 375,
+     "instances": 426,
+     "lots": 0,
+     "outKit": 0,
+     "outBuilt": 0,
+     "outHidden": 0,
+     "hits": 0,
+     "hitTris": 0,
+     "rebuilt": 0,
+     "tableMs": 415,
+     "packMs": 562,
+     "hostMs": 218,
+     "pack": {
+      "src": "media/townkit/townkit_2e8c3968b3e6.bin",
+      "bytes": 4949098
+     },
+     "host": {
+      "houses": 426,
+      "looks": 421,
+      "geos": 302,
+      "verts": 1194228,
+      "tris": [
+       577482,
+       65504,
+       620
+      ],
+      "mb": 35.63652420043945,
+      "tickMs": 0,
+      "tickSum": 8.000000059604645,
+      "ticks": 2432,
+      "cullMs": 39.39999979734421,
+      "culls": 1678,
+      "changes": 426,
+      "draws": 1,
+      "missing": [],
+      "slotless": 0,
+      "buildMs": 218,
+      "mode": "batch",
+      "missingLayers": 0,
+      "waiting": false,
+      "tries": 5,
+      "rungs": {
+       "lod0": 0,
+       "lod1": 0,
+       "box": 426,
+       "partners": 0,
+       "none": 0
+      },
+      "lookCount": 421
+     }
+    }
+   },
+   "exceptions": []
+  },
+  {
+   "side": "B",
+   "build": "metal",
+   "garage": 86.6,
+   "rollout": 9.4,
+   "firstFlight": 96,
+   "rollFrames": {
+    "frames": 539,
+    "fps": 57.8,
+    "uneven": 0.011,
+    "p50": 16.7,
+    "p99": 33.3,
+    "worst": 266.8,
+    "over100": 1,
+    "cap30": 0,
+    "tasks200": 1,
+    "tasks1s": 0,
+    "taskWorst": 223,
+    "onGround": 1,
+    "screenS": 0
+   },
+   "links": {
+    "n": 391,
+    "pending": 2,
+    "sumS": 409.4,
+    "worstS": 43.5,
+    "over5s": 7
+   },
+   "taxi": {
+    "scene": "taxi",
+    "st": {
+     "frames": 498,
+     "fps": 33.2,
+     "uneven": 0.149,
+     "p50": 33.3,
+     "p99": 33.5,
+     "worst": 50,
+     "over100": 0,
+     "cap30": 0.74,
+     "tasks200": 0,
+     "tasks1s": 0,
+     "taskWorst": 0,
+     "onGround": 1,
+     "screenS": 0
+    },
+    "rec": {
+     "long": [],
+     "ev": [
+      [
+       102246.1,
+       "gc",
+       null,
+       "38 MB freed"
+      ],
+      [
+       113951.3,
+       "gc",
+       null,
+       "88 MB freed"
+      ]
+     ]
+    },
+    "tasks": [],
+    "t0": 100286.79999995232,
+    "raster": {
+     "baked": 0,
+     "bakeMs": 0,
+     "evicted": 112,
+     "decoded": 496,
+     "tiles": 42612,
+     "mb": 47.9,
+     "cookedCells": 89,
+     "cooked": {
+      "taken": 89,
+      "stale": 3
+     },
+     "total": {
+      "baked": 12284,
+      "bakeMs": 10922,
+      "evicted": 36013
+     }
+    },
+    "cpu": null
+   },
+   "pass": {
+    "scene": "pass",
+    "st": {
+     "frames": 468,
+     "fps": 31.1,
+     "uneven": 0.084,
+     "p50": 33.3,
+     "p99": 50,
+     "worst": 50.1,
+     "over100": 0,
+     "cap30": 0.91,
+     "tasks200": 0,
+     "tasks1s": 0,
+     "taskWorst": 57,
+     "onGround": 0,
+     "screenS": 0
+    },
+    "rec": {
+     "long": [],
+     "ev": [
+      [
+       124251.3,
+       "gc",
+       null,
+       "163 MB freed"
+      ],
+      [
+       130207.4,
+       "longtask",
+       50,
+       "window"
+      ],
+      [
+       132641.7,
+       "longtask",
+       57,
+       "window"
+      ]
+     ]
+    },
+    "tasks": [
+     [
+      132642,
+      57
+     ],
+     [
+      130207,
+      50
+     ]
+    ],
+    "t0": 118365.09999996424,
+    "raster": {
+     "baked": 830,
+     "bakeMs": 424.8,
+     "evicted": 1010,
+     "decoded": 1469,
+     "tiles": 46422,
+     "mb": 48,
+     "cookedCells": 89,
+     "cooked": {
+      "taken": 89,
+      "stale": 3
+     },
+     "total": {
+      "baked": 13114,
+      "bakeMs": 11347,
+      "evicted": 37123
+     }
+    },
+    "cpu": null,
+    "pilot": "CLIMB"
+   },
+   "check": {
+    "town": true,
+    "cut": 0,
+    "SPORT_GEN": true,
+    "MARINE_GEN": true,
+    "sportEntries": 2,
+    "marineEntries": 26,
+    "stats": {
+     "houses": 95,
+     "objects": 42,
+     "queued": 558
+    },
+    "kit": {
+     "want": true,
+     "status": "decoded",
+     "err": null,
+     "island": "jolene",
+     "table": 522,
+     "kitPlots": 375,
+     "instances": 426,
+     "lots": 0,
+     "outKit": 0,
+     "outBuilt": 0,
+     "outHidden": 0,
+     "hits": 0,
+     "hitTris": 0,
+     "rebuilt": 0,
+     "tableMs": 378,
+     "packMs": 575,
+     "hostMs": 209,
+     "pack": {
+      "src": "media/townkit/townkit_2e8c3968b3e6.bin",
+      "bytes": 4949098
+     },
+     "host": {
+      "houses": 426,
+      "looks": 421,
+      "geos": 302,
+      "verts": 1194228,
+      "tris": [
+       577482,
+       65504,
+       620
+      ],
+      "mb": 35.63652420043945,
+      "tickMs": 0,
+      "tickSum": 53.69999974966049,
+      "ticks": 2542,
+      "cullMs": 25.80000013113022,
+      "culls": 944,
+      "changes": 426,
+      "draws": 0,
+      "missing": [],
+      "slotless": 0,
+      "buildMs": 209,
+      "mode": "batch",
+      "missingLayers": 0,
+      "waiting": false,
+      "tries": 5,
+      "rungs": {
+       "lod0": 0,
+       "lod1": 0,
+       "box": 426,
+       "partners": 0,
+       "none": 0
+      },
+      "lookCount": 421
+     }
+    }
+   },
+   "exceptions": []
+  },
+  {
+   "side": "A",
+   "build": "cub",
+   "garage": 45.9,
+   "rollout": 9.2,
+   "firstFlight": 55.1,
+   "rollFrames": {
+    "frames": 535,
+    "fps": 58.6,
+    "uneven": 0.013,
+    "p50": 16.7,
+    "p99": 16.9,
+    "worst": 166.8,
+    "over100": 1,
+    "cap30": 0,
+    "tasks200": 0,
+    "tasks1s": 0,
+    "taskWorst": 131,
+    "onGround": 1,
+    "screenS": 0
+   },
+   "links": {
+    "n": 386,
+    "pending": 2,
+    "sumS": 277.1,
+    "worstS": 3.8,
+    "over5s": 0
+   },
+   "taxi": {
+    "scene": "taxi",
+    "st": {
+     "frames": 501,
+     "fps": 33.4,
+     "uneven": 0.128,
+     "p50": 33.3,
+     "p99": 33.5,
+     "worst": 50.2,
+     "over100": 0,
+     "cap30": 0.75,
+     "tasks200": 0,
+     "tasks1s": 0,
+     "taskWorst": 0,
+     "onGround": 1,
+     "screenS": 0
+    },
+    "rec": {
+     "long": [],
+     "ev": []
+    },
+    "tasks": [],
+    "t0": 59339.80000001192,
+    "raster": {
+     "baked": 0,
+     "bakeMs": 0,
+     "evicted": 375,
+     "decoded": 364,
+     "tiles": 37353,
+     "mb": 48,
+     "cookedCells": 92,
+     "cooked": {
+      "taken": 92,
+      "stale": 0
+     },
+     "total": {
+      "baked": 0,
+      "bakeMs": 0,
+      "evicted": 16355
+     }
+    },
+    "cpu": null
+   },
+   "pass": {
+    "scene": "pass",
+    "st": {
+     "frames": 468,
+     "fps": 31.2,
+     "uneven": 0.041,
+     "p50": 33.3,
+     "p99": 33.5,
+     "worst": 50,
+     "over100": 0,
+     "cap30": 0.91,
+     "tasks200": 0,
+     "tasks1s": 0,
+     "taskWorst": 55,
+     "onGround": 0,
+     "screenS": 0
+    },
+    "rec": {
+     "long": [],
+     "ev": [
+      [
+       84423.6,
+       "longtask",
+       55,
+       "window"
+      ],
+      [
+       84977.5,
+       "gc",
+       null,
+       "1126 MB freed"
+      ]
+     ]
+    },
+    "tasks": [
+     [
+      84424,
+      55
+     ]
+    ],
+    "t0": 77362.5,
+    "raster": {
+     "baked": 0,
+     "bakeMs": 0,
+     "evicted": 65,
+     "decoded": 395,
+     "tiles": 38543,
+     "mb": 48,
+     "cookedCells": 92,
+     "cooked": {
+      "taken": 92,
+      "stale": 0
+     },
+     "total": {
+      "baked": 0,
+      "bakeMs": 0,
+      "evicted": 16871
+     }
+    },
+    "cpu": null,
+    "pilot": "CLIMB"
+   },
+   "check": {
+    "town": false,
+    "cut": 231,
+    "SPORT_GEN": false,
+    "MARINE_GEN": false,
+    "sportEntries": 0,
+    "marineEntries": 0,
+    "stats": {
+     "houses": 95,
+     "objects": 42,
+     "queued": 78
+    },
+    "kit": {
+     "want": false,
+     "status": "off",
+     "err": null,
+     "island": null,
+     "table": 0,
+     "kitPlots": 0,
+     "instances": 0,
+     "lots": 0,
+     "outKit": 0,
+     "outBuilt": 0,
+     "outHidden": 0,
+     "hits": 0,
+     "hitTris": 0,
+     "rebuilt": 0,
+     "tableMs": 0,
+     "packMs": 0,
+     "hostMs": 0,
+     "pack": null,
+     "host": null
+    }
+   },
+   "exceptions": []
+  },
+  {
+   "side": "A",
+   "build": "metal",
+   "garage": 64.6,
+   "rollout": 9.3,
+   "firstFlight": 73.9,
+   "rollFrames": {
+    "frames": 537,
+    "fps": 58,
+    "uneven": 0.009,
+    "p50": 16.7,
+    "p99": 16.9,
+    "worst": 233.4,
+    "over100": 1,
+    "cap30": 0,
+    "tasks200": 1,
+    "tasks1s": 0,
+    "taskWorst": 214,
+    "onGround": 1,
+    "screenS": 0
+   },
+   "links": {
+    "n": 384,
+    "pending": 2,
+    "sumS": 413.1,
+    "worstS": 42.3,
+    "over5s": 7
+   },
+   "taxi": {
+    "scene": "taxi",
+    "st": {
+     "frames": 497,
+     "fps": 33.1,
+     "uneven": 0.119,
+     "p50": 33.3,
+     "p99": 33.5,
+     "worst": 49.9,
+     "over100": 0,
+     "cap30": 0.76,
+     "tasks200": 0,
+     "tasks1s": 0,
+     "taskWorst": 0,
+     "onGround": 1,
+     "screenS": 0
+    },
+    "rec": {
+     "long": [],
+     "ev": [
+      [
+       82287.3,
+       "gc",
+       null,
+       "49 MB freed"
+      ],
+      [
+       91747.2,
+       "gc",
+       null,
+       "68 MB freed"
+      ]
+     ]
+    },
+    "tasks": [],
+    "t0": 78160.69999998808,
+    "raster": {
+     "baked": 0,
+     "bakeMs": 0,
+     "evicted": 362,
+     "decoded": 358,
+     "tiles": 37349,
+     "mb": 48,
+     "cookedCells": 92,
+     "cooked": {
+      "taken": 92,
+      "stale": 0
+     },
+     "total": {
+      "baked": 0,
+      "bakeMs": 0,
+      "evicted": 16360
+     }
+    },
+    "cpu": null
+   },
+   "pass": {
+    "scene": "pass",
+    "st": {
+     "frames": 469,
+     "fps": 31.2,
+     "uneven": 0.051,
+     "p50": 33.3,
+     "p99": 33.5,
+     "worst": 50,
+     "over100": 0,
+     "cap30": 0.9,
+     "tasks200": 0,
+     "tasks1s": 0,
+     "taskWorst": 58,
+     "onGround": 0,
+     "screenS": 0
+    },
+    "rec": {
+     "long": [],
+     "ev": [
+      [
+       98495,
+       "longtask",
+       57,
+       "window"
+      ],
+      [
+       100318.5,
+       "gc",
+       null,
+       "161 MB freed"
+      ],
+      [
+       110368.7,
+       "gc",
+       null,
+       "274 MB freed"
+      ],
+      [
+       110616.3,
+       "longtask",
+       58,
+       "window"
+      ]
+     ]
+    },
+    "tasks": [
+     [
+      110616,
+      58
+     ],
+     [
+      98495,
+      57
+     ]
+    ],
+    "t0": 96187.39999997616,
+    "raster": {
+     "baked": 0,
+     "bakeMs": 0,
+     "evicted": 210,
+     "decoded": 1297,
+     "tiles": 39286,
+     "mb": 48,
+     "cookedCells": 92,
+     "cooked": {
+      "taken": 92,
+      "stale": 0
+     },
+     "total": {
+      "baked": 0,
+      "bakeMs": 0,
+      "evicted": 17025
+     }
+    },
+    "cpu": null,
+    "pilot": "CLIMB"
+   },
+   "check": {
+    "town": false,
+    "cut": 231,
+    "SPORT_GEN": false,
+    "MARINE_GEN": false,
+    "sportEntries": 0,
+    "marineEntries": 0,
+    "stats": {
+     "houses": 95,
+     "objects": 42,
+     "queued": 78
+    },
+    "kit": {
+     "want": false,
+     "status": "off",
+     "err": null,
+     "island": null,
+     "table": 0,
+     "kitPlots": 0,
+     "instances": 0,
+     "lots": 0,
+     "outKit": 0,
+     "outBuilt": 0,
+     "outHidden": 0,
+     "hits": 0,
+     "hitTris": 0,
+     "rebuilt": 0,
+     "tableMs": 0,
+     "packMs": 0,
+     "hostMs": 0,
+     "pack": null,
+     "host": null
+    }
+   },
+   "exceptions": []
+  }
+ ]
+}

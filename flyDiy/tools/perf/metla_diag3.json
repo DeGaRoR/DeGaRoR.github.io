@@ -1,0 +1,479 @@
+{
+ "date": "2026-10-02T15:59:44.637Z",
+ "order": [
+  "B",
+  "A"
+ ],
+ "builds": [
+  "cub"
+ ],
+ "udd": "D:/umr1",
+ "fresh": false,
+ "rows": [
+  {
+   "side": "B",
+   "build": "cub",
+   "garage": 65.1,
+   "rollout": 9.3,
+   "firstFlight": 74.4,
+   "rollFrames": {
+    "frames": 411,
+    "fps": 44.5,
+    "uneven": 0.02,
+    "p50": 16.7,
+    "p99": 33.5,
+    "worst": 300,
+    "over100": 1,
+    "cap30": 0.29,
+    "tasks200": 1,
+    "tasks1s": 0,
+    "taskWorst": 263,
+    "onGround": 1,
+    "screenS": 0
+   },
+   "links": {
+    "n": 393,
+    "pending": 2,
+    "sumS": 212.2,
+    "worstS": 12.7,
+    "over5s": 1
+   },
+   "taxi": {
+    "scene": "taxi",
+    "st": {
+     "frames": 488,
+     "fps": 32.5,
+     "uneven": 0.121,
+     "p50": 33.3,
+     "p99": 33.5,
+     "worst": 50,
+     "over100": 0,
+     "cap30": 0.77,
+     "tasks200": 0,
+     "tasks1s": 0,
+     "taskWorst": 0,
+     "onGround": 1,
+     "screenS": 0
+    },
+    "rec": {
+     "long": [],
+     "ev": []
+    },
+    "tasks": [],
+    "t0": 78688.29999995232,
+    "raster": {
+     "baked": 545,
+     "bakeMs": 708.4,
+     "evicted": 945,
+     "decoded": 507,
+     "tiles": 42323,
+     "mb": 48,
+     "cookedCells": 89,
+     "cooked": {
+      "taken": 89,
+      "stale": 3
+     },
+     "total": {
+      "baked": 16689,
+      "bakeMs": 14594,
+      "evicted": 46198
+     }
+    },
+    "cpu": null
+   },
+   "pass": {
+    "scene": "pass",
+    "st": {
+     "frames": 453,
+     "fps": 30.2,
+     "uneven": 0.139,
+     "p50": 33.3,
+     "p99": 50.1,
+     "worst": 166.8,
+     "over100": 1,
+     "cap30": 0.91,
+     "tasks200": 0,
+     "tasks1s": 0,
+     "taskWorst": 169,
+     "onGround": 0,
+     "screenS": 0
+    },
+    "rec": {
+     "long": [
+      {
+       "t": 103221,
+       "dt": 33,
+       "work": 169,
+       "gpu": 0,
+       "slots": {
+        "world": 151,
+        "render": 14,
+        "shadow": 2
+       }
+      },
+      {
+       "t": 103388,
+       "dt": 167,
+       "work": 32,
+       "gpu": 0,
+       "slots": {
+        "world": 10,
+        "cover": 9,
+        "render": 11
+       }
+      }
+     ],
+     "ev": [
+      [
+       96549.5,
+       "longtask",
+       50,
+       "window"
+      ],
+      [
+       99559.6,
+       "gc",
+       null,
+       "1209 MB freed"
+      ],
+      [
+       101486.8,
+       "longtask",
+       50,
+       "window"
+      ],
+      [
+       101727.3,
+       "longtask",
+       52,
+       "window"
+      ],
+      [
+       101829.4,
+       "longtask",
+       51,
+       "window"
+      ],
+      [
+       103220.8,
+       "longtask",
+       169,
+       "window"
+      ],
+      [
+       103204.4,
+       "loaf",
+       186,
+       "blocking 120ms, render 170ms; FrameRequestCallback loop 169ms"
+      ],
+      [
+       103806.2,
+       "longtask",
+       62,
+       "window"
+      ],
+      [
+       107122.3,
+       "longtask",
+       50,
+       "window"
+      ]
+     ]
+    },
+    "tasks": [
+     [
+      103221,
+      169
+     ],
+     [
+      103806,
+      62
+     ],
+     [
+      101727,
+      52
+     ],
+     [
+      101829,
+      51
+     ],
+     [
+      101487,
+      50
+     ]
+    ],
+    "t0": 96792.19999998808,
+    "raster": {
+     "baked": 1138,
+     "bakeMs": 1222.8,
+     "evicted": 2569,
+     "decoded": 918,
+     "tiles": 43910,
+     "mb": 47.9,
+     "cookedCells": 89,
+     "cooked": {
+      "taken": 89,
+      "stale": 3
+     },
+     "total": {
+      "baked": 17998,
+      "bakeMs": 16001,
+      "evicted": 49093
+     }
+    },
+    "cpu": null,
+    "pilot": "CLIMB"
+   },
+   "check": {
+    "town": true,
+    "cut": 0,
+    "SPORT_GEN": true,
+    "MARINE_GEN": true,
+    "sportEntries": 2,
+    "marineEntries": 26,
+    "stats": {
+     "houses": 95,
+     "objects": 42,
+     "queued": 558
+    },
+    "kit": {
+     "want": true,
+     "status": "decoded",
+     "err": null,
+     "island": "jolene",
+     "table": 522,
+     "kitPlots": 375,
+     "instances": 426,
+     "lots": 0,
+     "outKit": 0,
+     "outBuilt": 0,
+     "outHidden": 0,
+     "hits": 0,
+     "hitTris": 0,
+     "rebuilt": 0,
+     "tableMs": 391,
+     "packMs": 459,
+     "hostMs": 217,
+     "pack": {
+      "src": "media/townkit/townkit_2e8c3968b3e6.bin",
+      "bytes": 4949098
+     },
+     "host": {
+      "houses": 426,
+      "looks": 421,
+      "geos": 302,
+      "verts": 1194228,
+      "tris": [
+       577482,
+       65504,
+       620
+      ],
+      "mb": 35.63652420043945,
+      "tickMs": 0.10000002384185791,
+      "tickSum": 7.600000023841858,
+      "ticks": 2099,
+      "cullMs": 34.500000059604645,
+      "culls": 1608,
+      "changes": 426,
+      "draws": 1,
+      "missing": [],
+      "slotless": 0,
+      "buildMs": 217,
+      "mode": "batch",
+      "missingLayers": 0,
+      "waiting": false,
+      "tries": 5,
+      "rungs": {
+       "lod0": 0,
+       "lod1": 0,
+       "box": 426,
+       "partners": 0,
+       "none": 0
+      },
+      "lookCount": 421
+     }
+    }
+   },
+   "exceptions": []
+  },
+  {
+   "side": "A",
+   "build": "cub",
+   "garage": 62.1,
+   "rollout": 9,
+   "firstFlight": 71.1,
+   "rollFrames": {
+    "frames": 529,
+    "fps": 59,
+    "uneven": 0.017,
+    "p50": 16.7,
+    "p99": 33.3,
+    "worst": 83.4,
+    "over100": 0,
+    "cap30": 0,
+    "tasks200": 0,
+    "tasks1s": 0,
+    "taskWorst": 0,
+    "onGround": 1,
+    "screenS": 0
+   },
+   "links": {
+    "n": 387,
+    "pending": 2,
+    "sumS": 461.8,
+    "worstS": 43.8,
+    "over5s": 5
+   },
+   "taxi": {
+    "scene": "taxi",
+    "st": {
+     "frames": 501,
+     "fps": 33.4,
+     "uneven": 0.148,
+     "p50": 33.3,
+     "p99": 33.5,
+     "worst": 50.2,
+     "over100": 0,
+     "cap30": 0.72,
+     "tasks200": 0,
+     "tasks1s": 0,
+     "taskWorst": 0,
+     "onGround": 1,
+     "screenS": 0
+    },
+    "rec": {
+     "long": [],
+     "ev": []
+    },
+    "tasks": [],
+    "t0": 75423.19999998808,
+    "raster": {
+     "baked": 0,
+     "bakeMs": 0,
+     "evicted": 306,
+     "decoded": 371,
+     "tiles": 37315,
+     "mb": 48,
+     "cookedCells": 92,
+     "cooked": {
+      "taken": 92,
+      "stale": 0
+     },
+     "total": {
+      "baked": 0,
+      "bakeMs": 0,
+      "evicted": 17310
+     }
+    },
+    "cpu": null
+   },
+   "pass": {
+    "scene": "pass",
+    "st": {
+     "frames": 468,
+     "fps": 31.2,
+     "uneven": 0.054,
+     "p50": 33.3,
+     "p99": 50,
+     "worst": 66.7,
+     "over100": 0,
+     "cap30": 0.9,
+     "tasks200": 0,
+     "tasks1s": 0,
+     "taskWorst": 72,
+     "onGround": 0,
+     "screenS": 0
+    },
+    "rec": {
+     "long": [],
+     "ev": [
+      [
+       93099.3,
+       "longtask",
+       52,
+       "window"
+      ],
+      [
+       97829.3,
+       "longtask",
+       51,
+       "window"
+      ],
+      [
+       100697.2,
+       "longtask",
+       72,
+       "window"
+      ]
+     ]
+    },
+    "tasks": [
+     [
+      100697,
+      72
+     ],
+     [
+      97829,
+      51
+     ]
+    ],
+    "t0": 93448,
+    "raster": {
+     "baked": 0,
+     "bakeMs": 0,
+     "evicted": 54,
+     "decoded": 399,
+     "tiles": 38545,
+     "mb": 48,
+     "cookedCells": 92,
+     "cooked": {
+      "taken": 92,
+      "stale": 0
+     },
+     "total": {
+      "baked": 0,
+      "bakeMs": 0,
+      "evicted": 17791
+     }
+    },
+    "cpu": null,
+    "pilot": "CLIMB"
+   },
+   "check": {
+    "town": false,
+    "cut": 231,
+    "SPORT_GEN": false,
+    "MARINE_GEN": false,
+    "sportEntries": 0,
+    "marineEntries": 0,
+    "stats": {
+     "houses": 95,
+     "objects": 42,
+     "queued": 78
+    },
+    "kit": {
+     "want": false,
+     "status": "off",
+     "err": null,
+     "island": null,
+     "table": 0,
+     "kitPlots": 0,
+     "instances": 0,
+     "lots": 0,
+     "outKit": 0,
+     "outBuilt": 0,
+     "outHidden": 0,
+     "hits": 0,
+     "hitTris": 0,
+     "rebuilt": 0,
+     "tableMs": 0,
+     "packMs": 0,
+     "hostMs": 0,
+     "pack": null,
+     "host": null
+    }
+   },
+   "exceptions": []
+  }
+ ]
+}
