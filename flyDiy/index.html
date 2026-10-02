@@ -42372,7 +42372,7 @@ if (typeof module !== 'undefined')
   module.exports = { TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, RWY_LIGHTS, runwayLightStrips, runwayLightSite, runwayLightPoints, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, atmosWater, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, CLIMATE, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, decodeAnimal, decodeAnimalClips, registerAnimal, animalList, animalClips, animalClip, ANIMAL_REG, makeSim, HYDRO, makeBus, vortexKernel, makeAutopilot, makeTestPilot, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, seatOnGround, placeAtLineup, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, POLARS, PAR, RHO, hyp2, hyp3, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genPlanePair, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, genTrueBox, genNetEig, genRigidFloatOf, GEN_BOX_N, GEN_BOX_KMIN, GEN_NET_MAX, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC, GP_PARKED_FOOT, GP_PARKED_DEFAULT, GP_CLEAR, GP_HALF_DEFAULT, parkedFoot, gpParkedDist, gpClearWay };
 </script>
 <script type="text/x-flydiy">window.BOOT&&BOOT.phase('core','reading the model')</script>
-<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='04c9015f760b';window.FLYDIY_BUILD='0cec81bfa14a'</script>
+<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='04c9015f760b';window.FLYDIY_BUILD='23f6d6ab309c'</script>
 <script type="text/x-flydiy" src="src/models/pa18_model.js?v=d854feec"></script>
 <script type="text/x-flydiy" src="src/models/c172_model.js?v=52c3ced6"></script>
 <script type="text/x-flydiy" src="src/models/d112_model.js?v=3678040d"></script>
@@ -104391,6 +104391,30 @@ if (!window.CAGE_UI_LAZY) CAGE_UI_BOOT();
   }
   if (typeof window !== 'undefined') { window.ASSET_FETCH = assetFetch; window.ASSET_FETCH_FRESH = load; }
 })();
+// GPU_ONLY_GEO(geometry) - G1200 (MEM-DIET): A GEOMETRY THAT IS ONLY DRAWN GIVES ITS CPU COPY BACK ONCE UPLOADED. Each
+// attribute's (and the index's) array is swapped for an empty one of its type in three's onUploadCallback: the bytes
+// live on the GPU, `count` (a stored property) still draws them, the bounds are computed first (frustum culling and
+// Box3.setFromObject read those, never the array). ONLY for a geometry nothing reads again on the CPU - no raycast, no
+// physics, no terrainH, no merge or re-sink from it, never re-uploaded (a rebuild makes a NEW geometry) - the textures'
+// gpuOnly rule (render_world.js G907) for geometry. One renderer draws the world (app.js), so one upload is the only one.
+// ?gpuonly=0 keeps every copy (the A/B).
+(() => {
+  'use strict';
+  const off = typeof location !== 'undefined' && /[?&]gpuonly=0(?:&|$)/.test(location.search || '');
+  const stats = { geos: 0, bytes: 0 };
+  function release() { const a = this.array; if (a && a.length) { stats.bytes += a.byteLength; this.array = new a.constructor(0); } }
+  function gpuOnlyGeo(g) {
+    if (off || !g || !g.attributes) return g;
+    if (!g.boundingSphere) g.computeBoundingSphere();
+    if (!g.boundingBox) g.computeBoundingBox();
+    for (const k in g.attributes) { const a = g.attributes[k]; if (a && !a.isInterleavedBufferAttribute && a.onUpload) a.onUpload(release); }
+    if (g.index && g.index.onUpload) g.index.onUpload(release);
+    stats.geos++;
+    return g;
+  }
+  gpuOnlyGeo.stats = stats;
+  if (typeof window !== 'undefined') window.GPU_ONLY_GEO = gpuOnlyGeo;
+})();
 </script>
 <script type="text/x-flydiy">
 // ============================================================
@@ -120680,7 +120704,8 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         geo.setAttribute('normal', new THREE.BufferAttribute(nor, 3));
         geo.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
         geo.setIndex(new THREE.BufferAttribute(idx, 1));
-        if (nodes.length) { geo.computeBoundingSphere(); geo.computeBoundingBox(); }
+        // G1200: drawn only - a re-cut builds a new geometry from the patch cache (FARLOD.cache keeps the patches' own)
+        if (nodes.length) { geo.computeBoundingSphere(); geo.computeBoundingBox(); if (typeof GPU_ONLY_GEO === 'function') GPU_ONLY_GEO(geo); }
         else if (Q.m.geometry.boundingSphere) { geo.boundingSphere = Q.m.geometry.boundingSphere; geo.boundingBox = Q.m.geometry.boundingBox; geo.setDrawRange(0, 0); }
         const old = Q.m.geometry; Q.m.geometry = geo; if (old && old.dispose) old.dispose();
         Q.sig = Q.wantSig; Q.tris = nodes.length * TPL.length / 3; FARLOD.stats.rebuilds++;
@@ -122054,6 +122079,12 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     };
     // the horizontal distance from the eye to a record's trees' box (0 inside it)
     const recNear = (G, e) => Math.hypot(Math.max(G.x0 - e[0], 0, e[0] - G.x1), Math.max(G.z0 - e[2], 0, e[2] - G.z1));
+    // G1200 (MEM-DIET): ONE INSTANCE BUFFER A RUNG. Every part of a rung (the bark, the leaves) draws the same instances
+    // in the same order, so its meshes share ONE matrix attribute and ONE colour attribute - and the matrix attribute's
+    // array IS the rung's partition buffer (rec.buf[si][r]): the partition writes the trees straight into what goes up,
+    // no per-part copy. A rung dealt the same trees writes the same bytes (G1114.1's key) and uploads nothing. Was a
+    // capacity-sized matrix + colour buffer per part, plus the scratch: ~65 MB over Jolene's forest.
+    const rungShared = (buf, n) => ({ im: new THREE.InstancedBufferAttribute(buf, 16), ic: new THREE.InstancedBufferAttribute(new Float32Array(n * 3).fill(1), 3) });
     function partitionChunk(rec, cg) {
       const pos = rec.pos, mats = rec.mats, ser = rec.ser;
       const k = rec.rungs.map(L => L.map(() => 0));
@@ -122097,7 +122128,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
           if (was[si][b] === key) continue;
           was[si][b] = key;
           for (const m of rec.rungs[si][b]) {
-            if (c) m.instanceMatrix.array.set(rec.buf[si][b].subarray(0, c * 16));
+            if (c && m.instanceMatrix.array !== rec.buf[si][b]) m.instanceMatrix.array.set(rec.buf[si][b].subarray(0, c * 16));   // (G1200: shared, nothing to copy)
             m.count = c; showRung(m, c > 0);
             // only the instances written go up (addUpdateRange, r159+: the list
             // is consumed by the upload and cleared after it) - a rung's buffer
@@ -122616,16 +122647,16 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
           rec.buf.push(S.ladder.map(() => new Float32Array(cnt[si] * 16)));
           rec.rungs.push(S.ladder.map(() => []));
           if (!cnt[si]) { imps.push(null); return; }
-          S.ladder.forEach((R, ri) => { for (const q of R.parts) {
+          S.ladder.forEach((R, ri) => { const sh = rungShared(rec.buf[si][ri], cnt[si]); for (const q of R.parts) {
             const m = mk(q.geo, q.mat, cnt[si], true);
+            m.instanceMatrix = sh.im; m.instanceColor = sh.ic;   // G1200: the rung's parts share them (rungShared)
             m.customDepthMaterial = q.depth;
-            // THE COLOUR BUFFER IS ALLOCATED AT CAPACITY, HERE, before the
+            // THE COLOUR BUFFER IS ALLOCATED AT CAPACITY (rungShared), before the
             // count is parked at 0: r128's setColorAt sizes it from the live
             // count on first use, and a mesh parked first got an EMPTY buffer
             // - every colour write landed nowhere and the shader read zero.
             // The whole near tier was black through two rounds of shading
             // work aimed at the lights. (r128 has no setColorAt on capacity.)
-            m.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(cnt[si] * 3).fill(1), 3);
             m.count = 0; m.visible = false;
             m.userData.ser = si;              // which series, for the probes
             rec.rungs[si][ri].push(m);
@@ -123014,24 +123045,25 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
           // every rung of the ladder gets its meshes (the cone fallback is a
           // one-rung ladder); the partition deals each instance to ONE of them
           const rungsOf = S => S.ladder || [{ parts: S.parts }];
+          const nrOf = S => S.ladder ? S.ladder.length : 1;
+          const bufs = SH.series.map((S, si) => Array.from({ length: nrOf(S) }, () => new Float32Array(cnt[si] * 16)));
           const perSer = SH.series.map((S, si) => cnt[si] ? {
-            byRung: rungsOf(S).map(R => R.parts.map(pq => {
+            byRung: rungsOf(S).map((R, ri) => { const sh = rungShared(bufs[si][ri], cnt[si]); return R.parts.map(pq => {
               const m = new THREE.InstancedMesh(pq.geo, pq.mat, cnt[si]); m.renderOrder = -1;   // occluders first (ORDER_NOTE)
+              m.instanceMatrix = sh.im; m.instanceColor = sh.ic;   // G1200: the rung's parts share them (rungShared)
               // THE FILL CASTS (W0c.17). "Canopies only - no trunks, no
               // shadows" was the cone's rule, and the fill is the tree line
               // now: a stand that shades nothing floats. Its own banded
               // depth material, like the woodland's; the shadow frustum
               // bounds what it costs.
               if (pq.depth) { m.castShadow = true; m.receiveShadow = true; m.customDepthMaterial = pq.depth; }
-              // colour buffer at capacity BEFORE parking - see the woodland
-              m.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(cnt[si] * 3).fill(1), 3);
-              m.count = 0; m.visible = false; return m; })),
+              // (the colour buffer at capacity BEFORE parking: rungShared - see the woodland)
+              m.count = 0; m.visible = false; return m; }); }),
             at: 0 } : null);
           const lay = SH.series.map(S => layerOf(S.imp));   // each series' sheet in the arrays
           for (const P of perSer) if (P) P.ms = [].concat(...P.byRung);
-          const nrOf = S => S.ladder ? S.ladder.length : 1;
           const rec = { n, mats: new Float32Array(n * 16), pos: new Float32Array(n * 3), ser,
-                        buf: SH.series.map((S, si) => Array.from({ length: nrOf(S) }, () => new Float32Array(cnt[si] * 16))),
+                        buf: bufs,
                         rungs: SH.series.map((S, si) => perSer[si] ? perSer[si].byRung : Array.from({ length: nrOf(S) }, () => [])), x: ox, z: oz,
                         key: SH.key };   // key: TREE_LOD.find's (G1110)
           perSer.forEach((P, si) => { if (P) for (const mm of P.ms) {
@@ -152949,8 +152981,8 @@ window.FLYDIY_WORLD_COMPOSE = function () {
 <script type="text/x-flydiy" src="src/viewer/flown_bake.js?v=11bab181"></script>
 <script type="text/x-flydiy" src="src/viewer/scenery_life.js?v=7b78ce7e"></script>
 <script type="text/x-flydiy" src="src/viewer/premises_build.js?v=aabddd56"></script>
-<script type="text/x-flydiy" src="src/viewer/house_tarr.js?v=9cadc7a7"></script>
-<script type="text/x-flydiy" src="src/viewer/render_premises.js?v=62ae1deb"></script>
+<script type="text/x-flydiy" src="src/viewer/house_tarr.js?v=b602f949"></script>
+<script type="text/x-flydiy" src="src/viewer/render_premises.js?v=3a5da371"></script>
 <script type="text/x-flydiy">
 (() => {
   // THE LOADING SCREEN (LOADING S1, 2026-09-14): src/viewer/boot.js ran before
