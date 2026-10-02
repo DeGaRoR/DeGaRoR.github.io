@@ -370,9 +370,14 @@ function makeWorld(seed, opts) {
   // town + fly-in backcountry strips, sited on the stage 0-3 terrain;
   // their grading composes into the final terrainH, records join the
   // W.aerodromes registry (still DESCRIPTIVE — AP integration pending).
-  const AERO = bakeAerodromes({
-    terrain: tV2, water: HYD.water, settlements: SET.settlements,
-    meadows, roadNear: SET.roadNear, SURFACE, salt: SALT });
+  // G1253 NO GENERATED STRIPS ON AN ISLAND (QUICK-BYTES): the island never took them (below, and baseH grades none),
+  // and its search found none on Jolene - so AERO.surfaceAt / inBox / grade (the biomes' aeroSurf, the trees' box
+  // and treeGround) already answered -1 / false / h. The stub says so without the 1 587-candidate scan (14-20 ms)
+  const AERO = ISL
+    ? { strips: [], grade: (x, z, h) => h, surfaceAt: () => -1, inBox: () => false, stats: { bakeMs: 0 } }
+    : bakeAerodromes({
+      terrain: tV2, water: HYD.water, settlements: SET.settlements,
+      meadows, roadNear: SET.roadNear, SURFACE, salt: SALT });
   // the island takes no generated strips (maps first: its field is a premises record)
   if (!ISL) for (const st of AERO.strips) aerodromes.push(st);
 
@@ -1094,6 +1099,8 @@ function makeWorld(seed, opts) {
     // records and queries for gates, renderer and debug.
     // inCore / settlements published 2026-09-22: what stands beside a road (the guardrail) asks
     // whether a point is inside a settlement's core - the user's "nothing but forest"
+    // G1253: the old world's generated strips - how many, and what their search cost (none on an island)
+    genStrips: { n: AERO.strips.length, bakeMs: AERO.stats.bakeMs },
     roadNet: { roads: SET.roads, buildings: SET.buildings, roadNear: SET.roadNear, inCore: SET.inCore, settlements: SET.settlements, bakeMs: SET.stats.bakeMs },
     // informative stage-1 block (not contract surface): gates/debug read
     // reach records and bake stats here without walking every tile.
