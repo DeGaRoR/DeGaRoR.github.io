@@ -1,0 +1,2360 @@
+{
+ "build": "cub",
+ "rows": [
+  [
+   853,
+   "page",
+   1.2,
+   0.1,
+   1
+  ],
+  [
+   1111,
+   "reading the island",
+   1.7,
+   49.4,
+   1
+  ],
+  [
+   1398,
+   "reading the island",
+   1.8,
+   210.3,
+   0
+  ],
+  [
+   1611,
+   "reading the island",
+   3.3,
+   246.6,
+   0
+  ],
+  [
+   3805,
+   "reading the model",
+   29.1,
+   397.9,
+   1
+  ],
+  [
+   5616,
+   "building your aeroplane",
+   54.7,
+   414.5,
+   1
+  ],
+  [
+   9019,
+   "your aeroplane on the stand",
+   86.1,
+   492.8,
+   1
+  ],
+  [
+   10229,
+   "laying out the world: ground colour",
+   89.3,
+   684,
+   1
+  ],
+  [
+   10661,
+   "laying out the world: ground fields",
+   168,
+   720.9,
+   1
+  ],
+  [
+   11765,
+   "laying out the world: ring heights",
+   84.9,
+   760.2,
+   1
+  ],
+  [
+   12569,
+   "laying out the world: water",
+   100.5,
+   991.7,
+   1
+  ],
+  [
+   13539,
+   "laying out the world: premises made",
+   117.6,
+   1073.7,
+   1
+  ],
+  [
+   13871,
+   "laying out the world: patch ground",
+   118.8,
+   1116.1,
+   1
+  ],
+  [
+   14112,
+   "laying out the world: patch ground",
+   119.2,
+   1141.3,
+   0
+  ],
+  [
+   14346,
+   "laying out the world: patch ground",
+   119.5,
+   1169.3,
+   0
+  ],
+  [
+   14669,
+   "laying out the world: patch block",
+   132.1,
+   1182.6,
+   1
+  ],
+  [
+   14958,
+   "laying out the world: patch block",
+   171.6,
+   1236.1,
+   0
+  ],
+  [
+   15438,
+   "laying out the world: roads",
+   126.5,
+   1271,
+   1
+  ],
+  [
+   16228,
+   "laying out the world: ground under the premises",
+   164.6,
+   1283.7,
+   1
+  ],
+  [
+   16649,
+   "laying out the world: far terrain sink",
+   132,
+   1353.8,
+   1
+  ],
+  [
+   18141,
+   "laying out the world: meadows",
+   138.1,
+   1391.2,
+   1
+  ],
+  [
+   18610,
+   "building the field 48 / 137",
+   142,
+   1419.5,
+   1
+  ],
+  [
+   19088,
+   "building the field 54 / 137",
+   164.7,
+   1476.6,
+   1
+  ],
+  [
+   19349,
+   "building the field 54 / 137",
+   213,
+   1544.7,
+   0
+  ],
+  [
+   19598,
+   "building the field 54 / 137",
+   283.2,
+   1577.9,
+   0
+  ],
+  [
+   19959,
+   "building the field 59 / 137",
+   143.1,
+   1557.6,
+   1
+  ],
+  [
+   20572,
+   "building the field 60 / 137",
+   174.8,
+   1579.3,
+   1
+  ],
+  [
+   20982,
+   "building the field 66 / 137",
+   145.1,
+   1608.9,
+   1
+  ],
+  [
+   21361,
+   "building the field 69 / 137",
+   145.4,
+   1620.9,
+   1
+  ],
+  [
+   21774,
+   "building the field 72 / 137",
+   146.7,
+   1638.2,
+   1
+  ],
+  [
+   22243,
+   "building the field 76 / 137",
+   221.3,
+   1641.3,
+   1
+  ],
+  [
+   22669,
+   "building the field 80 / 137",
+   185.1,
+   1643.7,
+   1
+  ],
+  [
+   23121,
+   "building the field 85 / 137",
+   180.4,
+   1644.9,
+   1
+  ],
+  [
+   23430,
+   "building the field 89 / 137",
+   148.1,
+   1646,
+   1
+  ],
+  [
+   23849,
+   "building the field 92 / 137",
+   178.4,
+   1646.9,
+   1
+  ],
+  [
+   24256,
+   "building the field 96 / 137",
+   208.1,
+   1647.3,
+   1
+  ],
+  [
+   24770,
+   "building the field 101 / 137",
+   176.1,
+   1648.6,
+   1
+  ],
+  [
+   25073,
+   "building the field 106 / 137",
+   149.8,
+   1649.4,
+   1
+  ],
+  [
+   25530,
+   "building the field 109 / 137",
+   177.8,
+   1651.2,
+   1
+  ],
+  [
+   26090,
+   "building the field 116 / 137",
+   226.7,
+   1657.3,
+   1
+  ],
+  [
+   26642,
+   "building the field 121 / 137",
+   209.1,
+   1664,
+   1
+  ],
+  [
+   27278,
+   "building the field 126 / 137",
+   267.2,
+   1678.5,
+   1
+  ],
+  [
+   27884,
+   "building the field 130 / 137",
+   215.6,
+   1694.8,
+   1
+  ],
+  [
+   28576,
+   "building the field 134 / 137",
+   267.6,
+   1700.2,
+   1
+  ],
+  [
+   28965,
+   "building the field 137 / 137",
+   154.7,
+   1808.2,
+   1
+  ],
+  [
+   29286,
+   "parking the other aeroplanes",
+   154.7,
+   1902.6,
+   1
+  ],
+  [
+   29660,
+   "growing the forest 3 / 330",
+   157.2,
+   1906.4,
+   1
+  ],
+  [
+   30019,
+   "growing the forest 6 / 330",
+   157.9,
+   1913.3,
+   1
+  ],
+  [
+   30376,
+   "growing the forest 10 / 330",
+   158.6,
+   1921.1,
+   1
+  ],
+  [
+   30742,
+   "growing the forest 13 / 330",
+   159.3,
+   1926.7,
+   1
+  ],
+  [
+   31112,
+   "growing the forest 17 / 330",
+   158.8,
+   1934.8,
+   1
+  ],
+  [
+   32457,
+   "the world settling round the stand · 0 to build",
+   167.9,
+   1981.5,
+   1
+  ],
+  [
+   32964,
+   "the world settling round the stand · 0 to build",
+   174.4,
+   2018.8,
+   0
+  ],
+  [
+   33346,
+   "the world settling round the stand · 0 to build",
+   179,
+   2097.5,
+   0
+  ],
+  [
+   33715,
+   "the world settling round the stand · 0 to build",
+   173.8,
+   2076.5,
+   0
+  ],
+  [
+   34011,
+   "the world settling round the stand · 0 to build",
+   176,
+   2181.3,
+   0
+  ],
+  [
+   34269,
+   "the world settling round the stand · 0 to build",
+   179.1,
+   2226.1,
+   0
+  ],
+  [
+   34495,
+   "the world settling round the stand · 0 to build",
+   189.2,
+   2300.8,
+   0
+  ],
+  [
+   34791,
+   "the world settling round the stand · 0 to build",
+   188.3,
+   2414.4,
+   0
+  ],
+  [
+   35008,
+   "the world settling round the stand · 0 to build",
+   179.9,
+   2483.8,
+   0
+  ],
+  [
+   35263,
+   "the world settling round the stand · 0 to build",
+   181.4,
+   2493.8,
+   0
+  ],
+  [
+   35476,
+   "the world settling round the stand · 0 to build",
+   182.1,
+   2501.1,
+   0
+  ],
+  [
+   35709,
+   "the world settling round the stand · 0 to build",
+   186.3,
+   2510.4,
+   0
+  ],
+  [
+   35940,
+   "the world settling round the stand · 0 to build",
+   184.5,
+   2518.6,
+   0
+  ],
+  [
+   36170,
+   "the world settling round the stand · 0 to build",
+   194.4,
+   2527.4,
+   0
+  ],
+  [
+   36395,
+   "the world settling round the stand · 0 to build",
+   185.7,
+   2532.7,
+   0
+  ],
+  [
+   36633,
+   "the world settling round the stand · 0 to build",
+   186.7,
+   2538.9,
+   0
+  ],
+  [
+   36866,
+   "the world settling round the stand · 0 to build",
+   187.6,
+   2551,
+   0
+  ],
+  [
+   37111,
+   "the world settling round the stand · 0 to build",
+   189.9,
+   2556.7,
+   0
+  ],
+  [
+   37357,
+   "the world settling round the stand · 0 to build",
+   214.4,
+   2564.8,
+   0
+  ],
+  [
+   37589,
+   "the world settling round the stand · 0 to build",
+   199.3,
+   2570.2,
+   0
+  ],
+  [
+   37822,
+   "the world settling round the stand · 0 to build",
+   191.2,
+   2580.2,
+   0
+  ],
+  [
+   38055,
+   "the world settling round the stand · 0 to build",
+   191.5,
+   2586.7,
+   0
+  ],
+  [
+   38301,
+   "the world settling round the stand · 0 to build",
+   192.5,
+   2597.8,
+   0
+  ],
+  [
+   38524,
+   "the world settling round the stand · 0 to build",
+   208.6,
+   2605.8,
+   0
+  ],
+  [
+   38768,
+   "the world settling round the stand · 0 to build",
+   194.2,
+   2620.7,
+   0
+  ],
+  [
+   39004,
+   "the world settling round the stand · 0 to build",
+   210.9,
+   2624.7,
+   0
+  ],
+  [
+   39237,
+   "the world settling round the stand · 0 to build",
+   203.3,
+   2636.4,
+   0
+  ],
+  [
+   39472,
+   "the world settling round the stand · 0 to build",
+   208.6,
+   2646.2,
+   0
+  ],
+  [
+   39714,
+   "the world settling round the stand · 0 to build",
+   212.6,
+   2653.2,
+   0
+  ],
+  [
+   39947,
+   "the world settling round the stand · 0 to build",
+   204,
+   2659.5,
+   0
+  ],
+  [
+   40184,
+   "the world settling round the stand · 0 to build",
+   224.1,
+   2667.7,
+   0
+  ],
+  [
+   40419,
+   "the world settling round the stand · 0 to build",
+   218.7,
+   2678.9,
+   0
+  ],
+  [
+   40711,
+   "the world settling round the stand · 0 to build",
+   204,
+   2691.9,
+   0
+  ],
+  [
+   40953,
+   "the world settling round the stand · 0 to build",
+   222.8,
+   2705.8,
+   0
+  ],
+  [
+   41187,
+   "the world settling round the stand · 0 to build",
+   216.4,
+   2721.8,
+   0
+  ],
+  [
+   41433,
+   "the world settling round the stand · 0 to build",
+   205.7,
+   2733.2,
+   0
+  ],
+  [
+   41670,
+   "the world settling round the stand · 0 to build",
+   226.7,
+   2744.5,
+   0
+  ],
+  [
+   41912,
+   "the world settling round the stand · 0 to build",
+   235.4,
+   2755.6,
+   0
+  ],
+  [
+   42160,
+   "the world settling round the stand · 0 to build",
+   210.6,
+   2765.8,
+   0
+  ],
+  [
+   42396,
+   "the world settling round the stand · 0 to build",
+   212.8,
+   2773.4,
+   0
+  ],
+  [
+   42634,
+   "the world settling round the stand · 0 to build",
+   191.5,
+   2412.1,
+   0
+  ],
+  [
+   42873,
+   "the world settling round the stand · 0 to build",
+   195.3,
+   2421.3,
+   0
+  ],
+  [
+   43114,
+   "the world settling round the stand · 0 to build",
+   202.8,
+   2431.3,
+   0
+  ],
+  [
+   45922,
+   "committing your build",
+   213.6,
+   2472.9,
+   1
+  ],
+  [
+   47474,
+   "baking your aeroplane: the charts (the outside)",
+   204.5,
+   2472.9,
+   1
+  ],
+  [
+   47969,
+   "baking your aeroplane: the programs (the outside)",
+   207.9,
+   2490.7,
+   1
+  ],
+  [
+   48186,
+   "baking your aeroplane: the programs (the outside)",
+   208,
+   2490.7,
+   0
+  ],
+  [
+   48389,
+   "baking your aeroplane: the programs (the outside)",
+   208,
+   2490.7,
+   0
+  ],
+  [
+   48606,
+   "baking your aeroplane: the programs (the outside)",
+   208.1,
+   2490.7,
+   0
+  ],
+  [
+   48930,
+   "baking your aeroplane: the programs (the outside)",
+   215,
+   2509,
+   0
+  ],
+  [
+   49314,
+   "baking your aeroplane: the gutters and the mips (the outside)",
+   204.6,
+   2478.2,
+   1
+  ],
+  [
+   50330,
+   "baking your aeroplane: the cache (the cabin)",
+   204.9,
+   2544.1,
+   1
+  ],
+  [
+   50799,
+   "baking your aeroplane: the programs (the cabin)",
+   207,
+   2547.9,
+   1
+  ],
+  [
+   51006,
+   "baking your aeroplane: the programs (the cabin)",
+   207,
+   2547.9,
+   0
+  ],
+  [
+   51215,
+   "baking your aeroplane: the programs (the cabin)",
+   207,
+   2547.9,
+   0
+  ],
+  [
+   51447,
+   "baking your aeroplane: the programs (the cabin)",
+   207,
+   2547.9,
+   0
+  ],
+  [
+   51666,
+   "baking your aeroplane: the programs (the cabin)",
+   207.1,
+   2547.9,
+   0
+  ],
+  [
+   52001,
+   "baking your aeroplane: the programs (the cabin)",
+   208.8,
+   2564.9,
+   0
+  ],
+  [
+   52414,
+   "baking your aeroplane: the gutters and the mips (the cabin)",
+   204.9,
+   2541.8,
+   1
+  ],
+  [
+   52650,
+   "baking your aeroplane: the gutters and the mips (the cabin)",
+   204.9,
+   2541.8,
+   0
+  ],
+  [
+   56422,
+   "your aeroplane, built",
+   222.9,
+   2618.4,
+   1
+  ],
+  [
+   57327,
+   "uploading the textures 34 / 315",
+   207.6,
+   2455.4,
+   1
+  ],
+  [
+   57813,
+   "uploading the textures 103 / 315",
+   207.4,
+   2427.4,
+   1
+  ],
+  [
+   58312,
+   "uploading the textures 155 / 315",
+   207.4,
+   2427.4,
+   1
+  ],
+  [
+   58832,
+   "uploading the textures 209 / 315",
+   207.8,
+   2363.7,
+   1
+  ],
+  [
+   59570,
+   "uploading the textures 259 / 315",
+   209.8,
+   2340,
+   1
+  ],
+  [
+   61641,
+   "compiling the world",
+   208.5,
+   2233.4,
+   1
+  ],
+  [
+   61857,
+   "compiling the world",
+   208.6,
+   2233.4,
+   0
+  ],
+  [
+   62073,
+   "compiling the world",
+   208.7,
+   2233.4,
+   0
+  ],
+  [
+   62289,
+   "compiling the world",
+   209,
+   2233.4,
+   0
+  ],
+  [
+   62505,
+   "compiling the world",
+   209.1,
+   2233.4,
+   0
+  ],
+  [
+   62707,
+   "compiling the world",
+   209.1,
+   2233.4,
+   0
+  ],
+  [
+   62909,
+   "compiling the world",
+   209.2,
+   2233.4,
+   0
+  ],
+  [
+   63112,
+   "compiling the world",
+   209.2,
+   2233.4,
+   0
+  ],
+  [
+   63327,
+   "compiling the world",
+   209.3,
+   2233.4,
+   0
+  ],
+  [
+   63536,
+   "compiling the world",
+   209.1,
+   2233.4,
+   0
+  ],
+  [
+   63746,
+   "compiling the world",
+   209.1,
+   2233.4,
+   0
+  ],
+  [
+   63950,
+   "compiling the world",
+   209.1,
+   2233.4,
+   0
+  ],
+  [
+   64153,
+   "compiling the world",
+   209.2,
+   2233.4,
+   0
+  ],
+  [
+   64355,
+   "compiling the world",
+   209.2,
+   2233.4,
+   0
+  ],
+  [
+   64558,
+   "compiling the world",
+   209.2,
+   2233.4,
+   0
+  ],
+  [
+   64774,
+   "compiling the world",
+   209.3,
+   2233.4,
+   0
+  ],
+  [
+   64977,
+   "compiling the world",
+   209.3,
+   2233.4,
+   0
+  ],
+  [
+   65194,
+   "compiling the world",
+   209.3,
+   2233.4,
+   0
+  ],
+  [
+   65398,
+   "compiling the world",
+   209.4,
+   2233.4,
+   0
+  ],
+  [
+   65601,
+   "compiling the world",
+   209.4,
+   2233.4,
+   0
+  ],
+  [
+   65804,
+   "compiling the world",
+   209.4,
+   2233.4,
+   0
+  ],
+  [
+   66020,
+   "compiling the world",
+   209.5,
+   2233.4,
+   0
+  ],
+  [
+   66222,
+   "compiling the world",
+   208.8,
+   2233.4,
+   0
+  ],
+  [
+   66425,
+   "compiling the world",
+   208.9,
+   2233.4,
+   0
+  ],
+  [
+   66627,
+   "compiling the world",
+   208.9,
+   2233.4,
+   0
+  ],
+  [
+   66831,
+   "compiling the world",
+   208.9,
+   2233.4,
+   0
+  ],
+  [
+   67034,
+   "compiling the world",
+   209,
+   2233.4,
+   0
+  ],
+  [
+   67237,
+   "compiling the world",
+   209.2,
+   2233.4,
+   0
+  ],
+  [
+   67439,
+   "compiling the world",
+   209.2,
+   2233.4,
+   0
+  ],
+  [
+   67656,
+   "compiling the world",
+   209.2,
+   2233.4,
+   0
+  ],
+  [
+   67858,
+   "compiling the world",
+   209.2,
+   2233.4,
+   0
+  ],
+  [
+   68064,
+   "compiling the world",
+   209.3,
+   2233.4,
+   0
+  ],
+  [
+   68266,
+   "compiling the world",
+   209.3,
+   2233.4,
+   0
+  ],
+  [
+   68467,
+   "compiling the world",
+   209.3,
+   2233.4,
+   0
+  ],
+  [
+   68670,
+   "compiling the world",
+   209.4,
+   2233.4,
+   0
+  ],
+  [
+   68887,
+   "compiling the world",
+   209.4,
+   2233.4,
+   0
+  ],
+  [
+   69105,
+   "compiling the world",
+   209.4,
+   2233.4,
+   0
+  ],
+  [
+   69307,
+   "compiling the world",
+   209.5,
+   2233.4,
+   0
+  ],
+  [
+   69510,
+   "compiling the world",
+   209.5,
+   2233.4,
+   0
+  ],
+  [
+   69727,
+   "compiling the world",
+   209.5,
+   2233.4,
+   0
+  ],
+  [
+   69928,
+   "compiling the world",
+   208.3,
+   2233.4,
+   0
+  ],
+  [
+   70131,
+   "compiling the world",
+   208.4,
+   2233.4,
+   0
+  ],
+  [
+   70346,
+   "compiling the world",
+   208.4,
+   2233.4,
+   0
+  ],
+  [
+   70561,
+   "compiling the world",
+   208.4,
+   2233.4,
+   0
+  ],
+  [
+   70764,
+   "compiling the world",
+   208.5,
+   2233.4,
+   0
+  ],
+  [
+   70967,
+   "compiling the world",
+   208.5,
+   2233.4,
+   0
+  ],
+  [
+   71181,
+   "compiling the world",
+   208.5,
+   2233.4,
+   0
+  ],
+  [
+   71397,
+   "compiling the world",
+   208.6,
+   2233.4,
+   0
+  ],
+  [
+   71601,
+   "compiling the world",
+   208.6,
+   2233.4,
+   0
+  ],
+  [
+   71802,
+   "compiling the world",
+   208.6,
+   2233.4,
+   0
+  ],
+  [
+   72007,
+   "compiling the world",
+   208.7,
+   2233.4,
+   0
+  ],
+  [
+   72210,
+   "compiling the world",
+   208.7,
+   2233.4,
+   0
+  ],
+  [
+   72411,
+   "compiling the world",
+   208.7,
+   2233.4,
+   0
+  ],
+  [
+   72612,
+   "compiling the world",
+   208.8,
+   2233.4,
+   0
+  ],
+  [
+   72817,
+   "compiling the world",
+   208.8,
+   2233.4,
+   0
+  ],
+  [
+   73020,
+   "compiling the world",
+   208.8,
+   2233.4,
+   0
+  ],
+  [
+   73223,
+   "compiling the world",
+   208.8,
+   2233.4,
+   0
+  ],
+  [
+   73439,
+   "compiling the world",
+   208.9,
+   2233.4,
+   0
+  ],
+  [
+   73642,
+   "compiling the world",
+   208.9,
+   2233.4,
+   0
+  ],
+  [
+   73968,
+   "compiling the shaders",
+   208,
+   2233.3,
+   1
+  ],
+  [
+   74184,
+   "compiling the shaders",
+   208.1,
+   2233.3,
+   0
+  ],
+  [
+   74849,
+   "compiling the shaders",
+   214.8,
+   2235.1,
+   0
+  ],
+  [
+   75612,
+   "first light",
+   216.3,
+   2233.7,
+   1
+  ],
+  [
+   75880,
+   "first light",
+   218.4,
+   2233.7,
+   0
+  ],
+  [
+   77196,
+   "first light 318 / 318",
+   219.3,
+   2233.4,
+   1
+  ],
+  [
+   77818,
+   "your aeroplane's shaders",
+   220,
+   2233.4,
+   1
+  ],
+  [
+   78328,
+   "BOOT landing",
+   219.8,
+   2233.4,
+   1
+  ],
+  [
+   78789,
+   "BOOT gone",
+   219.8,
+   2233.4,
+   1
+  ],
+  [
+   79040,
+   "BOOT gone",
+   221,
+   2234.4,
+   0
+  ],
+  [
+   79284,
+   "BOOT gone",
+   222.5,
+   2234.4,
+   0
+  ],
+  [
+   79526,
+   "BOOT gone",
+   222,
+   2234.4,
+   0
+  ],
+  [
+   79783,
+   "BOOT gone",
+   221.5,
+   2234.4,
+   0
+  ],
+  [
+   80015,
+   "BOOT gone",
+   224.8,
+   2234.4,
+   0
+  ],
+  [
+   80251,
+   "BOOT gone",
+   225.8,
+   2234.4,
+   0
+  ],
+  [
+   80492,
+   "BOOT gone",
+   222.9,
+   2234.4,
+   0
+  ],
+  [
+   80729,
+   "BOOT gone",
+   223.9,
+   2234.4,
+   0
+  ],
+  [
+   80957,
+   "BOOT gone",
+   224.9,
+   2234.4,
+   0
+  ],
+  [
+   81209,
+   "BOOT gone",
+   224.2,
+   2234.4,
+   0
+  ],
+  [
+   81439,
+   "BOOT gone",
+   225.1,
+   2234.4,
+   0
+  ],
+  [
+   81671,
+   "BOOT gone",
+   226.1,
+   2234.4,
+   0
+  ],
+  [
+   81896,
+   "BOOT gone",
+   224.9,
+   2234.4,
+   0
+  ],
+  [
+   82101,
+   "BOOT gone",
+   227.2,
+   2234.4,
+   0
+  ],
+  [
+   82302,
+   "BOOT gone",
+   225.7,
+   2234.4,
+   0
+  ],
+  [
+   82505,
+   "BOOT gone",
+   227.6,
+   2234.4,
+   0
+  ],
+  [
+   82706,
+   "BOOT gone",
+   225.7,
+   2234.4,
+   0
+  ],
+  [
+   82929,
+   "BOOT gone",
+   226.3,
+   2234.4,
+   0
+  ],
+  [
+   83163,
+   "BOOT gone",
+   226.5,
+   2234.4,
+   0
+  ],
+  [
+   83396,
+   "BOOT gone",
+   226.7,
+   2234.4,
+   0
+  ],
+  [
+   83607,
+   "BOOT gone",
+   228.6,
+   2234.4,
+   0
+  ],
+  [
+   83830,
+   "BOOT gone",
+   228.8,
+   2234.4,
+   0
+  ],
+  [
+   84041,
+   "BOOT gone",
+   226.8,
+   2234.4,
+   0
+  ],
+  [
+   84271,
+   "BOOT gone",
+   227,
+   2234.4,
+   0
+  ],
+  [
+   84500,
+   "BOOT gone",
+   227.3,
+   2234.4,
+   0
+  ],
+  [
+   84731,
+   "BOOT gone",
+   227.4,
+   2234.4,
+   0
+  ],
+  [
+   84964,
+   "BOOT gone",
+   227.6,
+   2234.4,
+   0
+  ],
+  [
+   85197,
+   "BOOT gone",
+   229.6,
+   2234.4,
+   0
+  ],
+  [
+   85430,
+   "BOOT gone",
+   232,
+   2234.4,
+   0
+  ],
+  [
+   85663,
+   "BOOT gone",
+   227.8,
+   2234.4,
+   0
+  ],
+  [
+   85898,
+   "BOOT gone",
+   233.1,
+   2234.4,
+   0
+  ],
+  [
+   86144,
+   "BOOT gone",
+   235.6,
+   2234.4,
+   0
+  ],
+  [
+   86381,
+   "BOOT gone",
+   236.2,
+   2234.4,
+   0
+  ],
+  [
+   86624,
+   "BOOT gone",
+   230.9,
+   2234.4,
+   0
+  ],
+  [
+   86831,
+   "BOOT gone",
+   233.8,
+   2234.4,
+   0
+  ],
+  [
+   87064,
+   "BOOT gone",
+   229.7,
+   2234.4,
+   0
+  ],
+  [
+   87298,
+   "BOOT gone",
+   232,
+   2234.4,
+   0
+  ],
+  [
+   87531,
+   "BOOT gone",
+   234.4,
+   2235.4,
+   0
+  ],
+  [
+   87765,
+   "BOOT gone",
+   230.4,
+   2235.4,
+   0
+  ],
+  [
+   87997,
+   "BOOT gone",
+   232.7,
+   2235.4,
+   0
+  ],
+  [
+   88232,
+   "BOOT gone",
+   235,
+   2235.4,
+   0
+  ],
+  [
+   88464,
+   "BOOT gone",
+   231,
+   2235.4,
+   0
+  ],
+  [
+   88698,
+   "BOOT gone",
+   233.3,
+   2235.4,
+   0
+  ],
+  [
+   88907,
+   "BOOT gone",
+   233.4,
+   2235.4,
+   0
+  ],
+  [
+   89108,
+   "BOOT gone",
+   233.7,
+   2235.4,
+   0
+  ],
+  [
+   89309,
+   "BOOT gone",
+   233.8,
+   2235.4,
+   0
+  ],
+  [
+   89533,
+   "BOOT gone",
+   236.2,
+   2235.4,
+   0
+  ],
+  [
+   89739,
+   "BOOT gone",
+   236.3,
+   2235.4,
+   0
+  ],
+  [
+   89964,
+   "BOOT gone",
+   232.3,
+   2235.4,
+   0
+  ],
+  [
+   90174,
+   "BOOT gone",
+   232.4,
+   2235.4,
+   0
+  ],
+  [
+   90398,
+   "BOOT gone",
+   234.8,
+   2235.4,
+   0
+  ],
+  [
+   90608,
+   "BOOT gone",
+   235,
+   2235.4,
+   0
+  ],
+  [
+   90831,
+   "BOOT gone",
+   237.3,
+   2235.4,
+   0
+  ],
+  [
+   91044,
+   "BOOT gone",
+   237.4,
+   2235.4,
+   0
+  ],
+  [
+   91266,
+   "BOOT gone",
+   233.5,
+   2235.4,
+   0
+  ],
+  [
+   91500,
+   "BOOT gone",
+   235.7,
+   2235.4,
+   0
+  ],
+  [
+   91710,
+   "BOOT gone",
+   235.9,
+   2235.4,
+   0
+  ],
+  [
+   91939,
+   "BOOT gone",
+   223.1,
+   2235.4,
+   0
+  ],
+  [
+   92165,
+   "BOOT gone",
+   225.6,
+   2233.4,
+   0
+  ],
+  [
+   92377,
+   "BOOT gone",
+   225.8,
+   2233.4,
+   0
+  ],
+  [
+   92599,
+   "BOOT gone",
+   221.7,
+   2233.4,
+   0
+  ],
+  [
+   92841,
+   "BOOT gone",
+   227.6,
+   2233.4,
+   0
+  ],
+  [
+   93066,
+   "BOOT gone",
+   227.9,
+   2233.4,
+   0
+  ]
+ ],
+ "steps": [
+  {
+   "step": "page",
+   "t": 853,
+   "end": 1.2,
+   "peak": 1.2,
+   "ab": 0.1,
+   "gcAB": 0.1,
+   "gcHeap": 1.2
+  },
+  {
+   "step": "reading the island",
+   "t": 1111,
+   "end": 3.3,
+   "peak": 3.3,
+   "ab": 246.6,
+   "gcAB": 49.4,
+   "gcHeap": 1.7,
+   "peakAB": 246.6
+  },
+  {
+   "step": "reading the model",
+   "t": 3805,
+   "end": 29.1,
+   "peak": 29.1,
+   "ab": 397.9,
+   "gcAB": 397.9,
+   "gcHeap": 29.1
+  },
+  {
+   "step": "building your aeroplane",
+   "t": 5616,
+   "end": 54.7,
+   "peak": 54.7,
+   "ab": 414.5,
+   "gcAB": 414.5,
+   "gcHeap": 54.7
+  },
+  {
+   "step": "your aeroplane on the stand",
+   "t": 9019,
+   "end": 86.1,
+   "peak": 86.1,
+   "ab": 492.8,
+   "gcAB": 492.8,
+   "gcHeap": 86.1
+  },
+  {
+   "step": "laying out the world: ground colour",
+   "t": 10229,
+   "end": 89.3,
+   "peak": 89.3,
+   "ab": 684,
+   "gcAB": 684,
+   "gcHeap": 89.3
+  },
+  {
+   "step": "laying out the world: ground fields",
+   "t": 10661,
+   "end": 168,
+   "peak": 168,
+   "ab": 720.9,
+   "gcAB": 720.9,
+   "gcHeap": 168
+  },
+  {
+   "step": "laying out the world: ring heights",
+   "t": 11765,
+   "end": 84.9,
+   "peak": 84.9,
+   "ab": 760.2,
+   "gcAB": 760.2,
+   "gcHeap": 84.9
+  },
+  {
+   "step": "laying out the world: water",
+   "t": 12569,
+   "end": 100.5,
+   "peak": 100.5,
+   "ab": 991.7,
+   "gcAB": 991.7,
+   "gcHeap": 100.5
+  },
+  {
+   "step": "laying out the world: premises made",
+   "t": 13539,
+   "end": 117.6,
+   "peak": 117.6,
+   "ab": 1073.7,
+   "gcAB": 1073.7,
+   "gcHeap": 117.6
+  },
+  {
+   "step": "laying out the world: patch ground",
+   "t": 13871,
+   "end": 119.5,
+   "peak": 119.5,
+   "ab": 1169.3,
+   "gcAB": 1116.1,
+   "gcHeap": 118.8,
+   "peakAB": 1169.3
+  },
+  {
+   "step": "laying out the world: patch block",
+   "t": 14669,
+   "end": 171.6,
+   "peak": 171.6,
+   "ab": 1236.1,
+   "gcAB": 1182.6,
+   "gcHeap": 132.1,
+   "peakAB": 1236.1
+  },
+  {
+   "step": "laying out the world: roads",
+   "t": 15438,
+   "end": 126.5,
+   "peak": 126.5,
+   "ab": 1271,
+   "gcAB": 1271,
+   "gcHeap": 126.5
+  },
+  {
+   "step": "laying out the world: ground under the premises",
+   "t": 16228,
+   "end": 164.6,
+   "peak": 164.6,
+   "ab": 1283.7,
+   "gcAB": 1283.7,
+   "gcHeap": 164.6
+  },
+  {
+   "step": "laying out the world: far terrain sink",
+   "t": 16649,
+   "end": 132,
+   "peak": 132,
+   "ab": 1353.8,
+   "gcAB": 1353.8,
+   "gcHeap": 132
+  },
+  {
+   "step": "laying out the world: meadows",
+   "t": 18141,
+   "end": 138.1,
+   "peak": 138.1,
+   "ab": 1391.2,
+   "gcAB": 1391.2,
+   "gcHeap": 138.1
+  },
+  {
+   "step": "building the field 48 / 137",
+   "t": 18610,
+   "end": 142,
+   "peak": 142,
+   "ab": 1419.5,
+   "gcAB": 1419.5,
+   "gcHeap": 142
+  },
+  {
+   "step": "building the field 54 / 137",
+   "t": 19088,
+   "end": 283.2,
+   "peak": 283.2,
+   "ab": 1577.9,
+   "gcAB": 1476.6,
+   "gcHeap": 164.7,
+   "peakAB": 1577.9
+  },
+  {
+   "step": "building the field 59 / 137",
+   "t": 19959,
+   "end": 143.1,
+   "peak": 143.1,
+   "ab": 1557.6,
+   "gcAB": 1557.6,
+   "gcHeap": 143.1
+  },
+  {
+   "step": "building the field 60 / 137",
+   "t": 20572,
+   "end": 174.8,
+   "peak": 174.8,
+   "ab": 1579.3,
+   "gcAB": 1579.3,
+   "gcHeap": 174.8
+  },
+  {
+   "step": "building the field 66 / 137",
+   "t": 20982,
+   "end": 145.1,
+   "peak": 145.1,
+   "ab": 1608.9,
+   "gcAB": 1608.9,
+   "gcHeap": 145.1
+  },
+  {
+   "step": "building the field 69 / 137",
+   "t": 21361,
+   "end": 145.4,
+   "peak": 145.4,
+   "ab": 1620.9,
+   "gcAB": 1620.9,
+   "gcHeap": 145.4
+  },
+  {
+   "step": "building the field 72 / 137",
+   "t": 21774,
+   "end": 146.7,
+   "peak": 146.7,
+   "ab": 1638.2,
+   "gcAB": 1638.2,
+   "gcHeap": 146.7
+  },
+  {
+   "step": "building the field 76 / 137",
+   "t": 22243,
+   "end": 221.3,
+   "peak": 221.3,
+   "ab": 1641.3,
+   "gcAB": 1641.3,
+   "gcHeap": 221.3
+  },
+  {
+   "step": "building the field 80 / 137",
+   "t": 22669,
+   "end": 185.1,
+   "peak": 185.1,
+   "ab": 1643.7,
+   "gcAB": 1643.7,
+   "gcHeap": 185.1
+  },
+  {
+   "step": "building the field 85 / 137",
+   "t": 23121,
+   "end": 180.4,
+   "peak": 180.4,
+   "ab": 1644.9,
+   "gcAB": 1644.9,
+   "gcHeap": 180.4
+  },
+  {
+   "step": "building the field 89 / 137",
+   "t": 23430,
+   "end": 148.1,
+   "peak": 148.1,
+   "ab": 1646,
+   "gcAB": 1646,
+   "gcHeap": 148.1
+  },
+  {
+   "step": "building the field 92 / 137",
+   "t": 23849,
+   "end": 178.4,
+   "peak": 178.4,
+   "ab": 1646.9,
+   "gcAB": 1646.9,
+   "gcHeap": 178.4
+  },
+  {
+   "step": "building the field 96 / 137",
+   "t": 24256,
+   "end": 208.1,
+   "peak": 208.1,
+   "ab": 1647.3,
+   "gcAB": 1647.3,
+   "gcHeap": 208.1
+  },
+  {
+   "step": "building the field 101 / 137",
+   "t": 24770,
+   "end": 176.1,
+   "peak": 176.1,
+   "ab": 1648.6,
+   "gcAB": 1648.6,
+   "gcHeap": 176.1
+  },
+  {
+   "step": "building the field 106 / 137",
+   "t": 25073,
+   "end": 149.8,
+   "peak": 149.8,
+   "ab": 1649.4,
+   "gcAB": 1649.4,
+   "gcHeap": 149.8
+  },
+  {
+   "step": "building the field 109 / 137",
+   "t": 25530,
+   "end": 177.8,
+   "peak": 177.8,
+   "ab": 1651.2,
+   "gcAB": 1651.2,
+   "gcHeap": 177.8
+  },
+  {
+   "step": "building the field 116 / 137",
+   "t": 26090,
+   "end": 226.7,
+   "peak": 226.7,
+   "ab": 1657.3,
+   "gcAB": 1657.3,
+   "gcHeap": 226.7
+  },
+  {
+   "step": "building the field 121 / 137",
+   "t": 26642,
+   "end": 209.1,
+   "peak": 209.1,
+   "ab": 1664,
+   "gcAB": 1664,
+   "gcHeap": 209.1
+  },
+  {
+   "step": "building the field 126 / 137",
+   "t": 27278,
+   "end": 267.2,
+   "peak": 267.2,
+   "ab": 1678.5,
+   "gcAB": 1678.5,
+   "gcHeap": 267.2
+  },
+  {
+   "step": "building the field 130 / 137",
+   "t": 27884,
+   "end": 215.6,
+   "peak": 215.6,
+   "ab": 1694.8,
+   "gcAB": 1694.8,
+   "gcHeap": 215.6
+  },
+  {
+   "step": "building the field 134 / 137",
+   "t": 28576,
+   "end": 267.6,
+   "peak": 267.6,
+   "ab": 1700.2,
+   "gcAB": 1700.2,
+   "gcHeap": 267.6
+  },
+  {
+   "step": "building the field 137 / 137",
+   "t": 28965,
+   "end": 154.7,
+   "peak": 154.7,
+   "ab": 1808.2,
+   "gcAB": 1808.2,
+   "gcHeap": 154.7
+  },
+  {
+   "step": "parking the other aeroplanes",
+   "t": 29286,
+   "end": 154.7,
+   "peak": 154.7,
+   "ab": 1902.6,
+   "gcAB": 1902.6,
+   "gcHeap": 154.7
+  },
+  {
+   "step": "growing the forest 3 / 330",
+   "t": 29660,
+   "end": 157.2,
+   "peak": 157.2,
+   "ab": 1906.4,
+   "gcAB": 1906.4,
+   "gcHeap": 157.2
+  },
+  {
+   "step": "growing the forest 6 / 330",
+   "t": 30019,
+   "end": 157.9,
+   "peak": 157.9,
+   "ab": 1913.3,
+   "gcAB": 1913.3,
+   "gcHeap": 157.9
+  },
+  {
+   "step": "growing the forest 10 / 330",
+   "t": 30376,
+   "end": 158.6,
+   "peak": 158.6,
+   "ab": 1921.1,
+   "gcAB": 1921.1,
+   "gcHeap": 158.6
+  },
+  {
+   "step": "growing the forest 13 / 330",
+   "t": 30742,
+   "end": 159.3,
+   "peak": 159.3,
+   "ab": 1926.7,
+   "gcAB": 1926.7,
+   "gcHeap": 159.3
+  },
+  {
+   "step": "growing the forest 17 / 330",
+   "t": 31112,
+   "end": 158.8,
+   "peak": 158.8,
+   "ab": 1934.8,
+   "gcAB": 1934.8,
+   "gcHeap": 158.8
+  },
+  {
+   "step": "the world settling round the stand · 0 to build",
+   "t": 32457,
+   "end": 202.8,
+   "peak": 235.4,
+   "ab": 2431.3,
+   "gcAB": 1981.5,
+   "gcHeap": 167.9,
+   "peakAB": 2773.4
+  },
+  {
+   "step": "committing your build",
+   "t": 45922,
+   "end": 213.6,
+   "peak": 213.6,
+   "ab": 2472.9,
+   "gcAB": 2472.9,
+   "gcHeap": 213.6
+  },
+  {
+   "step": "baking your aeroplane: the charts (the outside)",
+   "t": 47474,
+   "end": 204.5,
+   "peak": 204.5,
+   "ab": 2472.9,
+   "gcAB": 2472.9,
+   "gcHeap": 204.5
+  },
+  {
+   "step": "baking your aeroplane: the programs (the outside)",
+   "t": 47969,
+   "end": 215,
+   "peak": 215,
+   "ab": 2509,
+   "gcAB": 2490.7,
+   "gcHeap": 207.9,
+   "peakAB": 2509
+  },
+  {
+   "step": "baking your aeroplane: the gutters and the mips (the outside)",
+   "t": 49314,
+   "end": 204.6,
+   "peak": 204.6,
+   "ab": 2478.2,
+   "gcAB": 2478.2,
+   "gcHeap": 204.6
+  },
+  {
+   "step": "baking your aeroplane: the cache (the cabin)",
+   "t": 50330,
+   "end": 204.9,
+   "peak": 204.9,
+   "ab": 2544.1,
+   "gcAB": 2544.1,
+   "gcHeap": 204.9
+  },
+  {
+   "step": "baking your aeroplane: the programs (the cabin)",
+   "t": 50799,
+   "end": 208.8,
+   "peak": 208.8,
+   "ab": 2564.9,
+   "gcAB": 2547.9,
+   "gcHeap": 207,
+   "peakAB": 2564.9
+  },
+  {
+   "step": "baking your aeroplane: the gutters and the mips (the cabin)",
+   "t": 52414,
+   "end": 204.9,
+   "peak": 204.9,
+   "ab": 2541.8,
+   "gcAB": 2541.8,
+   "gcHeap": 204.9,
+   "peakAB": 2541.8
+  },
+  {
+   "step": "your aeroplane, built",
+   "t": 56422,
+   "end": 222.9,
+   "peak": 222.9,
+   "ab": 2618.4,
+   "gcAB": 2618.4,
+   "gcHeap": 222.9
+  },
+  {
+   "step": "uploading the textures 34 / 315",
+   "t": 57327,
+   "end": 207.6,
+   "peak": 207.6,
+   "ab": 2455.4,
+   "gcAB": 2455.4,
+   "gcHeap": 207.6
+  },
+  {
+   "step": "uploading the textures 103 / 315",
+   "t": 57813,
+   "end": 207.4,
+   "peak": 207.4,
+   "ab": 2427.4,
+   "gcAB": 2427.4,
+   "gcHeap": 207.4
+  },
+  {
+   "step": "uploading the textures 155 / 315",
+   "t": 58312,
+   "end": 207.4,
+   "peak": 207.4,
+   "ab": 2427.4,
+   "gcAB": 2427.4,
+   "gcHeap": 207.4
+  },
+  {
+   "step": "uploading the textures 209 / 315",
+   "t": 58832,
+   "end": 207.8,
+   "peak": 207.8,
+   "ab": 2363.7,
+   "gcAB": 2363.7,
+   "gcHeap": 207.8
+  },
+  {
+   "step": "uploading the textures 259 / 315",
+   "t": 59570,
+   "end": 209.8,
+   "peak": 209.8,
+   "ab": 2340,
+   "gcAB": 2340,
+   "gcHeap": 209.8
+  },
+  {
+   "step": "compiling the world",
+   "t": 61641,
+   "end": 208.9,
+   "peak": 209.5,
+   "ab": 2233.4,
+   "gcAB": 2233.4,
+   "gcHeap": 208.5,
+   "peakAB": 2233.4
+  },
+  {
+   "step": "compiling the shaders",
+   "t": 73968,
+   "end": 214.8,
+   "peak": 214.8,
+   "ab": 2235.1,
+   "gcAB": 2233.3,
+   "gcHeap": 208,
+   "peakAB": 2235.1
+  },
+  {
+   "step": "first light",
+   "t": 75612,
+   "end": 218.4,
+   "peak": 218.4,
+   "ab": 2233.7,
+   "gcAB": 2233.7,
+   "gcHeap": 216.3,
+   "peakAB": 2233.7
+  },
+  {
+   "step": "first light 318 / 318",
+   "t": 77196,
+   "end": 219.3,
+   "peak": 219.3,
+   "ab": 2233.4,
+   "gcAB": 2233.4,
+   "gcHeap": 219.3
+  },
+  {
+   "step": "your aeroplane's shaders",
+   "t": 77818,
+   "end": 220,
+   "peak": 220,
+   "ab": 2233.4,
+   "gcAB": 2233.4,
+   "gcHeap": 220
+  },
+  {
+   "step": "BOOT landing",
+   "t": 78328,
+   "end": 219.8,
+   "peak": 219.8,
+   "ab": 2233.4,
+   "gcAB": 2233.4,
+   "gcHeap": 219.8
+  },
+  {
+   "step": "BOOT gone",
+   "t": 78789,
+   "end": 227.9,
+   "peak": 237.4,
+   "ab": 2233.4,
+   "gcAB": 2233.4,
+   "gcHeap": 219.8,
+   "peakAB": 2235.4
+  }
+ ],
+ "at": "2026-10-02T17:14:42.561Z",
+ "load": {
+  "state": "ready",
+  "sec": 78.1
+ },
+ "peak": 283.2,
+ "peakAB": 2773.4,
+ "settled": [
+  93066,
+  "BOOT gone",
+  227.9,
+  2233.4,
+  0
+ ],
+ "afterGC": {
+  "used": 221.6,
+  "ab": 2233.4
+ },
+ "typed": null,
+ "exc": []
+}

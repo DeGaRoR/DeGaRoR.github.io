@@ -107,3 +107,27 @@
   }
   if (typeof window !== 'undefined') { window.ASSET_FETCH = assetFetch; window.ASSET_FETCH_FRESH = load; }
 })();
+// GPU_ONLY_GEO(geometry) - G1200 (MEM-DIET): A GEOMETRY THAT IS ONLY DRAWN GIVES ITS CPU COPY BACK ONCE UPLOADED. Each
+// attribute's (and the index's) array is swapped for an empty one of its type in three's onUploadCallback: the bytes
+// live on the GPU, `count` (a stored property) still draws them, the bounds are computed first (frustum culling and
+// Box3.setFromObject read those, never the array). ONLY for a geometry nothing reads again on the CPU - no raycast, no
+// physics, no terrainH, no merge or re-sink from it, never re-uploaded (a rebuild makes a NEW geometry) - the textures'
+// gpuOnly rule (render_world.js G907) for geometry. One renderer draws the world (app.js), so one upload is the only one.
+// ?gpuonly=0 keeps every copy (the A/B).
+(() => {
+  'use strict';
+  const off = typeof location !== 'undefined' && /[?&]gpuonly=0(?:&|$)/.test(location.search || '');
+  const stats = { geos: 0, bytes: 0 };
+  function release() { const a = this.array; if (a && a.length) { stats.bytes += a.byteLength; this.array = new a.constructor(0); } }
+  function gpuOnlyGeo(g) {
+    if (off || !g || !g.attributes) return g;
+    if (!g.boundingSphere) g.computeBoundingSphere();
+    if (!g.boundingBox) g.computeBoundingBox();
+    for (const k in g.attributes) { const a = g.attributes[k]; if (a && !a.isInterleavedBufferAttribute && a.onUpload) a.onUpload(release); }
+    if (g.index && g.index.onUpload) g.index.onUpload(release);
+    stats.geos++;
+    return g;
+  }
+  gpuOnlyGeo.stats = stats;
+  if (typeof window !== 'undefined') window.GPU_ONLY_GEO = gpuOnlyGeo;
+})();

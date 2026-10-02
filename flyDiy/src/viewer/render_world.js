@@ -2414,7 +2414,8 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         geo.setAttribute('normal', new THREE.BufferAttribute(nor, 3));
         geo.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
         geo.setIndex(new THREE.BufferAttribute(idx, 1));
-        if (nodes.length) { geo.computeBoundingSphere(); geo.computeBoundingBox(); }
+        // G1200: drawn only - a re-cut builds a new geometry from the patch cache (FARLOD.cache keeps the patches' own)
+        if (nodes.length) { geo.computeBoundingSphere(); geo.computeBoundingBox(); if (typeof GPU_ONLY_GEO === 'function') GPU_ONLY_GEO(geo); }
         else if (Q.m.geometry.boundingSphere) { geo.boundingSphere = Q.m.geometry.boundingSphere; geo.boundingBox = Q.m.geometry.boundingBox; geo.setDrawRange(0, 0); }
         const old = Q.m.geometry; Q.m.geometry = geo; if (old && old.dispose) old.dispose();
         Q.sig = Q.wantSig; Q.tris = nodes.length * TPL.length / 3; FARLOD.stats.rebuilds++;
@@ -3788,6 +3789,12 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     };
     // the horizontal distance from the eye to a record's trees' box (0 inside it)
     const recNear = (G, e) => Math.hypot(Math.max(G.x0 - e[0], 0, e[0] - G.x1), Math.max(G.z0 - e[2], 0, e[2] - G.z1));
+    // G1200 (MEM-DIET): ONE INSTANCE BUFFER A RUNG. Every part of a rung (the bark, the leaves) draws the same instances
+    // in the same order, so its meshes share ONE matrix attribute and ONE colour attribute - and the matrix attribute's
+    // array IS the rung's partition buffer (rec.buf[si][r]): the partition writes the trees straight into what goes up,
+    // no per-part copy. A rung dealt the same trees writes the same bytes (G1114.1's key) and uploads nothing. Was a
+    // capacity-sized matrix + colour buffer per part, plus the scratch: ~65 MB over Jolene's forest.
+    const rungShared = (buf, n) => ({ im: new THREE.InstancedBufferAttribute(buf, 16), ic: new THREE.InstancedBufferAttribute(new Float32Array(n * 3).fill(1), 3) });
     function partitionChunk(rec, cg) {
       const pos = rec.pos, mats = rec.mats, ser = rec.ser;
       const k = rec.rungs.map(L => L.map(() => 0));
@@ -3831,7 +3838,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
           if (was[si][b] === key) continue;
           was[si][b] = key;
           for (const m of rec.rungs[si][b]) {
-            if (c) m.instanceMatrix.array.set(rec.buf[si][b].subarray(0, c * 16));
+            if (c && m.instanceMatrix.array !== rec.buf[si][b]) m.instanceMatrix.array.set(rec.buf[si][b].subarray(0, c * 16));   // (G1200: shared, nothing to copy)
             m.count = c; showRung(m, c > 0);
             // only the instances written go up (addUpdateRange, r159+: the list
             // is consumed by the upload and cleared after it) - a rung's buffer
@@ -4350,16 +4357,16 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
           rec.buf.push(S.ladder.map(() => new Float32Array(cnt[si] * 16)));
           rec.rungs.push(S.ladder.map(() => []));
           if (!cnt[si]) { imps.push(null); return; }
-          S.ladder.forEach((R, ri) => { for (const q of R.parts) {
+          S.ladder.forEach((R, ri) => { const sh = rungShared(rec.buf[si][ri], cnt[si]); for (const q of R.parts) {
             const m = mk(q.geo, q.mat, cnt[si], true);
+            m.instanceMatrix = sh.im; m.instanceColor = sh.ic;   // G1200: the rung's parts share them (rungShared)
             m.customDepthMaterial = q.depth;
-            // THE COLOUR BUFFER IS ALLOCATED AT CAPACITY, HERE, before the
+            // THE COLOUR BUFFER IS ALLOCATED AT CAPACITY (rungShared), before the
             // count is parked at 0: r128's setColorAt sizes it from the live
             // count on first use, and a mesh parked first got an EMPTY buffer
             // - every colour write landed nowhere and the shader read zero.
             // The whole near tier was black through two rounds of shading
             // work aimed at the lights. (r128 has no setColorAt on capacity.)
-            m.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(cnt[si] * 3).fill(1), 3);
             m.count = 0; m.visible = false;
             m.userData.ser = si;              // which series, for the probes
             rec.rungs[si][ri].push(m);
@@ -4748,24 +4755,25 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
           // every rung of the ladder gets its meshes (the cone fallback is a
           // one-rung ladder); the partition deals each instance to ONE of them
           const rungsOf = S => S.ladder || [{ parts: S.parts }];
+          const nrOf = S => S.ladder ? S.ladder.length : 1;
+          const bufs = SH.series.map((S, si) => Array.from({ length: nrOf(S) }, () => new Float32Array(cnt[si] * 16)));
           const perSer = SH.series.map((S, si) => cnt[si] ? {
-            byRung: rungsOf(S).map(R => R.parts.map(pq => {
+            byRung: rungsOf(S).map((R, ri) => { const sh = rungShared(bufs[si][ri], cnt[si]); return R.parts.map(pq => {
               const m = new THREE.InstancedMesh(pq.geo, pq.mat, cnt[si]); m.renderOrder = -1;   // occluders first (ORDER_NOTE)
+              m.instanceMatrix = sh.im; m.instanceColor = sh.ic;   // G1200: the rung's parts share them (rungShared)
               // THE FILL CASTS (W0c.17). "Canopies only - no trunks, no
               // shadows" was the cone's rule, and the fill is the tree line
               // now: a stand that shades nothing floats. Its own banded
               // depth material, like the woodland's; the shadow frustum
               // bounds what it costs.
               if (pq.depth) { m.castShadow = true; m.receiveShadow = true; m.customDepthMaterial = pq.depth; }
-              // colour buffer at capacity BEFORE parking - see the woodland
-              m.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(cnt[si] * 3).fill(1), 3);
-              m.count = 0; m.visible = false; return m; })),
+              // (the colour buffer at capacity BEFORE parking: rungShared - see the woodland)
+              m.count = 0; m.visible = false; return m; }); }),
             at: 0 } : null);
           const lay = SH.series.map(S => layerOf(S.imp));   // each series' sheet in the arrays
           for (const P of perSer) if (P) P.ms = [].concat(...P.byRung);
-          const nrOf = S => S.ladder ? S.ladder.length : 1;
           const rec = { n, mats: new Float32Array(n * 16), pos: new Float32Array(n * 3), ser,
-                        buf: SH.series.map((S, si) => Array.from({ length: nrOf(S) }, () => new Float32Array(cnt[si] * 16))),
+                        buf: bufs,
                         rungs: SH.series.map((S, si) => perSer[si] ? perSer[si].byRung : Array.from({ length: nrOf(S) }, () => [])), x: ox, z: oz,
                         key: SH.key };   // key: TREE_LOD.find's (G1110)
           perSer.forEach((P, si) => { if (P) for (const mm of P.ms) {

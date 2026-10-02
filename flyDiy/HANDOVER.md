@@ -67954,3 +67954,84 @@ Measured (fresh profile D:/u23), vs train 22: Cub 31.05 fps / 4 % / garage 39.3 
 39.0 / 42.4 s; cockpit 56.05 / 55.2 fps, 1-2 %. RATCHET PASS (nothing admitted), full battery GREEN, FRAMECOST PASS
 (baseline re-taken). Note for CESSNA-LINKS: under the ratchet's own warm-up the metal's garage equals the Cub's; the ~20 s
 gap shows in master_bench / metla_ab loads.
+## G1200-G1204 - MEM-DIET: THE LOAD'S MEMORY MEASURED STEP BY STEP; FOUR DRAW-ONLY COPIES CUT (2026-10-02, MEM-DIET, local GPU, the "Friendly Welcome" release's first session)
+
+The finding (the user's Galaxy S20 FE, A0's recorder): the heap grows through the load to ~2 GB and is never given back;
+the renderer reached 2.8 GB and Android's low-memory killer shut Chrome during "building the field".
+**WHAT THE PHONE'S NUMBER WAS: THE ARRAYBUFFERS.** On the desktop (Cub, gamer, fresh profile) the V8 heap itself is small -
+it swings 100-800 MB and settles at ~225 MB after a GC. The ~2 GB is the typed arrays' BACKING STORES (outside the V8
+heap; Runtime.getHeapUsage's backingStorageSize): 2234 MB retained after the load, a peak of 2.6-2.95 GB (runs vary).
+A full GC at every step change (--gcsteps 1) shows it is ALL RETAINED - not garbage V8 had not collected yet.
+- G1200 tools/perf/heap_steps.js: master_bench's rig (a fresh --udd, its own server on --port, never 8531); the heap
+  polled over CDP every 200 ms against BOOT.current's label: per step the V8 heap, the backing stores, the floor after a GC
+  (--gcsteps 1); --sample: V8's sampling heap profiler (the V8 heap's live bytes by allocating frame).
+- G1201 tools/perf/heap_track_page.js (on by default in heap_steps; HT_MIN=<bytes>, 256 KB default): WHO KEEPS THE
+  BACKING STORES. Every typed-array constructor / ArrayBuffer wrapped (a Proxy's construct trap), plus the stores the page
+  does not construct - fetch's arrayBuffer, a Blob's, IndexedDB reads, ImageData, a worker's messages (walked 8 deep) -
+  each recorded once with its stack (the app's frames) and the BOOT step that made it, held by a WeakRef. After the
+  load (and a GC) __HT.report(n, byStep) groups the LIVE ones. At 4 KB it accounts for ~1.8 GB of the ~2.0 GB.
+- Who keeps it (after the load, Cub; tools/perf/heap_steps_before_cub_who.json, heap_steps_after_cub_who4k.json):
+  the house worker's results (the houses' bags, kept as the sources of every rebake, the hitboxes, the LOD swaps)
+  ~212 MB; the KTX2 transcodes (KTX2.load's one-per-url cache + the props' and MATLIB's layers hold the same mips) ~178;
+  the prop library (propMerge: the parts are views of the merged arrays, one copy, read by the cage pieces) ~117; the
+  terrain codec's decoded nodes ~119 + the far terrain's patch cache ~65 (terrainH and the re-cuts read them); the
+  island's grids ~157 (cover_ring reads albedo at run time, the classifiers the rest); the town's TARR merges ~90; the
+  premises patch LODs ~77; the far terrain's quads ~110; the forest's instance buffers ~90; the coverage mips ~64.
+**THE CUTS (draw-only copies; each one's readers checked):**
+- G1202 GPU_ONLY_GEO(geometry) (src/viewer/assets.js): a geometry that is ONLY DRAWN gives its CPU copy back once three
+  has uploaded it - each attribute's (and the index's) array swapped for an empty one of its type in onUploadCallback;
+  `count` is a stored property (r186), the bounds are computed first. The textures' gpuOnly rule (G907) for geometry.
+  Applied to: the FAR TERRAIN QUADS (render_world.js FARLOD.buildQuad: a re-cut builds a new geometry from FARLOD.cache),
+  the TOWN'S TARR MERGES (house_tarr.js merge: a rebake merges the sources again; GATE TARR reads r.geo before any upload),
+  the PREMISES PATCH LODs (render_premises.js buildPatchSteps: a re-patch builds a new group; pavement's ptGround reads the
+  material only). Not raycast (the only raycasts: the editor's site pick, the cockpit's model, sky_glare's aeroplane/shed),
+  no second WebGLRenderer (app.js's is the only one). ?gpuonly=0 keeps every copy (the A/B). A context loss would lose
+  them, as it loses the gpuOnly textures already.
+- G1203 ONE INSTANCE BUFFER A RUNG (render_world.js rungShared, the woodland and the fill): every part of a rung (bark,
+  leaves) draws the same instances in the same order - its meshes now share ONE matrix attribute and ONE colour
+  attribute, and the matrix attribute's array IS the partition's buffer (rec.buf[si][r]): the partition writes the trees
+  straight into what goes up (the per-part copy guarded off). Was a capacity-sized matrix + colour buffer per part on top
+  of the scratch (~65 MB). A rung dealt the same trees writes the same bytes (G1114.1's key) and uploads nothing.
+- G1204 THE PATCH'S GRIDS GO WITH ITS BUILD (render_premises.js buildPatchSteps): the patch materials' hooks (matOwn,
+  cached across rebuilds) are closures of the generator, so its CONTEXT - Y, Y0, UV, NRM, the sampling grids - lived as
+  long as the materials did (~32 MB, the first build's, kept for the session). Nulled at the generator's end.
+**MEASURED** (Cub, desktop, RTX 3080, fresh profiles; the floor after a full GC at the start of each step, MB of backing
+stores; tools/perf/heap_steps_before_cub_gc.json / heap_steps_after_cub_gc.json):
+
+| step (its start)          | before | after |
+|---------------------------|-------:|------:|
+| reading the model         |    398 |   404 |
+| laying out: ground colour |    684 |   700 |
+| laying out: water         |    992 |   957 |
+| laying out: patch block   |   1183 |  1179 |
+| laying out: meadows       |   1391 |  1326 |
+| building the field        |   1420 |  1378 |
+| growing the forest        |   1906 |  1778 |
+| the world settling        |   1982 |  1808 |
+| your aeroplane, built     |   2618 |  2542 |
+| compiling the world       |   2233 |  2157 |
+| BOOT gone (after a GC)    |   2233 |  1974 |
+| PEAK (no GC, the run's)   |   2773 |  2609 |
+
+The V8 heap: 222 -> 225 MB after the load (unchanged). **RETAINED AFTER THE LOAD -260 MB (-12 %); THE PEAK -164 MB
+(-6 %). THE GOAL (HALF THE PEAK) IS NOT MET** - and cannot be by releasing on upload: the world's geometry is first
+uploaded at 'first light', so every copy it builds stays through the whole load; the peak is the load's end ("your
+aeroplane, built", before 'upload' frees ~430 MB of texture bytes). On the phone (dead in "building the field") only the
+cuts made at BUILD time count there: the forest's (G1203) and the patch's (G1204), ~-130 MB by "the world settling".
+**WHAT HALVING TAKES (structural, each its own session):** (1) the house worker's sources (~212 MB): keep the TARR/HLOD
+merge only and re-ask the worker (its IndexedDB cache) for a rebake/hitbox - render_premises, with METLA-RETURN's town;
+(2) the KTX2 transcodes (~178): KTX2.load's cache weakly held, the props' own 2D textures not holding the mips when
+MATLIB's arrays draw them, MATLIB dropping a layer's mips after its sealed page uploaded it; (3) UPLOAD AS YOU BUILD:
+'upload' (and a geometry warm-up) moved before the craft bake, or per world step, so the release-on-upload cuts here (and
+the textures' gpuOnly) free their bytes DURING the load - the peak's lever; (4) the far terrain's patch cache (~65)
+rebuilt on demand; (5) the island grids a phone reads at half resolution.
+RATCHET (ABBA, one fresh profile D:/mr1 on both sides; before = master ff4eecf1 in a detached worktree, after = this
+branch; tools/rollout_ratchet.js after-vs-before, tools/perf/ratchet_md_*): PASS, nothing past its slack. Cub fps
+31.0 -> 31.1, uneven 0.04 -> 0.04, p99 33.5 -> 33.5, render 9.7 -> 9.6 ms, loop 13.1 -> 12.9; metal 31.1 -> 31.1, 0.04,
+33.5, render 9.6 -> 9.5, garage 42.3 -> 41.9 s, first flight 45.7 -> 45.4 s, compile 3.3 -> 3.9 s (slack 2 s). The
+Cub's "better" garage / compile / tasks rows are the fresh profile's FIRST run (before_cub_1: cold program cache, garage
+82.9 s) - run for run the Cub's garage is 40.3 (before 2) vs 44.3 / 40.5. The 20 s stills (ratchet_md_*_20s.png): the
+same picture, the clouds aside (the wall clock).
+GATES (node): FRAMECOST, ROUNDTRIP, STAND, BOOT, ASSETS, PARKED, BUILD - PASS (run_gates, parked re-cooked on this build).
+Touched for METLA-RETURN: render_premises.js - two lines in buildPatchSteps (GPU_ONLY_GEO on the patch LOD geometry; the
+grids nulled at its end; `const` -> `let` for Y/Y0/UV and NRM); house_tarr.js - one line in merge (GPU_ONLY_GEO).

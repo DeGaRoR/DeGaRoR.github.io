@@ -573,7 +573,7 @@ function make(THREE, scene, world, rec0, opts) {
     const pavR = PAVs && O.pavedAt ? PAVs.resolve(null, O.rec, null).recipe : null;
     const sinkOf = pavR ? (x, z) => { const q = O.pavedAt(x, z); return q ? PAVs.sinkAt(q.d, PAVs.opaqueDepth(q.cls, q.halfW, pavR)) : 0; } : null;
     let sunk = 0;
-    const Y = new Float32Array(list.length * per), Y0 = sinkOf ? new Float32Array(list.length * per) : Y, UV = new Float32Array(list.length * per * 2), KIND = new Uint8Array(list.length);
+    let Y = new Float32Array(list.length * per), Y0 = sinkOf ? new Float32Array(list.length * per) : Y, UV = new Float32Array(list.length * per * 2), KIND = new Uint8Array(list.length);
     for (let c = 0; c < list.length; c++) {
       const [ci, cj] = list[c].split(',').map(Number), cx0 = ci * PCH, cz0 = cj * PCH;
       const kc = KIND[c] = kindOf(cx0, cz0), uvOf = (kc && o.patchUV2) || o.patchUV;
@@ -590,7 +590,7 @@ function make(THREE, scene, world, rec0, opts) {
       if ((c & 7) === 7) yield 'patch ground';
     }
     // the fine normals: each chunk's own grid, as computeVertexNormals made them on the one mesh
-    const NRM = new Float32Array(list.length * per * 3);
+    let NRM = new Float32Array(list.length * per * 3);
     for (let c = 0; c < list.length; c++) for (let j = 0; j <= n; j++) for (let i = 0; i <= n; i++) {
       const at = (ii, jj) => Y0[c * per + Math.max(0, Math.min(n, jj)) * (n + 1) + Math.max(0, Math.min(n, ii))];
       const i0 = Math.max(0, i - 1), i1 = Math.min(n, i + 1), j0 = Math.max(0, j - 1), j1 = Math.min(n, j + 1);
@@ -657,6 +657,7 @@ function make(THREE, scene, world, rec0, opts) {
         g.setAttribute('normal', new THREE.BufferAttribute(nrm.subarray(0, v * 3), 3));
         g.setAttribute('uv', new THREE.BufferAttribute(uv.subarray(0, v * 2), 2));
         g.setIndex(idx); g.computeBoundingSphere();
+        if (typeof GPU_ONLY_GEO === 'function') GPU_ONLY_GEO(g);   // G1200: drawn only (a re-patch builds a new group)
         const mesh = new THREE.Mesh(g, matOwn(B.k));
         mesh.receiveShadow = true; mesh.name = 'premises:patch'; mesh.renderOrder = -0.3;   // the ground, after the occluders (render_world.js ORDER_NOTE)
         mesh.matrixAutoUpdate = false;
@@ -670,6 +671,10 @@ function make(THREE, scene, world, rec0, opts) {
     group.userData.chunks = list; group.userData.neighbours = A; group.userData.tris = tris0; group.userData.trisAll = trisAll; group.userData.blocks = blocks.size; group.userData.sunk = sunk;
     patch = group; patchKey = key;
     G.ground.add(patch);
+    // G1200 (MEM-DIET): the sampling's grids go with the build. The patch materials' hooks (matOwn, cached across
+    // rebuilds) are closures of this generator: its context - these four grids with it - lived as long as they did
+    // (~32 MB over Jolene, the first build's, kept for the session)
+    Y = Y0 = UV = NRM = null;
   }
   // THE ROADS (game): a draped ribbon per road in its class's tone (the bench wears them into its own
   // ground canvas; the game's terrain has no such canvas) - 3 m along, the width plus a soft verge

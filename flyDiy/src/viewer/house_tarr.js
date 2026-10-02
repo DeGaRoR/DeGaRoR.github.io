@@ -312,6 +312,8 @@ mat3 tFrame(vec3 eye_pos, vec3 surf_norm, vec2 uv) {
       geo.setAttribute('aSlot', new THREE.BufferAttribute(S, 1));
       geo.setIndex(new THREE.BufferAttribute(I, 1));
       geo.computeBoundingSphere(); geo.computeBoundingBox();
+      // G1200: drawn only (a rebake merges the sources again, into a new geometry): the CPU copy goes once uploaded
+      if (typeof GPU_ONLY_GEO === 'function') GPU_ONLY_GEO(geo);
       return { geo, used };
     }
 
