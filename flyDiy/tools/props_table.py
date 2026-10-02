@@ -106,9 +106,12 @@ SOURCES = {
 
 
 def P(key, group, label, src, file, note, mats=None, place='floor',
-      scale=1.0, rot=(0, 0, 0), tex=512):
-    return dict(key=key, group=group, label=label, src=src, file=file,
-                mats=mats, place=place, scale=scale, rot=rot, tex=tex, note=note)
+      scale=1.0, rot=(0, 0, 0), tex=512, dir=None):
+    r = dict(key=key, group=group, label=label, src=src, file=file,
+             mats=mats, place=place, scale=scale, rot=rot, tex=tex, note=note)
+    if dir:
+        r['dir'] = dir          # the files sit elsewhere; `src` stays provenance
+    return r
 
 
 PROPS = [
@@ -181,14 +184,18 @@ PROPS = [
     #     flat. An unlit material would have been a fifth self-lit thing with
     #     no switch, one section after G65 closed that hole.
     #   - they are HEAVY: 80-137 k tris each, 453 k for the set, against 79 k
-    #     for the compressor that used to be the worst. Not decimated, on
-    #     purpose ([[import-models-as-is]]): the geometry IS the asset, and
-    #     the cost is a loading screen.
+    #     for the compressor that used to be the worst. They were shipped
+    #     as-is until ASSET-PREP (G1240): a row with dir='<src>_prep' reads the
+    #     PREPPED source tools/machine_prep.py (Blender) writes beside the scan
+    #     - welded, quadric-collapsed to ~10 %, re-unwrapped into one atlas and
+    #     the scan's albedo + a normal for the lost relief baked onto it, one
+    #     material instead of 4-8. Re-run machine_prep.py, then this baker.
     P('panelsaw', 'machine', 'sliding panel saw', 'panel_saw', 'panel_saw.glb',
       '4.4 x 3.6 m sliding-table saw, the biggest machine in the shed and the '
       'one that needs clear floor on two sides'),
     P('bandsaw', 'machine', 'band saw', 'bandsaw', 'bandsaw.glb',
-      '2.8 m tall; goes against a wall since only its front face is worked'),
+      '2.8 m tall; goes against a wall since only its front face is worked',
+      dir='bandsaw_prep', tex=1024),
     P('jointer', 'machine', 'surface planer', 'jointer', 'jointer.glb',
       '2.7 m of table, wants length along a wall, not across the floor'),
     P('thicknesser', 'machine', 'thicknesser', 'thicknesser', 'thicknesser.glb',
