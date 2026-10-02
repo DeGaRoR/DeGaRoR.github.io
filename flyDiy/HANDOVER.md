@@ -68101,3 +68101,63 @@ cockpit fine. A 4-run ABBA against train 23's build (fresh profile D:/uab24): st
 / 56.0 vs 56.0 / 55.8, 7 % doubled on all four - EQUAL. The cockpit baseline is taken from the ABBA's B runs. Battery: one flake,
 ROLLANIM's G1037 72.7 vs 64 bytes a frame under the full battery; alone it passes (twice on train 24, once on train 23).
 FRAMECOST PASS, baseline re-taken.
+
+## G1240-G1243 - ASSET-PREP: THE FOUR WOODWORKING SCANS CUT TO A GAME BUDGET, REPROJECTED ONTO ONE CLEAN ATLAS EACH (2026-10-02, ASSET-PREP for A0, local, Blender on the CPU - no GPU lock)
+
+The ask (reports/PERFORMANCE-ASSET-AUDIT-2026-10-02.md §1): the default hangar's four woodworking machines were raw
+photogrammetry scans, 453 k L0 triangles and 7.6 MiB of geometry - half the hangar's props. Cut ~-90 % CLEVERLY (silhouette,
+work surfaces, handles, creases kept) and PROPERLY UV MAPPED. This session is the asset-prep pipeline [[import-models-as-is]]
+allows; the scans in assets/props/ are untouched.
+
+| machine | tris before -> after | geometry KB | maps KB (wire) | materials | worst / p99 deviation | LOD l1 / l2 (was) |
+|---|---:|---:|---:|---:|---:|---:|
+| bandsaw | 137,022 -> 13,500 | 2176 -> 267 | 302 -> 334 | 6 -> 1 | 9.9 mm / 4.4 mm | 3,372 / 809 (34,254 / 8,222) |
+| thicknesser | 119,986 -> 11,999 | 2285 -> 248 | 494 -> 336 | 8 -> 1 | 12 mm / 5.7 mm | 2,999 / 720 (29,995 / 7,197) |
+| jointer | 116,241 -> 11,500 | 1904 -> 237 | 461 -> 371 | 8 -> 1 | 9.8 mm / 4.6 mm | 2,874 / 689 (29,056 / 6,973) |
+| panel saw | 80,259 -> 9,999 | 1452 -> 227 | 290 -> 359 | 4 -> 1 | 36 mm / 8.4 mm | 2,500 / 599 (20,064 / 4,816) |
+| four | 453,508 -> 46,998 (-89.6 %) | 7817 -> 978 (-87.5 %) | 1547 -> 1400 | 26 -> 4 | | |
+
+Texels: the scans' 26 diffuse maps at 512 = 6.8 M; now 4 x (1024 atlas + 512 normal) = 5.2 M. Whole props set: textures
+12.14 -> 12.00 MB, geometry 16.30 -> 9.62 MB on the wire.
+
+METHOD - REPROJECTED, not decimated in place. The scans' uvs are photogrammetry atlases over 4-8 UDIM-style materials
+(u1_v1...), thousands of charts whose borders are open mesh boundaries: no -90 % cut keeps them. tools/machine_prep.py
+(Blender 3.6, `blender -b --factory-startup -P tools/machine_prep.py -- <key> <tris> 2048`):
+1. join + weld (the scan is ONE shell once welded); the copy's custom split normals CLEARED (see trap 1).
+2. two-pass quadric collapse: pass 1 plain; every welded scan vertex measured against the cut (BVH); the ones past 1 cm
+   (+ one ring) protected in pass 2 at the same budget; the lower worst case kept. The jointer's lever rod: 0.98 m -> 9.8 mm.
+3. charts: normals smoothed over 4 rings without crossing a 40 deg crease, six-axis labels, grown, < 40 faces folded into a
+   neighbour; seams on chart borders. Each chart PLANAR-projected along its mean normal; angle-based unwrap only for a chart
+   that folds or leans past 70 deg. Every island rescaled to one texel density, then packed (3 px gutters at 2048).
+4. creases as an applied edge split, auto-smooth off (see trap 2).
+5. Cycles CPU bake, selected-to-active, 8 mm extrusion / 4 cm ray: albedo as EMIT (the scan materials rewired
+   image -> emission), tangent normal (OpenGL) for the lost relief, baked 2048, the normal box-filtered to 512.
+6. written to assets/props/<key>_prep/<key>.glb (gitignored like the scan, the bake SOURCE); tools/props_table.py's row
+   reads it via `dir='<key>_prep', tex=1024`; tools/prop_prep.py bakes it like any prop; prop_lod.js --kit props re-cuts
+   the levels; ktx2_twins.js --family props re-encodes the twins. UV report per machine in bench/machines/<key>.json:
+   78-134 charts, 52-65 % atlas coverage, 91-93 % of the surface within 2x the mean texel density (panel saw 81 %).
+Roughness 1 / metal 0 as the scans' own; one material per machine (workshop_<key>).
+
+STILLS (scan LEFT, cut RIGHT, same camera, Cycles CPU, tools/machine_still.py): screenshots/asset-prep/<key>_az30.jpg and
+_az210.jpg. Silhouette, tables, fences, handles, hoses, labels intact; no visible seams. The cut reads a touch darker than the
+scan: the scans are KHR_materials_unlit (rendered self-lit in the still), the cut is lit - in the game both are lit.
+
+TRAPS (each cost a pass):
+1. glTF-imported meshes carry CUSTOM split normals; a decimated copy scrambles them and Cycles bakes along them - chrome
+   streaks. Clear them on the cut.
+2. Blender 3.6's glTF exporter with auto-smooth wrote the panel saw's NORMAL out of step with POSITION (49 % of the area
+   facing against its winding; 27 k vertices for 10 k tris) while Blender's own split normals agreed. Explicit edge split.
+3. Blender 3.x keeps vertex-group NAMES on the mesh: create the group after swapping the mesh in. The Decimate modifier's
+   weight means MAY decimate - protect with the group INVERTED.
+4. An angle-based unwrap blows decimation slivers into fat triangles (a third of the panel saw's atlas); rescale islands
+   yourself - uv.average_islands_scale does nothing headless, and after a bmesh write turn use_uv_select_sync on or
+   pack_islands sees no selection.
+5. A side-by-side still in ONE frame gives each copy its own perspective; render each alone under one camera and join.
+
+GATES (run_gates --no-build): MEDIA, HANGAR, PROPS, BOOT, BUILD, KTX2, FRAMECOST - all PASS. FRAMECOST (no ALLOW added): the
+garage boot's editor step bytes.bufferData 37.15 -> 22.77 MB (-38.7 %), draws 243 -> 238, gl.calls 2566 -> 2424; the stand
+and taxi frames unchanged (the machines are not in those views). The two ALLOWed rises (boot/garage:craft bytes.uniforms,
+gl.calls ~+1 %) are the existing ALLOW rows. Baseline NOT re-taken (A0's at landing). parked_cook --check: same build id
+(the props packs do not enter it) - no re-cook needed.
+NOT DONE: the vice_bench re-bake drift (a fresh prop_prep writes a different vice_bench bin than master's, same length) is
+kept OUT of this branch - unrelated, worth a look. Not measured in the browser (no GPU run made).
