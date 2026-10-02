@@ -41,7 +41,10 @@ const CHECK = `JSON.stringify((() => { const P = WORLD && WORLD.premises; const 
   const done = () => { try { srv.kill(); require('child_process').execSync('taskkill /PID ' + srv.pid + ' /T /F', { stdio: 'ignore' }); } catch (e) {} };
   process.on('exit', done);
   const fresh = !fs.existsSync(UDD);
-  const b = await MB.browser(UDD);
+  // G1220: a fresh Chrome per slot (the same profile): in ONE session the ground's heaviest programs hit and miss the
+  // program cache on alternate navigations, whatever the build - metla_ab1's 'metal +20 s' was its slot (CESSNA-LINKS).
+  // --one-chrome: the old single session
+  let b = await MB.browser(UDD);
   const R = { date: new Date().toISOString(), order: ORDER, builds: WANT, udd: UDD, fresh, rows: [] };
   const log = s => console.log('  ' + s);
   const now = () => b.ev('performance.now()');
@@ -71,6 +74,7 @@ const CHECK = `JSON.stringify((() => { const P = WORLD && WORLD.premises; const 
   if (fresh) { log('== warm-up (discarded) ' + UDD); await b.load(BASE + '?town=1', MB.preScript('default', null)); await trip(); await sleep(3000); }
   for (const side of ORDER) for (const bk of WANT) {
     const B = MB.BUILDS[bk]; log('== ' + side + ' (' + (SIDE[side] || 'town off') + ') ' + B.label);
+    if (R.rows.length && !argv.includes('--one-chrome')) { await b.close(); b = await MB.browser(UDD); }
     const e0 = b.exc.length;
     const l = await b.load(BASE + (SIDE[side] ? '?' + SIDE[side] : ''), MB.preScript(B.build, null, B.patch));
     const lk = await b.links(0, 1e12);

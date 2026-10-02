@@ -68035,3 +68035,53 @@ same picture, the clouds aside (the wall clock).
 GATES (node): FRAMECOST, ROUNDTRIP, STAND, BOOT, ASSETS, PARKED, BUILD - PASS (run_gates, parked re-cooked on this build).
 Touched for METLA-RETURN: render_premises.js - two lines in buildPatchSteps (GPU_ONLY_GEO on the patch LOD geometry; the
 grids nulled at its end; `const` -> `let` for Y/Y0/UV and NRM); house_tarr.js - one line in merge (GPU_ONLY_GEO).
+## G1220-G1224 - CESSNA-LINKS: THE METAL'S "7 LINKS OVER 5 s" WERE THE RIG'S SLOT, NOT THE BUILD - IN ONE CHROME SESSION THE GROUND'S HEAVY PROGRAMS HIT AND MISS ON ALTERNATE LOADS; THE RIGS NOW OPEN A FRESH CHROME PER WARM LOAD (2026-10-02, CESSNA-LINKS for A0, local GPU)
+
+THE FINDING (A0): the aluminium Cessna reached the garage ~20 s after the Cub on every warm load (metla_ab1: Cub 44.5-45.9 s,
+metal 64.6-66.6 s; 7 links over 5 s on every metal load), its programs said to miss the GPU program cache each time.
+**VERDICT: no source varies, nothing in the game to fix. The metal is as fast as the Cub (ratchet baseline already: garage
+39.9 vs 40.7 s). The +20 s was the A/B's slot: in ONE Chrome session the seven heaviest programs hit and miss on ALTERNATE
+navigations, whatever the build, and both rigs ran every warm load in one session with the metal on the even slots.**
+
+**G1220 THE RIG: tools/perf/cessna_links.js.** Per load (navigation -> garage): every linkProgram timed (master_bench's
+recorder) AND hashed (vertex + fragment source), its WebGL context noted; between loads the slow links whose exact program
+an earlier load already linked ('seen@N': the cache should hold it) vs NEW sources (a source that varies per load).
+--one: every load in one Chrome (the old rigs' way); --fly: the roll-out + 15 s taxi after the garage; --dump <dir> the
+differing sources and the heavy (> 5 s) ones. tools/master_bench.js: MB_CHROME_FLAGS=<switches> adds Chrome switches to a
+trial (browser()). Kept: tools/perf/cessna_links_*.json (before / abab / one / cap / ctx / order below).
+
+**G1221 THE SOURCES ARE STABLE.** Metal x3 then the Cub, a Chrome per load, one fresh profile (cessna_links_before.json):
+metal 77.9 (cold) -> 41.9 -> 39.8 s, the Cub 43.9 s; the warm metal loads link 0 NEW programs, 0 over 5 s. Cub, Cub,
+metal, metal, Cub, metal (cessna_links_abab.json): 74.7 (cold), 41.2, 44.3 (the metal's 8 own programs, first time), 39.7,
+39.9, 39.6 s - 0 links over 5 s after the cold load. The Cub and the metal differ by 13 programs each (the Cub's crew
+Ch22 body/hair, the airframe's skin variants), all stable. THE SEVEN HEAVY ONES (40-58 s each to link cold, all issued at
+~15.6 s, garage index 21+): the ground's splat programs (uRockMap/uGTint, 2 sources - one LINKED TWICE in the same load),
+the ground's uMat program, the pavement, two 130 KB unnamed PBR programs - WORLD programs, identical for every build.
+
+**G1222 THE ALTERNATION (one Chrome, --one --fly).** cub,cub,metal,cub,metal,cub,metal (cessna_links_one.json): the heavy
+seven miss on L0 (cold), L2, L4, L6 - the metal's 63.6-72.4 s - and hit on L1, L3, L5 - the Cub's 43.5-47.5 s - with the
+SAME hashes (seen@0) and the same first 28 links in the same order. Swapped (cessna_links_order.json, cub,metal,metal,
+cub,cub): L1 metal HIT (64.5 s, 0 > 5 s), L2 metal MISS (7), L3 Cub hit, L4 **Cub MISS** (6) - the parity, not the build.
+Ruled out: capacity (--gpu-program-cache-size-kb=262144: the same misses, cessna_links_cap.json), the context (one
+context, the same attributes and 32 extensions for both builds, cessna_links_ctx.json), the flight (1 link each). The
+disk cache shrinks on the hit loads inside a session (12.5 -> 10.2 MB). Chrome's own mechanism was not chased further: a
+player's load is a Chrome start on a warm disk cache, and there nothing misses.
+The master bench showed the same: its warm loads (one session) went Cub hit, Jodel MISS, metal hit, floats MISS, twin
+hit - the Jodel's and the floats' "MISS suspected" were their slots too.
+
+**G1223 THE RIGS: A FRESH CHROME PER WARM LOAD** (the same profile). tools/perf/metla_ab.js: per slot; tools/master_bench.js:
+per warm build load, per water build, per stress load (fresh()); --one-chrome keeps the old single session.
+**G1224 THE PROOF** (metla_ab, --order A,A --builds cub,metal, fresh profile D:/cl8, town off, metla_ab_g1220.json):
+
+| build | before (metla_ab1, one Chrome) garage s | after (a Chrome per slot) garage s | first flight s | links > 5 s |
+|---|---|---|---|---|
+| Cub | 44.5 / 45.9 | 45.7 / 48.1 | 54.8 / 57.3 | 0 / 0 |
+| metal | 66.6 / 64.6 | 48.3 / 45.7 | 57.6 / 55.1 | 0 / 0 |
+
+Taxi / pass unchanged (32.5-33.3 / 30.9-31 fps, worst task <= 98 ms). No game code changed (src/, the built page, the
+parked cook untouched): the gates (FRAMECOST, PROGRAMS, BOOT, ROUNDTRIP, BUILD) and the ratchet read nothing this touches -
+not re-run; rollout_perf already starts a Chrome per run (its baseline: metal 39.9 / Cub 40.7 s garage).
+NEXT (not done): (1) the heavy seven cost 40-58 s on every COLD load and every in-session reload that misses - the ground
+splat program's FXC compile is the lever (one of its two sources is linked twice in the same load: two three.js keys for
+one GLSL - program_census.js shows it as a re-link); (2) metla_ab1's +18 s for the town (METLA-RETURN) was measured in one
+session too, but on the SAME slots for both sides (each slot Cub then metal), so its town-on/off comparison stands.

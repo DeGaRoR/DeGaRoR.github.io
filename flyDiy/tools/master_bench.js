@@ -222,7 +222,8 @@ const serveRoot = port => new Promise(res => { const rq = http.get('http://127.0
 async function browser(udd) {
   const dport = 9300 + (process.pid % 500) + Math.floor(Math.random() * 100);
   const ch = spawn(CHROME, ['--remote-debugging-port=' + dport, '--window-size=' + (SIZE[0] + 16) + ',' + (SIZE[1] + 140), '--window-position=0,0', '--no-first-run',
-    '--no-default-browser-check', '--user-data-dir=' + udd, '--disable-background-timer-throttling', '--disable-renderer-backgrounding', '--disable-backgrounding-occluded-windows', 'about:blank'], { stdio: 'ignore' });
+    '--no-default-browser-check', '--user-data-dir=' + udd, '--disable-background-timer-throttling', '--disable-renderer-backgrounding', '--disable-backgrounding-occluded-windows',
+    ...(process.env.MB_CHROME_FLAGS ? process.env.MB_CHROME_FLAGS.split(' ') : []), 'about:blank'], { stdio: 'ignore' });   // G1220: MB_CHROME_FLAGS, extra switches for a trial
   let tgt = null;
   for (let i = 0; i < 50 && !tgt; i++) { await sleep(400); try { tgt = (await getJSON('http://127.0.0.1:' + dport + '/json')).find(t => t.type === 'page'); } catch (e) {} }
   if (!tgt) throw new Error('no page target');
@@ -332,7 +333,13 @@ async function sweep() {
   }
   // ---- per build, warm ----
   R.profile.udd = UDD; R.profile.fresh = !fs.existsSync(UDD);
-  const b = await browser(UDD); const S = Object.assign(session(b), { b });
+  // G1220: A FRESH CHROME PER WARM LOAD (the same profile). In ONE Chrome session the ground's seven heaviest programs
+  // (40-55 s each to link cold) hit and miss the program cache on alternate navigations - whatever the build: a warm
+  // load in a long session paid +20-50 s on every second load, and the Jodel / the floats (the even slots) read as
+  // 'MISS suspected' (CESSNA-LINKS). A player's load is a Chrome start on a warm disk cache: so is every warm load here
+  // (--one-chrome: the old single session)
+  let b = await browser(UDD), S = Object.assign(session(b), { b });
+  const fresh = async () => { if (flag('one-chrome')) return; R.exceptions.push(...b.exc.slice(0, 10)); await b.close(); b = await browser(UDD); S = Object.assign(session(b), { b }); };
   let places = null;
   // THE WARM-UP (discarded): the Cub loaded and rolled out once, so the first build's 'warm' load meets a warm cache
   if (R.profile.fresh || flag('warmup')) { log('== warm-up (discarded) in ' + UDD);
@@ -340,6 +347,7 @@ async function sweep() {
     R.loads.pop(); R.profile.cache.push({ at: 'after the warm-up', cache: cacheMB(UDD) }); }
   for (const bk of WANT) {
     const B = BUILDS[bk]; log('== ' + B.label + ' (warm)');
+    await fresh();
     const l = await b.load(BASE, preScript(B.build, null));
     await loadRow(b, bk, 'warm: navigation -> garage', l, true);
     await b.ev('(async () => { await new Promise(r => setTimeout(r, 1500)); return 1; })()');
@@ -366,6 +374,7 @@ async function sweep() {
   // ---- the water ----
   if (ONLY.has('water')) for (const wk of WATER) {
     const B = BUILDS[wk]; log('== ' + B.label + ' (warm)');
+    await fresh();
     const l = await b.load(BASE, preScript(B.build, null, B.patch));
     await loadRow(b, wk, 'warm: navigation -> garage', l, true);
     // G1180: the places from this page when no land build listed them (--builds none: the water alone had no low pass)
@@ -381,6 +390,7 @@ async function sweep() {
   // ---- stress ----
   if (ONLY.has('stress')) for (const X of STRESS) {
     log('== stress: ' + X.label);
+    await fresh();
     const l = await b.load(BASE + (X.q ? '?' + X.q : ''), preScript('default', X.gfx));
     await loadRow(b, 'cub', 'stress ' + X.id + ': navigation -> garage', l, false);   // (new programs: the preset's own keys)
     const home = (places || []).find(p => p.id === 'HOME') || (places || [])[0];
