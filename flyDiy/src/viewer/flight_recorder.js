@@ -450,6 +450,10 @@
 
   // ---- the page's events ------------------------------------------------------------------------------------------
   const ev = (k, t, ms, d) => REC.event(k, t, ms, d);
+  // Friendly Welcome (A0, 2026-10-02): a lost / restored WebGL context, logged (the GTX 660 drew 0 frames and the log could
+  // not say why); capture on the window catches the canvas's non-bubbling events
+  try { W.addEventListener('webglcontextlost', e => ev('contextlost', performance.now(), null, (e.target && e.target.id) || null), true);
+        W.addEventListener('webglcontextrestored', e => ev('contextrestored', performance.now(), null, (e.target && e.target.id) || null), true); } catch (e) {}
   try {
     if (typeof PerformanceObserver !== 'undefined') {
       const types = PerformanceObserver.supportedEntryTypes || [];
