@@ -42372,7 +42372,7 @@ if (typeof module !== 'undefined')
   module.exports = { TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, RWY_LIGHTS, runwayLightStrips, runwayLightSite, runwayLightPoints, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, atmosWater, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, CLIMATE, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, decodeAnimal, decodeAnimalClips, registerAnimal, animalList, animalClips, animalClip, ANIMAL_REG, makeSim, HYDRO, makeBus, vortexKernel, makeAutopilot, makeTestPilot, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, seatOnGround, placeAtLineup, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, POLARS, PAR, RHO, hyp2, hyp3, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genPlanePair, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, genTrueBox, genNetEig, genRigidFloatOf, GEN_BOX_N, GEN_BOX_KMIN, GEN_NET_MAX, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC, GP_PARKED_FOOT, GP_PARKED_DEFAULT, GP_CLEAR, GP_HALF_DEFAULT, parkedFoot, gpParkedDist, gpClearWay };
 </script>
 <script type="text/x-flydiy">window.BOOT&&BOOT.phase('core','reading the model')</script>
-<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='04c9015f760b';window.FLYDIY_BUILD='e8690a3b3d0f'</script>
+<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='04c9015f760b';window.FLYDIY_BUILD='96dcdfb5343c'</script>
 <script type="text/x-flydiy" src="src/models/pa18_model.js?v=d854feec"></script>
 <script type="text/x-flydiy" src="src/models/c172_model.js?v=52c3ced6"></script>
 <script type="text/x-flydiy" src="src/models/d112_model.js?v=3678040d"></script>
@@ -143784,6 +143784,12 @@ function makeSimView(def, opts) {
   // margin, between 1 and 4 steps, moved at most a tenth of the frame's time up and a fiftieth down - the drawn clock
   // never jumps, it runs a little slow or fast while the delay settles.
   const RING = opts.ring || 5, fixedDelay = opts.delayS != null;
+  // G1166b (A5-CAP, the cockpit eye's spikes): A STARVED FRAME EXTRAPOLATES. A frame whose moment is past the newest
+  // snapshot (its successor late) drew the newest - a jump ahead of the smooth path, and the next frame fell back: the
+  // eye's horizontal judder read 165-245 mm at the taxi on those frames (rollout_perf --judder, master too, whenever the
+  // delay dipped). Now it carries the two newest snapshots' motion on for the time missing, a step at most: the pose
+  // where the aeroplane is going, not where it last was. opts.starveEx false (?starvex=0) is the old jump.
+  const STARVE_EX = opts.starveEx !== false;
   let delayS = fixedDelay ? opts.delayS : 1.5 * R.dt;
   const Q = [];                            // the ring, oldest first (B = its newest, A = the one before)
   const DS = { frames: 0, starved: 0, early: 0, lagMax: 0, lags: new Float64Array(60), li: 0, lastT: 0 };
@@ -143860,7 +143866,14 @@ function makeSimView(def, opts) {
           while (j > 0 && Q[j - 1].f[S.EPOCH] === ep && Q[j - 1].f[S.T] >= tau) j--;
           if (j > 0 && Q[j - 1].f[S.EPOCH] === ep) { X = Q[j - 1]; Y = Q[j]; alpha = (tau - X.f[S.T]) / (Y.f[S.T] - X.f[S.T]); }
           else { X = Y = Q[j]; alpha = 0; DS.early++; }   // before the ring: its oldest
-        } else if (fB[S.FLAGS] & S.F_RUNNING) DS.starved++;   // the snapshot for this moment has not come: the newest
+        } else if (fB[S.FLAGS] & S.F_RUNNING) {   // the snapshot for this moment has not come
+          DS.starved++;
+          // G1166b: on from the newest by the two newest's own motion (alpha past 1 extrapolates below), a step at most
+          const P = Q.length > 1 ? Q[Q.length - 2] : null;
+          if (STARVE_EX && P && P.f[S.EPOCH] === ep && fB[S.T] > P.f[S.T]) {
+            X = P; Y = B; alpha = 1 + Math.min(tau - fB[S.T], R.dt) / (fB[S.T] - P.f[S.T]);
+          }
+        }
       }
       const fX = X.f, fY = Y.f;
       if (X === Y) p.set(fY.subarray(oP, oP + N3));
@@ -144299,7 +144312,11 @@ const SIM_LINK = (() => {
       if (!flight || flight.inline) return;
       st.initMs = m.initMs; if (m.boot) { st.bootFetchMs = m.boot.fetchMs != null ? m.boot.fetchMs : null; st.bootBytes = m.boot.bytes; st.cookedCells = m.boot.cooked || 0; }
       flight.ready = m; flight.epoch = m.epoch;
-      flight.view = SIM_VIEW.make(flight.def, { ready: m, post: (x, tr) => post(x, tr) });
+      // G1166b: ?starvex=0 - a starved frame draws the newest snapshot (the old jump), for an A/B
+      const sx = (() => { try { return !/[?&]starvex=0(&|$)/.test(location.search || ''); } catch (e) { return true; } })();
+      // ?ringdelay=<ms> - a FIXED ring delay (a stress test: under the snapshots' lateness, the starved frames come often)
+      const rd = (() => { try { const x = /[?&]ringdelay=([0-9.]+)/.exec(location.search || ''); return x ? +x[1] / 1000 : null; } catch (e) { return null; } })();
+      flight.view = SIM_VIEW.make(flight.def, Object.assign({ ready: m, post: (x, tr) => post(x, tr), starveEx: sx }, rd != null ? { delayS: rd } : {}));
       if (flight.view.mismatch) { dropFlight('the worker built another aeroplane (a stale core in a cache?)'); return; }
     }
     // step 0 against the page's placed aeroplane: to the bit, or this flight stays inline
@@ -163937,6 +163954,12 @@ window.FLYDIY_WORLD_COMPOSE = function () {
   // intervals double: the Cub's taxi at 60 delivered 39-45 fps, over half its frames changing interval from the last
   // (1 then 2 solver steps - the judder G586 capped at 30 to avoid), against a mostly even 30 at 31 fps. A trial holds
   // at 55 fps delivered or more, 60 is kept while three readings running do not fall under 52 (the hysteresis).
+  // EVEN MEANS EVEN (G1160, the cockpit - the user: "feels a tad more laggy than exterior"): G994 keeps 60 down to 52 fps
+  // delivered - a refresh missed every 6-10 frames - and lets a trial hold at 55. (The cockpit's 50-58 that raised it was
+  // its settling trials averaged with an even 60 - G1160's cut; a scene that sits at 52-56 steadily is what this is for.)
+  // At the 60 cap a reading's rate is 60 x (1 - its share of MISSED refreshes): a
+  // trial now holds at 58 fps (3 % missed, one judder in ~30 frames) and 60 is kept while three readings running stay
+  // over 56.5 (6 %) - a 60 that judders every 6-10 frames settles at an even 30 instead.
   // A RIG (a headless or driven browser: the gates, frame_perf.js, the shot tools) and a harness that calls
   // the loop with no timestamp (GATE UISMOKE's vm) keep the old clock exactly: one 1/60 step a call,
   // uncapped - every measurement and every gate reads the frame it always read (?pace=1 forces the clock on).
@@ -164026,7 +164049,7 @@ window.FLYDIY_WORLD_COMPOSE = function () {
       P.work.push(workMs - (steps > 1 ? physMs * (steps - 1) / steps : 0));   // the frame's work with ONE step
       // G1160: A TRIAL THAT MISSES IS CUT SHORT. A trial's reading came after 1.5 s of settling and 60 frames: ~2.5 s of a
       // 60 that judders each time one failed - the cockpit's first seconds (trials at 46-53 fps, the hold doubling between
-      // them). Three missed refreshes in its first 30 frames (10 %, more than a trial that holds can miss - 55 fps is ~8 %) end it there, ~0.8 s.
+      // them). Three missed refreshes in its first 30 frames (10 %, where 60 needs 3 % or less) end it there, ~0.8 s.
       if (P.trial && P.cap === 60 && P.trial.n >= 30 && P.trial.miss >= 3) {
         P.trial = null; P.stats.trialsFailed++; P.trials++; P.stats.cut = (P.stats.cut || 0) + 1;
         P.holdUp = now + Math.min(30000, 5000 * Math.pow(2, P.trials - 1)); P.stats.down++; setCap(30, now); return;
@@ -164039,12 +164062,12 @@ window.FLYDIY_WORLD_COMPOSE = function () {
       const failed = () => { P.stats.trialsFailed++; P.trials++; P.holdUp = now + Math.min(30000, 5000 * Math.pow(2, P.trials - 1)); };   // G615: 5 s, doubling, 30 s at most
       if (P.cap === 60) {
         if (P.trial) {                                    // a trial of 60 from 30: did it hold?
-          const ok = r >= 55; P.trial = null;                 // G994: 60 kept only where it is (nearly) even
+          const ok = r >= 58; P.trial = null;                 // G994 + G1160: 60 only where it is even (<= 3 % missed refreshes)
           if (ok) return;                                 // G990: the backoff forgets only once 60 has HELD (below)
           failed(); P.stats.down++; setCap(30, now); return;
         }
         if (P.trials && now - P.upT > 20000) P.trials = 0;   // G990: 60 held 20 s past its trial - the backoff starts over
-        P.strikes = r < 52 ? P.strikes + 1 : 0;           // G994: under 52 fps delivered - a 60 that judders
+        P.strikes = r < 56.5 ? P.strikes + 1 : 0;         // G1160: over 6 % of the refreshes missed - a 60 that judders
         const AA = W.FLYDIY_AA, A = AA && AA.autoState ? AA.autoState() : null;
         if (P.strikes >= 3 && !(A && A.on && A.probing)) {   // G615: three readings running
           if (now - P.upT < 20000) failed();              // G990: a drop within 20 s of an up is a trial that missed - no flapping
