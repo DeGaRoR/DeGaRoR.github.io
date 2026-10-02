@@ -192,7 +192,7 @@ PROPS = [
     #     material instead of 4-8. Re-run machine_prep.py, then this baker.
     P('panelsaw', 'machine', 'sliding panel saw', 'panel_saw', 'panel_saw.glb',
       '4.4 x 3.6 m sliding-table saw, the biggest machine in the shed and the '
-      'one that needs clear floor on two sides'),
+      'one that needs clear floor on two sides', dir='panel_saw_prep', tex=1024),
     P('bandsaw', 'machine', 'band saw', 'bandsaw', 'bandsaw.glb',
       '2.8 m tall; goes against a wall since only its front face is worked',
       dir='bandsaw_prep', tex=1024),

@@ -85,6 +85,14 @@ lo.data = hi.data.copy()
 lo.name = 'LO'
 bpy.context.scene.collection.objects.link(lo)
 lo.data.materials.clear()
+# the scan's CUSTOM split normals came with the copy (the glTF importer sets
+# them); a collapse scrambles them and the bake casts its rays along them -
+# the panel saw came out chrome-streaked. The cut gets its own normals.
+bpy.context.view_layer.objects.active = lo
+for o in bpy.context.scene.objects:
+    o.select_set(o == lo)
+if lo.data.has_custom_normals:
+    bpy.ops.mesh.customdata_custom_splitnormals_clear()
 bm = bmesh.new()
 bm.from_mesh(lo.data)
 nv0 = len(bm.verts)
@@ -122,32 +130,73 @@ def collapse(group=None):
     bm_ = bmesh.new(); bm_.from_mesh(lo.data)
     tree = BVHTree.FromBMesh(bm_)
     bm_.free()
-    return [tree.find_nearest(v.co)[3] for v in welded.vertices]
+    out = []
+    for v in welded.vertices:
+        loc, nrm, _, d = tree.find_nearest(v.co)
+        # a FOLD: the cut surface nearest the scan vertex faces the other
+        # way. A thin plate (the panel saw's tables, 2-3 cm) collapses its
+        # two faces into each other within a centimetre - invisible to the
+        # distance, black and streaked in the bake
+        out.append((d, nrm.dot(v.normal) < 0.0))
+    return out
 
 
-def dev_rep(d):
-    s_ = sorted(d)
+def bad_of(r):
+    # distance only: protecting the folds too (tried) starves the rest of
+    # the budget and the next pass folds MORE - they stay a reported number
+    return set(i for i, (d, flip) in enumerate(r) if d > TOL)
+
+
+def dev_rep(r):
+    s_ = sorted(d for d, _ in r)
     return dict(p99=round(s_[int(.99 * len(s_))], 4), max=round(s_[-1], 4),
-                over_tol=sum(1 for x in d if x > TOL))
+                over_tol=sum(1 for d, _ in r if d > TOL), folded=sum(1 for _, f in r if f))
 
 
-# PASS 1 plain; PASS 2 with every vertex it moved past TOL (and its ring)
-# weighted: a thin rod's tip, a lever, a wire - the silhouette - survives,
-# and the budget comes out of the flat panels instead
-d1 = collapse()
-log('pass 1 deviation', dev_rep(d1))
-hit = set(i for i, x in enumerate(d1) if x > TOL)
-for e in welded.edges:
-    a, b = e.vertices
-    if a in hit or b in hit:
-        hit.add(a); hit.add(b)
-lo.data = welded           # (3.x keeps the group NAMES on the mesh: swap first)
-vg = lo.vertex_groups.new(name='keep')
-vg.add(sorted(hit), 1.0, 'REPLACE')
-d2 = collapse('keep')
+# PASS 1 plain; PASS 2 with every vertex pass 1 moved past TOL (and its
+# ring) protected: a thin rod's tip, a lever, a fence end - the silhouette -
+# survives, and the budget comes out of the flat panels instead. The pass
+# with the lower worst case at the budget is kept.
+passes = []
+hit = set()
+for k in range(2):
+    if k:
+        lo.data = welded       # (3.x keeps the group NAMES on the mesh: swap first)
+        for g in list(lo.vertex_groups):
+            lo.vertex_groups.remove(g)
+        vg = lo.vertex_groups.new(name='keep')
+        vg.add(sorted(hit), 1.0, 'REPLACE')
+    r = collapse('keep' if k else None)
+    nt_ = tris_of(lo)
+    bad = bad_of(r)
+    passes.append(dict(dev_rep(r), tris=nt_, protected=len(hit), bad=len(bad)))
+    log('pass', k + 1, passes[-1])
+    core = bad
+    for e in welded.edges:     # ONE ring around the new core, not a flood
+        a_, b_ = e.vertices
+        if a_ in core or b_ in core:
+            hit.add(a_); hit.add(b_)
+    hit |= core
+ok = [i for i, p_ in enumerate(passes) if p_['tris'] <= TARGET * 1.03]
+best = min(ok, key=lambda i: passes[i]['max'])
+devrep = dict(passes=passes, kept=best + 1)
+if best != len(passes) - 1:    # re-cut the kept pass (the mesh holds the last)
+    hit = set()
+    for k in range(best + 1):
+        lo.data = welded
+        for g in list(lo.vertex_groups):
+            lo.vertex_groups.remove(g)
+        if k:
+            vg = lo.vertex_groups.new(name='keep'); vg.add(sorted(hit), 1.0, 'REPLACE')
+        r = collapse('keep' if k else None)
+        core = bad_of(r)
+        for e in welded.edges:
+            a_, b_ = e.vertices
+            if a_ in core or b_ in core:
+                hit.add(a_); hit.add(b_)
+        hit |= core
 lo.vertex_groups.clear()
-devrep = dict(pass1=dev_rep(d1), pass2=dev_rep(d2), protected=len(hit))
-log('pass 2 deviation', devrep['pass2'], 'protected', len(hit))
+log('kept', devrep['kept'])
 # collapse leaves slivers on the scan noise; a pass of degenerate-dissolve
 bm = bmesh.new()
 bm.from_mesh(lo.data)
@@ -239,14 +288,91 @@ for e in bm.edges:
     lf = e.link_faces
     e.seam = len(lf) == 2 and chart[lf[0].index] != chart[lf[1].index]
     e.smooth = e.index not in crease
-log('charts', len(set(chart)), 'creases', len(crease))
+# PROJECTION. Each chart is first projected flat along its own mean normal:
+# no solver, so no swirl (the angle-based unwrap of a big scanned table came
+# out swirled and smeared the paint), and the stretch is bounded by how far
+# a face leans from the chart's axis. A chart that FOLDS under its projection
+# (faces facing away from the axis) or leans too far falls back to the
+# angle-based unwrap, alone.
+uvl = bm.loops.layers.uv.verify()
+byc = {}
+for f in bm.faces:
+    byc.setdefault(chart[f.index], []).append(f)
+abf = 0
+for c, fs in byc.items():
+    n = Vector((0, 0, 0))
+    for f in fs:
+        n += f.normal * f.calc_area()
+    A = sum(f.calc_area() for f in fs) or 1
+    if n.length < 1e-9:
+        bad = True
+    else:
+        n.normalize()
+        t = n.orthogonal().normalized()
+        b = n.cross(t)
+        fold = sum(f.calc_area() for f in fs if f.normal.dot(n) <= 0.05) / A
+        steep = sum(f.calc_area() for f in fs if f.normal.dot(n) < 0.35) / A
+        bad = fold > 0.01 or steep > 0.06
+        for f in fs:
+            for l in f.loops:
+                l[uvl].uv = (l.vert.co.dot(t), l.vert.co.dot(b))
+    for f in fs:
+        f.select_set(bad)
+    abf += bad
+log('charts', len(byc), 'creases', len(crease), 'planar', len(byc) - abf, 'angle-based', abf)
+bm.select_flush_mode()
+bm.to_mesh(me)
+bm.free()
+bpy.ops.object.mode_set(mode='EDIT')
+if abf:
+    bpy.ops.uv.unwrap(method='ANGLE_BASED', fill_holes=True, correct_aspect=True, margin=0.0)
+# every island at the same texel density: an unwrap sizes islands by their
+# own angles, and a decimation sliver flattened by angle comes out a fat
+# triangle that eats the atlas (the panel saw: a third of it)
+bpy.ops.object.mode_set(mode='OBJECT')
+from bpy_extras import mesh_utils
+bm = bmesh.new()
+bm.from_mesh(me)
+bm.faces.ensure_lookup_table()
+uvl = bm.loops.layers.uv.active
+for isl in mesh_utils.mesh_linked_uv_islands(me):
+    fs = [bm.faces[i] for i in isl]
+    a3 = sum(f.calc_area() for f in fs)
+    auv, cen, n = 0.0, Vector((0, 0)), 0
+    for f in fs:
+        uv = [l[uvl].uv for l in f.loops]
+        for i in range(1, len(uv) - 1):
+            auv += abs((uv[i] - uv[0]).cross(uv[i + 1] - uv[0])) / 2
+        for u in uv:
+            cen += u; n += 1
+    if auv <= 0 or a3 <= 0:
+        continue
+    cen /= n
+    k = math.sqrt(a3 / auv)
+    for f in fs:
+        for l in f.loops:
+            l[uvl].uv = cen + (l[uvl].uv - cen) * k
 bm.to_mesh(me)
 bm.free()
 bpy.ops.object.mode_set(mode='EDIT')
 bpy.ops.mesh.select_all(action='SELECT')
-bpy.ops.uv.unwrap(method='ANGLE_BASED', fill_holes=True, correct_aspect=True, margin=0.0)
+bpy.context.scene.tool_settings.use_uv_select_sync = True     # mesh selection = uv selection
 bpy.ops.uv.pack_islands(rotate=True, margin_method='FRACTION', margin=1.5 / SIZE * 2)
 bpy.ops.object.mode_set(mode='OBJECT')
+
+# EXPLICIT NORMALS. The creases become real vertex splits (edge split on the
+# sharp edges, applied) and auto-smooth goes off: the exporter then writes
+# plain per-vertex normals. Left to auto-smooth, the 3.6 exporter wrote the
+# panel saw's NORMAL out of step with its positions (half the area facing
+# against its own winding: random), while Blender's own split normals agreed.
+es = lo.modifiers.new('es', 'EDGE_SPLIT')
+es.use_edge_angle = False
+es.use_edge_sharp = True
+bpy.context.view_layer.objects.active = lo
+bpy.ops.object.modifier_apply(modifier='es')
+if hasattr(lo.data, 'use_auto_smooth'):
+    lo.data.use_auto_smooth = False
+me = lo.data
 
 # UV report: per-face area distortion (uv area share / 3d area share), and
 # overlap as total uv area vs packed coverage (smart project never overlaps)
@@ -303,8 +429,12 @@ bk = sc.render.bake
 bk.use_selected_to_active = True
 bk.use_cage = False
 diag = math.sqrt(sum(d * d for d in dims))
-bk.cage_extrusion = 0.006 * diag
-bk.max_ray_distance = 0.03 * diag
+# METRIC, not scaled by the machine: the tables and guards are 2-4 cm plates,
+# and an extrusion past their thickness starts the ray beyond the far face
+# (the panel saw baked its undersides onto its tops). The two-pass cut holds
+# the surface within ~1 cm (p99), worst cases a few cm.
+bk.cage_extrusion = 0.008
+bk.max_ray_distance = 0.04
 bk.margin = 16
 bk.margin_type = 'EXTEND'
 for o in sc.objects:
@@ -334,11 +464,24 @@ nt.links.new(tc.outputs['Color'], bsdf.inputs['Base Color'])
 nt.links.new(tn.outputs['Color'], nm.inputs['Color'])
 nt.links.new(nm.outputs['Normal'], bsdf.inputs['Normal'])
 os.makedirs(OUT_DIR, exist_ok=True)
+# THE TEXTURE BUDGET: the scans shipped 4-8 diffuse maps at 512 (1-2 M texels
+# a machine). The atlas goes out at 1024 (tex=1024 on the row), the normal -
+# relief, low frequency at a garage's distance - at a quarter of the bake:
+# baked at SIZE, box-filtered down, so the four machines carry ~5.2 M texels
+# where the scans carried 6.8 M
+img_n.scale(SIZE // 4, SIZE // 4)
 for img, nm_ in ((img_c, '_diff.png'), (img_n, '_nor.png')):
     img.filepath_raw = os.path.join(OUT_DIR, KEY + nm_)
     img.file_format = 'PNG'
     img.save()
 bpy.data.objects.remove(hi)
+me = lo.data
+me.calc_normals_split()
+opp = sum(p.area for p in me.polygons
+          if sum(me.loops[i].normal.dot(p.normal) for i in p.loop_indices) < 0)
+log('split normals opposing their face: %.3f of the area, custom=%s, auto=%s'
+    % (opp / max(1e-9, sum(p.area for p in me.polygons)), me.has_custom_normals,
+       getattr(me, 'use_auto_smooth', None)))
 for o in sc.objects:
     o.select_set(o == lo)
 kw = dict(filepath=OUT, export_format='GLB', use_selection=True, export_apply=True,
