@@ -1,6 +1,6 @@
 {
  "note": "GATE FRAMECOST baseline (tools/_framecost_check.js): per-frame MEDIANS over 12 frames per view (after 6 warm-up frames), and per boot step. Rewrite with --update.",
- "date": "2026-10-01",
+ "date": "2026-10-02",
  "frames": 12,
  "warm": 6,
  "builds": {

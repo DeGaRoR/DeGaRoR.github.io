@@ -67808,3 +67808,20 @@ MEASURED (RTX 3080, fresh profiles, the Cub = default; before = 15d18675, after 
 GATES: FRAMECOST, ROUNDTRIP, STAND, BUILD, FLOATS, SEAPLANE PASS (run_gates --all). Parked aeroplanes re-cooked on e8690a3b3d0f. OPEN: the master bench's 2 exceptions "Cannot destructure property 'clamp' of
 'K'" (not ours by name in src - a vendor or worker bundle; MB_STACK=1 on the next master bench will say where). w2, nv_strip
 and tw_ski were not re-measured (their screens, 3-10 s, were not the hang: under the watchdog's 20 s).
+
+## TRAIN 22 LANDED (2026-10-02, A0 the coordinator)
+
+Cargo (on train 21 = 15d18675, the release): LOC-SWITCH G1180-G1182 (the location change's "freeze" was a HANG, not a
+task: render_premises hwWait() waited on the house worker for an obstacle entry built on the page and never answered, so
+'settle' slept until BOOT's watchdog - w3 31.0 s (screen 22.3) -> 15.1 s; the SEA lane 48-57 s -> 0.0 s and its way back
+20 s -> 0.2-0.3 s; under the sim worker the floats' W/dq/per crossed as undefined and syncWaterFx threw every frame -
+fixed in sim_host/sim_link; master_bench reports screens apart from frames and measures the water: Cessna floats taxi
+59.6 fps / 1 %, twin 59.4 / 2 %), A5-CAP G1165-G1167 (the latency probe; G1166b a starved frame EXTRAPOLATES - the hop
+75-114 -> 7-8 mm) and G1160b (even means even: a trial of 60 holds at 58 fps; the ABBA on the metal cockpit: stand
+57.4/58.3 -> 59.5 fps, uneven 3-4 % -> 1 %, taxi equal, every run at 60 by 20 s, worst task 303-353 -> 231-240 ms).
+
+Measured (fresh profile D:/u22b), vs train 21: Cub 31.15 fps / uneven 0.04 / first flight 44.0 s; metal 31.0 / 0.04 /
+43.3 s; cockpit 56.1 fps / 0.01 on both. RATCHET PASS (no admitted row), full battery GREEN, FRAMECOST PASS (baseline
+re-taken). NOT IN THIS TRAIN: G1119.1 (a cloud session; no branch yet). BACKLOG added: mn_strip's 23 s of real loading
+work (town 3.6 + settle 9.7, no task over 0.2 s); w2 / nv_strip / tw_ski not re-measured; LAZY-GEN (with the town on,
+tools/_sport_gen.js / _marine_gen.js run before _house_kit.js - world_boot.js:65 - fix with Metlakatla's return).
