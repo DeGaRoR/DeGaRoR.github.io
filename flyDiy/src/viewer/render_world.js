@@ -1562,7 +1562,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     if (ISLA && ISLA.tint && ISLA.ori1) {
       const G = ISLA.grid, n = G.w * G.h;
       // THE LAYERS PACKED (G424): the six single-channel fields ride two RGBA textures - A = (ori, canopy,
-      // coast, lake), B = (ndvi, terrain type, -, -) - so the ground program spends 5 texture units on the
+      // coast, lake), B = (ndvi, terrain type) RG8 (G1251) - so the ground program spends 5 texture units on the
       // island (tint, A, B, W1, W2), not 9. The premises' patch clones this material and adds its own five
       // (the material map + four sets): with nine it FAILED TO LINK on Jolene (17 > MAX_TEXTURE_IMAGE_UNITS
       // 16) and drew nothing; the outer ring's program (the canopy hook's four on top) stood at 16 exactly.
@@ -1572,6 +1572,11 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       // (a null b channel is 255; the packB's b is zeros, as it was: new Uint8Array(n) then, a flag now - no 12 MB array)
       const pk4 = (r, g, b, a) => { const make = () => { const d = new Uint8Array(n * 4); for (let k = 0, j = 0; k < n; k++, j += 4) { d[j] = r ? r[k] : 0; d[j + 1] = g ? g[k] : 0; d[j + 2] = b === 0 ? 0 : b ? b[k] : 255; d[j + 3] = a ? a[k] : 0; } return d; };
         return gpuOnly(dataTex(make()), make); };
+      // G1251 B IN TWO CHANNELS (QUICK-BYTES): only (ndvi, terrain type) were ever read - .r and .g, which an RG8
+      // texture returns unchanged - so B is RG8: 2 bytes a texel, not 4 (23.14 MiB on the 3095x3920 grid). A row is
+      // 2 x 3095 = 6190 bytes, not a multiple of 4: the unpack alignment is 1 or every row after the first shears
+      const pk2 = (r, g) => { const make = () => { const d = new Uint8Array(n * 2); for (let k = 0, j = 0; k < n; k++, j += 2) { d[j] = r ? r[k] : 0; d[j + 1] = g ? g[k] : 0; } return d; };
+        const t = dataTex(make()); t.format = THREE.RGFormat; t.unpackAlignment = 1; return gpuOnly(t, make); };
       const tintRGBA = () => { const rgba = new Uint8Array(n * 4);
         for (let i = 0, j = 0; i < n; i++, j += 4) { rgba[j] = ISLA.tint[i * 3]; rgba[j + 1] = ISLA.tint[i * 3 + 1]; rgba[j + 2] = ISLA.tint[i * 3 + 2]; rgba[j + 3] = 255; }
         return rgba; };
@@ -1591,7 +1596,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       Object.assign(gU, {
         uGTint: { value: tintTex },
         uGPackA: { value: pk4(ISLA.ori1, ISLA.canopy, ISLA.coast, lakeR) },   // a missing coast is 255 (all land), the rest 0; the lake the DRAWN one (G751: lakeR)
-        uGPackB: { value: pk4(ISLA.ndvi, ISLA.ttype, 0, null) },
+        uGPackB: { value: pk2(ISLA.ndvi, ISLA.ttype) },
         uGGrid: { value: new THREE.Vector4(G.x0, G.z0, G.w * G.cell, G.h * G.cell) },
         uGOverlay: { value: GROUND.overlay }, uGShade: { value: GROUND.shade }, uGLight: { value: GROUND.light },
         uGSat: { value: GROUND.sat }, uGSnow: { value: GROUND.snow }, uGShore: { value: GROUND.shore },
