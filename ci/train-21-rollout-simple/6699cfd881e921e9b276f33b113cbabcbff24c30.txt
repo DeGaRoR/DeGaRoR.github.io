@@ -1,0 +1,44 @@
+train: claude/train-21-rollout-simple
+sha: 6699cfd881e921e9b276f33b113cbabcbff24c30
+command: node tools/build.js && node tools/run_gates.js --all --jobs=4
+node: v22.22.2
+host: 4 cores, 15 GB
+wall: 9648 s (2026-10-02T03:58:08Z -> 2026-10-02T06:38:56Z)
+exit: 1
+
+== non-PASS summary lines ==
+──────── summary ────────
+FRAMECOST FAIL   329.9 s
+total           18566.8 s
+wall            9645.6 s  (jobs 4)
+
+BATTERY: FAIL — never deliver red.
+
+== FRAMECOST: FAIL detail ==
+  FAIL cub stand/bytes.uniforms rose 204242 -> 428336 (tolerance 1 % / 2; admit with an ALLOW entry: reason + G-number)
+  FAIL cub stand/draws.main rose 923 -> 1053 (tolerance 1 % / 2; admit with an ALLOW entry: reason + G-number)
+  FAIL cub stand/draws.shadow rose 135.5 -> 365.5 (tolerance 1 % / 2; admit with an ALLOW entry: reason + G-number)
+  FAIL cub stand/gl.calls rose 7992.5 -> 11722 (tolerance 1 % / 2; admit with an ALLOW entry: reason + G-number)
+  FAIL cub stand/gl.uniform4f rose 6 -> 224 (tolerance 1 % / 2; admit with an ALLOW entry: reason + G-number)
+  FAIL cub stand/gl.uniform4fv rose 737 -> 2787 (tolerance 1 % / 2; admit with an ALLOW entry: reason + G-number)
+  FAIL cub stand/gl.uniformMatrix4fv rose 1453 -> 1654 (tolerance 1 % / 2; admit with an ALLOW entry: reason + G-number)
+  FAIL cub stand/tris.shadow rose 1747717 -> 2869343.5 (tolerance 1 % / 2; admit with an ALLOW entry: reason + G-number)
+  FAIL cub taxi/draws.main rose 850 -> 971 (tolerance 1 % / 2; admit with an ALLOW entry: reason + G-number)
+  FAIL cub taxi/draws.shadow rose 100 -> 161 (tolerance 1 % / 2; admit with an ALLOW entry: reason + G-number)
+  FAIL cub taxi/gl.uniform2f rose 45 -> 143 (tolerance 1 % / 2; admit with an ALLOW entry: reason + G-number)
+  FAIL cub taxi/tris.shadow rose 1577918.5 -> 1861635.5 (tolerance 1 % / 2; admit with an ALLOW entry: reason + G-number)
+  FAIL cub boot/garage:landing/bytes.bufferData rose 0 -> 768
+  FAIL cessna stand/bytes.uniforms rose 207766 -> 432142 (tolerance 1 % / 2; admit with an ALLOW entry: reason + G-number)
+  FAIL cessna stand/draws.main rose 934 -> 1064 (tolerance 1 % / 2; admit with an ALLOW entry: reason + G-number)
+  FAIL cessna stand/draws.shadow rose 141.5 -> 372.5 (tolerance 1 % / 2; admit with an ALLOW entry: reason + G-number)
+  FAIL cessna stand/gl.calls rose 8111.5 -> 11852.5 (tolerance 1 % / 2; admit with an ALLOW entry: reason + G-number)
+  FAIL cessna stand/gl.uniform4f rose 12 -> 230 (tolerance 1 % / 2; admit with an ALLOW entry: reason + G-number)
+  FAIL cessna stand/gl.uniform4fv rose 749 -> 2799 (tolerance 1 % / 2; admit with an ALLOW entry: reason + G-number)
+  FAIL cessna stand/gl.uniformMatrix4fv rose 1481 -> 1685 (tolerance 1 % / 2; admit with an ALLOW entry: reason + G-number)
+  FAIL cessna stand/tris.shadow rose 1878287 -> 2949770.5 (tolerance 1 % / 2; admit with an ALLOW entry: reason + G-number)
+  FAIL cessna taxi/draws.main rose 860 -> 980 (tolerance 1 % / 2; admit with an ALLOW entry: reason + G-number)
+  FAIL cessna taxi/draws.shadow rose 106 -> 167 (tolerance 1 % / 2; admit with an ALLOW entry: reason + G-number)
+  FAIL cessna taxi/gl.uniform2f rose 51 -> 147 (tolerance 1 % / 2; admit with an ALLOW entry: reason + G-number)
+  FAIL cessna boot/garage:landing/bytes.bufferData rose 0 -> 768
+GATE FRAMECOST: FAIL (25)
+(exit code 1)
