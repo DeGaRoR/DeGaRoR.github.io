@@ -119,9 +119,9 @@ console.log('GATE GFX');
   const nBefore = w.log.filter(e => e[0] === 'fill').length;
   ok(nBefore === 0, 'the boot did not re-grid a fill already at gamer’s density (' + nBefore + ' re-grids)');
   G.set('preset', 'retro');
-  ok(w.FLYDIY_AA.tier() === 'off' && w.TREE_FILL.get() === 100 && w.TREE_LOD.get().join('/') === '10/30/30' &&
+  ok(w.FLYDIY_AA.tier() === 'msaa4' && w.TREE_FILL.get() === 100 && w.TREE_LOD.get().join('/') === '10/30/30' &&
      w.rig.shadowMap === 2048 && w.rig.worldShadow === false && w.rig.farShadow === false && w.rig.floor === 1.0 && w.WORLD.sun.castShadow === true,
-     'retro (the low of before): off, 100, impostor-first bands (10/30), shadows near (G655: the craft map alone at 1024, the sun map of the world empty), no cascade, floor off, sun still casts (no relink)');
+     'retro (the low of before): 4x (G1250), 100, impostor-first bands (10/30), shadows near (G655: the craft map alone at 1024, the sun map of the world empty), no cascade, floor off, sun still casts (no relink)');
   G.set('shadows', 'off');
   ok(G.get().preset === 'custom', 'one option changed under a preset makes it custom');
   ok(w.WORLD.sun.castShadow === false && w.rig.farShadow === false, 'shadows off: the sun stops casting and the cascade is off');

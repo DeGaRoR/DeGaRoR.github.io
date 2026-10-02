@@ -9427,7 +9427,7 @@
       if (aaP && aaP.able() && window.AA_RESOLVE && window.AA_RESOLVE.TIERS) {
         flRow(body, 'smoothing');
         flPills(body,
-          [['off', 'off'], ['msaa', 'smooth'], ['full', 'smoothest']]
+          [['off', 'off'], ['msaa4', 'soft'], ['msaa', 'smooth'], ['full', 'smoothest']]
             .filter(p => window.AA_RESOLVE.TIERS[p[0]])
             .map(p => ({ label: p[1], value: p[0] })),
           o => o.value === aaP.tier(), o => aaP.setTier(o.value));

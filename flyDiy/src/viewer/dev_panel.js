@@ -393,7 +393,7 @@
     Ewt.appendChild(note('one material for every water (water.js): SEA.W in GLSL (the parity is GATE WATER’s), a ripple tile on the wind, the sub-pixel slope variance as roughness; ?water=0 for the stock A/B'));
     // ---- FRAME, CAMERA -------------------------------------------------------
     const F = fold(root, 'frame', false);
-    F.appendChild(select('AA tier', [['full', 'smoothest (8x MSAA + 1.25x)'], ['msaa', 'smooth (8x MSAA)'], ['off', 'off (4x MSAA)']],
+    F.appendChild(select('AA tier', [['full', 'smoothest (8x MSAA + 1.25x)'], ['msaa', 'smooth (8x MSAA)'], ['msaa4', 'soft (4x MSAA)'], ['off', 'off (4x MSAA)']],
       () => (W.FLYDIY_AA && W.FLYDIY_AA.tier) ? W.FLYDIY_AA.tier() : 'full', v => { if (W.FLYDIY_AA) W.FLYDIY_AA.setTier(v); }));
     F.appendChild(note('measured (tree_perf, densest stand, bands 60/132/270, NG 112): smooth ~24 ms, smoothest ~29; with geometry to 450 m: 32 / 38'));
     { // the post passes' cost (post_fx.js): the GPU timer per pass, the eye's factor - the GRAPHICS menu switches them

@@ -135,6 +135,12 @@
   const AA_TIERS = {
     off:   { ss: 1,    samples: 0, label: 'Off (4x MSAA)',
              why: 'the default framebuffer, as it was before G144' },
+    // G1250 THE 4x TIER (QUICK-BYTES): `off` is not four samples once a pass asks for the target - the clouds'
+    // needRT draws it at ZERO samples (buildRT's min below), the reversed depth alone at four. Four asked for
+    // explicitly, the same half-float target, dither and stencil: 80 B/px against 8x's 144 (DEPTH32F_STENCIL8
+    // + RGBA16F per sample, the resolve and the readable depth once) - 138 MiB less than 8x at 2216x1023
+    msaa4: { ss: 1,    samples: 4, label: 'Soft (4x MSAA)',
+             why: 'four samples in the target whoever asks for it - half the 8x memory' },
     msaa:  { ss: 1,    samples: 8, label: 'Smooth (8x MSAA)',
              why: 'halves the staircase for no extra shading at all' },
     full:  { ss: 1.25, samples: 8, label: 'Smoothest (8x MSAA + 1.25x)',

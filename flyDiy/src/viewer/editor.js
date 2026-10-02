@@ -3225,7 +3225,7 @@ function editorInit(api) {
     const aa0 = (typeof window !== 'undefined' && window.FLYDIY_AA) || null;
     const TIERS = (typeof window !== 'undefined' && window.AA_RESOLVE &&
                    window.AA_RESOLVE.TIERS) || {};
-    for (const v of ['off', 'msaa', 'full']) {
+    for (const v of ['off', 'msaa4', 'msaa', 'full']) {
       const t = TIERS[v];
       if (!t) continue;
       const o = document.createElement('option');

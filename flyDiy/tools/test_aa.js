@@ -108,7 +108,7 @@ const checks = {
   'auto scale: a machine with room never leaves 100 %': !!simFast && simFast.min === 1,
 
   // --- the tier table ------------------------------------------------------
-  'three tiers declared': tierList.length === 3,
+  'four tiers declared (G1250: the explicit 4x)': tierList.length === 4 && !!T.msaa4 && T.msaa4.samples === 4 && T.msaa4.ss === 1,
   'off is really off (no supersample, no samples)':
     !!T && T.off.ss === 1 && T.off.samples === 0,
   // THE DEFAULT IS THE USER'S RULING, in three acts (2026-09-01). First:
