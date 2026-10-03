@@ -70226,3 +70226,27 @@ DECISIONS FOR THE USER:
 FILES: src/viewer/render_world.js (the fixture, the glow, runwayLightsApply, the switchboard's mute, the strip's removal);
 tools/_rwylights_check.js (section 2), tools/_cloud_check.js (three G443 source checks); new tools/rwylights_bench.html,
 tools/rwylights_shots.js; reports/evidence/RUNWAY-LIGHTS/ (7 JPEGs, 19-31 KB, bench.json).
+
+## G1325 - HYBRID-FARTHER: THE LIVE AEROPLANE TAKES OVER FROM 1 px A TEXEL (WAS 1.6) (2026-10-03, HYBRID-FARTHER for A0, cloud, headless; block G1325-G1329, G1326-G1329 unused; branch claude/hybrid-farther-g1325 off train 26 b2f1ffdc)
+
+The user: the baked texture is too pixelated before the switch - "the transition to the detailed texture needs to happen
+sooner, so farther".
+**G1325 THE BAND (src/viewer/flown_bake.js FB.hyA / FB.hyB): 1.6 -> 2.0 becomes 1.0 -> 1.25 screen px a texel.** The bake is
+now drawn only where one atlas texel covers at most one pixel (never magnified); the dither band starts there, the live
+shader is whole at 1.25. Distances (900 px buffer, 46 deg; from G1120's 5.8 m / 6.5 m at 1.6): the Cub enters the band at
+9.3 m (was 5.8) and is live at 7.4 m (was 4.7); the Cessna 10.4 m (was 6.5) -> 8.3 m (was 5.4). The old band stays a dial
+(?fbake=hy1.6-2.0).
+**WHAT IT COSTS (from G1120's mags, not re-measured):** the default chase (~15 m, 0.56-0.61 px a texel at 900 px) stays on the
+bake at 900 and 1080 px; at a 1440 px buffer it reads ~0.9-0.98, just under the band (a little closer and it dithers);
+at 2160 px (4K, scale 1) it is ~1.35-1.45: fully live (it was on the bake there, below 1.6).
+Live = the kept live meshes drawn instead of the folds: the hybrid's aeroplane is 144 main draws + 76 shadow (G1124.5,
+Cessna cockpit) against the folds' handful; the shadow stays on the folds (G1124 a) at any t. The stand's framing (distT 15.7 m
+on the Cub, headless) is ~0.6 px a texel: the bake, unchanged.
+**BLOCKED - THE STILLS AND THE HEADLESS COUNTS:** headless Chromium + SwiftShader on Linux (playwright, dev.html, the default
+Cub) rolls out and bakes (FB.last: cm 0.74, the render 39 s) but at the stand FLIGHT_PROBE.model() stays null, the folds 0,
+renderer.info.render.frame does not move over 3 s and the camera never settles (dist 25.47 -> distT 15.73), with or
+without the rig clock (navigator.webdriver off + a Chrome UA: PACE.legacy false, the same). So no census and no stills
+from the cloud. The rig: reports/evidence/HYBRID-FARTHER/rig.js (both rules on one page: FB.hyA/hyB set live; the bake and
+the live forced at 1.0 / 1.25 / 1.6 px a texel from the chase's side). On the box: tools/hybrid_ab.js with STILL at the
+old and new distances (the Cub 5.8 / 9.3 m, the metal Cessna 6.5 / 10.4 m) gives the pairs; FRAMECOST's stand + chase
+census for the counts. GATES: FLOWNBAKE, BUILD PASS.
