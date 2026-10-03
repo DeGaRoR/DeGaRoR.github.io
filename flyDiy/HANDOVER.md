@@ -68380,3 +68380,33 @@ TAXICLEAR PASS, PLAN PASS, LINEUP PASS, UISMOKE PASS (app.js / sim_host.js), FLO
 The full battery is A0's (per train). Base: master 5502f45, not rebased. Likely conflict spots when assembling: the
 tail of src/core/25_airfield.js, the 90_node_exports.js export line, run_gates.js's NAV row neighbourhood, and
 app.js's route block (applyRoute, the selects' block, the map's aerodrome loop).
+
+**EVIDENCE** (`reports/evidence/G1375/`, A0's ask, 2026-10-03). Headless Chromium on SwiftShader, the game as served
+(`tools/surface_shot.js`): "before" = master 5502f45's committed index.html, "after" = this branch's build, Jolene (the
+game's default world), each load with a build in flydiy.wip and a saved route in flydiy.route (the Cub: HOME -> SEA, the
+float Cessna `bugReports/cessnaFloatsWOrks.json`: HOME -> A3, an id Jolene does not have). The pickers are shot with
+their lists EXPANDED IN PLACE (`select.size`: a native drop-down does not paint headless), so the chosen value is not
+highlighted - `pickers.txt` lists each picker's value and options ([x] = disabled). All UI, nothing GPU-dependent: a
+software render shows all of it. Not shot: the roll-out screen's #bootRoute (its shot timed out on the busy boot, and
+it carries the same options as the garage's); master's floats pickers (byte-identical to image 1 - master labels
+nothing and refuses nothing, whatever the gear).
+- `1_before_cub_pickers.jpg` - master, the Cub: plain names, Annette Dock (a water lane) offered to wheels. No decision.
+- `2_after_cub_pickers.jpg` - the Cub: every strip with its surface, `Annette Dock · water — a water lane: wheels cannot
+  land on it` faint and disabled in both lists; the saved HOME -> SEA fitted to the circuit (pickers.txt). No decision.
+- `4_after_floats_pickers.jpg` - the float Cessna: every land strip faint, `— floats land on water only`, Annette Dock the
+  one choice; the saved route fitted to the sea lane / the circuit. DECISION: the reason is spelled on every refused
+  row (seven times here) - say if you prefer the bare greyed row with the reason only in the tooltip.
+- `5_before_cub_map.jpg` - master's big map in flight, the Cub: the saved route drawn from Jolene 13/31 to Annette Dock
+  (the amber dash) - a wheeled aeroplane sent to land on the water. No decision.
+- `6_after_cub_map.jpg` - the same load: no leg to the water (the 13/31 circuit), every label with its surface, Annette
+  Dock's faint (the gear may not use it); every label inside the map (the longer labels ran off its edge until the
+  placer was told the bounds - fixed in this follow-up). No decision.
+- `7_before_floats_map.jpg` - master, the float Cessna: the route still names Jolene 13/31 (its ring on the runway)
+  while the aeroplane sits at Annette Dock. No decision.
+- `8_after_floats_map.jpg` - the float Cessna: departure and circuit both Annette Dock, the land strips faint. DECISION
+  (small): faint labels for the strips the gear may not use - say if they should rather vanish from the map.
+
+FOLLOW-UP CHANGES since the READY above (found by the evidence): `option:disabled` reads faint in the three pickers'
+CSS (editor.css #edRoute and #ui .fsel, style.css #bootRoute: the inherited ink hid the browser's grey); the map's label
+placer keeps labels inside the canvas (app.js labFits). Gates re-run for them: BUILD, UISMOKE, STRIPSURF PASS. The
+generated outputs are still not committed.
