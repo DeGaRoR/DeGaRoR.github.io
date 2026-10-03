@@ -13,12 +13,14 @@
 //     T.merge(list, kind, side) -> BufferGeometry                      world space, the sag baked, aSlot per vertex
 //     T.end()            the table uploaded; returns false (and builds the arrays, then calls onReady) when a layer
 //                        the bake asked for is not in the stack yet - the caller keeps its G566 bake until then
-//     T.material(kind, side, dith, bare)   the shared town materials (MATLIB's `house` shape, C3b)
+//     T.material(kind, side, dith, bare, far)   the shared town materials (MATLIB's `house` shape, C3b); far: the lod-1
+//                        far town's band (opts.lod.far, G1395) instead of the near rung's
 //     T.classifyMat(m) / T.slot(m, litBase) / T.hook(kind)   (C3b, G855: the town kit) a finish's kind and its slot
 //                        without a mesh; the town program's text (the generator's hook + the edits + the uniforms)
 //                        opts.lod = { U, decl, glsl } (G801, render_premises' LOD band): the host's uniforms, their
 //                        declaration and a fragment block run first in main - the near rung's dithered exit at the lod-1
-//                        edge; a program of its own (the cache key says so)
+//                        edge; a program of its own (the cache key says so). G1395: + vdecl / vert (the vertex stage,
+//                        after project_vertex: the house's radius per vertex) and far = { glsl, vdecl, vert } (the far rung's)
 //     T.lit              { value }: the lamps' factor for the lit panes (render_premises' LAMPS drives it)
 //     T.stats            { layers, nrLayers, slots, mb, builds, where (worker | page), packMs, check }   (G845)
 //
@@ -451,17 +453,22 @@ mat3 tFrame(vec3 eye_pos, vec3 surf_norm, vec2 uv) {
       if (!c) return null;
       return { kind: c.kind, side: c.side, dith: c.dith, slot: c.kind === 'glass' ? slotGlass(m, litBase || (u => u.value)) : slotPlain(m) };
     }
-    function material(kind, side, dith, bare) {   // bare: without the band even when made with one (G801: an item's bags)
-      const band = !!o.lod && !bare, k = kind + ':' + side + ':' + (dith ? 1 : 0) + (band ? ':lod' : '');
+    // far: the FAR rung (G1395, render_premises' lod-1 far town on the town's own shader) wears o.lod.far's blocks
+    // ({ glsl, vert }) instead of the near rung's; a `vert` block goes after project_vertex, o.lod.vdecl declaring it
+    function material(kind, side, dith, bare, far) {   // bare: without the band even when made with one (G801: an item's bags)
+      const band = !!o.lod && !bare, fr = band && !!far && !!o.lod.far, k = kind + ':' + side + ':' + (dith ? 1 : 0) + (band ? (fr ? ':lodfar' : ':lod') : '');
       if (MATS.has(k)) return MATS.get(k);
       const H = hook(kind); if (!H) return null;
       const m = ML().make(THREE, 'house', { side: side === 2 ? THREE.DoubleSide : THREE.FrontSide, dithering: !!dith });
       m.onBeforeCompile = sh => {
         H(sh);
         if (band) {
+          const L = fr ? o.lod.far : o.lod;
           Object.assign(sh.uniforms, o.lod.U);
           sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\n' + o.lod.decl)
-            .replace('#include <clipping_planes_fragment>', '#include <clipping_planes_fragment>\n' + o.lod.glsl);
+            .replace('#include <clipping_planes_fragment>', '#include <clipping_planes_fragment>\n' + L.glsl);
+          if (L.vert) sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\n' + (L.vdecl || o.lod.vdecl || o.lod.decl))
+            .replace('#include <project_vertex>', '#include <project_vertex>\n' + L.vert);
         }
       };
       m.customProgramCacheKey = () => 'house_tarr:' + k;
