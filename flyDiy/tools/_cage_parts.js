@@ -222,8 +222,8 @@ const CAGE_PARTS = [
   // already, filed under their bays.
   // G1321 (2026-10-03, the user: "map these sections to their respective
   // parts in the editor's tree"): each frame's group now sits under the part
-  // it shapes — nose frame -> Nose, windscreen / door-post / cabin frames ->
-  // Cabin, passenger -> Passenger bay, boom -> Boom, tail -> Tail cone. The
+  // it shapes — nose frame -> Nose, windscreen frame -> Windscreen (G1321.1),
+  // door-post / cabin frames -> Cabin, passenger -> Passenger bay, boom -> Boom, tail -> Tail cone. The
   // reference section stays here (every frame follows it), and selecting
   // Fuselage still shows every frame, part by part (an assembly shows its
   // children's rows).
@@ -283,12 +283,8 @@ const CAGE_PARTS = [
       // since T2.1; the cabin pillar pair is the CABIN FRAME there)
       ['dimensions', ['pilotLen', 'floorY']],
       // G1321 (the user: "map these sections to their respective parts in
-      // the editor's tree"): the frame this part shapes, moved from Fuselage —
-      // the windscreen frame is the cabin's front ring (it stands with or
-      // without the glazing, whose part a glazeOn=0 build hides)
-      ['windscreen frame', ['frWinTopY', 'frWinWaistY', 'frWinBotY',
-                            'frWinTopW', 'frWinWaistW', 'frWinBotW',
-                            'wsTopOff', 'wsRun', 'frWinBotZ']],
+      // the editor's tree"): the frames this part shapes, moved from Fuselage
+      // (the windscreen frame is the Windscreen's, G1321.1)
       ['door-post frame', ['frPostTopY', 'frPostWaistY', 'frPostBotY',
                            'frPostTopW', 'frPostWaistW', 'frPostBotW',
                            'frPostTopZ', 'frPostWaistZ', 'frPostBotZ'], EXPERT],
@@ -317,7 +313,13 @@ const CAGE_PARTS = [
     sections: ['windshield'],
     place: { at: 'on the cabin front ring' },
     groups: [
-      // (wsRun / wsTopOff = the windscreen FRAME's waist / top fore-aft, T2.1)
+      // G1321.1 (the user: "move the windscreen frame under Windscreen"):
+      // the cabin's front ring, the screen's own frame (wsRun / wsTopOff its
+      // waist / top fore-aft since T2.1). It hides with the Glazing part on
+      // a glazeOn=0 build, like every glass row
+      ['windscreen frame', ['frWinTopY', 'frWinWaistY', 'frWinBotY',
+                            'frWinTopW', 'frWinWaistW', 'frWinBotW',
+                            'wsTopOff', 'wsRun', 'frWinBotZ']],
       ['shape', ['wsBaseBow', 'wsCeilBow']],
       // the bubble canopy IS the screen's own continuation (2026-09-04)
       ['bubble canopy', ['bubble', 'arcFit', 'bubH', 'bubAt', 'bubW',
