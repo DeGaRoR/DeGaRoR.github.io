@@ -10,10 +10,17 @@ window.LT = (() => {
   const W = 48, H = 27;
   const cv = document.createElement('canvas'); cv.width = W; cv.height = H;
   const g = cv.getContext('2d', { willReadFrequently: true });
-  const st = { pngs: 8, prevC: NaN, on: false, rows: [], snaps: [], lastFrame: -1, prevMean: NaN, flag: 0.04, t0: 0, maxRows: 20000 };
+  const st = { calls: 0, pngs: 12, prevC: NaN, on: false, rows: [], snaps: [], lastFrame: -1, prevMean: NaN, flag: 0.04, t0: 0, maxRows: 20000 };
   const R = () => (window.FLIGHT_PROBE && FLIGHT_PROBE.renderer) ? FLIGHT_PROBE.renderer() : null;
+  // every render() this rAF (the main pass, the mirror, the probes, the post chain) adds its draws: the frame's total
+  function hookCalls(r) {
+    if (!r || r.__ltCalls) return; r.__ltCalls = true;
+    const orig = r.render;
+    r.render = function () { const out = orig.apply(this, arguments); st.calls += this.info.render.calls; return out; };
+  }
   function cap() {
     const r = R(); if (!r) return;
+    hookCalls(r);
     const f = r.info.render.frame;
     if (f === st.lastFrame) return;            // nothing drawn this callback (the cap skipped it): the buffer is not this frame's
     st.lastFrame = f;
@@ -35,7 +42,9 @@ window.LT = (() => {
     const row = [+(performance.now() - st.t0).toFixed(1), +mean.toFixed(4), +sd.toFixed(4), +(rs / n).toFixed(3), +(gs / n).toFixed(3), +(bs / n).toFixed(3), +(blue / n).toFixed(3),
       WL && WL.hemi ? +WL.hemi.intensity.toFixed(4) : null, WL && WL.sun ? +WL.sun.intensity.toFixed(3) : null, +r.toneMappingExposure.toFixed(4), P ? +P.stats.eyeK.toFixed(4) : null,
       ps ? ps.bakes : null, ps ? +ps.fade.toFixed(3) : null, window.CLOUDS ? CLOUDS.shadowOn : null, LE ? +LE.cT.toFixed(3) : null,
-      cam ? +cam.position.y.toFixed(1) : null, f, +(cs / Math.max(1, cn)).toFixed(4)];
+      cam ? +cam.position.y.toFixed(1) : null, f, +(cs / Math.max(1, cn)).toFixed(4),
+      st.calls, cam ? Math.round(cam.far) : null, WL && WL.vis ? WL.vis.nHidden : null];
+    st.calls = 0;
     if (st.rows.length < st.maxRows) st.rows.push(row);
     const centre = cs / Math.max(1, cn);
     if (Number.isFinite(st.prevMean) && (Math.abs(mean - st.prevMean) > st.flag || Math.abs(centre - st.prevC) > 1.5 * st.flag) && st.snaps.length < 60)
@@ -48,10 +57,10 @@ window.LT = (() => {
     window.__ltRaf = raf0;
     window.requestAnimationFrame = cb => raf0(t => { cb(t); if (window.__ltCap) window.__ltCap(); });
   }
-  const COLS = ['t', 'mean', 'sd', 'r', 'g', 'b', 'blue', 'hemiI', 'sunI', 'exposure', 'eyeK', 'probeBakes', 'probeFade', 'cloudShadowOn', 'cT', 'camY', 'frame', 'centre'];
+  const COLS = ['t', 'mean', 'sd', 'r', 'g', 'b', 'blue', 'hemiI', 'sunI', 'exposure', 'eyeK', 'probeBakes', 'probeFade', 'cloudShadowOn', 'cT', 'camY', 'frame', 'centre', 'calls', 'far', 'visHidden'];
   return {
     st, COLS,
-    start() { st.rows = []; st.snaps = []; st.pngs = 8; st.lastFrame = -1; st.prevMean = NaN; st.t0 = performance.now(); st.on = true; return 'on'; },
+    start() { st.rows = []; st.snaps = []; st.pngs = 12; st.calls = 0; st.lastFrame = -1; st.prevMean = NaN; st.t0 = performance.now(); st.on = true; return 'on'; },
     stop() { st.on = false; return st.rows.length; },
     dump() { return JSON.stringify({ cols: COLS, rows: st.rows, snaps: st.snaps, err: st.err || null }); },
   };
