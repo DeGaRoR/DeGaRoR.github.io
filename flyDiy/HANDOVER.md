@@ -68310,3 +68310,24 @@ data. FLIGHT (fresh profile D:/u25d, vs train 24): Cub 31 fps / 5 %, cockpit 56 
 cockpit 53.8 -> 55.9 fps. ONE RED CLEARED: the metal's worst boot task 716 -> 1055 / 859 ms on its two chase runs (at ~36 s, the
 garage boot; its cockpit runs through the same boot showed none); two re-runs 655 / 664 ms - not repeated, the metal baseline is
 taken from them. Battery GREEN, FRAMECOST PASS (baseline re-taken).
+## G1265 - THE PROP DISC (AND THE CRAFT'S GLASS) DRAW OVER THE CLOUDS (2026-10-03, PROP-CLOUDS for A0, local GPU; block G1265-G1269, G1266-G1269 unused)
+
+The user: in the cockpit view "the clouds render over the spinning prop disc, which looks super weird".
+CAUSE. The clouds' composite (clouds.js, compMesh) is a full-screen transparent quad at renderOrder 1e6 that knows the
+scene only by its depth. The disc (G672) and the glass write no depth, and the craft's see-through band AERO_CLEAR (app.js,
+G1140 put the disc in it) was 1000 - under the composite. So where the sky lies behind the disc, the composite painted
+cloud / sky straight over it: the disc showed only over hills and trees, and vanished against the sky.
+FIX (app.js, one constant). AERO_CLEAR 1000 -> 2e6: the band sits above the composite, so the see-through parts are laid
+over the clouded sky, as they are in front of it. Their order among themselves is kept (the glass companion's host - 1 and
+RENDER_ORDER inside the band ride along); G1140's disc-over-pavement holds (pavement <= 3, GATE FADES checks > 3). The
+composite has no better hook: a disc mask would mean a depth or stencil write from a fading transparent, for the same result.
+Not done: debug overlays at 998-1000 (lines, labels, the red flag - dev tools) and the parked aeroplanes' glass (parked.js,
+order 10) stay under the composite; a cloud genuinely between the eye and the aeroplane would now be overdrawn by the disc /
+glass - at chase distance (a few tens of metres) that needs the camera inside a cloud, rare.
+EVIDENCE (tools/perf/g1265_evidence/, rollout_perf --build default --page dev.html --q cloud=0.7,cu, the flight PAUSED, one
+boot, the band flipped at runtime between the shots so the poses match): cockpit_before_master.jpg / cockpit_after_fix.jpg
+and cockpit_crop_before_after_diff.jpg (before | after | diff x4): before, the disc's tint is on the hills only and the sky
+above them is clean; after, its ghost blades lie over the sky and the clouds; the diff is the disc's quadrant and nothing
+else. chase_before_master.jpg / chase_after_fix.jpg: from behind the Cub's fuselage hides its disc - no aeroplane pixel
+moved (the only diff is far-tree flicker).
+GATES: BUILD, UISMOKE, FRAMECOST PASS (the parked aeroplanes re-cooked first; no counter moved, no ALLOW).

@@ -1521,7 +1521,13 @@
   // its own thousand, so a new decal at any plausible height still cannot
   // reach it, and the aeroplane's own internal order is preserved inside the
   // band rather than flattened.
-  const AERO_CLEAR = 1000;
+  //
+  // ABOVE THE CLOUDS TOO (G1265, 2026-10-03, the user: in the cockpit "the clouds render over the spinning prop
+  // disc"). The clouds' composite (clouds.js) is a full-screen transparent quad at renderOrder 1e6 that knows
+  // the scene only by its depth; the disc and the glass write none, so a band under it let the composite paint
+  // cloud straight over them (and skip the windscreen's tint). The band now sits ABOVE it: the see-through
+  // parts are laid over the clouded sky, as they are in front of it.
+  const AERO_CLEAR = 2e6;
   let TYRE_TEX = null;            // the tyre sheet does not depend on the spec
   // THE LIVE CREW (2026-09-11, the user: "at least the pilot should remain an
   // in-game skeleton, controllable"). Whoever holds a moving control crosses
