@@ -1,5 +1,10 @@
 # flyDiy — ROADMAP (v3 2026-09-01: the player's reorder · v2 2026-08-26: the vertical slice)
 
+> **2026-10-03, CURRENT WORK:** the performance release is closed (`reports/PERFORMANCE-RELEASE-2026-10-02.md`). The
+> "Friendly Welcome" release is under way: `futureDesigns/FRIENDLY-WELCOME-PLAN-2026-10-03.md` (the order, the owners,
+> the session rules) and `futureDesigns/FRIENDLY-WELCOME-BUDGETS.md` (device budgets). The live board is the
+> "Friendly Welcome" artifact. Next big release after it: "the game premises" (hangar management).
+
 This document SUPERSEDES `HANDOVER.md` § ROADMAP (the sessions 1-6 / W-branch
 list). That section stays where it is as history — its entries are cited all
 over the handover — but the living plan is here. One chantier per session, the
