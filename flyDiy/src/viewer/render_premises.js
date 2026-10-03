@@ -226,7 +226,7 @@ function make(THREE, scene, world, rec0, opts) {
   // structures and antennas round what is BUILT here, by laws from the record's seed (rec.life, contract v1.22); drawn in a
   // handful of instanced draws, every kind cut by distance. It reads the built houses' own reports (HOUSES[].built)
   const LIFE = (typeof window !== 'undefined' && window.SCENERY_LIFE) ? window.SCENERY_LIFE.make(THREE, {
-    root, game: !!o.game, record: () => rec, frame: () => O.frame, heightAt: (x, z) => heightAt(x, z), waterY: () => (world.waterH ? world.waterH(0, 0) : -1e9), waterAt: (x, z) => (world.waterH ? world.waterH(x, z) : -1e9),
+    root, game: !!o.game, record: () => rec, frame: () => O.frame, heightAt: (x, z) => heightAt(x, z), waterY: () => (world.waterH ? world.waterH(0, 0) : -1e9), waterAt: (x, z) => (world.waterH ? (world.waterHBuild || world.waterH)(x, z) : -1e9),   // (G1406: the build read)
     houses: () => HOUSES, plots: () => O.records.plots, roads: () => O.roads, runways: () => O.runways, zones: () => rec.layers.zones,
     aprons: () => (rec.layers.surface || []).filter(e => e.apron && e.poly && e.poly.length > 2).map(e => e.poly),
     objects: () => (rec.layers.objects || []).filter(e => e.kind !== 'aircraft' && isFinite(e.x)).map(e => { const w = O.frame.toWorld(e.x, e.z); return { x: w[0], z: w[1], r: e.kind === 'billboard' ? (+e.w || 3) / 2 + 0.6 : e.kind === 'tree' ? 1.5 : 1.3 }; }),
@@ -449,7 +449,13 @@ function make(THREE, scene, world, rec0, opts) {
   groundMat.customProgramCacheKey = () => 'premises-ground-s' + NSLOT;   // the slot count is in the source (G527.1)
   const chunks = new Map();
   const ci0 = Math.floor(bounds.x0 / CHUNK), ci1 = Math.ceil(bounds.x1 / CHUNK) - 1, cj0 = Math.floor(bounds.z0 / CHUNK), cj1 = Math.ceil(bounds.z1 / CHUNK) - 1;
-  function heightAt(x, z) { return o.game ? world.terrainH(x, z) : O.terrainH(x, z, world.terrainH(x, z)); }
+  // G1406 (METLA-LOAD): THE BUILD READ (20_world.js terrainHBuild) - what is built here (the patch, the roads, the polygons,
+  // the rails, the life, the cars) reads the cooked raster where its cell is cooked and the analytic composer elsewhere,
+  // never a lazy bake: with the town on, these readers baked ~11 000 tiles over Metlakatla at every boot
+  // (functions, not consts: heightAt is hoisted and the life's host can read it before this line runs)
+  function groundB(x, z) { return world.terrainHBuild ? world.terrainHBuild(x, z) : world.terrainH(x, z); }
+  const waterB = world.waterHBuild || world.waterH;
+  function heightAt(x, z) { return o.game ? groundB(x, z) : O.terrainH(x, z, world.terrainH(x, z)); }
   function buildChunk(i, j) {
     const k = i + ',' + j;
     const old = chunks.get(k);
@@ -625,7 +631,7 @@ function make(THREE, scene, world, rec0, opts) {
         const r = Math.min(1, patchDepth(x, z) / PATCH_TUCK.tuckW);
         // 2 cm UNDER the ground (G434.2): the lot patches sit at the ground and the 4 cm lift had buried them; the
         // ring sinks 4 m under the patch now, so no fight there (G434: the border tucks under the ring - G752's PATCH_TUCK)
-        Y0[v] = world.terrainH(x, z) - 0.02 * r - PATCH_TUCK.tuck * (1 - r) * (1 - r);
+        Y0[v] = groundB(x, z) - 0.02 * r - PATCH_TUCK.tuck * (1 - r) * (1 - r);   // (G1406: the build read)
         if (sinkOf) { const sk = sinkOf(x, z); Y[v] = Y0[v] - sk; if (sk > 0) sunk++; }
         if (uvOf) { const q = uvOf(x, z); UV[v * 2] = q[0]; UV[v * 2 + 1] = q[1]; }
       }
@@ -777,7 +783,7 @@ function make(THREE, scene, world, rec0, opts) {
     const F = O.frame, hL = (lx, lz) => { const W = F.toWorld(lx, lz); return heightAt(W[0], W[1]); };
     const m = RAIL.build(THREE, { path: pr, w: rd.w, mode: rd.rail || 'auto', name: 'rail:' + rd.id,
       hAt: hL, heightAt, toWorld: (x, z) => F.toWorld(x, z), seed: PG.fnv(String(rd.id)) % 997,
-      waterY: world.waterH ? ((lx, lz) => { const W2 = F.toWorld(lx, lz); return world.waterH(W2[0], W2[1]); }) : null,
+      waterY: waterB ? ((lx, lz) => { const W2 = F.toWorld(lx, lz); return waterB(W2[0], W2[1]); }) : null,   // (G1406: the build read)
       keep: railKeep(rd) });
     if (m) { m.userData.premId = rd.id; G.roads.add(m); }
     return m;

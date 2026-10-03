@@ -2046,6 +2046,18 @@ function compose(rec0, world, opts) {
       if (!index.query(lx, lz)) return h;
       return grHeight(lx, lz, h);
     },
+    // G1406 (METLA-LOAD): WOULD terrainFast BAKE HERE? - the raster is on, a modifier's cell holds the point and no cooked
+    // cell does (a tile there is baked lazily, 1-1.6 ms, the first time anything reads it). The world's BUILD READ
+    // (20_world.js terrainHBuild) takes the analytic path where this says so: a geometry builder reads a far tile a few
+    // dozen times, ~17 times cheaper than its bake. It never asks what the cache holds, so its answer is the same
+    // whatever was read before; where a cell is cooked it is the raster's own bits
+    rasterLazyAt(x, z) {
+      if (!grOn) return false;
+      const dx = x - F.anchor.x, dz = z - F.anchor.z, lx = dx * F.c - dz * F.s, lz = dx * F.s + dz * F.c;
+      if (!index.query(lx, lz)) return false;
+      const S = GR_TS * GR_CELL;
+      return !(grCook && grCook.has(grCellKey(Math.floor(lx / S), Math.floor(lz / S))));
+    },
     get raster() { return grOn ? { on: true, tile: GR_TS, cap: GR_CAP, tiles: grTiles.size, ...grStats, rMaxBaked: grRmax, cookedCells: grCook ? grCook.size : 0 } : { on: false }; },
     // (G835) the cooked raster: a cell's signature, the cook's walk, the load
     rasterCellSig, rasterCellParts, rasterModParts, rasterEach, rasterLoad, rasterCell: GR_TS * GR_CELL, rasterTile: GR_TS,

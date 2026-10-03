@@ -888,8 +888,8 @@ ${MIST_GLSL}
     const ter = new Float32Array(N * N), wat = new Float32Array(N * N);
     for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
       const x = b.x0 + (i + 0.5) * step, z = b.z0 + (j + 0.5) * step, k = j * N + i;
-      ter[k] = world.terrainH(x, z);
-      wat[k] = world.waterH ? world.waterH(x, z) : -1e9;
+      ter[k] = (world.terrainHBuild || world.terrainH)(x, z);   // (G1406: the build read)
+      wat[k] = world.waterH ? (world.waterHBuild || world.waterH)(x, z) : -1e9;
     }
     // the valley floor: a minimum over ~400 m (separable, two passes), then a ~200 m blur
     const R = Math.max(1, Math.round(400 / step)), B = Math.max(1, Math.round(200 / step));

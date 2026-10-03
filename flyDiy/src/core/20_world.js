@@ -526,6 +526,15 @@ function makeWorld(seed, opts) {
     return h;
   }
 
+  // G1406 (METLA-LOAD): THE BUILD READ - the composed ground for a ONE-OFF read (a mesh's vertices, a road's samples, a
+  // placement's test): terrainH where the premises' raster is cooked or absent (the same bits), the ANALYTIC composer
+  // where terrainH would bake a raster tile lazily (27_premises.js rasterLazyAt) - the raster is that composer to GR_TOL
+  // (1 cm). The town's premises build read ~11 000 uncooked tiles 9-10 km from HOME at every town-on boot (~10 s of
+  // main-thread bakes); the wheels, the wind and every repeated read keep terrainH. Not memoised: the memo is terrainH's
+  function terrainHBuild(x, z) {
+    return PM && PM.rasterLazyAt && PM.rasterLazyAt(x, z) ? PM.terrainH(x, z, baseH(x, z)) : terrainH(x, z);
+  }
+
   // ---- stage 2 biomes: analytic classifier + tree placement plan ----
   // (waterAt/terrainH are function declarations — hoisted, safe to bind)
   //
@@ -623,7 +632,7 @@ function makeWorld(seed, opts) {
             j3 = hash2(gx + 1229, gz + 4051);
       const x = G0x + (gx + 0.15 + 0.70 * j1) * GS;
       const z = G0z + (gz + 0.15 + 0.70 * j2) * GS;
-      const h = terrainH(x, z);
+      const h = terrainHBuild(x, z);   // (G1406: the build read - a placement, read once)
       // THE TREELINE IS THE ANALYTIC WORLD'S (G1112, TREES-NEAR): 165 m is its biome model's number. On a data island
       // the tree map decides (effClass TREE below, the same map the renderer's fill stands on): Jolene's woods run to
       // ~600 m, and 48 % of its TREE ground lies above 165 m - drawn forest nothing could hit
@@ -714,6 +723,8 @@ function makeWorld(seed, opts) {
     if (t < 0 && blendM(x, z, h0(x, z)) < 0) return 0;
     return -Infinity;
   }
+  // (G1406) waterH's build read (the two-argument call, on terrainHBuild)
+  function waterHBuild(x, z) { return waterAt(terrainHBuild(x, z), x, z); }
   function waterH(x, z, t) {
     const h = waterAt(terrainH(x, z), x, z);
     // THE SEA HAS WAVES (H4, G393; ruling ap: ONE surface, physics and
@@ -1102,7 +1113,7 @@ function makeWorld(seed, opts) {
                     cover: ISL.coverU8 || null, ndvi: ISL.ndvi || null, lake: ISL.lake || null, ttype: ISL.ttype || null, lakes: ISL.lakes || null, hydro: ISL.hydro, cellAt: ISL.cellAt,
                     farHeader: ISL.farHeader, farRoot: ISL.farRoot,
                     places: (ISL.premCook && ISL.premCook.places) || null } : null,   // G841: the premises cook's places (the tallies render_premises dresses on)
-    terrainH, waterH, surface, SURFACE, groundMaxRect,
+    terrainH, waterH, terrainHBuild, waterHBuild, surface, SURFACE, groundMaxRect,
     get slopeMax() { return PM ? undefined : SLOPE_MAX; },   // the cone's bound (30_solver.js); none under a premises layer
     TILE, tile, aerodromes, settlements: SET.settlements,
     treesNear, canopyH,
