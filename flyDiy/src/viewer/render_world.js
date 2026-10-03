@@ -1176,13 +1176,14 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
   // the circle.
   // ...unless the strip says its trees are the record's (G527.3, the user at East Point: "you've cut too much in the
   // trees"): treeBox false leaves the clearing to the premises' own excludes (the strip's box + 30 m, the fans)
-  const treeEx = world.aerodromes.filter(a => a.treeBox !== false).map(a => (typeof a.hdg === 'number' && a.wid)
-    ? { x: a.x, z: a.z, cx: Math.cos(a.hdg), sz: Math.sin(a.hdg), hl: a.len / 2 + 150, hw: a.wid / 2 + 60, strip: true }
-    : { x: a.x, z: a.z, r2: (a.len / 2 + 70) ** 2 });
+  // (G1385: a strip's own `clear` - side, beyond, taper - replaces the box for that strip; 20_world.js aeroBoxes' rule)
+  const treeEx = world.aerodromes.filter(a => a.treeClear || a.treeBox !== false).map(a => { const cl = a.treeClear || null; return (typeof a.hdg === 'number' && a.wid)
+    ? { x: a.x, z: a.z, cx: Math.cos(a.hdg), sz: Math.sin(a.hdg), rl: a.len / 2, hl: a.len / 2 + (cl ? cl.beyond : 150), hw: a.wid / 2 + (cl ? cl.side : 60), tp: cl ? cl.taper : 0, strip: true }
+    : { x: a.x, z: a.z, r2: (a.len / 2 + 70) ** 2 }; });
   const inEx = (e, x, z) => {
     if (!e.strip) return (x - e.x) * (x - e.x) + (z - e.z) * (z - e.z) < e.r2;
-    const dx = x - e.x, dz = z - e.z, al = dx * e.cx + dz * e.sz, ac = -dx * e.sz + dz * e.cx;
-    return Math.abs(al) < e.hl && Math.abs(ac) < e.hw;
+    const dx = x - e.x, dz = z - e.z, al = Math.abs(dx * e.cx + dz * e.sz), ac = Math.abs(-dx * e.sz + dz * e.cx);
+    return al < e.hl && ac < (e.tp && al > e.rl ? Math.max(0, e.hw + e.tp * (al - e.rl)) : e.hw);
   };
   // ORDERED BY COST (W0c.30): the corridor and the aerodromes are a compare,
   // the woodland bins a few distances, the classifier 2.4 us - and it was
@@ -4060,6 +4061,21 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     // payload's (tree_prep.py bakes the bench's tuning); F8 edits BIO.map and exports it.
     yield 'biomes';
     const BIO = (typeof BIOMES !== 'undefined' && typeof TREE_PACK !== 'undefined') ? BIOMES.make(TREE_PACK) : null;
+    // THE COVER POLYGONS' OWN VEGETATION (G1385 EDITOR-VEG): the premises' vegAt answers first at a point (none, a
+    // biome by name, or the polygon's own '@id' mix), BIO.mixHere asks it; the '@' mixes are copied into BIO.mixes
+    // whenever the composed premises is another one (the editor recomposes on every edit) - TREE_FILL.vegChanged
+    // replants when what they say changed. The world rail's export leaves the '@' mixes out (they are the record's).
+    let vegO = null, vegSigNow = '', vegPlanted = null;
+    const vegSync = () => {
+      const O = world.premises && world.premises.overlay; vegO = O;
+      const sig = (O && O.vegSig) || '';
+      if (sig === vegSigNow) return;
+      for (const k of Object.keys(BIO.mixes)) if (k[0] === '@') delete BIO.mixes[k];
+      if (O && O.vegMixes) for (const k in O.vegMixes) BIO.mixes[k] = JSON.parse(JSON.stringify(O.vegMixes[k]));
+      vegSigNow = sig;
+    };
+    if (BIO) { vegSync(); vegPlanted = vegSigNow; }
+    if (BIO) BIO.over = (x, z) => { const O = world.premises && world.premises.overlay; if (O !== vegO) vegSync(); return O && O.vegAt ? O.vegAt(x, z) : undefined; };
     const treePool = () => {
       const pool = [];
       for (const e of treeList()) {
@@ -4209,7 +4225,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       const d = 8, sl = Math.hypot(world.terrainH(x + d, z) - world.terrainH(x - d, z), world.terrainH(x, z + d) - world.terrainH(x, z - d)) / (2 * d);
       return BIO.codeOf(tt, Math.atan(sl) * 180 / Math.PI, ISLC.canopyAt(x, z), r);
     };
-    const biomeAt = (x, z, r) => { const c = codeAt(x, z, r); return c < 0 ? null : BIO.mixAt(c); };
+    const biomeAt = (x, z, r) => BIO.mixHere(codeAt(x, z, r), x, z);
     function plantWoodland() {
       // Undo the previous plant. The InstancedMeshes and the impostor atlas are
       // OURS and go; the geometry and materials of a real tree are NOT — they
@@ -4686,7 +4702,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
               // kind, its species the pool (codeAt / biomeAt below - the cover ring's too)
               const tt = ttypeAt(x, z);
               if (BIO) {
-                mixHere = BIO.mixAt(codeAt(x, z, hsh(ix + 21, iz + 23)));
+                mixHere = BIO.mixHere(codeAt(x, z, hsh(ix + 21, iz + 23)), x, z);
                 kind = mixHere ? Math.min(1, BIO.density(mixHere) * spc * spc * FILL.island.biomeGain) : 0;
               } else kind = tt === 8 ? 1.0 : tt === 7 ? 0.5 : tt === 3 ? 0.12 : tt === 2 ? 0.04 : 0.0;
               if (tt === 3 || tt === 2) can = Math.min(can, 3.0);        // the bog's and the heath's are stunted
@@ -4984,11 +5000,13 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
             const slopeDeg = Math.atan(sl) * 180 / Math.PI, canopy = ISLC.canopyAt(x, z);
             const code = BIO.codeOf(tt, slopeDeg, canopy, 0.5);
             const k = ISLC.cellAt ? ISLC.cellAt(x, z) : -1;
-            return { tt, code, name: BIO.names[code] || String(code), mix: BIO.mixAt(code), canopy, slopeDeg,
+            return { tt, code, name: BIO.names[code] || String(code), mix: BIO.mixHere(code, x, z), canopy, slopeDeg,
                      ndvi: (ISLC.ndvi && k >= 0) ? ISLC.ndvi[k] / 127 - 1 : null };
           },
           setBiome: (code, mix) => { if (!BIO) return null; const r = BIO.set(code, mix); biomePools.clear(); evictAll(); reachRefresh(); return r; },
           reach: () => reachRefresh(),   // G908: re-read what the map can reach (after a premises re-stamp); true when it grew
+          // G1385: after a premises edit (app.js onRebuilt) - the cover polygons' vegetation re-read; replants only when it changed
+          vegChanged: () => { if (!BIO) return false; vegSync(); if (vegSigNow === vegPlanted) return false; vegPlanted = vegSigNow; biomePools.clear(); evictAll(); if (coverRing) coverRing.replant(); reachRefresh(); return true; },
           // L4 (the F8 biomes fold): one number of one mix moved live - a species row's
           // proportion / dead / density / patch / size, or the forest's count / under / rocks /
           // blotch - the fill re-pools and replants, the ring replants; the export carries it

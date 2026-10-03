@@ -33,7 +33,7 @@ const SECTIONS = [
   { k: 'airfield',   label: 'AIRFIELD',   icon: '✈',  tools: ['select', 'runway', 'apron', 'stand', 'probe'] },
   { k: 'roads',      label: 'ROADS',      icon: '⌇',  tools: ['select', 'road', 'probe'] },
   { k: 'zones',      label: 'ZONES',      icon: '▦',  tools: ['select', 'zone', 'probe'] },
-  { k: 'vegetation', label: 'TREES',      icon: '♣',  tools: ['select', 'forest', 'clear', 'tree', 'probe'] },
+  { k: 'vegetation', label: 'TREES',      icon: '♣',  tools: ['select', 'forest', 'biome', 'clear', 'tree', 'probe'] },
   { k: 'sites',      label: 'SITES',      icon: '⌂',  tools: ['select', 'building', 'theme', 'cable', 'probe'] },
   { k: 'objects',    label: 'OBJECTS',    icon: '⚑',  tools: ['select', 'prop', 'billboard', 'aircraft', 'animal', 'probe'] },
   { k: 'file',       label: 'FILE',       icon: '▤',  tools: [] },
@@ -54,7 +54,7 @@ const ICONS = {
   life: 'M7 5a1.6 1.6 0 1 0 0-3.2 1.6 1.6 0 0 0 0 3.2Z|M4.5 16l1.3-6.2L7 7.2l1.4 2.4L9.5 16|M4 10.5l3-3.3 3 3.3|M13 16V9.5|M11.5 9.5h3l.4-2.5h-3.8Z',
 };
 const iconSvg = k => { const d = ICONS[k]; if (!d) return null; const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); svg.setAttribute('viewBox', '0 0 18 18'); svg.setAttribute('aria-hidden', 'true'); for (const q of d.split('|')) { const pth = document.createElementNS('http://www.w3.org/2000/svg', 'path'); pth.setAttribute('d', q); svg.appendChild(pth); } return svg; };
-const TOOL_LABEL = { select: 'select', flatten: 'flatten', raise: 'raise / lower', ramp: 'slope', material: 'material', road: 'trace a road', surface: 'surface', zone: 'zone', forest: 'forest', clear: 'no trees', tree: 'a tree', runway: 'runway', apron: 'apron / taxiway', stand: 'the stand', building: 'a building', theme: 'the mine (theme)', cable: 'a cable', prop: 'a prop', billboard: 'a billboard', aircraft: 'an aeroplane', animal: 'animals', probe: 'probe' };
+const TOOL_LABEL = { select: 'select', flatten: 'flatten', raise: 'raise / lower', ramp: 'slope', material: 'material', road: 'trace a road', surface: 'surface', zone: 'zone', forest: 'forest', biome: 'vegetation', clear: 'no trees', tree: 'a tree', runway: 'runway', apron: 'apron / taxiway', stand: 'the stand', building: 'a building', theme: 'the mine (theme)', cable: 'a cable', prop: 'a prop', billboard: 'a billboard', aircraft: 'an aeroplane', animal: 'animals', probe: 'probe' };
 const TOOL_HELP = {
   select: 'click a feature to select it; drag its discs; Ctrl+click adds a corner after the last, Ctrl+click a disc removes it; Del deletes',
   flatten: 'click the corners of the flat, then ✓ close (or double-click)',
@@ -64,6 +64,7 @@ const TOOL_HELP = {
   surface: 'click the corners of the paved / gravel / sand patch, close',
   zone: 'click the corners of the zone, close; its kind, density and seed are in the inspector — plots grow along the roads inside it',
   forest: 'click the corners of the wood, close; density and species in the inspector',
+  biome: 'click the corners of the area, close; then its vegetation in the inspector: none, any biome, or a new one (species and density)',
   clear: 'click the corners where no tree may grow, close',
   tree: 'click the ground to plant one tree; its species and size in the inspector',
   probe: 'click the ground to read its height, slope and surface',
@@ -79,7 +80,7 @@ const TOOL_HELP = {
   aircraft: 'pick a build in the inspector (an archetype, a stock design, one of yours), click the apron to park it there, nose along its turn; captured through the workshop, so a moment to stand',
   animal: 'pick a species in the inspector and click the ground (or the water, for a whale): ONE record is a HOTSPOT - how many live there and over what radius. The land animals wander between idle bouts, a pod swims a circuit and dives, a flock circles. Drag the disc to move the lot.',
 };
-const POLY_TOOLS = { flatten: 'terrain', raise: 'terrain', ramp: 'terrain', surface: 'surface', apron: 'surface', material: 'material', zone: 'zones', forest: 'zones', clear: 'zones' };
+const POLY_TOOLS = { flatten: 'terrain', raise: 'terrain', ramp: 'terrain', surface: 'surface', apron: 'surface', material: 'material', zone: 'zones', forest: 'zones', clear: 'zones', biome: 'ttype' };
 // the PBR sets the page has (the lot's and the site's texture sets), read at call time - a name each
 function materialSets() {
   const S = Object.assign({}, (typeof LOT_TEX_SETS !== 'undefined' && LOT_TEX_SETS) || {}, (typeof SITE_TEX_SETS !== 'undefined' && SITE_TEX_SETS) || {});
@@ -95,6 +96,19 @@ let PALETTE_CAT = null;   // the category the palette shows (v9)
 let ITEM_FOCUS = null;    // the site item whose rows are open in the inspector (G398.1: a list, one row per item)
 const LS_WIP_DEFAULT = 'flydiy.premises.wip';
 
+// THE BIOMES AND THE SPECIES a vegetation polygon may name (G1385): the live handle's (the world rail edits it), else
+// the payload's; a premises polygon's own '@' mix is not offered (it is that polygon's)
+function biomeMixes() {
+  const B = (typeof window !== 'undefined' && window.TREE_FILL && window.TREE_FILL.biomes && window.TREE_FILL.biomes()) || null;
+  const P = (typeof TREE_PACK !== 'undefined' && TREE_PACK) || (typeof window !== 'undefined' && (window.TREE_PACK || window.TREE_PACK_REG)) || null;
+  return (B && B.mixes) || (P && P.biomes && P.biomes.mixes) || {};
+}
+const biomeNames = () => Object.keys(biomeMixes()).filter(k => k[0] !== '@');
+const biomeMix = name => biomeMixes()[name] || null;
+function speciesNames() {
+  const P = (typeof TREE_PACK !== 'undefined' && TREE_PACK) || (typeof window !== 'undefined' && (window.TREE_PACK || window.TREE_PACK_REG)) || null;
+  return P && P.collections ? P.collections.filter(c => ['tree', 'dead', 'shrub', 'cover'].indexOf(c.kind || 'tree') >= 0).map(c => [c.name, (c.kind || 'tree') + ' · ' + c.name.replace(/\.glb$/, '').replace(/_/g, ' ')]) : [];
+}
 // the keys a prop or billboard tool may stand: the prop registry's floor-standing props by group,
 // the sign painter's roadside keys - read at call time, so a pack loaded later is offered
 function objectKeys(kind, rec) {
@@ -372,6 +386,8 @@ function mount(host, ctx) {
     else if (tool === 'zone') e = { id: PG.newId(rec, 'zones'), kind: 'residential', poly, density: 1, seed: null, palette: null, rules: {} };
     else if (tool === 'forest') e = { id: PG.newId(rec, 'zones'), kind: 'forest', poly, density: 1, seed: null, palette: null, rules: {} };
     else if (tool === 'clear') e = { id: PG.newId(rec, 'zones'), kind: 'clear', poly, density: 1, seed: null, palette: null, rules: {} };
+    // G1385: a cover polygon that says only what grows (no terrain type stamped); the first biome until picked
+    else if (tool === 'biome') { const bs = biomeNames(); e = { id: PG.newId(rec, 'ttype'), poly, code: null, veg: bs.length ? { mode: 'biome', mix: bs[0] } : { mode: 'none' } }; }
     run({ layer, id: e.id, before: null, after: e, label: (e.kind || layer) + ' ' + e.id });
     cancelTool(); select(e.id);
   }
@@ -625,6 +641,47 @@ function mount(host, ctx) {
 
   // ---- the inspector: declared rows for the selected feature ----------------------
   const SURF_OPTS = PG.SURFACE_NAMES.map((n, i) => [String(i), n.toLowerCase()]);
+  // ---- A COVER POLYGON'S VEGETATION (G1385 EDITOR-VEG, contract v1.31) ----------------------------------------
+  // none, any biome of the payload (tools/_trees_tuning.json's mixes, as the world rail has them), or a new biome
+  // defined in place - its species from the catalogue, each its share, and the stand's density. The terrain type it
+  // stamps (or none) stays a row of its own.
+  const STAMP_CODES = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 15, 16];
+  function vegRows(e, id, ed) {
+    const V = () => e.veg || null, mode = () => (V() && V().mode) || 'keep';
+    const BN = (typeof BIOMES !== 'undefined' && BIOMES.NAMES) || {};
+    rows.select(insp, 'terrain type', [['', '- none (the map\'s) -']].concat(STAMP_CODES.map(c => [String(c), c + ' ' + (BN[c] || '')])), () => (e.code === null || e.code === undefined || e.code === '') ? '' : String(e.code),
+      v => ed(x => { x.code = v === '' ? null : +v; }, 'terrain type of ' + id));
+    const bs = biomeNames();
+    rows.pills(insp, 'vegetation', [['keep', 'its type\'s', 'the biome its terrain type names'], ['none', 'none', 'nothing of a biome grows here'], ['biome', 'a biome', 'any of the biomes'], ['new', 'a new biome', 'species and density of its own']], mode,
+      v => ed(x => {
+        if (v === 'keep') delete x.veg;
+        else if (v === 'none') x.veg = { mode: 'none' };
+        else if (v === 'biome') x.veg = { mode: 'biome', mix: (x.veg && x.veg.mix) || bs[0] || '' };
+        else x.veg = Object.assign({ mode: 'new', species: {}, density: 150, under: 2, cover: 1 }, x.veg && x.veg.mode === 'new' ? x.veg : {});
+      }, 'vegetation of ' + id));
+    const m = mode();
+    if (m === 'keep' && (e.code === null || e.code === undefined)) rows.note(insp, 'no terrain type and no vegetation: this polygon says nothing', 'bad');
+    if (m === 'biome') rows.select(insp, 'biome', bs.map(b => [b, b]), () => V().mix || '', v => ed(x => { x.veg = { mode: 'biome', mix: v }; }, 'biome of ' + id));
+    if (m === 'none') rows.note(insp, 'no tree, no bush, no grass of a biome inside; the premises\' own (a forest zone, a tree by hand, a plot\'s lawn) still stand');
+    if (m !== 'new') return;
+    const setV = (patch, label, key) => ed(x => { x.veg = Object.assign({}, x.veg, patch); }, label + ' of ' + id, key);
+    rows.slider(insp, 'trees (/ha)', 0, 1500, 5, () => V().density === undefined ? 150 : V().density, v => setV({ density: v }, 'density', 'vegD'), v => v.toFixed(0) + ' /ha');
+    rows.slider(insp, 'bushes (/1000 m²)', 0, 20, 0.5, () => V().under === undefined ? 2 : V().under, v => setV({ under: v }, 'bushes', 'vegU'), v => v.toFixed(1));
+    rows.slider(insp, 'grass (x)', 0, 2, 0.05, () => V().cover === undefined ? 1 : V().cover, v => setV({ cover: v }, 'grass', 'vegC'), v => v.toFixed(2));
+    const sp = () => V().species || {};
+    for (const k of Object.keys(sp())) {
+      rows.slider(insp, k.replace(/\.glb$/, '').replace(/_/g, ' ').slice(0, 28), 0, 4, 0.05, () => (sp()[k] && sp()[k].proportion !== undefined) ? sp()[k].proportion : 1,
+        v => ed(x => { x.veg = Object.assign({}, x.veg, { species: Object.assign({}, x.veg.species, { [k]: Object.assign({}, x.veg.species[k], { proportion: v }) }) }); }, 'share of ' + k, 'vegS:' + k), v => 'share ' + v.toFixed(2));
+      rows.button(insp, '✕ ' + k.replace(/\.glb$/, ''), () => ed(x => { const o = Object.assign({}, x.veg.species); delete o[k]; x.veg = Object.assign({}, x.veg, { species: o }); }, 'remove ' + k));
+    }
+    const have = new Set(Object.keys(sp()));
+    const cat = speciesNames().filter(q => !have.has(q[0]));
+    if (cat.length) rows.select(insp, '+ species', cat, () => '', v => { if (v) ed(x => { x.veg = Object.assign({}, x.veg, { species: Object.assign({}, x.veg.species, { [v]: { proportion: 1 } }) }); }, 'add ' + v); });
+    if (bs.length) rows.select(insp, 'start from', bs.map(b => [b, b]), () => '', v => { const M = biomeMix(v); if (M) ed(x => { x.veg = Object.assign({}, x.veg, { species: JSON.parse(JSON.stringify(M.species || {})), density: Math.round(((M.forest && M.forest.count) || 0) / (Math.PI * Math.pow((M.forest && M.forest.radius) || 220, 2)) * 1e4), under: (M.forest && M.forest.under) || 0, cover: (M.forest && M.forest.cover !== undefined) ? M.forest.cover : 1 }); }, 'species of ' + id + ' from ' + v); });
+    if (!have.size) rows.note(insp, 'a new biome needs at least one species (or start from an existing one)', 'bad');
+    else rows.note(insp, 'the mix "@' + id + '": the trees share the density by their shares, the bushes the bushes\' count, the grass and flowers their own density x the grass factor - the same rules as every biome');
+  }
+
   const inspector = { refresh() {
     insp.innerHTML = '';
     if (section === 'file') return fileRows();
@@ -636,7 +693,7 @@ function mount(host, ctx) {
       rows.note(insp, rec.name || '(unnamed)');
       rows.note(insp, PG.LAYERS.filter(k => rec.layers[k].length).map(k => k + ' ' + rec.layers[k].length).join(' · ') || 'nothing yet — pick a tool above and click the ground');
       const feats = [];
-      for (const k of ['terrain', 'surface', 'material', 'exclude', 'roads', 'runways', 'zones', 'sites', 'objects']) for (const e of rec.layers[k]) feats.push([e.id, (e.kind || k.replace(/s$/, '')) + ' ' + e.id + (e.name ? ' ' + e.name : '')]);
+      for (const k of ['terrain', 'surface', 'material', 'exclude', 'roads', 'runways', 'zones', 'sites', 'objects', 'ttype']) for (const e of rec.layers[k]) feats.push([e.id, (e.kind || k.replace(/s$/, '')) + ' ' + e.id + (e.name ? ' ' + e.name : '')]);
       if (feats.length) rows.select(insp, 'features', feats, () => '', v => select(v));
       if (section === 'zones') rows.note(insp, 'a zone sows plots along the ROADS inside it; the house generator stands a house on each. Trace a road first.');
       if (section === 'sites' && ctx.catalogue) {
@@ -668,7 +725,7 @@ function mount(host, ctx) {
         rows.note(insp, 'an ANIMAL record is a HOTSPOT, not one animal: how many of the species live there and over what radius. They sow themselves inside it, seeded per individual, so changing the count never moves the ones already standing.');
       }
       if (section === 'airfield') rows.note(insp, 'a runway is a PROFILE: two clicks place it, the inspector sets its length, width, heading, surface and slope; the ground is graded to it, its class reaches the wheels, the pilot\'s pattern and the PAPI are derived. ?world=A stands it on the flight world.');
-      if (section === 'vegetation') rows.note(insp, 'a forest polygon plants the wood (its density and species in the inspector); a no-trees polygon keeps it out; a tree by hand is one record.');
+      if (section === 'vegetation') rows.note(insp, 'a forest polygon plants the wood (its density and species in the inspector); a vegetation polygon says what the island grows inside it - none, any biome, or a new biome of its own; a no-trees polygon keeps the trees out; a tree by hand is one record.');
       return;
     }
     const e = f.entry, id = e.id, layer = f.layer;
@@ -798,6 +855,20 @@ function mount(host, ctx) {
         x.altiport = v;
         if (v && x.approach !== 0 && x.approach !== 1) { const pr = PG.runwayProfile(Object.assign({}, PG.RUNWAY_DEF, x)); x.approach = pr.at(0) <= pr.at(x.len) ? 0 : 1; }
       }, 'altiport of ' + id));
+      // THE TREES' CLEARANCE (G1385, the user: "I need to better control tree exclusion zones around runways"): the strip's
+      // own - each side, beyond each end, the taper past the ends, the bushes too - or today's generic box (off). Drawn
+      // round the selected strip in green.
+      if (!PG.runwayIsWater(Object.assign({}, PG.RUNWAY_DEF, e))) {
+        const CL = () => PG.runwayClearOf(e), setC = (patch, label, key) => ed(x => { x.clear = Object.assign({}, PG.RWY_CLEAR_DEF, x.clear || {}, patch); }, label + ' of ' + id, key);
+        rows.check(insp, 'its own tree clearance', () => !!CL(), v => ed(x => { if (v) x.clear = Object.assign({}, PG.RWY_CLEAR_DEF); else delete x.clear; }, 'clearance of ' + id));
+        if (CL()) {
+          rows.slider(insp, 'clear each side (m)', 0, 300, 1, () => CL().side, v => setC({ side: v }, 'clearance', 'clrSide'), v => v.toFixed(0) + ' m');
+          rows.slider(insp, 'clear past each end (m)', 0, 1500, 5, () => CL().beyond, v => setC({ beyond: v }, 'clearance', 'clrBeyond'), v => v.toFixed(0) + ' m');
+          rows.slider(insp, 'taper past the ends', -0.5, 0.5, 0.01, () => CL().taper, v => setC({ taper: v }, 'clearance', 'clrTaper'), v => (v >= 0 ? '+' : '') + (v * 100).toFixed(0) + ' m / 100 m');
+          rows.check(insp, 'the bushes too', () => CL().bushes, v => setC({ bushes: v }, 'clearance'));
+          rows.note(insp, 'no tree stands inside (the drawn and the collidable alike), in every trees variant; past the ends the half-width grows by the taper (an approach fan) or shrinks; "the bushes too" keeps the shrubs out as well');
+        } else rows.note(insp, e.treeBox === false ? 'off: this strip keeps no generic box (treeBox false) - its box + 30 m and the authored excludes clear it' : 'off: today\'s box - ' + PG.RWY_CLEAR_DEF.side + ' m each side, ' + PG.RWY_CLEAR_DEF.beyond + ' m past each end (drawn faint)');
+      }
       // THE PROFILE (v8): the centreline's height along the length, as control points on a graph - drag a
       // point, double-click the curve to add one, the ✕ removes the selected one; the ends stay at 0 and 1
       profileGraph(insp, e, ed);
@@ -892,7 +963,8 @@ function mount(host, ctx) {
         rows.slider(insp, 'lift (m)', -1, 3, 0.05, () => e.dy || 0, v => ed(x => { x.dy = v; }, 'lift of ' + id, 'dy'), v => v.toFixed(2));
         rows.select(insp, 'stands', [['ground', 'on the ground, tilted to it'], ['flat', 'level']], () => e.on || 'ground', v => ed(x => { x.on = v; }, 'stance of ' + id));
       } else if (e.kind === 'billboard') rows.slider(insp, 'width (m)', 2, 6, 0.1, () => e.w || 3.6, v => ed(x => { x.w = v; }, 'width of ' + id, 'w'), v => v.toFixed(1));
-    } else if (layer === 'objects' && e.kind === 'tree') {
+    } else if (layer === 'ttype') vegRows(e, id, ed);
+    else if (layer === 'objects' && e.kind === 'tree') {
       const pool = ctx.pool ? ctx.pool() : [];
       if (pool.length) rows.select(insp, 'species', pool.map(p => [p.key, p.key.replace(/\.glb\|/, ' · ').slice(0, 30)]), () => e.key, v => ed(x => { x.key = v; }, 'species of ' + id));
       rows.slider(insp, 'size', 0.4, 1.8, 0.02, () => e.size || 1, v => ed(x => { x.size = v; }, 'size of ' + id, 'size'));

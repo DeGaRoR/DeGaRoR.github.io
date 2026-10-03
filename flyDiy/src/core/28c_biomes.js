@@ -18,6 +18,7 @@
 //                     by canopy; the shader's smoothstep becomes a draw on r in
 //                     [0,1) so the split is the same share, jittered per point
 //     B.mixAt(code)   the mix name or null (no biome here: sea, snow, built...)
+//     B.mixHere(code, x, z)  the same at a point, a premises polygon's own vegetation first (B.over)
 //     B.mixOf(name)   the mix record
 //     B.density(name) the mix's trees per m2 (its `count` in its `radius`)
 //     B.set(code, mixName) / B.export()   F8's handle
@@ -53,6 +54,14 @@ const BIOMES = (() => {
     };
     B.mixAt = code => { const m = B.map[code]; return (m && B.mixes[m]) ? m : null; };
     B.mixOf = name => B.mixes[name] || null;
+    // A POLYGON'S OWN VEGETATION (G1385 EDITOR-VEG, contract v1.31): `over(x, z)` - set by the renderer from the
+    // premises' vegAt - says undefined (the polygon has nothing to say: the code's biome), null (no vegetation) or a
+    // mix name (an existing biome, or a premises' own '@id' mix registered in B.mixes). mixHere is mixAt at a POINT.
+    B.over = null;
+    B.mixHere = (code, x, z) => {
+      if (B.over) { const o = B.over(x, z); if (o !== undefined) return (o && B.mixes[o]) ? o : null; }
+      return code < 0 ? null : B.mixAt(code);
+    };
     // trees per m2: the bench's `count` in its stand of `radius` (220 m by default)
     B.density = name => { const M = B.mixes[name]; if (!M || !M.forest) return 0; const r = M.forest.radius || 220; return (M.forest.count || 0) / (Math.PI * r * r); };
     B.set = (code, name) => { if (name === null || name === '' || name === undefined) delete B.map[code]; else B.map[code] = name; return B.map[code] || null; };

@@ -249,10 +249,9 @@ var COVER_RING = (() => {
               // same payload dial, renders 3 x 1.12 = 3.36. A further 1.87x on top of the
               // tint's ~9x (see meanOf above). The bench's committed master is the one every
               // cover dial was fitted under, so cover is given it back; the trees keep theirs.
-              if (c.kind === 'cover' && mat.userData.uLight) {
-                const t = mat.userData.tint || {};
-                mat.userData.uSat.value = (t.sat === undefined ? 1 : t.sat) * COVER_MASTER.sat;
-                mat.userData.uLight.value = (t.light === undefined ? 1 : t.light) * COVER_MASTER.light; }
+              // (G1385: trees.js retint now applies it - COVER_BASE, the same numbers - and the grass's own master on top,
+              // so a master or a species tint moved later keeps it; asked again here for a material hooked before)
+              if (c.kind === 'cover' && mat.userData.uLight && LEAF.retint) LEAF.retint(mat);
               if (c.kind === 'cover' && mat.userData.uFlat) { mat.userData.uFlat.value = place.contrast === undefined ? 1 : place.contrast; measureMean(mat);
                 if (mat.map && !(mat.map.image && mat.map.image.width)) { const t0 = mat.map; const poll = () => { if (t0.image && t0.image.width) measureMean(mat); else setTimeout(poll, 500); }; setTimeout(poll, 500); } }
             }
@@ -293,9 +292,7 @@ var COVER_RING = (() => {
     // are smooth over metres (the fields' cells are 15-40 m, the map's 10 m), so a cell samples
     // them on a 4 m lattice once and every tuft reads the nearest node - a point-by-point
     // biomeAt (four terrainH, a canopy, two noises) at 2 500 tufts a cell was 50 ms a cell
-    // tools/_trees_tuning.json `master` - the dials every cover row in the payload was
-    // fitted under. The game's own MASTER (sat 1.2, light 0.6) is the conifer normalisation.
-    const COVER_MASTER = { sat: 1.58, light: 1.12 };
+    // (the bench's cover master - tools/_trees_tuning.json `master`, sat 1.58 light 1.12 - is trees.js COVER_BASE since G1385)
     const SG = 4;
     // THE IMAGERY AT A POINT (linear rgb): the tuft's colour where no CODES row stands (code 10 'built' -
     // the pale-beige tufts on the village's ground) and where the mix has no ground of its own
@@ -310,6 +307,8 @@ var COVER_RING = (() => {
     // (0 the biome's, 1 a plot's LAWN, 2 a plot's meadow, 3 none), the lawn's height and density factor,
     // and `col` (the linear colour the DRAWN ground has beside a pavement) taken as the tuft's ground
     const KIND = { lawn: 1, meadow: 2, none: 3 };
+    // G1385 (EDITOR-VEG): the strips' own clearances that keep the bushes out (20_world.js bushAeroBlocked)
+    const bushOff = world.bushAeroBlocked || null;
     // IS THERE A PAVEMENT AT THIS NODE? (v1.17 coverAt's `cls`). The vocabulary is the premises' own -
     // grass, asphalt, concrete, worn, gravel, dirt, sand - plus the analytic world's asphalt / gravel / grass,
     // so the test is "a class at all", not a list to keep in step. The debris reads it because a GRASS strip's
@@ -317,11 +316,12 @@ var COVER_RING = (() => {
     // grass runway (the roads session, 2026-09-22).
     function subGrid(x0, z0, C) {
       const N = Math.round(C / SG) + 1, mix = new Array(N * N), code = new Int16Array(N * N), ok = new Uint8Array(N * N), col = new Float32Array(N * N * 3);
+      const bush = new Uint8Array(N * N);   // G1385: inside a strip's own clearance that keeps the bushes out
       const kill = new Float32Array(N * N), boost = new Float32Array(N * N), kind = new Uint8Array(N * N), lawnH = new Float32Array(N * N), lawnD = new Float32Array(N * N), cls = new Uint8Array(N * N);
       for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
         const x = x0 + i * SG, z = z0 + j * SG, k = j * N + i, r = hsh(Math.round(x * 3.7), Math.round(z * 5.3));
         const cd = ctx.codeAt ? ctx.codeAt(x, z, r) : -1;
-        code[k] = cd; mix[k] = cd < 0 ? null : BIO.mixAt(cd); ok[k] = (ctx.okAt(x, z) && !(ctx.poolAt && (cd === 3 || cd === 7) && ctx.poolAt(x, z) > 0.5)) ? 1 : 0;   // no tuft in a puddle (the shader's pools, in JS)
+        code[k] = cd; mix[k] = BIO.mixHere ? BIO.mixHere(cd, x, z) : (cd < 0 ? null : BIO.mixAt(cd)); bush[k] = bushOff && bushOff(x, z) ? 1 : 0; ok[k] = (ctx.okAt(x, z) && !(ctx.poolAt && (cd === 3 || cd === 7) && ctx.poolAt(x, z) > 0.5)) ? 1 : 0;   // no tuft in a puddle (the shader's pools, in JS)
         let cv = null; try { cv = ctx.coverAt ? ctx.coverAt(x, z) : null; } catch (e) { cv = null; }
         if (cv) { kill[k] = cv.kill || 0; boost[k] = cv.boost || 0; kind[k] = KIND[cv.kind] || 0; cls[k] = cv.cls ? 1 : 0;
           if (cv.grass) { lawnH[k] = cv.grass.h || 0.12; lawnD[k] = cv.grass.density === undefined ? 1 : cv.grass.density; }
@@ -332,7 +332,7 @@ var COVER_RING = (() => {
       }
       const at = (x, z) => Math.round((z - z0) / SG) * N + Math.round((x - x0) / SG);
       let bmax = 0, lawn = 0; for (let k = 0; k < N * N; k++) { if (boost[k] > bmax) bmax = boost[k]; if (kind[k] === 1) lawn++; }
-      return { N, mix, code, ok, col, kill, boost, kind, cls, lawnH, lawnD, at, bmax, lawn };
+      return { N, mix, code, ok, col, kill, boost, kind, cls, lawnH, lawnD, at, bmax, lawn, bush };
     }
 
     // ---- THE ROCKS OF ONE CELL (2026-09-22, the rock map) --------------------------------
@@ -438,7 +438,7 @@ var COVER_RING = (() => {
     function rockPlan(cx, cz) {
       const C = S.cell, x0 = cx * C, z0 = cz * C;
       const cd = ctx.codeAt ? ctx.codeAt(x0 + C / 2, z0 + C / 2, hsh(Math.round((x0 + C / 2) * 3.7), Math.round((z0 + C / 2) * 5.3))) : -1;
-      const centreMix = cd < 0 ? null : BIO.mixAt(cd);
+      const centreMix = BIO.mixHere ? BIO.mixHere(cd, x0 + C / 2, z0 + C / 2) : (cd < 0 ? null : BIO.mixAt(cd));
       if (!centreMix) return null;
       const M = BIO.mixOf(centreMix), F = (M && M.forest) || {};
       if (!F.rockMap) return null;
@@ -574,6 +574,7 @@ var COVER_RING = (() => {
           if (blotch && r1 > blotchAt(x, z, sSeed)) continue;   // the bench's GF.blotch: keeps 1 - blotch .. 1 by area
           const gk = G.at(x, z);
           if (!G.ok[gk] || G.mix[gk] !== centreMix) continue;
+          if (isShrub && G.bush[gk]) continue;   // G1385: a strip's own clearance with `bushes` keeps the tall vegetation out
           // the cover's query: nothing on a pavement (kill), more on a border (boost), a plot's lawn or
           // meadow or nothing instead of the biome's rows (the LAWN row is planted below, on its own)
           if (G.kind[gk] === 1 || G.kind[gk] === 3) continue;

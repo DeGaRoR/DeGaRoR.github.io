@@ -31,7 +31,7 @@
 const PG = (typeof window !== 'undefined' && window.PREMISES_GEN) || (typeof require === 'function' && require('../src/core/27_premises.js'));
 
 const CHUNK = 64;
-const LAYER_COL = { terrain: 0xffa040, surface: 0x4fa7ff, material: 0xd28cff, exclude: 0xff5a5a, zones: 0x6fd08c, roads: 0xe0d090, runways: 0xffffff, objects: 0x9fe0ff };
+const LAYER_COL = { terrain: 0xffa040, surface: 0x4fa7ff, material: 0xd28cff, exclude: 0xff5a5a, zones: 0x6fd08c, roads: 0xe0d090, runways: 0xffffff, objects: 0x9fe0ff, ttype: 0xb6e05a };   // ttype: the cover polygons (G1385: their vegetation)
 const ZONE_COL = { residential: 0x6fd08c, commercial: 0x5db3ff, industrial: 0xe0a060, harbour: 0x4fc7d0, park: 0xa0e070, airfield: 0xffffff, forest: 0x2f8f4f, clear: 0xd0c090 };
 const LIFT = 0.18;
 const TREE_BANDS = [0, 60, 132];
@@ -974,7 +974,7 @@ function make(THREE, scene, world, rec0, opts) {
   function buildOutlines() {
     for (const [, L] of LINES) { G.outlines.remove(L.line); L.line.geometry.dispose(); L.line.material.dispose(); }
     LINES.clear();
-    for (const layer of ['terrain', 'surface', 'material', 'exclude', 'zones', 'roads']) for (const e of rec.layers[layer] || []) {
+    for (const layer of ['terrain', 'surface', 'material', 'exclude', 'zones', 'roads', 'ttype']) for (const e of rec.layers[layer] || []) {
       const col = layer === 'zones' ? (ZONE_COL[e.kind] || LAYER_COL.zones) : (LAYER_COL[layer] || 0xffffff);
       const line = lineFor(layer, e, col, e.id === selectedId);
       if (!line) continue;
@@ -990,6 +990,12 @@ function make(THREE, scene, world, rec0, opts) {
       const box = loop(PG.runwayBox(rSel, 0), 0xffffff, 0.9, 0.06, 'box'), sh = loop(PG.runwayBox(rSel, PG.runwayShoulder(rSel)), 0xffb03a, 0.8, 0.04, 'shoulder');
       G.outlines.add(box); LINES.set(rSel.id + ':box', { line: box, layer: 'runways', entry: rSel });
       G.outlines.add(sh); LINES.set(rSel.id + ':shoulder', { line: sh, layer: 'runways', entry: rSel });
+      // THE TREES' CLEARANCE (G1385): the strip's own (`clear`) bright, today's generic box faint - what keeps the trees off
+      const own = PG.runwayClearOf ? PG.runwayClearOf(rSel) : null;
+      if (!(PG.runwayIsWater && PG.runwayIsWater(rSel)) && PG.runwayClearPoly && (own || rSel.treeBox !== false)) {
+        const cl = loop(PG.runwayClearPoly(rSel, own || PG.RWY_CLEAR_DEF), 0x7fe06a, own ? 0.9 : 0.35, 0.05, 'clear');
+        G.outlines.add(cl); LINES.set(rSel.id + ':clear', { line: cl, layer: 'runways', entry: rSel });
+      }
     }
     // the site items' feet (cyan) and the links (a line from hook to hook)
     for (const it of O.records.items) {

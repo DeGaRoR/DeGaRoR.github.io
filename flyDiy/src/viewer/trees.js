@@ -78,6 +78,9 @@
     for (let c = 0; c < 256; c++) { if (!seen[c]) continue;
       const m = B.mixAt(c), M = m && B.mixOf(m); if (M && M.species) for (const sp of Object.keys(M.species)) names.add(sp); }
     for (const c of PACK.collections) if (c.kind === 'rock' || c.kind === 'debris' || c.kind === 'cliff') names.add(c.name);
+    // G1385: the cover polygons' own vegetation - a biome by name, or the polygon's own mix
+    const PO = world.premises && world.premises.overlay;
+    if (PO && PO.vegPolys) for (const v of PO.vegPolys) { const M = v.mix && (B.mixOf(v.mix) || (PO.vegMixes && PO.vegMixes[v.mix])); if (M && M.species) for (const sp of Object.keys(M.species)) names.add(sp); }
     const L = world.premises && world.premises.rec && world.premises.rec.layers;
     if (L) {
       const treeCols = PACK.collections.filter(c => c.kind === 'tree' || c.kind === 'shrub').map(c => c.name);
@@ -337,6 +340,14 @@
   // albedo intact it is the look that was wanted all along, which is the whole lesson of G548.
   // TREE_LEAF.tint({ light }) moves it live; TREE_LEAF.master() only READS it.
   const MASTER = { hue: 0.045, sat: 1.2, light: 0.42 };
+  // THE GRASS AND THE BUSHES HAVE A MASTER EACH (G1385 EDITOR-VEG, the user: "We are missing coloration options for
+  // the grass and bushes in the world editor"). A kind's master rides ON TOP of what that kind rode before - a SHRUB
+  // on MASTER (the trees'), a COVER on the bench's committed COVER_BASE (sat 1.58, light 1.12, G551: the cover ring
+  // set it after the hook; retint owns it now, so a later master or species move no longer drops the grass back
+  // onto the conifers' 0.42) with MASTER's hue - hue added, saturation and lightness multiplied. Identity by
+  // default: nothing moves until the world rail moves it (TREE_LEAF.kindTint; the world look's `kindTint`).
+  const COVER_BASE = { sat: 1.58, light: 1.12 };
+  const KIND_MASTER = { cover: { hue: 0, sat: 1, light: 1 }, shrub: { hue: 0, sat: 1, light: 1 } };
   const TINT_GLSL = [
     // THE DIAL'S SIGN IS THE MEASUREMENT'S (2026-09-20): the YIQ rotation below turns the
     // OPPOSITE way to the HSL hue the colour pass measures, so every fitted hue (ref - mine)
@@ -517,8 +528,9 @@
   ].join('\n');
   const HOOKED = [];
   // `tint` is the collection's row; `cut` the part's own cutoff (foliage only)
-  function hookLeaf(mat, isLeaf, tint, cut) {
+  function hookLeaf(mat, isLeaf, tint, cut, kind) {
     mat.userData.uLeaf = { value: isLeaf ? 1 : 0 };
+    mat.userData.kind = kind || 'tree';   // G1385: whose master (KIND_MASTER) it rides
     mat.userData.tint = tint || {};
     mat.userData.uHue = { value: 0 }; mat.userData.uSat = { value: 1 }; mat.userData.uLight = { value: 1 };
     mat.userData.uCut = { value: isLeaf ? (cut || 0.5) : 0 };
@@ -564,11 +576,16 @@
     return mat;
   }
   function retint(mat) {
-    const t = mat.userData.tint, leaf = mat.userData.uLeaf.value > 0.5;
-    mat.userData.uHue.value = leaf ? (t.hue || 0) + MASTER.hue : 0;
-    mat.userData.uSat.value = leaf ? (t.sat === undefined ? 1 : t.sat) * MASTER.sat : 1;
+    const t = mat.userData.tint, leaf = mat.userData.uLeaf.value > 0.5, kind = mat.userData.kind, K = KIND_MASTER[kind];
+    mat.userData.uHue.value = leaf ? (t.hue || 0) + MASTER.hue + (K ? K.hue : 0) : 0;
+    if (kind === 'cover') {   // the cover ring's rule (G551), every part: the species' sat and light on the bench's master
+      mat.userData.uSat.value = (t.sat === undefined ? 1 : t.sat) * COVER_BASE.sat * K.sat;
+      mat.userData.uLight.value = (t.light === undefined ? 1 : t.light) * COVER_BASE.light * K.light;
+      return;
+    }
+    mat.userData.uSat.value = leaf ? (t.sat === undefined ? 1 : t.sat) * MASTER.sat * (K ? K.sat : 1) : 1;
     mat.userData.uLight.value = (leaf ? (t.light === undefined ? 1 : t.light)
-                                      : (t.bark === undefined ? 1 : t.bark)) * MASTER.light;
+                                      : (t.bark === undefined ? 1 : t.bark)) * MASTER.light * (K ? K.light : 1);
   }
   // the sway's uniform, for the climate's link to fill (K4)
   if (typeof window !== 'undefined') window.TREE_WIND = U_WIND;
@@ -609,6 +626,13 @@
     master: () => Object.assign({}, MASTER),
     tint: o => { for (const k of ['hue', 'sat', 'light']) if (o[k] !== undefined) MASTER[k] = +o[k];
       for (const m of HOOKED) retint(m); return Object.assign({}, MASTER); },
+    // G1385: the grass's ('cover') and the bushes' ('shrub') own master over their kind - TREE_LEAF.kindTint('cover', { sat: 0.8 })
+    kinds: () => Object.keys(KIND_MASTER),
+    kindMaster: kind => (KIND_MASTER[kind] ? Object.assign({}, KIND_MASTER[kind]) : null),
+    kindTint: (kind, o) => { const K = KIND_MASTER[kind]; if (!K) return null;
+      for (const k of ['hue', 'sat', 'light']) if (o && o[k] !== undefined && isFinite(+o[k])) K[k] = +o[k];
+      for (const m of HOOKED) if (m.userData.kind === kind) retint(m); return Object.assign({}, K); },
+    retint: mat => { if (mat && mat.userData && mat.userData.uLeaf) retint(mat); },
     sharp: v => { if (v !== undefined) U_SHARP.value = +v; return U_SHARP.value; },
   };
 
@@ -662,7 +686,7 @@
         transparent: false, roughness: 1, metalness: 0,
       };
       let mat = MATLIB.shared(THREE, cutout ? 'cut' : 'std', params, scope);
-      if (!mat.userData.uLeaf) { hookLeaf(mat, !!cutout, T, cut); mat.name = d.mat; }
+      if (!mat.userData.uLeaf) { hookLeaf(mat, !!cutout, T, cut, found.col.kind || 'tree'); mat.name = d.mat; }
       parts.push({ geo: g, mat: mat, cutout: !!cutout });
     }
     built = { parts: parts, bb: found.sub.bb, h: found.sub.h,
