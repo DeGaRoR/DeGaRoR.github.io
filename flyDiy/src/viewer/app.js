@@ -3199,6 +3199,8 @@
   // A child of a conjugated part (the wheel inside the castor) composes
   // exactly, K·A·K⁻¹ · K·B·K⁻¹ = K·A·B·K⁻¹. With no map (identity) the
   // object keeps three.js's own update.
+  // G1383: how far a taildragger's drawn tail gear sits under its node (m, world-down; drawing only - see poseModel)
+  const TW_DRAW_DROP = 0.02;
   const mR = new THREE.Matrix4();
   function poseRigid(o) {
     if (!model || !model.K4 || !o || !o.matrix || !o.matrix.multiplyMatrices || !o.quaternion) return;
@@ -3467,9 +3469,16 @@
     // construction: the leg compresses in the sim, the wheel follows.
     // Spin is rolling contact from the node's own motion along body-x
     // (which points AFT, hence the sign).
+    // G1383 (GEAR-WATER, the user: "what about just an offset then? It does not look like it's on the ground. 2 cm
+    // down would be good"): a TAILDRAGGER'S drawn tail gear rides its node TW_DRAW_DROP lower in the world (its
+    // castor, the tailwheel inside it, the spring and the steering links - everything that reads the node here).
+    // Drawing only: the solver's contact is untouched. Why it floats at all is G1380 (the open ground is drawn on
+    // a 5 m lattice; terrainH is finer), not the wheel.
+    const twDrop = (TW_DRAW_DROP && def && def.refs && def.refs.tw != null && def.refs.tw >= 0 &&
+                    def.spec && def.spec.gear && def.spec.gear.type === 'taildragger') ? def.refs.tw : -1;
     const nodeLocal = idx => {
       const i3 = idx * 3;
-      const dx = sim.p[i3] - cg[0], dy = sim.p[i3 + 1] - cg[1],
+      const dx = sim.p[i3] - cg[0], dy = sim.p[i3 + 1] - (idx === twDrop ? TW_DRAW_DROP : 0) - cg[1],
             dz = sim.p[i3 + 2] - cg[2];
       return [dx * xA[0] + dy * xA[1] + dz * xA[2] - O[0],
               dx * yU[0] + dy * yU[1] + dz * yU[2] - O[1],

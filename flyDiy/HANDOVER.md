@@ -68311,7 +68311,7 @@ cockpit 53.8 -> 55.9 fps. ONE RED CLEARED: the metal's worst boot task 716 -> 10
 garage boot; its cockpit runs through the same boot showed none); two re-runs 655 / 664 ms - not repeated, the metal baseline is
 taken from them. Battery GREEN, FRAMECOST PASS (baseline re-taken).
 
-## G1380-G1382 - GEAR-WATER: THE TAILWHEEL'S "3-5 cm" IS THE DRAWN GROUND'S 5 m LATTICE, NOT THE WHEEL; A WHEELED AEROPLANE MEETS THE WATER (2026-10-03, GEAR-WATER for A0, cloud, node only; block G1380-G1384, G1383-G1384 unused)
+## G1380-G1383 - GEAR-WATER: THE TAILWHEEL'S "3-5 cm" IS THE DRAWN GROUND'S 5 m LATTICE, NOT THE WHEEL; A WHEELED AEROPLANE MEETS THE WATER (2026-10-03, GEAR-WATER for A0, cloud, node only; block G1380-G1384, G1384 unused)
 
 The user (3 Oct): "the cub still has about 3-5 cm below its tail wheel not touching the ground. I think it's an issue of
 the physical model either not being well centered on the wheel or not having the correct diameter"; "the cub attempted a
@@ -68379,4 +68379,18 @@ G1382 THE NET. GATE HYDRODYN, new section:
 GATES (node tools/run_gates.js --only=FLOATS,SEAPLANE,GEAR,STAND,CONTACT,GROUNDLIB,BUILD,HYDRODYN,HYDRO,WATER, on
 origin/master 5502f45): all PASS, BATTERY: PASS, exit 0 (wall 240 s, jobs 4). The full battery is A0's (per A0). GATE
 FLOATS' whole output is byte-identical to master's (diff of the two logs: 0 lines).
-OWED (A0's call): G1380's ground fix, (a) or (b) above; the Jodel's 10 mm tail-axle residual.
+OWED (A0's call): G1380's ground fix, (a) or (b) above - then TW_DRAW_DROP back to 0.
+
+G1383 THE USER'S CALL: THE DRAWN TAIL GEAR 2 cm DOWN (app.js TW_DRAW_DROP, poseModel's nodeLocal; tools/ground_gap.js
+mirrors it; GATE CONTACT --drawn expects it).
+- The user, on G1380: "what about just an offset then? It does not look like it's on the ground. 2 cm down would be good".
+- A TAILDRAGGER's tail node is read 0.02 m lower, world-down, by every drawn rig that rides it: the castor, the
+  tailwheel inside it, the spring, the steering links. One move, so nothing separates. Drawing only: the solver's
+  contact, the contact shadow and every physics number are untouched. A tricycle's nosewheel and the mains are not
+  moved (G661: a drawn tyre sunk into the runway was "not acceptable").
+- ground_gap, at rest on flat ground, drawn tail tyre bottom: Cub -0.3 -> -19.9 mm; Jodel +8.4 -> -11.1 (its 10 mm axle
+  residual eats half); stock -5.1 -> -24.7. On the 5 m drawn lattice (G1380) the 2 cm now reads as contact where the
+  ground is drawn under the true surface (the floating half: p50 of the gap 10 mm, p95 57-64 mm) and as 2 cm into a
+  pavement, where the drawn surface is terrainH within 4 mm.
+- GATES after G1383 (--only=CONTACT,GEAR,STAND,BUILD,UISMOKE): all PASS, BATTERY: PASS, exit 0 (wall 180 s); and
+  node tools/_contact_check.js --drawn: PASS (stock tail -24.7 mm against the 20 mm expected, 8 mm tolerance).
