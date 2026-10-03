@@ -68982,3 +68982,22 @@ TRAPS: an 8-bit render target tagged SRGBColorSpace is SRGB8_ALPHA8 in three r18
 into it is encoded twice (the "XR target" display rule's case). A still after a DAY_CLOCK jump needs ~5 s now (the light's
 ease, the probe's fade, the eye). The luma rig must read the canvas in the same task as the frame (the drawing buffer is
 gone after presentation) and skip callbacks that drew nothing (the 30 cap).
+**EVIDENCE** (`reports/evidence/G1320/`, A0's ask; before = origin/master 5502f45 served as-is, after = this branch built;
+headless Chromium + SwiftShader at 1440x900, the stock Cub (`tools/perf/garage_lag_cub_wip.json`) in the garage, the
+editor's column cropped). The garage's 3D view drew the sky only under headless SwiftShader (the renderer reported one
+draw call, two triangles, with `?gfx=potato` too), so NO render of the rudder could be taken: the livery image is the
+resolver's answer (`aeroSecResolve`, the path the live material and the flown bake both take), not a picture of the
+aeroplane. A GPU render (the Cub with a new base colour, the rudder in view) is what a software run could not show.
+- `before_fuselage_cabin_frame.jpg` — master, Fuselage selected: the frames are all Fuselage groups; in the cabin frame the
+  six follow rows' sliders are ~36 px beside the plain rows' 80 px (the full 30 px toggle took the track). No decision.
+- `after_cabin_frame.jpg` — this branch, Cabin selected: the cabin frame is the Cabin's own group; the toggles are compact in
+  the label column and every slider is the same 80 px. DECISION for A0/the user: long labels now ellipsize one notch
+  earlier ("waist half-wi…", "bottom half-…"; the full label stays in the tooltip) — the price of the toggle's place.
+- `before_windscreen.jpg` — master, windscreen selected: no frame rows (shape and bubble canopy only). No decision.
+- `after_windscreen_frame.jpg` — this branch, windscreen selected: the windscreen frame's nine rows head the part
+  (G1321.1, the user's call). No decision (already ruled).
+- `livery_resolver_before_after.jpg` — the base colour picked blue on the stock Cub, Jodel and Cessna: per section, before
+  the pick / after on master / after on this branch. Cub: the rudder stays yellow on master, follows on this branch.
+  DECISION for A0/the user: on the stock JODEL the fix also moves the wing, its tips, ailerons, flaps (and the second
+  wing's, when fitted) and the rudder to the new colour — they carried the body's cream as explicit tints, so G468's
+  "equal = following" rule reads them as following. The Cessna's painted parts carry their own colours: unchanged.
