@@ -69001,3 +69001,26 @@ aeroplane. A GPU render (the Cub with a new base colour, the rudder in view) is 
   DECISION for A0/the user: on the stock JODEL the fix also moves the wing, its tips, ailerons, flaps (and the second
   wing's, when fitted) and the rudder to the new colour — they carried the body's cream as explicit tints, so G468's
   "equal = following" rule reads them as following. The Cessna's painted parts carry their own colours: unchanged.
+
+**G1374.1 EVIDENCE** (`reports/evidence/G1370/`, headless Chromium + SwiftShader, before = master 5502f45 built, after =
+this branch built; the rig in `rig/` - `record.js` dumps HOME's pattern for `component.html`, `compshot.js` / `shoot.js`
+take the frames). WHAT A SOFTWARE RENDER COULD NOT SHOW: the full page's world does not draw under SwiftShader here (the
+stand's canvas is flat sky after a 450 s boot; the HUD and the verbs do draw), so there is no in-game lake reflection and
+no in-game photo-mode frame. The ribbons are shown in a COMPONENT render instead: the real three r186, each tree's own
+pattern_vis.js (+ ui_layer.js after), HOME's real declared pattern (taxi graph, slopes, targets, PAPI) and a synthetic
+300 m circuit fed through setLegs, seen by the eye, by the eye with shotSet's switch, and by a mirror camera built as
+water.js builds it. And the roll-out shot is REFUSED in a fresh headless boot (`FLYDIY_TRIPS`: anim 'cannot',
+`FLYDIY_ROLLPLAN()` null - rollAnimCan false, no error logged; the same on master), so no frame mid-shot exists: the verbs'
+CSS half is shown by setting `body.rollShot` by hand on the real page at the stand; WHEN the class is set (before
+ROLLANIM.play, cleared in flRevealStart) is GATE UILAYER U5's.
+- `ribbons_before.jpg` - master: the eye, photo mode and the mirror camera each draw all 36 pattern objects (the legs and
+  the slopes in the mirror's upside-down frame, the ribbons in photo mode). The user's report, reproduced. No decision.
+- `ribbons_after.jpg` - this branch, same cameras: the eye 36 of 36; photo mode and the mirror 8 of 36 (the PAPI's boxes
+  only). **Decision for A0 / the user: the PAPI stays in the mirror and the photo (treated as an airfield fixture, not UI)
+  - say if it should go too** (one line: add 'papi' to pattern_vis.js UI_KEYS).
+- `verbs_before.jpg` - master at the stand with `body.rollShot` set by hand: the verbs stay (no rule) - what master shows
+  through the roll-out shot. No decision.
+- `verbs_after.jpg` - this branch, the same: #flActs display:none - no Skip to line-up / Fly the circuit / The shed.
+  No decision.
+- `verbs_after_reveal.jpg` - this branch at the stand after the reveal (the class cleared by flRevealStart): the verbs are
+  back. No decision.

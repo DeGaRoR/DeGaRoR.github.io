@@ -1,0 +1,67 @@
+<!doctype html><html><head><meta charset="utf-8"><title>ui layer component render</title>
+<style>body{margin:0;background:#111;font:600 15px/1.2 monospace;color:#fff}#w{position:relative;width:1920px;height:760px}
+.l{position:absolute;padding:3px 6px;background:rgba(0,0,0,.65);font-size:13px;max-width:620px}canvas{display:block;position:absolute;top:40px;left:0}
+#t{position:absolute;left:0;top:0;width:1920px;height:40px;line-height:40px;padding-left:10px;background:#222;font-size:17px}</style></head>
+<body><div id="w"><div id="t"></div></div>
+<script src="../vendor/three.min.js"></script>
+<script src="../src/viewer/ui_layer.js"></script>
+<script src="../src/viewer/pattern_vis.js"></script>
+<script src="data.js"></script>
+<script>
+const TAG = location.search.slice(1) || '?';
+const R = window.REC, home = R.home, HAS_UI = typeof UI_LAYER !== 'undefined';
+document.getElementById('t').textContent = decodeURIComponent(TAG) + ' - real three r186 + this tree\'s pattern_vis.js' + (HAS_UI ? ' + ui_layer.js' : ' (no ui_layer.js)') + ', HOME\'s declared pattern; SwiftShader';
+const gy = (x, z) => { const k = x.toFixed(2) + ',' + z.toFixed(2); return k in R.H ? R.H[k] : 0; };
+const pp = (P, ids, step) => R.samples[JSON.stringify([ids, step])];
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0x9fc3dc);
+scene.add(new THREE.HemisphereLight(0xffffff, 0x445533, 1.6));
+const sun = new THREE.DirectionalLight(0xffffff, 2); sun.position.set(300, 800, 200); scene.add(sun);
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(20000, 20000), new THREE.MeshLambertMaterial({ color: 0x5f7a4a }));
+ground.rotation.x = -Math.PI / 2; ground.position.y = -0.05; scene.add(ground);
+const rwy = new THREE.Mesh(new THREE.PlaneGeometry(home.len || 600, home.wid || 20), new THREE.MeshLambertMaterial({ color: 0x8a8a80 }));
+rwy.rotation.x = -Math.PI / 2; rwy.rotation.z = -(home.hdg || 0); rwy.position.set(home.x || 0, -0.02, home.z || 0); scene.add(rwy);
+const pv = PATTERN_VIS.buildPatternVis(THREE, R.pat, gy, { patternPath: pp, aero: home });
+pv.setLayers({ graph: true, slope: true, targets: true });
+const cx = home.x || 0, cz = home.z || 0;
+pv.setLegs([
+  { name: 'UPWIND', A: [cx + 600, cz], B: [cx - 1500, cz], h: 300 },
+  { name: 'CROSSWIND', A: [cx - 1500, cz], B: [cx - 1500, cz + 900], h: 300 },
+  { name: 'DOWNWIND', A: [cx - 1500, cz + 900], B: [cx + 1500, cz + 900], h: 300 },
+  { name: 'BASE', A: [cx + 1500, cz + 900], B: [cx + 1500, cz], h: 300 },
+  { name: 'FINAL', A: [cx + 1500, cz], B: [cx + 300, cz], h: 300 }], 0);
+pv.setActive(0, 0.0524);
+scene.add(pv.group);
+// the frames: near (the stand, the taxi graph, the targets, the PAPI) and far (the circuit's legs and the slopes)
+const box = new THREE.Box3().setFromObject(pv.layers.graph), c = box.getCenter(new THREE.Vector3()), sz = box.getSize(new THREE.Vector3());
+const S = Math.max(sz.x, sz.z, 60);
+const frames = [
+  { name: 'near: taxi ribbons, targets, PAPI', pos: [c.x + 0.25 * S, 0.33 * S, c.z + 0.55 * S], at: [c.x, 0, c.z] },
+  { name: 'far: the circuit legs, the glide slopes', pos: [cx + 300, 650, cz - 2600], at: [cx, 150, cz + 450] }];
+const W = 640, Hh = 360;
+const r = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true }); r.setSize(1920, 720); r.setScissorTest(true);
+document.getElementById('w').appendChild(r.domElement);
+const label = (x, y, s) => { const d = document.createElement('div'); d.className = 'l'; d.style.left = x + 'px'; d.style.top = (y + 40) + 'px'; d.textContent = s; document.getElementById('w').appendChild(d); };
+// the mirror camera exactly as water.js builds it: a fresh PerspectiveCamera, the eye reflected in y about the water plane
+function mirrorOf(cam, wy) {
+  const mc = new THREE.PerspectiveCamera(cam.fov, cam.aspect, cam.near, cam.far);
+  if (HAS_UI) UI_LAYER.blind(mc);
+  const fwd = new THREE.Vector3(), up = new THREE.Vector3(0, 1, 0).applyQuaternion(cam.quaternion); cam.getWorldDirection(fwd);
+  mc.position.set(cam.position.x, 2 * wy - cam.position.y, cam.position.z); fwd.y = -fwd.y; up.y = -up.y;
+  mc.up.copy(up); mc.lookAt(mc.position.clone().add(fwd)); mc.updateMatrixWorld(true); return mc;
+}
+let TOTAL = 0; pv.group.traverse(o => { if (o.isMesh || o.isLine) TOTAL++; });
+frames.forEach((f, row) => {
+  const eye = new THREE.PerspectiveCamera(46, W / Hh, 0.5, 20000); eye.position.set(...f.pos); eye.lookAt(...f.at); eye.updateMatrixWorld(true);
+  if (HAS_UI) UI_LAYER.see(eye);
+  const shot = eye.clone(); if (HAS_UI) UI_LAYER.see(shot, false);   // photo mode: shotSet's switch (master's shotSet never touched the layers)
+  const mir = mirrorOf(eye, 0);
+  const cams = [[eye, 'the eye'], [shot, 'photo mode (shotSet)'], [mir, 'water mirror camera (upside down)']];
+  cams.forEach(([cam, nm], col) => {
+    const y = (1 - row) * Hh;   // three's viewport origin is bottom-left
+    r.setViewport(col * W, y, W, Hh); r.setScissor(col * W, y, W, Hh); r.render(scene, cam);
+    let n = 0; pv.group.traverse(o => { if ((o.isMesh || o.isLine) && o.layers.test(cam.layers) && (!o.parent || o.parent.visible)) n++; });
+    label(col * W + 6, row * Hh + 6, nm + ': draws ' + n + ' of ' + TOTAL + ' pattern objects' + (col === 0 ? '  [' + f.name + ']' : ''));
+  });
+});
+window.DONE = true;
+</script></body></html>
