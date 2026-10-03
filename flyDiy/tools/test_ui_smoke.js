@@ -357,6 +357,10 @@ try {
     mountLog(b, H) { H.row(b, 'flight log'); H.note(b, ''); H.pills(b, [{ label: 'save log' }, { label: 'previous session' }], () => false, () => {}); } };
   vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'src', 'viewer', 'gfx_settings.js'), 'utf8'),
                   sandbox, { filename: 'gfx_settings.js' });
+  // THE SOUND (G1600): audio_params.js and audio.js ride the RENDER block too - run from their own source, so the rail's
+  // SOUND item mounts the real menu and the loop's AUDIO.update runs (no gesture, no AudioContext here: it returns at once)
+  for (const f of ['audio/audio_params.js', 'audio/audio.js'])
+    vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'src', 'viewer', f), 'utf8'), sandbox, { filename: f });
   vm.runInContext(bootBlock, sandbox, { filename: 'boot.js' });      // the loading screen's brain
   vm.runInContext(worldBootBlock, sandbox, { filename: 'world_boot.js' });   // G999: FLYDIY_WORLD_COMPOSE (app.js runs it)
   vm.runInContext(appBlock, sandbox, { filename: 'app.js' });        // UI (runs setAircraft)
@@ -708,7 +712,7 @@ try {
     if (!G || !G.GROUPS) throw new Error('the graphics menu did not run, or has no GROUPS');
     const items = R.items();
     const main = items.filter(i => !i.dev);
-    if (items.map(i => i.k).join() !== 'fly,view,sky,graphics,dev') throw new Error('the rail is ' + items.map(i => i.k).join() + ', not FLY / VIEW / SKY & WORLD / GRAPHICS / DEV');
+    if (items.map(i => i.k).join() !== 'fly,view,sky,graphics,audio,dev') throw new Error('the rail is ' + items.map(i => i.k).join() + ', not FLY / VIEW / SKY & WORLD / GRAPHICS / SOUND / DEV');   // (SOUND: G1600)
     if (main.length < 4 || main.length > 6) throw new Error(main.length + ' main rail items (the user: "not much more than 4-6")');
     if (R.dev() !== false) throw new Error('DEV is on the rail by default (it is behind its toggle)');
     // every old item (the fourteen of FL_RAIL before G760, the WORLD flyout) and every new section has a home
@@ -723,6 +727,7 @@ try {
       view: ['field of view', 'level horizon', 'lead the turn', 'free', 'small', 'show', 'large', 'north up', 'the three', 'frame rate', 'fps meter', 'screenshot'],
       sky: ['outside air', 'density altitude', 'wind', 'gusts', 'time of day', 'world'],
       graphics: ['preset'].concat(G.OPTIONS.map(o => o.label)),
+      audio: ['sound', 'master', 'aircraft', 'environment', 'music', 'interface', 'mute when unfocused', 'headset', 'music in flight'],   // G1600 (audio.js)
       dev: ['physics', 'enter the test mode', 'the WORLD rail', 'flight log', 'save log', 'previous session', 'the F8 panel'],
     };
     // the covering's pills show while #bSkin does (applySkinVis hides it with no model on the stand - this stub's case)

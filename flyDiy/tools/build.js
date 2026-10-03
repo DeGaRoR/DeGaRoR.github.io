@@ -263,6 +263,12 @@ const MANIFEST = {
   lazy: [['tools', '_sport_gen.js'], ['tools', '_marine_gen.js'], ['src/viewer', 'premises_host.js'], ['src/viewer', 'premises_ui.js'],
          ['src/viewer', 'world_rail.js'], ['vendor/ktx2', 'ktx2_loader.js'],
          ['src/viewer', 'townkit.js'], ['src/viewer', 'kit_lot.js']].filter(([d, f]) => fs.existsSync(path.join(ROOT, d, f))),
+  // THE SOUND'S MODULES (G1600, SOUND-2026-10-04 §2.1): src/viewer/audio/'s AudioWorklet modules. The audio thread loads
+  // a module BY URL (ctx.audioWorklet.addModule), so they are never inlined and never a <script> tag: each is served as
+  // its own file and the build publishes the content-versioned URLs as window.FLYDIY_AUDIO_SRC (stem -> url, in both
+  // pages, with the core's sha); AUDIO.module(stem) adds one. SND-ENGINE adds 'engine_worklet.js' here, nothing else.
+  // (The audio SCRIPTS - audio_params.js, audio.js - ride MANIFEST.viewer.scripts, before app.js.)
+  audio: { modules: [].filter(f => fs.existsSync(path.join(ROOT, 'src', 'viewer', 'audio', f))) },
   viewer: {
     shell: 'shell.html',
     // TWO STYLESHEETS, IN ORDER (G77). style.css is the GAME's — the flight
@@ -444,6 +450,8 @@ const MANIFEST = {
               // B10 (G1035): the roll-out shot - publishes window.ROLLANIM at eval; app.js's frame loop calls
               // its two hooks and the optional call site (?rollanim=) plays it
               'rollanim.js',
+              // THE SOUND (G1600): the parameter block, then window.AUDIO (MANIFEST.audio below holds its served modules)
+              'audio/audio_params.js', 'audio/audio.js',
               // G999: the world's composition, run by the promote in a task of its own ahead of app.js's evaluation
               'world_boot.js', 'app.js',
               'dev_panel.js'],   // (the WORLD rail, world_rail.js, rides the world pack above - G582)
@@ -906,7 +914,9 @@ window.FLYDIY_BOOT.then(function () {
   // them (the server's copy, fetched with no-store) and into sw.js - the version
   // line in the GRAPHICS menu compares the first two
   const BUILD_ID = sha(coreBody + scripts.join('\n') + editor.join('\n')).slice(0, 12);
-  const CORE_SHA = `<script>window.FLYDIY_CORE_SHA='${sha(coreBody).slice(0, 12)}';window.FLYDIY_BUILD='${BUILD_ID}'</script>`;
+  const AUDIO_SRC = {};   // G1600: the served audio modules, stem -> content-versioned url (MANIFEST.audio)
+  for (const f of MANIFEST.audio.modules) AUDIO_SRC[f.replace(/\.js$/, '')] = 'src/viewer/audio/' + f + ver(path.join(VIEW_DIR, 'audio', f));
+  const CORE_SHA = `<script>window.FLYDIY_CORE_SHA='${sha(coreBody).slice(0, 12)}';window.FLYDIY_BUILD='${BUILD_ID}';window.FLYDIY_AUDIO_SRC=${JSON.stringify(AUDIO_SRC)}</script>`;
   fs.writeFileSync(path.join(ROOT, 'version.json'), JSON.stringify({ build: BUILD_ID, date: new Date().toISOString() }) + '\n');
   // THE MEDIA CACHE'S WORKER (LOADING S4): media/ only, cache-first - every file
   // there is named by its content hash, so a hit can never be stale; scripts,
