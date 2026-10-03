@@ -93,6 +93,10 @@ const GATES = [
   { id: 'PILOT', file: 'test_pilot.js', tier: 'core', shards: 3, wall: 1200 },
   // THE NAV (G202.1): the navigator and the units, pure and fast
   { id: 'NAV', file: 'test_nav.js', tier: 'core' },
+  // G1375 STRIP-SURFACE: every aerodrome of both worlds says its surface, the gear rule (wheels / floats / amphibian /
+  // skis) holds for the stock Cub, the float Cessna and an amphibian, and the three pilots never plan a landing on the
+  // wrong surface (~10 s; --selftest)
+  { id: 'STRIPSURF', file: '_surface_check.js', tier: 'core', wall: 15 },
   // G193: the user's ultralight off the stand through the declared pattern —
   // the stop, the straight roll, in calm air and in wind (~3 min)
   { id: 'TAKEOFF', file: '_takeoff_check.js', tier: 'core', wall: 300 },

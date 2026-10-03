@@ -190,15 +190,19 @@ function makeAutopilot(sim, def, world) {
     restAlt: null, refAlt: null, altRef: 0, tdInfo: null, dbg: {},
     route: null, xc: false, frame: null, gaN: 0, gaWhy: null,
   };
-  ap.setRoute = (from, to) => {
+  // G1375 STRIP-SURFACE: no destination on a surface this gear may not use (25_airfield.js stripLandable)
+  const gearK = typeof stripGear === 'function' ? stripGear(def && def.spec && def.spec.gear ? def : sim) : 'wheels';
+  const landable = (from, to) => (typeof stripLandable === 'function') ? stripLandable(gearK, world && world.aerodromes, from, to).to : to;
+  const setRoute0 = (from, to) => {
     ap.route = { from, to };
     ap.xc = from !== to;
     ap.frame = mkFrame(from);               // departure frame
     ap.altRef = from.elev;
     ap.shortFld = false;                    // set per-arrival in enterArrival
   };
-  ap.setRoute(world ? world.aerodromes[0] : HOMEISH,
-              world ? world.aerodromes[0] : HOMEISH);
+  ap.setRoute = (from, to) => setRoute0(from, landable(from, to));
+  setRoute0(world ? world.aerodromes[0] : HOMEISH,
+            world ? world.aerodromes[0] : HOMEISH);
   // W14 multi-hop: depart from wherever the aircraft is standing on
   // `from` — no reset, no teleport. The plan runs on the first update
   // (it needs the live pose): takeoff INTO the wind when there is any,
@@ -235,6 +239,7 @@ function makeAutopilot(sim, def, world) {
     ap.taxiPath = null;
     ap.taxiOut = Array.isArray(siteOrTaxiOut) && siteOrTaxiOut.length ? siteOrTaxiOut
                : (site && site.taxiOut) || null;
+    to = landable(from, to);
     ap.route = { from, to };
     ap.xc = from !== to;
     ap.altRef = from.elev;
@@ -242,7 +247,6 @@ function makeAutopilot(sim, def, world) {
     ap.trackHold = false;
     ap.taxiTgt = null;
     ap.taxiPath = null;
-    ap.taxiOut = (taxiOut && taxiOut.length) ? taxiOut : null;
     ap.phase = 'DEPART'; phaseT = 0;
   };
   // arrival switch: destination landing frame + arrival altitude refs

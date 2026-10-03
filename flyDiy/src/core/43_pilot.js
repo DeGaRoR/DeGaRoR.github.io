@@ -318,7 +318,17 @@ function makePilot(sim, def, world, opts) {
     const d = (from && to && from !== to) ? Math.hypot(to.x - from.x, to.z - from.z) : 0;
     return 600 + 1.6 * d / Math.max(15, ap.VCruise || A.VCruise || 30);
   };
-  ap.setRoute = (from, to) => {
+  // G1375 STRIP-SURFACE: the gear this pilot lands on (25_airfield.js stripGear: the build's spec, else the sim's
+  // floats) - no destination is planned on a surface it may not use (stripLandable: the circuit, else the fallback)
+  const gearK = typeof stripGear === 'function' ? stripGear(def && def.spec && def.spec.gear ? def : sim) : 'wheels';
+  ap.gear = gearK;
+  const landable = (from, to) => {
+    if (typeof stripLandable !== 'function') return to;
+    const L = stripLandable(gearK, world && world.aerodromes, from, to);
+    if (L.why) say('wrong-surface', L.why);
+    return L.to;
+  };
+  const setRoute0 = (from, to) => {
     ap.route = { from, to };
     ap.xc = from !== to;
     ap.frame = mkFrame(from);
@@ -326,7 +336,8 @@ function makePilot(sim, def, world, opts) {
     ap.shortFld = false;
     ap.budget = Math.max(ap.budget, routeBudget(from, to));
   };
-  ap.setRoute(world ? world.aerodromes[0] : HOMEISH, world ? world.aerodromes[0] : HOMEISH);
+  ap.setRoute = (from, to) => setRoute0(from, landable(from, to));
+  setRoute0(world ? world.aerodromes[0] : HOMEISH, world ? world.aerodromes[0] : HOMEISH);
   let holdN = 0, planN = 0;
   // G771: `opts.atHold` = the pose ap.lineupPose() gave, the aeroplane placed on it (placeAtLineup): DEPART
   // takes THAT direction and goes to STOP / HOLD with no route - the state the taxi ends in - instead of
@@ -339,6 +350,7 @@ function makePilot(sim, def, world, opts) {
     ap.path = null; ap.pathI = 0; ap.stopAfterLineup = false; holdN = 0; planN = 0;
     ap.taxiOut = Array.isArray(siteOrTaxiOut) && siteOrTaxiOut.length ? siteOrTaxiOut
                : (site && site.taxiOut) || null;
+    to = landable(from, to);
     ap.route = { from, to };
     ap.xc = from !== to;
     ap.altRef = from.elev;
@@ -1869,6 +1881,7 @@ function makePilot(sim, def, world, opts) {
         const ld = (SH && SH.LDbest > 0) ? SH.LDbest : 8;
         let best = null, bestD = Infinity;
         for (const a of (world && world.aerodromes) || []) {
+          if (typeof stripAllows === 'function' && !stripAllows(gearK, a).ok) continue;   // G1375: never a forced landing on the wrong surface
           const d = Math.hypot(a.x - cg[0], a.z - cg[2]);
           if (d < bestD) { bestD = d; best = a; }
         }

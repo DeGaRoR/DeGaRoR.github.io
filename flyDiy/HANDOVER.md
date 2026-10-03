@@ -68467,3 +68467,63 @@ plain row slider 80 px; frame row before 36 px, after 80 px. The bench pages (no
 **GATES** (cloud, `run_gates.js --only=`): BUILD, UISMOKE, HANGAR, FLOWNBAKE PASS; plus LIVERYREACH (new), SKINMAT, PARTS,
 FRAMES PASS (G1321.1 re-ran PARTS, FRAMES, UISMOKE, BUILD: PASS). The generated files (index.html, dev.html, sw.js, version.json) are NOT committed — A0's train builds them.
 G1323-G1324 unused.
+
+## G1375-G1379 - STRIP-SURFACE: EVERY STRIP SAYS ITS SURFACE; WHEELS NEVER TO WATER, FLOATS NEVER TO LAND (2026-10-03, STRIP-SURFACE, cloud, no GPU; branch claude/strip-surface-g1375 off master 5502f45)
+
+The user (2026-10-03): "We need to indicate the strip surface: water, dirt, concrete, grass, etc. And disallow the
+water runways for the wheel planes, and the ground runways for the seaplanes."
+
+**G1375 THE SURFACE IS DERIVED, NOT LISTED** (`src/core/25_airfield.js`, end of file). `stripSurface(a)` reads what
+every record already carries: `kind: 'water'` / `water` (a sea lane) -> water; the premises runway's LOOK
+(27_premises RUNWAY_LOOKS: worn / concrete -> concrete, asphalt, gravel, dirt, sand, grass), which names the pavement
+finer than the friction enum (dirt rides GRAVEL's row there); else the SURFACE enum (GRASS, PAVED -> 'paved', GRAVEL,
+SAND; ROCK / SCREE -> gravel, FOREST_FLOOR -> dirt). -> `{ key, word, cls }`, cls `water | snow | grass | hard` is what
+the rule reads. `snow` is in the vocabulary (`snow: true` or `look: 'snow'` on a record) but NO WORLD CARRIES ONE and
+the friction enum has no row for it. The census (both shipped worlds): analytic HOME grass, SEA water, A0 paved,
+A1-A4 grass, A5-A7 gravel; Jolene 02/20 + 13/31 concrete (worn), Tamgas / Jumbo Mine / East Point gravel, Annette Dock
++ Metlakatla water, Skyline Altiport grass.
+
+**G1376 THE RULE** (`stripGear`, `stripAllows`, `stripFallback`, `stripLandable`, exported). `stripGear(spec | def |
+sim)` -> `wheels | floats | amphibian | skis`: the spec's gear.type (taildragger / tricycle -> wheels, floats), a def's
+`def.spec`, else `sim.hydro`. wheels: anything but water; floats: water only; amphibian: both; skis: snow and grass.
+A refusal carries its sentence (`floats land on water only`, `a water lane: wheels cannot land on it`, `skis need snow
+or grass`). THE GARAGE BUILDS NEITHER AN AMPHIBIAN NOR SKIS TODAY: the spec normaliser knows taildragger / tricycle /
+floats only, and a float build has no wheels (61_gen_frame). `gear.type: 'amphibian'` / `gear.floats.amphibian: true`
+and `gear.type: 'skis'` are read where a record says so (the floats normaliser passes `amphibian` through), so the rule
+is whole the day the garage builds one; the gate's amphibian is the float Cessna with that flag.
+
+**G1377 THE PILOTS NEVER PLAN THE WRONG SURFACE.** 43_pilot, 40_autopilot and 41_test_pilot wrap `setRoute` and
+`departFrom` in `stripLandable`: a destination the gear may not use becomes the circuit at `from` when it may, else the
+fallback (HOME, else SEA, else the first non-meadow strip it may use); makePilot and the test pilot say
+`wrong-surface` with the reason. The constructors' own HOME default is NOT guarded (`setRoute0`), so a float pilot's
+budget and report are what they were before the caller's real setRoute. 43_pilot's forced landing (GLIDE, out of fuel)
+skips aerodromes of the wrong surface when picking the nearest. ALSO FIXED: 40_autopilot's `departFrom` threw a
+ReferenceError on every call (a leftover `ap.taxiOut = (taxiOut && ...)` line, `taxiOut` undefined - the classic pilot
+could never depart from a stand); the line went, the assignment above it already did the job.
+
+**G1378 THE UI** (`src/viewer/app.js`, `sim_host.js`). Every route picker (the garage's #edRoute, the roll-out's
+#bootRoute, the flight's #selFrom / #selDest) labels each strip `Name · surface`, and a strip the gear may not use is
+a DISABLED option that says why (`Home Strip · grass — floats land on water only`, also as its title). The gear is the
+bench's build in the shed (genSpec) and the flying build elsewhere (def.spec, else sim.hydro) - `routeGear`; the
+pickers re-fill on pointerenter / focus only when the gear changed (a refill under an open list closes it).
+`FLYDIY_ROUTE.sync` re-fits too; `FLYDIY_ROUTE.gear()` reads the gear the labels are for. A SAVED ROUTE THE GEAR MAY
+NOT FLY IS FITTED, NOT REFUSED (`routeFitted`): the departure falls back (HOME / the sea lane / the first legal strip),
+the destination to the circuit; the remembered pref (flydiy.route) is not rewritten by a fit, so the build that may fly
+it gets it back at the next boot. In the shed `applyRoute` fits only the placement, never the pickers (the def there can
+be the last flown build's). A float build now starts on THE LANE THE ROUTE NAMES (Jolene's Metlakatla, not always
+Annette Dock), and the old SEA when the route names land - app.js applyRoute, standAnchor, and the worker's
+sim_host.js place() alike (SIM_HOST_CORE gained stripSurface, stripGear). THE MAP: a water lane's dot is blue, every
+label carries the surface word, and a strip the flying gear may not use is labelled faint.
+
+**G1379 GATE STRIPSURF** (`tools/_surface_check.js`, core, ~10 s, `--selftest`, `--show`): A every aerodrome of both
+worlds has a surface word, water exactly on the water lanes, the premises look named; B the matrix (the stock Cub card
+joined -> wheels, bugReports/cessnaFloatsWOrks.json -> floats, the same + amphibian flag -> amphibian, and skis) over
+every non-meadow aerodrome of both worlds, each refusal with its reason; C the three pilots on the three builds in both
+worlds (the Cub HOME -> SEA becomes the HOME circuit, the floats SEA -> HOME the SEA circuit, a floats circuit at HOME
+lands on water, lane to lane kept, the amphibian keeps both and never says wrong-surface; departFrom the same), and the
+fallback a saved route meets. The selftest doctors the rule (floats on land, wheels on water, a refusal with no reason)
+and the surface (a lane read as grass, the look ignored, none at all): all six go red.
+
+NOT DONE / NEXT: no browser check of the pickers (no GPU in the cloud; UISMOKE boots the page); skis and amphibians
+need gear in the garage first (a spec type, wheels in the float hull); snow needs a surface in the data (a record flag
+or a climate snow line) and a friction row.
