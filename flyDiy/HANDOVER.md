@@ -68374,3 +68374,9 @@ or a climate snow line) and a friction row.
 GATES (cloud, --only, jobs 4): STRIPSURF (+ --selftest), NAV, PILOT (3 shards), TAKEOFF, TAXICLEAR, PLAN, LINEUP,
 UISMOKE, FLOATS, SEAPLANE, BUILD - all PASS. Not run: --all (the brief named the gates). The generated outputs
 (index.html, dev.html, tools/flight_core.js, sw.js, version.json) are NOT committed - A0's build commit makes them.
+READY for A0 (2026-10-03): the gates for the files touched, on the branch's source (136a692 + this HANDOVER) -
+STRIPSURF PASS (+ --selftest PASS: all six doctored checks go red), NAV PASS, PILOT PASS (3 shards), TAKEOFF PASS,
+TAXICLEAR PASS, PLAN PASS, LINEUP PASS, UISMOKE PASS (app.js / sim_host.js), FLOATS PASS, SEAPLANE PASS, BUILD PASS.
+The full battery is A0's (per train). Base: master 5502f45, not rebased. Likely conflict spots when assembling: the
+tail of src/core/25_airfield.js, the 90_node_exports.js export line, run_gates.js's NAV row neighbourhood, and
+app.js's route block (applyRoute, the selects' block, the map's aerodrome loop).
