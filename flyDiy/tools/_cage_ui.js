@@ -742,7 +742,8 @@ if (typeof window !== 'undefined')
 if (typeof window !== 'undefined') window.CAGE_AERO_ON = aeroOn;
 
 // G1301: noted for the repaint (a page slice without the note answers the same material)
-const paintNote = (m, name) => typeof paintRec === 'function' ? paintRec(m, 'c', name, null) : m;
+let PAINT_KIND = 'c';
+const paintNote = (m, name) => typeof paintRec === 'function' ? paintRec(m, PAINT_KIND, name, null) : m;
 const matOf = name => {
   const a = alphaOf(name);
   if (aeroOn()) {
@@ -954,6 +955,7 @@ const craftKey = () => {
   return mnt.matrixWorld.elements.join(',');
 };
 let PAINT_REC = true;
+let EXT_PASS = null;                    // the game's understudy pass (EXT), run after a repaint as after the post chain
 function paintRec(m, kind, name, g) {
   if (!m || !PAINT_REC) return m;
   let q = PAINT_REQ.get(m);
@@ -968,33 +970,45 @@ function repaint() {
   const t0 = performance.now(), info = (why, n) => { if (window.CAGE_UI) window.CAGE_UI.repaintInfo = { why, swapped: n || 0, ms: +(performance.now() - t0).toFixed(1) }; };
   if ((window.CAGE_UI && window.CAGE_UI.repaintOn === false) || !PAINT_REQ.size || !meshObj) { build(); info('build: off or nothing on record'); return; }
   if (craftKey() !== CRAFT_KEY) { build(); info('build: the sit moved since the last build'); return; }
+  // THE CAGE'S OWN MESH IS REPAINTED SLOT BY SLOT: meshFrom made it as matNames.map(matOf), so each group's section
+  // is known and a material two sections shared (the body and a liner on one finish, untinted) splits cleanly when
+  // the pick reaches one of them. Every other mesh is repainted through the record: a material whose requests now
+  // answer differently is shared by meshes this path cannot tell apart, and the repaint is a build.
+  const names = meshObj.userData && meshObj.userData.matNames;
+  const mm0 = Array.isArray(meshObj.material) ? meshObj.material : null;
+  const ownSlots = !!(names && mm0 && mm0.length === names.length &&
+    mm0.every((m, k) => { const q = PAINT_REQ.get(m); return !!(q && q.has('m:' + names[k] + ':')); }));
   const live = Object.assign({}, SEC_LIVE), ctx0 = Object.assign({}, SEC_CTX);
   const swap = new Map();
-  let ok = true;
+  let ok = true, mm1 = null, clash = '';
   PAINT_REC = false;
   try {
+    if (ownSlots) mm1 = names.map(matOf);
     for (const [m, q] of PAINT_REQ) {
       let nu = null;
       for (const [kind, name, g] of q.values()) {
-        const x = kind === 'c' ? matOf(name) : secMat(name, g);
-        if (!x || (nu && x !== nu)) { ok = false; break; }
+        if (kind === 'm' && ownSlots) continue;          // the cage mesh's own slots: answered above
+        const x = kind === 's' ? secMat(name, g) : matOf(name);
+        if (!x || (nu && x !== nu)) { ok = false; clash = [...q.values()].map(v => v[0] + ':' + v[1]).join(' '); break; }
         nu = x;
       }
       if (!ok) break;
-      if (nu !== m) swap.set(m, nu);
+      if (nu && nu !== m) swap.set(m, nu);
     }
+    if (mm1 && mm1.some(x => !x)) ok = false;
   } catch (e) { ok = false; }
   PAINT_REC = true;
   // secMat stamps the section's epoch and ctx as it answers: the build's own stamps stand
   for (const k in SEC_LIVE) delete SEC_LIVE[k];
   for (const k in SEC_CTX) delete SEC_CTX[k];
   Object.assign(SEC_LIVE, live); Object.assign(SEC_CTX, ctx0);
-  if (!ok) { build(); info('build: a request answers otherwise'); return; }
-  if (swap.size) {
+  if (!ok) { build(); info('build: a request answers otherwise (' + clash + ')'); return; }
+  const meshMoved = ownSlots ? mm1.some((x, k) => x !== mm0[k])
+    : (Array.isArray(meshObj.material) ? meshObj.material : [meshObj.material]).some(x => swap.has(x));
+  if (swap.size || meshMoved) {
     // the glass companions: the cage's own (meshFrom's) is made again by meshFrom's own call over the new
     // materials; a companion anywhere else over a moved material is a door this path does not know
-    const A0 = AK(), mm = Array.isArray(meshObj.material) ? meshObj.material : [meshObj.material];
-    const meshMoved = mm.some(x => swap.has(x));
+    const A0 = AK();
     let foreign = false;
     scene.traverse(o => {
       if (!o.isMesh || !o.userData || !o.userData.aeroCompanion || !o.parent || o.parent === meshObj) return;
@@ -1003,21 +1017,25 @@ function repaint() {
     });
     if (foreign || (meshMoved && !(A0 && A0.aeroGlassCompanion))) { build(); info('build: a glass companion it does not know'); return; }
     scene.traverse(o => {
-      if (!o.material || (o.userData && o.userData.aeroCompanion)) return;
+      if (!o.material || (o.userData && o.userData.aeroCompanion) || (ownSlots && o === meshObj)) return;
       if (Array.isArray(o.material)) { if (o.material.some(x => swap.has(x))) o.material = o.material.map(x => swap.get(x) || x); }
       else if (swap.has(o.material)) o.material = swap.get(o.material);
     });
+    if (ownSlots && meshMoved) meshObj.material = mm1;
+    // a layer's colour DERIVED from a swapped material (the cowl's twins) is the layer's to derive again, then the
+    // understudy pass, as after the post chain
+    if (PAGE.repaint) for (const f of PAGE.repaint) try { f(swap, scene); } catch (e) { console.error('page repaint hook:', e); }
+    if (EXT_PASS) EXT_PASS();
     if (meshMoved) {
       for (const c of meshObj.children.slice()) if (c.userData && c.userData.aeroCompanion) meshObj.remove(c);
       meshGlass(meshObj);
     }
     // the record follows the swap: the next repaint starts from what the meshes now wear
     const next = new Map();
-    for (const [m, q] of PAINT_REQ) {
-      const t = swap.get(m) || m;
-      const n = next.get(t);
-      if (!n) next.set(t, new Map(q)); else for (const [k, v] of q) if (!n.has(k)) n.set(k, v);
-    }
+    const put = (t, k, v) => { let n = next.get(t); if (!n) next.set(t, n = new Map()); if (!n.has(k)) n.set(k, v); };
+    for (const [m, q] of PAINT_REQ)
+      for (const [k, v] of q) if (!(ownSlots && v[0] === 'm')) put(swap.get(m) || m, k, v);
+    if (ownSlots) mm1.forEach((x, k) => put(x, 'm:' + names[k] + ':', ['m', names[k], null]));
     PAINT_REQ.clear();
     for (const [m, q] of next) PAINT_REQ.set(m, q);
   }
@@ -1029,7 +1047,7 @@ function repaint() {
   applyRowVis();
   syncFollow();
   draw();
-  info('swap', swap.size);
+  info('swap', swap.size + (meshMoved ? 1 : 0));
 }
 // the panel's view of the walk, for its own rows' labels and wells: the
 // same resolver, over the same maps, with the ctx the layer last drew with
@@ -1172,7 +1190,10 @@ function meshFrom(m) {
       if (hi0 > lo0) GLASS_EXT[nm] = [lo0 * F, lo1 * F, hi0 * F, hi1 * F];
     });
   }
-  const mesh = new THREE.Mesh(g, mats.map(matOf));
+  PAINT_KIND = 'm';                      // G1301: the cage mesh's slots, by section (repaint)
+  let mats0;
+  try { mats0 = mats.map(matOf); } finally { PAINT_KIND = 'c'; }
+  const mesh = new THREE.Mesh(g, mats0);
   mesh.userData.surfMats = surfMats;
   mesh.userData.matNames = mats;
   // THE GLASS COMPANION (G206): every pane is two draws — the multiply pass
@@ -2368,6 +2389,7 @@ fillPresetSel();
           roughness: 0.85, metalness: 0.0,
           vertexColors: m.vertexColors });
         u.userData.cageUni = 1;        // never understudy an understudy
+        u.userData.cageUniOf = m;      // G1301: whose understudy (a repaint hook reads through it)
         uniFor.set(m, u);
       }
       u.color.copy(m.color);
@@ -2415,6 +2437,7 @@ fillPresetSel();
     };
     const prevPost = PAGE.post;
     PAGE.post = ctx => { if (prevPost) prevPost(ctx); extPass(); };
+    EXT_PASS = extPass;                  // G1301: a repaint ends the way a build does
     extPass();
 
     // THE HANGAR SECTION (G40, rebuilt G41): lighting, then ONE
