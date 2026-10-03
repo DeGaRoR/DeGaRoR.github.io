@@ -68380,3 +68380,14 @@ are INFO). A baseline from another GPU, viewport or mode does not compare (exit 
    measured" until then; uneven moved to INFO).
 6. From train 26 on: `node tools/perf/train_gate.js --full --port 8700 --udd D:/tg --label t26` per train; RED = the
    train does not land; after a landing, `--update tools/perf/train_gate_t26.json`.
+
+**GATE RESULTS (G1360-G1364, the cloud, on 5502f45 + this branch; no rebase - A0 resolves on the train):** only the gate of
+the files touched, not the full battery. `node --max-old-space-size=4096 tools/run_gates.js --no-build --only=FLIGHTREC`:
+**FLIGHTREC PASS** (1.7 s; it covers analyze_log.js and its new distribution assertion). No battery gate covers the other
+touched files (frame_dist.js, rollout_perf.js, rollout_ratchet.js, master_bench.js, perf/train_gate.js); their no-browser
+checks, all clean: `node --check` on each; `rollout_ratchet.js --update` on the committed ratchet_md_before_cub runs, then the
+after runs against it - RATCHET: PASS with the new rows; `master_bench.js --report master_bench_15d18675.json` (an old JSON)
+prints; `master_bench.js --plan` with the subset flags lists HOME + mn_strip and the floats' water taxi alone (~6 min);
+`train_gate.js --plan` 25 min (28 with overheads), `--plan --light` 15 (17); `train_gate.js --compare` on rows built from
+committed reports: an injected p99 rise and a removed load RED by name (exit 1), the same JSON against itself PASS. Nothing
+browser-side has been run: the box steps 1-6 above stand.
