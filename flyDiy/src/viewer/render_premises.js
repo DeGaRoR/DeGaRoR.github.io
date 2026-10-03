@@ -1555,7 +1555,7 @@ function make(THREE, scene, world, rec0, opts) {
     if (/[?&]kitfade=0\b/.test(location.search)) KIT.fade = false;
   }
   // METLAKATLA ON THE KIT (C3c, G860-G864; ARCH-2026-09-27 §5; the user, 2026-09-29/30: "the kit streets look good").
-  // With the town on (?town=1 / the GRAPHICS 'town' row, G590 - still OFF by default), the plots Metlakatla's zones sow
+  // With the town on (the GRAPHICS 'town' row, G590 - ON by default since G1408; ?town=0 / 'nearby' drops it), the plots Metlakatla's zones sow
   // whose id and seed are in the kit's instance table (tools/town_kit.js, C3a) are KIT PLOTS: their houses and their
   // outbuildings are the kit's instances (townkit.js, C3b's host - one BatchedMesh a material for the whole town, drawn
   // from the moment the pack is in), and their LOTS are generated as a unique lot is (src/viewer/kit_lot.js: the plan
