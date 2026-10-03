@@ -20,6 +20,9 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   for (;;) { const r = g.next(); if (r.done) return r.value; }
 }
 function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
+  // G1230 (MEM-BUDGET): the build budget of the player's preset (gfx_settings.js BUDGETS) - what this build makes and
+  // holds; null (a gate's stub, no GFX): everything at full
+  const BUD = (typeof window !== 'undefined' && window.GFX && typeof window.GFX.budget === 'function') ? window.GFX.budget() : null;
   const BUILT = { done: false, q: [] };
   const afterBuild = fn => { if (BUILT.done) fn(); else BUILT.q.push(fn); };
   const C = h => new THREE.Color(h).convertSRGBToLinear();
@@ -1505,6 +1508,12 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     // grids (which the core and the CPU readers keep) before three's next upload of it.
     const gpuTex = [];
     const gpuOnly = (t, derive) => { t.onUpdate = () => { t.image.data = null; }; gpuTex.push([t, derive]); return t; };
+    // G1230 (MEM-BUDGET): UPLOADED AS THE STEP ENDS, NOT AT FIRST LIGHT. The four island textures (~162 MiB of derived
+    // bytes) were the GPU's only at the loading's 'upload' step - held through the whole load, the town's and the forest's
+    // peak included. initTexture now: onUpdate drops the bytes there and then (the derivation stays for a lost context)
+    const gpuUploadNow = () => { if (!renderer || typeof renderer.initTexture !== 'function') return 0; let n = 0;
+      for (const [t] of gpuTex) if (t.image && t.image.data && t.version > 0) { try { renderer.initTexture(t); n++; } catch (e) { console.warn('island texture upload:', e && e.message); } }
+      return n; };
     const gpuRestore = () => { let n = 0; for (const [t, derive] of gpuTex) if (!t.image.data) { t.image.data = derive(); t.needsUpdate = true; n++; } return n; };
     { const cv = renderer && renderer.domElement;
       if (cv && cv.addEventListener) {
@@ -1618,6 +1627,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       });
       GROUND.on = true;
       classWeights();   // a saved stack that starts at the class layer asks for them now
+      gpuUploadNow();
       if (typeof WATER !== 'undefined' && WATER.setSDF) WATER.setSDF(gU.uGPackA.value, gU.uGGrid.value);   // G460: the water reads the coast and lake fields (kept until the material is made below)
       // THE SPLAT (alpha splatting, 2026-09-20): the ground drawn by terrain
       // type from the library (src/viewer/splat_ground.js owns it): two
@@ -2071,7 +2081,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     // every chunk edge close the cracks between two levels. ?ringlod=0: the ring whole (the A/B).
     yield 'ring lod';
     const RINGLOD = { on: !!(THREE.Sphere && THREE.BufferAttribute) && !(typeof location !== 'undefined' && /[?&]ringlod=0/.test(location.search)),
-                      C: 16, strides: [1, 2, 4, 8], tolPx: 1, minQuads: 25, rimE: 0.5, hyst: 0.1, chunks: [], group: null,
+                      C: 16, strides: [1, 2, 4, 8], tolPx: BUD && BUD.terrain > 1 ? BUD.terrain : 1, minQuads: 25, rimE: 0.5, hyst: 0.1, chunks: [], group: null,
                       stats: { draws: 0, tris: 0, levels: [0, 0, 0, 0] } };
     if (RINGLOD.on) {
       const GW = 513, Q = 512 / RINGLOD.C, SEG = 2 * INNER / 512;
@@ -2287,7 +2297,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       // the cracks between two levels (and the T-junctions the leaves always had).
       const FH = world.island.farHeader, N = FH.patch + 1, Pn = FH.patch, NN = N * N, NV = NN + 4 * N;
       const seaFloor = world.island.seaFloor, qs = FH.side / 4;
-      const FARLOD = { tolPx: 1, rimE: 0.5, budget: 2, every: 6, tick: 0, quads: new Map(), cache: new Map(), stamp: 0, eye: null, K: 0,
+      const FARLOD = { tolPx: BUD && BUD.terrain > 1 ? BUD.terrain : 1, rimE: 0.5, budget: 2, every: 6, tick: 0, quads: new Map(), cache: new Map(), stamp: 0, eye: null, K: 0,
                        stats: { nodes: 0, tris: 0, quads: 0, rebuilds: 0, cached: 0, ms: 0 } };
       const boxOf = n => { const s = FH.side / (1 << n.d); return [FH.bounds.x0 + n.ix * s, FH.bounds.z0 + n.iz * s, s]; };
       const underRing = (ox, oz, s) => ox > -INNER + 250 && ox + s < INNER - 250 && oz > -INNER + 250 && oz + s < INNER - 250;   // fully under the inner ring
@@ -5802,7 +5812,9 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
   // synchronous drain inside the world step; the game then streams by the aircraft's position (worldUpdate ->
   // premisesR.stream: within its reach, on a 3 ms/frame bank). Only a page with no roll-out screen (the harness: no
   // compileAsync) still drains the old way at the make.
-  const PREM_BOOT = 4000;
+  // G1230 (MEM-BUDGET): a lighter preset's budget builds the town nearer (GFX.budget().townBoot / townReach) - the
+  // house worker's results are kept as every rebake's sources, ~212 MB on gamer: what is never built is never held
+  const PREM_BOOT = BUD && BUD.townBoot > 0 ? BUD.townBoot : 4000;
   const premRenderer = () => renderer, premCamera = () => camera;   // the far town's bake links its programs off the frame (G593)
   if (world.premises && world.premises.rec && window.RENDER_PREMISES) {
     try {
@@ -5826,6 +5838,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         renderer: premRenderer, camera: premCamera,
       });
       yield 'premises made';
+      if (BUD && BUD.townReach > 0 && premisesR.streamState) premisesR.streamState.reach = BUD.townReach;   // G1230: the stream's reach, the budget's
       if (premisesR.rebuildSteps) yield* premisesR.rebuildSteps(); else premisesR.rebuild();   // G680: the rebuild in its own slices
       if (typeof renderer.compileAsync !== 'function' || !premisesR.prewarm) { if (premisesR.drainNear) premisesR.drainNear(0, 0, PREM_NEAR); else while (premisesR.stats.queued) premisesR.step(4); }   // G562 / G591: the rest streams in the game
       // the rings were sampled before the patch stood: sink them under it now (G434.1)

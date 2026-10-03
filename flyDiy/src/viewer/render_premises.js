@@ -2464,6 +2464,7 @@ function make(THREE, scene, world, rec0, opts) {
     if (ob.kind === 'aircraft') {
       const PK = window.PARKED;
       if (!PK || !PK.place) return null;
+      if (window.GFX && window.GFX.budget && window.GFX.budget().parked === false) return null;   // G1230: a budget without parked aeroplanes builds none
       const g = PK.place(THREE, ob.key, w[0], obY, w[1], yaw);
       G.houses.add(g);
       // the holder fills when the capture lands: registered then (step() looks for it)

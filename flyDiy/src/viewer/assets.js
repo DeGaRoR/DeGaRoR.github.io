@@ -114,10 +114,18 @@
 // physics, no terrainH, no merge or re-sink from it, never re-uploaded (a rebuild makes a NEW geometry) - the textures'
 // gpuOnly rule (render_world.js G907) for geometry. One renderer draws the world (app.js), so one upload is the only one.
 // ?gpuonly=0 keeps every copy (the A/B).
+// GPU_ONLY_GEO.flush(renderer) - G1230 (MEM-BUDGET): UPLOAD AS YOU BUILD. A draw-only geometry gave its bytes back at
+// its first draw - first light, the end of the load - so every copy the world built was held through the whole load
+// (the peak). flush() uploads the ones still waiting NOW: each drawn once by a stand-in mesh (the same geometry, a plain
+// material, no culling) into a 1x1 target with its draw range at 0 - three's own path uploads every attribute (the
+// render list's objects.update) and the index (the binding setup) and draws nothing; the release above then runs. The
+// world's build calls it as each slice ends (app.js buildWorldSliced, the town step). ?geoflush=0: as before (the A/B).
 (() => {
   'use strict';
   const off = typeof location !== 'undefined' && /[?&]gpuonly=0(?:&|$)/.test(location.search || '');
-  const stats = { geos: 0, bytes: 0 };
+  const stats = { geos: 0, bytes: 0, flushed: 0, flushes: 0 };
+  const noFlush = typeof location !== 'undefined' && /[?&]geoflush=0(?:&|$)/.test(location.search || '');
+  const PEND = new Set();
   function release() { const a = this.array; if (a && a.length) { stats.bytes += a.byteLength; this.array = new a.constructor(0); } }
   function gpuOnlyGeo(g) {
     if (off || !g || !g.attributes) return g;
@@ -126,8 +134,34 @@
     for (const k in g.attributes) { const a = g.attributes[k]; if (a && !a.isInterleavedBufferAttribute && a.onUpload) a.onUpload(release); }
     if (g.index && g.index.onUpload) g.index.onUpload(release);
     stats.geos++;
+    if (!noFlush) { PEND.add(g); g.addEventListener('dispose', () => PEND.delete(g)); }
     return g;
   }
+  const waiting = g => { const p = g.attributes.position; return !!(p && p.array && p.array.length); };
+  let FL = null;
+  function flush(renderer) {
+    if (!PEND.size || !renderer || typeof renderer.render !== 'function' || typeof THREE === 'undefined' || !THREE.WebGLRenderTarget) return 0;
+    const list = [...PEND].filter(waiting); PEND.clear();
+    if (!list.length) return 0;
+    if (!FL) { FL = { scene: new THREE.Scene(), cam: new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1), rt: new THREE.WebGLRenderTarget(1, 1, { depthBuffer: false }),
+                      mat: new THREE.MeshBasicMaterial({ colorWrite: false, depthWrite: false, depthTest: false }) };
+                FL.scene.matrixWorldAutoUpdate = false; }
+    const keep = list.map(g => [g, g.drawRange.start, g.drawRange.count]), meshes = [];
+    for (const g of list) { g.setDrawRange(0, 0); const m = new THREE.Mesh(g, FL.mat); m.frustumCulled = false; m.matrixAutoUpdate = false; FL.scene.add(m); meshes.push(m); }
+    const rt0 = renderer.getRenderTarget(), ac = renderer.autoClear, ie = renderer.info ? renderer.info.autoReset : true;
+    try {
+      renderer.autoClear = false; if (renderer.info) renderer.info.autoReset = false;
+      renderer.setRenderTarget(FL.rt); renderer.render(FL.scene, FL.cam);
+    } catch (e) { if (typeof console !== 'undefined') console.warn('geometry flush:', e && e.message); }
+    finally {
+      renderer.setRenderTarget(rt0); renderer.autoClear = ac; if (renderer.info) renderer.info.autoReset = ie;
+      for (const m of meshes) FL.scene.remove(m);
+      for (const [g, s0, c0] of keep) g.setDrawRange(s0, c0);
+    }
+    stats.flushes++; stats.flushed += list.length;
+    return list.length;
+  }
   gpuOnlyGeo.stats = stats;
+  gpuOnlyGeo.flush = flush;
   if (typeof window !== 'undefined') window.GPU_ONLY_GEO = gpuOnlyGeo;
 })();
