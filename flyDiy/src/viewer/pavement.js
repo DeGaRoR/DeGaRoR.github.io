@@ -115,9 +115,11 @@ const PAVEMENT = (() => {
   // the edge zone; -1 = the edge zone's sideW) and the alpha it starts from (-1 = sideA). Saved with the premises
   // (rec.pavement: the editor's PAVEMENT section lists them); the world look's RUNWAY section lays a live overlay over
   // every pavement (look()) and exports it. The defaults draw what G1391 draws: brightness 1, no tint, wear 1, the paved
-  // side at the edge zone's sideA, the soft and grass sides a torn edge alone (alpha 0).
+  // side at the edge zone's sideA, the soft and grass sides their ragged edge alone (alpha 0) over edgeSoft (G1395).
   const LOOK_GROUPS = { pv: ['concrete', 'asphalt'], sf: ['gravel', 'dirt', 'sand'], gr: ['grass'] };
   const LOOK_NAMES = { pv: 'paved (concrete, asphalt)', sf: 'soft (gravel, dirt, sand)', gr: 'grass' };
+  // G1395: a soft / grass side's spread at -1 is the edge zone's edgeSoft (2.6 m: the old torn edge, reaching ~3 x it out);
+  // the paved one's the edge zone's sideW
   const LOOK_K = ['Bright', 'Hue', 'Tint', 'Wear', 'SideBright', 'SideHue', 'SideTint', 'SideW', 'SideA'];
   const LOOK_KEYS = [];
   for (const g in LOOK_GROUPS) for (const k of LOOK_K) {
@@ -164,7 +166,7 @@ const PAVEMENT = (() => {
       [g + 'Bright', 'surface brightness', 0.3, 2, 0.02], [g + 'Hue', 'surface tint hue (0 red, .17 yellow, .33 green, .67 blue)', 0, 1, 0.01], [g + 'Tint', 'surface tint amount', 0, 1, 0.02],
       [g + 'Wear', "wear (x the class's cracks, patches, ruts...)", 0, 2, 0.05],
       [g + 'SideBright', 'side brightness', 0.3, 2, 0.02], [g + 'SideHue', 'side tint hue', 0, 1, 0.01], [g + 'SideTint', 'side tint amount', 0, 1, 0.02],
-      [g + 'SideW', "side width (m past the edge zone, -1 = the edge zone's)", -1, 12, 0.1], [g + 'SideA', "side starts at alpha (blend into the ground; -1 = the edge zone's)", -1, 1, 0.05]]),
+      [g + 'SideW', g === 'pv' ? "side width (m past the edge zone, -1 = the edge zone's)" : "side spread (m: the torn edge reaches ~3 x it; -1 = edgeSoft)", -1, 12, 0.1], [g + 'SideA', "side starts at alpha (blend into the ground; -1 = the edge zone's)", -1, 1, 0.05]]),
     ['— distance —'],
     ['detailFrom', 'detail fades from (m)', 20, 1500, 10], ['detailTo', 'detail gone by (m)', 50, 3000, 10], ['normalFrom', 'normal fades from (m)', 10, 1000, 10], ['normalTo', 'normal gone by (m)', 30, 2000, 10],
     ['specK', 'specular (haze fade x)', 0, 2, 0.05], ['nrmK', 'normal strength', 0, 3, 0.05], ['specAA', 'specular anti-alias (as the ground)', 0, 1, 0.05], ['jointAniso', 'joints AA per axis (1) / isotropic (0)', 0, 1, 1],
@@ -1095,14 +1097,18 @@ float pvTread(float u, float x, float w, float seed) {
     else {
       // a soft road has no edge: the loose stuff thins out through three octaves of noise (15 m, 4 m, 1 m) - islands of
       // dirt in the grass, tongues of grass in the dirt. G1391 (RUNWAY-LOOK, the user: "the grass runway is very thin at
-      // the same dimensions as the dirt runway / path, which is very large"): the tear is the PAVED edge's, in
-      // extent: its mean on the declared edge, never deeper inside than edgeChip (a paved edge's chipping), the islands
-      // out to the side's reach (edgeChip + sideW, where a paved side ends too). It was centred 0.3 x edgeSoft OUTSIDE
-      // the edge with +-2 x edgeSoft of noise either way: a dirt strip drew islands ~8 m past its edge and was opaque
-      // only ~6 m inside it. The declared width now draws the declared width, whatever the class.
-      float tc = max(uEdge.x, 0.1), tw = max(uEdge.x + uSide.y, 0.3);
-      float tn = 0.45 * pvNoise(vec2(u / 15.0, seed + 19.0)) + 0.35 * pvFbm(uvS / 4.0 + 23.0) + 0.2 * pvNoise(uvS / 1.0);
-      wPav = dE >= tc ? 1.0 : smoothstep(0.42, 0.58, 0.5 + (dE > 0.0 ? dE / tc * 0.6 : dE / tw * 0.5) + (tn - 0.5) * 0.9);
+      // the same dimensions as the dirt runway / path, which is very large"): the declared width is all surface (never
+      // eaten deeper than edgeChip, a paved edge's chipping) and the blend is OUTSIDE it, over the side's reach tw. It
+      // was centred 0.3 x edgeSoft outside the edge with +-2 x edgeSoft of noise either way: a dirt strip drew islands
+      // ~8 m past its edge and was opaque only ~6 m inside it. G1395 (the user on the evidence: "the new side patch blend
+      // a lot worse with the environment than before"): the first cut tore over 1.8 m with a hard 0.42-0.58 threshold -
+      // a ruled line, and a second cut whose reach wandered too little read the same from the air. So the side IS the
+      // old edge again, line for line - the loose stuff thinning out through three octaves (15 m bays, 4 m tongues, 1 m
+      // crumbs) over the side's spread s (sfSideW / grSideW; -1 = edgeSoft, 2.6 m, at most 0.6 x halfW as before) - and
+      // the declared width is FILLED under it: opaque from edgeChip in (a paved edge's chipping), never eaten deeper.
+      float tc = max(uEdge.x, 0.1), soft = clamp(min(uSide.y, halfW * 0.6), 0.3, 6.0);
+      float e2 = dE + soft * (0.9 * (pvNoise(vec2(u / 15.0, seed + 19.0)) - 0.5) * 2.0 + 0.7 * (pvFbm(uvS / 4.0 + 23.0) - 0.5) * 2.0 + 0.35 * (pvNoise(uvS / 1.0) - 0.5) * 2.0);
+      wPav = max(smoothstep(-soft * 1.1, soft * 0.5, e2), smoothstep(-tc, tc, dE));
     }
     float bandW = uEdge.y;
     float bn = pvFbm(uvS / 2.5 + 31.0);
@@ -1303,7 +1309,7 @@ float pvTread(float u, float x, float w, float seed) {
     const mul = (b, h, k) => tintRGB(h, k).map(c => Math.max(0, c * b));
     const sw = q('SideW'), sa = q('SideA');
     return { g, surf: mul(q('Bright'), q('Hue'), q('Tint')), side: mul(q('SideBright'), q('SideHue'), q('SideTint')), wear: Math.max(0, q('Wear')),
-      sideW: sw >= 0 ? sw : (r.sideW || 1.2), sideA: sa >= 0 ? sa : (r.sideA === undefined ? 0.35 : r.sideA) };
+      sideW: sw >= 0 ? sw : (g === 'pv' ? (r.sideW || 1.2) : (r.edgeSoft || 2.6)), sideA: sa >= 0 ? sa : (r.sideA === undefined ? 0.35 : r.sideA) };
   }
   const KNOB_MAX = {};
   for (const row of KNOBS) if (row.length > 1) KNOB_MAX[row[0]] = row[3];
@@ -1342,9 +1348,9 @@ float pvTread(float u, float x, float w, float seed) {
     let wPav;
     if (paved) wPav = ss01(-0.05, 0.05, eEdge);
     else {
-      const tc = Math.max(r.edgeChip, 0.1), tw = Math.max(r.edgeChip + lk.sideW, 0.3);
-      const tn = 0.45 * tNoise(u / 15, seed + 19) + 0.35 * tFbm(us / 4 + 23, vs / 4 + 23) + 0.2 * tNoise(us, vs);
-      wPav = dE >= tc ? 1 : ss01(0.42, 0.58, 0.5 + (dE > 0 ? dE / tc * 0.6 : dE / tw * 0.5) + (tn - 0.5) * 0.9);
+      const tc = Math.max(r.edgeChip, 0.1), soft = Math.max(0.3, Math.min(6, Math.min(lk.sideW, halfW * 0.6)));
+      const e2 = dE + soft * (0.9 * (tNoise(u / 15, seed + 19) - 0.5) * 2 + 0.7 * (tFbm(us / 4 + 23, vs / 4 + 23) - 0.5) * 2 + 0.35 * (tNoise(us, vs) - 0.5) * 2);
+      wPav = Math.max(ss01(-soft * 1.1, soft * 0.5, e2), ss01(-tc, tc, dE));
     }
     let a;
     if (o.side && (r.sideFade === undefined ? 1 : r.sideFade) > 0.5) a = Math.max(wPav, lk.sideA * (1 - ss01(0, lk.sideW, -eEdge)));

@@ -613,23 +613,26 @@ console.log('13. THE RUNWAY LOOK (G1390-G1394) - the declared width drawn whatev
   // the declared, the surface's own share the same; the opaque core no narrower than declared - 2 x opaqueDepth (what
   // the ground patch sinks under); the side's last island within the side's reach (edgeChip + sideW, PAVE_SIDE)
   const PW = require('./pavement_widths.js'), rows = PW.run({ du: 9.7, nowOnly: true });
+  // G1395: a soft / grass side blends over its own width (SOFT_SIDE, at most half the pavement's width) - the drawn
+  // width may pass the declared by that side's mean (its half-coverage line), never fall short of it
   const reach = P.RECIPE.edgeChip + P.RECIPE.sideW;
   let worst = '', bad = 0, spread = [Infinity, -Infinity];
   for (const r of rows) {
-    const n = r.now, d0 = P.opaqueDepth(r.cls, r.declared / 2, null, r.road ? 'road' : 'strip');
-    const okD = Math.abs(n.drawn - r.declared) <= 0.4 && Math.abs(n.surface - r.declared) <= 0.4;
+    const n = r.now, d0 = P.opaqueDepth(r.cls, r.declared / 2, null, r.road ? 'road' : 'strip'), L = P.lookOf(r.cls);
+    const soft = P.groupOf(r.cls) !== 'pv', sw = soft ? Math.max(0.3, Math.min(6, Math.min(L.sideW, r.declared * 0.3))) : 0, rch = soft ? 3.05 * sw : reach;
+    const okD = n.drawn >= r.declared - 0.4 && n.drawn <= r.declared + 0.4 + 0.8 * sw && Math.abs(n.surface - n.drawn) <= 0.4;
     const okO = !isFinite(d0) ? n.worn : n.opaque >= r.declared - 2 * d0 - 0.11;
-    const okR = n.reach <= r.declared + 2 * reach + 0.11;
+    const okR = n.reach <= r.declared + 2 * rch + 0.11;
     if (!(okD && okO && okR)) { bad++; worst += ` ${r.kind} (drawn ${f(n.drawn, 2)}, opaque ${f(n.opaque, 2)}, reach ${f(n.reach, 2)})`; }
     spread[0] = Math.min(spread[0], n.drawn - r.declared); spread[1] = Math.max(spread[1], n.drawn - r.declared);
     if (VERB) console.log(`  ${r.kind.padEnd(15)} declared ${r.declared}: drawn ${f(n.drawn, 2)} surface ${f(n.surface, 2)} opaque ${f(n.opaque, 2)} reach ${f(n.reach, 2)}`);
   }
-  verdict(bad === 0, `every strip kind and road class draws its declared width: drawn - declared ${f(spread[0], 2)} .. ${f(spread[1], 2)} m over ${rows.length} kinds, the opaque core >= declared - 2 x opaqueDepth, the side within ${f(reach, 1)} m${bad ? ' - FAILED:' + worst : ''}`);
+  verdict(bad === 0, `every strip kind and road class draws its declared width: drawn - declared ${f(spread[0], 2)} .. ${f(spread[1], 2)} m over ${rows.length} kinds, the opaque core >= declared - 2 x opaqueDepth, the side within its reach (paved ${f(reach, 1)} m, soft / grass the old torn edge's 3.05 x its spread)${bad ? ' - FAILED:' + worst : ''}`);
   const grassStrip = rows.find(r => r.kind === 'grass strip'), dirtStrip = rows.find(r => r.kind === 'dirt strip');
   verdict(Math.abs(grassStrip.now.drawn - dirtStrip.now.drawn) < 0.05 && grassStrip.now.opaque >= 0.9 * grassStrip.declared,
     `the grass strip draws what the dirt strip draws (${f(grassStrip.now.drawn, 2)} vs ${f(dirtStrip.now.drawn, 2)} m of ${grassStrip.declared}; its opaque core ${f(grassStrip.now.opaque, 2)} m - it was 45 % over its whole width)`);
   // (b) the twin is the shader's: the soft edge's law and the grass strip's alpha, verbatim in GLSL.map
-  const law = ['float tc = max(uEdge.x, 0.1), tw = max(uEdge.x + uSide.y, 0.3);', 'wPav = dE >= tc ? 1.0 : smoothstep(0.42, 0.58, 0.5 + (dE > 0.0 ? dE / tc * 0.6 : dE / tw * 0.5) + (tn - 0.5) * 0.9);',
+  const law = ['float tc = max(uEdge.x, 0.1), soft = clamp(min(uSide.y, halfW * 0.6), 0.3, 6.0);', 'wPav = max(smoothstep(-soft * 1.1, soft * 0.5, e2), smoothstep(-tc, tc, dE));',
     'float sideA = uSide.z * (1.0 - smoothstep(0.0, uSide.y, -eEdge));', 'if (grassy && road) {', 'col *= mix(mix(vec3(uEdge2.z, uEdge2.w, uSpec.w), uWet.yzw, wPav), vec3(1.0), paint);'];
   const lost = law.filter(a => P.GLSL.map.indexOf(a) < 0);
   verdict(lost.length === 0, `the CPU twin's laws are the shader's (${law.length - lost.length} of ${law.length} lines found in GLSL.map${lost.length ? ' - LOST: ' + lost.join(' | ') : ''})`);
@@ -639,8 +642,9 @@ console.log('13. THE RUNWAY LOOK (G1390-G1394) - the declared width drawn whatev
   const okK = P.LOOK_KEYS.length === 27 && P.LOOK_KEYS.every(k => K[k] && P.RECIPE[k] >= K[k][2] && P.RECIPE[k] <= K[k][3]);
   verdict(okK, `the runway look: ${P.LOOK_KEYS.length} knobs (${Object.keys(P.LOOK_GROUPS).join(', ')} x 9), each a KNOBS row, its default in range`);
   const L0 = P.lookOf('asphalt'), Lg = P.lookOf('grass');
-  verdict(L0.surf.every(c => Math.abs(c - 1) < 1e-9) && L0.side.every(c => Math.abs(c - 1) < 1e-9) && L0.sideW === P.RECIPE.sideW && L0.sideA === P.RECIPE.sideA && Lg.sideA === 0 && P.groupOf('dirt') === 'sf',
-    `the defaults: the multipliers 1, the paved side the edge zone's (${L0.sideW} m from ${L0.sideA}), the soft and grass sides the torn edge alone`);
+  verdict(L0.surf.every(c => Math.abs(c - 1) < 1e-9) && L0.side.every(c => Math.abs(c - 1) < 1e-9) && L0.sideW === P.RECIPE.sideW && L0.sideA === P.RECIPE.sideA && Lg.sideA === 0 && Lg.sideW === P.RECIPE.edgeSoft && P.groupOf('dirt') === 'sf'
+    && Math.abs(PG.PAVE_SIDE_SOFT - 3.05 * P.RECIPE.edgeSoft) < 0.1,
+    `the defaults: the multipliers 1, the paved side the edge zone's (${L0.sideW} m from ${L0.sideA}), the soft and grass sides the old torn edge over edgeSoft ${Lg.sideW} m (PAVE_SIDE_SOFT ${PG.PAVE_SIDE_SOFT} = its reach, 3.05 x)`);
   const T = P.tintRGB(0.33, 0.5), mean = (T[0] + T[1] + T[2]) / 3;
   verdict(Math.abs(mean - 1) < 1e-9 && T[1] > T[0] && T[1] > T[2], `a tint keeps its mean (hue .33 x .5 -> ${T.map(c => f(c, 2)).join(', ')}, mean ${f(mean, 3)}): brightness alone moves the light`);
   // (d) a part's uniforms carry its surface type's look; WEAR scales the class's wear knobs; the live overlay
