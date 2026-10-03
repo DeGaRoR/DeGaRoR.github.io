@@ -4770,8 +4770,21 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         walk(cx, cz, recs, 0, NG, part);
         return build(cx, cz, recs, t0, performance.now(), part);
       }
+      // THE BUILD IS SLICED (G1297, EVEN-30): a finished walk was built in ONE frame - every instance's matrix and colour
+      // into each rung part and the merged impostor - and that was the fill's hitch: 57-131 ms a chunk at density 200
+      // (the user's custom set; ~10-40 ms at gamer's 128), one long frame every 1-2 s of taxi (16 of the taxi's 16 long
+      // frames at HOME). buildGen yields when fillDeadline passes (checked between subjects and every 256 instances);
+      // nothing joins the scene before its last slice, so a chunk dropped half-built leaves nothing behind. build()
+      // drains it in one go (the teleport's gen(), the gates); the streamer resumes it frame by frame (fillStep)
+      let fillDeadline = Infinity;
       function build(cx, cz, recs, t0, t1, part) {
+        const g = buildGen(cx, cz, recs, t0, t1, part), dl = fillDeadline;
+        fillDeadline = Infinity;
+        try { let r; do r = g.next(); while (!r.done); return r.value; } finally { fillDeadline = dl; }
+      }
+      function* buildGen(cx, cz, recs, t0, t1, part) {
         const meshes = [], near = [], imp = [], recsOut = [];
+        let act = 0, ts = performance.now();   // the build's own time, its slices summed (STAT.buildMs)
         const ox = (cx + 0.5) * CH, oz = (cz + 0.5) * CH;
         // ONE IMPOSTOR MESH FOR THE CHUNK PART (PERF 2026-09-23 - see IMPA): every subject's every series,
         // each instance naming its layer; the rungs stay per series (the partition's)
@@ -4780,9 +4793,11 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         const MIL = MI ? MI.geometry.attributes.aLayer.array : null;
         let J = 0, trI = 0;
         const BBI = [Infinity, Infinity, Infinity, -Infinity, -Infinity, -Infinity, 0];
-        recs.forEach((r, gi) => {
+        for (let gi = 0; gi < recs.length; gi++) {
+          const r = recs[gi];
           const n = r.length / 6;
-          if (!n) return;
+          if (!n) continue;
+          if (performance.now() > fillDeadline) { act += performance.now() - ts; yield; ts = performance.now(); }
           const SH = SHAPE.list[gi];
           // THE SPECIES' SIZE (the world rail, 2026-09-24): one multiplier per species over the canopy's size, every biome
           const kSz = (SH.key && SP_SIZE[SH.key.split('|')[0]]) || 1;
@@ -4831,6 +4846,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
             mm.position.set(ox, 0, oz); if (mm.updateMatrix) { mm.matrixAutoUpdate = false; mm.updateMatrix(); } mm.userData.ser = si; mm.userData.fill = true; } });
           const BB = SH.series.map(() => [Infinity, Infinity, Infinity, -Infinity, -Infinity, -Infinity, 0]);   // per series: the instances' local box + the largest scale
           for (let i = 0; i < n; i++) {
+            if ((i & 255) === 255 && performance.now() > fillDeadline) { act += performance.now() - ts; yield; ts = performance.now(); }
             const o = i * 6, sp = r[o + 3], w = r[o + 4], can = r[o + 5];
             const si = ser[i], P = perSer[si], S = SH.series[si];
             q.setFromAxisAngle(up, w * 6.283);
@@ -4884,7 +4900,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
             }
             for (const mm of P.ms) near.push(mm);
           }
-        });
+        }
         if (MI) {
           MI.position.set(ox, 0, oz); if (MI.updateMatrix) { MI.matrixAutoUpdate = false; MI.updateMatrix(); }
           MI.userData.ser = 0; MI.userData.fill = true;
@@ -4908,9 +4924,9 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         impChunks.push(reg[0]);
         for (const rec of recsOut) ladderChunks.push(rec);
         ladderChunks.ver++;
-        const t2 = performance.now();
-        STAT.gens++; STAT.walkMs += t1 - t0; STAT.buildMs += t2 - t1;
-        STAT.lastMs = t2 - t0; STAT.maxMs = Math.max(STAT.maxMs, t2 - t0);
+        const t2 = performance.now(); act += t2 - ts;
+        STAT.gens++; STAT.walkMs += t1 - t0; STAT.buildMs += act;
+        STAT.lastMs = (t1 - t0) + act; STAT.maxMs = Math.max(STAT.maxMs, STAT.lastMs);
         for (const rec of recsOut) STAT.trees += rec.n;
         return { meshes, reg, recs: recsOut };
       }
@@ -5132,18 +5148,27 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
           // ship (the 9 km ring's edge over Metlakatla, the town on) bakes its raster tiles lazily, ~190 of them in 8
           // rows: one 100+ ms frame. The same rows in the same order (walk's points do not depend on the slicing)
           let g1 = cur.gz;
-          do { walk(cur.c2.cx, cur.c2.cz, cur.recs, g1, g1 + 1, cur.part); g1++; } while (g1 < NG && g1 < cur.gz + 8 && performance.now() - t0 < budgetMs);
-          cur.walkMs += performance.now() - t; cur.gz = g1;
+          if (g1 < NG) {
+            do { walk(cur.c2.cx, cur.c2.cz, cur.recs, g1, g1 + 1, cur.part); g1++; } while (g1 < NG && g1 < cur.gz + 8 && performance.now() - t0 < budgetMs);
+            cur.walkMs += performance.now() - t; cur.gz = g1;
+          }
           if (g1 >= NG) {
             const c2 = cur.c2, part = cur.part;
+            const live = () => chunks.get(keyOf(c2.cx, c2.cz)) === c2;
             // evicted while it was being walked: nothing to build
-            if (chunks.get(keyOf(c2.cx, c2.cz)) === c2) {
-              const b = build(c2.cx, c2.cz, cur.recs, performance.now() - cur.walkMs, performance.now(), part);
-              if (part === BASE) { c2.base = b; c2.qb = false; } else { c2.fill = b; c2.qf = false; }
-              built++;
-            }
+            if (!cur.gen && !live()) { cur = null; continue; }
+            // G1297: THE BUILD IN SLICES - resumed until the step's budget is spent; the chunk goes live on its last slice
+            if (performance.now() - t0 >= budgetMs) break;
+            if (!cur.gen) cur.gen = buildGen(c2.cx, c2.cz, cur.recs, performance.now() - cur.walkMs, performance.now(), part);
+            fillDeadline = t0 + budgetMs;
+            let r; try { r = cur.gen.next(); } finally { fillDeadline = Infinity; }
+            if (!r.done) break;            // the rest of the build next frame
+            const b = r.value;
+            if (live()) { if (part === BASE) { c2.base = b; c2.qb = false; } else { c2.fill = b; c2.qf = false; } }
+            else dropPart(b);              // evicted during its last slices: built, and gone at once
+            built++;
             cur = null;
-            if (built >= 2) break;         // two builds a step at most: a build is the hitch
+            if (built >= 2) break;         // two builds a step at most
           }
           if (performance.now() - t0 >= budgetMs) break;
         }

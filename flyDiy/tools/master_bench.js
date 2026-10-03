@@ -82,6 +82,9 @@ const SIZE = (opt('size', '2216x1023')).split('x').map(Number);
 // scene's page-clock window in its row (t0 / t1): the long frames' slots, long tasks, LoAFs and GCs read offline
 const GFX = opt('gfx', null) ? JSON.parse(fs.readFileSync(path.resolve(opt('gfx')), 'utf8')) : null;
 const RECDIR = opt('rec', null) ? path.resolve(opt('rec')) : null;
+// --glprof (with --rec): every WebGL call over 8 ms (its name, the loop's open slot) and every rAF callback over 40 ms with the
+// microtasks run after it - a long task the recorder's begin..end does not see (G1295)
+const GLPROF = flag('glprof');
 const REFRESH = 1000 / 60;
 
 // ---- THE FIGURES AT THE START OF THE RUN -----------------------------------------------------------------------------
@@ -201,6 +204,11 @@ function preScript(build, gfx, patch) {
       var timed = function (k, f0) { return function () { var t = performance.now(), r = f0.apply(this, arguments), d = performance.now() - t; if (d > 2 && R.gs.length < 20000) R.gs.push([Math.round(t), k, +d.toFixed(1)]); return r; }; };
       GLP.fenceSync = function () { var w = where(); R.fc[w] = (R.fc[w] || 0) + 1; return fs0.apply(this, arguments); };
       GLP.clientWaitSync = timed('cws', cw0); GLP.getBufferSubData = timed('gbsd', gb0); GLP.readPixels = timed('readPixels', rp0); }
+    if (${GLPROF ? 1 : 0}) { R.gp = []; R.rf = []; var GLQ = WebGL2RenderingContext.prototype;
+      Object.getOwnPropertyNames(GLQ).forEach(function (k) { var d = Object.getOwnPropertyDescriptor(GLQ, k); if (!d || typeof d.value !== 'function' || k === 'constructor' || /^(clientWaitSync|getBufferSubData|readPixels|fenceSync|linkProgram)$/.test(k)) return; var f0 = d.value;
+        GLQ[k] = function () { var t = performance.now(), r = f0.apply(this, arguments), dd = performance.now() - t; if (dd > 8 && R.gp.length < 20000) R.gp.push([Math.round(t), k, +dd.toFixed(1)]); return r; }; });
+      var raf0 = window.requestAnimationFrame.bind(window);
+      window.requestAnimationFrame = function (cb) { return raf0(function (ts) { var t = performance.now(); try { return cb(ts); } finally { var t1 = performance.now(); queueMicrotask(function () { var t2 = performance.now(); if (t2 - t > 40 && R.rf.length < 20000) R.rf.push([Math.round(t), (cb.name || '?'), +(t1 - t).toFixed(1), +(t2 - t1).toFixed(1)]); }); } }); }; }
     })();`);
   return L.join('\n');
 }
@@ -364,7 +372,7 @@ async function sweep() {
   let recN = 0; const recSave = async tag => { if (!RECDIR) return; try { fs.mkdirSync(RECDIR, { recursive: true });
     const txt = await b.ev('(window.FLIGHT_REC && FLIGHT_REC.rec && FLIGHT_REC.rec.logParts) ? FLIGHT_REC.rec.logParts().join("") : "null"', 120000);
     const f = path.join(RECDIR, String(++recN).padStart(2, '0') + '_' + tag + '.json'); fs.writeFileSync(f, txt);
-    try { fs.writeFileSync(f.replace(/\.json$/, '_gl.json'), await b.ev('JSON.stringify({ fc: window.__MB.fc || null, gs: window.__MB.gs || null, scenes: null })', 30000)); } catch (e) {} log('recorder log -> ' + f + ' (' + (txt.length / 1048576).toFixed(1) + ' MB)'); } catch (e) { log('recorder log failed: ' + e.message); } };
+    try { fs.writeFileSync(f.replace(/\.json$/, '_gl.json'), await b.ev('JSON.stringify({ fc: window.__MB.fc || null, gs: window.__MB.gs || null, gp: window.__MB.gp || null, rf: window.__MB.rf || null })', 30000)); } catch (e) {} log('recorder log -> ' + f + ' (' + (txt.length / 1048576).toFixed(1) + ' MB)'); } catch (e) { log('recorder log failed: ' + e.message); } };
   let recTag = 'warmup';
   const fresh = async () => { await recSave(recTag); if (flag('one-chrome')) return; R.exceptions.push(...b.exc.slice(0, 10)); await b.close(); b = await browser(UDD); S = Object.assign(session(b), { b }); };
   let places = null;
