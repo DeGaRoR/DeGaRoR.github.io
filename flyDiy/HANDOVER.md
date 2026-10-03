@@ -69171,3 +69171,17 @@ FOLLOW-UP CHANGES since the READY above (found by the evidence): `option:disable
 CSS (editor.css #edRoute and #ui .fsel, style.css #bootRoute: the inherited ink hid the browser's grey); the map's label
 placer keeps labels inside the canvas (app.js labFits). Gates re-run for them: BUILD, UISMOKE, STRIPSURF PASS. The
 generated outputs are still not committed.
+
+## G1352.1 + G1351.1 - TRAIN 27'S TWO REDS FROM LIGHT-SMOOTH: THE EASE WROTE THE LIGHTS EVERY FRAME, THE PROBE'S FADE MADE ITS OWN MATERIAL (2026-10-04, LIGHT-SMOOTH for A0, node only)
+
+- G1352.1 GATE FRAMECOST, taxi gl.uniform3f 62 -> 239 (Cub) / 64 -> 238 (Cessna): LIGHT_EASE wrote its eased key,
+  hemisphere and ground half every frame, and three uploads a light's uniforms to every program that draws whenever
+  the values CHANGE (WebGLUniforms compares against its cache) - ~88 programs x 2 colours a frame, for as long as the
+  ease ran (with the clock running and the clouds drifting: always). The ease still runs every frame inside LE; the
+  LIGHTS are written only when the eased value has moved a step since the last write (LE_STEP: 0.4 % of an intensity,
+  0.003 of a colour channel, 0.2 % of the exposure - under what an eye can see between two frames) and once more,
+  exactly, on arrival; a re-apply of the day (applyDay writes the target over the lights) puts back EXACTLY what was on
+  screen (LE.w*), so three sees no change. Someone else's write is still caught by lightEase (the light as it stands
+  against LE.setSunI / setHemiI). LE.writes counts the writes.
+- G1351.1 GATE ASSETS, "mats: atmo.js has 6 (allowed 5)": the probe crossfade's material is made through
+  MATLIB.make(THREE, 'shader', ...) (AS4a: one place materials are made); without MATLIB (a node host) the probe cuts.
