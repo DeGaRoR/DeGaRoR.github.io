@@ -484,6 +484,16 @@
     // GFX (G286): the saved graphics settings are applied the moment the
     // world exists - before its first chunk of forest is planted
     if (typeof window !== 'undefined' && window.GFX) window.GFX.onWorld();
+    // G1230 (MEM-BUDGET): A BUDGET WITHOUT THE ISLAND'S COLOUR GRIDS (potato's islandColour: false). The Landsat albedo
+    // and the tint (2 x 35 MB, RGB over the 3095 x 3920 grid) are read on the CPU only to derive their textures (on the
+    // GPU since the 'island ground' step) and by the ground cover's colour (off on potato: it falls back to its sets'
+    // own colours) - so once the world is built they go: the island object's, the world's view of it and the boot's
+    try {
+      const B = window.GFX && window.GFX.budget ? window.GFX.budget() : null;
+      if (B && B.islandColour === false) {
+        for (const o of [WB.islandAtBoot, world.island, window.ISLAND_BOOT && window.ISLAND_BOOT.grid]) if (o) { o.albedo = null; o.tint = null; }
+      }
+    } catch (e) { console.warn('island colour drop:', e && e.message); }
     return WF;
   }
   function buildWorld() {
