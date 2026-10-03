@@ -324,6 +324,43 @@ console.log('\n6. THE LAKE\'S SURFACE IS THE DATA\'S (a stub island: a bowl with
   }
 }
 
+// ---- G1381 (GEAR-WATER): A WHEELED AEROPLANE IN THE WATER ----------------------------------------------------------
+// The user: "the cub attempted a sea landing ... there's been no big drag from the water as I expected". The stock
+// taildragger (GEN_DEFAULT) put on the SEA lane 0.3 m over the water at 80 km/h, sinking 1 m/s, power off: the tyres
+// plough and the belly meets the water (32_hydro.js wetBuild) - it must stop violently and nose over, finite; dry, the
+// pass hands nothing; a float build carries no wheeled-water body (the floats' pass alone).
+{
+  console.log('\n== G1381 a wheeled aeroplane in the water ==');
+  const C = require('./flight_core.js');
+  const def = C.buildGen();
+  const world = C.makeWorld();
+  const sea = world.aerodromes.find(a => a.id === 'SEA');
+  const sim = C.makeSim(def, world); sim.reset(0); C.placeAtAerodrome(sim, sea);
+  const n = def.nodes.length, p = sim.p, v = sim.v, [xA] = sim.axes(), cg0 = sim.cgPos(), wh = world.waterH(cg0[0], cg0[2]);
+  let yMin = Infinity; for (let i = 0; i < n; i++) yMin = Math.min(yMin, p[i * 3 + 1] - def.nodes[i].r);
+  const hl = Math.hypot(xA[0], xA[2]), V0 = 80 / 3.6, dy = wh + 0.3 - yMin;
+  for (let i = 0; i < n; i++) { p[i * 3 + 1] += dy; v[i * 3] = -V0 * xA[0] / hl; v[i * 3 + 1] = -1; v[i * 3 + 2] = -V0 * xA[2] / hl; }
+  sim.ctl.thr = 0;
+  let t10 = null, noseDn = 0, finite = true, dryF = 0;
+  for (let s = 0; s < 6 * 60; s++) {
+    sim.step(1 / 60);
+    const c = sim.cgPos(), cv = sim.cgVel(), [x2] = sim.axes();
+    if (!Number.isFinite(c[1]) || !Number.isFinite(cv[0])) { finite = false; break; }
+    if (t10 == null && Math.hypot(cv[0], cv[2]) < 10 / 3.6) t10 = (s + 1) / 60;
+    noseDn = Math.max(noseDn, Math.asin(Math.max(-1, Math.min(1, x2[1]))) * 180 / Math.PI);
+  }
+  verdict(!!sim.wetBody && finite && t10 != null && t10 < 3,
+    `the stock taildragger ditched at 80 km/h is under 10 km/h in ${t10 == null ? 'never' : f(t10, 2) + ' s'} (bound 3 s), finite`);
+  verdict(noseDn > 45, `...and noses over: ${f(noseDn, 0)} deg nose-down at worst (bound 45 - the tyres plough below the CG)`);
+  // dry: the same build on its strip hands the water nothing
+  const simD = C.makeSim(def, world); simD.reset(0);
+  for (let s = 0; s < 120; s++) { simD.step(1 / 60); dryF += Math.abs(simD.out.hydroWet || 0); }
+  verdict(dryF === 0, 'dry, the wheeled-water pass hands nothing (hydroWet 0 over 2 s on the strip)');
+  const specF = JSON.parse(JSON.stringify(C.GEN_DEFAULT)); specF.gear.type = 'floats';
+  let wbF = null; try { wbF = C.makeSim(C.buildGen(specF), world).wetBody; } catch (e) { wbF = 'threw ' + e.message; }
+  verdict(wbF === null, 'a float build carries no wheeled-water body (the floats\' pass alone: the floatplanes unchanged)');
+}
+
 // the runner reads the WHOLE verdict line (GATE <ID>: PASS), not the exit code
 console.log(fails ? `\nGATE HYDRODYN: FAIL (${fails})` : '\nGATE HYDRODYN: PASS');
 process.exit(fails ? 1 : 0);
