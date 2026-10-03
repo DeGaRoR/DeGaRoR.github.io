@@ -11,9 +11,13 @@
 //   busy   - the long tasks (>= 50 ms) from the event until the page has been quiet for --quiet ms (the async tails:
 //            debounced commits, readouts, re-bakes), summed; settle = the end of the last one
 //   fn     - inclusive ms in the wrapped functions (WRAP below) inside that window
+// A slider's tick is a DRAG tick (GARAGE-LAG-2): a pointerdown on the slider first, as under a held pointer (a tree
+// that does not listen for it is unchanged); its release is never sent, so a tree that defers work to the end of a
+// drag pays it inside the window (busy, settle). --nodrag: the bare input event. The tank's tick + release is as
+// before (input, then change).
 // --prof: one extra, untimed rep per change under a CDP CPU profile: self ms by function and by file in the window.
 // Usage: node tools/perf/garage_lag.js --port 8771 --udd D:/ugl1 --trees base=_ab/3da1c82a/flyDiy,today=_ab/06bbd8e3/flyDiy
-//          [--builds cub,metal] [--reps 5] [--only fuseLen,wingSpan] [--prof] [--list] [--out file.json] [--page index.html]
+//          [--builds cub,metal] [--reps 5] [--only fuseLen,wingSpan] [--prof] [--list] [--out file.json] [--page index.html] [--evms 60000] [--nodrag]
 // No --help (an unknown flag is ignored).
 'use strict';
 const fs = require('fs'), path = require('path');
@@ -31,6 +35,8 @@ const WANT = opt('builds', 'cub,metal').split(',');
 // (2026-10-03: the user's validated Cub is builds/cub_2026-09-20_corrected.json - the first boot is the Cub-ALIKE archetype)
 const BUILDS = { cub: { label: 'Cub', build: 'builds/cub_2026-09-20_corrected.json' }, cubAlike: { label: 'Cub-alike (first boot, captured)', build: 'tools/perf/garage_lag_cub_wip.json' }, metal: MB.BUILDS.metal, default: { label: 'first boot', build: 'default' } };
 const REPS = +opt('reps', 5), QUIET = +opt('quiet', 700), PAGE = opt('page', 'index.html');
+// --evms: the page's answer per rep, ms (GARAGE-LAG-2: a SwiftShader cloud box links a new program in tens of seconds)
+const EVMS = +opt('evms', 60000);
 const ONLY = opt('only', null) ? new Set(opt('only').split(',')) : null;
 const OUT = path.resolve(opt('out', path.join(__dirname, 'garage_lag_' + Date.now() + '.json')));
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -74,7 +80,7 @@ const HARNESS = `(() => { if (window.__GL) return 'again'; const G = window.__GL
   G.find = (id, alt, pick) => { if (pick) return pick; for (const x of [id].concat(alt || [])) { const e = x && document.getElementById(x); if (e) return e; } return null; };
   G.meta = el => { if (!el) return null; const row = el.closest('.r'); return { id: el.id, tag: el.tagName, type: el.type, min: el.min, max: el.max, step: el.step, value: el.value,
     label: row ? (row.querySelector('.k') || row).textContent.trim().slice(0, 60) : (el.title || ''), opts: el.tagName === 'SELECT' ? [...el.options].map(o => o.value) : null }; };
-  G.set = (el, v, rel) => { if (el.tagName === 'SELECT') { el.value = String(v); el.dispatchEvent(new Event('change')); }
+  G.set = (el, v, rel) => { if (${!flag('nodrag')} && el.type === 'range' && !rel) el.dispatchEvent(new PointerEvent('pointerdown')); if (el.tagName === 'SELECT') { el.value = String(v); el.dispatchEvent(new Event('change')); }
     else if (el.type === 'checkbox') { el.checked = !!v; el.dispatchEvent(new Event('change')); }
     else if (el.type === 'range' || el.type === 'color') { el.value = String(v); el.dispatchEvent(new Event('input')); if (rel) el.dispatchEvent(new Event('change')); }
     else { el.value = String(v); if (typeof el.oninput === 'function') el.dispatchEvent(new Event('input')); else el.dispatchEvent(new Event('change')); } };
@@ -166,12 +172,12 @@ function hot(p) {
       for (let k = 0; k < vals.length; k++) {
         const P = flag('prof') && k === 0;
         if (P) { await b.cmd('Profiler.enable'); await b.cmd('Profiler.setSamplingInterval', { interval: 250 }); await b.cmd('Profiler.start'); }
-        const r = JSON.parse(await b.ev(`(async () => JSON.stringify(await __GL.one(${findExpr}, ${JSON.stringify(vals[k])}, ${QUIET}, ${!!C.release})))()`, 60000));
+        const r = JSON.parse(await b.ev(`(async () => JSON.stringify(await __GL.one(${findExpr}, ${JSON.stringify(vals[k])}, ${QUIET}, ${!!C.release})))()`, EVMS));
         if (P) { const p = await b.cmd('Profiler.stop'); prof = p.result && p.result.profile ? hot(p.result.profile) : null; await b.cmd('Profiler.disable'); continue; }
         reps.push(r);
       }
       // back to the build's own value (untimed), and let it settle
-      await b.ev(`(async () => { __GL.set(${findExpr}, ${JSON.stringify(m.value)}, ${!!C.release}); await __GL.quiet(performance.now(), ${QUIET}, 8000); return 1; })()`, 60000);
+      await b.ev(`(async () => { __GL.set(${findExpr}, ${JSON.stringify(m.value)}, ${!!C.release}); await __GL.quiet(performance.now(), ${QUIET}, 8000); return 1; })()`, EVMS);
       const S = k => ({ med: med(reps.map(r => r[k])), max: reps.length ? Math.max(...reps.map(r => r[k])) : null });
       const fnSum = {}; for (const r of reps) for (const k in r.fn) { const a = fnSum[k] || (fnSum[k] = [0, 0]); a[0] += r.fn[k][0] / reps.length; a[1] += r.fn[k][1] / reps.length; }
       for (const k in fnSum) fnSum[k] = [+fnSum[k][0].toFixed(1), +fnSum[k][1].toFixed(1)];

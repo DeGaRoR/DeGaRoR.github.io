@@ -1414,6 +1414,8 @@ function relayout() {
 const prevPost = PAGE.post;
 PAGE.post = ctx => {
   if (prevPost) prevPost(ctx);
+  // G1303: a drag tick - the tanks are laid out when the hand stops (a seeded layer only: the first build is whole)
+  if (ctx.defer && seeded) { if (group) group.visible = false; return; }
   // the game seeds through applySpec; a bench reload seeds from its memory;
   // a first build with neither carries the default
   if (!seeded) {

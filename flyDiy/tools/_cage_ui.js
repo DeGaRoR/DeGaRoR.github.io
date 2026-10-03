@@ -741,6 +741,8 @@ if (typeof window !== 'undefined')
 // DOM element that belongs to this file.
 if (typeof window !== 'undefined') window.CAGE_AERO_ON = aeroOn;
 
+// G1301: noted for the repaint (a page slice without the note answers the same material)
+const paintNote = (m, name) => typeof paintRec === 'function' ? paintRec(m, 'c', name, null) : m;
 const matOf = name => {
   const a = alphaOf(name);
   if (aeroOn()) {
@@ -773,7 +775,7 @@ const matOf = name => {
                   ? ':G' + [GLASS.opacity, GLASS.scratch, GLASS.wipe,
                             GLASS.grime, GLASS.refl, GLASS.rainbow, P.glazeMat || 0].join(',')
                   : '');
-    if (matCache[key]) return matCache[key];
+    if (matCache[key]) return paintNote(matCache[key], name);
     if (A.AERO_GLASS.has(name)) {
       // the VIEW alpha still wins when it is asking for less: `glass a` is a
       // way of LOOKING at the build and must be able to see through it
@@ -824,7 +826,7 @@ const matOf = name => {
         side: THREE.DoubleSide,
       });
     }
-    return matCache[key];
+    return paintNote(matCache[key], name);
   }
   const neutral = !$('color').checked;
   const key = (neutral ? 'n:' : 'c:') + name + ':' + a;
@@ -876,7 +878,7 @@ function secMat(name, g) {
   SEC_CTX[name] = g || {};
   const r = A.aeroSecResolve(name, SEC_OVER,
     { cons: (g && g.cons) || consOf(), fin: g && g.fin });
-  return A.aeroMaterial(THREE, {
+  const m = A.aeroMaterial(THREE, {
     // `tint0` is the LAYER'S legacy palette colour — the birch-vs-beech of a
     // blade, a spat's pale grey — used only when the whole walk says nothing:
     // an inherited colour beats a default, a default beats the finish base
@@ -924,6 +926,92 @@ function secMat(name, g) {
     // reads a blade and the spinner in their own polar frame
     spin: name === 'spinner' ? 2 : (name === 'prop' ? 1 : 0),
   });
+  // G1301: noted for the repaint (a page slice without the note - GATE LIVERY's - answers the same material)
+  return typeof paintRec === 'function' ? paintRec(m, 's', name, g) : m;
+}
+// G1301 (GARAGE-LAG-2): THE PAINT ROWS REPAINT, THEY DO NOT REBUILD. A colour well, a metallic or a dial changes
+// which material a section wears and nothing else - and each notch of the picker rebuilt the whole aeroplane (the
+// sheet, every layer: 250-370 ms on the box for a colour). Every material the build hands out passes through matOf
+// (the cage's sections) or secMat (the layers'), and both are pure functions of the section, the layer's `g` and the
+// override maps; so each material handed out is noted with the requests that produced it (PAINT_REQ, cleared at the
+// head of every build), and a repaint asks the SAME factories the same requests over the moved maps and puts the
+// answers in place of the old materials on the editor's meshes - the materials the build would have produced, from
+// the same pools. Then the build's own tail: the panel sync, the weathering (it reads the bases), the follow rows and
+// draw() (the clip, the autosave, the bench's dirty flag). It falls back to build() whenever it cannot answer for
+// itself: no requests on record, a factory that answers null, one material handed out for requests that now answer
+// differently, or a glass companion it does not know how to re-tint. `CAGE_UI.repaintOn = false` builds every time.
+const PAINT_REQ = new Map();            // material -> Map(request key -> [kind, section, g])
+let PAINT_REC = true;
+function paintRec(m, kind, name, g) {
+  if (!m || !PAINT_REC) return m;
+  let q = PAINT_REQ.get(m);
+  if (!q) PAINT_REQ.set(m, q = new Map());
+  let gk = '';
+  if (g) try { gk = JSON.stringify(g); } catch (e) { gk = '?' + Math.random(); }
+  const k = kind + ':' + name + ':' + gk;
+  if (!q.has(k)) q.set(k, [kind, name, g]);
+  return m;
+}
+function repaint() {
+  if ((window.CAGE_UI && window.CAGE_UI.repaintOn === false) || !PAINT_REQ.size || !meshObj) { build(); return; }
+  const live = Object.assign({}, SEC_LIVE), ctx0 = Object.assign({}, SEC_CTX);
+  const swap = new Map();
+  let ok = true;
+  PAINT_REC = false;
+  try {
+    for (const [m, q] of PAINT_REQ) {
+      let nu = null;
+      for (const [kind, name, g] of q.values()) {
+        const x = kind === 'c' ? matOf(name) : secMat(name, g);
+        if (!x || (nu && x !== nu)) { ok = false; break; }
+        nu = x;
+      }
+      if (!ok) break;
+      if (nu !== m) swap.set(m, nu);
+    }
+  } catch (e) { ok = false; }
+  PAINT_REC = true;
+  // secMat stamps the section's epoch and ctx as it answers: the build's own stamps stand
+  for (const k in SEC_LIVE) delete SEC_LIVE[k];
+  for (const k in SEC_CTX) delete SEC_CTX[k];
+  Object.assign(SEC_LIVE, live); Object.assign(SEC_CTX, ctx0);
+  if (!ok) { build(); return; }
+  if (swap.size) {
+    // the glass companions: the cage's own (meshFrom's) is made again by meshFrom's own call over the new
+    // materials; a companion anywhere else over a moved material is a door this path does not know
+    const A0 = AK(), mm = Array.isArray(meshObj.material) ? meshObj.material : [meshObj.material];
+    const meshMoved = mm.some(x => swap.has(x));
+    let foreign = false;
+    scene.traverse(o => {
+      if (!o.isMesh || !o.userData || !o.userData.aeroCompanion || !o.parent || o.parent === meshObj) return;
+      const hm = Array.isArray(o.parent.material) ? o.parent.material : [o.parent.material];
+      if (hm.some(x => swap.has(x))) foreign = true;
+    });
+    if (foreign || (meshMoved && !(A0 && A0.aeroGlassCompanion))) { build(); return; }
+    scene.traverse(o => {
+      if (!o.material || (o.userData && o.userData.aeroCompanion)) return;
+      if (Array.isArray(o.material)) { if (o.material.some(x => swap.has(x))) o.material = o.material.map(x => swap.get(x) || x); }
+      else if (swap.has(o.material)) o.material = swap.get(o.material);
+    });
+    if (meshMoved) {
+      for (const c of meshObj.children.slice()) if (c.userData && c.userData.aeroCompanion) meshObj.remove(c);
+      meshGlass(meshObj);
+    }
+    // the record follows the swap: the next repaint starts from what the meshes now wear
+    const next = new Map();
+    for (const [m, q] of PAINT_REQ) {
+      const t = swap.get(m) || m;
+      const n = next.get(t);
+      if (!n) next.set(t, new Map(q)); else for (const [k, v] of q) if (!n.has(k)) n.set(k, v);
+    }
+    PAINT_REQ.clear();
+    for (const [m, q] of next) PAINT_REQ.set(m, q);
+  }
+  try { buildMatPanel(); } catch (e) {}
+  try { applyWeather(); } catch (e) { console.error('weather:', e); }
+  applyRowVis();
+  syncFollow();
+  draw();
 }
 // the panel's view of the walk, for its own rows' labels and wells: the
 // same resolver, over the same maps, with the ctx the layer last drew with
@@ -1073,14 +1161,15 @@ function meshFrom(m) {
   // rides the same faces as a child mesh one renderOrder earlier. Inert when
   // the panes are not AEROSKIN glass (the flat view), tagged so the join and
   // the highlight walk past it. See aeroskin.js's glass family header.
-  {
-    const A0 = AK();
-    if (A0 && A0.aeroGlassCompanion)
-      A0.aeroGlassCompanion(THREE, mesh, mesh.material, m0 =>
-        A0.aeroGlassTint(THREE, { tintLin: m0.color.getHex(),
-                                  opacity: m0.opacity }));
-  }
+  meshGlass(mesh);
   return mesh;
+}
+function meshGlass(mesh) {
+  const A0 = AK();
+  if (A0 && A0.aeroGlassCompanion)
+    A0.aeroGlassCompanion(THREE, mesh, mesh.material, m0 =>
+      A0.aeroGlassTint(THREE, { tintLin: m0.color.getHex(),
+                                opacity: m0.opacity }));
 }
 
 // THE FIELD, SEEN (G66). A 0.25 m checkerboard straight off (sL, sC): if the
@@ -1330,6 +1419,54 @@ function updateDims(box, FS) {
 // of parked.js's captures under the roll-out screen (applySpecSteps). build() runs it to the end - every slider,
 // every door, exactly as before.
 function build() { const g = buildSteps(); while (!g.next().done); }
+// G1303 (GARAGE-LAG-2): THE DETAIL LAYERS WAIT FOR THE PAUSE. A slider dragged under a held pointer rebuilt every
+// layer on every tick; the ones that only DRESS the aeroplane - the lights, the control hinges, the access fittings,
+// the tanks (the energy layer reads the crew and the wing; nothing that builds before it reads it) - ride the post
+// chain with `ctx.defer` set while the pointer is down, keep their last group hidden and return. The sheet, the
+// structure, the crew and every layer something else reads are built as before. The full build follows the drag:
+// on the slider's release (`change`), on the pointer coming up anywhere, or 350 ms after the last tick - one build,
+// with the sheet kept (G1300), so the aeroplane standing when the hand stops is the one a plain build makes (GATE-
+// side: tools/perf/garage_lag_same.js). A click, a typed value, the keyboard, a select: a plain build, as before.
+// `CAGE_UI.dragDefer = false` builds every tick in full.
+let DRAG_ON = null, DRAG_TICK = false, DRAG_LATE = false, DRAG_T = null;
+function dragSettle() {
+  if (DRAG_T) { clearTimeout(DRAG_T); DRAG_T = null; }
+  if (DRAG_LATE) { DRAG_LATE = false; build(); }
+}
+function dragSettleSoon() {
+  if (DRAG_T) clearTimeout(DRAG_T);
+  DRAG_T = setTimeout(() => { DRAG_T = null; dragSettle(); }, 350);
+}
+if (typeof window !== 'undefined' && window.addEventListener) {
+  const up = () => { if (DRAG_ON) { DRAG_ON = null; dragSettle(); } };
+  window.addEventListener('pointerup', up, true);
+  window.addEventListener('pointercancel', up, true);
+}
+// G1300 (GARAGE-LAG-2): THE SHEET IS KEPT WHILE ITS SPEC IS. cageSheet is cageSpec(P) and then a function of that spec
+// alone (with the step, the level, and whether the view is exploded): a wing, tail, gear, engine or paint row moves
+// nothing in the cage spec, and rebuilt the same fuselage sheet on every tick (~100-200 ms of the box's 250-370). The
+// key is the spec itself (sorted keys; a non-finite number spelled out so NaN never meets null), so the same spec is
+// the same sheet - the previous build's object, which every layer's mesh-keyed cache (FIT_SITE's WeakMaps, the energy
+// layer's body signature) then answers from too. The one global the sheet's build publishes (CAGE_MEMBERS, read by the
+// wing and the gear) is kept with it and put back on a hit: a headless caller in between may have built another
+// aeroplane. `CAGE_UI.sheetKeep = false` builds every time.
+let SHEET_KEY = null, SHEET_VAL = null, SHEET_MEMB;
+const specKey = o => JSON.stringify(o, (k, x) => (typeof x === 'number' && !isFinite(x)) ? 'num:' + x
+  : (x && typeof x === 'object' && !Array.isArray(x)) ? Object.keys(x).sort().reduce((a, kk) => { a[kk] = x[kk]; return a; }, {}) : x);
+function sheetKept(P, opts) {
+  let key = null;
+  if (G.cageSpec && !(window.CAGE_UI && window.CAGE_UI.sheetKeep === false))
+    try { key = specKey(G.cageSpec({ ...P })) + '|' + opts.step + '|' + opts.level + '|' + ((P.explodeD || 0) > 0 ? 1 : 0); }
+    catch (e) { key = null; }
+  if (key != null && key === SHEET_KEY) {
+    if (typeof window !== 'undefined') window.CAGE_MEMBERS = SHEET_MEMB;
+    return SHEET_VAL;
+  }
+  const v = G.cageSheet(P, opts);
+  SHEET_KEY = key; SHEET_VAL = v;
+  SHEET_MEMB = typeof window !== 'undefined' ? window.CAGE_MEMBERS : undefined;
+  return v;
+}
 function* buildSteps() {
   // T2.1: a retired row (a preset written against the ring editor, a class
   // seed's taperW) is lifted into the frames' rows the moment it lands in P
@@ -1389,7 +1526,7 @@ function* buildSteps() {
   // subdivide, glass sill, cut, canopy, rims, interior, the explode undo —
   // lives in CAGE2.cageSheet, so the headless tail (_tail_headless.js) and
   // the node gates hold the mesh the layers see; the page holds no copy
-  const built = G.cageSheet(P, { step, level: L });
+  const built = sheetKept(P, { step, level: L });
   const spec = built.spec, m = built.cage;
   M0 = m;
   let s = built.mesh;
@@ -1397,6 +1534,7 @@ function* buildSteps() {
 
   disposeObj(meshObj);
   for (const k in matCache) delete matCache[k];
+  PAINT_REQ.clear();
   // ZERO SKIN (G26.4, user): beyond the alpha slider — with skinOn 0
   // BOTH skin families (the fuselage: skin, pillar bands, taper
   // section, taper panels, cut doors — AND the interior linings:
@@ -1561,7 +1699,11 @@ function* buildSteps() {
   // second call a no-op on every build where no layer appeared or vanished.
   SEC_EPOCH++;
   yield 'post';                          // G680: the layers in a task of their own when a caller slices the build
-  if (PAGE.post) try { PAGE.post({ scene, spec, mesh: sFix, P, stat: $('stat') }); }
+  // G1303: a drag tick defers the detail layers; any other build is whole, and settles a deferred one
+  const defer = DRAG_TICK && !(window.CAGE_UI && window.CAGE_UI.dragDefer === false);
+  DRAG_LATE = defer;
+  if (!defer && DRAG_T) { clearTimeout(DRAG_T); DRAG_T = null; }
+  if (PAGE.post) try { PAGE.post({ scene, spec, mesh: sFix, P, stat: $('stat'), defer }); }
   catch (e) { console.error('page post hook:', e); }
   // G331: LATE — what a layer wants drawn once every layer has drawn (the
   // crew's floor, cut round the other layers' meshes), in this same task
@@ -1845,8 +1987,14 @@ const mkRow = (parent, k, label, lo, hi, st, val, oninput, names, opts) => {
     }
     rng.oninput = e => {
       vf.value = fmtV(+e.target.value);
-      oninput(rel ? (sizeRef || 1) * +e.target.value : +e.target.value);
+      // G1303: a tick under a held pointer is a DRAG tick - the detail layers wait for the pause (dragBuild)
+      DRAG_TICK = DRAG_ON === rng;
+      try { oninput(rel ? (sizeRef || 1) * +e.target.value : +e.target.value); }
+      finally { DRAG_TICK = false; }
+      if (DRAG_LATE) dragSettleSoon();
     };
+    rng.addEventListener('pointerdown', () => { DRAG_ON = rng; });
+    rng.addEventListener('change', () => { if (DRAG_ON === rng) DRAG_ON = null; dragSettle(); });
     vf.onchange = () => {                // typed values clamp to the range
       if (rng.disabled) { vf.value = fmtV(rng.value); return; }
       let v = parseFloat(vf.value);
@@ -3392,13 +3540,13 @@ function glassWell(row, nm) {
                     ? GLASS.tint : 0xaec9d8) >>> 0).toString(16).padStart(6, '0');
   c.title = 'the tint of this pane';
   c.oninput = () => { secTint[nm] = parseInt(c.value.slice(1), 16);
-    aeroSavePrefs(); build(); };
+    aeroSavePrefs(); repaint(); };
   const k = row.querySelector('span.k');
   if (k) { k.style.cursor = 'pointer';
     k.ondblclick = () => { delete secTint[nm];
       c.value = '#' + ((GLASS.tint != null ? GLASS.tint : 0xaec9d8) >>> 0)
         .toString(16).padStart(6, '0');
-      aeroSavePrefs(); build(); }; }
+      aeroSavePrefs(); repaint(); }; }
   row.appendChild(c);
 }
 
@@ -4288,7 +4436,7 @@ function buildMatPanel() {
         : A.AERO_FINISH[secFin.body || A.aeroFinishFor('body', cons)].base;
       baseReach(secTint, prev, v, null, (a, b) => (a >>> 0) === (b >>> 0));
       secTint.body = v;
-      aeroSavePrefs(); build();
+      aeroSavePrefs(); repaint();
     };
     d.appendChild(c);
     // G215: THE BASE PAINT'S METAL, the same reach as its colour — every
@@ -4307,7 +4455,7 @@ function buildMatPanel() {
       const prev = secMetal.body != null ? secMetal.body : null;   // unset = 0, the neutral
       baseReach(secMetal, prev, x <= 0 ? null : x, 0, (a, b) => Math.abs(a - b) < 1e-6);
       if (x <= 0) delete secMetal.body; else secMetal.body = x;
-      aeroSavePrefs(); build();
+      aeroSavePrefs(); repaint();
     };
     dm.appendChild(im); dm.appendChild(vm);
     // G316 (the user: "we need both base metallic and base roughness for the
@@ -4329,7 +4477,7 @@ function buildMatPanel() {
       const prev = secRough.body != null ? secRough.body : null;   // unset = 1, the neutral
       baseReach(secRough, prev, Math.abs(x - 1) < 1e-6 ? null : x, 1, (a, b) => Math.abs(a - b) < 1e-6);
       if (Math.abs(x - 1) < 1e-6) delete secRough.body; else secRough.body = x;
-      aeroSavePrefs(); build();
+      aeroSavePrefs(); repaint();
     };
     dr.appendChild(ir); dr.appendChild(vr);
   }
@@ -4514,7 +4662,7 @@ function buildMatPanel() {
     });
     col.oninput = () => {
       secTint[nm] = parseInt(col.value.slice(1), 16);
-      aeroSavePrefs(); build();
+      aeroSavePrefs(); repaint();
     };
     row.appendChild(col);
     // double-click the LABEL to drop the whole section back to its finish's
@@ -4546,7 +4694,7 @@ function buildMatPanel() {
         show();
         const x = +inp.value;
         if (x <= 0) delete secMetal[nm]; else secMetal[nm] = x;
-        aeroSavePrefs(); build();
+        aeroSavePrefs(); repaint();
       };
       d.appendChild(inp); d.appendChild(v);
     }
@@ -4587,13 +4735,13 @@ function buildMatPanel() {
         show();
         const x = +inp.value;
         if (Math.abs(x - 1) < 1e-6) delete store[nm]; else store[nm] = x;
-        aeroSavePrefs(); build();
+        aeroSavePrefs(); repaint();
       };
       d.appendChild(inp); d.appendChild(v);
       d.firstChild.style.cursor = 'pointer';
       d.firstChild.ondblclick = () => {
         delete store[nm]; inp.value = '1'; show();
-        aeroSavePrefs(); build();
+        aeroSavePrefs(); repaint();
       };
     }
   }
@@ -4774,7 +4922,7 @@ if (typeof ResizeObserver !== 'undefined')
 if (PAGE.defaultStep && $('step')) $('step').value = PAGE.defaultStep;
 anchorSize();                              // the page opens at its ×1
 syncSliders();
-window.CAGE_UI = { P, build, draw, applyPreset, syncSliders, reg: () => decReg(),   // G318: the tape reads it
+window.CAGE_UI = { P, build, repaint, draw, applyPreset, syncSliders, reg: () => decReg(),   // G318: the tape reads it
   // THE TWO HALVES OF A LOAD (G63). `applySpec` puts a build into the editor;
   // `toSpec` takes the editor's whole parameter set out as the spec's `cage`
   // fragment — layer keys included, view keys excluded. Every shelf load,
