@@ -24,7 +24,11 @@
 //            (?town=1). Taxi chase + low pass each.
 //   PER SCENE: fps DELIVERED (frames / wall), the UNEVEN share (consecutive intervals changing their refresh count - the
 //            judder a 60 Hz screen shows), dt p50 / p99 / worst, frames over 100 ms, the share at the 30 cap, long
-//            tasks >= 200 ms / >= 1 s and the worst.
+//            tasks >= 200 ms / >= 1 s and the worst. G1360: THE FRAME-LENGTH DISTRIBUTION (tools/frame_dist.js) - the
+//            histogram (< 20 ... > 1000 ms), p90 / p99.9, the share over 1.5x and 3x the frame's own cap, frames over 1 s
+//            (`dist` on every scene and trip row; the table prints p90 / p99.9 / > 1.5x cap and the histogram).
+//   SUBSETS (G1362, tools/perf/train_gate.js): --places HOME,mn_strip (the land strips visited, HOME first when listed),
+//            --water-builds floats (the floatplanes), --no-water-pass (the water taxi alone), --cockpit 0 (no cockpit taxi).
 //   COMPARE - each metric against the figures at the start of the run where one exists: the A0 baseline
 //            (futureDesigns/PLAYTEST-2026-09-26.md section 0.2, master 3da1c82a) and train 11's first ratchet baseline
 //            (tools/perf/ratchet_baseline.json at c73886d3) - BASELINES below says what was taken from where.
@@ -43,6 +47,7 @@
 'use strict';
 const { spawn, execSync } = require('child_process');
 const fs = require('fs'), path = require('path'), http = require('http'), os = require('os');
+const FD = require('./frame_dist.js');
 
 const argv = process.argv.slice(2);
 const opt = (k, d) => { const i = argv.indexOf('--' + k); return i >= 0 && argv[i + 1] !== undefined && !argv[i + 1].startsWith('--') ? argv[i + 1] : d; };
@@ -59,7 +64,10 @@ const BUILDS = {   // the three the user validated, and the two floatplanes for 
   // and the jodel") is built on it - flown as GATE FLOATS / GATE SEAPLANE fly it: the fixture with gear.type 'floats'
   twinFloats: { label: 'twin floatplane', build: 'tools/fixtures/build_v7_ultralight_2026-09-05.json', patch: j => { j.spec.gear.type = 'floats'; j.spec.cage = Object.assign({}, j.spec.cage, { gearFloats: 1 }); return j; } },   // (the editor reads its own row: cage.gearFloats)
 };
-const WATER = ['floats', 'twinFloats'];
+const WATER = opt('water-builds', 'floats,twinFloats').split(',').filter(b => BUILDS[b]);
+// --places a,b (G1362): the land strips visited (the world's own list filtered; HOME first when it is listed)
+const PLACES = opt('places', null) ? new Set(opt('places').split(',')) : null;
+const landOf = places => places.filter(p => p.kind === 'strip' && (!PLACES || PLACES.has(p.id)));
 const WANT = (opt('builds', 'cub,jodel,metal')).split(',').filter(b => BUILDS[b]);
 const ONLY = new Set((opt('only', 'loads,garage,taxi,pass,water,stress')).split(','));
 const STRESS = [
@@ -93,7 +101,7 @@ function placesFromFixture() {
   } catch (e) { return []; }
 }
 function plan(places) {
-  const land0 = places.filter(p => p.kind === 'strip'), water = places.filter(p => p.kind === 'water');
+  const land0 = landOf(places), water = places.filter(p => p.kind === 'water');
   const home = land0.find(p => p.id === 'HOME') || land0[0], land = home ? [home].concat(land0.filter(p => p !== home)) : land0;   // the run's order: HOME first
   const rows = []; let s = 0;
   const add = (part, scene, what, sec) => { rows.push({ part, scene, what, sec }); s += sec; };
@@ -105,7 +113,7 @@ function plan(places) {
     if (ONLY.has('garage')) add(B.label, 'garage', 'the shed, ' + SECS.garage + ' s', SECS.garage + EST.settle);
     land.forEach((p, i) => {
       add(B.label, i ? 'garage -> world @' + p.id : 'roll-out shot @' + p.id, i ? 'route pick + Roll out (the stand\'s world steps)' : 'the first roll-out: the shot, the reveal', i ? EST.rolloutNewStand : EST.firstRollout);
-      if (ONLY.has('taxi')) { add(B.label, 'taxi chase @' + p.id, p.name, SECS.taxi); add(B.label, 'taxi cockpit @' + p.id, p.name, SECS.cockpit); }
+      if (ONLY.has('taxi')) { add(B.label, 'taxi chase @' + p.id, p.name, SECS.taxi); if (SECS.cockpit > 0) add(B.label, 'taxi cockpit @' + p.id, p.name, SECS.cockpit); }
       if (ONLY.has('pass')) add(B.label, 'low pass @' + p.id, '~60 m AGL along the strip', SECS.pass + EST.settle);
       add(B.label, 'world -> garage', 'the way back', EST.rollin);
       if (!i && ONLY.has('loads')) { add(B.label, 'round trip 2', 'roll out (no change) + back', EST.rolloutSame + EST.rollin); }
@@ -116,7 +124,7 @@ function plan(places) {
     add(B.label, 'warm first load', 'navigation -> garage', EST.warmLoad);
     add(B.label, 'roll-out @SEA', 'the game puts floats on the SEA lane', EST.firstRollout);
     add(B.label, 'water taxi @SEA', 'the run on the lane', SECS.water);
-    for (const p of water) add(B.label, 'low pass @' + p.id, p.name, SECS.pass + EST.settle + (p.id === 'SEA' ? 0 : 10));
+    if (!flag('no-water-pass')) for (const p of water) add(B.label, 'low pass @' + p.id, p.name, SECS.pass + EST.settle + (p.id === 'SEA' ? 0 : 10));
     add(B.label, 'world -> garage', 'the way back', EST.rollin);
   }
   if (ONLY.has('stress')) for (const S of STRESS) {
@@ -140,7 +148,9 @@ function stat(fr, lt, t0, t1, sc) {
   let n = 0, ch = 0, prev = null;
   for (const x of d) { const k = Math.max(1, Math.round(x / REFRESH)); if (prev !== null) { n++; if (k !== prev) ch++; } prev = k; }
   const tasks = lt.filter(x => x[0] + x[1] > t0 && x[0] < t1).map(x => x[1]);
-  return { frames: f.length, fps: +(1000 * f.length / (t1 - t0)).toFixed(1), uneven: n ? +(ch / n).toFixed(3) : null,
+  const D = FD.dist(d, f.map(r => r[2]));   // G1360: the frame-length distribution (r[2]: the frame's cap)
+  return { frames: f.length, p90: D.p90, p999: D.p999, over15: D.over15.share, over3x: D.over3x.share, over1s: D.over1s,
+    dist: { buckets: D.buckets.map(b => [b.k, b.n]), over15n: D.over15.n, over3xn: D.over3x.n }, fps: +(1000 * f.length / (t1 - t0)).toFixed(1), uneven: n ? +(ch / n).toFixed(3) : null,
     p50: +q(0.5).toFixed(1), p99: +q(0.99).toFixed(1), worst: +s[s.length - 1].toFixed(1), over100: d.filter(x => x > 100).length,
     cap30: +(f.filter(r => r[2] === 30).length / f.length).toFixed(2), tasks200: tasks.filter(x => x >= 200).length, tasks1s: tasks.filter(x => x >= 1000).length,
     taskWorst: tasks.length ? Math.max(...tasks) : 0, onGround: +(f.filter(r => r[5] > 0).length / f.length).toFixed(2),
@@ -287,7 +297,7 @@ async function sweep() {
     const pull = async () => JSON.parse(await b.ev('JSON.stringify({ fr: __MB.fr.slice(-30000), lt: __MB.lt, sc: __MB.sc || [] })', 20000));
     const scene = async (build, name, sec, extra) => { const t0 = await now(); await sleep(sec * 1000); const t1 = await now(); const d = await pull(); const st = stat(d.fr, d.lt, t0, t1, d.sc);
       const row = Object.assign({ build, scene: name, sec }, st || { frames: 0 }, extra || {}); R.scenes.push(row);
-      log(name.padEnd(28) + ' ' + (st ? st.fps + ' fps, uneven ' + (100 * st.uneven).toFixed(0) + ' %, p99 ' + st.p99 + ', worst ' + st.worst + ' ms, tasks>=200 ' + st.tasks200 : 'no frames')); return row; };
+      log(name.padEnd(28) + ' ' + (st ? st.fps + ' fps, uneven ' + (100 * st.uneven).toFixed(0) + ' %, p90 ' + st.p90 + ', p99 ' + st.p99 + ', p99.9 ' + st.p999 + ', worst ' + st.worst + ' ms, >1.5x cap ' + FD.pc(st.over15) + ', >100 ms ' + st.over100 + ', tasks>=200 ' + st.tasks200 : 'no frames')); return row; };
     const trip = async (build, name, kind, action, extra) => {
       const n0 = await b.ev(A.trips), t0 = await now(), w0 = Date.now(); const pressed = await b.ev(action);
       let d = null; const tEnd = Date.now() + 300000;
@@ -314,7 +324,7 @@ async function sweep() {
   const taxiAndPass = async (S, bk, p, doCockpit) => {
     if (ONLY.has('taxi')) {
       await S.b.ev(A.cam('chase')); await S.scene(bk, 'taxi chase @' + p.id, SECS.taxi, { place: p.id });
-      if (doCockpit) { await S.b.ev(A.cam('cockpit')); await S.scene(bk, 'taxi cockpit @' + p.id, SECS.cockpit, { place: p.id }); await S.b.ev(A.cam('chase')); }
+      if (doCockpit && SECS.cockpit > 0) { await S.b.ev(A.cam('cockpit')); await S.scene(bk, 'taxi cockpit @' + p.id, SECS.cockpit, { place: p.id }); await S.b.ev(A.cam('chase')); }
     }
     if (ONLY.has('pass')) { const ph = await S.b.ev(A.pass(p, 42), 20000).catch(e => 'error ' + e.message); await sleep(EST.settle * 1000);
       await S.scene(bk, 'low pass @' + p.id, SECS.pass, { place: p.id, pilot: ph }); }
@@ -354,7 +364,7 @@ async function sweep() {
     if (!places) { places = JSON.parse(await b.ev('(async () => { for (let i = 0; i < 100 && !(window.FLIGHT_PROBE && FLIGHT_PROBE.world && FLIGHT_PROBE.world()); i++) await new Promise(r => setTimeout(r, 100)); return ' + A.places + '; })()'));
       R.meta.places = places; log('places: ' + places.map(p => p.id + (p.kind === 'water' ? '(water)' : '')).join(' ')); }
     if (ONLY.has('garage')) await S.scene(bk, 'garage', SECS.garage);
-    const land = places.filter(p => p.kind === 'strip');
+    const land = landOf(places);
     const home = land.find(p => p.id === 'HOME') || land[0];
     const order = [home].concat(land.filter(p => p !== home));
     for (let i = 0; i < order.length; i++) {
@@ -381,7 +391,7 @@ async function sweep() {
     if (!places) { places = JSON.parse(await b.ev('(async () => { for (let i = 0; i < 100 && !(window.FLIGHT_PROBE && FLIGHT_PROBE.world && FLIGHT_PROBE.world()); i++) await new Promise(r => setTimeout(r, 100)); return ' + A.places + '; })()')); R.meta.places = places; }
     await S.trip(wk, 'garage -> world (the SEA lane)', 'rollout', A.rollOut); await S.flying();
     await b.ev(A.cam('chase')); await S.scene(wk, 'water taxi @SEA', SECS.water);
-    for (const p of (places || []).filter(q => q.kind === 'water')) {
+    if (!flag('no-water-pass')) for (const p of (places || []).filter(q => q.kind === 'water')) {
       const ph = await b.ev(A.pass(p, wk === 'twinFloats' ? 32 : 45), 20000).catch(e => 'error ' + e.message); await sleep((EST.settle + (p.id === 'SEA' ? 0 : 10)) * 1000);
       await S.scene(wk, 'low pass @' + p.id, SECS.pass, { place: p.id, pilot: ph, teleport: p.id !== 'SEA' });
     }
@@ -430,9 +440,13 @@ function table(R) {
   for (const l of R.loads) L.push('  ' + (l.build + ' ').padEnd(8) + (l.load || '').padEnd(42) + ' ' + f(l.sec != null ? l.sec : l.tripMs != null ? (l.tripMs / 1000).toFixed(1) : null).padStart(7)
     + (l.wallSec != null ? '  (wall ' + l.wallSec + ')' : '') + (l.frames ? (l.frames.screenS ? '  screen ' + l.frames.screenS + ' s' : '') + '  frames ' + l.frames.fps + ' fps, worst ' + l.frames.worst + ' ms, task ' + l.frames.taskWorst + ' ms' : '')
     + (l.links ? '  links ' + l.links.n + ' (worst ' + l.links.worstS + ' s' + (l.links.over5s ? ', ' + l.links.over5s + ' > 5 s' : '') + ')' : '') + (l.cacheVerdict ? '  cache: ' + l.cacheVerdict : ''));
-  L.push('', 'SCENES  build | scene | fps delivered | uneven | p50 / p99 / worst ms | >100 ms | at 30 cap | tasks >=200 ms / >=1 s (worst)');
+  L.push('', 'SCENES  build | scene | fps delivered | uneven | p50 / p90 / p99 / p99.9 / worst ms | >1.5x cap | >3x | >100 ms | >1 s | at 30 cap | tasks >=200 ms / >=1 s (worst)');
   for (const s of R.scenes) L.push('  ' + (s.build + ' ').padEnd(18) + (s.scene + ' ').padEnd(26) + f(s.fps).padStart(6) + '  ' + (s.uneven == null ? '-' : (100 * s.uneven).toFixed(0) + ' %').padStart(5)
-    + '  ' + [s.p50, s.p99, s.worst].map(f).join(' / ').padEnd(18) + f(s.over100).padStart(4) + (s.cap30 == null ? '' : ('  ' + Math.round(100 * s.cap30) + ' %').padStart(7)) + '   ' + f(s.tasks200) + ' / ' + f(s.tasks1s) + ' (' + f(s.taskWorst) + ')');
+    + '  ' + [s.p50, s.p90, s.p99, s.p999, s.worst].map(f).join(' / ').padEnd(32) + (s.over15 == null ? '-' : FD.pc(s.over15)).padStart(8) + (s.over3x == null ? '-' : FD.pc(s.over3x)).padStart(9)
+    + f(s.over100).padStart(4) + f(s.over1s).padStart(4) + (s.cap30 == null ? '' : ('  ' + Math.round(100 * s.cap30) + ' %').padStart(7)) + '   ' + f(s.tasks200) + ' / ' + f(s.tasks1s) + ' (' + f(s.taskWorst) + ')');
+  // G1360: the histogram per scene (frames per bucket: < 20 | 20-40 | 40-60 | 60-100 | 100-250 | 250-1000 | > 1000 ms)
+  if (R.scenes.some(s => s.dist)) { L.push('', 'FRAME LENGTHS  build | scene | frames per bucket: ' + FD.KEYS.join(' | ') + ' ms');
+    for (const s of R.scenes) if (s.dist) L.push('  ' + (s.build + ' ').padEnd(18) + (s.scene + ' ').padEnd(26) + s.dist.buckets.map(b => String(b[1]).padStart(7)).join(' ')); }
   const C = R.compare || compare(R);
   if (C.length) { L.push('', 'COMPARED WITH THE START OF THE RUN'); for (const c of C) L.push('  ' + c.metric.padEnd(30) + (c.build + ' ').padEnd(7) + String(c.was).padStart(8) + ' -> ' + String(c.now).padEnd(8) + ' ' + (c.better ? 'x' + c.x + ' better' : 'WORSE') + '   (' + c.src + ')'); }
   if (R.notes && R.notes.length) L.push('', 'NOTES', ...R.notes.map(n => '  ' + n));

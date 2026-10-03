@@ -25,6 +25,9 @@
 // for comparison: a 45 fps frame alternating 16.7 / 33.3 ms read "59.9"), and no
 // main-thread task over 1 s anywhere (boot and roll-out included). Printed as PASS/FAIL lines, but
 // this is a MEASUREMENT (GPU + headed browser), not a battery gate.
+// THE FRAME LENGTHS (G1360, tools/frame_dist.js): per phase (`phases.<p>.dist`) and over every frame after the reveal
+// (`dist`): the histogram (< 20, 20-40, 40-60, 60-100, 100-250, 250-1000, > 1000 ms), p50 / p90 / p99 / p99.9, the share
+// over 1.5x and 3x the frame's own cap (r[6]), the frames over 100 ms and 1 s - rollout_ratchet.js gates on them.
 //
 // Usage: node tools/rollout_perf.js [--cold] [--secs 150] [--build "bugReports/cessnaMetal (1).json"]
 //          [--variant base|nomet|nopremises] [--gfx '<json>'] [--world jolene|none] [--page index.html|dev.html]
@@ -63,6 +66,7 @@ const fs = require('fs');
 const path = require('path');
 const http = require('http');
 const os = require('os');
+const FD = require('./frame_dist.js');   // G1360: the frame-length distribution
 
 const argv = process.argv.slice(2);
 const opt = (k, d) => { const i = argv.indexOf('--' + k); return i >= 0 ? argv[i + 1] : d; };
@@ -693,7 +697,8 @@ const pct = (a, p) => { if (!a.length) return 0; const f = a.slice().sort((x, y)
     wStepP90: rs.some(r => r[26] != null) ? +pct(rs.filter(r => r[26] != null).map(r => r[26]), 0.9).toFixed(2) : null,
     wDilMin: rs.some(r => r[27] != null) ? +Math.min(...rs.filter(r => r[27] != null).map(r => r[27])).toFixed(3) : null,
     workP90: +pct(rs.map(r => r[2]), 0.9).toFixed(1),
-    vMed: +med(rs.map(r => r[17] || 0)).toFixed(1), renderMed: +med(rs.map(r => r[10])).toFixed(1), renderP90: +pct(rs.map(r => r[10]), 0.9).toFixed(1), shadowMed: +med(rs.map(r => r[11])).toFixed(1), premStepMs: +(rs.reduce((s, r) => s + r[12], 0) / Math.max(1, rs.length)).toFixed(2), cap30: +(rs.filter(r => r[6] === 30).length / Math.max(1, rs.length)).toFixed(2) }; };
+    vMed: +med(rs.map(r => r[17] || 0)).toFixed(1), renderMed: +med(rs.map(r => r[10])).toFixed(1), renderP90: +pct(rs.map(r => r[10]), 0.9).toFixed(1), shadowMed: +med(rs.map(r => r[11])).toFixed(1), premStepMs: +(rs.reduce((s, r) => s + r[12], 0) / Math.max(1, rs.length)).toFixed(2), cap30: +(rs.filter(r => r[6] === 30).length / Math.max(1, rs.length)).toFixed(2),
+    dist: FD.dist(dt, rs.map(r => r[6])) }; };   // G1360: the histogram, p50..p99.9, over 1.5x / 3x the frame's cap, over 100 ms / 1 s
   const phases = {}; for (const k of Object.keys(groups)) phases[k] = row(groups[k]);
   // the gate numbers
   let run = 0, worstRun = 0; for (const r of fr) { if (r[1] > 1000 / 30) { run += r[1]; worstRun = Math.max(worstRun, run); } else run = 0; }
@@ -716,7 +721,10 @@ const pct = (a, p) => { if (!a.length) return 0; const f = a.slice().sort((x, y)
   for (const k of ORDER) if (phases[k]) { const p = phases[k];
     console.log(`  ${k.padEnd(HYDRO ? 12 : 8)} ${String(p.fpsDelivered).padStart(5)} fps delivered, ${Math.round(p.doubled * 100)} % doubled (median ${p.fpsMedian}; dt med ${p.dtMedian} p90 ${p.dtP90} p99 ${p.dtP99} max ${p.dtMax}) · loop JS ${p.workMed} · solver ${p.physMed} (p90 ${p.physP90}; ${p.msPerStep} a step) · world ${p.worldMed} (p90 ${p.worldP90}) · render ${p.renderMed} (p90 ${p.renderP90}, shadow ${p.shadowMed}) · prem ${p.premStepMs}/fr · ${p.steps} steps/frame · at 30-cap ${Math.round(p.cap30 * 100)} % · ${p.frames} fr / ${p.secs} s`
       + (p.wStepMed != null ? ` · WORKER step ${p.wStepMed} ms (p90 ${p.wStepP90}), dilation min ${p.wDilMin} · loop JS p90 ${p.workP90}` : '')
-      + (HYDRO ? ` · V ${p.vMed} · mirror ${p.mirrorMs}/fr (${p.mirrorPerS} captures/s) · field ${p.fieldMs}/fr` + (p.waterGpu != null ? ` · water GPU ${p.waterGpu}` : '') : '')); }
+      + (HYDRO ? ` · V ${p.vMed} · mirror ${p.mirrorMs}/fr (${p.mirrorPerS} captures/s) · field ${p.fieldMs}/fr` + (p.waterGpu != null ? ` · water GPU ${p.waterGpu}` : '') : '')
+      + `\n  ${''.padEnd(HYDRO ? 12 : 8)} lengths: ${FD.line(p.dist)}`); }
+  const distAll = FD.dist(fr.map(r => r[1]), fr.map(r => r[6]));   // G1360: every frame after the reveal
+  console.log('  FRAME LENGTHS (every frame after the reveal):'); for (const l of FD.table(distAll, '    ')) console.log(l);
   if (HYDRO) { const seq = []; for (const r of fr) if (!seq.length || seq[seq.length - 1][0] !== r.ph) seq.push([r.ph, +((r[0] - revealAt) / 1000).toFixed(1), r[16]]);
     console.log('  water phases (label @ s after the reveal, the pilot phase): ' + seq.map(x => x[0] + '@' + x[1] + '(' + x[2] + ')').join(' '));
     const apSeq = []; for (const r of fr) if (!apSeq.length || apSeq[apSeq.length - 1][0] !== r[16]) apSeq.push([r[16], +((r[0] - revealAt) / 1000).toFixed(1)]);
@@ -728,7 +736,7 @@ const pct = (a, p) => { if (!a.length) return 0; const f = a.slice().sort((x, y)
   if (exc.length) console.log('  page exceptions: ' + exc.length + ' · ' + exc.slice(0, 3).join(' | '));
   const result = { date: new Date().toISOString(), label: LABEL, url: URL, cold: COLD, build: BUILD, variant: VARIANT, gfx: GFX, world: WORLDN || 'jolene', cam: (where && where.cam) || CAM || null, camAsked: CAM, hover: HOVER, latency, size: SIZE, gpu, gfx0: JSON.parse(gfx0 || 'null'), box,
     from: FROM, dest: DEST, afloat: AFLOAT, start: where,
-    tGarage, tReveal, premEmptyAt, garage: garageFresh, shot: shotStat, phases, gates, simw, settings: settingsRuns, trips: tripRuns, town: townLine, chromeFlags: CHROME_FLAGS, worldSlices: worldSlices, progSrc, longTasks: R.lt, shots, premStream, eval: evalOut, profile: profTop, bootLog: bootLog ? JSON.parse(bootLog) : null, exceptions: exc.slice(0, 20),
+    tGarage, tReveal, premEmptyAt, garage: garageFresh, shot: shotStat, phases, dist: distAll, gates, simw, settings: settingsRuns, trips: tripRuns, town: townLine, chromeFlags: CHROME_FLAGS, worldSlices: worldSlices, progSrc, longTasks: R.lt, shots, premStream, eval: evalOut, profile: profTop, bootLog: bootLog ? JSON.parse(bootLog) : null, exceptions: exc.slice(0, 20),
     frames: fr.map(r => [+((r[0] - revealAt) / 1000).toFixed(3)].concat(r.slice(1), [r.ph, +r.spd.toFixed(2)])) };
   fs.mkdirSync(path.dirname(OUT), { recursive: true });
   fs.writeFileSync(OUT, JSON.stringify(result));
