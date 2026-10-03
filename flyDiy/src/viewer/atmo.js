@@ -1086,7 +1086,8 @@ ${MIST_GLSL}
   function fadeBlit(renderer, a, b, k, to) {
     if (!fadeScene) {
       fadeScene = new THREE.Scene(); fadeCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
-      fadeMat = new THREE.ShaderMaterial({ uniforms: { tA: { value: null }, tB: { value: null }, uK: { value: 0 } }, vertexShader: FADE_VERT, fragmentShader: FADE_FRAG,
+      // (made in the material library, the one place a material is made - AS4a, GATE ASSETS)
+      fadeMat = MATLIB.make(THREE, 'shader', { uniforms: { tA: { value: null }, tB: { value: null }, uK: { value: 0 } }, vertexShader: FADE_VERT, fragmentShader: FADE_FRAG,
         depthTest: false, depthWrite: false, toneMapped: false, fog: false });
       const q = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), fadeMat); q.frustumCulled = false; fadeScene.add(q);
     }
@@ -1126,7 +1127,7 @@ ${MIST_GLSL}
     let rt = null, bakedSun = null, bakedVer = -1, bakes = 0, lastMs = 0, lastBake = -1e9;
     let shown = null, prevRt = null, fadeK = 1, fadeLast = 0;   // G1351: what the materials read; the bake it fades from; how far
     const nowMs = () => (typeof performance !== 'undefined') ? performance.now() : 0;
-    const canFade = () => !!(THREE.WebGLRenderTarget && THREE.ShaderMaterial && THREE.CubeUVReflectionMapping);
+    const canFade = () => !!(THREE.WebGLRenderTarget && THREE.ShaderMaterial && THREE.CubeUVReflectionMapping && typeof MATLIB !== 'undefined' && MATLIB.make);
     const probe = {
       get texture() { return shown ? shown.texture : (rt ? rt.texture : null); },
       get fading() { return !!prevRt; }, get fade() { return fadeK; },

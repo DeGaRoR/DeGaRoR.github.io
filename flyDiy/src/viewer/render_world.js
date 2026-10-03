@@ -6334,8 +6334,8 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
   // other than this (the F8 rig rows, the shed's exposure) is seen as a value we did not set and taken at once.
   // LE.on false is the old cut.
   const LE = { on: true, tau: 1.2, tauCloud: 0.8, init: false, last: 0, cT: 1, cTraw: 1, cTat: 0, cTapplied: 1, applyAt: 0,
-    sunI: 0, hemiI: 0, ex: NaN, sunC: C(0xffffff), hemiC: C(0xffffff), gndC: C(0xffffff),
-    tSunI: 0, tHemiI: 0, tEx: NaN, tSunC: C(0xffffff), tHemiC: C(0xffffff), tGndC: C(0xffffff), setSunI: NaN, setHemiI: NaN, setEx: NaN, eases: 0, applies: 0 };
+    sunI: 0, hemiI: 0, ex: NaN, sunC: C(0xffffff), hemiC: C(0xffffff), gndC: C(0xffffff), wSunC: C(0xffffff), wHemiC: C(0xffffff), wGndC: C(0xffffff),
+    tSunI: 0, tHemiI: 0, tEx: NaN, tSunC: C(0xffffff), tHemiC: C(0xffffff), tGndC: C(0xffffff), setSunI: NaN, setHemiI: NaN, setEx: NaN, eases: 0, applies: 0, writes: 0 };
   if (typeof window !== 'undefined') window.LIGHT_EASE = LE;
   const exBaseNow = () => { const G = (typeof window !== 'undefined') ? window.GFX : null; return (G && G.exposureBase && G.exposureBase() != null) ? G.exposureBase() : (renderer ? renderer.toneMappingExposure : NaN); };
   function exSet(v) {
@@ -6346,18 +6346,36 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
   // lightTake(ex): applyDay has just written the lights - those values are the targets; the lights go back to the eased ones
   function lightTake(ex) {
     LE.tSunI = sun.intensity; LE.tHemiI = hemi.intensity; LE.tSunC.copy(sun.color); LE.tHemiC.copy(hemi.color); LE.tGndC.copy(hemi.groundColor); LE.tEx = ex;
-    // someone else wrote the lights or the exposure since we last did (a rig row, the shed): no fade from a stale value
-    if (!LE.on || !LE.init || LE.setSunI !== LE.sunI || LE.setHemiI !== LE.hemiI) {
+    // not easing yet (or off): the target at once. (Someone else's write - a rig row, the shed - is caught by lightEase, which
+    // runs earlier in the same frame and takes the lights as they stand; the written and the eased value differ by design.)
+    if (!LE.on || !LE.init) {
       LE.sunI = LE.tSunI; LE.hemiI = LE.tHemiI; LE.sunC.copy(LE.tSunC); LE.hemiC.copy(LE.tHemiC); LE.gndC.copy(LE.tGndC);
     }
     if (!LE.on || !LE.init || !(LE.ex > 0) || LE.setEx !== exBaseNow()) LE.ex = ex;
+    const snapped = LE.sunI === LE.tSunI && LE.hemiI === LE.tHemiI;
     LE.init = true; LE.applies++;
-    lightShow();
+    // applyDay has just written the target over the lights: a snap writes it; an ease puts back EXACTLY what was on screen
+    // (the last written values - three then sees no change and uploads nothing) and steps toward the target from there
+    if (snapped || !(LE.setSunI === LE.setSunI)) lightShow(true);
+    else { sun.intensity = LE.setSunI; sun.color.copy(LE.wSunC); hemi.intensity = LE.setHemiI; hemi.color.copy(LE.wHemiC); hemi.groundColor.copy(LE.wGndC); }
   }
-  function lightShow() {
-    sun.intensity = LE.sunI; sun.color.copy(LE.sunC); hemi.intensity = LE.hemiI; hemi.color.copy(LE.hemiC); hemi.groundColor.copy(LE.gndC);
-    LE.setSunI = sun.intensity; LE.setHemiI = hemi.intensity;
-    if (LE.ex > 0 && Math.abs(LE.ex - LE.setEx) > LE.ex * 1e-4) exSet(LE.ex);
+  // G1352.1 THE EASE WRITES IN PERCEPTIBLE STEPS (train 27's GATE FRAMECOST: gl.uniform3f 62 -> 239 a frame at the taxi).
+  // three uploads a light's uniforms to every program that draws whenever the values CHANGE - an ease that wrote its
+  // new value every frame re-uploaded the key's and the hemisphere's colours ~88 programs x 2 a frame for as long as it
+  // ran (and with the clock running and the clouds drifting it always runs). The ease still runs every frame inside
+  // LE; the LIGHTS are written only when the eased value has moved a step since the last write (0.4 % of an
+  // intensity, 0.003 of a colour channel, 0.2 % of the exposure - each under what an eye can see between two frames)
+  // and once more, exactly, when it arrives. Most frames write nothing; a cloud's edge is a few small steps a second.
+  const LE_STEP = { i: 0.004, c: 0.003, ex: 0.002 };
+  const relD = (a, b) => Math.abs(a - b) / Math.max(1e-9, Math.abs(b));
+  const colD = (a, b) => Math.max(Math.abs(a.r - b.r), Math.abs(a.g - b.g), Math.abs(a.b - b.b));
+  function lightShow(force) {
+    if (force || relD(LE.sunI, sun.intensity) > LE_STEP.i || relD(LE.hemiI, hemi.intensity) > LE_STEP.i
+        || colD(LE.sunC, sun.color) > LE_STEP.c || colD(LE.hemiC, hemi.color) > LE_STEP.c || colD(LE.gndC, hemi.groundColor) > LE_STEP.c) {
+      sun.intensity = LE.sunI; sun.color.copy(LE.sunC); hemi.intensity = LE.hemiI; hemi.color.copy(LE.hemiC); hemi.groundColor.copy(LE.gndC);
+      LE.setSunI = sun.intensity; LE.setHemiI = hemi.intensity; LE.wSunC.copy(LE.sunC); LE.wHemiC.copy(LE.hemiC); LE.wGndC.copy(LE.gndC); LE.writes++;
+    }
+    if (LE.ex > 0 && Math.abs(LE.ex - LE.setEx) > LE.ex * (force ? 1e-4 : LE_STEP.ex)) exSet(LE.ex);
   }
   // lightEase(): a frame of the ease (every dayApply, the guard's early return included)
   function lightEase(now) {
@@ -6374,7 +6392,11 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     LE.sunC.lerp(LE.tSunC, k); LE.hemiC.lerp(LE.tHemiC, k); LE.gndC.lerp(LE.tGndC, k);
     if (LE.tEx > 0 && LE.ex > 0) LE.ex += (LE.tEx - LE.ex) * k;
     LE.eases++;
-    lightShow();
+    // arrived (every part within a step of its target): the target exactly, written once - the ease then rests (d = 0 above)
+    const there = relD(LE.sunI, LE.tSunI) < LE_STEP.i && relD(LE.hemiI, LE.tHemiI) < LE_STEP.i && colD(LE.sunC, LE.tSunC) < LE_STEP.c
+      && colD(LE.hemiC, LE.tHemiC) < LE_STEP.c && colD(LE.gndC, LE.tGndC) < LE_STEP.c && !(LE.tEx > 0 && LE.ex > 0 && relD(LE.ex, LE.tEx) >= LE_STEP.ex);
+    if (there) { LE.sunI = LE.tSunI; LE.hemiI = LE.tHemiI; LE.sunC.copy(LE.tSunC); LE.hemiC.copy(LE.tHemiC); LE.gndC.copy(LE.tGndC); if (LE.tEx > 0) LE.ex = LE.tEx; }
+    lightShow(there);
   }
   function dayApply() {
     const day = world.day;
