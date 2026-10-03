@@ -1621,6 +1621,9 @@ function compose(rec0, world, opts) {
       ro.pts = pts;
       // a TAXIWAY: a concrete road 10 m wide or more that meets a strip or an apron - its sides are the airfield's (G980)
       ro.taxiway = (RUNWAY_LOOKS[ro.look] || {}).cls === 'concrete' && ro.w >= 10 && !!(ro.joinA || ro.joinB);
+      // G1391 (RUNWAY-LOOK): a SIDED road fades its side out over PAVE_SIDE as a strip does (its declared width the drawn
+      // one) - every road but one whose entry declares its own band, unless the premises' recipe says roadSide 0
+      ro.sided = ro.taxiway || ((ro.band === null || ro.band === undefined) && !(rec.pavement && +rec.pavement.roadSide === 0));
     }
   }
   // G980: the bands the ground's own code is drawn under (stampTtype): a strip's box and a paved polygon, each out
@@ -2212,15 +2215,15 @@ function compose(rec0, world, opts) {
   // -> null | { d, id, kind, cls } (d: metres inside that pavement's edge, > -margin; kind 'surface' for a polygon).
   // G1091: a tree's trunk and the pavement. 'today' is coverAt's kill verbatim (the pavement, its band, the fade: 46 m
   // past 13/31's edge). 'map' / 'mapx' keep a tree off the paving and what the pavement DRAWS past its edge: a strip, a
-  // paved polygon and a taxiway fade their side out over PAVE_SIDE (G660, G980); an ordinary road still draws its
-  // gravel band and fades over PAVE_FADE past it, so its reach is 'today's (band + fade). The PAVED surface polygons
+  // paved polygon, a taxiway and (G1391) every SIDED road fade their side out over PAVE_SIDE (G660, G980); a road with a
+  // band of its own still draws its band and fades over PAVE_FADE past it, so its reach is 'today's (band + fade). The PAVED surface polygons
   // are the derived excludes' (never lifted).
   function treePaveAt(x, z) {
     if (RWT === 'today') { const c = coverAt(x, z, 1); return !!(c && c.kill > 0); }
     const L = F.toLocal(x, z), lx = L[0], lz = L[1];
     const cell = CIDX.query(lx, lz);
     if (cell) for (const it of cell) {
-      const reach = it.kind === 'road' && !(it.road && it.road.taxiway) ? it.band + PAVE_FADE : PAVE_SIDE;
+      const reach = it.kind === 'road' && !(it.road && it.road.sided) ? it.band + PAVE_FADE : PAVE_SIDE;   // G1391: a sided road's side
       if (dEdgeOf(it, lx, lz) > -reach) return true;
     }
     return false;

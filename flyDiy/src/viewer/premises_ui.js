@@ -1096,6 +1096,21 @@ function mount(host, ctx) {
     }
     if (layer === 'roads') rows.pills(d, 'marks', [['auto', 'by class'], ['none', 'none'], ['edges', 'edge lines'], ['centre', 'centre line']], () => (e.pav && e.pav.marks) || 'auto', v => ed(x => { x.pav = Object.assign({}, x.pav, { marks: v === 'auto' ? undefined : v }); }, 'marks of ' + id));
     if (e.pav) rows.button(d, "back to the premises' wear", () => ed(x => { x.pav = null; }, 'wear of ' + id));
+    // THE RUNWAY LOOK (G1394, RUNWAY-LOOK): this pavement's SURFACE TYPE's look - the premises' (rec.pavement), so every
+    // strip, road and apron of the type follows: the surface's brightness and tint, its wear, the sides' colour, width
+    // and blend. The same rows as the FILE section's pavement > runway look, here where the runway is
+    if (PAVM.LOOK_KEYS && PAVM.groupOf) {
+      const g = PAVM.groupOf(RS.cls), P = rec.pavement || {};
+      const own = PAVM.LOOK_KEYS.some(k => k.slice(0, 2) === g && P[k] !== undefined && P[k] !== null);
+      const d2 = $('details'); d2.appendChild($('summary', { text: 'look of every ' + PAVM.LOOK_GROUPS[g].join(' / ') + ' pavement' + (own ? ' (set)' : '') })); insp.appendChild(d2);
+      for (const row of PAVM.KNOBS) {
+        if (row.length < 2 || PAVM.LOOK_KEYS.indexOf(row[0]) < 0 || row[0].slice(0, 2) !== g) continue;
+        const [k, lab, mn, mx, st] = row, mine = P[k] !== undefined && P[k] !== null;
+        rows.slider(d2, lab + (mine ? '' : ' (default)'), mn, mx, st, () => mine ? P[k] : PAVM.RECIPE[k], v => { rec.pavement = Object.assign({}, rec.pavement, { [k]: v }); dirty('roads'); }, v => (+v).toFixed(2));
+      }
+      if (own) rows.button(d2, "back to the module's look", () => { const o = Object.assign({}, rec.pavement); for (const k of PAVM.LOOK_KEYS) if (k.slice(0, 2) === g) delete o[k]; rec.pavement = Object.keys(o).length ? o : null; dirty('roads'); inspector.refresh(); });
+      rows.note(d2, 'the declared width is the drawn width whatever the surface; the side is drawn outside it (its width past the edge zone, from its alpha)');
+    }
   }
   function viewRows() {
     rows.section(insp, 'VIEW');

@@ -606,5 +606,61 @@ console.log('12. THE TABLE - one material, a row a part; THE MERGE - per cell, i
   verdict(P.TAB.parts.size === 0 && P.mats.length === 0, `every row and every own material given back (${P.TAB.parts.size} rows, ${P.mats.length} materials left)`);
 }
 
+console.log('13. THE RUNWAY LOOK (G1390-G1394) - the declared width drawn whatever the surface; the look per surface type');
+{
+  // (a) THE WIDTHS: the census of tools/pavement_widths.js (the shader's alpha law through its CPU twin, across 2 km of
+  // a strip / a road), coarse here. Every strip kind and every road class: the drawn width (alpha >= .5) within 0.4 m of
+  // the declared, the surface's own share the same; the opaque core no narrower than declared - 2 x opaqueDepth (what
+  // the ground patch sinks under); the side's last island within the side's reach (edgeChip + sideW, PAVE_SIDE)
+  const PW = require('./pavement_widths.js'), rows = PW.run({ du: 9.7, nowOnly: true });
+  const reach = P.RECIPE.edgeChip + P.RECIPE.sideW;
+  let worst = '', bad = 0, spread = [Infinity, -Infinity];
+  for (const r of rows) {
+    const n = r.now, d0 = P.opaqueDepth(r.cls, r.declared / 2, null, r.road ? 'road' : 'strip');
+    const okD = Math.abs(n.drawn - r.declared) <= 0.4 && Math.abs(n.surface - r.declared) <= 0.4;
+    const okO = !isFinite(d0) ? n.worn : n.opaque >= r.declared - 2 * d0 - 0.11;
+    const okR = n.reach <= r.declared + 2 * reach + 0.11;
+    if (!(okD && okO && okR)) { bad++; worst += ` ${r.kind} (drawn ${f(n.drawn, 2)}, opaque ${f(n.opaque, 2)}, reach ${f(n.reach, 2)})`; }
+    spread[0] = Math.min(spread[0], n.drawn - r.declared); spread[1] = Math.max(spread[1], n.drawn - r.declared);
+    if (VERB) console.log(`  ${r.kind.padEnd(15)} declared ${r.declared}: drawn ${f(n.drawn, 2)} surface ${f(n.surface, 2)} opaque ${f(n.opaque, 2)} reach ${f(n.reach, 2)}`);
+  }
+  verdict(bad === 0, `every strip kind and road class draws its declared width: drawn - declared ${f(spread[0], 2)} .. ${f(spread[1], 2)} m over ${rows.length} kinds, the opaque core >= declared - 2 x opaqueDepth, the side within ${f(reach, 1)} m${bad ? ' - FAILED:' + worst : ''}`);
+  const grassStrip = rows.find(r => r.kind === 'grass strip'), dirtStrip = rows.find(r => r.kind === 'dirt strip');
+  verdict(Math.abs(grassStrip.now.drawn - dirtStrip.now.drawn) < 0.05 && grassStrip.now.opaque >= 0.9 * grassStrip.declared,
+    `the grass strip draws what the dirt strip draws (${f(grassStrip.now.drawn, 2)} vs ${f(dirtStrip.now.drawn, 2)} m of ${grassStrip.declared}; its opaque core ${f(grassStrip.now.opaque, 2)} m - it was 45 % over its whole width)`);
+  // (b) the twin is the shader's: the soft edge's law and the grass strip's alpha, verbatim in GLSL.map
+  const law = ['float tc = max(uEdge.x, 0.1), tw = max(uEdge.x + uSide.y, 0.3);', 'wPav = dE >= tc ? 1.0 : smoothstep(0.42, 0.58, 0.5 + (dE > 0.0 ? dE / tc * 0.6 : dE / tw * 0.5) + (tn - 0.5) * 0.9);',
+    'float sideA = uSide.z * (1.0 - smoothstep(0.0, uSide.y, -eEdge));', 'if (grassy && road) {', 'col *= mix(mix(vec3(uEdge2.z, uEdge2.w, uSpec.w), uWet.yzw, wPav), vec3(1.0), paint);'];
+  const lost = law.filter(a => P.GLSL.map.indexOf(a) < 0);
+  verdict(lost.length === 0, `the CPU twin's laws are the shader's (${law.length - lost.length} of ${law.length} lines found in GLSL.map${lost.length ? ' - LOST: ' + lost.join(' | ') : ''})`);
+  // (c) THE LOOK: 9 knobs x 3 surface types, every one a KNOB row with its default inside its range; a class's look
+  // through lookOf; the defaults draw the plain surface (multipliers 1, the edge zone's side)
+  const K = {}; for (const row of P.KNOBS) if (row.length > 1) K[row[0]] = row;
+  const okK = P.LOOK_KEYS.length === 27 && P.LOOK_KEYS.every(k => K[k] && P.RECIPE[k] >= K[k][2] && P.RECIPE[k] <= K[k][3]);
+  verdict(okK, `the runway look: ${P.LOOK_KEYS.length} knobs (${Object.keys(P.LOOK_GROUPS).join(', ')} x 9), each a KNOBS row, its default in range`);
+  const L0 = P.lookOf('asphalt'), Lg = P.lookOf('grass');
+  verdict(L0.surf.every(c => Math.abs(c - 1) < 1e-9) && L0.side.every(c => Math.abs(c - 1) < 1e-9) && L0.sideW === P.RECIPE.sideW && L0.sideA === P.RECIPE.sideA && Lg.sideA === 0 && P.groupOf('dirt') === 'sf',
+    `the defaults: the multipliers 1, the paved side the edge zone's (${L0.sideW} m from ${L0.sideA}), the soft and grass sides the torn edge alone`);
+  const T = P.tintRGB(0.33, 0.5), mean = (T[0] + T[1] + T[2]) / 3;
+  verdict(Math.abs(mean - 1) < 1e-9 && T[1] > T[0] && T[1] > T[2], `a tint keeps its mean (hue .33 x .5 -> ${T.map(c => f(c, 2)).join(', ')}, mean ${f(mean, 3)}): brightness alone moves the light`);
+  // (d) a part's uniforms carry its surface type's look; WEAR scales the class's wear knobs; the live overlay
+  // (the world look's) reaches a part already made, and clearing it puts the premises' back
+  const lib = P.library(THREE, P.keysFor(['grass', 'asphalt']));
+  const rec = P.resolve({ cls: 'grass' }, { pavement: { grBright: 1.3, grTint: 0.4, grHue: 0.2, grWear: 0.5, grSideW: 3, grSideA: 0.2 } }).recipe;
+  const m = P.make(THREE, { lib, cls: 'grass', recipe: rec, band: 1.5 }), U = m.uniforms;
+  const exp = P.tintRGB(0.2, 0.4).map(c => c * 1.3);
+  verdict(Math.abs(U.uWet.value.y - exp[0]) < 1e-6 && Math.abs(U.uWet.value.w - exp[2]) < 1e-6 && U.uSide.value.y === 3 && Math.abs(U.uSide.value.z - 0.2) < 1e-6
+    && Math.abs(U.uSoft.value.z - rec.wheelBand * P.CLASS_DEF.grass.soft[2] * 0.5) < 1e-6 && Math.abs(U.uRut.value.z - rec.rutDepth * 0.5) < 1e-6,
+    `a grass strip's part carries its look: surface x ${U.uWet.value.y.toFixed(3)}/${U.uWet.value.z.toFixed(3)}/${U.uWet.value.w.toFixed(3)}, side ${U.uSide.value.y} m from ${U.uSide.value.z}, wear 0.5 on the wheel band and the ruts`);
+  P.look(THREE, { grBright: 0.6, pvTint: 0.3, bogus: 9 });
+  const live = P.look(), afterLive = U.uWet.value.y;
+  P.look(THREE, null);
+  verdict(live.grBright === 0.6 && !('bogus' in live) && Math.abs(afterLive - P.tintRGB(0.2, 0.4)[0] * 0.6) < 1e-6 && Math.abs(U.uWet.value.y - exp[0]) < 1e-6 && Object.keys(P.look()).length === 0,
+    `the live overlay reaches a made part (surface r ${f(exp[0], 3)} -> ${f(afterLive, 3)}), takes only look keys, and clearing it gives the premises' back`);
+  verdict(P.groundColor('grass', rec).every((c, i) => c > 0) && P.opaqueDepth('grass', 9, null, 'strip') === P.RECIPE.edgeChip + 0.2 && P.opaqueDepth('grass', 3, null, 'road') === Infinity && P.opaqueDepth('dirt', 9, null, 'road') === P.RECIPE.edgeChip + 0.2,
+    `opaqueDepth: a soft edge and a grass strip as deep as a paved chip (${P.RECIPE.edgeChip + 0.2} m), a grass road still never sunk`);
+  P.dispose(m);
+}
+
 console.log('GATE PAVEMENT: ' + (fails ? 'FAIL' : 'PASS'));
 process.exit(fails ? 1 : 0);
