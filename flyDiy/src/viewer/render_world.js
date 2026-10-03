@@ -2568,7 +2568,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         geo.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
         geo.setIndex(new THREE.BufferAttribute(idx, 1));
         // G1200: drawn only - a re-cut builds a new geometry from the patch cache (FARLOD.cache keeps the patches' own)
-        if (nodes.length) { geo.computeBoundingSphere(); geo.computeBoundingBox(); if (typeof GPU_ONLY_GEO === 'function') GPU_ONLY_GEO(geo); }
+        if (nodes.length) { geo.computeBoundingSphere(); geo.computeBoundingBox(); if (typeof GPU_ONLY_GEO === 'function') GPU_ONLY_GEO(geo, true); }   // (G1230: uploaded as the build's slice ends)
         else if (Q.m.geometry.boundingSphere) { geo.boundingSphere = Q.m.geometry.boundingSphere; geo.boundingBox = Q.m.geometry.boundingBox; geo.setDrawRange(0, 0); }
         const old = Q.m.geometry; Q.m.geometry = geo; if (old && old.dispose) old.dispose();
         Q.sig = Q.wantSig; Q.tris = nodes.length * TPL.length / 3; FARLOD.stats.rebuilds++;
