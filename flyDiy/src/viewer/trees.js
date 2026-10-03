@@ -106,6 +106,19 @@
     return out;
   }
   const withBin = () => PACK ? PACK.collections.filter(c => c.bin && wanted(c)) : [];
+  // G1330 (TREE-HITBOX): a subject's height (model metres) and its crown's half width over that height - what the
+  // solver's trunk is made of (29_obstacles.js TREE_HITS.trunkOf, times the drawn scale). null for an unknown key
+  const TRUNK = new Map();
+  function treeTrunk(k) {
+    if (TRUNK.has(k)) return TRUNK.get(k);
+    if (!PACK) return null;
+    let r = null;
+    for (const c of PACK.collections) { if (!c.subjects) continue;
+      for (const s of c.subjects) if (key(c, s) === k) { const bb = s.bb, h = s.h || (bb ? bb[4] - bb[1] : 0);
+        if (h > 0) r = { h, wf: bb ? Math.max(bb[3] - bb[0], bb[5] - bb[2]) / 2 / h : 0.3 }; } }
+    if (r) TRUNK.set(k, r);
+    return r;
+  }
 
   function treeReady() {
     return !!PACK && withBin().every(c => BINS.has(c.name));
@@ -682,6 +695,7 @@
     window.treeReachOf = treeReachOf;
     window.treeWanted = treeWanted;
     window.treeList = treeList;
+    window.treeTrunk = treeTrunk;
     window.treeBuild = treeBuild;
     window.treeMapsReady = treeMapsReady;
     window.TREE_LEAF = treeLeaf;

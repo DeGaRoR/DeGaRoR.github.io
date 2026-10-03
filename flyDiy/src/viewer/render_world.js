@@ -2830,7 +2830,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       h = Math.imul(h ^ (h >>> 13), 1274126177); return ((h ^ (h >>> 16)) >>> 0) / 4294967296; };
     const P = [];
     world.trees.forEach((T, i) => {
-      P.push({ x: T.x, z: T.z, h: T.h, s: T.s, sp: T.sp, r: hsh(i, 7) });
+      P.push({ x: T.x, z: T.z, h: T.h, s: T.s, sp: T.sp, r: hsh(i, 7), phys: true });   // phys: the core's own cylinder (G1330)
       const n = 2 + (hsh(i, 3) * 3 | 0);
       for (let k = 0; k < n; k++) {
         const a = hsh(i, k * 13 + 1) * 6.283, d = 4 + hsh(i, k * 13 + 2) * 14;
@@ -2847,6 +2847,31 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         P.push({ x, z, h, s: T.s * (0.55 + hsh(i, k * 13 + 3) * 0.7), sp, r: hsh(i, k * 13 + 4) });
       }
     });
+
+    // ================= THE TRUNKS YOU HIT (G1330, TREE-HITBOX) ==============
+    // The user (2026-10-03): "trees have no hitbox, only some of them. We should at least be able to hit the trunks."
+    // The solver met the woodland's physics trees alone (world.trees, 0.8 % of what is drawn). Every tree this file
+    // draws now registers its trunk on the world (world.treeHits, 29_obstacles.js TREE_HITS - sim_link.js forwards it
+    // to the sim worker): the woodland whole (its clump neighbours and the hand-placed trees too) as one set, the fill
+    // a set per chunk part within HIT_ON of the aeroplane. A trunk is the drawn tree's: the subject's height (treeTrunk,
+    // the pack's) x the instance's drawn y scale, its radius and top by TREE_HITS.trunkOf, its foot the drawn foot (the
+    // collection's sink included). A woodland physics tree keeps its core cylinder (h .. h + 4.6 s) and its drawn
+    // trunk starts on top of it - never two springs at one node.
+    const HITS = (world.treeHits && typeof TREE_HITS !== 'undefined') ? world.treeHits : null;
+    const _tk = [0, 0];
+    // one partition record's trunks into out from o (rec.mats: chunk-local, the foot at m[13], the drawn y scale the
+    // length of the matrix's second column); lift(i): a floor for the trunk's foot, or none. Returns the next o
+    const trunksOf = (rec, out, o, lift) => {
+      const tt = (rec.key && typeof treeTrunk === 'function') ? treeTrunk(rec.key) : null;
+      const h = tt ? tt.h : 5.3, wf = tt ? tt.wf : 0.3, M = rec.mats;   // (5.3 m: the cone fallback's own top)
+      for (let i = 0; i < rec.n; i++) {
+        const b = i * 16, sy = Math.hypot(M[b + 4], M[b + 5], M[b + 6]);
+        TREE_HITS.trunkOf(h * sy, wf, _tk);
+        const foot = M[b + 13], y0 = lift ? Math.max(foot, lift(i)) : foot;
+        out[o++] = M[b + 12] + rec.x; out[o++] = M[b + 14] + rec.z; out[o++] = y0; out[o++] = _tk[0]; out[o++] = Math.max(y0, foot + _tk[1]);
+      }
+      return o;
+    };
 
     // ================= TREES PLACED BY HAND (W0c.28) ========================
     // "Forests will be managed through maps, but individual trees could be
@@ -3710,6 +3735,14 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
           const tx = rec.pos[i * 3], tz = rec.pos[i * 3 + 2], d = Math.hypot(tx - x, tz - z);
           if (d >= (r0 || 0) && d <= (r1 || 1e9)) out.push({ key: rec.key, x: tx, y: rec.pos[i * 3 + 1], z: tz, s: rec.mats[i * 16 + 5], d }); } }
       return out.sort((a, b) => a.d - b.d).slice(0, n || 20); };
+    // EVERY TREE DRAWN NEAR A POINT (G1330, GATE TREEHIT's census): every instance of every partition record - the
+    // woodland's (own: its physics trees, their clump neighbours, the hand-placed) and every live fill chunk's, any
+    // series - rooted within r of (x, z): flat [x, y, z, own, ...] (y the ground at its root)
+    treeLod.drawn = (x, z, r) => { const out = [];
+      for (const rec of ladderChunks) for (let i = 0; i < rec.n; i++) {
+        const tx = rec.pos[i * 3], tz = rec.pos[i * 3 + 2];
+        if ((tx - x) * (tx - x) + (tz - z) * (tz - z) <= r * r) out.push(tx, rec.pos[i * 3 + 1], tz, rec.own ? 1 : 0); }
+      return out; };
     // WHAT THE PARTITION DEALT (G1110): per rung, the trees, their triangles and the meshes holding trees (a draw each in
     // the main pass; the shadow passes draw them again where they reach) - the near tier's cost, counted
     treeLod.census = () => { const inst = [0, 0, 0], tris = [0, 0, 0], draws = [0, 0, 0];
@@ -4267,7 +4300,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
           BAND_ORIGIN_CAM + '\nif (bandD > uNearB) gl_Position = vec4(0.0, 0.0, 2.0, 1.0);');
     };
 
-    const cells = new Map();
+    const cells = new Map(), woodHits = [];
     for (const T of P.concat(placedRecords())) {
       const cx = Math.floor(T.x / CHW), cz = Math.floor(T.z / CHW);
       const k = cx * 4096 + cz;
@@ -4422,6 +4455,9 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         });
       };
       HS.forEach((H, gi) => fill(H, lists[gi]));
+      // G1330: the cell's trunks (a physics tree's drawn trunk above its core cylinder)
+      if (HITS) HS.forEach((H, gi) => { if (!H || !H.rec) return; const L = lists[gi];
+        const a = new Float32Array(H.rec.n * 5); trunksOf(H.rec, a, 0, i => (L[i].phys ? L[i].h + 4.6 * L[i].s : -Infinity)); woodHits.push(a); });
       for (const H of HS) if (H) for (const mi of H.imps) if (mi) mi.geometry.attributes.aLayer.needsUpdate = true;
 
       const all = [trunks];
@@ -4453,6 +4489,9 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       impChunks.push({ m: [].concat(...HS.map(H => H ? H.imps : [])).filter(Boolean),
                        x: ox, z: oz, r: FAR_WOOD + hd, own: true });
     }
+    // G1330: the woodland's trunks, one set (none for the cone fallback: the core's cylinders stand alone there)
+    if (HITS) { let n = 0; for (const a of woodHits) n += a.length; const all = new Float32Array(n); n = 0; for (const a of woodHits) { all.set(a, n); n += a.length; }
+      if (n) HITS.set('wood', all); else HITS.drop('wood'); }
     }                                     // ---- end plantWoodland
 
     let lodTick = 0, lodVer = -1;
@@ -4878,6 +4917,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       // registrations out of the passes and the partition
       const dropPart = built => {
         if (!built) return;
+        if (built.hit && HITS) { HITS.drop(built.hit); built.hit = null; }   // G1330: its trunks go with it
         for (const m of built.meshes) { if (m.parent) m.parent.remove(m); if (m.dispose) m.dispose(); }
         for (const r2 of built.reg) {
           let i = nearChunks.indexOf(r2); if (i >= 0) nearChunks.splice(i, 1);
@@ -5052,10 +5092,26 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         }
         queue.sort((a, b) => (d2Of(chunks.get(a.k), cg) + a.part * 1e5) - (d2Of(chunks.get(b.k), cg) + b.part * 1e5));
       };
+      // G1330 (TREE-HITBOX): THE FILL'S TRUNKS, near the aeroplane only. A built part within HIT_ON of the CG (its
+      // chunk's nearest point) registers its trunks (world.treeHits 'fill:cx,cz:part'), and past HIT_OFF drops them:
+      // the solver and the worker hold the few chunks round the aeroplane, never the island's million (at 60 m/s,
+      // HIT_ON is 20 s of warning). Built from the part's records when it registers, so a far part costs nothing
+      const HIT_ON = 1200, HIT_OFF = 1800;
+      const hitPass = (c2, part, b, cg) => {
+        if (!HITS || !b || !b.recs) return;
+        const nx = Math.max(Math.abs((c2.cx + 0.5) * CH - cg[0]) - CH / 2, 0), nz = Math.max(Math.abs((c2.cz + 0.5) * CH - cg[2]) - CH / 2, 0);
+        const d2 = nx * nx + nz * nz;
+        if (!b.hit && d2 < HIT_ON * HIT_ON) {
+          let n = 0; for (const rec of b.recs) n += rec.n;
+          const a = new Float32Array(n * 5); let o = 0; for (const rec of b.recs) o = trunksOf(rec, a, o, null);
+          b.hit = 'fill:' + c2.cx + ',' + c2.cz + ':' + part; HITS.set(b.hit, a);
+        } else if (b.hit && d2 > HIT_OFF * HIT_OFF) { HITS.drop(b.hit); b.hit = null; }
+      };
       // what the ring no longer holds: past R_DROP the chunk goes whole, past
       // FILL_DROP its complement goes and its base stays - never a regeneration
       const evictPass = cg => {
         for (const [k, c2] of chunks) {
+          hitPass(c2, BASE, c2.base, cg); hitPass(c2, FILLP, c2.fill, cg);
           const dd = d2Of(c2, cg);
           if (dd >= R_DROP * R_DROP) {
             if (cur && cur.c2 === c2) cur = null;
@@ -5094,6 +5150,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
             if (chunks.get(keyOf(c2.cx, c2.cz)) === c2) {
               const b = build(c2.cx, c2.cz, cur.recs, performance.now() - cur.walkMs, performance.now(), part);
               if (part === BASE) { c2.base = b; c2.qb = false; } else { c2.fill = b; c2.qf = false; }
+              hitPass(c2, part, b, cg);   // G1330: its trunks, at once when it is near
               built++;
             }
             cur = null;

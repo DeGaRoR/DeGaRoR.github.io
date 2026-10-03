@@ -68310,3 +68310,110 @@ data. FLIGHT (fresh profile D:/u25d, vs train 24): Cub 31 fps / 5 %, cockpit 56 
 cockpit 53.8 -> 55.9 fps. ONE RED CLEARED: the metal's worst boot task 716 -> 1055 / 859 ms on its two chase runs (at ~36 s, the
 garage boot; its cockpit runs through the same boot showed none); two re-runs 655 / 664 ms - not repeated, the metal baseline is
 taken from them. Battery GREEN, FRAMECOST PASS (baseline re-taken).
+
+## G1330-G1334 - TREE-HITBOX: EVERY TREE DRAWN HAS A TRUNK IN THE PHYSICS, TESTED AGAINST THE BEAMS (2026-10-03, TREE-HITBOX for A0, cloud, node only; block G1330-G1334, G1333-G1334 unused)
+
+The user (2026-10-03): "trees have no hitbox, only some of them. We should at least be able to hit the trunks."
+
+### G1330 - the census: what was drawn, what could be hit
+| kind | drawn by | collidable before |
+|---|---|---|
+| woodland physics trees (`world.trees`, 64 m grid) | render_world plantWoodland | yes, the core cylinder (0.7 s + 0.12, 4.6 s tall) |
+| their 2-4 clump neighbours each | plantWoodland | no |
+| hand-placed trees (`TREE_PLACE`: the analytic aerodrome's windbreak) | plantWoodland | no |
+| the FOREST FILL (base + complement parts, 1024 m chunks, every rung and the impostors) | render_world walk/build | no |
+| premises zone and placed trees (`O.records.trees`) | render_premises buildTrees | no |
+
+- **The partition cell, the rung and the impostor were never the cause.** Collision was never tied to what is drawn. Only `world.trees` reached the solver.
+- **Measured on the page in node** (Jolene, HOME's stand, every tree within 1 km): fill 15 857 drawn, **2** collidable before (fill trees that happened to stand on a woodland cylinder), **15 857 now**.
+- **The census showed 0 woodland trees drawn. A pre-existing bug, NOT FIXED** (perf-sensitive, the user's / A0's call):
+  - On Jolene, plantWoodland draws NOTHING. Its `fill()` reads `H.imps[0]`, which is `null` when no tree of a side was dealt series 0 (`imps.push(null)` for an empty series; the merged impostor is pushed after). It throws `Cannot read properties of null (reading 'setMatrixAt')` on the first cell, inside a `.catch(() => {})`.
+  - Master is the same. Jolene's 24 662 woodland physics trees (92 within 1 km of HOME) are unseen cylinders.
+  - The fix is one token (`H.imps[H.imps.length - 1]`), but it would draw ~100 000 more trees on the island: FRAMECOST and rollout_perf first.
+  - GATE TREEHIT prints a NOTE while this holds.
+- The premises' trees: Jolene's fixture has none keyed. Metlakatla's are registered by the same path (`'prem'`), not measured here (the town is off by default).
+
+### G1331 - the trunk index (src/core/29_obstacles.js TREE_HITS; 20_world.js `world.treeHits`)
+- **Why the viewer registers and the core does not re-derive (G1112's proposal, not taken):**
+  - The fill's walk reads the viewer's data: the colour boot's NDVI (not in the worker's trimmed boot), the biome mixes, the tree pack's pools and sizes (SP_SIZE), and the 'forest density' setting (NG).
+  - So the VIEWER registers what it draws, and the trees you can hit are exactly the trees you see, at any density.
+- **A set** is `key -> Float32Array` stride 5: `x, z, y0` (the drawn foot, the collection's sink included), `r`, `y1` (the trunk's top).
+  - Each set is binned once at `set()` into a CSR grid: 8 m cells, doubled until the box is at most 2^18 cells, so an island-wide set uses 64 m cells.
+  - The API: `set` / `drop` / `clear` / `has` / `keys` / `get` / `at(x, y, z, fn)` / `count` / `sets` / `top` / `list`.
+- **THE RULE, `TREE_HITS.trunkOf(H, wFrac)`.** H is the drawn height: the subject's `h` (`treeTrunk(key)`, trees.js, from the pack) times the instance's drawn y scale.
+  - The radius is 2 % of H, held to 0.3..0.6 m.
+  - The top is (0.95 - wFrac) x H, held to 0.5..0.8 H. wFrac is the crown's half width over H from the subject's bb: a spruce 0.71 H, a maple 0.5 H.
+  - The crown is NOT solid (optional in the brief): the wing passes through branches, not wood.
+- **Who registers:**
+  - **The fill:** a set per built chunk part (`'fill:cx,cz:part'`). Registered when its chunk's nearest point is within HIT_ON = 1200 m of the aeroplane's CG, dropped past HIT_OFF = 1800 m or when the part is evicted. Built from the part's records (`rec.mats`) when it registers, so far parts cost nothing.
+    - At HOME: 20 sets, 59 571 trunks.
+  - **The woodland:** one set `'wood'` (its clump neighbours and the placed trees). A physics tree's drawn trunk starts ON TOP of its core cylinder: never two springs at one point. Today it is empty on Jolene (above).
+  - **render_premises:** `'prem'`, the game's keyed record trees.
+- **The worker:** `sim_link.js` wraps `set` / `drop` / `clear` into the obstacle op queue (`tset` / `tdrop` / `tclear`). Each set is cloned on the post, and `liveOps` replays the live sets when the worker's world is made. `sim_host.js` simHostWorldOp applies them and bumps `__simV` like any world op.
+
+### G1332 - the solver (30_solver.js): BEAMS against trunks, gathered once a frame
+- **NODES ARE NOT ENOUGH.**
+  - With the woodland's node test, a 0.3 m trunk on the taxiing aeroplane's own centreline let it through: the CG reached 72 m against a trunk at 60.
+  - Even a 0.8 m trunk passed at 0.7 m and 2.5 m off the centreline. The stock build's nodes stand up to 0.8 m apart, and a beam is up to 4.9 m long.
+- **trunkFrame (once a frame, no allocation)** gathers into fixed buffers: the trunks whose circle meets the aeroplane's box (its nodes' extent + 2|v|dt + 1 m) and whose foot..top spans its heights (512 at most, each from its centre's cell), and the (beam, trunk) pairs whose boxes meet (8192 at most).
+- **Each substep** walks the pairs alone. Per pair:
+  - The closest point of the beam to the trunk's axis (horizontal), inside r, between the foot and the top.
+  - It pushes both ends along the normal by their share (1 - t, t).
+- **THE GROUND'S spring and damper, per node (KGn, CGn).**
+  - The force is `max(0, KGn pen - CGn vn)`: damped both ways, and never pulling.
+  - The woodland's KTn (at most 2.2e4) could not hold a taxiing aeroplane inside 0.3 m: the axis crossed the beam and the spring pushed it on through.
+  - The first cut damped the velocity INTO the trunk only. The evidence pictures showed the spring handing the impact back: a 30 m/s aeroplane bounced 15 m off a 0.3 m trunk. Damped both ways it no longer does.
+  - What rebound is left (the taxi rolls ~5 m back, the flight ~10 m) is the airframe's own elastic beams springing back. There is no plastic or damage model.
+  - Stable at the build's 76 substeps a frame (dt 0.22 ms; ω dt ≤ 0.55 with 18 beams on the lightest node).
+- **The woodland's own cylinders are unchanged** (node test, KTn), so every existing gate is byte for byte the same. With no set registered the new code does one length check a frame.
+- `sim.trunkHits()`: beam-trunk contacts since the sim was made (the gate's count).
+- **The sweep** (a 0.3 m trunk at 60 m, the stock build taxied at it, the CG's furthest point by lateral offset):
+
+  | offset (m) | 0 | 0.7 | 1.5 | 2.5 | 3.5 | 4.5 | 5.5 (past the tip) |
+  |---|---|---|---|---|---|---|---|
+  | node test | 72 | 82 | 82 | 83 | 82 | 83 | 83 |
+  | beams, KTn | 60 | 76 | 79 | 77 | 63 | 64 | 83 |
+  | beams, KGn (shipped) | 59 | 60 | 60 | 61 | 63 | 64 | 83 |
+
+- **Cost** (node, stock build, `sim.step(1/60)`, 300 steps): 40 trunks inside the aeroplane's box and none touching, +0.03 ms a step (2.33 against 2.30 on the same sim). 20 fill sets with none near: within noise.
+
+### G1333 - GATE TREEHIT extended (tools/_treehit_check.js)
+- **3 (core):**
+  - trunkOf's numbers.
+  - 20 000 points (half beside a trunk) against the brute force: 0 differ, the island-wide set on 64 m cells.
+  - drop.
+  - The worker's world takes `tset` / `tdrop` / `tclear` through simHostWorldOp.
+- **4 (core), a fill trunk by the rule (a 15 m fir, r 0.3 m) through `world.treeHits`:**
+  - Taxied at it, it stops the aeroplane (58.7 of 60 m; 82.7 with none).
+  - Across the span (0.7..4.5 m off): the CG never more than 4 m past the trunk's line.
+  - **FLOWN at it at 4 m AGL, 30 m/s: stopped (the CG no further than ~38.5 of 40 m).** With no trunk it flies past at 32.1 m/s.
+- **5 (FULL: `--all`, or run outside the runner's core tier, as RWYTREES' page part; ~4 min, ~4 GB):**
+  - The page in node, Jolene, rolled out: the census table above, every fill / woodland / premises tree drawn within 1 km collidable.
+  - Then the page's OWN registered fill trunk nearest the stand (67 m, r 0.30, 6.3 m long) flown as in 4.
+  - The census probes 0.2 m over a tree's root: a 1.5 m sapling's trunk tops out at 1 m.
+- `TREE_LOD.drawn(x, z, r)` (render_world.js): every partition instance near a point, flat `[x, y, z, own]`, for the census.
+
+### Notes, open
+- **A crash is not modelled.** A trunk now stops the aeroplane hard (30 m/s to 0 in a few metres) with no damage and no event. A damage/crash hook on `trunkHits` is the user's call.
+- **A free camera far from the aeroplane:** the fill's complement within FILL_ACT is streamed round the CG (worldUpdate's cg), so the trunks follow the aeroplane, not the eye.
+- **Physics depends on 'forest density'.** It is now part of the physics: the trees you see are the trees you hit, so a denser setting is a denser forest to hit.
+- **The flight recorder's replays** carry no tree sets. A replay over a forest without the viewer would fly through the fill trunks (as before).
+
+### G1334 - the evidence (reports/evidence/TREE-HITBOX/, `node tools/treehit_evidence.js`)
+**A hitbox is invisible to a render.** The trees draw the same before and after, so a SwiftShader screenshot can't show this change. The pictures are the solver's own: the stock build's beams seen from above, every few frames, against a forest-fill trunk (flat world at 300 m, node). 'MASTER' is a fill tree with no trunk in the physics (master's case: the fill was never collidable).
+- `taxi_before_after.jpg`: taxied at a fill tree. Master rolls through (CG to 77 m); now it stops at the trunk. No decision of yours hangs on it.
+- `flight_before_after.jpg`: flown at it at 4 m AGL, 30 m/s. Master flies straight through; now it is stopped dead.
+  - **A DECISION HANGS ON IT: a stop, not a crash.** There is no damage model. Whether a trunk hit at speed should end the flight (a crash event on `sim.trunkHits()`) is your call.
+- `wing_offset.jpg`: the trunk 2.5 m off the centreline. The wing meets it, the airframe bends round it and the aeroplane slews. A node-only test let this through. No decision.
+- `sweep.jpg`: the taxi's CG furthest point by the trunk's lateral offset for the three contact models tried (G1332's table). It shows why the shipped one tests beams with the ground's spring. No decision.
+- `census.jpg`: every tree drawn within 1 km of HOME, collidable on master against now (the page in node).
+  - **A DECISION HANGS ON IT: the woodland draws nothing on Jolene** (pre-existing, G1330). Fixing it draws ~100 000 more trees: a perf call (yours / A0's).
+
+**GATES** (node, cloud; `run_gates --only=TREEHIT,TREES,SIMWORKER,BUILD`, the full battery left to A0 as asked): **TREEHIT PASS (26/26, the page census included, 292 s), TREES PASS, SIMWORKER PASS, BUILD PASS** - BATTERY: PASS on the final tree.
+- Census (`--page`): fill 15 857 drawn / 15 857 collidable / 2 before; woodland 0 drawn (92 physics trees within 1 km, unseen); premises 0. 59 571 trunks in 20 sets at HOME.
+- The generated outputs (flight_core.js, index.html, dev.html, sw.js, version.json) are NOT committed (SHARED-TREE-PRACTICES 5): the train's build makes them.
+- **FRAMECOST and the rollout ratchet NOT run** (not in this brief). The viewer's new work:
+  - the fill's trunk sets, built when a part comes within 1.2 km (~16 000 trunks x 5 floats, ~1 ms each, a few a minute at 60 m/s);
+  - the clone to the worker;
+  - trunkFrame's box walk each frame.
+  A0's train numbers will show it if it shows.

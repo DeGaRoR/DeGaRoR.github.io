@@ -234,11 +234,15 @@ function simHostWorldOp(world, c) {
     const build = r => { const GEN = G[r.gen]; return GEN && GEN.build ? GEN.build(r.P, 0) : null; };
     world.premises.set(c.rec, c.extra ? { build } : undefined);
   } else if (c.cmd === 'obst') {
-    const R = world.obstacles; if (!R) return false;
+    const R = world.obstacles, TH = world.treeHits; if (!R) return false;
     const ids = world.__simIds || (world.__simIds = new Map());
     const idOf = id => (ids.has(id) ? ids.get(id) : id);
     for (const o of c.ops || []) {
-      if (o.op === 'add') { const id = R.add({ x: o.x, z: o.z, yaw: o.yaw, y0: o.y0, shape: o.shape, tag: o.tag }); ids.set(o.id, id); }
+      // G1330 (TREE-HITBOX): the trunks the page's viewer draws (world.treeHits), a set by key
+      if (o.op === 'tset') { if (TH) TH.set(o.key, o.arr); }
+      else if (o.op === 'tdrop') { if (TH) TH.drop(o.key); }
+      else if (o.op === 'tclear') { if (TH) TH.clear(); }
+      else if (o.op === 'add') { const id = R.add({ x: o.x, z: o.z, yaw: o.yaw, y0: o.y0, shape: o.shape, tag: o.tag }); ids.set(o.id, id); }
       else if (o.op === 'move') R.move(idOf(o.id), o.x, o.z, o.yaw, o.y0);
       else if (o.op === 'remove') { R.remove(idOf(o.id)); ids.delete(o.id); }
       else if (o.op === 'clear') { R.clear(); ids.clear(); }

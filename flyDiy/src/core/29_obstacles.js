@@ -543,4 +543,94 @@ const OBSTACLES = (() => {
   }
   return { rasterise, box, penetration, make, BIN, MARGIN, hull, pieces, sdist, aircraftPieces, aircraftShape, parkedDrawn };
 })();
-if (typeof module !== 'undefined' && module.exports) module.exports = { OBSTACLES };
+
+// ---- TREE_HITS (G1330, TREE-HITBOX) - THE TREES YOU SEE ARE THE TREES YOU HIT ---------------------------------------
+// The user (2026-10-03): "trees have no hitbox, only some of them. We should at least be able to hit the trunks." Until
+// now the solver met the WOODLAND only (20_world.js trees: one candidate per 64 m cell, 0.8 % of the trees drawn); the
+// forest fill (render_world.js walk - every drawn stand on the island), the woodland's clump neighbours, the hand-placed
+// trees (TREE_PLACE: the aerodrome's windbreak) and the premises' zone trees (27_premises.js records.trees) were
+// pictures. The fill's placement reads the viewer's own data (the island's colour boot - NDVI, the biome mixes, the tree
+// pack's pools, the 'forest density' setting), so the core cannot re-derive it: the VIEWER registers what it draws.
+//
+// A SET is one source's trunks (a fill chunk part, the woodland, the premises), keyed, stride 5: x, z, y0 (the trunk's
+// foot, world y), r (its radius, m), y1 (its top, world y) - a Float32Array. Each set is binned ONCE, at set(), into a
+// CSR grid of CELL m cells (coarser for a set spread wide) (a trunk in every cell its circle touches), so a point asks its own cell of each set whose box
+// holds it: no candidate list, no allocation per step. The page's world and the sim worker's hold the same sets
+// (sim_link.js forwards set / drop / clear as the `trees` world op, stamped like the obstacles').
+// trunkOf(H, wFrac): the trunk of a drawn tree H m tall whose crown's half width is wFrac x H (the species' own bb):
+// a narrow conifer's trunk runs up to ~0.8 H, a broad crown's splits at ~0.5 H. Radius 2 % of H, held to 0.3..0.6 m (a
+// game's hitbox, a little fatter than the bark). The solver tests it against the BEAMS (30_solver.js trunkFrame).
+const TREE_HITS = (() => {
+  'use strict';
+  const CELL = 8, STRIDE = 5, MAXC = 1 << 18;
+  function trunkOf(H, wFrac, out) {
+    const o = out || [0, 0];
+    o[0] = Math.max(0.3, Math.min(0.6, 0.02 * H));
+    o[1] = Math.max(0.5, Math.min(0.8, 0.95 - (wFrac > 0 ? wFrac : 0.3))) * H;
+    return o;
+  }
+  function bin(arr) {
+    const n = (arr.length / STRIDE) | 0;
+    let x0 = Infinity, z0 = Infinity, x1 = -Infinity, z1 = -Infinity, top = -Infinity;
+    for (let i = 0; i < n; i++) {
+      const o = i * STRIDE, r = arr[o + 3];
+      if (arr[o] - r < x0) x0 = arr[o] - r; if (arr[o] + r > x1) x1 = arr[o] + r;
+      if (arr[o + 1] - r < z0) z0 = arr[o + 1] - r; if (arr[o + 1] + r > z1) z1 = arr[o + 1] + r;
+      if (arr[o + 4] > top) top = arr[o + 4];
+    }
+    if (!n) return { arr, n: 0, x0: 0, z0: 0, x1: -1, z1: -1, top: -Infinity, cell: CELL, cx0: 0, cz0: 0, nx: 0, nz: 0, start: new Int32Array(1), idx: new Int32Array(0) };
+    // the cell: CELL m, doubled until the set's box is at most MAXC cells (a fill chunk part is 128 x 128 of 8 m; the
+    // woodland's whole island one set of ~32-64 m cells, a few trees each - not 36 MB of empty 8 m cells)
+    let cell = CELL; while (((x1 - x0) / cell + 2) * ((z1 - z0) / cell + 2) > MAXC) cell *= 2;
+    const cx0 = Math.floor(x0 / cell), cz0 = Math.floor(z0 / cell);
+    const nx = Math.floor(x1 / cell) - cx0 + 1, nz = Math.floor(z1 / cell) - cz0 + 1;
+    const start = new Int32Array(nx * nz + 1);
+    const each = (i, f) => { const o = i * STRIDE, r = arr[o + 3];
+      const a0 = Math.floor((arr[o] - r) / cell) - cx0, a1 = Math.floor((arr[o] + r) / cell) - cx0;
+      const b0 = Math.floor((arr[o + 1] - r) / cell) - cz0, b1 = Math.floor((arr[o + 1] + r) / cell) - cz0;
+      for (let b = b0; b <= b1; b++) for (let a = a0; a <= a1; a++) f(b * nx + a); };
+    for (let i = 0; i < n; i++) each(i, c => { start[c + 1]++; });
+    for (let c = 0; c < nx * nz; c++) start[c + 1] += start[c];
+    const idx = new Int32Array(start[nx * nz]), at = start.slice(0, nx * nz);
+    for (let i = 0; i < n; i++) each(i, c => { idx[at[c]++] = i; });
+    return { arr, n, x0, z0, x1, z1, top, cell, cx0, cz0, nx, nz, start, idx };
+  }
+  function make() {
+    const sets = new Map();
+    const list = [];          // the live sets, for the solver's walk (rebuilt on set / drop, never per step)
+    let count = 0, top = -Infinity, ver = 0;
+    const relist = () => { list.length = 0; count = 0; top = -Infinity;
+      for (const S of sets.values()) if (S.n) { list.push(S); count += S.n; if (S.top > top) top = S.top; } ver++; };
+    const api = {
+      CELL, STRIDE, trunkOf,
+      // one source's trunks, replacing what that key held (arr: Float32Array or plain numbers, stride 5)
+      set(key, arr) { const a = arr instanceof Float32Array ? arr : Float32Array.from(arr || []); const S = bin(a); S.key = key; sets.set(key, S); relist(); return S.n; },
+      drop(key) { if (!sets.delete(key)) return false; relist(); return true; },
+      clear() { if (!sets.size) return; sets.clear(); relist(); },
+      has: key => sets.has(key),
+      keys: () => Array.from(sets.keys()),
+      get(key) { const S = sets.get(key); return S ? S.arr : null; },
+      get count() { return count; }, get top() { return top; }, get ver() { return ver; }, get sets() { return list.length; },
+      // every trunk whose cylinder holds the point: fn(dx, dz, d2, r) per hit (dx, dz from its axis); returns the hits.
+      // The solver's own walk is inline (30_solver.js) - this one is for the gates and the probes
+      at(px, py, pz, fn) {
+        let k = 0;
+        for (let s = 0; s < list.length; s++) {
+          const S = list[s];
+          if (py > S.top || px < S.x0 || px > S.x1 || pz < S.z0 || pz > S.z1) continue;
+          const c = (Math.floor(pz / S.cell) - S.cz0) * S.nx + (Math.floor(px / S.cell) - S.cx0), A = S.arr;
+          for (let j = S.start[c], j1 = S.start[c + 1]; j < j1; j++) {
+            const o = S.idx[j] * STRIDE, dx = px - A[o], dz = pz - A[o + 1], r = A[o + 3], d2 = dx * dx + dz * dz;
+            if (d2 > r * r || py > A[o + 4] || py < A[o + 2] - 1) continue;
+            k++; if (fn) fn(dx, dz, d2, r);
+          }
+        }
+        return k;
+      },
+      list,
+    };
+    return api;
+  }
+  return { make, trunkOf, CELL, STRIDE };
+})();
+if (typeof module !== 'undefined' && module.exports) module.exports = { OBSTACLES, TREE_HITS };

@@ -649,6 +649,9 @@ function makeWorld(seed, opts) {
     }
   }
   const obstacles = (typeof OBSTACLES !== 'undefined') ? OBSTACLES.make() : null;
+  // G1330 (TREE-HITBOX): the trunks of the trees the viewer DRAWS (29_obstacles.js TREE_HITS) - empty in a world no
+  // viewer stands on; the woodland above keeps its own cylinders, so a headless world collides as it always did
+  const treeHits = (typeof TREE_HITS !== 'undefined') ? TREE_HITS.make() : null;
   if (obstacles && SET && SET.buildings) {
     // the analytic world's settlement boxes (23_world_settle.js): w along the row, l across it,
     // stood on the ground at their centre; a box shape per size class, shared
@@ -1117,7 +1120,7 @@ function makeWorld(seed, opts) {
     // pushes world.sea at the shader when `seaChanged` says the trains moved)
     get seaTarget() { return seaTarget; }, seaRelax,
     // ---- v0 shim: same live objects, byte-identical values ----
-    trees, meadows, CELL, wind, setWind,
+    trees, meadows, CELL, wind, setWind, treeHits,
     // ---- THE CLIMATE (K0): the field's keeper — sample(), the relief raster, the stats
     climate,
     // ---- THE PREMISES (G385): the layer, its record, and the setter that recomposes it live

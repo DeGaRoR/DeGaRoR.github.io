@@ -366,6 +366,52 @@ function makeSim(def, world) {
       _obstRecs.push(r);
     }
   }
+  // THE TRUNKS THIS FRAME CAN TOUCH (G1330, TREE-HITBOX): world.treeHits' trunks whose circle comes within the
+  // aeroplane's box (its nodes' extent + what it moves in a frame + 1 m) and whose foot..top spans its nodes' heights,
+  // read once a FRAME into a fixed buffer (no allocation); each trunk from its centre's cell, so once. Over the woods
+  // at height the buffer is empty and the substep's beam walk is skipped whole
+  const TK_CAP = 512, _tk = new Float64Array(TK_CAP * 5), PR_CAP = 8192, _pr = new Int32Array(PR_CAP * 2);
+  let _tkN = 0, _prN = 0, _tkHits = 0;
+  function trunkFrame(dtFrame) {
+    _tkN = 0; _prN = 0;
+    const TH = world && world.treeHits, TL = TH && TH.list;
+    if (!TL || !TL.length) return;
+    let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity, z0 = Infinity, z1 = -Infinity, v2 = 0;
+    for (let i = 0; i < n; i++) {
+      const x = p[i*3], y = p[i*3+1], z = p[i*3+2];
+      if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; if (z < z0) z0 = z; if (z > z1) z1 = z;
+      const s2 = v[i*3]*v[i*3] + v[i*3+1]*v[i*3+1] + v[i*3+2]*v[i*3+2]; if (s2 > v2) v2 = s2;
+    }
+    const mg = 1 + 2 * Math.sqrt(v2) * dtFrame;
+    x0 -= mg; x1 += mg; y0 -= mg; y1 += mg; z0 -= mg; z1 += mg;
+    for (let s = 0; s < TL.length && _tkN < TK_CAP; s++) {
+      const S = TL[s];
+      if (y0 > S.top || x1 < S.x0 || x0 > S.x1 || z1 < S.z0 || z0 > S.z1) continue;
+      const A = S.arr, c = S.cell, a0 = Math.max(0, Math.floor((x0 - 0.6) / c) - S.cx0), a1 = Math.min(S.nx - 1, Math.floor((x1 + 0.6) / c) - S.cx0);
+      const b0 = Math.max(0, Math.floor((z0 - 0.6) / c) - S.cz0), b1 = Math.min(S.nz - 1, Math.floor((z1 + 0.6) / c) - S.cz0);
+      for (let bz = b0; bz <= b1; bz++) for (let ax = a0; ax <= a1; ax++) {
+        const cell = bz * S.nx + ax;
+        for (let j = S.start[cell], j1 = S.start[cell + 1]; j < j1 && _tkN < TK_CAP; j++) {
+          const o = S.idx[j] * 5, tx = A[o], tz = A[o+1], R = A[o+3];
+          if ((Math.floor(tz / c) - S.cz0) * S.nx + (Math.floor(tx / c) - S.cx0) !== cell) continue;   // its centre's cell: once
+          if (tx + R < x0 || tx - R > x1 || tz + R < z0 || tz - R > z1 || A[o+4] < y0 || A[o+2] - 1 > y1) continue;
+          const q = _tkN++ * 5; _tk[q] = tx; _tk[q+1] = tz; _tk[q+2] = A[o+2]; _tk[q+3] = R; _tk[q+4] = A[o+4];
+        }
+      }
+    }
+    // ...and paired once with the beams whose box (this frame's, padded by the frame's motion) its circle meets: the
+    // substeps walk the pairs alone (a trunk under the wingtip is a few beams, not all 389)
+    if (_tkN) for (let bi = 0; bi < beams.length && _prN < PR_CAP; bi++) {
+      const b = beams[bi], ia = b.a * 3, ib = b.b * 3;
+      const bx0 = Math.min(p[ia], p[ib]) - mg, bx1 = Math.max(p[ia], p[ib]) + mg, bz0 = Math.min(p[ia+2], p[ib+2]) - mg, bz1 = Math.max(p[ia+2], p[ib+2]) + mg;
+      const by0 = Math.min(p[ia+1], p[ib+1]) - mg, by1 = Math.max(p[ia+1], p[ib+1]) + mg;
+      for (let k = 0; k < _tkN && _prN < PR_CAP; k++) {
+        const o = k * 5, R = _tk[o+3];
+        if (_tk[o] + R < bx0 || _tk[o] - R > bx1 || _tk[o+1] + R < bz0 || _tk[o+1] - R > bz1 || _tk[o+4] < by0 || _tk[o+2] - 1 > by1) continue;
+        _pr[_prN * 2] = bi; _pr[_prN * 2 + 1] = k; _prN++;
+      }
+    }
+  }
   // G194: `eng` is null (every engine running, full lever — bit-identical to
   // before) or [{ on, thr }] per engine, a MULTIPLIER on the pilot's `thr`
   // that the pilots never read or write: the player's levers over the
@@ -1474,6 +1520,36 @@ function makeSim(def, world) {
           }
         }
       }
+      // THE TREES YOU SEE (G1330, TREE-HITBOX): every trunk the viewer draws - the forest fill, the woodland's clump
+      // neighbours and its own trees above the cylinder above, the hand-placed and the premises' trees - registered on
+      // the world (29_obstacles.js TREE_HITS) and gathered once a frame round the aeroplane (trunkFrame). Tested
+      // against every BEAM, not the nodes: a 0.3-0.6 m trunk slips between two nodes of a wing (they stand up to
+      // 0.8 m apart, a beam up to 4.9 m long), and the node test let a taxiing aeroplane through a trunk on its own
+      // centreline. The beam's closest point to the trunk's axis (horizontal), inside the radius and between the foot
+      // and the top, pushes both its ends out along the axis' normal by their share (1 - t, t), with the GROUND's spring
+      // per node (KGn) and its damper on the velocity along the normal, the force never pulling (CGn): the woodland's softer KTn could not
+      // hold a taxiing aeroplane inside a 0.3 m radius - the axis crossed the beam and pushed it on through
+    }
+    for (let q = 0; q < _prN; q++) {
+      const b = beams[_pr[q * 2]], ia = b.a * 3, ib = b.b * 3;
+      const ax = p[ia], ay = p[ia+1], az = p[ia+2], ex = p[ib] - ax, ey = p[ib+1] - ay, ez = p[ib+2] - az;
+      const e2 = ex*ex + ez*ez;
+      {
+        const o = _pr[q * 2 + 1] * 5, tx = _tk[o], tz = _tk[o+1], R = _tk[o+3];
+        let t = e2 > 1e-12 ? ((tx - ax) * ex + (tz - az) * ez) / e2 : 0;
+        t = t < 0 ? 0 : t > 1 ? 1 : t;
+        const dx = ax + t * ex - tx, dz = az + t * ez - tz, d2 = dx*dx + dz*dz;
+        if (d2 > R*R) continue;
+        const y = ay + t * ey;
+        if (y > _tk[o+4] || y < _tk[o+2] - 1) continue;
+        const d = Math.sqrt(d2) || 1e-6, nx = dx / d, nz = dz / d, pen = R - d, wa = 1 - t, wb = t;
+        const vna = v[ia] * nx + v[ia+2] * nz, vnb = v[ib] * nx + v[ib+2] * nz;
+        // damped both ways and never pulling (a clamp at 0): with the damper on the way IN only, the spring handed the
+        // impact back and a 30 m/s aeroplane bounced 15 m off a trunk (G1333's pictures showed it)
+        const fa = wa * Math.max(0, KGn[b.a] * pen - CGn[b.a] * vna), fb = wb * Math.max(0, KGn[b.b] * pen - CGn[b.b] * vnb);
+        f[ia] += fa * nx; f[ia+2] += fa * nz; f[ib] += fb * nx; f[ib+2] += fb * nz;
+        _tkHits++;
+      }
     }
     // THE OBSTACLES (G433): every solid thing the world registered (29_obstacles.js - houses, props,
     // cars, the parked aeroplanes, the settlements' boxes, the traffic), a column grid each; a node
@@ -1552,6 +1628,7 @@ function makeSim(def, world) {
       if (Number.isFinite(H)) { hbH = H + 1e-6; hbLive = true; }
     }
     obstFrame();
+    trunkFrame(dtFrame);
     for (let s = 0; s < sub; s++) { substep(dt); simT += dt; burn(dt); }
     readPanel(dtFrame);
   }
@@ -1681,6 +1758,7 @@ function makeSim(def, world) {
            setNodeMass,
            // the panel arc: the tanks, the engines and their one writer
            fuel, eng, setEngine, thrEffOf, hydro: HY,
+           trunkHits: () => _tkHits,   // G1330: beam-trunk contacts (one per beam per trunk per substep) since the sim was made
            reset, stance, step, trueBox, probe, stats, impulse, wheelsOnGround, wheelContacts, cgPos, cgVel, axes,
            // G197: the kernel's sources, readable (the gate asserts the weights' normalisation)
            induction: () => ({ WS: WS.slice(), plane: Array.from(PLANE), bHalf: Array.from(bHalf), Ez: Array.from(Ez), Dz: Array.from(Dz), Gam: Array.from(Gam), Wg: Array.from(Wg), zA: WS.map(j => sZA[j]), zB: WS.map(j => sZB[j]), A: WS.map(j => [sA[j*3], sA[j*3+1], sA[j*3+2]]), B: WS.map(j => [sB[j*3], sB[j*3+1], sB[j*3+2]]), d: sD.slice(), cpt: Array.from(cpt), pairs: pairs.length, loading: LOADING }),
