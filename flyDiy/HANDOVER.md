@@ -70055,7 +70055,15 @@ applied from a pasted / loaded look. GATE PREMISES 17 (new): a premises with a l
 + normalise), raises no issue, reaches O.pavement and resolve per type; a road is sided unless it declares a band;
 roadSide 0 draws every band.
 
-GATES (node, cloud): PAVEMENT, PREMISES, RWYTREES, BUILD - see the run below. NOT DONE HERE (no GPU): the look itself.
+GATES (node, cloud, this tree; the full battery left to A0's train): `run_gates --only=PAVEMENT,PREMISES,BUILD` BATTERY
+PASS - BUILD PASS 2.5 s, PREMISES PASS 103 s (17 new: the look's round trip, `sided`, roadSide 0), PAVEMENT PASS 22 s
+(13 new, 9 checks: the census, the twin's laws, the knobs, a part's look, the live overlay, opaqueDepth). RWYTREES core
+(`GATES_CORE=1 node tools/_rwytrees_check.js`, what the core battery runs) PASS, 20 checks. Its FULL tier under `--only`
+(which implies full) ran past the runner's 30 min spawn cap on this box: steps 1-7 all ok (map / mapx: 0 visible trees
+on paving, taxiway 2.2 / apron 2.1 / road 1.8 m nearest - a sided road's side), step 8's C172 circuit ok, then the
+Cub circuits were cut by the timeout (ETIMEDOUT, no check failed) - A0's train runs it with its own wall.
+The built files (index.html, dev.html, sw.js, version.json, tools/flight_core.js) are NOT committed: the train builds.
+NOT DONE HERE (no GPU): the look itself on the island (see EVIDENCE below for the bench under SwiftShader).
 A0: (1) the soft strips' torn edge now spans 1.8 m instead of ~13 m - judge it from the air on a dirt / gravel strip;
 the knobs are sfSideW (wider tear) and sfSideA; (2) a grass strip is now an opaque mown lawn (fieldgrass graded): judge
 it against the island's grass, grBright / grTint / grHue to match or contrast; (3) the roads lost their gravel bands
