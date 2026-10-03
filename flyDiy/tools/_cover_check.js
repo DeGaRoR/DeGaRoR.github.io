@@ -13,7 +13,7 @@
 //      its matrix, its colour and its fade threshold (aRand there, the colour's alpha here) - and nothing else is.
 //   2. THE SAME REACH. An instance draws where its block does (the fade's reach test), and nowhere else.
 //   3. FEWER DRAWS. One frame counted per kind (main and shadow): the batched kinds draw once per batch at most.
-//   4. SHADOWS FROM 0.5 m. No prototype under castMinH (0.5 m since G585) casts, in either path.
+//   4. SHADOWS FROM 0.35 m. No prototype under castMinH (0.35 m since 2026-10-03, 0.5 since G585) casts, in either path.
 //   5. NOTHING LEAKS. The eye leaves and comes back: cells drop and replant, the batches hold exactly the live
 //      cells' instances (a dropped cell's ids are reused without switching anybody else's).
 //   6. THE FADE READS THE BATCH. The batched program takes aRand from the colour's alpha after <color_vertex>,
@@ -134,7 +134,7 @@ ok(ia.all.length > 100 && JSON.stringify(ia.all) === JSON.stringify(ib.all) && r
   for (const W of [A, Bt]) W.CR.root.traverse(o => { if (!(o.isInstancedMesh || o.isBatchedMesh) || !o.castShadow) return; cast++;
     const geos = o.isBatchedMesh ? [...o.userData.geoIds.keys()] : [o.geometry];
     for (const g of geos) if (/rock|debris/.test(o.userData.coverKind) && heightOf(g) < S.castMinH) bad++; });
-  ok(S.castMinH === 0.5 && bad === 0 && cast > 0, '4 no rock or debris under castMinH (0.5 m) casts, in either path', cast + ' casters'); }
+  ok(S.castMinH === 0.35 && bad === 0 && cast > 0, '4 no rock or debris under castMinH (0.35 m: the user world look, 2026-10-03; 0.5 since G585) casts, in either path', cast + ' casters'); }
 // 5
 { const W = Bt, n0 = batchedRecs(W).all.length;
   W.camera.position.set(3000, 3, 0); W.camera.updateMatrixWorld(); for (let i = 0; i < 4; i++) W.CR.update();
