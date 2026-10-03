@@ -68810,7 +68810,10 @@ BUILT index.html (ui_layer.js before pattern_vis.js and app.js). U5 the CSS rule
 UI_LAYER absent, U1 / U2 fail (28 of 32 helpers seen in photo mode, all of them in the mirror).
 
 **G1374 GATES** (cloud, no GPU; `run_gates.js --only=UISMOKE,ROLLANIM,BUILD,UILAYER`): UISMOKE PASS 218.5 s, ROLLANIM
-PASS 52.3 s (777 checks), UILAYER PASS 3.8 s (32 ok), BUILD PASS 3.1 s - BATTERY: PASS. Not run (not in the brief):
+PASS 52.3 s (777 checks), UILAYER PASS 3.8 s (32 ok), BUILD PASS 3.1 s - BATTERY: PASS. Then the gates that read the
+touched files (water.js, shadow_near.js, render_world.js, hangar.js, editor.js, pattern_vis.js), `--only=CLOUD,WORLDRENDER,
+STAND,SHADOWSKY,ASSETS,LIGHT,VIEW,WATER,HANGAR`: CLOUD 3.8 s, WORLDRENDER 12.3 s, STAND 0.3 s, SHADOWSKY 0.5 s, ASSETS
+37.1 s, LIGHT 0.1 s, VIEW 0.1 s, WATER 8.3 s, HANGAR 1.8 s - all PASS, BATTERY: PASS. Not run (A0 runs it every train):
 the battery, FRAMECOST, the page itself. The mirror's draw count can only fall (fewer objects pass its layer test).
 NOT SEEN ON A SCREEN: the cloud has no GPU - A0's eyeball: a circuit over the lake with legs on (no line in the water),
 photo mode (no ribbon, no legs), a roll-out (no verbs until the stand's first frame). No flyDiy/CLAUDE.md exists on
