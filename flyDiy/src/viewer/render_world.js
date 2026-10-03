@@ -1634,14 +1634,25 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         cv.__islandTexRestore = gpuRestore;
         cv.addEventListener('webglcontextrestored', gpuRestore);
       } }
+    // G1230 (MEM-BUDGET): a budget with islandHalf (potato) derives the two colour textures (the albedo, the tint) at
+    // half the grid's side - a 2x2 box of the RGB grid a texel: 46 -> 11.6 MiB each made and uploaded (the GPU's too).
+    // The terrain codes (B: the splat's 5x5 cell kernel) and A (the lake cut, the coast) stay at the grid's own cell
+    const IG = ISLA ? ISLA.grid : null, IHALF = !!(ISLA && BUD && BUD.islandHalf), W2 = IHALF ? Math.ceil(IG.w / 2) : (IG ? IG.w : 0), H2 = IHALF ? Math.ceil(IG.h / 2) : (IG ? IG.h : 0);
+    const rgbTexels = src => { const G = IG, n = G.w * G.h; const out = new Uint8Array(W2 * H2 * 4);
+      if (!src) { out.fill(110); return out; }
+      if (!IHALF) { for (let i = 0, j = 0; i < n; i++, j += 4) { out[j] = src[i * 3]; out[j + 1] = src[i * 3 + 1]; out[j + 2] = src[i * 3 + 2]; out[j + 3] = 255; } return out; }
+      for (let y = 0; y < H2; y++) { const y0 = 2 * y, y1 = Math.min(G.h - 1, y0 + 1);
+        for (let x = 0; x < W2; x++) { const x0 = 2 * x, x1 = Math.min(G.w - 1, x0 + 1), o = (y * W2 + x) * 4;
+          const a = (y0 * G.w + x0) * 3, b = (y0 * G.w + x1) * 3, c = (y1 * G.w + x0) * 3, d = (y1 * G.w + x1) * 3;
+          for (let k = 0; k < 3; k++) out[o + k] = (src[a + k] + src[b + k] + src[c + k] + src[d + k] + 2) >> 2;
+          out[o + 3] = 255; } }
+      return out; };
     if (ISLA) {
       const G = ISLA.grid, n = G.w * G.h;
       // (G1230: read at the call, not captured - a budget that drops the colour grids once drawn (app.js) leaves this a
       // flat mid grey on a lost context instead of holding 35 MB for it)
-      const albedoRGBA = () => { const rgba = new Uint8Array(n * 4), src = ISLA.albedo; if (!src) { rgba.fill(110); return rgba; }
-        for (let i = 0, j = 0; i < n; i++, j += 4) { rgba[j] = src[i * 3]; rgba[j + 1] = src[i * 3 + 1]; rgba[j + 2] = src[i * 3 + 2]; rgba[j + 3] = 255; }
-        return rgba; };
-      islandTex = gpuOnly(new THREE.DataTexture(albedoRGBA(), G.w, G.h, THREE.RGBAFormat, THREE.UnsignedByteType), albedoRGBA);
+      const albedoRGBA = () => rgbTexels(ISLA.albedo);
+      islandTex = gpuOnly(new THREE.DataTexture(albedoRGBA(), W2, H2, THREE.RGBAFormat, THREE.UnsignedByteType), albedoRGBA);
       islandTex.colorSpace = THREE.SRGBColorSpace; islandTex.magFilter = islandTex.minFilter = THREE.LinearFilter;
       islandTex.generateMipmaps = false; islandTex.anisotropy = MAX_ANISO; islandTex.flipY = false; islandTex.needsUpdate = true;
       // row 0 of the grid is its north edge (z0): v runs with z, no flip
@@ -1706,10 +1717,8 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       // 2 x 3095 = 6190 bytes, not a multiple of 4: the unpack alignment is 1 or every row after the first shears
       const pk2 = (r, g) => { const make = () => { const d = new Uint8Array(n * 2); for (let k = 0, j = 0; k < n; k++, j += 2) { d[j] = r ? r[k] : 0; d[j + 1] = g ? g[k] : 0; } return d; };
         const t = dataTex(make()); t.format = THREE.RGFormat; t.unpackAlignment = 1; return gpuOnly(t, make); };
-      const tintRGBA = () => { const rgba = new Uint8Array(n * 4); if (!ISLA.tint) { rgba.fill(110); return rgba; }
-        for (let i = 0, j = 0; i < n; i++, j += 4) { rgba[j] = ISLA.tint[i * 3]; rgba[j + 1] = ISLA.tint[i * 3 + 1]; rgba[j + 2] = ISLA.tint[i * 3 + 2]; rgba[j + 3] = 255; }
-        return rgba; };
-      const tintTex = gpuOnly(new THREE.DataTexture(tintRGBA(), G.w, G.h, THREE.RGBAFormat, THREE.UnsignedByteType), tintRGBA);
+      const tintRGBA = () => rgbTexels(ISLA.tint);
+      const tintTex = gpuOnly(new THREE.DataTexture(tintRGBA(), W2, H2, THREE.RGBAFormat, THREE.UnsignedByteType), tintRGBA);
       tintTex.colorSpace = THREE.SRGBColorSpace; tintTex.magFilter = tintTex.minFilter = THREE.LinearFilter;
       tintTex.generateMipmaps = false; tintTex.flipY = false; tintTex.anisotropy = MAX_ANISO; tintTex.needsUpdate = true;
       function dataTex1() { const t = new THREE.DataTexture(new Uint8Array(4), 1, 1, THREE.RGBAFormat, THREE.UnsignedByteType); t.needsUpdate = true; return t; }
