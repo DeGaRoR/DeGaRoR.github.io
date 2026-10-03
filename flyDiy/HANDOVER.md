@@ -68310,3 +68310,135 @@ data. FLIGHT (fresh profile D:/u25d, vs train 24): Cub 31 fps / 5 %, cockpit 56 
 cockpit 53.8 -> 55.9 fps. ONE RED CLEARED: the metal's worst boot task 716 -> 1055 / 859 ms on its two chase runs (at ~36 s, the
 garage boot; its cockpit runs through the same boot showed none); two re-runs 655 / 664 ms - not repeated, the metal baseline is
 taken from them. Battery GREEN, FRAMECOST PASS (baseline re-taken).
+
+## G1395-G1399 HOUSE-LOD: THE FAR HOUSES ON THE TOWN'S OWN SHADER, NO BOXES; THE SWAP BY PROJECTED SIZE (2026-10-03, a cloud session for A0, node only; branch claude/house-lod-g1395 off train 25 = 5502f45; G1397-G1399 unused)
+
+The user, 3 Oct: "The low LODs of the buildings are really too low for now, and they swap a little too late."
+On C0's ladder (G800-G802), the low rung was G559's plain vertex colour on the generator's lod 1 (one mean colour a bag:
+no boards, no paint texture, no dirt line, the panes a flat dark), and past 1.2 km a BOX (G594: 10 triangles, the walls
+one colour, the top flat at 85 % of the ridge). The swap was at a fixed 150 m, where the median house's radius is ~70 px
+tall at 1080p.
+NO `flyDiy/CLAUDE.md` EXISTS on master (the brief named one): this session followed this file's SESSION RITUAL.
+
+G1395 THE FAR TOWN ON THE TOWN'S SHADER (src/viewer/render_premises.js, house_tarr.js)
+- **What it draws.** A banded house's lod 1 now merges through house_tarr exactly as the near town's lod 0 does (G574),
+  with the same finish. So the far house keeps:
+  - its walls' boards, paint and texture, its dirt line and weathering;
+  - its roof sheet and the roof's SHAPE (the generator's lod 1: gable / saltbox / gambrel planes, the porch roof);
+  - the window rhythm (lod 1's panes, on the glass program: the lamps light them at night);
+  - the porch, posts, deck and chimney silhouettes lod 1 builds ("TWO MESHES, ONE CONSTRUCTION": not a decimation).
+  Probed on 40 random houses: every lod-1 bag rides the stack (the panes as glass, the rest plain). Lod 1 is 993
+  triangles a house against lod 0's 11 648.
+- **How.** `lod1Bags` keeps the town shader's channels (uv, AO / lit / win; it dropped them) and marks each bag `shell`
+  (siding, roof, stone, log, floor) or detail. `out.root` (never in a scene) takes the house's matrix for the merge.
+  `hlodFarTarr` groups a cell's banded lod-1 bags by classify key and merges them through `TA.merge`. They are drawn on
+  `TA.material(kind, side, dith, false, true)`, the town material's FAR variant: one program each for plain and glass,
+  key `:lodfar`. Each vertex carries `aHC` (its house's centre, and its radius signed: negative = detail).
+- **What falls back.** A bag the stack cannot take yet (a layer still loading) goes to G559's plain lod-1 far town and
+  its box, as before. The cell is marked `tarrShort` and rebakes on the stack's ready signal (the existing path).
+- **NO BOX PAST 1.2 KM** for a house on the town's shader. The far town is the coarsest rung: the DETAIL (trims, posts,
+  deck, metal, panes, piles) dissolves on a second band (below), the SHELLS (walls, roof, chimney) stay at any distance.
+  So the coarsest house is a simplified mesh with its roof, not a box. The detail's vertices are dropped in the vertex
+  stage once the house is wholly past that band. The items' boxes (G594) and the plain fallback's boxes are unchanged.
+
+G1396 THE SWAP BY PROJECTED SIZE (the dithered fade kept)
+- **The edge.** Each house's edge is its radius x F / swapPx. R is detailOf's R. F is the camera's focal length in
+  drawing-buffer rows: 0.5 h / tan(fov / 2), h capped at hMax 1440, from `getEffectiveFOV` so a zoom counts. The edge
+  is clamped to LOD_E [60, 600] m.
+  - The band keeps its share of the edge: fadeW / near, 40 m at 150.
+  - The detail band: R x F / detailPx, at least the edge + its band; a tenth of b wide, centred on b.
+- **The defaults.** swapPx 48, detailPx 9. At 1080p and the game's 46 deg (F 1272):
+  | house radius (40 random houses) | lod 0 -> lod 1 (was 150 m) | detail leaves (was: box at 1.2 km) |
+  |---|---|---|
+  | 5.2 m (min) | 138 m | 735 m |
+  | 8.3 m (median) | 220 m | 1 173 m |
+  | 15.7 m (max) | 416 m | 2 219 m |
+  A shed swaps nearer than before, a big house further, and the median house at 220 m, where its radius is 48 px
+  instead of 70. The swap now happens on a smaller house on screen, and onto a rung that wears the same texture.
+- **Both rungs agree.** Both carry the house's radius:
+  - the near rung (the lod-0 TARR merges and G566's banded buckets) as `aHR`, a float a vertex;
+  - the far rung as `aHC.w`.
+  Both compute the same per-pixel edge from it, so the dither stays complementary (GATE TARR 5e2).
+  - `aHR` / `aHC` on house_tarr's drawn-only merges give their arrays back on upload, as G1200's do.
+- **The CPU visibility** stays a superset of the shader: per cell, the near rung while d < the largest banded house's
+  edge + band; the far town while the farthest reach > the smallest's edge - band.
+  - The houses' own leftover bags (lamps, smoke) switch per cell at the largest banded house's edge.
+  - A cell of items alone keeps the fixed 150 m hard switch. The edges' span is taken over the banded houses only, so
+    an aerodrome's club does not push its own cell's switch out to 600 m.
+- **The uniforms.** uLodS / uLodSB (F / swapPx, F / detailPx) are set each tick. 0 = fixed metres: G801's band, bit for
+  bit (GATE TARR 5e sweeps it unchanged).
+- **The flags.**
+  - `?houselod=N` (N > 1) and `?houselod=1` now mean fixed metres, with no projection.
+  - `?lodpx=N` sets the swap at N px of radius.
+  - Live: `WORLD.premises.hlod.{proj, swapPx, detailPx, hMax}` (the next frame), `near` / `fadeW` as before.
+  - `?houselod=0` still gives C0's "before": lod 0 far and no band, so no far town on the town's shader either.
+
+G1395-G1396 BUDGET - THE NODE FRAMECOST CENSUS AT HOME, master 5502f45 -> this branch (per frame, medians):
+| build / view | draws.main | tris.main | programs | draws.shadow |
+|---|---|---|---|---|
+| Cub stand | 914 -> 923 (+9) | 17 487 823 -> 17 585 463 (+97 640, +0.56 %) | 98 -> 99.5 | 169 -> 172 |
+| Cub taxi | 844 -> 853 (+9) | 13 043 865 -> 13 141 505 (+97 640, +0.75 %) | 81.5 -> 83.5 | 100 = |
+| Cessna stand | 925 -> 934 (+9) | 17 610 628 -> 17 708 268 (+97 640) | 96.5 -> 98.5 | 176 = |
+| Cessna taxi | 854 -> 863 (+9) | 13 164 382 -> 13 262 022 (+97 640) | 80.5 -> 82.5 | 106 = |
+- **What the rise is.** It is Jolene's village 3.5 km out:
+  - The draws: its five cells' far town, plain + glass, where one box mesh a cell was.
+  - The triangles: its 96 lod-1 houses' meshes in place of 96 x 10 box triangles. The detail's ~70 % is dropped in the
+    vertex stage at that range, but the census counts what is submitted.
+  - The programs: the two far variants.
+  - The shadow +3 at the Cub stand is not traced: the Cessna's is flat. The likely cause is a cell's near rung, now
+    shown (as a superset) further out.
+- **Boot.** `garage:frames` bufferData +11.6 MB (335.7 -> 347.3 MB, +3.5 %): the far town's channels (uv, AO, slot,
+  aHC) against the plain colour's. The houses' lod-1 builds are unchanged (house.build1 96, tris1 102 536).
+- **The final census.** Re-run on the final source (after the item-cell fix): the same numbers to the last count.
+- **The gate.** FRAMECOST PASS against the committed baseline (every rise inside the 1 % + slack tolerance). NO ALLOW row
+  was added and the baseline was NOT re-taken: A0's train re-takes it on the merged tree.
+
+GATES (as briefed, node): PREMISES 354 PASS, PREMCOOK PASS (the cook's lifts untouched: no stale cook), METKIT 45 PASS,
+FRAMECOST PASS (before, after, final), BUILD PASS. All on the final source, as A0 asked: the gates for the
+files touched, not the full battery. Also GATE TARR (82/82; not in the brief, but its §5 pins the band's
+text and transpiles its GLSL). It was updated:
+- 5b / 5b2: lod 1's channels, every bag rides the stack, the shells;
+- 5e2 / 5e3: the band swept by projected size for five radii, complementary everywhere, each house banded about its
+  own edge, the detail gone past b and whole before it, the shells never leaving;
+- 5i2: the vertex cull transpiled and swept, fixed and projected, for the shell and the detail;
+- 5l0: the far variant's program; 5m: G566's clone carries aHR; 5p: the flags; 5q: the wiring.
+The full tier was not run.
+
+STILLS - NOT TAKEN; WHAT A SOFTWARE RENDER CAN'T SHOW:
+- **What was tried.** Two attempts, about an hour, with tools/shadowsky_shots.js copied to the scratchpad and pointed at
+  /opt/pw-browsers' Chromium with `--use-angle=swiftshader --enable-unsafe-swiftshader`. WebGL2 itself works there
+  (ANGLE / SwiftShader, MAX_ARRAY_TEXTURE_LAYERS 2048).
+- **What came back.** The rig's roll-out flow never reached the world view on a fresh profile under SwiftShader. Both
+  pages ended on the pre-flight panel or the "New aeroplane" picker, over an empty canvas: UI only, which this change
+  does not touch. Nothing of that is committed.
+- **What a software render can't show, even when it runs:**
+  - the band's dither and any shimmer, which are a motion and frame-rate judgement;
+  - the far town's fragment cost.
+  The look check below and the frame_perf pair are owed on the box.
+
+EVIDENCE (reports/evidence/HOUSE-LOD/):
+- `lod_edges_before_after.jpeg`: where each rung changes by house radius at 1080p, before (150 m / the box at 1.2 km)
+  vs after (R x F / 48 px, the detail at R x F / 9 px, no box). Computed from the shipped constants, not rendered from
+  the game. A0's decision hangs on it: are the defaults swapPx 48 / detailPx 9 right, or should the swap move further
+  out? That is the user's "a little too late".
+
+THE LOOK CHECK (for A0 / the user, on the box; Jolene's village, the G802 poses):
+- **Approach and look.** Approach from (900, -2000) toward (900, -2600).
+  - The far houses should now read as the same houses: their paint, boards, roof sheet and windows.
+  - The swap: the median house at ~220 m, a big one at ~400 m, a shed at ~140 m. Each should be a short stipple at
+    most, with nothing changing colour.
+- **From the stand.** Look at the village 3.5 km out: roofs with their pitch and the walls' paint where the boxes were.
+- **What to judge.**
+  - The detail's band at ~1.2 km on a median house (the trims and the panes dissolving away).
+  - Whether the shells far off flicker. G594's reason for the box was coloured pixels flickering on a plain lod-0 far
+    town; the town shader's mip-mapped arrays should be calmer, but this was not seen here (no GPU).
+- **The dials.** `WORLD.premises.hlod.swapPx` (48: lower = later) and `.detailPx` (9) move the next frame.
+  - A/B: `?houselod=0` (C0's before), `?houselod=150` (fixed 150 m on the new far town), `?lodpx=30`.
+- **OWED (GPU).** frame_perf at:900:-2250:20 and the stand, `?houselod=150` vs default: the far town's fragment cost on
+  the town shader against the plain colour's, and the vertex stage's culls.
+
+OPEN / NOT DONE
+- The town kit (C3b/C3c, `townkit.js`) keeps its own fixed band (E0 = HLOD.near 150, E1 1.2 km). It is drawn only on
+  a flag / with the town on. Giving it the projection is the kit host's own vertex data (it carries no radius yet).
+- The site items (club, sheds, churches) are still G559's lod-0 far version on the hard per-cell switch at 150 m: no
+  lod 1, no band (G801's reason: ~7 item programs to clone).
