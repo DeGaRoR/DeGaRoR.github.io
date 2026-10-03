@@ -96,7 +96,11 @@ const ROUTE = { cub: { from: 'HOME', dest: 'SEA' }, floats: { from: 'HOME', dest
         return JSON.stringify([l, t, rr, b]); })()`);
       const [l, t, r, b] = JSON.parse(box);
       const clip = { x: Math.max(0, l - 12), y: Math.max(0, t - 12), width: Math.min(1600, r + 12) - Math.max(0, l - 12), height: Math.min(900, b + 12) - Math.max(0, t - 12) };
+      // --nogl: the scene's canvases hidden for the picker shot (a software WebGL readback stalled every 'after' garage
+      // shot past 60 s, measured; the pickers are DOM and are the evidence)
+      if (process.argv.includes('--nogl')) await ev("(()=>{ for (const c of document.querySelectorAll('canvas')) c.style.visibility = 'hidden'; document.body.style.background = '#2a2622'; return 1; })()", 0);
       await held(() => page.screenshot({ path: path.join(OUT, pg + '_' + bk + '_pickers.jpg'), type: 'jpeg', quality: 80, clip, timeout: 60000 }));
+      if (process.argv.includes('--nogl')) await ev("(()=>{ for (const c of document.querySelectorAll('canvas')) c.style.visibility = ''; return 1; })()", 0);
       fs.writeFileSync(path.join(OUT, pg + '_' + bk + '_pickers.txt'), I.read.map((s, i) => (i ? 'to  ' : 'from') + ' = ' + s.value + '\n  ' + s.opts.join('\n  ')).join('\n') + '\n');
     }
     // --fly: ROLL OUT - the roll-out screen's picker (#bootRoute), then the flight's map, big (labels on)
