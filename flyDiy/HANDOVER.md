@@ -68161,3 +68161,26 @@ gl.calls ~+1 %) are the existing ALLOW rows. Baseline NOT re-taken (A0's at land
 (the props packs do not enter it) - no re-cook needed.
 NOT DONE: the vice_bench re-bake drift (a fresh prop_prep writes a different vice_bench bin than master's, same length) is
 kept OUT of this branch - unrelated, worth a look. Not measured in the browser (no GPU run made).
+## G1250-G1254 - QUICK-BYTES: FIVE SMALL BYTE CUTS, EACH WITH ITS NUMBER (2026-10-03, QUICK-BYTES for A0, local GPU; branch claude/quick-bytes-g1250 off train/24)
+
+From reports/PERFORMANCE-LEADS-2026-10-02.md §4/§5 and PERFORMANCE-ASSET-AUDIT-2026-10-02.md §3/§4/§7. One commit per item.
+
+| item | what changed | before | after | proof |
+|---|---|---|---|---|
+| G1250 4x AA tier | `msaa4` in AA_TIERS (ss 1, 4 samples): the same RGBA16F target, dither, stencil (DEPTH32F_STENCIL8); the default on **retro and current**; gamer keeps `msaa` (8x); menus: gfx `soft`, cockpit pills, editor select, dev panel | gamer 8 samples = **144 B/px, 311.3 MiB** at 2216x1023; current `off` + clouds = **0 samples**, 16 B/px, 34.6 MiB; retro `off` (reversed depth) = 4 samples, 80 B/px | msaa4 = 4 samples, **80 B/px, 173.0 MiB** at 2216x1023 (138.4 MiB under 8x); retro unchanged (now explicit); gamer unchanged | read from the live attachments (gl.getRenderbufferParameter on three's msColor/msDepth: 0x881a RGBA16F, 0x8cad D32F_S8, samples) + the resolve texture and depth texture, per preset |
+| G1251 island B RG8 | packed B (ndvi .r, terrain type .g) as `RGFormat` + `unpackAlignment = 1` (a 6190-byte row is not 4-aligned); readers unchanged (.r/.g) | RGBA8 **46.28 MiB** | RG8 **23.14 MiB** | GPU readback of uGPackB on the flying page, both trees: texel centres = the CPU ndvi/ttype for all 12.1 M texels (0 mismatches, 478 296 type edges incl. every shore); linear reads at (+0.37,+0.11) identical; **readback hash identical before/after (4056688310)** |
+| G1252 reference maps | refplane loadTexs fetches only maps a built material names as `tex` (all applyFinish binds); disposeBuilt disposes them and drops the texCache entry | C172 **15 images** (2.42 MiB files), kept for the session | **9 images** (2.23 MiB; six normal/metal-roughness never fetched); released on a switch (~24 MiB RGBA+mips once uploaded) | counted from the payloads (PA18: 10 of 10 bound, unchanged; C195/PA28/DA40/D112 carry no maps); REF PASS |
+| G1253 no generated strips on an island | `AERO` is an explicit empty result under ISL (surfaceAt -1, inBox false, grade h); `world.genStrips {n, bakeMs}` published | Jolene's search: **0 strips, 14-20 ms** | **0 ms** | node, the real fixture: surface / terrainH / treeGround / coverAt over a 400x500 grid and the 24 647 trees hash IDENTICAL before/after - the search found no strip on Jolene, so every AERO reader (biomes' aeroSurf, the trees' inBox, treeGround) already answered "none" |
+| G1254 sheets by source | aeroDetailTex caches a baked sheet under `sheet:<name>`; finish scalars stay uniforms (aeroFinishU); the lab rebake of a sheet row is a no-op on pixels (as before) | 14 sheet rows -> **14** CanvasTextures (18.67 MiB RGBA+mips if all resident) | **13** (17.33 MiB): ply + maple share the maple sheet, **1.33 MiB** | node count over every sheet row, both trees; SKIN/SKINMAT/MATLIB/LIVERY PASS |
+
+- **G1250 is a memory INCREASE on `current`, on purpose:** `off` was never four samples once the clouds asked for the target
+  (needRT -> buildRT's min -> 0 samples), so current flew with no MSAA in the target at all (+138.4 MiB at 2216x1023 to get the
+  4x the menu said it had). The saving the report priced (8x -> 4x, 138 MiB) is for a gamer player who picks `soft`.
+- G1252 is downloads + decoded images; no GPU number claimed for the unbound six (they were never uploaded).
+- G1253's allowance in the audit was 0-0.5 s; measured 14-20 ms per world construction on Jolene.
+- Stills: the island_shot rig's flying check no longer matches the page (it reaches the garage; my scratch copy waited on
+  FLYDIY_TRIPS' roll-out) and a paused flight holds the canvas, so every step shot the same frame - G1251's proof is the
+  texture readback above, which covers every texel instead of one view.
+- GATES (`--no-build --only=`): GFX, BOOT, ROUNDTRIP, STAND, ASSETS, BUILD, REF, WORLD, TREES, AA PASS; and WORLDRENDER, SPLAT,
+  LOOKS, WATER, PAVEMENT, AERO, SURF, BIOME, SITE, RWYTREES, TAXICLEAR, BLUEPRINT, SKIN, SKINMAT, MATLIB, LIVERY PASS.
+  FRAMECOST PASS (111 s) and PARKED PASS after the parked re-cook on this tree (build e2969a357358: arch c172, cub, jodel).
