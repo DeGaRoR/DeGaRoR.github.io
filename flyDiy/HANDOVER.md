@@ -69994,7 +69994,7 @@ src/viewer/atmo.js (G1406); src/viewer/world_boot.js, src/viewer/gfx_settings.js
 tools/perf/metla_ab.js (G1407). The generated files (flight_core.js, index.html, dev.html, sw.js, version.json) are not
 committed - A0's built commit.
 
-## G1390-G1394 - RUNWAY-LOOK: THE DECLARED WIDTH IS THE DRAWN WIDTH WHATEVER THE SURFACE; THE RUNWAY'S AND ITS SIDES' LOOK PER SURFACE TYPE, IN THE EDITOR AND THE WORLD LOOK (2026-10-03, RUNWAY-LOOK for A0, cloud - no GPU; branch claude/runway-look-g1390 off master 5502f45)
+## G1390-G1395 - RUNWAY-LOOK: THE DECLARED WIDTH IS THE DRAWN WIDTH WHATEVER THE SURFACE; THE RUNWAY'S AND ITS SIDES' LOOK PER SURFACE TYPE, IN THE EDITOR AND THE WORLD LOOK (2026-10-03, RUNWAY-LOOK for A0, cloud - no GPU; branch claude/runway-look-g1390 off master 5502f45)
 
 The user, 3 Oct: (1) "I would want to color the runway and its sides further, more control over those"; (2) "The grass
 runway for example is very thin at the same dimensions as the dirt runway / path, which is very large".
@@ -70005,10 +70005,10 @@ side's last island at alpha >= .05; metres):
 
     kind           decl |  BEFORE drawn  opaque  reach |  NOW drawn  opaque  reach
     concrete strip   18 |        18.02   16.80  20.90 |      18.02   16.80  20.90   (untouched)
-    gravel/dirt/sand 18 |        19.48    9.55  28.70 |      18.22   17.35  20.60
-    grass strip      18 |         8.09    0.95  27.70 |      18.22   17.35  20.60
-    paved road        6 |        15.70    9.80  20.50 |       6.02    4.80   8.90
-    soft / grass road 6 |        15.70    9.80  20.50 |       6.22    5.45   8.40   (a grass road: its tracks alone, by design)
+    gravel/dirt/sand 18 |        19.48   10.35  28.20 |      19.89   17.00  28.20   (G1395: the side IS master's)
+    grass strip      18 |         8.10    1.25  27.80 |      19.89   17.00  28.20
+    paved road        6 |        15.70    9.80  20.50 |       6.02    4.90   8.90
+    soft / grass road 6 |        15.70    9.80  20.50 |       7.32    5.00  13.40   (a grass road: its tracks alone, by design)
 
 Three causes. THE SOFT EDGE (gravel, dirt, sand, grass) was smoothstep(-1.1 s, 0.5 s) of dE + s x three octaves of noise
 (s = edgeSoft 2.6): centred 0.78 m OUTSIDE the declared edge with +-5 m of noise either way - opaque only ~6 m inside the
@@ -70017,32 +70017,33 @@ edge, islands of dirt ~8 m past it (the "very large" dirt). THE GRASS STRIP kept
 THE ROADS drew their band (1.2 m) and the fade past it (fadeW 6 m) at full weight: a 6 m path drew 15.7 m.
 
 G1391 THE WIDTH (src/viewer/pavement.js GLSL.map step 10, opaqueDepth; 27_premises roadObjs `sided`, treePaveAt;
-render_premises / render_world the `side` and `kind` they pass). (a) A soft edge tears like a paved edge chips: its
-mean ON the declared edge, never deeper inside than edgeChip (0.6 m), its islands out to the side's reach (edgeChip +
-sideW = 1.8 m = PAVE_SIDE, where a paved side ends too). (b) A grass STRIP is its own mown lawn over its declared width
+render_premises / render_world the `side` and `kind` they pass). (a) A soft edge is FILLED to the declared width (opaque
+from edgeChip 0.6 m in, as a paved edge chips); outside it the side is master's torn edge unchanged (G1395 below). (b) A grass STRIP is its own mown lawn over its declared width
 (alpha 1); a grass road / polygon is still the world's grass with tracks in it. (c) opaqueDepth(cls, halfW, recipe,
 KIND): every class edgeChip + 0.2 but a grass road / polygon (Infinity, never sunk) - so the patch now sinks under the
 soft strips and the grass strips too (they are opaque from 0.8 m in); render_premises passes pavedAt's kind, the
 builders 'strip' / 'road' / 'poly'. (d) A road is SIDED (roadObj.sided: its side fades like a strip's, a taxiway's
 G980 rule) unless its entry declares its own `band` (the inspector's band row draws the band again, per road) or the
 premises say `pavement.roadSide: 0` (a new recipe knob, edge zone section; every road's band back). The analytic world's
-road net follows roadSide too. treePaveAt ('map' trees) keys on `sided` (was taxiway). NB the coverAt kill (vegetation)
+road net follows roadSide too. treePaveAt ('map' trees) keys on `sided` (was taxiway), and a soft / grass pavement's
+side reaches PAVE_SIDE_SOFT 7.9 m (G1395: the torn edge's reach, 3.05 x edgeSoft; GATE PAVEMENT holds it). NB the coverAt kill (vegetation)
 is UNCHANGED: band + fade beside every pavement, as before - only the drawn surface moved.
 
 G1392 THE LOOK (pavement.js RECIPE / KNOBS / lookOf / applyOne, step 10b). Per SURFACE TYPE - pv paved (concrete,
 asphalt), sf soft (gravel, dirt, sand), gr grass - nine knobs: Bright, Hue + Tint (an rgb multiplier 1 + k cos(2pi(h -
 c/3)): its mean stays 1, brightness alone moves the light), Wear (x the class's crackK damageK patchK mossK stainK rubberK
 on paved, wheelBand coarseK rutDepth treadK on soft / grass, clamped to each knob's max), SideBright / SideHue /
-SideTint, SideW (m past the edge zone; -1 = sideW) and SideA (the alpha the side starts from: the blend into the island's
-ground; -1 = sideA; the soft and grass default 0 = the torn edge alone). The defaults draw G1391 exactly (multipliers
+SideTint, SideW (paved: m past the edge zone, -1 = sideW; soft / grass: the torn edge's spread, -1 = edgeSoft 2.6 m, the
+islands reaching ~3 x it) and SideA (the alpha the side starts from: the blend into the island's ground; -1 = sideA; the
+soft and grass default 0 = the torn edge alone). The defaults draw G1391 exactly (multipliers
 1). The shader: col x mix(side, surface, wPav), the paint keeping its own; the multipliers ride spare texels (uWet.yzw
 the surface, uEdge2.zw + uSpec.w the side), so PV_VEC / PV.W and the table's layout are unchanged; uSide.yz carry the
 type's side. groundColor (the cover ring's tuft beside a pavement) takes the side's multiplier.
 
 G1393 THE CENSUS AND THE TWIN. PAVEMENT.alphaTwin (the edge law, the side, the band + fade, line for line; noise ported)
 + tools/pavement_widths.js (the table above; `--json`; BEFORE is the pre-G1391 law ported in the tool only). GATE
-PAVEMENT 13 (new): every strip kind and road class within 0.4 m of its declared width, the opaque core >= declared - 2 x
-opaqueDepth, the side within PAVE_SIDE; the grass strip = the dirt strip; the twin's five laws verbatim in GLSL.map (a
+PAVEMENT 13 (new): every strip kind and road class draws at least its declared width (- 0.4 m) and at most + 0.8 x its
+soft spread, the opaque core >= declared - 2 x opaqueDepth, the side within its reach (PAVE_SIDE / 3.05 x the spread); the grass strip = the dirt strip; the twin's five laws verbatim in GLSL.map (a
 shader edit that drops one goes red); the 27 knobs; a part's uniforms carry its type's look and wear; the live overlay.
 
 G1394 THE CONTROLS. EDITOR: the FILE section's pavement > three "runway look: ..." sections (KNOBS rows: saved in
@@ -70055,17 +70056,27 @@ applied from a pasted / loaded look. GATE PREMISES 17 (new): a premises with a l
 + normalise), raises no issue, reaches O.pavement and resolve per type; a road is sided unless it declares a band;
 roadSide 0 draws every band.
 
-GATES (node, cloud, this tree; the full battery left to A0's train): `run_gates --only=PAVEMENT,PREMISES,BUILD` BATTERY
-PASS - BUILD PASS 2.5 s, PREMISES PASS 103 s (17 new: the look's round trip, `sided`, roadSide 0), PAVEMENT PASS 22 s
+G1395 THE SIDE BLENDS AS BEFORE (the user on the evidence: "the new side patch blend a lot worse with the environment
+than before, please fix that"). The first cut tore the soft edge over 1.8 m with a hard threshold - a ruled line from the
+air (evidence 2, 8). A second cut (a fade whose reach wandered 1.4-4.6 m) still read straight: master's edge blended
+because its POSITION wandered +-5 m (three octaves x the 2.6 m spread) with a 4 m partial-alpha ramp. So the soft side is
+now master's law line for line - e2 = dE + s x (the 15 m / 4 m / 1 m octaves), smoothstep(-1.1 s, 0.5 s, e2), s =
+min(sfSideW or grSideW (-1 = edgeSoft), 0.6 x halfW) - and the declared width is filled under it: wPav = max(that,
+smoothstep(-edgeChip, edgeChip, dE)). Outside the edge the mean alpha is master's to the pixel (evidence 5: the dirt curves
+coincide; 8: the edge zoomed); inside it is opaque from 0.6 m in. The grass strip takes the same edge. A narrower or
+tighter side: sfSideW / grSideW (the spread), per premises or live in the world look.
+
+GATES (node, cloud, this tree, after G1395; the full battery left to A0's train): `run_gates --only=PAVEMENT,PREMISES,BUILD`
+BATTERY PASS - BUILD PASS 2.7 s, PREMISES PASS 102 s (17 new: the look's round trip, `sided`, roadSide 0), PAVEMENT PASS 22 s
 (13 new, 9 checks: the census, the twin's laws, the knobs, a part's look, the live overlay, opaqueDepth). RWYTREES core
-(`GATES_CORE=1 node tools/_rwytrees_check.js`, what the core battery runs) PASS, 20 checks. Its FULL tier under `--only`
+(`GATES_CORE=1 node tools/_rwytrees_check.js`, what the core battery runs) PASS, 20 checks. Its FULL tier (run before G1395) under `--only`
 (which implies full) ran past the runner's 30 min spawn cap on this box: steps 1-7 all ok (map / mapx: 0 visible trees
 on paving, taxiway 2.2 / apron 2.1 / road 1.8 m nearest - a sided road's side), step 8's C172 circuit ok, then the
 Cub circuits were cut by the timeout (ETIMEDOUT, no check failed) - A0's train runs it with its own wall.
 The built files (index.html, dev.html, sw.js, version.json, tools/flight_core.js) are NOT committed: the train builds.
 NOT DONE HERE (no GPU): the look itself on the island (see EVIDENCE below for the bench under SwiftShader).
-A0: (1) the soft strips' torn edge now spans 1.8 m instead of ~13 m - judge it from the air on a dirt / gravel strip;
-the knobs are sfSideW (wider tear) and sfSideA; (2) a grass strip is now an opaque mown lawn (fieldgrass graded): judge
+A0: (1) the soft strips' side is master's torn edge again (G1395), the core filled - judge the fill line from the air
+(a dirt strip's inner 0.6 m); (2) a grass strip is now an opaque mown lawn (fieldgrass graded): judge
 it against the island's grass, grBright / grTint / grHue to match or contrast; (3) the roads lost their gravel bands
 (roadSide 0 restores all, a road's own band row restores one) - the island's town roads and the analytic world's net are
 the ones to look at; (4) the patch now sinks 0.8 m under soft and grass strips (G660's rule, opaque from 0.8 m in) - a
@@ -70075,15 +70086,18 @@ BEFORE = master's pavement.js swapped in, AFTER = this branch; the bench's 45 m 
 ground - not the island, whose splat ground, sink and lighting a software render of the bench does not show):
 - 1_grass_strip_topdown.jpg - the grass strip: before only the worn band a third of the width read, after the mown
   lawn over the whole declared width. A0 DECISION: the opaque lawn's colour against the island's grass (grBright/grTint).
-- 2_dirt_strip_topdown.jpg - the dirt strip: before a ragged edge spreading past the declared width, after the edge
-  on the declared width with a 1.8 m tear. A0 DECISION: whether the tear is torn enough from the air (sfSideW / sfSideA).
+- 2_dirt_strip_topdown.jpg - the dirt strip (re-shot after G1395): the side tears into the grass as master's did,
+  the core is solid. USER DECISION: whether the side now blends as before (the reason for G1395).
 - 3_concrete_strip_topdown.jpg - the concrete strip: identical before / after (the paved law is untouched). No decision.
 - 4_grass_strip_aerial.jpg - the same grass strip from 520 m: the full width reads at a distance. Informs decision 1.
 - 5_width_profiles.jpg - the mean alpha across a grass / dirt / concrete strip and a dirt road (the CPU twin GATE
-  PAVEMENT 13 holds, not a render): the road's 15.7 m before vs its 6 m now is shown only here (the bench clips a
+  PAVEMENT 13 holds, not a render; after G1395 the dirt strip's curve outside the edge lies on master's): the road's 15.7 m before vs its 6 m now is shown only here (the bench clips a
   road's shoulder to 3 m). A0 DECISION: the roads losing their bands by default (roadSide 1).
 - 6_look_knobs_applied.jpg - the runway look live (PAVEMENT.look): grass brighter / yellower, wear 0.4 (the worn
   band gone), a 4 m darker tinted side at alpha 0.4, the dirt road tinted. Shows the controls work; no decision.
 - 7_look_knob_rows.jpg - the three "runway look" sections in the bench's aside (the same KNOBS table the editor's FILE >
   pavement section lists). NOT PICTURED: the per-runway "look of every ..." fold in the premises inspector and the world
   look's RUNWAYS section (the game page under SwiftShader was not attempted). No decision.
+- 8_dirt_edge_zoom.jpg - the dirt strip's edge at 2x, master over this branch after G1395: the same torn edge. Answers
+  the user's "blends a lot worse" - USER DECISION hangs on it with image 2.
+(Images 1, 2, 3, 4 and 6 are re-shot after G1395; 7 is unchanged.)
