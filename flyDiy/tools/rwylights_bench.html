@@ -1,0 +1,117 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>runway lights bench</title>
+<style>
+  html, body { margin: 0; background: #000; overflow: hidden; }
+  canvas { display: block; }
+  .lab { position: absolute; top: 8px; font: 600 15px/1.2 system-ui, sans-serif; color: #fff; text-shadow: 0 0 3px #000, 0 0 6px #000; }
+  .cap { position: absolute; bottom: 8px; left: 0; right: 0; text-align: center; font: 13px/1.2 system-ui, sans-serif; color: #ddd; text-shadow: 0 0 3px #000; }
+</style></head>
+<body>
+<div class="lab" id="lb" style="left:10px">BEFORE (master)</div>
+<div class="lab" id="la" style="left:calc(50% + 10px)">AFTER (G1415)</div>
+<div class="cap" id="cap"></div>
+<script src="../vendor/three.min.js"></script>
+<script>
+// rwylights_bench.html - G1415-G1419 (RUNWAY-LIGHTS): the runway lights BEFORE and AFTER, side by side, on the real
+// three r186 and the real code: each side's light block (RWY ... standRunwayLights, runwayLightsApply) is LIFTED out of
+// a render_world.js text (master's, the branch's) the way GATE RWYLIGHTS lifts it, and run over a bench strip - a 30 m
+// x 900 m asphalt runway on grass, its edge lights every 60 m (the core's RWY_LIGHTS: 1.5 m out), six threshold lights
+// 2 m out at each end; the far end's thresholds stand FLUSH on a concrete turn pad (as Jolene's do, G1066). Not the
+// game: no aerial perspective, no post (no bloom), a plain hemisphere + sun, the exposure 1 on both sides (the lights'
+// own level law, at exposure 0.92 - k = 1). Driven by tools/rwylights_shots.js (BENCH.build(beforeText, afterText),
+// BENCH.view(name)).
+'use strict';
+const W = 1920, H = 540;
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(1); renderer.setSize(W, H);
+renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.setScissorTest(true);
+document.body.appendChild(renderer.domElement);
+const C = h => new THREE.Color(h).convertSRGBToLinear();
+const STRIP = { id: 'B', kind: 'paved', x: 0, z: 0, hdg: 0, len: 900, wid: 30 };
+const RL = { edgeOff: 1.5, every: 60, thrOff: 2, thrN: 6 };
+// the core's places (25_airfield.js runwayLightPoints, no other strip, no premises), the +x end's thresholds flush
+function runwayLightPoints(a) {
+  const half = a.len / 2, hw = a.wid / 2, out = { edge: [], thr: [], inset: [], cut: [] };
+  const nE = Math.max(2, Math.round(a.len / RL.every));
+  for (let i = 0; i <= nE; i++) { const s = -half + (a.len * i) / nE; for (const w of [-(hw + RL.edgeOff), hw + RL.edgeOff]) out.edge.push([s, w]); }
+  for (const s of [-half - RL.thrOff, half + RL.thrOff]) for (let k = 0; k < RL.thrN; k++) {
+    const p = [s, -hw + (a.wid * (k + 0.5)) / RL.thrN]; if (s > 0) { p.push(1); out.inset.push({ x: p[0], z: p[1], why: 'turn pad' }); } out.thr.push(p);
+  }
+  return out;
+}
+function lift(text, tag) {
+  const cut = (a, b) => { const i = text.indexOf(a); if (i < 0) throw new Error(tag + ': ' + a + ' not found'); const j = text.indexOf(b, i); return text.slice(i, j); };
+  const blk = cut('  const RWY = {', '  let fillUpdate');
+  const ap = text.indexOf('  const rwyM = new THREE.Matrix4()') >= 0
+    ? cut('  const rwyM = new THREE.Matrix4()', '  function applyWorldLights') : cut('  function runwayLightsApply(', '  function applyWorldLights');
+  const scene = new THREE.Scene();
+  const world = { premises: null, aerodromes: [STRIP], terrainH: () => 0 };
+  const f = new Function('THREE', 'C', 'world', 'scene', 'runwayLightPoints', 'worldSwitch', 'renderer',
+    blk + '\n' + ap + '\nreturn { RWY, standRunwayLights, runwayLightsApply };');
+  const R = f(THREE, C, world, scene, runwayLightPoints, null, renderer);
+  R.standRunwayLights(STRIP, o => o);
+  return { scene, R };
+}
+function ground(scene, day) {
+  const grass = new THREE.Mesh(new THREE.PlaneGeometry(6000, 6000), new THREE.MeshStandardMaterial({ color: C(0x5d6b3a), roughness: 1 }));
+  grass.rotation.x = -Math.PI / 2; grass.position.y = -0.03; scene.add(grass);
+  const asph = new THREE.Mesh(new THREE.PlaneGeometry(STRIP.len, STRIP.wid), new THREE.MeshStandardMaterial({ color: C(0x3a3a3c), roughness: 0.95 }));
+  asph.rotation.x = -Math.PI / 2; asph.position.y = 0.003; scene.add(asph);
+  const pad = new THREE.Mesh(new THREE.PlaneGeometry(14, STRIP.wid + 10), new THREE.MeshStandardMaterial({ color: C(0x8f8d86), roughness: 0.9 }));
+  pad.rotation.x = -Math.PI / 2; pad.position.set(STRIP.len / 2 + 6, 0.004, 0); scene.add(pad);
+  for (let s = -STRIP.len / 2 + 30; s < STRIP.len / 2 - 30; s += 40) {   // the centreline
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(20, 0.5), new THREE.MeshStandardMaterial({ color: C(0xd8d6cc), roughness: 0.9 }));
+    m.rotation.x = -Math.PI / 2; m.position.set(s + 10, 0.005, 0); scene.add(m);
+  }
+  const hemi = new THREE.HemisphereLight(C(day ? 0xbcd2ee : 0x2a3550), C(day ? 0x5a5848 : 0x101010), day ? 2.2 : 0.012);
+  scene.add(hemi);
+  if (day) { const sun = new THREE.DirectionalLight(C(0xfff2dd), 5); sun.position.set(-300, 420, 260); scene.add(sun); }
+  scene.background = day ? C(0x9fbfe0) : C(0x05070c);
+}
+let SIDES = null, DAY = null;
+const env = (() => {   // a gradient sky for the glass and the iron to reflect by day (the game has its PMREM of the dome)
+  const s = new THREE.Scene(), g = new THREE.SphereGeometry(100, 32, 16);
+  const col = new Float32Array(g.attributes.position.count * 3);
+  for (let i = 0; i < g.attributes.position.count; i++) { const y = g.attributes.position.getY(i) / 100; const c = y > 0 ? new THREE.Color(0x9fbfe0).lerp(new THREE.Color(0x4a78b8), y) : new THREE.Color(0x4d4a40); col.set([c.r, c.g, c.b], i * 3); }
+  g.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  s.add(new THREE.Mesh(g, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.BackSide })));
+  return new THREE.PMREMGenerator(renderer).fromScene(s, 0.02).texture;
+})();
+const BENCH = {
+  build(beforeText, afterText) {
+    SIDES = [lift(beforeText, 'before'), lift(afterText, 'after')];
+    return SIDES.map(S => ({ meshes: S.R.RWY.meshes.length, glows: (S.R.RWY.glows || []).length,
+      inst: S.R.RWY.meshes.reduce((n, m) => n + m.count, 0),
+      tris: S.R.RWY.meshes.reduce((n, m) => n + m.count * (m.geometry.index ? m.geometry.index.count / 3 : 0), 0) }));
+  },
+  // name: [eye xyz, look-at xyz, day, fov, caption]
+  VIEWS: {
+    night_1km:   [[-1450, 52.5, 0], [-150, 0, 0], false, 25, 'night - on the approach, 1 km from the threshold, 3 deg (fov 25: a zoomed eye)'],
+    night_300m:  [[-750, 15.7, 0], [-250, 0, 0], false, 40, 'night - on the approach, 300 m from the threshold, 3 deg'],
+    night_stand: [[-120, 2.4, -95], [120, 0, 0], false, 55, 'night - from a stand 95 m off the strip, eye 2.4 m'],
+    night_taxi:  [[-215, 2.4, -24], [0, 0.3, -16.5], false, 45, 'night - taxiing beside the edge row, 8 m off it, eye 2.4 m (the lights from 10 m to 600 m)'],
+    day_close:   [[-91.3, 0.62, -18.4], [-89.9, 0.2, -16.5], true, 45, 'day - close to an edge light (2 m), the strip behind'],
+    day_taxiway: [[-125, 2.2, -36.5], [-40, 0, -16.5], true, 30, 'day - the strip edge from a taxiway 20 m off it, eye 2.2 m'],
+    day_flush:   [[449.4, 1.1, -14.6], [452, 0.0, -12.5], true, 50, 'day - the flush threshold lights on the turn pad'],
+  },
+  view(name) {
+    const [eye, at, day, fov, cap] = BENCH.VIEWS[name];
+    document.getElementById('cap').textContent = cap + '  (bench: three r186, ACES, exposure 1, no post / no bloom, no aerial perspective)';
+    SIDES.forEach((S, i) => {
+      if (!S.g || S.g.day !== day) { if (S.g) S.scene.remove(S.g.grp); const grp = new THREE.Group(); S.scene.add(grp); const tmp = new THREE.Scene(); ground(tmp, day); S.scene.background = tmp.background; while (tmp.children.length) grp.add(tmp.children[0]); S.g = { grp, day }; }
+      S.scene.environment = day ? env : null;
+      const near = Math.hypot(eye[0] - at[0], eye[1] - at[1], eye[2] - at[2]) < 5 ? 0.05 : 0.5;
+      const cam = new THREE.PerspectiveCamera(fov, (W / 2) / H, near, 20000);
+      cam.position.set(...eye); cam.lookAt(...at); cam.updateMatrixWorld();
+      S.R.runwayLightsApply({ sunEl: day ? 40 : -20 }, cam.position);
+      renderer.setViewport(i * W / 2, 0, W / 2, H); renderer.setScissor(i * W / 2, 0, W / 2, H);
+      renderer.render(S.scene, cam);
+    });
+    return true;
+  },
+};
+window.BENCH = BENCH;
+</script>
+</body></html>

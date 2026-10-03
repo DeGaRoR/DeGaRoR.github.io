@@ -70101,3 +70101,128 @@ ground - not the island, whose splat ground, sink and lighting a software render
 - 8_dirt_edge_zoom.jpg - the dirt strip's edge at 2x, master over this branch after G1395: the same torn edge. Answers
   the user's "blends a lot worse" - USER DECISION hangs on it with image 2.
 (Images 1, 2, 3, 4 and 6 are re-shot after G1395; 7 is unchanged.)
+
+## G1415-G1419 - RUNWAY-LIGHTS: THE "HUGE BALLS" REPLACED BY A WWII-STYLE FITTING AND A POINT OF LIGHT THAT DIMS WITH DISTANCE (2026-10-03, a cloud session for A0; branch claude/runway-lights-g1415 off train 26 b2f1ffdc)
+
+THE ASK (the user, 2026-10-03): "the runway lights are naive. They're huge balls. Real things would have a proper geometry,
+and a bulb with realistic lighting values. Under the constraint of kept performance, can we replace those with proper
+3D models and light models inspired by real, old runway lights (they date back WWII)."
+
+WHY THEY WERE BALLS: G443/G1066's runwayLightsApply scaled every lens, every night frame, to hold ~3 mrad of the view (up
+to 150x its 7 cm radius: a 10 m ball at 3 km), on the CPU, one matrix a light a frame, with frustum culling off.
+
+WHAT IT IS BASED ON (period sources found by web search; the fetches themselves were blocked by this container's egress,
+so only search abstracts were read - nothing beyond them is claimed):
+- the RAF's DREM Mk II lighting (1940, Wg Cdr Atcherley at RAF Drem; the RAF standard after): a low-intensity system
+  with 15 W lamps; flarepath lights along the runway edges ("Double Flare Path lights (15 watt) ... at 100 yards
+  interval"); the fitting a "15w pygmy well-glass fitting" under C6 flarepath / C5 crossbar lamp covers with "coloured
+  filters" and a reflector; "round cast iron cover with slots for light emission", coloured shrouds for runway vs
+  perimeter track; the fittings bolted into a concrete ground socket (RAF Beaulieu's surviving base); funnel lights 40 W.
+- the RAE "GLIM LAMP" (1937): "a vertical cylinder, approximately 12 inches in height by 8 inches diameter. A glass domed
+  top contained a large reflector ... a 2 volt, 1.5 watt bulb"; "interchangeable white, orange and red globes for
+  marking the flarepath, boundary and obstructions".
+- the colours: flarepath WHITE (Glim, Drem); threshold GREEN / runway end RED is the standardised practice (a search
+  abstract states it, not tied to a named WWII source) - the game keeps its green thresholds and still has no red end
+  row (RWY_LIGHTS has none; not added: the core's places are G1066's and untouched).
+  Sources: rafdrem.co.uk/lighting.html, dunsfoldairfield.org (outer circle lighting), rafbeaulieu.co.uk (runway light
+  fitting socket), aviationtrails.co.uk (RAF Drem), the airfield research group forum (disused fixtures), the
+  "glim lamp" key.aero / metal-detecting forum abstracts.
+
+THE FIXTURE (render_world.js rwyLathe / rwyFixtureGeo; one geometry for every strip, 240 triangles):
+- ELEVATED (grass): a cast-iron foot plate 22 cm across, a tapered cast stem, the fitting's collar, a WELL-GLASS 13.4 cm
+  across with 7 cm of glass showing, the cast cover over it (Drem's "cast iron cover"); 35.6 cm overall (the brief's
+  30-40 cm; the Glim's 12 in). Painted iron (roughness 0.6) and glass (0.06) on a 2-texel roughness/metalness map.
+- FLUSH (G1066's lights that fall on pavement): a cast ring 26 cm across flush with the surface (8 mm proud) round a
+  glass dome 2.5 cm proud.
+- ONE DRAW FOR BOTH: the flush fitting is stored MIRRORED 2 m under the elevated one (RWY_DEEP), its winding kept so it is
+  inside out; a flush instance is the geometry flipped in y and lifted 2 m, which brings the flush fitting up the right
+  way out and sends the elevated one 2 m under the ground inside out (culled), and vice versa. GATE RWYLIGHTS checks
+  the winding both ways.
+- the threshold's GREEN GLASS is the instance colour (over the dark iron it is invisible); no emissive any more: by day
+  the light is glass and metal, it does not glow.
+
+THE LIGHT (rwyGlowMat: three's own points program with its size and shape taken over by onBeforeCompile; one POINTS
+layer a strip, one vertex a light):
+- colour: an incandescent bulb at 2800 K - Planck x the CIE 1931 observer (Wyman 2013 fit) -> linear sRGB
+  1 : 0.445 : 0.117 - behind its glass. Edge: a 15 W lamp behind clear glass, ~9 cd. Threshold: a 40 W lamp (the Drem
+  funnel's rating) behind a signal-green filter (a 505 nm pass band, 26 % luminous transmission, colour 0 : 1 : 0.26),
+  ~9 cd - so the green row reads as bright as the white one. (The luminous efficacy ~11 lm/W and the 9 cd are my
+  estimates for a vacuum lamp in a shrouded fitting, not a period figure.)
+- size: a sharp Gaussian core as wide as the lens's own angular size and never under 1.5 px at 1080 lines (the same
+  angle above), a halo of 6 % of the peak (for the eye with bloom off; the bloom's own pass takes the core);
+- brightness: falls with distance by Stevens' law for a point source (apparent brightness ~ illuminance^0.5, so
+  ~ sqrt(I) / d): uRwyL x 1000 / d. A core over the display's HDR ceiling (6) widens instead, its flux kept - the glare
+  a near light has. The level law of G443 stays (on from 2 deg of sun down, 1.2 x (0.92/exposure)^0.9).
+- the atmosphere TRANSMITS it and adds nothing: the AP's alpha and the mist's T = mist(1) - mist(0) (mistApply is affine
+  in the colour) multiply the light; the in-scatter is not added (an additive sprite would carry a square of haze).
+  One + one blending, no depth write, drawn after the opaque pass; the point is moved 15 cm toward the eye so the lens's
+  own glass and cover do not hide it. Without the atmosphere splice (the headless gate) the material runs fogless.
+- NOTHING PER LIGHT PER FRAME: runwayLightsApply writes one uniform and, only when the state turns, the strips' layers'
+  visibility; the target's half-height is set in the layer's onBeforeRender (the resolve's target is the canvas x the
+  supersample x the render scale) and marks the material for upload only when it changes. The fixtures are
+  FRUSTUM-CULLED again (their InstancedMesh sphere), the layers too.
+
+PERFORMANCE - GATE FRAMECOST, before (train 26, = its baseline) vs after, the four day views (Cub / metal Cessna, stand /
+taxi; Jolene, 7 strips):
+| counter (per frame)        | cub stand        | cub taxi         | cessna stand      | cessna taxi       |
+| draws.main                 | 914 -> 907       | 844 -> 837       | 925 -> 918        | 854 -> 847        |
+| draws.shadow               | 169.5 = 169.5    | 100.5 = 100.5    | 176.5 -> 177.5 *  | 106.5 = 106.5     |
+| programs used              | 98 = 98          | 81.5 = 81.5      | 96.5 = 96.5       | 80.5 = 80.5       |
+| tris.main                  | 17.488M -> 17.528M (+40k, +0.23 %), the same +40k in every view                        |
+| gl.calls                   | -15 / -15 / -13 / -15; uniform bytes -288 each; frustum tests +7 each (culling back)   |
+| programs linked (the boot) | 373 -> 374 (cub), 369 -> 370 (cessna): the glow's one program                         |
+  (*) the runway fixtures cast no shadow (castShadow false, as before); this half-draw in one view is a median of a
+  counter that already varies frame to frame there - not traced further.
+- BY DAY: one fixture draw a strip instead of two, culled; the glow layers hidden (not even frustum-tested).
+- AT NIGHT: fixture + glow = two draws a strip, the count the two colour meshes always were, now culled; one program more
+  than the day's (the glow), the old per-light matrix loop (every light, every night frame) gone.
+- TRIANGLES: 240 a light (both fixtures, 16 of them degenerate at the cover's apex) vs the old 124 (an 8x6 sphere, a stem,
+  a can): +40k on Jolene's ~345 lights, +0.23 % of the frame. Cut from a first 368/light (+85k) by trimming the
+  profile and drawing the flush fitting at 6 sides.
+- The ratchet: PASS; three boot counters fell (garage frames draws.total 4677 -> 4614, craft gl.calls 14205 -> 14054).
+  The baseline was NOT updated here (A0's per train).
+
+GATES RUN (touched files only): RWYLIGHTS PASS (section 2 rewritten for the new fixture: its size, the flush fitting,
+the winding the flip needs, the colours, one fixture + one glow a strip, both culled, the shader's law, the haze, the
+mute, nothing per light per frame), CLOUD PASS (its three G443 source checks re-pointed: the places' line, the light's
+law and culling, the strip's two objects and their removal), WORLDRENDER PASS, BUILD PASS, FRAMECOST PASS. The glow
+program was also compiled with the atmosphere splice installed (atmo.js ATMO.init on the bench): it links, the mist
+transmittance is in it.
+
+THE SCREENSHOTS - flyDiy/reports/evidence/RUNWAY-LIGHTS/, each a side-by-side BEFORE (master's code) | AFTER (this
+branch's), off a BENCH, not the game: tools/rwylights_bench.html lifts each side's light block out of the two
+render_world.js texts (as GATE RWYLIGHTS does) onto a 30 x 900 m strip with the core's spacing, the far end's
+thresholds flush on a concrete pad; three r186, ACES, exposure 1, no post, no aerial perspective, SwiftShader.
+`node tools/rwylights_shots.js <master render_world.js> [outDir] [--gpu]` re-shoots them. The game itself was booted
+in headless SwiftShader (the garage in ~150 s) but its roll-out did not finish within ~40 min on this 4-core container
+beside the FRAMECOST run, so there are NO in-game shots: A0, please look at the lights in the game on the GPU box (the
+approach at night on Jolene, the stand, a taxi past the edge row by day).
+- night_1km.jpg - the approach at 1 km, 3 deg (fov 25, a zoomed eye): before, the rows are continuous fat bands (the
+  grown balls touch); after, separate points, the edge rows warm white, the near threshold green.
+- night_300m.jpg - 300 m: the same; after, the near lights a little brighter than the far ones.
+- night_stand.jpg - from a stand 95 m off the strip: points with a small glow instead of white discs.
+- night_taxi.jpg - taxiing 8 m beside the edge row: the near lights bright with a glare, the far ones dimmer and
+  smaller - the fall-off by distance; before, every light the same disc.
+- day_close.jpg - 2 m from an edge light: the fitting (foot, stem, collar, well-glass, cover) vs the white egg on a pole.
+- day_taxiway.jpg - the strip edge from 20 m: a row of small dark fittings at the edge.
+- day_flush.jpg - the flush threshold lights on the pad: a dark cast ring round a green dome.
+WHAT A SOFTWARE RENDER CANNOT SHOW: the bloom (off on the bench; the game's soft bloom will add a halo round the core),
+the true brightness under the game's night exposure (the bench runs exposure 1 with the level law's k = 1), the aerial
+perspective's dimming of the far lights, and the display's own gamma/brightness.
+
+DECISIONS FOR THE USER:
+1. COLOUR: 2800 K reads clearly ORANGE-white through ACES at night (the period's incandescent look). If it reads too
+   orange in the game, 3000 K is one line (RWY_KIND.edge.light; 3000 K = 1 : 0.485 : 0.155).
+2. BRIGHTNESS: the reference (uRwyL x 1000 / d: the edge light's peak = the old lens's 1.2 at 1 km, 4 at 300 m, 0.4 at
+   3 km) is a first setting, judged on a software render - to be tuned on the GPU with the bloom on.
+3. OMNIDIRECTIONAL: Drem's flarepath fittings were SHROUDED (seen only from the approach); these shine all round, as
+   before. A shroud (the glow dimmed away from the landing directions) is one more dot product in the vertex shader if
+   wanted.
+4. NO RED END ROW: the game has none (the core's RWY_LIGHTS); the period and modern practice both have one. Adding it is
+   a core change (25_airfield.js) and GATE RWYLIGHTS' counts - left for a ruling.
+5. The node (WebGPU) renderer path ignores onBeforeCompile: there the glow would be three's plain 1-px points (dim
+   dots). The WebGL path is the shipped one.
+
+FILES: src/viewer/render_world.js (the fixture, the glow, runwayLightsApply, the switchboard's mute, the strip's removal);
+tools/_rwylights_check.js (section 2), tools/_cloud_check.js (three G443 source checks); new tools/rwylights_bench.html,
+tools/rwylights_shots.js; reports/evidence/RUNWAY-LIGHTS/ (7 JPEGs, 19-31 KB, bench.json).
