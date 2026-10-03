@@ -68366,7 +68366,10 @@ with that clearance 0; a 10 m / 20 m clearance lets 6 into today's 60 m box and 
 260 m 400 m past the end. By hand (scratch): a 400 m 'none' square in Jolene's forest: 16 collidable trees -> 0.
 
 **G1389 - GATES.** PREMISES, PREMCOOK, TREES, RWYTREES (full: the page harness's fill per variant and the circuits), BUILD
-- see the run below. Not run (not asked): the rest of the battery; no GPU look at the colours (the dials are identity by
+- `node tools/run_gates.js --only=PREMISES,PREMCOOK,TREES,RWYTREES,BUILD --jobs=1` on this branch: TREES PASS 11.5 s, BUILD
+PASS 1.5 s, PREMISES PASS 85.6 s (366 checks, 17 included), PREMCOOK PASS 271.2 s, RWYTREES PASS 1584.0 s (full: the
+page harness's fill per variant, the circuits flown, 9 included; the table's 'today' columns as before) - BATTERY: PASS.
+Built files (index.html, dev.html, flight_core.js, sw.js, version.json) not committed: A0's build. Not run (not asked): the rest of the battery; no GPU look at the colours (the dials are identity by
 default, so nothing moves until the user moves them). OPEN: a 'none' or biome polygon edited live moves the drawn trees at
 once and the collidable woodland at the next load; the cover ring plants a 32 m cell's CENTRE mix, so a polygon edge
 inside a cell follows the cell (as every biome edge does); a veg-only polygon writes no `cover` class, so over BUILT/CROP
