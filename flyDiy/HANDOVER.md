@@ -68737,3 +68737,18 @@ prints; `master_bench.js --plan` with the subset flags lists HOME + mn_strip and
 `train_gate.js --plan` 25 min (28 with overheads), `--plan --light` 15 (17); `train_gate.js --compare` on rows built from
 committed reports: an injected p99 rise and a removed load RED by name (exit 1), the same JSON against itself PASS. Nothing
 browser-side has been run: the box steps 1-6 above stand.
+**GATE RESULTS AT THE READY HEAD** (A0's ask: the gates for the files touched, no full battery — A0 runs it on the
+train; cloud, `run_gates.js --only=`, base 5502f45, not rebased):
+
+| gate | why (file touched) | result |
+|---|---|---|
+| BUILD | every source -> the generated files | PASS |
+| UISMOKE | `_cage_ui.js`, `_cage_parts.js`, `editor.css` (the editor's wiring) | PASS (118.7 s, after G1321.1) |
+| SKINMAT | `aeroskin.js` (AERO_SEC, the resolver) | PASS |
+| LIVERYREACH | `aeroskin.js` `aeroBaseReach` (new gate) | PASS (cub, jodel, cessna; the negative bites) |
+| PARTS | `_cage_parts.js` (one owner per row) | PASS |
+| FRAMES | `_cage_parts.js` frame groups | PASS |
+| HANGAR | listed by the brief | PASS |
+| FLOWNBAKE | listed by the brief (the bake's key over the spec) | PASS |
+
+Full battery (`--all`) NOT run, on A0's instruction. Generated files not committed. G1323-G1324 unused.
