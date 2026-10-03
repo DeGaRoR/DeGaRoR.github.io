@@ -68966,14 +68966,36 @@ run - the hemisphere <= 0.73 %, the exposure 0, the centre max <= 0.009, the fra
 no all-sky frame, the cloud shadows never dropped; 30 probe bakes in the 2 min, all faded. (That run still had the eye
 pinned; the G1356 run's numbers are above.)
 EVIDENCE (reports/evidence/LIGHT-SMOOTH/; GPU renders, nothing software-rendered):
-- 1_cub_lowsun_side.jpg - the Cub at the stand, sun 8 deg, side: the wing's rib bands before, faint ribs after. No decision.
-- 2_cub_lowsun_rear34.jpg - the same, backlit from 3/4 rear: little relief to remove there. No decision.
-- 3_cub_noon_side.jpg - noon, side: identical (the fade acts only at a grazing sun). No decision.
-- 4_wing_glint_one_frame.jpg - the one-frame white wing glint in flight, and the next frame. A0 DECISION: the craft's
-  sun-specular floor (above).
+- 1_cub_runway_golden_master_vs_branch.jpg - the USER'S Cub (builds/cub_2026-09-20_corrected.json) lined up on 13/31 at
+  golden hour, from behind: master b2f1ffdc vs this branch. Brighter after = the eye fix (G1356). No decision.
+- 2_cub_runway_golden_fade_off_on.jpg - the same paused frame, the graze fade off / on: the rib lines softened. No decision.
+- 3_cub_taxi_runway_end.jpg - taxiing to the runway end before the U-turn (the user's spot), fade off / on: no bands
+  either way; the blown patch on the fuselage is the sun's glint (see 4). No decision.
+- 4_wing_glint_one_frame.jpg - the one-frame white wing glint in flight, and the next frame (shot on the chooser's
+  Cub-alike; the user's Cub glints the same way on its fuselage, image 3). A0 DECISION: the craft's sun-specular floor (above).
 - 5_luma_trace_before_after.jpg - per-frame steps of the centre luma / hemisphere / exposure; red blocks the old cut, green
   the new (the tall bars at a red block's first frame are the toggle snapping back to the old light). No decision.
 - 6_cloud_refit_flash.jpg - the frame mean through forced cloud re-fits, hold off vs on. No decision.
+RE-TEST IN THE USER'S CONDITION (A0, 2026-10-03 22:10-22:21, 2 runs, ~11 min GPU): THE FIRST STILLS WERE THE CHOOSER'S
+CUB-ALIKE (live_driver's `stock` pin, G770), not the user's Cub - the user's is builds/cub_2026-09-20_corrected.json
+(piperCub). With it - golden hour, clock x1, clouds drifting, the user's gfx row, the autopilot taxiing along 13/31 to its
+end and the line-up, a paused still pair every ~7 s (21 pairs), then six views round it lined up - master b2f1ffdc and
+this branch show the same faint chordwise rib lines on the wing and tail tops and NO shadow banding; the fade softens
+the lines (<= 0.7 % of the pixels change). The strong bands the user reported were not reproduced on this Cub; what
+does stand out at golden hour is the sun's specular glint on the fuselage side, blown out by the strong bloom (the
+same mechanism as the one-frame wing glint, item 4) - if the user's "stripes" were seen in another view or under
+cloud, a screenshot from them would pin it.
+THE PALE / WHITE FULL-SCREEN FRAME (the user: "a frame that misses rendering and gives a white or pale blue render") is
+NOT the cloud-tile flash (G1353 is a real flash, of the ground only). Not reproduced: the luma catcher over that run (taxi,
+take-off, a minute of flight; 5 865 frames) saw no frame-mean step over 0.014, a sky-cell share <= 0.26, and 848-1 223
+draw calls on EVERY frame. Ruled out by reading and the user's log: a skipped / thrown frame (no err or contextlost event,
+no noRender flag in flight, no draw-call collapse in 117 844 frames; the canvas has alpha false, so an undrawn frame
+presents BLACK - a pale frame is a DRAWN one), three skipping unlinked programs (r186 waits for the link; SHADER-GUARD
+confirmed), an exposure write without the eye (every writer goes through GFX), a NaN far plane (rejected). Left: an
+overlay drawn over the frame (the clouds' composite quad at a bad key depth, the in-scene mist) or an exposure / bloom
+spike on one frame. tools/luma_trace.js `taxi` mode is the catcher (each jumping frame keeps a JPEG with its draw
+calls, far plane and hidden quadrants); the cheapest next step is to give the user the same catcher in the flight
+recorder so their own session names the frame.
 GATES: the brief's FADES SHADOWSKY BUILD - PASS; and the source scans of the files touched, POSTFX ATMO CLOUD LIGHT
 FLOWNBAKE WEATHER - PASS. No battery, no ratchet (A0 integrates). Program changes: FRAMECOST will read the stale parked
 cook on this branch until the train re-cooks.

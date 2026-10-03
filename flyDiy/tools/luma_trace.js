@@ -9,7 +9,7 @@
 //   flight  skip to the line-up, take off on the autopilot, the day's clouds drifting (clock x RATE); the luma trace
 //           (tools/luma_trace_page.js) over SEG-second blocks alternating BEFORE (LIGHT_EASE.on false, the probe's
 //           PROBE_FADE.s 0, CLOUDS.S.shadowHold 0) and AFTER (all three on) -> <out>/luma_trace.json
-// Usage: node tools/luma_trace.js <cmdPort> <outDir> [stills|flight|both] (env RATE=10 SEG=30 BLOCKS=4)
+// Usage: node tools/luma_trace.js <cmdPort> <outDir> [stills|flight|both|taxi] (env RATE=10 SEG=30 BLOCKS=4; taxi: PAIR_S TAXI_S FLY_S)
 // It takes NO lock: run it inside `boxlock.sh take gpu <who>` / `drop gpu <who>`. Never pass --help (rigs run on it).
 'use strict';
 const fs = require('fs'), path = require('path'), http = require('http');
@@ -72,6 +72,30 @@ const frames = n => E(`(async()=>{ const R=FLIGHT_PROBE.renderer(), f0=R.info.re
     const dump = JSON.parse(await E('LT.dump()'));
     dump.blocks = blocks; dump.rate = RATE; dump.seg = SEG;
     fs.writeFileSync(path.join(OUT, 'luma_trace.json'), JSON.stringify(dump));
+    log('trace rows ' + dump.rows.length + ', flagged ' + dump.snaps.length + (dump.err ? ' ERR ' + dump.err : ''));
+  }
+  if (WHAT === 'taxi') {
+    // THE USER'S CASE (A0, 2026-10-03): golden hour, the stock Cub taxiing along the runway toward its end before the U-turn.
+    // The clock runs (x1), the clouds drift; the trace runs the whole way (anomaly frames keep a JPEG); every PAIR_S seconds
+    // the sim is paused for a before / after pair of the bake's graze fade (FLOWN_BAKE.graze 1 / 0.25), then resumed.
+    const PAIR_S = +(process.env.PAIR_S || 6), TAXI_S = +(process.env.TAXI_S || 150), FLY_S = +(process.env.FLY_S || 90);
+    await E('(DAY_CLOCK.preset("golden"), DAY_CLOCK.rate(1), 1)'); await sleep(6000);
+    await E('LT.start()');
+    await E("(document.getElementById('bGo') && document.getElementById('bGo').offsetParent && document.getElementById('bGo').click(), 1)");
+    const t0 = Date.now(); let k = 0; const pairs = [];
+    while (Date.now() - t0 < TAXI_S * 1000) {
+      await sleep(PAIR_S * 1000);
+      const st = JSON.parse(await E("JSON.stringify({ ph: FLIGHT_PROBE.ap().phase, v: +(FLIGHT_PROBE.sim().out.V || 0).toFixed(1), agl: +FLIGHT_PROBE.agl().toFixed(1), cg: FLIGHT_PROBE.sim().cgPos().map(v => Math.round(v)), sunEl: +FLIGHT_PROBE.world().day.sunEl.toFixed(1) })"));
+      if (st.agl > 3) break;
+      await E('(()=>{ if (!window.FLYDIY_HELD) document.getElementById("bPause").click(); return 1; })()'); await frames(4);
+      for (const g of [1, 0.25]) { await E(`((window.FLOWN_BAKE && FLOWN_BAKE.graze) ? (FLOWN_BAKE.graze.value = ${g}) : 0, 1)`); await frames(4); await SHOT(path.join(OUT, `taxi_${String(k).padStart(2, '0')}_${g === 1 ? 'before' : 'after'}.png`)); }
+      await E('(()=>{ if (window.FLYDIY_HELD) document.getElementById("bPause").click(); return 1; })()');
+      pairs.push(Object.assign({ k }, st)); log(`pair ${k} ${JSON.stringify(st)}`); k++;
+    }
+    log('flying on ' + FLY_S + ' s'); await sleep(FLY_S * 1000);
+    await E('LT.stop()');
+    const dump = JSON.parse(await E('LT.dump()')); dump.pairs = pairs;
+    fs.writeFileSync(path.join(OUT, 'luma_taxi.json'), JSON.stringify(dump));
     log('trace rows ' + dump.rows.length + ', flagged ' + dump.snaps.length + (dump.err ? ' ERR ' + dump.err : ''));
   }
   log('done');
