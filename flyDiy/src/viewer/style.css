@@ -135,6 +135,7 @@
   #bootRoute span { font-size:10px; letter-spacing:.14em; text-transform:uppercase; color:#97907f; }
   #bootRoute select { max-width:190px; padding:6px 8px; font:400 12px/1.2 'IBM Plex Sans', sans-serif; color:#f4efe6;
     background:rgba(20,18,16,.62); border:1px solid rgba(255,248,236,.18); border-radius:7px; color-scheme:dark; }
+  #bootRoute option:disabled { color:rgba(244,239,230,.38); }   /* G1375: a strip the gear may not use */
   /* the shaders' block (G567): the cold compile explained, with its own count */
   #bootShader { margin-top:6px; padding:12px 14px 11px; border-radius:8px;
     background:rgba(20,18,16,.62); border:1px solid rgba(255,248,236,.12);

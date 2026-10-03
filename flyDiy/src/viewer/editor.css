@@ -1397,6 +1397,8 @@ body.shot #c { margin-left:0 !important; width:100% !important; cursor:grab; }
 #edRoute span { font:500 8.5px/1 'IBM Plex Sans'; letter-spacing:.14em; text-transform:uppercase; color:var(--ed-faint); }
 #edRoute select { max-width:150px; padding:7px 8px; font:400 11.5px/1.2 'IBM Plex Sans'; color:var(--ed-ink);
   background:var(--ed-btn-bg); border:1px solid var(--ed-btn-bd); border-radius:7px; color-scheme:dark; }
+/* G1375 STRIP-SURFACE: a strip the build's gear may not use is a disabled option - faint, its reason in the text */
+#edRoute option:disabled, #ui .fsel option:disabled { color:rgba(244,239,230,.38); }
 
 .verb.pri:hover { background:#f0e7d8; }
 
