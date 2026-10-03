@@ -159,10 +159,11 @@
   };
 
   // ---- THE SCREENS ------------------------------------------------------------------------------------------------
+  const BACKDROP = 'shot_2026-09-12_224119';   // the hangar Cub (media/tex/shots, shots_pack.json)
   const CSS = `
 #welcome { position:fixed; inset:0; z-index:90; display:flex; align-items:center; justify-content:center; padding:16px; overflow:auto;
-  background:#1a1815; color:#f4efe6; font:400 14px/1.45 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif; }
-#welcome .wcard { width:min(520px, 100%); background:rgba(255,255,255,.035); border:1px solid rgba(255,255,255,.10); border-radius:10px;
+  background:#1a1815 center / cover no-repeat; color:#f4efe6; font:400 14px/1.45 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif; }
+#welcome .wcard { width:min(520px, 100%); background:rgba(26,24,21,.86); border:1px solid rgba(255,255,255,.10); border-radius:10px;
   padding:22px 24px 20px; box-shadow:0 10px 40px rgba(0,0,0,.4); }
 #welcome .wbrand { font-size:11px; font-weight:600; letter-spacing:.18em; text-transform:uppercase; color:#97907f; }
 #welcome h1 { margin:6px 0 14px; font-size:20px; font-weight:500; }
@@ -196,6 +197,14 @@
     let o = W.document.getElementById('welcome');
     if (o) o.remove();
     o = el('div'); o.id = 'welcome'; o.setAttribute('role', 'dialog'); o.setAttribute('aria-modal', 'true');
+    // THE BACKDROP (A0, the user 2026-10-03: "pick a nice screenshot to put behind - we'll update all these later"): the
+    // boot deck's own picture of the yellow Cub in the lit hangar, read off its <figure> in #bootShots (the build hashes
+    // the file name, so it is found, not spelled), darkened under the card. No picture (a rig, a trimmed deck): the plain.
+    try {
+      const host = W.document.getElementById('bootShots'), imgs = host ? host.getElementsByTagName('img') : [];
+      for (let i = 0; i < imgs.length; i++) { const u = imgs[i].getAttribute('src') || imgs[i].getAttribute('data-src') || '';
+        if (u.indexOf(BACKDROP) >= 0) { o.style.backgroundImage = 'linear-gradient(rgba(20,18,15,.58), rgba(20,18,15,.72)), url("' + u + '")'; break; } }
+    } catch (e) {}
     const card = el('div', 'wcard'); o.appendChild(card);
     card.appendChild(el('div', 'wbrand', 'flyDiy'));
     (W.document.body || W.document.documentElement).appendChild(o);
