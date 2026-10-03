@@ -250,6 +250,8 @@ function cowlMats(cA) {
   // alclad one a dark grey, with nothing to keep in step by hand.
   out.inner = innerOf(out.skin, cA);
   out.innerBack = innerOf(out.skin, cA, true);
+  INNER_LAST.push({ skin: out.skin, inner: out.inner, back: out.innerBack, cA });     // G1301 (repaint)
+  while (INNER_LAST.length > 16) INNER_LAST.shift();
   return out;
 }
 // Pooled on the colour and the alpha, like every other material here: the
@@ -257,6 +259,29 @@ function cowlMats(cA) {
 // with a shader compile attached. Never disposed — `dispose` above takes
 // geometries only.
 const INNER_POOL = new Map();
+// G1301 (GARAGE-LAG-2): A REPAINT DARKENS THE TWINS AGAIN. The editor's paint rows swap the materials the factories
+// hand out (_cage_ui.js repaint) and know nothing of a colour a layer DERIVES from one: the twins' dark is 6 % of
+// the skin's albedo. The repaint hands each hook its swap (old material -> new); a twin whose skin moved takes
+// innerOf over the new skin - the same call, the same pool, as the build that made it.
+// INNER_LAST: the (skin, inner, inner back, alpha) sets the last builds derived; a mesh wearing one of those inners
+// (or the game's understudy of one) takes the inner of the skin's replacement.
+const INNER_LAST = [];
+if (typeof PAGE !== 'undefined') (PAGE.repaint = PAGE.repaint || []).push((swap, scene) => {
+  const map = new Map();
+  for (const L of INNER_LAST.slice()) {
+    const sk = swap.get(L.skin);
+    if (!sk) continue;
+    map.set(L.inner, innerOf(sk, L.cA)); map.set(L.back, innerOf(sk, L.cA, true));
+    INNER_LAST.push({ skin: sk, inner: map.get(L.inner), back: map.get(L.back), cA: L.cA });
+  }
+  if (!map.size) return;
+  while (INNER_LAST.length > 16) INNER_LAST.shift();
+  scene.traverse(o => {
+    if (!o.isMesh || !o.material || Array.isArray(o.material)) return;
+    const m = o.material, om = (m.userData && m.userData.cageUniOf) || m;
+    if (map.has(om)) o.material = map.get(om);
+  });
+});
 const INNER_K = 0.06;              // of the skin's own albedo — see GATE COWL
 const INNER_OFF = 0.0015;          // m, the twin's stand-in inside the skin (G243.3)
 function innerOf(skin, cA, back) {

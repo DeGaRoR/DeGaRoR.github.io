@@ -63,7 +63,8 @@ const FP = `(() => {
   const out = [], ids = [];
   S.updateMatrixWorld(true);
   S.traverse(o => { const ms = o.material ? (Array.isArray(o.material) ? o.material : [o.material]) : [];
-    out.push([o.type, o.name || '', o.visible, o.renderOrder, o.matrixWorld.elements.map(r).join(','), o.geometry ? geoFp(o.geometry) : '', ms.map(matFp)].join(' # '));
+    // a Bone's pose is the crew's idle animation (it moves between two frames of the same build): its name only
+    out.push([o.type, o.name || '', o.visible, o.renderOrder, o.isBone ? 'animated' : o.matrixWorld.elements.map(r).join(','), o.geometry ? geoFp(o.geometry) : '', ms.map(matFp)].join(' # '));
     ids.push(ms.map(m => m ? m.uuid : '-').join(',')); });
   return JSON.stringify({ out, ids });
 })()`;
