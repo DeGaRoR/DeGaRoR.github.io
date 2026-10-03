@@ -297,6 +297,9 @@ const MANIFEST = {
     // G640: the carousel's cards (window.BOOT_CARDS, data only) ride in the
     // SAME inline block, ahead of boot.js (a second tag in dev.html)
     bootCards: 'boot_cards.js',
+    // G1210 (WELCOME): the welcome screen and the device gate - its OWN inline block right after boot.js's (a plain
+    // script in both pages): it decides before the vendor, and the island loader waits on its FLYDIY_WELCOME
+    welcome: 'welcome.js',
     shots: 'shots_pack.json',
     // the LAST entry fills the APP slot; everything before it fills RENDER
     // hangar.js before app.js: app.js asks whether the room can be built at all
@@ -642,9 +645,12 @@ function buildViewer(coreBody) {
   const cardsPath = path.join(VIEW_DIR, V.bootCards);
   const cardsJs = fs.existsSync(cardsPath) ? read(cardsPath) : '';
   if (cardsJs) syntaxCheck(V.bootCards, cardsJs);
-  const bodyArt = fill(bodyHtml, 'BOOT', `<script>\n${cardsJs}\n${bootJs}</script>`);
+  const welcomeJs = V.welcome && fs.existsSync(path.join(VIEW_DIR, V.welcome)) ? read(path.join(VIEW_DIR, V.welcome)) : '';
+  if (welcomeJs) syntaxCheck(V.welcome, welcomeJs);
+  const bodyArt = fill(bodyHtml, 'BOOT', `<script>\n${cardsJs}\n${bootJs}</script>` + (welcomeJs ? `\n<script>\n${welcomeJs}</script>` : ''));
   const bodyDev = fill(bodyHtml, 'BOOT', (cardsJs ? `<script src="src/viewer/${V.bootCards}?v=${sha(cardsJs).slice(0, 8)}"></script>\n` : '')
-    + `<script src="src/viewer/${V.boot}?v=${sha(bootJs).slice(0, 8)}"></script>`);
+    + `<script src="src/viewer/${V.boot}?v=${sha(bootJs).slice(0, 8)}"></script>`
+    + (welcomeJs ? `\n<script src="src/viewer/${V.welcome}?v=${sha(welcomeJs).slice(0, 8)}"></script>` : ''));
   const scripts = V.scripts.map(f => read(path.join(VIEW_DIR, f)));
   scripts.forEach((s, i) => syntaxCheck(V.scripts[i], s));
   const editor = MANIFEST.editor.map(f => read(path.join(__dirname, f)));
@@ -730,6 +736,9 @@ function buildViewer(coreBody) {
   // LESS than the loader it replaced. FLYDIY_WORLDS therefore arrives async;
   // both readers (app.js, gfx_settings.js) build a menu on demand long after
   // boot and already guard on it being a non-empty array.
+  // G1210 (WELCOME): the welcome screen or the device gate holds the island's download and every script's promote until
+  // the player has chosen (welcome.js, in the BOOT slot, publishes FLYDIY_WELCOME only when it shows a screen)
+  if (window.FLYDIY_WELCOME) window.FLYDIY_BOOT = window.FLYDIY_BOOT.then(function () { return window.FLYDIY_WELCOME; });
   window.FLYDIY_BOOT = window.FLYDIY_BOOT.then(function () {
     return fetch('src/core/world_packs.json').then(function (r) { return r.ok ? r.json() : { islands: [] }; }, function () { return { islands: [] }; }).then(function (PACK) {
     var all = PACK.islands || [];

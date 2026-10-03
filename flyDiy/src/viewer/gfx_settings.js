@@ -31,7 +31,9 @@
   const KEY = 'flydiy.gfx';
   // THE RIGS (G528): a headless or driven browser - the gates, frame_perf, the scratch rigs - measures a FIXED frame; the
   // auto scale, when a player picked it, stands down there unless the URL asks (?autoscale=1)
-  const RIG = !!(W.navigator && (W.navigator.webdriver || /HeadlessChrome/.test(W.navigator.userAgent || '')));
+  // (G1210: welcome.js, evaluated first, asks the same question of the same navigator - its answer when it is there)
+  const RIG = W.WELCOME && typeof W.WELCOME.RIG === 'boolean' ? W.WELCOME.RIG
+    : !!(W.navigator && (W.navigator.webdriver || /HeadlessChrome/.test(W.navigator.userAgent || '')));
   const FORCE = k => !!(W.location && new RegExp('[?&]' + k + '=1').test(W.location.search || ''));
 
   // ---- the options: named steps over the handles ---------------------------
@@ -301,6 +303,10 @@
     // never reached the graphics menu: the GTX 660 loaded on gamer and drew nothing). The player's later choice still wins
     try { const q = /[?&]gfx=([a-z]+)/.exec((W.location && W.location.search) || ''); const want = q && q[1];
           if (want && PRESETS[want] && S.preset !== want) { Object.assign(S, PRESETS[want]); S.preset = want; save(); } } catch (e) {}
+    // G1210 (WELCOME): the welcome screen's pick (or the device gate's "try anyway": potato), taken the same way - it ran
+    // before this script, only when nothing was chosen yet for this graphics card, and never beside ?gfx=
+    try { const wp = W.WELCOME && W.WELCOME.pick;
+          if (wp && PRESETS[wp] && !/[?&]gfx=/.test((W.location && W.location.search) || '')) { if (S.preset !== wp) Object.assign(S, PRESETS[wp]); S.preset = wp; save(); } } catch (e) {}
   };
   const save = () => { try { W.localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} };
   // which preset the current options ARE, or 'custom'
@@ -518,6 +524,13 @@
           label: PRESET_LABEL[p] || p, value: p, title: PRESET_WHY[p] || 'your own mix of the options below',
           why: p === 'custom' && S.preset !== 'custom' ? 'change any option below' : undefined })),
         o => o.value === S.preset, o => pick('preset', o.value));
+      // G1210 (WELCOME): the welcome screen again, in place - this computer's card, threads, memory and screen, the
+      // suggestion from them; Play applies the preset picked there (live, like the pills above). Not on the loading screen
+      if (W.WELCOME && W.WELCOME.recheck && !H.noReload) {
+        H.row(perf, 'this computer');
+        H.pills(perf, [{ label: 're-check my computer', value: 'recheck', title: 'detect the graphics card and the memory again and suggest a preset (the lower of the two)' }],
+          () => false, () => W.WELCOME.recheck().then(p => { if (p && PRESETS[p]) pick('preset', p); }));
+      }
       if (grouped) { for (const k of GROUPS[0].rows) optionRow(perf, H, OPT[k], pick); }
       else for (const o of OPTIONS) optionRow(perf, H, o, pick);
       readout = H.note(perf, frameText());

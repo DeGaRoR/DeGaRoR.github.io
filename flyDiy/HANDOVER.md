@@ -68035,6 +68035,62 @@ same picture, the clouds aside (the wall clock).
 GATES (node): FRAMECOST, ROUNDTRIP, STAND, BOOT, ASSETS, PARKED, BUILD - PASS (run_gates, parked re-cooked on this build).
 Touched for METLA-RETURN: render_premises.js - two lines in buildPatchSteps (GPU_ONLY_GEO on the patch LOD geometry; the
 grids nulled at its end; `const` -> `let` for Y/Y0/UV and NRM); house_tarr.js - one line in merge (GPU_ONLY_GEO).
+## G1210-G1219 - WELCOME: THE WELCOME SCREEN (TWO DETECTED AXES, THE LOWER WINS) AND THE DEVICE GATE, BEFORE THE HEAVY LOAD (2026-10-03, WELCOME for A0, cloud, no GPU)
+
+The contract: `futureDesigns/FRIENDLY-WELCOME-BUDGETS.md` §3 layer 1 (WELCOME-TEST, slim) and the DEVICE-GATE row of §5.
+Screenshot (headless SwiftShader, `?welcome=1`, "choose another" open): `reports/WELCOME-G1210.png`.
+
+**WHERE IT RUNS.** `src/viewer/welcome.js`, its OWN inline block right after boot.js's in the BOOT slot (a plain script
+tag in dev.html; `MANIFEST.viewer.welcome`) - before the vendor, the core and the island. When it shows a screen it
+publishes `window.FLYDIY_WELCOME` (a Promise of the preset picked), and the shared `ISLAND_LOADER` chains it into
+`FLYDIY_BOOT` ahead of its first fetch: the island's ~35 MB and every script's promote wait for Play. Measured headless:
+0 world requests while the screen is up, 110 after Play. `BOOT.shift(ms)` (boot.js, new) moves the loading screen's T0
+past the wait, so the scripts' share of the bar and the measured weights (flydiy.boot.ms) do not count the reading time.
+
+**THE WELCOME** (first visit with a given graphics card): "Your computer" - the GPU (a throwaway WebGL2 context on a
+DETACHED canvas, WEBGL_debug_renderer_info's unmasked renderer, the context let go at once: no page listener sees its
+loss), CPU threads, `navigator.deviceMemory`, the screen - then "Suggested: <preset>" with Play, or "choose another" (the
+five presets as pills). The suggestion is the LOWER of:
+- the GPU class, `WELCOME.gpuClass(name)`: software renderers (SwiftShader, llvmpipe), Mali / Adreno / PowerVR, Intel
+  HD/UHD/Iris, AMD integrated, GTX 6xx-9xx, GT/MX, R7/R9 -> potato; GTX 10xx/16xx, RX 4xx/5xx, RX Vega -> retro; RTX 20xx,
+  RTX 30/40/50 below the x070, RX 5000, RX 6000 below 6800, RX 7000 below 7800 -> current; RTX x070+ (3070, 4070, 4090...),
+  RX 6800+/7800+/9070+ -> gamer; anything else (Apple M, a name not said) -> current. The name is cleaned of ANGLE's
+  wrapper, PCI id and API suffix (`cleanGpu`): that is both what the screen shows and the key it is remembered by.
+- the memory class, `WELCOME.memClass`: a phone/tablet, or deviceMemory <= 4 -> potato cap; otherwise no cap.
+REMEMBERED PER CARD (localStorage `flydiy.welcome` = {gpu, preset, suggested, at}); a new card asks again. The pick
+reaches the menu as `WELCOME.pick`, which gfx_settings.js takes exactly like `?gfx=` (the preset's options, saved).
+THE PLAYER'S CHOICE ALWAYS WINS: `?gfx=` skips the screen and beats a pick; a preset ALREADY SAVED in the menu
+(`flydiy.gfx`, a returning player) is adopted silently (the card recorded with that preset, no screen); a later menu
+choice is never touched. GRAPHICS > performance has a new row "this computer: re-check my computer" (not on the
+loading screen's setup): the welcome again IN PLACE, Play applies the preset live (`pick('preset', p)`).
+
+**THE DEVICE GATE**: a phone/tablet (`userAgentData.mobile`; without userAgentData, a UA naming Android/iPhone/iPad/
+Mobile; or a coarse pointer with NO fine pointer on a screen whose short side is <= 1100 px - an iPad says it is a Mac,
+a touch laptop has a mouse) or a browser without WebGL2 gets a polite page: what was detected, "flyDiy is made for a
+computer, for now", and "try anyway (experimental)", which continues on potato and is remembered (`tried`).
+**THE LOST CONTEXT**: a `webglcontextlost` on the game's canvas (#c / FLYDIY_RENDERER.domElement, connected) shows "The
+graphics card stopped drawing ... ran out of memory on the <preset> preset" with "Reload on potato" (`?gfx=potato`) and
+"reload as it is"; a `webglcontextrestored` takes it down. (flight_recorder.js keeps logging both events, as A0 wired.)
+
+**THE RIGS NEVER SEE ANY OF IT**: welcome.js's `isRig` is gfx_settings.js's G528 test (navigator.webdriver or
+HeadlessChrome), and gfx_settings now takes `WELCOME.RIG` when present (one answer). `?welcome=1` / `?devgate=1` force a
+screen for a rig that wants to look (the screenshot); the lost-context message never shows in a rig.
+
+**VERIFY** - GATE GFX §8 (welcome.js in a vm): the GPU table on 32 sample strings (ANGLE / Mesa / plain, the user's
+machines: GTX 660, GTX 1060 3GB, RTX 3080, UHD 620, Adreno 650); the memory class; the lower-wins rule (3080 + 4 GB ->
+potato, 1060 + 8 GB -> retro); remembered per card through the ANGLE name; a saved menu choice adopted; ?gfx skips,
+?welcome forces; the gate on stubbed navigators (Android Chrome, iPad Safari, Firefox Android by UA; NOT a touch laptop
+nor a desktop; no WebGL2); "try anyway" remembered; the rigs (webdriver, HeadlessChrome) see neither screen, a phone and
+no-WebGL2 included; the pick becomes the saved preset, ?gfx beats it; the re-check row mounts (not under noReload);
+index.html order (welcome after boot.js, before the core; the loader holds before its first fetch). Headless Chromium
+(playwright, SwiftShader): the welcome and the gate render, Play releases the load, the rig loads untouched, the
+lost-context message appears / clears and stays off in a rig.
+
+**GATES**: GFX, BOOT, UISMOKE, BUILD - PASS (cloud, `--only=`; no GPU gates run).
+
+**FOR LATER**: the GPU table is a guess anchored on §2's rows - LADDER-TUNE retunes it from the user's machines; the
+"short timed test" of §3 is not built; a `pocket` preset (§2) needs a row in ORDER/LABEL and in the table's phones.
+
 ## G1220-G1224 - CESSNA-LINKS: THE METAL'S "7 LINKS OVER 5 s" WERE THE RIG'S SLOT, NOT THE BUILD - IN ONE CHROME SESSION THE GROUND'S HEAVY PROGRAMS HIT AND MISS ON ALTERNATE LOADS; THE RIGS NOW OPEN A FRESH CHROME PER WARM LOAD (2026-10-02, CESSNA-LINKS for A0, local GPU)
 
 THE FINDING (A0): the aluminium Cessna reached the garage ~20 s after the Cub on every warm load (metla_ab1: Cub 44.5-45.9 s,

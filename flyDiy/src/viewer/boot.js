@@ -81,7 +81,7 @@
 // cannot recurse.
 (function () {
   'use strict';
-  const T0 = (typeof performance !== 'undefined' && performance.now) ? performance.now() : 0;
+  let T0 = (typeof performance !== 'undefined' && performance.now) ? performance.now() : 0;
   const now = () => ((typeof performance !== 'undefined' && performance.now) ? performance.now() : T0);
   const doc = typeof document !== 'undefined' ? document : null;
   const $ = id => (doc && doc.getElementById) ? doc.getElementById(id) : null;
@@ -644,6 +644,9 @@
   B.busy = () => B.stepI < B.steps.length;   // a chain still has steps to run (a lifted screen's, too)
   B.shaders = shaders; B.phase = phase; B.run = run; B.expect = expect; B.landed = landed; B.img = img; B.note = note; B.frame = frame;
   B.hold = hold; B.go = go;
+  // G1210 (WELCOME): the welcome screen (welcome.js) held the page before the scripts ran - its wait is not the scripts'
+  // share of the bar, nor a time to keep in the measured weights: the clock starts again after it
+  B.shift = ms => { if (!(ms > 0) || B._runT) return; T0 += ms; B.t0 = T0; B.lastEvent += ms; };
   B.rec = rec;   // G805: a line of the log from outside a step (parked.js: each parked aeroplane, cooked or captured, and its ms)
   B.ready = ready; B.fail = fail; B.hide = hide; B.show = show; B.whenReady = whenReady; B.pending = pending; B.settled = settled; B.hasUI = HAS_UI;
   if (typeof window !== 'undefined') window.BOOT = B;
