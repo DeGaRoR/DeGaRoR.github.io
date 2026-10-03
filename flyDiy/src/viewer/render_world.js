@@ -186,7 +186,10 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
   // ~3.4 M matrices + colours, every chunk's near AND impostor mesh). 9 km stays; the far quarter
   // (the base) is what the mountains get, the complement to uThin.y. The whole 39 km square is
   // ~2 800 chunks - a coarser far tier (one card per 4 trees) is the step that gets there.
-  const NEAR_R = 30, FAR_WOOD = world.island ? 9000 : 5400, FAR_FILL = world.island ? 9000 : 4000, FAR_FADE = 500;
+  // G1230: a budget's forestK (potato's 0.65) pulls the forest's reaches in - the base's and the fill's instances go as
+  // the reach squared (9 -> 5.9 km: 0.42 of the far stands built and held); 1 everywhere else
+  const FK = BUD && BUD.forestK > 0 && BUD.forestK < 1 ? BUD.forestK : 1;
+  const NEAR_R = 30, FAR_WOOD = Math.round((world.island ? 9000 : 5400) * FK), FAR_FILL = Math.round((world.island ? 9000 : 4000) * FK), FAR_FADE = 500;
   const uNear = { value: NEAR_R };     // live: every tree material reads it
   // THE RING THINS WITH DISTANCE, IT DOES NOT POP (LOADING S3, G420). The
   // fill's far chunks used to be a different, quarter-density set and a
@@ -201,7 +204,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
   // (a plain {x, y} where the headless stub has no Vector2 - GATE WORLDRENDER;
   // three uploads a vec2 uniform off .x/.y either way)
   const v2 = (x, y) => THREE.Vector2 ? new THREE.Vector2(x, y) : { x, y, set(a, b) { this.x = a; this.y = b; return this; } };
-  const uThin = { value: v2(world.island ? 3000 : 2500, world.island ? 4500 : 3400) };   // 2026-09-21: 4200 -> 4500 on an island (12000 tried: see the reach)
+  const uThin = { value: v2((world.island ? 3000 : 2500) * FK, (world.island ? 4500 : 3400) * FK) };   // 2026-09-21: 4200 -> 4500 on an island (12000 tried: see the reach)
   const U_NOTHIN = { value: v2(1e9, 1e9 + 1) };
   // the two inner edges of the ladder, shared by every rung material the
   // same way uNear is - a dial can move them and every band follows
