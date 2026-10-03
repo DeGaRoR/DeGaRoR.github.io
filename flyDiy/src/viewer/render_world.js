@@ -1285,10 +1285,11 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       // was 3.7 s of the boot, and the taps were the cost, not the height.
       // A finer stencil reads a hillside a shade rougher; the classifier,
       // the far canopy mask and the tree placement are untouched.
-      const h = world.terrainH(x, z), e = 8;
+      const gB = world.terrainHBuild || world.terrainH;   // (G1406: the build read - never a lazy raster bake)
+      const h = gB(x, z), e = 8;
       const slope = Math.min(1, Math.hypot(
-        world.terrainH(x + e, z) - world.terrainH(x - e, z),
-        world.terrainH(x, z + e) - world.terrainH(x, z - e)) / (2 * e) * 1.15);
+        gB(x + e, z) - gB(x - e, z),
+        gB(x, z + e) - gB(x, z - e)) / (2 * e) * 1.15);
       _h = h;
       _low = (1 - Math.min(1, Math.max(0, (h - 55) / 90))) * (1 - Math.min(1, slope * 3.2));
       const veg = vn(x + 31, z + 67, 720) * 0.62 + vn(x + 271, z + 113, 190) * 0.38;
@@ -1343,7 +1344,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
           fimg.data[o] = f; fimg.data[o+1] = f; fimg.data[o+2] = f; fimg.data[o+3] = 255;
         }
         if (mimg) {                        // W13 minimap: same bake, water made visible
-          const wet = world.waterH(x, z) > _h - 0.2;
+          const wet = (world.waterHBuild || world.waterH)(x, z) > _h - 0.2;   // (G1406: the build read)
           mimg.data[o]   = wet ? 0x48 : img.data[o];
           mimg.data[o+1] = wet ? 0x89 : img.data[o+1];
           mimg.data[o+2] = wet ? 0x9e : img.data[o+2];
@@ -1406,10 +1407,11 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         // `low` gate still let ~20% grades through and hillsides grew odd
         // terraced patchwork. Corner-sample the patch: > 3.2 m of relief
         // across ~160 m kills it, anything close fades.
-        const hC = world.terrainH(cx, cz);
+        const gB = world.terrainHBuild || world.terrainH;   // (G1406: the build read)
+        const hC = gB(cx, cz);
         let rel = 0;
         for (const [ox, oz] of [[-80, -80], [80, -80], [-80, 80], [80, 80]])
-          rel = Math.max(rel, Math.abs(world.terrainH(cx + ox, cz + oz) - hC));
+          rel = Math.max(rel, Math.abs(gB(cx + ox, cz + oz) - hC));
         if (rel > 3.2) continue;
         const fA = low * (0.55 + 0.45 * (1 - rel / 3.2));
         const ix = Math.round(fx / CS), iz = Math.round(fz / CS);
@@ -1849,9 +1851,10 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     geo.rotateX(-Math.PI / 2);
     const posA = geo.attributes.position;
     // G995 (A5-LOAD): 513^2 heights, a yield every 16 rows (the raster reads made this one 2 s task of the world step)
+    const gB = world.terrainHBuild || world.terrainH;   // (G1406: the build read - the ring's 9 km reach crosses Metlakatla)
     for (let i = 0; i < posA.count; i++) {
       if (i && !(i % (513 * 16))) yield 'ring heights';
-      posA.setY(i, world.terrainH(posA.getX(i), posA.getZ(i)));
+      posA.setY(i, gB(posA.getX(i), posA.getZ(i)));
     }
     if (islandUV) { const uvA = geo.attributes.uv;
       for (let i = 0; i < posA.count; i++) { const t = islandUV(posA.getX(i), posA.getZ(i)); uvA.setXY(i, t[0], t[1]); } }
@@ -2836,9 +2839,9 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         const a = hsh(i, k * 13 + 1) * 6.283, d = 4 + hsh(i, k * 13 + 2) * 14;
         const x = T.x + Math.cos(a) * d, z = T.z + Math.sin(a) * d;
         if (Math.abs(z) < 90 && x < 200 && x > -3400) continue;  // corridor exclusion, matches world
-        const h = world.terrainH(x, z);
+        const h = (world.terrainHBuild || world.terrainH)(x, z);   // (G1406: the build read)
         if (h < 1.5 || h > 200) continue;
-        if (world.waterH(x, z) > h) continue;   // no clutter trees standing in rivers/lakes
+        if ((world.waterHBuild || world.waterH)(x, z) > h) continue;   // no clutter trees standing in rivers/lakes
         // ...nor on a road (2026-09-22): a legal tree 12 m from a road threw satellites 4-18 m in
         // every direction, and half of them landed on the pavement
         if (world.coverAt) { const cv = world.coverAt(x, z, 1); if (cv && cv.kill > 0) continue; }
