@@ -567,6 +567,26 @@ function commitLater() {
   if (laterT) clearTimeout(laterT);
   laterT = setTimeout(() => { laterT = null; commit(); }, 120);
 }
+// G1302 (GARAGE-LAG-2): A RANGE ROW'S RELEASE COMMITS POST-IDLE. The release of the capacity (and of the size, the
+// station, the level, the turn) committed inside the change event: GARAGE_SPEC.update puts the aeroplane back on the
+// stand - the flown model, the sim, the room (~0.3 s on the box once the shakedown left it, G1302's other half) -
+// while what the builder looks at, the tank in the editor, was already drawn by the drag's own relayout. The commit
+// is the same one through the same door (savePrefs, the resolve, B9's nothing-new test, update, the readouts), run
+// once the hand has let go and the page is idle (250 ms, then an idle slot, at most 1.5 s), and a second release
+// before it folds into it. Nothing that needs the tanks in the spec waits on it: the join's export reads the layer
+// (CAGE_ENERGY.toSpec), so a roll-out, a save or an export straight after the release carries them all the same.
+let soonT = null, soonI = null;
+function commitSoon() {
+  if (soonT) clearTimeout(soonT);
+  if (soonI && typeof cancelIdleCallback === 'function') cancelIdleCallback(soonI);
+  soonI = null;
+  soonT = setTimeout(() => {
+    soonT = null;
+    const go = () => { soonI = null; commit(); };
+    if (typeof requestIdleCallback === 'function') soonI = requestIdleCallback(go, { timeout: 1500 });
+    else go();
+  }, 250);
+}
 
 // THE CREW IS IN THE WAY, OR IT IS NOT. Every vertex of everything the crew
 // layer drew — seats, dummies, the panel, the sticks — tested against each
@@ -2118,7 +2138,7 @@ function renderPanel() {
       'gives the vessel its catalogue shape again', 1,
       Math.max(capMax, 1), 1, Math.min(v.capacity, Math.max(capMax, 1)), fmtL,
       x => { v.capacity = x; v.dims = null; relayout(); },
-      x => { v.capacity = x; v.dims = null; commit(); });
+      x => { v.capacity = x; v.dims = null; commitSoon(); });
     // THE GEOMETRY IS THE PLAYER'S, AND THE CAPACITY FOLLOWS IT. Three rows
     // for the box; the first touch copies the catalogue shape so the sliders
     // start from what is drawn, and from then on the litres are calculated.
@@ -2127,12 +2147,12 @@ function renderPanel() {
       const cur = () => v.dims || (LAST.results[i] && LAST.results[i].dims) || { L: 0.8, W: 0.2, H: 0.2 };
       const podRow = (label, key, lo, hi, title) => range(box, label, title, lo, hi, 0.01, cur()[key], fmtM,
         x => { const d = cur(); v.dims = { L: d.L, W: d.W, H: d.W }; v.dims[key] = x; if (key === 'W') v.dims.H = x; relayout(); syncCap(); },
-        x => { const d = cur(); v.dims = { L: d.L, W: d.W, H: d.W }; v.dims[key] = x; if (key === 'W') v.dims.H = x; commit(); });
+        x => { const d = cur(); v.dims = { L: d.L, W: d.W, H: d.W }; v.dims[key] = x; if (key === 'W') v.dims.H = x; commitSoon(); });
       podRow('length', 'L', 0.3, 2.0, 'along the strut');
       podRow('diameter', 'W', 0.1, 0.6, 'the pod: its girth');
       range(box, 'up the strut', 'where the pod sits, as a fraction of the strut from its foot on the body (0) to the wing (1)',
         bay.span[0], bay.span[1], 0.01, v.along != null ? v.along : 0.5 * (bay.span[0] + bay.span[1]), fmtF,
-        x => { v.along = x; relayout(); }, x => { v.along = x; commit(); });
+        x => { v.along = x; relayout(); }, x => { v.along = x; commitSoon(); });
     }
     if (bay && bay.on !== 'wing' && bay.on !== 'strut') {
       const cur = () => v.dims || (LAST.results[i] && LAST.results[i].dims) ||
@@ -2142,7 +2162,7 @@ function renderPanel() {
         x => { const d = cur(); v.dims = { L: d.L, W: d.W, H: d.H }; v.dims[key] = x;
                relayout(); syncCap(); },
         x => { const d = cur(); v.dims = { L: d.L, W: d.W, H: d.H }; v.dims[key] = x;
-               commit(); });
+               commitSoon(); });
       const secW = LAST.results[i] && LAST.results[i].section
         ? Math.max(0.3, LAST.results[i].section.xHi - LAST.results[i].section.xLo) : 1.2;
       sizeRow('length', 'L', Math.max(0.4, bay.x1 - bay.x0), 'along the body');
@@ -2160,20 +2180,20 @@ function renderPanel() {
         'semispan; it runs outboard from here until it holds its litres',
         bay.span[0], bay.span[1], 0.01,
         v.along != null ? v.along : bay.span[0], fmtF,
-        x => { v.along = x; relayout(); }, x => { v.along = x; commit(); });
+        x => { v.along = x; relayout(); }, x => { v.along = x; commitSoon(); });
     } else if (bay) {
       const dflt = 0.5 * (bay.x0 + bay.x1);
       range(box, 'fore / aft', 'metres aft of the firewall — the bay runs ' +
         bay.x0.toFixed(2) + ' to ' + bay.x1.toFixed(2) + ' m', bay.x0, bay.x1,
         0.01, v.along != null ? v.along : dflt, fmtM,
-        x => { v.along = x; relayout(); }, x => { v.along = x; commit(); });
+        x => { v.along = x; relayout(); }, x => { v.along = x; commitSoon(); });
       const lvB = bay.lv || [0, 1];
       range(box, 'up / down', 'keel to crown, within the bay’s own band', lvB[0],
         lvB[1], 0.01, v.lv != null ? v.lv : 0.5 * (lvB[0] + lvB[1]), fmtF,
-        x => { v.lv = x; relayout(); }, x => { v.lv = x; commit(); });
+        x => { v.lv = x; relayout(); }, x => { v.lv = x; commitSoon(); });
       range(box, 'turn (yaw)', 'about the vertical: a long tank across a wide bay, ' +
         'or along a narrow one', -90, 90, 1, v.rot || 0, fmtD,
-        x => { v.rot = x; relayout(); }, x => { v.rot = x; commit(); });
+        x => { v.rot = x; relayout(); }, x => { v.rot = x; commitSoon(); });
     }
     const rd = el('div', 'r');
     rd.style.cssText = 'font-size:11px;opacity:.9;white-space:normal;line-height:1.3';

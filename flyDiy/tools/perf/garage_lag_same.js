@@ -22,6 +22,7 @@ const REPO = path.resolve(__dirname, '..', '..', '..');
 const TREE = opt('tree', 'flyDiy');
 const BUILDS = { cub: { label: 'Cub', build: 'tools/perf/garage_lag_cub_wip.json' }, metal: MB.BUILDS.metal };
 const WANT = opt('builds', 'cub,metal').split(',');
+const ONLY = opt('only', null) ? new Set(opt('only').split(',')) : null;
 const OUT = path.resolve(opt('out', path.join(__dirname, 'garage_lag_same_' + Date.now() + '.json')));
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const log = s => console.log('  ' + s);
@@ -47,9 +48,13 @@ const FP = `(() => {
     if (v.isTexture) return 'tex:' + (v.name || '') + ':' + ((v.image && v.image.width) || 0) + 'x' + ((v.image && v.image.height) || 0);
     if (v.isColor) return 'c' + v.getHexString(); if (typeof v.toArray === 'function') return '[' + v.toArray().map(r).join(',') + ']';
     if (Array.isArray(v)) return '[' + v.map(val).join(',') + ']'; return typeof v; };
+  // userData walked by hand (JSON would call a texture's toJSON, uuid and all, before any replacer saw it)
+  const ud = (x, d) => { if (x == null || typeof x !== 'object') return typeof x === 'function' ? 'fn' : val(x); if (x.isTexture || x.isColor || typeof x.toArray === 'function') return val(x);
+    if (d > 4) return '...'; if (Array.isArray(x)) return '[' + x.map(y => ud(y, d + 1)).join(',') + ']';
+    return '{' + Object.keys(x).sort().map(k => k + ':' + ud(x[k], d + 1)).join(',') + '}'; };
   const matFp = m => { if (!m) return 'none'; const o = [m.type, m.name || '', m.color ? m.color.getHexString() : '', m.emissive ? m.emissive.getHexString() : '', r(m.opacity), m.transparent, m.side, m.depthWrite, m.depthTest,
       m.polygonOffset, m.polygonOffsetFactor, m.visible, m.metalness != null ? r(m.metalness) : '', m.roughness != null ? r(m.roughness) : '', (m.clippingPlanes || []).length, JSON.stringify(m.defines || {}),
-      m.map ? val(m.map) : '', (() => { try { return JSON.stringify(m.userData || {}, (k, x) => (x && x.isTexture) ? val(x) : (typeof x === 'object' && x && (x.isColor || x.isVector3)) ? val(x) : x); } catch (e) { return 'ud?'; } })()];
+      m.map ? val(m.map) : '', ud(m.userData, 0)];
     const U = m.uniforms || (m.userData && m.userData.U) || null; if (U) for (const k of Object.keys(U).sort()) o.push(k + '=' + val(U[k] && U[k].value));
     return o.join('|'); };
   const geoFp = g => { if (!g) return 'none'; const p = g.getAttribute && g.getAttribute('position'); let s = 0, q = 0; if (p) for (let i = 0; i < p.array.length; i++) { s += p.array[i]; q += p.array[i] * ((i % 7) + 1); }
@@ -76,7 +81,7 @@ const FP = `(() => {
     if (b) await b.close(); b = await MB.browser(UDD);
     const l = await b.load('http://localhost:' + PORT + '/' + TREE + '/index.html', MB.preScript(B.build, null, B.patch));
     log('loaded ' + l.state + ' in ' + l.sec + ' s'); await sleep(6000);
-    for (const [name, expr] of CHANGES) {
+    for (const [name, expr] of CHANGES.filter(c => !ONLY || ONLY.has(c[0]))) {
       const got = JSON.parse(await b.ev(`(async () => { const el = ${expr}; if (!el) return JSON.stringify({ missing: true });
         const U = window.CAGE_UI; U.sheetKeep = true; U.repaintOn = true;
         const q = () => new Promise(r => setTimeout(r, 400));
@@ -87,24 +92,32 @@ const FP = `(() => {
         const drag = el.type === 'range' && /^p_/.test(el.id || '');
         if (drag) el.dispatchEvent(new PointerEvent('pointerdown'));
         const t0 = performance.now(); el.value = v; el.dispatchEvent(new Event(el.tagName === 'SELECT' ? 'change' : 'input')); const ms = performance.now() - t0;
-        await q(); await q(); if (drag) window.dispatchEvent(new PointerEvent('pointerup')); await q(); const A = ${FP};
+        // the drag settles first (its pause); every other change is read in the same task, before any timer it
+        // armed (the autosave's commit writes the paint block the decals read) can move the state under the long way
+        if (drag) { await q(); await q(); window.dispatchEvent(new PointerEvent('pointerup')); await q(); }
+        const info = U.repaintInfo || null; U.repaintInfo = null;
+        const A = ${FP};
         U.sheetKeep = false; const t1 = performance.now(); U.build(); const msLong = performance.now() - t1; U.sheetKeep = true;
-        await q(); const Bf = ${FP};
-        U.sheetKeep = false; U.build(); U.sheetKeep = true; await q(); const Cf = ${FP};
-        return JSON.stringify({ v, ms: +ms.toFixed(1), msLong: +msLong.toFixed(1), A: JSON.parse(A), B: JSON.parse(Bf), C: JSON.parse(Cf) }); })()`, 300000));
+        const Bf = ${FP};
+        U.sheetKeep = false; U.build(); U.sheetKeep = true; const Cf = ${FP};
+        await q();
+        return JSON.stringify({ v, ms: +ms.toFixed(1), msLong: +msLong.toFixed(1), info, A: JSON.parse(A), B: JSON.parse(Bf), C: JSON.parse(Cf) }); })()`, 300000));
       if (got.missing) { log(name.padEnd(12) + ' NO WIDGET'); R.rows.push({ build: bk, change: name, missing: true }); continue; }
       // the long way twice: an object the long way itself does not repeat (the crew's IK starts from the pose it
       // stands in) is noise, not the short path's - counted apart, never as a difference
       const A = got.A.out, Bo = got.B.out, Co = got.C.out, diffs = [], noise = [];
       for (let i = 0; i < Math.max(A.length, Bo.length); i++) {
         if (A[i] === Bo[i]) continue;
-        if (A.length === Bo.length && Bo.length === Co.length && Bo[i] !== Co[i]) { noise.push(i); continue; }
-        diffs.push([i, (A[i] || '(none)').slice(0, 400), (Bo[i] || '(none)').slice(0, 400)]);
+        if (A.length === Bo.length && Bo.length === Co.length && (Bo[i] !== Co[i] || A[i] === Co[i])) { noise.push(i); continue; }
+        const a = A[i] || '(none)', bb = Bo[i] || '(none)'; let c = 0; while (c < a.length && a[c] === bb[c]) c++;
+        diffs.push([i, a.slice(0, 60) + ' ... @' + c + ': ' + a.slice(Math.max(0, c - 120), c + 200), bb.slice(0, 60) + ' ... @' + c + ': ' + bb.slice(Math.max(0, c - 120), c + 200)]);
       }
       let noiseLL = 0; for (let i = 0; i < Math.min(Bo.length, Co.length); i++) if (Bo[i] !== Co[i]) noiseLL++;
       let idDiff = 0; for (let i = 0; i < Math.min(got.A.ids.length, got.B.ids.length); i++) if (got.A.ids[i] !== got.B.ids[i]) idDiff++;
       if (diffs.length) bad++;
-      R.rows.push({ build: bk, change: name, v: got.v, short: got.ms, long: got.msLong, objects: A.length, diffs: diffs.slice(0, 20), nDiff: diffs.length, idDiff, noise: noise.length, noiseLongLong: noiseLL });
+      R.rows.push({ build: bk, change: name, v: got.v, info: got.info, short: got.ms, long: got.msLong, objects: A.length, diffs: diffs.slice(0, 20), nDiff: diffs.length, idDiff, noise: noise.length, noiseLongLong: noiseLL });
+      if (A.length !== Bo.length || Bo.length !== Co.length) log('   (object counts: short ' + A.length + ', long ' + Bo.length + ', long again ' + Co.length + ')');
+      if (got.info) log('   repaint: ' + JSON.stringify(got.info));
       log(name.padEnd(12) + ' short ' + String(got.ms).padStart(7) + ' ms  long ' + String(got.msLong).padStart(7) + ' ms  objects ' + A.length + '  ' + (diffs.length ? 'DIFFER ' + diffs.length : 'same') + '  (long vs long: ' + noiseLL + ' objects move by themselves' + (idDiff ? '; material identity differs on ' + idDiff : '') + ')');
       for (const d of diffs.slice(0, 4)) log('   @' + d[0] + '\n     short: ' + d[1] + '\n     long:  ' + d[2]);
     }
