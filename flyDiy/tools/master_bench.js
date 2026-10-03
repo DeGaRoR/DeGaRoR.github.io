@@ -212,7 +212,7 @@ const A = {
 // ---- the browser rig -----------------------------------------------------------------------------------------------------
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const getJSON = url => new Promise((res, rej) => { http.get(url, r => { let b = ''; r.on('data', d => b += d); r.on('end', () => { try { res(JSON.parse(b)); } catch (e) { rej(e); } }); }).on('error', rej); });
-const CHROME = ['C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe', 'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe', '/usr/bin/google-chrome'].find(p => fs.existsSync(p));
+const CHROME = [process.env.MB_CHROME || '', 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe', 'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe', '/usr/bin/google-chrome'].find(p => p && fs.existsSync(p));   // MB_CHROME: another binary (the cloud's Chromium)
 function serve(port, fallback) {
   const a = [path.join(__dirname, '_serve.js'), String(port), REPO]; if (fallback) a.push('--fallback', fallback);
   const s = spawn(process.execPath, a, { stdio: 'ignore' });
