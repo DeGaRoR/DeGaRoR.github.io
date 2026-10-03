@@ -1525,8 +1525,10 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         cv.addEventListener('webglcontextrestored', gpuRestore);
       } }
     if (ISLA) {
-      const G = ISLA.grid, n = G.w * G.h, src = ISLA.albedo;
-      const albedoRGBA = () => { const rgba = new Uint8Array(n * 4);
+      const G = ISLA.grid, n = G.w * G.h;
+      // (G1230: read at the call, not captured - a budget that drops the colour grids once drawn (app.js) leaves this a
+      // flat mid grey on a lost context instead of holding 35 MB for it)
+      const albedoRGBA = () => { const rgba = new Uint8Array(n * 4), src = ISLA.albedo; if (!src) { rgba.fill(110); return rgba; }
         for (let i = 0, j = 0; i < n; i++, j += 4) { rgba[j] = src[i * 3]; rgba[j + 1] = src[i * 3 + 1]; rgba[j + 2] = src[i * 3 + 2]; rgba[j + 3] = 255; }
         return rgba; };
       islandTex = gpuOnly(new THREE.DataTexture(albedoRGBA(), G.w, G.h, THREE.RGBAFormat, THREE.UnsignedByteType), albedoRGBA);
@@ -1589,7 +1591,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       // 2 x 3095 = 6190 bytes, not a multiple of 4: the unpack alignment is 1 or every row after the first shears
       const pk2 = (r, g) => { const make = () => { const d = new Uint8Array(n * 2); for (let k = 0, j = 0; k < n; k++, j += 2) { d[j] = r ? r[k] : 0; d[j + 1] = g ? g[k] : 0; } return d; };
         const t = dataTex(make()); t.format = THREE.RGFormat; t.unpackAlignment = 1; return gpuOnly(t, make); };
-      const tintRGBA = () => { const rgba = new Uint8Array(n * 4);
+      const tintRGBA = () => { const rgba = new Uint8Array(n * 4); if (!ISLA.tint) { rgba.fill(110); return rgba; }
         for (let i = 0, j = 0; i < n; i++, j += 4) { rgba[j] = ISLA.tint[i * 3]; rgba[j + 1] = ISLA.tint[i * 3 + 1]; rgba[j + 2] = ISLA.tint[i * 3 + 2]; rgba[j + 3] = 255; }
         return rgba; };
       const tintTex = gpuOnly(new THREE.DataTexture(tintRGBA(), G.w, G.h, THREE.RGBAFormat, THREE.UnsignedByteType), tintRGBA);
