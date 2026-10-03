@@ -804,7 +804,7 @@
       // ONE SKY (S5): the outdoors reflect the physical sky, in the shed's frame, re-baked with the room
       if (!srt && typeof ATMO !== 'undefined' && ATMO.enabled && hangar.SHED_FRAME_YAW !== undefined) {
         if (!shedSkyProbe) shedSkyProbe = ATMO.makeProbe(renderer, { frameYaw: hangar.SHED_FRAME_YAW, capHex: 0x6d7a45, gb: (window.LIGHT_RIG ? window.LIGHT_RIG.groundBounce() : 1) });
-        if (shedSkyProbe) { shedSkyProbe.bake(world.day); srt = { texture: shedSkyProbe.texture, dispose: () => {} }; }
+        if (shedSkyProbe) { shedSkyProbe.bake(world.day, true); srt = { texture: shedSkyProbe.texture, dispose: () => {} }; }
       }
       if (!srt && sky && sky.image && sky.image.width && THREE.PMREMGenerator) {
         const pm2 = envGen('sky');

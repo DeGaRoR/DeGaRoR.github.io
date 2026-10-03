@@ -1071,6 +1071,36 @@ ${MIST_GLSL}
   // apron). o.capHex is a colour that never moves; o.cap is a function returning the cap's
   // LINEAR rgb now (render_world's GROUND UNDER THE CRAFT), read at every bake, and the probe
   // re-bakes when it has moved (maybe(): a 1 % step in any channel, at most every o.minGapMs).
+  // G1351 THE PROBE CROSSFADES (LIGHT-SMOOTH, 2026-10-03; the user: "luminosity adjustments happen all of a sudden, one
+  // frame over the other"). Every bake was a swap: the sun's 1.5 deg, the clouds' 400 m of drift, the ground under the
+  // craft by a 1 % step - and the skin's, the glazing's and the water's whole ambient and reflection jumped on one
+  // frame. A PMREM is a plain 2D atlas (CubeUV), so a third target - the one every material reads, `shown`, whose
+  // identity never changes again - is drawn each frame of a fade as mix(the previous bake, the new one) over
+  // PROBE_FADE.s seconds (smoothstep, wall clock), one fullscreen draw at the atlas's 768 x 1024 while it lasts and
+  // nothing after. A bake asked for by maybe() during a fade waits for it to end; a direct bake() (the boot, a pin, the
+  // shed) is a cut. PROBE_FADE.s 0 is the old swap. Cost: one more 768 x 1024 half-float target per probe (6.3 MB).
+  const PROBE_FADE = { s: 2.0 };
+  const FADE_VERT = 'varying vec2 vUv; void main() { vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }';
+  const FADE_FRAG = 'uniform sampler2D tA, tB; uniform float uK; varying vec2 vUv; void main() { gl_FragColor = mix(texture2D(tA, vUv), texture2D(tB, vUv), uK); }';
+  let fadeScene = null, fadeCam = null, fadeMat = null;
+  function fadeBlit(renderer, a, b, k, to) {
+    if (!fadeScene) {
+      fadeScene = new THREE.Scene(); fadeCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+      fadeMat = new THREE.ShaderMaterial({ uniforms: { tA: { value: null }, tB: { value: null }, uK: { value: 0 } }, vertexShader: FADE_VERT, fragmentShader: FADE_FRAG,
+        depthTest: false, depthWrite: false, toneMapped: false, fog: false });
+      const q = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), fadeMat); q.frustumCulled = false; fadeScene.add(q);
+    }
+    fadeMat.uniforms.tA.value = a.texture; fadeMat.uniforms.tB.value = b.texture; fadeMat.uniforms.uK.value = k;
+    const prev = renderer.getRenderTarget(), ac = renderer.autoClear;
+    renderer.autoClear = false; renderer.setRenderTarget(to); renderer.render(fadeScene, fadeCam);
+    renderer.setRenderTarget(prev); renderer.autoClear = ac;
+  }
+  function fadeTarget(like) {   // a target the renderer reads exactly as PMREMGenerator's own (CubeUV, half float, linear)
+    const t = new THREE.WebGLRenderTarget(like.width, like.height, { magFilter: THREE.LinearFilter, minFilter: THREE.LinearFilter, generateMipmaps: false,
+      type: like.texture.type, format: THREE.RGBAFormat, colorSpace: THREE.LinearSRGBColorSpace, depthBuffer: false });
+    t.texture.mapping = THREE.CubeUVReflectionMapping; t.texture.name = 'PMREM.cubeUv';
+    return t;
+  }
   const lum3 = c => 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
   function groundIrradiance(day) {              // the ground's irradiance relative to the alps anchor (0..~1.2)
     const T = [0, 0, 0], E = [0, 0, 0];
@@ -1094,28 +1124,57 @@ ${MIST_GLSL}
     es.add(new THREE.Mesh(new THREE.SphereGeometry(19.5, 24, 12, 0, 6.2832, Math.PI / 2, Math.PI / 2), capMat));
     if (o.decorate) o.decorate(es);          // CLOUDS C3: the layer's sphere over the dome (the water reflects the clouds)
     let rt = null, bakedSun = null, bakedVer = -1, bakes = 0, lastMs = 0, lastBake = -1e9;
+    let shown = null, prevRt = null, fadeK = 1, fadeLast = 0;   // G1351: what the materials read; the bake it fades from; how far
+    const nowMs = () => (typeof performance !== 'undefined') ? performance.now() : 0;
+    const canFade = () => !!(THREE.WebGLRenderTarget && THREE.ShaderMaterial && THREE.CubeUVReflectionMapping);
     const probe = {
-      get texture() { return rt ? rt.texture : null; },
+      get texture() { return shown ? shown.texture : (rt ? rt.texture : null); },
+      get fading() { return !!prevRt; }, get fade() { return fadeK; },
       get bakes() { return bakes; }, get lastMs() { return lastMs; },
       get cap() { return capBaked.slice(); },   // the cap the current cube was shot over (linear rgb, before gb and the day)
-      bake(day) {
+      bake(day, cut) {
         const c = capNow(); capBaked[0] = c.r; capBaked[1] = c.g; capBaked[2] = c.b;
         capMat.color.copy(c).multiplyScalar(gb).multiplyScalar(groundIrradiance(day));
         const t0 = (typeof performance !== 'undefined') ? performance.now() : 0;
         const next = pmrem.fromScene(es, 0.035, 1, 100);
         lastMs = (typeof performance !== 'undefined') ? performance.now() - t0 : 0;
         const old = rt; rt = next; bakes++;
-        if (o.onSwap) o.onSwap(rt.texture);
-        if (old) old.dispose();
+        if (!canFade()) {
+          if (o.onSwap) o.onSwap(rt.texture);
+          if (old) old.dispose();
+        } else {
+          const same = shown && shown.width === next.width && shown.height === next.height;
+          if (same && old && PROBE_FADE.s > 0 && !cut) {   // G1351: fade from the cube on screen to the new one
+            if (prevRt) prevRt.dispose();
+            prevRt = old; fadeK = 0; fadeLast = nowMs();
+          } else {                                          // the first bake, a cut: the new cube at once
+            if (!same) { if (shown) shown.dispose(); shown = fadeTarget(next); }
+            fadeBlit(renderer, next, next, 1, shown);
+            if (old) old.dispose();
+            if (prevRt) { prevRt.dispose(); prevRt = null; }
+            fadeK = 1;
+          }
+          if (o.onSwap) o.onSwap(shown.texture);
+        }
         bakedSun = day ? day.sun.slice() : [0, 1, 0]; bakedVer = day ? day.version : 0;
         lastBake = (typeof performance !== 'undefined') ? performance.now() : 0;
         if (o.baked) o.baked();
-        return rt.texture;
+        return probe.texture;
       },
       // re-bake when the sun moved past the threshold (deg), the day's dials changed, or the decorator
       // says its layer moved (the clouds' drift - at most every o.minGapMs, 4 s by default)
+      // step(): a frame of the fade (maybe() takes it; a host that never calls maybe() calls this)
+      step() {
+        if (!prevRt) return;
+        const t = nowMs(), dt = Math.max(0, Math.min(0.25, (t - fadeLast) / 1000)); fadeLast = t;
+        fadeK = PROBE_FADE.s > 0 ? Math.min(1, fadeK + dt / PROBE_FADE.s) : 1;
+        if (fadeK >= 1) { fadeBlit(renderer, rt, rt, 1, shown); prevRt.dispose(); prevRt = null; return; }
+        fadeBlit(renderer, prevRt, rt, fadeK * fadeK * (3 - 2 * fadeK), shown);
+      },
       maybe(day, thresholdDeg) {
-        if (!rt) return probe.bake(day);
+        if (!rt) return probe.bake(day, true);
+        probe.step();
+        if (prevRt) return null;   // G1351: a fade is running - the next bake waits for it (a second or two of sun or drift)
         const s = day.sun, b = bakedSun;
         const cosA = Math.max(-1, Math.min(1, s[0] * b[0] + s[1] * b[1] + s[2] * b[2]));
         const moved = Math.acos(cosA) * 180 / Math.PI > (thresholdDeg || 1.5);
@@ -1137,7 +1196,7 @@ ${MIST_GLSL}
     // `cameraPosition`, but the dome's mist takes `uEyeY`, which is the MAIN eye's. A capture that
     // wants it exact brackets itself with this (the water session's ask, 2026-09-22).
     setEyeY(y) { U.eyeY.value = y; }, getEyeY() { return U.eyeY.value; },
-    get installed() { return installed; }, AP: { N: AP_N, W: AP_W, H: AP_H, DMAX: AP_DMAX, TILE: AP_TILE, TILE_Y: AP_TILE_Y, ATLAS_H: AP_ATLAS_H },
+    PROBE_FADE, get installed() { return installed; }, AP: { N: AP_N, W: AP_W, H: AP_H, DMAX: AP_DMAX, TILE: AP_TILE, TILE_Y: AP_TILE_Y, ATLAS_H: AP_ATLAS_H },
     MIST, apUniforms, GLSL: { MIST: MIST_GLSL, AP: AP_SAMPLE_GLSL },   // the clouds' pass shares the splice's samplers and functions
   };
 })();
