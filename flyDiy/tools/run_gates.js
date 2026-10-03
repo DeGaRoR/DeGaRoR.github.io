@@ -195,6 +195,7 @@ const GATES = [
   { id: 'SHADOWSKY', file: '_shadowsky_check.js', tier: 'core' },   // A2-SHADOW-SKY G650-G655: the PCF bias under the reversed buffer + a still kernel, the craft's shadow at any height, the mirror's clip, cloud sync, the cover pass, the pause
   { id: 'LOOKS', file: '_looks_check.js', tier: 'core' },   // B4a-LOOKS G750-G754: the patch's border (tuck + ring sink), the drawn lakes (filled / coastal), the sea's cut + grid + mouths, the texture libraries after a failed map, the cover ring's water
   { id: 'RWYLIGHTS', file: '_rwylights_check.js', tier: 'core' },   // POLISH-1 G1066: no elevated runway light on another strip or a pavement (Jolene, the procedural world); G1415: the WWII-style fitting (elevated + flush in one geometry), the glow layer's law, one fixture + one glow draw a strip
+  { id: 'LAKEBED', file: '_lakebed_check.js', tier: 'core' },   // LAKE-HOLES G1335-G1339: no lake edge has a gap - the ground is not cut under a lake (no lake discard, one far material), the bed carved under every drawn lake's water, continuous across every line, the physics' water over it
   // the external asset store (2026-09-01): referenced == present both ways,
   // no base64 creep, and index.html's size budget — mechanical at last
   { id: 'MEDIA', file: '_media_check.js', tier: 'core' },

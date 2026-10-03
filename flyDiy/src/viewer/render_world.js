@@ -1667,7 +1667,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     Object.assign(GROUND, { classBlur: 0, edgeWobble: 0, waterMap: (world.island && world.island.hydro === 'proc') ? 0 : 1 });   // ?hydro=proc: the bake's water alone, for a clean A/B
     const gU = {}; groundU = gU;
     let classWeights = () => false;   // the class weight textures on demand (AS1, G906; set below on an island)
-    let islandGroundHook = null, islandGroundHook0 = null, islandGroundHookOuter = null, islandGroundHookOuterDry = null, islandGroundHookFine = null, SPL = null;
+    let islandGroundHook = null, islandGroundHook0 = null, islandGroundHookOuter = null, islandGroundHookFine = null, SPL = null;
     // the island ground's materials (and the premises patch's clones of them: render_premises matOwn) - re-keyed together
     // when the production / full line is crossed (groundSync, G1311); groundKey: a material's program key on that line
     const GROUND_FAMILY = new Set();
@@ -1744,9 +1744,8 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       // radius, a fine tile (+1) discards outside it and GEOMORPHS its rim to the ring's own surface
       // (aCoarse / aCoarseN: the ring's triangles sampled exactly, so the two coincide at the edge),
       // the twin and the outer ring (0) do neither. uFine = (cx, cz, R, band); R 0 = the disc is off.
-      // dry: the ground is known to hold no lake (the far terrain's lake-free patches, PERF 2026-09-23) - its
-      // program carries no `discard`, so the rasteriser keeps early-Z for it (the lake cut's discard was 2.6 ms
-      // of the far terrain's 5.6 at the Jolene stand: a shader that may discard is depth-tested late)
+      // (the `dry` twin is gone with the lake cut, G1335: no ground program discards for a lake any more - every one
+      // keeps early-Z, which the lake cut's discard had cost the far terrain's wet patches, 2.6 ms of its 5.6 at the stand)
       // THE PRODUCTION GROUND (COLD-LINKS G1311): the paint modes (F8's tint / radar / canopy / class / ndvi / coast /
       // height / snow / terrain type / lakes views) and the class layer's smoothing are INSPECTION - the default stack
       // starts at the tint (stackStart 1) and paints mode 0, so neither runs - yet FXC compiled them into every ground
@@ -1762,7 +1761,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       groundFullNow = groundFull();
       if (SPL) SPL.api.onInspect = () => groundSync();
       groundKey = base => () => base + (groundFull() ? ':full' : '');
-      const islandGroundHookFor = (side, rock, dry) => sh => {
+      const islandGroundHookFor = (side, rock) => sh => {
         const full = groundFull();
         if (typeof ATMO !== 'undefined') ATMO.inject(sh);   // S4: the aerial-perspective sampler (a hook of its own loses the prototype's)
         Object.assign(sh.uniforms, gU, SPL ? SPL.uniforms : {});
@@ -1832,13 +1831,12 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
             '  bool gDeep = vWPi.y < -25.0;\n' +
             '  vec3 tint = texture2D(uGTint, guv).rgb;\n' +
             '  float lsd = (gLake(guv) * 255.0 - 128.0) * 4.0;\n' +
-            // NO GROUND INSIDE THE WATER (2026-09-21, the user, the fifth time: "super harsh transitions
-            // light blue - dark blue ... lakes should have a single colour"): the ring's 17.6 m chords run
-            // ABOVE the lake plane in a band along every outline (the edge is concave), and that ground,
-            // painted with the bed colour, was the pale stair-stepped rim round the darker water. Past a
-            // metre inside the line the surface quad is opaque and covers everything: the ground is not
-            // drawn there at all. The fade band (-3..+1 m) keeps its bank showing through the shallows.
-            (dry ? '' : '  if (uGWaterMap > 0.5 && lsd > 1.0) discard;\n') +
+            // THE GROUND IS NOT CUT UNDER A LAKE (LAKE-HOLES G1335, the user 2026-10-03: "unacceptable"). Since
+            // 2026-09-21 every fragment a metre inside the lake field was DISCARDED ("no ground inside the water": the
+            // ring's chords stood over the flattened lake in a pale rim) - and wherever the shore stood over the water
+            // that left a vertical gap between the ground's cut edge and the flat water, the clear colour through it,
+            // worst on far shores. The ground is CARVED now (28_island.js lakeBed: under the level from the line in,
+            // the bank sloped down to it) and drawn whole; the water lies on it and the depth test makes the shore.
             // THE SHORE IS A MIXED PIXEL (G406): a 30 m Landsat texel over a 20 m pond is half
             // water, dark; within 45 m of a lake edge the tint is taken from 45 m further out
             // (the field's own gradient says which way out is)
@@ -1948,7 +1946,6 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       islandGroundHook = islandGroundHookFor(-1, true);        // the near ring (the rock map: 13 units)
       islandGroundHook0 = islandGroundHookFor(0, false);       // the twin (the premises patch: 15, no room)
       islandGroundHookOuter = islandGroundHookFor(0, true);    // the outer ring (15)
-      islandGroundHookOuterDry = islandGroundHookFor(0, true, true);   // ... where it holds no lake (no discard)
       islandGroundHookFine = islandGroundHookFor(1, true);     // the fine tiles
     }
     groundApi = {
@@ -2341,24 +2338,23 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         return cA;
       };
       const H = (x, z) => world.terrainH(x, z) - groundSink(x, z);
-      // THE LAKE BANKS KEEP THE RING'S SHAPE: island_prep flattens a lake's cells to one level, and at 5 m
-      // the fine surface shows that flattening as a 10 m STAIRCASE round every lake (the ring's 17.6 m
-      // chords had smoothed it away; seen 2026-09-22 at -564,-1336). Until the prep feathers its lakes,
-      // a fine vertex within 30 m of a lake's edge blends back to the ring's height and normal.
-      const lakeSD = lakeRsd;   // (G751: the drawn lakes' field)
-      const sm = (lo, hi, v) => { const t = Math.max(0, Math.min(1, (v - lo) / (hi - lo))); return t * t * (3 - 2 * t); };
+      // THE LAKE BANKS ARE THE FINE SURFACE AGAIN (G1335). Since 2026-09-22 a fine vertex within 30 m of a lake's edge
+      // blended back to the ring's height and normal: island_prep flattens a lake's cells to its level and at 5 m that
+      // flattening showed as a 10 m STAIRCASE round every lake (seen at -564,-1336). The flattened cells are the lake's
+      // own and the bed is carved under them now (28_island lakeBed: under the water from the line in, the bank sloped
+      // to it), so the staircase is under the water - and the ring's 17.6 m chords near a shore were what stood over the
+      // water inside the line (the bed's dark paint above the surface, the old "stair-stepped rim"): the fine tiles take
+      // the carved surface itself, the shore within a few metres of the field's line.
       FINE.build = (tx, tz) => {
         const T = FINE.T, st = FINE.step, n = T / st + 1, x0 = tx * T, z0 = tz * T;
         const pos = new Float32Array(n * n * 3), nor = new Float32Array(n * n * 3), uv = new Float32Array(n * n * 2), ac = new Float32Array(n * n), acn = new Float32Array(n * n * 3);
         for (let j = 0, k = 0; j < n; j++) for (let i = 0; i < n; i++, k++) {
           const x = x0 + i * st, z = z0 + j * st;
           const c = coarseAt(x, z); ac[k] = c[0]; acn[k * 3] = c[1]; acn[k * 3 + 1] = c[2]; acn[k * 3 + 2] = c[3];
-          const lk = sm(-30, -6, lakeSD(x, z));   // 0 away from lakes, 1 at the bank: the ring's shape there
-          pos[k * 3] = x; pos[k * 3 + 1] = H(x, z) * (1 - lk) + c[0] * lk; pos[k * 3 + 2] = z;
+          pos[k * 3] = x; pos[k * 3 + 1] = H(x, z); pos[k * 3 + 2] = z;
           // the normal from the surface itself at +-2.5 m (not from this tile's triangles: a tile edge would shade differently from its neighbour)
-          let nx = (H(x - 2.5, z) - H(x + 2.5, z)) / 5, nz = (H(x, z - 2.5) - H(x, z + 2.5)) / 5; let l = Math.hypot(nx, 1, nz);
-          nx = nx / l * (1 - lk) + c[1] * lk; let ny = 1 / l * (1 - lk) + c[2] * lk; nz = nz / l * (1 - lk) + c[3] * lk; l = Math.hypot(nx, ny, nz) || 1;
-          nor[k * 3] = nx / l; nor[k * 3 + 1] = ny / l; nor[k * 3 + 2] = nz / l;
+          const nx = (H(x - 2.5, z) - H(x + 2.5, z)) / 5, nz = (H(x, z - 2.5) - H(x, z + 2.5)) / 5, l = Math.hypot(nx, 1, nz);
+          nor[k * 3] = nx / l; nor[k * 3 + 1] = 1 / l; nor[k * 3 + 2] = nz / l;
           const t = islandUV ? islandUV(x, z) : [(x + INNER) / (2 * INNER), 1 - (z + INNER) / (2 * INNER)]; uv[k * 2] = t[0]; uv[k * 2 + 1] = t[1];
         }
         const idx = [];
@@ -2408,10 +2404,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       if (islandGroundHook) islandKeyed(oMat, 'island-outer');
       outerMatShared = oMat;
       outerUVShared = islandUV ? ((x, z) => islandUV(x, z)) : ((x, z) => [(x - BX0) / SIZE, 1 - (z - BZ0) / SIZE]);   // the far terrain's own law (patchOf)
-      // the lake-free twin (no discard: early-Z) for the patches no lake reaches (PERF 2026-09-23)
-      const oMatDry = islandGroundHookOuterDry ? worldLambert({ map: outerTex }) : oMat;
-      if (oMatDry !== oMat) { oMatDry.onBeforeCompile = sh => { canopyHook(sh); islandGroundHookOuterDry(sh); }; islandKeyed(oMatDry, 'island-outer-dry'); }
-      const LAKEBOX = (world.island.lakes || []).map(L => [L.x0 - 30, L.z0 - 30, L.x1 + 30, L.z1 + 30]);
+      // (the lake-free twin, PERF 2026-09-23, is gone with the lake cut, G1335: one material, every quadrant one draw)
       // THE CUT FOLLOWS THE EYE (PERF 2026-09-23, the frame study: every leaf drawn at every
       // distance was 8.5 M triangles, most of them under a pixel - ~7 ms of the GPU at the stand
       // in 2x2 shading quads they barely touch, each shaded again by 8x MSAA - and ~9 s of boot).
@@ -2424,7 +2417,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       // swapped when its cut changes, `budget` a frame. Skirts under every patch's edge close
       // the cracks between two levels (and the T-junctions the leaves always had).
       const FH = world.island.farHeader, N = FH.patch + 1, Pn = FH.patch, NN = N * N, NV = NN + 4 * N;
-      const seaFloor = world.island.seaFloor, qs = FH.side / 4;
+      const seaFloor = world.island.seaFloor, lakeBed = world.island.lakeBed, qs = FH.side / 4;
       const FARLOD = { tolPx: 1, rimE: 0.5, budget: 2, every: 6, tick: 0, quads: new Map(), cache: new Map(), stamp: 0, eye: null, K: 0,
                        stats: { nodes: 0, tris: 0, quads: 0, rebuilds: 0, cached: 0, ms: 0 } };
       const boxOf = n => { const s = FH.side / (1 << n.d); return [FH.bounds.x0 + n.ix * s, FH.bounds.z0 + n.iz * s, s]; };
@@ -2440,11 +2433,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         const nh = hts(n);
         let lo = Infinity, hi = -Infinity; for (let k = 0; k < NN; k++) { const y = nh[k]; if (y < lo) lo = y; if (y > hi) hi = y; }
         n.lo = lo; n.hi = hi; n.e = 0;
-        if (!n.kids) {   // does a lake (its box, +30 m) reach this leaf? the lake-free leaves draw without the lake cut
-          const s = FH.side / (1 << n.d), x0 = FH.bounds.x0 + n.ix * s, z0 = FH.bounds.z0 + n.iz * s;
-          n.lake = LAKEBOX.some(b => b[0] < x0 + s && b[2] > x0 && b[1] < z0 + s && b[3] > z0);
-          return;
-        }
+        if (!n.kids) return;
         let e = 0;
         for (const c of n.kids) {
           measure(c);
@@ -2457,7 +2446,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
           }
           if (ec + c.e > e) e = ec + c.e;
         }
-        n.e = e; n.lake = n.kids.some(c => c.lake);
+        n.e = e;
       })(world.island.farRoot);
       // one index template for every patch: the grid (the leaves' winding, face up) and four skirts,
       // each skirt quad wound to face out of the patch (checked on a flat patch, not reasoned)
@@ -2488,6 +2477,8 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
           // mesh takes the island's shelf like the sampler does (G402 - the
           // painted floor had shown over the plane as "a different tile")
           if (seaFloor) { const sd = world.island.coastAt(x, z); if (sd < 0) y = Math.min(y, seaFloor(sd)); }
+          // ...and the carved lakebed (G1335): the asset is the raw DEM, its lakes flat at (or over) their level
+          if (lakeBed) { const b = lakeBed(x, z); if (b < y) y = b; }
           const din = Math.max(Math.abs(x), Math.abs(z));
           if (din < INNER) y -= 1.5 * Math.min(1, (INNER - din) / 200);
           // THE FAR TIER UNDER A PREMISES (G527; the Metlakatla session's sinkFar, G511 on its branch):
@@ -2534,14 +2525,14 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
             const dx = Math.max(ox - ex, 0, ex - ox - s), dz = Math.max(oz - ez, 0, ez - oz - s), dy = Math.max(n.lo - ey, 0, ey - n.hi);
             if (n.e * K > FARLOD.tolPx * Math.max(1, Math.hypot(dx, dy, dz))) { n.kids.forEach(walk); return; }
           }
-          const key = Math.floor((ox + s / 2 - FH.bounds.x0) / qs) + ',' + Math.floor((oz + s / 2 - FH.bounds.z0) / qs) + (n.lake ? '' : '|dry');
+          const key = Math.floor((ox + s / 2 - FH.bounds.x0) / qs) + ',' + Math.floor((oz + s / 2 - FH.bounds.z0) / qs);
           let a = out.get(key); if (!a) out.set(key, a = []); a.push(n);
         })(world.island.farRoot);
         return out;
       };
       const quadMesh = key => {
         let Q = FARLOD.quads.get(key); if (Q) return Q;
-        const m = new THREE.Mesh(new THREE.BufferGeometry(), key.endsWith('|dry') ? oMatDry : oMat); m.receiveShadow = true; m.matrixAutoUpdate = false; m.renderOrder = -0.1; scene.add(m);   // the farthest ground last (ORDER_NOTE)
+        const m = new THREE.Mesh(new THREE.BufferGeometry(), oMat); m.receiveShadow = true; m.matrixAutoUpdate = false; m.renderOrder = -0.1; scene.add(m);   // the farthest ground last (ORDER_NOTE)
         m.userData.farTerrain = true; VIS.meshes.push(m);   // F1: the contract hides these by distance
         FARLOD.quads.set(key, Q = { m, sig: '', want: null, wantSig: '', tris: 0 });
         return Q;
@@ -2912,7 +2903,9 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
           const hs = [[cx, cz], [cx - qx, cz], [cx + qx, cz], [cx, cz - qz], [cx, cz + qz]]
             .map(q => (world.waterH ? world.waterH(q[0], q[1]) : NaN))
             .filter(h => Number.isFinite(h) && Math.abs(h - L.level) < 3).sort((p1, p2) => p1 - p2);
-          const lakeY = hs.length ? hs[hs.length >> 1] : L.level + 0.02;
+          // (G1335: with the bed carved the island says the level itself - the one its bed lies under and its physics
+          // floats on, 28_island lakeBed.levelOf: 0 for a lagoon at the sea's level; the samples are the fallback)
+          const lakeY = world.island.lakeBed && world.island.lakeBed.levelOf ? world.island.lakeBed.levelOf(L) : hs.length ? hs[hs.length >> 1] : L.level + 0.02;
           g.translate(cx, lakeY, cz); lakeGeos.push(wtag(g, 1, false)); n++;
           // the DRAWN level, for anything that needs the plane the eye sees rather than the physics' (the water's
           // planar mirror: it reflects about a plane, and 0.6 m of error there stretches the reflection, G460.11.4)

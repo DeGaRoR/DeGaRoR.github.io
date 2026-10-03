@@ -70456,3 +70456,97 @@ ARCHETYPES (full tier) not run: the bakes never read the panel rows and the core
 Not done (logged): the tip row's static floor stays 0.55 (the envelope's lowest legal tip is 0.36, on a 0.80 chord - the
 note covers the rest of the dead zone); the station cut is an ERRS row on the bench, not a live row note (it needs the
 cage's measurement, which measure() takes at build & fly, not at every slider tick).
+
+
+## G1335-G1339 - LAKE-HOLES: THE LAKES WERE CUT OUT OF THE GROUND; THE BED IS CARVED NOW, THE GROUND WHOLE, AND A GATE SAYS NO LAKE EDGE HAS A GAP (2026-10-03, LAKE-HOLES for A0, a cloud session: node + headless Chromium / SwiftShader; branch claude/lake-holes-g1335 off train 26 = b2f1ffdc)
+
+The user (3 Oct, screenshots): "the lakes were made by CUTTING the terrain" - wherever a shore stood over the water, a
+vertical gap between the ground's jagged cut edge and the flat water, the clear colour through it, worst on far shores;
+"unacceptable". Fixed in the CONSTRUCTION: the island pack carries no cut (its DEM is the IFSAR surface, each lake flat at
+or over its level) - the cut was the renderer's, the bed is carved in src/ at run time; no world prep re-run.
+- G1335 THE CENSUS (which ground cut holes). ONE hook made every island ground program (render_world islandGroundHookFor)
+  and it carried `if (uGWaterMap > 0.5 && lsd > 1.0) discard;` (2026-09-21: "no ground inside the water") into ALL of
+  them: the near ring (side -1: the whole 512^2 ring AND its RINGLOD chunks, one material), the fine tiles (+1), the twin
+  under the premises' patch (0), the far terrain's quadrants where a lake's box reached a leaf; only the far terrain's
+  lake-free `|dry` twin (PERF 2026-09-23) and the sea did not cut. And near a lake the fine tiles took the RING's 17.6 m
+  chords (a blend within 30 m of a lake, 2026-09-22) - the chords that stood over the water and were cut. Node census
+  (GATE LAKEBED's, Jolene with its premises): of 178 028 field texels a metre or more inside the 252 drawn lakes, the
+  island's raw ground stood OVER the drawn water at 3 711, in 160 lakes, up to 21.9 m (a bank the field calls lake) - each
+  one a cut edge over the water; the ring's chords added the rest. The physics agreed with neither: the DEM flat AT or
+  over the level is dry to waterAt (`level >= t`): of 2.03 M 5 m samples in the lakes' boxes (banks included) 0.33 M
+  were water to the floats (0.77 M now); the lake at (-289, -526) read waterH -Infinity at its middle.
+- G1336 THE CARVED LAKEBED (28_island.js lakeBed, LAKE_BED; 20_world.js terrainH, waterAt). Inside a lake's field (the
+  physics' field, + inside) the ground is held under the level: `edge` 0.5 m at the line, smoothstep to `depth` 3.0 m by
+  `shoreW` 12 m in; on the bank (to `bank` 30 m out) under level - 0.5 + s + s^2/16 (1:1 out of the line, steepening:
+  8 m over the water 6 m out), min with the ground - it only ever LOWERS (the codec's ceilings hold; a real bed, a bank
+  under the lake, is kept: the DEM has no bathymetry, the min would take it). ONE LAKE A TEXEL: a byte mask per lake over
+  its box and the bank's reach (0.67 MB on Jolene, built in ~40 ms: makeIsland 318 -> ~360 ms) - inside texels to the
+  lake whose box holds them, overlaps to the one whose level the DEM is nearest; bank texels to the lake of the nearest
+  inside texel (a 3-4 chamfer). Rules by boxes alone stepped 10 m where two lakes' boxes meet (9052, -7604) and dug a
+  60 m pit round a hillside pond inside a big lake's box (1926, -18309) - the gate's walk found both. A LAGOON AT THE
+  SEA'S LEVEL (its inside DEM median <= 0.05: 14 small coastal records at ~2.7 m whose ground is 0) owns a level of 0.
+  The bed is taken by makeWorld's terrainH on the COMPOSED ground (the raw ground stays the hydrology's and the premises'
+  base - nothing authored moves): no modifier -> min(h, bed); under one, a FILL stays a fill (the modifiers are affine in
+  the ground, so composing on the bed as well gives their weight w; w >= 0.5 is the old composition, fading to the bed's
+  as w -> 0, continuous at the modifier's rim) - 02/20's pond stays the runway's (G753). waterAt: inside a lake's line
+  the water is the OWNER's level, before the sea's rule (the East Point lens, 2.67 m on a DEM of 0.83, carved under 0.05
+  at its middle, stays a lake). The memo holds the answer; a cold terrainH: 1e6 random points ~0.65 -> ~0.71 s (a 256 m
+  cell array says "no lake here" before any field read), 1e6 inside lakes' boxes ~0.52 -> ~0.67 s (node, this box).
+- G1337 THE RENDERER (render_world.js). No ground program discards for a lake (the near ring, the fine tiles, the twin,
+  the far terrain: every one keeps early-Z now - the cut's discard was 2.6 ms of the far terrain's 5.6 at the stand on
+  the wet patches); the `dry` hook, its material and the `|dry` quadrant split are gone (one material, a quadrant one
+  draw: 26 -> 16 far meshes at the field, the same 1 125 patches / 2.59 M tris); the far patches take lakeBed as they take
+  the sea's shelf; the fine tiles are the carved surface at a shore too (the blend to the ring's chords removed - the
+  flattening staircase it hid lies under the water now); a lake's quad stands at lakeBed.levelOf(L) (the level its bed
+  is carved under and its physics floats on; the waterH median is the fallback). The water's look is unchanged: its
+  field fade (-2..+2 m) and its analytic column (water.js: 1.2 m a metre of field, to 8 m - deeper than the carved bed
+  near the line: 2.4 m read at 2 m in where the bed is 0.7 m) keep the muskeg lake's "bed only along the very edge"
+  (G460.4); the bed under it is the ground's own dark-peat paint (lsd > -1), now on real geometry. NO SKIRT anywhere:
+  every lake carves (the cases that do not carve cleanly are drawn, not skirted - a premises modifier holding the ground
+  over a bank: 1 texel 10 cm over the 29.55 m lake at (-149, 269); where two lakes' beds meet, a step of their levels'
+  difference, 0.43 m the worst, under water; far-terrain nodes coarser than a small lake carry the bed only at their
+  vertices - such a lake can sit under the coarse surface until the cut refines; the far LOD's error does not count
+  the carve).
+- G1338 GATE LAKEBED (core, new; tools/_lakebed_check.js, ~6 s): (1) no ground program discards for the lake field (the
+  hook's two discards are the fine disc's), one far material, the far patches and the ring / fine tiles on the carved
+  ground; (2) on Jolene with its premises, the renderer's own lakeR / quad rules / quad level LIFTED: every texel a
+  metre inside a drawn lake has its ground under the drawn water (0 over; 1 held by a premises modifier), 02/20's pond
+  still filled, the bed only lowers; (3) the edge walk - 15 802 line points of the drawn lakes, a 0.1 m walk from 6 m out
+  to 6 m in: no jump over the raw DEM's own + 0.5 m, the ground under the water 2 m in, the physics' water there.
+  Checked against the base tree: FAIL (5).
+- G1339 EVIDENCE (reports/evidence/LAKE-HOLES/, 8 JPEGs 15-26 KB + stills.json; tools/lake_holes_still.js). The GAME's
+  page could not be pictured on this box: on SwiftShader its roll-out's first-light step never resolves (holdRender stays
+  up, every update runs, nothing is drawn - 187 programs, 120 empty frames a second for 10 min), and a rig-side draw of
+  WORLD.scene came out black near the eye (the page's own shadow / probe passes never ran). tools/lake_holes_shot.js is
+  that rig, kept for the GPU box (`--gl gpu`: the far / near / air / farTier views from a forced eye, the frame's draws
+  and triangles). The stills are the CONSTRUCTION, drawn by a reduced renderer in headless Chromium + SwiftShader: both
+  trees composed in node (the base's worktree, this one), the near ring's own 17.6 m grid and the fine disc's 5 m tiles
+  within 700 m of the eye (geomorphed to the ring), each tree's terrainH, its lakeR field and quad levels lifted, the
+  base's ground program cutting at lsd > 1 m - the island's tint and one sun, NOT the game's shading - over a RED clear
+  colour under a sky dome, so a hole is red, and counted (`holes`: red pixels whose ray dips under what the drawn window
+  can hold):
+  * before_far.jpg - the lake at (-289, -526), level 25.81, from 1.8 m over its west end across 260 m: red slivers under
+    every far bank, the cut edges standing over the water (293 hole px).
+  * after_far.jpg - the same eye: the banks run down into the water, the bed under it (0).
+  * before_near.jpg - its north shore 40 m off: the sky seen THROUGH the bank and a red band at the waterline (14 506).
+  * after_near.jpg - the bank whole, sloping under the water; the fine tiles' 5 m surface at the shore (0).
+  * before_air.jpg - 220 m over the ground west of it, five lakes in view: red rims on their far shores (707).
+  * after_air.jpg - none at any lake (8 isolated px away from the lakes: the reduced renderer's ring-to-fine seam).
+  * before_far2.jpg - another lake's far shore, (-1454, -216), level 25.81: sky through the banks, red at both ends (2 026).
+  * after_far2.jpg - the shore continuous (0).
+- COUNTS (the terrain's triangles and draws; A0 times the GPU on the box): no vertex added or removed anywhere (the same
+  ring, fine tiles and far cut - 1 125 patches, 2.592 M tris at the field); the far terrain 26 -> 16 meshes (the `|dry`
+  split gone); one ground program fewer (`island-outer-dry`); every ground program without a discard (early-Z).
+  Read off the page on SwiftShader (tools/lake_holes_shot.js, the far cut's stats, gfx default): at the far view base 26
+  far meshes / 1 125 patches / 2 592 000 tris, this branch 16 / 1 125 / 2 592 000; the ring 1 draw / 524 288 tris both.
+  The frame totals the rig's own draw counted (base 131 draws / 2.57 M tris, this branch 244 / 18.5 M) are NOT an A/B:
+  on a software GL the streamers had not reached the same state (the base's fine disc held 0 tiles, this one 93; the
+  cover and the trees streamed differently) - the box's FRAMECOST is the measure.
+- GATES (this container, 4 cores): WATER, FLOATS, SEAPLANE, SPLAT, BUILD, LAKEBED: PASS (before the change: the five
+  PASS too). Not run (A0's battery): LOOKS reads lakeR and the natural lakes' fields on the carved world (its pond and
+  lens checks hold by GATE LAKEBED's numbers); WORLD / HYDRO / GE / PREMISES / PREMRASTER / COVER / FRAMECOST will see the
+  carved ground and the far meshes' count - the lakes' terrainH is lower, their waterH is now water where it was dry.
+- FOR A0: generated outputs NOT committed (tools/flight_core.js, index.html, dev.html, sw.js, version.json: `node
+  tools/build.js`). The physics change is real: floats now have water on the lakes the DEM held at their level (the
+  floatplane's lakes deepen from ~0 to the bed's 0.5-3 m); FLOATS and SEAPLANE pass. The look to check on the box:
+  tools/lake_holes_shot.js --gl gpu (and the user's far shores).
