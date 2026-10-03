@@ -50,13 +50,13 @@ var CLOUDS = (function () {
   'use strict';
   const S = { mode: 'half', steps: 48, lightSteps: 5, sigma: 0.08, seed: 7, base: 0, thick: 0, driftK: 1, powder: 0.6, ambK: 1, sunK: 1,   // period 0 = the type's (A6)
               detail: 0.55, g: 0.75, period: 0, detailPeriod: 700, ms: 0.5, bakeSlices: 6, maxKm: 60, curl: 0.3,
-              shadow: 0.8, shadowSoft: 0.6, shadowSteps: 12, shadowEvery: 2, upsample: 1, shimmer: 0, driftWrap: 1, columnK: 0.15, jitter: 0.6, depthK: 1, probeMoveM: 400, hemiUnderCloud: 0.7, inShed: false, veil: 1, veilKm: 9, inCloud: 1,
+              shadow: 0.8, shadowSoft: 0.6, shadowSteps: 12, shadowEvery: 2, upsample: 1, shimmer: 0, driftWrap: 1, columnK: 0.15, jitter: 0.6, depthK: 1, probeMoveM: 400, shadowHold: 1, hemiUnderCloud: 0.7, inShed: false, veil: 1, veilKm: 9, inCloud: 1,
               erodeK: 1, covGain: 1, calCover: 1, ambDepth: 0.12 };
   const NB = 128, ND = 64;                 // the base and detail noise sides (the shadow tile's side is ATMO.AP.TILE)
   let renderer = null, ready = false, noiseRT = null, detailRT = null, bakeAt = 0, bakeMat = null, fsScene = null, fsCam = null, quad = null;
   let map = null, mapKey = '', weatherTex = null, rt = null, rtPool = null, rtW = 0, rtH = 0, marchMat = null, compMat = null, compMesh = null, frame = 0;
   let maps = [], lays = [];                // the decks (A6): one weather map and one layer per deck; map / lay stay the first's
-  let shadowRT = null, shadowMat = null, shadowDirty = true, shadowDrift = [1e9, 1e9];
+  let shadowRT = null, shadowMat = null, shadowDirty = true, shadowDrift = [1e9, 1e9], shadowBaked = false;   // G1353: a tile exists (the shadows hold through a re-bake)
   let lay = null, dayRef = null, lastCover = 0, stats = { ms: 0, gpuMs: 0, shadowMs: 0, slicesBaked: 0, cover: 0 };
   const drift = [0, 0];
   const U = {
@@ -780,7 +780,15 @@ var CLOUDS = (function () {
     // with a deck above the first, the tile's relative shift rides on the sun: re-bake as it moves (a third of a degree)
     const sk = Math.round(sun[1] * 170) * 1000 + Math.round(Math.atan2(sun[2], sun[0]) * 170);
     if (sk !== sunKey) { sunKey = sk; if (L.length > 1) shadowDirty = true; }
-    const on = active() && bakeAt >= NB + 1 && S.shadow > 0 && !shadowDirty && !S.inShed ? 1 : 0;
+    // G1353 THE SHADOWS HOLD THROUGH A RE-BAKE (LIGHT-SMOOTH, 2026-10-03; the user: "frequent white flashes, single
+    // frame, looks like thunder"). `on` was also off while the tile was DIRTY - and the tile is re-baked inside the
+    // frame's render (draw -> bakeShadow), after this line: every frame that set it dirty (a third of a degree of sun
+    // with an upper deck, a map or a deck change, the cover fit's dozen frames + its 300 ms debounce) drew the whole
+    // ground in FULL SUN, the clouds' shadows gone - a flash over the frame, and the eye's exposure with it. A tile that
+    // has been baked once is kept on until the new one lands (it is the shadow of a sky a frame or a fit old);
+    // S.shadowHold 0 is the old cut.
+    if (!active() || S.inShed) shadowBaked = false;
+    const on = active() && bakeAt >= NB + 1 && S.shadow > 0 && (!shadowDirty || (S.shadowHold && shadowBaked)) && !S.inShed ? 1 : 0;
     const fade = Math.max(0, Math.min(1, (sun[1] - 0.02) / 0.13));
     cloudScalars[0] = wrapSpan(drift[0], map.span); cloudScalars[1] = wrapSpan(drift[1], map.span); cloudScalars[2] = map.span; cloudScalars[3] = on;   // G1050
     cloudScalars[4] = sun[0]; cloudScalars[5] = sun[1]; cloudScalars[6] = sun[2]; cloudScalars[7] = lay.base + lay.thick * 0.5;
@@ -795,7 +803,7 @@ var CLOUDS = (function () {
     if (!shadowRT) return;
     if (needCal && now() >= calDueAt) { calibrateCover(r); if (needCal) return; }   // a fit step a frame; the tile once it is done
     const h = tBegin('shadow');
-    bakeTile(r);
+    bakeTile(r); shadowBaked = true;
     tEnd(h);
     shadowDrift[0] = drift[0]; shadowDrift[1] = drift[1]; shadowDirty = false;
     if (needColumnCal) calibrateColumn(r);
@@ -988,7 +996,7 @@ var CLOUDS = (function () {
   // frame (0.5-1.4 s at the Jolene reveal, found by rollout_perf's program census). Its key reads no map and no cover.
   // B9 (G1020): and the probe's (tileStat / tileMean read the shadow tile through it: it linked on the first flight frames)
   function warmList() { if (!ready || S.mode === 'off') return []; skyMats(); probeMats(); return [bakeMat, skyMat, shadowMat, marchMat, probeMat].filter(Boolean).map(m => ({ m, to: 'rt' })); }
-  const API = { S, init, install, inject, update, draw, composite, warmList, compositeMesh, bakeStep, probe, sunT, hemiUnder, skyFraction: () => (renderer ? skyFraction(renderer) : NaN), tileStat: () => (renderer ? tileStat(renderer) : null), refit, domeMat, domeMesh, probeDirty, probeBaked, rt: () => rt, get active() { return active(); }, get ready() { return ready; }, get layer() { return lay; }, get layers() { return lays; }, get map() { return map; }, get maps() { return maps; }, stats, get baked() { return bakeAt >= NB + 1; }, get installed() { return installed; } };
+  const API = { S, init, install, inject, update, draw, composite, warmList, compositeMesh, bakeStep, probe, sunT, hemiUnder, skyFraction: () => (renderer ? skyFraction(renderer) : NaN), tileStat: () => (renderer ? tileStat(renderer) : null), refit, domeMat, domeMesh, probeDirty, probeBaked, rt: () => rt, get active() { return active(); }, get ready() { return ready; }, get layer() { return lay; }, get layers() { return lays; }, get map() { return map; }, get maps() { return maps; }, stats, get baked() { return bakeAt >= NB + 1; }, get installed() { return installed; }, get shadowOn() { return cloudScalars[3]; } };
   if (typeof window !== 'undefined') { window.CLOUDS = API; API.install(); }   // BEFORE any program compiles, like ATMO.install
   return API;
 })();

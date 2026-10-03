@@ -68884,3 +68884,88 @@ froze, the worker did not, so it kept flying 79 s of real time while nothing was
   runs at about 250 / frame-ms of real time. Inline at that rate it already did worse (4 steps = 67 ms a frame).
 - Not done: the worker's OWN stall (its thread starved) is still G612's dilation, as before. A per-frame `beat` is one more
   tiny postMessage a frame. It could ride the frame's batch, but the batch is only posted when there are commands.
+## G1350-G1356 - LIGHT-SMOOTH: THE STRIPES WERE THE BAKE'S NORMAL MAP, THE LIGHT EASES INSTEAD OF STEPPING, THE CLOUD SHADOWS HOLD THROUGH A RE-BAKE, THE EYE READ ITS FRAME TWICE ENCODED (2026-10-03, LIGHT-SMOOTH for A0, local GPU)
+
+The user (3 Oct, log flydiy-flightlog-20261003T165355-7u7a, gfx: eye on, bloom strong, rays on, mirror live, linear
+compositing): (1) banded shadows on the stock Cub's wings and tail at golden hour; (2) "luminosity adjustments happen all
+of a sudden, one frame over the other"; (3) "frequent white flashes, single frame, looks like thunder"; (4) "some random
+frames are entirely pale blue sky, and I have some flicker". Measured with a new in-page luma trace (tools/luma_trace.js
+driving a live_driver page; tools/luma_trace_page.js: each rAF that drew, the canvas into 48 x 27 cells in the same task -
+mean, centre third, rgb, sky cells - beside the live sun / hemisphere / exposure / eye / probe bakes / cloud-shadow flag;
+frames that jump keep a JPEG).
+- G1350 THE STRIPES ARE NOT SHADOWS (flown_bake.js FB_HOOK). In the page: the bands stay with the craft's receiveShadow
+  OFF (58 meshes) and with the craft cascade's bias x20 (a slope-scaled bias was tried first: 0 pixels changed, on the
+  stand and at 140 m with the cascade at its 30 m cap - reverted); they go with the bake's normalScale 0. The visible Cub
+  at chase range is the flown bake, and its BAKED NORMAL MAP's rib tapes, under a sun that grazes the skin (N.L 0.14 on a
+  wing at 8 deg), tilt their two flanks to N.L ~0.3 and ~0: a lit / dark band a rib apart. Fix: the relief fades with the
+  geometric normal's angle to the sun (directional light 0) - full above N.L 0.5, down to uFbGraze 0.25 at a grazing sun.
+  Noon is untouched (14 pixels differ in a side still). FLOWN_BAKE.graze.value 1 = the old relief. The live skin has no
+  normal map (aeroskin.js).
+- G1351 THE PROBE CROSSFADES (atmo.js makeProbe). Every bake was a swap of the environment every glossy material reads -
+  the sun's 1.5 deg, 400 m of cloud drift (every ~4 s at clock x10), the ground under the craft by a 1 % step. A PMREM is a
+  2D CubeUV atlas, so a third target (`shown`, whose identity never changes - no envMap churn either) is drawn as mix(the
+  previous bake, the new one) over PROBE_FADE.s = 2 s (smoothstep, wall clock): one 768 x 1024 fullscreen draw per frame
+  while a fade runs. A maybe() bake waits for a running fade; bake(day, cut) is a cut (the boot; the shed's probe - app.js
+  passes cut, nothing steps it). Cost: +6.3 MB of GPU memory per probe (world, cabin, shed).
+- G1352 THE LIGHT EASES (render_world.js dayApply, window.LIGHT_EASE). The physical path re-applied the day only past the
+  sun-moved guard (0.02 deg: ~5 s at clock x1), so what else it reads arrived in steps on that beat: the clouds'
+  transmittance at the eye (the hemisphere x up to 1.7 under a cloud), the eye's altitude, the exposure's 1 % steps. Now
+  CLOUDS.sunT is sampled at 4 Hz and eased (0.8 s); a 1 % move re-applies the day (at most every 0.3 s); and the key's and
+  the hemisphere's intensity and colour, the ground half and the exposure base EASE toward what applyDay produced (tau
+  1.2 s). A value written by anyone else (the F8 rig rows, the shed's exposure, the light switches) is taken at once.
+  LIGHT_EASE.on false = the old cut. A still taken after a time jump now needs ~5 s to settle.
+- G1353 THE CLOUD SHADOWS HOLD THROUGH A RE-BAKE (clouds.js update) - THE "THUNDER". `on` was off whenever the shadow tile
+  was DIRTY, and the tile is re-baked later in the same frame (draw -> bakeShadow): every frame that dirtied it (a third of
+  a degree of sun with an upper deck; a map / deck change; the cover fit's ~10 frames + its 300 ms debounce) drew the
+  whole ground in FULL SUN. Reproduced with CLOUDS.refit(): the frame mean +0.111 for ONE frame and back, then ~10 frames
+  bright again through the fit. A tile baked once now stays on until the new one lands (S.shadowHold 0 = the old cut).
+  What is left at a refit is the fit re-drawing the visible clouds (+0.04-0.07 steps); a refit happens only on a cover /
+  base / dial change.
+- G1354 THE EYE'S LOOP (post_fx.js): its target is the exposure the MEASURED frame was drawn with plus that frame's error
+  (a late async read no longer integrates the same error again: no overshoot); time constants 0.6 / 1.6 -> 1.5 / 2.0 s.
+- G1355 THE RAYS (post_fx.js): a NaN / Inf guard and a clamp in the shafts' mask (the bloom had one, the rays did not), and
+  the shafts fade out as the sun nears the frame's edge (SKY_GLARE drops ndc.ok at 1.6: they were cut on one frame).
+- G1356 THE EYE READ ITS FRAME TWICE ENCODED (post_fx.js) - A0: PART OF "THE SCENE GOT TOO DARK" FOR ANYONE WITH `eye` ON
+  (the user has it on). Under the linear compositing T.eye is an 8-bit target tagged sRGB, which three r186 stores as
+  SRGB8_ALPHA8: the GPU encoded on the store what pfxCurve had already encoded. Measured: the eye read 0.57 for a frame
+  whose canvas mean was ~0.3, and sat PINNED on its -1.5 stop floor (eyeK 0.354 - the whole frame x0.35) through the
+  first two runs. The bytes are now decoded once (a 256-entry table; the hardware's encode is the standard curve). After:
+  eyeK 0.90 at the same spot, its mean 0.41 against the 0.40 target; over 90 s of flight it ranged 0.48-1.05 at <= 0.67 %
+  a frame. The display compositing's T.eye is plain RGBA8 and unaffected. WITH THE EYE ON THE PICTURE IS BRIGHTER NOW.
+
+FOUND, NOT FIXED (items 3-4):
+- A ONE-FRAME WHITE GLINT OFF THE WING (evidence 4): in flight the whole flat, clear-coated wing reflects the sun for one
+  frame and the strong bloom spreads it (centre luma 0.37 -> 0.48 -> 0.39). The clear coat's roughness floor is 0.0525
+  (G206, FB_HOOK): a highlight a fraction of a degree wide, crossed in one frame by the craft's own motion. Proposed (a
+  look decision): a higher roughness floor for the SUN's direct specular on the craft only (environment reflections
+  unchanged), so a glint lasts a few frames at a lower peak. Not landed: the GPU budget was spent and it changes the
+  craft's look.
+- ALL-SKY FRAMES: not reproduced in ~7 min of traced flight (no frame with a sky-cell share over 0.41), and the draw-call
+  column of the user's own 117 844-frame log never collapses mid-flight - not a skipped pass. Ruled out by reading: the
+  reversed depth state (nothing in src resets it), the camera (no pose spike in the log), the in-cloud slab (the user flew
+  well under the ~1 300 m base). The log shows 746 program links during that flight; if the frames are the stalls, they
+  are SHADER-GUARD's.
+
+MEASURED (tools/luma_trace.js, RTX 3080, 1600 x 900, the user's gfx row, stock Cub, Jolene, orbit camera, clouds drifting
+at clock x10; 30 s blocks alternating the old cut and the new path in one page, then 2 min new): BEFORE blocks - the
+hemisphere up to 7.9 % in one frame, the exposure 1.0-1.7 %, the centre luma's step max 0.037; AFTER blocks and the 2-min
+run - the hemisphere <= 0.73 %, the exposure 0, the centre max <= 0.009, the frame mean's max 0.0035, no frame above 0.01,
+no all-sky frame, the cloud shadows never dropped; 30 probe bakes in the 2 min, all faded. (That run still had the eye
+pinned; the G1356 run's numbers are above.)
+EVIDENCE (reports/evidence/LIGHT-SMOOTH/; GPU renders, nothing software-rendered):
+- 1_cub_lowsun_side.jpg - the Cub at the stand, sun 8 deg, side: the wing's rib bands before, faint ribs after. No decision.
+- 2_cub_lowsun_rear34.jpg - the same, backlit from 3/4 rear: little relief to remove there. No decision.
+- 3_cub_noon_side.jpg - noon, side: identical (the fade acts only at a grazing sun). No decision.
+- 4_wing_glint_one_frame.jpg - the one-frame white wing glint in flight, and the next frame. A0 DECISION: the craft's
+  sun-specular floor (above).
+- 5_luma_trace_before_after.jpg - per-frame steps of the centre luma / hemisphere / exposure; red blocks the old cut, green
+  the new (the tall bars at a red block's first frame are the toggle snapping back to the old light). No decision.
+- 6_cloud_refit_flash.jpg - the frame mean through forced cloud re-fits, hold off vs on. No decision.
+GATES: the brief's FADES SHADOWSKY BUILD - PASS; and the source scans of the files touched, POSTFX ATMO CLOUD LIGHT
+FLOWNBAKE WEATHER - PASS. No battery, no ratchet (A0 integrates). Program changes: FRAMECOST will read the stale parked
+cook on this branch until the train re-cooks.
+BUDGET: ~37 min under the GPU lock, 3 page loads in one live_driver (C:/lsm1, ports 8641 / 9641 / 8642).
+TRAPS: an 8-bit render target tagged SRGBColorSpace is SRGB8_ALPHA8 in three r186 - a shader that writes encoded values
+into it is encoded twice (the "XR target" display rule's case). A still after a DAY_CLOCK jump needs ~5 s now (the light's
+ease, the probe's fade, the eye). The luma rig must read the canvas in the same task as the frame (the drawing buffer is
+gone after presentation) and skip callbacks that drew nothing (the 30 cap).

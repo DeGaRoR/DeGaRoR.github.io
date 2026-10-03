@@ -6319,6 +6319,59 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
   if (typeof window !== 'undefined') window.SHADOW_RATE = SHADOW_RATE;
   const WARM_SUN = C(0xffa652);
   let dayVer = -1, dayEl = NaN, dayAz = NaN;
+  // G1352 THE LIGHT EASES (LIGHT-SMOOTH, 2026-10-03; the user: "luminosity adjustments happen all of a sudden, one frame
+  // over the other"). The physical path re-applied the day only past the sun-moved guard below (0.02 deg: ~5 s of a
+  // real-time clock), so everything else it reads arrived in steps on that beat: the clouds' transmittance at the eye
+  // (the hemisphere x up to 1.7 under a cloud, its colour toward the sun's - a cloud's edge became a cut seconds after
+  // the eye crossed it), the eye's altitude, the exposure's 1 % steps. Now (1) the clouds' sunT is sampled at 4 Hz and
+  // eased (tau 0.8 s), and a move of 1 % re-applies the day (at most every 0.3 s - applyDay integrates the sky's
+  // irradiance on the CPU, ~0.5 ms); (2) what applyDay produces is a TARGET: the key's and the hemisphere's intensity and
+  // colour, the ground half and the exposure base ease toward it on the wall clock (LE.tau 1.2 s: 95 % in 3.6 s). A writer
+  // other than this (the F8 rig rows, the shed's exposure) is seen as a value we did not set and taken at once.
+  // LE.on false is the old cut.
+  const LE = { on: true, tau: 1.2, tauCloud: 0.8, init: false, last: 0, cT: 1, cTraw: 1, cTat: 0, cTapplied: 1, applyAt: 0,
+    sunI: 0, hemiI: 0, ex: NaN, sunC: C(0xffffff), hemiC: C(0xffffff), gndC: C(0xffffff),
+    tSunI: 0, tHemiI: 0, tEx: NaN, tSunC: C(0xffffff), tHemiC: C(0xffffff), tGndC: C(0xffffff), setSunI: NaN, setHemiI: NaN, setEx: NaN, eases: 0, applies: 0 };
+  if (typeof window !== 'undefined') window.LIGHT_EASE = LE;
+  const exBaseNow = () => { const G = (typeof window !== 'undefined') ? window.GFX : null; return (G && G.exposureBase && G.exposureBase() != null) ? G.exposureBase() : (renderer ? renderer.toneMappingExposure : NaN); };
+  function exSet(v) {
+    const G = (typeof window !== 'undefined') ? window.GFX : null;
+    if (G && G.setExposure) G.setExposure(renderer, v); else if (renderer) renderer.toneMappingExposure = v;
+    LE.setEx = exBaseNow();
+  }
+  // lightTake(ex): applyDay has just written the lights - those values are the targets; the lights go back to the eased ones
+  function lightTake(ex) {
+    LE.tSunI = sun.intensity; LE.tHemiI = hemi.intensity; LE.tSunC.copy(sun.color); LE.tHemiC.copy(hemi.color); LE.tGndC.copy(hemi.groundColor); LE.tEx = ex;
+    // someone else wrote the lights or the exposure since we last did (a rig row, the shed): no fade from a stale value
+    if (!LE.on || !LE.init || LE.setSunI !== LE.sunI || LE.setHemiI !== LE.hemiI) {
+      LE.sunI = LE.tSunI; LE.hemiI = LE.tHemiI; LE.sunC.copy(LE.tSunC); LE.hemiC.copy(LE.tHemiC); LE.gndC.copy(LE.tGndC);
+    }
+    if (!LE.on || !LE.init || !(LE.ex > 0) || LE.setEx !== exBaseNow()) LE.ex = ex;
+    LE.init = true; LE.applies++;
+    lightShow();
+  }
+  function lightShow() {
+    sun.intensity = LE.sunI; sun.color.copy(LE.sunC); hemi.intensity = LE.hemiI; hemi.color.copy(LE.hemiC); hemi.groundColor.copy(LE.gndC);
+    LE.setSunI = sun.intensity; LE.setHemiI = hemi.intensity;
+    if (LE.ex > 0 && Math.abs(LE.ex - LE.setEx) > LE.ex * 1e-4) exSet(LE.ex);
+  }
+  // lightEase(): a frame of the ease (every dayApply, the guard's early return included)
+  function lightEase(now) {
+    const dt = LE.last ? Math.min(0.25, Math.max(0, (now - LE.last) / 1000)) : 0; LE.last = now;
+    if (!LE.init) return;
+    if (sun.intensity !== LE.setSunI || hemi.intensity !== LE.setHemiI) { LE.sunI = sun.intensity; LE.hemiI = hemi.intensity; LE.sunC.copy(sun.color); LE.hemiC.copy(hemi.color); LE.gndC.copy(hemi.groundColor); }
+    if (LE.setEx !== exBaseNow()) LE.ex = exBaseNow();
+    const k = LE.on && LE.tau > 0 ? 1 - Math.exp(-dt / LE.tau) : 1;
+    if (k <= 0) return;
+    const d = Math.abs(LE.tSunI - LE.sunI) + Math.abs(LE.tHemiI - LE.hemiI) + (LE.tEx > 0 ? Math.abs(LE.tEx - LE.ex) : 0);
+    const dc = Math.abs(LE.tSunC.r - LE.sunC.r) + Math.abs(LE.tSunC.g - LE.sunC.g) + Math.abs(LE.tSunC.b - LE.sunC.b) + Math.abs(LE.tHemiC.r - LE.hemiC.r) + Math.abs(LE.tHemiC.b - LE.hemiC.b) + Math.abs(LE.tGndC.g - LE.gndC.g);
+    if (d < 1e-7 && dc < 1e-6) return;
+    LE.sunI += (LE.tSunI - LE.sunI) * k; LE.hemiI += (LE.tHemiI - LE.hemiI) * k;
+    LE.sunC.lerp(LE.tSunC, k); LE.hemiC.lerp(LE.tHemiC, k); LE.gndC.lerp(LE.tGndC, k);
+    if (LE.tEx > 0 && LE.ex > 0) LE.ex += (LE.tEx - LE.ex) * k;
+    LE.eases++;
+    lightShow();
+  }
   function dayApply() {
     const day = world.day;
     if (!day) return;
@@ -6345,7 +6398,17 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       premisesR.lamps.update(camera.position, Math.max(0, Math.min(1, (2 - day.sunEl) / 4)), ex2);
     }
     const el = day.sunEl, az = day.sunAzGrid;
-    if (day.version === dayVer && Math.abs(el - dayEl) < 0.02 && Math.abs(az - dayAz) < 0.02) return;
+    // G1352: the clouds' transmittance at the eye, sampled at 4 Hz and eased; a 1 % move re-applies the day
+    const nowL = (typeof performance !== 'undefined') ? performance.now() : 0;
+    let cloudDue = false;
+    if (ATMO_ON && typeof CLOUDS !== 'undefined' && CLOUDS.sunT) {
+      if (nowL >= LE.cTat) { LE.cTat = nowL + 250; LE.cTraw = CLOUDS.sunT(camera.position.x, camera.position.y, camera.position.z); }
+      const dtc = LE.lastC ? Math.min(0.25, Math.max(0, (nowL - LE.lastC) / 1000)) : 1; LE.lastC = nowL;
+      LE.cT = (LE.on && LE.tauCloud > 0) ? LE.cT + (LE.cTraw - LE.cT) * (1 - Math.exp(-dtc / LE.tauCloud)) : LE.cTraw;
+      cloudDue = Math.abs(LE.cT - LE.cTapplied) > 0.01 && nowL >= LE.applyAt;
+    }
+    lightEase(nowL);
+    if (day.version === dayVer && Math.abs(el - dayEl) < 0.02 && Math.abs(az - dayAz) < 0.02 && !cloudDue) return;
     dayVer = day.version; dayEl = el; dayAz = az;
     const v = day.sun;
     SUN_SKY.set(v[0], v[1], v[2]);
@@ -6359,12 +6422,14 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       // sunI / hemi / exposure are GAINS on the alps anchors they were judged against
       // CLOUDS C3: under a cloud the diffuse light rises as the sun is lost (the sun itself is shadowed per
       // pixel by the splice; the hemisphere is one light, so it takes the layer's transmittance at the eye)
-      const cT = (typeof CLOUDS !== 'undefined' && CLOUDS.sunT) ? CLOUDS.sunT(camera.position.x, camera.position.y, camera.position.z) : 1;
-      SKY_LIGHT.applyDay(day, { key: sun, hemi, scene, renderer, unit: LIGHT_UNIT,
+      const cT = (typeof CLOUDS !== 'undefined' && CLOUDS.sunT) ? LE.cT : 1;   // G1352: eased (above)
+      LE.cTapplied = cT; LE.applyAt = nowL + 300;
+      const rL = SKY_LIGHT.applyDay(day, { key: sun, hemi, scene, renderer: LE.on ? null : renderer, unit: LIGHT_UNIT,
         sunGain: RIG.sun / 2.8, hemiBoost: RIG.hemi / 0.274 * (typeof CLOUDS !== 'undefined' && CLOUDS.hemiUnder ? CLOUDS.hemiUnder(cT) : 1), exposureK: rigCur.exposure / 0.92,
         gndAlb: rigCur.gndDerive === false ? null : worldAlbedo(),                     // THE GROUND HALF IS DERIVED (sky_light groundHalf: albedo x what falls on it); off, or no albedo, falls back to the row's hex
         gndGain: rigCur.gndGain == null ? 1 : rigCur.gndGain,
         hemiGnd: rigCur.hemiGnd, gb, altM: camera.position.y, cloudT: cT });
+      if (LE.on && rL) lightTake(rL.exposure); else LE.init = false;   // G1352: the new light is the target, eased to
     } else {
       // INTERIM S2 DIMMER — the fallback when the atmosphere is off (the TSL flag)
       sun.intensity = RIG.sun * LIGHT_UNIT * k;
@@ -6518,6 +6583,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     interior: on => { on = !!on; if (on === interiorView) return; interiorView = on; if (probe) scene.environment = (on && envIn) ? envIn : envMap; },
     // THE GROUND UNDER THE CRAFT: the class mix the belly sees, the albedo eased toward it, the cap the probe last baked
     groundUnder: () => Object.assign(groundUnder(), { baked: probe ? probe.cap : null, bakes: probe ? probe.bakes : 0, pin: GU.pin }),
+    probeState: () => (probe ? { bakes: probe.bakes, fade: probe.fade, fading: probe.fading } : null),   // G1351 (the luma trace reads it)
     // THE WORLD'S MEAN ALBEDO and the hemisphere's ground half derived from it (the F8 readout, the rig)
     worldAlbedo: () => ({ alb: worldAlbedo(), src: WALB.pin ? 'pinned' : WALB.src, pin: WALB.pin,
                           img: albedoFromImagery(), cls: albedoFromClassifier(),   // both, so the scale gap between them is measured and not asserted

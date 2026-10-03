@@ -573,16 +573,27 @@
   // ---- THE RUNTIME MATERIAL ------------------------------------------------------------------------------------------
   // the clear coat on the perturbed normal (G206), its roughness from T2.A (three's own clamps and geometryRoughness),
   // and the cabin's darkness + the footwell on the back faces the albedo's A flags (AERO_CABIN_FS, uInside.y per texel)
+  // G1350 THE RIBS AT A LOW SUN (LIGHT-SMOOTH, 2026-10-03; the user: "clear stripes across the wings and tail" of the
+  // stock Cub at golden hour, read as banded self-shadow). Measured in the page: the stripes stay with the craft's
+  // receiveShadow OFF and with the cascade's bias x20, and they go with this bake's normalScale 0 - they are the BAKED
+  // NORMAL MAP's rib tapes and stitching. Under a sun that grazes the skin (N.L 0.14 on a wing at 8 deg) a tape's two
+  // flanks tilt to N.L ~0.3 and ~0, so a millimetre of relief became a lit / black band a rib apart. The relief now
+  // fades with the geometric normal's angle to the sun: full above N.L 0.5 (every sun over ~30 deg on a wing, so noon
+  // is untouched), down to uFbGraze (0.25) of itself at a grazing sun. The sun is directional light 0 (the near map's
+  // black light shares its direction). FLOWN_BAKE graze 1 is the old relief.
+  FB_U.uFbGraze = { value: 0.25 };
   const FB_HOOK = function (sh) {
     if (typeof ATMO !== 'undefined') ATMO.inject(sh);
+    sh.uniforms.uFbGraze = FB_U.uFbGraze;
     const d = this.userData.aeroD;
     if (d) for (const k of ['uCraftInv', 'uCabin', 'uFootA', 'uFootB']) if (d[k]) sh.uniforms[k] = d[k];
     sh.vertexShader = sh.vertexShader
       .replace('#include <common>', 'uniform mat4 uCraftInv;\nvarying vec3 vFbCraft;\n#include <common>')
       .replace('#include <project_vertex>', 'vFbCraft = (uCraftInv * modelMatrix * vec4(transformed, 1.0)).xyz;\n#include <project_vertex>');
     sh.fragmentShader = sh.fragmentShader
-      .replace('#include <common>', 'uniform mat4 uCraftInv;\nuniform vec4 uCabin;\nuniform vec4 uFootA;\nuniform vec4 uFootB;\nvarying vec3 vFbCraft;\n#include <common>')
+      .replace('#include <common>', 'uniform float uFbGraze;\nuniform mat4 uCraftInv;\nuniform vec4 uCabin;\nuniform vec4 uFootA;\nuniform vec4 uFootB;\nvarying vec3 vFbCraft;\n#include <common>')
       .replace('#include <map_fragment>', '#include <map_fragment>\n  float fbIn = sampledDiffuseColor.a;\n  diffuseColor.a = opacity;')
+      .replace('#include <normal_fragment_maps>', '#include <normal_fragment_maps>\n#if defined( USE_NORMALMAP ) && ( NUM_DIR_LIGHTS > 0 )\n  normal = normalize( mix( nonPerturbedNormal, normal, mix( uFbGraze, 1.0, smoothstep( 0.0, 0.5, abs( dot( nonPerturbedNormal, directionalLights[ 0 ].direction ) ) ) ) ) );\n#endif')
       .replace('#include <clearcoat_normal_fragment_begin>', '#ifdef USE_CLEARCOAT\n  vec3 clearcoatNormal = normal;\n#endif')
       .replace('#include <lights_physical_fragment>', '#include <lights_physical_fragment>\n#ifdef USE_CLEARCOAT\n  material.clearcoatRoughness = min(max(texture2D(clearcoatMap, vClearcoatMapUv).a, 0.0525) + geometryRoughness, 1.0);\n#endif')
       .replace('#include <lights_fragment_end>', `#include <lights_fragment_end>
@@ -1363,7 +1374,7 @@
   W.FLOWN_BAKE = { FB, step, note, forPayload, show, showFold, mergeModel, hybrid, nearT, liveTwin, bandOf, FB_FADE, folds: () => FOLDS.slice(),
                    warmPairs: () => FB.noWarm ? [] : FOLDS.flatMap(F => F.pairs ? F.pairs() : []), eyeZone, shadowFolds,
                    withKept: fn => { const back = FOLDS.map(F => F.unpark ? F.unpark() : null); try { return fn(); } finally { for (const b of back) if (b) b(); } }, workerSource, bakedNames, bakedSets, groupsOf, keyOf, extOf, uvsOf, splitGroup, aeroArgs, mipSteps, toksvig, dilate,
-                   bakeHook, FB_HOOK, BAKE_FS,
+                   bakeHook, FB_HOOK, BAKE_FS, graze: FB_U.uFbGraze,   // G1350: graze.value 1 = the old relief at a low sun
                    get bytes() { return bytes; },
                    clear: () => idb('readwrite', st => st.clear()) };
 })();
