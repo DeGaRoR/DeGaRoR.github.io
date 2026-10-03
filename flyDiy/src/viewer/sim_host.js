@@ -113,7 +113,8 @@ function simHostProbe(world, pts, t, H, opts) {
 }
 // the core names the worker's Blob picks out of the imported bundle
 const SIM_HOST_CORE = ['ISLAND_GEN', 'makeWorld', 'buildGen', 'makeSim', 'makePilot', 'makeAutopilot',
-                       'makeTestPilot', 'navMake', 'siteOf', 'placeAtStand', 'placeAtAerodrome', 'seatOnGround', 'placeAtLineup'];
+                       'makeTestPilot', 'navMake', 'siteOf', 'placeAtStand', 'placeAtAerodrome', 'seatOnGround', 'placeAtLineup',
+                       'stripSurface', 'stripGear'];
 const SIM_HOST_DT = 1 / 60;
 const SIM_HOST_CATCH = 4;          // steps owed per turn at most (G586's frame owed 4)
 const SIM_HOST_POOL = 7;           // snapshot buffers: the page holds up to five (sim_view.js's ring, G1100), the host writes the next, one in flight
@@ -307,10 +308,13 @@ function makeSimHost(CORE, init, keptWorld) {
     const PL = init.place || {}, ap = H.ap;
     const from = aeroById(PL.from || 'HOME');
     const to = (PL.to == null || PL.to === 'CIRCUIT') ? from : aeroById(PL.to);
-    if (sim.hydro) {
-      const sea = aeroById('SEA') || { hdg: Math.PI / 2, spawn: [0, 1285], elev: 0 };
+    // G1375 (app.js applyRoute): the water lane the page's route names, the old SEA when it names land
+    const wet = a => a && (typeof CORE.stripSurface === 'function' ? CORE.stripSurface(a).cls === 'water' : a.kind === 'water');
+    const gearK = typeof CORE.stripGear === 'function' ? CORE.stripGear(def && def.spec && def.spec.gear ? def : sim) : 'floats';
+    if (sim.hydro && (wet(from) || gearK === 'floats')) {
+      const sea = wet(from) ? from : ((world.aerodromes || []).find(wet) || aeroById('SEA') || { hdg: Math.PI / 2, spawn: [0, 1285], elev: 0 });
       CORE.placeAtAerodrome(sim, sea);
-      ap.setRoute(sea, (PL.to == null || PL.to === 'CIRCUIT' || PL.to === 'SEA') ? sea : to);
+      ap.setRoute(sea, (PL.to == null || PL.to === 'CIRCUIT' || to === from) ? sea : to);
       return;
     }
     if (typeof sim.stance === 'function') sim.stance();

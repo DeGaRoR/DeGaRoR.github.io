@@ -3869,6 +3869,27 @@
   // where the selects are filled (an id the world no longer has falls back to HOME / the circuit)
   try { const r = JSON.parse(prefGet('flydiy.route', 'null')); if (r && typeof r.from === 'string') fromId = r.from; if (r && typeof r.dest === 'string') destId = r.dest; } catch (e) {}
   const aeroById = id => world.aerodromes.find(a => a.id === id) || world.aerodromes[0];
+  // G1375 STRIP-SURFACE: THE GEAR DECIDES WHERE THE ROUTE MAY GO (25_airfield.js stripSurface / stripAllows: wheels
+  // anywhere but water, floats on water only, amphibians both, skis snow and grass). `garage` reads the build on the
+  // bench (genSpec, what the next roll-out flies); otherwise the build flying (def.spec, else the sim's floats)
+  const routeGear = garage => {
+    if (typeof stripGear !== 'function') return 'wheels';
+    if (garage && genSpec && genSpec.gear) return stripGear(genSpec);
+    if (def && def.spec && def.spec.gear) return stripGear(def);
+    return stripGear(sim || genSpec);
+  };
+  // ...and a route this gear may not fly is FITTED, not refused: the departure falls back (HOME, the sea lane, the
+  // first strip it may use), the destination to the circuit. The remembered route (flydiy.route) is left as it was
+  // saved, so the build that may fly it gets it back
+  const routeFitted = (gear, fid, did) => {
+    if (typeof stripAllows !== 'function' || !world || !world.aerodromes) return [fid, did];
+    const f = aeroById(fid);
+    if (!stripAllows(gear, f).ok || f.id !== fid) { const alt = stripFallback(gear, world.aerodromes, null); if (alt) fid = alt.id; }
+    if (did !== 'CIRCUIT') { const d = world.aerodromes.find(a => a.id === did); if (!d || !stripAllows(gear, d).ok) did = 'CIRCUIT'; }
+    return [fid, did];
+  };
+  const routeFit = gear => { [fromId, destId] = routeFitted(gear, fromId, destId); };
+  let routeRefresh = () => {};   // the pickers re-labelled for the gear (the selects' block below)
   // 'taxi' (the stand, G151) or 'lineup' (the runway). A string on purpose:
   // the flight layer's flPref objects are declared far below this and this
   // must be readable by the very first applyRoute at boot.
@@ -3900,8 +3921,14 @@
     } catch (e) { console.error('pattern overlay:', e); patVis = null; }
   }
   function applyRoute() {
-    const from = aeroById(fromId);
-    const to = destId === 'CIRCUIT' ? from : aeroById(destId);
+    // the build being placed decides; in the shed (a stale def under the bench's new build) the pickers keep the
+    // player's choice and only this placement is fitted
+    const gearNow = routeGear(false);
+    let shed = false; try { shed = inGarage; } catch (e) {}
+    const [fid, did] = routeFitted(gearNow, fromId, destId);
+    if (!shed) { fromId = fid; destId = did; routeRefresh(false); }
+    const from = aeroById(fid);
+    const to = did === 'CIRCUIT' ? from : aeroById(did);
     // G151: ON THE APRON, NOT ON THE RUNWAY. `placeAtAerodrome` puts the
     // aeroplane on the strip's SPAWN IDENTITY — the datum every flying gate
     // departs from — and rolling out onto it teleported the player 75 m from
@@ -3926,11 +3953,13 @@
     // H4 (G393): the route is the SEA LANE's — a water aerodrome record the
     // pilot flies as it flies a meadow (no site, no taxi graph): the take-off
     // run down the lane, the circuit, the landing back onto it
-    if (sim.hydro) {
-      const sea = aeroById('SEA') || { hdg: Math.PI / 2, spawn: [0, 1285], elev: 0 };
+    // G1375: the lane the route names (any water aerodrome: Jolene has two), the old SEA when it names land
+    const wet = typeof stripSurface === 'function' ? (a => a && stripSurface(a).cls === 'water') : (a => a && a.kind === 'water');
+    if (sim.hydro && (wet(from) || gearNow === 'floats')) {
+      const sea = wet(from) ? from : (world.aerodromes.find(wet) || aeroById('SEA') || { hdg: Math.PI / 2, spawn: [0, 1285], elev: 0 });
       placeAtAerodrome(sim, sea);
       patternVisFor(sea, null);
-      ap.setRoute(sea, destId === 'CIRCUIT' || destId === 'SEA' ? sea : to);
+      ap.setRoute(sea, did === 'CIRCUIT' || to === from ? sea : to);
       return;
     }
     if (typeof sim.stance === 'function') sim.stance();
@@ -6970,7 +6999,7 @@
   // the town before the aeroplane has left the shed, and the world's key after
   function standAnchor() {
     try {
-      if (sim && sim.hydro) { const sea = aeroById('SEA') || { spawn: [0, 1285], elev: 0 }; return [sea.spawn[0], sea.elev || 0, sea.spawn[1]]; }
+      if (sim && sim.hydro) { const f0 = aeroById(fromId), sea = (f0 && f0.kind === 'water') ? f0 : (aeroById('SEA') || { spawn: [0, 1285], elev: 0 }); return [sea.spawn[0], sea.elev || 0, sea.spawn[1]]; }   // G1375: the lane the route names
       const from = aeroById(fromId); if (!from) return null;
       const st = (typeof siteOf === 'function') ? siteOf(from.id) : null;
       const shedD = (st && typeof playerShedDims === 'function') ? playerShedDims(playerLoad(), 'HOME', st) : null;
@@ -8170,20 +8199,26 @@
     if (tb) tb.onclick = () => show(true);
   }
   { // departure + destination selects: spawn anywhere, fly circuit or leg
-    const fill = (sel, first, firstLabel, skipId) => {
+    // G1375: every strip says its surface ('Annette Dock · water'), and one the gear may not use is greyed and
+    // says why ('— floats land on water only'); `gear` is the gear the labels are for (routeGear)
+    const fill = (sel, first, firstLabel, skipId, gear) => {
       sel.innerHTML = '';
-      const opt = (v, label) => {
+      const opt = (v, label, off, why) => {
         const o = document.createElement('option');
-        o.value = v; o.textContent = label; sel.appendChild(o);
+        o.value = v; o.textContent = label; o.disabled = !!off; if (why) o.title = why; sel.appendChild(o);
       };
       if (first) opt(first, firstLabel);
       for (const a of world.aerodromes) {
         if (a.kind === 'meadow' || a.id === skipId) continue;
-        opt(a.id, `${a.name}${a.flyIn ? ' (fly-in)' : ''}`);
+        const S = typeof stripSurface === 'function' ? stripSurface(a) : null;
+        const A = typeof stripAllows === 'function' ? stripAllows(gear || 'wheels', a) : { ok: true, why: '' };
+        opt(a.id, `${a.name}${a.flyIn ? ' (fly-in)' : ''}${S ? ' · ' + S.word : ''}${A.ok ? '' : ' — ' + A.why}`, !A.ok, A.why);
       }
     };
-    fill($('selFrom'), null, null, null);
-    fill($('selDest'), 'CIRCUIT', '⟳ Circuit', null);
+    const gear0 = routeGear(false);
+    routeFit(gear0);
+    fill($('selFrom'), null, null, null, gear0);
+    fill($('selDest'), 'CIRCUIT', '⟳ Circuit', null, gear0);
     // G710: a remembered id the world does not have (another island, a strip deleted) is not a route
     if (![...$('selFrom').options].some(o => o.value === fromId)) fromId = 'HOME';
     if (![...$('selDest').options].some(o => o.value === destId)) destId = 'CIRCUIT';
@@ -8225,7 +8260,10 @@
         const sp = document.createElement('span'); sp.textContent = cap; lab.appendChild(sp);
         const sel = document.createElement('select');
         sel.title = label; routeSels.push({ sel, kind });
-        if (kind === 'from') fill(sel, null, null, null); else fill(sel, 'CIRCUIT', '⟳ Circuit', null);
+        if (kind === 'from') fill(sel, null, null, null, gear0); else fill(sel, 'CIRCUIT', '⟳ Circuit', null, gear0);
+        // the build on the bench may have changed its gear since: the labels are re-read before a pick
+        sel.addEventListener('pointerenter', () => routeRefresh(where === 'garage' || inGarage));
+        sel.addEventListener('focus', () => routeRefresh(where === 'garage' || inGarage));
         sel.value = kind === 'from' ? fromId : destId;
         sel.onchange = e => {
           if (kind === 'from') fromId = e.target.value; else destId = e.target.value;
@@ -8242,7 +8280,22 @@
     // the flight's own two: remembered and mirrored (their handlers - the reset, the chained leg - untouched)
     $('selFrom').addEventListener('change', () => { routeRemember(); routeSync(); });
     $('selDest').addEventListener('change', () => { routeRemember(); routeSync(); });
-    window.FLYDIY_ROUTE = { get: () => ({ from: fromId, dest: destId }), sync: routeSync };
+    // G1375: the pickers re-filled for the gear (the garage's build, or the one flying), the route fitted to it first;
+    // only when the gear changed - a refill under an open list would close it
+    let refGear = gear0;
+    routeRefresh = garage => {
+      let g = routeGear(!!garage);
+      try { if (garage === undefined) g = routeGear(inGarage); } catch (e) {}
+      routeFit(g);
+      if (g !== refGear) {
+        refGear = g;
+        fill($('selFrom'), null, null, null, g);
+        fill($('selDest'), 'CIRCUIT', '⟳ Circuit', null, g);
+        for (const r of routeSels) { if (r.kind === 'from') fill(r.sel, null, null, null, g); else fill(r.sel, 'CIRCUIT', '⟳ Circuit', null, g); }
+      }
+      routeSync();
+    };
+    window.FLYDIY_ROUTE = { get: () => ({ from: fromId, dest: destId }), sync: () => routeRefresh(), gear: () => refGear };
     function nextLeg() {
       const cur = (ap.route && ap.route.to) || aeroById(fromId);
       if (cur.id) { fromId = cur.id; $('selFrom').value = fromId; }
@@ -8629,20 +8682,25 @@
       }
       return false;
     };
+    const mapGear = routeGear(false);
     for (const a of world.aerodromes) {
       const mead = a.kind === 'meadow';
       const active = a.id === from.id || a.id === to.id;
       const sx = PX(a.x, a.z), sy = PY(a.x, a.z);
       if (sx < -30 || sx > W2 + 30 || sy < -30 || sy > W2 + 30) continue;
+      const wetA = typeof stripSurface === 'function' && stripSurface(a).cls === 'water';
       g.beginPath(); g.arc(sx, sy, (mead ? 2.2 : active ? 4.5 : 3.2) * mk, 0, 6.283);
-      g.fillStyle = active ? '#ffb257' : mead ? 'rgba(251,244,234,.45)' : 'rgba(251,244,234,.85)';
+      g.fillStyle = active ? '#ffb257' : mead ? 'rgba(251,244,234,.45)' : wetA ? 'rgba(143,215,255,.9)' : 'rgba(251,244,234,.85)';   // G1375: a water lane's dot is blue
       g.fill();
       if (active) {
         g.strokeStyle = 'rgba(255,178,87,.5)'; g.lineWidth = 1.5 * mk;
         g.beginPath(); g.arc(sx, sy, 7 * mk, 0, 6.283); g.stroke();
       }
+      // G1375: the label says the surface, a strip this gear may not use is faint ('Annette Dock · water')
+      const sfc = typeof stripSurface === 'function' ? stripSurface(a) : null;
+      const can = typeof stripAllows !== 'function' || stripAllows(mapGear, a).ok;
       if (mapBig && !mead)                             // labels once there's room, and where they fit
-        labPut(sx, sy, a.name, 'rgba(20,14,8,.75)', active ? '#ffd9a3' : 'rgba(251,244,234,.9)');
+        labPut(sx, sy, a.name + (sfc ? ' · ' + sfc.word : ''), 'rgba(20,14,8,.75)', active ? '#ffd9a3' : can ? 'rgba(251,244,234,.9)' : 'rgba(251,244,234,.45)');
     }
     // G710: THE PLAN ON THE MAP (the Jolene playtest: "there are also no waypoints on the map, so it is
     // very unclear what the autopilot intends to do"). What the pilot PUBLISHED (ap.intent, 43_pilot.js),
