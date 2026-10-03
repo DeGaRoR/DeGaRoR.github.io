@@ -392,6 +392,7 @@
       try { if (W.GFX && W.GFX.get) H.gfx = W.GFX.get(); } catch (e) {}
       try { if (W.FLYDIY_PACE && W.FLYDIY_PACE.state) H.pace = W.FLYDIY_PACE.state(); } catch (e) {}
       try { if (W.FLYDIY_AA && W.FLYDIY_AA.tier) H.aa = W.FLYDIY_AA.tier(); } catch (e) {}
+      try { if (W.POST_FX && W.POST_FX.catcher) H.catcher = W.POST_FX.catcher.summary(); } catch (e) {}   // G1357: the frame catcher's count and its own cost
       try { if (rec.info) H.aircraft = rec.info(); } catch (e) {}
       if (W.BOOT) H.boot = { t0: W.BOOT.t0, state: W.BOOT.state, log: W.BOOT.log };
       return H;

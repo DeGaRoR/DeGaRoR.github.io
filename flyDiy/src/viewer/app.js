@@ -196,6 +196,9 @@
   // frame with them off is the frame without this block (GATE POSTFX). GFX.apply() hands the
   // rows over once the menu's saved state is read.
   if (typeof POST_FX !== 'undefined' && aa && aa.setPost) POST_FX.init(THREE, renderer, aa);
+  // G1357 THE CATCHER: a frame that stands apart from both neighbours (a one-frame flash, an all-sky frame) is saved into
+  // the flight log with the state it was drawn with - only while the recorder is on (?rec=0 leaves it off too)
+  if (typeof POST_FX !== 'undefined' && POST_FX.catcher && aa && aa.setTap && !(window.FLIGHT_REC && window.FLIGHT_REC.off)) aa.setTap(POST_FX.catcher.tap);
   // MANUAL CONTROLS (G200): the input model, made once, exactly like the pass
   // above. src/viewer/input.js publishes only its API at eval; this is the
   // one instance, and the two rails and input_panel.js read it through

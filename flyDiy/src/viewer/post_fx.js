@@ -318,6 +318,8 @@ const POST_FX = (() => {
     M.aoApply = mat(AO_APPLY, { tSrc: { value: null }, uPow: { value: 1.0 } }, { blending: THREE.CustomBlending, blendSrc: THREE.DstColorFactor, blendDst: THREE.ZeroFactor, blendEquation: THREE.AddEquation, transparent: true });
     M.eye = mat(EYE, { tSrc: { value: null }, uTexel: { value: V2() } });
     T.eye = target(16, 16, false, true);
+    M.cat = mat(EYE, { tSrc: { value: null }, uTexel: { value: V2() } });   // G1357: the eye's program, a second material
+    for (let k = 0; k < CAT.SLOTS; k++) T['cat' + k] = target(CAT.W, CAT.H, false, true);
     installed = true;
   }
   let sized = { w: 0, h: 0 };
@@ -325,7 +327,7 @@ const POST_FX = (() => {
     const w = rt.width, h = rt.height;
     if (sized.w === w && sized.h === h) return;
     sized = { w, h };
-    for (const k in T) if (k !== 'eye') { T[k].dispose(); delete T[k]; }
+    for (const k in T) if (k !== 'eye' && k.slice(0, 3) !== 'cat') { T[k].dispose(); delete T[k]; }
     // the bloom pyramid: 1/2 .. 1/32
     let bw = w >> 1, bh = h >> 1;
     for (let i = 0; i < 5; i++) { T['b' + i] = target(bw, bh, true); T['u' + i] = target(bw, bh, true); bw = Math.max(1, bw >> 1); bh = Math.max(1, bh >> 1); }
@@ -460,6 +462,138 @@ const POST_FX = (() => {
     if (G && G.setEye) G.setEye(eyeK);
   }
 
+  // ---- THE CATCHER (G1357, LIGHT-SMOOTH for A0, 2026-10-03) -------------------------------------------------------
+  // The user: "a frame that misses rendering and gives a white or pale blue render" - single frames, not reproduced on
+  // the bench (5 865 traced frames). So the user's own flight catches them: every frame the resolve hands its target
+  // to tap() (aa_resolve's tap, after the post chain), which draws a 64 x 36 copy through the EYE's own program (the
+  // same shader, a second material: no new link) into one of SLOTS small targets and reads it back ASYNCHRONOUSLY
+  // (three's readRenderTargetPixelsAsync: a pixel-pack buffer, a fence, polled with zero-timeout waits on a timer - no
+  // GPU sync, ever: a frame whose slot is still in flight is skipped and counted, never waited on). When a read lands,
+  // its mean, its pale-sky share and its white share go into a ring of the last KEEP frames; a frame is CAUGHT when it
+  // stands apart from BOTH neighbours (a one-frame spike of the mean past `spike`, or a sky / white share past its line
+  // while both neighbours are under half of it). A catch is a flight-recorder event 'catch': the frame's numbers, the
+  // state it was drawn with (exposure, eye, far / near, the clouds' shadow flag and in-cloud density, the post rows,
+  // the AA tier) and, for the first MAX_SHOTS of a session at least GAP_MS apart, its 64 x 36 picture as a JPEG data
+  // URL - so the user's own "Save log" carries it (and IndexedDB keeps it for the next load). The frame's path
+  // allocates nothing of its own but the read's promise (typed rings; the readable object is built only on a catch). What a copy of the scene
+  // target cannot show: the bloom, the rays and the glare, drawn onto the canvas after it. Its own cost is measured
+  // live (summary().tapUs / readUs, in the log's header). Off: localStorage flydiy.rec.catch = '0', or ?rec=0.
+  const CAT = { W: 64, H: 36, SLOTS: 4, spike: 0.06, sky: 0.7, white: 0.5, MAX_SHOTS: 6, GAP_MS: 5000, KEEP: 8 };
+  const NM = 10;   // a frame's state: f, the exposure base, eyeK, eyeLum, far, near, camY, cloudShadow, inCloudRho, visHidden
+  const cat = { on: true, seq: 0, gen: 0, shots: 0, lastShot: -1e9, busy: [], bufs: [], slotM: [], slotSeq: new Float64Array(CAT.SLOTS),
+    ring: [], st: { taps: 0, reads: 0, skipped: 0, failed: 0, caught: 0, tapUs: 0, tapUsMax: 0, readUs: 0, n: 0 } };
+  for (let k = 0; k < CAT.SLOTS; k++) { cat.busy.push(false); cat.slotM.push(new Float64Array(NM)); }
+  for (let i = 0; i < CAT.KEEP; i++) cat.ring.push({ seq: -1, mean: 0, sky: 0, white: 0, judged: false, dec: false, px: null, m: new Float64Array(NM) });
+  const entry = s => { const e = cat.ring[((s % CAT.KEEP) + CAT.KEEP) % CAT.KEEP]; return e.seq === s ? e : null; };
+  // detect(prev, cur, next): why `cur` stands apart from both neighbours (null: it does not) - pure, GATE POSTFX runs it
+  function detect(p, c, n) {
+    if (!p || !c || !n) return null;
+    const d1 = c.mean - p.mean, d2 = c.mean - n.mean;
+    if (Math.abs(d1) > CAT.spike && Math.abs(d2) > CAT.spike && (d1 > 0) === (d2 > 0)) return d1 > 0 ? 'bright spike' : 'dark spike';
+    if (c.sky > CAT.sky && Math.max(p.sky, n.sky) < CAT.sky / 2) return 'pale sky';
+    if (c.white > CAT.white && Math.max(p.white, n.white) < CAT.white / 2) return 'white';
+    return null;
+  }
+  // the read's numbers into `out` (display values: the linear compositing's sRGB-tagged 8-bit target decoded once, G1356)
+  function catStats(px, dec, out) {
+    let s = 0, sky = 0, white = 0;
+    const n = CAT.W * CAT.H;
+    for (let i = 0; i < n; i++) {
+      const r = dec ? dec[px[i * 4]] : px[i * 4] / 255, g = dec ? dec[px[i * 4 + 1]] : px[i * 4 + 1] / 255, b = dec ? dec[px[i * 4 + 2]] : px[i * 4 + 2] / 255;
+      const l = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+      s += l; if (b > r + 0.06 && l > 0.45) sky++; if (l > 0.9) white++;
+    }
+    out.mean = s / n; out.sky = sky / n; out.white = white / n;
+    return out;
+  }
+  function catJpeg(px, dec) {
+    if (typeof document === 'undefined' || !document.createElement) return null;
+    try {
+      const cv = document.createElement('canvas'); cv.width = CAT.W; cv.height = CAT.H;
+      const g = cv.getContext('2d'), im = g.createImageData(CAT.W, CAT.H);
+      for (let y = 0; y < CAT.H; y++) for (let x = 0; x < CAT.W; x++) {   // the read is bottom-up
+        const i = ((CAT.H - 1 - y) * CAT.W + x) * 4, o = (y * CAT.W + x) * 4;
+        for (let c = 0; c < 3; c++) im.data[o + c] = dec ? Math.round(Math.min(1, EYE_DEC[px[i + c]]) * 255) : px[i + c];
+        im.data[o + 3] = 255;
+      }
+      g.putImageData(im, 0, 0);
+      return cv.toDataURL('image/jpeg', 0.8);
+    } catch (e) { return null; }
+  }
+  // the frame's state, as numbers into a slot's Float64Array (NaN: unknown)
+  function catState(camera, m) {
+    const W = (typeof window !== 'undefined') ? window : {}, C = W.CLOUDS, A = W.ATMO, REC = W.FLIGHT_REC;
+    const num = v => (typeof v === 'number' ? v : (typeof v === 'boolean' ? (v ? 1 : 0) : NaN));
+    m[0] = REC && REC.rec ? REC.rec.frame : NaN;
+    m[1] = W.GFX && W.GFX.exposureBase && W.GFX.exposureBase() != null ? W.GFX.exposureBase() : NaN; m[2] = eyeK; m[3] = stats.eyeLum;   // the day's base (x the menu's step x eyeK on screen)
+    m[4] = camera ? camera.far : NaN; m[5] = camera ? camera.near : NaN; m[6] = camera ? camera.position.y : NaN;
+    m[7] = C ? num(C.shadowOn) : NaN; m[8] = A && A.MIST && A.MIST.cloud ? num(A.MIST.cloud.rho) : NaN;
+    m[9] = W.WORLD && W.WORLD.vis ? num(W.WORLD.vis.nHidden) : NaN;
+  }
+  function catLanded(k, seq, gen, dec) {
+    cat.busy[k] = false;
+    if (gen !== cat.gen) return;
+    const t0 = perfNow();
+    const e = cat.ring[seq % CAT.KEEP];
+    e.seq = seq; e.judged = false; e.dec = !!dec;
+    if (!e.px) e.px = new Uint8Array(CAT.W * CAT.H * 4);
+    e.px.set(cat.bufs[k]); e.m.set(cat.slotM[k]);
+    catStats(e.px, dec, e);
+    cat.st.reads++;
+    // a frame is judged once both neighbours have landed (reads can resolve out of order): seq - 1 now, or seq + 1
+    for (let s = seq - 1; s <= seq + 1; s += 2) {
+      const c = entry(s); if (!c || c.judged) continue;
+      const p = entry(s - 1), n = entry(s + 1); if (!p || !n) continue;
+      c.judged = true;
+      const why = detect(p, c, n);
+      if (why) catCaught(p, c, n, why);
+    }
+    cat.st.readUs += (perfNow() - t0) * 1000;
+  }
+  function catCaught(p, c, n, why) {
+    cat.st.caught++;
+    const t = perfNow(), shot = cat.shots < CAT.MAX_SHOTS && t - cat.lastShot >= CAT.GAP_MS;
+    const r4 = v => (v === v ? Math.round(v * 10000) / 10000 : null), m = c.m;
+    const W = (typeof window !== 'undefined') ? window : {}, AA = W.FLYDIY_AA, C = W.CLOUDS;
+    const d = { why, f: r4(m[0]), seq: c.seq, mean: r4(c.mean), prev: r4(p.mean), next: r4(n.mean), sky: r4(c.sky), white: r4(c.white),
+      exposureBase: r4(m[1]), eyeK: r4(m[2]), eyeLum: r4(m[3]), far: r4(m[4]), near: r4(m[5]), camY: r4(m[6]), cloudShadow: r4(m[7]), inCloudRho: r4(m[8]), visHidden: r4(m[9]),
+      cloudsOn: C ? !!C.active : null, post: Object.assign({ passes: stats.passes, linear }, S), aa: AA && AA.tier ? AA.tier() : null,
+      jpeg: shot ? catJpeg(c.px, c.dec) : null };
+    if (shot) { cat.shots++; cat.lastShot = t; }
+    const R = W.FLIGHT_REC;
+    if (R && R.event) R.event('catch', null, d);
+  }
+  const perfNow = () => (typeof performance !== 'undefined' ? performance.now() : Date.now());
+  // tap(renderer, camera, rt): aa_resolve's tap, once a frame after the post chain (app.js installs it when the recorder is on)
+  function tap(r, camera, rt) {
+    if (!cat.on || !ready || !rt || !rt.texture || !renderer.readRenderTargetPixelsAsync) return;
+    const t0 = perfNow();
+    build();
+    cat.st.taps++;
+    const seq = cat.seq++, k = seq % CAT.SLOTS;
+    if (cat.busy[k]) { cat.st.skipped++; return; }
+    const T0 = T['cat' + k]; if (!T0) return;
+    if (!cat.bufs[k]) cat.bufs[k] = new Uint8Array(CAT.W * CAT.H * 4);
+    const prevTarget = renderer.getRenderTarget(), ac = renderer.autoClear;
+    M.cat.uniforms.tSrc.value = rt.texture; M.cat.uniforms.uTexel.value.set(1 / rt.width, 1 / rt.height);
+    draw(M.cat, T0);
+    const dec = T0.texture.colorSpace === THREE.SRGBColorSpace && T0.texture.type === THREE.UnsignedByteType;
+    catState(camera, cat.slotM[k]);
+    cat.busy[k] = true;
+    const gen = cat.gen;
+    renderer.readRenderTargetPixelsAsync(T0, 0, 0, CAT.W, CAT.H, cat.bufs[k]).then(() => catLanded(k, seq, gen, dec ? EYE_DEC : null), () => { cat.busy[k] = false; cat.st.failed++; });
+    renderer.autoClear = ac; renderer.setRenderTarget(prevTarget);
+    const d = (perfNow() - t0) * 1000; cat.st.tapUs += d; cat.st.n++; if (d > cat.st.tapUsMax) cat.st.tapUsMax = d;
+  }
+  const catcher = {
+    CAT, tap, detect, catStats,
+    get on() { return cat.on; }, set on(v) { cat.on = !!v; },
+    summary: () => ({ on: cat.on, taps: cat.st.taps, reads: cat.st.reads, skipped: cat.st.skipped, failed: cat.st.failed, caught: cat.st.caught, shots: cat.shots,
+      tapUs: cat.st.n ? +(cat.st.tapUs / cat.st.n).toFixed(1) : null, tapUsMax: +cat.st.tapUsMax.toFixed(1), readUs: cat.st.reads ? +(cat.st.readUs / cat.st.reads).toFixed(1) : null,
+      spike: CAT.spike, sky: CAT.sky, white: CAT.white }),
+  };
+  try { if (typeof localStorage !== 'undefined' && localStorage.getItem('flydiy.rec.catch') === '0') cat.on = false; } catch (e) {}
+
   // ---- the hook ---------------------------------------------------------------------------
   function render(r, camera, rt) {
     if (!ready || !rt) return;
@@ -505,9 +639,9 @@ const POST_FX = (() => {
   function dispose() {
     for (const k in T) { T[k].dispose(); delete T[k]; }
     for (const k in M) { M[k].dispose(); delete M[k]; }
-    installed = false; sized = { w: 0, h: 0 };
+    installed = false; sized = { w: 0, h: 0 }; cat.gen++;   // (G1357: a read in flight on a disposed target lands nowhere)
   }
-  const API = { S, KEYS, BLOOM, stats, init, apply, set, render, active, warmList, dispose, setLinear, get linear() { return linear; }, get hooked() { return hooked; }, get ready() { return ready; } };
+  const API = { S, KEYS, BLOOM, stats, catcher, init, apply, set, render, active, warmList, dispose, setLinear, get linear() { return linear; }, get hooked() { return hooked; }, get ready() { return ready; } };
   if (typeof window !== 'undefined') window.POST_FX = API;
   return API;
 })();
