@@ -43,12 +43,14 @@ window.FLYDIY_WORLD_COMPOSE = function () {
     } catch (e) { return null; }
   })();
   // THE TOWN SWITCH (G590, the 2026-09-26 playtest): Metlakatla (every `mk_` entry of the record) held the Jolene
-  // taxi at 12-15 fps, so it is OFF unless the GRAPHICS 'town' row says 'all' or the URL ?town=1 - dropped at load,
-  // code and data kept; the editor's autosave puts the cut back (below), so a save made with it off keeps it
+  // taxi at 12-15 fps, so it was OFF unless the GRAPHICS 'town' row said 'all' or the URL ?town=1. G1408 (METLA-LOAD):
+  // ON BY DEFAULT - METLA-RETURN made the flight cheap, G1406 the load (the premises' builders read the town's
+  // uncooked ground without baking it); OFF when the row says 'nearby' or the URL ?town=0 - dropped at load, code and
+  // data kept; the editor's autosave puts the cut back (below), so a save made with it off keeps it
   const TOWN = (() => {
     const T = { all: false, off: ['mk_'], cut: null, n: 0 };
     try { const q = new URLSearchParams(location.search).get('town'); const g = window.GFX && window.GFX.get ? window.GFX.get() : null;
-      T.all = q !== null ? (q === '1' || q === 'all') : !!(g && g.town === 'all'); } catch (e) {}
+      T.all = q !== null ? (q === '1' || q === 'all') : !(g && g.town === 'nearby'); } catch (e) {}
     return T;
   })();
   const premisesPlaced = (() => {

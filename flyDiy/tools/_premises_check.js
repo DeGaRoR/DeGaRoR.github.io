@@ -1007,7 +1007,13 @@ if (SELFTEST) {
             '14q restorePlaces puts every cut entry back and keeps the edit');
       const AP = fs.readFileSync(path.join(TOOLS, '..', 'src', 'viewer', 'app.js'), 'utf8') + fs.readFileSync(path.join(TOOLS, '..', 'src', 'viewer', 'world_boot.js'), 'utf8');   // G999: the load's composition is world_boot.js's
       check(/off: \['mk_'\]/.test(AP) && /PREMISES_GEN\.dropPlaces\(U\.rec, TOWN\.off\)/.test(AP) && /makeWorld\(0, \{ premises: premisesPlaced/.test(AP) && /restorePlaces\(U\.rec, TOWN\.cut\)/.test(AP),
-            '14q app.js drops the town at load by default and restores it in every editor save');
+            '14q world_boot.js drops the town at load when asked and restores it in every editor save');
+      // G1408 (METLA-LOAD): THE TOWN IS ON BY DEFAULT - only the row's 'nearby' or ?town=0 drops it; the row's default (a
+      // free row's first step) is 'all', and a pref saved before pv 7 with the old default takes the new one
+      const GS = fs.readFileSync(path.join(TOOLS, '..', 'src', 'viewer', 'gfx_settings.js'), 'utf8');
+      check(/T\.all = q !== null \? \(q === '1' \|\| q === 'all'\) : !\(g && g\.town === 'nearby'\)/.test(AP) && /k: 'town', label: 'towns', free: true, reload: true, steps: \[\s*\{ v: 'all'/.test(GS)
+            && /if \(v && !\(v\.pv >= 7\)\) \{ if \(v\.town === 'nearby'\) delete v\.town; v\.pv = 7; \}/.test(GS),
+            '14q the town is ON by default (G1408): the row\'s first step is \'all\', only \'nearby\' or ?town=0 drops it, an old pref\'s \'nearby\' migrates');
     }
 
     // 14r THE AUTHORS ARE DETERMINISTIC, held by a source scan rather than by
