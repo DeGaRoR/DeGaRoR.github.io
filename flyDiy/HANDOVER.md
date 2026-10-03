@@ -68086,7 +68086,10 @@ index.html order (welcome after boot.js, before the core; the loader holds befor
 (playwright, SwiftShader): the welcome and the gate render, Play releases the load, the rig loads untouched, the
 lost-context message appears / clears and stays off in a rig.
 
-**GATES**: GFX, BOOT, UISMOKE, BUILD - PASS (cloud, `--only=`; no GPU gates run).
+**GATES** (the files touched; the full battery is A0's on the train): `node tools/run_gates.js --only=GFX,BOOT,UISMOKE,BUILD`
+on the final tree (23b0cda, base origin/master 5502f45) - GFX PASS 0.1 s, BOOT PASS 0.1 s, UISMOKE PASS 129.9 s, BUILD PASS
+1.2 s; BATTERY: PASS. No GPU gates run (cloud). The generated pages (index.html, dev.html, sw.js, version.json) are not
+committed: A0's built commit regenerates them (build.js picks welcome.js up from `MANIFEST.viewer.welcome`).
 
 **FOR LATER**: the GPU table is a guess anchored on §2's rows - LADDER-TUNE retunes it from the user's machines; the
 "short timed test" of §3 is not built; a `pocket` preset (§2) needs a row in ORDER/LABEL and in the table's phones.
