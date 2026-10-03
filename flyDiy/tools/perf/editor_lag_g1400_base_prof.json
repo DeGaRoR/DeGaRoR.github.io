@@ -1,0 +1,1285 @@
+{
+ "date": "2026-10-03T18:59:33.887Z",
+ "trees": [
+  {
+   "key": "base",
+   "rel": "_ab/5502f450/flyDiy"
+  },
+  {
+   "key": "here",
+   "rel": "flyDiy"
+  }
+ ],
+ "reps": 3,
+ "moves": 6,
+ "quiet": 700,
+ "udd": "/tmp/claude-0/sp/udd",
+ "page": "index.html",
+ "headless": true,
+ "rows": [
+  {
+   "tree": "base",
+   "action": "taxiDrag",
+   "fixture": "HOME",
+   "kind": "drag",
+   "move": {
+    "med": 3440.5,
+    "max": 5448.3
+   },
+   "mframe": {
+    "med": 3537.9,
+    "max": 5473.1
+   },
+   "up": {
+    "med": 8972.3,
+    "max": 10984.4
+   },
+   "upFrame": {
+    "med": 9147.3,
+    "max": 11121.2
+   },
+   "busy": {
+    "med": 9096,
+    "max": 11168
+   },
+   "settle": {
+    "med": 9096,
+    "max": 11548
+   },
+   "maxLong": {
+    "med": 9096,
+    "max": 11105
+   },
+   "moved": false,
+   "fnMove": {
+    "PREMISES_EDITOR.host.ground": [
+     0.07,
+     1
+    ],
+    "PREMISES_GEN.normalise": [
+     0.02,
+     1
+    ],
+    "PREMISES_EDITOR.R.setRecord": [
+     0.02,
+     1
+    ],
+    "PREMISES_GEN.compose": [
+     1252.35,
+     1
+    ],
+    "PREMISES_EDITOR.R.rebuild": [
+     3773.96,
+     1
+    ]
+   },
+   "fn": {
+    "PREMISES_GEN.normalise": [
+     0.03,
+     1
+    ],
+    "PREMISES_EDITOR.R.setRecord": [
+     0.03,
+     1
+    ],
+    "PREMISES_GEN.compose": [
+     1170.9,
+     1
+    ],
+    "PREMISES_EDITOR.R.rebuild": [
+     7799.97,
+     1
+    ],
+    "WORLD.refreshGround": [
+     1634.67,
+     1
+    ],
+    "WORLD.repaintStrips": [
+     136.3,
+     1
+    ],
+    "PREMISES_GEN.checks": [
+     44.07,
+     1
+    ]
+   },
+   "reps": [
+    {
+     "moves": [
+      [
+       4664.1,
+       4666.2
+      ],
+      [
+       4610.6,
+       4622.7
+      ],
+      [
+       4739.5,
+       4749.9
+      ],
+      [
+       3929.7,
+       3932.8
+      ],
+      [
+       3196.6,
+       3203.7
+      ],
+      [
+       3355.1,
+       3362.5
+      ]
+     ],
+     "fnMove": {
+      "PREMISES_EDITOR.host.ground": [
+       0.19999999995343387,
+       6
+      ],
+      "PREMISES_GEN.normalise": [
+       0.20000000018626451,
+       6
+      ],
+      "PREMISES_EDITOR.R.setRecord": [
+       0.20000000018626451,
+       6
+      ],
+      "PREMISES_GEN.compose": [
+       7924.09999999986,
+       6
+      ],
+      "PREMISES_EDITOR.R.rebuild": [
+       24492.800000000047,
+       6
+      ]
+     },
+     "up": 8972.3,
+     "upFrame": 9147.3,
+     "busy": 9096,
+     "maxLong": 9096,
+     "settle": 9096,
+     "fn": {
+      "PREMISES_GEN.normalise": [
+       0,
+       1
+      ],
+      "PREMISES_EDITOR.R.setRecord": [
+       0,
+       1
+      ],
+      "PREMISES_GEN.compose": [
+       1118.8000000000466,
+       1
+      ],
+      "PREMISES_EDITOR.R.rebuild": [
+       7552.5,
+       1
+      ],
+      "WORLD.refreshGround": [
+       1279.8000000000466,
+       1
+      ],
+      "WORLD.repaintStrips": [
+       124.79999999981374,
+       1
+      ],
+      "PREMISES_GEN.checks": [
+       29.5,
+       1
+      ]
+     },
+     "moved": false,
+     "t0": 238417
+    },
+    {
+     "moves": [
+      [
+       3353.8,
+       3355.7
+      ],
+      [
+       3733.2,
+       3739
+      ],
+      [
+       5448.3,
+       5473.1
+      ],
+      [
+       3870.7,
+       3880.7
+      ],
+      [
+       3412.8,
+       3430.3
+      ],
+      [
+       3117.1,
+       3131.7
+      ]
+     ],
+     "fnMove": {
+      "PREMISES_EDITOR.host.ground": [
+       0.7000000001862645,
+       6
+      ],
+      "PREMISES_GEN.normalise": [
+       0.09999999986030161,
+       6
+      ],
+      "PREMISES_EDITOR.R.setRecord": [
+       0.09999999986030161,
+       6
+      ],
+      "PREMISES_GEN.compose": [
+       7451.59999999986,
+       6
+      ],
+      "PREMISES_EDITOR.R.rebuild": [
+       22934.399999999907,
+       6
+      ]
+     },
+     "up": 8802.6,
+     "upFrame": 9011.9,
+     "busy": 8957,
+     "maxLong": 8957,
+     "settle": 8957,
+     "fn": {
+      "PREMISES_GEN.normalise": [
+       0.10000000009313226,
+       1
+      ],
+      "PREMISES_EDITOR.R.setRecord": [
+       0.10000000009313226,
+       1
+      ],
+      "PREMISES_GEN.compose": [
+       1090.9000000001397,
+       1
+      ],
+      "PREMISES_EDITOR.R.rebuild": [
+       7447.09999999986,
+       1
+      ],
+      "WORLD.refreshGround": [
+       1178,
+       1
+      ],
+      "WORLD.repaintStrips": [
+       162.30000000004657,
+       1
+      ],
+      "PREMISES_GEN.checks": [
+       46.800000000046566,
+       1
+      ]
+     },
+     "moved": false,
+     "t0": 271615.90000000014
+    },
+    {
+     "moves": [
+      [
+       4015.4,
+       4049.2
+      ],
+      [
+       3173.3,
+       3484.1
+      ],
+      [
+       3133,
+       3721.7
+      ],
+      [
+       3507.9,
+       3537.9
+      ],
+      [
+       3235.3,
+       3250.8
+      ],
+      [
+       3440.5,
+       3447.7
+      ]
+     ],
+     "fnMove": {
+      "PREMISES_EDITOR.host.ground": [
+       0.4000000001396984,
+       6
+      ],
+      "PREMISES_GEN.normalise": [
+       0.10000000009313226,
+       6
+      ],
+      "PREMISES_EDITOR.R.setRecord": [
+       0.10000000009313226,
+       6
+      ],
+      "PREMISES_GEN.compose": [
+       7166.59999999986,
+       6
+      ],
+      "PREMISES_EDITOR.R.rebuild": [
+       20503.999999999767,
+       6
+      ]
+     },
+     "up": 10984.4,
+     "upFrame": 11121.2,
+     "busy": 11168,
+     "maxLong": 11105,
+     "settle": 11548,
+     "fn": {
+      "PREMISES_GEN.normalise": [
+       0,
+       1
+      ],
+      "PREMISES_EDITOR.R.setRecord": [
+       0,
+       1
+      ],
+      "PREMISES_GEN.compose": [
+       1303,
+       1
+      ],
+      "PREMISES_EDITOR.R.rebuild": [
+       8400.300000000047,
+       1
+      ],
+      "WORLD.refreshGround": [
+       2446.1999999999534,
+       1
+      ],
+      "WORLD.repaintStrips": [
+       121.80000000004657,
+       1
+      ],
+      "PREMISES_GEN.checks": [
+       55.89999999990687,
+       1
+      ]
+     },
+     "moved": false,
+     "t0": 304147.90000000014
+    }
+   ],
+   "prof": {
+    "fn": [
+     [
+      "sdPoly native:6803",
+      6086.5
+     ],
+     [
+      "bakeAO _house_kit.js:812",
+      4223.4
+     ],
+     [
+      "rasterTileDecode native:7207",
+      3804.3
+     ],
+     [
+      "stripKeep render_premises.js:712",
+      3180.7
+     ],
+     [
+      "getProgramInfoLog native:0",
+      1884.3
+     ],
+     [
+      "texSubImage2D native:0",
+      1400.4
+     ],
+     [
+      "getParameter native:0",
+      1192.9
+     ],
+     [
+      "patchDepth render_premises.js:518",
+      1009.9
+     ],
+     [
+      "addMesh render_premises.js:2155",
+      887.7
+     ],
+     [
+      "v _house_kit.js:82",
+      875.8
+     ],
+     [
+      "put render_premises.js:634",
+      812.2
+     ],
+     [
+      "mergeSteps native:1656",
+      776.1
+     ],
+     [
+      "runwayBox native:7669",
+      763.7
+     ],
+     [
+      "terrainH native:2754",
+      729.1
+     ],
+     [
+      "fromBufferAttribute index.html:4917",
+      532.3
+     ],
+     [
+      "getExtension native:0",
+      516.2
+     ],
+     [
+      "buildPatchSteps render_premises.js:539",
+      507
+     ],
+     [
+      "append _house_kit.js:100",
+      502
+     ],
+     [
+      "rasterise native:9864",
+      446.1
+     ],
+     [
+      "grHeight native:8330",
+      432.2
+     ],
+     [
+      "pushV native:2253",
+      393.5
+     ],
+     [
+      "roadGeometry native:282",
+      374.4
+     ],
+     [
+      "groundTop _house_kit.js:907",
+      368.5
+     ],
+     [
+      "buildComposite _house_gen.js:6928",
+      347.6
+     ],
+     [
+      "bake native:2324",
+      347.4
+     ]
+    ],
+    "file": [
+     [
+      "render_premises.js",
+      7565.9
+     ],
+     [
+      "_house_kit.js",
+      6876.4
+     ],
+     [
+      "(sdPoly)",
+      6086.5
+     ],
+     [
+      "(rasterTileDecode)",
+      3804.3
+     ],
+     [
+      "index.html",
+      3488.3
+     ],
+     [
+      "((garbage collector))",
+      2822.2
+     ],
+     [
+      "(getProgramInfoLog)",
+      1884.3
+     ],
+     [
+      "(texSubImage2D)",
+      1400.4
+     ],
+     [
+      "(getParameter)",
+      1192.9
+     ],
+     [
+      "(terrainH)",
+      1017.8
+     ],
+     [
+      "(mergeSteps)",
+      776.1
+     ],
+     [
+      "(runwayBox)",
+      763.7
+     ]
+    ],
+    "gcMs": 2822.2,
+    "syncMs": 33217.7,
+    "syncIncl": [
+     [
+      "(anon) native:1",
+      33217.7
+     ],
+     [
+      "(root) native:0",
+      33217.7
+     ],
+     [
+      "cmd premises_ui.js:1111",
+      33203.7
+     ],
+     [
+      "w native:8",
+      33196.3
+     ],
+     [
+      "rebuild render_premises.js:3100",
+      31630
+     ],
+     [
+      "rebuildSteps render_premises.js:3101",
+      31627.4
+     ],
+     [
+      "ELfire native:27",
+      24085.8
+     ],
+     [
+      "moveDrag premises_ui.js:434",
+      24070.9
+     ],
+     [
+      "buildRoadsSteps render_premises.js:797",
+      15185.9
+     ],
+     [
+      "roadGeometry native:282",
+      12294.2
+     ],
+     [
+      "ELfire native:32",
+      9131.9
+     ],
+     [
+      "onUp premises_ui.js:485",
+      9131.5
+     ],
+     [
+      "dirty premises_ui.js:200",
+      9130.4
+     ],
+     [
+      "composeNow render_premises.js:55",
+      8953.2
+     ],
+     [
+      "PMS.set native:160",
+      8952.5
+     ],
+     [
+      "setPremises native:3301",
+      8927.7
+     ],
+     [
+      "stripKeep render_premises.js:712",
+      8838.2
+     ],
+     [
+      "compose native:7987",
+      8612.7
+     ],
+     [
+      "solveLinks native:7920",
+      7810.7
+     ],
+     [
+      "solve native:7900",
+      7809.2
+     ],
+     [
+      "tramLine _village_gen.js:1935",
+      7808.1
+     ],
+     [
+      "(anon) native:7914",
+      7806.7
+     ],
+     [
+      "buildFor render_premises.js:52",
+      7806.4
+     ],
+     [
+      "build _house_gen.js:6638",
+      7806
+     ],
+     [
+      "buildStation _tram_gen.js:115",
+      7793.6
+     ],
+     [
+      "buildComposite _house_gen.js:6928",
+      7780.7
+     ],
+     [
+      "sdPoly native:6803",
+      6083.7
+     ],
+     [
+      "bakeAO _house_kit.js:812",
+      4874.2
+     ],
+     [
+      "grHeight native:8330",
+      4354.6
+     ],
+     [
+      "buildPatchSteps render_premises.js:539",
+      4108.5
+     ],
+     [
+      "grCooked native:8447",
+      3901.8
+     ],
+     [
+      "rasterTileDecode native:7207",
+      3724.8
+     ],
+     [
+      "buildBase _tram_gen.js:489",
+      3429.9
+     ],
+     [
+      "heightAt render_premises.js:417",
+      2891.2
+     ],
+     [
+      "terrainH native:3349",
+      1895.4
+     ],
+     [
+      "paintMaterials render_premises.js:340",
+      1559.8
+     ],
+     [
+      "onRebuilt native:99",
+      1550.8
+     ],
+     [
+      "buildOutlines render_premises.js:974",
+      1445.3
+     ],
+     [
+      "groundLoop render_premises.js:943",
+      1387.8
+     ],
+     [
+      "refreshGround native:6174",
+      1384.9
+     ],
+     [
+      "refreshGroundSteps native:6177",
+      1381.8
+     ],
+     [
+      "face _house_kit.js:149",
+      1333.5
+     ],
+     [
+      "materialWeight native:8660",
+      1268.8
+     ],
+     [
+      "matWeight native:8096",
+      1235
+     ],
+     [
+      "tV2 native:3174",
+      1210
+     ],
+     [
+      "(anon) _house_kit.js:188",
+      1027.3
+     ],
+     [
+      "lineFor render_premises.js:963",
+      1010.4
+     ],
+     [
+      "patchDepth render_premises.js:518",
+      989.5
+     ],
+     [
+      "mergePavSteps render_premises.js:857",
+      964.6
+     ],
+     [
+      "buildVolume _house_gen.js:3274",
+      951.7
+     ]
+    ]
+   }
+  },
+  {
+   "tree": "base",
+   "action": "taxiAdd",
+   "fixture": "HOME",
+   "kind": "click",
+   "move": null,
+   "mframe": null,
+   "up": {
+    "med": 9434.5,
+    "max": 10250.6
+   },
+   "upFrame": {
+    "med": 9643.6,
+    "max": 10618.7
+   },
+   "busy": {
+    "med": 10609,
+    "max": 14246
+   },
+   "settle": {
+    "med": 10618,
+    "max": 15600
+   },
+   "maxLong": {
+    "med": 9556,
+    "max": 10484
+   },
+   "moved": true,
+   "fnMove": {},
+   "fn": {
+    "PREMISES_GEN.normalise": [
+     0,
+     1
+    ],
+    "PREMISES_EDITOR.R.setRecord": [
+     0.03,
+     1
+    ],
+    "PREMISES_GEN.compose": [
+     1306.37,
+     1
+    ],
+    "PREMISES_EDITOR.R.rebuild": [
+     7604.37,
+     1
+    ],
+    "WORLD.refreshGround": [
+     1594.9,
+     1
+    ],
+    "WORLD.repaintStrips": [
+     156.1,
+     1
+    ],
+    "PREMISES_GEN.checks": [
+     30.63,
+     1
+    ]
+   },
+   "reps": [
+    {
+     "up": 8428.4,
+     "upFrame": 8545.7,
+     "busy": 8525,
+     "maxLong": 8525,
+     "settle": 8525,
+     "fn": {
+      "PREMISES_GEN.normalise": [
+       0,
+       1
+      ],
+      "PREMISES_EDITOR.R.setRecord": [
+       0,
+       1
+      ],
+      "PREMISES_GEN.compose": [
+       1044.6000000000931,
+       1
+      ],
+      "PREMISES_EDITOR.R.rebuild": [
+       7041.300000000047,
+       1
+      ],
+      "WORLD.refreshGround": [
+       1256.8999999999069,
+       1
+      ],
+      "WORLD.repaintStrips": [
+       117.80000000004657,
+       1
+      ],
+      "PREMISES_GEN.checks": [
+       29,
+       1
+      ]
+     },
+     "t0": 329121.1000000001
+    },
+    {
+     "up": 10250.6,
+     "upFrame": 10618.7,
+     "busy": 10609,
+     "maxLong": 10484,
+     "settle": 10618,
+     "fn": {
+      "PREMISES_GEN.normalise": [
+       0,
+       1
+      ],
+      "PREMISES_EDITOR.R.setRecord": [
+       0.09999999986030161,
+       1
+      ],
+      "PREMISES_GEN.compose": [
+       1098.0999999998603,
+       1
+      ],
+      "PREMISES_EDITOR.R.rebuild": [
+       7620,
+       1
+      ],
+      "WORLD.refreshGround": [
+       2383.0999999998603,
+       1
+      ],
+      "WORLD.repaintStrips": [
+       228.39999999990687,
+       1
+      ],
+      "PREMISES_GEN.checks": [
+       26.300000000046566,
+       1
+      ]
+     },
+     "t0": 338714.2000000002
+    },
+    {
+     "up": 9434.5,
+     "upFrame": 9643.6,
+     "busy": 14246,
+     "maxLong": 9556,
+     "settle": 15600,
+     "fn": {
+      "PREMISES_GEN.normalise": [
+       0,
+       1
+      ],
+      "PREMISES_EDITOR.R.setRecord": [
+       0,
+       1
+      ],
+      "PREMISES_GEN.compose": [
+       1776.3999999999069,
+       1
+      ],
+      "PREMISES_EDITOR.R.rebuild": [
+       8151.800000000047,
+       1
+      ],
+      "WORLD.refreshGround": [
+       1144.6999999999534,
+       1
+      ],
+      "WORLD.repaintStrips": [
+       122.10000000009313,
+       1
+      ],
+      "PREMISES_GEN.checks": [
+       36.5999999998603,
+       1
+      ]
+     },
+     "t0": 350346.80000000005
+    }
+   ],
+   "prof": {
+    "fn": [
+     [
+      "put render_premises.js:634",
+      912.1
+     ],
+     [
+      "patchDepth render_premises.js:518",
+      893.5
+     ],
+     [
+      "rasterTileDecode native:7207",
+      752.7
+     ],
+     [
+      "sdPoly native:6803",
+      691.3
+     ],
+     [
+      "bakeAO _house_kit.js:812",
+      561.6
+     ],
+     [
+      "buildPatchSteps render_premises.js:539",
+      550.3
+     ],
+     [
+      "stripKeep render_premises.js:712",
+      421.6
+     ],
+     [
+      "patchOf native:2344",
+      302.1
+     ],
+     [
+      "terrainH native:2754",
+      289.3
+     ],
+     [
+      "roadDist native:6928",
+      175.3
+     ],
+     [
+      "terrainH native:3349",
+      168.3
+     ],
+     [
+      "matWeight native:8096",
+      164.3
+     ],
+     [
+      "fromBufferAttribute index.html:4917",
+      160.4
+     ],
+     [
+      "rebuildSteps render_premises.js:3101",
+      146.8
+     ],
+     [
+      "grHeight native:8330",
+      145.8
+     ],
+     [
+      "setFromBufferAttribute index.html:4917",
+      123.1
+     ],
+     [
+      "v _house_kit.js:82",
+      118.3
+     ],
+     [
+      "(anon) native:2416",
+      109.3
+     ],
+     [
+      "runwayBox native:7669",
+      104.8
+     ],
+     [
+      "computeVertexNormals index.html:4917",
+      89.4
+     ],
+     [
+      "coastAt native:9350",
+      89.2
+     ],
+     [
+      "Ks index.html:4917",
+      86.8
+     ],
+     [
+      "pavedAt native:8808",
+      86.2
+     ],
+     [
+      "distPtSeg native:6796",
+      83.6
+     ],
+     [
+      "at render_premises.js:595",
+      76.6
+     ]
+    ],
+    "file": [
+     [
+      "render_premises.js",
+      3207.6
+     ],
+     [
+      "_house_kit.js",
+      943.5
+     ],
+     [
+      "index.html",
+      904.3
+     ],
+     [
+      "((idle))",
+      869.2
+     ],
+     [
+      "(rasterTileDecode)",
+      752.7
+     ],
+     [
+      "(sdPoly)",
+      691.3
+     ],
+     [
+      "((garbage collector))",
+      651.4
+     ],
+     [
+      "(terrainH)",
+      462.2
+     ],
+     [
+      "(patchOf)",
+      302.1
+     ],
+     [
+      "(roadDist)",
+      175.3
+     ],
+     [
+      "(matWeight)",
+      164.3
+     ],
+     [
+      "(native)",
+      151.4
+     ]
+    ],
+    "gcMs": 651.4,
+    "syncMs": 9139.4,
+    "syncIncl": [
+     [
+      "ELfire native:11",
+      9139.4
+     ],
+     [
+      "(anon) native:1",
+      9139.4
+     ],
+     [
+      "(root) native:0",
+      9139.4
+     ],
+     [
+      "click native:0",
+      9139.1
+     ],
+     [
+      "ed premises_ui.js:675",
+      9138.7
+     ],
+     [
+      "(anon) premises_ui.js:826",
+      9138.7
+     ],
+     [
+      "edit premises_ui.js:180",
+      9138.3
+     ],
+     [
+      "dirty premises_ui.js:200",
+      9138
+     ],
+     [
+      "w native:8",
+      9121.2
+     ],
+     [
+      "rebuild render_premises.js:3100",
+      7685.2
+     ],
+     [
+      "rebuildSteps render_premises.js:3101",
+      7683.4
+     ],
+     [
+      "buildPatchSteps render_premises.js:539",
+      4169.3
+     ],
+     [
+      "buildRoadsSteps render_premises.js:797",
+      1734.2
+     ],
+     [
+      "onRebuilt native:99",
+      1436
+     ],
+     [
+      "roadGeometry native:282",
+      1432.1
+     ],
+     [
+      "refreshGround native:6174",
+      1307.1
+     ],
+     [
+      "terrainH native:3349",
+      1303.6
+     ],
+     [
+      "refreshGroundSteps native:6177",
+      1303.4
+     ],
+     [
+      "PMS.set native:160",
+      1230
+     ],
+     [
+      "composeNow render_premises.js:55",
+      1230
+     ],
+     [
+      "setPremises native:3301",
+      1228.2
+     ],
+     [
+      "compose native:7987",
+      1179.9
+     ],
+     [
+      "stripKeep render_premises.js:712",
+      1144.2
+     ],
+     [
+      "tramLine _village_gen.js:1935",
+      1062.3
+     ],
+     [
+      "solve native:7900",
+      1062.3
+     ],
+     [
+      "solveLinks native:7920",
+      1062.3
+     ],
+     [
+      "build _house_gen.js:6638",
+      1062
+     ],
+     [
+      "buildFor render_premises.js:52",
+      1062
+     ],
+     [
+      "(anon) native:7914",
+      1062
+     ],
+     [
+      "buildStation _tram_gen.js:115",
+      1059.8
+     ],
+     [
+      "buildComposite _house_gen.js:6928",
+      1058.6
+     ],
+     [
+      "grHeight native:8330",
+      976.2
+     ],
+     [
+      "patchDepth render_premises.js:518",
+      924.9
+     ],
+     [
+      "put render_premises.js:634",
+      912.1
+     ],
+     [
+      "grCooked native:8447",
+      809.6
+     ],
+     [
+      "FARLOD.resinkSteps native:2458",
+      769.3
+     ],
+     [
+      "FARLOD.update native:2429",
+      768.9
+     ],
+     [
+      "buildQuad native:2412",
+      756.9
+     ],
+     [
+      "rasterTileDecode native:7207",
+      752.7
+     ],
+     [
+      "sdPoly native:6803",
+      688.8
+     ],
+     [
+      "bakeAO _house_kit.js:812",
+      655.6
+     ],
+     [
+      "(anon) native:2416",
+      615.2
+     ],
+     [
+      "sinkOf render_premises.js:574",
+      518
+     ],
+     [
+      "patchOf native:2344",
+      505.6
+     ],
+     [
+      "pavedAt native:8649",
+      503.3
+     ],
+     [
+      "tV2 native:3174",
+      496.5
+     ],
+     [
+      "pavedAt native:8808",
+      476.4
+     ],
+     [
+      "buildBase _tram_gen.js:489",
+      461.4
+     ],
+     [
+      "terrainH native:2754",
+      280.3
+     ],
+     [
+      "computeVertexNormals index.html:4917",
+      276
+     ]
+    ]
+   }
+  }
+ ],
+ "meta": [
+  {
+   "tree": "base",
+   "load": {
+    "state": "ready",
+    "sec": 137.3
+   },
+   "fixtures": {
+    "rwy": "HOME",
+    "near": [
+     -353.49,
+     281.38
+    ],
+    "propId": "af_fuel_truck",
+    "prop": "af_fuel_truck",
+    "site": "s_club",
+    "zone": "z_harbour",
+    "n": 179
+   },
+   "exc": []
+  }
+ ]
+}

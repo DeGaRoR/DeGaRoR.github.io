@@ -189,7 +189,8 @@ function hot(p) {
       for (let k = 0; k < n; k++) {
         const P = flag('prof') && k === 0;
         if (P) { await b.cmd('Profiler.enable'); await b.cmd('Profiler.setSamplingInterval', { interval: 250 }); await b.cmd('Profiler.start'); }
-        const raw = await b.ev(ONE(A, id, MOVES, QUIET, k), 240000), r = raw === '__timeout' ? { err: 'a rep ran past 240 s' } : JSON.parse(raw);
+        let raw; try { raw = await b.ev(ONE(A, id, MOVES, QUIET, k), 240000); } catch (e) { raw = JSON.stringify({ err: String(e.message || e).split('\n')[0].slice(0, 200) }); }
+        const r = raw === '__timeout' ? { err: 'a rep ran past 240 s' } : JSON.parse(raw);
         if (P) { const p = await b.cmd('Profiler.stop'); prof = p.result && p.result.profile ? hot(p.result.profile) : null; await b.cmd('Profiler.disable'); }
         if (r.err) { err = r.err; break; }
         if (!P) reps.push(r);
