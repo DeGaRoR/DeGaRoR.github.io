@@ -93,7 +93,6 @@ const SPLAT_GROUND = (() => {
   float gSRel = 1.0;   // sMat's texel over its set's mean, read by sSplat per candidate
   uniform vec4 uSSplit, uSSplit2, uSDist, uSDist2, uSHex, uSPud, uSPud2, uSVeg;
   uniform float uSFarN, uSNearN;   // PERF 2026-09-23: how many sets a terrain type blends, far (past the detail fade) and near: 3 = its recipe's, 1 = its first
-  uniform float uSHexPx;   // PERF 2026-09-23: the hex tiling only where a set's tile spans more than this many pixels (0 = everywhere)
   float gSPixM = 1.0;      // the fragment's footprint on the ground, metres a pixel (sSplat, in uniform flow)
   float gSSlope = 0.0;     // the ground's slope in degrees at this fragment (sSplat, before the candidates): a puddle needs a level place
   uniform vec2 uSSeam, uSNrm, uSLakeE;
@@ -210,11 +209,11 @@ const SPLAT_GROUND = (() => {
     scale = max(scale, 0.01);
     vec2 p = P.xz; float ca = 1.0, sa = 0.0;
     gSHexRot = ang != 0.0 ? -1.0 : uSHex.w;
-    // THE HEX CUT, A DIAL LEFT AT 0 (PERF 2026-09-23): the hex tiling dropped where a set's tile spans under
+    // THE HEX CUT WAS A DIAL LEFT AT 0 (PERF 2026-09-23): the hex tiling dropped where a set's tile spans under
     // uSHexPx pixels. At 4 it showed the tiles repeating as a checker over the far field (a tile of 4-16 px
     // still has its low frequencies, and they repeat), and its 'saving' was the mip-0 bug below (NO CONTINUE):
-    // with the mips honoured the far samples are cheap and the hex costs nothing measurable. 0 = everywhere.
-    if (uSHexPx > 0.0 && scale < uSHexPx * gSPixM) gSHexRot = -1.0;
+    // with the mips honoured the far samples are cheap and the hex costs nothing measurable. Nothing ever set it
+    // off 0, and its test was inlined at every sSet call site: out of the program (COLD-LINKS G1311).
     if (ang != 0.0) { ca = cos(ang); sa = sin(ang); mat2 R = mat2(ca, sa, -sa, ca); p = R * p; }
     Smp t = sTile(layer, p / scale);
     vec2 tt = vec2(ca * t.n.x + sa * t.n.y, -sa * t.n.x + ca * t.n.y);
@@ -616,7 +615,6 @@ const SPLAT_GROUND = (() => {
       uSGrass: { value: new Float32Array(NLIB).fill(0) }, uSGrassC: { value: V4() },
       uSSplit: { value: V4() }, uSSplit2: { value: V4() }, uSDist: { value: V4() }, uSDist2: { value: V4() }, uSHex: { value: V4() }, uSPud: { value: V4() }, uSPud2: { value: V4() }, uSVeg: { value: V4() },
       uSFarN: { value: 3 }, uSNearN: { value: 3 },   // the blend's depth (sMat): 3 = the recipe's, 1 = one set (the GRAPHICS 'ground' row)
-      uSHexPx: { value: 0 },   // the hex cut's dial: 0 = hex everywhere (see sSet)
       uSSeam: { value: new THREE.Vector2() }, uSNrm: { value: new THREE.Vector2() }, uSLakeE: { value: new THREE.Vector2(1, 1) },
       uSBeachRot: { value: 0 }, uSNCode: { value: NCODE }, uSNCand: { value: 8 },
     };

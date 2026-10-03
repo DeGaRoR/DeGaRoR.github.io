@@ -1560,6 +1560,11 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     const gU = {}; groundU = gU;
     let classWeights = () => false;   // the class weight textures on demand (AS1, G906; set below on an island)
     let islandGroundHook = null, islandGroundHook0 = null, islandGroundHookOuter = null, islandGroundHookOuterDry = null, islandGroundHookFine = null, SPL = null;
+    // the island ground's materials (and the premises patch's clones of them: render_premises matOwn) - re-keyed together
+    // when the production / full line is crossed (groundSync, G1311); groundKey: a material's program key on that line
+    const GROUND_FAMILY = new Set();
+    let groundSync = () => {}, groundFullNow = false, groundKey = base => () => base;
+    const islandKeyed = (m, base) => { m.customProgramCacheKey = groundKey(base); m.groundFamily = GROUND_FAMILY; GROUND_FAMILY.add(m); return m; };
     yield 'island ground';
     if (ISLA && ISLA.tint && ISLA.ori1) {
       const G = ISLA.grid, n = G.w * G.h;
@@ -1634,7 +1639,22 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       // dry: the ground is known to hold no lake (the far terrain's lake-free patches, PERF 2026-09-23) - its
       // program carries no `discard`, so the rasteriser keeps early-Z for it (the lake cut's discard was 2.6 ms
       // of the far terrain's 5.6 at the Jolene stand: a shader that may discard is depth-tested late)
+      // THE PRODUCTION GROUND (COLD-LINKS G1311): the paint modes (F8's tint / radar / canopy / class / ndvi / coast /
+      // height / snow / terrain type / lakes views) and the class layer's smoothing are INSPECTION - the default stack
+      // starts at the tint (stackStart 1) and paints mode 0, so neither runs - yet FXC compiled them into every ground
+      // program: gClassSmooth's 8 x 3 blur is two constant-bound loops (unrolled: 48 + 2 fetches) at TWO call sites (the
+      // stack's class layer and paint mode 4), the stack's call inside a loop with a `continue` (ANGLE's gradient-free
+      // 'Lod0' copy of it on top). The ground's programs were the cold load's long pole (CESSNA-LINKS G1221: 40-58 s
+      // each). Now the programs carry them only when the state asks for them (groundFull: a paint mode, or a stack that
+      // draws its class layer) - the same uniforms, the same math on the default path; the full text keys apart
+      // (':full') and the ground's materials (GROUND_FAMILY, the premises patch's clones included) re-key when F8 crosses
+      // the line, once: every later edit inside the full program is a uniform again.
+      const groundFull = () => (GROUND.mode | 0) !== 0 || (stackStart() === 0 && !!STACK[0].on);
+      groundSync = () => { const f = groundFull(); if (f === groundFullNow) return; groundFullNow = f; for (const m of GROUND_FAMILY) m.needsUpdate = true; };
+      groundFullNow = groundFull();
+      groundKey = base => () => base + (groundFull() ? ':full' : '');
       const islandGroundHookFor = (side, rock, dry) => sh => {
+        const full = groundFull();
         if (typeof ATMO !== 'undefined') ATMO.inject(sh);   // S4: the aerial-perspective sampler (a hook of its own loses the prototype's)
         Object.assign(sh.uniforms, gU, SPL ? SPL.uniforms : {});
         sh.vertexShader = sh.vertexShader
@@ -1649,14 +1669,15 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
             'uniform float uGBlur, uGWobble, uGWaterMap, uGCell;\n' +
             // the packed fields: A = (ori, canopy, coast, lake), B = (ndvi, terrain type); the type at its texel's CENTRE (a nearest read off a linear texture)
             'float gLake(vec2 uv){ return texture2D(uGPackA, uv).a; }\n' +
+            'float gHash(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }\n' +
+            'float gVnoise(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);\n' +
+            '  return mix(mix(gHash(i), gHash(i + vec2(1.0, 0.0)), f.x), mix(gHash(i + vec2(0.0, 1.0)), gHash(i + vec2(1.0, 1.0)), f.x), f.y); }\n' +
+            (full ?   // the inspection's own helpers (groundFull, G1311)
             'float gTT(vec2 uv){ vec2 gn = uGGrid.zw / uGCell; return texture2D(uGPackB, (floor(uv * gn) + 0.5) / gn).g; }\n' +
             // the class colours, DISTINCT (G405): tree, shrub, grass, crop, built, bare, snow, water, wetland, moss
             'vec3 gClassRow(int i){ if (i == 0) return vec3(0.02,0.45,0.05); if (i == 1) return vec3(0.75,0.55,0.05); if (i == 2) return vec3(0.65,0.95,0.20);\n' +
             '  if (i == 3) return vec3(0.95,0.30,0.75); if (i == 4) return vec3(0.35,0.35,0.35); if (i == 5) return vec3(0.02,0.10,0.95);\n' +
             '  if (i == 6) return vec3(0.15,0.85,0.85); return vec3(0.55,0.15,0.55); }\n' +
-            'float gHash(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }\n' +
-            'float gVnoise(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);\n' +
-            '  return mix(mix(gHash(i), gHash(i + vec2(1.0, 0.0)), f.x), mix(gHash(i + vec2(0.0, 1.0)), gHash(i + vec2(1.0, 1.0)), f.x), f.y); }\n' +
             // the class as smooth weight fields, blurred over a ring (the bench's classSmooth)
             'vec3 gClassSmooth(vec2 xz, vec3 c0, vec3 c1, vec3 c2, vec3 c3, vec3 c4, vec3 c5, vec3 c6, vec3 c7){\n' +
             '  vec2 p = xz; if (uGWobble > 0.0) { vec2 q = xz / 45.0; p += (vec2(gVnoise(q), gVnoise(q + 31.0)) - 0.5) * 2.0 * uGWobble; }\n' +
@@ -1671,7 +1692,8 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
             'vec3 gTTCol(float c){ int i = int(c + 0.5);\n' +
             '  if (i == 0) return vec3(0.02,0.05,0.30); if (i == 1) return vec3(0.05,0.35,0.95); if (i == 2) return vec3(0.75,0.85,0.25); if (i == 3) return vec3(0.35,0.55,0.15);\n' +
             '  if (i == 4) return vec3(0.95,0.85,0.55); if (i == 5) return vec3(0.55,0.50,0.45); if (i == 6) return vec3(0.30,0.28,0.28); if (i == 7) return vec3(0.60,0.65,0.05);\n' +
-            '  if (i == 8) return vec3(0.02,0.35,0.05); if (i == 9) return vec3(0.98,0.98,1.0); if (i == 15) return vec3(0.45,0.95,0.20); return vec3(0.95,0.10,0.10); }\n' +
+            '  if (i == 8) return vec3(0.02,0.35,0.05); if (i == 9) return vec3(0.98,0.98,1.0); if (i == 15) return vec3(0.45,0.95,0.20); return vec3(0.95,0.10,0.10); }\n'
+            : '') +
             'uniform float uGOverlay, uGShade, uGLight, uGSat, uGSnow, uGShore, uGP90, uGHMax; uniform int uGMode;\n' +
             'uniform int uLOn[5]; uniform int uLMode[5]; uniform float uLOp[5]; uniform int uLStart;\n' +
             'float gLuma(vec3 c){ return dot(c, vec3(0.299, 0.587, 0.114)); }\n' +
@@ -1685,9 +1707,10 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
             '  if (m == 10) { float lb = max(gLuma(b), 1e-3), ls = gLuma(s); return b * (ls / lb); }\n' +
             '  if (m == 11) { float lb = gLuma(b), ls = max(gLuma(s), 1e-3); return mix(vec3(lb), s * (lb / ls), 0.7); }\n' +
             '  return s; }\n' +
+            (full ?
             'vec3 gClassCol(float c){ if (abs(c-10.0)<0.5) return vec3(0.06,0.20,0.06); if (abs(c-20.0)<0.5) return vec3(0.28,0.31,0.10);\n' +
             '  if (abs(c-30.0)<0.5) return vec3(0.36,0.41,0.12); if (abs(c-50.0)<0.5) return vec3(0.35,0.20,0.20); if (abs(c-60.0)<0.5) return vec3(0.28,0.25,0.22);\n' +
-            '  if (abs(c-80.0)<0.5) return vec3(0.02,0.06,0.20); if (abs(c-90.0)<0.5) return vec3(0.16,0.28,0.16); if (abs(c-100.0)<0.5) return vec3(0.38,0.36,0.15); return vec3(0.2); }' +
+            '  if (abs(c-80.0)<0.5) return vec3(0.02,0.06,0.20); if (abs(c-90.0)<0.5) return vec3(0.16,0.28,0.16); if (abs(c-100.0)<0.5) return vec3(0.38,0.36,0.15); return vec3(0.2); }' : '') +
             (SPL ? SPL.glslCommon : ''))
           .replace('#include <map_fragment>', '#include <map_fragment>\n' +
             // the fine disc's edge: one of the two surfaces per pixel, decided before any of the ground's cost
@@ -1726,7 +1749,9 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
             '  for (int i = 0; i < 5; i++) {\n' +
             '    if (i < uLStart || uLOn[i] == 0 || gDeep) continue;\n' +
             '    vec3 s; float a = 1.0;\n' +
-            '    if (i == 0) s = gClassSmooth(vWPi.xz, vec3(0.06,0.20,0.06), vec3(0.28,0.31,0.10), vec3(0.36,0.41,0.12), vec3(0.35,0.20,0.20), vec3(0.28,0.25,0.22), vec3(0.02,0.06,0.20), vec3(0.16,0.28,0.16), vec3(0.38,0.36,0.15));\n' +
+            // (the class layer is drawn only by a full program: in the production one it is under the stack's start, or off)
+            (full ? '    if (i == 0) s = gClassSmooth(vWPi.xz, vec3(0.06,0.20,0.06), vec3(0.28,0.31,0.10), vec3(0.36,0.41,0.12), vec3(0.35,0.20,0.20), vec3(0.28,0.25,0.22), vec3(0.02,0.06,0.20), vec3(0.16,0.28,0.16), vec3(0.38,0.36,0.15));\n'
+                  : '    if (i == 0) s = vec3(0.5);\n') +
             '    else if (i == 1) s = tint;\n' +
             '    else if (i == 2) s = vec3(r1);\n' +
             '    else if (i == 3) s = vec3(1.0 - 0.45 * clamp(can / uGP90, 0.0, 1.2));\n' +
@@ -1770,6 +1795,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
             '  if (sd < 0.0 && vWPi.y < 0.6) t = mix(t, mix(vec3(0.07, 0.24, 0.27), vec3(0.044, 0.21, 0.31), smoothstep(0.0, 300.0, -sd)), smoothstep(0.0, 60.0, -sd));\n' +
             '  float gl = dot(t, vec3(0.299, 0.587, 0.114));\n' +
             '  t = mix(vec3(gl), t, uGSat) * uGLight;\n' +
+            (full ?   // the paint modes: inspection (groundFull, G1311)
             '  if (uGMode == 1) t = texture2D(uGTint, guv).rgb;\n' +
             '  else if (uGMode == 2) t = vec3(r1 * r1);\n' +
             // canopy: zero is dark grey, then a blue -> cyan -> green -> yellow -> red scale to the p90 x 1.5
@@ -1785,7 +1811,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
             '  else if (uGMode == 10) t = lsd > 0.0 ? mix(vec3(0.3,0.6,1.0), vec3(0.02,0.1,0.6), clamp(lsd / 200.0, 0.0, 1.0)) : vec3(0.85);\n' +
             '  else if (uGMode == 6) t = sd < 0.0 ? vec3(0.02, 0.05, 0.25) * clamp(-sd / 400.0, 0.1, 1.0) : mix(vec3(0.5, 0.45, 0.3), vec3(0.05, 0.2, 0.05), clamp(sd / 400.0, 0.0, 1.0));\n' +
             '  else if (uGMode == 7) { float hh = clamp(vWPi.y / uGHMax, 0.0, 1.0); t = mix(mix(vec3(0.02,0.15,0.03), vec3(0.45,0.40,0.18), min(1.0, hh*1.6)), vec3(0.9), max(0.0, hh-0.6)*2.5); }\n' +
-            '  else if (uGMode == 8) t = mix(vec3(0.05), vec3(0.9), snowA);\n' +
+            '  else if (uGMode == 8) t = mix(vec3(0.05), vec3(0.9), snowA);\n' : '') +
             '  diffuseColor.rgb = t; }');
         if (SPL) sh.fragmentShader = sh.fragmentShader
           .replace('#include <normal_fragment_maps>', '#include <normal_fragment_maps>' + SPL.glslNormal)
@@ -1829,13 +1855,13 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       blends: () => BLENDS.slice(),
       stack: () => STACK.map(l => Object.assign({}, l)),
       setLayer: (i, o) => { const l = STACK[i]; if (!l) return null; Object.assign(l, o);
-        if (gU.uLOn) { gU.uLOn.value[i] = l.on ? 1 : 0; gU.uLMode.value[i] = l.mode | 0; gU.uLOp.value[i] = +l.op; if (gU.uLStart) gU.uLStart.value = stackStart(); classWeights(); }
+        if (gU.uLOn) { gU.uLOn.value[i] = l.on ? 1 : 0; gU.uLMode.value[i] = l.mode | 0; gU.uLOp.value[i] = +l.op; if (gU.uLStart) gU.uLStart.value = stackStart(); classWeights(); groundSync(); }
         try { localStorage.setItem('flydiy.ground.stack', JSON.stringify(STACK)); } catch (e) {}
         return Object.assign({}, l); },
       set: o => { for (const k in o) if (k in GROUND && k !== 'on') { GROUND[k] = +o[k];
         const u = { overlay: 'uGOverlay', shade: 'uGShade', light: 'uGLight', sat: 'uGSat', snow: 'uGSnow', shore: 'uGShore', mode: 'uGMode',
                     classBlur: 'uGBlur', edgeWobble: 'uGWobble', waterMap: 'uGWaterMap' }[k];
-        if (u && gU[u]) gU[u].value = GROUND[k]; } classWeights(); return groundApi.get(); },
+        if (u && gU[u]) gU[u].value = GROUND[k]; } classWeights(); groundSync(); return groundApi.get(); },
       classWeights: () => !!(gU.uGW1 && gU.uGW1.value.image.width > 1),   // built yet? (AS1, G906: on demand)
       gpuTex: () => ({ list: gpuTex.map(([t]) => t), restore: gpuRestore }),   // the GPU-only island textures and their re-derive (GATE FRAMECOST reads it)
     };
@@ -2025,8 +2051,8 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     const gMatTwin = islandGroundHook ? worldLambert({ map: tex }) : gMat;
     innerPatchShared = { mat: gMatTwin, half: INNER, uv: islandUV || ((x, z) => [(x + INNER) / (2 * INNER), 1 - (z + INNER) / (2 * INNER)]) };
     // the close grain is the analytic ground's; an island's ground is the live stack
-    if (islandGroundHook) { gMat.onBeforeCompile = islandGroundHook; gMat.customProgramCacheKey = () => 'island-ring';
-      gMatTwin.onBeforeCompile = islandGroundHook0; gMatTwin.customProgramCacheKey = () => 'island-twin'; }   // (the hooks share one source text: the keys keep the programs apart)
+    if (islandGroundHook) { gMat.onBeforeCompile = islandGroundHook; islandKeyed(gMat, 'island-ring');
+      gMatTwin.onBeforeCompile = islandGroundHook0; islandKeyed(gMatTwin, 'island-twin'); }   // (the hooks share one source text: the keys keep the programs apart)
     else gMat.onBeforeCompile = sh => {
       if (typeof ATMO !== 'undefined') ATMO.inject(sh);   // S4: the aerial-perspective sampler (a hook of its own loses the prototype's)
       sh.uniforms.uDetail = { value: dtex };
@@ -2186,7 +2212,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     const FINE = { on: !!islandGroundHook, R: 700, band: 120, T: 160, step: 5, tiles: new Map(), mat: null, budget: 6, off: (typeof location !== 'undefined' && /[?&]fine=0/.test(location.search)) };   // ?fine=0: the ring alone (the A/B)
     if (FINE.on) {
       FINE.mat = new THREE.MeshStandardMaterial({ map: tex, roughness: 1, metalness: 0 });
-      FINE.mat.onBeforeCompile = islandGroundHookFine; FINE.mat.customProgramCacheKey = () => 'island-fine';
+      FINE.mat.onBeforeCompile = islandGroundHookFine; islandKeyed(FINE.mat, 'island-fine');
       const SEG = 2 * INNER / 512, RP = geo.attributes.position, RN = geo.attributes.normal, RW = 513;
       // the ring's surface at (x, z): its own triangles (PlaneGeometry's a-b-d / b-c-d split, the
       // diagonal from (ix, iy+1) to (ix+1, iy)) and its own vertex normals, so the tile's rim is the ring
@@ -2269,12 +2295,12 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       // under the inner ring's rim the leaves dip 1.5 m so the two never fight.
       const oMat = worldLambert({ map: outerTex });
       oMat.onBeforeCompile = islandGroundHook ? (sh => { canopyHook(sh); islandGroundHookOuter(sh); }) : canopyHook;
-      if (islandGroundHook) oMat.customProgramCacheKey = () => 'island-outer';
+      if (islandGroundHook) islandKeyed(oMat, 'island-outer');
       outerMatShared = oMat;
       outerUVShared = islandUV ? ((x, z) => islandUV(x, z)) : ((x, z) => [(x - BX0) / SIZE, 1 - (z - BZ0) / SIZE]);   // the far terrain's own law (patchOf)
       // the lake-free twin (no discard: early-Z) for the patches no lake reaches (PERF 2026-09-23)
       const oMatDry = islandGroundHookOuterDry ? worldLambert({ map: outerTex }) : oMat;
-      if (oMatDry !== oMat) { oMatDry.onBeforeCompile = sh => { canopyHook(sh); islandGroundHookOuterDry(sh); }; oMatDry.customProgramCacheKey = () => 'island-outer-dry'; }
+      if (oMatDry !== oMat) { oMatDry.onBeforeCompile = sh => { canopyHook(sh); islandGroundHookOuterDry(sh); }; islandKeyed(oMatDry, 'island-outer-dry'); }
       const LAKEBOX = (world.island.lakes || []).map(L => [L.x0 - 30, L.z0 - 30, L.x1 + 30, L.z1 + 30]);
       // THE CUT FOLLOWS THE EYE (PERF 2026-09-23, the frame study: every leaf drawn at every
       // distance was 8.5 M triangles, most of them under a pixel - ~7 ms of the GPU at the stand
@@ -2471,7 +2497,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     } else { // outer ring: four coarse strips sharing one full-domain texture
       const oMat = worldLambert({ map: outerTex });
       oMat.onBeforeCompile = islandGroundHook ? (sh => { canopyHook(sh); islandGroundHookOuter(sh); }) : canopyHook;   // the far tier lives mostly out here
-      if (islandGroundHook) oMat.customProgramCacheKey = () => 'island-outer';
+      if (islandGroundHook) islandKeyed(oMat, 'island-outer');
       outerMatShared = oMat;
       const strip = (x0, z0, x1, z1, sx, sz) => {
         const g2 = new THREE.PlaneGeometry(x1 - x0, z1 - z0, sx, sz);

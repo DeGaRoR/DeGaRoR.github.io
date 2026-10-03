@@ -578,7 +578,14 @@ function make(THREE, scene, world, rec0, opts) {
       // five more - 17 > MAX_TEXTURE_IMAGE_UNITS 16 fails the link and the chunks draw BLACK; G424's census)
       const inj = !(k && o.patchInject2 === false);
       M.onBeforeCompile = sh => { if (typeof ATMO !== 'undefined') ATMO.inject(sh); if (inner) inner(sh); if (inj) injectMaterials(sh); };   // S4
-      M.customProgramCacheKey = () => 'premises-patch-materials' + (k ? '-2' : '') + (inj ? '-s' + NSLOT : '');
+      // ONE PROGRAM FOR ONE SOURCE (COLD-LINKS G1310): with no set injected (the far terrain's clone: patchInject2 false; or
+      // no set painted) the clone's text IS its base's - ATMO.inject is idempotent, injectMaterials adds nothing - and its
+      // own key made three link that ~100 KB ground program a second time, at the same instant (G1221: 48 + 49 s, cold).
+      // It keys as its base then (three shares the program; the uniforms stay the clone's own); a painted set keys apart
+      // and carries the base's key too (the island ground's production / full line, render_world groundFamily).
+      const bk = base.customProgramCacheKey !== THREE.Material.prototype.customProgramCacheKey ? () => base.customProgramCacheKey() : null;
+      if (base.groundFamily) { M.groundFamily = base.groundFamily; base.groundFamily.add(M); }
+      M.customProgramCacheKey = () => (bk && !(inj && NSLOT)) ? bk() : 'premises-patch-materials' + (k ? '-2' : '') + (inj ? '-s' + NSLOT : '') + (bk ? '|' + bk() : '');
       return (patchMatOwn[k] = M);
     };
     // TWO GROUNDS UNDER ONE PATCH (G527): a chunk wears the ground it lies on - the host's patchPick says
