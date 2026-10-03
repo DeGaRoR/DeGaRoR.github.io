@@ -185,10 +185,10 @@ function mount(host, ctx) {
     applyEntry(cmd.layer, cmd.id, clone(cmd.after));
     undoS.push(cmd); if (!isRedo) redoS.length = 0;
     if (undoS.length > 200) undoS.shift();
-    dirty(cmd.layer, union(bboxOf(cmd.before), bboxOf(cmd.after)));
+    dirty(cmd.layer, union(bboxOf(cmd.before), bboxOf(cmd.after)), groundOf(cmd.layer, cmd.before, cmd.after));
     strip.status('' + cmd.label);
   }
-  function undo() { const c = undoS.pop(); if (!c) return; applyEntry(c.layer, c.id, clone(c.before)); redoS.push(c); dirty(c.layer, union(bboxOf(c.before), bboxOf(c.after))); strip.status('undo: ' + c.label); }
+  function undo() { const c = undoS.pop(); if (!c) return; applyEntry(c.layer, c.id, clone(c.before)); redoS.push(c); dirty(c.layer, union(bboxOf(c.before), bboxOf(c.after)), groundOf(c.layer, c.before, c.after)); strip.status('undo: ' + c.label); }
   function redo() { const c = redoS.pop(); if (!c) return; run(c, true); }
   let coalesce = null;
   function edit(id, layer, mutate, label, key) {
@@ -199,26 +199,37 @@ function mount(host, ctx) {
     if (key && coalesce && coalesce.id === id && coalesce.key === key && Date.now() - coalesce.t < 600) {
       const last = undoS[undoS.length - 1];
       last.after = clone(e); coalesce.t = Date.now();
-      dirty(layer, union(bboxOf(before), bboxOf(e)));
+      dirty(layer, union(bboxOf(before), bboxOf(e)), groundOf(layer, before, e));
       return;
     }
     const cmd = { layer, id, before, after: clone(e), label };
     applyEntry(layer, id, clone(e));
     undoS.push(cmd); redoS.length = 0;
     coalesce = key ? { id, key, t: Date.now() } : null;
-    dirty(layer, union(bboxOf(before), bboxOf(e)));
+    dirty(layer, union(bboxOf(before), bboxOf(e)), groundOf(layer, before, e));
   }
 
   // ---- the renderer, dirty, the checks, the plaque ---------------------------
   let chkT = 0;
-  function dirty(layer, bbox) {
+  // G1400 (EDITOR-LAG): A STRIP'S WAY OUT IS NOT ITS GROUND. A runways edit that changed only the stand, the taxi points
+  // (taxiOut, taxiOut1) or the site (an authored pattern's holds) makes no terrain modifier - the strip's grade reads its
+  // centre, length, heading, profile, never the way out - so its commit rebuilds as a non-ground layer: no ground patch,
+  // no re-sample of the world's ground under the premises (5-9 s of a taxi point's commit, headless)
+  const WAY_KEYS = { stand: 1, taxiOut: 1, taxiOut1: 1, site: 1 };
+  const groundOf = (layer, a, b) => {
+    if (layer !== 'runways' || !a || !b) return undefined;
+    const keys = new Set(Object.keys(a).concat(Object.keys(b)));
+    for (const k of keys) if (!WAY_KEYS[k] && JSON.stringify(a[k]) !== JSON.stringify(b[k])) return undefined;
+    return false;
+  };
+  function dirty(layer, bbox, ground) {
     R.setRecord(rec);
     if (!layer) R.rebuild(null);
-    else if (groundLayer(layer)) R.rebuild(bbox ? { layer, bbox, pad: 2 } : null);
+    else if (groundLayer(layer) && ground !== false) R.rebuild(bbox ? { layer, bbox, pad: 2 } : null);
     else R.rebuild({ layer, bbox: bbox || { x0: 0, z0: 0, x1: 0, z1: 0 }, ground: false });   // no chunk touched: outlines, plots, houses, trees
     inspector.refresh();
     autosave();
-    ctx.onRebuilt && ctx.onRebuilt();   // the game re-samples its ground rings
+    ctx.onRebuilt && ctx.onRebuilt(layer || null, ground);   // the game re-samples its ground rings (G1400: told the layer and a ground left as it was)
     ctx.redraw && ctx.redraw();
     clearTimeout(chkT); chkT = setTimeout(checks, 500);
     plaque();
@@ -494,7 +505,11 @@ function mount(host, ctx) {
       }
     }
     else { const arr = found.entry.poly || found.entry.pts; arr[drag.index][0] = +L[0].toFixed(2); arr[drag.index][1] = +L[1].toFixed(2); }
-    R.setRecord(rec); R.rebuild({ layer: found.layer, bbox: { x0: 0, z0: 0, x1: 0, z1: 0 }, ground: false });   // outlines follow; the ground on release
+    // G1400 (EDITOR-LAG): the hand is followed by the renderer's preview - the outline, the handles, the built object
+    // carried, a strip's taxi pattern - and nothing composes; the record's rebuild (the ground, the pavement, the
+    // houses) is the release's (onUp's dirty), as it always was for the ground. A renderer without one rebuilds as before.
+    if (R.preview) R.preview(found.entry, found.layer, drag.before);
+    else { R.setRecord(rec); R.rebuild({ layer: found.layer, bbox: { x0: 0, z0: 0, x1: 0, z1: 0 }, ground: false }); }
     ctx.redraw && ctx.redraw();
     return true;
   }
@@ -504,7 +519,7 @@ function mount(host, ctx) {
     if (found) {
       const cmd = { layer: found.layer, id: drag.id, before: drag.before, after: clone(found.entry), label: 'move ' + drag.id };
       undoS.push(cmd); redoS.length = 0;
-      dirty(found.layer, union(bboxOf(drag.before), bboxOf(found.entry)));
+      dirty(found.layer, union(bboxOf(drag.before), bboxOf(found.entry)), groundOf(found.layer, drag.before, found.entry));
     }
     drag = null;
     return true;
@@ -1202,6 +1217,11 @@ function mount(host, ctx) {
         onUp();
         return true;
       }
+      // G1400: the drag in its three beats, for a bench that times the hand's moves apart from its release
+      // (tools/perf/editor_lag.js): the same startDrag / moveDrag / onUp the mouse runs, the ground point given
+      if (name === 'dragStart') { if (!selected) throw new Error('premises: nothing selected'); const h = R.handles(selected).find(q => q.key === args.key); if (!h) return false; return startDrag({ id: selected, key: h.key, index: +(h.key.slice(1)) || 0, mid: h.key[0] === 'm' }); }
+      if (name === 'dragMove') { if (!drag) return false; const w = R.overlay.frame.toWorld(args.x, args.z); return moveDrag([w[0], R.heightAt(w[0], w[1]), w[1]]); }
+      if (name === 'dragEnd') return onUp();
       if (name === 'commit') { commitDrawing(); return selected; }
       if (name === 'resume') { return resumeDrawing(args.id || selected); }
       if (name === 'ctrl') { const hs = R.handles(selected); const h = args.key ? hs.find(q => q.key === args.key) : null; return ctrlEdit(selected, [args.x, args.z], h ? { key: h.key, index: +(h.key.slice(1)) || 0, mid: h.mid } : null); }

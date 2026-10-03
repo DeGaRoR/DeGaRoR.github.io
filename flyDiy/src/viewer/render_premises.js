@@ -49,7 +49,18 @@ function make(THREE, scene, world, rec0, opts) {
   const o = Object.assign({ cell: 1, water: true, grass: null, pool: () => [], onBuilt: null, game: false, editing: () => true, patchMat: null, patchUV: null }, opts || {});
   let rec = PG.normalise(rec0 || PG.DEF());
   // the stations' builder for the cable solver: the generator's build, no finish (only the hooks are read)
-  const buildFor = r => { const GEN = window[r.gen]; return GEN ? GEN.build(r.P, 0) : null; };
+  // G1400 (EDITOR-LAG): MEMOISED by the generator and its parameters - the cable's solver builds each station three
+  // times a composition (its line angle converging) and reads only the hooks, and every edit's compose ran those six
+  // house builds again on the same parameters (1.1 s of a taxi point's commit, headless). A build is a pure function
+  // of (gen, P); the solver reads it and never writes it. Bounded: a long session's edits do not grow it
+  const BUILT = new Map();
+  const buildFor = r => {
+    const GEN = window[r.gen]; if (!GEN) return null;
+    const k = r.gen + '|' + JSON.stringify(r.P);
+    let b = BUILT.get(k);
+    if (b === undefined) { b = GEN.build(r.P, 0); if (BUILT.size >= 48) BUILT.clear(); BUILT.set(k, b); }
+    return b;
+  };
   // (G830: the tree pool the game's recompose took is kept - the house worker recomposes with the same, hwCompose)
   let composedPool = null;
   const composeNow = () => {
@@ -2248,6 +2259,93 @@ function make(THREE, scene, world, rec0, opts) {
     }
   }
 
+  // ---- THE DRAG'S PREVIEW (G1400, EDITOR-LAG) -----------------------------------------------
+  // The user (2026-10-03): "the editor is also far too laggy when handling objects such as taxi points or assets". Every
+  // mousemove of a drag ran the edit's whole rebuild with the ground off: the world's composition (PREMISES_GEN.compose
+  // over every layer, the height memo and the ttype stamp redone), the materials, the lots, the pavement, every strip's
+  // pattern, the houses' sync, the trees, the freeze. preview(entry, layer, before) is what follows the hand instead: the
+  // feature's own outline (and a strip's box and shoulder), the selection's handles, a point object's or a site's BUILT
+  // groups carried by the move's delta, a strip's taxi pattern re-derived for that strip alone when its way out moves.
+  // Nothing composes - the ground under the hand is the composition the drag began on. The release is the editor's
+  // dirty(): the rebuild as before, which puts every carried group back first (previewEnd) - the settled world is the
+  // same bits as without the preview.
+  const PV = { id: null, pos: new Map() };
+  function previewEnd() {
+    for (const [g, p] of PV.pos) { g.position.copy(p); g.updateMatrix(); THREE.Object3D.prototype.updateMatrixWorld.call(g, true); }
+    if (PV.pos.size && typeof propInstTouch === 'function') propInstTouch();
+    PV.pos.clear(); PV.id = null;
+  }
+  function carry(g, dx, dy, dz) {
+    if (!g) return;
+    let p0 = PV.pos.get(g); if (!p0) { p0 = g.position.clone(); PV.pos.set(g, p0); }
+    g.position.set(p0.x + dx, p0.y + dy, p0.z + dz);
+    if (g.matrixAutoUpdate === false || g.userData.frozen) { g.updateMatrix(); THREE.Object3D.prototype.updateMatrixWorld.call(g, true); }
+  }
+  function reline(key, pts, closed, lift) {
+    const L = LINES.get(key); if (!L || pts.length < 2) return;
+    L.line.geometry.dispose();
+    const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(groundLoop(pts, closed, lift), 3));
+    L.line.geometry = geo;
+  }
+  function preview(e, layer, before) {
+    if (!e) return;
+    const id = e.id, F = O.frame;
+    if (PV.id !== id) { previewEnd(); PV.id = id; }
+    const t0 = performance.now();
+    // the outline, and the selection's twin over it
+    const wp = worldPts(e);
+    reline(id, wp, !!e.poly, LIFT); reline(id + ':sel', wp, !!e.poly, LIFT);
+    if (LINES.has(id + ':sel')) LINES.get(id + ':sel').line.position.y = 0.06;
+    let moved = 0;
+    if (layer === 'runways') {
+      const r = Object.assign({}, PG.RUNWAY_DEF, e), toW = poly => poly.map(q => F.toWorld(q[0], q[1]));
+      reline(id + ':box', toW(PG.runwayBox(r, 0)), true, LIFT + 0.06);
+      reline(id + ':shoulder', toW(PG.runwayBox(r, PG.runwayShoulder(r))), true, LIFT + 0.04);
+      // the way out (the taxi points, the stand) moved and the strip did not: that strip's pattern, re-derived from
+      // the record's site in the world over the composed one (its parked aeroplanes, the stand's ground)
+      const i = O.runways.findIndex(q => q.id === id), A = O.aerodromes[i], R0 = O.runways[i];
+      const same = before && before.c && e.c && before.c[0] === e.c[0] && before.c[1] === e.c[1] && before.len === e.len && before.hdg === e.hdg;
+      if (o.editing() && A && same && SITE.sitePattern && window.PATTERN_VIS) {
+        const old = G.runways.children.find(c => c.name === 'pattern:' + id);
+        try {
+          const S = PG.runwaySite(r, F) || {}, C = R0.site || {};
+          if (C.parked) S.parked = C.parked;
+          if (S.stand) S.stand.elev = C.stand && C.stand.x === S.stand.x && C.stand.z === S.stand.z ? C.stand.elev : +heightAt(S.stand.x, S.stand.z).toFixed(2);
+          const pv = window.PATTERN_VIS.buildPatternVis(THREE, SITE.sitePattern(A, S), (x, z) => heightAt(x, z), { patternPath: SITE.patternPath, siteRunway: SITE.siteRunway });
+          const grp = pv.group || pv; if (pv.setLayers) pv.setLayers({ graph: true, slope: true, targets: true }); grp.name = 'pattern:' + id;
+          if (old) { G.runways.remove(old); old.traverse(m => { if (m.geometry && !m.userData.sharedGeo) m.geometry.dispose(); }); }
+          G.runways.add(grp);
+        } catch (err) {}
+      }
+    } else if (layer === 'objects' && before && isFinite(+e.x) && isFinite(+e.z)) {
+      // a prop, a tree, a billboard, an aeroplane: its built group carried (the ground's rise with it, its `y` kept)
+      const h = HOUSES.get('ob:' + id);
+      if (h && h.grp) {
+        const a = F.toWorld(+before.x, +before.z), b = F.toWorld(+e.x, +e.z);
+        const dy = typeof e.y === 'number' ? e.y - (typeof before.y === 'number' ? before.y : e.y) : O.terrainAt(b[0], b[1]) - O.terrainAt(a[0], a[1]);
+        carry(h.grp, b[0] - a[0], dy, b[1] - a[1]); moved++;
+      }
+    } else if (layer === 'sites' && before && e.at && before.at) {
+      // a site: each item's built groups (the house, its dressed lot) and its foot carried by the item's own delta
+      const SFb = PG.siteFrame(before), SFn = PG.siteFrame(e);
+      for (const c of O.records.items) {
+        if (c.site !== id) continue;
+        const itn = (e.items || []).find(q => q.id === c.item), itb = (before.items || []).find(q => q.id === c.item);
+        if (!itn || !itb) continue;
+        const a = F.toWorld(...SFb.toLocal(itb.x || 0, itb.z || 0)), b = F.toWorld(...SFn.toLocal(itn.x || 0, itn.z || 0));
+        const dx = b[0] - a[0], dz = b[1] - a[1], dy = O.terrainAt(b[0], b[1]) - O.terrainAt(a[0], a[1]);
+        const h = HOUSES.get(c.id);
+        if (h) for (const g of [h.grp].concat(h.extra || [])) { carry(g, dx, dy, dz); moved++; }
+        const foot = G.plots.children.find(q => q.name === 'item:' + c.id); if (foot) carry(foot, dx, 0, dz);
+      }
+      const fh = HOUSES.get('sf:' + id);
+      if (fh) { const a = F.toWorld(before.at.x, before.at.z), b = F.toWorld(e.at.x, e.at.z); for (const g of [fh.grp].concat(fh.extra || [])) carry(g, b[0] - a[0], 0, b[1] - a[1]); }
+    }
+    if (moved && typeof propInstTouch === 'function') propInstTouch();
+    buildHandles();
+    stats.previewMs = performance.now() - t0;
+  }
+
   // ---- the ghost ---------------------------------------------------------------------
   let ghostObj = null;
   function ghost(feature, ok) {
@@ -3259,6 +3357,7 @@ function make(THREE, scene, world, rec0, opts) {
   function rebuild(dirty) { const g = rebuildSteps(dirty); for (;;) { const r = g.next(); if (r.done) return r.value; } }
   function* rebuildSteps(dirty) {
     const t0 = performance.now();
+    previewEnd();   // G1400: a drag's carried groups back where they were built, before anything compares seeds
     if (!(composedFresh && dirty === undefined)) { O = composeNow(); hwCompose(); }
     composedFresh = false;
     refreshBounds();
@@ -3374,7 +3473,7 @@ function make(THREE, scene, world, rec0, opts) {
 
   const R = {
     root, groups: G, stats,
-    rebuild, rebuildSteps, step, dispose, ghost, hit, handles, pickHandle, scaleHandles, heightAt, tick, trams: () => Array.from(TRAMS.keys()),
+    rebuild, rebuildSteps, preview, previewEnd, step, dispose, ghost, hit, handles, pickHandle, scaleHandles, heightAt, tick, trams: () => Array.from(TRAMS.keys()),
     animals: () => (ANIM ? ANIM.list() : []),
     animalRun: () => ANIM,
     traffic: () => Array.from(TRAFFIC, ([id, t]) => ({ road: id, cars: t.cars.map(c => ({ key: c.key, s: c.s, dir: c.dir, v: c.v, x: c.grp.position.x, y: c.grp.position.y, z: c.grp.position.z, hit: c.hit })) })),
