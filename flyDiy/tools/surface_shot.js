@@ -110,7 +110,10 @@ const ROUTE = { cub: { from: 'HOME', dest: 'SEA' }, floats: { from: 'HOME', dest
           if (bh) { await held(() => bh.screenshot({ path: path.join(OUT, pg + '_' + bk + '_rollout.jpg'), type: 'jpeg', quality: 80 })); bootShot = true; console.log('  roll-out picker shot ' + el()); }
         }
         if ((await ev("(()=>{const m=document.getElementById('mmp'); return !!(m && !m.hidden && m.offsetParent) && (!window.BOOT || !BOOT.state || BOOT.state === 'gone');})()", false)) === true) {
-          await sleep(5000);
+          // the map paints on the HUD cadence; two clicks (big off, big on) each call drawMap() itself
+          await sleep(8000);
+          await ev("(()=>{const c=document.getElementById('mm'); c.click(); c.click(); return c.width;})()", 0);
+          await sleep(1500);
           const m = await page.$('#mm');
           if (m) { await held(() => m.screenshot({ path: path.join(OUT, pg + '_' + bk + '_map.jpg'), type: 'jpeg', quality: 78 })); mapShot = true; console.log('  map shot ' + el()); }
         }
