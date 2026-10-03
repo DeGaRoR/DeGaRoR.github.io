@@ -68450,9 +68450,9 @@ override chain gave it its own colour keeps it. NEGATIVE-VERIFIED in-file: the p
 Cub's `finRud` (it does). Result: cub / jodel / cessna "every section right".
 
 **G1321 FRAMES IN THE TREE.** `_cage_parts.js`: the frame groups move from Fuselage to the part each frame shapes — nose
-frame -> Nose · deck; windscreen, door-post (expert) and cabin frames -> Cabin (the windscreen frame is the cabin's front
-ring and stands with or without glass — under `windscreen` it would vanish on a `glazeOn=0` build, whose Glazing part is
-hidden); passenger frame (with its profile rows) -> Passenger bay; boom frame -> Boom; tail frame -> Tail cone. The
+frame -> Nose · deck; windscreen frame -> Windscreen (G1321.1, the user's call after a first cut under Cabin: it hides
+with the Glazing part on a `glazeOn=0` build, like every glass row); door-post (expert) and cabin frames -> Cabin;
+passenger frame (with its profile rows) -> Passenger bay; boom frame -> Boom; tail frame -> Tail cone. The
 reference section, longerons, section, creases and compensation stay on Fuselage. Selecting Fuselage still shows every
 frame (an assembly shows its children's rows, part by part); the row-hover frame highlight is keyed by row, not part
 (`editor.js FRAME_ROW`), so it is unchanged. GATE PARTS (one owner per row) PASS.
@@ -68465,5 +68465,5 @@ wide as every other row's. Measured headless (chromium, body.html + style.css + 
 plain row slider 80 px; frame row before 36 px, after 80 px. The bench pages (no editor.css) are unchanged.
 
 **GATES** (cloud, `run_gates.js --only=`): BUILD, UISMOKE, HANGAR, FLOWNBAKE PASS; plus LIVERYREACH (new), SKINMAT, PARTS,
-FRAMES PASS. The generated files (index.html, dev.html, sw.js, version.json) are NOT committed — A0's train builds them.
+FRAMES PASS (G1321.1 re-ran PARTS, FRAMES, UISMOKE, BUILD: PASS). The generated files (index.html, dev.html, sw.js, version.json) are NOT committed — A0's train builds them.
 G1323-G1324 unused.
