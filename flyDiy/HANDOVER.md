@@ -68662,3 +68662,9 @@ GATES (node tools/run_gates.js --only=FLOATS,SEAPLANE,GEAR,STAND,CONTACT,GROUNDL
 origin/master 5502f45): all PASS, BATTERY: PASS, exit 0 (wall 240 s, jobs 4). The full battery is A0's (per A0). GATE
 FLOATS' whole output is byte-identical to master's (diff of the two logs: 0 lines).
 OWED (A0's call): G1380's ground fix, (a) or (b) above; the Jodel's 10 mm tail-axle residual.
+READY for A0 (2026-10-03): the gates for the files touched, on the branch's source (136a692 + this HANDOVER) -
+STRIPSURF PASS (+ --selftest PASS: all six doctored checks go red), NAV PASS, PILOT PASS (3 shards), TAKEOFF PASS,
+TAXICLEAR PASS, PLAN PASS, LINEUP PASS, UISMOKE PASS (app.js / sim_host.js), FLOATS PASS, SEAPLANE PASS, BUILD PASS.
+The full battery is A0's (per train). Base: master 5502f45, not rebased. Likely conflict spots when assembling: the
+tail of src/core/25_airfield.js, the 90_node_exports.js export line, run_gates.js's NAV row neighbourhood, and
+app.js's route block (applyRoute, the selects' block, the map's aerodrome loop).
