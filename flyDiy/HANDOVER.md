@@ -68310,3 +68310,73 @@ data. FLIGHT (fresh profile D:/u25d, vs train 24): Cub 31 fps / 5 %, cockpit 56 
 cockpit 53.8 -> 55.9 fps. ONE RED CLEARED: the metal's worst boot task 716 -> 1055 / 859 ms on its two chase runs (at ~36 s, the
 garage boot; its cockpit runs through the same boot showed none); two re-runs 655 / 664 ms - not repeated, the metal baseline is
 taken from them. Battery GREEN, FRAMECOST PASS (baseline re-taken).
+
+## G1380-G1382 - GEAR-WATER: THE TAILWHEEL'S "3-5 cm" IS THE DRAWN GROUND'S 5 m LATTICE, NOT THE WHEEL; A WHEELED AEROPLANE MEETS THE WATER (2026-10-03, GEAR-WATER for A0, cloud, node only; block G1380-G1384, G1383-G1384 unused)
+
+The user (3 Oct): "the cub still has about 3-5 cm below its tail wheel not touching the ground. I think it's an issue of
+the physical model either not being well centered on the wheel or not having the correct diameter"; "the cub attempted a
+sea landing, of course it failed, but I noticed there's been no big drag from the water as I expected".
+
+G1380 THE TAILWHEEL: THE WHEEL IS RIGHT, THE GROUND UNDER IT IS TWO SURFACES (measured; NOT fixed - a choice for A0).
+- The wheel is one truth already. tools/ground_gap.js (G1000's rig, flown def + the join's snapshot + poseModel's
+  arithmetic), stock Cub at rest, settled 6 s or 30 s alike: drawn tyre R 0.08 = node r 0.08, contact radius rC 0.083
+  (G661's static deflection), drawn tyre bottom -0.3 mm, drawn axle on its node within 0.6 / 1.3 / 0 mm. Jodel tail
+  +8.4 mm (its drawn axle 10 mm over the node - the largest residual found, still not centimetres); the metal Cessna's
+  nose +1.3 mm. The castor's swivel is vertical in the model frame on the Cub, Jodel, Stearman and Pietenpol (steering
+  cannot lift the drawn wheel). tools/ground_surface.js, the Cub taxiing out of HOME's stand: tail on the apron -1.5 mm
+  mean (p5 -2.3, p95 -1.2). The physics worker ships float64 and checks the def's signature: the page draws the
+  worker's own nodes.
+- What the eye compares the tyre with off the pavement is render_world.js's FINE tiles: vertices every 5 m on the world
+  grid, world.terrainH sampled there, linear between. world.terrainH - what the solver's wheels stand on - is the
+  codec's quadtree, bilinear in leaves FINER than 5 m. tools/ground_lattice.js (new), 8 000 land points on Jolene,
+  drawn - terrainH:
+  - 5 m (as drawn): p5 -63.7 mm, p95 +57.2; |e| p50 10.2, p95 94.6; 23.9 % of the land over 3 cm;
+  - 2.5 m: p5 -17.9, p95 +16.6; 4.7 % over 3 cm;
+  - 1 m: p5 -2.8, p95 +2.4; 0.4 % over 3 cm.
+  Wherever the drawn chord passes under the true surface the tyre reads afloat, over it sunk - G1000's own playtest line
+  ("depending on where they are, they either sunk a little, or float a little"). The mains show it too; an 8 cm tyre
+  makes 3-5 cm the whole gap you can see. Round the aerodromes the premises' patch (3 m grid) stands -20.1 mm (p5 -26.3,
+  p95 -14.6) under terrainH: G1001's LEFT "lots' offset", still there (ground_surface --grid).
+- Not fixed here, because both fixes are bigger than a wheel and neither could be seen without the GPU (the page stalls
+  under SwiftShader before the flown model is built): (a) the solver stands on the drawn surface (a contact height that
+  reproduces FINE.build's lattice off the premises - every island trajectory moves by centimetres); (b) a 1 m ground
+  tier under the aeroplane (the fine tile discarding inside it as the ring does inside the disc). The rig gives the
+  number either fix must bring to < 5 mm.
+
+G1381 THE WATER MEETS A WHEELED AEROPLANE (32_hydro.js wetBuild / wetSolverPass / wetCompute; 30_solver.js).
+- Before: the floats' hull was the only thing the water pushed on. A wheeled build went through the surface and rolled on
+  the seabed (G435 only ended the flight a metre under).
+- Now a build WITHOUT floats carries a wet body (sim.wetBody; out.wetDrag / out.wetBuoy, never the body on `out` - the
+  worker posts `out` every snapshot):
+  - THE BELLY: parts.F's stations and the tail post close a box hull. Its triangles are clipped against the surface as
+    the float's panels are: Newtonian pressure Cp 1 x 1/2 rho Vn^2 on a face advancing into the water (on the inclined
+    bottom that is the planing lift and its drag) and skin friction Cf 0.006 along it. BUOYANCY BY VOLUME: 27 samples a
+    slice, each its Jacobian's share, wet on a 0.15 m ramp, times WB_BUOY 0.35 (a fabric fuselage floods - inferred),
+    landed by its trilinear weights. The first cut put the head on every face; 19 m down the frame was crushed between
+    pressures a flooded fuselage does not feel, and the Cub "flew" along the seabed at 77 km/h.
+  - THE FLYING SURFACES as two-sided plates (each strip's spar quad, its area scaled to the strip's): a wing or a stab
+    meeting the water flat-on is a paddle.
+  - THE TYRES: a bluff plate (the immersed chord x 0.5 R of width, Cd 1.0) in the wheel's plane, the disc segment
+    across it (Cd 1.2), the displaced volume. Hydroplaning lift is a stated cut.
+  - Stable the float's way: a compute hands a node at most its own momentum against its velocity over the held interval
+    (slamCap). Run at HYDRO_HZ, held between computes. Dry (the lowest node 1.5 m + 3 x the sea's amplitude over the
+    water at the first hull node, or no water) costs one waterH sample a compute and hands nothing.
+  - A float build gets no wet body: the floatplanes run the float pass alone, to the bit (GATE FLOATS, SEAPLANE).
+- MEASURED (analytic world, the SEA lane, 0.3 m over the water, -1 m/s, power off; the scratch ditch rig = HYDRODYN's
+  section):
+  - stock Cub at 80 km/h: 64.9 km/h at 0.5 s, under 10 km/h at 0.93 s, peak deceleration 9.0 g. It noses over to the
+    vertical (86 deg at 1.0 s), then floats nose-down, tail up, 0.4-1.1 m of CG under the surface (buoyancy 4.1-5.4 kN
+    against 4.7 kN of weight);
+  - Jodel 0.77 s / 6.5 g; C172 1.00 s / 7.2 g; RV 0.87 s / 6.8 g; GEN_DEFAULT 0.88 s, 90 deg nose-down;
+  - the Cub at 120 km/h balloons off the first touch and comes back at 73 km/h, stopped 0.5 s later.
+
+G1382 THE NET. GATE HYDRODYN, new section:
+- the stock taildragger ditched at 80 km/h is under 10 km/h inside 3 s, finite (0.88 s);
+- it noses over past 45 deg (90);
+- dry on its strip, hydroWet stays 0 over 2 s;
+- a float build has no wet body.
+
+GATES (node tools/run_gates.js --only=FLOATS,SEAPLANE,GEAR,STAND,CONTACT,GROUNDLIB,BUILD,HYDRODYN,HYDRO,WATER, on
+origin/master 5502f45): all PASS, BATTERY: PASS, exit 0 (wall 240 s, jobs 4). The full battery is A0's (per A0). GATE
+FLOATS' whole output is byte-identical to master's (diff of the two logs: 0 lines).
+OWED (A0's call): G1380's ground fix, (a) or (b) above; the Jodel's 10 mm tail-axle residual.
