@@ -148,6 +148,24 @@ function cageWingCuts(P) {
 }
 if (typeof window !== 'undefined') window.CAGE_JOIN_WING_CUTS = cageWingCuts;
 
+// G1283 (CONFIGURATIONS §9): THE WING'S STATION SPEAKS WHEN IT IS CUT. The
+// fore / aft row (wgDx) moves the DRAWN wing over its whole range, and the
+// join reads the leading edge back off it (M.wingXLE, place.dx zeroed - the
+// nudge is in the measurement), so the clamp that binds in the editor is
+// clampWing's xLE envelope, not place.dx's: on the Jodel (xLE -0.012 at
+// wgDx 0.45) the row stops moving the flown wing near 0.64 m forward. No
+// fixed row range can say that (it rides the drawn cabin), so the cut is an
+// ERRS row, as the tail's is (P1). PURE, for GATE JOIN. ENV is
+// GEN_WING_ENVELOPE; null (no core) says nothing.
+function cageWingStationCut(xLE, ENV) {
+  const r = ENV && ENV.xLE;
+  if (!r || typeof xLE !== 'number' || !isFinite(xLE)) return null;
+  if (xLE >= r[0] - 1e-9 && xLE <= r[1] + 1e-9) return null;
+  return `wing: the drawn leading edge stands ${xLE.toFixed(3)} m aft of the firewall, outside ` +
+         `the flown envelope ${r[0]}–${r[1]} m, and flies clamped — the drawn wing is not the flown ` +
+         `wing (the fore / aft row)`;
+}
+
 // G185: the SECOND plane, from its own rows — the fields of the first plus
 // its position band, cabane height, stagger, nudge and its own controls
 function cageJoinPlane2(P, T) {
@@ -886,7 +904,7 @@ function cageSurfHinge(pts, surf, opts) {
 }
 
 if (typeof module !== 'undefined' && module.exports)
-  module.exports = { cageJoinSpec, cageWingCuts, CAGE_JOIN_ENGINES, CAGE_JOIN_PROP_MATS,
+  module.exports = { cageJoinSpec, cageWingCuts, cageWingStationCut, CAGE_JOIN_ENGINES, CAGE_JOIN_PROP_MATS,
                      VIEW_STATE, VIEW_KEEP, cageSurfHinge, cageSurfLine, cageSurfPlane, cagePartMatch };
 // the pure hinge trio for a page that loads the layer without a mount (the
 // headless poser reads them off the window in the browser bench)
@@ -1274,6 +1292,9 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
                          GEN_RULES.sparFront) || 0.15;
           M.wingXLE = (zFw - zRing - (P.wgDx || 0))
                     - sparF * (P.wgChord || 1.5);
+          const cut = cageWingStationCut(M.wingXLE,
+            typeof GEN_WING_ENVELOPE !== 'undefined' ? GEN_WING_ENVELOPE : null);
+          if (cut) ERRS.push(cut);                                       // G1283
         }
         // G54: the SHAPE FAMILY — the PATH of the boom between the
         // measured endpoints (user: "it starts diverging from the

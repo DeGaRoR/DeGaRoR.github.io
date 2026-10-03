@@ -896,6 +896,36 @@ try {
   ok(false, 'G300 block threw: ' + e.message);
 }
 
+// G1283 (CONFIGURATIONS §9): THE WING'S STATION SPEAKS WHEN IT IS CUT. In the
+// editor the fore / aft row moves the drawn wing and the join reads xLE back
+// off it, so the clamp that binds is clampWing's xLE envelope. The ERRS row
+// must be the RESOLVER'S verdict, probe for probe: said exactly when the
+// flown xLE is not the measured one.
+try {
+  const { cageWingStationCut } = require('./_cage_join.js');
+  const E = C.GEN_WING_ENVELOPE;
+  ok(!!E && Array.isArray(E.xLE), 'G1283: the wing envelope has its one home (GEN_WING_ENVELOPE.xLE)');
+  const flownXLE = x => resolveSpec(cageJoinSpec(P, Object.assign({}, M, { wingXLE: x }), T)).spec.wings[0].xLE;
+  let agree = 0;
+  const probes = [-0.6, -0.35, -0.2, -0.19, 0, 0.55, 1.5, 3.0, 3.01, 3.4];
+  for (const x of probes) {
+    const said = cageWingStationCut(x, E) !== null;
+    const cut = Math.abs(flownXLE(x) - x) > 1e-9;
+    if (said === cut) agree++;
+    else console.log(`         xLE ${x}: said ${said}, resolver cut ${cut}`);
+  }
+  ok(agree === probes.length,
+     `G1283: the station-cut row speaks exactly where the resolver cuts xLE (${agree}/${probes.length} probes)`);
+  const msg = cageWingStationCut(-0.35, E) || '';
+  ok(/-0\.350 m/.test(msg) && /flies clamped/.test(msg) && flownXLE(-0.35) === E.xLE[0],
+     'G1283: a wing drawn 0.35 m ahead of the firewall flies at the envelope\'s ' + (E && E.xLE[0]) + ' m and says so');
+  ok(cageWingStationCut(0.55, E) === null && Math.abs(flownXLE(0.55) - 0.55) < 1e-12,
+     'G1283: a station inside the envelope flies as measured, in silence');
+  ok(cageWingStationCut(-0.35, null) === null, 'G1283: no core loaded, no claim');
+} catch (e) {
+  ok(false, 'G1283 block threw: ' + e.message);
+}
+
 // THE VERDICT CONTRACT (G67.1): this checker joins the battery, and the
 // runner requires BOTH signals — the line and the exit code.
 if (fails) console.log('\n  ' + fails + ' check(s) failed');

@@ -3675,6 +3675,18 @@ function genPlanePair(pos0, pos1) {
   return b0 ? 'low' : 'parasol';
 }
 
+// THE WING'S FLOWN ENVELOPE (G1283, the CONFIGURATIONS §9 sliders) — the
+// bounds clampWing cuts a plane to, declared once (GEN_TAIL_ENVELOPE's
+// pattern) so the editor's wing rows can reach exactly this and SAY when the
+// resolver moved a value, instead of a slider that silently stops mattering.
+// Metres; `spanPerChord` bounds span / chord; `taper` is tip over root chord.
+// Widen here, nowhere else.
+const GEN_WING_ENVELOPE = {
+  chord: [0.80, 2.10], span: [6.5, 18.0], spanPerChord: [4.0, 20.0],
+  taper: [0.45, 1.0], xLE: [-0.20, 3.00],
+  placeDx: [-1.2, 1.8], placeDy: [-0.25, 0.60],
+};
+
 // G185: ONE PLANE'S CLAMP. Lifted out of clampSpec so a biplane's second
 // plane is clamped by the same lines as the first (every wing key lives on
 // each entry of wings[]); the text is the old block verbatim.
@@ -3693,10 +3705,11 @@ function clampWing(w, S, k) {
   // aspect ratio to 20. Every build inside the old 1.15-2.10 / 6.5-14 box is
   // untouched; GATE GEN's wild spec still clamps, and the sail archetype's
   // circuit is the new corner's flight test.
-  w.chord = genClamp(w.chord, 0.80, 2.10);
-  w.span = genClamp(w.span, Math.max(6.5, 4.0 * w.chord),
-                            Math.min(18.0, 20.0 * w.chord));
-  w.taper = genClamp(w.taper, 0.45, 1.0);
+  const E = GEN_WING_ENVELOPE;
+  w.chord = genClamp(w.chord, ...E.chord);
+  w.span = genClamp(w.span, Math.max(E.span[0], E.spanPerChord[0] * w.chord),
+                            Math.min(E.span[1], E.spanPerChord[1] * w.chord));
+  w.taper = genClamp(w.taper, ...E.taper);
   w.dihedral = genClamp(w.dihedral, 0, 6);
   // Quarter-chord sweep, degrees, positive aft. At the speeds this game flies
   // sweep buys nothing aerodynamically — it is a compressibility device — so it
@@ -3709,7 +3722,7 @@ function clampWing(w, S, k) {
   // default. The envelope spans a wing rooted on the firewall to one rooted
   // well down the cabin; static margin is the honest consequence either way,
   // and the shakedown posts it.
-  w.xLE = genClampN(w.xLE, -0.20, 3.00);
+  w.xLE = genClampN(w.xLE, ...E.xLE);
   w.yRoot = genClampN(w.yRoot, -1.0, 3.0);                  // G266.1
   if (!GEN_TIPS[w.tip]) w.tip = 'rounded';
   // CRANK: a second wing section, and only a second. `crankAt` is the break
@@ -3764,8 +3777,8 @@ function clampWing(w, S, k) {
   if (w.beam !== 'off') w.beam = 'on';                              // T2.3 (48)
   // placement: generous bounds, because the point is to allow bad aeroplanes.
   // These stop the geometry going degenerate, nothing more.
-  w.place.dx = genClamp(w.place.dx, -1.2, 1.8);
-  w.place.dy = genClamp(w.place.dy, -0.25, 0.60);
+  w.place.dx = genClamp(w.place.dx, ...E.placeDx);
+  w.place.dy = genClamp(w.place.dy, ...E.placeDy);
 
 }
 
