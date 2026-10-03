@@ -68531,3 +68531,64 @@ or a climate snow line) and a friction row.
 GATES (cloud, --only, jobs 4): STRIPSURF (+ --selftest), NAV, PILOT (3 shards), TAKEOFF, TAXICLEAR, PLAN, LINEUP,
 UISMOKE, FLOATS, SEAPLANE, BUILD - all PASS. Not run: --all (the brief named the gates). The generated outputs
 (index.html, dev.html, tools/flight_core.js, sw.js, version.json) are NOT committed - A0's build commit makes them.
+
+## G1385-G1389 - EDITOR-VEG: THE GRASS AND THE BUSHES GET THEIR OWN COLOUR; A POLYGON GROWS ANYTHING (NONE, A BIOME, A NEW BIOME); EACH STRIP ITS OWN TREE CLEARANCE (2026-10-03, EDITOR-VEG for A0, cloud - no GPU, no boxlock; branch claude/editor-veg-g1385 off master 5502f45)
+
+The user (3 Oct), three items: (1) "We are missing coloration options for the grass and the bushes in the world editor";
+(2) "I would like the polygons to be more flexible and accept any type of vegetation, from none, to an existing biome, to
+a new biome"; (3) "I need to better control tree exclusion zones around runways".
+
+**G1385 - THE GRASS'S AND THE BUSHES' COLOUR.** `trees.js` grows `KIND_MASTER { cover, shrub }` (hue added, sat and light
+multiplied, identity by default) riding ON TOP of what each kind rode before: a shrub on `MASTER` (the trees'), a cover on
+`COVER_BASE` (sat 1.58, light 1.12 - G551's bench master, which the cover ring used to write AFTER the hook). `retint` now
+owns the cover's base, so a latent bug is gone: moving the trees' master or any species tint used to retint every hooked
+material with MASTER and dropped the grass onto the conifers' 0.42 lightness. `hookLeaf` records the material's kind (one
+material per collection, so one kind). API: `TREE_LEAF.kinds() / kindMaster(k) / kindTint(k, {hue, sat, light}) / retint(mat)`.
+THE WORLD RAIL, VEGETATION: two new folds, "the grass' colour" and "the bushes' colour" (hue / saturation / lightness,
+double-click back to the default). TYPES > biome: every BUSH and GRASS species card now has its own hue / saturation /
+lightness (the trees had theirs; the flowers are pictures and stay untinted). THE LOOK: `kindTint { cover, shrub }` is in
+`flydiy_world_look` beside `tints` / `leafMaster`, saved as a delta, put back by applyLook, and the export's `changes` now
+list `tints.*`, `leafMaster.*` and `kindTint.*` (they were exported but never diffed); `where.kindTint` names trees.js.
+
+**G1386 - A POLYGON'S VEGETATION (contract v1.31).** The cover (`ttype`) polygon carries `veg`: `{mode:'none'}`,
+`{mode:'biome', mix}` (any of `_trees_tuning.json`'s mixes) or `{mode:'new', species:{name:{proportion,...}}, density
+(trees/ha), under (bushes/1000 m2), cover (grass factor)}`; its `code` may be null (stamps nothing, only says what grows).
+Composer (`27_premises.js`): `vegOf / vegMixOf`, `O.vegPolys`, `O.vegMixes['@id']` (the bench's `{species, forest}` shape,
+count = ha x pi 220^2 / 1e4), `O.vegAt(x, z)` (undefined: no polygon / null: none / a mix name; the last polygon wins, a bbox
+reject first), `O.vegSig`; issues name a bad `veg` and a polygon saying nothing. `28c_biomes.js`: `B.over` + `B.mixHere(code,
+x, z)`; every planter asks it - the fill's walk, the woodland's draw, `TREE_FILL.at`, the cover ring's sub-grid and rock plan,
+the stand cards. `render_world.js` copies the '@' mixes into BIO.mixes whenever the composed premises is another one, and
+`TREE_FILL.vegChanged()` (app.js onRebuilt, after every editor edit) replants the fill and the ring only when `vegSig`
+moved. `treeReachOf` reaches the polygons' species. 'none' also keeps the COLLIDABLE woodland out (20_world.js) so no
+invisible tree stands where nothing is drawn - at the world's make (a live edit moves the drawn trees, the collidable ones
+at the next load). THE EDITOR (TREES section): a new **vegetation** tool draws one; the inspector: terrain type (none /
+2..16 but the derived three), vegetation pills (its type's / none / a biome / a new biome), the biome select, or - new -
+trees/ha, bushes, grass, one share slider and a remove per species, "+ species" from the catalogue (tree, dead, shrub,
+cover) and "start from" an existing biome. The `ttype` layer is now drawn, selectable and in the feature list (it was not:
+Metlakatla's lush belts were authored outside the editor). The world rail never offers or exports an '@' mix.
+
+**G1387 - EACH STRIP'S TREE CLEARANCE (contract v1.31).** A runway's `clear {side, beyond, taper, bushes}` (27_premises
+`RWY_CLEAR_DEF {60, 150, 0, false}`, `runwayClearOf`, `inRwyClear`, `runwayClearPoly`); the aerodrome carries
+`treeClear` (null without). `20_world.js aeroBoxes / treeAeroBlocked`: an authored clearance replaces the generic box for
+its strip, past the ends the half-width grows by taper a metre, and it stands in EVERY rwytrees variant (the generic box
+stays 'today's only) and over `treeBox: false`; without one the box is today's to the bit. `bushAeroBlocked` keeps the
+cover ring's shrubs out where the clearance says `bushes`. render_world's analytic `treeEx` reads the same. With its own
+clearance a strip's derived box + 30 m keeps only the plots and the settlements (a clearance narrower than 30 m is then
+what was asked). THE EDITOR (AIRFIELD, a strip selected): "its own tree clearance" on/off, each side 0-300 m, past each
+end 0-1500 m, the taper -0.5..+0.5, "the bushes too"; the clearance drawn round the strip in green (bright when its own,
+faint when today's box). Default unchanged: no Jolene strip carries one.
+
+**G1388 - VERIFY (node).** GATE PREMISES 17 (new, headless): the round trip (envelope -> unwrap: the same `ttype` polygons
+and `veg`, the same `clear`), no issues, two bad records named, vegAt (the biome, none over it, its own '@k3', nothing),
+the '@k3' mix (250 /ha, its bushes and grass), only coded polygons stamp, `mixHere`, the aerodrome's `treeClear` (null
+without), the taper geometry, the editor's outline, the derived box handing its trees over. GATE RWYTREES 9 (new, core,
++2 Jolenes ~15 s): a NODE CENSUS of the collidable trees round 02/20 - today 43 in a 200 m / 500 m / +0.15 trapezoid,
+with that clearance 0; a 10 m / 20 m clearance lets 6 into today's 60 m box and keeps its own empty; the taper reaches
+260 m 400 m past the end. By hand (scratch): a 400 m 'none' square in Jolene's forest: 16 collidable trees -> 0.
+
+**G1389 - GATES.** PREMISES, PREMCOOK, TREES, RWYTREES (full: the page harness's fill per variant and the circuits), BUILD
+- see the run below. Not run (not asked): the rest of the battery; no GPU look at the colours (the dials are identity by
+default, so nothing moves until the user moves them). OPEN: a 'none' or biome polygon edited live moves the drawn trees at
+once and the collidable woodland at the next load; the cover ring plants a 32 m cell's CENTRE mix, so a polygon edge
+inside a cell follows the cell (as every biome edge does); a veg-only polygon writes no `cover` class, so over BUILT/CROP
+ground (a town) the fill still refuses to plant - give it a code and `cover` (v1.30) for that.

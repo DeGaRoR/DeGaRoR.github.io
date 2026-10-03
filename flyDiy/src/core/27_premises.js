@@ -937,6 +937,66 @@ function rwyTreesMode(o) {
   v = String(v == null ? '' : v).toLowerCase();
   return RWY_TREES.indexOf(v) >= 0 ? v : 'today';
 }
+// THE STRIP'S TREE CLEARANCE (G1385 EDITOR-VEG, contract v1.31, the user: "I need to better control tree exclusion
+// zones around runways"): a strip's `clear` { side, beyond, taper, bushes } is the clearing the trees keep from it -
+// `side` metres past each edge, `beyond` metres past each end, and past the ends the half-width grows by `taper`
+// metres a metre (0 a rectangle, 0.15 an approach surface's splay, < 0 an end that narrows). `bushes` keeps the
+// cover ring's shrubs out of it as well (the tall vegetation; the grass and the flowers stay). NO `clear` is
+// today's generic box exactly - wid/2 + 60 across, len/2 + 150 along, no taper, the bushes kept (20_world.js
+// treeAeroBlocked, render_world's analytic treeEx) - and only in 'today'. An AUTHORED clearance is the strip's own
+// word: it stands in every variant (rwyTreesMode) and it wins over treeBox false.
+const RWY_CLEAR_DEF = { side: 60, beyond: 150, taper: 0, bushes: false };
+// A COVER POLYGON'S VEGETATION (G1385 EDITOR-VEG, contract v1.31, the user: "I would like the polygons to be more
+// flexible and accept any type of vegetation, from none, to an existing biome, to a new biome"). A `ttype` polygon's
+// `veg`, saved with it:
+//   { mode: 'none' }                                   nothing of a biome grows inside (no tree, no tuft, no bush)
+//   { mode: 'biome', mix: 'conifer' }                  any mix of tools/_trees_tuning.json (the payload's biomes)
+//   { mode: 'new', species: { name: { proportion, density?, size? }, ... }, density: trees/ha, under: bushes/1000 m2,
+//     cover: the grass's factor }                     a biome defined in place - the mix '@' + the polygon's id
+// The `code` may then be null: the polygon stamps no terrain type and only says what grows. Without `veg` a
+// polygon is what it was (its code's biome).
+const VEG_MODES = ['none', 'biome', 'new'];
+const hasCode = c => c.code !== null && c.code !== undefined && c.code !== '' && isFinite(+c.code);
+function vegOf(c) {
+  const v = c && c.veg;
+  if (!v || typeof v !== 'object' || VEG_MODES.indexOf(v.mode) < 0) return null;
+  if (v.mode === 'biome' && !(typeof v.mix === 'string' && v.mix)) return null;
+  if (v.mode === 'new' && !(v.species && typeof v.species === 'object' && Object.keys(v.species).length)) return null;
+  return v;
+}
+// the mix a 'new' vegetation plants: the bench's shape ({ species, forest }) - `density` trees a hectare is the
+// forest's count in its 220 m stand (28c_biomes B.density), `under` the bushes, `cover` the grass's factor
+const VEG_R = 220;
+function vegMixOf(v) {
+  const sp = {};
+  for (const k of Object.keys(v.species)) { const r = v.species[k] || {}; const o = { proportion: isFinite(+r.proportion) ? Math.max(0, +r.proportion) : 1 };
+    for (const q of ['density', 'size', 'patch', 'dead']) if (isFinite(+r[q]) && r[q] !== null && r[q] !== '') o[q] = +r[q];
+    sp[k] = o; }
+  const ha = isFinite(+v.density) ? Math.max(0, +v.density) : 100;
+  return { species: sp, forest: { ground: 'plane', radius: VEG_R, count: Math.round(ha * Math.PI * VEG_R * VEG_R / 10000),
+    under: isFinite(+v.under) ? Math.max(0, +v.under) : 2, cover: isFinite(+v.cover) ? Math.max(0, +v.cover) : 1, reach: VEG_R } };
+}
+function runwayClearOf(r) {
+  const c = r && r.clear;
+  if (!c || typeof c !== 'object') return null;
+  const n = (v, d, lo, hi) => (isFinite(+v) && v !== null && v !== '' ? clamp(+v, lo, hi) : d);
+  return { side: n(c.side, RWY_CLEAR_DEF.side, 0, 600), beyond: n(c.beyond, RWY_CLEAR_DEF.beyond, 0, 3000),
+           taper: n(c.taper, RWY_CLEAR_DEF.taper, -1, 1), bushes: !!c.bushes };
+}
+// the clearance as a box in the axis frame of the strip: al along (from the centre), ac across; true inside.
+// e = { rl: len/2, hw: wid/2 + side, hl: len/2 + beyond, tp: taper }
+function inRwyClear(e, al, ac) {
+  al = Math.abs(al); ac = Math.abs(ac);
+  if (al >= e.hl) return false;
+  return ac < (al > e.rl && e.tp ? Math.max(0, e.hw + e.tp * (al - e.rl)) : e.hw);
+}
+// the same clearance as a polygon in the PREMISES frame (the editor's outline; eight corners, CCW)
+function runwayClearPoly(r, cl) {
+  cl = cl || runwayClearOf(r) || RWY_CLEAR_DEF;
+  const E = runwayEnds(r), hw = r.wid / 2 + cl.side, hwE = Math.max(0, hw + cl.taper * cl.beyond), rl = r.len / 2, hl = rl + cl.beyond;
+  const P = (u, v) => [r.c[0] + E.d[0] * u + E.n[0] * v, r.c[1] + E.d[1] * u + E.n[1] * v];
+  return [P(-hl, -hwE), P(-rl, -hw), P(rl, -hw), P(hl, -hwE), P(hl, hwE), P(rl, hw), P(-rl, hw), P(-hl, hwE)];
+}
 function paveBand(entry, cls, isRoad) {
   const b = entry && entry.band !== undefined && entry.band !== null ? +entry.band : (isRoad ? Math.min(PAVE_BAND[cls] || 2, 1.2) : (PAVE_BAND[cls] || 2));
   return Math.max(0, b);
@@ -1112,6 +1172,9 @@ function runwayAerodrome(r, F, elev, flats, hAt, gradedRoads) {
            // THE TREES ROUND THE STRIP ARE THE RECORD'S (G527.3, contract v1.25): treeBox false - the renderer's generic box
            // (len/2 + 150 along, wid/2 + 60 across) is not cut; the strip's own box + 30 m and the authored excludes are
            treeBox: r.treeBox !== false,
+           // THE STRIP'S OWN CLEARANCE (G1385, contract v1.31): `clear` authored - its sides, ends and taper replace the
+           // generic box (and stand in every rwytrees variant); null - the generic box, as before (runwayClearOf)
+           treeClear: runwayClearOf(r),
            // THE WAY OUT OF A ONE-WAY STRIP (G527.3, contract v1.25): `departure` names the end the take-off leaves OVER
            // (0|1); without it a one-way strip is left the way it is landed. East Point is landed over the sea and left
            // back out over it - the trees close in at the other end
@@ -1505,7 +1568,9 @@ function compose(rec0, world, opts) {
     return null;
   };
   const excl = rec.layers.exclude.filter(s => s.poly && s.poly.length >= 3).map(s => { const what = s.what || ['trees'], fan = fanOf(s.poly, what); return Object.assign({ poly: s.poly, bbox: polyBBox(s.poly), what, id: s.id || null }, fan ? { fan } : {}); });
-  for (const r of runways) { if (runwayIsWater(r)) continue; const box = runwayBox(r, 30); excl.push({ poly: box, bbox: polyBBox(box), what: ['trees', 'settle', 'plots'], derived: true, runway: r.id, rwy: true }); }
+  // (G1385: a strip with its own `clear` hands its trees to that clearance - the box + 30 m keeps the plots and the
+  // settlements off, and a clearance narrower than 30 m is then what the user asked for, not the box's)
+  for (const r of runways) { if (runwayIsWater(r)) continue; const box = runwayBox(r, 30); excl.push({ poly: box, bbox: polyBBox(box), what: runwayClearOf(r) ? ['settle', 'plots'] : ['trees', 'settle', 'plots'], derived: true, runway: r.id, rwy: true }); }
   // a hard surface (paved / gravel / sand) grows no tree and takes no plot: an apron is an apron
   for (const sp of rec.layers.surface) if (sp.poly && sp.poly.length >= 3 && [SURFACE.PAVED, SURFACE.GRAVEL, SURFACE.SAND].indexOf(+sp.surface) >= 0) {
     const sh = +sp.surface !== SURFACE.PAVED ? shoulderOf(sp.poly) : null;
@@ -1576,7 +1641,8 @@ function compose(rec0, world, opts) {
     const reach = paveBand(pp, RUNWAY_LOOKS[pp.look].cls, true) + PAVE_FADE, bb = pp.bbox;
     bandStamps.push({ bbox: { x0: bb.x0 - reach, z0: bb.z0 - reach, x1: bb.x1 + reach, z1: bb.z1 + reach }, reach, sd: (x, z) => sdPoly(pp.poly, x, z) });
   }
-  const ttypes = rec.layers.ttype.filter(c => c.poly && c.poly.length >= 3 && isFinite(+c.code))
+  // (G1385: a cover polygon may carry only a vegetation - its code null, nothing stamped; +null is 0, the sea)
+  const ttypes = rec.layers.ttype.filter(c => c.poly && c.poly.length >= 3 && hasCode(c))
     .map(c => ({ id: c.id, poly: c.poly, bbox: polyBBox(c.poly), code: Math.round(+c.code),
                  // `from` (contract v1.22): the codes this stamp is allowed to REPLACE. Without it a
                  // stamp is flat and paints the bog, the rock and the beach the same as the wood;
@@ -1600,6 +1666,13 @@ function compose(rec0, world, opts) {
                  // the BIOME decide what stands there, which is the whole point of
                  // painting a terrain type instead of placing trees.
                  cover: isFinite(+c.cover) ? Math.round(+c.cover) : null }));
+  // THE POLYGONS' OWN VEGETATION (G1385, contract v1.31): a cover polygon's `veg` - none, an existing biome by name,
+  // or a biome of its own ('@' + its id, registered by the renderer from vegMixes). The LAST polygon over a point has
+  // the word (the record's order, as the stamps). vegAt answers undefined where no polygon speaks.
+  const vegPolys = rec.layers.ttype.filter(c => c.poly && c.poly.length >= 3 && vegOf(c))
+    .map(c => { const v = vegOf(c); return { id: c.id, poly: c.poly, bbox: polyBBox(c.poly), mix: v.mode === 'none' ? null : v.mode === 'biome' ? v.mix : '@' + c.id }; });
+  const vegMixes = {};
+  for (const c of rec.layers.ttype) { const v = c.poly && c.poly.length >= 3 && vegOf(c); if (v && v.mode === 'new') vegMixes['@' + c.id] = vegMixOf(v); }
   let ext = rec.frame.extent;
   if (!ext) {
     let x0 = Infinity, z0 = Infinity, x1 = -Infinity, z1 = -Infinity;
@@ -1853,6 +1926,16 @@ function compose(rec0, world, opts) {
   for (const r of rec.layers.zones) if (r.poly && r.poly.length >= 3) { /* an airfield zone is its runway's ground: no plots, no trees */ if (r.kind === 'airfield') excl.push({ poly: r.poly, bbox: polyBBox(r.poly), what: ['trees', 'plots'], derived: true }); }
   const O = {
     n: mods.length, nAuthored: nAuth, rec, frame: F, extent: ext, index, roads: roadObjs.filter(r => !r.runway), runways, aerodromes, shelves, ttypes,
+    // G1385: the cover polygons' vegetation - vegAt(x, z) -> undefined (no polygon here) | null (none) | a mix name;
+    // vegMixes the polygons' own biomes by '@id'; vegSig a string that changes when any of it does (the renderer's replant)
+    // (and the strips' own clearances - G1385's third item: the fill and the ring replant on either)
+    vegPolys, vegMixes, vegSig: JSON.stringify([vegPolys, vegMixes, runways.map(r => runwayClearOf(r))]),
+    vegAt(x, z) {
+      if (!vegPolys.length) return undefined;
+      const dx = x - F.anchor.x, dz = z - F.anchor.z, lx = dx * F.c - dz * F.s, lz = dx * F.s + dz * F.c;
+      for (let i = vegPolys.length - 1; i >= 0; i--) { const v = vegPolys[i]; if (inBB(v.bbox, lx, lz) && inPoly(v.poly, lx, lz)) return v.mix; }
+      return undefined;
+    },
     // THE STAMP: the island's ttype grid is ONE array, read by the tree
     // walk (render_world's ttypeAt), by the cover ring and by the ground's packed
     // texture. Writing the code into it once, here, is why one polygon moves the
@@ -2454,7 +2537,9 @@ function issues(rec0) {
   for (const c of rec.layers.ttype) {
     if (!c.poly || c.poly.length < 3) out.push('ttype ' + c.id + ': needs a polygon');
     const code = Math.round(+c.code);
-    if (!isFinite(code) || code < 2 || code > 16) out.push('ttype ' + c.id + ': code ' + c.code + ' is not a terrain type a place may stamp (2..16)');
+    if (c.veg !== undefined && c.veg !== null && !vegOf(c)) out.push('ttype ' + c.id + ': vegetation ' + JSON.stringify(c.veg) + ' is not none, a biome by name or a new biome with species');
+    if (!hasCode(c)) { if (!vegOf(c)) out.push('ttype ' + c.id + ': neither a terrain type nor a vegetation'); }
+    else if (!isFinite(code) || code < 2 || code > 16) out.push('ttype ' + c.id + ': code ' + c.code + ' is not a terrain type a place may stamp (2..16)');
     else if (code === 12 || code === 13 || code === 14) out.push('ttype ' + c.id + ': ' + code + ' is DERIVED from slope and canopy, not stamped');
   }
   for (const k of LAYERS) for (const e of rec.layers[k]) { if (ids.has(e.id)) out.push('duplicate id ' + e.id); ids.add(e.id); }
@@ -2657,7 +2742,7 @@ function collect(globals) {
            byCat(c) { const out = []; entries.forEach(e => { if ((e.cat || (e.kind === 'park' ? 'landmark' : null)) === c) out.push(e); }); return out; } };
 }
 
-const API = { PREMISES_V, LAYERS, smoothPath, SURFACE, SURFACE_NAMES, ROAD_CLS, ROAD_LOOK, roadLook, PAVE_BAND, PAVE_FADE, PAVE_SIDE, RWY_TREES, rwyTreesMode, paveBand, PAV_KEYS, PAV_MARKS, STAND_KEYS, ZONE_GRASS, zoneGrass, ZONE_KINDS, ZONE_RULES, KIND_RULES, CATEGORIES, THEMES, THEME_DEF, themeOf, RUNWAY_LOOKS, runwaySite, runwayIsWater, HANGAR_DIMS, PREMISES_MIGRATORS, GENERATORS,
+const API = { PREMISES_V, LAYERS, smoothPath, SURFACE, SURFACE_NAMES, ROAD_CLS, ROAD_LOOK, roadLook, PAVE_BAND, PAVE_FADE, PAVE_SIDE, RWY_TREES, rwyTreesMode, RWY_CLEAR_DEF, runwayClearOf, runwayClearPoly, inRwyClear, VEG_MODES, vegOf, vegMixOf, paveBand, PAV_KEYS, PAV_MARKS, STAND_KEYS, ZONE_GRASS, zoneGrass, ZONE_KINDS, ZONE_RULES, KIND_RULES, CATEGORIES, THEMES, THEME_DEF, themeOf, RUNWAY_LOOKS, runwaySite, runwayIsWater, HANGAR_DIMS, PREMISES_MIGRATORS, GENERATORS,
   fnv, hash32, mulberry32, seedOf, fbm,
   polyBBox, polyCentroid, polyArea, polyCCW, inPoly, sdPoly, distPtSeg, polySimple, ensureCCW, smf01, polysOverlap,
   polyRoad, roadDist, roadInPoly, shoreDepth, sowPlots, planForest, pickFor, PICK_TAGS, RUNWAY_DEF, ALTIPORT, runwayProfile, profileIssues, runwayShoulder, runwayEnds, runwayBox, runwayAerodrome, siteFrame, placeSite, siteShelves, slotAt, polyDrop, bankFalloff, shelfCovers, cellTol, deltaAt, LINK_SOLVERS, solveLinks,

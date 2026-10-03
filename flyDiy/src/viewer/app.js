@@ -95,7 +95,7 @@
         } catch (e) { return null; } })(), wipKey: WIP_KEY,
         rig: (typeof window !== 'undefined' && window.WORLD && window.WORLD.rig) || null, day: (typeof DAY_CLOCK !== 'undefined') ? DAY_CLOCK : null,   // SKY chantier: LIGHT and TIME in the game's editor
         redraw: dirtyDraw, frameText: () => '', pool: () => [], site: PREM.host.site, catalogue: PREMISES_GEN.collect(window), fresh: true, record: rec0, overlayOn: () => false,
-        onRebuilt: () => { const o = world.premises.overlay; if (o && window.WORLD && window.WORLD.refreshGround) { const F = o.frame, e = o.extent, c = [F.toWorld(e.x0, e.z0), F.toWorld(e.x1, e.z0), F.toWorld(e.x1, e.z1), F.toWorld(e.x0, e.z1)]; window.WORLD.refreshGround({ x0: Math.min(...c.map(q => q[0])), z0: Math.min(...c.map(q => q[1])), x1: Math.max(...c.map(q => q[0])), z1: Math.max(...c.map(q => q[1])) }); if (window.WORLD.repaintStrips) window.WORLD.repaintStrips(); } },
+        onRebuilt: () => { const o = world.premises.overlay; if (o && window.WORLD && window.WORLD.refreshGround) { const F = o.frame, e = o.extent, c = [F.toWorld(e.x0, e.z0), F.toWorld(e.x1, e.z0), F.toWorld(e.x1, e.z1), F.toWorld(e.x0, e.z1)]; window.WORLD.refreshGround({ x0: Math.min(...c.map(q => q[0])), z0: Math.min(...c.map(q => q[1])), x1: Math.max(...c.map(q => q[0])), z1: Math.max(...c.map(q => q[1])) }); if (window.WORLD.repaintStrips) window.WORLD.repaintStrips(); } if (window.TREE_FILL && window.TREE_FILL.vegChanged) window.TREE_FILL.vegChanged(); },   // G1385: the cover polygons' vegetation
       });
       PREM.open = true;
       $('bPause').textContent = 'Resume'; $('bPause').classList.add('on');
