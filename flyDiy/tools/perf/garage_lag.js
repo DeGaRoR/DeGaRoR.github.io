@@ -17,7 +17,7 @@
 // before (input, then change).
 // --prof: one extra, untimed rep per change under a CDP CPU profile: self ms by function and by file in the window.
 // Usage: node tools/perf/garage_lag.js --port 8771 --udd D:/ugl1 --trees base=_ab/3da1c82a/flyDiy,today=_ab/06bbd8e3/flyDiy
-//          [--builds cub,metal] [--reps 5] [--only fuseLen,wingSpan] [--prof] [--list] [--out file.json] [--page index.html] [--evms 60000] [--nodrag]
+//          [--builds cub,metal] [--reps 5] [--only fuseLen,wingSpan] [--prof] [--list] [--out file.json] [--page index.html] [--evms 60000] [--nodrag] [--norender]
 // No --help (an unknown flag is ignored).
 'use strict';
 const fs = require('fs'), path = require('path');
@@ -37,6 +37,10 @@ const BUILDS = { cub: { label: 'Cub', build: 'builds/cub_2026-09-20_corrected.js
 const REPS = +opt('reps', 5), QUIET = +opt('quiet', 700), PAGE = opt('page', 'index.html');
 // --evms: the page's answer per rep, ms (GARAGE-LAG-2: a SwiftShader cloud box links a new program in tens of seconds)
 const EVMS = +opt('evms', 60000);
+// --norender (GARAGE-LAG-2, the cloud): the page's render loop stopped once it is loaded (requestAnimationFrame
+// answers nothing), so a SwiftShader box's minutes-long program links never land inside a measurement; sync and the
+// JS tails (busy/settle: the deferred builds, the commits) are measured, frame is not (it reads as sync)
+const NORENDER = flag('norender');
 const ONLY = opt('only', null) ? new Set(opt('only').split(',')) : null;
 const OUT = path.resolve(opt('out', path.join(__dirname, 'garage_lag_' + Date.now() + '.json')));
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -87,7 +91,7 @@ const HARNESS = `(() => { if (window.__GL) return 'again'; const G = window.__GL
   G.quiet = async (t0, q, cap) => { while (true) { await new Promise(r => setTimeout(r, 100)); const now = performance.now(); const L = G.lt.filter(x => x[0] + x[1] > t0);
     const last = L.length ? Math.max(...L.map(x => x[0] + x[1])) : t0; if (now - last >= q || now - t0 > cap) return; } };
   G.one = async (el, v, q, rel) => { G.fn = {}; await G.quiet(performance.now(), 300, 4000); G.on = true; const t0 = performance.now(); G.set(el, v, rel); const t1 = performance.now();
-    await raf(); const tB = await raf(); await G.quiet(t0, q, 8000); G.on = false;
+    const tB = ${NORENDER} ? t1 : (await raf(), await raf()); await G.quiet(t0, q, 8000); G.on = false;
     const L = G.lt.filter(x => x[0] + x[1] > t0 - 1); const end = L.length ? Math.max(...L.map(x => x[0] + x[1])) : t1;
     const fn = {}; for (const k in G.fn) fn[k] = [+G.fn[k][0].toFixed(1), G.fn[k][1]];
     return { sync: +(t1 - t0).toFixed(1), frame: +(tB - t0).toFixed(1), busy: +L.reduce((a, x) => a + x[1], 0).toFixed(0), nLong: L.length,
@@ -147,6 +151,7 @@ function hot(p) {
     log('loaded ' + l.state + ' in ' + l.sec + ' s');
     await sleep(6000);
     log('harness ' + await b.ev(HARNESS));
+    if (NORENDER) { await b.ev("(() => { window.requestAnimationFrame = () => 0; return 1; })()"); await sleep(3000); log('render loop stopped'); }
     const ver = await b.ev("(() => { try { return (window.FLYDIY_BUILD || '') + ''; } catch (e) { return '?'; } })()");
     if (flag('dumpwip')) {
       const w = await b.ev("(() => { try { return localStorage.getItem('flydiy.wip') || ''; } catch (e) { return ''; } })()");
