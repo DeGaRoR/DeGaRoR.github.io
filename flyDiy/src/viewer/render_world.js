@@ -231,7 +231,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
   // same stand drawn as geometry and as impostors from 40 m under the alps
   // row, mean luminance over the forest half of the frame 81.9 against 85.8
   // at 0.9 / 92.1 at 1.0 / 79.0 at 0.8 (scratch steps_ilit.js, W0c.18)
-  const uILit = { value: 0.9 };
+  const uILit = { value: 0.9 * 1.38 };   // the user's F8 world look (2026-10-03): the environment albedo 1.38 baked into the impostors' lit term (0.9 the geometry match x 1.38); envAlbedo() reads 1 again from here
   // the impostor's own contrast term (see impostorMat), and the per-tree lightness the bake threw away.
   const uIFlat = { value: 1.30 }, uIFlatMean = { value: 0.05 };
   const IMPK = { flat: 1.30, mean: 0.05, vary: 0.10 };
@@ -1532,7 +1532,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     // to move both the terrain and the trees to see what's best". The baked
     // albedo stays the fallback (and the minimap's). Textures sampled by
     // world position; the tint is sRGB (decoded on sample under r152+).
-    const GROUND = { on: false, overlay: 0.75, shade: 0.7, light: 1.0, sat: 1.0, snow: 890, shore: 1.0, mode: 0 };
+    const GROUND = { on: false, overlay: 0.75, shade: 0.7, light: 0.94, sat: 0.94, snow: 890, shore: 1.0, mode: 0 };   // light / sat 0.94: the user's F8 world look, 2026-10-03
     // THE STACK (G404, the user: "a way to edit the stack, like I did in the
     // bench - every layer, on/off, blend mode, alpha"): five albedo layers in
     // a fixed order, each with the bench's twelve blend modes and an opacity.
@@ -6530,7 +6530,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     if (ENV_ALB.base === null) ENV_ALB.base = (typeof TREE_LEAF !== 'undefined' && TREE_LEAF.master) ? TREE_LEAF.master().light : 1;
     ENV_ALB.k = Math.max(0.05, +k);
     groundApi.set({ light: ENV_ALB.k });
-    if (typeof TREE_LEAF !== 'undefined' && TREE_LEAF.tint) { TREE_LEAF.tint({ light: ENV_ALB.base * ENV_ALB.k }); uILit.value = 0.9 * ENV_ALB.k; }   // uILit is the impostor/geometry match (0.9), not the level: it scales with the dial, the tint carries the level
+    if (typeof TREE_LEAF !== 'undefined' && TREE_LEAF.tint) { TREE_LEAF.tint({ light: ENV_ALB.base * ENV_ALB.k }); uILit.value = 0.9 * 1.38 * ENV_ALB.k; }   // uILit is the impostor/geometry match (0.9), not the level: it scales with the dial, the tint carries the level
     return ENV_ALB.k;
   };
   // waterDrawY(x, z): the y of the water surface DRAWN here - a lake's quad, else the sea plane (0 with the

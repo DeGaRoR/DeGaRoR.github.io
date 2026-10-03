@@ -101,17 +101,17 @@ const GROUND_FIELDS = (() => {
   // reads this and its own localStorage copy (F8 > map layers > splat).
   const RECIPE = {
     codes: {
-      2:  { tex: ['dry', 'grass', 'rockyA'],   scale: [4, 4, 90],   far: ['grassRock', 'grassRock', 'rockyA'], farScale: [15, 15, 90], mix: [40, 3, 0, -0.1],    vary: [10, 0.18, 25], para: 0.2 },
-      3:  { tex: ['mud', 'grassRock', null],   scale: [3, 15, 0],   far: ['grassRock', null, null],           farScale: [15, 0, 0],   mix: [25, 3, 0.08, 0],    vary: [8, 0.2, 15], para: 0.2, wet: 0.32, poolScale: 3 },   // the user, 2026-09-21: "muskeg should just be mud with nothing in it" (the lush lawn out)
-      4:  { tex: ['beach', null, null],        scale: [30, 0, 0],   far: [null, null, null],                  farScale: [0, 0, 0],    mix: [30, 1, 0, 0],       vary: [2, 0.06, 20], para: 0.3, orient: 'sea' },
-      5:  { tex: ['rocksG', 'rockyB', null],   scale: [4, 90, 0],   far: ['rockyB', null, null],              farScale: [90, 0, 0],   mix: [30, 3, 0, 0],       vary: [3, 0.1, 20], para: 1 },
-      6:  { tex: ['rocksB', 'rocksA', null],   scale: [50, 79, 0],  far: ['rocksA', 'rockyA', null],          farScale: [79, 90, 0],  mix: [60, 3, 0, 0],       vary: [3, 0.1, 40], para: 1 },
-      7:  { tex: ['mud', 'grassRock', 'rockyA'], scale: [3, 15, 90], far: ['grassRock', 'rockyA', null],     farScale: [15, 90, 0],  mix: [30, 3, 0.05, -0.25], vary: [10, 0.18, 25], para: 0.2, wet: 0.32, poolScale: 3 },   // the user, 2026-09-21: the scrub IS the muskeg - mud with pools (the procedure ported from 3), the moor's sets under a cloud mask, 100 trees/ha   // the user, 2026-09-21: the bush was a lawn (grass + lush); the moor instead
+      2:  { tex: ['grassRock', null, null], scale: [15.04, 38, 90], far: [null, null, null], farScale: [15, 15, 90], mix: [40, 3, 0, -0.1], vary: [10, 0.18, 25], para: 0.2 },
+      3:  { tex: ['mud', null, null], scale: [3, 15, 0], far: ['mud', null, null], farScale: [1.25, 0, 0], mix: [25, 3, 0.08, 0], vary: [8, 0.2, 15], para: 0.2, wet: 0.32, poolScale: 3 },   // the user, 2026-09-21: "muskeg should just be mud with nothing in it" (the lush lawn out)
+      4:  { tex: ['beach', null, null], scale: [9.5, 0, 0], far: [null, null, null], farScale: [0, 0, 0], mix: [28, 0.9, 0, 0], vary: [2, 0.06, 20], para: 0.3, orient: 'sea' },
+      5:  { tex: ['rocksG', null, null], scale: [41.5, 90, 0], far: [null, null, null], farScale: [90, 0, 0], mix: [30, 3, 0, 0], vary: [3, 0.1, 20], para: 1 },
+      6:  { tex: ['cliff', null, null], scale: [71.5, 79, 0], far: [null, null, null], farScale: [79, 90, 0], mix: [60, 3, 0, 0], vary: [3, 0.1, 40], para: 1 },
+      7:  { tex: ['mud', 'grassRock', 'rockyA'], scale: [3, 15.04, 90], far: ['grassRock', 'rockyA', null], farScale: [15, 90, 0], mix: [30, 3, 0.05, -0.25], vary: [10, 0.18, 25], para: 0.2, wet: 0.32, poolScale: 3 },   // the user, 2026-09-21: the scrub IS the muskeg - mud with pools (the procedure ported from 3), the moor's sets under a cloud mask, 100 trees/ha   // the user, 2026-09-21: the bush was a lawn (grass + lush); the moor instead
       8:  { tex: ['forestAir', 'mud', null],   scale: [81, 3, 0],   far: ['forestAir', null, null],           farScale: [81, 0, 0],   mix: [20, 3, -0.3, 0],     vary: [6, 0.15, 30], para: 0.3 },   // the user, 2026-09-21: the forest ground is aerial rock 04
       9:  { tex: ['snowAir', null, null],      scale: [81, 0, 0],   far: [null, null, null],                  farScale: [0, 0, 0],    mix: [30, 1, 0, 0],       vary: [0, 0.04, 40], para: 0.2 },
       10: { tex: ['dirt', null, null],         scale: [2, 0, 0],    far: ['grassRock', null, null],           farScale: [15, 0, 0],   mix: [20, 1, 0, 0],       vary: [2, 0.06, 10], para: 0.2 },
       11: { tex: ['coastA', 'rocksG', 'coastSand'], scale: [19.94, 2, 15.2], far: ['coastA', null, 'coastSand'], farScale: [19.94, 0, 15.2], mix: [14, 3, -0.2, -0.3], vary: [3, 0.08, 15], para: 0.6 },   // the rocky beach (TERRAIN FOLLOW-UP 4, 2026-09-21): the dark foreshore aerial (coast_land_rocks_01) with pale rock chunks (rocksG) in it and the green-tufted upper shore (coast_sand_rocks_02) a third of the band - four recipes judged straight down at -4414,-4936 (bench/coast/try_4.png); `pebble` (Gravel022, pale) left the code. A NEGATIVE bias A|B favours A
-      12: { tex: ['cliff', 'rocksA', null],    scale: [7, 79, 0],   far: ['rocksB', null, null],              farScale: [50, 0, 0],   mix: [40, 3, 0, 0],       vary: [2, 0.08, 40], para: 1 },
+      12: { tex: ['rocksB', null, null], scale: [51.5, 90.5, 0], far: ['rocksB', null, null], farScale: [120, 0, 0], mix: [44, 2.3, -0.2, -0.2], vary: [2, 0.48, 71], para: 1 },
       13: { tex: ['forestAir', 'mud', null],   scale: [81, 3, 0],   far: ['forestAir', null, null],           farScale: [81, 0, 0],   mix: [25, 3, -0.3, 0],    vary: [5, 0.12, 30], para: 0.3 },
       14: { tex: ['grassRock', 'grass', 'rockyA'], scale: [15, 4, 90], far: ['grassRock', null, 'rockyA'],     farScale: [15, 0, 90],  mix: [30, 3, 0, -0.2],    vary: [8, 0.15, 25], para: 0.2 },   // 2026-09-21: the lush lawn out here too
       // 15 LUSH (METLAKATLA, 2026-09-22): the bright green that borders a road cut and fills an old clearing -
@@ -130,7 +130,7 @@ const GROUND_FIELDS = (() => {
     knobs: {
       cliffLo: 32, cliffHi: 42, oldLo: 14, oldHi: 20, denseLo: 1, denseHi: 2.5,   // the derived codes: rock -> cliff by slope (deg), forest -> old / scrub -> dense by canopy (m)
       splatWobble: 8, splatBlend: 1.6, beachRot: 90, triK: 6,
-      detailFrom: 150, detailTo: 900, macroFrom: 800, macroTo: 6000, macroMix: 0.85, macroNear: 0.45, macroLum: 0.6, albedoNorm: 1, macroExp: 2.2,   // macroLum (2026-09-21): how much of the IMAGERY'S brightness the near ground keeps (see splat_ground sSplat)   // macroExp is the BENCH's (its light); the game's macro is the lit stack: 1
+      detailFrom: 150, detailTo: 900, macroFrom: 800, macroTo: 6000, macroMix: 0.85, macroNear: 0.5, macroLum: 0.55, albedoNorm: 1, macroExp: 2.2,   // macroLum (2026-09-21): how much of the IMAGERY'S brightness the near ground keeps (see splat_ground sSplat)   // macroExp is the BENCH's (its light); the game's macro is the lit stack: 1
       hDepth: 0.2, seamDepth: 0.45, hexOn: 1, hexN: 2, hexRot: 180, nrmK: 1, specK: 0.6,
       sheen: 1,   // the GAME's lever on the sets' roughness (the near ring is a Standard material, 2026-09-21): 1 = the sets' own, 0 = matte (specK is the bench's Blinn strength)
       pudCell: 0, pudCover: 0.32, pudEdge: 0.01, pudSlope: 3, lakeEdge: 1,
@@ -144,7 +144,7 @@ const GROUND_FIELDS = (() => {
       // green, without modifying the rock color. Ever so subtle"): a PER-TEXEL lift on the green that
       // stands over the other two channels, so moss and leaf in a rock photograph warm up and the boulders
       // in the same photograph do not move at all. 0.4 moves the greenest texel about 3 %.
-      vegLush: 0.4,   // pudWet: how dark the margin's wet ground goes (1 = dry, 0 = black); both pudRim and pudFar scale with distance and are 0 at the eye
+      vegLush: 0.2,   // pudWet: how dark the margin's wet ground goes (1 = dry, 0 = black); both pudRim and pudFar scale with distance and are 0 at the eye
       para: 0, paraSteps: 10,   // the parallax (bench only, 2026-09-21): OFF - on the aerial sets it smears, on the detail sets it is invisible without real displacement maps
     },
     // the mild grade per set (the sheet's numbers, tools/splat_sheet.py): a gain and a saturation, never a recolour;
@@ -156,10 +156,12 @@ const GROUND_FIELDS = (() => {
     // grass ... on the forest floor texture, the brightest areas are rock, the darkest are grass"): how far the
     // set's DARK texels are recoloured - at constant value - toward the open ground's measured grass. 0 = the
     // photograph alone, 1 = the open grass's colour on every dark texel. 0.6 is "not perfectly, but better".
-    grade: { forestAir: { gain: '#bfbfbf', sat: 1, grass: 0 }, dry: { gain: '#b3b3a6', sat: 1, gloss: 0.5 }, snowAir: { gain: '#ffffff', sat: 0.6 }, rockyB: { gain: '#ffffff', sat: 0.6 }, cliff: { gain: '#ffffff', sat: 0.7 },
+    grade: { forestAir: { gain: '#bfbfbf', sat: 1, grass: 0 }, dry: { gain: '#b3b3a6', sat: 1, gloss: 0.5 }, snowAir: { gain: '#ffffff', sat: 0.6 }, rockyB: { gain: '#ffffff', sat: 0.6 }, cliff: { gain: '#b8b8b8', sat: 0, gloss: 1, grass: 0.64, hue: 2, contrast: 2, selHue: 0, selWidth: 0, selShift: 0, selSat: 1, selLight: 1, selSoft: 0.5 },
              // THE LAWN GRASSES TURNED YELLOW (the user, 2026-09-21: "golf grass ... should be more yellow, like all the other textures"): grass's mean sat at hue 72,
              // lush's at 88 (blue-green) against the moor's 40-48; the gain pulls the green channel down - grass to hue ~45 at value 0.39, lush to ~50 at 0.29
-             grass: { gain: '#ffc8a0', sat: 0.75, gloss: 0.3 }, lush: { gain: '#ffb890', sat: 0.7, gloss: 0.35 }, dirt: { gain: '#ffffff', sat: 1, gloss: 0.5 } },
+             grass: { gain: '#ffc8a0', sat: 0.75, gloss: 0.3 }, lush: { gain: '#ffb890', sat: 0.7, gloss: 0.35 }, dirt: { gain: '#ffffff', sat: 1, gloss: 0.5 },
+             // THE ROCK GRADES (the user, 2026-10-03, F8 world look): cliff and the two rock sets toned down and hue-selected
+             rocksB: { gain: '#adadad', sat: 0, gloss: 0.5, grass: 1, hue: 58, contrast: 1.42, selHue: 124, selWidth: 48, selShift: -66, selSat: 1.26, selLight: 0.9, selSoft: 0.5 }, rocksG: { gain: '#a1a1a1', sat: 1, gloss: 1, grass: 1, hue: 2, contrast: 1, selHue: 150, selWidth: 22, selShift: 15, selSat: 1.04, selLight: 1.08, selSoft: 0.7 } },
     // the library, in LAYER ORDER (the texture arrays are built in this order; a code's set is its index here):
     // assets/splat (splat_tex_import.py, Poly Haven CC0) then the lot's five (ambientCG CC0, lot_tex_prep.js's tiles)
     library: [

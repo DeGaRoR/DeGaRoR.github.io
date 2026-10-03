@@ -336,7 +336,7 @@
   // which they had called a little too dark WHEN IT WAS A SILHOUETTE; at the same luma with the
   // albedo intact it is the look that was wanted all along, which is the whole lesson of G548.
   // TREE_LEAF.tint({ light }) moves it live; TREE_LEAF.master() only READS it.
-  const MASTER = { hue: 0.045, sat: 1.2, light: 0.42 };
+  const MASTER = { hue: 0.045, sat: 1.2, light: 0.42 * 1.38 };   // x 1.38: the user's F8 world look (2026-10-03, the environment albedo baked into the leaves' default)
   const TINT_GLSL = [
     // THE DIAL'S SIGN IS THE MEASUREMENT'S (2026-09-20): the YIQ rotation below turns the
     // OPPOSITE way to the HSL hue the colour pass measures, so every fitted hue (ref - mine)
