@@ -68727,3 +68727,13 @@ TAXICLEAR PASS, PLAN PASS, LINEUP PASS, UISMOKE PASS (app.js / sim_host.js), FLO
 The full battery is A0's (per train). Base: master 5502f45, not rebased. Likely conflict spots when assembling: the
 tail of src/core/25_airfield.js, the 90_node_exports.js export line, run_gates.js's NAV row neighbourhood, and
 app.js's route block (applyRoute, the selects' block, the map's aerodrome loop).
+**GATE RESULTS (G1360-G1364, the cloud, on 5502f45 + this branch; no rebase - A0 resolves on the train):** only the gate of
+the files touched, not the full battery. `node --max-old-space-size=4096 tools/run_gates.js --no-build --only=FLIGHTREC`:
+**FLIGHTREC PASS** (1.7 s; it covers analyze_log.js and its new distribution assertion). No battery gate covers the other
+touched files (frame_dist.js, rollout_perf.js, rollout_ratchet.js, master_bench.js, perf/train_gate.js); their no-browser
+checks, all clean: `node --check` on each; `rollout_ratchet.js --update` on the committed ratchet_md_before_cub runs, then the
+after runs against it - RATCHET: PASS with the new rows; `master_bench.js --report master_bench_15d18675.json` (an old JSON)
+prints; `master_bench.js --plan` with the subset flags lists HOME + mn_strip and the floats' water taxi alone (~6 min);
+`train_gate.js --plan` 25 min (28 with overheads), `--plan --light` 15 (17); `train_gate.js --compare` on rows built from
+committed reports: an injected p99 rise and a removed load RED by name (exit 1), the same JSON against itself PASS. Nothing
+browser-side has been run: the box steps 1-6 above stand.
