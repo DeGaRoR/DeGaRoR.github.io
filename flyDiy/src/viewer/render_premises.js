@@ -3047,7 +3047,24 @@ function make(THREE, scene, world, rec0, opts) {
     TREE_DEPTH.set(mat, d);
     return d;
   }
+  // G1330 (TREE-HITBOX): THE RECORD TREES' TRUNKS for the solver (world.treeHits 'prem', 29_obstacles.js TREE_HITS):
+  // the drawn tree's - the subject's height (treeTrunk, the pack's) x its size, the foot where it is drawn (its sink
+  // included). Only what the game draws: a stub cone is the bench's, and nothing is drawn before the pack is in
+  function hitTrees(ready) {
+    const TH = (o.game && world && world.treeHits && typeof TREE_HITS !== 'undefined') ? world.treeHits : null;
+    if (!TH) return;
+    const F = O.frame, a = [], tk = [0, 0];
+    if (ready && typeof treeTrunk === 'function') for (const t of O.records.trees) {
+      if (!t.key || t.key === 'stub|tree') continue;
+      const tt = treeTrunk(t.key); if (!tt) continue;
+      const w = F.toWorld(t.x, t.z), foot = t.y - 0.05 - (t.sink || 0) * t.size;
+      TREE_HITS.trunkOf(tt.h * t.size, tt.wf, tk);
+      a.push(w[0], w[1], foot, tk[0], foot + tk[1]);
+    }
+    if (a.length) TH.set('prem', a); else TH.drop('prem');
+  }
   function buildTrees() {
+    hitTrees(typeof treeBuild === 'function' && typeof treeReady === 'function' && treeReady());
     for (const c of G.trees.children.slice()) { G.trees.remove(c); c.traverse(m => { if (m.geometry && !m.userData.sharedGeo && m.geometry !== stubGeo && m.geometry !== stubTrunk) m.geometry.dispose(); }); }
     const ready = typeof treeBuild === 'function' && typeof treeReady === 'function' && treeReady();
     let tris = 0;

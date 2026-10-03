@@ -141,6 +141,15 @@ const SIM_LINK = (() => {
       R.remove = function (id) { const ok = remove.apply(this, arguments); if (ok && host) opsQ.push({ op: 'remove', id }); return ok; };
       R.clear = function () { clear.apply(this, arguments); if (host) opsQ.push({ op: 'clear' }); };
     }
+    // G1330 (TREE-HITBOX): THE TRUNKS THE VIEWER DRAWS (world.treeHits: the fill's chunk parts, the woodland, the
+    // premises' trees) ride the same queue - a set is its key and its Float32Array (cloned on the post), a drop its key
+    const TH = world && world.treeHits;
+    if (TH) {
+      const set = TH.set, drop = TH.drop, clr = TH.clear;
+      TH.set = function (key, arr) { const n = set.apply(this, arguments); if (host) opsQ.push({ op: 'tset', key, arr: TH.get(key) }); return n; };
+      TH.drop = function (key) { const ok = drop.apply(this, arguments); if (ok && host) opsQ.push({ op: 'tdrop', key }); return ok; };
+      TH.clear = function () { clr.apply(this, arguments); if (host) opsQ.push({ op: 'tclear' }); };
+    }
     for (const fn of WORLD_FNS) {
       if (!world || typeof world[fn] !== 'function') continue;
       const f0 = world[fn];
@@ -192,6 +201,7 @@ const SIM_LINK = (() => {
     function liveOps() {
       const out = [];
       if (R) for (const r of R.list()) if (!baseIds.has(r.id)) out.push({ op: 'add', id: r.id, x: r.x, z: r.z, yaw: r.yaw, y0: r.y0, shape: r.shape, tag: r.tag });
+      if (world && world.treeHits) for (const key of world.treeHits.keys()) out.push({ op: 'tset', key, arr: world.treeHits.get(key) });   // G1330
       return out;
     }
 
