@@ -5313,7 +5313,47 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     // nothing to merge.
     // SHELL: the dial (the A/B): merge false = the 278 meshes as built; castMin 0 = every piece casts as before.
     // WORLD.shell(o) sets it and re-stands the shed at its current dims.
-    const SHELL = { merge: true, castMin: 0.5 };
+    const SHELL = { merge: true, castMin: 0.5, coarseShare: 0.03, swapPx: 48, swapM: [200, 900] };   // (G1398: the coarse rung and its switch)
+    // the merged shell's coarse rung (G1398): its meshes of at least `share` of the surface, sharing their geometry and
+    // material (nothing copied); null when that keeps nothing. `cast` (a Set of materials): only those cast - the outer
+    // wall and roof, two casters as the box had (the inner skins and the doors' 6 cm-off shadows add nothing at 500 m)
+    function shellCoarse(group, share, cast) {
+      const area = g => { const p = g.attributes.position, ix = g.index, n = ix ? ix.count : p.count; let a = 0;
+        for (let i = 0; i + 2 < n; i += 3) { const i0 = ix ? ix.getX(i) : i, i1 = ix ? ix.getX(i + 1) : i + 1, i2 = ix ? ix.getX(i + 2) : i + 2;
+          const ux = p.getX(i1) - p.getX(i0), uy = p.getY(i1) - p.getY(i0), uz = p.getZ(i1) - p.getZ(i0), vx = p.getX(i2) - p.getX(i0), vy = p.getY(i2) - p.getY(i0), vz = p.getZ(i2) - p.getZ(i0);
+          a += Math.hypot(uy * vz - uz * vy, uz * vx - ux * vz, ux * vy - uy * vx) / 2; } return a; };
+      const ms = group.children.filter(o => o.isMesh && o.geometry && o.geometry.attributes.position && !o.material.transparent).map(o => [o, area(o.geometry)]);
+      const tot = ms.reduce((t, x) => t + x[1], 0); if (!tot) return null;
+      const out = new THREE.Group(); out.name = 'shell:coarse';
+      // the openings (the glazing band, the roof lights: transparent, so mergeShell kept them apart) would be HOLES in
+      // the coarse rung: they come in as ONE opaque mesh, each piece in its material's colour (vertex colours), casting
+      // nothing - a draw instead of eleven transparent ones
+      const fill = group.children.filter(o => o.isMesh && !o.isInstancedMesh && o.material && o.material.transparent && o.geometry && o.geometry.attributes.position);
+      if (fill.length) {
+        let nV = 0, nI = 0; for (const o of fill) { const g = o.geometry; nV += g.attributes.position.count; nI += g.index ? g.index.count : g.attributes.position.count; }
+        const P = new Float32Array(nV * 3), N = new Float32Array(nV * 3), C = new Float32Array(nV * 3), I = new Uint32Array(nI), v = new THREE.Vector3(), nm = new THREE.Matrix3();
+        let vo = 0, io = 0;
+        for (const o of fill) {
+          // (its colour over the dark inside, as the transparent pane reads from out here: colour x opacity)
+          const g = o.geometry, pa = g.attributes.position, na = g.attributes.normal, c = (o.material.color || new THREE.Color(0x56626c)).clone().multiplyScalar(o.material.opacity !== undefined ? o.material.opacity : 1);
+          o.updateMatrix(); nm.getNormalMatrix(o.matrix);
+          for (let i = 0; i < pa.count; i++) {
+            v.fromBufferAttribute(pa, i).applyMatrix4(o.matrix); P.set([v.x, v.y, v.z], (vo + i) * 3);
+            if (na) { v.fromBufferAttribute(na, i).applyMatrix3(nm).normalize(); N.set([v.x, v.y, v.z], (vo + i) * 3); } else N[(vo + i) * 3 + 1] = 1;
+            C.set([c.r, c.g, c.b], (vo + i) * 3);
+          }
+          if (g.index) for (let i = 0; i < g.index.count; i++) I[io + i] = g.index.getX(i) + vo; else for (let i = 0; i < pa.count; i++) I[io + i] = vo + i;
+          vo += pa.count; io += g.index ? g.index.count : pa.count;
+        }
+        const fg = new THREE.BufferGeometry(); fg.setAttribute('position', new THREE.BufferAttribute(P, 3)); fg.setAttribute('normal', new THREE.BufferAttribute(N, 3)); fg.setAttribute('color', new THREE.BufferAttribute(C, 3));
+        fg.setIndex(new THREE.BufferAttribute(I, 1)); fg.computeBoundingSphere();
+        const fm = new THREE.Mesh(fg, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.3, metalness: 0, side: THREE.DoubleSide }));
+        fm.castShadow = false; fm.receiveShadow = true; fm.name = 'shell:coarse:openings'; fm.userData.coarseFill = true; out.add(fm);
+      }
+      for (const [o, a] of ms) if (a >= share * tot) { const c = new THREE.Mesh(o.geometry, o.material); c.position.copy(o.position); c.quaternion.copy(o.quaternion); c.scale.copy(o.scale);
+        c.castShadow = o.castShadow && (!cast || cast.has(o.material)); c.receiveShadow = o.receiveShadow; c.renderOrder = o.renderOrder; c.userData.sharedGeo = true; out.add(c); }
+      return out.children.some(o => !o.userData.coarseFill) ? out : null;
+    }
     function mergeShell(group, castMin) {
       if (!THREE.BufferGeometry || !THREE.Box3 || !THREE.Matrix3) return null;
       group.updateMatrixWorld(true);
@@ -5485,11 +5525,31 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         coarse.add(body, roof);
         coarse.traverse(o => { o.castShadow = true; o.receiveShadow = true; });
       }
+      // THE COARSE RUNG IS THE SHELL'S OWN LARGE PIECES (G1398, HOUSE-LOD; the user, 3 Oct: "the main hangar loses
+      // its green doors, a distinctive feature"). With the shell merged by material (G600), the coarse rung is the
+      // merged meshes whose surface is at least SHELL.coarseShare of the shell's - the cladding, the roof, the DOORS,
+      // the stem - the same geometry and materials as the near rung, shared, not copied: past the switch only the
+      // steel, the gutters, the trims and the glass go. The box above stays for a shell that did not merge.
+      const wears = m => !!m && merged.children.some(o => o.material === m);   // (the timber shed has no wallOut piece: its cladding is wall)
+      const coarseOf = merged ? shellCoarse(merged, SHELL.coarseShare, new Set([wears(shed.mats.wallOut) ? shed.mats.wallOut : shed.mats.wall, shed.mats.roofOut].filter(Boolean))) : null;
       let node = shed.group;
       if (THREE.LOD) {
         const lod = new THREE.LOD();
         lod.addLevel(shed.group, 0);
-        lod.addLevel(coarse, 320);
+        lod.addLevel(coarseOf || coarse, 320);
+        // THE SWITCH BY PROJECTED SIZE (G1398, the houses' G1396 rule): where the shed's radius stands SHELL.swapPx
+        // pixels tall (the focal length in drawing-buffer rows, capped at 1440), clamped to SHELL.swapM. The club
+        // shed (R ~ 19 m) at 1080p and 46 deg: ~500 m (was 320).
+        const sph = new THREE.Box3().setFromObject(shed.group).getBoundingSphere(new THREE.Sphere()), R = sph.radius;
+        const upd = lod.update;
+        lod.update = function (cam) {
+          if (cam && cam.isPerspectiveCamera && SHELL.swapPx > 0) {
+            const h = Math.min(1440, (renderer && renderer.domElement && renderer.domElement.height > 1) ? renderer.domElement.height : 1080);
+            const F = 0.5 * h / Math.tan(cam.getEffectiveFOV() * Math.PI / 360);
+            this.levels[1].distance = Math.min(SHELL.swapM[1], Math.max(SHELL.swapM[0], R * F / SHELL.swapPx));
+          }
+          return upd.call(this, cam);
+        };
         node = lod;
       }
       // on the composed ground where the site puts it (an island's field is not at 0; G434)

@@ -1,0 +1,64 @@
+<!doctype html><html><head><meta charset="utf-8"><style>body{margin:0;background:#fff;font:14px sans-serif}#c{display:block}.l{position:absolute;top:6px;font-weight:bold;color:#111;background:rgba(255,255,255,.8);padding:2px 6px}</style></head><body>
+<!-- tools/perf/hangar_lod.html (G1398, HOUSE-LOD): the main hangar near rung | the box rung of before | the coarse rung (render_world shellCoarse, lifted); ?mode=prem: a premises hangar far version, before / after the 4 % rule. Serve the repo (node tools/_serve.js 8650 <repo>) and open /flyDiy/tools/perf/hangar_lod.html?d=90&az=0.75&fov=30 - d distance, az azimuth, fov, shell=field. -->
+<canvas id="c"></canvas><div id="labels"></div>
+<script src="../../vendor/three.min.js"></script>
+<script src="../../src/viewer/hangar.js"></script>
+<script>
+(async () => {
+const q = new URLSearchParams(location.search), dist = +(q.get('d') || 90), fov = +(q.get('fov') || 46), az = +(q.get('az') || 0.75), PW = 600, PH = 300;
+const RW = await (await fetch('../../src/viewer/render_world.js')).text();
+const i = RW.indexOf('    const SHELL = { merge: true'), j = RW.indexOf('    let shedNode = null;', i);
+const X = new Function('THREE', RW.slice(i, j) + '\nreturn { mergeShell, shellCoarse, SHELL };')(THREE);
+const cv = document.getElementById('c'), R = new THREE.WebGLRenderer({ canvas: cv, antialias: true });
+R.setSize(PW * 3, PH); R.outputColorSpace = THREE.SRGBColorSpace; R.setScissorTest(true);
+const panel = (k, label, obj) => {
+  const sc = new THREE.Scene(); sc.background = new THREE.Color(0xbfd3e6);
+  sc.add(new THREE.HemisphereLight(0xdfe9f5, 0x6b6a55, 1.1)); const sun = new THREE.DirectionalLight(0xfff3e0, 2.2); sun.position.set(-60, 90, 40); sc.add(sun);
+  const gnd = new THREE.Mesh(new THREE.PlaneGeometry(4000, 4000), new THREE.MeshStandardMaterial({ color: 0x6f7a52, roughness: 1 })); gnd.rotation.x = -Math.PI / 2; gnd.position.y = -0.02; sc.add(gnd);
+  sc.add(obj);
+  const cam = new THREE.PerspectiveCamera(fov, PW / PH, 0.5, 9000);
+  cam.position.set(-Math.cos(az) * dist, dist * 0.18 + 4, Math.sin(az) * dist); cam.lookAt(0, 5, 0);
+  R.setViewport(k * PW, 0, PW, PH); R.setScissor(k * PW, 0, PW, PH); R.render(sc, cam);
+  const d = document.createElement('div'); d.className = 'l'; d.style.left = (k * PW + 6) + 'px'; d.textContent = label; document.getElementById('labels').appendChild(d);
+};
+const build = () => genHangarBuild(THREE, undefined, { exterior: true, shell: q.get('shell') || undefined });
+if (q.get('mode') === 'prem') {
+  // THE PREMISES HANGAR'S FAR VERSION (render_premises hlodMerge on detailOf's keep): one bag a hangar.js material, each
+  // drawn flat in its colour x its map's mean; BEFORE the three largest plain bags, AFTER + every shell bag >= 4 %
+  const meanOf = t => { const img = t && t.image; if (!img || !img.width) return new THREE.Color(1, 1, 1); const c = document.createElement('canvas'); c.width = c.height = 4; const x = c.getContext('2d'); x.drawImage(img, 0, 0, 4, 4);
+    const d = x.getImageData(0, 0, 4, 4).data; let r = 0, g = 0, b = 0; for (let i = 0; i < 64; i += 4) { r += d[i]; g += d[i + 1]; b += d[i + 2]; } return new THREE.Color().setRGB(r / 4080, g / 4080, b / 4080, THREE.SRGBColorSpace); };
+  const area = g => { const p = g.attributes.position, ix = g.index, n = ix ? ix.count : p.count; let a = 0; const A = new THREE.Vector3(), B = new THREE.Vector3(), C = new THREE.Vector3();
+    for (let i = 0; i + 2 < n; i += 3) { A.fromBufferAttribute(p, ix ? ix.getX(i) : i); B.fromBufferAttribute(p, ix ? ix.getX(i + 1) : i + 1); C.fromBufferAttribute(p, ix ? ix.getX(i + 2) : i + 2); a += B.sub(A).cross(C.sub(A)).length() / 2; } return a; };
+  const far = keepFn => { const s = build(); s.group.updateMatrixWorld(true); const by = new Map(); let tot = 0;
+    s.group.traverse(o => { if (!o.isMesh || o.material.transparent || o.isInstancedMesh) return; const g = o.geometry.clone().applyMatrix4(o.matrixWorld); const a = area(g); tot += a; let e = by.get(o.material); if (!e) by.set(o.material, e = { a: 0, gs: [] }); e.a += a; e.gs.push(g); });
+    const L = [...by.entries()].sort((x, y) => y[1].a - x[1].a), out = new THREE.Group(), names = [];
+    const nm = new Map(); for (const k in s.mats) nm.set(s.mats[k], k);
+    L.forEach(([m, e], i) => { if (!keepFn(i, e.a / tot)) return; names.push(nm.get(m)); const col = (m.color ? m.color.clone() : new THREE.Color(1, 1, 1)).multiply(meanOf(m.map));
+      for (const g of e.gs) out.add(new THREE.Mesh(g, new THREE.MeshStandardMaterial({ color: col, roughness: 1, side: THREE.DoubleSide }))); });
+    out.userData.names = names; return out; };
+  const B0 = far(i => i < 3), B1 = far((i, sh) => i < 3 || sh >= 0.04);
+  panel(0, 'near (lod 0)', X.mergeShell(build().group, X.SHELL.castMin));
+  panel(1, 'BEFORE far: 3 largest (' + B0.userData.names.join(', ') + ')', B0);
+  panel(2, 'AFTER far: + every part >= 4 % (' + B1.userData.names.filter(n => !B0.userData.names.includes(n)).join(', ') + ')', B1);
+  document.title = 'DONE'; return;
+}
+// 1 the near rung: the merged shell
+const s1 = build(); const near = X.mergeShell(s1.group, X.SHELL.castMin);
+panel(0, 'near rung (lod 0, merged shell)', near);
+// 2 BEFORE: the coarse rung of master - the box and the roof prism (render_world standShed, verbatim recipe)
+const s2 = build(), D = s2.dims, MT = s2.mats, coarse = new THREE.Group();
+{ const skin = MT.wallOut.clone(); skin.side = THREE.FrontSide;
+  const body = new THREE.Mesh(new THREE.BoxGeometry(2 * D.HD, D.EAVE, 2 * D.HW), skin); body.position.y = D.EAVE / 2;
+  const HWo = D.HW + 0.5, rgeo = new THREE.BufferGeometry();
+  rgeo.setAttribute('position', new THREE.Float32BufferAttribute([-D.HD, D.RIDGE, 0, D.HD, D.RIDGE, 0, -D.HD, D.EAVE, -HWo, D.HD, D.EAVE, -HWo, -D.HD, D.EAVE, HWo, D.HD, D.EAVE, HWo], 3));
+  rgeo.setIndex([0, 3, 2, 0, 1, 3, 0, 5, 1, 0, 4, 5, 0, 2, 4, 1, 5, 3]);
+  rgeo.setAttribute('uv', new THREE.Float32BufferAttribute([0, 0, 6, 0, 0, 6, 6, 6, 0, 6, 6, 6], 2)); rgeo.computeVertexNormals();
+  coarse.add(body, new THREE.Mesh(rgeo, MT.roofOut)); }
+panel(1, 'BEFORE: far rung = box + roof prism', coarse);
+// 3 AFTER: the shell's own large pieces (G1398)
+const s3 = build(), m3 = X.mergeShell(s3.group, X.SHELL.castMin);
+const C = X.shellCoarse(m3, X.SHELL.coarseShare, new Set([m3.children.some(o => o.material === s3.mats.wallOut) ? s3.mats.wallOut : s3.mats.wall, s3.mats.roofOut]));
+panel(2, 'AFTER: far rung = shell\'s walls, roof, doors, stem', C);
+document.title = 'DONE ' + C.children.length;
+})().catch(e => { document.title = 'ERR ' + e.message; document.body.insertAdjacentText('beforeend', 'ERR ' + e.stack); });
+</script></body></html>
