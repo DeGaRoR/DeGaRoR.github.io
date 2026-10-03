@@ -1033,6 +1033,59 @@ function aeroSecResolve(sec, over, ctx) {
            metalK: walk(over && over.metal, chain).v };
 }
 
+// THE BASE PICK'S REACH (G214 / G468, hoisted pure here at G1320 so a node
+// gate runs the code the bench runs). `map` is one of the editor's override
+// maps (tint, metal, rough), keyed by section; `prev` the base the pick
+// REPLACES (what the body wore), `next` the new one (null = clear), `neutral`
+// the value that means "no override", `eq` the channel's equality, `names`
+// the build's cage sections. Equal = it was following, and follows on;
+// different = the builder's own, kept.
+//   - every exterior cage section (skin, rail, pillar) and `body`: write;
+//   - a parent-wearing / soft-pinned layer part: clear when it held `prev`;
+//   - G1320 (the user: "changing the global colour leaves the Cub's rudder
+//     in its old colour"): every OTHER layer section (the rudder, the wing,
+//     its tips, the stab...) that holds `prev` was wearing the base too —
+//     the stock Cub's rudder, the Jodel's wing and rudder carry the body's
+//     yellow as an explicit tint the pick used to skip. One whose chain up
+//     to `body` follows the base all the way is CLEARED (it follows the body
+//     from here); one under a parent of its own colour (the Cessna's tips
+//     under its own-coloured wing) is WRITTEN `next`. Read off the map as it
+//     stood before the pick, so a parent cleared here does not change the
+//     verdict on its child.
+function aeroBaseReach(map, prev, next, neutral, eq, names) {
+  const same = (a, b) => a == null ? b == null : (b != null && eq(a, b));
+  const following = k => map[k] == null || same(map[k], prev);
+  const put = k => { if (!following(k)) return;
+    if (next == null || (neutral != null && eq(next, neutral))) delete map[k]; else map[k] = next; };
+  // the layer verdicts first, on the untouched map
+  const layer = [];
+  for (const k in AERO_SEC) {
+    const row = AERO_SEC[k];
+    if (row.wears === 'parent' || row.finFollows || row.tintOwn) continue;
+    if (map[k] == null || !same(map[k], prev)) continue;
+    let s = row.parent, toBody = false;
+    for (let n = 0; s != null && n < 9; n++) {
+      if (s === 'body') { toBody = true; break; }
+      if (!AERO_SEC[s] || (map[s] != null && !same(map[s], prev))) break;
+      s = AERO_SEC[s].parent;
+    }
+    layer.push([k, toBody]);
+  }
+  for (const nm of names || [])
+    if (['skin', 'rail', 'pillar'].includes(AERO_ROLE[nm])) put(nm);
+  put('body');
+  // the parent-wearing parts follow by having NO override: clear theirs
+  // only when it was the base's own value (a cowl painted by hand keeps it)
+  for (const k in AERO_SEC)
+    if ((AERO_SEC[k].wears === 'parent' || AERO_SEC[k].finFollows) && map[k] != null && same(map[k], prev))
+      delete map[k];
+  for (const [k, toBody] of layer) {
+    const v = next != null ? next : neutral;
+    if (toBody || v == null) delete map[k]; else map[k] = v;
+  }
+  return map;
+}
+
 // ---------------------------------------------------------------------------
 // THE COLOUR TRAP, stated in both directions (63_gen_skin.js:2957 has the
 // measured pixel values). r128 feeds a material's flat `color` to the shader
@@ -4530,7 +4583,7 @@ if (typeof window !== 'undefined')
                       AERO_KIT_LDEF, AERO_KIT_FIELDS,
                       aeroKitKnob, aeroKitLayers, aeroKitDraw,
                       AERO_HARD, AERO_PROP_FIN, AERO_WEAR_K,
-                      AERO_SEC, aeroSecResolve,
+                      AERO_SEC, aeroSecResolve, aeroBaseReach,
                       aeroHardFinish, aeroHardMat, aeroHardOn, aeroSetWear,
                       aeroSharedU,          // G345: uCraftInv for the sources
                       // THE LAB (G206)
@@ -4556,7 +4609,7 @@ if (typeof module !== 'undefined')
                      AERO_KIT, AERO_KIT_LAYERS, AERO_KIT_PAGE0,
                      AERO_KIT_LDEF, AERO_KIT_FIELDS,
                      aeroKitKnob, aeroKitLayers,
-                     AERO_SEC, aeroSecResolve,
+                     AERO_SEC, aeroSecResolve, aeroBaseReach,
                      AERO_FINISH_DEF, AERO_LAB_FIELDS, AERO_LAB_GRAM,
                      AERO_GAIN_DEF, GLASS_DEF, aeroIsInside, AERO_CABIN_DEF,
                      aeroDecOk };
