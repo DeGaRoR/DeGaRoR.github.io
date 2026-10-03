@@ -69824,3 +69824,84 @@ NOT DONE
   G1395's textured far town).
 - The main hangar's swap is not dithered (the trees' / houses' band would need a program variant on the shell's
   materials).
+
+## G1400-G1404 - EDITOR-LAG: EVERY MOUSEMOVE OF A DRAG RECOMPOSED THE WHOLE PREMISES; THE DRAG'S PREVIEW, THE COMMIT'S GROUND SKIPPED WHERE NOTHING MOVES IT, THE CABLE STATIONS MEMOISED; A CORNER DRAG THAT THREW SINCE IT WAS WRITTEN (2026-10-03, EDITOR-LAG for A0, cloud - headless Chromium on SwiftShader, no GPU, no boxlock; branch claude/editor-lag-g1400 off origin/master 5502f450)
+
+The user (2026-10-03): "the editor is also far too laggy when handling objects such as taxi points or assets ... like the
+garage, its response time should be gated for regressions." (flyDiy/CLAUDE.md named in the brief does not exist on master:
+the ritual above was followed.)
+
+**THE RIG** (`tools/perf/editor_lag.js`, new; garage_lag.js's method): per tree (`git archive <sha> flyDiy | tar -x` under
+`<repo>/_ab/<sha>/`, or the worktree) a fresh Chrome, index.html booted (first boot), the world editor opened
+(`PREMISES_EDITOR.openEditor()`), the fixtures found or added untimed (HOME's stand and way out, the prop `af_fuel_truck`,
+the site `s_club`, the zone `z_harbour`), then seven actions x `--reps`: DRAGS - taxiDrag (`tx0`), propMove (the prop's disc),
+houseMove (the site's `at`), runwayEnd (`e1`, across the strip), polyVertex (the zone's `v0`): dragStart, `--moves` moves
+1.5 m apart, dragEnd; CLICKS - taxiAdd / taxiDel (the inspector's "add a taxi point" / "drop the last taxi point" buttons).
+`move` = the move's handler + the host's ground pick (the ray march the mouse runs first), `mframe` = to the second rAF,
+`up`/`click` = the release's (the commit's) handler, `busy`/`settle` = long tasks to 700 ms quiet; `--prof` = one untimed rep
+under a CDP CPU profile (self by fn / file, inclusive under the input). The hand is the editor's own drag in three beats - NEW
+premises_ui cmds `dragStart {key}`, `dragMove {x, z}`, `dragEnd` (the startDrag / moveDrag / onUp the mouse runs):
+synthetic MouseEvents at the projected handle did not land headless (the ray missed by 700 m - not chased). The base tree was
+given the same three cmds (harness only). Cloud: `MB_CHROME=/opt/pw-browsers/chromium-1194/chrome-linux/chrome
+MB_CHROME_FLAGS="--headless=new --use-angle=swiftshader --enable-unsafe-swiftshader --no-sandbox" node tools/perf/editor_lag.js
+--port 8776 --size 1280x640 --udd <dir> --trees base=_ab/5502f450/flyDiy,here=flyDiy --reps 2 --moves 4 [--prof]`
+(master_bench.js: `MB_CHROME` names another binary - the only change there). HEADLESS CAVEAT: every SwiftShader frame is a
+long task, so busy/settle are inflated by frames; `move`/`up`/`click` (synchronous handlers) are the honest numbers here.
+
+**WHAT A MOVE COST** (base profile, `editor_lag_g1400_base_prof.json`): premises_ui moveDrag ended in `R.setRecord(rec);
+R.rebuild({ ground: false })` - the game path of which is `world.premises.set` = PREMISES_GEN.compose of every layer (the
+height memo cleared, the ttype stamp redone, the tram's cable solver BUILDING its two stations three times each to read their
+hooks: 1.1 s), then materials, lots, the whole pavement (roadGeometry, stripKeep), every strip's pattern, the houses' sync, the
+trees, the freeze - 3-8 s a move headless. The commit (onUp / an inspector button -> dirty) added the game's whole ground
+patch (5.8 s, bbox ignored in the game path) and WORLD.refreshGround over the premises' whole extent (3.2 s, FARLOD resink).
+
+**THE FIXES**
+- G1400 THE DRAG'S PREVIEW (render_premises `preview(entry, layer, before)` / `previewEnd()`; premises_ui moveDrag calls it,
+  a renderer without one rebuilds as before): the feature's outline (and selection twin, a strip's box and shoulder), the
+  handles, a point object's built group (HOUSES `ob:<id>`) or a site's item groups + lots + feet + fences CARRIED by the
+  move's delta (frozen matrices re-posed, the prop instancer touched), the dragged strip's taxi pattern re-derived alone
+  (`PG.runwaySite` over the composed site's parked list and stand elevation) when only its way out moved. Nothing composes;
+  the ground under the hand is the drag's start. The release is dirty() as before; rebuildSteps calls previewEnd() FIRST
+  (every carried group back at its built pose before syncHouses compares seeds) - the settled world is the old code path's.
+- G1401 A STRIP'S WAY OUT IS NOT ITS GROUND (premises_ui `groundOf`): a runways edit whose before/after differ only in
+  `stand`, `taxiOut`, `taxiOut1`, `site` (the pattern's holds) commits as a non-ground layer - no ground patch - and
+  app.js onRebuilt skips refreshGround for it (no terrain modifier reads those keys: the grade reads c / len / hdg / profile;
+  27_premises runwaySite is the only reader). Applies to drags, the inspector's add / drop buttons, undo / redo.
+- G1402 AN OBJECT IS NOT GROUND: app.js onRebuilt(layer) skips refreshGround for the `objects` layer (no modifier is
+  made from an object; the strips still repaint - the parked aeroplanes ride on the site).
+- G1403 THE CABLE STATIONS MEMOISED (render_premises `buildFor`): keyed gen + JSON(P), 48 entries; GEN.build is pure and
+  the solver only reads the hooks. compose 1340 -> 116-145 ms headless on every commit.
+- G1404 A CORNER DRAG THREW (since premises_ui was ported): moveDrag's way-out branch read `drag.runway.indexOf` for a
+  polygon's / road's corner (no runway key) - a TypeError on every move: no zone / surface / material / road corner could be
+  dragged (master's bench row: `polyVertex page: TypeError`). Guarded `drag.runway && (...)`.
+
+**THE TABLE** (median ms, headless SwiftShader 1280x640, 2 reps x 4 moves; base = 5502f450, here = this branch; reports
+`tools/perf/editor_lag_g1400_base.json` (+ `_base_prof.json`, a 3-rep profiled base run of the first two rows, 3440 / 8972 /
+9434 - same picture), `_here.json`, `_here_prof.json`; the base pass overlapped a `--jobs=1` gate run):
+
+| action | move before | move after | commit before | commit after |
+|---|---:|---:|---:|---:|
+| drag a taxi point | 3081 | 11.5 | 8946 | 2720 |
+| add a taxi point (click) | - | - | 10050 | 2470 |
+| drop a taxi point (click) | - | - | 8426 | 2516 |
+| move a prop (asset) | 3404 | 0.4 | 4587 | 2641 |
+| move a house (site) | 3745 | 0.6 | 5109 | 3544 |
+| drag a runway end | 7831 | 6.6 | 21338 | 20395 |
+| drag a polygon corner | throws | 1.2 | - | 4191 |
+
+The move's frame (to the second rAF) is 33-40 ms after (two SwiftShader frames); 3.1-8.5 s before. A runway end's commit
+is still a full ground edit (the patch, the pavement, the re-sample) - unchanged by design.
+
+**WHAT IS LEFT** (here's commit profile, `_here_prof.json`): every commit still runs the whole pavement (buildRoadsSteps
+1.9-2.1 s headless: roadGeometry 1.55 s, stripKeep 1.2 s) whatever the layer - the next step is a signature of the roads'
+inputs (roads, runways, material, the recipe) so a prop / house / way-out commit keeps the built pavement; then the game
+path's whole ground patch for a ground edit (bbox ignored) and refreshGround's whole-extent resink.
+
+**FOR A0**: baseline `editor_lag.js` on the box (GPU, the absolute times are yours) and add it to the strict train gate;
+`move` per action is the regression number (the preview's cost), `up`/`click` the commit's. Generated files (index.html,
+dev.html, sw.js, version.json) were rebuilt locally and NOT committed - app.js's onRebuilt change lands with the train build.
+
+**GATES** (`node tools/run_gates.js --only=PREMISES,PREMCOOK,PAVEMENT,TAXICLEAR,BUILD --jobs=1`, cloud): TAXICLEAR PASS
+57.6 s, BUILD PASS 1.9 s, PREMISES PASS 100.5 s (354 checks, 6 fixtures), PREMCOOK PASS 311.3 s (PREMCOOK lifts
+render_premises' placement code: the preview sits outside its lifted ranges; the cook's hash held), PAVEMENT PASS 14.1 s -
+BATTERY: PASS. No ROUTES gate exists. The full battery not run (A0's, per train).
