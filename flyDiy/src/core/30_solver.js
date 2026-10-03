@@ -455,6 +455,10 @@ function makeSim(def, world) {
   // nodes. No floats, no pass, no cost.
   const HY = (typeof HYDRO !== 'undefined' && HYDRO) ? HYDRO.hydroBuild(def, p, v) : null;
   out.hydro = HY;
+  // G1381 (GEAR-WATER): a build WITHOUT floats meets the water on its belly and its tyres (32_hydro.js wetBuild);
+  // a float build keeps the float pass alone
+  // (on the sim, never on `out`: the physics worker posts `out` every snapshot; out.wetDrag / out.wetBuoy carry the numbers)
+  const WB = (!HY && typeof HYDRO !== 'undefined' && HYDRO && HYDRO.wetBuild) ? HYDRO.wetBuild(def, p, v, m) : null;
   let totalM = 0;
   for (const nd of def.nodes) totalM += nd.m;
 
@@ -1496,6 +1500,7 @@ function makeSim(def, world) {
     }
     // THE WATER (H1): every wet panel of every float, onto the frame
     if (HY && world) out.hydroWet = HYDRO.hydroSolverPass(HY, world, f, simT, dt, ctl);
+    else if (WB && world) { out.hydroWet = HYDRO.wetSolverPass(WB, world, f, simT, dt); out.wetDrag = WB.drag; out.wetBuoy = WB.buoy; }
     // tree collisions: cheap cylinder push-out, only when low and near trees
     if (world) {
       const cgx = p[0], cgz = p[2];   // any chassis node as coarse anchor
@@ -1757,7 +1762,7 @@ function makeSim(def, world) {
            get t() { return simT; },
            setNodeMass,
            // the panel arc: the tanks, the engines and their one writer
-           fuel, eng, setEngine, thrEffOf, hydro: HY,
+           fuel, eng, setEngine, thrEffOf, hydro: HY, wetBody: WB,
            trunkHits: () => _tkHits,   // G1330: beam-trunk contacts (one per beam per trunk per substep) since the sim was made
            reset, stance, step, trueBox, probe, stats, impulse, wheelsOnGround, wheelContacts, cgPos, cgVel, axes,
            // G197: the kernel's sources, readable (the gate asserts the weights' normalisation)
