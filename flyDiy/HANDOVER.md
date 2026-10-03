@@ -69246,3 +69246,43 @@ caught once with its frame and neighbours, a lasting step not caught, the state 
 without waiting, no synchronous read; detect() on its own; the shot cap / spacing, the switch; the wiring) -
 negative-verified (the spike threshold raised: 3 checks red; the busy skip removed: 1 red); FLIGHTREC, AA, BUILD,
 FADES, UISMOKE PASS.
+
+## G1357 v2, G1358, G1359 - THE CATCHER READS NOTHING A FRAME, THE EYE READS 4 TIMES A SECOND, THE SUN'S GLINT A LITTLE WIDER, THE WING'S SELF-SHADOW BANDS IN FLIGHT (2026-10-04, LIGHT-SMOOTH for A0 / EVEN-30)
+
+- G1357 v2 THE CATCHER, NO READ A FRAME (post_fx.js; EVEN-30 traced ~220 long tasks of 50-96 ms in the user's first
+  100 s after the reveal to three's readRenderTargetPixelsAsync: in Chrome the fence's clientWaitSync and the
+  getBufferSubData after it are SYNCHRONOUS calls into the GPU process - while it links, a read a frame is a wait a
+  frame). v1 (f3a5d6e2) read a 64 x 36 copy back every frame and never rode a train. v2 decides on the GPU: each frame's
+  copy (alpha = a pale-sky texel) goes into one of 8 mip-mapped half-float slots (their 1 x 1 mip: the mean colour and
+  the sky share); a one-pixel draw reads the 1 x 1 mips of frames N-2, N-1, N and DISCARDS unless N-1 stands apart from
+  both (the luma spike past 0.06 the same way, or the sky share past 0.7 with both neighbours under half), inside an
+  occlusion query (ANY_SAMPLES_PASSED_CONSERVATIVE) whose answer Chrome hands back a frame or two later from its own copy.
+  Only a yes costs a read (the frame's copy and the three means into an 8-bit 64 x 37 target, once) - a few a session,
+  and past the 6 pictures not even that (the event carries the numbers alone). Its three small programs are in the
+  roll-out's warm list (warmList), so none links in flight. GATE POSTFX: the stub GPU evaluates the decision as the
+  shader does - the spike caught once with its frame and neighbours, a lasting step not, ONE read in the whole run.
+- G1357 THE EYE READS 4 TIMES A SECOND (post_fx.js EYE_READ_MS 250): still one read in flight, issued from the frame
+  (EVEN-30: never from a free-running timer - it would land mid-frame of a busy GPU anyway), at most every 250 ms. Its
+  loop's time constant is 1.5-2 s: nothing is lost. GATE POSTFX: 40 frames back to back read <= one per 250 ms.
+- G1358 THE GLINT, A LITTLE LESS (flown_bake.js FB_HOOK; the user: "try a little less, ok"): for the SUN's direct light
+  only, the bake's base and clear coat take a roughness floor uFbSun = 0.12 round lights_fragment_begin and get their own
+  back before the environment's reflection (lights_fragment_maps / _end) - the sky and the ground reflect as before, the
+  sun's highlight is wider and lower. A uniform (FLOWN_BAKE.sunRough; 0 = the old glint). UNPROVEN SO FAR: the "blown
+  fuselage patch" in the golden-hour taxi frame does NOT change with it (1 258 vs 1 257 blown pixels) - it is the low SUN
+  itself, peeking past the fuselage (the glare and the bloom), not a reflection; the first in-flight sweep found no wing
+  glint (it locked onto a view into the sun). Kept because it is harmless; see the verification below.
+- G1359 THE BANDS ON THE WING IN FLIGHT (shadow_near.js; the user, watching the golden-hour run on the box: "a lot of
+  banded shadows"). Diagonal light / dark stripes across the lit top of the wing and the tail, IN FLIGHT. In one paused
+  frame (orbit el 0.3, AGL 121 m, sun 7.5 deg, craft cascade at its 30 m cap = 5.86 cm a texel at 1024): the craft's
+  receiveShadow OFF - gone; the bake's normal map OFF - still there: SELF-SHADOW ACNE of the craft cascade. On the stand
+  the cascade is 1.6 cm a texel and clean, which is why the stand / taxi stills showed none and the first slope-bias cut
+  (reverted in G1350) "changed nothing" - it was tested where there was nothing to fix. Live on that frame: the bias x2-x10
+  faded them, the normal offset at 3 texels cleared them best. Now, for the CRAFT'S OWN MATERIALS only (CRAFT_NEAR_ONLY:
+  the ground never casts, so it cannot self-shadow, and a grazing offset there would lift the tyres' shadows off their
+  contacts): the bias x (1 + uNearQ.z tan) and the normal offset x (1 + 2.5 (1 - N.L)) - ~2.9 texels on that wing, ~1.1 on
+  a skin facing a noon sun. Uniform values, but two lines in the near rule: EVERY LIT PROGRAM'S SOURCE CHANGES (one relink
+  each on the first load after it, as G650's did; the train re-cooks). S.slopeK 0 / S.normalGraze 0 = the old lookup.
+GATES: POSTFX (32, the v2 catcher and the eye's cadence; negative-verified - the eye's throttle removed: red, the spike
+blinded: 4 red), FLIGHTREC, AA, BUILD, PROGRAMS, SHADOWSKY, LIGHT, FLOWNBAKE, FADES, UISMOKE PASS.
+VERIFICATION (GPU, pending A0's slot): the band views in flight off / on, the stand at a low sun and at noon off / on (the
+contacts must stay), a wing-glint sweep sunRough 0 / 0.12, the catcher's live summary.

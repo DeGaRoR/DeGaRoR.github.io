@@ -71,15 +71,27 @@
 // hides every other child along them (the craft's group is kept whole - pruneBox says why); the renderer's shadow pass
 // is wrapped (hook(), app.js) so what a pass hid is shown again the moment it ends, before anything else renders or walks
 // the scene. The layers stay: they are the scheme's record, and what a raycaster or a census reads.
+//
+// G1359 THE BANDS ON THE WING IN FLIGHT (LIGHT-SMOOTH, 2026-10-04; the user, watching a golden-hour run: "a lot of banded
+// shadows"). Diagonal light / dark stripes across the lit top of the wing and the tail - SELF-SHADOW ACNE of this cascade:
+// in the same paused frame they go with the craft's receiveShadow off and stay with the bake's normal map off. On the
+// stand the cascade is 1.6 cm a texel and clean; aloft it grows to its 30 m cap (5.9 cm at 1024) and a skin the sun
+// grazes (a wing at a 7.5 deg sun: N.L 0.13) reads its own depth (0.5 radius + 1) texels x tan aside - G650's 0.85-texel
+// bias and 0.9-texel normal offset were a seventh of that. Measured live on that frame: the bias x2-x10 fades them,
+// the normal offset at 3 texels clears them best. Now, for the CRAFT'S OWN MATERIALS only (CRAFT_NEAR_ONLY - the ground
+// never casts, so it cannot self-shadow, and a grazing bias there would only lift the tyres' shadows off their contacts):
+// the bias x (1 + uNearQ.z tan) (tan of the receiver's angle to the sun, capped at 8) and the normal offset x (1 +
+// uNearQ.w (1 - N.L)) - ~2.9 texels on that wing, ~1.1 on a skin facing a noon sun (no peter-panning there). Uniforms
+// only: no new program. S.slopeK 0 / S.normalGraze 0 is the old lookup.
 // ============================================================
 var SHADOW_NEAR = (function () {
   'use strict';
   const NEAR_LAYER = 3, FAR_LAYER = 2, CRAFT_LAYER = 5;   // the near map's viewport 0 sees 3, its viewport 1 (the craft's cascade) 3 + 5; the far map sees 2 (everything but the craft, unless it is high)
   const S = { on: true, half: 30, size: 1024, bias: -0.0004, biasM: 0.05, normalBias: 0.02, normalBiasTx: 0.9, relief: 150, slantMax: 3000, penumbra: 0.0093, radiusMax: 2.5, self: true, slant: 0,   // size: render_world sets it from the GRAPHICS tier (1024 full, 2048 ultra), per viewport
-    craft: true, prune: true, windowRelief: 10, fitMargin: 0.4, fitMin: 2.5, biasTx: 0.85, craftHalf: 0, craftR: 0,
+    craft: true, prune: true, windowRelief: 10, fitMargin: 0.4, fitMin: 2.5, biasTx: 0.85, craftHalf: 0, craftR: 0, slopeK: 1, normalGraze: 2.5,   // G1359: the craft's slope-scaled bias / grazing normal offset (0 / 0 = the old lookup)
     aimDrawn: true, farHide: true, boxPrune: true, boxCraft: true, farEmpty: true };   // G1125: boxPrune - viewport 1 (the 60 m box) walks nearTag's casters alone (and the craft: boxCraft); G1126: farEmpty - a far camera off FAR_LAYER (the 'near' tier) walks nothing   // G1080: ... ; farHide: the aeroplane hidden while the WORLD's far map draws (three's shadow walk ignores the shadow camera's layers - see farLight)   // G1080: both viewports aimed at the DRAWN aeroplane (model.grp's pose), not at the point worldUpdate is given (the camera, under the free camera / the editor)   // G1005: the craft's cascade (craft: false = its box is the 60 m one); biasTx = G650's 5 cm at the 60 m box's 5.9 cm texel
   const nearScalars = new Float32Array(4);           // x: the near map is live (1 / 0); yzw: the craft cascade's bias (depth), PCF radius (texels), normal offset (m)
-  const nearWindow = new Float32Array(4);           // xy: the craft cascade's depth window (its shadow coordinate z, min / max) - past it, the 60 m box
+  const nearWindow = new Float32Array(4);           // xy: the craft cascade's depth window (its shadow coordinate z, min / max) - past it, the 60 m box; z: the bias's slope gain (G1359), w: the normal offset's grazing gain
   const nearUniforms = { uNearP: { value: nearScalars }, uNearQ: { value: nearWindow }, uNearM1: { value: (typeof THREE !== 'undefined' && THREE.Matrix4) ? new THREE.Matrix4() : null } };
   let installed = false;
   // ---- THE SHADER RULE (installed before any program compiles, like ATMO / CLOUDS) --------
@@ -90,10 +102,16 @@ var SHADOW_NEAR = (function () {
 			float sFar = ( directLight.visible && receiveShadow ) ? getShadow( directionalShadowMap[ 0 ], directionalLightShadow.shadowMapSize, directionalLightShadow.shadowIntensity, directionalLightShadow.shadowBias, directionalLightShadow.shadowRadius, vDirectionalShadowCoord[ 0 ] ) : 1.0;
 			vec3 nc = vDirectionalShadowCoord[ 1 ].xyz / vDirectionalShadowCoord[ 1 ].w;
 			bool in0 = nc.x > 0.505 && nc.x < 0.995 && nc.y > 0.01 && nc.y < 0.99 && nc.z > 0.0 && nc.z < 1.0;
-			vec4 nc1 = uNearM1 * vec4( cameraPosition + ( vec4( geometryPosition + geometryNormal * uNearP.w, 0.0 ) * viewMatrix ).xyz, 1.0 );
+			#ifdef CRAFT_NEAR_ONLY
+			float nlS = clamp( dot( geometryNormal, directLight.direction ), 0.02, 1.0 );
+			float gB = 1.0 + uNearQ.z * min( sqrt( 1.0 - nlS * nlS ) / nlS, 8.0 ), gN = 1.0 + uNearQ.w * ( 1.0 - nlS );
+			#else
+			float gB = 1.0, gN = 1.0;
+			#endif
+			vec4 nc1 = uNearM1 * vec4( cameraPosition + ( vec4( geometryPosition + geometryNormal * ( uNearP.w * gN ), 0.0 ) * viewMatrix ).xyz, 1.0 );
 			bool in1 = nc1.x > 0.005 && nc1.x < 0.495 && nc1.y > 0.01 && nc1.y < 0.99 && nc1.z > uNearQ.x && nc1.z < uNearQ.y;
 			bool inNear = in0 || in1;
-			float sNear = ( inNear && receiveShadow ) ? getShadow( directionalShadowMap[ 1 ], directionalLightShadows[ 1 ].shadowMapSize * vec2( 2.0, 1.0 ), directionalLightShadows[ 1 ].shadowIntensity, in1 ? uNearP.y : directionalLightShadows[ 1 ].shadowBias, in1 ? uNearP.z : directionalLightShadows[ 1 ].shadowRadius, in1 ? nc1 : vDirectionalShadowCoord[ 1 ] ) : 1.0;
+			float sNear = ( inNear && receiveShadow ) ? getShadow( directionalShadowMap[ 1 ], directionalLightShadows[ 1 ].shadowMapSize * vec2( 2.0, 1.0 ), directionalLightShadows[ 1 ].shadowIntensity, in1 ? uNearP.y * gB : directionalLightShadows[ 1 ].shadowBias, in1 ? uNearP.z : directionalLightShadows[ 1 ].shadowRadius, in1 ? nc1 : vDirectionalShadowCoord[ 1 ] ) : 1.0;
 			#ifdef CRAFT_NEAR_ONLY
 			directLight.color *= sNear;
 			#else
@@ -442,6 +460,10 @@ var SHADOW_NEAR = (function () {
     nearScalars[1] = -S.biasTx * tx / (cam.far - cam.near);
     nearScalars[2] = Math.max(1, Math.min(S.radiusMax, (slant * S.penumbra / tx - 1) / 2));
     nearScalars[3] = S.normalBiasTx * tx;
+    // G1359: the craft's own receivers - the bias grows with the slope (what the kernel reaches across a grazing skin,
+    // (0.5 radius + 1) texels x tan, over the base bias's own texels), the normal offset with 1 - N.L
+    nearWindow[2] = S.slopeK * (0.5 * nearScalars[2] + 1) / Math.max(0.1, S.biasTx);
+    nearWindow[3] = S.normalGraze;
     S.craftHalf = Hh;
   }
   // the drawn aeroplane's sphere centre as [x, y, z] (render_world's far strip, the A/B), or null
