@@ -186,8 +186,9 @@
     { k: 'mirror', label: 'reflections', steps: [
         { v: 'off',      label: 'sky only', why: 'the water reflects the sky and its clouds, never the shore' },
         // (2026-10-03, the user: the periodic capture left the menu - it made the water swap between reflective and plain;
-        // G1340 SHADER-GUARD: the LIVE one left it too - mirror off everywhere, ultra included; a saved 'live' falls back to off)
-        ] },
+        // G1340 SHADER-GUARD took the LIVE one out too; the user, 2026-10-04: "keep the live water mirror option, just
+        // disable it by default" - back in the row, OFF on every preset, ultra included)
+        { v: 'live',     label: 'live', why: 'the reflection captured every frame (a second scene draw at quarter size; off on every preset - yours to switch on)' } ] },
     { k: 'lighting', label: 'lighting', steps: [
         { v: 'sunset', label: 'sunset', why: 'the world’s golden hour' },
         { v: 'alps',   label: 'afternoon', why: 'the bench’s afternoon sky, the light the trees were judged in' } ] },
