@@ -273,15 +273,16 @@
   //   townBoot   the premises built under the loading screen within this many metres of the stand (render_world PREM_BOOT)
   //   townReach  the premises' stream in flight and at the settle (render_premises STREAM.reach)
   //   parked     the parked aeroplanes captured and baked (app.js 'parking'; parked.js) - off: none built
+  //   forestK    the forest's reaches (the base to 9 km, the fill's thinning ramp) scaled: its instances go as the square
   //   terrain    the far terrain's and the ring's first cut at the preset's own tolerance (S.terrain), not 1 px then re-cut
   // Going DOWN is live (GFX.set: the stream's reach shrinks at once); going up applies to what builds next, and to
   // everything at the next load. Without the table (a gate's stub, no window.GFX) every lever reads full.
   const BUDGETS = {
-    potato:  { heapMB: 700,  mipSkip: 1, townBoot: 1200, townReach: 2000, parked: false },
-    retro:   { heapMB: 1500, mipSkip: 0, townBoot: 4000, townReach: 6000, parked: true },
-    current: { heapMB: 1500, mipSkip: 0, townBoot: 4000, townReach: 6000, parked: true },
-    gamer:   { heapMB: 2000, mipSkip: 0, townBoot: 4000, townReach: 6000, parked: true },
-    ultra:   { heapMB: 2000, mipSkip: 0, townBoot: 4000, townReach: 6000, parked: true },
+    potato:  { heapMB: 700,  mipSkip: 1, townBoot: 1200, townReach: 2000, parked: false, forestK: 0.65 },
+    retro:   { heapMB: 1500, mipSkip: 0, townBoot: 4000, townReach: 6000, parked: true, forestK: 1 },
+    current: { heapMB: 1500, mipSkip: 0, townBoot: 4000, townReach: 6000, parked: true, forestK: 1 },
+    gamer:   { heapMB: 2000, mipSkip: 0, townBoot: 4000, townReach: 6000, parked: true, forestK: 1 },
+    ultra:   { heapMB: 2000, mipSkip: 0, townBoot: 4000, townReach: 6000, parked: true, forestK: 1 },
   };
   const DEFAULT = 'gamer';
   const PRESET_LABEL = { potato: 'potato', retro: '5 years ago', current: 'current', gamer: 'gamer', ultra: 'ultra' };

@@ -202,6 +202,9 @@
       mips.push(cur);
       w = nw; h = nh;
     }
+    // G1230 (MEM-BUDGET): a budget that skips the top mip (potato's; ktx2.js KTX2.dim) keeps the chain from its second
+    // level - a quarter of the bytes held (these ImageData chains live as long as the textures: ~48 MB of leaf maps)
+    if (mips.length > 1 && w0 >= 256 && typeof KTX2 !== 'undefined' && KTX2.dim && KTX2.dim(w0) !== w0) mips.shift();   // (tex.image stays the Image: three sizes the upload off mipmaps[0])
     tex.mipmaps = mips;
     tex.generateMipmaps = false;
     tex.minFilter = THREE.LinearMipmapLinearFilter;
