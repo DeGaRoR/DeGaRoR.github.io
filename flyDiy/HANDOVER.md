@@ -68359,4 +68359,18 @@ plain row slider 80 px; frame row before 36 px, after 80 px. The bench pages (no
 
 **GATES** (cloud, `run_gates.js --only=`): BUILD, UISMOKE, HANGAR, FLOWNBAKE PASS; plus LIVERYREACH (new), SKINMAT, PARTS,
 FRAMES PASS (G1321.1 re-ran PARTS, FRAMES, UISMOKE, BUILD: PASS). The generated files (index.html, dev.html, sw.js, version.json) are NOT committed — A0's train builds them.
-G1323-G1324 unused.
+**GATE RESULTS AT THE READY HEAD** (A0's ask: the gates for the files touched, no full battery — A0 runs it on the
+train; cloud, `run_gates.js --only=`, base 5502f45, not rebased):
+
+| gate | why (file touched) | result |
+|---|---|---|
+| BUILD | every source -> the generated files | PASS |
+| UISMOKE | `_cage_ui.js`, `_cage_parts.js`, `editor.css` (the editor's wiring) | PASS (118.7 s, after G1321.1) |
+| SKINMAT | `aeroskin.js` (AERO_SEC, the resolver) | PASS |
+| LIVERYREACH | `aeroskin.js` `aeroBaseReach` (new gate) | PASS (cub, jodel, cessna; the negative bites) |
+| PARTS | `_cage_parts.js` (one owner per row) | PASS |
+| FRAMES | `_cage_parts.js` frame groups | PASS |
+| HANGAR | listed by the brief | PASS |
+| FLOWNBAKE | listed by the brief (the bake's key over the spec) | PASS |
+
+Full battery (`--all`) NOT run, on A0's instruction. Generated files not committed. G1323-G1324 unused.
