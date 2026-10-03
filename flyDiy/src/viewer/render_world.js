@@ -1649,9 +1649,10 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       // draws its class layer) - the same uniforms, the same math on the default path; the full text keys apart
       // (':full') and the ground's materials (GROUND_FAMILY, the premises patch's clones included) re-key when F8 crosses
       // the line, once: every later edit inside the full program is a uniform again.
-      const groundFull = () => (GROUND.mode | 0) !== 0 || (stackStart() === 0 && !!STACK[0].on);
+      const groundFull = () => (GROUND.mode | 0) !== 0 || (stackStart() === 0 && !!STACK[0].on) || !!(SPL && SPL.api.masking());   // (+ the splat's magenta mask)
       groundSync = () => { const f = groundFull(); if (f === groundFullNow) return; groundFullNow = f; for (const m of GROUND_FAMILY) m.needsUpdate = true; };
       groundFullNow = groundFull();
+      if (SPL) SPL.api.onInspect = () => groundSync();
       groundKey = base => () => base + (groundFull() ? ':full' : '');
       const islandGroundHookFor = (side, rock, dry) => sh => {
         const full = groundFull();
@@ -1711,7 +1712,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
             'vec3 gClassCol(float c){ if (abs(c-10.0)<0.5) return vec3(0.06,0.20,0.06); if (abs(c-20.0)<0.5) return vec3(0.28,0.31,0.10);\n' +
             '  if (abs(c-30.0)<0.5) return vec3(0.36,0.41,0.12); if (abs(c-50.0)<0.5) return vec3(0.35,0.20,0.20); if (abs(c-60.0)<0.5) return vec3(0.28,0.25,0.22);\n' +
             '  if (abs(c-80.0)<0.5) return vec3(0.02,0.06,0.20); if (abs(c-90.0)<0.5) return vec3(0.16,0.28,0.16); if (abs(c-100.0)<0.5) return vec3(0.38,0.36,0.15); return vec3(0.2); }' : '') +
-            (SPL ? SPL.glslCommon : ''))
+            (SPL ? (full ? SPL.glslCommonFull : SPL.glslCommon) : ''))
           .replace('#include <map_fragment>', '#include <map_fragment>\n' +
             // the fine disc's edge: one of the two surfaces per pixel, decided before any of the ground's cost
             (side < 0 ? 'if (uFine.z > 0.0 && distance(vWPi.xz, uFine.xy) < uFine.z) discard;\n' : side > 0 ? 'if (distance(vWPi.xz, uFine.xy) > uFine.z) discard;\n' : '') +
