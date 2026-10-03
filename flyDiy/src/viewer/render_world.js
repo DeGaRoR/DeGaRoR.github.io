@@ -1039,6 +1039,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     const craft = nearCraftRoot(root);
     root.traverse(o => {
       if (!nearWatched.has(o)) { nearWatched.add(o); o.addEventListener('childadded', nearOnAdd); o.addEventListener('childremoved', nearOnRemove); }
+      if (o.userData.uiLayer) return;   // G1370: a UI helper (ui_layer.js) keeps its one layer - it casts nothing, and a far / craft bit would show it to photo mode
       if (craft) {   // a piece joining the craft after tagCraft: the craft's near layer, the craft's far state (follow() owns it)
         if (o !== craft) { o.layers.enable(SHADOW_NEAR.CRAFT_LAYER || NL); if (craft.layers.isEnabled(FL)) o.layers.enable(FL); else o.layers.disable(FL); }   // G1005: the craft's cascade layer
         return;

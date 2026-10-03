@@ -362,7 +362,9 @@ const MANIFEST = {
     // the first scripts on; app.js attaches the renderer and the loop's hooks, gfx_settings.js mounts its rows
     // matlib.js (AS4a, G920) right after assets.js: THE material library - the props, the trees, the rocks, the
     // prop disc and the contact blobs make their materials through window.MATLIB, so it is there before any of them
-    scripts: ['storage.js', 'flight_recorder.js', 'assets.js', 'matlib.js', 'aa_resolve.js',
+    // ui_layer.js (G1370) right after matlib.js: THE UI LAYER - pattern_vis.js, editor.js, app.js, water.js and
+    // shadow_near.js read window.UI_LAYER (the in-world helpers on a layer only the main camera sees)
+    scripts: ['storage.js', 'flight_recorder.js', 'assets.js', 'matlib.js', 'ui_layer.js', 'aa_resolve.js',
               'light_rig.js', 'day_clock.js', 'atmo.js', 'sky_light.js', 'sky_glare.js', 'clouds.js', 'clouds_ui.js', 'day_ui.js', 'weather_ui.js', 'climate_link.js',
               // post_fx.js (POST-FX study, 2026-09-21): the switchable post passes over the resolve
               // pass's hook; publishes window.POST_FX at eval, app.js inits it, gfx_settings.js sets its rows
