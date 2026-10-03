@@ -68379,3 +68379,20 @@ it against the island's grass, grBright / grTint / grHue to match or contrast; (
 (roadSide 0 restores all, a road's own band row restores one) - the island's town roads and the analytic world's net are
 the ones to look at; (4) the patch now sinks 0.8 m under soft and grass strips (G660's rule, opaque from 0.8 m in) - a
 grazing look along a grass strip's edge for any ground showing through.
+EVIDENCE (flyDiy/reports/evidence/runway-look/; the pavement bench tools/_pavement.html under headless SwiftShader,
+BEFORE = master's pavement.js swapped in, AFTER = this branch; the bench's 45 m strip, its 6 m dirt road, its grass
+ground - not the island, whose splat ground, sink and lighting a software render of the bench does not show):
+- 1_grass_strip_topdown.jpg - the grass strip: before only the worn band a third of the width read, after the mown
+  lawn over the whole declared width. A0 DECISION: the opaque lawn's colour against the island's grass (grBright/grTint).
+- 2_dirt_strip_topdown.jpg - the dirt strip: before a ragged edge spreading past the declared width, after the edge
+  on the declared width with a 1.8 m tear. A0 DECISION: whether the tear is torn enough from the air (sfSideW / sfSideA).
+- 3_concrete_strip_topdown.jpg - the concrete strip: identical before / after (the paved law is untouched). No decision.
+- 4_grass_strip_aerial.jpg - the same grass strip from 520 m: the full width reads at a distance. Informs decision 1.
+- 5_width_profiles.jpg - the mean alpha across a grass / dirt / concrete strip and a dirt road (the CPU twin GATE
+  PAVEMENT 13 holds, not a render): the road's 15.7 m before vs its 6 m now is shown only here (the bench clips a
+  road's shoulder to 3 m). A0 DECISION: the roads losing their bands by default (roadSide 1).
+- 6_look_knobs_applied.jpg - the runway look live (PAVEMENT.look): grass brighter / yellower, wear 0.4 (the worn
+  band gone), a 4 m darker tinted side at alpha 0.4, the dirt road tinted. Shows the controls work; no decision.
+- 7_look_knob_rows.jpg - the three "runway look" sections in the bench's aside (the same KNOBS table the editor's FILE >
+  pavement section lists). NOT PICTURED: the per-runway "look of every ..." fold in the premises inspector and the world
+  look's RUNWAYS section (the game page under SwiftShader was not attempted). No decision.
