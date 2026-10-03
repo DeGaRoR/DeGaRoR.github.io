@@ -78,11 +78,11 @@ console.log('GATE GFX');
   const G = w.GFX;
   ok(Object.keys(G.PRESETS).join(',') === 'potato,retro,current,gamer,ultra' && G.DEFAULT === 'gamer',
      'five tiers, potato .. ultra, gamer the default (' + Object.keys(G.PRESETS).join(',') + ')');
-  const OLD_MEDIUM = { ground: 'far1', terrain: 1, scale: 1, drawDist: 'vis', aa: 'msaa', density: 128, bands: 'near', shadows: 'full', canopy: 'on', rails: 'on', poles: 'on', lighting: 'sunset', tone: 'cineon', exposure: 1, colour: 'managed', glare: 'on', sway: 'on', mist: 'land', clouds: 'half', bloom: 'off', look: 'off', lens: 'off', rays: 'off', ao: 'off', eye: 'off', compositing: 'linear', water: 'full', mirror: 'periodic' };
+  const OLD_MEDIUM = { ground: 'far1', terrain: 1, scale: 1, drawDist: 'vis', aa: 'msaa', density: 128, bands: 'near', shadows: 'full', canopy: 'on', rails: 'on', poles: 'on', lighting: 'sunset', tone: 'cineon', exposure: 1, colour: 'managed', glare: 'on', sway: 'on', mist: 'land', clouds: 'half', bloom: 'off', look: 'off', lens: 'off', rays: 'off', ao: 'off', eye: 'off', compositing: 'linear', water: 'simple', mirror: 'off' };
   OLD_MEDIUM.cover = 'full'; OLD_MEDIUM.scenery = 'full';   // G570's rows: gamer keeps the whole of both
   OLD_MEDIUM.bloom = 'soft';   // the default look (2026-09-23): the soft bloom from 'current' up
   OLD_MEDIUM.bands = 'mid';   // G1113 'minimum', G1114.2 'mid': gamer's trees whole to 50 m, the light rung to 120 m (TREES-NEAR, the user's call)
-  ok(G.OPTIONS.every(o => G.PRESETS.gamer[o.k] === OLD_MEDIUM[o.k]), 'gamer is the medium of before, option for option (plus the far ground lean, G513)');
+  ok(G.OPTIONS.every(o => G.PRESETS.gamer[o.k] === OLD_MEDIUM[o.k]), 'gamer is the medium of before, option for option (plus the far ground lean, G513; simple water and no mirror since 2026-10-03, the user)');
   const w2 = boot({ 'flydiy.gfx': JSON.stringify(Object.assign({ preset: 'medium' }, OLD_MEDIUM)) });
   ok(w2.GFX.get().preset === 'gamer', 'a choice saved as medium reads as gamer');
   ok(Object.keys(G.PRESETS).every(p => G.PRESET_LABEL[p]), 'every tier has its label');
