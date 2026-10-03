@@ -35,11 +35,11 @@ console.log('GATE STAND');
 
 // ---- 1. mergeShell ------------------------------------------------------------------------------------
 {
-  const code = lift(RW, '    const SHELL = { merge: true, castMin: 0.5 };', '    let shedNode = null;');
+  const code = lift(RW, '    const SHELL = { merge: true, castMin: 0.5', '    let shedNode = null;');
   ok(!!code, '1 mergeShell found in render_world.js (SHELL .. shedNode)');
   if (code) {
     const ctx = vm.createContext({ THREE, Math, Map, Set, Float32Array, Uint16Array, Uint32Array, Object, Array });
-    vm.runInContext(code + '\nthis.mergeShell = mergeShell; this.SHELL = SHELL;', ctx);
+    vm.runInContext(code + '\nthis.mergeShell = mergeShell; this.SHELL = SHELL; this.shellCoarse = shellCoarse;', ctx);
     const matA = new THREE.MeshStandardMaterial({ color: 0x888888 }), matB = new THREE.MeshStandardMaterial({ color: 0x444444 });
     const glass = new THREE.MeshStandardMaterial({ transparent: true, opacity: 0.3 });
     const G = new THREE.Group(); G.position.set(100, 2, -50); G.rotation.y = 0.7;   // the LOD's pose above: the merge must not bake it
@@ -89,12 +89,27 @@ console.log('GATE STAND');
       ok(!!pOut && posed(pOut, paneW) && !pOut.userData.shellMerged, '1 the transparent pane carried across, where it stood');
       ok(!!iOut && iOut.count === 3 && posed(iOut, instW), '1 the instanced mesh carried across, where it stood');
       ok(!meshes.some(m => m.geometry === hidden.geometry), '1 the hidden piece dropped');
+      // G1398 (HOUSE-LOD): the coarse rung is the merged shell's large pieces - the walls and the DOOR kept, the 0.1 m
+      // trim and the glass gone - on the near rung's own geometry and material (shared, nothing copied)
+      const C = ctx.shellCoarse(out, ctx.SHELL.coarseShare), C1 = ctx.shellCoarse(out, ctx.SHELL.coarseShare, new Set([matA]));
+      const own = C ? C.children.filter(c => !c.userData.coarseFill) : [], fl = C ? C.children.filter(c => c.userData.coarseFill) : [];
+      const cb = own.map(m => (m.material === matA ? 'A' : m.material === matB ? 'B' : '?') + (m.castShadow ? '+' : '-')).sort().join(' ');
+      ok(!!C && cb === 'A+ B+' && own.every(c => merged.some(m => m.geometry === c.geometry && m.material === c.material)) && !C.children.some(c => c.material === glass),
+         '1b the coarse rung (G1398): the walls and the door, not the trim, sharing the near rung\'s geometry', cb);
+      { const f = fl[0], pp = f && f.geometry.attributes.position, bb = f && new THREE.Box3().setFromBufferAttribute(pp), pb = new THREE.Box3().setFromObject(pOut);
+        out.updateMatrixWorld(true); const pbl = pb.clone().applyMatrix4(new THREE.Matrix4().copy(out.matrixWorld).invert());
+        ok(fl.length === 1 && !f.material.transparent && f.material.vertexColors && !f.castShadow && bb.min.distanceTo(pbl.min) < 1e-4 && bb.max.distanceTo(pbl.max) < 1e-4,
+           '1b3 ... the openings (the pane) as ONE opaque vertex-coloured mesh where the pane stood, casting nothing: no hole'); }
+      ok(!!C1 && C1.children.length === C.children.length && C1.children.filter(c => !c.userData.coarseFill).every(c => c.castShadow === (c.material === matA)), '1b2 ... and only the materials named cast (the outer wall and roof in the game)');
     }
     const G2 = new THREE.Group(); G2.add(mk(new THREE.BoxGeometry(20, 0.1, 0.1), matB, true), mk(new THREE.BoxGeometry(5, 5, 5), matB, true));
     const o2 = ctx.mergeShell(G2, 0);
     ok(!!o2 && o2.children.length === 1 && o2.children[0].castShadow, '1 castMin 0: every piece casts, as built');
     ok(/const merged = SHELL\.merge \? mergeShell\(shed\.group, SHELL\.castMin\) : null;\s*\n\s*if \(merged\) shed\.group = merged;/.test(RW) &&
        RW.indexOf('const merged = SHELL.merge') < RW.indexOf('lod.addLevel(shed.group, 0)'), '1 standShed merges before the LOD takes the group');
+    ok(/const coarseOf = merged \? shellCoarse\(merged, SHELL\.coarseShare, new Set\(\[wears\(shed\.mats\.wallOut\) \? shed\.mats\.wallOut : shed\.mats\.wall, shed\.mats\.roofOut\]\.filter\(Boolean\)\)\) : null;/.test(RW) && /lod\.addLevel\(coarseOf \|\| coarse, 320\);/.test(RW) &&
+       /this\.levels\[1\]\.distance = Math\.min\(SHELL\.swapM\[1\], Math\.max\(SHELL\.swapM\[0\], R \* F \/ SHELL\.swapPx\)\);/.test(RW),
+       '1c standShed: the coarse rung from the merged shell (the box only when it did not merge), its switch by projected size (G1398)');
   }
 }
 

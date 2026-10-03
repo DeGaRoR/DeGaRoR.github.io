@@ -1314,10 +1314,14 @@ function make(THREE, scene, world, rec0, opts) {
   // the house's: area is the size of what it draws). That is trim, frames, steps, rails, the chimney - ~4 of 11
   // draws, all sub-pixel there; the walls and the roof stay, and so does all that LIGHTS the village or moves in
   // it: glass, the lit panes, emissive, transparent (the smoke), the props.
-  const DETAIL = { px: 16, area: 0.08, hyst: 0.1, px2: 60, keep2: 3, props: true };
+  const DETAIL = { px: 16, area: 0.08, hyst: 0.1, px2: 60, keep2: 3, keepShare: 0.04, props: true };
   // THE SECOND CUT (G557): under px2 (a 14 m house past ~270 m at 1080p) a house keeps only its keep2 largest plain
   // bags - the walls, the roof - and whatever is glass or lit; the trims, sills, doors and boards go (Metlakatla's
-  // 641 houses drew ~2 800 bags over the town)
+  // 641 houses drew ~2 800 bags over the town). G1398 (HOUSE-LOD; the user: "the main hangar loses its green doors, a
+  // distinctive feature"): a HANGAR SHELL's bag (it wears hangar.js's own material, HANGAR_GEN.LIB) holding keepShare
+  // of the building's plain surface stays too - its walls (~12 %), its doors (h_door, ~8 %) and its brick stem (~4 %)
+  // lost to the floor and the two roof skins, the three largest, cut here and left out of the far version (hlodCell:
+  // keep). Houses and every other item are as before (measured: the rule on every building was +25 draws at HOME)
   const areaOf = g => {
     const p = g.attributes.position, ix = g.index, n = ix ? ix.count : p.count;
     let a = 0;
@@ -1341,7 +1345,9 @@ function make(THREE, scene, world, rec0, opts) {
     const total = cand.reduce((t, x) => t + x[1], 0), list = [];
     let acc = 0;
     for (const [m, a] of cand) { if (acc + a > DETAIL.area * total) break; acc += a; list.push(m); }
-    const list2 = cand.slice(0, Math.max(0, cand.length - DETAIL.keep2)).map(x => x[0]).filter(m => !list.includes(m));
+    const HL = typeof window !== 'undefined' && window.HANGAR_GEN && window.HANGAR_GEN.LIB, shellMat = new Set();
+    if (HL) for (const s of Object.keys(HL)) for (const k of Object.keys(HL[s])) shellMat.add(HL[s][k]);
+    const list2 = cand.slice(0, Math.max(0, cand.length - DETAIL.keep2)).filter(x => !(shellMat.has(x[0].material) && x[1] >= DETAIL.keepShare * total)).map(x => x[0]).filter(m => !list.includes(m));
     const big = bags.find(m => m.geometry.boundingSphere.radius === R);
     const c = new THREE.Vector3(); if (big) c.copy(big.geometry.boundingSphere.center).applyMatrix4(big.matrixWorld); else grp.getWorldPosition(c);
     const keep = cand.map(x => x[0]).filter(m => !list.includes(m) && !list2.includes(m));
@@ -1862,7 +1868,9 @@ function make(THREE, scene, world, rec0, opts) {
       if (!cl.mesh && !cl.meshH && !cl.tmid) continue;
       const dx = Math.max(cl.x0 - e.x, 0, e.x - cl.x1), dz = Math.max(cl.z0 - e.z, 0, e.z - cl.z1), d = Math.hypot(dx, dz, e.y - cl.y);   // 3D (G563): from 300 m up the houses below are far
       // the houses' own bags (glass, lamps, smoke: what no bake took) and their per-house cuts switch per cell with
-      // hysteresis, at the band's far side when there is a band (G801) - the cell's largest house's (G1395)
+      // hysteresis, at the band's far side when there is a band (G801) - the cell's largest house's (G1395). A cell of
+      // items alone keeps near (G1398 left the items' switch out: by projected size every item cell within ~600 m of
+      // the eye would draw its near merges)
       const [eHi, hHi] = lodEdgeCPU(cl.rMax), [eLo, hLo] = lodEdgeCPU(cl.rMin);
       const far = d > (eHi + (hw > 0 ? hHi : 0)) * (cl.far ? 0.9 : 1.1);
       if (far !== cl.far) hlodSet(cl, far);

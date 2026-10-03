@@ -69723,3 +69723,104 @@ OPEN / NOT DONE
   a flag / with the town on. Giving it the projection is the kit host's own vertex data (it carries no radius yet).
 - The site items (club, sheds, churches) are still G559's lod-0 far version on the hard per-cell switch at 150 m: no
   lod 1, no band (G801's reason: ~7 item programs to clone).
+
+## G1398 HOUSE-LOD: THE HANGARS - THE MAIN HANGAR'S FAR RUNG IS ITS OWN SHELL (THE GREEN DOORS KEPT), ITS SWITCH BY PROJECTED SIZE; A PREMISES HANGAR'S FAR VERSION KEEPS ITS WALLS AND DOORS (2026-10-03, the same cloud session, node + headless SwiftShader; on G1395-G1396)
+
+The user, 3 Oct, after G1395: "same goes for the hangars, and the main hangar loses its green doors, a distinctive
+feature."
+There are TWO kinds of hangar, and both lost their doors the same way: the far version kept only the largest few parts.
+
+1. THE MAIN HANGAR (the club shed by the strip, render_world.js standShed)
+   - **Before.** A `THREE.LOD` switched it at a fixed 320 m to a BOX plus a roof prism, both in the wall cladding. No
+     doors, no plinth, no glazing; it read as a dark slab. At 1080p the shed's radius (20.7 m) is ~80 px at 320 m.
+   - **The coarse rung is now the shell's own large pieces** (`shellCoarse`). With the shell merged by material
+     (G600), the coarse rung is every merged mesh holding at least `SHELL.coarseShare` (3 %) of the shell's surface.
+     It shares the near rung's geometry and material: nothing is copied.
+     - Kept: the cladding, the roof, the GREEN DOORS (8.3 % of the shell), the brick stem.
+     - Dropped: the steel, gutters, trims, beams, brass. The club shell keeps 8 pieces (432 triangles), the timber
+       shell 6.
+   - **The openings.** The glazing band and the roof lights are transparent, so mergeShell keeps them apart. Dropped,
+     they would be HOLES in the coarse rung (seen in the first render). They come in as ONE opaque vertex-coloured
+     mesh, each piece in its material's colour x opacity (as the pane reads over the dark inside), casting nothing:
+     one draw instead of eleven transparent ones.
+   - **Shadows.** Only the outer wall (wallOut; `wall` on the timber shell, which has no wallOut piece) and roofOut cast:
+     two casters, as the box had.
+   - **The switch by projected size** (the houses' G1396 rule). `lod.update` sets the coarse level's distance each
+     render to R x F / `SHELL.swapPx`: R the shell's bounding radius, F the camera's focal length in drawing-buffer
+     rows (capped at 1440), clamped to `SHELL.swapM` [200, 900] m. With swapPx 48 the club shed switches at ~550 m
+     at 1080p (was 320).
+   - **Fallback.** The box stays for a shell that did not merge (`SHELL.merge` false).
+2. THE PREMISES HANGARS (HANGAR_GEN items: every other hangar on the islands, render_premises.js detailOf)
+   - **Before.** The second cut (G557: under 60 px, a building keeps only its 3 largest plain bags) and the far
+     version (G559's plain-colour merge of the same `keep`) kept the floor and the two roof skins: on a hangar shell
+     they are the three largest. So past ~150 m a premises hangar was a floor and a floating roof: no walls, no doors.
+   - **After.** A bag that wears a HANGAR SHELL material (`HANGAR_GEN.LIB`, hangar.js's own, shared by every shell)
+     and holds `DETAIL.keepShare` (4 %) of the building's plain surface stays as well: its walls (~12 % each skin),
+     its doors (~8 %) and its brick stem (~4 %).
+   - **Not extended to houses or other items.** Applied to every building, the same rule cost +25 main draws at
+     HOME's stand (measured; the houses are G1395's).
+   - **The switch stays the fixed 150 m per cell.** I tried the items by projected size and left it out:
+     - At HOME it moved nothing: two censuses with and without it were identical to the count. The +164 / +194 I first
+       blamed on it was the parked cook, below.
+     - Away from HOME, a 20 m hangar's cell would switch at ~530 m instead of 150. Every item cell (club, sheds, fuel,
+       objects) in that range would draw its near merges, which the HOME census cannot see.
+     - That is a cost to measure on the GPU, not to guess, so the items' edge is untouched. A dial in lodEdgeCPU's
+       caller if A0 wants it.
+
+BUDGET - THE NODE FRAMECOST CENSUS AT HOME:
+- **The clean A/B.** `FRAMECOST_QUERY=parkcook=0` on BOTH sides: the G1395 commit (d5066e3) -> this commit, per frame.
+  | build / view | draws.main | draws.shadow | tris.main | tris.shadow | programs |
+  |---|---|---|---|---|---|
+  | Cub stand | 1062 = | 365.5 = | 17 586 787 = | 2 869 343.5 = | 106 = |
+  | Cub taxi | 980 = | 161 = | 13 189 968 = | 1 861 635.5 -> 1 861 664.5 (+29) | 90.5 = |
+  | Cessna stand | 1073 = | 372.5 = | 17 690 540 = | 2 949 770.5 = | 104 = |
+  | Cessna taxi | 989 = | 167 = | 13 308 023 = | 1 978 213.5 -> 1 978 242.5 (+29) | 89.5 = |
+  - At the taxi the main shed is on its coarse rung in the shadow map: 2 shell casters where the box's 2 were (+29
+    triangles).
+  - Boot bufferData is equal to the byte.
+  - At HOME the premises rule moves nothing: no hangar shell is past its 60 px cut in either view.
+- **THE PARKED COOK GOES STALE (for A0).** render_world.js is in FLYDIY_BUILD (the inlined viewer), and the parked
+  cook's signature carries FLYDIY_BUILD.
+  - So this commit stales `media/parked` (`node tools/parked_cook.js --check`: manifest af99bcc23a8a, this tree
+    different). The census then captures the three parked aeroplanes live: +138 main draws ("parked" 2 -> 140 at
+    the stand), +190 shadow.
+  - That is the cook, not the hangar: render_premises.js / house_tarr.js are lazy (not in the build id), which is why
+    G1395 did not trip it.
+  - **The train must re-cook** (`node tools/parked_cook.js`, GPU), as for any change to the inlined viewer.
+  - **The gate.** FRAMECOST against the committed baseline (cook on): FAIL (25), every red row the parked aeroplanes
+    captured live. The per-category diff vs G1395's census is `parked` 2 -> 140 (stand) / 0 -> 126 (taxi) main and
+    3 -> 45 / 5 -> 127 shadow, and the shell's 2 casters for the box's 2; nothing else. NO ALLOW row: the re-cook
+    clears it.
+
+GATES (the files touched; not the full battery, as A0 asked): STAND (its §1 updated) PASS, TARR 82/82 PASS, PREMISES PASS, PREMCOOK PASS (detailOf and standShed are outside the cook's lifts), METKIT PASS, BUILD PASS; FRAMECOST: see above (red on the stale parked cook alone; the clean A/B is flat).
+- **GATE STAND, its §1 updated.** The lift follows the SHELL line, which now carries the coarse dials. New checks:
+  - 1b: the coarse rung keeps the walls and the door, not the trim nor the glass, on the near rung's own geometry;
+  - 1b2: only the named materials cast;
+  - 1b3: the openings as ONE opaque vertex-coloured mesh exactly where the pane stood, casting nothing;
+  - 1c: the wiring (the coarse rung from the merged shell, the box only when it did not merge, the switch by
+    projected size).
+
+EVIDENCE (reports/evidence/HOUSE-LOD/), rendered by tools/perf/hangar_lod.html (new, committed). It is three r186 +
+hangar.js's own exterior build + render_world's mergeShell / shellCoarse LIFTED from the source, on headless Chromium /
+SwiftShader. A hemisphere light and a sun, NO environment map: in the game the glass and the roof lights also reflect
+the sky (scene.environment), so they read paler there.
+- `main_hangar_far_rung_90m.jpeg`: the main hangar's near rung | the BOX rung of before (no doors, a dark slab) | the new
+  coarse rung (the green doors, the cladding, the stem, the glazing band as a dark strip). Seen at 90 m with a 30 deg
+  lens so it is large; in the game the coarse rung shows from ~550 m. A decision hangs on it: is the coarse rung
+  faithful enough, or should the doors' trims (dark green, 3 % of the shell) come too (coarseShare 0.025)?
+- `main_hangar_far_rung_back_90m.jpeg`: the same from behind (the back wall, the roof lights). No decision.
+- `main_hangar_at_560m_zoomed.jpeg`: at 560 m, about where it switches now, through a 9 deg lens (x5): what a
+  sharp-eyed pilot sees. No decision.
+- `premises_hangar_far_version_90m.jpeg`: a premises hangar's far version, drawn as G559 draws it (each part flat in its
+  colour x its texture's mean; the far town's 0.2 gain left out, the page's exposure is not the game's): near | BEFORE
+  (floor + two roof skins, floating) | AFTER (+ walls, doors, stem). No decision: this is the bug the user named.
+- **What a software render cannot show.** The game's exposure and sky reflections, and the switch in motion (the
+  main hangar's swap is still a hard THREE.LOD switch, now between near-identical meshes: only the steel and the trims
+  go).
+
+NOT DONE
+- The premises hangars switch at the fixed per-cell 150 m (see 2).
+- They keep G559's plain colour far version (hangar.js's materials are not the house shader's, so they cannot ride
+  G1395's textured far town).
+- The main hangar's swap is not dithered (the trees' / houses' band would need a program variant on the shell's
+  materials).
