@@ -70,71 +70,189 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
   // draws a strip), vertex colours for the three parts and a 2-texel emissive MASK on the uv (the lens 1, the rest 0),
   // so only the lens glows at night. The night is as it was: the lens's centre where the ball's was, the growth about
   // it (a grown lens swallows its stem, the base sinks under the ground), and the body darkened with `on`
-  // (runwayLightsApply: the material's colour white by day, ~0.015 at night - the old lens's near black).
-  const RWY = { mats: {}, meshes: [], mask: null };
-  const RWY_LENS_R = 0.07, RWY_LENS_Y = 0.35;          // the lens globe's radius, its centre above the ground (the old ball's)
-  const RWY_INSET = 0.3, RWY_INSET_Y = 0.005;          // an inset light: the whole light squashed to 0.3 in y, its centre at the surface
-  const RWY_GLASS = { 0xfff1cc: 0xe9e3cf, 0x37ff6a: 0xc0e6c8 };   // a lens's day colour: warm clear glass, pale green glass
-  function rwyMask() {                                  // uv.x 0.25 -> black (the stem, the base), 0.75 -> white (the lens)
-    if (RWY.mask || !THREE.DataTexture) return RWY.mask;
-    const t = new THREE.DataTexture(new Uint8Array([0, 0, 0, 255, 255, 255, 255, 255]), 2, 1, THREE.RGBAFormat, THREE.UnsignedByteType);
-    t.magFilter = t.minFilter = THREE.NearestFilter; t.generateMipmaps = false; t.needsUpdate = true;
-    return (RWY.mask = t);
-  }
-  // the light's geometry about the LENS'S CENTRE: the globe (a little taller than wide), the stem from under the
-  // ground up into the globe, the base can on the ground; position, normal, colour, uv (the mask), one index
-  function rwyLightGeo(hex) {
-    const parts = [], H = RWY_LENS_Y;
-    const lens = new THREE.SphereGeometry(RWY_LENS_R, 8, 6); lens.scale(1, 1.25, 1);
-    parts.push([lens, C(RWY_GLASS[hex] || 0xe9e3cf), 0.75]);
-    const st = new THREE.CylinderGeometry(0.016, 0.02, H + 0.1, 6, 1, true); st.translate(0, -(H + 0.1) / 2, 0);
-    parts.push([st, C(0xb4b1a8), 0.25]);
-    const bs = new THREE.CylinderGeometry(0.045, 0.06, 0.14, 8, 1, false); bs.translate(0, -H + 0.02, 0);
-    parts.push([bs, C(0x505256), 0.25]);
-    // (the headless stub's geometries carry no attributes - GATE WORLDRENDER: the lens stands in for the whole light)
-    if (!parts.every(([g]) => g.attributes && g.attributes.position && g.attributes.normal)) return lens;
-    let nv = 0, ni = 0;
-    for (const [g] of parts) { nv += g.attributes.position.count; ni += g.index ? g.index.count : g.attributes.position.count; }
-    const pos = new Float32Array(nv * 3), nor = new Float32Array(nv * 3), col = new Float32Array(nv * 3), uv = new Float32Array(nv * 2);
-    const idx = new Uint16Array(ni);
-    let v0 = 0, i0 = 0;
-    for (const [g, c, u] of parts) {
-      const P = g.attributes.position, N = g.attributes.normal, n = P.count;
-      pos.set(P.array, v0 * 3); nor.set(N.array, v0 * 3);
-      for (let k = 0; k < n; k++) { col[(v0 + k) * 3] = c.r; col[(v0 + k) * 3 + 1] = c.g; col[(v0 + k) * 3 + 2] = c.b; uv[(v0 + k) * 2] = u; uv[(v0 + k) * 2 + 1] = 0.5; }
-      if (g.index) for (let k = 0; k < g.index.count; k++) idx[i0 + k] = g.index.array[k] + v0;
-      else for (let k = 0; k < n; k++) idx[i0 + k] = v0 + k;
-      i0 += g.index ? g.index.count : n; v0 += n;
-      g.dispose();
+  // (runwayLightsApply: the material's colour white by day, ~0.015 at night - the old lens's near black). (b) and the
+  // night are SUPERSEDED by G1415 below; (a), the places, stands.
+  // G1415-G1419 (RUNWAY-LIGHTS, the user 2026-10-03: "the runway lights are naive. They're huge balls. Real things would
+  // have a proper geometry, and a bulb with realistic lighting values ... inspired by real, old runway lights (they date
+  // back WWII)"). THE FIXTURE is now modelled on the period's own: the RAF's Drem Mk II flarepath fitting (1940-: a 15 W
+  // "pygmy" lamp in a WELL-GLASS fitting under a cast-iron cover, coloured filters, on a ground socket, the flarepath down
+  // the runway edges) and the RAE "Glim lamp" (1937: a cylinder about 12 in tall, a glass dome on top, interchangeable
+  // white / orange / red globes for flarepath / boundary / obstruction). It stands 36 cm: a cast-iron foot plate 22 cm
+  // across, a short stem, the fitting's collar, a 13 cm well-glass (7 cm of glass showing), the cast cover over it; an
+  // INSET light (on pavement, G1066's places) is a cast ring flush with the surface round a glass dome 2.5 cm proud. Both
+  // fixtures are ONE geometry: the inset is stored MIRRORED 2 m under the elevated one (RWY_DEEP), and an inset instance
+  // is the same geometry flipped in y and lifted - the inset comes up to the surface the right way out and the elevated
+  // fitting goes 2 m under the ground inside out (back faces: culled), and the other way round for an elevated
+  // instance. So a strip is ONE fixture draw for its edge and threshold rows, elevated and flush; the threshold's GREEN
+  // GLASS is the instance colour (over the dark iron it is invisible, over the glass it is the glass). By day the lens
+  // is glass (roughness 0.06 on a 2-texel roughness/metalness map) and the rest painted iron; nothing glows.
+  // THE LIGHT is a separate POINTS layer, one vertex a light, one draw a strip, hidden by day: an
+  // incandescent bulb at 2800 K (Planck x the CIE 1931 observer -> linear sRGB 1 : 0.445 : 0.117) behind its glass -
+  // the edge clear (a 15 W lamp, ~9 cd), the threshold a 40 W lamp (the Drem funnel's rating) behind a signal-green
+  // filter (26 % luminous transmission, the colour 0 : 1 : 0.26) - ~9 cd too, so the green row reads as bright as the
+  // white one. Drawn as a light is SEEN, not as a ball: a sharp core whose width is the lens's own angular size, never
+  // under ~1.5 px (a pixel or two far away), a modest halo (6 % of the peak, bloom-friendly); its brightness FALLS with
+  // distance - Stevens' law for a point source (apparent brightness ~ illuminance^0.5, so ~ sqrt(I) / d) - rather than
+  // the mesh growing; a core over the display's HDR ceiling widens instead (the flux kept). The aerial perspective and
+  // the mist TRANSMIT it (never add their in-scatter: an additive sprite would carry a square of haze). Nothing per light
+  // per frame on the CPU: the level and the target's height are two uniforms (runwayLightsApply / the layer's
+  // onBeforeRender), the size and the fall-off the vertex shader's. Both meshes are frustum-culled again.
+  const RWY = { meshes: [], glows: [], fix: null, glow: null, tex: null, shown: false,
+    U: { lvl: { value: 0 }, px: { value: 540 } } };      // the glow's level (the day's), the bound target's half-height (px)
+  const RWY_DEEP = 2;                                   // the mirrored inset fixture's depth in the geometry (m)
+  const RWY_LENS_Y = 0.265, RWY_INSET_Y = 0.015;        // the glow's centre over the ground: the well-glass's middle, the inset dome's
+  const RWY_LENS_R = 0.067;                             // the well-glass's radius (the core's floor width close up)
+  // the glass's colour by kind (the instance colour: the clear glass white, the threshold's green filter); the glow's
+  // colour (linear, luminance 1) x sqrt(cd) / 3 (the edge's 9 cd = 1)
+  const RWY_KIND = {
+    edge: { glass: [1, 1, 1], light: [1.855, 0.826, 0.217], cd: 9 },
+    thr:  { glass: [0.30, 0.95, 0.55], light: [0, 1.362, 0.351], cd: 9 },
+  };
+  // the profiles, bottom to top along the outside: bands of [r, y] (m), smooth inside a band, a crease between bands;
+  // part 0 the painted iron, 1 the glass (uv.x 0.25 / 0.75 on the roughness / metalness map)
+  const RWY_ELEVATED = [
+    [0, [[0.11, -0.02], [0.11, 0.015]]], [0, [[0.11, 0.015], [0.035, 0.03]]],                                     // the foot plate
+    [0, [[0.035, 0.03], [0.022, 0.185]]],                                                                        // the cast stem, tapered
+    [0, [[0.022, 0.185], [0.075, 0.2]]], [0, [[0.075, 0.2], [0.075, 0.226]]], [0, [[0.075, 0.226], [0.06, 0.228]]],   // the collar
+    [1, [[0.06, 0.228], [0.067, 0.262], [0.064, 0.30]]],                                                         // the well-glass
+    [0, [[0.064, 0.30], [0.074, 0.302]]], [0, [[0.074, 0.302], [0.076, 0.318]]], [0, [[0.076, 0.318], [0.05, 0.345], [0, 0.356]]],   // the cover
+  ];
+  const RWY_FLUSH = [
+    [0, [[0.13, -0.03], [0.13, 0.008]]], [0, [[0.13, 0.008], [0.052, 0.008]]],                                   // the cast ring
+    [1, [[0.052, 0.008], [0.044, 0.019], [0, 0.025]]],                                                           // the glass dome
+  ];
+  // a lathe of creased bands -> [pos, nor, uv, idx] arrays; `mirror` stores it flipped about y = -RWY_DEEP / 2
+  // (y -> -(RWY_DEEP + y), the normal's y negated, the winding KEPT: inside out until the instance flips it back)
+  function rwyLathe(bands, sides, mirror, out) {
+    for (const [part, pts] of bands) {
+      const v0 = out.pos.length / 3, n = pts.length;
+      for (let i = 0; i < n; i++) {
+        const a = pts[Math.max(0, i - 1)], b = pts[Math.min(n - 1, i + 1)];
+        let nr = b[1] - a[1], ny = -(b[0] - a[0]); const l = Math.hypot(nr, ny) || 1; nr /= l; ny /= l;
+        for (let j = 0; j <= sides; j++) {
+          const t = (j / sides) * Math.PI * 2, c = Math.cos(t), s = Math.sin(t), [r, y] = pts[i];
+          out.pos.push(r * c, mirror ? -(RWY_DEEP + y) : y, -r * s);
+          out.nor.push(nr * c, mirror ? -ny : ny, -nr * s);
+          out.uv.push(part ? 0.75 : 0.25, 0.5);
+        }
+      }
+      for (let i = 0; i < n - 1; i++) for (let j = 0; j < sides; j++) {
+        const p = v0 + i * (sides + 1) + j, q = p + sides + 1;
+        out.idx.push(p, p + 1, q + 1, p, q + 1, q);
+      }
     }
-    const geo = new THREE.BufferGeometry();
-    geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-    geo.setAttribute('normal', new THREE.BufferAttribute(nor, 3));
-    geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
-    geo.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
-    geo.setIndex(new THREE.BufferAttribute(idx, 1));
-    return geo;
+    return out;
   }
-  // one strip's lights: white edge lenses every 60 m, green threshold rows; instanced per colour per
-  // strip (its own small geometry, so repaintStrips' dispose takes nothing shared); `keep` is the
-  // strip's own record of what it stood (standStrip's) - the analytic HOME passes the identity
+  // the fixture: the elevated fitting about its foot, the flush one mirrored under it; one geometry for every strip
+  function rwyFixtureGeo() {
+    if (RWY.fix) return RWY.fix;
+    const o = rwyLathe(RWY_ELEVATED, 8, false, { pos: [], nor: [], uv: [], idx: [] });
+    rwyLathe(RWY_FLUSH, 6, true, o);
+    const g = new THREE.BufferGeometry(), nv = o.pos.length / 3, col = new Float32Array(nv * 3);
+    const iron = C(0x2e2d2b), glass = C(0x8d9a95);   // the glass over a dark interior: its reflection does the rest
+    for (let i = 0; i < nv; i++) { const k = o.uv[i * 2] > 0.5 ? glass : iron; col[i * 3] = k.r; col[i * 3 + 1] = k.g; col[i * 3 + 2] = k.b; }
+    g.setAttribute('position', new THREE.Float32BufferAttribute(o.pos, 3));
+    g.setAttribute('normal', new THREE.Float32BufferAttribute(o.nor, 3));
+    g.setAttribute('uv', new THREE.Float32BufferAttribute(o.uv, 2));
+    g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+    g.setIndex(o.idx);
+    return (RWY.fix = g);
+  }
+  // the parts' surfaces on 2 texels (G roughness, B metalness): the painted iron 0.6 / 0, the glass 0.06 / 0
+  function rwySurfTex() {
+    if (RWY.tex || !THREE.DataTexture) return RWY.tex;
+    const t = new THREE.DataTexture(new Uint8Array([0, 153, 0, 255, 0, 15, 0, 255]), 2, 1, THREE.RGBAFormat, THREE.UnsignedByteType);
+    t.magFilter = t.minFilter = THREE.NearestFilter; t.generateMipmaps = false; t.needsUpdate = true;
+    return (RWY.tex = t);
+  }
+  function rwyFixtureMat() {
+    return RWY.fixMat || (RWY.fixMat = new THREE.MeshStandardMaterial({ color: C(0xffffff), vertexColors: true,
+      roughness: 1, metalness: 1, roughnessMap: rwySurfTex(), metalnessMap: rwySurfTex() }));
+  }
+  // THE GLOW: three's points program, its size and its shape taken over. The vertex colour is the light's (colour x
+  // sqrt(cd) / 3); uRwyL the day's level, uRwyPx half the bound target's height in pixels.
+  const RWY_GLOW_VS = `
+    float rwD = length(mvPosition.xyz);
+    mvPosition.xyz *= max(0.0, 1.0 - 0.15 / max(rwD, 0.3));   // a hand toward the eye: the lens's own glass and cover do not hide its light
+    gl_Position = projectionMatrix * mvPosition;
+    float rwPx = uRwyPx * projectionMatrix[1][1];               // pixels per radian
+    float rwMin = max(1.5, uRwyPx / 360.0);                     // the core's floor: 1.5 px at 1080 lines, the same angle above
+    float rwB = uRwyL * 1000.0 / max(rwD, 1.0);                 // Stevens: a point's brightness ~ sqrt(E) = sqrt(I) / d (sqrt(I) in the colour)
+    float rwW = rwMin * sqrt(max(1.0, rwB / 6.0));              // over the HDR ceiling (6) the core widens, its flux kept
+    rwB = min(rwB, 6.0);
+    rwW = max(rwW, 2.0 * ${RWY_LENS_R} / max(rwD, 0.1) * rwPx);   // never narrower than the lens itself
+    gl_PointSize = min(64.0, max(9.0, rwW * 5.0));
+    vRwy = vec3(rwB, rwW, gl_PointSize);`;
+  const RWY_GLOW_FS = `
+    float rwR = length(gl_PointCoord - 0.5) * vRwy.z, rwQ = rwR / vRwy.y;
+    float rwS = exp(-2.7726 * rwQ * rwQ) + 0.06 / (1.0 + rwQ * rwQ) * (1.0 - smoothstep(0.3 * vRwy.z, 0.5 * vRwy.z, rwR));
+    outgoingLight = diffuseColor.rgb * vRwy.x * rwS;`;
+  // the haze TRANSMITS the light and adds nothing (mistApply is affine in the colour: T = m(1) - m(0))
+  const RWY_GLOW_AP = `
+    #ifdef USE_FOG
+    if (uAtmoAP.z > 0.5) gl_FragColor.rgb *= atmoAP().a;
+    { vec3 rwV = normalize((vec4(vAtmoV, 0.0) * viewMatrix).xyz); float rwL = length(vAtmoV);
+      gl_FragColor.rgb *= max(mistApply(vec3(1.0), rwV, rwL, cameraPosition.y) - mistApply(vec3(0.0), rwV, rwL, cameraPosition.y), vec3(0.0)); }
+    #endif
+    #if defined( TONE_MAPPING )
+    gl_FragColor.rgb = toneMapping( gl_FragColor.rgb );
+    #endif`;
+  function rwyGlowMat() {
+    if (RWY.glow) return RWY.glow;
+    const ap = !!(THREE.ShaderChunk && /atmoAP/.test(THREE.ShaderChunk.fog_pars_fragment || ''));   // the atmosphere's splice is in
+    const m = new THREE.PointsMaterial({ size: 1, sizeAttenuation: false, vertexColors: true, transparent: true, depthWrite: false,
+      fog: ap, blending: THREE.CustomBlending, blendSrc: THREE.OneFactor, blendDst: THREE.OneFactor, blendEquation: THREE.AddEquation });
+    m.onBeforeCompile = sh => {
+      sh.uniforms.uRwyL = RWY.U.lvl; sh.uniforms.uRwyPx = RWY.U.px;
+      sh.vertexShader = sh.vertexShader.replace('void main() {', 'uniform float uRwyL, uRwyPx;\nvarying vec3 vRwy;\nvoid main() {')
+        .replace('gl_PointSize = size;', RWY_GLOW_VS);
+      sh.fragmentShader = sh.fragmentShader.replace('void main() {', 'varying vec3 vRwy;\nvoid main() {')
+        .replace('outgoingLight = diffuseColor.rgb;', RWY_GLOW_FS)
+        .replace('#include <tonemapping_fragment>', RWY_GLOW_AP);
+    };
+    return (RWY.glow = m);
+  }
+  // the bound target's height, read as the layer draws (the scene's target is the resolve's: the canvas x its supersample
+  // x the render scale); the uniform is shared, so a change marks the material for upload
+  const rwyV2 = THREE.Vector2 ? new THREE.Vector2() : null;
+  function rwyGlowBefore(r) {
+    const t = r.getRenderTarget ? r.getRenderTarget() : null;
+    const h = t ? t.height : (r.getDrawingBufferSize && rwyV2 ? r.getDrawingBufferSize(rwyV2).y : 1080);
+    if (RWY.U.px.value !== h * 0.5) { RWY.U.px.value = h * 0.5; RWY.glow.uniformsNeedUpdate = true; }
+  }
+  // one strip's lights: the edge rows and the threshold rows, elevated and flush, as ONE instanced fixture mesh and ONE
+  // points layer (the two draws a strip the two colour meshes were); `keep` is the strip's own record of what it stood
+  // (standStrip's) - the analytic HOME passes the identity
   function standRunwayLights(a, keep) {
-    const rwMat = hex => RWY.mats[hex] || (RWY.mats[hex] = new THREE.MeshStandardMaterial({ color: C(0xffffff), vertexColors: true, emissive: C(hex), emissiveMap: rwyMask(), emissiveIntensity: 0, roughness: 0.25, metalness: 0 }));
     const PO = world.premises && world.premises.overlay;
     const L = runwayLightPoints(a, world.aerodromes, PO && PO.pavedNear ? PO.pavedNear : null);   // G1066: none on another strip or a pavement
-    const stand = (pts, hex) => {
-      if (!pts.length) return;
-      const im = new THREE.InstancedMesh(rwyLightGeo(hex), rwMat(hex), pts.length);
-      const M = new THREE.Matrix4(), pv = new THREE.Vector3(), q = new THREE.Quaternion(), sv = new THREE.Vector3(1, 1, 1);
-      // [x, y, z, the day's y scale]: elevated 1, inset RWY_INSET (flush with the pavement it stands in)
-      const P = pts.map(([x, z, fl]) => [x, world.terrainH(x, z) + (fl ? RWY_INSET_Y : RWY_LENS_Y), z, fl ? RWY_INSET : 1]);
-      P.forEach((p3, i) => { pv.set(p3[0], p3[1], p3[2]); sv.set(1, p3[3], 1); M.compose(pv, q, sv); im.setMatrixAt(i, M); });
-      im.instanceMatrix.needsUpdate = true; im.castShadow = false; im.receiveShadow = false;
-      im.frustumCulled = false;                       // the lenses grow with the distance (runwayLightsApply); the geometry's sphere would cull them
-      im.userData.rwyLight = 1; im.userData.pts = P; im.userData.grown = false; im.userData.cut = L.cut.length; im.userData.inset = L.inset.length;
-      scene.add(keep(im)); RWY.meshes.push(im);
-    };
-    stand(L.edge, 0xfff1cc); stand(L.thr, 0x37ff6a);
+    const all = L.edge.map(p => [p, RWY_KIND.edge]).concat(L.thr.map(p => [p, RWY_KIND.thr]));
+    if (!all.length) return;
+    const im = new THREE.InstancedMesh(rwyFixtureGeo(), rwyFixtureMat(), all.length);
+    const M = new THREE.Matrix4(), pv = new THREE.Vector3(), q = new THREE.Quaternion(), sv = new THREE.Vector3(1, 1, 1), tint = new THREE.Color();
+    const pos = new Float32Array(all.length * 3), col = new Float32Array(all.length * 3);
+    // [x, ground y, z, flush]: an elevated fitting stands on its foot; a flush one is the geometry flipped and lifted
+    const P = all.map(([[x, z, fl]]) => [x, world.terrainH(x, z), z, fl ? 1 : 0]);
+    all.forEach(([, K], i) => {
+      const [x, y, z, fl] = P[i];
+      pv.set(x, fl ? y - RWY_DEEP : y, z); sv.set(1, fl ? -1 : 1, 1); M.compose(pv, q, sv); im.setMatrixAt(i, M);
+      im.setColorAt(i, tint.setRGB(K.glass[0], K.glass[1], K.glass[2]));
+      pos[i * 3] = x; pos[i * 3 + 1] = y + (fl ? RWY_INSET_Y : RWY_LENS_Y); pos[i * 3 + 2] = z;
+      col[i * 3] = K.light[0]; col[i * 3 + 1] = K.light[1]; col[i * 3 + 2] = K.light[2];
+    });
+    im.instanceMatrix.needsUpdate = true; if (im.instanceColor) im.instanceColor.needsUpdate = true;
+    im.castShadow = false; im.receiveShadow = false;
+    if (im.computeBoundingSphere) im.computeBoundingSphere();   // culled on the instances' own sphere (nothing grows any more)
+    im.userData.rwyLight = 1; im.userData.pts = P; im.userData.cut = L.cut.length; im.userData.inset = L.inset.length;
+    scene.add(keep(im)); RWY.meshes.push(im);
+    const gg = new THREE.BufferGeometry();
+    gg.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    gg.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+    if (gg.computeBoundingSphere) gg.computeBoundingSphere();
+    const glow = new THREE.Points(gg, rwyGlowMat());
+    glow.onBeforeRender = rwyGlowBefore; glow.renderOrder = 4; glow.visible = !!RWY.shown;
+    glow.userData.rwyLight = 1; glow.userData.rwyGlow = 1;
+    scene.add(keep(glow)); RWY.glows.push(glow);
   }
   let fillUpdate = () => {};          // W13 woodland fill streamer (set in the tree block)
   const lakeQuads = [];   // the drawn lake surfaces (box + y): waterDrawY reads them
@@ -1092,41 +1210,29 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       // full brightness, and the last thing left on screen when everything
       // else is off
       .declare('sky', 'the sky dome', 'unlit', () => { if (worldSky) worldSky.visible = false; })
-      // G443: the runway lights - emissive lenses, one material a colour (RWY.mats fills as the strips stand)
-      .declare('runway', 'runway lights', 'emissive', () => { for (const k in RWY.mats) RWY.mats[k].emissiveIntensity = 0; })
+      // G443: the runway lights - G1415: the glow layer's level (RWY.U.lvl), one points material for every strip
+      .declare('runway', 'runway lights', 'emissive', () => { RWY.U.lvl.value = 0; RWY.shown = false; for (const g of RWY.glows) g.visible = false; })
       // G449: the premises' lamp pool (render_premises LAMPS) - eight point lights and the lit panes
       .declare('lamps', 'the premises lamps', 'light', () => { if (premisesR && premisesR.lamps) premisesR.lamps.mute(); });
   }
   // the day's hand on the runway lights: on from 2 deg of sun down through the horizon, the level
   // divided back through the exposure schedule (a lens judged at ~0.92 under a night that opens 15 stops)
-  const rwyM = new THREE.Matrix4(), rwyP = new THREE.Vector3(), rwyQ = new THREE.Quaternion(), rwyS = new THREE.Vector3();
+  // G1415: ONE uniform and one flag a frame, whatever the number of lights - the old per-light growth loop (every lens
+  // scaled to ~3 mrad of the view each night frame, the "huge balls") is gone: the glow layer's vertex shader sizes the
+  // core and lets the brightness fall with the distance; the fixtures keep their true size day and night
   function runwayLightsApply(day, eye) {
     const on = Math.max(0, Math.min(1, (2 - day.sunEl) / 4));
-    // A LIGHT IS A POINT, NOT A SPHERE: a 9 cm lens at 800 m is a fifth of a pixel and the resolve
-    // averages it away, so at night every lens is scaled to hold ~3 mrad of the eye's view (a real
-    // runway light is seen by its intensity, which a pixel cannot carry) - by day the true size again
-    if (eye) for (const im of RWY.meshes) {
-      if (on <= 0 && !im.userData.grown) continue;
-      const P = im.userData.pts;
-      for (let i = 0; i < P.length; i++) {
-        const d = on > 0 ? Math.hypot(P[i][0] - eye.x, P[i][1] - eye.y, P[i][2] - eye.z) : 0;
-        const sc = on > 0 ? Math.max(1, Math.min(150, d * 0.003 / RWY_LENS_R)) : 1;
-        // (G1066: an inset light's squash lets go as it grows - a far one is a round point like the rest)
-        const fy = P[i][3], sy = sc * (fy + (1 - fy) * Math.min(1, (sc - 1) / 2));
-        rwyP.set(P[i][0], P[i][1], P[i][2]); rwyS.set(sc, sy, sc); rwyM.compose(rwyP, rwyQ, rwyS); im.setMatrixAt(i, rwyM);
-      }
-      im.instanceMatrix.needsUpdate = true; im.userData.grown = on > 0;
-    }
     const W = typeof window !== 'undefined' ? window : {};
     const ex = (W.GFX && W.GFX.exposureBase && W.GFX.exposureBase() != null) ? W.GFX.exposureBase() : 0.92;
     // p 0.9, base 1.2: a lens that keeps its COLOUR through the tone mapper (at the cockpit's 0.8 / 2.4 the
     // threshold's green saturated to white from 300 m)
     const k = Math.pow(0.92 / Math.max(0.92, ex), 0.9);
     const lit = worldSwitch ? worldSwitch.on('runway') : true;
-    // G1066: the body's day colour (the pale glass, the stem's grey) darkens as the lights come on: at night the lens is
-    // the old near-black ball round its glow, however far it has grown
-    const body = 1 - 0.985 * on;
-    for (const h in RWY.mats) { RWY.mats[h].emissiveIntensity = lit ? on * 1.2 * k : 0; const c = RWY.mats[h].color; c.r = c.g = c.b = body; }
+    RWY.U.lvl.value = lit ? on * 1.2 * k : 0;
+    // by day the layer is not drawn nor even frustum-tested: the strips' layers hidden (a loop over the STRIPS, and only
+    // when the state turns)
+    const show = RWY.U.lvl.value > 0;
+    if (RWY.shown !== show) { RWY.shown = show; for (const g of RWY.glows) g.visible = show; }
   }
   function applyWorldLights() {
     if (!worldSwitch) return;
@@ -6051,7 +6157,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       for (const [id, stood] of stripStood) {
         const a0 = world.aerodromes.find(q => q.id === id);
         if (a0 && !a0.premises) continue;
-        for (const o of stood) { if (o.mesh && !o.isMesh) { const k = socks.indexOf(o); if (k >= 0) socks.splice(k, 1); continue; } scene.remove(o); if (o.userData && o.userData.rockBatches) for (const b of o.userData.rockBatches) b.dispose(); if (o.geometry && !o.isInstancedMesh) o.geometry.dispose(); if (o.userData && o.userData.pavMat && PAV) PAV.dispose(o.material, o.geometry); if (o.userData && o.userData.rwyLight) { const k = RWY.meshes.indexOf(o); if (k >= 0) RWY.meshes.splice(k, 1); o.geometry.dispose(); } }
+        for (const o of stood) { if (o.mesh && !o.isMesh) { const k = socks.indexOf(o); if (k >= 0) socks.splice(k, 1); continue; } scene.remove(o); if (o.userData && o.userData.rockBatches) for (const b of o.userData.rockBatches) b.dispose(); if (o.geometry && !o.isInstancedMesh) o.geometry.dispose(); if (o.userData && o.userData.pavMat && PAV) PAV.dispose(o.material, o.geometry); if (o.userData && o.userData.rwyLight) { const L = o.userData.rwyGlow ? RWY.glows : RWY.meshes, k = L.indexOf(o); if (k >= 0) L.splice(k, 1); } }
         stripStood.delete(id);
       }
       for (const a of world.aerodromes) if (a.premises && a.kind !== 'meadow' && a.kind !== 'water') standStrip(a);

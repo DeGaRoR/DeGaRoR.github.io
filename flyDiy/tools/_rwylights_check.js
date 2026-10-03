@@ -13,12 +13,12 @@
 //      its lights; HOME's and w2's green threshold rows stand flush on the turn pads), a grass polygon changes
 //      nothing (nv_strip on its meadow keeps all of them elevated), and the crossing is SEEN: the old placement (no
 //      other strip, no premises) stands HOME's and w2's lights elevated on each other's concrete - the check is not blind.
-//   2. THE LIGHT, its geometry lifted from render_world.js (rwyLightGeo) and built on the real vendor three: one merged
-//      geometry (one draw a colour a strip, as before), the lens round the instance's origin (the night's growth is
-//      about the lens), the stem reaching the ground and into the lens, the base can on the ground, the emissive
-//      mask on the uv (the lens 0.75 = lit, the rest 0.25 = dark), the lens's day colour pale (glass, not near-black),
-//      the material: vertex colours + the emissive map, the switchboard's `runway` mute and the grown-with-distance
-//      scale by the lens's radius.
+//   2. THE LIGHT (G1415-G1419): the fixture lifted from render_world.js (rwyFixtureGeo) and built on the real vendor
+//      three - one geometry for every strip carrying a WWII-style elevated flarepath fitting (30-40 cm, a 10-15 cm
+//      well-glass) and, stored mirrored under it, the flush fitting an instance flip brings up; the winding that makes
+//      the flip work; the colours (2800 K behind clear glass, the threshold's green filter); and off the source: one
+//      fixture mesh and one glow layer a strip, both culled, the glow's size and fall-off law, the haze transmitting it,
+//      the switchboard's mute, nothing per light per frame.
 //
 //   node tools/_rwylights_check.js [--verbose]   -> "GATE RWYLIGHTS: PASS|FAIL"
 'use strict';
@@ -120,50 +120,68 @@ if (check(!!J, 'Jolene composes in node (island_node + its premises fixture)')) 
     'a grass polygon stands a light; a concrete road within the clear leaves it out, on it makes it flush');
 }
 
-// ---- 2. THE LIGHT ---------------------------------------------------------------------------------------------
+// ---- 2. THE LIGHT (G1415-G1419, RUNWAY-LIGHTS) -----------------------------------------------------------------
+// The fixture lifted from render_world.js (rwyLathe / rwyFixtureGeo) and built on the real vendor three; the glow
+// layer's material, its shader text and the per-frame drive read off the source.
 {
   const RW = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'render_world.js'), 'utf8');
   const cut = (a, b) => { const i = RW.indexOf(a); if (i < 0) throw new Error('render_world.js: ' + a + ' not found'); const j = RW.indexOf(b, i); return RW.slice(i, j < 0 ? undefined : j); };
-  let geoFn = null, consts = null;
+  let F = null;
   try {
-    consts = cut('  const RWY_LENS_R', '  function rwyMask');
-    const fn = cut('  function rwyLightGeo(hex) {', '  // one strip\'s lights:');
-    geoFn = new Function('THREE', 'C', consts + fn + '\nreturn { rwyLightGeo, RWY_LENS_R, RWY_LENS_Y, RWY_GLASS, RWY_INSET, RWY_INSET_Y };')(THREE, h => new THREE.Color(h).convertSRGBToLinear());
-  } catch (e) { check(false, 'the light\'s geometry lifts out of render_world.js', e.message); }
-  if (geoFn) for (const hex of [0xfff1cc, 0x37ff6a]) {
-    const g = geoFn.rwyLightGeo(hex), P = g.attributes.position, UV = g.attributes.uv, COL = g.attributes.color, n = P.count;
-    const tag = hex === 0xfff1cc ? 'edge' : 'threshold';
-    check(!!g.index && !!g.attributes.normal && !!COL && !!UV && g.groups.length === 0, tag + ': ONE merged geometry (position, normal, colour, uv, one index, no groups: one draw a strip, as the sphere was)');
-    let lens = new THREE.Box3(), rest = new THREE.Box3(), badUv = 0, v = new THREE.Vector3(), lensCol = [0, 0, 0], nl = 0;
-    for (let i = 0; i < n; i++) {
-      v.fromBufferAttribute(P, i);
-      const u = UV.getX(i);
-      if (u === 0.75) { lens.expandByPoint(v); lensCol[0] += COL.getX(i); lensCol[1] += COL.getY(i); lensCol[2] += COL.getZ(i); nl++; }
-      else if (u === 0.25) rest.expandByPoint(v); else badUv++;
+    F = new Function('THREE', 'C', cut('  const RWY = { meshes', '  // the parts\' surfaces') + '\nreturn { rwyFixtureGeo, RWY_DEEP, RWY_LENS_Y, RWY_INSET_Y, RWY_LENS_R, RWY_KIND };')(THREE, h => new THREE.Color(h).convertSRGBToLinear());
+  } catch (e) { check(false, 'the fixture lifts out of render_world.js', e.message); }
+  if (F) {
+    const g = F.rwyFixtureGeo(), P = g.attributes.position, N = g.attributes.normal, UV = g.attributes.uv, I = g.index.array;
+    check(!!g.index && !!N && !!UV && !!g.attributes.color && g.groups.length === 0, 'ONE merged fixture geometry (position, normal, colour, uv, one index, no groups): one draw a strip');
+    check(F.rwyFixtureGeo() === g, 'one geometry for every strip (built once)');
+    // the two fixtures: elevated above y = -1, the flush one stored mirrored round y = -RWY_DEEP
+    const up = new THREE.Box3(), flush = new THREE.Box3(), glassUp = new THREE.Box3(), glassFl = new THREE.Box3(), v = new THREE.Vector3();
+    let badUv = 0;
+    for (let i = 0; i < P.count; i++) {
+      v.fromBufferAttribute(P, i); const u = UV.getX(i);
+      if (u !== 0.25 && u !== 0.75) badUv++;
+      if (v.y > -1) { up.expandByPoint(v); if (u === 0.75) glassUp.expandByPoint(v); }
+      else { const w = new THREE.Vector3(v.x, -v.y - F.RWY_DEEP, v.z); flush.expandByPoint(w); if (u === 0.75) glassFl.expandByPoint(w); }
     }
-    const R = geoFn.RWY_LENS_R, H = geoFn.RWY_LENS_Y;
-    check(badUv === 0 && nl > 0, tag + ': every vertex on the mask (the lens 0.75, lit; the stem and base 0.25, dark)', badUv);
-    const c = lens.getCenter(new THREE.Vector3());
-    check(c.length() < 1e-6 && Math.abs(lens.max.x - R) < 1e-6, tag + ': the lens round the instance\'s origin (the night grows it about itself), radius ' + R, c.toArray().map(x => x.toFixed(4)).join(','));
-    check(rest.min.y <= -H - 0.02 && rest.min.y >= -H - 0.2, tag + ': the stem and base reach into the ground (' + (H + rest.min.y).toFixed(2) + ' m below it)', rest.min.y);
-    check(rest.max.y > lens.min.y && rest.max.y < lens.max.y, tag + ': the stem ends inside the lens (no gap, nothing through its top)', rest.max.y + ' in ' + lens.min.y + '..' + lens.max.y);
-    check(rest.max.x <= 0.07 && rest.max.x > 0.03, tag + ': a slim base can and stem (' + (2 * rest.max.x * 100).toFixed(0) + ' cm across at most)', rest.max.x);
-    // FLUSH: the same geometry squashed to RWY_INSET about its centre at RWY_INSET_Y over the surface - a low dome, the
-    // stem and base under the pavement
-    const fy = geoFn.RWY_INSET, top = geoFn.RWY_INSET_Y + lens.max.y * fy, bot = geoFn.RWY_INSET_Y + rest.min.y * fy;
-    check(top > 0.01 && top < 0.035 && bot < -0.05, tag + ': a flush light is a ' + (top * 100).toFixed(1) + ' cm dome over the pavement, its stem ' + (-bot * 100).toFixed(0) + ' cm under it', top + ' / ' + bot);
-    const lum = (lensCol[0] + lensCol[1] + lensCol[2]) / (3 * nl), old = new THREE.Color(0x1a1c20).convertSRGBToLinear();
-    check(lum > 0.3 && lum > 20 * (old.r + old.g + old.b) / 3, tag + ': the lens\'s day colour is pale glass (linear luminance ' + lum.toFixed(2) + ', the old near-black ' + ((old.r + old.g + old.b) / 3).toFixed(3) + ')', lum);
+    check(badUv === 0, 'every vertex on the surface map (0.25 the painted iron, 0.75 the glass)', badUv);
+    const H = up.max.y, Wd = up.max.x * 2;
+    check(H > 0.30 && H < 0.40 && up.min.y < 0 && up.min.y > -0.05, 'the elevated fitting stands ' + (H * 100).toFixed(1) + ' cm (a WWII flarepath fitting: 30-40 cm), its foot in the ground', H);
+    check(Wd > 0.18 && Wd < 0.25, 'its foot plate ' + (Wd * 100).toFixed(0) + ' cm across', Wd);
+    const gw = glassUp.max.x * 2;
+    check(gw > 0.10 && gw < 0.15 && glassUp.min.y > 0.2 && glassUp.max.y < 0.32, 'the well-glass ' + (gw * 100).toFixed(1) + ' cm across (10-15 cm), between ' + (glassUp.min.y * 100).toFixed(0) + ' and ' + (glassUp.max.y * 100).toFixed(0) + ' cm', gw);
+    check(F.RWY_LENS_Y > glassUp.min.y && F.RWY_LENS_Y < glassUp.max.y && Math.abs(F.RWY_LENS_R - glassUp.max.x) < 0.003, 'the glow stands in the glass (' + F.RWY_LENS_Y + ' m), the core\'s floor its radius');
+    check(flush.max.y > 0.015 && flush.max.y < 0.04 && flush.min.y < -0.01 && glassFl.max.y === flush.max.y, 'the flush fitting: a ' + (flush.max.y * 100).toFixed(1) + ' cm glass dome over the surface, its ring sunk', flush.max.y);
+    check(F.RWY_INSET_Y > 0 && F.RWY_INSET_Y < glassFl.max.y, 'the flush light\'s glow inside its dome');
+    // the winding: the elevated fixture faces out (CCW = its normals); the flush one is stored INSIDE OUT, so the instance's
+    // y flip turns it the right way out (and the elevated one under it inside out: culled)
+    const a = new THREE.Vector3(), b = new THREE.Vector3(), c = new THREE.Vector3(), n = new THREE.Vector3(), m = new THREE.Vector3(), t = new THREE.Vector3();
+    let outUp = 0, inUp = 0, outFl = 0, inFl = 0;
+    for (let k = 0; k < I.length; k += 3) {
+      a.fromBufferAttribute(P, I[k]); b.fromBufferAttribute(P, I[k + 1]); c.fromBufferAttribute(P, I[k + 2]);
+      n.subVectors(b, a).cross(t.subVectors(c, a)); if (n.lengthSq() < 1e-14) continue;
+      m.set(0, 0, 0); for (const q of [0, 1, 2]) m.add(t.fromBufferAttribute(N, I[k + q]));
+      const o = n.dot(m) > 0;
+      if (a.y > -1) { if (o) outUp++; else inUp++; } else { if (o) outFl++; else inFl++; }
+    }
+    check(outUp > 0 && inUp === 0 && inFl > 0 && outFl === 0, 'the elevated fixture faces out, the stored flush one inside out (' + outUp + ' / ' + inFl + ' faces): the instance flip rights it', [outUp, inUp, outFl, inFl].join(' '));
+    check(I.length / 3 <= 260, 'a light is ' + I.length / 3 + ' triangles, both fixtures (260 at most: the old ball, stem and can were 124)', I.length / 3);
+    // the colours: the clear glass white, the threshold glass green; the glow at 2800 K behind it, luminance-normalised
+    const lum = c3 => 0.2126 * c3[0] + 0.7152 * c3[1] + 0.0722 * c3[2];
+    const E = F.RWY_KIND.edge, T = F.RWY_KIND.thr;
+    check(Math.abs(lum(E.light) - 1) < 0.01 && Math.abs(lum(T.light) - 1) < 0.01, 'the two lights\' colours at luminance 1 x sqrt(cd) / 3 (both 9 cd)', [lum(E.light), lum(T.light)].join(' '));
+    check(Math.abs(E.light[1] / E.light[0] - 0.445) < 0.01 && Math.abs(E.light[2] / E.light[0] - 0.117) < 0.01, 'the edge light is a 2800 K bulb behind clear glass (1 : 0.445 : 0.117)');
+    check(T.light[0] === 0 && T.light[1] > T.light[2] && T.glass[1] > T.glass[0] && E.glass.join() === '1,1,1', 'the threshold\'s colour is its glass: a green filter (and green glass by day); the edge glass clear');
   }
   const src = RW.slice(RW.indexOf('function standRunwayLights'), RW.indexOf('let fillUpdate'));
-  check(/vertexColors: true, emissive: C\(hex\), emissiveMap: rwyMask\(\), emissiveIntensity: 0/.test(src), 'the material: vertex colours for the parts, the emissive map masks the glow to the lens, off by day');
-  check(/stand\(L\.edge, 0xfff1cc\); stand\(L\.thr, 0x37ff6a\);/.test(src) && (src.match(/new THREE\.InstancedMesh\(/g) || []).length === 1, 'two instanced meshes a strip at most (the edge row, the thresholds): the same draw count');
-  check(/const P = pts\.map\(\(\[x, z, fl\]\) => \[x, world\.terrainH\(x, z\) \+ \(fl \? RWY_INSET_Y : RWY_LENS_Y\), z, fl \? RWY_INSET : 1\]\);/.test(src) && /sv\.set\(1, p3\[3\], 1\); M\.compose\(pv, q, sv\);/.test(src), 'a flush light stands at the surface, squashed; an elevated one with its lens 35 cm up');
-  check(/const fy = P\[i\]\[3\], sy = sc \* \(fy \+ \(1 - fy\) \* Math\.min\(1, \(sc - 1\) \/ 2\)\);/.test(RW) && /rwyS\.set\(sc, sy, sc\);/.test(RW), 'at night a flush light grows like the rest (its squash lets go as it grows; by day it is back)');
+  check((src.match(/new THREE\.InstancedMesh\(/g) || []).length === 1 && (src.match(/new THREE\.Points\(/g) || []).length === 1 && !/frustumCulled = false/.test(src), 'a strip is ONE instanced fixture mesh and ONE points layer (the two draws the two colour meshes were), both frustum-culled');
+  check(/pv\.set\(x, fl \? y - RWY_DEEP : y, z\); sv\.set\(1, fl \? -1 : 1, 1\);/.test(src) && /im\.setColorAt\(i, tint\.setRGB\(K\.glass\[0\], K\.glass\[1\], K\.glass\[2\]\)\);/.test(src), 'a flush light is the fixture flipped and lifted; the glass\'s colour the instance\'s');
   check(/const L = runwayLightPoints\(a, world\.aerodromes, PO && PO\.pavedNear \? PO\.pavedNear : null\);/.test(src), 'standRunwayLights stands the core\'s places (the list this gate holds)');
-  check(/Math\.max\(1, Math\.min\(150, d \* 0\.003 \/ RWY_LENS_R\)\)/.test(RW) && /im\.userData\.grown = on > 0;/.test(RW), 'the lenses still grow with the distance at night (by the lens\'s own radius)');
-  check(/\.declare\('runway', 'runway lights', 'emissive', \(\) => \{ for \(const k in RWY\.mats\) RWY\.mats\[k\]\.emissiveIntensity = 0; \}\)/.test(RW), 'the NIGHT strip still mutes them (the switchboard\'s `runway`)');
-  check(/const body = 1 - 0\.985 \* on;/.test(RW) && /const c = RWY\.mats\[h\]\.color; c\.r = c\.g = c\.b = body; \}/.test(RW), 'the body darkens as the lights come on (the old near-black lens at night)');
+  check(/sizeAttenuation: false, vertexColors: true, transparent: true, depthWrite: false/.test(RW) && /blending: THREE\.CustomBlending, blendSrc: THREE\.OneFactor, blendDst: THREE\.OneFactor/.test(RW), 'the glow: three\'s points program, additive (one + one), no depth write');
+  check(/float rwB = uRwyL \* 1000\.0 \/ max\(rwD, 1\.0\);/.test(RW) && /float rwMin = max\(1\.5, uRwyPx \/ 360\.0\);/.test(RW) && /rwW = max\(rwW, 2\.0 \* \$\{RWY_LENS_R\} \/ max\(rwD, 0\.1\) \* rwPx\);/.test(RW), 'the core: never under 1.5 px, never narrower than the lens; its brightness ~ 1 / d (Stevens, a point source)');
+  check(/gl_FragColor\.rgb \*= atmoAP\(\)\.a;/.test(RW) && /mistApply\(vec3\(1\.0\), rwV, rwL, cameraPosition\.y\) - mistApply\(vec3\(0\.0\)/.test(RW), 'the haze transmits the light and adds nothing to the sprite');
+  check(/\.declare\('runway', 'runway lights', 'emissive', \(\) => \{ RWY\.U\.lvl\.value = 0; RWY\.shown = false; for \(const g of RWY\.glows\) g\.visible = false; \}\)/.test(RW), 'the NIGHT strip still mutes them (the switchboard\'s `runway`)');
+  const ap = RW.slice(RW.indexOf('  function runwayLightsApply('), RW.indexOf('  function applyWorldLights()'));
+  check(!/for \(let i/.test(ap) && /if \(RWY\.shown !== show\) \{ RWY\.shown = show; for \(const g of RWY\.glows\) g\.visible = show; \}/.test(ap), 'nothing per light per frame: one uniform; the strips\' layers hidden by day (a loop over the strips, only when the state turns)');
 }
 
 if (fails) { console.log('GATE RWYLIGHTS: FAIL (' + fails + ' of ' + (fails + nOk) + ')'); process.exit(1); }
