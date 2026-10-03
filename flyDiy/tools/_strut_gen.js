@@ -294,7 +294,10 @@ function strutSkin(AF, zLo, zHi) {
   // uses on the whole body: a query slices at ONE z, so it has no business
   // testing a quad four bays away. Measured on the stock cage this is the
   // difference between 51 ms and 12 ms of rebuild.
-  const NB = 24, span = Math.max(1e-6, b - a);
+  // G1282 (GARAGE-LAG): the bucket count follows the band's faces - the gear asks the WHOLE body (strutSkin(AF, z0,
+  // z1)), and 24 buckets over a fuselage held a thousand faces each (~45 ms a build in radAt). A face that crosses z
+  // has lo <= z <= hi, so it is in z's bucket whatever the count, and a bucket keeps the band's order: the same answer.
+  const NB = Math.max(24, Math.min(2048, Math.round(band.length / 8))), span = Math.max(1e-6, b - a);
   const buckets = Array.from({ length: NB + 1 }, () => []);
   const ib = z => Math.max(0, Math.min(NB, Math.floor((z - a) / span * NB)));
   for (const f of band) {

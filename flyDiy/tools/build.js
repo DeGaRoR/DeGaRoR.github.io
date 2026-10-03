@@ -455,6 +455,9 @@ const MANIFEST = {
   // They land at the head of the RENDER slot behind a CAGE_UI_LAZY flag, so
   // the editor boots on first open (app.js openEditor), not at page load.
   editor: [
+    // THE RAY INDEX (G1281, GARAGE-LAG): three's Mesh raycast answered from a per-geometry hierarchy - the same hits,
+    // three's own arithmetic, half of every editor build was brute-force rays. First, before any layer asks one.
+    '_ray_index.js',
     // THE DECLARED ASSEMBLY (G76) first: the part tree, the param -> part map
     // and the part -> section map every later file reads. Pure data, no deps.
     '_cage_parts.js',

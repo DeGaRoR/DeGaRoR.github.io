@@ -68184,3 +68184,112 @@ From reports/PERFORMANCE-LEADS-2026-10-02.md §4/§5 and PERFORMANCE-ASSET-AUDIT
 - GATES (`--no-build --only=`): GFX, BOOT, ROUNDTRIP, STAND, ASSETS, BUILD, REF, WORLD, TREES, AA PASS; and WORLDRENDER, SPLAT,
   LOOKS, WATER, PAVEMENT, AERO, SURF, BIOME, SITE, RWYTREES, TAXICLEAR, BLUEPRINT, SKIN, SKINMAT, MATLIB, LIVERY PASS.
   FRAMECOST PASS (111 s) and PARKED PASS after the parked re-cook on this tree (build e2969a357358: arch c172, cub, jodel).
+## G1280-G1282 - GARAGE-LAG: HALF OF EVERY EDITOR BUILD WAS THREE'S BRUTE-FORCE RAYCAST; THE RAY INDEX, AND TWO SAMPLERS BINNED (2026-10-03, GARAGE-LAG for A0, local GPU)
+
+The user (2026-10-03): "the garage has become sluggish. Not the camera, but the update time when changing plane
+parameters. I hope it's not the stupid tank fit again." Then, mid-session: the reference is 19 Sep (the last time they
+edited the Cessna by hand: "there I'm sure it was good"), and "we aim for instantaneous feeling".
+
+**THE RIG** (`tools/perf/garage_lag.js`, new): a fresh Chrome per load (CESSNA-LINKS), the served tree (`git archive
+<sha> flyDiy | tar -x` under `<repo>/_ab/<sha>/`, or the worktree), the build put in `flydiy.wip`, the garage loaded, then
+a fixed script of ten changes, each on its own widget: the cabin bay length (`p_paxLen`), the half width (`p_halfW`), the
+span and root chord (`p_wgSpan`, `p_wgChord`), the stab span (`p_stSpan`), the main gear's half track (`p_s1X`), the engine
+(`p_engPreset`), the tank capacity (the energy panel's range: input + change, a drag tick and its release), the livery's
+base colour, a cabin frame (`p_frCabTopW`). Each rep sets a distinct value (no cache can hold the previous rep's answer)
+and dispatches the event; `sync` = the handler (the build), `frame` = to the second rAF, `busy`/`settle` = the long tasks
+until the page has been quiet 700 ms (the tails). `--prof` adds one untimed rep under a CDP CPU profile: self and
+inclusive ms of the samples INSIDE the handler; `garage_lag_layers.js` splits that by the editor's post chain (each
+PAGE.post wraps the one before it); `garage_lag_table.js` prints the reports side by side. The Cub is today's first-boot
+Cub, captured once as `tools/perf/garage_lag_cub_wip.json` so the older trees (whose default was not the Cub, G770) build
+the same aeroplane; the metal Cessna is `bugReports/cessnaMetal (1).json`.
+
+**THE TABLE** (`sync` ms per tick, median (max) of 5, index.html, the tab in front; 19 Sep = 8f8d1884, 26 Sep = 3da1c82a,
+today = 06bbd8e3; reports `tools/perf/garage_lag_r1_0919.json`, `_r1.json`, `_fix2.json`):
+
+| Cub | 19 Sep | 26 Sep | today | fix |
+|---|---:|---:|---:|---:|
+| fuselage length | 321 (362) | 557 (593) | 653 (671) | 266 (333) |
+| fuselage width | 320 (358) | 568 (608) | 655 (704) | 272 (317) |
+| wing span | 314 (359) | 564 (587) | 650 (664) | 254 (263) |
+| wing chord | 309 (342) | 536 (561) | 635 (668) | 251 (295) |
+| tail size | 305 (338) | 547 (572) | 636 (643) | 244 (246) |
+| gear track | 303 (337) | 548 (581) | 646 (677) | 253 (292) |
+| engine | 305 (342) | 548 (578) | 649 (654) | 245 (248) |
+| tank capacity (tick + release) | 727 (774) | 510 (517) | 708 (719) | 692 (741) |
+| livery colour | 309 (344) | 548 (576) | 635 (653) | 249 (288) |
+| cabin frame | - (no row) | 584 (589) | 658 (691) | 243 (244) |
+
+| metal Cessna | 19 Sep | 26 Sep | today | fix |
+|---|---:|---:|---:|---:|
+| fuselage length | 526 (588) | 573 (617) | 686 (720) | 433 (441) |
+| fuselage width | 515 (544) | 593 (665) | 649 (667) | 415 (453) |
+| wing span | 498 (523) | 578 (613) | 691 (718) | 370 (372) |
+| wing chord | 530 (549) | 589 (728) | 668 (799) | 371 (429) |
+| tail size | 498 (540) | 596 (664) | 646 (714) | 357 (372) |
+| gear track | 531 (578) | 582 (608) | 631 (654) | 359 (398) |
+| engine | 498 (535) | 576 (615) | 643 (685) | 360 (383) |
+| tank capacity (tick + release) | 1797 (1804) | 1179 (1208) | 1045 (1124) | 1028 (1059) |
+| livery colour | 503 (553) | 568 (607) | 633 (724) | 358 (405) |
+| cabin frame | - (no row) | 573 (613) | 637 (714) | 359 (437) |
+
+Confirmed by an ABBA (today, fix, fix, today; 3 reps a slot; `garage_lag_abba.json`): Cub 627-663 -> 243-276, metal
+618-657 -> 358-414, every row; busy (the tick and its tails) Cub 627-740 -> 245-330, metal 679-725 -> 417-471.
+
+**THE CULPRIT** is not one commit, and it is not the tank fit (G1108's checks are ~15-20 ms of it). The profiles inside the
+handler (`garage_lag_dev0919.json`, `_dev1.json`):
+- 19 Sep -> 26 Sep (Cub +240 ms): the light layer went from 3-5 ms to ~200 ms a tick - **G453 (b96ddc22, 2026-09-21)**,
+  "the wingtip light is a fitment on the tip's outline". Its tipFit walks inboard 2 cm at a time asking chordAt, each a
+  48-step leading/trailing-edge walk of the wing's overAt/underAt probes, and each probe is a three Raycaster against the
+  whole wing skin: thousands of rays, each testing every triangle, on every slider tick whatever the slider.
+- 26 Sep -> today (+60-100 ms, both builds): the light layer +45 (Cub), the energy layer +15-20 (G1108's verdict: the
+  surface soup and the drawn-tank segment tests), the crew and the hinges +10 each.
+- Underneath it all: of today's ~790 ms Cub tick (dev.html, profiled), ~400 ms was three's Mesh._computeIntersections
+  (intersectTriangle, getVertexPosition, fromBufferAttribute) - the hinges' sheet probes, the gear's pads, the crew's
+  floor rays, the wing's probes. 150 ms of the metal Cessna's ~710.
+No per-train bisect was run: the in-handler profiles of the three trees name the layers and the functions directly, and
+the fix takes every tree's common cost (the rays) away rather than undoing a change.
+
+**THE FIX** - three changes, each exact (the same numbers, measured both ways):
+- **G1281 THE RAY INDEX** (`tools/_ray_index.js`, the editor list's first entry in build.js and in `_cage8.html`): three's
+  `Mesh.prototype._computeIntersections`, wrapped. A geometry asked more than twice (per position/index version: an edit
+  in place re-indexes) gets a BVH over its triangles' padded boxes; a ray walks it to the triangles whose box it meets,
+  and three's OWN `_computeIntersections` then runs over exactly those, in their order, through a view of the geometry
+  whose index holds only them (faceIndex mapped back). Nothing here computes an intersection, so a hit is three's
+  arithmetic on three's triangle, and the list is the same list in the same order. Untouched: material arrays (groups),
+  skinned meshes, morph targets, a partial draw range (BatchedMesh), meshes under 64 triangles. `?rayindex=0` or
+  `RAY_INDEX.on = false` is the old path. **GATE RAYINDEX** (`tools/_rayindex_check.js`, core, <1 s): 3 176 rays both
+  ways (random, axis-aligned, aimed exactly at vertices and edge midpoints, starting inside, near/far) over indexed,
+  non-indexed, front/back/double-sided, transformed, instanced meshes and a sliver soup with degenerate faces; every hit
+  list equal field by field (distance, point, faceIndex, face, uv, normal, barycoord, object); the skipped kinds take
+  three's walk; an edited geometry is re-indexed. On its own: Cub 650 -> 290, metal 660 -> 485 (`garage_lag_fix1.json`).
+  It is global (the whole page's raycasts get it), and exact, so nothing outside the editor can change but its speed.
+- **G1282 the door panel's inner sampler** (`_shoulder_gen.js` makeInnerSampler, ~90 ms a build on the metal Cessna):
+  binned by station AND height, per side (the height bins take the face's y range padded 1e-4, far past the walk's 1e-6
+  barycentric tolerance: a superset of the faces that can answer, the walk unchanged). Both ways on the metal Cessna's
+  and the Cub's built sheets: 332 920 queries (a 200 x 200 grid per side and every vertex), 0 differ, 1 765 -> 339 ms.
+- **G1282 the strut skin's buckets** (`_strut_gen.js` strutSkin, ~45 ms a build in radAt): the gear asks the WHOLE body
+  (strutSkin(AF, z0, z1)), and 24 buckets over a fuselage held ~1 000 faces each. The count now follows the band
+  (faces / 8, 24..2048); a face crossing z is in z's bucket whatever the count, in the band's order. Both ways (surf and
+  nrmAt): 139 076 queries, 0 differ, 3.6x. GATE STRUT unchanged.
+
+Tried and dropped: a content-keyed cache of the weathering's cavity bake (aeroWxBakeCavity, ~25 ms a build) - no
+measurable change on the box (within the noise), so not shipped.
+
+**GATES**: RAYINDEX, FIT, TANKMOUNT, ENERGY, HANGAR, BOOT, UISMOKE, FRAMECOST (after `parked_cook.js`: the editor is in
+FLYDIY_BUILD, the parked packs re-cooked and committed), BUILD, STRUT, SHOULDER, WEATHER - all PASS.
+
+**NOT INSTANT YET - what is left, measured (fix, dev.html profile, `garage_lag_fixdev2.json`):** a Cub tick is ~250 ms,
+the metal Cessna's ~370, spread thin: the sheet and its mesh 90-120 / 175-215, the crew 35-75, the energy layer 20-35,
+the hinges ~20, the struts/brace ~20, the gear ~20, the access fittings 20-30, the weathering's cavity bake ~25, eng +
+cowl ~25. No single function is over 30 ms any more. "Instantaneous" (under ~50 ms) needs structure, not hot spots:
+1. **A paint change rebuilds the whole aeroplane** (the base colour's oninput calls build(): 250-370 ms for a colour).
+   A repaint path (re-tint the built materials) would make the livery rows instant.
+2. **A slider rebuilds every layer**, whatever it moved: a wing row rebuilds the crew, the door panels, the hinges, the
+   tanks. Skipping a layer whose inputs (its rows + the sheet's signature) did not change, or rebuilding the detail
+   layers (lights, hinges, access fittings, crew, tanks) once the drag pauses, is the next order of magnitude.
+3. **The tank capacity's release** (~0.7 s Cub, ~1.0 s metal; not a regression - 19 Sep was 0.73 / 1.8 s) is the energy
+   commit's GARAGE_SPEC.update -> setAircraft: the pilot's machine sheet's shakedown (420-700 ms) and the model. The
+   pilot could build its sheet lazily (43_pilot.js reads it at construction) - a core change for its own session.
+
+Rigs: `tools/perf/garage_lag.js` (`--trees key=relpath,...`, `--builds cub,metal`, `--reps`, `--prof`, `--page dev.html`
+for named profiles, `--only`, `--list` dumps every widget, `--dumpwip`), `garage_lag_layers.js`, `garage_lag_table.js`.

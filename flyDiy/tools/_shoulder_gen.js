@@ -1008,7 +1008,13 @@ const INNER_SKIP = new Set(['dash', 'dashFace', 'firewall', 'fireProof', 'fireSe
 function makeInnerSampler(mesh) {
   const V = mesh.V, F = mesh.F;
   const BIN = 0.1;
+  // G1282 (GARAGE-LAG): binned by station AND by height, per side - a station band alone held every face of both
+  // flanks at that station, ~90 ms a build on the metal Cessna. The height bins take the face's y range padded by
+  // YPAD (far past the walk's 1e-6 barycentric tolerance), so a cell's list is a SUPERSET of the faces that can
+  // answer there and the walk below (unchanged, the smallest x wins) gives the same number.
+  const YPAD = 1e-4;
   const buckets = new Map(), faces = [];
+  const key = (side, b, c) => (side > 0 ? 'p' : 'n') + b + ':' + c;
   for (const f of F) {
     if (f.shoulder || f.doorPanel || f.m === 'joint' || f.m === 'doorSeal') continue;
     // EVERYTHING the door's inside is made of: its skin and pane, the
@@ -1019,17 +1025,21 @@ function makeInnerSampler(mesh) {
     // dash instead.
     if (INNER_SKIP.has(f.m)) continue;
     const P = asBuilt(V, f);
-    let z0 = 1e9, z1 = -1e9, sx = 0;
-    for (const p of P) { z0 = Math.min(z0, p[2]); z1 = Math.max(z1, p[2]); sx += p[0]; }
+    let z0 = 1e9, z1 = -1e9, y0 = 1e9, y1 = -1e9, sx = 0;
+    for (const p of P) { z0 = Math.min(z0, p[2]); z1 = Math.max(z1, p[2]); y0 = Math.min(y0, p[1]); y1 = Math.max(y1, p[1]); sx += p[0]; }
     if (Math.abs(sx / P.length) < 0.05) continue;
-    const id = faces.push({ P, side: sx >= 0 ? 1 : -1 }) - 1;
-    for (let b = Math.floor(z0 / BIN); b <= Math.floor(z1 / BIN); b++) {
-      if (!buckets.has(b)) buckets.set(b, []);
-      buckets.get(b).push(id);
-    }
+    const side = sx >= 0 ? 1 : -1;
+    const id = faces.push({ P, side }) - 1;
+    const c0 = Math.floor((y0 - YPAD) / BIN), c1 = Math.floor((y1 + YPAD) / BIN);
+    for (let b = Math.floor(z0 / BIN); b <= Math.floor(z1 / BIN); b++)
+      for (let c = c0; c <= c1; c++) {
+        const k = key(side, b, c);
+        if (!buckets.has(k)) buckets.set(k, []);
+        buckets.get(k).push(id);
+      }
   }
   return (side, y, z) => {
-    const list = buckets.get(Math.floor(z / BIN)) || [];
+    const list = buckets.get(key(side, Math.floor(z / BIN), Math.floor(y / BIN))) || [];
     let best = null;
     for (const id of list) {
       const fc = faces[id];

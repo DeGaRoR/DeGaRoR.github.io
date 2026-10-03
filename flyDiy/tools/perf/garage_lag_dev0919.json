@@ -1,0 +1,1285 @@
+{
+ "date": "2026-10-03T01:46:47.692Z",
+ "trees": [
+  {
+   "key": "ref0919",
+   "rel": "_ab/8f8d1884/flyDiy"
+  }
+ ],
+ "builds": [
+  "cub"
+ ],
+ "reps": 1,
+ "quiet": 700,
+ "udd": "D:/ugl1",
+ "page": "dev.html",
+ "rows": [
+  {
+   "tree": "ref0919",
+   "build": "cub",
+   "change": "fuseLen",
+   "widget": {
+    "id": "p_paxLen",
+    "tag": "INPUT",
+    "type": "range",
+    "min": "0.4",
+    "max": "3",
+    "step": "0.01",
+    "value": "1.76",
+    "label": "bay length",
+    "opts": null
+   },
+   "vals": [
+    1.7444,
+    1.7288
+   ],
+   "sync": {
+    "med": 329.7,
+    "max": 329.7
+   },
+   "frame": {
+    "med": 393.3,
+    "max": 393.3
+   },
+   "busy": {
+    "med": 329,
+    "max": 329
+   },
+   "settle": {
+    "med": 329,
+    "max": 329
+   },
+   "nLong": {
+    "med": 1,
+    "max": 1
+   },
+   "maxLong": {
+    "med": 329,
+    "max": 329
+   },
+   "fn": {
+    "genNormaliseSpec": [
+     0,
+     1
+    ],
+    "VESSEL_GEN.sLTable": [
+     2.8,
+     4
+    ],
+    "VESSEL_GEN.bayCache": [
+     1.3,
+     1
+    ],
+    "BENCH_DIRTY": [
+     0,
+     1
+    ],
+    "CAGE_ON_BUILD": [
+     8.4,
+     1
+    ],
+    "CAGE_ENERGY.toSpec": [
+     0,
+     1
+    ],
+    "CAGE_JOIN.export": [
+     1.3,
+     1
+    ]
+   },
+   "reps": [
+    {
+     "sync": 329.7,
+     "frame": 393.3,
+     "busy": 329,
+     "nLong": 1,
+     "maxLong": 329,
+     "settle": 329,
+     "fn": {
+      "genNormaliseSpec": [
+       0,
+       1
+      ],
+      "VESSEL_GEN.sLTable": [
+       2.8,
+       4
+      ],
+      "VESSEL_GEN.bayCache": [
+       1.3,
+       1
+      ],
+      "BENCH_DIRTY": [
+       0,
+       1
+      ],
+      "CAGE_ON_BUILD": [
+       8.4,
+       1
+      ],
+      "CAGE_ENERGY.toSpec": [
+       0,
+       1
+      ],
+      "CAGE_JOIN.export": [
+       1.3,
+       1
+      ]
+     },
+     "t0": 26747.799999952316
+    }
+   ],
+   "prof": {
+    "fn": [
+     [
+      "_ three.min.js:4172",
+      89.8
+     ],
+     [
+      "Jd.renderBufferDirect three.min.js:4223",
+      83.4
+     ],
+     [
+      "yl three.min.js:4223",
+      77.8
+     ],
+     [
+      "x three.min.js:4199",
+      76.7
+     ],
+     [
+      "bindVertexArray native:0",
+      57.8
+     ],
+     [
+      "applySkinDeform 50_model_codec.js:189",
+      48
+     ],
+     [
+      "radAt _strut_gen.js:279",
+      43.6
+     ],
+     [
+      "og three.min.js:4223",
+      42.3
+     ],
+     [
+      "getVertexPosition three.min.js:4",
+      37.3
+     ],
+     [
+      "d three.min.js:3826",
+      34.8
+     ],
+     [
+      "zr three.min.js:4121",
+      34.1
+     ],
+     [
+      "Ne three.min.js:4121",
+      29.5
+     ],
+     [
+      "f three.min.js:3826",
+      26.6
+     ],
+     [
+      "poseModel app.js:2897",
+      24.9
+     ],
+     [
+      "uniformMatrix4fv native:0",
+      23.4
+     ],
+     [
+      "setValue three.min.js:4121",
+      21.5
+     ],
+     [
+      "Vl three.min.js:4",
+      21.2
+     ],
+     [
+      "aeroWxCavity aeroweather.js:339",
+      19.8
+     ],
+     [
+      "b three.min.js:4199",
+      19.7
+     ],
+     [
+      "updateMatrixWorld three.min.js:4",
+      18.4
+     ],
+     [
+      "o three.min.js:3826",
+      18.2
+     ],
+     [
+      "r three.min.js:4223",
+      17.9
+     ],
+     [
+      "nf three.min.js:4223",
+      17.6
+     ],
+     [
+      "Yh three.min.js:4223",
+      16.7
+     ],
+     [
+      "De three.min.js:4121",
+      16.7
+     ]
+    ],
+    "file": [
+     [
+      "three.min.js",
+      983.3
+     ],
+     [
+      "(bindVertexArray)",
+      57.8
+     ],
+     [
+      "50_model_codec.js",
+      48.6
+     ],
+     [
+      "_strut_gen.js",
+      45.2
+     ],
+     [
+      "((program))",
+      40.6
+     ],
+     [
+      "app.js",
+      27
+     ],
+     [
+      "aeroweather.js",
+      23.8
+     ],
+     [
+      "(uniformMatrix4fv)",
+      23.4
+     ],
+     [
+      "_cage_gen.js",
+      22.3
+     ],
+     [
+      "_cage_crew.js",
+      19.8
+     ],
+     [
+      "((garbage collector))",
+      18.4
+     ],
+     [
+      "(drawElements)",
+      11.8
+     ]
+    ],
+    "gcMs": 18.4,
+    "syncMs": 333.4,
+    "syncIncl": [
+     [
+      "build _cage_ui.js:1304",
+      333.4
+     ],
+     [
+      "(anon) _cage_ui.js:2556",
+      333.4
+     ],
+     [
+      "rng.oninput _cage_ui.js:1736",
+      333.4
+     ],
+     [
+      "dispatchEvent native:0",
+      333.4
+     ],
+     [
+      "G.set native:12",
+      333.4
+     ],
+     [
+      "G.one native:18",
+      333.4
+     ],
+     [
+      "(root) native:0",
+      333.4
+     ],
+     [
+      "PAGE.post _cage_hinge.js:611",
+      234.2
+     ],
+     [
+      "CAGE_UI_BOOT.PAGE.post _cage_ui.js:2107",
+      234.2
+     ],
+     [
+      "PAGE.post _cage_energy.js:1010",
+      172.1
+     ],
+     [
+      "PAGE.post _cage_light.js:1212",
+      162.6
+     ],
+     [
+      "PAGE.post _cage_access.js:433",
+      159.7
+     ],
+     [
+      "PAGE.post _cage_stab.js:159",
+      138.6
+     ],
+     [
+      "PAGE.post _cage_fin.js:522",
+      136.5
+     ],
+     [
+      "PAGE.post _cage_float.js:119",
+      134.4
+     ],
+     [
+      "PAGE.post _cage_gear.js:190",
+      133.4
+     ],
+     [
+      "PAGE.post _cage_wing.js:482",
+      90.8
+     ],
+     [
+      "PAGE.post _cage_brace.js:77",
+      90.8
+     ],
+     [
+      "_computeIntersections three.min.js:4",
+      71.2
+     ],
+     [
+      "Gu three.min.js:8",
+      71.2
+     ],
+     [
+      "Vl three.min.js:4",
+      67.5
+     ],
+     [
+      "getVertexPosition three.min.js:4",
+      45.6
+     ],
+     [
+      "PAGE.post _cage_eng.js:802",
+      44.9
+     ],
+     [
+      "surf _strut_gen.js:305",
+      44.1
+     ],
+     [
+      "traverse three.min.js:4",
+      43.9
+     ],
+     [
+      "radAt _strut_gen.js:279",
+      43.6
+     ],
+     [
+      "strapHalf _hinge_gen.js:87",
+      40.5
+     ],
+     [
+      "strapHinge _hinge_gen.js:190",
+      40.5
+     ],
+     [
+      "intersectObjects three.min.js:8",
+      37.9
+     ],
+     [
+      "probe _cage_hinge.js:329",
+      37.9
+     ],
+     [
+      "hAt _hinge_gen.js:96",
+      37.9
+     ],
+     [
+      "fitPad _gear_gen.js:827",
+      35.4
+     ],
+     [
+      "PAGE.post _cage_cowl.js:800",
+      34.5
+     ],
+     [
+      "PAGE.post _cage_cowl.js:1037",
+      34.5
+     ],
+     [
+      "padOn _gear_gen.js:890",
+      33.3
+     ],
+     [
+      "intersectObject three.min.js:8",
+      33.3
+     ],
+     [
+      "strutBuild _strut_gen.js:392",
+      32.2
+     ],
+     [
+      "cageSheet _cage_gen.js:8004",
+      31.3
+     ],
+     [
+      "wingRay _cage_wing.js:1394",
+      28.5
+     ],
+     [
+      "padOn _strut_gen.js:578",
+      28.5
+     ],
+     [
+      "proj _strut_gen.js:541",
+      28
+     ],
+     [
+      "at _strut_gen.js:582",
+      28
+     ],
+     [
+      "padArc _gear_gen.js:808",
+      26.4
+     ],
+     [
+      "PAGE.post _cage_panel.js:330",
+      24.7
+     ],
+     [
+      "aeroWxBakeCavity aeroweather.js:397",
+      24.3
+     ],
+     [
+      "applyWeather _cage_ui.js:3144",
+      24.3
+     ],
+     [
+      "PAGE.post _cage_crew.js:3006",
+      24.2
+     ],
+     [
+      "(anon) aeroweather.js:409",
+      23.8
+     ],
+     [
+      "legLink _gear_gen.js:1204",
+      21.7
+     ],
+     [
+      "late _cage_crew.js:3142",
+      21.3
+     ],
+     [
+      "buildFloor _cage_crew.js:1971",
+      20.7
+     ],
+     [
+      "aeroWxCavity aeroweather.js:339",
+      19.8
+     ],
+     [
+      "computeVertexNormals three.min.js:4",
+      14.3
+     ],
+     [
+      "w native:6",
+      13.5
+     ],
+     [
+      "legTailwheel _gear_gen.js:1667",
+      12.7
+     ],
+     [
+      "cageInterior _cage_gen.js:3188",
+      12.7
+     ],
+     [
+      "mesh _gear_kit.js:47",
+      12.1
+     ],
+     [
+      "computeBoundingBox three.min.js:4",
+      11.7
+     ],
+     [
+      "fromBufferAttribute three.min.js:4",
+      11.6
+     ],
+     [
+      "nrmAt _strut_gen.js:321",
+      11.2
+     ]
+    ],
+    "syncSelf": [
+     [
+      "radAt _strut_gen.js:279",
+      43.6
+     ],
+     [
+      "getVertexPosition three.min.js:4",
+      37.3
+     ],
+     [
+      "Vl three.min.js:4",
+      21.2
+     ],
+     [
+      "aeroWxCavity aeroweather.js:339",
+      19.8
+     ],
+     [
+      "traverse three.min.js:4",
+      12.2
+     ],
+     [
+      "fromBufferAttribute three.min.js:4",
+      11.6
+     ],
+     [
+      "intersectTriangle three.min.js:4",
+      9.5
+     ],
+     [
+      "meshAirframe _gear_gen.js:600",
+      7.3
+     ],
+     [
+      "rayAt _cage_crew.js:1841",
+      5.8
+     ],
+     [
+      "meshFrom _cage_ui.js:953",
+      5.4
+     ],
+     [
+      "revolve _gear_kit.js:198",
+      4.8
+     ],
+     [
+      "applyBoneTransform three.min.js:4",
+      4.7
+     ],
+     [
+      "get garage.js:1251",
+      4.3
+     ],
+     [
+      "(anon) aeroweather.js:409",
+      4
+     ],
+     [
+      "anchors _cage_crew.js:2590",
+      3.8
+     ],
+     [
+      "cageSubdivide _cage_gen.js:6283",
+      3.7
+     ],
+     [
+      "shoulderTrace _shoulder_gen.js:167",
+      3.2
+     ],
+     [
+      "fieldScan _fit_site.js:199",
+      3.2
+     ],
+     [
+      "sweep _gear_kit.js:148",
+      2.9
+     ],
+     [
+      "pickParts _cage_wing.js:395",
+      2.9
+     ],
+     [
+      "s three.min.js:4",
+      2.7
+     ],
+     [
+      "updateMatrixWorld three.min.js:4",
+      2.7
+     ],
+     [
+      "sheetRay _cage_hinge.js:380",
+      2.7
+     ],
+     [
+      "cageInterior _cage_gen.js:3188",
+      2.7
+     ],
+     [
+      "(anon) _cage_gen.js:5293",
+      2.7
+     ],
+     [
+      "_computeIntersections three.min.js:4",
+      2.6
+     ],
+     [
+      "setFromBufferAttribute three.min.js:4",
+      2.3
+     ],
+     [
+      "PAGE.post _cage_crew.js:3006",
+      2.2
+     ],
+     [
+      "cageJointSweep _cage_gen.js:1893",
+      2.2
+     ],
+     [
+      "(anon) _cage_gen.js:3568",
+      2.2
+     ]
+    ]
+   }
+  },
+  {
+   "tree": "ref0919",
+   "build": "cub",
+   "change": "wingSpan",
+   "widget": {
+    "id": "p_wgSpan",
+    "tag": "INPUT",
+    "type": "range",
+    "min": "6.5",
+    "max": "14",
+    "step": "0.1",
+    "value": "10.7",
+    "label": "span",
+    "opts": null
+   },
+   "vals": [
+    10.6,
+    10.5
+   ],
+   "sync": {
+    "med": 351.4,
+    "max": 351.4
+   },
+   "frame": {
+    "med": 412.2,
+    "max": 412.2
+   },
+   "busy": {
+    "med": 351,
+    "max": 351
+   },
+   "settle": {
+    "med": 351,
+    "max": 351
+   },
+   "nLong": {
+    "med": 1,
+    "max": 1
+   },
+   "maxLong": {
+    "med": 351,
+    "max": 351
+   },
+   "fn": {
+    "genNormaliseSpec": [
+     0,
+     1
+    ],
+    "BENCH_DIRTY": [
+     0,
+     1
+    ],
+    "CAGE_ON_BUILD": [
+     7.7,
+     1
+    ],
+    "CAGE_ENERGY.toSpec": [
+     0,
+     1
+    ],
+    "CAGE_JOIN.export": [
+     1.3,
+     1
+    ]
+   },
+   "reps": [
+    {
+     "sync": 351.4,
+     "frame": 412.2,
+     "busy": 351,
+     "nLong": 1,
+     "maxLong": 351,
+     "settle": 351,
+     "fn": {
+      "genNormaliseSpec": [
+       0,
+       1
+      ],
+      "BENCH_DIRTY": [
+       0,
+       1
+      ],
+      "CAGE_ON_BUILD": [
+       7.7,
+       1
+      ],
+      "CAGE_ENERGY.toSpec": [
+       0,
+       1
+      ],
+      "CAGE_JOIN.export": [
+       1.3,
+       1
+      ]
+     },
+     "t0": 31247.799999952316
+    }
+   ],
+   "prof": {
+    "fn": [
+     [
+      "_ three.min.js:4172",
+      102.7
+     ],
+     [
+      "Jd.renderBufferDirect three.min.js:4223",
+      91.2
+     ],
+     [
+      "yl three.min.js:4223",
+      78.3
+     ],
+     [
+      "x three.min.js:4199",
+      65.8
+     ],
+     [
+      "bindVertexArray native:0",
+      55.2
+     ],
+     [
+      "og three.min.js:4223",
+      48.6
+     ],
+     [
+      "applySkinDeform 50_model_codec.js:189",
+      46.3
+     ],
+     [
+      "radAt _strut_gen.js:279",
+      40.3
+     ],
+     [
+      "getVertexPosition three.min.js:4",
+      36.2
+     ],
+     [
+      "Ne three.min.js:4121",
+      35.8
+     ],
+     [
+      "d three.min.js:3826",
+      33.6
+     ],
+     [
+      "poseModel app.js:2897",
+      31.9
+     ],
+     [
+      "zr three.min.js:4121",
+      30.8
+     ],
+     [
+      "intersectsObject three.min.js:4",
+      28.3
+     ],
+     [
+      "f three.min.js:3826",
+      27.7
+     ],
+     [
+      "setValue three.min.js:4121",
+      26.9
+     ],
+     [
+      "o three.min.js:3826",
+      22.5
+     ],
+     [
+      "upload three.min.js:4121",
+      21.6
+     ],
+     [
+      "uniformMatrix4fv native:0",
+      20.6
+     ],
+     [
+      "Vl three.min.js:4",
+      19.8
+     ],
+     [
+      "aeroWxCavity aeroweather.js:339",
+      19.7
+     ],
+     [
+      "De three.min.js:4121",
+      17.9
+     ],
+     [
+      "Yh three.min.js:4223",
+      17.7
+     ],
+     [
+      "nf three.min.js:4223",
+      16.2
+     ],
+     [
+      "multiplyMatrices three.min.js:4",
+      16
+     ]
+    ],
+    "file": [
+     [
+      "three.min.js",
+      1036.7
+     ],
+     [
+      "(bindVertexArray)",
+      55.2
+     ],
+     [
+      "((program))",
+      48.9
+     ],
+     [
+      "50_model_codec.js",
+      46.3
+     ],
+     [
+      "_strut_gen.js",
+      41.4
+     ],
+     [
+      "app.js",
+      33
+     ],
+     [
+      "_cage_crew.js",
+      30.2
+     ],
+     [
+      "((garbage collector))",
+      24.4
+     ],
+     [
+      "aeroweather.js",
+      21.8
+     ],
+     [
+      "_cage_gen.js",
+      21.5
+     ],
+     [
+      "(uniformMatrix4fv)",
+      20.6
+     ],
+     [
+      "_gear_kit.js",
+      15
+     ]
+    ],
+    "gcMs": 24.4,
+    "syncMs": 345.8,
+    "syncIncl": [
+     [
+      "build _cage_ui.js:1304",
+      345.8
+     ],
+     [
+      "(anon) _cage_ui.js:2556",
+      345.8
+     ],
+     [
+      "rng.oninput _cage_ui.js:1736",
+      345.8
+     ],
+     [
+      "dispatchEvent native:0",
+      345.8
+     ],
+     [
+      "G.set native:12",
+      345.8
+     ],
+     [
+      "G.one native:18",
+      345.8
+     ],
+     [
+      "(root) native:0",
+      345.8
+     ],
+     [
+      "CAGE_UI_BOOT.PAGE.post _cage_ui.js:2107",
+      247.3
+     ],
+     [
+      "PAGE.post _cage_hinge.js:611",
+      246.6
+     ],
+     [
+      "PAGE.post _cage_energy.js:1010",
+      182.7
+     ],
+     [
+      "PAGE.post _cage_light.js:1212",
+      177.5
+     ],
+     [
+      "PAGE.post _cage_access.js:433",
+      172.4
+     ],
+     [
+      "PAGE.post _cage_stab.js:159",
+      143.4
+     ],
+     [
+      "PAGE.post _cage_fin.js:522",
+      140
+     ],
+     [
+      "PAGE.post _cage_gear.js:190",
+      134
+     ],
+     [
+      "PAGE.post _cage_float.js:119",
+      134
+     ],
+     [
+      "PAGE.post _cage_wing.js:482",
+      92.9
+     ],
+     [
+      "PAGE.post _cage_brace.js:77",
+      92.9
+     ],
+     [
+      "Gu three.min.js:8",
+      72.2
+     ],
+     [
+      "_computeIntersections three.min.js:4",
+      71.6
+     ],
+     [
+      "Vl three.min.js:4",
+      65.7
+     ],
+     [
+      "traverse three.min.js:4",
+      46.3
+     ],
+     [
+      "PAGE.post _cage_eng.js:802",
+      45.3
+     ],
+     [
+      "getVertexPosition three.min.js:4",
+      43.2
+     ],
+     [
+      "surf _strut_gen.js:305",
+      40.9
+     ],
+     [
+      "radAt _strut_gen.js:279",
+      40.3
+     ],
+     [
+      "strapHinge _hinge_gen.js:190",
+      38.7
+     ],
+     [
+      "strapHalf _hinge_gen.js:87",
+      38.4
+     ],
+     [
+      "intersectObject three.min.js:8",
+      37.4
+     ],
+     [
+      "intersectObjects three.min.js:8",
+      34.8
+     ],
+     [
+      "probe _cage_hinge.js:329",
+      34.8
+     ],
+     [
+      "hAt _hinge_gen.js:96",
+      34.8
+     ],
+     [
+      "PAGE.post _cage_cowl.js:800",
+      34.8
+     ],
+     [
+      "PAGE.post _cage_cowl.js:1037",
+      34.8
+     ],
+     [
+      "fitPad _gear_gen.js:827",
+      33.5
+     ],
+     [
+      "strutBuild _strut_gen.js:392",
+      31.6
+     ],
+     [
+      "padOn _gear_gen.js:890",
+      30.1
+     ],
+     [
+      "wingRay _cage_wing.js:1394",
+      28.2
+     ],
+     [
+      "late _cage_crew.js:3142",
+      27.4
+     ],
+     [
+      "padOn _strut_gen.js:578",
+      27.1
+     ],
+     [
+      "buildFloor _cage_crew.js:1971",
+      26.9
+     ],
+     [
+      "cageSheet _cage_gen.js:8004",
+      24.8
+     ],
+     [
+      "PAGE.post _cage_panel.js:330",
+      24.6
+     ],
+     [
+      "PAGE.post _cage_crew.js:3006",
+      24.1
+     ],
+     [
+      "aeroWxBakeCavity aeroweather.js:397",
+      22.3
+     ],
+     [
+      "applyWeather _cage_ui.js:3144",
+      22.3
+     ],
+     [
+      "one aeroweather.js:400",
+      21.8
+     ],
+     [
+      "(anon) aeroweather.js:409",
+      21.8
+     ],
+     [
+      "legLink _gear_gen.js:1204",
+      20.6
+     ],
+     [
+      "aeroWxCavity aeroweather.js:339",
+      19.7
+     ],
+     [
+      "padArc _gear_gen.js:808",
+      18.9
+     ],
+     [
+      "computeVertexNormals three.min.js:4",
+      18.3
+     ],
+     [
+      "fromBufferAttribute three.min.js:4",
+      14.7
+     ],
+     [
+      "mesh _gear_kit.js:47",
+      14.4
+     ],
+     [
+      "nrmAt _strut_gen.js:321",
+      14
+     ],
+     [
+      "sceneCuts _cage_crew.js:1912",
+      13.8
+     ],
+     [
+      "(anon) _cage_crew.js:1922",
+      13.2
+     ],
+     [
+      "legTailwheel _gear_gen.js:1667",
+      11.6
+     ],
+     [
+      "intersectTriangle three.min.js:4",
+      10.3
+     ],
+     [
+      "floorWalls _cage_crew.js:1808",
+      9.9
+     ]
+    ],
+    "syncSelf": [
+     [
+      "radAt _strut_gen.js:279",
+      40.3
+     ],
+     [
+      "getVertexPosition three.min.js:4",
+      36.2
+     ],
+     [
+      "Vl three.min.js:4",
+      19.8
+     ],
+     [
+      "aeroWxCavity aeroweather.js:339",
+      19.7
+     ],
+     [
+      "fromBufferAttribute three.min.js:4",
+      13.3
+     ],
+     [
+      "intersectTriangle three.min.js:4",
+      10.3
+     ],
+     [
+      "revolve _gear_kit.js:198",
+      7.3
+     ],
+     [
+      "meshAirframe _gear_gen.js:600",
+      7
+     ],
+     [
+      "traverse three.min.js:4",
+      6.3
+     ],
+     [
+      "sheetRay _cage_hinge.js:380",
+      6.1
+     ],
+     [
+      "rayAt _cage_crew.js:1841",
+      5.6
+     ],
+     [
+      "_computeIntersections three.min.js:4",
+      5.4
+     ],
+     [
+      "computeVertexNormals three.min.js:4",
+      5.2
+     ],
+     [
+      "(anon) _cage_crew.js:1922",
+      5
+     ],
+     [
+      "cageSubdivide _cage_gen.js:6283",
+      4.6
+     ],
+     [
+      "floorWalls _cage_crew.js:1808",
+      4.3
+     ],
+     [
+      "shoulderTrace _shoulder_gen.js:167",
+      4.2
+     ],
+     [
+      "get garage.js:1251",
+      4
+     ],
+     [
+      "applyBoneTransform three.min.js:4",
+      3.8
+     ],
+     [
+      "build _cage_ui.js:1304",
+      3.7
+     ],
+     [
+      "pickParts _cage_wing.js:395",
+      3.3
+     ],
+     [
+      "meshFrom _cage_ui.js:953",
+      2.8
+     ],
+     [
+      "engMeshBuild _eng_mesh.js:198",
+      2.7
+     ],
+     [
+      "(anon) _cage_gen.js:5293",
+      2.6
+     ],
+     [
+      "sweep _gear_kit.js:148",
+      2.6
+     ],
+     [
+      "buildSurface _cowl_gen.js:484",
+      2.6
+     ],
+     [
+      "applyMatrix4 three.min.js:4",
+      2.6
+     ],
+     [
+      "setIndex three.min.js:4",
+      2.4
+     ],
+     [
+      "ceilAt _cage_light.js:1007",
+      2.2
+     ],
+     [
+      "buildFieldIndex _fit_site.js:143",
+      2.2
+     ]
+    ]
+   }
+  }
+ ],
+ "meta": [
+  {
+   "tree": "ref0919",
+   "build": "cub",
+   "load": {
+    "state": "ready",
+    "sec": 18.4
+   },
+   "ver": "4adae7bbd55b",
+   "exc": [],
+   "excAfter": []
+  }
+ ]
+}

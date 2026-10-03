@@ -239,6 +239,11 @@ const GATES = [
   // five SPECIFICATIONS, because the shapes alone never build an IFR
   // wing-tank aeroplane and that is where the collisions were.
   { id: 'FIT', file: '_fit_check.js', tier: 'core' },
+  // THE RAY INDEX (G1281, GARAGE-LAG): three's Mesh raycast answered from a per-geometry hierarchy must give three's
+  // own hit list - both ways on ~3 200 rays (random, axis-aligned, grazing at vertices and edges, inside, near/far)
+  // over indexed, non-indexed, transformed, instanced meshes and a sliver soup; the meshes it must leave alone take
+  // three's walk; an edited geometry is re-indexed. Under a second.
+  { id: 'RAYINDEX', file: '_rayindex_check.js', tier: 'core' },
   // THE CONTROL HARDWARE (G241): every control surface's nose turns INSIDE
   // its cove instead of through the wing — measured off the emitted vertices,
   // station by station, which is the clearance at every deflection because a
