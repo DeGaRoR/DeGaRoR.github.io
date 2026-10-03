@@ -220,6 +220,10 @@
   // fog wall; an island shows its whole geometry - the far mesh is the asset at
   // eps 4 - and the logarithmic depth buffer makes 100 km free
   const camera = new THREE.PerspectiveCamera(46, 1, 0.5, (typeof window !== 'undefined' && window.ISLAND_BOOT) ? 100000 : 7000);
+  // G1370 (UI-LAYER): the eye is the ONE camera that sees the in-world helpers (ui_layer.js) - the mirror, the probes
+  // and the bakers are born blind to them; photo mode (shotSet) takes the layer off again
+  const UIL = (typeof UI_LAYER !== 'undefined') ? UI_LAYER : null;
+  if (UIL) UIL.see(camera);
   const target = new THREE.Vector3(2.2, 1, 0);
   // THE ORBIT IS SMOOTHED (G39, user: "very shaky ... slightly jumps
   // when moving", and the old garage always had it). Input writes the
@@ -696,6 +700,7 @@
     } else if (THREE.WebGLCubeRenderTarget) {
       ensureEnvRT();
       const cam = new THREE.CubeCamera(0.5, 100, envRT);
+      if (UIL) for (const c of cam.children) UIL.blind(c);   // G1370: the probe never bakes a UI helper (its six are born blind; said)
       // G439 (A5): THE PROBE STANDS UNDER THE LAMPS. 3.2 m is a club-hangar
       // number (eave 7); in the field shed (eave 3.6, the pendants hung at
       // 0.74 x eave with their shades above) the cube camera stood INSIDE the
@@ -6113,6 +6118,7 @@
   const gGrp = new THREE.Group();
   gGrp.frustumCulled = false;
   craft.add(gGrp);
+  if (UIL) UIL.claim(gGrp);              // G1370: the CG / NP posts and their labels are UI (buildIndicators claims what it adds)
   // MEASURED, NOT DERIVED. The gear layer publishes its legs' AXLES in the
   // editor mount's own frame and the frame names the same two nodes GAL/GAR,
   // so the gap between the two aeroplanes is read off the one landmark both
@@ -6204,7 +6210,7 @@
     const label = (px, py, pz, text, col, sub) => {
       const sp = makeLabel(text, col, sub);
       sp.position.set(px, py + 0.42, pz);
-      gGrp.add(sp); gLabels.push(sp);
+      gGrp.add(UIL ? UIL.claim(sp) : sp); gLabels.push(sp);
     };
     const post = (px, pz, col, h) => {
       seg([px, 0, pz], [px, h, pz], col);
@@ -6241,7 +6247,7 @@
     g.setAttribute('color', new THREE.BufferAttribute(new Float32Array(C), 3));
     gInd = new THREE.LineSegments(g, new THREE.LineBasicMaterial({ vertexColors: true }));
     gInd.frustumCulled = false;
-    gGrp.add(gInd);
+    gGrp.add(UIL ? UIL.claim(gInd) : gInd);
     placeIndicators();
   }
 
@@ -6657,6 +6663,7 @@
   function parkedFlush() { if (typeof window !== 'undefined' && window.PARKED && window.PARKED.flush) window.PARKED.flush(); }   // hoisted: no TDZ
   function enterGarage() {
     parkedFlush();
+    rollShotUi(false);
     rolledOut = false;
     if (specPending) { specPending = false; setAircraft('gen'); }
     if (!inGarage) {
@@ -6751,6 +6758,11 @@
   // ROLLANIM lines (before poseModel, after placeCamera) are the host hooks the shot needs anywhere.
   const RA_Q = (() => { try { const m = /[?&]rollanim=([a-z0-9]+)/.exec(location.search); if (m) return m[1]; const p = prefGet('flydiy.rollanim', ''); return p === '1' || p === '0' ? p : ''; } catch (e) { return ''; } })();
   let raBusy = false, raSide = 0;
+  // G1370 (UI-LAYER, the user: the action buttons "must NOT show during the roll-out cinematic"): body.rollShot holds
+  // the verbs (#flActs: Pause, Restart, Skip to line-up, Fly the circuit, The shed - flight.css) off from the shot's
+  // first frame until the reveal hands over (flRevealStart), or the shed takes the aeroplane back (a solo shot,
+  // enterGarage)
+  function rollShotUi(on) { try { document.body.classList.toggle('rollShot', !!on); } catch (e) {} }   // (hoisted: enterGarage runs at boot, above here)
   function rollAnimCan() {
     return typeof ROLLANIM !== 'undefined' && inGarage && !raBusy && !!model && !rig && !rigLift && garageIsHangar() && !!hangar;
   }
@@ -6762,6 +6774,7 @@
     closeEditor();
     const pq = $('plaque'); if (pq) pq.classList.remove('on');
     const cage = showCage; showCage = false; applySkinVis();
+    rollShotUi(true);
     let h = null;
     try {
       h = ROLLANIM.play({ craft, scene: hangarScene, camera, hangar, model, def, sim,
@@ -6774,6 +6787,7 @@
   function rollAnimSolo() {
     if (!rollAnimCan()) return null;
     return rollAnimPlay(cage => {
+      rollShotUi(false);
       if (!inGarage) return;
       showCage = cage; applySkinVis(); garageCamera(); openEditor();
       if (RA_Q === 'loop') setTimeout(() => { if (inGarage) rollAnimSolo(); }, 2500);
@@ -9409,6 +9423,9 @@
     edSitP.traverse(o => {
       if (o.name === 'edCanopyLoops' || (o.userData && o.userData.edHi)) o.visible = !on;
     });
+    // G1370 (UI-LAYER, the user: the path ribbons "are not hidden in screenshot mode"): every helper on the UI layer
+    // - the pattern's ribbons, the pilot's legs, the CG posts, the editor's outlines - leaves the shot with the layer
+    if (UIL) UIL.see(camera, !on);
     if (on) { try { flyOpenSet(null); } catch (e) {} }
     if (typeof placeIndicators === 'function') placeIndicators();
     // the canvas re-insets through its CSS transition; measure at both ends
@@ -10505,6 +10522,7 @@
   let flReveal = 0;
   const FL_REVEAL_K = 0.022, FL_REVEAL_FRAMES = 360;
   function flRevealStart() {
+    rollShotUi(false);                   // G1370: the verbs come back as the reveal hands over
     flShedBox = worldShedBox();
     flReveal = 0;
     // the panel arc (session 4b): rolling out INTO the cockpit seats the

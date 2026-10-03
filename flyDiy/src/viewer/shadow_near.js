@@ -276,7 +276,9 @@ var SHADOW_NEAR = (function () {
     };
   }
   // tag(o): a caster into the near map (the craft's group, a house, the pier)
-  function tag(o) { if (o && o.traverse) o.traverse(m => { m.layers.enable(NEAR_LAYER); }); }
+  // (G1370: never a UI helper - ui_layer.js: its mask is its one layer, so photo mode's switch hides it; it casts nothing)
+  const isUi = m => !!(m.userData && m.userData.uiLayer);
+  function tag(o) { if (o && o.traverse) o.traverse(m => { if (!isUi(m)) m.layers.enable(NEAR_LAYER); }); }
   // tagCraft(group): the craft - a near caster, its materials near-only (the far map's stepping never on its skin)
   let craftGroup = null, craftFar = null, craftPose = null;
   const craftC = (typeof THREE !== 'undefined' && THREE.Vector3) ? new THREE.Vector3() : null;
@@ -298,6 +300,7 @@ var SHADOW_NEAR = (function () {
       if (n) { craftPose = pose; craftC.copy(all.center); S.craftR = all.radius; }
     }
     group.traverse(m => {
+      if (isUi(m)) return;   // G1370: the CG posts ride the craft's group, and are UI
       m.layers.enable(CRAFT_LAYER); m.layers.disable(NEAR_LAYER); m.userData.craft = true;   // render_world's near tagging leaves the craft's meshes alone
       const mats = m.material ? (Array.isArray(m.material) ? m.material : [m.material]) : [];
       // the craft RECEIVES its own shadow now (a wing on the fuselage, a strut on the wing): it never did - three's
@@ -333,7 +336,7 @@ var SHADOW_NEAR = (function () {
     const live = S.on ? 1 : 0;
     nearScalars[0] = live; L.visible = !!live; L.castShadow = !!live;
     const far = !live;   // the craft is on the far map only while the near map is off
-    if (craftGroup && far !== craftFar) { craftFar = far; craftGroup.traverse(m => { if (far) m.layers.enable(FAR_LAYER); else m.layers.disable(FAR_LAYER); }); }
+    if (craftGroup && far !== craftFar) { craftFar = far; craftGroup.traverse(m => { if (isUi(m)) return; if (far) m.layers.enable(FAR_LAYER); else m.layers.disable(FAR_LAYER); }); }
     return live;
   }
   //

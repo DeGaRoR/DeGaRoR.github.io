@@ -68752,3 +68752,66 @@ train; cloud, `run_gates.js --only=`, base 5502f45, not rebased):
 | FLOWNBAKE | listed by the brief (the bake's key over the spec) | PASS |
 
 Full battery (`--all`) NOT run, on A0's instruction. Generated files not committed. G1323-G1324 unused.
+
+## G1370-G1374 - UI-LAYER: THE IN-WORLD HELPERS ON A LAYER ONLY THE EYE SEES; THE VERBS OFF FOR THE ROLL-OUT SHOT (2026-10-03, UI-LAYER for A0, cloud - no GPU; branch claude/ui-layer-g1370 off master 5502f45)
+
+The user (2026-10-03): the autopilot's path ribbons "reflect, and they're not hidden in screenshot mode. They should be
+clearly considered UI elements"; the action buttons must not show during the roll-out cinematic; and any other in-world
+helper with the same problem goes on the same layer.
+
+**G1370 THE UI LAYER** (`src/viewer/ui_layer.js`, new, in the viewer's scripts right after matlib.js): layer **30**
+(29 is the warm-up's, 31 shadow_near's empty layer, 2-5 the shadow scheme's). `UI_LAYER.claim(obj)` puts obj and every
+descendant on the UI layer ALONE (mask = 1 << 30), castShadow / receiveShadow off, `userData.uiLayer = true`;
+`see(cam, on)` / `blind(cam)`. Layers are per object in three (a child does not inherit its group's), so every site
+claims what it ADDS. The rules:
+- ONLY THE MAIN CAMERA SEES IT: app.js `UIL.see(camera)` once; its clones (the warm-up views) inherit it. Every other
+  camera is born on layer 0 alone: the water's planar mirror (water.js `MIR.cam` - blinded every capture all the same),
+  the shed's reflection probe (the CubeCamera's six - blinded), the world's FAR / COVER maps, the bakers.
+- PHOTO MODE = THE LAYER OFF THE EYE: `shotSet(on)` -> `UIL.see(camera, !on)`. One switch, whichever module made the
+  helper. (No photo mode landed on master and no claude/celebration-* branch is on origin: this is the screenshot mode,
+  G255's `shotSet` / `window.SHOT_MODE`. A CELEBRATION photo mode should call `SHOT_MODE.enter()` or `UI_LAYER.see(camera,
+  false)` - nothing else to do.)
+- NEVER A SHADOW CASTER: three r186's shadow walk tests layers against the MAIN camera (G1080.2), so a helper the eye sees
+  IS walked - castShadow off keeps it out. AND THE SHADOW TAGGING LEAVES IT ALONE: render_world.js `nearWatch` enabled
+  FAR_LAYER (2) on everything in the world scene and CRAFT_LAYER (5) on everything under the craft (the CG posts ride
+  `craft`); shadow_near.js `tag` / `tagCraft` / `apply` did the same. The main camera has 3 and 5 enabled, so a helper
+  carrying those bits would survive photo mode. All four now skip `userData.uiLayer`; hangar.js's craft floor print
+  (layer 4, `craft.traverse`) skips it too (it had been printing the editor's selection silhouette meshes into the floor).
+- A Raycaster (layer 0) no longer hits a helper: the pick code already skipped every overlay (edHi), so nothing changes.
+
+**WHAT MOVED (G1371)**:
+- pattern_vis.js: the taxi graph's ribbons, discs, stop bars and arrows; the two glide slopes (and the active one when
+  setActive redraws it); the two touchdown targets; the PILOT'S PLANNED LEGS (the circuit line in the air, on by default
+  - the one the user saw in the lake). Also the copies render_premises.js builds through the same builder. **The PAPI stays
+  a world object** (lit boxes on the airfield: it reflects and it is in the photo). `api.UI_KEYS` names the four.
+- app.js: the CG / NP posts (`gGrp`, `gInd`) and their label sprites (already hidden in the shot and the roll-out by
+  `placeIndicators`; now out of the mirror and the probe too).
+- editor.js: the selection / hover outlines (`hiEdges`) and silhouette pairs (`hiSilPair`).
+- NOT MOVED, deliberately: the beam skeleton (`lines` / `pts` under `craft`) - with the skin off it IS the aeroplane's
+  drawing, a view mode, not an overlay; aeroskin.js's glass companion (`edHi` set, but a part of the skin); the premises
+  editor's outlines, plots, links and ghost (render_premises.js) - its selection raycasts those lines (a layer-0
+  Raycaster would stop hitting them) and the flight chrome is off under `body.premOpen`. Candidates if the user asks.
+
+**G1372 THE VERBS WAIT FOR THE REVEAL**: `body.rollShot` (flight.css: `#flActs { display:none !important }` - Pause,
+Restart, Skip to line-up, Fly the circuit, The shed). app.js `rollShotUi(on)` (a hoisted declaration: `enterGarage`,
+above it, runs at boot): ON in `rollAnimPlay` before `ROLLANIM.play` (the shot's first frame); OFF first thing in
+`flRevealStart` (the reveal hands over), at a solo shot's end (back to the shed), and in `enterGarage` (a roll-in over the
+trip). A throw, a skip or the 30 s timeout all go on to the reveal, so all clear it.
+
+**G1373 GATE UILAYER** (`tools/_ui_layer_check.js`, core, ~5 s; row after ROLLANIM): real three r186, the real core
+(HOME's declared pattern, its sampler), pattern_vis.js and shadow_near.js, three's own criteria (`layers.test` for a
+camera; visible + layers vs the main camera + castShadow for the shadow walk). U1 every graph / slope / targets / legs
+object (32 on HOME, the legs and a redrawn slope included) on the UI layer alone, casting nothing; the PAPI on layer 0.
+U2 the eye sees them; photo mode, the mirror camera (blinded and bare), the probe's six faces and an ortho map camera
+see none; the PAPI stays in the mirror and the shot. U3 the shadow walk reaches none; shadow_near's tagCraft / tag / apply
+leave a claimed child of the craft at 1 << 30 while the skin is tagged as before. U4 the wiring in the sources and the
+BUILT index.html (ui_layer.js before pattern_vis.js and app.js). U5 the CSS rule, `rollShotUi(true)` before
+`ROLLANIM.play`, the three clears, and rollShotUi itself toggling the class on a stub body. Negative control: with
+UI_LAYER absent, U1 / U2 fail (28 of 32 helpers seen in photo mode, all of them in the mirror).
+
+**G1374 GATES** (cloud, no GPU; `run_gates.js --only=UISMOKE,ROLLANIM,BUILD,UILAYER`): UISMOKE PASS 218.5 s, ROLLANIM
+PASS 52.3 s (777 checks), UILAYER PASS 3.8 s (32 ok), BUILD PASS 3.1 s - BATTERY: PASS. Not run (not in the brief):
+the battery, FRAMECOST, the page itself. The mirror's draw count can only fall (fewer objects pass its layer test).
+NOT SEEN ON A SCREEN: the cloud has no GPU - A0's eyeball: a circuit over the lake with legs on (no line in the water),
+photo mode (no ribbon, no legs), a roll-out (no verbs until the stand's first frame). No flyDiy/CLAUDE.md exists on
+master (the brief named one); the session ritual here was HANDOVER's.
