@@ -68370,3 +68370,7 @@ and the surface (a lane read as grass, the look ignored, none at all): all six g
 NOT DONE / NEXT: no browser check of the pickers (no GPU in the cloud; UISMOKE boots the page); skis and amphibians
 need gear in the garage first (a spec type, wheels in the float hull); snow needs a surface in the data (a record flag
 or a climate snow line) and a friction row.
+
+GATES (cloud, --only, jobs 4): STRIPSURF (+ --selftest), NAV, PILOT (3 shards), TAKEOFF, TAXICLEAR, PLAN, LINEUP,
+UISMOKE, FLOATS, SEAPLANE, BUILD - all PASS. Not run: --all (the brief named the gates). The generated outputs
+(index.html, dev.html, tools/flight_core.js, sw.js, version.json) are NOT committed - A0's build commit makes them.
