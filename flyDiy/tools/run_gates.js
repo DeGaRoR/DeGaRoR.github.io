@@ -311,8 +311,9 @@ const GATES = [
   // G810 (ARCH-2026-09-27 §2.4): the solver on its own thread - src/viewer/sim_host.js in a worker_threads Worker
   // (the core only, the trimmed boot) driven through sim_view.js flies the page's inline loop to the bit on Jolene
   // (stock + the metal Cessna, a scripted input list stamped by step), its real-time log replays inline to the bit,
-  // the fetch path and the Blob's glue; the transport, the pose age and the dilation printed; ~40 s
-  { id: 'SIMWORKER', file: '_simworker_check.js', tier: 'core', wall: 60 },
+  // the fetch path and the Blob's glue; the transport, the pose age and the dilation printed; G1365: the page's freeze
+  // HOLDS the flight (60 s on a fake clock, 1.5 s on the real thread) and it goes on from there; ~60 s
+  { id: 'SIMWORKER', file: '_simworker_check.js', tier: 'core', wall: 70 },
   // G816 (C1b): the PAGE flown through the worker - dev.html?simw=1 against dev.html in the page-in-node harness (its
   // Worker shim: node worker_threads, the same Blob source and messages), the Cub and the metal Cessna, the roll-out,
   // 40 s of the departure taxi at 2x: every step's p / v / CG / phase and every frame's page reads bit-identical, no

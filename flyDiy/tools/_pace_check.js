@@ -5,7 +5,9 @@
 //   - a 60 Hz screen capped at 30 renders every 2nd refresh, 2 solver steps each - exactly, every frame;
 //     capped at 60 every refresh, 1 step each;
 //   - a 144 Hz screen, capped at 60 or uncapped: the sim time kept equal to the wall time (to a frame);
-//   - a slow frame owes its steps (50 ms -> 3), a stall owes at most 4 and forgets the rest;
+//   - a slow frame owes its steps (50 ms -> 3), a hitch at most 4 and forgets the rest;
+//   - G1365 (SIM-STALL): a STALL (250 ms or more: a freeze, a tab away) owes nothing of the wall time it lost - the frame
+//     after it is an ordinary frame of the cap (its steps, its dt), so a 60 s freeze finds the aeroplane where it was;
 //   - AUTO: frames over 18.5 ms drop it to 30 after three readings; at 30 a frame whose one-step work fits
 //     60's budget earns a trial of 60; a trial that misses goes back to 30 and holds the next trial off
 //     (5 s, doubling, 30 s at most); a trial that holds stays at 60; the auto render scale is told the
@@ -97,16 +99,32 @@ for (const fps of [60, 'off']) {
   verdict(Math.abs(r.rendered - want) <= want * 0.05 && Math.abs(r.simS - r.wallS) < 0.05,
     `144 Hz ${fps === 60 ? 'capped at 60' : 'uncapped'}: ${r.rendered} frames (~${want}), the sim ${r.simS.toFixed(3)} s in ${r.wallS} s`);
 }
-// 4. a slow frame owes its steps; a stall owes at most 4 and forgets the rest
+// 4. a slow frame owes its steps; a hitch owes at most 4 and forgets the rest; a STALL owes nothing (G1365)
 {
   const { PACE } = make({ pref: { fps: 'off' } });
   PACE.frame(1000);
   const f1 = PACE.frame(1050);
   const n1 = f1.steps;
-  const f2 = PACE.frame(1050 + 900);
-  const n2 = f2.steps;
-  const f3 = PACE.frame(1050 + 900 + 1000 / 60);
-  verdict(n1 === 3 && n2 === 4 && f3.steps === 1, `a 50 ms frame owes ${n1} steps (3), a 900 ms stall ${n2} (4, the rest forgotten), the next 60th ${f3.steps} (1)`);
+  const f2 = PACE.frame(1050 + 200);
+  const n2 = f2.steps, d2 = f2.dt;
+  const f3 = PACE.frame(1250 + 900);
+  const n3 = f3.steps, d3 = f3.dt;
+  const f4 = PACE.frame(2150 + 1000 / 60);
+  verdict(n1 === 3 && n2 === 4 && Math.abs(d2 - 0.2) < 1e-9 && n3 === 1 && d3 === 1 / 60 && f4.steps === 1,
+    `a 50 ms frame owes ${n1} steps (3), a 200 ms hitch ${n2} (4, the rest forgotten - today's, dt ${d2.toFixed(3)}), a 900 ms stall ${n3} (1, dt ${(d3 * 1000).toFixed(1)} ms: the lost time not owed), the next 60th ${f4.steps} (1)`);
+  // the user's freeze (3 Oct: 79 s - "when it unfreezes, I find it miles away"): 60 s at the 30 cap, then 60 s visible at 60
+  for (const cap of [30, 60]) {
+    const { PACE: Q } = make({ pref: { fps: cap } });
+    let t = 1000, sim = 0, wall0;
+    const go = (ms, k) => { for (let i = 0; i < k; i++) { t += ms; const f = Q.frame(t); if (f) { sim += f.steps / 60; Q.end(5, 1, f.steps, t); } } };
+    go(1000 / 60, 120);
+    const s0 = sim; wall0 = t;
+    go(60000, 1);                                    // the freeze
+    const sS = sim - s0, dt = Q.dt;
+    go(1000 / 60, 60);                               // a second on
+    verdict(sS <= 2 / 60 + 1e-9 && dt <= 2 / 60 + 1e-9 && Math.abs((sim - s0) - (t - wall0 - 60000) / 1000) < 3 / 60 && Q.state().stats.stalls === 1,
+      `  capped at ${cap}: a 60 s freeze moves the sim ${(sS * 1000).toFixed(1)} ms (the cap's one frame), dt ${(dt * 1000).toFixed(1)} ms; the next second flies ${(sim - s0 - sS).toFixed(3)} s - real time again, nothing owed (stalls ${Q.state().stats.stalls})`);
+  }
 }
 // 5. AUTO: a frame that misses 60 drops to 30; at 30 a light frame earns a trial; a missed trial backs off
 {

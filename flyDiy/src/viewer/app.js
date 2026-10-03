@@ -11115,12 +11115,13 @@
   const PACE = (() => {
     const W = window, nav = W.navigator || {};
     const RIG = !!(nav.webdriver || /HeadlessChrome/.test(nav.userAgent || ''));
+    const STALL_MS = 250;   // G1365: a frame this late is a stall, not a hitch (the physics worker's SIM_HOST_STALL_MS)
     const FORCE = !!(W.location && /[?&]pace=1/.test(W.location.search || ''));
     const P = {
       mode: 'auto', cap: 60, legacy: RIG && !FORCE,
       acc: 0, lastT: 0, due: 0, dt: 1 / 60, steps: 1, t0: 0,
       iv: [], work: [], hist: [], strikes: 0, goods: 0, trial: null, holdUp: 0, trials: 0, upT: -1e9, lastWork: 0,
-      stats: { down: 0, up: 0, trialsFailed: 0, guarded: 0, cut: 0 },
+      stats: { down: 0, up: 0, trialsFailed: 0, guarded: 0, cut: 0, stalls: 0 },
       hiddenT: -1, frz: { n: 0, maxMs: 0, lastT: 0, away: 0 },   // G620: the freezes the readout keeps; the page's last hidden moment
       // the guard's readings (G612): a solver step (ms), the frame less its solver (ms), the last frame's solver;
       // the dilation's window (sim s and wall s, decaying over a second) and the sim time the guard let go
@@ -11143,13 +11144,20 @@
       if (iv) P.due = (P.due && ts - P.due < iv) ? P.due + iv : ts + iv;
       const hadT = P.lastT > 0;
       P.lastT = ts;
-      P.dt = Math.min(0.25, Math.max(0, dms / 1000));
-      P.acc += P.dt;
-      let n = Math.floor(P.acc * 60 + 0.25);
-      if (n > 4) { n = 4; P.acc = 0; } else P.acc -= n / 60;
+      const nom = cap ? Math.max(1, Math.round(60 / cap)) : 1;
+      let n;
+      if (hadT && dms >= STALL_MS) {
+        // G1365 (SIM-STALL): THE PAGE STALLED (a freeze, a tab away): the flight HOLDS - this frame is an ordinary one (the
+        // cap's own steps, the cap's own dt), the wall time lost is not owed (the 4 steps a stall owed are gone too)
+        P.dt = nom / 60; P.acc = 0; n = nom; P.stats.stalls++;
+      } else {
+        P.dt = Math.min(0.25, Math.max(0, dms / 1000));
+        P.acc += P.dt;
+        n = Math.floor(P.acc * 60 + 0.25);
+        if (n > 4) { n = 4; P.acc = 0; } else P.acc -= n / 60;
+      }
       if (hadT && dms < 250) { const o = Math.max(0, dms - P.lastPhys); P.otherMs = P.otherMs ? P.otherMs + 0.1 * (o - P.otherMs) : o; }
       // the guard (above): only past the point where real time cannot be held
-      const nom = cap ? Math.max(1, Math.round(60 / cap)) : 1;
       if (n > nom && P.stepMs > 0) {
         const room = 1000 / 60 - P.stepMs, need = room > 0 ? P.otherMs / room : Infinity;
         if (need > 4) {
