@@ -77,6 +77,11 @@ const STRESS = [
   { id: 'town', label: 'the town on (?town=1)', gfx: null, q: 'town=1' },
 ];
 const SIZE = (opt('size', '2216x1023')).split('x').map(Number);
+// G1295 (EVEN-30): --gfx <file.json> - the graphics prefs (flydiy.gfx) every build's load is given (the user's custom set,
+// a forced 'fps'); --rec <dir> - the flight recorder's ring saved per page (before each fresh Chrome and at the end), each
+// scene's page-clock window in its row (t0 / t1): the long frames' slots, long tasks, LoAFs and GCs read offline
+const GFX = opt('gfx', null) ? JSON.parse(fs.readFileSync(path.resolve(opt('gfx')), 'utf8')) : null;
+const RECDIR = opt('rec', null) ? path.resolve(opt('rec')) : null;
 const REFRESH = 1000 / 60;
 
 // ---- THE FIGURES AT THE START OF THE RUN -----------------------------------------------------------------------------
@@ -190,7 +195,13 @@ function preScript(build, gfx, patch) {
     var poll = function () { if (gl0 && pend.length) { var t = performance.now(), keep = [];
       for (var i = 0; i < pend.length; i++) { var e = pend[i], ok = true; try { ok = e[3].getProgramParameter(e[2], 0x91B1); } catch (x) {} if (ok) { e[1] = t - e[0]; e[2] = e[3] = null; } else keep.push(e); }
       pend = keep; } setTimeout(poll, 25); };
-    poll(); })();`);
+    poll();
+    if (${RECDIR ? 1 : 0}) { R.fc = {}; R.gs = []; var GLP = WebGL2RenderingContext.prototype, fs0 = GLP.fenceSync, cw0 = GLP.clientWaitSync, gb0 = GLP.getBufferSubData, rp0 = GLP.readPixels;
+      var where = function () { return String(new Error().stack || '').split(String.fromCharCode(10)).slice(3, 7).map(function (x) { return x.trim().replace('at ', '').split('/flyDiy/').pop().replace(')', ''); }).join(' < '); };
+      var timed = function (k, f0) { return function () { var t = performance.now(), r = f0.apply(this, arguments), d = performance.now() - t; if (d > 2 && R.gs.length < 20000) R.gs.push([Math.round(t), k, +d.toFixed(1)]); return r; }; };
+      GLP.fenceSync = function () { var w = where(); R.fc[w] = (R.fc[w] || 0) + 1; return fs0.apply(this, arguments); };
+      GLP.clientWaitSync = timed('cws', cw0); GLP.getBufferSubData = timed('gbsd', gb0); GLP.readPixels = timed('readPixels', rp0); }
+    })();`);
   return L.join('\n');
 }
 
@@ -297,7 +308,7 @@ async function sweep() {
     const now = () => b.ev('performance.now()');
     const pull = async () => JSON.parse(await b.ev('JSON.stringify({ fr: __MB.fr.slice(-30000), lt: __MB.lt, sc: __MB.sc || [] })', 20000));
     const scene = async (build, name, sec, extra) => { const t0 = await now(); await sleep(sec * 1000); const t1 = await now(); const d = await pull(); const st = stat(d.fr, d.lt, t0, t1, d.sc);
-      const row = Object.assign({ build, scene: name, sec }, st || { frames: 0 }, extra || {}); R.scenes.push(row);
+      const row = Object.assign({ build, scene: name, sec, t0: Math.round(t0), t1: Math.round(t1) }, st || { frames: 0 }, extra || {}); R.scenes.push(row);
       log(name.padEnd(28) + ' ' + (st ? st.fps + ' fps, uneven ' + (100 * st.uneven).toFixed(0) + ' %, p90 ' + st.p90 + ', p99 ' + st.p99 + ', p99.9 ' + st.p999 + ', worst ' + st.worst + ' ms, >1.5x cap ' + FD.pc(st.over15) + ', >100 ms ' + st.over100 + ', tasks>=200 ' + st.tasks200 : 'no frames')); return row; };
     const trip = async (build, name, kind, action, extra) => {
       const n0 = await b.ev(A.trips), t0 = await now(), w0 = Date.now(); const pressed = await b.ev(action);
@@ -350,16 +361,21 @@ async function sweep() {
   // 'MISS suspected' (CESSNA-LINKS). A player's load is a Chrome start on a warm disk cache: so is every warm load here
   // (--one-chrome: the old single session)
   let b = await browser(UDD), S = Object.assign(session(b), { b });
-  const fresh = async () => { if (flag('one-chrome')) return; R.exceptions.push(...b.exc.slice(0, 10)); await b.close(); b = await browser(UDD); S = Object.assign(session(b), { b }); };
+  let recN = 0; const recSave = async tag => { if (!RECDIR) return; try { fs.mkdirSync(RECDIR, { recursive: true });
+    const txt = await b.ev('(window.FLIGHT_REC && FLIGHT_REC.rec && FLIGHT_REC.rec.logParts) ? FLIGHT_REC.rec.logParts().join("") : "null"', 120000);
+    const f = path.join(RECDIR, String(++recN).padStart(2, '0') + '_' + tag + '.json'); fs.writeFileSync(f, txt);
+    try { fs.writeFileSync(f.replace(/\.json$/, '_gl.json'), await b.ev('JSON.stringify({ fc: window.__MB.fc || null, gs: window.__MB.gs || null, scenes: null })', 30000)); } catch (e) {} log('recorder log -> ' + f + ' (' + (txt.length / 1048576).toFixed(1) + ' MB)'); } catch (e) { log('recorder log failed: ' + e.message); } };
+  let recTag = 'warmup';
+  const fresh = async () => { await recSave(recTag); if (flag('one-chrome')) return; R.exceptions.push(...b.exc.slice(0, 10)); await b.close(); b = await browser(UDD); S = Object.assign(session(b), { b }); };
   let places = null;
   // THE WARM-UP (discarded): the Cub loaded and rolled out once, so the first build's 'warm' load meets a warm cache
   if (R.profile.fresh || flag('warmup')) { log('== warm-up (discarded) in ' + UDD);
-    await b.load(BASE, preScript('default', null)); await S.trip('cub', 'warm-up roll-out', 'rollout', A.rollOut); await sleep(3000);
+    await b.load(BASE, preScript('default', GFX)); await S.trip('cub', 'warm-up roll-out', 'rollout', A.rollOut); await sleep(3000);
     R.loads.pop(); R.profile.cache.push({ at: 'after the warm-up', cache: cacheMB(UDD) }); }
   for (const bk of WANT) {
     const B = BUILDS[bk]; log('== ' + B.label + ' (warm)');
     await fresh();
-    const l = await b.load(BASE, preScript(B.build, null));
+    recTag = bk; const l = await b.load(BASE, preScript(B.build, GFX));
     await loadRow(b, bk, 'warm: navigation -> garage', l, true);
     await b.ev('(async () => { await new Promise(r => setTimeout(r, 1500)); return 1; })()');
     if (!places) { places = JSON.parse(await b.ev('(async () => { for (let i = 0; i < 100 && !(window.FLIGHT_PROBE && FLIGHT_PROBE.world && FLIGHT_PROBE.world()); i++) await new Promise(r => setTimeout(r, 100)); return ' + A.places + '; })()'));
@@ -386,7 +402,7 @@ async function sweep() {
   if (ONLY.has('water')) for (const wk of WATER) {
     const B = BUILDS[wk]; log('== ' + B.label + ' (warm)');
     await fresh();
-    const l = await b.load(BASE, preScript(B.build, null, B.patch));
+    recTag = wk; const l = await b.load(BASE, preScript(B.build, GFX, B.patch));
     await loadRow(b, wk, 'warm: navigation -> garage', l, true);
     // G1180: the places from this page when no land build listed them (--builds none: the water alone had no low pass)
     if (!places) { places = JSON.parse(await b.ev('(async () => { for (let i = 0; i < 100 && !(window.FLIGHT_PROBE && FLIGHT_PROBE.world && FLIGHT_PROBE.world()); i++) await new Promise(r => setTimeout(r, 100)); return ' + A.places + '; })()')); R.meta.places = places; }
@@ -409,6 +425,7 @@ async function sweep() {
     await b.ev(A.cam('chase')); await S.scene('stress:' + X.id, 'taxi chase @HOME', SECS.taxi);
     if (home && ONLY.has('pass')) { const ph = await b.ev(A.pass(home, 42), 20000).catch(e => 'error ' + e.message); await sleep(EST.settle * 1000); await S.scene('stress:' + X.id, 'low pass @HOME', SECS.pass, { pilot: ph }); }
   }
+  await recSave(recTag);
   R.exceptions.push(...b.exc.slice(0, 20));
   await b.close(); done();
   return R;

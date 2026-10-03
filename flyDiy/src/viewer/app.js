@@ -7040,7 +7040,7 @@
   window.FLYDIY_TOWN_AT = () => (inGarage ? standAnchor() || null : null);
   const ringOk = () => !!(WF && WF.ringReady && WF.ringReady(tripCg(), RING_REACH, true));
   // the graphics that key programs (the frame rate and the preset's name key none)
-  const gfxKey = () => { const G = window.GFX; if (!G || !G.get) return '-'; const g = G.get(); delete g.fps; delete g.preset; return JSON.stringify(g); };
+  const gfxKey = () => { const G = window.GFX; if (!G || !G.get) return '-'; const g = G.get(); delete g.fps; delete g.fpsOwn; delete g.preset; return JSON.stringify(g); };
   const modelIds = new WeakMap(); let modelN = 0;
   const modelId = () => { if (!model) return 'none'; let i = modelIds.get(model); if (!i) { i = ++modelN; modelIds.set(model, i); } return 'm' + i; };
   // a generator to its end: sliced a task at a time under a screen, at once in the harness
@@ -11155,10 +11155,15 @@
     };
     // G620: a gap the page spent HIDDEN (a tab away) is not a freeze - the moment it was hidden, on rAF's clock
     if (W.document && W.document.addEventListener) W.document.addEventListener('visibilitychange', () => { if (W.document.hidden) P.hiddenT = performance.now(); });
-    try { const g = JSON.parse(W.localStorage.getItem('flydiy.gfx') || 'null'); if (g && g.fps != null) P.mode = g.fps; } catch (e) {}
+    // G1295 (EVEN-30): until gfx_settings applies its own (the preset's: 30 but on ultra), a hard 30 - 'auto' only stored
+    try { const g = JSON.parse(W.localStorage.getItem('flydiy.gfx') || 'null'); P.mode = g && g.fps != null && (g.pv >= 7 || g.fps !== 'auto') ? g.fps : (g && g.preset === 'ultra' ? 'auto' : 30); if (P.mode === 30) P.cap = 30; } catch (e) {}
     const capOf = () => (P.mode === 'auto' ? P.cap : P.mode === 'off' ? 0 : +P.mode || 0);
     const med = a => { const s = a.slice().sort((x, y) => x - y); return s[s.length >> 1]; };
     const tellScale = () => { const AA = W.FLYDIY_AA; if (AA && AA.autoTarget) AA.autoTarget(1000 / (capOf() || 60)); };
+    // G1295 (EVEN-30): THE BACKOFF RUNS TO 5 MIN (it stopped at 30 s): the user's 1.5 h on auto failed 127 trials of 60 -
+    // one every ~34 s, each a second of juddering 60 - on a scene that never held it. 5, 10, 20 .. 300 s: ~7 trials, then one
+    // every 5 min; 60 held 20 s past a trial still forgets the backoff (G990)
+    const HOLD_MAX = 300000;
     function setCap(c, now) { if (c === P.cap) return; P.cap = c; P.iv = []; P.work = []; P.strikes = P.goods = 0; P.t0 = now; tellScale(); }
     // the frame at time ts (ms, rAF's own): null when the cap says this refresh is not ours, else P with
     // P.dt (s, the real time since the last rendered frame, 0.25 at most) and P.steps (solver steps owed)
@@ -11223,14 +11228,14 @@
       // them). Three missed refreshes in its first 30 frames (10 %, where 60 needs 3 % or less) end it there, ~0.8 s.
       if (P.trial && P.cap === 60 && P.trial.n >= 30 && P.trial.miss >= 3) {
         P.trial = null; P.stats.trialsFailed++; P.trials++; P.stats.cut = (P.stats.cut || 0) + 1;
-        P.holdUp = now + Math.min(30000, 5000 * Math.pow(2, P.trials - 1)); P.stats.down++; setCap(30, now); return;
+        P.holdUp = now + Math.min(HOLD_MAX, 5000 * Math.pow(2, P.trials - 1)); P.stats.down++; setCap(30, now); return;
       }
       if (P.iv.length < 60) return;
       const w = med(P.work), r = 1000 * P.iv.length / P.iv.reduce((a, b) => a + b, 0);   // G994: the reading's DELIVERED rate (fps)
       P.iv = []; P.work = [];
       if (now - P.t0 < 1500) return;                      // the first readings after a change are the change's
       P.lastWork = w; P.lastRate = r;
-      const failed = () => { P.stats.trialsFailed++; P.trials++; P.holdUp = now + Math.min(30000, 5000 * Math.pow(2, P.trials - 1)); };   // G615: 5 s, doubling, 30 s at most
+      const failed = () => { P.stats.trialsFailed++; P.trials++; P.holdUp = now + Math.min(HOLD_MAX, 5000 * Math.pow(2, P.trials - 1)); };   // G615: 5 s, doubling (G1295: to 5 min)
       if (P.cap === 60) {
         if (P.trial) {                                    // a trial of 60 from 30: did it hold?
           const ok = r >= 58; P.trial = null;                 // G994 + G1160: 60 only where it is even (<= 3 % missed refreshes)

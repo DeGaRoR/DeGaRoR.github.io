@@ -39,12 +39,13 @@
   // ---- the options: named steps over the handles ---------------------------
   const OPTIONS = [
     // THE FRAME RATE (G586): the cap the frame clock (app.js FLYDIY_PACE) renders at - the game's time runs on
-    // the wall clock at every one of them. `free`: not a picture's, so no preset sets it and picking one does
-    // not make the preset 'custom'.
+    // the wall clock at every one of them. `free`: not a picture's, so picking one does not make the preset 'custom'.
+    // G1295 (EVEN-30, the user, 2026-10-03: "an even 30, evenness matters more than fps"): its DEFAULT follows the preset -
+    // a hard 30 on every preset but ultra (FPS_OF), until the player picks a frame rate (fpsOwn: kept from then on)
     { k: 'fps', label: 'frame rate', free: true, steps: [
-        { v: 'auto', label: 'auto', why: 'held at 60 fps while the frame can, 30 when it cannot (three readings over 18.5 ms; a hitch is not a reading), back to 60 when a trial holds (tried every 5-30 s while the work fits 60) - the default' },
+        { v: 'auto', label: 'auto', why: 'held at 60 fps while the frame can, 30 when it cannot (three readings over 18.5 ms; a hitch is not a reading), back to 60 when a trial holds (tried every 5-30 s while the work fits 60) - the default on ultra' },
         { v: 60, label: '60', why: 'capped at 60 fps' },
-        { v: 30, label: '30', why: 'capped at 30 fps: every frame the same length, two physics steps each - the smoothest when 60 is out of reach' },
+        { v: 30, label: '30', why: 'capped at 30 fps: every frame the same length, two physics steps each - the even frame, the default on every preset but ultra' },
         { v: 'off', label: 'uncapped', why: 'every refresh of the screen drawn (a 144 Hz screen draws up to 144)' } ] },
     { k: 'aa', label: 'anti-aliasing', steps: [
         { v: 'off',  label: 'off', why: 'the canvas’s 4x MSAA, none under the clouds - the cheapest frame' },
@@ -275,7 +276,10 @@
   };
 
   // ---- the state ----------------------------------------------------------
-  const S = Object.assign({ preset: DEFAULT, pv: 6, fps: 'auto' }, PRESETS[DEFAULT]);   // pv: the pref's version (4: G570, the cover and town rows; 5: G1113, gamer's and ultra's tree bands; 6: G1114.2, gamer's 'mid'); fps: G586's frame rate (a free option)
+  // G1295 (EVEN-30): the frame rate a preset brings while the player has not picked one - a hard 30 everywhere but ultra
+  // (auto's trials of 60 were the judder: the user's 1.5 h log, 130 drops from 60 and 127 failed trials). 'custom' takes 30
+  const FPS_OF = p => (p === 'ultra' ? 'auto' : 30);
+  const S = Object.assign({ preset: DEFAULT, pv: 7, fps: FPS_OF(DEFAULT), fpsOwn: false }, PRESETS[DEFAULT]);   // pv: the pref's version (4: G570, the cover and town rows; 5: G1113, gamer's and ultra's tree bands; 6: G1114.2, gamer's 'mid'; 7: G1295, the frame rate per preset); fps: G586's frame rate (a free option); fpsOwn: the player picked it
   let expBase = null;                        // the exposure the writers last declared
   let eyeK = 1;                              // the eye's factor (post_fx.js's auto exposure); 1 with the row off
   // THE ONE WAY EXPOSURE IS WRITTEN: base in, base x step x eye on the renderer. A
@@ -283,7 +287,9 @@
   const setExposure = (R, v) => { expBase = v; if (R) R.toneMappingExposure = v * (S.exposure || 1) * eyeK; return expBase; };
   // the eye writes its factor here and nowhere else: the schedule keeps declaring the base
   const setEye = k => { eyeK = Math.max(0.25, Math.min(4, +k || 1)); const R = W.FLYDIY_RENDERER; if (R && expBase != null) R.toneMappingExposure = expBase * (S.exposure || 1) * eyeK; return eyeK; };
+  const FPS_STEPS = OPTIONS.find(o => o.k === 'fps').steps.map(s => s.v);
   const load = () => {
+    let v0 = null;                           // the stored pref after its migrations (G1295: did it carry a frame rate?)
     try {
       const v = JSON.parse(W.localStorage.getItem(KEY) || 'null');
       // A CHOICE SAVED BEFORE THE TIERS' LAST CHANGES (pv < 3: G516's soft bloom; G528 made the auto scale the default
@@ -297,19 +303,25 @@
         else if (v.scale === 'auto' && !(v.pv >= 3)) v.scale = 1;
         v.pv = 6;
       }
+      // pv 6 -> 7 (G1295): a stored 'auto' was the old DEFAULT, not a pick - it takes the preset's (30, ultra auto); a stored
+      // 60 / 30 / uncapped was the player's own choice and stays
+      if (v && !(v.pv >= 7)) { if (v.fps === 60 || v.fps === 30 || v.fps === 'off') v.fpsOwn = true; else delete v.fps; v.pv = 7; }
+      v0 = v && typeof v === 'object' ? v : null;
       try { W.localStorage.removeItem(KEY + '.auto'); } catch (e) {}   // G528's first-launch reading, retired with its probe
       if (v && typeof v === 'object') for (const k in v) if (k in S) S[k] = v[k];
     } catch (e) {}
     for (const o of OPTIONS) if (!o.steps.some(s => s.v === S[o.k])) S[o.k] = o.free ? o.steps[0].v : PRESETS[DEFAULT][o.k];
     S.preset = presetOf();
+    S.fpsOwn = S.fpsOwn === true;
+    if (!S.fpsOwn && !(v0 && FPS_STEPS.includes(v0.fps))) S.fps = FPS_OF(S.preset);   // G1295: none stored (or no step) - the preset's
     // Friendly Welcome (A0, 2026-10-02): ?gfx=<preset> picks a preset BEFORE the load and keeps it (a weak card or a phone
     // never reached the graphics menu: the GTX 660 loaded on gamer and drew nothing). The player's later choice still wins
     try { const q = /[?&]gfx=([a-z]+)/.exec((W.location && W.location.search) || ''); const want = q && q[1];
-          if (want && PRESETS[want] && S.preset !== want) { Object.assign(S, PRESETS[want]); S.preset = want; save(); } } catch (e) {}
+          if (want && PRESETS[want] && S.preset !== want) { Object.assign(S, PRESETS[want]); S.preset = want; if (!S.fpsOwn) S.fps = FPS_OF(want); save(); } } catch (e) {}
     // G1210 (WELCOME): the welcome screen's pick (or the device gate's "try anyway": potato), taken the same way - it ran
     // before this script, only when nothing was chosen yet for this graphics card, and never beside ?gfx=
     try { const wp = W.WELCOME && W.WELCOME.pick;
-          if (wp && PRESETS[wp] && !/[?&]gfx=/.test((W.location && W.location.search) || '')) { if (S.preset !== wp) Object.assign(S, PRESETS[wp]); S.preset = wp; save(); } } catch (e) {}
+          if (wp && PRESETS[wp] && !/[?&]gfx=/.test((W.location && W.location.search) || '')) { if (S.preset !== wp) Object.assign(S, PRESETS[wp]); S.preset = wp; if (!S.fpsOwn) S.fps = FPS_OF(wp); save(); } } catch (e) {}
   };
   const save = () => { try { W.localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} };
   // which preset the current options ARE, or 'custom'
@@ -428,8 +440,8 @@
     }
   };
   const set = (k, v) => {
-    if (k === 'preset') { if (!PRESETS[v]) return S; Object.assign(S, PRESETS[v]); S.preset = v; }
-    else { S[k] = v; S.preset = presetOf(); }
+    if (k === 'preset') { if (!PRESETS[v]) return S; Object.assign(S, PRESETS[v]); S.preset = v; if (!S.fpsOwn) S.fps = FPS_OF(v); }   // G1295: the preset's frame rate, unless the player picked one
+    else { S[k] = v; S.preset = presetOf(); if (k === 'fps') S.fpsOwn = true; }
     if (W.FLIGHT_REC && W.FLIGHT_REC.event) W.FLIGHT_REC.event('gfx', null, k + ' = ' + v);   // G620: the flight log's settings events
     save(); apply();
     // colour management is decided at construction: store the choice for the
