@@ -119,7 +119,9 @@
 // (the peak). flush() uploads the ones still waiting NOW: each drawn once by a stand-in mesh (the same geometry, a plain
 // material, no culling) into a 1x1 target with its draw range at 0 - three's own path uploads every attribute (the
 // render list's objects.update) and the index (the binding setup) and draws nothing; the release above then runs. The
-// world's build calls it as each slice ends (app.js buildWorldSliced, the town step). ?geoflush=0: as before (the A/B).
+// world's build calls it as each slice ends (app.js buildWorldSliced, the town step). Only a geometry its maker marks
+// `early` (GPU_ONLY_GEO(g, true)) waits for it: the far terrain's quads, the patch's LODs - not the town's TARR merges,
+// which the far town's bake and the cell rebakes still meet before first light. ?geoflush=0: as before (the A/B).
 (() => {
   'use strict';
   const off = typeof location !== 'undefined' && /[?&]gpuonly=0(?:&|$)/.test(location.search || '');
@@ -127,14 +129,14 @@
   const noFlush = typeof location !== 'undefined' && /[?&]geoflush=0(?:&|$)/.test(location.search || '');
   const PEND = new Set();
   function release() { const a = this.array; if (a && a.length) { stats.bytes += a.byteLength; this.array = new a.constructor(0); } }
-  function gpuOnlyGeo(g) {
+  function gpuOnlyGeo(g, early) {
     if (off || !g || !g.attributes) return g;
     if (!g.boundingSphere) g.computeBoundingSphere();
     if (!g.boundingBox) g.computeBoundingBox();
     for (const k in g.attributes) { const a = g.attributes[k]; if (a && !a.isInterleavedBufferAttribute && a.onUpload) a.onUpload(release); }
     if (g.index && g.index.onUpload) g.index.onUpload(release);
     stats.geos++;
-    if (!noFlush) { PEND.add(g); g.addEventListener('dispose', () => PEND.delete(g)); }
+    if (early && !noFlush) { PEND.add(g); g.addEventListener('dispose', () => PEND.delete(g)); }
     return g;
   }
   const waiting = g => { const p = g.attributes.position; return !!(p && p.array && p.array.length); };

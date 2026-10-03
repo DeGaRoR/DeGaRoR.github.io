@@ -657,7 +657,7 @@ function make(THREE, scene, world, rec0, opts) {
         g.setAttribute('normal', new THREE.BufferAttribute(nrm.subarray(0, v * 3), 3));
         g.setAttribute('uv', new THREE.BufferAttribute(uv.subarray(0, v * 2), 2));
         g.setIndex(idx); g.computeBoundingSphere();
-        if (typeof GPU_ONLY_GEO === 'function') GPU_ONLY_GEO(g);   // G1200: drawn only (a re-patch builds a new group)
+        if (typeof GPU_ONLY_GEO === 'function') GPU_ONLY_GEO(g, true);   // G1200 (G1230: uploaded as the build's slice ends): drawn only (a re-patch builds a new group)
         const mesh = new THREE.Mesh(g, matOwn(B.k));
         mesh.receiveShadow = true; mesh.name = 'premises:patch'; mesh.renderOrder = -0.3;   // the ground, after the occluders (render_world.js ORDER_NOTE)
         mesh.matrixAutoUpdate = false;
