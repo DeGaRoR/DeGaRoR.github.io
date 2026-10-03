@@ -326,7 +326,7 @@
       // CLOUDS C1: a pass that draws OVER the scene into this target before the resolve (the cloud
       // march composites there, reading the scene's depth) - it asks for the target even at tier
       // `off` (a 0-sample target, the blit resolve) and for a depth texture on it
-      overlay: null, post: null, pre: null, needRT: false,
+      overlay: null, post: null, pre: null, tap: null, needRT: false,
       linear: false,       // G448.3: the linear split (radiance in the target, ONE tone map in the blit)
     };
 
@@ -521,6 +521,9 @@
       // into it, and one more fullscreen draw there cost a second resolve (7 ms on a 3080 under
       // ANGLE, measured with the GPU timer; the march itself is 0.3 ms)
       if (S.post) S.post(renderer, camera, S.rt);
+      // THE TAP (G1357): the flight recorder's frame catcher sees the frame's target once the post chain is done (a small
+      // copy into its own target, read back asynchronously - nothing here waits on it)
+      if (S.tap) S.tap(renderer, camera, S.rt);
       return true;
     }
     // needRT(on): a pass wants the target and its depth even at tier `off`
@@ -558,7 +561,7 @@
       // G586: THE BUDGET IS THE FRAME CAP'S (app.js FLYDIY_PACE): 1000/60 ms at 60, 1000/30 at 30 - held at 30 the
       // scale does not blur a picture trying for a 60 the cap will never show, and may raise it back
       autoTarget: ms => { if (ms > 0 && ms !== AUTO.T) { AUTO.T = ms; AUTO.fr = []; AUTO.gpu = []; AUTO.probe = AUTO.up = null; } return AUTO.T; }, setDither, setLinear, linear: () => S.linear,
-      needRT, setOverlay: f => { S.overlay = f || null; }, setPost: f => { S.post = f || null; }, setPre: f => { S.pre = f || null; },
+      needRT, setOverlay: f => { S.overlay = f || null; }, setPost: f => { S.post = f || null; }, setPre: f => { S.pre = f || null; }, setTap: f => { S.tap = f || null; },
       // the pass's own target (LOADING S2): a program compiled with it bound
       // carries the canvas's tone mapping and colour space, which is what the
       // first frame will ask for - null at tier 'off', where the canvas is the target

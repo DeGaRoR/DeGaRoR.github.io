@@ -171,6 +171,8 @@ function analyze(log, opt) {
     return Object.assign({}, e, { afterReveal: revealT != null && e.t > revealT, loaf: loaf.map(x => x.detail) });
   });
   const evCount = {}; for (const e of events) evCount[e.kind] = (evCount[e.kind] || 0) + 1;
+  // G1357: the frames the catcher kept (post_fx.js catcher: a frame apart from both neighbours, with its state and a 64 x 36 JPEG)
+  const catches = events.filter(e => e.kind === 'catch' && e.detail && typeof e.detail === 'object').map(e => Object.assign({ t: e.t }, e.detail));
   // ---- the loading screens: each run of the boot's steps (the shed's, the roll-out's), from the boot's own log
   const boots = [];
   {
@@ -202,7 +204,7 @@ function analyze(log, opt) {
       got: longTasks.length + ' over 1 s' + (longTasks.length ? ' (' + longTasks.filter(x => x.afterReveal).length + ' after the reveal; worst ' + Math.max(...longTasks.map(x => x.ms)).toFixed(0) + ' ms)' : '') },
   ];
   return { header: H, t0, revealT, reveals, frames: rows.length, boots, scopeName, scopeFrames: scope.length, dist, phases, worst, stretches: stretches.slice(0, 10), slowS,
-    over100: over100.slice(0, 30).map(r => ({ i: r.i, t: r.t, dt: r.dt, phase: r.ph })), over100N: over100.length, longTasks, evCount, targets };
+    over100: over100.slice(0, 30).map(r => ({ i: r.i, t: r.t, dt: r.dt, phase: r.ph })), over100N: over100.length, longTasks, evCount, catches, catcher: H.catcher || null, targets };
 }
 
 // ---- the text ------------------------------------------------------------------------------------------------------
@@ -252,6 +254,15 @@ function report(A) {
   L.push('LONG TASKS OVER 1 S (the whole log): ' + A.longTasks.length);
   for (const e of A.longTasks) L.push('  ' + f0(e.ms) + ' ms at ' + ts(e.t) + (e.afterReveal ? ' (after the reveal)' : ' (before the reveal)') + (e.detail ? ' ' + e.detail : '') + (e.loaf.length ? ' - ' + e.loaf.join(' | ').slice(0, 300) : ''));
   L.push('');
+  if (A.catcher || A.catches.length) {
+    const K = A.catcher;
+    L.push('CAUGHT FRAMES (G1357 - a frame apart from both neighbours): ' + A.catches.length + (K ? ' (the catcher: ' + K.taps + ' taps, ' + K.reads + ' reads, ' + K.skipped +
+      ' skipped busy, its cost ' + K.tapUs + ' us a tap (max ' + K.tapUsMax + '), ' + K.readUs + ' us a read)' : ''));
+    for (const c of A.catches) L.push('  ' + ts(c.t) + '  ' + c.why + ': mean ' + c.prev + ' -> ' + c.mean + ' -> ' + c.next + ', sky ' + c.sky + ', white ' + c.white +
+      ' | exposure base ' + c.exposureBase + ' eyeK ' + c.eyeK + ' far ' + c.far + ' near ' + c.near + ' camY ' + c.camY + ' cloud shadow ' + c.cloudShadow + ' in-cloud ' + c.inCloudRho +
+      ' hidden quadrants ' + c.visHidden + ' | post ' + (c.post ? Object.keys(c.post).filter(k => c.post[k] !== 'off').map(k => k + ' ' + c.post[k]).join(' ') : '-') + (c.jpeg ? ' [jpeg]' : ''));
+    L.push('');
+  }
   L.push('THE ROLLOUT TARGETS');
   for (const g of A.targets) L.push('  ' + (g.ok ? 'PASS' : 'FAIL') + '  ' + g.what + ': ' + g.got);
   L.push('ROLLOUT: ' + (A.targets.every(g => g.ok) ? 'PASS' : 'FAIL (' + A.targets.filter(g => !g.ok).map(g => g.id).join(', ') + ')'));
@@ -260,13 +271,18 @@ function report(A) {
 
 if (require.main === module) {
   const argv = process.argv.slice(2);
-  const file = argv.find(a => !a.startsWith('--') && argv[argv.indexOf(a) - 1] !== '--json' && argv[argv.indexOf(a) - 1] !== '--worst');
-  if (!file) { console.error('usage: node tools/analyze_log.js <flydiy-flightlog.json[.gz]> [--gate] [--json out.json] [--worst N] [--all]'); process.exit(2); }
+  const file = argv.find(a => !a.startsWith('--') && argv[argv.indexOf(a) - 1] !== '--json' && argv[argv.indexOf(a) - 1] !== '--worst' && argv[argv.indexOf(a) - 1] !== '--catches');
+  if (!file) { console.error('usage: node tools/analyze_log.js <flydiy-flightlog.json[.gz]> [--gate] [--json out.json] [--worst N] [--all] [--catches dir]'); process.exit(2); }
   const opt = { all: argv.includes('--all') };
   const wi = argv.indexOf('--worst'); if (wi >= 0) opt.worst = +argv[wi + 1];
   const A = analyze(load(file), opt);
   console.log(report(A));
   const ji = argv.indexOf('--json'); if (ji >= 0) fs.writeFileSync(argv[ji + 1], JSON.stringify(A, null, 1));
+  // --catches <dir>: the caught frames' JPEGs, one file each (G1357)
+  const ci = argv.indexOf('--catches');
+  if (ci >= 0) { const dir = argv[ci + 1]; fs.mkdirSync(dir, { recursive: true }); let n = 0;
+    for (const c of A.catches) if (c.jpeg) { fs.writeFileSync(require('path').join(dir, 'catch_' + String(n++).padStart(2, '0') + '_f' + c.f + '.jpg'), Buffer.from(c.jpeg.split(',')[1], 'base64')); }
+    console.log(n + ' caught frame(s) written to ' + dir); }
   if (argv.includes('--gate')) process.exit(A.targets.every(g => g.ok) ? 0 : 1);
 }
 module.exports = { load, frames, analyze, report };

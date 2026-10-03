@@ -69293,3 +69293,37 @@ programs change text: a parked cook / census re-take is A0's), SPLAT (its slope-
 Budget: 9 loads (3 + 3 + 3), 3 link benches, ~17 min of GPU under the lock (window 02:09-02:25 reserved by A0; a
 1-minute bench at 00:52 ran during A0's CPU battery - classifier refused withdrawing the queued take; within-run A/B
 only). The built outputs are NOT committed (pinned build id): rebuild at landing.
+## G1357 - THE FRAME CATCHER: A FRAME APART FROM BOTH NEIGHBOURS IS SAVED INTO THE USER'S OWN FLIGHT LOG (2026-10-03, LIGHT-SMOOTH for A0, node only - no GPU)
+
+The user's full-screen white / pale-blue single frames ("a frame that misses rendering") were not reproduced on the
+bench (5 865 traced frames, G1350's re-test). So the user's flight catches them itself, into the log "Save log" writes.
+- post_fx.js `catcher` (POST_FX.catcher): aa_resolve's new TAP (after the post chain, every frame the resolve has a
+  target - always, under the reversed depth buffer) draws a 64 x 36 copy of the frame's target through the EYE's own
+  program (a second material, the same shader: no new link) into one of 4 small targets and reads it back with
+  three's readRenderTargetPixelsAsync - a pixel-pack buffer, a fence, polled by zero-timeout waits on a timer: NO GPU
+  SYNC. A frame whose slot is still in flight is SKIPPED and counted, never waited on. When a read lands: the mean
+  (display values; the linear compositing's sRGB-tagged 8-bit target decoded once, G1356), the pale-sky share, the
+  white share, into a ring of the last 8 frames. A frame is CAUGHT when it stands apart from BOTH neighbours: the mean
+  past 0.06 the same way against each (a one-frame spike - the bench's normal flight peaked at 0.0098, the cloud-tile
+  flash of G1353 at 0.11), or a sky share over 0.7 / a white share over 0.5 with both neighbours under half of it. A
+  lasting step (a camera cut) is not a catch.
+- A catch is a flight-recorder EVENT 'catch' (IndexedDB as it goes, the saved log's events): why, the recorder's
+  frame index (join it to the row: draws, tris, the CPU split, dt), the mean against its neighbours, the shares, the
+  exposure base, eyeK and its mean, far / near / the eye's height, the clouds' shadow flag and in-cloud density, the
+  hidden terrain quadrants, the post rows and the AA tier - and for the first 6 of a session, 5 s apart, the frame's
+  64 x 36 picture as a JPEG data URL (~2 KB). The log's header carries catcher.summary(): taps, reads, skipped,
+  caught, and ITS OWN COST measured live (tapUs mean / max a frame, readUs a landed read).
+- tools/analyze_log.js: a CAUGHT FRAMES section (each catch with its state, the catcher's count and cost);
+  `--catches <dir>` writes the JPEGs out.
+- The frame's path allocates nothing of its own but the read's promise (typed rings; the readable object is built only
+  on a catch). Off: localStorage flydiy.rec.catch = '0'; ?rec=0 (the recorder off) leaves the tap uninstalled.
+- WHAT IT CANNOT SEE: the bloom, the rays and the glare are drawn onto the canvas AFTER the target it copies - a white
+  frame made by them alone passes it. (A pale frame from the clouds' composite, the mist, the exposure, the eye or a
+  sky-only scene is in the target.) three's async read also calls gl.flush() once a frame: a submission, not a wait.
+- COST: not measured on the GPU here (A0: node only). By construction no sync; the live numbers come back in the next
+  log the user saves (header.catcher.tapUs / readUs) - check them there.
+GATES: POSTFX +8 (G1357: the catcher run against a stub renderer whose frames the test chooses - a one-frame spike
+caught once with its frame and neighbours, a lasting step not caught, the state in the event, a busy slot skipped
+without waiting, no synchronous read; detect() on its own; the shot cap / spacing, the switch; the wiring) -
+negative-verified (the spike threshold raised: 3 checks red; the busy skip removed: 1 red); FLIGHTREC, AA, BUILD,
+FADES, UISMOKE PASS.
