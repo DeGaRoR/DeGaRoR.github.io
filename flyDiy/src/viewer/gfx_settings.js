@@ -265,6 +265,24 @@
   // the user chose). Affordable since G1114.1's partition lever: on the low flight over the forest 'mid' measured what
   // 'minimum' does (37.5 vs 37.6 fps, loop +0.4 ms) and better than master's 'minimum' on every line; the taxi inside
   // the ratchet's slack (one run: the Cub's unevenness 11.8 -> 13.6 %, render +0.4 ms) - the user's decision.
+  // THE BUILD BUDGET (G1230, MEM-BUDGET; futureDesigns/FRIENDLY-WELCOME-BUDGETS.md §2). A preset above says what is
+  // DRAWN; this says what is BUILT AND HELD - the S20 FE loaded potato along gamer's curve (heap ~1.9 GB, killed in
+  // "building the field") because no preset built less. heapMB is the preset's target (the load's peak backing stores,
+  // tools/perf/heap_steps.js ?gfx=<preset>); the rest are the levers the world reads AS IT BUILDS (GFX.budget()):
+  //   mipSkip    the KTX2 transcodes' top mip dropped (ktx2.js): a quarter of the bytes per texture, held and uploaded
+  //   townBoot   the premises built under the loading screen within this many metres of the stand (render_world PREM_BOOT)
+  //   townReach  the premises' stream in flight and at the settle (render_premises STREAM.reach)
+  //   parked     the parked aeroplanes captured and baked (app.js 'parking'; parked.js) - off: none built
+  //   terrain    the far terrain's and the ring's first cut at the preset's own tolerance (S.terrain), not 1 px then re-cut
+  // Going DOWN is live (GFX.set: the stream's reach shrinks at once); going up applies to what builds next, and to
+  // everything at the next load. Without the table (a gate's stub, no window.GFX) every lever reads full.
+  const BUDGETS = {
+    potato:  { heapMB: 700,  mipSkip: 1, townBoot: 1200, townReach: 2000, parked: false },
+    retro:   { heapMB: 1500, mipSkip: 0, townBoot: 4000, townReach: 6000, parked: true },
+    current: { heapMB: 1500, mipSkip: 0, townBoot: 4000, townReach: 6000, parked: true },
+    gamer:   { heapMB: 2000, mipSkip: 0, townBoot: 4000, townReach: 6000, parked: true },
+    ultra:   { heapMB: 2000, mipSkip: 0, townBoot: 4000, townReach: 6000, parked: true },
+  };
   const DEFAULT = 'gamer';
   const PRESET_LABEL = { potato: 'potato', retro: '5 years ago', current: 'current', gamer: 'gamer', ultra: 'ultra' };
   const PRESET_WHY = {
@@ -279,7 +297,7 @@
   // G1295 (EVEN-30): the frame rate a preset brings while the player has not picked one - a hard 30 everywhere but ultra
   // (auto's trials of 60 were the judder: the user's 1.5 h log, 130 drops from 60 and 127 failed trials). 'custom' takes 30
   const FPS_OF = p => (p === 'ultra' ? 'auto' : 30);
-  const S = Object.assign({ preset: DEFAULT, pv: 7, fps: FPS_OF(DEFAULT), fpsOwn: false }, PRESETS[DEFAULT]);   // pv: the pref's version (4: G570, the cover and town rows; 5: G1113, gamer's and ultra's tree bands; 6: G1114.2, gamer's 'mid'; 7: G1295, the frame rate per preset); fps: G586's frame rate (a free option); fpsOwn: the player picked it
+  const S = Object.assign({ preset: DEFAULT, build: DEFAULT, pv: 7, fps: FPS_OF(DEFAULT), fpsOwn: false }, PRESETS[DEFAULT]);   // pv: the pref's version (4: G570, the cover and town rows; 5: G1113, gamer's and ultra's tree bands; 6: G1114.2, gamer's 'mid'; 7: G1295, the frame rate per preset); fps: G586's frame rate (a free option); fpsOwn: the player picked it; build (G1230): the preset whose BUDGETS row the world builds to (a custom mix keeps the last preset's)
   let expBase = null;                        // the exposure the writers last declared
   let eyeK = 1;                              // the eye's factor (post_fx.js's auto exposure); 1 with the row off
   // THE ONE WAY EXPOSURE IS WRITTEN: base in, base x step x eye on the renderer. A
@@ -313,16 +331,18 @@
     for (const o of OPTIONS) if (!o.steps.some(s => s.v === S[o.k])) S[o.k] = o.free ? o.steps[0].v : PRESETS[DEFAULT][o.k];
     S.preset = presetOf();
     S.fpsOwn = S.fpsOwn === true;
+    if (PRESETS[S.preset]) S.build = S.preset; else if (!BUDGETS[S.build]) S.build = DEFAULT;   // G1230: a custom mix builds to its last preset's budget
     if (!S.fpsOwn && !(v0 && FPS_STEPS.includes(v0.fps))) S.fps = FPS_OF(S.preset);   // G1295: none stored (or no step) - the preset's
     // Friendly Welcome (A0, 2026-10-02): ?gfx=<preset> picks a preset BEFORE the load and keeps it (a weak card or a phone
     // never reached the graphics menu: the GTX 660 loaded on gamer and drew nothing). The player's later choice still wins
     try { const q = /[?&]gfx=([a-z]+)/.exec((W.location && W.location.search) || ''); const want = q && q[1];
-          if (want && PRESETS[want] && S.preset !== want) { Object.assign(S, PRESETS[want]); S.preset = want; if (!S.fpsOwn) S.fps = FPS_OF(want); save(); } } catch (e) {}
+          if (want && PRESETS[want] && (S.preset !== want || S.build !== want)) { Object.assign(S, PRESETS[want]); S.preset = want; S.build = want; if (!S.fpsOwn) S.fps = FPS_OF(want); save(); } } catch (e) {}
     // G1210 (WELCOME): the welcome screen's pick (or the device gate's "try anyway": potato), taken the same way - it ran
     // before this script, only when nothing was chosen yet for this graphics card, and never beside ?gfx=
     try { const wp = W.WELCOME && W.WELCOME.pick;
-          if (wp && PRESETS[wp] && !/[?&]gfx=/.test((W.location && W.location.search) || '')) { if (S.preset !== wp) Object.assign(S, PRESETS[wp]); S.preset = wp; if (!S.fpsOwn) S.fps = FPS_OF(wp); save(); } } catch (e) {}
+          if (wp && PRESETS[wp] && !/[?&]gfx=/.test((W.location && W.location.search) || '')) { if (S.preset !== wp) Object.assign(S, PRESETS[wp]); S.preset = wp; S.build = wp; if (!S.fpsOwn) S.fps = FPS_OF(wp); save(); } } catch (e) {}
   };
+  const budget = () => Object.assign({ preset: BUDGETS[S.build] ? S.build : DEFAULT, terrain: S.terrain }, BUDGETS[S.build] || BUDGETS[DEFAULT]);
   const save = () => { try { W.localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} };
   // which preset the current options ARE, or 'custom'
   const presetOf = () => {
@@ -342,6 +362,7 @@
       if (C) { cov.set(C); applied.cover = S.cover; }
     }
     const PR = world && world.premises;
+    if (PR && PR.streamState && applied.build !== S.build) { PR.streamState.reach = budget().townReach; applied.build = S.build; }   // G1230: the town's stream to the budget's reach (down: at once)
     if (PR && PR.hlod && PR.detail && applied.scenery !== S.scenery) {
       const D = { full: { near: 150, px2: 60, props: true }, lean: { near: 60, px2: 150, props: true }, low: { near: 25, px2: 300, props: false } }[S.scenery];
       if (D) { PR.hlod.near = D.near; PR.detail.px2 = D.px2; PR.detail.props = D.props; applied.scenery = S.scenery; }
@@ -440,7 +461,7 @@
     }
   };
   const set = (k, v) => {
-    if (k === 'preset') { if (!PRESETS[v]) return S; Object.assign(S, PRESETS[v]); S.preset = v; if (!S.fpsOwn) S.fps = FPS_OF(v); }   // G1295: the preset's frame rate, unless the player picked one
+    if (k === 'preset') { if (!PRESETS[v]) return S; Object.assign(S, PRESETS[v]); S.preset = v; S.build = v; if (!S.fpsOwn) S.fps = FPS_OF(v); }   // G1295: the preset's frame rate, unless the player picked one
     else { S[k] = v; S.preset = presetOf(); if (k === 'fps') S.fpsOwn = true; }
     if (W.FLIGHT_REC && W.FLIGHT_REC.event) W.FLIGHT_REC.event('gfx', null, k + ' = ' + v);   // G620: the flight log's settings events
     save(); apply();
@@ -591,6 +612,7 @@
   W.GFX = {
     OPTIONS, PRESETS, PRESET_LABEL, DEFAULT, BANDS, SHADOWS, GROUPS,
     get: () => Object.assign({}, S),
+    BUDGETS, budget,   // G1230: the build budget the world builds to (GFX.budget().mipSkip, .townBoot, ...)
     set, apply, mount, mountWorld, presetOf, frameText,
     setExposure, setEye, eye: () => eyeK, exposureBase: () => expBase,
     // the world calls this once it exists (render_world.js, end of build)

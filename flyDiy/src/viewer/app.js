@@ -496,6 +496,9 @@
   // Jolene build yields, measured - a guess only shapes the bar, which never passes 0.95 before the end). The harness
   // (no compileAsync) and a page without the generator build in one call, as before.
   const WORLD_YIELDS = 150;
+  // G1230 (MEM-BUDGET): UPLOAD AS YOU BUILD - the draw-only geometry a build slice made goes to the GPU as the slice ends
+  // (its CPU copy freed there), not at first light: the far terrain's quads, the town's merges, the patch's LODs
+  const geoFlush = () => { if (typeof GPU_ONLY_GEO === 'function' && GPU_ONLY_GEO.flush && typeof renderer.compileAsync === 'function') GPU_ONLY_GEO.flush(renderer); };
   function buildWorldSliced() {
     if (WF) return;
     if (typeof buildWorldSceneSteps !== 'function' || typeof renderer.compileAsync !== 'function') { buildWorld(); return; }
@@ -509,6 +512,7 @@
         try { do { r = g.next(); n++; if (!r.done) lab = r.value; } while (!r.done && performance.now() - t0 < 40); }
         catch (e) { console.error('world build:', e); res(); return; }
         worst = Math.max(worst, performance.now() - t0);
+        geoFlush();   // G1230: the slice's draw-only geometry uploaded now, its CPU copy freed (assets.js GPU_ONLY_GEO.flush)
         if (r.done) {
           worldBuilt(r.value);
           if (window.FLYDIY_LOG_COMPILE || window.FLYDIY_LOG_WORLD) console.log('world: ' + n + ' yields, ' + Math.round(performance.now() - t00) + ' ms, the longest slice ' + Math.round(worst) + ' ms');
@@ -7353,6 +7357,7 @@
         try { while (performance.now() - t0 < 40 && n < 1500) { WF.worldUpdate(cg); n++; } }
         catch (e) { console.warn('world settle:', e && e.message); n = 1500; }
         finally { window.FLYDIY_SLICE = null; if (keep) camera.position.copy(keep); }
+        geoFlush();   // G1230
         if (idle()) { const c = count(); if (c === last) still++; else { still = 0; last = c; } } else still = 0;
         const done = still >= 3 || n >= 1500 || performance.now() - t00 > 45000;
         BOOT.phase('settle', 'the world settling round the stand' + (ST ? ' · ' + (ST.near || 0) + ' to build' : ''), done ? 1 : Math.min(0.95, n / 600));
@@ -7429,6 +7434,7 @@
         const tick = () => {
           let r; try { r = WF.premisesPrewarm(cg, { budgetMs: 40 }); } catch (e) { console.warn('town:', e && e.message); res(); return; }
           built += r.built || 0;
+          geoFlush();   // G1230
           BOOT.phase('town', 'building the field ' + built + ' / ' + (built + (r.near || 0)), (built + (r.near || 0)) ? built / (built + (r.near || 0)) : 1);
           if (r.done) res(); else if (r.wait) workerNap(r.wait).then(() => setTimeout(tick, 0)); else setTimeout(tick, 0);   // G830: the house worker's next answer
         };
@@ -7457,6 +7463,7 @@
         let ticks = 0;
         const tick = () => {
           let r; try { r = WF.prewarm(cg, { budgetMs: 40, reach: RING_REACH }); } catch (e) { console.warn('prewarm:', e && e.message); res(); return; }
+          geoFlush();   // G1230
           const doneN = (r.base || 0) + (r.fill || 0), want = doneN + (r.queued || 0);
           BOOT.phase('ring', 'growing the forest ' + doneN + ' / ' + Math.max(want, 1), want ? doneN / want : 0);
           if (r.done || ++ticks > 900) res(); else setTimeout(tick, 0);
