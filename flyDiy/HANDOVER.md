@@ -68091,6 +68091,19 @@ on the final tree (23b0cda, base origin/master 5502f45) - GFX PASS 0.1 s, BOOT P
 1.2 s; BATTERY: PASS. No GPU gates run (cloud). The generated pages (index.html, dev.html, sw.js, version.json) are not
 committed: A0's built commit regenerates them (build.js picks welcome.js up from `MANIFEST.viewer.welcome`).
 
+**EVIDENCE** (`reports/evidence/WELCOME/`, headless Chromium + SwiftShader, 1280x720 unless said; "before" = master
+5502f45's index.html, "after" = this branch built; headless is a rig, so the after shots force the screens with
+`?welcome=1` / `?devgate=1` and the lost context lifts the rig flag by hand):
+- `before-1-first-visit-desktop.jpg` - master: a first visit goes straight into the loading screen on gamer, whatever the card. No decision.
+- `after-1-first-visit-desktop.jpg` - the welcome: the computer, "Suggested: potato" (SwiftShader -> software renderer), Play. DECISION: the wording and the layout of the screen.
+- `after-2-choose-another.jpg` - "choose another" open, 5 years ago picked, Play follows the pick. DECISION: whether all five presets (ultra included) are offered.
+- `before-3-phone.jpg` - master on a Pixel 7 (emulated): the load starts, the loading screen on gamer (the S20 FE was killed at "building the field"). No decision.
+- `after-3-phone.jpg` - the device gate on the Pixel 7: what was detected, "made for a computer, for now", "try anyway (experimental)". DECISION: the wording, and that the gate stays until the pocket/potato budgets hold.
+- `before-4-context-lost.jpg` - master after a webglcontextlost on #c: no message. A SYNTHETIC event: the shed keeps drawing here; a real loss (the GTX 660's) is a frozen or blank canvas, which a software render cannot produce. No decision.
+- `after-4-context-lost.jpg` - the same event after: "The graphics card stopped drawing" with Reload on potato / reload as it is. DECISION: the wording.
+- `after-5-graphics-menu-recheck.jpg` - the shed's GRAPHICS > performance fold: the new "this computer: re-check my computer" row under the preset. DECISION: its place in the menu.
+No rendering changed: every shot is UI; nothing here depends on the GPU's picture.
+
 **FOR LATER**: the GPU table is a guess anchored on §2's rows - LADDER-TUNE retunes it from the user's machines; the
 "short timed test" of §3 is not built; a `pocket` preset (§2) needs a row in ORDER/LABEL and in the table's phones.
 
