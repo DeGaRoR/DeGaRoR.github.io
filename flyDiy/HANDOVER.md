@@ -68293,3 +68293,20 @@ cowl ~25. No single function is over 30 ms any more. "Instantaneous" (under ~50 
 
 Rigs: `tools/perf/garage_lag.js` (`--trees key=relpath,...`, `--builds cub,metal`, `--reps`, `--prof`, `--page dev.html`
 for named profiles, `--only`, `--list` dumps every widget, `--dumpwip`), `garage_lag_layers.js`, `garage_lag_table.js`.
+
+## TRAIN 25 LANDED (2026-10-03, A0 the coordinator)
+
+Cargo (on train 24 = 06bbd8e3): GARAGE-LAG G1280-G1282 (the editor's slider tick: half of every rebuild was three's brute-force
+raycast - tools/_ray_index.js puts a BVH under Mesh._computeIntersections running three's own walk on the candidates, GATE
+RAYINDEX identical hits; the shoulder sampler and the strut buckets faster; all exact), ASSET-PREP G1240-G1243 (the four
+woodworking machines 453k -> 47k triangles, reprojected, 26 -> 4 materials), QUICK-BYTES G1250-G1254 (island B as RG8 46 -> 23 MiB;
+the C172 reference 15 -> 9 images and disposal; no generated strips on the island; detail sheets by source; the 4x AA tier as an
+OPTION - A0 kept every preset's default, 'current' had no MSAA so a 4x default would ADD 138 MiB), WATER (the user: simple water
+and no mirror on every preset - the periodic mirror made the water swap; ultra keeps the full shader and the LIVE mirror).
+GARAGE (tools/perf/garage_lag.js, master 06bbd8e3 vs this train, median sync ms a tick, Cub / metal): fuselage length 662 -> 286 /
+618 -> 394; wing span 653 -> 307 / 640 -> 406; livery 663 -> 253 / 618 -> 372; TANK CAPACITY UNCHANGED 701 -> 691 / 1021 -> 1038
+(the tank release's pilot shakedown - GARAGE-LAG's next structural step). tools/perf/garage_lag_t25.json kept: STRICT-GATES' first
+data. FLIGHT (fresh profile D:/u25d, vs train 24): Cub 31 fps / 5 %, cockpit 56 / 1 % (first flight 45.5 -> 41.7 s); metal 31 / 5 %,
+cockpit 53.8 -> 55.9 fps. ONE RED CLEARED: the metal's worst boot task 716 -> 1055 / 859 ms on its two chase runs (at ~36 s, the
+garage boot; its cockpit runs through the same boot showed none); two re-runs 655 / 664 ms - not repeated, the metal baseline is
+taken from them. Battery GREEN, FRAMECOST PASS (baseline re-taken).
