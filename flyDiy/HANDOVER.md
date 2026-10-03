@@ -68348,3 +68348,44 @@ BATTERY: two reds, both explained. FADES: its pattern read `const AERO_CLEAR = (
 red) - the pattern takes any number form now (a5f8a2f0), PASS. FRAMECOST: tris.shadow +71 969 (+2.3 %) at the stand and the
 taxi, Cub and Cessna alike = the world look's castMinH 0.5 -> 0.35 m (more cover-ring bushes cast); no fps cost on the light
 pass; admitted, the baseline re-taken (3 rises). Parked aeroplanes re-cooked on the final build.
+
+## G1283 - C0 WING SLIDERS: THE THREE §9 ROWS MOVE A NUMBER OR SAY THEY DO NOT (2026-10-03, C0 for A0, cloud, node gates only; block G1283, no sub-numbers)
+
+futureDesigns/CONFIGURATIONS-2026-09-27.md §9 named three wing rows that do not reach what they say (RULING 3). Each was
+re-verified against the code first; the fixes are honesty only - no clamp moved, clampWing's 0.45 taper floor untouched (a
+physics ruling for the user).
+**ONE HOME FOR THE WING'S CLAMP** (`60_gen_spec.js`): `GEN_WING_ENVELOPE` (chord, span, spanPerChord, taper, xLE,
+placeDx/Dy), GEN_TAIL_ENVELOPE's pattern; clampWing reads it with the SAME numbers, exported. Proof it is bit-identical:
+every fixture build plus the six validated aeroplanes (Cub corrected, Jodel corrected, Cessna corrected, metal Cessna, the
+C172 on Wipline floats, the twin-582 floatplane) resolved under master's flight_core and this one - the whole resolved spec
++ genFrame cg0 + node count hashed: 15/15 identical; the resolved wing (chord, taper, span, xLE, place.dx) identical.
+1. **wgChordTip - REAL, fixed by a row note.** The join writes taper max(0.2, tip/root), clampWing floors it at 0.45, so
+   0.55 on a 2.10 root flew (and drew - the wing layer resolves the same spec) 0.945 m. It has a CEILING twin: tip over
+   root caps at taper 1 - the user's Cub carries wgChordTip 1.75 on a 1.70 root and flies 1.70. The floor rides the chord,
+   so no fixed range is honest; the row's `note` (the T2.2 mechanism) reads back the wing the layer's own resolve drew
+   (`CAGE_WING.flown`, per plane, keyed on the rows it came from so a resolve that threw says nothing) and says
+   "flies 0.95 m — the tip is held to 0.45–1 × the root chord". The Cub's tip row now shows that line; nothing flies
+   differently. The second plane's copy reads its own rows through w2Row's key map (`w2View`, the `when` Proxy, lifted).
+2. **wgDx - PARTLY REAL, §9 had the wrong clamp and the wrong end.** In the editor the join MEASURES xLE off the drawn wing
+   and zeroes place.dx (G295), so place.dx's -1.2..1.8 never binds there; the binding clamp is clampWing's xLE -0.20..3.00,
+   which rides the drawn cabin: the Jodel (xLE -0.012 at wgDx 0.45) stops moving its flown wing near wgDx 0.64 forward.
+   No row range can say that, so the cut is an ERRS row in measure(), the tail's P1 pattern: `cageWingStationCut(xLE, ENV)`
+   (pure, exported) - "the drawn leading edge stands -0.350 m aft of the firewall, outside the flown envelope -0.2–3 m, and
+   flies clamped". place.dx = -wgDx only on the headless design bake, where wgDx above 1.2 would be cut - ARCHETYPE-ONLY,
+   LOGGED NOT CHASED: no card writes more than 0.60. The row's range is unchanged (-1.5..1.8).
+3. **wgSpan - REAL, fixed by the range** (6.5-14 -> 6.5-18), and its sibling: **wgChord** 1.15-2.10 -> 0.80-2.10. The
+   2026-09-04 sailplane opening reached the clamp and the sail class seed (15.0 x 1.00) but neither row. The span's
+   coupled bounds (4-20 x the chord: 6.5 m on a 2.10 chord flies 8.40) get the same read-back note as the tip.
+GATES. DESIGN +§4b WING ROWS: span and chord rows equal GEN_WING_ENVELOPE; every live class seed inside its row; the notes
+said exactly where a real resolve moved the row (floor, ceiling, 4x, 20x, the sail seed silent, the second plane both ways);
+checkEnvelope reads the envelope instead of its copied literals; five new --selftest breaks, all caught. JOIN +G1283: the
+station cut agrees with resolveSpec at 10/10 probes (said <=> the flown xLE is not the measured one), inside is silent.
+Negative-verified on the SOURCE too: span row back to 14, chord back to 1.15, the tip note removed, the second plane's
+note un-mapped -> DESIGN red; the cut always silent / always speaking -> JOIN red.
+BATTERY (--only, 22 gates on the files touched, GEN included since clampWing is core): 21 PASS. ROLLANIM read 1 of 777 red
+under the 4-job pool - G1115's fixed roll at 65.5 bytes / frame (bound 64); alone it passes 3 of 3, and four copies at once
+read 33.5 on this branch AND on master alike - a heap-delta under the GEN shards' load, no roll code touched here.
+ARCHETYPES (full tier) not run: the bakes never read the panel rows and the core change is bit-identical (above).
+Not done (logged): the tip row's static floor stays 0.55 (the envelope's lowest legal tip is 0.36, on a 0.80 chord - the
+note covers the rest of the dead zone); the station cut is an ERRS row on the bench, not a live row note (it needs the
+cage's measurement, which measure() takes at build & fly, not at every slider tick).
