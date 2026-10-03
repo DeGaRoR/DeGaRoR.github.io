@@ -71,15 +71,46 @@
 // hides every other child along them (the craft's group is kept whole - pruneBox says why); the renderer's shadow pass
 // is wrapped (hook(), app.js) so what a pass hid is shown again the moment it ends, before anything else renders or walks
 // the scene. The layers stay: they are the scheme's record, and what a raycaster or a census reads.
+//
+// G1410 CRAFT-SHADOW: THE AEROPLANE'S SHADOW STANDS STILL BY CONSTRUCTION (2026-10-03; the user, a Cub parked at Jolene
+// at a low sun, three screenshots: "the shadow's outline should remain still, yet the redraw [is] different constantly
+// ... Can't we have something crisp for the plane, once and for all?"). Measured in the page in node
+// (tools/_craftshadow_probe.js, deterministic): parked, engine off, the near map was DRAWN EVERY FRAME, and what it was
+// drawn from changed nearly every frame: (1) THE SUN - render_world re-reads the day's sun whenever the clouds' light at
+// the eye moves 1 % (G1352) and on its 0.02 deg guard: up to 0.003 deg a frame with the clock running, none frozen;
+// (2) THE GRID - render_world's snap counts texels from the world's origin, 730 m from the stand: a turn of 0.003 deg
+// slid the craft's texel grid ~4 cm (two texels) at the aeroplane while its shadow moved under a millimetre - every
+// edge's staircase redrawn on a new phase: the dancing contour; (3) the aim's depth was never snapped (a creep of a
+// tenth of a millimetre moved the lookup's matrix: uNearM1 changed 89 frames in 90). And "pixelated": at 8 deg the
+// cascade had grown to a 10.4 m half (the penumbra rule) - 2 cm texels, 14.5 cm along the ground in the sun's line.
+// Now:
+//   THE SUN HELD (holdSun): the near map's direction moves only past S.sunEps (0.01 deg);
+//   THE GRID ANCHORED (anchorAt / snapA): both viewports' texels counted from a point on the aeroplane, taken again when
+//     the held sun turns (where nothing moves) - an edge's texels change only where the edge really moved; the aim
+//     snapped along the light too and rebuilt from the anchor, so one texel's worth of creep gives the same bits;
+//   THE MAP CACHED (due, from aim()): drawn only when a number it is drawn or read with changed, a part of the aeroplane
+//     moved past a quarter of its texel (or was shown / hidden), a near caster came, went or moved, the map is gone, or
+//     every S.cacheMaxS - else the map and its lookup stand as they were, to the bit;
+//   FINER: the craft's cascade fitted to its own sphere at any sun on the ground (the penumbra grows it only past
+//     S.penFitTx texels - at height): a Cub's 7.0 m half, 1.36 cm a texel at 1024 (2.02 before at 8 deg), 0.68 under
+//     'ultra'. The shader is untouched (G1414: a 2048 craft viewport in a 3 x 2 atlas and a rotated-grid kernel were
+//     built and pulled - a SwiftShader frame went NaN with them; HANDOVER G1414).
 // ============================================================
 var SHADOW_NEAR = (function () {
   'use strict';
   const NEAR_LAYER = 3, FAR_LAYER = 2, CRAFT_LAYER = 5;   // the near map's viewport 0 sees 3, its viewport 1 (the craft's cascade) 3 + 5; the far map sees 2 (everything but the craft, unless it is high)
   const S = { on: true, half: 30, size: 1024, bias: -0.0004, biasM: 0.05, normalBias: 0.02, normalBiasTx: 0.9, relief: 150, slantMax: 3000, penumbra: 0.0093, radiusMax: 2.5, self: true, slant: 0,   // size: render_world sets it from the GRAPHICS tier (1024 full, 2048 ultra), per viewport
     craft: true, prune: true, windowRelief: 10, fitMargin: 0.4, fitMin: 2.5, biasTx: 0.85, craftHalf: 0, craftR: 0,
-    aimDrawn: true, farHide: true, boxPrune: true, boxCraft: true, farEmpty: true };   // G1125: boxPrune - viewport 1 (the 60 m box) walks nearTag's casters alone (and the craft: boxCraft); G1126: farEmpty - a far camera off FAR_LAYER (the 'near' tier) walks nothing   // G1080: ... ; farHide: the aeroplane hidden while the WORLD's far map draws (three's shadow walk ignores the shadow camera's layers - see farLight)   // G1080: both viewports aimed at the DRAWN aeroplane (model.grp's pose), not at the point worldUpdate is given (the camera, under the free camera / the editor)   // G1005: the craft's cascade (craft: false = its box is the 60 m one); biasTx = G650's 5 cm at the 60 m box's 5.9 cm texel
+    aimDrawn: true, farHide: true, boxPrune: true, boxCraft: true, farEmpty: true,
+    // G1410 CRAFT-SHADOW (the header's last section): the sun the near map is drawn with HELD until it turns past sunEps (deg);
+    // the texel grids ANCHORED on the aeroplane (anchor); the map CACHED - drawn only when what it is drawn from changed past
+    // poseEps (m) or poseEpsTx of the craft's texel, and at least every cacheMaxS (s); the cascade grown for the penumbra only
+    // past penFitTx texels; the craft's kernel up to radiusCraft texels; the slant held inside slantHold (m) for the radius /
+    // window. craftK / craftMax: the 2048 craft viewport (G1414) - pinned off in craftK() until the near rule is generalised
+    sunHold: true, sunEps: 0.01, penFitTx: 24, anchor: true, cache: true, poseEps: 0.0005, poseEpsTx: 0.25, cacheMaxS: 2, craftK: 1, craftMax: 2048, radiusCraft: 2.5, slantHold: 0.05 };   // G1125: boxPrune - viewport 1 (the 60 m box) walks nearTag's casters alone (and the craft: boxCraft); G1126: farEmpty - a far camera off FAR_LAYER (the 'near' tier) walks nothing   // G1080: ... ; farHide: the aeroplane hidden while the WORLD's far map draws (three's shadow walk ignores the shadow camera's layers - see farLight)   // G1080: both viewports aimed at the DRAWN aeroplane (model.grp's pose), not at the point worldUpdate is given (the camera, under the free camera / the editor)   // G1005: the craft's cascade (craft: false = its box is the 60 m one); biasTx = G650's 5 cm at the 60 m box's 5.9 cm texel
   const nearScalars = new Float32Array(4);           // x: the near map is live (1 / 0); yzw: the craft cascade's bias (depth), PCF radius (texels), normal offset (m)
-  const nearWindow = new Float32Array(4);           // xy: the craft cascade's depth window (its shadow coordinate z, min / max) - past it, the 60 m box
+  const nearWindow = new Float32Array(4);           // xy: the craft cascade's depth window (its shadow coordinate z, min / max) - past it, the 60 m box; z: the craft viewport's side over the box's (G1410: the atlas is (z + 1) x z boxes)
+  nearWindow[2] = 1;   // (z: the craft viewport's side over the box's - 1: the 2 x 1 atlas)
   const nearUniforms = { uNearP: { value: nearScalars }, uNearQ: { value: nearWindow }, uNearM1: { value: (typeof THREE !== 'undefined' && THREE.Matrix4) ? new THREE.Matrix4() : null } };
   let installed = false;
   // ---- THE SHADER RULE (installed before any program compiles, like ATMO / CLOUDS) --------
@@ -256,8 +287,9 @@ var SHADOW_NEAR = (function () {
   }
   function atlas(sh) {
     if (!sh || typeof sh._updateMatrix !== 'function' || !nearUniforms.uNearM1 || !THREE.Frustum) { S.on = false; return; }   // not this three: no near map rather than a wrong one
-    sh._frameExtents.set(2, 1); sh._viewportCount = 2;
+    sh._viewportCount = 2;
     sh._viewports = [new THREE.Vector4(0, 0, 1, 1), new THREE.Vector4(1, 0, 1, 1)];   // 0 (left): the craft's cascade, 1 (right): the 60 m box
+    layout(sh);
     const cam1 = C1.cam = sh.camera.clone(); cam1.layers.set(NEAR_LAYER); cam1.layers.enable(CRAFT_LAYER);
     C1.frustum = new THREE.Frustum(); C1.pos = new THREE.Vector3(); C1.tgt = new THREE.Vector3(); C1.dir = new THREE.Vector3();
     const t0 = new THREE.Vector3();
@@ -274,6 +306,20 @@ var SHADOW_NEAR = (function () {
       cam1.position.copy(C1.pos); cam1.lookAt(C1.tgt); cam1.updateMatrixWorld();
       this._updateMatrix(cam1, nearUniforms.uNearM1.value, C1.frustum, this._viewports[0]);
     };
+  }
+  // G1410 layout(sh): the craft's viewport k x the box's side (k = S.craftK while that stays within S.craftMax texels, else 1):
+  // the atlas (k + 1) x k boxes, the craft's k x k at the left, the box's 1 x 1 at the bottom right (a 1024 box: a 3072 x 2048
+  // map, the craft at 2048). A change of k drops the map (three makes the new size at the next draw). Returns k.
+  function craftK() { return 1; }   // G1414: the 2 x 1 atlas only - a k x k craft viewport needs the near rule's bounds generalised (uNearQ.z); that shader half is NOT landed (HANDOVER G1414)
+  function layout(sh) {
+    const k = craftK();
+    if (sh._frameExtents.x !== k + 1 || sh._frameExtents.y !== k) {
+      sh._frameExtents.set(k + 1, k);
+      sh._viewports[0].set(0, 0, k, k); sh._viewports[1].set(k, 0, 1, 1);
+      if (sh.map) { sh.map.dispose(); sh.map = null; }
+    }
+    nearWindow[2] = k;
+    return k;
   }
   // tag(o): a caster into the near map (the craft's group, a house, the pier)
   function tag(o) { if (o && o.traverse) o.traverse(m => { m.layers.enable(NEAR_LAYER); }); }
@@ -379,19 +425,94 @@ var SHADOW_NEAR = (function () {
     _aimA[0] = _aimP.x; _aimA[1] = _aimP.y; _aimA[2] = _aimP.z;
     place(AIM.L, _aimA, Math.max(0, _aimP.y - AIM.hAt(_aimP.x, _aimP.z)), AIM.sun, AIM.snap, AIM.camera);
     AIM.n++; AIM.drawn = 1;
+    due(AIM.L);
     return true;
+  }
+  // ---- G1410 THE CACHED MAP: DRAWN WHEN WHAT IT IS DRAWN FROM CHANGED, NOT EVERY FRAME ----------------------------------
+  // render_world asks for the near map every frame (worldUpdate: needsUpdate); aim() - this frame's pose, the last word
+  // before the render - answers instead: the map is drawn when (a) a number it is drawn or read with changed (the held sun,
+  // both viewports' aims, sizes and depths, the lookup's bias / radius / window, the map's size), (b) a part of the
+  // aeroplane (a mesh that casts, a bone) moved more than S.poseEps at its bounding sphere since the map was drawn, or was
+  // shown / hidden (the flown bake's band swap), (c) a near caster joined, left or moved, (d) the map is gone, or (e) it
+  // is S.cacheMaxS old (what nothing above sees - a vertex-animated caster - is redrawn on that beat; a redraw of a still
+  // scene is the same map to the bit). Otherwise the map AND its lookup (uNearM1, three's box matrix: both taken when the
+  // map is drawn) stand as they were: a parked aeroplane's shadow is bit-identical frame to frame. Only with the renderer's
+  // pass hooked (hook(): what the far pass hides is shown again at the pass's end, drawn or not).
+  const CACHE = { mover: null, key: new Float64Array(32), cur: new Float64Array(32), parts: [], near: [], nearList: null, at: -1e9, partsAt: -1e9, group: null,
+    stat: { frames: 0, drawn: 0, held: 0, why: '', whys: {} }, eps: 0 };
+  function partsOf(g) {
+    const out = [];
+    g.traverse(o => { if ((o.isMesh && o.castShadow) || o.isBone) { const gs = o.geometry && (o.geometry.boundingSphere || (o.geometry.computeBoundingSphere(), o.geometry.boundingSphere)); out.push({ o, r: gs ? Math.max(0.01, gs.radius) : 1, m: new Float64Array(16), v: true }); } });
+    return out;
+  }
+  function shown(o) { for (let p = o; p; p = p.parent) if (!p.visible) return false; return true; }
+  // the largest move of any part since the snapshot (m at its sphere; Infinity: shown / hidden / new), and the snapshot taken when take
+  function partMoved(list, take) {
+    let worst = 0; CACHE.mover = null;
+    for (let i = 0; i < list.length; i++) {
+      const q = list[i], e = q.o.matrixWorld.elements, m = q.m, v = shown(q.o);
+      if (take) { m.set(e); q.v = v; continue; }
+      if (v !== q.v) { CACHE.mover = q.o; return Infinity; }
+      if (!v) continue;
+      let d = 0;
+      for (let j = 0; j < 12; j++) { const x = Math.abs(e[j] - m[j]) * q.r; if (x > d) d = x; }
+      for (let j = 12; j < 15; j++) { const x = Math.abs(e[j] - m[j]); if (x > d) d = x; }
+      if (d > worst) { worst = d; CACHE.mover = q.o; }
+    }
+    return worst;
+  }
+  function keyOf(L, k) {
+    const c0 = L.shadow.camera, c1 = C1.cam;
+    let i = 0;
+    const put = v => { k[i++] = v; };
+    put(L.position.x); put(L.position.y); put(L.position.z); put(L.target.position.x); put(L.target.position.y); put(L.target.position.z);
+    put(c0.far); put(c0.right); put(L.shadow.radius); put(L.shadow.bias); put(L.shadow.normalBias); put(L.shadow.mapSize.x);
+    if (c1) { put(C1.pos.x); put(C1.pos.y); put(C1.pos.z); put(C1.tgt.x); put(C1.tgt.y); put(C1.tgt.z); put(c1.right); put(c1.far); }
+    put(nearScalars[1]); put(nearScalars[2]); put(nearScalars[3]); put(nearWindow[0]); put(nearWindow[1]); put(nearWindow[2]);
+    return i;
+  }
+  function due(L) {
+    const st = CACHE.stat; st.frames++;
+    if (!S.cache || !HOOK.on || !L || !L.shadow) { if (L && L.shadow) L.shadow.needsUpdate = true; st.drawn++; st.why = 'off'; return true; }
+    const now = (typeof performance !== 'undefined') ? performance.now() : 0;
+    if (craftGroup !== CACHE.group || now - CACHE.partsAt > 1000 * S.cacheMaxS) { if (craftGroup !== CACHE.group) CACHE.at = -1e9; CACHE.group = craftGroup; CACHE.parts = craftGroup ? partsOf(craftGroup) : []; CACHE.partsAt = now; }
+    const n = keyOf(L, CACHE.cur);
+    let why = '';
+    if (!L.shadow.map) why = 'map';
+    else if (now - CACHE.at > 1000 * S.cacheMaxS) why = 'age';
+    else { for (let i = 0; i < n; i++) if (CACHE.cur[i] !== CACHE.key[i]) { why = 'key' + i; break; } }
+    if (!why && nearSpheres !== CACHE.nearList) {   // nearTag's list re-made (every 30 frames): the same casters?
+      const a = nearSpheres || [], b = CACHE.near;
+      if (a.length !== b.length) why = 'near';
+      else for (let i = 0; i < a.length; i++) if (a[i][4] !== b[i].o) { why = 'near'; break; }
+      if (!why) CACHE.nearList = nearSpheres;
+    }
+    const eps = CACHE.eps = Math.max(S.poseEps, S.poseEpsTx * 2 * (C1.H || S.half) / (S.size * craftK()));   // a quarter of the craft's texel (3.4 mm for a Cub on the ground at 1024)
+    if (!why && partMoved(CACHE.parts, false) > eps) why = 'craft';
+    if (!why && partMoved(CACHE.near, false) > eps) why = 'nearMoved';
+    if (why) {
+      CACHE.key.set(CACHE.cur); CACHE.at = now;
+      partMoved(CACHE.parts, true);
+      if (nearSpheres !== CACHE.nearList || why === 'near' || why === 'age') { CACHE.nearList = nearSpheres; CACHE.near = (nearSpheres || []).filter(q => q[4]).map(q => ({ o: q[4], r: Math.max(0.01, q[3]), m: new Float64Array(16), v: true })); }
+      partMoved(CACHE.near, true);
+      L.shadow.needsUpdate = true; st.drawn++; st.why = why; const w = /^key/.test(why) ? 'key' : why; st.whys[w] = (st.whys[w] || 0) + 1;
+    } else { L.shadow.needsUpdate = false; st.held++; }
+    return !!why;
   }
   // the aim point the near casters are tagged round (render_world nearTag): the drawn aeroplane, else the given point
   function aimPoint(cg) { return (S.aimDrawn && AIM.drawn && drawnCentre()) ? [_aimP.x, _aimP.y, _aimP.z] : cg; }
-  function place(L, cg, agl, sun, snap, camera) {
+  function place(L, cg, agl, sunIn, snap, camera) {
+    const sun = holdSun(sunIn);
+    if (snap && S.anchor) { anchorAt(cg, sun); snap = snapA; }
     _t.set(cg[0], cg[1], cg[2]);
-    if (snap) snap(_t, S.half, S.size);
+    if (snap) snap(_t, S.half, S.size, sun);
     L.target.position.copy(_t);
     L.position.set(_t.x + sun.x * 2 * S.half, _t.y + sun.y * 2 * S.half, _t.z + sun.z * 2 * S.half);
     if (camera && !camera.layers.isEnabled(NEAR_LAYER)) camera.layers.enable(NEAR_LAYER);
     if (camera && !camera.layers.isEnabled(CRAFT_LAYER)) camera.layers.enable(CRAFT_LAYER);
     // the depth: the box's own 2 x half above the target, down to the ground shadow (plus S.relief of terrain) below it
-    const sy = Math.max(0.05, sun.y), slant = Math.min(S.slantMax, Math.max(0, agl) / sy);
+    const sy = Math.max(0.05, sun.y), slantNow = Math.min(S.slantMax, Math.max(0, agl) / sy);
+    const slant = (HOLD.slant >= 0 && Math.abs(slantNow - HOLD.slant) <= S.slantHold) ? HOLD.slant : (HOLD.slant = slantNow);   // G1410: a still aeroplane keeps its radius and window to the bit
     const c = L.shadow.camera, want = Math.max(4 * S.half + 10, 2 * S.half + slant + S.relief / sy);
     if (Math.abs(c.far - want) > 0.05 * want) { c.far = want; c.updateProjectionMatrix(); }
     L.shadow.bias = -S.biasM / (c.far - c.near);
@@ -401,7 +522,39 @@ var SHADOW_NEAR = (function () {
     L.shadow.normalBias = S.normalBiasTx * texel;
     L.shadow.radius = Math.max(1, Math.min(S.radiusMax, (slant * S.penumbra / texel - 1) / 2));
     S.slant = slant;
-    if (C1.cam) fitCraft(cg, sun, slant, sy, snap);
+    if (C1.cam) { layout(L.shadow); fitCraft(cg, sun, slant, sy, snap); }
+  }
+  // ---- G1410 THE SUN HELD, THE GRID ANCHORED ON THE AEROPLANE -----------------------------------------------------------
+  // holdSun(sun): the direction the near map is drawn with - the given one only once it has turned past S.sunEps degrees
+  // from the one held (render_world re-reads the day's sun whenever the clouds' light at the eye moves 1 %: a few
+  // thousandths of a degree, several times a second - every one a new map).
+  const HOLD = { sun: (typeof THREE !== 'undefined' && THREE.Vector3) ? new THREE.Vector3() : null, has: false, n: 0, slant: -1, A: (typeof THREE !== 'undefined' && THREE.Vector3) ? new THREE.Vector3() : null, hasA: false, nA: 0, aSun: null };
+  function holdSun(sun) {
+    if (!S.sunHold || !HOLD.sun) return sun;
+    if (!HOLD.has || HOLD.sun.dot(sun) < Math.cos(S.sunEps * Math.PI / 180)) { HOLD.sun.copy(sun).normalize(); HOLD.has = true; HOLD.n++; }
+    return HOLD.sun;
+  }
+  // anchorAt(cg, sun): the point the texel grids are counted from. render_world's snap counts them from the world's
+  // origin, a kilometre away: a turn of the sun of 0.005 deg slides that grid by ~5 cm at the aeroplane - the whole
+  // staircase of every edge re-drawn on a new phase while the shadow itself moved a millimetre. Counted from the aeroplane,
+  // the same turn moves the grid there by nothing: an edge's texels change only where the edge really moved. The anchor
+  // is taken again when the held sun turns (at the aeroplane: nothing moves) or the aeroplane is 500 m from it; while the
+  // sun holds, a still caster (a hangar) keeps its texels as the aeroplane taxis past it, as render_world's grid did.
+  function anchorAt(cg, sun) {
+    if (!HOLD.A) return;
+    const far = HOLD.hasA && ((HOLD.A.x - cg[0]) ** 2 + (HOLD.A.y - cg[1]) ** 2 + (HOLD.A.z - cg[2]) ** 2) > 250000;
+    if (!HOLD.hasA || far || HOLD.aSun !== HOLD.n) { HOLD.A.set(cg[0], cg[1], cg[2]); HOLD.hasA = true; HOLD.aSun = HOLD.n; HOLD.nA++; }
+  }
+  // snapA: render_world's snapToTexels (lookAt's basis: x = up x L, y = L x x), counted from the anchor - and on the light's axis too
+  const _aR = _t ? new THREE.Vector3() : null, _aU = _t ? new THREE.Vector3() : null, _aUp = _t ? new THREE.Vector3() : null;
+  function snapA(T, half, size, sun) {
+    const texel = 2 * half / size, A = HOLD.A;
+    _aUp.set(0, 1, 0); if (Math.abs(sun.y) > 0.999) _aUp.set(0, 0, 1);
+    _aR.crossVectors(_aUp, sun).normalize(); _aU.crossVectors(sun, _aR);
+    const a = (T.x - A.x) * _aR.x + (T.y - A.y) * _aR.y + (T.z - A.z) * _aR.z, b = (T.x - A.x) * _aU.x + (T.y - A.y) * _aU.y + (T.z - A.z) * _aU.z;
+    const c = (T.x - A.x) * sun.x + (T.y - A.y) * sun.y + (T.z - A.z) * sun.z;   // (and along the light: a sub-texel creep must not move the depth range either)
+    // rebuilt FROM the anchor (not T plus a correction): every point on one texel gives the same bits
+    return T.copy(A).addScaledVector(_aR, Math.round(a / texel) * texel).addScaledVector(_aU, Math.round(b / texel) * texel).addScaledVector(sun, Math.round(c / texel) * texel);
   }
   // fitCraft: the craft's cascade (G1005) - its half-width the craft's sphere round the CG (the pose carried from the
   // frame before: the margin covers a frame's travel), grown so the sun's penumbra at this slant needs at most
@@ -413,13 +566,13 @@ var SHADOW_NEAR = (function () {
     if (S.craft && craftPose && S.craftR > 0) {
       _c1.copy(craftC).applyMatrix4(craftPose.matrixWorld);
       const off = Math.hypot(_c1.x - cg[0], _c1.y - cg[1], _c1.z - cg[2]);
-      const fit = S.craftR + off + S.fitMargin, pen = slant * S.penumbra * S.size / (2 * (2 * S.radiusMax + 1));
+      const fit = S.craftR + off + S.fitMargin, pen = slant * S.penumbra * S.size * craftK() / (2 * S.penFitTx);   // G1410: grown for the penumbra only past penFitTx texels (at height) - at the stand the craft's own sphere
       H = Math.min(S.half, Math.max(S.fitMin, fit, pen));
     }
     if (!(C1.H > 0) || H > C1.H || H < 0.8 * C1.H) C1.H = Math.min(S.half, H * 1.1);
     const Hh = C1.H, reach = 2 * S.half, cam = C1.cam;
     _c1.set(cg[0], cg[1], cg[2]);
-    if (snap) snap(_c1, Hh, S.size);
+    if (snap) snap(_c1, Hh, S.size * craftK(), sun);
     C1.tgt.copy(_c1); C1.pos.set(_c1.x + sun.x * reach, _c1.y + sun.y * reach, _c1.z + sun.z * reach);
     // the window: from the light to just past the craft's own ground shadow (the CG's slant + the craft's sphere and a
     // 10 m relief + half the height, along the sun) - the cascade's FAR PLANE too, so its draw culls to what can matter
@@ -435,9 +588,9 @@ var SHADOW_NEAR = (function () {
     const e = cam.projectionMatrix.elements, zOf = d => { const z = -e[10] * d + e[14]; return cam._reversedDepth ? z : z * 0.5 + 0.5; };
     const zA = zOf(cam.near), zB = zOf(C1.dB);
     nearWindow[0] = Math.min(zA, zB) - 1e-4; nearWindow[1] = Math.max(zA, zB) + 1e-4;
-    const tx = 2 * Hh / S.size;
+    const tx = 2 * Hh / (S.size * craftK());
     nearScalars[1] = -S.biasTx * tx / (cam.far - cam.near);
-    nearScalars[2] = Math.max(1, Math.min(S.radiusMax, (slant * S.penumbra / tx - 1) / 2));
+    nearScalars[2] = Math.max(1, Math.min(S.radiusCraft, (slant * S.penumbra / tx - 1) / 2));
     nearScalars[3] = S.normalBiasTx * tx;
     S.craftHalf = Hh;
   }
@@ -563,7 +716,7 @@ var SHADOW_NEAR = (function () {
       return um.apply(this, arguments);
     };
   }
-  const API = { S, pcf, C1, AIM, EYES, FARH, HOOK, NEAR_LAYER, FAR_LAYER, CRAFT_LAYER, install, inject, make, tag, tagCraft, follow, aim, aimPoint, drawnPoint, farLight, hook, eyes, apply, setNear, unprune, get installed() { return installed; } };
+  const API = { S, pcf, C1, AIM, EYES, FARH, HOOK, HOLD, CACHE, due, layout, NEAR_LAYER, FAR_LAYER, CRAFT_LAYER, install, inject, make, tag, tagCraft, follow, aim, aimPoint, drawnPoint, farLight, hook, eyes, apply, setNear, unprune, get installed() { return installed; } };
   if (typeof window !== 'undefined') { window.SHADOW_NEAR = API; API.install(); eyesInit(); }
   return API;
 })();

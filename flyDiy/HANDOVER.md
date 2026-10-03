@@ -68439,3 +68439,135 @@ TRAPS: an 8-bit render target tagged SRGBColorSpace is SRGB8_ALPHA8 in three r18
 into it is encoded twice (the "XR target" display rule's case). A still after a DAY_CLOCK jump needs ~5 s now (the light's
 ease, the probe's fade, the eye). The luma rig must read the canvas in the same task as the frame (the drawing buffer is
 gone after presentation) and skip callbacks that drew nothing (the 30 cap).
+
+## G1410-G1414 - CRAFT-SHADOW: THE AEROPLANE'S SHADOW STANDS STILL BY CONSTRUCTION - THE SUN HELD, THE TEXEL GRID ANCHORED ON THE AEROPLANE, THE MAP CACHED (2026-10-03, CRAFT-SHADOW for A0, cloud box, SwiftShader; the 2048 craft viewport built and PULLED - G1414)
+
+The user (3 Oct, a Cub parked at Jolene after a landing, 18:11 AKDT, low sun, light breeze, moving cumulus, three
+screenshots): "the plane shadow is constantly redrawn ... The shadow's outline should remain still, yet the redraw [is]
+different constantly ... a clearly very pixelated shadow that gets redrawn very often, and the edgy contours are not falling
+exactly in the same place ... The plane deserves its specific, HD shadow."
+
+- G1410 THE CAUSE, MEASURED (tools/_craftshadow_probe.js: the page in node - tools/_page_node.js, the real three r186 on
+  the recording GL, a virtual clock: deterministic, frame for frame). The stock Cub rolled out to HOME's stand, the hand
+  on the controls, the key off, the stand's brakes (0.6), the game day's 8 kt breeze and 'cuh' cumulus; 90 frames a run,
+  one input frozen at a time; logged each frame: the sun the near light is drawn with, the cascade's aim, uNearM1, every
+  craft mesh's matrix, the near map drawn or not. BEFORE (the base, sun 8 deg):
+    run             near map drawn   uNearM1 changed   the near light's sun
+    live            90 / 90          89 / 89           changed (engine-on run: 63 of 90 frames, up to 0.0031 deg a frame)
+    clock frozen    90 / 90          89 / 89           0
+    cloud shadow 0  90 / 90          89 / 89           37 of 90, up to 0.0012 deg (the clouds feed it: see 2)
+    paused          90 / 90           0 / 89           0
+  Three inputs move the craft's map or its lookup while "nothing moves":
+  1. THE NEAR MAP IS DRAWN EVERY FRAME, whatever changed (render_world worldUpdate: needsUpdate every frame).
+  2. THE SUN: render_world's dayApply re-reads the day's sun on its 0.02 deg guard AND whenever the clouds' light at the
+     eye (CLOUDS.sunT, G1352) moves 1 % - several times a second under drifting cumulus: "only the clouds move" turns the
+     shadow's light by thousandths of a degree. A thousandth of a degree moves the shadow itself by a fraction of a
+     millimetre - but:
+  3. THE GRID: render_world's snapToTexels counts the texels from the WORLD'S ORIGIN; the stand is 730 m from it. A sun
+     turn of 0.003 deg slides the craft cascade's texel grid ~4 cm at the aeroplane - two of its 2 cm texels - so every
+     re-read redrew every edge's staircase on a new phase: the contour "not falling in the same place". (SHADOWSKY row:
+     a 0.03 deg turn - render_world's grid 0.98 texel, the anchored one 0.00.) And the aim was never snapped along the
+     light, so a tenth of a millimetre of creep moved the lookup's matrix (89 / 89 with the clock frozen).
+  4. THE AEROPLANE REALLY MOVES A LITTLE: on the stand's brakes in the 8 kt breeze the Cub creeps ~2 cm/s and its parts
+     move 0.3-0.9 mm a frame (a separate physics question - a braked taildragger should not creep; not touched here).
+  "PIXELATED", quantified: at 8 deg the craft's cascade had grown to a 10.4 m half (the penumbra rule: the sun's 0.53 deg
+  at the CG's slant fitted into radiusMax texels) - 2.02 cm texels at 1024, 14.5 cm long on the ground along the sun's
+  line (1 / sin 8 deg = 7.2); the kernel four square taps at +-1.07 texel (radius 2.13): two ramps across an edge. The
+  PHYSICAL penumbra (0.0093 rad x the occluder's distance along the ray): the wing (~2 m up) at 8 deg 13 cm across the
+  light, the tail ~8 cm, the tyres 0; at noon (58 deg) the wing 2.2 cm.
+- G1411 THE DESIGN (shadow_near.js; its header's G1410 section). Built: the CACHED, ANCHORED CASCADE. Weighed against a
+  projected high-res silhouette decal for the ground shadow (+ the cascade for self-shadow): a decal is planar - wrong on
+  a slope, a kerb, a hangar wall, another aeroplane - and still needs the cascade for the wing on the fuselage; the
+  cascade done right is the same picture on every receiver, with no new program. What was built:
+    THE SUN HELD (holdSun): the near map's direction moves only past S.sunEps 0.01 deg (the main light still follows the
+      day: shading is untouched - only where the shadow is drawn from steps, a 0.01 deg step moves a wing's ground
+      shadow ~2 mm at 8 deg);
+    THE GRID ANCHORED (anchorAt / snapA): both viewports' texels counted from a point on the aeroplane, re-taken only when
+      the held sun turns (at the aeroplane nothing slides) or 500 m away; snapped on the light's axis too, and rebuilt
+      from the anchor so one texel's worth of creep gives the same bits;
+    THE MAP CACHED (due(), from aim() - this frame's pose, the last word before the render): drawn only when a number it
+      is drawn or read with changed (both viewports' aims, sizes, depths, bias, radius, window, the map size), a craft
+      part (a casting mesh or a bone) moved more than a quarter of the craft's texel (1.7 mm) since the map was drawn or
+      was shown / hidden, a near caster came, went or moved, the map is gone, or every S.cacheMaxS 2 s (a redraw of a
+      still scene is the same map to the bit). Otherwise the map AND its lookup stand: uNearM1 and three's box matrix are
+      only taken when the map is drawn (updateMatrices). Only with the renderer's pass hooked (G1125's hook - what the far
+      pass hides is shown again whether the near map drew or not); S.cache false = drawn every frame as before;
+    FINER, SAME SHADER: the craft's cascade fitted to its own sphere at any sun on the ground - the penumbra rule grows it
+      only past S.penFitTx 24 texels (at height): a Cub's 7.0 m half, 1.36 cm a texel at 1024 (2.02 before at 8 deg; 9.8
+      cm along the ground at 8 deg, 14.5 before), 0.68 cm under 'ultra'; the craft's radius capped at S.radiusCraft 2.5
+      (the square four-tap kernel bands past it). This is CRISPER than the physical penumbra under the wing at a low sun
+      (13 cm) - the user's "crisp"; true contact hardening (sharp at the tyres, soft under the wing) needs a blocker
+      search (+8-16 taps in every lit program, inlined three times by fxc): not built, against the compile rule.
+    NO SHADER CHANGE: the near rule and the PCF kernel are byte-identical to the base (no program, no compile growth).
+  AFTER (same probe, same runs, sun 8 deg; the eps a quarter of the 1.36 cm texel = 3.4 mm):
+    run             near map drawn   uNearM1 changed   why it was drawn (incl. the 30 warm frames)
+    live            17 / 90           4 / 90           the creep (craft 20), the held sun's steps and the aim (key 6)
+    clock frozen    10 / 90           3 / 90           craft 9, key 4
+    cloud shadow 0  11 / 90           4 / 90
+    paused           0 / 90           0 / 90           - the parked shadow is the same map to the bit
+    taxiing         90 / 90          89 / 90           moving: every frame, as before (the HD-variant run; the same law)
+  What still redraws on the stand is the aeroplane's own creep in the breeze (point 4): when it moves, the shadow moves
+  with it - by the physical amount, on the same grid, never re-rolled.
+- G1412 COST. FRAMECOST census (the Cub, FRAMECOST_QUERY=parkcook=0 both sides, the census's own PAUSED views; the base
+  worktree vs this tree - measured with the G1414 atlas in; draws and triangles do not depend on the viewport's size):
+  stand draws.shadow 366 -> 261, tris.shadow 2.94 M -> 2.12 M, draws.total 1433 -> 1328, gl.calls 11 892 -> 11 539,
+  uniformMatrix4fv 1623 -> 1573; the taxi pin (paused) draws.shadow 161.5 -> 135.5, tris.shadow 1.93 M -> 1.43 M;
+  draws.main and tris.main identical; programs 104 -> 100.5 (a held frame binds no near-map depth program). MOVING (the
+  taxi probe, ENGINE=on TAXI=1): the near map drawn 90 / 90 before and after - the same draws and triangles, no saving,
+  no extra. The per-frame check (aim(), only while the map is cached): one walk of the craft's casting meshes and bones
+  (79 on the stock Cub) and the near casters (113 at HOME's stand), 15 matrix floats each against the snapshot. MEMORY:
+  none (the 2 x 1 atlas as before; one Float64Array(16) per part). SHADERS: unchanged. The full FRAMECOST gate was not
+  run here (A0's train battery); BUILD, SHADOWSKY, LIGHT, CONTACT pass; FADES fails its one renderOrder row on the base
+  too (cs_base, untouched) - not this change.
+- G1414 THE HD HALF, BUILT AND PULLED (A0 DECISION). Built and gated (SHADOWSKY green): the craft's viewport at 2x the
+  box's side up to 2048 (a (k + 1) x k atlas: 3072 x 2048 under 'full', 0.68 cm texels for a Cub, +32 MB of GPU memory -
+  three's PCF target is RGBA8 + 32-bit depth), the near rule's bounds and texel size from uNearQ.z
+  (`vec2 nEx = vec2(uNearQ.z + 1.0, uNearQ.z)`, margins 0.01 / nEx, the box at x > k / (k + 1), y < 1 / k,
+  `shadowMapSize * nEx`), and the four PCF taps on a rotated grid (RGSS, each axis at -1/2, -1/6, 1/6, 1/2 of the radius:
+  four ramps across an edge, not two). In this container's SwiftShader every session with that shader half drew a NaN
+  MAIN PASS (the sky included) at the chase-from-above view (orbit 2.0 / 0.55 / 15) of the parked Cub, which the base page
+  drew cleanly there; the NaN then lived on in some persistent target (switching shadows off afterwards: still NaN).
+  Every JS-side uniform read finite; the cause was not found in the time. Pulled: the shader is the base's to the byte;
+  craftK() returns 1 (layout() keeps the (k + 1) x k code for the day the rule is generalised). On the GPU box: re-apply
+  the three shader edits above, set craftK() back to S.craftK, look for the NaN at that view, then judge the 2048 look.
+- G1414 NEXT (A0, 3 Oct, while this ran: LIGHT-SMOOTH found the in-flight wing bands are self-shadow acne from the craft
+  cascade grown to its 30 m cap - 5.9 cm texels - and is landing a craft-only slope-scaled normal offset / bias in
+  shadow_near.js, uniform-only; it was NOT on origin when this was pushed: the merge meets this entry's edits in place()
+  / fitCraft() (nearScalars[1..3], the bias and normal offset) - take both). The growth is the PENUMBRA rule (fitCraft's
+  `pen`: the ground shadow's blur from height in at most N texels), not the ground shadow's footprint - an orthographic
+  light sees the craft and its ground shadow on the same rays, so the lateral box never has to grow for the ground.
+  S.penFitTx 24 (this entry) moves the growth from slant ~12 m to ~35 m: on the stand and taxiing the cascade stays at
+  the sphere (7.0 m); in flight at a low sun it still reaches the 30 m cap. THE SPLIT A0 proposes, as designed here (not
+  built - it is a shader change, and this session's shader half had to be pulled, G1414): the craft's SELF-shadow
+  (CRAFT_NEAR_ONLY materials) read a viewport ALWAYS fitted to the sphere (7 m, 1.36 cm; never grown), the GROUND read
+  the grown one (the penumbra at height). Cheapest form: a third viewport in the atlas (3 x 1, +8 MB at 1024) drawn with
+  the craft alone (its walk is already pruned to the craft), the craft materials' lookup switched to it by the define
+  they already carry - one getShadow either way (no new taps, no new program: the define exists); the cache above covers
+  all three viewports (one key). Or, without a third viewport: never grow the cascade (penFitTx -> infinity) and let the
+  far map carry the ground shadow's blur from height - but the far map no longer draws the craft (G1080.2), so no.
+- G1413 EVIDENCE (reports/evidence/CRAFT-SHADOW/; SwiftShader in this container - tools/craftshadow_frames.js: the game's
+  rAF queued from the first script and pumped until the roll-out is done, then each frame drawn by hand and read in the
+  same task; the base page vs the same page with only shadow_near.js swapped; ~45 s a frame; post stack off):
+  - 1_parked_before_strip.jpg - BEFORE: 6 consecutive frames (2 solver steps apart) of the parked Cub, engine off, 16:00
+    sun 43 deg, and each frame's difference to the one before. No decision.
+  - 2_parked_after_strip.jpg - AFTER: the same setup. No decision.
+  - 3_shadow_closeup_before_after.jpg - the wing's ground shadow at full resolution, before over after, with the
+    differences. No decision.
+  THE STRIPS DO NOT SEPARATE BEFORE FROM AFTER (changed pixels 22 312 / 15 606 / 6 951 / 1 918 / 742 before, 22 262 /
+  15 574 / 6 884 / 2 025 / 668 after): what changes is the whole apron sliding under the orbit camera that follows the
+  creeping Cub (point 4), settling; and at ~45 s of wall clock a rig frame, the sun never re-read between two captures -
+  the mechanism of points 2-3 needs the clouds' light at the eye to move between frames, which this rig's frames did
+  not give. THE PROOF IS THE PROBE'S (G1410 / G1411 tables). A0 / the user: the eye on the GPU box, the user's Cub at
+  13/31 18:11 with moving cumulus, ?shadoweyes-style A/B by SHADOW_NEAR.S.{cache,anchor,sunHold} (each false = the old
+  behaviour, live). NOT PRODUCED: the low-sun strip (at 8-12 deg HOME's stand lies in a building's shadow), the noon still
+  and the taxi still (time: the rig's ~45 s frames, two sessions lost to a memory thrash and the G1414 NaN).
+TOOLS: tools/_craftshadow_probe.js (the probe; ENGINE=on TAXI=1 for the taxi run), tools/craftshadow_frames.js (the
+SwiftShader frame rig, --serve to keep the page), tools/craftshadow_evidence.js (strips and differences into JPEGs).
+GATES: SHADOWSKY PASS (its G1005 rows generalised to the atlas; four G1410 rows: the held sun, the anchored grid against
+render_world's, the cache's draw / hold decisions, cache off and unhooked = every frame), BUILD PASS, LIGHT PASS, CONTACT
+PASS; FADES FAIL (1) - the same row fails on the untouched base. FRAMECOST: the census above, the gate not run.
+TRAPS: a SwiftShader page's "overlay gone" is NOT the garage's end - a roll-out pressed before the first frame's step
+(BOOT.log step 'firstFrame', the page's `loop` requested) deadlocks: the trip's first light waits on frames from a loop
+not started yet. Two SwiftShader pages at once on this 15 GB box thrash (~7 GB each). A Raycaster over the scene from the
+page hangs it (the forest's instanced meshes). Changing ShaderChunk text in a live page recompiles nothing (three keys
+programs by parameters).
