@@ -432,6 +432,7 @@ function matFor(name) {
 const prevPost = PAGE.post;
 PAGE.post = ctx => {
   if (prevPost) prevPost(ctx);
+  if (ctx.defer) { if (group) group.visible = false; return; }   // G1303: a drag tick - built when the hand stops
   const { scene, mesh, P, stat } = ctx;
   dispose(group); group = null;
   if (!Math.round(P.accOn === undefined ? 1 : P.accOn)) return;

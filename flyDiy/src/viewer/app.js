@@ -5613,6 +5613,44 @@
 
     return shakeVal;
   };
+  // G1302 (GARAGE-LAG-2): THE GARAGE'S READOUTS NEVER RUN THE SHAKEDOWN INSIDE A REBUILD. A tank row's release
+  // commits the energy block, and GARAGE_SPEC.update puts a new aeroplane on the stand (setAircraft): the pilot read
+  // its sheet at construction (lazy now, 43_pilot.js), the flight plate read Vs (flRender) and the plaque its
+  // numbers - each a call to shakeOf, which ran genShakedown on the new def: 0.4-0.7 s inside the release, for
+  // readouts of an aeroplane nobody is flying yet. In the garage they now take the shakedown only when it is
+  // already known (this page's memo or the core's store); otherwise the plaque steps down (as it does with no
+  // numbers), the plate holds 0 (the no-sheet state), and the REAL shakedown runs post-idle, once the editing has
+  // paused (debounced: a drag of several releases pays for the last aeroplane only), then the two re-read it. The
+  // check itself is unchanged and never estimated: anything that needs it now (the roll-out's plate, the pilot in
+  // flight, the bench's check, the sim worker's init) still calls shakeOf and gets it then.
+  function shakeKnown() {
+    if (curKey !== 'gen' || shakeFor === def) return true;
+    let key = null;
+    try { key = def && def.spec ? shakeHash(JSON.stringify(def.spec)) : null; } catch (e) { key = null; }
+    if (!key) return false;
+    if (shakeMem.has(key)) return true;
+    const st = shakeStore();
+    return !!(st && st.entries[key]);
+  }
+  let shakeSoonT = null, shakeSoonI = null;
+  function shakeSoon() {
+    if (shakeSoonT) clearTimeout(shakeSoonT);
+    if (shakeSoonI && typeof cancelIdleCallback === 'function') cancelIdleCallback(shakeSoonI);
+    shakeSoonI = null;
+    shakeSoonT = setTimeout(() => {
+      shakeSoonT = null;
+      const go = () => {
+        shakeSoonI = null;
+        if (!inGarage || curKey !== 'gen') return;
+        try { shakeOf(); } catch (e) {}
+        try { flRender(); } catch (e) {}
+        try { drawPlaque(); } catch (e) {}
+      };
+      if (typeof requestIdleCallback === 'function') shakeSoonI = requestIdleCallback(go, { timeout: 2000 });
+      else go();
+    }, 600);
+  }
+  const shakeDeferred = () => { if (inGarage && !shakeKnown()) { shakeSoon(); return true; } return false; };
 
   // THE DENSITY-ALTITUDE SHEET (G72), memoised on `def` exactly like the
   // shakedown above it — it is a few thousand tunnel probes, so it runs when
@@ -5775,6 +5813,7 @@
     box.classList.toggle('on', on);
     if (!on) return;
     let s = null;
+    if (shakeDeferred()) { box.classList.remove('on'); return; }   // G1302: the numbers come post-idle
     try { s = shakeOf(); } catch (e) {}
     if (!s) { box.classList.remove('on'); return; }
     const n1 = (v, d) => (v == null || !isFinite(v)) ? '—' : v.toFixed(d);
@@ -10734,7 +10773,8 @@
     if (bad) $('flNoticeV').textContent = st.any
       ? 'the bench has not passed for this build'
       : 'nothing on the bench has been run for this build';
-    try { const sh = shakeOf(); flVs = (sh && sh.Vs) || 0; } catch (e) { flVs = 0; }
+    if (shakeDeferred()) flVs = 0;                                // G1302: re-read post-idle
+    else try { const sh = shakeOf(); flVs = (sh && sh.Vs) || 0; } catch (e) { flVs = 0; }
     flLayout();                 // the phase name is half of the PFD's width
   }
   // the bench and the aeroplane both change what the plate says
