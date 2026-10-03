@@ -1,0 +1,72 @@
+== before_cub (saved route: HOME -> SEA)
+from = HOME
+  Jolene AFB 02/20
+  Jolene AFB 13/31
+  Tamgas Hill Strip
+  Annette Dock
+  Jumbo Mine Street
+  East Point Clearing
+  Skyline Altiport
+to   = SEA
+  ⟳ Circuit
+  Jolene AFB 02/20
+  Jolene AFB 13/31
+  Tamgas Hill Strip
+  Annette Dock
+  Jumbo Mine Street
+  East Point Clearing
+  Skyline Altiport
+== after_cub (saved route: HOME -> SEA)
+from = HOME
+  Jolene AFB 02/20 · concrete
+  Jolene AFB 13/31 · concrete
+  Tamgas Hill Strip · gravel
+  [x] Annette Dock · water — a water lane: wheels cannot land on it
+  Jumbo Mine Street · gravel
+  East Point Clearing · gravel
+  Skyline Altiport · grass
+to   = CIRCUIT
+  ⟳ Circuit
+  Jolene AFB 02/20 · concrete
+  Jolene AFB 13/31 · concrete
+  Tamgas Hill Strip · gravel
+  [x] Annette Dock · water — a water lane: wheels cannot land on it
+  Jumbo Mine Street · gravel
+  East Point Clearing · gravel
+  Skyline Altiport · grass
+== before_floats (saved route: HOME -> A3)
+from = HOME
+  Jolene AFB 02/20
+  Jolene AFB 13/31
+  Tamgas Hill Strip
+  Annette Dock
+  Jumbo Mine Street
+  East Point Clearing
+  Skyline Altiport
+to   = CIRCUIT
+  ⟳ Circuit
+  Jolene AFB 02/20
+  Jolene AFB 13/31
+  Tamgas Hill Strip
+  Annette Dock
+  Jumbo Mine Street
+  East Point Clearing
+  Skyline Altiport
+== after_floats (saved route: HOME -> A3)
+from = SEA
+  [x] Jolene AFB 02/20 · concrete — floats land on water only
+  [x] Jolene AFB 13/31 · concrete — floats land on water only
+  [x] Tamgas Hill Strip · gravel — floats land on water only
+  Annette Dock · water
+  [x] Jumbo Mine Street · gravel — floats land on water only
+  [x] East Point Clearing · gravel — floats land on water only
+  [x] Skyline Altiport · grass — floats land on water only
+to   = CIRCUIT
+  ⟳ Circuit
+  [x] Jolene AFB 02/20 · concrete — floats land on water only
+  [x] Jolene AFB 13/31 · concrete — floats land on water only
+  [x] Tamgas Hill Strip · gravel — floats land on water only
+  Annette Dock · water
+  [x] Jumbo Mine Street · gravel — floats land on water only
+  [x] East Point Clearing · gravel — floats land on water only
+  [x] Skyline Altiport · grass — floats land on water only
