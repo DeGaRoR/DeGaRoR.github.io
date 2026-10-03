@@ -68348,3 +68348,72 @@ BATTERY: two reds, both explained. FADES: its pattern read `const AERO_CLEAR = (
 red) - the pattern takes any number form now (a5f8a2f0), PASS. FRAMECOST: tris.shadow +71 969 (+2.3 %) at the stand and the
 taxi, Cub and Cessna alike = the world look's castMinH 0.5 -> 0.35 m (more cover-ring bushes cast); no fps cost on the light
 pass; admitted, the baseline re-taken (3 rises). Parked aeroplanes re-cooked on the final build.
+## G1360-G1364 - GATE-TOOLS: THE FRAME-LENGTH DISTRIBUTION; THE PER-TRAIN STRICT GATE (2026-10-03, a cloud session for A0; branch claude/gate-tools-g1360 off master 5502f45 - NOTHING RUN IN A BROWSER: no GPU, no box)
+
+The user (2026-10-03): (1) a frame-length DISTRIBUTION instead of one "uneven %"; (2) "no regression accepted, ever" -
+one per-train check with a light and a full mode, a stored baseline, the RED rows named. Note: there is no
+flyDiy/CLAUDE.md on master (the brief named one); the session worked from this file's conventions.
+
+**G1360-G1361 THE DISTRIBUTION** (`tools/frame_dist.js`, one reading for every rig): a histogram over < 20, 20-40, 40-60,
+60-100, 100-250, 250-1000, > 1000 ms (a frame on an edge is in the upper bucket); p50 / p90 / p99 / p99.9 (nearest rank,
+the rigs' convention); the share of frames over 1.5x and 3x THEIR OWN cap's frame time (the per-frame cap: the recorder's
+`cap` column, rollout_perf's r[6], master_bench's r[2]; uncapped / the rig clock = 60 Hz); the frames over 100 ms and 1 s.
+A small bucket prints as a count ("10 fr") - the user's 1.5 h flight would read `<20 .. · 20-40 86 % · 40-60 4 % · 60-100
+1.6 % · 100-250 0.3 % · 250-1000 10 fr · >1000 7 fr`.
+- `tools/analyze_log.js`: a FRAME-LENGTH DISTRIBUTION section (the scored frames as a table with bars, then one line per
+  phase); `A.dist` and `phases[].dist` in --json. GATE FLIGHTREC asserts it on the scripted bad session (every frame in
+  one bucket, the 150 ms freeze in 100-250, the 50 ms climb in 40-60, the 25 ms taxi in 20-40, over 100 ms = 1). PASS.
+- `tools/rollout_perf.js`: `phases.<p>.dist` and `dist` (every frame after the reveal); a `lengths:` line per phase, the
+  table after them.
+- `tools/rollout_ratchet.js` GATES on the distribution: `p99` (taxi, as before) and `p99all` (every frame) rel 10 % / abs
+  2 ms; `over15` (every frame) and `taxiOver15`, the share over 1.5x the cap, rel 20 % / abs 0.5 pp; `over100` abs 1 (as
+  before). `uneven` is now an INFO row (printed, never red) with `p999`, `over3x`, `over1s`; each group prints its pooled
+  histogram. Read from the run's frames, so the train-25 run JSONs are measured too. `metrics()` / `RULES` exported.
+  Tried on the committed `ratchet_md_before/after_cub_*.json`: the Cub at the 30 cap reads 20-40 86 %, > 1.5x 1.8-1.9 %
+  (the auto cap at 60 delivering 33 ms frames counts as doubled - that is the definition), PASS.
+- `tools/master_bench.js`: every scene and trip row carries p90 / p99.9 / over15 / over3x / over1s and `dist` (the
+  bucket counts); the table prints them and a FRAME LENGTHS histogram per scene. `--report` on an old JSON prints '-'.
+  New subset flags (for the gate; `--plan` honours them): `--places HOME,mn_strip`, `--water-builds floats`,
+  `--no-water-pass`, `--cockpit 0`.
+
+**G1362-G1364 THE TRAIN GATE** (`tools/perf/train_gate.js`): runs, one after the other, (a) the master_bench subset - every
+load (full: the cold one too), the garage scene, the taxi at HOME and at ONE remote strip (`--remote`, default mn_strip,
+the farthest stand: the heaviest new-stand load), the water taxi of `bugReports/cessnaFloatsWOrks.json`, the Cub only;
+(b) `rollout_perf.js` at HOME, `--cam chase` and `--cam cockpit`, the Cub (`--build default`) and `bugReports/cessnaMetal
+(1).json`, `--reps` runs a group; (c) `garage_lag.js` on this tree, Cub + metal, the ten changes. Then ONE JSON of rows
+(`tools/perf/train_gate_<label>.json`; the rigs' reports and one log per step in `tools/perf/tg_<label>/`), each row with its
+rule (direction, rel, abs, info), compared with `tools/perf/train_gate_baseline_<light|full>.json`: past its slack = RED,
+a row in the baseline that is gone or unmeasured = RED, a failed step = exit 1. Rows: the ratchet's metrics per group
+(medians); per garage change sync and busy (rel 12 % / abs 25 ms) and their sums per build (rel 6 % / abs 60 ms); per load
+its seconds (warm rel 10 % / 4 s, cold 12 % / 8 s, trips 15 % / 1.5 s) and the worst task under it; per bench scene fps,
+p99, over 1.5x the cap, over 100 ms, tasks over 1 s, the worst task (p99.9, over 3x, uneven, a warm load's links over 5 s
+are INFO). A baseline from another GPU, viewport or mode does not compare (exit 2).
+- `--light`: 1 rollout run a group x 20 s, garage reps 2, no cold load - ~15 min (17 with overheads).
+- `--full`: 2 runs a group x 25 s, garage reps 3, the cold load - ~25 min (28 with overheads). `--secs` / `--reps` trim.
+- `--plan` prints every step's command line and minutes (no browser). `--compare <gate.json>` / `--update <gate.json>`
+  re-compare or take the baseline from a saved run (no browser). `--only rollout,garage,bench` runs a part (rows of parts
+  not run are not compared). Ports: P (rollout), P+1 (garage), P+2 (bench). One fresh profile per gate run under
+  `--udd` (default <tmp>/tg<MMDDhhmm>): the bench runs first (its discarded load warms the Cub), then one discarded short
+  metal run, then the rollout runs, then the garage (no second warm-up: the profile exists).
+- Tested here without a browser: `--plan` both modes and with --only; the row builders and the comparison on committed
+  reports (the ratchet_md runs, garage_lag_t25.json, master_bench_15d18675.json): an injected p99 rise and a removed load
+  come out RED by name, train 25's garage fix comes out as 47 "better" rows, a mode mismatch refuses, the same JSON
+  against itself PASSES.
+
+**WHAT A0 MUST RUN ON THE BOX** (none of this has met a browser):
+1. `node tools/perf/train_gate.js --plan` and `--plan --light`: the steps and the paths look right on Windows.
+2. On the landed train-25 tree (5502f45 + this branch), under the GPU lock, idle box: `node tools/perf/train_gate.js
+   --full --port 8700 --udd D:/tg --label t25 --update`, then the same with `--light --label t25l --update` - the two
+   baselines (`tools/perf/train_gate_baseline_full.json`, `_light.json`); commit them. Check the full run's minutes
+   (`meta.minutes`) against the ~25 min plan; if it is long, trim `--secs` (and say so in the baseline's commit).
+3. THE NOISE CHECK before trusting a red: run the full gate a second time on the SAME tree and compare it
+   (`--compare tools/perf/train_gate_t25b.json`). Every RED on an unchanged tree is a slack too tight for the box: widen
+   that rule (R_LOAD / R_SCENE / R_GARAGE in train_gate.js, RULES in rollout_ratchet.js) by the measured spread and note
+   it here. The same for the light mode, which has one run a group and will be the noisier.
+4. Confirm in the first run's logs: master_bench took `--places HOME,mn_strip` (two land stands only), the floats' water
+   taxi ran with no low passes, `--cockpit 0` skipped the cockpit taxi; rollout_perf's `--cam chase` reports `cam chase`.
+5. The ratchet: re-take its baseline so the new rows (p99all, over15, taxiOver15) exist -
+   `node tools/rollout_ratchet.js --update <the train-25 rollout_ratchet_*.json>` (the old baseline reads them as "not
+   measured" until then; uneven moved to INFO).
+6. From train 26 on: `node tools/perf/train_gate.js --full --port 8700 --udd D:/tg --label t26` per train; RED = the
+   train does not land; after a landing, `--update tools/perf/train_gate_t26.json`.
