@@ -8698,7 +8698,8 @@
     // straight across "Annette Dock". A label is drawn where it FITS - to the right of its mark,
     // else under it, else not at all: a name half over another name is worse than no name.
     const LAB = [];
-    const labFits = (x, y, w, h) => !LAB.some(b => x < b.x + b.w && x + w > b.x && y < b.y + b.h && y + h > b.y);
+    // ...and inside the map (G1375: the labels carry the surface now, and the longer ones ran off its edge)
+    const labFits = (x, y, w, h) => x >= 2 && y >= 2 && x + w <= W2 - 2 && y + h <= W2 - 2 && !LAB.some(b => x < b.x + b.w && x + w > b.x && y < b.y + b.h && y + h > b.y);
     const labPut = (sx, sy, txt, back, fore) => {
       const w = g.measureText(txt).width, h = 12 * mk;
       const spots = [[sx + 8 * mk, sy + 4 * mk], [sx - w - 8 * mk, sy + 4 * mk], [sx - w / 2, sy + 15 * mk], [sx - w / 2, sy - 8 * mk]];
