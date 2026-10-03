@@ -58,7 +58,10 @@ const ROUTE = { cub: { from: 'HOME', dest: 'SEA' }, floats: { from: 'HOME', dest
         localStorage.setItem('flydiy.flPanels', JSON.stringify({ map: true, big: true }));   // --fly: the map up, big (its labels)
       } catch (e) {}
     }, [BUILDS[bk], JSON.stringify(ROUTE[bk])]);
-    const held = async fn => { await ev('window.__evHold = true', 0); await sleep(1500); try { await fn(); } catch (e) { console.log('  shot: ' + e.message.split('\n')[0]); } await ev('window.__evRelease && window.__evRelease()', 0); };
+    // three tries, 60 s each: a software frame already under way when the hold is set can outlast one
+    const held = async fn => { for (let k = 0; k < 3; k++) { await ev('window.__evHold = true', 0); await sleep(3000); let done = false;
+      try { await fn(); done = true; } catch (e) { console.log('  shot (try ' + (k + 1) + '): ' + e.message.split('\n')[0]); }
+      await ev('window.__evRelease && window.__evRelease()', 0); if (done) return true; await sleep(5000); } return false; };
     const ev = async (expr, d) => { try { return await page.evaluate(expr); } catch (e) { return d === undefined ? 'ERR ' + e.message.split('\n')[0] : d; } };
     await page.goto('http://127.0.0.1:' + PORT + '/flyDiy/' + PAGES[pg], { waitUntil: 'load', timeout: 240000 });
     let ok = false;
@@ -93,7 +96,7 @@ const ROUTE = { cub: { from: 'HOME', dest: 'SEA' }, floats: { from: 'HOME', dest
         return JSON.stringify([l, t, rr, b]); })()`);
       const [l, t, r, b] = JSON.parse(box);
       const clip = { x: Math.max(0, l - 12), y: Math.max(0, t - 12), width: Math.min(1600, r + 12) - Math.max(0, l - 12), height: Math.min(900, b + 12) - Math.max(0, t - 12) };
-      await held(() => page.screenshot({ path: path.join(OUT, pg + '_' + bk + '_pickers.jpg'), type: 'jpeg', quality: 80, clip }));
+      await held(() => page.screenshot({ path: path.join(OUT, pg + '_' + bk + '_pickers.jpg'), type: 'jpeg', quality: 80, clip, timeout: 60000 }));
       fs.writeFileSync(path.join(OUT, pg + '_' + bk + '_pickers.txt'), I.read.map((s, i) => (i ? 'to  ' : 'from') + ' = ' + s.value + '\n  ' + s.opts.join('\n  ')).join('\n') + '\n');
     }
     // --fly: ROLL OUT - the roll-out screen's picker (#bootRoute), then the flight's map, big (labels on)
@@ -107,7 +110,7 @@ const ROUTE = { cub: { from: 'HOME', dest: 'SEA' }, floats: { from: 'HOME', dest
           await ev(`(()=>{ const h = document.getElementById('bootRoute'); for (const s of h.querySelectorAll('select')) { s.size = Math.min(s.options.length, 16); s.style.maxWidth = 'none'; } return 1; })()`);
           await sleep(300);
           const bh = await page.$('#bootRoute');
-          if (bh) { await held(() => bh.screenshot({ path: path.join(OUT, pg + '_' + bk + '_rollout.jpg'), type: 'jpeg', quality: 80 })); bootShot = true; console.log('  roll-out picker shot ' + el()); }
+          if (bh) { await held(() => bh.screenshot({ path: path.join(OUT, pg + '_' + bk + '_rollout.jpg'), type: 'jpeg', quality: 80, timeout: 60000 })); bootShot = true; console.log('  roll-out picker shot ' + el()); }
         }
         if ((await ev("(()=>{const m=document.getElementById('mmp'); return !!(m && !m.hidden && m.offsetParent) && (!window.BOOT || !BOOT.state || BOOT.state === 'gone');})()", false)) === true) {
           // the map paints on the HUD cadence; two clicks (big off, big on) each call drawMap() itself
@@ -115,7 +118,7 @@ const ROUTE = { cub: { from: 'HOME', dest: 'SEA' }, floats: { from: 'HOME', dest
           await ev("(()=>{const c=document.getElementById('mm'); c.click(); c.click(); return c.width;})()", 0);
           await sleep(1500);
           const m = await page.$('#mm');
-          if (m) { await held(() => m.screenshot({ path: path.join(OUT, pg + '_' + bk + '_map.jpg'), type: 'jpeg', quality: 78 })); mapShot = true; console.log('  map shot ' + el()); }
+          if (m) { await held(() => m.screenshot({ path: path.join(OUT, pg + '_' + bk + '_map.jpg'), type: 'jpeg', quality: 78, timeout: 60000 })); mapShot = true; console.log('  map shot ' + el()); }
         }
       }
       if (!mapShot) { console.log('  no flight map after ' + el()); await held(() => page.screenshot({ path: path.join(OUT, '_fail_fly_' + pg + '_' + bk + '.jpg'), type: 'jpeg', quality: 60 })); }
