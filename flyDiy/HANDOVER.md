@@ -68310,3 +68310,91 @@ data. FLIGHT (fresh profile D:/u25d, vs train 24): Cub 31 fps / 5 %, cockpit 56 
 cockpit 53.8 -> 55.9 fps. ONE RED CLEARED: the metal's worst boot task 716 -> 1055 / 859 ms on its two chase runs (at ~36 s, the
 garage boot; its cockpit runs through the same boot showed none); two re-runs 655 / 664 ms - not repeated, the metal baseline is
 taken from them. Battery GREEN, FRAMECOST PASS (baseline re-taken).
+
+## G1405-G1409 - METLA-LOAD: THE TOWN'S +18 s LOAD WAS THE PREMISES' GEOMETRY BAKING METLAKATLA'S RASTER; A BUILD READ THAT NEVER BAKES (FIXED, 0 BYTES ON THE WIRE); THE TOWN ON BY DEFAULT IN ITS OWN COMMIT (2026-10-03, METLA-LOAD for A0, cloud - no GPU)
+
+**VERDICT.** The boot's ~11 000 town-on raster bakes are gone: a town-on headless boot bakes 0 tiles after the town composes
+(388 before it, 93 with the town off, on the same build). The town-off page is bit-identical. Nothing new is shipped: no cook
+change, 0 bytes on the wire (the "+14 MB" option was not needed). Metlakatla is **ON by default** in a SEPARATE commit (G1408)
+that A0 can drop if the box A/B disagrees. **Not done:** the Cub's town-on taxi unevenness (16 %). The cloud has no GPU and
+SwiftShader's frame pacing means nothing, so it was not measured.
+
+**G1405 THE READERS** (the measurement). Headless Chromium + SwiftShader (cloud CPU, ~2x slower than the box), town on, every
+non-quiet grBake's caller stack aggregated by a TEMPORARY hook in 27_premises.js (not committed), from navigation to the garage
+and the first roll-out. Master 5502f45: **11 581 bakes, 24.6 s** of main-thread CPU (box ~10.5 s: METLA-RETURN's grStats.bakeMs).
+Town off on master: 544 / 0.62 s. The town's bakes were the PREMISES' GEOMETRY BUILDS, not the flight:
+
+| reader (master, town on) | bakes |
+|---|---|
+| the premises patch (render_premises.js buildPatchSteps: its 2 m vertex grid through world.terrainH) | 4 507 |
+| the roads (roadGeometry through render_premises heightAt) | 3 410 |
+| the scenery life (scenery_life.js clear / mastLife / litter through the host's heightAt and waterAt) | 756 |
+| the rails (buildRail's waterY through world.waterH) | 724 |
+| the paved polygons (polyGeometry) | 466 |
+| the traffic's first pose (syncTraffic, at the build) | 50 |
+| world-level: the ring's 513^2 heights, the colour bake's slope + fields + minimap water, the clutter trees, the mist field, makeWorld's trees, relief, the biome's tree slope, world.surface | 1 668 |
+
+Each one reads a far tile a few dozen times, and the lazy raster bakes the WHOLE tile (17^2-65^2 lattice nodes, refined) on
+the first read. In node (premises_cook's headless world, town variant, all 13 034 modifier tiles on a 2 m grid, 834 176 reads):
+analytic composer 387 ms vs the lazy raster 6 788 ms (4 508 bakes).
+
+**G1406 THE BUILD READ** (20_world.js terrainHBuild / waterHBuild, 27_premises.js rasterLazyAt). It is the composed ground for
+a ONE-OFF read: terrainH (the same bits, its memo) wherever the premises raster is cooked or absent, and the ANALYTIC composer
+(PM.terrainH over baseH) where terrainH would bake a tile lazily (the raster is on, a modifier's cell holds the point, and no
+cooked cell does). It never bakes and never asks what the cache holds, so its answer does not depend on read order. Readers
+switched: render_premises.js (heightAt in the game, so the roads, polygons, rails, strips, the life's heightAt and waterAt, the
+traffic and the editor handles; the patch's Y0; the rails' waterY), render_world.js (the ring's heights, the colour bake's
+slope stencil, the field patches, the minimap's water, the clutter trees), atmo.js (the mist field), 20_world.js (makeWorld's
+collidable-tree placement). **Kept on terrainH** (shared with the wheels or the wind): world.surface / islandGround, buildRelief
+(the wind's relief), the biome's treeAt slope, the cover ring and fill at run time, and everything the solver reads.
+- TOWN OFF: bit-identical. 0 of 552 832 reads differ, 0 bakes either way (every modifier cell is cooked: taken 92 / stale 0).
+- TOWN ON (node, the 834 176 reads): the build read 911-918 ms, 0 bakes; terrainH 7 377-8 183 ms, 4 508 bakes. Where it reads
+  the composer (288 512 reads, Metlakatla's uncooked cells) it differs from the raster the wheels read: p50 0.00 mm, p99 0.01 mm,
+  p99.9 3.2 mm, 47 reads over 10 mm, 11 over 20 mm, **max 39 mm**. That is the RASTER's own error against the composer on
+  steep ground (G614's GR_RELIEF bound assumes 2 m of relief in a tile), not the build read's. A drawn surface there can sit up
+  to ~4 cm off the wheels' ground at a handful of points in Metlakatla; HOME and every cooked cell are unchanged.
+- HEADLESS (cloud, town on, Cub, before = master 5502f45 / after = this branch): garage UI 13.1 / 12.7 s, boot screen gone
+  129.6 / 129.9 s (SwiftShader's compiles dominate both, so the time does not resolve the box's 18 s), raster bakes by the
+  garage **9 157 (15.8 s) -> 0**, after the roll-out **9 913 (17.7 s) -> 0**, 0 exceptions. Boot-wide (probe): 11 581 / 24.6 s
+  -> 388 / 0.64 s; town off on the same build 93 / 0.17 s. The residual ~300 town-on bakes (~0.2 s on the box, estimated) are
+  all BEFORE the town composes (the first composition, 8 stale cells) - world.surface in the colour bake (191), the biome's
+  tree slope (~100), relief (37), kept on terrainH as above.
+- Not measured: flying OVER Metlakatla still bakes lazily under the wheels, the near ring and the fill there (unchanged from
+  master: only cooking the town variant removes those - the next option if the overflight hitches).
+
+**G1407 THE RIG.** tools/perf/metla_ab.js's side A is now `?town=0` (with the town on by default, "no query" is the town ON);
+B stays `?town=1`. **master_bench and the ratchet now measure the town-on page by default: their baselines need re-taking.**
+
+**G1408 THE DEFAULT** (its own commit - revert it alone to keep the town off). world_boot.js TOWN.all = on unless the GRAPHICS
+'town' row says 'nearby' or the URL ?town=0 (?town=1 still forces on). gfx_settings.js: the town row's first step (a free row's
+default) is 'all'; pref pv 7: a pref saved before it with 'nearby' (every saved pref carries the old default) takes the new
+one, once - a player who picks 'nearby' again keeps it. GATE PREMISES 14q asserts the new default; its old line's label now
+reads "drops the town at load when asked". Headless: a fresh profile and a pv-6 'nearby' pref both boot town on (row 'all',
+pv 7), 0 bakes, 0 exceptions. Taken under step 4's condition (boot bakes gone, no new cost measurable headless), with two
+open points for A0's box A/B: the residual ~0.2 s, and the Cub's taxi below.
+
+**G1409 THE CUB'S TOWN-ON TAXI (16 % against 10-13 %)**: NOT MEASURED. No GPU in the cloud, and SwiftShader's frame pacing is
+not the box's. METLA-RETURN's finding stands: 0 bakes in the taxi, so it is not the raster. The first suspect is still the far
+town (the kit host's 426 boxes, one draw). The next measurement is metla_ab with --cpuprof taxi, Cub only, ABBA on the box,
+with the recorder's slots for the frame's GPU vs work split.
+
+**WIRE COST:** 0 bytes (option 1: no reader bakes; no worker, no cook). Cooking the town variant (+14 MB shipped) would only
+remove the bakes when flying over Metlakatla itself.
+
+GATES (node, run_gates --only, both commits): PREMISES, PREMCOOK, PREMRASTER, METKIT, LIFE, BUILD - all PASS (BATTERY: PASS, exit
+0) on G1406 alone and again with G1408. The full battery is A0's.
+EVIDENCE (flyDiy/reports/evidence/G1405/, headless SwiftShader):
+- g1405_boot_bakes_by_reader.jpg - the boot's lazy bakes by reader, town on, before vs after (the table above). Your decision
+  on the default (G1408) hangs on it, with the box A/B.
+- g1405_build_read_gap_map.jpg - Metlakatla's tiles: where the meshes now read the composer and how far that is from the
+  wheels' raster (max 39 mm, a few steep spots). Informative; a decision hangs on it only if you would rather cook the town
+  variant (+14 MB) to keep meshes and wheels on the same bits.
+- g1405_garage_town_on.jpg - the garage, town on, after. The before is byte-identical (the UI is unchanged), so it was not
+  kept. No decision hangs on it.
+- WHAT A SOFTWARE RENDER CANNOT SHOW: the flight over Metlakatla. In this headless rig the world scene did not draw (the
+  pre-flight card stayed over a blank sky after the roll-out), so there is no before/after of the town's roads and ground from
+  the air. The change is below 1 mm at 99.9 % of the town's reads (the map); a look from the air on the box would confirm it.
+Touched: src/core/20_world.js, src/core/27_premises.js, src/viewer/render_premises.js, src/viewer/render_world.js,
+src/viewer/atmo.js (G1406); src/viewer/world_boot.js, src/viewer/gfx_settings.js, tools/_premises_check.js (G1408);
+tools/perf/metla_ab.js (G1407). The generated files (flight_core.js, index.html, dev.html, sw.js, version.json) are not
+committed - A0's built commit.
