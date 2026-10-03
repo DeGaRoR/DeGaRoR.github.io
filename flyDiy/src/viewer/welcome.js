@@ -138,11 +138,15 @@
   // ---- THE DECISION: pure, tested in GATE GFX ------------------------------------------------------------------
   // (env, store {getItem}, query, nav) -> { screen: 'none' | 'welcome' | 'gate', why, suggest, gpu, mem, gpuName }
   const read = (store, k) => { try { return store.getItem(k); } catch (e) { return null; } };
-  const decide = (env, store, q, nav) => {
+  // host (A0, 2026-10-03): the box's rigs drive a headed Chrome with webdriver OFF and load from localhost - the welcome
+  // held every boot of train 27's gate ("boot timeout"); a player loads from Pages. localhost skips it unless ?welcome=1 / ?devgate=1
+  const isLocal = h => /^(localhost|127\.0\.0\.1|\[::1\])$/.test(h || '');
+  const decide = (env, store, q, nav, host) => {
     const gpuName = cleanGpu(env.gpu);
     const g = gpuClass(env.gpu), m = memClass(env);
     const out = { screen: 'none', why: '', suggest: lower(g.cls, m.cls), gpu: g, mem: m, gpuName, mobile: mobileWhy(env) };
     if (isRig(nav) && !force('welcome', q) && !force('devgate', q)) { out.why = 'a rig'; return out; }
+    if (isLocal(host) && !force('welcome', q) && !force('devgate', q)) { out.why = 'localhost (a rig or a dev server)'; return out; }
     if (/[?&]gfx=[a-z]/.test(q) && !force('welcome', q) && !force('devgate', q)) { out.why = '?gfx= chose the preset'; return out; }
     let rec = null; try { rec = JSON.parse(read(store, KEY) || 'null'); } catch (e) {}
     if (force('devgate', q) || ((out.mobile || !env.webgl2) && !(rec && rec.tried))) {
@@ -310,7 +314,7 @@
   }
   if (!W.document || !W.document.createElement) return;
   let d;
-  try { const env = probe(); API.env = env; d = API.decision = decide(env, W.localStorage, search(), nav); }
+  try { const env = probe(); API.env = env; d = API.decision = decide(env, W.localStorage, search(), nav, W.location && W.location.hostname); }
   catch (e) { return; }   // a welcome that cannot decide is no welcome: the game loads as it did
   if (d.adopt) { let pr = 'menu'; try { pr = JSON.parse(W.localStorage.getItem('flydiy.gfx')).preset || pr; } catch (e) {} remember(W.localStorage, d, pr); }
   if (d.screen === 'none') return;

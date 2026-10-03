@@ -244,6 +244,11 @@ console.log('GATE GFX');
      "the player's choice wins: a preset already saved in the menu is kept, no welcome (the card adopted)");
   ok(D(desk('NVIDIA GeForce RTX 3080'), {}, '?gfx=potato').screen === 'none', '?gfx= skips it');
   ok(D(desk('NVIDIA GeForce RTX 3080'), seen, '?welcome=1').screen === 'welcome', '?welcome=1 forces it');
+  // A0 2026-10-03: the box's rigs (headed, webdriver off) load from localhost - the welcome held train 27's whole gate
+  const DH = (env, q, host) => WL.decide(env, store({}), q || '', { userAgent: 'Mozilla/5.0 Chrome/140' }, host);
+  ok(DH(desk('NVIDIA GeForce RTX 3080'), '', 'localhost').screen === 'none' && DH(desk('NVIDIA GeForce RTX 3080'), '', '127.0.0.1').screen === 'none', 'localhost skips it (the rigs, a dev server)');
+  ok(DH(desk('NVIDIA GeForce RTX 3080'), '?welcome=1', 'localhost').screen === 'welcome', '...?welcome=1 still forces it there');
+  ok(DH(desk('NVIDIA GeForce RTX 3080'), '', 'degaror.github.io').screen === 'welcome', '...and Pages still shows it');
   // the device gate on stubbed navigators
   const phone = desk('Adreno (TM) 650', { uaMobile: true, coarse: true, fine: false, minSide: 412, mem: 8 });
   const ipad = desk('Apple GPU', { uaMobile: undefined, ua: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) Safari/605', coarse: true, fine: false, minSide: 820, mem: 0 });
