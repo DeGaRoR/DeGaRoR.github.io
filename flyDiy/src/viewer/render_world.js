@@ -5799,6 +5799,10 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
   yield 'props';
   if (typeof propInstAttach === 'function') propInstAttach(THREE, scene);
   let premisesR = null;
+  // G1340: the premises lamps' level by the day (0..1: on below a 2 deg sun) and the host's compile of the pool's other
+  // count (app.js lampsPrep: the lit programs keyed and linked in the background before the pool arms / disarms)
+  const lampsOn = day => Math.max(0, Math.min(1, (2 - day.sunEl) / 4));
+  let lampsPrep = null;
   // THE PATCH'S TWO GROUNDS (G527): a chunk inside the inner ring wears the ring's material and uv law, a chunk
   // past it the far terrain's (render_premises patchPick) - it was one choice for the whole record by its
   // extent, so a place 4.5 km out took the airfield's patch off the ring's material with it
@@ -6395,7 +6399,8 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       const W2 = typeof window !== 'undefined' ? window : {};
       const ex2 = (W2.GFX && W2.GFX.exposureBase && W2.GFX.exposureBase() != null) ? W2.GFX.exposureBase() : 0.92;
       if (worldSwitch && worldSwitch.on('lamps')) premisesR.lamps.unmute();
-      premisesR.lamps.update(camera.position, Math.max(0, Math.min(1, (2 - day.sunEl) / 4)), ex2);
+      if (premisesR.lamps.prep !== lampsPrep) premisesR.lamps.prep = lampsPrep;   // G1340: the host's compile of the pool's other count
+      premisesR.lamps.update(camera.position, lampsOn(day), ex2);
     }
     const el = day.sunEl, az = day.sunAzGrid;
     // G1352: the clouds' transmittance at the eye, sampled at 4 Hz and eased; a 1 % move re-applies the day
@@ -6645,6 +6650,11 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     rungWarm: () => fillApi && fillApi.rungWarm ? fillApi.rungWarm() : null,   // G730: the parked rungs' stand-ins (app.js rungPrelink)
     treeSettled: () => (treeSettleOf ? treeSettleOf() : Promise.resolve()).catch(() => null),
     // the editor opened over a world made without a premises: the renderer stood now, game mode, on an empty record
+    // G1340 THE LAMPS' COUNT: setLampsPrep(fn) - fn(want) -> a promise, the lit programs for the pool armed (want) or not;
+    // lampsWant() - the count the day asks for now; lampsArm(on) - the pool armed now (the roll-out's compile, before it keys)
+    setLampsPrep: fn => { lampsPrep = fn || null; if (premisesR && premisesR.lamps) premisesR.lamps.prep = lampsPrep; },
+    lampsWant: () => !!(premisesR && premisesR.lamps && world.day && premisesR.lamps.want(lampsOn(world.day))),
+    lampsArm: on => !!(premisesR && premisesR.lamps && premisesR.lamps.arm(on)),
     get premises() { return premisesR; },                          // G449: the F8 dial's handle (village lamps: .lamps.gain, .stats.litNow)
     // G591: the roll-out's share of the premises, round the aircraft, in slices (app.js 'town' step)
     premisesPrewarm: (cg, o) => (premisesR && premisesR.prewarm && premisesR.stats.queued ? premisesR.prewarm(cg[0], cg[2], (o && o.reach) || PREM_BOOT, (o && o.budgetMs) || 40) : { done: true, built: 0, near: 0, queued: premisesR ? premisesR.stats.queued : 0 }),

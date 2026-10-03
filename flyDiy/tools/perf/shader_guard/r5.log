@@ -1,0 +1,28 @@
+[19:56:56] loaded {"state":"ready","sec":13.1}
+[19:57:00] rollOut "bGo"
+[19:57:27] rolledOut {"n":0,"done":false,"ran":[],"boot":"gone","shed":false,"noTrips":true}
+[19:57:30] run
+[19:57:34] skip "no button"
+[19:59:34] lineupTrip null
+[19:59:39] fly {"t":175466.60000002384,"ph":"DOWNWIND","agl":131.1,"progs":227,"add":127,"worst":0}
+[19:59:54] fly {"t":190522.5,"ph":"DOWNWIND","agl":129.4,"progs":227,"add":127,"worst":0}
+[20:00:09] fly {"t":205568.90000003576,"ph":"DOWNWIND","agl":129.5,"progs":227,"add":127,"worst":0}
+[20:00:24] fly {"t":220610.30000001192,"ph":"DOWNWIND","agl":129.7,"progs":229,"add":129,"worst":0}
+[20:00:39] fly {"t":235677,"ph":"DOWNWIND","agl":130,"progs":230,"add":130,"worst":0}
+[20:00:54] fly {"t":250730.5,"ph":"DOWNWIND","agl":130,"progs":230,"add":130,"worst":0}
+[20:00:54] guard null
+[20:00:54] lamps null
+programs: 130 made, 5 destroyed; 3 made from the skip on
+frames over 250 ms after the skip: []
+  1 x #34:0->1 #35:0->2 #36:0->1 #38:0->1 #41:0->1 #52:8529928->8530952
+     names 
+     frames 65106 lights D1/1 P2/0 S1/0 H1 rt rt2048x2048 boot gone
+     who Object.x [as acquireProgram] @index.html?day=2026-06-22T06:30Z:8032:12209 < yl @index.html?day=2026-06-22T06:30Z:8083:39715 < og @index.html?day=2026-06-22T06:3
+  1 x #51:8389123->8388611 #52:8530952->8533000
+     names 
+     frames 65106 lights D1/1 P2/0 S1/0 H1 rt rt2048x2048 boot gone
+     who Object.x [as acquireProgram] @index.html?day=2026-06-22T06:30Z:8032:12209 < yl @index.html?day=2026-06-22T06:30Z:8083:39715 < og @index.html?day=2026-06-22T06:3
+  1 x #51:8388611->8388608
+     names 
+     frames 69764 lights D1/1 P2/0 S1/0 H1 rt rt2048x2048 boot gone
+     who Object.x [as acquireProgram] @index.html?day=2026-06-22T06:30Z:8032:12209 < yl @index.html?day=2026-06-22T06:30Z:8083:39715 < og @index.html?day=2026-06-22T06:3

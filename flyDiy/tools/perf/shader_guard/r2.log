@@ -1,0 +1,90 @@
+[18:44:56] loaded {"state":"ready","sec":103.1}
+[18:44:59] rollOut "bGo"
+[18:45:09] rolledOut {"n":2,"kind":"rollout","done":true,"ms":9170,"anim":"played","ran":[],"boot":"gone","shed":false}
+[18:45:11] run 2.8499999999997123
+[18:45:15] skip "ok"
+[18:47:20] lineupTrip null
+[18:47:25] fly {"t":251651.39999997616,"ph":"BASE","agl":125.5,"progs":536,"add":509,"worst":95203.2}
+[18:47:40] fly {"t":266700.89999997616,"ph":"BASE","agl":130.2,"progs":537,"add":510,"worst":133.3}
+[18:47:55] fly {"t":281739.5,"ph":"FINAL","agl":138.5,"progs":537,"add":510,"worst":50.2}
+[18:48:10] fly {"t":296778.09999996424,"ph":"FINAL","agl":154.1,"progs":540,"add":513,"worst":350}
+[18:48:25] fly {"t":311821.89999997616,"ph":"FINAL","agl":126.3,"progs":540,"add":513,"worst":50.2}
+[18:48:40] fly {"t":327056.89999997616,"ph":"FINAL","agl":99.7,"progs":542,"add":515,"worst":416.8}
+programs: 515 made, 15 destroyed; 115 made from the skip on
+frames over 250 ms after the skip: [[218405,95203],[219555,917],[222773,3218],[224040,767],[248850,23192],[284363,350],[284714,284],[285047,333],[314575,417],[316943,267]]
+  16 x #39:10->4
+     names , char:ch22:Ch22_body, char:ch22:Ch22_hair, matlib:arr, parked:baked, water
+     frames 22053 lights D2/2 P4/0 S1/0 H1 rt rt2770x1279 boot gone
+     who Object.x [as acquireProgram] @index.html?day=2026-06-22T06:30Z:9085:12209 < yl @index.html?day=2026-06-22T06:30Z:9136:39715 < og @index.html?day=2026-06-22T06:3
+  35 x #37:10->4
+     names , M_Branch.009, M_Bark.009, BirchBranchAtlas, grass1, life:kit, pavement
+     frames 22053,22120,22140 lights D2/2 P4/0 S1/0 H1 rt rt2770x1279 boot gone
+     who Object.x [as acquireProgram] @index.html?day=2026-06-22T06:30Z:9085:12209 < yl @index.html?day=2026-06-22T06:30Z:9136:39715 < og @index.html?day=2026-06-22T06:3
+  1 x NO EARLIER KEY OF THIS NAME (0 of other lengths)
+     names CommonBark
+     frames 22053 lights D2/2 P4/0 S1/0 H1 rt rt2770x1279 boot gone
+     who Object.x [as acquireProgram] @index.html?day=2026-06-22T06:30Z:9085:12209 < yl @index.html?day=2026-06-22T06:30Z:9136:39715 < og @index.html?day=2026-06-22T06:3
+  1 x #41:10->4 #58:8522803->8522771
+     names flown:baked
+     frames 22053 lights D2/2 P4/0 S1/0 H1 rt rt2770x1279 boot gone
+     who Object.x [as acquireProgram] @index.html?day=2026-06-22T06:30Z:9085:12209 < yl @index.html?day=2026-06-22T06:30Z:9136:39715 < og @index.html?day=2026-06-22T06:3
+  2 x #41:10->4
+     names flown:baked, 
+     frames 22053 lights D2/2 P4/0 S1/0 H1 rt rt2770x1279 boot gone
+     who Object.x [as acquireProgram] @index.html?day=2026-06-22T06:30Z:9085:12209 < yl @index.html?day=2026-06-22T06:30Z:9136:39715 < og @index.html?day=2026-06-22T06:3
+  1 x #43:10->4
+     names 
+     frames 22053 lights D2/2 P4/0 S1/0 H1 rt rt2770x1279 boot gone
+     who Object.x [as acquireProgram] @index.html?day=2026-06-22T06:30Z:9085:12209 < yl @index.html?day=2026-06-22T06:30Z:9136:39715 < og @index.html?day=2026-06-22T06:3
+  16 x #35:10->4
+     names 
+     frames 22053,22104,22317 lights D2/2 P4/0 S1/0 H1 | D2/2 P2/0 S0/0 H1 rt rt2770x1279,rt2048x2048,rt2048x1024 boot gone
+     who Object.x [as acquireProgram] @index.html?day=2026-06-22T06:30Z:9085:12209 < yl @index.html?day=2026-06-22T06:30Z:9136:39715 < og @index.html?day=2026-06-22T06:3
+  1 x #39:2->4
+     names matlib:arr
+     frames 22053 lights D2/2 P4/0 S1/0 H1 rt rt2770x1279 boot gone
+     who Object.x [as acquireProgram] @index.html?day=2026-06-22T06:30Z:9085:12209 < yl @index.html?day=2026-06-22T06:30Z:9136:39715 < og @index.html?day=2026-06-22T06:3
+  2 x #35:2->4
+     names 
+     frames 22053 lights D2/2 P4/0 S1/0 H1 rt rt2770x1279 boot gone
+     who Object.x [as acquireProgram] @index.html?day=2026-06-22T06:30Z:9085:12209 < yl @index.html?day=2026-06-22T06:30Z:9136:39715 < og @index.html?day=2026-06-22T06:3
+  1 x #37:2->4 #54:8522803->8522771
+     names animal:elk:Head
+     frames 22247 lights D2/2 P4/0 S1/0 H1 rt rt2770x1279 boot gone
+     who Object.x [as acquireProgram] @index.html?day=2026-06-22T06:30Z:9085:12209 < yl @index.html?day=2026-06-22T06:30Z:9136:39715 < og @index.html?day=2026-06-22T06:3
+  1 x #37:2->4
+     names animal:elk:material
+     frames 22247 lights D2/2 P4/0 S1/0 H1 rt rt2770x1279 boot gone
+     who Object.x [as acquireProgram] @index.html?day=2026-06-22T06:30Z:9085:12209 < yl @index.html?day=2026-06-22T06:30Z:9136:39715 < og @index.html?day=2026-06-22T06:3
+  12 x #39:10->2
+     names , char:ch22:Ch22_body, char:ch22:Ch22_hair, matlib:arr, parked:baked
+     frames 22628,39807,39871 lights D2/2 P2/0 S1/0 H1 rt rt2770x1279 boot gone
+     who Object.x [as acquireProgram] @index.html?day=2026-06-22T06:30Z:9085:12209 < yl @index.html?day=2026-06-22T06:30Z:9136:39715 < og @index.html?day=2026-06-22T06:3
+  14 x #37:10->2
+     names , M_Branch.009, M_Bark.009, BirchBranchAtlas, grass1, life:kit
+     frames 22628,54464,55522 lights D2/2 P2/0 S1/0 H1 rt rt2770x1279 boot gone
+     who Object.x [as acquireProgram] @index.html?day=2026-06-22T06:30Z:9085:12209 < yl @index.html?day=2026-06-22T06:30Z:9136:39715 < og @index.html?day=2026-06-22T06:3
+  1 x #37:4->2
+     names CommonBark
+     frames 22628 lights D2/2 P2/0 S1/0 H1 rt rt2770x1279 boot gone
+     who Object.x [as acquireProgram] @index.html?day=2026-06-22T06:30Z:9085:12209 < yl @index.html?day=2026-06-22T06:30Z:9136:39715 < og @index.html?day=2026-06-22T06:3
+  1 x #41:4->2
+     names flown:baked
+     frames 22628 lights D2/2 P2/0 S1/0 H1 rt rt2770x1279 boot gone
+     who Object.x [as acquireProgram] @index.html?day=2026-06-22T06:30Z:9085:12209 < yl @index.html?day=2026-06-22T06:30Z:9136:39715 < og @index.html?day=2026-06-22T06:3
+  2 x #41:10->2
+     names flown:baked, 
+     frames 22628 lights D2/2 P2/0 S1/0 H1 rt rt2770x1279 boot gone
+     who Object.x [as acquireProgram] @index.html?day=2026-06-22T06:30Z:9085:12209 < yl @index.html?day=2026-06-22T06:30Z:9136:39715 < og @index.html?day=2026-06-22T06:3
+  1 x #43:10->2
+     names 
+     frames 22628 lights D2/2 P2/0 S1/0 H1 rt rt2770x1279 boot gone
+     who Object.x [as acquireProgram] @index.html?day=2026-06-22T06:30Z:9085:12209 < yl @index.html?day=2026-06-22T06:30Z:9136:39715 < og @index.html?day=2026-06-22T06:3
+  6 x #35:10->2
+     names 
+     frames 22678,26217 lights D2/2 P0/0 S0/0 H1 rt rt2048x2048,rt2048x1024 boot gone
+     who Object.x [as acquireProgram] @index.html?day=2026-06-22T06:30Z:9085:12209 < yl @index.html?day=2026-06-22T06:30Z:9136:39715 < og @index.html?day=2026-06-22T06:3
+  1 x #56:8522803->8522771
+     names matlib:arr
+     frames 39854 lights D2/2 P2/0 S1/0 H1 rt rt2770x1279 boot gone
+     who Object.x [as acquireProgram] @index.html?day=2026-06-22T06:30Z:9085:12209 < yl @index.html?day=2026-06-22T06:30Z:9136:39715 < og @index.html?day=2026-06-22T06:3

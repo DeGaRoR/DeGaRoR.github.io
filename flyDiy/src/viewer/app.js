@@ -468,6 +468,7 @@
   // loading screen as its own task, with the phase line on it, and every
   // reader below guards `WF &&` (S3 moves it under the roll-out screen).
   let WF = null;
+  let lampsPrepSet = false, drawGuard = null;   // G1340 (SHADER-GUARD: lampsPrep, the draw guard - set up by the compile helpers below)
   const worldShed = () => Object.assign({ shell: shedHome().shell },
     playerShedDims(playerLoad(), 'HOME', (typeof siteOf === 'function') ? siteOf('HOME') : null));
   function worldBuilt(wf) {
@@ -7474,8 +7475,11 @@
     // G567: the cap is a STALL - 4 min without a program becoming ready (the ground's cold link was ~3.5 min before G568, ~30 s now)
     // - and the wait is explained and counted on the screen (shaderProgress). B9: keyed on the graphics that key programs
     // (a shadows row picked in the shed re-keys the world's lit programs: they link here, not on the first frame)
-    { id: 'worldCompile', part: 'world', label: 'compiling the world', w: 20, key: () => WF ? gfxKey() : null, deps: ['world', 'town', 'ring', 'parking', 'settle'], fn: () => {
+    // G1340: ...AND ON THE PREMISES LAMPS' COUNT (the day crossed dusk while the player was in the shed: the pool arms here,
+    // under the screen, not in the first frame - the user's 97 s roll-out after an hour in the shed)
+    { id: 'worldCompile', part: 'world', label: 'compiling the world', w: 20, key: () => WF ? gfxKey() + (WF.lampsWant && WF.lampsWant() ? '|lamps' : '') : null, deps: ['world', 'town', 'ring', 'parking', 'settle'], fn: () => {
       if (typeof renderer.compileAsync !== 'function' || !WF) return;
+      if (WF.lampsArm && WF.lampsWant) WF.lampsArm(WF.lampsWant());
       return craftInWorld(() => {
         worldSettle();   // (in the one loading: the lights as the stand will have them, before their programs are keyed)
         return shaderProgress(compilePass(scene, aa && aa.target ? aa.target() : null).catch(e => console.warn('world compile:', e && e.message))
@@ -11498,6 +11502,7 @@
     // clocks) the world is told the frame lasted nothing - everything visual stands still; render_world reads FLYDIY_HELD.
     if (running) userPaused = false;
     if (typeof window !== 'undefined') window.FLYDIY_HELD = !inGarage && !running && userPaused;
+    if (WF && WF.setLampsPrep && !lampsPrepSet) { lampsPrepSet = true; WF.setLampsPrep(lampsPrep); }   // G1340
     if (!inGarage && WF) WF.worldUpdate((DEVCAM_ACTIVE || PREM.open)
       ? [camera.position.x, camera.position.y, camera.position.z] : cg);
     else if (hangar && garageIsHangar()) hangar.faceShafts(camera);
@@ -11626,13 +11631,15 @@
       else if (WATER.mirror.on) WATER.mirrorOff();
     }
     if (FR) FR.lap(FR.S.mirror);
-    if (aa) aa.render(inGarage ? garageScene() : scene, camera);
+    let framePresented = true;
+    if (aa) framePresented = aa.render(inGarage ? garageScene() : scene, camera) !== 'held';
     else renderer.render(inGarage ? garageScene() : scene, camera);
     if (FR) FR.lap(FR.S.render);       // G620: the submit (the shadow passes and the shader links pushed apart)
+    if (drawGuard && !inGarage) drawGuard.flush(camera);   // G1340: the held draws' programs, compiled after the frame
     // F1: the contract comes OFF here, after the main render and the mirror capture it covers
     if (!inGarage && WF && WF.vis) WF.vis.release();
     // THE SUN'S GLARE (SKY S7): additive quads over the resolved frame, gated on occlusion rays
-    if (typeof SKY_GLARE !== 'undefined' && world.day && typeof SKY_LIGHT !== 'undefined' && SKY_LIGHT.last) {
+    if (framePresented && typeof SKY_GLARE !== 'undefined' && world.day && typeof SKY_LIGHT !== 'undefined' && SKY_LIGHT.last) {   // (G1340: a held frame draws nothing on the canvas)
       const L = SKY_LIGHT.last;
       const d = inGarage ? (hangar && hangar.dayDir ? hangar.dayDir() : null) : (WF ? [WF.SUN_SKY.x, WF.SUN_SKY.y, WF.SUN_SKY.z] : null);
       if (d) {
@@ -11872,6 +11879,28 @@
   // G991: `sliced` - the settings screen's: every pass through compileSliced (a task at a time). A shadows change re-keys
   // the whole depth set (the lit scene's light state is its key), and compileAsync builds every NEW program's source in
   // its first, synchronous task
+  // G1340 (SHADER-GUARD) THE LAMP POOL'S OTHER COUNT, LINKED BEFORE IT IS DRAWN. The premises' eight point lights are
+  // armed (all visible) from dusk and disarmed by day (render_premises LAMPS): a count three keys every lit program on.
+  // When the day crosses the threshold the pool asks for this - the world's lit programs (the frame's target) and the
+  // shadow pass's depth variants keyed with the pool as it WILL be, a slice a task, linked on the driver's threads - and
+  // switches only once it resolves (the user's logs: the count's change linked ~60 programs in ONE frame, 79-97 s)
+  // G1340 THE DRAW GUARD (shader_warm.js PROG_WARM.guard): in the world, a draw of a material with no program yet is held
+  // a frame or a few while its program links on the driver's threads, never compiled and waited for inside the frame
+  drawGuard = (typeof PROG_WARM !== 'undefined' && PROG_WARM.guard && typeof renderer.compileAsync === 'function' && !(typeof location !== 'undefined' && /[?&]guard=0(&|$)/.test(location.search)))
+    ? PROG_WARM.guard(THREE, renderer, { on: () => !inGarage && !holdRender && !!WF && !!(aa && aa.target && aa.target()), scenes: () => [scene] }) : null;
+  // (the guard holds only behind the AA target: the scene pass draws there and a held frame is not resolved - aa.hold -
+  // so the canvas keeps the last whole frame; with no target the scene draws onto the canvas and nothing is held)
+  if (drawGuard && aa && aa.hold) aa.hold(() => drawGuard.heldNow > 0);
+  if (typeof window !== 'undefined') window.FLYDIY_GUARD = drawGuard;
+  function lampsPrep(want) {
+    const L = WF && WF.premises && WF.premises.lamps;
+    if (!L || typeof renderer.compileAsync !== 'function') return Promise.resolve();
+    const dress = f => { const was = L.armed; L.arm(want); try { return f(); } finally { L.arm(was); } };
+    const t0 = performance.now();
+    return compileSliced(scene, aa && aa.target ? aa.target() : null, null, false, dress)
+      .then(() => compileDepthVariants(scene, true, dress))
+      .then(() => { if (typeof console !== 'undefined') console.info('lamps: the pool ' + (want ? 'armed' : 'disarmed') + ' after its programs linked (' + Math.round(performance.now() - t0) + ' ms)'); });
+  }
   function compileDepthVariants(sc, sliced, dress) {
     sc = sc || scene;
     const D = dress || (f => f());

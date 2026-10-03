@@ -239,11 +239,25 @@ function make(THREE, scene, world, rec0, opts) {
   // lightK) x on x the runway lenses' colour-keeping dimmer. The world switchboard declares it
   // as `lamps` (render_world) and the mute is honoured here. F8: `village lamps` reads .gain.
   let TARR = null;   // the town's texture arrays (G574, hlodBuild) - above LAMPS, which reads it (G570: no TDZ)
-  const LAMPS = { pool: [], pub: [], glass: new Map(), smoke: new Set(), glowKeys: new Set(), gain: 2, on: 0, litNow: 0, frame: 0, muted: false, N: 8, reach: 500 };
+  // G1340 (SHADER-GUARD) THE POOL'S COUNT IS FIXED: ARMED (all N visible) OR NOT (none). three keys every lit program on
+  // the count of VISIBLE point lights, and the pool used to show only the lamps it had assigned - the published lamps
+  // within `reach` of the eye, 0..8 - so from dusk on every change in that count re-keyed every lit material in the
+  // world: ~60 programs linked synchronously in ONE frame, the ground's five at ~12 s each (the user's flight logs,
+  // 2026-10-03: 79 s frames at the line-up skip's take-off, 97 s at a roll-out after an hour in the shed as the day
+  // crossed dusk). Now an armed pool keeps all N visible, an unassigned one at intensity 0, and the pool arms / disarms
+  // only when the day crosses the lamps' threshold - and then only once `prep(want)` (the host's background compile of
+  // the other count, app.js) has linked its programs: until it resolves the pool stays as it was. Without a prep (the
+  // benches) it switches at once, as before.
+  const LAMPS = { pool: [], pub: [], glass: new Map(), smoke: new Set(), glowKeys: new Set(), gain: 2, on: 0, litNow: 0, frame: 0, muted: false, N: 8, reach: 500,
+    armed: false, prep: null, prepping: null, ready: null, prepTok: 0 };
   const lampPoolInit = () => {
     if (LAMPS.pool.length) return;
-    for (let i = 0; i < LAMPS.N; i++) { const l = new THREE.PointLight(0xffffff, 0, 10, 1.6); l.castShadow = false; l.visible = false; l.name = 'premises:lamp' + i; root.add(l); LAMPS.pool.push(l); }
+    for (let i = 0; i < LAMPS.N; i++) { const l = new THREE.PointLight(0xffffff, 0, 10, 1.6); l.castShadow = false; l.visible = LAMPS.armed; l.name = 'premises:lamp' + i; root.add(l); LAMPS.pool.push(l); }
   };
+  // arm(on): the pool's count, now (the host's compile dress and the roll-out's key call it; update() goes through prep)
+  LAMPS.arm = on => { lampPoolInit(); on = !!on; LAMPS.armed = on; for (const l of LAMPS.pool) { l.visible = on; if (!on) l.intensity = 0; } return on; };
+  // want(on): the count the day asks for (the lamps' level `on` 0..1)
+  LAMPS.want = on => on > 0 && !LAMPS.muted;
   const _lp = new THREE.Vector3();
   // eye: a Vector3; on: the day's 0..1; ex: the live exposure base
   LAMPS.update = (eye, on, ex) => {
@@ -259,7 +273,16 @@ function make(THREE, scene, world, rec0, opts) {
     const kSmoke = Math.pow(0.92 / Math.max(0.92, ex), 1.35);   // 1.35: at the night's 6444 the haze sits at ~5 % of its day grey - the moonlit ground's own level (1.1 left a 40 % column over every chimney)
     for (const u of LAMPS.smoke) u.value = kSmoke;
     LAMPS.smokeK = kSmoke;                                   // the animals' plume takes the same hand (animal_run.js)
-    if (on <= 0 || LAMPS.muted) { for (const l of LAMPS.pool) { l.intensity = 0; l.visible = false; } LAMPS.litNow = stats.litNow = 0; return; }
+    const want = LAMPS.want(on);
+    if (want !== LAMPS.armed) {
+      if (!LAMPS.prep || LAMPS.ready === want) LAMPS.arm(want);
+      else if (LAMPS.prepping !== want) {   // the other count's programs, linked in the background; the pool waits for them
+        const tok = ++LAMPS.prepTok; LAMPS.prepping = want; LAMPS.ready = null;
+        Promise.resolve().then(() => LAMPS.prep(want)).catch(e => console.warn('lamps prep:', e && e.message))
+          .then(() => { if (tok === LAMPS.prepTok) { LAMPS.ready = want; LAMPS.prepping = null; } });
+      }
+    }
+    if (!want || !LAMPS.armed) { for (const l of LAMPS.pool) l.intensity = 0; LAMPS.litNow = stats.litNow = 0; return; }
     if ((LAMPS.frame++ % 30) === 0 || !LAMPS.near) {
       // the published lamps of the groups still standing, in the world, the nearest first
       const pub = LAMPS.pub = LAMPS.pub.filter(e => e.grp.parent);
@@ -271,15 +294,16 @@ function make(THREE, scene, world, rec0, opts) {
     const near = LAMPS.near;
     for (let i = 0; i < LAMPS.pool.length; i++) {
       const l = LAMPS.pool[i], e = near[i];
-      if (!e) { l.intensity = 0; l.visible = false; continue; }
+      if (!e) { l.intensity = 0; continue; }   // (G1340: stays visible - the count is the program key)
       if (e.move) { e.grp.updateWorldMatrix(true, false); _lp.set(e.p[0], e.p[1], e.p[2]); e.grp.localToWorld(_lp); e.wp = [_lp.x, _lp.y, _lp.z]; }   // GTRAM: a cabin's lamp rides with it
       l.position.set(e.wp[0], e.wp[1], e.wp[2]);
       l.color.setRGB(e.col[0], e.col[1], e.col[2]);
-      l.distance = e.range; l.intensity = e.k * kLamp * on; l.visible = true;
+      l.distance = e.range; l.intensity = e.k * kLamp * on;
     }
     LAMPS.litNow = stats.litNow = near.length;
   };
-  LAMPS.mute = () => { LAMPS.muted = true; for (const l of LAMPS.pool) { l.intensity = 0; l.visible = false; } for (const [u] of LAMPS.glass) u.value = 0; LAMPS.kLit = 0; if (TARR) TARR.lit.value = 0; if (typeof propSetGlowOf === 'function') for (const key of LAMPS.glowKeys) propSetGlowOf(key, 0); };
+  // (G1340: mute darkens the pool and keeps its count - update() disarms it through prep)
+  LAMPS.mute = () => { LAMPS.muted = true; for (const l of LAMPS.pool) l.intensity = 0; for (const [u] of LAMPS.glass) u.value = 0; LAMPS.kLit = 0; if (TARR) TARR.lit.value = 0; if (typeof propSetGlowOf === 'function') for (const key of LAMPS.glowKeys) propSetGlowOf(key, 0); };
   LAMPS.unmute = () => { LAMPS.muted = false; };
   // the bench's bounds are the world's window; the game's are the premises' extent in the world (+ a margin)
   const extentWorld = () => { const F = O.frame, e = O.extent, c = [F.toWorld(e.x0, e.z0), F.toWorld(e.x1, e.z0), F.toWorld(e.x1, e.z1), F.toWorld(e.x0, e.z1)]; return { x0: Math.min(...c.map(q => q[0])) - 40, z0: Math.min(...c.map(q => q[1])) - 40, x1: Math.max(...c.map(q => q[0])) + 40, z1: Math.max(...c.map(q => q[1])) + 40 }; };

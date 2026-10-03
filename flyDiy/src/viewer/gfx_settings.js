@@ -185,7 +185,9 @@
     // draw at a quarter of the pixels: the rigs that can afford it); the sky and its clouds are the probe's either way
     { k: 'mirror', label: 'reflections', steps: [
         { v: 'off',      label: 'sky only', why: 'the water reflects the sky and its clouds, never the shore' },
-        { v: 'live',     label: 'live', why: 'the reflection captured every frame (a second scene draw at quarter size; ultra only by default)' } ] },   // (2026-10-03, the user: the periodic capture left the menu - it made the water swap between reflective and plain)
+        // (2026-10-03, the user: the periodic capture left the menu - it made the water swap between reflective and plain;
+        // G1340 SHADER-GUARD: the LIVE one left it too - mirror off everywhere, ultra included; a saved 'live' falls back to off)
+        ] },
     { k: 'lighting', label: 'lighting', steps: [
         { v: 'sunset', label: 'sunset', why: 'the world’s golden hour' },
         { v: 'alps',   label: 'afternoon', why: 'the bench’s afternoon sky, the light the trees were judged in' } ] },
@@ -250,7 +252,7 @@
     retro:   Object.assign({ ground: 'lean', scale: 0.85, cover: 'lean', scenery: 'lean', drawDist: 'vis', terrain: 2, aa: 'off',   density: 100, bands: 'near', shadows: 'near',  canopy: 'off', rails: 'on', poles: 'off', glare: 'on',  sway: 'off', mist: 'on',    clouds: 'off',  water: 'simple', mirror: 'off' }, COLOUR, POST_OFF),
     current: Object.assign({ ground: 'far1', scale: 1,    cover: 'full', scenery: 'full', drawDist: 'vis', terrain: 2, aa: 'off',   density: 128, bands: 'near', shadows: 'full',  canopy: 'on',  rails: 'on', poles: 'on', glare: 'on',  sway: 'on',  mist: 'on',    clouds: 'half', water: 'simple',   mirror: 'off' }, COLOUR, POST_BLOOM),
     gamer:   Object.assign({ ground: 'far1', scale: 1,    cover: 'full', scenery: 'full', drawDist: 'vis', terrain: 1, aa: 'msaa', density: 128, bands: 'mid', shadows: 'full',  canopy: 'on',  rails: 'on', poles: 'on', glare: 'on',  sway: 'on',  mist: 'land',  clouds: 'half', water: 'simple',   mirror: 'off' }, COLOUR, POST_BLOOM),
-    ultra:   Object.assign({ ground: 'full', scale: 1,    cover: 'full', scenery: 'full', drawDist: 'vis', terrain: 1, aa: 'full', density: 200, bands: 'mid', shadows: 'ultra', canopy: 'on',  rails: 'on', poles: 'on', glare: 'on',  sway: 'on',  mist: 'banks', clouds: 'full', water: 'full',   mirror: 'live' }, COLOUR, POST_BLOOM),
+    ultra:   Object.assign({ ground: 'full', scale: 1,    cover: 'full', scenery: 'full', drawDist: 'vis', terrain: 1, aa: 'full', density: 200, bands: 'mid', shadows: 'ultra', canopy: 'on',  rails: 'on', poles: 'on', glare: 'on',  sway: 'on',  mist: 'banks', clouds: 'full', water: 'full',   mirror: 'off' }, COLOUR, POST_BLOOM),
   };
   // G1113 (TREES-NEAR, 2026-09-30): gamer draws 'minimum' (the full tree to 30 m, its light rung to 60 m) - the step that held
   // the rule "no regression" against master on the low flight over the forest (60 m AGL, the headline), the Cub's and the

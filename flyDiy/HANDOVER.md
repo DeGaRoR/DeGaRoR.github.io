@@ -69024,3 +69024,98 @@ ROLLANIM.play, cleared in flRevealStart) is GATE UILAYER U5's.
   No decision.
 - `verbs_after_reveal.jpg` - this branch at the stand after the reveal (the class cleared by flRevealStart): the verbs are
   back. No decision.
+
+## G1340-G1344 - SHADER-GUARD: THE 79 s FRAMES WERE THE PREMISES LAMPS' COUNT - EVERY LIT PROGRAM RE-KEYED WHEN THE NUMBER OF LIT LAMPS NEAR THE EYE CHANGED (2026-10-03, SHADER-GUARD for A0, local GPU)
+
+**THE EVIDENCE** (the user's flight-recorder logs, train 25 af99bcc23a8a, custom near-ultra): 79 / 79 / 78 s frames from the
+line-up skip's take-off on, 97 s at a roll-out after 69 min in the shed. Each is ONE frame, ~60 NEW program ids linked in it
+(447-508, then 496-537, then 538-581), five of them ~12 s each (the ground's heavy programs), the rest ~0.25 s. The sim
+flew on in its worker meanwhile, so each freeze landed somewhere new and found a new count. (The frame's `shader` slot read
+54 ms: the waits fell outside the open frame - the watchdog below counts both.)
+
+**THE RIG: tools/perf/shader_guard.js** (new). The user's gfx, roll out, skip to line up, the pilot's take-off and circuit;
+every program three makes (renderer.info.programs' push: name, cache key, frame, the visible lights by kind, the target,
+the caller) and destroys; each new key against the same name's nearest earlier key, field by field. `--tree` serves a
+`git archive` copy from the same root (the bisect), `--day` the day, `--shed-dusk` night falling while in the shed.
+
+**G1340 THE CAUSE.** The premises' LAMP POOL (G449, render_premises.js LAMPS): from dusk (sun under 2 deg) its 8
+  point lights were assigned to the published lamps nearest the eye within 500 m, and an UNASSIGNED one was made invisible.
+  three keys every lit program on the count of VISIBLE point lights (numPointLights), so each change in the number of
+  lamps within reach re-keyed every lit material in the world. The rig at dusk (r2, train 25 + the user's gfx): the
+  stand (2 craft lights + 8 lamps = P10) to the hold, a kilometre from the town (2 + 2 = P4) -> one 95.2 s frame, then
+  23.2 s; every new key differs from its predecessor in the light-count fields only (#35-#43: 10 -> 4), on everything
+  lit: trees (M_Branch / M_Bark / BirchBranchAtlas / CommonBark), grass1, pavement, life:kit, parked:baked, flown:baked,
+  water, the characters, the town's matlib array, the animals. The same run on the game's own 16:00 day (r1): 1 program
+  after the skip, worst frame 317 ms. Not the mirror, not fog, not the shadow type: the light count alone.
+  - The 97 s roll-out after an hour in the shed: the day clock runs in the shed; it crossed dusk there, and the roll-out's
+    'worldCompile' was keyed on the graphics alone (gfxKey) - it did not run, and the first world frame met the lamps'
+    new count unlinked.
+  - The user's "it did not do this a week or two ago": the skip button arrived 27 Sep (G771); the pool is older (G449,
+    21 Sep). What changed is the user's day: the saved day reached dusk.
+
+**G1341 THE BISECT** (dusk, the same rig and settings, a fresh profile each): 
+  - 3da1c82a (26 Sep, no skip button yet - the pilot taxied out of the stand on its own): THE SAME - eight frames of
+    86-94 s, about 70 programs keyed for EACH lamp count P3 .. P10 (r4, pulled from the page over CDP after the rig's
+    poll stalled on the old FLIGHT_PROBE: tools/perf/shader_guard/r4_3da1_dusk_pulled.json).
+  - 8f8d1884 (19 Sep, before G449): no pool; the light state D1/1 P2 S1 H1 the whole run, 3 programs made in flight - no
+    storm (its frame times are not measured: that tree has no FLYDIY_PACE.end for the rig's hook).
+  - So it is NOT a regression of the last week: the pool has re-keyed the world at dusk since 21 Sep.
+
+**G1342 THE FIX: THE POOL'S COUNT IS FIXED, AND IT CHANGES ONLY ONCE ITS PROGRAMS ARE LINKED.**
+- render_premises.js LAMPS: the pool is ARMED (all 8 visible, an unassigned lamp at intensity 0) or not (none visible).
+  update() never toggles a light's `visible` any more; it arms / disarms only when the day crosses the lamps' threshold
+  (sun 2 deg), and then only after `LAMPS.prep(want)` resolved; mute() darkens and keeps the count. No prep (the benches):
+  at once, as before.
+- app.js lampsPrep(want): the world's lit programs (compileSliced, the frame's target) and the shadow pass's depth variants
+  (compileDepthVariants, sliced) keyed with the pool dressed as it WILL be, a slice a task, linked on the driver's threads.
+  render_world.js: setLampsPrep / lampsWant / lampsArm.
+- The roll-out: 'worldCompile' keys on the lamps' wanted count too and arms the pool before it compiles - dusk falling in
+  the shed now compiles under the roll-out screen with its progress, not in the first frame.
+
+**G1343 THE SAFETY NET.**
+- THE DRAW GUARD (shader_warm.js PROG_WARM.guard, installed in app.js; `?guard=0` turns it off): in the world scene, a draw
+  of a material three has no program for yet - or one the guard is still linking - is held (skipped), its program compiled
+  after the frame through compileAsync (a stand-in, the scene's lights and fog, the target it drew into), drawn once ready
+  (20 s cap). A HELD FRAME IS NEVER PRESENTED (A0's ruling: a partial frame - a ground missing, the sky's colour - is the
+  user's "pale-blue missed frame"): aa_resolve.js `hold` skips the resolve and the post hook when the guard held a draw,
+  app.js skips the glare, nothing reaches the canvas, the page keeps the last whole frame. The guard is armed only
+  behind the AA target (with aa off the scene draws on the canvas itself: nothing is held there). Its stats
+  (FLYDIY_GUARD.stats.what) name the first 40 held materials with frames held and ms to ready. Not the shadow pass (scene null: the warm-ups' depth set) and not the full-screen passes (holding a resolve
+  would blank the frame). A material whose programs exist but whose KEY changes (a light count, a define) is not held -
+  that is what the lamps' prep and the watchdog cover. The garage is not guarded (its editor's builds: STRICT-GATES).
+- THE WATCHDOG (flight_recorder.js): every program three makes is named with what changed in its key against the last
+  program of its name ('#i:a>b'); a frame whose shader time (its slot, or the link waits since the last frame) passes
+  50 ms is an event `shaderslow` with that list.
+- THE SETTINGS: unchanged - a settings change already compiles under its screen (G879 / G991); GATE GFX passes.
+- THE MIRROR: 'live' left the reflections row; ultra is mirror off (it keeps the full water). A saved 'live' falls back to
+  the default preset's (off) at load.
+
+**G1344 BEFORE / AFTER** (the user's settings, dusk 2026-06-22T06:30Z, warm profile, roll-out -> skip -> take-off ->
+circuit): 
+  | run | build | scenario | after the skip / roll-out | worst frame, whole run |
+  |---|---|---|---|---|
+  | r1 | train 25 | 16:00 day, skip | 1 program; no frame > 250 ms | 317 ms (before the skip) |
+  | r2 | train 25 | DUSK, skip | 115 programs; 95 203 ms + 23 192 ms + 3 218 ms frames | 95.2 s |
+  | r3 | + G1340 | DUSK, skip | 1 program; no frame > 250 ms (worst 133 ms); light state P10 constant | 867 ms (the roll-out's first draws, before the skip) |
+  | r6 | + G1340 | dusk boot, night in the shed, roll-out, skip | no frame > 250 ms | 684 ms |
+  | r7 | + G1340 (+ whole-frame hold) | 16:00 boot, night falling in the shed, roll-out, skip | the roll-out re-ran worldCompile + frames UNDER ITS SCREEN (51 s, 141 programs, the heaviest 41 s on the driver's thread; held frames under the screen <= 717 ms); after it worst 617 ms | 617 ms outside the screen |
+  - Every frame over 250 ms left on the fix is a first draw of programs linked earlier (the watchdog says so: "no new
+    program: waits on programs made earlier" - G879's ANGLE first-draw cost), none over 1 s.
+  - The draw guard held, per run: r3 20 draws / 18 compiles; r6 18 / 16; r7 8 / 8 - all small: plain
+    MeshStandardMaterial pieces, cover:shrub Holly / Raspberry atlas and bark, one LineSegments; ready in 1-4 ms, the
+    LineSegments 69 ms (2 frames). With the whole-frame hold those frames re-show the last whole frame.
+
+**THE OTHER TWO REPORTS.**
+- The no-physics (scenery) mode's minute: the lamps are assigned round the EYE (render_world passes camera.position), so
+  a free camera roaming the town at dusk changed the count at every 30-frame re-pick - the same cause, the same fix (not
+  re-run here: the run budget went to the bisect).
+- The pale-blue / white single frames: NOT this cause on train 25. three r186 does not skip an unlinked program - the draw
+  blocks on getUniforms until the link ends (that block IS the 79 s frame), so a link burst never draws a partial frame;
+  the user's log (93 846 frames) has no flight frame under 250 draw calls outside a screen. Not reproduced. The only
+  partial-frame risk this work could add (the guard's held draws) is closed by the whole-frame hold above.
+
+**GATES:** PROGRAMS, BOOT, ROUNDTRIP, GFX, BUILD - PASS (run_gates --no-build). FRAMECOST and the ratchet are A0's
+(the pool's count at night is now always 8: a lit program at night carries 8 point lights where it carried 0-8; by day
+none, as before). NOT DONE: the garage is not guarded (the editor's builds draw new materials every tick - holding them is
+a GARAGE-LAG / STRICT-GATES question); a key change on an EXISTING material other than the lamps is logged, not held.
+Budget: 7 browser runs, ~47 min of GPU under the lock.

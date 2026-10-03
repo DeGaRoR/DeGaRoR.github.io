@@ -1,0 +1,46 @@
+=== BOOT ===
+  ok: a run the watchdog lifted finishes its chain quietly (one done(), still gone, not busy)
+  ok: a lifted screen's chain finishing under a newer one neither advances it nor speaks on it
+GATE BOOT: PASS
+=== GFX ===
+  ok   and no pill: 109 flat, 109 grouped
+  ok   a host with sections gets one per group, keyed gfx.<group>
+GATE GFX: PASS
+=== PROGRAMS ===
+  ok   4 nothing else in src/viewer declares PROG_WARM
+  ok   4 shader_warm.js ships before app.js
+GATE PROGRAMS: PASS
+[run_gates] 4/5 jobs done · running ROUNDTRIP 30 s
+[run_gates] 4/5 jobs done · running ROUNDTRIP 60 s
+[run_gates] 4/5 jobs done · running ROUNDTRIP 90 s
+[run_gates] 4/5 jobs done · running ROUNDTRIP 120 s
+[run_gates] 4/5 jobs done · running ROUNDTRIP 150 s
+[run_gates] 4/5 jobs done · running ROUNDTRIP 180 s
+[run_gates] 4/5 jobs done · running ROUNDTRIP 210 s
+[run_gates] 4/5 jobs done · running ROUNDTRIP 240 s
+[run_gates] 4/5 jobs done · running ROUNDTRIP 270 s
+[run_gates] 4/5 jobs done · running ROUNDTRIP 300 s
+[run_gates] 4/5 jobs done · running ROUNDTRIP 330 s
+[run_gates] 4/5 jobs done · running ROUNDTRIP 360 s
+[run_gates] 4/5 jobs done · running ROUNDTRIP 390 s
+[run_gates] 4/5 jobs done · running ROUNDTRIP 420 s
+[run_gates] 4/5 jobs done · running ROUNDTRIP 450 s
+=== ROUNDTRIP ===
+  ok   setup: no script, timer or frame of the page threw
+  wall 466.3 s
+GATE ROUNDTRIP: PASS
+=== BUILD ===
+  ok     the clock, the date and the run all ride the save envelope
+
+GATE BUILD: PASS
+
+──────── summary ────────
+BOOT      PASS     0.9 s
+GFX       PASS     0.9 s
+PROGRAMS  PASS     0.8 s
+ROUNDTRIP PASS   466.6 s
+BUILD     PASS     1.1 s
+total            470.3 s
+wall             466.6 s  (jobs 4)
+
+BATTERY: PASS
