@@ -5730,7 +5730,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         const RS = PAV.resolve(null, null, PGm.RUNWAY_LOOKS[look]);
         const pr = PGm.polyRoad(r.pts, w);
         const geo = PAV.roadGeometry(THREE, { road: pr, w, shoulderW: PAV.shoulderFor(RS.band, RS.recipe), cls: RS.cls, seed: pavSeed('R' + i), heightAt: world.terrainH, lift: 0.07, step: 4, resV: 1 });
-        const m = new THREE.Mesh(geo, PAV.make(THREE, { lib, cls: RS.cls, marks: PAV.roadMarks(pr.length, w, RS.cls, RS.recipe), road: true, recipe: RS.recipe, band: RS.band }));
+        const m = new THREE.Mesh(geo, PAV.make(THREE, { lib, cls: RS.cls, marks: PAV.roadMarks(pr.length, w, RS.cls, RS.recipe), road: true, recipe: RS.recipe, band: RS.band, side: (RS.recipe.roadSide === undefined ? 1 : +RS.recipe.roadSide) > 0.5 }));   // G1391: the side as a strip's
         m.renderOrder = 3; m.receiveShadow = true; m.name = 'pavement:road' + i; scene.add(m);
         // THE GUARDRAIL (2026-09-22): the W-beam where the ground falls away past the shoulder and on
         // the outside of a tight bend - and never inside a settlement's core (the user: "the large road
@@ -5992,7 +5992,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         // G660: on the premises' patch the ground is sunk under the strip's opaque interior, and the strip is
         // drawn at terrainH there (the wheels' surface); elsewhere (the analytic world's ground) it keeps its lift
         const sd = { len: a.len, wid: a.wid, hdg: a.hdg, cx: a.x, cz: a.z, shoulderW: shW, cls: RS.cls, seed: pavSeed(a.id), heightAt: world.terrainH, lift: 0.07, resU: 6, resV: 3,
-          sinkD0: onPatch && a.premises && premisesR.pavedAt ? PAV.opaqueDepth(RS.cls, a.wid / 2, RS.recipe) : null };
+          sinkD0: onPatch && a.premises && premisesR.pavedAt ? PAV.opaqueDepth(RS.cls, a.wid / 2, RS.recipe, 'strip') : null };
         const pgeo = PAV.stripGeometry(THREE, sd);
         const lib = pavLib(PAV.keysFor([RS.cls]));
         const marks = RS.marks === 'none' ? { rects: [], segs: [] } : PAV.marksOf(siteRunway(a), sitePaintStrip);

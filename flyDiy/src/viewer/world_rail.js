@@ -54,6 +54,9 @@
   const PACK = () => W.TREE_PACK || W.TREE_PACK_REG || null;
   const RING = () => { const t = TF(); return (t && t.cover && t.cover()) || null; };
   const CLF = () => { const g = G(); return (g && g.cliffs && g.cliffs()) || null; };
+  // THE RUNWAY LOOK (G1394, RUNWAY-LOOK): the pavement module's live overlay (PAVEMENT.look) - per surface type, the
+  // surface's and the side's colour, the wear, the side's width and blend; over every pavement's own (the premises')
+  const PVL = () => (W.PAVEMENT && W.PAVEMENT.look ? W.PAVEMENT : null);
   const RMAP = () => { const g = G(); return (g && g.rockMap && g.rockMap()) || null; };
   const ready = () => !!(WF() && G() && G().on && G().on());
 
@@ -111,6 +114,7 @@
     const c = CLF(); if (c) o.cliffs = c.get();
     const L = W.TREE_LEAF; if (L && L.collections) { o.tints = tintsNow(); if (L.master) o.leafMaster = clone(L.master()); }
     if (W.TREE_MIX) o.treeMix = { furnished: W.TREE_MIX.furnished, spread: W.TREE_MIX.spread };
+    if (PVL()) o.runway = PVL().look();
     return o;
   };
   const lookDelta = () => {
@@ -125,12 +129,14 @@
       if (map || mixes) o.biomes = Object.assign({}, map ? { map } : {}, mixes ? { mixes } : {}); }
     put('ring', deltaOf(N.ring, DEF.ring)); put('cliffs', deltaOf(N.cliffs, DEF.cliffs));
     put('tints', deltaOf(N.tints, DEF.tints)); put('leafMaster', deltaOf(N.leafMaster, DEF.leafMaster)); put('treeMix', deltaOf(N.treeMix, DEF.treeMix));
+    if (N.runway && Object.keys(N.runway).length) o.runway = N.runway;   // the overlay IS a delta (over the premises' look)
     return o;
   };
   const saveLook = () => { clearTimeout(saveT); saveT = setTimeout(() => { const d = lookDelta(); if (Object.keys(d).length) lsSet(LOOK_KEY, d); else { try { localStorage.removeItem(LOOK_KEY); } catch (e) {} } }, 250); };
   // set only what differs from what is standing: each of these setters evicts, replants or rebuilds
   const applyLook = (o, full) => {
     if (!o) return;
+    if (PVL() && (o.runway || full)) { if (full) PVL().look(null, null); if (o.runway) PVL().look(null, o.runway); }
     const g = G();
     if (g && o.ground) { const q = g.get(), d = {}; for (const k in o.ground) if (q[k] !== o.ground[k]) d[k] = o.ground[k]; if (Object.keys(d).length) g.set(d); }
     if (o.stack && g) { const S = g.stack(); o.stack.forEach((l, i) => { if (S[i] && (S[i].on !== l.on || S[i].mode !== l.mode || S[i].op !== l.op)) g.setLayer(i, { on: l.on, mode: l.mode, op: l.op }); }); }
@@ -191,6 +197,7 @@
         stack: 'src/viewer/render_world.js STACK', ground: 'src/viewer/render_world.js GROUND',
         island: 'src/viewer/render_world.js FILL.island', ring: 'src/viewer/cover_ring.js defaults', cliffs: 'src/viewer/cliffs.js S',
         speciesSize: 'render_world.js SP_SIZE (new)', tints: 'tools/_trees_tuning.json per-collection tint',
+        runway: "the premises' rec.pavement (the editor's PAVEMENT section, runway look) or src/viewer/pavement.js RECIPE (pv / sf / gr keys)",
       },
       splat: sp ? sp.state() : null,
       stack: g ? g.stack() : null,
@@ -213,6 +220,7 @@
     if (DEF.cliffs && out.cliffs) ch.push(...diff(DEF.cliffs, out.cliffs, 'cliffs'));
     if (DEF.env !== null && out.envAlbedo !== undefined && Math.abs(DEF.env - out.envAlbedo) > 1e-9) ch.push({ path: 'envAlbedo', was: DEF.env, now: out.envAlbedo });
     if (out.speciesSize && Object.keys(out.speciesSize).length) for (const k in out.speciesSize) ch.push({ path: 'speciesSize.' + k, was: 1, now: out.speciesSize[k] });
+    if (out.runway) for (const k in out.runway) ch.push({ path: 'runway.' + k, was: PVL().RECIPE[k], now: out.runway[k] });
     out.changes = ch;
     return out;
   };
@@ -434,6 +442,7 @@
     filter: 'M3 14c3-8 9-8 12 0|M5 14l2-6|M13 14l-2-6|M9 14V6',
     veg: 'M9 15.4V8.2|M9 8.2C9 5.6 7 4.2 5 4.6c.4 2.6 2 4 4 3.6Z|M9 10.4c0-2.6 2-4 4-3.6-.4 2.6-2 4-4 3.6Z|M3.6 15.4h10.8',
     cliffs: 'M2 15l4-9 3 4 2-3 5 8Z|M6 6l1 3',
+    runway: 'M6 2.5h6l2 13H4Z|M9 4v2|M9 8v2|M9 12v2',
     scenery: 'M9 16.2s-5-4.6-5-8.3a5 5 0 0 1 10 0c0 3.7-5 8.3-5 8.3Z|M9 9.7a1.9 1.9 0 1 0 0-3.8 1.9 1.9 0 0 0 0 3.8Z',
     file: 'M5 2.5h6l3 3v10H5Z|M11 2.5v3h3|M7.5 10.5 9.5 12.5 12 8.5',
   };
@@ -444,9 +453,30 @@
     { k: 'filter', label: 'filtering', title: 'Tiling, blending, distance, texture filtering', build: buildFilter },
     { k: 'veg', label: 'vegetation', title: 'The fill’s rule, the cover ring, the trees’ colour', build: buildVeg },
     { k: 'cliffs', label: 'cliffs', title: 'The photoscanned cliffs and the rocks at distance', build: buildCliffs },
+    { k: 'runway', label: 'runways', title: 'The runways\u2019 and roads\u2019 look per surface type: the surface, the wear, the sides', build: buildRunway },
     { k: 'scenery', label: 'air & map', title: 'The air while you work and the maps (the scenery editor and the test mode are the left rail\u2019s DEV)', build: buildScenery },
     { k: 'file', label: 'export', title: 'Export, import, the changes against the defaults, reset', build: buildFile },
   ];
+
+  // ---- THE RUNWAYS (G1394) ----
+  // every look knob of the pavement module (PAVEMENT.KNOBS' runway-look rows), per surface type, live over every strip,
+  // road and apron in the page (a row repack: no rebuild). The premises carry their own (the editor's PAVEMENT section):
+  // this is the world look's overlay over them, saved with the look and exported with it.
+  function buildRunway(body) {
+    const P = PVL();
+    if (!P) { note(body, 'no pavement module on this page'); return; }
+    note(body, 'per surface type: the surface\u2019s brightness and tint, its wear, and the sides\u2019 colour, width and blend into the island\u2019s ground. Live over every runway, road and apron; the declared width is the drawn width whatever the surface (the sides are added outside it).');
+    const NM = { pv: 'paved', sf: 'gravel, dirt, sand', gr: 'grass' };
+    for (const g of Object.keys(P.LOOK_GROUPS)) {
+      const S = sec(body, NM[g] || g, g === 'pv', P.LOOK_GROUPS[g].join(', '));
+      for (const row of P.KNOBS) {
+        if (row.length < 2 || P.LOOK_KEYS.indexOf(row[0]) < 0 || row[0].slice(0, 2) !== g) continue;
+        const k = row[0];
+        range(S, row[1], row[2], row[3], row[4], () => { const L = P.look(); return L[k] !== undefined ? L[k] : P.RECIPE[k]; }, v => P.look(null, { [k]: +v }), v => (+v).toFixed(2), P.RECIPE[k]);
+      }
+    }
+    button(body, 'back to the premises\u2019 look', () => { P.look(null, null); saveLook(); open('runway', true); });
+  }
 
   // ---- COVERAGE ----
   function buildCover(body) {

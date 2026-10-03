@@ -99,11 +99,34 @@ const PAVEMENT = (() => {
     // past the edge the surface's own colour goes to alpha over sideW metres (from sideA), and the island's
     // ground shows. The band still EXCLUDES the vegetation (coverAt's PAVE_BAND is untouched). 0 = the band.
     sideFade: 1, sideW: 1.2, sideA: 0.35,
+    // THE ROADS' SIDES (G1391, RUNWAY-LOOK: "the dirt runway / path, which is very large" - a 6 m road drew 15.7 m, its
+    // band + the fade past it at alpha >= 0.5): a road fades its side out like a strip (1), its declared width the drawn
+    // one; 0 = every road draws its band again. A road whose entry declares its own `band` draws it either way.
+    roadSide: 1,
     detailFrom: 250, detailTo: 900, normalFrom: 120, normalTo: 500,
     specK: 1.0, nrmK: 1.0, specAA: 0.35, jointAniso: 1,
     softMix: 0.8, coarseK: 0.7, wheelBand: 0.85, treadK: 0.8, paintRelief: 1.0, mow: 0.6, edgeSoft: 2.6, grassRough: 0.82,
     grade: { gravelR: [1.0, 0.55], gravelK: [0.95, 0.55], gravelS: [1.0, 0.5], dry: [0.40, 0.58, 0.96, 1.0, 0.91], concreteA: [1.7, 0.45, 0.94, 0.98, 1.06], concreteB: [1.25, 0.6, 0.95, 0.98, 1.05], concreteD: [1.1, 0.7], mudAir: [1.1, 0.6], dirtP: [1.0, 0.7], grass: [0.9, 1.0], gravelG: [0.85, 0.7, 1.06, 1.0, 0.9], gravelF: [0.6, 0.6, 1.12, 1.0, 0.84], gravelB: [1.25, 0.55, 1.0, 1.0, 0.92], rockG: [0.75, 0.7, 1.02, 1.0, 0.94], dirtS: [2.9, 0.7], trailR: [0.55, 0.7], dirtG: [1.0, 0.8], tracksM: [2.6, 0.35], grassG: [0.9, 1.0, 0.9, 1.0, 0.8], grassP: [0.55, 0.9, 0.95, 1.0, 0.9], grassS: [1.6, 0.9], leafygrass: [0.8, 0.9, 0.85, 1.0, 0.75], fieldgrass: [0.85, 0.85], lush: [0.85, 1.0], sandC: [1.3, 0.8], gravelS: [0.6, 0.5] },
   };
+  // THE RUNWAY LOOK (G1390, RUNWAY-LOOK; the user, 3 Oct: "I would want to color the runway and its sides further, more
+  // control over those"). Per SURFACE TYPE - `pv` the paved (concrete, asphalt), `sf` the soft (gravel, dirt, sand), `gr`
+  // the grass - nine knobs: the surface's brightness, its tint (a hue and how much of it: a multiplier whose mean stays 1)
+  // and its WEAR (a factor on the class's wear knobs, below), and the side's own brightness and tint, its width (m past
+  // the edge zone; -1 = the edge zone's sideW) and the alpha it starts from (-1 = sideA). Saved with the premises
+  // (rec.pavement: the editor's PAVEMENT section lists them); the world look's RUNWAY section lays a live overlay over
+  // every pavement (look()) and exports it. The defaults draw what G1391 draws: brightness 1, no tint, wear 1, the paved
+  // side at the edge zone's sideA, the soft and grass sides a torn edge alone (alpha 0).
+  const LOOK_GROUPS = { pv: ['concrete', 'asphalt'], sf: ['gravel', 'dirt', 'sand'], gr: ['grass'] };
+  const LOOK_NAMES = { pv: 'paved (concrete, asphalt)', sf: 'soft (gravel, dirt, sand)', gr: 'grass' };
+  const LOOK_K = ['Bright', 'Hue', 'Tint', 'Wear', 'SideBright', 'SideHue', 'SideTint', 'SideW', 'SideA'];
+  const LOOK_KEYS = [];
+  for (const g in LOOK_GROUPS) for (const k of LOOK_K) {
+    LOOK_KEYS.push(g + k);
+    RECIPE[g + k] = { Bright: 1, Hue: 0.12, Tint: 0, Wear: 1, SideBright: 1, SideHue: 0.12, SideTint: 0, SideW: -1, SideA: g === 'pv' ? -1 : 0 }[k];
+  }
+  // what WEAR scales, per surface type: the paved class's ageing, the soft ground's traffic
+  const LOOK_WEAR = { pv: ['crackK', 'damageK', 'patchK', 'mossK', 'stainK', 'rubberK'], sf: ['wheelBand', 'coarseK', 'rutDepth', 'treadK'], gr: ['wheelBand', 'coarseK', 'rutDepth', 'treadK'] };
+  const groupOf = cls => (cls === 'concrete' || cls === 'asphalt') ? 'pv' : (cls === 'grass' ? 'gr' : 'sf');
   let R = JSON.parse(JSON.stringify(RECIPE));
   // THE KNOBS (the port, 2026-09-22): one table for the bench's aside and the editor's PAVEMENT
   // section - [key, label, min, max, step]; a row of one string is a section heading
@@ -135,8 +158,13 @@ const PAVEMENT = (() => {
     ['softMix', 'second ground in patches', 0, 1, 0.02], ['coarseK', 'coarse stony patches', 0, 1, 0.02], ['wheelBand', 'compacted wheel band', 0, 1, 0.02], ['treadK', 'tyre tread in the tracks', 0, 1, 0.02],
     ['edgeSoft', 'soft edge spread (m)', 0.3, 5, 0.1], ['mow', 'mowing stripes (grass)', 0, 1, 0.05], ['grassRough', 'soft roughness floor', 0.5, 1, 0.02],
     ['— edge zone —'],
-    ['sideFade', 'strip sides fade to the ground (0/1)', 0, 1, 1], ['sideW', 'side fade width (m)', 0.5, 10, 0.5], ['sideA', 'side fade from alpha', 0, 1, 0.05],
+    ['sideFade', 'strip sides fade to the ground (0/1)', 0, 1, 1], ['sideW', 'side fade width (m)', 0.5, 10, 0.5], ['sideA', 'side fade from alpha', 0, 1, 0.05], ['roadSide', "roads' sides fade like the strips' (1) / draw their band (0)", 0, 1, 1],
     ['edgeChip', 'edge chipping (m)', 0, 2, 0.05], ['band', 'gravel band (m, -1 = class)', -1, 40, 0.5], ['bandNoise', 'band raggedness', 0, 1, 0.02], ['grassReach', 'grass creeps in over (m)', 0.5, 30, 0.5], ['fadeW', 'fade to terrain over (m)', 0.5, 30, 0.5],
+    ...Object.keys(LOOK_GROUPS).flatMap(g => [['— runway look: ' + LOOK_NAMES[g] + ' —'],
+      [g + 'Bright', 'surface brightness', 0.3, 2, 0.02], [g + 'Hue', 'surface tint hue (0 red, .17 yellow, .33 green, .67 blue)', 0, 1, 0.01], [g + 'Tint', 'surface tint amount', 0, 1, 0.02],
+      [g + 'Wear', "wear (x the class's cracks, patches, ruts...)", 0, 2, 0.05],
+      [g + 'SideBright', 'side brightness', 0.3, 2, 0.02], [g + 'SideHue', 'side tint hue', 0, 1, 0.01], [g + 'SideTint', 'side tint amount', 0, 1, 0.02],
+      [g + 'SideW', "side width (m past the edge zone, -1 = the edge zone's)", -1, 12, 0.1], [g + 'SideA', "side starts at alpha (blend into the ground; -1 = the edge zone's)", -1, 1, 0.05]]),
     ['— distance —'],
     ['detailFrom', 'detail fades from (m)', 20, 1500, 10], ['detailTo', 'detail gone by (m)', 50, 3000, 10], ['normalFrom', 'normal fades from (m)', 10, 1000, 10], ['normalTo', 'normal gone by (m)', 30, 2000, 10],
     ['specK', 'specular (haze fade x)', 0, 2, 0.05], ['nrmK', 'normal strength', 0, 3, 0.05], ['specAA', 'specular anti-alias (as the ground)', 0, 1, 0.05], ['jointAniso', 'joints AA per axis (1) / isotropic (0)', 0, 1, 1],
@@ -199,9 +227,9 @@ const PAVEMENT = (() => {
   // Now the ground is SUNK under the pavement's opaque interior (render_premises' patch, by sinkAt) and
   // the pavement comes DOWN to terrainH there (liftK), so no camera distance can pierce it and the drawn
   // surface is the solver's. Near the edge, where the pavement is not yet opaque, both keep the old lift.
-  //   opaqueDepth(cls, halfW, recipe): how far inside the edge the shader's alpha is 1 for sure - the paved
-  //     edge's chipping (edgeChip), the soft edge's three octaves of noise (2.45 x edgeSoft); a grass
-  //     pavement is translucent over its whole width and never sinks (Infinity)
+  //   opaqueDepth(cls, halfW, recipe, kind): how far inside the edge the shader's alpha is 1 for sure - the paved
+  //     edge's chipping (edgeChip), a soft edge's and a grass strip's tear the same (G1391); a grass road
+  //     or polygon is translucent over its whole width and never sinks (Infinity)
   //   sinkAt(dE, d0): the ground's drop, S over `ramp` metres from d0 inward
   //   liftK(dE, d0): the pavement's lift factor, 1 at the edge -> 0 at `liftIn` inside it (G1001, below; it
   //     was 1 -> 0 only `pad` metres past the full sink)
@@ -220,12 +248,12 @@ const PAVEMENT = (() => {
   // on the roads 67 -> 0 mm mean, p5..p95 -4..4 (HANDOVER G1001; GATE CONTACT holds both).
   const SINK = { S: 0.8, ramp: 3, pad: 3, fall: 1.5, liftIn: 1.5, pre: 0.07 };   // pad, fall: G660's, unused since G1001
   const ss01 = (a, b, x) => { const t = Math.max(0, Math.min(1, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
-  function opaqueDepth(cls, halfW, recipe) {
+  // G1391 (RUNWAY-LOOK): a soft edge tears as deep as a paved edge chips (edgeChip) and no deeper, a grass STRIP's too (a
+  // grass road, an apron of grass: still the world's grass with tracks in it - translucent, never sunk). `kind` is pavedAt's ('strip' | 'road' | 'poly'); without it a grass pavement keeps the safe Infinity.
+  function opaqueDepth(cls, halfW, recipe, kind) {
     const r = recipe || R;
-    if (cls === 'grass') return Infinity;
-    if (cls === 'concrete' || cls === 'asphalt') return (r.edgeChip || 0) + 0.2;
-    const soft = Math.max(0.3, Math.min(6, Math.min(r.edgeSoft || 2.6, (halfW || 3) * 0.6)));
-    return soft * 2.45 + 0.2;
+    if (cls === 'grass' && kind !== 'strip') return Infinity;
+    return Math.max(r.edgeChip || 0, cls === 'concrete' || cls === 'asphalt' ? 0 : 0.1) + 0.2;
   }
   const sinkAt = (dE, d0) => Math.max(SINK.pre * ss01(0, SINK.liftIn, dE), isFinite(d0) ? SINK.S * ss01(d0, d0 + SINK.ramp, dE) : 0);   // G1001: pre first
   const liftK = (dE, d0) => 1 - ss01(0, SINK.liftIn, dE);   // G1001: d0 no longer delays it (kept in the signature)
@@ -1065,11 +1093,16 @@ float pvTread(float u, float x, float w, float seed) {
     float wPav;
     if (paved) wPav = smoothstep(-fwm - 0.05, fwm + 0.05, eEdge);
     else {
-      // a soft road has no edge: the loose stuff thins out over edgeSoft metres through three
-      // octaves of noise (15 m, 4 m, 1 m) - islands of dirt in the grass, tongues of grass in the dirt
-      float soft = clamp(min(uSoft2.z, halfW * 0.6), 0.3, 6.0);
-      float e2 = dE + soft * (0.9 * (pvNoise(vec2(u / 15.0, seed + 19.0)) - 0.5) * 2.0 + 0.7 * (pvFbm(uvS / 4.0 + 23.0) - 0.5) * 2.0 + 0.35 * (pvNoise(uvS / 1.0) - 0.5) * 2.0);
-      wPav = smoothstep(-soft * 1.1, soft * 0.5, e2);
+      // a soft road has no edge: the loose stuff thins out through three octaves of noise (15 m, 4 m, 1 m) - islands of
+      // dirt in the grass, tongues of grass in the dirt. G1391 (RUNWAY-LOOK, the user: "the grass runway is very thin at
+      // the same dimensions as the dirt runway / path, which is very large"): the tear is the PAVED edge's, in
+      // extent: its mean on the declared edge, never deeper inside than edgeChip (a paved edge's chipping), the islands
+      // out to the side's reach (edgeChip + sideW, where a paved side ends too). It was centred 0.3 x edgeSoft OUTSIDE
+      // the edge with +-2 x edgeSoft of noise either way: a dirt strip drew islands ~8 m past its edge and was opaque
+      // only ~6 m inside it. The declared width now draws the declared width, whatever the class.
+      float tc = max(uEdge.x, 0.1), tw = max(uEdge.x + uSide.y, 0.3);
+      float tn = 0.45 * pvNoise(vec2(u / 15.0, seed + 19.0)) + 0.35 * pvFbm(uvS / 4.0 + 23.0) + 0.2 * pvNoise(uvS / 1.0);
+      wPav = dE >= tc ? 1.0 : smoothstep(0.42, 0.58, 0.5 + (dE > 0.0 ? dE / tc * 0.6 : dE / tw * 0.5) + (tn - 0.5) * 0.9);
     }
     float bandW = uEdge.y;
     float bn = pvFbm(uvS / 2.5 + 31.0);
@@ -1092,6 +1125,9 @@ float pvTread(float u, float x, float w, float seed) {
     }
     // the shoulder's paths press the ground: the tracks set, a shade darker, the trough's slope
     if (dE < -0.5 && rut > 0.004) { Smp t = pvSet(4, uvS); float rw = rut * 0.4; col = mix(col, t.c.rgb, rw); rough = mix(rough, t.n.a - 0.1, rw); nT = mix(nT, t.n.xyz, rw * 0.5); col *= 1.0 - rut * 0.14; nT.y += -rr.y * uRut.y * 0.9 * nrmK; }
+    // ---- 10b THE RUNWAY LOOK (G1392): the surface's and the side's own colour multipliers (brightness x a tint whose
+    // mean is 1; applyOne computes them per surface type), the side's where the surface has gone; the paint keeps its own
+    col *= mix(mix(vec3(uEdge2.z, uEdge2.w, uSpec.w), uWet.yzw, wPav), vec3(1.0), paint);
     // ---- 11 the wet: a FILM, and nothing else. Grass does not shine; loose ground shines little
     float wetC = paved ? 1.0 : (grassy ? 0.12 : 0.25);
     float wet = uWet.x * mix(0.3, 1.0, wPav) * wetC;
@@ -1116,7 +1152,8 @@ float pvTread(float u, float x, float w, float seed) {
     if (sideFade) {
       // THE SIDE (G660): the surface's own colour going to alpha past the (chipped) edge; a soft edge is
       // already a torn fade and keeps it
-      float sideA = paved ? uSide.z * (1.0 - smoothstep(0.0, uSide.y, -eEdge)) : 0.0;
+      // G1392: every class's side starts at its surface type's alpha (the soft and grass default 0: the torn edge alone)
+      float sideA = uSide.z * (1.0 - smoothstep(0.0, uSide.y, -eEdge));
       gPavA = max(wPav, sideA * clamp(vPavSh, 0.0, 1.0));
     }
     if (dE < 0.0 && uKeepN > 0) gPavA *= pvKeep(vPavW.xz);
@@ -1128,9 +1165,10 @@ float pvTread(float u, float x, float w, float seed) {
       if (uRoadEnd.y > 0.0) gPavA *= smoothstep(0.0, uRoadEnd.y, 2.0 * halfL - u);
     }
     // A GRASS ROAD IS THE WORLD'S GRASS WITH TRACKS IN IT: the mesh shows only where the wheels wore
-    // it (the ruts, the compacted band, the tread); a grass STRIP keeps a share of its own lawn (it
-    // is mown, and that reads) - the rest is the ground under it
-    if (grassy) { float worn = clamp(rut * 1.3 + wheel + tread * 0.6, 0.0, 1.0); gPavA *= clamp((road ? 0.0 : 0.45) + worn, 0.0, 1.0); }
+    // it (the ruts, the compacted band, the tread). A grass STRIP is its own mown lawn over its whole declared width
+    // (G1391: it kept 45 % of its lawn, over a ground of grass, so only the worn band a third of its width read - the
+    // "very thin" grass runway); its colour against the island's grass is the runway look's (grBright / grTint)
+    if (grassy && road) { float worn = clamp(rut * 1.3 + wheel + tread * 0.6, 0.0, 1.0); gPavA *= worn; }
     diffuseColor.rgb = col; diffuseColor.a = gPavA;
     gPavDbg = uPavDbg < 1.5 ? gPavN * 0.5 + 0.5 : uPavDbg < 2.5 ? vec3(gPavR) : uPavDbg < 3.5 ? vec3(wetK, 0.0, 0.0) : uPavDbg < 4.5 ? mk
       : uPavDbg < 5.5 ? vec3(wp, wb, wg) : uPavDbg < 6.5 ? vec3(clamp(dE / 10.0, 0.0, 1.0), clamp(-dE / shW, 0.0, 1.0), gPavA) : uPavDbg < 7.5 ? vec3(fract(laneTone * 4.0), joint, spall)
@@ -1251,10 +1289,75 @@ float pvTread(float u, float x, float w, float seed) {
   function groundColor(cls, recipe) {
     const row = CLASS_DEF[cls]; if (!row) return null;
     const r = recipe ? Object.assign(JSON.parse(JSON.stringify(RECIPE)), recipe, { grade: Object.assign({}, RECIPE.grade, recipe.grade || {}) }) : R;
-    return gradedMean(row.shoulder, r, SHARED);
+    const c = gradedMean(row.shoulder, r, SHARED), lk = lookOf(cls, r);
+    return [c[0] * lk.side[0], c[1] * lk.side[1], c[2] * lk.side[2]];   // G1392: the side's look
+  }
+  // ---- THE RUNWAY LOOK (G1392) -------------------------------------------------------------------------------
+  // LIVE: the world look's overlay (look()), laid over every pavement's own recipe for the look's keys only
+  let LIVE = null;
+  // a hue (0..1) and how much of it -> an rgb multiplier whose mean is 1 (red at 0, green at 1/3, blue at 2/3)
+  const tintRGB = (h, k) => [0, 1, 2].map(c => 1 + (k || 0) * Math.cos(2 * Math.PI * ((h || 0) - c / 3)));
+  // lookOf(cls, r): the surface type's look in r (+ LIVE) - { g, surf: rgb, side: rgb, wear, sideW, sideA }
+  function lookOf(cls, recipe) {
+    const r = recipe || R, g = groupOf(cls), q = k => (LIVE && LIVE[g + k] !== undefined ? +LIVE[g + k] : (r[g + k] !== undefined ? +r[g + k] : RECIPE[g + k]));
+    const mul = (b, h, k) => tintRGB(h, k).map(c => Math.max(0, c * b));
+    const sw = q('SideW'), sa = q('SideA');
+    return { g, surf: mul(q('Bright'), q('Hue'), q('Tint')), side: mul(q('SideBright'), q('SideHue'), q('SideTint')), wear: Math.max(0, q('Wear')),
+      sideW: sw >= 0 ? sw : (r.sideW || 1.2), sideA: sa >= 0 ? sa : (r.sideA === undefined ? 0.35 : r.sideA) };
+  }
+  const KNOB_MAX = {};
+  for (const row of KNOBS) if (row.length > 1) KNOB_MAX[row[0]] = row[3];
+  // the recipe a part is drawn with: its own (or the module's), its surface type's WEAR applied to the wear knobs
+  function wornRecipe(r, lk) {
+    if (Math.abs(lk.wear - 1) < 1e-9) return r;
+    const o = Object.assign({}, r);
+    for (const k of LOOK_WEAR[lk.g]) o[k] = Math.min(KNOB_MAX[k] !== undefined ? KNOB_MAX[k] : Infinity, (+r[k] || 0) * lk.wear);
+    return o;
+  }
+  // look(THREE, o): the live overlay - an object of LOOK_KEYS (a key at undefined/null leaves it), null clears it;
+  // returns the overlay. Every pavement in the page is re-applied (a row repack each: no rebuild)
+  function look(THREE, o) {
+    if (o === null) LIVE = null;
+    else if (o && typeof o === 'object') {
+      const n = Object.assign({}, LIVE);
+      for (const k in o) if (LOOK_KEYS.indexOf(k) >= 0) { if (o[k] === undefined || o[k] === null || !Number.isFinite(+o[k])) delete n[k]; else n[k] = +o[k]; }
+      LIVE = Object.keys(n).length ? n : null;
+    } else return LIVE ? Object.assign({}, LIVE) : {};
+    applyAll(THREE);
+    return LIVE ? Object.assign({}, LIVE) : {};
+  }
+  // ---- THE ALPHA'S CPU TWIN (G1393): the shader's edge law, line for line, at a point of a strip or a road
+  // (u along, v across, the noise ported from pvHash / pvNoise / pvFbm) - what tools/pavement_widths.js and GATE
+  // PAVEMENT 16 measure the drawn width with. The ends and the keep boxes are left out (the census is across the middle).
+  // Returns { a: the alpha, surf: the surface's own share (wPav) } - a grass ROAD's alpha is its tracks' (worn): `worn` true.
+  const fr = x => x - Math.floor(x);
+  const tHash = (x, y) => fr(Math.sin(x * 127.1 + y * 311.7) * 43758.5453);
+  const tNoise = (x, y) => { const ix = Math.floor(x), iy = Math.floor(y); let fx = x - ix, fy = y - iy; fx = fx * fx * (3 - 2 * fx); fy = fy * fy * (3 - 2 * fy);
+    const a = tHash(ix, iy), b = tHash(ix + 1, iy), c = tHash(ix, iy + 1), d = tHash(ix + 1, iy + 1); return (a + (b - a) * fx) + ((c + (d - c) * fx) - (a + (b - a) * fx)) * fy; };
+  const tFbm = (x, y) => tNoise(x, y) * 0.5 + tNoise(x * 2.03 + 17.1, y * 2.03 + 17.1) * 0.3 + tNoise(x * 4.11 + 41.7, y * 4.11 + 41.7) * 0.2;
+  function alphaTwin(o) {
+    const r = o.recipe || R, cls = o.cls, paved = cls === 'concrete' || cls === 'asphalt', lk = lookOf(cls, r), u = o.u, v = o.v, halfW = o.halfW;
+    const seed = Math.round((o.seed || 0) * 37) / 37, us = u + seed * 37, vs = v + seed * 91, dE = halfW - Math.abs(v);
+    const eEdge = dE + r.edgeChip * (tNoise(u / 1.5, seed + 9) - 0.5) * 2;
+    let wPav;
+    if (paved) wPav = ss01(-0.05, 0.05, eEdge);
+    else {
+      const tc = Math.max(r.edgeChip, 0.1), tw = Math.max(r.edgeChip + lk.sideW, 0.3);
+      const tn = 0.45 * tNoise(u / 15, seed + 19) + 0.35 * tFbm(us / 4 + 23, vs / 4 + 23) + 0.2 * tNoise(us, vs);
+      wPav = dE >= tc ? 1 : ss01(0.42, 0.58, 0.5 + (dE > 0 ? dE / tc * 0.6 : dE / tw * 0.5) + (tn - 0.5) * 0.9);
+    }
+    let a;
+    if (o.side && (r.sideFade === undefined ? 1 : r.sideFade) > 0.5) a = Math.max(wPav, lk.sideA * (1 - ss01(0, lk.sideW, -eEdge)));
+    else {
+      const shW = o.shW !== undefined ? o.shW : shoulderFor(o.band, r), bandW = o.band;
+      const f1 = shW, f0 = Math.max(0, Math.min(Math.min(bandW + 0.3, shW - Math.max(r.fadeW, 0.6)), shW - 0.3));
+      a = 1 - ss01(f0, f1, -dE);
+    }
+    return { a, surf: wPav, worn: cls === 'grass' && !!o.road };
   }
   function applyOne(THREE, m) {
-    const r = m.userData.pavRecipe || R, U = m.uniforms, d = m.userData.pav, lib = m.userData.pavLib, cls = CLASS_DEF[d.cls];
+    const U = m.uniforms, d = m.userData.pav, lib = m.userData.pavLib, cls = CLASS_DEF[d.cls];
+    const lk = lookOf(d.cls, m.userData.pavRecipe || R), r = wornRecipe(m.userData.pavRecipe || R, lk);
     // a road's band is crushed stone where a runway's is the cleared bare ground (the pale band beside a road read as a halo)
     const keyOf = s => (s === 'shoulder' && d.road && cls.roadShoulder) ? cls.roadShoulder : cls[s];
     const lay = s => (lib.layerOf[keyOf(s)] !== undefined ? lib.layerOf[keyOf(s)] : 0), met = s => lib.metres[keyOf(s)] || 2;
@@ -1274,7 +1377,7 @@ float pvTread(float u, float x, float w, float seed) {
     U.uPatch.value.set(r.patchK, r.patchTone, r.patchRough, r.patchLen);
     U.uMoss.value.set(r.mossK, r.mossEdge, r.mossJoint, r.mossScale);
     U.uStain.value.set(r.stainK, r.stainScale, r.stainRough, 0);
-    U.uWet.value.set(r.wet, 0, 0, 0);          // .yzw were the puddles, retired 2026-09-23
+    U.uWet.value.set(r.wet, lk.surf[0], lk.surf[1], lk.surf[2]);          // .yzw (the puddles' until 2026-09-23): the runway look's surface multiplier (G1392)
     U.uMark.value.set(r.paintAge, r.paintRough, r.chalk, r.paintOnGrass);
     U.uRubber.value.set(r.rubberStart, r.rubberPeak, r.rubberEnd, r.rubberSpread);
     U.uRubber2.value.set(cls.rubber && !d.road ? r.rubberK : 0, r.rubberTrack, r.rubberStreak, 0);   // the rubber is a paved runway's (the touchdown zones); a soft strip's tyres MARK the same band
@@ -1286,13 +1389,13 @@ float pvTread(float u, float x, float w, float seed) {
       U.uRoad.value.set(nL, nL > 0 ? wRoad / nL : 0, r.wheelPolish, 0); }
     const band = m.userData.pavBand !== undefined ? m.userData.pavBand : (r.band >= 0 ? r.band : (d.road ? Math.min(cls.band, 1.2) : cls.band));
     U.uEdge.value.set(r.edgeChip, band, r.grassReach, r.fadeW);
-    U.uEdge2.value.set(r.bandNoise, r.jointAniso === undefined ? 1 : r.jointAniso, 0, 0);   // .y: the joints' footprint per axis (G1047)
+    U.uEdge2.value.set(r.bandNoise, r.jointAniso === undefined ? 1 : r.jointAniso, lk.side[0], lk.side[1]);   // .y: the joints' footprint per axis (G1047); .zw + uSpec.w: the side's multiplier (G1392)
     U.uDist.value.set(r.detailFrom, r.detailTo, r.normalFrom, r.normalTo);
-    U.uSpec.value.set(r.specK, r.nrmK, r.specAA || 0, 0);   // .z: the specular anti-alias (G1047)
+    U.uSpec.value.set(r.specK, r.nrmK, r.specAA || 0, lk.side[2]);   // .z: the specular anti-alias (G1047)
     const sk = cls.soft || [1, 1, 1, 1];                                       // the class's own share of each soft layer
     U.uSoft.value.set(r.softMix * sk[0], r.coarseK * sk[1], r.wheelBand * sk[2], r.treadK * sk[3]);
     U.uSoft2.value.set(r.paintRelief, r.mow, r.edgeSoft, r.grassRough);
-    U.uSide.value.set(d.side && (r.sideFade === undefined ? 1 : r.sideFade) > 0.5 ? 1 : 0, r.sideW || 1.2, r.sideA === undefined ? 0.35 : r.sideA, d.road ? 1 : 0);   // .w: the surface hands over inside a strip's box (roads, aprons)
+    U.uSide.value.set(d.side && (r.sideFade === undefined ? 1 : r.sideFade) > 0.5 ? 1 : 0, lk.sideW, lk.sideA, d.road ? 1 : 0);   // .w: the surface hands over inside a strip's box (roads, aprons); .yz the surface type's side (G1392)
     if (m.isPavPart) pack(m);
   }
   // setKeep(m, boxes): the pavements this one's side must not lie over (G664) - [{ cx, cz, hdg, halfL, halfW }],
@@ -1778,6 +1881,8 @@ float pvTread(float u, float x, float w, float seed) {
   const api = { CLASSES, CLASS_DEF, SLOTS, RECIPE, KNOBS, ENTRY_KNOBS, PRESETS, resolve, NMARK, NSEG, get recipe() { return R; },
     stripGeometry, roadGeometry, polyGeometry, field, opaqueDepth, sinkAt, liftK, SINK, setKeep, NKEEP, shoulderFor, sharedLib, groundColor, gradedMean, lanesOf, standMarks, marksOf, roadMarks, collapse, recorder, library, keysFor, make, set, reset, debug, pavtest, exportRecipe, dispose, GLSL, hook, mats: MATS,
     // G925-G928: the table, the one material, the merge, the A/B
+    // G1390-G1393: the runway look (per surface type), its live overlay, the alpha's CPU twin
+    LOOK_GROUPS, LOOK_KEYS, LOOK_WEAR, groupOf, lookOf, look, tintRGB, alphaTwin, twinNoise: { hash: tHash, noise: tNoise, fbm: tFbm },
     PV, PV_VEC, MODE, TAB, BATCH, tableGLSL, hookT, tableMat, isTable, pack, merge, mergeSteps, onRebuild, ab, census, get table() { return MODE.table; } };
   return api;
 })();

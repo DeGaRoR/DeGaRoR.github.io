@@ -1119,6 +1119,33 @@ if (SELFTEST) {
   check(badA === 0, "16 polyRoad's at() answers what the linear walk answers", badA + ' of ' + nA + ' differ');
 }
 
+// 17 THE RUNWAY LOOK (G1390-G1394, RUNWAY-LOOK): the premises carry their pavement's look per surface type
+// (rec.pavement's pv / sf / gr keys, the editor's PAVEMENT section and each runway's 'look of every ...' rows) and the
+// roads' side rule (roadSide). They round-trip through the envelope and the normaliser, raise no issue, reach the
+// composed premises (O.pavement) and the pavement module's resolve; a road is SIDED (its side faded like a strip's,
+// its declared width the drawn one) unless its entry declares a band or the premises say roadSide 0
+{
+  const PAVM = require('../src/viewer/pavement.js');
+  const look = { grBright: 1.18, grHue: 0.21, grTint: 0.35, grWear: 0.6, grSideW: 2.5, grSideA: 0.15, sfSideBright: 0.8, pvTint: 0.1, pvSideA: 0.5 };
+  const base = { seed: 5, pavement: Object.assign({ wet: 0.2 }, look), layers: { roads: [{ id: 'p1', pts: [[-120, 30], [120, 30]], w: 3, cls: 'path', look: 'dirt' }, { id: 'p2', pts: [[-120, -30], [120, -30]], w: 6, cls: 'gravel', band: 2 }] } };
+  const rec = PG.normalise(JSON.parse(JSON.stringify(base)));
+  const back = PG.unwrap(PG.envelope('look', rec)).rec, again = PG.normalise(JSON.parse(JSON.stringify(back)));
+  const kept = Object.keys(look).every(k => back.pavement && back.pavement[k] === look[k] && again.pavement[k] === look[k]);
+  check(kept && JSON.stringify(back) === JSON.stringify(rec), '17 the runway look round-trips through the envelope and the normaliser', JSON.stringify(back.pavement));
+  check(PG.issues(rec).length === 0, '17 a premises with a runway look has no issues', PG.issues(rec)[0]);
+  const O = PG.compose(rec, synth, { catalogue: CAT, noPlace: true });
+  check(O.pavement && Object.keys(look).every(k => O.pavement[k] === look[k]), '17 the composed premises hand the look to the renderers (O.pavement)');
+  const RS = PAVM.resolve({ cls: 'grass' }, rec), L = PAVM.lookOf('grass', RS.recipe), Ld = PAVM.lookOf('dirt', RS.recipe);
+  const t = PAVM.tintRGB(0.21, 0.35).map(c => c * 1.18);
+  check(L.surf.every((c, i) => Math.abs(c - t[i]) < 1e-9) && L.sideW === 2.5 && L.sideA === 0.15 && L.wear === 0.6 && Ld.side.every(c => Math.abs(c - 0.8) < 1e-9) && Ld.sideA === 0,
+    "17 the module resolves the premises' look per surface type (grass: its tint, side 2.5 m from 0.15, wear 0.6; dirt: the soft side's brightness)");
+  const r1 = O.roads.find(r => r.id === 'p1'), r2 = O.roads.find(r => r.id === 'p2');
+  check(r1 && r1.sided === true && r2 && r2.sided === false, '17 a road is sided unless its entry declares a band', 'p1 ' + (r1 && r1.sided) + ', p2 ' + (r2 && r2.sided));
+  const off = PG.normalise(Object.assign(JSON.parse(JSON.stringify(base)), { pavement: { roadSide: 0 } }));
+  const Of = PG.compose(off, synth, { catalogue: CAT, noPlace: true });
+  check(Of.roads.every(r => r.sided === false), '17 roadSide 0 in the premises draws every road\'s band again');
+}
+
 // ---------------------------------------------------------------------------
 if (fail.length) {
   for (const f of fail.slice(0, 30)) console.log('  ! ' + f);
