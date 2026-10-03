@@ -941,6 +941,18 @@ function secMat(name, g) {
 // itself: no requests on record, a factory that answers null, one material handed out for requests that now answer
 // differently, or a glass companion it does not know how to re-tint. `CAGE_UI.repaintOn = false` builds every time.
 const PAINT_REQ = new Map();            // material -> Map(request key -> [kind, section, g])
+// THE CRAFT FRAME A BUILD MEASURED IN. A build sets it from the mount as the PREVIOUS build's draw placed it (the sit
+// follows the gear), and the layers publish craft-space uniforms in it (the footwell, the weathering's sources): after
+// a change that moved the sit, the next build is the one that brings them up to date. A repaint publishes none, so it
+// repaints only while the mount still stands where the last build measured it; otherwise it is that next build.
+let CRAFT_KEY = null;
+const craftKey = () => {
+  const mnt = (window.CAGE_JOIN && window.CAGE_JOIN.mount && window.CAGE_JOIN.mount()) ||
+              ((typeof window !== 'undefined') && window.CAGE_UI_SCENE);
+  if (!mnt) return 'none';
+  mnt.updateWorldMatrix(true, false);
+  return mnt.matrixWorld.elements.join(',');
+};
 let PAINT_REC = true;
 function paintRec(m, kind, name, g) {
   if (!m || !PAINT_REC) return m;
@@ -949,11 +961,13 @@ function paintRec(m, kind, name, g) {
   let gk = '';
   if (g) try { gk = JSON.stringify(g); } catch (e) { gk = '?' + Math.random(); }
   const k = kind + ':' + name + ':' + gk;
-  if (!q.has(k)) q.set(k, [kind, name, g]);
+  if (!q.has(k)) q.set(k, [kind, name, g ? Object.assign({}, g) : g]);   // a copy: a layer may reuse its g
   return m;
 }
 function repaint() {
-  if ((window.CAGE_UI && window.CAGE_UI.repaintOn === false) || !PAINT_REQ.size || !meshObj) { build(); return; }
+  const t0 = performance.now(), info = (why, n) => { if (window.CAGE_UI) window.CAGE_UI.repaintInfo = { why, swapped: n || 0, ms: +(performance.now() - t0).toFixed(1) }; };
+  if ((window.CAGE_UI && window.CAGE_UI.repaintOn === false) || !PAINT_REQ.size || !meshObj) { build(); info('build: off or nothing on record'); return; }
+  if (craftKey() !== CRAFT_KEY) { build(); info('build: the sit moved since the last build'); return; }
   const live = Object.assign({}, SEC_LIVE), ctx0 = Object.assign({}, SEC_CTX);
   const swap = new Map();
   let ok = true;
@@ -975,7 +989,7 @@ function repaint() {
   for (const k in SEC_LIVE) delete SEC_LIVE[k];
   for (const k in SEC_CTX) delete SEC_CTX[k];
   Object.assign(SEC_LIVE, live); Object.assign(SEC_CTX, ctx0);
-  if (!ok) { build(); return; }
+  if (!ok) { build(); info('build: a request answers otherwise'); return; }
   if (swap.size) {
     // the glass companions: the cage's own (meshFrom's) is made again by meshFrom's own call over the new
     // materials; a companion anywhere else over a moved material is a door this path does not know
@@ -987,7 +1001,7 @@ function repaint() {
       const hm = Array.isArray(o.parent.material) ? o.parent.material : [o.parent.material];
       if (hm.some(x => swap.has(x))) foreign = true;
     });
-    if (foreign || (meshMoved && !(A0 && A0.aeroGlassCompanion))) { build(); return; }
+    if (foreign || (meshMoved && !(A0 && A0.aeroGlassCompanion))) { build(); info('build: a glass companion it does not know'); return; }
     scene.traverse(o => {
       if (!o.material || (o.userData && o.userData.aeroCompanion)) return;
       if (Array.isArray(o.material)) { if (o.material.some(x => swap.has(x))) o.material = o.material.map(x => swap.get(x) || x); }
@@ -1007,11 +1021,15 @@ function repaint() {
     PAINT_REQ.clear();
     for (const [m, q] of next) PAINT_REQ.set(m, q);
   }
-  try { buildMatPanel(); } catch (e) {}
+  // the build's own tail, in its order: the panel (decals re-read the paint block, as a build does), the second
+  // panel look, the weathering (it reads the bases), the rows, the draw
+  try { buildMatPanel(); decRange(); decApplyRanges(); applyDecals(); }
+  catch (e) { console.error('CAGE_UI: the finish panels did not build —', e); }
   try { applyWeather(); } catch (e) { console.error('weather:', e); }
   applyRowVis();
   syncFollow();
   draw();
+  info('swap', swap.size);
 }
 // the panel's view of the walk, for its own rows' labels and wells: the
 // same resolver, over the same maps, with the ctx the layer last drew with
@@ -1427,7 +1445,7 @@ function build() { const g = buildSteps(); while (!g.next().done); }
 // on the slider's release (`change`), on the pointer coming up anywhere, or 350 ms after the last tick - one build,
 // with the sheet kept (G1300), so the aeroplane standing when the hand stops is the one a plain build makes (GATE-
 // side: tools/perf/garage_lag_same.js). A click, a typed value, the keyboard, a select: a plain build, as before.
-// `CAGE_UI.dragDefer = false` builds every tick in full.
+// `CAGE_UI.dragDefer = false` builds every tick in full; `CAGE_UI.dragSettleMs` moves the 350 ms pause.
 let DRAG_ON = null, DRAG_TICK = false, DRAG_LATE = false, DRAG_T = null;
 function dragSettle() {
   if (DRAG_T) { clearTimeout(DRAG_T); DRAG_T = null; }
@@ -1435,7 +1453,7 @@ function dragSettle() {
 }
 function dragSettleSoon() {
   if (DRAG_T) clearTimeout(DRAG_T);
-  DRAG_T = setTimeout(() => { DRAG_T = null; dragSettle(); }, 350);
+  DRAG_T = setTimeout(() => { DRAG_T = null; dragSettle(); }, (window.CAGE_UI && window.CAGE_UI.dragSettleMs) || 350);
 }
 if (typeof window !== 'undefined' && window.addEventListener) {
   const up = () => { if (DRAG_ON) { DRAG_ON = null; dragSettle(); } };
@@ -1674,6 +1692,7 @@ function* buildSteps() {
       if (mnt) { mnt.updateWorldMatrix(true, false); mw = mnt.matrixWorld; }
       A0.aeroSetCraft(THREE, mw,
                       { lateral: 'x', along: 'z', up: 'y', aft: true });
+      CRAFT_KEY = craftKey();                       // G1301: the frame this build's layers publish in
     }
     // THE CABIN'S DARKNESS FOLLOWS THE GLAZING (G206.1): a glazed cabin
     // keeps the lab's whole darkness, an open one (no pane drawn) keeps
