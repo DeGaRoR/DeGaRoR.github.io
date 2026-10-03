@@ -68331,3 +68331,20 @@ above them is clean; after, its ghost blades lie over the sky and the clouds; th
 else. chase_before_master.jpg / chase_after_fix.jpg: from behind the Cub's fuselage hides its disc - no aeroplane pixel
 moved (the only diff is far-tree flicker).
 GATES: BUILD, UISMOKE, FRAMECOST PASS (the parked aeroplanes re-cooked first; no counter moved, no ALLOW).
+
+## TRAIN 26 LANDED (2026-10-03, A0 the coordinator)
+
+Cargo (on train 25 = 5502f450): PROP-CLOUDS G1265 (the prop disc and the craft's glass draw over the cloud composite:
+AERO_CLEAR 1000 -> 2e6), the user's two F8 world looks as the defaults (flydiy-world-look-2026-10-031424 + -031447: splat codes
+2-7, 10, 12, the knobs, the rock grades, GROUND light/sat 0.94 and classBlur 0, the environment albedo 1.38 baked into the
+leaves' master light and the impostors' lit term, the grassland mix, the cover ring's castMinH 0.35, cliffs n 400), the
+Friendly Welcome plan of 3 Oct (futureDesigns/FRIENDLY-WELCOME-PLAN-2026-10-03.md) and the ROADMAP's pointer.
+LIGHT PASS (fresh profile D:/u26, vs train 25): Cub chase and cockpit green on every row. The metal Cessna's ONE run: worst
+task 660 -> 1054 ms, garage 38.0 -> 43.8 s, flight 41.4 -> 47.2 s; two re-runs: garage 38.9 / 40.1 s, flight 42.4 / 43.6 s
+(level), worst task 944 / 688 ms. The metal's worst boot task has now read 1055, 655, 664 (train 25) and 1054, 944, 688
+(train 26) - one distribution on both trains, a first-light link; not this train's (it touched no program the metal links
+alone) - SHADER-GUARD / COLD-LINKS own it. Ratchet baseline taken from cub_1, metal_2, metal_3, cub_cockpit_1.
+BATTERY: two reds, both explained. FADES: its pattern read `const AERO_CLEAR = (\d+);` and PROP-CLOUDS wrote 2e6 (null ->
+red) - the pattern takes any number form now (a5f8a2f0), PASS. FRAMECOST: tris.shadow +71 969 (+2.3 %) at the stand and the
+taxi, Cub and Cessna alike = the world look's castMinH 0.5 -> 0.35 m (more cover-ring bushes cast); no fps cost on the light
+pass; admitted, the baseline re-taken (3 rises). Parked aeroplanes re-cooked on the final build.
