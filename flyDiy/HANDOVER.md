@@ -68417,3 +68417,53 @@ are INFO). A baseline from another GPU, viewport or mode does not compare (exit 
    measured" until then; uneven moved to INFO).
 6. From train 26 on: `node tools/perf/train_gate.js --full --port 8700 --udd D:/tg --label t26` per train; RED = the
    train does not land; after a landing, `--update tools/perf/train_gate_t26.json`.
+
+## G1320-G1324 - SMALL-FIXES: THE BASE COLOUR NOW REACHES THE CUB'S RUDDER (AND EVERY LAYER PART THAT WORE THE OLD BASE); THE FRAME ROWS' TOGGLE IN THE LABEL'S COLUMN, THE FRAMES UNDER THEIR PARTS (2026-10-03, SMALL-FIXES for A0, cloud, no GPU; branch claude/small-fixes-g1320 off origin/master 5502f45)
+
+The user (3 Oct): (1) "changing the aircraft's global colour leaves the Cub's rudder in its old colour"; (2) the editor's
+new frame (structure) controls carry an on/off toggle that shrinks the slider until unusable — full-width sliders, the
+toggle compact beside the label, and the frame sections mapped to their respective parts in the editor's tree.
+
+**G1320 CUB-RUDDER-COLOUR — the cause.** The `base colour` row (`_cage_ui.js`, G214/G468's `baseReach`) writes every
+exterior CAGE section (skin, rail, pillar roles) and `body`, and clears the parent-wearing / soft-pinned layer parts that
+held the old base; it never looked at the other AERO_SEC LAYER sections ("the wing and the tail keep their own"). The
+stock Cub's spec carries `finish.sections.finRud = { tint: 0xffcd00 }` — the body's yellow written explicitly on the rudder
+— while `finSkin` has no tint (it follows `body` through the chain). A pick moved `body` (the fin followed) and left the
+rudder's explicit yellow standing. The Jodel has the same shape (`wingSkin`, `wingTip`, `finRud` = the body's cream).
+NOT the flown bake: `flown_bake.js keyOf` hashes `JSON.stringify(spec)`, and the spec's finish carries the tints, so any
+change of the tint map re-keys the atlas; the live material and the bake both resolve the rudder through `aeroSecResolve`,
+so once the map is right both are.
+**The fix:** the reach is hoisted PURE into AEROSKIN as `aeroBaseReach(map, prev, next, neutral, eq, names)` (window and
+module exports; `_cage_ui.js`'s `baseReach` is now a one-line call), with G468's rule ("equal = it was following, and
+follows on; different = the builder's own, kept") extended to every other layer section (not `wears:'parent'`, not
+`finFollows`, not `tintOwn`): one holding `prev` whose chain up to `body` follows the base all the way is CLEARED (it
+follows the body from here); one under a parent of its own colour (the Cessna-style tip under an own-coloured wing) is
+WRITTEN `next`. The verdicts are read off the map as it stood before the pick. Same rule for the metal and roughness
+reaches (they share the function). A rudder painted a colour of its own is untouched.
+
+**GATE LIVERYREACH** (new, core, `tools/_livery_reach_check.js`, 0.1 s): for the stock Cub (tubeFabric), Jodel (wood) and
+Cessna (alloy) from `_cage_page5.js` builds, over every section the spec can paint (the cage's exterior sections, every
+AERO_SEC row, every section the finish names: 49-50 each), resolves what each section WEARS before and after a pick
+(`aeroSecResolve` for a layer, the override for a cage section) and requires: rule 1 — a section that wore the old base
+(an override equal to it, or no override anywhere up a chain ending at `body`) wears the new one; rule 2 — a section whose
+override chain gave it its own colour keeps it. NEGATIVE-VERIFIED in-file: the pre-G1320 reach must fail rule 1 on the
+Cub's `finRud` (it does). Result: cub / jodel / cessna "every section right".
+
+**G1321 FRAMES IN THE TREE.** `_cage_parts.js`: the frame groups move from Fuselage to the part each frame shapes — nose
+frame -> Nose · deck; windscreen, door-post (expert) and cabin frames -> Cabin (the windscreen frame is the cabin's front
+ring and stands with or without glass — under `windscreen` it would vanish on a `glazeOn=0` build, whose Glazing part is
+hidden); passenger frame (with its profile rows) -> Passenger bay; boom frame -> Boom; tail frame -> Tail cone. The
+reference section, longerons, section, creases and compensation stay on Fuselage. Selecting Fuselage still shows every
+frame (an assembly shows its children's rows, part by part); the row-hover frame highlight is keyed by row, not part
+(`editor.js FRAME_ROW`), so it is unchanged. GATE PARTS (one owner per row) PASS.
+
+**G1322 FRAME-UI.** The follow (`opts.follow`, the frames) and link (`opts.link`) checkboxes were the editor's full 30 px
+toggle plus a 14 px gap taken out of the SLIDER; on a length row (the metre readout too) that left ~36 px of track. Now
+`_cage_ui.js` puts class `tog` on such a row and `editor.css` sits a compact 22 x 12 toggle in the LABEL's column (label
+width `--ed-lab - 28px`, toggle margin `6px - --ed-gap`): label + toggle = the label column, and the slider is exactly as
+wide as every other row's. Measured headless (chromium, body.html + style.css + editor.css, a length row in `#edRows`):
+plain row slider 80 px; frame row before 36 px, after 80 px. The bench pages (no editor.css) are unchanged.
+
+**GATES** (cloud, `run_gates.js --only=`): BUILD, UISMOKE, HANGAR, FLOWNBAKE PASS; plus LIVERYREACH (new), SKINMAT, PARTS,
+FRAMES PASS. The generated files (index.html, dev.html, sw.js, version.json) are NOT committed — A0's train builds them.
+G1323-G1324 unused.

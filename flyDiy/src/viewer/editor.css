@@ -613,6 +613,21 @@ body.mode-ws.info-off #edInfoTab { display:flex; }
 
 :is(#wsUI, #edView) .r input[type=checkbox]:checked::after { left:16px; }
 
+/* G1322 — THE FOLLOW TOGGLE LIVES IN THE LABEL'S COLUMN (the user: the frame
+   rows' on/off "shrinks the slider until unusable"). A frame row (`follow`)
+   or a linked row (`link`) carries a toggle between its label and its
+   slider; as a full 30 px row toggle plus a gap it came out of the SLIDER,
+   which on a length row (the metre readout too) left ~30 px of track. Here
+   it is compact (22 x 12) and the label gives up its width, so label +
+   toggle take exactly the label column and the slider is as wide as on
+   every other row. `tog` is the row class _cage_ui.js puts on such rows. */
+#edRows .r.tog > span.k { width:calc(var(--ed-lab) - 28px); }
+:is(#wsUI, #edView) .r.tog > span.k + input[type=checkbox] {
+  width:22px; height:12px; margin-left:calc(6px - var(--ed-gap)); }
+:is(#wsUI, #edView) .r.tog > span.k + input[type=checkbox]::after {
+  top:1px; left:1px; width:8px; height:8px; }
+:is(#wsUI, #edView) .r.tog > span.k + input[type=checkbox]:checked::after { left:11px; }
+
 :is(#wsUI, #edView) .r > span.v { color:var(--ed-faint); font:400 11px/1 'IBM Plex Sans';
   text-align:left; }
 
