@@ -21,7 +21,7 @@ const SEC = { taxi: +opt('taxi', 15), pass: +opt('pass', 15) }, LONG = +opt('lon
 const OUT = path.resolve(opt('out', path.join(__dirname, 'metla_ab_' + Date.now() + '.json')));
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const BASE = 'http://localhost:' + PORT + '/flyDiy/index.html';
-const SIDE = { A: '', B: 'town=1' };
+const SIDE = { A: 'town=0', B: 'town=1' };   // G1408: the town is ON by default - A says off explicitly
 
 // the recorder's frames over LONG ms in [t0, t1] with their slot split, and its events there
 const RECQ = (t0, t1) => `JSON.stringify((() => { const R = window.FLIGHT_REC && FLIGHT_REC.rec; if (!R) return null;
