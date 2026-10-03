@@ -77,9 +77,7 @@ if (process.argv.includes('--drawn')) {
   const out = JSON.parse(execFileSync(process.execPath, [path.join(T, 'ground_gap.js'), '--build', 'stock', '--json'], { encoding: 'utf8', maxBuffer: 1 << 26 }).split('\n').filter(l => l.trim()).slice(-1)[0] === ']' ? execFileSync(process.execPath, [path.join(T, 'ground_gap.js'), '--build', 'stock', '--json'], { encoding: 'utf8', maxBuffer: 1 << 26 }) : '[]');
   const w = out[0] ? out[0].wheels : [];
   ok(w.length === 3, 'the stock build has three drawn wheels', w.length);
-  // G1383: the stock build is a taildragger - its drawn tail gear sits app.js's TW_DRAW_DROP (20 mm) under its node
-  for (const x of w) { const want = x.kind === 'tw' ? -20 : 0;
-    ok(Math.abs(x.drawnMm - want) < 8, 'stock ' + x.kind + ': the drawn tyre on the ground at rest' + (want ? ' (20 mm down: G1383)' : ''), x.drawnMm + ' mm'); }
+  for (const x of w) ok(Math.abs(x.drawnMm) < 8, 'stock ' + x.kind + ': the drawn tyre on the ground at rest', x.drawnMm + ' mm');
 }
 
 // ---- 3. the contact shadows -----------------------------------------------------------------------------------
