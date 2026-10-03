@@ -68836,3 +68836,51 @@ mirrors it; GATE CONTACT --drawn expects it).
   pavement, where the drawn surface is terrainH within 4 mm.
 - GATES after G1383 (--only=CONTACT,GEAR,STAND,BUILD,UISMOKE): all PASS, BATTERY: PASS, exit 0 (wall 180 s); and
   node tools/_contact_check.js --drawn: PASS (stock tail -24.7 mm against the 20 mm expected, 8 mm tolerance).
+
+## G1365-G1369 - SIM-STALL: A FROZEN PAGE HOLDS THE FLIGHT; IT GOES ON FROM WHERE IT HELD (2026-10-03, SIM-STALL for A0, cloud - no GPU, no boxlock; branch claude/sim-stall-g1365 off origin/master 5502f45)
+
+The user (3 Oct), after a 79 s main-thread freeze: "with the principle of keeping the physics going, when it unfreezes, I
+find it miles away already. All very bad." The physics worker (on by default since train 17) runs its own clock: the page
+froze, the worker did not, so it kept flying 79 s of real time while nothing was drawn. The page's own clock (PACE) owed
+4 catch-up steps after any long frame on top of that, and so did the inline path.
+
+**THE RULE (one number, 250 ms: a frame this late is a STALL, not a hitch - the same line G620's freeze readout draws):**
+- G1365 THE HEARTBEAT (`sim_view.js` frame(T)): every frame the page draws on the real-time clock posts `{cmd:'beat'}`.
+  Lockstep (the rig, every page gate) draws at T = Infinity and posts none, so the gates' message streams are as before.
+- G1366 THE WORKER HOLDS (`sim_host.js` pump, `SIM_HOST_STALL_MS = 250`): the clock steps no further than 250 ms past the
+  last beat it heard. Past that it publishes the last steps, marks itself `stalled` and sets no timer. The next beat
+  re-anchors the clock on now (`anchor()`), so the flight goes on from where it held, and the lost wall time is let go
+  rather than owed (no catch-up and no teleport; at most 250 ms of flight past the last drawn frame). 'run' counts as a beat.
+  `{cmd:'state'}` adds `stalls`, `stallS` (the wall seconds let go) and `stalled`. A tab sent to the background now holds
+  as well (rAF stops, so the beats stop). The inline loop always stood still there; the worker used to fly on.
+- G1367 THE PACER (`app.js` PACE.frame): a frame 250 ms or more after the last is an ORDINARY frame of the cap. It owes the
+  cap's own steps (1 at 60, 2 at 30) at the cap's own dt (so `fdt`, the hand's input and the cameras, gets no 0.25 s
+  either), and `acc` is zeroed. It used to owe 4 steps (1/15 s) and dt 0.25. `state().stats.stalls` counts these frames.
+  Hitches under 250 ms are untouched: a 200 ms frame still owes 4 and forgets the rest. The rig clock (legacy) is untouched.
+- The page side needed nothing else. sim_view's adapt() already ignores a lag of 0.25 s or more ("a pause, a stall"). The
+  first frame back extrapolates at most one step from the last snapshot. The next snapshot is due "now" on the
+  re-anchored clock.
+
+**PROOF**
+- G1368 GATE SIMWORKER section 1b (new): the Blob's host (simHostSource in a worker-like global) with its clock swapped for a
+  fake one (`performance` / `setTimeout` read off the global at each call; the fake timer keeps node's 1 ms minimum).
+  Without it the pump re-arms at 0 ms forever on a still clock. The pilot taxis out 5 s in at 3.6 m/s, the page beats at
+  60 Hz for 1 s, then **60 s with no beat**: the host held after 15 steps, **0.904 m** from where the page last drew it
+  (216 m unheld). With the page back: 58 steps in its first second, 1 a turn, `stallS` 59.767. And section 3 on the real
+  worker_threads Worker: a 1.5 s page freeze in the middle of the real-time run left 14 steps while frozen (held), 29 in the
+  half second after, 1.27 s let go, and **the host's log replays inline through the hold to the bit** (every published
+  snapshot). The gate now takes ~58 s (was ~46); run_gates wall 60 -> 70.
+- G1369 GATE PACE section 4: the 900 ms stall now owes 1 step at dt 1/60 (it owed 4), the 200 ms hitch still owes 4. New:
+  a 60 s freeze at the 30 and the 60 cap moves the sim one cap frame (33.3 / 16.7 ms), and the second after flies 1.000 s
+  (real time again, nothing owed).
+- GATES: SIMWORKER PASS (35 checks), PACE PASS, BUILD PASS, SIMWORKER-PAGE PASS (16 min: cub and cessna 1200 steps + 1200 frames bit-identical, 0 solver steps on the page), SIMWORKER-EDGES PASS (20 min: cub and cessna 2750 steps + 2747 frames bit-identical across every edge).
+  No other gates and no full battery (the brief). Not run: EDGES `--realtime` (the page's virtual clock against the
+  worker's real one; it now beats through sim_link, but a node page slower than 250 ms a frame would hold the worker
+  between frames, which is by design and is the 4-fps case below).
+- Generated outputs (index.html, dev.html, sw.js, version.json, flight_core.js) are NOT committed: A0's built commit.
+
+**NOTES FOR A0**
+- A page that really runs at 4 fps or worse (frames of 250 ms or more) now holds the worker for a moment every frame: the sim
+  runs at about 250 / frame-ms of real time. Inline at that rate it already did worse (4 steps = 67 ms a frame).
+- Not done: the worker's OWN stall (its thread starved) is still G612's dilation, as before. A per-frame `beat` is one more
+  tiny postMessage a frame. It could ride the frame's batch, but the batch is only posted when there are commands.
