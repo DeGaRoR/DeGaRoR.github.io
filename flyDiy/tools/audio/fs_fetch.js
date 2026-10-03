@@ -29,6 +29,7 @@ function get(url, binary) {
         res.resume();
         return resolve(get(new URL(res.headers.location, url).href, binary));
       }
+      if (res.statusCode === 429) { res.resume(); const e = new Error('429 ' + url); e.retry = true; return reject(e); }
       if (res.statusCode !== 200) { res.resume(); return reject(new Error(res.statusCode + ' ' + url)); }
       const chunks = [];
       res.on('data', c => chunks.push(c));
@@ -38,11 +39,26 @@ function get(url, binary) {
 }
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
+const PACE = 4000; // freesound answers 429 below ~3 s between requests
+
+// get() with backoff on 429 (30 s, 60 s, 120 s, 240 s)
+async function getPolite(url, binary) {
+  for (let k = 0; ; k++) {
+    try { return await get(url, binary); } catch (e) {
+      if (!e.retry || k >= 4) throw e;
+      const w = 30000 * Math.pow(2, k);
+      console.log('429, waiting', w / 1000, 's');
+      await sleep(w);
+    }
+  }
+}
 const unesc = s => s.replace(/&amp;/g, '&').replace(/&#x27;/g, "'").replace(/&quot;/g, '"').replace(/&lt;/g, '<').replace(/&gt;/g, '>');
 
+// REFERENCE mode (--reference): any licence, for tuning by ear and spectrum only — stored apart, never shipped.
+const REFERENCE = process.argv.includes('--reference');
 function searchUrl(q, page) {
-  const f = encodeURIComponent('license:"Creative Commons 0"');
-  return `https://freesound.org/search/?q=${encodeURIComponent(q)}&f=${f}&s=Rating+highest+first&g=1&page=${page}`;
+  const f = REFERENCE ? '' : '&f=' + encodeURIComponent('license:"Creative Commons 0"');
+  return `https://freesound.org/search/?q=${encodeURIComponent(q)}${f}&s=Rating+highest+first&g=1&page=${page}`;
 }
 
 // One result block per sound: the player carries every data-* attribute.
@@ -80,12 +96,13 @@ function saveLedger(L) {
 async function search(L, q, tag, pages) {
   let n = 0;
   for (let p = 1; p <= pages; p++) {
-    const html = await get(searchUrl(q, p));
+    const html = await getPolite(searchUrl(q, p));
     const hits = parseResults(html);
     for (const h of hits) {
       const prev = L.sounds[h.id] || {};
       L.sounds[h.id] = Object.assign({}, prev, h, {
-        licence: 'CC0-1.0',
+        licence: REFERENCE ? (prev.licence || 'unknown (reference)') : 'CC0-1.0',
+        reference: REFERENCE || prev.reference || false,
         page: `https://freesound.org/people/${h.author}/sounds/${h.id}/`,
         tags: Array.from(new Set([...(prev.tags || []), tag].filter(Boolean))),
         queries: Array.from(new Set([...(prev.queries || []), q])),
@@ -94,7 +111,7 @@ async function search(L, q, tag, pages) {
       n++;
     }
     if (hits.length === 0) break;
-    await sleep(1500); // be polite
+    await sleep(PACE);
   }
   return n;
 }
@@ -105,17 +122,22 @@ async function download(L, ids) {
     const s = L.sounds[id];
     if (!s || !s.preview) { console.log('skip', id, '(not in ledger)'); continue; }
     // re-check the licence on the sound's own page
-    const page = await get(s.page);
-    if (!/creativecommons\.org\/publicdomain\/zero\/1\.0/.test(page)) {
+    const page = await getPolite(s.page);
+    const lm = /creativecommons\.org\/(publicdomain\/zero\/1\.0|licenses\/[a-z-]+\/\d\.\d)/.exec(page);
+    s.licence = lm ? lm[1] : 'unknown';
+    if (!s.reference && !(lm && lm[1].startsWith('publicdomain'))) {
       console.log('SKIP', id, 'licence on the page is not CC0'); s.licenceCheck = 'failed'; continue;
     }
-    const buf = await get(s.preview, true);
-    const file = path.join(RAW, `${id}_${s.author}.ogg`);
+    const buf = await getPolite(s.preview, true);
+    const dir = s.reference ? path.join(RAW, '..', 'reference') : RAW;
+    fs.mkdirSync(dir, { recursive: true });
+    const file = path.join(dir, `${id}_${s.author}.ogg`);
     fs.writeFileSync(file, buf);
     s.licenceCheck = new Date().toISOString().slice(0, 10);
     s.raw = path.relative(ROOT, file).replace(/\\/g, '/');
     console.log('got', id, (buf.length / 1024).toFixed(0) + ' KB', s.title);
-    await sleep(1500);
+    saveLedger(L);
+    await sleep(PACE);
   }
 }
 
@@ -127,7 +149,13 @@ async function download(L, ids) {
     await download(L, (opt('--ids') || '').split(',').filter(Boolean).map(Number));
   } else if (opt('--set')) {
     const set = JSON.parse(fs.readFileSync(opt('--set'), 'utf8'));
-    for (const row of set) console.log(row.tag, row.q, await search(L, row.q, row.tag, row.pages || 1));
+    for (const row of set) {
+      const done = Object.values(L.sounds).some(x => (x.queries || []).includes(row.q));
+      if (done && !argv.includes('--again')) { console.log('done', row.q); continue; }
+      console.log(row.tag, row.q, await search(L, row.q, row.tag, row.pages || 1));
+      saveLedger(L);
+      await sleep(PACE);
+    }
   } else if (opt('--q')) {
     console.log(await search(L, opt('--q'), opt('--tag'), +(opt('--pages') || 1)));
   } else {

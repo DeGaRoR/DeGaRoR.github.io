@@ -1086,3 +1086,46 @@ layer cannot lose its credit quietly.
   neighbours drowned, resampled to 5/10 m on Alaska Albers, WorldCover's
   water overridden by the DEM's coast, the canopy decimated from 1 m, all
   layers used as masks and weights — never drawn as imagery.
+
+## Sound (SOUND-2026-10-04; raw in `assets/audio/raw/` (local, gitignored); SHIPPED as `media/audio/`)
+
+The design and the rules are in `futureDesigns/SOUND-2026-10-04.md` §1.4 and §7. What ships is **CC0** or
+**CC-BY with a row here**; NC, ND, share-alike, AI-generated, GPL (FlightGear) and Sonniss files are never
+shipped (this repository is public and served raw). Every shipped file has a row in `tools/audio/shipped.json`
+(source URL, author, licence, the date its licence line was re-checked); GATE AUDIO fails a file without one.
+Recordings used only as tuning references (real Cub / C172 / Rotax engines) stay local and are listed in the
+local ledger, never shipped.
+
+### The engine synthesiser (code)
+
+- **engine-sound-generator** by **Antonio-R1** (https://github.com/Antonio-R1/engine-sound-generator),
+  **MIT**, © 2021-2022 Antonio-R1 — the AudioWorklet waveguide engine the flyDiy engine voice is ported from;
+  the MIT notice is kept in the ported file.
+- It is itself a port of **enginesound** by **DasEtwas** (https://github.com/DasEtwas/enginesound), **MIT**.
+- Both follow S. Baldan and S. Delle Monache, *Physically informed car engine sound synthesis for virtual and
+  augmented environments*, SIVE@IEEE VR 2015.
+- The propeller voice follows R. Selfridge, D. Moffat and J. D. Reiss, *Physically derived sound synthesis
+  model of a propeller*, Audio Mostly 2017 (doi 10.1145/3123514.3123524), and Gutin's propeller-noise theory.
+
+### Music (candidates under review — the shipped list is written here when the user picks)
+
+All from the **Free Music Archive**, each album's licence line read on its page on 2026-10-04 and each
+track's re-checked at download:
+
+- **HoliznaCC0** (https://freemusicarchive.org/music/holiznacc0/) — *Public Domain Lofi*, *Ocean Memory*,
+  *Summer Air*, *Spring Woke Me Up*, *Lullabies For The End Of The World*, *Nature Spirit*, *We Drove All
+  Night*. **CC0 1.0.**
+- **Monplaisir** (https://freemusicarchive.org/music/Monplaisir/) — *Sur Tout Le Trajet*, *Unraveling
+  Chords*, *American Dreams Soundtrack*. **CC0 1.0.**
+- **Loyalty Freak Music** (https://freemusicarchive.org/music/Loyalty_Freak_Music/) — *To Chill And Stay
+  Awake*, *Minimal Ambient Bounce*, *Melodies With A Beat*. **CC0 1.0.**
+- **Komiku** (https://freemusicarchive.org/music/Komiku/) — *It's time for adventure !*, *Tale on the Late*,
+  *Captain Glouglou's Incredible Week Soundtrack*. **CC0 1.0.**
+  (Monplaisir, Loyalty Freak Music and Komiku are aliases of the French musician Rrrrrose Azerty.)
+
+CC0 asks for nothing; the artists are credited here and on the game's credits screen because they should be.
+
+### Recorded sounds (candidates under review)
+
+From **freesound.org**, searched with the **Creative Commons 0** filter; each sound's licence re-checked on its
+own page before download. The shipped sounds get one row each (author, title, URL) when they are chosen.
