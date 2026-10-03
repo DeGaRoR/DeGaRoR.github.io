@@ -55,7 +55,8 @@ const flag = k => argv.includes('--' + k);
 const ROOT = path.join(__dirname, '..'), REPO = path.resolve(ROOT, '..');
 const SECS = { garage: +opt('garage', 6), taxi: +opt('taxi', 15), cockpit: +opt('cockpit', 10), pass: +opt('pass', 15), water: +opt('water', 25) };
 const BUILDS = {   // the three the user validated, and the two floatplanes for the water (W-CHECK's Cessna: cessnaFloats was rejected)
-  cub: { label: 'Cub', build: 'default' },
+  cub: { label: 'Cub', build: 'builds/cub_2026-09-20_corrected.json' },   // the user's validated Cub (2026-10-03: 'default' is the Cub-ALIKE archetype the chooser bakes, not their Cub)
+  firstBoot: { label: 'first boot (Cub-alike)', build: 'default' },
   jodel: { label: 'Jodel', build: 'builds/jodel_2026-09-20_corrected.json' },
   metal: { label: 'metal Cessna', build: 'bugReports/cessnaMetal (1).json' },
   floats: { label: 'Cessna floats', build: 'bugReports/cessnaFloatsWOrks.json' },

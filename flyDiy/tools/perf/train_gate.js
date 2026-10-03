@@ -55,7 +55,7 @@ if (opt('reps', null)) M.reps = +opt('reps');
 if (opt('secs', null)) M.secs = +opt('secs');
 const ONLY = new Set(opt('only', 'rollout,garage,bench').split(','));
 const REMOTE = opt('remote', 'mn_strip');
-const BUILDS = { cub: 'default', metal: 'bugReports/cessnaMetal (1).json' };
+const BUILDS = { cub: 'builds/cub_2026-09-20_corrected.json', metal: 'bugReports/cessnaMetal (1).json' };
 const VIEWS = ['chase', 'cockpit'];
 const BASELINE = path.resolve(opt('baseline', path.join(__dirname, 'train_gate_baseline_' + MODE + '.json')));
 
