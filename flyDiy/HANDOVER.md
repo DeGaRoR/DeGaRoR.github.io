@@ -68348,3 +68348,168 @@ BATTERY: two reds, both explained. FADES: its pattern read `const AERO_CLEAR = (
 red) - the pattern takes any number form now (a5f8a2f0), PASS. FRAMECOST: tris.shadow +71 969 (+2.3 %) at the stand and the
 taxi, Cub and Cessna alike = the world look's castMinH 0.5 -> 0.35 m (more cover-ring bushes cast); no fps cost on the light
 pass; admitted, the baseline re-taken (3 rises). Parked aeroplanes re-cooked on the final build.
+
+## G1300-G1303 - GARAGE-LAG-2: THE SHEET KEPT WHILE ITS SPEC IS, THE PAINT ROWS REPAINT, THE TANK'S SHAKEDOWN OFF THE RELEASE, THE DETAIL LAYERS AFTER THE DRAG (2026-10-03, GARAGE-LAG-2 for A0, a CLOUD session: headless Chromium 141 on SwiftShader, 4 cores; branch claude/garage-lag-2-g1300 off train 26 = b2f1ffdc)
+
+The ask (the user, via A0): "an instantaneous feeling". On the box (master 5502f450, median ms a change, Cub / metal) most
+changes were 245-275 / 370-410, the TANK CAPACITY 692 / 1034, and a paint row rebuilt the whole aeroplane. GARAGE-LAG's
+next steps (G1280-G1282 "NOT INSTANT YET") named the three structural moves; this session made four, each exact:
+
+**G1300 THE SHEET IS KEPT WHILE ITS SPEC IS** (`tools/_cage_ui.js` sheetKept, in buildSteps). `cageSheet(P)` is
+`cageSpec({...P})` and then a function of that spec alone (with the step, the level and whether the view is exploded) -
+read off its source: nothing after the cageSpec line reads P but `explodeD`. A wing, tail, gear, engine or paint row moves
+nothing in the cage spec (measured in node: `wgSpan`, `s1X`, `stSpan` leave cageSpec's output identical; `frCabTopW`
+moves `frames`), so every such tick rebuilt the same fuselage sheet (~100-200 ms of the box's 250-370). The key is the
+spec itself (sorted keys, a non-finite number spelled out so NaN never meets null) + step + level + exploded; the same key
+hands back the previous build's object, so every mesh-keyed cache downstream (FIT_SITE's WeakMaps, the energy layer's body
+signature) answers too. The one global the sheet's build publishes (`CAGE_MEMBERS`, read by the wing and the gear) is kept
+with it and put back on a hit. The layers never write into the sheet (grep: no assignment into ctx.mesh / ctx.spec in any
+layer; their caches are WeakMaps on it). `CAGE_UI.sheetKeep = false` builds every time.
+
+**G1301 THE PAINT ROWS REPAINT** (`_cage_ui.js` repaint; the base colour, base metallic, base roughness, every section's
+colour well, metallic and x-dials, the panes' tint wells). Every material a build hands out passes through matOf (the
+cage's sections) or secMat (the layers'), pure functions of the section, the layer's `g` and the override maps. Each is
+now noted with the requests that produced it (PAINT_REQ, cleared at the head of each build; a copy of `g`); a repaint asks
+the SAME factories the same requests over the moved maps and puts the answers on the editor's meshes - the materials a
+build would have produced, out of the same pools. The cage's own mesh is repainted slot by slot from its matNames
+(meshFrom made it as `matNames.map(matOf)`), so a material two cage sections shared splits cleanly. Then the build's own
+tail: the panels (the decals re-read the paint block, as a build does), the weathering (it reads the bases), the rows,
+draw() (the clip, the autosave, the bench's dirty flag). A layer that DERIVES a colour from a factory's answer gets the swap
+through `PAGE.repaint` (one today: the cowl's dark interior, 6 % of the skin's albedo - INNER_LAST), and the game's
+understudy pass (EXT_PASS) ends it as it ends the post chain. It IS a build whenever it cannot answer for itself: nothing on
+record, a factory that answers null (the diagnostic palette), one material handed out for requests that now answer
+differently (the fin's skin and rudder share one until a pick separates them: the FIRST base-colour notch after a build
+builds, the rest repaint), a glass companion it does not know, or the sit moved since the last build (a build measures the
+craft frame from where the PREVIOUS build's draw put the mount, and the layers publish craft-space uniforms in it - the
+footwell, the weathering's sources; after a change that moved the sit, the next build is the one that brings them up to
+date, so a repaint then is that build). `CAGE_UI.repaintInfo` says which way the last one went; `CAGE_UI.repaintOn = false`
+builds every time.
+
+**G1302 THE TANK'S RELEASE** (`src/core/43_pilot.js`, `src/viewer/app.js`, `tools/_cage_energy.js`). The release committed
+the energy block inside the change event; GARAGE_SPEC.update put a new aeroplane on the stand (setAircraft): 0.4-0.7 s of it
+the shakedown behind the pilot's machine sheet, which makePilot read at construction (SH0), the rest the flown model and the
+room. Three parts, the check never estimated:
+- the pilot reads its sheet LAZILY: every read of SH0 is a call to the memo (sheetOf), VAppr a lazy accessor, gsMax /
+  gammaGA / sheetVAppr / VApprShort functions of it - the same sheet off the same shakedown, built the first time the pilot
+  needs it. Node, both cores: no shakedown call at construction (was 1), and a 240 s circuit of the default build flown
+  by both cores (eager b2f1ffdc, lazy) compared bit for bit every 10 s (phase, VAppr, CG, velocity, the phase list and the
+  verdicts): IDENTICAL.
+- in the garage the readouts take the shakedown only when it is already known (this page's memo or the core's store): the
+  plaque steps down (as it does with no numbers) and the flight plate's Vs holds 0, and the REAL shakedown runs post-idle,
+  debounced (600 ms after the last change, then an idle slot), and both re-read it. Anything that needs it now still calls
+  shakeOf and gets it then: the roll-out's plate (flRender outside the garage), the pilot in flight, the bench's check, the
+  sim worker's init (sim_link). One reader can still pull it in the garage: the netto variometer, only when its flyout row
+  is on (apSheet in hud()).
+- the energy panel's range rows (capacity, size, station, level, turn) commit on release POST-IDLE (commitSoon: 250 ms,
+  then an idle slot, at most 1.5 s; a second release folds in): the same commit through the same door (savePrefs, the
+  resolve, B9's nothing-new test, update, the readouts). The tank in the editor is drawn by the drag's own relayout as
+  before; nothing that needs the tanks in the spec waits on it - the join's export reads the layer (CAGE_ENERGY.toSpec), so a
+  roll-out, save or export straight after the release carries them.
+
+**G1303 THE DETAIL LAYERS WAIT FOR THE END OF A DRAG** (`_cage_ui.js` mkRow's slider + buildSteps; `_cage_light.js`,
+`_cage_hinge.js`, `_cage_access.js`, `_cage_energy.js`). A tick under a held pointer (pointerdown on that slider) runs the
+post chain with `ctx.defer`: the lights, the control hinges, the access fittings and the tanks keep their last group HIDDEN
+and return (nothing that builds before them reads them; the energy layer reads the crew and the wing, which still build).
+The sheet, the structure, the crew, the panel and every layer something else reads build as before. The full build
+follows the drag: the slider's release (`change`), the pointer coming up anywhere, or 350 ms after the last tick - one
+build, with the sheet kept. A click, a typed value, the keyboard (input + change with no pointer), a select: a plain build.
+`CAGE_UI.dragDefer = false` builds every tick whole; `CAGE_UI.dragSettleMs` moves the pause. VISIBLE: while the hand is on
+a slider the lights, hinges, access fittings and tanks are not drawn; they come back when it stops (stills below).
+
+**THE TABLE** - this cloud box, both sides on the same machine in the same session, `tools/perf/garage_lag.js --norender`
+(below), median (max) `sync` ms a change, reps 5, the Cub (`garage_lag_cub_wip.json`); base = train 26 b2f1ffdc served from
+`_ab/base`, after = this branch served from `_ab/after`. busy = the long tasks in the window (the deferred settle build, the
+post-idle commit), reported where they moved work out of the handler:
+
+(1) PAIRED, THE SAME PAGE AT THE SAME MOMENT (`garage_lag_same.js`: the row moved the player's way = this branch's
+path, then the same parameters built the long way = a full build with the sheet rebuilt and nothing deferred, i.e. what
+b2f1ffdc runs for that row; ms of the handler, one sample each, the Cub, rendering on). This is the cleanest A/B the cloud
+gave: the two paths share the page, the cache state and the minute.
+
+| Cub, cloud | this branch's path | short ms | long ms (as b2f1ffdc) | ratio |
+|---|---|---:|---:|---:|
+| fuselage length (`p_paxLen`) | drag tick: sheet rebuilt, detail layers deferred | 490 | 818 | 0.60 |
+| fuselage width (`p_halfW`) | drag tick, ditto | 460 | 772 | 0.60 |
+| cabin frame (`p_frCabTopW`) | drag tick, ditto | 460-605 | 877-900 | 0.52-0.69 |
+| wing span (`p_wgSpan`) | drag tick: sheet KEPT, detail deferred | 592 | 812 | 0.73 |
+| wing chord | ditto | 592 | 823 | 0.72 |
+| tail size (`p_stSpan`) | ditto | 502 | 818 | 0.61 |
+| gear track (`p_s1X`) | ditto | 569 | 710 | 0.80 |
+| engine (a select: a plain build) | sheet kept | 655 | 787 | 0.83 |
+| base colour, the first notch after a build | a build (the fin's shared material) | 696 | 747 | 0.93 |
+| base colour, every later notch | REPAINT | 12.5 | 646 | 0.02 |
+| base metallic | REPAINT | 12.9 | 600 | 0.02 |
+| a section's colour well | REPAINT | 10.8 | 587 | 0.02 |
+| a section's roughness x dial | REPAINT | 12.1 | 820 | 0.01 |
+
+(the drag ticks' settle build - the one full build when the hand stops, sheet kept - is not in `short`; it is in busy below.)
+
+(2) CROSS-TREE, `garage_lag.js --norender`, median (max) sync ms of 5 reps, base served from `_ab/base`, after from
+`_ab/after`, one session each, the same machine (`abN_basecub.json`, `abN_aftercub.json` in the scratchpad - not kept):
+
+| Cub, cloud, norender | base b2f1ffdc | after | after busy (incl. the settle build) |
+|---|---:|---:|---:|
+| fuselage length | 694 (1038) | 999 (1085) * | 2057 |
+| fuselage width | 715 (906) | 665 (1402) | 1912 |
+| wing span | 601 (709) | - | - |
+| wing chord | 641 (933) | - | - |
+| tail size | 635 (784) | - | - |
+| gear track | 611 (627) | - | - |
+| engine | 608 (726) | - | - |
+
+\* run while six gates were running niced beside it (killed when this row came in: 4 vCPUs that are SMT siblings - nice
+does not protect a main thread from that); not a clean number. The after run then died at wing span (a 240 s page timeout,
+render loop stopped, the same death base had died at its tank row); the rest of (2) is not measured. Use (1).
+
+THE TANK ROW, from the box's own profile (GARAGE-LAG's `garage_lag_fixdev1.json`, dev.html): of the release's 748 / 1090 ms
+handler (Cub / metal), 714 / 1056 were `commit` -> GARAGE_SPEC.update -> setAircraft, 413 / 703 of it the pilot's shakedown;
+relayout (the drag's own tank) 33 ms. After G1302 the handler is the relayout and the commit's scheduling (the release no
+longer commits in the event), the commit runs post-idle WITHOUT the shakedown (~0.3 s on the box: the model, applyEnv, the
+cavity bake), and the shakedown runs post-idle after that, alone. Inferred, not timed here: neither tree's tank row survived
+the cloud. A0's box run is the number.
+
+**WHY --norender, AND WHAT IS NOT MEASURED HERE.** In the cloud the page renders on SwiftShader: a new program links in
+tens of seconds to minutes, inside whatever rep it lands in (frames of 25-66 s, a 240 s page timeout on the tank row's
+model build, a warm-up load wedged in the GPU process for 10+ min on a fresh profile - three runs of the full rig died
+that way). `--norender` (new) stops the page's render loop once it is loaded (requestAnimationFrame answers nothing): the
+handler and its JS tails are measured, the frames are not. It is a cloud measurement: A0's box run (the default, rendering)
+is the one that counts. The metal Cessna and the tank row did not get a clean pass here before the time bound (above).
+Drag emulation (new, default on): a slider's tick dispatches `pointerdown` first, as under a held pointer, and never its
+release, so G1303's settle build lands inside the rep's window (busy); `--nodrag` is the bare input event. A tree that does
+not listen for pointerdown (base) is unchanged by it.
+
+**EXACT, BOTH WAYS** (`tools/perf/garage_lag_same.js`, new): in the real page the row is moved the player's way (its
+widget, its event; a slider dragged and released), the editor's whole scene is fingerprinted (every object in order: type,
+name, visibility, matrix; each mesh's geometry - counts, sums over positions and index; every material slot: type, colour,
+opacity, flags, defines, every uniform's value, the userData walked by hand), then the same parameters are built the long
+way (`sheetKeep = false`, `build()`) twice and compared. An object the long way itself does not repeat is noise, never a
+difference; bones are the crew's idle animation (name only). Cub, on the final code (`same7`): wing span (sheet kept, drag
+deferred then settled), cabin frame (sheet rebuilt, deferred then settled), base colour (first notch: the build fallback),
+base metallic, a section's roughness dial, base colour again (a repaint through the cowl's hook): PASS, all six SAME (the
+long way repeats itself but for 3 objects). Earlier runs on the same paths (geometry code unchanged since): fuselage
+length / width, wing chord, tail size, gear track, engine, a section colour well, base roughness - SAME. The first runs found two real
+differences, both fixed and re-checked: the cowl's derived interior (PAGE.repaint) and the sit-moved case (CRAFT_KEY).
+The metal Cessna was not run through it before the bound (QUESTION for A0: run it on the box -
+`node tools/perf/garage_lag_same.js --port <p> --udd <fresh>`; it exits 1 on any difference).
+
+**GATES** (the seven asked; LIVERYREACH does not exist in run_gates.js - LIVERY is the livery gate and was run in its
+place), on the final code: BUILD, LIVERY, FIT, RAYINDEX, HANGAR, ENERGY PASS (one run), TANKMOUNT PASS (its own
+run). The pilot change (core) is not covered by any of the seven: the bit-for-bit circuit above is its evidence, and A0's
+full battery (TAKEOFF, PLAN, ARCH, SEAPLANE, the pilot gates) is the real test.
+
+**EVIDENCE**: none kept. The one visible change is G1303 (during a drag the lights, hinges, access fittings and tanks are
+not drawn; they come back when the hand stops). `tools/perf/garage_lag_shots.js` (new: settled / mid-drag / released, the
+pause held off for the mid-drag shot) ran, but in the cloud's headless SwiftShader the garage's WebGL view captures blank
+(the UI only), so the three JPEGs showed nothing and were not committed. On the box: `node tools/perf/garage_lag_shots.js
+--port <p> --udd <fresh> --dir reports/evidence/GARAGE-LAG-2 [--build metal]`.
+
+Not done / for A0:
+- the metal Cessna's table and the tank row on the box (`node tools/perf/garage_lag.js --port <p> --udd <fresh>
+  --trees base=_ab/b2f1ffdc/flyDiy,after=_ab/<sha>/flyDiy`; the default renders; drag emulation is on);
+- fuselage rows still rebuild the sheet (it IS what they change): on the box the Cub's ~250 ms minus the deferred layers;
+  the metal's sheet alone is 175-215 ms - under 150 needs the sheet itself (cageSubdivide / cageRims / cageInterior,
+  ~equal thirds) or a coarser drag sheet (L1 while dragging, L2 on release: a visible change, the user's call);
+- the tank release's remaining commit (~0.3 s on the box: the flown model, the room's applyEnv -> Box3.setFromObject over
+  the crew's skinned meshes ~100 ms, the cavity bake ~80 ms) is post-idle now, not gone;
+- the first base-colour notch after a build is a build (the fin's skin and rudder share a material until a pick separates
+  them; a per-slot record for the layers' meshes would lift it).
