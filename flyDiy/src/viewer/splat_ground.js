@@ -55,7 +55,7 @@ const SPLAT_GROUND = (() => {
   // contrast near and far. The fades' defaults are the answer to "how noisy detailed textures appear": the relief and
   // the grain give way where a texel is under a pixel and can only alias.
   // aniso 16 (G662): three clamps it to the GPU's own maximum; 8 blurred the grain at grazing angles (the playtest's 142931)
-  const FILTER_DEFAULTS = { lodBias: 0, aniso: 16, specAA: 0.35, nrmFadeFrom: 250, nrmFadeTo: 1400, conNear: 1, conFar: 0.7, conFrom: 60, conTo: 700 };
+  const FILTER_DEFAULTS = { lodBias: 0, aniso: 16, specAA: 0.35, nrmFadeFrom: 250, nrmFadeTo: 1400, conNear: 1.1, conFar: 1.14, conFrom: 180, conTo: 700 };
   const load = () => {
     const R = JSON.parse(JSON.stringify(G.RECIPE));
     R.knobs = Object.assign({}, FILTER_DEFAULTS, R.knobs);

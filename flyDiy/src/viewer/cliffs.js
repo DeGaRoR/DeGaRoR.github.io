@@ -57,7 +57,7 @@ var CLIFFS = (() => {
   function make(THREE, ctx) {
     const { scene, world, treeBuild, treeList, LEAF, pack } = ctx;
     // OFF BY DEFAULT: the trial's verdict below - ?cliffs=1 turns it on, F8 has the knobs
-    const S = { on: false, n: 120, minSlope: 32, spacing: 110, coast: 0, bury: 0.4, fit: 1.2, minK: 0.6, maxK: 2.2, tilt: 0,
+    const S = { on: false, n: 400, minSlope: 32, spacing: 110, coast: 0, bury: 0.4, fit: 1.2, minK: 0.6, maxK: 2.2, tilt: 0,
                 lattice: 26, reach: 4200, off: false };
     if (typeof location !== 'undefined' && /[?&]cliffs=1/.test(location.search)) S.on = true;
     const STAT = { sites: 0, placed: 0, tris: 0, ms: 0 };

@@ -10549,7 +10549,7 @@
       "cluster": 1,
       "hollow": 0.55,
       "tint": 0.3,
-      "dim": 0.72
+      "dim": 0.76
      },
      "lowpoly_sticks_-_free_download.glb": {
       "proportion": 0.3,
@@ -10595,10 +10595,10 @@
       "dim": 0.5
      },
      "grass_reed": {
-      "proportion": 0.4,
+      "proportion": 0.85,
       "density": 0.48,
       "patch": 0,
-      "size": 0.75
+      "size": 0.6
      }
     },
     "forest": {
