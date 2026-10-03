@@ -73,7 +73,9 @@ const SPLAT_GROUND = (() => {
   // inputs the hook already has at map_fragment: vWPi (world), gA (ori, canopy,
   // coast, lake), uGPackB (ndvi, terrain type), uGGrid, uGCell, gVnoise, gLuma,
   // gN (the slope normal off the screen derivatives), cameraPosition
-  const glslCommon = () => `
+  // full: the inspection's text too (the recolour's magenta mask) - the ground's production / full line (render_world
+  // groundFull, COLD-LINKS G1311); the mask's uniform stays declared either way
+  const glslCommon = full => `
   uniform highp sampler2DArray uSplat, uSplatN;
   uniform float uSplatOn;
   uniform vec4 uSMatA[${NCODE}], uSMatS[${NCODE}], uSMatF[${NCODE}], uSMatFS[${NCODE}], uSMatM[${NCODE}], uSVary[${NCODE}];
@@ -123,7 +125,7 @@ const SPLAT_GROUND = (() => {
       float l = gLuma(c), ch = length(c - vec3(l));
       float dh = abs(mod(sHueOf(c) - A.y + 3.14159265, 6.2831853) - 3.14159265);
       float w = (1.0 - smoothstep(A.z * (1.0 - B.w), A.z, dh)) * smoothstep(0.0, 0.02 + 0.1 * B.w, ch / max(l, 1e-3));
-      if (int(uSMaskL + 0.5) == L && uSMaskL >= 0.0) return mix(c, vec3(1.0, 0.0, 1.0), w);
+      ${full ? 'if (int(uSMaskL + 0.5) == L && uSMaskL >= 0.0) return mix(c, vec3(1.0, 0.0, 1.0), w);' : '// (the magenta mask: a full program only - COLD-LINKS G1311)'}
       vec3 t = gfHueTurn(c, A.w * w);
       float lt = gLuma(t);
       t = vec3(lt) + (t - vec3(lt)) * mix(1.0, B.x, w);
@@ -705,7 +707,9 @@ const SPLAT_GROUND = (() => {
         for (const k in o) c[k] = o[k]; grow(); push(); save(R); return api.code(i); },
       grade: k => Object.assign({ gain: '#ffffff', sat: 1, gloss: 1, grass: 0, hue: 0, contrast: 1, selHue: 0, selWidth: 0, selShift: 0, selSat: 1, selLight: 1, selSoft: 0.5 }, R.grade[k] || {}),
       // the recolour's selection shown in magenta on one set (its key), or off (null)
-      showMask: k => { U.uSMaskL.value = k ? LIB.indexOf(k) : -1; push(); return U.uSMaskL.value; },
+      showMask: k => { U.uSMaskL.value = k ? LIB.indexOf(k) : -1; push(); if (api.onInspect) api.onInspect(); return U.uSMaskL.value; },
+      masking: () => U.uSMaskL.value >= 0,   // the mask is shown: the ground's programs carry it (G1311)
+      onInspect: null,                        // the host's re-key (render_world groundSync)
       // the set's images (the rail's previews): diff / nor / height / rough, lazily-made Images
       images: k => SPLAT_TEX_SETS.find(x => x.key === k) || null,
       filterDefaults: () => Object.assign({}, FILTER_DEFAULTS),
@@ -718,7 +722,7 @@ const SPLAT_GROUND = (() => {
       export: () => JSON.stringify({ codes: R.codes, knobs: R.knobs, grade: R.grade }),
       state: () => JSON.parse(JSON.stringify({ codes: R.codes, knobs: R.knobs, grade: R.grade, on: R.on })),
     };
-    return { uniforms: U, glslCommon: glslCommon(), glslMap: glslMap(), glslNormal: glslNormal(), glslRough: glslRough(), api };
+    return { uniforms: U, glslCommon: glslCommon(false), glslCommonFull: glslCommon(true), glslMap: glslMap(), glslNormal: glslNormal(), glslRough: glslRough(), api };
   }
   return { make };
 })();
