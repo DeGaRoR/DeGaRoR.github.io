@@ -68604,3 +68604,125 @@ FOR THE COORDINATOR: (1) after the user's picks: prep writes media/audio/music/<
   (4) CELEBRATION: the photo hook is AUDIO.emit('photo', true / false) and must not set FLYDIY_HELD; (5) SND-AIRFRAME: emit
   AUDIO.emit('stall') on the warning and the music ducks; SND-AMB-1: P.s[P.I.agl] is there (2 Hz); (6) SND-TUNE: the -10 dB duck
   depth, the 6 s hold, the gaps (30-120 s), the cruise thresholds are constants at the head of music.js - by ear.
+
+## G1630-G1635 - SND-AIRFRAME: THE AIRFRAME VOICE - WIND, GROUND BY SURFACE, TOUCHDOWN AND CHIRP, WATER AND THE STEP, THE STALL WARNING BY KIND, MECHANISMS; THE SAMPLE SLOTS; GATED (2026-10-04, SND-AIRFRAME for the Sound Coordinator, cloud, node only; branch claude/snd-airframe-g1630 off claude/sound-integration 32f01f8a, merged with e587281e (SND-MUSIC); G1636-G1639 unused)
+
+Design: futureDesigns/SOUND-2026-10-04.md §3.5 / §4 / §8 / §9. Everything is SYNTHESIS: no audio file added; the sample
+slots are declared and empty, and every layer sounds without its sample.
+G1630 THE NUMBERS. audio_params.js gains ONE scalar, appended: `aStall` - the body alpha the wing stalls at NOW, in out.alpha's
+  own frame: the build's measured clean stall (64_gen_build.js genClMax -> params.gen.aStall), toward the measured landing-flap
+  stall (gen.aStallLdg) by ctl.flap / flaps.ldg, or minus the polar's dAStall x flap where the landing setting is flapless; 0 = no
+  measured stall (nothing warns). MEASURED: the solver's own out.alpha with the probe's flow at gen.aStall reads it back within
+  0.007 rad on all six builds (GATE AUDIO NUMBERS checks < 0.01) - the probe's "body angle" is out.alpha's frame. The rest is
+  `src/viewer/audio/airframe_model.js` -> AIRFRAME_MODEL (pure, node): airframeStep(P, st, dt) -> st.tg (the 20 layer
+  targets, AF_PARAMS order, QUANTISED so a steady frame repeats them exactly) + st.ev (a 16-slot ring [type, sev, a, b]).
+  WIND amplitude ~ (V/50)^2.5 (15 dB a doubling), band 250 + 28 V Hz, turbulence from |beta|/0.2 + alpha past 75 % of the
+  stall (the buffet); exterior gentle (0.08), closed cabin 0.1 (rendered through the cabin low-pass), OPEN cockpit 0.2
+  (rendered +14 dB over the closed cabin at 50 m/s). GROUND ground speed x the GROUND_SURF row under the mains (else the tail)
+  x the share of wheels down; the tailwheel rattle on the rough rows (AF_ROUGH); the brake squeal under brake below 9 m/s
+  (35 % off paved). TOUCHDOWN per wheel on a contact's RISING EDGE after >= 0.12 s off, severity from the lowest out.vs of the
+  last ~0.3 s (3 m/s = 1): one per wheel, a 50 ms hop does not re-fire, a 0.5 s bounce does; a main on PAVED after >= 1 s in the
+  air above 12 m/s CHIRPS (the spin-up); sev > 0.35 THUMPS the suspension; a rolling load spike (nz off its own 1 s mean by
+  > 0.4) thumps. A spawn ON its wheels settles 1.5 s without events (the Cub's tail taps down at spawn - measured). WATER (the
+  floats: P.s[I.water]) spray hiss with speed, slaps slow in displacement and a fast chatter ON THE STEP (mains wet, the
+  afterbody dry = `tail` 0, the floats' own contact semantics), a SPLASH on the first touch, no tyre event; a WHEELED aeroplane
+  in water (row 4 under a wheel, no hydro): the drag roar and a splash on entry. STALL WARNING: the band is the last 0.075 rad
+  (4.3 deg) before P.s[I.aStall], gated by airflow from 55 % to 85 % of the build's measured stall speed (a seaplane's
+  nose-high hump at 9 m/s does not sound it - found in the evidence and fixed); 'reed' level and pitch follow the margin (it
+  moans in), 'buzzer' latches on past 15 % of the band and off under 5 %. THE KIND (declared table, physics-inert, on the
+  RESOLVED spec - resolveSpec drops meta.class and names the material spec.material): spec.systems.stallWarn when present
+  (nothing writes it yet: an editor control may), else a certified class (n23 / util, when present) high wing reed / low wing
+  buzzer, else a METAL HIGH WING reed (the Cessna archetype), a metal low wing with an electric system buzzer (Piper / Robin),
+  everything else none (tube-and-fabric: the Cub, the ultralights; wood: the Jodel; unknown). Validated builds: Cub none,
+  Jodel none, Cessna reed, metal Cessna reed, Cessna on floats reed, twin 582 none. MECHANISMS flaps moving: the electric
+  motor (metal + an electric system: the Cessna) or the LEVER event at each start of travel (the Cub); creaks from nz off its
+  mean and the control rates (modest: interior, rare bursts).
+G1631 THE VOICE - `src/viewer/audio/airframe_worklet.js`, registerProcessor('flydiy-airframe'), 20 k-rate params (the model's
+  names; GATE AUDIO compares the lists), events by port message {t:'ev', e, s, a, b, k} (k 1 = a recording plays beside it:
+  the procedural at 35 %), {t:'reset'}. OUTPUT 0 EXTERIOR mono, OUTPUT 1 INTERIOR mono (the cabin's mix with a PLACEHOLDER cabin
+  low-pass inside: 900 Hz on the airborne layers, 380 Hz on a closed cabin's wind; the stall warning, creaks, flap motor and
+  lever exist only there). Surfaces from an 8-column table per row (rumble, hiss band, Poisson shot-noise CRUNCH grains per
+  m/s and their band and decay, a tread hum at ground speed / 3 cm on paved). Simper TPT state-variable filters written inline,
+  one Float64Array of state, an int PRNG; a layer silent at both ends of a block is not computed; DC blockers, a +-0.98 guard
+  (counted - never reached in any render), a NaN reset, a +-1e-18 alternating bias. CHOICE (worklet vs native nodes): the
+  worklet measures 0.05 % of real time idle, 0.14 % cruise wind, 0.31 % a take-off roll, 2.7 % with every layer and voices at
+  once (node, per 128-frame block: --bench); the native equivalent is ~35 nodes (noise buffers, ~15 biquads, ~15 gains) that a
+  browser renders every quantum whether their gain is 0 or not, and it cannot run in node for the gate. Not measured: a native
+  graph's own cost (node has no Web Audio) - the choice rests on the worklet's measured cost and its testability.
+G1632 THE SAMPLE SLOTS - `src/viewer/audio/samples.js` -> AUDIO_SAMPLES: attach(ctx), load(key) -> Promise<AudioBuffer|null>,
+  ready / state ('absent' | 'idle' | 'loading' | 'ready' | 'failed' | 'budget') / has / pick, loop(key, dest) -> {gain, rate, out,
+  stop}, oneShot(key, [[node, gain], ...], gain, {semi, db}), bytes, budget, create(opts) (an instance: the gate's stubs). The
+  MANIFEST it reads: window.FLYDIY_AUDIO_MEDIA = { key: [url, ...] } (NOT published by build.js yet - the coordinator's prep.js
+  owns it), each url prefixed by FLYDIY_ASSET_BASE, fetched through ASSET_FETCH only when load() is asked (after the gesture,
+  the first time the layer is heard), decoded by ctx.decodeAudioData; two asks one fetch; a failure stays failed; decoded bytes
+  under 6 MB (refused past it, said once). LOOPS: the codec pad trimmed (|x| < 1e-4, <= 50 ms), the equal-power crossfade
+  (<= 1.5 s, <= a quarter of the file) BAKED ONCE into one looping AudioBufferSourceNode - a steady frame touches nothing, never a
+  seam. ONE-SHOTS: a random variant, pitch +-1.5 semitones, gain +-2 dB (defaults). THE KEYS (declared, each with its kind, its
+  layer and what the recording should be): gnd.grass, gnd.gravel, gnd.asphalt, gnd.dirt, gnd.rattle (loops), gnd.thump,
+  gnd.squeal (one-shots), gnd.brake (loop), water.spray (loop), water.slap, water.splash, mech.switch, mech.lever (one-shots),
+  mech.flap (loop), mech.creak, mech.rattle (one-shots), stall.reed, stall.buzzer (loops). Blending: a loop follows its layer's
+  level and sets the worklet's `duck` bit (1 ground, 2 water, 4 wind, 8 creaks, 16 stall: the procedural at 30 %); an event's
+  one-shot plays beside the procedural (at 35 %). mech.switch is declared for the panel's later use (nothing triggers it here).
+G1633 THE SOURCE - `src/viewer/audio/src_airframe.js` in src_engine.js's shape: AUDIO.addSource('airframe'), on connect
+  AUDIO.module('airframe_worklet') then ONE AudioWorkletNode('flydiy-airframe', 2 mono outputs): output 0 -> aircraft.ext,
+  output 1 -> aircraft.int. Per frame: the model, then only the params that moved (setTargetAtTime tau 30 ms, the discrete ones
+  setValueAtTime), then the frame's events (one port message each; the recording when its key resolved, asked on the first such
+  event). AUDIO.emit('stall') at the warning's onset and every 2 s while it sounds - SND-MUSIC's duck (its entry asked for it).
+  Allocation: 0.4 B a steady frame (noise), nothing scheduled; the model allocates nothing on continuously moving frames, an
+  event frame < 1 KB (it posts a message anyway). tools/build.js (MANIFEST entries only): viewer.scripts += 'audio/airframe_model.js',
+  'audio/samples.js', 'audio/src_airframe.js' after src_engine / music; audio.modules += 'airframe_worklet.js' (served, never
+  inlined: FLYDIY_AUDIO_SRC.airframe_worklet, checked in a build).
+G1634 THE EVIDENCE - `tools/audio/airframe_render.js`: the worklet under render.js's shim, DRIVEN BY makeSim on a stub world (flat
+  ground of one row / a lake), each 16 ms frame through audio_params -> the model -> the params as setTargetAtTime would ->
+  the worklet, SND-ENGINE's voice alongside for the mixes; --only, --wav, --bench; a library for the gate (runScene, onFrame).
+  reports/evidence/SND-AIRFRAME/ (2.6 MB): 7 scenes x (exterior, interior, the mix in the scene's perspective) Opus + 2
+  spectrograms each + README (what to listen for) + summary.json (every event, contact change, level): the Cub taxiing grass
+  then gravel and braking; the Cub's take-off (two tail taps, lift-off 11.3 s); the Cub's firm landing (1.8 m/s sink, both mains
+  severity 0.63, the struts' thump); the Cessna on paved (the chirp at 0.50 s, the tread hum falling, the brake squeal); the
+  Cessna's stall (flap motor, the reed on at 9.34 s at alpha 0.230 = exactly the band's bottom, 0.305 - 0.075); the floats' step
+  taxi (on the step 7.4 s, off 23.9 s); the floats' water landing (splashes 1.00 and 0.75, no tyre sound). No guard hit, no NaN.
+G1635 THE GATE - GATE AUDIO (tools/audio/_audio_check.js) extended, merged with SND-MUSIC's: NUMBERS (the stall alpha at flap 0
+  and full flap on six builds, and the probe's frame), WIRING (the three scripts, the served module), AFMODEL (the wind's level
+  and band rise with V; open > closed; once per wheel per rising edge, debounced, a bounce re-fires; severity orders with the
+  sink; a spawn on its wheels is silent; the chirp only on paved after a real spin-down; the floats' one splash and no tyre;
+  the reed 0 below its band, ~0.5 half way, 1 at the stall, 0 without airflow; kind none never warns; the six kinds; the
+  explicit field outranks; the buzzer's latch 0,1,1,0), AFVOICE (rendered: the wind's RMS +>2 dB a step 15..90 m/s and its
+  centroid rising 1.9 -> 4.6 kHz; open cockpit +14 dB inside; the seven land rows' octave spectra pairwise >= 2 dB apart -
+  closest grass/scree 2.2 dB; touchdown energy -41.9 / -36.0 / -30.5 dB at severity 0.2 / 0.5 / 0.9; the warning inside only and
+  only for a kind; hostile NaN / Inf / 1e9 params stay finite and under the guard), AFALLOC (the model 0 B on 20 000 moving
+  frames, < 1 KB an event; process() 0 GC over 20 000 blocks with every layer and voices ringing; 46 us a block in node),
+  AFFLOWN (the REAL SOLVER recorded once and replayed: the Cub's mains touch once each at their contact frames, severity 0.63
+  at a 1.77 m/s sink; the Cessna chirps on paved; the floats splash without a tyre; the reed comes on at the bottom of its band
+  and is never silent inside it; no NaN / guard / DC > 1e-3 on any render), AFSOURCE (the page: one node, 2 mono outputs, the
+  module added; 30 000 steady frames schedule 0 params, post 0 events, 0.4 B a frame; a paved arrival posts two touchdowns and
+  one chirp; 'stall' emitted at the onset and once 2 s later, never without a warning), SAMPLES (lazy, shared, failed stays
+  failed, the budget, the seam, the pad, the jitter's bounds, the declared keys), INERT (spec.systems.stallWarn leaves buildGen's
+  params and 2 s of node positions bit-identical; the control - 30 kg of baggage - moves them). 58 SND-AIRFRAME mutations, each
+  red on its check: 104 / 104 caught with SND-MUSIC's, the sources byte-identical after. ~34 s (was ~3 s: 10 s of it records
+  the real solver once; `--times` prints each check's share). New: `--only=AFMODEL,...` (a debugging aid that ends PARTIAL,
+  never PASS) and `--times`.
+FOUND ON THE WAY, for anyone gating a per-frame path: P blocks from MANY vm realms make a function's typed-array loads
+  megamorphic, and a megamorphic float load BOXES (the gate's first probe read 350 B a frame that the page never pays); node's
+  performance.now() boxes (~16 B a call: CORE's counter clock is the cure); a test's own object literals per call count too.
+GATES: AUDIO PASS (merged tree, 104 / 104), BUILD PASS, UISMOKE PASS (both on the merged tree; the generated files restored -
+  none is in this branch). Physics: no src/core, no join, no app.js edit; the one declared spec field proven inert (INERT).
+NOT DONE (in §3.5 but not in this brief, or owed): gyros spin-up / spin-down; trim wheel, throttle, mixture, fuel valve,
+  switch and door sounds (mech.switch is a slot only); creaks from the beams' strain (nz and the control rates only); per-wheel
+  compression (none in the solver - events from contact edges + out.vs, as §9 says); a reset in place (skipToLineup) does not
+  re-arm the spawn's settle window (only a new def does) - a lineup could tap its tail once.
+FOR THE COORDINATOR TO WIRE: (1) nothing in app.js - the scripts and the served module are in MANIFEST; (2) prep.js: publish
+  window.FLYDIY_AUDIO_MEDIA = { key: [media/audio/... urls] } in both pages (like FLYDIY_AUDIO_SRC) and the SW media rule for
+  media/audio/; the keys above, mono MP3, one-shots short and dry, loops >= 6 s; (3) run_gates.js: GATE AUDIO's comment says
+  ~3 s - it is ~34 s now (a `wall: 45` hint); I did not touch run_gates.js; (4) SND-SPACE: output 1 carries a placeholder cabin
+  inside the worklet - to own the cabin transfer, split the interior-only layers onto a third output (stall, creaks, flap,
+  lever) and take output 0 through the build's cabin; the event messages carry the wheel (a: 0 left, 1 right, 2 tail, 3 a
+  rolling thump) for panning; (5) the editor may write spec.systems.stallWarn ('reed' | 'buzzer' | 'none') - inert, proven;
+  (6) an AUDIO 'reset' hook on skipToLineup / rollOut would let the model re-arm its settle window.
+SND-TUNE's LIST (every number is a first guess against the engine's level, none matched to a recording): the levels -
+  exterior wind ~ -15 dB under the engine at cruise, the take-off roll ~ -10 dB, taxi ~ -20 dB; the wind's exponent (2.5) and
+  band (250 + 28 V); the cabin placeholder (900 / 380 Hz) and the open-cockpit blast (+14 dB); the surface table (8 columns x 8
+  rows; grass vs scree is the closest pair); the tread hum (3 cm pitch) and the brake squeal (1.25 kHz) - both could grate;
+  the reed (470 -> 580 Hz soft-clipped sine + breath) against a C172 horn, the buzzer (400 Hz square); the touchdown voices
+  (thump 90 - 240 Hz, scuff by surface, chirp 2.3 -> 1.5 kHz); the slap rates (displacement vs step) and the spray band; the
+  creak resonators (520 / 1350 Hz: metal and fabric not told apart yet); the flap motor (165 Hz saw); the warning band (0.075
+  rad) and its airflow gate (55 - 85 % of Vs).

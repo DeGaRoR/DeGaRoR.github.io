@@ -51,6 +51,11 @@ var AUDIO_PARAMS = (function () {
     // G1672: the height above the ground or the water under the aeroplane, metres, read at AP_AGL_HZ (the music's
     // cruise, the ambience's altitude weights - coarse consumers); with no world, the altitude itself
     'agl',
+    // THE STALL (G1630, SND-AIRFRAME): the body alpha the wing stalls at NOW, in out.alpha's own frame - the build's
+    // measured clean stall (64_gen_build.js genClMax: params.gen.aStall, the probe's body angle), moved toward the
+    // measured landing-flap stall (gen.aStallLdg) by ctl.flap / flaps.ldg; a flapless setting moves it by the polar's
+    // own dAStall x flap. 0 = this build has no measured stall (nothing warns).
+    'aStall',
   ];
   const AP_ENGINE = ['rpm', 'rpmEng', 'thr', 'running', 'crank', 'key', 'thrustPer',
                      'cyl', 'twoStroke', 'blades', 'D', 'gear', 'family',
@@ -74,7 +79,9 @@ var AUDIO_PARAMS = (function () {
     const block = new Float32Array(LEN);
     // clk[0]: the seconds since the contacts were last read (a typed slot: a double in an object field is a fresh box per write)
     // clk[1]: the seconds since the height above ground was last read (G1672)
-    const out = { block, I, s: block.subarray(0, NS), def: null, nE: 0, clk: new Float64Array(2) };
+    const out = { block, I, s: block.subarray(0, NS), def: null, nE: 0, clk: new Float64Array(2),
+                  // the stall's per-def constants: clean, landing-flap, the landing notch, the polar's dAStall (G1630)
+                  stall: new Float64Array(4) };
     AP_ENGINE.forEach((k, j) => { out[k] = block.subarray(NS + j * AP_MAX_ENG, NS + (j + 1) * AP_MAX_ENG); });
     // the surfaces' wheel nodes (resolved per def): mains then tail, -1 = none
     out.wheelNode = new Int32Array(3).fill(-1);
@@ -122,6 +129,13 @@ var AUDIO_PARAMS = (function () {
     W[0] = mains.length > 0 ? mains[0] : -1; W[1] = mains.length > 1 ? mains[1] : -1;
     W[2] = refs.tw != null && refs.tw >= 0 ? refs.tw : -1;
     out.s[I.open] = spec.cabin && spec.cabin.glazing === 'none' ? 1 : 0;
+    const G = (def && def.params && def.params.gen) || {}, FL = def && def.params && def.params.flaps;
+    const pw = def && def.params && def.params.polarWing;
+    const a0 = G.aStall > 0 ? G.aStall : (pw && pw.aStall > 0 ? pw.aStall : 0);
+    out.stall[0] = a0;
+    out.stall[1] = G.aStallLdg > 0 ? G.aStallLdg : a0;
+    out.stall[2] = FL && FL.ldg > 0 ? FL.ldg : 0;
+    out.stall[3] = FL && FL.dAStall > 0 ? FL.dAStall : 0;
     out.s[I.nEng] = nE;
     out.nE = nE; out.def = def; out.clk[0] = 1e9; out.clk[1] = 1e9;   // a new aeroplane reads its contacts on its first frame
   }
@@ -156,6 +170,9 @@ var AUDIO_PARAMS = (function () {
     s[I.thrMaster] = thr;
     s[I.flap] = num(ctl.flap, 0); s[I.brake] = num(ctl.brake, 0);
     s[I.de] = num(ctl.de, 0); s[I.da] = num(ctl.da, 0); s[I.dr] = num(ctl.dr, 0);
+    // the stall alpha at this flap: toward the measured landing stall over the landing notch, else the polar's delta
+    const st = out.stall, fl = s[I.flap];
+    s[I.aStall] = st[0] <= 0 ? 0 : st[2] > 0 ? st[0] + (st[1] - st[0]) * Math.min(1, fl / st[2]) : st[0] - st[3] * fl;
     // the engines: the solver's own numbers, then the voices' frequencies off them
     const rpmA = o.rpm, rpmEA = o.rpmEng, TP = o.thrustPer, E = sim && sim.eng, L = ctl.eng, V = s[I.V];
     for (let i = 0; i < nE; i++) {
