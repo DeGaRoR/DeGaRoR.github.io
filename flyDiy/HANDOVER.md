@@ -72830,3 +72830,30 @@ Against a trunk (the land builds):
 - **The thresholds (9 g, 1.5 kJ, the 3 % kink, D / wall 30) are physical anchors, not fitted.** A 5 m/s (10 kt) taxi into a trunk is a crash (1.5-2 kJ).
   If that reads harsh in play, CRASH_J is the knob.
 - **The floats' water landings and a crash ON the water** are not part of this: hydro forces do not count in the contact g.
+
+## DEFORM-AND-BREAK - THE DESIGN FOR DEFORMATION, FAILURE, CRASHES, FIRE AND THE REPAIR BILL IS ON PAPER (2026-10-04, DESIGN session for A0, cloud, doc only; branch ccr-435c971f-h3rnbe off train 30 = 44b7a38)
+
+FOR A0. Nothing in `src/` changed: one new file, `futureDesigns/DEFORM-AND-BREAK-2026-10-04.md` (commits 902d3a6, 5978f88),
+plus this entry. It is the "design doc first" that ROADMAP deferred item 5 (Deform and break) and DEBT-REGISTER §7
+asked for, and the P5g "structural failure" step of GAME-LAYER-2026-09-14.
+- WHAT IT IS: what BeamNG / Rigs of Rods learnt (RoR source, BeamNG's public Lua and JBeam docs, release history),
+  checked against 30_solver.js; the user's own crash study checked against NTSB/AAIB/BEA/ATSB/TSB reports, CFR Part 23
+  and NASA's 2015 Cessna 172 crash tests; the reference aircraft are the Cub, the 172, Robin/Jodel and the Beaver.
+  Built on HANDOVER's STRUCTURAL REALISM §C/§D and the costed rupture design (2026-08-10/11) and on TREE-HITBOX's open
+  "a crash is not modelled" call.
+- THE PLAN (§11): D0 instruments (1 session) -> D1 the beam loop (2) -> D2 certificate + gear calibration (2) ->
+  D3 clusters (1) -> D4 the visible wreck: skin breaking, debris, prop strike, clipping gate (2-3) -> D5 endings,
+  repair bill, fire (1-2) -> tuning the classics against the reports (~2). About 11-13 sessions, 2-3 trains; a thin
+  slice is 5-6. Every step is behind `params.damage` and additive (an unstamped beam behaves exactly as today); the
+  gates per step are in the table.
+- ASKED OF A0: (1) reserve a G-block (suggested: the next free hundred after SOUND's G1600-G1699; sessions DMG-*);
+  (2) place D0-D5 in the train order; (3) D1's perf gate is against G1332's 2.30 ms stock step.
+- RULINGS (§12): (bh) TAKEN by the user - damage is NOT carried between flights; a repair bill is computed from the
+  ledger's sections. Recommended: certificate-anchored failure (dm1), failure before deformation (dm2), a trunk at
+  speed is a crash fired from the structure (dm3), NaN renamed sim-diverged (dm4), prop strike first (dm5), the NASA
+  172 tests + §7.4 scenarios as the acceptance suite (dm7), fire by conditions (dm8). OWED to the user: whether the
+  bench's test to destruction costs the airframe (dm6), whether the repair bill is charged to the wallet (dm9).
+- CAVEATS: the proxy blocked BeamNG's sites and every NTSB/NASA/CFR PDF - all external figures are search summaries,
+  tagged in the doc; open the named NASA TMs and CFR sections on the box before a number becomes a gate. Copyright
+  (§13): no code was copied; never paste RoR (GPLv3) or BeamNG Lua (bCDDL) into `src/`; BEA reports are non-commercial
+  only. The repository has no LICENSE file (the user's call).
