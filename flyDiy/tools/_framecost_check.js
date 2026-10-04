@@ -71,6 +71,10 @@ const TOL = { rel: 0.01, abs: 2 };
 //      { key: 'boot/rollout:compile/', build: '*', why: 'the contact-shadow pass links its programs under the screen', g: 'G1101' }
 // An entry admits a rise until the next --update takes it into the baseline; then it is dead and should go.
 const ALLOW = [
+  // G1335 (LAKE-HOLES, train 30 2026-10-04): THE LAKEBEDS CARVED, THE GROUND DRAWN WHOLE - no hole cut at the shore, the
+  // carved bed and its skirts drawn as ground: taxi main triangles +185.8 k (+1.4 %, Cub and Cessna, the cook fresh); the
+  // strict gate's taxi render / loop rows in slack
+  { key: 'taxi/tris.main', build: '*', rise: 190000, why: 'the carved lakebeds and their skirts drawn as ground (no holes at the shore)', g: 'G1335' },
   // G1357 v2 (LIGHT-SMOOTH, 2026-10-04): THE FRAME CATCHER decides on the GPU - two tiny draws a frame (the 64 x 36 copy into
   // its ring slot, the one-pixel decision into a 1 x 1 target inside an occlusion query) instead of v1's readback a frame:
   // +2 quads (4 triangles) and their target binds, measured +3.5 bindFramebuffer / +4 tris.other at the Cub's taxi
