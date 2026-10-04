@@ -861,6 +861,7 @@ function makeSim(def, world) {
   }
 
   function reset(drop = 0) {
+    if (WB) HYDRO.wetReset(WB);                     // G1384.3: a fresh aeroplane is dry and whole
     // (G610) a reset is the aeroplane as it FLIES: a rig's trueBox() (the load test on the garage's own sim)
     // lasts until the next one, so the roll-out after a sandbag test flies the flight box again
     if (subN !== (P_.substeps ?? 24)) {
@@ -1529,7 +1530,7 @@ function makeSim(def, world) {
     }
     // THE WATER (H1): every wet panel of every float, onto the frame
     if (HY && world) out.hydroWet = HYDRO.hydroSolverPass(HY, world, f, simT, dt, ctl);
-    else if (wetArm) { out.hydroWet = HYDRO.wetSolverPass(WB, world, f, simT, dt); out.wetDrag = WB.drag; out.wetBuoy = WB.buoy; }
+    else if (wetArm) { out.hydroWet = HYDRO.wetSolverPass(WB, world, f, simT, dt); out.wetDrag = WB.drag; out.wetBuoy = WB.buoy; out.wetFlood = WB.flood; }
     // tree collisions: cheap cylinder push-out, only when low and near trees
     if (world) {
       const cgx = p[0], cgz = p[2];   // any chassis node as coarse anchor
