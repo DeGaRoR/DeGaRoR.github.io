@@ -769,6 +769,10 @@ function buildViewer(coreBody) {
   var tq = new URLSearchParams(location.search).get('town'), townOn = true;
   if (tq !== null) townOn = tq === '1' || tq === 'all';
   else { try { var gp = JSON.parse(localStorage.getItem('flydiy.gfx') || 'null'); townOn = !(gp && gp.town === 'nearby' && gp.pv >= 7); } catch (e) {} }
+  // (G1526, POTATO-DEEP) potato and laptop never build Metlakatla (GFX.BUDGETS town 'nearby'): their page composes the default
+  // variant - a ?gfx= in the URL, else the saved preset's build budget (a custom mix keeps its last preset's: gp.build)
+  if (tq === null) { try { var gq = new URLSearchParams(location.search).get('gfx'), gs = JSON.parse(localStorage.getItem('flydiy.gfx') || 'null');
+    var gb = gq || (gs && (gs.build || gs.preset)); if (gb === 'potato' || gb === 'laptop') townOn = false; } catch (e) {} }
   window.FLYDIY_TOWN_VARIANT = townOn ? 'town' : 'default';
   // (G1091, POLISH-2) THE TREES BY THE RUNWAYS: ?rwytrees=today|map|mapx (or localStorage flydiy.rwytrees) - read by
   // the premises' composition (27_premises.js rwyTreesMode) for a data island; anything else is 'today', the default
