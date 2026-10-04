@@ -85,9 +85,11 @@ var AUDIO_SAMPLES = (function () {
   // THE POSITIONAL EMITTERS' ONE-SHOTS (G1662, SND-AMB-2: emitters.js places them; G1636 ships all but the loon)
   for (const [k, what] of [
     ['bird.crow', 'a crow (raven) calling once'], ['bird.eagle', 'a bald eagle\'s call'], ['bird.gull', 'gulls over the shore'],
-    ['bird.owl', 'an owl at night'], ['bird.loon', 'a loon\'s call on a lake (not shipped: the emitter waits for it)'],
+    ['bird.owl', 'an owl at night'], ['bird.loon', 'a loon’s call on a lake'], ['tram.bell', 'the tram station’s bell'],
     ['dog', 'a dog barking, far off'], ['mech.door', 'a door shutting'], ['vehicle.pickup', 'a pickup passing on gravel'],
   ]) KEYS[k] = { kind: 'oneshot', layer: 'the positional emitters (emitters.js)', what };
+  for (const [k, what] of [['tram.hum', 'a cable car’s rope and sheaves humming'], ['boat.idle', 'a small outboard at idle']])
+    KEYS[k] = { kind: 'loop', layer: 'the positional emitters (emitters.js)', what };
   const DEF_BUDGET = 6 * 1024 * 1024;
   const W = typeof window !== 'undefined' ? window : (typeof globalThis !== 'undefined' ? globalThis : {});
 

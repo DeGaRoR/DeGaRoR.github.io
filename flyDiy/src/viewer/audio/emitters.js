@@ -39,7 +39,7 @@
   const CABIN = [Math.pow(10, -12 / 20), 900], OPEN = [Math.pow(10, -2 / 20), 9000], CLEAR = [1, 20000];
   const KEYS = []; for (let s = 0; s < NS; s++) if (SOUNDS[s][1]) KEYS.push(SOUNDS[s][1]);
   // the keys the emitters own in the 'emit' class (mech.creak stays the airframe's grain: shared, decoded once)
-  const OWN = { 'bird.crow': 1, 'bird.eagle': 1, 'bird.gull': 1, 'bird.owl': 1, 'bird.loon': 1, 'dog': 1, 'mech.door': 1, 'vehicle.pickup': 1 };
+  const OWN = { 'bird.crow': 1, 'bird.eagle': 1, 'bird.gull': 1, 'bird.owl': 1, 'bird.loon': 1, 'dog': 1, 'mech.door': 1, 'vehicle.pickup': 1, 'tram.bell': 1, 'tram.hum': 1, 'boat.idle': 1 };
   let st = M.emittersState('full'), tierName = 'full';
   let own = null;                                   // an ambience state of our own when the bed mixer is not there
   let ctx = null, SM = null, emIn = null, emLP = null, emDuck = null, offCabin = null, gen = 0;
@@ -122,6 +122,7 @@
       let d = 0; const n = (W.FLYDIY_AUDIO_MEDIA && W.FLYDIY_AUDIO_MEDIA[key] && W.FLYDIY_AUDIO_MEDIA[key].length) || 1;
       for (let k = 0; k < 4 * n; k++) { const b = SM.pick(key); if (b && b.duration > d) d = b.duration; }
       st.dur[s] = d > 0 ? d : st.dur[s];
+      if (SOUNDS[s][2] === 1) proc[s] = buf;   // a recorded LOOP (G1667): samples.js's baked, crossfaded loop buffer plays in the loop slot
       res[s] = 2; st.ready[s] = 1;
     }, () => { if (g0 !== gen) return; if (loading === s) loading = -1; res[s] = 3; resT[s] = st.clk[0]; });
   }
@@ -129,6 +130,7 @@
     res[s] = 0; st.ready[s] = 0;
     const key = SOUNDS[s][1];
     if (!key) { if (proc[s]) procB[0] -= proc[s].length * 4; proc[s] = null; return; }
+    if (SOUNDS[s][2] === 1) proc[s] = null;   // a recorded loop's buffer goes back with its key (samples.js counts its bytes)
     if (OWN[key]) SM.release(key);   // (a shared key - the airframe's creak - stays its owner's)
   }
 

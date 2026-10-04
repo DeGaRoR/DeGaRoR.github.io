@@ -3093,10 +3093,11 @@ async function checkEmPlay(S) {
     if (!before.length || !after.length) F.push('the pass did not span the car\'s approach and its leaving (' + before.length + ' / ' + after.length + ' frames)');
     else if (!(Math.max(...before.map(r => r[1])) > 1.01 && Math.min(...after.map(r => r[1])) < 0.99)) F.push('no doppler on the pass: x' + Math.max(...before.map(r => r[1])).toFixed(3) + ' approaching, x' + Math.min(...after.map(r => r[1])).toFixed(3) + ' leaving (want > 1.01 and < 0.99)');
   }
-  // the tram's hum: a looping source on the procedural buffer, its bell a one-shot
+  // the tram's hum: a looping source on its RECORDED loop (G1667: tram.hum, the coordinator's CC0 file; it was procedural),
+  // its bell a recorded one-shot
   const loops = pg.R.sources.filter(s => s.loop && s.buffer);
   if (!loops.length) F.push('no loop played by the tram running 40 m away');
-  if (!(E.procBytes() > 0)) F.push('no procedural buffer made for the tram');
+  if (E.resident(M.S.tramhum) !== 2) F.push('the tram hum (recorded) is not loaded (resident ' + E.resident(M.S.tramhum) + ')');
   // a static call placed in the camera's frame: the bell (made: the tram is near) straight ahead (+x, 50 m) -> the
   // panner at (0, 0, -50)
   const st = E.state;
@@ -3217,8 +3218,10 @@ function checkEmWiring(S) {
   const SM = c.module.exports, { M } = emModelOf(S);
   const cat = JSON.parse(fs.readFileSync(path.join(ROOT, 'src/viewer/audio/sfx_catalogue.json'), 'utf8'));
   for (const sd of M.SOUNDS) if (sd[1]) {
-    if (!SM.KEYS[sd[1]] || SM.KEYS[sd[1]].kind !== 'oneshot') F.push(sd[1] + ' is not a declared one-shot in samples.js');
-    if (sd[1] !== 'bird.loon' && !cat.some(e => e.key === sd[1])) F.push(sd[1] + ' has no file in the catalogue');
+    // a one-shot sound must be a declared one-shot, a recorded LOOP (the tram's hum, the idling boat: G1667) a declared loop
+    const want = sd[2] === 1 ? 'loop' : 'oneshot';
+    if (!SM.KEYS[sd[1]] || SM.KEYS[sd[1]].kind !== want) F.push(sd[1] + ' is not a declared ' + (want === 'loop' ? 'loop' : 'one-shot') + ' in samples.js');
+    if (!cat.some(e => e.key === sd[1])) F.push(sd[1] + ' has no file in the catalogue');   // (the loon ships since G1667)
   }
   return F;
 }

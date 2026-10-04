@@ -30,6 +30,11 @@ const BOARDS = {
     intro: 'Modern, calm jazz for the Jazz station, closer to a racing game’s menu music than to the 1920s: five CC-BY candidates (credited). The two Ketsa tracks you approved are already in. One prolific catalogue of smooth-jazz tracks was left out because it looks machine-generated.',
     contexts: ['Jazz', 'Lo-fi / Hip-hop', 'Dub / Ambient'], labels: ['Keep', 'Maybe', 'No'],
   },
+  voices: {
+    title: 'Radio Jolene Voices',
+    intro: 'Four clean, offline AI voices for Radio Jolene (Piper, trained on public-domain or CC-BY readings). Each reads the station ID, a bulletin and the airfield weather assembled from recorded words, as the game plays it. john ships today; pick the one you prefer.',
+    contexts: ['warm', 'too robotic', 'too fast', 'weather sounds stitched'], labels: ['Best', 'OK', 'No'],
+  },
   engine: {
     title: 'flyDiy Engine Lab',
     intro: "The procedural engines as they sound today, rendered offline from the exact code the game runs (no propeller yet: that comes next). Judge each render and say what's off. Your notes go to the tuning session.",

@@ -58,8 +58,9 @@ var EMITTERS_MODEL = (function () {
     ['crow', 'bird.crow', 0, -6, 12, 0.39], ['eagle', 'bird.eagle', 0, -4, 25, 4.91], ['gull', 'bird.gull', 0, -6, 15, 6.01],
     ['owl', 'bird.owl', 0, -8, 15, 4.39], ['loon', 'bird.loon', 0, -10, 40, 4],
     ['dog', 'dog', 0, -2, 20, 6.01], ['door', 'mech.door', 0, -8, 8, 0.46],
-    ['pickup', 'vehicle.pickup', 0, -3, 10, 6.01], ['creak', 'mech.creak', 0, -12, 6, 3.14], ['bell', null, 0, -10, 20, 3.2],
-    ['tramhum', null, 1, -12, 18, 0], ['mill', null, 1, -6, 30, 0], ['boat', null, 1, -10, 12, 0],
+    ['pickup', 'vehicle.pickup', 0, -3, 10, 6.01], ['creak', 'mech.creak', 0, -12, 6, 3.14], ['bell', 'tram.bell', 0, -10, 20, 1.54],
+    // the tram's hum and the idling boat take the coordinator's recordings (G1667, CC0, unheard); the mill stays procedural
+    ['tramhum', 'tram.hum', 1, -12, 18, 0], ['mill', null, 1, -6, 30, 0], ['boat', 'boat.idle', 1, -10, 12, 0],
   ];
   const NS = SOUNDS.length;
   const S = {}; SOUNDS.forEach((s, i) => { S[s[0]] = i; });

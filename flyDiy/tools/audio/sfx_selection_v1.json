@@ -260,6 +260,62 @@
    "kind": "bed",
    "pick": "coordinator",
    "note": "the user: keep looking for an open sea option - water along a hull underway, no shore, no engine; unheard"
+  },
+  {
+   "key": "bird.loon",
+   "id": 39339,
+   "kind": "shot",
+   "pick": "coordinator",
+   "note": "SND-AMB-2 asked: a loon call one-shot - cut from the user's kept loon recording (no separate CC0 call found)"
+  },
+  {
+   "key": "tram.bell",
+   "id": 497561,
+   "kind": "shot",
+   "pick": "coordinator",
+   "note": "SND-AMB-2 asked: a tram station bell; unheard"
+  },
+  {
+   "key": "tram.hum",
+   "id": 442493,
+   "kind": "loop",
+   "pick": "coordinator",
+   "note": "SND-AMB-2 asked: a cable car's rope / sheave hum (a funicular cable car); unheard"
+  },
+  {
+   "key": "boat.idle",
+   "id": 637743,
+   "kind": "loop",
+   "pick": "coordinator",
+   "note": "SND-AMB-2 asked: a small outboard at idle; unheard"
+  },
+  {
+   "key": "bird.crow",
+   "id": 361470,
+   "kind": "shot",
+   "pick": "coordinator",
+   "note": "SND-AMB-2 asked: more crow variants; unheard"
+  },
+  {
+   "key": "bird.crow",
+   "id": 75162,
+   "kind": "shot",
+   "pick": "coordinator",
+   "note": "SND-AMB-2 asked: more crow variants; unheard"
+  },
+  {
+   "key": "bird.gull",
+   "id": 263786,
+   "kind": "shot",
+   "pick": "coordinator",
+   "note": "SND-AMB-2 asked: more gull variants; unheard"
+  },
+  {
+   "key": "bird.gull",
+   "id": 73497,
+   "kind": "shot",
+   "pick": "coordinator",
+   "note": "SND-AMB-2 asked: more gull variants; unheard"
   }
  ],
  "rejected_guidance": {

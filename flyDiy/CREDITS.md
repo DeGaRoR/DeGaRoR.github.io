@@ -1253,6 +1253,14 @@ shot to its event), levelled, MP3-encoded (`tools/audio/prep_sfx.js`). CC0 asks 
 - `amb.birds.open` — *Birds Ambience Atmosphere early morning field slight breeze.wav* by **WavJunction.com** (freesound #456766, https://freesound.org/people/WavJunction.com/sounds/456766/), CC0 1.0 — coordinator's gap fill
 - `amb.lake.shore` — *Gentle small waves lapping on shore.wav* by **Alex_hears_things** (freesound #352356, https://freesound.org/people/Alex_hears_things/sounds/352356/), CC0 1.0 — coordinator's gap fill
 - `amb.sea.open` — *sailboat underway.wav* by **canoeCG** (freesound #460061, https://freesound.org/people/canoeCG/sounds/460061/), CC0 1.0 — coordinator's gap fill
+- `bird.loon` — *loonsnippets.ogg* by **stackpool** (freesound #39339, https://freesound.org/people/stackpool/sounds/39339/), CC0 1.0 — coordinator's gap fill
+- `tram.bell` — *11-3 Tram bell* by **16HPanskaWillheimova_Sara** (freesound #497561, https://freesound.org/people/16HPanskaWillheimova_Sara/sounds/497561/), CC0 1.0 — coordinator's gap fill
+- `tram.hum` — *Funicular cable car.wav* by **BonnyOrbit** (freesound #442493, https://freesound.org/people/BonnyOrbit/sounds/442493/), CC0 1.0 — coordinator's gap fill
+- `boat.idle` — *outboard motor boat idle or slow rattly4 pass slow left to right recorded from shore.flac* by **kyles** (freesound #637743, https://freesound.org/people/kyles/sounds/637743/), CC0 1.0 — coordinator's gap fill
+- `bird.crow` — *Crow Caw* by **Jofae** (freesound #361470, https://freesound.org/people/Jofae/sounds/361470/), CC0 1.0 — coordinator's gap fill
+- `bird.crow` — *crow.wav* by **nigelcoop** (freesound #75162, https://freesound.org/people/nigelcoop/sounds/75162/), CC0 1.0 — coordinator's gap fill
+- `bird.gull` — *Seagull single call* by **steaq** (freesound #263786, https://freesound.org/people/steaq/sounds/263786/), CC0 1.0 — coordinator's gap fill
+- `bird.gull` — *Gull.wav* by **nigelcoop** (freesound #73497, https://freesound.org/people/nigelcoop/sounds/73497/), CC0 1.0 — coordinator's gap fill
 
 <!-- SFX:END -->
 

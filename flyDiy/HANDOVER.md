@@ -72434,3 +72434,19 @@ NOT DONE / FOR THE USER: the ear - pick john / norman / libritts / cori on the l
   clean lineage); SND-RADIO wires play() into its schedule and the weather into awosClips (the radio bus, if it adds one, is
   picked up by name); the dataset pages (librivox, openslr, keithito) and Hugging Face were unreachable from the container -
   the licences are the model cards' own, which is what s12 asks; a re-check from the box costs one look each.
+
+## G1667 - THE EMITTERS' RECORDINGS: THE LOON, THE TRAM'S BELL AND HUM, THE IDLING BOAT, MORE CROWS AND GULLS (2026-10-04, Sound Coordinator, integration on claude/sound-next; SND-AMB-2's unused G1667)
+
+SND-AMB-2 asked for recordings (its HANDOVER, MISSING ASSETS). Coordinator's CC0 picks, unheard by the user (the user asked to
+stop reviewing near-duplicates): `bird.loon` (cut from the user's kept loon recording 39339 - no separate CC0 loon call
+exists on freesound), `tram.bell` (497561), `tram.hum` (442493, a funicular cable car, a 10 s loop), `boat.idle` (637743, a
+small outboard idling, a 10 s loop), two more crows (361470, 75162) and two more gulls (263786, 73497) as variants. No stamp
+mill / ore crusher exists in CC0: the mill stays procedural. 46 files, 9.56 MB in media/audio/sfx; CREDITS regenerated.
+Wiring: emitters_model.js SOUNDS - bell -> 'tram.bell' (one-shot), tramhum -> 'tram.hum', boat -> 'boat.idle' (loops); the
+mill keeps `null` (procedural). emitters.js: a recorded LOOP plays from the slot like a procedural one (begin() hands
+samples.js's baked crossfaded loop buffer to proc[s]; drop() returns it with its key); OWN gains the three keys. samples.js:
+tram.bell one-shot, tram.hum / boat.idle loops (the emitters' layer); the loon no longer "not shipped". GATE AUDIO: EMITPLAY
+expects the tram's hum resident as a recording (not a procedural buffer), EMITWIRING a sound's kind to match its declared
+kind (a loop sound a declared loop) and every keyed sound a catalogue file (the loon exception gone). The EMIT checks all
+pass, 31 / 31 of their mutations caught. Still red on sound-next, SND-RADIO-2's: RADIO_STATIONS (the mix station),
+VOICE_CAT (norman's re-render with the newer tracks' back-announces), and SP_BUDGET's 90 B/frame seen once.
