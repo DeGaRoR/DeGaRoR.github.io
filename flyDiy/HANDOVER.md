@@ -69879,8 +69879,8 @@ G1654 THE GATE - GATE AUDIO extended: AMBPLACES (a synthetic island in the islan
 GATES: AUDIO PASS (138 / 138), BUILD PASS, UISMOKE PASS, BOOT PASS, MEDIA PASS (UISMOKE, BOOT and MEDIA on a freshly built
   tree: the checkout's generated pages were stale and UISMOKE failed on the untouched base for that reason alone; the
   generated files restored, none in this branch).
-FOR THE COORDINATOR: (1) run_gates.js: GATE AUDIO is now ~2.5 min with its self-test (AMBBUDGET's walks and AMBJOLENE's
-  compose are most of it) - its `wall: 45` wants ~180; I did not touch run_gates.js. (2) Nothing in app.js; MANIFEST lists
+FOR THE COORDINATOR: (1) run_gates.js: GATE AUDIO is now 100 s with its self-test (measured on the merged tree; AMBBUDGET's
+  walks and AMBJOLENE's compose are most of it) - its `wall: 45` wants ~150; I did not touch run_gates.js. (2) Nothing in app.js; MANIFEST lists
   'audio/ambience_model.js', 'audio/ambience.js' after samples.js. (3) SND-SPACE: publish AUDIO.cabin / emit 'cabin' with
   { outDb, outLpHz } for the outside heard from the cabin; the ambience takes it. (4) CLIMATE: rain -> AMBIENCE.rain(0..1) or
   world.day.precip; today only the garage's roof plays it. (5) SND-DEVICES: "audio: light" can call AMBIENCE.setTier('light').
