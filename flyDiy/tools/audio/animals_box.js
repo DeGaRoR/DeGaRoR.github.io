@@ -49,7 +49,8 @@ const SCENES = AN.scenes(W, SPOTS).map(([key, name, hours, , , pathOf]) => {
 
 const udd = path.join(require('os').tmpdir(), 'cdp_animals_' + PORT + '_' + Date.now());
 const ch = spawn(CHROME, ['--headless=new', '--remote-debugging-port=' + PORT, '--window-size=1280,720', '--hide-scrollbars', '--no-first-run',
-  '--user-data-dir=' + udd, '--disable-gpu-sandbox', '--autoplay-policy=no-user-gesture-required', 'about:blank'], { stdio: 'ignore' });
+  '--user-data-dir=' + udd, '--disable-gpu-sandbox', '--autoplay-policy=no-user-gesture-required']
+  .concat(process.getuid && process.getuid() === 0 ? ['--no-sandbox'] : [], ['about:blank']), { stdio: 'ignore' });   // (root: a container)
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const getJSON = url => new Promise((res, rej) => { http.get(url, r => { let b = ''; r.on('data', d => b += d); r.on('end', () => res(JSON.parse(b))); }).on('error', rej); });
 (async () => {
