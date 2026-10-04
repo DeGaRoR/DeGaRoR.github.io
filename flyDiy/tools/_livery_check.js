@@ -48,9 +48,16 @@
 //      boots through aeroBootPrefs and never reads the pref bare; the decal
 //      panel's read is guarded the same way.
 //
+//   5  THE STRUTS (G1912 STRUT-LIVERY). Every validated build (builds/*.json)
+//      and every stock build, loaded through finishFromSpec: the lift, cabane
+//      and interplane struts resolve to their painted pin in the colour their
+//      parent wears, and secMat hands the layer exactly that paint (what the
+//      flown bake and the parked cook capture); no stock build pins a strut to
+//      bare metal.
 // NEGATIVE-VERIFIED (--selftest): the guard removed, the seed's finish
-// removed, both removed (the shipped bug), metalK out of the pool key — each
-// must turn this gate red.
+// removed, both removed (the shipped bug), metalK out of the pool key, and
+// (G1912) the strut pin's load read removed, the stock Cub's pin put back, the
+// wears-parent walk on the parent's finish base — each must turn this gate red.
 'use strict';
 const fs = require('fs');
 const path = require('path');
@@ -67,6 +74,7 @@ const SRC0 = {
   ui: rd('tools/_cage_ui.js'),
   app: rd('src/viewer/app.js'),
   skin: rd('src/viewer/aeroskin.js'),
+  page5: rd('tools/_cage_page5.js'),   // G1912: the stock builds' finishes
 };
 
 // One declaration, by name, balanced: a function to its closing brace, a
@@ -321,6 +329,63 @@ function run(SRC) {
     check(/if \(aeroPrefsOwn\(\)\) decLoadPrefs\(\);/.test(bd) && !/\n {2}decLoadPrefs\(\);/.test(bd),
           'the decal panel reads the marking pref only where the pref owns it');
   }
+  // 5 THE STRUTS WEAR THE LIVERY (G1912 STRUT-LIVERY) ------------------------------
+  // the user: "the struts seem not to be colored like the rest of the airplane
+  // anymore". Every validated build (builds/*.json, the user's Cub among them)
+  // and every stock build is loaded through the editor's own finishFromSpec,
+  // and each strut-class section — the lift struts, the cabane and interplane
+  // struts that wear the strut's colour — must come back on its own PAINTED pin
+  // (trim) in the colour its parent wears, never on a bare-metal finish: the
+  // resolver's answer and the material secMat hands the layer (the one the
+  // flown bake and the parked cook capture) alike. The carry-through (bare
+  // alclad by the user's T2.3 ruling) and the bracing wires (steel) are not
+  // struts and are not asked. A stock build may not carry a bare strut pin.
+  {
+    const STRUTS = ['strut', 'cabane', 'interplane'];
+    const BARE = new Set(['castAlu', 'bareAlu', 'steelTube', 'chrome', 'alclad', 'bronze', 'copper', 'exhaust']);
+    const IDX = { carbon: 0, tubeFabric: 1, wood: 2, alloy: 3, aluTube: 4 };
+    const CONS = ['carbon', 'tubeFabric', 'wood', 'alloy', 'aluTube'];
+    const W5 = { window: {} }; vm.createContext(W5);
+    vm.runInContext(SRC.page5, W5, { filename: '_cage_page5.js' });
+    const stock = (W5.window.CAGE_PAGE && W5.window.CAGE_PAGE.builds) || {};
+    check(Object.keys(stock).length >= 3, 'the stock builds read (' + Object.keys(stock).join(', ') + ')');
+    const cases = [];
+    for (const [nm, b] of Object.entries(stock)) {
+      const sec = (b.finish && b.finish.sections) || {};
+      for (const s of STRUTS)
+        check(!(sec[s] && sec[s].fin && BARE.has(sec[s].fin)),
+              'stock "' + nm + '": no bare-metal pin on `' + s + '`', JSON.stringify(sec[s]));
+      const m = b.fuselage && b.fuselage.material;
+      cases.push(['stock ' + nm, { finish: b.finish || null, paint: b.paint, meta: b.meta }, IDX[m] != null ? IDX[m] : 1]);
+    }
+    for (const f of fs.readdirSync(path.join(ROOT, 'builds')).filter(f => /\.json$/.test(f) && !/\.edits\./.test(f)).sort()) {
+      const j = JSON.parse(rd('builds/' + f));
+      const sp = CORE.genNormaliseSpec(j.spec || j);
+      cases.push(['builds/' + f, sp, consOfSpec(sp)]);
+    }
+    let n5 = 0;
+    for (const [tag, spec, ci] of cases) {
+      const pg = page(SRC, browser(), 1, ci); pg.seed(spec);
+      const A = pg.A, O = pg.ED.SEC_OVER, cons = CONS[ci] || 'tubeFabric';
+      // the colour a section WEARS: its own resolved tint, or for the cage's `body` its override or its finish's base
+      const worn = s => { const q = A.aeroSecResolve(s, O, { cons });
+                          return q.tint != null ? q.tint : (A.AERO_FINISH[q.fin] || {}).base; };
+      for (const s of STRUTS) {
+        const row = A.AERO_SEC[s], q = A.aeroSecResolve(s, O, { cons }), want = worn(row.parent);
+        const m = pg.ED.secMat(s, { surf: 0, fieldM: 1, tint0: 0xe6e2d8 });
+        const ref = A.aeroMaterial(THREE, { finish: row.fin, tint: want, surf: 0, fieldM: 1 });
+        const hx = v => v == null ? 'none' : '#' + (v >>> 0).toString(16).padStart(6, '0');
+        check(q.fin === row.fin && !BARE.has(q.fin), tag + ': `' + s + '` resolves to its painted pin ' + row.fin, 'got ' + q.fin);
+        check(q.tint != null && (q.tint >>> 0) === (want >>> 0), tag + ': `' + s + '` wears what ' + row.parent + ' wears ' + hx(want), 'got ' + hx(q.tint));
+        check(!!m && m.userData.aeroFinish === row.fin && m.color.getHexString() === ref.color.getHexString(),
+              tag + ': `' + s + '`\'s material is that paint', m ? m.userData.aeroFinish + ' #' + m.color.getHexString() + ' vs #' + ref.color.getHexString() : 'none');
+        n5++;
+      }
+      log('  ' + tag + ': strut ' + pg.A.aeroSecResolve('strut', O, { cons }).fin + ' ' +
+          ((pg.A.aeroSecResolve('strut', O, { cons }).tint >>> 0).toString(16)));
+    }
+    log('  struts: ' + n5 + ' strut-class sections over ' + cases.length + ' builds');
+  }
   return { fail, checks };
 }
 
@@ -337,11 +402,18 @@ if (process.argv.includes('--selftest')) {
       const a = probes[0][1](S); return probes[1][1](a); }],
     ['metalK out of the pool key', S => Object.assign({}, S, { skin: S.skin.replace(
       "'Q' + (o.metalK != null ? o.metalK : 0),", '') })],
+    // G1912: the user's Cub keeps its inherited bare-alloy strut pin, or the stock Cub gets it back
+    ['the strut pin read on load (G1911)', S => Object.assign({}, S, { ui: S.ui.replace(
+      'if (A && A.aeroFinishLegacy) S = A.aeroFinishLegacy(S).sections;', '') })],
+    ['the wears-parent walk on the parent\'s finish base again (G1912)', S => Object.assign({}, S, { skin: S.skin.replace(
+      '    if (pr.tint != null) tint = pr.tint;\n    else if (pf) tint = pf.base;', '    if (pf) tint = pf.base;') })],
+    ['the stock Cub\'s strut pin back (d244cabf)', S => Object.assign({}, S, { page5: S.page5.replace(
+      '          body: { tint: 16764160 },', '          strut: { fin: "castAlu", tint: 16777215 },\n          body: { tint: 16764160 },') })],
   ];
   let ok = true;
   for (const [nm, patch] of probes) {
     const S = patch(SRC0);
-    const changed = S.ui !== SRC0.ui || S.app !== SRC0.app || S.skin !== SRC0.skin;
+    const changed = S.ui !== SRC0.ui || S.app !== SRC0.app || S.skin !== SRC0.skin || S.page5 !== SRC0.page5;
     let r;
     try { r = run(S); } catch (e) { r = { fail: ['threw: ' + e.message], checks: 0 }; }
     const red = changed && r.fail.length > 0;
@@ -359,5 +431,5 @@ if (fail.length) {
   console.log('GATE LIVERY: FAIL (' + fail.length + ' of ' + checks + ')');
   process.exit(1);
 }
-console.log('  ' + checks + ' checks: A -> B and back, the boot, the pool key (11 dials both ways), the source');
+console.log('  ' + checks + ' checks: A -> B and back, the boot, the pool key (11 dials both ways), the source, the struts on every build');
 console.log('GATE LIVERY: PASS');
