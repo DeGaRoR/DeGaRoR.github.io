@@ -257,7 +257,8 @@ const PAVEMENT = (() => {
     if (cls === 'grass' && kind !== 'strip') return Infinity;
     return Math.max(r.edgeChip || 0, cls === 'concrete' || cls === 'asphalt' ? 0 : 0.1) + 0.2;
   }
-  const sinkAt = (dE, d0) => Math.max(SINK.pre * ss01(0, SINK.liftIn, dE), isFinite(d0) ? SINK.S * ss01(d0, d0 + SINK.ramp, dE) : 0);   // G1001: pre first
+  // (G1542: `dPre`, when given, is the depth the pre-sink reads - a road's dead end holds its deep sink a cell back, not its 7 cm)
+  const sinkAt = (dE, d0, dPre) => Math.max(SINK.pre * ss01(0, SINK.liftIn, dPre !== undefined ? dPre : dE), isFinite(d0) ? SINK.S * ss01(d0, d0 + SINK.ramp, dE) : 0);   // G1001: pre first
   const liftK = (dE, d0) => 1 - ss01(0, SINK.liftIn, dE);   // G1001: d0 no longer delays it (kept in the signature)
   // a builder's lift at a vertex: o.sinkD0 (the caller's opaqueDepth) says the ground under it is sunk
   const liftOf = (o, lift, dE) => (o.sinkD0 !== undefined && o.sinkD0 !== null ? lift * liftK(dE, o.sinkD0) : lift);

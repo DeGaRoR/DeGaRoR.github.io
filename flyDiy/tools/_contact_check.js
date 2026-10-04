@@ -19,6 +19,11 @@
 //      the instance on the ground's plane at the wheel; one InstancedMesh, depthWrite off, drawn after the pavement;
 //      app.js poses them after poseModel, build.js ships the module.
 //
+//   4. NOTHING LOOSE ON A PAVEMENT (G1003): pavedNear and its three dressers.
+//   5. THE DRAWN GROUND UNDER THE WHEELS (GROUND-LATTICE G1540-G1543, tools/ground_drawn.js): the premises' patch at
+//      terrainH where the wheels roll (its 2 cm only inside the lots' zones), no pit past a dead-end road (pavedAt's
+//      roads end square, as their ribbons), TW_DRAW_DROP 0, the stock build's tyres on the drawn ground at every stand.
+//
 //   node tools/_contact_check.js [--drawn]   -> "GATE CONTACT: PASS|FAIL", exit 1 on FAIL
 'use strict';
 const fs = require('fs');
@@ -77,9 +82,9 @@ if (process.argv.includes('--drawn')) {
   const out = JSON.parse(execFileSync(process.execPath, [path.join(T, 'ground_gap.js'), '--build', 'stock', '--json'], { encoding: 'utf8', maxBuffer: 1 << 26 }).split('\n').filter(l => l.trim()).slice(-1)[0] === ']' ? execFileSync(process.execPath, [path.join(T, 'ground_gap.js'), '--build', 'stock', '--json'], { encoding: 'utf8', maxBuffer: 1 << 26 }) : '[]');
   const w = out[0] ? out[0].wheels : [];
   ok(w.length === 3, 'the stock build has three drawn wheels', w.length);
-  // G1383: the stock build is a taildragger - its drawn tail gear sits app.js's TW_DRAW_DROP (20 mm) under its node
-  for (const x of w) { const want = x.kind === 'tw' ? -20 : 0;
-    ok(Math.abs(x.drawnMm - want) < 8, 'stock ' + x.kind + ': the drawn tyre on the ground at rest' + (want ? ' (20 mm down: G1383)' : ''), x.drawnMm + ' mm'); }
+  // G1383 drew a taildragger's tail gear app.js's TW_DRAW_DROP (20 mm) under its node; G1543 put the dial back to 0
+  for (const x of w)
+    ok(Math.abs(x.drawnMm) < 8, 'stock ' + x.kind + ': the drawn tyre on the ground at rest (TW_DRAW_DROP 0: G1543)', x.drawnMm + ' mm');
 }
 
 // ---- 3. the contact shadows -----------------------------------------------------------------------------------
@@ -160,6 +165,64 @@ if (process.argv.includes('--drawn')) {
   ok(/if \(PG\.inPoly\(poly, lx, lz\) \|\| !offRoad\(lx, lz, 1\)\) continue/.test(sl) && /if \(!PG\.inPoly\(poly, lx, lz\) && clear\(wp\[0\], wp\[1\], 0\.25, true\)/.test(sl), "scenery_life: the apron's clutter and cones stand outside it");
   const rp = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'render_premises.js'), 'utf8');
   ok(/pavedNear: O\.pavedNear \?/.test(rp), 'render_premises hands the life its pavedNear');
+}
+
+// ---- 5. the drawn ground under the wheels (GROUND-LATTICE G1540-G1543) -------------------------------------------
+// tools/ground_drawn.js stacks what the page draws (the pavement, the premises' patch, the fine tiles) and reads the one
+// on top under each wheel. Held here: the patch at terrainH where the wheels roll (its 2 cm only where a lot can be), no
+// pit past a dead-end road, TW_DRAW_DROP 0, and the stock build's tyres on the drawn ground at every Jolene stand.
+{
+  const GD = (() => { const a = process.argv; a.push('--none'); try { return require(path.join(T, 'ground_drawn.js')); } finally { a.pop(); } })();
+  const W = GD.W, O = W.premises.overlay, PL = GD.PATCH;
+  const app = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'app.js'), 'utf8');
+  ok(/const TW_DRAW_DROP = 0;/.test(app), 'app.js TW_DRAW_DROP is 0 (G1543: the drawn tail gear on its node)');
+  ok(typeof PL.patchDrop === 'function', 'render_premises.js drops the patch by patchDrop (G1541), not a flat 2 cm');
+  // the drop: 0 on the patch's open grass round every aerodrome (3 m and more off any pavement, outside the lots' zones);
+  // the 2 cm kept under a pavement and its side (the translucent fade drawn over it) and in a village zone (the lots)
+  const C2 = require(path.join(T, 'flight_core.js'));
+  let open = 0, openBad = 0, under = 0, underBad = 0;
+  for (const a of W.aerodromes) {
+    if (!a.len || a.kind === 'water') continue;
+    const c = Math.cos(a.hdg), sn = Math.sin(a.hdg);
+    for (let u = -0.5; u <= 0.5; u += 0.05) for (const v of [0, a.wid / 2 + 6, a.wid / 2 + 12, a.wid / 2 + 25, -(a.wid / 2 + 6), -(a.wid / 2 + 12), -(a.wid / 2 + 25)]) {
+      const x = a.x + c * u * a.len + sn * v, z = a.z + sn * u * a.len - c * v;
+      if (!GD.covers(x, z) || PL.patchDepth(x, z) < PL.PATCH_TUCK.tuckW) continue;
+      const q = O.pavedAt(x, z, PL.PATCH_TUCK.sideR1 + 0.01), dr = PL.dropAt(x, z);
+      if (q && q.d > 0) { under++; if (Math.abs(dr - PL.PATCH_TUCK.drop) > 1e-12) underBad++; }
+      else if (!q) { open++; if (dr !== 0) openBad++; }
+    }
+  }
+  ok(open > 100 && openBad === 0, 'the patch at terrainH on the open grass round Jolene\'s aerodromes (no drop 3 m and more off a pavement)', open + ' points, ' + openBad + ' dropped');
+  ok(under > 100 && underBad === 0, '...and 2 cm under a pavement, where its interior and side are drawn over it', under + ' points, ' + underBad + ' not');
+  const vz = O.rec.layers.zones.find(z => z.kind === 'residential' && z.poly && z.poly.length >= 3);
+  if (vz) { let cx = 0, cz = 0; for (const q of vz.poly) { cx += q[0]; cz += q[1]; } const w = O.frame.toWorld(cx / vz.poly.length, cz / vz.poly.length);
+    ok(Math.abs(PL.dropAt(w[0], w[1]) - PL.PATCH_TUCK.drop) < 1e-12, 'inside a residential zone (' + vz.id + ') the lots keep the patch 2 cm under them (G434.2)', (PL.dropAt(w[0], w[1]) * 1000).toFixed(1) + ' mm'); }
+  // the dead end: mn_strip's stand is the START of mn_stand_lane, a dead end; the parked wheels stand just past it
+  const mn = C2.siteOf('mn_strip').stand, lane = O.roads.find(r => r.id === 'mn_stand_lane');
+  if (lane && mn) {
+    const P0 = O.frame.toWorld(lane.pts[0][0], lane.pts[0][1]), P1 = O.frame.toWorld(lane.pts[1][0], lane.pts[1][1]);
+    const ul = Math.hypot(P1[0] - P0[0], P1[1] - P0[1]), ux = (P1[0] - P0[0]) / ul, uz = (P1[1] - P0[1]) / ul, at = k => [P0[0] + ux * k, P0[1] + uz * k];
+    const past = at(-1.5), last = at(1), deep = at(6);
+    ok(Math.hypot(P0[0] - mn.x, P0[1] - mn.z) < 0.5, 'mn_strip\'s stand is the start of mn_stand_lane', Math.hypot(P0[0] - mn.x, P0[1] - mn.z).toFixed(2) + ' m');
+    ok(!O.pavedAt(past[0], past[1]) && PL.sinkOf(past[0], past[1]) === 0 && Math.abs(PL.at(past[0], past[1]) - W.terrainHBuild(past[0], past[1])) < 0.02,
+      'G1542: 1.5 m past the dead end nothing is paved, nothing sunk, the drawn patch within 2 cm of the ground (it was a 0.4-0.6 m pit)', (1000 * (PL.at(past[0], past[1]) - W.terrainHBuild(past[0], past[1]))).toFixed(1) + ' mm');
+    const sL = PL.sinkOf(last[0], last[1]), sD = PL.sinkOf(deep[0], deep[1]);
+    ok(sL > 0.03 && sL <= 0.0701, '...1 m inside it the patch takes the edge\'s 7 cm, not the deep sink', (sL * 100).toFixed(1) + ' cm');
+    ok(sD > 0.5, '...6 m inside, the deep sink', sD.toFixed(2) + ' m');
+  } else ok(false, 'mn_stand_lane and mn_strip\'s stand found');
+  // the stock build at every stand: its tyres (node - r) on the drawn ground, and the physics contact on terrainH
+  const def0 = C2.buildGen(JSON.parse(JSON.stringify(C2.GEN_DEFAULT)));
+  const wheels = def0.refs.mains.concat(def0.refs.tw >= 0 ? [def0.refs.tw] : []);
+  for (const a of W.aerodromes) {
+    const site = C2.siteOf(a.id); if (!site || !site.stand || a.kind === 'water') continue;
+    const sim = C2.makeSim(def0, W); sim.reset(0); if (sim.stance) sim.stance();
+    C2.placeAtStand(sim, a, site.stand); for (let i = 0; i < 360; i++) sim.step(1 / 60);
+    const rows = wheels.map(i => { const x = sim.p[i * 3], z = sim.p[i * 3 + 2], d = GD.drawnAt(x, z); return { on: d.kind, mm: 1000 * (sim.p[i * 3 + 1] - def0.nodes[i].r - d.y), g: 1000 * (d.y - W.terrainH(x, z)) }; });
+    // (15 mm: mn_strip's mains stand 0.4-1.5 m past a dead end, where the patch's 2 m cell carries the last 2 m's 2 + 7 cm
+    // a little way out - 10-13 mm; the 2 cm drop back reads 20 at w3, the pit 400 at mn_strip)
+    ok(rows.every(r => Math.abs(r.mm) < 15 && Math.abs(r.g) < 15), a.id + ': the stock build\'s tyres on the drawn ground at the stand (|tyre - drawn|, |drawn - terrainH| < 15 mm)',
+      rows.map(r => r.on + ' ' + r.mm.toFixed(1) + '/' + r.g.toFixed(1)).join(', '));
+  }
 }
 
 console.log('GATE CONTACT: ' + (fails ? 'FAIL' : 'PASS'));
