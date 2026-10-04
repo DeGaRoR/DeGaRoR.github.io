@@ -71204,3 +71204,21 @@ Touched: tools/build.js, src/viewer/sim_host.js, src/viewer/sim_link.js, src/vie
 (G1431); tools/perf/town_cook_node.js (+ _node1.json), tools/perf/town_cook_boot.js (+ _boot1.json), tools/perf/metla_ab.js
 (G1432). The generated files (flight_core.js, index.html, dev.html, sw.js, version.json) are not committed - A0's built
 commit.
+
+## TRAIN 29 LANDED (2026-10-04, A0 the coordinator)
+
+Cargo (on train 28 = 9825e1e0): MEM-BUDGET G1230-G1236 (a build budget per preset, GFX.BUDGETS, and upload as built:
+the potato load peak 2265 -> 1141 MB, held after the load 1720 -> 868 MB; A0: S.build set wherever a preset is set, the
+far terrain's tolerance from BUD.terrain), TOWN-COOK G1430-G1434 (Metlakatla's raster cooked, +14.11 MB, fetched only by
+a town-on page; metla_ab keeps METLA-TAXI's version, TOWN-COOK's --over options dropped).
+FIXED IN THE TRAIN: (1) HYBRID-FARTHER G1325's band back to 1.6-2.0 - CORRECTION of train 28's note: the trips red was
+NOT the box. It needs a taxi first (train_gate's bench taxis 450 frames before world -> garage; A0's first bisect ran
+`--only loads` and missed it). With `--only loads,taxi --taxi 450`: train 27 / train 28 to RUNWAY-LIGHTS (Pb) 0.3 s and
+8.9 s; + G1325 (Pc) world -> garage 2.8 s and garage -> world 14.1 s with ONE 5.2 s link (the live aeroplane used at
+the taxi, its program re-linked on the way back). HYBRID-TRIPS G1490 brings the farther band back without it.
+(2) GATE WORLDRENDER: its node harness loads MATLIB (train 28's runway-light materials are made through it; train 28
+landed with it red - its final build ran the changed gates only, not the battery).
+STRICT GATE (full, vs train 26's baseline, final build): 107 rows in slack, 43 better, 7 RED = the 30 cap's fps rows
+(EVEN-30, intended, as in train 28); the trips 0.2 / 8.9 s, floats 0.2 s, render and garage in slack. BATTERY: the
+full battery on the first build (WORLDRENDER only red), the changed gates on the final build (WORLDRENDER, FRAMECOST,
+HOUSEWORKER, MEDIA, ASSETS, BUILD, PREMCOOK, FLOWNBAKE) PASS; the parked aeroplanes re-cooked on it.
