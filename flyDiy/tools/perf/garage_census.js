@@ -112,7 +112,6 @@ const log = s => console.log('  ' + s);
     if (w.kind === 'check') { el.checked = !!v; el.dispatchEvent(new Ev('change')); return; }
     if (w.kind === 'step') { el.value = String(v); el.dispatchEvent(new Ev('change')); return; }
     if (phase === 'release') { el.dispatchEvent(new Ev('change')); W.dispatchEvent(new Ev('pointerup')); return; }
-    if (phase === 'tick' && (w.kind === 'slider' || w.kind === 'range')) el.dispatchEvent(new PE('pointerdown'));
     el.value = String(v); el.dispatchEvent(new Ev('input'));
   };
   // --prof: the warm-up rep of each row under the inspector's CPU profiler (this process IS the page): tick and release
@@ -162,6 +161,8 @@ const log = s => console.log('  ' + s);
       if (pr) await post('Profiler.start');
       T.acc = {}; T.on = true;
       const pv0 = W.CAGE_UI.preview ? W.CAGE_UI.preview.n : 0;
+      // the hand comes down a frame before it moves (the press is not the tick: G1443 measures the stand on it)
+      if (w.kind === 'slider' || w.kind === 'range') { w.el.dispatchEvent(new PE('pointerdown')); await P.until(() => false, 20); }
       const tA = now(); set(w, vals[i], 'tick'); const tick = now() - tA;
       const previewed = W.CAGE_UI.preview ? W.CAGE_UI.preview.n > pv0 : false;
       const L = snap(); T.acc = {};
