@@ -111,8 +111,26 @@ deploy workflow has never run. One physics-honesty item is large enough to be a 
 - E7 **Gates test single changes, not combinations**: pusher+tricycle, offsets+shakedown, mixed material rows, on→off→commit, rotated strips. A cheap sweep (rank / NaN / zero-length / mirror over paired configurations, and the join round trip through "off") would have caught B10, B11, A3, A5 immediately.
 - E8 **Delivery has no post-push check** (A1, B26–B28): the build is deterministic and content-addressed (the strongest part), but freshness of the committed outputs rests on discipline and nothing confirms the live build id.
 
-## F. WHAT THE REVIEWER WILL FIX IN THIS BRANCH (small, local, after this report)
-Candidates that are one to a few lines, do not move any anchored gate number, and are verified by a cheap gate: A6 (house yaw), A7 (dispose guard), A8 (camera reset), B15 (sea midnight wrap), B17 (undo cleared on specApplied), B23 (lazy-load catch/finally), B26 (`--only` guard), the `trqOf` debug line. Everything that moves a flown number (B1, B3, B4, B10, D1) and the deploy workflow (A1, an infra change) is left to the coordination session with the fix described above.
+## F. THE SMALL FIXES, APPLIED (commit 8544302 on ccr-4c7cf662-zcpqoe)
+Source only; the generated flight_core.js / index.html / dev.html are left for the train's own "(built)" commit.
+- A6 `20_world.js:733` settlement houses register `yaw: -b.rot`. Verified with a footprint probe against the renderer's
+  frame (THREE rotation.y = −rot, scale (w, hgt, l)): 99.0 % agreement at rot −0.79 / 0.60 / 2.00 with a 0.25 m raster
+  (66–71 % before; the remaining 1 % is the raster cell).
+- A7 `app.js:4405` the dispose branch also runs for `key === 'gen'` (the cage visual).
+- A8 `app.js fullReset` resets `flYawRate` and any non-finite `az/azT/el/elT/dist/distT`; `flCamera` returns on a
+  non-finite heading. (The 30-frame watchdog cadence is left as is.)
+- B15 `20_world.js dayTick` passes the wrapped day-time difference to `seaRelax`.
+- B17 `design_flow.js` clears `lastUndo`/`armed` on `flydiy:specApplied` (fired by `CAGE_UI.applySpec`, i.e. on a load,
+  a birth or the boot seed; not on a slider commit).
+- B23 `app.js PREM.openEditor` the lazy load's rejection is logged and `PREM.loading` is released in `finally`.
+- B26 `run_gates.js` an `--only` id that names no gate (or selects nothing) exits 2 with the ids named.
+- `30_solver.js trqOf` the debug print removed.
+Verified on a worktree build: `node --check` on every file; `--only=NOPE` exits 2; GATE PACE, DAY, DEFAULT, UISMOKE,
+JOIN, DESIGN, OBSTACLE, WORLD all PASS (`--only=...`, 227 s). No anchored flight number is touched by any of them.
+
+Left to the coordination session with the fix described above: A1 (the workflow folder: an infra change, and Pages'
+source must be switched to Actions at the same time or the two builders race), A2, A3, A4, A5, B1, B3, B4, B10 and D1
+(each moves a flown number or a gate assertion and needs its re-anchor), and everything in B/C not listed here.
 
 ## G. GATE BASELINE
 (appended when the core battery finishes on this machine)
