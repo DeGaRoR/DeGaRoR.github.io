@@ -1,0 +1,40 @@
+  == C (town=0) Cub
+  garage 53.4 s, roll-out 9.4 s, first flight 62.8 s (links 407, worst 3.8 s, 0 > 5 s)
+  toggle at 75104: {"far":4000,"hidden":70,"kept":1751,"groups":{"premises:ground":{"n":19,"shown":19,"drawn":19,"shadow":0},"premises:roads":{"n":13,"shown":13,"drawn":13,"shadow":4},"premises:tram":{"n":32,"shown":32,"drawn":32,"shadow":26},"premises:traffic":{"n":6,"shown":0,"drawn":0,"shadow":0}},"nodes":11607,"au
+  taxi  32.3 fps, uneven 17 %, p99 33.5, worst 50 ms, >100 0, worst task 0
+    raster {"baked":0,"bakeMs":0,"evicted":252,"decoded":379,"tiles":34978,"mb":48,"cookedCells":92,"cooked":{"taken":92,"stale":0},"total":{"baked":0,"bakeMs":0,"evicted":16456}}
+    frames h0: <20 21 % · 20-40 79 % · 40-60 0 % · 60-100 0 % · 100-250 0 % · 250-1000 0 % · >1000 0 % | p50 33.3 p90 33.4 p99 33.5 p99.9 33.5 ms | >1.5x cap 17 %, >3x 0 % | >100 ms 0, >1 s 0 (268 fr) ladder(x16.7ms) {"1":56,"2":212} caps {"30":176,"60":92} uneven@30 0.006
+      even (222): work 15.13 calls 1063 tris 24848659 world 1.42 scene 1.84 render 9.64 shadow 1.68 || long (46): work 17.64 calls 1023 tris 24797509 world 1.81 cover 0.77 fill 0.65 scene 1.95 render 10.35 shadow 1.71
+    frames h1: <20 7.6 % · 20-40 92 % · 40-60 1 fr · 60-100 0 % · 100-250 0 % · 250-1000 0 % · >1000 0 % | p50 33.3 p90 33.4 p99 33.5 p99.9 50 ms | >1.5x cap 8.8 %, >3x 0 % | >100 ms 0, >1 s 0 (249 fr) ladder(x16.7ms) {"1":19,"2":229,"3":1} caps {"30":208,"60":41} uneven@30 0
+      even (227): work 14.45 calls 1017 tris 24343216 world 1.39 scene 1.78 render 8.97 shadow 1.53 || long (22): work 15.05 calls 1046 tris 24026155 world 1.31 cover 0.62 scene 1.8 render 9.38 shadow 1.57
+  pass  30.8 fps, uneven 19 %, p99 50.1, worst 50.1 ms, >100 0, worst task 59
+    raster {"baked":0,"bakeMs":0,"evicted":46,"decoded":211,"tiles":36465,"mb":48,"cookedCells":92,"cooked":{"taken":92,"stale":0},"total":{"baked":0,"bakeMs":0,"evicted":16988}}
+    frames all: <20 8.2 % · 20-40 90 % · 40-60 2.2 % · 60-100 0 % · 100-250 0 % · 250-1000 0 % · >1000 0 % | p50 33.3 p90 33.4 p99 50.1 p99.9 50.1 ms | >1.5x cap 14 %, >3x 0.54 % | >100 ms 0, >1 s 0 (184 fr) ladder(x16.7ms) {"1":15,"2":165,"3":4} caps {"30":148,"60":36} uneven@30 0.061
+      even (157): work 17.06 calls 961 tris 30752088 world 1.85 cover 1.52 fill 0.88 scene 1.83 render 9.24 shadow 1.35 || long (27): work 18.1 calls 926 tris 30337773 world 2.42 cover 2.6 fill 1.41 scene 1.7 render 8.66 shadow 1.03
+  check {"town":false,"cut":231,"gfx":{"preset":"gamer","fps":"auto","town":"all","density":128,"shadows":"full"},"SPORT_GEN":false,"MARINE_GEN":false,"sportEntries":0,"marineEntries":0,"stats":{"houses":95,"objects":42,"queued":78},"kit":{"want":false,"status":"off","err":null,"island":null,"table":0,"kitPlots":0,"instances":0,"lots":0,"outKit":0,"outBuilt":0,"outHidden":0,"hits":0,"hitTris":0,"rebuilt":0,"tableMs":0,"packMs":0,"hostMs":0,"pack":null,"host":null}} exceptions 0
+  == T (town=1) Cub
+  garage 52.1 s, roll-out 9.4 s, first flight 61.5 s (links 403, worst 4.2 s, 0 > 5 s)
+  toggle at 73819: {"far":4000,"hidden":8491,"kept":1751,"groups":{"premises:ground":{"n":33,"shown":33,"drawn":33,"shadow":0},"premises:trees I":{"n":8028,"shown":0,"drawn":0,"shadow":0},"premises:roads":{"n":228,"shown":228,"drawn":228,"shadow":78},"premises:tram":{"n":32,"shown":32,"drawn":32,"shadow":26},"premises
+  taxi  32.9 fps, uneven 24 %, p99 33.5, worst 50 ms, >100 0, worst task 0
+    raster {"baked":0,"bakeMs":0,"evicted":104,"decoded":451,"tiles":38616,"mb":48,"cookedCells":89,"cooked":{"taken":89,"stale":3},"total":{"baked":1320,"bakeMs":730,"evicted":18191}}
+    frames h0: <20 25 % · 20-40 75 % · 40-60 1 fr · 60-100 0 % · 100-250 0 % · 250-1000 0 % · >1000 0 % | p50 33.3 p90 33.4 p99 33.5 p99.9 50 ms | >1.5x cap 23 %, >3x 0 % | >100 ms 0, >1 s 0 (272 fr) ladder(x16.7ms) {"1":67,"2":204,"3":1} caps {"30":148,"60":124} uneven@30 0.007
+      even (209): work 15.94 calls 1169 tris 25335269 world 1.47 scene 1.73 render 10.52 shadow 1.61 || long (63): work 16.68 calls 1167 tris 25191831 world 1.43 cover 0.5 fill 0.44 scene 1.73 render 10.56 shadow 1.65
+    frames h1: <20 12 % · 20-40 87 % · 40-60 2 fr · 60-100 0 % · 100-250 0 % · 250-1000 0 % · >1000 0 % | p50 33.3 p90 33.4 p99 33.5 p99.9 50 ms | >1.5x cap 9.4 %, >3x 0 % | >100 ms 0, >1 s 0 (256 fr) ladder(x16.7ms) {"1":31,"2":223,"3":2} caps {"30":208,"60":48} uneven@30 0.019
+      even (231): work 15.64 calls 1049 tris 24283523 world 1.44 cover 0.36 scene 1.76 render 9.99 shadow 1.54 || long (25): work 15.43 calls 1070 tris 24780389 world 1.4 scene 1.77 render 10.15 shadow 1.72
+  pass  32.1 fps, uneven 19 %, p99 50, worst 50.2 ms, >100 0, worst task 50
+    raster {"baked":0,"bakeMs":0,"evicted":84,"decoded":202,"tiles":40159,"mb":48,"cookedCells":89,"cooked":{"taken":89,"stale":3},"total":{"baked":1320,"bakeMs":730,"evicted":18571}}
+    frames all: <20 15 % · 20-40 84 % · 40-60 1.0 % · 60-100 0 % · 100-250 0 % · 250-1000 0 % · >1000 0 % | p50 33.3 p90 33.4 p99 50 p99.9 50.2 ms | >1.5x cap 8.8 %, >3x 0.52 % | >100 ms 0, >1 s 0 (192 fr) ladder(x16.7ms) {"1":28,"2":162,"3":2} caps {"30":160,"60":32} uneven@30 0.07
+      even (174): work 18.35 calls 976 tris 30866656 world 1.99 cover 2.15 fill 0.76 scene 1.8 render 9.94 shadow 1.35 || long (18): work 22.24 calls 984 tris 32139765 world 2.25 cover 3.34 fill 2.28 scene 1.84 render 11.14 shadow 1.04
+  check {"town":true,"cut":0,"gfx":{"preset":"gamer","fps":"auto","town":"all","density":128,"shadows":"full"},"SPORT_GEN":true,"MARINE_GEN":true,"sportEntries":2,"marineEntries":26,"stats":{"houses":95,"objects":42,"queued":558},"kit":{"want":true,"status":"decoded","err":null,"island":"jolene","table":522,"kitPlots":375,"instances":426,"lots":0,"outKit":0,"outBuilt":0,"outHidden":0,"hits":0,"hitTris":0,"rebuilt":0,"tableMs":400,"packMs":466,"hostMs":224,"pack":{"src":"media/townkit/townkit_2e8c3968b3e6.bin","bytes":4949098},"host":{"houses":426,"looks":421,"geos":302,"verts":1194228,"tris":[577482,65504,620],"mb":35.63652420043945,"tickMs":0.09999996423721313,"tickSum":8.199999928474426,"ticks":2195,"cullMs":7.999999701976776,"culls":430,"changes":426,"draws":1,"missing":[],"slotless":0,"buildMs":223,"mode":"batch","missingLayers":0,"waiting":false,"tries":5,"rungs":{"lod0":0,"lod1":0,"box":426,"partners":0,"none":0},"lookCount":421}}} exceptions 0
+
+side build  | garage  first-flight | TAXI fps uneven p99 worst task | PASS fps uneven p99 worst task (each: the runs' median; worst = the max)
+
+row | scene half | uneven (all) | uneven@30 | caps | ladder (x16.7 ms) | p99 | even-frame / long-frame work, gpu, calls
+0:C cub taxi h0 0.166 0.006 {"30":176,"60":92} {"1":56,"2":212} 33.5 15.13/null/1063 | 46fr 17.64/null/1023
+0:C cub taxi h1 0.166 0 {"30":208,"60":41} {"1":19,"2":229,"3":1} 33.5 14.45/null/1017 | 22fr 15.05/null/1046
+0:C cub pass all 0.19 0.061 {"30":148,"60":36} {"1":15,"2":165,"3":4} 50.1 17.06/null/961 | 27fr 18.1/null/926
+1:T cub taxi h0 0.237 0.007 {"30":148,"60":124} {"1":67,"2":204,"3":1} 33.5 15.94/null/1169 | 63fr 16.68/null/1167
+1:T cub taxi h1 0.237 0.019 {"30":208,"60":48} {"1":31,"2":223,"3":2} 33.5 15.64/null/1049 | 25fr 15.43/null/1070
+1:T cub pass all 0.193 0.07 {"30":160,"60":32} {"1":28,"2":162,"3":2} 50 18.35/null/976 | 18fr 22.24/null/984
+
+  -> D:\Dev\DeGaRoR.github.io\.claude\worktrees\youthful-herschel-499133\flyDiy\tools\perf\metla_taxi_census.json
