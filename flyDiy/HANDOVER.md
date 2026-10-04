@@ -72975,3 +72975,115 @@ craft walk every vertex through its bones (G1170.2 set the sphere, not the box).
 lights: a material compiled only in the world links fresh the first time the shed draws it. (4) app.js / aeroskin.js are
 in FLYDIY_BUILD: the parked cook goes stale - A0 re-cooks on the final build (I cooked locally for my runs, not committed).
 (5) Node writes from Git Bash: '/c/...' paths are D:\c\... to Windows node - pass 'C:/...'.
+## G1520-G1529 POTATO-DEEP: POTATO HELD 2.23 GB ON A 2 GB CARD - THE GTX 660'S WORLD WAS PAGING; 1.43 GB NOW, THE PLAIN GROUND, THE SHED'S LAMP MAPS OFF, A LAPTOP RUNG UNDER POTATO (2026-10-04, POTATO-DEEP for A0, local GPU; branch claude/potato-deep-g1520 on train/31 e2e89417)
+
+The user's test (4 Oct, GTX 660 2 GB, i7-8700, Chrome 154, 1920 x 911, potato; build b2a2b545 = TRAIN 27): shed 18 fps / GPU
+49 ms / 5 121 draws / 6.0 M tris; stand 2.8 fps / GPU 441 ms; taxi 2.0 fps / GPU 499 ms at 743 draws, 16.7 M tris; climb
+1.7 fps / GPU 583 ms; garage loading 141 s (bake 27.4, worldCompile 26.3, town 24.2, settle 20.5, upload 12.7 s); 27 tasks > 1 s.
+
+**G1520 - THE MEASUREMENT (the box's 3080 cannot time a GTX 660; what transfers is counted).** New rig
+`tools/perf/potato_census.js` (+ `potato_vram_hook.js`, injected at document start): one headed Chrome at 1920 x 911,
+`?gfx=<preset>`, the garage, the stand, the taxi (~25 s of the pilot's taxi) and the low pass (paused at AGL > 60 m); at each:
+draws / triangles / programs over one DRAWN frame (the 30 cap draws on every other rAF - a rAF census reads 0), by owner, by
+program, by render target; the GPU per drawn frame (EXT_disjoint_timer_query); EVERY WebGL allocation tallied per GL object
+(texImage/texStorage/compressed, renderbuffers x samples, bufferData; released on delete) and named through the scene's
+materials; `--split` (each owner hidden, re-timed), `--ab <json>` (live toggles, each re-counted), `--shots <dir>`.
+Usage: `node tools/perf/potato_census.js --out <json> [--q gfx=potato] [--page index.html] [--views garage,stand,taxi,low]
+[--split] [--ab <file>] [--shots <dir>]` - a GPU run: take the lock. The 3080's GPU ms in it are NOT a measure here: idle
+clocks and submission make identical states read 7.4-12 ms; read its counts and bytes.
+
+THE FINDING: **potato held 2 175-2 235 MB on the GPU (train 31, the cover fix in) - over the GTX 660's 2 GB.** The user's log
+is a card paging every world frame: its shed (working set fits) ran 2.5x the box's time, its world 40-50x, and the world's GPU
+time did not follow the triangles (441-583 ms at 0.4-17 M). By owner (stand, before): the tree impostor arrays 630 MB (two
+1024 x 1024 x 59 RGBA8, colour + normal); the aeroplane ~350 MB (the 4096^2 decal atlas 85, a 4096 x 2048 map 43, the flown
+bake's six 2048^2 atlases 128, its 2048 working targets); geometry 300 MB (the town 121, the aeroplane 83, the far terrain 43);
+the town's image textures ~230 MB (house sets 1024^2 / 512^2 map + normal + roughness, uncompressed; the scenery's animals
+53 MB); PMREM probes ~54-72 MB; the 4x target ~72 MB; the island packs 69 MB.
+THE SHED: 6 666 draws, 5.9 M tris a frame - **4 922 of the draws (74 %) and 4.6 M of the triangles are SHADOW MAPS**: the five
+lamps' 1024 spot maps (3 620 draws) and the key's 2048 map (1 302). potato's `shadows: off` is the world sun's; the shed's
+lamps never heard it.
+THE GROUND: `ground: lean` was the SAME splat program with one set a type (uSNearN 1): the 5 x 5 terrain-code vote, hex-tiled
+triplanar colour + normal fetches, the IBL'd roughness - what the user saw as "detailed ground textures still present".
+
+THE POTATO BUDGET (GTX 660 at 1920 x 911, 0.67 = 1286 x 610, 30 fps): GPU memory under ~1.4 GB held (2 GB less the desktop's
+and Chrome's), draws under ~1 500 (the i7-8700 at three's per-draw cost), ~5 M triangles a frame, the ground's fragment program
+cheap. Top costs per phase AFTER (box census): garage 2 222 draws / 1.82 M tris (key map 1 302 draws); stand 784 draws /
+4.75 M tris = far terrain 1.47 M (24 draws, now cut at 6 px: -0.4..-0.6 M), town 1.39 M (150 draws), impostor cards 0.38 M,
+the live aeroplane 0.35 M (229 draws), ground ring 0.09 M; taxi 753 / 4.92 M (same owners); low pass 696 / 3.99 M.
+
+**G1521 - THE PLAIN GROUND ('ground' row step 'plain'; potato and laptop).** The island hook's programs carry NO splat
+(render_world `SP` null when `SPLAT_GROUND.api.plain()`; keyed ':plain'; GATE SPLAT holds every splice through SP); the sets
+are never fetched until a step asks (splat_ground `ensure`); the near ground keeps the satellite stack with a two-octave
+value-noise grain faded by the pixel footprint (no sampler). Live both ways (gfx_settings apply -> sp.plain -> groundSync
+re-keys the ground family). retro keeps 'lean'. Stills: `potato_{stand,taxi,low}_{before_train31,after}.jpg`.
+
+**G1522 - THE SHED'S GLASS**: GFX.BUDGETS `shedGlass: false` (potato, laptop) - no transmission pass (SOFT-GPU's half of
+the software shed frame); live through `window.FLYDIY_SHED` when the preset changes in the shed.
+
+**G1523 - THE CARD'S MEMORY, POTATO'S BUDGET LEVERS** (GFX.BUDGETS, read as the world builds):
+`impTile: 64` (render_world IMP_TILE: a 512 sheet - the impostor arrays 630 -> 157 MB, the bake 4x fewer pixels);
+`aeroAtlas: 2048` (aeroskin AERO_ATLAS_PX, taken when the atlas is first made - aeroskin.js loads before gfx_settings.js:
+85 -> 21 MB); `flownBake: false` (flown_bake step returns null: the live aeroplane flies; the six atlases + targets never
+held; the 'bake' step was 27.4 s on the user's box, 6.1 s on ours -> 1 ms; +150 draws at the stand, the live Cub's);
+`shedLamps: false` (hangar lamp: castShadow off - 6 666 -> 2 222 draws, 5.92 -> 1.82 M tris in the shed).
+**RESULT (box census, potato, same views): VRAM 2 175 -> 1 402 MB (garage), 2 230 -> 1 435 (stand), 2 233 -> 1 433 (taxi),
+2 235 -> 1 439 (low); programs at the stand 323 -> 302.** Census JSONs: `reports/evidence/POTATO-DEEP/census/`.
+
+THE TABLE (box census, 1920 x 911, the Cub, `reports/evidence/POTATO-DEEP/census/*.json`; draws = every render() of one drawn frame):
+
+    phase    | GPU memory held (MB)          | draws                 | triangles (M)
+             | potato t31 -> potato -> laptop| t31 -> potato -> lapt | t31 -> potato -> laptop
+    garage   | 2 175 -> 1 402 -> 1 357       | 6 666 -> 2 222 -> 2 222 | 5.92 -> 1.82 -> 1.82
+    stand    | 2 230 -> 1 435 -> 1 363       | 630 -> 784 -> 769     | 4.75 -> 4.75* -> 4.20
+    taxi     | 2 233 -> 1 433 -> 1 365       | 599 -> 753 -> 738     | 4.92 -> 4.92* -> 4.37
+    low pass | 2 235 -> 1 439 -> 1 368       | 543 -> 696 -> 680     | 3.99 -> 3.99* -> 3.43
+    (* measured before G1525's rough terrain: -0.4..-0.6 M more at each world view)
+WHAT 'plain' DROPS: the splat's whole text (the 5 x 5 code vote, the candidate loop's hex-tiled triplanar colour + normal fetches,
+the pools, the recolour, the IBL'd roughness), its two sampler arrays and their uniforms, the sets' fetch and transcode; it keeps
+the stack (the Landsat tint, the radar overlay, the canopy shade, the snow, the shore, the lake beds) and the rock map.
+WHAT THE LAPTOP RUNG DROPS (over potato): 44 % of the pixels (scale 0.5), the target's 4x MSAA, the town past 1 200 m (800 at
+the boot), a quarter of the forest's reach (forestK 0.5), the scenery life past 0.35 of gamer's distance.
+
+**G1524 - THE LAPTOP RUNG** (PRESETS.laptop + BUDGETS.laptop, first in the menu; welcome.js suggests it for Intel HD / UHD /
+Iris (not Iris Xe = potato), AMD integrated, Mali / Adreno). Potato's rows at scale 0.5 (0.44 Mpx, 56 % of potato's), the
+target's MSAA capped at 0 (aa_resolve `setMsaaCap`, budget `msaa: 0` - an integrated part's frame is its memory bandwidth),
+town boot / reach 800 / 1 200 m, forestK 0.5, the scenery life at 0.35 of gamer's distance (scenery_life TIER_DIST).
+Box census: VRAM 1 357-1 368 MB, stand 769 draws / 4.20 M tris, taxi 738 / 4.37 M, low 680 / 3.43 M, garage 2 222 / 1.82 M.
+The HD 620 is ~1/3 of a GTX 660 in ALU and has ~1/5 of its bandwidth (shared DDR4): the rung buys it in pixels and samples
+(~1/4 of potato's target bytes a frame); its triangles are potato's less ~12 % - see OWED.
+**G1525 - THE TERRAIN 'rough' step (6 px)**: the far cut's A/B on potato (live, the same views): 3 -> 5 px -415 k tris at
+the stand / taxi / low (-9 %), 3 -> 8 px -575 k (-12..-15 %); the ring at 5 px -13 k (nothing), the fine disc off -50 k
+(kept), forest density 70 -68 k (kept 100), the town hidden -1.38 M / -150 draws (its 29 % - the biggest owner left).
+potato AND laptop take 'rough'.
+
+THE BAKE'S TRADE (A0 / the user may reverse it: BUDGETS.potato flownBake true): FRAMECOST's census under potato, train/31 vs
+this branch (FRAMECOST_GFX='{"preset":"potato"}', the Cub): the boot's 'bake' step 1 020 draws / 146 MB of buffers -> 0, the
+garage compile 14 443 -> 6 420 draws, the first frame 6 984 -> 2 390 (the lamp maps); the stand +154 draws, +2 400 GL calls,
+uniform bytes 107 -> 231 k a frame (the live Cub's 74 materials instead of the bake's 7 draws). Kept: the GTX 660 box spent 27 s
+on the bake and the card's memory was the frame; the CPU side on an i7-8700 is ~2-3 ms.
+
+GATES (node): GFX (new §10: retro / current / gamer / ultra rows AND budgets frozen to train 31's, potato / laptop rows and
+levers, the pv 8 migration - a potato saved at pv 7 reads potato, not custom; gamer / custom untouched - the live plain /
+glass / MSAA hooks, laptop -> gamer lifts the cap), SPLAT (the plain splices), POSTFX (six tiers). tools/perf/train_gate.js
+--light: RED (30 rows) and NOT a reading - a stale light baseline (its fps rows predate EVEN-30's 30 cap: 33 -> 29-30 on
+every row), a fresh profile (the program cache cold: compile 2 -> 6 s, the garage +10-15 s, "links over 5 s, a cache miss")
+and sound-coord's CPU battery running beside it; A0's same-session A/B / train 32's --full is the verdict. BOOT: PASS.
+FRAMECOST: RED on a STALE PARKED COOK (parked_cook --check: manifest f5cd36, tree 887007 - the parked aeroplanes captured live,
+the HINT's signature); THE PROOF the branch moves nothing on gamer: the census (the Cub, gamer) on a train/31 worktree and on
+this branch, both stale alike: `_framecost_check.js --compare` - NO counter moves at the stand, the taxi or the boot; 1 180 MiB
+of texture uploads both. The train re-cooks on its final build (A0).
+DESKTOP PRESETS: untouched by construction - every new lever is a BUDGETS row absent from retro..ultra (GATE GFX §10), the
+ground's plain() is called with false there (no re-key: groundSync compares), the MSAA cap is never set without a budget cap.
+
+HOW TO TEST (for the user, A0 relays): on the GTX 660 open the game with `?gfx=potato` (the saved potato also moves to the new
+rows by itself), on the EliteBook `?gfx=laptop` (or pick 'laptop' at the top of GRAPHICS > performance); play the stand, a
+taxi, a circuit and the garage; then GRAPHICS > (the flight log) **Save log** and send the file. What to look for: the world
+at an even 30 (the frame was paging), the shed at 30, no multi-second freezes; the ground is the satellite colour with a fine
+grain (no textured patches), the impostor trees a little softer, the shed's lamps without their own shadows.
+
+OWED (measured, not done): the scenery's animals have no switch (53 MB of 1024 textures + their draws on potato); the town's
+image textures (~150 MB uncompressed house sets) want a potato downscale or a KTX2 cook; the town is 1.38 M tris / 150 draws
+at the stand on potato (scenery 'low' already) - a cheaper far house tier would be the next potato cut; the rock map's 2048
+atlas + map (~50 MB) could be 1024 on potato (its 256 px slots need a re-pack); the potato frame's MSAA (4x in the target) is
+kept - its cost needs the card; dynamic resolution was NOT added (EVEN-30: a moving scale is uneven; potato keeps 0.67 fixed,
+laptop 0.5); no GTX 660 / HD 620 numbers exist yet - the user's next log is the measurement.
