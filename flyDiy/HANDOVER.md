@@ -71905,6 +71905,16 @@ shots.json has each pill's box (the welcome / loading pictures as JPEG - their p
 dev.html checked end to end in the same browser: ?v= stripped at load, the pill, both stamps, Update navigates and the
 new page comes back clean.
 
+**BATTERY** (`node tools/run_gates.js`, core, 148 jobs, jobs 4 on this 4-core cloud box, wall 77 min): 143 PASS, 5 RED,
+none of them this change's:
+- WORLD (terrainH 3.25 us/call vs 2.5), BIOME (surface 8.5 us vs 5), SETTLE (bake 1126 ms) and INSTANT (the 1800 s cap):
+  time budgets under 4 gates on 4 cores. Re-run alone (`--only=WORLD,BIOME,SETTLE,INSTANT --jobs=1`): all PASS - 1.42 us,
+  4.3 us, 410 ms, INSTANT 1765 s - with the same checksums (30165946.716, 293998). No core file is touched here.
+- FRAMECOST (24 rows: the cub's stand / taxi / garage-boot draws and uniforms) = THE STALE PARKED COOK (any build-id
+  change; the gate's own HINT). Proved by an A/B on a master worktree (44b7a381): as is -> PASS; + one comment line in
+  src/viewer/storage.js -> FAIL (24), THE SAME 24 ROWS. The train re-cooks on its final build (parked_cook.js, a GPU tool).
+- GATE UPDATE: PASS (67 checks; --selftest PASS, 8/8 sabotages red).
+
 **KNOWN, NOT FIXED.** (1) After an update the address bar's PLAIN URL may still be in the browser's HTTP cache (max-age
 600) holding the old page: a later bookmark / typed visit inside those 10 minutes can open it - the pill then shows again
 and one more press fixes it (refreshing that entry would cost a second request; the rule was version.json only).
