@@ -72218,6 +72218,7 @@ The parked aeroplanes re-cooked on the final build.
 LESSONS: a killed script leaves its boxlock files (its trap never runs) - train 31's re-pass waited 40 min on A0's own stale
 CPU lock; boxlock's `take` once wrote its lock and then waited on itself (the noclobber write's status lost) - A0's scripts
 now accept a lock already in their own name.
+
 ## REVIEW 2026-10-04 — INDEPENDENT REVIEW (architecture + bug hunt), on branch ccr-4c7cf662-zcpqoe
 
 An outside read of the engine, the editor, the loop and the release, written up in

@@ -152,6 +152,14 @@ function geomDiff(d0, d1) {
   });
   for (const k of ['gx', 'tr', 'designGross'])
     if (!near(d0.parts[k], d1.parts[k])) out.push(k + ' ' + d0.parts[k] + ' -> ' + d1.parts[k]);
+  // THE EMPTY AEROPLANE: every ledger row that is not payload weighs the same (a dry corner flew without its tank
+  // shells and its fuel lines - genSpecAtFuel drained the capacity they were sized off)
+  const L0 = d0.parts.ledger || {}, L1 = d1.parts.ledger || {};
+  for (const k of new Set([...Object.keys(L0), ...Object.keys(L1)])) {
+    const a = L0[k], b = L1[k];
+    if ((a && a.payload) || (b && b.payload)) continue;
+    if (!near(a ? a.mass : 0, b ? b.mass : 0)) out.push('empty ' + k + ' ' + (a ? a.mass : 0).toFixed(3) + ' -> ' + (b ? b.mass : 0).toFixed(3) + ' kg');
+  }
   return out;
 }
 // (a zero-length beam is the review's B10 - the twin boom's HTL/HTR on the boom chain - and GATE GENPAIRS's, not
