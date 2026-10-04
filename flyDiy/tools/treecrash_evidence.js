@@ -67,6 +67,7 @@ function lineChart(x0, y0, w, h, title, series, xl, yl, o = {}) {
 // the beams from above (the track along x, left up), from a recorded frame: grey whole, yellow bent / set, red dashed
 // broken; the trunk. `view` [cx, cy, span] in the track's frame
 function topdown(x0, y0, w, h, title, r, F, view, foot) {
+  const F0 = r.frames[0], len = (F, i) => Math.hypot(F.beams[i][1][0] - F.beams[i][0][0], F.beams[i][1][1] - F.beams[i][0][1]);
   const sc = Math.min(w, h - 30) / view[2];
   const X = x => x0 + w / 2 + (x - view[0]) * sc, Y = y => y0 + 30 + (h - 30) / 2 - (y - view[1]) * sc;
   let s = `<text x="${x0 + 6}" y="${y0 + 16}" font-size="13" font-weight="bold" fill="${COL.ink}">${esc(title)}</text>`;
@@ -74,6 +75,7 @@ function topdown(x0, y0, w, h, title, r, F, view, foot) {
   const st = new Uint8Array(F.beams.length); for (const i of F.bent) st[i] = 1; for (const i of F.broken) st[i] = 2;
   const order = F.beams.map((b, i) => i).sort((a, b) => st[a] - st[b]);
   for (const bi of order) {
+    if (st[bi] === 2 && len(F, bi) > 1.3 * len(F0, bi) + 0.05) continue;   // a broken member whose ends have parted: gone
     const [A, B] = F.beams[bi], c = st[bi] === 2 ? COL.broken : st[bi] === 1 ? COL.bent : COL.beam, wd = st[bi] ? 1.6 : 0.8;
     s += `<line x1="${X(A[0]).toFixed(1)}" y1="${Y(A[1]).toFixed(1)}" x2="${X(B[0]).toFixed(1)}" y2="${Y(B[1]).toFixed(1)}" stroke="${c}" stroke-width="${wd}" ${st[bi] === 2 ? 'stroke-dasharray="3 2"' : ''}/>`;
   }
@@ -143,15 +145,17 @@ for (const c of Object.keys(CASES)) {
     const at = (r, t) => r.frames.reduce((a, F) => (Math.abs(F.t - t) < Math.abs(a.t - t) ? F : a), r.frames[0]);
     const span = c === 'taxi3' || c === 'treehit' ? 14 : 20, t0 = rb.trace[0].t - 1 / 60;
     const Fb = at(rb, imp + 0.6), Fn = at(rn, imp + 0.6), Fe = rn.frames[rn.frames.length - 1];
-    const cen = F => { let x = 0, y = 0; for (const [A, B] of F.beams) { x += A[0] + B[0]; y += A[1] + B[1]; } return [x / (2 * F.beams.length), y / (2 * F.beams.length)]; };
+    // the wreck's middle: the median of the members' ends (a torn-off piece left behind does not drag it)
+    const cen = F => { const xs = [], ys = []; for (const [A, B] of F.beams) { xs.push(A[0], B[0]); ys.push(A[1], B[1]); } xs.sort((a, b) => a - b); ys.sort((a, b) => a - b); return [xs[xs.length >> 1], ys[ys.length >> 1]]; };
+    const near = (F, r) => { const c = cen(F); return Math.hypot(c[0] - r.trunk[0], c[1] - r.trunk[1]) < span / 3 ? [r.trunk[0], r.trunk[1], span] : [c[0], c[1], span]; };
     const ce = cen(Fe);
     const lab = L.BUILDS[k].label, dn = rn.dmg;
     body += topdown(0, 40 + row * h, w, h, lab + ' - before, ' + (Fb.t - t0).toFixed(1) + ' s', rb, Fb, [rb.trunk[0], rb.trunk[1], span], 'elastic (master): nothing yields');
-    body += topdown(w, 40 + row * h, w, h, lab + ' - now, ' + (Fn.t - t0).toFixed(1) + ' s', rn, Fn, [rn.trunk[0], rn.trunk[1], span], Fn.bent.length + ' set, ' + Fn.broken.length + ' broken by then');
+    body += topdown(w, 40 + row * h, w, h, lab + ' - now, ' + (Fn.t - t0).toFixed(1) + ' s', rn, Fn, near(Fn, rn), Fn.bent.length + ' set, ' + Fn.broken.length + ' broken by then');
     body += topdown(2 * w, 40 + row * h, w, h, lab + ' - now, the end (' + (Fe.t - t0).toFixed(1) + ' s, ' + ce[0].toFixed(0) + ' m on)', rn, Fe, [ce[0], ce[1], span],
       (dn.crashed ? 'CRASHED: ' + dn.reason : dn.members ? 'dented, no crash' : 'no set') + ' · ' + dn.members + ' set · ' + dn.breaks + ' broken · ' + (dn.work / 1000).toFixed(1) + ' kJ');
   });
-  const head = `<text x="10" y="22" font-size="15" font-weight="bold" fill="${COL.ink}">TREE-CRASH: ${esc(CASES[c].label)} - the beams from above</text>` + legendTD(10, 34);
+  const head = `<text x="10" y="22" font-size="15" font-weight="bold" fill="${COL.ink}">TREE-CRASH: ${esc(CASES[c].label)} - the beams from above (a broken member is drawn while its ends are still together)</text>` + legendTD(10, 34);
   fs.writeFileSync(path.join(OUT, 'topdown_' + c + '.svg'), svgDoc(3 * w, 40 + 2 * h, head + body, 'TREE-CRASH top-down ' + c));
 }
 console.log('wrote', fs.readdirSync(OUT).join(', '));
