@@ -76,6 +76,7 @@ const FP = fs.readFileSync(path.join(__dirname, 'perf', 'garage_lag_same.js'), '
     }
     P.close();
   }
-  console.log(bad ? '  FAIL: ' + bad + ' row(s) differ' : '  PASS: every drag ended on the plain build\'s aeroplane');
+  console.log(bad ? '  ' + bad + ' row(s) differ' : '  every drag ended on the plain build\'s aeroplane');
+  console.log(bad ? 'GATE INSTANT: FAIL (' + bad + ' row(s) differ)' : 'GATE INSTANT: PASS');
   process.exit(bad ? 1 : 0);
-})().catch(e => { console.error('_instant_check: ' + (e && e.stack || e)); process.exit(1); });
+})().catch(e => { console.error('_instant_check: ' + (e && e.stack || e)); console.log('GATE INSTANT: FAIL (threw)'); process.exit(1); });
