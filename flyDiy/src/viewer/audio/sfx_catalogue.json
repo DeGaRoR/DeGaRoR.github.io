@@ -236,5 +236,26 @@
   "kind": "shot",
   "durationS": 6.01,
   "lufs": -20.7
+ },
+ {
+  "key": "amb.rain.outside",
+  "file": "media/audio/sfx/amb_rain_outside_523391.da71d15a.mp3",
+  "kind": "bed",
+  "durationS": 32,
+  "lufs": -23
+ },
+ {
+  "key": "amb.birds.open",
+  "file": "media/audio/sfx/amb_birds_open_456766.c24bacac.mp3",
+  "kind": "bed",
+  "durationS": 32,
+  "lufs": -23
+ },
+ {
+  "key": "amb.lake.shore",
+  "file": "media/audio/sfx/amb_lake_shore_352356.21fc75ef.mp3",
+  "kind": "bed",
+  "durationS": 32,
+  "lufs": -29.7
  }
 ]

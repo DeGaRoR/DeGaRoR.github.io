@@ -1251,6 +1251,9 @@ shot to its event), levelled, MP3-encoded (`tools/audio/prep_sfx.js`). CC0 asks 
 - `water.drip` — *Two_Drips_001.wav* by **jamesabels** (freesound #166986, https://freesound.org/people/jamesabels/sounds/166986/), CC0 1.0
 - `ui.click` — *Soft UI Button Click* by **Jummit** (freesound #528561, https://freesound.org/people/Jummit/sounds/528561/), CC0 1.0 — coordinator's gap fill
 - `vehicle.pickup` — *truck pickup pass slow gravel crunchy snow.flac* by **kyles** (freesound #450227, https://freesound.org/people/kyles/sounds/450227/), CC0 1.0
+- `amb.rain.outside` — *Forest, light rain.wav* by **Anya_Media** (freesound #523391, https://freesound.org/people/Anya_Media/sounds/523391/), CC0 1.0 — coordinator's gap fill
+- `amb.birds.open` — *Birds Ambience Atmosphere early morning field slight breeze.wav* by **WavJunction.com** (freesound #456766, https://freesound.org/people/WavJunction.com/sounds/456766/), CC0 1.0 — coordinator's gap fill
+- `amb.lake.shore` — *Gentle small waves lapping on shore.wav* by **Alex_hears_things** (freesound #352356, https://freesound.org/people/Alex_hears_things/sounds/352356/), CC0 1.0 — coordinator's gap fill
 
 <!-- SFX:END -->
 

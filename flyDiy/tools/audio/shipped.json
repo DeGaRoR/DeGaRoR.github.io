@@ -474,5 +474,47 @@
   "source": "https://freesound.org/people/kyles/sounds/450227/",
   "licenceChecked": "2026-10-04",
   "pick": "user"
+ },
+ {
+  "key": "amb.rain.outside",
+  "file": "media/audio/sfx/amb_rain_outside_523391.da71d15a.mp3",
+  "kind": "bed",
+  "durationS": 32,
+  "lufs": -23,
+  "id": 523391,
+  "title": "Forest, light rain.wav",
+  "author": "Anya_Media",
+  "licence": "CC0-1.0",
+  "source": "https://freesound.org/people/Anya_Media/sounds/523391/",
+  "licenceChecked": "2026-10-04",
+  "pick": "coordinator"
+ },
+ {
+  "key": "amb.birds.open",
+  "file": "media/audio/sfx/amb_birds_open_456766.c24bacac.mp3",
+  "kind": "bed",
+  "durationS": 32,
+  "lufs": -23,
+  "id": 456766,
+  "title": "Birds Ambience Atmosphere early morning field slight breeze.wav",
+  "author": "WavJunction.com",
+  "licence": "CC0-1.0",
+  "source": "https://freesound.org/people/WavJunction.com/sounds/456766/",
+  "licenceChecked": "2026-10-04",
+  "pick": "coordinator"
+ },
+ {
+  "key": "amb.lake.shore",
+  "file": "media/audio/sfx/amb_lake_shore_352356.21fc75ef.mp3",
+  "kind": "bed",
+  "durationS": 32,
+  "lufs": -29.7,
+  "id": 352356,
+  "title": "Gentle small waves lapping on shore.wav",
+  "author": "Alex_hears_things",
+  "licence": "CC0-1.0",
+  "source": "https://freesound.org/people/Alex_hears_things/sounds/352356/",
+  "licenceChecked": "2026-10-04",
+  "pick": "coordinator"
  }
 ]
