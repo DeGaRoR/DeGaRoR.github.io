@@ -6,7 +6,7 @@
 //   --mode garage  a PROTOTYPE of a garage-only entry: the SAME app.js with the world's boot steps taken out by a source
 //                  transform applied in THIS rig only (vm.runInContext is wrapped for src/viewer/app.js) and ?world=none
 //                  (the island is never fetched). What stays: treeBins off, aircraft, garage, editor, seed, snapshot, spec,
-//                  restore, compile, firstFrame, recheck. Every replacement must match once or the rig stops (a moved
+//                  restore, compile, firstFrame, recheck (re-planning nothing). Every replacement must match once or the rig stops (a moved
 //                  line in app.js is a stale prototype, not a silent full boot).
 // Per boot step (BOOT.current's label): REAL ms (process.hrtime, node is ~1.6x the box's JS), the on-disk bytes the page
 // read (fetch + XHR + images = the wire before HTTP compression), and the process's memory at the step's end (V8 heap
@@ -44,6 +44,9 @@ const GARAGE_ONLY = [
   ["bootTripStep('frames');", ''],
   ["bootTripStep('craft');", ''],
   ['if (SIMW) SIMW.prewarm(); }', '}'],
+  // the boot's last step re-plans the aircraft's keyed steps and runs what moved - with bake and craft taken out above,
+  // it ran the FLOWN BAKE there (seen on SwiftShader: recheck 140 -> 340 s); a garage-only boot re-plans nothing
+  ["const plan = tripPlan('craft'); if (!plan.length) return;", 'return;'],
 ];
 if (MODE === 'garage') {
   const run0 = vm.runInContext;
