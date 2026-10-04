@@ -8,7 +8,7 @@
    "key": "breeze",
    "title": "The game's day: a light breeze, 16:00 local (DAY_CLOCK GAME_DAY)",
    "file": "breeze.opus",
-   "seconds": 128,
+   "seconds": 126.8,
    "numbers": {
     "windKt": 8,
     "windDirT": 250,
@@ -25,7 +25,7 @@
     {
      "title": "Tuning in",
      "at": 0,
-     "voiceS": 35.65,
+     "voiceS": 35.7,
      "clips": 36,
      "bed": "Peaceful Royalty Free Guitar - \"I'm Callin' Late\" — Matthew C. Wright",
      "segments": [
@@ -49,8 +49,8 @@
     },
     {
      "title": "Break 2",
-     "at": 44.3,
-     "voiceS": 45.34,
+     "at": 44.35,
+     "voiceS": 44.57,
      "clips": 28,
      "bed": "Ranchero — Mr Smith",
      "segments": [
@@ -82,8 +82,8 @@
     },
     {
      "title": "Break 3",
-     "at": 98.29,
-     "voiceS": 21.06,
+     "at": 97.58,
+     "voiceS": 20.56,
      "clips": 13,
      "bed": "Calming Royalty Free Guitar - \"A Cloudy Life\" — Matthew C. Wright",
      "segments": [
@@ -111,7 +111,7 @@
    "key": "front",
    "title": "A front an hour out (weather_ui \"a front\"), 06:10 local",
    "file": "front.opus",
-   "seconds": 139.5,
+   "seconds": 139.3,
    "numbers": {
     "windKt": 15.7,
     "windDirT": 190,
@@ -128,7 +128,7 @@
     {
      "title": "Tuning in",
      "at": 0,
-     "voiceS": 37.64,
+     "voiceS": 38.03,
      "clips": 41,
      "bed": "Ships — Mr Smith",
      "segments": [
@@ -152,8 +152,8 @@
     },
     {
      "title": "Break 2",
-     "at": 46.29,
-     "voiceS": 46.99,
+     "at": 46.68,
+     "voiceS": 46.56,
      "clips": 32,
      "bed": "Quidi Vidi — Mr Smith",
      "segments": [
@@ -185,8 +185,8 @@
     },
     {
      "title": "Break 3",
-     "at": 101.93,
-     "voiceS": 28.9,
+     "at": 101.89,
+     "voiceS": 28.76,
      "clips": 24,
      "bed": "In the Mist — Mr Smith",
      "segments": [
@@ -214,7 +214,7 @@
    "key": "gale",
    "title": "A gale (weather_ui \"gale\"), 07:45 local",
    "file": "gale.opus",
-   "seconds": 117,
+   "seconds": 133.8,
    "numbers": {
     "windKt": 35,
     "windDirT": 245,
@@ -256,7 +256,7 @@
     {
      "title": "Break 2",
      "at": 44.23,
-     "voiceS": 49.25,
+     "voiceS": 48.5,
      "clips": 32,
      "bed": "Peaceful Royalty Free Guitar - \"I'm Callin' Late\" — Matthew C. Wright",
      "segments": [
@@ -288,9 +288,9 @@
     },
     {
      "title": "Break 3",
-     "at": 102.12,
-     "voiceS": 6.2,
-     "clips": 5,
+     "at": 101.39,
+     "voiceS": 23.72,
+     "clips": 17,
      "bed": "Ranchero — Mr Smith",
      "segments": [
       {
@@ -305,15 +305,14 @@
        "kind": "marine",
        "key": "marine",
        "text": "And the marine forecast. Marine forecast for the inside waters, Jolene Sound and the passages, gale warning. This morning, southwest wind thirty-five knots, gusts to fifty-five. Seas two feet. Outlook, little change.",
-       "clips": 0,
-       "resolved": false,
-       "missing": [
-        "n.55"
-       ]
+       "clips": 12,
+       "resolved": true,
+       "missing": []
       }
      ]
     }
    ]
   }
- ]
+ ],
+ "unresolved": 0
 }
