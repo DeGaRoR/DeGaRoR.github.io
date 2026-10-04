@@ -594,6 +594,14 @@ let wallTab = {};
 try { wallTab = JSON.parse(fs.readFileSync(WALL_FILE, 'utf8')); } catch (e) {}
 
 const selected = GATES.filter(g => !(only && !only.includes(g.id)) && !(coreOnly && g.tier !== 'core'));
+// REVIEW 2026-10-04 (B26): an --only id that names no gate selected nothing and the summary printed BATTERY: PASS
+if (only) {
+  const unknown = only.filter(id => !GATES.some(g => g.id === id));
+  if (unknown.length || !selected.length) {
+    console.error(`run_gates: unknown gate id(s) in --only: ${unknown.join(', ') || '(none selected)'}`);
+    process.exit(2);
+  }
+}
 const skipped = GATES.filter(g => !(only && !only.includes(g.id)) && coreOnly && g.tier !== 'core').length;
 
 // one job per gate, or per shard when the pool can use them
