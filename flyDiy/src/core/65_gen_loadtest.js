@@ -167,7 +167,15 @@ function makeLoadTest(sim, def, cfg) {
   const SURF = GEN_LOAD_SURFACES[cfg.surface || 'wing'] || GEN_LOAD_SURFACES.wing;
   const AX = SURF.axis, SK = SURF.station;
   const st = genLoadStations(def, 0, cfg.surface);
-  const ok = st.length >= 2;
+  // A SURFACE THE RIG CANNOT LOAD IS REFUSED, AND SAYS WHY (REVIEW 2026-10-04
+  // D4). The V-tail has no spar truss: its stab and fin rigs found no tagged
+  // stations and no strips of their kind, and the caller read a bare
+  // ok:false (or, with stations and no strips, a bagless rig would have read
+  // 0 % and passed). `why` names the missing tag or strip kind.
+  let ok = st.length >= 2;
+  let why = ok ? null
+    : `no ${SURF.front}/${SURF.rear} spar stations (the ${cfg.surface || 'wing'} has no tagged truss on this airframe)`;
+  if (ok && st.some(s => s.r < 0)) { ok = false; why = `no ${SURF.rear} node to pair with the ${SURF.front} stations`; }
   const root = ok ? st[0] : null, tip = ok ? st[st.length - 1] : null;
   const semi = ok ? def.nodes[tip.f].p[SK] - (SK === 1 ? def.nodes[root.f].p[SK] : 0) : 1;
 
@@ -193,6 +201,7 @@ function makeLoadTest(sim, def, cfg) {
   }
   const bags = [];
   perG.forEach((f, i) => bags.push([i, f]));
+  if (ok && !bags.length) { ok = false; why = `no ${SURF.strips.join('/')} strips to lay the bags on`; }
 
   // the trestles: everything that is not the surface is pinned where it starts
   const wingTag = {};
@@ -210,7 +219,7 @@ function makeLoadTest(sim, def, cfg) {
                   defl: st.map(function () { return 0; }), z: st.map(s => s.z),
                   semi: semi, worstPct: null, worstCls: null, worstBeam: -1,
                   limitPct: null, ultPct: null, limitYield: null, ultYield: null,
-                  verdict: null, done: false, W: W, ok: ok };
+                  verdict: null, done: false, W: W, ok: ok, why: why };
 
   let t = 0, base = null, peak = {};
 
