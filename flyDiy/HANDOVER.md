@@ -68726,3 +68726,21 @@ SND-TUNE's LIST (every number is a first guess against the engine's level, none 
   (thump 90 - 240 Hz, scuff by surface, chirp 2.3 -> 1.5 kHz); the slap rates (displacement vs step) and the spray band; the
   creak resonators (520 / 1350 Hz: metal and fabric not told apart yet); the flap motor (165 Hz saw); the warning band (0.075
   rad) and its airflow gate (55 - 85 % of Vs).
+
+## G1636 - THE RECORDED SOUNDS SHIP, AND THE PAGES NAME THEM (2026-10-04, Sound Coordinator, integration)
+
+The user judged 61 of the 135 candidates on the "flyDiy Sound Picks" board and asked to stop reviewing near-duplicates,
+so the coordinator finalised `tools/audio/sfx_selection_v1.json`: the user's keeps, one per role, duplicates dropped, three
+gap fills marked `pick: 'coordinator'` (an owl, a summer meadow, one UI click - unheard by the user). `tools/audio/prep_sfx.js`
+cuts and levels them (mono, high-pass, a bed = its steadiest 32 s at -23 LUFS, a loop 10 s, a shot its event at a -3 dBFS
+peak capped -16 LUFS; MP3 96/128 kb/s) into `media/audio/sfx/` through _media_lib (owned dir, pruned), and writes
+`src/viewer/audio/sfx_catalogue.json` (the manifest), `tools/audio/shipped.json` (the ledger: source, author, CC0, the
+date the licence line was re-checked) and CREDITS.md's generated block (SFX:BEGIN/END, one row per file).
+`prep_sfx.js --check` exits 1 on a missing file, an orphan or a stale CREDITS block. 34 files, 7.7 MB: 19 beds (forest day /
+night, 4 winds, surf, rocky shore, lake near / lapping, stream, harbour, village, airfield, hangar, roof drip, frogs, loons,
+meadow), 1 loop (gravel rolling), 14 shots (eagle x2, gull, crow, owl, dog, creak x2, door, switch x2, drip, UI click, pickup).
+THE PAGES: build.js inlines `window.FLYDIY_AUDIO_MEDIA = { key: [url, ...] }` from the catalogue beside FLYDIY_MUSIC
+(SND-AIRFRAME's samples.js reads it: gnd.gravel, mech.creak, mech.switch resolve today; the amb.* keys wait for SND-AMB-1).
+GATE MEDIA learns the two sound catalogues and the .mp3 extension (media/audio/* is held referenced == present like every
+other media directory). run_gates: GATE AUDIO `wall: 45` (SND-AIRFRAME made it ~34 s). GATES: AUDIO, AUDIOENG, BUILD,
+UISMOKE, MEDIA, BOOT PASS.

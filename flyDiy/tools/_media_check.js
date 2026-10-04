@@ -264,10 +264,14 @@ function manifestFiles() {
   // shipped yet - the manifest appears with the first bake the user approves)
   const townkit = fs.existsSync(path.join(ROOT, 'src', 'core', 'townkit_pack.json'))
     ? [path.join(ROOT, 'src', 'core', 'townkit_pack.json')] : [];
-  return v.concat(packs, pier, totems, panelhw, cabin, models, chars, animals, trees, shots, worlds, townkit);
+  // THE SOUND (G1636): the recorded sounds (tools/audio/prep_sfx.js owns media/audio/sfx) and the music
+  // (the coordinator's prep owns media/audio/music) - each named by its inlined catalogue
+  const sound = ['sfx_catalogue.json', 'music_catalogue.json'].map(f => path.join(ROOT, 'src', 'viewer', 'audio', f))
+    .filter(f => fs.existsSync(f));
+  return v.concat(packs, pier, totems, panelhw, cabin, models, chars, animals, trees, shots, worlds, townkit, sound);
 }
 
-const REF_RE = /media\/[A-Za-z0-9_\-./]+?\.(?:jpg|png|webp|bin|ktx2)/g;   // webp: LOADING S4's texture prep; ktx2: AS3's (G916)
+const REF_RE = /media\/[A-Za-z0-9_\-./]+?\.(?:jpg|png|webp|bin|ktx2|mp3)/g;   // webp: LOADING S4's texture prep; ktx2: AS3's (G916); mp3: the sound (G1636)
 
 function collectRefs(files) {
   const refs = new Map();               // rel path -> first manifest naming it

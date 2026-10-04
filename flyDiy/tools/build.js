@@ -922,7 +922,12 @@ window.FLYDIY_BOOT.then(function () {
   // G1673: the music catalogue (a manifest, inlined - never fetched, so never stale under sw.js's cache-first media rule)
   const MUSIC_CAT = path.join(VIEW_DIR, 'audio', 'music_catalogue.json');
   const MUSIC = fs.existsSync(MUSIC_CAT) ? JSON.stringify(JSON.parse(fs.readFileSync(MUSIC_CAT, 'utf8'))).replace(/</g, '\\u003c') : '[]';
-  const CORE_SHA = `<script>window.FLYDIY_CORE_SHA='${sha(coreBody).slice(0, 12)}';window.FLYDIY_BUILD='${BUILD_ID}';window.FLYDIY_AUDIO_SRC=${JSON.stringify(AUDIO_SRC)};window.FLYDIY_MUSIC=${MUSIC}</script>`;
+  // G1636: the recorded sounds (tools/audio/prep_sfx.js -> src/viewer/audio/sfx_catalogue.json), inlined the same way as
+  // { key: [media/audio/sfx/... url, ...] } - SND-AIRFRAME's samples.js reads it; the ambience reads the amb.* keys
+  const SFX_CAT = path.join(VIEW_DIR, 'audio', 'sfx_catalogue.json');
+  const SFX = {};
+  if (fs.existsSync(SFX_CAT)) for (const r of JSON.parse(fs.readFileSync(SFX_CAT, 'utf8'))) (SFX[r.key] = SFX[r.key] || []).push(r.file);
+  const CORE_SHA = `<script>window.FLYDIY_CORE_SHA='${sha(coreBody).slice(0, 12)}';window.FLYDIY_BUILD='${BUILD_ID}';window.FLYDIY_AUDIO_SRC=${JSON.stringify(AUDIO_SRC)};window.FLYDIY_MUSIC=${MUSIC};window.FLYDIY_AUDIO_MEDIA=${JSON.stringify(SFX).replace(/</g, '\\u003c')}</script>`;
   fs.writeFileSync(path.join(ROOT, 'version.json'), JSON.stringify({ build: BUILD_ID, date: new Date().toISOString() }) + '\n');
   // THE MEDIA CACHE'S WORKER (LOADING S4): media/ only, cache-first - every file
   // there is named by its content hash, so a hit can never be stale; scripts,
