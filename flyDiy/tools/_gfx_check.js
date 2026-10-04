@@ -362,8 +362,8 @@ console.log('GATE GFX');
   const BP = G.BUDGETS.potato, BL = G.BUDGETS.laptop;
   ok(BP.impTile === 64 && BP.aeroAtlas === 2048 && BP.flownBake === false && BP.shedLamps === false && BP.shedGlass === false && BP.msaa === undefined,
      "potato builds: impostor tile 64, aero atlas 2048, no flown bake, no lamp maps, no shed glass, the tier's own MSAA");
-  ok(BL.msaa === 0 && BL.townReach < BP.townReach && BL.forestK < BP.forestK && G.PRESETS.laptop.scale === 0.5 && G.PRESETS.laptop.terrain > G.PRESETS.potato.terrain,
-     'laptop builds and draws less again: no target MSAA, the town and the forest nearer, half the resolution, the terrain rougher');
+  ok(BL.msaa === 0 && BL.townReach < BP.townReach && BL.forestK < BP.forestK && G.PRESETS.laptop.scale === 0.5 && G.PRESETS.laptop.terrain >= G.PRESETS.potato.terrain && G.PRESETS.potato.terrain === 6,
+     'laptop builds and draws less again: no target MSAA, the town and the forest nearer, half the resolution; both on the rough terrain (G1525)');
   // the pref's pv 8: a player ON potato (saved before this session: the lean ground) reads potato as it is now, not custom
   const old = { preset: 'potato', pv: 7, fps: 30, ground: 'lean', scale: 0.67, cover: 'off', scenery: 'low', terrain: 3 };
   const wp = boot({ 'flydiy.gfx': JSON.stringify(old) });

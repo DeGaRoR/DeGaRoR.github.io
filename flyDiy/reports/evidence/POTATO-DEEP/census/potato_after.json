@@ -1,0 +1,4338 @@
+{
+ "url": "http://localhost:8571/flyDiy/index.html?gfx=potato",
+ "size": [
+  1920,
+  911
+ ],
+ "q": "gfx=potato",
+ "views": {
+  "garage": {
+   "timed": {
+    "rafMs": 16.7,
+    "drawn": 30,
+    "fps": 30,
+    "gpuMs": 17.689,
+    "gpuN": 58
+   },
+   "info": {
+    "calls": 2222,
+    "ktris": 1824.1,
+    "points": 0,
+    "lines": 17,
+    "programs": 303,
+    "textures": 439,
+    "geometries": 2578
+   },
+   "byOwner": {
+    "Group": {
+     "draws": 2217,
+     "ktris": 1824.1
+    },
+    "Mesh:ShaderMaterial": {
+     "draws": 5,
+     "ktris": 0
+    }
+   },
+   "byProg": {
+    "MeshDepthMaterial": {
+     "draws": 1302,
+     "ktris": 1168.8
+    },
+    "MeshStandardMaterial": {
+     "draws": 729,
+     "ktris": 338.8
+    },
+    "matlib:arr": {
+     "draws": 49,
+     "ktris": 211.5
+    },
+    "MeshPhysicalMaterial": {
+     "draws": 89,
+     "ktris": 47
+    },
+    "char:ch22:Ch22_body": {
+     "draws": 4,
+     "ktris": 43.9
+    },
+    "char:ch22:Ch22_hair": {
+     "draws": 2,
+     "ktris": 11.1
+    },
+    "ShaderMaterial": {
+     "draws": 9,
+     "ktris": 2.5
+    },
+    "MeshBasicMaterial": {
+     "draws": 25,
+     "ktris": 0.4
+    },
+    "MeshLambertMaterial": {
+     "draws": 9,
+     "ktris": 0
+    },
+    "LineBasicMaterial": {
+     "draws": 2,
+     "ktris": 0
+    },
+    "SpriteMaterial": {
+     "draws": 2,
+     "ktris": 0
+    }
+   },
+   "byTarget": {
+    " 2048x2048": {
+     "draws": 1302,
+     "ktris": 1168.8
+    },
+    " 643x610 s4": {
+     "draws": 915,
+     "ktris": 655.2
+    },
+    " 192x108": {
+     "draws": 1,
+     "ktris": 0
+    },
+    " 2048x546": {
+     "draws": 1,
+     "ktris": 0
+    },
+    "canvas": {
+     "draws": 1,
+     "ktris": 0
+    },
+    " 64x36": {
+     "draws": 1,
+     "ktris": 0
+    },
+    " 1x1": {
+     "draws": 1,
+     "ktris": 0
+    }
+   },
+   "canvas": [
+    960,
+    911
+   ],
+   "scale": 0.67,
+   "vram": {
+    "totalMB": 1401.9,
+    "byKindMB": {
+     "tex2d": 814.8,
+     "texCube": 3,
+     "texArray": 199.4,
+     "tex3d": 0,
+     "rb": 53,
+     "buffer": 279.7,
+     "rb:msaa": 23.9,
+     "texArray:bc": 24.1,
+     "tex2d:bc": 3.9
+    },
+    "top": [
+     {
+      "kind": "texArray",
+      "w": 512,
+      "h": 512,
+      "d": 59,
+      "fmt": "0x8c43",
+      "bc": false,
+      "samples": 0,
+      "MB": 78.7,
+      "name": null
+     },
+     {
+      "kind": "texArray",
+      "w": 512,
+      "h": 512,
+      "d": 59,
+      "fmt": "0x8058",
+      "bc": false,
+      "samples": 0,
+      "MB": 78.7,
+      "name": null
+     },
+     {
+      "kind": "tex2d",
+      "w": 3095,
+      "h": 3920,
+      "d": 1,
+      "fmt": "0x8058",
+      "bc": false,
+      "samples": 0,
+      "MB": 46.3,
+      "name": null
+     },
+     {
+      "kind": "tex2d",
+      "w": 4096,
+      "h": 2048,
+      "d": 1,
+      "fmt": "0x8c43",
+      "bc": false,
+      "samples": 0,
+      "MB": 42.7,
+      "name": "Group / MeshStandardMaterial.map"
+     },
+     {
+      "kind": "tex2d",
+      "w": 3095,
+      "h": 3920,
+      "d": 1,
+      "fmt": "0x822b",
+      "bc": false,
+      "samples": 0,
+      "MB": 23.1,
+      "name": null
+     },
+     {
+      "kind": "tex2d",
+      "w": 2048,
+      "h": 2048,
+      "d": 1,
+      "fmt": "0x8c43",
+      "bc": false,
+      "samples": 0,
+      "MB": 21.3,
+      "name": null
+     },
+     {
+      "kind": "texArray",
+      "w": 512,
+      "h": 512,
+      "d": 16,
+      "fmt": "0x8058",
+      "bc": false,
+      "samples": 0,
+      "MB": 21.3,
+      "name": null
+     },
+     {
+      "kind": "texArray",
+      "w": 512,
+      "h": 512,
+      "d": 15,
+      "fmt": "0x8058",
+      "bc": false,
+      "samples": 0,
+      "MB": 20,
+      "name": null
+     },
+     {
+      "kind": "tex2d",
+      "w": 2048,
+      "h": 2048,
+      "d": 1,
+      "fmt": "0x8058",
+      "bc": false,
+      "samples": 0,
+      "MB": 16,
+      "name": null
+     },
+     {
+      "kind": "rb",
+      "w": 2048,
+      "h": 2048,
+      "d": 1,
+      "fmt": "0x81a6",
+      "bc": false,
+      "samples": 1,
+      "MB": 16,
+      "name": null
+     },
+     {
+      "kind": "tex2d",
+      "w": 2048,
+      "h": 2048,
+      "d": 1,
+      "fmt": "0x8058",
+      "bc": false,
+      "samples": 0,
+      "MB": 16,
+      "name": null
+     },
+     {
+      "kind": "tex2d",
+      "w": 2048,
+      "h": 2048,
+      "d": 1,
+      "fmt": "0x8058",
+      "bc": false,
+      "samples": 0,
+      "MB": 16,
+      "name": null
+     },
+     {
+      "kind": "rb",
+      "w": 2048,
+      "h": 2048,
+      "d": 1,
+      "fmt": "0x81a6",
+      "bc": false,
+      "samples": 1,
+      "MB": 16,
+      "name": null
+     },
+     {
+      "kind": "tex2d",
+      "w": 2048,
+      "h": 2048,
+      "d": 1,
+      "fmt": "0x8058",
+      "bc": false,
+      "samples": 0,
+      "MB": 16,
+      "name": null
+     },
+     {
+      "kind": "tex2d",
+      "w": 2048,
+      "h": 2048,
+      "d": 1,
+      "fmt": "0x81a6",
+      "bc": false,
+      "samples": 0,
+      "MB": 16,
+      "name": null
+     },
+     {
+      "kind": "rb",
+      "w": 643,
+      "h": 610,
+      "d": 1,
+      "fmt": "0x881a",
+      "bc": false,
+      "samples": 4,
+      "MB": 12,
+      "name": null
+     },
+     {
+      "kind": "rb",
+      "w": 643,
+      "h": 610,
+      "d": 1,
+      "fmt": "0x8cad",
+      "bc": false,
+      "samples": 4,
+      "MB": 12,
+      "name": null
+     },
+     {
+      "kind": "tex2d",
+      "w": 1548,
+      "h": 1960,
+      "d": 1,
+      "fmt": "0x8c43",
+      "bc": false,
+      "samples": 0,
+      "MB": 11.6,
+      "name": "Mesh:MeshStandardMaterial / MeshStandardMaterial.map"
+     },
+     {
+      "kind": "tex2d",
+      "w": 1548,
+      "h": 1960,
+      "d": 1,
+      "fmt": "0x8c43",
+      "bc": false,
+      "samples": 0,
+      "MB": 11.6,
+      "name": null
+     },
+     {
+      "kind": "tex2d",
+      "w": 2048,
+      "h": 546,
+      "d": 1,
+      "fmt": "0x881a",
+      "bc": false,
+      "samples": 0,
+      "MB": 8.5,
+      "name": "PerspectiveCamera / ShaderMaterial.uApAtlas"
+     },
+     {
+      "kind": "buffer",
+      "w": 0,
+      "h": 0,
+      "d": 1,
+      "fmt": "0x0",
+      "bc": false,
+      "samples": 0,
+      "MB": 6.9,
+      "name": null
+     },
+     {
+      "kind": "tex2d",
+      "w": 768,
+      "h": 1024,
+      "d": 1,
+      "fmt": "0x881a",
+      "bc": false,
+      "samples": 0,
+      "MB": 6,
+      "name": null
+     },
+     {
+      "kind": "tex2d",
+      "w": 768,
+      "h": 1024,
+      "d": 1,
+      "fmt": "0x881a",
+      "bc": false,
+      "samples": 0,
+      "MB": 6,
+      "name": "PMREM.cubeUv @ world.environment"
+     },
+     {
+      "kind": "tex2d",
+      "w": 768,
+      "h": 1024,
+      "d": 1,
+      "fmt": "0x881a",
+      "bc": false,
+      "samples": 0,
+      "MB": 6,
+      "name": null
+     },
+     {
+      "kind": "tex2d",
+      "w": 768,
+      "h": 1024,
+      "d": 1,
+      "fmt": "0x881a",
+      "bc": false,
+      "samples": 0,
+      "MB": 6,
+      "name": null
+     },
+     {
+      "kind": "tex2d",
+      "w": 768,
+      "h": 1024,
+      "d": 1,
+      "fmt": "0x881a",
+      "bc": false,
+      "samples": 0,
+      "MB": 6,
+      "name": null
+     },
+     {
+      "kind": "tex2d",
+      "w": 768,
+      "h": 1024,
+      "d": 1,
+      "fmt": "0x881a",
+      "bc": false,
+      "samples": 0,
+      "MB": 6,
+      "name": null
+     },
+     {
+      "kind": "tex2d",
+      "w": 768,
+      "h": 1024,
+      "d": 1,
+      "fmt": "0x881a",
+      "bc": false,
+      "samples": 0,
+      "MB": 6,
+      "name": null
+     },
+     {
+      "kind": "tex2d",
+      "w": 768,
+      "h": 1024,
+      "d": 1,
+      "fmt": "0x881a",
+      "bc": false,
+      "samples": 0,
+      "MB": 6,
+      "name": null
+     },
+     {
+      "kind": "tex2d",
+      "w": 768,
+      "h": 1024,
+      "d": 1,
+      "fmt": "0x881a",
+      "bc": false,
+      "samples": 0,
+      "MB": 6,
+      "name": null
+     },
+     {
+      "kind": "tex2d",
+      "w": 768,
+      "h": 1024,
+      "d": 1,
+      "fmt": "0x881a",
+      "bc": false,
+      "samples": 0,
+      "MB": 6,
+      "name": null
+     },
+     {
+      "kind": "tex2d",
+      "w": 768,
+      "h": 1024,
+      "d": 1,
+      "fmt": "0x881a",
+      "bc": false,
+      "samples": 0,
+      "MB": 6,
+      "name": "PMREM.cubeUv @ Group / MeshStandardMaterial.envMap"
+     },
+     {
+      "kind": "tex2d",
+      "w": 512,
+      "h": 2240,
+      "d": 1,
+      "fmt": "0x8c43",
+      "bc": false,
+      "samples": 0,
+      "MB": 5.8,
+      "name": "Group / MeshStandardMaterial.map"
+     },
+     {
+      "kind": "texArray",
+      "w": 256,
+      "h": 256,
+      "d": 64,
+      "fmt": "0x8e8c",
+      "bc": true,
+      "samples": 0,
+      "MB": 5.3,
+      "name": "matlib:page:data|256x256|UASTC|#3 @ propInstances / matlib:arr.mlArmPage"
+     },
+     {
+      "kind": "tex2d",
+      "w": 1024,
+      "h": 1024,
+      "d": 1,
+      "fmt": "0x8c43",
+      "bc": false,
+      "samples": 0,
+      "MB": 5.3,
+      "name": null
+     },
+     {
+      "kind": "tex2d",
+      "w": 1024,
+      "h": 1024,
+      "d": 1,
+      "fmt": "0x8c43",
+      "bc": false,
+      "samples": 0,
+      "MB": 5.3,
+      "name": null
+     },
+     {
+      "kind": "tex2d",
+      "w": 1024,
+      "h": 1024,
+      "d": 1,
+      "fmt": "0x8c43",
+      "bc": false,
+      "samples": 0,
+      "MB": 5.3,
+      "name": null
+     },
+     {
+      "kind": "tex2d",
+      "w": 1024,
+      "h": 1024,
+      "d": 1,
+      "fmt": "0x8c43",
+      "bc": false,
+      "samples": 0,
+      "MB": 5.3,
+      "name": null
+     },
+     {
+      "kind": "tex2d",
+      "w": 1024,
+      "h": 1024,
+      "d": 1,
+      "fmt": "0x8c43",
+      "bc": false,
+      "samples": 0,
+      "MB": 5.3,
+      "name": "rocks:w2 / MeshStandardMaterial.map"
+     },
+     {
+      "kind": "tex2d",
+      "w": 1024,
+      "h": 1024,
+      "d": 1,
+      "fmt": "0x8c43",
+      "bc": false,
+      "samples": 0,
+      "MB": 5.3,
+      "name": "rocks:w2 / MeshStandardMaterial.map"
+     }
+    ],
+    "texByOwnerMB": {
+     "premises": 228,
+     "? texArray 512x512x59": 157.3,
+     "Group": 110.2,
+     "? tex2d 2048x2048": 101.3,
+     "? tex2d 1024x1024": 82.7,
+     "? tex2d 3095x3920": 69.4,
+     "? tex2d 512x512": 55.3,
+     "? tex2d 768x1024": 54,
+     "rocks:w2": 37.3,
+     "? rb 2048x2048": 32,
+     "LOD": 24.5,
+     "? rb 643x610": 23.9,
+     "? texArray 512x512x16": 21.3,
+     "propInstances": 20.3,
+     "? texArray 512x512x15": 20,
+     "Mesh:MeshStandardMaterial": 11.6,
+     "? tex2d 1548x1960": 11.6,
+     "? rb 768x1024": 9,
+     "PerspectiveCamera": 8.8,
+     "? rb 1024x1024": 8,
+     "? tex2d 256x1024": 6.7,
+     "world.environment": 6,
+     "? tex2d 643x610": 6,
+     "? tex2d 512x1024": 5.3,
+     "? tex2d 256x256": 3.6,
+     "? texCube 256x256": 3,
+     "? rb 512x512": 2,
+     "? rb 256x256": 2
+    },
+    "geoByOwnerMB": {
+     "premises": 121.4,
+     "Group": 83.4,
+     "Mesh:MeshLambertMaterial": 43.2,
+     "Mesh:MeshStandardMaterial": 29.5,
+     "groundRing": 18.3,
+     "rocks:HOME": 6.2,
+     "rocks:w2": 4.9,
+     "pavement:merged": 2.9,
+     "rocks:w3": 2.3,
+     "propInstances": 1.4,
+     "rocks:tw_ski": 1.2,
+     "Mesh:water": 1.1,
+     "rocks:mn_strip": 0.6
+    }
+   },
+   "gfx": {
+    "preset": "potato",
+    "build": "potato",
+    "pv": 8,
+    "fps": 30,
+    "fpsOwn": false,
+    "ground": "plain",
+    "scale": 0.67,
+    "cover": "off",
+    "scenery": "low",
+    "drawDist": "vis",
+    "terrain": 3,
+    "aa": "off",
+    "density": 100,
+    "bands": "near",
+    "shadows": "off",
+    "canopy": "off",
+    "rails": "off",
+    "poles": "off",
+    "glare": "off",
+    "sway": "off",
+    "mist": "on",
+    "clouds": "off",
+    "water": "simple",
+    "mirror": "off",
+    "lighting": "sunset",
+    "tone": "cineon",
+    "exposure": 1,
+    "colour": "managed",
+    "bloom": "off",
+    "look": "off",
+    "lens": "off",
+    "rays": "off",
+    "ao": "off",
+    "eye": "off",
+    "compositing": "linear",
+    "town": "nearby"
+   },
+   "budget": {
+    "preset": "potato",
+    "terrain": 3,
+    "heapMB": 700,
+    "mipSkip": 1,
+    "townBoot": 1200,
+    "townReach": 2000,
+    "parked": false,
+    "forestK": 0.65,
+    "islandColour": false,
+    "islandHalf": true,
+    "shedGlass": false,
+    "impTile": 64,
+    "aeroAtlas": 2048,
+    "flownBake": false,
+    "shedLamps": false
+   },
+   "agl": 0,
+   "heapMB": 1274,
+   "split": {
+    "base": 13.042,
+    "owners": {
+     "Group": {
+      "n": 5,
+      "gpuMs": 4.227,
+      "saved": 8.815
+     }
+    },
+    "after": 15.737
+   },
+   "ab": {
+    "base": {
+     "calls": 2222,
+     "ktris": 1824.1,
+     "gpuMs": 19.351,
+     "vramMB": 1401.9
+    },
+    "scale50": {
+     "on": {
+      "calls": 2222,
+      "ktris": 1824.1,
+      "gpuMs": 19.419,
+      "vramMB": 1388.7
+     },
+     "back": {
+      "calls": 2222,
+      "ktris": 1824.1,
+      "gpuMs": 18.708,
+      "vramMB": 1401.9
+     }
+    }
+   }
+  },
+  "stand": {
+   "timed": {
+    "rafMs": 16.7,
+    "drawn": 30,
+    "fps": 30,
+    "gpuMs": 10.371,
+    "gpuN": 59
+   },
+   "info": {
+    "calls": 784,
+    "ktris": 4749.2,
+    "points": 0,
+    "lines": 0,
+    "programs": 302,
+    "textures": 437,
+    "geometries": 2603
+   },
+   "byOwner": {
+    "Mesh:MeshLambertMaterial": {
+     "draws": 24,
+     "ktris": 1473.1
+    },
+    "premises": {
+     "draws": 150,
+     "ktris": 1386.2
+    },
+    "standCards": {
+     "draws": 100,
+     "ktris": 376.9
+    },
+    "Group": {
+     "draws": 229,
+     "ktris": 349.9
+    },
+    "Mesh:MeshStandardMaterial": {
+     "draws": 117,
+     "ktris": 277.3
+    },
+    "groundRing": {
+     "draws": 96,
+     "ktris": 91.6
+    },
+    "pavement:merged": {
+     "draws": 5,
+     "ktris": 88.3
+    },
+    "rocks:HOME": {
+     "draws": 26,
+     "ktris": 51.5
+    },
+    "propInstances": {
+     "draws": 16,
+     "ktris": 51
+    },
+    "Mesh:water": {
+     "draws": 4,
+     "ktris": 43.4
+    },
+    "PerspectiveCamera": {
+     "draws": 1,
+     "ktris": 1.2
+    },
+    "lakes": {
+     "draws": 2,
+     "ktris": 1
+    },
+    "patternVis": {
+     "draws": 8,
+     "ktris": 0.1
+    },
+    "Mesh:ShaderMaterial": {
+     "draws": 5,
+     "ktris": 0
+    },
+    "contact:blobs": {
+     "draws": 1,
+     "ktris": 0
+    }
+   },
+   "byProg": {
+    "MeshLambertMaterial": {
+     "draws": 75,
+     "ktris": 2316.9
+    },
+    "MeshStandardMaterial": {
+     "draws": 596,
+     "ktris": 1296.2
+    },
+    "pavement": {
+     "draws": 14,
+     "ktris": 355.3
+    },
+    "matlib:arr": {
+     "draws": 37,
+     "ktris": 57.2
+    },
+    "water": {
+     "draws": 6,
+     "ktris": 44.4
+    },
+    "MeshPhysicalMaterial": {
+     "draws": 30,
+     "ktris": 44.3
+    },
+    "char:ch22:Ch22_body": {
+     "draws": 4,
+     "ktris": 43.9
+    },
+    "char:ch22:Ch22_hair": {
+     "draws": 2,
+     "ktris": 11.1
+    },
+    "powerline": {
+     "draws": 2,
+     "ktris": 10.8
+    },
+    "life:kit": {
+     "draws": 1,
+     "ktris": 6.5
+    },
+    "MeshBasicMaterial": {
+     "draws": 6,
+     "ktris": 3.5
+    },
+    "ShaderMaterial": {
+     "draws": 11,
+     "ktris": 1.6
+    }
+   },
+   "byTarget": {
+    " 1286x610 s4": {
+     "draws": 779,
+     "ktris": 4191.5
+    },
+    " 192x108": {
+     "draws": 1,
+     "ktris": 0
+    },
+    " 2048x546": {
+     "draws": 1,
+     "ktris": 0
+    },
+    "canvas": {
+     "draws": 1,
+     "ktris": 0
+    },
+    " 64x36": {
+     "draws": 1,
+     "ktris": 0
+    },
+    " 1x1": {
+     "draws": 1,
+     "ktris": 0
+    }
+   },
+   "canvas": [
+    1920,
+    911
+   ],
+   "scale": 0.67,
+   "vram": {
+    "totalMB": 1434.7,
+    "byKindMB": {
+     "tex2d": 820.5,
+     "texCube": 3,
+     "texArray": 199.4,
+     "tex3d": 0,
+     "rb": 53,
+     "buffer": 282.9,
+     "texArray:bc": 24.1,
+     "tex2d:bc": 3.9,
+     "rb:msaa": 47.9
+    },
+    "top": [
+     {
+      "kind": "texArray",
+      "w": 512,
+      "h": 512,
+      "d": 59,
+      "fmt": "0x8c43",
+      "bc": false,
+      "samples": 0,
+      "MB": 78.7,
+      "name": null
+     },
+     {
+      "kind": "texArray",
+      "w": 512,
+      "h": 512,
+      "d": 59,
+      "fmt": "0x8058",
+      "bc": false,
+      "samples": 0,
+      "MB": 78.7,
+      "name": null
+     },
+     {
+      "kind": "tex2d",
+      "w": 3095,
+      "h": 3920,
+      "d": 1,
+      "fmt": "0x8058",
+      "bc": false,
+      "samples": 0,
+      "MB": 46.3,
+      "name": null
+     },
+     {
+      "kind": "tex2d",
+      "w": 4096,
+      "h": 2048,
+      "d": 1,
+      "fmt": "0x8c43",
+      "bc": false,
+      "samples": 0,
+      "MB": 42.7,
+      "name": "Group / MeshStandardMaterial.map"
+     },
+     {
+      "kind": "rb",
+      "w": 1286,
+      "h": 610,
+      "d": 1,
+      "fmt": "0x881a",
+      "bc": false,
+      "samples": 4,
+      "MB": 23.9,
+      "name": null
+     },
+     {
+      "kind": "rb",
+      "w": 1286,
+      "h": 610,
+      "d": 1,
+      "fmt": "0x8cad",
+      "bc": false,
+      "samples": 4,
+      "MB": 23.9,
+      "name": null
+     },
+     {
+      "kind": "tex2d",
+      "w": 3095,
+      "h": 3920,
+      "d": 1,
+      "fmt": "0x822b",
+      "bc": false,
+      "samples": 0,
+      "MB": 23.1,
+      "name": null
+     },
+     {
+      "kind": "tex2d",
+      "w": 2048,
+      "h": 2048,
+      "d": 1,
+      "fmt": "0x8c43",
+      "bc": false,
+      "samples": 0,
+      "MB": 21.3,
+      "name": null
+     },
+     {
+      "kind": "texArray",
+      "w": 512,
+      "h": 512,
+      "d": 16,
+      "fmt": "0x8058",
+      "bc": false,
+      "samples": 0,
+      "MB": 21.3,
+      "name": null
+     },
+     {
+      "kind": "texArray",
+      "w": 512,
+      "h": 512,
+      "d": 15,
+      "fmt": "0x8058",
+      "bc": false,
+      "samples": 0,
+      "MB": 20,
+      "name": null
+     },
+     {
+      "kind": "tex2d",
+      "w": 2048,
+      "h": 2048,
+      "d": 1,
+      "fmt": "0x8058",
+      "bc": false,
+      "samples": 0,
+      "MB": 16,
+      "name": null
+     },
+     {
+      "kind": "rb",
+      "w": 2048,
+      "h": 2048,
+      "d": 1,
+      "fmt": "0x81a6",
+      "bc": false,
+      "samples": 1,
+      "MB": 16,
+      "name": null
+     },
+     {
+      "kind": "tex2d",
+      "w": 2048,
+      "h": 2048,
+      "d": 1,
+      "fmt": "0x8058",
+      "bc": false,
+      "samples": 0,
+      "MB": 16,
+      "name": null
+     },
+     {
+      "kind": "tex2d",
+      "w": 2048,
+      "h": 2048,
+      "d": 1,
+      "fmt": "0x8058",
+      "bc": false,
+      "samples": 0,
+      "MB": 16,
+      "name": null
+     },
+     {
+      "kind": "rb",
+      "w": 2048,
+      "h": 2048,
+      "d": 1,
+      "fmt": "0x81a6",
+      "bc": false,
+      "samples": 1,
+      "MB": 16,
+      "name": null
+     },
+     {
+      "kind": "tex2d",
+      "w": 2048,
+      "h": 2048,
+      "d": 1,
+      "fmt": "0x8058",
+      "bc": false,
+      "samples": 0,
+      "MB": 16,
+      "name": null
+     },
+     {
+      "kind": "tex2d",
+      "w": 2048,
+      "h": 2048,
+      "d": 1,
+      "fmt": "0x81a6",
+      "bc": false,
+      "samples": 0,
+      "MB": 16,
+      "name": null
+     },
+     {
+      "kind": "tex2d",
+      "w": 1548,
+      "h": 1960,
+      "d": 1,
+      "fmt": "0x8c43",
+      "bc": false,
+      "samples": 0,
+      "MB": 11.6,
+      "name": "Mesh:MeshStandardMaterial / MeshStandardMaterial.map"
+     },
+     {
+      "kind": "tex2d",
+      "w": 1548,
+      "h": 1960,
+      "d": 1,
+      "fmt": "0x8c43",
+      "bc": false,
+      "samples": 0,
+      "MB": 11.6,
+      "name": null
+     },
+     {
+      "kind": "tex2d",
+      "w": 2048,
+      "h": 546,
+      "d": 1,
+      "fmt": "0x881a",
+      "bc": false,
+      "samples": 0,
+      "MB": 8.5,
+      "name": "PerspectiveCamera / ShaderMaterial.uApAtlas"
+     },
+     {
+      "kind": "buffer",
+      "w": 0,
+      "h": 0,
+      "d": 1,
+      "fmt": "0x0",
+      "bc": false,
+      "samples": 0,
+      "MB": 6.9,
+      "name": null
+     },
+     {
+      "kind": "tex2d",
+      "w": 768,
+      "h": 1024,
+      "d": 1,
+      "fmt": "0x881a",
+      "bc": false,
+      "samples": 0,
+      "MB": 6,
+      "name": null
+     },
+     {
+      "kind": "tex2d",
+      "w": 768,
+      "h": 1024,
+      "d": 1,
+      "fmt": "0x881a",
+      "bc": false,
+      "samples": 0,
+      "MB": 6,
+      "name": "PMREM.cubeUv @ world.environment"
+     },
+     {
+      "kind": "tex2d",
+      "w": 768,
+      "h": 1024,
+      "d": 1,
+      "fmt": "0x881a",
+      "bc": false,
+      "samples": 0,
+      "MB": 6,
+      "name": null
+     },
+     {
+      "kind": "tex2d",
+      "w": 768,
+      "h": 1024,
+      "d": 1,
+      "fmt": "0x881a",
+      "bc": false,
+      "samples": 0,
+      "MB": 6,
+      "name": null
+     },
+     {
+      "kind": "tex2d",
+      "w": 768,
+      "h": 1024,
+      "d": 1,
+      "fmt": "0x881a",
+      "bc": false,
+      "samples": 0,
+      "MB": 6,
+      "name": null
+     },
+     {
+      "kind": "tex2d",
+      "w": 768,
+      "h": 1024,
+      "d": 1,
+      "fmt": "0x881a",
+      "bc": false,
+      "samples": 0,
+      "MB": 6,
+      "name": null
+     },
+     {
+      "kind": "tex2d",
+      "w": 768,
+      "h": 1024,
+      "d": 1,
+      "fmt": "0x881a",
+      "bc": false,
+      "samples": 0,
+      "MB": 6,
+      "name": null
+     },
+     {
+      "kind": "tex2d",
+      "w": 768,
+      "h": 1024,
+      "d": 1,
+      "fmt": "0x881a",
+      "bc": false,
+      "samples": 0,
+      "MB": 6,
+      "name": null
+     },
+     {
+      "kind": "tex2d",
+      "w": 768,
+      "h": 1024,
+      "d": 1,
+      "fmt": "0x881a",
+      "bc": false,
+      "samples": 0,
+      "MB": 6,
+      "name": null
+     },
+     {
+      "kind": "tex2d",
+      "w": 768,
+      "h": 1024,
+      "d": 1,
+      "fmt": "0x881a",
+      "bc": false,
+      "samples": 0,
+      "MB": 6,
+      "name": null
+     },
+     {
+      "kind": "tex2d",
+      "w": 768,
+      "h": 1024,
+      "d": 1,
+      "fmt": "0x881a",
+      "bc": false,
+      "samples": 0,
+      "MB": 6,
+      "name": "PMREM.cubeUv @ Group / MeshStandardMaterial.envMap"
+     },
+     {
+      "kind": "tex2d",
+      "w": 1286,
+      "h": 610,
+      "d": 1,
+      "fmt": "0x881a",
+      "bc": false,
+      "samples": 0,
+      "MB": 6,
+      "name": null
+     },
+     {
+      "kind": "tex2d",
+      "w": 1286,
+      "h": 610,
+      "d": 1,
+      "fmt": "0x8cad",
+      "bc": false,
+      "samples": 0,
+      "MB": 6,
+      "name": null
+     },
+     {
+      "kind": "tex2d",
+      "w": 512,
+      "h": 2240,
+      "d": 1,
+      "fmt": "0x8c43",
+      "bc": false,
+      "samples": 0,
+      "MB": 5.8,
+      "name": "Group / MeshStandardMaterial.map"
+     },
+     {
+      "kind": "texArray",
+      "w": 256,
+      "h": 256,
+      "d": 64,
+      "fmt": "0x8e8c",
+      "bc": true,
+      "samples": 0,
+      "MB": 5.3,
+      "name": "matlib:page:data|256x256|UASTC|#3 @ propInstances / matlib:arr.mlArmPage"
+     },
+     {
+      "kind": "tex2d",
+      "w": 1024,
+      "h": 1024,
+      "d": 1,
+      "fmt": "0x8c43",
+      "bc": false,
+      "samples": 0,
+      "MB": 5.3,
+      "name": null
+     },
+     {
+      "kind": "tex2d",
+      "w": 1024,
+      "h": 1024,
+      "d": 1,
+      "fmt": "0x8c43",
+      "bc": false,
+      "samples": 0,
+      "MB": 5.3,
+      "name": null
+     },
+     {
+      "kind": "tex2d",
+      "w": 1024,
+      "h": 1024,
+      "d": 1,
+      "fmt": "0x8c43",
+      "bc": false,
+      "samples": 0,
+      "MB": 5.3,
+      "name": null
+     },
+     {
+      "kind": "tex2d",
+      "w": 1024,
+      "h": 1024,
+      "d": 1,
+      "fmt": "0x8c43",
+      "bc": false,
+      "samples": 0,
+      "MB": 5.3,
+      "name": null
+     }
+    ],
+    "texByOwnerMB": {
+     "premises": 228,
+     "? texArray 512x512x59": 157.3,
+     "Group": 109.8,
+     "? tex2d 2048x2048": 101.3,
+     "? tex2d 1024x1024": 82.7,
+     "? tex2d 3095x3920": 69.4,
+     "? tex2d 512x512": 55.3,
+     "? tex2d 768x1024": 54,
+     "? rb 1286x610": 47.9,
+     "rocks:w2": 37.3,
+     "? rb 2048x2048": 32,
+     "LOD": 24.5,
+     "? texArray 512x512x16": 21.3,
+     "propInstances": 20.3,
+     "? texArray 512x512x15": 20,
+     "? tex2d 1286x610": 12,
+     "Mesh:MeshStandardMaterial": 11.6,
+     "? tex2d 1548x1960": 11.6,
+     "? rb 768x1024": 9,
+     "PerspectiveCamera": 8.8,
+     "? rb 1024x1024": 8,
+     "? tex2d 256x1024": 6.7,
+     "world.environment": 6,
+     "? tex2d 512x1024": 5.3,
+     "? tex2d 256x256": 3.6,
+     "? texCube 256x256": 3,
+     "? rb 512x512": 2,
+     "? rb 256x256": 2
+    },
+    "geoByOwnerMB": {
+     "premises": 121.4,
+     "Group": 83.4,
+     "Mesh:MeshLambertMaterial": 43.2,
+     "Mesh:MeshStandardMaterial": 29.5,
+     "groundRing": 18.3,
+     "rocks:HOME": 6.2,
+     "rocks:w2": 4.9,
+     "pavement:merged": 2.9,
+     "propInstances": 2.4,
+     "rocks:w3": 2.3,
+     "rocks:tw_ski": 1.2,
+     "Mesh:water": 1.1,
+     "rocks:mn_strip": 0.6
+    }
+   },
+   "gfx": {
+    "preset": "potato",
+    "build": "potato",
+    "pv": 8,
+    "fps": 30,
+    "fpsOwn": false,
+    "ground": "plain",
+    "scale": 0.67,
+    "cover": "off",
+    "scenery": "low",
+    "drawDist": "vis",
+    "terrain": 3,
+    "aa": "off",
+    "density": 100,
+    "bands": "near",
+    "shadows": "off",
+    "canopy": "off",
+    "rails": "off",
+    "poles": "off",
+    "glare": "off",
+    "sway": "off",
+    "mist": "on",
+    "clouds": "off",
+    "water": "simple",
+    "mirror": "off",
+    "lighting": "sunset",
+    "tone": "cineon",
+    "exposure": 1,
+    "colour": "managed",
+    "bloom": "off",
+    "look": "off",
+    "lens": "off",
+    "rays": "off",
+    "ao": "off",
+    "eye": "off",
+    "compositing": "linear",
+    "town": "nearby"
+   },
+   "budget": {
+    "preset": "potato",
+    "terrain": 3,
+    "heapMB": 700,
+    "mipSkip": 1,
+    "townBoot": 1200,
+    "townReach": 2000,
+    "parked": false,
+    "forestK": 0.65,
+    "islandColour": false,
+    "islandHalf": true,
+    "shedGlass": false,
+    "impTile": 64,
+    "aeroAtlas": 2048,
+    "flownBake": false,
+    "shedLamps": false
+   },
+   "agl": 0,
+   "heapMB": 1332,
+   "split": {
+    "base": 9.085,
+    "owners": {
+     "PerspectiveCamera": {
+      "n": 1,
+      "gpuMs": 11.44,
+      "saved": -2.355
+     },
+     "HemisphereLight": {
+      "n": 1,
+      "gpuMs": 17.41,
+      "saved": -8.325
+     },
+     "DirectionalLight": {
+      "n": 1,
+      "gpuMs": 18.434,
+      "saved": -9.349
+     },
+     "Object3D": {
+      "n": 2,
+      "gpuMs": 7.501,
+      "saved": 1.584
+     },
+     "Mesh:MeshStandardMaterial": {
+      "n": 242,
+      "gpuMs": 8.98,
+      "saved": 0.105
+     },
+     "groundRing/groundRing": {
+      "n": 1024,
+      "gpuMs": 6.285,
+      "saved": 2.8
+     },
+     "Mesh:MeshLambertMaterial": {
+      "n": 28,
+      "gpuMs": 9.104,
+      "saved": -0.019
+     },
+     "Mesh:water": {
+      "n": 3,
+      "gpuMs": 7.066,
+      "saved": 2.019
+     },
+     "lakes": {
+      "n": 1,
+      "gpuMs": 11.021,
+      "saved": -1.936
+     },
+     "treeRungs": {
+      "n": 1,
+      "gpuMs": 8.217,
+      "saved": 0.868
+     },
+     "LOD": {
+      "n": 1,
+      "gpuMs": 12.327,
+      "saved": -3.242
+     },
+     "propInstances/propInst:jerrycan_green_l1#0": {
+      "n": 1,
+      "gpuMs": 10.89,
+      "saved": -1.805
+     },
+     "propInstances/propInst:person_john_l2#0": {
+      "n": 1,
+      "gpuMs": 12.565,
+      "saved": -3.48
+     },
+     "propInstances/propInst:oil_tin_l1#0": {
+      "n": 1,
+      "gpuMs": 10.489,
+      "saved": -1.404
+     },
+     "propInstances/propInst:pallet_one#0": {
+      "n": 1,
+      "gpuMs": 10.978,
+      "saved": -1.893
+     },
+     "propInstances/propInst:person_charles_l2#0": {
+      "n": 1,
+      "gpuMs": 10.173,
+      "saved": -1.088
+     },
+     "propInstances/propInst:person_luke_l2#0": {
+      "n": 1,
+      "gpuMs": 10.63,
+      "saved": -1.545
+     },
+     "propInstances/propInst:person_luke_l2#1": {
+      "n": 1,
+      "gpuMs": 9.973,
+      "saved": -0.888
+     },
+     "propInstances/propInst:person_luke_l2#2": {
+      "n": 1,
+      "gpuMs": 11.786,
+      "saved": -2.701
+     },
+     "propInstances/propInst:pallets_stack_l2#0": {
+      "n": 1,
+      "gpuMs": 9.316,
+      "saved": -0.231
+     },
+     "propInstances/propInst:pallets_three_l2#0": {
+      "n": 1,
+      "gpuMs": 12.552,
+      "saved": -3.467
+     },
+     "propInstances/propInst:cement_bags_l2#0": {
+      "n": 1,
+      "gpuMs": 9.509,
+      "saved": -0.424
+     },
+     "propInstances/propInst:stool_wood2_l2#0": {
+      "n": 1,
+      "gpuMs": 11.606,
+      "saved": -2.521
+     },
+     "propInstances/propInst:chair_plastic_l1#0": {
+      "n": 1,
+      "gpuMs": 10.767,
+      "saved": -1.682
+     },
+     "propInstances/propInst:picnic_table_l2#0": {
+      "n": 1,
+      "gpuMs": 11.73,
+      "saved": -2.645
+     },
+     "propInstances/propInst:chair_wood_l1#0": {
+      "n": 1,
+      "gpuMs": 8.785,
+      "saved": 0.3
+     },
+     "propInstances/propInst:planter_l2#0": {
+      "n": 1,
+      "gpuMs": 8.65,
+      "saved": 0.435
+     },
+     "propInstances/propInst:bin_metal_l2#0": {
+      "n": 1,
+      "gpuMs": 7.774,
+      "saved": 1.311
+     },
+     "propInstances/propInst:bottle_propane_l2#0": {
+      "n": 1,
+      "gpuMs": 10.084,
+      "saved": -0.999
+     },
+     "propInstances/propInst:jerrycan_l2#0": {
+      "n": 1,
+      "gpuMs": 10.815,
+      "saved": -1.73
+     },
+     "propInstances/propInst:bags_stack_l2#0": {
+      "n": 1,
+      "gpuMs": 11.798,
+      "saved": -2.713
+     },
+     "propInstances/propInst:oil_tin_l2#0": {
+      "n": 1,
+      "gpuMs": 9.421,
+      "saved": -0.336
+     },
+     "propInstances/propInst:bags_lean_l2#0": {
+      "n": 1,
+      "gpuMs": 11.827,
+      "saved": -2.742
+     },
+     "propInstances/propInst:fence_old#0": {
+      "n": 1,
+      "gpuMs": 11.056,
+      "saved": -1.971
+     },
+     "propInstances/propInst:cinder_pallet_l2#0": {
+      "n": 1,
+      "gpuMs": 11.124,
+      "saved": -2.039
+     },
+     "propInstances/propInst:cinder_pallet_l2#1": {
+      "n": 1,
+      "gpuMs": 10.587,
+      "saved": -1.502
+     },
+     "propInstances/propInst:person_koky_l2#0": {
+      "n": 1,
+      "gpuMs": 11.495,
+      "saved": -2.41
+     },
+     "propInstances/propInst:person_andrew_l2#0": {
+      "n": 1,
+      "gpuMs": 10.196,
+      "saved": -1.111
+     },
+     "propInstances/propInst:person_andrew_l2#1": {
+      "n": 1,
+      "gpuMs": 10.579,
+      "saved": -1.494
+     },
+     "propInstances/propInst:person_andrew_l2#2": {
+      "n": 1,
+      "gpuMs": 10,
+      "saved": -0.915
+     },
+     "premises/premises:groun": {
+      "n": 1,
+      "gpuMs": 10.279,
+      "saved": -1.194
+     },
+     "premises/premises:water": {
+      "n": 1,
+      "gpuMs": 9.995,
+      "saved": -0.91
+     },
+     "premises/premises:outlines": {
+      "n": 1,
+      "gpuMs": 11.152,
+      "saved": -2.067
+     },
+     "premises/premises:plots": {
+      "n": 1,
+      "gpuMs": 11.222,
+      "saved": -2.137
+     },
+     "premises/premises:houses": {
+      "n": 1,
+      "gpuMs": 10.391,
+      "saved": -1.306
+     },
+     "premises/premises:lots": {
+      "n": 1,
+      "gpuMs": 9.178,
+      "saved": -0.093
+     },
+     "premises/premises:trees": {
+      "n": 1,
+      "gpuMs": 7.521,
+      "saved": 1.564
+     },
+     "premises/premises:runways": {
+      "n": 1,
+      "gpuMs": 6.69,
+      "saved": 2.395
+     },
+     "premises/premises:roads": {
+      "n": 1,
+      "gpuMs": 6.897,
+      "saved": 2.188
+     },
+     "premises/premises:tram": {
+      "n": 1,
+      "gpuMs": 9.196,
+      "saved": -0.111
+     },
+     "premises/premises:traffic": {
+      "n": 1,
+      "gpuMs": 11.92,
+      "saved": -2.835
+     },
+     "premises/premises:animals": {
+      "n": 1,
+      "gpuMs": 9.243,
+      "saved": -0.158
+     },
+     "premises/premises:handles": {
+      "n": 1,
+      "gpuMs": 11.487,
+      "saved": -2.402
+     },
+     "premises/premises:ghost": {
+      "n": 1,
+      "gpuMs": 10.174,
+      "saved": -1.089
+     },
+     "premises/premises:life": {
+      "n": 1,
+      "gpuMs": 11.148,
+      "saved": -2.063
+     },
+     "pavement:merged": {
+      "n": 5,
+      "gpuMs": 10.083,
+      "saved": -0.998
+     },
+     "standCards/standCards": {
+      "n": 119,
+      "gpuMs": 10.1,
+      "saved": -1.015
+     },
+     "rocks:w2": {
+      "n": 8,
+      "gpuMs": 10.137,
+      "saved": -1.052
+     },
+     "rocks:HOME": {
+      "n": 11,
+      "gpuMs": 9.426,
+      "saved": -0.341
+     },
+     "rocks:w3": {
+      "n": 4,
+      "gpuMs": 9.335,
+      "saved": -0.25
+     },
+     "rocks:mn_strip": {
+      "n": 1,
+      "gpuMs": 11.157,
+      "saved": -2.072
+     },
+     "rocks:tw_ski": {
+      "n": 2,
+      "gpuMs": 9.725,
+      "saved": -0.64
+     },
+     "contact:blobs": {
+      "n": 1,
+      "gpuMs": 11.418,
+      "saved": -2.333
+     },
+     "Group": {
+      "n": 1,
+      "gpuMs": 15.364,
+      "saved": -6.279
+     },
+     "patternVis": {
+      "n": 1,
+      "gpuMs": 7.079,
+      "saved": 2.006
+     }
+    },
+    "after": 6.876
+   },
+   "ab": {
+    "base": {
+     "calls": 784,
+     "ktris": 4749.2,
+     "gpuMs": 7.948,
+     "vramMB": 1434.7
+    },
+    "far5": {
+     "on": {
+      "calls": 784,
+      "ktris": 4341.4,
+      "gpuMs": 7.954,
+      "vramMB": 1423.4
+     },
+     "back": {
+      "calls": 784,
+      "ktris": 4756.1,
+      "gpuMs": 7.445,
+      "vramMB": 1434.9
+     }
+    },
+    "far8": {
+     "on": {
+      "calls": 784,
+      "ktris": 4182.4,
+      "gpuMs": 7.945,
+      "vramMB": 1418.4
+     },
+     "back": {
+      "calls": 784,
+      "ktris": 4756.1,
+      "gpuMs": 11.563,
+      "vramMB": 1434.2
+     }
+    },
+    "ring5": {
+     "on": {
+      "calls": 784,
+      "ktris": 4737.3,
+      "gpuMs": 10.736,
+      "vramMB": 1434.3
+     },
+     "back": {
+      "calls": 784,
+      "ktris": 4750.5,
+      "gpuMs": 7.817,
+      "vramMB": 1434.4
+     }
+    },
+    "fineOff": {
+     "on": {
+      "calls": 760,
+      "ktris": 4701.4,
+      "gpuMs": 10.63,
+      "vramMB": 1429.6
+     },
+     "back": {
+      "calls": 784,
+      "ktris": 4750.5,
+      "gpuMs": 8.302,
+      "vramMB": 1431
+     }
+    },
+    "scale50": {
+     "on": {
+      "calls": 784,
+      "ktris": 4750.5,
+      "gpuMs": 16.016,
+      "vramMB": 1404.6
+     },
+     "back": {
+      "calls": 784,
+      "ktris": 4750.5,
+      "gpuMs": 12.043,
+      "vramMB": 1431.1
+     }
+    },
+    "mistOff": {
+     "on": {
+      "calls": 795,
+      "ktris": 4808,
+      "gpuMs": 11.331,
+      "vramMB": 1431.1
+     },
+     "back": {
+      "calls": 784,
+      "ktris": 4750.5,
+      "gpuMs": 11.36,
+      "vramMB": 1431.1
+     }
+    },
+    "townHide": {
+     "on": {
+      "calls": 634,
+      "ktris": 3370.6,
+      "gpuMs": 8.448,
+      "vramMB": 1431.1
+     },
+     "back": {
+      "calls": 784,
+      "ktris": 4750.5,
+      "gpuMs": 11.076,
+      "vramMB": 1431.1
+     }
+    },
+    "cardsHide": {
+     "on": {
+      "calls": 784,
+      "ktris": 4750.5,
+      "gpuMs": 10.913,
+      "vramMB": 1431.1
+     },
+     "back": {
+      "calls": 784,
+      "ktris": 4750.5,
+      "gpuMs": 11.121,
+      "vramMB": 1431.1
+     }
+    },
+    "waterHide": {
+     "on": {
+      "calls": 778,
+      "ktris": 4706.1,
+      "gpuMs": 10.274,
+      "vramMB": 1431.1
+     },
+     "back": {
+      "calls": 784,
+      "ktris": 4750.5,
+      "gpuMs": 10.648,
+      "vramMB": 1431.1
+     }
+    }
+   }
+  },
+  "taxi": {
+   "timed": {
+    "rafMs": 16.7,
+    "drawn": 30,
+    "fps": 30,
+    "gpuMs": 11.722,
+    "gpuN": 58
+   },
+   "info": {
+    "calls": 753,
+    "ktris": 4918.8,
+    "points": 0,
+    "lines": 0,
+    "programs": 443,
+    "textures": 473,
+    "geometries": 2603
+   },
+   "byOwner": {
+    "Mesh:MeshLambertMaterial": {
+     "draws": 24,
+     "ktris": 1487
+    },
+    "premises": {
+     "draws": 115,
+     "ktris": 1349.9
+    },
+    "standCards": {
+     "draws": 101,
+     "ktris": 381.1
+    },
+    "Group": {
+     "draws": 229,
+     "ktris": 349.9
+    },
+    "Mesh:MeshStandardMaterial": {
+     "draws": 120,
+     "ktris": 284.8
+    },
+    "pavement:merged": {
+     "draws": 5,
+     "ktris": 88.3
+    },
+    "groundRing": {
+     "draws": 95,
+     "ktris": 86.3
+    },
+    "rocks:HOME": {
+     "draws": 26,
+     "ktris": 51.5
+    },
+    "Mesh:water": {
+     "draws": 4,
+     "ktris": 43.4
+    },
+    "rocks:w2": {
+     "draws": 21,
+     "ktris": 42.7
+    },
+    "PerspectiveCamera": {
+     "draws": 1,
+     "ktris": 1.2
+    },
+    "lakes": {
+     "draws": 2,
+     "ktris": 1
+    },
+    "patternVis": {
+     "draws": 8,
+     "ktris": 0.1
+    },
+    "Mesh:ShaderMaterial": {
+     "draws": 5,
+     "ktris": 0
+    },
+    "contact:blobs": {
+     "draws": 1,
+     "ktris": 0
+    }
+   },
+   "byProg": {
+    "MeshLambertMaterial": {
+     "draws": 74,
+     "ktris": 2331.3
+    },
+    "MeshStandardMaterial": {
+     "draws": 595,
+     "ktris": 1315.2
+    },
+    "pavement": {
+     "draws": 14,
+     "ktris": 355.3
+    },
+    "water": {
+     "draws": 6,
+     "ktris": 44.4
+    },
+    "MeshPhysicalMaterial": {
+     "draws": 30,
+     "ktris": 44.3
+    },
+    "char:ch22:Ch22_body": {
+     "draws": 4,
+     "ktris": 43.9
+    },
+    "char:ch22:Ch22_hair": {
+     "draws": 2,
+     "ktris": 11.1
+    },
+    "powerline": {
+     "draws": 2,
+     "ktris": 10.8
+    },
+    "life:kit": {
+     "draws": 1,
+     "ktris": 6.5
+    },
+    "matlib:arr": {
+     "draws": 17,
+     "ktris": 2.8
+    },
+    "ShaderMaterial": {
+     "draws": 11,
+     "ktris": 1.6
+    },
+    "MeshBasicMaterial": {
+     "draws": 1,
+     "ktris": 0.2
+    }
+   },
+   "byTarget": {
+    " 1286x610 s4": {
+     "draws": 752,
+     "ktris": 4167.2
+    },
+    " 192x108": {
+     "draws": 1,
+     "ktris": 0
+    },
+    " 2048x546": {
+     "draws": 1,
+     "ktris": 0
+    },
+    "canvas": {
+     "draws": 1,
+     "ktris": 0
+    },
+    " 64x36": {
+     "draws": 1,
+     "ktris": 0
+    },
+    " 1x1": {
+     "draws": 1,
+     "ktris": 0
+    }
+   },
+   "canvas": [
+    1920,
+    911
+   ],
+   "scale": 0.67,
+   "vram": {
+    "totalMB": 1433,
+    "byKindMB": {
+     "tex2d": 820.5,
+     "texCube": 3,
+     "texArray": 199.4,
+     "tex3d": 0,
+     "rb": 53,
+     "buffer": 281.1,
+     "texArray:bc": 24.1,
+     "tex2d:bc": 3.9,
+     "rb:msaa": 47.9
+    },
+    "top": [
+     {
+      "kind": "texArray",
+      "w": 512,
+      "h": 512,
+      "d": 59,
+      "fmt": "0x8c43",
+      "bc": false,
+      "samples": 0,
+      "MB": 78.7,
+      "name": null
+     },
+     {
+      "kind": "texArray",
+      "w": 512,
+      "h": 512,
+      "d": 59,
+      "fmt": "0x8058",
+      "bc": false,
+      "samples": 0,
+      "MB": 78.7,
+      "name": null
+     },
+     {
+      "kind": "tex2d",
+      "w": 3095,
+      "h": 3920,
+      "d": 1,
+      "fmt": "0x8058",
+      "bc": false,
+      "samples": 0,
+      "MB": 46.3,
+      "name": null
+     },
+     {
+      "kind": "tex2d",
+      "w": 4096,
+      "h": 2048,
+      "d": 1,
+      "fmt": "0x8c43",
+      "bc": false,
+      "samples": 0,
+      "MB": 42.7,
+      "name": "Group / MeshStandardMaterial.map"
+     },
+     {
+      "kind": "rb",
+      "w": 1286,
+      "h": 610,
+      "d": 1,
+      "fmt": "0x881a",
+      "bc": false,
+      "samples": 4,
+      "MB": 23.9,
+      "name": null
+     },
+     {
+      "kind": "rb",
+      "w": 1286,
+      "h": 610,
+      "d": 1,
+      "fmt": "0x8cad",
+      "bc": false,
+      "samples": 4,
+      "MB": 23.9,
+      "name": null
+     },
+     {
+      "kind": "tex2d",
+      "w": 3095,
+      "h": 3920,
+      "d": 1,
+      "fmt": "0x822b",
+      "bc": false,
+      "samples": 0,
+      "MB": 23.1,
+      "name": null
+     },
+     {
+      "kind": "tex2d",
+      "w": 2048,
+      "h": 2048,
+      "d": 1,
+      "fmt": "0x8c43",
+      "bc": false,
+      "samples": 0,
+      "MB": 21.3,
+      "name": null
+     },
+     {
+      "kind": "texArray",
+      "w": 512,
+      "h": 512,
+      "d": 16,
+      "fmt": "0x8058",
+      "bc": false,
+      "samples": 0,
+      "MB": 21.3,
+      "name": null
+     },
+     {
+      "kind": "texArray",
+      "w": 512,
+      "h": 512,
+      "d": 15,
+      "fmt": "0x8058",
+      "bc": false,
+      "samples": 0,
+      "MB": 20,
+      "name": null
+     },
+     {
+      "kind": "tex2d",
+      "w": 2048,
+      "h": 2048,
+      "d": 1,
+      "fmt": "0x8058",
+      "bc": false,
+      "samples": 0,
+      "MB": 16,
+      "name": null
+     },
+     {
+      "kind": "rb",
+      "w": 2048,
+      "h": 2048,
+      "d": 1,
+      "fmt": "0x81a6",
+      "bc": false,
+      "samples": 1,
+      "MB": 16,
+      "name": null
+     },
+     {
+      "kind": "tex2d",
+      "w": 2048,
+      "h": 2048,
+      "d": 1,
+      "fmt": "0x8058",
+      "bc": false,
+      "samples": 0,
+      "MB": 16,
+      "name": null
+     },
+     {
+      "kind": "tex2d",
+      "w": 2048,
+      "h": 2048,
+      "d": 1,
+      "fmt": "0x8058",
+      "bc": false,
+      "samples": 0,
+      "MB": 16,
+      "name": null
+     },
+     {
+      "kind": "rb",
+      "w": 2048,
+      "h": 2048,
+      "d": 1,
+      "fmt": "0x81a6",
+      "bc": false,
+      "samples": 1,
+      "MB": 16,
+      "name": null
+     },
+     {
+      "kind": "tex2d",
+      "w": 2048,
+      "h": 2048,
+      "d": 1,
+      "fmt": "0x8058",
+      "bc": false,
+      "samples": 0,
+      "MB": 16,
+      "name": null
+     },
+     {
+      "kind": "tex2d",
+      "w": 2048,
+      "h": 2048,
+      "d": 1,
+      "fmt": "0x81a6",
+      "bc": false,
+      "samples": 0,
+      "MB": 16,
+      "name": null
+     },
+     {
+      "kind": "tex2d",
+      "w": 1548,
+      "h": 1960,
+      "d": 1,
+      "fmt": "0x8c43",
+      "bc": false,
+      "samples": 0,
+      "MB": 11.6,
+      "name": "Mesh:MeshStandardMaterial / MeshStandardMaterial.map"
+     },
+     {
+      "kind": "tex2d",
+      "w": 1548,
+      "h": 1960,
+      "d": 1,
+      "fmt": "0x8c43",
+      "bc": false,
+      "samples": 0,
+      "MB": 11.6,
+      "name": null
+     },
+     {
+      "kind": "tex2d",
+      "w": 2048,
+      "h": 546,
+      "d": 1,
+      "fmt": "0x881a",
+      "bc": false,
+      "samples": 0,
+      "MB": 8.5,
+      "name": "PerspectiveCamera / ShaderMaterial.uApAtlas"
+     },
+     {
+      "kind": "buffer",
+      "w": 0,
+      "h": 0,
+      "d": 1,
+      "fmt": "0x0",
+      "bc": false,
+      "samples": 0,
+      "MB": 7,
+      "name": null
+     },
+     {
+      "kind": "tex2d",
+      "w": 768,
+      "h": 1024,
+      "d": 1,
+      "fmt": "0x881a",
+      "bc": false,
+      "samples": 0,
+      "MB": 6,
+      "name": null
+     },
+     {
+      "kind": "tex2d",
+      "w": 768,
+      "h": 1024,
+      "d": 1,
+      "fmt": "0x881a",
+      "bc": false,
+      "samples": 0,
+      "MB": 6,
+      "name": "PMREM.cubeUv @ world.environment"
+     },
+     {
+      "kind": "tex2d",
+      "w": 768,
+      "h": 1024,
+      "d": 1,
+      "fmt": "0x881a",
+      "bc": false,
+      "samples": 0,
+      "MB": 6,
+      "name": null
+     },
+     {
+      "kind": "tex2d",
+      "w": 768,
+      "h": 1024,
+      "d": 1,
+      "fmt": "0x881a",
+      "bc": false,
+      "samples": 0,
+      "MB": 6,
+      "name": null
+     },
+     {
+      "kind": "tex2d",
+      "w": 768,
+      "h": 1024,
+      "d": 1,
+      "fmt": "0x881a",
+      "bc": false,
+      "samples": 0,
+      "MB": 6,
+      "name": null
+     },
+     {
+      "kind": "tex2d",
+      "w": 768,
+      "h": 1024,
+      "d": 1,
+      "fmt": "0x881a",
+      "bc": false,
+      "samples": 0,
+      "MB": 6,
+      "name": null
+     },
+     {
+      "kind": "tex2d",
+      "w": 768,
+      "h": 1024,
+      "d": 1,
+      "fmt": "0x881a",
+      "bc": false,
+      "samples": 0,
+      "MB": 6,
+      "name": null
+     },
+     {
+      "kind": "tex2d",
+      "w": 768,
+      "h": 1024,
+      "d": 1,
+      "fmt": "0x881a",
+      "bc": false,
+      "samples": 0,
+      "MB": 6,
+      "name": null
+     },
+     {
+      "kind": "tex2d",
+      "w": 768,
+      "h": 1024,
+      "d": 1,
+      "fmt": "0x881a",
+      "bc": false,
+      "samples": 0,
+      "MB": 6,
+      "name": null
+     },
+     {
+      "kind": "tex2d",
+      "w": 768,
+      "h": 1024,
+      "d": 1,
+      "fmt": "0x881a",
+      "bc": false,
+      "samples": 0,
+      "MB": 6,
+      "name": null
+     },
+     {
+      "kind": "tex2d",
+      "w": 768,
+      "h": 1024,
+      "d": 1,
+      "fmt": "0x881a",
+      "bc": false,
+      "samples": 0,
+      "MB": 6,
+      "name": "PMREM.cubeUv @ Group / MeshStandardMaterial.envMap"
+     },
+     {
+      "kind": "tex2d",
+      "w": 1286,
+      "h": 610,
+      "d": 1,
+      "fmt": "0x881a",
+      "bc": false,
+      "samples": 0,
+      "MB": 6,
+      "name": null
+     },
+     {
+      "kind": "tex2d",
+      "w": 1286,
+      "h": 610,
+      "d": 1,
+      "fmt": "0x8cad",
+      "bc": false,
+      "samples": 0,
+      "MB": 6,
+      "name": null
+     },
+     {
+      "kind": "tex2d",
+      "w": 512,
+      "h": 2240,
+      "d": 1,
+      "fmt": "0x8c43",
+      "bc": false,
+      "samples": 0,
+      "MB": 5.8,
+      "name": "Group / MeshStandardMaterial.map"
+     },
+     {
+      "kind": "texArray",
+      "w": 256,
+      "h": 256,
+      "d": 64,
+      "fmt": "0x8e8c",
+      "bc": true,
+      "samples": 0,
+      "MB": 5.3,
+      "name": "matlib:page:data|256x256|UASTC|#3 @ propInstances / matlib:arr.mlArmPage"
+     },
+     {
+      "kind": "tex2d",
+      "w": 1024,
+      "h": 1024,
+      "d": 1,
+      "fmt": "0x8c43",
+      "bc": false,
+      "samples": 0,
+      "MB": 5.3,
+      "name": null
+     },
+     {
+      "kind": "tex2d",
+      "w": 1024,
+      "h": 1024,
+      "d": 1,
+      "fmt": "0x8c43",
+      "bc": false,
+      "samples": 0,
+      "MB": 5.3,
+      "name": null
+     },
+     {
+      "kind": "tex2d",
+      "w": 1024,
+      "h": 1024,
+      "d": 1,
+      "fmt": "0x8c43",
+      "bc": false,
+      "samples": 0,
+      "MB": 5.3,
+      "name": null
+     },
+     {
+      "kind": "tex2d",
+      "w": 1024,
+      "h": 1024,
+      "d": 1,
+      "fmt": "0x8c43",
+      "bc": false,
+      "samples": 0,
+      "MB": 5.3,
+      "name": null
+     }
+    ],
+    "texByOwnerMB": {
+     "premises": 228,
+     "? texArray 512x512x59": 157.3,
+     "Group": 109.8,
+     "? tex2d 2048x2048": 101.3,
+     "? tex2d 1024x1024": 82.7,
+     "? tex2d 3095x3920": 69.4,
+     "? tex2d 512x512": 55.3,
+     "? tex2d 768x1024": 54,
+     "? rb 1286x610": 47.9,
+     "rocks:w2": 37.3,
+     "? rb 2048x2048": 32,
+     "LOD": 24.5,
+     "? texArray 512x512x16": 21.3,
+     "propInstances": 20.3,
+     "? texArray 512x512x15": 20,
+     "? tex2d 1286x610": 12,
+     "Mesh:MeshStandardMaterial": 11.6,
+     "? tex2d 1548x1960": 11.6,
+     "? rb 768x1024": 9,
+     "PerspectiveCamera": 8.8,
+     "? rb 1024x1024": 8,
+     "? tex2d 256x1024": 6.7,
+     "world.environment": 6,
+     "? tex2d 512x1024": 5.3,
+     "? tex2d 256x256": 3.6,
+     "? texCube 256x256": 3,
+     "? rb 512x512": 2,
+     "? rb 256x256": 2
+    },
+    "geoByOwnerMB": {
+     "premises": 121.6,
+     "Group": 83.1,
+     "Mesh:MeshLambertMaterial": 43.6,
+     "Mesh:MeshStandardMaterial": 30.2,
+     "groundRing": 18.3,
+     "rocks:HOME": 6.2,
+     "rocks:w2": 4.9,
+     "propInstances": 3.4,
+     "pavement:merged": 2.9,
+     "rocks:w3": 2.3,
+     "rocks:tw_ski": 1.2,
+     "Mesh:water": 1.1,
+     "rocks:mn_strip": 0.6
+    }
+   },
+   "gfx": {
+    "preset": "potato",
+    "build": "potato",
+    "pv": 8,
+    "fps": 30,
+    "fpsOwn": false,
+    "ground": "plain",
+    "scale": 0.67,
+    "cover": "off",
+    "scenery": "low",
+    "drawDist": "vis",
+    "terrain": 3,
+    "aa": "off",
+    "density": 100,
+    "bands": "near",
+    "shadows": "off",
+    "canopy": "off",
+    "rails": "off",
+    "poles": "off",
+    "glare": "off",
+    "sway": "off",
+    "mist": "on",
+    "clouds": "off",
+    "water": "simple",
+    "mirror": "off",
+    "lighting": "sunset",
+    "tone": "cineon",
+    "exposure": 1,
+    "colour": "managed",
+    "bloom": "off",
+    "look": "off",
+    "lens": "off",
+    "rays": "off",
+    "ao": "off",
+    "eye": "off",
+    "compositing": "linear",
+    "town": "nearby"
+   },
+   "budget": {
+    "preset": "potato",
+    "terrain": 3,
+    "heapMB": 700,
+    "mipSkip": 1,
+    "townBoot": 1200,
+    "townReach": 2000,
+    "parked": false,
+    "forestK": 0.65,
+    "islandColour": false,
+    "islandHalf": true,
+    "shedGlass": false,
+    "impTile": 64,
+    "aeroAtlas": 2048,
+    "flownBake": false,
+    "shedLamps": false
+   },
+   "agl": 0,
+   "heapMB": 1303,
+   "split": {
+    "base": 10.525,
+    "owners": {
+     "PerspectiveCamera": {
+      "n": 1,
+      "gpuMs": 10.561,
+      "saved": -0.036
+     },
+     "HemisphereLight": {
+      "n": 1,
+      "gpuMs": 8.853,
+      "saved": 1.672
+     },
+     "DirectionalLight": {
+      "n": 1,
+      "gpuMs": 7.425,
+      "saved": 3.1
+     },
+     "Object3D": {
+      "n": 2,
+      "gpuMs": 7.454,
+      "saved": 3.071
+     },
+     "Mesh:MeshStandardMaterial": {
+      "n": 252,
+      "gpuMs": 7.587,
+      "saved": 2.938
+     },
+     "groundRing/groundRing": {
+      "n": 1024,
+      "gpuMs": 10.25,
+      "saved": 0.275
+     },
+     "Mesh:MeshLambertMaterial": {
+      "n": 28,
+      "gpuMs": 11.193,
+      "saved": -0.668
+     },
+     "Mesh:water": {
+      "n": 3,
+      "gpuMs": 10.739,
+      "saved": -0.214
+     },
+     "lakes": {
+      "n": 1,
+      "gpuMs": 12.1,
+      "saved": -1.575
+     },
+     "treeRungs": {
+      "n": 1,
+      "gpuMs": 11.147,
+      "saved": -0.622
+     },
+     "LOD": {
+      "n": 1,
+      "gpuMs": 10.02,
+      "saved": 0.505
+     },
+     "propInstances/propInst:person_john_l2#0": {
+      "n": 1,
+      "gpuMs": 8.415,
+      "saved": 2.11
+     },
+     "propInstances/propInst:pallet_one#0": {
+      "n": 1,
+      "gpuMs": 9.05,
+      "saved": 1.475
+     },
+     "propInstances/propInst:pallets_stack_l2#0": {
+      "n": 1,
+      "gpuMs": 7.44,
+      "saved": 3.085
+     },
+     "propInstances/propInst:pallets_three_l2#0": {
+      "n": 1,
+      "gpuMs": 11.745,
+      "saved": -1.22
+     },
+     "propInstances/propInst:cement_bags_l2#0": {
+      "n": 1,
+      "gpuMs": 10.955,
+      "saved": -0.43
+     },
+     "propInstances/propInst:stool_wood2_l2#0": {
+      "n": 1,
+      "gpuMs": 11.068,
+      "saved": -0.543
+     },
+     "propInstances/propInst:chair_plastic_l1#0": {
+      "n": 1,
+      "gpuMs": 10.058,
+      "saved": 0.467
+     },
+     "propInstances/propInst:person_koky_l3#0": {
+      "n": 1,
+      "gpuMs": 11.379,
+      "saved": -0.854
+     },
+     "propInstances/propInst:picnic_table_l2#0": {
+      "n": 1,
+      "gpuMs": 9.967,
+      "saved": 0.558
+     },
+     "propInstances/propInst:chair_wood_l1#0": {
+      "n": 1,
+      "gpuMs": 11.132,
+      "saved": -0.607
+     },
+     "propInstances/propInst:person_andrew_l3#0": {
+      "n": 1,
+      "gpuMs": 6.224,
+      "saved": 4.301
+     },
+     "propInstances/propInst:person_andrew_l3#1": {
+      "n": 1,
+      "gpuMs": 7.383,
+      "saved": 3.142
+     },
+     "propInstances/propInst:person_andrew_l3#2": {
+      "n": 1,
+      "gpuMs": 7.074,
+      "saved": 3.451
+     },
+     "propInstances/propInst:planter_l2#0": {
+      "n": 1,
+      "gpuMs": 9.733,
+      "saved": 0.792
+     },
+     "propInstances/propInst:person_charles_l3#0": {
+      "n": 1,
+      "gpuMs": 10.576,
+      "saved": -0.051
+     },
+     "propInstances/propInst:bin_metal_l2#0": {
+      "n": 1,
+      "gpuMs": 11.963,
+      "saved": -1.438
+     },
+     "propInstances/propInst:bottle_propane_l2#0": {
+      "n": 1,
+      "gpuMs": 9.618,
+      "saved": 0.907
+     },
+     "propInstances/propInst:jerrycan_l2#0": {
+      "n": 1,
+      "gpuMs": 10.79,
+      "saved": -0.265
+     },
+     "propInstances/propInst:bags_stack_l2#0": {
+      "n": 1,
+      "gpuMs": 9.419,
+      "saved": 1.106
+     },
+     "propInstances/propInst:oil_tin_l2#0": {
+      "n": 1,
+      "gpuMs": 10.659,
+      "saved": -0.134
+     },
+     "propInstances/propInst:bags_lean_l2#0": {
+      "n": 1,
+      "gpuMs": 9.424,
+      "saved": 1.101
+     },
+     "propInstances/propInst:fence_old#0": {
+      "n": 1,
+      "gpuMs": 11.062,
+      "saved": -0.537
+     },
+     "propInstances/propInst:cinder_pallet_l2#0": {
+      "n": 1,
+      "gpuMs": 9.504,
+      "saved": 1.021
+     },
+     "propInstances/propInst:cinder_pallet_l2#1": {
+      "n": 1,
+      "gpuMs": 10.589,
+      "saved": -0.064
+     },
+     "propInstances/propInst:pallet_one_l1#0": {
+      "n": 1,
+      "gpuMs": 9.562,
+      "saved": 0.963
+     },
+     "propInstances/propInst:jerrycan_green_l2#0": {
+      "n": 1,
+      "gpuMs": 11.538,
+      "saved": -1.013
+     },
+     "propInstances/propInst:person_john_l3#0": {
+      "n": 1,
+      "gpuMs": 9.715,
+      "saved": 0.81
+     },
+     "propInstances/propInst:person_luke_l3#0": {
+      "n": 1,
+      "gpuMs": 10.506,
+      "saved": 0.019
+     },
+     "propInstances/propInst:person_luke_l3#1": {
+      "n": 1,
+      "gpuMs": 10.034,
+      "saved": 0.491
+     },
+     "propInstances/propInst:person_luke_l3#2": {
+      "n": 1,
+      "gpuMs": 10.026,
+      "saved": 0.499
+     },
+     "premises/premises:groun": {
+      "n": 1,
+      "gpuMs": 9.041,
+      "saved": 1.484
+     },
+     "premises/premises:water": {
+      "n": 1,
+      "gpuMs": 10.553,
+      "saved": -0.028
+     },
+     "premises/premises:outlines": {
+      "n": 1,
+      "gpuMs": 10.117,
+      "saved": 0.408
+     },
+     "premises/premises:plots": {
+      "n": 1,
+      "gpuMs": 10.563,
+      "saved": -0.038
+     },
+     "premises/premises:houses": {
+      "n": 1,
+      "gpuMs": 9.387,
+      "saved": 1.138
+     },
+     "premises/premises:lots": {
+      "n": 1,
+      "gpuMs": 8.671,
+      "saved": 1.854
+     },
+     "premises/premises:trees": {
+      "n": 1,
+      "gpuMs": 6.736,
+      "saved": 3.789
+     },
+     "premises/premises:runways": {
+      "n": 1,
+      "gpuMs": 6.367,
+      "saved": 4.158
+     },
+     "premises/premises:roads": {
+      "n": 1,
+      "gpuMs": 7.294,
+      "saved": 3.231
+     },
+     "premises/premises:tram": {
+      "n": 1,
+      "gpuMs": 12.543,
+      "saved": -2.018
+     },
+     "premises/premises:traffic": {
+      "n": 1,
+      "gpuMs": 9.797,
+      "saved": 0.728
+     },
+     "premises/premises:animals": {
+      "n": 1,
+      "gpuMs": 11.129,
+      "saved": -0.604
+     },
+     "premises/premises:handles": {
+      "n": 1,
+      "gpuMs": 10.374,
+      "saved": 0.151
+     },
+     "premises/premises:ghost": {
+      "n": 1,
+      "gpuMs": 10.886,
+      "saved": -0.361
+     },
+     "premises/premises:life": {
+      "n": 1,
+      "gpuMs": 9.87,
+      "saved": 0.655
+     },
+     "pavement:merged": {
+      "n": 5,
+      "gpuMs": 10.113,
+      "saved": 0.412
+     },
+     "standCards/standCards": {
+      "n": 120,
+      "gpuMs": 8.833,
+      "saved": 1.692
+     },
+     "rocks:w2": {
+      "n": 8,
+      "gpuMs": 10.665,
+      "saved": -0.14
+     },
+     "rocks:HOME": {
+      "n": 11,
+      "gpuMs": 8.217,
+      "saved": 2.308
+     },
+     "rocks:w3": {
+      "n": 4,
+      "gpuMs": 10.793,
+      "saved": -0.268
+     },
+     "rocks:mn_strip": {
+      "n": 1,
+      "gpuMs": 9.608,
+      "saved": 0.917
+     },
+     "rocks:tw_ski": {
+      "n": 2,
+      "gpuMs": 10.635,
+      "saved": -0.11
+     },
+     "contact:blobs": {
+      "n": 1,
+      "gpuMs": 9.897,
+      "saved": 0.628
+     },
+     "Group": {
+      "n": 1,
+      "gpuMs": 7.9,
+      "saved": 2.625
+     },
+     "patternVis": {
+      "n": 1,
+      "gpuMs": 9.208,
+      "saved": 1.317
+     }
+    },
+    "after": 9.967
+   },
+   "ab": {
+    "base": {
+     "calls": 753,
+     "ktris": 4918.8,
+     "gpuMs": 11.319,
+     "vramMB": 1433
+    },
+    "far5": {
+     "on": {
+      "calls": 753,
+      "ktris": 4504.1,
+      "gpuMs": 7.523,
+      "vramMB": 1421.6
+     },
+     "back": {
+      "calls": 753,
+      "ktris": 4918.8,
+      "gpuMs": 10.978,
+      "vramMB": 1433
+     }
+    },
+    "far8": {
+     "on": {
+      "calls": 753,
+      "ktris": 4345.1,
+      "gpuMs": 10.153,
+      "vramMB": 1417.2
+     },
+     "back": {
+      "calls": 753,
+      "ktris": 4918.8,
+      "gpuMs": 10.579,
+      "vramMB": 1433
+     }
+    },
+    "ring5": {
+     "on": {
+      "calls": 753,
+      "ktris": 4905.3,
+      "gpuMs": 10.8,
+      "vramMB": 1433
+     },
+     "back": {
+      "calls": 753,
+      "ktris": 4918.8,
+      "gpuMs": 10.542,
+      "vramMB": 1433
+     }
+    },
+    "fineOff": {
+     "on": {
+      "calls": 727,
+      "ktris": 4865.6,
+      "gpuMs": 10.041,
+      "vramMB": 1431.2
+     },
+     "back": {
+      "calls": 752,
+      "ktris": 4916.8,
+      "gpuMs": 8.661,
+      "vramMB": 1432.8
+     }
+    },
+    "scale50": {
+     "on": {
+      "calls": 752,
+      "ktris": 4916.8,
+      "gpuMs": 10.608,
+      "vramMB": 1407
+     },
+     "back": {
+      "calls": 756,
+      "ktris": 4929.8,
+      "gpuMs": 11.42,
+      "vramMB": 1433.4
+     }
+    },
+    "townHide": {
+     "on": {
+      "calls": 637,
+      "ktris": 3570.2,
+      "gpuMs": 8.822,
+      "vramMB": 1433.4
+     },
+     "back": {
+      "calls": 752,
+      "ktris": 4916.8,
+      "gpuMs": 10.701,
+      "vramMB": 1433.4
+     }
+    },
+    "cardsHide": {
+     "on": {
+      "calls": 752,
+      "ktris": 4916.8,
+      "gpuMs": 7.371,
+      "vramMB": 1433.4
+     },
+     "back": {
+      "calls": 752,
+      "ktris": 4916.8,
+      "gpuMs": 8.905,
+      "vramMB": 1433.4
+     }
+    }
+   }
+  },
+  "low": {
+   "timed": {
+    "rafMs": 16.7,
+    "drawn": 30,
+    "fps": 30,
+    "gpuMs": 9.68,
+    "gpuN": 58
+   },
+   "info": {
+    "calls": 696,
+    "ktris": 3989.3,
+    "points": 0,
+    "lines": 0,
+    "programs": 443,
+    "textures": 554,
+    "geometries": 2690
+   },
+   "byOwner": {
+    "Mesh:MeshLambertMaterial": {
+     "draws": 21,
+     "ktris": 1500.6
+    },
+    "premises": {
+     "draws": 109,
+     "ktris": 1170.7
+    },
+    "standCards": {
+     "draws": 100,
+     "ktris": 378.5
+    },
+    "Group": {
+     "draws": 229,
+     "ktris": 349.9
+    },
+    "Mesh:MeshStandardMaterial": {
+     "draws": 119,
+     "ktris": 277.3
+    },
+    "pavement:merged": {
+     "draws": 5,
+     "ktris": 88.3
+    },
+    "groundRing": {
+     "draws": 84,
+     "ktris": 74.6
+    },
+    "rocks:HOME": {
+     "draws": 23,
+     "ktris": 49.8
+    },
+    "Mesh:water": {
+     "draws": 4,
+     "ktris": 43.4
+    },
+    "rocks:w2": {
+     "draws": 8,
+     "ktris": 16.2
+    },
+    "PerspectiveCamera": {
+     "draws": 1,
+     "ktris": 1.2
+    },
+    "lakes": {
+     "draws": 2,
+     "ktris": 1
+    },
+    "patternVis": {
+     "draws": 8,
+     "ktris": 0.1
+    },
+    "Mesh:ShaderMaterial": {
+     "draws": 5,
+     "ktris": 0
+    }
+   },
+   "byProg": {
+    "MeshLambertMaterial": {
+     "draws": 67,
+     "ktris": 2244.5
+    },
+    "MeshStandardMaterial": {
+     "draws": 563,
+     "ktris": 1189.7
+    },
+    "pavement": {
+     "draws": 14,
+     "ktris": 355.3
+    },
+    "water": {
+     "draws": 6,
+     "ktris": 44.4
+    },
+    "MeshPhysicalMaterial": {
+     "draws": 30,
+     "ktris": 44.3
+    },
+    "char:ch22:Ch22_body": {
+     "draws": 4,
+     "ktris": 43.9
+    },
+    "char:ch22:Ch22_hair": {
+     "draws": 2,
+     "ktris": 11.1
+    },
+    "powerline": {
+     "draws": 1,
+     "ktris": 7.1
+    },
+    "life:kit": {
+     "draws": 1,
+     "ktris": 6.5
+    },
+    "matlib:arr": {
+     "draws": 19,
+     "ktris": 3.2
+    },
+    "ShaderMaterial": {
+     "draws": 10,
+     "ktris": 1.6
+    },
+    "MeshBasicMaterial": {
+     "draws": 1,
+     "ktris": 0.2
+    }
+   },
+   "byTarget": {
+    " 1286x610 s4": {
+     "draws": 713,
+     "ktris": 3951.6
+    },
+    " 192x108": {
+     "draws": 1,
+     "ktris": 0
+    },
+    " 2048x546": {
+     "draws": 1,
+     "ktris": 0
+    },
+    "canvas": {
+     "draws": 1,
+     "ktris": 0
+    },
+    " 64x36": {
+     "draws": 1,
+     "ktris": 0
+    },
+    " 1x1": {
+     "draws": 1,
+     "ktris": 0
+    }
+   },
+   "canvas": [
+    1920,
+    911
+   ],
+   "scale": 0.67,
+   "vram": {
+    "totalMB": 1439,
+    "byKindMB": {
+     "tex2d": 820.6,
+     "texCube": 3,
+     "texArray": 199.4,
+     "tex3d": 0,
+     "rb": 53,
+     "buffer": 287.1,
+     "texArray:bc": 24.1,
+     "tex2d:bc": 3.9,
+     "rb:msaa": 47.9
+    },
+    "top": [
+     {
+      "kind": "texArray",
+      "w": 512,
+      "h": 512,
+      "d": 59,
+      "fmt": "0x8c43",
+      "bc": false,
+      "samples": 0,
+      "MB": 78.7,
+      "name": null
+     },
+     {
+      "kind": "texArray",
+      "w": 512,
+      "h": 512,
+      "d": 59,
+      "fmt": "0x8058",
+      "bc": false,
+      "samples": 0,
+      "MB": 78.7,
+      "name": null
+     },
+     {
+      "kind": "tex2d",
+      "w": 3095,
+      "h": 3920,
+      "d": 1,
+      "fmt": "0x8058",
+      "bc": false,
+      "samples": 0,
+      "MB": 46.3,
+      "name": null
+     },
+     {
+      "kind": "tex2d",
+      "w": 4096,
+      "h": 2048,
+      "d": 1,
+      "fmt": "0x8c43",
+      "bc": false,
+      "samples": 0,
+      "MB": 42.7,
+      "name": "Group / MeshStandardMaterial.map"
+     },
+     {
+      "kind": "rb",
+      "w": 1286,
+      "h": 610,
+      "d": 1,
+      "fmt": "0x881a",
+      "bc": false,
+      "samples": 4,
+      "MB": 23.9,
+      "name": null
+     },
+     {
+      "kind": "rb",
+      "w": 1286,
+      "h": 610,
+      "d": 1,
+      "fmt": "0x8cad",
+      "bc": false,
+      "samples": 4,
+      "MB": 23.9,
+      "name": null
+     },
+     {
+      "kind": "tex2d",
+      "w": 3095,
+      "h": 3920,
+      "d": 1,
+      "fmt": "0x822b",
+      "bc": false,
+      "samples": 0,
+      "MB": 23.1,
+      "name": null
+     },
+     {
+      "kind": "tex2d",
+      "w": 2048,
+      "h": 2048,
+      "d": 1,
+      "fmt": "0x8c43",
+      "bc": false,
+      "samples": 0,
+      "MB": 21.3,
+      "name": null
+     },
+     {
+      "kind": "texArray",
+      "w": 512,
+      "h": 512,
+      "d": 16,
+      "fmt": "0x8058",
+      "bc": false,
+      "samples": 0,
+      "MB": 21.3,
+      "name": null
+     },
+     {
+      "kind": "texArray",
+      "w": 512,
+      "h": 512,
+      "d": 15,
+      "fmt": "0x8058",
+      "bc": false,
+      "samples": 0,
+      "MB": 20,
+      "name": null
+     },
+     {
+      "kind": "tex2d",
+      "w": 2048,
+      "h": 2048,
+      "d": 1,
+      "fmt": "0x8058",
+      "bc": false,
+      "samples": 0,
+      "MB": 16,
+      "name": null
+     },
+     {
+      "kind": "rb",
+      "w": 2048,
+      "h": 2048,
+      "d": 1,
+      "fmt": "0x81a6",
+      "bc": false,
+      "samples": 1,
+      "MB": 16,
+      "name": null
+     },
+     {
+      "kind": "tex2d",
+      "w": 2048,
+      "h": 2048,
+      "d": 1,
+      "fmt": "0x8058",
+      "bc": false,
+      "samples": 0,
+      "MB": 16,
+      "name": null
+     },
+     {
+      "kind": "tex2d",
+      "w": 2048,
+      "h": 2048,
+      "d": 1,
+      "fmt": "0x8058",
+      "bc": false,
+      "samples": 0,
+      "MB": 16,
+      "name": null
+     },
+     {
+      "kind": "rb",
+      "w": 2048,
+      "h": 2048,
+      "d": 1,
+      "fmt": "0x81a6",
+      "bc": false,
+      "samples": 1,
+      "MB": 16,
+      "name": null
+     },
+     {
+      "kind": "tex2d",
+      "w": 2048,
+      "h": 2048,
+      "d": 1,
+      "fmt": "0x8058",
+      "bc": false,
+      "samples": 0,
+      "MB": 16,
+      "name": null
+     },
+     {
+      "kind": "tex2d",
+      "w": 2048,
+      "h": 2048,
+      "d": 1,
+      "fmt": "0x81a6",
+      "bc": false,
+      "samples": 0,
+      "MB": 16,
+      "name": null
+     },
+     {
+      "kind": "tex2d",
+      "w": 1548,
+      "h": 1960,
+      "d": 1,
+      "fmt": "0x8c43",
+      "bc": false,
+      "samples": 0,
+      "MB": 11.6,
+      "name": "Mesh:MeshStandardMaterial / MeshStandardMaterial.map"
+     },
+     {
+      "kind": "tex2d",
+      "w": 1548,
+      "h": 1960,
+      "d": 1,
+      "fmt": "0x8c43",
+      "bc": false,
+      "samples": 0,
+      "MB": 11.6,
+      "name": null
+     },
+     {
+      "kind": "tex2d",
+      "w": 2048,
+      "h": 546,
+      "d": 1,
+      "fmt": "0x881a",
+      "bc": false,
+      "samples": 0,
+      "MB": 8.5,
+      "name": "PerspectiveCamera / ShaderMaterial.uApAtlas"
+     },
+     {
+      "kind": "buffer",
+      "w": 0,
+      "h": 0,
+      "d": 1,
+      "fmt": "0x0",
+      "bc": false,
+      "samples": 0,
+      "MB": 7.2,
+      "name": null
+     },
+     {
+      "kind": "tex2d",
+      "w": 768,
+      "h": 1024,
+      "d": 1,
+      "fmt": "0x881a",
+      "bc": false,
+      "samples": 0,
+      "MB": 6,
+      "name": null
+     },
+     {
+      "kind": "tex2d",
+      "w": 768,
+      "h": 1024,
+      "d": 1,
+      "fmt": "0x881a",
+      "bc": false,
+      "samples": 0,
+      "MB": 6,
+      "name": "PMREM.cubeUv @ world.environment"
+     },
+     {
+      "kind": "tex2d",
+      "w": 768,
+      "h": 1024,
+      "d": 1,
+      "fmt": "0x881a",
+      "bc": false,
+      "samples": 0,
+      "MB": 6,
+      "name": null
+     },
+     {
+      "kind": "tex2d",
+      "w": 768,
+      "h": 1024,
+      "d": 1,
+      "fmt": "0x881a",
+      "bc": false,
+      "samples": 0,
+      "MB": 6,
+      "name": null
+     },
+     {
+      "kind": "tex2d",
+      "w": 768,
+      "h": 1024,
+      "d": 1,
+      "fmt": "0x881a",
+      "bc": false,
+      "samples": 0,
+      "MB": 6,
+      "name": null
+     },
+     {
+      "kind": "tex2d",
+      "w": 768,
+      "h": 1024,
+      "d": 1,
+      "fmt": "0x881a",
+      "bc": false,
+      "samples": 0,
+      "MB": 6,
+      "name": null
+     },
+     {
+      "kind": "tex2d",
+      "w": 768,
+      "h": 1024,
+      "d": 1,
+      "fmt": "0x881a",
+      "bc": false,
+      "samples": 0,
+      "MB": 6,
+      "name": null
+     },
+     {
+      "kind": "tex2d",
+      "w": 768,
+      "h": 1024,
+      "d": 1,
+      "fmt": "0x881a",
+      "bc": false,
+      "samples": 0,
+      "MB": 6,
+      "name": null
+     },
+     {
+      "kind": "tex2d",
+      "w": 768,
+      "h": 1024,
+      "d": 1,
+      "fmt": "0x881a",
+      "bc": false,
+      "samples": 0,
+      "MB": 6,
+      "name": null
+     },
+     {
+      "kind": "tex2d",
+      "w": 768,
+      "h": 1024,
+      "d": 1,
+      "fmt": "0x881a",
+      "bc": false,
+      "samples": 0,
+      "MB": 6,
+      "name": "PMREM.cubeUv @ Group / MeshStandardMaterial.envMap"
+     },
+     {
+      "kind": "tex2d",
+      "w": 768,
+      "h": 1024,
+      "d": 1,
+      "fmt": "0x881a",
+      "bc": false,
+      "samples": 0,
+      "MB": 6,
+      "name": null
+     },
+     {
+      "kind": "tex2d",
+      "w": 1286,
+      "h": 610,
+      "d": 1,
+      "fmt": "0x881a",
+      "bc": false,
+      "samples": 0,
+      "MB": 6,
+      "name": null
+     },
+     {
+      "kind": "tex2d",
+      "w": 1286,
+      "h": 610,
+      "d": 1,
+      "fmt": "0x8cad",
+      "bc": false,
+      "samples": 0,
+      "MB": 6,
+      "name": null
+     },
+     {
+      "kind": "tex2d",
+      "w": 512,
+      "h": 2240,
+      "d": 1,
+      "fmt": "0x8c43",
+      "bc": false,
+      "samples": 0,
+      "MB": 5.8,
+      "name": "Group / MeshStandardMaterial.map"
+     },
+     {
+      "kind": "texArray",
+      "w": 256,
+      "h": 256,
+      "d": 64,
+      "fmt": "0x8e8c",
+      "bc": true,
+      "samples": 0,
+      "MB": 5.3,
+      "name": "matlib:page:data|256x256|UASTC|#3 @ propInstances / matlib:arr.mlArmPage"
+     },
+     {
+      "kind": "tex2d",
+      "w": 1024,
+      "h": 1024,
+      "d": 1,
+      "fmt": "0x8c43",
+      "bc": false,
+      "samples": 0,
+      "MB": 5.3,
+      "name": null
+     },
+     {
+      "kind": "tex2d",
+      "w": 1024,
+      "h": 1024,
+      "d": 1,
+      "fmt": "0x8c43",
+      "bc": false,
+      "samples": 0,
+      "MB": 5.3,
+      "name": null
+     },
+     {
+      "kind": "tex2d",
+      "w": 1024,
+      "h": 1024,
+      "d": 1,
+      "fmt": "0x8c43",
+      "bc": false,
+      "samples": 0,
+      "MB": 5.3,
+      "name": null
+     },
+     {
+      "kind": "tex2d",
+      "w": 1024,
+      "h": 1024,
+      "d": 1,
+      "fmt": "0x8c43",
+      "bc": false,
+      "samples": 0,
+      "MB": 5.3,
+      "name": null
+     }
+    ],
+    "texByOwnerMB": {
+     "premises": 228,
+     "? texArray 512x512x59": 157.3,
+     "Group": 109.8,
+     "? tex2d 2048x2048": 101.3,
+     "? tex2d 1024x1024": 82.7,
+     "? tex2d 3095x3920": 69.4,
+     "? tex2d 512x512": 55.3,
+     "? tex2d 768x1024": 54,
+     "? rb 1286x610": 47.9,
+     "rocks:w2": 37.3,
+     "? rb 2048x2048": 32,
+     "LOD": 24.5,
+     "? texArray 512x512x16": 21.3,
+     "propInstances": 20.3,
+     "? texArray 512x512x15": 20,
+     "? tex2d 1286x610": 12,
+     "Mesh:MeshStandardMaterial": 11.6,
+     "? tex2d 1548x1960": 11.6,
+     "? rb 768x1024": 9,
+     "PerspectiveCamera": 8.8,
+     "? rb 1024x1024": 8,
+     "? tex2d 256x1024": 6.7,
+     "world.environment": 6,
+     "? tex2d 512x1024": 5.3,
+     "? tex2d 256x256": 3.6,
+     "? texCube 256x256": 3,
+     "? rb 512x512": 2,
+     "? rb 256x256": 2
+    },
+    "geoByOwnerMB": {
+     "premises": 122.3,
+     "Group": 83.1,
+     "Mesh:MeshLambertMaterial": 43.9,
+     "Mesh:MeshStandardMaterial": 31.6,
+     "groundRing": 18.3,
+     "rocks:HOME": 6.2,
+     "rocks:w2": 4.9,
+     "propInstances": 3.4,
+     "pavement:merged": 2.9,
+     "rocks:w3": 2.3,
+     "rocks:tw_ski": 1.2,
+     "Mesh:water": 1.1,
+     "rocks:mn_strip": 0.6
+    }
+   },
+   "gfx": {
+    "preset": "potato",
+    "build": "potato",
+    "pv": 8,
+    "fps": 30,
+    "fpsOwn": false,
+    "ground": "plain",
+    "scale": 0.67,
+    "cover": "off",
+    "scenery": "low",
+    "drawDist": "vis",
+    "terrain": 3,
+    "aa": "off",
+    "density": 100,
+    "bands": "near",
+    "shadows": "off",
+    "canopy": "off",
+    "rails": "off",
+    "poles": "off",
+    "glare": "off",
+    "sway": "off",
+    "mist": "on",
+    "clouds": "off",
+    "water": "simple",
+    "mirror": "off",
+    "lighting": "sunset",
+    "tone": "cineon",
+    "exposure": 1,
+    "colour": "managed",
+    "bloom": "off",
+    "look": "off",
+    "lens": "off",
+    "rays": "off",
+    "ao": "off",
+    "eye": "off",
+    "compositing": "linear",
+    "town": "nearby"
+   },
+   "budget": {
+    "preset": "potato",
+    "terrain": 3,
+    "heapMB": 700,
+    "mipSkip": 1,
+    "townBoot": 1200,
+    "townReach": 2000,
+    "parked": false,
+    "forestK": 0.65,
+    "islandColour": false,
+    "islandHalf": true,
+    "shedGlass": false,
+    "impTile": 64,
+    "aeroAtlas": 2048,
+    "flownBake": false,
+    "shedLamps": false
+   },
+   "agl": 60.50071611011373,
+   "heapMB": 1218,
+   "split": {
+    "base": 8.869,
+    "owners": {
+     "PerspectiveCamera": {
+      "n": 1,
+      "gpuMs": 9.191,
+      "saved": -0.322
+     },
+     "HemisphereLight": {
+      "n": 1,
+      "gpuMs": 9.105,
+      "saved": -0.236
+     },
+     "DirectionalLight": {
+      "n": 1,
+      "gpuMs": 9.246,
+      "saved": -0.377
+     },
+     "Object3D": {
+      "n": 2,
+      "gpuMs": 9.295,
+      "saved": -0.426
+     },
+     "Mesh:MeshStandardMaterial": {
+      "n": 275,
+      "gpuMs": 9.628,
+      "saved": -0.759
+     },
+     "groundRing/groundRing": {
+      "n": 1024,
+      "gpuMs": 8.699,
+      "saved": 0.17
+     },
+     "Mesh:MeshLambertMaterial": {
+      "n": 28,
+      "gpuMs": 8.59,
+      "saved": 0.279
+     },
+     "Mesh:water": {
+      "n": 3,
+      "gpuMs": 8.401,
+      "saved": 0.468
+     },
+     "lakes": {
+      "n": 1,
+      "gpuMs": 9.726,
+      "saved": -0.857
+     },
+     "treeRungs": {
+      "n": 1,
+      "gpuMs": 9.004,
+      "saved": -0.135
+     },
+     "LOD": {
+      "n": 1,
+      "gpuMs": 7.867,
+      "saved": 1.002
+     },
+     "propInstances/propInst:pallets_stack_l2#0": {
+      "n": 1,
+      "gpuMs": 5.157,
+      "saved": 3.712
+     },
+     "propInstances/propInst:pallets_three_l2#0": {
+      "n": 1,
+      "gpuMs": 6.145,
+      "saved": 2.724
+     },
+     "propInstances/propInst:cement_bags_l2#0": {
+      "n": 1,
+      "gpuMs": 8.592,
+      "saved": 0.277
+     },
+     "propInstances/propInst:stool_wood2_l2#0": {
+      "n": 1,
+      "gpuMs": 8.815,
+      "saved": 0.054
+     },
+     "propInstances/propInst:chair_plastic_l1#0": {
+      "n": 1,
+      "gpuMs": 6.568,
+      "saved": 2.301
+     },
+     "propInstances/propInst:person_koky_l3#0": {
+      "n": 1,
+      "gpuMs": 9.193,
+      "saved": -0.324
+     },
+     "propInstances/propInst:picnic_table_l2#0": {
+      "n": 1,
+      "gpuMs": 9.078,
+      "saved": -0.209
+     },
+     "propInstances/propInst:chair_wood_l1#0": {
+      "n": 1,
+      "gpuMs": 10.938,
+      "saved": -2.069
+     },
+     "propInstances/propInst:person_andrew_l3#0": {
+      "n": 1,
+      "gpuMs": 9.904,
+      "saved": -1.035
+     },
+     "propInstances/propInst:person_andrew_l3#1": {
+      "n": 1,
+      "gpuMs": 9.541,
+      "saved": -0.672
+     },
+     "propInstances/propInst:person_andrew_l3#2": {
+      "n": 1,
+      "gpuMs": 11.997,
+      "saved": -3.128
+     },
+     "propInstances/propInst:planter_l2#0": {
+      "n": 1,
+      "gpuMs": 8.828,
+      "saved": 0.041
+     },
+     "propInstances/propInst:person_charles_l3#0": {
+      "n": 1,
+      "gpuMs": 10.204,
+      "saved": -1.335
+     },
+     "propInstances/propInst:bin_metal_l2#0": {
+      "n": 1,
+      "gpuMs": 9.587,
+      "saved": -0.718
+     },
+     "propInstances/propInst:bottle_propane_l2#0": {
+      "n": 1,
+      "gpuMs": 10.284,
+      "saved": -1.415
+     },
+     "propInstances/propInst:jerrycan_l2#0": {
+      "n": 1,
+      "gpuMs": 9.652,
+      "saved": -0.783
+     },
+     "propInstances/propInst:bags_stack_l2#0": {
+      "n": 1,
+      "gpuMs": 10.138,
+      "saved": -1.269
+     },
+     "propInstances/propInst:bags_lean_l2#0": {
+      "n": 1,
+      "gpuMs": 9.382,
+      "saved": -0.513
+     },
+     "propInstances/propInst:fence_old#0": {
+      "n": 1,
+      "gpuMs": 10.527,
+      "saved": -1.658
+     },
+     "propInstances/propInst:cinder_pallet_l2#0": {
+      "n": 1,
+      "gpuMs": 8.941,
+      "saved": -0.072
+     },
+     "propInstances/propInst:cinder_pallet_l2#1": {
+      "n": 1,
+      "gpuMs": 10.579,
+      "saved": -1.71
+     },
+     "propInstances/propInst:pallet_one_l1#0": {
+      "n": 1,
+      "gpuMs": 9.078,
+      "saved": -0.209
+     },
+     "propInstances/propInst:jerrycan_green_l2#0": {
+      "n": 1,
+      "gpuMs": 9.997,
+      "saved": -1.128
+     },
+     "propInstances/propInst:person_john_l3#0": {
+      "n": 1,
+      "gpuMs": 9.307,
+      "saved": -0.438
+     },
+     "propInstances/propInst:person_luke_l3#0": {
+      "n": 1,
+      "gpuMs": 9.793,
+      "saved": -0.924
+     },
+     "propInstances/propInst:person_luke_l3#1": {
+      "n": 1,
+      "gpuMs": 10.196,
+      "saved": -1.327
+     },
+     "propInstances/propInst:person_luke_l3#2": {
+      "n": 1,
+      "gpuMs": 10.661,
+      "saved": -1.792
+     },
+     "premises/premises:groun": {
+      "n": 1,
+      "gpuMs": 9.342,
+      "saved": -0.473
+     },
+     "premises/premises:water": {
+      "n": 1,
+      "gpuMs": 9.765,
+      "saved": -0.896
+     },
+     "premises/premises:outlines": {
+      "n": 1,
+      "gpuMs": 8.311,
+      "saved": 0.558
+     },
+     "premises/premises:plots": {
+      "n": 1,
+      "gpuMs": 10.406,
+      "saved": -1.537
+     },
+     "premises/premises:houses": {
+      "n": 1,
+      "gpuMs": 9.684,
+      "saved": -0.815
+     },
+     "premises/premises:lots": {
+      "n": 1,
+      "gpuMs": 9.704,
+      "saved": -0.835
+     },
+     "premises/premises:trees": {
+      "n": 1,
+      "gpuMs": 9.328,
+      "saved": -0.459
+     },
+     "premises/premises:runways": {
+      "n": 1,
+      "gpuMs": 10.333,
+      "saved": -1.464
+     },
+     "premises/premises:roads": {
+      "n": 1,
+      "gpuMs": 8.356,
+      "saved": 0.513
+     },
+     "premises/premises:tram": {
+      "n": 1,
+      "gpuMs": 10.156,
+      "saved": -1.287
+     },
+     "premises/premises:traffic": {
+      "n": 1,
+      "gpuMs": 10.275,
+      "saved": -1.406
+     },
+     "premises/premises:animals": {
+      "n": 1,
+      "gpuMs": 9.669,
+      "saved": -0.8
+     },
+     "premises/premises:handles": {
+      "n": 1,
+      "gpuMs": 9.441,
+      "saved": -0.572
+     },
+     "premises/premises:ghost": {
+      "n": 1,
+      "gpuMs": 10.402,
+      "saved": -1.533
+     },
+     "premises/premises:life": {
+      "n": 1,
+      "gpuMs": 8.785,
+      "saved": 0.084
+     },
+     "pavement:merged": {
+      "n": 5,
+      "gpuMs": 9.923,
+      "saved": -1.054
+     },
+     "standCards/standCards": {
+      "n": 120,
+      "gpuMs": 8.744,
+      "saved": 0.125
+     },
+     "rocks:w2": {
+      "n": 8,
+      "gpuMs": 10.323,
+      "saved": -1.454
+     },
+     "rocks:HOME": {
+      "n": 11,
+      "gpuMs": 9.886,
+      "saved": -1.017
+     },
+     "rocks:w3": {
+      "n": 4,
+      "gpuMs": 10.043,
+      "saved": -1.174
+     },
+     "rocks:mn_strip": {
+      "n": 1,
+      "gpuMs": 9.522,
+      "saved": -0.653
+     },
+     "rocks:tw_ski": {
+      "n": 2,
+      "gpuMs": 10.232,
+      "saved": -1.363
+     },
+     "Group": {
+      "n": 1,
+      "gpuMs": 7.151,
+      "saved": 1.718
+     },
+     "patternVis": {
+      "n": 1,
+      "gpuMs": 10.14,
+      "saved": -1.271
+     }
+    },
+    "after": 9.2
+   },
+   "ab": {
+    "base": {
+     "calls": 696,
+     "ktris": 3989.3,
+     "gpuMs": 10.54,
+     "vramMB": 1439
+    },
+    "far5": {
+     "on": {
+      "calls": 696,
+      "ktris": 3581.5,
+      "gpuMs": 10.208,
+      "vramMB": 1427.7
+     },
+     "back": {
+      "calls": 696,
+      "ktris": 3989.3,
+      "gpuMs": 9.683,
+      "vramMB": 1439
+     }
+    },
+    "far8": {
+     "on": {
+      "calls": 696,
+      "ktris": 3401.8,
+      "gpuMs": 9.922,
+      "vramMB": 1422.8
+     },
+     "back": {
+      "calls": 696,
+      "ktris": 3989.3,
+      "gpuMs": 8.337,
+      "vramMB": 1439
+     }
+    },
+    "ring5": {
+     "on": {
+      "calls": 696,
+      "ktris": 3978.7,
+      "gpuMs": 9.849,
+      "vramMB": 1439
+     },
+     "back": {
+      "calls": 696,
+      "ktris": 3989.3,
+      "gpuMs": 10.219,
+      "vramMB": 1439
+     }
+    },
+    "fineOff": {
+     "on": {
+      "calls": 670,
+      "ktris": 3936,
+      "gpuMs": 10.191,
+      "vramMB": 1435.3
+     },
+     "back": {
+      "calls": 696,
+      "ktris": 3989.3,
+      "gpuMs": 10.48,
+      "vramMB": 1436.9
+     }
+    },
+    "scale50": {
+     "on": {
+      "calls": 696,
+      "ktris": 3992.5,
+      "gpuMs": 8.391,
+      "vramMB": 1410.5
+     },
+     "back": {
+      "calls": 696,
+      "ktris": 3989.3,
+      "gpuMs": 9.935,
+      "vramMB": 1436.9
+     }
+    },
+    "mistOff": {
+     "on": {
+      "calls": 696,
+      "ktris": 3992.5,
+      "gpuMs": 10.75,
+      "vramMB": 1436.9
+     },
+     "back": {
+      "calls": 696,
+      "ktris": 3989.3,
+      "gpuMs": 10.426,
+      "vramMB": 1436.9
+     }
+    },
+    "townHide": {
+     "on": {
+      "calls": 587,
+      "ktris": 2818.8,
+      "gpuMs": 8.489,
+      "vramMB": 1436.9
+     },
+     "back": {
+      "calls": 696,
+      "ktris": 3989.3,
+      "gpuMs": 10.732,
+      "vramMB": 1436.9
+     }
+    },
+    "cardsHide": {
+     "on": {
+      "calls": 696,
+      "ktris": 3989.3,
+      "gpuMs": 10.826,
+      "vramMB": 1436.9
+     },
+     "back": {
+      "calls": 696,
+      "ktris": 3989.3,
+      "gpuMs": 10.371,
+      "vramMB": 1436.9
+     }
+    },
+    "waterHide": {
+     "on": {
+      "calls": 690,
+      "ktris": 3944.9,
+      "gpuMs": 9.71,
+      "vramMB": 1436.9
+     },
+     "back": {
+      "calls": 696,
+      "ktris": 3989.3,
+      "gpuMs": 9.881,
+      "vramMB": 1436.9
+     }
+    },
+    "density70": {
+     "on": {
+      "calls": 696,
+      "ktris": 3920.9,
+      "gpuMs": 9.915,
+      "vramMB": 1427.1
+     },
+     "back": {
+      "calls": 676,
+      "ktris": 3945.2,
+      "gpuMs": 10.374,
+      "vramMB": 1428.5
+     }
+    }
+   }
+  }
+ },
+ "errs": [],
+ "t": {
+  "garage": 45552,
+  "rollout": 9530
+ },
+ "boot": [
+  [
+   "treeBins",
+   3
+  ],
+  [
+   "aircraft",
+   1217
+  ],
+  [
+   "garage",
+   964
+  ],
+  [
+   "editor",
+   157
+  ],
+  [
+   "seed",
+   1232
+  ],
+  [
+   "world",
+   11360
+  ],
+  [
+   "town",
+   929
+  ],
+  [
+   "parking",
+   211
+  ],
+  [
+   "trees",
+   0
+  ],
+  [
+   "ring",
+   1036
+  ],
+  [
+   "settle",
+   9782
+  ],
+  [
+   "parked",
+   0
+  ],
+  [
+   "snapshot",
+   779
+  ],
+  [
+   "bake",
+   1
+  ],
+  [
+   "spec",
+   1616
+  ],
+  [
+   "restore",
+   6
+  ],
+  [
+   "images",
+   40
+  ],
+  [
+   "upload",
+   1307
+  ],
+  [
+   "worldCompile",
+   1280
+  ],
+  [
+   "compile",
+   4524
+  ],
+  [
+   "firstFrame",
+   972
+  ],
+  [
+   "frames",
+   2191
+  ],
+  [
+   "craft",
+   24
+  ],
+  [
+   "recheck",
+   5
+  ]
+ ],
+ "wall": 573053
+}

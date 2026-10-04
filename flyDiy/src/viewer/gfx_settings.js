@@ -123,7 +123,7 @@
         { v: 1, label: 'exact', why: 'every ridge and bank to a pixel (the whole ring, the far terrain at 1 px)' },
         { v: 2, label: 'fine', why: 'the terrain within 2 px of its true shape - a far ridge may shift by a pixel as you fly' },
         { v: 3, label: 'coarse', why: 'within 3 px - the far ground visibly re-cuts as you fly; for cards that need the time' },
-        { v: 6, label: 'rough', why: 'within 6 px - the far ridges re-cut as you fly, the near ground as it was; for integrated graphics (G1524)' } ] },    { k: 'mist', label: 'mist', steps: [
+        { v: 6, label: 'rough', why: 'within 6 px - the far ridges re-cut as you fly, the near ground as it was: 9-14 % fewer triangles a frame than coarse on Jolene (potato, laptop - G1525)' } ] },    { k: 'mist', label: 'mist', steps: [
         { v: 'off',   label: 'off', why: 'no ground mist whatever the day' },
         { v: 'on',    label: 'flat', why: 'the day’s humidity as one level layer over the world (the closed form: no cost)' },
         { v: 'land',  label: 'on the land', why: 'the layer lies in the valleys and on the water instead of at one altitude (F2: a short march, a few tenths of a ms)' },
@@ -265,7 +265,7 @@
     // the GTX 660 potato was cut for, its memory the system's DDR4): potato's rows at half the screen's resolution, the far
     // terrain rough; its BUDGETS row holds less (no target MSAA, the town and forest nearer)
     laptop:  Object.assign({ ground: 'plain', scale: 0.5,  cover: 'off',  scenery: 'low',  drawDist: 'vis', terrain: 6, aa: 'off',  density: 100, bands: 'near', shadows: 'off',   canopy: 'off', rails: 'off', poles: 'off', glare: 'off', sway: 'off', mist: 'on',    clouds: 'off',  water: 'simple', mirror: 'off' }, COLOUR, POST_OFF),
-    potato:  Object.assign({ ground: 'plain', scale: 0.67, cover: 'off',  scenery: 'low',  drawDist: 'vis', terrain: 3, aa: 'off',  density: 100, bands: 'near', shadows: 'off',   canopy: 'off', rails: 'off', poles: 'off', glare: 'off', sway: 'off', mist: 'on',    clouds: 'off',  water: 'simple', mirror: 'off' }, COLOUR, POST_OFF),
+    potato:  Object.assign({ ground: 'plain', scale: 0.67, cover: 'off',  scenery: 'low',  drawDist: 'vis', terrain: 6, aa: 'off',  density: 100, bands: 'near', shadows: 'off',   canopy: 'off', rails: 'off', poles: 'off', glare: 'off', sway: 'off', mist: 'on',    clouds: 'off',  water: 'simple', mirror: 'off' }, COLOUR, POST_OFF),
     retro:   Object.assign({ ground: 'lean', scale: 0.85, cover: 'lean', scenery: 'lean', drawDist: 'vis', terrain: 2, aa: 'off',   density: 100, bands: 'near', shadows: 'near',  canopy: 'off', rails: 'on', poles: 'off', glare: 'on',  sway: 'off', mist: 'on',    clouds: 'off',  water: 'simple', mirror: 'off' }, COLOUR, POST_OFF),
     current: Object.assign({ ground: 'far1', scale: 1,    cover: 'full', scenery: 'full', drawDist: 'vis', terrain: 2, aa: 'off',   density: 128, bands: 'near', shadows: 'full',  canopy: 'on',  rails: 'on', poles: 'on', glare: 'on',  sway: 'on',  mist: 'on',    clouds: 'half', water: 'simple',   mirror: 'off' }, COLOUR, POST_BLOOM),
     gamer:   Object.assign({ ground: 'far1', scale: 1,    cover: 'full', scenery: 'full', drawDist: 'vis', terrain: 1, aa: 'msaa', density: 128, bands: 'mid', shadows: 'full',  canopy: 'on',  rails: 'on', poles: 'on', glare: 'on',  sway: 'on',  mist: 'land',  clouds: 'half', water: 'simple',   mirror: 'off' }, COLOUR, POST_BLOOM),
