@@ -466,6 +466,20 @@ check(list.length === 7 && list.filter(e => e.at).length === 2 && list.some(e =>
   check(inBand && keptNoRest && atRest && /function enterGarage\(\) \{\s*parkedFlush\(\);[\s\S]{0,400}?FLOWN_BAKE\.rest\(\)/.test(fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'app.js'), 'utf8')) && FB.FB.hyA === 1.0 && FB.FB.hyB === 1.25,
     '8 G1490 the way back (enterGarage) puts the flown model at rest: the folds on their own baked material, the live meshes parked, t 0 (?fbake=norest the A/B); the band 1.0-1.25 (G1325)',
     JSON.stringify({ inBand, keptNoRest, atRest, hyA: FB.FB.hyA, hyB: FB.FB.hyB }));
+  // G1493: the live AEROSKIN / AEROGLASS programs on a SKINNED mesh (C4b's moving folds, the hybrid's views on them) take the
+  // craft position after skinning - before, a control surface read its decals pivot-shifted (the cheat line on the flaps);
+  // a plain program's text is untouched (no program cache miss)
+  {
+    const AS = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'aeroskin.js'), 'utf8');
+    const m = /function aeroSkinnedCraft\(shader, vs\) \{[\s\S]*?\n\}/.exec(AS);
+    let fn = null; try { fn = m ? new Function('return ' + m[0])() : null; } catch (e) {}
+    const vs = 'void main() {\n#include <begin_vertex>\n#include <skinning_vertex>\n#include <project_vertex>\n}';
+    const sk = fn ? fn({ skinning: true }, vs) : '', pl = fn ? fn({ skinning: false }, vs) : '';
+    const iSk = sk.indexOf('vCraftPos = (uCraftInv * modelMatrix * vec4(transformed, 1.0)).xyz;');
+    check(!!fn && iSk > sk.indexOf('#include <skinning_vertex>') && iSk < sk.indexOf('#include <project_vertex>') && pl === vs &&
+          (AS.match(/aeroSkinnedCraft\(shader, shader\.vertexShader/g) || []).length === 2,
+      '8 G1493 a skinned AEROSKIN / AEROGLASS program takes vCraftPos after skinning_vertex (a moving part\'s decals where the skeleton put it); a plain program\'s text unchanged');
+  }
   const tw = FB.liveTwin(live), bw = FB.bandOf(tw), sh = { uniforms: {}, vertexShader: 'void main() {\n}', fragmentShader: '#include <common>\nvoid main() {\n}' };
   const sh0 = { uniforms: {}, vertexShader: 'void main() {\n}', fragmentShader: '#include <common>\nvoid main() {\n}' };
   try { bw.onBeforeCompile.call(bw, sh, null); } catch (e) {}

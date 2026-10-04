@@ -93,6 +93,8 @@
     if (on.has('warmfree')) FB.warmFree = true;    // isolation: the warm draw's buffers freed once it is done (resident, or first-drawn?)
     if (on.has('noshadowfolds')) FB.shadowFolds = false;   // G1124 off: the live meshes cast their own shadows
     if (on.has('norest')) FB.noRest = true;   // G1490's A/B: the way back leaves the flown model as the flight left it (no rest())
+    if (on.has('hyease')) FB.hyEase = 0.5;    // G1494: the band crossed in TIME (see nearT), seconds
+    for (const x of on) { const m = /^hyease=([\d.]+)$/.exec(x); if (m) FB.hyEase = +m[1]; }
     for (const x of on) { const m = /^hy([\d.]+)-([\d.]+)$/.exec(x); if (m) { FB.hyA = +m[1]; FB.hyB = Math.max(+m[1] + 0.01, +m[2]); } }   // the band
     for (const x of on) { const m = /^hy=([\d.]+)$/.exec(x); if (m) FB.hyForce = Math.min(1, Math.max(0, +m[1])); }   // t held (the A/B rigs)
   } catch (e) {}
@@ -741,7 +743,22 @@
     const px = 2 * d * Math.tan(cam.fov * Math.PI / 360) / (cam.zoom || 1) / H;
     const mag = cm / 100 / px;
     FB.hyMag = mag;
+    if (FB.hyEase > 0) return eased(mag);
     return Math.min(1, Math.max(0, (mag - FB.hyA) / (FB.hyB - FB.hyA)));
+  }
+  // G1494 (?fbake=hyease[=s], off by default) THE BAND IN TIME. The chase taxi stands at 1.05-1.12 px a texel: INSIDE
+  // G1325's 1.0-1.25 band, so every frame draws BOTH surfaces, each on its discarding band twin (no early-Z) - rollout_perf:
+  // ~0.85 ms render over the live aeroplane alone, and a still dither on the skin. Here the band is a DISSOLVE: the live
+  // shader is wanted from hyA (back to the bake under hyA x hyEaseLo: no flicker on the edge) and t walks to it over hyEase
+  // seconds - the dither only while it walks; a steady distance draws one surface. rest() starts it at the bake.
+  const HE = { t: 0, go: 0, at: 0 };
+  function eased(mag) {
+    const now = performance.now(), dt = HE.at ? Math.min(0.1, (now - HE.at) / 1000) : 0;
+    HE.at = now;
+    if (mag >= FB.hyA) HE.go = 1; else if (mag < FB.hyA * (FB.hyEaseLo || 0.9)) HE.go = 0;
+    const s = dt / FB.hyEase;
+    HE.t += Math.max(-s, Math.min(s, HE.go - HE.t));
+    return HE.t;
   }
   // every frame (app.js): t (1 in the cockpit), then the folds and their live meshes shown by it - once per change
   // (G1124: tEye for the cabin and the eye's zone - the cockpit gives 1 there and 0 to the far zone; the chase one t)
@@ -780,6 +797,7 @@
   // taxi already left it so). The next flight frame sets t again, on the programs the craft step warmed in the world.
   function rest() {
     if (FB.noRest) return;
+    HE.t = HE.go = HE.at = 0;   // (G1494's dissolve starts at the bake too)
     shadowFolds(false);
     FB_FADE.value = 0; FB.hyT = FB.hyTEye = FB.hyTIn = 0;
     for (const F of FOLDS) if (F.fade) F.fade(0);
