@@ -64,7 +64,8 @@ function paceSchedules() {
 const CASES = {
   'crash-cub': { label: 'the Cub into a trunk at 30 m/s, the centreline', key: 'cub', kind: 'trunk', o: { D: 40, agl: 4, V: 30, thr: 0, secs: 5, off: 0 } },
   'crash-metal': { label: 'the metal Cessna into a trunk at 30 m/s, the centreline', key: 'metal', kind: 'trunk', o: { D: 40, agl: 4, V: 30, thr: 0, secs: 5, off: 0 } },
-  'wing-cub': { label: 'the Cub into a trunk at 30 m/s, the wing 2.5 m out', key: 'cub', kind: 'trunk', o: { D: 40, agl: 4, V: 30, thr: 0, secs: 5, off: 2.5 } },
+  // (6 s: the wing breaks at 1.37 s and the flight is over 4 s after - the wreck flies on past the trunk, never at rest)
+  'wing-cub': { label: 'the Cub into a trunk at 30 m/s, the wing 2.5 m out', key: 'cub', kind: 'trunk', o: { D: 40, agl: 4, V: 30, thr: 0, secs: 6, off: 2.5 } },
   'hard-cub': { label: 'the Cub dropped at FAR 23.473\'s limit sink', key: 'cub', kind: 'hard', calm: true },
   'hard-metal': { label: 'the metal Cessna dropped at FAR 23.473\'s limit sink', key: 'metal', kind: 'hard', calm: true },
   'hard-floats': { label: 'the Cessna on floats dropped onto the water at FAR 23.473\'s limit sink', key: 'floats', kind: 'hard', calm: true },
@@ -255,6 +256,7 @@ const f2 = x => (x == null ? '-' : (+x).toFixed(2));
     }
   }
   const outI = argv.indexOf('--out');
+  if (outI >= 0) fs.mkdirSync(path.dirname(argv[outI + 1]), { recursive: true });
   if (outI >= 0) fs.writeFileSync(argv[outI + 1], JSON.stringify({ cases: R, pace: P }, null, 1));
   console.log('  ' + (checks - fails) + '/' + checks + ' checks');
   console.log('GATE DMGFPS: ' + (fails ? 'FAIL' : 'PASS'));
