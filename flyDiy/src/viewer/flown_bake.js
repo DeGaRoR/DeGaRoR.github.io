@@ -64,7 +64,7 @@
 (function () {
   const W = (typeof window !== 'undefined') ? window : globalThis;
   const FB = { V: 2, S: 2048, Sin: 2048, gutter: 4, gutterIn: 2, keep: 4, on: true, ab: false, quiet: false, sliceMs: 40, worker: true,
-                hybrid: true, hyA: 1.0, hyB: 1.25,   // G1325 (the user, 2026-10-03: the bake "too pixelated before the switch", switch "farther"): the band from 1 px a texel (was 1.6-2.0)
+                hybrid: true, hyA: 1.6, hyB: 2.0,    // train 29 (A0): G1325's farther band (1.0-1.25) is back OUT: live at the taxi, the world -> garage trip took 2.8 s and the next garage -> world re-linked the live program (a 5.2 s task); it returns with that fixed
                 eyeR: 1.5, eyeOnly: true, shadowFolds: true,
                 cockpitLive: true,                 // train 21 (the user, 2026-10-01: "ship the live cockpit exterior"): the eye's zone live in the cockpit, the detailed textures at the seat (~+0.6 ms Cub/Cessna render); ?fbake=cockpitbake restores the bake there
                 swingPad: 0.5 };   // G1170.2: a moving part's travel beyond its turn (a Fowler flap's run, the gear's stroke), m   // G1124.1: the exterior live in the cockpit (the eye's zone) - off: +2.4 ms there (the Cessna)   // G1124: the eye zone's reach past the cabin (m); the cockpit's cuts   // THE HYBRID (below): the live shader from hyA screen pixels a texel, whole at hyB
