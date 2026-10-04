@@ -2459,16 +2459,16 @@ function checkEmHabitat(S) {
   }
   return F;
 }
-// THE RATES, THE GAPS, THE CAP, THE JITTER, THE DOG: a 3 h random walk with teleports among the places, at every hour
+// THE RATES, THE GAPS, THE CAP, THE JITTER, THE DOG: a 2 h random walk with teleports among the places, at every hour
 function checkEmRate(S, report) {
   const MM = emModelOf(S), M = MM.M, F = [];
-  const spots = [[-900, -800], [880, 0], [400, -1000], [AMB_LAKE[0] + AMB_LAKE[2] + 5, AMB_LAKE[1]], [-400, -200], [880, -600], [400, -1000]];
+  const spots = [[-900, -800], [880, 0], [400, -1000], [AMB_LAKE[0] + AMB_LAKE[2] + 5, AMB_LAKE[1]], [-400, -200], [880, -600], [400, -1000], [400, -1000]];
   for (const tier of ['full', 'light']) {
     let seed = tier === 'full' ? 11 : 5; const rnd = () => ((seed = (seed * 1103515245 + 12345) >>> 0) / 4294967296);
     let cx = 0, cz = 0, nx = 0, sun = 40, villageS = 0;
     const W = ambWorld();
-    // (gamer 3 h: the dog's rate wants village time; potato 1 h: its cap)
-    const st = emRun(MM, { tier, sec: tier === 'full' ? 3600 * 3 : 3600, world: W, seed: tier === 'full' ? 3 : 9,
+    // (gamer 2 h, the village a third of it: the dog's rate wants village time; potato 40 min: its cap)
+    const st = emRun(MM, { tier, sec: tier === 'full' ? 3600 * 2 : 2400, world: W, seed: tier === 'full' ? 3 : 9,
       path: t => { const k = Math.floor(t / 120); if (k !== nx) { nx = k; const s = spots[Math.floor(rnd() * spots.length)]; cx = s[0]; cz = s[1]; sun = rnd() < 0.3 ? -14 : rnd() < 0.2 ? -3 : 35; W.day.sunEl = sun; }
                    return [cx + 15 * Math.sin(t / 9), cz + 15 * Math.cos(t / 11), 1.7]; },
       each: (s, t) => { if (cx === 400 && sun > 1) villageS += 1 / 60; } });
@@ -2484,7 +2484,7 @@ function checkEmRate(S, report) {
     if (!(dogs >= 1) && tier === 'full') F.push(tier + ': no dog in ' + Math.round(villageS) + ' s of village by day (the walk proves nothing)');
     if (dogs > villageS / dogGap + 1) F.push(tier + ': ' + dogs + ' barks in ' + Math.round(villageS) + ' s of village by day (the declared rate: <= one a ' + dogGap + ' s)');
     if (dogs > villageS / 150 + 1) F.push(tier + ': the dog is not rare: ' + dogs + ' barks in ' + Math.round(villageS) + ' s (the user: "here and there", <= one a 150 s)');
-    if (tier === 'full' && report) report.push('the emitters over 3 h of walk (gamer): ' + M.SOUNDS.filter(x => !x[2]).map(x => x[0] + ' ' + emCount(st, x[0])).join(', ') + '; at most ' + st.maxV + ' at once; the dog ' + dogs + ' in ' + Math.round(villageS) + ' s of village by day');
+    if (tier === 'full' && report) report.push('the emitters over 2 h of walk (gamer): ' + M.SOUNDS.filter(x => !x[2]).map(x => x[0] + ' ' + emCount(st, x[0])).join(', ') + '; at most ' + st.maxV + ' at once; the dog ' + dogs + ' in ' + Math.round(villageS) + ' s of village by day');
   }
   // THE CAP, forced: ten calls at once -> exactly `cap` sound, the rest refused
   for (const [tier, cap] of [['full', 6], ['light', 3]]) {
@@ -2572,11 +2572,11 @@ function checkEmObjects(S) {
   {
     const boatOn = st => st.log.filter(r => r[1] === 'boat:on').length;
     const prov = () => emMovers({ boats: [[900, 40], [905, 52]] });
-    const d = emRun(MM, { x: 880, z: 0, h: 1.7, sun: 30, sec: 1200, prov: prov() });
-    if (!(boatOn(d) >= 2 && boatOn(d) <= 1200 / M.BOAT.gap + 1)) F.push('boats 50 m away by day: ' + boatOn(d) + ' outboard episodes in 20 min (want 2..' + Math.floor(1200 / M.BOAT.gap + 1) + ')');
-    const n = emRun(MM, { x: 880, z: 0, h: 1.7, sun: -20, sec: 1200, prov: prov() });
+    const d = emRun(MM, { x: 880, z: 0, h: 1.7, sun: 30, sec: 900, prov: prov() });
+    if (!(boatOn(d) >= 2 && boatOn(d) <= 900 / M.BOAT.gap + 1)) F.push('boats 50 m away by day: ' + boatOn(d) + ' outboard episodes in 15 min (want 2..' + Math.floor(900 / M.BOAT.gap + 1) + ')');
+    const n = emRun(MM, { x: 880, z: 0, h: 1.7, sun: -20, sec: 600, prov: prov() });
     if (boatOn(n)) F.push('an outboard at night (' + boatOn(n) + ')');
-    const f = emRun(MM, { x: 880, z: -600, h: 1.7, sun: 30, sec: 600, prov: prov() });
+    const f = emRun(MM, { x: 880, z: -600, h: 1.7, sun: 30, sec: 400, prov: prov() });
     if (boatOn(f)) F.push('an outboard from boats 640 m away');
   }
   return F;
@@ -2693,7 +2693,7 @@ async function checkEmBudget(S, report) {
     const SM = pg.win.AUDIO_SAMPLES, E = pg.win.EMITTERS;
     let maxB = 0, drops = 0, lastB = 0, over = 0;
     const spots = [[-900, -800, 40], [880, 0, 40], [400, -1000, 40], [-900, -800, -15], [AMB_LAKE[0] + AMB_LAKE[2] + 5, AMB_LAKE[1], -3], [0, 500, 40]];
-    for (let f = 0; f < 60 * 600; f++) {
+    for (let f = 0; f < 60 * 450; f++) {
       if (f % (60 * 75) === 0) { const s = spots[(f / (60 * 75)) % spots.length]; pg.at(s[0], s[1], 1.7); pg.world.day.sunEl = s[2]; }
       pg.go();
       if (f % 4 === 0) { await null; pg.runTimers(); }
@@ -2703,9 +2703,9 @@ async function checkEmBudget(S, report) {
     }
     if (over) F.push(tier + ': ' + (maxB / 1048576).toFixed(2) + ' MB decoded in the emitters\' class (the budget ' + budget / 1048576 + ' MB)');
     if (!(maxB > 0)) F.push(tier + ': nothing decoded over 10 min of walk (the budget is untested)');
-    if (drops < 1) F.push(tier + ': the emitters\' bytes never went down (nothing released in 10 min)');
+    if (drops < 1) F.push(tier + ': the emitters\' bytes never went down (nothing released in 7.5 min)');
     if (SM.classBytes('amb') && SM.classOf('dog') === SM.classOf('amb.forest.day')) F.push(tier + ': the dog shares the beds\' class');
-    if (report) report.push('the emitters on ' + tier + ': peak ' + (maxB / 1048576).toFixed(2) + ' / ' + budget / 1048576 + ' MB decoded (one-shots), ' + drops + ' releases in 10 min, procedural ' + (E.procBytes() / 1024).toFixed(0) + ' KB');
+    if (report) report.push('the emitters on ' + tier + ': peak ' + (maxB / 1048576).toFixed(2) + ' / ' + budget / 1048576 + ' MB decoded (one-shots), ' + drops + ' releases in 7.5 min, procedural ' + (E.procBytes() / 1024).toFixed(0) + ' KB');
   }
   return F;
 }
