@@ -188,6 +188,7 @@
   color:#1a1815; background:#e6a15a; border:1px solid #e6a15a; }
 #welcome .wlink { background:none; border:0; padding:0; color:#a59d8f; text-decoration:underline; cursor:pointer; font:inherit; font-size:13px; }
 #welcome .wnote { margin-top:12px; color:#7d766a; font-size:12px; }
+#welcome .wbuild { margin-top:10px; padding-top:8px; border-top:1px solid rgba(255,255,255,.08); color:#7d766a; font-size:11px; letter-spacing:.04em; }
 #welcome p { margin:8px 0; color:#d8d1c4; }
 #welcome button { transition:none; backdrop-filter:none; -webkit-backdrop-filter:none; }
 `;
@@ -213,6 +214,12 @@
     card.appendChild(el('div', 'wbrand', 'flyDiy'));
     (W.document.body || W.document.documentElement).appendChild(o);
     return { o, card };
+  };
+  // G1535 (UPDATE-NOW): the card's footer says which build this page is ('build 1a2b3c4d · 4 Oct 2026'), last
+  const stampFoot = card => {
+    const U = W.UPDATE_NOW;
+    const t = U && U.stamp ? U.stamp() : (W.FLYDIY_BUILD ? 'build ' + String(W.FLYDIY_BUILD).slice(0, 8) : '');
+    if (t) card.appendChild(el('div', 'wbuild', t));
   };
   const facts = (card, env, d) => {
     card.appendChild(el('div', 'wsec', 'Your computer'));
@@ -255,6 +262,7 @@
     foot.appendChild(play); foot.appendChild(other);
     card.appendChild(foot);
     card.appendChild(el('div', 'wnote', 'Asked once for this graphics card. Every option can be changed later in GRAPHICS, where "re-check my computer" asks again.'));
+    stampFoot(card);
     play.onclick = () => { o.remove(); res(pick); };
     paint();
     try { play.focus(); } catch (e) {}
@@ -273,6 +281,7 @@
     go.onclick = () => { W.document.getElementById('welcome').remove(); res('potato'); };
     foot.appendChild(go);
     card.appendChild(foot);
+    stampFoot(card);
   });
 
   // ---- THE LOST CONTEXT -----------------------------------------------------------------------------------------
