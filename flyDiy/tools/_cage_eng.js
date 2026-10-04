@@ -314,6 +314,25 @@ window.CAGE_ENG_FACTS = (P) => {
   return facts;
 };
 
+// THE SOUND ROW (SND-ENGINE G1611, SOUND-2026-10-04 §9): what the engine
+// voice needs and the registry does not hold — the cylinders, their layout and
+// the stroke — read off the SAME dial dict the mesh and the facts read
+// (engSpecOfP: a catalogue engine's preset geometry, the custom engine's
+// dials). PHYSICS-INERT, declared: the join writes it as
+// spec.engines[i].sound and nothing in the resolve or the solver reads it;
+// src/viewer/audio/engine_config.js does. null for an electric or a turbine
+// (no piston voice) and with the layer off.
+window.CAGE_ENG_SOUND = (P) => {
+  if (!+P.engOn) return null;
+  const spec = engSpecOfP(P);
+  if (!['flat', 'inline', 'vee', 'radial'].includes(spec.arch)) return null;
+  const cyl = Math.round(+spec.cyl);
+  if (!(cyl >= 1)) return null;
+  const dispL = Math.PI / 4 * spec.bore * spec.bore * spec.stroke * cyl * 1000;
+  return { cyl, arch: spec.arch, twoStroke: spec.twoStroke ? 1 : 0,
+           dispL: isFinite(dispL) && dispL > 0 ? +dispL.toFixed(2) : null };
+};
+
 // ---- panel ----------------------------------------------------------------
 // THE CATALOGUE, PLUS ONE (2026-09-05, the user's picker ruling: "either
 // the user picks an existing engine (after choosing the type of engine),

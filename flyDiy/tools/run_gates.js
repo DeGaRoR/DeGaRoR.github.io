@@ -547,6 +547,11 @@ const GATES = [
   // engine stays on its bearer, the bearer stops ringing, the wing root
   // stays put against the firewall. Negative control on the twin fixture.
   { id: 'MOUNT', file: '_mount_check.js', tier: 'core', wall: 130 },
+  // SND-ENGINE (G1613): the engine part of GATE AUDIO - the worklet run in node under a shim: the
+  // firing frequency within 3 % across idle..rated on the five validated engines (48 and 44.1 kHz), no
+  // NaN/clip/DC/subnormal, process() allocation-free, seeded, the life driven by the solver, the sound
+  // row physics-inert; every assertion negative-verified. SND-CORE's _audio_check.js absorbs it; ~3 min
+  { id: 'AUDIOENG', file: 'audio/_engine_check.js', tier: 'core', wall: 200 },
 ];
 
 const args = process.argv.slice(2);

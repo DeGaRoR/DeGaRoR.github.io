@@ -1096,14 +1096,32 @@ shipped (this repository is public and served raw). Every shipped file has a row
 Recordings used only as tuning references (real Cub / C172 / Rotax engines) stay local and are listed in the
 local ledger, never shipped.
 
-### The engine synthesiser (code)
+### The engine synthesiser (code — `src/viewer/audio/engine_worklet.js`, SND-ENGINE G1610)
 
-- **engine-sound-generator** by **Antonio-R1** (https://github.com/Antonio-R1/engine-sound-generator),
-  **MIT**, © 2021-2022 Antonio-R1 — the AudioWorklet waveguide engine the flyDiy engine voice is ported from;
-  the MIT notice is kept in the ported file.
-- It is itself a port of **enginesound** by **DasEtwas** (https://github.com/DasEtwas/enginesound), **MIT**.
-- Both follow S. Baldan and S. Delle Monache, *Physically informed car engine sound synthesis for virtual and
-  augmented environments*, SIVE@IEEE VR 2015.
+The piston engine's voice is a PORT of two MIT-licensed programs (SOUND-2026-10-04
+ruling s2): no recording ships, the sound is computed from the aeroplane.
+
+- **engine-sound-generator** by **Antonio-R1** — the JavaScript AudioWorklet
+  (`src/engine_sound_generator/engine_sound_generator_worklet.js` and
+  `waveguide.js`) our worklet starts from: the cylinder / intake / exhaust /
+  extractor waveguides, the straight pipe, the parallel-waveguide muffler and
+  the outlet. https://github.com/Antonio-R1/engine-sound-generator —
+  **MIT**, *Copyright (c) 2021-2022 Antonio-R1*.
+- **enginesound** by **DasEtwas** — the Rust reference implementation
+  Antonio-R1 ported: per-cylinder crank offsets and pipes, the valve and
+  ignition functions, the waveguide soft limit, the DC filter and the seeded
+  xorshift noise. https://github.com/DasEtwas/enginesound — **MIT**,
+  *Copyright (c) 2020 DasEtwas*.
+- Both after S. Baldan, S. Delle Monache et al., *"Physically informed car
+  engine sound synthesis for virtual and augmented environments"*, SIVE
+  workshop at IEEE VR 2015 (the model; cited, no code).
+- MIT requires the copyright and permission notice in copies: both notices
+  and the full MIT text are kept verbatim at the head of
+  `src/viewer/audio/engine_worklet.js`, which also lists every change made in
+  the port (sample-rate independence, per-instance parameters, the zero-mean
+  crank noise, the reference's ignition phase, the two-stroke, allocation-free
+  processing, and the flight-sim life: load, jitter, misfire, starter, catch,
+  run-down, ticking, blower whistle).
 - The propeller voice follows R. Selfridge, D. Moffat and J. D. Reiss, *Physically derived sound synthesis
   model of a propeller*, Audio Mostly 2017 (doi 10.1145/3123514.3123524), and Gutin's propeller-noise theory.
 
