@@ -1551,8 +1551,8 @@ function floatAdvice(grossKg, P) {
 //   THE BELLY: the fuselage's own frame stations (parts.F: BL / BR / TL / TR per station, the tail post TPB / TPT) close a
 //     box hull - bottom, sides, top, the firewall face, the tail cone - as triangles over the frame's NODES (they flex
 //     with it; no tetra). Per triangle, clipped against the free surface as the float's panels are: the hydrostatic
-//     head rho g d over the wet polygon (times WB_BUOY, the share of the hull that holds air: a fabric fuselage
-//     floods - INFERRED, the ditched Cub floats low on its wings and cabin, not on a dry 2.5 m^3 box), the NEWTONIAN
+//     head rho g d over the wet polygon (BY VOLUME and times the air the slice still holds - G1384.2/.3 below: the
+//     material's share, flooding as it sits in the water; a bare frame none), the NEWTONIAN
 //     pressure Cp 1/2 rho Vn^2 on a face advancing into the water (the float's impact term; on the inclined bottom it is
 //     the planing lift and its drag), and ITTC-57-scale skin friction along the face. Each term lands on the
 //     triangle's three nodes by the wet centroid's barycentrics (inside the triangle: weights in [0, 1]).
@@ -1566,7 +1566,25 @@ function floatAdvice(grossKg, P) {
 // (HYDRO_HZ, held between computes), and only near water: a build with floats keeps the float pass alone (the
 // floatplanes are unchanged to the bit). G1384: the solver builds and runs this only on a frame that can reach the water
 // (30_solver.js wetArmFrame) - a dry flight builds nothing, writes nothing and is master's trajectory to the bit.
-const WB_BUOY = 0.35, WB_CP = 1.0, WB_CF = 0.006, WB_CD_TYRE = 1.0, WB_CD_SIDE = 1.2, WB_TYRE_W = 0.5, WB_DELTA = 0.15;
+const WB_CP = 1.0, WB_CF = 0.006, WB_CD_TYRE = 1.0, WB_CD_SIDE = 1.2, WB_TYRE_W = 0.5, WB_DELTA = 0.15;
+// G1384.2-G1384.4 (the user: "it should be function of the construction material, the actual volume and the 'no skin'
+// option ... simple gradual flooding ... and wings buoyancy"): THE AIR A BUILD HOLDS, by what it is built of. Per
+// fuselage material (spec.material): `air` - the share of the covered fuselage's volume that is air when it meets the
+// water (the rest is the cabin's contents and the frame); `tau` - the e-folding time (s) in which a SUBMERGED slice
+// floods; `breach` - the entry pressure (Pa, the slam's) past which that slice's skin is holed and floods ten times
+// faster. Per wing surface material (genSurfKey): the same for the wing's slab (`air` 0.5 on a fabric wing: its tanks
+// and the closed bays, not the cloth). ALL INFERRED, stated not measured: a fabric Cub floods in tens of seconds and
+// floats on its wings (the ditching reports), a riveted aluminium cabin in minutes, a composite one slower still.
+// `covering: 'open'` (the bare frame) holds no air at all.
+const WB_MAT = { tubeFabric: { air: 0.85, tau: 40, breach: 60e3 }, aluTube: { air: 0.85, tau: 40, breach: 60e3 },
+                 wood: { air: 0.85, tau: 150, breach: 120e3 }, alloy: { air: 0.9, tau: 300, breach: 200e3 },
+                 carbon: { air: 0.9, tau: 900, breach: 250e3 } };
+const WB_WING = { fabric: { air: 0.5, tau: 60 }, steel: { air: 0.5, tau: 60 }, aluFabric: { air: 0.5, tau: 60 },
+                  alloy: { air: 0.9, tau: 600 }, carbon: { air: 0.9, tau: 900 } };
+const WB_DRAIN = 30;            // s: a slice out of the water drains (its flooding decays) on this time
+const WB_BREACH_K = 10;         // a holed slice floods this much faster
+const WB_BETA_MIN = 10 * D2R;   // the slam's floor on a face's deadrise: a flat bottom is cushioned (air, skin flex)
+const WB_WING_TC = 0.12;        // the wing slab's thickness over chord (no per-strip thickness in the def)
 // the 27 sample points of a slice (the cell midpoints of a 3 x 3 x 3 grid on the unit cube) and their trilinear weights
 const WB_Q = (() => { const q = []; for (let k = 0; k < 3; k++) for (let j = 0; j < 3; j++) for (let i = 0; i < 3; i++) {
   const u = (i + 0.5) / 3, v = (j + 0.5) / 3, w = (k + 0.5) / 3;
@@ -1583,26 +1601,35 @@ function wetBuild(def, p, v, m) {
   const wheels = [];
   for (const i of (refs.mains || [])) if (def.nodes[i] && def.nodes[i].r > 0) wheels.push(i);
   if (refs.tw != null && refs.tw >= 0 && def.nodes[refs.tw] && def.nodes[refs.tw].r > 0) wheels.push(refs.tw);
-  const tris = [], slices = [];
-  // a triangle: its three nodes, one-sided (a hull face: outward normal) or two-sided (a plate), its area's scale
-  const T = (a, b, c, two, kA) => tris.push({ n: [a, b, c], two: !!two, kA: kA || 1 });
-  if (Array.isArray(F) && F.length >= 2 && F.every(s => s && [s.BL, s.BR, s.TL, s.TR].every(i => i != null && def.nodes[i]))) {
+  const tris = [], slices = [], slabs = [];
+  const spec = def.spec || {};
+  const MAT = WB_MAT[spec.material || (spec.fuselage && spec.fuselage.material)] || WB_MAT.tubeFabric;
+  const open = !!(spec.fuselage && spec.fuselage.covering === 'open');
+  // a triangle: its three nodes, one-sided (a hull face: outward normal) or two-sided (a plate), its area's scale, and
+  // (a hull face) the slice it closes - the slam's breach floods that slice
+  let curSl = -1;
+  const T = (a, b, c, two, kA) => tris.push({ n: [a, b, c], two: !!two, kA: kA || 1, sl: two ? -1 : curSl });
+  const SL = n8 => slices.push({ n: n8, air: open ? 0 : MAT.air, tau: MAT.tau, breach: MAT.breach, f: 0, br: false, wetS: 0 });
+  if (!open && Array.isArray(F) && F.length >= 2 && F.every(s => s && [s.BL, s.BR, s.TL, s.TR].every(i => i != null && def.nodes[i]))) {
     const h0 = tris.length;
     for (let k = 0; k + 1 < F.length; k++) {
       const a = F[k], b = F[k + 1];
+      curSl = k;
       T(a.BL, a.BR, b.BR); T(a.BL, b.BR, b.BL);           // bottom
       T(a.BL, b.BL, b.TL); T(a.BL, b.TL, a.TL);           // left
       T(a.BR, a.TR, b.TR); T(a.BR, b.TR, b.BR);           // right
       T(a.TL, b.TL, b.TR); T(a.TL, b.TR, a.TR);           // top
-      slices.push([a.BL, a.BR, a.TL, a.TR, b.BL, b.BR, b.TL, b.TR]);
+      SL([a.BL, a.BR, a.TL, a.TR, b.BL, b.BR, b.TL, b.TR]);
     }
     const f0 = F[0], L = F[F.length - 1];
+    curSl = 0;
     T(f0.BL, f0.TL, f0.TR); T(f0.BL, f0.TR, f0.BR);       // the firewall face
     const tb = def.parts.TPB, tt = def.parts.TPT;
+    curSl = F.length - 1;
     if (tb != null && tt != null && def.nodes[tb] && def.nodes[tt]) {
       T(L.BL, L.BR, tb); T(L.BL, tb, tt); T(L.BL, tt, L.TL); T(L.BR, L.TR, tt); T(L.BR, tt, tb); T(L.TL, tt, L.TR);
-      slices.push([L.BL, L.BR, L.TL, L.TR, tb, tb, tt, tt]);
-    } else { T(L.BL, L.BR, L.TR); T(L.BL, L.TR, L.TL); }
+      SL([L.BL, L.BR, L.TL, L.TR, tb, tb, tt, tt]);
+    } else { curSl = F.length - 2; T(L.BL, L.BR, L.TR); T(L.BL, L.TR, L.TL); }
     // outward: away from the centre of the stations the triangle spans (the frame as built)
     const cen = s => [0, 1, 2].map(j => (P0(s.BL)[j] + P0(s.BR)[j] + P0(s.TL)[j] + P0(s.TR)[j]) / 4);
     const Cs = F.map(cen), X = Cs.map(c => c[0]);
@@ -1623,17 +1650,37 @@ function wetBuild(def, p, v, m) {
     const aq = 0.5 * len(cross(sub(B, A), sub(Cc, A))) + 0.5 * len(cross(sub(Cc, A), sub(Dd, A)));
     const kA = aq > 1e-4 && st.area > 0 ? Math.min(4, st.area / aq) : 1;
     T(q[0], q[1], q[2], true, kA); T(q[0], q[2], q[3], true, kA);
+    // G1384.4 THE WING'S OWN BUOYANCY: a slab of the strip's area x WB_WING_TC of its chord (x 0.68, an aerofoil's
+    // section over its box), the air its surface material holds; the floods as the fuselage's
+    if (st.kind === 'wing' && st.area > 0 && st.chord > 0) {
+      let wk = 'fabric';
+      try { if (typeof genSurfKey === 'function') wk = genSurfKey(spec, 'wing', st.plane || 0); } catch (e) {}
+      const WM = WB_WING[wk] || WB_WING.fabric, th = WB_WING_TC * st.chord;
+      slabs.push({ n: q, vol: 0.68 * st.area * th, th, air: WM.air, tau: WM.tau, f: 0, wetS: 0 });
+    }
   }
   if (!tris.length && !wheels.length) return null;
-  const nodes = [...new Set([].concat(...tris.map(t => t.n), ...slices, wheels))];
+  const nodes = [...new Set([].concat(...tris.map(t => t.n), ...slices.map(s => s.n), ...slabs.map(s => s.n), wheels))];
   const R = new Float64Array(p.length / 3); for (const i of wheels) R[i] = def.nodes[i].r;
   // the axle's direction: the mains' pair, else the firewall's bottom edge (left -> right)
   const M = refs.mains || [];
   const axPair = M.length >= 2 ? [M[0], M[M.length - 1]] : (Array.isArray(F) && F.length ? [F[0].BL, F[0].BR] : null);
   const sub_ = (def.params && def.params.substeps) || 24;
   const every = Math.max(1, Math.round((def.params && def.params.hydroEvery) || (sub_ * 60 / HYDRO_HZ)));
-  return { tris, slices, wheels, nodes, p, v, m, R, axPair, axle: [0, 0, 1], rho: DEF.rho || 1000, every, tick: 0,
-           fh: new Float64Array(p.length), h: new Float64Array(p.length / 3), wet: 0, drag: 0, buoy: 0 };
+  return { tris, slices, slabs, open, material: spec.material || null, wheels, nodes, p, v, m, R, axPair, axle: [0, 0, 1], rho: DEF.rho || 1000, every, tick: 0,
+           fh: new Float64Array(p.length), h: new Float64Array(p.length / 3), wet: 0, drag: 0, buoy: 0, flood: 0, slamPeak: 0 };
+}
+// the fill toward the water outside: in over tau, out over WB_DRAIN (exact exponential steps, any interval)
+function flood(f, wetS, tau, dt) {
+  const T = wetS > f ? tau : WB_DRAIN;
+  return Math.min(1, Math.max(0, wetS + (f - wetS) * Math.exp(-dt / T)));
+}
+// a fresh aeroplane (the solver's reset): nothing flooded, nothing holed
+function wetReset(WB) {
+  if (!WB) return;
+  for (const s of WB.slices) { s.f = 0; s.br = false; s.wetS = 0; }
+  for (const s of WB.slabs) { s.f = 0; s.wetS = 0; }
+  WB.tick = 0; WB.wet = 0; WB.flood = 0; WB.slamPeak = 0;
 }
 function wetSolverPass(WB, world, f, simT, dt) {
   if (WB.every > 1 && WB.tick++ % WB.every) { if (WB.wet) { const fh = WB.fh; for (const i of WB.nodes) { const i3 = i * 3; f[i3] += fh[i3]; f[i3 + 1] += fh[i3 + 1]; f[i3 + 2] += fh[i3 + 2]; } } return WB.wet; }
@@ -1666,10 +1713,19 @@ function wetCompute(WB, fh, dtH) {
   // frame between pressures it does not feel - it floods): each slice's 27 samples, each its Jacobian's share of the
   // slice's volume, wet by a smooth ramp over WB_DELTA about the surface, its lift onto the slice's 8 nodes by its own
   // trilinear weights (all positive)
-  for (const sl of WB.slices) {
+  // G1384.3 GRADUAL FLOODING: each slice's fill f (0..1, its volume's share of water inside) rises TOWARD the water
+  // outside - wetS, its submerged share - over the material's tau (a holed slice ten times faster), and falls back to
+  // it over WB_DRAIN when the slice rises. Only the submerged part that is still air lifts: air x (wetS - f) / wetS
+  // (last compute's wetS). Water inside a submerged hull is neutral, so the flooding takes lift away and adds no
+  // mass; a hull that floods to its waterline sinks lower, floods further, and goes down unless the wings hold it.
+  let fl = 0, flN = 0;
+  for (const S8 of WB.slices) {
+    const sl = S8.n;
     let anyWet = false;
     for (let c = 0; c < 8; c++) if (H[sl[c]] - p[sl[c] * 3 + 1] > -WB_DELTA) { anyWet = true; break; }
-    if (!anyWet) continue;
+    if (!anyWet) { if (S8.f) S8.f = flood(S8.f, 0, S8.tau, dtH); S8.wetS = 0; fl += S8.f; flN++; continue; }
+    const k = S8.air * (S8.wetS > 1e-3 ? Math.max(0, S8.wetS - S8.f) / S8.wetS : 1);
+    let vW = 0, vT = 0;
     for (const Q of WB_Q) {
       let x = 0, y = 0, z = 0, ux = 0, uy = 0, uz = 0, vx = 0, vy = 0, vz = 0, wx = 0, wy = 0, wz = 0, hS = 0;
       for (let c = 0; c < 8; c++) { const i3 = sl[c] * 3, X0 = p[i3], Y0 = p[i3 + 1], Z0 = p[i3 + 2];
@@ -1678,13 +1734,46 @@ function wetCompute(WB, fh, dtH) {
         vx += Q.dV[c] * X0; vy += Q.dV[c] * Y0; vz += Q.dV[c] * Z0;
         wx += Q.dW[c] * X0; wy += Q.dW[c] * Y0; wz += Q.dW[c] * Z0; }
       const w = smooth01((hS - y) / WB_DELTA + 0.5);
-      if (!w) continue;
       const dV = Math.abs(ux * (vy * wz - vz * wy) - uy * (vx * wz - vz * wx) + uz * (vx * wy - vy * wx)) / 27;
-      const Fb = rho * G * WB_BUOY * dV * w;
+      vT += dV;
+      if (!w) continue;
+      vW += dV * w;
+      const Fb = rho * G * k * dV * w;
       for (let c = 0; c < 8; c++) fh[sl[c] * 3 + 1] += Q.N[c] * Fb;
       buoy += Fb; wet += dV * w;
     }
+    S8.wetS = vT > 0 ? vW / vT : 0;
+    const tau = S8.br ? S8.tau / WB_BREACH_K : S8.tau;
+    S8.f = flood(S8.f, S8.wetS, tau, dtH);
+    fl += S8.f; flN++;
   }
+  // G1384.4 THE WINGS: four samples a slab (the quad's bilinear quarter points), each a quarter of the volume, wet by a
+  // ramp over the slab's thickness, its lift onto the four spar nodes by the same bilinear weights; flooding as above
+  for (const SB of WB.slabs) {
+    const q = SB.n;
+    let anyWet = false;
+    for (let c = 0; c < 4; c++) if (H[q[c]] - p[q[c] * 3 + 1] > -SB.th) { anyWet = true; break; }
+    if (!anyWet) { if (SB.f) SB.f = flood(SB.f, 0, SB.tau, dtH); SB.wetS = 0; fl += SB.f; flN++; continue; }
+    const k = SB.air * (SB.wetS > 1e-3 ? Math.max(0, SB.wetS - SB.f) / SB.wetS : 1);
+    let wS = 0;
+    for (let a = 0; a < 2; a++) for (let b = 0; b < 2; b++) {
+      const u = a ? 0.75 : 0.25, s2 = b ? 0.75 : 0.25;
+      // q = [fIn, fOut, rOut, rIn]: u along the span (in -> out), s2 along the chord (front -> rear)
+      const N0 = (1 - u) * (1 - s2), N1 = u * (1 - s2), N2 = u * s2, N3 = (1 - u) * s2;
+      const y = N0 * p[q[0] * 3 + 1] + N1 * p[q[1] * 3 + 1] + N2 * p[q[2] * 3 + 1] + N3 * p[q[3] * 3 + 1];
+      const hS = N0 * H[q[0]] + N1 * H[q[1]] + N2 * H[q[2]] + N3 * H[q[3]];
+      const w = smooth01((hS - y) / SB.th + 0.5);
+      if (!w) continue;
+      wS += 0.25 * w;
+      const Fb = rho * G * k * 0.25 * SB.vol * w;
+      fh[q[0] * 3 + 1] += N0 * Fb; fh[q[1] * 3 + 1] += N1 * Fb; fh[q[2] * 3 + 1] += N2 * Fb; fh[q[3] * 3 + 1] += N3 * Fb;
+      buoy += Fb; wet += 0.25 * SB.vol * w;
+    }
+    SB.wetS = wS;
+    SB.f = flood(SB.f, wS, SB.tau, dtH);
+    fl += SB.f; flN++;
+  }
+  WB.flood = flN ? fl / flN : 0;
   // THE FACES: the Newtonian pressure on a face advancing into the water (a hull face one-sided, a plate on whichever
   // side meets the flow) and the skin friction along it, over each triangle's wet polygon
   for (const t of WB.tris) {
@@ -1720,7 +1809,24 @@ function wetCompute(WB, fh, dtH) {
     const u = S.u; u[0] = u[1] = u[2] = 0;
     for (let k = 0; k < 3; k++) { const i3 = tn[k] * 3; u[0] += l[k] * v[i3]; u[1] += l[k] * v[i3 + 1]; u[2] += l[k] * v[i3 + 2]; }
     const un = dot(u, n);
-    const pn = (t.two || un > 0) ? 0.5 * rho * WB_CP * un * Math.abs(un) : 0;
+    let pn = (t.two || un > 0) ? 0.5 * rho * WB_CP * un * Math.abs(un) : 0;
+    // G1384.1 THE SLAM (the floats' entry term, Wagner's wedge): a hull face facing DOWN that is still being wetted
+    // (its wet share under 98 %) and moving down into the water takes the added mass's growth, an average pressure
+    // (pi^2 / (2 tan beta)) x 1/2 rho Vd^2 over its wet area - beta its deadrise, floored at WB_BETA_MIN; the vertical
+    // speed only (the forward speed over an inclined bottom is the planing pressure above). Past the slice's breach
+    // pressure the slice is holed (G1384.3).
+    if (!t.two && n[1] < -0.1 && u[1] < 0) {
+      const P0 = S.P[0], P1 = S.P[1], P2 = S.P[2];
+      const ax1 = P1[0] - P0[0], ay1 = P1[1] - P0[1], az1 = P1[2] - P0[2], ax2 = P2[0] - P0[0], ay2 = P2[1] - P0[1], az2 = P2[2] - P0[2];
+      const Af = 0.5 * Math.hypot(ay1 * az2 - az1 * ay2, az1 * ax2 - ax1 * az2, ax1 * ay2 - ay1 * ax2) * t.kA;
+      if (Af > 0 && A < 0.98 * Af) {
+        const beta = Math.max(WB_BETA_MIN, Math.acos(Math.min(1, -n[1])));
+        const ps = 0.5 * rho * (Math.PI * Math.PI / (2 * Math.tan(beta))) * u[1] * u[1];
+        pn += ps;
+        if (t.sl >= 0) { const S8 = WB.slices[t.sl]; if (S8 && ps > S8.breach) S8.br = true; }
+        if (ps > WB.slamPeak) WB.slamPeak = ps;
+      }
+    }
     const Fv = S.Fv;
     Fv[0] = -pn * A * n[0]; Fv[1] = -pn * A * n[1]; Fv[2] = -pn * A * n[2];
     const tx = u[0] - un * n[0], ty = u[1] - un * n[1], tz = u[2] - un * n[2], ut = Math.sqrt(tx * tx + ty * ty + tz * tz);
@@ -1764,7 +1870,7 @@ function wetCompute(WB, fh, dtH) {
 const API = { DEF, G, NU, makeFloat, sectionOf, makeBody, makeScratch, hydroForces, bodyStep, readState, levelVolume,
               stillWater, gerstner, submergedVolumeMC, expDrop, expTow, expLand, nodeSlam, stabilityReport, ENVELOPE,
               savitskyStatic, rotPitch, polyArea, hullTriangles,
-              hydroPanels, rigidCtx, tetraCtx, baryOf, hydroBuild, hydroSolverPass, wetBuild, wetSolverPass, floatParamsFor, FLOAT_DISP,
+              hydroPanels, rigidCtx, tetraCtx, baryOf, hydroBuild, hydroSolverPass, wetBuild, wetSolverPass, wetReset, WB_MAT, WB_WING, floatParamsFor, FLOAT_DISP,
               FLOAT_PRESETS, FLOAT_PRESET_NAMES, FLOAT_METRIC, FLOAT_SPEC_KEYS, presetParams, fineParams, scaleParams, secPoly, secAreaTo, keelOf, deckAt,
               waterRudder, WR_AREA, WR_DEPTH, WR_TRAVEL, WR_UP_V, HYDRO_EVERY, floatAdvice };
 HYDRO = API;

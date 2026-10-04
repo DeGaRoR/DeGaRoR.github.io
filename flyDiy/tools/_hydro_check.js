@@ -375,6 +375,43 @@ console.log('\n6. THE LAKE\'S SURFACE IS THE DATA\'S (a stub island: a bowl with
   verdict(wbF === null, 'a float build carries no wheeled-water body (the floats\' pass alone: the floatplanes unchanged)');
 }
 
+// ---- G1384.1-G1384.4: the slam, the air by construction, the flooding, the wings ----------------------------------
+{
+  console.log('\n== G1384.1-.4 the slam, the air a build holds, the flooding, the wings ==');
+  const C = require('./flight_core.js');
+  const world = C.makeWorld(), sea = world.aerodromes.find(a => a.id === 'SEA');
+  // put a build 0.3 m over the sea lane, V forward and `sink` down, power off; fly `secs`; -> what the water did
+  const ditchOf = (spec, V, sink, secs) => {
+    const def = C.buildGen(spec), sim = C.makeSim(def, world); sim.reset(0); C.placeAtAerodrome(sim, sea);
+    const n = def.nodes.length, p = sim.p, v = sim.v, [xA] = sim.axes(), c0 = sim.cgPos(), wh = world.waterH(c0[0], c0[2]);
+    let yMin = Infinity; for (let i = 0; i < n; i++) yMin = Math.min(yMin, p[i * 3 + 1] - def.nodes[i].r);
+    const hl = Math.hypot(xA[0], xA[2]);
+    for (let i = 0; i < n; i++) { p[i * 3 + 1] += wh + 0.3 - yMin; v[i * 3] = -V * xA[0] / hl; v[i * 3 + 1] = -sink; v[i * 3 + 2] = -V * xA[2] / hl; }
+    sim.ctl.thr = 0;
+    const fl = [];
+    for (let s = 0; s < secs * 60; s++) { sim.step(1 / 60); if ((s + 1) % 600 === 0) fl.push(sim.out.wetFlood || 0); }
+    const WB = sim.wetBody, c = sim.cgPos();
+    return { WB, fl, cgDepth: wh - c[1], finite: Number.isFinite(c[1]) };
+  };
+  const base = JSON.parse(JSON.stringify(C.GEN_DEFAULT));
+  const fab = ditchOf(base, 22, 1, 20);
+  verdict(fab.finite && fab.WB && fab.WB.slices.length > 0 && fab.WB.slabs.length > 0 && fab.WB.slices.every(s => s.air > 0.5),
+    `the stock fabric build: ${fab.WB ? fab.WB.slices.length : 0} hull slices holding air (${fab.WB ? fab.WB.slices[0].air : '-'}), ${fab.WB ? fab.WB.slabs.length : 0} wing slabs`);
+  verdict(fab.fl.length === 2 && fab.fl[1] > fab.fl[0] && fab.fl[0] > 0,
+    `...and it FLOODS as it sits: ${fab.fl.map(x => (100 * x).toFixed(1) + ' %').join(' -> ')} at 10 / 20 s`);
+  const open = JSON.parse(JSON.stringify(base)); open.fuselage = Object.assign({}, open.fuselage, { covering: 'open' });
+  const op = ditchOf(open, 22, 1, 10);
+  verdict(op.finite && op.WB && op.WB.slices.length === 0 && op.cgDepth > fab.cgDepth,
+    `the bare frame (covering 'open') holds no hull air and floats lower: CG ${op.cgDepth.toFixed(2)} m under the surface against ${fab.cgDepth.toFixed(2)} covered`);
+  const alu = JSON.parse(JSON.stringify(base)); alu.material = 'alloy'; alu.fuselage = Object.assign({}, alu.fuselage, { material: 'alloy' });
+  const al = ditchOf(alu, 22, 1, 20);
+  verdict(al.finite && al.fl[1] < fab.fl[1], `an alloy hull floods slower than fabric: ${(100 * al.fl[1]).toFixed(1)} % against ${(100 * fab.fl[1]).toFixed(1)} % at 20 s`);
+  const pan = ditchOf(base, 0.3, 5, 3);
+  const holed = pan.WB ? pan.WB.slices.filter(s => s.br).length : 0;
+  verdict(pan.finite && pan.WB && pan.WB.slamPeak > 100e3 && holed > 0,
+    `a 5 m/s pancake slams (peak ${pan.WB ? (pan.WB.slamPeak / 1000).toFixed(0) : '-'} kPa on the bottom) and holes ${holed} slice(s)`);
+}
+
 // the runner reads the WHOLE verdict line (GATE <ID>: PASS), not the exit code
 console.log(fails ? `\nGATE HYDRODYN: FAIL (${fails})` : '\nGATE HYDRODYN: PASS');
 process.exit(fails ? 1 : 0);

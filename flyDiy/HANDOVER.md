@@ -71866,3 +71866,100 @@ cockpit / taxi render and the floats' water taxi in slack. BATTERY: FRAMECOST (a
 triangles - admitted) and ROUNDTRIP (fixed) were the reds; all green on the final build; the parked aeroplanes re-cooked.
 LOOK (A0's real-GPU stills, reports/evidence/LAKE-HOLES/a0_gpu_train29_vs_30.jpg): the white gaps at the shore are gone;
 the carved banks now read as steep, texture-stretched slopes where a lake sits under a bank - a follow-up for the look.
+
+## G1384.1-G1384.4 - GEAR-WATER 2: THE WATER AS A DAMAGE MODEL'S INPUT - THE SLAM, THE AIR A BUILD HOLDS, GRADUAL FLOODING, THE WINGS' BUOYANCY; AND THE SESSIONS TO A GOOD WATER MODEL (2026-10-04, GEAR-WATER for A0 and the user, cloud, node only; branch claude/gear-water-buoy on claude/gear-water-g1380's G1384)
+
+The user, on G1381-G1384:
+- "I wanna know if the water impacts can deform the physical node and beam model. That's what I call crash. Check
+  planes with floats too";
+- "your 30% ... should be function of the construction material, the actual volume and the 'no skin' option. What
+  would it take to have simple gradual flooding? And wings buoyancy? I want a good looking water interaction without
+  impacting physics cost too much";
+- then: "A better damage model is getting studied, the only question is whether water will provide the right inputs,
+  like the ground will";
+- and: "do a recommendation about the sessions for reaching a good model, but nothing too highly complex ... then start
+  the implementation".
+
+WHAT THE WATER FEEDS A DAMAGE MODEL (measured before this entry; peak member force / sigY*A per beam class - the load
+rig's yield proxy, 65_gen_loadtest.js - sampled once a frame, elastic: the solver has NO yield or rupture yet, see
+RUPTURE AND PERMANENT SET):
+- Water reaches the frame the way the ground does: forces on NODES (the fuselage frame's own nodes by the wet patch's
+  barycentrics, the strips' spar nodes, the axles), which the beams carry. A beam-load damage model reads both alike.
+- The held 360 Hz rate is not a distortion: hydroEvery 1 moves the Cub's 100 km/h ditch by at most 2 points (fus 70 ->
+  71 %, wires 117 -> 115 %).
+- slamCap is not either: with it removed every peak is identical (it binds after the impact, nodes slowed).
+- THE ONE GAP (fixed below, G1384.1): no slam on the wet body. A 5 m/s level pancake loaded the Cub's fuselage 11 % on
+  water against 22 % on the ground.
+- Crashes already reach yield, floats included: Cub ditch 100 km/h / 4 m/s / 10 deg nose-down - fus 70 %, wires 117 %;
+  the float ultralight 90 km/h / 5 m/s / 20 deg nose-in - wires 112 %, wing 60 %. Ordinary float touchdowns stay
+  8-24 %; a 3 m/s ground landing 20 %.
+
+G1384.1 THE SLAM (32_hydro.js wetCompute, the face loop). The floats' entry term (Wagner's wedge) on the wet body:
+- A hull face facing down, still being wetted (wet share under 98 %) and moving down into the water takes an average
+  pressure (pi^2 / (2 tan beta)) x 1/2 rho Vd^2 over its wet area.
+- beta is its deadrise, floored at WB_BETA_MIN = 10 deg: a flat box bottom is cushioned by air and skin flex - inferred.
+- Vd is the vertical speed only: the forward speed over an inclined bottom is the planing pressure already there, the
+  floats' own rule.
+- After: the 5 m/s pancake loads the fuselage 39 % (ground 22 %, before 11 %), wing 27 %, wires 111 %; peak 523-555
+  kPa. The Cub's 80 km/h ditch: 1.03 s to 10 km/h, 8.3 g (was 0.93 s / 9.0 g).
+
+G1384.2 THE AIR A BUILD HOLDS (WB_MAT, WB_WING; replaces the flat WB_BUOY 0.35):
+- Per fuselage material (spec.material):
+  - `air`: the covered hull's air share as it meets the water - 0.85 fabric / wood, 0.9 alloy / carbon;
+  - `tau`: the flooding time - tubeFabric 40 s, aluTube 40 s, wood 150 s, alloy 300 s, carbon 900 s;
+  - `breach`: the slam pressure that holes a slice - 60 / 60 / 120 / 200 / 250 kPa.
+- The hull's volume is the frame's own (the stations' box, 27 samples a slice).
+- `covering: 'open'` (no skin): no hull faces and no hull air at all.
+- ALL INFERRED, not measured, and stated so in the code.
+
+G1384.3 GRADUAL FLOODING:
+- Each hull slice and wing slab has a fill f, the water share inside. It rises toward wetS (the submerged share outside)
+  over tau, ten times faster once holed, and falls back over WB_DRAIN 30 s when the slice rises. Exact exponential
+  steps (any interval).
+- Only the submerged air lifts: air x (wetS - f) / wetS.
+- Water inside a submerged hull is neutral: no mass added, so nothing touches setNodeMass or the fuel.
+- reset() clears it (HYDRO.wetReset); out.wetFlood carries the mean fill.
+- Measured, the Cub archetype at 80 km/h:
+
+  | Build | 10 s | 60 s | 150 s | 300 s |
+  |---|---|---|---|---|
+  | fabric | flood 5 %, CG 0.47 m under | 19 %, 0.65 m | 45 %, 0.89 m | 89 %, on the seabed |
+  | covering 'open' | 0.74 m under | | on the seabed | |
+  | alloy | | | | flood 3 %, CG 0.31 m under, afloat |
+  | C172 | | | | flood 14 %, CG 0.62 m under, afloat |
+
+G1384.4 THE WINGS' BUOYANCY:
+- Each wing strip is a slab: area x 0.12 chord (WB_WING_TC; the def carries no per-strip thickness) x 0.68.
+- Its air is the wing surface material's (genSurfKey): 0.5 on fabric (the tanks and the closed bays, not the cloth;
+  tau 60 s), 0.9 alloy / carbon (600 / 900 s).
+- Four bilinear samples a slab, onto the four spar nodes; floods as above.
+- OWED: the tanks' real empty volume (capacity - fuel) instead of the 0.5.
+
+COST: all of it runs only on frames that can reach the water (G1384's arm). Dry: nothing built, nothing computed, master's
+trajectory to the bit (HYDRODYN's dry check). In the water: 27 samples a hull slice (as before) + 4 a wing slab + one
+exp() each, per compute (360 Hz).
+
+THE NET (GATE HYDRODYN, new section; trimmed to 20 / 10 / 3 s flights, ~1 min of the gate):
+- the stock fabric build: hull slices holding air 0.85, 13 wing slabs;
+- it floods as it sits (5.9 -> 8.4 % at 10 / 20 s);
+- the bare frame holds no hull air and floats lower (CG 0.83 m under against 0.47);
+- alloy floods slower than fabric (0.4 against 8.4 % at 20 s);
+- a 5 m/s pancake slams (555 kPa) and holes slices.
+
+THE SESSIONS TO A GOOD WATER MODEL (recommendation; each one session, none complex):
+1. WATER-INPUTS - THIS ENTRY: the slam, the construction's air, flooding, the wings. A0: review the inferred tables
+   (WB_MAT / WB_WING) once against the user's eye.
+2. DAMAGE (being studied): consume beam loads as the ground does. It needs nothing more from the water. Its acceptance
+   should include a WATER CASE beside the ground ones: the 5 m/s pancake and the 100 km/h nose-in ditch (tools of this
+   entry: the yield proxy per class), and the float nose-in (wires 112 %). A holed slice (S8.br) could also be read as
+   skin damage.
+3. WATER-LOOK (local GPU): spray and wake from the wet body like the floats' (buildWaterFx) - per contact: the tyres,
+   the hull's wet faces, the wing tips. WB.drag / out.wetDrag, the slam peak and the wet centroids are the inputs.
+   Plus a sinking aeroplane's bubbles off the flooding slices (out.wetFlood rising).
+4. TANKS-FLOAT (small): the wing slab's air from the real tanks (GEN_TANKS: capacity - fuel), so a ditched Cub floats on
+   its empty wing tanks as the real ones do.
+5. GROUND-LATTICE (G1380's owed fix): the tailwheel's real ground, then TW_DRAW_DROP back to 0.
+
+GATES on this branch: HYDRODYN PASS (above). The rest of the battery runs on claude/gear-water-g1380's READY commit
+(this branch adds only 32_hydro.js, two lines of 30_solver.js and HYDRODYN's section); the water gates to re-run when A0
+picks it: HYDRODYN, WATER, FLOATS, SEAPLANE, SOAR.
