@@ -1,39 +1,34 @@
 {
- "about": "Radio Jolene's spoken lines (SND-VOICE, G1626-G1629). tools/audio/prep_voice.js renders each line, plus src/viewer/audio/voice_model.js's VOCAB and one back-announce per track of src/viewer/audio/music_catalogue.json, into media/audio/voice/. 'text' is what the catalogue (and the screen) says; 'say' respells a word for the voice only. A segment's key is how SND-RADIO's data names the recording.",
+ "about": "Radio Jolene's spoken lines (SND-VOICE G1626-G1629, SND-RADIO-2 G1682). tools/audio/prep_voice.js renders: src/viewer/audio/radio_talk.js's clipLines(places) - the station's own lines exactly as its talk says them (LINES, the greetings, the time check, the pilots' and the marine forecast's phrases, one line per place below) -, src/viewer/audio/voice_model.js's VOCAB (the AWOS and marine words), one back-announce per track of src/viewer/audio/music_catalogue.json, and any extra 'lines' here, into media/audio/voice/. 'say' respells a word for the voice only. 'places': Jolene's one-way strips [name, look] and sea lanes (world.aerodromes, read off the shipped world) - a place the game has and this list lacks is read by speechSynthesis.",
  "say": {
   "Jolene": "Jo-leen",
   "HoliznaCC0": "Holizna",
   "avgas": "av-gas",
   "Tamgas": "Tam-gas"
  },
- "lines": {
-  "id.1": "You're listening to Radio Jolene, ninety point seven, community radio for Jolene Island and the Sound.",
-  "id.2": "Radio Jolene, ninety point seven. Your island, your station.",
-  "id.3": "This is ninety point seven, Radio Jolene, keeping the island and the Sound company.",
-
-  "bul.intro": "Now, around the island.",
-  "bul.mill": "The mill keeps its hours this week, eight to three.",
-  "bul.tram": "The tram runs every twenty minutes. The last car leaves at six.",
-  "bul.ferry": "The ferry sails Thursday, weather permitting. Get your freight to the dock by Wednesday noon.",
-  "bul.fuel": "The fuel dock has diesel and avgas.",
-  "bul.potluck": "Potluck at the hall, Friday at six. Bring a dish.",
-  "bul.coho": "The coho are in off the point. Keep the channel clear for the barge.",
-  "bul.library": "And the library stays open late on Tuesdays.",
-
-  "pil.intro": "A few notes for pilots.",
-  "pil.tamgas": "The Tamgas Hill strip is soft after the rain. Land uphill, take off downhill.",
-  "pil.seaplane": "The seaplane lane is active off the breakwater.",
-  "pil.birds": "Eagles and gulls at the end of runway one three.",
-  "pil.rope": "And watch for a tie-down rope across the grass by the club hangar.",
-
-  "swap.intro": "Time for the swap corner.",
-  "swap.outboard": "For sale, a fifteen horse outboard. Ask for Ray at the fuel dock.",
-  "swap.cub": "Wanted, a Cub tailwheel spring. Will trade smoked salmon.",
-  "swap.dog": "Lost, a brown dog named Biscuit. He answers to his name, and to sandwiches.",
-  "swap.stove": "And free to a good home, a cast iron stove. You haul it.",
-
-  "wx.intro": "Here's the weather at Jolene field.",
-  "out.music": "More music now, on Radio Jolene.",
-  "out.night": "That's the news. Stay warm out there."
+ "lines": {},
+ "places": {
+  "strips": [
+   [
+    "Tamgas Hill Strip",
+    "gravel"
+   ],
+   [
+    "Jumbo Mine Street",
+    "gravel"
+   ],
+   [
+    "East Point Clearing",
+    "gravel"
+   ],
+   [
+    "Skyline Altiport",
+    "grass"
+   ]
+  ],
+  "lanes": [
+   "Annette Dock",
+   "Metlakatla Seaplane Base"
+  ]
  }
 }

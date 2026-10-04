@@ -24,9 +24,11 @@
 //                   FLYDIY_AUDIO_SRC; app.js calls AUDIO.update ONCE, in loop() after the render; both rails carry
 //                   the `audio` item.
 //   SP THE SPACE    (SND-SPACE, G1640-G1646) SP_CABIN, SP_DOPPLER, SP_ABSORB, SP_XFADE, SP_IR, SP_GRAPH, SP_BUDGET (its
-//                   measurement in a child process: fresh realms), SP_CRAFT - each described at the head of its block.
-//   RADIO THE STATIONS AND RADIO JOLENE'S TALK (SND-RADIO, G1675-G1679) RADIO_STATIONS, RADIO_PICKER, RADIO_SCRIPTS,
-//                   RADIO_TALK, RADIO_BUDGET, RADIO_WIRING - each described at the head of its block.
+//                   measurement in a child process: fresh realms; G1680: taken twice, by default and on TurboFan alone,
+//                   --no-maglev), SP_CRAFT - each described at the head of its block.
+//   RADIO THE STATIONS AND RADIO JOLENE'S TALK (SND-RADIO, G1675-G1679) RADIO_STATIONS (G1681: + the mix), RADIO_PICKER,
+//                   RADIO_SCRIPTS, RADIO_TALK, RADIO_BUDGET, RADIO_WIRING; RADIO_CLIPS (SND-RADIO-2, G1683: the recorded
+//                   voice in the talk) - each described at the head of its block.
 //   D  THE SELFTEST every check above is run again on MUTATED source text (in memory: nothing on disk is touched)
 //                   and must go red; then the files on disk are re-read and must be byte-identical to the start.
 //   node tools/audio/_audio_check.js             -> the checks + the selftest -> "GATE AUDIO: PASS|FAIL"
@@ -1037,11 +1039,12 @@ function fakeDom(state) {
 function musicPage(S, o) {
   o = o || {};
   const st = { made: 0, plays: 0, srcs: [], els: [], durOf: u => (o.durs || SYN_DUR)[u] || 60 };
-  const pg = makePage(S, { quiet: true, store: o.store || {}, dom: () => fakeDom(st), clock: o.clock, badStorage: o.badStorage,
+  const pg = makePage(S, { quiet: true, store: o.store || {}, dom: () => fakeDom(st), clock: o.clock, badStorage: o.badStorage, ctx: o.ctxHook,
     before: win => { win.FLYDIY_MUSIC = o.cat || SYN; if (o.base != null) win.FLYDIY_ASSET_BASE = o.base; if (o.boot) win.BOOT = o.boot;
+      if (o.beforeWin) o.beforeWin(win);   // G1683: the recorded voice's catalogue and fetch
       if (o.speech) { win.speechSynthesis = o.speech.S; win.SpeechSynthesisUtterance = o.speech.U; }   // G1678: the voice's stub
       if (o.credit) { const c = win.document.createElement('p'); c.id = 'credit'; win.document.body.appendChild(c); } },   // (body.html's about line is there before the scripts)
-    after: [[S.radio, 'radio_talk.js'], [S.music, 'music.js']] });   // (the build's order)
+    after: [[S.radio, 'radio_talk.js'], [S.music, 'music.js']].concat(o.extra || []) });   // (the build's order; G1683: voice_model.js, voice.js after)
   const M = pg.win.AUDIO_MUSIC;
   M.seed(o.seed || 7);
   if (o.beforeGesture) o.beforeGesture(pg, M);
@@ -1479,6 +1482,34 @@ function checkRadioStations(S) {
   if (!B.empty || ids(B.lists[1]) !== 'l0,l1,l2' || B.fell.join() !== '1,1,1,1') F.push('blues (no track) is ' + B.lists.map(ids).join(' | ') + ' (want lo-fi\'s, said empty)');
   const O = M.stationLists(RSYN, 'off');
   if (O.lists.some(l => l.length)) F.push('the radio off has tracks');
+  // G1681 THE MIX: the seventh station, virtual - per context the union of the six stations' lists, each track once
+  if (M.STATION_KEYS[M.STATION_KEYS.length - 1] !== 'mix' || (M.STATIONS.find(r => r[0] === 'mix') || [])[1] !== 'Random') F.push('the mix is not the last station, labelled Random');
+  if (!M.validate([Object.assign({}, RSYN[0], { station: 'mix' })]).length) F.push('validate accepts a track tagged mix (the mix has no tracks of its own)');
+  const mixCover = (cat, label) => {
+    const X = M.stationLists(cat, 'mix'), six = M.STATION_KEYS.filter(k => k !== 'mix');
+    X.lists.forEach((l, c) => {
+      const want = new Set(); for (const k of six) for (const i of M.stationLists(cat, k).lists[c]) want.add(i);
+      if (new Set(l).size !== l.length) F.push(label + ': the mix lists a track twice in context ' + c);
+      if (l.length !== want.size || l.some(i => !want.has(i))) F.push(label + ': the mix\'s context ' + c + ' holds ' + l.length + ' tracks, the six stations ' + want.size);
+    });
+    return X;
+  };
+  mixCover(RSYN, 'the radio catalogue');
+  const shipMix = mixCover(ship, 'the shipped catalogue');
+  const garageAll = ship.map((t, i) => (t.contexts.indexOf('garage') >= 0 ? i : -1)).filter(i => i >= 0);
+  if (shipMix.lists[1].length !== garageAll.length) F.push('the shipped mix\'s garage bag holds ' + shipMix.lists[1].length + ' of the ' + garageAll.length + ' garage tracks');
+  for (const k of M.STATION_KEYS.filter(k => k !== 'mix')) if (M.stationLists(ship, k).lists[1].some(i => shipMix.lists[1].indexOf(i) < 0)) F.push('the shipped mix misses a ' + k + ' track');
+  {   // the player on the mix: two whole rounds of the garage, every track once a round, the six stations' all heard
+    const pm = radioPage(S, { station: 'mix', seed: 9 }), n = pm.M.stationLists(RSYN, 'mix').lists[1].length;
+    pm.F.run(1.5 * 3600, 1);
+    const ids = pm.F.starts.map(x => x.id);
+    if (!n) F.push('the mix has no garage tracks');
+    else if (ids.length < 2 * n) F.push('the mix started ' + ids.length + ' tracks in 1.5 hours (want two rounds of ' + n + ')');
+    for (let r = 0; n && r + n <= Math.min(ids.length, 2 * n); r += n) if (new Set(ids.slice(r, r + n)).size !== n) { F.push('the mix repeated inside a round: ' + ids.slice(0, 2 * n).join()); break; }
+    const heard = new Set(ids.map(stationOfId));
+    for (const k of ['lofi', 'roots', 'jazz']) if (!heard.has(k)) F.push('the mix never played ' + k);
+    if (pm.sp.speaks) F.push('the mix talked (' + pm.sp.speaks + ' utterances): the talk is the roots station\'s');
+  }
   // THE PLAYER: roots (talk off) one track, lo-fi, roots, jazz, roots ... the roots starts across the visits = whole rounds
   const pg = radioPage(S, { station: 'roots', talk: false, seed: 11 }), X = pg.F, P = pg.M;
   X.run(3);
@@ -1514,6 +1545,7 @@ function checkRadioStations(S) {
   return F;
 }
 
+const txt0 = (sel, v) => (sel.children.find(c => c.value === v) || {}).textContent || '';
 function checkRadioPicker(S) {
   const F = [];
   const store = {}, pg = radioPage(S, { store }), M = pg.M;
@@ -1526,8 +1558,9 @@ function checkRadioPicker(S) {
   const st = selOf('station');
   if (!st) return F.concat(['the station row has no select']);
   const opts = st.children.map(c => c.value);
-  if (opts.join() !== M.STATION_KEYS.concat(['off']).join()) F.push('the station choices are ' + opts.join() + ' (want the six and off)');
-  const txt = v => (st.children.find(c => c.value === v) || {}).textContent || '';
+  if (opts.join() !== M.STATION_KEYS.concat(['off']).join() || opts.indexOf('mix') < 0) F.push('the station choices are ' + opts.join() + ' (want the seven - the mix among them - and off)');
+  if (!/^Random/.test(txt0(st, 'mix'))) F.push('the mix reads "' + txt0(st, 'mix') + '" in the picker (want Random)');
+  const txt = v => txt0(st, v);
   if (!/no tracks yet/.test(txt('blues')) || !/Lo-fi/.test(txt('blues'))) F.push('the empty blues station reads "' + txt('blues') + '" (want it to say it plays lo-fi)');
   if (/no tracks yet/.test(txt('jazz')) || /no tracks yet/.test(txt('lofi'))) F.push('a station with tracks says it has none');
   if (st.value !== M.station) F.push('the picker shows ' + st.value + ', the station is ' + M.station);
@@ -1553,7 +1586,14 @@ function checkRadioPicker(S) {
   key('BracketLeft'); key('BracketLeft');
   if (M.station !== 'jazz') F.push('[ [ from dubambient went to ' + M.station + ' (want jazz)');
   key('BracketLeft');
-  if (M.station !== 'classical') F.push('[ from jazz went to ' + M.station + ' (want it to wrap to classical)');
+  if (M.station !== 'mix') F.push('[ from jazz went to ' + M.station + ' (want it to wrap to the mix, the seventh)');
+  key('BracketLeft');
+  if (M.station !== 'classical') F.push('[ from the mix went to ' + M.station + ' (want classical)');
+  key('BracketRight'); key('BracketRight');
+  if (M.station !== 'jazz') F.push('] ] from classical went to ' + M.station + ' (want the mix, then jazz)');
+  key('BracketLeft');
+  if (store['flydiy.audio.station'] !== 'mix') F.push('the mix is not persisted like the others (' + store['flydiy.audio.station'] + ')');
+  M.setStation('classical', true);
   key('BracketRight', { ctrlKey: true });
   if (M.station !== 'classical') F.push('ctrl + ] moved the station');
   key('BracketRight', { target: { closest: q => (/input/.test(q) ? {} : null) } });
@@ -1695,7 +1735,7 @@ function checkRadioTalk(S) {
     if (T.length < 3 || late.length) F.push('a garage break did not start its track with it (' + late.length + ' of ' + T.length + ')');
   }
   // NONE with the talk off, NONE on another station
-  for (const [why, o] of [['the talk off', { station: 'roots', talk: false }], ['lo-fi', { station: 'lofi' }], ['jazz', { station: 'jazz' }]]) {
+  for (const [why, o] of [['the talk off', { station: 'roots', talk: false }], ['lo-fi', { station: 'lofi' }], ['jazz', { station: 'jazz' }], ['the mix', { station: 'mix' }]]) {
     const p = radioPage(S, o); p.F.run(1800, 0.25);
     if (p.sp.speaks) F.push(why + ': ' + p.sp.speaks + ' utterances in half an hour');
   }
@@ -1783,7 +1823,164 @@ function checkRadioWiring(S) {
   if (!(ir >= 0 && im > ir)) F.push('build.js MANIFEST.viewer.scripts does not list audio/radio_talk.js before audio/music.js');
   const sel = JSON.parse(S.selection);
   for (const t of JSON.parse(S.catalogue)) if (t.station && !(t.station in sel.stations)) F.push('the catalogue\'s ' + t.id + ' is on ' + t.station + ', not a station of the ruling');
-  if (/AudioContext|create[A-Z]\w*\(|\.connect\(/.test(S.radio.replace(/\/\/.*$/gm, ''))) F.push('radio_talk.js touches Web Audio (the voice is speechSynthesis; the bed is the music deck\'s gain)');
+  if (/AudioContext|create[A-Z]\w*\(|\.connect\(/.test(S.radio.replace(/\/\/.*$/gm, ''))) F.push('radio_talk.js touches Web Audio (the clips are AUDIO_VOICE\'s into music.js\'s radioIn, the rest speechSynthesis; the bed is the music deck\'s gain)');
+  return F;
+}
+
+
+// ==== SND-RADIO-2 (G1680-G1684): THE RECORDED VOICE IN THE TALK ======================================================
+//   RADIO_CLIPS  the break on a page with voice_model.js + voice.js and a voice catalogue holding every key the talk can
+//                name: ALL CLIPS -> no utterance, one sequence of buffer sources (the tune-in's ID then its AWOS, the
+//                talker's plan one clip group), every segment's clips the keys the voice script renders (twelve breaks
+//                on a Jolene-shaped world: no key outside clipLines / VOCAB / the tracks'), the track under them at 16 %
+//                and rising over 1.5 s once the last clip ends; PER SEGMENT FALLBACK -> a catalogue without one AWOS word
+//                plays the ID's clips and speaks the AWOS only after them, one without the ID's line speaks the ID and
+//                plays the AWOS's clips after the utterance ends; THE ROUTE -> the clips' gain into radioIn (x clipK =
+//                1.25 x 10^((-16 - -20) / 20)), radioIn into the music's duck, the duck into the music bus; THE DUCKS AND
+//                THE SUSPEND -> an engine start stops every source of a playing break (and ducks the bus they pass), a
+//                hidden tab stops them; the watchdog armed for the clips' own length; frames under a clip talk allocate
+//                nothing (100 000, 0 GC).
+// a radio page with the recorded voice (o.drop: keys the catalogue lacks)
+function radioClipPage(S, o) {
+  o = o || {};
+  const RT = loadRadio(S.radio), VMd = loadVoiceModel(S.voicemodel), script = JSON.parse(S.voicescript);
+  const RL = RT.clipLines(script.places || {}), clips = {};
+  const keys = Object.keys(RL).concat(Object.keys(VMd.VOCAB)); for (const t of RSYN) keys.push(...VMd.trackKeys(t));
+  for (const k of keys) if (!(o.drop || []).includes(k)) clips[k] = { file: 'media/audio/voice/' + k.replace(/\W+/g, '_') + '.00000000.mp3', text: RL[k] || VMd.VOCAB[k] || k, dur: 0.3 };
+  const V = { srcs: [], gains: [], fetches: 0 };
+  const pg = radioPage(S, Object.assign({}, o, {
+    extra: [[S.voicemodel, 'voice_model.js'], [S.voice, 'voice.js']],
+    beforeWin: win => { win.FLYDIY_VOICE = { voice: { name: 'norman', render: { lufs: -20 } }, clips };
+      win.ASSET_FETCH = () => { V.fetches++; return Promise.resolve(new Uint8Array(Math.round(0.4 * 48000))); }; },
+    ctxHook: P => {
+      const g0 = P.createGain;
+      P.createGain = function () { const g = g0.call(this); g.to = []; g.connect = d => { g.to.push(d); return d; }; V.gains.push(g); return g; };
+      P.decodeAudioData = (ab, ok) => { const d = new Float32Array(ab.byteLength).fill(0.1); const b = { length: d.length, numberOfChannels: 1, sampleRate: 48000, duration: d.length / 48000, getChannelData: () => d }; ok(b); return Promise.resolve(b); };
+      P.createBufferSource = function () { const x = { to: null, stopped: 0, onended: null, connect(d) { x.to = d; }, start(t, off, dur) { V.srcs.push({ x, t, off, dur }); }, stop() { x.stopped = 1; } }; return x; };
+    } }));
+  return Object.assign(pg, { V, RL, VMd, clips });
+}
+const tick = () => new Promise(r => setImmediate(r));
+const endClips = V => { const l = V.srcs[V.srcs.length - 1]; if (l && l.x.onended) l.x.onended(); };
+async function checkRadioClips(S) {
+  const F = [];
+  // ALL CLIPS: the tune-in plays, nothing spoken
+  const pg = radioClipPage(S, { station: 'roots' }), M = pg.M, V = pg.V;
+  pg.F.run(0.5); await tick(); await tick(); pg.F.run(1.5);   // (past the bed's 1.5 s fade-in)
+  const T = M.talker;
+  if (!T || !T.last) return ['the roots tune-in did not reach the talker (talker ' + !!T + ')'];
+  const plan = T.last.groups.map(g => (g.clips ? 'clips' : 'speech') + ':' + g.kinds.join('+')).join(' | ');
+  if (plan !== 'clips:id+awos') F.push('the tune-in with every clip present played ' + plan + ' (want one clip group: id+awos)');
+  if (pg.sp.speaks) F.push('the tune-in with every clip present spoke ' + pg.sp.speaks + ' utterances (want 0)');
+  const segs = M._lastSegs ? M._lastSegs() : null;
+  const want = segs ? segs.reduce((n, x) => n + x.clips.filter(k => typeof k === 'string').length, 0) : -1;
+  if (V.srcs.length !== want) F.push('the tune-in started ' + V.srcs.length + ' buffer sources (want one per clip key: ' + want + ')');
+  const t0 = V.srcs.length ? V.srcs[0].t : 0, gapFree = V.srcs.every((x, i) => !i || x.t >= V.srcs[i - 1].t + V.srcs[i - 1].dur - 1e-9);
+  if (!gapFree) F.push('the clips overlap: not one sequence');
+  const d0 = deckNow(pg);
+  if (!d0 || !near(d0.lvl, 0.16 * trimOfIdx(pg, d0.t), 0.02)) F.push('under the clips the track is at ' + (d0 ? (d0.lvl / trimOfIdx(pg, d0.t) * 100).toFixed(1) : '-') + ' % (want 16)');
+  const wd = M._ps[8], len = V.srcs.length ? V.srcs[V.srcs.length - 1].t + V.srcs[V.srcs.length - 1].dur - t0 : 0;
+  if (!(wd > len && wd < len + 20)) F.push('the watchdog is armed for ' + wd.toFixed(1) + ' s (want the clips\' ' + len.toFixed(1) + ' s + the slack)');
+  // THE ROUTE: the reading's gain -> radioIn -> the duck -> the music bus; radioIn at clipK
+  const rin = M.radioIn, gv = V.gains.find(g => g.to.length && g.to[0] === rin && g !== rin);
+  const duck = rin && rin.to[0], bus = pg.A.bus('music');
+  if (!gv) F.push('the clips do not pass radioIn');
+  if (!rin || !duck || !duck.to || duck.to[0] !== bus || V.gains.filter(g => g.to.indexOf(bus) >= 0).length !== 1) F.push('radioIn does not feed the music\'s duck (the one gain into the music bus)');
+  if (rin && !near(rin.gain.value, 1.25 * Math.pow(10, 4 / 20), 1e-9)) F.push('radioIn is x' + (rin && rin.gain.value) + ' (want VOICE_K x the 4 dB from the clips\' -20 LUFS to the tracks\' -16)');
+  // the end of the last clip: the talk ends, the track rises over 1.5 s
+  endClips(V); const tEnd = pg.A.ctx.currentTime;
+  pg.F.step(0.1, 16);
+  if (M.talking) F.push('the last clip ended but the talk did not');
+  const d1 = deckNow(pg);
+  const mid = d1 ? M._lvlAt(d1.k, tEnd + 0.75) / trimOfIdx(pg, d1.t) : 0;
+  if (!d1 || !near(d1.lvl, trimOfIdx(pg, d1.t), 0.02) || !near(M._lvlAt(d1.k, tEnd + 1.5), trimOfIdx(pg, d1.t), 0.02) || !(mid > 0.3 && mid < 0.99)) F.push('after the clips the track does not rise over 1.5 s to its level (mid-rise ' + (mid * 100).toFixed(0) + ' %)');
+  // EVERY SEGMENT'S CLIPS ARE RENDERED KEYS: twelve breaks on the Jolene-shaped world
+  {
+    const RT = loadRadio(S.radio), VMd = pg.VMd, ctx = { module: { exports: {} }, VOICE_MODEL: VMd };
+    vm.runInNewContext(S.radio, ctx, { filename: 'radio_talk.js' });
+    const R2 = ctx.module.exports, st = { k: 0 }, wx = R2.readGame(radioWorld(RW_DAY)), bad = new Set();
+    const tr = [RSYN[0], RSYN[3]].map(t => ({ id: t.id, title: t.title, artist: t.artist }));
+    const all = [R2.breakScript(st, wx, [], { tuneIn: true })]; for (let i = 0; i < 12; i++) all.push(R2.breakScript(st, wx, tr));
+    for (const b of all) for (const x of b) { if (!Array.isArray(x.clips)) { bad.add(x.kind + ': no clips'); continue; } for (const k of x.clips) if (typeof k === 'string' && !pg.clips[k]) bad.add(x.kind + ': ' + k); }
+    if (bad.size) F.push('a segment names clips the voice does not render: ' + [...bad].slice(0, 6).join(', '));
+    if (RT.clipLines({}).hasOwnProperty('d.1') || Object.keys(RT.clipLines({})).some(k => VMd.VOCAB[k] != null)) F.push('a station line shares a key with VOICE_MODEL\'s words');
+  }
+  // A REGULAR BREAK (after the tune-in): the back-announce of the tracks just played, by their ids, in clips
+  {
+    const p = radioClipPage(S, { station: 'roots', every: 1 });
+    let seen = 0;
+    for (let i = 0; i < 400 && p.M._C.talks < 2; i++) { p.F.run(1); await tick(); await tick(); if (p.V.srcs.length > seen) { seen = p.V.srcs.length; endClips(p.V); } }
+    const L = p.M.talker && p.M.talker.last, segs = p.M._lastSegs ? p.M._lastSegs() : [];
+    const pl = L ? L.groups.map(g => (g.clips ? 'clips' : 'speech') + ':' + g.kinds.join('+')).join(' | ') : 'none';
+    if (p.M._C.talks < 2 || !/^clips:back/.test(pl) || p.sp.speaks) F.push('the second break played ' + pl + ' with ' + p.sp.speaks + ' utterances (want its back-announce in clips)');
+    const back = segs.find(x => x.kind === 'back');
+    if (!back || !back.clips || !back.clips.some(k => /^ba\.(r|l|j)\d$/.test(k))) F.push('the back-announce does not name the track\'s own clip (ba.<id>): ' + JSON.stringify(back && back.clips));
+  }
+  // PER SEGMENT: one AWOS word missing -> the ID's clips, then the AWOS spoken (after the clips, not over them)
+  {
+    const p = radioClipPage(S, { station: 'roots', drop: ['w.zulu'] });
+    p.F.run(0.5); await tick(); await tick(); p.F.run(0.5);
+    const pl = p.M.talker && p.M.talker.last ? p.M.talker.last.groups.map(g => (g.clips ? 'clips' : 'speech') + ':' + g.kinds.join('+')).join(' | ') : 'none';
+    if (pl !== 'clips:id | speech:awos') F.push('without w.zulu the tune-in played ' + pl + ' (want the ID\'s clips, the AWOS spoken)');
+    if (p.sp.speaks) F.push('the AWOS was spoken over the ID\'s clips (' + p.sp.speaks + ' utterances before the clips ended)');
+    const nid = p.V.srcs.length;
+    endClips(p.V); await tick(); p.F.run(0.2);
+    if (p.sp.speaks !== 1 || !/automated weather observation/.test((p.sp.all[0] || {}).text || '')) F.push('after the ID\'s clips the AWOS was not spoken (' + p.sp.speaks + ')');
+    if (p.V.srcs.length !== nid) F.push('the AWOS with a missing word still played clips');
+    if (!p.M.talking) F.push('the talk ended before the spoken AWOS');
+    p.sp.endAll(); p.F.run(0.2);
+    if (p.M.talking) F.push('the spoken AWOS ended but the talk did not');
+  }
+  // ... and the ID's line missing -> the ID spoken, the AWOS's clips after the utterance
+  {
+    const p = radioClipPage(S, { station: 'roots', drop: ['id.main'] });
+    p.F.run(0.5); await tick(); await tick();
+    if (p.sp.speaks !== 1 || p.V.srcs.length) F.push('without id.main: ' + p.sp.speaks + ' utterances, ' + p.V.srcs.length + ' clips before the ID ended (want 1, 0)');
+    p.sp.endAll(); await tick(); await tick(); p.F.run(0.2);
+    if (!p.V.srcs.length || p.sp.speaks !== 1) F.push('after the spoken ID the AWOS\'s clips did not play (' + p.V.srcs.length + ' sources)');
+  }
+  // THE DUCKS: an engine start stops the reading (its sources) and ducks the bus the clips pass
+  {
+    const p = radioClipPage(S, { station: 'roots' });
+    p.F.run(0.5); await tick(); await tick();
+    const n = p.V.srcs.length;
+    p.A.emit('engine', 'start'); p.F.run(0.2);
+    if (!n || p.V.srcs.some(x => !x.x.stopped) || p.M.talking) F.push('an engine start did not stop the clips (' + p.V.srcs.filter(x => !x.x.stopped).length + ' of ' + n + ' still playing)');
+    const dk = p.M.radioIn && p.M.radioIn.to[0];
+    if (!dk || !(dk.gain.value < 0.5)) F.push('the duck the clips pass is not down under the engine start (' + (dk && dk.gain.value) + ')');
+  }
+  // THE SUSPEND: a hidden tab stops them
+  {
+    const p = radioClipPage(S, { station: 'roots' });
+    p.F.run(0.5); await tick(); await tick();
+    p.doc.hidden = true; p.docEvent('visibilitychange'); p.runTimers(); p.F.run(0.2);
+    if (!p.V.srcs.length || p.V.srcs.some(x => !x.x.stopped) || p.M.talking) F.push('a hidden tab left the clips playing');
+  }
+  // NOTHING BEFORE THE GESTURE
+  {
+    const p = radioClipPage(S, { station: 'roots', noGesture: true });
+    p.F.run(3); await tick();
+    if (p.V.fetches || p.V.srcs.length) F.push('before the gesture: ' + p.V.fetches + ' clip fetches, ' + p.V.srcs.length + ' sources');
+  }
+  // THE FRAME under a clip talk: nothing allocated
+  {
+    const p = radioClipPage(S, { station: 'roots' });
+    p.F.run(0.5); await tick(); await tick();
+    if (!p.M.talking) F.push('no clip talk to measure under');
+    p.M._ps[8] = 1e9;
+    const P = p.A.params, up = p.M.source.update, one = () => up(P, 1 / 60, p.A);
+    for (let i = 0; i < 20000; i++) one();
+    let gcs = 0;
+    const obs = new PerformanceObserver(list => { gcs += list.getEntries().length; });
+    obs.observe({ entryTypes: ['gc'] });
+    global.gc(); global.gc();
+    const g0 = gcs, h0 = process.memoryUsage().heapUsed;
+    for (let i = 0; i < 100000; i++) one();
+    const dB = process.memoryUsage().heapUsed - h0, gIn = gcs - g0;
+    obs.disconnect();
+    MUSIC_REPORT.push('the radio\'s update() under a CLIP talk: heap ' + (dB >= 0 ? '+' : '') + dB + ' B over 100 000 frames, ' + gIn + ' GC');
+    if (gIn > 0 || dB > 16384) F.push('the frame under a clip talk allocates: ' + dB + ' B over 100 000 frames, ' + gIn + ' GC');
+  }
   return F;
 }
 
@@ -2258,27 +2455,33 @@ function checkSpBudget(S, report) {
   // ONE fresh child per sample; a sample that fails its timing / GC bounds is taken AGAIN once (2026-10-04, the Sound
   // Coordinator: under a parallel battery the self-test's pristine re-run went red on a CPU-starved sample, never on its
   // own) - a real regression fails both samples, a starved one does not; the better sample is the one judged and reported
-  const sample = () => {
+  // G1680: each sample is taken TWICE - as node runs by default, and with TurboFan alone (--no-maglev: a Node without
+  // Maglev, the coordinator's box). A frame that leans on the optimiser's inlining (a double handed to or returned by a
+  // call) boxes it there: SPACE_CONFIG.dopplerFactor grew the heap 90 B a frame on that tier while the default read 0.59.
+  const sample = flags => {
     const tmp = path.join(os.tmpdir(), 'flydiy_spbudget_' + process.pid + '_' + (SPB_N++) + '.json');
     const sub = {}; for (const k of SPB_KEYS) sub[k] = S[k];
     fs.writeFileSync(tmp, JSON.stringify(sub));
     try {
-      const out = execFileSync(process.execPath, ['--expose-gc', '--max-semi-space-size=64', __filename, '--spbudget-child=' + tmp], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+      const out = execFileSync(process.execPath, ['--expose-gc', '--max-semi-space-size=64', ...(flags || []), __filename, '--spbudget-child=' + tmp], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
       return JSON.parse(out.trim().split('\n').pop());
     } catch (e) { return { err: String(e && (e.stderr || e.message) || e).split('\n').slice(0, 3).join(' | ') }; }
     finally { try { fs.unlinkSync(tmp); } catch (e) {} }
   };
   const noisy = q => !q || q.err || q.gIn > 0 || !(q.ms < 0.3);
-  let r = sample(), retried = false;
-  if (noisy(r)) { const r2 = sample(); retried = true; if (!noisy(r2) || (r.err && !r2.err) || (!r2.err && !r.err && r2.ms < r.ms)) r = r2; }
-  if (r.err) return ['the budget child failed: ' + r.err];
-  if (retried && report) report.push('SP_BUDGET: the first sample failed its timing / GC bound and was re-measured once');
-  if (report) report.push('update() with the three sources + space.js, the aeroplane passing the eye at 60 m/s (a fresh process): heap ' + (r.dB >= 0 ? '+' : '') + r.dB + ' B over 10 000 frames (' + (r.dB / 10000).toFixed(2) + ' B a frame), ' + r.gIn + ' GC, ' + (r.ms * 1000).toFixed(1) + ' us a frame (with the test\'s own node shift), ' + r.sch.toFixed(1) + ' params scheduled a frame');
-  if (r.gIn > 0) F.push('a GC ran inside the moving window (' + r.gIn + '): the space allocates');
-  if (r.dB > 16384) F.push('the moving frames grew the heap ' + r.dB + ' B over 10 000 frames (' + (r.dB / 10000).toFixed(1) + ' B a frame)');
-  if (!(r.ms < 0.3)) F.push('update() with space.js costs ' + r.ms.toFixed(3) + ' ms a frame (budget 0.3)');
-  if (!(r.sch > 3)) F.push('the moving frames scheduled ' + r.sch.toFixed(2) + ' params a frame (the space is not following the aeroplane)');
-  if (r.steady !== 0) F.push('a steady frame scheduled ' + r.steady + ' params over 2000 frames (want 0)');
+  for (const [tier, flags] of [['', []], [' (TurboFan alone, --no-maglev)', ['--no-maglev']]]) {
+    let r = sample(flags), retried = false;
+    if (noisy(r)) { const r2 = sample(flags); retried = true; if (!noisy(r2) || (r.err && !r2.err) || (!r2.err && !r.err && r2.ms < r.ms)) r = r2; }
+    if (r.err && flags.length && /bad option|unknown|not allowed/i.test(r.err)) { if (report) report.push('SP_BUDGET' + tier + ': this node has no such tier - not measured'); continue; }
+    if (r.err) { F.push('the budget child' + tier + ' failed: ' + r.err); continue; }
+    if (retried && report) report.push('SP_BUDGET' + tier + ': the first sample failed its timing / GC bound and was re-measured once');
+    if (report) report.push('update() with the three sources + space.js, the aeroplane passing the eye at 60 m/s (a fresh process' + tier + '): heap ' + (r.dB >= 0 ? '+' : '') + r.dB + ' B over 10 000 frames (' + (r.dB / 10000).toFixed(2) + ' B a frame), ' + r.gIn + ' GC, ' + (r.ms * 1000).toFixed(1) + ' us a frame (with the test\'s own node shift), ' + r.sch.toFixed(1) + ' params scheduled a frame');
+    if (r.gIn > 0) F.push('a GC ran inside the moving window' + tier + ' (' + r.gIn + '): the space allocates');
+    if (r.dB > 16384) F.push('the moving frames grew the heap ' + r.dB + ' B over 10 000 frames (' + (r.dB / 10000).toFixed(1) + ' B a frame)' + tier);
+    if (!(r.ms < 0.3)) F.push('update() with space.js costs ' + r.ms.toFixed(3) + ' ms a frame' + tier + ' (budget 0.3)');
+    if (!(r.sch > 3)) F.push('the moving frames scheduled ' + r.sch.toFixed(2) + ' params a frame (the space is not following the aeroplane)');
+    if (r.steady !== 0) F.push('a steady frame scheduled ' + r.steady + ' params over 2000 frames (want 0)');
+  }
   return F;
 }
 
@@ -3273,6 +3476,8 @@ function checkEmSamples(S) {
 //                reads voice_catalogue.json.
 function loadVoiceModel(text) { const c = { module: { exports: {} } }; vm.runInNewContext(text, c, { filename: 'voice_model.js' }); return c.module.exports; }
 const voiceWords = (M, seq) => seq.filter(k => typeof k === 'string').map(k => (M.VOCAB[k] == null ? '<' + k + '>' : M.VOCAB[k].replace(/[.,]/g, '').toLowerCase())).join(' ');
+const USER_VOICE = { name: 'norman', id: 'en_US-norman-medium' };   // the user, 2026-10-04: "norman voice is the best"
+const clips0 = S => { try { return JSON.parse(S.voicecat).clips || {}; } catch (e) { return {}; } };
 function checkVoiceCat(S) {
   const F = [];
   let cat; try { cat = JSON.parse(S.voicecat); } catch (e) { return ['voice_catalogue.json does not parse: ' + e.message]; }
@@ -3284,8 +3489,13 @@ function checkVoiceCat(S) {
   if (!/\bMIT\b/.test(String(v.engine)) || /GPL/.test(String(v.engine).replace(/espeak/ig, ''))) F.push('the engine is not the MIT Piper: ' + v.engine);
   if (!/scratch|fine-tuned .*scratch/i.test(String(v.lineage))) F.push('the lineage does not reach a voice trained from scratch: ' + v.lineage);
   const clips = cat.clips || {}, keys = Object.keys(clips);
-  const want = new Set(Object.keys(M.VOCAB));
-  for (const k in JSON.parse(S.voicescript).lines) want.add(k);
+  const want = new Set(Object.keys(M.VOCAB)), script = JSON.parse(S.voicescript);
+  for (const k in script.lines || {}) want.add(k);
+  // G1682: the talk's own lines (radio_talk.js clipLines over the script's places), each clip saying EXACTLY the line
+  const RL = loadRadio(S.radio).clipLines(script.places || {});
+  for (const k in RL) { want.add(k); if (clips0(S)[k] && clips0(S)[k].text !== RL[k]) F.push('the clip ' + k + ' says "' + clips0(S)[k].text + '", the talk "' + RL[k] + '"'); }
+  // G1680: THE USER'S PICK - norman ("norman voice is the best")
+  if (v.name !== USER_VOICE.name || v.id !== USER_VOICE.id) F.push('the shipped voice is ' + v.name + ' (' + v.id + '), not the user\'s pick ' + USER_VOICE.name + ' (' + USER_VOICE.id + ')');
   for (const t of JSON.parse(S.catalogue)) for (const k of M.trackKeys(t)) want.add(k);
   for (const k of want) if (!clips[k]) F.push('no clip for ' + k);
   const dir = path.join(ROOT, 'media', 'audio', 'voice');
@@ -3410,7 +3620,7 @@ const CHECKS = { NUMBERS: checkNumbers, CONTACTS: checkContacts, BUDGET: checkBu
                  MUSIC_GAPS: checkMusicGaps, MUSIC_XFADE: checkMusicXfade, MUSIC_DUCK: checkMusicDuck,
                  MUSIC_BUDGET: checkMusicBudget, MUSIC_CREDITS: checkMusicCredits, MUSIC_WIRING: checkMusicWiring,
                  RADIO_STATIONS: checkRadioStations, RADIO_PICKER: checkRadioPicker, RADIO_SCRIPTS: checkRadioScripts,
-                 RADIO_TALK: checkRadioTalk, RADIO_BUDGET: checkRadioBudget, RADIO_WIRING: checkRadioWiring,
+                 RADIO_TALK: checkRadioTalk, RADIO_BUDGET: checkRadioBudget, RADIO_WIRING: checkRadioWiring, RADIO_CLIPS: checkRadioClips,
                  AFMODEL: checkAfModel, AFVOICE: checkAfVoice, AFALLOC: checkAfAlloc, AFFLOWN: checkAfFlown, AFSOURCE: checkAfSource,
                  SAMPLES: checkSamples, INERT: checkInert,
                  SP_CABIN: checkSpCabin, SP_DOPPLER: checkSpDoppler, SP_ABSORB: checkSpAbsorb, SP_XFADE: checkSpXfade,
@@ -3542,11 +3752,11 @@ const MUT = [
   ['a flat headset', 'spcfg', "{ type: 'highshelf', f: 1500, Q: 0, gain: -10 }", "{ type: 'highshelf', f: 1500, Q: 0, gain: 0 }", 'SP_CABIN'],
   ['ANR without its low end', 'spcfg', "gain: kind === 'anr' ? -7 : 0", 'gain: 0', 'SP_CABIN'],
   ['the doppler inverted', 'spcfg', 'let k = (cc - vl) / (cc - vs);', 'let k = (cc - vs) / (cc - vl);', 'SP_DOPPLER'],
-  ['the doppler not retarded', 'spcfg', 'ringAt(R, t - tau, out);', 'ringAt(R, t, out);', 'SP_DOPPLER'],
+  ['the doppler not retarded', 'spcfg', 'out[0] = t - tau; ringAtSlot(R, out);', 'out[0] = t; ringAtSlot(R, out);', 'SP_DOPPLER'],
   ['the engine deaf to its pitch', 'engw', 'let r2 = rev + spP*rpmInst/(60.0*cycleRevs);', 'let r2 = rev + spS*rpmInst/(60.0*cycleRevs);', 'SP_DOPPLER'],
   ['the prop deaf to its pitch', 'propw', 'const isrP = pch / (60 * sr);', 'const isrP = 1 / (60 * sr);', 'SP_DOPPLER'],
   ['the air never filters', 'spcfg', 'const f = Math.sqrt(3 / (ABS_K * dd));', 'const f = 20000 + 0 * dd;', 'SP_ABSORB'],
-  ['the page forgets the air', 'space', 'fAbs = SC.airAbsorptionHz(dist);', 'fAbs = 20000;', 'SP_ABSORB'],
+  ['the page forgets the air', 'space', 'SC.absorbAt(SD, 2); fAbs = SD[3];', 'fAbs = 20000;', 'SP_ABSORB'],
   ['a linear viewpoint fade', 'audio', 'XC_E[i] = Math.cos(a); XC_I[i] = Math.sin(a);', 'XC_E[i] = 1 - a / (Math.PI / 2); XC_I[i] = a / (Math.PI / 2);', 'SP_XFADE'],
   ['a 50 ms viewpoint', 'audio', 'const XFADE_S = 0.15,', 'const XFADE_S = 0.05,', 'SP_XFADE'],
   ['a reversal from the end', 'audio', 'x = XF[2] + (XF[0] - XF[2]) * u;', 'x = XF[0];', 'SP_XFADE'],
@@ -3558,8 +3768,8 @@ const MUT = [
   ['the placeholder low-pass back', 'engine', "      if (sp) node.connect(sp, 0); else { node.connect(outExt, 0); node.connect(outInt, 0); }", "      if (sp) node.connect(sp, 0); else { node.connect(outExt, 0); node.connect(outInt, 0); }\n      { const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 1400; node.connect(lp, 0); }", 'SP_GRAPH'],
   ['the prop\'s parts not apart', 'srcprop', 'node.connect(sp, 1); sp.connect(sT, 0); sp.connect(sB, 1); splits.push(sp);', 'node.connect(sT, 0); splits.push(sp);', 'SP_GRAPH'],
   ['the interior layers through the cabin', 'srcaf', '        if (SPC) node.connect(int, 2);', '        if (SPC) node.connect(api.space.graph().cabIn, 2);', 'SP_GRAPH'],
-  ['an omnidirectional prop', 'spcfg', 'if (kind === DIR_TONAL) { const g = s2 * (1 - TONAL_A * c) / TONAL_NORM; return g > TONAL_FLOOR ? g : TONAL_FLOOR; }', 'if (kind === DIR_TONAL) return 1;', 'SP_GRAPH'],
-  ['the exhaust forward', 'spcfg', 'if (kind === DIR_EXHAUST) return 0.55 + 0.45 * (1 - c) * 0.5;', 'if (kind === DIR_EXHAUST) return 0.55 + 0.45 * (1 + c) * 0.5;', 'SP_GRAPH'],
+  ['an omnidirectional prop', 'spcfg', 'if (kind === DIR_TONAL) { const g = s2 * (1 - TONAL_A * c) / TONAL_NORM; F[i + 1] = g > TONAL_FLOOR ? g : TONAL_FLOOR; return; }', 'if (kind === DIR_TONAL) { F[i + 1] = 1; return; }', 'SP_GRAPH'],
+  ['the exhaust forward', 'spcfg', 'if (kind === DIR_EXHAUST) { F[i + 1] = 0.55 + 0.45 * (1 - c) * 0.5; return; }', 'if (kind === DIR_EXHAUST) { F[i + 1] = 0.55 + 0.45 * (1 + c) * 0.5; return; }', 'SP_GRAPH'],
   ['the panner in world coordinates', 'space', 'X3[0] = rx * L[3] + ry * L[4] + rz * L[5]; X3[1] = rx * L[6] + ry * L[7] + rz * L[8]; X3[2] = rx * L[9] + ry * L[10] + rz * L[11];', 'X3[0] = rx; X3[1] = ry; X3[2] = rz;', 'SP_GRAPH'],
   ['no lag published', 'space', '    if (A.lagS) A.lagS[0] = lag;\n', '\n', 'SP_GRAPH'],
   ['the engine ignores the lag', 'engine', 'const t = ctx.currentTime + (A.lagS ? A.lagS[0] : 0);', 'const t = ctx.currentTime;', 'SP_GRAPH'],
@@ -3610,7 +3820,7 @@ const MUT = [
   ['the decoded source kept', 'samples', 'r.bufs = [lb]; r.loopBuf = lb; r.size = size;', 'r.bufs = bufs; r.loopBuf = lb; r.size = size; C.bytes += sizeOf(bufs[0]);', 'AMBSAMPLES'],
   // SND-RADIO (G1675-G1679)
   ['the stations out of the ruling\'s order', 'music', "const STATIONS = [['jazz', 'Jazz'], ['lofi', 'Lo-fi / Hip-hop'],", "const STATIONS = [['lofi', 'Lo-fi / Hip-hop'], ['jazz', 'Jazz'],", 'RADIO_STATIONS'],
-  ['an unknown station validates', 'music', "if (t.station != null && STATION_KEYS.indexOf(t.station) < 0)", "if (false)", 'RADIO_STATIONS'],
+  ['an unknown station validates', 'music', "if (t.station != null && REAL_KEYS.indexOf(t.station) < 0)", "if (false)", 'RADIO_STATIONS'],
   ['one bag for every visit', 'music', 'bags = bagsBy[station] || (bagsBy[station] = lists.map(makeBag));', 'bags = lists.map(makeBag);', 'RADIO_STATIONS'],
   ['no lo-fi fallback', 'music', 'lists: own.map((l, c) => (l.length ? l : lo[c].slice()))', 'lists: own', 'RADIO_STATIONS'],
   ['the station not persisted', 'music', "station = s; prefPut('station', s);", 'station = s;', 'RADIO_STATIONS'],
@@ -3685,11 +3895,10 @@ const MUT = [
   // SND-VOICE (G1626-G1629)
   ['a word with no clip', 'voicecat', '"d.7": {', '"d.7x": {', 'VOICE_CAT'],
   ['a non-commercial voice', 'voicecat', '"datasetLicence":"public domain"', '"datasetLicence":"CC BY-NC-SA 4.0"', 'VOICE_CAT'],
-  ['a clip that does not resolve', 'voicecat', '"file":"media/audio/voice/id_1.', '"file":"media/audio/voice/id_1x.', 'VOICE_CAT'],
+  ['a clip that does not resolve', 'voicecat', '"file":"media/audio/voice/id_main.', '"file":"media/audio/voice/id_mainx.', 'VOICE_CAT'],
   ['the lineage forgotten', 'voicecat', '"lineage":"', '"lineage":"","was":"', 'VOICE_CAT'],
   ['a new track never announced', 'catalogue', '"id": "fma238392"', '"id": "fma238392x"', 'VOICE_CAT'],
-  ['a script line never rendered', 'voicescript', '"out.night": "', '"out.night2": "Goodnight.", "out.night": "', 'VOICE_CAT'],
-  ['CREDITS names another voice', 'credits', '**en_US-john-medium**', '**en_US-norman-medium**', 'VOICE_CAT'],
+  ['a place never rendered', 'voicescript', '"Annette Dock",', '"Annette Dock", "Nowhere Dock",', 'VOICE_CAT'],
   ['nine said "nine"', 'voicemodel', "'eight', 'niner']", "'eight', 'nine']", 'VOICE_AWOS'],
   ['never calm', 'voicemodel', 'if (kt < 3) G.push', 'if (kt < 0) G.push', 'VOICE_AWOS'],
   ['every gust reported', 'voicemodel', 'hasG = gu >= kt + 3;', 'hasG = gu > 0;', 'VOICE_AWOS'],
@@ -3707,6 +3916,28 @@ const MUT = [
   ['the build drops the player', 'build', "'audio/voice_model.js', 'audio/voice.js',", "'audio/voice_model.js',", 'VOICE_WIRING'],
   ['the catalogue not inlined', 'build', 'window.FLYDIY_VOICE=${', 'window.FLYDIY_VOICES=${', 'VOICE_WIRING'],
   ['GATE MEDIA blind to the voice', 'mediachk', "'music_catalogue.json', 'voice_catalogue.json']", "'music_catalogue.json']", 'VOICE_WIRING'],
+  // G1680-G1684 (SND-RADIO-2): the user's voice, the mix, the recorded voice in the talk, the space's frame
+  ['john still shipped', 'voicecat', '"name":"norman","id":"en_US-norman-medium"', '"name":"john","id":"en_US-norman-medium"', 'VOICE_CAT'],
+  ['CREDITS names another voice (not norman)', 'credits', '**en_US-norman-medium**', '**en_US-john-medium**', 'VOICE_CAT'],
+  ['a line the clip does not say', 'radio', "'intro.bulletin': 'Island bulletins.',", "'intro.bulletin': 'Island news.',", 'VOICE_CAT'],
+  ['no mix station', 'music', "['classical', 'Classical'], ['mix', 'Random']];", "['classical', 'Classical']];", 'RADIO_STATIONS'],
+  ['the mix misses a station', 'music', 'for (const k of REAL_KEYS) stationLists(cat, k)', 'for (const k of REAL_KEYS.slice(1)) stationLists(cat, k)', 'RADIO_STATIONS'],
+  ['the mix lists a track twice', 'music', 'for (let i = 0; i < m.length; i++) if (m[i]) l.push(i);', 'for (let i = 0; i < m.length; i++) if (m[i]) l.push(i, i);', 'RADIO_STATIONS'],
+  ['a track tagged mix', 'music', "if (t.station != null && REAL_KEYS.indexOf(t.station) < 0)", "if (t.station != null && STATION_KEYS.indexOf(t.station) < 0)", 'RADIO_STATIONS'],
+  ['the mix talks', 'music', "return station === ST_TALK && talkOn", "return (station === ST_TALK || station === ST_MIX) && talkOn", 'RADIO_TALK',
+    t => t.replace("if (station === ST_TALK) PS[S_COUNT]++;", "if (station === ST_TALK || station === ST_MIX) PS[S_COUNT]++;").replace("PS[S_TUNE] = s === ST_TALK ? 1 : 0;", "PS[S_TUNE] = s === ST_TALK || s === ST_MIX ? 1 : 0;")],
+  ['] skips the mix', 'music', 'return setStation(STATION_KEYS[i < 0 ? STATION_KEYS.indexOf(ST_DEFAULT) : (i + d + n) % n]);', 'return setStation(REAL_KEYS[i < 0 ? REAL_KEYS.indexOf(ST_DEFAULT) : (Math.min(i, REAL_KEYS.length - 1) + d + REAL_KEYS.length) % REAL_KEYS.length]);', 'RADIO_PICKER'],
+  ['the talk never plays clips', 'music', 'speaker = RT ? (RT.makeTalker ? RT.makeTalker(G, voiceApi) : RT.makeSpeaker(G)) : null;', 'speaker = RT ? RT.makeSpeaker(G) : null;', 'RADIO_CLIPS'],
+  ['all or nothing (no per-segment fallback)', 'radio', 'const c = resolves(x), g = groups[groups.length - 1];', 'const c = segs.every(resolves), g = groups[groups.length - 1];', 'RADIO_CLIPS'],
+  ['a segment played with a clip missing', 'radio', 'return !!(v && x.clips && x.clips.length && !v.missing(x.clips).length); };', 'return !!(v && x.clips && x.clips.length); };', 'RADIO_CLIPS'],
+  ['the speech over the clips', 'radio', "if (!g.clips) { say(g); return; }", "if (!g.clips) { say(g); if (i < groups.length) next(); return; }", 'RADIO_CLIPS'],
+  ['the clips past the ducks', 'music', 'radioIn.connect(duck);', "radioIn.connect(au.bus('music'));", 'RADIO_CLIPS'],
+  ['the clips at the speech\'s level', 'music', 'return VOICE_K * Math.pow(10, (LUFS_TARGET - l) / 20); };', 'return VOICE_K; };', 'RADIO_CLIPS'],
+  ['a cancelled break reads on', 'radio', '      if (h) { try { h.stop(); } catch (e) {} }\n      sp.cancel(true);', '      sp.cancel(true);', 'RADIO_CLIPS'],
+  ['the watchdog on the text', 'music', '(speaker.seconds ? speaker.seconds(segs, RT.RATE) : RT.estSeconds(segs, RT.RATE))', '(RT.estSeconds(segs, RT.RATE) * 3)', 'RADIO_CLIPS'],
+  ['a back-announce with no track id', 'music', '{ id: cat[t].id, title: cat[t].title, artist: cat[t].artist }', '{ title: cat[t].title, artist: cat[t].artist }', 'RADIO_CLIPS'],
+  ['the frame boxes the doppler', 'space', 'SC.dopplerAt(SD, 4); kDop = SD[7];', 'kDop = dopBoxed(SD[4], SD[5], SD[6]);', 'SP_BUDGET',
+    t => t.replace('  // ---- THE FRAME ----', '  function dopBoxed(c, vs, vl) { const k = SC.dopplerFactor(c, vs, vl); X3[3] = k; return k + 0; }\n  // ---- THE FRAME ----')],
 ];
 
 // a check returns its failures, or a promise of them (SAMPLES: the loader is promise-based)
@@ -3760,6 +3991,7 @@ if (!ONLY_SELFTEST) {
     const S = Object.assign({}, SRC0);
     S[file] = SRC0[file].replace(find, () => repl);
     if (also) S[file] = also(S[file]);
+    if (process.env.AUDIO_TRACE) console.log('  .. ' + name + ' (' + check + ')');   // (a debugging aid: which mutation is running)
     const red = await runCheck(check, S, null);
     if (red.length) caught++;
     if (ONLY_SELFTEST || !red.length) say(red.length > 0, 'SELF-TEST "' + name + '" turns ' + check + ' red' + (red.length ? ': ' + red[0] : ' - MISSED'));

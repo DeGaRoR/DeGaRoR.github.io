@@ -213,14 +213,15 @@ var RADIO_TALK = (function () {
       storm: st ? { I: st.I, phase: st.phase, inS: st.inS, kNow: num(st.windK) ? st.windK : 1, windK: ss && num(ss.windK) ? ss.windK : DECL.stormWindK,
                     veerDeg: ss && num(ss.veerDeg) ? ss.veerDeg : DECL.stormVeerDeg } : null,
       seaFt: 2 * seaA / FT,
-      oneWay: aero.filter(a => a.kind === 'strip' && a.landHdg != null).map(a => ({ name: say(a.name), look: LOOK[a.look] != null ? LOOK[a.look] : (a.look || '') })),
+      oneWay: aero.filter(a => a.kind === 'strip' && a.landHdg != null).map(a => ({ name: say(a.name), key: a.name, look: LOOK[a.look] != null ? LOOK[a.look] : (a.look || '') })),
       lanes: aero.filter(a => a.kind === 'water').map(a => say(a.name)),
+      laneKeys: aero.filter(a => a.kind === 'water').map(a => a.name),   // (G1682: the clip keys are the game's names)
       declared,
     };
   }
 
   // ---- THE SEGMENTS -------------------------------------------------------------------------------------------------
-  const seg = (kind, key, text) => ({ kind, key, text });
+  const seg = (kind, key, text, clips) => ({ kind, key, text, clips: clips || null });
   // the wind, AWOS: calm / "two five zero at eight" / "... gusts two six"
   function windAwos(wx) {
     const kt = Math.round(wx.windKt);
@@ -247,6 +248,7 @@ var RADIO_TALK = (function () {
       skyAwos(wx), 'temperature ' + signed(wx.oatC) + ', dew point ' + signed(wx.dewC), 'altimeter ' + altimeter(wx.qnhPa)];
     return t.map(cap).join('. ') + '.';
   }
+  const MARINE_HEAD = 'Marine forecast for the inside waters, Jolene Sound and the passages';
   function marineWind(kt, dir, gust) {
     if (kt < 5) return 'variable winds five knots or less';
     const peak = kt * (1 + gust), lull = kt * (1 - gust);
@@ -256,7 +258,7 @@ var RADIO_TALK = (function () {
   function marine(wx) {
     const kt = wx.windKt, part = partOfDay(wx.local);
     const head = kt >= GALE_KT ? ', gale warning' : kt >= SCA_KT ? ', small craft advisory' : '';
-    const o = ['Marine forecast for the inside waters, Jolene Sound and the passages' + head + '.',
+    const o = [MARINE_HEAD + head + '.',
       cap(thisPart(part)) + ', ' + marineWind(kt, wx.windDirT, wx.gust) + '. ' + cap(seasWords(wx.seaFt)) + '.'];
     const visKm = wx.visM / 1000, s = wx.storm;
     if (s && s.phase === 'passage') o.push('Rain, heavy at times.');
@@ -272,28 +274,35 @@ var RADIO_TALK = (function () {
   }
   // the favoured runway at the field: the designator end most into the wind (designator x 10 against the true wind:
   // declared - the magnetic variation is not carried); calm -> the first designator of the home strip
-  function favoured(wx) {
-    if (!wx.runways.length) return '';
+  // the favoured end (its designator) and whether the wind is reported (3 kt and more)
+  function favouredEnd(wx) {
     const ends = []; for (const r of wx.runways) ends.push(r[0], r[1]);
     let best = wx.runways[0][0];
-    if (Math.round(wx.windKt) >= 3) { let bc = -2; for (const e of ends) { const c = Math.cos((wx.windDirT - e * 10) * D2R); if (c > bc) { bc = c; best = e; } } }
-    return 'At ' + wx.field + ', runway ' + digits(pad(best, 2)) + ' is favoured' + (Math.round(wx.windKt) >= 3 ? ', ' + windAwos(wx) + '.' : ', the wind calm.');
+    const windy = Math.round(wx.windKt) >= 3;
+    if (windy) { let bc = -2; for (const e of ends) { const c = Math.cos((wx.windDirT - e * 10) * D2R); if (c > bc) { bc = c; best = e; } } }
+    return { best, windy };
   }
+  function favoured(wx) {
+    if (!wx.runways.length) return '';
+    const f = favouredEnd(wx);
+    return 'At ' + wx.field + ', runway ' + digits(pad(f.best, 2)) + ' is favoured' + (f.windy ? ', ' + windAwos(wx) + '.' : ', the wind calm.');
+  }
+  // (the lines a recorded clip says whole: one per strip and lane - clipLines renders the declared places)
+  const onewayLine = (name, look, wet) => name + (look ? ', ' + look : '') + (wet ? ', soft after the rain' : '') + ': it is one way, so land uphill and take off downhill.';
+  const laneLine = name => 'The seaplane lane at ' + name + ' is active. Skiffs, keep clear of the buoys.';
+  const isWet = wx => (wx.rh != null && wx.rh >= SOFT_RH) || !!(wx.storm && (wx.storm.phase === 'passage' || wx.storm.phase === 'post'));
   function pilots(wx, k) {
     const o = [LINES['intro.pilots']];
     const f = favoured(wx); if (f) o.push(f);
-    if (wx.oneWay.length) {
-      const s = wx.oneWay[k % wx.oneWay.length];
-      const wet = (wx.rh != null && wx.rh >= SOFT_RH) || (wx.storm && (wx.storm.phase === 'passage' || wx.storm.phase === 'post'));
-      o.push(s.name + (s.look ? ', ' + s.look : '') + (wet ? ', soft after the rain' : '') + ': it is one way, so land uphill and take off downhill.');
-    }
-    if (wx.lanes.length) o.push('The seaplane lane at ' + wx.lanes[k % wx.lanes.length] + ' is active. Skiffs, keep clear of the buoys.');
+    if (wx.oneWay.length) { const s = wx.oneWay[k % wx.oneWay.length]; o.push(onewayLine(s.name, s.look, isWet(wx))); }
+    if (wx.lanes.length) o.push(laneLine(wx.lanes[k % wx.lanes.length]));
     if (wx.runways.length) o.push('And the eagles are back on runway ' + digits(pad(wx.runways[0][0], 2)) + ' ' + thisPart(partOfDay(wx.local)) + '. Give them a low pass before you land.');
     return o.join(' ');
   }
+  const greetLine = p => (p === 'night' ? 'Good evening, night owls.' : 'Good ' + p + '.');
   function stationId(wx, k) {
     const p = partOfDay(wx.local);
-    const greet = p === 'night' ? 'Good evening, night owls.' : 'Good ' + p + '.';
+    const greet = greetLine(p);
     return greet + ' ' + LINES['id.main'] + (k % 2 ? ' The time on the island, ' + clockWords(wx.local) + '.' : '');
   }
   function backAnnounce(tracks) {
@@ -302,22 +311,138 @@ var RADIO_TALK = (function () {
     const one = x => say(x.title) + ' by ' + say(x.artist);
     return 'That was ' + one(t[0]) + (t[1] ? ', and before that, ' + one(t[1]) : '') + '.';
   }
+
+  // ---- THE RECORDED VOICE (G1682, SND-RADIO-2; ruling s12) -----------------------------------------------------------
+  // Every segment also carries `clips`: the same words as a SEQUENCE for AUDIO_VOICE.play (clip keys and rests in
+  // seconds), or null when there is no clip form (no VOICE_MODEL on the page, a field the clips do not name, a track
+  // with no id). The keys are VOICE_MODEL's words (the AWOS assembled from the game's weather by awosClips, the digits,
+  // the marine numbers, the back-announces 'ba.<id>' / 'title.<id>' / 'artist.<slug>') and the station's own lines,
+  // clipLines(places): LINES whole, the greetings, the time check, the pilots' and the marine forecast's phrases, one
+  // line per one-way strip and sea lane (tools/audio/voice_script.json "places" declares Jolene's). A number or a place
+  // with no clip is simply a key the catalogue lacks: the player (music.js) plays a segment's clips only when EVERY key
+  // resolves (AUDIO_VOICE.missing), else speaks its text - per segment.
+  const R_WORD = 0.05, R_GROUP = 0.28, R_SENT = 0.55;   // VOICE_MODEL.REST's
+  const VMOD = () => G.VOICE_MODEL || (typeof VOICE_MODEL !== 'undefined' ? VOICE_MODEL : null);
+  const slug = x => String(x || '').toLowerCase().normalize('NFKD').replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
+  const PARTS = ['morning', 'afternoon', 'evening', 'night'];
+  const partKey = p => slug(thisPart(p));   // this_morning .. tonight
+  // the front's "when" phrases (whenWords' whole range)
+  const WHENS = ['within the next few hours'].concat(PARTS.map(p => 'later ' + thisPart(p)), PARTS.map(thisPart), PARTS.map(p => 'tomorrow ' + p));
+  function clipLines(places) {
+    const L = {}, pl = places || {};
+    for (const k in LINES) L[k] = LINES[k];
+    for (const p of PARTS) L['greet.' + p] = greetLine(p);
+    L['time.intro'] = 'The time on the island,';
+    for (let h = 1; h <= 12; h++) L['clk.h.' + h] = WORD[h] + ',';
+    for (let m = 0; m < 60; m++) L['clk.m.' + m] = (m === 0 ? "o'clock" : m < 10 ? 'oh ' + WORD[m] : numberWords(m)) + '.';
+    Object.assign(L, { 'pil.at_field': 'At ' + DECL.fieldName + ', runway,', 'pil.is_favoured': 'is favoured,', 'pil.is_favoured_calm': 'is favoured, the wind calm.',
+      'pil.eagles': 'And the eagles are back on runway,', 'pil.low_pass': 'Give them a low pass before you land.' });
+    for (const p of PARTS) L['part.' + partKey(p)] = thisPart(p) + '.';
+    for (const [name, look] of pl.strips || []) { L['pil.oneway.' + slug(name)] = onewayLine(say(name), LOOK[look] != null ? LOOK[look] : look || '', false); L['pil.oneway.' + slug(name) + '.soft'] = onewayLine(say(name), LOOK[look] != null ? LOOK[look] : look || '', true); }
+    for (const name of pl.lanes || []) L['pil.lane.' + slug(name)] = laneLine(say(name));
+    L['mf.head'] = LINES['intro.marine'] + ' ' + MARINE_HEAD + '.';
+    L['mf.head.sca'] = LINES['intro.marine'] + ' ' + MARINE_HEAD + ', small craft advisory.';
+    L['mf.head.gale'] = LINES['intro.marine'] + ' ' + MARINE_HEAD + ', gale warning.';
+    for (const p of PARTS) L['mf.part.' + p] = cap(thisPart(p)) + ',';
+    Object.assign(L, { 'mf.variable': 'variable winds five knots or less.', 'mf.gusts_to': 'gusts to,', 'mf.seas_le1': 'Seas one foot or less.',
+      'mf.rain_heavy': 'Rain, heavy at times.', 'mf.fog_dense': 'Dense fog, visibility under a mile.', 'mf.seas_building': 'seas building to,',
+      'mf.easing': 'Easing behind the front, the wind backing and dropping off.', 'mf.little_change': 'Outlook, little change.' });
+    for (const w of WHENS) L['mf.front.' + slug(w)] = 'A front ' + w + ':';
+    return L;
+  }
+  // a digit string as clips (VOICE_MODEL's d.N, the last a final take when fin), word rests between
+  function dig(o, str, fin) { for (let i = 0; i < str.length; i++) { if (i) o.push(R_WORD); o.push('d.' + str[i] + (fin && i === str.length - 1 ? '.f' : '')); } return o; }
+  const add = (o, rest, ...keys) => { if (o.length) o.push(rest); for (let i = 0; i < keys.length; i++) { if (i) o.push(R_WORD); o.push(keys[i]); } return o; };
+  // the AWOS observation VOICE_MODEL.awosClips reads, from what readGame read (the same rules as awos() above)
+  function obsOf(wx) {
+    const kt = Math.round(wx.windKt), peak = Math.round(wx.windKt * (1 + wx.gust)), lull = Math.round(wx.windKt * (1 - wx.gust));
+    const sky = [];
+    for (const L of wx.layers) { const c = coverClass(L.cover); if (c) sky.push({ cover: { few: 'FEW', scattered: 'SCT', broken: 'BKN', overcast: 'OVC' }[c], ft: L.baseM / FT }); }
+    const s = ((Math.floor(wx.utc) % 86400) + 86400) % 86400;
+    return { timeZ: Math.floor(s / 60), wind: { dirDeg: wx.windDirT, kt: kt < CALM_KT ? 0 : kt, gustKt: peak - lull >= GUST_SPREAD_KT ? peak : 0 },
+      visSM: wx.visM / SM, sky, tempC: wx.oatC, dewC: wx.dewC, qnhPa: wx.qnhPa };
+  }
+  const jolene = wx => wx.field === DECL.fieldName;   // the clips name Jolene field (awos.intro, pil.at_field)
+  function idClips(wx, k) {
+    const o = add([], 0, 'greet.' + partOfDay(wx.local));
+    add(o, R_GROUP, 'id.main');
+    if (k % 2) { const sec = wx.local, m = Math.floor(sec / 60) % 60, h = Math.floor(sec / 3600) % 24 % 12 || 12; add(o, R_SENT, 'time.intro', 'clk.h.' + h, 'clk.m.' + m); }
+    return o;
+  }
+  function backClips(tracks) {
+    const V = VMOD(), t = (tracks || []).filter(x => x && x.title);
+    if (!V || !t.length || t.some(x => !x.id)) return null;
+    const o = V.backAnnounce(t[0]).slice();
+    if (t[1]) { o.push(R_SENT); o.push(...V.backAnnounce(t[1], 'before_that')); }
+    return o;
+  }
+  function awosClipsOf(wx) {
+    const V = VMOD();
+    if (!V || !jolene(wx)) return null;
+    return ['intro.awos', R_GROUP].concat(V.awosClips(obsOf(wx)));
+  }
+  function marineWindClips(o, kt, dir, gust) {
+    if (kt < 5) return add(o, R_GROUP, 'mf.variable');
+    add(o, R_WORD, 'mar.' + compass(dir), 'mar.wind', 'n.' + round5(kt), 'mar.knots');
+    if (kt * (1 + gust) - kt * (1 - gust) >= GUST_SPREAD_KT) add(o, R_WORD, 'mf.gusts_to', 'n.' + round5(kt * (1 + gust)));
+    return o;
+  }
+  const seasClips = (o, ft, building) => (Math.round(ft) <= 1 && !building ? add(o, R_SENT, 'mf.seas_le1')
+    : add(o, building ? R_WORD : R_SENT, building ? 'mf.seas_building' : 'mar.seas', 'n.' + Math.max(1, Math.round(ft)), Math.max(1, Math.round(ft)) === 1 ? 'mar.foot' : 'mar.feet'));
+  function marineClips(wx) {
+    const kt = wx.windKt, part = partOfDay(wx.local), s = wx.storm, visKm = wx.visM / 1000;
+    const o = add([], 0, kt >= GALE_KT ? 'mf.head.gale' : kt >= SCA_KT ? 'mf.head.sca' : 'mf.head');
+    add(o, R_SENT, 'mf.part.' + part);
+    marineWindClips(o, kt, wx.windDirT, wx.gust);
+    seasClips(o, wx.seaFt, false);
+    if (s && s.phase === 'passage') add(o, R_SENT, 'mf.rain_heavy');
+    else if (visKm < 1) add(o, R_SENT, 'mf.fog_dense');
+    else if (visKm < 5) add(o, R_SENT, 'mar.fog');
+    if (s && (s.phase === 'none' || s.phase === 'pre') && s.inS > 0 && s.inS < 18 * 3600) {
+      const k = Math.max(1, s.windK / Math.max(1, s.kNow || 1));
+      add(o, R_SENT, 'mf.front.' + slug(whenWords(wx.local, s.inS)));
+      marineWindClips(o, kt * k, wx.windDirT + s.veerDeg, wx.gust);
+      seasClips(o, wx.seaFt * k * k, true);
+    } else if (s && (s.phase === 'passage' || s.phase === 'post')) add(o, R_SENT, 'mf.easing');
+    else add(o, R_SENT, 'mf.little_change');
+    return o;
+  }
+  function windClips(o, wx) {
+    const kt = Math.round(wx.windKt), d10 = Math.round(wx.windDirT / 10) * 10 % 360 || 360;
+    const peak = Math.round(wx.windKt * (1 + wx.gust)), lull = Math.round(wx.windKt * (1 - wx.gust)), g = peak - lull >= GUST_SPREAD_KT;
+    add(o, R_WORD, 'w.wind'); o.push(R_WORD); dig(o, pad(d10, 3), false); add(o, R_WORD, 'w.at'); o.push(R_WORD); dig(o, String(kt), !g);
+    if (g) { add(o, R_WORD, 'w.gusts'); o.push(R_WORD); dig(o, String(peak), true); }
+    return o;
+  }
+  function pilotsClips(wx, k) {
+    if (wx.runways.length && !jolene(wx)) return null;
+    const o = ['intro.pilots'];
+    if (wx.runways.length) {
+      const f = favouredEnd(wx);
+      add(o, R_SENT, 'pil.at_field'); o.push(R_WORD); dig(o, pad(f.best, 2), false);
+      if (f.windy) { add(o, R_WORD, 'pil.is_favoured'); windClips(o, wx); } else add(o, R_WORD, 'pil.is_favoured_calm');
+    }
+    if (wx.oneWay.length) add(o, R_SENT, 'pil.oneway.' + slug(wx.oneWay[k % wx.oneWay.length].key) + (isWet(wx) ? '.soft' : ''));
+    if (wx.lanes.length) add(o, R_SENT, 'pil.lane.' + slug(wx.laneKeys[k % wx.lanes.length]));
+    if (wx.runways.length) { add(o, R_SENT, 'pil.eagles'); o.push(R_WORD); dig(o, pad(wx.runways[0][0], 2), false); add(o, R_WORD, 'part.' + partKey(partOfDay(wx.local)), 'pil.low_pass'); }
+    return o;
+  }
   // the next break: tuning in = the ID and the weather; else the back-announce, the ID every other break, one feature
   function breakScript(state, wx, tracks, opt) {
     const k = state.k | 0, S = [];
     if (opt && opt.tuneIn) {
-      S.push(seg('id', 'id.main', stationId(wx, 1)), seg('awos', 'awos', LINES['intro.awos'] + ' ' + awos(wx)));
+      S.push(seg('id', 'id.main', stationId(wx, 1), idClips(wx, 1)), seg('awos', 'awos', LINES['intro.awos'] + ' ' + awos(wx), awosClipsOf(wx)));
       state.k = k + 1; return S;
     }
     const b = backAnnounce(tracks);
-    if (b) S.push(seg('back', 'back', b));
-    if (k % 2 === 0) S.push(seg('id', 'id.main', stationId(wx, k / 2)));
+    if (b) S.push(seg('back', 'back', b, backClips(tracks)));
+    if (k % 2 === 0) S.push(seg('id', 'id.main', stationId(wx, k / 2), idClips(wx, k / 2)));
     const f = FEATURES[k % FEATURES.length];
-    if (f === 'awos') S.push(seg('awos', 'awos', LINES['intro.awos'] + ' ' + awos(wx)));
-    else if (f === 'marine') S.push(seg('marine', 'marine', LINES['intro.marine'] + ' ' + marine(wx)));
-    else if (f === 'pilots') { S.push(seg('pilots', 'pilots', pilots(wx, state.p | 0))); state.p = (state.p | 0) + 1; }
-    else if (f === 'bulletin') { const key = BULLETINS[(state.b | 0) % BULLETINS.length]; state.b = (state.b | 0) + 1; S.push(seg('bulletin', key, LINES['intro.bulletin'] + ' ' + LINES[key])); }
-    else { const key = SWAPS[(state.s | 0) % SWAPS.length]; state.s = (state.s | 0) + 1; S.push(seg('swap', key, LINES['intro.swap'] + ' ' + LINES[key])); }
+    if (f === 'awos') S.push(seg('awos', 'awos', LINES['intro.awos'] + ' ' + awos(wx), awosClipsOf(wx)));
+    else if (f === 'marine') S.push(seg('marine', 'marine', LINES['intro.marine'] + ' ' + marine(wx), marineClips(wx)));
+    else if (f === 'pilots') { S.push(seg('pilots', 'pilots', pilots(wx, state.p | 0), pilotsClips(wx, state.p | 0))); state.p = (state.p | 0) + 1; }
+    else if (f === 'bulletin') { const key = BULLETINS[(state.b | 0) % BULLETINS.length]; state.b = (state.b | 0) + 1; S.push(seg('bulletin', key, LINES['intro.bulletin'] + ' ' + LINES[key], ['intro.bulletin', R_SENT, key])); }
+    else { const key = SWAPS[(state.s | 0) % SWAPS.length]; state.s = (state.s | 0) + 1; S.push(seg('swap', key, LINES['intro.swap'] + ' ' + LINES[key], ['intro.swap', R_SENT, key])); }
     state.k = k + 1;
     return S;
   }
@@ -364,11 +489,79 @@ var RADIO_TALK = (function () {
     return { speak, cancel, voices, pickVoice, available, get speaking() { return live === 1; } };
   }
 
+  // ---- THE TALKER (G1683, SND-RADIO-2): a break played segment by segment - a segment's recorded CLIPS when every key
+  // has one (getVoice() -> AUDIO_VOICE: Web Audio, into o.dest - music.js's radio gain, so the music's ducks and the
+  // context's suspend reach it), else its TEXT through makeSpeaker (speechSynthesis), else (no speech either) it is
+  // skipped. Consecutive clip segments are ONE sequence (sample-exact, SEG_REST between them); consecutive spoken ones
+  // are queued together. The same face as makeSpeaker - speak(segs, o, done) (done once: the last group's end, or a
+  // cancel), cancel(silent), available(), speaking, voices(), pickVoice() - plus plan(segs) -> [{ clips, segs }],
+  // seconds(segs, rate) (the watchdog's estimate: the clips' own length, the text's for speech) and `last` (what the
+  // last break did, for the gate and the evidence). A cancelled break's late ends are ignored (a generation counter).
+  const SEG_REST = 0.7;
+  function makeTalker(env, getVoice) {
+    const E = env || G, sp = makeSpeaker(E);
+    const V = () => (getVoice ? getVoice() : null);
+    let live = 0, gen = 0, onDone = null, handle = null, last = null;
+    const resolves = x => { const v = V(); return !!(v && x.clips && x.clips.length && !v.missing(x.clips).length); };
+    function plan(segs) {
+      const groups = [];
+      for (const x of segs) {
+        const c = resolves(x), g = groups[groups.length - 1];
+        if (g && g.clips === c) g.segs.push(x); else groups.push({ clips: c, segs: [x] });
+      }
+      return groups;
+    }
+    const seqOf = segs => { const o = []; for (const x of segs) { if (o.length) o.push(SEG_REST); for (const k of x.clips) o.push(k); } return o; };
+    function seconds(segs, rate) {
+      const v = V(), M = VMOD();
+      return plan(segs).reduce((t, g) => t + SEG_REST + (g.clips && M ? M.timeline(seqOf(g.segs), k => v.dur(k)).total : estSeconds(g.segs, rate)), 0);
+    }
+    function finish() { if (!live) return; live = 0; gen++; handle = null; const f = onDone; onDone = null; if (f) f(); }
+    function speak(segs, o, done) {
+      cancel(true);
+      if (!segs || !segs.length) return false;
+      const groups = plan(segs);
+      if (!groups.some(g => g.clips) && !sp.available()) return false;
+      const my = ++gen, oo = o || {};
+      live = 1; onDone = done || null;
+      last = { groups: groups.map(g => ({ clips: g.clips, kinds: g.segs.map(x => x.kind) })), played: 0, spoken: 0, skipped: 0 };
+      const L = last;
+      let i = 0;
+      const say = g => {   // a spoken group (the fallback); none possible -> skipped
+        if (sp.available() && sp.speak(g.segs, oo, () => { if (my === gen) next(); })) { L.spoken += g.segs.length; return; }
+        L.skipped += g.segs.length; next();
+      };
+      function next() {
+        if (my !== gen) return;
+        if (i >= groups.length) { finish(); return; }
+        const g = groups[i++];
+        if (!g.clips) { say(g); return; }
+        const r = V().play(seqOf(g.segs), { dest: oo.dest, gain: oo.gain, onend: () => { if (my === gen) next(); } });
+        Promise.resolve(r).then(h => {
+          if (my !== gen) { if (h) h.stop(); return; }
+          if (!h) { say(g); return; }   // nothing playable (no context, every clip failed): the voice reads it
+          handle = h; L.played += g.segs.length;
+        }, () => { if (my === gen) say(g); });
+      }
+      next();
+      return true;
+    }
+    function cancel(silent) {
+      if (!live) return;
+      const f = onDone, h = handle; live = 0; gen++; onDone = null; handle = null;
+      if (h) { try { h.stop(); } catch (e) {} }
+      sp.cancel(true);
+      if (!silent && f) f();
+    }
+    return { speak, cancel, plan, seconds, voices: sp.voices, pickVoice: sp.pickVoice,
+      available: () => sp.available() || !!V(), get speaking() { return live === 1; }, get last() { return last; } };
+  }
+
   const api = {
     LINES, BULLETINS, SWAPS, FEATURES, DECL, RATE, PITCH, PREFERRED_VOICE, GUST_SPREAD_KT, SCA_KT, GALE_KT,
     digits, signed, heightWords, roundFt, visWords, coverClass, compass, clockWords, numberWords, whenWords, say,
     readGame, windAwos, skyAwos, altimeter, zulu, awos, marine, favoured, pilots, stationId, backAnnounce, breakScript, estSeconds,
-    makeSpeaker,
+    makeSpeaker, makeTalker, clipLines, obsOf, slug, SEG_REST,
   };
   return api;
 })();

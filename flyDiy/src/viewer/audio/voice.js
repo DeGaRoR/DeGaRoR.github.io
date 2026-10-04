@@ -16,10 +16,12 @@
 //                 the clips end to end with the sequence's rests; each source is start()ed at its slot, sample-exact.
 //   BUDGETED      decoded bytes (frames x channels x 4) under `budget` (default 6 MB: an AWOS reading is ~25 s of
 //                 clips, ~5 MB at 48 kHz); the least recently used clips not playing are dropped past it.
-//   THE BUS       opts.dest, else AUDIO.bus('radio') (SND-RADIO's, when it lands), else AUDIO.bus('ui').
+//   THE BUS       opts.dest, else AUDIO.bus('radio') (SND-RADIO's, when it lands), else AUDIO.bus('ui'). Radio Jolene's
+//                 breaks pass music.js's radio gain (G1683: into the music's duck, then the music bus).
+//   THE END       opts.onend(handle), once: when the last clip ends, or stop() (G1683: the talker's next segment).
 //
 // API: AUDIO_VOICE.has(key), .dur(key), .text(key), .keyOf(text) (a script line -> its clip key: SND-RADIO's segments
-//   are data), .missing(seq) -> keys with no clip, .preload(seq) -> Promise, .play(seq, { dest, when, gain }) ->
+//   are data), .missing(seq) -> keys with no clip, .preload(seq) -> Promise, .play(seq, { dest, when, gain, onend }) ->
 //   Promise<{ start, end, stop() } | null> (null: no context yet, or nothing playable), .say(key, opts), .stopAll(),
 //   .bytes, .state(key) 'absent' | 'idle' | 'loading' | 'ready' | 'failed'; AUDIO_VOICE.create(opts) makes an
 //   independent instance (GATE AUDIO's stubs: opts.ctx, .catalogue, .fetch, .base, .budget, .model).
@@ -34,7 +36,7 @@ var AUDIO_VOICE = (function () {
     const o = opts || {};
     const cat = () => o.catalogue || W.FLYDIY_VOICE || { clips: {} };
     const clips = () => cat().clips || {};
-    const model = () => o.model || W.VOICE_MODEL;
+    const model = () => o.model || W.VOICE_MODEL || (typeof VOICE_MODEL !== 'undefined' ? VOICE_MODEL : null);
     const base = () => (o.base != null ? o.base : (typeof W.FLYDIY_ASSET_BASE === 'string' ? W.FLYDIY_ASSET_BASE : ''));
     const ctxOf = () => o.ctx || (W.AUDIO && W.AUDIO.ctx) || null;
     const fetchBytes = url => (o.fetch ? o.fetch(url) : W.ASSET_FETCH ? W.ASSET_FETCH(url)
@@ -102,7 +104,8 @@ var AUDIO_VOICE = (function () {
         finish();
       } };
       let done = false;
-      const finish = () => { if (done) return; done = true; live.delete(h); for (const a of tl.at) { const r = recs.get(a.key); if (r) r.playing = Math.max(0, r.playing - 1); } try { g.disconnect(); } catch (e) {} evict(); };
+      const finish = () => { if (done) return; done = true; live.delete(h); for (const a of tl.at) { const r = recs.get(a.key); if (r) r.playing = Math.max(0, r.playing - 1); } try { g.disconnect(); } catch (e) {} evict();
+        if (p.onend) { try { p.onend(h); } catch (e) {} } };   // G1683: the reading's end (its last clip, or stop())
       for (const a of tl.at) {
         const r = ready(a.key), src = ctx.createBufferSource();
         src.buffer = r.buf; src.connect(g); src.start(t0 + a.t, r.off, a.dur);

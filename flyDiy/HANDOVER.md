@@ -72450,3 +72450,118 @@ expects the tram's hum resident as a recording (not a procedural buffer), EMITWI
 kind (a loop sound a declared loop) and every keyed sound a catalogue file (the loon exception gone). The EMIT checks all
 pass, 31 / 31 of their mutations caught. Still red on sound-next, SND-RADIO-2's: RADIO_STATIONS (the mix station),
 VOICE_CAT (norman's re-render with the newer tracks' back-announces), and SP_BUDGET's 90 B/frame seen once.
+
+## G1680-G1684 - SND-RADIO-2: THE RADIO FINISHED - NORMAN'S VOICE (THE USER'S PICK), THE MIX STATION ("Random"), THE SPACE FRAME'S BOXED DOPPLER REMOVED, THE RECORDED VOICE IN RADIO JOLENE'S TALK (CLIPS PER SEGMENT, speechSynthesis THE FALLBACK), THE RENDER MADE ORDER-FREE; GATED (2026-10-04, SND-RADIO-2 for the Sound Coordinator, cloud, node + python tools; branch claude/snd-radio2-norman-mix off origin/claude/sound-next 43451aca; SND-TUNE moves to G1685+)
+
+Design: futureDesigns/SOUND-2026-10-04.md §7, rulings s10 / s12; HANDOVER G1626-G1629 (the voice), G1675-G1679 (the stations, the
+talk). GATE AUDIO was red on 43451aca for three causes (VOICE_CAT 72, RADIO_STATIONS, SP_BUDGET on the coordinator's box): all three
+cleared. No app.js edit; no build.js edit (nothing new to list: voice_model.js / voice.js / radio_talk.js are already in MANIFEST).
+G1680 THE ALLOCATOR (SP_BUDGET "90.6 B a frame") - NOT an emitters / music / voice source: SP_BUDGET's child loads none of them.
+  It is space.js's MOVING path: update() called SPACE_CONFIG.dopplerFactor(c, vs, vl) - three doubles in, one out. When TurboFan
+  does not inline that call, every argument and the return are BOXED (a fresh HeapNumber each). Reproduced here: node 22 by
+  default 0.59 B a frame, with --no-maglev (TurboFan alone = a Node without Maglev, the coordinator's box presumably) 154.6 B a
+  frame; the sampling heap profiler names update (space.js:259) and dopplerFactor (space_config.js:159) as the difference.
+  The merge did not touch either file: SND-AMB-2's samples.js one-shot branch in admit() (never called by the frame) shifted
+  TurboFan's inlining of space.js's update - with that branch removed the frame is 0.59 again; with the old clsOf restored it is
+  exactly the coordinator's 905 600 B. A frame that leans on the inliner is one compile decision from allocating.
+  FIX (space_config.js + space.js): the laws in SLOT FORMS - dopplerAt(F, i), absorbAt(F, i), dirAt(kind, F, i), ringAtSlot(R, out)
+  (te in out[0], used by retardedSolve), loopBlendSlot(points, out) - read their arguments from a Float64Array and write the
+  answer into the next slot; the scalar forms (dopplerFactor, airAbsorptionHz, directivity, ringAt, loopBlend) are those same
+  laws through a scratch array, for the tools and the gate (one law, never two). space.js's frame and craftsFrame use the slot
+  forms (SD / CD scratch, dt and c in T[5] / T[6]: craftsFrame() takes no double); wet() no longer builds its node array a frame
+  (G.wetNodes, once per graph). Now 0.59 B a frame by default AND with --no-maglev.
+  THE GATE: SP_BUDGET takes its child sample twice - by default and with --no-maglev (a node without the flag is said, not failed);
+  new mutation "the frame boxes the doppler" (a scalar call back in the frame) is red only through the TurboFan sample.
+G1681 THE MIX (music.js): STATIONS += ['mix', 'Random'], seventh, after classical (the selection file's key order: RADIO_STATIONS
+  holds it). VIRTUAL: validate refuses a track tagged mix (REAL_KEYS = the six); stationLists(cat, 'mix') = per context the UNION of
+  the six stations' lists (each with its own fallbacks), catalogue order, each track once - so its bag (one per context, made on
+  first use and kept like every station's) is every track any station would play there, shuffled, no repeat inside a round. On
+  the shipped catalogue the mix's garage bag is all 42 tracks. Persisted (flydiy.audio.station = 'mix'), in the picker ("Random"),
+  [ / ] cycle through it (jazz <- mix <- classical). THE TALK STAYS ON ROOTS: the mix is music only (decided: Radio Jolene is a
+  station with a voice; a random music station that suddenly announces Radio Jolene would be the station speaking on a
+  channel it is not - and the user can tune to roots for the talk).
+G1682 NORMAN AND THE CLIPS THE TALK NEEDS (tools/audio/prep_voice.js, voice_script.json, radio_talk.js, voice_model.js):
+  CHOSEN = 'norman' (the user: "norman voice is the best"); `node tools/audio/prep_voice.js --voice norman` re-rendered everything,
+  catalogue + CREDITS rewritten (CREDITS.md's VOICE row: en_US-norman-medium, LibriVox public domain, trained from scratch).
+  THE CLIP LIST = radio_talk.js clipLines(places) (NEW: the station's own lines EXACTLY as its talk says them - LINES whole, the
+  greetings by part of day, "The time on the island," + 12 hours + 60 minutes ("o'clock", "oh five", "twenty-one"), the pilots'
+  phrases ("At Jolene field, runway," / "is favoured," / the eagles / "Give them a low pass ..."), one line per one-way strip
+  (plain and "soft after the rain") and per sea lane, the marine forecast's head (plain / small craft advisory / gale warning),
+  parts, "variable winds five knots or less.", "gusts to,", the front's 13 "A front <when>:" phrases, easing / little change)
+  + VOICE_MODEL.VOCAB (+ marine numbers 55-80 for a gale's gusts) + per catalogue track ba / title / artist. voice_script.json:
+  SND-VOICE's placeholder lines (id.1, bul.*, pil.*, swap.*, out.* - wordings the talk never said) removed; "places" declares
+  Jolene's one-way strips with their look and its sea lanes (read off the shipped world: Tamgas Hill Strip, Jumbo Mine Street,
+  East Point Clearing (gravel), Skyline Altiport (grass); Annette Dock, Metlakatla Seaplane Base). 364 clips, 628.6 s,
+  3.63 MB (was 169 / 1.57 MB); catalogue 44 KB.
+  THE RENDER WAS NOT ORDER-FREE (found): onnxruntime's seeded RandomNormalLike keeps ONE generator per session, so a clip's noise
+  was the n-th stretch of it - adding six words re-hashed the 104 clips after them; SND-VOICE's "byte-identical" held only for
+  an identical list. voice_render.py now replaces each RandomNormalLike with Slice(noise bank, 0, Shape(like)), the banks drawn
+  per item from numpy PCG64 seeded with the job's seed: a clip is a function of its own text. Verified: three items rendered in
+  both orders - identical WAVs; the whole set rendered twice - catalogue and 364 files byte-identical.
+G1683 THE RECORDED VOICE IN THE TALK: each breakScript segment now carries `clips` (radio_talk.js): the ID = greet.<part>, id.main,
+  [time.intro, clk.h.N, clk.m.M]; the back-announce = VOICE_MODEL.backAnnounce(track) ('ba.<id>', one take) + "Before that," +
+  title + by + artist (music.js's trackRow now carries the id); the AWOS = intro.awos + VOICE_MODEL.awosClips(obsOf(wx)) - the
+  game's observation (obsOf: the same wind / gust / calm / sky / visibility / temperature / QNH readGame read); the marine
+  forecast and the pilots' notes assembled from the lines above, digits and numbers from VOCAB; bulletin / swap = intro + line.
+  A field other than Jolene field or a track with no id -> no clip form; a number or place without a clip -> a key the
+  catalogue lacks. THE TALKER (RADIO_TALK.makeTalker(env, getVoice), the speaker's face: speak / cancel / available / speaking /
+  voices / pickVoice, + plan / seconds / last): a segment plays its clips when EVERY key resolves (AUDIO_VOICE.missing), else its
+  text through makeSpeaker (speechSynthesis), else it is skipped; consecutive clip segments are ONE AUDIO_VOICE.play sequence
+  (gap-free, SEG_REST 0.7 s between), consecutive spoken ones queued together; groups run in order (voice.js play() gained
+  `onend`); a cancelled break's late ends are ignored; a play that returns null (no context, every clip failed) falls back to
+  speech. music.js: connect makes radioIn (gain clipK = VOICE_K x 10^((-16 - -20)/20) = 1.98: the clips' -20 LUFS to the tracks'
+  -16, then the voice 1.25 over the music) -> the music's DUCK -> the music bus, and passes it as the clips' dest - so the
+  music volume, the duck and the context's suspend reach them; onDuck / 'suspend' / a station switch cancel the talk (the
+  sources stopped). The bed is unchanged (the deck's gain: 16 % under, 1.5 s rise after the last clip's end); the watchdog is
+  armed for the clips' own length (talker.seconds) + 8 s. The 'voice' row still chooses the speechSynthesis fallback's voice.
+  The frame is unchanged: nothing of the talk runs in update() (100 000 frames under a clip talk: +4.3 KB, 0 GC).
+G1684 GATE AUDIO (tools/audio/_audio_check.js): RADIO_STATIONS + the mix (last, "Random"; validate refuses mix; the union per
+  context on the radio and the shipped catalogue, no track twice; the shipped garage bag = all garage tracks and every
+  station's; the player on the mix: two whole rounds, no repeat inside a round, lo-fi / roots / jazz heard, no talk);
+  RADIO_PICKER (seven + off, "Random", [ / ] through the mix, persisted); RADIO_TALK (none on the mix); NEW RADIO_CLIPS (the page
+  with voice_model.js + voice.js, a stub catalogue / fetch / decode / buffer sources: every clip present -> no utterance, one
+  clip group id+awos, one source per key, gap-free, the bed at 16 % and the 1.5 s rise after the last clip's end, the watchdog
+  on the clips' length; a regular break's back-announce in clips by the track's id; every segment of 13 breaks names only
+  rendered keys; no station line shares a VOCAB key; PER SEGMENT: without w.zulu -> the ID's clips then the AWOS spoken only
+  after them; without id.main -> the ID spoken, then the AWOS's clips; THE ROUTE: the reading's gain -> radioIn (x1.98) -> the
+  duck -> the music bus; an engine start stops every source and ducks that bus; a hidden tab stops them; nothing before the
+  gesture; the frame under a clip talk allocates nothing); VOICE_CAT + the user's pick (norman's name and id; CREDITS names
+  it) + every clipLines key rendered with EXACTLY its line's text; SP_BUDGET twice (above). 19 new mutations (the mix x5, the
+  picker, the talk on the mix, the clips x8, norman / CREDITS / a line the clip does not say, the boxed doppler), 3 old ones
+  re-anchored (REAL_KEYS, id.main, CREDITS' voice: the old "names another voice" folded into the new one), 1 replaced ("a
+  place never rendered"). Each new check negative-verified: every new mutation red on its own check (292 / 292).
+  AUDIO_TRACE=1 prints each mutation as it runs (a "no mix station" mutation once looped forever: an empty mix's round loop).
+EVIDENCE reports/evidence/SND-RADIO-2/ (2.3 MB): README.md + summary.json + breeze.opus / front.opus / gale.opus, written by
+  tools/audio/radio_break_render.js (node + ffmpeg): Jolene as shipped (island_node + the premises fixture) under radio_scripts.js's
+  three weather-panel days; per day the tune-in, the pilots' break and the marine break; each break's clips laid end to end as
+  AUDIO_VOICE.play schedules them (catalogue dur from voice.js's pad onset, the rests, SEG_REST) over a roots track at 16 %
+  rising over 1.5 s after the voice, the voice at clipK; -16 LUFS, Opus 48 kb/s. 21 / 21 segments resolve to clips (the gale's
+  "gusts to fifty-five" did not until the 55-80 numbers - the fallback working as designed). Per segment: kind, clip count, words.
+GATES: AUDIO PASS (292 / 292 mutations, sources byte-identical; 241 s wall on this 4-core box - the base 43451aca measures 231 s
+  here, so ~+10 s is this block's; both are over run_gates' `wall: 160`, which the coordinator's box met at ~117 s - re-check
+  there). BUILD, UISMOKE, MEDIA, BOOT PASS (run_gates --only; the generated index.html / dev.html / sw.js / version.json
+  restored, not committed). MEDIA: index.html +301.0 KB over HEAD of its 307.2 KB budget (the voice catalogue doubled to 44 KB;
+  the committed page is stale - a rebuilt one clears it). EMITALLOC went red once (6.2 B a frame, 2 KB over its allowance) while
+  the evidence render ran beside it; green alone and in the full run - a contended sample, not this block's.
+  Not run: a browser - the clips through a real AudioContext (the first break's fetch + decode latency, ~36 small files; LRU 6 MB),
+  the level by ear (clipK 1.98: peaks reach the limiter at full music volume?), Chrome's speechSynthesis for the fallback.
+FINAL REPORT
+  Branch    claude/snd-radio2-norman-mix (pushed), off origin/claude/sound-next 43451aca.
+  Allocator space.js's frame -> SPACE_CONFIG.dopplerFactor (and the other scalar laws): doubles boxed through a call TurboFan did not
+            inline (Node without Maglev), +90-155 B a frame; the laws now in slot forms, wet()'s array made once; SP_BUDGET
+            also samples --no-maglev.
+  Mix       'mix' / "Random", seventh: per context the union of the six stations' lists, its own bag, no repeat inside a round;
+            no tracks of its own; persisted, picker, [ / ]; Radio Jolene's talk stays on roots.
+  Clips     every segment carries a clip sequence; the talker plays it when all keys resolve, else speechSynthesis for THAT
+            segment; clips gap-free per run, routed radioIn -> duck -> music bus (ducks, volume, suspend); bed and watchdog kept.
+  Voice     norman, 364 clips / 3.63 MB, the render order-free and byte-reproducible (noise banks per item).
+  Gates     AUDIO PASS 292/292; BUILD, UISMOKE, MEDIA, BOOT PASS.
+  Evidence  reports/evidence/SND-RADIO-2/ (three game weathers, Opus, 21/21 segments in clips).
+  Files     CHANGED src/viewer/audio/{music.js, radio_talk.js, space.js, space_config.js, voice.js, voice_model.js,
+            voice_catalogue.json}, tools/audio/{_audio_check.js, prep_voice.js, voice_render.py, voice_script.json}, CREDITS.md
+            (the VOICE row), media/audio/voice/ (364 files); NEW tools/audio/radio_break_render.js, reports/evidence/SND-RADIO-2/.
+FOR THE COORDINATOR: (1) GATE AUDIO's wall: 241 s here vs 160 - measure on the box (AMBBUDGET 40 s, SP_BUDGET 19 s now that it
+  samples twice, EMITRATE 19 s lead); (2) MEDIA's page budget has ~6 KB left: the next train's rebuilt index.html resets it;
+  (3) a new music track or strip / lane -> re-run prep_voice.js (VOICE_CAT red until then; the talk speaks it meanwhile); (4)
+  SND-TUNE: clipK, SEG_REST, the rests, the 'voice' row now only picking the fallback's voice (relabel?), the mix's label;
+  (5) SND-VOICE's own evidence (reports/evidence/SND-VOICE/) still holds its john-era demos: `prep_voice.js --demo` regenerates them.
