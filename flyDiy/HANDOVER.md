@@ -71222,3 +71222,24 @@ STRICT GATE (full, vs train 26's baseline, final build): 107 rows in slack, 43 b
 (EVEN-30, intended, as in train 28); the trips 0.2 / 8.9 s, floats 0.2 s, render and garage in slack. BATTERY: the
 full battery on the first build (WORLDRENDER only red), the changed gates on the final build (WORLDRENDER, FRAMECOST,
 HOUSEWORKER, MEDIA, ASSETS, BUILD, PREMCOOK, FLOWNBAKE) PASS; the parked aeroplanes re-cooked on it.
+
+## G1314.2 - COLD-LINKS x LAKE-HOLES, LAKES-2: THE FOUR GATES LAKE-HOLES NEVER RAN (2026-10-04, COLD-LINKS for A0's train 30; branch claude/cold-links-lakes-2 = master e3575943 (train 29 landed) + a revert of 921bcf9b (LAKE-HOLES + its merge check + A0's lakeCarve back) + the fixes; node only)
+
+- **PREMRASTER / PREMCOOK** held the premises raster to the BARE analytic composer; since LAKE-HOLES the world carves the
+  lakebed after composing (terrainH -> lakeCarve), so the two differed by the carve itself (worst 5.6 m beside
+  r_airport's grade, where the grade follows the ground and the bank is carved under it - LAKE-HOLES' rule, kept; a
+  design question for whoever owns the airport's edges, not a raster error). New world.terrainHExact (20_world.js): the
+  analytic composer carved as terrainH carves; both gates read it. The raster against it: worst 18 mm (bound 6 cm).
+- **HYDRODYN** (a) a 5-cell pond at 9.06 m answered 4.03 / 6.47: its texels are all on the field's line (128), where
+  lakeBed.levelAt answered a NEIGHBOUR'S BANK texel - levelAt now answers inside texels (255) only; waterAt's own rules
+  answer on the line, as before LAKE-HOLES. And a texel inside a lake's own box now beats a neighbour that reaches it
+  only by its one-texel pad (a point 5 m inside a 31.70 m lake went to the 32.52 m one by the DEM rule alone).
+  (b) the hover check took points whose CARVED ground is under a record's level - a 13.88 m pond's carved bed inside an
+  11.63 m lake's box let 26 of the pond's own points in as 2.25 m 'hovers'; one lake a texel (G1336), so a point another
+  lake owns is counted as a neighbouring record. Now: 283 lakes on their own level, 0 not; 1 point 0.42 m over (the
+  gate's documented overlapping-box case).
+- **HOUSEWORKER** was NOT LAKE-HOLES': red on train 28 itself (HOUSE-LOD G1395's lod 1 vs the worker's position + normal
+  pack) - fixed in train 28 (04f4cd3c -> 45567842: lod 1 packed whole, PB_V 2, premises re-cooked). On master e3575943
+  (train 29: MEM-BUDGET, TOWN-COOK) every gate this touches passes: HOUSEWORKER, PREMRASTER, PREMCOOK, HYDRODYN, LAKEBED, SPLAT, WATER, FLOATS, SEAPLANE,
+  PROGRAMS, BOOT, BUILD, GFX. FOR TRAIN 30'S LOOK CHECK: r_airport:grade's feathered edge carved up to 5.6 m lower at
+  (-228, -499) - LAKE-HOLES' rule as written (a still before landing, A0).
