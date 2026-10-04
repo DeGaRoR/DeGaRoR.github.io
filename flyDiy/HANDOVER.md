@@ -71932,4 +71932,20 @@ through a render() hook, eye_judder.js's way) - NOT FLOWN TO THE TAKE-OFF HERE, 
 dt = the cap's 2/60) - the sim at ~7 % of real time; the worker holds 250 ms a frame - ~50 %. Both by design (a freeze
 must not teleport the aeroplane), but at a steady 2 fps the two paths fly at very different speeds.
 
-**G1534 GATES** - see the READY commit's line below.
+**G1534 GATES** (`node tools/run_gates.js`, the core battery, this branch at 52e4d6a, 4-core cloud box, 148 jobs): 138
+PASS, 3 FAIL - none this branch's:
+- FRAMECOST FAIL (24): THE STALE PARKED COOK (the app.js edit moves FLYDIY_BUILD: manifest f5cd36beab5d, this tree
+  9aa91344ab06 - the trap at G1135-G1136). PROVEN: train 30 untouched + a one-line COMMENT at app.js's top, rebuilt ->
+  FRAMECOST FAIL (24), the 24 FAIL lines IDENTICAL to this branch's. The re-cook needs the box's GPU (parked_cook.js):
+  the train's final build re-cooks.
+- BIPLANE FAIL: "a biplane builds in under 3x the stock" read 3.33x under the battery's load; alone, three pairs this
+  branch / train 30: 0.80 / 2.12, 0.99 / 3.00, 4.02 / 0.76x - a timing ratio's noise (the core is unchanged here).
+- BIOME FAIL: "surface perf < 5 us" read 6.8 us - the CI container's timing check (red there, green on the box: G939.1).
+POSEBACK PASS (86.5 s in the battery), PACE, SIMWORKER, WATER, FLIGHTREC, UISMOKE, BUILD, BOOT PASS. The full tier
+(SIMWORKER-PAGE / -EDGES / -PLACE) was not run here (the brief's battery is the core tier). The generated files the
+battery rebuilt (index.html, dev.html, sw.js, version.json) are not committed - A0's built commit.
+
+FILES: src/viewer/sim_view.js (G1530: MON, the earlier-time extrapolation), src/viewer/sim_link.js (?poseback=0),
+src/viewer/app.js (G1531: POSE_LERP's pair hold - inside the PACE / POSE_LERP blocks the gates lift), tools/
+_poseback_check.js (GATE POSEBACK, core, run_gates weight 3), tools/poseback_plot.js, tools/poseback_page.js,
+reports/evidence/POSE-BACK/.
