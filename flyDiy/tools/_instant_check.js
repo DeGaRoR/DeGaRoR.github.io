@@ -22,6 +22,9 @@ const WANT = opt('builds', 'cub,metal').split(',');
 // the rows: one or more of each preview kind (a kept sheet's layer rows, the cage's rows, the sheet's detail rows)
 const ROWS = (opt('only', null) ? opt('only').split(',') : ['wgSpan', 'wgChord', 'stSpan', 's1X', 'seatH', 'paxLen', 'halfW', 'roofY', 'noseDroop', 'rimW', 'dashDepth', 'frCabTopW']);
 const log = s => console.log('  ' + s);
+// --settle: the page's ms after the release (the floats' CG handshake - the balance's answer, a rebuild when the CG
+// moved 2 cm - closes over a few seconds of the page's clock; a drag compared before it closes compares two moments)
+const SETTLE = +opt('settle', 1500);
 
 const FP = fs.readFileSync(path.join(__dirname, 'perf', 'garage_lag_same.js'), 'utf8').match(/const FP = `([\s\S]*?)`;\n/)[1];
 
@@ -47,12 +50,14 @@ const FP = fs.readFileSync(path.join(__dirname, 'perf', 'garage_lag_same.js'), '
       el.dispatchEvent(new PE('pointerdown'));
       for (let i = 1; i <= 4; i++) { el.value = String(Math.min(hi, Math.max(lo, x0 + dir * d * i))); el.dispatchEvent(new Ev('input')); await P.until(() => false, 30); }
       el.dispatchEvent(new Ev('change')); W.dispatchEvent(new PE('pointerup'));
-      await P.until(() => false, 1500);
+      await P.until(() => false, SETTLE);
       const previews = U.preview ? U.preview.n - pv0 : 0, deforms = U.preview ? U.preview.deform - df0 : 0;
       const hA = hash(), A = JSON.parse(run(FP));
       U.sheetKeep = false; U.build(); U.sheetKeep = true;
+      if (SETTLE > 1500) await P.until(() => false, SETTLE);
       const hB = hash(), B = JSON.parse(run(FP));
       U.sheetKeep = false; U.build(); U.sheetKeep = true;
+      if (SETTLE > 1500) await P.until(() => false, SETTLE);
       const C = JSON.parse(run(FP));
       const diffs = []; let noise = 0;
       for (let i = 0; i < Math.max(A.out.length, B.out.length); i++) {

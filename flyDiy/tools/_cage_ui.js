@@ -1913,7 +1913,7 @@ function* buildSteps() {
   // sheet and the stand placed by it (the draw) before the frame is measured - the sit this build then meets is the
   // final rows', as it was.
   if (DEFORMED && CH && CH.only && PAGE.post) {
-    const pre = CH.only(['gear']);
+    const pre = CH.only(['gear', 'float']);   // the floats stand a floatplane (CAGE_GEAR.gy)
     if (pre) try {
       CH.run({ scene, spec, mesh: built.sheet, P, stat: { textContent: '' }, defer: false }, P, pre);
       draw();

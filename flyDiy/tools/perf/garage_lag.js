@@ -84,13 +84,18 @@ const HARNESS = `(() => { if (window.__GL) return 'again'; const G = window.__GL
   G.find = (id, alt, pick) => { if (pick) return pick; for (const x of [id].concat(alt || [])) { const e = x && document.getElementById(x); if (e) return e; } return null; };
   G.meta = el => { if (!el) return null; const row = el.closest('.r'); return { id: el.id, tag: el.tagName, type: el.type, min: el.min, max: el.max, step: el.step, value: el.value,
     label: row ? (row.querySelector('.k') || row).textContent.trim().slice(0, 60) : (el.title || ''), opts: el.tagName === 'SELECT' ? [...el.options].map(o => o.value) : null }; };
-  G.set = (el, v, rel) => { if (${!flag('nodrag')} && el.type === 'range' && !rel) el.dispatchEvent(new PointerEvent('pointerdown')); if (el.tagName === 'SELECT') { el.value = String(v); el.dispatchEvent(new Event('change')); }
+  G.set = (el, v, rel, pressed) => { if (${!flag('nodrag')} && el.type === 'range' && !rel && !pressed) el.dispatchEvent(new PointerEvent('pointerdown')); if (el.tagName === 'SELECT') { el.value = String(v); el.dispatchEvent(new Event('change')); }
     else if (el.type === 'checkbox') { el.checked = !!v; el.dispatchEvent(new Event('change')); }
     else if (el.type === 'range' || el.type === 'color') { el.value = String(v); el.dispatchEvent(new Event('input')); if (rel) el.dispatchEvent(new Event('change')); }
     else { el.value = String(v); if (typeof el.oninput === 'function') el.dispatchEvent(new Event('input')); else el.dispatchEvent(new Event('change')); } };
   G.quiet = async (t0, q, cap) => { while (true) { await new Promise(r => setTimeout(r, 100)); const now = performance.now(); const L = G.lt.filter(x => x[0] + x[1] > t0);
     const last = L.length ? Math.max(...L.map(x => x[0] + x[1])) : t0; if (now - last >= q || now - t0 > cap) return; } };
-  G.one = async (el, v, q, rel) => { G.fn = {}; await G.quiet(performance.now(), 300, 4000); G.on = true; const t0 = performance.now(); G.set(el, v, rel); const t1 = performance.now();
+  G.one = async (el, v, q, rel) => { G.fn = {}; await G.quiet(performance.now(), 300, 4000);
+    // GARAGE-INSTANT (G1446): the hand comes down a frame before it moves - the press is outside the tick (a tree that
+    // does not listen for it is unchanged; one that measures its stand on it, G1443, does so there, as under a hand)
+    const press = ${!flag('nodrag')} && el.type === 'range' && !rel;
+    if (press) { el.dispatchEvent(new PointerEvent('pointerdown')); await new Promise(r => requestAnimationFrame(() => r())); await new Promise(r => setTimeout(r, 0)); }
+    G.on = true; const t0 = performance.now(); G.set(el, v, rel, press); const t1 = performance.now();
     const tB = ${NORENDER} ? t1 : (await raf(), await raf()); await G.quiet(t0, q, 8000); G.on = false;
     const L = G.lt.filter(x => x[0] + x[1] > t0 - 1); const end = L.length ? Math.max(...L.map(x => x[0] + x[1])) : t1;
     const fn = {}; for (const k in G.fn) fn[k] = [+G.fn[k][0].toFixed(1), G.fn[k][1]];
