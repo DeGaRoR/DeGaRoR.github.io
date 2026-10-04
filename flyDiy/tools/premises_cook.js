@@ -202,8 +202,16 @@ const REACH = { stand: 1000, runway: null, fields: ['HOME'] };
 // EVERY CELL FOR THE VARIANT THE PAGE FLIES (2026-09-27, RASTER-ON): with the raster on in the page, every tile outside
 // the reach was baked LAZILY on its first read - and the render side reads the ground island-wide while the world
 // is made, so the roll-out's world step grew one 13.4 s task (4.6 s before; node: 8 638 tiles, 4.6 s of bakes).
-// The default variant (Metlakatla off, the page's default) is cooked whole; 'town' keeps REACH (it is opt-in).
-const EVERYWHERE = new Set(['default']);
+// The default variant (Metlakatla off, the page's default) is cooked whole; 'town' kept REACH while it was opt-in.
+// G1430 (TOWN-COOK): 'town' WHOLE TOO. With the town on (the default since G1408) its 45 own cells - Metlakatla, 8.9-10.4
+// km from HOME, 4 683 tiles - were baked lazily (~300 tiles at boot, more over the town), and where METLA-LOAD's build
+// read took the analytic composer instead, the meshes stood up to 39 mm off the wheels' raster. Each cell is its own
+// file and names the variants it serves (`in`): the three fetchers (build.js's island loader, sim_host.js
+// simHostFetchBoot, house_worker.js fetchCook) take only the cells of the variant the page composes, so the town's
+// +14 MB (raster 5.63 -> 19.7 MB shipped) is fetched by a town-on page alone; a town-off page fetches the same 92 cells
+// it did. Not by proximity: see HANDOVER G1430-G1434 (the premises' geometry and three island-wide readers read every
+// cell of the town at boot).
+const EVERYWHERE = new Set(['default', 'town']);
 function rasterAnchors(O) {
   const segs = [], pts = [], only = REACH.fields ? new Set(REACH.fields) : null;
   for (const a of O.aerodromes) {
@@ -491,12 +499,34 @@ function manifestIsland(K, srcOf, placeSrcOf, tallySrcOf) {
     // G841: the record-order tallies (render_premises / the house worker generate every entry on them)
     if (S.P.tallies && tallySrcOf) places.variants[S.name].tallies = { src: tallySrcOf(S.name, S.P.tallies), n: S.P.tallies.n, hash: S.P.tallies.hash };
   }
+  // (G1430) what each variant's page fetches: the cells `in` it (the fetchers' rule)
+  const per = {};
+  for (const V of K.variants) { const b = per[V.name] = { cells: 0, raw: 0, ship: 0 }; for (const c of K.raster) if (c.in.indexOf(V.name) >= 0) { b.cells++; b.raw += c.buf.length; b.ship += c.gz.length; } }
   return {
     id: K.id, fixture: K.fixture, cooked: new Date().toISOString().slice(0, 10),
     variants: K.variants,
-    raster: { v: 1, tile: 16, cell: CELL, qa: 16777216, qb: 32768, reach: REACH, bytes: { raw, ship }, cells },
+    raster: { v: 1, tile: 16, cell: CELL, qa: 16777216, qb: 32768, reach: REACH, everywhere: Array.from(EVERYWHERE), bytes: { raw, ship }, fetched: per, cells },
     places,
   };
+}
+
+function keepShipped(sub, K) {
+  const dir = path.join(ROOT, 'media', ...sub.split('/'));
+  if (!fs.existsSync(dir)) return;
+  const files = fs.readdirSync(dir), byStem = new Map();
+  for (const f of files) { const m = /^(.*)\.[0-9a-f]{8}\.bin$/.exec(f); if (m) (byStem.get(m[1]) || byStem.set(m[1], []).get(m[1])).push(f); }
+  const keep = (stem, x) => {
+    for (const f of byStem.get(stem) || []) {
+      const gz = fs.readFileSync(path.join(dir, f));
+      let raw = null; try { raw = zlib.gunzipSync(gz); } catch (e) {}
+      if (raw && raw.equals(x.buf)) { x.gz = gz; return; }
+    }
+  };
+  for (const c of K.raster) keep(cellStem('r', c.ci, c.cj), c);
+  for (const S of K.places) if (S.P) {
+    for (const c of S.P.cells) keep(c.i === null ? 'p_none' : cellStem('p', c.i, c.j), c);
+    if (S.P.tallies) keep('t_' + S.name, S.P.tallies);
+  }
 }
 
 function flag(name, dflt) {
@@ -534,10 +564,16 @@ function main() {
     if (report) return 'media/' + sub + '/' + stem + '.' + h8(T.gz) + '.bin';
     const rel = writeMedia(sub, stem, 'bin', T.gz); keep.push(rel); return rel;
   };
+  // G1430 (TOWN-COOK): A FILE WHOSE CONTENT IS UNCHANGED KEEPS ITS BYTES. The names hash the GZIP stream, and a zlib other
+  // than the last cook's (node 22's) compresses the same content to other bytes: every one of the 150 files was renamed,
+  // the default page's 92 cells re-shipped unchanged and git's history paid them again. So an existing file of the same
+  // stem whose gunzip IS the new content is taken as it is (the cook's rule: a re-cook of an unchanged cell writes nothing)
+  keepShipped(sub, K);
   const isl = manifestIsland(K, srcOf, placeSrcOf, tallySrcOf);
   console.log('  ---');
   for (const v in isl.places.variants) { const P = isl.places.variants[v]; console.log('  places ' + v + ': ' + P.cells.length + ' cells, ' + (P.bytes.raw / 1e3).toFixed(1) + ' KB raw -> ' + (P.bytes.ship / 1e3).toFixed(1) + ' KB'); }
   console.log('  raster: ' + isl.raster.cells.length + ' cells (' + K.variants.map(v => v.name + ' ' + v.raster.cells).join(', ') + '), raw ' + (isl.raster.bytes.raw / 1e6).toFixed(2) + ' MB -> ship ' + (isl.raster.bytes.ship / 1e6).toFixed(2) + ' MB');
+  for (const v in isl.raster.fetched) { const f = isl.raster.fetched[v]; console.log('  raster fetched by a ' + v + ' page: ' + f.cells + ' cells, raw ' + (f.raw / 1e6).toFixed(2) + ' MB -> ship ' + (f.ship / 1e6).toFixed(2) + ' MB'); }
   if (report) { console.log('\nnothing was written (--report).'); return; }
   const pack = fs.existsSync(OUT) ? JSON.parse(fs.readFileSync(OUT, 'utf8')) : { islands: [] };
   pack.note = 'GENERATED by tools/premises_cook.js from tools/fixtures/island_<id>.json - do not edit. Every src is one gzip stream; GATE PREMCOOK holds it to a fresh cook.';
