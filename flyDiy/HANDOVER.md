@@ -72219,7 +72219,7 @@ LESSONS: a killed script leaves its boxlock files (its trap never runs) - train 
 CPU lock; boxlock's `take` once wrote its lock and then waited on itself (the noclobber write's status lost) - A0's scripts
 now accept a lock already in their own name.
 
-## G1470-G1479 - TREE-CRASH: THE AIRFRAME YIELDS, BENDS ROUND A TRUNK AND BREAKS; THE CRASH ENDS THE FLIGHT (2026-10-04, TREE-CRASH for A0, cloud, node only; branch claude/tree-crash-g1470 off train 30 = a1ffcf5b; G1479 unused)
+## G1470-G1479 - TREE-CRASH: THE AIRFRAME YIELDS, BENDS ROUND A TRUNK AND BREAKS; THE CRASH ENDS THE FLIGHT; THE WATER TOO (2026-10-04, TREE-CRASH for A0, cloud, node only; branch claude/tree-crash-g1470 off train 30 = a1ffcf5b)
 
 The user (2026-10-04): "The crash should be as realistic as possible. No soft body for trunks now, but I hope the nodes and
 beam mesh from the plane can deform." Before this, every beam was a pure spring. A trunk stopped the aeroplane and the elastic airframe
@@ -72416,3 +72416,61 @@ Against a trunk (the land builds):
 - **The thresholds (9 g, 1.5 kJ, the 3 % kink, D / wall 30) are physical anchors, not fitted.** A 5 m/s (10 kt) taxi into a trunk is a crash (1.5-2 kJ).
   If that reads harsh in play, CRASH_J is the knob.
 - **The floats' water landings and a crash ON the water** are not part of this: hydro forces do not count in the contact g.
+
+### G1479 - THE WATER (A0's request, with GEAR-WATER 2 = claude/gear-water-buoy 5ecabad, HANDOVER G1384.1-G1384.4)
+A0: "add WATER CASES to your acceptance and GATE TREECRASH: a 5 m/s level pancake, a 100 km/h nose-in ditch, and a float
+nose-in (wires at 112 % of yield there) - yield / break must come from the same beam-load path; a holed slice (S8.br) may
+count as skin damage."
+
+**THE SAME PATH, BY CONSTRUCTION.** The water reaches the frame as forces on NODES: the floats' panels (master), and the wet body's slam, buoyancy and
+drag (GEAR-WATER 2's wetSolverPass). The beams carry those forces, and the damage model reads the beams' own forces. Nothing water-specific yields or
+breaks anything. Three hooks (30_solver.js, standalone on this branch: the wet body's `WB` / `wetArm` are read through `typeof` guards):
+- **The impact's g counts the water's push:** the sum of f across the hydro pass, O(n) a substep, only on a frame the water's own arm says can reach it.
+  So a ditch is judged by the same 9 g as a ground or trunk impact.
+- **The yield is ARMED by the water while it is dynamic:** in it and descending over 0.5 m/s, or last frame's contact g over 1.3. Afloat or taxiing on
+  the water it is not: the floatplanes' water taxi costs nothing more.
+- **A holed hull slice (S8.br) is skin damage:** `sim.damage().holed` counts them and makes the aeroplane `dented`; it is not a crash on its own.
+
+**THE NUMBERS** (the validated builds; per member, every substep; this branch merged with GEAR-WATER 2 in a local, never-pushed merge):
+
+| case | the worst member (of its yield) | set / broken | the water | g | verdict |
+|---|---|---|---|---|---|
+| the Cub, a 5 m/s level pancake | 0.49 (tail, compression) | 0 / 0 | slam 523 kPa, 2 hull slices holed | 6.1 | DENTED (the skin), no crash |
+| the Cub, a 100 km/h nose-in ditch (4 m/s, 10 deg) | 0.84 (fus, compression) | 0 / 0 | slam 260 kPa, 1 slice holed | 9.3 | CRASHED (an impact of 9 g) |
+| the twin on floats, a float nose-in (90 km/h, 5 m/s, 20 deg) | 0.47 (tail, compression) | 0 / 0 | the floats' panels | 5.6 | no damage |
+| the Cub, SEVERE 180 km/h / 10 m/s / 60 deg | 1.91 (fus) | 29 (18 fus, 11 wing) / 10 | slam 365 kPa, 2 slices holed | 13 at the crash (37.8 peak) | CRASHED |
+| the twin, SEVERE 150 km/h / 10 m/s / 60 deg | 5.04 (tail) | 71 / 32 (29 of the tail) | the floats' panels | 14.8 | CRASHED (a tail member broke) |
+| (not gated) the Cessna on floats, the float nose-in | 0.32 (fus, tension) | 0 / 0 | | 3.6 | no damage |
+
+**THE "WIRES AT 112 %" WAS A SLACK WIRE.**
+- GEAR-WATER's 111-112 % (the pancake, the float nose-in) was the load rig's old proxy |k strain L0|. That proxy counted a SLACK tension-only wire's
+  compression as load: the very reading G1472.1 removes from the rig.
+- Measured in the same runs:
+  - the twin's wires peak at **0.10** of yield in real tension, against 1.12 read the old way;
+  - the Cub's pancake: 0.29 against 1.11.
+- A wire carries nothing slack (the solver's own rule, G185). So none of A0's three cases yields a member on the validated builds.
+- **The SEVERE nose-ins prove the path:**
+  - the Cub at 180 km/h / 10 m/s / 60 deg: 29 members set (18 of the fuselage, 11 of the wing), 10 broken, a crash;
+  - the twin at 150 / 10 / 60: 71 set, 32 broken (29 of the tail), a crash.
+- Harder intermediate cases measured (not gated):
+  - the Cub at 150 km/h / 6 m/s / 30 deg: a fuselage member yields and breaks, 11 g;
+  - the metal Cessna at 150 / 8 / 45: 6 members set, 3 slices holed, 10 g;
+  - the twin at 120 / 8 / 35: 2 fuselage members set.
+- **The 100 km/h ditch's 9.3 g sits on the 9 g line:** the gate asserts the verdict follows the rule, not which side it lands on.
+
+**GATE TREECRASH, section 6:**
+- Every water case asserts: finite; a member set exactly when the probe's peak passes 1 (the same beam-load path); the severe cases yield, break and
+  crash.
+- The wheeled cases need the wet body. Without 32_hydro's wetBuild (this branch alone, master today) they print `--` and skip; the float cases run on
+  any core.
+- On the local merge with GEAR-WATER 2: **PASS 50/50**. On this branch alone: **PASS 47/47** (the three wheeled water cases `--`).
+
+**WHEN THE TRAINS LAND:** train 31 is not on master yet (master = train 30 + the Pages re-trigger 44b7a38), and GEAR-WATER 2 lands in train 32.
+- The merge of the two (done locally) has three textual conflicts, all one line each side: reset(), step() and the sim's return. Resolved by keeping both,
+  with `wetArmFrame` before `armFrame`, so the yield's arm sees the water's.
+- HANDOVER appends on both sides.
+- Rebase onto master once train 31 lands; once GEAR-WATER 2 is on master, the water section's wheeled cases run by themselves.
+- **THE WATER GATES** (GEAR-WATER 2's list):
+  - HYDRODYN, WATER, FLOATS, SEAPLANE, SOAR: PASS on this branch alone, and PASS on the local merge.
+  - On this branch, FLOATS, SEAPLANE and SOAR are byte for byte the outputs from before the water hooks. HYDRODYN differs in its ms line only (the water
+    / dry step ratio 1.29 against 1.34).
