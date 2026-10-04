@@ -183,6 +183,11 @@ const GATES = [
   // the tube members, the seam rules, spruce's ragged break, the kink floor, nothing armed parked, and the break order on
   // the bench to destruction and in the trunk flights (the first group to let go is a fitting's). Three builds at once
   { id: 'DMGMEMBERS', file: '_dmg_members_check.js', tier: 'core', weight: 3, wall: 120 },
+  // G1820-G1823 (DMG-D1b WRECK INTEGRITY): the strip component test (no live strip on two pieces after any break; one
+  // broken diagonal no longer silences a bay), the refs-core (one group-free core; a fuselage cut across breaks up), the
+  // SUPPORT limiters (only with damage on, slack in normal operations, the engine kept off the cabin in a severe
+  // nose-in). Three builds at once
+  { id: 'DMGINTEGRITY', file: '_dmg_integrity_check.js', tier: 'core', weight: 3, wall: 180 },
   // G286: the graphics settings menu - presets, the pref, the handles
   { id: 'GFX', file: '_gfx_check.js', tier: 'core' },
   // G584: the programs - the real three on a fake GL: the depth warm-up is the shadow pass's own set, two
