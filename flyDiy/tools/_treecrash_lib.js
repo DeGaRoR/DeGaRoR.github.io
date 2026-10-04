@@ -33,6 +33,8 @@ const BUILDS = {
   twinFloats: { label: 'twin floatplane', build: 'tools/fixtures/build_v7_ultralight_2026-09-05.json', patch: j => { j.spec.gear.type = 'floats'; j.spec.cage = Object.assign({}, j.spec.cage, { gearFloats: 1 }); return j; } },
 };
 const _defs = {};
+// G1816 (DMG-D1a): the last sim each scenario flew (its rigs read the members after the run)
+const lastRun = { sim: null };
 function defOf(key, opts) {
   const C = core(), B = BUILDS[key];
   if (!_defs[key]) {
@@ -70,7 +72,7 @@ const spread = sim => { const c = sim.cgPos(); let r = 0; for (let i = 0; i < si
 // THE LOAD TEST to `ult` (the garage's own rig), the peak recorded at the limit and at the ultimate
 function loadTest(key, o) {
   const C = core(), def = defOf(key, o), spec = def.spec;
-  const sim = C.makeSim(def, null); sim.reset(0);
+  const sim = C.makeSim(def, null); sim.reset(0); lastRun.sim = sim;
   const rig = C.makeLoadTest(sim, def, { material: spec.fuselage && spec.fuselage.material, wingMaterial: C.genSurfKey ? C.genSurfKey(spec, 'wing', 0) : undefined,
     surface: o.surface || 'wing', limit: o.limit || C.GEN_LOAD_LIMIT, ult: o.ult || C.GEN_LOAD_ULT });
   let atLim = null, ok = rig.state.ok;
@@ -84,7 +86,7 @@ function loadTest(key, o) {
 // A FLOWN PULL to nz (3.8 g): level at `V` m/s, 400 m up, the elevator on a PI to the load factor, held `hold` s
 function pull(key, o) {
   const C = core(), def = defOf(key, o), { W, strip } = flatWorld(0), nzT = o.nz || 3.8, V = o.V || 45;
-  const sim = C.makeSim(def, W); sim.reset(0);
+  const sim = C.makeSim(def, W); sim.reset(0); lastRun.sim = sim;
   C.placeAtAerodrome(sim, Object.assign({}, strip, { elev: 0, spawnElev: 400 }));
   const fx = Math.cos(strip.hdg), fz = Math.sin(strip.hdg);
   for (let i = 0; i < sim.n; i++) { sim.v[i*3] = V * fx; sim.v[i*3+2] = V * fz; }
@@ -117,6 +119,7 @@ function hardLanding(key, o) {
   const probe = C.makeSim(def, null);
   if (probe.hydro) { W = C.makeWorld(); strip = W.aerodromes.find(a => a.id === 'SEA'); sim = C.makeSim(def, W); sim.reset(0); C.placeAtAerodrome(sim, strip); }
   else { ({ W, strip } = flatWorld(0)); sim = C.makeSim(def, W); sim.reset(0); C.placeAtAerodrome(sim, Object.assign({}, strip, { elev: 0, spawnElev: 0 })); }
+  lastRun.sim = sim;
   for (let f = 0; f < 240; f++) sim.step(1 / 60);
   const gap = o.gap == null ? 0.02 : o.gap, sink = o.sink;
   for (let i = 0; i < sim.n; i++) { sim.p[i*3+1] += gap; sim.v[i*3] = 0; sim.v[i*3+1] = -sink; sim.v[i*3+2] = 0; }
@@ -130,7 +133,7 @@ function hardLanding(key, o) {
 // A CIRCUIT: the pilot from the runway, round and down to a stop (or `maxS`) on the analytic world
 function circuit(key, o) {
   const C = core(), def = defOf(key, o), world = C.makeWorld();
-  const sim = C.makeSim(def, world); sim.reset(0);
+  const sim = C.makeSim(def, world); sim.reset(0); lastRun.sim = sim;
   const a = world.aerodromes.find(x => x.id === (sim.hydro ? 'SEA' : 'HOME')) || world.aerodromes[0];
   if (sim.hydro) C.placeAtAerodrome(sim, a);
   for (let i = 0; i < 600; i++) sim.step(1 / 60);
@@ -152,7 +155,7 @@ function circuit(key, o) {
 // top-down every `every` frames (for the pictures) and the damage over time.
 function atTrunk(key, o) {
   const C = core(), def = defOf(key, o), elev = 300, { W, TH, strip } = flatWorld(elev);
-  const sim = C.makeSim(def, W);
+  const sim = C.makeSim(def, W); lastRun.sim = sim;
   const r = flyRun(C, sim, def, TH, strip, elev, o);
   // `then`: the same sim reset and flown again (reset must make the aeroplane whole)
   if (o.then) { const crashedBefore = dmgSim(sim).crashed; TH.drop('fill:test'); const r2 = flyRun(C, sim, def, TH, strip, elev, o.then); r2.crashedBefore = crashedBefore; return r2; }
@@ -202,7 +205,7 @@ function flyRun(C, sim, def, TH, strip, elev, o) {
 // the water reaches the frame through its nodes (the floats' panels; the wet body's slam where 32_hydro has wetBuild)
 function waterCase(key, o) {
   const C = core(), def = defOf(key, o), world = C.makeWorld(), sea = world.aerodromes.find(a => a.id === 'SEA');
-  const sim = C.makeSim(def, world); sim.reset(0); C.placeAtAerodrome(sim, sea);
+  const sim = C.makeSim(def, world); sim.reset(0); C.placeAtAerodrome(sim, sea); lastRun.sim = sim;
   const n = sim.n, p = sim.p, v = sim.v, [xA, , zR] = sim.axes(), c0 = sim.cgPos();
   // pitch nose-down about the CG round the body's lateral axis (Rodrigues; nose at -xAft, so + about +z right lowers it)
   const th = -(o.pitch || 0) * Math.PI / 180, k = zR, cs = Math.cos(th), sn = Math.sin(th);
@@ -230,4 +233,4 @@ function far473(key) {
   const g = defOf(key).params.gen, WS = (g.W / 4.4482) / (g.Sw * 10.7639);
   return Math.min(10, Math.max(7, 4.4 * Math.pow(WS, 0.25))) * 0.3048;
 }
-module.exports = { far473, waterCase, core, BUILDS, defOf, flatWorld, loadTest, pull, hardLanding, circuit, atTrunk, peakOf, dmgOf, finite };
+module.exports = { lastRun, far473, waterCase, core, BUILDS, defOf, flatWorld, loadTest, pull, hardLanding, circuit, atTrunk, peakOf, dmgOf, finite };

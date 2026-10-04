@@ -179,6 +179,10 @@ const GATES = [
   // load test to 5.7 g, a flown 3.8 g pull, a drop at FAR 23.473's sink and its cap, a circuit (no yield on the five validated
   // builds); a taxi into a trunk dents, a 30 m/s flight into one crashes with a wing broken; reset heals. Three builds at once
   { id: 'TREECRASH', file: '_treecrash_check.js', tier: 'core', weight: 3, wall: 600 },
+  // G1810-G1817 (DMG-D1a MEMBERS): the seams and the break groups (closed sets, in the generator and in the solver), Euler on
+  // the tube members, the seam rules, spruce's ragged break, the kink floor, nothing armed parked, and the break order on
+  // the bench to destruction and in the trunk flights (the first group to let go is a fitting's). Three builds at once
+  { id: 'DMGMEMBERS', file: '_dmg_members_check.js', tier: 'core', weight: 3, wall: 120 },
   // G286: the graphics settings menu - presets, the pref, the handles
   { id: 'GFX', file: '_gfx_check.js', tier: 'core' },
   // G584: the programs - the real three on a fake GL: the depth warm-up is the shadow pass's own set, two
