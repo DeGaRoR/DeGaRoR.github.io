@@ -29,7 +29,7 @@ const SEC = { taxi: +opt('taxi', 15), pass: +opt('pass', 15) }, LONG = +opt('lon
 const OUT = path.resolve(opt('out', path.join(__dirname, 'metla_ab_' + Date.now() + '.json')));
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const BASE = 'http://localhost:' + PORT + '/flyDiy/index.html';
-const SIDE = { A: 'town=0', B: 'town=1' };   // G1408: the town is ON by default - A says off explicitly
+const SIDE = { A: 'town=0', B: 'town=1', T: 'town=1' };   // G1435: T = the town on, --toggle run at the taxi's middle (its rows apart)   // G1408: the town is ON by default - A says off explicitly
 // G1435: the user's custom near-ultra (flydiy-flightlog-20261003T165355-7u7a header.gfx; tools/perf/shader_guard.js USER_GFX)
 const USER_GFX = { preset: 'custom', pv: 6, fps: 'auto', ground: 'full', scale: 1, cover: 'full', scenery: 'full', drawDist: 'vis', terrain: 1, aa: 'full', density: 200,
   bands: 'mid', shadows: 'full', canopy: 'on', rails: 'on', poles: 'on', glare: 'on', sway: 'on', mist: 'land', clouds: 'full', water: 'full', mirror: 'live', lighting: 'sunset',
@@ -75,13 +75,13 @@ const CHECK = `JSON.stringify((() => { const P = WORLD && WORLD.premises; const 
     const t1 = await now(), fr = await pull();
     return { ms: d ? d.ms : null, wall: +((Date.now() - w0) / 1000).toFixed(1), frames: MB.stat(fr.fr, fr.lt, t0, t1, fr.sc) };
   };
-  const scene = async (name, sec, prof) => {
+  const scene = async (name, sec, prof, tog) => {
     if (prof) { await b.cmd('Profiler.enable'); await b.cmd('Profiler.setSamplingInterval', { interval: +opt("cpuus", 1000) }); await b.cmd('Profiler.start'); }
     const RS = "JSON.stringify((() => { const P = FLIGHT_PROBE.world().premises, O = P && P.overlay; return O ? Object.assign({ cooked: O.rasterCooked || null }, O.raster) : null; })())";
     const r0 = JSON.parse(await b.ev(RS).catch(() => 'null'));
     const cal = prof ? +(await b.ev(CAL)) : null;
     const t0 = await now(); let tMid = null;
-    if (TOGGLE && name === 'taxi') { await sleep(sec * 500); tMid = await now(); const tg = await b.ev(TOGGLE, 20000).catch(e => 'error ' + e.message); log('toggle at ' + Math.round(tMid) + ': ' + String(tg).slice(0, 300)); await sleep(sec * 500); }
+    if (TOGGLE && tog && name === 'taxi') { await sleep(sec * 500); tMid = await now(); const tg = await b.ev(TOGGLE, 20000).catch(e => 'error ' + e.message); log('toggle at ' + Math.round(tMid) + ': ' + String(tg).slice(0, 300)); await sleep(sec * 500); }
     else await sleep(sec * 1000);
     const t1 = await now();
     const r1 = JSON.parse(await b.ev(RS).catch(() => 'null'));
@@ -110,7 +110,7 @@ const CHECK = `JSON.stringify((() => { const P = WORLD && WORLD.premises; const 
     const row = { side, build: bk, garage: l.sec, rollout: tr.wall, firstFlight: +(l.sec + tr.wall).toFixed(1), rollFrames: tr.frames, links: lk };
     log('garage ' + l.sec + ' s, roll-out ' + tr.wall + ' s, first flight ' + row.firstFlight + ' s (links ' + lk.n + ', worst ' + lk.worstS + ' s, ' + lk.over5s + ' > 5 s)');
     await b.ev(MB.A.cam('chase'));
-    row.taxi = await scene('taxi', SEC.taxi, PROF && 'taxi'.includes(PROF));
+    row.taxi = await scene('taxi', SEC.taxi, PROF && 'taxi'.includes(PROF), side === 'T');
     const ph = await b.ev(MB.A.pass(home, 42), 20000).catch(e => 'error ' + e.message); await sleep(3000);
     row.pass = await scene('pass', SEC.pass, PROF && 'pass'.includes(PROF)); row.pass.pilot = ph;
     row.check = JSON.parse(await b.ev(CHECK, 20000).catch(() => 'null'));
@@ -134,6 +134,11 @@ const CHECK = `JSON.stringify((() => { const P = WORLD && WORLD.premises; const 
     const g = (k, s) => rs.map(r => r[s] && r[s].st ? r[s].st[k] : null), mx = a => Math.max(...a.filter(x => x != null));
     console.log([side, bk.padEnd(5), med(rs.map(r => r.garage)), med(rs.map(r => r.firstFlight)), '|', med(g('fps', 'taxi')), med(g('uneven', 'taxi')), med(g('p99', 'taxi')), mx(g('worst', 'taxi')), mx(g('taskWorst', 'taxi')),
       '|', med(g('fps', 'pass')), med(g('uneven', 'pass')), med(g('p99', 'pass')), mx(g('worst', 'pass')), mx(g('taskWorst', 'pass'))].join(' ')); }
+  // G1435: per row, the frames' read (each half when toggled): the cap's share, the unevenness at 30 alone, the ladder
+  if (FRAMES) { console.log('\nrow | scene half | uneven (all) | uneven@30 | caps | ladder (x16.7 ms) | p99 | even-frame / long-frame work, gpu, calls');
+    R.rows.forEach((r, i) => { for (const s of [r.taxi, r.pass]) for (const [k, h] of Object.entries(s.halves || {})) {
+      const B2 = h.by || {}; console.log([i + ':' + r.side, r.build, s.scene, k, s.st ? s.st.uneven : '-', h.uneven30, JSON.stringify(h.caps), JSON.stringify(h.ladder), h.dist ? h.dist.p99 : '-',
+        (B2.even ? B2.even.work + '/' + B2.even.gpu + '/' + B2.even.calls : '-') + ' | ' + (B2.long ? B2.long.n + 'fr ' + B2.long.work + '/' + B2.long.gpu + '/' + B2.long.calls : '-')].join(' ')); } }); }
   console.log('\n  -> ' + OUT);
   process.exit(0);
 })().catch(e => { console.error('metla_ab: ' + (e && e.stack || e)); process.exit(1); });
