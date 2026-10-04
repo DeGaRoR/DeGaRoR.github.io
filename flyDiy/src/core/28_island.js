@@ -130,9 +130,15 @@ var ISLAND_GEN = (function () {
           if (!va || !vb) continue;
           if (keepA(A, B, va, vb, i, j)) B.m[kb] = 0; else A.m[ka] = 0;
         } } };
-      // the inside: the level the DEM is nearest; a tie, the smaller box
+      // the inside: the lake whose own box holds the texel's centre, over one that reaches it only by its one-texel pad
+      // (COLD-LINKS x LAKE-HOLES, lakes-2: a point 5 m inside a 31.70 m lake's box went to the 32.52 m lake whose box
+      // ends 5 m short of it, by the DEM rule alone - GATE HYDRODYN); both boxes or neither: the level the DEM is nearest;
+      // a tie, the smaller box
+      const inBox = (L, x, z) => x >= L.x0 && x <= L.x1 && z >= L.z0 && z <= L.z1;
       contest((A, B, va, vb, i, j) => {
-        const h = terrainQ(gx0 + (i + 0.5) * cell, gz0 + (j + 0.5) * cell), da = Math.abs(h - A.level), db = Math.abs(h - B.level);
+        const x = gx0 + (i + 0.5) * cell, z = gz0 + (j + 0.5) * cell, ba = inBox(A.L, x, z), bb = inBox(B.L, x, z);
+        if (ba !== bb) return ba;
+        const h = terrainQ(x, z), da = Math.abs(h - A.level), db = Math.abs(h - B.level);
         if (da !== db) return da < db;
         return (A.L.x1 - A.L.x0) * (A.L.z1 - A.L.z0) <= (B.L.x1 - B.L.x0) * (B.L.z1 - B.L.z0); });
       // the bank: the nearest inside texel's lake (1 + its squared distance in texels) - a chamfer distance (3-4) over the
@@ -192,7 +198,10 @@ var ISLAND_GEN = (function () {
         const ti = Math.floor((x - gx0) / cell), tj = Math.floor((z - gz0) / cell);
         for (let n = 0; n < a.length; n++) {
           const o = a[n], i = ti - o.i0, j = tj - o.j0;
-          if (i >= 0 && j >= 0 && i < o.w && j < o.h && o.m[j * o.w + i]) return o.level;
+          // (an INSIDE texel only - 255. A bank texel ON the line - the field's 128, lakeAt 0 - is another lake's water or
+          // none: a 5-cell pond at 9.06 m whose texels are all 128 answered its neighbours' 4.03 and 6.47 through their banks,
+          // GATE HYDRODYN; waterAt's own rules answer there, as before LAKE-HOLES. COLD-LINKS x LAKE-HOLES, lakes-2)
+          if (i >= 0 && j >= 0 && i < o.w && j < o.h && o.m[j * o.w + i] === 255) return o.level;
         }
         return -Infinity;
       };
