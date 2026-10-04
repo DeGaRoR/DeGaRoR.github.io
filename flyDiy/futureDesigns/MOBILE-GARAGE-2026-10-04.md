@@ -32,19 +32,22 @@ over a recording GL, real ms, ~1.6x the box's JS). **SwiftShader** = headless Ch
    slider scrolls the list (R4, the user's ruling). The parts tree holds only the aeroplane; the reference plane and
    the hangar move to the rail (R24, the user's ruling). **The slider revamp must decide this now** (§2.9). The rest of the phone
    UI can come later without a rewrite.
-4. **Phone → computer by link**: `#build=<base64url(deflate-raw(JSON))>` in the URL fragment, so GitHub Pages stays
-   static and no server sees the build. The payload is a **patch over a frozen stock base** (20 changed rows = 401
-   characters, which fits a QR). A whole spec is the fallback (about 9.6 k characters: a link, but not a QR). It is
-   sent through the phone's share sheet (Web Share API). Copy, QR and today's .json file are the fallbacks.
-   **No cloud store in v1.**
+4. **Phone → computer with no backend, through the user's own mail or messages.**
+   - **First choice: the build file** (today's export, 7-21 KB), sent through the phone's share sheet: mail it to
+     yourself, WhatsApp, Messenger, Drive (Web Share level 2). If Chrome refuses `.json`, the same bytes go as `.txt`.
+   - **Also: a link** carrying the build in its `#build=` fragment: a patch over a frozen stock base (20 rows = 401
+     characters, which fits a QR), or the whole spec (~9.6 k characters).
+   - Builds are **kept on the phone** (today's localStorage slots, marked sent / unsent; §3.4). **No cloud store.**
+   - **Make it a PWA** (§3.5): it installs full screen, works offline on the train, keeps its storage, and appears in
+     the share sheet to receive builds. On the desktop, a double-click on a build file opens it.
 5. **The phone does not fly.** It shows the bench check (the shakedown runs without a world) and marks the plaque
    "not yet flown". The computer opens the link on an arrival card: checked, built, bench, then the full-HD flown bake
    and the world at roll-out.
 6. **One trunk** (the user's ruling): the phone is a subtract-only PROFILE of the desktop trunk, with the same page,
    build, rows and aeroplane. GATE MOBILE checks it in node at every release (§6).
 7. **Order:** decide the row model inside the revamp now (M3) → `?mode=garage` on the desktop (M1) → the share link
-   (M5, useful between two computers too) → the black studio (M2) → the touch UI (M4) → the phone soak and an iPhone
-   check (M6). §5 has the sessions, G-blocks and gates.
+   (M5, useful between two computers too) → the black studio (M2) → the touch UI (M4) → the PWA (M7) → the phone soak
+   and an iPhone check (M6). §5 has the sessions, G-blocks and gates.
 
 ---
 
@@ -243,6 +246,9 @@ It writes `tools/perf/phone_<build>_<stamp>.json` and prints:
   timed to the handler and **to the second frame after it** (what the eye waits for).
 - **frames**: 10 s of rAF intervals at rest, and 10 s while a one-finger orbit is injected
   (`Input.dispatchTouchEvent`): fps, p50 / p95 / p99, frames over 50 ms.
+- **share**: what the phone's share sheet takes: `navigator.share`, and `canShare` for a build file as `.json`,
+  `.txt` and `.flydiy` (Chrome's permitted types). Also the storage (`persisted()`, `estimate()`), the display
+  mode and the DPR. This answers §3.3's file-type question on the S20 FE.
 - **soak**: 10 minutes of a slider scrubbed (a tick every 100 ms, a release every 2 s). Every 30 s it records fps,
   battery temperature (`dumpsys battery`), the thermal status and HAL temperatures (`dumpsys thermalservice`, no
   root on Android 10+), and the heap. Throttling shows as fps falling while the temperature climbs.
@@ -490,30 +496,44 @@ receiver does not have falls back to "please send the whole build" (the `0.` for
 
 | transport | how | for | against | verdict |
 |---|---|---|---|---|
-| **today's .json file** | ribbon Export / Import (`#gExport`, `#gFile`, drop on the rack) | exists; whole envelope incl. livery images; offline | moving a file between a phone and a computer is the hard part (mail it to yourself, a cloud drive, a cable) | **keep**: the fallback, and the only way for builds with images |
+| **the build FILE through the share sheet** (the user's choice: "sending yourself a json through mail or WhatsApp or Messenger") | Web Share level 2: `navigator.share({files: [new File([envelope], 'My Cub.flydiy.json')]})` → the phone's share sheet → Gmail / WhatsApp / Messenger / Drive / Nearby; the computer opens the attachment and imports it (Import, a drop on the garage, or a double-click with the PWA's `file_handlers`) | **no backend**: the user's own channels carry it; the whole envelope (21 KB, livery images included), so nothing is lost; works offline until the message goes; the user already knows "send it to myself" | **Chrome shares only a permitted list of file types**, and `application/json` is not believed to be on it (`.txt` is). If `canShare` refuses `.json`, the same bytes go as `My Cub.flydiy.txt`, and import accepts `.txt` (today `#gFile` accepts `.json` only: one attribute). WhatsApp must send it as a *document*, which it does for non-images. The phone rig's probe answers the file-type question on the S20 FE (§1.6) | **v1, the primary button** |
+| **today's export (a download)** | ribbon Export / Import (`#gExport`, `#gFile`, drop on the rack) | exists; whole envelope; offline | on a phone it lands in Downloads and still has to be moved | **keep**: "Save to this phone's files" |
 | **share link** (`#build=` fragment) | `location.hash` read before the boot; deflate-raw + base64url (`CompressionStream('deflate-raw')`: Chrome 103+, Safari 16.4+, Firefox 113+; the island loader already uses `DecompressionStream`) | no server (a fragment is never sent to Pages); a link is something a phone already moves well (mail, chat, notes); 0.2-10 k chars | a whole-spec link is long (~9.6 k) and some chats cut long links; livery images do not fit | **v1** |
 | **QR** | the phone shows a QR of the link; the computer's webcam or another phone scans it | no account, no cable, instant | the computer needs a camera and a scanner in the page (`BarcodeDetector` is Chromium-only and not on desktop Windows, so a JS decoder, ~40 KB); only patch links fit (≤ ~60 rows) | **v1.1**: shown when the link fits v25 |
-| **Web Share API** (`navigator.share({title, url})`) | the phone's share sheet: Gmail, WhatsApp, Notes, Nearby Share, AirDrop | the phone's own way of moving things; files too (`navigator.share({files})`, Chrome Android and Safari) for builds with images | needs a user gesture (the Send button is one); desktop support varies (fine: the phone shares, the computer opens) | **v1** (the transport the link rides on) |
+| **Web Share API** (`navigator.share`) | the phone's share sheet: Gmail, WhatsApp, Messenger, Notes, Nearby Share, AirDrop; carries the file (above) or the link | the phone's own way of moving things; Chrome Android and Safari both share files and URLs | needs a user gesture (the Send button is one); desktop support varies (fine: the phone shares, the computer opens) | **v1**: what the file and the link ride on |
 | **cloud: the user's Google Drive** | Google Identity Services in the page, `drive.file` / appDataFolder scope, a "flyDiy" folder | real sync, both ways, many builds | a Google Cloud project, an OAuth consent screen and its review before strangers can use it, tokens in a static page, the user's data in a store we answer for | **not v1**; revisit if people other than the user play |
 | **cloud: a GitHub gist** | the gists API | public builds, history | needs a token: device flow or a personal token pasted in; no anonymous gists since 2018 | **no** |
 | **cloud: nothing (Pages static)** | n/a | nothing to run, nothing to secure, no data held | no sync | **v1 is this**: the link *is* the store |
 
 ### 3.3 Recommendation for v1
 
-**The share link, through the share sheet.**
+**The build file and the link, both through the share sheet. No backend.**
 
-- **Payload.** `https://degaror.github.io/flyDiy/#build=1.<b64url>` is a patch over a frozen base. `#build=0.<b64url>`
-  is a whole spec, used when the build has no known base or the patch would be larger. The JSON is
-  `{fmt:1, b, h, v: GEN_SPEC_V, core: FLYDIY_CORE_SHA, n, p | spec}`. `plaque` and `log` stay home (a test result is
-  not a design input, G63), and so do `images` (a build with images offers the file share instead).
-- **The phone's Send button.**
+- **The file (primary, the user's choice).** It is today's export envelope, `{what:'flydiy-build', v, name, spec,
+  plaque, log, images?}`, unchanged: the computer already imports it. It is sent as
+  `<name>.flydiy.json` when `navigator.canShare({files})` accepts it, else as `<name>.flydiy.txt` (the same bytes).
+  It carries everything, livery images included, at 7-21 KB for the stock builds (more with images: ≤ 2 × 512 px
+  PNG). Mail, WhatsApp, Messenger and Drive all take it.
+- **The link (secondary).** `https://degaror.github.io/flyDiy/#build=1.<b64url>` is a patch over a frozen base.
+  `#build=0.<b64url>` is a whole spec, used when the build has no known base or the patch would be larger. The JSON
+  is `{fmt:1, b, h, v: GEN_SPEC_V, core: FLYDIY_CORE_SHA, n, p | spec}`. `plaque` and `log` stay home (a test result
+  is not a design input, G63), and so do `images` (a build with images makes Send's link button say "the file keeps
+  your livery images").
+- **The phone's Send button** (`mock_3_handoff.png` §3):
   1. Commit (today's `commit()`).
-  2. Make the payload.
-  3. `navigator.share({title: 'flyDiy: ' + name, url})`.
-  4. Fallbacks: **Copy link**; **QR** when it fits v25; **Save .json** (today's export).
-  5. Mark the slot "sent" with the time.
+  2. **Send the file…**: `navigator.share({title, files})`.
+  3. **Send a link…**: `navigator.share({title, url})`.
+  4. **Show QR**, when it fits v25.
+  5. **Save to this phone's files** (today's export).
+  6. Mark the slot "sent" with the time (§3.4).
+
+  Without `navigator.share` (a desktop browser), the two share buttons become "download" and "copy link".
 - **The computer.**
-  - It reads `location.hash` **before the welcome** (a link from a phone opened on the computer is the expected case).
+  - **A file**: the mail or WhatsApp Web attachment is opened. Import accepts `.json` and `.txt` (button, or a drop
+    anywhere on the garage); with the PWA installed, a double-click opens flyDiy on it (`file_handlers`, §3.5). Then
+    the same arrival card as a link.
+  - **A link**: it reads `location.hash` **before the welcome** (a link from a phone opened on the computer is the
+    expected case).
   - It runs the boot, then shows the **arrival card** (`mock_3_handoff.png` §6):
     1. Checked: format version, base found and hash equal, every value in range. This is today's import path,
        `genNormaliseSpec` → `genMigrateSpec` → `clampSpec`. A clamp is *reported*, not silent.
@@ -528,6 +548,56 @@ receiver does not have falls back to "please send the whole build" (the `0.` for
 - **Security posture.** The payload is data only. It goes through the same normalise / migrate / clamp as a file; no
   code and no URLs are taken from it. Unknown keys are dropped by `genNormaliseSpec`. The decompression is capped
   (refuse > 256 KB inflated).
+
+### 3.4 Kept on the phone: local storage
+
+The phone is a place where builds **live**, not only a remote control. Builds are kept between train rides, and a
+build not yet sent must survive.
+- **Today's store works unchanged on a phone.** `flydiy.build.<name>` holds each saved slot and `flydiy.wip` the
+  working build, rewritten 400 ms after each pause: the autosave (garage.js:569-585, 819-846). Same origin, same code.
+  It is one trunk, so nothing new is built for this.
+- **Its limits on a phone.**
+  - localStorage is ~5 MB per origin. That is ~250 builds without images, but only a handful with livery images
+    (each up to ~0.2-0.7 MB of PNG data URL).
+  - It can be evicted under storage pressure. **Safari deletes script-written storage after 7 days without a visit**
+    (ITP), unless the page is installed to the home screen.
+- **What the phone adds, all subtract-only or shared with the desktop:**
+  1. `navigator.storage.persist()` asked at the first save, which an installed PWA is usually granted. The rig's
+     probe reads `persisted()` and `estimate()` on the S20 FE.
+  2. **Sent / unsent marks.** Each slot records when it was last sent and whether it changed since
+     (`mock_3_handoff.png` §7). The Send button says "changed since sent".
+  3. **Builds and images move to IndexedDB.** This is the player document's planned P6 migration (`flydiy.player`,
+     70_player.js). The desktop needs it too: images in localStorage are the first thing to hit the quota.
+  4. A gentle nudge in the list (not a modal) when a build has gone unsent for days.
+- **The receiving side is local too.** An imported build becomes a new slot (§3.3). Nothing about storage needs a
+  server.
+
+### 3.5 Make it a PWA: yes
+
+A Progressive Web App is a manifest plus a service worker, and `sw.js` already exists. It is the same page, so it is
+**one trunk by construction**. What it gives the phone garage:
+
+| what | why it matters here |
+|---|---|
+| **install to the home screen, standalone** (`display: standalone`) | full screen: no URL bar on a 915 px-tall screen (~60 px back for the view and the sheet); it opens like an app on the train |
+| **offline** | the studio garage is ~7 MB (§1.5). `sw.js` caches /media/ already; the page and scripts are added network-first with a cache fallback, versioned by `version.json`, so a train's update lands on the next open with network and never strands an old page. The world stays online-only (its ~200 MB are not for a phone anyway) |
+| **storage kept** | an installed app is usually granted `persist()`, and **Safari exempts home-screen apps from the 7-day eviction**: the builds on the phone are safe |
+| **receive builds: `share_target`** | flyDiy appears **in the phone's share sheet**. A build file received in WhatsApp or mail is shared straight into the garage. No backend: the share target's POST is caught by `sw.js`, which stores the file and opens the page on it |
+| **open files on the desktop: `file_handlers`** | installed on the computer, a double-click on `My Cub.flydiy.json` opens flyDiy on it (`launchQueue`): the at-home half of "send it to myself" |
+
+**What it costs, and the one-trunk rules for it:**
+- **One manifest for both form factors** (`manifest.webmanifest`: name, icons 192 / 512, `start_url: "./"`,
+  `scope: "./"`, theme colours from the 9b palette, `share_target`, `file_handlers`). The welcome picks the profile
+  at launch, as it does in a tab. There is no second app and no phone `start_url`.
+- **Icons**: none exist today (no manifest, no apple-touch-icon). One icon set is drawn once.
+- **`sw.js` grows a page cache.** It is careful work: the page is 10.9 MB inline and changes every train.
+  Network-first for the page and the scripts, the cache as fallback, the old entries swept on activate (as
+  WORLD_KEEP / GEO_KEEP do for media). GATE MOBILE gains rows for it: the manifest parses, its icons exist, the
+  worker's page cache is keyed by `version.json`, and an offline boot of the phone profile reaches the studio in node.
+- **iOS**: an installed web app works offline and keeps storage. Share targets and file handlers are Chromium-only
+  (Android, desktop Chrome / Edge); on an iPhone, receiving goes through the Files app and Import.
+- **When**: after the share flow (M5), as **M7 PWA**: it makes M5's file share two-way (receiving into the phone) and
+  M2's studio usable offline. It is worth having for the desktop too (install, double-click a build file).
 
 ---
 
@@ -564,9 +634,10 @@ numbers.
 |---|---|---|---|---|
 | **M3 ROW-MODEL** (inside the slider revamp; **first**) | the descriptor fields (§2.9 table); the tree holds only the aeroplane, with the reference plane and the hangar on the rail (R24); `mkRow` → descriptor + `deskRow` (pixel-identical to today); `tier` / `help` written during the per-slider review; the undo history at `GARAGE_SPEC.update` (one entry per gesture, ⌘Z / Ctrl+Z, ribbon arrows); steppers and typing on the tick path | G1520-G1529 | GATE PARTS (every row claimed), GATE INSTANT (unchanged), **new GATE ROWS** (every row has tier / group; ≤ 8 basic per part; no `title=` without `help`; the tree's roots are `craft` alone), **new GATE UNDO** (undo × N returns the boot hash) | cloud (node) + box (the look) |
 | **M1 GARAGE-MODE** | **the PROFILES table** (§6: the phone as a declared, subtract-only profile of the trunk) and `?mode=garage` as its first entry: the boot's world rows off (§1.2 table), the recheck re-planning nothing, no ISLAND_LOADER fetch, no sim worker; on a desktop the roll-out builds the world lazily (the LOADING-S3 path, kept beside B9's one loading); the mode is **not** shown on a desktop unless asked; **GATE MOBILE's skeleton** in the release battery from this session on | G1530-G1534 | GATE ROUNDTRIP (both modes), GATE INSTANT, **new GATE MOBILE** (§6; first rows: no world step ran, 0 island bytes, heap ≤ the measured floor + 10 %, the same resolved-spec hash as the desktop boot), FRAMECOST (garage profile unchanged) | cloud (node), then box: heap_steps + the phone rig |
-| **M5 SHARE** | `#build=` links (patch over frozen bases + whole spec), `media/bases/` content-addressed, the arrival card, Send (Web Share, copy, QR when it fits), new-slot import, hash cleared | G1535-G1539 | **new GATE SHARE** (node: export → link → import byte-identical spec on the 5 validated builds, patch and whole; a corrupted / oversized / future-version link refused or warned; a 60-row patch ≤ 1.3 KB); GATE BUILD, GATE SAVE | cloud |
+| **M5 SHARE** | Send: **the build file through the share sheet** (`.json`, or `.txt` when refused; import accepts both) and `#build=` links (patch over frozen bases + whole spec, `media/bases/` content-addressed); copy / QR / download as the fallbacks; the arrival card; new-slot import, hash cleared; the slots' sent / unsent marks | G1535-G1539 | **new GATE SHARE** (node: export → link → import byte-identical spec on the 5 validated builds, patch and whole; a corrupted / oversized / future-version link refused or warned; a 60-row patch ≤ 1.3 KB); GATE BUILD, GATE SAVE | cloud |
 | **M2 PHONE-STUDIO** | the black studio (§1.5): a scene profile beside the shed (no room, key / fill / rim without shadow maps, a procedural studio PMREM, a contact shadow), the shed's assets and the crew never fetched, pixel ratio ≤ 1.5, readouts on demand, audio lazy; **also a desktop "studio" mood**; the welcome's phone gate offers "Build on this phone" | G1540-G1544 | GATE GFX (no desktop preset changes), FRAMECOST's garage profile **in the studio** (draws ≤ 600, triangles ≤ 0.6 M, 0 shadow passes), GATE SOFTGPU (the studio PMREM on the software rung), GATE MOBILE's studio rows | cloud + **phone** (heap ≤ 700 MB, no kill, drag drawn ≤ 150 ms p50) |
 | **M4 TOUCH-UI** | `touchRow` (§2.1-2.4), portrait and landscape chrome (chips, sheet, rail, bottom bar), view gestures (two-finger pan, long-press), no-hover twins | G1545-G1554 | **new GATE NOHOVER** (R18), GATE INSTANT driven through the touch renderer, a Playwright touch run at 412 × 915 (hasTouch) | cloud + phone (the user's thumb) |
+| **M7 PWA** (after M5) | `manifest.webmanifest` (one for both form factors), icons, `sw.js` page cache (network-first, keyed by `version.json`), offline studio garage, `share_target` (the phone receives build files), `file_handlers` (desktop double-click), `persist()` | G1560-G1564 | GATE MOBILE's PWA rows (the manifest parses, icons exist, the page cache is versioned, an offline phone-profile boot reaches the studio), GATE SAVE | cloud + box + phone (install, offline, share into it) |
 | **M6 PHONE-SOAK** | the rig's 10-min soak on the S20 FE (heat, fps, heap), the cold load on 4G-like throttling, and **an iPhone** (Safari: borrowed, or a cloud device farm) | G1555-G1559 | the numbers vs FRIENDLY-WELCOME-BUDGETS' good-smartphone row | box + phone |
 
 ### 5.1 Risks
