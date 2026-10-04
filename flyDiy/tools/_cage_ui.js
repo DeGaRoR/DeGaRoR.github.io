@@ -1906,6 +1906,9 @@ function* buildSteps() {
   if (RELEASE) {
     const why = releaseWhy(built);
     const rplan = !why ? CH.plan(P, true, built.sheet) : null;
+    // a bisecting knob: CAGE_UI.releaseForce = [layer names] runs them too
+    const RF = window.CAGE_UI && window.CAGE_UI.releaseForce;
+    if (rplan && Array.isArray(RF)) CH.layers.forEach((l, i) => { if (RF.includes(l.name) && !rplan.run[i]) { rplan.run[i] = true; rplan.why[i] = 'forced'; } });
     if (rplan) { yield* releaseSteps(built, rplan); return; }
     RELEASE_INFO.whole++; RELEASE_INFO.last = { whole: why || 'no plan' };
   }
