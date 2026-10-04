@@ -365,5 +365,5 @@ async function main() {
   for (const s of bySeg) console.log('  ' + s.name.padEnd(44) + JSON.stringify(s.calls) + ' nearest ' + JSON.stringify(s.nearest));
 }
 
-module.exports = { makeTraffic, makeTram, housePresetsMill, segments, harness, run };
+module.exports = { makeTraffic, makeTram, housePresetsMill, segments, harness, run, mixdown, decodeMp3, itemWorld };   // (G1709: SND-ANIMALS' evidence mixes with these)
 if (require.main === module) main().catch(e => { console.error(e); process.exit(1); });
