@@ -47,8 +47,6 @@ function makeWorld(seed, opts) {
   // the ground there is under the level. That also settles what a premises
   // grade does near a bank - dig below the level and the cut is under water,
   // honestly, because the lake does not follow the spade.
-  // (G1335: the island's carved lakebed, read by terrainH - here for the same reason: terrainH runs while the world is made)
-  const LAKE_BED = ISL && ISL.lakeBed ? ISL.lakeBed : null;
   const lakeLevelAt = (() => {
     const recs = (ISL && ISL.lakes || []).filter(L => L.level > 0.2 && L.cells >= 3);
     if (!recs.length) return null;
@@ -532,15 +530,7 @@ function makeWorld(seed, opts) {
     if (thX[i] === x && thZ[i] === z) return thH[i];
     const h0 = baseH(x, z);
     // (G614: the premises' raster - the composed ground baked lazily off the same modifiers, 27_premises.js)
-    let h = PM ? (PM.terrainFast ? PM.terrainFast(x, z, h0) : PM.terrainH(x, z, h0)) : h0;
-    // THE CARVED LAKEBED (LAKE-HOLES G1335, 28_island.js lakeBed): under every lake the ground lies under the water,
-    // continuous with its bank - the renderer no longer cuts it away, and the floats, the wheels and the drawn ground
-    // all read this one surface. On the composed ground: where no premises modifier acts the bed is min(h, bed); where
-    // one does, a FILL stays a fill (G753: 02/20's pond is the runway's) - the modifiers are blends, affine in the
-    // ground under them, so composing on the bed as well says how much of the ground they keep (1 - w); a modifier
-    // that holds half or more of it (w >= 0.5) is the old composition on the raw ground, fading to the bed's as w -> 0
-    // (continuous at the modifier's rim, where w is 0). The memo above holds the answer.
-    if (LAKE_BED) h = lakeCarve(x, z, h0, h, hb => (PM.terrainFast ? PM.terrainFast(x, z, hb) : PM.terrainH(x, z, hb)));
+    const h = PM ? (PM.terrainFast ? PM.terrainFast(x, z, h0) : PM.terrainH(x, z, h0)) : h0;
     thX[i] = x; thZ[i] = z; thH[i] = h;
     return h;
   }
@@ -551,25 +541,7 @@ function makeWorld(seed, opts) {
   // (1 cm). The town's premises build read ~11 000 uncooked tiles 9-10 km from HOME at every town-on boot (~10 s of
   // main-thread bakes); the wheels, the wind and every repeated read keep terrainH. Not memoised: the memo is terrainH's
   function terrainHBuild(x, z) {
-    if (!(PM && PM.rasterLazyAt && PM.rasterLazyAt(x, z))) return terrainH(x, z);
-    const h0 = baseH(x, z), h = PM.terrainH(x, z, h0);
-    return LAKE_BED ? lakeCarve(x, z, h0, h, hb => PM.terrainH(x, z, hb)) : h;   // (the bed, as terrainH carves it)
-  }
-  // the carve as one function (A0, train 28): terrainH and METLA-LOAD's build read (terrainHBuild) BOTH carve - the build
-  // read composed the uncooked town cells on the raw ground and skipped the bed (GATE LAKEBED: a ring over a lake there)
-  function lakeCarve(x, z, h0, h, compose) {
-    if (LAKE_BED) {
-      const b = LAKE_BED(x, z);
-      if (b < h) {
-        if (!PM || h === h0) h = b;
-        else {
-          const hb = Math.min(h0, b), hc = compose(hb);
-          const w = h0 > hb ? 1 - (h - hc) / (h0 - hb) : 1, t = Math.max(0, Math.min(1, w / 0.5));
-          h = hc + (h - hc) * t * t * (3 - 2 * t);
-        }
-      }
-    }
-    return h;
+    return PM && PM.rasterLazyAt && PM.rasterLazyAt(x, z) ? PM.terrainH(x, z, baseH(x, z)) : terrainH(x, z);
   }
 
   // ---- stage 2 biomes: analytic classifier + tree placement plan ----
@@ -740,10 +712,6 @@ function makeWorld(seed, opts) {
       // the island: the sea is the DEM at 0 (sea level does the edges), a lake
       // is its own record, a river is the hydrology's reach - and the fill's
       // lake level is not asked for at all (21_world_hydro riverWater)
-      // (G1335: INSIDE A LAKE'S LINE the water is the lake that owns the carved bed there - 28_island lakeBed.levelAt, one
-      // lake a texel - before the sea's rule: the carve takes a lake's middle under 0.05 (the East Point lens, 2.67 m, its
-      // DEM 0.83, carved to -0.3), and the sea is not there. A lagoon at the sea's own level owns a level of 0: the sea.)
-      if (LAKE_BED) { const lo = LAKE_BED.levelAt(x, z); if (lo > 0.05 && lo >= t) return lo; }
       if (t <= 0.05) return 0;
       let onBank = false;
       if (lakeLevelAt) { const L = lakeLevelAt(x, z, t); if (L.level > -Infinity) return L.level; onBank = L.covered; }
@@ -1149,7 +1117,6 @@ function makeWorld(seed, opts) {
     v: 1, seed: SEED,
     bounds: BOUNDS,
     island: ISL ? { id: ISL.id, canopyAt: ISL.canopyAt, effClass: ISL.effClass, classAt: ISL.classAt, coastAt: ISL.coastAt, seaFloor: ISL.seaFloor,
-                    lakeBed: ISL.lakeBed || null, LAKE_BED: ISL.LAKE_BED || null,   // G1335: the carved lakebed (the far terrain's patches take it)
                     WC: ISL.WC, hMax: ISL.hMax, grid: ISL.grid, albedo: ISL.albedo,
                     tint: ISL.tint, ori1: ISL.ori1, coast: ISL.coastU8 || null, canopy: ISL.canopyU8 || null, canopyP90: ISL.canopyP90,
                     cover: ISL.coverU8 || null, ndvi: ISL.ndvi || null, lake: ISL.lake || null, ttype: ISL.ttype || null, lakes: ISL.lakes || null, hydro: ISL.hydro, cellAt: ISL.cellAt,
