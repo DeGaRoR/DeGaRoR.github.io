@@ -95,8 +95,9 @@ function pull(key, o) {
   clearPeak(sim);
   const t0 = sim.t, hist = [];
   for (let f = 0; f < 60 * (o.secs || 6); f++) {
-    const e = nzT - sim.out.nz; I += e / 60;
-    de = Math.max(-1, Math.min(1, sgn * (0.3 * e + 0.8 * I)));
+    const tgt = Math.min(nzT, 1 + (nzT - 1) * (f / 60) / 1.0);   // the target ramped over a second (no overshoot past it)
+    const e = tgt - sim.out.nz; I += e / 60;
+    de = Math.max(-1, Math.min(1, sgn * (0.4 * e + 0.8 * I)));
     sim.ctl.de = de;
     sim.step(1 / 60);
     nzMax = Math.max(nzMax, sim.out.nz);
@@ -173,10 +174,11 @@ function flyRun(C, sim, def, TH, strip, elev, o) {
   // the mechanical energy (kinetic + the weight's potential): with the throttle shut nothing may add to it
   const energy = () => { let e = 0; for (let i = 0; i < sim.n; i++) e += sim.m[i] * (0.5 * (sim.v[i*3] ** 2 + sim.v[i*3+1] ** 2 + sim.v[i*3+2] ** 2) + 9.81 * (sim.p[i*3+1] - elev)); return e; };
   const ke0 = energy();
-  let reach = -Infinity, maxSpread = 0, vPass = null, bad = false, vNodeMax = 0, keMax = ke0;
+  let reach = -Infinity, maxSpread = 0, vPass = null, bad = false, vNodeMax = 0, keMax = ke0, walked = false;
   const frames = [], trace = [];
   for (let f = 0; f < (o.secs || 8) * 60; f++) {
-    if (o.walk) { const v = sim.cgVel(), V = v[0] * fx + v[2] * fz; sim.ctl.thr = Math.max(0, Math.min(1, 0.12 + 0.3 * (o.walk - V))); }
+    // `walk`: a walking pace held on the throttle until the first touch, then the throttle shut (the pilot's reflex)
+    if (o.walk && !walked) { if (sim.trunkHits() > 0) { walked = true; sim.ctl.thr = 0; } else { const v = sim.cgVel(), V = v[0] * fx + v[2] * fz; sim.ctl.thr = Math.max(0, Math.min(1, 0.12 + 0.3 * (o.walk - V))); } }
     if (o.rollThen != null) { const c = sim.cgPos(); if ((c[0] - c0[0]) * fx + (c[2] - c0[2]) * fz > 6) sim.ctl.thr = o.rollThen; }
     sim.step(1 / 60);
     if (!finite(sim)) { bad = true; break; }

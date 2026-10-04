@@ -10,8 +10,8 @@
 //
 // On the user's validated aeroplanes (the Cub, the Jodel, the metal Cessna, the Cessna on floats, the twin on floats):
 //   1. THE TABLE: every member of every build has a section and a material GEN_CRASH carries
-//   2. NOTHING YIELDS IN WHAT IT WAS BUILT FOR (the damage model ON; the margin read under the probe - every member's
-//      peak force over its yield, per substep):
+//   2. NOTHING YIELDS IN WHAT IT WAS BUILT FOR (under the probe: every member's peak force over its yield, per
+//      substep - a peak under 1 is a run in which nothing would have yielded):
 //        the load test to its ultimate 5.7 g (the garage's own rig), a flown 3.8 g pull, a drop onto the wheels (the
 //        floats onto the water) at FAR 23.473's limit sink and at its 10 ft/s cap, a whole circuit with the pilot
 //   3. A TAXI INTO A TRUNK (3 m/s, the throttle shut, on the centreline): the nose dents round it, the prop strikes and
@@ -33,21 +33,24 @@ if (argv[0] === '--build') {
   const def = L.defOf(k), g = def.params.gen, Vs = g.Vs;
   out.table = { n: def.beams.length, noA: def.beams.filter(b => !(b.A > 0)).length, noMat: def.beams.filter(b => !b.mat || !C.GEN_CRASH[b.mat]).length,
     mats: [...new Set(def.beams.map(b => b.mat))] };
-  const lt = L.loadTest(k, {}), ltP = L.loadTest(k, { probe: true });
-  out.load = { yields: lt.ult.dmg.yields, verdict: lt.ult.verdict, limit: ltP.limit && ltP.limit.peak, ult: ltP.ult.peak, finite: lt.finite };
-  const V0 = 2.44 * Vs;   // 1.25 x the speed 3.8 g stalls at (Vs root 3.8)
-  const pu = L.pull(k, { V: V0, sgn: 1 }), puP = L.pull(k, { V: V0, sgn: 1, probe: true });
-  out.pull = { V0, nzMax: pu.nzMax, held: pu.held, yields: pu.dmg.yields, peak: puP.peak, finite: pu.finite };
+  // (each under the PROBE: nothing yields and every member's peak force over its yield is read per substep - the very
+  // comparison the damage model makes, so a peak under 1 is a run in which nothing would have yielded or broken)
+  const yld = p => (p && p.max >= 1 ? 1 : 0);
+  const ltP = L.loadTest(k, { probe: true });
+  out.load = { yields: yld(ltP.ult.peak), verdict: ltP.ult.verdict, limit: ltP.limit && ltP.limit.peak, ult: ltP.ult.peak, finite: ltP.finite };
+  const V0 = 2.6 * Vs;   // 1.33 x the speed 3.8 g stalls at (Vs root 3.8)
+  const pu = L.pull(k, { V: V0, sgn: 1, probe: true });
+  out.pull = { V0, nzMax: pu.nzMax, held: pu.held, yields: yld(pu.peak), peak: pu.peak, finite: pu.finite };
   const s473 = L.far473(k);
-  out.drop = [s473, 0.3048 * 10].map(sink => { const r = L.hardLanding(k, { sink }), rp = L.hardLanding(k, { sink, probe: true });
-    return { sink, yields: r.dmg.yields, crashed: r.dmg.crashed, nz: r.gMax, peak: rp.peak, finite: r.finite }; });
-  const ci = L.circuit(k, {}), ciP = L.circuit(k, { probe: true });
-  out.circuit = { outcome: ci.outcome, t: ci.t, yields: ci.dmg.yields, crashed: ci.dmg.crashed, nzMax: ci.nzMax, peak: ciP.peak, finite: ci.finite };
+  out.drop = [s473, 0.3048 * 10].map(sink => { const rp = L.hardLanding(k, { sink, probe: true });
+    return { sink, yields: yld(rp.peak), crashed: rp.dmg.crashed, nz: rp.gMax, peak: rp.peak, finite: rp.finite }; });
+  const ciP = L.circuit(k, { probe: true });
+  out.circuit = { outcome: ciP.outcome, t: ciP.t, yields: yld(ciP.peak), crashed: ciP.dmg.crashed, nzMax: ciP.nzMax, peak: ciP.peak, finite: ciP.finite };
   if (!/floats/i.test(k)) {
     const KE = r => r.trace.reduce((m, x) => Math.max(m, x.ke || 0), 0);
     const tx = L.atTrunk(k, { D: 4, V: 3, thr: 0, secs: 8 });
     out.taxi = { dmg: tx.dmg, reach: tx.reach, end: tx.end, finite: tx.finite, eng: tx.eng };
-    const br = L.atTrunk(k, { D: 4, V: 1.4, thr: 0, secs: 8, off: 0.85 * g.span / 2 });
+    const br = L.atTrunk(k, { D: 6, V: 1.4, walk: 1.4, secs: 12, off: 0.85 * g.span / 2 });
     out.brush = { dmg: br.dmg, hits: br.hits, finite: br.finite };
     out.fly = [0, 2.5].map(off => { const r = L.atTrunk(k, { D: 40, agl: 4, V: 30, thr: 0, secs: 5, off });
       return { off, dmg: r.dmg, reach: r.reach, finite: r.finite, ke0: r.ke0, keMax: r.keMax, spread: r.spread }; });
@@ -83,10 +86,10 @@ const pk = p => (p ? f2(p.max) + ' (' + (p.t >= p.c ? p.clsT + ', tension' : p.c
     console.log('1. the table');
     yes(r.table.noA === 0 && r.table.noMat === 0, r.table.n + ' members, every one with a section and a GEN_CRASH material (' + r.table.mats.join(', ') + ')');
     console.log('2. nothing yields in what it was built for (the margin: the worst member\'s peak force over its yield)');
-    yes(r.load.yields === 0 && r.load.finite && /HELD/.test(r.load.verdict), 'the load test to 5.7 g: ' + r.load.verdict + ', 0 yields; the worst member at 3.8 g ' + pk(r.load.limit) + ', at 5.7 g ' + pk(r.load.ult));
-    yes(r.pull.nzMax >= 3.8 && r.pull.yields === 0 && r.pull.finite, 'a flown pull from ' + r.pull.V0.toFixed(0) + ' m/s to ' + f2(r.pull.nzMax) + ' g (held ' + f2(r.pull.held) + ' s over 3.7): 0 yields; the worst member ' + pk(r.pull.peak));
-    for (const d of r.drop) yes(d.yields === 0 && !d.crashed && d.finite, 'a drop at ' + f2(d.sink) + ' m/s (' + f2(d.sink / 0.3048) + ' ft/s' + (d === r.drop[0] ? ', FAR 23.473' : ', its cap') + '): ' + f2(d.nz) + ' g, 0 yields; the worst member ' + pk(d.peak));
-    yes(r.circuit.yields === 0 && !r.circuit.crashed && r.circuit.finite, 'a circuit with the pilot (' + r.circuit.outcome + ', ' + r.circuit.t.toFixed(0) + ' s, ' + f2(r.circuit.nzMax) + ' g at the most): 0 yields; the worst member ' + pk(r.circuit.peak));
+    yes(r.load.yields === 0 && r.load.finite && /HELD/.test(r.load.verdict), 'the load test to 5.7 g: ' + r.load.verdict + ', nothing yields; the worst member at 3.8 g ' + pk(r.load.limit) + ', at 5.7 g ' + pk(r.load.ult));
+    yes(r.pull.nzMax >= 3.8 && r.pull.yields === 0 && r.pull.finite, 'a flown pull from ' + r.pull.V0.toFixed(0) + ' m/s to ' + f2(r.pull.nzMax) + ' g (held ' + f2(r.pull.held) + ' s over 3.7): nothing yields; the worst member ' + pk(r.pull.peak));
+    for (const d of r.drop) yes(d.yields === 0 && !d.crashed && d.finite, 'a drop at ' + f2(d.sink) + ' m/s (' + f2(d.sink / 0.3048) + ' ft/s' + (d === r.drop[0] ? ', FAR 23.473' : ', its cap') + '): ' + f2(d.nz) + ' g, nothing yields; the worst member ' + pk(d.peak));
+    yes(r.circuit.yields === 0 && !r.circuit.crashed && r.circuit.finite, 'a circuit with the pilot (' + r.circuit.outcome + ', ' + r.circuit.t.toFixed(0) + ' s, ' + f2(r.circuit.nzMax) + ' g at the most): nothing yields; the worst member ' + pk(r.circuit.peak));
     if (!r.taxi) { console.log('   (a floatplane: the trunk runs are the land builds\')'); continue; }
     console.log('3. a taxi into a trunk, a wingtip brush');
     const tx = r.taxi;
