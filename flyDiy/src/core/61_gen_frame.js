@@ -276,8 +276,17 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     // were tubeFabric's k, mass and price, the Jodel's box wood's. The row
     // is chosen by class now — the open plane's (MSEC.wings, set per plane
     // in buildPlane) — and the section still only says where the mass bills.
+    // ...EXCEPT THE LIFT STRUT (opt.strut: the drawn struts and the fan from
+    // the strut root). The surface rows describe a wing's skin and spars; on
+    // the fabric row a strut would be a WOODEN lift strut, which nobody
+    // builds (GATE LOAD's own note), and moving it there re-rigged every
+    // strut aeroplane (measured: the Cub's struts x2 k, the twin fixture's
+    // crosswind limit 4.5 -> "> 10" on a saturated ladder, its float touch
+    // 0.54 -> 0.34 m/s). The strut stays the fuselage row's tube, as built;
+    // a strut material of its own is owed (HANDOVER G1582).
     const steel = mnt || cls === 'cabane' || cls === 'interplane' || cls === 'wire';
-    const MM = steel ? (GEN_MATERIALS.tubeFabric || MB) : cls === 'wing' ? MSEC.wings : MB;
+    const MM = steel ? (GEN_MATERIALS.tubeFabric || MB)
+             : (cls === 'wing' && !(opt && opt.strut)) ? MSEC.wings : MB;
     const mK = mnt ? (R.mountK == null ? 1 : R.mountK) : 1;
     // G199.5: a ROD boom's bays are a tube, not a lattice — GEN_RULES.rodBoomK
     // on every fuselage-class member aft of the cabin box (the post, the
@@ -352,7 +361,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
       // follow the gauge; pass 2 bills at the solved factor.
       const bk = bucketOf(cls, mnt);
       const g1 = bk && GG ? GG[bk] : 1;
-      const webK = (opt && opt.web && MM.coverGauged) ? (R.boxWebK == null ? 1 : R.boxWebK) : 1;
+      const webK = (opt && opt.web && (MM.coverGauged || MM.boxWebInCover)) ? (R.boxWebK == null ? 1 : R.boxWebK) : 1;
       const h0 = 0.5 * L * row(MM.lin, cls, tSecM) * aftG * webK, h = h0 * g1;
       if (bk && !GG) { const G = gauged[bk]; G.m += 2 * h0;
         G.x += h0 * (P[a][0] + P[b][0]); G.y += h0 * (P[a][1] + P[b][1]); G.z += h0 * (P[a][2] + P[b][2]);
@@ -983,6 +992,8 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     // when the billing material is skinned; a fabric wing's drag bracing
     // is real and stays at 1. Stiffness is untouched.
     const WEB = { web: true };
+    // B12: the lift strut and its fan keep the fuselage's row (see B())
+    const STRUT = { strut: true };
     // G140: where the visible strut lands. Uncranked: the first interior
     // station, exactly as always. Cranked: THE CRANK — the crank station is
     // the strut station now (zCrank was inserted into zs, so it is findable
@@ -1012,8 +1023,8 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
       // T2.3 (83): ONE strut (bracing.struts 1) draws only the front member;
       // the rear one stays as a hidden fan member, so the truss the physics
       // flies is the same aeroplane — the drawing is what changes
-      B(strutRoot, WF[iStrut], 'wing', true);
-      B(strutRoot, WR[iStrut], 'wing', (S.bracing && S.bracing.struts) !== 1);
+      B(strutRoot, WF[iStrut], 'wing', true, 0, 0, STRUT);
+      B(strutRoot, WR[iStrut], 'wing', (S.bracing && S.bracing.struts) !== 1, 0, 0, STRUT);
       // fan ends: station 0 always; the TIP pair only where the fan may
       // reach it — an uncranked wing (byte-identical emissions). On a
       // cranked wing nothing reaches past the crank; the outer panel's
@@ -1024,7 +1035,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
         ? (iStrut === 0 ? [] : [WF[0], WR[0]])
         : [WF[0], WR[0], WF[WF.length - 1], WR[WR.length - 1]];
       for (const t of ends)
-        B(strutRoot, t, 'wing');
+        B(strutRoot, t, 'wing', 0, 0, 0, STRUT);
       // ...AND EVERY STATION IN BETWEEN (2026-08-11, GATE FLEX matrix).
       // The four lines above reach exactly three stations: 0, mid=1 and the
       // last. `wing.panels` is a PLAYER SLIDER clamped 2..5, so at 4 panels the
@@ -1061,7 +1072,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
         // G140: the crank station already carries the REAL struts — a fan
         // pair on top would be the panels-2 double-stiffness case, chosen
         if (zCrank && i === iStrut) continue;
-        B(strutRoot, WF[i], 'wing'); B(strutRoot, WR[i], 'wing');
+        B(strutRoot, WF[i], 'wing', 0, 0, 0, STRUT); B(strutRoot, WR[i], 'wing', 0, 0, 0, STRUT);
       }
       // G140: THE OUTER PANEL OF A CRANKED STRUTTED WING IS A BOX — the
       // C172's construction: strut to the crank joint, cantilever box from
@@ -1101,8 +1112,8 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
         // C172 closes the path exactly here: outer lower-cap tension runs
         // into the STRUT at the crank and down to the fuselage. Two lumped
         // members under the fabric, like the fan they extend.
-        B(strutRoot, cFB[bs], 'wing');
-        B(strutRoot, cRB[bs], 'wing');
+        B(strutRoot, cFB[bs], 'wing', 0, 0, 0, STRUT);
+        B(strutRoot, cRB[bs], 'wing', 0, 0, 0, STRUT);
       }
     } else {
       // CANTILEVER: no strut, so rule 1 has to be paid for properly — a real
