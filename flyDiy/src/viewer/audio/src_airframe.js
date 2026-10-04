@@ -12,6 +12,7 @@
 // one-shot beside the procedural (the worklet's at 35 %). A key is asked for the first time its layer is heard.
 // Per frame: the model (allocation-free), then ONLY the params that moved (the targets are quantised, so a steady
 // frame schedules nothing), then the frame's events (a port message each - an event, never a frame).
+// AUDIO.emit('stall') at the warning's onset and every 2 s while it sounds (the music ducks under it, G1672).
 'use strict';
 (function () {
   const W = typeof window !== 'undefined' ? window : globalThis;
@@ -38,6 +39,9 @@
   const EV_KEY = [null, 'gnd.thump', 'gnd.squeal', 'gnd.thump', 'water.splash', 'mech.lever'];
   let EV_OUT = null;
   const evAsked = new Uint8Array(EV_KEY.length);
+  // the warning's own event for the rest of the sound (SND-MUSIC ducks under it): AUDIO.emit('stall') at the onset and
+  // every STALL_EMIT_S while it sounds (the music's duck holds 6 s); [0] the seconds since the last, [1] sounding
+  const STALL_EMIT_S = 2, stallClk = new Float64Array(2);
 
   function loopWanted(i, tg) {
     const L = LOOPS[i], key = L[0];
@@ -96,10 +100,14 @@
         ready = true;
       }, e => console.warn('flyDiy audio: the airframe voice did not load', e));
     },
-    update(P, dt) {
+    update(P, dt, api) {
       if (!ready) return;
       const tg = AF.airframeStep(P, st, dt);
       const t = ctx.currentTime;
+      if (tg[T.stall] > 0) {
+        stallClk[0] += dt;
+        if (!(stallClk[1] > 0) || stallClk[0] >= STALL_EMIT_S) { stallClk[0] = 0; stallClk[1] = 1; api.emit('stall', 1); }
+      } else stallClk[1] = 0;
       if (SM) tg[T.duck] = samples(tg, t);
       // schedule only what moved (the targets are quantised: a steady frame reproduces them exactly)
       for (let i = 0; i < NP; i++) {

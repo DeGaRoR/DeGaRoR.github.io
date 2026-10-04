@@ -69,8 +69,8 @@
         // schedule only what moved (a steady frame schedules nothing)
         if (Math.abs(vals0 - last[o]) > 0.5) { v.params[0].setTargetAtTime(vals0, t, TAU); last[o] = vals0; }
         if (Math.abs(vals1 - last[o + 1]) > 0.002) { v.params[1].setTargetAtTime(vals1, t, TAU); last[o + 1] = vals1; }
-        if (vals2 !== last[o + 2]) { v.params[2].setValueAtTime(vals2, t); last[o + 2] = vals2; }
-        if (vals3 !== last[o + 3]) { v.params[3].setValueAtTime(vals3, t); last[o + 3] = vals3; }
+        if (vals2 !== last[o + 2]) { if (vals2 && last[o + 2] === 0) A.emit('engine', 'catch'); v.params[2].setValueAtTime(vals2, t); last[o + 2] = vals2; }   // G1672: the music ducks under a start
+        if (vals3 !== last[o + 3]) { if (vals3) A.emit('engine', 'start'); v.params[3].setValueAtTime(vals3, t); last[o + 3] = vals3; }
         if (vals4 !== last[o + 4]) { v.params[4].setValueAtTime(vals4, t); last[o + 4] = vals4; }
         if (Math.abs(vals5 - last[o + 5]) > 0.01) { v.params[5].setTargetAtTime(vals5, t, 1); last[o + 5] = vals5; }
       }

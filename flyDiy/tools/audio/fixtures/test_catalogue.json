@@ -1,0 +1,33 @@
+[
+  {
+    "id": "test_chord",
+    "file": "tools/audio/fixtures/test_chord.755563a0.wav",
+    "title": "Test Chord",
+    "artist": "flyDiy test generator",
+    "album": "GATE AUDIO fixtures",
+    "licence": "CC0",
+    "source": "tools/audio/fixtures/make_music_fixtures.js",
+    "contexts": [
+      "garage",
+      "welcome"
+    ],
+    "lufs": -18,
+    "durationS": 2
+  },
+  {
+    "id": "test_noise",
+    "file": "tools/audio/fixtures/test_noise.63ddadd3.wav",
+    "title": "Test Noise Swell",
+    "artist": "flyDiy test generator",
+    "album": "GATE AUDIO fixtures",
+    "licence": "CC0",
+    "source": "tools/audio/fixtures/make_music_fixtures.js",
+    "contexts": [
+      "garage",
+      "cruise",
+      "photo"
+    ],
+    "lufs": -15,
+    "durationS": 2
+  }
+]
