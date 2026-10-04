@@ -152,7 +152,7 @@ for (const c of Object.keys(CASES)) {
     const lab = L.BUILDS[k].label, dn = rn.dmg;
     body += topdown(0, 40 + row * h, w, h, lab + ' - before, ' + (Fb.t - t0).toFixed(1) + ' s', rb, Fb, [rb.trunk[0], rb.trunk[1], span], 'elastic (master): nothing yields');
     body += topdown(w, 40 + row * h, w, h, lab + ' - now, ' + (Fn.t - t0).toFixed(1) + ' s', rn, Fn, near(Fn, rn), Fn.bent.length + ' set, ' + Fn.broken.length + ' broken by then');
-    body += topdown(2 * w, 40 + row * h, w, h, lab + ' - now, the end (' + (Fe.t - t0).toFixed(1) + ' s, ' + ce[0].toFixed(0) + ' m on)', rn, Fe, [ce[0], ce[1], span],
+    body += topdown(2 * w, 40 + row * h, w, h, lab + ' - now, the end (' + (Fe.t - t0).toFixed(1) + ' s)', rn, Fe, [ce[0], ce[1], span],
       (dn.crashed ? 'CRASHED: ' + dn.reason : dn.members ? 'dented, no crash' : 'no set') + ' · ' + dn.members + ' set · ' + dn.breaks + ' broken · ' + (dn.work / 1000).toFixed(1) + ' kJ');
   });
   const head = `<text x="10" y="22" font-size="15" font-weight="bold" fill="${COL.ink}">TREE-CRASH: ${esc(CASES[c].label)} - the beams from above (a broken member is drawn while its ends are still together)</text>` + legendTD(10, 34);
