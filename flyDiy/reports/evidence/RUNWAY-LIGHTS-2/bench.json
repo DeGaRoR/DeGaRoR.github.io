@@ -1,0 +1,23 @@
+{
+ "sides": [
+  {
+   "meshes": 1,
+   "glows": 1,
+   "inst": 44,
+   "tris": 10560
+  },
+  {
+   "meshes": 1,
+   "glows": 1,
+   "inst": 44,
+   "tris": 10560
+  }
+ ],
+ "shots": {
+  "night_colour": {
+   "file": "reports/evidence/RUNWAY-LIGHTS-2/night_colour.jpg",
+   "kb": 26,
+   "q": 85
+  }
+ }
+}
