@@ -70710,3 +70710,79 @@ programs by parameters).
   numbers). Aloft the cascade still grows to its 30 m cap for the penumbra (penFitTx) - the case G1359 was verified in.
 - GATES: SHADOWSKY (G1359.1's and G1410's checks), LIGHT, CONTACT, FADES, POSTFX, PROGRAMS, BUILD PASS. FRAMECOST not
   re-run here (the box was the garage census's, then train 28's): its census after a parked re-cook is the train's.
+
+## G1435-G1439 - METLA-TAXI: THE TOWN-ON TAXI WAS THE FOREST FILL BAKING METLAKATLA'S RASTER IN FLIGHT (METLA-LOAD HAD TAKEN THOSE BAKES OUT OF THE BOOT) AND THE FAR CARS STILL IN THREE'S WALKS; BOTH FIXED, THE TOWN'S LOOK UNCHANGED (2026-10-04, METLA-TAXI for A0, local GPU)
+
+BASE: train/27 (b6c3e879, then master e40628b0) + origin/claude/metla-load-g1405. The user's Cub (builds/cub_2026-09-20_corrected
+.json), HOME, chase taxi 20 s + low pass 12 s, gamer and the user's custom near-ultra (shader_guard USER_GFX), ABBA rows A,B,T,B,A
+(A = ?town=0, B = ?town=1, T = town on + the far hide at the taxi's middle), one Chrome per row, profile D:/umt1.
+
+**READ "UNEVEN" AT 30.** master_bench's uneven % counts every change of refresh multiple - at the taxi most of it is the AUTO
+cap's 60 trial (its 16.7 ms frames among the 33.3 ones): the town-OFF gamer taxi's 10 % "uneven" was 0.9 % between two frames
+both capped at 30. metla_ab --frames now reports `uneven@30`, the frames per cap and the refresh-multiple ladder.
+
+**THE BEFORE (gamer).** Town ON was far worse than METLA-RETURN measured (16 %): taxi 23.8-25.1 fps, uneven@30 46-48 % (65 % the
+T row), p99 67 ms; pass 17-23 fps, 50-65 %. Town OFF 30.3-31.3 fps, uneven@30 1-12 %. Per frame: work 31.9 against 21.2 ms.
+- **G1436 THE FILL BAKED METLAKATLA IN FLIGHT.** The taxi baked 318 lazy raster tiles (the pass 852) - every one under the forest
+  fill's walk (metla_ab --cpuprof's grBake callers per 20 s: fillStep > walk > codeAt > terrainH 86-100 ms, > forestHere >
+  islandSurface > terrainFast 70-82 ms, > poolPick > terrainH 57-59 ms): the fill's 9 km ring crosses Metlakatla's UNCOOKED
+  cells as the eye moves, and its 'fill' frames ran 21-87 ms. METLA-RETURN saw 0 bakes in the taxi only because its boot had
+  baked ~12 300 tiles into the cache; METLA-LOAD (G1406) removed those boot bakes and the fill paid them in flight. FIX:
+  20_world.js `buildReads(+1 / -1)` - a SCOPE of build reads: while it is open, a terrainH read that would bake a tile lazily
+  answers terrainHBuild's way (the analytic composer, not memoised, so the memo keeps the raster's bits); every other read is
+  terrainH as ever. render_world.js: the fill's walk runs in it (try/finally) - the surface, slope and pool taps it makes through
+  world functions it does not own included. Where the raster is cooked or absent the answer is the same bits (HOME, every cell
+  of the town-off page); in Metlakatla's uncooked cells a tree's foot may differ from the wheels' raster by <= ~4 cm (G1406's
+  measured raster-vs-composer gap, p99.9 3.2 mm). With TOWN-COOK's cook the scope is a no-op there (rasterLazyAt is false on a
+  cooked cell) and stays as the guard for anything uncooked. After: 0 bakes in the taxi and the pass on both presets.
+- **G1437 THE FAR CARS STAYED IN THE FRAME'S WALKS.** G1192 stopped POSING Metlakatla's ~49 cars past their reach, but each car's
+  LOD ladder stood in the scene: updateMatrixWorld re-composed it and projectObject updated its LOD every frame (the even
+  frames' profile, town on - off: updateMatrixWorld +1.9 ms, projectObject +1.2 ms). FIX (render_premises.js moveTraffic): on
+  the road's reach transition its cars go hidden with matrixWorldAutoUpdate false, and back when the eye returns (the pose
+  re-sets them). Nothing of them drew there (their last LOD level is empty at the reach). The census: the premises' matrix walk
+  1 107 nodes town on vs 1 104 off (168 car nodes out).
+- **THE CENSUS** (tools/perf/metla_toggle_far.js, metla_ab sides C / T): what the town still adds from HOME - 228 road batches
+  (78 casting) and 33 ground-patch chunks drawn when the eye faces Metlakatla (+100-260 calls), 2 kit-host BatchedMeshes, and
+  +2 500 projectObject visits (the record trees' 321 cell LODs - their 8 028 instanced rungs are invisible past TREE_GONE and
+  frozen; the road batches). NOT CHANGED: that is the town's far look. Hiding all of it mid-taxi: in the census rows nothing
+  measurable (uneven@30 0.7 -> 1.9 %); in a loaded row (the after-run's T) 61 -> 36 % - see OPEN.
+
+**BEFORE / AFTER (the same runs; AFTER = this branch)** - taxi: fps / uneven / uneven@30 / p99 / worst ms / bakes; pass the same:
+
+| preset | row | BEFORE taxi | BEFORE pass | AFTER taxi | AFTER pass |
+|---|---|---|---|---|---|
+| gamer | A off | 31.3 / 10 % / 1 % / 33.5 / 50 / 0 | 29.6 / 13 % / 13 % / 50 / 67 / 0 | 31.2 / 9 % / 1 % / 33.5 / 50 / 0 | 29.9 / 3 % / 3 % / 50 / 83 / 0 |
+| gamer | B on | 25.1 / 50 % / 48 % / 66.7 / 100 / 318 | 22.5 / 51 % / 50 % / 83 / 117 / 852 | 32.3 / 24 % / 4 % / 50 / 50 / 0 | 29.3 / 23 % / 18 % / 50 / 67 / 0 |
+| gamer | T on | 23.8 / 53 % / 65 % / 66.8 / 117 / 318 | 17.2 / 65 % / 65 % / 117 / 133 / 852 | 26.7 / 48 % / 61 % / 66.6 / 100 / 0 | 25.0 / 46 % / 46 % / 67 / 83 / 0 |
+| gamer | B on | 23.8 / 51 % / 46 % / 66.8 / 100 / 318 | 20.3 / 58 % / 58 % / 100 / 133 / 852 | 31.2 / 23 % / 10 % / 50 / 50 / 0 | 28.8 / 14 % / 14 % / 67 / 100 / 0 |
+| gamer | A off | 30.3 / 16 % / 12 % / 50 / 50 / 0 | 28.1 / 28 % / 28 % / 50 / 100 / 0 | 32.9 / 20 % / 2 % / 33.5 / 50 / 0 | 31.3 / 8 % / 3 % / 50 / 83 / 0 |
+| user | A off | 30.6 / 24 % / 6 % / 83 / 133 / 0 | 27.3 / 58 % / 56 % / 83 / 133 / 0 | 30.2 / 27 % / 10 % / 83.5 / 150 / 0 | 27.6 / 53 % / 51 % / 100 / 117 / 0 |
+| user | B on | 29.8 / 19 % / 11 % / 83 / 150 / 0 | 27.0 / 40 % / 41 % / 83 / 133 / 375 | 29.8 / 33 % / 18 % / 83.5 / 150 / 0 | 27.0 / 51 % / 51 % / 83 / 134 / 0 |
+| user | T on | 29.9 / 32 % / 24 % / 83 / 150 / 0 | 27.1 / 56 % / 51 % / 83.5 / 117 / 415 | 30.3 / 31 % / 15 % / 83 / 167 / 0 | 27.3 / 55 % / 51 % / 100 / 133 / 0 |
+| user | B on | 30.1 / 33 % / 12 % / 100 / 183 / 0 | 27.1 / 49 % / 47 % / 100 / 133 / 270 | 30.2 / 28 % / 6 % / 83 / 100 / 0 | 27.0 / 59 % / 60 % / 100 / 117 / 0 |
+| user | A off | 29.5 / 29 % / 14 % / 100 / 150 / 0 | 27.5 / 55 % / 56 % / 67 / 133 / 0 | 30.3 / 26 % / 9 % / 83 / 150 / 0 | 27.6 / 52 % / 48 % / 100 / 117 / 0 |
+
+(The census rows, the AFTER build, gamer: C off 32.3 fps / uneven@30 0.6 %, T on 32.9 / 0.7 %, 0 bakes.)
+VERDICT. GAMER: the town-on taxi uneven@30 46-48 % -> 4-10 % (off 1-2 %), 24-25 -> 31-32 fps, worst 100 -> 50 ms, 0 bakes; the
+pass 50-58 % -> 14-18 % (off 3 %). Not yet exactly the town-off's: the far draws remain (render 16-17 ms against 10-13 in the
+even frames), and the after-run's T row ran heavy throughout (render 24 ms even with the far town hidden - the box, not the
+town; its hide still took 61 -> 36 %). USER SET: town on = town off within the rows' spread (taxi @30 6-18 % vs 9-10 %); both
+sides are dominated by the density-200 forest fill's own chunk build (getBufferSubData stalls, 70-135 ms 'fill' frames on BOTH
+sides - EVEN-30's G1297), not by the town.
+
+**OPEN, FOR A0 / THE USER.** (1) A far cull of Metlakatla's road batches and ground-patch chunks past ~6-7 km (a 5-7 m road is
+under a pixel wide there) would take the last +100-260 calls off the stand's view - it CHANGES the town's far look, so not done
+unasked; stills of Metlakatla from the stand and a low pass would decide it. (2) ~1 320 lazy bakes (0.7-1.4 s) still run town-on
+BEFORE the taxi (boot / roll-out readers, unchanged here) - TOWN-COOK's. (3) The look did not change (no stills taken): the far
+cars drew nothing there, the fill's trees move <= ~4 cm, in Metlakatla only.
+
+THE RIG (tools/perf/metla_ab.js, G1435): --gfx user|<file>; --frames (every recorder row: frame_dist's distribution, uneven@30,
+caps, the ladder, the even / long frames' mean slots, work, calls, tris - a long interval's cost read in the frame BEFORE it);
+--cpuprof also split PER FRAME (the profile aligned on a 12 ms __mtCal marker; self time a frame per class, and long - even);
+--toggle <file.js> on sides T (town on) / C (town off) at the taxi's middle, its result kept in the row; --fallback for a
+worktree. tools/perf/metla_toggle_far.js: the far hide + the census (the render world is window.WORLD - FLIGHT_PROBE.world() is
+the core's). Evidence: tools/perf/metla_taxi/ (before_*.log, after_*.log, census.log, compact JSONs).
+GPU: ~44 min (slots 03:18-03:40, 04:00-04:03, 05:00-05:19). GATES (node, run_gates --only, this build): BUILD, PREMISES,
+PREMRASTER, TREE, TREES, METKIT, LIFE - all PASS. Touched: src/core/20_world.js, src/viewer/render_world.js (G1436),
+src/viewer/render_premises.js (G1437), tools/perf/metla_ab.js, tools/perf/metla_toggle_far.js (G1435). The parked aeroplanes
+were NOT re-cooked (no FRAMECOST run; both A/B sides share the stale cook) - A0's train cook. Generated files not committed.
