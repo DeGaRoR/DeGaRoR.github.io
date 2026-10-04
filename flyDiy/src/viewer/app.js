@@ -46,14 +46,17 @@
       // G909: the editor's scripts (and every generator its palette lists) load on demand the first time
       if ((!window.PREMISES_HOST || !window.PREMISES_UI || !window.MARINE_GEN) && window.FLYDIY_LAZY && !PREM.loading) {
         PREM.loading = true;
-        window.FLYDIY_LAZY(['_sport_gen', '_marine_gen', 'premises_host', 'premises_ui']).then(() => { PREM.loading = false; if (window.PREMISES_HOST && window.PREMISES_UI) PREM.openEditor(); });
+        window.FLYDIY_LAZY(['_sport_gen', '_marine_gen', 'premises_host', 'premises_ui'])
+          .then(() => { if (window.PREMISES_HOST && window.PREMISES_UI) { PREM.loading = false; PREM.openEditor(); } },
+                e => console.warn('premises editor: load failed', e))   // REVIEW 2026-10-04 (B23): a failed load is not a held door
+          .finally(() => { PREM.loading = false; });
         return;
       }
       if (PREM.loading || !window.PREMISES_HOST || !window.PREMISES_UI) return;
       const WF0 = window.WORLD; if (!WF0 || !WF0.premisesStart) return;
       PREM.R = WF0.premisesStart(); if (!PREM.R) return;
       window.PREMISES_HOST_OPEN = true;
-      running = false;
+      PREM.wasRunning = running; running = false;   // REVIEW 2026-10-04 (B24): the editor holds the flight; close() hands it back
       if (!PREM.panel) {
         // THE EDITOR'S CHROME (G398): inside #ui, so it wears the flight screen's own grammar
         // (flight.css section 9: the plate, the rail buttons, the rows, pills, switches and
@@ -107,6 +110,10 @@
     close() {
       if (!PREM.open) return;
       PREM.open = false; window.PREMISES_HOST_OPEN = false;
+      // REVIEW 2026-10-04 (B24): close() left `running` false without `userPaused` - the aeroplane held while the sea, the
+      // trees and the animals ran on (FLYDIY_HELD false), and the pause button showed the editor's hold as the player's
+      running = PREM.wasRunning !== false;
+      $('bPause').textContent = running ? 'Pause' : 'Resume'; $('bPause').classList.toggle('on', !running);
       if (PREM.ed) { PREM.ed.close(); PREM.ed = null; }
       if (PREM.host) { PREM.host.detach(); }
       PREM.panel.style.display = 'none'; PREM.view.style.display = 'none';
@@ -4406,7 +4413,9 @@
       // (G1124.3: the flown bake's parked live meshes back in the graph so their buffers are given back too)
       const give = () => model.grp.traverse(o => {
         if (o.geometry && !o.isSkinnedMesh) o.geometry.dispose(); });
-      if (model.gen) { if (window.FLOWN_BAKE && FLOWN_BAKE.withKept) FLOWN_BAKE.withKept(give); else give(); }
+      // REVIEW 2026-10-04 (A7): the cage visual (key 'gen', the one model never cached and rebuilt on every spec commit)
+      // carries no `gen` flag - only the legacy generator entry does - so its buffers were never given back
+      if (model.gen || key === 'gen') { if (window.FLOWN_BAKE && FLOWN_BAKE.withKept) FLOWN_BAKE.withKept(give); else give(); }
       if (model.people) for (const P of model.people) {
         P.dead = true;
         if (P.inst && window.CAGE_CHAR) window.CAGE_CHAR.dispose(P.inst);
@@ -7792,6 +7801,12 @@
   function fullReset() {
     if (inGarage) return enterGarage();   // Reset in the garage means back to the stand
     sim.reset(0); ap = mkPilot(curKey); applyRoute(); started = false; running = true;
+    // REVIEW 2026-10-04 (A8): a diverged sim left the chase camera's yaw-rate filter and azimuth at NaN, and only the
+    // garage roll-out reveal ever rewrote them - "Fly again" after a crash placed the eye at (NaN, NaN, NaN)
+    flYawRate = 0;
+    if (!Number.isFinite(az)) az = -2.5;  if (!Number.isFinite(azT)) azT = az;
+    if (!Number.isFinite(el)) el = 0.22;  if (!Number.isFinite(elT)) elT = el;
+    if (!Number.isFinite(dist)) dist = 14; if (!Number.isFinite(distT)) distT = dist;
     // G200: who flies is remembered; the hand starts from the reset ctl
     manual = !!INP && prefGet('flydiy.flManual', '0') === '1';
     if (INP) INP.seed(sim.ctl);
@@ -10664,6 +10679,7 @@
     flApplyFov();
     const xA = sim.axes()[0], yU = sim.axes()[1];
     const hdg = Math.atan2(xA[2], xA[0]);
+    if (!Number.isFinite(hdg)) return;   // REVIEW 2026-10-04 (A8): a diverged sim must not poison the eye's filters
     let dh = hdg - flHdg0;
     while (dh > Math.PI) dh -= 2 * Math.PI;
     while (dh < -Math.PI) dh += 2 * Math.PI;

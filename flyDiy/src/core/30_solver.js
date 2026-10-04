@@ -1395,10 +1395,6 @@ function makeSim(def, world) {
 
   function trqOf() {
     let cgx=0, cgy=0;
-    if (out.trqDebugOnce) { out.trqDebugOnce = false;
-      let sp=0, sf=0, sm=0;
-      for (let i = 0; i < n; i++) { sp+=p[i*3]; sf+=f[i*3+1]; sm+=m[i]; }
-      console.log("trqOf dbg: n=", n, "sum p.x=", sp, "sum f.y=", sf, "sum m=", sm, "totalM=", totalM, "G=", typeof G !== "undefined" ? G : "UNDEF"); }
     for (let i = 0; i < n; i++) { cgx+=p[i*3]*m[i]; cgy+=p[i*3+1]*m[i]; }
     cgx/=totalM; cgy/=totalM;
     let Mz = 0;
@@ -1710,6 +1706,7 @@ function makeSim(def, world) {
       return wet + (wet === 2 && aft === 2 ? 1 : 0);
     }
     for (const i of [...def.refs.mains, def.refs.tw]) {
+      if (!(i >= 0)) continue;   // REVIEW 2026-10-04: no third wheel (tw null) read p[NaN]
       const gh = world ? world.terrainH(p[i*3], p[i*3+2]) : 0;
       if (p[i*3+1] - rC[i] - gh < 0.03) c++;
     }

@@ -570,6 +570,12 @@ const GATES = [
   // NaN/clip/DC/subnormal, process() allocation-free, seeded, the life driven by the solver, the sound
   // row physics-inert; every assertion negative-verified. SND-CORE's _audio_check.js absorbs it; ~3 min
   { id: 'AUDIOENG', file: 'audio/_engine_check.js', tier: 'core', wall: 320 },
+  // REVIEW 2026-10-04 (A6): the settlement houses' hitboxes stand where the houses are drawn - the registry's frame
+  // against the renderer's, sampled inside and outside every footprint; ~2 s. Two sibling gates written by the same
+  // review are NOT registered because they are red on master until their finding is fixed: _stripground_check.js
+  // (A5: every generated strip on the ground its record says - A2 Pelham Field sits across a river) and
+  // _genpairs_check.js (B10: the lattice over paired configurations - the twin boom's two zero-length beams)
+  { id: 'OBSTFRAME', file: '_obstframe_check.js', tier: 'core', wall: 5 },
 ];
 
 const args = process.argv.slice(2);
@@ -594,6 +600,14 @@ let wallTab = {};
 try { wallTab = JSON.parse(fs.readFileSync(WALL_FILE, 'utf8')); } catch (e) {}
 
 const selected = GATES.filter(g => !(only && !only.includes(g.id)) && !(coreOnly && g.tier !== 'core'));
+// REVIEW 2026-10-04 (B26): an --only id that names no gate selected nothing and the summary printed BATTERY: PASS
+if (only) {
+  const unknown = only.filter(id => !GATES.some(g => g.id === id));
+  if (unknown.length || !selected.length) {
+    console.error(`run_gates: unknown gate id(s) in --only: ${unknown.join(', ') || '(none selected)'}`);
+    process.exit(2);
+  }
+}
 const skipped = GATES.filter(g => !(only && !only.includes(g.id)) && coreOnly && g.tier !== 'core').length;
 
 // one job per gate, or per shard when the pool can use them
