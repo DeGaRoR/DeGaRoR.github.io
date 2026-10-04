@@ -1735,6 +1735,10 @@ function releaseWhy(built) {
   if (PREVIEW_OFF() || (window.CAGE_UI && window.CAGE_UI.releaseFast === false)) return 'off';
   if (!CH || !CH.on || !CH.cur) return 'no chain';
   if (DEFORMED) return 'a deformed drag';
+  // a floatplane: the float layer stands its step on the CG the balance worker answers (FLYDIY_CG_MODEL, G396 - not a
+  // P key, so no record holds it) and the handshake rebuilds when that CG moves 2 cm; its release is the whole build,
+  // as it was
+  if (+P.gearFloats > 0) return 'a floatplane (the CG handshake)';
   if (built !== LAST_SHEET || !meshObj || built.mesh !== MS) return 'the sheet moved';
   if (PRE_KEY == null || preKey() !== PRE_KEY) return 'a pre-chain row moved';
   if (craftKey() !== CRAFT_KEY) return 'the sit moved';
