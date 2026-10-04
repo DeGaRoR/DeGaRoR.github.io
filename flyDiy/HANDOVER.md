@@ -72020,6 +72020,7 @@ Against a trunk (the land builds):
   - Alone, at once after: WORLD PASS (1.36 us), BIOME PASS (4.0 us), SETTLE PASS (331 ms).
   - Nothing here touches the terrain, the biomes or the settlements.
 - In the battery: TREECRASH PASS (516 s), TREEHIT PASS, LOAD PASS, FLEX PASS, GEN PASS, PILOT PASS, SIMWORKER PASS, BIPLANE PASS, OBSTACLE PASS, BENCH PASS, HITBOX PASS.
+- After the battery, G1472.1 (the slack wire, the last source change): LOAD PASS, BENCH PASS, FLEX PASS (its output byte for byte master's).
 - **The generated outputs (flight_core.js, index.html, dev.html, sw.js, version.json) are NOT committed** (SHARED-TREE-PRACTICES 5): the train's build makes them.
 
 ### Open questions (A0 / the user)
