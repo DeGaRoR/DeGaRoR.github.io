@@ -70982,3 +70982,83 @@ HYBRID-FARTHER (4, accepted), garage busy (2, accepted) and the world <-> garage
 0.2-0.3 s on every tree: the trips red was the box, not a session. FRAMECOST PASS (65 counters down, the hybrid's rises
 on the ALLOW list); the final build (with the fix): HOUSEWORKER 137/137, PREMCOOK, PREMISES, MEDIA, ASSETS, BUILD, TARR,
 FRAMECOST PASS; trips 9.1 / 0.2 s, warm first flight 52.3 s (54.3 before the fix); the parked aeroplanes re-cooked on it.
+## G1230-G1236 - MEM-BUDGET: A BUILD BUDGET PER PRESET (GFX.BUDGETS) AND UPLOAD AS YOU BUILD; POTATO'S LOAD PEAK HALVED (2265 -> 1141 MB), THE 700 MB GOAL NOT MET (2026-10-03, MEM-BUDGET for A0, CLOUD: headless Chrome + SwiftShader; branch claude/mem-budget-g1230 off train 26 = b2f1ffdc)
+
+THE PROBLEM (futureDesigns/FRIENDLY-WELCOME-BUDGETS.md): the S20 FE loaded potato along gamer's curve (heap ~1.9 GB, killed in
+"building the field"). A preset changed what is DRAWN, never what is BUILT AND HELD.
+**G1230 THE TABLE.** `BUDGETS` sits beside `PRESETS` in src/viewer/gfx_settings.js, and the world reads it through
+`GFX.budget()`. Each row holds heapMB (the target: potato 700, retro/current 1500, gamer/ultra 2000) plus the levers the world
+reads AS IT BUILDS. `S.build` names the preset whose row applies; `?gfx=` and the preset pill set it, and a custom mix keeps its
+last preset's row. Without GFX (a node stub), every lever reads full. The retro, current, gamer and ultra rows are the full
+build, and their draws do not move (GATES below).
+| lever | potato | the rest | where |
+|---|---|---|---|
+| mipSkip: a KTX2 transcode keeps its chain from level 2 (>= 128 px, >= 2 levels) | 1 | 0 | ktx2.js `KTX2.skip()/dim()` (its LOADS key carries the skip); matlib.js pages sized by `KTX2.dim`; ground_lib.js planes (`plane.px`); trees.js leaf coverage chains (`mips.shift()`) |
+| townBoot / townReach: premises built at the boot / streamed in flight and at the settle | 1200 / 2000 m | 4000 / 6000 m | render_world PREM_BOOT; premises STREAM.reach (GFX.apply sets it, so lowering is live) |
+| parked: the parked aeroplanes built | false | true | render_premises buildObject (an aircraft object returns null) |
+| forestK: the forest's reaches (FAR_WOOD, FAR_FILL, uThin) | 0.65 | 1 | render_world (instances grow with the reach squared) |
+| islandColour: the albedo + tint grids (2 x 35 MB) kept after the build | false | true | app.js worldBuilt nulls them on the island object, the world's view and ISLAND_BOOT.grid; their textures are on the GPU already |
+| islandHalf: those two textures at half the grid's side (2x2 box) | true | false | render_world rgbTexels (A and B stay full: the lake cut, the splat's codes) |
+| terrain: the far terrain's and the ring's FIRST cut at the preset's tolPx | 3 | the preset's | render_world FARLOD / RINGLOD (was cut at 1 px, then re-cut at onWorld) |
+**G1231 UPLOAD AS YOU BUILD (every preset).** (a) `GPU_ONLY_GEO(g, true)` plus `GPU_ONLY_GEO.flush(renderer)` in assets.js. A
+draw-only geometry marked early is drawn once by a stand-in mesh (MATLIB's basic material) into a 1x1 target with its draw range
+at 0. three's own path uploads every attribute and the index and draws nothing, so the release frees the CPU copy as the build
+slice ends: app.js geoFlush runs on every world slice and on the town, forest and settle ticks. Marked: the far terrain quads and
+the patch LODs. NOT the town's TARR merges: marking them too cut the node harness's arrayBuffers by -151 MB, but this session did
+not prove what reads them before first light, so they wait for first light as before. ?geoflush=0 is the A/B. (b) The four
+island textures (render_world gpuUploadNow) get `renderer.initTexture` right after 'island ground'. Their gpuOnly bytes (~162 MiB
+of derived RGBA) go there, not at the 'upload' step.
+**LIGHTER = LIVE.** Going down, only the town's stream reach applies at once (GFX.apply). The other levers (mipSkip, forestK,
+islandColour/Half, parked) apply at the next load; a rebuild in the background is not done.
+
+**MEASURED, POTATO.** tools/perf/heap_steps.js's recorder in headless Chrome + SwiftShader, 960x540, the Cub, a fresh profile
+per run, ONE run at a time (two rigs at once stall the page on this 4-core box). The numbers are MB of ArrayBuffer backing
+stores: the most that each phase's rows reached (no GC), then after the load plus a full GC. Before = train 26 in a worktree,
+after = this branch. The rows are in reports/evidence/MEM-BUDGET/heap_*.json; table.js prints this table from them.
+| step | potato BEFORE (train 26) | potato AFTER, run 1 | potato AFTER, run 2 (+ islandHalf) |
+|---|---:|---:|---:|
+| reading the island | 260 | 247 | 240 |
+| reading the model | 405 | 420 | 455 |
+| the garage up (workshop / stand) | 474 | 473 | 414 |
+| world: island ground .. ground colour | 721 | 563 | 563 |
+| world: ring .. fill | 896 | 631 | 735 |
+| world: premises made .. patch block | 1209 | 922 | 916 |
+| world: lots .. ground under | 1344 | 1058 | 1061 |
+| world: far terrain sink, meadows | 1447 | 1145 | 1141 |
+| building the field | 1590 | 864 | 865 |
+| parking the other aeroplanes | 1724 | 880 | 883 |
+| growing the forest | 1807 | 893 | 898 |
+| the world settling | 2225 | 905 | 919 |
+| baking / your aeroplane, built | 2193 | 1052 | 1077 |
+| pictures, upload, compile, first light | 2265 | 1074 | 1103 |
+| PEAK (no GC, the run) | 2265 | 1145 | 1141 |
+| after the load + a full GC | 1720 | 868 | - |
+The peak is now the END OF THE WORLD STEP (1141 MB, 'meadows'). It is mostly garbage the step has not yet given back: the next
+step's GC drops it to 865 MB. Run 2's islandHalf moves nothing visible at the peak (the noise), but it takes 69 MB of derived
+texels and GPU memory out of the build. Live after the load: 1720 -> 868 MB (-50 %).
+Who keeps the 868 (tracker, >= 256 KB): the prop library's merges 59, the island's grids 12 x 7 (cover, ndvi, ori, canopy,
+coast, ttype, lake), the flown bake's atlases 35, the core's hydrology 48, the leaf chains 15 (were 48), KTX2 transcodes 4 (were
+101 on gamer); plus ~490 MB in stores under 256 KB, not attributed. The floor BEFORE the world is ~450 MB ('reading the model':
+the island's files + the core's composition + the garage). No lever here touches it.
+**GAMER (unchanged look, same draws).** FRAMECOST's node page (the real three on a recording GL, deterministic) reports the
+memory after the roll-out. Same gate, master with a stale cook vs this branch: arrayBuffers Cub 1960.7 -> 1896.8 MiB, Cessna
+1980.3 -> 1916.4 (-64, the early upload). With the TARR merges flushed too: 1809 / 1829 (-151; not landed, see above). The
+headless gamer heap run was not repeated after the changes within the 5 h. Train 26's gamer rows (B_gamer, stalled in "building
+the field") are in heap_B_gamer.json: the world step peaked at 1550 MB.
+
+**GATES** (run_gates --only=FRAMECOST,GFX,ASSETS,BOOT,BUILD): GFX, BOOT, BUILD PASS. ASSETS PASS after the stand-in material
+moved to MATLIB (its first run was red: a `new THREE.MeshBasicMaterial` in assets.js). FRAMECOST RED HERE FOR A REASON OUTSIDE
+THIS BRANCH: the parked aeroplanes' cook is keyed on FLYDIY_BUILD, so ANY rebuild leaves it stale and the parked aeroplanes are
+captured live. The proof: master b2f1ffdc with one space added to a comment (a new build id, nothing else) gives the SAME 26 reds
+to the unit (Cub stand draws.main 914 -> 1053, draws.shadow 169.5 -> 366, taxi 844 -> 971; Cessna stand 925 -> 1064) as every
+variant of this branch (the flush off, the island upload off, the budget off, gfx_settings reverted, ktx2/matlib/ground_lib/
+render_premises reverted: all identical). parked_cook.js refuses a software renderer ("cook on the GPU"), so it could not be
+re-cooked in the cloud. **A0: re-cook on the box (`node tools/parked_cook.js`), then FRAMECOST.** It should pass with no counter
+moved: gamer's levers are the full build, the island upload and the geometry flush happen inside boot steps whose GL rows
+FRAMECOST admits, and the stand/taxi views draw the same.
+STILLS: STILLS_LINE
+**WHAT IS LEFT FOR <= 700 (each a session):** (1) the world step's GARBAGE (~280 MB at its end: the patch's grids, the island's
+packed A/B derive, the far terrain's first cut before the sink, coverage getImageData) - free it or allocate less; (2) the ~490 MB
+in small stores (not attributed: HT_MIN=4096 on a box run); (3) the prop library's merges (59); (4) the island's grids at half
+resolution for a phone (core: 28_island's readers); (5) a gate measuring each preset against BUDGETS.heapMB (heap_steps under
+?gfx=); (6) lighter = live for the rest (unbuild the far houses, re-transcode at the new skip).
