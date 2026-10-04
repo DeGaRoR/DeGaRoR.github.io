@@ -473,10 +473,11 @@ console.log('\n6. THE LAKE\'S SURFACE IS THE DATA\'S (a stub island: a bowl with
   verdict(full.WB.tanks.every(T => !T.br && T.f === 0 && T.wetS > 0) && slabF > 0.01,
     `SEALED: after 20 s in the water the tanks are wet (${full.WB.tanks.map(T => (100 * T.wetS).toFixed(0) + ' %').join(', ')} under) and hold all their air, while the fabric wing has flooded ${f(100 * slabF, 1)} %`);
   // THE BREACH (the slam's rule): a tank in a hull slice - the stock build's tank moved to the aft cabin bay (the cabin
-  // bay's slice sits over the gear and takes no slam) - in a 5 m/s pancake: its slice slammed past the vessel's own
-  // pressure holes it, and it floods at that slice's holed rate
+  // bay's slice sits over the gear and takes no slam), low in the section (lv 0.2: the bottom pair - at the bay's
+  // default height it rides above the waterline, holed and dry, as it should) - in a 5 m/s pancake: its slice slammed
+  // past the vessel's own pressure holes it, and it floods at that slice's holed rate
   const cab = JSON.parse(JSON.stringify(C.GEN_DEFAULT));
-  cab.energy = Object.assign({}, cab.energy, { vessels: [{ bay: 'aftCabin', capacity: (cab.fuel && cab.fuel.litres) || 45, along: null, lv: null }] });
+  cab.energy = Object.assign({}, cab.energy, { vessels: [{ bay: 'aftCabin', capacity: (cab.fuel && cab.fuel.litres) || 45, along: null, lv: 0.2 }] });
   const dC = C.buildGen(cab), sC = C.makeSim(dC, world); sC.reset(0); C.placeAtAerodrome(sC, sea);
   { const n = dC.nodes.length, p = sC.p, [xA] = sC.axes(), c0 = sC.cgPos(), wh = world.waterH(c0[0], c0[2]), hl = Math.hypot(xA[0], xA[2]);
     let yMin = Infinity; for (let i = 0; i < n; i++) yMin = Math.min(yMin, p[i * 3 + 1] - dC.nodes[i].r);
