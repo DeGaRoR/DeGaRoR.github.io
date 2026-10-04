@@ -12,6 +12,8 @@
 // cruise altitude), then reuse INBOUND..STOPPED untouched.
 // Conventions: de>0 nose-up, da>0 roll-right, dr>0 nose-left,
 // e>0 = nose left of target.
+// G1570 (review E4): the servos — the filters and every inner loop — are
+// 39b_servos.js, one module under all three pilots; this file keeps its phases.
 // ============================================================
 // W10 spawn-at-aerodrome: after sim.reset(0), rotate the def geometry
 // from its built-in -x nose heading onto the strip's takeoff heading
@@ -164,6 +166,15 @@ function makeAutopilot(sim, def, world) {
     const T0 = Math.max(1, PR.Tstatic * (def.params.nEngines || 1));
     return () => Math.min(0.5, CRR * sim.totalM * 9.81 / T0);
   })();
+  // G1570: THE SERVOS ARE ONE MODULE (39b_servos.js), shared with 41 and 43:
+  // the G381 / G630 / G352 fixes are flown here too (they had landed in 43
+  // only); 43's own laws (the calm-air trim, P1.D's ground steer, the aileron
+  // into wind, the water) stay off. The trike is 43's reading of the gear.
+  const trike = A.rolloutMode === 'trike' || (def.params.twSteer || 0.5) < 0;
+  const SV = makeServos(sim, def, { pilot: 'classic', now: () => ap.t, trike, rotateTD, TW });
+  // B5: the CG's rest height in the design pose — the height datum of a pilot
+  // first engaged in the air (no rest to measure)
+  const restH0 = servoRestHeight(def);
   const snap = v => Math.abs(v) < 1e-9 ? 0 : v;
   // u = frame axis (landing direction); origin places tdz at s = -450
   const mkFrame = (a, sx, sz) => {
@@ -285,20 +296,13 @@ function makeAutopilot(sim, def, world) {
     ap.altRef = to.elev;
     ap.refAlt = ap.restAlt + (to.elev - from.elev);
   };
-  let thP = 0, phP = 0, eP = 0, q = 0, p = 0, eR = 0, eRslow = 0, thF = 0, phF = 0, thCA = 0, vsF = 0;
-  // W19: a 2 s climb-rate filter kept OUTSIDE holdVS's vsF, which only updates
-  // on frames that call holdVS and would change the fleet's VS loop if shared.
-  // Read by the CLIMB acceptance below; written every frame, used nowhere else.
-  let vsSlow = 0, gaT = 0;
-  let aDe = 0, aDa = 0, aDr = 0, phCA = 0;
-  let Ith = 0, thcI = 0.06, It = 0, thrC = 0.6;
-  let phaseT = 0, headingCapT = 0, thFlare0 = 0, thLift0 = 0, brakeRamp = 0, holdActive = false, holdWas = false;
-  // THE TAXI GOVERNOR'S INTEGRATOR (2026-09-04). See taxi() below.
-  let taxiI = 0, taxiLastT = -1e9;
+  // the servos' state lives in SV (39b_servos.js, G1570). W19's 2 s climb-rate
+  // filter (vsSlow, read by the CLIMB acceptance) is the module's SV.vsSlow,
+  // kept outside holdVS's vsF as before.
+  let gaT = 0;
+  let phaseT = 0, headingCapT = 0, thFlare0 = 0, thLift0 = 0, brakeRamp = 0;
   // G193: the path follower's and the three-point run's state
   let holdN = 0, thRest = null, thrRoll = 0, taxiXT = 0, taxiSRem = 0, tailUpNow = false;
-  let eAP = 0, eAR = 0, eARslow = 0;   // course-over-ground error chain (air guidance)
-  let eTrim = 0;                        // wind-only course trim (standing bank for slip)
   let pendReEng = false;                // W14: full state re-latch on next update
   const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
   // W14 manual-controls prep: call when the AP resumes after a stretch of
@@ -321,7 +325,16 @@ function makeAutopilot(sim, def, world) {
     ap.t += dt; phaseT += dt;
     const [xA, yU, zR] = sim.axes();
     const cg = sim.cgPos(), vcg = sim.cgVel();
-    if (ap.restAlt === null) { ap.restAlt = cg[1]; ap.refAlt = cg[1]; }
+    const c = sim.ctl, onG = sim.wheelsOnGround();
+    // B5: THE DATUM IS LATCHED ON THE GROUND. The first update used to latch
+    // whatever height the CG had — a pilot first engaged at 300 m took 300 m
+    // as the field and flared there. On the wheels: the CG's rest height (as
+    // always, bit-identical for every ground start); in the air: the departure
+    // field's elevation + the design pose's rest height (restH0)
+    if (ap.restAlt === null) {
+      const r0 = onG > 0 ? cg[1] : ap.route.from.elev + restH0;
+      ap.restAlt = r0; ap.refAlt = r0;
+    }
     const agl = cg[1] - ap.refAlt;
     // runway-frame coordinates: sAl along the frame axis (was cg[0]),
     // sCr cross-track (was cg[2]); HOME frame is exactly s=x, cross=z
@@ -373,133 +386,36 @@ function makeAutopilot(sim, def, world) {
       eA = Math.atan2(tz * tkx - tx * tkz, tx * tkx + tz * tkz);
     }
 
-    const AF = A.attFilt ?? 1.0;
     const thRaw = Math.asin(clamp(-xA[1], -1, 1));
     const phRaw = Math.atan2(-zR[1], yU[1]);
+    const beta = (vcg[0]*zR[0] + vcg[1]*zR[1] + vcg[2]*zR[2]) / Math.max(Vt, 5);
     if (pendReEng) {                    // W14: re-latch everything live
       pendReEng = false;
-      thF = thRaw; phF = phRaw; thP = thRaw; phP = phRaw; q = p = 0;
-      eP = e; eR = eRslow = 0; eAP = eA; eAR = eARslow = 0;
-      vsF = vcg[1]; thCA = thRaw; phCA = 0;
-      aDe = sim.ctl.de; aDa = sim.ctl.da; aDr = sim.ctl.dr;
-      Ith = 0; It = 0; thcI = 0.06; thrC = A.thrCruise ?? 0.6;
-      eTrim = 0; brakeRamp = 0; holdWas = holdActive = false;
+      SV.relatch(); brakeRamp = 0;
     }
-    thF += AF * (thRaw - thF); phF += AF * (phRaw - phF);
-    const th = thF, ph = phF;
-    const RF = A.rateFilt ?? 0.12;
-    q += RF * ((th - thP) / dt - q); thP = th;
-    p += RF * ((ph - phP) / dt - p); phP = ph;
-    eR += RF * 0.85 * ((e - eP) / dt - eR); eP = e;
-    eRslow += dt / 2.0 * (eR - eRslow);
-    eAR += RF * 0.85 * ((eA - eAP) / dt - eAR); eAP = eA;
-    eARslow += dt / 2.0 * (eAR - eARslow);
-    vsSlow += dt / 2.0 * (vcg[1] - vsSlow);
-    const beta = (vcg[0]*zR[0] + vcg[1]*zR[1] + vcg[2]*zR[2]) / Math.max(Vt, 5);
+    // THE SENSING (39b_servos.js): the attitude and rate filters (from the
+    // attitude on the first step, G381), the bumpless target and the wrapped
+    // rates (G630), the slow climb and acceleration filters
+    SV.sense(dt, e, eA, Math.atan2(tz, tx), thRaw, phRaw, beta, V, Vg, vcg[1], onG);
+    const th = SV.th, ph = SV.ph, q = SV.q, p = SV.p, eR = SV.eR, vsSlow = SV.vsSlow;
 
-    const c = sim.ctl, onG = sim.wheelsOnGround();
     if (onG > 0 && agl < A.aglGuard && V < A.VRot * 0.9
         && ['LIFTOFF','CLIMB'].includes(ap.phase)) {
       ap.phase = 'ROLL'; phaseT = 0;      // genuinely settled back (slow): retry
     }
 
-    const holdPitch = (thC) => {
-      // W14 fix of the documented holdWas bug: resync whenever the
-      // PREVIOUS update did not call holdPitch (bookkeeping at the end of
-      // ap.update). Continuous phase chains behave identically — the
-      // resync now also fires after ROLL retries and manual-flight gaps
-      // instead of only on the very first call of the AP's life.
-      if (!holdWas) thCA = th;                // (re-)engage from current attitude
-      holdActive = true;
-      const sl = (A.pitchCmdSlew ?? 99) * dt;
-      thCA += clamp(thC - thCA, -sl, sl);
-      Ith = clamp(Ith + (A.pitchI ?? 0.05) * (thCA - th) * dt, -0.15, 0.15);
-      c.de = clamp((A.pitchP ?? 1.2) * (thCA - th) - (A.pitchD ?? 1.8) * q + Ith, -0.30, 0.35);
-    };
-    const airLateral = (bankLim = A.bankLim ?? 0.30) => {
-      // standing-disturbance trim: a slipping aircraft (dihedral, ariK=0)
-      // needs a standing bank to hold a crosswind course; P-only leaves a
-      // residual course error and a ~L*residual cross-track hang (Jodel 20 m,
-      // DC-3 11 m measured). Integrate ONLY in the trim regime (|eA| small):
-      // integrating during the capture is the windup failure documented in
-      // HANDOVER. Exact zero in calm air.
-      if (Math.abs(o_.windX || 0) + Math.abs(o_.windZ || 0) > 0.5) {
-        if (Math.abs(eA) < 0.2) eTrim = clamp(eTrim + 0.15 * eA * dt, -0.10, 0.10);
-        else eTrim -= 0.8 * eTrim * dt;
-      }
-      const phC = clamp((A.hdgP ?? 0.7) * eA + (A.hdgD ?? 0.9) * eAR + eTrim, -bankLim, bankLim);
-      phCA += clamp(phC - phCA, -(A.bankSlew ?? 0.18) * dt, (A.bankSlew ?? 0.18) * dt);
-      c.da = clamp((A.rollP ?? 2.0) * (phCA - ph) - (A.rollD ?? 2.0) * p, -0.30, 0.30);
-      c.dr = clamp(-(A.betaK ?? 0.3) * beta - (A.yawDampK ?? 0.6) * (eAR - eARslow)
-                   - (A.ariK ?? 0.35) * c.da, -0.25, 0.25);
-    };
-    const speedThrottle = (Vt) => {
-      It = clamp(It + 0.010 * (Vt - V) * dt, -0.30, 0.30);
-      c.thr = clamp(thrC + 0.05 * (Vt - V) + It, A.thrFloor ?? 0.12, 1);
-    };
-    const holdVS = (VSc, thMax = 0.16) => {
-      vsF += (A.vsFilt ?? 1.0) * (vcg[1] - vsF);
-      const fl = A.vsFloor ?? -0.08;
-      thcI = clamp(thcI + (A.vsI ?? 0.015) * (VSc - vsF) * dt, fl, thMax);
-      holdPitch(clamp(thcI + (A.vsP ?? 0.010) * (VSc - vsF), fl, thMax));
-    };
-    const groundSteer = () => {
-      // G193: THE PLANT CHANGES WHEN THE TAIL LIFTS. Only the tailwheel
-      // steers on the ground (30_solver.js), and its branch stops the frame
-      // the wheel unloads: authority drops from a first-order steer to the
-      // aero rudder alone — an inertial plant at low q — while these gains
-      // were tuned on the first. Measured on the user's ultralight: the
-      // heading it had at tail-up was the heading it kept, into the grass.
-      // The tail state is read solver-free (both mains down, pitch under the
-      // latched three-point stance), and only a three-point build takes the
-      // branch — the fleet's calm numbers do not move.
-      const tailUp = rotateTD && onG <= 2 && thRest !== null && (thRest - th) > 0.04;
-      // (measured on the crosswind trace: the full travel with the 1.4x gain
-      // swings the nose +-10 deg once but holds the excursion to 7 m at 2 m/s
-      // across; a softer 0.70 / 1.0x let it drift to 15 m)
-      const drMax = tailUp ? 0.95 : 0.45;
-      const kP = tailUp
-        ? 3.2 * 1.4 * clamp(((A.VTailUp ?? 12) / Math.max(V, 5)) ** 2, 0.6, 2.0)
-        : 3.2;
-      const kD = tailUp ? 3.0 : 1.2;
-      c.dr = clamp(-kP * e - kD * eR, -drMax, drMax);
-      c.da = clamp(-2.0 * ph - 1.0 * p, -0.25, 0.25);
-      tailUpNow = tailUp;
-    };
+    // ---- THE SERVOS: one module, 39b_servos.js (G1570) ----------------------------
+    // holdPitch (the W14 resync when the previous step did not call it),
+    // airLateral (the in-wind course trim), speedThrottle (G352's anti-windup,
+    // G381's damping on the measured acceleration), holdVS, groundSteer (the
+    // G193 tail-up schedule; G381: the tail-down gains ease with speed; G630:
+    // the ground's aileron deadband, the trike's rate term) and the taxi
+    // governor (the 2026-09-04 PI on the ground speed) are the module's.
+    const holdPitch = SV.holdPitch, holdVS = SV.holdVS, speedThrottle = SV.speedThrottle;
+    const airLateral = (bl) => SV.airLateral(bl);
+    const groundSteer = () => { tailUpNow = SV.groundSteer(thRest, F); };
+    const taxi = (Vt) => SV.taxi(Vt, taxiFF(), Math.min(A.taxiThrMax ?? 0.85, GP.cap));   // G179: the cap
 
-    // W14 taxi governor: slow ground speed hold, slower through tight turns
-    // THE TAXI GOVERNOR FEEDS BACK ON GROUND SPEED (2026-09-04, the user:
-    // "still too slow on taxi, much too slow ... you might have a constant
-    // throttle, but it really needs to feedback on ground speed"). The G4.9
-    // law was taxiFF — break-even against rolling resistance, which assumes
-    // thrust LINEAR in throttle, and it is not — plus 0.06 per m/s of error
-    // under a cap 0.27 above the feedforward. Measured on the ultralight: it
-    // asked 0.34 and got 1.5 m/s for thirty seconds; on the default build
-    // 1.2 m/s for thirty-five. This is a PI on Vg: the proportional term
-    // answers at once, the integrator finds whatever throttle THIS aeroplane
-    // on THIS surface actually needs, and the command saturates at
-    // A.taxiThrMax (0.85 — a taxi is not a take-off). Anti-windup: the
-    // integrator only moves while the command is not pinned in the direction
-    // it would push. The feedforward stays as the starting guess, so the
-    // first frame asks what it always asked. Overspeed is the brake's, in
-    // proportion, not a 0.45 slam at +1.2. The integrator forgets itself
-    // after two seconds without a taxi call, so a landing's backtrack does
-    // not open the throttle with the departure's memory.
-    const taxi = (Vt) => {
-      const Vtgt = Vt;
-      c.de = A.taxiDe ?? 0.30;
-      const ff = taxiFF();
-      const cap = Math.min(A.taxiThrMax ?? 0.85, GP.cap);   // G179
-      if (ap.t - taxiLastT > 2) taxiI = 0;
-      taxiLastT = ap.t;
-      const err = Vtgt - Vg;
-      const u0 = ff + 0.18 * err + taxiI;
-      if ((err > 0 && u0 < cap) || (err < 0 && u0 > 0))
-        taxiI = clamp(taxiI + 0.10 * err * dt, -ff, cap);
-      c.thr = clamp(ff + 0.18 * err + taxiI, 0, cap);
-      c.brake = Vg > Vtgt + 0.8 ? clamp(0.3 * (Vg - Vtgt - 0.8), 0, 0.6) : 0;
-      c.da = clamp(-2.0 * ph - 1.0 * p, -0.25, 0.25);
-    };
 
     // W19 MISSED APPROACH. Everything from APPROACH onwards used to be one-way:
     // once committed the autopilot arrived whatever happened, because the only
@@ -510,7 +426,7 @@ function makeAutopilot(sim, def, world) {
     const goAround = why => {
       ap.gaN = (ap.gaN || 0) + 1; ap.gaWhy = why;
       ap.phase = 'GOAROUND'; phaseT = 0; gaT = 0;
-      thrC = A.thrCruise;
+      SV.thrC = A.thrCruise;
     };
     // W19 GROUND FLOOR on the cruise legs. Measured: a build flew the last
     // 1.5 km of INBOUND at 1 m agl and nothing in the autopilot objected.
@@ -618,11 +534,15 @@ function makeAutopilot(sim, def, world) {
           ap.pathI = L.i; taxiXT = L.ey; taxiSRem = L.sRem;
           const K = pathLook(ap.path, L.i, Vg);
           const eXT = clamp(Math.atan2(0.9 * L.ey, Vg + 1.0), -0.6, 0.6);
-          const hT = K.hdgL - eXT;
+          // G630: the look-ahead target filtered (it steps as the index
+          // passes each sample of a bend), and the rudder on the steer
+          // schedule's P + the curvature feed-forward, NO rate term (it only
+          // differentiated the contact's yaw jitter)
+          const hT = SV.taxiHeading(K.hdgL - eXT);
           ap.targetDir = [Math.cos(hT), 0, Math.sin(hT)];
           const drFF = -Math.atan(TW.Lwb * K.kapL) / Math.max(0.05, TW.steer);
           const drMaxG = 0.85 - 0.40 * clamp((Vg - 6) / 4, 0, 1);
-          c.dr = clamp(-3.2 * e - 1.2 * eR + drFF, -drMaxG, drMaxG);
+          c.dr = SV.taxiRudder(drFF, drMaxG);
           taxi(pathSpeed(ap.path, L.i, Vg, A.taxiV ?? 5.0, L.sRem));
           const tMax = 40 + 1.6 * ap.path.len / (A.taxiV ?? 5.0);
           if (L.sRem < 2.0 || (L.sRem < 6 && Vg < 0.6)) { ap.phase = 'STOP'; phaseT = 0; }
@@ -632,7 +552,7 @@ function makeAutopilot(sim, def, world) {
         const ddx = ap.taxiTgt[0] - cg[0], ddz = ap.taxiTgt[1] - cg[2];
         const dist = Math.hypot(ddx, ddz) || 1e-9;
         ap.targetDir = [ddx / dist, 0, ddz / dist];
-        c.dr = clamp(-3.2 * e - 1.2 * eR, -0.45, 0.45);
+        c.dr = SV.taxiRudder(0, 0.45);                     // G630
         taxi(Math.abs(e) > 0.6 ? 2.2 : 4.5);
         // G151: a declared route is a LIST of points, and only the LAST one
         // hands over to LINEUP. Intermediate points are held to a tighter
@@ -649,7 +569,7 @@ function makeAutopilot(sim, def, world) {
 
       case 'LINEUP': {
         ap.trackHold = true;                 // centreline pursuit, dirX = -1
-        c.dr = clamp(-3.2 * e - 1.2 * eR, -0.45, 0.45);
+        c.dr = SV.taxiRudder(0, 0.45);                     // G630
         const alig = -(nose[0] * F.ux + nose[1] * F.uz);  // dot(nose, takeoff dir)
         taxi(alig > 0.5 ? 4.5 : 2.4);
         if (alig > 0.988 && Math.abs(sCr) < 8 && Math.abs(eR) < 0.15) {
@@ -672,10 +592,11 @@ function makeAutopilot(sim, def, world) {
           const L = pathLocate(ap.path, ap.pathI, cg[0], cg[2]);
           ap.pathI = L.i; taxiXT = L.ey; taxiSRem = L.sRem;
           const K = pathLook(ap.path, L.i, Vg);
-          ap.targetDir = [Math.cos(K.hdgL), 0, Math.sin(K.hdgL)];
-          c.dr = clamp(-3.2 * e - 1.2 * eR, -0.85, 0.85);
+          const hT = SV.taxiHeading(K.hdgL);              // G630
+          ap.targetDir = [Math.cos(hT), 0, Math.sin(hT)];
+          c.dr = SV.taxiRudder(0, 0.85);
         } else c.dr = 0;
-        c.da = clamp(-2.0 * ph - 1.0 * p, -0.25, 0.25);
+        c.da = SV.groundAil(0, 0.25);
         if (Vg < 0.3 || phaseT > 30) { ap.phase = 'HOLD'; phaseT = 0; }
         break;
       }
@@ -756,7 +677,7 @@ function makeAutopilot(sim, def, world) {
             ap.holdDir = [ap.frame.ux * ap.dirX, 0, ap.frame.uz * ap.dirX];
             ap.phase = 'ENROUTE'; enterArrival(); ap.trackHold = false;
           } else ap.phase = 'CRUISE';
-          phaseT = 0; thrC = A.thrCruise; thcI = 0.04;
+          phaseT = 0; SV.thrC = A.thrCruise; SV.thcI = 0.04;
         }
         break;
       }
@@ -868,7 +789,7 @@ function makeAutopilot(sim, def, world) {
         // the <40 bound keeps a high cross-country arrival in INBOUND (still
         // descending) instead of engaging APPROACH far above the slope;
         // standard circuits switch from BELOW (cg-hGS ~ -2), unaffected
-        if (d > 0 && hGS <= cg[1] + 2 && cg[1] - hGS < 40) { ap.phase = 'APPROACH'; phaseT = 0; thrC = A.thrAppr; }
+        if (d > 0 && hGS <= cg[1] + 2 && cg[1] - hGS < 40) { ap.phase = 'APPROACH'; phaseT = 0; SV.thrC = A.thrAppr; }
         // PAST THE AIM AND STILL AIRBORNE (W19). hGS collapses to refAlt here
         // (the Math.max above), hTgt becomes refAlt+15, and the handoff is
         // gated on d > 0 — so this state could never leave INBOUND. The
@@ -877,7 +798,7 @@ function makeAutopilot(sim, def, world) {
         // 800-4200 m before the aim.
         else if (d <= 0) {
           if (agl < A.flareAgl * 3 || (ap.gaN || 0) >= 2) {
-            ap.phase = 'APPROACH'; phaseT = 0; thrC = A.thrAppr;   // low: just land it
+            ap.phase = 'APPROACH'; phaseT = 0; SV.thrC = A.thrAppr;   // low: just land it
           } else goAround('past-aim');
         }
         break;
@@ -925,7 +846,7 @@ function makeAutopilot(sim, def, world) {
         if (cg[1] > ap.altRef + ap.hCruise - 8 || (phaseT > 60 && vsSlow < 0.15)) {
           ap.phase = 'CRUISE'; phaseT = 0;
           ap.dirX = -1; ap.trackHold = true;
-          thrC = A.thrCruise; thcI = 0.04;
+          SV.thrC = A.thrCruise; SV.thcI = 0.04;
         }
         break;
 
@@ -945,13 +866,14 @@ function makeAutopilot(sim, def, world) {
         // crosswind decrab: below decrabAgl, the rudder aligns the nose with
         // the runway while airLateral keeps killing drift with bank (slip).
         // Inactive in calm air (windZ gate) — zero-wind identity preserved.
-        if (agl < (A.decrabAgl ?? 3.5) && Math.abs(o_.windZ || 0) > 0.5) {
-          airLateral(0.12);
-          const nS = nose[0] * F.ux + nose[1] * F.uz;      // frame-relative nose
-          const nC = -nose[0] * F.uz + nose[1] * F.ux;
-          const hdg = Math.atan2(nC, nS * ap.dirX) * ap.dirX;
-          c.dr = clamp(-(A.decrabK ?? 2.2) * hdg - 0.6 * eR, -0.35, 0.35);
-        } else airLateral(0.10);
+        // B3: THE RUDDER WENT THE WRONG WAY — -K x (the nose's angle from the
+        // runway) where the ground steer, and 43 since G381, fly -K x e (e =
+        // the runway's angle from the nose): a crab became a swing in the
+        // hold-off. B4: armed on the STRIP-FRAME crosswind (it read the
+        // world's z, so only an x-aligned strip ever decrabbed). The law is
+        // the module's (39b_servos.js decrab: G381's sign, G970's integral)
+        if (SV.decrabArmed(agl, F)) SV.decrab(0.12);
+        else airLateral(0.10);
         if (onG > 0) {
           ap.phase = 'ROLLOUT'; phaseT = 0;
           ap.tdInfo = { sink: -vcg[1], z: sCr, x: sAl, V,
@@ -1002,10 +924,8 @@ function makeAutopilot(sim, def, world) {
       c.flap = clamp(c.flap + clamp(tgt - c.flap, -rr, rr), 0, 1);
     }
     // servo slew limits
-    aDe += clamp(c.de - aDe, -A.slew * dt, A.slew * dt); c.de = aDe;
-    aDa += clamp(c.da - aDa, -A.slew * dt, A.slew * dt); c.da = aDa;
-    aDr += clamp(c.dr - aDr, -A.slew * dt, A.slew * dt); c.dr = aDr;
-    holdWas = holdActive; holdActive = false;   // W14: per-frame resync bookkeeping
+    SV.slew();
+    SV.endStep();   // W14: per-frame resync bookkeeping
     ap.dbg = { e, th, ph, q, beta, V, alt: cg[1], z: sCr, s: sAl, agl,
                xt: taxiXT, sRem: taxiSRem, tailUp: tailUpNow };   // G193
   };

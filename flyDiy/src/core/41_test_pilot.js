@@ -15,7 +15,9 @@
 //
 // THE FORK RULE: every deliberate divergence from 40_autopilot.js is marked
 // `TP:`. Anything unmarked is the fork being faithful, and a fix to the donor
-// should be considered for a matching `TP:`-audited pass here. The donor's own
+// should be considered for a matching `TP:`-audited pass here. (G1570, review
+// E4: the INNER LOOPS are not forked any more — the servos are 39b_servos.js,
+// shared by 40, 41 and 43; this rule is about the phase machine.) The donor's own
 // W19 work (climb acceptance, missed approach, ground floor) is kept whole —
 // this file extends it to the failures W19 left unbounded: ROLL had no exit at
 // all (an aeroplane that never reaches Vr rolls to the fence, for ever), the
@@ -77,6 +79,15 @@ function makeTestPilot(sim, def, world) {
     const T0 = Math.max(1, PR.Tstatic * (def.params.nEngines || 1));
     return () => Math.min(0.5, CRR * sim.totalM * 9.81 / T0);
   })();
+  // G1570: THE SERVOS ARE ONE MODULE (39b_servos.js), shared with 40 and 43:
+  // the G381 / G630 / G352 fixes are flown here too (they had landed in 43
+  // only); 43's own laws (the calm-air trim, P1.D's ground steer, the aileron
+  // into wind, the water) stay off. The trike is 43's reading of the gear.
+  const trike = A.rolloutMode === 'trike' || (def.params.twSteer || 0.5) < 0;
+  const SV = makeServos(sim, def, { pilot: 'test', now: () => ap.t, trike, rotateTD, TW });
+  // B5: the CG's rest height in the design pose — the height datum of a pilot
+  // first engaged in the air (no rest to measure)
+  const restH0 = servoRestHeight(def);
   const snap = v => Math.abs(v) < 1e-9 ? 0 : v;
   const mkFrame = (a, sx, sz) => {
     let ux = snap(Math.cos(a.hdg)), uz = snap(Math.sin(a.hdg));
@@ -185,21 +196,15 @@ function makeTestPilot(sim, def, world) {
     ap.altRef = to.elev;
     ap.refAlt = ap.restAlt + (to.elev - from.elev);
   };
-  let thP = 0, phP = 0, eP = 0, q = 0, p = 0, eR = 0, eRslow = 0, thF = 0, phF = 0, thCA = 0, vsF = 0;
-  let vsSlow = 0, gaT = 0;
-  let aDe = 0, aDa = 0, aDr = 0, phCA = 0;
-  let Ith = 0, thcI = 0.06, It = 0, thrC = 0.6;
-  let phaseT = 0, headingCapT = 0, thFlare0 = 0, thLift0 = 0, brakeRamp = 0, holdActive = false, holdWas = false;
-  // THE TAXI GOVERNOR'S INTEGRATOR (2026-09-04). See taxi() below.
-  let taxiI = 0, taxiLastT = -1e9;
+  // the servos' state lives in SV (39b_servos.js, G1570)
+  let gaT = 0;
+  let phaseT = 0, headingCapT = 0, thFlare0 = 0, thLift0 = 0, brakeRamp = 0;
   // G193: the path follower's and the three-point run's state
   let holdN = 0, thRest = null, thrRoll = 0, taxiXT = 0, taxiSRem = 0, tailUpNow = false;
-  let eAP = 0, eAR = 0, eARslow = 0;
-  let eTrim = 0;
   let pendReEng = false;
-  // TP: the takeoff instrument — where the roll started, how many times it has
-  // been attempted, and a 2 s acceleration filter for the stagnation call.
-  let rollS0 = null, rollN = 0, accF = 0, vPrev = null;
+  // TP: the takeoff instrument — where the roll started and how many times it
+  // has been attempted (the 2 s acceleration filter is the servos': SV.accF)
+  let rollS0 = null, rollN = 0;
   const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
   ap.reEngage = (o) => {
     pendReEng = true;
@@ -270,7 +275,16 @@ function makeTestPilot(sim, def, world) {
     ap.t += dt; phaseT += dt;
     const [xA, yU, zR] = sim.axes();
     const cg = sim.cgPos(), vcg = sim.cgVel();
-    if (ap.restAlt === null) { ap.restAlt = cg[1]; ap.refAlt = cg[1]; }
+    const c = sim.ctl, onG = sim.wheelsOnGround();
+    // B5: THE DATUM IS LATCHED ON THE GROUND. The first update used to latch
+    // whatever height the CG had — a pilot first engaged at 300 m took 300 m
+    // as the field and flared there. On the wheels: the CG's rest height (as
+    // always, bit-identical for every ground start); in the air: the departure
+    // field's elevation + the design pose's rest height (restH0)
+    if (ap.restAlt === null) {
+      const r0 = onG > 0 ? cg[1] : ap.route.from.elev + restH0;
+      ap.restAlt = r0; ap.refAlt = r0;
+    }
     const agl = cg[1] - ap.refAlt;
     const F = ap.frame;
     const rxF = cg[0] - F.ox, rzF = cg[2] - F.oz;
@@ -294,6 +308,11 @@ function makeTestPilot(sim, def, world) {
       const l = Math.hypot(tx, tz); tx /= l; tz /= l;
     }
     const e = Math.atan2(tz * nose[0] - tx * nose[1], tx * nose[0] + tz * nose[1]);
+    // air guidance steers COURSE OVER GROUND, not the nose: a crabbing /
+    // slipping aircraft with nose-referenced pursuit parks at a standing
+    // cross-track offset ~ L*(crab - slip) with e exactly zero (measured:
+    // C172 frozen at z=+21..26 in a 3 m/s crosswind). Velocity-referenced
+    // pursuit makes the crab implicit. Ground steering keeps the nose error.
     let eA = e;
     const tl2 = Math.hypot(vcg[0], vcg[2]);
     if (tl2 > 5) {
@@ -301,34 +320,19 @@ function makeTestPilot(sim, def, world) {
       eA = Math.atan2(tz * tkx - tx * tkz, tx * tkx + tz * tkz);
     }
 
-    const AF = A.attFilt ?? 1.0;
     const thRaw = Math.asin(clamp(-xA[1], -1, 1));
     const phRaw = Math.atan2(-zR[1], yU[1]);
-    if (pendReEng) {
-      pendReEng = false;
-      thF = thRaw; phF = phRaw; thP = thRaw; phP = phRaw; q = p = 0;
-      eP = e; eR = eRslow = 0; eAP = eA; eAR = eARslow = 0;
-      vsF = vcg[1]; thCA = thRaw; phCA = 0;
-      aDe = sim.ctl.de; aDa = sim.ctl.da; aDr = sim.ctl.dr;
-      Ith = 0; It = 0; thcI = 0.06; thrC = A.thrCruise ?? 0.6;
-      eTrim = 0; brakeRamp = 0; holdWas = holdActive = false;
-    }
-    thF += AF * (thRaw - thF); phF += AF * (phRaw - phF);
-    const th = thF, ph = phF;
-    const RF = A.rateFilt ?? 0.12;
-    q += RF * ((th - thP) / dt - q); thP = th;
-    p += RF * ((ph - phP) / dt - p); phP = ph;
-    eR += RF * 0.85 * ((e - eP) / dt - eR); eP = e;
-    eRslow += dt / 2.0 * (eR - eRslow);
-    eAR += RF * 0.85 * ((eA - eAP) / dt - eAR); eAP = eA;
-    eARslow += dt / 2.0 * (eAR - eARslow);
-    vsSlow += dt / 2.0 * (vcg[1] - vsSlow);
     const beta = (vcg[0]*zR[0] + vcg[1]*zR[1] + vcg[2]*zR[2]) / Math.max(Vt, 5);
-    // TP: acceleration filter for the stagnation call — same 2 s form as vsSlow
-    if (vPrev !== null) accF += dt / 2.0 * ((V - vPrev) / dt - accF);
-    vPrev = V;
+    if (pendReEng) {                    // W14: re-latch everything live
+      pendReEng = false;
+      SV.relatch(); brakeRamp = 0;
+    }
+    // THE SENSING (39b_servos.js): the attitude and rate filters (from the
+    // attitude on the first step, G381), the bumpless target and the wrapped
+    // rates (G630), the slow climb and acceleration filters
+    SV.sense(dt, e, eA, Math.atan2(tz, tx), thRaw, phRaw, beta, V, Vg, vcg[1], onG);
+    const th = SV.th, ph = SV.ph, q = SV.q, p = SV.p, eR = SV.eR, vsSlow = SV.vsSlow, accF = SV.accF;
 
-    const c = sim.ctl, onG = sim.wheelsOnGround();
     if (onG > 0 && agl < A.aglGuard && V < A.VRot * 0.9
         && ['LIFTOFF','CLIMB'].includes(ap.phase)) {
       // TP: the balked-takeoff retry is BOUNDED. The donor loops here for
@@ -355,96 +359,23 @@ function makeTestPilot(sim, def, world) {
           ' s — out of patience, not out of sky');
     }
 
-    const holdPitch = (thC) => {
-      if (!holdWas) thCA = th;
-      holdActive = true;
-      const sl = (A.pitchCmdSlew ?? 99) * dt;
-      thCA += clamp(thC - thCA, -sl, sl);
-      Ith = clamp(Ith + (A.pitchI ?? 0.05) * (thCA - th) * dt, -0.15, 0.15);
-      c.de = clamp((A.pitchP ?? 1.2) * (thCA - th) - (A.pitchD ?? 1.8) * q + Ith, -0.30, 0.35);
-    };
-    const airLateral = (bankLim = A.bankLim ?? 0.30) => {
-      if (Math.abs(o_.windX || 0) + Math.abs(o_.windZ || 0) > 0.5) {
-        if (Math.abs(eA) < 0.2) eTrim = clamp(eTrim + 0.15 * eA * dt, -0.10, 0.10);
-        else eTrim -= 0.8 * eTrim * dt;
-      }
-      const phC = clamp((A.hdgP ?? 0.7) * eA + (A.hdgD ?? 0.9) * eAR + eTrim, -bankLim, bankLim);
-      phCA += clamp(phC - phCA, -(A.bankSlew ?? 0.18) * dt, (A.bankSlew ?? 0.18) * dt);
-      c.da = clamp((A.rollP ?? 2.0) * (phCA - ph) - (A.rollD ?? 2.0) * p, -0.30, 0.30);
-      c.dr = clamp(-(A.betaK ?? 0.3) * beta - (A.yawDampK ?? 0.6) * (eAR - eARslow)
-                   - (A.ariK ?? 0.35) * c.da, -0.25, 0.25);
-    };
-    const speedThrottle = (Vtgt) => {
-      It = clamp(It + 0.010 * (Vtgt - V) * dt, -0.30, 0.30);
-      c.thr = clamp(thrC + 0.05 * (Vtgt - V) + It, A.thrFloor ?? 0.12, 1);
-    };
-    const holdVS = (VSc, thMax = 0.16) => {
-      vsF += (A.vsFilt ?? 1.0) * (vcg[1] - vsF);
-      const fl = A.vsFloor ?? -0.08;
-      thcI = clamp(thcI + (A.vsI ?? 0.015) * (VSc - vsF) * dt, fl, thMax);
-      holdPitch(clamp(thcI + (A.vsP ?? 0.010) * (VSc - vsF), fl, thMax));
-    };
-    const groundSteer = () => {
-      // G193: THE PLANT CHANGES WHEN THE TAIL LIFTS. Only the tailwheel
-      // steers on the ground (30_solver.js), and its branch stops the frame
-      // the wheel unloads: authority drops from a first-order steer to the
-      // aero rudder alone — an inertial plant at low q — while these gains
-      // were tuned on the first. Measured on the user's ultralight: the
-      // heading it had at tail-up was the heading it kept, into the grass.
-      // The tail state is read solver-free (both mains down, pitch under the
-      // latched three-point stance), and only a three-point build takes the
-      // branch — the fleet's calm numbers do not move.
-      const tailUp = rotateTD && onG <= 2 && thRest !== null && (thRest - th) > 0.04;
-      // (measured on the crosswind trace: the full travel with the 1.4x gain
-      // swings the nose +-10 deg once but holds the excursion to 7 m at 2 m/s
-      // across; a softer 0.70 / 1.0x let it drift to 15 m)
-      const drMax = tailUp ? 0.95 : 0.45;
-      const kP = tailUp
-        ? 3.2 * 1.4 * clamp(((A.VTailUp ?? 12) / Math.max(V, 5)) ** 2, 0.6, 2.0)
-        : 3.2;
-      const kD = tailUp ? 3.0 : 1.2;
-      c.dr = clamp(-kP * e - kD * eR, -drMax, drMax);
-      c.da = clamp(-2.0 * ph - 1.0 * p, -0.25, 0.25);
-      tailUpNow = tailUp;
-    };
-
-    // THE TAXI GOVERNOR FEEDS BACK ON GROUND SPEED (2026-09-04, the user:
-    // "still too slow on taxi, much too slow ... you might have a constant
-    // throttle, but it really needs to feedback on ground speed"). The G4.9
-    // law was taxiFF — break-even against rolling resistance, which assumes
-    // thrust LINEAR in throttle, and it is not — plus 0.06 per m/s of error
-    // under a cap 0.27 above the feedforward. Measured on the ultralight: it
-    // asked 0.34 and got 1.5 m/s for thirty seconds; on the default build
-    // 1.2 m/s for thirty-five. This is a PI on Vg: the proportional term
-    // answers at once, the integrator finds whatever throttle THIS aeroplane
-    // on THIS surface actually needs, and the command saturates at
-    // A.taxiThrMax (0.85 — a taxi is not a take-off). Anti-windup: the
-    // integrator only moves while the command is not pinned in the direction
-    // it would push. The feedforward stays as the starting guess, so the
-    // first frame asks what it always asked. Overspeed is the brake's, in
-    // proportion, not a 0.45 slam at +1.2. The integrator forgets itself
-    // after two seconds without a taxi call, so a landing's backtrack does
-    // not open the throttle with the departure's memory.
-    const taxi = (Vtgt) => {
-      c.de = A.taxiDe ?? 0.30;
-      const ff = taxiFF();
-      const cap = Math.min(A.taxiThrMax ?? 0.85, GP.cap);   // G179
-      if (ap.t - taxiLastT > 2) taxiI = 0;
-      taxiLastT = ap.t;
-      const err = Vtgt - Vg;
-      const u0 = ff + 0.18 * err + taxiI;
-      if ((err > 0 && u0 < cap) || (err < 0 && u0 > 0))
-        taxiI = clamp(taxiI + 0.10 * err * dt, -ff, cap);
-      c.thr = clamp(ff + 0.18 * err + taxiI, 0, cap);
-      c.brake = Vg > Vtgt + 0.8 ? clamp(0.3 * (Vg - Vtgt - 0.8), 0, 0.6) : 0;
-      c.da = clamp(-2.0 * ph - 1.0 * p, -0.25, 0.25);
-    };
+    // ---- THE SERVOS: one module, 39b_servos.js (G1570) ----------------------------
+    // holdPitch (the W14 resync when the previous step did not call it),
+    // airLateral (the in-wind course trim), speedThrottle (G352's anti-windup,
+    // G381's damping on the measured acceleration), holdVS, groundSteer (the
+    // G193 tail-up schedule; G381: the tail-down gains ease with speed; G630:
+    // the ground's aileron deadband, the trike's rate term) and the taxi
+    // governor (the 2026-09-04 PI on the ground speed) are the module's.
+    const holdPitch = SV.holdPitch, holdVS = SV.holdVS, speedThrottle = SV.speedThrottle;
+    const airLateral = (bl) => SV.airLateral(bl);
+    const groundSteer = () => { tailUpNow = SV.groundSteer(thRest, F); };
+    const taxi = (Vt) => SV.taxi(Vt, taxiFF(), Math.min(A.taxiThrMax ?? 0.85, GP.cap));   // G179: the cap
 
     const goAround = why => {
       ap.gaN = (ap.gaN || 0) + 1; ap.gaWhy = why;
       say('go-around', why + ' (attempt ' + ap.gaN + ')');   // TP: recorded
       ap.phase = 'GOAROUND'; phaseT = 0; gaT = 0;
-      thrC = A.thrCruise;
+      SV.thrC = A.thrCruise;
     };
     const vsAgl = v => agl < A.hSafe ? Math.max(v, 1.0) : v;
 
@@ -529,11 +460,15 @@ function makeTestPilot(sim, def, world) {
           ap.pathI = L.i; taxiXT = L.ey; taxiSRem = L.sRem;
           const K = pathLook(ap.path, L.i, Vg);
           const eXT = clamp(Math.atan2(0.9 * L.ey, Vg + 1.0), -0.6, 0.6);
-          const hT = K.hdgL - eXT;
+          // G630: the look-ahead target filtered (it steps as the index
+          // passes each sample of a bend), and the rudder on the steer
+          // schedule's P + the curvature feed-forward, NO rate term (it only
+          // differentiated the contact's yaw jitter)
+          const hT = SV.taxiHeading(K.hdgL - eXT);
           ap.targetDir = [Math.cos(hT), 0, Math.sin(hT)];
           const drFF = -Math.atan(TW.Lwb * K.kapL) / Math.max(0.05, TW.steer);
           const drMaxG = 0.85 - 0.40 * clamp((Vg - 6) / 4, 0, 1);
-          c.dr = clamp(-3.2 * e - 1.2 * eR + drFF, -drMaxG, drMaxG);
+          c.dr = SV.taxiRudder(drFF, drMaxG);
           taxi(pathSpeed(ap.path, L.i, Vg, A.taxiV ?? 5.0, L.sRem));
           const tMax = 40 + 1.6 * ap.path.len / (A.taxiV ?? 5.0);
           if (L.sRem < 2.0 || (L.sRem < 6 && Vg < 0.6)) { ap.phase = 'STOP'; phaseT = 0; }
@@ -543,7 +478,7 @@ function makeTestPilot(sim, def, world) {
         const ddx = ap.taxiTgt[0] - cg[0], ddz = ap.taxiTgt[1] - cg[2];
         const dist = Math.hypot(ddx, ddz) || 1e-9;
         ap.targetDir = [ddx / dist, 0, ddz / dist];
-        c.dr = clamp(-3.2 * e - 1.2 * eR, -0.45, 0.45);
+        c.dr = SV.taxiRudder(0, 0.45);                     // G630
         taxi(Math.abs(e) > 0.6 ? 2.5 : 5.0);
         // G151, carried: only the LAST point hands over to LINEUP, and the
         // intermediate ones hold a tighter radius so a corner-cut cannot clip
@@ -558,7 +493,7 @@ function makeTestPilot(sim, def, world) {
 
       case 'LINEUP': {
         ap.trackHold = true;
-        c.dr = clamp(-3.2 * e - 1.2 * eR, -0.45, 0.45);
+        c.dr = SV.taxiRudder(0, 0.45);                     // G630
         const alig = -(nose[0] * F.ux + nose[1] * F.uz);
         taxi(alig > 0.5 ? 4.5 : 2.4);
         if (alig > 0.988 && Math.abs(sCr) < 8 && Math.abs(eR) < 0.15) {
@@ -582,10 +517,11 @@ function makeTestPilot(sim, def, world) {
           const L = pathLocate(ap.path, ap.pathI, cg[0], cg[2]);
           ap.pathI = L.i; taxiXT = L.ey; taxiSRem = L.sRem;
           const K = pathLook(ap.path, L.i, Vg);
-          ap.targetDir = [Math.cos(K.hdgL), 0, Math.sin(K.hdgL)];
-          c.dr = clamp(-3.2 * e - 1.2 * eR, -0.85, 0.85);
+          const hT = SV.taxiHeading(K.hdgL);              // G630
+          ap.targetDir = [Math.cos(hT), 0, Math.sin(hT)];
+          c.dr = SV.taxiRudder(0, 0.85);
         } else c.dr = 0;
-        c.da = clamp(-2.0 * ph - 1.0 * p, -0.25, 0.25);
+        c.da = SV.groundAil(0, 0.25);
         if (Vg < 0.3 || phaseT > 30) { ap.phase = 'HOLD'; phaseT = 0; }
         break;
       }
@@ -629,15 +565,26 @@ function makeTestPilot(sim, def, world) {
         //   out of runway   — 80 m from the end, still below Vr
         //   won't make it   — 60% of the strip used, still under 80% of Vr
         //   going nowhere   — 8 s at full power, accel under 0.08 m/s^2
+        // B7: JUDGED ON THE RUNWAY THAT IS LEFT, not on the strip's length
+        // from wherever the roll began — a roll from a hold 110 m in, or a
+        // backtrack's turn-around, was told it had the whole strip ahead and
+        // ran out of it before 'out of runway' could fire. `left` is the
+        // centreline still ahead to the far end (43's runwayLeft); 'will not
+        // make it' is 60 % of the run AVAILABLE where the roll began (43's
+        // ST.rejectFrac rule), which is the strip's length from its threshold.
         if (rollS0 === null) rollS0 = sAl;
-        const avail = (ap.route.from.len || 1100);
+        const from = ap.route.from;
+        const tdx = F.ux * ap.dirX, tdz = F.uz * ap.dirX;      // the take-off direction
+        const left = from.x != null
+          ? (from.x + tdx * (from.len || 1100) / 2 - cg[0]) * tdx + (from.z + tdz * (from.len || 1100) / 2 - cg[2]) * tdz
+          : (from.len || 1100) - Math.abs(sAl - rollS0);       // world-less: the strip from the roll start
         const runUsed = Math.abs(sAl - rollS0);
         const vr = A.VRot || 18;
         let reject = null;
-        if (runUsed > avail - 80 && V < vr)
-          reject = 'out of runway: ' + Math.round(runUsed) + ' m used, V=' +
-                   V.toFixed(1) + ' of ' + vr.toFixed(1) + ' needed';
-        else if (runUsed > 0.6 * avail && V < 0.8 * vr)
+        if (left < 80 && V < vr)
+          reject = 'out of runway: ' + Math.round(runUsed) + ' m used, ' + Math.round(Math.max(0, left)) +
+                   ' m left, V=' + V.toFixed(1) + ' of ' + vr.toFixed(1) + ' needed';
+        else if (runUsed > 0.6 * (runUsed + left) && V < 0.8 * vr)
           reject = Math.round(runUsed) + ' m used for V=' + V.toFixed(1) +
                    ' — will not reach Vr=' + vr.toFixed(1) + ' in what is left';
         else if (phaseT > 8 && accF < 0.08 && V < 0.8 * vr)
@@ -752,7 +699,7 @@ function makeTestPilot(sim, def, world) {
             ap.holdDir = [ap.frame.ux * ap.dirX, 0, ap.frame.uz * ap.dirX];
             ap.phase = 'ENROUTE'; enterArrival(); ap.trackHold = false;
           } else ap.phase = 'CRUISE';
-          phaseT = 0; thrC = A.thrCruise; thcI = 0.04;
+          phaseT = 0; SV.thrC = A.thrCruise; SV.thcI = 0.04;
         }
         break;
       }
@@ -768,7 +715,7 @@ function makeTestPilot(sim, def, world) {
         if (phaseT > 8) {
           // G208: the elevator held on the settled leg (the slewed command,
           // which is what a hand would hold), published as `report.trimDe`
-          trimAcc.n += dt; trimAcc.de += aDe * dt;
+          trimAcc.n += dt; trimAcc.de += SV.aDe * dt;
           ap.report.trimDe = Math.round(trimAcc.de / trimAcc.n * 1000) / 1000;
         }
         if (cardAcc && phaseT > 8) {
@@ -831,14 +778,14 @@ function makeTestPilot(sim, def, world) {
         const hTgt = Math.min(ap.altRef + ap.hCruise, hGS + 15);
         holdVS(vsAgl(clamp((A.altVSGain ?? 0.08) * (hTgt - cg[1]), -3.5, 2.2)));
         airLateral();
-        if (d > 0 && hGS <= cg[1] + 2 && cg[1] - hGS < 40) { ap.phase = 'APPROACH'; phaseT = 0; thrC = A.thrAppr; }
+        if (d > 0 && hGS <= cg[1] + 2 && cg[1] - hGS < 40) { ap.phase = 'APPROACH'; phaseT = 0; SV.thrC = A.thrAppr; }
         else if (d <= 0) {
           if (agl < A.flareAgl * 3 || (ap.gaN || 0) >= 2) {
             // TP: the donor lands here silently; the pilot says it is out of
             // tidy options and committing.
             say('committed-landing', 'past the aim at ' + Math.round(agl) +
                 ' m agl — landing it');
-            ap.phase = 'APPROACH'; phaseT = 0; thrC = A.thrAppr;
+            ap.phase = 'APPROACH'; phaseT = 0; SV.thrC = A.thrAppr;
           } else goAround('past-aim');
         }
         break;
@@ -873,7 +820,7 @@ function makeTestPilot(sim, def, world) {
         if (cg[1] > ap.altRef + ap.hCruise - 8 || (phaseT > 60 && vsSlow < 0.15)) {
           ap.phase = 'CRUISE'; phaseT = 0;
           ap.dirX = -1; ap.trackHold = true;
-          thrC = A.thrCruise; thcI = 0.04;
+          SV.thrC = A.thrCruise; SV.thcI = 0.04;
         }
         break;
 
@@ -885,13 +832,14 @@ function makeTestPilot(sim, def, world) {
         } else {
           holdPitch(Math.min(thFlare0 + A.flareRate * phaseT, A.flareThMax ?? A.thMax));
         }
-        if (agl < (A.decrabAgl ?? 3.5) && Math.abs(o_.windZ || 0) > 0.5) {
-          airLateral(0.12);
-          const nS = nose[0] * F.ux + nose[1] * F.uz;
-          const nC = -nose[0] * F.uz + nose[1] * F.ux;
-          const hdg = Math.atan2(nC, nS * ap.dirX) * ap.dirX;
-          c.dr = clamp(-(A.decrabK ?? 2.2) * hdg - 0.6 * eR, -0.35, 0.35);
-        } else airLateral(0.10);
+        // B3: THE RUDDER WENT THE WRONG WAY — -K x (the nose's angle from the
+        // runway) where the ground steer, and 43 since G381, fly -K x e (e =
+        // the runway's angle from the nose): a crab became a swing in the
+        // hold-off. B4: armed on the STRIP-FRAME crosswind (it read the
+        // world's z, so only an x-aligned strip ever decrabbed). The law is
+        // the module's (39b_servos.js decrab: G381's sign, G970's integral)
+        if (SV.decrabArmed(agl, F)) SV.decrab(0.12);
+        else airLateral(0.10);
         if (onG > 0) {
           ap.phase = 'ROLLOUT'; phaseT = 0;
           ap.tdInfo = { sink: -vcg[1], z: sCr, x: sAl, V,
@@ -938,10 +886,8 @@ function makeTestPilot(sim, def, world) {
       const rr = (FS.rate ?? 0.15) * dt;
       c.flap = clamp(c.flap + clamp(tgt - c.flap, -rr, rr), 0, 1);
     }
-    aDe += clamp(c.de - aDe, -A.slew * dt, A.slew * dt); c.de = aDe;
-    aDa += clamp(c.da - aDa, -A.slew * dt, A.slew * dt); c.da = aDa;
-    aDr += clamp(c.dr - aDr, -A.slew * dt, A.slew * dt); c.dr = aDr;
-    holdWas = holdActive; holdActive = false;
+    SV.slew();
+    SV.endStep();
     ap.dbg = { e, th, ph, q, beta, V, alt: cg[1], z: sCr, s: sAl, agl,
                xt: taxiXT, sRem: taxiSRem, tailUp: tailUpNow };   // G193
   };
