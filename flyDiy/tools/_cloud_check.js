@@ -164,7 +164,7 @@ console.log('6. the splice rules');
   yes(!/PointsMaterial\(\{ map: tex, size: 340/.test(rw) && /CLOUDS\.update\(day, camera, world\)/.test(rw), 'render_world retired the billboard puffs and hands the day to the clouds');
   { const PRESETS = (() => { const w = { localStorage: { getItem: () => null, setItem() {}, removeItem() {} }, requestAnimationFrame: () => 1 }; w.window = w;
   require('vm').runInNewContext(gfx, Object.assign({ window: w, setInterval: () => 0, clearInterval() {} }, w)); return w.GFX ? w.GFX.PRESETS : {}; })();   // the evaluated presets (the five tiers, PERF 2026-09-23)
-    yes(/k: 'clouds'/.test(gfx) && Object.keys(PRESETS).length === 5 && Object.values(PRESETS).every(p => ['off', 'half', 'full'].includes(p.clouds)), 'the GRAPHICS menu has the clouds row in every preset'); }
+    yes(/k: 'clouds'/.test(gfx) && Object.keys(PRESETS).length === 6 && /* G1524: six tiers */ Object.values(PRESETS).every(p => ['off', 'half', 'full'].includes(p.clouds)), 'the GRAPHICS menu has the clouds row in every preset'); }
   yes(/depthTexture: \(S\.needRT \|\| S\.rz\)/.test(aa) && /S\.overlay\(renderer, camera, S\.rt\)/.test(aa) && /needRT, setOverlay/.test(aa), 'the resolve pass carries the depth texture and the overlay hook');
   const build = fs.readFileSync(path.join(__dirname, 'build.js'), 'utf8');
   yes(/'08_cloud_field\.js'/.test(build) && /'clouds\.js'/.test(build), 'both files are in the build');

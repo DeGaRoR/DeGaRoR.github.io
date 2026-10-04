@@ -158,7 +158,9 @@ console.log('GATE STAND');
   const stmt = i < 0 ? '' : H.slice(i, H.indexOf(';', i));
   ok(i > 0 && !/transmission/.test(stmt) && H.indexOf('const M = {') < i && i < H.indexOf("const gl = box(2 * HD - 0.25, GH, 0.03, M.glass"),
      '3 the exterior build swaps M.glass for a non-transmissive pane, before the band uses it');
-  ok(/glass: new THREE\.MeshPhysicalMaterial\(\{[^}]*transmission: (\([^?]*GFX\.soft\(\)\) \? 0 : )?0\.90/.test(H), '3 the room\'s own glass is untouched (on a card; G1460: plain panes on the software rung)');
+  // (G1522, POTATO-DEEP: ...and on a build budget without the shed's glass - potato / laptop, GFX.BUDGETS shedGlass false)
+  ok(/glass: new THREE\.MeshPhysicalMaterial\(\{[^}]*transmission: (\(\([^?]*GFX\.soft\(\)\) \|\| shedGlassOff\(\)\) \? 0 : )?0\.90/.test(H) && /window\.GFX\.budget\(\)\.shedGlass === false/.test(H),
+     '3 the room\'s own glass is untouched (on a card; G1460: plain panes on the software rung; G1522: and on a budget without the shed glass)');
 }
 
 // ---- 4. the cover ring's keys -----------------------------------------------------------------------------
