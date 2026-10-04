@@ -10,15 +10,17 @@
 //                        driver made here.
 //   'flydiy-turbine' / 'flydiy-electric'   the engine voice of the rows src_engine skips (cfg.piston false):
 //                        made HERE, one per such engine, their output 1 into the prop.
-//   output 0 (mono) of each -> aircraft.ext, and aircraft.int through a PLACEHOLDER cabin low-pass (SND-SPACE
-//   replaces both with directivity and the build's cabin transfer, §4/§5; the prop's output 1 keeps the tonal
-//   and broadband parts apart for it).
+//   SND-SPACE (G1644): the prop's OUTPUT 1 (tonal, broadband apart) -> a splitter -> AUDIO.space.input('propT' /
+//   'propB', i) (each with its own directivity outside, the build's cabin inside); a driver's output 0 ->
+//   AUDIO.space.input('engine', i). Without space.js: output 0 straight to aircraft.ext and aircraft.int.
+//   Every schedule time + AUDIO.lagS[0]; a 'space-cut' drops what was scheduled ahead; AUDIO.voices.prop[i] /
+//   .driver[i] published for the doppler (space.js drives their `pitch`).
 // Allocation-free per frame: AudioParams cached per voice, values through typed scratch, schedule only what moved.
 'use strict';
 (function () {
   const W = typeof window !== 'undefined' ? window : globalThis;
   if (!W.AUDIO || !W.AUDIO.enabled) return;   // ?audio=0: nothing at all
-  const MAX = 4, TAU = 0.03, CABIN_HZ = 1400, NP = 8, ND = 4;
+  const MAX = 4, TAU = 0.03, NP = 8, ND = 4;
   // the smallest change worth a schedule, per prop parameter (rpm thrust thr c V alpha beta interior);
   // thrust is relative to the static thrust (below)
   const EPS = [0.5, 0.005, 0.002, 0.5, 0.2, 0.002, 0.002, 0.5];
@@ -27,7 +29,9 @@
   const wired = [];      // per prop k: the driver node its input 0 listens to (null: not yet)
   const valP = new Float64Array(NP), valD = new Float64Array(ND);
   const lastP = new Float64Array(MAX * NP).fill(-1e9), lastD = new Float64Array(MAX * ND).fill(-1e9);
-  let ctx = null, def = null, ready = false, cabin = null, outExt = null;
+  let ctx = null, A = null, def = null, ready = false, outExt = null, outInt = null;
+  const splits = [];
+  const pub = (W.AUDIO.voices = W.AUDIO.voices || {}); pub.prop = []; pub.driver = [];   // SND-SPACE: the doppler's handles
 
   function teardown() {
     for (const v of props) { try { v.node.disconnect(); } catch (e) {} }
@@ -36,7 +40,9 @@
       // a piston node is src_engine's: only our edge to the dead prop goes (disconnect(dest, output))
       const w = wired[k]; if (w && props[k] && w !== props[k].drv) { try { w.disconnect(props[k].node, 1); } catch (e) {} }
     }
-    props.length = 0; drivers.length = 0; wired.length = 0; lastP.fill(-1e9); lastD.fill(-1e9);
+    for (const s of splits) { try { s.disconnect(); } catch (e) {} }
+    props.length = 0; drivers.length = 0; wired.length = 0; splits.length = 0; lastP.fill(-1e9); lastD.fill(-1e9);
+    pub.prop.length = 0; pub.driver.length = 0;
   }
   function build(P) {
     teardown();
@@ -54,7 +60,9 @@
           numberOfInputs: 0, numberOfOutputs: 2, outputChannelCount: [1, 2],
           processorOptions: { config: cfg[cfg.driver], seed: 1 + i, running, rpm },
         });
-        drv.connect(outExt, 0); drv.connect(cabin, 0);
+        const se = A.space && A.space.input('engine', i);
+        if (se) drv.connect(se, 0); else { drv.connect(outExt, 0); drv.connect(outInt, 0); }
+        pub.driver[i] = drv;
         drivers.push({ node: drv, params: PS.PROP_DRIVER_PARAMS.map(n => drv.parameters.get(n)), i });
       }
       const node = new AudioWorkletNode(ctx, 'flydiy-prop', {
@@ -62,7 +70,12 @@
         channelCount: 2, channelCountMode: 'explicit', channelInterpretation: 'discrete',
         processorOptions: { config: cfg.prop, seed: 101 + i },
       });
-      node.connect(outExt, 0); node.connect(cabin, 0);
+      const sT = A.space && A.space.input('propT', i), sB = A.space && A.space.input('propB', i);
+      if (sT && sB && ctx.createChannelSplitter) {
+        const sp = ctx.createChannelSplitter(2);
+        node.connect(sp, 1); sp.connect(sT, 0); sp.connect(sB, 1); splits.push(sp);
+      } else { node.connect(outExt, 0); node.connect(outInt, 0); }
+      pub.prop[i] = node;
       props.push({ node, params: PS.PROP_SOUND_PARAMS.map(n => node.parameters.get(n)), i, Ts: cfg.prop.Tstatic, drv });
       wired.push(null);
     }
@@ -81,17 +94,15 @@
 
   W.AUDIO.addSource('prop', {
     connect(c, api) {
-      ctx = c; ready = false;
-      outExt = api.bus('aircraft.ext');
-      cabin = c.createBiquadFilter(); cabin.type = 'lowpass'; cabin.frequency.value = CABIN_HZ; cabin.Q.value = 0.5;
-      cabin.connect(api.bus('aircraft.int'));
+      ctx = c; A = api; ready = false;
+      outExt = api.bus('aircraft.ext'); outInt = api.bus('aircraft.int');
       api.module('prop_worklet').then(ok => { ready = !!ok; def = null; },
         e => console.warn('flyDiy audio: the prop voice did not load', e));
     },
     update(P) {
       if (!ready) return;
       if (P.def !== def) build(P);
-      const PS = W.PROP_SOUND, t = ctx.currentTime;
+      const PS = W.PROP_SOUND, t = ctx.currentTime + (A.lagS ? A.lagS[0] : 0);   // SND-SPACE: heard when its sound arrives
       for (let k = 0; k < props.length; k++) {
         const v = props[k], o = k * NP;
         wire(k);
@@ -115,6 +126,14 @@
         }
       }
     },
-    disconnect() { teardown(); try { cabin && cabin.disconnect(); } catch (e) {} ctx = null; ready = false; def = null; },
+    disconnect() { teardown(); ctx = null; ready = false; def = null; },
+  });
+  // SND-SPACE: a camera cut shortened the lag - drop what was scheduled further ahead, schedule afresh
+  W.AUDIO.onEvent('space-cut', () => {
+    if (!ctx) return;
+    const t = ctx.currentTime;
+    for (const v of props) for (const p of v.params) if (p && p.cancelScheduledValues) p.cancelScheduledValues(t);
+    for (const v of drivers) for (const p of v.params) if (p && p.cancelScheduledValues) p.cancelScheduledValues(t);
+    lastP.fill(-1e9); lastD.fill(-1e9);
   });
 })();
