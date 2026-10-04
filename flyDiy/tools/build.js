@@ -468,6 +468,7 @@ const MANIFEST = {
               'audio/space_config.js', 'audio/space.js',
               // G1650-G1651 (SND-AMB-1): the ambience's numbers and the bed mixer (after samples.js: it loads through its 'amb' class)
               'audio/ambience_model.js', 'audio/ambience.js',
+              'audio/voice_model.js', 'audio/voice.js',   // G1627 (SND-VOICE): Radio Jolene's words and their player
               // G999: the world's composition, run by the promote in a task of its own ahead of app.js's evaluation
               'world_boot.js', 'app.js',
               'dev_panel.js'],   // (the WORLD rail, world_rail.js, rides the world pack above - G582)
@@ -946,7 +947,7 @@ window.FLYDIY_BOOT.then(function () {
   const SFX_CAT = path.join(VIEW_DIR, 'audio', 'sfx_catalogue.json');
   const SFX = {};
   if (fs.existsSync(SFX_CAT)) for (const r of JSON.parse(fs.readFileSync(SFX_CAT, 'utf8'))) (SFX[r.key] = SFX[r.key] || []).push(r.file);
-  const CORE_SHA = `<script>window.FLYDIY_CORE_SHA='${sha(coreBody).slice(0, 12)}';window.FLYDIY_BUILD='${BUILD_ID}';window.FLYDIY_AUDIO_SRC=${JSON.stringify(AUDIO_SRC)};window.FLYDIY_MUSIC=${MUSIC};window.FLYDIY_AUDIO_MEDIA=${JSON.stringify(SFX).replace(/</g, '\\u003c')}</script>`;
+  const CORE_SHA = `<script>window.FLYDIY_CORE_SHA='${sha(coreBody).slice(0, 12)}';window.FLYDIY_BUILD='${BUILD_ID}';window.FLYDIY_AUDIO_SRC=${JSON.stringify(AUDIO_SRC)};window.FLYDIY_MUSIC=${MUSIC};window.FLYDIY_AUDIO_MEDIA=${JSON.stringify(SFX).replace(/</g, '\\u003c')};window.FLYDIY_VOICE=${fs.existsSync(path.join(VIEW_DIR, 'audio', 'voice_catalogue.json')) ? JSON.stringify(JSON.parse(fs.readFileSync(path.join(VIEW_DIR, 'audio', 'voice_catalogue.json'), 'utf8'))).replace(/</g, '\\u003c') : '{"clips":{}}'}</script>`;   // G1627: Radio Jolene's voice catalogue, inlined like the music's
   fs.writeFileSync(path.join(ROOT, 'version.json'), JSON.stringify({ build: BUILD_ID, date: new Date().toISOString() }) + '\n');
   // THE MEDIA CACHE'S WORKER (LOADING S4): media/ only, cache-first - every file
   // there is named by its content hash, so a hit can never be stale; scripts,
