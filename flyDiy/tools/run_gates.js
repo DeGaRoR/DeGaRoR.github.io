@@ -572,10 +572,14 @@ const GATES = [
   { id: 'AUDIOENG', file: 'audio/_engine_check.js', tier: 'core', wall: 320 },
   // REVIEW 2026-10-04 (A6): the settlement houses' hitboxes stand where the houses are drawn - the registry's frame
   // against the renderer's, sampled inside and outside every footprint; ~2 s. Two sibling gates written by the same
-  // review are NOT registered because they are red on master until their finding is fixed: _stripground_check.js
-  // (A5: every generated strip on the ground its record says - A2 Pelham Field sits across a river) and
-  // _genpairs_check.js (B10: the lattice over paired configurations - the twin boom's two zero-length beams)
+  // review is NOT registered because it is red on master until its finding is fixed: _stripground_check.js
+  // (A5: every generated strip on the ground its record says - A2 Pelham Field sits across a river)
   { id: 'OBSTFRAME', file: '_obstframe_check.js', tier: 'core', wall: 5 },
+  // GEN-PAIRS G1580 (REVIEW 2026-10-04 B10 / E7): the lattice over seventeen single and paired configurations
+  // (tricycle, pusher, wingTop, twin boom, V-tail, biplane, floats and their pairs) - every node finite, every
+  // mass positive, every member over 1 mm and none refused by B() (parts.degenerate), the lattice mirrored; ~5 s.
+  // Red before G1580 on every twin-boom combination. GATE GEN's PAIRS block holds the same pairs' rank and stance.
+  { id: 'GENPAIRS', file: '_genpairs_check.js', tier: 'core', wall: 10 },
 ];
 
 const args = process.argv.slice(2);
