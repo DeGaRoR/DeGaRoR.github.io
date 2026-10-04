@@ -4626,9 +4626,9 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
             for (const band of H.rec.rungs[si]) for (const m of band) m.setColorAt(j, c3);
           } else for (const m of H.meshes) { m.setMatrixAt(i, m4); m.setColorAt(i, c3); }
           // the side's one impostor mesh: every tree, its series' layer
-          // (G1461: the one mesh is the LAST entry - side() pushes a null per empty series before it, so imps[0] was null
-          // whenever series 0 had no tree in the chunk and the whole planting threw: "world: after the build TypeError")
-          const mi = H.imps[H.imps.length - 1]; mi.setMatrixAt(i, m4); mi.setColorAt(i, c3); mi.geometry.attributes.aLayer.array[i] = H.lay[si];
+          // (G1461 HELD by A0 for WOODLAND G1480: the fix (the side's LAST entry, imps[0] is null when series 0 is empty)
+          // draws the woodland - ~100 000 more trees on Jolene - so it waits for WOODLAND's measured decision)
+          const mi = H.imps[0]; mi.setMatrixAt(i, m4); mi.setColorAt(i, c3); mi.geometry.attributes.aLayer.array[i] = H.lay[si];
         });
       };
       HS.forEach((H, gi) => fill(H, lists[gi]));
@@ -5195,7 +5195,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
           // ring (reach 220, density 2: ~30 M triangles a frame, 3-9 MINUTES a frame on SwiftShader). The same is true on
           // a graphics card (potato and retro draw the full cover there too); this re-apply is the software rung's only,
           // so a card's picture stays as it was - dropping the soft() test fixes it for every machine (A0's / the user's call)
-          if (typeof window !== 'undefined' && window.GFX && window.GFX.soft && window.GFX.soft() && window.GFX.onWorld) window.GFX.onWorld();
+          if (typeof window !== 'undefined' && window.GFX && window.GFX.onWorld) window.GFX.onWorld();   // train 31 (the user, 2026-10-04: "fix for all"): every machine, not the software rung only
         })).catch(e => { console.error('cover ring: ' + (e && e.message)); });
       // THE REACHABLE CATALOGUE, AGAIN (AS1, G908: trees.js treeReach). An F8 biome or mix edit (or a premises
       // re-stamp, then TREE_FILL.reach()) can name a species the map could not reach at boot and so never fetched:
