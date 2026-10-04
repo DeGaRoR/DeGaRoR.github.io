@@ -74288,3 +74288,108 @@ LIVERYREACH PASS.
 **A0 AT LANDING.** Re-cook the parked aeroplanes (the stock Cub's spec changed; the signature goes stale anyway with the
 build). The flown bake re-keys by itself (FLYDIY_BUILD and the spec are in its key). The user's own saved Cub in their
 browser heals at its next load. Frame cost: none (a load-time filter over a dozen keys; the resolver one comparison more).
+
+## G1545-G1549 - RUNWAY-LIGHTS-2: THE LAMP WARMER (2500 K), THE FLAREPATH SHROUDED TO THE APPROACH, AND A RED END ROW (2026-10-04, a cloud session for A0; branch claude/runway-lights-2-g1545 off train 30 = 44b7a381)
+
+THE ASK (the user, 4 Oct, after G1415): "The new runway lights do look better." (1) warmer than 2800 K; (2) SHROUDED like the
+period's flarepath - seen only from the approach, not shining all round; (3) a red end row only if easy.
+
+**G1545 THE COLOUR: 2500 K (was 2800).** The Drem flarepath's 15 W "pygmy" lamp was a small VACUUM lamp - those run at
+~2400-2600 K (a gas-filled lamp ~2800-3000 K) - and Drem's lights were run dimmed besides. 2500 K is the middle of that band;
+a paraffin flare (~1900-2000 K) would be warmer still but the fittings modelled are electric. Planck x the CIE 1931 observer
+(the Wyman 2013 fit, the same recipe as G1415) -> linear sRGB 1 : 0.381 : 0.068 (2800 K was 1 : 0.445 : 0.117), luminance 1:
+RWY_KIND.edge.light = [2.040, 0.778, 0.138]. The THRESHOLD green recomputed through the same lamp: G1415's filter
+reproduces as a Gaussian pass at 505 nm, sigma 31 nm (0 : 1 : 0.257, 25.7 % at 2800 K); at 2500 K it is 0 : 1 : 0.206, 23.6 %
+- RWY_KIND.thr.light = [0, 1.370, 0.282], 9 cd kept (the brightness the user liked; not re-derived from the lamp).
+THE STILL: reports/evidence/RUNWAY-LIGHTS-2/colour_ramp_zoom.jpg - 2800 / 2500 / 2400 K, bench crops x3.5 (the near edge
+light at 20 m, the row to the far end); k2800_vs_2500_*.jpg and k2400_vs_2500_*.jpg side by side. Through ACES the near
+core clips to white at any of the three; the colour is in the halo and in the far lights (orange-amber at 2500 K). 2400 K is
+one line (RWY_KIND.edge.light = [2.113, 0.759, 0.113]) if the user wants it warmer still.
+
+**G1546 THE SHROUD (the cone, from period practice).** What the period sources say (search abstracts; the pages themselves
+are behind this container's egress, as for G1415): Drem's flarepath lights were "so mounted as to be only visible to aircraft
+on the approach", "on poles and specially angled to be seen only at the correct position" - the pilot flew the circuit round
+the outer circle (2,000 yards out) until the flarepath came into view; the Glim lamp had a bakelite disc on top "that
+prevented direct light shining into the sky" and was "effectively invisible above some 1,500 feet"; a Drem Q-site's flarepath
+had at each end "a bar of hooded red lights, only visible at low level". No period beam angle was found, so the cone is
+DERIVED, and is one constant (render_world.js RWY_CONE = [10, 35, 7, 14]):
+- AZIMUTH: full within +-10 deg of the runway axis, gone at +-35 deg (smoothstep in the cosine). Final and the end of the
+  final turn see the flarepath; the circuit abeam (90 deg) never does. 20 deg off the near threshold reads ~0.93 of the
+  intensity, 34 deg ~0.36 (the far lights are nearer the axis).
+- ELEVATION: full up to 7 deg (a 3 deg approach; a modern edge light's beam is aimed 3.5 deg up), gone at 14 deg = the
+  Glim's 1,500 ft over Drem's 2,000-yard circuit radius (atan(457 / 1829)).
+- WHICH WAY: an EDGE fitting is open both ways along the strip (the game lands either way and keeps no duty runway; a
+  one-way flarepath would leave half the approaches dark); a THRESHOLD fitting's green faces OUT along its own approach only
+  - gone from behind.
+- THE LAW: the shroud's share f of the lamp's intensity enters G1415's Stevens law as sqrt(f) (brightness ~ sqrt(I) / d); a
+  light with f = 0 is clipped in the vertex shader (gl_Position off the clip box: no fragments).
+
+**G1547 THE RED END ROW: done, no core change.** Each threshold light now has a SECOND LOBE in the same glow layer: red, facing
+IN down the strip - the combined threshold / end fitting. Landing toward end A the pilot sees A's green row at his feet and
+B's RED row at the far end; lined up on the runway, the row behind is red too (night_behind.jpg: that is the end of the strip
+behind him, not its green). The red is a long-pass filter half at 610 nm (CIE x 0.697, y 0.303 - inside the aviation red),
+21 % of the 2500 K lamp -> 8 cd (the green's 9 cd x 0.211 / 0.236): RWY_KIND.end = { light: [4.442, 0, 0], cd: 8 }. The places
+are G1066's untouched (25_airfield.js not touched): the end row IS the threshold row, as on a real field. By day the fitting
+keeps its green glass (the instance colour; no new geometry): the day look unchanged.
+
+**HOW (render_world.js only):** the glow layer carries one more attribute, rwyAx (the lobe's axis x, z - toward where the light
+is seen from - and 1 for a two-way edge lobe); standRunwayLights writes one vertex an edge light and two a threshold light
+(green out, red in; the end it marks from the light's side of the strip's centre). RWY_GLOW_VS: the eye's vector from the
+light (cameraPosition - modelMatrix x transformed), its horizontal cosine to the axis (abs for two-way), its sine of
+elevation, two smoothsteps, the brightness x sqrt(f), clipped at f = 0. Still ONE glow material and program (no define, no
+cache key: the shader text is constant), still ONE points draw a strip, ONE fixture draw.
+
+**COST - GATE FRAMECOST: ZERO, BUT THE GATE IS RED ON THIS BRANCH FOR A REASON NOT ITS OWN (the stale parked cook).** Three
+runs on this box (reports/evidence/RUNWAY-LIGHTS-2/framecost_control.txt): (A) train 30 as is - PASS; (B) train 30 + ONE
+COMMENT in render_world.js - FAIL (24): any source change moves the build id, the shipped parked-aeroplane cook (G805,
+parked_packs.json) goes STALE (`parked_cook.js --check`), the page captures the parked aeroplanes LIVE and the stand / taxi
+draws rise (Cub stand 914 -> 1047 main, 169.5 -> 260.5 shadow; garage:parked 0 -> 67,684 matrix updates); (C) this branch -
+the SAME 24 reds, and `_framecost_check.js --compare B.json C.json` lists NO counter that moved: the day frames and every
+boot step (programs linked included) identical to the control. A0: the train's re-cook (parked_cook.js on the built tree,
+as train 30 did) clears it; no ALLOW entry is wanted for this branch.
+At night: the same two draws a strip; the vertex count +12 a strip (the second lobe of each threshold light: Jolene ~+72
+vertices); per vertex ~12 more ALU ops in a shader that runs once a light; the shrouded-out lights (most of them, from most
+places) now draw NO fragments where they drew a 9-64 px sprite each - the fill goes down. Nothing per frame on the CPU.
+
+**G1548 GATES AND BENCH:** RWYLIGHTS PASS - new section 3 (105 checks): the stub strip at an odd heading through the LIFTED standRunwayLights
+(the real MATLIB): one lobe an edge light, two a threshold light; every edge lobe two-way along the strip, every green out,
+every red in; the colours (2500 K, the recomputed green, the red at luminance sqrt(8) / 3); the shader text carries the
+shroud and the cone in it IS RWY_CONE; the law evaluated (a JS transcription held to the text): on the approach every edge
+light full, the near green, the far RED, the rest dark; the other way mirrored; from the side, from above (300 m over, 26 deg
+out on the axis) dark; behind a threshold its green dark; the final turn fading in; taxiing, the lights abeam dark, the ones
+down the strip lit. CLOUD PASS (its G443 law regex admits the x sqrt(rwF)).
+THE BATTERY (node tools/run_gates.js, core, --jobs=4, this box, 53 min wall): 138 PASS, 2 FAIL - FRAMECOST (the stale parked
+cook, above: the control fails identically, nothing moved) and BIOME (one TIMING check, "surface perf < 5 us": 7.2 us under
+the 4-job load; re-run alone 3.4 us, PASS, the same checksum 293998 - the core's biome code, not touched here). RWYLIGHTS,
+ASSETS, MATLIB, WORLDRENDER, PROGRAMS, CLOUD, BUILD PASS.
+
+**EVIDENCE - reports/evidence/RUNWAY-LIGHTS-2/**, the G1415 bench (tools/rwylights_bench.html, BEFORE = train 30's
+render_world.js, AFTER = this branch; three r186, ACES, exposure 1, no bloom, no aerial perspective, SwiftShader):
+- night_1km / night_300m - the approach: the same rows; the far threshold's bar now RED.
+- night_colour - just outside the threshold, zoomed down the edge row: green bar at the feet, warm row, red far end.
+- night_side - 400 m abeam, eye 2.4 m: before, the whole row; after, NOTHING (the side).
+- night_behind - lined up 70 m in, looking back: before the green bar; after the RED end bar (the green faces away).
+- night_above - 300 m over the near end: before, every light; after, dark (above).
+- night_downwind - 1,000 ft up, 1 km abeam: dark.
+- night_turn - the final turn, 25 deg off, 80 m up: the flarepath already lit (fading), the far end red.
+- night_stand / night_taxi - the stand and the taxi beside the row: the lights abeam gone, the ones down the strip lit.
+- day_close / day_taxiway / day_flush - the day: identical pixels outside the labels (max JPEG difference 12-14 in the
+  label strip only).
+- colour_ramp_zoom.jpg, k2800_vs_2500_*, k2400_vs_2500_* - the colour (above).
+`node tools/rwylights_shots.js <before render_world.js> [outDir] [--after f] [--labels 'L|R'] [--prefix p_]` re-shoots
+(--after / --labels / --prefix new: any two texts side by side). The bench now loads matlib.js: it was broken on master since
+train 28 made the light materials through MATLIB (MATLIB undefined in the lift).
+NO IN-GAME STILL: tools/soft_still.js (SOFT-GPU) is not on master at 44b7a381. A0, please look on the GPU box at night on
+Jolene: final into HOME (green at the feet, red far end), the downwind leg (dark), the stand (the row down the strip only).
+
+DECISIONS FOR THE USER:
+1. 2500 K proposed; 2400 K is one line if warmer is wanted (the ramp still).
+2. The cone (+-10 / 35 deg, 7 / 14 deg) is derived, not a period figure. Narrower (+-5 / 20) is the constant; the stand and
+   the taxi then see even less of the row.
+3. The edge rows are TWO-WAY. A one-way flarepath (the duty direction only) needs a duty runway the game does not keep.
+4. The node (WebGPU) path still ignores onBeforeCompile (G1415's note): there no shroud, no red lobe.
+
+FILES: src/viewer/render_world.js (RWY_KIND, RWY_CONE, the glow's vertex shader, standRunwayLights' lobes);
+tools/_rwylights_check.js (section 3, the 2500 K check), tools/_cloud_check.js (one regex), tools/rwylights_bench.html
+(matlib.js; five night views), tools/rwylights_shots.js (--after / --labels / --prefix); reports/evidence/RUNWAY-LIGHTS-2/.
+G1549 unused.
