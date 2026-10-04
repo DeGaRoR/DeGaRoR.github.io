@@ -368,7 +368,7 @@ function makeSim(def, world) {
   const nb = beams.length;
   const DMG = { yields: 0, breaks: 0, work: 0, broken: [], firstBreak: null, firstYield: null,
                 crashed: false, reason: null, at: null, dented: false, propStrike: false, propAt: null,
-                gPeak: 0, setMax: 0, orphans: [], members: 0, dents: 0, primary: 0, firstPrimary: null };
+                gPeak: 0, setMax: 0, orphans: [], members: 0, dents: 0, primary: 0, firstPrimary: null, holed: 0 };
   // per node: the members still holding it (an ORPHAN, every member broken, is debris: gravity and the ground
   // only, its aero dropped - a lone node carries a strip's lift on its own few kilos and would be flung)
   const nodeDeg = new Int32Array(n), nodeDeg0 = new Int32Array(n), orphan = new Uint8Array(n);
@@ -428,7 +428,7 @@ function makeSim(def, world) {
     clDirty = false; stripDead.fill(0);
     DMG.yields = 0; DMG.breaks = 0; DMG.work = 0; DMG.broken.length = 0; DMG.firstBreak = null; DMG.firstYield = null;
     DMG.crashed = false; DMG.over = false; DMG.reason = null; DMG.at = null; DMG.dented = false; DMG.propStrike = false; DMG.propAt = null;
-    DMG.gPeak = 0; DMG.setMax = 0; DMG.orphans.length = 0; DMG.members = 0; DMG.dents = 0; DMG.primary = 0; DMG.firstPrimary = null; gF = 0; cIx = cIy = cIz = 0;
+    DMG.gPeak = 0; DMG.setMax = 0; DMG.orphans.length = 0; DMG.members = 0; DMG.dents = 0; DMG.primary = 0; DMG.firstPrimary = null; DMG.holed = 0; gF = 0; cIx = cIy = cIz = 0;
     for (const b of beams) b.yielded = false;
   }
   function beamBreak(bi) {
@@ -523,10 +523,26 @@ function makeSim(def, world) {
   // cost 4-8 % of the step on the Cub and the metal Cessna; armed by the frame it costs nothing measurable.
   let armed = false, scrape = false;
   const ARM_FRAC = 0.5;
+  // THE WATER (G1470 x GEAR-WATER 2, A0): the water reaches the frame as the ground does - forces on the nodes (the floats'
+  // panels; the wet body's slam, buoyancy and drag where 32_hydro.js has wetBuild) - so the beams yield and break on
+  // the same path. Its push counts in the impact's g (the sum of f across the hydro pass: O(n) a substep, on a frame
+  // the water's own arm says can reach the water only), and it ARMS the yield while it is dynamic: in the water and
+  // descending over 0.5 m/s, or last frame's contact g over 1.3 - afloat or taxiing on the water it does not.
+  // `WB` / `wetArm` are the wet body's (GEAR-WATER 2); without it the guards read false.
+  const wetOn = () => typeof wetArm !== 'undefined' && wetArm;
+  let _w0x = 0, _w0y = 0, _w0z = 0;
+  function waterSum0() { let x = 0, y = 0, z = 0; for (let i = 0; i < n; i++) { x += f[i*3]; y += f[i*3+1]; z += f[i*3+2]; } _w0x = x; _w0y = y; _w0z = z; return true; }
+  function waterSum1(dt) { let x = 0, y = 0, z = 0; for (let i = 0; i < n; i++) { x += f[i*3]; y += f[i*3+1]; z += f[i*3+2]; } cIx += (x - _w0x) * dt; cIy += (y - _w0y) * dt; cIz += (z - _w0z) * dt; }
+  function waterDynamic() {
+    if (!((HY && HY.wet > 0) || wetOn())) return false;
+    if (gF > 1.3) return true;
+    let vy = 0; for (let i = 0; i < n; i++) vy += v[i*3+1] * m[i];
+    return vy / totalM < -0.5;
+  }
   function armFrame() {
     armed = false;
     if (!DMG_ON) return;
-    if (PEAK || _prN || _obstRecs.length || scrape || DMG.yields || DMG.dents) { armed = true; scrape = false; return; }
+    if (PEAK || _prN || _obstRecs.length || scrape || DMG.yields || DMG.dents || waterDynamic()) { armed = true; scrape = false; return; }
     for (let bi = 0; bi < nb; bi++) {
       const b = beams[bi], a3 = b.a * 3, b3 = b.b * 3;
       const Fs = b.k * (hyp3(p[b3] - p[a3], p[b3+1] - p[a3+1], p[b3+2] - p[a3+2]) - b.L0);
@@ -550,7 +566,9 @@ function makeSim(def, world) {
     gF += (gC - gF) * Math.min(1, dtFrame / 0.05);
     if (noseGnd) { noseGnd = false; for (let k = 0; k < eng.length; k++) propStrike(k, 'ground'); }
     if (gF > DMG.gPeak) DMG.gPeak = gF;
-    if (DMG.yields) DMG.dented = true;
+    // a holed hull slice (GEAR-WATER 2's S8.br: the slam past its skin's breach pressure) is skin damage - a dent
+    if (typeof WB !== 'undefined' && WB && WB.slices) { let h = 0; for (const S8 of WB.slices) if (S8.br) h++; DMG.holed = h; }
+    if (DMG.yields || DMG.dents || DMG.holed) DMG.dented = true;
     if (DMG.crashed) return;
     const why = DMG.primary ? 'a ' + (DMG.firstPrimary.cls || 'member') + ' member broke'
       : gF > CRASH_G ? 'an impact of ' + gF.toFixed(0) + ' g'
@@ -1757,7 +1775,9 @@ function makeSim(def, world) {
       }
     }
     // THE WATER (H1): every wet panel of every float, onto the frame
+    const wIn = DMG_ON && (HY || wetOn()) ? waterSum0() : false;   // G1470: the water's push, for the impact's g
     if (HY && world) out.hydroWet = HYDRO.hydroSolverPass(HY, world, f, simT, dt, ctl);
+    if (wIn) waterSum1(dt);
     // tree collisions: cheap cylinder push-out, only when low and near trees
     if (world) {
       const cgx = p[0], cgz = p[2];   // any chassis node as coarse anchor
@@ -2066,10 +2086,10 @@ function makeSim(def, world) {
            setNodeMass,
            // the panel arc: the tanks, the engines and their one writer
            fuel, eng, setEngine, thrEffOf, hydro: HY,
-           trunkHits: () => _tkHits,
+           trunkHits: () => _tkHits,   // G1330: beam-trunk contacts (one per beam per trunk per substep) since the sim was made
            // G1470: the damage - yields, breaks (beam indices), plastic work (J), the largest set (strain), the peak
            // filtered g, the prop strike, and the verdict: crashed (with why and when) / dented / neither
-           damage: () => DMG, damagePeak: () => PEAK,   // G1330: beam-trunk contacts (one per beam per trunk per substep) since the sim was made
+           damage: () => DMG, damagePeak: () => PEAK,
            reset, stance, step, trueBox, probe, stats, impulse, wheelsOnGround, wheelContacts, cgPos, cgVel, axes,
            // G197: the kernel's sources, readable (the gate asserts the weights' normalisation)
            induction: () => ({ WS: WS.slice(), plane: Array.from(PLANE), bHalf: Array.from(bHalf), Ez: Array.from(Ez), Dz: Array.from(Dz), Gam: Array.from(Gam), Wg: Array.from(Wg), zA: WS.map(j => sZA[j]), zB: WS.map(j => sZB[j]), A: WS.map(j => [sA[j*3], sA[j*3+1], sA[j*3+2]]), B: WS.map(j => [sB[j*3], sB[j*3+1], sB[j*3+2]]), d: sD.slice(), cpt: Array.from(cpt), pairs: pairs.length, loading: LOADING }),
