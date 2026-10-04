@@ -13,6 +13,12 @@
   let frustum = null; try { const T3 = window.THREE; if (T3) { frustum = new T3.Frustum(); frustum.setFromProjectionMatrix(new T3.Matrix4().multiplyMatrices(cam.projectionMatrix, cam.matrixWorldInverse)); } } catch (e) {}
   const out = { far: FAR, hidden: 0, kept: 0, groups: {}, nodes: 0, autoNodes: 0, premNodes: 0, premAuto: 0 };
   W.scene.traverse(o => { out.nodes++; if (o.matrixWorldAutoUpdate !== false) out.autoNodes++; });
+  // the walk updateMatrixWorld really takes (it does not descend into a child whose matrixWorldAutoUpdate is false) and
+  // the nodes projectObject visits (visible ones), per top-level child of the scene and per premises group
+  const walkOf = (o, acc) => { acc.walk++; if (o.matrixAutoUpdate) acc.compose++; for (const ch of o.children) if (ch.matrixWorldAutoUpdate !== false) walkOf(ch, acc); };
+  const projOf = (o, acc) => { acc.proj++; if (!o.visible) return; if (o.isLOD) acc.lods++; for (const ch of o.children) projOf(ch, acc); };   // projectObject's visits (it stops at an invisible node)
+  out.sceneTop = {}; for (const ch of W.scene.children) { const k = ch.name || ch.type; const a = out.sceneTop[k] = out.sceneTop[k] || { walk: 0, compose: 0, proj: 0, lods: 0 }; if (ch.matrixWorldAutoUpdate !== false) walkOf(ch, a); projOf(ch, a); }
+  out.premTop = {}; for (const ch of P.root.children) { const a = out.premTop[ch.name || '?'] = { walk: 0, compose: 0, proj: 0, lods: 0, kids: ch.children.length }; if (ch.matrixWorldAutoUpdate !== false) walkOf(ch, a); projOf(ch, a); }
   const top = o => { let p = o; while (p.parent && p.parent !== P.root) p = p.parent; return p.name || '?'; };
   const shown = o => { for (let p = o; p; p = p.parent) if (!p.visible) return false; return true; };
   const hide = [];
