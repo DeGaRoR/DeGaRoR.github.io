@@ -266,7 +266,7 @@ function manifestFiles() {
     ? [path.join(ROOT, 'src', 'core', 'townkit_pack.json')] : [];
   // THE SOUND (G1636): the recorded sounds (tools/audio/prep_sfx.js owns media/audio/sfx) and the music
   // (the coordinator's prep owns media/audio/music) - each named by its inlined catalogue
-  const sound = ['sfx_catalogue.json', 'music_catalogue.json'].map(f => path.join(ROOT, 'src', 'viewer', 'audio', f))
+  const sound = ['sfx_catalogue.json', 'music_catalogue.json', 'voice_catalogue.json'].map(f => path.join(ROOT, 'src', 'viewer', 'audio', f))
     .filter(f => fs.existsSync(f));
   return v.concat(packs, pier, totems, panelhw, cabin, models, chars, animals, trees, shots, worlds, townkit, sound);
 }

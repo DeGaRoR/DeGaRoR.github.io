@@ -64,6 +64,9 @@ const FILES = {
   ambmodel: 'src/viewer/audio/ambience_model.js', amb: 'src/viewer/audio/ambience.js',
   // SND-AMB-2 (G1660-G1666): the emitters' numbers, the emitters, the premises renderer's read-only accessor
   emmodel: 'src/viewer/audio/emitters_model.js', em: 'src/viewer/audio/emitters.js', prem: 'src/viewer/render_premises.js',
+  // SND-VOICE (G1626-G1629): Radio Jolene's words, their player, the catalogue, the script, GATE MEDIA's list
+  voicemodel: 'src/viewer/audio/voice_model.js', voice: 'src/viewer/audio/voice.js', voicecat: 'src/viewer/audio/voice_catalogue.json',
+  voicescript: 'tools/audio/voice_script.json', mediachk: 'tools/_media_check.js',
 };
 const readAll = () => { const S = {}; for (const k in FILES) S[k] = fs.readFileSync(path.join(ROOT, FILES[k]), 'utf8'); return S; };
 const shaOf = S => crypto.createHash('sha256').update(Object.keys(FILES).map(k => S[k]).join('\u0000')).digest('hex');
@@ -3245,6 +3248,159 @@ function checkEmSamples(S) {
   });
 }
 
+// ==== SND-VOICE (G1626-G1629) ======================================================================================
+//   VOICE_CAT    the catalogue (src/viewer/audio/voice_catalogue.json, tools/audio/prep_voice.js's): the voice's licence
+//                record whole (engine, model licence, dataset, its licence and URL, the lineage) with a clean dataset
+//                licence (public domain / CC0 / CC BY - a credit line for CC BY; never NC / ND / SA); every clip a
+//                content-hashed media/audio/voice file that EXISTS, with its text and a dur > 0; every VOCAB word, every
+//                voice_script.json line and every music track's back-announce (ba / title / artist) has its clip; no
+//                orphan file in media/audio/voice; CREDITS.md's VOICE block names the voice and its dataset licence.
+//   VOICE_AWOS   awosClips on the edge cases, read back as words: calm, gusts (and one too small to report), variable,
+//                north, 10 SM exactly and 12 SM, quarters, ceilings under 1000 ft, 12 000 ft = sky clear, minus
+//                temperatures (-0.3 reads zero), QNH 29.92 in inches AND in pascals -> "two niner niner two" (1014.1 hPa
+//                rounds to 29.95, not truncates), the time
+//                from minutes; the final take at each group's end; 400 fuzzed observations: every key in VOCAB, rests
+//                positive, never two in a row, never first or last.
+//   VOICE_MARINE marineClips: the compass, the range, the seas (foot / feet), the advisory, the trend; fuzzed the same way.
+//   VOICE_PLAY   the player on a stub context: nothing fetched without a context; play schedules each clip at the end of
+//                the one before plus the rest, sample-exact, from its codec-pad offset, for its catalogue dur; a failed
+//                clip closes up (its rests stay); stop() stops every source; the decoded bytes back under the budget
+//                once a reading ends; keyOf finds a line by its text.
+//   VOICE_WIRING the build lists voice_model.js then voice.js and inlines voice_catalogue.json as FLYDIY_VOICE; GATE MEDIA
+//                reads voice_catalogue.json.
+function loadVoiceModel(text) { const c = { module: { exports: {} } }; vm.runInNewContext(text, c, { filename: 'voice_model.js' }); return c.module.exports; }
+const voiceWords = (M, seq) => seq.filter(k => typeof k === 'string').map(k => (M.VOCAB[k] == null ? '<' + k + '>' : M.VOCAB[k].replace(/[.,]/g, '').toLowerCase())).join(' ');
+function checkVoiceCat(S) {
+  const F = [];
+  let cat; try { cat = JSON.parse(S.voicecat); } catch (e) { return ['voice_catalogue.json does not parse: ' + e.message]; }
+  const v = cat.voice || {}, M = loadVoiceModel(S.voicemodel);
+  for (const k of ['id', 'engine', 'modelLicence', 'dataset', 'datasetLicence', 'datasetUrl', 'lineage']) if (!(typeof v[k] === 'string' && v[k].trim())) F.push('the voice record has no ' + k);
+  const dl = String(v.datasetLicence || '');
+  if (/\bNC\b|\bND\b|\bSA\b|non-?commercial|share-?alike|no-?deriv/i.test(dl) || !/^(public domain|CC0|CC BY 4\.0)$/i.test(dl)) F.push('the dataset licence "' + dl + '" is not public domain / CC0 / CC BY 4.0');
+  if (/^CC BY/i.test(dl) && !(v.credit && v.credit.length > 10)) F.push('a CC BY dataset and no credit line');
+  if (!/\bMIT\b/.test(String(v.engine)) || /GPL/.test(String(v.engine).replace(/espeak/ig, ''))) F.push('the engine is not the MIT Piper: ' + v.engine);
+  if (!/scratch|fine-tuned .*scratch/i.test(String(v.lineage))) F.push('the lineage does not reach a voice trained from scratch: ' + v.lineage);
+  const clips = cat.clips || {}, keys = Object.keys(clips);
+  const want = new Set(Object.keys(M.VOCAB));
+  for (const k in JSON.parse(S.voicescript).lines) want.add(k);
+  for (const t of JSON.parse(S.catalogue)) for (const k of M.trackKeys(t)) want.add(k);
+  for (const k of want) if (!clips[k]) F.push('no clip for ' + k);
+  const dir = path.join(ROOT, 'media', 'audio', 'voice');
+  const onDisk = new Set(fs.existsSync(dir) ? fs.readdirSync(dir) : []), named = new Set();
+  for (const k of keys) {
+    const c = clips[k];
+    if (!/^media\/audio\/voice\/[a-z0-9_]+\.[0-9a-f]{8}\.mp3$/.test(c.file || '')) { F.push(k + ': the file ' + c.file + ' is not media/audio/voice/<stem>.<h8>.mp3'); continue; }
+    named.add(c.file.split('/').pop());
+    if (!onDisk.has(c.file.split('/').pop())) F.push(k + ': ' + c.file + ' does not resolve');
+    if (!(c.dur > 0.05 && c.dur < 20)) F.push(k + ': dur ' + c.dur);
+    if (!(typeof c.text === 'string' && c.text.trim())) F.push(k + ': no text');
+  }
+  for (const f of onDisk) if (!named.has(f)) F.push('an orphan in media/audio/voice: ' + f);
+  const b = S.credits.indexOf('<!-- VOICE:BEGIN'), e = S.credits.indexOf('<!-- VOICE:END -->');
+  const block = b >= 0 && e > b ? S.credits.slice(b, e) : '';
+  if (!block.includes('**' + v.id + '**') || !block.includes(dl) || (v.credit && !block.includes(v.credit))) F.push('CREDITS.md\'s VOICE block does not name ' + v.id + ' with its dataset licence' + (v.credit ? ' and credit' : ''));
+  return F;
+}
+function voiceFuzz(F, M, label, make, fn) {
+  let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  for (let n = 0; n < 400; n++) {
+    const o = make(rnd), s = fn(o), j = JSON.stringify(o);
+    if (typeof s[0] !== 'string' || typeof s[s.length - 1] !== 'string') { F.push(label + ' fuzz: a rest first or last for ' + j); break; }
+    for (let i = 0; i < s.length; i++) {
+      const x = s[i];
+      if (typeof x === 'number') { if (!(x > 0 && x < 2)) { F.push(label + ' fuzz: a rest of ' + x + ' for ' + j); return; } if (typeof s[i + 1] === 'number') { F.push(label + ' fuzz: two rests in a row for ' + j); return; } }
+      else if (M.VOCAB[x] == null) { F.push(label + ' fuzz: the key ' + x + ' is no word for ' + j); return; }
+    }
+  }
+}
+function checkVoiceAwos(S) {
+  const F = [], M = loadVoiceModel(S.voicemodel), A = o => voiceWords(M, M.awosClips(o));
+  const HEAD = 'jolene field automated weather observation ';
+  const cases = [
+    ['calm, 10 SM, sky clear', { timeZ: '0950', wind: { dirDeg: 200, kt: 2 }, visSM: 10, sky: [], tempC: 12, dewC: 8, altInHg: 30.01 },
+      'zero niner five zero zulu wind calm visibility one zero sky clear below one two thousand temperature one two dew point eight altimeter three zero zero one'],
+    ['the gusty low day', { timeZ: '1753', wind: { dirDeg: 268, kt: 15, gustKt: 26 }, visSM: 2, wx: ['light_rain', 'mist'], sky: [{ cover: 'SCT', ft: 300 }, { cover: 'BKN', ft: 600 }, { cover: 'OVC', ft: 1400 }], tempC: -2, dewC: -4, altInHg: 29.92 },
+      'one seven five three zulu wind two seven zero at one five gusts two six visibility two light rain mist scattered three hundred ceiling six hundred broken one thousand four hundred overcast temperature minus two dew point minus four altimeter two niner niner two'],
+    ['a gust too small, north, 12 SM, 12 000 ft', { timeZ: 1073, wind: { dirDeg: 2, kt: 10, gustKt: 11 }, visSM: 12, sky: [{ cover: 'BKN', ft: 12000 }], tempC: -0.3, dewC: -12, qnhPa: 101325 },
+      'one seven five three zulu wind three six zero at one zero visibility one zero sky clear below one two thousand temperature zero dew point minus one two altimeter two niner niner two'],
+    ['variable, quarters, a 900 ft ceiling, remarks', { timeZ: '0005', wind: { dirDeg: null, kt: 4 }, visSM: 0.5, wx: ['fog'], sky: [{ cover: 'OVC', ft: 900 }], tempC: 3, dewC: 3, qnhPa: 101410, rmk: ['birds'] },
+      'zero zero zero five zulu wind variable at four visibility one half fog ceiling niner hundred overcast temperature three dew point three altimeter two niner niner five remarks bird activity in the vicinity of the airport'],
+    ['under a quarter, 5000 and 8000 ft', { timeZ: '2359', wind: { dirDeg: 135, kt: 7 }, visSM: 0.1, sky: [{ cover: 'FEW', ft: 5000 }, { cover: 'OVC', ft: 8000 }], tempC: 19, dewC: 17, altInHg: 30.12 },
+      'two three five niner zulu wind one four zero at seven visibility less than one quarter few clouds five thousand ceiling eight thousand overcast temperature one niner dew point one seven altimeter three zero one two'],
+  ];
+  for (const [what, o, want] of cases) { const got = A(o); if (got !== HEAD + want) F.push(what + ': "' + got.slice(HEAD.length) + '" (want "' + want + '")'); }
+  if (M.VOCAB['d.9'] !== 'niner,' || M.VOCAB['d.9.f'] !== 'niner.') F.push('nine is not "niner"');
+  // the final takes: each group's last digit / height word falls, a continuing one inside
+  const s = M.awosClips(cases[1][1]), at = k => s.indexOf(k);
+  const before = k => { const i = at(k); for (let j = i - 1; j >= 0; j--) if (typeof s[j] === 'string') return s[j]; return null; };
+  if (before('w.gusts') !== 'd.5') F.push('the wind speed before its gust is ' + before('w.gusts') + ' (want the continuing d.5)');
+  if (before('w.visibility') !== 'd.6.f' || before('w.temperature') !== 'w.overcast' || s[s.length - 1] !== 'd.2.f') F.push('a group does not end on its final take: ' + [before('w.visibility'), before('w.temperature'), s[s.length - 1]].join(' / '));
+  voiceFuzz(F, M, 'AWOS', r => ({ timeZ: Math.floor(r() * 1440), wind: { dirDeg: r() < 0.1 ? null : r() * 400 - 20, kt: r() * 40, gustKt: r() * 60 },
+    visSM: r() < 0.2 ? r() : r() * 15, wx: r() < 0.5 ? [M.WX[Math.floor(r() * M.WX.length)]] : [],
+    sky: Array.from({ length: Math.floor(r() * 4) }, () => ({ cover: ['FEW', 'SCT', 'BKN', 'OVC'][Math.floor(r() * 4)], ft: r() * 14000 })),
+    tempC: r() * 70 - 35, dewC: r() * 60 - 40, altInHg: 28 + r() * 3, rmk: r() < 0.3 ? [M.REMARKS[Math.floor(r() * M.REMARKS.length)]] : [] }), M.awosClips);
+  return F;
+}
+function checkVoiceMarine(S) {
+  const F = [], M = loadVoiceModel(S.voicemodel), A = o => voiceWords(M, M.marineClips(o));
+  const cases = [
+    [{ dirDeg: 135, kt: [10, 15], seasFt: 2, sky: 'fog', when: 'this_morning', advisory: true, trend: 'rising' },
+      'and the marine forecast for the sound small craft advisory in effect southeast wind ten to fifteen knots rising seas two feet patchy fog this morning'],
+    [{ dirDeg: null, kt: 2, seasFt: 0.5, sky: 'fair' }, 'and the marine forecast for the sound variable wind less than five knots seas less than one foot fair'],
+    [{ dirDeg: 350, kt: [22, 31], seasFt: 1, trend: 'easing' }, 'and the marine forecast for the sound north wind twenty to thirty knots easing seas one foot'],
+    [{ dirDeg: 250, kt: 12, seasFt: 6, sky: 'showers', when: 'tonight' }, 'and the marine forecast for the sound west wind twelve knots seas six feet scattered showers tonight'],
+  ];
+  for (const [o, want] of cases) { const got = A(o); if (got !== want) F.push('"' + got + '" (want "' + want + '")'); }
+  voiceFuzz(F, M, 'marine', r => ({ dirDeg: r() < 0.1 ? null : r() * 360, kt: [r() * 20, 20 + r() * 40], seasFt: r() * 15, sky: ['fair', 'fog', 'rain', 'showers', 'x'][Math.floor(r() * 5)],
+    when: ['this_morning', 'tonight', null][Math.floor(r() * 3)], advisory: r() < 0.3, trend: ['rising', 'easing', null][Math.floor(r() * 3)] }), M.marineClips);
+  return F;
+}
+async function checkVoicePlay(S) {
+  const F = [];
+  const c = { module: { exports: {} }, console: { info() {}, warn() {}, log() {} } };
+  vm.runInNewContext(S.voice, c, { filename: 'voice.js' });
+  const V = c.module.exports, M = loadVoiceModel(S.voicemodel), SR = 48000, PAD = 2400;
+  const cat = { clips: { a: { file: 'a.mp3', text: "You're listening to Radio Jolene.", dur: 0.4 }, b: { file: 'b.mp3', text: 'b', dur: 0.3 },
+    c: { file: 'c.mp3', text: 'c', dur: 0.2 }, d: { file: 'd.mp3', text: 'd', dur: 0.5 } } };
+  let fetches = 0;
+  const fetch = u => { fetches++; const k = u.replace(/^B\//, '').slice(0, 1); return k === 'c' ? Promise.reject(new Error('404')) : Promise.resolve(new Uint8Array(Math.round((cat.clips[k].dur + 0.1) * SR))); };
+  const starts = [], stops = [];
+  const mkBuf = n => { const d = new Float32Array(PAD + n); for (let i = PAD; i < d.length; i++) d[i] = 0.3 * Math.sin(i * 0.05) + 0.01; return { length: d.length, numberOfChannels: 1, sampleRate: SR, duration: d.length / SR, getChannelData: () => d }; };
+  const ctx = { currentTime: 1, destination: {}, decodeAudioData: (ab, ok) => { const b = mkBuf(ab.byteLength); ok(b); return Promise.resolve(b); },
+    createGain: () => ({ gain: { value: 1 }, connect() {}, disconnect() {} }),
+    createBufferSource: () => { const s = { connect() {}, start(t, off, dur) { starts.push({ s, t, off, dur }); }, stop() { stops.push(s); } }; return s; } };
+  // no context: nothing fetched, nothing played
+  const N = V.create({ catalogue: cat, fetch, base: 'B/', model: M, ctx: null });
+  const n0 = await N.play(['a', 0.1, 'b']); await N.preload(['a', 'b']);
+  if (n0 !== null || fetches) F.push('without a context: play -> ' + n0 + ', ' + fetches + ' fetches (want null, 0)');
+  const P = V.create({ catalogue: cat, fetch, base: 'B/', model: M, ctx, budget: 200 * 1024 });
+  if (P.keyOf("you're listening to radio jolene") !== 'a') F.push('keyOf does not find a line by its text');
+  if (P.missing(['a', 0.1, 'x']).join() !== 'x') F.push('missing() reads ' + P.missing(['a', 0.1, 'x']));
+  const h = await P.play(['a', 0.1, 'b', 0.2, 'c', 0.05, 'd']);
+  const want = [['a', 1.05, 0.4], ['b', 1.55, 0.3], ['d', 2.1, 0.5]], off = PAD / SR - 0.005;
+  if (!h || starts.length !== 3) F.push('play scheduled ' + starts.length + ' sources (want 3: a, b, d - c failed)');
+  else starts.forEach((s, i) => { const [k, t, dur] = want[i]; if (Math.abs(s.t - t) > 1e-9 || Math.abs(s.off - off) > 1e-9 || Math.abs(s.dur - dur) > 1e-9) F.push(k + ' starts at ' + s.t.toFixed(6) + ' from ' + s.off.toFixed(6) + ' for ' + s.dur + ' (want ' + t + ' from ' + off.toFixed(6) + ' (the codec pad) for ' + dur + ')'); });
+  if (h && Math.abs(h.end - 2.6) > 1e-9) F.push('the reading ends at ' + h.end + ' (want 2.6)');
+  if (P.state('c') !== 'failed') F.push('the failed clip reads ' + P.state('c'));
+  const playing = P.bytes;
+  if (h) { const last = starts[starts.length - 1].s; if (last.onended) last.onended(); }
+  if (!(P.bytes <= 200 * 1024 && playing > 200 * 1024)) F.push('decoded bytes ' + playing + ' while playing, ' + P.bytes + ' after (want back under the 204 800 budget)');
+  starts.length = 0;
+  const h2 = await P.play(['a', 0.1, 'd']); if (h2) h2.stop();
+  if (!h2 || stops.length !== 2) F.push('stop() stopped ' + stops.length + ' of 2 sources');
+  return F;
+}
+function checkVoiceWiring(S) {
+  const F = [];
+  const s0 = S.build.indexOf("    scripts: ['storage.js'"), s1 = S.build.indexOf("'dev_panel.js']", s0);
+  const list = s0 >= 0 && s1 > s0 ? S.build.slice(s0, s1) : '';
+  const ia = list.indexOf("'audio/audio.js'"), im = list.indexOf("'audio/voice_model.js'"), iv = list.indexOf("'audio/voice.js'"), iw = list.indexOf("'app.js'");
+  if (!(ia >= 0 && im > ia && iv > im && iw > iv)) F.push('build.js MANIFEST.viewer.scripts does not list audio/voice_model.js then audio/voice.js after audio.js, before app.js');
+  if (S.build.indexOf("window.FLYDIY_VOICE=${fs.existsSync(path.join(VIEW_DIR, 'audio', 'voice_catalogue.json'))") < 0) F.push('build.js does not inline voice_catalogue.json as window.FLYDIY_VOICE');
+  if (!/const sound = \[[^\]]*'voice_catalogue\.json'/.test(S.mediachk)) F.push('GATE MEDIA does not read voice_catalogue.json');
+  return F;
+}
+
 const CHECKS = { NUMBERS: checkNumbers, CONTACTS: checkContacts, BUDGET: checkBudget, GESTURE: checkGesture,
                  SILENCE: checkSilence, SETTINGS: checkSettings, SOURCES: checkSources, WIRING: checkWiring,
                  MUSIC_CAT: checkMusicCatalogue, MUSIC_CTX: checkMusicContexts, MUSIC_SHUFFLE: checkMusicShuffle,
@@ -3261,7 +3417,8 @@ const CHECKS = { NUMBERS: checkNumbers, CONTACTS: checkContacts, BUDGET: checkBu
                  AMBSAMPLES: checkAmbSamples, AMBWIRING: checkAmbWiring,
                  EMITHABITAT: checkEmHabitat, EMITRATE: checkEmRate, EMITAGL: checkEmAgl, EMITOBJECTS: checkEmObjects,
                  EMITGESTURE: checkEmGesture, EMITPLAY: checkEmPlay, EMITBUDGET: checkEmBudget, EMITALLOC: checkEmAlloc,
-                 EMITWIRING: checkEmWiring, EMITSAMPLES: checkEmSamples };
+                 EMITWIRING: checkEmWiring, EMITSAMPLES: checkEmSamples,
+                 VOICE_CAT: checkVoiceCat, VOICE_AWOS: checkVoiceAwos, VOICE_MARINE: checkVoiceMarine, VOICE_PLAY: checkVoicePlay, VOICE_WIRING: checkVoiceWiring };
 const REPORTS = { BUDGET: 1, AFVOICE: 1, AFALLOC: 1, AFFLOWN: 1, AFSOURCE: 1, SP_BUDGET: 1, AMBBUDGET: 1, AMBALLOC: 1, EMITRATE: 1, EMITBUDGET: 1, EMITALLOC: 1 };
 
 // ---- THE MUTATIONS (D): [name, file, find, replace, the check that must go red] ---------------------------------
@@ -3522,6 +3679,31 @@ const MUT = [
   ['the pickup undeclared', 'samples', "    ['dog', 'a dog barking, far off'], ['mech.door', 'a door shutting'], ['vehicle.pickup', 'a pickup passing on gravel'],", "    ['dog', 'a dog barking, far off'], ['mech.door', 'a door shutting'],", 'EMITWIRING'],
   ['the one-shot baked into a loop', 'samples', "      if (KEYS[key] && KEYS[key].kind === 'oneshot') {\n        const add", "      if (false) {\n        const add", 'EMITSAMPLES'],
   ['an assignment ignored', 'samples', "    const clsOf = key => { const a = assigned[key]; if (a) return classes[a] || null;", "    const clsOf = key => { const a = null; if (a) return classes[a] || null;", 'EMITSAMPLES'],
+  // SND-VOICE (G1626-G1629)
+  ['a word with no clip', 'voicecat', '"d.7": {', '"d.7x": {', 'VOICE_CAT'],
+  ['a non-commercial voice', 'voicecat', '"datasetLicence":"public domain"', '"datasetLicence":"CC BY-NC-SA 4.0"', 'VOICE_CAT'],
+  ['a clip that does not resolve', 'voicecat', '"file":"media/audio/voice/id_1.', '"file":"media/audio/voice/id_1x.', 'VOICE_CAT'],
+  ['the lineage forgotten', 'voicecat', '"lineage":"', '"lineage":"","was":"', 'VOICE_CAT'],
+  ['a new track never announced', 'catalogue', '"id": "fma238392"', '"id": "fma238392x"', 'VOICE_CAT'],
+  ['a script line never rendered', 'voicescript', '"out.night": "', '"out.night2": "Goodnight.", "out.night": "', 'VOICE_CAT'],
+  ['CREDITS names another voice', 'credits', '**en_US-john-medium**', '**en_US-norman-medium**', 'VOICE_CAT'],
+  ['nine said "nine"', 'voicemodel', "'eight', 'niner']", "'eight', 'nine']", 'VOICE_AWOS'],
+  ['never calm', 'voicemodel', 'if (kt < 3) G.push', 'if (kt < 0) G.push', 'VOICE_AWOS'],
+  ['every gust reported', 'voicemodel', 'hasG = gu >= kt + 3;', 'hasG = gu > 0;', 'VOICE_AWOS'],
+  ['no minus', 'voicemodel', "if (r < 0) a.push('w.minus');", '', 'VOICE_AWOS'],
+  ['10 SM read as a digit', 'voicemodel', "if (!(v >= 0) || v >= 10) vg.push('d.1', 'd.0.f');", "if (!(v >= 0) || v > 10) vg.push('d.1', 'd.0.f');", 'VOICE_AWOS'],
+  ['ceilings floored at 1000 ft', 'voicemodel', 'ft = Math.max(100, Math.round(', 'ft = Math.max(1000, Math.round(', 'VOICE_AWOS'],
+  ['the altimeter truncated', 'voicemodel', 'String(Math.round(alt * 100))', 'String(Math.floor(alt * 100))', 'VOICE_AWOS'],
+  ['the compass floored', 'voicemodel', "g.push('mar.' + COMPASS[Math.round(", "g.push('mar.' + COMPASS[Math.floor(", 'VOICE_MARINE'],
+  ['one feet', 'voicemodel', "n === 'n.1' ? 'mar.foot' : 'mar.feet'", "'mar.feet'", 'VOICE_MARINE'],
+  ['a gap after every clip', 'voice', 'src.start(t0 + a.t, r.off, a.dur);', 'src.start(t0 + a.t + 0.01 * srcs.length, r.off, a.dur);', 'VOICE_PLAY'],
+  ['the codec pad played', 'voice', 'if (Math.abs(x[i]) > PAD_FLOOR) return Math.max(0, i / sr - LEAD_S);', 'if (Math.abs(x[i]) > PAD_FLOOR) return 0;', 'VOICE_PLAY'],
+  ['a fetch before the gesture', 'voice', '      if (!c || !ctx) return Promise.resolve(null);', '      if (!c) return Promise.resolve(null);', 'VOICE_PLAY'],
+  ['the budget never enforced', 'voice', 'for (const [k, r] of idle) { if (bytes <= budget) break; bytes -= r.size; recs.delete(k); }', '', 'VOICE_PLAY'],
+  ['stop() forgets a source', 'voice', 'for (const x of srcs) { try { x.stop(); } catch (e) {} }', 'for (const x of srcs.slice(1)) { try { x.stop(); } catch (e) {} }', 'VOICE_PLAY'],
+  ['the build drops the player', 'build', "'audio/voice_model.js', 'audio/voice.js',", "'audio/voice_model.js',", 'VOICE_WIRING'],
+  ['the catalogue not inlined', 'build', 'window.FLYDIY_VOICE=${', 'window.FLYDIY_VOICES=${', 'VOICE_WIRING'],
+  ['GATE MEDIA blind to the voice', 'mediachk', "'music_catalogue.json', 'voice_catalogue.json']", "'music_catalogue.json']", 'VOICE_WIRING'],
 ];
 
 // a check returns its failures, or a promise of them (SAMPLES: the loader is promise-based)

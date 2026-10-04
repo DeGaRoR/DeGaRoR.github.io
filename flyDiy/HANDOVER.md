@@ -72363,3 +72363,74 @@ MISSING HOOKS / WORLD FEATURES (said, not invented): no MOVING boat exists (the 
   soundObjects (render_premises' TRAFFIC holds both), but the node evidence simulates only the record's 36 roads.
 NOT DONE: the emitters carry no propagation lag (AUDIO.lagS); their calls are near and short. The doppler is on the bound
   pass only. Rain, wind gusts and the sea state do not drive the emitters. Animals.
+
+## G1626-G1629 - SND-VOICE: RADIO JOLENE'S VOICE - A CLEAN NEURAL VOICE RENDERED OFFLINE, THE STATION'S LINES, THE AWOS AND THE MARINE FORECAST ASSEMBLED FROM RECORDED WORDS, PLAYED GAP-FREE, GATED (2026-10-04, SND-VOICE for the Sound Coordinator, cloud, node + python tools; branch claude/snd-voice-g1626 off origin/claude/sound-next 771d31f0; SND-PROP's unused tail)
+
+Ruling s12 (SOUND-2026-10-04 §11): the voice stays AI, but better, identical on every machine, offline. No app.js edit.
+SND-RADIO's branch was not on origin yet: its segments reach these clips by KEY (the catalogue) or by TEXT (AUDIO_VOICE.keyOf).
+G1626 THE VOICE - Piper 1.2.0 (rhasspy/piper, MIT) + piper-phonemize 1.1.0 (MIT), PINNED: piper-tts >= 1.3 on PyPI is
+  OHF-Voice/piper1-gpl, GPL-3.0 (a tool either way; nothing of it ships; espeak-ng (GPL) only makes phonemes - output is not
+  covered). Hugging Face is DENIED by this container's network policy: the voices came from the sherpa-onnx GitHub release
+  mirror (same onnx + the voice's json + its MODEL_CARD); `prep_voice.js --fetch` does the same into assets/audio/voices/
+  (gitignored). THE FINDING: most Piper English voices are FINE-TUNED FROM en_US-lessac (Blizzard 2013, CSTR research-only
+  licence) - alan, alba, aru, vctk, jenny, joe (CC0 data!), libritts_r, sam, reza, amy, arctic, kusal, northern_english_male,
+  semaine, hfc_male; ryan (and kathleen / danny / southern_english_female, fine-tuned from ryan-low) is CC BY-NC-SA; bryce
+  descends from an unreleased voice. Clean lineage = trained from scratch on clean data. No clean UK MALE voice exists.
+  | voice | who | engine | model | dataset - licence - URL | lineage | quality |
+  | **en_US-john-medium** (SHIPPED) | male US | MIT | MIT | LibriVox ~12.5 h - public domain - librivox.org | fine-tuned from kristin (from scratch, LibriVox PD) | medium |
+  | en_US-norman-medium | male US | MIT | MIT | LibriVox ~15.5 h - public domain | from scratch | medium |
+  | en_US-libritts-high spk 856 | male US | MIT | MIT | LibriTTS clean-360 - CC BY 4.0 (credit Zen et al.) - openslr.org/60 | from scratch | high |
+  | en_GB-cori-high | FEMALE UK | MIT | MIT | LibriVox ~24 h - public domain | from scratch | high |
+  (kristin and ljspeech are clean too, not shortlisted.) CHOICE: john - the calmest pace (1.95 words/s vs norman 2.37),
+  ~113 Hz, best male intelligibility in an offline ASR round trip (Whisper base.en via sherpa-onnx, tools only): AWOS words
+  55/80 (norman 51, libritts 56, cori 58), lines WER 19.9 % (20.9 / 20.3 / 16.5; inflated by numerals). The user picks by ear:
+  `node tools/audio/prep_voice.js --voice norman` re-renders everything (catalogue + CREDITS rewritten).
+G1627 THE WORDS AND THE PLAYER - `src/viewer/audio/voice_model.js` (VOICE_MODEL, pure): VOCAB (119 words: digits with a
+  CONTINUING take "seven," and a FINAL take "seven.", thousand/hundred likewise, the AWOS words, present weather, remarks, the
+  marine words + numbers, compass, the back-announce frames); awosClips(obs) - US AWOS order: station, HHMM zulu, wind (calm
+  < 3 kt, dir to 10 deg with 360 for north, variable, gusts when >= mean + 3), visibility (>= 10 "one zero", quarters, "less
+  than one quarter"), weather, sky (the first BKN/OVC is the ceiling; 800 "eight hundred", 1400 "one thousand four hundred",
+  >= 12 000 or none "sky clear below one two thousand"), temperature / dew point (minus, -0 reads zero), altimeter (inHg or
+  qnhPa, rounded: 29.92 "two niner niner two"), remarks; each group ends on its final take; rests 50 / 280 / 550 ms. obs:
+  { timeZ ('1753' | minutes), wind {dirDeg|null, kt, gustKt}, visSM, wx[], sky [{cover, ft}], tempC, dewC, altInHg|qnhPa,
+  rmk[] } - the game's weather_ui day (wind.kts, dirDeg, gust fraction, oatC, dewC, qnhPa) maps straight in; marineClips(fc)
+  { dirDeg, kt [lo,hi], seasFt, sky, when, trend, advisory }; backAnnounce(track, frame) ('ba.<id>' = the whole sentence "That
+  was T, by A." in one take; other frames: frame + title + by + artist); timeline(seq, durOf).
+  `src/viewer/audio/voice.js` (AUDIO_VOICE): lazy (nothing fetched without AUDIO.ctx, i.e. before the gesture), ASSET_FETCH ->
+  decodeAudioData, the codec pad skipped (first sample > 1e-3 minus 5 ms: lamejs writes no LAME tag), each clip start()ed
+  sample-exact at the previous end + the rest, for the catalogue's dur; a failed clip closes up; LRU budget 6 MB decoded;
+  dest = opts.dest || AUDIO.bus('radio') || AUDIO.bus('ui'). API: has, dur, text, keyOf(text), missing(seq), preload(seq),
+  play(seq, {dest, when, gain}) -> {start, end, stop()} | null, say(key), stopAll(), state(key), bytes, voice.
+  build.js: ONE list line (voice_model.js, voice.js after the ambience) + window.FLYDIY_VOICE inlined on the CORE_SHA line
+  (the catalogue, like the music's). _media_check.js: voice_catalogue.json in the sound list. NOTE for the coordinator: a fresh
+  build is +296.5 KB over the committed index.html (budget 307.2) - the whole of sound-next unbuilt; this block's share ~41 KB
+  (catalogue 18.9 KB, voice_model 14.1, voice 8.3).
+G1628 THE RENDER - `tools/audio/prep_voice.js` (+ `voice_render.py`, `voice_script.json`): the script lines (3 IDs, the
+  bulletins, pilot notes, swap corner, intros/outros - 24), the VOCAB, per music track ba / title / artist (a new track ->
+  re-run; VOICE_CAT is red until then). TWO PATCHES TO THE ONNX GRAPH, in memory: SEEDED (RandomNormalLike gets a seed: a
+  re-run is byte-identical - verified, no file changed) and ALIGNED (the '/Ceil' durations exposed: words of one or two are
+  rendered in a CARRIER "zero, seven, zero." and cut at the comma pauses - a lone word from a sentence-trained VITS mumbles:
+  norman 20/80 recognised alone, 51/80 carried). Chain: hp 60 Hz, trim (-45 dB, 20 ms / 60 ms), fades, -20 LUFS (K-weighted,
+  100 ms gated blocks), <= -1 dBFS, MP3 mono 22.05 kHz 48 kb/s, _media_lib (owned media/audio/voice, pruned). Respellings
+  for the voice only (Jolene -> Jo-leen, HoliznaCC0 -> Holizna). `--check`, `--demo`, `--fetch`.
+  pip install "piper-tts==1.2.0" onnx (+ sherpa-onnx only for the ASR evidence, not needed to render).
+G1629 THE GATE AND THE EVIDENCE - GATE AUDIO + VOICE_CAT (licence record whole and clean - PD / CC0 / CC BY with credit,
+  never NC/ND/SA, MIT engine, a from-scratch lineage; every clip a hashed file that exists; every VOCAB word, script line and
+  catalogue track's ba/title/artist has a clip; no orphan; CREDITS names the voice), VOICE_AWOS (5 edge readings word for word:
+  calm, gusts and a too-small gust, variable, north = 360, 10 SM exactly, 12 SM, quarters, ceilings 300/600/900 ft, 12 000 ft =
+  clear, -2 / -12 / -0.3, 29.92 in inHg AND 101325 Pa, 1014.1 hPa rounds to 2995, time from minutes; final takes; 400 fuzzed
+  obs), VOICE_MARINE (4 readings + fuzz), VOICE_PLAY (stub context: no fetch before a context, sample-exact gap-free starts
+  from the pad offset, a failed clip closes up, stop() all, back under budget after the end, keyOf), VOICE_WIRING. 24 new
+  mutations, each caught. GATE AUDIO: PASS, 204/204 mutations, wall 117 s (< 160). GATE MEDIA: PASS (2622 = 2622;
+  negative-verified by hand: a bad path and an orphan both red).
+  Evidence: reports/evidence/SND-VOICE/ - README (the table, the rejected list with reasons, the ASR comparison, how the
+  concatenation is made natural), index.html (the listening page), 12 demos (station ID, the ferry bulletin, the gusty
+  low-ceiling AWOS 1753Z 268/15G26 2 SM -RA BR SCT003 BKN006 OVC014 M02/M04 A2992, per voice; 1.43 MB), cards/ (the 4 shortlisted
+  + 26 rejected MODEL_CARDs).
+FILES (bytes): media/audio/voice/ 169 clips 1 572 484 (251 s; target < 6 MB); src/viewer/audio/voice_catalogue.json 18 869,
+  voice_model.js 14 059, voice.js 8 320; tools/audio/prep_voice.js 21 385, voice_render.py 6 081, voice_script.json 2 301;
+  _audio_check.js +184 lines; build.js +1 line +1 edited; _media_check.js 1 edited; CREDITS.md one VOICE block (one row).
+NOT DONE / FOR THE USER: the ear - pick john / norman / libritts / cori on the listening page (a UK male does not exist with a
+  clean lineage); SND-RADIO wires play() into its schedule and the weather into awosClips (the radio bus, if it adds one, is
+  picked up by name); the dataset pages (librivox, openslr, keithito) and Hugging Face were unreachable from the container -
+  the licences are the model cards' own, which is what s12 asks; a re-check from the box costs one look each.
