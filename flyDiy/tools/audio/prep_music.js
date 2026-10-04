@@ -20,7 +20,7 @@ const CAT = path.join(ROOT, 'src', 'viewer', 'audio', 'music_catalogue.json');
 
 const clean = t => String(t).replace(/\.mp3\s*$/i, '').replace(/\s*\([^)]*\)\s*$/, '').replace(/\s+/g, ' ').trim();
 const word = s => String(s).normalize('NFKD').replace(/[^A-Za-z0-9]+/g, '_').replace(/^_+|_+$/g, '').toLowerCase().slice(0, 48);
-const licenceOf = l => l === 'CC0-1.0' ? 'CC0' : /^CC-BY-(\d\.\d)$/.test(l || '') ? 'CC-BY ' + l.slice(6) : null;
+const licenceOf = l => l === 'CC0-1.0' ? 'CC0' : l === 'PD' ? 'Public domain' : /^CC-BY-(\d\.\d)$/.test(l || '') ? 'CC-BY ' + l.slice(6) : null;
 
 (async () => {
   const argv = process.argv.slice(2);
