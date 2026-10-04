@@ -72,6 +72,10 @@ const GATES = [
   // a freeze is kept, the GPU query yields to another's, the ring and the chunks, analyze_log.js scoring two
   // scripted sessions, the recorder's own cost (time and allocation a frame) and its wiring; ~10 s
   { id: 'FLIGHTREC', file: '_flightrec_check.js', tier: 'core' },
+  // THE SOUND (G1604, SOUND-2026-10-04 §8): audio_params.js on six validated builds (firing, BPF, tip Mach off the
+  // solver's rpm), AUDIO.update's budget (no heap, < 0.3 ms), nothing before a gesture, ?audio=0 builds nothing, the
+  // silence, the settings, the sources, the wiring - and every check mutated red (--selftest alone); ~3 s
+  { id: 'AUDIO', file: 'audio/_audio_check.js', tier: 'core' },
   // SKY S1/S2 (2026-09-14): the day object and the almanac, headless
   { id: 'DAY', file: 'test_day.js', tier: 'core' },
   // THE CLIMATE (K0, 2026-09-22): the one wind field - the G72 column bit-identical against a

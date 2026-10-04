@@ -68348,3 +68348,76 @@ BATTERY: two reds, both explained. FADES: its pattern read `const AERO_CLEAR = (
 red) - the pattern takes any number form now (a5f8a2f0), PASS. FRAMECOST: tris.shadow +71 969 (+2.3 %) at the stand and the
 taxi, Cub and Cessna alike = the world look's castMinH 0.5 -> 0.35 m (more cover-ring bushes cast); no fps cost on the light
 pass; admitted, the baseline re-taken (3 rises). Parked aeroplanes re-cooked on the final build.
+
+## G1600-G1604 - SND-CORE: THE SOUND'S SKELETON - window.AUDIO, THE PARAMETER BLOCK, THE BUSES, THE SETTINGS, GATE AUDIO (2026-10-04, SND-CORE for the Sound Coordinator, cloud, node only; branch claude/snd-core-g1600 off claude/sound-integration; G1605-G1609 unused)
+
+Design: futureDesigns/SOUND-2026-10-04.md §2 / §8 / §9 / §10 (wave 1). No sound is made yet: no synth, no file (SND-ENGINE's).
+G1600 src/viewer/audio/audio.js -> window.AUDIO. NOTHING BEFORE A GESTURE: at load it only listens for the first
+  pointerdown / keydown (capture, on window); the handler makes the AudioContext and the graph, then the listeners go.
+  ?audio=0, or localStorage flydiy.audio = '0' (?audio=1 outranks the pref), builds NOTHING: AUDIO is a stub with the same
+  surface (update() returns at once), no listener, no block, no context. THE BUSES (§2.2): sources -> aircraft.ext /
+  aircraft.int -> aircraft -> master; ambience, music, ui -> master; master -> fade -> limiter (DynamicsCompressor -1 dBFS,
+  ratio 20, knee 0, attack 2 ms) -> out. THE SILENCE: hidden tab, the pause (FLYDIY_HELD, read in update) or an unfocused
+  window (the setting) ramp `fade` to 0 over 0.2 s, then ctx.suspend(); back -> resume() and the ramp up (a flip back inside
+  the fade cancels the suspend). The perspective cross-fade (ext <-> int, tau 50 ms ~ 150 ms) follows interior = the
+  cockpit eye outside the shed. Loading (BOOT) does not silence anything yet (owed: say whether it should, SND-MUSIC).
+G1601 src/viewer/audio/audio_params.js -> AUDIO_PARAMS, PURE (node). audioParams(sim, cam, def, out, world, dt) fills ONE
+  Float32Array: out.s[out.I.<name>] (nEng dt V Veas Vg alpha beta nz vs alt oatC c rho thrust wash starved energyFrac
+  thrMaster onGround main0 main1 tail water surf0 surf1 surfT hydroWet submerged flap brake de da dr camMode interior
+  inGarage held listenerX/Y/Z open) and per engine (4 slots, views on the same block) rpm rpmEng thr running crank key
+  thrustPer cyl twoStroke blades D gear family fireHz bpfHz tipM tipMh. fireHz = rpmEng/60 x cyl/2 (x cyl two-stroke),
+  bpfHz = rpm/60 x blades, tipM = pi D rpm/60 / c, c = 20.0468 sqrt(oatC + 273.15). The per-aeroplane constants are
+  resolved once per def: spec.engines[i].sound = {cyl, twoStroke, blades} when present (SND-ENGINE's join), else
+  spec.prop.blades, else AP_FALLBACK (four-stroke 4, two-stroke 2, radial 9, electric / turbine 0 = no firing pulse; a
+  custom engine's name "custom <arch> <n>-cyl" gives n). Contacts + the surface code under each wheel at 30 Hz.
+G1602 THE FRAME: one line in app.js loop(), after the render's POSE_LERP.back(): AUDIO.update(sim, camera, fdt, def, cam,
+  inGarage, world). ZERO ALLOCATION (measured: 0.4 B/frame over 10 000 = noise; 2-3 us a frame in node). Found on the way,
+  for anyone writing a per-frame path in this codebase: a double written into an OBJECT FIELD is a fresh heap box per write
+  (moved to Float64Array slots: the contacts clock, the listener, AUDIO.stats); a read of a HOLEY double array merges with
+  undefined and boxes (the solver's out.thrustPer is holey - `Ti.length = nE` - read with a unary plus); `a && a.x` on a
+  double boxes; a double passed to a non-inlined call boxes (world.surface gets whole metres, `| 0`).
+  NOT OURS, reported: the INLINE solver's wheelContacts() builds an object per call (~700 B/frame at 30 Hz, GATE AUDIO prints
+  it); under the worker (the default) sim.ctl is sim_link.js's Proxy and every lever read comes back boxed through its trap
+  (~7 doubles a frame) and sim.t is a getter (dropped from the block). OWED to sim_link (not touched): a raw ctl handle.
+G1603 SETTINGS on both rails: the flight rail's item `audio` (label "sound", between graphics and dev; section `sound`,
+  FL_SEC_BUILD.sound) and the shed rail's `audio` item (editor.js RAIL + one line in openFly), both AUDIO.mount(body, kit)
+  in their own rows: the sound switch (off = ctx.close() + flydiy.audio '0'; on = a new context now, the click is the
+  gesture), master / aircraft / environment / music / interface (0-100 %), mute when unfocused (on), headset (off: -15 dB
+  on aircraft + ambience in the cockpit), music in flight (off: the music bus at 0 out of the shed). localStorage
+  flydiy.audio.<key>, every access in try/catch. GATE UISMOKE learned the sixth item (fly,view,sky,graphics,audio,dev; its
+  9 rows) and runs the two audio files from source (2 lines + 4).
+G1604 GATE AUDIO tools/audio/_audio_check.js (core, ~3 s; --selftest alone lists the mutations). NUMBERS on six builds flown
+  0.5 s at full throttle by the real solver (the user's Cub, the Jodel, the Cessna's custom flat-4, the metal Cessna's O-540,
+  the Cessna on Wipline floats, the twin-582 ultralight): the solver's rpm to the float, rpmEng = rpm x gear, firing / BPF /
+  tip Mach / helical tip Mach against independent arithmetic, the levers, the key, plausibility windows. CONTACTS (30 Hz,
+  the water code, the shed's cockpit pref is not interior). BUDGET (no heap growth and no GC in 10 000 frames under a
+  64 MB young generation, < 0.3 ms, no AudioParam scheduled in a steady frame). GESTURE (nothing before it, 1 context and
+  9 nodes after, listeners gone; ?audio=0 and the pref: no listener, no block, no context). SILENCE, SETTINGS, SOURCES
+  (a throwing source is switched off; same name replaces; off/on cycle), WIRING (the build list, FLYDIY_AUDIO_SRC, ONE
+  AUDIO.update between the render and PACE.end, both rails). SELFTEST: 27 mutations of the source TEXT (in memory, nothing
+  on disk touched), each must turn its check red (and its check must be green on the pristine text), then the files are
+  re-read and hashed: byte-identical.
+THE BUILD: MANIFEST.viewer.scripts carries 'audio/audio_params.js', 'audio/audio.js' before world_boot.js / app.js (inlined
+  in index.html, refs in dev.html; +30 KB of code). MANIFEST.audio.modules (empty now) is the list of AudioWorklet modules:
+  never inlined, never a <script> tag - served as their own files, their content-versioned URLs published in both pages as
+  window.FLYDIY_AUDIO_SRC = { stem: 'src/viewer/audio/<f>?v=<sha8>' } (with FLYDIY_CORE_SHA). SND-ENGINE: add
+  'engine_worklet.js' to MANIFEST.audio.modules and call AUDIO.module('engine_worklet') inside its source's connect().
+THE API FOR SND-ENGINE / PROP / AIRFRAME / MUSIC (no app.js touch needed):
+  AUDIO.addSource(name, { connect(ctx, AUDIO), update(P, dt, AUDIO), disconnect() }) - connect once the context exists,
+  wire to AUDIO.bus('aircraft.ext' | 'aircraft.int' | 'aircraft' | 'ambience' | 'music' | 'ui' | 'master'); update every
+  frame with P (P.s[P.I.V], P.rpm[i], P.fireHz[i], P.bpfHz[i], P.tipM[i] ...), allocation-free (AudioParam
+  setTargetAtTime, tau ~30 ms; port.postMessage only for discrete events - a message is a structured clone).
+  AUDIO.module(stem) -> promise; AUDIO.onEvent('ready' | 'suspend' | 'resume' | 'settings' | 'perspective' | any, fn) /
+  AUDIO.emit; AUDIO.get / set (the settings); AUDIO.params, AUDIO.stats {calls, ms, maxMs, sources}, AUDIO.state.
+§9 AS MEASURED (2026-10-04): (1) the blade count IS in the spec - spec.prop.blades (60_gen_spec.js:3288, clamped 2-6 at
+  :4303); the generator's prop synthesis uses it. (2) "the twin-582 floats fixture" (build_v7_ultralight_2026-09-05.json) is
+  a TAILDRAGGER on wheels (no hydro); the only floats build is the Cessna on Wipline floats. (3) the solver's
+  wheelsOnGround() / wheelContacts() allocate per call on the inline path; onGround here is derived from the contacts (the
+  same count). (4) app.js lines held: loop 11288, the render ~11535, FL_RAIL 8827, SIMW_DEFAULT 11279. (5) the metal
+  Cessna's O-540 reads 4 cylinders on the fallback - it is a six; the join owes it.
+  A TUNING NOTE FOR SND-PROP: on every direct-drive flat-4 with two blades (the Cub, the Jodel, both Cessnas) the firing
+  frequency and the BPF are THE SAME number (70.5 Hz on the Cub static) - the gearbox is what separates them (the 582: 199.5
+  Hz firing over a 76.1 Hz BPF).
+GATES: AUDIO, BUILD, UISMOKE, VIEW, FLIGHTREC, MEDIA, PACE, BOOT, SIMWORKER PASS. Generated files (index.html, dev.html,
+  sw.js, version.json, flight_core.js) not committed (built by the train). Not run: a browser (cloud): the first real
+  context, the limiter's sound and the rails' look are the user's / the integration's to see.
