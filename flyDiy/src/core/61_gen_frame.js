@@ -199,6 +199,79 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     rodKv = GJl > 0 ? Math.max(1, Math.min(20, GJt / GJl)) : 1;
     return rodKv;
   };
+  // G1810 (DMG-D1a): WHERE A CRASH FINDS THE STRUCTURE - the joints (DEFORM-AND-BREAK §7.2). A crash tears an
+  // aeroplane along its fittings, rivet lines, glue lines and the frames round its openings, not through the middle
+  // of a spar. B() stamps every member with its `seam` (null, 'fitting', 'rivet', 'bond', 'opening') and every
+  // ATTACHMENT member with its break group (`grp`, §4.4: the group breaks whole), from what the generator already
+  // knows: the node tags say which PART a node is (the body, a wing half, the stab, the fin, a boom, an engine, a
+  // main gear leg, the third wheel, a float). A member joining two parts IS the joint (the lattice has no separate
+  // bolt), so it is a `fitting` and belongs to the group of the part that comes off ("the child": the gear off the
+  // body, the engine off its mount, the wing off the cabin). Read only by the damage layer (30_solver.js, behind
+  // params.damage); zero cost to anything else. dmgGroups (returned) is the group table.
+  const dmgGroups = [], dmgGrpKey = {}, dmgSib = [];
+  const dmgRootZ = [];                                   // per plane: the wing roots' |z| (a root node is a root fitting's)
+  const dmgCovered = !(S.fuselage && S.fuselage.covering === 'open');
+  const dmgGlazed = dmgCovered && !(S.cab && S.cab.glazing === 'none');
+  // the part a node belongs to, and the part's rank: the higher rank is the child of a joint (it comes off)
+  const dmgPart = i => {
+    const t = nodes[i].tag || '', z = P[i][2], sd = z < 0 ? 'L' : 'R';
+    if (t === 'WF' || t === 'WR' || t === 'WB' || t === 'WB2') return { p: 'wing' + (nodes[i].plane || 0) + sd, r: 1, base: 'wing' + (nodes[i].plane || 0), wing: true };
+    if (t.slice(0, 2) === 'BM') return { p: 'boom' + t[2], r: 2, base: 'boom' };
+    if (/^(HF|HR|HB|HT)/.test(t)) return { p: 'stab', r: 3, base: 'stab' };
+    if (/^(VF|VR|VX|FIN)/.test(t)) return Math.abs(z) > 0.2 ? { p: 'fin' + sd, r: 3, base: 'fin' } : { p: 'fin', r: 3, base: 'fin' };
+    if (/^(ENG|CGE|MNT)/.test(t)) return Math.abs(z) > (S.cab ? S.cab.halfW : 0.5) ? { p: 'eng' + sd, r: 3.5, base: 'eng' } : { p: 'eng', r: 3.5, base: 'eng' };
+    if (t.slice(0, 4) === 'AXLE') return { p: 'gear' + sd, r: 4, base: 'gear' };
+    if (t === 'TW') return { p: 'tw', r: 4, base: 'tw' };
+    if (t === 'FLK' || t === 'FLD') return { p: 'float' + sd, r: 4, base: 'float' };
+    return { p: 'body', r: 0, base: 'body' };          // the stations, the post, the nose tank's pair (VSN)
+  };
+  // which joint of its child part a member is: a wing's ROOT (its wing end on the root rib) or its STRUT (the fan,
+  // the strut, the boxed outer's lower chord), the INTERPLANE truss; an engine's MOUNT; a gear's attach; a float's struts
+  const dmgJoint = (C, cn, A) => C.wing ? (A.wing ? 'interplane' : (Math.abs(Math.abs(P[cn][2]) - (dmgRootZ[nodes[cn].plane || 0] ?? -1)) < 1e-6 ? 'root' : 'strut'))
+    : C.base === 'eng' ? 'mount' : C.base === 'float' ? 'strut' : (C.base === 'gear' || C.base === 'tw') ? 'gear' : 'attach';
+  const dmgGroup = (key, part, joint, anchor) => {
+    if (dmgGrpKey[key] != null) return dmgGrpKey[key];
+    dmgGroups.push({ id: dmgGroups.length, key, part, joint, anchor, t0: [], t1: [] });
+    return (dmgGrpKey[key] = dmgGroups.length - 1);
+  };
+  // the seam of a member inside one part: rivet lines and bond lines (§7.2), the frames round the openings
+  const dmgRing = i => { const m = /^S(\d+)([BT])([LR])$/.exec(nodes[i].tag || ''); return m ? { i: +m[1], tb: m[2], sd: m[3] } : null; };
+  const dmgSeamIn = (a, b, cls, mnt, opt, mat, pa) => {
+    if (cls === 'fus' && !mnt && pa.p === 'body') {
+      const ra = dmgRing(a), rb = dmgRing(b);
+      if (!ra || !rb) return null;
+      const lo = Math.min(ra.i, rb.i), hi = Math.max(ra.i, rb.i);
+      // OPENINGS (a covered cabin with its glazing): the windscreen's frame (ring 0 to ring 1, the top: the posts'
+      // tops and the header) and the cabin's sides (ring 1 to the cabin's rear: the door and the side windows, the
+      // posts at both ends). Kt 1.5-2 on Fu (the 172's forward doorpost cracking, NTSB "broken at the windscreen
+      // frame and cabin door posts")
+      if (dmgGlazed) {
+        const xA = ST[lo] ? ST[lo].x : 0, xB = ST[hi] ? ST[hi].x : 0, cab1 = S.cab ? S.cab.noseGap : 0;
+        const cab2 = S.cab ? S.cab.noseGap + S.cab.len : 0;
+        if (lo === 0 && hi === 1 && ra.tb === 'T' && rb.tb === 'T') return 'opening';            // the windscreen
+        if (hi === lo + 1 && xA >= cab1 - 1e-6 && xB <= cab2 + 1e-6 && ra.sd === rb.sd && ra.tb !== rb.tb) return 'opening';   // a side bay's diagonal
+        if (lo === hi && ra.sd === rb.sd && ra.tb !== rb.tb && (Math.abs(xA - cab1) < 1e-6 || Math.abs(xA - cab2) < 1e-6)) return 'opening';   // a doorpost
+      }
+      // THE CABIN-TO-TAILCONE JOINT (NASA's 172 test 3 "snapped the fuselage in half"; NTSB "tailcone separated just
+      // aft of the baggage compartment ... along the rivet lines"): the frame at the box's rear and the bay behind it
+      // (its longerons are the splices) - riveted on an alloy monocoque, bonded on a composite or a ply one; a welded
+      // or bolted truss (4130, 6061 tube) has neither
+      const iJ = ST.findIndex(s => Math.abs(s.x - boxRearJ) < 1e-6);
+      if (iJ > 0 && lo === iJ && (hi === iJ || hi === iJ + 1)) return (mat === 'alloy') ? 'rivet' : (mat === 'carbon' || mat === 'wood') ? 'bond' : null;
+      // ...and the monocoque's frame-to-skin lines aft of the joint: the tailcone's skin panels (the bay diagonals)
+      if (mat === 'alloy' && iJ > 0 && lo > iJ && hi === lo + 1 && !(ra.tb === rb.tb && ra.sd === rb.sd)) return 'rivet';
+      return null;
+    }
+    // GLUE LINES: a wood or composite surface's ribs (the members of one station: the rib gussets, the root rib) and
+    // its box webs (the ply or the laminate bonded to the spar caps - opt.web)
+    if ((mat === 'wood' || mat === 'carbon') && (cls === 'wing' || cls === 'tail')) {
+      if (opt && opt.web) return 'bond';
+      const k = pa.base === 'fin' ? 1 : 2;
+      if (Math.abs(P[a][k] - P[b][k]) < 1e-6) return 'bond';
+    }
+    return null;
+  };
+  const boxRearJ = S.fuse ? S.fuse.boxRear : -1;
   const B = (a, b, cls, ext, vis, mnt, opt) => {
     const L = Math.hypot(P[b][0]-P[a][0], P[b][1]-P[a][1], P[b][2]-P[a][2]);
     const isG = cls === 'gear';
@@ -308,6 +381,38 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
                  vis: vis || null, L };
     if (opt && opt.tens) bm.tens = true;
     if (opt && opt.pre) bm.pre = opt.pre;
+    // G1470 (TREE-CRASH): THE MEMBER'S SECTION, for the damage model (30_solver.js): the area its mass is
+    // billed at (lin / rho at its gauge, the aft taper and the box webs in - the same A the load test
+    // judges a class by, per member) and the material it is made of (the GEN_MATERIALS key whose `phys`
+    // it reads; GEN_CRASH carries that material's ultimate and its elongation). Read by nothing else.
+    {
+      const bk = bucketOf(cls, mnt), g1 = bk && GG ? GG[bk] : 1;
+      const webK = (opt && opt.web && MM.coverGauged) ? (R.boxWebK == null ? 1 : R.boxWebK) : 1;
+      const lin = row(MM.lin, cls, tSecM);
+      // ...but never under its CLASS's section (lin / rho of the row, ungauged: exactly what the load test judges a
+      // class by, 65_gen_loadtest yieldPct): a member billed lighter than its class - a box web billed as skin, the
+      // aft taper, the gauge under 1 - has the rest of its strength in the skin, which the lattice bills under
+      // `cover`, not `lin`. Measured: on the metal Cessna its own billed area put a wing member at 133 % of yield
+      // at the 3.8 g limit (a 172's wing holds it), the class's at 52 % - the load test's own figure.
+      bm.A = lin > 0 && MM.phys ? Math.max(lin * aftG * webK * g1, lin) / MM.phys.rho : 0;
+      bm.mat = genPhysKey(MM.phys);
+    }
+    // G1810 / G1815 (DMG-D1a): the seam and the break group (see dmgPart above). Every member carries both fields (one
+    // shape for the solver's beam loop); a member that is no joint reads null / -1
+    {
+      const pa = dmgPart(a), pb = dmgPart(b);
+      bm.seam = null; bm.grp = -1;
+      if (pa.p !== pb.p) {
+        if (pa.base === pb.base && pa.r === pb.r && pa.base !== 'stab') dmgSib.push([beams.length, pa.p, pb.p]);   // a pair's own link (G1815)
+        else {
+          const ch = pa.r > pb.r || (pa.r === pb.r && (pa.p > pb.p)) ? [pa, a, pb] : [pb, b, pa];
+          const joint = dmgJoint(ch[0], ch[1], ch[2]);
+          bm.seam = 'fitting';
+          bm.grp = dmgGroup(ch[0].p + ':' + joint, ch[0].p, joint, ch[2].p);
+          dmgGroups[bm.grp].t0.push(beams.length);
+        }
+      } else bm.seam = dmgSeamIn(a, b, cls, mnt, opt, bm.mat, pa);
+    }
     beams.push(bm);
     // structural mass: linear density x length, half to each end (this is the
     // whole structural mass model — there is no separate mass budget to keep
@@ -737,6 +842,8 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   // G274: the centre section's own width when the builder set one (the
   // root pair moves with it; the panels start there), else the cabin's
   const zRoot = (w.centreW > 0 ? 0.5 * w.centreW : cab.halfW) + (cabane ? R.cabaneSplay : 0);
+  dmgRootZ[k] = zRoot;                                    // G1815: a node here is a root fitting's
+
   // CRANK: a second wing section. The break gets its own spar station, because
   // it is a real joint — the outer panel bolts to the centre section there —
   // and because the dihedral changes across it, so a node has to exist at the
@@ -2603,6 +2710,30 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     const o = C.omega;
     C.omega = o.wRef * Math.sqrt((o.k / o.kRef) * (o.mRef / Math.max(1, Mc)));
   }
+  // G1815 (DMG-D1a): A PAIR'S OWN LINK (the wing carry-through, the main gear's axle bar, the floats' spreader bars) is
+  // TYPE 1 in both sides' groups: either side's attachment letting go takes it (the half-wing does not hang on by the
+  // carry-through), and it breaks neither (BeamNG's breakGroupType 1). On a side with a root group, that one
+  for (const [bi, p1, p2] of dmgSib) for (const pp of [p1, p2]) {
+    const g = dmgGroups.find(G => G.part === pp && G.joint === 'root') || dmgGroups.find(G => G.part === pp);
+    if (g) g.t1.push(bi);
+  }
+  // ...AND EVERY GROUP IS A CLOSED SET (§4.4, BeamNG's leak warning: groups that chain drop the wrong parts) - a
+  // generator assertion, read by GATE DMGMEMBERS on the validated builds: a group has a member that breaks it; a
+  // member it takes along (type 1) breaks no other group, and sits in no more groups than its pair's two sides; each
+  // member that breaks it has an end on its own part; and every member that joins two parts is in a group, so any
+  // part can come off whole
+  const dmgIssues = [], inT1 = new Int32Array(beams.length);
+  for (const G of dmgGroups) {
+    if (!G.t0.length) dmgIssues.push(G.key + ': no member breaks it');
+    for (const bi of G.t1) { inT1[bi]++; if (beams[bi].grp >= 0) dmgIssues.push(G.key + ': takes member ' + bi + ', which breaks group ' + beams[bi].grp); }
+    for (const bi of G.t0) { const b = beams[bi]; if (dmgPart(b.a).p !== G.part && dmgPart(b.b).p !== G.part) dmgIssues.push(G.key + ': member ' + bi + ' has no end on ' + G.part); }
+  }
+  for (let bi = 0; bi < beams.length; bi++) {
+    const b = beams[bi];
+    if (inT1[bi] > 2) dmgIssues.push('member ' + bi + ' taken by ' + inT1[bi] + ' groups');
+    if (dmgPart(b.a).p !== dmgPart(b.b).p && b.grp < 0 && !inT1[bi]) dmgIssues.push('member ' + bi + ' (' + dmgPart(b.a).p + ' - ' + dmgPart(b.b).p + ') joins two parts in no group');
+  }
+  parts.dmg = { groups: dmgGroups.map(G => ({ id: G.id, key: G.key, part: G.part, joint: G.joint, anchor: G.anchor, t0: G.t0, t1: G.t1 })), issues: dmgIssues };
   return { nodes, beams, refs, parts, clusters };
 }
 

@@ -189,6 +189,7 @@ function makeSimView(def, opts) {
       if (M.ctl) view.snapCtl = M.ctl;       // G815: the host's ctl as published (sim_link.js mirrors it whole)
       if (M.out) { view.out = M.out; view.out.hydro = M.hydro || null; }
       if (M.eng) view.eng = M.eng;
+      if ('dmg' in M) view.dmg = M.dmg;   // G1470: the crash's verdict (null until there is one)
       if (M.fuel) view.fuel = M.fuel;
       view.hydro = M.hydro || null;
       view.wheels = M.wheels || null;

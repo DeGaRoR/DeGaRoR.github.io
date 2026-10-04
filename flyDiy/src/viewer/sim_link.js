@@ -309,7 +309,8 @@ const SIM_LINK = (() => {
       let shake = null;
       try { shake = S.shake ? S.shake() : null; } catch (e) { shake = null; }
       const m = { cmd: 'init', spec: S.genSpec ? JSON.parse(JSON.stringify(S.genSpec)) : null, place,
-                  pilot: { kind: S.pilotChoice || 'auto', shakedown: shake, nav: true }, withV: true, day: world.day ? world.day.spec() : null };
+                  pilot: { kind: S.pilotChoice || 'auto', shakedown: shake, nav: true }, withV: true, day: world.day ? world.day.spec() : null,
+                  damage: typeof FLYDIY_DAMAGE === 'boolean' ? FLYDIY_DAMAGE : null };   // G1898: the page's ?damage
       if (cardNext && cardNext.ap === S.ap) m.pilot.card = cardNext.card;
       cardNext = null;
       // G820 (C1c): ONE SIM PER BUILD, as the page's: the worker keeps the sim it flew last when the page flies the same
@@ -408,7 +409,7 @@ const SIM_LINK = (() => {
       def('reset', { writable: true, value: function () { dropFlight(null); flight = null; st.phase = 'idle'; return orig.reset.apply(sim, arguments); } });
       def('ctl', { writable: true, value: ctlP });
       patch.set = null; patch.eng = [];
-      F.live = true; F.shown = F.lastStep = 0; st.diverged = false;
+      F.live = true; F.shown = F.lastStep = 0; st.diverged = false; st.crashed = false; st.dmg = null;
       st.phase = 'live';
       // step 0: the page's levers as they stand (the cockpit wrote under the hold), then who is flying
       const set = {};
@@ -464,6 +465,8 @@ const SIM_LINK = (() => {
       const step = f[S.STEP];
       F.lastStep = step; st.lastStep = step;
       if (f[S.FLAGS] & S.F_DIVERGED) st.diverged = true;
+      if (S.F_CRASHED && (f[S.FLAGS] & S.F_CRASHED)) st.crashed = true;   // G1470
+      st.dmg = V.dmg || null;
       return step;
     }
 
@@ -521,11 +524,11 @@ const SIM_LINK = (() => {
       // loop ticks what it stepped, in the same batches - the page's day then stands where the worker's does at every
       // frame's end, and the next flight's init hands the worker that day (G820: the second flight of a page, after a
       // reset, the skip or the shed, was a frame's day behind); real time ticks what the picture moved on
-      out.ran = ran; out.simDt = (st.mode === 'lockstep' ? nStep : ran) / 60; out.hold = false; out.diverged = st.diverged;
+      out.ran = ran; out.simDt = (st.mode === 'lockstep' ? nStep : ran) / 60; out.hold = false; out.diverged = st.diverged; out.crashed = !!st.crashed; out.dmg = st.dmg || null;
       out.drawnT = F.drawnT != null ? F.drawnT : null;   // G1100: the drawn positions' sim time (app.js draws the sea at it)
       return out;
     }
-    const out = { ran: 0, simDt: 0, hold: false, diverged: false, drawnT: null };
+    const out = { ran: 0, simDt: 0, hold: false, diverged: false, crashed: false, dmg: null, drawnT: null };
     // a frame that flies nothing (the shed, the roll-out screen, a pause, the card): the worker's clock stops
     function idle() {
       if (dead) return;
