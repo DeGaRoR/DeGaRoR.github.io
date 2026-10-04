@@ -69,6 +69,13 @@
 // pass radioIn (the level: clipK = VOICE_K x the clips' -20 LUFS brought to the tracks' -16) -> the music's DUCK -> the
 // music bus, so the ducks, the music volume and the context's suspend reach them; the bed under them is the deck's
 // gain as before, and the watchdog's estimate is the clips' own length.
+// THE LIVING RADIO (G1700-G1704, SND-RADIO-3): the talk is a BROADCAST written offline (tools/audio/radio_gen.js) and rendered
+// as whole takes; radio_talk.js chooses and sequences them (the program's next break, the back-announce of the track just
+// played, the weather in words from the game) and keeps a persisted cursor - a new session continues the broadcast. The
+// script is fetched when Radio Jolene is tuned with a context (loadScript; no break before it is in). On Radio Jolene with
+// its talk on, the garage FADES song to song like every other context (no silences: a station does not go quiet), and a
+// break owed starts TALK_UP_S before the track's end: Norman talks over the fading outro (equal-power, over what is left
+// of the track) and the next track's intro comes in under him at the bed.
 // THE MIX (G1681): the seventh station, 'Random' - every track the six would play in a context, one bag, no repeat
 // inside a round. Radio Jolene's talk stays on its own station (roots): the mix is music only.
 //
@@ -113,6 +120,11 @@ var AUDIO_MUSIC = (function () {
   const ST_MIX = 'mix', STATION_KEYS = STATIONS.map(s => s[0]), ST_DEFAULT = 'lofi', ST_TALK = 'roots';
   const REAL_KEYS = STATION_KEYS.filter(k => k !== ST_MIX);
   const BED_K = 0.16, BED_IN_S = 1.5, BED_UP_S = 1.5, VOICE_K = 1 / 0.8, TALK_SLACK_S = 8;
+  // G1703 THE TALK-UP (SND-RADIO-3): a break owed starts TALK_UP_S before the track's end - Norman talks over its fading
+  // outro (the track fades out over what is left of it, equal-power) and the next track's intro comes in under him at the
+  // bed; a late tune-in (the broadcast script still loading when the station was tuned) talks over a track at most
+  // TUNE_LATE_S into it
+  const TALK_UP_S = 6, TUNE_LATE_S = 10;
   // G1683 THE RECORDED VOICE's level: its clips are levelled to VOICE_LUFS (prep_voice.js; the catalogue's render.lufs),
   // the tracks to LUFS_TARGET - the radio gain lifts the clips by the difference, then VOICE_K (the voice over the music)
   const VOICE_LUFS = -20;
@@ -249,7 +261,7 @@ var AUDIO_MUSIC = (function () {
   const voiceApi = () => G.AUDIO_VOICE || (typeof AUDIO_VOICE !== 'undefined' ? AUDIO_VOICE : null);
   const clipK = () => { const v = G.FLYDIY_VOICE && G.FLYDIY_VOICE.voice, l = v && v.render && typeof v.render.lufs === 'number' ? v.render.lufs : VOICE_LUFS;
     return VOICE_K * Math.pow(10, (LUFS_TARGET - l) / 20); };
-  const TALK_ST = { k: 0 };
+  let CUR = { v: '', k: 0, n: 0, h: {} };   // G1702: the broadcast's cursor (RADIO_TALK.cursor: persisted, a new session continues)
   let ctx = null, A = null, decks = [], duck = null, offs = [];
   const C = { elements: 0, starts: 0, xfades: 0, ducks: 0, talks: 0, talkCuts: 0 };   // counters (the gate reads them)
   PS[S_CUR] = C_NONE; PS[S_GAP] = -1; PS[S_ACT] = -1;
@@ -273,6 +285,8 @@ var AUDIO_MUSIC = (function () {
     bags = bagsBy[station] || (bagsBy[station] = lists.map(makeBag));
   }
   const eligible = (t, c) => c >= 0 && t >= 0 && lists[c].indexOf(t) >= 0;   // (a context switch, not a frame)
+  // G1703: the garage's silences, except on Radio Jolene with its talk on - a radio station fades song to song
+  const gapped = c => GAPPED[c] === 1 && !(station === ST_TALK && talkOn);
 
   // the gain a deck's fade has at audio time t: FA x cos + FB x sin of the same phase (a level: FD = 0 -> FB)
   function lvlAt(k, t) {
@@ -374,29 +388,48 @@ var AUDIO_MUSIC = (function () {
       fadeOut(a, XFADE_S);
     }
     hideNow();
-    if (c >= 0 && !nextWithTalk(c)) startNext(c, a >= 0 ? XFADE_S : (GAPPED[c] ? 0 : XFADE_S));
+    if (c >= 0 && !nextWithTalk(c)) startNext(c, a >= 0 ? XFADE_S : (gapped(c) ? 0 : XFADE_S));
   }
 
   // ---- THE RADIO: the station, the talk ---------------------------------------------------------------------------
   // a break is owed and may be spoken now
   function talkDue() {
     return station === ST_TALK && talkOn && !!speaker && speaker.available() && !(PS[S_DUCK] > 0) && !!A && A.state === 'running' &&
-      (PS[S_TUNE] > 0 || PS[S_COUNT] >= talkEvery) && voiceVolume() > 0;
+      (PS[S_TUNE] > 0 || PS[S_COUNT] >= talkEvery) && voiceVolume() > 0 && scriptReady();
   }
   const voiceVolume = () => (A ? Math.min(1, A.get('master') * A.get('music') * VOICE_K) : 0);
+  // G1702: the broadcast script, fetched once Radio Jolene is tuned with a context (never before the gesture)
+  const scriptReady = () => !!(G.RADIO_TALK && G.RADIO_TALK.ready && G.RADIO_TALK.ready());
+  function loadScript() {
+    const RT = G.RADIO_TALK;
+    if (!ctx || station !== ST_TALK || !RT || !RT.load || RT.ready()) return;
+    RT.load(G).then(ok => { if (ok) lateTuneIn(); });
+  }
+  // the script came in after the station was tuned: the owed tune-in talks over the track now playing, if it is young
+  function lateTuneIn() {
+    const a = PS[S_ACT];
+    if (!(PS[S_TUNE] > 0) || a < 0 || DK[a * K_N + K_STATE] !== ST_PLAYING || DK[a * K_N + K_POS] > TUNE_LATE_S || PS[S_TALK] > 0 || !talkDue()) return;
+    if (talk(true)) fadeTo(a, trims[DK[a * K_N + K_TRACK]] * BED_K, BED_IN_S);
+  }
   const trackRow = t => (t >= 0 && cat[t] ? { id: cat[t].id, title: cat[t].title, artist: cat[t].artist } : null);   // (id: the back-announce's clips)
   // a break, then the next track of context c under it (at the bed, faded in over BED_IN_S); false when none is owed
   function nextWithTalk(c) {
-    if (!talkDue() || typeof G.RADIO_TALK === 'undefined') return false;
-    const RT = G.RADIO_TALK, tune = PS[S_TUNE] > 0;
+    if (!talkDue() || typeof G.RADIO_TALK === 'undefined') { if (station === ST_TALK && !scriptReady()) loadScript(); return false; }
+    if (!talk(PS[S_TUNE] > 0)) return false;
+    startNext(c, BED_IN_S);
+    return true;
+  }
+  // speak the next break (the tune-in: an ID and the weather); the bed is set, the cursor saved
+  function talk(tune) {
+    const RT = G.RADIO_TALK;
     const wx = RT.readGame(A.world, { sim: A.sim });
-    const segs = RT.breakScript(TALK_ST, wx, tune ? [] : [trackRow(REC[0]), trackRow(REC[1])], { tuneIn: tune });
+    const segs = RT.breakScript(CUR, wx, tune ? [] : [trackRow(REC[0])], { tuneIn: tune });
+    if (RT.saveCursor) RT.saveCursor(CUR, G);
     lastSegs = segs;
-    // (the recorded clips into radioIn - the duck, the music bus, the suspend - per segment; speechSynthesis for the rest)
-    if (!speaker.speak(segs, { voice: voiceName, rate: RT.RATE, pitch: RT.PITCH, volume: voiceVolume(), dest: radioIn, gain: 1 }, endTalk)) return false;
+    // (the recorded takes into radioIn - the duck, the music bus, the suspend - per segment; speechSynthesis for the rest)
+    if (!segs.length || !speaker.speak(segs, { voice: voiceName, rate: RT.RATE, pitch: RT.PITCH, volume: voiceVolume(), dest: radioIn, gain: 1 }, endTalk)) return false;
     C.talks++;
     PS[S_TALK] = (speaker.seconds ? speaker.seconds(segs, RT.RATE) : RT.estSeconds(segs, RT.RATE)) + TALK_SLACK_S; PS[S_BED] = BED_K; PS[S_TUNE] = 0; PS[S_COUNT] = 0;
-    startNext(c, BED_IN_S);
     return true;
   }
   // the voice stopped (or was stopped): the track under it rises to its level over BED_UP_S
@@ -420,6 +453,7 @@ var AUDIO_MUSIC = (function () {
     rebuildLists();
     RESUME_T.fill(-1);
     PS[S_COUNT] = 0; PS[S_TUNE] = s === ST_TALK ? 1 : 0;
+    loadScript();
     if (!quiet) showLine('\u266A ' + stationLine(s));
     const c = PS[S_CUR];
     if (!ctx || c < 0 || s === 'off') return true;   // update()'s switch starts it, or fades it (the radio off)
@@ -463,7 +497,7 @@ var AUDIO_MUSIC = (function () {
     if (st !== ST_PLAYING || !was) return;
     const c = PS[S_CUR];
     if (c < 0) return;
-    if (GAPPED[c]) { if (!nextWithTalk(c)) PS[S_GAP] = GAP_MIN_S + rand() * (GAP_MAX_S - GAP_MIN_S); }   // (a break takes the silence's place)
+    if (gapped(c)) { if (!nextWithTalk(c)) PS[S_GAP] = GAP_MIN_S + rand() * (GAP_MAX_S - GAP_MIN_S); }   // (a break takes the silence's place)
     else startNext(c, 0);   // (a track whose length was wrong: no crossfade came)
   }
   function onError(k) {
@@ -511,7 +545,7 @@ var AUDIO_MUSIC = (function () {
     if (c < 0) return;
     if (PS[S_RETRY] > 0) { PS[S_RETRY] -= dt; if (PS[S_RETRY] <= 0) { PS[S_RETRY] = 0; startNext(c, 0); } return; }
     const a = PS[S_ACT];
-    if (GAPPED[c]) {
+    if (gapped(c)) {
       if (PS[S_GAP] >= 0) {
         PS[S_GAP] -= dt;
         if (PS[S_GAP] <= LEAD_S) preloadNext(c);
@@ -521,8 +555,11 @@ var AUDIO_MUSIC = (function () {
     }
     if (a < 0) { startNext(c, XFADE_S); return; }
     const o = a * K_N, rem = DK[o + K_DUR] - DK[o + K_POS], xf = Math.min(XFADE_S, DK[o + K_DUR] / 4);   // (a short track: a shorter fade)
-    if (rem <= xf + LEAD_S) preloadNext(c);
-    if (rem <= xf) { C.xfades++; fadeOut(a, xf); if (!nextWithTalk(c)) startNext(c, xf); }
+    // G1703: a break owed starts earlier, over the outro (talkDue is asked only in the track's last seconds: no frame cost)
+    const up = rem <= TALK_UP_S + LEAD_S && station === ST_TALK && talkDue() ? Math.min(TALK_UP_S, DK[o + K_DUR] / 3) : 0;
+    const lead = up > xf ? up : xf;
+    if (rem <= lead + LEAD_S) preloadNext(c);
+    if (rem <= lead) { C.xfades++; const d = rem > xf ? rem : xf; fadeOut(a, d); if (!nextWithTalk(c)) startNext(c, d); }
   }
 
   // skip: the next track now (a crossfade; in a garage gap, the wait ends)
@@ -650,6 +687,8 @@ var AUDIO_MUSIC = (function () {
     speaker = RT ? (RT.makeTalker ? RT.makeTalker(G, voiceApi) : RT.makeSpeaker(G)) : null;
     if (G.addEventListener) G.addEventListener('keydown', onKey);
     if (station === ST_TALK) PS[S_TUNE] = 1;   // the first music of the page on the roots station opens with its ID
+    if (RT && RT.cursor) CUR = RT.cursor(G);   // G1702: the broadcast continues where the last session left it
+    loadScript();
     offs = [au.onEvent('engine', onDuck), au.onEvent('stall', onDuck), au.onEvent('duck', onDuck),
       au.onEvent('photo', on => setPhoto(on)),
       au.onEvent('suspend', () => { cancelTalk(); for (let k = 0; k < 2; k++) if (DK[k * K_N + K_STATE] >= ST_PLAYING) { DK[k * K_N + K_PAUSED] = 1; try { decks[k].el.pause(); } catch (e) {} } }),
@@ -681,7 +720,7 @@ var AUDIO_MUSIC = (function () {
   const api = {
     CTX_NAMES, CRUISE, XFADE_S, GAP_MIN_S, GAP_MAX_S, DUCK_K, DUCK_HOLD_S, LUFS_TARGET, SOUND_CREDITS, FILE_RE, LICENCE_RE,
     validate, contextLists, creditRows, creditLine, cruiseStep, contextOf, makeBag, bagNext, trimOf,
-    STATIONS, STATION_KEYS, ST_MIX, BED_K, BED_IN_S, BED_UP_S, VOICE_K, TALK_EVERY, stationLists, stationOf, stationLine,
+    STATIONS, STATION_KEYS, ST_MIX, BED_K, BED_IN_S, BED_UP_S, VOICE_K, TALK_EVERY, TALK_UP_S, stationLists, stationOf, stationLine,
     setStation, stepStation, get station() { return station; }, get stationFell() { return fell.slice(); },
     get talk() { return talkOn; }, setTalk(on) { talkOn = !!on; prefPut('radioTalk', talkOn ? 1 : 0); if (!talkOn) cancelTalk(); },
     get talkEvery() { return talkEvery; }, setTalkEvery(n) { talkEvery = Math.max(TALK_MIN, Math.min(TALK_MAX, Math.round(+n) || TALK_EVERY)); prefPut('radioEvery', talkEvery); },
@@ -691,7 +730,7 @@ var AUDIO_MUSIC = (function () {
     skip, setPhoto, openCredits, mountCreditLink, nowPlaying,
     get context() { return PS[S_CUR] >= 0 ? CTX_NAMES[PS[S_CUR]] : 'none'; },
     // the gate's window on the slots (read-only views)
-    _dk: DK, _ps: PS, _C: C, _decks: () => decks, _lvlAt: lvlAt, _talkSt: TALK_ST, _lastSegs: () => lastSegs, source: { connect, update, disconnect },
+    _dk: DK, _ps: PS, _C: C, _decks: () => decks, _lvlAt: lvlAt, _talkSt: () => CUR, _lastSegs: () => lastSegs, source: { connect, update, disconnect },
   };
 
   mountCreditLink();

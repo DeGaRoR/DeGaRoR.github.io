@@ -3,10 +3,11 @@
 // window.AUDIO_VOICE - plays the station's recorded clips, alone or as a SEQUENCE (VOICE_MODEL.awosClips /
 // marineClips / backAnnounce: clip keys and rests in seconds), scheduled gap-free on the audio clock.
 //
-//   THE CATALOGUE window.FLYDIY_VOICE = { voice: {the licence record}, clips: { key: { file, text, dur } } } -
-//                 src/viewer/audio/voice_catalogue.json, written by tools/audio/prep_voice.js, inlined by the build
-//                 (never fetched, so never stale under sw.js's cache-first media rule). file is page-relative
-//                 (media/audio/voice/<stem>.<h8>.mp3), prefixed with FLYDIY_ASSET_BASE like every baked manifest.
+//   THE CATALOGUE window.FLYDIY_VOICE = { voice, voices: {the licence records}, script: { file, ... } } -
+//                 src/viewer/audio/voice_catalogue.json, written by tools/audio/prep_voice.js, inlined by the build.
+//                 G1701 (SND-RADIO-3): the TAKES { key: { file, text, dur, ... } } are the broadcast script's items,
+//                 fetched lazily by RADIO_TALK.load once Radio Jolene is tuned, and handed over with setClips(items).
+//                 file is page-relative (media/audio/voice/<stem>.<h8>.mp3), prefixed with FLYDIY_ASSET_BASE.
 //   LAZY          nothing fetched or decoded until a clip is asked for (play / preload), and only with a context -
 //                 so never before the first gesture (AUDIO.ctx is null until then). ASSET_FETCH (assets.js, the one
 //                 network door) -> decodeAudioData. Two asks share one load; a failure stays failed.
@@ -20,7 +21,7 @@
 //                 breaks pass music.js's radio gain (G1683: into the music's duck, then the music bus).
 //   THE END       opts.onend(handle), once: when the last clip ends, or stop() (G1683: the talker's next segment).
 //
-// API: AUDIO_VOICE.has(key), .dur(key), .text(key), .keyOf(text) (a script line -> its clip key: SND-RADIO's segments
+// API: AUDIO_VOICE.setClips(items) (the takes, once the script is in), .has(key), .dur(key), .text(key), .keyOf(text) (a script line -> its clip key: SND-RADIO's segments
 //   are data), .missing(seq) -> keys with no clip, .preload(seq) -> Promise, .play(seq, { dest, when, gain, onend }) ->
 //   Promise<{ start, end, stop() } | null> (null: no context yet, or nothing playable), .say(key, opts), .stopAll(),
 //   .bytes, .state(key) 'absent' | 'idle' | 'loading' | 'ready' | 'failed'; AUDIO_VOICE.create(opts) makes an
@@ -35,7 +36,7 @@ var AUDIO_VOICE = (function () {
   function create(opts) {
     const o = opts || {};
     const cat = () => o.catalogue || W.FLYDIY_VOICE || { clips: {} };
-    const clips = () => cat().clips || {};
+    const clips = () => own || cat().clips || {};
     const model = () => o.model || W.VOICE_MODEL || (typeof VOICE_MODEL !== 'undefined' ? VOICE_MODEL : null);
     const base = () => (o.base != null ? o.base : (typeof W.FLYDIY_ASSET_BASE === 'string' ? W.FLYDIY_ASSET_BASE : ''));
     const ctxOf = () => o.ctx || (W.AUDIO && W.AUDIO.ctx) || null;
@@ -44,7 +45,7 @@ var AUDIO_VOICE = (function () {
     const budget = o.budget > 0 ? o.budget : DEF_BUDGET;
     const recs = new Map();   // key -> { state, promise, buf, off, size, used, playing }
     const live = new Set();   // the handles playing
-    let bytes = 0, tick = 0, byText = null, said = false;
+    let bytes = 0, tick = 0, byText = null, said = false, own = null;
 
     const has = k => !!clips()[k];
     const durOf = k => (clips()[k] ? +clips()[k].dur || 0 : 0);
@@ -117,6 +118,7 @@ var AUDIO_VOICE = (function () {
       return h;
     }
     return {
+      setClips(c) { own = c && typeof c === 'object' ? c : null; byText = null; },
       has, dur: durOf, text: k => (clips()[k] ? clips()[k].text : null), keyOf, missing, preload, play,
       say: (k, po) => play([k], po),
       stopAll() { for (const h of [...live]) h.stop(); },
