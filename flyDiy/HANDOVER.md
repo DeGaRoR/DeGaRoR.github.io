@@ -68491,3 +68491,20 @@ running/starter as set values); (5) a rebuilt aeroplane: port.postMessage({type:
 (8) CORE's _audio_check.js absorbs or calls GATE AUDIOENG.
 SND-TUNE's list (README): the O-540's ~10 dB dip above ~2 200 rpm (a pipe anti-resonance of the default lengths); cranking
 louder than idle; the level law; every pipe length a starting point - the firing frequency is the only number held exactly.
+
+## G1614 - THE ENGINE SOURCE: SND-ENGINE's voice wired into SND-CORE's AUDIO (2026-10-04, Sound Coordinator, integration)
+
+`src/viewer/audio/src_engine.js` registers `AUDIO.addSource('engine', ...)`: on the context it loads the worklet module
+(`AUDIO.module('engine_worklet')`, MANIFEST.audio.modules now `['engine_worklet.js']`, served as its own file, never
+inlined), then makes one `AudioWorkletNode('flydiy-engine')` per piston engine of the flown aeroplane from
+`ENGINE_SOUND.engineSoundConfig(spec, i)`, rebuilt when `P.def` changes (electric / turbine rows: no node, SND-PROP's).
+Output 0 goes to `aircraft.ext` and, through a PLACEHOLDER cabin low-pass (1.4 kHz, SND-SPACE replaces it with the
+build's cabin transfer), to `aircraft.int`; output 1 (engine rpm, prop rpm - the voice's own) is left for SND-PROP.
+Per frame it reads only the parameter block (rpmEng, thr, running, crank, starved; the warm-up clock in a Float64Array)
+and schedules only what moved (rpm/load by setTargetAtTime tau 30 ms, the switches by setValueAtTime, cold tau 1 s).
+MANIFEST.viewer.scripts gains `audio/engine_config.js`, `audio/src_engine.js` after `audio/audio.js`.
+Node smoke (stubbed Web Audio, the real solver): the Cub -> 1 voice at 2119 rpm full throttle; the twin 582 -> 2 voices
+at 6034 engine rpm; a steady frame schedules nothing but the 1 s-tau warm-up (~every 2.4 s). GATES: AUDIO, AUDIOENG,
+BUILD, UISMOKE, JOIN PASS. NOT YET: a browser (the first real context and the worklet's load on Pages) - the strict gates'
+headed Chrome clicks, so A0's train run is the first real hearing; GATE AUDIO does not yet cover src_engine (SND-PROP
+extends GATE AUDIO when it adds its own source next to this one).

@@ -29,7 +29,7 @@ function get(url, binary) {
         res.resume();
         return resolve(get(new URL(res.headers.location, url).href, binary));
       }
-      if (res.statusCode === 429) { res.resume(); const e = new Error('429 ' + url); e.retry = true; return reject(e); }
+      if (res.statusCode === 429 || res.statusCode >= 500) { res.resume(); const e = new Error(res.statusCode + ' ' + url); e.retry = true; return reject(e); }
       if (res.statusCode !== 200) { res.resume(); return reject(new Error(res.statusCode + ' ' + url)); }
       const chunks = [];
       res.on('data', c => chunks.push(c));
@@ -47,7 +47,7 @@ async function getPolite(url, binary) {
     try { return await get(url, binary); } catch (e) {
       if (!e.retry || k >= 4) throw e;
       const w = 30000 * Math.pow(2, k);
-      console.log('429, waiting', w / 1000, 's');
+      console.log('server busy, waiting', w / 1000, 's');
       await sleep(w);
     }
   }
@@ -121,6 +121,7 @@ async function download(L, ids) {
   for (const id of ids) {
     const s = L.sounds[id];
     if (!s || !s.preview) { console.log('skip', id, '(not in ledger)'); continue; }
+    if (s.raw && fs.existsSync(path.join(ROOT, s.raw))) continue; // resumable
     // re-check the licence on the sound's own page
     const page = await getPolite(s.page);
     const lm = /creativecommons\.org\/(publicdomain\/zero\/1\.0|licenses\/[a-z-]+\/\d\.\d)/.exec(page);
