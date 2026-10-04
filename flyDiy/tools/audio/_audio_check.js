@@ -23,6 +23,8 @@
 //   W  THE WIRING   the build lists audio_params.js, audio.js before app.js, MANIFEST.audio.modules publishes
 //                   FLYDIY_AUDIO_SRC; app.js calls AUDIO.update ONCE, in loop() after the render; both rails carry
 //                   the `audio` item.
+//   SP THE SPACE    (SND-SPACE, G1640-G1646) SP_CABIN, SP_DOPPLER, SP_ABSORB, SP_XFADE, SP_IR, SP_GRAPH, SP_BUDGET (its
+//                   measurement in a child process: fresh realms), SP_CRAFT - each described at the head of its block.
 //   D  THE SELFTEST every check above is run again on MUTATED source text (in memory: nothing on disk is touched)
 //                   and must go red; then the files on disk are re-read and must be byte-identical to the start.
 //   node tools/audio/_audio_check.js             -> the checks + the selftest -> "GATE AUDIO: PASS|FAIL"
@@ -2004,7 +2006,7 @@ const MUT = [
   ['the wind blows the ceiling', 'model', 'Vref: 50, windExt: 0.08,', 'Vref: 50, windExt: 8,', 'AFFLOWN'],
   ['the floats\' splash lost', 'model', "if (wet && !(s[SI.pwet] > 0) && Math.min(s[SI.off0], s[SI.off1]) >= A.tdOffS)", "if (false)", 'AFFLOWN'],
   ['the source schedules every frame', 'srcaf', '        if (v === last[i]) continue;\n', '', 'AFSOURCE'],
-  ['the source drops the events', 'srcaf', "          node.port.postMessage({ t: 'ev', e, s, a: E[o + 2], b: E[o + 3], k: rec });", '', 'AFSOURCE'],
+  ['the source drops the events', 'srcaf', "          node.port.postMessage({ t: 'ev', e, s, a: E[o + 2], b: E[o + 3], k: rec, d: lag });", '', 'AFSOURCE'],
   ['the targets unquantised', 'model', 'if (q > 0) tg[i] = Math.round(tg[i] / q) * q;', 'tg[i] = tg[i] + 1e-6 * Math.random();', 'AFSOURCE'],
   ['the stall never told', 'srcaf', "stallClk[1] = 1; api.emit('stall', 1); }", 'stallClk[1] = 1; }', 'AFSOURCE'],
   ['the slots fetch at attach', 'samples', 'attach(c) { ctx = c; return api; },', 'attach(c) { ctx = c; for (const k in KEYS) load(k); return api; },', 'SAMPLES'],
