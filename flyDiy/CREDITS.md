@@ -1276,6 +1276,30 @@ shot to its event), levelled, MP3-encoded (`tools/audio/prep_sfx.js`). CC0 asks 
 - `bird.crow` — *crow.wav* by **nigelcoop** (freesound #75162, https://freesound.org/people/nigelcoop/sounds/75162/), CC0 1.0 — coordinator's gap fill
 - `bird.gull` — *Seagull single call* by **steaq** (freesound #263786, https://freesound.org/people/steaq/sounds/263786/), CC0 1.0 — coordinator's gap fill
 - `bird.gull` — *Gull.wav* by **nigelcoop** (freesound #73497, https://freesound.org/people/nigelcoop/sounds/73497/), CC0 1.0 — coordinator's gap fill
+- `animal.bear` — *Grizzly bear vocalizations* by **National Park Service (Yellowstone)** (https://www.nps.gov/subjects/bears/sounds.htm), public domain (a US National Park Service recording) — coordinator's gap fill
+- `animal.bear` — *Grizzly bear vocalizations* by **National Park Service (Yellowstone)** (https://www.nps.gov/subjects/bears/sounds.htm), public domain (a US National Park Service recording) — coordinator's gap fill
+- `animal.bear` — *Grizzly bear* by **National Park Service (Yellowstone)** (https://www.nps.gov/subjects/bears/sounds.htm), public domain (a US National Park Service recording) — coordinator's gap fill
+- `animal.elk` — *Elk bugle 1* by **National Park Service (Yellowstone)** (https://www.nps.gov/yell/learn/photosmultimedia/sounds-elk.htm), public domain (a US National Park Service recording) — coordinator's gap fill
+- `animal.elk` — *Elk bugle 2* by **National Park Service (Yellowstone)** (https://www.nps.gov/yell/learn/photosmultimedia/sounds-elk.htm), public domain (a US National Park Service recording) — coordinator's gap fill
+- `animal.elk` — *Elk bugle 2* by **National Park Service (Yellowstone)** (https://www.nps.gov/yell/learn/photosmultimedia/sounds-elk.htm), public domain (a US National Park Service recording) — coordinator's gap fill
+- `animal.deer` — *Deer Meewing 01.wav* by **msantoro11** (freesound #351113, https://freesound.org/people/msantoro11/sounds/351113/), CC0 1.0 — coordinator's gap fill
+- `animal.deer` — *Deer Meewing 01.wav* by **msantoro11** (freesound #351113, https://freesound.org/people/msantoro11/sounds/351113/), CC0 1.0 — coordinator's gap fill
+- `animal.whale.blow` — *Humpback whale trumpet blows* by **National Park Service (Glacier Bay)** (https://home.nps.gov/glba/learn/nature/name-that-tune.htm), public domain (a US National Park Service recording) — coordinator's gap fill
+- `animal.whale.blow` — *Humpback whale trumpet blows* by **National Park Service (Glacier Bay)** (https://home.nps.gov/glba/learn/nature/name-that-tune.htm), public domain (a US National Park Service recording) — coordinator's gap fill
+- `animal.whale.blow` — *Humpback whale trumpet blows* by **National Park Service (Glacier Bay)** (https://home.nps.gov/glba/learn/nature/name-that-tune.htm), public domain (a US National Park Service recording) — coordinator's gap fill
+- `animal.orca.blow` — *Harbor porpoise breaths* by **National Park Service (Glacier Bay)** (https://home.nps.gov/glba/learn/nature/name-that-tune.htm), public domain (a US National Park Service recording) — coordinator's gap fill
+- `animal.orca.blow` — *Harbor porpoise breaths* by **National Park Service (Glacier Bay)** (https://home.nps.gov/glba/learn/nature/name-that-tune.htm), public domain (a US National Park Service recording) — coordinator's gap fill
+- `animal.orca.blow` — *Harbor porpoise breaths* by **National Park Service (Glacier Bay)** (https://home.nps.gov/glba/learn/nature/name-that-tune.htm), public domain (a US National Park Service recording) — coordinator's gap fill
+- `bird.thrush` — *Varied thrush* by **National Park Service (Glacier Bay)** (https://home.nps.gov/glba/learn/nature/name-that-tune.htm), public domain (a US National Park Service recording) — coordinator's gap fill
+- `bird.thrush` — *Varied thrush* by **National Park Service (Glacier Bay)** (https://home.nps.gov/glba/learn/nature/name-that-tune.htm), public domain (a US National Park Service recording) — coordinator's gap fill
+- `bird.thrush` — *Varied thrush* by **National Park Service (Glacier Bay)** (https://home.nps.gov/glba/learn/nature/name-that-tune.htm), public domain (a US National Park Service recording) — coordinator's gap fill
+- `bird.crow` — *Common raven, Black Sand Basin* by **National Park Service (Yellowstone)** (https://www.nps.gov/yell/learn/photosmultimedia/sounds-raven.htm), public domain (a US National Park Service recording) — coordinator's gap fill
+- `bird.eagle` — *Golden eagle* by **National Park Service (Yellowstone)** (https://www.nps.gov/yell/learn/photosmultimedia/sounds-goldeneagle.htm), public domain (a US National Park Service recording) — coordinator's gap fill
+- `bird.loon` — *Common loon* by **National Park Service (Yellowstone)** (https://www.nps.gov/yell/learn/photosmultimedia/sounds-commonloon.htm), public domain (a US National Park Service recording) — coordinator's gap fill
+- `bird.loon` — *Common loon* by **National Park Service (Yellowstone)** (https://www.nps.gov/yell/learn/photosmultimedia/sounds-commonloon.htm), public domain (a US National Park Service recording) — coordinator's gap fill
+- `bird.owl` — *R01-27-Great Horned Owl Hoot.wav* by **craigsmith** (freesound #479588, https://freesound.org/people/craigsmith/sounds/479588/), CC0 1.0 — coordinator's gap fill
+- `bird.owl` — *owl_hooting_000102_0145S3 002-070 000-002 068-074.wav* by **Gerent** (freesound #558396, https://freesound.org/people/Gerent/sounds/558396/), CC0 1.0 — coordinator's gap fill
+- `mill.stamp` — *Kivimurskaamo, kivilouhos / Quarry, crushing plant, crusher, breaker, big jaws crushing, pounding rocks* by **YleArkisto** (freesound #322871, https://freesound.org/people/YleArkisto/sounds/322871/), CC BY 4.0 — coordinator's gap fill
 
 <!-- SFX:END -->
 
