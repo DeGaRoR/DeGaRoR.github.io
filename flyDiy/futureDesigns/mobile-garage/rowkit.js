@@ -1,7 +1,7 @@
 // rowkit.js - MOBILE-GARAGE (G1512) THROWAWAY PROTOTYPE: ONE ROW MODEL, TWO RENDERERS.
 // Nothing in the game loads this. It shows that the garage's row tuple ([key, label, lo, hi, step, names?, opts?],
 // tools/_cage_ui.js mkRow) plus a few extra fields can be rendered BOTH as today's desktop row (30 px, native range +
-// typed value) AND as a finger-sized phone control (56 px: relative scrub, fine mode, steppers, tap-to-type), with the
+// typed value) AND as a finger-sized phone control (two lines, 94 px a slider: the knob drags, fine mode, steppers, tap-to-type), with the
 // same two events the game already keys on: 'tick' (a drag preview: DRAG_TICK) and 'release' (dragSettle / build()).
 //
 //   ROWKIT.render(host, rows, { mode: 'desk' | 'touch', P, tier: 'basic'|'more'|'expert', onChange(key, v, phase) })
@@ -58,7 +58,7 @@
   }
 
   // ---- TOUCH: the phone control ----
-  // Rules (MOBILE-GARAGE-2026-10-04.md §2): a 56 px row; ONLY THE KNOB MOVES THE VALUE (a 48 px hit area round it) -
+  // Rules (MOBILE-GARAGE-2026-10-04.md §2): a two-line row (94 px a slider); ONLY THE KNOB MOVES THE VALUE (a 48 px hit area round it) -
   // a touch anywhere else on the scale scrolls the sheet (touch-action: pan-y) and never edits; the knob's drag is
   // RELATIVE (no jump to the finger); press-and-hold the knob 350 ms before moving = FINE (x0.1); a live bubble above the finger (the finger hides the thumb); - / + steppers with repeat;
   // a tap on the value opens the decimal keypad; named detents (the archetype's value, the loaded design's) pull 2 %.
