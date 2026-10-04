@@ -70013,3 +70013,20 @@ SND-TUNE's LIST: every bed's mix level (BEDS) - first guesses, none heard; the 1
   muffle fallbacks (-12 dB / 900 Hz); the loons at -17 dB.
 NOT DONE: positional emitters (SND-AMB-2); rain outside (no bed, no precipitation); the sea state beyond the wind (world.sea
   not read); the garage's hint is a fixed mix, not the world outside the shed's door.
+
+## G1655 - THE THREE BEDS SND-AMB-1 ASKED FOR, AND THE RELEASE TEST THAT HAD STOPPED TESTING (2026-10-04, Sound Coordinator, integration on claude/sound-next)
+
+Assets (prep_sfx.js, CC0, the coordinator's picks, unheard by the user): `amb.rain.outside` (freesound 523391, temperate
+forest light rain), `amb.birds.open` (456766, early-morning field birds), `amb.lake.shore` (352356, small waves on a shore,
+louder than the user's quiet `amb.lake.near`). Crickets alone = `amb.forest.night` (333221 is a crickets-only recording).
+An open-sea bed is still missing (every CC0 candidate had a shore or a ferry engine). 37 files, 8.8 MB in media/audio/sfx.
+Wiring (ambience_model.js): `rainOutside = g x rain` (the same rain feature as the roof), `birdsOpen = 0.7 g x day x open x
+(1 - 0.6 forest)` beside the meadow, `lakeShore` takes the "very close to the water" rule and `lakeNear` stays under it at
+0.4 as texture; samples.js declares the three keys (loops, the 'amb' class).
+GATE AUDIO: AMBPLACES / AMBJOLENE expect the shore bed where they expected `lake.near`. THE FINDING: AMBBUDGET's release
+check ("40 s at 500 m, no ground bed left") had stopped testing the RELEASE_S timer - the jump from the lake to 500 m is
+a cut, and a cut fades every bed out (state 4 -> 0), so the timer never acted; with three more beds the mutation "a silent
+bed never released" went green. Now: a CLIMB from the shore to 500 m at 25 m/s (no teleport) and 30 s held there, plus a
+direct observation over the whole walk - a playing bed going straight 2 -> 0 can only be the timer's release (the eviction
+goes through 4) - "no bed was released by the RELEASE_S timer" fails otherwise. Verified both ways: green on the sources,
+red with the release line removed. GATE AUDIO PASS, 180 / 180 mutations caught (run under the CPU lock, A0's box rule).

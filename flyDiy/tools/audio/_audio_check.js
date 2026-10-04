@@ -1997,7 +1997,7 @@ function ambAt(M, W, x, z, h, o) {
   for (let i = 0; i < 60 * (o.sec || 1.2); i++) M.ambienceStep(st, P, W, 1 / 60);
   return st;
 }
-const AMB_GROUND = ['amb.forest.day', 'amb.forest.night', 'amb.meadow', 'amb.shore.surf', 'amb.shore.rocks', 'amb.lake.near', 'amb.lake.lap',
+const AMB_GROUND = ['amb.forest.day', 'amb.forest.night', 'amb.meadow', 'amb.shore.surf', 'amb.shore.rocks', 'amb.lake.near', 'amb.lake.shore', 'amb.lake.lap',
                     'amb.stream', 'amb.harbour', 'amb.village', 'amb.airfield', 'amb.frogs.night'];
 const AMB_WINDS = ['amb.wind.light', 'amb.wind.clear', 'amb.wind.mountain', 'amb.wind.storm'];
 // the expectations: [place, x, z, h, opts, [[bed, '>=' | '<=', value], ...]] on the TARGETS (st.t) after one round
@@ -2005,8 +2005,8 @@ const AMB_PLACES = [
   ['forest interior', -900, -800, 1.7, {}, [['amb.forest.day', '>=', 0.8], ['amb.meadow', '<=', 0.15], ['amb.shore.surf', '<=', 0.01], ['amb.village', '<=', 0.01], ['amb.airfield', '<=', 0.01], ['amb.lake.lap', '<=', 0.01], ['amb.forest.night', '<=', 0.02]]],
   ['beach', 875, 0, 1.7, {}, [['amb.shore.surf', '>=', 0.6], ['amb.shore.rocks', '<=', 0.05], ['amb.forest.day', '<=', 0.05]]],
   ['village street', 400, -1000, 1.7, {}, [['amb.village', '>=', 0.9], ['amb.shore.surf', '<=', 0.01], ['amb.forest.day', '<=', 0.05]]],
-  ['lake shore', AMB_LAKE[0] + AMB_LAKE[2] + 5, AMB_LAKE[1], 1.7, {}, [['amb.lake.lap', '>=', 0.8], ['amb.lake.near', '>=', 0.6], ['amb.stream', '<=', 0.01]]],
-  ['60 m from the lake', AMB_LAKE[0] + AMB_LAKE[2] + 60, AMB_LAKE[1], 1.7, {}, [['amb.lake.near', '<=', 0.02], ['amb.lake.lap', '>=', 0.02]]],
+  ['lake shore', AMB_LAKE[0] + AMB_LAKE[2] + 5, AMB_LAKE[1], 1.7, {}, [['amb.lake.lap', '>=', 0.8], ['amb.lake.shore', '>=', 0.6], ['amb.lake.near', '>=', 0.2], ['amb.stream', '<=', 0.01]]],
+  ['60 m from the lake', AMB_LAKE[0] + AMB_LAKE[2] + 60, AMB_LAKE[1], 1.7, {}, [['amb.lake.near', '<=', 0.02], ['amb.lake.shore', '<=', 0.02], ['amb.lake.lap', '>=', 0.02]]],
   ['500 m AGL', 0, 500, 500, {}].concat([AMB_GROUND.map(k => [k, '<=', 0.005]).concat([['winds', '>=', 0.3]])]),
   ['the garage, dry', 0, 500, 1.7, { garage: 1 }, [['amb.hangar', '>=', 0.99], ['amb.rain.roof', '<=', 0.001], ['amb.forest.day', '<=', 0.25], ['amb.meadow', '<=', 0.25], ['amb.shore.surf', '<=', 0.001], ['amb.village', '<=', 0.001], ['amb.airfield', '<=', 0.001]]],
   ['the garage, raining', 0, 500, 1.7, { garage: 1, rain: 1 }, [['amb.hangar', '>=', 0.99], ['amb.rain.roof', '>=', 0.99]]],
@@ -2057,7 +2057,7 @@ function checkAmbJolene(S) {
     'forest interior': [['amb.forest.day', '>=', 0.8], ['amb.shore.surf', '<=', 0.01], ['amb.village', '<=', 0.01]],
     'beach': [['amb.shore.surf', '>=', 0.5]],
     'village street': [['amb.village', '>=', 0.9], ['amb.forest.day', '<=', 0.1]],
-    'lake shore': [['amb.lake.lap', '>=', 0.8], ['amb.lake.near', '>=', 0.3]],
+    'lake shore': [['amb.lake.lap', '>=', 0.8], ['amb.lake.shore', '>=', 0.3]],
     'stand at Jolene AFB': [['amb.airfield', '>=', 0.9], ['amb.village', '<=', 0.05]],
     '500 m AGL': AMB_GROUND.map(k => [k, '<=', 0.005]).concat([['winds', '>=', 0.3]]),
     'garage': [['amb.hangar', '>=', 0.99], ['amb.airfield', '<=', 0.001]],
@@ -2196,10 +2196,15 @@ async function checkAmbBudget(S, report) {
     let seed = 3; const rnd = () => ((seed = (seed * 1103515245 + 12345) >>> 0) / 4294967296);
     let maxB = 0, maxN = 0, drops = 0, lastB = 0, x = 0, z = 0, h = 2;
     const spots = AMB_PLACES.slice(0, 5).concat([AMB_PLACES[9]]);
+    // the RELEASE itself, observed: a playing bed (2) that goes straight back to nothing (0) without the eviction's fade
+    // (4) can only have been freed by the RELEASE_S timer (2026-10-04: with the lake's beds over the slot cap, eviction
+    // alone could empty the ground's beds, so "nothing left at 500 m" no longer proved the release)
+    const prevR = new Int8Array(M.NB); let timerReleases = 0;
+    const track = () => { for (let b = 0; b < M.NB; b++) { const r = AMB.resident(b); if (prevR[b] === 2 && r === 0) timerReleases++; prevR[b] = r; } };
     for (let f = 0; f < 60 * 180; f++) {
       if (f % 900 === 0) { const s = spots[Math.floor(rnd() * spots.length)]; x = s[1]; z = s[2]; h = s[3]; pg.world.day.sunEl = rnd() < 0.3 ? -12 : 40; pg.world.windMs = rnd() * 16; pg.garage = rnd() < 0.1; }
       x += (rnd() - 0.5) * 4; z += (rnd() - 0.5) * 4;
-      pg.at(x, z, h); pg.go();
+      pg.at(x, z, h); pg.go(); track();
       if (f % 3 === 0) await null;
       const by = SM.classBytes('amb');
       let n = 0; for (let b = 0; b < M.NB; b++) { const r = AMB.resident(b); if (r === 1 || r === 2 || r === 4) n++; }
@@ -2215,10 +2220,17 @@ async function checkAmbBudget(S, report) {
     // then 20 s on the lake shore at night (its beds in), and 40 s at 500 m in a light air: nothing new is wanted there
     // (the light wind is in already), so only the release frees the ground's silent beds - past RELEASE_S they must go
     pg.garage = false; pg.world.windMs = 2; pg.world.day.sunEl = -12;
-    for (let f = 0; f < 60 * 20; f++) { pg.at(AMB_LAKE[0] + AMB_LAKE[2] + 5, AMB_LAKE[1], 1.7); pg.go(); if (f % 3 === 0) await null; }
-    for (let f = 0; f < 60 * 40; f++) { pg.at(0, 500, 500); pg.go(); if (f % 3 === 0) await null; }
+    for (let f = 0; f < 60 * 20; f++) { pg.at(AMB_LAKE[0] + AMB_LAKE[2] + 5, AMB_LAKE[1], 1.7); pg.go(); track(); if (f % 3 === 0) await null; }
+    // (by DAY at 500 m: only the light wind is wanted, so the slot cap cannot evict the ground's beds for the release -
+    // with the lake's beds now over the cap at the shore, a night here let eviction hide a broken release; 2026-10-04)
+    // then a CLIMB from the shore to 500 m (25 m/s, no teleport: a cut fades every bed out and the timer never acts),
+    // and 30 s held there: the ground's beds fall silent with the height while nothing new is wanted, so only the
+    // RELEASE_S timer can free them
+    for (let f = 0; f < 60 * 20; f++) { pg.at(AMB_LAKE[0] + AMB_LAKE[2] + 5, AMB_LAKE[1], 1.7 + f * (500 / 1200)); pg.go(); track(); if (f % 3 === 0) await null; }
+    for (let f = 0; f < 60 * 30; f++) { pg.at(AMB_LAKE[0] + AMB_LAKE[2] + 5, AMB_LAKE[1], 501.7); pg.go(); track(); if (f % 3 === 0) await null; }
+    if (!timerReleases) F.push(tier + ': no bed was released by the RELEASE_S timer (only evictions freed slots)');
     let left = 0; for (let b = 0; b < M.NB; b++) { const r = AMB.resident(b); if ((r === 1 || r === 2 || r === 4) && !/^amb\.wind\./.test(M.BEDS[b][0])) left++; }
-    if (left) F.push(tier + ': 40 s at 500 m and ' + left + ' ground beds are still decoded (' + (SM.classBytes('amb') / 1048576).toFixed(1) + ' MB)');
+    if (left) F.push(tier + ': after the climb and 30 s at 500 m, ' + left + ' ground beds are still decoded (' + (SM.classBytes('amb') / 1048576).toFixed(1) + ' MB)');
     if (report) report.push('the ambience on ' + tier + ': peak ' + (maxB / 1048576).toFixed(1) + ' / ' + budget / 1048576 + ' MB decoded, ' + maxN + ' / ' + N + ' beds at once, ' + pg.R.fetch + ' fetches, ' + loops.length + ' loops, ' + drops + ' releases over 3 min');
   }
   return F;

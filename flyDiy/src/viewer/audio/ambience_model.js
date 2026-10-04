@@ -57,6 +57,9 @@ var AMBIENCE_MODEL = (function () {
     ['amb.harbour', -7, -23, 0], ['amb.village', -8, -23, 0], ['amb.airfield', -10, -23, 0],
     ['amb.hangar', -6, -23, 1], ['amb.rain.roof', -8, -23.4, 1],
     ['amb.frogs.night', -11, -23, 0],
+    // the coordinator's three gap fills for SND-AMB-1's list (2026-10-04, CC0, unheard by the user): rain outside, birds over
+    // open ground by day, and a lake shore recorded louder than amb.lake.near (which stays, lower, as texture)
+    ['amb.rain.outside', -8, -23, 0], ['amb.birds.open', -10, -23, 0], ['amb.lake.shore', -8, -29.7, 0],
     // the user: amb.loons "not too loud, really background"
     ['amb.loons', -17, -23, 0],
   ];
@@ -64,7 +67,7 @@ var AMBIENCE_MODEL = (function () {
   const B = {}; BEDS.forEach((b, i) => { B[b[0].slice(4).replace(/\.(\w)/g, (m, c) => c.toUpperCase())] = i; });
   // B.forestDay, B.forestNight, B.meadow, B.windLight, B.windClear, B.windMountain, B.windStorm, B.shoreSurf,
   // B.shoreRocks, B.lakeNear, B.lakeLap, B.stream, B.harbour, B.village, B.airfield, B.hangar, B.rainRoof,
-  // B.frogsNight, B.loons
+  // B.frogsNight, B.loons, B.rainOutside, B.birdsOpen, B.lakeShore
 
   // THE FEATURES (st.f)
   const FN = ['x', 'y', 'z', 'agl', 'elev', 'under', 'tree', 'shrub', 'grass', 'built', 'bare', 'water', 'wet',
@@ -405,6 +408,8 @@ var AMBIENCE_MODEL = (function () {
     T[B.forestDay] = g * day * forest * rustle;
     T[B.forestNight] = g * night * forest * rustle;
     T[B.meadow] = g * (day + 0.2 * night) * open * (1 - 0.6 * forest);
+    T[B.birdsOpen] = 0.7 * g * day * open * (1 - 0.6 * forest);
+    T[B.rainOutside] = g * sat(f[F.rain]);
     // THE SHORE: within ~250 m of the waterline (out to ~300 m over the sea), surf or rocks by the shore's kind
     const c = f[F.coast];
     const shore = c >= 0 ? 1 - rv[R.shoreIn] : 1 - rv[R.shoreSea];
@@ -416,7 +421,9 @@ var AMBIENCE_MODEL = (function () {
     const lap = L >= 0 ? 1 : 1 - rv[R.lap];
     const sea = c < 0 ? rv[R.sea] * 0.8 : 0;                      // the open sea, past the surf: a lapping too
     T[B.lakeLap] = g * Math.max(lap, sea);
-    T[B.lakeNear] = gN * (L >= 0 ? 1 - rv[R.nearIn] : 1 - rv[R.nearOut]);
+    const nearK = L >= 0 ? 1 - rv[R.nearIn] : 1 - rv[R.nearOut];
+    T[B.lakeShore] = gN * nearK;            // the louder shore recording carries "very close to the water"
+    T[B.lakeNear] = 0.4 * gN * nearK;       // the user's keep, lower, as texture under it
     // THE RIVERS
     const strm = 1 - rv[R.strm];
     T[B.stream] = g * strm;

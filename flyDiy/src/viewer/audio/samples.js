@@ -76,6 +76,7 @@ var AUDIO_SAMPLES = (function () {
     ['amb.harbour', 'a harbour'], ['amb.village', 'a village street'], ['amb.airfield', 'an airfield: the windsock, a distant generator'],
     ['amb.hangar', 'the hangar\'s room tone'], ['amb.rain.roof', 'rain on a roof'], ['amb.frogs.night', 'frogs at night'],
     ['amb.loons', 'loons on a lake'], ['amb.meadow', 'a summer meadow'],
+    ['amb.rain.outside', 'rain outside, in a forest'], ['amb.birds.open', 'birds over open ground by day'], ['amb.lake.shore', 'small waves on a lake shore, close'],
   ]) KEYS[k] = { kind: 'loop', layer: 'the ambience bed (ambience.js)', what };
   const DEF_BUDGET = 6 * 1024 * 1024;
   const W = typeof window !== 'undefined' ? window : (typeof globalThis !== 'undefined' ? globalThis : {});
