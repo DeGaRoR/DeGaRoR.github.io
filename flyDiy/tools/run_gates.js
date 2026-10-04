@@ -193,6 +193,7 @@ const GATES = [
   // B10 G1035-G1039: the roll-out shot on the real three and every archetype - out past the door, the wheels at
   // distance / radius, no allocation a frame, the skip, the stand's first frame at the cut; ~40 s
   { id: 'ROLLANIM', file: '_rollanim_check.js', tier: 'core', wall: 45 },
+  { id: 'UPDATE', file: '_update_check.js', tier: 'core', wall: 5 },   // UPDATE-NOW G1535-G1539: the "Update" pill on a differing version.json, nothing on the same build or a failed fetch, the cache-busting URL (params kept, stripped after load), the autosave before the navigation, the media worker's sweep across an update
   { id: 'UILAYER', file: '_ui_layer_check.js', tier: 'core', wall: 10 },   // G1370: the in-world helpers on the UI layer; the verbs off for the roll-out shot
   { id: 'FADES', file: '_fades_check.js', tier: 'core' },   // A2-FADES G670-G673: the prop disc, the grass's grow / pre-grow / lead, the premises' rise
   { id: 'CONTACT', file: '_contact_check.js', tier: 'core' },   // A6-GROUND G1000-G1003: the pavement at terrainH where the wheels roll, the contact shadows, nothing loose on a pavement
