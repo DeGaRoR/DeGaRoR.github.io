@@ -8,7 +8,14 @@
 // the heaviest self / inclusive functions inside its long tasks. --check: the generators (SPORT_GEN, MARINE_GEN) and
 // the town's sport/marine entries built, every load. Exceptions are counted per load.
 // Usage: node tools/perf/metla_ab.js --port 8651 --udd D:/um1 [--order A,B,B,A] [--builds cub,metal] [--taxi 15]
-//          [--pass 15] [--cpuprof pass] [--out file.json]
+//          [--pass 15] [--over 0] [--cpuprof pass] [--out file.json]
+// G1432 (TOWN-COOK): --builds takes a build file too (builds/cub_2026-09-20_corrected.json: a path is its own build);
+// every row carries the raster's counters at the garage and after the roll-out (bootRaster: lazy bakes, decoded tiles,
+// cooked cells taken / refused) and the raster cells the loader fetched (FLYDIY_TOWN_VARIANT, their count);
+// --over <s> adds THE OVERFLIGHT after the low pass: the aeroplane placed --over-lead m (default 2500) short of
+// Metlakatla's centre (--over-at x,z, the town's cooked cells' centroid) on the HOME -> town bearing, 150 m over the
+// ground at 45 m/s, the pilot re-engaged as the pass does; the scene's raster delta (bakes over the town) and the closest
+// the aeroplane came to the centre are logged. The commands A0 runs are in HANDOVER G1430-G1434.
 'use strict';
 const fs = require('fs'), path = require('path');
 const MB = require('../master_bench.js');
@@ -17,7 +24,12 @@ const opt = (k, d) => { const i = argv.indexOf('--' + k); return i >= 0 && argv[
 const PORT = +opt('port', 0), UDD = opt('udd', null);
 if (!PORT || !UDD) { console.error('metla_ab: --port and --udd are required'); process.exit(2); }
 const ORDER = opt('order', 'A,B,B,A').split(','), WANT = opt('builds', 'cub,metal').split(',');
-const SEC = { taxi: +opt('taxi', 15), pass: +opt('pass', 15) }, LONG = +opt('long', 80), PROF = opt('cpuprof', null);
+const SEC = { taxi: +opt('taxi', 15), pass: +opt('pass', 15), over: +opt('over', 0) }, LONG = +opt('long', 80), PROF = opt('cpuprof', null);
+// (G1432) a build is a master_bench key or a build file (its own label)
+const buildOf = k => MB.BUILDS[k] || (/\.json$/.test(k) ? { label: path.basename(k, '.json'), build: k } : null);
+for (const k of WANT) if (!buildOf(k)) { console.error('metla_ab: no build "' + k + '" (a master_bench key or a .json path)'); process.exit(2); }
+// (G1432) Metlakatla's centre (the town's own cooked raster cells' centroid, tools/perf/town_cook_node.js) and the lead in
+const OVER_AT = opt('over-at', '-3058,-8445').split(',').map(Number), OVER_LEAD = +opt('over-lead', 2500);
 const OUT = path.resolve(opt('out', path.join(__dirname, 'metla_ab_' + Date.now() + '.json')));
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const BASE = 'http://localhost:' + PORT + '/flyDiy/index.html';
@@ -73,26 +85,45 @@ const CHECK = `JSON.stringify((() => { const P = WORLD && WORLD.premises; const 
   let home = null;
   if (fresh) { log('== warm-up (discarded) ' + UDD); await b.load(BASE + '?town=1', MB.preScript('default', null)); await trip(); await sleep(3000); }
   for (const side of ORDER) for (const bk of WANT) {
-    const B = MB.BUILDS[bk]; log('== ' + side + ' (' + (SIDE[side] || 'town off') + ') ' + B.label);
+    const B = buildOf(bk); log('== ' + side + ' (' + (SIDE[side] || 'town off') + ') ' + B.label);
     if (R.rows.length && !argv.includes('--one-chrome')) { await b.close(); b = await MB.browser(UDD); }
     const e0 = b.exc.length;
-    const l = await b.load(BASE + (SIDE[side] ? '?' + SIDE[side] : ''), MB.preScript(B.build, null, B.patch));
+    // (G1432) every premises overlay the page makes is kept (a composition is a new overlay with its own counters: the boot's
+    // first, generator-less one is gone by the garage) - bootRaster sums them
+    const OVS = ";window.__ovs=[];setInterval(function(){try{var W=window.FLIGHT_PROBE&&FLIGHT_PROBE.world?FLIGHT_PROBE.world():window.WORLD,O=W&&W.premises&&W.premises.overlay;if(O&&window.__ovs.indexOf(O)<0)window.__ovs.push(O);}catch(e){}},20);";
+    const l = await b.load(BASE + (SIDE[side] ? '?' + SIDE[side] : ''), MB.preScript(B.build, null, B.patch) + OVS);
     const lk = await b.links(0, 1e12);
     if (!home) { const pl = JSON.parse(await b.ev('(async () => { for (let i = 0; i < 100 && !(window.FLIGHT_PROBE && FLIGHT_PROBE.world && FLIGHT_PROBE.world()); i++) await new Promise(r => setTimeout(r, 100)); return ' + MB.A.places + '; })()')); home = pl.find(p => p.id === 'HOME'); }
     await sleep(1500);
+    const RB = "JSON.stringify((() => { const L = (window.__ovs || []).map(O => ({ c: O.rasterCooked || null, x: O.raster || {} })), sum = k => L.reduce((s, o) => s + (+o.x[k] || 0), 0);"
+      + " return { variant: window.FLYDIY_TOWN_VARIANT || null, fetched: window.ISLAND_BOOT && ISLAND_BOOT.premCook && ISLAND_BOOT.premCook.raster ? ISLAND_BOOT.premCook.raster.length : 0, overlays: L.map(o => [o.c, o.x.baked | 0]),"
+      + " baked: sum('baked'), bakeMs: Math.round(sum('bakeMs')), decoded: sum('decoded'), evicted: sum('evicted') }; })())";
+    const rbGarage = JSON.parse(await b.ev(RB).catch(() => 'null'));
     const tr = await trip(); await flying();
-    const row = { side, build: bk, garage: l.sec, rollout: tr.wall, firstFlight: +(l.sec + tr.wall).toFixed(1), rollFrames: tr.frames, links: lk };
+    const rbRoll = JSON.parse(await b.ev(RB).catch(() => 'null'));
+    const row = { side, build: bk, garage: l.sec, rollout: tr.wall, firstFlight: +(l.sec + tr.wall).toFixed(1), rollFrames: tr.frames, links: lk, bootRaster: { garage: rbGarage, rollout: rbRoll } };
+    log('raster at the garage ' + JSON.stringify(rbGarage) + ' / after the roll-out ' + JSON.stringify(rbRoll));
     log('garage ' + l.sec + ' s, roll-out ' + tr.wall + ' s, first flight ' + row.firstFlight + ' s (links ' + lk.n + ', worst ' + lk.worstS + ' s, ' + lk.over5s + ' > 5 s)');
     await b.ev(MB.A.cam('chase'));
     row.taxi = await scene('taxi', SEC.taxi, PROF && 'taxi'.includes(PROF));
     const ph = await b.ev(MB.A.pass(home, 42), 20000).catch(e => 'error ' + e.message); await sleep(3000);
     row.pass = await scene('pass', SEC.pass, PROF && 'pass'.includes(PROF)); row.pass.pilot = ph;
+    if (SEC.over > 0) {   // (G1432) THE OVERFLIGHT of Metlakatla
+      const ox = OVER_AT[0], oz = OVER_AT[1], bx = ox - home.x, bz = oz - home.z, bl = Math.hypot(bx, bz), hx = bx / bl, hz = bz / bl;
+      const op = await b.ev("(async () => { const W = FLIGHT_PROBE.world(), x = " + ox + " - " + hx + " * " + OVER_LEAD + ", z = " + oz + " - " + hz + " * " + OVER_LEAD + "; const h = W.terrainH ? W.terrainH(x, z) : 0;"
+        + " await FLIGHT_PROBE.place({ at: [x, Math.max(h, 0) + 150, z], zeroV: true, dv: [" + hx + " * 45, 0, " + hz + " * 45] }); FLIGHT_PROBE.setManual(true); FLIGHT_PROBE.setManual(false); return FLIGHT_PROBE.ap().phase; })()", 20000).catch(e => 'error ' + e.message);
+      let closest = Infinity; const track = [];
+      const samp = (async () => { const tEnd = Date.now() + SEC.over * 1000; while (Date.now() < tEnd) { const p = JSON.parse(await b.ev('JSON.stringify(FLIGHT_PROBE.sim().cgPos())').catch(() => 'null')); if (p) { const d = Math.hypot(p[0] - ox, p[2] - oz); closest = Math.min(closest, d); track.push([Math.round(p[0]), Math.round(p[1]), Math.round(p[2])]); } await sleep(2000); } })();
+      row.over = await scene('over', SEC.over, PROF && 'over'.includes(PROF)); await samp;
+      row.over.pilot = op; row.over.closestM = Math.round(closest); row.over.track = track;
+    }
     row.check = JSON.parse(await b.ev(CHECK, 20000).catch(() => 'null'));
     row.exceptions = b.exc.slice(e0);
-    for (const s of [row.taxi, row.pass]) { const x = s.st || {};
+    for (const s of [row.taxi, row.pass, row.over].filter(Boolean)) { const x = s.st || {};
       log(s.scene.padEnd(5) + ' ' + x.fps + ' fps, uneven ' + (100 * x.uneven).toFixed(0) + ' %, p99 ' + x.p99 + ', worst ' + x.worst + ' ms, >100 ' + x.over100 + ', worst task ' + x.taskWorst
         + (s.rec && s.rec.long.length ? '  LONG ' + s.rec.long.map(f => f.dt + '(' + Object.entries(f.slots).map(([k, v]) => k + ' ' + v).join(',') + ')').join(' ') : ''));
       if (s.raster) log('  raster ' + JSON.stringify(s.raster));
+      if (s.closestM != null) log('  over: closest to the town\'s centre ' + s.closestM + ' m, pilot ' + s.pilot);
       if (s.cpu) log('  cpu in long tasks: ' + s.cpu.self.slice(0, 12).map(h => h[0] + ' ' + h[1]).join(' | ')); }
     log('check ' + JSON.stringify(row.check) + ' exceptions ' + row.exceptions.length + (row.exceptions.length ? ': ' + row.exceptions.slice(0, 3).join(' || ') : ''));
     R.rows.push(row); fs.writeFileSync(OUT, JSON.stringify(R, null, 1));
@@ -100,11 +131,13 @@ const CHECK = `JSON.stringify((() => { const P = WORLD && WORLD.premises; const 
   await b.close(); done();
   // the table: per side and build, the medians of its runs
   const med = a => { const s = a.filter(x => x != null).sort((p, q) => p - q); return s.length ? (s.length % 2 ? s[(s.length - 1) / 2] : (s[s.length / 2 - 1] + s[s.length / 2]) / 2) : null; };
-  console.log('\nside build  | garage  first-flight | TAXI fps uneven p99 worst task | PASS fps uneven p99 worst task (each: the runs\' median; worst = the max)');
+  console.log('\nside build  | garage  first-flight | TAXI fps uneven p99 worst task | PASS fps uneven p99 worst task | boot bakes (garage / roll-out) | OVER fps uneven worst bakes (each: the runs\' median; worst = the max)');
   for (const bk of WANT) for (const side of ['A', 'B']) { const rs = R.rows.filter(r => r.side === side && r.build === bk); if (!rs.length) continue;
     const g = (k, s) => rs.map(r => r[s] && r[s].st ? r[s].st[k] : null), mx = a => Math.max(...a.filter(x => x != null));
     console.log([side, bk.padEnd(5), med(rs.map(r => r.garage)), med(rs.map(r => r.firstFlight)), '|', med(g('fps', 'taxi')), med(g('uneven', 'taxi')), med(g('p99', 'taxi')), mx(g('worst', 'taxi')), mx(g('taskWorst', 'taxi')),
-      '|', med(g('fps', 'pass')), med(g('uneven', 'pass')), med(g('p99', 'pass')), mx(g('worst', 'pass')), mx(g('taskWorst', 'pass'))].join(' ')); }
+      '|', med(g('fps', 'pass')), med(g('uneven', 'pass')), med(g('p99', 'pass')), mx(g('worst', 'pass')), mx(g('taskWorst', 'pass')),
+      '|', med(rs.map(r => r.bootRaster && r.bootRaster.garage ? r.bootRaster.garage.baked : null)), med(rs.map(r => r.bootRaster && r.bootRaster.rollout ? r.bootRaster.rollout.baked : null)),
+      '|', med(g('fps', 'over')), med(g('uneven', 'over')), mx(g('worst', 'over')), med(rs.map(r => r.over && r.over.raster ? r.over.raster.baked : null))].join(' ')); }
   console.log('\n  -> ' + OUT);
   process.exit(0);
 })().catch(e => { console.error('metla_ab: ' + (e && e.stack || e)); process.exit(1); });
