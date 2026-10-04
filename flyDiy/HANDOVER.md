@@ -70013,3 +70013,140 @@ SND-TUNE's LIST: every bed's mix level (BEDS) - first guesses, none heard; the 1
   muffle fallbacks (-12 dB / 900 Hz); the loons at -17 dB.
 NOT DONE: positional emitters (SND-AMB-2); rain outside (no bed, no precipitation); the sea state beyond the wind (world.sea
   not read); the garage's hint is a fixed mix, not the world outside the shed's door.
+
+## G1660-G1666 - SND-AMB-2: THE POSITIONAL EMITTERS - BIRDS IN THE TREES, GULLS OVER THE SHORE, AN OWL AT NIGHT, A DOG HERE AND THERE, A PICKUP'S PASS ON ITS CAR, THE TRAM'S HUM AND BELL, THE MILL; EACH GENERATOR'S SOUND DECLARED; HEARD ON JOLENE, GATED (2026-10-04, SND-AMB-2 for the Sound Coordinator, cloud, node only; branch claude/snd-amb2-emitters off origin/claude/sound-next 11822e3c, merged with f1fe4db6; G1667-G1669 unused)
+
+Design: futureDesigns/SOUND-2026-10-04.md §6.3 / §5 / §2.4. No audio file added. No app.js edit.
+G1660 THE NUMBERS - `src/viewer/audio/emitters_model.js` -> EMITTERS_MODEL (pure, node). It reads the bed mixer's features (AMBIENCE.state:
+  the cover shares, the coast's signed distance and its shore point, the lake, the zones, the sun, the AGL) instead of
+  sampling the world again (AMB-1's item 6); without the bed mixer the source steps its own AMBIENCE_MODEL state.
+  THE SPECIES (Poisson calls once the gap has passed, so at weight 1 the mean interval is gap + mean; jitter
+  +-1.5 st, +-2 dB):
+    sound   key             habitat x hour                                  place                           mean/gap s  level
+    crow    bird.crow       day x (forest | village, 0.15 open)             a tree 20-90 m (canopy >= 4 m), 28 / 9    -6 dB
+                                                                            else a roof or pole IN the village
+                                                                            or on built cover; 1-3 caws
+    eagle   bird.eagle      day x within ~1 km of the sea                   a tree or the sky 40-80 m up    110 / 55    -4
+    gull    bird.gull       sun > -4 x (shore <= 300 m | harbour zone)      over the water seaward of the   18 / 8      -6
+                                                                            shore point, 6-24 m up
+    owl     bird.owl        night (sun < -5) x forest                       a tree 35-150 m (never a field) 55 / 35     -8
+    loon    bird.loon       dawn / dusk (0.3 at night) x <= 400 m of a lake on the lake                     45 / 30     -10 (NO RECORDING: waits)
+    dog     dog             sun > 1 x village zone or built cover           a yard IN the village zone      300 / 150   -2  (one in 7.5 min, at most one per 150 s)
+    door    mech.door       the same                                        the same                        200 / 90    -8
+  THE OBJECTS (DECLARED: each generator's own `window.<GEN>.SOUND` table wins when it has one; none does yet, so the table
+  in the model stands in, keyed by what the GENERATOR says, never by an asset the record names):
+    the proto traffic (render_premises / SCENERY_LIFE.trafficOf) -> pickup (vehicle.pickup): when a car's closest approach is
+      2.4-3.6 s ahead and within 40 m, its pass starts ON the car (it rides it, with the doppler on its velocity); one at a
+      time, 10 s apart
+    the cable link (tram_run.js) -> tramhum (procedural rope + sheave loop) per cabin within 320 m, gain 0.12 docked .. 1 at
+      6 m/s; bell (procedural, two strikes) when a cabin leaves or docks within 600 m; creak (mech.creak, the airframe's shared
+      grain) while running within 160 m, mean 9 s
+    HOUSE_GEN's P.mill (the Kennecott mill) -> mill (procedural stamp-mill rumble loop) within 380 m, sun > -6 deg
+    HOUSE_GEN's pier.boats (each with its outboard) -> boat (procedural idling outboard loop) at the nearest boat within 160 m,
+      by day, an episode of 12-32 s, mean 160 s, gap 90 s
+  THE CEILING: everything fades from 60 m AGL and is silent from 150 m. The garage and under water call nothing; their loops
+  fade. THE CAP: one-shots gamer 6 / mid 4 / potato 3; loops 3 / 2 / 2. NOTHING NEAR: no voice, load, buffer or param.
+  THE RANDOM: mulberry32 inline. xorshift32 was tried first: its small values come in clumps, and a rare per-frame Poisson
+  test on it went 3.5 minutes without an owl and then gave several.
+  THE MOVERS are read EVERY frame (a few dozen rows). A 10 Hz reader runs cold in V8 and boxes every double it reads:
+  measured ~100 B a frame for three rows, and the real accessor at 10 Hz would have cost ~1 KB a frame.
+G1661 THE SOUNDS NO RECORDING HAS - EMITTERS_MODEL.synth(name, sr): tramhum (two Chamberlin resonators at 112 / 226 Hz on
+  noise, a 4.3 Hz sheave tick, 4 s), mill (low rumble + stamps at 1.6 Hz + a belt whine, 5 s), boat (a two-stroke at 14 Hz
+  through a 180 Hz resonance, gurgle, 3 s), bell (inharmonic partials 1 / 2 / 2.4 / 3 / 4.2 x 880 Hz, struck twice). Loops
+  are seamless by an equal-power tail crossfade. Made when wanted, in an idle callback (setTimeout 0 without one), never
+  in a frame: 1.35 MB for the hum, the bell and the mill.
+G1662 THE SOURCE - `src/viewer/audio/emitters.js`: AUDIO.addSource('emitters') on the AMBIENCE bus. 6 one-shot and 3 loop slots,
+  each gain -> air-absorption low-pass -> PannerNode -> emIn -> muffle (lowpass, duck) -> bus('ambience'), made at connect.
+  Only the AudioBufferSourceNode is made per call. SND-SPACE's PATTERN: the panners sit in the camera's frame
+  (matrixWorld columns), equal-power (HRTF with '3D on headphones'), inverse distance from each sound's reference
+  distance. The absorption is SPACE_CONFIG.airAbsorptionHz's law and the doppler (c - vL.n)/(c - vS.n) is dopplerFactor's,
+  both written out in the frame (a helper call with a double argument boxes it). The muffle is the ambience's rule:
+  -12 dB / 900 Hz in a closed cockpit, -2 dB / 9 kHz in an open one, AUDIO.cabin / 'cabin' when SND-SPACE publishes it.
+  THE LOADER'S ONE-SHOT CLASS (samples.js, small and additive): a class key declared 'oneshot' in KEYS keeps its decoded
+  variants (no loop baked); assign(key, cls) puts 'dog' (no prefix) and mech.door into class 'emit'. mech.creak stays
+  the airframe's (shared, decoded once). The emitter keys are now declared one-shots; bird.loon is declared with no file.
+  The budget is per tier from GFX: 8 / 5 / 3 MB. One load at a time; a key unwanted for 60 s is released; a refusal waits 15 s.
+  window.EMITTERS = { model, state, tier(), setTier(name), objects (the provider), resident(s), procBytes(), loading }.
+G1663 THE HOOK - src/viewer/render_premises.js, READ-ONLY and allocation-free: `R.soundObjects(out)` writes rows of 6
+  [kind, x, y, z, a, b] into a Float64Array: 1 a tram cabin (its origin, run.v, moving 1 / docked 0), 2 a traffic car
+  (its pose's position, c.v, its length), 3 a house pier's boat (grp transform x st.pier.boats). Map.forEach with callbacks
+  made once; nothing is written to the renderer. emitters.js reads it through window.WORLD.premises (render_world's getter).
+G1664 THE WIRING - tools/build.js (MANIFEST only): 'audio/emitters_model.js', 'audio/emitters.js' after the ambience.
+G1665 THE EVIDENCE - `tools/audio/emitters_render.js` -> reports/evidence/SND-AMB-2/ (0.95 MB): JOLENE (the shipped world + the
+  premises fixture, the real world module; NOT the analytic world). The page's code runs in a vm on a recording context with
+  the shipped MP3s decoded by ffmpeg. The movers are simulated by their own laws from the record: the proto traffic
+  (36 roads, 40 cars, moveTraffic's law) and the cable link tw_l_tram (TRAM_RUN.make, 6 m/s, 12 s dwell); the mill comes
+  from the record's site items whose HOUSE_GEN preset says mill: 1 (read off tools/_house_gen.js). 610 s, eight places
+  joined by cuts:
+    Metlakatla street (gulls, a crow, a pickup's pass at 44 m), the harbour shore (passes, crows, gulls), the tram valley
+    station (the hum at the dock, the bell at 27 m as the cabin leaves, the hum rising as it climbs, a creak at 28 m), a
+    forest walk (crows, an eagle at 204 m), the walk to the Kennecott mill (its loop), Jolene AFB (a crow while taxiing,
+    nothing from the 60 m low pass on, silent at 300 m), the forest at night (an owl at 105 m), a lake at dusk (nothing: no
+    loon recording).
+  At most 4 one-shots at once; 4.79 MB peak decoded. Each place has its own seed (one draw, stated); GATE AUDIO measures
+  the rates. Files: timeline.png (a lane per sound), places.png (a 400 m panel per place: where each call was placed),
+  walk.opus (the emitters ALONE, stereo, panned and absorbed as scheduled), summary.json (every call: t, sound, x, y, z,
+  d), README.md (what to listen for, when).
+G1666 THE GATE - GATE AUDIO gains ten checks:
+  EMITHABITAT  10 canned places x hours on AMB's synthetic island: who calls where, and that every crow / owl is in a tree
+               (a crow may be on a roof IN the village), a gull over water, a loon on the lake, the dog and the door inside
+               the village zone; 300 dog placings 40 m inside the zone's edge, all inside
+  EMITRATE     a 2 h random walk (gamer) and 40 min (potato): every species' gap held, the cap never passed, the dog
+               <= one per 150 s of village by day and present; a forced 10 calls -> exactly 6 / 3 sound; the jitter in range
+               and spread
+  EMITAGL      150 / 220 / 400 m over the forest, beach and village, by day and night, with a car, a tram and a boat near:
+               no call, no loop; the fade at 100 m
+  EMITOBJECTS  a pass bound to the car that passes 15 m away and started 2.4-3.6 s before the closest approach, none at
+               90 m; the tram's bell on departure, its hum 0.12 docked / > 0.8 running, the creak, all gone out of reach;
+               the mill by its generator's P.mill (not the record's key), on by day, absent at night and far; the boats'
+               episodes by day only, near only
+  EMITGESTURE  nothing fetched / decoded / made before the first frame, nothing at 500 m, the crow fetched in the forest;
+               no context before the gesture; ?audio=0 builds no emitters
+  EMITPLAY     the page plays the model: the pass's doppler (> 1.01 approaching, < 0.99 leaving), the tram's loop on its
+               procedural buffer, a call 50 m ahead placed at (0, 0, -50) in the camera's frame, the cockpit's -12 dB
+  EMITBUDGET   7.5 min of walk on gamer and potato: the class's bytes <= 8 / 3 MB (decoded at the catalogue's lengths),
+               released when unwanted (peaks 3.65 / 2.55 MB)
+  EMITALLOC    the page with the emitters against its TWIN without them, same walk past a running tram and a passing car:
+               4-5 B a frame over the twin, within the 48 B per param and 4 KB per call allowance (their own 0.1-0.5
+               B a frame), 0 GC; a still listener near a mill with calls sounding schedules only at a call's start;
+               nothing near schedules nothing
+  EMITWIRING   the build order, the ambience bus, render_premises publishing soundObjects, every emitter key a declared
+               one-shot with a file (the loon excepted)
+  EMITSAMPLES  the one-shot class: decoded as is, counted, refused over its budget, released; the airframe's creak not in it
+  31 mutations, each red on its check (211 / 211 with the earlier 180 on the pre-merge tree). The sources are byte-identical
+  after. GATE AUDIO takes ~115 s standalone (EMIT ~49 s of it); it measured 151 s under run_gates' 4 jobs before the trim.
+FOUND ON THE WAY: (1) a reader called 10 times a second is a cold function: every double it touches is boxed. Read the
+  movers every frame. (2) A heap-delta gate in a process that ran other pages measures their realms too. EMITALLOC subtracts
+  a twin page's frame (the ambience and the stubs measured ~30 B a frame alone). (3) In a vm page whose global is not
+  `window`, a module's globalThis misses window.* (the model looks on window first). (4) MUSIC_BUDGET went red once
+  (71 KB over 100 000 frames, bar 16 KB) in a full run and passed in five reruns (4-6 KB). It runs before any emitter
+  code: a flake, the music's check's own.
+GATES (merged tree): AUDIO - every check of mine PASS, but AMBLUFS and AMBSAMPLES are RED. They are equally red on
+  origin/claude/sound-next f1fe4db6 without my changes: the coordinator's three new beds (amb.rain.outside, amb.birds.open,
+  amb.lake.shore) are in the catalogue but not in AMBIENCE_MODEL.BEDS nor samples.js's amb loop list. That is AMB-1's
+  wiring, left to the coordinator. On the pre-merge tree: AUDIO PASS (211 / 211), UISMOKE PASS, BOOT PASS, BUILD PASS,
+  PREMISES PASS, HITBOX PASS, LIFE PASS (run_gates --only, on a freshly built tree; the generated files restored, none in
+  this branch). MEDIA FAIL: "index.html grew 0.30 MiB over HEAD". The checkout's committed index.html is stale: a fresh
+  build of the base 11822e3c is already 0.25 MiB over it, and the two emitter files add 0.054 MiB. It clears when the
+  coordinator commits a rebuilt page. Not run: a browser (cloud).
+FOR THE COORDINATOR: (1) nothing in app.js. The emitters read AUDIO.world, AUDIO.camera and window.WORLD.premises.
+  (2) run_gates: GATE AUDIO's `wall: 160` holds standalone (~115 s); under 4 parallel jobs it measured 151 s before the trim.
+  (3) Wire the three new beds into AMB-1's BEDS / samples.js (AMBLUFS, AMBSAMPLES). (4) The generators could carry their
+  own SOUND tables (window.HOUSE_GEN.SOUND = { 'kennecott mill': 'mill' }, a TRAM / MARINE equivalent); the model reads
+  them first, and DECLARED stands in until they do. (5) SND-TUNE: every level, mean, gap and reach in the SPECIES /
+  SOUNDS / PASS / TRAM / BOAT tables is a first guess, none heard; the procedural hum / mill / outboard / bell are
+  placeholders for recordings. (6) A0's train is the first hearing of the panners in Chrome, the pass's doppler on
+  playbackRate, and soundObjects' cost with the town on (~100 rows a frame).
+MISSING ASSETS (asked of the coordinator; no file added): a LOON call one-shot (bird.loon: the emitter is declared and waits;
+  the bed amb.loons plays meanwhile); a tram station BELL, a cable car's rope / sheave HUM and a cabin creak recorded (the
+  procedural ones stand in; the creak borrows the airframe's mech.creak); a STAMP MILL / ore crusher; a small OUTBOARD at
+  idle; more variants of the crow / raven (one 0.39 s caw, pitch-jittered), the owl (one) and the gull (one); a varied
+  thrush (§6.2) has no file.
+MISSING HOOKS / WORLD FEATURES (said, not invented): no MOVING boat exists (the house piers' boats are moored props; MARINE_GEN's
+  floats draw none, `boats: 0`), so the outboard idles at a moored boat; the house piers' boats are HOUSE_GEN's build output
+  and are not in the record, so the node evidence has none (the gate drives them on a synthetic provider); the rigged ANIMALS
+  (G498: R.animals() / ANIM) are not wired, since the brief's list stops before them; no AI air traffic (SND-SPACE's
+  addCraft waits); the life's parked cars do not move (no sound); the record's traffic and the life's trafficOf both reach
+  soundObjects (render_premises' TRAFFIC holds both), but the node evidence simulates only the record's 36 roads.
+NOT DONE: the emitters carry no propagation lag (AUDIO.lagS); their calls are near and short. The doppler is on the bound
+  pass only. Rain, wind gusts and the sea state do not drive the emitters. Animals.
