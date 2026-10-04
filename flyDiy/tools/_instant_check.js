@@ -62,10 +62,13 @@ const FP = fs.readFileSync(path.join(__dirname, 'perf', 'garage_lag_same.js'), '
       await P.until(() => false, SETTLE);
       const previews = U.preview ? U.preview.n - pv0 : 0, deforms = U.preview ? U.preview.deform - df0 : 0;
       const hA = hash(), A = JSON.parse(run(FP));
-      U.sheetKeep = false; U.build(); U.sheetKeep = true;
+      // the long way: the sheet built, nothing kept (G1450-G1455's caches - the sheet's stages, the cavity bake, the
+      // tank soup, the soles - off with it: RELEASE_FAST_OFF)
+      const long = () => { U.sheetKeep = false; W.RELEASE_FAST_OFF = true; try { U.build(); } finally { U.sheetKeep = true; W.RELEASE_FAST_OFF = false; } };
+      long();
       if (SETTLE > 1500) await P.until(() => false, SETTLE);
       const hB = hash(), B = JSON.parse(run(FP));
-      U.sheetKeep = false; U.build(); U.sheetKeep = true;
+      long();
       if (SETTLE > 1500) await P.until(() => false, SETTLE);
       const C = JSON.parse(run(FP));
       const diffs = []; let noise = 0;
