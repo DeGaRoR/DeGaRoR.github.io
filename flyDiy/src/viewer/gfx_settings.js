@@ -160,11 +160,12 @@
         { v: 'low',  label: 'low', why: 'the far town from 25 m, only walls and roofs past ~55 m, no yard props' } ] },
     // THE TOWN SWITCH (G590, the 2026-09-26 playtest): which PLACES of the map's premises are built at all. Metlakatla
     // (375 houses) held the Jolene taxi at 12-15 fps on the reference 3080 (30 without it): off by default, its record
-    // kept. `free`: no preset sets it. Decided when the world is composed, so a change RELOADS the page (app.js TOWN;
-    // ?town=1 in the URL wins over the row)
+    // kept. G1408 (METLA-LOAD): ON by default ('all' is the first step: a free row's default) - METLA-RETURN made the
+    // flight cheap, G1406 the load. `free`: no preset sets it. Decided when the world is composed, so a change RELOADS
+    // the page (world_boot.js TOWN; ?town=1 / ?town=0 in the URL wins over the row)
     { k: 'town', label: 'towns', free: true, reload: true, steps: [
-        { v: 'nearby', label: 'field + sites', why: 'the airfield, the village, the mine, the native village and the tramway - Metlakatla off (the default) - RELOADS the page' },
-        { v: 'all', label: 'with Metlakatla', why: 'Metlakatla too: 375 houses 9 km east of the field, built as you come near - the taxi falls to ~15 fps on an RTX 3080 - RELOADS the page' } ] },
+        { v: 'all', label: 'with Metlakatla', why: 'Metlakatla too (the default): 375 houses 9 km east of the field, built as you come near - RELOADS the page' },
+        { v: 'nearby', label: 'field + sites', why: 'the airfield, the village, the mine, the native village and the tramway - Metlakatla off - RELOADS the page' } ] },
     { k: 'rails', label: 'guardrails', steps: [
         { v: 'on',  label: 'on', why: 'a galvanised W-beam where a road runs along a drop or round a tight bend - one draw call a road' },
         { v: 'off', label: 'off', why: 'no guardrails anywhere' } ] },
@@ -270,7 +271,7 @@
   };
 
   // ---- the state ----------------------------------------------------------
-  const S = Object.assign({ preset: DEFAULT, pv: 6, fps: 'auto' }, PRESETS[DEFAULT]);   // pv: the pref's version (4: G570, the cover and town rows; 5: G1113, gamer's and ultra's tree bands; 6: G1114.2, gamer's 'mid'); fps: G586's frame rate (a free option)
+  const S = Object.assign({ preset: DEFAULT, pv: 7, fps: 'auto' }, PRESETS[DEFAULT]);   // pv: the pref's version (4: G570, the cover and town rows; 5: G1113, gamer's and ultra's tree bands; 6: G1114.2, gamer's 'mid'; 7: G1408, the town on by default); fps: G586's frame rate (a free option)
   let expBase = null;                        // the exposure the writers last declared
   let eyeK = 1;                              // the eye's factor (post_fx.js's auto exposure); 1 with the row off
   // THE ONE WAY EXPOSURE IS WRITTEN: base in, base x step x eye on the renderer. A
@@ -292,6 +293,9 @@
         else if (v.scale === 'auto' && !(v.pv >= 3)) v.scale = 1;
         v.pv = 6;
       }
+      // (pv 6 -> 7, G1408: Metlakatla ON by default) every saved pref carries the row's old default, 'nearby' - once, it
+      // takes the new one ('nearby' picked again stays: the pref is then pv 7)
+      if (v && !(v.pv >= 7)) { if (v.town === 'nearby') delete v.town; v.pv = 7; }
       try { W.localStorage.removeItem(KEY + '.auto'); } catch (e) {}   // G528's first-launch reading, retired with its probe
       if (v && typeof v === 'object') for (const k in v) if (k in S) S[k] = v[k];
     } catch (e) {}
