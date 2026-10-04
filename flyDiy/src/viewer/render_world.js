@@ -100,6 +100,24 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
   // the mist TRANSMIT it (never add their in-scatter: an additive sprite would carry a square of haze). Nothing per light
   // per frame on the CPU: the level and the target's height are two uniforms (runwayLightsApply / the layer's
   // onBeforeRender), the size and the fall-off the vertex shader's. Both meshes are frustum-culled again.
+  // G1545-G1549 (RUNWAY-LIGHTS-2, the user 2026-10-04: "The new runway lights do look better" - warmer; shrouded, seen only
+  // from the approach; a red end row if easy). (1) THE LAMP IS 2500 K (was 2800): the period's 15 W "pygmy" was a small
+  // VACUUM lamp, which runs at ~2400-2600 K (a gas-filled one ~2800-3000 K), and Drem's flarepath was dimmed down besides
+  // - Planck x the CIE 1931 observer (Wyman 2013) -> linear sRGB 1 : 0.381 : 0.068; the green filter (a Gaussian pass at
+  // 505 nm, sigma 31 nm: the 26 % of G1415 at 2800 K, 23.6 % at 2500 K) recomputed through it. (2) SHROUDED: Drem's
+  // flarepath lights were "so mounted as to be only visible to aircraft on the approach", "specially angled to be seen
+  // only at the correct position" (the circuit flown round the outer circle until the flarepath came into view); the Glim
+  // lamp's bakelite disc on top kept it dark from above ("effectively invisible above some 1,500 feet"); a Q-site's end
+  // bars were "hooded red lights, only visible at low level". No period angle was found, so the cone is taken from those
+  // two figures: ALONG THE RUNWAY AXIS within +-10 deg full, gone by +-35 deg (out of the final turn); UP TO 7 deg of
+  // elevation full (a 3 deg approach and a 3.5 deg beam, a modern edge light's aim), gone by 14 deg (1,500 ft over Drem's
+  // 2,000-yard circuit). An edge fitting is open both ways along the strip (the game lands either way and keeps no duty
+  // runway); a threshold fitting's green faces OUT along the approach only. (3) THE RED END ROW: the same threshold row,
+  // seen from the runway side - a second lobe a light, red (a long-pass filter, half at 610 nm: CIE x 0.697 y 0.303, 21 %
+  // of the 2500 K lamp, 8 cd) facing IN, so the far end of the strip reads red to an aeroplane landing or taking off
+  // toward it and its own threshold green behind it - the combined threshold / end fitting. No core change: the places
+  // are G1066's, the second lobe one more vertex in the same layer. All of it in the glow's vertex shader (rwyAx: the
+  // lobe's axis and whether it is two-way): one dot product and a height test; a shrouded-out light is clipped there.
   const RWY = { meshes: [], glows: [], fix: null, glow: null, tex: null, shown: false,
     U: { lvl: { value: 0 }, px: { value: 540 } } };      // the glow's level (the day's), the bound target's half-height (px)
   const RWY_DEEP = 2;                                   // the mirrored inset fixture's depth in the geometry (m)
@@ -108,9 +126,13 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
   // the glass's colour by kind (the instance colour: the clear glass white, the threshold's green filter); the glow's
   // colour (linear, luminance 1) x sqrt(cd) / 3 (the edge's 9 cd = 1)
   const RWY_KIND = {
-    edge: { glass: [1, 1, 1], light: [1.855, 0.826, 0.217], cd: 9 },
-    thr:  { glass: [0.30, 0.95, 0.55], light: [0, 1.362, 0.351], cd: 9 },
+    edge: { glass: [1, 1, 1], light: [2.040, 0.778, 0.138], cd: 9 },
+    thr:  { glass: [0.30, 0.95, 0.55], light: [0, 1.370, 0.282], cd: 9 },
+    end:  { light: [4.442, 0, 0], cd: 8 },              // the threshold fitting's inward lobe (G1545): red, 4.704 x sqrt(8) / 3
   };
+  // the shroud (G1545): full within RWY_CONE[0] deg of the lobe's axis, gone at [1]; full up to [2] deg of elevation, gone at [3]
+  const RWY_CONE = [10, 35, 7, 14];
+  const rwyF = (f, a) => f(a * Math.PI / 180).toFixed(5);
   // the profiles, bottom to top along the outside: bands of [r, y] (m), smooth inside a band, a crease between bands;
   // part 0 the painted iron, 1 the glass (uv.x 0.25 / 0.75 on the roughness / metalness map)
   const RWY_ELEVATED = [
@@ -173,18 +195,26 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       roughness: 1, metalness: 1, roughnessMap: rwySurfTex(), metalnessMap: rwySurfTex() }));
   }
   // THE GLOW: three's points program, its size and its shape taken over. The vertex colour is the light's (colour x
-  // sqrt(cd) / 3); uRwyL the day's level, uRwyPx half the bound target's height in pixels.
+  // sqrt(cd) / 3); uRwyL the day's level, uRwyPx half the bound target's height in pixels; rwyAx the lobe's horizontal
+  // axis (x, z: toward where the light is seen from) and 1 for a two-way (edge) fitting.
   const RWY_GLOW_VS = `
+    vec3 rwE = cameraPosition - (modelMatrix * vec4(transformed, 1.0)).xyz;
+    vec2 rwA = normalize((modelMatrix * vec4(rwyAx.x, 0.0, rwyAx.y, 0.0)).xz);
+    float rwC = dot(rwE.xz, rwA) / max(length(rwE.xz), 1e-3);
+    if (rwyAx.z > 0.5) rwC = abs(rwC);                          // an edge fitting: open both ways along the strip
+    float rwF = smoothstep(${rwyF(Math.cos, RWY_CONE[1])}, ${rwyF(Math.cos, RWY_CONE[0])}, rwC)
+      * (1.0 - smoothstep(${rwyF(Math.sin, RWY_CONE[2])}, ${rwyF(Math.sin, RWY_CONE[3])}, rwE.y / max(length(rwE), 1e-3)));   // the shroud: the approach's cone, dark from above
     float rwD = length(mvPosition.xyz);
     mvPosition.xyz *= max(0.0, 1.0 - 0.15 / max(rwD, 0.3));   // a hand toward the eye: the lens's own glass and cover do not hide its light
     gl_Position = projectionMatrix * mvPosition;
     float rwPx = uRwyPx * projectionMatrix[1][1];               // pixels per radian
     float rwMin = max(1.5, uRwyPx / 360.0);                     // the core's floor: 1.5 px at 1080 lines, the same angle above
-    float rwB = uRwyL * 1000.0 / max(rwD, 1.0);                 // Stevens: a point's brightness ~ sqrt(E) = sqrt(I) / d (sqrt(I) in the colour)
+    float rwB = uRwyL * 1000.0 / max(rwD, 1.0) * sqrt(rwF);     // Stevens: a point's brightness ~ sqrt(E) = sqrt(I) / d (sqrt(I) in the colour; the shroud's share of I)
     float rwW = rwMin * sqrt(max(1.0, rwB / 6.0));              // over the HDR ceiling (6) the core widens, its flux kept
     rwB = min(rwB, 6.0);
     rwW = max(rwW, 2.0 * ${RWY_LENS_R} / max(rwD, 0.1) * rwPx);   // never narrower than the lens itself
     gl_PointSize = min(64.0, max(9.0, rwW * 5.0));
+    if (rwF <= 0.0) gl_Position = vec4(2.0, 2.0, 0.0, 1.0);    // shrouded out: the point clipped, no fragment drawn
     vRwy = vec3(rwB, rwW, gl_PointSize);`;
   const RWY_GLOW_FS = `
     float rwR = length(gl_PointCoord - 0.5) * vRwy.z, rwQ = rwR / vRwy.y;
@@ -207,7 +237,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       fog: ap, blending: THREE.CustomBlending, blendSrc: THREE.OneFactor, blendDst: THREE.OneFactor, blendEquation: THREE.AddEquation });
     m.onBeforeCompile = sh => {
       sh.uniforms.uRwyL = RWY.U.lvl; sh.uniforms.uRwyPx = RWY.U.px;
-      sh.vertexShader = sh.vertexShader.replace('void main() {', 'uniform float uRwyL, uRwyPx;\nvarying vec3 vRwy;\nvoid main() {')
+      sh.vertexShader = sh.vertexShader.replace('void main() {', 'uniform float uRwyL, uRwyPx;\nattribute vec3 rwyAx;\nvarying vec3 vRwy;\nvoid main() {')
         .replace('gl_PointSize = size;', RWY_GLOW_VS);
       sh.fragmentShader = sh.fragmentShader.replace('void main() {', 'varying vec3 vRwy;\nvoid main() {')
         .replace('outgoingLight = diffuseColor.rgb;', RWY_GLOW_FS)
@@ -225,7 +255,8 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
   }
   // one strip's lights: the edge rows and the threshold rows, elevated and flush, as ONE instanced fixture mesh and ONE
   // points layer (the two draws a strip the two colour meshes were); `keep` is the strip's own record of what it stood
-  // (standStrip's) - the analytic HOME passes the identity
+  // (standStrip's) - the analytic HOME passes the identity. The layer's lobes (G1545): an edge light one two-way vertex
+  // along the strip; a threshold light two - green facing out along its approach, red facing in (the end row)
   function standRunwayLights(a, keep) {
     const PO = world.premises && world.premises.overlay;
     const L = runwayLightPoints(a, world.aerodromes, PO && PO.pavedNear ? PO.pavedNear : null);   // G1066: none on another strip or a pavement
@@ -233,15 +264,18 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     if (!all.length) return;
     const im = new THREE.InstancedMesh(rwyFixtureGeo(), rwyFixtureMat(), all.length);
     const M = new THREE.Matrix4(), pv = new THREE.Vector3(), q = new THREE.Quaternion(), sv = new THREE.Vector3(1, 1, 1), tint = new THREE.Color();
-    const pos = new Float32Array(all.length * 3), col = new Float32Array(all.length * 3);
+    const pos = [], col = [], ax = [], ca = Math.cos(a.hdg), sa = Math.sin(a.hdg);
+    const lobe = (x, y, z, c, dx, dz, two) => { pos.push(x, y, z); col.push(c[0], c[1], c[2]); ax.push(dx, dz, two); };
     // [x, ground y, z, flush]: an elevated fitting stands on its foot; a flush one is the geometry flipped and lifted
     const P = all.map(([[x, z, fl]]) => [x, world.terrainH(x, z), z, fl ? 1 : 0]);
     all.forEach(([, K], i) => {
       const [x, y, z, fl] = P[i];
       pv.set(x, fl ? y - RWY_DEEP : y, z); sv.set(1, fl ? -1 : 1, 1); M.compose(pv, q, sv); im.setMatrixAt(i, M);
       im.setColorAt(i, tint.setRGB(K.glass[0], K.glass[1], K.glass[2]));
-      pos[i * 3] = x; pos[i * 3 + 1] = y + (fl ? RWY_INSET_Y : RWY_LENS_Y); pos[i * 3 + 2] = z;
-      col[i * 3] = K.light[0]; col[i * 3 + 1] = K.light[1]; col[i * 3 + 2] = K.light[2];
+      const ly = y + (fl ? RWY_INSET_Y : RWY_LENS_Y);
+      if (K === RWY_KIND.edge) { lobe(x, ly, z, K.light, ca, sa, 1); return; }
+      const o = (x - a.x) * ca + (z - a.z) * sa >= 0 ? 1 : -1;   // the end it marks: its approach lies beyond it (o x the axis)
+      lobe(x, ly, z, K.light, o * ca, o * sa, 0); lobe(x, ly, z, RWY_KIND.end.light, -o * ca, -o * sa, 0);
     });
     im.instanceMatrix.needsUpdate = true; if (im.instanceColor) im.instanceColor.needsUpdate = true;
     im.castShadow = false; im.receiveShadow = false;
@@ -251,6 +285,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     const gg = new THREE.BufferGeometry();
     gg.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
     gg.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+    gg.setAttribute('rwyAx', new THREE.Float32BufferAttribute(ax, 3));
     if (gg.computeBoundingSphere) gg.computeBoundingSphere();
     const glow = new THREE.Points(gg, rwyGlowMat());
     glow.onBeforeRender = rwyGlowBefore; glow.renderOrder = 4; glow.visible = !!RWY.shown;
