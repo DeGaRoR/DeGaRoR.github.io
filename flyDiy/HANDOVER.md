@@ -69913,3 +69913,10 @@ ASK FOR THE SOUND COORDINATOR (the user, 2026-10-04, relayed by SND-AMB-1 - the 
       ambience_model.js (RAMPS, Z_FALL, AERO_*): an editor panel could expose them as sliders for SND-TUNE.
   Wanted from the coordinator: the design (where it sits in the world editor, what the user draws, how it is saved in the
   premises record), then a session brief.
+ASSETS, the user's follow-up (2026-10-04): the user asked whether SND-AMB-1 could fetch the MISSING ASSETS above itself
+  (CC0 and CC-BY permitted). It cannot: this cloud environment's network policy refuses freesound.org / cdn.freesound.org,
+  opengameart.org, Wikimedia and archive.org (403), and the web fetcher is blocked on freesound too. The five beds (outside
+  rain on leaves / water, day birds over open ground, an open-sea bed, a louder lake edge, crickets alone) stay the
+  coordinator's: fs_fetch.js on the box -> a listening board -> the user's picks -> prep_sfx.js (catalogue, CREDITS,
+  shipped.json). Once they ship under new amb.* keys, the bed table in ambience_model.js (BEDS + a rule line each) and GATE
+  AUDIO AMBLUFS (every catalogue amb.* file must be a bed) need them added - AMBLUFS goes red until then, by design.
