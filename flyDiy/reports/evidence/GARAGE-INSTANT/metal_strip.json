@@ -1,0 +1,106 @@
+[
+ {
+  "build": "metal",
+  "row": "p_paxLen",
+  "tick": 1,
+  "file": "metal_paxLen_1_tick.jpg",
+  "v": "1.13",
+  "sync": 8.4,
+  "drawn": 60.9,
+  "preview": true,
+  "why": "deformed (102 parts ride)"
+ },
+ {
+  "build": "metal",
+  "row": "p_paxLen",
+  "tick": 2,
+  "file": "metal_paxLen_2_tick.jpg",
+  "v": "1.26",
+  "sync": 7.3,
+  "drawn": 56.7,
+  "preview": true,
+  "why": "deformed (102 parts ride)"
+ },
+ {
+  "build": "metal",
+  "row": "p_paxLen",
+  "tick": 3,
+  "file": "metal_paxLen_3_tick.jpg",
+  "v": "1.39",
+  "sync": 6.4,
+  "drawn": 35,
+  "preview": true,
+  "why": "deformed (102 parts ride)"
+ },
+ {
+  "build": "metal",
+  "row": "p_paxLen",
+  "tick": 4,
+  "file": "metal_paxLen_4_tick.jpg",
+  "v": "1.52",
+  "sync": 6.4,
+  "drawn": 34.3,
+  "preview": true,
+  "why": "deformed (102 parts ride)"
+ },
+ {
+  "build": "metal",
+  "row": "p_paxLen",
+  "tick": "release",
+  "file": "metal_paxLen_5_released.jpg",
+  "release": 519.7,
+  "drawn": 613.3
+ },
+ {
+  "build": "metal",
+  "row": "p_halfW",
+  "tick": 1,
+  "file": "metal_halfW_1_tick.jpg",
+  "v": "0.765",
+  "sync": 9.6,
+  "drawn": 60.6,
+  "preview": true,
+  "why": "deformed (102 parts ride)"
+ },
+ {
+  "build": "metal",
+  "row": "p_halfW",
+  "tick": 2,
+  "file": "metal_halfW_2_tick.jpg",
+  "v": "0.725",
+  "sync": 6.9,
+  "drawn": 55.3,
+  "preview": true,
+  "why": "deformed (102 parts ride)"
+ },
+ {
+  "build": "metal",
+  "row": "p_halfW",
+  "tick": 3,
+  "file": "metal_halfW_3_tick.jpg",
+  "v": "0.685",
+  "sync": 6.2,
+  "drawn": 55.5,
+  "preview": true,
+  "why": "deformed (102 parts ride)"
+ },
+ {
+  "build": "metal",
+  "row": "p_halfW",
+  "tick": 4,
+  "file": "metal_halfW_4_tick.jpg",
+  "v": "0.645",
+  "sync": 6.8,
+  "drawn": 54.6,
+  "preview": true,
+  "why": "deformed (102 parts ride)"
+ },
+ {
+  "build": "metal",
+  "row": "p_halfW",
+  "tick": "release",
+  "file": "metal_halfW_5_released.jpg",
+  "release": 416.9,
+  "drawn": 506.8
+ }
+]

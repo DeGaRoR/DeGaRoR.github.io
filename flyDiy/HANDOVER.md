@@ -70710,3 +70710,177 @@ programs by parameters).
   numbers). Aloft the cascade still grows to its 30 m cap for the penumbra (penFitTx) - the case G1359 was verified in.
 - GATES: SHADOWSKY (G1359.1's and G1410's checks), LIGHT, CONTACT, FADES, POSTFX, PROGRAMS, BUILD PASS. FRAMECOST not
   re-run here (the box was the garage census's, then train 28's): its census after a parked re-cook is the train's.
+
+
+## G1440-G1446 - GARAGE-INSTANT: A DRAG TICK RUNS ONLY WHAT THE ROW MOVES - THE POST CHAIN FLAT AND RECORDED, THE FUSELAGE DEFORMED IN PLACE; THE RELEASE IS THE WHOLE BUILD, EXACT (2026-10-04, GARAGE-INSTANT for A0, local GPU; branch claude/garage-instant-g1440 on train/28 80f20e0b)
+
+The user (2026-10-04): "I'd want to go further on ensuring fast reaction time to sliders in the garage" ("an
+instantaneous feeling"). TARGET (A0's brief): every slider's drag tick (input -> the changed aeroplane drawn) <= 50 ms
+median, <= 100 ms p90, on the user's Cub (builds/cub_2026-09-20_corrected.json) and the metal Cessna; the exact
+full-detail result may follow on release (<= 300 ms), never a different aeroplane.
+
+**THE BOX** (`tools/perf/garage_lag.js`, the strict gate's rig: index.html, the tab in front, rendering; base = train 27 +
+GARAGE-LAG-2 served from _ab/018af825, after = this branch's b09f41e2, both in one session 04:47-05:00 on D:/ugi1; median
+(max) of 5 reps; handler = the input event's handler, drawn = to the second rAF after it; `tools/perf/garage_instant_gl.json`):
+
+| build | row | base handler / drawn | AFTER handler / drawn | after max |
+|---|---|---:|---:|---:|
+| Cub | fuselage length (`p_paxLen`, a cage row: deformed) | 230 / 305 | **7 / 49** | 8 / 51 |
+| Cub | fuselage width (`p_halfW`, deformed) | 224 / 277 | **6 / 47** | 7 / 49 |
+| Cub | cabin frame (`p_frCabTopW`, deformed) | 183 / 231 | **5 / 49** | 10 / 50 |
+| Cub | wing span (kept sheet: wing + brace + fed layers) | 156 / 207 | **25 / 66** | 33 / 71 |
+| Cub | wing chord | 157 / 200 | **24 / 64** | 26 / 65 |
+| Cub | tail size (kept sheet: stab) | 156 / 204 | **5 / 26** | 5 / 43 |
+| Cub | gear track (kept sheet: gear + fed) | 157 / 206 | **25 / 65** | 25 / 66 |
+| metal | fuselage length | 307 / 383 | **9 / 60** | 13 / 64 |
+| metal | fuselage width | 290 / 350 | **7 / 57** | 8 / 59 |
+| metal | cabin frame | 317 / 375 | **7 / 55** | 12 / 61 |
+| metal | wing span | 194 / 256 | **25 / 75** | 35 / 80 |
+| metal | wing chord | 189 / 246 | **26 / 73** | 35 / 81 |
+| metal | tail size | 188 / 250 | **4 / 57** | 6 / 62 |
+| metal | gear track | 187 / 266 | **22 / 71** | 24 / 73 |
+| both | engine (a select: a plain build), tank capacity, livery colour | unchanged (Cub 215 / 29 / 5, metal 260 / 34 / 5) | | |
+
+(slot 1, 03:46-03:59, the Tier-1 WIP alone on the same rig: the same kept-sheet rows; base Cub length 200 / 264, then
+230 / 305 in slot 2 - slot 2's first base row ran beside two minutes of this session's node processes, killed at 04:49.)
+"drawn" carries two vsyncs (the rig waits for the SECOND rAF: ~17-33 ms whatever the handler; the livery row - a 5 ms
+repaint - reads 38) and the render of what changed. So: every slider row of the script now answers its handler in
+4-26 ms; drawn 26-75 ms - the deformed fuselage rows and the tail at or under 50-60, the wing and gear rows 64-75 (the
+wing's and the gear's own layers rebuild, 20-25 ms, and their new meshes upload).
+
+**THE DRAG, FRAME BY FRAME** (`tools/perf/garage_drag_strip.js`, new: press, four ticks a frame apart, release; the shot
+after each tick; the pause held off) - evidence `reports/evidence/GARAGE-INSTANT/`: `cub_paxLen_drag.jpg` (the Cub's
+cabin bay shortened 20 % of its range: ticks 5-6 ms handler, 31-52 ms drawn, deformed; release 334 ms handler / 405 drawn),
+`cub_wgSpan_drag.jpg` (ticks 25-28 / 64-70; release 240 / 310), `metal_halfW_drag.jpg` (the metal Cessna narrowed:
+ticks 6-10 / 55-61; release 417 / 507), `metal_paxLen_drag.jpg` (ticks 6-8 / 34-61; release 520 / 613); the per-tick
+numbers in `cub_strip.json`, `metal_strip.json`. The previews and the released whole build stand as the same aeroplane in
+every strip (the fourth tile is the exact build).
+
+**G1440 THE CENSUS** (`tools/perf/garage_census.js`, new, NODE - no GPU, no lock). The page in node booted into the garage,
+then EVERY widget - each p_<key> row (slider, select, checkbox, stepper), the finish tab's colour wells, every other range
+(the materials lab's dials, the energy panel) - moved the player's way: a slider is pressed, a frame later moved (a drag
+tick), then released. REAL ms (process.hrtime - the node page's performance.now is its virtual clock): `tick` the input
+handler, `release` the change + pointer-up + the page's timer callbacks over the next second (the settle build, the commits;
+the readout worker's jobs are dropped - the harness otherwise waits for a worker's 3 s shakedown before each turn), the
+sheet's ms and each layer's self ms (the flat chain's own clock). `--prof` (the inspector's CPU profile of a rep, self and
+inclusive), `--shard i/n`, `--kinds`, `--only`, `--lvl`. Node reads ~1.6x the box (and more under the 6-10 processes the
+census ran as); it is for the SHAPE of the tail - every row - the box measures the numbers. Summary kept:
+`tools/perf/garage_instant_census.json` (per row: before / after tick and release, sheet, preview).
+
+THE TAIL, BEFORE (train 27 + GARAGE-LAG-2, node, median (p90) ms a tick): Cub 829 visible widgets - 213 sliders 367 (545),
+selects 500 (682), checkboxes 511 (680), steppers 512 (606); the colour wells 7, the other ranges 7 (the repaint and the
+tank rows were already quick). Metal 897 widgets - 223 sliders 440 (713), selects 577, checkboxes 596 (960), steppers 587.
+Where a tick went (profiles inside the handler, Cub wing span, node ~316 ms): crew 73 (its floor cut 43), wing 38, gear
+33, cowl 28, engine 20, the fuselage mesh rebuilt off a KEPT sheet 20, the weathering's cavity bake 21, GC 93 - every
+layer on every tick whatever the row moved; a fuselage row added the sheet (Cub 45-90, metal 180-260: the shoulder's
+panels 83, the interior 58, the drawn windows' knife 48, rims 17, subdivision 12) and every layer on the new sheet.
+
+THE TAIL, AFTER (sliders, node, contended): Cub 367 (545) -> **67 (112)**, 181 of 213 under 100; metal 440 (713) ->
+**62 (275)**, 168 of 223 under 100. What is left over 100 (node): the sheet's DETAIL rows on the metal Cessna (rim
+width / rise / rivets, the dash's back / lip / crown, the shoulder, the sills, the door depth, the firewall seal, the
+cowl's ease: 300-480 node ~ 180-290 box - the sheet itself, G1444) and on the Cub (dash back 266, rims 125-140); the
+crew's rows (seat and pedal stations, the trim controls: the crew layer and its floor 120-145); a few flap/trim rows.
+The clicks (selects, checkboxes, steppers) are unchanged: a plain build.
+
+**G1441-G1444 THE DESIGN** - what a tick truly needs to recompute. Weighed:
+- a dependency graph parameter -> layers (TAKEN, G1441-G1442): exact where it matters (each layer's own P reads, recorded
+  on every run), generic (no layer edited), cheap (a Map per layer run);
+- a drag preview of the touched part transformed in place (TAKEN for the cage rows, G1443): the fuselage's own geometry
+  moved onto the new cage, every layer's part riding with it;
+- a worker for the cage generation (NOT TAKEN): the layers build THREE objects against the scene and the DOM, so only the
+  sheet (55-250 ms) could move off-thread and the main thread would rebuild every layer on its arrival - the latency
+  stays at least the sheet's;
+- caching generator outputs keyed by their inputs: the layer skip IS this at the layer's grain (its group is the cached
+  output, its recorded reads the key); at the sheet's pass grain it is the next step (below);
+- a coarser sheet while dragging (MEASURED, NOT TAKEN as the lever): the metal's sheet L2 260 -> L1 120 ms (node), the
+  layers unchanged (~250): half a fuselage row, a visibly faceted fuselage, nothing for the other rows.
+
+**G1441 THE POST CHAIN, FLAT** (`tools/_cage_chain.js`, new; build.js MANIFEST.editor after _cage_char.js, before
+_cage_crew.js). Every layer chains `const prevPost = PAGE.post; PAGE.post = ctx => { prevPost(ctx); ... }`. The file makes
+CAGE_PAGE.post an accessor: an assignment REGISTERS the layer, the prevPost it reads is a stub that runs the layers below
+it - the same nesting, order and code (the engine's and the floats' starters, which run before their prevPost, still run
+first). Added: (1) a layer can be SKIPPED (its group stays as its last run drew it; the layers below still run) - only a
+plan skips; (2) every run RECORDS the P keys the layer read and their values (ctx.P and CAGE_UI.P are a Proxy view of P for
+the length of the chain: reads answer the object's own values, writes go to the object; a key walk - a spread,
+Object.keys - marks the layer as reading everything); (3) each layer's self ms (CAGE_CHAIN.last). A PLAN runs a layer
+when a key it read reads differently now, when it never ran, when it always runs (the panel's stat line, the cowl's aft
+stub, the ui's understudy pass), or when a layer that FEEDS it ran: the forward reads of what an earlier layer publishes
+(each file's window.* reads): crew -> light, energy; cowl -> engine, access; engine -> access; wing -> brace, gear*,
+float, fin, stab, access, light, energy, hinge; gear -> float, fin, stab, access, hinge; fin -> stab, access, light, hinge;
+stab -> access, light, hinge. *Only while the gear's last run rooted a leg ON the wing (`CAGE_GEAR.onWing`, new: the
+low-wing rule). A read of a LATER layer's global is the previous build's by design (the load order's own comments) and
+makes no edge. The registration order is asserted against the script names where a stack names them (dev.html, node): a
+page whose files register otherwise gets no plans (CAGE_CHAIN.ok false, every build whole). `?garage=old` or
+CAGE_CHAIN.on = false: registrations only, nothing recorded or skipped.
+`_gear_page.js` gearLegP: the station's view of P is an OVERLAY (Object.create(P) + the leg keys) instead of a copy - the
+leg builders only read it (no key walked or written in _gear_gen / _gear_kit / _hinge_gen / _rod_fit) - so the gear's
+recorded reads are its own keys (the copy read every key: the gear ran on every tick).
+
+**G1442 A KEPT SHEET'S DRAG TICK IS A PREVIEW** (`_cage_ui.js` buildSteps). A drag tick (G1303's held pointer) whose sheet
+is the stand's (G1300's key unchanged): nothing of the fuselage is rebuilt (its mesh, decals, weathering, the panels); the
+chain runs under the plan with ctx.defer (a detail layer that must run hides, as G1303 has it), then the crew's late floor
+if the crew ran, and a draw that keeps the orbit's centre (`app.js` placeEditor skips its whole-aeroplane box on
+CAGE_UI.previewTick; over the crew's skinned meshes it was 10-15 ms a tick). A layer the row does not reach stands
+untouched and VISIBLE: G1303 hid the lights, hinges, access fittings and tanks on every drag - now only on the drags that
+move them.
+
+**G1443 THE STAND, DEFORMED** (`_cage_ui.js` deformTick, standInfo, standFollowers). A drag tick on a row that moves the
+CAGE (lengths, widths, heights, deck lines, the nose; 19 of the Cub's 49 sheet rows) with the same cage topology: the new
+cage subdivided L times and its arcs refitted - cageSheet's own first steps, EXACT (`cageRefitArc` now exported by CAGE2) -
+is the BASE surface (the Cub's 2 594 of 23 013 sheet vertices), and the base is the sheet's own vertex PREFIX (asserted
+once per stand: else no deform); every vertex a later pass added (rims, linings, interior, shoulder, cut edges) moves with
+its nearest base vertex (a grid, measured once per stand - on the press, before the first move: `standSoon`); the
+positions are written into the standing geometry in place (normals kept); every layer's part (each child of each
+cageLayer:* group) rides rigidly with the weighted mean move of the 8 base vertices nearest its centre (a part on the
+centreline keeps its lateral place). Nothing is built. A row whose cage does not move, a topology change, an exploded
+view: not this path. `CAGE_UI.deformOn = false` turns it off.
+THE SETTLE BUILD AFTER A DEFORMED DRAG PUTS THE SIT FIRST. A build measures the craft frame from where the previous draw
+put the mount, and the crew's limbs are posed in that frame. A drag's last tick used to be a whole build at the final rows,
+so the settle build met the final sit; a deformed tick moves no gear. So after a deformed drag the gear and the floats are
+built once on the new sheet and the stand placed (a draw) before the frame is measured, then the whole chain (and the
+frame is measured again after the final draw if it still moved). Without it GATE INSTANT read the shared uCraftInv 0.2
+deg off and the crew's arms ~1e-4 off (found by the gate, fixed, re-run). Its cost: the release of a deformed drag carries
+the gear (and floats) once more (~20 ms box).
+
+**G1444 A DETAIL ROW'S DRAG TICK** (the cage stands, the sheet's details move: rims, seals, panes, the dash, the shoulder,
+skin and shell thickness, the cowl rings; 29 of the Cub's sheet rows): the sheet and its mesh are built (G1300's cache
+misses), the layers are planned as a kept sheet's (G1442).
+
+**G1445 GATE INSTANT** (`tools/_instant_check.js`, new; run_gates core, ~7 min). The page in node, on the Cub and the metal
+Cessna (`--builds` any of cub, metal, jodel, cessna, floats), twelve rows - kept-sheet layer rows (wing span / chord, tail,
+gear track, seat height), deformed cage rows (length, width, roof, nose droop), detail rows (rim width, dash depth) - each
+dragged the player's way (press, four ticks at four values, release, the settle build), the whole scene fingerprinted
+(garage_lag_same.js's fingerprint) and the resolved spec (the join's export) hashed, then the same rows built the long way
+(sheetKeep off, build()) twice: an object the long way does not repeat itself is noise; anything else FAILS. It also says
+how many ticks were previews and how many deformed. RESULTS (train/28 base, final code): Cub, metal Cessna, Jodel, Cessna
+172 - PASS, every row SAME, 4/4 previews each (the cage rows 4/4 deformed). Boot resolved-spec hashes identical to train 27 +
+GARAGE-LAG-2 (cub ca8086e8, metal 6fee07e8, jodel 6760b1e5, cessna ba7fb2a6, floats d4c0a24e). Cessna floats: the drag's
+release ends on the BASE TREE'S OWN aeroplane (`--settle 8000`, both trees, rows length / width / nose droop: the same spec
+hashes, scene DIFFER 0 in both), but neither tree's release equals ITS long build: the floats' CG handshake (G396: the step
+follows the CG the balance answers, a rebuild when it moved 2 cm) is history-dependent within its threshold - pre-existing,
+not this branch's; the floats are not in the gate's default builds.
+
+GATES on the final code (train/28 base): run_gates --only FIT, JOIN, TANKMOUNT, ENERGY, HANGAR, RAYINDEX, PARTS, FRAMES,
+SAVE, DESIGN, GEAR, BUILD, UISMOKE, BOOT, MOUNT, LIVERY, INSTANT - all PASS (BATTERY PASS, --jobs=5, 612 s). FRAMECOST not run (the editor's files are in
+FLYDIY_BUILD: the parked cook's stale signature - A0's per train).
+
+RIG CHANGE (garage_lag.js, both trees alike): a slider's tick PRESSES a frame before it moves (the pointerdown is outside
+the timed handler) - a hand comes down before it drags, and G1443 measures the stand on the press; a tree that does not
+listen for the press reads the same. The strict gate's garage rows should be compared against a baseline taken with it.
+
+**NOT INSTANT YET - what is left, measured:**
+1. THE RELEASE is the whole build, as before, and is over the brief's 300 ms on the fuselage rows and on the metal
+   Cessna: Cub kept-sheet rows ~220-240 ms handler (wing release 240 / drawn 310), Cub fuselage rows ~330 (405 drawn: the
+   sheet + every layer + the sit pre-pass), metal 417-520 (507-613 drawn). Under 300 needs the build itself: the sheet's
+   passes (the shoulder's panels, the interior, the knife) and the crew.
+2. THE SHEET'S DETAIL ROWS on the metal Cessna (~25 rows: rims, dash, shoulder, sills, seals, door depth; 180-290 ms box):
+   a pass cache inside cageSheet keyed by each pass's own spec reads (the same recording, on the spec) would leave a dash
+   row the interior + shoulder, a shoulder row the shoulder alone - exact, and it shortens the release too. Or deform
+   those as well (the cage does not move; their passes do).
+3. THE CREW'S ROWS (seat / pedal / stick stations, ~120-145 ms node): the crew layer and its floor cut run whole.
+4. THE CLICKS (selects, checkboxes, steppers: ~200-260 ms box) are plain builds; the plan could serve them too (preview
+   now, the whole build in the next idle slot) - not a slider, not in the brief.
+5. "drawn" carries two vsyncs by the rig's definition (~17-33 ms): the handler is what the code can still cut.
+
+Rigs: garage_census.js (node, every widget), garage_lag.js (the box), garage_drag_strip.js (the box: a drag frame by frame),
+_instant_check.js (GATE INSTANT). GPU: 26 min in two slots (03:46-03:59, 04:47-05:00), both under boxlock, reserved by A0.

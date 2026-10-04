@@ -1,0 +1,158 @@
+[
+ {
+  "build": "cub",
+  "row": "p_paxLen",
+  "tick": 1,
+  "file": "cub_paxLen_1_tick.jpg",
+  "v": "1.63",
+  "sync": 6.4,
+  "drawn": 51.8,
+  "preview": true,
+  "why": "deformed (91 parts ride)"
+ },
+ {
+  "build": "cub",
+  "row": "p_paxLen",
+  "tick": 2,
+  "file": "cub_paxLen_2_tick.jpg",
+  "v": "1.5",
+  "sync": 6.2,
+  "drawn": 34.6,
+  "preview": true,
+  "why": "deformed (91 parts ride)"
+ },
+ {
+  "build": "cub",
+  "row": "p_paxLen",
+  "tick": 3,
+  "file": "cub_paxLen_3_tick.jpg",
+  "v": "1.37",
+  "sync": 5.3,
+  "drawn": 35.2,
+  "preview": true,
+  "why": "deformed (91 parts ride)"
+ },
+ {
+  "build": "cub",
+  "row": "p_paxLen",
+  "tick": 4,
+  "file": "cub_paxLen_4_tick.jpg",
+  "v": "1.24",
+  "sync": 5.3,
+  "drawn": 31.5,
+  "preview": true,
+  "why": "deformed (91 parts ride)"
+ },
+ {
+  "build": "cub",
+  "row": "p_paxLen",
+  "tick": "release",
+  "file": "cub_paxLen_5_released.jpg",
+  "release": 333.9,
+  "drawn": 405.5
+ },
+ {
+  "build": "cub",
+  "row": "p_wgSpan",
+  "tick": 1,
+  "file": "cub_wgSpan_1_tick.jpg",
+  "v": "10.3",
+  "sync": 27.9,
+  "drawn": 70.3,
+  "preview": true,
+  "why": "deformed (91 parts ride)"
+ },
+ {
+  "build": "cub",
+  "row": "p_wgSpan",
+  "tick": 2,
+  "file": "cub_wgSpan_2_tick.jpg",
+  "v": "10",
+  "sync": 27,
+  "drawn": 69.1,
+  "preview": true,
+  "why": "deformed (91 parts ride)"
+ },
+ {
+  "build": "cub",
+  "row": "p_wgSpan",
+  "tick": 3,
+  "file": "cub_wgSpan_3_tick.jpg",
+  "v": "9.6",
+  "sync": 26.4,
+  "drawn": 66.5,
+  "preview": true,
+  "why": "deformed (91 parts ride)"
+ },
+ {
+  "build": "cub",
+  "row": "p_wgSpan",
+  "tick": 4,
+  "file": "cub_wgSpan_4_tick.jpg",
+  "v": "9.2",
+  "sync": 24.9,
+  "drawn": 63.5,
+  "preview": true,
+  "why": "deformed (91 parts ride)"
+ },
+ {
+  "build": "cub",
+  "row": "p_wgSpan",
+  "tick": "release",
+  "file": "cub_wgSpan_5_released.jpg",
+  "release": 239.8,
+  "drawn": 310.1
+ },
+ {
+  "build": "cub",
+  "row": "p_stSpan",
+  "tick": 1,
+  "file": "cub_stSpan_1_tick.jpg",
+  "v": "1.35",
+  "sync": 3.7,
+  "drawn": 42.8,
+  "preview": true,
+  "why": "deformed (91 parts ride)"
+ },
+ {
+  "build": "cub",
+  "row": "p_stSpan",
+  "tick": 2,
+  "file": "cub_stSpan_2_tick.jpg",
+  "v": "1.28",
+  "sync": 3.8,
+  "drawn": 34.2,
+  "preview": true,
+  "why": "deformed (91 parts ride)"
+ },
+ {
+  "build": "cub",
+  "row": "p_stSpan",
+  "tick": 3,
+  "file": "cub_stSpan_3_tick.jpg",
+  "v": "1.21",
+  "sync": 3.6,
+  "drawn": 31.7,
+  "preview": true,
+  "why": "deformed (91 parts ride)"
+ },
+ {
+  "build": "cub",
+  "row": "p_stSpan",
+  "tick": 4,
+  "file": "cub_stSpan_4_tick.jpg",
+  "v": "1.15",
+  "sync": 3.7,
+  "drawn": 30.7,
+  "preview": true,
+  "why": "deformed (91 parts ride)"
+ },
+ {
+  "build": "cub",
+  "row": "p_stSpan",
+  "tick": "release",
+  "file": "cub_stSpan_5_released.jpg",
+  "release": 218.9,
+  "drawn": 286.7
+ }
+]
