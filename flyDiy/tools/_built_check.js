@@ -22,8 +22,8 @@ const strict = process.env.BUILT_STRICT === '1' || process.argv.includes('--stri
 const B = require('./build.js');
 
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'flydiy-built-'));
-let verdict = null;
-const fail = why => { verdict = verdict || ('FAIL (' + why + ')'); };
+const why = [];
+const fail = w => { why.push(w); };
 try {
   const r = B.build({ out: tmp, quiet: true });
   console.log(`  fresh build ${r.build} (${r.inputs.length} named inputs) in ${tmp}`);
@@ -77,5 +77,5 @@ try {
 } finally {
   try { fs.rmSync(tmp, { recursive: true, force: true }); } catch (e) {}
 }
-console.log(`GATE BUILT: ${verdict || 'PASS'}`);
-process.exit(verdict ? 1 : 0);
+console.log(`GATE BUILT: ${why.length ? 'FAIL (' + why.join('; ') + ')' : 'PASS'}`);
+process.exit(why.length ? 1 : 0);
