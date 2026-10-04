@@ -31,6 +31,8 @@
 //                   G1702: the takes of the lazily fetched broadcast); THE LIVING RADIO (SND-RADIO-3, G1700-G1704): RADIO_LINT,
 //                   RADIO_HORIZON, RADIO_WX, RADIO_XFADE, VOICE_LICENCE (RADIO_SCRIPTS, VOICE_AWOS, VOICE_MARINE retired with
 //                   the AWOS and the marine forecast) - each described at the head of its block.
+//   ANI THE ANIMALS' VOICES (SND-ANIMALS, G1705-G1709) ANIMAP, ANIBLOW, ANIELK, ANILAND, ANIGULL, ANIMILL, ANIPLAY, ANIALLOC -
+//                   described at the head of their block (the real animals layer through animal_run.js's read-only reader).
 //   D  THE SELFTEST every check above is run again on MUTATED source text (in memory: nothing on disk is touched)
 //                   and must go red; then the files on disk are re-read and must be byte-identical to the start.
 //   node tools/audio/_audio_check.js             -> the checks + the selftest -> "GATE AUDIO: PASS|FAIL"
@@ -68,6 +70,8 @@ const FILES = {
   ambmodel: 'src/viewer/audio/ambience_model.js', amb: 'src/viewer/audio/ambience.js',
   // SND-AMB-2 (G1660-G1666): the emitters' numbers, the emitters, the premises renderer's read-only accessor
   emmodel: 'src/viewer/audio/emitters_model.js', em: 'src/viewer/audio/emitters.js', prem: 'src/viewer/render_premises.js',
+  // SND-ANIMALS (G1705-G1709): the animals' behaviours and their read-only reader
+  anirun: 'src/viewer/animal_run.js',
   // SND-VOICE (G1626-G1629): Radio Jolene's words, their player, the catalogue, the script, GATE MEDIA's list
   voicemodel: 'src/viewer/audio/voice_model.js', voice: 'src/viewer/audio/voice.js', voicecat: 'src/viewer/audio/voice_catalogue.json',
   voicescript: 'tools/audio/voice_script.json', mediachk: 'tools/_media_check.js',
@@ -3525,7 +3529,7 @@ async function checkEmGesture(S) {
   const urls = []; const f0 = pg.win.ASSET_FETCH; pg.win.ASSET_FETCH = u => { urls.push(u); return f0(u); };
   // nothing near: 500 m over the forest - no emitter key fetched, no source, no buffer made
   pg.at(-900, -800, 500); await pg.settle(600);
-  const emKeys = /bird_|dog_|mech_door|vehicle_/;
+  const emKeys = /bird_|dog_|mech_door|vehicle_|animal_|mill_|tram_|boat_/;
   if (urls.some(u => emKeys.test(u)) || pg.R.sources.some(s => s.buffer && !s.loop && s.buffer.length < 48000 * 3)) F.push('500 m up, nothing near: the emitters fetched ' + urls.filter(u => emKeys.test(u)).length + ' files');
   if (pg.win.EMITTERS.procBytes()) F.push('500 m up: a procedural buffer was made (' + pg.win.EMITTERS.procBytes() + ' B)');
   // down in the forest by day: the crow's key is fetched after the frames began
@@ -3602,6 +3606,10 @@ async function checkEmBudget(S, report) {
     if (!(maxB > 0)) F.push(tier + ': nothing decoded over 10 min of walk (the budget is untested)');
     if (drops < 1) F.push(tier + ': the emitters\' bytes never went down (nothing released in 7.5 min)');
     if (SM.classBytes('amb') && SM.classOf('dog') === SM.classOf('amb.forest.day')) F.push(tier + ': the dog shares the beds\' class');
+    // nothing wanted (500 m up) for 70 s: every key released after its 60 s (G1705: the room's releases do not stand in)
+    pg.at(-900, -800, 500);
+    for (let f = 0; f < 60 * 70; f++) { pg.go(); if (f % 4 === 0) { await null; pg.runTimers(); } }
+    if (SM.classBytes('emit')) F.push(tier + ': 70 s with nothing wanted and ' + (SM.classBytes('emit') / 1048576).toFixed(2) + ' MB still decoded (want all released after 60 s)');
     if (report) report.push('the emitters on ' + tier + ': peak ' + (maxB / 1048576).toFixed(2) + ' / ' + budget / 1048576 + ' MB decoded (one-shots), ' + drops + ' releases in 7.5 min, procedural ' + (E.procBytes() / 1024).toFixed(0) + ' KB');
   }
   return F;
@@ -3718,6 +3726,433 @@ function checkEmSamples(S) {
   });
 }
 
+// ---- SND-ANIMALS (G1705-G1709): THE ANIMALS' VOICES ------------------------------------------------------------------
+// The rigged animals of G498, live, through animal_run.js's read-only reader (sound(out, since): per individual its species,
+// its head / blowhole, velocity, state, the BLOW and CALL events since the last read, its herd) into the emitters' model.
+// The REAL behaviours run where the check is about what the animals do (the dive cycle's surfacings, the clip machine's
+// call opportunities, a flock's track): tools/audio/animal_world.js loads the page's animals layer on three and the
+// shipped payload (GATE ANIMALS' own context). The rates are measured on SYNTHETIC herds (rows written like the reader's,
+// CALL events at the clip machine's measured rate), over hours, which the real layer would take minutes to run.
+//   ANIMAP    every species the table ships (tools/animals_table.py) is in the reader's vocabulary and maps to an ANIMALS row
+//             whose sound is a catalogue key, a declared one-shot and the emitters' own (OWN); the varied thrush a forest
+//             species; render_premises publishes the reader (animalSounds, animalClock) and the emitters' provider reads it
+//   ANIBLOW   a pod of five orcas and a whale circling off a floatplane on the water (the real dive cycle, 10 min): every
+//             surfacing within reach blows EXACTLY once, at its blowhole, in the frame the plume is fired; no blow that is
+//             not a surfacing, none submerged; beyond 600 m no orca; a whale at ~1.1 km on calm water blows, in 15 m/s of
+//             wind it does not (the calm)
+//   ANIELK    a herd of six (synthetic, 1 h a run): at dusk 20-60 bugles, never two of the herd within its 40 s gap, the
+//             mean gap >= 60 s; at noon fewer than half of dusk's; 1300 m away heard, 1700 m not; two herds both call; the
+//             REAL herd (15 min at dusk): every bugle in the frame of a call opportunity, at that elk's head
+//   ANILAND   the bear: heard at 100 m, rarely (gaps >= 60 s), never at 200 m; 30 low passes (20 m AGL, over it) startle it
+//             4-24 times (40 %), 30 passes at 120 m none; the doe: bleats at 100 m (gaps >= 45 s), none at 200 m
+//   ANIGULL   the REAL placed flock circling overhead: 10-60 calls in 10 min, >= 6 s apart; each call rides a bird of the
+//             flock (within 2 m of one every frame it sounds); none at night; the ambient flocks call as they cross
+//   ANIMILL   the page near the Kennecott mill: the loop slot plays the RECORDED mill.stamp, baked uncut (its 6.4 s
+//             period: onset to onset, no crossfade), no procedural buffer made; without the file the procedural rumble
+//   ANIPLAY   the page with a pod and a flock (a synthetic provider through window.WORLD.premises.animalSounds): nothing of
+//             the animals fetched while they are 3 km off; near, the orca's breath plays at 0.82 x (+-0.5 st), placed at
+//             its blowhole in the camera's frame; 20 blows never repeat a variant at once; a gull's call rides its bird
+//             (its panner moves) with the doppler on its rate
+//   ANIALLOC  the reader over the island's whole cast (34 + 2 ambient flocks): 10 000 reads allocate nothing (0 GC, < 2 KB);
+//             the model's animals over 10 000 frames of recorded rows against its twin without them: within the calls'
+//             allowance, 0 GC more; its cost per frame reported
+const AW_ = require(path.join(ROOT, 'tools', 'audio', 'animal_world.js'));
+const ANI_CACHE = {};
+async function aniLayer(S) { if (ANI_CACHE.t !== S.anirun) { ANI_CACHE.t = S.anirun; ANI_CACHE.L = await AW_.load({ runText: S.anirun }); } return ANI_CACHE.L; }
+const aniSpeciesOf = S => { const m = /SPECIES: \[([^\]]*)\]/.exec(S.anirun); return m ? m[1].split(',').map(x => x.trim().replace(/'/g, '')).filter(Boolean) : []; };
+const aniWater = W => (x, z) => { const w = W.waterH(x, z); return w > -1e8 ? w : -Infinity; };
+// a synthetic provider: rows like the reader's. list: [{ sp, herd, x, y, z, vx, vy, vz, state, rate (CALL /s), blowEvery (s),
+// up (s surfaced after a blow), len, move(a, t) }]
+function aniSynth(list, seed) {
+  let s = (seed >>> 0) || 1; const rnd = () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296);
+  const T = new Float64Array(1), ev = new Float64Array(list.length).fill(-1), up = new Float64Array(list.length).fill(-1e9);
+  return { list, T,
+    tick(dt) { T[0] += dt; for (let i = 0; i < list.length; i++) { const a = list[i];
+      if (a.move) a.move(a, T[0]);
+      if (a.rate > 0 && rnd() < a.rate * dt) ev[i] = T[0];
+      if (a.blowEvery > 0 && Math.floor(T[0] / a.blowEvery) !== Math.floor((T[0] - dt) / a.blowEvery)) { ev[i] = T[0]; up[i] = T[0]; }
+      if (a.blowEvery > 0) a.state = T[0] - up[i] < (a.up || 3) ? 2 : 3; } },
+    sound(out) { let n = 0; for (let i = 0; i < list.length && (n + 1) * 12 <= out.length; i++) { const a = list[i], q = n * 12;
+      out[q] = a.sp; out[q + 1] = a.x; out[q + 2] = a.y; out[q + 3] = a.z; out[q + 4] = a.vx || 0; out[q + 5] = a.vy || 0; out[q + 6] = a.vz || 0;
+      out[q + 7] = a.state || 0; out[q + 8] = ev[i]; out[q + 9] = a.herd; out[q + 10] = 1; out[q + 11] = a.len || 2; n++; } return n; },
+    clock: () => T[0] };
+}
+// the model with an animal provider: o { R (tick / sound / clock), species, sec, dt, path(t) -> [x, y | null (1.7 m up), z],
+// sun, wind, world, seed, each(st, t, n0) } -> st (+ st.log)
+function aniRun(MM, o) {
+  const { M, AM } = MM;
+  const W = o.world || ambWorld({ wind: o.wind });
+  if (o.wind != null) W.windMs = o.wind;
+  W.day.sunEl = o.sun != null ? o.sun : 40;
+  const AP = loadParams(SRC0.params), P = AP.audioParamsBlock();
+  const amb = AM.ambienceState(), st = M.emittersState(o.tier || 'full');
+  st.ready.fill(1); st.log = []; M.seed(st, o.seed || 7);
+  const R = o.R, sp = o.species;
+  const prov = { animals: out => R.sound(out), animalClock: () => R.clock(), animalSpecies: () => sp };
+  const dt = o.dt || 0.1, N = Math.round(o.sec / dt);
+  let maxV = 0;
+  for (let i = 0; i < N; i++) {
+    const t = (i + 1) * dt;
+    R.tick(dt);
+    const q = o.path(t);
+    const g = Math.max(W.terrainH(q[0], q[2]), W.waterH(q[0], q[2]));
+    P.s[P.I.listenerX] = q[0]; P.s[P.I.listenerY] = q[1] != null ? q[1] : g + 1.7; P.s[P.I.listenerZ] = q[2];
+    AM.ambienceStep(amb, P, W, dt);
+    const n0 = st.log.length;
+    M.emittersStep(st, P, amb, W, prov, dt, null);
+    let nv = 0; for (let k = 0; k < M.NV; k++) nv += st.vOn[k]; if (nv > maxV) maxV = nv;
+    st.vNew.fill(0);
+    if (o.each) o.each(st, t, n0, P);
+  }
+  st.maxV = maxV; st.W = W;
+  return st;
+}
+const aniCalls = (st, name) => st.log.filter(r => r[1] === name);
+const gapsOf = rs => { const g = []; for (let i = 1; i < rs.length; i++) g.push(rs[i][0] - rs[i - 1][0]); return g; };
+const SPN = ['bear', 'elk', 'doe', 'orca', 'whale', 'bird'];
+const spc = name => SPN.indexOf(name);
+
+function checkAniMap(S) {
+  const F = [], { M } = emModelOf(S), sp = aniSpeciesOf(S);
+  const py = fs.readFileSync(path.join(ROOT, 'tools', 'animals_table.py'), 'utf8');
+  const rows = [...py.matchAll(/dict\(key='([a-z]+)', label='[^']+', kind='([a-z]+)',/g)].map(m => m[1]);
+  const cat = JSON.parse(fs.readFileSync(path.join(ROOT, 'src/viewer/audio/sfx_catalogue.json'), 'utf8'));
+  const c = { module: { exports: {} }, console: { info() {}, warn() {}, log() {} } };
+  vm.runInNewContext(S.samples, c, { filename: 'samples.js' });
+  const SM = c.module.exports;
+  if (!rows.length) F.push('no rows read from tools/animals_table.py');
+  for (const k of rows) {
+    if (sp.indexOf(k) < 0) F.push('the animal ' + k + ' is not in the reader\'s vocabulary (ANIMAL_RUN.SOUND.SPECIES: ' + sp.join(', ') + ')');
+    const r = M.ANIMALS.find(a => a[0] === k);
+    if (!r) { F.push('the animal ' + k + ' has no row in the emitters\' ANIMALS table'); continue; }
+    const sd = M.S[r[1]], key = sd != null ? M.SOUNDS[sd][1] : null;
+    if (!key) { F.push(k + ': its sound ' + r[1] + ' has no sample key'); continue; }
+    if (!cat.some(e => e.key === key)) F.push(k + ': ' + key + ' has no file in the catalogue');
+    if (!SM.KEYS[key] || SM.KEYS[key].kind !== 'oneshot') F.push(k + ': ' + key + ' is not a declared one-shot in samples.js');
+    if (!new RegExp("'" + key.replace(/\./g, '\\.') + "': 1").test(S.em)) F.push(k + ': ' + key + ' is not the emitters\' own (OWN)');
+  }
+  for (const r of M.ANIMALS) if (rows.indexOf(r[0]) < 0) F.push('the ANIMALS row ' + r[0] + ' names no shipped animal');
+  // the wiring: render_premises publishes the reader, the emitters' provider reads it (the page's only path)
+  if (!/\n    animalSounds: out => \(ANIM \? ANIM\.sound\(out\) : 0\),/.test(S.prem) || !/\n    animalClock: \(\) =>/.test(S.prem)) F.push('render_premises does not publish animalSounds / animalClock (the animals\' read-only reader)');
+  if (!/R && R\.animalSounds \? R\.animalSounds\(out\) : 0/.test(S.em)) F.push('the emitters\' provider does not read render_premises\' animalSounds');
+  if (!/sound, clock: \(\) => T,/.test(S.anirun)) F.push('animal_run.js does not return its reader (sound) and its clock');
+  const th = M.SPECIES.find(r => M.SOUNDS[r[0]][0] === 'thrush');
+  if (!th || th[7] !== 'thrush' || th[3] !== 'tree') F.push('the varied thrush is not a forest species in a tree');
+  return F;
+}
+
+async function checkAniBlow(S) {
+  const F = [], MM = emModelOf(S), L = await aniLayer(S), sp = L.AR.SOUND.SPECIES;
+  const run = (spots, lx, wind, sec, each) => { const W = ambWorld({ wind }); const R = L.make({ ground: W.terrainH, waterH: aniWater(W) }); R.sync(spots);
+    return { R, st: aniRun(MM, { R, world: W, wind, sec, species: sp, path: () => [lx, null, 0], each: each ? each(R) : null }) }; };
+  const blowNames = { orca: 'orcablow', whale: 'whaleblow' }, REACH = { orca: 600, whale: 1500 };
+  // (a) calm: the pod 100-500 m off, the whale ~1.1 km
+  {
+    const prev = new Int8Array(64).fill(3), surf = { orca: 0, whale: 0 }, ok = { orca: 0, whale: 0 }, bad = [];
+    let plumeMiss = 0, b0 = 0, calls = 0;
+    const { st } = run([{ id: 'pod', key: 'orca', x: 1300, z: 0, n: 5, r: 150 }, { id: 'wh', key: 'whale', x: 2100, z: 0, n: 1, r: 100 }], 1000, 2, 600, R => (st, t, n0, P) => {
+      const A = st.ani, n = st.nAni[0], lx = P.s[P.I.listenerX], ly = P.s[P.I.listenerY], lz = P.s[P.I.listenerZ];
+      let evs = 0; for (let r = 0; r < n; r++) if (A[r * 12 + 8] > st.ac[9]) evs++;   // this frame's blows: after last frame's clock
+      if (R.stats.blows - b0 !== evs) plumeMiss++;
+      b0 = R.stats.blows;
+      const logs = st.log.slice(n0).filter(x => x[1] === 'orcablow' || x[1] === 'whaleblow');
+      calls += logs.length;
+      // AT THE BLOWHOLE (independent of the reader): a third of the animal's length ahead of its pivot, at the surface
+      for (const x of logs) {
+        const key = x[1] === 'orcablow' ? 'orca' : 'whale', len = L.AN.reg(key).length;
+        let best = 1e9, ok = false;
+        for (const b of R.list()) if (b.key === key) { const dh = Math.hypot(b.x - x[2], b.z - x[4]); if (Math.abs(dh - 0.33 * len * b.size) < 0.6) ok = true; best = Math.min(best, Math.abs(dh - 0.33 * len * b.size)); }
+        if (!ok || Math.abs(x[3] - 0.2) > 0.15) bad.push('a ' + x[1] + ' not at a blowhole (off by ' + best.toFixed(2) + ' m, y ' + x[3] + ')');
+      }
+      const used = new Set();
+      for (let r = 0; r < n; r++) {
+        const o = r * 12, name = sp[A[o]];
+        if (name !== 'orca' && name !== 'whale') continue;
+        const s = A[o + 7];
+        const mine = logs.filter(x => x[1] === blowNames[name] && Math.abs(x[2] - A[o + 1]) < 0.15 && Math.abs(x[4] - A[o + 3]) < 0.15);
+        mine.forEach(x => used.add(x));
+        if (mine.length && s !== 2) bad.push(name + ' blew while ' + (s === 3 ? 'submerged' : 'state ' + s) + ' at ' + t.toFixed(1) + ' s');
+        if (s === 2 && prev[r] !== 2) {
+          surf[name]++;
+          const d = Math.hypot(A[o + 1] - lx, A[o + 2] - ly, A[o + 3] - lz);
+          if (d < REACH[name] * 0.97) { if (mine.length === 1) ok[name]++; else bad.push(name + ' surfaced ' + d.toFixed(0) + ' m off at ' + t.toFixed(1) + ' s and blew ' + mine.length + ' times'); }
+          else if (d > REACH[name] && mine.length) bad.push(name + ' blew ' + d.toFixed(0) + ' m off (its reach ' + REACH[name] + ' m)');
+        } else if (mine.length) bad.push(name + ' blew at ' + t.toFixed(1) + ' s without surfacing (a second blow, or none of its own)');
+        prev[r] = s;
+      }
+      for (const x of logs) if (!used.has(x)) bad.push('a ' + x[1] + ' at ' + t.toFixed(1) + ' s not at any blowhole');
+    });
+    if (bad.length) F.push('calm, the pod off a floatplane: ' + bad.length + ' bad blows - ' + bad.slice(0, 3).join('; '));
+    if (!(ok.orca >= 20)) F.push('calm: ' + ok.orca + ' orca surfacings within reach blew once (of ' + surf.orca + '; want >= 20)');
+    if (!(ok.whale >= 4)) F.push('calm: ' + ok.whale + ' whale surfacings at ~1.1 km blew (of ' + surf.whale + '; want >= 4: its 1.5 km reach on calm water)');
+    if (plumeMiss) F.push(plumeMiss + ' frames where the reader\'s blows were not the plume\'s (the blow is the frame the plume fires)');
+    if (calls !== ok.orca + ok.whale && !bad.length) F.push(calls + ' blows for ' + (ok.orca + ok.whale) + ' surfacings in reach');
+  }
+  // (b) the pod 700-1100 m off: no orca blow; (c) 15 m/s of wind: the whale at ~1.1 km is not heard
+  {
+    const { st } = run([{ id: 'pod', key: 'orca', x: 1900, z: 0, n: 5, r: 150 }], 1000, 2, 300);
+    const n = aniCalls(st, 'orcablow').length;
+    if (n) F.push('the pod 700-1100 m off blew ' + n + ' times (the orca\'s reach is 600 m)');
+    const w = run([{ id: 'wh', key: 'whale', x: 2100, z: 0, n: 1, r: 100 }], 1000, 15, 400);
+    const nw = aniCalls(w.st, 'whaleblow').length;
+    if (nw) F.push('15 m/s of wind: the whale ~1.1 km off blew ' + nw + ' times (want none: the calm shortens the reach to 600 m)');
+  }
+  return F;
+}
+
+// six elk, CALL opportunities at the clip machine's rate (measured: one every ~11.6 s an elk)
+const ELK_RATE = 1 / 11.6;
+const elkHerd = (herd, cx, cz, seed) => Array.from({ length: 6 }, (_, i) => ({ sp: spc('elk'), herd, x: cx + 40 * Math.cos(i * 1.7 + seed), y: 21.5, z: cz + 40 * Math.sin(i * 1.7 + seed), rate: ELK_RATE, len: 2.6 }));
+function checkAniElk(S) {
+  const F = [], MM = emModelOf(S), sp = aniSpeciesOf(S);
+  // (5 Hz: the clocks are rates x dt, the herd's gap is 40 s - the synthetic runs need no more)
+  const runE = (sun, d, sec, herds, seed) => { const syn = aniSynth(herds || elkHerd(1, 0, 500, 0), seed || 5); return aniRun(MM, { R: syn, sun, sec, dt: 0.2, species: sp, seed: seed || 5, path: () => [0, null, 500 - d] }); };
+  const SEC = 2400, dusk = aniCalls(runE(-3, 600, SEC), 'elk'), noon = aniCalls(runE(40, 600, SEC), 'elk');
+  if (!(dusk.length >= 12 && dusk.length <= SEC / 60)) F.push('40 min at dusk, 600 m from the herd: ' + dusk.length + ' bugles (want 12..' + SEC / 60 + ': a mean gap of a minute or more)');
+  const g = gapsOf(dusk);
+  if (g.some(x => x < 40 - 1e-6)) F.push('two bugles of one herd ' + Math.min(...g).toFixed(1) + ' s apart (its gap 40 s: never two at once)');
+  if (dusk.length && SEC / dusk.length < 60) F.push('the herd\'s mean gap at dusk ' + (SEC / dusk.length).toFixed(0) + ' s (want >= 60)');
+  if (!(noon.length * 2 < dusk.length)) F.push('noon ' + noon.length + ' bugles vs dusk ' + dusk.length + ' (want most at dawn and dusk: noon under half)');
+  const far = aniCalls(runE(-3, 1300, 1200), 'elk').length, out = aniCalls(runE(-3, 1700, 1200), 'elk').length;
+  if (!(far >= 3)) F.push('1300 m from the herd at dusk: ' + far + ' bugles in 20 min (want >= 3: the 1.5 km reach)');
+  if (out) F.push('1700 m from the herd: ' + out + ' bugles heard (its reach is 1.5 km)');
+  const two = runE(-3, 300, 1200, elkHerd(1, 0, 500, 0).concat(elkHerd(2, 300, 500, 1)));
+  const hs = new Set(aniCalls(two, 'elk').map(r => r[2] > 150 ? 2 : 1));
+  if (hs.size !== 2) F.push('two herds at dusk: only ' + [...hs].join(',') + ' called (each herd its own clock)');
+  return F;
+}
+async function checkAniElkReal(S) {
+  const F = [], MM = emModelOf(S), L = await aniLayer(S), sp = L.AR.SOUND.SPECIES;
+  const W = ambWorld(), R = L.make({ ground: W.terrainH, waterH: aniWater(W) });
+  R.sync([{ id: 'herd', key: 'elk', x: 0, z: 500, n: 6, r: 120 }]);
+  let bad = 0, n = 0;
+  aniRun(MM, { R, world: W, sun: -3, sec: 600, species: sp, path: () => [0, null, 200], each: (st, t, n0) => {
+    for (const x of st.log.slice(n0)) {
+      if (x[1] !== 'elk') continue;
+      n++;
+      const A = st.ani; let hit = false;
+      for (let r = 0; r < st.nAni[0]; r++) { const o = r * 12; if (A[o + 8] > st.ac[9] && sp[A[o]] === 'elk' && Math.abs(A[o + 1] - x[2]) < 0.15 && Math.abs(A[o + 3] - x[4]) < 0.15) hit = true; }
+      if (!hit) bad++;
+    }
+  } });
+  if (!(n >= 2)) F.push('the real herd at dusk, 300 m: ' + n + ' bugles in 10 min (want >= 2)');
+  if (bad) F.push(bad + ' bugles of the real herd not in a call opportunity\'s frame at that elk\'s head');
+  return F;
+}
+
+function checkAniLand(S) {
+  const F = [], MM = emModelOf(S), sp = aniSpeciesOf(S);
+  const bear = () => aniSynth([{ sp: spc('bear'), herd: 3, x: -100, y: 21.2, z: 600, rate: 0.1, len: 2.2 }], 9);
+  // on the ground 100 m off / 200 m off, by day
+  const g100 = aniCalls(aniRun(MM, { R: bear(), sec: 1800, dt: 0.2, species: sp, path: () => [-100, null, 500] }), 'bear');
+  const g200 = aniCalls(aniRun(MM, { R: bear(), sec: 1200, dt: 0.2, species: sp, path: () => [-100, null, 400] }), 'bear');
+  if (!(g100.length >= 2)) F.push('30 min on the ground 100 m from the bear: ' + g100.length + ' growls (want >= 2: near, it is heard)');
+  if (gapsOf(g100).some(x => x < 60 - 1e-6) || g100.length > 1800 / 60) F.push('the bear is not rare: ' + g100.length + ' growls in 30 min, gaps ' + gapsOf(g100).map(x => x.toFixed(0)).join(','));
+  if (g200.length) F.push('200 m from the bear: ' + g200.length + ' growls (want none: only near, 150 m)');
+  // THE PASSES: over the bear every 240 s at 40 m/s (100 s a pass, from 2 km to 2 km), low (20 m AGL) or high (120 m)
+  // (a startle is the model's own: the herd's startle clock moved - a growl of the bear's ordinary clock may fall in a pass)
+  const passes = h => { let near = 0, last = -1e9;
+    const st = aniRun(MM, { R: bear(), sec: 7200, dt: 0.2, species: sp, seed: 13, path: t => { const u = t % 240; return [-100 + (u < 100 ? -2000 + 40 * u : 2000), 21 + h, 600]; },
+      each: s => { let m = -1e9; for (let k = 0; k < s.hStart.length; k++) if (s.hStart[k] > m) m = s.hStart[k]; if (m > last) { if (m > -1e8) near++; last = m; } } });
+    return { all: aniCalls(st, 'bear').length, near }; };
+  const lo = passes(20), hi = passes(120);
+  if (!(lo.near >= 4 && lo.near <= 24)) F.push('30 low passes over the bear (20 m AGL): ' + lo.near + ' startles (want 4..24: 40 % of them, rare)');
+  if (hi.near) F.push('30 passes at 120 m AGL: ' + hi.near + ' startles (want none: only near and low)');
+  if (!(hi.all < lo.all)) F.push('the bear growled ' + hi.all + ' times under high passes vs ' + lo.all + ' under low ones (want more when near and low)');
+  // the doe: bleats at 100 m, none at 200 m
+  const doe = () => aniSynth(Array.from({ length: 5 }, (_, i) => ({ sp: spc('doe'), herd: 4, x: 200 + 15 * i, y: 21, z: 600, rate: 0.1, len: 1.6 })), 4);
+  const d100 = aniCalls(aniRun(MM, { R: doe(), sec: 1800, dt: 0.2, species: sp, path: () => [230, null, 500] }), 'doe');
+  const d200 = aniCalls(aniRun(MM, { R: doe(), sec: 1200, dt: 0.2, species: sp, path: () => [230, null, 400] }), 'doe');
+  if (!(d100.length >= 3)) F.push('30 min 100 m from the does by day: ' + d100.length + ' bleats (want >= 3)');
+  if (gapsOf(d100).some(x => x < 45 - 1e-6)) F.push('two bleats of one herd ' + Math.min(...gapsOf(d100)).toFixed(1) + ' s apart (its gap 45 s)');
+  if (d200.length) F.push('200 m from the does: ' + d200.length + ' bleats (want none: 150 m)');
+  return F;
+}
+
+async function checkAniGull(S) {
+  const F = [], MM = emModelOf(S), L = await aniLayer(S), sp = L.AR.SOUND.SPECIES;
+  const flock = (sun, sec, each, o) => { const W = ambWorld(); const eye = { x: 0, y: 30, z: 300 };
+    const R = L.make({ ground: W.terrainH, waterH: aniWater(W), eye: o && o.ambient ? () => eye : null });
+    if (o && o.ambient) R.ambient(2, 'bird'); else R.sync([{ id: 'fl', key: 'bird', x: 0, z: 300, n: 7, r: 100, dy: 40 }]);
+    return aniRun(MM, { R, world: W, sun, sec, species: sp, path: () => [0, null, 300], each: each ? each(R) : null }); };
+  let far = 0, frames = 0;
+  const day = flock(40, 600, R => st => {
+    let birds = null;
+    for (let k = 0; k < st.vOn.length; k++) {
+      if (!st.vOn[k] || st.vS[k] !== MM.M.S.gull || st.vT0[k] > st.clk[0]) continue;
+      frames++;
+      if (!birds) birds = R.list();
+      let best = 1e9; for (const b of birds) best = Math.min(best, Math.hypot(b.x - st.vX[k], b.y - st.vY[k], b.z - st.vZ[k]));
+      if (best > 2) far++;
+    }
+  });
+  const c = aniCalls(day, 'gull');
+  if (!(c.length >= 10 && c.length <= 60)) F.push('10 min under the circling flock: ' + c.length + ' gull calls (want 10..60: a rate per flock)');
+  if (gapsOf(c).some(x => x < 6 - 1e-6)) F.push('two calls of one flock ' + Math.min(...gapsOf(c)).toFixed(2) + ' s apart (its gap 6 s)');
+  if (!frames) F.push('no gull call sounded long enough to follow');
+  else if (far) F.push('a gull call did not ride its flock: ' + far + ' of ' + frames + ' frames more than 2 m from every bird');
+  const night = aniCalls(flock(-15, 150), 'gull').length;
+  if (night) F.push('the flock at night: ' + night + ' calls (want none)');
+  let ambCalls = 0;
+  flock(40, 600, R => (st, t, n0) => { for (let i = n0; i < st.log.length; i++) { const x = st.log[i]; if (x[1] === 'gull' && R.list().some(b => b.id === 'ambient' && Math.hypot(b.x - x[2], b.z - x[4]) < 0.5)) ambCalls++; } }, { ambient: true });
+  if (!(ambCalls >= 1)) F.push('10 min of ambient flocks crossing: ' + ambCalls + ' calls from them (want >= 1)');
+  return F;
+}
+
+// the page near the mill: its recording in the loop slot, baked uncut; without the file, the procedural rumble
+async function checkAniMill(S) {
+  const F = [];
+  const mill = async drop => {
+    const W = ambWorld();
+    W.premises.rec.layers.sites = [{ id: 'mine', at: { x: -100, z: 600, yaw: 0 }, items: [{ id: 'm', key: 'house/kennecott mill', x: 0, z: 0 }] }];
+    const pg = emPage(S, { sun: 40, world: W, before: w => { w.HOUSE_GEN = { PRESETS: { 'kennecott mill': { mill: 1 } } }; if (drop) delete w.FLYDIY_AUDIO_MEDIA['mill.stamp']; } });
+    pg.at(-100, 450, 1.7);
+    await pg.settle(60 * 6);
+    const E = pg.win.EMITTERS, M = E.model, st = E.state;
+    let on = 0, slot = -1; for (let k = 0; k < M.NL; k++) if (st.lOn[k] && st.lS[k] === M.S.mill) { on++; slot = k; }
+    // the loop slot's own source: the panners are made voices first, then loops (NV + slot)
+    const pan = slot >= 0 ? pg.R.panners[M.NV + slot] : null;
+    const src = pan ? pg.R.sources.filter(s => s.loop && s.buffer && s.on && s.to && s.to.to && s.to.to.to === pan).pop() : null;
+    return { on, src, proc: E.procBytes(), res: E.resident(M.S.mill), M };
+  };
+  const a = await mill(false);
+  if (!a.on || !a.src) F.push('150 m from the mill by day: its loop ' + (a.on ? 'on' : 'off') + ', ' + (a.src ? 'a source' : 'no looping source'));
+  else {
+    if (a.M.SOUNDS[a.M.S.mill][1] !== 'mill.stamp') F.push('the mill\'s sound is ' + a.M.SOUNDS[a.M.S.mill][1] + ' (want the recording mill.stamp)');
+    if (a.proc) F.push('the mill made a procedural buffer (' + a.proc + ' B) although its recording ships');
+    const d = a.src.buffer.duration;
+    if (!(d > 6.2 && d < 6.45)) F.push('the mill\'s loop is ' + d.toFixed(2) + ' s (want the recording\'s 6.4 s uncut: onset to onset, no crossfade)');
+  }
+  const b = await mill(true);
+  if (!b.on || !b.src || !(b.proc > 0)) F.push('without mill.stamp the mill is ' + (b.on ? 'on' : 'off') + ' with ' + b.proc + ' B procedural (want its synthesised rumble as the fallback)');
+  return F;
+}
+
+// the page with a synthetic pod and flock (window.WORLD.premises.animalSounds), on the sea off ambWorld's shore
+async function checkAniPlay(S) {
+  const F = [];
+  const off = new Float64Array(1);   // the cast's offset in x (3 km: far)
+  const orca = { sp: spc('orca'), herd: 21, x: 1000, y: 0.2, z: -200, blowEvery: 8, up: 3, len: 8 };
+  const birds = [0, 1, 2].map(i => ({ sp: spc('bird'), herd: 22, x: 850 + 2 * i, y: 40, z: -50 - 2 * i, vx: 11, len: 1, state: 4,
+    move: (a, t) => { a.x = 850 + 2 * i + off[0] + 11 * (t % 30); } }));
+  const syn = aniSynth([orca].concat(birds), 3);
+  const urls = [];
+  const pg = emPage(S, { sun: 40, before: w => {
+    const f0 = w.ASSET_FETCH; w.ASSET_FETCH = u => { urls.push(u); return f0(u); };
+    w.ANIMAL_RUN = { SOUND: { SPECIES: SPN } };
+    w.WORLD = { premises: { soundObjects: () => 0, animalSounds: out => syn.sound(out), animalClock: () => syn.clock() } };
+  } });
+  const step = async n => { for (let i = 0; i < n; i++) { syn.tick(1 / 60); orca.x = 1000 + off[0]; pg.go(); if (i % 4 === 0) { await null; pg.runTimers(); } } };
+  pg.at(1000, 0, 1.7);
+  off[0] = 3000; await step(60 * 12);
+  if (urls.some(u => /animal_/.test(u))) F.push('the pod 3 km off: ' + urls.filter(u => /animal_/.test(u)).length + ' animal files fetched (want none: by proximity)');
+  off[0] = 0; const n0 = pg.R.sources.length;
+  await step(60 * 190);
+  if (!urls.some(u => /animal_orca/.test(u))) F.push('the pod 200 m off: the orca\'s breath was not fetched');
+  const E = pg.win.EMITTERS, M = E.model;
+  const isOrca = s => s.buffer && !s.loop && [2.11, 2.2].some(d => Math.abs(s.buffer.duration - d) < 0.01);
+  const blows = pg.R.sources.slice(n0).filter(isOrca);
+  if (!(blows.length >= 18)) F.push(blows.length + ' orca blows played in 190 s of surfacings every 8 s (want >= 18)');
+  const lo = 0.82 * Math.pow(2, -0.5 / 12) - 1e-6, hi = 0.82 * Math.pow(2, 0.5 / 12) + 1e-6;
+  const badRate = blows.filter(s => !(s.playbackRate.value >= lo && s.playbackRate.value <= hi));
+  if (badRate.length) F.push(badRate.length + ' orca blows at a rate outside 0.82 x +-0.5 st (e.g. ' + badRate[0].playbackRate.value.toFixed(3) + ')');
+  let rep = 0; for (let i = 1; i < blows.length; i++) if (blows[i].buffer === blows[i - 1].buffer) rep++;
+  if (rep) F.push(rep + ' blows repeated the variant just played (want none: no immediate repeat)');
+  // the blowhole in the camera's frame: (0, 0.2 - eye, -200) with the identity camera
+  const pan = blows.length ? blows[blows.length - 1].to.to.to : null;
+  if (!(pan && Math.abs(pan.positionX.value) < 1 && Math.abs(pan.positionZ.value + 200) < 1)) F.push('the blow placed at (' + (pan ? [pan.positionX.value, pan.positionY.value, pan.positionZ.value].map(v => v.toFixed(1)).join(', ') : '-') + ') in the camera\'s frame (want its blowhole at (0, -1.5, -200))');
+  // a gull's call rides its bird: its panner moves while it sounds, its rate carries the doppler (its bird at 11 m/s)
+  {
+    const st = E.state, lastX = new Float64Array(M.NV).fill(NaN); let moved = 0, dop = 0, gullFrames = 0;
+    for (let i = 0; i < 60 * 60; i++) {
+      await step(1);
+      for (let k = 0; k < M.NV; k++) {
+        if (!(st.vOn[k] && st.vS[k] === M.S.gull && st.vAF[k] > 0 && st.vT0[k] <= st.clk[0])) { lastX[k] = NaN; continue; }
+        gullFrames++;
+        const p = pg.R.panners[k];
+        if (lastX[k] === lastX[k] && Math.abs(p.positionX.value - lastX[k]) > 0.02) moved++;
+        lastX[k] = p.positionX.value;
+        const src = pg.R.sources.filter(s => s.to && s.to.to && s.to.to.to === p).pop();
+        if (src && Math.abs(src.playbackRate.value / st.vR[k] - 1) > 0.002) dop++;
+      }
+    }
+    if (!gullFrames) F.push('no gull call from the flock passing 50 m off in a minute');
+    else {
+      if (!moved) F.push('a gull call\'s panner never moved while it sounded (it must ride its bird)');
+      if (!dop) F.push('no doppler on a gull call (its bird flies at 11 m/s)');
+    }
+  }
+  return F;
+}
+
+async function checkAniAlloc(S, report) {
+  const F = [], L = await aniLayer(S), MM = emModelOf(S), M = MM.M;
+  // the island's cast (tools/fixtures/island_jolene.json's eight hotspots) on ambWorld, and two ambient flocks
+  const W = ambWorld(), eye = { x: 0, y: 30, z: 0 };
+  const R = L.make({ ground: W.terrainH, waterH: aniWater(W), eye: () => eye });
+  R.sync([{ id: 'a1', key: 'elk', x: 0, z: 500, n: 4, r: 120 }, { id: 'a2', key: 'bear', x: -100, z: 600, n: 1, r: 70 }, { id: 'a3', key: 'doe', x: 200, z: 600, n: 5, r: 110 },
+          { id: 'a4', key: 'orca', x: 1300, z: 0, n: 5, r: 150 }, { id: 'a5', key: 'whale', x: 2100, z: 0, n: 1, r: 100 }, { id: 'a6', key: 'bird', x: 0, z: 300, n: 7, r: 100, dy: 45 },
+          { id: 'a7', key: 'elk', x: 300, z: 500, n: 6, r: 150 }, { id: 'a8', key: 'doe', x: 200, z: 300, n: 7, r: 130 }]);
+  R.ambient(2, 'bird');
+  for (let i = 0; i < 600; i++) R.tick(1 / 30);
+  const out = new Float64Array(M.MAXANI * M.AROW);
+  let n = 0;
+  for (let i = 0; i < 20000; i++) n = R.sound(out);   // warm
+  // (the heap's own noise is a few KB a window whatever runs: the reads are measured against a twin loop doing nothing,
+  // over 30 000 reads - one boxed double a read would be 480 KB)
+  const NR = 30000, noop = () => 0;
+  const win = async f => { let best = null;
+    for (let w = 0; w < 2; w++) {
+      global.gc(); global.gc(); await new Promise(r => setTimeout(r, 5));
+      let g = 0; const obs = new PerformanceObserver(l => { g += l.getEntries().length; }); obs.observe({ entryTypes: ['gc'] });
+      const h0 = process.memoryUsage().heapUsed, t0 = performance.now();
+      for (let i = 0; i < NR; i++) n = f(out);
+      const ms = (performance.now() - t0) / NR, d = process.memoryUsage().heapUsed - h0;
+      await new Promise(r => setTimeout(r, 5)); obs.disconnect();
+      if (!best || g < best.g || (g === best.g && d < best.d)) best = { g, d, ms };
+    }
+    return best; };
+  for (let i = 0; i < 20000; i++) noop(out);
+  const B0 = await win(noop), best = await win(R.sound);
+  if (!(n >= 36)) F.push('the reader wrote ' + n + ' rows for the island\'s cast (want >= 36)');
+  best.d -= Math.max(0, B0.d);
+  if (best.g > B0.g || best.d > NR * 0.5) F.push('the reader allocates: ' + (best.d / NR).toFixed(2) + ' B a read over a loop doing nothing (' + best.g + ' vs ' + B0.g + ' GC; want none)');
+  // THE MODEL: recorded rows replayed (600 frames of the cast, events and all) against its twin with no animals
+  const FR = 600, rec = new Float64Array(FR * M.MAXANI * M.AROW), cnt = new Int32Array(FR), clk = new Float64Array(FR);
+  for (let f = 0; f < FR; f++) { R.tick(1 / 60); eye.x = 0; cnt[f] = R.sound(out); clk[f] = R.clock(); for (let k = 0; k < cnt[f] * M.AROW; k++) rec[f * M.MAXANI * M.AROW + k] = out[k]; }
+  const meas = async (withAni, windows) => {
+    const { AM } = MM, Wm = ambWorld(), AP = loadParams(SRC0.params), P = AP.audioParamsBlock(), amb = AM.ambienceState(), st = M.emittersState('full');
+    st.ready.fill(1); M.seed(st, 3); Wm.day.sunEl = -3;
+    const F_ = new Int32Array(1), base = new Float64Array(1);
+    const prov = { animalSpecies: () => L.AR.SOUND.SPECIES, animalClock: () => base[0] + clk[F_[0] % FR],
+      animals(o) { if (!withAni) return 0; const f = F_[0] % FR, q = f * M.MAXANI * M.AROW, m = cnt[f]; for (let k = 0; k < m * M.AROW; k++) o[k] = rec[q + k]; return m; } };
+    P.s[P.I.listenerX] = 100; P.s[P.I.listenerY] = 21.7; P.s[P.I.listenerZ] = 450;
+    const go = () => { F_[0]++; if (F_[0] % FR === 0) base[0] += clk[FR - 1]; AM.ambienceStep(amb, P, Wm, 1 / 60); M.emittersStep(st, P, amb, Wm, prov, 1 / 60, null); st.vNew.fill(0); };
+    for (let i = 0; i < 20000; i++) go();   // (warm: V8's optimising tier, where a double local is not a heap box)
+    let res = null;
+    for (let w = 0; w < windows; w++) {
+      global.gc(); global.gc(); await new Promise(r => setTimeout(r, 5));
+      let g = 0; const obs = new PerformanceObserver(l => { g += l.getEntries().length; }); obs.observe({ entryTypes: ['gc'] });
+      const n0 = st.n.reduce((a, b) => a + b, 0), h0 = process.memoryUsage().heapUsed, t0 = performance.now();
+      for (let i = 0; i < 20000; i++) go();
+      const ms = (performance.now() - t0) / 20000, d = process.memoryUsage().heapUsed - h0, calls = st.n.reduce((a, b) => a + b, 0) - n0;
+      await new Promise(r => setTimeout(r, 5)); obs.disconnect();
+      const m = { g, d, ms, calls };
+      if (!res || m.g < res.g || (m.g === res.g && m.d - 4096 * m.calls < res.d - 4096 * res.calls)) res = m;
+    }
+    return res;
+  };
+  // (the first model measured in a realm allocates more - V8's tiers settling: measured 465 vs 320 KB for the same twin -
+  // so a twin is measured first and thrown away)
+  await meas(false, 0);
+  const A = await meas(true, 2), B = await meas(false, 2);
+  const own = A.d - B.d - 4096 * A.calls;
+  if (A.g > B.g || own > 16384) F.push('the model\'s animals allocate: ' + ((A.d - B.d) / 20000).toFixed(1) + ' B a frame over its twin (' + A.g + ' vs ' + B.g + ' GC; ' + A.calls + ' calls allow ' + 4096 * A.calls + ' B + 16 KB)');
+  if (!(A.calls >= 1)) F.push('the replayed cast made no call in 20 000 frames (the check proves nothing)');
+  if (report) report.push('the animals: the reader ' + (best.ms * 1000).toFixed(1) + ' us for ' + n + ' rows, ' + (best.d / NR).toFixed(2) + ' B a read over a loop doing nothing; the model with them ' + (A.ms * 1000).toFixed(1) + ' us a frame vs ' + (B.ms * 1000).toFixed(1) + ' us without (+' + ((A.ms - B.ms) * 1000).toFixed(1) + ' us), ' + ((A.d - B.d) / 20000).toFixed(2) + ' B a frame over the twin, ' + A.calls + ' calls');
+  return F;
+}
+
 // ==== SND-VOICE (G1626-G1629) ======================================================================================
 //   VOICE_CAT    (G1701: with the SND-RADIO-3 block above) the shipped broadcast's takes, every track back-announced.
 //   (VOICE_AWOS and VOICE_MARINE are RETIRED with the AWOS and marine assemblers they tested - G1701.)
@@ -3792,8 +4227,10 @@ const CHECKS = { NUMBERS: checkNumbers, CONTACTS: checkContacts, BUDGET: checkBu
                  EMITHABITAT: checkEmHabitat, EMITRATE: checkEmRate, EMITAGL: checkEmAgl, EMITOBJECTS: checkEmObjects,
                  EMITGESTURE: checkEmGesture, EMITPLAY: checkEmPlay, EMITBUDGET: checkEmBudget, EMITALLOC: checkEmAlloc,
                  EMITWIRING: checkEmWiring, EMITSAMPLES: checkEmSamples,
+                 ANIMAP: checkAniMap, ANIBLOW: checkAniBlow, ANIELK: async S => checkAniElk(S).concat(await checkAniElkReal(S)),
+                 ANILAND: checkAniLand, ANIGULL: checkAniGull, ANIMILL: checkAniMill, ANIPLAY: checkAniPlay, ANIALLOC: checkAniAlloc,
                  VOICE_CAT: checkVoiceCat, VOICE_PLAY: checkVoicePlay, VOICE_WIRING: checkVoiceWiring };
-const REPORTS = { RADIO_HORIZON: 1, VOICE_CAT: 1, BUDGET: 1, AFVOICE: 1, AFALLOC: 1, AFFLOWN: 1, AFSOURCE: 1, SP_BUDGET: 1, AMBBUDGET: 1, AMBALLOC: 1, EMITRATE: 1, EMITBUDGET: 1, EMITALLOC: 1 };
+const REPORTS = { RADIO_HORIZON: 1, VOICE_CAT: 1, BUDGET: 1, AFVOICE: 1, AFALLOC: 1, AFFLOWN: 1, AFSOURCE: 1, SP_BUDGET: 1, AMBBUDGET: 1, AMBALLOC: 1, EMITRATE: 1, EMITBUDGET: 1, EMITALLOC: 1, ANIALLOC: 1 };
 
 // ---- THE MUTATIONS (D): [name, file, find, replace, the check that must go red] ---------------------------------
 const MUT = [
@@ -4017,7 +4454,7 @@ const MUT = [
   ['the gap ignored', 'emmodel', '      if (wv <= 0.001 || t - st.last[sd] < SPT[o + 2]) continue;', '      if (wv <= 0.001) continue;', 'EMITRATE'],
   ['the dog not rare', 'emmodel', "    [S.dog, 300, 150, 'yard', 30, 120, 1, 'village'],", "    [S.dog, 30, 15, 'yard', 30, 120, 1, 'village'],", 'EMITRATE'],
   ['the cap ignored', 'emmodel', '    if (n >= st.cap || slot < 0) { st.refused[0]++; return -1; }', '    if (slot < 0) { st.refused[0]++; return -1; }', 'EMITRATE'],
-  ['no pitch jitter', 'emmodel', '    st.vR[i] = Math.pow(2, (2 * rnd(st) - 1) * 1.5 / 12);', '    st.vR[i] = Math.pow(2, (2 * rnd(st) - 1) * 0.1 / 12);', 'EMITRATE'],
+  ['no pitch jitter', 'emmodel', "  SOUNDS.forEach((s, i) => { JIT[i] = s[6] != null ? s[6] : 1.5;", "  SOUNDS.forEach((s, i) => { JIT[i] = s[6] != null ? s[6] : 0.1;", 'EMITRATE'],
   ['no ceiling', 'emmodel', '  const CEIL_LO = 60, CEIL = 150;', '  const CEIL_LO = 600, CEIL = 1500;', 'EMITAGL'],
   ['the movers above the ceiling', 'emmodel', '    if (ak > 0 && prov && prov.objects) { nn = prov.objects(o) | 0;', '    if (prov && prov.objects) { nn = prov.objects(o) | 0;', 'EMITAGL'],
   ['the pass not bound to its car', 'emmodel', '    const v = fire(st, S.pickup, r, 1);', '    const v = fire(st, S.pickup, -1, 1);', 'EMITOBJECTS'],
@@ -4028,7 +4465,7 @@ const MUT = [
   ['an outboard at night', 'emmodel', '    const bw = st.clk[7] > 0.2 ? ak : 0;   // by day', '    const bw = ak;', 'EMITOBJECTS'],
   ['the tram hum flat', 'emmodel', 'st.lG[li] = ak * (0.12 + 0.88 * vk);', 'st.lG[li] = ak;', 'EMITOBJECTS'],
   ['every key fetched at connect', 'em', '      applyTier(tierOf());', '      applyTier(tierOf()); for (const k in OWN) if (SM.has(k)) SM.load(k);', 'EMITGESTURE'],
-  ['a procedural buffer made at once', 'em', '      if (r === 0 && want && loading < 0) begin(s);', '      if (r === 0 && (want || !SOUNDS[s][1]) && loading < 0) begin(s);', 'EMITGESTURE'],
+  ['a procedural buffer made at once', 'em', '      if (r === 0 && want && loading < 0) begin(s);', '      if (r === 0 && (want || SYNTH[s]) && loading < 0) begin(s);', 'EMITGESTURE'],
   ['no doppler on the pass', 'em', '      const rate = st.vR[i] * k;', '      const rate = st.vR[i];', 'EMITPLAY'],
   ['the panner in the world\'s frame', 'em', '    const px = rx * Lf[0] + ry * Lf[1] + rz * Lf[2], py = rx * Lf[3] + ry * Lf[4] + rz * Lf[5], pz = rx * Lf[6] + ry * Lf[7] + rz * Lf[8];', '    const px = rx, py = ry, pz = rz;', 'EMITPLAY'],
   ['the cockpit unmuffled', 'em', '      else { k = CABIN[0]; lp = CABIN[1]; }', '      else { k = CLEAR[0]; lp = CLEAR[1]; }', 'EMITPLAY'],
@@ -4041,6 +4478,35 @@ const MUT = [
   ['the pickup undeclared', 'samples', "    ['dog', 'a dog barking, far off'], ['mech.door', 'a door shutting'], ['vehicle.pickup', 'a pickup passing on gravel'],", "    ['dog', 'a dog barking, far off'], ['mech.door', 'a door shutting'],", 'EMITWIRING'],
   ['the one-shot baked into a loop', 'samples', "      if (KEYS[key] && KEYS[key].kind === 'oneshot') {\n        const add", "      if (false) {\n        const add", 'EMITSAMPLES'],
   ['an assignment ignored', 'samples', "    const clsOf = key => { const a = assigned[key]; if (a) return classes[a] || null;", "    const clsOf = key => { const a = null; if (a) return classes[a] || null;", 'EMITSAMPLES'],
+  // SND-ANIMALS (G1705-G1709)
+  ['the doe has no sound', 'emmodel', "    ['doe', 'doe', 'call', 150, 120, 45, 'day'],\n", '', 'ANIMAP'],
+  ['the reader forgets the doe', 'anirun', "SPECIES: ['bear', 'elk', 'doe', 'orca', 'whale', 'bird']", "SPECIES: ['bear', 'elk', 'orca', 'whale', 'bird']", 'ANIMAP'],
+  ['the elk not the emitters\' own', 'em', "'animal.elk': 1, ", '', 'ANIMAP'],
+  ['the animals unpublished', 'prem', "    animalSounds: out => (ANIM ? ANIM.sound(out) : 0),", "    animalSoundsX: null,", 'ANIMAP'],
+  ['a blow every surfaced frame', 'anirun', "    if (up && !one.wasUp) {\n      if (S.blow > 0) one.blowT = T;", "    if (up && S.blow > 0) one.blowT = T;\n    if (up && !one.wasUp) {", 'ANIBLOW'],
+  ['the blow as it dives', 'anirun', "    if (up && !one.wasUp) {\n      if (S.blow > 0) one.blowT = T;", "    if (!up && one.wasUp) one.blowT = T;\n    if (up && !one.wasUp) {", 'ANIBLOW'],
+  ['the blow at the pivot', 'anirun', "      x += d.x / hl * len * 0.33; z += d.z / hl * len * 0.33;", "", 'ANIBLOW'],
+  ['the blows beyond reach', 'emmodel', "        if (d > rch) continue;\n", '', 'ANIBLOW'],
+  ['the blows deaf to the wind', 'emmodel', "ac[1] = 1 - 0.6 * (q < 0 ? 0 : q > 1 ? 1 : q);", "ac[1] = 1 - 0 * (q < 0 ? 0 : q > 1 ? 1 : q);", 'ANIBLOW'],
+  ['the elk at every hour', 'emmodel', "    aw[4] = 0.15 + 0.15 * night + 0.7 * twe;", "    aw[4] = 1;", 'ANIELK'],
+  ['the elk not rare', 'emmodel', "    ['elk', 'elk', 'call', 1500, 40, 40, 'twilight'],", "    ['elk', 'elk', 'call', 1500, 4, 4, 'twilight'],", 'ANIELK'],
+  ['the elk heard too far', 'emmodel', "    ['elk', 'elk', 'call', 1500, 40, 40, 'twilight'],", "    ['elk', 'elk', 'call', 2500, 40, 40, 'twilight'],", 'ANIELK'],
+  ['a bugle without an opportunity', 'emmodel', "      if (how === 1) { st.hArm[k] = 1; continue; }", "      if (how === 1 && sd !== S.elk) { st.hArm[k] = 1; continue; }", 'ANIELK'],
+  ['the bear heard far', 'emmodel', "    ['bear', 'bear', 'call', 150, 240, 60, 'near'],", "    ['bear', 'bear', 'call', 400, 240, 60, 'near'],", 'ANILAND'],
+  ['the bear never startles', 'emmodel', "const STARTLE = { d: 60, agl: 40, p: 0.4, gap: 180 };", "const STARTLE = { d: 60, agl: 40, p: 0, gap: 180 };", 'ANILAND'],
+  ['the bear startles high', 'emmodel', "        if (d < STARTLE.d && agl < STARTLE.agl) {", "        if (d < 3 * STARTLE.d) {", 'ANILAND'],
+  ['the doe heard far', 'emmodel', "    ['doe', 'doe', 'call', 150, 120, 45, 'day'],", "    ['doe', 'doe', 'call', 400, 120, 45, 'day'],", 'ANILAND'],
+  ['the gulls left behind', 'emmodel', "      if (!st.vOn[i] || st.vAF[i] <= 0) continue;", "      if (true) continue;", 'ANIGULL'],
+  ['the gulls chatter', 'emmodel', "    ['bird', 'gull', 'flock', 450, 16, 6, 'gull'],", "    ['bird', 'gull', 'flock', 450, 1.6, 0.6, 'gull'],", 'ANIGULL'],
+  ['the gulls at night', 'emmodel', "    ['bird', 'gull', 'flock', 450, 16, 6, 'gull'],", "    ['bird', 'gull', 'flock', 450, 16, 6, 'any'],", 'ANIGULL'],
+  ['the mill procedural again', 'emmodel', "['mill', 'mill.stamp', 1, -4, 30, 0]", "['mill', null, 1, -4, 30, 0]", 'ANIMILL'],
+  ['the stamp loop crossfaded', 'samples', "      const X = cut ? 0 : Math.max(1,", "      const X = false ? 0 : Math.max(1,", 'ANIMILL'],
+  ['no fallback for the mill', 'em', "      if (!SYNTH[s]) { loading = -1; res[s] = 3; return; }", "      if (true) { loading = -1; res[s] = 3; return; }", 'ANIMILL'],
+  ['the orca at the porpoise\'s pitch', 'emmodel', "['orcablow', 'animal.orca.blow', 0, -3, 20, 2.2, 0.5, 0.82]", "['orcablow', 'animal.orca.blow', 0, -3, 20, 2.2, 0.5, 1]", 'ANIPLAY'],
+  ['variants repeat', 'em', "SM.pick(SOUNDS[s][1], true);", "SM.pick(SOUNDS[s][1], false);", 'ANIPLAY'],
+  ['the animals fetched from afar', 'emmodel', "      if (d < rch * 1.15 && aa > 0) { st.want[sd] = 1; st.wantT[sd] = t; }", "      if (aa > 0) { st.want[sd] = 1; st.wantT[sd] = t; }", 'ANIPLAY'],
+  ['the reader allocates', 'anirun', "    RD.out = out; RD.n = 0;", "    RD.trail = [out.length, RD.n]; RD.out = out; RD.n = 0;", 'ANIALLOC'],
+  ['the model\'s animals allocate', 'emmodel', "    if (!n) return;\n    // THE HERDS", "    if (!n) return;\n    st.aTrail = [n, t];\n    // THE HERDS", 'ANIALLOC'],
   // SND-VOICE (G1626-G1629)
   ['a new track never announced', 'catalogue', '"id": "fma238392"', '"id": "fma238392x"', 'VOICE_CAT'],
   ['a gap after every clip', 'voice', 'src.start(t0 + a.t, r.off, a.dur);', 'src.start(t0 + a.t + 0.01 * srcs.length, r.off, a.dur);', 'VOICE_PLAY'],
