@@ -60,7 +60,7 @@ const clearPeak = sim => { const P = sim.damagePeak && sim.damagePeak(); if (P) 
 // (a core from before G1470 has no damage: read as an empty one, so the evidence can fly master's core too)
 const NODMG = { yields: 0, breaks: 0, work: 0, setMax: 0, crashed: false, reason: null, at: null, dented: false, propStrike: false, propAt: null, gPeak: 0, broken: [], members: 0, dents: 0, primary: 0, over: false };
 const dmgSim = sim => (sim.damage ? sim.damage() : NODMG);
-const dmgOf = sim => { const D = dmgSim(sim); return { members: D.members, dents: D.dents, yields: D.yields, breaks: D.breaks, work: D.work, setMax: D.setMax, crashed: D.crashed,
+const dmgOf = sim => { const D = dmgSim(sim); return { holed: D.holed || 0, members: D.members, dents: D.dents, yields: D.yields, breaks: D.breaks, work: D.work, setMax: D.setMax, crashed: D.crashed,
   reason: D.reason, at: D.at, dented: D.dented, propStrike: D.propStrike, propAt: D.propAt, gPeak: D.gPeak, broken: D.broken.slice(),
   brokenCls: D.broken.map(i => sim.beams[i].cls) }; };
 const finite = sim => { for (let i = 0; i < sim.p.length; i++) if (!Number.isFinite(sim.p[i]) || !Number.isFinite(sim.v[i])) return false; return true; };
@@ -197,9 +197,37 @@ function flyRun(C, sim, def, TH, strip, elev, o) {
     eng: sim.eng.map(e => ({ running: e.running, seized: !!e.seized })), trunk: loc(tx, tz), trunkR: tk.r, frames, trace, sim, def, loc };
 }
 
+// THE WATER (A0, with GEAR-WATER 2's wet body): a build put 0.3 m over the analytic world's sea lane, `V` m/s along its
+// heading, sinking `sink` m/s, pitched `pitch` deg nose-down about its CG, power off (GATE HYDRODYN's ditchOf, pitched);
+// the water reaches the frame through its nodes (the floats' panels; the wet body's slam where 32_hydro has wetBuild)
+function waterCase(key, o) {
+  const C = core(), def = defOf(key, o), world = C.makeWorld(), sea = world.aerodromes.find(a => a.id === 'SEA');
+  const sim = C.makeSim(def, world); sim.reset(0); C.placeAtAerodrome(sim, sea);
+  const n = sim.n, p = sim.p, v = sim.v, [xA, , zR] = sim.axes(), c0 = sim.cgPos();
+  // pitch nose-down about the CG round the body's lateral axis (Rodrigues; nose at -xAft, so + about +z right lowers it)
+  const th = -(o.pitch || 0) * Math.PI / 180, k = zR, cs = Math.cos(th), sn = Math.sin(th);
+  for (let i = 0; i < n; i++) {
+    const d = [p[i*3] - c0[0], p[i*3+1] - c0[1], p[i*3+2] - c0[2]], kd = k[0]*d[0] + k[1]*d[1] + k[2]*d[2];
+    const cr = [k[1]*d[2] - k[2]*d[1], k[2]*d[0] - k[0]*d[2], k[0]*d[1] - k[1]*d[0]];
+    for (let j = 0; j < 3; j++) p[i*3+j] = c0[j] + d[j] * cs + cr[j] * sn + k[j] * kd * (1 - cs);
+  }
+  const wh = world.waterH(c0[0], c0[2]);
+  let yMin = Infinity; for (let i = 0; i < n; i++) yMin = Math.min(yMin, p[i*3+1] - def.nodes[i].r);
+  const hl = Math.hypot(xA[0], xA[2]), V = o.V;
+  for (let i = 0; i < n; i++) { p[i*3+1] += wh + 0.3 - yMin; v[i*3] = -V * xA[0] / hl; v[i*3+1] = -o.sink; v[i*3+2] = -V * xA[2] / hl; }
+  sim.ctl.thr = 0;
+  clearPeak(sim);
+  let finite_ = true, sp = 0;
+  for (let s = 0; s < (o.secs || 4) * 60; s++) { sim.step(1 / 60); if (!finite(sim)) { finite_ = false; break; } sp = Math.max(sp, spread(sim)); }
+  const WB = sim.wetBody || null;
+  return { dmg: dmgOf(sim), peak: peakOf(sim), finite: finite_, spread: sp, wet: !!(WB || sim.hydro), wetBody: !!WB, holed: WB && WB.slices ? WB.slices.filter(x => x.br).length : 0,
+    slamKPa: WB && WB.slamPeak ? WB.slamPeak / 1000 : null, members: dmgOf(sim).members, cls: (sim.damage().broken || []).map(i => sim.beams[i].cls),
+    yieldedCls: sim.beams.filter(b => b.yielded).reduce((a, b) => (a[b.cls] = (a[b.cls] || 0) + 1, a), {}) };
+}
+
 // FAR 23.473(d): the limit descent velocity V = 4.4 (W/S)^(1/4) ft/s (W/S in lb/ft2), at least 7 and at most 10 ft/s
 function far473(key) {
   const g = defOf(key).params.gen, WS = (g.W / 4.4482) / (g.Sw * 10.7639);
   return Math.min(10, Math.max(7, 4.4 * Math.pow(WS, 0.25))) * 0.3048;
 }
-module.exports = { far473, core, BUILDS, defOf, flatWorld, loadTest, pull, hardLanding, circuit, atTrunk, peakOf, dmgOf, finite };
+module.exports = { far473, waterCase, core, BUILDS, defOf, flatWorld, loadTest, pull, hardLanding, circuit, atTrunk, peakOf, dmgOf, finite };
