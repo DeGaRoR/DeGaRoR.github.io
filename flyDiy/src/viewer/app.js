@@ -11371,9 +11371,13 @@
   // - Paused, the pose holds where it was last drawn (the alpha kept), rather than jumping to the newest step.
   // - Under the physics worker (?simw=1) the page's positions ARE the view's, interpolated already (sim_view.js frame:
   //   T - 1 step between the two newest snapshots) - this stands aside.
+  // - G1530 (POSE-BACK): THE SAME PAIR IS NEVER DRAWN BACK. A new pair is always ahead of the last one drawn (it closes a
+  //   step at least one later, and alpha is in [0, 1)); on one pair (a frame that owed no step) the alpha drawn is never
+  //   below the last one drawn on it - should the clock's accumulator be let go under a held pair (PACE.hold), the pose
+  //   holds rather than stepping back. GATE POSEBACK: the inline path monotonic at 2-30 fps through a take-off.
   const POSE_LERP = (() => {
-    const L = { sim: null, p0: null, p1: null, have: false, on: false, alpha: 1, marked: false,
-                stats: { drawn: 0, dropped: 0 } };
+    const L = { sim: null, p0: null, p1: null, have: false, on: false, alpha: 1, marked: false, gen: 0, gDrawn: -1, aDrawn: 0,
+                stats: { drawn: 0, dropped: 0, held: 0 } };
     const fits = sim => !!(sim && sim.p && sim.p.length > 0 && typeof sim.p.set === 'function');
     function arrays(sim) {
       if (L.sim !== sim || !L.p0 || L.p0.length !== sim.p.length) {
@@ -11385,25 +11389,26 @@
     // the step block, after its last step: the pair is whole
     function took(sim) {
       if (!fits(sim) || !L.marked || L.sim !== sim) { L.have = false; L.marked = false; return; }
-      L.p1.set(sim.p); L.have = true; L.marked = false;
+      L.p1.set(sim.p); L.have = true; L.marked = false; L.gen++;
     }
     // the draw: the drawn positions into sim.p (true), or nothing (false). alpha null = held (a pause): the last one
     function draw(sim, alpha) {
       if (L.on) back();
       if (alpha != null) L.alpha = alpha;
+      if (L.gDrawn === L.gen && L.alpha < L.aDrawn) { L.alpha = L.aDrawn; L.stats.held++; }   // G1530: this pair, not drawn back
       const a = L.alpha;
       if (!L.have || L.sim !== sim || !fits(sim) || sim.p.length !== L.p1.length || !(a < 1)) return false;
       const p = sim.p, p0 = L.p0, p1 = L.p1, N = p.length;
       for (let i = 0; i < N; i++) if (p[i] !== p1[i]) { L.have = false; L.stats.dropped++; return false; }   // moved outside the steps
       for (let i = 0; i < N; i++) p[i] = p0[i] + (p1[i] - p0[i]) * a;
-      L.on = true; L.stats.drawn++;
+      L.on = true; L.stats.drawn++; L.gDrawn = L.gen; L.aDrawn = a;
       return true;
     }
     // the newest step's positions back, bit for bit
     function back() { if (!L.on) return; L.on = false; if (L.sim && L.sim.p && L.sim.p.length === L.p1.length) L.sim.p.set(L.p1); }
     function drop() { back(); L.have = false; L.marked = false; }
     const api = { mark, took, draw, back, drop, get on() { return L.on; }, get alpha() { return L.alpha; },
-                  state: () => ({ have: L.have, on: L.on, alpha: L.alpha, drawn: L.stats.drawn, dropped: L.stats.dropped }) };
+                  state: () => ({ have: L.have, on: L.on, alpha: L.alpha, drawn: L.stats.drawn, dropped: L.stats.dropped, held: L.stats.held }) };
     window.FLYDIY_POSE = api;
     return api;
   })();
