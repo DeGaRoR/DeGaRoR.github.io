@@ -20,6 +20,11 @@ const BOARDS = {
     intro: 'Three candidates for each new calm station (Jazz & Blues, Dub & Reggae, Electronic & Ambient, Classical, Acoustic), free under CC0 or CC-BY (credited). One minute each, levelled. Keep what fits; the station tags let you move a track to another station. Lo-fi is already filled from your HoliznaCC0 picks.',
     contexts: ['Jazz & Blues', 'Dub & Reggae', 'Electronic & Ambient', 'Classical', 'Acoustic'], labels: ['Keep', 'Maybe', 'No'],
   },
+  jazzclass: {
+    title: 'flyDiy Jazz & Bach',
+    intro: 'Five public-domain candidates: classic jazz from 1923-24 (US public domain, over 70 years old in Europe, so the old shellac crackle comes with it) and two pieces of Kimiko Ishizaka’s CC0 Open Goldberg Variations for the classical station. The two Ketsa jazz tracks are already in.',
+    contexts: ['Jazz', 'Classical', 'Radio Jolene (heritage hour)'], labels: ['Keep', 'Maybe', 'No'],
+  },
   engine: {
     title: 'flyDiy Engine Lab',
     intro: "The procedural engines as they sound today, rendered offline from the exact code the game runs (no propeller yet: that comes next). Judge each render and say what's off. Your notes go to the tuning session.",
