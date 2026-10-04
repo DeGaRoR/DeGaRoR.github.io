@@ -100,7 +100,7 @@ textarea { flex: 1 1 220px; min-width: 0; font: 13px var(--body); color: var(--i
     <div class="chips" id="filters" role="group" aria-label="Filter"></div>
     <div class="transport">
       <label><input type="checkbox" id="auto" checked> play the next one when a take ends</label>
-      <span><span class="kbd">space</span> play/pause · <span class="kbd">↓</span><span class="kbd">↑</span> next/previous · <span class="kbd">1</span> keep <span class="kbd">2</span> maybe <span class="kbd">3</span> no</span>
+      <span><span class="kbd">space</span> play/pause · <span class="kbd">↓</span><span class="kbd">↑</span> next/previous · <span class="kbd">1</span> <span class="kbd">2</span> <span class="kbd">3</span> verdict</span>
       <span class="notice" id="notice" hidden></span>
     </div>
   </header>
@@ -111,6 +111,7 @@ textarea { flex: 1 1 220px; min-width: 0; font: 13px var(--body); color: var(--i
 <script>
 const BOARD = "__BOARD__";
 const CONTEXTS = __CONTEXTS__;
+const LABELS = __LABELS__;   // what keep / maybe / no read as on this board
 let items = [], picks = {}, filter = "all", current = -1, db = null, saveTimers = {};
 const $ = id => document.getElementById(id);
 const player = $("player");
@@ -135,13 +136,13 @@ function renderCounts() {
   const c = { keep: 0, maybe: 0, no: 0 };
   for (const it of items) { const v = (picks[keyOf(it)] || {}).verdict; if (v) c[v]++; }
   const left = items.length - c.keep - c.maybe - c.no;
-  $("count").innerHTML = `<span>${items.length} takes</span><span class="k"><b>${c.keep}</b> keep</span><span class="m"><b>${c.maybe}</b> maybe</span><span class="n"><b>${c.no}</b> no</span><span>${left} to hear</span>`;
+  $("count").innerHTML = `<span>${items.length} takes</span><span class="k"><b>${c.keep}</b> ${LABELS[0].toLowerCase()}</span><span class="m"><b>${c.maybe}</b> ${LABELS[1].toLowerCase()}</span><span class="n"><b>${c.no}</b> ${LABELS[2].toLowerCase()}</span><span>${left} to hear</span>`;
 }
 
 function renderFilters() {
   const groups = new Map();
   for (const it of items) for (const t of tagsOf(it)) groups.set(t, (groups.get(t) || 0) + 1);
-  const fixed = [["all", "All"], ["unjudged", "To hear"], ["keep", "Keep"], ["maybe", "Maybe"], ["no", "No"]];
+  const fixed = [["all", "All"], ["unjudged", "To hear"], ["keep", LABELS[0]], ["maybe", LABELS[1]], ["no", LABELS[2]]];
   const tags = [...groups.keys()].sort();
   const el = $("filters");
   el.innerHTML = "";
@@ -172,12 +173,13 @@ function renderList() {
       <div class="meta">
         <div class="t">${esc(it.title)}</div>
         <div class="who">${who} · <a href="${esc(it.page)}" target="_blank" rel="noopener">source</a></div>
+        ${it.listen ? `<div class="who">Listen for: ${esc(it.listen)}</div>` : ""}
         <div class="data"><span>${fmtDur(it.durationS)} full</span><span>${it.lufs} LUFS</span><span>${esc(it.licence || "")}</span><span>#${it.id}</span></div>
       </div>
       <div class="verdict" role="group" aria-label="Verdict">
-        <button type="button" class="v keep" aria-pressed="${p.verdict === "keep"}">Keep</button>
-        <button type="button" class="v maybe" aria-pressed="${p.verdict === "maybe"}">Maybe</button>
-        <button type="button" class="v no" aria-pressed="${p.verdict === "no"}">No</button>
+        <button type="button" class="v keep" aria-pressed="${p.verdict === "keep"}">${LABELS[0]}</button>
+        <button type="button" class="v maybe" aria-pressed="${p.verdict === "maybe"}">${LABELS[1]}</button>
+        <button type="button" class="v no" aria-pressed="${p.verdict === "no"}">${LABELS[2]}</button>
       </div>
       <div class="extra">
         ${CONTEXTS.map(c => `<button type="button" class="ctx" data-c="${c}" aria-pressed="${(p.ctx || []).includes(c)}">${c}</button>`).join("")}

@@ -113,8 +113,12 @@ async function run(kind, outDir) {
   console.log(index.length, 'excerpts →', outDir);
 }
 
-const argv = process.argv.slice(2);
-const oi = argv.indexOf('--out');
-const kind = argv.includes('--music') ? 'music' : argv.includes('--sounds') ? 'sounds' : null;
-if (!kind) { console.log('usage: --music | --sounds [--out dir]'); process.exit(1); }
-run(kind, oi >= 0 ? argv[oi + 1] : path.join(ROOT, 'assets', 'audio', 'board', kind)).catch(e => { console.error(e); process.exit(1); });
+module.exports = { decode, loudness, peak, cut, encodeMp3 };
+
+if (require.main === module) {
+  const argv = process.argv.slice(2);
+  const oi = argv.indexOf('--out');
+  const kind = argv.includes('--music') ? 'music' : argv.includes('--sounds') ? 'sounds' : null;
+  if (!kind) { console.log('usage: --music | --sounds [--out dir]'); process.exit(1); }
+  run(kind, oi >= 0 ? argv[oi + 1] : path.join(ROOT, 'assets', 'audio', 'board', kind)).catch(e => { console.error(e); process.exit(1); });
+}

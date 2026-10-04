@@ -34,7 +34,7 @@ function get(url, binary) {
       const chunks = [];
       res.on('data', c => chunks.push(c));
       res.on('end', () => resolve(binary ? Buffer.concat(chunks) : Buffer.concat(chunks).toString('utf8')));
-    }).on('error', reject);
+    }).on('error', e => { e.retry = true; reject(e); });
   });
 }
 
