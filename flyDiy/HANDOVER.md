@@ -72218,3 +72218,64 @@ The parked aeroplanes re-cooked on the final build.
 LESSONS: a killed script leaves its boxlock files (its trap never runs) - train 31's re-pass waited 40 min on A0's own stale
 CPU lock; boxlock's `take` once wrote its lock and then waited on itself (the noclobber write's status lost) - A0's scripts
 now accept a lock already in their own name.
+
+## G1910-G1914 - STRUT-LIVERY: THE CUB'S GREY STRUTS WERE A PER-PART PIN PASTED INTO THE STOCK CUB ON 3 SEP, NOT A CODE CHANGE; THE PIN GONE (PRESETS + ON LOAD), AND A SECOND BUG THE GATE FOUND - A STRUT UNDER A STRUT TOOK TRIM'S GREY (2026-10-04/05, STRUT-LIVERY for A0, cloud - node + SwiftShader, no GPU; branch claude/strut-livery-g1910 off origin/master bff4f64b = train 31)
+
+The user (5 Oct): "the struts seem not to be colored like the rest of the airplane anymore. The cub has grey struts, and
+also the baked planes outside."
+
+**G1910 THE BISECT.** `reports/evidence/STRUT-LIVERY/bisect_resolver.txt`: for each of the 94 first-parent master commits
+since 30 Aug that touch `aeroskin.js` or `_cage_page5.js`, that commit's `aeroSecResolve` over that commit's stock builds
+(Cub, Jodel, Cessna) and the user's `builds/cub_2026-09-20_corrected.json`, for every strut-class section (strut, cabane,
+interplane, wingLongeron). **The answer never changed**: the Cub's `strut` is `castAlu #ffffff` (metalness 0.75) at every
+commit since the row exists. The construction (the `strut` row: parent `body`, pinned painted `trim`, `wears: 'parent'`) and
+the mesh path (`_cage_wing.js` `bags.strut` -> `CAGE_SECMAT('strut')`, unchanged since c7a065cc, 31 Aug; the flown aeroplane
+and the parked cook capture those very meshes, `flown_bake.js` bakes what they wear) never moved either; nor did
+`AERO_FINISH.castAlu`. **The grey is DATA**: d244cabf (G158-G160, 3 Sep) imported My_finished_Cub.json verbatim as the stock
+`'piper cub'` build carrying `finish.sections.strut = { fin: 'castAlu', tint: 0xffffff }`; G445.4 (37621d9f, 20 Sep) kept it
+and gave the Jodel the same pin (tint = its cream); the user's builds of 20 Sep (`builds/cub_2026-09-20*.json`,
+`jodel_2026-09-20.json`) inherited it. A pinned finish walks its own name only (G207), so the struts, and the cabane /
+interplane / carry-through that follow the strut's colour, wore bare cast alloy under a white tint whatever the fuselage
+wore. Before d244cabf the stock Cub had no finish block and its struts wore the fuselage - the "anymore". The Cessna never
+had the pin (its struts wear its alclad body).
+
+**G1911 THE PIN GONE.** (1) `_cage_page5.js`: the `strut` row deleted from the stock Cub and Jodel builds (a comment marks
+the place). (2) `aeroskin.js aeroFinishLegacy(sections)` (pure; window + module exports), called by `_cage_ui.js
+finishFromSpec` - the one door every load takes, live, and so into the flown bake and the parked cook: it drops exactly that
+pin (`strut` = castAlu with only a white or the body's own tint beside it) from a saved build, so the user's Cub heals on
+load and the next save (finishToSpec) writes it out clean. A builder's own repaint from the panel (a finish alone, or with a
+colour of their own, or any dial) is kept. NOT a spec version: GEN_SPEC_V is in the bench certificate's fingerprint, and a
+bump would withdraw every certificate for a colour.
+**Which section a strut belongs to - unchanged, by the rules.** The lift struts keep their own section `strut` (their part,
+"Lift struts", claims it in `_cage_parts.js`), parent `body`, painted `trim`, `wears: 'parent'`: G207's ruling ("a strut, a
+spat and a cowl are painted with the fuselage on a light aeroplane"), and the strut's foot is on the fuselage. The cabane and
+interplane struts (and the carry-through, bare alclad by T2.3, coloured with them) stay under `strut`, so repainting the
+struts once repaints the whole truss and each can still differ. Not under `wingSkin`: a wing painted its own colour (the
+Cessna's tips, a two-tone) must not drag the truss with it.
+
+**G1912 A STRUT UNDER A STRUT (found by the new gate).** `wears: 'parent'` took the parent's FINISH BASE. For `strut` (under
+the cage's `body`) that is right; for `cabane` / `interplane` / `wingLongeron` (under `strut`, itself wearing its parent)
+it was trim's own #d8dde4 whenever the body has no tint override - the Cessna (bare alclad, #d2d6da): its lift struts wore
+the body, its cabane and interplane struts trim's grey. The resolver now takes the colour the parent WEARS (its resolved tint
+when it has one, else its finish's base), which is what G207 says. Nothing moves where the body is tinted (the walk found the
+tint already); GATE LIVERYREACH unchanged PASS.
+
+**G1913 THE GATE: GATE LIVERY section 5** (`tools/_livery_check.js`, core). Every build in `builds/*.json` (not
+`.edits.json`) and every stock build, each loaded in its own page through the editor's own `finishFromSpec` (the slice the
+gate already cuts out of `_cage_ui.js`) and app.js's seed: `strut`, `cabane` and `interplane` resolve to their painted pin
+(`trim`, never castAlu / bareAlu / steelTube / chrome / alclad / bronze / copper / exhaust), in the colour their parent wears,
+and `secMat` hands the layer exactly that material (finish and colour against a reference `aeroMaterial`) - the material
+the flown bake and the parked cook capture; and no stock build may pin a strut to bare metal. 36 sections over 12 builds.
+NEGATIVE-VERIFIED (`--selftest`, three new probes, each RED): the load read removed (the user's Cub: castAlu), the stock
+Cub's pin put back (d244cabf's line), the wears-parent walk on the parent's base again (the Cessna's cabane #d8dde4).
+The carry-through (bare by the user's ruling) and the bracing wires (steel) are not struts and are not asked.
+
+**G1914 THE STILLS.** `reports/evidence/STRUT-LIVERY/`: `before_*.jpg` on the built `index.html` (train 31, the pin), and
+`after_*.jpg` on `dev.html` (the loose sources, this branch), SOFT-GPU's `tools/soft_still.js` on SwiftShader, the fresh
+profile's Cub on the stand. `views.json` is for A0's real-GPU pair on the box:
+`node tools/shadowsky_shots.js --views reports/evidence/STRUT-LIVERY/views.json --pages index_before.html,index.html`
+(strut_stand = the stand's three-quarter view, strut_close = a low side view at 6.5 m, strut_under = under the wing).
+
+**A0 AT LANDING.** Re-cook the parked aeroplanes (the stock Cub's spec changed; the signature goes stale anyway with the
+build). The flown bake re-keys by itself (FLYDIY_BUILD and the spec are in its key). The user's own saved Cub in their
+browser heals at its next load. Frame cost: none (a load-time filter over a dozen keys; the resolver one comparison more).

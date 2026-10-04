@@ -1013,10 +1013,16 @@ function aeroSecResolve(sec, over, ctx) {
   // the row says it is painted with its parent — so the colour is the base
   // of the finish the PARENT resolves to (its own override having been the
   // walk's answer already). Bounded by the chain, like the walk.
+  // G1912: what the parent WEARS is its own resolved colour when it has one —
+  // a parent that wears ITS parent (the lift strut under the body) resolves a
+  // tint of its own, and its finish's base was the wrong answer for the
+  // cabane and interplane struts under it: trim's grey on a bare-alclad Cessna
+  // whose lift struts wear the body's alclad.
   if (tint == null && row.wears === 'parent' && row.parent) {
     const pr = aeroSecResolve(row.parent, over, ctx);
     const pf = AERO_FINISH[pr.fin];
-    if (pf) tint = pf.base;
+    if (pr.tint != null) tint = pr.tint;
+    else if (pf) tint = pf.base;
   }
   return { fin, src: f.src,
            tint,
@@ -1031,6 +1037,40 @@ function aeroSecResolve(sec, over, ctx) {
            fieldLK: walk(over && over.fieldL, chain).v,
            // G215: the metal flake in the paint
            metalK: walk(over && over.metal, chain).v };
+}
+
+// THE STOCK CUB'S STRUT PIN (G1911 STRUT-LIVERY, the user, 5 Oct: "the struts
+// seem not to be colored like the rest of the airplane anymore. The cub has
+// grey struts, and also the baked planes outside"). The construction was never
+// the cause: `strut` above has followed the body since phase C (painted trim,
+// `wears: 'parent'`), and the resolver answered castAlu #ffffff for the Cub's
+// struts at every master commit since the row existed (the G1910 bisect). The
+// grey was DATA: d244cabf (G158-G160, 3 Sep) pasted My_finished_Cub.json into
+// the stock 'piper cub' build with `finish.sections.strut = { fin: 'castAlu',
+// tint: 0xffffff }` — bare cast alloy, metalness 0.75, under a white tint —
+// G445.4 carried it into the Jodel's (tint = its body cream), and every Cub
+// built from the stock since inherited it (builds/cub_2026-09-20*.json). A pin
+// on its own name stops the finish walk there, so the lift struts, and the
+// cabane and interplane struts that wear the strut's colour, stayed bare
+// metal whatever the fuselage wore.
+// The presets no longer carry it; THIS drops it from a saved build on load —
+// only that exact pin (castAlu with nothing but a white or the body's own tint
+// beside it), so a strut the builder repaints from the panel (a finish alone,
+// or with a colour of their own) is theirs and is kept. Pure: a copy back,
+// the spec untouched. `finishFromSpec` is its one caller, which is the door
+// every load takes, live and into the flown bake and the parked cook (both
+// capture the editor's own meshes).
+function aeroFinishLegacy(sections) {
+  if (!sections || typeof sections !== 'object') return { sections, dropped: [] };
+  const r = sections.strut;
+  const bodyT = sections.body && typeof sections.body.tint === 'number' ? sections.body.tint : null;
+  const pin = r && typeof r === 'object' && r.fin === 'castAlu' && typeof r.tint === 'number' &&
+              ((r.tint >>> 0) === 0xffffff || (bodyT != null && (r.tint >>> 0) === (bodyT >>> 0))) &&
+              Object.keys(r).every(k => k === 'fin' || k === 'tint' || r[k] == null);
+  if (!pin) return { sections, dropped: [] };
+  const out = Object.assign({}, sections);
+  delete out.strut;
+  return { sections: out, dropped: ['strut'] };
 }
 
 // THE BASE PICK'S REACH (G214 / G468, hoisted pure here at G1320 so a node
@@ -4583,7 +4623,7 @@ if (typeof window !== 'undefined')
                       AERO_KIT_LDEF, AERO_KIT_FIELDS,
                       aeroKitKnob, aeroKitLayers, aeroKitDraw,
                       AERO_HARD, AERO_PROP_FIN, AERO_WEAR_K,
-                      AERO_SEC, aeroSecResolve, aeroBaseReach,
+                      AERO_SEC, aeroSecResolve, aeroBaseReach, aeroFinishLegacy,
                       aeroHardFinish, aeroHardMat, aeroHardOn, aeroSetWear,
                       aeroSharedU,          // G345: uCraftInv for the sources
                       // THE LAB (G206)
@@ -4609,7 +4649,7 @@ if (typeof module !== 'undefined')
                      AERO_KIT, AERO_KIT_LAYERS, AERO_KIT_PAGE0,
                      AERO_KIT_LDEF, AERO_KIT_FIELDS,
                      aeroKitKnob, aeroKitLayers,
-                     AERO_SEC, aeroSecResolve, aeroBaseReach,
+                     AERO_SEC, aeroSecResolve, aeroBaseReach, aeroFinishLegacy,
                      AERO_FINISH_DEF, AERO_LAB_FIELDS, AERO_LAB_GRAM,
                      AERO_GAIN_DEF, GLASS_DEF, aeroIsInside, AERO_CABIN_DEF,
                      aeroDecOk };
