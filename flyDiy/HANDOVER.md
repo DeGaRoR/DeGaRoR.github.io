@@ -72196,3 +72196,25 @@ the node rigs and gates need a built dev.html to load _cage_chain.js at all), th
 
 Rigs: garage_release.js (new: node, the release per row, `--prof`), garage_lag.js (+ opt-in detail rows),
 garage_drag_strip.js (unchanged), _instant_check.js (the release path). Cloud session, ~3.6 h, node only.
+
+## TRAIN 31 LANDED (2026-10-04/05, A0 the coordinator)
+
+Cargo (on train 30 = a1ffcf5b): RELEASE-FAST G1450-G1455 (a slider's release runs what the drag reached; every release exact
+on the validated builds), SOFT-GPU G1460-G1466 (the world draws on SwiftShader: a 'software' rung under potato, GATE SOFTGPU
+(cloud only - SKIP on the box), tools/soft_still.js; its G1461 woodland fix HELD for WOODLAND G1480), the COVER FIX for every
+machine (the user: "fix for all" - potato / retro's 'cover off' never reached the cover ring on any card, ~30 M triangles a
+frame on the GTX 660; the ring takes its own row through GFX.reapply, not the whole menu again: onWorld's full re-apply cost
+the warm settle +0.7 s), music OFF by default (the Sound Coordinator, 9008fba8; a stored choice kept).
+A0 IN THE TRAIN: the battery shows a gate's SKIP as SKIP (run_gates.js); GATE GFX counts render_world's one rung site; GATE
+STAND reads SOFT-GPU's software-rung glass; the evening status in futureDesigns/FRIENDLY-WELCOME-PLAN-2026-10-03.md.
+STRICT GATE (full, three runs): only the 30 cap's fps rows stay red; the metal load (chase flight), the Cub chase compile and
+the metal cockpit load reds each appeared once and passed on the next run (noise). ONE STEADY COST, ALLOWED BY THE USER BY
+NAME (4 Oct 23:15, "land now, fix in 32"): the warm garage load +1.5 s on both aircraft (train 30 37.8-38.2 s, train 31
+39.3-40.3 s, inside the 3.4-3.9 s slack). A prefix bisect (_ab/R0-R2) was confounded: its trees were not parked-cooked, and
+a stale cook alone adds ~3.5 s (the parked aeroplanes captured live). Train 32 re-bisects with cooked trees.
+BATTERY: the full battery on the first build (GFX, STAND, SOFTGPU red - fixed), the changed gates on the final build PASS
+(GFX, STAND, WORLDRENDER, BOOT, FRAMECOST, ROUNDTRIP, UISMOKE, PROGRAMS, BUILD, ASSETS, INSTANT, AUDIO, AUDIOENG; SOFTGPU SKIP).
+The parked aeroplanes re-cooked on the final build.
+LESSONS: a killed script leaves its boxlock files (its trap never runs) - train 31's re-pass waited 40 min on A0's own stale
+CPU lock; boxlock's `take` once wrote its lock and then waited on itself (the noclobber write's status lost) - A0's scripts
+now accept a lock already in their own name.
