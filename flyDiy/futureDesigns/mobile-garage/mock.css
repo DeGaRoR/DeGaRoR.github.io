@@ -162,3 +162,5 @@ button{font:inherit;color:inherit}
 .dk .tree .tp{padding:3px 12px 3px 26px;color:var(--ed-dim)}
 .dk .tree .ta.on{background:var(--ed-acc-soft)}
 .dk .gone{margin:10px 12px;padding:8px;border:1px dashed var(--ed-btn-bd);border-radius:6px;color:var(--ed-faint);font-size:11px;text-decoration:line-through}
+
+.view.studio{background:#000}  /* the phone's black studio (G1516): no room at all */

@@ -15,15 +15,17 @@ over a recording GL, real ms, ~1.6x the box's JS). **SwiftShader** = headless Ch
 
 ---
 
-## 0. THE RECOMMENDATION, IN SIX LINES
+## 0. THE RECOMMENDATION, IN SEVEN LINES
 
 1. **A garage-only mode of the same page** (`?mode=garage`, which the welcome's phone gate offers as "build on this
    phone"). It boots the garage's 10 steps and none of the world's 14. The island (37.3 MB) is never fetched, and the
    roll-out button becomes **Send to computer**. Measured with a prototype (§1.3-1.4): 0 errors, the sliders work
    as in the full game. Node: boot ~300 s → 33-37 s, 230 → 43-47 MB read, memory after GC 2.9 → 0.48-0.53 GB.
    SwiftShader: 215 → 58 MB on the wire, **JS heap peak 1,530 → 365 MB** (the S20 FE's budget is 700).
-2. **A "phone shed"**: the editor's aeroplane on a plain floor. No shed props (6,402 draw calls today against a phone
-   budget of 300), no transmission glass, no crew meshes, no shadow maps, and a capped pixel ratio.
+2. **No garage on a phone: a black studio** (the user's ruling). The aeroplane in a pool of light on black, key /
+   fill / rim, studio reflections, nothing else. Measured with a crude proxy in node: 42.6 → 3.2 MB of media and
+   441 → 323 MB of memory. One frame is 7,021 draws today (the shed's shadow and glass passes) against ≈ the
+   aeroplane's ~545 in a studio. It is a scene profile of the same code, so it is also on the desktop (§1.5).
 3. **One row model, two renderers.** Today's row tuple gains six optional fields (`unit`, `group`, `tier`, `fine`,
    `detents`, `help`). A desktop renderer and a touch renderer read it, and both emit the same `tick` / `release`
    events GARAGE-INSTANT already keys on. On touch **only the knob moves a value**; a finger anywhere else on a
@@ -38,8 +40,10 @@ over a recording GL, real ms, ~1.6x the box's JS). **SwiftShader** = headless Ch
 5. **The phone does not fly.** It shows the bench check (the shakedown runs without a world) and marks the plaque
    "not yet flown". The computer opens the link on an arrival card: checked, built, bench, then the full-HD flown bake
    and the world at roll-out.
-6. **Order:** decide the row model inside the revamp now (M3) → `?mode=garage` on the desktop (M1) → the share link
-   (M5, useful between two computers too) → the phone shed (M2) → the touch UI (M4) → the phone soak and an iPhone
+6. **One trunk** (the user's ruling): the phone is a subtract-only PROFILE of the desktop trunk, with the same page,
+   build, rows and aeroplane. GATE MOBILE checks it in node at every release (§6).
+7. **Order:** decide the row model inside the revamp now (M3) → `?mode=garage` on the desktop (M1) → the share link
+   (M5, useful between two computers too) → the black studio (M2) → the touch UI (M4) → the phone soak and an iPhone
    check (M6). §5 has the sessions, G-blocks and gates.
 
 ---
@@ -155,25 +159,59 @@ are the bytes **before** GitHub Pages' gzip), and a still of the garage.
 - The still at the phone's size (`swift_garage_cub.jpg`, also `swift_today_editor_at_412px.jpg`) is today's desktop
   editor squeezed to 412 px: the columns cover the view (§2).
 
-### 1.5 What of the garage to drop or simplify on a phone (the "phone shed", M2)
+### 1.5 No garage on a phone: a black studio (the user's ruling, M2)
 
-The heap floor is set by what the garage **holds**. The frame is set by what it **draws**. Both lists come from
-measured costs:
+**The user (4 Oct):** *"Why not do a dedicated environment for phones? No garage, just studio black. Saves more, does
+not take the experience away."* Agreed, and measured. The phone gets **no shed at all**: no room shell, props,
+transmission glass, floor or outside (grass, sky, the door). The aeroplane stands in a pool of light on black, like a
+product shot. It is lit by a key, a fill and a rim (directional lights, no shadow maps), shows reflections from a
+**procedural studio environment** (softboxes, made once into a PMREM, no textures: so the metal Cessna still reads as
+metal), and casts one soft contact shadow under the gear. The aeroplane itself is unchanged: the editor's meshes,
+materials and livery. The subject of the garage is the aeroplane, and that is all the studio keeps.
 
-| item | today | phone | evidence |
-|---|---|---|---|
-| **the shed's props** (benches, shelves, tools, the hanging mobile...) | 6,402 draw calls in the shed; props geo 9.6 MB (ASSET-PREP, G1240) + tex ~12 MB (the 2026-09-15 cold boot's census) on the wire | **off**: a floor, a sweep backdrop and one key light | SOFT-GPU: 6,402 draws; budget ≤ 300 |
-| **hangar glass** (`transmission 0.9`, 19 panes, hangar.js:775) | re-renders the room into a mipmapped target every frame | **off** (opaque or no windows) | SOFT-GPU: shed frame 8.9 → 4.4 s on SwiftShader with transmission 0 |
-| **shadows** (2048 map, near/full) | potato: off already | **off**; one contact shadow under the gear (C0 / A6 contact shadow) | potato preset |
-| **AA** (canvas 4× MSAA, or 8× + targets) | gamer: msaa 8× | **canvas MSAA off, pixel ratio capped at 1.5** (the S20 FE's DPR is 2.625; today's cap is 1.75 × potato's 0.67 scale) | a 412 × 330 view at 1.5 = 0.31 MP |
-| **the crew** (pilot and passengers, rigged) | built and drawn; ~0.8 s/frame on SwiftShader | **meshes hidden**; their points kept (the tank layer and the seat rows read them, and GATE INSTANT holds them) | SOFT-GPU; GARAGE-INSTANT (crew rows 120-145 ms node) |
-| **the flown bake** (C4a) | roll-out only | **never** on the phone | 1.98 s cold, +64 MB GPU (metal) |
-| **the snapshot / spec** (the flown model, ~950 ms) | at boot | **lazy**: only when the user sends (and even then not needed: the link is the spec) | G85 |
-| **subdivision level** (fixed at 2, `#lvl`, G106.1) | level 2 | keep 2 in v1. Level 1 as a *view* LOD (about ¼ of the skin's triangles) is a later lever: it is not in the spec, but GATE INSTANT's exactness would need a phone variant | `_cage_ui.js:3350` |
-| **inspector readouts** (the shakedown 0.4-0.7 s desktop, the balance and readout workers) | post-idle, 600 ms after the last change (G1302) | **the bench tab only**, on demand, and in its worker. The phone's CPU is ~3× slower than the box (estimate: box to measure) | G1302 |
-| **the materials lab dials, the energy panel** (414-461 "other ranges" on Cub / metal) | in the inspector | **expert tier**: off on a phone unless asked | GARAGE-INSTANT census |
-| **reference planes, blueprint sheets** | display state | **off** (never in a save anyway) | refplane.js:9-22 |
-| **sound** (SND-*) | the shed is silent (SND-MUSIC: silences in the shed), yet the garage boot fetches 2.8 MB of audio | **lazy**: fetched at the first sound, never in the shed | SwiftShader wire census (§1.4) |
+**Measured (node, the Cub, garage-only).** `--studio-proxy` makes the shed's dressed assets answer 404 (props and
+their LODs, the bench airframes, the floor, the grass, the wall photos, the crew's characters). It is a CRUDE proxy:
+the room's procedural shell still builds, so a real studio saves more. `--census` lists every file read;
+`node_census_*` and `node_scene_*` in the evidence hold the numbers.
+
+| (node, Cub, garage-only) | the shed (today's garage) | studio proxy (shed assets 404, shell kept) |
+|---|---:|---:|
+| media read during the boot | **42.6 MB**: props tex 23.3 + geo 6.2 + LODs 2.3 + bench airframes 0.6; crew 4.6; floor / grass / photos 2.4; **the aeroplane's own 3.2** | **3.2 MB** (the aeroplane's: panel, skin, vessel, cabin) |
+| boot (real s, node) | 31-36 | 22-25 |
+| heap + ArrayBuffers after GC | 230 + 211 = **441 MB** | 214 + 109 = **323 MB** |
+| the garage scene's visible meshes / triangles | room 871 / 858 k + aeroplane and crew 551 / 397 k | room shell 705 / 130 k + aeroplane 545 / 342 k |
+| **one frame**: draws / triangles (the recording GL) | **7,021 / 6.13 M** | 6,564 / 2.83 M |
+
+What the numbers say:
+- **The bytes are the shed's.** 39 of the garage's 42.6 MB of media are the room's dressing and the crew. A studio
+  reads **~3 MB of media**. With the scripts (~3-4 MB gzipped) a phone's first visit is **~7 MB instead of ~48**
+  (~3 s on 4G).
+- **The frame is the shed's passes.** 1,423 visible meshes become 7,021 draws because each is drawn ~5 times: the
+  shed's shadow-casting lamps (each shadow map redraws the casters) and the glass's transmission pre-pass. A studio
+  with no shadow maps and no transmission draws each mesh once, so **≈ the aeroplane's ~545 draws and ~0.35 M
+  triangles**. That is under the S20 FE's 0.6 M triangles, and nearer its 300-draw budget than anything the shed
+  allows (the flown model's folding, C4b 261 → 90, is the lever if 545 is too many).
+- **The heap drops with the dressing** (−118 MB with the shell still standing). The browser's garage-only peak of
+  365 MB (§1.4) should land near or under 300 MB in a studio. To measure in M2.
+- **It does not take the experience away.** On a phone the experience is the aeroplane taking shape under your
+  thumb. The shed is the desktop's place, and the world is the desktop's reward.
+
+| item | on a phone (the studio) |
+|---|---|
+| the shed (shell, props, glass, floor, outside, lamps) | **none**: black, a pool of light on the floor |
+| lighting | key + fill + rim, directional, **no shadow maps**; one contact shadow under the gear |
+| reflections | a procedural studio PMREM (made once, no textures; SOFT-GPU's sky-probe NaN on SwiftShader says to test it in the software rung) |
+| AA / resolution | canvas MSAA off, pixel ratio ≤ 1.5 (a 412 × 330 view at 1.5 = 0.31 MP) |
+| the crew | **not loaded** (4.6 MB); their seat points come from the spec, not the meshes. To verify: GATE INSTANT holds the crew's points, and the tank layer reads them |
+| the flown bake, the snapshot | never (a roll-out's; the link carries the spec) |
+| subdivision | level 2 as everywhere (level 1 as a view LOD stays a later lever) |
+| inspector readouts | the bench tab only, on demand, in its worker |
+| expert dials (materials lab, energy) | the expert tier, off unless asked |
+| reference plane | the blueprint image only, in v1 (REF on the view rail) |
+| sound | lazy (the garage boot fetches 2.8 MB of audio it never plays in the shed) |
+
+**One trunk:** the studio is a **scene profile of the same code**, not a phone file. It is offered on the desktop
+too, as a "studio" mood beside the shed's, so every release's desktop gates exercise it (§6).
 
 A slider tick on the phone is GARAGE-INSTANT's preview path. It keys on `pointerdown` on the row, so a touch drag
 takes it (§2.4). On the box a tick is 5-25 ms of handler and a release 240-520 ms (RELEASE-FAST cuts wing, tail and
@@ -353,7 +391,8 @@ What the editor is today (the digest of `tools/_cage_ui.js` / `src/viewer/editor
     verbs.)
   - **Phone.** The same two entries sit on the 3D view's own rail (REF, ⌂: `mock_1_portrait.png`; the left rail in
     landscape: `mock_2_landscape.png`), each opening a bottom sheet. In v1 a phone's REF offers the blueprint image
-    only (the 3D reference models are large payloads), and ⌂ the phone shed's light and mood.
+    only (the 3D reference models are large payloads). There is no hangar on a phone (§1.5): the phone rail's second
+    entry is ☀, the studio light (the key's angle, the mood).
   - **The mechanism.** The registry gains `place: 'tree' | 'rail' | 'top'`; `ref` and `shed` declare `'rail'`, and
     the rail renders a root's `panel()` as its flyout. A stored selection of `ref`, `ref.model`, `ref.bp` or `shed`
     (`flydiy.edPart`) migrates to `craft`. GATE VIEW's label finds keep working (the rows are the same elements,
@@ -401,6 +440,8 @@ What the editor is today (the digest of `tools/_cage_ui.js` / `src/viewer/editor
      constants in JS. (`layoutRight()`'s 390 / 250 / 46 are the ones to move.)
   9. **The tree holds only the aeroplane** (R24): the reference plane and the hangar are rail entries
      (`CAGE_TREE_ROOTS` `place`), on the desktop and the phone alike.
+ 10. **The phone is a profile, not a product** (§6): no device branches in the revamp's code. Anything that
+     differs on a phone asks the profile table, and the profile may only subtract.
 
   The layout chrome (chips vs tree, sheet vs column, rail vs ribbon) can come in M4 without touching a row.
 
@@ -522,16 +563,20 @@ numbers.
 | session | scope | G-block | gates | where |
 |---|---|---|---|---|
 | **M3 ROW-MODEL** (inside the slider revamp; **first**) | the descriptor fields (§2.9 table); the tree holds only the aeroplane, with the reference plane and the hangar on the rail (R24); `mkRow` → descriptor + `deskRow` (pixel-identical to today); `tier` / `help` written during the per-slider review; the undo history at `GARAGE_SPEC.update` (one entry per gesture, ⌘Z / Ctrl+Z, ribbon arrows); steppers and typing on the tick path | G1520-G1529 | GATE PARTS (every row claimed), GATE INSTANT (unchanged), **new GATE ROWS** (every row has tier / group; ≤ 8 basic per part; no `title=` without `help`; the tree's roots are `craft` alone), **new GATE UNDO** (undo × N returns the boot hash) | cloud (node) + box (the look) |
-| **M1 GARAGE-MODE** | `?mode=garage`: the boot's world rows off (§1.2 table), no ISLAND_LOADER fetch, no sim worker; on a desktop the roll-out builds the world lazily (the LOADING-S3 path, kept beside B9's one loading); the mode is **not** shown on a desktop unless asked | G1530-G1534 | GATE ROUNDTRIP (both modes), GATE INSTANT, **new GATE GARAGEONLY** (node: no world step ran, 0 island bytes, heap ≤ the measured floor + 10 %), FRAMECOST (garage profile unchanged) | cloud (node), then box: heap_steps + the phone rig |
+| **M1 GARAGE-MODE** | **the PROFILES table** (§6: the phone as a declared, subtract-only profile of the trunk) and `?mode=garage` as its first entry: the boot's world rows off (§1.2 table), the recheck re-planning nothing, no ISLAND_LOADER fetch, no sim worker; on a desktop the roll-out builds the world lazily (the LOADING-S3 path, kept beside B9's one loading); the mode is **not** shown on a desktop unless asked; **GATE MOBILE's skeleton** in the release battery from this session on | G1530-G1534 | GATE ROUNDTRIP (both modes), GATE INSTANT, **new GATE MOBILE** (§6; first rows: no world step ran, 0 island bytes, heap ≤ the measured floor + 10 %, the same resolved-spec hash as the desktop boot), FRAMECOST (garage profile unchanged) | cloud (node), then box: heap_steps + the phone rig |
 | **M5 SHARE** | `#build=` links (patch over frozen bases + whole spec), `media/bases/` content-addressed, the arrival card, Send (Web Share, copy, QR when it fits), new-slot import, hash cleared | G1535-G1539 | **new GATE SHARE** (node: export → link → import byte-identical spec on the 5 validated builds, patch and whole; a corrupted / oversized / future-version link refused or warned; a 60-row patch ≤ 1.3 KB); GATE BUILD, GATE SAVE | cloud |
-| **M2 PHONE-SHED** | the phone rung of the garage (§1.5: props off, glass off, crew meshes hidden, shadows off, pixel ratio ≤ 1.5, readouts on demand); the welcome's phone gate offers "Build on this phone (garage only)" | G1540-G1544 | GATE GFX (no desktop preset changes), FRAMECOST's garage profile **on the phone rung** (draws ≤ 300, triangles ≤ 0.6 M), GATE SOFTGPU | cloud + **phone** (heap ≤ 700 MB, no kill, drag drawn ≤ 150 ms p50) |
+| **M2 PHONE-STUDIO** | the black studio (§1.5): a scene profile beside the shed (no room, key / fill / rim without shadow maps, a procedural studio PMREM, a contact shadow), the shed's assets and the crew never fetched, pixel ratio ≤ 1.5, readouts on demand, audio lazy; **also a desktop "studio" mood**; the welcome's phone gate offers "Build on this phone" | G1540-G1544 | GATE GFX (no desktop preset changes), FRAMECOST's garage profile **in the studio** (draws ≤ 600, triangles ≤ 0.6 M, 0 shadow passes), GATE SOFTGPU (the studio PMREM on the software rung), GATE MOBILE's studio rows | cloud + **phone** (heap ≤ 700 MB, no kill, drag drawn ≤ 150 ms p50) |
 | **M4 TOUCH-UI** | `touchRow` (§2.1-2.4), portrait and landscape chrome (chips, sheet, rail, bottom bar), view gestures (two-finger pan, long-press), no-hover twins | G1545-G1554 | **new GATE NOHOVER** (R18), GATE INSTANT driven through the touch renderer, a Playwright touch run at 412 × 915 (hasTouch) | cloud + phone (the user's thumb) |
 | **M6 PHONE-SOAK** | the rig's 10-min soak on the S20 FE (heat, fps, heap), the cold load on 4G-like throttling, and **an iPhone** (Safari: borrowed, or a cloud device farm) | G1555-G1559 | the numbers vs FRIENDLY-WELCOME-BUDGETS' good-smartphone row | box + phone |
 
 ### 5.1 Risks
 
-- **Memory.** The garage-only floor (§1.3-1.4) must fit 700 MB on the S20 FE *with* the GPU's share. The shed props are
-  most of the bytes and of the draws. M2 measures on the phone before M4 builds UI on top.
+- **Memory.** The garage-only floor (§1.3-1.4) must fit 700 MB on the S20 FE *with* the GPU's share. The shed is most
+  of the bytes and, through its passes, of the draws, and the studio removes it (§1.5). M2 measures on the phone
+  before M4 builds UI on top.
+- **Drift: two products where there should be one.** A phone UI maintained by hand next to the desktop's falls behind
+  within two trains: a new part, row or archetype lands on the desktop, and the phone lacks it or breaks on it. §6
+  is the contract against that, and GATE MOBILE runs it at every release.
 - **Heat.** A train ride is 30-60 minutes of scrubbing, and a release is a few hundred ms of full CPU. The soak (§1.6)
   says whether the S20 FE throttles. The levers: ticks paced to frames (R13), the render loop paused when nothing
   moves (the garage redraws every frame today), the 30 fps cap kept.
@@ -548,7 +593,7 @@ numbers.
 - **Touch precision.** 2.3 px per step coarse on a 412 px screen (§2.3). Fine mode, steppers and typing are the answer,
   and the user's thumb is the test (M4).
 - **The revamp's timing.** If the revamp ships rows as hand-built DOM with hover-only help and no `tier`, mobile becomes
-  a second editor. The nine decisions in §2.9 cost the revamp little now and save the rewrite.
+  a second editor. The ten decisions in §2.9 cost the revamp little now and save the rewrite.
 - **Two boots.** B9 made one loading on purpose (no world builds under the player's nose). A garage mode brings back
   "the first roll-out builds the world" on any computer that opens it. Keep the mode out of the desktop's default path
   (only a phone, or `?mode=garage`), and the link's arrival on a computer boots the **full** game.
@@ -557,7 +602,80 @@ numbers.
 
 ---
 
-## 6. FILES OF THIS STUDY
+## 6. ONE TRUNK: THE PHONE IS DERIVED FROM THE DESKTOP, AUTOMATICALLY, AT EVERY RELEASE
+
+**The user (4 Oct), a warning to maintenance:** *"We should maintain a single trunk; the mobile experience has to
+derive entirely from the desktop trunk, automatically at each release."* This is the contract every MOBILE session
+works under.
+
+**6.1 What "one trunk" means here.**
+- **One page, one build, one deploy.** The phone loads the same `index.html` that `tools/build.js` makes for the
+  desktop, from the same Pages origin, through the same `sw.js`. There is no `mobile.html`, no second bundle, no
+  mobile branch and no separate release step. A train that ships the desktop ships the phone.
+- **One source for every row, part, archetype and material.** The phone's controls are rendered from the same row
+  descriptors (§2.9) by the touch renderer. Its tree is the same part table (`_cage_parts.js`). Its design tiles are
+  the same declaration (`_cage_design.js`). Its aeroplane is built by the same editor pipeline. **No list of rows,
+  parts or presets exists only for the phone.** A row added on the desktop appears on the phone at the next release.
+  If it has no `tier`, it lands in "more", reachable rather than lost.
+- **The phone is a PROFILE, and a profile only subtracts.** One table, beside `GFX.PRESETS` and the software rung
+  (SOFT-GPU's `GFX.soft()` is the precedent), declares the phone as switches over the trunk:
+
+  ```
+  PROFILES.phone = {
+    boot:   'garage',        // the world's boot rows off (§1.2), the recheck re-planning nothing
+    scene:  'studio',        // the black studio (§1.5) - a scene profile the desktop also offers
+    ui:     'touch',         // the touch renderer + the phone chrome (§2.7) over the SAME descriptors
+    tiers:  'basic',         // the disclosure start point; 'more' / 'expert' one tap away, never removed
+    fly:    'send',          // Roll out -> Send to computer (§3); the bench check stays
+    assets: ['crew', 'shed', 'audio:lazy'],   // never fetched
+  }
+  ```
+
+  Every switch removes, defers or re-renders something the desktop has. **None adds a feature the desktop lacks.** The
+  three things the phone shows first all exist on the desktop too:
+  - the share link (computer to computer)
+  - undo (§2.9, R22)
+  - the studio (a desktop mood)
+
+  So every one of them is exercised by the desktop's own gates and play.
+- **No ad-hoc phone branches.** Code asks the profile (`PROFILE.is('scene', 'studio')`), never the device
+  (`/Android/.test(navigator.userAgent)`, `innerWidth < 600`). Device detection lives in one place (welcome.js,
+  which picks the profile, as it picks the preset today). A lint row in GATE MOBILE fails on any user-agent,
+  `userAgentData`, `pointer: coarse` or width test outside welcome.js and the profile table.
+- **CSS from tokens.** The phone's sizes are the same stylesheet switched by `(pointer: coarse)` tokens (`--row`,
+  `--tap`, §2.9 decision 8), not a second stylesheet.
+
+**6.2 "Automatically at each release": GATE MOBILE in the release battery.** It is node-only (the page in node), so it
+runs in every cloud session and every train like FRAMECOST and INSTANT. Its rows grow with the sessions (M1 first):
+1. **The phone profile boots on the train's own tree.** `?mode=garage` plus the studio and the touch UI on the five
+   validated builds: 0 page errors, no world step ran, 0 island / world / shed / crew bytes.
+2. **Same aeroplane by construction.** The resolved spec's hash after the phone boot equals the desktop boot's on
+   every validated build. The phone builds the same aeroplane, not an approximation.
+3. **Every desktop row is reachable on the phone.** Every row in the part table renders in the touch renderer at some
+   tier, and none is desktop-only. A new row with no `tier` lands in "more" and the gate prints it as a reminder.
+   Rows hidden by design (bench instruments: `subsurf`, G106.1) are named in one exemption list.
+4. **The edit path is the desktop's.** GATE INSTANT's rows driven through the touch renderer: knob drag → ticks →
+   release equals the long-way build, byte for byte (the same fingerprint).
+5. **The hand-off round-trips.** A phone build → `#build=` link → desktop import gives the same spec (GATE SHARE's
+   rows, from the phone profile).
+6. **Budgets, ratcheted like FRAMECOST.** In the studio: heap after GC, bytes read, the frame's draws and triangles,
+   0 shadow passes. A train that grows them past the ratchet fails, the same way a desktop frame-cost regression does.
+7. **No device branches** (the lint row above).
+
+A train is green only with GATE MOBILE green. The phone is then not a port to keep up: it is the desktop trunk, run
+under a profile and checked at every release.
+
+**6.3 What stays per form factor (and is allowed to).** The chrome around the rows:
+- **desktop:** three columns, the ribbon, the icon rail
+- **phone:** chips, sheet, view rail, bottom bar
+- **both:** the pixel ratio and the gestures (§2.8)
+
+This chrome is small, it renders the same descriptors, and GATE MOBILE row 3 keeps it honest: a part the phone's
+chrome cannot reach fails the train.
+
+---
+
+## 7. FILES OF THIS STUDY
 
 - `futureDesigns/mobile-garage/`:
   - mock-ups: `index.html`, `portrait.html`, `landscape.html`, `handoff.html`, `rowmodel.html`, `desktop.html` (the tree and the rail, R24)
@@ -566,8 +684,9 @@ numbers.
   - `mock.css` and a real QR: `qr_patch20.svg`
 - `tools/perf/mobile_share_size.js`: the build on the wire (node) → `reports/evidence/MOBILE-GARAGE/share_size.json`,
   `share_link_example.txt`.
-- `tools/perf/mobile_garage_node.js`: full vs garage-only in the page in node (boot steps, bytes, heap, drags) →
-  `node_<mode>_<build>.json`.
+- `tools/perf/mobile_garage_node.js`: full vs garage-only in the page in node (boot steps, bytes, heap, drags, one
+  frame's draws and the scene's meshes; `--census` lists every file read; `--studio-proxy` 404s the shed's assets) →
+  `node_<mode>_<build>.json`, `node_census_*.json`, `node_scene_*.json`.
 - `tools/perf/mobile_garage_swift.js`: the same in headless Chromium on SwiftShader (heap, wire bytes, a still) →
   `swift_<mode>_<build>.json/.jpg`.
 - `tools/perf/mobile_phone_cdp.js`: the S20 FE rig (A0, adb + CDP): boot, drag, frames, a 10-min soak.

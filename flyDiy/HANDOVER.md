@@ -71850,12 +71850,16 @@ futureDesigns/ and reports/.
    - node: boot ~300 s → 33-37 s, 230 → 43-47 MB read, heap + ArrayBuffers after GC 2.86-2.91 GB → 0.48-0.53 GB,
      0 errors, the drags identical;
    - SwiftShader at 412 × 915: 215 → 58 MB on the wire, JS heap peak 1,530 → 365 MB (the S20 FE's budget is 700).
-2. **The phone shed** (M2): no props (6,402 draws vs a budget of 300), no transmission glass, crew meshes hidden, no
-   shadow maps, pixel ratio ≤ 1.5, audio lazy.
+2. **No garage on a phone: a BLACK STUDIO** (the user's ruling, M2). The aeroplane in a pool of light on black,
+   key / fill / rim without shadow maps, a procedural studio PMREM, nothing else.
+   - Node, a crude proxy (the shed's assets 404, the shell kept): media 42.6 → 3.2 MB, memory 441 → 323 MB.
+   - One frame is 7,021 draws / 6.13 M triangles today: 1,423 meshes drawn ~5× by the shed's shadow lamps and glass
+     pass. A studio is ≈ the aeroplane's ~545 draws.
+   - The studio is also offered on the desktop as a mood, so it is tested every release.
 3. **One row model, two renderers** (decide INSIDE the slider revamp, now). Today's tuple gains `unit`, `group`,
    `tier`, `fine`, `detents`, `help`. Two renderers, desk and touch, emit the same tick / release GARAGE-INSTANT keys
    on. Undo, one entry per gesture.
-   THE USER'S RULINGS (4 Oct):
+   THE USER'S RULINGS (4 Oct; the studio and the one trunk are under 2. and ONE TRUNK below):
    - on touch **only the knob moves a slider**; the scale scrolls the list (R4-R5, checked on the prototype with CDP
      touch);
    - **the parts tree holds only the aeroplane**; the reference plane and the hangar move to the rail (R24).
@@ -71867,8 +71871,23 @@ futureDesigns/ and reports/.
 5. **The phone does not fly.** The bench check (the shakedown needs no world) is shown, and the plaque reads "not yet
    flown".
 
-**THE PLAN** (G-blocks suggested, A0 assigns): M3 ROW-MODEL inside the revamp (first) → M1 GARAGE-MODE → M5 SHARE →
-M2 PHONE-SHED → M4 TOUCH-UI → M6 PHONE-SOAK (+ an iPhone).
+**ONE TRUNK** (the user's ruling, a warning to maintenance: "the mobile experience has to derive entirely from the
+desktop trunk, automatically at each release"; doc §6).
+- The same index.html, build and deploy; no mobile page, bundle or branch.
+- The phone is a subtract-only PROFILE (a table beside GFX.PRESETS) over the same rows, part table, design tiles and
+  editor pipeline.
+- No device branches outside welcome.js.
+- **GATE MOBILE** (node) in the release battery checks:
+  - the phone profile boots the five validated builds with 0 errors and no world;
+  - the same resolved-spec hash as the desktop;
+  - every desktop row is reachable in the touch renderer;
+  - GATE INSTANT is exact through the touch renderer;
+  - the share link round-trips;
+  - the studio's heap, bytes and frame are ratcheted;
+  - no UA / width tests outside welcome.js and the profile table.
+
+**THE PLAN** (G-blocks suggested, A0 assigns): M3 ROW-MODEL inside the revamp (first) → M1 GARAGE-MODE (+ the
+PROFILES table and GATE MOBILE's skeleton) → M5 SHARE → M2 PHONE-STUDIO → M4 TOUCH-UI → M6 PHONE-SOAK (+ an iPhone).
 
 **FOR A0 ON THE BOX:** `node tools/perf/mobile_phone_cdp.js --url "http://localhost:8700/flyDiy/index.html?gfx=potato"
 --build cub` (after `adb reverse tcp:8700 tcp:8700`). It measures boot (the heap per step, Chrome's PSS, a kill caught
