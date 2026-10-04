@@ -1,4 +1,4 @@
-// GENERATED FILE - DO NOT EDIT. Written by tools/build.js (LOADING S4). Build b2a2b5452046.
+// GENERATED FILE - DO NOT EDIT. Written by tools/build.js (LOADING S4). Build f5cd36beab5d.
 // The media cache: cache-first for media/ (content-hashed, immutable), nothing else.
 // The world payloads and mesh bins this build asks for; anything else under
 // media/world/ or media/geo/ is swept on activate (a superseded world is ~35 MB,
@@ -24,8 +24,30 @@ self.addEventListener('fetch', e => {
   if (req.method !== 'GET') return;
   let u; try { u = new URL(req.url); } catch (err) { return; }
   if (u.origin !== self.location.origin || u.pathname.indexOf('/media/') < 0) return;
+  // G1673: an <audio> element asks by Range (the music, media/audio/): the cache cannot hold a 206, so the whole
+  // file is fetched once (no Range), cached, and every range is cut from it
+  const range = req.headers.get('range');
+  if (range) { e.respondWith(ranged(req, range)); return; }
   e.respondWith(caches.open(CACHE).then(c => c.match(req).then(hit => hit || fetch(req).then(res => {
     if (res && res.ok) c.put(req, res.clone()).catch(() => {});
     return res;
   }))));
 });
+async function ranged(req, range) {
+  try {
+    const c = await caches.open(CACHE);
+    let res = await c.match(req.url);
+    if (!res) {
+      res = await fetch(req.url);
+      if (!res || res.status !== 200) return fetch(req);
+      c.put(req.url, res.clone()).catch(() => {});
+    }
+    const buf = await res.arrayBuffer(), n = buf.byteLength, m = /bytes=(\d*)-(\d*)/.exec(range) || [];
+    let a = m[1] ? +m[1] : 0, b = m[2] ? +m[2] : n - 1;
+    if (!m[1] && m[2]) { a = Math.max(0, n - +m[2]); b = n - 1; }
+    if (a >= n) return new Response(null, { status: 416, headers: { 'Content-Range': 'bytes */' + n } });
+    b = Math.min(b, n - 1);
+    return new Response(buf.slice(a, b + 1), { status: 206, headers: { 'Content-Range': 'bytes ' + a + '-' + b + '/' + n,
+      'Content-Length': String(b - a + 1), 'Content-Type': res.headers.get('Content-Type') || 'audio/mpeg', 'Accept-Ranges': 'bytes' } });
+  } catch (err) { return fetch(req); }
+}

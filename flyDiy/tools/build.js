@@ -461,11 +461,17 @@ const MANIFEST = {
               'audio/audio_params.js', 'audio/audio.js', 'audio/engine_config.js', 'audio/src_engine.js',
               // G1620 (SND-PROP): the prop's config and its source (after src_engine: it hooks the engine voices)
               'audio/prop_config.js', 'audio/src_prop.js',
-              'audio/music.js',
+              // G1675 (SND-RADIO): Radio Jolene's talk (the breaks from the game, the voice), before the player that speaks it
+              'audio/radio_talk.js', 'audio/music.js',
               // G1630-G1633 (SND-AIRFRAME): the airframe's numbers, the sample slots, the airframe source
               'audio/airframe_model.js', 'audio/samples.js', 'audio/src_airframe.js',
+              // G1640-G1646 (SND-SPACE): the space's numbers, then the space (the cabin, the panners, the shed's room)
+              'audio/space_config.js', 'audio/space.js',
               // G1650-G1651 (SND-AMB-1): the ambience's numbers and the bed mixer (after samples.js: it loads through its 'amb' class)
               'audio/ambience_model.js', 'audio/ambience.js',
+              // G1662 (SND-AMB-2): the emitters' numbers and the emitters (after the ambience: they read its features)
+              'audio/emitters_model.js', 'audio/emitters.js',
+              'audio/voice_model.js', 'audio/voice.js',   // G1627 (SND-VOICE): Radio Jolene's words and their player
               // G999: the world's composition, run by the promote in a task of its own ahead of app.js's evaluation
               'world_boot.js', 'app.js',
               'dev_panel.js'],   // (the WORLD rail, world_rail.js, rides the world pack above - G582)
@@ -498,6 +504,9 @@ const MANIFEST = {
     // THE SHOULDER (G325): the sill trim, pure, reached by cageSheet at call
     // time through the SHOULDER_GEN global — before the generator too.
     '_cage_page5.js', '_knife_gen.js', '_shoulder_gen.js', '_cage_gen.js', '_cage_char.js',
+    // THE POST CHAIN, FLAT (G1441): after CAGE_PAGE exists, before the first layer chains PAGE.post - the
+    // registrations, the drag preview's skips and the layers' recorded inputs (_cage_chain.js)
+    '_cage_chain.js',
     '_cage_crew.js',
     // THE INSTRUMENTS (the panel arc, session 2): the fit as a list, the
     // Instruments part's column and the join's `systems` seam; its geometry
@@ -736,6 +745,14 @@ function buildViewer(coreBody) {
   // 60 fps all the way (rollout_perf A/B). ?raster=0 or localStorage flydiy.raster = '0' turns it off; node (the gates)
   // keeps the analytic path unless FLYDIY_GROUND_RASTER=1 (GATE PREMRASTER holds the two within tolerance)
   window.FLYDIY_GROUND_RASTER = rq !== '0';
+  // (G1430, TOWN-COOK) THE VARIANT THIS PAGE WILL COMPOSE - 'town' (Metlakatla on) or 'default' (cut) - read here, before
+  // the world boots, by world_boot.js TOWN's own rule (?town=1|all / ?town=0 in the URL, else the GRAPHICS 'town' row:
+  // 'nearby' off, anything else on; gfx_settings.js reads a pref saved before pv 7 with 'nearby' as the new default), so the
+  // raster cells fetched below are this variant's alone: a town-off page never pays the town's cells
+  var tq = new URLSearchParams(location.search).get('town'), townOn = true;
+  if (tq !== null) townOn = tq === '1' || tq === 'all';
+  else { try { var gp = JSON.parse(localStorage.getItem('flydiy.gfx') || 'null'); townOn = !(gp && gp.town === 'nearby' && gp.pv >= 7); } catch (e) {} }
+  window.FLYDIY_TOWN_VARIANT = townOn ? 'town' : 'default';
   // (G1091, POLISH-2) THE TREES BY THE RUNWAYS: ?rwytrees=today|map|mapx (or localStorage flydiy.rwytrees) - read by
   // the premises' composition (27_premises.js rwyTreesMode) for a data island; anything else is 'today', the default
   var rt = new URLSearchParams(location.search).get('rwytrees');
@@ -810,7 +827,10 @@ function buildViewer(coreBody) {
               .catch(function (e) { console.warn('flyDiy: the cooked tallies (' + vn + ') did not load (' + (e && e.message) + '); the live ones dress'); }));
           });
         }
-        if (window.FLYDIY_GROUND_RASTER && pi.raster) jobs = jobs.concat(pi.raster.cells.map(function (c) {
+        // (G1430) the cells of THIS page's variant alone (a cell names the variants it serves, c.in; a manifest without
+        // it, every cell)
+        var vn = window.FLYDIY_TOWN_VARIANT;
+        if (window.FLYDIY_GROUND_RASTER && pi.raster) jobs = jobs.concat(pi.raster.cells.filter(function (c) { return !c.in || c.in.indexOf(vn) >= 0; }).map(function (c) {
           return fetch(c.src).then(function (res) { if (!res.ok) throw new Error(c.src + ' ' + res.status); return res.arrayBuffer(); })
             .then(gz).then(function (u) { got.push({ ci: c.c[0], cj: c.c[1], sig: c.sig, bytes: u }); });
         }));
@@ -944,7 +964,7 @@ window.FLYDIY_BOOT.then(function () {
   const SFX_CAT = path.join(VIEW_DIR, 'audio', 'sfx_catalogue.json');
   const SFX = {};
   if (fs.existsSync(SFX_CAT)) for (const r of JSON.parse(fs.readFileSync(SFX_CAT, 'utf8'))) (SFX[r.key] = SFX[r.key] || []).push(r.file);
-  const CORE_SHA = `<script>window.FLYDIY_CORE_SHA='${sha(coreBody).slice(0, 12)}';window.FLYDIY_BUILD='${BUILD_ID}';window.FLYDIY_AUDIO_SRC=${JSON.stringify(AUDIO_SRC)};window.FLYDIY_MUSIC=${MUSIC};window.FLYDIY_AUDIO_MEDIA=${JSON.stringify(SFX).replace(/</g, '\\u003c')}</script>`;
+  const CORE_SHA = `<script>window.FLYDIY_CORE_SHA='${sha(coreBody).slice(0, 12)}';window.FLYDIY_BUILD='${BUILD_ID}';window.FLYDIY_AUDIO_SRC=${JSON.stringify(AUDIO_SRC)};window.FLYDIY_MUSIC=${MUSIC};window.FLYDIY_AUDIO_MEDIA=${JSON.stringify(SFX).replace(/</g, '\\u003c')};window.FLYDIY_VOICE=${fs.existsSync(path.join(VIEW_DIR, 'audio', 'voice_catalogue.json')) ? JSON.stringify(JSON.parse(fs.readFileSync(path.join(VIEW_DIR, 'audio', 'voice_catalogue.json'), 'utf8'))).replace(/</g, '\\u003c') : '{"clips":{}}'}</script>`;   // G1627: Radio Jolene's voice catalogue, inlined like the music's
   fs.writeFileSync(path.join(ROOT, 'version.json'), JSON.stringify({ build: BUILD_ID, date: new Date().toISOString() }) + '\n');
   // THE MEDIA CACHE'S WORKER (LOADING S4): media/ only, cache-first - every file
   // there is named by its content hash, so a hit can never be stale; scripts,

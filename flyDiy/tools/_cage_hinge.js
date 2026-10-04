@@ -651,6 +651,7 @@ const dispose = o => {
 const prevPost = PAGE.post;
 PAGE.post = ctx => {
   if (prevPost) prevPost(ctx);
+  if (ctx.defer) { if (group) group.visible = false; return; }   // G1303: a drag tick - built when the hand stops
   const { scene, mesh, P, stat } = ctx;
   dispose(group); group = null;
   for (const o of owned.splice(0)) dispose(o);

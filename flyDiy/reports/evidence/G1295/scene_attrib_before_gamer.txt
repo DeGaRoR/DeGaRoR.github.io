@@ -1,0 +1,40 @@
+
+== cub | garage | 300 frames, 30.0 fps | > 1.5x cap 0 % | <20 0 % · 20-40 100 % · 40-60 0 % · 60-100 0 % · 100-250 0 % · 250-1000 0 % · >1000 0 % | p99 33.5, worst 33.7
+   events {"gc":2}
+
+== cub | taxi chase @HOME | 1200 frames, 30.0 fps | > 1.5x cap 0 % | <20 0.25 % · 20-40 100 % · 40-60 0.17 % · 60-100 0 % · 100-250 0 % · 250-1000 0 % · >1000 0 % | p99 33.5, worst 50
+   events {"gc":1}
+
+== cub | taxi cockpit @HOME | 300 frames, 30.0 fps | > 1.5x cap 0 % | <20 0 % · 20-40 100 % · 40-60 0 % · 60-100 0 % · 100-250 0 % · 250-1000 0 % · >1000 0 % | p99 33.5, worst 33.5
+   events {}
+
+== cub | low pass @HOME | 450 frames, 30.0 fps | > 1.5x cap 0 % | <20 0 % · 20-40 100 % · 40-60 0 % · 60-100 0 % · 100-250 0 % · 250-1000 0 % · >1000 0 % | p99 33.5, worst 33.7
+   events {}
+
+== cub | taxi chase @mn_strip | 1201 frames, 30.0 fps | > 1.5x cap 0.080 % | <20 0.25 % · 20-40 100 % · 40-60 0.17 % · 60-100 0 % · 100-250 0 % · 250-1000 0 % · >1000 0 % | p99 33.5, worst 50.1
+   long frames by the PREVIOUS frame's top slot: fill 1x (38 ms)
+   events {"longtask":1}
+
+== cub | taxi cockpit @mn_strip | 300 frames, 30.0 fps | > 1.5x cap 0 % | <20 0 % · 20-40 100 % · 40-60 0 % · 60-100 0 % · 100-250 0 % · 250-1000 0 % · >1000 0 % | p99 33.5, worst 33.5
+   events {}
+
+== cub | low pass @mn_strip | 450 frames, 30.0 fps | > 1.5x cap 0.22 % | <20 0.44 % · 20-40 99 % · 40-60 0.44 % · 60-100 0 % · 100-250 0 % · 250-1000 0 % · >1000 0 % | p99 33.5, worst 50.1
+   long frames by the PREVIOUS frame's top slot: world 1x (36 ms)
+   events {"longtask":2,"linkwait":1}
+
+== floats | water taxi @SEA | 748 frames, 29.9 fps | > 1.5x cap 0.27 % | <20 0.27 % · 20-40 99 % · 40-60 0.27 % · 60-100 0.13 % · 100-250 0 % · 250-1000 0 % · >1000 0 % | p99 33.5, worst 83.4
+   long frames by the PREVIOUS frame's top slot: world 2x (46, 33 ms)
+   events {"gc":1,"longtask":3,"loaf":1}
+   LoAF scripts: 1x 77 ms FrameRequestCallback loop | 1x 31 ms TimerHandler:setTimeout @index.html
+
+fence callers (cub):
+  53x index.html:9491:52463 < sheetCheckAsync (<anonymous>:3080:39 < bakeImpostorAtlasNow (<anonymous>:3293:140 < bakeImpostorAtlas (<anonymous>:3065:21
+  6x index.html:9491:52463 < src/viewer/flown_bake.js?v=d65f120a:382:108 < src/viewer/flown_bake.js?v=d65f120a:1311:12 < src/viewer/flown_bake.js?v=d65f120a:1375:17
+  6x index.html:9491:52463 < skyFractionAsync (<anonymous>:404:14 < ask (<anonymous>:860:58 < calibrateCover (<anonymous>:866:76
+  1x index.html:9491:52463 < skyFractionAsync (<anonymous>:404:14 < ask (<anonymous>:860:58 < calibrateCover (<anonymous>:862:34
+
+fence callers (floats):
+  53x index.html:9491:52463 < sheetCheckAsync (<anonymous>:3080:39 < bakeImpostorAtlasNow (<anonymous>:3293:140 < bakeImpostorAtlas (<anonymous>:3065:21
+  12x index.html:9491:52463 < src/viewer/flown_bake.js?v=d65f120a:382:108 < src/viewer/flown_bake.js?v=d65f120a:1311:12 < src/viewer/flown_bake.js?v=d65f120a:1375:17
+  6x index.html:9491:52463 < skyFractionAsync (<anonymous>:404:14 < ask (<anonymous>:860:58 < calibrateCover (<anonymous>:866:76
+  1x index.html:9491:52463 < skyFractionAsync (<anonymous>:404:14 < ask (<anonymous>:860:58 < calibrateCover (<anonymous>:862:34

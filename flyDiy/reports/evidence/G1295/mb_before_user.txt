@@ -1,0 +1,43 @@
+MASTER BENCHMARK  2026-10-03T23:38:21.026Z  commit 597e32e8 (build 5c1b7ba420cd)  2216x1023
+
+LOADS (s)
+  profile D:\e3bu0138 (fresh, warmed once) · GPU cache after the warm-up 10.1 MB, cub warm: navigation -> garage 11.7 MB, floats warm: navigation -> garage 13.1 MB
+  cub     warm: navigation -> garage                    49.1  links 398 (worst 3.4 s)  cache: hit
+  cub     garage -> world (first) @HOME                  9.0  (wall 9.1)  frames 29.4 fps, worst 233.4 ms, task 205 ms  links 1 (worst 0 s)
+  cub     warm: first flight                            58.2
+  cub     world -> garage @HOME                          0.3  (wall 0.4)  links 10 (worst 0.1 s)
+  cub     garage -> world @mn_strip                     31.3  (wall 31.4)  screen 22.4 s  frames 8.5 fps, worst 33.5 ms, task 876 ms  links 12 (worst 0.7 s)
+  cub     world -> garage @mn_strip                      0.2  (wall 0.3)  links 5 (worst 0 s)
+  floats  warm: navigation -> garage                    55.2  links 412 (worst 3.2 s)  cache: hit
+  floats  garage -> world (the SEA lane)                 0.0  (wall 0.2)  links 3 (worst 0.1 s)
+  floats  world -> garage                                0.3  (wall 0.4)  links 9 (worst 0.1 s)
+
+SCENES  build | scene | fps delivered | uneven | p50 / p90 / p99 / p99.9 / worst ms | >1.5x cap | >3x | >100 ms | >1 s | at 30 cap | tasks >=200 ms / >=1 s (worst)
+  cub               garage                        30    0 %  33.3 / 33.4 / 33.5 / 33.5 / 33.5     0 %      0 %   0   0  100 %   0 / 0 (0)
+  cub               taxi chase @HOME            29.7    6 %  33.3 / 33.4 / 50.1 / 100.1 / 133.3   1.4 %   0.25 %   3   0  100 %   0 / 0 (142)
+  cub               taxi cockpit @HOME            30    3 %  33.3 / 33.4 / 33.5 / 50 / 50         0 %      0 %   0   0  100 %   0 / 0 (0)
+  cub               low pass @HOME              28.9   40 %  33.3 / 50 / 66.8 / 83.4 / 83.4     6.9 %      0 %   0   0  100 %   0 / 0 (83)
+  cub               taxi chase @mn_strip        29.8    4 %  33.3 / 33.4 / 50 / 116.7 / 116.8  0.67 %   0.25 %   3   0  100 %   0 / 0 (126)
+  cub               taxi cockpit @mn_strip        30    2 %  33.3 / 33.4 / 33.5 / 50.1 / 50.1  0.33 %      0 %   0   0  100 %   0 / 0 (0)
+  cub               low pass @mn_strip            30    2 %  33.3 / 33.4 / 33.5 / 50.1 / 50.1  0.22 %      0 %   0   0  100 %   0 / 0 (62)
+  floats            water taxi @SEA             29.1    6 %  33.3 / 33.4 / 83.3 / 133.3 / 133.3   1.8 %   0.55 %   4   0  100 %   0 / 0 (144)
+
+FRAME LENGTHS  build | scene | frames per bucket: <20 | 20-40 | 40-60 | 60-100 | 100-250 | 250-1000 | >1000 ms
+  cub               garage                          0     300       0       0       0       0       0
+  cub               taxi chase @HOME               18    1146      18       2       4       0       0
+  cub               taxi cockpit @HOME              3     296       2       0       0       0       0
+  cub               low pass @HOME                 48     323      49      14       0       0       0
+  cub               taxi chase @mn_strip           12    1163      12       1       3       0       0
+  cub               taxi cockpit @mn_strip          2     298       1       0       0       0       0
+  cub               low pass @mn_strip              2     446       2       0       0       0       0
+  floats            water taxi @SEA                 7     702       8       7       5       0       0
+
+COMPARED WITH THE START OF THE RUN
+  first flight, warm (s)        cub          64 -> 58.2     x1.1 better   (A0 baseline (PLAYTEST-2026-09-26 s0.2, 3da1c82a))
+  taxi fps @HOME                cub        13.5 -> 29.7     x2.2 better   (A0 baseline (PLAYTEST-2026-09-26 s0.2, 3da1c82a))
+  taxi fps @HOME                cub       31.15 -> 29.7     WORSE   (train 11's ratchet baseline (c73886d3))
+  taxi p99 (ms)                 cub        33.5 -> 50.1     WORSE   (train 11's ratchet baseline (c73886d3))
+  taxi uneven                   cub        0.11 -> 0.056    x1.96 better   (train 11's ratchet baseline (c73886d3))
+  taxi worst frame (ms)         cub         634 -> 133.3    x4.76 better   (A0 baseline (PLAYTEST-2026-09-26 s0.2, 3da1c82a))
+  worst main-thread task (ms)   cub       17000 -> 876      x19.41 better   (A0 baseline (PLAYTEST-2026-09-26 s0.2, 3da1c82a))
+  worst main-thread task (ms)   cub        1002 -> 876      x1.14 better   (train 11's ratchet baseline (c73886d3))

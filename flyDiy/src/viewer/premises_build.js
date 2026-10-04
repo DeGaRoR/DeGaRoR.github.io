@@ -24,7 +24,7 @@
 (function () {
 const ROOT = typeof window !== 'undefined' ? window : (typeof self !== 'undefined' ? self : globalThis);
 // THE RESULT'S LAYOUT (bump it when a gen or the packed shape changes: it is part of the cache key)
-const PB_V = 1;
+const PB_V = 2;   // 2: lod 1 packed with every attribute (G1395's far town reads uv and the town shader's channels)
 
 // ---- plain data: what crosses a thread (functions, getters and the named keys dropped; typed arrays kept) ----------
 function plain(v, skip, seen) {
@@ -101,7 +101,7 @@ function packBag(bag, THREE, keep, tr) {
   if (i && tr) tr.push(i.buffer);
   return { a, i, t: bag.tris, v: bag.verts };
 }
-// `only(k)`: the bags to pack (lod 1: the ones lod1Bags keeps); `keep`: the attributes (lod 1: position + normal)
+// `only(k)`: the bags to pack (lod 1: the ones lod1Bags keeps); `keep`: the attributes (null: every one)
 function packBuilt(b, THREE, tr, only, keep) {
   if (!b) return null;
   const bags = {};
@@ -504,7 +504,6 @@ function makeBuilder(C) {
 
   // ---- a result packed for the page (the worker's side): plain data + transferable arrays ----
   // lod1Keep(k, F): the bags lod1Bags keeps (opaque standard materials) - read off THIS thread's finish
-  const LITE = new Set(['position', 'normal']);
   function pack(R, THREE, x) {
     const tr = [];
     if (!R) return { r: null, tr };
@@ -518,7 +517,10 @@ function makeBuilder(C) {
       const F = R.F;
       r.house = plain(R.house, SKIP);
       r.built = packBuilt(R.built, THREE, tr);
-      r.lod1 = R.lod1 ? packBuilt(R.lod1, THREE, tr, k => { const mt = F.MAT[k]; return !!(mt && mt.isMeshStandardMaterial && !mt.transparent); }, LITE) : null;
+      // lod 1 with EVERY attribute (train 28, G1395's follow-up): the page's lod1Bags keeps the town shader's channels (uv,
+      // aHouseAO, aHouseLit, aHouseWin - the far town rides house_tarr), so a worker lod 1 packed with position + normal
+      // alone drew another far house than the page's own build (GATE HOUSEWORKER: 84 of 137 entries differed)
+      r.lod1 = R.lod1 ? packBuilt(R.lod1, THREE, tr, k => { const mt = F.MAT[k]; return !!(mt && mt.isMeshStandardMaterial && !mt.transparent); }) : null;
       if (r.lod1) r.lod1.tris = R.lod1.stats ? R.lod1.stats.tris : 0;
       r.fin = R.fin;
       r.shape0 = shaped(r.built, F, HG.BAGS, R.house);

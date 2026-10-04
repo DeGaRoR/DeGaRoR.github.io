@@ -8,7 +8,8 @@
   "dubambient": "Dub / Ambient - laid back, instrumental",
   "roots": "Local Roots Radio - Radio Jolene, the island's community station: instrumental roots, folk, maritime, with talk (station IDs, airfield weather, marine forecast, bulletins)",
   "blues": "Blues - swamp / delta / slide, instrumental",
-  "classical": "Classical - calm piano"
+  "classical": "Classical - calm piano",
+  "mix": "All stations - every track of the six, shuffled (a virtual station: no tracks of its own)"
  },
  "items": [
   {
@@ -116,7 +117,451 @@
    ],
    "verdict": "keep",
    "note": "user: jazz section"
+  },
+  {
+   "id": 278622,
+   "station": "jazz",
+   "contexts": [
+    "garage"
+   ],
+   "verdict": "maybe",
+   "note": "Ketsa - the user: go with the 2 Ketsa"
+  },
+  {
+   "id": 279012,
+   "station": "jazz",
+   "contexts": [
+    "garage"
+   ],
+   "verdict": "maybe",
+   "note": "Ketsa - the user: go with the 2 Ketsa"
+  },
+  {
+   "id": "ia_shreveport_stomp",
+   "station": "jazz",
+   "contexts": [
+    "garage"
+   ],
+   "verdict": "keep"
+  },
+  {
+   "id": "ia_wolverine_blues",
+   "station": "jazz",
+   "contexts": [
+    "garage"
+   ],
+   "verdict": "maybe"
+  },
+  {
+   "id": 278664,
+   "station": "dubambient",
+   "contexts": [
+    "garage",
+    "cruise"
+   ],
+   "verdict": "keep"
+  },
+  {
+   "id": 278757,
+   "station": "dubambient",
+   "contexts": [
+    "garage",
+    "cruise"
+   ],
+   "verdict": "keep"
+  },
+  {
+   "id": 278845,
+   "station": "dubambient",
+   "contexts": [
+    "garage",
+    "cruise"
+   ],
+   "verdict": "keep"
+  },
+  {
+   "id": 279307,
+   "station": "classical",
+   "contexts": [
+    "garage",
+    "welcome"
+   ],
+   "verdict": "keep"
+  },
+  {
+   "id": 279308,
+   "station": "classical",
+   "contexts": [
+    "garage",
+    "welcome"
+   ],
+   "verdict": "keep"
+  },
+  {
+   "id": 279304,
+   "station": "classical",
+   "contexts": [
+    "garage",
+    "welcome"
+   ],
+   "verdict": "keep"
+  },
+  {
+   "id": "ia_goldberg_14",
+   "station": "classical",
+   "contexts": [
+    "garage",
+    "welcome"
+   ],
+   "verdict": "keep",
+   "note": "the user: all Goldberg variations are OK for the classical station"
+  },
+  {
+   "id": "ia_goldberg_20",
+   "station": "classical",
+   "contexts": [
+    "garage",
+    "welcome"
+   ],
+   "verdict": "keep",
+   "note": "the user: all Goldberg variations are OK for the classical station"
+  },
+  {
+   "id": "ia_goldberg_25",
+   "station": "classical",
+   "contexts": [
+    "garage",
+    "welcome"
+   ],
+   "verdict": "keep",
+   "note": "the user: all Goldberg variations are OK for the classical station"
+  },
+  {
+   "id": "ia_goldberg_27",
+   "station": "classical",
+   "contexts": [
+    "garage",
+    "welcome"
+   ],
+   "verdict": "keep",
+   "note": "the user: all Goldberg variations are OK for the classical station"
+  },
+  {
+   "id": "ia_goldberg_31",
+   "station": "classical",
+   "contexts": [
+    "garage",
+    "welcome"
+   ],
+   "verdict": "keep",
+   "note": "the user: all Goldberg variations are OK for the classical station"
+  },
+  {
+   "id": "ia_goldberg_01",
+   "station": "classical",
+   "contexts": [
+    "garage",
+    "welcome"
+   ],
+   "verdict": "keep",
+   "note": "the user: all Goldberg variations are OK for the classical station"
+  },
+  {
+   "id": 278391,
+   "station": "roots",
+   "contexts": [
+    "garage",
+    "cruise"
+   ],
+   "verdict": "keep"
+  },
+  {
+   "id": 279039,
+   "station": "roots",
+   "contexts": [
+    "garage",
+    "cruise"
+   ],
+   "verdict": "keep"
+  },
+  {
+   "id": 278388,
+   "station": "roots",
+   "contexts": [
+    "garage"
+   ],
+   "verdict": "maybe"
+  },
+  {
+   "id": 237449,
+   "station": "roots",
+   "contexts": [
+    "garage",
+    "cruise"
+   ],
+   "verdict": "keep",
+   "note": "radio bench: music good"
+  },
+  {
+   "id": 248055,
+   "station": "roots",
+   "contexts": [
+    "garage",
+    "cruise"
+   ],
+   "verdict": "keep",
+   "note": "radio bench: music good"
+  },
+  {
+   "id": 248226,
+   "station": "roots",
+   "contexts": [
+    "garage",
+    "cruise"
+   ],
+   "verdict": "keep",
+   "note": "radio bench: music good"
+  },
+  {
+   "id": 256748,
+   "station": "roots",
+   "contexts": [
+    "garage",
+    "cruise"
+   ],
+   "verdict": "keep",
+   "note": "radio bench: music good"
+  },
+  {
+   "id": "273704p1",
+   "station": "blues",
+   "contexts": [
+    "garage"
+   ],
+   "verdict": "keep",
+   "note": "radio bench: music good"
+  },
+  {
+   "id": "273704p3",
+   "station": "blues",
+   "contexts": [
+    "garage"
+   ],
+   "verdict": "keep",
+   "note": "radio bench: music good"
+  },
+  {
+   "id": "271999p2",
+   "station": "blues",
+   "contexts": [
+    "garage"
+   ],
+   "verdict": "keep",
+   "note": "radio bench: music good"
+  },
+  {
+   "id": 277192,
+   "station": "jazz",
+   "contexts": [
+    "garage",
+    "cruise"
+   ],
+   "verdict": "keep"
+  },
+  {
+   "id": 279132,
+   "station": "jazz",
+   "contexts": [
+    "garage",
+    "cruise"
+   ],
+   "verdict": "keep",
+   "note": "the user also tagged it Lo-fi / Hip-hop: it may play there in the mix"
+  },
+  {
+   "id": 279302,
+   "station": "jazz",
+   "contexts": [
+    "garage"
+   ],
+   "verdict": "keep"
+  },
+  {
+   "id": 277908,
+   "station": "dubambient",
+   "contexts": [
+    "garage",
+    "cruise"
+   ],
+   "verdict": "maybe",
+   "note": "the user: very ambient more than jazz"
+  },
+  {
+   "id": 233918,
+   "station": "roots",
+   "contexts": [
+    "garage",
+    "cruise"
+   ],
+   "verdict": "keep",
+   "pick": "coordinator",
+   "note": "gap fill, unheard: the user asked for at least 10, ideally 20 tracks on Radio Jolene (2026-10-04); same artists as their radio-bench keeps"
+  },
+  {
+   "id": 237242,
+   "station": "roots",
+   "contexts": [
+    "garage",
+    "cruise"
+   ],
+   "verdict": "keep",
+   "pick": "coordinator",
+   "note": "gap fill, unheard: the user asked for at least 10, ideally 20 tracks on Radio Jolene (2026-10-04); same artists as their radio-bench keeps"
+  },
+  {
+   "id": 237915,
+   "station": "roots",
+   "contexts": [
+    "garage",
+    "cruise"
+   ],
+   "verdict": "keep",
+   "pick": "coordinator",
+   "note": "gap fill, unheard: the user asked for at least 10, ideally 20 tracks on Radio Jolene (2026-10-04); same artists as their radio-bench keeps"
+  },
+  {
+   "id": 246044,
+   "station": "roots",
+   "contexts": [
+    "garage",
+    "cruise"
+   ],
+   "verdict": "keep",
+   "pick": "coordinator",
+   "note": "gap fill, unheard: the user asked for at least 10, ideally 20 tracks on Radio Jolene (2026-10-04); same artists as their radio-bench keeps"
+  },
+  {
+   "id": 250186,
+   "station": "roots",
+   "contexts": [
+    "garage",
+    "cruise"
+   ],
+   "verdict": "keep",
+   "pick": "coordinator",
+   "note": "gap fill, unheard: the user asked for at least 10, ideally 20 tracks on Radio Jolene (2026-10-04); same artists as their radio-bench keeps"
+  },
+  {
+   "id": 252236,
+   "station": "roots",
+   "contexts": [
+    "garage",
+    "cruise"
+   ],
+   "verdict": "keep",
+   "pick": "coordinator",
+   "note": "gap fill, unheard: the user asked for at least 10, ideally 20 tracks on Radio Jolene (2026-10-04); same artists as their radio-bench keeps"
+  },
+  {
+   "id": 278389,
+   "station": "roots",
+   "contexts": [
+    "garage",
+    "cruise"
+   ],
+   "verdict": "keep",
+   "pick": "coordinator",
+   "note": "gap fill, unheard: the user asked for at least 10, ideally 20 tracks on Radio Jolene (2026-10-04); same artists as their radio-bench keeps"
+  },
+  {
+   "id": 278390,
+   "station": "roots",
+   "contexts": [
+    "garage",
+    "cruise"
+   ],
+   "verdict": "keep",
+   "pick": "coordinator",
+   "note": "gap fill, unheard: the user asked for at least 10, ideally 20 tracks on Radio Jolene (2026-10-04); same artists as their radio-bench keeps"
+  },
+  {
+   "id": 278392,
+   "station": "roots",
+   "contexts": [
+    "garage",
+    "cruise"
+   ],
+   "verdict": "keep",
+   "pick": "coordinator",
+   "note": "gap fill, unheard: the user asked for at least 10, ideally 20 tracks on Radio Jolene (2026-10-04); same artists as their radio-bench keeps"
+  },
+  {
+   "id": 278394,
+   "station": "roots",
+   "contexts": [
+    "garage",
+    "cruise"
+   ],
+   "verdict": "keep",
+   "pick": "coordinator",
+   "note": "gap fill, unheard: the user asked for at least 10, ideally 20 tracks on Radio Jolene (2026-10-04); same artists as their radio-bench keeps"
+  },
+  {
+   "id": 278395,
+   "station": "roots",
+   "contexts": [
+    "garage",
+    "cruise"
+   ],
+   "verdict": "keep",
+   "pick": "coordinator",
+   "note": "gap fill, unheard: the user asked for at least 10, ideally 20 tracks on Radio Jolene (2026-10-04); same artists as their radio-bench keeps"
+  },
+  {
+   "id": 278396,
+   "station": "roots",
+   "contexts": [
+    "garage",
+    "cruise"
+   ],
+   "verdict": "keep",
+   "pick": "coordinator",
+   "note": "gap fill, unheard: the user asked for at least 10, ideally 20 tracks on Radio Jolene (2026-10-04); same artists as their radio-bench keeps"
+  },
+  {
+   "id": 278397,
+   "station": "roots",
+   "contexts": [
+    "garage",
+    "cruise"
+   ],
+   "verdict": "keep",
+   "pick": "coordinator",
+   "note": "gap fill, unheard: the user asked for at least 10, ideally 20 tracks on Radio Jolene (2026-10-04); same artists as their radio-bench keeps"
+  },
+  {
+   "id": 278398,
+   "station": "roots",
+   "contexts": [
+    "garage",
+    "cruise"
+   ],
+   "verdict": "keep",
+   "pick": "coordinator",
+   "note": "gap fill, unheard: the user asked for at least 10, ideally 20 tracks on Radio Jolene (2026-10-04); same artists as their radio-bench keeps"
+  },
+  {
+   "id": 278399,
+   "station": "roots",
+   "contexts": [
+    "garage",
+    "cruise"
+   ],
+   "verdict": "keep",
+   "pick": "coordinator",
+   "note": "gap fill, unheard: the user asked for at least 10, ideally 20 tracks on Radio Jolene (2026-10-04); same artists as their radio-bench keeps"
   }
  ],
- "stationsRule": "the user, 2026-10-04: six stations - Jazz, Lo-fi/Hip-hop, Dub/Ambient, Local roots radio, Blues, Classical; all calm; PURE INSTRUMENTAL (no lyrics)"
+ "stationsRule": "the user, 2026-10-04: six stations - Jazz, Lo-fi/Hip-hop, Dub/Ambient, Local roots radio, Blues, Classical; all calm; PURE INSTRUMENTAL (no lyrics)",
+ "classicalTrim": "2026-10-04, the user: trim the classical station (no re-encoding): 3 piano + 6 Goldberg (Aria, Var 13, 19, 24, 26, Aria da capo); the rest of the Goldberg stays whitelisted, not shipped"
 }

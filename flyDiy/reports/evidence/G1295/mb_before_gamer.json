@@ -1,0 +1,1029 @@
+{
+ "meta": {
+  "date": "2026-10-03T23:31:28.983Z",
+  "commit": "597e32e8",
+  "build": "5c1b7ba420cd",
+  "size": [
+   2216,
+   1023
+  ],
+  "secs": {
+   "garage": 10,
+   "taxi": 40,
+   "cockpit": 10,
+   "pass": 15,
+   "water": 25
+  },
+  "builds": [
+   "cub"
+  ],
+  "places": [
+   {
+    "id": "w2",
+    "name": "Jolene AFB 02/20",
+    "kind": "strip",
+    "x": 584,
+    "z": -94,
+    "hdg": 1.9897,
+    "len": 1835,
+    "elev": 28.2
+   },
+   {
+    "id": "HOME",
+    "name": "Jolene AFB 13/31",
+    "kind": "strip",
+    "x": -301,
+    "z": 221,
+    "hdg": 0.7156,
+    "len": 2325,
+    "elev": 30.6
+   },
+   {
+    "id": "w3",
+    "name": "Tamgas Hill Strip",
+    "kind": "strip",
+    "x": -800,
+    "z": -2400,
+    "hdg": 2.8798,
+    "len": 520,
+    "elev": 19.4
+   },
+   {
+    "id": "SEA",
+    "name": "Annette Dock",
+    "kind": "water",
+    "x": 360.5,
+    "z": -3661,
+    "hdg": -2.3737,
+    "len": 1500,
+    "elev": 0
+   },
+   {
+    "id": "mn_strip",
+    "name": "Jumbo Mine Street",
+    "kind": "strip",
+    "x": 7249.7,
+    "z": -15429.4,
+    "hdg": -1.6581,
+    "len": 250,
+    "elev": 346.8
+   },
+   {
+    "id": "nv_strip",
+    "name": "East Point Clearing",
+    "kind": "strip",
+    "x": 10030,
+    "z": -11660,
+    "hdg": 1.8326,
+    "len": 150,
+    "elev": 20.4
+   },
+   {
+    "id": "tw_ski",
+    "name": "Skyline Altiport",
+    "kind": "strip",
+    "x": 257,
+    "z": -7707.5,
+    "hdg": -1.0472,
+    "len": 380,
+    "elev": 708.6
+   }
+  ]
+ },
+ "loads": [
+  {
+   "build": "cub",
+   "load": "warm: navigation -> garage",
+   "sec": 45.7,
+   "state": "ready",
+   "links": {
+    "n": 393,
+    "pending": 2,
+    "sumS": 182.8,
+    "worstS": 3.3,
+    "over5s": 0
+   },
+   "cache": {
+    "gpuCache": 11.6,
+    "grShader": 4.9
+   },
+   "cacheVerdict": "hit"
+  },
+  {
+   "build": "cub",
+   "load": "garage -> world (first) @HOME",
+   "kind": "rollout",
+   "pressed": "bGo",
+   "tripMs": 9036,
+   "wallSec": 9.1,
+   "ran": [],
+   "anim": "played",
+   "frames": {
+    "frames": 268,
+    "p90": 33.4,
+    "p999": 233.5,
+    "over15": 0.0075,
+    "over3x": 0.0037,
+    "over1s": 0,
+    "dist": {
+     "buckets": [
+      [
+       "<20",
+       2
+      ],
+      [
+       "20-40",
+       263
+      ],
+      [
+       "40-60",
+       2
+      ],
+      [
+       "60-100",
+       0
+      ],
+      [
+       "100-250",
+       1
+      ],
+      [
+       "250-1000",
+       0
+      ],
+      [
+       ">1000",
+       0
+      ]
+     ],
+     "over15n": 2,
+     "over3xn": 1
+    },
+    "fps": 29.3,
+    "uneven": 0.022,
+    "p50": 33.3,
+    "p99": 50,
+    "worst": 233.5,
+    "over100": 1,
+    "cap30": 1,
+    "tasks200": 1,
+    "tasks1s": 0,
+    "taskWorst": 231,
+    "onGround": 1,
+    "screenS": 0
+   },
+   "links": {
+    "n": 1,
+    "pending": 0,
+    "sumS": 0,
+    "worstS": 0,
+    "over5s": 0
+   },
+   "place": "HOME"
+  },
+  {
+   "build": "cub",
+   "load": "warm: first flight",
+   "sec": 54.8
+  },
+  {
+   "build": "cub",
+   "load": "world -> garage @HOME",
+   "kind": "rollin",
+   "pressed": "ok",
+   "tripMs": 277,
+   "wallSec": 0.4,
+   "ran": [
+    "shed",
+    "board",
+    "frames"
+   ],
+   "anim": null,
+   "frames": null,
+   "links": {
+    "n": 9,
+    "pending": 2,
+    "sumS": 0.4,
+    "worstS": 0.1,
+    "over5s": 0
+   },
+   "place": "HOME"
+  },
+  {
+   "build": "cub",
+   "load": "garage -> world @mn_strip",
+   "kind": "rollout",
+   "pressed": "edRoll",
+   "tripMs": 24124,
+   "wallSec": 24.2,
+   "ran": [
+    "town",
+    "parking",
+    "ring",
+    "settle",
+    "images",
+    "upload",
+    "worldCompile",
+    "frames"
+   ],
+   "anim": "played",
+   "frames": {
+    "frames": 266,
+    "p90": 33.4,
+    "p999": 33.7,
+    "over15": 0,
+    "over3x": 0,
+    "over1s": 0,
+    "dist": {
+     "buckets": [
+      [
+       "<20",
+       0
+      ],
+      [
+       "20-40",
+       266
+      ],
+      [
+       "40-60",
+       0
+      ],
+      [
+       "60-100",
+       0
+      ],
+      [
+       "100-250",
+       0
+      ],
+      [
+       "250-1000",
+       0
+      ],
+      [
+       ">1000",
+       0
+      ]
+     ],
+     "over15n": 0,
+     "over3xn": 0
+    },
+    "fps": 11,
+    "uneven": 0,
+    "p50": 33.3,
+    "p99": 33.5,
+    "worst": 33.7,
+    "over100": 0,
+    "cap30": 1,
+    "tasks200": 0,
+    "tasks1s": 0,
+    "taskWorst": 112,
+    "onGround": 1,
+    "screenS": 15.3
+   },
+   "links": {
+    "n": 12,
+    "pending": 0,
+    "sumS": 3.4,
+    "worstS": 0.6,
+    "over5s": 0
+   },
+   "place": "mn_strip"
+  },
+  {
+   "build": "cub",
+   "load": "world -> garage @mn_strip",
+   "kind": "rollin",
+   "pressed": "ok",
+   "tripMs": 212,
+   "wallSec": 0.3,
+   "ran": [
+    "shed",
+    "board",
+    "frames"
+   ],
+   "anim": null,
+   "frames": null,
+   "links": {
+    "n": 4,
+    "pending": 3,
+    "sumS": 0,
+    "worstS": 0,
+    "over5s": 0
+   },
+   "place": "mn_strip"
+  },
+  {
+   "build": "floats",
+   "load": "warm: navigation -> garage",
+   "sec": 53.5,
+   "state": "ready",
+   "links": {
+    "n": 408,
+    "pending": 3,
+    "sumS": 154.1,
+    "worstS": 3.2,
+    "over5s": 0
+   },
+   "cache": {
+    "gpuCache": 13.2,
+    "grShader": 4.9
+   },
+   "cacheVerdict": "hit"
+  },
+  {
+   "build": "floats",
+   "load": "garage -> world (the SEA lane)",
+   "kind": "rollout",
+   "pressed": "bGo",
+   "tripMs": 21,
+   "wallSec": 0.2,
+   "ran": [],
+   "anim": "refused: no wheels to roll on (floats)",
+   "frames": null,
+   "links": {
+    "n": 3,
+    "pending": 0,
+    "sumS": 0.2,
+    "worstS": 0.1,
+    "over5s": 0
+   }
+  },
+  {
+   "build": "floats",
+   "load": "world -> garage",
+   "kind": "rollin",
+   "pressed": "ok",
+   "tripMs": 277,
+   "wallSec": 0.4,
+   "ran": [
+    "shed",
+    "board",
+    "frames"
+   ],
+   "anim": null,
+   "frames": {
+    "frames": 5,
+    "p90": 99.9,
+    "p999": 99.9,
+    "over15": 0.2,
+    "over3x": 0,
+    "over1s": 0,
+    "dist": {
+     "buckets": [
+      [
+       "<20",
+       1
+      ],
+      [
+       "20-40",
+       3
+      ],
+      [
+       "40-60",
+       0
+      ],
+      [
+       "60-100",
+       1
+      ],
+      [
+       "100-250",
+       0
+      ],
+      [
+       "250-1000",
+       0
+      ],
+      [
+       ">1000",
+       0
+      ]
+     ],
+     "over15n": 1,
+     "over3xn": 0
+    },
+    "fps": 12,
+    "uneven": 0.75,
+    "p50": 33.4,
+    "p99": 99.9,
+    "worst": 99.9,
+    "over100": 0,
+    "cap30": 1,
+    "tasks200": 0,
+    "tasks1s": 0,
+    "taskWorst": 78,
+    "onGround": 0,
+    "screenS": 0.2
+   },
+   "links": {
+    "n": 9,
+    "pending": 3,
+    "sumS": 0.4,
+    "worstS": 0.1,
+    "over5s": 0
+   }
+  }
+ ],
+ "scenes": [
+  {
+   "build": "cub",
+   "scene": "garage",
+   "sec": 10,
+   "t0": 47249,
+   "t1": 57261,
+   "frames": 300,
+   "p90": 33.4,
+   "p999": 33.7,
+   "over15": 0,
+   "over3x": 0,
+   "over1s": 0,
+   "dist": {
+    "buckets": [
+     [
+      "<20",
+      0
+     ],
+     [
+      "20-40",
+      300
+     ],
+     [
+      "40-60",
+      0
+     ],
+     [
+      "60-100",
+      0
+     ],
+     [
+      "100-250",
+      0
+     ],
+     [
+      "250-1000",
+      0
+     ],
+     [
+      ">1000",
+      0
+     ]
+    ],
+    "over15n": 0,
+    "over3xn": 0
+   },
+   "fps": 30,
+   "uneven": 0,
+   "p50": 33.3,
+   "p99": 33.5,
+   "worst": 33.7,
+   "over100": 0,
+   "cap30": 1,
+   "tasks200": 0,
+   "tasks1s": 0,
+   "taskWorst": 0,
+   "onGround": 0,
+   "screenS": 0
+  },
+  {
+   "build": "cub",
+   "scene": "taxi chase @HOME",
+   "sec": 40,
+   "t0": 69183,
+   "t1": 109184,
+   "frames": 1200,
+   "p90": 33.4,
+   "p999": 49.9,
+   "over15": 0,
+   "over3x": 0,
+   "over1s": 0,
+   "dist": {
+    "buckets": [
+     [
+      "<20",
+      3
+     ],
+     [
+      "20-40",
+      1195
+     ],
+     [
+      "40-60",
+      2
+     ],
+     [
+      "60-100",
+      0
+     ],
+     [
+      "100-250",
+      0
+     ],
+     [
+      "250-1000",
+      0
+     ],
+     [
+      ">1000",
+      0
+     ]
+    ],
+    "over15n": 0,
+    "over3xn": 0
+   },
+   "fps": 30,
+   "uneven": 0.006,
+   "p50": 33.3,
+   "p99": 33.5,
+   "worst": 50,
+   "over100": 0,
+   "cap30": 1,
+   "tasks200": 0,
+   "tasks1s": 0,
+   "taskWorst": 0,
+   "onGround": 1,
+   "screenS": 0,
+   "place": "HOME"
+  },
+  {
+   "build": "cub",
+   "scene": "taxi cockpit @HOME",
+   "sec": 10,
+   "t0": 109189,
+   "t1": 119192,
+   "frames": 300,
+   "p90": 33.4,
+   "p999": 33.5,
+   "over15": 0,
+   "over3x": 0,
+   "over1s": 0,
+   "dist": {
+    "buckets": [
+     [
+      "<20",
+      0
+     ],
+     [
+      "20-40",
+      300
+     ],
+     [
+      "40-60",
+      0
+     ],
+     [
+      "60-100",
+      0
+     ],
+     [
+      "100-250",
+      0
+     ],
+     [
+      "250-1000",
+      0
+     ],
+     [
+      ">1000",
+      0
+     ]
+    ],
+    "over15n": 0,
+    "over3xn": 0
+   },
+   "fps": 30,
+   "uneven": 0,
+   "p50": 33.3,
+   "p99": 33.5,
+   "worst": 33.5,
+   "over100": 0,
+   "cap30": 1,
+   "tasks200": 0,
+   "tasks1s": 0,
+   "taskWorst": 0,
+   "onGround": 1,
+   "screenS": 0,
+   "place": "HOME"
+  },
+  {
+   "build": "cub",
+   "scene": "low pass @HOME",
+   "sec": 15,
+   "t0": 122212,
+   "t1": 137227,
+   "frames": 450,
+   "p90": 33.4,
+   "p999": 33.7,
+   "over15": 0,
+   "over3x": 0,
+   "over1s": 0,
+   "dist": {
+    "buckets": [
+     [
+      "<20",
+      0
+     ],
+     [
+      "20-40",
+      450
+     ],
+     [
+      "40-60",
+      0
+     ],
+     [
+      "60-100",
+      0
+     ],
+     [
+      "100-250",
+      0
+     ],
+     [
+      "250-1000",
+      0
+     ],
+     [
+      ">1000",
+      0
+     ]
+    ],
+    "over15n": 0,
+    "over3xn": 0
+   },
+   "fps": 30,
+   "uneven": 0,
+   "p50": 33.3,
+   "p99": 33.5,
+   "worst": 33.7,
+   "over100": 0,
+   "cap30": 1,
+   "tasks200": 0,
+   "tasks1s": 0,
+   "taskWorst": 0,
+   "onGround": 0,
+   "screenS": 0,
+   "place": "HOME",
+   "pilot": "CLIMB"
+  },
+  {
+   "build": "cub",
+   "scene": "taxi chase @mn_strip",
+   "sec": 40,
+   "t0": 164565,
+   "t1": 204581,
+   "frames": 1201,
+   "p90": 33.4,
+   "p999": 50,
+   "over15": 0.0008,
+   "over3x": 0,
+   "over1s": 0,
+   "dist": {
+    "buckets": [
+     [
+      "<20",
+      3
+     ],
+     [
+      "20-40",
+      1196
+     ],
+     [
+      "40-60",
+      2
+     ],
+     [
+      "60-100",
+      0
+     ],
+     [
+      "100-250",
+      0
+     ],
+     [
+      "250-1000",
+      0
+     ],
+     [
+      ">1000",
+      0
+     ]
+    ],
+    "over15n": 1,
+    "over3xn": 0
+   },
+   "fps": 30,
+   "uneven": 0.006,
+   "p50": 33.3,
+   "p99": 33.5,
+   "worst": 50.1,
+   "over100": 0,
+   "cap30": 1,
+   "tasks200": 0,
+   "tasks1s": 0,
+   "taskWorst": 52,
+   "onGround": 0.98,
+   "screenS": 0,
+   "place": "mn_strip"
+  },
+  {
+   "build": "cub",
+   "scene": "taxi cockpit @mn_strip",
+   "sec": 10,
+   "t0": 204590,
+   "t1": 214604,
+   "frames": 300,
+   "p90": 33.4,
+   "p999": 33.5,
+   "over15": 0,
+   "over3x": 0,
+   "over1s": 0,
+   "dist": {
+    "buckets": [
+     [
+      "<20",
+      0
+     ],
+     [
+      "20-40",
+      300
+     ],
+     [
+      "40-60",
+      0
+     ],
+     [
+      "60-100",
+      0
+     ],
+     [
+      "100-250",
+      0
+     ],
+     [
+      "250-1000",
+      0
+     ],
+     [
+      ">1000",
+      0
+     ]
+    ],
+    "over15n": 0,
+    "over3xn": 0
+   },
+   "fps": 30,
+   "uneven": 0,
+   "p50": 33.3,
+   "p99": 33.5,
+   "worst": 33.5,
+   "over100": 0,
+   "cap30": 1,
+   "tasks200": 0,
+   "tasks1s": 0,
+   "taskWorst": 0,
+   "onGround": 1,
+   "screenS": 0,
+   "place": "mn_strip"
+  },
+  {
+   "build": "cub",
+   "scene": "low pass @mn_strip",
+   "sec": 15,
+   "t0": 217628,
+   "t1": 232634,
+   "frames": 450,
+   "p90": 33.4,
+   "p999": 50.1,
+   "over15": 0.0022,
+   "over3x": 0,
+   "over1s": 0,
+   "dist": {
+    "buckets": [
+     [
+      "<20",
+      2
+     ],
+     [
+      "20-40",
+      446
+     ],
+     [
+      "40-60",
+      2
+     ],
+     [
+      "60-100",
+      0
+     ],
+     [
+      "100-250",
+      0
+     ],
+     [
+      "250-1000",
+      0
+     ],
+     [
+      ">1000",
+      0
+     ]
+    ],
+    "over15n": 1,
+    "over3xn": 0
+   },
+   "fps": 30,
+   "uneven": 0.018,
+   "p50": 33.3,
+   "p99": 33.5,
+   "worst": 50.1,
+   "over100": 0,
+   "cap30": 1,
+   "tasks200": 0,
+   "tasks1s": 0,
+   "taskWorst": 57,
+   "onGround": 0.04,
+   "screenS": 0,
+   "place": "mn_strip",
+   "pilot": "CLIMB"
+  },
+  {
+   "build": "floats",
+   "scene": "water taxi @SEA",
+   "sec": 25,
+   "t0": 56491,
+   "t1": 81495,
+   "frames": 748,
+   "p90": 33.4,
+   "p999": 83.4,
+   "over15": 0.0027,
+   "over3x": 0,
+   "over1s": 0,
+   "dist": {
+    "buckets": [
+     [
+      "<20",
+      2
+     ],
+     [
+      "20-40",
+      743
+     ],
+     [
+      "40-60",
+      2
+     ],
+     [
+      "60-100",
+      1
+     ],
+     [
+      "100-250",
+      0
+     ],
+     [
+      "250-1000",
+      0
+     ],
+     [
+      ">1000",
+      0
+     ]
+    ],
+    "over15n": 2,
+    "over3xn": 0
+   },
+   "fps": 29.9,
+   "uneven": 0.011,
+   "p50": 33.3,
+   "p99": 33.5,
+   "worst": 83.4,
+   "over100": 0,
+   "cap30": 1,
+   "tasks200": 0,
+   "tasks1s": 0,
+   "taskWorst": 85,
+   "onGround": 0.63,
+   "screenS": 0
+  }
+ ],
+ "notes": [],
+ "exceptions": [],
+ "profile": {
+  "udd": "D:\\e3bg0131",
+  "fresh": true,
+  "cache": [
+   {
+    "at": "after the warm-up",
+    "cache": {
+     "gpuCache": 10.1,
+     "grShader": 4.9
+    }
+   },
+   {
+    "at": "cub warm: navigation -> garage",
+    "cache": {
+     "gpuCache": 11.6,
+     "grShader": 4.9
+    }
+   },
+   {
+    "at": "floats warm: navigation -> garage",
+    "cache": {
+     "gpuCache": 13.2,
+     "grShader": 4.9
+    }
+   }
+  ]
+ },
+ "compare": [
+  {
+   "metric": "first flight, warm (s)",
+   "build": "cub",
+   "was": 64,
+   "now": 54.8,
+   "unit": "s",
+   "vs": "a0",
+   "src": "A0 baseline (PLAYTEST-2026-09-26 s0.2, 3da1c82a)",
+   "better": true,
+   "x": 1.17
+  },
+  {
+   "metric": "taxi fps @HOME",
+   "build": "cub",
+   "was": 13.5,
+   "now": 30,
+   "unit": "fps",
+   "vs": "a0",
+   "src": "A0 baseline (PLAYTEST-2026-09-26 s0.2, 3da1c82a)",
+   "better": true,
+   "x": 2.22
+  },
+  {
+   "metric": "taxi fps @HOME",
+   "build": "cub",
+   "was": 31.15,
+   "now": 30,
+   "unit": "fps",
+   "vs": "t11",
+   "src": "train 11's ratchet baseline (c73886d3)",
+   "better": false,
+   "x": 0.96
+  },
+  {
+   "metric": "taxi p99 (ms)",
+   "build": "cub",
+   "was": 33.5,
+   "now": 33.5,
+   "unit": "ms",
+   "vs": "t11",
+   "src": "train 11's ratchet baseline (c73886d3)",
+   "better": false,
+   "x": 1
+  },
+  {
+   "metric": "taxi uneven",
+   "build": "cub",
+   "was": 0.11,
+   "now": 0.006,
+   "unit": "",
+   "vs": "t11",
+   "src": "train 11's ratchet baseline (c73886d3)",
+   "better": true,
+   "x": 18.33
+  },
+  {
+   "metric": "taxi worst frame (ms)",
+   "build": "cub",
+   "was": 634,
+   "now": 50,
+   "unit": "ms",
+   "vs": "a0",
+   "src": "A0 baseline (PLAYTEST-2026-09-26 s0.2, 3da1c82a)",
+   "better": true,
+   "x": 12.68
+  },
+  {
+   "metric": "worst main-thread task (ms)",
+   "build": "cub",
+   "was": 17000,
+   "now": 231,
+   "unit": "ms",
+   "vs": "a0",
+   "src": "A0 baseline (PLAYTEST-2026-09-26 s0.2, 3da1c82a)",
+   "better": true,
+   "x": 73.59
+  },
+  {
+   "metric": "worst main-thread task (ms)",
+   "build": "cub",
+   "was": 1002,
+   "now": 231,
+   "unit": "ms",
+   "vs": "t11",
+   "src": "train 11's ratchet baseline (c73886d3)",
+   "better": true,
+   "x": 4.34
+  }
+ ]
+}

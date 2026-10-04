@@ -1,0 +1,174 @@
+{
+ "made": [
+  "cub_runup_outside",
+  "cub_runup_inside",
+  "cub_flyby",
+  "cessna_runup_outside",
+  "cessna_runup_inside",
+  "cessna_runup_inside_headset",
+  "cessna_flyby",
+  "cub_hangar_club",
+  "cub_hangar_field"
+ ],
+ "scenes": {
+  "cub_runup": {
+   "outside": {
+    "peak": 0.092,
+    "rmsFullDb": -32,
+    "dirExhaust": 0.6159009742330268,
+    "dirTonal": 0.2670012844897459,
+    "dirBroad": 0.75,
+    "distGain": 0.9986666666666667,
+    "absorbHz": 10504.514628777804
+   },
+   "inside": {
+    "peak": 0.052,
+    "rmsFullDb": -38.1,
+    "cabin": "fabric",
+    "source": "fuselage tubeFabric",
+    "insulationDb": 8,
+    "hfLossDb": -4.4,
+    "boomHz": 0,
+    "headset": null
+   },
+   "dryRmsFullDb": -29.9,
+   "insideMinusDryDb": -8.2,
+   "insideMinusDry_2to8kHz_dB": -15.2,
+   "insideMinusDry_63to250Hz_dB": -8.1
+  },
+  "cub_flyby": {
+   "peak": 0.058,
+   "approach": {
+    "wantHz": 103.8,
+    "gotHz": 103.8
+   },
+   "recede": {
+    "wantHz": 72.92,
+    "gotHz": 72.92
+   },
+   "levelDb": {
+    "far": -68.2,
+    "closest": -40.2
+   },
+   "delayAtStartS": 4.242,
+   "delayClosestS": 0.117,
+   "absorbHz": {
+    "far": 1067,
+    "closest": 6432
+   },
+   "v": 60,
+   "D": 40,
+   "from": -1200,
+   "seconds": 40,
+   "cruiseRpm": 2570,
+   "approachK": 1.2119,
+   "recedeK": 0.8512
+  },
+  "cessna_runup": {
+   "outside": {
+    "peak": 0.132,
+    "rmsFullDb": -27.6,
+    "dirExhaust": 0.6159009742330268,
+    "dirTonal": 0.2670012844897459,
+    "dirBroad": 0.75,
+    "distGain": 1,
+    "absorbHz": 10504.514628777804
+   },
+   "inside": {
+    "peak": 0.047,
+    "rmsFullDb": -34.2,
+    "cabin": "metal",
+    "source": "fuselage alloy",
+    "insulationDb": 20,
+    "hfLossDb": -17,
+    "boomHz": 150,
+    "headset": null
+   },
+   "dryRmsFullDb": -21.8,
+   "insideMinusDryDb": -12.4,
+   "insideMinusDry_2to8kHz_dB": -36.3,
+   "insideMinusDry_63to250Hz_dB": -12.3,
+   "insideHeadset": {
+    "peak": 0.011,
+    "rmsFullDb": -47.2,
+    "cabin": "metal",
+    "source": "fuselage alloy",
+    "insulationDb": 20,
+    "hfLossDb": -17,
+    "boomHz": 150,
+    "headset": "passive"
+   }
+  },
+  "cessna_flyby": {
+   "peak": 0.066,
+   "approach": {
+    "wantHz": 98.02,
+    "gotHz": 98.02
+   },
+   "recede": {
+    "wantHz": 68.85,
+    "gotHz": 68.85
+   },
+   "levelDb": {
+    "far": -62.3,
+    "closest": -33.8
+   },
+   "delayAtStartS": 4.242,
+   "delayClosestS": 0.117,
+   "absorbHz": {
+    "far": 1067,
+    "closest": 6432
+   },
+   "v": 60,
+   "D": 40,
+   "from": -1200,
+   "seconds": 40,
+   "cruiseRpm": 2426,
+   "approachK": 1.2119,
+   "recedeK": 0.8512
+  },
+  "cub_hangar_club": {
+   "peak": 0.139,
+   "shell": "club",
+   "dims": {
+    "HW": 15,
+    "HD": 12.5,
+    "EAVE": 7
+   },
+   "V": 6225,
+   "rt60": [
+    2.44,
+    2.9,
+    3.13,
+    3.22,
+    3.09,
+    2.32
+   ],
+   "rt60Measured1k": 3.12,
+   "irSeconds": 3.88,
+   "wet": 0.25
+  },
+  "cub_hangar_field": {
+   "peak": 0.133,
+   "shell": "field",
+   "dims": {
+    "HW": 7,
+    "HD": 9,
+    "EAVE": 3.6
+   },
+   "V": 1235,
+   "rt60": [
+    1.7,
+    2.04,
+    2.15,
+    2.31,
+    2.29,
+    1.79
+   ],
+   "rt60Measured1k": 2.28,
+   "irSeconds": 2.78,
+   "wet": 0.25
+  }
+ },
+ "seconds": 11.136
+}

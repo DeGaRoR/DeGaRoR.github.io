@@ -95,7 +95,11 @@
         } catch (e) { return null; } })(), wipKey: WIP_KEY,
         rig: (typeof window !== 'undefined' && window.WORLD && window.WORLD.rig) || null, day: (typeof DAY_CLOCK !== 'undefined') ? DAY_CLOCK : null,   // SKY chantier: LIGHT and TIME in the game's editor
         redraw: dirtyDraw, frameText: () => '', pool: () => [], site: PREM.host.site, catalogue: PREMISES_GEN.collect(window), fresh: true, record: rec0, overlayOn: () => false,
-        onRebuilt: () => { const o = world.premises.overlay; if (o && window.WORLD && window.WORLD.refreshGround) { const F = o.frame, e = o.extent, c = [F.toWorld(e.x0, e.z0), F.toWorld(e.x1, e.z0), F.toWorld(e.x1, e.z1), F.toWorld(e.x0, e.z1)]; window.WORLD.refreshGround({ x0: Math.min(...c.map(q => q[0])), z0: Math.min(...c.map(q => q[1])), x1: Math.max(...c.map(q => q[0])), z1: Math.max(...c.map(q => q[1])) }); if (window.WORLD.repaintStrips) window.WORLD.repaintStrips(); } if (window.TREE_FILL && window.TREE_FILL.vegChanged) window.TREE_FILL.vegChanged(); },   // G1385: the cover polygons' vegetation
+        // G1400 (EDITOR-LAG): an edit of the OBJECTS layer (a prop, a tree, a billboard, an aeroplane, an animal), or a
+        // strip's way out (the editor's ground === false: the stand, the taxi points), makes no terrain modifier - the
+        // composed ground is the same heights - so the ground's re-sample over the whole extent (2-3 s of a commit,
+        // headless) is skipped; the strips repaint as before (the parked aeroplanes and the stand ride on them)
+        onRebuilt: (layer, ground) => { const o = world.premises.overlay; if (layer === 'objects' || ground === false) { if (window.WORLD && window.WORLD.repaintStrips) window.WORLD.repaintStrips(); return; } if (o && window.WORLD && window.WORLD.refreshGround) { const F = o.frame, e = o.extent, c = [F.toWorld(e.x0, e.z0), F.toWorld(e.x1, e.z0), F.toWorld(e.x1, e.z1), F.toWorld(e.x0, e.z1)]; window.WORLD.refreshGround({ x0: Math.min(...c.map(q => q[0])), z0: Math.min(...c.map(q => q[1])), x1: Math.max(...c.map(q => q[0])), z1: Math.max(...c.map(q => q[1])) }); if (window.WORLD.repaintStrips) window.WORLD.repaintStrips(); } if (window.TREE_FILL && window.TREE_FILL.vegChanged) window.TREE_FILL.vegChanged(); },   // G1385: the cover polygons' vegetation
       });
       PREM.open = true;
       $('bPause').textContent = 'Resume'; $('bPause').classList.add('on');
@@ -196,6 +200,9 @@
   // frame with them off is the frame without this block (GATE POSTFX). GFX.apply() hands the
   // rows over once the menu's saved state is read.
   if (typeof POST_FX !== 'undefined' && aa && aa.setPost) POST_FX.init(THREE, renderer, aa);
+  // G1357 THE CATCHER: a frame that stands apart from both neighbours (a one-frame flash, an all-sky frame) is saved into
+  // the flight log with the state it was drawn with - only while the recorder is on (?rec=0 leaves it off too)
+  if (typeof POST_FX !== 'undefined' && POST_FX.catcher && aa && aa.setTap && !(window.FLIGHT_REC && window.FLIGHT_REC.off)) aa.setTap(POST_FX.catcher.install());
   // MANUAL CONTROLS (G200): the input model, made once, exactly like the pass
   // above. src/viewer/input.js publishes only its API at eval; this is the
   // one instance, and the two rails and input_panel.js read it through
@@ -477,6 +484,16 @@
     // GFX (G286): the saved graphics settings are applied the moment the
     // world exists - before its first chunk of forest is planted
     if (typeof window !== 'undefined' && window.GFX) window.GFX.onWorld();
+    // G1230 (MEM-BUDGET): A BUDGET WITHOUT THE ISLAND'S COLOUR GRIDS (potato's islandColour: false). The Landsat albedo
+    // and the tint (2 x 35 MB, RGB over the 3095 x 3920 grid) are read on the CPU only to derive their textures (on the
+    // GPU since the 'island ground' step) and by the ground cover's colour (off on potato: it falls back to its sets'
+    // own colours) - so once the world is built they go: the island object's, the world's view of it and the boot's
+    try {
+      const B = window.GFX && window.GFX.budget ? window.GFX.budget() : null;
+      if (B && B.islandColour === false) {
+        for (const o of [WB.islandAtBoot, world.island, window.ISLAND_BOOT && window.ISLAND_BOOT.grid]) if (o) { o.albedo = null; o.tint = null; }
+      }
+    } catch (e) { console.warn('island colour drop:', e && e.message); }
     return WF;
   }
   function buildWorld() {
@@ -489,6 +506,9 @@
   // Jolene build yields, measured - a guess only shapes the bar, which never passes 0.95 before the end). The harness
   // (no compileAsync) and a page without the generator build in one call, as before.
   const WORLD_YIELDS = 150;
+  // G1230 (MEM-BUDGET): UPLOAD AS YOU BUILD - the draw-only geometry a build slice made goes to the GPU as the slice ends
+  // (its CPU copy freed there), not at first light: the far terrain's quads, the town's merges, the patch's LODs
+  const geoFlush = () => { if (typeof GPU_ONLY_GEO === 'function' && GPU_ONLY_GEO.flush && typeof renderer.compileAsync === 'function') GPU_ONLY_GEO.flush(renderer); };
   function buildWorldSliced() {
     if (WF) return;
     if (typeof buildWorldSceneSteps !== 'function' || typeof renderer.compileAsync !== 'function') { buildWorld(); return; }
@@ -502,6 +522,7 @@
         try { do { r = g.next(); n++; if (!r.done) lab = r.value; } while (!r.done && performance.now() - t0 < 40); }
         catch (e) { console.error('world build:', e); res(); return; }
         worst = Math.max(worst, performance.now() - t0);
+        geoFlush();   // G1230: the slice's draw-only geometry uploaded now, its CPU copy freed (assets.js GPU_ONLY_GEO.flush)
         if (r.done) {
           worldBuilt(r.value);
           if (window.FLYDIY_LOG_COMPILE || window.FLYDIY_LOG_WORLD) console.log('world: ' + n + ' yields, ' + Math.round(performance.now() - t00) + ' ms, the longest slice ' + Math.round(worst) + ' ms');
@@ -5648,6 +5669,44 @@
 
     return shakeVal;
   };
+  // G1302 (GARAGE-LAG-2): THE GARAGE'S READOUTS NEVER RUN THE SHAKEDOWN INSIDE A REBUILD. A tank row's release
+  // commits the energy block, and GARAGE_SPEC.update puts a new aeroplane on the stand (setAircraft): the pilot read
+  // its sheet at construction (lazy now, 43_pilot.js), the flight plate read Vs (flRender) and the plaque its
+  // numbers - each a call to shakeOf, which ran genShakedown on the new def: 0.4-0.7 s inside the release, for
+  // readouts of an aeroplane nobody is flying yet. In the garage they now take the shakedown only when it is
+  // already known (this page's memo or the core's store); otherwise the plaque steps down (as it does with no
+  // numbers), the plate holds 0 (the no-sheet state), and the REAL shakedown runs post-idle, once the editing has
+  // paused (debounced: a drag of several releases pays for the last aeroplane only), then the two re-read it. The
+  // check itself is unchanged and never estimated: anything that needs it now (the roll-out's plate, the pilot in
+  // flight, the bench's check, the sim worker's init) still calls shakeOf and gets it then.
+  function shakeKnown() {
+    if (curKey !== 'gen' || shakeFor === def) return true;
+    let key = null;
+    try { key = def && def.spec ? shakeHash(JSON.stringify(def.spec)) : null; } catch (e) { key = null; }
+    if (!key) return false;
+    if (shakeMem.has(key)) return true;
+    const st = shakeStore();
+    return !!(st && st.entries[key]);
+  }
+  let shakeSoonT = null, shakeSoonI = null;
+  function shakeSoon() {
+    if (shakeSoonT) clearTimeout(shakeSoonT);
+    if (shakeSoonI && typeof cancelIdleCallback === 'function') cancelIdleCallback(shakeSoonI);
+    shakeSoonI = null;
+    shakeSoonT = setTimeout(() => {
+      shakeSoonT = null;
+      const go = () => {
+        shakeSoonI = null;
+        if (!inGarage || curKey !== 'gen') return;
+        try { shakeOf(); } catch (e) {}
+        try { flRender(); } catch (e) {}
+        try { drawPlaque(); } catch (e) {}
+      };
+      if (typeof requestIdleCallback === 'function') shakeSoonI = requestIdleCallback(go, { timeout: 2000 });
+      else go();
+    }, 600);
+  }
+  const shakeDeferred = () => { if (inGarage && !shakeKnown()) { shakeSoon(); return true; } return false; };
 
   // THE DENSITY-ALTITUDE SHEET (G72), memoised on `def` exactly like the
   // shakedown above it — it is a few thousand tunnel probes, so it runs when
@@ -5810,6 +5869,7 @@
     box.classList.toggle('on', on);
     if (!on) return;
     let s = null;
+    if (shakeDeferred()) { box.classList.remove('on'); return; }   // G1302: the numbers come post-idle
     try { s = shakeOf(); } catch (e) {}
     if (!s) { box.classList.remove('on'); return; }
     const n1 = (v, d) => (v == null || !isFinite(v)) ? '—' : v.toFixed(d);
@@ -7037,7 +7097,7 @@
   window.FLYDIY_TOWN_AT = () => (inGarage ? standAnchor() || null : null);
   const ringOk = () => !!(WF && WF.ringReady && WF.ringReady(tripCg(), RING_REACH, true));
   // the graphics that key programs (the frame rate and the preset's name key none)
-  const gfxKey = () => { const G = window.GFX; if (!G || !G.get) return '-'; const g = G.get(); delete g.fps; delete g.preset; return JSON.stringify(g); };
+  const gfxKey = () => { const G = window.GFX; if (!G || !G.get) return '-'; const g = G.get(); delete g.fps; delete g.fpsOwn; delete g.preset; return JSON.stringify(g); };
   const modelIds = new WeakMap(); let modelN = 0;
   const modelId = () => { if (!model) return 'none'; let i = modelIds.get(model); if (!i) { i = ++modelN; modelIds.set(model, i); } return 'm' + i; };
   // a generator to its end: sliced a task at a time under a screen, at once in the harness
@@ -7307,6 +7367,7 @@
         try { while (performance.now() - t0 < 40 && n < 1500) { WF.worldUpdate(cg); n++; } }
         catch (e) { console.warn('world settle:', e && e.message); n = 1500; }
         finally { window.FLYDIY_SLICE = null; if (keep) camera.position.copy(keep); }
+        geoFlush();   // G1230
         if (idle()) { const c = count(); if (c === last) still++; else { still = 0; last = c; } } else still = 0;
         const done = still >= 3 || n >= 1500 || performance.now() - t00 > 45000;
         BOOT.phase('settle', 'the world settling round the stand' + (ST ? ' · ' + (ST.near || 0) + ' to build' : ''), done ? 1 : Math.min(0.95, n / 600));
@@ -7383,6 +7444,7 @@
         const tick = () => {
           let r; try { r = WF.premisesPrewarm(cg, { budgetMs: 40 }); } catch (e) { console.warn('town:', e && e.message); res(); return; }
           built += r.built || 0;
+          geoFlush();   // G1230
           BOOT.phase('town', 'building the field ' + built + ' / ' + (built + (r.near || 0)), (built + (r.near || 0)) ? built / (built + (r.near || 0)) : 1);
           if (r.done) res(); else if (r.wait) workerNap(r.wait).then(() => setTimeout(tick, 0)); else setTimeout(tick, 0);   // G830: the house worker's next answer
         };
@@ -7411,6 +7473,7 @@
         let ticks = 0;
         const tick = () => {
           let r; try { r = WF.prewarm(cg, { budgetMs: 40, reach: RING_REACH }); } catch (e) { console.warn('prewarm:', e && e.message); res(); return; }
+          geoFlush();   // G1230
           const doneN = (r.base || 0) + (r.fill || 0), want = doneN + (r.queued || 0);
           BOOT.phase('ring', 'growing the forest ' + doneN + ' / ' + Math.max(want, 1), want ? doneN / want : 0);
           if (r.done || ++ticks > 900) res(); else setTimeout(tick, 0);
@@ -7901,6 +7964,9 @@
     // frame, so the target is what must move): the camera orbits the
     // build's own bounding centre, recomputed with every rebuild.
     edSit.updateMatrixWorld(true);
+    // G1442 (GARAGE-INSTANT): a drag's PREVIEW tick keeps the orbit's centre (the box walks every part - the
+    // crew's skinned meshes pose every vertex - ~10-15 ms a tick); the settle build re-centres it
+    if (window.CAGE_UI && window.CAGE_UI.previewTick) return;
     const bb = new THREE.Box3().setFromObject(edSitP);
     if (isFinite(bb.min.x) && isFinite(bb.max.x))
       bb.getCenter(edTarget);
@@ -10818,7 +10884,8 @@
     if (bad) $('flNoticeV').textContent = st.any
       ? 'the bench has not passed for this build'
       : 'nothing on the bench has been run for this build';
-    try { const sh = shakeOf(); flVs = (sh && sh.Vs) || 0; } catch (e) { flVs = 0; }
+    if (shakeDeferred()) flVs = 0;                                // G1302: re-read post-idle
+    else try { const sh = shakeOf(); flVs = (sh && sh.Vs) || 0; } catch (e) { flVs = 0; }
     flLayout();                 // the phase name is half of the PFD's width
   }
   // the bench and the aeroplane both change what the plate says
@@ -11155,10 +11222,15 @@
     };
     // G620: a gap the page spent HIDDEN (a tab away) is not a freeze - the moment it was hidden, on rAF's clock
     if (W.document && W.document.addEventListener) W.document.addEventListener('visibilitychange', () => { if (W.document.hidden) P.hiddenT = performance.now(); });
-    try { const g = JSON.parse(W.localStorage.getItem('flydiy.gfx') || 'null'); if (g && g.fps != null) P.mode = g.fps; } catch (e) {}
+    // G1295 (EVEN-30): until gfx_settings applies its own (the preset's: 30 but on ultra), a hard 30 - 'auto' only stored
+    try { const g = JSON.parse(W.localStorage.getItem('flydiy.gfx') || 'null'); P.mode = g && g.fps != null && (g.pv >= 7 || g.fps !== 'auto') ? g.fps : (g && g.preset === 'ultra' ? 'auto' : 30); if (P.mode === 30) P.cap = 30; } catch (e) {}
     const capOf = () => (P.mode === 'auto' ? P.cap : P.mode === 'off' ? 0 : +P.mode || 0);
     const med = a => { const s = a.slice().sort((x, y) => x - y); return s[s.length >> 1]; };
     const tellScale = () => { const AA = W.FLYDIY_AA; if (AA && AA.autoTarget) AA.autoTarget(1000 / (capOf() || 60)); };
+    // G1295 (EVEN-30): THE BACKOFF RUNS TO 5 MIN (it stopped at 30 s): the user's 1.5 h on auto failed 127 trials of 60 -
+    // one every ~34 s, each a second of juddering 60 - on a scene that never held it. 5, 10, 20 .. 300 s: ~7 trials, then one
+    // every 5 min; 60 held 20 s past a trial still forgets the backoff (G990)
+    const HOLD_MAX = 300000;
     function setCap(c, now) { if (c === P.cap) return; P.cap = c; P.iv = []; P.work = []; P.strikes = P.goods = 0; P.t0 = now; tellScale(); }
     // the frame at time ts (ms, rAF's own): null when the cap says this refresh is not ours, else P with
     // P.dt (s, the real time since the last rendered frame, 0.25 at most) and P.steps (solver steps owed)
@@ -11223,14 +11295,14 @@
       // them). Three missed refreshes in its first 30 frames (10 %, where 60 needs 3 % or less) end it there, ~0.8 s.
       if (P.trial && P.cap === 60 && P.trial.n >= 30 && P.trial.miss >= 3) {
         P.trial = null; P.stats.trialsFailed++; P.trials++; P.stats.cut = (P.stats.cut || 0) + 1;
-        P.holdUp = now + Math.min(30000, 5000 * Math.pow(2, P.trials - 1)); P.stats.down++; setCap(30, now); return;
+        P.holdUp = now + Math.min(HOLD_MAX, 5000 * Math.pow(2, P.trials - 1)); P.stats.down++; setCap(30, now); return;
       }
       if (P.iv.length < 60) return;
       const w = med(P.work), r = 1000 * P.iv.length / P.iv.reduce((a, b) => a + b, 0);   // G994: the reading's DELIVERED rate (fps)
       P.iv = []; P.work = [];
       if (now - P.t0 < 1500) return;                      // the first readings after a change are the change's
       P.lastWork = w; P.lastRate = r;
-      const failed = () => { P.stats.trialsFailed++; P.trials++; P.holdUp = now + Math.min(30000, 5000 * Math.pow(2, P.trials - 1)); };   // G615: 5 s, doubling, 30 s at most
+      const failed = () => { P.stats.trialsFailed++; P.trials++; P.holdUp = now + Math.min(HOLD_MAX, 5000 * Math.pow(2, P.trials - 1)); };   // G615: 5 s, doubling (G1295: to 5 min)
       if (P.cap === 60) {
         if (P.trial) {                                    // a trial of 60 from 30: did it hold?
           const ok = r >= 58; P.trial = null;                 // G994 + G1160: 60 only where it is even (<= 3 % missed refreshes)

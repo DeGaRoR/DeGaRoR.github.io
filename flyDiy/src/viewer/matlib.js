@@ -65,6 +65,7 @@ var MATLIB = (() => {
     shader: { cls: 'ShaderMaterial', base: {} },
     depth:  { cls: 'MeshDepthMaterial', base: {} },
     house:  { cls: 'MeshStandardMaterial', base: { color: 0xffffff, roughness: 1, metalness: 0 } },
+    points: { cls: 'PointsMaterial', base: {} },   // (train 28: RUNWAY-LIGHTS' glow - GATE ASSETS, every material made here)
   };
   const S = { share: true };
   if (typeof location !== 'undefined' && /[?&]matlib=0/.test(location.search || '')) S.share = false;
@@ -264,7 +265,9 @@ var MATLIB = (() => {
     return pg;
   }
   function layer(THREE, tw) {
-    const lk = tw.url + '|' + tw.kind;
+    // G1230: under the budget's mip skip (ktx2.js) a layer lands at half its side - its page is that size (its own pool)
+    if (KTX2.dim && KTX2.dim(tw.w) !== tw.w) tw = Object.assign({}, tw, { w: tw.w >> 1, h: Math.max(1, tw.h >> 1), skip: 1 });
+    const lk = tw.url + '|' + tw.kind + (tw.skip ? '|skip' : '');
     let L = LAYERS.get(lk);
     if (L) return L;
     const key = tw.kind + '|' + tw.w + 'x' + tw.h + '|' + tw.codec + '|' + (tw.alpha ? 'a' : '');

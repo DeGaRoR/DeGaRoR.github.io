@@ -75,7 +75,7 @@ const GATES = [
   // THE SOUND (G1604, SOUND-2026-10-04 §8): audio_params.js on six validated builds (firing, BPF, tip Mach off the
   // solver's rpm), AUDIO.update's budget (no heap, < 0.3 ms), nothing before a gesture, ?audio=0 builds nothing, the
   // silence, the settings, the sources, the wiring - and every check mutated red (--selftest alone); ~3 s
-  { id: 'AUDIO', file: 'audio/_audio_check.js', tier: 'core', wall: 45 },
+  { id: 'AUDIO', file: 'audio/_audio_check.js', tier: 'core', wall: 160 },
   // SKY S1/S2 (2026-09-14): the day object and the almanac, headless
   { id: 'DAY', file: 'test_day.js', tier: 'core' },
   // THE CLIMATE (K0, 2026-09-22): the one wind field - the G72 column bit-identical against a
@@ -198,7 +198,8 @@ const GATES = [
   { id: 'CONTACT', file: '_contact_check.js', tier: 'core' },   // A6-GROUND G1000-G1003: the pavement at terrainH where the wheels roll, the contact shadows, nothing loose on a pavement
   { id: 'SHADOWSKY', file: '_shadowsky_check.js', tier: 'core' },   // A2-SHADOW-SKY G650-G655: the PCF bias under the reversed buffer + a still kernel, the craft's shadow at any height, the mirror's clip, cloud sync, the cover pass, the pause
   { id: 'LOOKS', file: '_looks_check.js', tier: 'core' },   // B4a-LOOKS G750-G754: the patch's border (tuck + ring sink), the drawn lakes (filled / coastal), the sea's cut + grid + mouths, the texture libraries after a failed map, the cover ring's water
-  { id: 'RWYLIGHTS', file: '_rwylights_check.js', tier: 'core' },   // POLISH-1 G1066: no elevated runway light on another strip or a pavement (Jolene, the procedural world); the light's stem, glass lens, emissive mask
+  { id: 'RWYLIGHTS', file: '_rwylights_check.js', tier: 'core' },   // POLISH-1 G1066: no elevated runway light on another strip or a pavement (Jolene, the procedural world); G1415: the WWII-style fitting (elevated + flush in one geometry), the glow layer's law, one fixture + one glow draw a strip
+  { id: 'LAKEBED', file: '_lakebed_check.js', tier: 'core' },   // LAKE-HOLES G1335-G1339: no lake edge has a gap - the ground is not cut under a lake (no lake discard, one far material), the bed carved under every drawn lake's water, continuous across every line, the physics' water over it
   // the external asset store (2026-09-01): referenced == present both ways,
   // no base64 creep, and index.html's size budget — mechanical at last
   { id: 'MEDIA', file: '_media_check.js', tier: 'core' },
@@ -256,6 +257,9 @@ const GATES = [
   // over indexed, non-indexed, transformed, instanced meshes and a sliver soup; the meshes it must leave alone take
   // three's walk; an edited geometry is re-indexed. Under a second.
   { id: 'RAYINDEX', file: '_rayindex_check.js', tier: 'core' },
+  // G1445 (GARAGE-INSTANT): a drag's previews end on the plain build's aeroplane (the page in node, the Cub and the
+  // metal Cessna, twelve rows: a kept sheet's layer rows, the cage's deformed rows, the sheet's detail rows)
+  { id: 'INSTANT', file: '_instant_check.js', tier: 'core', wall: 420 },
   // THE CONTROL HARDWARE (G241): every control surface's nose turns INSIDE
   // its cove instead of through the wing — measured off the emitted vertices,
   // station by station, which is the clearance at every deflection because a

@@ -1,0 +1,60 @@
+before L0 before_0.json: garage 72.7 s, roll-out 9.2 s, first flight 81.9 s, links 394, worst 46.7 s, >5 s 7, >1 s 149, flown links 1 (ready)
+       14153 ms  46.7 s  2017c1240e51185f
+       14155 ms  31.8 s  61441ef35bdaa018
+       14156 ms  41.8 s  61441ef33bb8028f
+       14564 ms  31.8 s  2ab7a93341630201
+       14566 ms  41.2 s  61441ef33bb8028f
+       14573 ms  12.8 s  04b8b778bfcc41ac
+       40171 ms  27.3 s  521f85e57ed067ee
+before L0 before_1.json: garage 75.6 s, roll-out 9.2 s, first flight 84.8 s, links 394, worst 51.6 s, >5 s 8, >1 s 131, flown links 1 (ready)
+       14206 ms  51.6 s  2017c1240e51185f
+       14207 ms  47.1 s  61441ef35bdaa018
+       14208 ms  47.9 s  61441ef33bb8028f
+       14223 ms  45.9 s  2ab7a93341630201
+       14224 ms  47.6 s  61441ef33bb8028f
+       14230 ms  13.7 s  04b8b778bfcc41ac
+       42419 ms  29.9 s  521f85e57ed067ee
+       50940 ms  5.0 s  8bdac22516f5f1db
+before L0 before_2.json: garage 76.2 s, roll-out 9.2 s, first flight 85.4 s, links 394, worst 50.0 s, >5 s 7, >1 s 132, flown links 1 (ready)
+       13963 ms  50.0 s  2017c1240e51185f
+       13964 ms  39.0 s  61441ef35bdaa018
+       13965 ms  45.3 s  61441ef33bb8028f
+       13980 ms  42.3 s  2ab7a93341630201
+       13981 ms  40.9 s  61441ef33bb8028f
+       13986 ms  13.2 s  04b8b778bfcc41ac
+       40892 ms  30.1 s  521f85e57ed067ee
+== before load 0 (cold, n=3): garage 75.6 [72.7-76.2], first flight 84.8 [81.9-85.4], roll-out 9.2 [9.2-9.2], worst link 50.0 [46.7-51.6], >5 s 7 [7.0-8.0], links 394 [394.0-394.0]
+after L0 after_0.json: garage 58.2 s, roll-out 9.3 s, first flight 67.5 s, links 393, worst 16.7 s, >5 s 6, >1 s 104, flown links 1 (ready)
+       14084 ms  16.7 s  2017c1246fb94017
+       14086 ms  13.9 s  61441ef348ec8ea4
+       14087 ms  14.9 s  61441ef372962f45
+       14102 ms  13.8 s  2ab7a9330805490d
+       14107 ms  14.5 s  04b8b778bfcc41ac
+       38682 ms  14.8 s  521f85e55ef09fa4
+after L1 after_0.json: garage 41.2 s, roll-out 9.2 s, first flight 50.4 s, links 386, worst 9.8 s, >5 s 3, >1 s 22, flown links 1 (ready)
+       11704 ms  9.8 s  2017c1246fb94017
+       11707 ms  8.6 s  61441ef372962f45
+       11721 ms  7.8 s  2ab7a9330805490d
+after L0 after_1.json: garage 57.9 s, roll-out 9.3 s, first flight 67.2 s, links 393, worst 15.5 s, >5 s 6, >1 s 98, flown links 1 (ready)
+       13945 ms  15.2 s  2017c1246fb94017
+       13947 ms  12.3 s  61441ef348ec8ea4
+       13948 ms  13.5 s  61441ef372962f45
+       13962 ms  12.9 s  2ab7a9330805490d
+       13966 ms  13.0 s  04b8b778bfcc41ac
+       37516 ms  15.5 s  521f85e55ef09fa4
+after L1 after_1.json: garage 40.7 s, roll-out 9.1 s, first flight 49.8 s, links 386, worst 10.1 s, >5 s 3, >1 s 22, flown links 1 (ready)
+       11354 ms  10.1 s  2017c1246fb94017
+       11355 ms  8.5 s  61441ef348ec8ea4
+       11371 ms  8.3 s  2ab7a9330805490d
+after L0 after_2.json: garage 57.1 s, roll-out 9.2 s, first flight 66.3 s, links 393, worst 15.0 s, >5 s 6, >1 s 93, flown links 1 (ready)
+       14038 ms  15.0 s  2017c1246fb94017
+       14040 ms  12.7 s  61441ef348ec8ea4
+       14041 ms  13.2 s  61441ef372962f45
+       14055 ms  11.2 s  2ab7a9330805490d
+       14060 ms  12.8 s  04b8b778bfcc41ac
+       37761 ms  14.4 s  521f85e55ef09fa4
+after L1 after_2.json: garage 39.4 s, roll-out 9 s, first flight 48.4 s, links 386, worst 7.9 s, >5 s 2, >1 s 18, flown links 1 (ready)
+       11177 ms  7.9 s  2017c1246fb94017
+       11194 ms  6.8 s  2ab7a9330805490d
+== after load 0 (cold, n=3): garage 57.9 [57.1-58.2], first flight 67.2 [66.3-67.5], roll-out 9.3 [9.2-9.3], worst link 15.5 [15.0-16.7], >5 s 6 [6.0-6.0], links 393 [393.0-393.0]
+== after load 1 (warm, n=3): garage 40.7 [39.4-41.2], first flight 49.8 [48.4-50.4], roll-out 9.1 [9.0-9.2], worst link 9.8 [7.9-10.1], >5 s 3 [2.0-3.0], links 386 [386.0-386.0]

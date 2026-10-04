@@ -20,6 +20,19 @@
 //             placeholder cabin low-pass on the airborne part (SND-SPACE owns
 //             the real cabin transfer), and the INTERIOR-ONLY layers: the
 //             stall warning, the creaks and rattles, the flap motor, the lever.
+//          THREE OUTPUTS (SND-SPACE, G1642: the node made with numberOfOutputs 3,
+//          outputChannelCount [1, 2, 1]) - the cabin is SND-SPACE's:
+//          0  EXTERIOR mono, as above (space.js spatialises it AND takes it
+//             through the build's cabin transfer for the interior)
+//          1  INTERIOR, STEREO: the structure-borne part and the cabin's own
+//             wind only - no placeholder low-pass, no airborne part (that is
+//             output 0 through the cabin now); the event voices panned by the
+//             wheel they came from (a: 0 left, 1 right)
+//          2  INTERIOR-ONLY mono: the stall warning, the creaks and rattles,
+//             the flap motor, the lever - they bypass the cabin transfer
+//          k-rate `pitch` (0.5..2, default 1; not one of the model's targets):
+//          SND-SPACE's doppler on the exterior layers' bands and tones.
+//          An event's `d` (s): SND-SPACE's propagation lag - the voice waits.
 // The surface rows (GROUND_SURF, 00_registry.js): 0 grass 1 rock 2 scree
 // 3 forest floor 4 water 5 paved 6 gravel 7 sand. Synthesis per row: a low
 // rumble (two one-poles of white noise, bump-modulated), a band of hiss, a
@@ -76,19 +89,23 @@ const Z_GUST = sl(), Z_BUFF = sl(), Z_BUMP = sl(), Z_WANDER = sl(), Z_DRAGM = sl
       Z_EG = sl(), Z_ER = sl(), Z_ES = sl(), Z_EB = sl(), Z_ET = sl(),                  // shot-noise envelopes
       Z_PHB = sl(), Z_PHS = sl(), Z_PHM = sl(), Z_PHV = sl(),                           // phases: brake, stall, motor, vibrato
       Z_BURST = sl(), Z_BRATE = sl(), Z_BAMP = sl(), Z_T = sl(),
-      Z_DENS = sl();
+      Z_DENS = sl(),
+      Z_DCX2 = sl(), Z_DCY2 = sl(), Z_DCX3 = sl(), Z_DCY3 = sl();                      // SND-SPACE: int R, int-only
 // the surface weights now (smoothed toward the row's), and the previous block's levels
 const Z_SW = _o; _o += AF_SURF_W;
 const Z_PREV = _o; _o += AF_PARAM_NAMES.length;
 const Z_LEN = _o;
-// the voices: kind, ext gain, int gain, amp, decay per sample, env, age, delay, f0, f1, dur, phase
-const VW = 12;
+// the voices: kind, ext gain, int gain, amp, decay per sample, env, age, delay, f0, f1, dur, phase,
+// interior-only (SND-SPACE: output 2), the interior's left / right gains (the wheel's side)
+const VW = 16;
 
 class FlyDiyAirframeProcessor extends AudioWorkletProcessor {
   static get parameterDescriptors () {
     const maxOf = { windF: 6000, gndS: 7, gndV: 100, watV: 100, stallK: 2, duck: 31 };
     return AF_PARAM_NAMES.map(name => ({ name, defaultValue: name === 'windF' ? 250 : 0, minValue: 0,
-      maxValue: maxOf[name] != null ? maxOf[name] : 4, automationRate: 'k-rate' }));
+      maxValue: maxOf[name] != null ? maxOf[name] : 4, automationRate: 'k-rate' }))
+      // SND-SPACE (G1642): the doppler - not a model target, so not in AF_PARAM_NAMES (the model's list)
+      .concat([{ name: 'pitch', defaultValue: 1, minValue: 0.5, maxValue: 2, automationRate: 'k-rate' }]);
   }
 
   constructor (options) {
@@ -112,7 +129,7 @@ class FlyDiyAirframeProcessor extends AudioWorkletProcessor {
   message (d) {
     if (!d) return;
     if (d.t === 'reset') { this.v.fill(0); return; }
-    if (d.t === 'ev') this.event(d.e | 0, +d.s || 0, d.a | 0, d.b | 0, d.k ? 0.35 : 1);
+    if (d.t === 'ev') { this.evDelay = d.d > 0 ? Math.min(20, +d.d) : 0; this.event(d.e | 0, +d.s || 0, d.a | 0, d.b | 0, d.k ? 0.35 : 1); }
   }
 
   // a voice from the pool: the first free one, else the oldest. kind, gains, amp, decay tau (s), f0, f1, dur (s), delay (s)
@@ -127,12 +144,20 @@ class FlyDiyAirframeProcessor extends AudioWorkletProcessor {
     v[o] = kind; v[o + 1] = ge; v[o + 2] = gi; v[o + 3] = amp; v[o + 4] = Math.exp(-1 / Math.max(1, tau * sr));
     v[o + 5] = kind === VK_CHIRP ? 0 : 1; v[o + 6] = 0; v[o + 7] = Math.round(del * sr);
     v[o + 8] = f0; v[o + 9] = f1; v[o + 10] = Math.max(1, Math.round(dur * sr)); v[o + 11] = 0;
+    // SND-SPACE: the propagation lag of this event (space.js), the interior-only flag and the wheel's side
+    v[o + 7] += Math.round((this.evDelay || 0) * sr);
+    v[o + 12] = this.evIo || 0;
+    const pan = this.evPan || 0;
+    v[o + 13] = pan > 0 ? 1 - pan : 1; v[o + 14] = pan < 0 ? 1 + pan : 1;
     const f = F_VOICE + best * 8, z = this.z;
     z[f] = z[f + 1] = 0; z[f + 6] = f0; z[f + 7] = q;
     this.coef(f);
   }
   event (e, s, a, b, k) {
     this.stats[0]++;
+    // the wheel's side in the cabin (a: 0 left, 1 right; the tail and a rolling thump centred), the lever inside only
+    this.evPan = (e === AF_E_TD || e === AF_E_CHIRP) ? (a === 0 ? -0.6 : a === 1 ? 0.6 : 0) : 0;
+    this.evIo = e === AF_E_LEVER ? 1 : 0;
     const surfHz = b === 5 ? 1500 : b === 6 || b === 2 ? 3000 : b === 0 ? 2500 : 1800;
     if (e === AF_E_TD) {
       this.voice(VK_LOW, 1, 1.1, k * (0.08 + 0.35 * s), 0.05 + 0.09 * s, 90 + 150 * s, 0, 1, 0, 0.9);
@@ -162,6 +187,10 @@ class FlyDiyAirframeProcessor extends AudioWorkletProcessor {
   process (inputs, outputs, params) {
     const oE = outputs[0] && outputs[0][0], oI = outputs[1] && outputs[1][0];
     if (!oE) return true;
+    // SND-SPACE's three outputs: the interior stereo (structure + the cabin's wind), the interior-only layers apart
+    const oIR = outputs[1] && outputs[1].length > 1 ? outputs[1][1] : null;
+    const oIo = outputs.length > 2 && outputs[2] ? outputs[2][0] : null, tri = !!oIo;
+    let pch = params.pitch ? +params.pitch[0] : 1; if (!(pch >= 0.5)) pch = pch < 0.5 ? 0.5 : 1; else if (pch > 2) pch = 2;
     const n = oE.length, z = this.z, v = this.v, sr = this.sr, P = Z_PREV;
     // the targets now (k-rate) and at the block's start (the previous block's)
     const windL = params.windL[0], windF = params.windF[0], windT = params.windT[0], windI = params.windI[0];
@@ -180,8 +209,8 @@ class FlyDiyAirframeProcessor extends AudioWorkletProcessor {
     let voices = 0;
     for (let i = 0; i < NV; i++) if (v[i * VW] !== 0) voices++;
     if (!doWind && !doGnd && !doRat && !doBrk && !doSpray && !doSlap && !doDrag && !doStall && !doCreak && !doMot && voices === 0
-        && Math.abs(z[Z_DCY0]) < 1e-6 && Math.abs(z[Z_DCY1]) < 1e-6) {
-      oE.fill(0); if (oI) oI.fill(0);
+        && Math.abs(z[Z_DCY0]) < 1e-6 && Math.abs(z[Z_DCY1]) < 1e-6 && Math.abs(z[Z_DCY2]) < 1e-6 && Math.abs(z[Z_DCY3]) < 1e-6) {
+      oE.fill(0); if (oI) oI.fill(0); if (oIR) oIR.fill(0); if (oIo) oIo.fill(0);
       this.keep(params); return true;
     }
     this.stats[3]++;
@@ -192,14 +221,14 @@ class FlyDiyAirframeProcessor extends AudioWorkletProcessor {
     for (let k = 0; k < AF_SURF_W; k++) z[Z_SW + k] += (AF_SURF[row][k] - z[Z_SW + k]) * ks;
     const wR = z[Z_SW], wH = z[Z_SW + 1], hissHz = z[Z_SW + 2], hissQ = z[Z_SW + 3], gK = z[Z_SW + 4], gHz = z[Z_SW + 5];
     const gDec = Math.exp(-1 / (z[Z_SW + 6] * 0.001 * sr)), wT = z[Z_SW + 7];
-    if (doWind) { z[F_WIND + 6] = windF; z[F_WIND + 7] = 0.6; this.coef(F_WIND); }
+    if (doWind) { z[F_WIND + 6] = windF * pch; z[F_WIND + 7] = 0.6; this.coef(F_WIND); }
     if (doGnd) {
-      z[F_HISS + 6] = hissHz * (0.8 + 0.015 * gndV); z[F_HISS + 7] = hissQ; this.coef(F_HISS);
-      z[F_TONE + 6] = Math.min(1800, Math.max(40, gndV / 0.03)); z[F_TONE + 7] = 8; this.coef(F_TONE);
-      z[F_CRUNCH + 6] = gHz; z[F_CRUNCH + 7] = 1.1; this.coef(F_CRUNCH);
+      z[F_HISS + 6] = hissHz * (0.8 + 0.015 * gndV) * pch; z[F_HISS + 7] = hissQ; this.coef(F_HISS);
+      z[F_TONE + 6] = Math.min(1800, Math.max(40, gndV / 0.03)) * pch; z[F_TONE + 7] = 8; this.coef(F_TONE);
+      z[F_CRUNCH + 6] = gHz * pch; z[F_CRUNCH + 7] = 1.1; this.coef(F_CRUNCH);
     }
     if (doRat) { z[F_RATTLE + 6] = 1900; z[F_RATTLE + 7] = 5; this.coef(F_RATTLE); }
-    if (doSpray) { z[F_SPRAY + 6] = 1800 + 90 * watV; z[F_SPRAY + 7] = 0.5; this.coef(F_SPRAY); }
+    if (doSpray) { z[F_SPRAY + 6] = (1800 + 90 * watV) * pch; z[F_SPRAY + 7] = 0.5; this.coef(F_SPRAY); }
     if (doSlap) { z[F_SLAP + 6] = 180 + 20 * watV; z[F_SLAP + 7] = 0.8; this.coef(F_SLAP); }
     if (doDrag) { z[F_BUB + 6] = 650; z[F_BUB + 7] = 3; this.coef(F_BUB); }
     if (doStall) { z[F_BREATH + 6] = 1400; z[F_BREATH + 7] = 1; this.coef(F_BREATH); }
@@ -244,7 +273,7 @@ class FlyDiyAirframeProcessor extends AudioWorkletProcessor {
       const w2 = r * 4.656612873077393e-10;
       r ^= r << 13; r ^= r >>> 17; r ^= r << 5;
       const u01 = (r >>> 0) * 2.3283064365386963e-10; // uniform [0, 1)
-      let ext = 0, air = 0, inn = 0;
+      let ext = 0, air = 0, inn = 0, io = 0, vL = 0, vR = 0;
       // ---- WIND ----
       if (doWind) {
         z[Z_GUST] += (w2 - z[Z_GUST]) * cGust;
@@ -304,7 +333,7 @@ class FlyDiyAirframeProcessor extends AudioWorkletProcessor {
       if (doBrk) {
         z[Z_WANDER] += (w1 - z[Z_WANDER]) * cWan;
         const wn = z[Z_WANDER] * nWan;
-        z[Z_PHB] += (1250 + 60 * wn) / sr; if (z[Z_PHB] >= 1) z[Z_PHB] -= 1;
+        z[Z_PHB] += (1250 + 60 * wn) * pch / sr; if (z[Z_PHB] >= 1) z[Z_PHB] -= 1;
         const ph = 6.283185307179586 * z[Z_PHB];
         const sq = (Math.sin(ph) + 0.35 * Math.sin(2 * ph + 0.5)) * 0.05 * (pBrk + (brk - pBrk) * u) * (0.7 + 0.3 * (wn < -1 ? -1 : wn > 1 ? 1 : wn));
         ext += sq; air += 0.6 * sq;
@@ -351,11 +380,11 @@ class FlyDiyAirframeProcessor extends AudioWorkletProcessor {
           const v3 = w2 - z[o + 1], v1 = z[o + 2] * z[o] + z[o + 3] * v3, v2 = z[o + 1] + z[o + 3] * z[o] + z[o + 4] * v3;
           z[o] = 2 * v1 - z[o] + den; z[o + 1] = 2 * v2 - z[o + 1] + den;
           const sp = s > 0 ? Math.pow(s, 1.3) : 0;
-          inn += dS * 0.12 * sp * ((0.35 + 0.65 * s) * wave + (0.6 - 0.4 * s) * z[o + 5] * v1);
+          io += dS * 0.12 * sp * ((0.35 + 0.65 * s) * wave + (0.6 - 0.4 * s) * z[o + 5] * v1);
         } else {              // the buzzer: a square, softened
           const sq = z[Z_PHS] < 0.5 ? 1 : -1;
           z[Z_BUZLP] += (sq - z[Z_BUZLP]) * cBuz;
-          inn += dS * 0.07 * s * z[Z_BUZLP];
+          io += dS * 0.07 * s * z[Z_BUZLP];
         }
       }
       // ---- CREAKS AND RATTLES (interior only) ----
@@ -381,14 +410,14 @@ class FlyDiyAirframeProcessor extends AudioWorkletProcessor {
         const xt = w1 * z[Z_ET];
         v3 = xt - z[o + 1]; v1 = z[o + 2] * z[o] + z[o + 3] * v3; v2 = z[o + 1] + z[o + 3] * z[o] + z[o + 4] * v3;
         z[o] = 2 * v1 - z[o] + den; z[o + 1] = 2 * v2 - z[o + 1] + den;
-        inn += dC * (0.5 + 0.5 * c) * (0.35 * (c1 + 0.6 * c2) * 6 + 0.05 * z[o + 5] * v1);
+        io += dC * (0.5 + 0.5 * c) * (0.35 * (c1 + 0.6 * c2) * 6 + 0.05 * z[o + 5] * v1);
       }
       // ---- THE FLAP MOTOR ----
       if (doMot) {
         z[Z_PHM] += fMot / sr; if (z[Z_PHM] >= 1) z[Z_PHM] -= 1;
         z[Z_MOTLP] += (2 * z[Z_PHM] - 1 + 0.3 * w1 - z[Z_MOTLP]) * cMot;
         const m = (pFlapM + (flapM - pFlapM) * u) * z[Z_MOTLP];
-        inn += 0.05 * m; ext += 0.012 * m;
+        io += 0.05 * m; ext += 0.012 * m;
       }
       // ---- THE ONE-SHOTS ----
       if (voices > 0) {
@@ -413,7 +442,11 @@ class FlyDiyAirframeProcessor extends AudioWorkletProcessor {
           }
           y *= v[o + 3];
           if (kind === VK_RING) y *= v[o + 5];
-          ext += v[o + 1] * y; inn += v[o + 2] * y;
+          ext += v[o + 1] * y;
+          const gy = v[o + 2] * y;
+          if (v[o + 12] > 0) io += gy;
+          else if (oIR) { vL += gy * v[o + 13]; vR += gy * v[o + 14]; }
+          else inn += gy;
           // the envelope: a chirp attacks over 4 ms and lasts its duration, then decays; the rest decay from the strike
           if (kind === VK_CHIRP && v[o + 6] < v[o + 10]) { const a = v[o + 5] + 1 / (0.004 * sr); v[o + 5] = a > 1 ? 1 : a; }
           else v[o + 5] *= v[o + 4];
@@ -421,18 +454,29 @@ class FlyDiyAirframeProcessor extends AudioWorkletProcessor {
           if (v[o + 5] < 1e-4 && v[o + 6] > v[o + 10]) v[o] = 0;
         }
       }
-      // ---- the cabin's placeholder low-pass on the airborne part, then out ----
-      const op = pOpen + (open - pOpen) * u;
-      z[Z_CAB] += (air - z[Z_CAB]) * cCab;
-      inn += op * air + (1 - op) * z[Z_CAB];
+      // ---- the cabin's placeholder low-pass on the airborne part (two outputs only: with three, the airborne part is
+      // output 0 through SND-SPACE's cabin transfer), then out ----
+      if (!tri) {
+        const op = pOpen + (open - pOpen) * u;
+        z[Z_CAB] += (air - z[Z_CAB]) * cCab;
+        inn += op * air + (1 - op) * z[Z_CAB] + io;
+      }
       // DC blockers
+      const iL = inn + vL;
       let yE = ext - z[Z_DCX0] + dcR * z[Z_DCY0]; z[Z_DCX0] = ext; z[Z_DCY0] = yE;
-      let yI = inn - z[Z_DCX1] + dcR * z[Z_DCY1]; z[Z_DCX1] = inn; z[Z_DCY1] = yI;
-      if (!(yE === yE) || !(yI === yI)) { nanHit = 1; yE = 0; yI = 0; }
+      let yI = iL - z[Z_DCX1] + dcR * z[Z_DCY1]; z[Z_DCX1] = iL; z[Z_DCY1] = yI;
+      let yR = 0, yO = 0;
+      if (oIR) { const iR = inn + vR; yR = iR - z[Z_DCX2] + dcR * z[Z_DCY2]; z[Z_DCX2] = iR; z[Z_DCY2] = yR; }
+      if (tri) { yO = io - z[Z_DCX3] + dcR * z[Z_DCY3]; z[Z_DCX3] = io; z[Z_DCY3] = yO; }
+      if (!(yE === yE) || !(yI === yI) || !(yR === yR) || !(yO === yO)) { nanHit = 1; yE = 0; yI = 0; yR = 0; yO = 0; }
       if (yE > 0.98) { yE = 0.98; clip++; } else if (yE < -0.98) { yE = -0.98; clip++; }
       if (yI > 0.98) { yI = 0.98; clip++; } else if (yI < -0.98) { yI = -0.98; clip++; }
+      if (yR > 0.98) { yR = 0.98; clip++; } else if (yR < -0.98) { yR = -0.98; clip++; }
+      if (yO > 0.98) { yO = 0.98; clip++; } else if (yO < -0.98) { yO = -0.98; clip++; }
       oE[j] = yE;
       if (oI) oI[j] = yI;
+      if (oIR) oIR[j] = yR;
+      if (oIo) oIo[j] = yO;
     }
     this.rs[0] = r;
     z[Z_DENS] = -den;   // the bias alternates sign: its own DC is zero

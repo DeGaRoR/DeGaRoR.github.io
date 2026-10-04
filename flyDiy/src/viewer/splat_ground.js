@@ -73,7 +73,9 @@ const SPLAT_GROUND = (() => {
   // inputs the hook already has at map_fragment: vWPi (world), gA (ori, canopy,
   // coast, lake), uGPackB (ndvi, terrain type), uGGrid, uGCell, gVnoise, gLuma,
   // gN (the slope normal off the screen derivatives), cameraPosition
-  const glslCommon = () => `
+  // full: the inspection's text too (the recolour's magenta mask) - the ground's production / full line (render_world
+  // groundFull, COLD-LINKS G1311); the mask's uniform stays declared either way
+  const glslCommon = full => `
   uniform highp sampler2DArray uSplat, uSplatN;
   uniform float uSplatOn;
   uniform vec4 uSMatA[${NCODE}], uSMatS[${NCODE}], uSMatF[${NCODE}], uSMatFS[${NCODE}], uSMatM[${NCODE}], uSVary[${NCODE}];
@@ -93,7 +95,6 @@ const SPLAT_GROUND = (() => {
   float gSRel = 1.0;   // sMat's texel over its set's mean, read by sSplat per candidate
   uniform vec4 uSSplit, uSSplit2, uSDist, uSDist2, uSHex, uSPud, uSPud2, uSVeg;
   uniform float uSFarN, uSNearN;   // PERF 2026-09-23: how many sets a terrain type blends, far (past the detail fade) and near: 3 = its recipe's, 1 = its first
-  uniform float uSHexPx;   // PERF 2026-09-23: the hex tiling only where a set's tile spans more than this many pixels (0 = everywhere)
   float gSPixM = 1.0;      // the fragment's footprint on the ground, metres a pixel (sSplat, in uniform flow)
   float gSSlope = 0.0;     // the ground's slope in degrees at this fragment (sSplat, before the candidates): a puddle needs a level place
   uniform vec2 uSSeam, uSNrm, uSLakeE;
@@ -124,7 +125,7 @@ const SPLAT_GROUND = (() => {
       float l = gLuma(c), ch = length(c - vec3(l));
       float dh = abs(mod(sHueOf(c) - A.y + 3.14159265, 6.2831853) - 3.14159265);
       float w = (1.0 - smoothstep(A.z * (1.0 - B.w), A.z, dh)) * smoothstep(0.0, 0.02 + 0.1 * B.w, ch / max(l, 1e-3));
-      if (int(uSMaskL + 0.5) == L && uSMaskL >= 0.0) return mix(c, vec3(1.0, 0.0, 1.0), w);
+      ${full ? 'if (int(uSMaskL + 0.5) == L && uSMaskL >= 0.0) return mix(c, vec3(1.0, 0.0, 1.0), w);' : '// (the magenta mask: a full program only - COLD-LINKS G1311)'}
       vec3 t = gfHueTurn(c, A.w * w);
       float lt = gLuma(t);
       t = vec3(lt) + (t - vec3(lt)) * mix(1.0, B.x, w);
@@ -210,11 +211,11 @@ const SPLAT_GROUND = (() => {
     scale = max(scale, 0.01);
     vec2 p = P.xz; float ca = 1.0, sa = 0.0;
     gSHexRot = ang != 0.0 ? -1.0 : uSHex.w;
-    // THE HEX CUT, A DIAL LEFT AT 0 (PERF 2026-09-23): the hex tiling dropped where a set's tile spans under
+    // THE HEX CUT WAS A DIAL LEFT AT 0 (PERF 2026-09-23): the hex tiling dropped where a set's tile spans under
     // uSHexPx pixels. At 4 it showed the tiles repeating as a checker over the far field (a tile of 4-16 px
     // still has its low frequencies, and they repeat), and its 'saving' was the mip-0 bug below (NO CONTINUE):
-    // with the mips honoured the far samples are cheap and the hex costs nothing measurable. 0 = everywhere.
-    if (uSHexPx > 0.0 && scale < uSHexPx * gSPixM) gSHexRot = -1.0;
+    // with the mips honoured the far samples are cheap and the hex costs nothing measurable. Nothing ever set it
+    // off 0, and its test was inlined at every sSet call site: out of the program (COLD-LINKS G1311).
     if (ang != 0.0) { ca = cos(ang); sa = sin(ang); mat2 R = mat2(ca, sa, -sa, ca); p = R * p; }
     Smp t = sTile(layer, p / scale);
     vec2 tt = vec2(ca * t.n.x + sa * t.n.y, -sa * t.n.x + ca * t.n.y);
@@ -249,6 +250,44 @@ const SPLAT_GROUND = (() => {
   // triplet IDENTICAL to the near (forest, old forest, sand, snow, shingle, dense scrub) is not sampled twice. The
   // pass that completes the type returns true with it in gSOut; the other returns false. Same sets, same blend,
   // same mix as the three branches it replaced.
+  // THE POOLS' MASK, ONCE A PIXEL, BEFORE THE CANDIDATE LOOP (COLD-LINKS G1312): it reads the ground's position, the eye
+  // and the slope - never the terrain type - so it was the same number for muskeg and for scrub, yet it was computed inside
+  // sMatPass, in the loop; FXC took ~14 of the near ring's ~30 s cold link to compile it there (tools/perf/cold_links_bench.js,
+  // 2026-10-04: the ring with the block cut 16.1 s, with it 29.8 s). The same expressions in the same order, run before the loop
+  // when a pool-bearing type votes here (sSplat): the picture is the same and no pixel computes it twice.
+  float gSPoolM = 0.0, gSPoolD = 1.0;
+  void sPools(vec3 P){
+    // A POND IS A SHORE AND A MARGIN, NOT A SPOT (the user, 2026-09-23, from 400 m
+    // over the strip: "puddles just look too harsh seen from there. They look like
+    // speckles on a surface, not like puddles"). Two reasons it read as a speckle:
+    //   THE SHORE WAS UNDER A PIXEL. pudEdge is 0.01 noise units = 1.33 m of ground,
+    //   which is right at walking distance and invisible at altitude, so the mask's
+    //   0..1 ramp fell inside one pixel and every pond had a hard, aliasing rim.
+    //   uSPud2.x widens it with distance (the 0.5 contour is fixed - the ramp is
+    //   centred on the threshold - so the pond neither grows nor shrinks).
+    //   AND IT HAD NO MARGIN. Real muskeg water sits in a wet hollow: peat-stained
+    //   shallows over the bed, then open water. uSPud2.y is where the open water
+    //   starts in the mask; under it the ground's own colour goes dark and wet and
+    //   KEEPS ITS ROUGHNESS, so only the middle of a pond is a mirror.
+    // BOTH RIDE THE SAME DISTANCE TERM, and both are ZERO at the eye: a pond you
+    // taxi past keeps the hard shoreline and the open water it has today (which is
+    // what it looks like from the bank), and only the pond a kilometre off becomes
+    // a soft wet hollow. The complaint was about altitude; the close view was not
+    // broken and must not be traded away to fix it.
+    float pd = distance(P.xz, cameraPosition.xz);
+    float far = clamp(pd / 500.0, 0.0, 1.0);
+    float e = uSPud.z * (1.0 + uSPud2.x * far);
+    float m = gfPoolAt((P.xz + vec2(uSPud.x)) * uSPud.w, uSPud.y, e);
+    // A PUDDLE NEEDS A LEVEL PLACE (2026-09-23, the user: "real puddles would be distributed along
+    // terrain depressions ... here you splatter them everywhere"). Measured on Jolene before this:
+    // 42 % of the pools stood on ground steeper than 10 degrees, because the field never asked the
+    // terrain anything. Full water under half of uSPud2.w degrees, none above it - and the same ramp
+    // runs on the CPU in render_world's poolAt, so the tufts and the debris agree with what is drawn.
+    if (uSPud2.w > 0.01) m *= clamp((uSPud2.w - gSSlope) / (uSPud2.w * 0.5), 0.0, 1.0);
+    float rim = uSPud2.y * far;
+    float deep = rim > 0.001 ? smoothstep(rim, 1.0, m) : 1.0;
+    gSPoolM = m; gSPoolD = deep;
+  }
   Smp gSNear, gSFar, gSOut;
   bool sMatPass(int i, int pass, vec3 P, vec3 tw, float seaAng, float fw, float slope){
     vec4 A = uSMatA[i]; vec4 S = uSMatS[i]; vec4 M = uSMatM[i];
@@ -279,37 +318,8 @@ const SPLAT_GROUND = (() => {
     if (V.y > 0.0 || V.x > 0.0) { vec2 gf = gfShade(P.xz, V.z); o.c.rgb = gfHueTurn(o.c.rgb, gf.x * V.x) * (1.0 + gf.y * V.y); }
     gSRel = gLuma(o.c.rgb) / max(uSLum[int(A.x + 0.5)], 1e-3);   // the texel over its set's mean: the texture alone, no set colour
     if ((i == 3 || i == 7) && uSPud.y > 0.0) {   // the pools: muskeg AND scrub (the user, 2026-09-21: the scrub is the muskeg)
-      // A POND IS A SHORE AND A MARGIN, NOT A SPOT (the user, 2026-09-23, from 400 m
-      // over the strip: "puddles just look too harsh seen from there. They look like
-      // speckles on a surface, not like puddles"). Two reasons it read as a speckle:
-      //   THE SHORE WAS UNDER A PIXEL. pudEdge is 0.01 noise units = 1.33 m of ground,
-      //   which is right at walking distance and invisible at altitude, so the mask's
-      //   0..1 ramp fell inside one pixel and every pond had a hard, aliasing rim.
-      //   uSPud2.x widens it with distance (the 0.5 contour is fixed - the ramp is
-      //   centred on the threshold - so the pond neither grows nor shrinks).
-      //   AND IT HAD NO MARGIN. Real muskeg water sits in a wet hollow: peat-stained
-      //   shallows over the bed, then open water. uSPud2.y is where the open water
-      //   starts in the mask; under it the ground's own colour goes dark and wet and
-      //   KEEPS ITS ROUGHNESS, so only the middle of a pond is a mirror.
-      // BOTH RIDE THE SAME DISTANCE TERM, and both are ZERO at the eye: a pond you
-      // taxi past keeps the hard shoreline and the open water it has today (which is
-      // what it looks like from the bank), and only the pond a kilometre off becomes
-      // a soft wet hollow. The complaint was about altitude; the close view was not
-      // broken and must not be traded away to fix it.
-      float pd = distance(P.xz, cameraPosition.xz);
-      float far = clamp(pd / 500.0, 0.0, 1.0);
-      float e = uSPud.z * (1.0 + uSPud2.x * far);
-      float m = gfPoolAt((P.xz + vec2(uSPud.x)) * uSPud.w, uSPud.y, e);
-      // A PUDDLE NEEDS A LEVEL PLACE (2026-09-23, the user: "real puddles would be distributed along
-      // terrain depressions ... here you splatter them everywhere"). Measured on Jolene before this:
-      // 42 % of the pools stood on ground steeper than 10 degrees, because the field never asked the
-      // terrain anything. Full water under half of uSPud2.w degrees, none above it - and the same ramp
-      // runs on the CPU in render_world's poolAt, so the tufts and the debris agree with what is drawn.
-      if (uSPud2.w > 0.01) m *= clamp((uSPud2.w - gSSlope) / (uSPud2.w * 0.5), 0.0, 1.0);
-      float rim = uSPud2.y * far;
-      float deep = rim > 0.001 ? smoothstep(rim, 1.0, m) : 1.0;
-      o.c.rgb = mix(o.c.rgb, mix(o.c.rgb * uSPud2.z, vec3(0.022, 0.030, 0.034), deep), m);   // still water, linear
-      o.n = mix(o.n, vec4(0.0, 0.0, 0.0, 0.03), m * deep);
+      o.c.rgb = mix(o.c.rgb, mix(o.c.rgb * uSPud2.z, vec3(0.022, 0.030, 0.034), gSPoolD), gSPoolM);   // still water, linear (the mask: sPools)
+      o.n = mix(o.n, vec4(0.0, 0.0, 0.0, 0.03), gSPoolM * gSPoolD);
     }
     gSOut = o; return true;
   }
@@ -367,6 +377,8 @@ const SPLAT_GROUND = (() => {
     // a continue - the splat's every set was read at MIP 0 at every distance: shimmer, and a texture cache blown
     // on every ground pixel past a few hundred metres. The same test as an if-block keeps the derivatives.
     // two passes a terrain type (sMatPass: near, far), the bound still a uniform
+    gSPoolM = 0.0; gSPoolD = 1.0;
+    if (uSPud.y > 0.0 && (w[3] >= 0.004 || w[7] >= 0.004)) sPools(vWPi);   // the pools' mask (G1312: out of the loop)
     for (int j = 0; j < uSNCode * 2; j++) {
       int i = j / 2;
       if (w[i] >= 0.004 && n < uSNCand && sMatPass(i, j - i * 2, vWPi, tw, seaAng, fw, slope)) {
@@ -616,7 +628,6 @@ const SPLAT_GROUND = (() => {
       uSGrass: { value: new Float32Array(NLIB).fill(0) }, uSGrassC: { value: V4() },
       uSSplit: { value: V4() }, uSSplit2: { value: V4() }, uSDist: { value: V4() }, uSDist2: { value: V4() }, uSHex: { value: V4() }, uSPud: { value: V4() }, uSPud2: { value: V4() }, uSVeg: { value: V4() },
       uSFarN: { value: 3 }, uSNearN: { value: 3 },   // the blend's depth (sMat): 3 = the recipe's, 1 = one set (the GRAPHICS 'ground' row)
-      uSHexPx: { value: 0 },   // the hex cut's dial: 0 = hex everywhere (see sSet)
       uSSeam: { value: new THREE.Vector2() }, uSNrm: { value: new THREE.Vector2() }, uSLakeE: { value: new THREE.Vector2(1, 1) },
       uSBeachRot: { value: 0 }, uSNCode: { value: NCODE }, uSNCand: { value: 8 },
     };
@@ -707,7 +718,9 @@ const SPLAT_GROUND = (() => {
         for (const k in o) c[k] = o[k]; grow(); push(); save(R); return api.code(i); },
       grade: k => Object.assign({ gain: '#ffffff', sat: 1, gloss: 1, grass: 0, hue: 0, contrast: 1, selHue: 0, selWidth: 0, selShift: 0, selSat: 1, selLight: 1, selSoft: 0.5 }, R.grade[k] || {}),
       // the recolour's selection shown in magenta on one set (its key), or off (null)
-      showMask: k => { U.uSMaskL.value = k ? LIB.indexOf(k) : -1; push(); return U.uSMaskL.value; },
+      showMask: k => { U.uSMaskL.value = k ? LIB.indexOf(k) : -1; push(); if (api.onInspect) api.onInspect(); return U.uSMaskL.value; },
+      masking: () => U.uSMaskL.value >= 0,   // the mask is shown: the ground's programs carry it (G1311)
+      onInspect: null,                        // the host's re-key (render_world groundSync)
       // the set's images (the rail's previews): diff / nor / height / rough, lazily-made Images
       images: k => SPLAT_TEX_SETS.find(x => x.key === k) || null,
       filterDefaults: () => Object.assign({}, FILTER_DEFAULTS),
@@ -720,7 +733,7 @@ const SPLAT_GROUND = (() => {
       export: () => JSON.stringify({ codes: R.codes, knobs: R.knobs, grade: R.grade }),
       state: () => JSON.parse(JSON.stringify({ codes: R.codes, knobs: R.knobs, grade: R.grade, on: R.on })),
     };
-    return { uniforms: U, glslCommon: glslCommon(), glslMap: glslMap(), glslNormal: glslNormal(), glslRough: glslRough(), api };
+    return { uniforms: U, glslCommon: glslCommon(false), glslCommonFull: glslCommon(true), glslMap: glslMap(), glslNormal: glslNormal(), glslRough: glslRough(), api };
   }
   return { make };
 })();

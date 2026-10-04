@@ -64,7 +64,7 @@
 (function () {
   const W = (typeof window !== 'undefined') ? window : globalThis;
   const FB = { V: 2, S: 2048, Sin: 2048, gutter: 4, gutterIn: 2, keep: 4, on: true, ab: false, quiet: false, sliceMs: 40, worker: true,
-                hybrid: true, hyA: 1.6, hyB: 2.0,
+                hybrid: true, hyA: 1.6, hyB: 2.0,    // train 29 (A0): G1325's farther band (1.0-1.25) is back OUT: live at the taxi, the world -> garage trip took 2.8 s and the next garage -> world re-linked the live program (a 5.2 s task); it returns with that fixed
                 eyeR: 1.5, eyeOnly: true, shadowFolds: true,
                 cockpitLive: true,                 // train 21 (the user, 2026-10-01: "ship the live cockpit exterior"): the eye's zone live in the cockpit, the detailed textures at the seat (~+0.6 ms Cub/Cessna render); ?fbake=cockpitbake restores the bake there
                 swingPad: 0.5 };   // G1170.2: a moving part's travel beyond its turn (a Fowler flap's run, the gear's stroke), m   // G1124.1: the exterior live in the cockpit (the eye's zone) - off: +2.4 ms there (the Cessna)   // G1124: the eye zone's reach past the cabin (m); the cockpit's cuts   // THE HYBRID (below): the live shader from hyA screen pixels a texel, whole at hyB
@@ -582,20 +582,30 @@
   // is untouched), down to uFbGraze (0.25) of itself at a grazing sun. The sun is directional light 0 (the near map's
   // black light shares its direction). FLOWN_BAKE graze 1 is the old relief.
   FB_U.uFbGraze = { value: 0.25 };
+  // G1358 THE GLINT, A LITTLE LESS (LIGHT-SMOOTH, 2026-10-04; the user, on the one-frame white flash off the wing in
+  // flight and the blown fuselage patch at golden hour: "try a little less, ok"). The clear coat's roughness floor is
+  // 0.0525 (G206, below): a sun highlight a fraction of a degree wide, so a flat wing or a fuselage side passing the
+  // mirror angle went white for a frame and the bloom spread it. For the SUN's direct light only, the base and the
+  // clear coat take a floor of uFbSun round the direct loop (lights_fragment_begin) and get their own roughness back
+  // before the environment's reflection (lights_fragment_maps / _end): the sky, the hangar and the ground reflect in
+  // the skin exactly as before - the aeroplane is not made matte, its sun glint is wider and lower. A uniform, so no
+  // new program; FLOWN_BAKE.sunRough.value 0 is the old glint.
+  FB_U.uFbSun = { value: 0.12 };
   const FB_HOOK = function (sh) {
     if (typeof ATMO !== 'undefined') ATMO.inject(sh);
-    sh.uniforms.uFbGraze = FB_U.uFbGraze;
+    sh.uniforms.uFbGraze = FB_U.uFbGraze; sh.uniforms.uFbSun = FB_U.uFbSun;
     const d = this.userData.aeroD;
     if (d) for (const k of ['uCraftInv', 'uCabin', 'uFootA', 'uFootB']) if (d[k]) sh.uniforms[k] = d[k];
     sh.vertexShader = sh.vertexShader
       .replace('#include <common>', 'uniform mat4 uCraftInv;\nvarying vec3 vFbCraft;\n#include <common>')
       .replace('#include <project_vertex>', 'vFbCraft = (uCraftInv * modelMatrix * vec4(transformed, 1.0)).xyz;\n#include <project_vertex>');
     sh.fragmentShader = sh.fragmentShader
-      .replace('#include <common>', 'uniform float uFbGraze;\nuniform mat4 uCraftInv;\nuniform vec4 uCabin;\nuniform vec4 uFootA;\nuniform vec4 uFootB;\nvarying vec3 vFbCraft;\n#include <common>')
+      .replace('#include <common>', 'uniform float uFbGraze;\nuniform float uFbSun;\nuniform mat4 uCraftInv;\nuniform vec4 uCabin;\nuniform vec4 uFootA;\nuniform vec4 uFootB;\nvarying vec3 vFbCraft;\n#include <common>')
       .replace('#include <map_fragment>', '#include <map_fragment>\n  float fbIn = sampledDiffuseColor.a;\n  diffuseColor.a = opacity;')
       .replace('#include <normal_fragment_maps>', '#include <normal_fragment_maps>\n#if defined( USE_NORMALMAP ) && ( NUM_DIR_LIGHTS > 0 )\n  normal = normalize( mix( nonPerturbedNormal, normal, mix( uFbGraze, 1.0, smoothstep( 0.0, 0.5, abs( dot( nonPerturbedNormal, directionalLights[ 0 ].direction ) ) ) ) ) );\n#endif')
       .replace('#include <clearcoat_normal_fragment_begin>', '#ifdef USE_CLEARCOAT\n  vec3 clearcoatNormal = normal;\n#endif')
       .replace('#include <lights_physical_fragment>', '#include <lights_physical_fragment>\n#ifdef USE_CLEARCOAT\n  material.clearcoatRoughness = min(max(texture2D(clearcoatMap, vClearcoatMapUv).a, 0.0525) + geometryRoughness, 1.0);\n#endif')
+      .replace('#include <lights_fragment_begin>', '  float fbR0 = material.roughness; material.roughness = max(fbR0, uFbSun);\n#ifdef USE_CLEARCOAT\n  float fbC0 = material.clearcoatRoughness; material.clearcoatRoughness = max(fbC0, uFbSun);\n#endif\n#include <lights_fragment_begin>\n  material.roughness = fbR0;\n#ifdef USE_CLEARCOAT\n  material.clearcoatRoughness = fbC0;\n#endif')
       .replace('#include <lights_fragment_end>', `#include <lights_fragment_end>
   {
     float fbInK = max(clamp(2.0 * fbIn - 1.0, 0.0, 1.0), min(1.0, 2.0 * fbIn) * step(faceDirection, 0.0));   // both faces | the back
@@ -1374,7 +1384,7 @@
   W.FLOWN_BAKE = { FB, step, note, forPayload, show, showFold, mergeModel, hybrid, nearT, liveTwin, bandOf, FB_FADE, folds: () => FOLDS.slice(),
                    warmPairs: () => FB.noWarm ? [] : FOLDS.flatMap(F => F.pairs ? F.pairs() : []), eyeZone, shadowFolds,
                    withKept: fn => { const back = FOLDS.map(F => F.unpark ? F.unpark() : null); try { return fn(); } finally { for (const b of back) if (b) b(); } }, workerSource, bakedNames, bakedSets, groupsOf, keyOf, extOf, uvsOf, splitGroup, aeroArgs, mipSteps, toksvig, dilate,
-                   bakeHook, FB_HOOK, BAKE_FS, graze: FB_U.uFbGraze,   // G1350: graze.value 1 = the old relief at a low sun
+                   bakeHook, FB_HOOK, BAKE_FS, graze: FB_U.uFbGraze, sunRough: FB_U.uFbSun,   // G1350: graze.value 1 = the old relief at a low sun; G1358: sunRough.value 0 = the old glint
                    get bytes() { return bytes; },
                    clear: () => idb('readwrite', st => st.clear()) };
 })();

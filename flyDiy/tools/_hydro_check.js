@@ -307,6 +307,12 @@ console.log('\n6. THE LAKE\'S SURFACE IS THE DATA\'S (a stub island: a bowl with
     for (const L of lakes) for (let x = L.x0 + 5; x <= L.x1 - 5; x += 10) for (let z = L.z0 + 5; z <= L.z1 - 5; z += 10) {
       const t = W7.terrainH(x, z);
       if (t > L.level || W7.island.classAt(x, z) !== W7.island.WC.WATER) continue;
+      // ONE LAKE A TEXEL (LAKE-HOLES G1336, 28_island lakeBed): where ANOTHER record owns the water - a pond at 13.88 m
+      // inside an 11.63 m lake's box, the DEM there the pond's - the point is that record's, not this one's. Before the
+      // carve the raw ground (the pond's surface) kept it out of this test; the carved bed under the pond let it in as a
+      // 2.25 m 'hover' over the lake it is not part of (26 points). Counted as a neighbouring record (COLD-LINKS lakes-2)
+      const LB = W7.island.lakeBed, own = LB ? LB.levelAt(x, z) : -Infinity;
+      if (own > -Infinity && Math.abs(own - LB.levelOf(L)) > 1e-9) { tot++; other++; continue; }
       tot++; const w = W7.waterH(x, z), d = w - L.level;
       if (Math.abs(d) <= 0.05) { ok++; continue; }
       if (d > 0.05) { over++; if (d > worst) worst = d; } else if (w === 0) sea++; else other++;

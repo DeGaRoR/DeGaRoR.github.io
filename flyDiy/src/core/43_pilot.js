@@ -143,9 +143,17 @@ function makePilot(sim, def, world, opts) {
   // approach, 1.20 Vs0 short-field — instead of genAP's 1.42 Vs; off until
   // the matrix says it wins (the ramp-flare precedent). Either way the sheet
   // is published as `ap.sheet` for the panel and the planner to come.
-  let sheetV = null;
-  const sheetOf = () => sheetV || (sheetV = (typeof machineSheet === 'function'
-    ? machineSheet(def, { shakedown: opts.shakedown }) : null));
+  // G1302 (GARAGE-LAG-2): ...AND READ LAZILY. The pilot took the sheet at construction (SH0, the speed ladder, the
+  // approach's limits), so every setAircraft ran the shakedown behind it - in the garage, on the tank row's release
+  // (an energy commit rebuilds the aeroplane), 0.4-0.7 s inside the change for a pilot that is not flying. Every read
+  // below is a call to this memo now, so the sheet is built the first time the pilot needs it - the same sheet, off
+  // the same shakedown (machineSheet is a pure function of the def and its getter), only later; and a memo of the
+  // value rather than of its truth, so a page with no machineSheet asks once
+  let sheetV = null, sheetDone = false;
+  const sheetOf = () => {
+    if (!sheetDone) { sheetV = (typeof machineSheet === 'function' ? machineSheet(def, { shakedown: opts.shakedown }) : null); sheetDone = true; }
+    return sheetV;
+  };
   // G399.7 (P0.7): the sheet's ladder, TECS and the path ARE the pilot — the
   // flags that kept the old modes selectable (G399.2-G399.5) are retired,
   // the full matrix having judged every archetype under them
@@ -255,12 +263,15 @@ function makePilot(sim, def, world, opts) {
   };
   const HOMEISH = { hdg: Math.PI, tdz: [-845, 0], elev: 0, len: 1100, x: -520, z: 0 };
   // the speed ladder: the sheet's when the flag is on and the stall is measured
-  const SH0 = sheetOf();
-  const sheetVAppr = SH0 && SH0.src.Vs0 === 'measured' ? SH0.Vref : null;
-  const VApprShort = sheetVAppr != null ? 1.20 * SH0.Vs0 : A.VApprShort;
+  const sheetVAppr = () => { const S = sheetOf(); return S && S.src.Vs0 === 'measured' ? S.Vref : null; };
+  const VApprShort = () => sheetVAppr() != null ? 1.20 * sheetOf().Vs0 : A.VApprShort;
+  let vAppr;                                  // G1302: the approach speed, the sheet's once first read
   const ap = {
     phase: 'ROLL', t: 0, hCruise: A.hCruise, VClimb: A.VClimb,
-    VCruise: A.VCruise, VAppr: sheetVAppr ?? A.VAppr, xTurn: A.xTurn, xAim: A.xAim, gs: A.gs,
+    VCruise: A.VCruise,
+    get VAppr() { if (vAppr === undefined) vAppr = sheetVAppr() ?? A.VAppr; return vAppr; },
+    set VAppr(v) { vAppr = v; },
+    xTurn: A.xTurn, xAim: A.xAim, gs: A.gs,
     targetDir: [-1, 0, 0], trackHold: true, dirX: -1,
     restAlt: null, refAlt: null, altRef: 0, tdInfo: null, dbg: {},
     route: null, xc: false, frame: null, gaN: 0, gaWhy: null,
@@ -525,9 +536,9 @@ function makePilot(sim, def, world, opts) {
   // the gear cost about 40 % of the clean glide; 6 deg without a sheet) and
   // the gradient a go-around may count on (0.8 of the measured Vy climb —
   // it begins at Vref, flaps down)
-  const gsMax = SH0 && SH0.LDbest ? clamp(1.4 / SH0.LDbest, 0.07, 0.16) : 0.105;
-  const gammaGA = SH0 && SH0.gammaClimb ? 0.8 * SH0.gammaClimb : 0.08;
-  const dirLim = (mode) => ({ gs: A.gs, gsMax, gammaClimb: gammaGA, mode, LDGrun: SH0 && SH0.LDGrun ? SH0.LDGrun : null, TORun: SH0 && SH0.TORun ? SH0.TORun : null });
+  const gsMax = () => { const S = sheetOf(); return S && S.LDbest ? clamp(1.4 / S.LDbest, 0.07, 0.16) : 0.105; };
+  const gammaGA = () => { const S = sheetOf(); return S && S.gammaClimb ? 0.8 * S.gammaClimb : 0.08; };
+  const dirLim = (mode) => ({ gs: A.gs, gsMax: gsMax(), gammaClimb: gammaGA(), mode, LDGrun: sheetOf() && sheetOf().LDGrun ? sheetOf().LDGrun : null, TORun: sheetOf() && sheetOf().TORun ? sheetOf().TORun : null });
   // the take-off / landing direction at an aerodrome: the runway model's two
   // directions SCORED (25_airfield.js siteScoreDirections: the wind, the
   // slope, the approach the obstacles allow, the climb-out) with the
@@ -677,11 +688,11 @@ function makePilot(sim, def, world, opts) {
       const row = (typeof GROUND_SURF === 'object' && GROUND_SURF[to.surface]) || null;
       const water = to.surface === 4 || !!sim.hydro;            // the water has its own laws (H4): no technique
       const soft = !water && !!row && row[0] >= 0.10;
-      const runNeed = SH0 && SH0.LDGrun ? SH0.LDGrun : null;
+      const runNeed = sheetOf() && sheetOf().LDGrun ? sheetOf().LDGrun : null;
       const short = !water && (to.len < 450 || (runNeed != null && to.len < 1.6 * runNeed));
       const gust = gustAt(to);
       const technique = short ? 'short' : soft ? 'soft' : 'normal';
-      const Vbase = short && VApprShort ? VApprShort : (sheetVAppr ?? A.VAppr);
+      const Vbase = short && VApprShort() ? VApprShort() : (sheetVAppr() ?? A.VAppr);
       const aim = short ? sThr + Math.max(30, 0.08 * to.len)
                 : to.len < 700 ? sThr + Math.max(60, 0.12 * to.len)
                 : Math.max(A.xAim, sThr + 40);
@@ -702,7 +713,7 @@ function makePilot(sim, def, world, opts) {
     // the side whose ground under the downwind + base is lower
     const M = siteModelOf(to);
     const D = M ? M.dir[(u[0] * M.dir[1].u[0] + u[1] * M.dir[1].u[1]) > 0 ? 1 : 0] : null;
-    ap.gs = D ? clamp(Math.max(A.gs, 1.05 * D.reqGs), A.gs, Math.max(A.gs, gsMax)) : A.gs;
+    ap.gs = D ? clamp(Math.max(A.gs, 1.05 * D.reqGs), A.gs, Math.max(A.gs, gsMax())) : A.gs;
     ap.siteDir = D;
     // P1 (found on the dn4 fixture, flown uphill for the first time): the
     // slope ends on the AIM'S ground (aimAlt, P0.8) while the level before
@@ -1690,7 +1701,7 @@ function makePilot(sim, def, world, opts) {
       // 2.34 -> 1.21 at 1.07), Stearman 1.57 -> 1.17. The fast arrival's
       // trickle cap and the unwind are unchanged
       if (ap.phase === 'FLARE' && AF.thr === 'IDLE') {   // G399.7: FINAL's half retired — TECS carries its own saturation (the raised Vref)
-        const slow = V < (A.flareFloorK ?? 1.15) * (SH0 && SH0.Vs0 ? SH0.Vs0 : (A.VRot || 18) / 0.99);
+        const slow = V < (A.flareFloorK ?? 1.15) * (sheetOf() && sheetOf().Vs0 ? sheetOf().Vs0 : (A.VRot || 18) / 0.99);
         const sat = aDe > 0.30 || (slow && aDe > 0), free = aDe < 0.22 && !slow;
         // in the flare the assist depends on the SPEED: a slow arrival (the
         // C172-alike at 1.13 VRot, full flap) needs the power to finish its
@@ -2102,9 +2113,9 @@ function makePilot(sim, def, world, opts) {
           const onWaterNow = !!sim.hydro || from0.surface === 4;
           const row = (typeof GROUND_SURF === 'object' && GROUND_SURF[from0.surface]) || null;
           const soft = !onWaterNow && !!row && row[0] >= 0.10;
-          const runNeed = SH0 && SH0.TORun ? SH0.TORun : null;
+          const runNeed = sheetOf() && sheetOf().TORun ? sheetOf().TORun : null;
           const short = !onWaterNow && runNeed != null && (from0.len || 1100) < 2.0 * runNeed;   // an accelerate-stop wants about two runs
-          ap.dep = { technique: short ? 'short' : soft ? 'soft' : 'normal', Vx: SH0 && SH0.Vx ? Math.round(SH0.Vx * 10) / 10 : null,
+          ap.dep = { technique: short ? 'short' : soft ? 'soft' : 'normal', Vx: sheetOf() && sheetOf().Vx ? Math.round(sheetOf().Vx * 10) / 10 : null,
                      runNeed: runNeed != null ? Math.round(runNeed) : null, len: from0.len || null, surface: from0.surface };
           ap.report.dep = ap.dep;
         }
@@ -2392,9 +2403,9 @@ function makePilot(sim, def, world, opts) {
         // 1.5 km along the climb-out (canopy included, 15 m clear) stands
         // above the aeroplane; Vy / the cruise-climb once it is below
         const climbDir0 = [F.ux * ap.dirX, F.uz * ap.dirX];
-        const obstAhead = SH0 && SH0.Vx && gradAhead(cg[0], cg[2], climbDir0[0], climbDir0[1], 1500, cg[1], 15) > 0;
-        if (obstAhead !== vxHeld) { vxHeld = obstAhead; if (obstAhead && !vxSaid) { vxSaid = true; say('vx-climb', 'ground ahead above the aeroplane — climbing at Vx ' + SH0.Vx.toFixed(1) + ' m/s until clear'); } }
-        const iasC = obstAhead ? SH0.Vx : agl > 2 * A.hSafe ? Math.min(ap.VCruise, ap.VClimb * (A.climbCruiseK ?? 1.10)) : ap.VClimb;
+        const obstAhead = sheetOf() && sheetOf().Vx && gradAhead(cg[0], cg[2], climbDir0[0], climbDir0[1], 1500, cg[1], 15) > 0;
+        if (obstAhead !== vxHeld) { vxHeld = obstAhead; if (obstAhead && !vxSaid) { vxSaid = true; say('vx-climb', 'ground ahead above the aeroplane — climbing at Vx ' + sheetOf().Vx.toFixed(1) + ' m/s until clear'); } }
+        const iasC = obstAhead ? sheetOf().Vx : agl > 2 * A.hSafe ? Math.min(ap.VCruise, ap.VClimb * (A.climbCruiseK ?? 1.10)) : ap.VClimb;
         engage('LOC', 'TECS', 'TECS', { vs: tClimbMax, alt: null, gs: null, vsUp: null, vsDn: null, ias: iasC, bank: bankLim });   // P0.5: full climb = the sheet's climbMax
         flapTgt = agl > 2 * A.hSafe ? 0 : fTO;
         // G381: the crosswind turn at 0.6 of the circuit height (was 0.35 —
@@ -2423,7 +2434,7 @@ function makePilot(sim, def, world, opts) {
         // a gradient over 0.8 of the measured climb, 30 m clear (A3's k1 departure
         // climbed into the 8 % hill with 1.5 m to spare at 122 m)
         const climbDirNow = [F.ux * ap.dirX, F.uz * ap.dirX];
-        const terrainTurn = agl > A.hSafe + 10 && gradAhead(cg[0], cg[2], climbDirNow[0], climbDirNow[1], 1500, cg[1], 30) > gammaGA;
+        const terrainTurn = agl > A.hSafe + 10 && gradAhead(cg[0], cg[2], climbDirNow[0], climbDirNow[1], 1500, cg[1], 30) > gammaGA();
         if (terrainTurn && !terrainTurnSaid) { terrainTurnSaid = true; say('terrain-turn', 'the ground ahead climbs faster than the aeroplane — turning at ' + Math.round(agl) + ' m'); }
         if (agl >= hTurn || stalled || marginal || terrainTurn) {
           const first = planFromHere();
@@ -2475,7 +2486,7 @@ function makePilot(sim, def, world, opts) {
         if (L.enroute && ap.legI === 0 && ap.holdDir && phaseT < 150) {
           const g = legGeom(L);
           gNeed = gradAhead(cg[0], cg[2], g.ux, g.uz, Math.max(1500, Math.min(7500, r.len - r.s)), cg[1], 30);
-          if (gNeed > gammaGA) {
+          if (gNeed > gammaGA()) {
             holdOut = true;
             const h0 = Math.atan2(ap.holdDir[2], ap.holdDir[0]);
             let best = null;
@@ -2485,7 +2496,7 @@ function makePilot(sim, def, world, opts) {
               if (escapeHdg != null && Math.abs(Math.atan2(Math.sin(h - escapeHdg), Math.cos(h - escapeHdg))) < 0.1) gk -= 0.01;
               if (!best || gk < best.g) best = { h, g: gk };
             }
-            escapeHdg = best.h; escapeCircle = best.g > gammaGA;
+            escapeHdg = best.h; escapeCircle = best.g > gammaGA();
             if (escapeCircle) {
               // no heading can be made: a climbing turn toward the least bad
               // one — the selected heading stays 50 deg ahead of the track
@@ -2720,7 +2731,7 @@ function makePilot(sim, def, world, opts) {
           // FIRM: 1.0 m/s. Held to 0.7 on power the C172-alike floated 7 s from
           // 10 m and touched at 1.04 Vs0; asked 1.0 there it arrives at 1.07-1.09
           const sinkF = Math.max((A.flareSink ?? 0.35) + 0.35 * clamp((1.15 * vr - V) / (0.10 * vr), 0, 1),
-                                 V < (A.flareFloorK ?? 1.15) * (SH0 && SH0.Vs0 ? SH0.Vs0 : vr / 0.99) ? 1.0 : 0);
+                                 V < (A.flareFloorK ?? 1.15) * (sheetOf() && sheetOf().Vs0 ? sheetOf().Vs0 : vr / 0.99) ? 1.0 : 0);
           // GTRAM: onto an altiport the sink is asked RELATIVE TO THE SLOPE - the ground rises at grade x
           // the ground speed under the aeroplane, so the path must climb that much, and on power (below)
           const hFl = altG > 0 ? cg[1] - (aimAlt() + altG * (sAl - ap.xAim)) : aglG;
@@ -2762,7 +2773,7 @@ function makePilot(sim, def, world, opts) {
         if (trike) {
           // P1.B soft: the nosewheel stays off to 0.7 Vs, then full up
           const soft = ap.appr && ap.appr.technique === 'soft';
-          if (V > (soft ? 0.7 * (SH0 && SH0.Vs0 ? SH0.Vs0 : (A.VRot || 18) / 0.99) : (A.VDerotate ?? 20))) engage('RWY', 'PITCH', 'SET', { pitch: A.rolloutTh ?? 0.035, thr: 0 });
+          if (V > (soft ? 0.7 * (sheetOf() && sheetOf().Vs0 ? sheetOf().Vs0 : (A.VRot || 18) / 0.99) : (A.VDerotate ?? 20))) engage('RWY', 'PITCH', 'SET', { pitch: A.rolloutTh ?? 0.035, thr: 0 });
           else engage('RWY', 'DE', 'SET', { de: soft ? 0.35 : 0.15, thr: 0 });
         } else if (A.flareMode !== 'ramp' && A.flareMode !== 'vs') {
           // G381: AFTER THE HOLD-OFF THE TAIL COMES DOWN AT ONCE. The stick
@@ -2790,7 +2801,7 @@ function makePilot(sim, def, world, opts) {
         // aeroplane is walking (0.5 Vs), the nose held off by the elevator
         // laws above (full up on a taildragger; a trike derotates late)
         const tq = ap.appr ? ap.appr.technique : 'normal';
-        if (tq === 'soft') { if (Vg < 0.5 * (SH0 && SH0.Vs0 ? SH0.Vs0 : (A.VRot || 18) / 0.99)) brakeRamp = Math.min(brakeRamp + 0.5 * A.brakeRampRate * dt, 0.5 * A.brakeMax); }
+        if (tq === 'soft') { if (Vg < 0.5 * (sheetOf() && sheetOf().Vs0 ? sheetOf().Vs0 : (A.VRot || 18) / 0.99)) brakeRamp = Math.min(brakeRamp + 0.5 * A.brakeRampRate * dt, 0.5 * A.brakeMax); }
         else if (tq === 'short') { if (onG >= 3 || Vg < A.VBrakeOn) brakeRamp = Math.min(brakeRamp + 2 * A.brakeRampRate * dt, A.brakeMax); }
         else if (Vg < A.VBrakeOn || (trike && onG >= 3 && V < (A.VDerotate ?? 20)))
           brakeRamp = Math.min(brakeRamp + A.brakeRampRate * dt, A.brakeMax);

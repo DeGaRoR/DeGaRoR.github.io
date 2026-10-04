@@ -1,0 +1,1109 @@
+{
+ "date": "2026-10-03T19:13:31.428Z",
+ "trees": [
+  {
+   "key": "here",
+   "rel": "flyDiy"
+  },
+  {
+   "key": "base",
+   "rel": "_ab/5502f450/flyDiy"
+  }
+ ],
+ "reps": 2,
+ "moves": 4,
+ "quiet": 700,
+ "udd": "/tmp/claude-0/sp/udd",
+ "page": "index.html",
+ "headless": true,
+ "rows": [
+  {
+   "tree": "here",
+   "action": "taxiDrag",
+   "fixture": "HOME",
+   "kind": "drag",
+   "move": {
+    "med": 11.5,
+    "max": 41.3
+   },
+   "mframe": {
+    "med": 35.4,
+    "max": 50.7
+   },
+   "up": {
+    "med": 2720.3,
+    "max": 3116.7
+   },
+   "upFrame": {
+    "med": 3311.9,
+    "max": 4165
+   },
+   "busy": {
+    "med": 3300,
+    "max": 4191
+   },
+   "settle": {
+    "med": 3312,
+    "max": 4240
+   },
+   "maxLong": {
+    "med": 2816,
+    "max": 3238
+   },
+   "moved": true,
+   "fnMove": {
+    "PREMISES_EDITOR.host.ground": [
+     0.11,
+     1
+    ],
+    "PREMISES_EDITOR.R.preview": [
+     21.61,
+     1
+    ]
+   },
+   "fn": {
+    "PREMISES_GEN.normalise": [
+     0.05,
+     1
+    ],
+    "PREMISES_EDITOR.R.setRecord": [
+     0.2,
+     1
+    ],
+    "PREMISES_GEN.compose": [
+     144.75,
+     1
+    ],
+    "PREMISES_EDITOR.R.rebuild": [
+     2655.1,
+     1
+    ],
+    "WORLD.repaintStrips": [
+     245.6,
+     1
+    ],
+    "PREMISES_GEN.checks": [
+     39.1,
+     1
+    ]
+   },
+   "reps": [
+    {
+     "moves": [
+      [
+       41.3,
+       47.3
+      ],
+      [
+       23.5,
+       35.4
+      ],
+      [
+       33.7,
+       50.7
+      ],
+      [
+       38.8,
+       50
+      ]
+     ],
+     "fnMove": {
+      "PREMISES_EDITOR.host.ground": [
+       0.7000000001862645,
+       4
+      ],
+      "PREMISES_EDITOR.R.preview": [
+       136,
+       4
+      ]
+     },
+     "up": 3116.7,
+     "upFrame": 4165,
+     "busy": 4191,
+     "maxLong": 3238,
+     "settle": 4240,
+     "fn": {
+      "PREMISES_GEN.normalise": [
+       0,
+       1
+      ],
+      "PREMISES_EDITOR.R.setRecord": [
+       0.20000000018626451,
+       1
+      ],
+      "PREMISES_GEN.compose": [
+       173.6999999997206,
+       1
+      ],
+      "PREMISES_EDITOR.R.rebuild": [
+       2808.2999999998137,
+       1
+      ],
+      "WORLD.repaintStrips": [
+       287.39999999990687,
+       1
+      ],
+      "PREMISES_GEN.checks": [
+       50.39999999990687,
+       1
+      ]
+     },
+     "moved": true,
+     "t0": 160520.6000000001
+    },
+    {
+     "moves": [
+      [
+       11.5,
+       22
+      ],
+      [
+       8.6,
+       33.3
+      ],
+      [
+       9,
+       35.4
+      ],
+      [
+       8.7,
+       31.2
+      ]
+     ],
+     "fnMove": {
+      "PREMISES_EDITOR.host.ground": [
+       0.20000000018626451,
+       4
+      ],
+      "PREMISES_EDITOR.R.preview": [
+       36.89999999990687,
+       4
+      ]
+     },
+     "up": 2720.3,
+     "upFrame": 3311.9,
+     "busy": 3300,
+     "maxLong": 2816,
+     "settle": 3312,
+     "fn": {
+      "PREMISES_GEN.normalise": [
+       0.10000000009313226,
+       1
+      ],
+      "PREMISES_EDITOR.R.setRecord": [
+       0.20000000018626451,
+       1
+      ],
+      "PREMISES_GEN.compose": [
+       115.79999999981374,
+       1
+      ],
+      "PREMISES_EDITOR.R.rebuild": [
+       2501.899999999907,
+       1
+      ],
+      "WORLD.repaintStrips": [
+       203.8000000002794,
+       1
+      ],
+      "PREMISES_GEN.checks": [
+       27.800000000279397,
+       1
+      ]
+     },
+     "moved": true,
+     "t0": 165919.7000000002
+    }
+   ],
+   "prof": null
+  },
+  {
+   "tree": "here",
+   "action": "taxiAdd",
+   "fixture": "HOME",
+   "kind": "click",
+   "move": null,
+   "mframe": null,
+   "up": {
+    "med": 2470.2,
+    "max": 3243
+   },
+   "upFrame": {
+    "med": 2800.5,
+    "max": 3926.7
+   },
+   "busy": {
+    "med": 2766,
+    "max": 18419
+   },
+   "settle": {
+    "med": 2800,
+    "max": 18460
+   },
+   "maxLong": {
+    "med": 2570,
+    "max": 14526
+   },
+   "moved": true,
+   "fnMove": {},
+   "fn": {
+    "PREMISES_GEN.normalise": [
+     0.05,
+     1
+    ],
+    "PREMISES_EDITOR.R.setRecord": [
+     0.05,
+     1
+    ],
+    "PREMISES_GEN.compose": [
+     354.75,
+     1
+    ],
+    "PREMISES_EDITOR.R.rebuild": [
+     2664.1,
+     1
+    ],
+    "WORLD.repaintStrips": [
+     177.3,
+     1
+    ],
+    "PREMISES_GEN.checks": [
+     33.55,
+     1
+    ]
+   },
+   "reps": [
+    {
+     "up": 2470.2,
+     "upFrame": 2800.5,
+     "busy": 2766,
+     "maxLong": 2570,
+     "settle": 2800,
+     "fn": {
+      "PREMISES_GEN.normalise": [
+       0.10000000009313226,
+       1
+      ],
+      "PREMISES_EDITOR.R.setRecord": [
+       0.10000000009313226,
+       1
+      ],
+      "PREMISES_GEN.compose": [
+       123.5,
+       1
+      ],
+      "PREMISES_EDITOR.R.rebuild": [
+       2295.2999999998137,
+       1
+      ],
+      "WORLD.repaintStrips": [
+       162,
+       1
+      ],
+      "PREMISES_GEN.checks": [
+       30.600000000093132,
+       1
+      ]
+     },
+     "t0": 170253.2000000002
+    },
+    {
+     "up": 3243,
+     "upFrame": 3926.7,
+     "busy": 18419,
+     "maxLong": 14526,
+     "settle": 18460,
+     "fn": {
+      "PREMISES_GEN.normalise": [
+       0,
+       1
+      ],
+      "PREMISES_EDITOR.R.setRecord": [
+       0,
+       1
+      ],
+      "PREMISES_GEN.compose": [
+       586,
+       1
+      ],
+      "PREMISES_EDITOR.R.rebuild": [
+       3032.9000000003725,
+       1
+      ],
+      "WORLD.repaintStrips": [
+       192.59999999962747,
+       1
+      ],
+      "PREMISES_GEN.checks": [
+       36.5,
+       1
+      ]
+     },
+     "t0": 174085.2000000002
+    }
+   ],
+   "prof": null
+  },
+  {
+   "tree": "here",
+   "action": "taxiDel",
+   "fixture": "HOME",
+   "kind": "click",
+   "move": null,
+   "mframe": null,
+   "up": {
+    "med": 2516.1,
+    "max": 3233.8
+   },
+   "upFrame": {
+    "med": 2758,
+    "max": 3481.5
+   },
+   "busy": {
+    "med": 3515,
+    "max": 5774
+   },
+   "settle": {
+    "med": 3792,
+    "max": 7564
+   },
+   "maxLong": {
+    "med": 2621,
+    "max": 3463
+   },
+   "moved": true,
+   "fnMove": {},
+   "fn": {
+    "PREMISES_GEN.normalise": [
+     0,
+     1
+    ],
+    "PREMISES_EDITOR.R.setRecord": [
+     0.1,
+     1
+    ],
+    "PREMISES_GEN.compose": [
+     155.15,
+     1
+    ],
+    "PREMISES_EDITOR.R.rebuild": [
+     2611.6,
+     1
+    ],
+    "WORLD.repaintStrips": [
+     240.7,
+     1
+    ],
+    "PREMISES_GEN.checks": [
+     39.7,
+     1
+    ]
+   },
+   "reps": [
+    {
+     "up": 2516.1,
+     "upFrame": 2758,
+     "busy": 5774,
+     "maxLong": 2621,
+     "settle": 7564,
+     "fn": {
+      "PREMISES_GEN.normalise": [
+       0,
+       1
+      ],
+      "PREMISES_EDITOR.R.setRecord": [
+       0.20000000018626451,
+       1
+      ],
+      "PREMISES_GEN.compose": [
+       149.89999999990687,
+       1
+      ],
+      "PREMISES_EDITOR.R.rebuild": [
+       2366.600000000093,
+       1
+      ],
+      "WORLD.repaintStrips": [
+       131.79999999981374,
+       1
+      ],
+      "PREMISES_GEN.checks": [
+       30.699999999720603,
+       1
+      ]
+     },
+     "t0": 286943.8999999999
+    },
+    {
+     "up": 3233.8,
+     "upFrame": 3481.5,
+     "busy": 3515,
+     "maxLong": 3463,
+     "settle": 3792,
+     "fn": {
+      "PREMISES_GEN.normalise": [
+       0,
+       1
+      ],
+      "PREMISES_EDITOR.R.setRecord": [
+       0,
+       1
+      ],
+      "PREMISES_GEN.compose": [
+       160.39999999990687,
+       1
+      ],
+      "PREMISES_EDITOR.R.rebuild": [
+       2856.600000000093,
+       1
+      ],
+      "WORLD.repaintStrips": [
+       349.60000000009313,
+       1
+      ],
+      "PREMISES_GEN.checks": [
+       48.700000000186265,
+       1
+      ]
+     },
+     "t0": 295582.1000000001
+    }
+   ],
+   "prof": null
+  },
+  {
+   "tree": "here",
+   "action": "propMove",
+   "fixture": "af_fuel_truck",
+   "kind": "drag",
+   "move": {
+    "med": 0.4,
+    "max": 0.6
+   },
+   "mframe": {
+    "med": 33.3,
+    "max": 33.4
+   },
+   "up": {
+    "med": 2640.9,
+    "max": 3655.1
+   },
+   "upFrame": {
+    "med": 2773.6,
+    "max": 4122.1
+   },
+   "busy": {
+    "med": 2758,
+    "max": 4039
+   },
+   "settle": {
+    "med": 2758,
+    "max": 4709
+   },
+   "maxLong": {
+    "med": 2758,
+    "max": 3803
+   },
+   "moved": true,
+   "fnMove": {
+    "PREMISES_EDITOR.host.ground": [
+     0.07,
+     1
+    ],
+    "PREMISES_EDITOR.R.preview": [
+     0.21,
+     1
+    ]
+   },
+   "fn": {
+    "PREMISES_GEN.normalise": [
+     0,
+     1
+    ],
+    "PREMISES_EDITOR.R.setRecord": [
+     0,
+     1
+    ],
+    "PREMISES_GEN.compose": [
+     160.85,
+     1
+    ],
+    "PREMISES_EDITOR.R.rebuild": [
+     2923.1,
+     1
+    ],
+    "WORLD.repaintStrips": [
+     221.8,
+     1
+    ],
+    "PREMISES_GEN.checks": [
+     27.7,
+     1
+    ]
+   },
+   "reps": [
+    {
+     "moves": [
+      [
+       0.6,
+       26.7
+      ],
+      [
+       0.5,
+       33.3
+      ],
+      [
+       0.4,
+       33.4
+      ],
+      [
+       0.4,
+       33.3
+      ]
+     ],
+     "fnMove": {
+      "PREMISES_EDITOR.host.ground": [
+       0.2999999998137355,
+       4
+      ],
+      "PREMISES_EDITOR.R.preview": [
+       0.900000000372529,
+       4
+      ]
+     },
+     "up": 3655.1,
+     "upFrame": 4122.1,
+     "busy": 4039,
+     "maxLong": 3803,
+     "settle": 4709,
+     "fn": {
+      "PREMISES_GEN.normalise": [
+       0,
+       1
+      ],
+      "PREMISES_EDITOR.R.setRecord": [
+       0,
+       1
+      ],
+      "PREMISES_GEN.compose": [
+       147.59999999962747,
+       1
+      ],
+      "PREMISES_EDITOR.R.rebuild": [
+       3364.5,
+       1
+      ],
+      "WORLD.repaintStrips": [
+       286.79999999981374,
+       1
+      ],
+      "PREMISES_GEN.checks": [
+       25.799999999813735,
+       1
+      ]
+     },
+     "moved": true,
+     "t0": 300997.6000000001
+    },
+    {
+     "moves": [
+      [
+       0.5,
+       21.3
+      ],
+      [
+       0.3,
+       33.4
+      ],
+      [
+       0.5,
+       33.3
+      ],
+      [
+       0.4,
+       33.1
+      ]
+     ],
+     "fnMove": {
+      "PREMISES_EDITOR.host.ground": [
+       0.2999999998137355,
+       4
+      ],
+      "PREMISES_EDITOR.R.preview": [
+       0.8000000002793968,
+       4
+      ]
+     },
+     "up": 2640.9,
+     "upFrame": 2773.6,
+     "busy": 2758,
+     "maxLong": 2758,
+     "settle": 2758,
+     "fn": {
+      "PREMISES_GEN.normalise": [
+       0,
+       1
+      ],
+      "PREMISES_EDITOR.R.setRecord": [
+       0,
+       1
+      ],
+      "PREMISES_GEN.compose": [
+       174.10000000009313,
+       1
+      ],
+      "PREMISES_EDITOR.R.rebuild": [
+       2481.7000000001863,
+       1
+      ],
+      "WORLD.repaintStrips": [
+       156.79999999981374,
+       1
+      ],
+      "PREMISES_GEN.checks": [
+       29.600000000093132,
+       1
+      ]
+     },
+     "moved": true,
+     "t0": 306914.2000000002
+    }
+   ],
+   "prof": null
+  },
+  {
+   "tree": "here",
+   "action": "houseMove",
+   "fixture": "s_club",
+   "kind": "drag",
+   "move": {
+    "med": 0.6,
+    "max": 4
+   },
+   "mframe": {
+    "med": 33.1,
+    "max": 33.3
+   },
+   "up": {
+    "med": 3543.5,
+    "max": 4117
+   },
+   "upFrame": {
+    "med": 3669.8,
+    "max": 4287.1
+   },
+   "busy": {
+    "med": 3648,
+    "max": 4224
+   },
+   "settle": {
+    "med": 3648,
+    "max": 4224
+   },
+   "maxLong": {
+    "med": 3648,
+    "max": 4224
+   },
+   "moved": true,
+   "fnMove": {
+    "PREMISES_EDITOR.host.ground": [
+     0.04,
+     1
+    ],
+    "PREMISES_EDITOR.R.preview": [
+     0.71,
+     1
+    ]
+   },
+   "fn": {
+    "PREMISES_GEN.normalise": [
+     0.05,
+     1
+    ],
+    "PREMISES_EDITOR.R.setRecord": [
+     0.1,
+     1
+    ],
+    "PREMISES_GEN.compose": [
+     136.05,
+     1
+    ],
+    "PREMISES_EDITOR.R.rebuild": [
+     2393.15,
+     1
+    ],
+    "WORLD.refreshGround": [
+     1298.65,
+     1
+    ],
+    "WORLD.repaintStrips": [
+     136.95,
+     1
+    ],
+    "PREMISES_GEN.checks": [
+     38,
+     1
+    ]
+   },
+   "reps": [
+    {
+     "moves": [
+      [
+       4,
+       21.2
+      ],
+      [
+       0.7,
+       33.1
+      ],
+      [
+       0.6,
+       33.3
+      ],
+      [
+       0.6,
+       33.2
+      ]
+     ],
+     "fnMove": {
+      "PREMISES_EDITOR.host.ground": [
+       0.20000000018626451,
+       4
+      ],
+      "PREMISES_EDITOR.R.preview": [
+       4.400000000372529,
+       4
+      ]
+     },
+     "up": 4117,
+     "upFrame": 4287.1,
+     "busy": 4224,
+     "maxLong": 4224,
+     "settle": 4224,
+     "fn": {
+      "PREMISES_GEN.normalise": [
+       0,
+       1
+      ],
+      "PREMISES_EDITOR.R.setRecord": [
+       0.10000000009313226,
+       1
+      ],
+      "PREMISES_GEN.compose": [
+       134.20000000018626,
+       1
+      ],
+      "PREMISES_EDITOR.R.rebuild": [
+       2545.2000000001863,
+       1
+      ],
+      "WORLD.refreshGround": [
+       1440.6000000000931,
+       1
+      ],
+      "WORLD.repaintStrips": [
+       129.79999999981374,
+       1
+      ],
+      "PREMISES_GEN.checks": [
+       30.799999999813735,
+       1
+      ]
+     },
+     "moved": true,
+     "t0": 310997.2000000002
+    },
+    {
+     "moves": [
+      [
+       0.9,
+       24.3
+      ],
+      [
+       0.4,
+       33.3
+      ],
+      [
+       0.3,
+       33.2
+      ],
+      [
+       0.4,
+       33.1
+      ]
+     ],
+     "fnMove": {
+      "PREMISES_EDITOR.host.ground": [
+       0.10000000009313226,
+       4
+      ],
+      "PREMISES_EDITOR.R.preview": [
+       1.3000000002793968,
+       4
+      ]
+     },
+     "up": 3543.5,
+     "upFrame": 3669.8,
+     "busy": 3648,
+     "maxLong": 3648,
+     "settle": 3648,
+     "fn": {
+      "PREMISES_GEN.normalise": [
+       0.10000000009313226,
+       1
+      ],
+      "PREMISES_EDITOR.R.setRecord": [
+       0.10000000009313226,
+       1
+      ],
+      "PREMISES_GEN.compose": [
+       137.89999999990687,
+       1
+      ],
+      "PREMISES_EDITOR.R.rebuild": [
+       2241.0999999996275,
+       1
+      ],
+      "WORLD.refreshGround": [
+       1156.7000000001863,
+       1
+      ],
+      "WORLD.repaintStrips": [
+       144.10000000009313,
+       1
+      ],
+      "PREMISES_GEN.checks": [
+       45.200000000186265,
+       1
+      ]
+     },
+     "moved": true,
+     "t0": 316446.8999999999
+    }
+   ],
+   "prof": null
+  },
+  {
+   "tree": "here",
+   "action": "runwayEnd",
+   "fixture": "HOME",
+   "kind": "drag",
+   "move": {
+    "med": 6.6,
+    "max": 70.8
+   },
+   "mframe": {
+    "med": 33.3,
+    "max": 72.2
+   },
+   "up": {
+    "med": 20394.8,
+    "max": 23997.4
+   },
+   "upFrame": {
+    "med": 20593.5,
+    "max": 24168.5
+   },
+   "busy": {
+    "med": 20523,
+    "max": 24105
+   },
+   "settle": {
+    "med": 20522,
+    "max": 24105
+   },
+   "maxLong": {
+    "med": 20523,
+    "max": 24105
+   },
+   "moved": true,
+   "fnMove": {
+    "PREMISES_EDITOR.host.ground": [
+     0.05,
+     1
+    ],
+    "PREMISES_EDITOR.R.preview": [
+     14.1,
+     1
+    ]
+   },
+   "fn": {
+    "PREMISES_GEN.normalise": [
+     0.05,
+     1
+    ],
+    "PREMISES_EDITOR.R.setRecord": [
+     0.05,
+     1
+    ],
+    "PREMISES_GEN.compose": [
+     135.25,
+     1
+    ],
+    "PREMISES_EDITOR.R.rebuild": [
+     16207.95,
+     1
+    ],
+    "WORLD.refreshGround": [
+     5378.6,
+     1
+    ],
+    "WORLD.repaintStrips": [
+     591.75,
+     1
+    ]
+   },
+   "reps": [
+    {
+     "moves": [
+      [
+       7.1,
+       35.5
+      ],
+      [
+       8.2,
+       22
+      ],
+      [
+       5.3,
+       33.5
+      ],
+      [
+       5.1,
+       33
+      ]
+     ],
+     "fnMove": {
+      "PREMISES_EDITOR.host.ground": [
+       0.3000000002793968,
+       4
+      ],
+      "PREMISES_EDITOR.R.preview": [
+       24.699999999720603,
+       4
+      ]
+     },
+     "up": 23997.4,
+     "upFrame": 24168.5,
+     "busy": 24105,
+     "maxLong": 24105,
+     "settle": 24105,
+     "fn": {
+      "PREMISES_GEN.normalise": [
+       0,
+       1
+      ],
+      "PREMISES_EDITOR.R.setRecord": [
+       0,
+       1
+      ],
+      "PREMISES_GEN.compose": [
+       146.09999999962747,
+       1
+      ],
+      "PREMISES_EDITOR.R.rebuild": [
+       17081,
+       1
+      ],
+      "WORLD.refreshGround": [
+       6289.5,
+       1
+      ],
+      "WORLD.repaintStrips": [
+       611.8999999999069,
+       1
+      ]
+     },
+     "moved": true,
+     "t0": 321480.2000000002
+    },
+    {
+     "moves": [
+      [
+       70.8,
+       72.2
+      ],
+      [
+       4.9,
+       30.7
+      ],
+      [
+       6.6,
+       33.3
+      ],
+      [
+       6.7,
+       33.4
+      ]
+     ],
+     "fnMove": {
+      "PREMISES_EDITOR.host.ground": [
+       0.10000000009313226,
+       4
+      ],
+      "PREMISES_EDITOR.R.preview": [
+       88.10000000009313,
+       4
+      ]
+     },
+     "up": 20394.8,
+     "upFrame": 20593.5,
+     "busy": 20523,
+     "maxLong": 20523,
+     "settle": 20522,
+     "fn": {
+      "PREMISES_GEN.normalise": [
+       0.10000000009313226,
+       1
+      ],
+      "PREMISES_EDITOR.R.setRecord": [
+       0.10000000009313226,
+       1
+      ],
+      "PREMISES_GEN.compose": [
+       124.39999999990687,
+       1
+      ],
+      "PREMISES_EDITOR.R.rebuild": [
+       15334.899999999907,
+       1
+      ],
+      "WORLD.refreshGround": [
+       4467.699999999721,
+       1
+      ],
+      "WORLD.repaintStrips": [
+       571.6000000000931,
+       1
+      ]
+     },
+     "moved": true,
+     "t0": 346229.2999999998
+    }
+   ],
+   "prof": null
+  }
+ ],
+ "meta": [
+  {
+   "tree": "here",
+   "load": {
+    "state": "ready",
+    "sec": 130.3
+   },
+   "fixtures": {
+    "rwy": "HOME",
+    "near": [
+     -353.49,
+     281.38
+    ],
+    "propId": "af_fuel_truck",
+    "prop": "af_fuel_truck",
+    "site": "s_club",
+    "zone": "z_harbour",
+    "n": 179
+   },
+   "exc": []
+  }
+ ]
+}

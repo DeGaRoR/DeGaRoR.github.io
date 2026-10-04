@@ -335,5 +335,6 @@ async function main() {
   for (const p of places) console.log('  ' + p.name.padEnd(20) + JSON.stringify(p.w));
 }
 
-module.exports = { loadJolene, setClock, runPath, PLACES, placeWeights, harness, catalogueManifest, pose, KEYS, SEGS, DUR };
+module.exports = { loadJolene, setClock, runPath, PLACES, placeWeights, harness, catalogueManifest, pose, KEYS, SEGS, DUR,
+                   canvas, C, hex, decodeMp3 };   // (G1665: SND-AMB-2's evidence draws and decodes with these)
 if (require.main === module) main().catch(e => { console.error(e); process.exit(1); });

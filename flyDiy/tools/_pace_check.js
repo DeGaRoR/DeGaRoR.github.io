@@ -46,7 +46,8 @@ if (!(a > 0 && b > a)) { console.log('GATE PACE: FAIL'); process.exit(1); }
 const block = src.slice(a, b + '    W.FLYDIY_PACE = api;\n    return api;\n  })();'.length);
 
 function make(opts) {
-  const store = {}; if (opts.pref) store['flydiy.gfx'] = JSON.stringify(opts.pref);
+  // G1295 (EVEN-30): no pref stored boots a hard 30 now - the checks of AUTO state it (a picked auto); opts.pref null = none stored
+  const store = {}; const pref = opts.pref === undefined ? { pv: 7, fps: 'auto', fpsOwn: true } : opts.pref; if (pref) store['flydiy.gfx'] = JSON.stringify(pref);
   const targets = [];
   const clock = { t: 0 }, vis = [];
   const document = { hidden: false, addEventListener: (k, f) => { if (k === 'visibilitychange') vis.push(f); } };
@@ -77,6 +78,14 @@ function drive(PACE, hz, secs, opt = {}) {
   return { rendered, steps, simS: sim, wallS: secs };
 }
 
+// 0. G1295 (EVEN-30): THE BOOT DEFAULT before gfx_settings applies the preset's - a hard 30 but on ultra; an old pref's
+// stored 'auto' (the old default, pv < 7) is not a pick, a picked one (pv 7) and a stored 60 / uncapped are kept
+{
+  const st = p => { const { PACE } = make({ pref: p }); return PACE.state(); };
+  const a = st(null), b = st({ preset: 'gamer', pv: 6, fps: 'auto' }), c = st({ preset: 'ultra', pv: 6, fps: 'auto' }), d = st({ pv: 7, fps: 'auto', fpsOwn: true }), e = st({ pv: 6, fps: 60 });
+  verdict(a.mode === 30 && a.cap === 30 && b.mode === 30 && c.mode === 'auto' && d.mode === 'auto' && e.mode === 60,
+    'the boot default: none stored 30 (cap ' + a.cap + '), pv 6 gamer auto -> ' + b.mode + ', pv 6 ultra auto -> ' + c.mode + ', a picked auto -> ' + d.mode + ', a stored 60 -> ' + e.mode);
+}
 // 1. 60 Hz, capped at 30: every 2nd refresh, exactly 2 steps each (with a vsync jitter of 0.4 ms)
 {
   const { PACE } = make({ pref: { fps: 30 } });
@@ -187,7 +196,7 @@ for (const fps of [60, 'off']) {
   let maxHold = 0;
   for (let k = 0; k < 8; k++) { drive(P4, 60, 8, { frameMs: () => 22, work: () => 9 }); maxHold = Math.max(maxHold, P4.state().holdUpS - P4.__t / 1000); }   // (the stub's performance.now() is 0: the hold against the drive's own clock)
   st = P4.state();
-  verdict(st.stats.trialsFailed >= 3 && maxHold <= 30, `trials that miss (${st.stats.trialsFailed}): the next held ${maxHold.toFixed(0)} s at most (<= 30)`);
+  verdict(st.stats.trialsFailed >= 3 && maxHold > 30 && maxHold <= 300, `trials that miss (${st.stats.trialsFailed}): the hold doubles past 30 s (G1295), ${maxHold.toFixed(0)} s at most (<= 300)`);
 }
 // 7. THE STEP-DEBT GUARD (G612): a 60 Hz screen capped at 30, the frame bound by its own work - the next refresh
 // after `other + steps x step` ms (the solver's steps run in the frame they are owed) - for 20 s
