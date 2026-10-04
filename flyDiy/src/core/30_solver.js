@@ -455,10 +455,43 @@ function makeSim(def, world) {
   // nodes. No floats, no pass, no cost.
   const HY = (typeof HYDRO !== 'undefined' && HYDRO) ? HYDRO.hydroBuild(def, p, v) : null;
   out.hydro = HY;
-  // G1381 (GEAR-WATER): a build WITHOUT floats meets the water on its belly and its tyres (32_hydro.js wetBuild);
-  // a float build keeps the float pass alone
-  // (on the sim, never on `out`: the physics worker posts `out` every snapshot; out.wetDrag / out.wetBuoy carry the numbers)
-  const WB = (!HY && typeof HYDRO !== 'undefined' && HYDRO && HYDRO.wetBuild) ? HYDRO.wetBuild(def, p, v, m) : null;
+  // G1381 (GEAR-WATER): a build WITHOUT floats meets the water on its belly, its flying surfaces and its tyres
+  // (32_hydro.js wetBuild); a float build keeps the float pass alone. G1384 (SOAR): NOTHING IN DRY AIR - the body is
+  // built at the first frame the aeroplane can reach the water (step's arm, below) and the pass runs only on armed
+  // frames, so a dry flight builds nothing, samples nothing per substep, writes nothing to `out` and adds no force:
+  // its trajectory is master's to the bit. (On the sim, never on `out`: the physics worker posts `out` every
+  // snapshot; out.wetDrag / out.wetBuoy carry the numbers once wet.)
+  const WB_CAN = !HY && typeof HYDRO !== 'undefined' && !!HYDRO && typeof HYDRO.wetBuild === 'function';
+  let WB = null, wetArm = false, WB_REACH = 0;
+  if (WB_CAN) {   // the farthest any node (plus its radius) stands from the mass centre as built, +25 % for the flex
+    let cx = 0, cy = 0, cz = 0, mm = 0;
+    for (const nd of def.nodes) { cx += nd.p[0] * nd.m; cy += nd.p[1] * nd.m; cz += nd.p[2] * nd.m; mm += nd.m; }
+    cx /= mm || 1; cy /= mm || 1; cz /= mm || 1;
+    for (const nd of def.nodes) WB_REACH = Math.max(WB_REACH, Math.hypot(nd.p[0] - cx, nd.p[1] - cy, nd.p[2] - cz) + (nd.r || 0));
+    WB_REACH = 1.25 * WB_REACH + 0.5;
+  }
+  // once a frame: can any node reach the water this frame? The lowest node and the mass centre each ask the water
+  // under them (two waterH samples a frame, never a substep's); armed when the lowest node, less a frame of its
+  // fastest descent, a metre and three times the sea's amplitude, is under that level
+  function wetArmFrame(dtFrame) {
+    wetArm = false;
+    if (!WB_CAN || !world || typeof world.waterH !== 'function') return;
+    let iLo = 0, yLo = Infinity, vDn = 0, cx = 0, cy = 0, cz = 0, mm = 0;
+    for (let i = 0; i < n; i++) {
+      const y = p[i*3+1]; if (y < yLo) { yLo = y; iLo = i; }
+      if (-v[i*3+1] > vDn) vDn = -v[i*3+1];
+      cx += p[i*3] * m[i]; cy += y * m[i]; cz += p[i*3+2] * m[i]; mm += m[i];
+    }
+    cx /= mm; cy /= mm; cz /= mm;
+    const amp = world.sea && world.sea.A > 0 ? 3 * world.sea.A : 0;
+    const reach = yLo - 2 * vDn * dtFrame - 1.0 - amp;
+    const w1 = world.waterH(p[iLo*3], p[iLo*3+2]);
+    let near = w1 > -1e8 && reach < w1;
+    if (!near) { const w2 = world.waterH(cx, cz); near = w2 > -1e8 && Math.min(reach, cy - WB_REACH) < w2; }
+    if (!near) { if (WB) { WB.tick = 0; WB.wet = 0; } return; }
+    if (!WB) WB = HYDRO.wetBuild(def, p, v, m);
+    wetArm = !!WB;
+  }
   let totalM = 0;
   for (const nd of def.nodes) totalM += nd.m;
 
@@ -1500,7 +1533,7 @@ function makeSim(def, world) {
     }
     // THE WATER (H1): every wet panel of every float, onto the frame
     if (HY && world) out.hydroWet = HYDRO.hydroSolverPass(HY, world, f, simT, dt, ctl);
-    else if (WB && world) { out.hydroWet = HYDRO.wetSolverPass(WB, world, f, simT, dt); out.wetDrag = WB.drag; out.wetBuoy = WB.buoy; }
+    else if (wetArm) { out.hydroWet = HYDRO.wetSolverPass(WB, world, f, simT, dt); out.wetDrag = WB.drag; out.wetBuoy = WB.buoy; }
     // tree collisions: cheap cylinder push-out, only when low and near trees
     if (world) {
       const cgx = p[0], cgz = p[2];   // any chassis node as coarse anchor
@@ -1634,6 +1667,7 @@ function makeSim(def, world) {
     }
     obstFrame();
     trunkFrame(dtFrame);
+    wetArmFrame(dtFrame);                           // G1384: the water's pass only on a frame that can reach it
     for (let s = 0; s < sub; s++) { substep(dt); simT += dt; burn(dt); }
     readPanel(dtFrame);
   }
@@ -1762,7 +1796,7 @@ function makeSim(def, world) {
            get t() { return simT; },
            setNodeMass,
            // the panel arc: the tanks, the engines and their one writer
-           fuel, eng, setEngine, thrEffOf, hydro: HY, wetBody: WB,
+           fuel, eng, setEngine, thrEffOf, hydro: HY, get wetBody() { return WB; },
            trunkHits: () => _tkHits,   // G1330: beam-trunk contacts (one per beam per trunk per substep) since the sim was made
            reset, stance, step, trueBox, probe, stats, impulse, wheelsOnGround, wheelContacts, cgPos, cgVel, axes,
            // G197: the kernel's sources, readable (the gate asserts the weights' normalisation)
