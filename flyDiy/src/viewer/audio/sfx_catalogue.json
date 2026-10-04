@@ -1,0 +1,240 @@
+[
+ {
+  "key": "amb.forest.day",
+  "file": "media/audio/sfx/amb_forest_day_288899.157bf96e.mp3",
+  "kind": "bed",
+  "durationS": 32,
+  "lufs": -25.4
+ },
+ {
+  "key": "amb.forest.night",
+  "file": "media/audio/sfx/amb_forest_night_333221.3df54da1.mp3",
+  "kind": "bed",
+  "durationS": 32,
+  "lufs": -23
+ },
+ {
+  "key": "amb.wind.light",
+  "file": "media/audio/sfx/amb_wind_light_160469.4d45c6a1.mp3",
+  "kind": "bed",
+  "durationS": 32,
+  "lufs": -23
+ },
+ {
+  "key": "amb.wind.clear",
+  "file": "media/audio/sfx/amb_wind_clear_156414.f23315bb.mp3",
+  "kind": "bed",
+  "durationS": 32,
+  "lufs": -23
+ },
+ {
+  "key": "amb.wind.mountain",
+  "file": "media/audio/sfx/amb_wind_mountain_165526.140f3920.mp3",
+  "kind": "bed",
+  "durationS": 32,
+  "lufs": -23
+ },
+ {
+  "key": "amb.wind.storm",
+  "file": "media/audio/sfx/amb_wind_storm_157280.9fdd2a2c.mp3",
+  "kind": "bed",
+  "durationS": 32,
+  "lufs": -23
+ },
+ {
+  "key": "amb.shore.surf",
+  "file": "media/audio/sfx/amb_shore_surf_155641.27350310.mp3",
+  "kind": "bed",
+  "durationS": 32,
+  "lufs": -23
+ },
+ {
+  "key": "amb.shore.rocks",
+  "file": "media/audio/sfx/amb_shore_rocks_155895.6ee71344.mp3",
+  "kind": "bed",
+  "durationS": 32,
+  "lufs": -28.4
+ },
+ {
+  "key": "amb.lake.near",
+  "file": "media/audio/sfx/amb_lake_near_135046.22d12339.mp3",
+  "kind": "bed",
+  "durationS": 32,
+  "lufs": -34.4
+ },
+ {
+  "key": "amb.lake.lap",
+  "file": "media/audio/sfx/amb_lake_lap_428088.0018a69a.mp3",
+  "kind": "bed",
+  "durationS": 32,
+  "lufs": -23
+ },
+ {
+  "key": "amb.stream",
+  "file": "media/audio/sfx/amb_stream_264180.4ff25da2.mp3",
+  "kind": "bed",
+  "durationS": 32,
+  "lufs": -23
+ },
+ {
+  "key": "amb.harbour",
+  "file": "media/audio/sfx/amb_harbour_339440.fc5b7cd1.mp3",
+  "kind": "bed",
+  "durationS": 32,
+  "lufs": -23
+ },
+ {
+  "key": "amb.village",
+  "file": "media/audio/sfx/amb_village_435819.20299c23.mp3",
+  "kind": "bed",
+  "durationS": 32,
+  "lufs": -23
+ },
+ {
+  "key": "amb.airfield",
+  "file": "media/audio/sfx/amb_airfield_319102.6b4237cf.mp3",
+  "kind": "bed",
+  "durationS": 32,
+  "lufs": -23
+ },
+ {
+  "key": "amb.hangar",
+  "file": "media/audio/sfx/amb_hangar_427861.f9afe454.mp3",
+  "kind": "bed",
+  "durationS": 32,
+  "lufs": -23
+ },
+ {
+  "key": "amb.rain.roof",
+  "file": "media/audio/sfx/amb_rain_roof_329578.c0aba715.mp3",
+  "kind": "bed",
+  "durationS": 32,
+  "lufs": -23.4
+ },
+ {
+  "key": "amb.frogs.night",
+  "file": "media/audio/sfx/amb_frogs_night_135561.9aa1f6e9.mp3",
+  "kind": "bed",
+  "durationS": 32,
+  "lufs": -23
+ },
+ {
+  "key": "amb.loons",
+  "file": "media/audio/sfx/amb_loons_39339.7d136ae5.mp3",
+  "kind": "bed",
+  "durationS": 32,
+  "lufs": -23
+ },
+ {
+  "key": "amb.meadow",
+  "file": "media/audio/sfx/amb_meadow_639459.3facef88.mp3",
+  "kind": "bed",
+  "durationS": 32,
+  "lufs": -23
+ },
+ {
+  "key": "bird.eagle",
+  "file": "media/audio/sfx/bird_eagle_381200.1d11590c.mp3",
+  "kind": "shot",
+  "durationS": 2.14,
+  "lufs": -19.5
+ },
+ {
+  "key": "bird.eagle",
+  "file": "media/audio/sfx/bird_eagle_392212.13114290.mp3",
+  "kind": "shot",
+  "durationS": 4.91,
+  "lufs": -16
+ },
+ {
+  "key": "bird.gull",
+  "file": "media/audio/sfx/bird_gull_166710.bb2f19eb.mp3",
+  "kind": "shot",
+  "durationS": 6.01,
+  "lufs": -19.9
+ },
+ {
+  "key": "bird.crow",
+  "file": "media/audio/sfx/bird_crow_182090.1a94cd39.mp3",
+  "kind": "shot",
+  "durationS": 0.39,
+  "lufs": -16
+ },
+ {
+  "key": "bird.owl",
+  "file": "media/audio/sfx/bird_owl_465697.2ee834d0.mp3",
+  "kind": "shot",
+  "durationS": 4.39,
+  "lufs": -16.1
+ },
+ {
+  "key": "dog",
+  "file": "media/audio/sfx/dog_160366.86fe02dc.mp3",
+  "kind": "shot",
+  "durationS": 6.01,
+  "lufs": -26.9
+ },
+ {
+  "key": "gnd.gravel",
+  "file": "media/audio/sfx/gnd_gravel_251661.0e48f11b.mp3",
+  "kind": "loop",
+  "durationS": 10,
+  "lufs": -23
+ },
+ {
+  "key": "mech.creak",
+  "file": "media/audio/sfx/mech_creak_119468.101f6d88.mp3",
+  "kind": "shot",
+  "durationS": 3.14,
+  "lufs": -25.8
+ },
+ {
+  "key": "mech.creak",
+  "file": "media/audio/sfx/mech_creak_238289.6d8b72b3.mp3",
+  "kind": "shot",
+  "durationS": 3.13,
+  "lufs": -20.2
+ },
+ {
+  "key": "mech.door",
+  "file": "media/audio/sfx/mech_door_345066.66dbaf6d.mp3",
+  "kind": "shot",
+  "durationS": 0.46,
+  "lufs": -22
+ },
+ {
+  "key": "mech.switch",
+  "file": "media/audio/sfx/mech_switch_361371.9ced067b.mp3",
+  "kind": "shot",
+  "durationS": 0.4,
+  "lufs": -29.5
+ },
+ {
+  "key": "mech.switch",
+  "file": "media/audio/sfx/mech_switch_423957.6b08a0c1.mp3",
+  "kind": "shot",
+  "durationS": 0.13,
+  "lufs": -27.1
+ },
+ {
+  "key": "water.drip",
+  "file": "media/audio/sfx/water_drip_166986.f81c294b.mp3",
+  "kind": "shot",
+  "durationS": 0.46,
+  "lufs": -22.7
+ },
+ {
+  "key": "ui.click",
+  "file": "media/audio/sfx/ui_click_528561.bdd8b52e.mp3",
+  "kind": "shot",
+  "durationS": 0.08,
+  "lufs": -17.5
+ },
+ {
+  "key": "vehicle.pickup",
+  "file": "media/audio/sfx/vehicle_pickup_450227.be208f91.mp3",
+  "kind": "shot",
+  "durationS": 6.01,
+  "lufs": -20.7
+ }
+]

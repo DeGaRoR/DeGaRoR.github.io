@@ -125,7 +125,7 @@ async function download(L, ids) {
     // re-check the licence on the sound's own page
     const page = await getPolite(s.page);
     const lm = /creativecommons\.org\/(publicdomain\/zero\/1\.0|licenses\/[a-z-]+\/\d\.\d)/.exec(page);
-    s.licence = lm ? lm[1] : 'unknown';
+    s.licence = !lm ? 'unknown' : lm[1].startsWith('publicdomain') ? 'CC0-1.0' : 'CC-' + lm[1].replace('licenses/', '').replace('/', '-').toUpperCase();
     if (!s.reference && !(lm && lm[1].startsWith('publicdomain'))) {
       console.log('SKIP', id, 'licence on the page is not CC0'); s.licenceCheck = 'failed'; continue;
     }
