@@ -69289,7 +69289,7 @@ recorded failures (G568: 1.5-2x slower ground). (3) The issue time: every heavy 
 (4) The pavement (13 s, its debug view's 11-way select is small) is now as long as the ground.
 
 GATES: PROGRAMS, BOOT, GFX, BUILD - PASS (run_gates --only). Not run (A0's): the battery, FRAMECOST (the ground's
-programs change text: a parked cook / census re-take is A0's), SPLAT (its slope-gate pattern still matches the source).
+programs change text: a parked cook / census re-take is A0's), SPLAT (WRONG as first written: three of its pond checks read the moved block - fixed in G1314.1 below).
 Budget: 9 loads (3 + 3 + 3), 3 link benches, ~17 min of GPU under the lock (window 02:09-02:25 reserved by A0; a
 1-minute bench at 00:52 ran during A0's CPU battery - classifier refused withdrawing the queued take; within-run A/B
 only). The built outputs are NOT committed (pinned build id): rebuild at landing.
@@ -70550,3 +70550,14 @@ or over its level) - the cut was the renderer's, the bed is carved in src/ at ru
   tools/build.js`). The physics change is real: floats now have water on the lakes the DEM held at their level (the
   floatplane's lakes deepen from ~0 to the bed's 0.5-3 m); FLOATS and SEAPLANE pass. The look to check on the box:
   tools/lake_holes_shot.js --gl gpu (and the user's far shores).
+
+**G1314.1 COLD-LINKS x LAKE-HOLES (2026-10-04, for A0's train 28; branch claude/cold-links-lakes = master e40628b0 + COLD-LINKS
++ LAKE-HOLES 659c22b6).** The merge keeps LAKE-HOLES as written (the bed carved, no ground program discards for a lake, the
+`dry` twin and its outer-dry program gone) and COLD-LINKS' production / full keying on every ground material that remains
+(islandKeyed: ring, twin, fine, outer x2; the premises clones). Node census: 392 programs (393 - outer-dry). THE TEXTS: every
+heavy program's source equals what the GPU linked in G1313's after loads except LAKE-HOLES' one removed line
+(`if (uGWaterMap > 0.5 && lsd > 1.0) discard;`) - the vertex shaders and the pavement byte-identical, and the merged outer
+ring byte-identical to the measured outer-dry (12.7 s [12.3-13.9] cold): one heavy cold link fewer, none new.
+GATE SPLAT went red on COLD-LINKS itself (not the merge): its three pond checks sliced the text after the pond block's
+anchor in sMatPass, and G1312 moved the mask to sPools - the gate now reads sPools (the same three expressions, the same
+`far` law). Gates on the merge: SPLAT, WATER, FLOATS, SEAPLANE, LAKEBED, PROGRAMS, BOOT, BUILD, GFX - PASS. No GPU.
