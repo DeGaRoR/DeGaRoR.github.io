@@ -72033,3 +72033,224 @@ Against a trunk (the land builds):
 - **The thresholds (9 g, 1.5 kJ, the 3 % kink, D / wall 30) are physical anchors, not fitted.** A 5 m/s (10 kt) taxi into a trunk is a crash (1.5-2 kJ).
   If that reads harsh in play, CRASH_J is the knob.
 - **The floats' water landings and a crash ON the water** are not part of this: hydro forces do not count in the contact g.
+
+## G1810-G1819 DMG-D1a MEMBERS - THE MEMBERS' OWN LIMITS ON TREE-CRASH'S LOOP: SEAMS, BREAK GROUPS, EULER, THE KINK FLOOR, SPRUCE'S RAGGED BREAK, THE BREAK ORDER (2026-10-04, DMG-D1a for the DEFORM COORDINATOR, cloud, node only; branch claude/dmg-d1a-members off claude/dmg-switch-g1898 = 4ca0678c; G1818-G1819 unused)
+
+DEFORM-AND-BREAK §4.0 / §4.1 / §4.4 / §7.1 / §7.2 / §11.1 (DMG-D1a). TREE-CRASH's loop extended, not rebuilt: everything is stamped once (the generator's
+`B()`, then `makeSim`'s per-member caps beside TREE-CRASH's), everything per substep is inside TREE-CRASH's armed path, and **all of it is behind
+`params.damage`** (off by default, G1898): with the layer off no limit is stamped and the bytes are the base's (the battery below).
+
+### G1810 - THE SEAMS (61_gen_frame.js, B())
+- Every member carries `bm.seam` (null / `fitting` / `rivet` / `bond` / `opening`) and `bm.grp` (its break group, -1 none): one shape for every beam.
+- **The part of a node is read off its tag** (the generator's own vocabulary): the body (`S<i>[BT][LR]`, TPB/TPT, the nose tank's VSN), a wing half
+  (WF/WR/WB, per plane and side), a boom (BM*), the stab (HF/HR/HB/HT*), the fin (VF/VR/VX/FIN*), an engine (ENG/CGE/MNT; a wing pair per side), a main
+  gear leg (AXLE L/R), the third wheel (TW), a float (FLK/FLD).
+- **A member joining two parts IS the joint** (the lattice has no separate bolt): a `fitting`, in the group of the part that comes off (the child: the
+  higher rank of body < wing < boom < stab/fin < engine < gear/float). The wing's joint is its ROOT (the wing end on the root rib) or its STRUT (the
+  strut, the fan, the boxed outer's lower chord); a biplane's planes join at the INTERPLANE truss. So: wing root pins, strut pins (both ends: the strut
+  member is both), tail attach (stab and fin root members, the stab's wires), gear attach (legs, braces, the snap-blockers), engine mount (the
+  bearer's members to the firewall or the wing; the engine's CG locators), float struts.
+- **Rivet lines** (an alloy monocoque): the cabin-to-tailcone joint (the frame at the box's rear and the bay behind it - its longerons are the
+  splices) and the tailcone's skin panels (the bay diagonals aft of it). A carbon or ply fuselage's joint is a `bond`; a welded / bolted truss (4130,
+  6061 tube) has neither.
+- **Glue lines** (`bond`): a wood or composite surface's ribs (the members of one station: rib gussets, the root rib) and its box webs (`opt.web`:
+  the ply or laminate on the spar caps); the tail's sections likewise.
+- **Openings** (a covered cabin with glazing): the windscreen frame (ring 0 to 1, the top), the cabin's side bays' diagonals (the door, the
+  windows) and the doorposts (the posts at the cabin's front and rear rings).
+- On the validated builds:
+
+  | build | fitting | rivet | bond | opening | groups |
+  |---|---|---|---|---|---|
+  | the user's Cub | 100 | - | 8 (wing ribs) | 10 | 10: mount, wing root L/R, strut L/R, stab, fin, main gear L/R, tailwheel |
+  | Jodel | 92 | - | 165 (108 wing, 43 tail, 14 the cabin-tailcone joint) | 10 | 8 (cantilever: no strut groups) |
+  | metal Cessna | 100 | 32 | - | 10 | 10 |
+  | Cessna floats | 102 | 32 | - | 10 | 9 (floats L/R in place of the gear) |
+  | twin floatplane | 116 | - | 8 | - (open frame, no glazing) | 10 (two engine mounts on the wings) |
+
+### G1815 - THE BREAK GROUPS (61_gen_frame.js parts.dmg, 30_solver.js)
+- `parts.dmg.groups`: per group its key (`<part>:<joint>`), the members that break it (type 0: `bm.grp`) and the members it takes along (type 1).
+- **A pair's own link is type 1 in both sides' groups**: the wing carry-through (the half-wing does not hang on by it once its root has gone),
+  the main gear's axle bar, the floats' spreader bars. It breaks no group itself.
+- In the solver (`beamBreak`): a member breaking breaks its group once, whole (`DMG.groups`: key, seam, the member, t).
+- **THE CLOSED-SET ASSERTION** (the generator's, `parts.dmg.issues`; BeamNG's leak warning, §4.4): every group has a member that breaks it; a member it
+  takes along breaks no other group and sits in at most its pair's two groups; every member that breaks it has an end on its part; every member
+  joining two parts is in a group. **Clean on every build and fixture in the repo** (the 9 builds/, the 12 tools/fixtures/build_*, both bugReports
+  Cessnas, the twin boom, the pusher) and on GATE BIPLANE's biplane, sesquiplane, I-strut and parasol.
+- **And in the solver** (GATE DMGMEMBERS): one member of each group broken breaks exactly its group (its type 1 links included) and nothing else;
+  a link broken alone breaks nothing else. 47 groups, 37 links on the five builds.
+
+### G1812 - EULER (30_solver.js, the caps)
+- `Fc = min(cy A, pi^2 E I / L^2)`, pinned, E the material's (GEN_MATERIALS phys), I a thin tube's of the member's own A at D / wall = 30
+  (GEN_CRASH_TUBE_DT: I = A D^2 / 8, D^2 = 30 A / pi). The reference 0.7 m 1" x 0.035" 4130 tube: **0.73** of its crush force (§4.0 "~0.7").
+- **Only on the members that are tubes:** the welded / bolted truss of a tube row (tubeFabric, aluTube: the lattice's fuselage members are its
+  longerons, posts and diagonals), the engine bearer (4130 on every aeroplane), cabane and interplane struts. **Measured, and not stamped, elsewhere:**
+
+  | members | what a thin tube of their A reads, under Euler | why not |
+  |---|---|---|
+  | the tail truss's root members (1.3-1.6 m) | 1.8-7 x Euler in a FAR 23.473 drop (Cub, Cessnas, twin) | stand-ins for the stab's attach, not 1.4 m tubes |
+  | the strut fan's hidden members (to 5.8 m) | 1.8-2.7 x in the drops | the lumped stand-in for a spar box (G140) |
+  | the monocoque's members (alloy, ply) | - | a skin-stringer panel, not a tube; crumpling is §6.4's "can wait years" |
+  | **the drawn lift struts** (2.6-4 m, 79-204 mm2) | the Cessnas' 5.6-6.8 x at +5.7 g on the bench; **kinked at 2.7 g in a flown pull**; the twin 1.54 x in the 10 ft/s drop | see below |
+  | the gear | - | its limits are the gear bracket's (DMG-D2b): a leg is a spring standing for a whole leg |
+
+- **The drawn lift struts work in COMPRESSION at positive g in the lattice.** The metal Cessna's two drawn members: -21 / -28 kN at +5.7 g on the bench
+  (linear with the bags), -15 / -21 kN in a flown 5.25 g pull; the Cub's front strut 1.2 kN at 4 g. The boxed outer panel's upper caps push the crank's
+  upper nodes inboard and the hidden lower chord (`strutRoot -> WB`) carries the tension (G140: "the strut is the lower chord"). A real strut is in
+  tension there. Its compression case (negative g, the jury strut, a streamline section's I) is the certificate's, DMG-D2.
+- The table (Fc / (cy A): the smallest, the median; members capped):
+
+  | build | class (tube) | n | L (m) | smallest (its L) | median | capped |
+  |---|---|---|---|---|---|---|
+  | the user's Cub | fus tubeFabric (truss + bearer) | 131 | 0.10-1.72 | 0.13 (1.72) | 0.65 | 103 |
+  | Jodel | fus tubeFabric (the bearer) | 22 | 0.32-1.31 | 0.22 (1.31) | 0.38 | 17 |
+  | metal Cessna | fus tubeFabric (the bearer) | 22 | 0.15-1.57 | 0.16 (1.57) | 0.59 | 18 |
+  | Cessna floats | fus tubeFabric (the bearer) | 22 | 0.15-1.57 | 0.16 (1.57) | 0.59 | 18 |
+  | twin floatplane | fus tubeFabric (truss + bearers) | 146 | 0.07-1.72 | 0.13 (1.72) | 0.62 | 106 |
+
+  Every other class reads 1.00 (uncapped): the wing (wood, alloy, the steel struts), the tail, the gear, an alloy or ply fuselage.
+
+### G1811 - THE SEAM RULES (30_solver.js dmgMember, over the member's physics Fu = tu A)
+| seam | tension | compression | on the builds |
+|---|---|---|---|
+| fitting | brittle at **1.15 x Fu** (FAR 23.625's factor; DMG-D2's certificate replaces it): no set | the member's (Euler / crush, the 3 % kink) | 1.15 |
+| rivet | **0.7 x Fu**, yield at 0.9 of that (or the member's, lower), plastic travel **2 %** | the member's | 0.70, travel 2.0 % |
+| bond | brittle at **0.6-0.8 x Fu**, seeded per member (the glue's quality) | the member's | 0.60-0.80 |
+| opening | **Fu / Kt, Kt 1.5-2** seeded; yield at 0.9 of that, travel 2 % (a ductile metal; a brittle one breaks there) | the member's | 0.50-0.66 (spruce 0.48-0.74: its +-15 % on top) |
+
+- **The scatter is the build's own:** an FNV hash of the nodes as built and the member count, one draw per member and purpose; never Math.random
+  (two sims of a build stamp the same limits: GATE DMGMEMBERS).
+- Ranges from search summaries stay ranges (§1, §11.2 #7): the 0.7 joint efficiency, the 0.6-0.8 glue line, Kt 1.5-2 and the 2 % travel are the
+  doc's ranges, not certified numbers.
+
+### G1814 - SPRUCE'S RAGGED BREAK (30_solver.js beamYield)
+- A spruce member (wood, not a fitting or a glue line) in tension: its strength **+-15 %** (seeded: grain, knots), then **2 or 3 stages** (seeded,
+  about half each): it CRACKS to 60 % of its strength (the crack's own release is not pull-out), pulls out at that over RAG_SLIP = 0.5 % of its length,
+  (drops to 30 % and pulls out again,) then lets go. The work at each cap is spent.
+- Measured on the bench to destruction (per substep): **crack to gone 0.8-2.2 ms** (Cub 1.33-1.78, Jodel 0.81-1.89, twin 1.23-2.22); every member
+  that let go passed its 2 or 3 stages. `ragged.svg`: the Cub's member 162 (78.3 kN) - crack at its strength, 60 %, 30 %, gone in 1.78 ms.
+- On the builds: the Cub 28 spruce members (11 in 2 stages, 17 in 3), the Jodel 213 (94 / 119), the twin 28 (14 / 14); strength x 0.85-1.15.
+
+### G1813 - THE KINK FLOOR (30_solver.js)
+- A member that KINKED in compression (past ecu, `how: 'kink'`) breaks as before (k, c to 0, its group, its strips) but keeps a **compression-only floor
+  at its crushed length**: its old k and c, pushing only, below that length. In tension: nothing.
+- The list is walked after the beam loop and only while it has a member (one compare a substep otherwise). `reset()` clears it.
+- Measured: the 30 m/s trunk flights - the Cub 7 floors (centreline) and 6 (the wing 2.5 m out), the metal Cessna 1: at the end of the run every kinked
+  member's ends are at least 1.00 x its crushed length apart (the floor held; nothing passed through).
+
+### G1816 - THE BREAK ORDER (GATE DMGMEMBERS; reports/evidence/DMG-D1a/)
+**The bench to destruction** (the garage's rig, 65_gen_loadtest, damage on, the bags ramped at twice its own rate to 60 g):
+
+| build | first yield | the first member broken | the first GROUP | then |
+|---|---|---|---|---|
+| the user's Cub | 23.2 g | 28.2 g: the drawn front strut (fitting, tension) | wing0R:strut, 28.2 g | both struts' groups, the right root: 28 broken |
+| Jodel | 11.8 g (a glue line crushing) | **18.0 g: the carry-through's lower cap (spruce, no seam, ragged; a type-1 link of both root groups)** | wing0R:root, 18.3 g | both roots: 36 broken |
+| metal Cessna | 14.3 g | 14.2 g: the strut's lower chord (fitting, tension) | wing0R:strut, 14.2 g | both struts: 12 broken |
+| Cessna floats | 11.4 g | 11.3 g: the strut's lower chord (fitting, tension) | wing0R:strut, 11.3 g | both struts: 12 broken |
+| twin floatplane | 13.0 g (a bearer fitting crushing) | 28.0 g: the drawn front strut (fitting, tension) | wing0R:strut, 28.0 g | both struts, both engine mounts: 44 broken |
+
+- **The first GROUP is a fitting's on every build** (the strut on the strut-braced wings, the root on the Jodel's cantilever). **No ductile member
+  broke first under load anywhere.**
+- **REPORTED, NOT RETUNED (the Jodel):** its first member is the spruce carry-through's lower cap at 18.0 g, 0.3 g before its root fittings - not a
+  fitting or a glue line, as §7.2 asks of a cantilever wood wing. The lattice's spar caps carry ONE section root to tip (bm.A = the class's
+  lin / rho), so the member at the largest moment (the centreline) goes first; a real spar is sized for its root moment. The gate says which (the
+  REPORT line); DMG-D2's per-member envelope (§4.3 c) is what moves it.
+- **TREECRASH's trunk flights at 30 m/s:** the first group is a fitting's in every case that breaks one (the centreline: the engine mount on all three
+  land builds; the wing 2.5 m out: its strut group on the Cub and the Cessna; the Jodel's wing 2.5 m out breaks 7 wing members, the first a glue line,
+  and no group). The first MEMBER is the one the trunk folded (a fuselage tube at the nose; on the wing, the spar member the trunk hits) - the trunk's
+  own local mechanism, not a member broken by the airframe's load.
+
+### G1817 - GATE DMGMEMBERS (tools/_dmg_members_check.js; run_gates core, weight 3; ~70 s on 3 cores)
+78/78 checks on the five builds: the seams and groups; the closed sets (the generator's and the solver's); Euler (the reference tube, the table, tubes
+only); the seam rules; the scatter seeded; spruce (scatter, stages, the ms); **parked 10 s, damage on: nothing yields, nothing breaks, no frame
+armed once settled** (the floatplanes arm 39-43 frames while they settle onto the water - TREE-CRASH's own water arm, G1479); the break order (above);
+the kink floor. `sim.damageBreak(i)` (a gate's hook: break one member as a crash would) and `DMG.armedN` (the frames armed) are its instruments.
+
+### PERFORMANCE (§11.2 #2: node, sim.step(1/60), the layer ON, nothing touching, a 4000-trunk set far away)
+`node tools/treecrash_evidence.js --perf-only --perf-base <the base's core>` (the median of 5 processes' medians, 600 steps; the base = claude/dmg-switch-g1898
+4ca0678c built in a worktree, its own _treecrash_lib.js beside it). Two runs pooled (10 processes a side, their median):
+
+| case | base (ms) | now (ms) | |
+|---|---|---|---|
+| the Cub, ground | 2.714 | 2.710 | -0.1 % |
+| the Cub, air | 2.650 | 2.649 | -0.0 % |
+| the metal Cessna, ground | 4.648 | 4.716 | +1.4 % |
+| the metal Cessna, air | 4.528 | 4.605 | +1.7 % |
+
+- **The two runs alone read -0.8 / -0.1 / +3.2 / -1.9 % and +0.7 / 0.0 / -2.3 / +4.1 %**: this cloud box's process-to-process noise is +-4 %, larger than the
+  gate. Pooled, all four are inside 2 %. The metal Cessna in the air, 12 alternating base / now pairs: 4.596 / 4.551 ms, **-1.0 %**.
+- **Found and fixed on the way (G1813's last commit):** the floor loop written INSIDE substep (an empty `for` with no floor) cost the metal Cessna's
+  step ~2 % in the air (12 pairs: +2.4 %; base + only the two new beam fields: -0.4 %, so not the fields). Moved to its own function behind `if (nFlr)`.
+- **Never armed** with nothing touching: the Cub, the Jodel and both Cessnas, ground and air, 600 frames after 120 to settle - 0 frames armed
+  (DMG.armedN). So every per-substep check of this work (Euler's cap, the seams' caps, the ragged stages, the groups) runs only in TREE-CRASH's
+  armed path; what is left unarmed is the floor's one compare a substep.
+- In contact (armed): the caps are the same compare TREE-CRASH makes; a crack, a group or a floor is an event, not a per-substep cost.
+
+### NORMAL OPERATIONS NEVER YIELD (§11.2 #3: GATE TREECRASH's margins re-printed; base = 4ca0678c's own TREECRASH in the same battery)
+The worst member's peak force over its (now seam- and Euler-stamped) yield, per substep under the probe. **All under 1; the seam knockdowns pushed
+none towards it** (a glue line or an opening is never the worst member in normal operations; the fittings' 1.15 x Fu lowered the wing's margins).
+What moved them up is **Euler on the tube truss** (compression), reported here, not retuned:
+
+| build | bench 3.8 / 5.7 g | flown pull | drop FAR 23.473 / 10 ft/s | circuit |
+|---|---|---|---|---|
+| the user's Cub | 0.19 / 0.28 -> **0.17 / 0.25** | 0.41 -> **0.51** (fus, compression) | 0.13 / 0.18 -> **0.22 / 0.30** | 0.12 -> **0.17** |
+| Jodel | 0.34 / 0.50 -> **0.34 / 0.50** | 0.38 -> **0.38** | 0.16 / 0.21 -> **0.24 / 0.32** (the bearer) | 0.10 -> **0.15** |
+| metal Cessna | 0.45 / 0.66 -> **0.29 / 0.42** | 0.49 -> **0.36** | 0.15 / 0.19 -> **0.15 / 0.19** | 0.18 -> **0.18** |
+| Cessna floats | 0.56 / 0.82 -> **0.36 / 0.52** | 0.73 -> **0.48** | 0.16 / 0.21 -> **0.16 / 0.21** | 0.19 -> **0.21** |
+| twin floatplane | 0.19 / 0.28 -> **0.27 / 0.42** | 0.52 -> **0.61** (fus, compression) | 0.14 / 0.21 -> **0.18 / 0.26** | 0.18 -> **0.18** |
+
+- The largest: **the twin's flown pull, 0.61** (an engine bearer member in compression, Euler-capped) and its **float nose-in, 0.47 -> 0.83** (a
+  fuselage tube in compression) - the closest anything comes to 1. Both are the tube truss's Euler, which §4.1 asks for; if D2 finds 0.83 too close
+  for a 90 km/h float nose-in, the lever is the truss's own D / wall (30), not the seams.
+- The trunk flights moved too (more members broken in the 30 m/s flights: a group takes its whole attachment - the Cub's centreline 84 -> 100, the
+  metal Cessna's 112 -> 177; plastic work down where a fitting now lets go instead of a member yielding to its etu). Every TREECRASH check holds:
+  **GATE TREECRASH PASS 47/47** (the base: 47/47).
+
+### THE WATER CASE (§11.2 #4: GATE TREECRASH section 6)
+- **The twin's float nose-in (90 km/h, 5 m/s, 20 deg): nothing set, nothing broken, 5.62 g, no damage** (its worst member 0.83, above). Its severe
+  nose-in (150 km/h, 10 m/s, 60 deg): 38 members set ({fus 32, tail 6}), 60 broken, 14.87 g, CRASHED (a tail member broke) - as it must (the base: 71
+  set, 32 broken, 14.81 g, the same reason). The damage follows the beams' own loads (the probe's peak passes 1 exactly when something yields).
+- **The Cub's three wet-body cases (the 5 m/s pancake, the 100 km/h ditch, the severe nose-in) are SKIPPED in this core, as in the base**: they need
+  GEAR-WATER 2's wet body (32_hydro.js wetBuild), which is not on claude/dmg-switch-g1898. The coordinator's integration branch should re-read
+  them once both are in.
+
+### THE BATTERY (§11.2 #1: off = the base's bytes; node, GATES_CORE=1, --verbose, each gate's whole output diffed, TREE-CRASH G1478's method)
+The base's battery (claude/dmg-switch-g1898 4ca0678c built in a worktree) against this branch's, the same 41 gates
+(`--only=SOAR,PILOT,GEN,HONEST,AERO,HOTHIGH,FLEX,FLAPS,GE,STRESS,NAV,TAXICLEAR,LINEUP,PLAN,DEFAULT,WEIGHT,DRAG,MASS,GEAR,STRUT,SITE,FLOATS,SEAPLANE,ENERGY,MOUNT,SUBSTEP,PACE,FLIGHTREC,PILOTACT,STRIPSURF,TAKEOFF,SETTLE,HYDRODYN,SIMWORKER,HITBOX,LOAD,BENCH,BIPLANE,OBSTACLE,TREEHIT,TREECRASH`) plus DMGMEMBERS:
+- **This branch: BATTERY PASS, 42/42** (2340 s wall, 3 jobs). The base: 40/41 - **HITBOX FAIL on the base** ("each in a fraction of a second": rv 716 ms
+  under the battery's load, a wall-clock check; here 84/84, slowest 120 ms).
+- **The same bytes (31):** SUBSTEP, PACE, GE, FLAPS, STRESS, GEN, PILOT, NAV, TAXICLEAR, PLAN, LINEUP, DEFAULT, HONEST, WEIGHT, DRAG, MASS, TREEHIT, BENCH,
+  GEAR, STRUT, SITE, OBSTACLE, FLOATS, SEAPLANE, ENERGY, AERO, HOTHIGH, SOAR, FLEX, LOAD, MOUNT. (So the asked-for LOAD, BENCH, FLEX, TREEHIT, OBSTACLE: byte
+  for byte the base's - the layer is off in them.)
+- **Only clock readings differ (with every number stripped, the same bytes):** FLIGHTREC, STRIPSURF, TAKEOFF, PILOTACT (a temp core's name), BIPLANE
+  (its buildGen ms), SETTLE (the bake ms), HYDRODYN (the water's ms ratio), HITBOX (its ms), **SIMWORKER** (every step's FNV(p, v) equal: the stock
+  f2b3de3f, the Cessna cbccf99f, as the base; the real-time half differs by the clock, and the host's log replays all its snapshots to the bit).
+- **TREECRASH** (damage ON): the margins and the trunk flights above; PASS 47/47 as the base.
+- `reports/evidence/DMG-D1a/battery_vs_base.txt` (the per-gate verdict), `battery_summary.txt`, `gate_treecrash.txt`, `gate_dmgmembers.txt`.
+- The generated outputs (flight_core.js, index.html, dev.html, sw.js, version.json) are NOT committed.
+
+### EVIDENCE (reports/evidence/DMG-D1a/, `node tools/dmg_members_evidence.js`, ~70 s)
+- `breakorder.svg`: the bench to destruction, the five builds: the members broken against the bags' g, each by its seam; the first member and group.
+- `front_<build>.svg`: the wing from ahead on the bench, the frame its first group let go (both strut groups on the Cessnas; both roots on the Jodel).
+- `ragged.svg`: the Cub's spruce member 162 per substep: crack at its 78.3 kN, 60 %, 30 %, gone in 1.78 ms.
+- `topdown_wing30_<build>.svg`: the wing 2.5 m out into a trunk at 30 m/s, 0.6 s after the first break: the broken members by seam, the kinked ones ringed.
+- `runs.json` (every run's numbers), the perf runs (`perf_run4/5.txt`, `perf_metal_air_pairs*.txt`), the gate outputs.
+
+### Open questions (the coordinator / DMG-D2)
+- **The Jodel's first break on the bench is its spruce carry-through's lower cap (18.0 g), not a fitting or a glue line** (§7.2's ask for a cantilever
+  wood wing); its root fittings go 0.3 g later. The lattice's spar has one section root to tip: D2's per-member envelope moves it. GATE DMGMEMBERS
+  prints it as a REPORT line (its criterion - the first GROUP a fitting's, never a ductile member broken by load - holds).
+- **Euler is stamped on the tube members only** (the truss of a tube row, the bearer, cabane / interplane). The drawn lift struts carry compression at
+  positive g in this lattice (G140's lower chord takes the tension) and a thin tube of their A buckles the Cessna's at 2.7 g in flight: their
+  compression limit (jury strut, streamline section) is D2's. The tail truss's root members, the strut fan and the monocoque are stand-ins, not tubes.
+- **The closest normal-ops margin is the twin's float nose-in at 0.83** (0.47 before; a fuselage tube under Euler). Under 1; D2 may want headroom.
+- **The engine mount is all fitting** (the bearer's members ARE its bolts in the lattice): brittle at 1.15 Fu in tension, Euler / crush in compression.
+  §7.1 #3's "the bearer bends first, then the bolts" needs a member between them (a mount node) - a generator change, D2's or D4's.
+- **A gear leg and its braces are fittings** (the gear's attach; no Euler): the gear bracket (§7.3, DMG-D2b) replaces their limits.
+- **The rivet lines are the cabin-to-tailcone joint and the tailcone's skin panels; the openings the windscreen, the cabin's side bays and the
+  doorposts** - a choice of which lattice members stand for them, made here; D2 / TUNE can move it (61_gen_frame `dmgSeamIn`).
+- **The Cub's three wet-body water cases skip in this core** (as in the base): GEAR-WATER 2's wetBuild is not on the base. Re-read after integration.
+- **Not done here (DMG-D1b, as briefed):** the strip component test, refs-core, SUPPORT beams. Not touched (DMG-D0): per-beam work, `bm.sec`,
+  sim-diverged, DMGFPS. Solver edits are localized to TREE-CRASH's DMG block, `beamYield`, `beamBreak`, `armFrame` (a counter) and one
+  `if (nFlr)` line in `substep`.
+- **New instruments:** `sim.damageBreak(i)` (a gate's hook), `DMG.groups / floors / cracks / rag / armedN`, `firstBreak.seam / grp / how`, and
+  `_treecrash_lib.lastRun.sim` (the last sim a scenario flew).

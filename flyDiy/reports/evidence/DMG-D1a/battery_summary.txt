@@ -1,0 +1,47 @@
+──────── summary ────────
+SUBSTEP   PASS    26.1 s
+PACE      PASS     0.2 s
+FLIGHTREC PASS     1.1 s
+GE        PASS    58.2 s
+FLAPS     PASS     2.7 s
+STRESS    PASS    12.0 s
+GEN       PASS   368.1 s  [4 shards]
+PILOT     PASS   250.9 s  [3 shards]
+NAV       PASS     0.1 s
+STRIPSURF PASS     9.2 s
+TAKEOFF   PASS   136.2 s
+PILOTACT  PASS   125.5 s
+TAXICLEAR PASS    36.1 s
+PLAN      PASS   307.1 s
+LINEUP    PASS   144.9 s
+DEFAULT   PASS     2.8 s
+HONEST    PASS    22.4 s
+WEIGHT    PASS    30.2 s
+DRAG      PASS    17.7 s
+BIPLANE   PASS    76.6 s
+MASS      PASS     7.8 s
+TREEHIT   PASS    41.8 s
+TREECRASH PASS   413.8 s
+DMGMEMBERS PASS    35.8 s
+BENCH     PASS    50.8 s
+SIMWORKER PASS    59.9 s
+GEAR      PASS     0.6 s
+STRUT     PASS     3.4 s
+SITE      PASS     3.6 s
+OBSTACLE  PASS    10.8 s
+HITBOX    PASS   365.9 s
+HYDRODYN  PASS    79.1 s
+FLOATS    PASS    49.2 s
+SEAPLANE  PASS   198.7 s
+ENERGY    PASS    37.6 s
+SETTLE    PASS     4.2 s
+AERO      PASS     3.9 s
+HOTHIGH   PASS   123.8 s
+SOAR      PASS   584.9 s
+FLEX      PASS   198.2 s  [3 shards]
+LOAD      PASS   227.2 s
+MOUNT     PASS    53.9 s
+total           4183.0 s
+wall            2339.7 s  (jobs 3)
+
+BATTERY: PASS
