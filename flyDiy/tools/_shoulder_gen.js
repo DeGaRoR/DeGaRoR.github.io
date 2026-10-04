@@ -851,12 +851,15 @@ function zip(outer, inner, mk) {
 
 // coherent windings across position-shared edges, then positive volume
 function orientPart(V, faces) {
-  const keyOf = (a, b) => ek(V[a], V[b]);
+  // G1452 (RELEASE-FAST): each vertex's position key once (the same pk string), the edge key off the two
+  const PK = new Map();
+  const pkI = i => { let s = PK.get(i); if (s === undefined) PK.set(i, s = pk(V[i])); return s; };
+  const keyOf = (a, b) => { const A = pkI(a), B = pkI(b); return A < B ? A + '|' + B : B + '|' + A; };
   const eF = new Map();
   faces.forEach((f, i) => { const n = f.v.length; for (let e = 0; e < n; e++) {
     const k = keyOf(f.v[e], f.v[(e + 1) % n]); if (!eF.has(k)) eF.set(k, []); eF.get(k).push(i); } });
   const dirIn = (f, k) => { const n = f.v.length; for (let e = 0; e < n; e++) {
-    const a = f.v[e], b = f.v[(e + 1) % n]; if (keyOf(a, b) === k) return pk(V[a]) < pk(V[b]) ? 1 : -1; } return 0; };
+    const a = f.v[e], b = f.v[(e + 1) % n]; if (keyOf(a, b) === k) return pkI(a) < pkI(b) ? 1 : -1; } return 0; };
   const seen = new Uint8Array(faces.length);
   for (let s = 0; s < faces.length; s++) {
     if (seen[s]) continue;
@@ -1014,7 +1017,11 @@ function makeInnerSampler(mesh) {
   // answer there and the walk below (unchanged, the smallest x wins) gives the same number.
   const YPAD = 1e-4;
   const buckets = new Map(), faces = [];
-  const key = (side, b, c) => (side > 0 ? 'p' : 'n') + b + ':' + c;
+  // G1452 (RELEASE-FAST): a number for the cell (side, station bin, height bin) - the same cells as the string key
+  // it replaces while both bins are inside +-2^20 (+-100 km of cage); outside, the string
+  const key = (side, b, c) => (b > -1048576 && b < 1048576 && c > -1048576 && c < 1048576)
+    ? ((b + 1048576) * 2097152 + (c + 1048576)) * 2 + (side > 0 ? 1 : 0)
+    : (side > 0 ? 'p' : 'n') + b + ':' + c;
   for (const f of F) {
     if (f.shoulder || f.doorPanel || f.m === 'joint' || f.m === 'doorSeal') continue;
     // EVERYTHING the door's inside is made of: its skin and pane, the
@@ -1241,7 +1248,17 @@ function panelBuild(mesh, spec, opt) {
     const cz = outline.reduce((s2, p) => s2 + p[0] / outline.length, 0), cy = outline.reduce((s2, p) => s2 + p[1] / outline.length, 0);
     const base0 = probe(cy, cz);
     if (base0 == null) continue;
+    // G1452 (RELEASE-FAST): a point asked again (the back cap's outer ring, the walls and the chamfer all stand on
+    // the outline's points) answers what it answered - the sampler is a pure function of (y, z)
+    const baseMemo = new Map();
     const baseAbs = (y, z) => {
+      let my = baseMemo.get(y);
+      if (my === undefined) baseMemo.set(y, my = new Map());
+      let r = my.get(z);
+      if (r === undefined) my.set(z, r = baseAbs0(y, z));
+      return r;
+    };
+    const baseAbs0 = (y, z) => {
       // the innermost of the point and its 1.5 cm neighbours, so a bump in
       // the lining between samples cannot reach the panel's back
       let v = null;

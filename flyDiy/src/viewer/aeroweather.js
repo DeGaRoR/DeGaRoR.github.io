@@ -357,15 +357,19 @@ function aeroWxCavity(pos, idx, nrm, n, unit) {
     if (r === undefined) { r = i; key2rep.set(k, r); }
     rep[i] = r;
   }
-  // the neighbourhood per representative, from the triangle edges
-  const nbr = new Array(n);
-  const link = (a, b) => {
-    const ra = rep[a], rb = rep[b];
-    if (ra === rb) return;
-    (nbr[ra] || (nbr[ra] = [])).push(rb);
-    (nbr[rb] || (nbr[rb] = [])).push(ra);
-  };
+  // the neighbourhood per representative, from the triangle edges - G1454 (RELEASE-FAST): two flat arrays (a count
+  // pass, then a fill pass in the same edge order), so each list holds what the per-vertex arrays held, in their order
   const tri = idx ? idx.length / 3 : n / 3;
+  const deg = new Int32Array(n + 1);
+  const count = (a, b) => { const ra = rep[a], rb = rep[b]; if (ra === rb) return; deg[ra]++; deg[rb]++; };
+  for (let t = 0; t < tri; t++) {
+    const a = idx ? idx[t * 3] : t * 3, b = idx ? idx[t * 3 + 1] : t * 3 + 1, c = idx ? idx[t * 3 + 2] : t * 3 + 2;
+    count(a, b); count(b, c); count(c, a);
+  }
+  const off = new Int32Array(n + 1);
+  for (let i = 0; i < n; i++) off[i + 1] = off[i] + deg[i];
+  const fill = off.slice(0, n), lst = new Int32Array(off[n]);
+  const link = (a, b) => { const ra = rep[a], rb = rep[b]; if (ra === rb) return; lst[fill[ra]++] = rb; lst[fill[rb]++] = ra; };
   for (let t = 0; t < tri; t++) {
     const a = idx ? idx[t * 3] : t * 3, b = idx ? idx[t * 3 + 1] : t * 3 + 1, c = idx ? idx[t * 3 + 2] : t * 3 + 2;
     link(a, b); link(b, c); link(c, a);
@@ -374,13 +378,13 @@ function aeroWxCavity(pos, idx, nrm, n, unit) {
   // each side's own reading over the shared neighbourhood); clamped to
   // a millimetre's radius so a degenerate sliver cannot blow the float
   for (let i = 0; i < n; i++) {
-    const N = nbr[rep[i]];
-    if (!N || !N.length) continue;
+    const r = rep[i], j0 = off[r], j1 = off[r + 1];
+    if (j1 === j0) continue;
     const px = pos[i * 3], py = pos[i * 3 + 1], pz = pos[i * 3 + 2];
     const nx = nrm[i * 3], ny = nrm[i * 3 + 1], nz = nrm[i * 3 + 2];
     let s = 0, m = 0;
-    for (let j = 0; j < N.length; j++) {
-      const k = N[j];
+    for (let j = j0; j < j1; j++) {
+      const k = lst[j];
       const dx = pos[k * 3] - px, dy = pos[k * 3 + 1] - py, dz = pos[k * 3 + 2] - pz;
       const l2 = dx * dx + dy * dy + dz * dz;
       if (l2 < tiny * tiny) continue;
@@ -394,6 +398,42 @@ function aeroWxCavity(pos, idx, nrm, n, unit) {
 // mesh under an object in its material's own unit; the editor calls it from
 // applyWeather after the layers have drawn, the game once its model group
 // is whole (the parts included)
+// G1454 (RELEASE-FAST): THE BAKE IS A FUNCTION OF ITS GEOMETRY. aeroWxCavity reads the positions, the index, the
+// normals, the count and the unit, nothing else - so a geometry made again the same (the fuselage's mesh off a kept
+// sheet, a layer's part a rebuild did not move) takes the bake it had: keyed by a hash of those arrays, CONFIRMED by
+// comparing them element for element (a hash never stands for the arrays), the answer copied. The recent bakes up to
+// 40 MB of kept arrays (a whole aeroplane's parts), the oldest let go first.
+const AERO_WX_CAV = new Map(), AERO_WX_CAV_BYTES = { v: 0 };
+const aeroWxHashArr = (h, a) => {
+  if (!a) return Math.imul(h ^ 0x9e3779b9, 16777619) >>> 0;
+  const u = new Uint32Array(a.buffer, a.byteOffset, (a.byteLength / 4) | 0);
+  for (let i = 0; i < u.length; i++) h = Math.imul(h ^ u[i], 16777619);
+  for (let i = u.length * 4; i < a.byteLength; i++) h = Math.imul(h ^ new Uint8Array(a.buffer, a.byteOffset + i, 1)[0], 16777619);
+  return h >>> 0;
+};
+const aeroWxSameArr = (a, b) => {
+  if (!a || !b) return a === b;
+  if (a.constructor !== b.constructor || a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) if (a[i] !== b[i] && !(a[i] !== a[i] && b[i] !== b[i])) return false;
+  return true;
+};
+function aeroWxCavityKept(p, idx, nr, n, u) {
+  let h = aeroWxHashArr(2166136261, p); h = aeroWxHashArr(h, idx); h = aeroWxHashArr(h, nr);
+  const key = h + ':' + n + ':' + u + ':' + p.length + ':' + (idx ? idx.length : -1) + ':' + nr.length;
+  const e = AERO_WX_CAV.get(key);
+  if (e && e.n === n && e.u === u && aeroWxSameArr(e.p, p) && aeroWxSameArr(e.i, idx) && aeroWxSameArr(e.nr, nr)) {
+    AERO_WX_CAV.delete(key); AERO_WX_CAV.set(key, e);
+    return e.cav.slice();
+  }
+  const cav = aeroWxCavity(p, idx, nr, n, u);
+  const e2 = { n, u, p: p.slice(), i: idx ? idx.slice() : null, nr: nr.slice(), cav: cav.slice() };
+  e2.bytes = e2.p.byteLength + (e2.i ? e2.i.byteLength : 0) + e2.nr.byteLength + e2.cav.byteLength;
+  if (e) AERO_WX_CAV_BYTES.v -= e.bytes || 0;
+  AERO_WX_CAV.delete(key); AERO_WX_CAV.set(key, e2); AERO_WX_CAV_BYTES.v += e2.bytes;
+  while (AERO_WX_CAV.size > 1 && AERO_WX_CAV_BYTES.v > 40e6) {
+    const k0 = AERO_WX_CAV.keys().next().value; AERO_WX_CAV_BYTES.v -= AERO_WX_CAV.get(k0).bytes || 0; AERO_WX_CAV.delete(k0); }
+  return cav;
+}
 function aeroWxBakeCavity(THREE, obj, unit) {
   if (!obj) return 0;
   let done = 0;
@@ -401,7 +441,8 @@ function aeroWxBakeCavity(THREE, obj, unit) {
     if (!geo || !geo.attributes || geo.attributes.aCav || !geo.attributes.position) return;
     if (!geo.attributes.normal) geo.computeVertexNormals();
     const p = geo.attributes.position.array, nr = geo.attributes.normal.array;
-    const cav = aeroWxCavity(p, geo.index ? geo.index.array : null, nr, geo.attributes.position.count, u);
+    const cav = (typeof window !== 'undefined' && window.AERO_WX_CAV_OFF) ? aeroWxCavity(p, geo.index ? geo.index.array : null, nr, geo.attributes.position.count, u)
+      : aeroWxCavityKept(p, geo.index ? geo.index.array : null, nr, geo.attributes.position.count, u);
     geo.setAttribute('aCav', new THREE.BufferAttribute(cav, 1));
     done++;
   };
