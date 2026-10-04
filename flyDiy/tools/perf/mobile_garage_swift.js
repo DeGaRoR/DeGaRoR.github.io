@@ -36,6 +36,9 @@ const GARAGE_ONLY = [
   ["bootTripStep('frames');", ''],
   ["bootTripStep('craft');", ''],
   ['if (SIMW) SIMW.prewarm(); }', '}'],
+  // the boot's last step re-plans the aircraft's keyed steps and runs what moved - with bake and craft taken out above,
+  // it ran the FLOWN BAKE there (seen on SwiftShader: recheck 140 -> 340 s); a garage-only boot re-plans nothing
+  ["const plan = tripPlan('craft'); if (!plan.length) return;", 'return;'],
 ];
 const findPlaywright = () => { for (const p of ['playwright', '/opt/node-tools/node_modules/playwright', '/opt/node22/lib/node_modules/playwright']) { try { return require(p); } catch (e) {} } throw new Error('no playwright'); };
 const freePort = () => new Promise((res, rej) => { const s = net.createServer(); s.listen(0, '127.0.0.1', () => { const p = s.address().port; s.close(() => res(p)); }); s.on('error', rej); });

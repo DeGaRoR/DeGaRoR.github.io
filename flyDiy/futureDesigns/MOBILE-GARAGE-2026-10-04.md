@@ -175,6 +175,9 @@ What the editor is today (the digest of `tools/_cage_ui.js` / `src/viewer/editor
 - **Hover-only information.** The pin and frame highlight, the tree-to-geometry glow, full labels, the reset hint
   (double-click a label), and the design tiles' reasons.
 - **Undo.** None (`design_flow.js:19`), apart from the starter's single slot.
+- **At a phone's width today** (SwiftShader, 412 × 915: `reports/evidence/MOBILE-GARAGE/swift_today_editor_at_412px.jpg`),
+  the properties and tree columns fill the whole screen and **the 3D view is not visible at all**. The desktop layout
+  does not shrink to a phone; it needs its own chrome (§2.7).
 
 ### 2.1 Target sizes
 - **R1.** Every target is **≥ 48 × 48 CSS px** (Material's 48 dp; WCAG 2.5.5 AAA asks 44). A drawn control may be
