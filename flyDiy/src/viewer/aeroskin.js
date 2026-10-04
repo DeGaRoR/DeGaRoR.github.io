@@ -1829,8 +1829,12 @@ const AERO_DEC_MODE = { field: 0, side: 1, plan: 2 };
 // of the craft's own root; this inverts it and folds in the axis convention,
 // so the shader gets metres in a frame it can rely on and no layer has to
 // agree with any other about units or origin — which they do not.
-const _craftP = new THREE.Matrix4(), _craftInv = new THREE.Matrix4();   // REVIEW 2026-10-04: scratch, not two allocations a frame
+// REVIEW 2026-10-04: scratch, not two allocations a frame - made on the first call (G1566: at module scope it threw
+// `THREE is not defined` wherever aeroskin.js loads before three, i.e. every node gate that requires it: SKINMAT,
+// LIVERYREACH, WEATHER)
+let _craftP = null, _craftInv = null;
 function aeroSetCraft(THREE, rootMatrixWorld, axes) {
+  if (!_craftP) { _craftP = new THREE.Matrix4(); _craftInv = new THREE.Matrix4(); }
   const U = aeroDecUniforms(THREE);
   const a = axes || {};
   const lat = a.lateral || 'x', along = a.along || 'z', up = a.up || 'y';
