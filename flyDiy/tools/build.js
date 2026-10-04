@@ -268,7 +268,8 @@ const MANIFEST = {
   // its own file and the build publishes the content-versioned URLs as window.FLYDIY_AUDIO_SRC (stem -> url, in both
   // pages, with the core's sha); AUDIO.module(stem) adds one. SND-ENGINE adds 'engine_worklet.js' here, nothing else.
   // (The audio SCRIPTS - audio_params.js, audio.js - ride MANIFEST.viewer.scripts, before app.js.)
-  audio: { modules: ['engine_worklet.js'].filter(f => fs.existsSync(path.join(ROOT, 'src', 'viewer', 'audio', f))) },
+  // SND-AIRFRAME (G1633) adds 'airframe_worklet.js' (the wind, the ground, the water, the stall warning, the creaks).
+  audio: { modules: ['engine_worklet.js', 'airframe_worklet.js'].filter(f => fs.existsSync(path.join(ROOT, 'src', 'viewer', 'audio', f))) },
   viewer: {
     shell: 'shell.html',
     // TWO STYLESHEETS, IN ORDER (G77). style.css is the GAME's — the flight
@@ -452,6 +453,8 @@ const MANIFEST = {
               'rollanim.js',
               // THE SOUND (G1600): the parameter block, then window.AUDIO (MANIFEST.audio below holds its served modules)
               'audio/audio_params.js', 'audio/audio.js', 'audio/engine_config.js', 'audio/src_engine.js',
+              // G1630-G1633 (SND-AIRFRAME): the airframe's numbers, the sample slots, the airframe source
+              'audio/airframe_model.js', 'audio/samples.js', 'audio/src_airframe.js',
               // G999: the world's composition, run by the promote in a task of its own ahead of app.js's evaluation
               'world_boot.js', 'app.js',
               'dev_panel.js'],   // (the WORLD rail, world_rail.js, rides the world pack above - G582)
