@@ -163,11 +163,14 @@ function makeSimView(def, opts) {
           while (j > 0 && Q[j - 1].f[S.EPOCH] === ep && Q[j - 1].f[S.T] >= tau) j--;
           if (j > 0 && Q[j - 1].f[S.EPOCH] === ep) { X = Q[j - 1]; Y = Q[j]; alpha = (tau - X.f[S.T]) / (Y.f[S.T] - X.f[S.T]); }
           else { X = Y = Q[j]; alpha = 0; DS.early++; }   // before the ring: its oldest
-        } else if (fB[S.FLAGS] & S.F_RUNNING) {   // the snapshot for this moment has not come
-          DS.starved++;
+        } else if ((fB[S.FLAGS] & S.F_RUNNING) || (fwd && MON.t > fB[S.T])) {   // the snapshot for this moment has not come
+          // (G1530: or a pause after a frame drawn past the newest - held there, not snapped back to it)
+          if (fB[S.FLAGS] & S.F_RUNNING) DS.starved++; else tau = MON.t;
           // G1166b: on from the newest by the two newest's own motion (alpha past 1 extrapolates below), a step at most
-          const P = Q.length > 1 ? Q[Q.length - 2] : null;
-          if (STARVE_EX && P && P.f[S.EPOCH] === ep && fB[S.T] > P.f[S.T]) {
+          // (G1530: the newest of an EARLIER time - a pause's or a placement's snapshot repeats the newest state's)
+          let P = null;
+          for (let i = Q.length - 2; i >= 0 && !P; i--) if (Q[i].f[S.EPOCH] === ep && Q[i].f[S.T] < fB[S.T]) P = Q[i];
+          if (STARVE_EX && P) {
             X = P; Y = B; alpha = 1 + Math.min(tau - fB[S.T], R.dt) / (fB[S.T] - P.f[S.T]);
           }
         }

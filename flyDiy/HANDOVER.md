@@ -71835,3 +71835,101 @@ cockpit / taxi render and the floats' water taxi in slack. BATTERY: FRAMECOST (a
 triangles - admitted) and ROUNDTRIP (fixed) were the reds; all green on the final build; the parked aeroplanes re-cooked.
 LOOK (A0's real-GPU stills, reports/evidence/LAKE-HOLES/a0_gpu_train29_vs_30.jpg): the white gaps at the shore are gone;
 the carved banks now read as steep, texture-stretched slopes where a lake sits under a bank - a follow-up for the look.
+
+## G1530-G1534 - POSE-BACK: THE AEROPLANE DRAWN BACKWARD AT 2 FPS WAS THE WORKER'S DRAWN CLOCK RE-ANCHORED UNDER IT; THE DRAWN CLOCK NEVER RUNS BACK NOW (2026-10-04, POSE-BACK for A0, cloud - no GPU; branch claude/pose-back-g1530 off train 30 = 44b7a381; block G1530-G1534)
+
+THE USER (4 Oct, a GTX 660 at ~2 fps - frames of 450-600 ms, the frame clock on auto): "Sometimes, the plane went
+backwards. As soon as it took off, it happened that it went a little backward over a frame, strange."
+
+**THE CAUSE (the physics worker's view, sim_view.js frame(T) - the default path).** The view draws the sim time
+`tau = tB + (T - DUE(B)) x rate - delay` (G1101: T the frame's rAF timestamp, DUE the moment the newest snapshot B was due
+on the host's clock, the delay 1-4 steps). That mapping JUMPS BACK whenever the host lets wall time go:
+- SIM-STALL (G1365): the host's clock steps no further than 250 ms past the page's last beat, and the next beat
+  re-anchors it (wall0 = now). At ~2 fps EVERY frame is past 250 ms: the host flies 250 ms, holds, re-anchors on the
+  next frame's beat (the sim at ~50 % of real time - by design).
+- On the held frames the newest snapshot is late: the frame is STARVED and extrapolates on from B by at most a step
+  (G1166b's bound) - it draws B + 1 step.
+- A frame that comes SOON after a re-anchor (33-67 ms after a 467-567 ms one: a 2 fps page is not even) finds new
+  snapshots whose DUE is fresh: its tau is B_new less the delay (up to 4 steps: the ring's lateness window filled with the
+  held frames' lags), i.e. 2-4 steps BEHIND the B + 1 step it drew a frame earlier. The aeroplane is drawn backward by
+  2-4 steps' travel: ~0.4 m on the roll, ~1.2 m just after the wheels leave (the take-off is where it is fastest - the
+  user's "as soon as it took off").
+- MEASURED (GATE POSEBACK's trace, the real solver and the real host clock, 2 fps 'ragged': frames 425-575 ms with one
+  in six quick): 5 backward frames in 11 s of page time - 582, 416, 804 mm on the roll, 835 and 1211 mm after lift-off;
+  each one a quick frame (33-67 ms) after a slow one (467-567 ms). Steady 2 fps frames (never quick) draw none.
+- NOT the cause: the inline path (?simw=0) - PACE's alpha + POSE_LERP draw step k-1+alpha with alpha in [0, 1) and every
+  frame that steps closes a new pair at least one step later (the STALL branch owes the cap's steps, alpha 0.25), so it
+  is monotonic by construction (GATE POSEBACK: 0 backward frames in every inline run). The worker's catch-up cap
+  (SIM_HOST_CATCH dropping the excess, a CPU-starved worker: the 'slowworker' profile, a step at 25 ms) moves in 4-step
+  bursts and holds between them but never back. The take-off's own step (the ground contact ending) is not a jump in
+  the CG: the solver's trajectory is smooth through it (the gate's "within a step of the solver" holds at 0.00 steps).
+
+**G1530 THE DRAWN CLOCK NEVER RUNS BACK (sim_view.js frame, MON).** A later frame (T past the last frame's) of the same
+flight (epoch) draws no earlier sim time than the last frame drew: tau = max(tau, the last drawn time). The ring's pair
+is then chosen for that time (a real state between two snapshots, or the starved extrapolation from the newest - still a
+step at most past it); the pose HOLDS until the mapping catches up instead of stepping back. The memory is the time
+actually DRAWN (tShown: a starved frame's extrapolated time, an early frame's ring-oldest), reset by frame(Infinity) (the
+first snapshot, lockstep) and by a new epoch; a re-query of an earlier T (GATE SIMWORKER's interpolation probes) is not a
+frame of the clock and is neither clamped nor remembered. `?poseback=0` is the old mapping (sim_link.js, beside
+?starvex=0), for an A/B; view.delay().monoHeld counts the frames held. A pause's resume (the host re-anchors on 'run')
+had the same snap back by the delay - it holds now too; and a PAUSE right after a starved frame (drawn a step past the
+newest) snapped back to the newest - the paused frame holds the drawn time now (the extrapolation from the newest
+snapshot of an EARLIER time: a pause's / a placement's snapshot repeats the newest state's time, which had left the
+extrapolation no motion to carry - the unit below caught it).
+At NORMAL FRAME RATES IT IS THE SAME BITS: tau is already monotonic where the host's clock never jumps (the delay slews
+down at 2 % of the frame's time; DUE is on the host's schedule), so the clamp never engages - GATE POSEBACK: even 60 and
+30 fps, the drawn pose with and without the clock FNV-identical frame for frame, 0 frames held. POSE-SMOOTH's judder
+numbers (G1100-G1101) stand as measured.
+
+**G1531 THE INLINE PAIR IS NEVER DRAWN BACK (app.js POSE_LERP).** Already monotonic (above); made explicit: a pair's
+generation (took) and the alpha last drawn on it - a draw on the SAME pair (a frame that owed no step) at a lower alpha
+holds the last one (state().held). Reachable only should PACE's accumulator be let go under a held pair (PACE.hold while
+the inline flight runs - nothing does that today). The sea (WATER.setTime) reads the alpha drawn. GATE POSEBACK's unit:
+0.8 then 0.3 on one pair -> 0.8; a new pair at 0.3 -> its own; the inline runs: 0 held at every rate.
+
+**G1532 GATE POSEBACK (tools/_poseback_check.js, core, ~95 s on 3 threads).** The REAL solver (tools/flight_core.js, the
+stock build, the analytic world, the auto pilot from HOME's runway, take-off ~15.6 s): 12 s in lockstep, then the page's
+frames to 19.5 s of sim at a simulated 2, 5, 10, 30 fps on a 60 Hz vsync, four page profiles (steady: the step block 1-3 ms
+after the rAF timestamp; late: up to 40 % of the frame first; ragged: one frame in six 1-4 vsyncs; slowworker: the
+worker's step costs 25 ms on the fake clock - worker only).
+- WORKER: src/viewer/sim_host.js's OWN body (pump / beat / the stall hold / the catch-up cap) in a vm whose performance
+  and setTimeout are a fake timeline (GATE SIMWORKER 1b's way), messages 0.3 ms each way, a page taking snapshots only
+  between frames, the real sim_view.js (the ring, the delay, the extrapolation) - so the 2 fps page is simulated, not
+  waited for. INLINE: PACE + POSE_LERP lifted from app.js as written (GATE PACE's way) on a lockstep host.
+- PER FRAME: the drawn CG (the solver's mass-weighted sum on the drawn positions), the newest state's, and the solver's
+  own CG at the drawn time (every step logged on the host). PASS: (a) the drawn CG's move along the motion (the newest's
+  horizontal velocity) >= -0.5 mm and the drawn clock never back; (b) never more than one step's travel past the newest
+  state; (c) within one step's travel of the solver's own CG at the drawn time; (d) the run flies through the take-off.
+- THE VIEW ON HAND-MADE SNAPSHOTS (every node at 10 m/s): in the ring, starved, [a pause], two frames after the host
+  re-anchored - drawn x 517 833 833 (833) 950 mm with G1530; the old clock 517 833 780 950 and 517 833 667 780 950 (back
+  at the re-anchor; back at the pause).
+- AND: the old clock (monotonic off) at 2 fps ragged MUST go back (the instrument sees the bug: 5 frames, 1211 mm); even
+  60 / 30 fps worker FNV-identical with and without, inline 0 pairs held; the inline pair unit.
+- `--view=<file> --app=<file>` run another sim_view.js / app.js (the base's, `git show`); `--trace=<dir>` writes every
+  run's frames as CSV; `--fps / --profiles / --paths / --jobs / --seed`.
+- RESULT (this branch): 32 grid runs, 0 backward frames, 0 past a step ahead, 0.00 steps off the solver; on the base's
+  files (`--view= --app=` train 30's sim_view.js and app.js) worker 2 fps ragged FAILS (5 frames, 1211 mm) and the inline
+  pair unit FAILS (0.3 drawn after 0.8: no hold there); every other run passes (28 runs, 115 s on 2 threads).
+
+**G1533 THE EVIDENCE.** reports/evidence/POSE-BACK/: poseback_2fps_takeoff.svg / .png (tools/poseback_plot.js; panel A
+the drawn CG's move along the motion frame by frame - the old clock's five dips below zero, 0.42-1.21 m, against the
+fix's none; panel B a zoom on the worst: the old clock draws 1.21 m back on the quick frame, the fix holds, both meet on
+the next frame), trace/*.csv (the gate's traces: the 2 fps ragged worker with the fix and with the old clock, the inline).
+THE REAL PAGE (tools/poseback_page.js: headless Chromium on SwiftShader, the SOFT-GPU tree (claude/soft-gpu-g1460) with
+this branch's sim_view.js / sim_link.js; roll out, Skip to line-up, Fly the circuit, the drawn CG at every world render
+through a render() hook, eye_judder.js's way) - NOT FLOWN TO THE TAKE-OFF HERE, and could not have shown it:
+- a HEADLESS page is a RIG: PACE's old clock (one step a frame, alpha 1) and the worker in LOCKSTEP - neither drawn-pose
+  path runs (the probe now always adds ?pace=1, PACE's FORCE, untested past this point);
+- SwiftShader at 480x270 drew ~8 s a frame (boot 255 s, the stand 295 s, lined up 325-360 s): steady frames, the
+  'steady' profile, which never draws backward even on the old clock (it takes a QUICK frame after a slow one); the
+  take-off was ~60 frames (worker) to ~450 (inline: 2 steps a stalled frame) away.
+- OPEN (for A0, untriaged): on that run (the rig clock, lockstep) Skip to line-up made the link take the flight INLINE -
+  FLYDIY_SIMW.state().reason "the worker placed another aeroplane: p[0] -153.78 vs 493.62" (sim_link.js placeCheck: the
+  worker's lineup() placement vs the page's placeLinedUp). No gate flies the skip through the worker (SIMWORKER-PLACE
+  does not); whether the real-time page does the same on a real GPU is not known from here.
+
+**ALSO SEEN (not changed, A0's call):** at ~2 fps the INLINE loop flies 2 steps a frame (every frame is a G1365 stall:
+dt = the cap's 2/60) - the sim at ~7 % of real time; the worker holds 250 ms a frame - ~50 %. Both by design (a freeze
+must not teleport the aeroplane), but at a steady 2 fps the two paths fly at very different speeds.
+
+**G1534 GATES** - see the READY commit's line below.

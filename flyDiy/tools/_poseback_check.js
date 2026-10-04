@@ -248,6 +248,26 @@ function pairCheck() {
   L.draw(sim, 0.3); const c = sim.p[0]; L.back();
   return { a, b, c, held };
 }
+// THE VIEW, unit (sim_view.js on hand-made snapshots: every node moving +x at 10 m/s): a starved frame drawn a step past
+// the newest; a PAUSE's snapshot (the same state, not running); then the host re-anchored (fresh DUEs) and a frame soon
+// after. The drawn x at each -> the old clock steps back at the pause and after the re-anchor, the G1530 one never.
+function viewCheck(mono, pause) {
+  const S = SV_SNAP, n = DEF.nodes.length, len = S.HEAD + 3 * n, dt = 1 / 60;
+  const view = SV.makeSimView(DEF, { ready: { n, slots: S, dt, withV: false, fuelIdx: [] }, post: () => true, monotonic: mono });
+  const snap = (k, due, run) => { const f = new Float64Array(len); f[S.STEP] = k; f[S.T] = k * dt; f[S.DUE] = due; f[S.WALL] = due; f[S.RATE] = 1; f[S.EPOCH] = 1;
+    f[S.FLAGS] = run ? S.F_RUNNING : 0; f[S.TOTALM] = MTOT; for (let i = 0; i < n; i++) f[S.HEAD + 3 * i] = 10 * k * dt; view.take({ kind: 'snap', buf: f.buffer, meta: {} }); };
+  const xs = [], at = T => { view.frame(T); xs.push(view.p[0]); };
+  const D = 1e6, ms = 1000 / 60;
+  for (let k = 0; k <= 4; k++) snap(k, D + k * ms, true);
+  at(D + 4 * ms + 10);                                   // in the ring
+  at(D + 4 * ms + 300);                                  // starved: the newest + a step (the host held: the page slow)
+  if (pause) { snap(4, D + 4 * ms, false); at(D + 4 * ms + 320); }   // a pause: the same state, not running
+  snap(4, D + 2000, true); snap(5, D + 2000 + ms, true); snap(6, D + 2000 + 2 * ms, true);   // re-anchored at D + 2 s
+  at(D + 2000 + 2 * ms + 1);                             // a frame soon after the re-anchor
+  at(D + 2000 + 3 * ms + 1);
+  return xs;
+}
+const SV_SNAP = require(path.join(ROOT, 'src', 'viewer', 'sim_host.js')).SIM_SNAP;
 function fnvRows(rows) {
   const f = new Float64Array(rows.length * 3); rows.forEach((r, i) => { f[i * 3] = r.cg[0]; f[i * 3 + 1] = r.cg[1]; f[i * 3 + 2] = r.cg[2]; });
   const u = new Uint8Array(f.buffer); let h = 2166136261;
@@ -338,6 +358,14 @@ function pool(jobs) {
       ok(on.hash === off.hash && on.monoHeld === 0 && on.back.length === 0,
          'even ' + fps + ' fps, worker: the drawn pose the SAME BITS with the G1530 clock and without (' + on.hash + ' / ' + off.hash + '), clock held ' + on.monoHeld + ' frames, none backward');
       ok(il.lerpHeld === 0 && il.back.length === 0, 'even ' + fps + ' fps, inline: the pair never held an alpha (' + il.lerpHeld + '), none backward - POSE-SMOOTH\'s draws as they were');
+    }
+  }
+  if (!custom) {
+    const backs = a => a.slice(1).filter((x, i) => x < a[i] - 1e-9).length, r = a => a.map(x => (x * 1000).toFixed(0)).join(' ');
+    for (const pause of [false, true]) {
+      const xn = viewCheck(true, pause), xo = viewCheck(false, pause);
+      ok(backs(xn) === 0 && backs(xo) === 1,
+         'the view on hand-made snapshots (drawn x mm: in the ring, starved' + (pause ? ', a PAUSE' : '') + ', two frames after the host re-anchored): G1530 ' + r(xn) + ' - never back; the old clock ' + r(xo) + ' - back');
     }
   }
   const pc = pairCheck();

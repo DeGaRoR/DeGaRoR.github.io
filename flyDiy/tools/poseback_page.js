@@ -15,6 +15,12 @@
 //   -> the JSON (rows + summary) and one line `POSEBACK_PAGE {summary}`.
 // SLOW BY NATURE (a software GL): never read a frame time off it as the game's; it is the frame TIMING the drawn clock
 // meets that this records. It needs the page's software rung (SOFT-GPU, G1460: train 31) to draw the world at all.
+// A HEADLESS PAGE IS A RIG: PACE's old clock (one step a frame, nothing drawn between steps) and the worker in LOCKSTEP
+// (sim_link.js) - neither drawn-pose path runs. So `pace=1` (app.js PACE: FORCE) is always added to the URL.
+// G1533, AS FAR AS IT WENT (the SOFT-GPU tree, 2026-10-04): boot 255 s, the stand 295 s, lined up 325-360 s, then ~8 s a
+// frame at 480x270 - a take-off ~60-450 frames away (the worker / inline): NOT flown to the take-off here. Before pace=1
+// was added the page ran the rig clock, and after Skip to line-up the link took the flight INLINE: "the worker placed
+// another aeroplane: p[0] -153.78 vs 493.62" (HANDOVER G1533, open).
 'use strict';
 const { spawn } = require('child_process');
 const fs = require('fs'), path = require('path'), http = require('http'), net = require('net');
@@ -69,7 +75,7 @@ window.__PBhook = () => {
     await page.addInitScript(PRE);
     page.on('pageerror', e => { R.errors.push(String(e.message || e).slice(0, 300)); log('PAGEERR', String(e.message).slice(0, 200)); });
     if (THROTTLE > 1) { const cdp = await page.context().newCDPSession(page); await cdp.send('Emulation.setCPUThrottlingRate', { rate: THROTTLE }); }
-    const url = 'http://127.0.0.1:' + port + '/flyDiy/' + PAGE + (Q ? '?' + Q : '');
+    const url = 'http://127.0.0.1:' + port + '/flyDiy/' + PAGE + '?pace=1' + (Q ? '&' + Q : '');
     log('nav', url);
     await page.goto(url, { waitUntil: 'load', timeout: SECS * 1000 });
     const until = async (what, fn, every = 2000) => {
@@ -93,7 +99,10 @@ window.__PBhook = () => {
     R.simw = await page.evaluate(() => !!(window.FLYDIY_SIMW && FLYDIY_PACE.state().simw));
     log('go (simw ' + R.simw + ')');
     // until the wheels have been off the ground for AFTER sim seconds
-    let lastN = 0;
+    // (progress every ~30 s: the frames recorded, the sim's time, the wheels, the phase, the worker)
+    const prog = setInterval(() => page.evaluate(() => { const r = __PB.rows, l = r[r.length - 1]; return { n: r.length, rafs: __PB.frames, t: l ? +l[8].toFixed(2) : null, wheels: l ? l[9] : null,
+      phase: l ? l[14] : null, simw: l ? l[12] : null, v: l ? +Math.hypot(l[5], l[7]).toFixed(1) : null,
+      link: (() => { try { const s = window.FLYDIY_SIMW && FLYDIY_SIMW.state(); return s ? { phase: s.phase, dead: s.dead, mode: s.mode, flight: s.flight, why: s.why || s.reason || null } : null; } catch (e) { return String(e); } })() }; }).then(x => log('rec', JSON.stringify(x)), () => {}), 30000);
     await until('the take-off + ' + AFTER + ' s', () => {
       const r = __PB.rows; let off = -1;
       for (let i = 0; i < r.length; i++) if (r[i][9] === 0 && (i === 0 || r[i - 1][9] > 0)) off = r[i][8];
@@ -101,6 +110,7 @@ window.__PBhook = () => {
     }, 3000).catch(e => log(String(e.message)));
     const tOff = await page.evaluate(() => { const r = __PB.rows; for (let i = 1; i < r.length; i++) if (r[i][9] === 0 && r[i - 1][9] > 0) return r[i][8]; return null; });
     if (tOff != null) await until('after', new Function('const r = __PB.rows; return r.length && r[r.length - 1][8] > ' + (tOff + AFTER) + ';'), 3000).catch(e => log(String(e.message)));
+    clearInterval(prog);
     R.rows = await page.evaluate(() => __PB.rows);
     R.t.end = T();
   } catch (e) { R.fatal = String(e && e.message || e); log('FATAL', R.fatal); }
