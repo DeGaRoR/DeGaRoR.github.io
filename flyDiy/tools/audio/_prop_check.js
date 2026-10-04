@@ -535,15 +535,18 @@ async function secSource(brk) {
     const r = spawnSync(process.execPath, ['--expose-gc', '--max-semi-space-size=64', __filename, '--src-alloc-child', brk || ''], { encoding: 'utf8' });
     let o = null; try { o = JSON.parse((r.stdout || '').trim().split('\n').pop()); } catch (e) { o = null; }
     rows.push(o ? [o.gcs === 0 && o.dHeap < 256 * 1024 && o.sched > 100, `AUDIO.update with the engine + prop sources, the twin 582 then the PT6 (rpm and thrust moving): `
-                   + `${o.gcs} GCs over 10 000 frames, heap ${(o.dHeap / 1024).toFixed(1)} kB, ${o.sched} schedules, ${(o.ms * 1000).toFixed(1)} us a frame`]
+                   + `${o.gcs} GCs over 2 x 10 000 frames, heap ${(o.dHeap / 1024).toFixed(1)} kB (the smaller window, < 256), ${o.sched} schedules, ${(o.ms * 1000).toFixed(1)} us a frame`]
                  : [false, 'the source allocation child did not report: ' + (r.stderr || '').slice(0, 300)]);
   }
   return rows;
 }
 async function srcAllocChild(brk) {
   const { PerformanceObserver, performance } = require('perf_hooks');
-  let gcs = 0, tFrom = Infinity, tTo = Infinity;
-  const obs = new PerformanceObserver(list => { for (const e of list.getEntries()) if (e.startTime >= tFrom && e.startTime <= tTo) gcs++; });
+  // the measured windows [from, to]: a GC entry counts when it STARTED inside one (entries arrive late; the forced
+  // gc() between the windows is outside both)
+  const win = [];
+  let gcs = 0;
+  const obs = new PerformanceObserver(list => { for (const e of list.getEntries()) if (win.some(w => e.startTime >= w[0] && e.startTime <= w[1])) gcs++; });
   obs.observe({ entryTypes: ['gc'] });
   const texts = Object.assign({}, SRC_TEXT);
   if (brk === 'srcalloc') texts['src/viewer/audio/src_prop.js'] = texts['src/viewer/audio/src_prop.js'].replace('        wire(k);', '        wire(k); v.junk = [k, P];');
@@ -571,16 +574,24 @@ async function srcAllocChild(brk) {
     }
   };
   run(SA, a.def, 2000, 0); run(SB, b.def, 2000, 0); run(SA, a.def, 2000, 0);
-  await flush();
-  global.gc(); global.gc();
-  const s0 = pg.C.sched, h0 = process.memoryUsage().heapUsed;
-  tFrom = performance.now();
-  run(SA, a.def, 10000, 7);
-  tTo = performance.now();
-  const h1 = process.memoryUsage().heapUsed;
+  // TWO windows of 10 000 frames, the smaller heap growth kept: a per-frame allocation grows both (the sabotage:
+  // +1.3 MB each), a one-off (a late optimisation's feedback, seen once at +0.8 MB on a loaded box) only one.
+  // The GCs are counted over both.
+  let dHeap = Infinity, sched = 0, ms = 0;
+  for (let w = 0; w < 2; w++) {
+    await flush();
+    global.gc(); global.gc();
+    const s0 = pg.C.sched, h0 = process.memoryUsage().heapUsed;
+    const t0 = performance.now();
+    run(SA, a.def, 10000, 7);
+    const t1 = performance.now();
+    win.push([t0, t1]);
+    const h1 = process.memoryUsage().heapUsed;
+    dHeap = Math.min(dHeap, h1 - h0); sched = pg.C.sched - s0; ms = (t1 - t0) / 10000;
+  }
   await new Promise(r => setTimeout(r, 50));
   obs.disconnect();
-  return { gcs, dHeap: h1 - h0, sched: pg.C.sched - s0, ms: (tTo - tFrom) / 10000 };
+  return { gcs, dHeap, sched, ms };
 }
 
 const PROP_SECTIONS = [
