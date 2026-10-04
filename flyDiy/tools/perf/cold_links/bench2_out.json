@@ -1,0 +1,123 @@
+{
+ "runs": [
+  {
+   "issued": 5,
+   "renderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 3080 (0x00002216) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+   "rows": [
+    {
+     "name": "ring PROD2",
+     "ms": 29811,
+     "ok": true,
+     "log": "",
+     "vsOk": true,
+     "fsOk": true,
+     "fsLog": "",
+     "hlslFs": 163903,
+     "hlslVs": 10718
+    },
+    {
+     "name": "no recolour",
+     "ms": 26014,
+     "ok": true,
+     "log": "",
+     "vsOk": true,
+     "fsOk": true,
+     "fsLog": "",
+     "hlslFs": 160577,
+     "hlslVs": 10718
+    },
+    {
+     "name": "no grass pull",
+     "ms": 19917,
+     "ok": true,
+     "log": "",
+     "vsOk": true,
+     "fsOk": true,
+     "fsLog": "",
+     "hlslFs": 163659,
+     "hlslVs": 10718
+    },
+    {
+     "name": "no veg",
+     "ms": 27530,
+     "ok": true,
+     "log": "",
+     "vsOk": true,
+     "fsOk": true,
+     "fsLog": "",
+     "hlslFs": 163175,
+     "hlslVs": 10718
+    },
+    {
+     "name": "no pools",
+     "ms": 16094,
+     "ok": true,
+     "log": "",
+     "vsOk": true,
+     "fsOk": true,
+     "fsLog": "",
+     "hlslFs": 159095,
+     "hlslVs": 10718
+    },
+    {
+     "name": "no hex",
+     "ms": 11713,
+     "ok": true,
+     "log": "",
+     "vsOk": true,
+     "fsOk": true,
+     "fsLog": "",
+     "hlslFs": 163745,
+     "hlslVs": 10718
+    },
+    {
+     "name": "no triplanar",
+     "ms": 11454,
+     "ok": true,
+     "log": "",
+     "vsOk": true,
+     "fsOk": true,
+     "fsLog": "",
+     "hlslFs": 163007,
+     "hlslVs": 10718
+    },
+    {
+     "name": "one set",
+     "ms": 7240,
+     "ok": true,
+     "log": "",
+     "vsOk": true,
+     "fsOk": true,
+     "fsLog": "",
+     "hlslFs": 160921,
+     "hlslVs": 10718
+    },
+    {
+     "name": "vote 1 cell",
+     "ms": 30863,
+     "ok": true,
+     "log": "",
+     "vsOk": true,
+     "fsOk": true,
+     "fsLog": "",
+     "hlslFs": 163899,
+     "hlslVs": 10718
+    },
+    {
+     "name": "no material chain",
+     "ms": 976,
+     "ok": true,
+     "log": "",
+     "vsOk": true,
+     "fsOk": true,
+     "fsLog": "",
+     "hlslFs": 163639,
+     "hlslVs": 10718
+    }
+   ],
+   "file": "C:/Users/denis/AppData/Local/Temp/claude/D--Dev-DeGaRoR-github-io--claude-worktrees-zealous-maxwell-88d736/06ee03d8-f6c1-4bcf-929b-47268f7954ad/scratchpad/bench2.json",
+   "wallS": 30.9,
+   "udd": "D:\\clb2"
+  }
+ ]
+}
