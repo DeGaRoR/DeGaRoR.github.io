@@ -1829,6 +1829,7 @@ const AERO_DEC_MODE = { field: 0, side: 1, plan: 2 };
 // of the craft's own root; this inverts it and folds in the axis convention,
 // so the shader gets metres in a frame it can rely on and no layer has to
 // agree with any other about units or origin — which they do not.
+const _craftP = new THREE.Matrix4(), _craftInv = new THREE.Matrix4();   // REVIEW 2026-10-04: scratch, not two allocations a frame
 function aeroSetCraft(THREE, rootMatrixWorld, axes) {
   const U = aeroDecUniforms(THREE);
   const a = axes || {};
@@ -1836,12 +1837,12 @@ function aeroSetCraft(THREE, rootMatrixWorld, axes) {
   const sgn = a.aft === false ? 1 : -1;
   const row = (ax, k) => (ax === 'x' ? [k, 0, 0] : ax === 'y' ? [0, k, 0] : [0, 0, k]);
   const r0 = row(lat, 1), r1 = row(along, sgn), r2 = row(up, 1);
-  const P = new THREE.Matrix4();
+  const P = _craftP;
   P.set(r0[0], r0[1], r0[2], 0,
         r1[0], r1[1], r1[2], 0,
         r2[0], r2[1], r2[2], 0,
         0, 0, 0, 1);
-  const inv = new THREE.Matrix4();
+  const inv = _craftInv.identity();
   if (rootMatrixWorld) inv.copy(rootMatrixWorld).invert();
   U.uCraftInv.value.copy(P).multiply(inv);
 }

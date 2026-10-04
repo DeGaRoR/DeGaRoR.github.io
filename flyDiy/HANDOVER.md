@@ -71835,3 +71835,18 @@ cockpit / taxi render and the floats' water taxi in slack. BATTERY: FRAMECOST (a
 triangles - admitted) and ROUNDTRIP (fixed) were the reds; all green on the final build; the parked aeroplanes re-cooked.
 LOOK (A0's real-GPU stills, reports/evidence/LAKE-HOLES/a0_gpu_train29_vs_30.jpg): the white gaps at the shore are gone;
 the carved banks now read as steep, texture-stretched slopes where a lake sits under a bank - a follow-up for the look.
+
+## REVIEW 2026-10-04 — INDEPENDENT REVIEW (architecture + bug hunt), on branch ccr-4c7cf662-zcpqoe
+
+An outside read of the engine, the editor, the loop and the release, written up in
+`reports/INDEPENDENT-REVIEW-2026-10-04.md`: eight HIGH findings (the Pages workflow folder is `.github/workflow/`,
+singular, so the project's deploy has never run; genShakedown re-resolves the RESOLVED spec so every CG-corner sheet of
+a spec with an offset is a different aeroplane; the join's `tail.type` / `covering` / `glazing` / materials are written
+only in the non-default state and the merge keeps them for ever; a newborn build inherited the old slot, plaque and log;
+A2 Pelham Field is sited across a river; every settlement house's hitbox was mirrored; the cage build's GPU buffers were
+never disposed; the chase camera stayed NaN after Fly again), the MEDIUM and LOW lists by system, one physics ruling
+(DEFDAMP damps rigid rotation: exp(-0.5 t) measured in vacuum, a 2 s angular damper under every aeroplane) and the
+architecture notes. The small fixes landed on the branch (commits 8544302 and the one carrying this entry; source only,
+nothing rebuilt here); the rest is the coordinator's, with the fix described per finding. Three gates were written:
+OBSTFRAME (registered, green), STRIPGROUND and GENPAIRS (not registered: red on master until A5 / B10 are fixed).
+

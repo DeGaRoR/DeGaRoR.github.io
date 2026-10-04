@@ -56,7 +56,7 @@
       const WF0 = window.WORLD; if (!WF0 || !WF0.premisesStart) return;
       PREM.R = WF0.premisesStart(); if (!PREM.R) return;
       window.PREMISES_HOST_OPEN = true;
-      running = false;
+      PREM.wasRunning = running; running = false;   // REVIEW 2026-10-04 (B24): the editor holds the flight; close() hands it back
       if (!PREM.panel) {
         // THE EDITOR'S CHROME (G398): inside #ui, so it wears the flight screen's own grammar
         // (flight.css section 9: the plate, the rail buttons, the rows, pills, switches and
@@ -110,6 +110,10 @@
     close() {
       if (!PREM.open) return;
       PREM.open = false; window.PREMISES_HOST_OPEN = false;
+      // REVIEW 2026-10-04 (B24): close() left `running` false without `userPaused` - the aeroplane held while the sea, the
+      // trees and the animals ran on (FLYDIY_HELD false), and the pause button showed the editor's hold as the player's
+      running = PREM.wasRunning !== false;
+      $('bPause').textContent = running ? 'Pause' : 'Resume'; $('bPause').classList.toggle('on', !running);
       if (PREM.ed) { PREM.ed.close(); PREM.ed = null; }
       if (PREM.host) { PREM.host.detach(); }
       PREM.panel.style.display = 'none'; PREM.view.style.display = 'none';

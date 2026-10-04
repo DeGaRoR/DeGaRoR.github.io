@@ -1706,6 +1706,7 @@ function makeSim(def, world) {
       return wet + (wet === 2 && aft === 2 ? 1 : 0);
     }
     for (const i of [...def.refs.mains, def.refs.tw]) {
+      if (!(i >= 0)) continue;   // REVIEW 2026-10-04: no third wheel (tw null) read p[NaN]
       const gh = world ? world.terrainH(p[i*3], p[i*3+2]) : 0;
       if (p[i*3+1] - rC[i] - gh < 0.03) c++;
     }
