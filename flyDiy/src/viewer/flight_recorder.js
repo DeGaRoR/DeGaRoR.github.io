@@ -87,6 +87,22 @@
     // wait the frame's next GL call would have paid). A frame under a loading screen is not a sample.
     let depth = 0, open = false, fi = 0, taken = 0, owed = 0, selfN = 0, samp = false, sampN = 0;
     let calls = 0, tris = 0, lastCap = -1, lastBoot = '', revealAt = -1, freezes = 0;
+    // G1340 THE SHADER WATCHDOG: the programs three made since the last frame closed (name + what changed in its key against
+    // the last program of that name: three's key is comma-joined, '#i:a>b' per differing field) and the link waits since;
+    // a frame whose shader time (its slot, or the waits held since the last frame - a wait outside the open frame counts)
+    // passes WATCH_MS is an event 'shaderslow' naming them (the user's 79 s frames had a 54 ms slot and 79 s of waits)
+    const WATCH_MS = 50, NP = { list: [], more: 0, waitMs: 0, last: new Map() };
+    function newProgram(p) {
+      const name = (p && p.name) || '', key = String((p && p.cacheKey) || ''), prev = NP.last.get(name);
+      let why = 'first of its name';
+      if (prev !== undefined) {
+        const a = prev.split(','), b = key.split(',');
+        if (a.length !== b.length) why = 'key ' + a.length + '>' + b.length + ' fields';
+        else { const d = []; for (let i = 0; i < b.length && d.length < 3; i++) if (a[i] !== b[i]) d.push('#' + i + ':' + a[i].slice(0, 16) + '>' + b[i].slice(0, 16)); why = d.length ? d.join(' ') : 'same key, re-made'; }
+      }
+      NP.last.set(name, key);
+      if (NP.list.length < 12) NP.list.push((name || '(unnamed)') + ' ' + why); else NP.more++;
+    }
     const probeOut = { garage: false, running: false, held: false, manual: false, phase: '', cam: '', spd: NaN, vs: NaN, agl: NaN, wms: NaN, wdil: NaN, wran: NaN };
     const names = { phase: [''], cam: [''] }, codes = { phase: new Map([['', 0]]), cam: new Map([['', 0]]) };
     const codeOf = (k, s) => { if (typeof s !== 'string') return 0; let c = codes[k].get(s); if (c === undefined) { c = names[k].length; names[k].push(s); codes[k].set(s, c); } return c; };
@@ -171,6 +187,9 @@
       let fl = ringF[j + C.flags];
       const dt = ringF[j + C.dt];
       if (dt >= FREEZE_MS && !(fl & F.away)) { fl |= F.freeze; freezes++; event('freeze', ringT[fi & (N - 1)], dt, null); }
+      { const sh = Math.max(acc[S.shader], NP.waitMs);   // G1340: the watchdog
+        if (sh > WATCH_MS) event('shaderslow', t, sh, NP.list.join(' | ') + (NP.more ? ' | +' + NP.more + ' more' : '') || '(no new program: waits on programs made earlier)');
+        NP.list.length = 0; NP.more = 0; NP.waitMs = 0; }
       if (!rendered) fl |= F.noRender;
       if (rec.gpu.foreignF >= fi - 1) fl |= F.gpuForeign;
       const P = probeOut;
@@ -270,6 +289,10 @@
           };
         }
       } catch (e) {}
+      try {   // G1340: every program three makes, for the watchdog
+        const A = renderer.info && renderer.info.programs;
+        if (A && !A.__frw) { A.__frw = 1; const push = A.push; A.push = function (p) { try { newProgram(p); } catch (e) {} return push.apply(this, arguments); }; }
+      } catch (e) {}
       try {
         const sm = renderer.shadowMap;
         if (sm && typeof sm.render === 'function') {
@@ -297,7 +320,7 @@
         if (!waiting.has(p)) return fn.call(gl, p, a);
         waiting.delete(p);
         const t = clock(); push(S.shader);
-        try { return fn.call(gl, p, a); } finally { pop(); const d = clock() - t; if (d > 1) event('linkwait', t, d, null); }
+        try { return fn.call(gl, p, a); } finally { pop(); const d = clock() - t; NP.waitMs += d; if (d > 1) event('linkwait', t, d, null); }
       };
       gl.getProgramInfoLog = function (p) { return held(infoLog, p); };
       gl.getProgramParameter = function (p, pn) { return pn === gl.LINK_STATUS ? held(param, p, pn) : param.call(gl, p, pn); };

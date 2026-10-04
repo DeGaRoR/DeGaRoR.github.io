@@ -2669,6 +2669,7 @@ function editorInit(api) {
     for (const m of pair) {
       if (scaleOf) m.scale.copy(scaleOf);
       m.userData.edHi = 1;
+      if (typeof UI_LAYER !== 'undefined') UI_LAYER.claim(m);   // G1370: the selection's outline is UI (ui_layer.js)
       addTo.add(m);
     }
     return pair;
@@ -2684,6 +2685,7 @@ function editorInit(api) {
     l.renderOrder = 7;
     l.userData.edHi = 1;
     l.userData.edOwnGeo = 1;
+    if (typeof UI_LAYER !== 'undefined') UI_LAYER.claim(l);   // G1370: UI - not in the probe, the mirror, or the shot
     return l;
   }
   // =========================================================================

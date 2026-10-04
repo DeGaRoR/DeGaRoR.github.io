@@ -18,6 +18,10 @@
 //   - THE ROLLOUT TARGETS (PASS / FAIL each): no frame over 100 ms after the reveal; never more than 3 s in a
 //     row below 30 fps; the stand and the taxi at a median of 50 fps or better; no task over 1 s.
 //     `--gate` exits 1 when any fails (else the tool exits 0 whatever it finds).
+//   - THE FRAME-LENGTH DISTRIBUTION (G1360, tools/frame_dist.js): over the scored frames, a histogram (< 20, 20-40,
+//     40-60, 60-100, 100-250, 250-1000, > 1000 ms), p50 / p90 / p99 / p99.9, the share of frames over 1.5x and 3x
+//     THEIR cap's frame time (the recorder's `cap` column; the rig clock / uncapped = 60 Hz), the frames over 100 ms
+//     and 1 s; and one line of it per phase (A.dist, phases[].dist in --json)
 //
 // DEFINITIONS (they are the scorer's, so they are written down):
 //   - a FRAME is a rendered one (the frame cap's skipped refreshes are not frames); its interval `dt` is rAF's
@@ -37,6 +41,7 @@
 //     STAND is any ground phase at under 0.5 m/s.
 'use strict';
 const fs = require('fs'), zlib = require('zlib'), path = require('path');
+const FD = require('./frame_dist.js');
 
 function load(file) {
   let buf = fs.readFileSync(file);
@@ -103,8 +108,8 @@ function analyze(log, opt) {
   const byPhase = {};
   for (const r of rows) {
     if (r.away) continue;
-    const P = byPhase[r.ph] || (byPhase[r.ph] = { frames: 0, ms: 0, dts: [], slowMs: 0, split: {}, gpu: 0, gpuN: 0, calls: 0, tris: 0, work: 0 });
-    P.frames++; P.ms += r.dt; P.dts.push(r.dt); P.work += r.work || 0;
+    const P = byPhase[r.ph] || (byPhase[r.ph] = { frames: 0, ms: 0, dts: [], caps: [], slowMs: 0, split: {}, gpu: 0, gpuN: 0, calls: 0, tris: 0, work: 0 });
+    P.frames++; P.ms += r.dt; P.dts.push(r.dt); P.caps.push(r.cap); P.work += r.work || 0;
     if (r.dt > 35) P.slowMs += r.dt;
     for (const s of SL) P.split[s] = (P.split[s] || 0) + (r[s] || 0);
     if (r.gpu === r.gpu) { P.gpu += r.gpu; P.gpuN++; }
@@ -118,11 +123,12 @@ function analyze(log, opt) {
     phases.push({ phase: name, frames: P.frames, seconds: P.ms / 1000, meanFps: P.frames * 1000 / P.ms,
       fpsP50: 1000 / pct(s, 0.5), fpsP10: 1000 / pct(s, 0.9), fpsP1: 1000 / pct(s, 0.99), worstMs: s[s.length - 1],
       slowS: P.slowMs / 1000, workMs: P.work / P.frames, split, gpuMs: P.gpuN ? P.gpu / P.gpuN : null, gpuFrames: P.gpuN,
-      calls: P.calls / P.frames, ktris: P.tris / P.frames / 1000 });
+      calls: P.calls / P.frames, ktris: P.tris / P.frames / 1000, dist: FD.dist(P.dts, P.caps) });
   }
   // ---- the frames that count for the targets: after the reveal, off the loading screens
   // the frames the targets score: after the reveal, in the world (a loading screen and the shed are not the roll-out's)
   const scope = rows.filter(r => !r.away && r.ph !== 'boot' && r.ph !== 'shed' && (opt.all || (revealT != null && r.after)));
+  const dist = FD.dist(scope.map(r => r.dt), scope.map(r => r.cap));   // G1360: the scored frames' distribution
   const scopeName = opt.all ? 'every frame off the loading screens' : revealT != null ? 'after the reveal' : 'NO REVEAL IN THIS LOG (never rolled out) - nothing to score';
   // ---- slower than 30 fps: stretches
   const stretches = [];
@@ -195,7 +201,7 @@ function analyze(log, opt) {
     { id: 'task1s', what: 'no task over 1 s (the whole log, the loading screens included)', ok: longTasks.length === 0,
       got: longTasks.length + ' over 1 s' + (longTasks.length ? ' (' + longTasks.filter(x => x.afterReveal).length + ' after the reveal; worst ' + Math.max(...longTasks.map(x => x.ms)).toFixed(0) + ' ms)' : '') },
   ];
-  return { header: H, t0, revealT, reveals, frames: rows.length, boots, scopeName, scopeFrames: scope.length, phases, worst, stretches: stretches.slice(0, 10), slowS,
+  return { header: H, t0, revealT, reveals, frames: rows.length, boots, scopeName, scopeFrames: scope.length, dist, phases, worst, stretches: stretches.slice(0, 10), slowS,
     over100: over100.slice(0, 30).map(r => ({ i: r.i, t: r.t, dt: r.dt, phase: r.ph })), over100N: over100.length, longTasks, evCount, targets };
 }
 
@@ -226,6 +232,10 @@ function report(A) {
     L.push('  ' + p.phase.padEnd(10) + String(p.frames).padStart(7) + f0(p.seconds).padStart(6) + f1(p.meanFps).padStart(7) + f0(p.fpsP50).padStart(5) + f0(p.fpsP10).padStart(5) + f0(p.fpsP1).padStart(5) +
       f0(p.worstMs).padStart(11) + f1(p.slowS).padStart(10) + f1(p.workMs).padStart(9) + f1(p.gpuMs).padStart(9) + f0(p.calls).padStart(7) + f0(p.ktris).padStart(7) + '   ' + top);
   }
+  L.push('');
+  L.push('FRAME-LENGTH DISTRIBUTION (' + A.scopeName + '; the cap\'s frame time is each frame\'s own cap, 60 Hz when uncapped)');
+  if (A.dist) for (const l of FD.table(A.dist, '  ')) L.push(l);
+  for (const p of A.phases) if (p.dist && p.dist.n) L.push('  ' + p.phase.padEnd(10) + FD.line(p.dist));
   L.push('');
   L.push('THE WORST ' + A.worst.length + ' FRAMES (' + A.scopeName + '; an interval is the frame before it plus what ran between them)');
   for (const w of A.worst) {

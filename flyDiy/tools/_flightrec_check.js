@@ -119,6 +119,7 @@ const doc = { hidden: false, readyState: 'complete', body: null, addEventListene
 global.window = { location: { search: '' }, localStorage: { getItem: () => null, setItem() {} }, document: doc, BOOT: { state: 'loading', set: 'rollout' } };
 const FR = require(SRC);
 const An = require(path.join(__dirname, 'analyze_log.js'));
+const FDl = require(path.join(__dirname, 'frame_dist.js')).line;
 const W = global.window;
 verdict(W.FLIGHT_REC === FR && typeof FR.make === 'function', 'the module publishes window.FLIGHT_REC');
 const S = FR.rec.S, SL = FR.SLOTS;
@@ -271,6 +272,15 @@ function session(script) {
   verdict(w0 && near(w0.dt, 150, 0.01) && w0.phase === 'stand' && w0.events.some(e => e.kind === 'longtask') && w0.events.some(e => e.kind === 'link') && w0.before && w0.before.work > 0,
     `  the worst frame: ${w0 && w0.dt} ms at the stand, with the long task and the link in its interval and the frame before's split`);
   verdict(near(B2.stretches[0].ms, 4000, 60) && B2.stretches[0].phase === 'climb', `  the longest stretch below 30 fps: ${(B2.stretches[0].ms / 1000).toFixed(2)} s in the climb`);
+  // G1360: the frame-length distribution over the scored frames - every frame in one bucket, the 150 ms freeze in 100-250,
+  // the 4 s at 20 fps (50 ms) in 40-60, the 40 fps taxi (25 ms) in 20-40; over 1.5x / 3x the cap (60 Hz here: no cap)
+  {
+    const D = B2.dist, Bk = Object.fromEntries((D && D.buckets || []).map(b => [b.k, b.n])), sum = D ? D.buckets.reduce((a, b) => a + b.n, 0) : -1;
+    const tx = B2.phases.find(p => p.phase === 'taxi');
+    verdict(D && D.n === B2.scopeFrames && sum === D.n && Bk['100-250'] === 1 && D.over100 === 1 && D.over1s === 0 && near(Bk['40-60'], 80, 2) && near(Bk['20-40'], 400, 2)
+      && D.over15.n >= 81 && D.over3x.n >= 1 && D.p50 < 20 && near(D.worst, 150, 0.01) && tx && tx.dist && near(tx.dist.p50, 25, 0.01) && /FRAME-LENGTH DISTRIBUTION/.test(An.report(B2)),
+      `  the frame-length distribution: ${D ? FDl(D) : 'none'}`);
+  }
   // under the hand: the phases from the aeroplane itself
   const hand = session(run => {
     run(2, 16.7, { manual: true, phase: 'CLIMB', spd: 0, agl: 1.2, vs: 0 });

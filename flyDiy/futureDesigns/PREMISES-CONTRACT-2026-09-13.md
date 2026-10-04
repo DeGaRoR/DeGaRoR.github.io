@@ -883,3 +883,17 @@ after the freeze, against this document.
   chunks never come up. The town places its conifers through `planForest` instead. The mechanism stays
   because it is right and the next tree pack makes it live — and GATE PREMISES 14p holds it by source
   check while no record paints one, so it cannot rot while it is unused.
+- **v1.31 (2026-10-03, EDITOR-VEG G1385).** Two additions, both optional, both kept by the round trip.
+  A **`ttype` entry may carry `veg`** — what grows inside it, whatever the terrain type says:
+  `{ mode: 'none' }` (no tree, no tuft, no bush of a biome; the collidable woodland too), `{ mode: 'biome',
+  mix: '<name>' }` (any mix of `tools/_trees_tuning.json`, as the payload ships it), or `{ mode: 'new',
+  species: { name: { proportion, density?, size? } }, density: trees/ha, under: bushes/1000 m2, cover:
+  the grass factor }` (a biome defined in place: the composer's `vegMixes['@' + id]`, in the bench's
+  `{ species, forest }` shape, the count in a 220 m stand). With `veg`, `code` may be **null**: the polygon
+  stamps no terrain type and only says what grows. The last polygon over a point speaks (`vegAt`); the
+  planters ask `BIOMES.mixHere(code, x, z)`. A **runway may carry `clear`** `{ side, beyond, taper, bushes }`:
+  its own tree clearance — `side` metres past each edge, `beyond` past each end, the half-width growing by
+  `taper` m/m past the ends, `bushes` keeping the cover ring's shrubs out too. Absent, today's generic box
+  (60 m, 150 m, no taper) stands as before, in 'today' only; present, it stands in every `rwytrees`
+  variant, wins over `treeBox: false`, and the strip's derived box + 30 m then keeps only the plots and
+  the settlements off (the trees are the clearance's).

@@ -167,7 +167,9 @@ const POST_FX = (() => {
     void main() {
       float d = texture2D(tDepth, vUv).r;
       float sky = skyK(d);
-      vec3 c = pfxCurve(texture2D(tSrc, vUv).rgb);
+      vec3 c0 = texture2D(tSrc, vUv).rgb;
+      if (any(isnan(c0)) || any(isinf(c0))) c0 = vec3(0.0);   // G1355: a half-float overflow (the sun's disc) must not smear a NaN down the blur
+      vec3 c = clamp(pfxCurve(max(c0, vec3(0.0))), 0.0, 1.0);
       float near = 1.0 - smoothstep(0.0, uRadius, distance(vUv, uSun));
       float l = max(luma(c) - 0.55, 0.0) * 2.2;
       gl_FragColor = vec4(c * sky * l * near, 1.0); }`;
@@ -264,7 +266,9 @@ const POST_FX = (() => {
     faded:  { lift: [0.06, 0.055, 0.05], gain: [0.93, 0.93, 0.95], contrast: 0.9, sat: 0.84 },
   };
   const LENS = { vignette: { vig: 0.32, ca: 0 }, 'vignette+aberration': { vig: 0.32, ca: 0.0035 } };
-  const EYE_TARGET = 0.40, EYE_STOPS = 1.5, EYE_TAU_UP = 0.6, EYE_TAU_DOWN = 1.6;
+  // G1354 (LIGHT-SMOOTH): the eye's time constants 0.6 / 1.6 s -> 1.5 / 2.0 s (the user: "luminosity adjustments happen
+  // all of a sudden"; the brief: every light change over ~1-3 s) - see eye() for the measurement's own exposure
+  const EYE_TARGET = 0.40, EYE_STOPS = 1.5, EYE_TAU_UP = 1.5, EYE_TAU_DOWN = 2.0;
 
   // ---- the setup --------------------------------------------------------------------------
   let linear = false;    // the compositing (G448.3), set by GFX through setLinear before any material is made
@@ -368,7 +372,9 @@ const POST_FX = (() => {
     if (!rt.depthTexture) return;
     const G = (typeof window !== 'undefined') ? window.SKY_GLARE : null;
     if (!G || !G.ndc || !G.ndc.ok) return;
-    const vis = (G.visible || 0) * ((typeof window !== 'undefined' && window.CLOUDS && window.CLOUDS.sunT && camera) ? Math.max(0, Math.min(1, window.CLOUDS.sunT(camera.position.x, camera.position.y, camera.position.z))) : 1);
+    // G1355: the shafts fade out as the sun leaves the frame (SKY_GLARE drops ndc.ok at 1.6 - the shafts were cut there on one frame)
+    const edge = Math.max(Math.abs(G.ndc.x), Math.abs(G.ndc.y)), edgeK = 1 - Math.max(0, Math.min(1, (edge - 1.2) / 0.35));
+    const vis = edgeK * (G.visible || 0) * ((typeof window !== 'undefined' && window.CLOUDS && window.CLOUDS.sunT && camera) ? Math.max(0, Math.min(1, window.CLOUDS.sunT(camera.position.x, camera.position.y, camera.position.z))) : 1);
     if (vis < 0.02) return;
     const h = tBegin('rays');
     const sx = G.ndc.x * 0.5 + 0.5, sy = G.ndc.y * 0.5 + 0.5;
@@ -405,7 +411,19 @@ const POST_FX = (() => {
     tEnd(h);
   }
   // THE EYE: a 16x16 mean, read back asynchronously; the loop on the display mean, in stops
-  let eyeBusy = false, eyeK = 1, eyeLast = 0;
+  // G1354 THE MEASUREMENT KNOWS ITS EXPOSURE (LIGHT-SMOOTH). The mean comes back a few frames late (async), and the loop
+  // used to add the error it implies to the eye AS IT IS NOW: every frame the read was in flight (a GPU busy linking, a
+  // stall) integrated the same stale error again - the eye overshot past the target and came back, a swing the user saw
+  // as a sudden change. The target is now the exposure the measured frame was drawn with (kAt, eyeKRead) plus that frame's error:
+  // a fixed point, however late the read; the ease toward it is unchanged.
+  // G1356 THE EYE READ ITS FRAME TWICE ENCODED (LIGHT-SMOOTH; A0's "the scene got too dark"). Under the linear
+  // compositing T.eye is a display target: an 8-bit texture tagged sRGB, which three stores as SRGB8_ALPHA8 - so the GPU
+  // sRGB-encoded on the store what pfxCurve had already encoded. The mean came back as encode(encode(picture)): measured
+  // 0.57 for a frame whose canvas mean was ~0.3, and the loop sat on its -1.5 stop floor (eyeK 0.354: the whole frame x0.35
+  // whenever `eye` was on). The bytes are decoded once (the hardware's encode is the standard sRGB curve, exactly
+  // inverted by this table), leaving the display values pfxCurve wrote. The display compositing's T.eye is a plain RGBA8.
+  const EYE_DEC = (() => { const t = new Float32Array(256); for (let i = 0; i < 256; i++) { const v = i / 255; t[i] = v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); } return t; })();
+  let eyeBusy = false, eyeK = 1, eyeLast = 0, eyeKRead = 1;
   const eyeBuf = (typeof Uint8Array !== 'undefined') ? new Uint8Array(16 * 16 * 4) : null;
   function eye(rt) {
     if (!renderer.readRenderTargetPixelsAsync || eyeBusy) { tick(); return; }
@@ -414,9 +432,13 @@ const POST_FX = (() => {
     draw(M.eye, T.eye);
     tEnd(h);
     eyeBusy = true;
+    const kAt = eyeK;   // the eye this frame was drawn with
+    const dec = (T.eye.texture.colorSpace === THREE.SRGBColorSpace && T.eye.texture.type === THREE.UnsignedByteType) ? EYE_DEC : null;
     renderer.readRenderTargetPixelsAsync(T.eye, 0, 0, 16, 16, eyeBuf).then(() => {
-      let s = 0; for (let i = 0; i < 256; i++) s += 0.2126 * eyeBuf[i * 4] + 0.7152 * eyeBuf[i * 4 + 1] + 0.0722 * eyeBuf[i * 4 + 2];
-      stats.eyeLum = s / 256 / 255; eyeBusy = false;
+      let s = 0;
+      if (dec) for (let i = 0; i < 256; i++) s += 0.2126 * dec[eyeBuf[i * 4]] + 0.7152 * dec[eyeBuf[i * 4 + 1]] + 0.0722 * dec[eyeBuf[i * 4 + 2]];
+      else for (let i = 0; i < 256; i++) s += (0.2126 * eyeBuf[i * 4] + 0.7152 * eyeBuf[i * 4 + 1] + 0.0722 * eyeBuf[i * 4 + 2]) / 255;
+      stats.eyeLum = s / 256; eyeKRead = kAt; eyeBusy = false;
     }).catch(() => { eyeBusy = false; });
     tick();
   }
@@ -427,7 +449,7 @@ const POST_FX = (() => {
       // the mean the eye wants, in stops from the mean it sees (the picture is display-space:
       // a stop of exposure is ~0.45 of the mean's log2 here, so the loop is scaled to it)
       const want = Math.log2(EYE_TARGET / Math.max(0.02, stats.eyeLum)) * 0.45;
-      let k = Math.log2(eyeK) + want;
+      let k = Math.log2(eyeKRead) + want;   // G1354: from the exposure the measured frame had
       k = Math.max(-EYE_STOPS, Math.min(EYE_STOPS, k));
       const tau = k > Math.log2(eyeK) ? EYE_TAU_UP : EYE_TAU_DOWN;
       const a = 1 - Math.exp(-dt / tau);

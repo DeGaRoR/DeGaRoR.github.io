@@ -28,6 +28,14 @@
 //                glue, CORE picked out of the imported bundle. First, because a
 //                premises world writes the process's AIRFIELD_SITES
 //                (20_world.js) and this flight reads the analytic HOME.
+//   1b THE STALL (G1365, SIM-STALL) the same Blob's host on a FAKE clock: a 60 Hz
+//                page beating once a frame (sim_view.js frame), then 60 s with
+//                no frame drawn, then the page back - the host holds
+//                SIM_HOST_STALL_MS past the last beat (the aeroplane < 3 m from
+//                where the page last drew it, 216 m unheld) and goes on from
+//                there at real time, the lost wall time not owed. And in 3,
+//                on the real thread: a 1.5 s page freeze held, the replay
+//                running through it to the bit.
 //   2 LOCKSTEP   the stock build and the metal Cessna, N steps: every step's
 //                FNV of p and v equal, and at the end the view's reads (p,
 //                cgPos, cgVel, axes, bodyOrigin, totalM, wheels, out, fuel,
@@ -292,6 +300,52 @@ const tick = () => new Promise(r => setImmediate(r));
   ok(!!rdy && !!last && !out.some(m => m.kind === 'error') && snapHash(rdy, new Float64Array(last.buf)) === Fn.hash(),
      'the Blob\'s host flies 120 steps of the analytic world to the page\'s bits' + (out.some(m => m.kind === 'error') ? ' - ' + out.find(m => m.kind === 'error').error.split('\n')[0] : ''));
 
+  // ---- 1b THE STALL (G1365, SIM-STALL - the user, 3 Oct: a 79 s freeze, "when it unfreezes, I find it miles away")
+  // The same Blob's host, its clock swapped for a fake one (the host reads `performance` / `setTimeout` off its global at
+  // each call): the page beats once a frame at 60 Hz (sim_view.js frame), then draws nothing for 60 s, then beats again
+  console.log('1b THE STALL (the Blob\'s host on a fake clock: a 60 Hz page, a 60 s freeze, the page back)');
+  {
+    let clk = 1e6, tid = 0;
+    const timers = [];
+    ctx.performance = { timeOrigin: 0, now: () => clk };
+    ctx.setTimeout = (f, ms) => { const id = ++tid; timers.push({ id, at: clk + Math.max(1, +ms || 0), f }); return id; };   // (node's: 1 ms at least)
+    ctx.clearTimeout = id => { const i = timers.findIndex(x => x.id === id); if (i >= 0) timers.splice(i, 1); };
+    const until = to => {   // the host's timers due by `to`, in order, the clock on each
+      for (;;) {
+        let j = -1; for (let i = 0; i < timers.length; i++) if (timers[i].at <= to && (j < 0 || timers[i].at < timers[j].at)) j = i;
+        if (j < 0) break;
+        const tm = timers.splice(j, 1)[0]; clk = Math.max(clk, tm.at); tm.f();
+      }
+      clk = to;
+    };
+    const send = m => ctx.onmessage({ data: m });
+    const S = rdy.slots, snaps = () => out.filter(m => m.kind === 'snap').map(m => new Float64Array(m.buf));
+    const at = f => ({ k: f[S.STEP], cg: [f[S.CG], f[S.CG + 1], f[S.CG + 2]], v: Math.hypot(f[S.CGV], f[S.CGV + 2]) });
+    const dist = (a, b) => Math.hypot(a.cg[0] - b.cg[0], a.cg[1] - b.cg[1], a.cg[2] - b.cg[2]);
+    const frames = secs => { const end = clk + secs * 1000; while (clk < end - 1e-6) { until(clk + 1000 / 60); send({ cmd: 'beat' }); } };
+    send({ cmd: 'steps', n: 180 });                       // 5 s in: the pilot taxiing out
+    send({ cmd: 'run' });
+    frames(1);
+    const A = at(snaps().pop());
+    until(clk + 60000);                                   // THE FREEZE: no frame drawn, no beat, 60 s
+    const B = at(snaps().pop());
+    send({ cmd: 'state' }); const HB = out.filter(m => m.kind === 'state').pop();
+    const n0 = out.length;
+    frames(1);                                            // the page back
+    const after = out.slice(n0).filter(m => m.kind === 'snap').map(m => new Float64Array(m.buf));
+    const C = at(after[after.length - 1]), maxRan = Math.max(...after.map(f => f[S.RAN]));
+    send({ cmd: 'state' }); const HC = out.filter(m => m.kind === 'state').pop();
+    send({ cmd: 'pause' });
+    const held = B.k - A.k, moved = dist(A, B);
+    console.log('  at the freeze: step ' + A.k + ', ' + f3(A.v) + ' m/s (60 s of that is ' + (A.v * 60).toFixed(0) + ' m); held after ' + held + ' steps, ' +
+                f3(moved) + ' m on; the page back: ' + (C.k - B.k) + ' steps in its first second (at most ' + maxRan + ' a turn), ' +
+                'stalls ' + HC.stalls + ', ' + f3(HC.stallS) + ' s let go');
+    ok(A.v > 1 && held <= Math.ceil(SH.SIM_HOST_STALL_MS / 1000 * 60) + 1 && moved < 3 && HB.stalled && !HC.stalled,
+       'a 60 s page freeze: the host HOLDS ' + SH.SIM_HOST_STALL_MS + ' ms past the last beat (' + held + ' steps), the aeroplane ' + f3(moved) + ' m from where the page last drew it (< 3; ' + (A.v * 60).toFixed(0) + ' m unheld)');
+    ok(Math.abs((C.k - B.k) - 60) <= 2 && maxRan <= 2 && HC.stalls === 1 && Math.abs(HC.stallS - (60 - SH.SIM_HOST_STALL_MS / 1000)) < 0.05 && dist(B, C) < 2 * A.v + 1,
+       'the page back: the flight goes on from where it held at real time (' + (C.k - B.k) + ' steps in the first second, at most ' + maxRan + ' a turn) - the ' + f3(HC.stallS) + ' s lost not owed, no teleport');
+  }
+
   // the host boots its world while the page boots its own
   const host = startHost();
   const readyP = host.next('ready'), snap0P = host.next('snap');
@@ -415,7 +469,7 @@ const tick = () => new Promise(r => setImmediate(r));
   host.post({ cmd: 'run' });
   const tStart = wallNow(), period = 1000 / 60;
   let allocWarm = null;
-  while (wallNow() - tStart < SECS * 1000) {
+  const fly = async secs => { const t1 = wallNow(); while (wallNow() - t1 < secs * 1000) {
     const tf = wallNow();
     while (events.length && (tf - tStart) / 1000 >= events[0][0]) { events.shift()[1](viewActs(view)); }
     view.flush();
@@ -425,7 +479,20 @@ const tick = () => new Promise(r => setImmediate(r));
     frames++;
     if (frames === 60) allocWarm = view.state().allocs;
     while (wallNow() - tf < period) { const wait = period - (wallNow() - tf); if (wait > 2) await new Promise(r => setTimeout(r, wait - 1)); else await tick(); }
-  }
+  } };
+  await fly(SECS);
+  // G1365 (SIM-STALL): THE PAGE FREEZES on the real thread - 1.5 s with no frame drawn (no beat): the host holds 250 ms past
+  // the last beat and goes on from there when the frames come back (the replay below runs through it, step for step)
+  const sq = async () => { const p = host.next('state'); host.post({ cmd: 'state' }); return p; };
+  const kF = (await sq()).steps;
+  await new Promise(r => setTimeout(r, 1500));
+  const HF = await sq();
+  await fly(0.5);
+  const HR = await sq();
+  console.log('  the page frozen 1.5 s: ' + (HF.steps - kF) + ' steps while it was (' + (HF.stalled ? 'held' : 'NOT HELD') + '), ' + (HR.steps - HF.steps) + ' in the half second after; ' +
+              HR.stalls + ' stall, ' + f3(HR.stallS) + ' s let go');
+  ok(HF.stalled && HF.steps - kF <= 15 + 6 && HR.steps - HF.steps >= 20 && HR.stalls === 1 && HR.stallS > 1.0 && HR.stallS < 1.6,
+     'the worker thread holds through a 1.5 s page freeze (' + (HF.steps - kF) + ' steps, <= 21) and goes on after it (' + (HR.steps - HF.steps) + ' steps in 0.5 s, ' + f3(HR.stallS) + ' s let go)');
   const pp = host.next('snap');
   host.post({ cmd: 'pause' });
   await pp;
@@ -438,7 +505,7 @@ const tick = () => new Promise(r => setImmediate(r));
   console.log('  a snapshot\'s one-way latency (published -> taken; the render loop is busy ' + RENDER_MS + ' ms of each frame) p50 ' + f3(pct(lat, 0.5)) + ' / p90 ' + f3(pct(lat, 0.9)) + ' / max ' + f3(Math.max(...lat)) + ' ms');
   console.log('  the pose age at the render (now less when the host held the drawn state; interpolated at T - 1 step) p50 ' + f3(pct(ages, 0.5)) + ' / p90 ' + f3(pct(ages, 0.9)) + ' ms');
   console.log('  the render thread\'s physics: take ' + f3(pct(takeMs, 0.5)) + ' / max ' + f3(Math.max(...takeMs)) + ' ms a snapshot, frame ' + f3(pct(frameMs, 0.5)) + ' / max ' + f3(Math.max(...frameMs)) + ' ms a frame');
-  console.log('  the host: ' + steps + ' steps in ' + SECS + ' s, step ' + f3(HS.stepMs) + ' ms (eased), dilation ' + f3(HS.dilation) + ', dropped ' + f3(HS.droppedS) + ' s (' + HS.guarded + ' turns), ' +
+  console.log('  the host: ' + steps + ' steps in ' + SECS + ' s + the freeze, step ' + f3(HS.stepMs) + ' ms (eased), dilation ' + f3(HS.dilation) + ', dropped ' + f3(HS.droppedS) + ' s (' + HS.guarded + ' turns), ' +
               rtHashes.size + ' snapshots, buffers allocated ' + HS.allocs + ' (' + (HS.allocs - (allocWarm || 0)) + ' after the first second), ' + frames + ' frames drawn');
   ok(steps >= 30 && rtHashes.size >= 10, 'the host\'s clock ran (' + steps + ' steps, ' + rtHashes.size + ' snapshots)');
   ok(LOG.list.length === RT_EVENTS(pageDef).length + LOG.list.filter(e => e.c.cmd === 'hand').length && LOG.late === 0,

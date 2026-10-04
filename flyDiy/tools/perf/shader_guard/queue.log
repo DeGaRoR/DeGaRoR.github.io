@@ -1,0 +1,13 @@
+boxlock: SHADER-GUARD waiting for gpu - held: GPU_BENCH.lock 
+boxlock: SHADER-GUARD waiting for gpu - held: GPU_BENCH.lock 
+boxlock: SHADER-GUARD waiting for gpu - held: GPU_BENCH.lock 
+boxlock: SHADER-GUARD waiting for gpu - held: GPU_BENCH.lock 
+boxlock: SHADER-GUARD waiting for gpu - held: GPU_BENCH.lock 
+boxlock: SHADER-GUARD waiting for gpu - held: GPU_BENCH.lock 
+boxlock: SHADER-GUARD waiting for gpu - held: GPU_BENCH.lock 
+boxlock: GPU taken by SHADER-GUARD
+r3 done
+r4 done
+r5 done
+r6 done
+boxlock: GPU released by SHADER-GUARD

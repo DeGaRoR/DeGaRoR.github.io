@@ -1,0 +1,12 @@
+[20:06:05] loaded {"state":"ready","sec":64.2}
+[20:06:08] shedDusk true
+[20:06:11] rollOut "bGo"
+[20:07:03] rolledOut {"n":2,"kind":"rollout","done":true,"ms":50900,"anim":"played","ran":["worldCompile","frames"],"boot":"gone","shed":false}
+[20:07:05] run 3.1333333333328333
+[20:07:09] skip "ok"
+[20:09:10] lineupTrip null
+[20:09:15] fly {"t":253993.5,"ph":"BASE","agl":126.5,"progs":513,"add":482,"worst":116.6}
+[20:09:15] guard {"held":8,"compiles":8,"ready":8,"timedOut":0,"what":[["cover:shrub/HollyBranchAtlas",0,2],["cover:shrub/HollyBark",0,2],["LineSegments/LineBasicMaterial",0,1],["cover:shrub/RaspberryBranchAtlas",0,3],["cover:shrub/RaspberryBark",0,3],["Mesh/MeshStandardMaterial",0,3],["Mesh/MeshStandardMaterial",0,3],["Mesh/MeshStandardMaterial",0,3]]}
+[20:09:15] lamps {"armed":true,"ready":null,"prepping":null,"litNow":0,"pool":8}
+programs: 482 made, 13 destroyed; 0 made from the skip on
+frames over 250 ms after the skip: []

@@ -110,15 +110,24 @@ function makeTestPilot(sim, def, world) {
   const say = (code, note) => {
     ap.report.verdicts.push({ t: Math.round(ap.t * 10) / 10, code, note });
   };
-  ap.setRoute = (from, to) => {
+  // G1375 STRIP-SURFACE: no destination on a surface this gear may not use (25_airfield.js stripLandable)
+  const gearK = typeof stripGear === 'function' ? stripGear(def && def.spec && def.spec.gear ? def : sim) : 'wheels';
+  const landable = (from, to) => {
+    if (typeof stripLandable !== 'function') return to;
+    const L = stripLandable(gearK, world && world.aerodromes, from, to);
+    if (L.why) say('wrong-surface', L.why);
+    return L.to;
+  };
+  const setRoute0 = (from, to) => {
     ap.route = { from, to };
     ap.xc = from !== to;
     ap.frame = mkFrame(from);
     ap.altRef = from.elev;
     ap.shortFld = false;
   };
-  ap.setRoute(world ? world.aerodromes[0] : HOMEISH,
-              world ? world.aerodromes[0] : HOMEISH);
+  ap.setRoute = (from, to) => setRoute0(from, landable(from, to));
+  setRoute0(world ? world.aerodromes[0] : HOMEISH,
+            world ? world.aerodromes[0] : HOMEISH);
   // G151: `taxiOut` — the site's declared way out. Donor's signature, carried.
   // G193: the pattern of an aerodrome, built once per record from its site
   // (25_airfield.js sitePattern) — the graph the taxi follows and the two
@@ -145,6 +154,7 @@ function makeTestPilot(sim, def, world) {
     ap.taxiPath = null;
     ap.taxiOut = Array.isArray(siteOrTaxiOut) && siteOrTaxiOut.length ? siteOrTaxiOut
                : (site && site.taxiOut) || null;
+    to = landable(from, to);
     ap.route = { from, to };
     ap.xc = from !== to;
     ap.altRef = from.elev;

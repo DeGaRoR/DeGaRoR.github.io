@@ -133,6 +133,9 @@ function makeSimView(def, opts) {
     frame(T) {
       if (!B) return null;
       if (T == null) T = now();
+      // G1365 (SIM-STALL): the page's heartbeat - a frame drawn on the real-time clock; the host's clock holds 250 ms past
+      // the last one it heard (sim_host.js SIM_HOST_STALL_MS: a frozen page finds its aeroplane where it left it)
+      if (T !== Infinity) post({ cmd: 'beat' });
       const fB = B.f, ep = fB[S.EPOCH];
       let X = B, Y = B, alpha = 1;
       if (T !== Infinity && Q.length > 1) {

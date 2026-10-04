@@ -3654,7 +3654,7 @@ const CS = { on: true };   // the aeroplane's own print, below
           CS.quad.visible = false;
           return false;
         }
-        craft.traverse(o => { if (o.isMesh) o.layers.enable(LAYER); });
+        craft.traverse(o => { if (o.isMesh && !(o.userData && o.userData.uiLayer)) o.layers.enable(LAYER); });   // (G1370: never a UI helper - ui_layer.js)
         const cx = (bb.min.x + bb.max.x) / 2, cz = (bb.min.z + bb.max.z) / 2;
         const hw = (bb.max.x - bb.min.x) / 2 + PAD, hh = (bb.max.z - bb.min.z) / 2 + PAD;
         const gy = ROOT.position.y;

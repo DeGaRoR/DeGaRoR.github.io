@@ -79,16 +79,21 @@
   const pretty = name => name.replace(/\.glb$/, '').replace(/_trees_pack_lods_gameready|realistic_|_-_free_download/g, '').replace(/_/g, ' ');
 
   // ---- THE DEFAULTS, for the diff (taken at load, before any look is put back) ------------------
-  const DEF = { biomes: null, ground: null, stack: null, island: null, ring: null, env: null, cliffs: null, tints: null, leafMaster: null, treeMix: null, fillDensity: null, thin: null };
+  const DEF = { biomes: null, ground: null, stack: null, island: null, ring: null, env: null, cliffs: null, tints: null, leafMaster: null, kindTint: null, treeMix: null, fillDensity: null, thin: null };
   const tintsNow = () => { const L = W.TREE_LEAF, o = {}; if (L && L.collections) for (const col of L.collections()) o[col.name] = clone(col.tint || {}); return o; };
+  // G1385 (EDITOR-VEG): the grass's and the bushes' own masters (trees.js KIND_MASTER: cover, shrub)
+  const kindTintNow = () => { const L = W.TREE_LEAF; if (!L || !L.kinds) return null; const o = {}; for (const k of L.kinds()) o[k] = L.kindMaster(k); return o; };
+  // the biomes the look keeps: a premises polygon's own mix ('@' + its id, G1385) is the record's, not the look's
+  const ownMixes = M => { const o = {}; for (const k in M) if (k[0] !== '@') o[k] = M[k]; return o; };
   const takeDefaults = () => {
-    const P = PACK(); if (P && P.biomes && !DEF.biomes) DEF.biomes = clone({ map: P.biomes.map, mixes: P.biomes.mixes });
+    const P = PACK(); if (P && P.biomes && !DEF.biomes) DEF.biomes = clone({ map: P.biomes.map, mixes: ownMixes(P.biomes.mixes) });
     const g = G(); if (g && !DEF.ground) { DEF.ground = clone(g.get()); DEF.stack = clone(g.stack()); }
     const t = TF(); if (t && t.island && !DEF.island) { DEF.island = clone(t.island()); DEF.fillDensity = t.get ? t.get() : null; DEF.thin = t.thin ? t.thin() : null; }
     const r = RING(); if (r && !DEF.ring) DEF.ring = clone(r.get());
     const c = CLF(); if (c && !DEF.cliffs) DEF.cliffs = clone(c.get());
     if (WF() && WF().envAlbedo && DEF.env === null) DEF.env = WF().envAlbedo();
     const L = W.TREE_LEAF; if (L && L.collections && !DEF.tints) { DEF.tints = tintsNow(); if (L.master) DEF.leafMaster = clone(L.master()); }
+    if (L && L.kinds && !DEF.kindTint) DEF.kindTint = kindTintNow();
     if (W.TREE_MIX && !DEF.treeMix) DEF.treeMix = { furnished: W.TREE_MIX.furnished, spread: W.TREE_MIX.spread };
   };
 
@@ -106,10 +111,11 @@
     const g = G(); if (g) { const q = g.get(); o.ground = {}; for (const k of GROUND_KEYS) if (k in q) o.ground[k] = q[k]; }
     if (WF() && WF().envAlbedo) o.envAlbedo = WF().envAlbedo();
     const t = TF(); if (t) { if (t.island) o.island = t.island(); if (t.speciesSizes) o.speciesSize = t.speciesSizes(); if (t.get) o.fillDensity = t.get(); if (t.thin) o.thin = t.thin(); }
-    const B = BIO(); if (B) o.biomes = { map: clone(B.map), mixes: clone(B.mixes) };
+    const B = BIO(); if (B) o.biomes = { map: clone(B.map), mixes: clone(ownMixes(B.mixes)) };
     const r = RING(); if (r) o.ring = r.get();
     const c = CLF(); if (c) o.cliffs = c.get();
     const L = W.TREE_LEAF; if (L && L.collections) { o.tints = tintsNow(); if (L.master) o.leafMaster = clone(L.master()); }
+    if (L && L.kinds) o.kindTint = kindTintNow();
     if (W.TREE_MIX) o.treeMix = { furnished: W.TREE_MIX.furnished, spread: W.TREE_MIX.spread };
     return o;
   };
@@ -124,7 +130,7 @@
     if (N.biomes && DEF.biomes) { const map = same(N.biomes.map, DEF.biomes.map) ? null : N.biomes.map, mixes = deltaOf(N.biomes.mixes, DEF.biomes.mixes);
       if (map || mixes) o.biomes = Object.assign({}, map ? { map } : {}, mixes ? { mixes } : {}); }
     put('ring', deltaOf(N.ring, DEF.ring)); put('cliffs', deltaOf(N.cliffs, DEF.cliffs));
-    put('tints', deltaOf(N.tints, DEF.tints)); put('leafMaster', deltaOf(N.leafMaster, DEF.leafMaster)); put('treeMix', deltaOf(N.treeMix, DEF.treeMix));
+    put('tints', deltaOf(N.tints, DEF.tints)); put('leafMaster', deltaOf(N.leafMaster, DEF.leafMaster)); put('kindTint', deltaOf(N.kindTint, DEF.kindTint)); put('treeMix', deltaOf(N.treeMix, DEF.treeMix));
     return o;
   };
   const saveLook = () => { clearTimeout(saveT); saveT = setTimeout(() => { const d = lookDelta(); if (Object.keys(d).length) lsSet(LOOK_KEY, d); else { try { localStorage.removeItem(LOOK_KEY); } catch (e) {} } }, 250); };
@@ -149,7 +155,7 @@
     if (B && o.biomes && t) {
       let dirty = false;
       if (o.biomes.mixes) for (const name in o.biomes.mixes) if (!same(B.mixes[name], o.biomes.mixes[name])) { B.mixes[name] = clone(o.biomes.mixes[name]); dirty = true; }
-      if (full && o.biomes.mixes) for (const name of Object.keys(B.mixes)) if (!(name in o.biomes.mixes) && DEF.biomes && !(name in DEF.biomes.mixes)) { delete B.mixes[name]; dirty = true; }
+      if (full && o.biomes.mixes) for (const name of Object.keys(B.mixes)) if (name[0] !== '@' && !(name in o.biomes.mixes) && DEF.biomes && !(name in DEF.biomes.mixes)) { delete B.mixes[name]; dirty = true; }
       const map = o.biomes.map || o.biomes.biomes;
       if (map) for (let c = 0; c <= 14; c++) { const want = map[c] || null; if ((B.map[c] || null) !== want) { B.set(c, want); dirty = true; } }
       // ONE replant for the lot (setMix clears the pools, evicts the fill and replants the ring once)
@@ -160,6 +166,8 @@
     const L = W.TREE_LEAF;
     if (L && o.tints && L.tintOf) { const cur = tintsNow(); for (const n in o.tints) if (!same(Object.assign({}, cur[n], o.tints[n]), cur[n])) L.tintOf(n, o.tints[n]); }
     if (L && o.leafMaster && L.tint && L.master && !same(Object.assign({}, L.master(), o.leafMaster), L.master())) L.tint(o.leafMaster);
+    if (L && o.kindTint && L.kindTint) for (const k in o.kindTint) { const cur = L.kindMaster(k); if (cur && !same(Object.assign({}, cur, o.kindTint[k]), cur)) L.kindTint(k, o.kindTint[k]); }
+    if (L && full && L.kindTint && DEF.kindTint) for (const k in DEF.kindTint) if (!(o.kindTint && o.kindTint[k]) && !same(L.kindMaster(k), DEF.kindTint[k])) L.kindTint(k, DEF.kindTint[k]);
     if (W.TREE_MIX && o.treeMix && (W.TREE_MIX.furnished !== (o.treeMix.furnished === undefined ? W.TREE_MIX.furnished : o.treeMix.furnished) || W.TREE_MIX.spread !== (o.treeMix.spread === undefined ? W.TREE_MIX.spread : o.treeMix.spread))) {
       Object.assign(W.TREE_MIX, o.treeMix); if (W.TREE_MIX.apply) W.TREE_MIX.apply(); }
   };
@@ -191,6 +199,7 @@
         stack: 'src/viewer/render_world.js STACK', ground: 'src/viewer/render_world.js GROUND',
         island: 'src/viewer/render_world.js FILL.island', ring: 'src/viewer/cover_ring.js defaults', cliffs: 'src/viewer/cliffs.js S',
         speciesSize: 'render_world.js SP_SIZE (new)', tints: 'tools/_trees_tuning.json per-collection tint',
+        leafMaster: 'src/viewer/trees.js MASTER', kindTint: 'src/viewer/trees.js KIND_MASTER (cover = the grass, shrub = the bushes)',
       },
       splat: sp ? sp.state() : null,
       stack: g ? g.stack() : null,
@@ -213,6 +222,10 @@
     if (DEF.cliffs && out.cliffs) ch.push(...diff(DEF.cliffs, out.cliffs, 'cliffs'));
     if (DEF.env !== null && out.envAlbedo !== undefined && Math.abs(DEF.env - out.envAlbedo) > 1e-9) ch.push({ path: 'envAlbedo', was: DEF.env, now: out.envAlbedo });
     if (out.speciesSize && Object.keys(out.speciesSize).length) for (const k in out.speciesSize) ch.push({ path: 'speciesSize.' + k, was: 1, now: out.speciesSize[k] });
+    // G1385: the colours - every species' tint, the trees' master, the grass's and the bushes' - with the rest
+    if (DEF.tints && out.tints) ch.push(...diff(DEF.tints, out.tints, 'tints'));
+    if (DEF.leafMaster && out.leafMaster) ch.push(...diff(DEF.leafMaster, out.leafMaster, 'leafMaster'));
+    if (DEF.kindTint && out.kindTint) ch.push(...diff(DEF.kindTint, out.kindTint, 'kindTint'));
     out.changes = ch;
     return out;
   };
@@ -603,7 +616,7 @@
     const B = BIO(), t = TF();
     if (!B || !t) { note(body, 'No biomes in this build.'); return; }
     if (code === 9 || code === 10) note(body, (code === 9 ? 'Snow' : 'Built ground') + ' plants nothing by default; pick a biome to change that.');
-    const mixNames = Object.keys(B.mixes);
+    const mixNames = Object.keys(B.mixes).filter(m => m[0] !== '@');   // (a premises polygon's own mix is the record's)
     const users = m => EDITABLE.filter(c => B.map[c] === m).map(c => NAMES[c]);
     const S = sec(body, 'the biome', true, 'the mix this type plants');
     select(S, 'biome', [['', '- none -']].concat(mixNames.map(m => [m, m + (users(m).length ? '  (' + users(m).join(', ') + ')' : '')])), () => B.map[code] || '', v => { t.setBiome(code, v || null); open('types', true); });
@@ -680,6 +693,14 @@
         range(body, 'bark', 0.2, 2, 0.02, () => (c.tint.bark === undefined ? 1 : c.tint.bark), v => L.tintOf(sp, { bark: v }), null, 1);
       }
       note(body, 'a tree’s height is the canopy map’s x the size gain (VEGETATION); size and colour here are the species’, in every biome');
+    } else if (kd === 'shrub' || (kd === 'cover' && !(col && col.maps))) {
+      // G1385: a bush's and a grass's own colour (the flowers are their pictures: no tint); the kind's master is in VEGETATION
+      const L = W.TREE_LEAF, c = L && L.collections && L.collections().find(q => q.name === sp);
+      if (c) {
+        range(body, 'hue', -0.2, 0.2, 0.005, () => c.tint.hue || 0, v => L.tintOf(sp, { hue: v }), v => v.toFixed(3), 0);
+        range(body, 'saturation', 0, 1.5, 0.02, () => (c.tint.sat === undefined ? 1 : c.tint.sat), v => L.tintOf(sp, { sat: v }), null, 1);
+        range(body, 'lightness', 0.2, 2, 0.02, () => (c.tint.light === undefined ? 1 : c.tint.light), v => L.tintOf(sp, { light: v }), null, 1);
+      }
     }
   }
 
@@ -899,6 +920,17 @@
       if (W.TREE_MIX) { range(C, 'furnished', 0, 1, 0.05, () => W.TREE_MIX.furnished, v => { W.TREE_MIX.furnished = v; if (W.TREE_MIX.apply) W.TREE_MIX.apply(); });
         range(C, 'size spread', 0, 0.6, 0.02, () => W.TREE_MIX.spread, v => { W.TREE_MIX.spread = v; if (W.TREE_MIX.apply) W.TREE_MIX.apply(); }); }
       note(C, 'each species’ own colour and size are on its card (TYPES > biome); the LOD ladder and the leaf shading stay on F8 - they are the renderer’s, not the art’s');
+    }
+    // G1385 (EDITOR-VEG, the user: "We are missing coloration options for the grass and the bushes"): each kind's
+    // master over all its species (trees.js KIND_MASTER), on top of the trees' hue and, for the bushes, their master
+    if (L && L.kindTint) for (const [kind, title, sub] of [['cover', 'the grass’ colour', 'every grass species (not the flowers)'], ['shrub', 'the bushes’ colour', 'every bush species']]) {
+      const K = () => L.kindMaster(kind) || {}, D = (DEF.kindTint && DEF.kindTint[kind]) || { hue: 0, sat: 1, light: 1 };
+      const C = sec(body, title, false, sub);
+      range(C, 'hue', -0.2, 0.2, 0.005, () => K().hue, v => L.kindTint(kind, { hue: v }), v => v.toFixed(3), D.hue);
+      range(C, 'saturation', 0, 2, 0.02, () => K().sat, v => L.kindTint(kind, { sat: v }), null, D.sat);
+      range(C, 'lightness', 0.2, 2, 0.02, () => K().light, v => L.kindTint(kind, { light: v }), null, D.light);
+      note(C, kind === 'cover' ? 'over the bench’s grass master (sat 1.58, light 1.12) and each species’ own (its card); the tuft’s colour still comes from the ground at its foot - these move what the leaf does with it'
+                               : 'over the trees’ master above and each species’ own (its card); exported with the look as kindTint.shrub');
     }
   }
 

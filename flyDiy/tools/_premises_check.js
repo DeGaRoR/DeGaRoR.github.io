@@ -1126,6 +1126,59 @@ if (SELFTEST) {
 }
 
 // ---------------------------------------------------------------------------
+// 17 EDITOR-VEG (G1385, contract v1.31): a cover polygon's vegetation - none, a biome by name, a biome of its own -
+//    and a strip's own tree clearance survive the save and the reload, and compose to what they say.
+{
+  const sq = (cx, cz, h) => [[cx - h, cz - h], [cx + h, cz - h], [cx + h, cz + h], [cx - h, cz + h]];
+  const rec = PG.DEF();
+  rec.layers.ttype = [
+    { id: 'k1', poly: sq(0, 0, 100), code: null, veg: { mode: 'biome', mix: 'conifer' } },
+    { id: 'k2', poly: sq(60, 0, 30), code: 8, veg: { mode: 'none' } },
+    { id: 'k3', poly: sq(-300, 0, 80), code: null, veg: { mode: 'new', species: { 'spruce_tree.glb': { proportion: 2 }, 'grass_reed': { proportion: 1, density: 0.3 } }, density: 250, under: 4, cover: 0.5 } },
+    { id: 'k4', poly: sq(300, 300, 40), code: 15 }];
+  rec.layers.runways = [Object.assign({ id: 'w1' }, JSON.parse(JSON.stringify(PG.RUNWAY_DEF)), { c: [0, 600], hdg: Math.PI / 2, len: 600, wid: 20, clear: { side: 40, beyond: 200, taper: 0.15, bushes: true } }),
+                        Object.assign({ id: 'w2' }, JSON.parse(JSON.stringify(PG.RUNWAY_DEF)), { c: [0, -900], hdg: Math.PI / 2, len: 400, wid: 20 })];
+  // the round trip: the envelope, a reload, the same polygons and vegetation, the same clearance
+  const back = PG.unwrap(PG.envelope('veg', JSON.parse(JSON.stringify(rec)))).rec;
+  check(JSON.stringify(back.layers.ttype) === JSON.stringify(rec.layers.ttype), '17 the cover polygons and their vegetation survive the save and the reload', back.layers.ttype.map(c => c.id + ':' + JSON.stringify(c.veg || null)).join(' '));
+  check(JSON.stringify(back.layers.runways.map(r => r.clear || null)) === JSON.stringify(rec.layers.runways.map(r => r.clear || null)), "17 a strip's own clearance survives the save and the reload");
+  check(PG.issues(back).length === 0, '17 the record has no issues', PG.issues(back)[0]);
+  const bad = JSON.parse(JSON.stringify(rec)); bad.layers.ttype.push({ id: 'k9', poly: sq(900, 900, 20), code: null, veg: { mode: 'biome' } }, { id: 'k8', poly: sq(950, 950, 20), code: null });
+  const bi = PG.issues(bad);
+  check(bi.some(t => /k9: vegetation/.test(t)) && bi.some(t => /k8: neither/.test(t)), '17 a biome without a name and a polygon saying nothing are issues', bi.join(' | '));
+  // the composition: vegAt by the last polygon over a point; the code-less polygons stamp nothing
+  const O = PG.compose(back, synth);
+  const at = (x, z) => { const w = O.frame.toWorld(x, z); return O.vegAt(w[0], w[1]); };
+  check(at(0, 50) === 'conifer' && at(60, 0) === null && at(-300, 10) === '@k3' && at(300, 300) === undefined && at(2000, 0) === undefined,
+    '17 vegAt: the biome, none (the later polygon over it), its own mix, nothing where no polygon speaks', [at(0, 50), at(60, 0), at(-300, 10), at(300, 300), at(2000, 0)].map(String).join(' '));
+  const M3 = O.vegMixes['@k3'];
+  check(M3 && M3.species['spruce_tree.glb'].proportion === 2 && M3.species.grass_reed.density === 0.3 && Math.abs(M3.forest.count / (Math.PI * M3.forest.radius ** 2) * 1e4 - 250) < 0.5 && M3.forest.under === 4 && M3.forest.cover === 0.5,
+    "17 a new biome is a mix in the bench's shape: its species, 250 trees a hectare, its bushes and its grass", JSON.stringify(M3 && M3.forest));
+  check(O.ttypes.map(c => c.id).join() === 'k2,k4', '17 only the polygons with a code stamp one', O.ttypes.map(c => c.id).join());
+  // the planters' question (28c_biomes mixHere): the polygon first, the code's biome where none speaks
+  const BIOMES = require(path.join(TOOLS, '..', 'src', 'core', '28c_biomes.js'));
+  const B = BIOMES.make({ biomes: { map: { 8: 'deciduous' }, mixes: { conifer: { species: { 'spruce_tree.glb': {} }, forest: { count: 2500 } }, deciduous: { species: {}, forest: { count: 900 } } } } });
+  for (const k in O.vegMixes) B.mixes[k] = O.vegMixes[k];
+  B.over = (x, z) => O.vegAt(x, z);
+  const mh = (x, z) => { const w = O.frame.toWorld(x, z); return B.mixHere(8, w[0], w[1]); };
+  check(mh(0, 50) === 'conifer' && mh(60, 0) === null && mh(-300, 10) === '@k3' && mh(2000, 0) === 'deciduous' && B.density('@k3') > 0,
+    "17 mixHere: the polygon's biome, none, its own mix, the terrain type's elsewhere", [mh(0, 50), mh(60, 0), mh(-300, 10), mh(2000, 0)].map(String).join(' '));
+  // the clearance: the aerodrome carries it (null without), the box and its taper, the outline
+  const a1 = O.aerodromes.find(a => a.id === 'w1'), a2 = O.aerodromes.find(a => a.id === 'w2');
+  check(a1 && a1.treeClear && a1.treeClear.side === 40 && a1.treeClear.beyond === 200 && a1.treeClear.taper === 0.15 && a1.treeClear.bushes === true && a2 && a2.treeClear === null,
+    "17 a strip's own clearance reaches its aerodrome; none is today's box", JSON.stringify(a1 && a1.treeClear) + ' / ' + JSON.stringify(a2 && a2.treeClear));
+  const e = { rl: 300, hl: 500, hw: 50, tp: 0.15 };
+  check(PG.inRwyClear(e, 0, 49) && !PG.inRwyClear(e, 0, 51) && PG.inRwyClear(e, 400, 64) && !PG.inRwyClear(e, 400, 66) && PG.inRwyClear(e, -499, 79) && !PG.inRwyClear(e, 501, 0),
+    '17 the clearance: its sides, its taper past the ends (+15 m at 100 m out), its length');
+  const poly = PG.runwayClearPoly(back.layers.runways[0]);
+  check(poly.length === 8 && PG.inPoly(poly, 0, 600 + 299) && PG.inPoly(poly, 49, 600) && !PG.inPoly(poly, 51, 600) && PG.inPoly(poly, 70, 600 + 300 + 150) && !PG.inPoly(poly, 0, 600 + 501),
+    "17 the editor's outline is the clearance", JSON.stringify(poly.map(q => q.map(v => Math.round(v)))));
+  // the derived strip box keeps the plots off but hands the trees to the strip's own clearance
+  const wx = O.frame.toWorld(0, 600 + 300 + 20);
+  check(!O.excludeAt(wx[0], wx[1], 'trees') && O.excludeAt(wx[0], wx[1], 'plots'), "17 a strip with its own clearance: the box + 30 m keeps the plots, its clearance the trees");
+}
+
+// ---------------------------------------------------------------------------
 if (fail.length) {
   for (const f of fail.slice(0, 30)) console.log('  ! ' + f);
   console.log('GATE PREMISES: FAIL (' + fail.length + ')');

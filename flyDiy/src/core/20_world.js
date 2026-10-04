@@ -589,20 +589,31 @@ function makeWorld(seed, opts) {
   // (G527.3, East Point) leaves the clearing to the premises' own excludes)
   var aeroTreeBox = null;   // (`var`: setPremises clears it and runs before this line)
   const rwyTrees = () => (ISL && PM && PM.rwyTrees) || 'today';
+  // G1385 (EDITOR-VEG): a strip's own `clear` (27_premises.js runwayClearOf: side, beyond, taper, bushes) replaces the
+  // generic box for that strip and stands in every variant; past the ends the half-width grows by taper a metre.
+  // Without one, the box is today's to the bit (taper 0: |al| < hl && |ac| < hw).
+  const aeroBoxes = () => aeroTreeBox || (aeroTreeBox = aerodromes.filter(a => a.treeClear || a.treeBox !== false).map(a => {
+    const cl = a.treeClear || null;
+    return (typeof a.hdg === 'number' && a.wid)
+      ? { x: a.x, z: a.z, cx: Math.cos(a.hdg), sz: Math.sin(a.hdg), rl: a.len / 2, hl: a.len / 2 + (cl ? cl.beyond : 150), hw: a.wid / 2 + (cl ? cl.side : 60), tp: cl ? cl.taper : 0, strip: true, own: !!cl, bushes: !!(cl && cl.bushes) }
+      : { x: a.x, z: a.z, r2: (a.len / 2 + 70) ** 2, own: false, bushes: false };
+  }));
+  const inAeroBox = (e, x, z) => {
+    const dx = x - e.x, dz = z - e.z;
+    if (!e.strip) return dx * dx + dz * dz < e.r2;
+    const al = Math.abs(dx * e.cx + dz * e.sz), ac = Math.abs(-dx * e.sz + dz * e.cx);
+    return al < e.hl && ac < (e.tp && al > e.rl ? Math.max(0, e.hw + e.tp * (al - e.rl)) : e.hw);
+  };
   function treeAeroBlocked(x, z) {
-    if (rwyTrees() === 'today') {
-      if (!aeroTreeBox) aeroTreeBox = aerodromes.filter(a => a.treeBox !== false).map(a => (typeof a.hdg === 'number' && a.wid)
-        ? { x: a.x, z: a.z, cx: Math.cos(a.hdg), sz: Math.sin(a.hdg), hl: a.len / 2 + 150, hw: a.wid / 2 + 60, strip: true }
-        : { x: a.x, z: a.z, r2: (a.len / 2 + 70) ** 2 });
-      for (const e of aeroTreeBox) {
-        const dx = x - e.x, dz = z - e.z;
-        if (!e.strip) { if (dx * dx + dz * dz < e.r2) return true; continue; }
-        const al = dx * e.cx + dz * e.sz, ac = -dx * e.sz + dz * e.cx;
-        if (Math.abs(al) < e.hl && Math.abs(ac) < e.hw) return true;
-      }
-      const c = coverAt(x, z, 1); return !!(c && c.kill > 0);
-    }
+    const today = rwyTrees() === 'today';
+    for (const e of aeroBoxes()) if ((today || e.own) && inAeroBox(e, x, z)) return true;
+    if (today) { const c = coverAt(x, z, 1); return !!(c && c.kill > 0); }
     return !!(PM && PM.treePaveAt && PM.treePaveAt(x, z));
+  }
+  // the tall vegetation (the cover ring's shrubs) a strip's own clearance keeps out when it says `bushes`
+  function bushAeroBlocked(x, z) {
+    for (const e of aeroBoxes()) if (e.bushes && inAeroBox(e, x, z)) return true;
+    return false;
   }
 
   // trees: stage-2 biome placement — deterministic jittered 64 m grid,
@@ -643,6 +654,7 @@ function makeWorld(seed, opts) {
       if (SET.roadNear(x, z) < 12) continue;   // clear of roads (the ANALYTIC world's; SET is a stub on an island)
       if (SET.inCore(x, z)) continue;          // clear of settlement cores
       if (AERO.inBox(x, z, 30)) continue;      // clear of strips + margin
+      if (PM && PM.vegAt && PM.vegAt(x, z) === null) continue;   // G1385: a cover polygon whose vegetation is none
       if (PM && PM.excludeAt(x, z, 'trees')) continue;   // clear of the premises' excludes: its plots, its strips' boxes, its sites, its clear zones
       // ...and clear of the premises' PAVEMENTS and their bands (2026-09-22, the user: "we have a lot
       // of trees on the roads"). On an island SET is stubbed, so this is the only thing that keeps a
@@ -1143,6 +1155,6 @@ function makeWorld(seed, opts) {
     // G1091: the trees by the runways - the variant ('today' | 'map' | 'mapx', a data island's; 'today' elsewhere),
     // the runways' clearance at a point (the box in 'today', the pavement by the variant) and the class a tree's
     // placement reads; the woodland above and the renderer's fill ask the same three
-    rwyTrees, treeAeroBlocked, treeGround,
+    rwyTrees, treeAeroBlocked, bushAeroBlocked, treeGround,
   };
 }

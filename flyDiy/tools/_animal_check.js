@@ -276,7 +276,7 @@ check(missing === 0, '5 every media file the payload names is on disk', String(m
   // a few hundred pixels, and a name written half over another name is worse than no name
   check(/const LAB = \[\];/.test(dm) && /const labFits = /.test(dm) && /const labPut = /.test(dm),
     '10 the map has ONE label ledger');
-  check(/labPut\(sx, sy, a\.name,/.test(dm),
+  check(/labPut\(sx, sy, a\.name[,+ ]/.test(dm),   // (STRIP-SURFACE G1375 appends the surface word)
     '10 the aerodrome names go through it too, so an animal never writes over one');
   check(/for \(const \[x, y\] of spots\)/.test(dm) && /return false;/.test(dm),
     '10 a label that fits nowhere is DROPPED rather than overlapped');

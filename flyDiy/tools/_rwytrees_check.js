@@ -280,6 +280,29 @@ if (FULL) {
   }
 }
 
+// 9 A STRIP'S OWN CLEARANCE (G1385 EDITOR-VEG, core): 02/20 (w2) given `clear` - a wide one with a taper (200 m each side,
+// 500 m past the ends, +15 m a 100 m) and a narrow one (10 m, 20 m) - in a node census of the collidable trees round it,
+// against today's box: the wide one empties its trapezoid and more than today's, the narrow one lets the woods in
+// closer than today's 60 m, and neither leaves a tree inside its own clearance; today's record stays today's
+{
+  const r = land.find(q => q.id === 'w2'), env = JSON.parse(txt);
+  const withClear = cl => { const e = JSON.parse(txt), rr = (e.premises || e).layers.runways.find(q => q.id === 'w2'); rr.clear = cl; return IN.islandWorld('jolene', { premises: JSON.stringify(e), rwyTrees: 'today' }); };
+  const E = [Math.cos(r.hdg), Math.sin(r.hdg)];
+  const census = (w, side, beyond, taper) => { let n = 0; for (const Tr of w.trees) { const dx = Tr.x - r.c[0], dz = Tr.z - r.c[1], u = Math.abs(dx * E[0] + dz * E[1]), v = Math.abs(-dx * E[1] + dz * E[0]);
+    if (u < r.len / 2 + beyond && v < r.wid / 2 + side + (taper && u > r.len / 2 ? taper * (u - r.len / 2) : 0)) n++; } return n; };
+  const wide = { side: 200, beyond: 500, taper: 0.15 }, narrow = { side: 10, beyond: 20, taper: 0 };
+  const Ww = withClear(wide), Wn = withClear(narrow);
+  const t0 = census(W0, 200, 500, 0.15), tw = census(Ww, 200, 500, 0.15), tToday = census(W0, 60, 150, 0), nNarrowIn = census(Wn, 60, 150, 0), nOwn = census(Wn, 10, 20, 0);
+  check(!(env.premises || env).layers.runways.some(q => q.clear) && W0.aerodromes.every(a => !a.treeClear), '9 Jolene\'s strips carry no clearance of their own: today\'s box everywhere');
+  check(t0 > 20 && tw === 0 && tToday === 0, "9 02/20's own wide clearance (200 m, 500 m, taper 0.15) clears its trapezoid of collidable trees",
+    'today ' + t0 + ' trees in it, with the clearance ' + tw + '; today\'s own box ' + tToday);
+  check(nNarrowIn > 0 && nOwn === 0, "9 02/20's own narrow clearance (10 m, 20 m) lets the woods in past today's 60 m and keeps its own 10 m clear",
+    nNarrowIn + ' trees inside today\'s box, ' + nOwn + ' inside its own');
+  const bW = Ww.aerodromes.find(a => a.id === 'w2');
+  check(bW && bW.treeClear && Ww.treeAeroBlocked(r.c[0] + E[0] * (r.len / 2 + 400) - E[1] * (r.wid / 2 + 250), r.c[1] + E[1] * (r.len / 2 + 400) + E[0] * (r.wid / 2 + 250)) &&
+    !Ww.treeAeroBlocked(r.c[0] - E[1] * (r.wid / 2 + 250), r.c[1] + E[0] * (r.wid / 2 + 250)), '9 the taper: 400 m past the end the clearance reaches 260 m, beside the strip 200 m');
+}
+
 // THE TABLE
 console.log('\n  metres past the paved edge, inside the runway\'s length: the MAP\'s nearest TREE cell (canopy >= 2.5 m);');
 console.log('  per variant the nearest COLLIDABLE tree (col) and VISIBLE tree (vis: the forest rule / the open ground; --all)');

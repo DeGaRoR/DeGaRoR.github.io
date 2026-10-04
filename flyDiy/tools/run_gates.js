@@ -93,6 +93,10 @@ const GATES = [
   { id: 'PILOT', file: 'test_pilot.js', tier: 'core', shards: 3, wall: 1200 },
   // THE NAV (G202.1): the navigator and the units, pure and fast
   { id: 'NAV', file: 'test_nav.js', tier: 'core' },
+  // G1375 STRIP-SURFACE: every aerodrome of both worlds says its surface, the gear rule (wheels / floats / amphibian /
+  // skis) holds for the stock Cub, the float Cessna and an amphibian, and the three pilots never plan a landing on the
+  // wrong surface (~10 s; --selftest)
+  { id: 'STRIPSURF', file: '_surface_check.js', tier: 'core', wall: 15 },
   // G193: the user's ultralight off the stand through the declared pattern —
   // the stop, the straight roll, in calm air and in wind (~3 min)
   { id: 'TAKEOFF', file: '_takeoff_check.js', tier: 'core', wall: 300 },
@@ -185,6 +189,7 @@ const GATES = [
   // B10 G1035-G1039: the roll-out shot on the real three and every archetype - out past the door, the wheels at
   // distance / radius, no allocation a frame, the skip, the stand's first frame at the cut; ~40 s
   { id: 'ROLLANIM', file: '_rollanim_check.js', tier: 'core', wall: 45 },
+  { id: 'UILAYER', file: '_ui_layer_check.js', tier: 'core', wall: 10 },   // G1370: the in-world helpers on the UI layer; the verbs off for the roll-out shot
   { id: 'FADES', file: '_fades_check.js', tier: 'core' },   // A2-FADES G670-G673: the prop disc, the grass's grow / pre-grow / lead, the premises' rise
   { id: 'CONTACT', file: '_contact_check.js', tier: 'core' },   // A6-GROUND G1000-G1003: the pavement at terrainH where the wheels roll, the contact shadows, nothing loose on a pavement
   { id: 'SHADOWSKY', file: '_shadowsky_check.js', tier: 'core' },   // A2-SHADOW-SKY G650-G655: the PCF bias under the reversed buffer + a still kernel, the craft's shadow at any height, the mirror's clip, cloud sync, the cover pass, the pause
@@ -219,6 +224,9 @@ const GATES = [
   // AEROSKIN (G67): the declared finish + role tables against the cage's own
   // section list, and the r186 spellings the shader stands on (W0.5a)
   { id: 'SKINMAT', file: 'test_skinmat.js', tier: 'core' },
+  // LIVERYREACH (G1320): the base-colour pick reaches every section of the
+  // stock Cub, Jodel and Cessna that wore the old base, the rudder included
+  { id: 'LIVERYREACH', file: '_livery_reach_check.js', tier: 'core' },
   // THE LIVERY STAYS WITH ITS AEROPLANE (G775): build A then build B (and
   // back) — B's finish, every section's material and the marking block equal
   // a clean load of B; the pool key covers every dial
@@ -304,8 +312,9 @@ const GATES = [
   // G810 (ARCH-2026-09-27 §2.4): the solver on its own thread - src/viewer/sim_host.js in a worker_threads Worker
   // (the core only, the trimmed boot) driven through sim_view.js flies the page's inline loop to the bit on Jolene
   // (stock + the metal Cessna, a scripted input list stamped by step), its real-time log replays inline to the bit,
-  // the fetch path and the Blob's glue; the transport, the pose age and the dilation printed; ~40 s
-  { id: 'SIMWORKER', file: '_simworker_check.js', tier: 'core', wall: 60 },
+  // the fetch path and the Blob's glue; the transport, the pose age and the dilation printed; G1365: the page's freeze
+  // HOLDS the flight (60 s on a fake clock, 1.5 s on the real thread) and it goes on from there; ~60 s
+  { id: 'SIMWORKER', file: '_simworker_check.js', tier: 'core', wall: 70 },
   // G816 (C1b): the PAGE flown through the worker - dev.html?simw=1 against dev.html in the page-in-node harness (its
   // Worker shim: node worker_threads, the same Blob source and messages), the Cub and the metal Cessna, the roll-out,
   // 40 s of the departure taxi at 2x: every step's p / v / CG / phase and every frame's page reads bit-identical, no

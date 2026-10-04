@@ -31,7 +31,9 @@
   const KEY = 'flydiy.gfx';
   // THE RIGS (G528): a headless or driven browser - the gates, frame_perf, the scratch rigs - measures a FIXED frame; the
   // auto scale, when a player picked it, stands down there unless the URL asks (?autoscale=1)
-  const RIG = !!(W.navigator && (W.navigator.webdriver || /HeadlessChrome/.test(W.navigator.userAgent || '')));
+  // (G1210: welcome.js, evaluated first, asks the same question of the same navigator - its answer when it is there)
+  const RIG = W.WELCOME && typeof W.WELCOME.RIG === 'boolean' ? W.WELCOME.RIG
+    : !!(W.navigator && (W.navigator.webdriver || /HeadlessChrome/.test(W.navigator.userAgent || '')));
   const FORCE = k => !!(W.location && new RegExp('[?&]' + k + '=1').test(W.location.search || ''));
 
   // ---- the options: named steps over the handles ---------------------------
@@ -184,7 +186,10 @@
     // draw at a quarter of the pixels: the rigs that can afford it); the sky and its clouds are the probe's either way
     { k: 'mirror', label: 'reflections', steps: [
         { v: 'off',      label: 'sky only', why: 'the water reflects the sky and its clouds, never the shore' },
-        { v: 'live',     label: 'live', why: 'the reflection captured every frame (a second scene draw at quarter size; ultra only by default)' } ] },   // (2026-10-03, the user: the periodic capture left the menu - it made the water swap between reflective and plain)
+        // (2026-10-03, the user: the periodic capture left the menu - it made the water swap between reflective and plain;
+        // G1340 SHADER-GUARD took the LIVE one out too; the user, 2026-10-04: "keep the live water mirror option, just
+        // disable it by default" - back in the row, OFF on every preset, ultra included)
+        { v: 'live',     label: 'live', why: 'the reflection captured every frame (a second scene draw at quarter size; off on every preset - yours to switch on)' } ] },
     { k: 'lighting', label: 'lighting', steps: [
         { v: 'sunset', label: 'sunset', why: 'the world’s golden hour' },
         { v: 'alps',   label: 'afternoon', why: 'the bench’s afternoon sky, the light the trees were judged in' } ] },
@@ -249,7 +254,7 @@
     retro:   Object.assign({ ground: 'lean', scale: 0.85, cover: 'lean', scenery: 'lean', drawDist: 'vis', terrain: 2, aa: 'off',   density: 100, bands: 'near', shadows: 'near',  canopy: 'off', rails: 'on', poles: 'off', glare: 'on',  sway: 'off', mist: 'on',    clouds: 'off',  water: 'simple', mirror: 'off' }, COLOUR, POST_OFF),
     current: Object.assign({ ground: 'far1', scale: 1,    cover: 'full', scenery: 'full', drawDist: 'vis', terrain: 2, aa: 'off',   density: 128, bands: 'near', shadows: 'full',  canopy: 'on',  rails: 'on', poles: 'on', glare: 'on',  sway: 'on',  mist: 'on',    clouds: 'half', water: 'simple',   mirror: 'off' }, COLOUR, POST_BLOOM),
     gamer:   Object.assign({ ground: 'far1', scale: 1,    cover: 'full', scenery: 'full', drawDist: 'vis', terrain: 1, aa: 'msaa', density: 128, bands: 'mid', shadows: 'full',  canopy: 'on',  rails: 'on', poles: 'on', glare: 'on',  sway: 'on',  mist: 'land',  clouds: 'half', water: 'simple',   mirror: 'off' }, COLOUR, POST_BLOOM),
-    ultra:   Object.assign({ ground: 'full', scale: 1,    cover: 'full', scenery: 'full', drawDist: 'vis', terrain: 1, aa: 'full', density: 200, bands: 'mid', shadows: 'ultra', canopy: 'on',  rails: 'on', poles: 'on', glare: 'on',  sway: 'on',  mist: 'banks', clouds: 'full', water: 'full',   mirror: 'live' }, COLOUR, POST_BLOOM),
+    ultra:   Object.assign({ ground: 'full', scale: 1,    cover: 'full', scenery: 'full', drawDist: 'vis', terrain: 1, aa: 'full', density: 200, bands: 'mid', shadows: 'ultra', canopy: 'on',  rails: 'on', poles: 'on', glare: 'on',  sway: 'on',  mist: 'banks', clouds: 'full', water: 'full',   mirror: 'off' }, COLOUR, POST_BLOOM),
   };
   // G1113 (TREES-NEAR, 2026-09-30): gamer draws 'minimum' (the full tree to 30 m, its light rung to 60 m) - the step that held
   // the rule "no regression" against master on the low flight over the forest (60 m AGL, the headline), the Cub's and the
@@ -305,6 +310,10 @@
     // never reached the graphics menu: the GTX 660 loaded on gamer and drew nothing). The player's later choice still wins
     try { const q = /[?&]gfx=([a-z]+)/.exec((W.location && W.location.search) || ''); const want = q && q[1];
           if (want && PRESETS[want] && S.preset !== want) { Object.assign(S, PRESETS[want]); S.preset = want; save(); } } catch (e) {}
+    // G1210 (WELCOME): the welcome screen's pick (or the device gate's "try anyway": potato), taken the same way - it ran
+    // before this script, only when nothing was chosen yet for this graphics card, and never beside ?gfx=
+    try { const wp = W.WELCOME && W.WELCOME.pick;
+          if (wp && PRESETS[wp] && !/[?&]gfx=/.test((W.location && W.location.search) || '')) { if (S.preset !== wp) Object.assign(S, PRESETS[wp]); S.preset = wp; save(); } } catch (e) {}
   };
   const save = () => { try { W.localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} };
   // which preset the current options ARE, or 'custom'
@@ -522,6 +531,13 @@
           label: PRESET_LABEL[p] || p, value: p, title: PRESET_WHY[p] || 'your own mix of the options below',
           why: p === 'custom' && S.preset !== 'custom' ? 'change any option below' : undefined })),
         o => o.value === S.preset, o => pick('preset', o.value));
+      // G1210 (WELCOME): the welcome screen again, in place - this computer's card, threads, memory and screen, the
+      // suggestion from them; Play applies the preset picked there (live, like the pills above). Not on the loading screen
+      if (W.WELCOME && W.WELCOME.recheck && !H.noReload) {
+        H.row(perf, 'this computer');
+        H.pills(perf, [{ label: 're-check my computer', value: 'recheck', title: 'detect the graphics card and the memory again and suggest a preset (the lower of the two)' }],
+          () => false, () => W.WELCOME.recheck().then(p => { if (p && PRESETS[p]) pick('preset', p); }));
+      }
       if (grouped) { for (const k of GROUPS[0].rows) optionRow(perf, H, OPT[k], pick); }
       else for (const o of OPTIONS) optionRow(perf, H, o, pick);
       readout = H.note(perf, frameText());

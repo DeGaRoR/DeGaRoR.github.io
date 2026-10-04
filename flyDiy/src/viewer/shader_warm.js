@@ -136,7 +136,60 @@ var PROG_WARM = (() => {
     }
     return [...by.values()];
   }
-  const api = { depthVariants, fogless, passes, twin, standIn };
+  // G1340 (SHADER-GUARD) NO DRAW WAITS ON A LINK: guard(THREE, renderer, opt) wraps renderer.renderBufferDirect (three's
+  // renderObject calls it through the instance) so that a draw of a material three has NO program for yet - or one this
+  // guard is still linking - is HELD: skipped this frame, its program compiled after the frame through compileAsync
+  // (a stand-in of the object, the scene's lights and fog, the target it drew into: the frame's key), linked on the
+  // driver's threads (KHR_parallel_shader_compile), drawn once ready. Without it such a draw compiled AND waited for its
+  // link inside the frame (the ground's heavy programs ~12 s each). It guards `opt.scenes()` only (the world scene):
+  // a full-screen pass held would blank the frame, and the shadow pass (scene null) draws the depth set the warm-ups
+  // own. A material whose programs exist but whose KEY changes (a light count, a define) is not caught here - that is
+  // the lamps' prep and the watchdog's (flight_recorder 'shaderslow') business.
+  //   G = PROG_WARM.guard(THREE, renderer, { on: () => bool, scenes: () => [scene] })
+  //   G.flush(camera) after the frame's render: the held materials' compiles start; G.stats: held draws, compiles
+  function guard(THREE, renderer, opt) {
+    const props = renderer.properties, orig = renderer.renderBufferDirect;
+    const pend = new Map(), queue = [];
+    const G = { stats: { held: 0, compiles: 0, ready: 0, timedOut: 0, what: [] }, pend, heldNow: 0 };   // what: [object/material, frames held, ms] (the first 40)
+    if (!props || typeof orig !== 'function' || typeof renderer.compileAsync !== 'function') { G.flush = () => 0; return G; }
+    renderer.renderBufferDirect = function (camera, scene, geometry, material, object, group) {
+      if (scene && material && opt.on() && opt.scenes().indexOf(scene) >= 0) {
+        const e = pend.get(material);
+        if (e) {
+          if (!e.done) { G.stats.held++; G.heldNow++; if (e.w) e.w[1] = ++e.frames; return; }
+          pend.delete(material);
+        } else if (props.get(material).programs === undefined) {
+          const n = { o: object, m: material, scene, rt: renderer.getRenderTarget(), done: false, t: 0, frames: 0, w: null };
+          if (G.stats.what.length < 40) G.stats.what.push(n.w = [(object.name || object.type) + '/' + (material.name || material.type), 0, 0]);
+          pend.set(material, n); queue.push(n); G.stats.held++; G.heldNow++;
+          return;
+        }
+      }
+      return orig.apply(this, arguments);
+    };
+    // the held compiles, after the frame (never inside a render: compile() swaps three's render state)
+    G.flush = camera => {
+      const now = (typeof performance !== 'undefined' ? performance.now() : Date.now());
+      for (const e of pend.values()) if (!e.done && e.t && now - e.t > 20000) { e.done = true; G.stats.timedOut++; }   // a link that never reports: drawn (and waited for) rather than gone
+      G.heldNow = 0;
+      if (!queue.length) return 0;
+      const prev = renderer.getRenderTarget();
+      let n = 0;
+      try {
+        while (queue.length) {
+          const e = queue.shift(); e.t = now;
+          try {
+            renderer.setRenderTarget(e.rt);
+            renderer.compileAsync(standIn(e.o, e.m), camera, e.scene).then(() => { e.done = true; G.stats.ready++; if (e.w) e.w[2] = Math.round(performance.now() - e.t); }, () => { e.done = true; });
+            G.stats.compiles++; n++;
+          } catch (x) { e.done = true; }
+        }
+      } finally { renderer.setRenderTarget(prev); }
+      return n;
+    };
+    return G;
+  }
+  const api = { depthVariants, fogless, passes, twin, standIn, guard };
   if (typeof window !== 'undefined') window.PROG_WARM = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   return api;

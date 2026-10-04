@@ -1877,6 +1877,7 @@ const mkRow = (parent, k, label, lo, hi, st, val, oninput, names, opts) => {
     fc.type = 'checkbox'; fc.id = 'f_' + k; fc.style.flex = 'none';
     fc.title = 'follows — the frame takes the derived value; untick to set your own';
     d.insertBefore(fc, kSpan.nextSibling);
+    d.classList.add('tog');              // G1322: the editor sits it in the label's column
     meta.followEl = fc;
     fc.onchange = () => {
       if (fc.checked) oninput(null);
@@ -1892,6 +1893,7 @@ const mkRow = (parent, k, label, lo, hi, st, val, oninput, names, opts) => {
     lc.type = 'checkbox'; lc.id = 'l_' + k; lc.style.flex = 'none';
     lc.title = 'linked — follows ' + (opts.link.from || 'the front');
     d.insertBefore(lc, kSpan.nextSibling);
+    d.classList.add('tog');
     meta.linkEl = lc;
     lc.onchange = () => {
       if (lc.checked) oninput(opts.link.sentinel);
@@ -4237,7 +4239,8 @@ function buildMatPanel() {
   // their parent (the cowl, the struts, the fairings, the fittings) and on
   // the soft-pinned hardware (the hinges, 2026-09-13), so they follow the
   // body from here. The per-section wells below still override
-  // afterwards; the wing and the tail keep their own.
+  // afterwards; the wing and the tail keep their own colours (G1320: a
+  // layer part that held the old base was wearing it, and follows on).
   //
   // G468 (playtest item 129, the user on the birdman: "the individual
   // settings of the parts should take precedence over the overall
@@ -4256,20 +4259,11 @@ function buildMatPanel() {
   // every parent-wearing / soft-pinned layer part, write `next` (or delete,
   // when `next` is the neutral) if the entry is unset or equals `prev`;
   // leave it when it is the user's own.
-  const baseReach = (map, prev, next, neutral, eq) => {
-    const same = (a, b) => a == null ? b == null : (b != null && eq(a, b));
-    const following = k => map[k] == null || same(map[k], prev);
-    const put = k => { if (!following(k)) return;
-      if (next == null || (neutral != null && eq(next, neutral))) delete map[k]; else map[k] = next; };
-    for (const nm of names)
-      if (['skin', 'rail', 'pillar'].includes(A.AERO_ROLE[nm])) put(nm);
-    put('body');
-    // the parent-wearing parts follow by having NO override: clear theirs
-    // only when it was the base's own value (a cowl painted by hand keeps it)
-    if (A.AERO_SEC) for (const k in A.AERO_SEC)
-      if ((A.AERO_SEC[k].wears === 'parent' || A.AERO_SEC[k].finFollows) && map[k] != null && same(map[k], prev))
-        delete map[k];
-  };
+  // G1320: the reach lives in AEROSKIN now (pure, gated by node) and
+  // carries the layer sections that wore the base too — the rudder, the
+  // wing, the tips — see aeroBaseReach
+  const baseReach = (map, prev, next, neutral, eq) =>
+    A.aeroBaseReach(map, prev, next, neutral, eq, names);
   {
     const d = mkRow2('base colour', 'one colour for the whole fuselage — ' +
       'the skin, the rings and pillars, the nose deck, the cowl, the ' +
