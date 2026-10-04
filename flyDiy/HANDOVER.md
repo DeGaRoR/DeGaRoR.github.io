@@ -71835,3 +71835,79 @@ cockpit / taxi render and the floats' water taxi in slack. BATTERY: FRAMECOST (a
 triangles - admitted) and ROUNDTRIP (fixed) were the reds; all green on the final build; the parked aeroplanes re-cooked.
 LOOK (A0's real-GPU stills, reports/evidence/LAKE-HOLES/a0_gpu_train29_vs_30.jpg): the white gaps at the shore are gone;
 the carved banks now read as steep, texture-stretched slopes where a lake sits under a bank - a follow-up for the look.
+
+## G1535-G1539 - UPDATE-NOW: "A NEW VERSION IS AVAILABLE - UPDATE" - THE PAGE KNOWS ITS BUILD FROM THE FIRST 100 ms, ASKS version.json AT BOOT / ON RETURN / EVERY 5 MIN, AND UPDATES PAST EVERY CACHE ON ONE PRESS, THE WORK SAVED FIRST (2026-10-04, UPDATE-NOW for A0, cloud - SwiftShader; branch claude/update-now-g1535 off origin/master 44b7a381 = train 30)
+
+**THE ASK** (the user, 4 Oct): "How to ensure the latest version of the game is served? We used to have dedicated refresh
+buttons for other service worker-based apps." Pages had started no deploy for trains 28-30, the live site served train 27
+for ~14 h and it was tested unknowingly. And a plain reload is not the answer: Pages serves the page with max-age=600.
+
+**G1535 THE BUILD IS KNOWN AT ONCE** (tools/build.js). Before this, FLYDIY_BUILD was set in the CORE slot, which
+index.html makes inert until the welcome and the island's ~35 MB are behind it - so the welcome and the loading screens
+could not know which build they were. Now the BOOT slot opens with `<script>window.FLYDIY_BUILD=...;
+window.FLYDIY_BUILD_DATE=...</script>` (a marker the build swaps once the id is known - swapBuild asserts exactly one per
+page), in both pages. Two changes to the id itself:
+- **the id hashes the page's shell too** (shell.html, the styles, body.html, boot_cards / boot / welcome / update_now):
+  a CSS- or welcome-only change used to ship a new page under the SAME id, i.e. invisible to any version check. Cost:
+  the parked cook (keyed on FLYDIY_BUILD) goes stale on those edits too - it already did on every viewer edit; the train
+  re-cooks on its final build as before.
+- **the date is the build's**: version.json keeps its date while the id is unchanged (a rebuild of the same sources is
+  byte-identical now - index.html, dev.html, sw.js, version.json; version.json no longer churns on every battery run).
+
+**G1536 THE CHECK AND THE PILL** (new src/viewer/update_now.js, an inline BOOT-slot script after boot.js, before
+welcome.js; a src ref in dev.html). version.json fetched `cache:'no-store'` with `?t=<now>` (the browser's cache AND the
+CDN's), compared with FLYDIY_BUILD. When: at boot; when the tab comes back (visibilitychange / focus, at most once every
+30 s); every 5 min while the tab is visible (one re-armed setTimeout - nothing in the render loop, no other request).
+Differ -> the pill "A new version is available `old -> new` UPDATE ×" (phones: "New version"), z 95 over everything
+(welcome 90, loading 70). WHERE: bottom centre on the welcome / loading screens (the loading panel and card step up 56 px
+while it is there, html.updNowUp); in the garage over the 3D view's centre (editor.css --ws-left / --ws-right), above
+the route / roll-out bar; in flight the right column above the verbs (the PFD holds the top centre, the trace panel the
+bottom-left two thirds); a phone in flight: right-aligned over the verbs' two rows (the plates and the PFD stack down
+to mid-screen there - the first try, the right edge's middle, sat on the PFD; the trace panel, when opened, is what it
+can overlap); the world editor: its view's bottom centre; a photo (body.shot): never. 44 px targets under pointer:coarse. × = not for this tab's session and this server build
+(sessionStorage); a NEWER build shows it again. A failed fetch (offline, 404, not JSON, no build) shows nothing and
+takes a shown pill down. RIGS: navigator.webdriver / HeadlessChrome never fetch, never show (the shared tree is rebuilt
+under running rigs all day); ?update=1 forces it, ?update=0 turns it off.
+
+**G1537 UPDATE** never runs by itself (in flight the pill waits). The press: (1) UPDATE_NOW.saveAll -
+GARAGE_SPEC.commit() (garage.js: the editor's export merged and written to flydiy.wip - the same door SAVE / EXPORT
+take, so a slider still inside the 400 ms touch debounce is saved) and every UPDATE_NOW.onBeforeUpdate flush
+(premises_ui.js registers its 1 s autosave's pending write); a thrown flush does not stop the update; pagehide does the
+rest as it always did (day clock, flight recorder). (2) location.assign(the same URL + `v=<server build>`, every other
+parameter and the hash kept, an old v replaced). The new page strips `v` at eval with history.replaceState (state kept),
+before any script reads its URL. dev.html the same (its scripts are ?v=content-hashed already).
+THE STAMP: 'build 1a2b3c4d · 4 Oct 2026' - under the brand on the loading screen (every load), in the welcome card's
+footer (welcome.js stampFoot: the welcome and the device gate), and in GRAPHICS' storage row and the shed's #edVersion
+(storage.js: the PAGE's date now - it printed the server's, exactly the one that differs on a stale page). storage.js's
+checkServer asks UPDATE_NOW (one fetch path); its menu line says "press Update".
+
+**G1538 THE MEDIA CACHE ACROSS AN UPDATE** - unchanged and confirmed: sw.js carries the build id, so the new page's
+registration installs a new worker (skipWaiting, clients.claim) whose activate sweeps media/world + media/geo entries
+outside its keep list; textures / audio stay (content-hashed). The worker answers media/ only: index.html?v=...,
+version.json?t=..., the scripts and sw.js always reach the network. GATE UPDATE P10 runs the BUILT sw.js over a fake
+Cache Storage.
+
+**G1539 GATE UPDATE** (tools/_update_check.js, core, ~0.5 s; `--selftest` = 8 sabotaged copies of update_now.js, each red).
+P1 differing builds -> the pill (both ids, the buttons, 44 px coarse, z 95, the places) + the page's stamp; P2 the same
+build -> nothing; P3 a failed version.json (rejected / 404 / not JSON / no build / empty) -> nothing, and a shown pill
+goes; P4 the URL (?v=server, params + hash kept, an old v replaced) and the strip at eval (state kept, before the first
+check; none without v); P5 commit + flushes BEFORE location.assign, once, without a garage too, premises_ui's flush
+registered; P6 no navigation without the press over 4 timed checks, × per session + build, a newer build shows again;
+P7 the schedule (one check + one 5-min timer, hidden tab skipped, regain throttled to 30 s, no rAF / setInterval, one
+URL); P8 rigs / ?update=1 / ?update=0; P9 the built pages (the tag before update_now before welcome before the island
+loader, live not inert, the same build + date in index.html, dev.html, version.json and the CORE line; dev.html's ref;
+welcome / storage wiring); P10 sw.js across an update.
+
+**EVIDENCE** reports/evidence/UPDATE-NOW/ (tools/update_shot.js: the real index.html in headless Chromium on SwiftShader,
+version.json answered by route interception with a newer build, ?update=1&welcome=1): desktop 1600x900 - welcome,
+loading, garage, flight, the GRAPHICS menu; phone 390x844 (touch, 2x) - the device gate, loading, garage, flight.
+shots.json has each pill's box (the welcome / loading pictures as JPEG - their photo backdrops; the rest PNG). SwiftShader draws no world in flight (sky only) - the HUD is what is pictured.
+dev.html checked end to end in the same browser: ?v= stripped at load, the pill, both stamps, Update navigates and the
+new page comes back clean.
+
+**KNOWN, NOT FIXED.** (1) After an update the address bar's PLAIN URL may still be in the browser's HTTP cache (max-age
+600) holding the old page: a later bookmark / typed visit inside those 10 minutes can open it - the pill then shows again
+and one more press fixes it (refreshing that entry would cost a second request; the rule was version.json only).
+(2) The phone garage is MOBILE-GARAGE's: the pill sits 128 px up, centred, over whatever that layout puts there.
+(3) Pages not deploying at all (the trigger of this ask) is not fixable from the page: version.json then equals the
+stale page and nothing shows - the stamp is how to see it (compare with the train's build in its commit message).
