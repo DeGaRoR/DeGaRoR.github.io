@@ -711,6 +711,14 @@ function buildViewer(coreBody) {
   // 60 fps all the way (rollout_perf A/B). ?raster=0 or localStorage flydiy.raster = '0' turns it off; node (the gates)
   // keeps the analytic path unless FLYDIY_GROUND_RASTER=1 (GATE PREMRASTER holds the two within tolerance)
   window.FLYDIY_GROUND_RASTER = rq !== '0';
+  // (G1430, TOWN-COOK) THE VARIANT THIS PAGE WILL COMPOSE - 'town' (Metlakatla on) or 'default' (cut) - read here, before
+  // the world boots, by world_boot.js TOWN's own rule (?town=1|all / ?town=0 in the URL, else the GRAPHICS 'town' row:
+  // 'nearby' off, anything else on; gfx_settings.js reads a pref saved before pv 7 with 'nearby' as the new default), so the
+  // raster cells fetched below are this variant's alone: a town-off page never pays the town's cells
+  var tq = new URLSearchParams(location.search).get('town'), townOn = true;
+  if (tq !== null) townOn = tq === '1' || tq === 'all';
+  else { try { var gp = JSON.parse(localStorage.getItem('flydiy.gfx') || 'null'); townOn = !(gp && gp.town === 'nearby' && gp.pv >= 7); } catch (e) {} }
+  window.FLYDIY_TOWN_VARIANT = townOn ? 'town' : 'default';
   // (G1091, POLISH-2) THE TREES BY THE RUNWAYS: ?rwytrees=today|map|mapx (or localStorage flydiy.rwytrees) - read by
   // the premises' composition (27_premises.js rwyTreesMode) for a data island; anything else is 'today', the default
   var rt = new URLSearchParams(location.search).get('rwytrees');
@@ -782,7 +790,10 @@ function buildViewer(coreBody) {
               .catch(function (e) { console.warn('flyDiy: the cooked tallies (' + vn + ') did not load (' + (e && e.message) + '); the live ones dress'); }));
           });
         }
-        if (window.FLYDIY_GROUND_RASTER && pi.raster) jobs = jobs.concat(pi.raster.cells.map(function (c) {
+        // (G1430) the cells of THIS page's variant alone (a cell names the variants it serves, c.in; a manifest without
+        // it, every cell)
+        var vn = window.FLYDIY_TOWN_VARIANT;
+        if (window.FLYDIY_GROUND_RASTER && pi.raster) jobs = jobs.concat(pi.raster.cells.filter(function (c) { return !c.in || c.in.indexOf(vn) >= 0; }).map(function (c) {
           return fetch(c.src).then(function (res) { if (!res.ok) throw new Error(c.src + ' ' + res.status); return res.arrayBuffer(); })
             .then(gz).then(function (u) { got.push({ ci: c.c[0], cj: c.c[1], sig: c.sig, bytes: u }); });
         }));

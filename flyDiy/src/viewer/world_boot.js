@@ -61,6 +61,9 @@ window.FLYDIY_WORLD_COMPOSE = function () {
       return PREMISES_GEN.envelope(U.name, D.rec, U.plaque, U.log); } catch (e) { return premisesAtBoot; }
   })();
   if (typeof window !== 'undefined') window.FLYDIY_TOWN = TOWN;
+  // (G1430, TOWN-COOK) the island loader fetched the raster cells of the variant IT read (build.js FLYDIY_TOWN_VARIANT, this
+  // rule before GFX was in): a disagreement is a cook refused (lazy bakes), never a wrong ground - said, not hidden
+  try { const v = window.FLYDIY_TOWN_VARIANT; if (v && v !== (TOWN.all ? 'town' : 'default')) console.warn('flyDiy: the loader fetched the ' + v + ' raster cells, the page composes ' + (TOWN.all ? 'town' : 'default') + ' - those cells bake lazily'); } catch (e) {}
   // THE GENERATORS ONLY SOME PLACES NAME (AS1, G909): _sport_gen.js and _marine_gen.js load on demand (build.js
   // MANIFEST.lazy) - asked for here when the placed record names a sport/ or marine/ key (Metlakatla's: the town on),
   // long before the roll-out composes the places (render_world's premises step waits for them)

@@ -154,7 +154,9 @@ function simHostBootBytes(boot) {
 // loader does (src/core/premises_packs.json -> boot.premCook): makeWorld reads
 // the cooked tiles where the page does, and a tile baked here instead differs
 // from the cook in the last bits - the climate's relief raster carries that
-// island-wide into the rich wind.
+// island-wide into the rich wind. G1430 (TOWN-COOK): `variant` (the page's:
+// 'town' or 'default', build.js FLYDIY_TOWN_VARIANT) takes the cells `in` that
+// variant alone, as the page's loader does; without it, every cell.
 function simHostFetchBoot(base, name, opts) {
   opts = opts || {};
   const F = opts.fetch || fetch;
@@ -175,7 +177,7 @@ function simHostFetchBoot(base, name, opts) {
         const pi = (PP.islands || []).find(w => w.id === name);
         if (!pi || !pi.raster) return boot;
         const got = [];
-        return Promise.all(pi.raster.cells.map(c => F(base + c.src).then(res => { if (!res.ok) throw new Error(c.src + ' ' + res.status); return res.arrayBuffer(); })
+        return Promise.all(pi.raster.cells.filter(c => !opts.variant || !c.in || c.in.indexOf(opts.variant) >= 0).map(c => F(base + c.src).then(res => { if (!res.ok) throw new Error(c.src + ' ' + res.status); return res.arrayBuffer(); })
           .then(gz).then(u => got.push({ ci: c.c[0], cj: c.c[1], sig: c.sig, bytes: u })))).then(() => { boot.premCook = { raster: got }; return boot; });
       }).catch(() => boot);   // a cook that does not arrive is a lazy raster (the page's rule)
     });
@@ -696,7 +698,7 @@ function simHostBody(CORE, SH, port) {
   function fetchThen(F, then) {
     const t0 = performance.now();
     making = true;
-    SH.simHostFetchBoot(F.base, F.name, { hydro: F.hydro, raster: F.raster }).then(boot => {
+    SH.simHostFetchBoot(F.base, F.name, { hydro: F.hydro, raster: F.raster, variant: F.variant }).then(boot => {
       bootInfo = { fetchMs: performance.now() - t0, bytes: boot ? SH.simHostBootBytes(boot) : 0,
                    cooked: boot && boot.premCook ? boot.premCook.raster.length : 0 };
       try { then(boot); } catch (err) { post({ kind: 'error', error: String(err && err.stack || err) }); }

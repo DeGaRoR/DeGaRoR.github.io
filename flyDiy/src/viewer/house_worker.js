@@ -124,22 +124,22 @@ function houseWorkerBody(G, port) {
     for (const [, f] of HW_FILES) G.importScripts(m.urls[f]);
     for (const [g, f] of HW_LAZY) if (m.lazy && m.lazy.indexOf(g) >= 0 && m.urls[f]) G.importScripts(m.urls[f]);
     // the island's trimmed boot, and its cooked raster cells when the page reads them (the loader's rule: a cook that
-    // does not arrive is a lazy raster)
-    const boot = await SH.simHostFetchBoot(m.base, m.island, { raster: !!m.raster });
+    // does not arrive is a lazy raster) - G1430: the cells of the page's variant alone (m.variant, 'town' / 'default')
+    const boot = await SH.simHostFetchBoot(m.base, m.island, { raster: !!m.raster, variant: m.variant });
     if (!boot) throw new Error('no island "' + m.island + '"');
-    if (m.raster && !boot.premCook) boot.premCook = await fetchCook(m.base, m.island);
+    if (m.raster && !boot.premCook) boot.premCook = await fetchCook(m.base, m.island, m.variant);
     const island = G.ISLAND_GEN.makeIsland(boot);
     st.world = G.makeWorld(0, { premises: m.premises, island });
     st.initMs = now() - t0;
     port.post({ cmd: 'ready', ms: st.initMs });
   }
-  function fetchCook(base, name) {
+  function fetchCook(base, name, variant) {
     const gz = buf => new Response(new Blob([buf]).stream().pipeThrough(new DecompressionStream('gzip'))).arrayBuffer().then(b => new Uint8Array(b));
     return fetch(base + 'src/core/premises_packs.json').then(r => (r.ok ? r.json() : { islands: [] })).then(PP => {
       const pi = (PP.islands || []).find(w => w.id === name);
       if (!pi || !pi.raster) return null;
       const got = [];
-      return Promise.all(pi.raster.cells.map(c => fetch(base + c.src).then(res => { if (!res.ok) throw new Error(c.src + ' ' + res.status); return res.arrayBuffer(); })
+      return Promise.all(pi.raster.cells.filter(c => !variant || !c.in || c.in.indexOf(variant) >= 0).map(c => fetch(base + c.src).then(res => { if (!res.ok) throw new Error(c.src + ' ' + res.status); return res.arrayBuffer(); })
         .then(gz).then(u => got.push({ ci: c.c[0], cj: c.c[1], sig: c.sig, bytes: u })))).then(() => ({ raster: got }));
     }).catch(() => null);
   }
@@ -273,7 +273,7 @@ const HOUSE_WORKER = (() => {
       w.onmessage = e => { try { msg(e.data); } catch (err) { console.warn('house worker message:', err); } };
       w.onerror = err => fail('the worker failed: ' + (err && err.message || err));
       const lazy = HW_LAZY.filter(([g]) => /sport\//.test(o.premises) && g === 'SPORT_GEN' || /marine\//.test(o.premises) && g === 'MARINE_GEN').map(([g]) => g);
-      w.postMessage({ cmd: 'init', base, urls, island: o.island, premises: o.premises, raster: !!W.FLYDIY_GROUND_RASTER, lazy, build: ver || 'dev',
+      w.postMessage({ cmd: 'init', base, urls, island: o.island, premises: o.premises, raster: !!W.FLYDIY_GROUND_RASTER, variant: W.FLYDIY_TOWN ? (W.FLYDIY_TOWN.all ? 'town' : 'default') : W.FLYDIY_TOWN_VARIANT, lazy, build: ver || 'dev',
                       flags: { FLYDIY_GROUND_RASTER: W.FLYDIY_GROUND_RASTER } });
       S.urls = urls;
       return api;
