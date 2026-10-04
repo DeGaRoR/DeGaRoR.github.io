@@ -69896,3 +69896,20 @@ SND-TUNE's LIST: every bed's mix level (BEDS) - first guesses, none heard; the 1
   muffle fallbacks (-12 dB / 900 Hz); the loons at -17 dB.
 NOT DONE: positional emitters (SND-AMB-2); rain outside (no bed, no precipitation); the sea state beyond the wind (world.sea
   not read); the garage's hint is a fixed mix, not the world outside the shed's door.
+ASK FOR THE SOUND COORDINATOR (the user, 2026-10-04, relayed by SND-AMB-1 - the coordinator was not reachable from the
+  cloud session): DESIGN A SOUND ENTRY IN THE WORLD EDITOR. Simple, but the user wants to SEE and SET what the evidence's
+  charts show, drawn straight on the map like an object or a polygon. What is already there to build on:
+  (a) SEE - ambience_model.js is pure and cheap: AMBIENCE_MODEL.ambienceTargets(st) gives the 19 bed targets from st.f (the
+      features), and ambienceStep(st, P, world, dt) fills st.f from any point. A heat map per bed (or the loudest bed per cell,
+      coloured) over a grid around the camera is ~a few ms of model calls; the live listener's own weights are
+      AMBIENCE.state.w / .t / .f in the page. The evidence's lanes (flight_day.png) are the same numbers over time.
+  (b) SET - the model already reads premises ZONES by kind through the record's frame (27_premises.js layers.zones:
+      residential / commercial / park / industrial -> village, harbour -> harbour; re-read when world.premises.rec changes),
+      so a polygon the editor draws is heard without a reload. The natural entry: a zone kind 'sound' (or a 'sound' layer)
+      { poly, beds: { 'amb.loons': 0.6, ... } (set / add / mute per bed), fall: metres } and a point object (an emitter,
+      SND-AMB-2's) - the model adds them in its zone phase (20) and the rules take the max / override. Inert for physics
+      (declare it like spec.systems.stallWarn: proven inert).
+  (c) The rules' numbers (fade heights, the shore's 250 m, the lake edge's 25 m, the fence margins) are one table each in
+      ambience_model.js (RAMPS, Z_FALL, AERO_*): an editor panel could expose them as sliders for SND-TUNE.
+  Wanted from the coordinator: the design (where it sits in the world editor, what the user draws, how it is saved in the
+  premises record), then a session brief.
