@@ -1,0 +1,266 @@
+{
+ "before_off": {
+  "town": "0",
+  "state": "ready",
+  "garageS": 128.756,
+  "net": {
+   "r": 276,
+   "rBytes": 16877007,
+   "all": 0
+  },
+  "atGarage": {
+   "variant": null,
+   "townAll": false,
+   "fetchedCells": 92,
+   "overlays": [
+    {
+     "baked": 87,
+     "bakeMs": 136,
+     "decoded": 7298,
+     "cooked": {
+      "taken": 85,
+      "stale": 7
+     }
+    },
+    {
+     "baked": 0,
+     "bakeMs": 0,
+     "decoded": 16082,
+     "cooked": {
+      "taken": 92,
+      "stale": 0
+     }
+    }
+   ],
+   "baked": 87,
+   "bakeMs": 136
+  },
+  "after": {
+   "variant": null,
+   "townAll": false,
+   "fetchedCells": 92,
+   "overlays": [
+    {
+     "baked": 87,
+     "bakeMs": 136,
+     "decoded": 7298,
+     "cooked": {
+      "taken": 85,
+      "stale": 7
+     }
+    },
+    {
+     "baked": 0,
+     "bakeMs": 0,
+     "decoded": 16597,
+     "cooked": {
+      "taken": 92,
+      "stale": 0
+     }
+    }
+   ],
+   "baked": 87,
+   "bakeMs": 136
+  },
+  "exceptions": 0,
+  "exc": []
+ },
+ "after_off": {
+  "town": "0",
+  "state": "ready",
+  "garageS": 102.926,
+  "net": {
+   "r": 276,
+   "rBytes": 16877007,
+   "all": 0
+  },
+  "atGarage": {
+   "variant": "default",
+   "townAll": false,
+   "fetchedCells": 92,
+   "overlays": [
+    {
+     "baked": 87,
+     "bakeMs": 181,
+     "decoded": 7298,
+     "cooked": {
+      "taken": 85,
+      "stale": 7
+     }
+    },
+    {
+     "baked": 0,
+     "bakeMs": 0,
+     "decoded": 16082,
+     "cooked": {
+      "taken": 92,
+      "stale": 0
+     }
+    }
+   ],
+   "baked": 87,
+   "bakeMs": 181
+  },
+  "after": {
+   "variant": "default",
+   "townAll": false,
+   "fetchedCells": 92,
+   "overlays": [
+    {
+     "baked": 87,
+     "bakeMs": 181,
+     "decoded": 7298,
+     "cooked": {
+      "taken": 85,
+      "stale": 7
+     }
+    },
+    {
+     "baked": 0,
+     "bakeMs": 0,
+     "decoded": 16082,
+     "cooked": {
+      "taken": 92,
+      "stale": 0
+     }
+    }
+   ],
+   "baked": 87,
+   "bakeMs": 181
+  },
+  "exceptions": 0,
+  "exc": []
+ },
+ "before_on": {
+  "town": "1",
+  "state": "ready",
+  "garageS": 138.447,
+  "net": {
+   "r": 276,
+   "rBytes": 16877007,
+   "all": 0
+  },
+  "atGarage": {
+   "variant": null,
+   "townAll": true,
+   "fetchedCells": 92,
+   "overlays": [
+    {
+     "baked": 354,
+     "bakeMs": 799,
+     "decoded": 7484,
+     "cooked": {
+      "taken": 84,
+      "stale": 8
+     }
+    },
+    {
+     "baked": 0,
+     "bakeMs": 0,
+     "decoded": 15763,
+     "cooked": {
+      "taken": 89,
+      "stale": 3
+     }
+    }
+   ],
+   "baked": 354,
+   "bakeMs": 799
+  },
+  "after": {
+   "variant": null,
+   "townAll": true,
+   "fetchedCells": 92,
+   "overlays": [
+    {
+     "baked": 354,
+     "bakeMs": 799,
+     "decoded": 7484,
+     "cooked": {
+      "taken": 84,
+      "stale": 8
+     }
+    },
+    {
+     "baked": 0,
+     "bakeMs": 0,
+     "decoded": 16272,
+     "cooked": {
+      "taken": 89,
+      "stale": 3
+     }
+    }
+   ],
+   "baked": 354,
+   "bakeMs": 799
+  },
+  "exceptions": 0,
+  "exc": []
+ },
+ "after_on": {
+  "town": "1",
+  "state": "ready",
+  "garageS": 176.048,
+  "net": {
+   "r": 402,
+   "rBytes": 58634928,
+   "all": 0
+  },
+  "atGarage": {
+   "variant": "town",
+   "townAll": true,
+   "fetchedCells": 134,
+   "overlays": [
+    {
+     "baked": 134,
+     "bakeMs": 436,
+     "decoded": 8546,
+     "cooked": {
+      "taken": 123,
+      "stale": 11
+     }
+    },
+    {
+     "baked": 0,
+     "bakeMs": 0,
+     "decoded": 26125,
+     "cooked": {
+      "taken": 134,
+      "stale": 0
+     }
+    }
+   ],
+   "baked": 134,
+   "bakeMs": 436
+  },
+  "after": {
+   "variant": "town",
+   "townAll": true,
+   "fetchedCells": 134,
+   "overlays": [
+    {
+     "baked": 134,
+     "bakeMs": 436,
+     "decoded": 8546,
+     "cooked": {
+      "taken": 123,
+      "stale": 11
+     }
+    },
+    {
+     "baked": 0,
+     "bakeMs": 0,
+     "decoded": 26675,
+     "cooked": {
+      "taken": 134,
+      "stale": 0
+     }
+    }
+   ],
+   "baked": 134,
+   "bakeMs": 436
+  },
+  "exceptions": 0,
+  "exc": []
+ }
+}
