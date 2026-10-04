@@ -179,6 +179,10 @@ const GATES = [
   // load test to 5.7 g, a flown 3.8 g pull, a drop at FAR 23.473's sink and its cap, a circuit (no yield on the five validated
   // builds); a taxi into a trunk dents, a 30 m/s flight into one crashes with a wing broken; reset heals. Three builds at once
   { id: 'TREECRASH', file: '_treecrash_check.js', tier: 'core', weight: 3, wall: 600 },
+  // G1886 (DMG-DAMP): the deformation damper takes deformation, not rotation - in vacuum the five validated builds spun
+  // about roll, pitch and yaw keep L about the CG (<= 1e-3 over 10 s, the damper's own share <= 1e-5), the pre-G1885
+  // damper as the control reproduces exp(-0.5 t), and a plucked wingtip still rings down as before; ~3.5 min
+  { id: 'DMGDAMP', file: '_dmgdamp_check.js', tier: 'core', wall: 220 },
   // G286: the graphics settings menu - presets, the pref, the handles
   { id: 'GFX', file: '_gfx_check.js', tier: 'core' },
   // G584: the programs - the real three on a fake GL: the depth warm-up is the shadow pass's own set, two
