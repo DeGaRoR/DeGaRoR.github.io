@@ -412,6 +412,82 @@ console.log('\n6. THE LAKE\'S SURFACE IS THE DATA\'S (a stub island: a bowl with
     `a 5 m/s pancake slams (peak ${pan.WB ? (pan.WB.slamPeak / 1000).toFixed(0) : '-'} kPa on the bottom) and holes ${holed} slice(s)`);
 }
 
+// ---- G1385 TANKS-FLOAT: the real tanks ------------------------------------------------------------------------------
+// The user's Cub (its 45 L nose tank, ahead of the firewall) and the same Cub with the 45 L in its wing roots (a PA-18's
+// layout - the wing-tank path on a validated airframe): each tank where the frame billed its kilos, sealed, carved
+// out of its host; the fuel displaces too and the burn's kilos come off the nodes, so an empty Cub floats higher.
+{
+  console.log('\n== G1385 the tanks float ==');
+  const C = require('./flight_core.js');
+  const fs = require('fs'), path = require('path');
+  const world = C.makeWorld(), sea = world.aerodromes.find(a => a.id === 'SEA');
+  const cub = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'builds', 'cub_2026-09-20_corrected.json'), 'utf8')).spec;
+  const wingCub = JSON.parse(JSON.stringify(cub));
+  wingCub.fuel = Object.assign({}, wingCub.fuel, { tank: 'wing' });
+  wingCub.energy.vessels = wingCub.energy.vessels.map(v => Object.assign({}, v, { bay: 'wingRoot', along: 0.28, lv: null }));
+  // ARCHIMEDES, independently of the ramps: the whole aeroplane under a water 100 m up (wetSolverPass on a world of
+  // that water), the tanks' share of the lift against rho g V; and the carve: with the wing tanks the build's whole lift
+  // is the lift it had without them (the tank's volume moved out of the slabs' flooding air into the sealed tank)
+  const deep = { waterH: () => 100, sea: null };
+  const liftOf = (def, noTanks) => {
+    const sim = C.makeSim(def, world); sim.reset(0);
+    const WB = C.HYDRO.wetBuild(def, sim.p, sim.v, sim.m, sim.fuel);
+    if (noTanks) { // the build as G1384 had it: no tanks, no carve
+      WB.tanks = [];
+      for (const SB of WB.slabs) SB.air = SB.air0;
+      for (const S8 of WB.slices) S8.air = S8.air0;
+    }
+    sim.v.fill(0);
+    const f = new Float64Array(sim.p.length); C.HYDRO.wetSolverPass(WB, deep, f, 0, 1 / 360);
+    return { WB, buoy: WB.buoy };
+  };
+  const dN = C.buildGen(cub), dW = C.buildGen(wingCub);
+  const nA = liftOf(dN, false), nB = liftOf(dN, true), wA = liftOf(dW, false), wB = liftOf(dW, true);
+  const rgV = 1000 * G * 0.045;
+  const tN = nA.WB.tanks, tW = wA.WB.tanks;
+  verdict(tN.length === 2 && tN.every(T => T.host < 0 && !T.slab) && Math.abs(tN.reduce((a, T) => a + T.vol, 0) - 0.045) < 1e-9,
+    `the user's Cub: its 45 L nose tank is two tanks (${tN.map(T => (1000 * T.vol).toFixed(1) + ' L').join(' + ')}), each at its own kilos, ahead of the firewall (no hull slice holds it)`);
+  verdict(Math.abs((nA.buoy - nB.buoy) - rgV) < 1e-6 * rgV,
+    `ARCHIMEDES, fully under: the nose tank adds ${f(nA.buoy - nB.buoy, 2)} N = rho g 45 L ${f(rgV, 2)} N (its fuel displaces as its air does)`);
+  verdict(tW.length === 2 && tW.every(T => T.slab) && Math.abs(wA.buoy - wB.buoy) < 1e-6 * wA.buoy,
+    `the wing-tank Cub: both tanks in their wing slabs, carved from the slabs' air - fully under, the build lifts ${f(wA.buoy, 1)} N with them against ${f(wB.buoy, 1)} N without (the same air, now sealed)`);
+  // ON THE WATER: set down on the SEA lane (the lowest node 5 cm over, still), magnetos off, the tanks full or empty by
+  // the burn's own arithmetic; 20 s
+  const settle = (spec, frac, secs) => {
+    const def = C.buildGen(spec), sim = C.makeSim(def, world); sim.reset(0); C.placeAtAerodrome(sim, sea);
+    for (let i = 0; i < sim.eng.length; i++) sim.setEngine(i, { key: 'off' });
+    for (let i = 0; i < def.nodes.length; i++) { const nd = def.nodes[i];
+      if (nd.mFuel > 0) sim.setNodeMass(i, Math.max(0.5, nd.m - nd.mFuel) + nd.mFuel * frac); }
+    sim.fuel.frac = frac; for (const vs of sim.fuel.vessels) vs.litres = vs.litres0 * frac;
+    const n = def.nodes.length, p = sim.p, c0 = sim.cgPos(), wh = world.waterH(c0[0], c0[2]);
+    let yMin = Infinity; for (let i = 0; i < n; i++) yMin = Math.min(yMin, p[i * 3 + 1] - def.nodes[i].r);
+    for (let i = 0; i < n; i++) { p[i * 3 + 1] += wh + 0.05 - yMin; sim.v[i * 3] = sim.v[i * 3 + 1] = sim.v[i * 3 + 2] = 0; }
+    for (let s = 0; s < secs * 60; s++) sim.step(1 / 60);
+    const c = sim.cgPos();
+    return { WB: sim.wetBody, cg: wh - c[1], finite: Number.isFinite(c[1]) };
+  };
+  const full = settle(cub, 1, 20), empty = settle(cub, 0, 20);
+  verdict(full.finite && empty.finite && empty.cg < full.cg - 0.005,
+    `the burn raises the net lift: the Cub set down with its tanks empty floats ${f(100 * (full.cg - empty.cg), 1)} cm higher than full (CG ${f(empty.cg, 3)} m under against ${f(full.cg, 3)})`);
+  const slabF = full.WB.slabs.reduce((a, s) => a + s.f, 0) / full.WB.slabs.length;
+  verdict(full.WB.tanks.every(T => !T.br && T.f === 0 && T.wetS > 0) && slabF > 0.01,
+    `SEALED: after 20 s in the water the tanks are wet (${full.WB.tanks.map(T => (100 * T.wetS).toFixed(0) + ' %').join(', ')} under) and hold all their air, while the fabric wing has flooded ${f(100 * slabF, 1)} %`);
+  // THE BREACH (the slam's rule): a tank in a hull slice - the stock build's tank moved to the aft cabin bay (the cabin
+  // bay's slice sits over the gear and takes no slam) - in a 5 m/s pancake: its slice slammed past the vessel's own
+  // pressure holes it, and it floods at that slice's holed rate
+  const cab = JSON.parse(JSON.stringify(C.GEN_DEFAULT));
+  cab.energy = Object.assign({}, cab.energy, { vessels: [{ bay: 'aftCabin', capacity: (cab.fuel && cab.fuel.litres) || 45, along: null, lv: null }] });
+  const dC = C.buildGen(cab), sC = C.makeSim(dC, world); sC.reset(0); C.placeAtAerodrome(sC, sea);
+  { const n = dC.nodes.length, p = sC.p, [xA] = sC.axes(), c0 = sC.cgPos(), wh = world.waterH(c0[0], c0[2]), hl = Math.hypot(xA[0], xA[2]);
+    let yMin = Infinity; for (let i = 0; i < n; i++) yMin = Math.min(yMin, p[i * 3 + 1] - dC.nodes[i].r);
+    for (let i = 0; i < n; i++) { p[i * 3 + 1] += wh + 0.3 - yMin; sC.v[i * 3] = -0.3 * xA[0] / hl; sC.v[i * 3 + 1] = -5; sC.v[i * 3 + 2] = -0.3 * xA[2] / hl; }
+    sC.ctl.thr = 0; for (let s = 0; s < 3 * 60; s++) sC.step(1 / 60); }
+  const tC = sC.wetBody ? sC.wetBody.tanks : [];
+  const hostPk = tC.length && tC[0].host >= 0 ? sC.wetBody.slices[tC[0].host].pk : 0;
+  verdict(tC.length > 0 && tC.every(T => T.host >= 0) && tC.some(T => T.br) && tC.some(T => T.f > 0),
+    `an aft-cabin tank (hull slice ${tC.length ? tC[0].host : '-'}) in a 5 m/s pancake: its slice slammed to ${f(hostPk / 1000, 0)} kPa (the tank's breach ${tC.length ? f(tC[0].breach / 1000, 0) : '-'}) - holed ${tC.filter(T => T.br).length} of ${tC.length}, flooding ${tC.map(T => (100 * T.f).toFixed(0) + ' %').join(', ')}`);
+}
+
 // the runner reads the WHOLE verdict line (GATE <ID>: PASS), not the exit code
 console.log(fails ? `\nGATE HYDRODYN: FAIL (${fails})` : '\nGATE HYDRODYN: PASS');
 process.exit(fails ? 1 : 0);
