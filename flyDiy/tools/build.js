@@ -466,6 +466,8 @@ const MANIFEST = {
               'audio/airframe_model.js', 'audio/samples.js', 'audio/src_airframe.js',
               // G1640-G1646 (SND-SPACE): the space's numbers, then the space (the cabin, the panners, the shed's room)
               'audio/space_config.js', 'audio/space.js',
+              // G1650-G1651 (SND-AMB-1): the ambience's numbers and the bed mixer (after samples.js: it loads through its 'amb' class)
+              'audio/ambience_model.js', 'audio/ambience.js',
               // G999: the world's composition, run by the promote in a task of its own ahead of app.js's evaluation
               'world_boot.js', 'app.js',
               'dev_panel.js'],   // (the WORLD rail, world_rail.js, rides the world pack above - G582)

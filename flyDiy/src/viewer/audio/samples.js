@@ -33,6 +33,15 @@
 //   .pick(key) a random variant (sync, null until ready), .loop(key, dest),
 //   .oneShot(key, outs, gain, jitter?), .bytes, .detach(); AUDIO_SAMPLES.create(opts)
 //   makes an independent instance (GATE AUDIO's stubs).
+//
+// THE CLASSES (G1652, SND-AMB-1; §2.4): a key's class is its prefix ('amb' for 'amb.forest.day'). A class
+//   declared in opts.classes / setClass(cls, cfg) has ITS OWN decoded-bytes budget and counter (the airframe's
+//   grains keep the 6 MB default above, untouched), and bakes its loops to its own shape: at most `maxS` seconds
+//   (+ the crossfade) and at 1/`decim` of the context's rate (a 2:1 half-band decimation - the potato's beds). Only
+//   the baked loop stays resident (the decoded source is dropped once the loop is baked: half the bytes). A class
+//   key refused by its budget is not 'failed': release(key) returns it to 'idle' so its owner can ask again once it
+//   made room. release(key) frees a ready key's bytes (its players are the caller's to stop first);
+//   classBytes(cls) its counter; setClass(cls, { budget, maxS, decim }).
 // ============================================================
 var AUDIO_SAMPLES = (function () {
   'use strict';
@@ -57,6 +66,17 @@ var AUDIO_SAMPLES = (function () {
     'stall.reed':   { kind: 'loop', layer: 'the reed stall horn', what: 'a Cessna stall horn sounding (steady part)' },
     'stall.buzzer': { kind: 'loop', layer: 'the electric stall warning', what: 'an electric stall horn' },
   };
+  // THE AMBIENCE BEDS (G1652, SND-AMB-1: ambience.js mixes them; G1636 ships them, 32 s mono at -23 LUFS)
+  for (const [k, what] of [
+    ['amb.forest.day', 'a conifer forest by day: birds, the canopy'], ['amb.forest.night', 'the forest at night'],
+    ['amb.wind.light', 'a light breeze'], ['amb.wind.clear', 'a clear, steady wind'],
+    ['amb.wind.mountain', 'mountain wind, crickets (the night\'s open ground)'], ['amb.wind.storm', 'a storm wind'],
+    ['amb.shore.surf', 'surf on a beach'], ['amb.shore.rocks', 'waves on a rocky shore (also the underwater bed)'],
+    ['amb.lake.near', 'a lake edge, very close'], ['amb.lake.lap', 'water lapping'], ['amb.stream', 'a stream'],
+    ['amb.harbour', 'a harbour'], ['amb.village', 'a village street'], ['amb.airfield', 'an airfield: the windsock, a distant generator'],
+    ['amb.hangar', 'the hangar\'s room tone'], ['amb.rain.roof', 'rain on a roof'], ['amb.frogs.night', 'frogs at night'],
+    ['amb.loons', 'loons on a lake'], ['amb.meadow', 'a summer meadow'],
+  ]) KEYS[k] = { kind: 'loop', layer: 'the ambience bed (ambience.js)', what };
   const DEF_BUDGET = 6 * 1024 * 1024;
   const W = typeof window !== 'undefined' ? window : (typeof globalThis !== 'undefined' ? globalThis : {});
 
@@ -67,12 +87,22 @@ var AUDIO_SAMPLES = (function () {
     let bytes = 0, said = false;
     const budget = o.budget > 0 ? o.budget : DEF_BUDGET;
     const rnd = o.random || Math.random;
+    // THE CLASSES: cls -> { budget, maxS, decim, bytes, said }
+    const classes = {};
+    const setClass = (cls, cfg) => {
+      const C = classes[cls] || (classes[cls] = { budget: DEF_BUDGET, maxS: 0, decim: 1, bytes: 0, said: false });
+      if (cfg) { if (cfg.budget > 0) C.budget = cfg.budget; if (cfg.maxS != null) C.maxS = Math.max(0, +cfg.maxS || 0);
+                 if (cfg.decim != null) C.decim = Math.max(1, cfg.decim | 0); }
+      return C;
+    };
+    if (o.classes) for (const c in o.classes) setClass(c, o.classes[c]);
+    const clsOf = key => { const i = key.indexOf('.'); return i > 0 ? classes[key.slice(0, i)] || null : null; };
     const manifest = () => o.manifest || W.FLYDIY_AUDIO_MEDIA || {};
     const base = () => (o.base != null ? o.base : (typeof W.FLYDIY_ASSET_BASE === 'string' ? W.FLYDIY_ASSET_BASE : ''));
     const fetchBytes = url => (o.fetch ? o.fetch(url) : W.ASSET_FETCH ? W.ASSET_FETCH(url)
       : Promise.reject(new Error('audio samples: no ASSET_FETCH for ' + url)));
     const urls = key => { const m = manifest()[key]; return Array.isArray(m) ? m : typeof m === 'string' ? [m] : []; };
-    const rec = key => recs[key] || (recs[key] = { state: urls(key).length ? 'idle' : 'absent', bufs: null, loopBuf: null, promise: null });
+    const rec = key => recs[key] || (recs[key] = { state: urls(key).length ? 'idle' : 'absent', bufs: null, loopBuf: null, promise: null, size: 0, gen: 0 });
 
     function decode(u8) {
       // decodeAudioData DETACHES its ArrayBuffer: hand it a copy of exactly the bytes
@@ -90,8 +120,10 @@ var AUDIO_SAMPLES = (function () {
       if (r.state === 'absent') return Promise.resolve(null);
       if (r.promise) return r.promise;
       r.state = 'loading';
-      const B = base();
+      const B = base(), C = clsOf(key), gen = r.gen;
       r.promise = Promise.all(urls(key).map(u => fetchBytes(B + u).then(decode))).then(bufs => {
+        if (recs[key] !== r || r.gen !== gen) return null;   // released while it loaded
+        if (C) return admit(key, r, C, bufs);
         const add = bufs.reduce((s, b) => s + sizeOf(b), 0);
         if (bytes + add > budget) {
           r.state = 'budget';
@@ -106,21 +138,63 @@ var AUDIO_SAMPLES = (function () {
       return r.promise;
     }
 
-    // THE LOOP, baked once: the codec's pads trimmed, then the tail crossfaded (equal power) into the head
-    function bakeLoop(b) {
-      const sr = b.sampleRate, ch = b.numberOfChannels, L = b.length;
-      const padMax = Math.floor(0.05 * sr);
+    // a class key: only its baked loop stays (its class's shape), under its class's budget
+    function admit(key, r, C, bufs) {
+      const lb = bakeLoop(bufs[0], C);
+      const size = sizeOf(lb);
+      if (C.bytes + size > C.budget) {
+        r.state = 'budget';
+        if (!C.said) { C.said = true; console.info('flyDiy audio: the sample ' + key + ' would pass its class\'s ' + Math.round(C.budget / 1048576) + ' MB budget; it waits'); }
+        return null;
+      }
+      C.bytes += size;
+      r.bufs = [lb]; r.loopBuf = lb; r.size = size; r.state = 'ready';
+      return lb;
+    }
+    // release(key): a ready key's bytes back (the caller stopped its players); a class key refused by its budget back
+    // to 'idle'. A load in flight is dropped when it lands. true when something was freed or reset.
+    function release(key) {
+      const r = recs[key];
+      if (!r || r.state === 'absent' || r.state === 'idle' || r.state === 'failed') return false;
+      const C = clsOf(key);
+      if (r.state === 'ready') {
+        if (C) C.bytes = Math.max(0, C.bytes - r.size);
+        else bytes = Math.max(0, bytes - r.bufs.reduce((s, b) => s + sizeOf(b), 0) - (r.loopBuf && r.loopBuf !== r.bufs[0] ? sizeOf(r.loopBuf) : 0));
+      }
+      r.state = 'idle'; r.bufs = null; r.loopBuf = null; r.promise = null; r.size = 0; r.gen++;
+      return true;
+    }
+    // a 2:1 half-band decimation (a 15-tap windowed sinc at a quarter of the rate): the potato's beds at half rate
+    const HB = (() => { const n = 15, h = new Float64Array(n); let s = 0;
+      for (let i = 0; i < n; i++) { const k = i - 7, x = 0.5 * Math.PI * k; h[i] = (k === 0 ? 1 : Math.sin(x) / x) * (0.54 + 0.46 * Math.cos(Math.PI * k / 8)); s += h[i]; }
+      for (let i = 0; i < n; i++) h[i] /= s; return h; })();
+    function decimate(x, d) {
+      const n = Math.floor(x.length / d), y = new Float32Array(n);
+      for (let j = 0; j < n; j++) { const c = j * d; let acc = 0;
+        for (let i = 0; i < 15; i++) { const k = c + i - 7; if (k >= 0 && k < x.length) acc += HB[i] * x[k]; }
+        y[j] = acc; }
+      return y;
+    }
+
+    // THE LOOP, baked once: the codec's pads trimmed, then the tail crossfaded (equal power) into the head.
+    // lim (a class): { maxS: the loop's length cap in seconds, decim: 2 = half the rate }
+    function bakeLoop(b, lim) {
+      const sr0 = b.sampleRate, ch = b.numberOfChannels, L = b.length;
+      const padMax = Math.floor(0.05 * sr0);
       let a = 0, z = L;
       const d0 = b.getChannelData(0);
       while (a < padMax && a < L && Math.abs(d0[a]) < 1e-4) a++;
       while (L - z < padMax && z > a && Math.abs(d0[z - 1]) < 1e-4) z--;
-      const len = z - a;
+      const dec = lim && lim.decim > 1 ? lim.decim | 0 : 1, sr = sr0 / dec;
+      let len = Math.floor((z - a) / dec);
+      if (dec > 1) a = Math.floor(a / dec);
       const X = Math.max(1, Math.min(Math.floor(1.5 * sr), Math.floor(len / 4)));
+      if (lim && lim.maxS > 0) len = Math.min(len, Math.floor(lim.maxS * sr) + X);
       const M = len - X;
       if (M < 64) return b;   // too short to loop with a fade: as it is
       const out = ctx.createBuffer(ch, M, sr);
       for (let c = 0; c < ch; c++) {
-        const src = b.getChannelData(c), dst = out.getChannelData(c);
+        const src = dec > 1 ? decimate(b.getChannelData(c), dec) : b.getChannelData(c), dst = out.getChannelData(c);
         for (let i = 0; i < M; i++) dst[i] = src[a + i];
         for (let i = 0; i < X; i++) {
           const t = (i + 0.5) / X;
@@ -165,13 +239,14 @@ var AUDIO_SAMPLES = (function () {
     const api = {
       KEYS,
       attach(c) { ctx = c; return api; },
-      detach() { ctx = null; for (const k in recs) delete recs[k]; bytes = 0; said = false; },
+      detach() { ctx = null; for (const k in recs) delete recs[k]; bytes = 0; said = false; for (const c in classes) { classes[c].bytes = 0; classes[c].said = false; } },
+      release, setClass, classBytes: cls => (classes[cls] ? classes[cls].bytes : 0), classOf: key => clsOf(key),
       load,
       state: key => rec(key).state,
       ready: key => rec(key).state === 'ready',
       has: key => urls(key).length > 0,
       pick(key) { const r = rec(key); return r.state === 'ready' && r.bufs.length ? r.bufs[Math.floor(rnd() * r.bufs.length)] : null; },
-      loop, oneShot, bakeLoop: b => bakeLoop(b),
+      loop, oneShot, bakeLoop: (b, lim) => bakeLoop(b, lim),
       get bytes() { return bytes; }, budget,
     };
     return api;

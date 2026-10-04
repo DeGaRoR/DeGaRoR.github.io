@@ -56,6 +56,8 @@ const FILES = {
   // SND-SPACE (G1640-G1646): the space's numbers, the space, the prop's source, the two voices' worklets (the doppler)
   spcfg: 'src/viewer/audio/space_config.js', space: 'src/viewer/audio/space.js', srcprop: 'src/viewer/audio/src_prop.js',
   engw: 'src/viewer/audio/engine_worklet.js', propw: 'src/viewer/audio/prop_worklet.js',
+  // SND-AMB-1 (G1650-G1654): the ambience's numbers and its source
+  ambmodel: 'src/viewer/audio/ambience_model.js', amb: 'src/viewer/audio/ambience.js',
 };
 const readAll = () => { const S = {}; for (const k in FILES) S[k] = fs.readFileSync(path.join(ROOT, FILES[k]), 'utf8'); return S; };
 const shaOf = S => crypto.createHash('sha256').update(Object.keys(FILES).map(k => S[k]).join('\u0000')).digest('hex');
@@ -125,8 +127,9 @@ function makePage(S, opt) {
     addEventListener: wl.add, removeEventListener: wl.rm, document: doc,
     AUDIO_PARAMS: loadParams(S.params),
   };
+  if (opt.ctx) opt.ctx(AudioContextStub.prototype, C);   // G1654: more of the context (the ambience's buffers and filter)
   if (opt.noAC !== true) win.AudioContext = AudioContextStub;
-  const ctx = { window: win, document: doc, console: opt.quiet ? { warn() {}, log() {}, error() {} } : console,
+  const ctx = { window: win, document: doc, console: opt.quiet ? { warn() {}, log() {}, error() {}, info() {} } : console,
     URLSearchParams, setTimeout: (fn, ms) => { timers.push({ fn, ms }); return timers.length; }, clearTimeout: id => { if (timers[id - 1]) timers[id - 1].fn = null; } };
   if (opt.airframe) {
     // the worklet node (SND-AIRFRAME): its params count what is scheduled, its port counts the events
@@ -1942,6 +1945,412 @@ async function checkSpCraft(S) {
   return F;
 }
 
+// ---- SND-AMB-1 (G1650-G1654): THE AMBIENCE ------------------------------------------------------------------------
+// a synthetic island in the island's own shape (rasters 10 m a cell): the sea east of x = 900 (a sandy beach before it),
+// a forest (x < -300, z < 0, canopy 18 m), a lake (r 200 m at -800, 800), a village zone (residential, 200..600 x
+// -1200..-800, built cover), a strip at (300, 900), a meadow everywhere else. Every sampler answers an integer (a double
+// answered by a stub would be the STUB's box: the checks measure the model's own allocation).
+const AMB_LAKE = [-800, 800, 200];
+function ambWorld(o) {
+  o = o || {};
+  const N = 300, cell = 10, x0 = -1500, z0 = -1500;
+  const cover = new Uint8Array(N * N), canopy = new Uint8Array(N * N), coast = new Uint8Array(N * N), lake = new Uint8Array(N * N);
+  const u8 = sd => Math.max(0, Math.min(255, Math.round(128 + sd / 4)));
+  for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
+    const x = x0 + (i + 0.5) * cell, z = z0 + (j + 0.5) * cell, k = j * N + i;
+    const dl = Math.hypot(x - AMB_LAKE[0], z - AMB_LAKE[1]) - AMB_LAKE[2];
+    let c = 30;
+    if (x > 900) c = 80; else if (dl < 0) c = 80; else if (x < -300 && z < 0) { c = 10; canopy[k] = 18; }
+    else if (x >= 200 && x <= 600 && z >= -1200 && z <= -800) c = 50;
+    cover[k] = c; coast[k] = u8(900 - x); lake[k] = u8(-dl);
+  }
+  const island = { grid: { w: N, h: N, cell, x0, z0 }, cover, canopy, coast, lake };
+  // (integer arithmetic: the callers pass whole metres; Math.hypot is a builtin call that answers a fresh heap number)
+  const inLake = (x, z) => (x - AMB_LAKE[0]) * (x - AMB_LAKE[0]) + (z - AMB_LAKE[1]) * (z - AMB_LAKE[1]) < AMB_LAKE[2] * AMB_LAKE[2];
+  const W = {
+    island,
+    terrainH: (x, z) => (x > 900 ? -5 : inLake(x, z) ? 10 : 20),
+    waterH: (x, z) => (x > 900 ? 0 : inLake(x, z) ? 15 : -1e9),
+    surface: (x, z) => (x > 850 && x <= 900 ? 7 : x < -300 && z < 0 ? 3 : 0),
+    hydro: { distW: (x, z) => { const dl = Math.round(Math.sqrt((x - AMB_LAKE[0]) * (x - AMB_LAKE[0]) + (z - AMB_LAKE[1]) * (z - AMB_LAKE[1]))) - AMB_LAKE[2];
+                                const ds = 900 - x, d = dl < ds ? dl : ds; return d > 0 ? d : 0; } },
+    premises: { rec: { layers: { zones: [{ kind: 'residential', poly: [[200, -1200], [600, -1200], [600, -800], [200, -800]] },
+                                        { kind: 'forest', poly: [[-1500, -1500], [-300, -1500], [-300, 0]] }] } },
+                overlay: { frame: { toWorld: (x, z) => [x, z] } } },
+    aerodromes: [{ x: 300, z: 900, hdg: 0, len: 600, wid: 30, kind: 'strip' }, { x: 1200, z: 0, hdg: 0, len: 1500, wid: 200, kind: 'water' }],
+    settlements: [],
+    climate: { sample: (x, y, z, t, out) => { out[0] = W.windMs; out[1] = 0; out[2] = 0; return out; } },
+    day: { sunEl: 45, storm: null },
+    windMs: o.wind != null ? o.wind : 3,
+  };
+  if (o.sun != null) W.day.sunEl = o.sun;
+  return W;
+}
+const ambModelOf = S => { const c = { module: { exports: {} } }; vm.runInNewContext(S.ambmodel, c, { filename: 'ambience_model.js' }); return c.module.exports; };
+// the model alone at (x, z), h m above the ground / water, for `sec` seconds -> st
+function ambAt(M, W, x, z, h, o) {
+  o = o || {};
+  const AP = loadParams(SRC0.params), P = AP.audioParamsBlock(), st = M.ambienceState();
+  const g = Math.max(W.terrainH(x, z), W.waterH(x, z));
+  P.s[P.I.listenerX] = x; P.s[P.I.listenerY] = o.y != null ? o.y : g + h; P.s[P.I.listenerZ] = z; P.s[P.I.inGarage] = o.garage ? 1 : 0;
+  if (o.rain != null) st.clk[11] = o.rain;
+  for (let i = 0; i < 60 * (o.sec || 1.2); i++) M.ambienceStep(st, P, W, 1 / 60);
+  return st;
+}
+const AMB_GROUND = ['amb.forest.day', 'amb.forest.night', 'amb.meadow', 'amb.shore.surf', 'amb.shore.rocks', 'amb.lake.near', 'amb.lake.lap',
+                    'amb.stream', 'amb.harbour', 'amb.village', 'amb.airfield', 'amb.frogs.night'];
+const AMB_WINDS = ['amb.wind.light', 'amb.wind.clear', 'amb.wind.mountain', 'amb.wind.storm'];
+// the expectations: [place, x, z, h, opts, [[bed, '>=' | '<=', value], ...]] on the TARGETS (st.t) after one round
+const AMB_PLACES = [
+  ['forest interior', -900, -800, 1.7, {}, [['amb.forest.day', '>=', 0.8], ['amb.meadow', '<=', 0.15], ['amb.shore.surf', '<=', 0.01], ['amb.village', '<=', 0.01], ['amb.airfield', '<=', 0.01], ['amb.lake.lap', '<=', 0.01], ['amb.forest.night', '<=', 0.02]]],
+  ['beach', 875, 0, 1.7, {}, [['amb.shore.surf', '>=', 0.6], ['amb.shore.rocks', '<=', 0.05], ['amb.forest.day', '<=', 0.05]]],
+  ['village street', 400, -1000, 1.7, {}, [['amb.village', '>=', 0.9], ['amb.shore.surf', '<=', 0.01], ['amb.forest.day', '<=', 0.05]]],
+  ['lake shore', AMB_LAKE[0] + AMB_LAKE[2] + 5, AMB_LAKE[1], 1.7, {}, [['amb.lake.lap', '>=', 0.8], ['amb.lake.near', '>=', 0.6], ['amb.stream', '<=', 0.01]]],
+  ['60 m from the lake', AMB_LAKE[0] + AMB_LAKE[2] + 60, AMB_LAKE[1], 1.7, {}, [['amb.lake.near', '<=', 0.02], ['amb.lake.lap', '>=', 0.02]]],
+  ['500 m AGL', 0, 500, 500, {}].concat([AMB_GROUND.map(k => [k, '<=', 0.005]).concat([['winds', '>=', 0.3]])]),
+  ['the garage, dry', 0, 500, 1.7, { garage: 1 }, [['amb.hangar', '>=', 0.99], ['amb.rain.roof', '<=', 0.001], ['amb.forest.day', '<=', 0.25], ['amb.meadow', '<=', 0.25], ['amb.shore.surf', '<=', 0.001], ['amb.village', '<=', 0.001], ['amb.airfield', '<=', 0.001]]],
+  ['the garage, raining', 0, 500, 1.7, { garage: 1, rain: 1 }, [['amb.hangar', '>=', 0.99], ['amb.rain.roof', '>=', 0.99]]],
+  ['out of the garage', 0, 500, 1.7, { rain: 1 }, [['amb.hangar', '<=', 0.001], ['amb.rain.roof', '<=', 0.001]]],
+  ['the strip', 300, 900, 1.7, {}, [['amb.airfield', '>=', 0.9]]],
+  ['the water lane (no fence)', 1200, 0, 1.7, {}, [['amb.airfield', '<=', 0.01]]],
+  ['under the sea', 1300, 0, 0, { y: -3 }, [['amb.shore.rocks', '>=', 0.99], ['amb.wind.light', '<=', 0.001], ['amb.lake.lap', '<=', 0.001]]],
+  ['the forest at night', -900, -800, 1.7, { sun: -12 }, [['amb.forest.night', '>=', 0.8], ['amb.forest.day', '<=', 0.02]]],
+  ['the lake shore at night', AMB_LAKE[0] + AMB_LAKE[2] + 5, AMB_LAKE[1], 1.7, { sun: -12 }, [['amb.frogs.night', '>=', 0.5]]],
+  ['the lake shore by day', AMB_LAKE[0] + AMB_LAKE[2] + 5, AMB_LAKE[1], 1.7, {}, [['amb.frogs.night', '<=', 0.02], ['amb.loons', '<=', 0.02]]],
+  ['the lake at dusk', AMB_LAKE[0] + AMB_LAKE[2] + 5, AMB_LAKE[1], 1.7, { sun: -3 }, [['amb.loons', '>=', 0.8]]],
+  ['the meadow, calm', 0, 500, 1.7, { wind: 1 }, [['top wind', '=', 'amb.wind.light']]],
+  ['the meadow, 7 m/s', 0, 500, 1.7, { wind: 7 }, [['top wind', '=', 'amb.wind.clear']]],
+  ['the meadow, 16 m/s', 0, 500, 1.7, { wind: 16 }, [['top wind', '=', 'amb.wind.storm'], ['amb.wind.storm', '>=', 0.8]]],
+  ['the open ground at night', 0, 500, 1.7, { sun: -12, wind: 1 }, [['amb.wind.mountain', '>=', 0.3]]],
+  ['the forest floor, 7 m/s (sheltered)', -900, -800, 1.7, { wind: 7 }, [['top wind', '=', 'amb.wind.light']]],
+];
+function ambPlace(M, W, row) {
+  const [, x, z, h, o] = row;
+  if (o.sun != null) W.day.sunEl = o.sun; else W.day.sunEl = 45;
+  W.windMs = o.wind != null ? o.wind : 3;
+  return ambAt(M, W, x, z, h, o);
+}
+function ambExpect(M, st, exp, label) {
+  const F = [], T = k => st.t[M.BEDS.findIndex(b => b[0] === k)];
+  for (const [k, op, v] of exp) {
+    if (k === 'winds') { const s = AMB_WINDS.reduce((a, w) => a + T(w), 0); if (!(s >= v)) F.push(label + ': the winds sum ' + s.toFixed(3) + ' (want >= ' + v + ')'); continue; }
+    if (k === 'top wind') { const top = AMB_WINDS.slice().sort((a, b) => T(b) - T(a))[0]; if (top !== v) F.push(label + ': the loudest wind is ' + top + ' (want ' + v + ')'); continue; }
+    const t = T(k);
+    if (!(op === '>=' ? t >= v : t <= v)) F.push(label + ': ' + k + ' ' + t.toFixed(3) + ' (want ' + op + ' ' + v + ')');
+  }
+  return F;
+}
+function checkAmbPlaces(S) {
+  const M = ambModelOf(S), W = ambWorld();
+  let F = [];
+  for (const row of AMB_PLACES) F = F.concat(ambExpect(M, ambPlace(M, W, row), row[5], row[0]));
+  return F;
+}
+// THE REAL ISLAND: Jolene composed (media/world/jolene + the premises fixture), the evidence's canned places
+let JOLENE = null;
+function checkAmbJolene(S) {
+  if (!JOLENE) JOLENE = require(path.join(ROOT, 'tools', 'audio', 'ambience_render.js')).loadJolene();
+  const AR = require(path.join(ROOT, 'tools', 'audio', 'ambience_render.js'));
+  AR.setClock(JOLENE, 16);
+  const M = ambModelOf(S), P = AR.PLACES;
+  const want = {
+    'forest interior': [['amb.forest.day', '>=', 0.8], ['amb.shore.surf', '<=', 0.01], ['amb.village', '<=', 0.01]],
+    'beach': [['amb.shore.surf', '>=', 0.5]],
+    'village street': [['amb.village', '>=', 0.9], ['amb.forest.day', '<=', 0.1]],
+    'lake shore': [['amb.lake.lap', '>=', 0.8], ['amb.lake.near', '>=', 0.3]],
+    'stand at Jolene AFB': [['amb.airfield', '>=', 0.9], ['amb.village', '<=', 0.05]],
+    '500 m AGL': AMB_GROUND.map(k => [k, '<=', 0.005]).concat([['winds', '>=', 0.3]]),
+    'garage': [['amb.hangar', '>=', 0.99], ['amb.airfield', '<=', 0.001]],
+  };
+  let F = [];
+  for (const [name, x, z, h, garage] of P) {
+    if (!want[name]) { F.push('no expectation for the evidence\'s place "' + name + '"'); continue; }
+    F = F.concat(ambExpect(M, ambAt(M, JOLENE, x, z, h, { garage }), want[name], 'Jolene ' + name));
+  }
+  return F;
+}
+// THE SMOOTHING: a random walk with teleports - no weight moves more than AM_RATE a second, ever
+function checkAmbSmooth(S) {
+  const F = [], M = ambModelOf(S), W = ambWorld();
+  const AP = loadParams(SRC0.params), P = AP.audioParamsBlock(), st = M.ambienceState();
+  let seed = 7; const rnd = () => ((seed = (seed * 1103515245 + 12345) >>> 0) / 4294967296);
+  let x = 0, z = 0, h = 2, worst = 0, rounds = 0, tLast = 0;
+  const prev = new Float32Array(M.NB);
+  const spots = AMB_PLACES.slice(0, 6);
+  for (let f = 0; f < 60 * 600; f++) {
+    if (f % 1200 === 0) { const s = spots[Math.floor(rnd() * spots.length)]; x = s[1]; z = s[2]; h = s[3]; W.windMs = rnd() * 18; W.day.sunEl = rnd() * 60 - 15; P.s[P.I.inGarage] = rnd() < 0.15 ? 1 : 0; }
+    x += (rnd() - 0.5) * 6; z += (rnd() - 0.5) * 6;
+    P.s[P.I.listenerX] = x; P.s[P.I.listenerZ] = z; P.s[P.I.listenerY] = Math.max(W.terrainH(x, z), W.waterH(x, z)) + h;
+    prev.set(st.w);
+    if (M.ambienceStep(st, P, W, 1 / 60)) {
+      const t = f / 60, dtR = t - tLast; tLast = t; rounds++;
+      if (rounds > 1) for (let b = 0; b < M.NB; b++) { const r = Math.abs(st.w[b] - prev[b]) / dtR; if (r > worst) worst = r; }
+    } else for (let b = 0; b < M.NB; b++) if (st.w[b] !== prev[b]) { F.push('a weight moved between rounds'); return F; }
+  }
+  if (!(worst <= M.AM_RATE + 1e-4)) F.push('a weight moved ' + worst.toFixed(3) + ' a second (the cap ' + M.AM_RATE + ')');
+  if (!(worst > 0.5 * M.AM_RATE)) F.push('the walk never moved a weight near its cap (' + worst.toFixed(3) + '): the check proves nothing');
+  if (rounds < 600 * 1.5 || rounds > 600 * 2.2) F.push(rounds + ' rounds in 600 s (want ~2 a second: the world is read every ~0.5 s, not every frame)');
+  // a teleport from the forest to the beach: the surf fades in over seconds, the forest out
+  W.windMs = 3; W.day.sunEl = 45; P.s[P.I.inGarage] = 0;
+  const st2 = ambAt(M, W, -900, -800, 1.7, { sec: 30 }), b = M.B.shoreSurf, fd = M.B.forestDay;
+  if (!(st2.w[fd] >= 0.8)) F.push('30 s in the forest: forest.day at ' + st2.w[fd].toFixed(2));
+  P.s[P.I.listenerX] = 875; P.s[P.I.listenerZ] = 0; P.s[P.I.listenerY] = 21.7; P.s[P.I.inGarage] = 0; W.windMs = 3; W.day.sunEl = 45;
+  for (let i = 0; i < 60; i++) M.ambienceStep(st2, P, W, 1 / 60);
+  if (!(st2.w[b] <= M.AM_RATE * 1.05 + 1e-3 && st2.w[fd] >= 0.45)) F.push('one second after a teleport the surf is at ' + st2.w[b].toFixed(2) + ', the forest at ' + st2.w[fd].toFixed(2) + ' (a jump)');
+  for (let i = 0; i < 60 * 15; i++) M.ambienceStep(st2, P, W, 1 / 60);
+  if (!(st2.w[b] >= 0.55 && st2.w[fd] <= 0.05)) F.push('15 s after the teleport the surf is at ' + st2.w[b].toFixed(2) + ', the forest at ' + st2.w[fd].toFixed(2));
+  return F;
+}
+// THE HEIGHT: the ground's beds fade with AGL and are gone at 150 m; the winds stay
+function checkAmbAgl(S) {
+  const F = [], M = ambModelOf(S), W = ambWorld();
+  // the forest's edge by the lake: forest, meadow, lake, frogs all in play
+  const x = -700, z = -40, hs = [2, 40, 80, 120, 150, 300];
+  W.day.sunEl = 2;
+  const sum = hs.map(h => { const st = ambAt(M, W, x, z, h); return [AMB_GROUND.reduce((a, k) => a + st.t[M.BEDS.findIndex(b => b[0] === k)], 0), AMB_WINDS.reduce((a, k) => a + st.t[M.BEDS.findIndex(b => b[0] === k)], 0)]; });
+  W.day.sunEl = 45;
+  if (!(sum[0][0] > 0.8)) F.push('the ground beds at 2 m sum ' + sum[0][0].toFixed(2) + ' (nothing to fade)');
+  for (let i = 1; i < hs.length; i++) if (!(sum[i][0] <= sum[i - 1][0] + 1e-6)) F.push('the ground beds louder at ' + hs[i] + ' m (' + sum[i][0].toFixed(3) + ') than at ' + hs[i - 1] + ' m');
+  if (!(sum[2][0] < 0.85 * sum[0][0])) F.push('at 80 m the ground beds still sum ' + sum[2][0].toFixed(2) + ' of ' + sum[0][0].toFixed(2));
+  if (!(sum[4][0] <= 0.005 && sum[5][0] <= 0.005)) F.push('the ground beds at 150 / 300 m: ' + sum[4][0].toFixed(3) + ' / ' + sum[5][0].toFixed(3) + ' (want silent)');
+  if (!(sum[5][1] >= 0.3)) F.push('the winds at 300 m sum ' + sum[5][1].toFixed(2) + ' (they do not fade)');
+  return F;
+}
+// THE LEVELS: every amb.* file of the catalogue is a bed, with the catalogue's own LUFS; the loons sit low
+function checkAmbLufs(S) {
+  const F = [], M = ambModelOf(S);
+  const cat = JSON.parse(fs.readFileSync(path.join(ROOT, 'src/viewer/audio/sfx_catalogue.json'), 'utf8')).filter(e => /^amb\./.test(e.key));
+  const keys = new Set(M.BEDS.map(b => b[0]));
+  for (const e of cat) {
+    const b = M.BEDS.find(r => r[0] === e.key);
+    if (!b) { F.push('the catalogue ships ' + e.key + ' and no bed plays it'); continue; }
+    if (Math.abs(b[2] - e.lufs) > 0.05) F.push(e.key + ': the bed trims by ' + b[2] + ' LUFS, the catalogue says ' + e.lufs);
+    keys.delete(e.key);
+  }
+  for (const k of keys) F.push('the bed ' + k + ' has no file in the catalogue (ask the coordinator)');
+  const st = M.ambienceState();
+  M.BEDS.forEach((b, i) => { const want = Math.pow(10, (b[1] + (M.AM_LUFS - b[2])) / 20); if (Math.abs(st.lv[i] - want) > 1e-9) F.push(b[0] + ': level ' + st.lv[i] + ' (want ' + want + ')'); });
+  const lo = st.lv[M.B.loons];
+  if (!(lo <= Math.pow(10, -15 / 20))) F.push('the loons at ' + (20 * Math.log10(lo)).toFixed(1) + ' dB (the user: "really background", want <= -15 dB)');
+  return F;
+}
+// the page, the real audio.js, the ambience scripts after it, a context that decodes and plays; opts: tier, search, fetch
+function ambPage(S, o) {
+  o = o || {};
+  const R = { fetch: 0, decode: 0, sources: [], biquads: [] };
+  const cat = JSON.parse(fs.readFileSync(path.join(ROOT, 'src/viewer/audio/sfx_catalogue.json'), 'utf8'));
+  const media = {}; for (const e of cat) (media[e.key] = media[e.key] || []).push(e.file);
+  const PCM = new Float32Array(48000 * 32); for (let i = 0; i < PCM.length; i++) PCM[i] = Math.sin(i * 0.05) * 0.3 + 0.01;
+  const mkBuf = (n, sr, d) => { const a = d || new Float32Array(n); return { length: n, numberOfChannels: 1, sampleRate: sr, duration: n / sr, getChannelData: () => a }; };
+  const pg = makePage(S, Object.assign({ quiet: true, search: o.search || '',
+    before: w => { w.FLYDIY_AUDIO_MEDIA = media; w.FLYDIY_ASSET_BASE = ''; w.ASSET_FETCH = u => { R.fetch++; return Promise.resolve(new Uint8Array(64)); };
+                   w.GFX = { get: () => ({ preset: o.tier || 'gamer' }) }; },
+    after: [[S.samples, 'samples.js'], [S.ambmodel, 'ambience_model.js'], [S.amb, 'ambience.js']],
+    ctx: (proto, C) => {
+      // (params that keep no automation list: makePage's own record every event - an allocation that is the stub's)
+      const prm = v => ({ value: v, setTargetAtTime(x) { this.value = x; C.sched++; }, setValueAtTime(x) { this.value = x; },
+                          cancelScheduledValues() {}, linearRampToValueAtTime(x) { this.value = x; C.sched++; } });
+      proto.createGain = function () { C.nodes++; return { gain: prm(1), connect(n) { this.to = n; }, disconnect() {} }; };
+      proto.createBiquadFilter = function () { C.nodes++; const b = { type: '', frequency: prm(20000), Q: prm(1), connect(n) { this.to = n; }, disconnect() {} }; R.biquads.push(b); return b; };
+      proto.createBuffer = (ch, n, sr) => mkBuf(n, sr);
+      proto.createBufferSource = function () { C.nodes++; const s = { buffer: null, loop: false, playbackRate: prm(1), connect(n) { this.to = n; }, disconnect() {}, start() { this.on = 1; }, stop() { this.on = 0; } }; R.sources.push(s); return s; };
+      proto.decodeAudioData = function (ab, ok) { R.decode++; const b = mkBuf(PCM.length, 48000, PCM); if (ok) ok(b); return Promise.resolve(b); };
+    } }, o.page || {}));
+  if (!(o.page && o.page.noGesture)) pg.gesture('pointerdown');
+  const fb = FLOWN[5];
+  pg.sim = stubSim(fb, { mains: [true, true], tw: false, water: false }); pg.def = fb.def;
+  pg.camera = { position: { x: 0, y: 22, z: 500 } }; pg.cam = { mode: 'chase' };
+  pg.R = R;
+  pg.world = ambWorld();
+  pg.go = () => pg.A.update(pg.sim, pg.camera, 1 / 60, pg.def, pg.cam, !!pg.garage, pg.world);
+  pg.settle = async n => { for (let i = 0; i < n; i++) { pg.go(); if (i % 4 === 0) await null; } for (let i = 0; i < 8; i++) await null; };
+  pg.at = (x, z, h) => { const W = pg.world; pg.camera.position.x = x; pg.camera.position.z = z; pg.camera.position.y = Math.max(W.terrainH(x, z), W.waterH(x, z)) + h; };
+  return pg;
+}
+// NOTHING BEFORE THE GESTURE: frames before it fetch and decode nothing; ?audio=0 has no ambience at all
+async function checkAmbGesture(S) {
+  const F = [];
+  const pg = ambPage(S);
+  if (!pg.win.AMBIENCE) return ['the ambience source did not register (window.AMBIENCE absent)'];
+  if (pg.R.fetch || pg.R.decode) F.push('the gesture fetched ' + pg.R.fetch + ' / decoded ' + pg.R.decode + ' before any frame');
+  pg.at(-900, -800, 1.7);
+  await pg.settle(240);
+  if (pg.R.fetch === 0) F.push('nothing fetched in 4 s in the forest after the gesture');
+  const pre = makePage(S, { quiet: true, before: w => { w.ASSET_FETCH = () => { F.push('a fetch before the gesture'); return Promise.resolve(new Uint8Array(1)); }; w.FLYDIY_AUDIO_MEDIA = { 'amb.forest.day': ['f.mp3'] }; },
+                            after: [[S.samples, 'samples.js'], [S.ambmodel, 'ambience_model.js'], [S.amb, 'ambience.js']] });
+  const b = FLOWN[5], sim = stubSim(b, { mains: [true, true], tw: false, water: false }), W = ambWorld(), cam = { position: { x: -900, y: 21.7, z: -800 } };
+  for (let i = 0; i < 600; i++) pre.A.update(sim, cam, 1 / 60, b.def, { mode: 'chase' }, false, W);
+  for (let i = 0; i < 8; i++) await null;
+  if (pre.C.ctx !== 0) F.push('a context before the gesture (' + pre.C.ctx + ')');
+  const off = makePage(S, { quiet: true, search: '?audio=0', after: [[S.samples, 'samples.js'], [S.ambmodel, 'ambience_model.js'], [S.amb, 'ambience.js']] });
+  if (off.win.AMBIENCE) F.push('?audio=0 built the ambience');
+  return F;
+}
+// THE BUDGET: a 3-minute random walk with teleports, gamer and potato: decoded bytes under the tier's budget and at most N
+// beds decoded at once, every frame; beds are loaded AND released; the potato's loops are at half rate
+async function checkAmbBudget(S, report) {
+  const F = [];
+  for (const [tier, budget, N, sr] of [['gamer', 24 * 1048576, 6, 48000], ['potato', 8 * 1048576, 3, 24000]]) {
+    const pg = ambPage(S, { tier });
+    const SM = pg.win.AUDIO_SAMPLES, AMB = pg.win.AMBIENCE, M = pg.win.AMBIENCE_MODEL;
+    let seed = 3; const rnd = () => ((seed = (seed * 1103515245 + 12345) >>> 0) / 4294967296);
+    let maxB = 0, maxN = 0, drops = 0, lastB = 0, x = 0, z = 0, h = 2;
+    const spots = AMB_PLACES.slice(0, 5).concat([AMB_PLACES[9]]);
+    for (let f = 0; f < 60 * 180; f++) {
+      if (f % 900 === 0) { const s = spots[Math.floor(rnd() * spots.length)]; x = s[1]; z = s[2]; h = s[3]; pg.world.day.sunEl = rnd() < 0.3 ? -12 : 40; pg.world.windMs = rnd() * 16; pg.garage = rnd() < 0.1; }
+      x += (rnd() - 0.5) * 4; z += (rnd() - 0.5) * 4;
+      pg.at(x, z, h); pg.go();
+      if (f % 3 === 0) await null;
+      const by = SM.classBytes('amb');
+      let n = 0; for (let b = 0; b < M.NB; b++) { const r = AMB.resident(b); if (r === 1 || r === 2 || r === 4) n++; }
+      if (by > maxB) maxB = by; if (n > maxN) maxN = n; if (by < lastB) drops++; lastB = by;
+      if (by > budget) { F.push(tier + ': ' + (by / 1048576).toFixed(1) + ' MB decoded (the budget ' + budget / 1048576 + ')'); break; }
+      if (n > N) { F.push(tier + ': ' + n + ' beds decoded at once (N ' + N + ')'); break; }
+    }
+    const loops = pg.R.sources.filter(s => s.buffer && s.loop);
+    if (loops.length < 6) F.push(tier + ': only ' + loops.length + ' loops played over the walk');
+    if (drops < 3) F.push(tier + ': the decoded bytes went down ' + drops + ' times (nothing released)');
+    if (loops.some(s => s.buffer.sampleRate !== sr)) F.push(tier + ': a loop at ' + loops.find(s => s.buffer.sampleRate !== sr).buffer.sampleRate + ' Hz (want ' + sr + ')');
+    if (maxN < N) F.push(tier + ': the walk never filled the ' + N + ' slots (' + maxN + '): the cap is untested');
+    // then 20 s on the lake shore at night (its beds in), and 40 s at 500 m in a light air: nothing new is wanted there
+    // (the light wind is in already), so only the release frees the ground's silent beds - past RELEASE_S they must go
+    pg.garage = false; pg.world.windMs = 2; pg.world.day.sunEl = -12;
+    for (let f = 0; f < 60 * 20; f++) { pg.at(AMB_LAKE[0] + AMB_LAKE[2] + 5, AMB_LAKE[1], 1.7); pg.go(); if (f % 3 === 0) await null; }
+    for (let f = 0; f < 60 * 40; f++) { pg.at(0, 500, 500); pg.go(); if (f % 3 === 0) await null; }
+    let left = 0; for (let b = 0; b < M.NB; b++) { const r = AMB.resident(b); if ((r === 1 || r === 2 || r === 4) && !/^amb\.wind\./.test(M.BEDS[b][0])) left++; }
+    if (left) F.push(tier + ': 40 s at 500 m and ' + left + ' ground beds are still decoded (' + (SM.classBytes('amb') / 1048576).toFixed(1) + ' MB)');
+    if (report) report.push('the ambience on ' + tier + ': peak ' + (maxB / 1048576).toFixed(1) + ' / ' + budget / 1048576 + ' MB decoded, ' + maxN + ' / ' + N + ' beds at once, ' + pg.R.fetch + ' fetches, ' + loops.length + ' loops, ' + drops + ' releases over 3 min');
+  }
+  return F;
+}
+// ALLOCATION AND SCHEDULING: AUDIO.update with the ambience over 10 000 frames of a walk (warmed over every place) -
+// no heap growth, no GC; a listener standing still schedules nothing once its weights have settled
+async function checkAmbAlloc(S, report) {
+  const F = [];
+  let tick = 0;
+  const pg = ambPage(S, { page: { clock: () => ++tick } });
+  const W = pg.world;
+  // a slow loop through the forest, the lake, the meadow, the village, the beach and back: every probe branch
+  const route = [[-900, -800], [-600, 600], [0, 500], [400, -1000], [880, 0], [300, 900], [-900, -800]];
+  const pos = new Float64Array(2);
+  const where = f => { const L = route.length - 1, u = (f % 20000) / 20000 * L, k = Math.floor(u), a = u - k; pos[0] = route[k][0] + (route[k + 1][0] - route[k][0]) * a; pos[1] = route[k][1] + (route[k + 1][1] - route[k][1]) * a; };
+  const cp = pg.camera.position;
+  const step = f => { where(f); cp.x = pos[0]; cp.z = pos[1]; cp.y = 30; pg.go(); };
+  for (let f = 0; f < 80000; f++) { step(f); if (f % 8 === 0) await null; }
+  // then a walk to and fro across the forest's edge (its beds resident after 30 s there: no load starts in the window -
+  // a load is an event, its promise allocates, and the window measures the frame)
+  const edge = f => { const u = (f % 1200) / 1200, a = u < 0.5 ? 2 * u : 2 - 2 * u; cp.x = -700; cp.z = -260 + 420 * a; cp.y = 30; pg.go(); };
+  for (let f = 0; f < 60 * 30; f++) { edge(f); if (f % 8 === 0) await null; }
+  // UP TO THREE WINDOWS, the best counts: a window in which V8 meets a branch for the first time deoptimises and reads
+  // the interpreter's boxes until it re-optimises (measured: one such deopt ~ 80 000 frames in); an allocation of the
+  // code's own reads in every window
+  const ld0 = pg.R.fetch, sch0 = pg.C.sched;
+  // the allowance: 48 B a gain scheduled - its two doubles, boxed by a call TurboFan does not inline (the stub's JS param
+  // here, the AudioParam's native method in the page); the frame's own code allocates nothing
+  let dB = 1e9, gcs = 1e9, schW = 0, allow = 0;
+  for (let w = 0; w < 3 && (gcs > 0 || dB > allow); w++) {
+    global.gc(); global.gc(); await new Promise(r => setTimeout(r, 5));   // (the forced collections are reported late: before the observer)
+    let g = 0; const obs = new PerformanceObserver(l => { g += l.getEntries().length; }); obs.observe({ entryTypes: ['gc'] });
+    const s0 = pg.C.sched, h0 = process.memoryUsage().heapUsed;
+    for (let f = 0; f < 10000; f++) edge(f);
+    const d = process.memoryUsage().heapUsed - h0, sc = pg.C.sched - s0;
+    await new Promise(r => setTimeout(r, 5)); obs.disconnect();
+    if (w === 0 || g < gcs || (g === gcs && d - 48 * sc < dB - 48 * schW)) { gcs = g; dB = d; schW = sc; allow = 8192 + 48 * sc; }
+  }
+  if (gcs > 0 || dB > allow) F.push('AUDIO.update with the ambience allocates: ' + dB + ' B, ' + gcs + ' GC over 10 000 moving frames (allowed ' + Math.round(allow) + ' B: 48 B for each of ' + schW + ' gains scheduled)');
+  if (pg.R.fetch !== ld0) F.push('the window started ' + (pg.R.fetch - ld0) + ' loads (it measures frames, not loads)');
+  if (!(schW > 20)) F.push('the moving window scheduled only ' + schW + ' gains (the walk proves nothing)');
+  // standing still: settle 40 s, then 3000 frames schedule nothing
+  for (let f = 0; f < 60 * 40; f++) { pg.go(); if (f % 8 === 0) await null; }
+  const s0 = pg.C.sched;
+  for (let f = 0; f < 3000; f++) pg.go();
+  const sch = pg.C.sched - s0;
+  if (sch !== 0) F.push('a listener standing still scheduled ' + sch + ' AudioParam changes over 3000 frames (want 0)');
+  if (report) report.push('the ambience in AUDIO.update: ' + (dB / 10000).toFixed(2) + ' B a moving frame (~' + Math.round(schW) + ' gains scheduled in the window), ' + gcs + ' GC; ' + sch + ' params scheduled standing still');
+  return F;
+}
+// THE MUFFLE: outside / closed cockpit / open cockpit / SND-SPACE's insulation / the garage's door / under water
+async function checkAmbMuffle(S) {
+  const F = [];
+  const pg = ambPage(S);
+  await pg.settle(60);
+  const lp = pg.R.biquads[0];
+  if (!lp || !lp.to || !lp.to.gain) return ['the ambience made no lowpass -> duck chain'];
+  const duck = lp.to.gain;
+  const db = v => 20 * Math.log10(v);
+  const expect = (label, k, hz) => { if (Math.abs(db(duck.value) - k) > 0.05 || Math.abs(lp.frequency.value - hz) > 1) F.push(label + ': ' + db(duck.value).toFixed(1) + ' dB, ' + lp.frequency.value + ' Hz (want ' + k + ' dB, ' + hz + ' Hz)'); };
+  pg.at(0, 500, 2); await pg.settle(10); expect('outside', 0, 20000);
+  pg.A.params.s[pg.A.params.I.open] = 0;   // (the page's def is the twin 582: an open cockpit by its build)
+  pg.cam.mode = 'cockpit'; await pg.settle(10); expect('a closed cockpit', -12, 900);
+  pg.A.params.s[pg.A.params.I.open] = 1; await pg.settle(10); expect('an open cockpit', -2, 9000);
+  pg.A.params.s[pg.A.params.I.open] = 0;
+  pg.A.emit('cabin', { outDb: -20, outLpHz: 600 }); await pg.settle(10); expect('SND-SPACE\'s insulation', -20, 600);
+  pg.A.emit('cabin', null); await pg.settle(10); expect('the insulation handed back', -12, 900);
+  pg.cam.mode = 'chase'; pg.garage = true; await pg.settle(10); expect('the garage', -6, 2500);
+  pg.garage = false; pg.camera.position.x = 1300; pg.camera.position.z = 0; pg.camera.position.y = -3; await pg.settle(40); expect('under water', -3, 350);
+  return F;
+}
+// THE LOADER's class: its own budget, its loop shape (maxS, decim), release, a refusal that can be retried
+function checkAmbSamples(S) {
+  const F = [];
+  const c = { module: { exports: {} }, console: { info() {}, warn() {}, log() {} } };
+  vm.runInNewContext(S.samples, c, { filename: 'samples.js' });
+  const SM = c.module.exports;
+  const mkBuf = (n, sr, f) => { const d = new Float32Array(n); for (let i = 0; i < n; i++) d[i] = f ? f(i) : 0; return { length: n, numberOfChannels: 1, sampleRate: sr, duration: n / sr, getChannelData: () => d }; };
+  const ctx = { currentTime: 0, decodeAudioData: (ab, ok) => { const b = mkBuf(48000 * 32, 48000, i => Math.sin(i * 0.01) * 0.5); ok(b); return Promise.resolve(b); },
+    createBuffer: (ch, n, sr) => mkBuf(n, sr), createBufferSource: () => ({ playbackRate: {}, connect() {}, start() {}, stop() {}, disconnect() {} }),
+    createGain: () => ({ gain: { value: 1 }, connect() {}, disconnect() {} }) };
+  const man = { 'amb.forest.day': ['a'], 'amb.meadow': ['b'], 'amb.stream': ['c'], 'gnd.grass': ['g'] };
+  const I = SM.create({ manifest: man, base: '', fetch: () => Promise.resolve(new Uint8Array(8)), budget: 64 * 1048576 });
+  I.attach(ctx);
+  I.setClass('amb', { budget: 6 * 1048576, maxS: 20, decim: 1 });
+  return Promise.all([I.load('amb.forest.day'), I.load('gnd.grass')]).then(([a, g]) => {
+    const want = 20 * 48000;
+    if (!a || a.length !== want || a.sampleRate !== 48000) F.push('the class loop is ' + (a && a.length) + ' samples at ' + (a && a.sampleRate) + ' Hz (want ' + want + ' at 48000: maxS 20 s)');
+    if (I.classBytes('amb') !== want * 4) F.push('the class counts ' + I.classBytes('amb') + ' B (want ' + want * 4 + ': only the baked loop stays)');
+    if (!(I.bytes > 0) || I.bytes === I.classBytes('amb')) F.push('the grains and the class share one counter (' + I.bytes + ' / ' + I.classBytes('amb') + ')');
+    return I.load('amb.meadow').then(m => {
+      if (m !== null || I.state('amb.meadow') !== 'budget') F.push('a second 3.7 MB loop beside the first under a 6 MB class budget read ' + I.state('amb.meadow') + ' (want refused)');
+      return I.load('amb.meadow');
+    }).then(() => {
+      // the forest's 3.7 MB resident of 6 -> the meadow (3.7) refused; the forest released -> it fits
+      I.release('amb.meadow');
+      if (I.state('amb.meadow') !== 'idle') F.push('a refused key released reads ' + I.state('amb.meadow') + ' (want idle)');
+      if (!I.release('amb.forest.day') || I.classBytes('amb') !== 0 || I.state('amb.forest.day') !== 'idle') F.push('release left ' + I.classBytes('amb') + ' B, state ' + I.state('amb.forest.day'));
+      return I.load('amb.meadow');
+    }).then(m => {
+      if (!m) F.push('after a release the meadow still did not fit (' + I.state('amb.meadow') + ')');
+      // the potato's shape: half rate
+      I.setClass('amb', { budget: 6 * 1048576, maxS: 20, decim: 2 });
+      I.release('amb.meadow');
+      const p = I.load('amb.stream');
+      I.release('amb.stream');   // released while it loads: the result is dropped
+      return p.then(r => { if (r !== null || I.classBytes('amb') !== 0) F.push('a release during the load kept ' + I.classBytes('amb') + ' B'); return I.load('amb.stream'); });
+    }).then(s => {
+      if (!s || s.sampleRate !== 24000 || s.length !== 20 * 24000) F.push('the half-rate loop is ' + (s && s.length) + ' at ' + (s && s.sampleRate) + ' Hz (want 480000 at 24000)');
+      // the decimation keeps a low tone and kills a tone above the new Nyquist
+      const lo = I.bakeLoop(mkBuf(48000 * 4, 48000, i => Math.sin(2 * Math.PI * 1000 * i / 48000)), { decim: 2 });
+      const hi = I.bakeLoop(mkBuf(48000 * 4, 48000, i => Math.sin(2 * Math.PI * 18000 * i / 48000)), { decim: 2 });
+      const rms = b => { const d = b.getChannelData(0); let s2 = 0; for (let i = 2000; i < d.length - 2000; i++) s2 += d[i] * d[i]; return Math.sqrt(s2 / (d.length - 4000)); };
+      if (!(rms(lo) > 0.6 && rms(hi) < 0.08)) F.push('the half-band decimation: a 1 kHz tone at ' + rms(lo).toFixed(3) + ' rms, 18 kHz at ' + rms(hi).toFixed(3) + ' (want ~0.707 and ~0)');
+      const cat = JSON.parse(fs.readFileSync(path.join(ROOT, 'src/viewer/audio/sfx_catalogue.json'), 'utf8')).filter(e => /^amb\./.test(e.key));
+      for (const e of cat) if (!SM.KEYS[e.key] || SM.KEYS[e.key].kind !== 'loop') F.push('the bed ' + e.key + ' is not a declared loop');
+      return F;
+    });
+  });
+}
+// THE WIRING: the build lists the two files after samples.js; AUDIO publishes the world; the ambience is on its bus
+function checkAmbWiring(S) {
+  const F = [];
+  const i0 = S.build.indexOf("'audio/samples.js'"), i1 = S.build.indexOf("'audio/ambience_model.js'"), i2 = S.build.indexOf("'audio/ambience.js'"), i3 = S.build.indexOf("'world_boot.js', 'app.js'");
+  if (!(i0 >= 0 && i1 > i0 && i2 > i1 && i3 > i2)) F.push('the build does not list audio/ambience_model.js, audio/ambience.js after samples.js and before app.js');
+  const pg = ambPage(S);
+  pg.go();
+  if (pg.A.world !== pg.world) F.push('AUDIO.update did not publish the world (AUDIO.world)');
+  if (!/addSource\('ambience'/.test(S.amb) || !/bus\('ambience'\)/.test(S.amb)) F.push('the source is not the ambience bus\'s');
+  return F;
+}
+
 const CHECKS = { NUMBERS: checkNumbers, CONTACTS: checkContacts, BUDGET: checkBudget, GESTURE: checkGesture,
                  SILENCE: checkSilence, SETTINGS: checkSettings, SOURCES: checkSources, WIRING: checkWiring,
                  MUSIC_CAT: checkMusicCatalogue, MUSIC_CTX: checkMusicContexts, MUSIC_SHUFFLE: checkMusicShuffle,
@@ -1950,8 +2359,11 @@ const CHECKS = { NUMBERS: checkNumbers, CONTACTS: checkContacts, BUDGET: checkBu
                  AFMODEL: checkAfModel, AFVOICE: checkAfVoice, AFALLOC: checkAfAlloc, AFFLOWN: checkAfFlown, AFSOURCE: checkAfSource,
                  SAMPLES: checkSamples, INERT: checkInert,
                  SP_CABIN: checkSpCabin, SP_DOPPLER: checkSpDoppler, SP_ABSORB: checkSpAbsorb, SP_XFADE: checkSpXfade,
-                 SP_IR: checkSpIr, SP_GRAPH: checkSpGraph, SP_BUDGET: checkSpBudget, SP_CRAFT: checkSpCraft };
-const REPORTS = { BUDGET: 1, AFVOICE: 1, AFALLOC: 1, AFFLOWN: 1, AFSOURCE: 1, SP_BUDGET: 1 };
+                 SP_IR: checkSpIr, SP_GRAPH: checkSpGraph, SP_BUDGET: checkSpBudget, SP_CRAFT: checkSpCraft,
+                 AMBPLACES: checkAmbPlaces, AMBJOLENE: checkAmbJolene, AMBSMOOTH: checkAmbSmooth, AMBAGL: checkAmbAgl, AMBLUFS: checkAmbLufs,
+                 AMBGESTURE: checkAmbGesture, AMBBUDGET: checkAmbBudget, AMBALLOC: checkAmbAlloc, AMBMUFFLE: checkAmbMuffle,
+                 AMBSAMPLES: checkAmbSamples, AMBWIRING: checkAmbWiring };
+const REPORTS = { BUDGET: 1, AFVOICE: 1, AFALLOC: 1, AFFLOWN: 1, AFSOURCE: 1, SP_BUDGET: 1, AMBBUDGET: 1, AMBALLOC: 1 };
 
 // ---- THE MUTATIONS (D): [name, file, find, replace, the check that must go red] ---------------------------------
 const MUT = [
@@ -2104,6 +2516,41 @@ const MUT = [
   ['a seam in the loop', 'spcfg', 'out[j] = y[start + f + j] * go + y[start + i] * gi;', 'out[j] = y[start + f + j];', 'SP_CRAFT'],
   ['the craft deaf to the doppler', 'space', 'const rate = (k === i0 ? BL[3] : BL[4]) * kDop;', 'const rate = (k === i0 ? BL[3] : BL[4]);', 'SP_CRAFT'],
   ['a linear loop blend', 'space', 'const g = k === i0 ? (i1 === i0 ? 1 : Math.cos(Math.PI / 2 * u)) : k === i1 ? Math.sin(Math.PI / 2 * u) : 0;', 'const g = k === i0 ? (i1 === i0 ? 1 : 1 - u) : k === i1 ? u : 0;', 'SP_CRAFT'],
+  // SND-AMB-1 (G1650-G1654)
+  ['the ground beds never fade with height', 'ambmodel', 'const g = 1 - rv[R.g];', 'const g = 1;', 'AMBAGL'],
+  ['a weight jumps', 'ambmodel', 'if (step > lim) step = lim; else if (step < -lim) step = -lim;', '', 'AMBSMOOTH'],
+  ['the world read every frame', 'ambmodel', 'if (clk[1] < AM_PHASES || clk[0] < AM_ROUND_S) return 0;', 'if (clk[1] < AM_PHASES) return 0;', 'AMBSMOOTH'],
+  ['the garage without its hangar', 'ambmodel', 'T[B.hangar] = 1;', 'T[B.hangar] = 0;', 'AMBPLACES'],
+  ['the door wide open', 'ambmodel', 'T[B.forestDay] = 0.22 * day;', 'T[B.forestDay] = 0.9 * day;', 'AMBPLACES'],
+  ['the forest the same at night', 'ambmodel', 'T[B.forestDay] = g * day * forest * rustle;', 'T[B.forestDay] = g * forest * rustle;', 'AMBPLACES'],
+  ['the lake edge heard far inland', 'ambmodel', '1 - rv[R.nearOut]', '1 - 0.2 * rv[R.nearOut]', 'AMBPLACES'],
+  ['the village zones unread', 'ambmodel', 'if (zk[i] === 1) { if (v > vil) vil = v; }', 'if (zk[i] === 1) { }', 'AMBPLACES'],
+  ['a water lane fenced', 'ambmodel', ".filter(a => a.kind !== 'water')", '.filter(a => true)', 'AMBPLACES'],
+  ['rocks on the sand', 'ambmodel', 'else if (sf === S_SAND) rocky = 0;', 'else if (sf === S_SAND) rocky = 1;', 'AMBPLACES'],
+  ['the forest floor unsheltered', 'ambmodel', '0.65 * (fo > 1 ? 1 : fo)', '0 * (fo > 1 ? 1 : fo)', 'AMBPLACES'],
+  ['frogs by day', 'ambmodel', 'T[B.frogsNight] = g * night * nearStill;', 'T[B.frogsNight] = g * day * nearStill;', 'AMBPLACES'],
+  ['under water hears the wind', 'ambmodel', 'if (f[F.under] > 0) { T[B.shoreRocks] = 1; return T; }', 'if (f[F.under] > 0) { T[B.shoreRocks] = 1; }', 'AMBPLACES'],
+  ['no storm in a gale', 'ambmodel', "['storm', 11, 17, 'windB', 1]", "['storm', 31, 37, 'windB', 1]", 'AMBPLACES'],
+  ['the canopy\'s reclass inverted', 'ambmodel', 'I.canopy[k] < RECLASS ? WC_SHRUB : c', 'I.canopy[k] >= RECLASS ? WC_SHRUB : c', 'AMBJOLENE'],
+  ['the loons up front', 'ambmodel', "['amb.loons', -17, -23, 0]", "['amb.loons', -6, -23, 0]", 'AMBLUFS'],
+  ['the catalogue trim ignored', 'ambmodel', 'lv[b] = Math.pow(10, (BEDS[b][1] + (AM_LUFS - BEDS[b][2])) / 20);', 'lv[b] = Math.pow(10, BEDS[b][1] / 20);', 'AMBLUFS'],
+  ['a stale LUFS', 'ambmodel', "['amb.lake.near', -10, -34.4, 0]", "['amb.lake.near', -10, -23, 0]", 'AMBLUFS'],
+  ['the model allocates a frame', 'ambmodel', '    ambienceTargets(st);\n    if (clk[1] < AM_PHASES', '    ambienceTargets(st); st.last = [clk[0]];\n    if (clk[1] < AM_PHASES', 'AMBALLOC'],
+  ['past the N cap', 'amb', '    if (n >= N) {', '    if (n >= N + 3) {', 'AMBBUDGET'],
+  ['a silent bed never released', 'amb', '        if (tmr[b] >= RELEASE_S) { drop(b); n--; }', '', 'AMBBUDGET'],
+  ['the potato decodes at full rate', 'amb', 'light: { budget: 8 * MB, n: 3, maxS: 20, decim: 2 },', 'light: { budget: 8 * MB, n: 3, maxS: 20, decim: 1 },', 'AMBBUDGET'],
+  ['every bed fetched at the gesture', 'amb', '      applyTier(tierOf());', '      applyTier(tierOf()); for (let b = 0; b < NB; b++) if (has[b]) SM.load(BEDS[b][0]);', 'AMBGESTURE'],
+  ['a gain scheduled every frame', 'amb', '      if (g === lastG[b]) continue;\n', '', 'AMBALLOC'],
+  ['the cabin unmuffled', 'amb', 'else { k = CABIN[0]; lp = CABIN[1]; }', 'else { k = CLEAR[0]; lp = CLEAR[1]; }', 'AMBMUFFLE'],
+  ['SND-SPACE unheard', 'amb', "offCabin = A.onEvent('cabin', onCabin);", 'offCabin = null;', 'AMBMUFFLE'],
+  ['the class budget ignored', 'samples', 'if (C.bytes + size > C.budget) {', 'if (false) {', 'AMBSAMPLES'],
+  ['release keeps the bytes', 'samples', 'if (C) C.bytes = Math.max(0, C.bytes - r.size);', 'if (C) C.bytes = C.bytes;', 'AMBSAMPLES'],
+  ['no decimation', 'samples', 'const src = dec > 1 ? decimate(b.getChannelData(c), dec) : b.getChannelData(c)', 'const src = b.getChannelData(c)', 'AMBSAMPLES'],
+  ['the decimation unfiltered', 'samples', 'acc += HB[i] * x[k];', 'acc += (i === 7 ? 1 : 0) * x[k];', 'AMBSAMPLES'],
+  ['a released load kept', 'samples', '        if (recs[key] !== r || r.gen !== gen) return null;   // released while it loaded\n', '', 'AMBSAMPLES'],
+  ['the decoded source kept', 'samples', 'r.bufs = [lb]; r.loopBuf = lb; r.size = size;', 'r.bufs = bufs; r.loopBuf = lb; r.size = size; C.bytes += sizeOf(bufs[0]);', 'AMBSAMPLES'],
+  ['the build loses the ambience', 'build', "'audio/ambience_model.js', 'audio/ambience.js',", "'audio/ambience_model.js',", 'AMBWIRING'],
+  ['AUDIO keeps the world to itself', 'audio', '    api.world = world || null;\n', '', 'AMBWIRING'],
 ];
 
 // a check returns its failures, or a promise of them (SAMPLES: the loader is promise-based)
