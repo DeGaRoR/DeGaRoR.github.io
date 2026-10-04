@@ -16,10 +16,11 @@
   const runS = new Float64Array(MAX);   // seconds each engine has run (the voice's "cold")
   const last = new Float64Array(MAX * 6).fill(-1);
   let ctx = null, A = null, def = null, ready = false, building = false, cabin = null, outExt = null, outInt = null;
+  const pub = (W.AUDIO.voices = W.AUDIO.voices || {}); pub.engine = [];   // SND-PROP: engine i's node (its output 1 drives the prop)
 
   function teardown() {
     for (const v of voices) { try { v.node.disconnect(); } catch (e) {} }
-    voices.length = 0; last.fill(-1);
+    voices.length = 0; last.fill(-1); pub.engine.length = 0;
   }
   function build(P) {
     teardown();
@@ -39,6 +40,7 @@
       node.connect(cabin, 0);
       const params = ES.ENGINE_SOUND_PARAMS.map(n => node.parameters.get(n));
       voices.push({ node, params, cfg, i });
+      pub.engine[i] = node;
     }
   }
 

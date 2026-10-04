@@ -253,6 +253,7 @@ function pngBytes(w, h, rgb) {
 }
 // a log-frequency spectrogram (20 Hz .. 8 kHz), 80 dB of range, with the
 // expected firing frequency traced in white dots when `firing(t)` is given
+// (and any `traces: [f(t)]`, SND-PROP's BPF beside it)
 function spectrogramPng(y, sr, opts) {
   const o = opts || {};
   const W = o.width || 512, H = o.height || 200, win = 4096, fLo = 20, fHi = 8000;
@@ -283,12 +284,15 @@ function spectrogramPng(y, sr, opts) {
     const c = ramp3(Math.round((cols[x][r] - (top - 80)) / 2) / 40);
     const p = (r * W + x) * 3; rgb[p] = c[0]; rgb[p + 1] = c[1]; rgb[p + 2] = c[2];
   }
-  if (o.firing) for (let x = 0; x < W; x += 3) {
-    const f = o.firing((Math.min(y.length - win, x * hop) + win / 2) / sr);
+  // the expected frequencies, dotted: `firing` in white, then `traces` (SND-PROP: the BPF, the firing) in
+  // white and cyan, offset so two traces on the same number stay readable
+  const tr = (o.firing ? [o.firing] : []).concat(o.traces || []);
+  tr.forEach((fn, j) => { for (let x = j; x < W; x += 3 + j) {
+    const f = fn((Math.min(y.length - win, x * hop) + win / 2) / sr);
     if (!(f > fLo && f < fHi)) continue;
     const r = Math.round((1 - Math.log(f / fLo) / Math.log(fHi / fLo)) * (H - 1));
-    const p = (r * W + x) * 3; rgb[p] = rgb[p + 1] = rgb[p + 2] = 255;
-  }
+    const p = (r * W + x) * 3; rgb[p] = j ? 0 : 255; rgb[p + 1] = rgb[p + 2] = 255;
+  } });
   // octave ticks on the left edge (31.25 Hz .. 8 kHz)
   for (let f = 31.25; f <= fHi; f *= 2) {
     const r = Math.round((1 - Math.log(f / fLo) / Math.log(fHi / fLo)) * (H - 1));
