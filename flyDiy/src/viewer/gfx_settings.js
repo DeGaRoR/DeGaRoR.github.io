@@ -178,7 +178,7 @@
     // ?town=1 in the URL wins over the row)
     { k: 'town', label: 'towns', free: true, reload: true, steps: [
         { v: 'nearby', label: 'field + sites', why: 'the airfield, the village, the mine, the native village and the tramway - Metlakatla off (the default) - RELOADS the page' },
-        { v: 'all', label: 'with Metlakatla', why: 'Metlakatla too: 375 houses 9 km east of the field, built as you come near - the taxi falls to ~15 fps on an RTX 3080 - RELOADS the page' } ] },
+        { v: 'all', label: 'with Metlakatla', why: 'Metlakatla too: 375 houses 9 km east of the field, built as you come near - the taxi falls to ~15 fps on an RTX 3080 - RELOADS the page (never on the laptop and potato presets: their budget builds the field and the sites only)' } ] },
     { k: 'rails', label: 'guardrails', steps: [
         { v: 'on',  label: 'on', why: 'a galvanised W-beam where a road runs along a drop or round a tight bend - one draw call a road' },
         { v: 'off', label: 'off', why: 'no guardrails anywhere' } ] },
@@ -302,6 +302,9 @@
   //   aeroAtlas  the aeroplane's decal atlas in px (aeroskin.js AERO_ATLAS_PX): 2048 = a quarter of 4096's 85 MB
   //   flownBake  false: the flown bake is not made (flown_bake.js step): the live aeroplane flies - its six 2048 atlases and
   //              working targets never held (~230 MB), the roll-out's 'bake' step (27 s on the GTX 660 box) skipped
+  //   town       'nearby': Metlakatla is never built, whatever the 'town' row says (A0, train 32: the row's default becomes 'all';
+  //              potato, laptop and the software rung stay on the field and the sites - world_boot.js TOWN, the loader's
+  //              raster variant in build.js; ?town=1 in the URL still asks for it)
   //   msaa       the scene target's MSAA samples at most (aa_resolve.js setMsaaCap; laptop 0) - absent: the tier's own
   //   shedLamps  false: the shed's lamps cast no shadow (hangar.js lamp: five 1024 spot maps, ~3 600 depth draws a frame -
   //              74 % of the shed's draws); the key light's map stays (the aeroplane's shadow on the floor)
@@ -309,9 +312,9 @@
   // everything at the next load. Without the table (a gate's stub, no window.GFX) every lever reads full.
   const BUDGETS = {
     laptop:  { heapMB: 600,  mipSkip: 1, townBoot: 800,  townReach: 1200, parked: false, forestK: 0.5,  islandColour: false, islandHalf: true, shedGlass: false,
-               impTile: 64, aeroAtlas: 2048, flownBake: false, shedLamps: false, msaa: 0 },
+               impTile: 64, aeroAtlas: 2048, flownBake: false, shedLamps: false, msaa: 0, town: 'nearby' },
     potato:  { heapMB: 700,  mipSkip: 1, townBoot: 1200, townReach: 2000, parked: false, forestK: 0.65, islandColour: false, islandHalf: true, shedGlass: false,
-               impTile: 64, aeroAtlas: 2048, flownBake: false, shedLamps: false },
+               impTile: 64, aeroAtlas: 2048, flownBake: false, shedLamps: false, town: 'nearby' },
     retro:   { heapMB: 1500, mipSkip: 0, townBoot: 4000, townReach: 6000, parked: true, forestK: 1 },
     current: { heapMB: 1500, mipSkip: 0, townBoot: 4000, townReach: 6000, parked: true, forestK: 1 },
     gamer:   { heapMB: 2000, mipSkip: 0, townBoot: 4000, townReach: 6000, parked: true, forestK: 1 },
@@ -384,6 +387,8 @@
     try { const wp = W.WELCOME && W.WELCOME.pick;
           if (wp && PRESETS[wp] && !/[?&]gfx=/.test((W.location && W.location.search) || '')) { if (S.preset !== wp) Object.assign(S, PRESETS[wp]); S.preset = wp; S.build = wp; if (!S.fpsOwn) S.fps = FPS_OF(wp); save(); } } catch (e) {}
   };
+  // G1526: the town this page builds - the row, under the budget's cap (potato / laptop) and the software rung (always 'nearby')
+  const townAll = () => S.town === 'all' && budget().town !== 'nearby' && !SOFT;
   const budget = () => Object.assign({ preset: BUDGETS[S.build] ? S.build : DEFAULT, terrain: S.terrain }, BUDGETS[S.build] || BUDGETS[DEFAULT]);
   const save = () => { try { W.localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} };
   // which preset the current options ARE, or 'custom'
@@ -522,7 +527,7 @@
       if (want !== is) { try { W.localStorage.setItem('flydiy.cm', want ? '1' : '0'); } catch (e) {} W.location.reload(); }
     }
     // the town switch (G590) is decided when the world is composed (app.js TOWN): reload when the row and the world differ
-    if (k === 'town' && W.FLYDIY_TOWN && (S.town === 'all') !== !!W.FLYDIY_TOWN.all && W.location && !/[?&]town=/.test(W.location.search || '')) W.location.reload();
+    if (k === 'town' && W.FLYDIY_TOWN && townAll() !== !!W.FLYDIY_TOWN.all && W.location && !/[?&]town=/.test(W.location.search || '')) W.location.reload();   // G1526: the budget's cap counted (potato never reloads into Metlakatla)
     return Object.assign({}, S);
   };
 
@@ -662,7 +667,7 @@
   W.GFX = {
     OPTIONS, PRESETS, PRESET_LABEL, DEFAULT, BANDS, SHADOWS, GROUPS,
     get: () => Object.assign({}, S),
-    BUDGETS, budget,   // G1230: the build budget the world builds to (GFX.budget().mipSkip, .townBoot, ...)
+    BUDGETS, budget, townAll,   // G1230; G1526 townAll: Metlakatla built (the row under the budget's cap and the software rung): the build budget the world builds to (GFX.budget().mipSkip, .townBoot, ...)
     set, apply, mount, mountWorld, presetOf, frameText,
     setExposure, setEye, eye: () => eyeK, exposureBase: () => expBase,
     // G1460: the software rung - null on a graphics card; else what the rung is and why

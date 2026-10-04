@@ -72284,6 +72284,14 @@ garage compile 14 443 -> 6 420 draws, the first frame 6 984 -> 2 390 (the lamp m
 uniform bytes 107 -> 231 k a frame (the live Cub's 74 materials instead of the bake's 7 draws). Kept: the GTX 660 box spent 27 s
 on the bake and the card's memory was the frame; the CPU side on an i7-8700 is ~2-3 ms.
 
+**G1526 - METLAKATLA NEVER ON POTATO / LAPTOP / SOFTWARE** (A0, train 32: G1408 makes the 'town' row's default 'all'):
+BUDGETS.potato / .laptop `town: 'nearby'` caps the row; `GFX.townAll()` = the row 'all' AND no cap AND not the software rung -
+read by world_boot.js TOWN and by the set()'s reload rule (potato never reloads into Metlakatla); the loader's raster variant
+(build.js) composes 'default' for ?gfx=potato|laptop or a saved potato / laptop build. ?town=1 in the URL still asks for it.
+FOUND FOR G1408 (train 31 as is): a saved 'town' row never reloads into the menu - S has no 'town' key when load() reads the
+pref (`if (k in S)`), so 'all' saved reads back 'nearby' (the steps check gives a free row its first step). The branch ends on
+pref version pv 8.
+
 GATES (node): GFX (new §10: retro / current / gamer / ultra rows AND budgets frozen to train 31's, potato / laptop rows and
 levers, the pv 8 migration - a potato saved at pv 7 reads potato, not custom; gamer / custom untouched - the live plain /
 glass / MSAA hooks, laptop -> gamer lifts the cap), SPLAT (the plain splices), POSTFX (six tiers). tools/perf/train_gate.js

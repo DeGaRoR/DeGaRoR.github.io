@@ -388,6 +388,26 @@ console.log('GATE GFX');
   ok(hl.calls.msaa[0] === 0 && hg.calls.msaa.length === 0 && hp.calls.msaa.length === 0, 'the MSAA cap: laptop 0; potato and gamer never set one');
   hl.w.GFX.set('preset', 'gamer');
   ok(hl.calls.msaa[hl.calls.msaa.length - 1] === null, '...laptop -> gamer lifts it');
+  // G1526 (A0, train 32: the 'town' row's default becomes 'all'): potato, laptop and the software rung never build Metlakatla
+  // (the row is set live: a saved 'town' does not reload into the menu on train 31 - S has no 'town' key when the pref is read;
+  // reported to A0 for G1408)
+  const town = (pref, q) => { const w = makeWindow(pref ? { 'flydiy.gfx': JSON.stringify(pref) } : {}); if (q) w.location = { search: q };
+    vm.runInNewContext(fs.readFileSync(path.join(__dirname, '..', 'src', 'viewer', 'gfx_settings.js'), 'utf8'), Object.assign({ window: w, setInterval: () => 0, clearInterval: () => {} }, w));
+    if (pref && pref.town) w.GFX.set('town', pref.town);
+    return w.GFX.townAll(); };
+  ok(G.BUDGETS.potato.town === 'nearby' && G.BUDGETS.laptop.town === 'nearby', "potato's and laptop's budgets cap the town at 'nearby'");
+  ok(town(Object.assign({}, G.PRESETS.potato, { preset: 'potato', pv: 8, town: 'all' })) === false && town(Object.assign({}, G.PRESETS.laptop, { preset: 'laptop', pv: 8, town: 'all' })) === false
+     && town({ town: 'all', pv: 8 }, '?gfx=potato') === false && town({ town: 'all', pv: 8 }, '?gfx=laptop') === false,
+     "...the row at 'all' builds no Metlakatla on potato or laptop (saved or ?gfx=)");
+  ok(town(Object.assign({}, FROZEN.gamer, { preset: 'gamer', pv: 8, town: 'all' })) === true && town(Object.assign({}, FROZEN.gamer, { preset: 'gamer', pv: 8, town: 'nearby' })) === false,
+     "...gamer builds what its row says ('all' on, 'nearby' off)");
+  { const w = makeWindow({ 'flydiy.gfx': JSON.stringify(Object.assign({}, FROZEN.gamer, { preset: 'gamer', pv: 8, town: 'all' })) }); w.WELCOME = { SOFT: true, RIG: false };
+    vm.runInNewContext(fs.readFileSync(path.join(__dirname, '..', 'src', 'viewer', 'gfx_settings.js'), 'utf8'), Object.assign({ window: w, setInterval: () => 0, clearInterval: () => {} }, w));
+    w.GFX.set('town', 'all');
+    ok(w.GFX.townAll() === false, '...the software rung builds none either (a saved gamer + all on SwiftShader)'); }
+  const wb = fs.readFileSync(path.join(__dirname, '..', 'src', 'viewer', 'world_boot.js'), 'utf8'), bj = fs.readFileSync(path.join(__dirname, 'build.js'), 'utf8');
+  ok(/window\.GFX\.townAll \? window\.GFX\.townAll\(\)/.test(wb) && /if \(gb === 'potato' \|\| gb === 'laptop'\) townOn = false;/.test(bj),
+     "the world's TOWN and the loader's raster variant both read the cap (world_boot.js GFX.townAll, build.js potato / laptop -> 'default')");
 }
 
 console.log(fails ? 'GATE GFX: FAIL' : 'GATE GFX: PASS');
