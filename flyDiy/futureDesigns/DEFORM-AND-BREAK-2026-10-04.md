@@ -1065,7 +1065,11 @@ TREE-CRASH reads `DMG_ON = P_.damage !== false && …` (on unless told off). For
   `const DMG_ON = (P_.damage ?? GEN_DAMAGE_DEFAULT) === true && typeof GEN_CRASH !== 'undefined';`
 - the damage gates and the evidence say what they test: `_treecrash_lib.js` sets `damage: true` (and `false` for
   `elastic`), as does any DMG gate;
-- the page: `?damage=1` / `?damage=0` set `params.damage` for a flight, so the user can try it before train 35;
+- the page: `?damage=1` / `?damage=0` set the global `FLYDIY_DAMAGE` (the worker takes it in its `init`), read
+  after a build's own `params.damage` and before the default, so the user can try it before train 35;
+- **off is off in the game too**: TREE-CRASH's 9 g contact verdict fired `crashed` even with the layer off (the
+  physics bits were master's, the ending was not). G1898 gates the verdict on the switch: off = no crash ending, as
+  master;
 - **train 35 (D2b's last commit) flips the one constant**; `params.damage === false` stays master's bits for A/B.
 - With the default off, the gates whose numbers TREE-CRASH moved only through yielding (TREEHIT, OBSTACLE, BIPLANE's
   wire probe) read master's numbers again; LOAD's bag fix (G1472) is independent of the switch.
