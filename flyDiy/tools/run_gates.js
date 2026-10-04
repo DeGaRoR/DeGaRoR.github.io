@@ -323,6 +323,12 @@ const GATES = [
   // the fetch path and the Blob's glue; the transport, the pose age and the dilation printed; G1365: the page's freeze
   // HOLDS the flight (60 s on a fake clock, 1.5 s on the real thread) and it goes on from there; ~60 s
   { id: 'SIMWORKER', file: '_simworker_check.js', tier: 'core', wall: 70 },
+  // G1530 (POSE-BACK; the user at ~2 fps: "as soon as it took off ... it went a little backward over a frame"): the drawn
+  // pose through a take-off at a simulated 2 / 5 / 10 / 30 fps (steady, late, ragged pages, a CPU-starved worker) - the
+  // worker's view against sim_host's own clock on a fake wall clock, and the inline PACE + POSE_LERP lifted from app.js,
+  // both flying the real solver: monotonic along the motion, never a step ahead of the newest state, within a step of
+  // the solver's own CG; the old clock caught going back; even 60 / 30 fps the same bits with and without; ~95 s
+  { id: 'POSEBACK', file: '_poseback_check.js', tier: 'core', wall: 100, weight: 3 },
   // G816 (C1b): the PAGE flown through the worker - dev.html?simw=1 against dev.html in the page-in-node harness (its
   // Worker shim: node worker_threads, the same Blob source and messages), the Cub and the metal Cessna, the roll-out,
   // 40 s of the departure taxi at 2x: every step's p / v / CG / phase and every frame's page reads bit-identical, no
