@@ -71879,7 +71879,9 @@ at five places, each named:
    page: `WORLD.scene.environment = null` (+ the 6 materials holding envMap) and the same frame drew whole
    (`reports/evidence/SOFT-GPU/finding_stand_black_with_probe.jpg` -> `finding_stand_probe_removed_live.jpg`). The
    NaN's source is NOT found (owed if a real card ever shows it: the dome's radiance into a half-float cube, the PMREM
-   blur, or the probe crossfade's blit) - the rung takes no probe.
+   blur, or the probe crossfade's blit) - the rung takes no probe. A LEAD: every boot logs
+   `THREE.DataUtils.toHalfFloat(): Value out of range` (x10+) - a CPU-packed half-float table (a LUT?) carries values
+   past 65504, i.e. +Inf texels; a GPU's filtering may hide what SwiftShader turns into NaN (Inf x 0).
 Also seen, not stopping anything: ~100 `.gz.bin` fetches reported `net::ERR_ABORTED` by Playwright during the boot (the files
 serve 200 and the props land - prefetch cancellations); KHR_parallel_shader_compile absent (three warns once).
 Earlier sessions' "the renderer reported one draw call, two triangles" was renderer.info after the LAST render of the
@@ -71941,6 +71943,40 @@ the frame's draw calls / triangles, the picture's numbers, the page errors):
     (--gfx retro forces a preset over the rung; --keep-hud keeps the HUD; --aero-check adds the craft-hidden diff;
      --json <file> the record; --secs the budget, default 3600)
 
-Wall clock on this container (4 cores): the garage ~15 min, the roll-out ~1 min, a frame at the stand seconds - plan a
-still as a ~20 min background job (run_in_background), one at a time (SwiftShader takes every core). NEVER read a frame
+Wall clock on this container (4 cores): the garage chain ~8-10 min, the roll-out ~1-2.5 min, a stand frame ~30 s, the
+stand's screenshot ~3 min - plan a still as a ~17-20 min background job (run_in_background), one at a time (SwiftShader
+takes every core). NEVER read a frame
 time off it.
+
+NOTES / TRAPS (for the next cloud session):
+- The roll-out SHOT runs on software and ends on its own watchdog (`FLYDIY_TRIPS` anim 'timeout', ~30 s): its 360 frames
+  are minutes there. The trip completes and the stand comes up; a still of the shot itself is not to be had this way.
+- The page's frames on SwiftShader are SECONDS (the shed ~4 s, the stand ~30 s at 960x540 potato): a CDP evaluate or a
+  screenshot waits for the main thread / the next frame - give them minutes (`soft_still.js` does), never 30 s.
+- `renderer.info` after a frame is the LAST render() of it (the AA resolve's blit: 1 call, 2 triangles): hold
+  `info.autoReset = false` over a frame to count the scene (soft_still does, `sceneCalls`).
+- `pkill -f <pattern>` from the Bash tool matches the tool's own shell (its command line carries the pattern) and kills it:
+  kill by `pgrep -f "^node tools/..."` PIDs instead.
+- One SwiftShader page at a time: it takes every core; two in parallel each run at about half speed.
+OWED: the probe's NaN on SwiftShader (item 6) - found, gated, not root-caused; the cover-row bug on cards (item 4) - A0's /
+the user's call; a player's own software renderer keeps the CSS backdrop blur (the rig drops it).
+
+**G1466 - RESULTS ON TRAIN 29 (this container, 4 cores).** GATE SOFTGPU on index.html: PASS - the rung on (software,
+potato), the garage chain whole in 584 s (24 steps, no hard timeout), the stand at 643 s (the roll-out shot ended by its
+watchdog, as noted), the frame 1 338 draw calls / 7.6 M triangles, 0.0 % clear colour, 2 215 colours, the lower half's
+spread 17.9, the aeroplane hidden -> 6.8 % of the pixels change, no page error; 1 284 s in all (two pages were running
+at once: alone ~17 min). The changed files' gates and the asked ones on the rebased tree: BOOT, BUILD, GFX (with §8
+WELCOME's checks and the new §9), UISMOKE, AA, WORLDRENDER, TREES, PROGRAMS, COVER, HANGAR - PASS. GATE GFX §9's negative
+checks (the rung leaking onto a card; a site that is not a conditional) turn it red. No full battery (A0's, per train).
+**EVIDENCE** (`reports/evidence/SOFT-GPU/`, headless Chromium 141 + SwiftShader, the FIRST stills of the world a cloud
+session has rendered; "finding" = taken on the live page while diagnosing, "after" = tools/soft_still.js on the branch):
+- `after_stand_index_afternoon.jpg` - GATE SOFTGPU's own frame (index.html, the default build = the Cub, afternoon, the
+  page's camera, HUD hidden): the Cub on the apron at HOME, the sheds, the town, the forest, the mountains. DECISION for
+  A0 / the user: none - the software rung's look (potato, no probe: flatter metal and shade sides) is for a test rig.
+- `after_garage_dev.jpg` - the shed on dev.html with the workshop UI (`--place garage --keep-hud`): the Cub, the room's
+  lamps and props, the CG / neutral point marks. No decision.
+- `finding_stand_black_with_probe.jpg` - before item 6's fix (the near world black, the sky and far terrain right).
+- `finding_stand_probe_removed_live.jpg` - the same page, `scene.environment` removed by hand: the stand whole (HUD on).
+- `finding_garage_live_chooser.jpg` - the shed on SwiftShader under the first-launch chooser (the garage was never the
+  problem; its frame was ~9 s, now ~4 s).
+Generated outputs (index.html, dev.html, tools/flight_core.js, sw.js, version.json) NOT committed - A0 builds.
