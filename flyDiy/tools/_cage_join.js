@@ -2610,6 +2610,11 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
           const ft = spec && spec.controls && spec.controls.flap
                      && spec.controls.flap.type;
           out2.k = genTravel(which, ft);
+          // REVIEW 2026-10-04 B22: THE RUDDERVATOR'S SECOND DRIVE IS THE
+          // RUDDER'S, AT THE RUDDER'S TRAVEL. It carried no k2, and every
+          // consumer read the missing factor as 1 rad: full pedal turned the
+          // V-tail's panels 57 deg against the declared 27.
+          if (out2.drive2 === 'dr') out2.k2 = genTravel('rudder');
         }
       }
       if (pt.kind === 'castorT') {
@@ -2691,7 +2696,7 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
         const h = bySurf[q.linkSurf];
         if (!h) continue;
         q.hinge = { p: h.pivot, ax: h.axis, drive: h.drive, sgn: h.sgn,
-                    k: h.k || 1, drive2: h.drive2 || null, sgn2: h.sgn2 || 0,
+                    k: h.k || 1, drive2: h.drive2 || null, sgn2: h.sgn2 || 0, k2: h.k2 || null,
                     slide: h.slide || null };
       }
     }

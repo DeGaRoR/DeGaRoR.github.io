@@ -2685,7 +2685,9 @@
             // the binding itself is built in a SECOND PASS below: `def`
             // and `cfg` are declared after this block, and reaching them
             // from here is a temporal dead zone, not a value
+            const na = o.geometry.attributes.normal;   // B21: the rest normals, turned with the surface
             surfParts.push({ posAttr: pa, base, dsg, nv2, bind: null,
+              nAttr: na && na.array ? na : null, baseN: na && na.array ? na.array.slice() : null,
               hinged: new Uint8Array(nv2).fill(1),
               // G267.2: the member the PARENT follows (a rudder its fin's,
               // an elevator its stab's) — resolved to nodes in the second
@@ -2697,6 +2699,9 @@
               // published since 2026-09-04 and this path never read — a
               // cage V-tail answered the elevator and ignored the rudder
               drive2: pt.drive2 || null, sgn2: pt.sgn2 || 0,
+              // B22: ...at the rudder's declared travel (a payload joined
+              // before the join wrote k2 takes the table's, not 1 rad)
+              k2: pt.k2 > 0 ? pt.k2 : (pt.drive2 === 'dr' && typeof genTravel === 'function' ? genTravel('rudder') : 1),
               // G237: the travel comes from the join, which reads GEN_TRAVEL.
               // The fallback is the old pair — a payload baked before the
               // table existed still flies, at the deflection it was baked
@@ -2900,8 +2905,10 @@
       // elevator, 50 on an aileron.
       const moving = (data.moving || []).filter(c => meshes[c.group]).map(c => {
         const posAttr = meshes[c.group].geometry.attributes.position;
+        const nAttr = meshes[c.group].geometry.attributes.normal;   // B21
         return { mesh: meshes[c.group], c, g: dec[c.group], posAttr,
                  base: posAttr.array.slice(),
+                 nAttr: nAttr && nAttr.array ? nAttr : null, baseN: nAttr && nAttr.array ? nAttr.array.slice() : null,
                  // every vertex of the group belongs to the one surface, so the
                  // whole group is hinged — that is what tells poseSkinGen to ADD
                  // its displacement to the deflected position rather than
@@ -3081,9 +3088,24 @@
     // the two-end follow that lived here keyed on a rig NAME, then on a
     // 7 cm search around the physics line, and both missed struts the
     // wing layer drew off that line. Identity beats surgery.
-    // station structure is a property of the fiche, so one delta buffer serves all
-    const nz = rigs[0].bind.zs.length;
-    const deltas = { P: new Float32Array(nz * 3), N: new Float32Array(nz * 3) };
+    // ONE DELTA BUFFER PER STATION TABLE (REVIEW 2026-10-04 B20). It was one
+    // buffer sized from rigs[0] and filled from rigs[0]'s stations, and every
+    // rig read it - a biplane's second plane binds its OWN stations (G185,
+    // cfg2), so plane 2's skin and surfaces took plane 1's deflections, and
+    // read past the buffer (NaN: a vanishing upper wing) when plane 2 had
+    // more stations. Bindings with the same station table (the same nodes
+    // at the same |z|) share one buffer: sparDeltas runs once per table.
+    const deltaSets = [];
+    const deltaOf = bind => {
+      if (!bind || !bind.zs) return null;
+      const key = bind.zs.join(',') + '|' + bind.P.st.map(ids => ids ? ids.join('.') : '-').join(',');
+      let d = deltaSets.find(q => q.key === key);
+      if (!d) { const n = bind.zs.length; d = { key, bind, P: new Float32Array(n * 3), N: new Float32Array(n * 3) }; deltaSets.push(d); }
+      return d;
+    };
+    for (const r of rigs) r.dl = deltaOf(r.bind);
+    for (const s2 of surfParts) s2.dl = deltaOf(s2.bind);
+    const deltas = rigs[0].dl;
     // C4b (G875): THE BAKED MODEL, A HANDFUL OF DRAWS - every mesh on the bake's material folded (flown_bake.js
     // mergeModel): the rigs keep writing their own attribute objects (now views into the fold), a part that moves as a
     // whole is a bone. Told which buffers a rig writes (they go first: one upload range) and which meshes are a wheel's
@@ -3144,7 +3166,7 @@
     }
     // a merged bucket's rig moved nothing (the merge takes only those); the
     // first rig stays whatever it is - sparDeltas reads its station table
-    const m = Object.assign(entry, { grp, props, deltas, people, still,
+    const m = Object.assign(entry, { grp, props, deltas, deltaSets, people, still,
                         fold: foldIn,                                  // C4b: the cabin's swap (view(cockpit))
                         foldExt: (fold && fold.fade) || foldEye || null,   // the hybrid: the exterior's band (G1124: two zones)
                         rigs: still ? rigs.filter((r, i) => i === 0 || !still.names.has(r.name)) : rigs,
@@ -3279,6 +3301,26 @@
     return M;
   }
   const M9 = new Float64Array(9), M9b = new Float64Array(9);
+  // REVIEW 2026-10-04 B21: A DEFLECTED SURFACE'S NORMALS TURN WITH IT. The
+  // hinge pass rotated the vertices and left the rest pose's normals, so a
+  // flap at 35-40 deg or a rudder at 27 deg was shaded (and its clear coat
+  // reflected) as if it had not moved. The normal map of the row-major 3x3
+  // M the vertices took is its cofactor matrix (det M · M^-T): exact for a
+  // rotation and for the capture's conjugated one (conjRot), renormalised.
+  function turnNormals(nAttr, baseN, M) {
+    if (!nAttr || !nAttr.array || !baseN) return;
+    const c00 = M[4] * M[8] - M[5] * M[7], c01 = M[5] * M[6] - M[3] * M[8], c02 = M[3] * M[7] - M[4] * M[6],
+          c10 = M[2] * M[7] - M[1] * M[8], c11 = M[0] * M[8] - M[2] * M[6], c12 = M[1] * M[6] - M[0] * M[7],
+          c20 = M[1] * M[5] - M[2] * M[4], c21 = M[2] * M[3] - M[0] * M[5], c22 = M[0] * M[4] - M[1] * M[3];
+    const o = nAttr.array, n = Math.min(o.length, baseN.length);
+    for (let i = 0; i < n; i += 3) {
+      const x = baseN[i], y = baseN[i + 1], z = baseN[i + 2];
+      const a = c00 * x + c01 * y + c02 * z, b = c10 * x + c11 * y + c12 * z, c = c20 * x + c21 * y + c22 * z;
+      const L = Math.hypot(a, b, c) || 1;
+      o[i] = a / L; o[i + 1] = b / L; o[i + 2] = c / L;
+    }
+    nAttr.needsUpdate = true;
+  }
   // G250.1: the cockpit controls' own axis temporaries. G240 span the stick
   // about `vY`/`vZ` — the BODY BASIS below, which nodeLocal and the castor
   // read AFTER that block — so the tailwheel's z was projected onto the
@@ -3462,6 +3504,12 @@
           pos[o+1] = py + y * ca + (az * x - ax * z) * sa + ay * d * C1 + ty;
           pos[o+2] = pz + z * ca + (ax * y - ay * x) * sa + az * d * C1 + tz;
         }
+        if (mv.nAttr) {                                              // B21: the same rotation, row-major
+          M9b[0] = ca + ax * ax * C1;      M9b[1] = ax * ay * C1 - az * sa; M9b[2] = ax * az * C1 + ay * sa;
+          M9b[3] = ay * ax * C1 + az * sa; M9b[4] = ca + ay * ay * C1;      M9b[5] = ay * az * C1 - ax * sa;
+          M9b[6] = az * ax * C1 - ay * sa; M9b[7] = az * ay * C1 + ax * sa; M9b[8] = ca + az * az * C1;
+          turnNormals(mv.nAttr, mv.baseN, M9b);
+        }
         poseSkinGen(mv.g, model.rest, model.nodeBody, base, pos, gain, mv.hinged);
         mv.posAttr.needsUpdate = true;
       }
@@ -3498,14 +3546,16 @@
       if (still) for (const k in link) if (Math.abs((link[k] || 0) - (P.link[k] || 0)) > 1e-4) { still = false; break; }
       if (!still) model._poseNG = { nb, cur: P && P.nb.length === n3 ? P.nb : new Float64Array(n3), gain, rows, wr, link: Object.assign({}, link) }; }
     if (!still) {
-    sparDeltas(model.rigs[0].bind, sim, model.deltas);
+    if (model.deltaSets) for (const D of model.deltaSets) sparDeltas(D.bind, sim, D);   // B20: per station table
+    else sparDeltas(model.rigs[0].bind, sim, model.deltas);
     for (const r of model.rigs) {
       // a rig with no bound vertices and no hinges (the lift strut) rides the
       // group matrix — or its OWN two-end binding, applied just below
       if (!r.hb && !r.bind.bound.length) continue;
       if (r.hb) applyHinges(r.hb, model.surfaces, r.base, r.posAttr.array, link);
+      const dl = r.dl || model.deltas;
       applySkinDeform(r.bind, r.base, r.posAttr.array,
-                      model.deltas.P, model.deltas.N,
+                      dl.P, dl.N,
                       skinMode === 1 ? SKIN_GAINS[1] : SKIN_GAINS[0],
                       r.hb && r.hb.hinged);
       r.posAttr.needsUpdate = true;   // normals kept from rest pose: flex < ~5 deg
@@ -3635,7 +3685,7 @@
     if (model.surfParts && !still) for (const s of model.surfParts) {   // G731
       if (!s.posAttr || !s.posAttr.array) continue;
       const ang = s.sgn * (s.k || 1) * (link[s.drive] || 0)
-        + (s.drive2 ? (s.sgn2 || 1) * (link[s.drive2] || 0) : 0);   // G209
+        + (s.drive2 ? (s.sgn2 || 1) * (s.k2 || 1) * (link[s.drive2] || 0) : 0);   // G209, B22: k2
       const b = s.base, out = s.posAttr.array;
       const ax = s.axis, ca = Math.cos(ang), sa = Math.sin(ang), C1 = 1 - ca;
       // G239: a FOWLER TRANSLATES as well as turning — aft along the chord
@@ -3656,9 +3706,10 @@
         out[i + 1] = R9[3] * x + R9[4] * y + R9[5] * z + ty;
         out[i + 2] = R9[6] * x + R9[7] * y + R9[8] * z + tz;
       }
+      turnNormals(s.nAttr, s.baseN, R9);                           // B21
       // ...then the wing's own flex, ADDED on top of the deflected verts
       if (s.bind && s.bind.bound.length)
-        applySkinDeform(s.bind, s.base, out, model.deltas.P, model.deltas.N,
+        applySkinDeform(s.bind, s.base, out, (s.dl || model.deltas).P, (s.dl || model.deltas).N,   // B20
                         skinMode === 1 ? SKIN_GAINS[1] : SKIN_GAINS[0],
                         s.hinged);
       // G267.2: ...or the TAIL'S ANCHOR travel, the same translation the fin
@@ -3729,7 +3780,7 @@
       if (!r.posAttr || !r.posAttr.array) continue;
       const h = r.hinge;
       const ang = h.sgn * (h.k || 1) * (link[h.drive] || 0)
-        + (h.drive2 ? (h.sgn2 || 1) * (link[h.drive2] || 0) : 0);
+        + (h.drive2 ? (h.sgn2 || 1) * (h.k2 > 0 ? h.k2 : (h.drive2 === 'dr' && typeof genTravel === 'function' ? genTravel('rudder') : 1)) * (link[h.drive2] || 0) : 0);   // B22
       const ax = h.ax, p = h.p, t0 = r.tip;
       const x = t0[0] - p[0], y = t0[1] - p[1], z = t0[2] - p[2];
       const st = h.slide ? Math.abs(link[h.drive] || 0) : 0;
