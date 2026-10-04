@@ -65,6 +65,7 @@ var MATLIB = (() => {
     shader: { cls: 'ShaderMaterial', base: {} },
     depth:  { cls: 'MeshDepthMaterial', base: {} },
     house:  { cls: 'MeshStandardMaterial', base: { color: 0xffffff, roughness: 1, metalness: 0 } },
+    points: { cls: 'PointsMaterial', base: {} },   // (train 28: RUNWAY-LIGHTS' glow - GATE ASSETS, every material made here)
   };
   const S = { share: true };
   if (typeof location !== 'undefined' && /[?&]matlib=0/.test(location.search || '')) S.share = false;

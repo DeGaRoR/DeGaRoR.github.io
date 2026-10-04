@@ -166,7 +166,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     return (RWY.tex = t);
   }
   function rwyFixtureMat() {
-    return RWY.fixMat || (RWY.fixMat = new THREE.MeshStandardMaterial({ color: C(0xffffff), vertexColors: true,
+    return RWY.fixMat || (RWY.fixMat = MATLIB.make(THREE, 'std', { color: C(0xffffff), vertexColors: true,
       roughness: 1, metalness: 1, roughnessMap: rwySurfTex(), metalnessMap: rwySurfTex() }));
   }
   // THE GLOW: three's points program, its size and its shape taken over. The vertex colour is the light's (colour x
@@ -200,7 +200,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
   function rwyGlowMat() {
     if (RWY.glow) return RWY.glow;
     const ap = !!(THREE.ShaderChunk && /atmoAP/.test(THREE.ShaderChunk.fog_pars_fragment || ''));   // the atmosphere's splice is in
-    const m = new THREE.PointsMaterial({ size: 1, sizeAttenuation: false, vertexColors: true, transparent: true, depthWrite: false,
+    const m = MATLIB.make(THREE, 'points', { size: 1, sizeAttenuation: false, vertexColors: true, transparent: true, depthWrite: false,
       fog: ap, blending: THREE.CustomBlending, blendSrc: THREE.OneFactor, blendDst: THREE.OneFactor, blendEquation: THREE.AddEquation });
     m.onBeforeCompile = sh => {
       sh.uniforms.uRwyL = RWY.U.lvl; sh.uniforms.uRwyPx = RWY.U.px;
