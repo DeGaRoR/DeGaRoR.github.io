@@ -531,17 +531,7 @@ function makeWorld(seed, opts) {
     // ground under them, so composing on the bed as well says how much of the ground they keep (1 - w); a modifier
     // that holds half or more of it (w >= 0.5) is the old composition on the raw ground, fading to the bed's as w -> 0
     // (continuous at the modifier's rim, where w is 0). The memo above holds the answer.
-    if (LAKE_BED) {
-      const b = LAKE_BED(x, z);
-      if (b < h) {
-        if (!PM || h === h0) h = b;
-        else {
-          const hb = Math.min(h0, b), hc = PM.terrainFast ? PM.terrainFast(x, z, hb) : PM.terrainH(x, z, hb);
-          const w = h0 > hb ? 1 - (h - hc) / (h0 - hb) : 1, t = Math.max(0, Math.min(1, w / 0.5));
-          h = hc + (h - hc) * t * t * (3 - 2 * t);
-        }
-      }
-    }
+    if (LAKE_BED) h = lakeCarve(x, z, h0, h, hb => (PM.terrainFast ? PM.terrainFast(x, z, hb) : PM.terrainH(x, z, hb)));
     thX[i] = x; thZ[i] = z; thH[i] = h;
     return h;
   }
@@ -552,7 +542,25 @@ function makeWorld(seed, opts) {
   // (1 cm). The town's premises build read ~11 000 uncooked tiles 9-10 km from HOME at every town-on boot (~10 s of
   // main-thread bakes); the wheels, the wind and every repeated read keep terrainH. Not memoised: the memo is terrainH's
   function terrainHBuild(x, z) {
-    return PM && PM.rasterLazyAt && PM.rasterLazyAt(x, z) ? PM.terrainH(x, z, baseH(x, z)) : terrainH(x, z);
+    if (!(PM && PM.rasterLazyAt && PM.rasterLazyAt(x, z))) return terrainH(x, z);
+    const h0 = baseH(x, z), h = PM.terrainH(x, z, h0);
+    return LAKE_BED ? lakeCarve(x, z, h0, h, hb => PM.terrainH(x, z, hb)) : h;   // (the bed, as terrainH carves it)
+  }
+  // the carve as one function (A0, train 28): terrainH and METLA-LOAD's build read (terrainHBuild) BOTH carve - the build
+  // read composed the uncooked town cells on the raw ground and skipped the bed (GATE LAKEBED: a ring over a lake there)
+  function lakeCarve(x, z, h0, h, compose) {
+    if (LAKE_BED) {
+      const b = LAKE_BED(x, z);
+      if (b < h) {
+        if (!PM || h === h0) h = b;
+        else {
+          const hb = Math.min(h0, b), hc = compose(hb);
+          const w = h0 > hb ? 1 - (h - hc) / (h0 - hb) : 1, t = Math.max(0, Math.min(1, w / 0.5));
+          h = hc + (h - hc) * t * t * (3 - 2 * t);
+        }
+      }
+    }
+    return h;
   }
 
   // ---- stage 2 biomes: analytic classifier + tree placement plan ----

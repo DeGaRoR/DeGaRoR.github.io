@@ -47,7 +47,11 @@ console.log('GATE LAKEBED');
   ok(!/OuterDry|outer-dry|\|dry/.test(RW), '1 the far terrain is one material (the lake-free twin and its quadrant split are gone)');
   ok(RW.includes('const seaFloor = world.island.seaFloor, lakeBed = world.island.lakeBed,') && RW.includes('if (lakeBed) { const b = lakeBed(x, z); if (b < y) y = b; }'),
     '1 the far terrain\'s patches take the carved bed (the asset is the raw DEM)');
-  ok(RW.includes('posA.setY(i, world.terrainH(posA.getX(i), posA.getZ(i)));') && RW.includes('const H = (x, z) => world.terrainH(x, z) - groundSink(x, z);'),
+  // (train 28: METLA-LOAD's ring reads the build read gB = world.terrainHBuild || world.terrainH - accepted only while the
+  // build read carves the bed too, 20_world.js lakeCarve on both paths)
+  const W20 = fs.readFileSync(path.join(__dirname, '..', 'src', 'core', '20_world.js'), 'utf8');
+  const buildCarves = /function terrainHBuild\(x, z\) \{[\s\S]{0,400}lakeCarve\(/.test(W20) && /if \(LAKE_BED\) h = lakeCarve\(/.test(W20);
+  ok((RW.includes('posA.setY(i, world.terrainH(posA.getX(i), posA.getZ(i)));') || (RW.includes('posA.setY(i, gB(posA.getX(i), posA.getZ(i)));') && RW.includes('const gB = world.terrainHBuild || world.terrainH;') && buildCarves)) && RW.includes('const H = (x, z) => world.terrainH(x, z) - groundSink(x, z);'),
     '1 the near ring and the fine tiles sample world.terrainH (the carved ground)');
   ok(!/sm\(-30, -6, lakeSD\(x, z\)\)/.test(RW) && RW.includes('pos[k * 3] = x; pos[k * 3 + 1] = H(x, z); pos[k * 3 + 2] = z;'),
     '1 the fine tiles are the carved surface at a shore too (no blend back to the ring\'s 17.6 m chords within 30 m of a lake)');
