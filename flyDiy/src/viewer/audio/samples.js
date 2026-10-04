@@ -42,6 +42,9 @@
 //   key refused by its budget is not 'failed': release(key) returns it to 'idle' so its owner can ask again once it
 //   made room. release(key) frees a ready key's bytes (its players are the caller's to stop first);
 //   classBytes(cls) its counter; setClass(cls, { budget, maxS, decim }).
+// THE ONE-SHOT CLASSES (G1662, SND-AMB-2): a class key declared 'oneshot' in KEYS keeps its decoded variants (no loop to
+//   bake), under the class's budget; assign(key, cls) puts a key in a class whatever its prefix ('dog' has none; a
+//   prefix shared with the airframe's grains, 'mech', stays theirs unless a key is assigned).
 // ============================================================
 var AUDIO_SAMPLES = (function () {
   'use strict';
@@ -79,6 +82,12 @@ var AUDIO_SAMPLES = (function () {
     ['amb.rain.outside', 'rain outside, in a forest'], ['amb.birds.open', 'birds over open ground by day'], ['amb.lake.shore', 'small waves on a lake shore, close'],
     ['amb.sea.open', 'the open sea: water along a hull, no shore'],
   ]) KEYS[k] = { kind: 'loop', layer: 'the ambience bed (ambience.js)', what };
+  // THE POSITIONAL EMITTERS' ONE-SHOTS (G1662, SND-AMB-2: emitters.js places them; G1636 ships all but the loon)
+  for (const [k, what] of [
+    ['bird.crow', 'a crow (raven) calling once'], ['bird.eagle', 'a bald eagle\'s call'], ['bird.gull', 'gulls over the shore'],
+    ['bird.owl', 'an owl at night'], ['bird.loon', 'a loon\'s call on a lake (not shipped: the emitter waits for it)'],
+    ['dog', 'a dog barking, far off'], ['mech.door', 'a door shutting'], ['vehicle.pickup', 'a pickup passing on gravel'],
+  ]) KEYS[k] = { kind: 'oneshot', layer: 'the positional emitters (emitters.js)', what };
   const DEF_BUDGET = 6 * 1024 * 1024;
   const W = typeof window !== 'undefined' ? window : (typeof globalThis !== 'undefined' ? globalThis : {});
 
@@ -98,7 +107,9 @@ var AUDIO_SAMPLES = (function () {
       return C;
     };
     if (o.classes) for (const c in o.classes) setClass(c, o.classes[c]);
-    const clsOf = key => { const i = key.indexOf('.'); return i > 0 ? classes[key.slice(0, i)] || null : null; };
+    // G1662: a key ASSIGNED to a class (assign(key, cls): 'dog' has no prefix, a shared prefix need not be one owner's)
+    const assigned = {};
+    const clsOf = key => { const a = assigned[key]; if (a) return classes[a] || null; const i = key.indexOf('.'); return i > 0 ? classes[key.slice(0, i)] || null : null; };
     const manifest = () => o.manifest || W.FLYDIY_AUDIO_MEDIA || {};
     const base = () => (o.base != null ? o.base : (typeof W.FLYDIY_ASSET_BASE === 'string' ? W.FLYDIY_ASSET_BASE : ''));
     const fetchBytes = url => (o.fetch ? o.fetch(url) : W.ASSET_FETCH ? W.ASSET_FETCH(url)
@@ -140,8 +151,20 @@ var AUDIO_SAMPLES = (function () {
       return r.promise;
     }
 
-    // a class key: only its baked loop stays (its class's shape), under its class's budget
+    // a class key: only its baked loop stays (its class's shape), under its class's budget; a ONE-SHOT class key (G1662)
+    // keeps its decoded variants as they are (nothing to loop), counted the same way
     function admit(key, r, C, bufs) {
+      if (KEYS[key] && KEYS[key].kind === 'oneshot') {
+        const add = bufs.reduce((s, b) => s + sizeOf(b), 0);
+        if (C.bytes + add > C.budget) {
+          r.state = 'budget';
+          if (!C.said) { C.said = true; console.info('flyDiy audio: the sample ' + key + ' would pass its class\'s ' + Math.round(C.budget / 1048576) + ' MB budget; it waits'); }
+          return null;
+        }
+        C.bytes += add;
+        r.bufs = bufs; r.loopBuf = null; r.size = add; r.state = 'ready';
+        return bufs[0];
+      }
       const lb = bakeLoop(bufs[0], C);
       const size = sizeOf(lb);
       if (C.bytes + size > C.budget) {
@@ -243,6 +266,7 @@ var AUDIO_SAMPLES = (function () {
       attach(c) { ctx = c; return api; },
       detach() { ctx = null; for (const k in recs) delete recs[k]; bytes = 0; said = false; for (const c in classes) { classes[c].bytes = 0; classes[c].said = false; } },
       release, setClass, classBytes: cls => (classes[cls] ? classes[cls].bytes : 0), classOf: key => clsOf(key),
+      assign(key, cls) { if (cls) assigned[key] = cls; else delete assigned[key]; },
       load,
       state: key => rec(key).state,
       ready: key => rec(key).state === 'ready',

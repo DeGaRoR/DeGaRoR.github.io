@@ -62,6 +62,8 @@ const FILES = {
   engw: 'src/viewer/audio/engine_worklet.js', propw: 'src/viewer/audio/prop_worklet.js',
   // SND-AMB-1 (G1650-G1654): the ambience's numbers and its source
   ambmodel: 'src/viewer/audio/ambience_model.js', amb: 'src/viewer/audio/ambience.js',
+  // SND-AMB-2 (G1660-G1666): the emitters' numbers, the emitters, the premises renderer's read-only accessor
+  emmodel: 'src/viewer/audio/emitters_model.js', em: 'src/viewer/audio/emitters.js', prem: 'src/viewer/render_premises.js',
 };
 const readAll = () => { const S = {}; for (const k in FILES) S[k] = fs.readFileSync(path.join(ROOT, FILES[k]), 'utf8'); return S; };
 const shaOf = S => crypto.createHash('sha256').update(Object.keys(FILES).map(k => S[k]).join('\u0000')).digest('hex');
@@ -2777,6 +2779,472 @@ function checkAmbWiring(S) {
   return F;
 }
 
+// ---- SND-AMB-2 (G1660-G1666): THE POSITIONAL EMITTERS ---------------------------------------------------------------
+// The model on the AMB synthetic island (its forest, beach, lake, village zone, meadow) with every key marked ready; the
+// page (the real audio.js + samples.js + the ambience + the emitters) on a context with panners. THE MOVERS: a provider
+// writing rows like render_premises' soundObjects - a car on a straight road, a tram's two cabins on a jig-back, boats.
+// (a model loaded from TEXT in one realm with the ambience's: the mutations are strings)
+function emModelOf(S) {
+  const c = { module: { exports: {} }, console };
+  vm.createContext(c);
+  vm.runInContext(S.ambmodel.replace(/if \(typeof module[^\n]*\n?$/, ''), c, { filename: 'ambience_model.js' });
+  c.module = { exports: {} };
+  vm.runInContext(S.emmodel, c, { filename: 'emitters_model.js' });
+  return { M: c.module.exports, AM: c.AMBIENCE_MODEL };
+}
+// the movers (a provider): opts { car: [x0, z0, vx, vz, period] | null, tram: { a: [x, y, z], b: [x, y, z], v, dwell } | null,
+// boats: [[x, z], ...] }; t is the provider's own clock (advanced by the caller); rows like soundObjects'
+function emMovers(o) {
+  // (allocation-free like soundObjects: EMITALLOC measures the page with it)
+  const T = new Float64Array(1), C = new Float64Array(5), TR = new Float64Array(10), B = new Float64Array(2 * (o.boats || []).length);
+  if (o.car) C.set(o.car);
+  if (o.tram) { const { a, b, v, dwell } = o.tram; TR.set([a[0], a[1], a[2], b[0], b[1], b[2], v, dwell]); }
+  (o.boats || []).forEach((q, i) => { B[2 * i] = q[0]; B[2 * i + 1] = q[1]; });
+  const hasCar = !!o.car, hasTram = !!o.tram;
+  const prov = { T, objects(out) {
+    let n = 0; const t = T[0];
+    if (hasCar) { const u = C[4] > 0 ? t % C[4] : t, q = n * 6; out[q] = 2; out[q + 1] = C[0] + C[2] * u; out[q + 2] = 20; out[q + 3] = C[1] + C[3] * u; out[q + 4] = Math.sqrt(C[2] * C[2] + C[3] * C[3]); out[q + 5] = 5; n++; }
+    if (hasTram) {
+      const ex = TR[3] - TR[0], ey = TR[4] - TR[1], ez = TR[5] - TR[2], D = Math.sqrt(ex * ex + ey * ey + ez * ez), v = TR[6], dw = TR[7];
+      const run = D / v, cyc = 2 * (run + dw), u = t % cyc;
+      // cabin 0: dwell at a, run a -> b, dwell at b, run back; cabin 1 the opposite
+      let s0 = 0, mv = 0; if (u < dw) { s0 = 0; } else if (u < dw + run) { s0 = (u - dw) / run; mv = 1; } else if (u < 2 * dw + run) { s0 = 1; } else { s0 = 1 - (u - 2 * dw - run) / run; mv = 1; }
+      for (let k = 0; k < 2; k++) { const sk = k ? 1 - s0 : s0, q = n * 6; out[q] = 1; out[q + 1] = TR[0] + ex * sk; out[q + 2] = TR[1] + ey * sk; out[q + 3] = TR[2] + ez * sk; out[q + 4] = mv ? v : 0; out[q + 5] = mv; n++; }
+    }
+    for (let k = 0; k < B.length; k += 2) { const q = n * 6; out[q] = 3; out[q + 1] = B[k]; out[q + 2] = 0; out[q + 3] = B[k + 1]; out[q + 4] = 0; out[q + 5] = 1; n++; }
+    return n;
+  } };
+  return prov;
+}
+// a run of the model: { x, z, h (or path(t) -> [x, z, h]), sun, sec, tier, prov, world, gens, ready } -> st (+ st.log, maxV)
+function emRun(MM, o) {
+  const { M, AM } = MM;
+  const W = o.world || ambWorld(), AP = loadParams(SRC0.params), P = AP.audioParamsBlock();
+  if (o.sun != null) W.day.sunEl = o.sun;
+  const amb = AM.ambienceState(), st = M.emittersState(o.tier || 'full');
+  if (o.ready !== false) st.ready.fill(1);
+  st.log = []; M.seed(st, o.seed || 7);
+  let maxV = 0, overCap = 0;
+  const dt = 1 / 60, N = Math.round((o.sec || 600) / dt);
+  for (let i = 0; i < N; i++) {
+    const t = i * dt;
+    const q = o.path ? o.path(t, W) : [o.x, o.z, o.h];
+    const g = Math.max(W.terrainH(q[0], q[1]), W.waterH(q[0], q[1]));
+    P.s[P.I.listenerX] = q[0]; P.s[P.I.listenerY] = g + q[2]; P.s[P.I.listenerZ] = q[1]; P.s[P.I.inGarage] = o.garage ? 1 : 0;
+    if (o.prov) o.prov.T[0] = t;
+    AM.ambienceStep(amb, P, W, dt);
+    M.emittersStep(st, P, amb, W, o.prov || null, dt, o.gens || null);
+    let n = 0; for (let k = 0; k < M.NV; k++) n += st.vOn[k];
+    if (n > maxV) maxV = n; if (n > st.cap) overCap++;
+    st.vNew.fill(0);
+    if (o.each) o.each(st, t, P);
+  }
+  st.maxV = maxV; st.overCap = overCap; st.W = W; st.amb = amb;
+  return st;
+}
+const emCount = (st, name) => st.log.filter(r => r[1] === name).length;
+// THE HABITATS AND THE HOURS: who calls where, and where they are placed
+const EM_PLACES = [
+  // [name, x, z, h, sun, [[sound, '>=' | '<=', count over 10 min], ...]]
+  ['forest by day', -900, -800, 1.7, 40, [['crow', '>=', 8], ['owl', '<=', 0], ['gull', '<=', 0], ['dog', '<=', 0], ['loon', '<=', 0]]],
+  ['forest at night', -900, -800, 1.7, -15, [['owl', '>=', 3], ['crow', '<=', 0], ['eagle', '<=', 0], ['gull', '<=', 0]]],
+  ['beach by day', 880, 0, 1.7, 40, [['gull', '>=', 8], ['owl', '<=', 0], ['dog', '<=', 0]]],
+  ['beach at night', 880, 0, 1.7, -15, [['gull', '<=', 0], ['crow', '<=', 0]]],
+  // (near the zone's east edge: half the ring round the listener is outside the village - the dog must not bark there)
+  ['village by day', 560, -1000, 1.7, 40, [['dog', '>=', 1], ['dog', '<=', 4], ['door', '>=', 1], ['gull', '<=', 0], ['owl', '<=', 0]]],
+  ['village at night', 400, -1000, 1.7, -15, [['dog', '<=', 0], ['door', '<=', 0], ['crow', '<=', 0]]],
+  ['meadow, no tree near', 0, 500, 1.7, 40, [['crow', '<=', 0], ['owl', '<=', 0], ['gull', '<=', 0], ['dog', '<=', 0]]],
+  ['lake at dusk', AMB_LAKE[0] + AMB_LAKE[2] + 5, AMB_LAKE[1], 1.7, -3, [['loon', '>=', 3], ['gull', '<=', 0]]],
+  ['lake at noon', AMB_LAKE[0] + AMB_LAKE[2] + 5, AMB_LAKE[1], 1.7, 50, [['loon', '<=', 0]]],
+  ['the garage', -900, -800, 1.7, 40, [['crow', '<=', 0], ['eagle', '<=', 0]], { garage: 1 }],
+];
+function checkEmHabitat(S) {
+  const MM = emModelOf(S), F = [];
+  for (const [name, x, z, h, sun, exp, opt] of EM_PLACES) {
+    const st = emRun(MM, Object.assign({ x, z, h, sun, sec: 600 }, opt || {}));
+    for (const [snd, op, v] of exp) { const n = emCount(st, snd); if (!(op === '>=' ? n >= v : n <= v)) F.push(name + ': ' + snd + ' called ' + n + ' times in 10 min (want ' + op + ' ' + v + ')'); }
+    // WHERE: a crow or an owl in a tree (canopy >= 4 m under it) or, a crow, on a roof in the village; a gull over water;
+    // a loon on the lake; the dog and the door inside the village zone
+    const W = st.W, I = W.island, can = (px, pz) => { const g = I.grid, i = Math.floor((px - g.x0) / g.cell), j = Math.floor((pz - g.z0) / g.cell); const k = j * g.w + i; return I.cover[k] === 10 ? I.canopy[k] : -1; };
+    for (const r of st.log) {
+      const [, snd, px, py, pz] = r, gnd = W.terrainH(px, pz), wat = W.waterH(px, pz);
+      if ((snd === 'owl' || snd === 'crow') && !(can(px, pz) >= 4 || (snd === 'crow' && px >= 200 && px <= 600 && pz >= -1200 && pz <= -800))) { F.push(name + ': a ' + snd + ' called from (' + px + ', ' + pz + ') - no tree there'); break; }
+      if (snd === 'gull' && !(wat > gnd)) { F.push(name + ': a gull called over dry land (' + px + ', ' + pz + ')'); break; }
+      if (snd === 'loon' && !(Math.hypot(px - AMB_LAKE[0], pz - AMB_LAKE[1]) < AMB_LAKE[2])) { F.push(name + ': a loon called off the lake (' + px + ', ' + pz + ')'); break; }
+      if ((snd === 'dog' || snd === 'door') && !(px >= 200 && px <= 600 && pz >= -1200 && pz <= -800)) { F.push(name + ': the ' + snd + ' outside the village (' + px + ', ' + pz + ')'); break; }
+      if (snd !== 'eagle' && py - Math.max(gnd, wat) > 45) { F.push(name + ': a ' + snd + ' ' + (py - Math.max(gnd, wat)).toFixed(0) + ' m up'); break; }
+    }
+  }
+  // 300 placings of the dog 40 m inside the village's edge (a third of its ring is outside): every one inside the zone
+  {
+    const st = emRun(MM, { x: 560, z: -1000, h: 1.7, sun: 40, sec: 2 }), r = MM.M.SPECIES.findIndex(x => x[0] === MM.M.S.dog);
+    let out = 0, none = 0;
+    for (let k = 0; k < 300; k++) { if (!MM.M.place(st, r, st.amb, st.W)) { none++; continue; } const p = st.pos; if (!(p[0] >= 200 && p[0] <= 600 && p[2] >= -1200 && p[2] <= -800)) out++; }
+    if (out) F.push('the dog placed outside the village ' + out + ' times in 300');
+    if (none > 150) F.push('the dog found no yard ' + none + ' times in 300 (40 m inside the village)');
+  }
+  return F;
+}
+// THE RATES, THE GAPS, THE CAP, THE JITTER, THE DOG: a 2 h random walk with teleports among the places, at every hour
+function checkEmRate(S, report) {
+  const MM = emModelOf(S), M = MM.M, F = [];
+  const spots = [[-900, -800], [880, 0], [400, -1000], [AMB_LAKE[0] + AMB_LAKE[2] + 5, AMB_LAKE[1]], [-400, -200], [880, -600], [400, -1000], [400, -1000]];
+  for (const tier of ['full', 'light']) {
+    let seed = tier === 'full' ? 11 : 5; const rnd = () => ((seed = (seed * 1103515245 + 12345) >>> 0) / 4294967296);
+    let cx = 0, cz = 0, nx = 0, sun = 40, villageS = 0;
+    const W = ambWorld();
+    // (gamer 2 h, the village a third of it: the dog's rate wants village time; potato 40 min: its cap)
+    const st = emRun(MM, { tier, sec: tier === 'full' ? 3600 * 2 : 2400, world: W, seed: tier === 'full' ? 3 : 9,
+      path: t => { const k = Math.floor(t / 120); if (k !== nx) { nx = k; const s = spots[Math.floor(rnd() * spots.length)]; cx = s[0]; cz = s[1]; sun = rnd() < 0.3 ? -14 : rnd() < 0.2 ? -3 : 35; W.day.sunEl = sun; }
+                   return [cx + 15 * Math.sin(t / 9), cz + 15 * Math.cos(t / 11), 1.7]; },
+      each: (s, t) => { if (cx === 400 && sun > 1) villageS += 1 / 60; } });
+    if (st.overCap) F.push(tier + ': ' + st.overCap + ' frames with more than ' + st.cap + ' one-shots sounding');
+    // the gaps: the bursts of one sound (its calls at one time) at least the sound's gap apart
+    for (let r = 0; r < M.NSP; r++) {
+      const sd = M.SPECIES[r][0], name = M.SOUNDS[sd][0], gap = M.SPECIES[r][2];
+      const ts = [...new Set(st.log.filter(x => x[1] === name).map(x => x[0]))];
+      for (let i = 1; i < ts.length; i++) if (ts[i] - ts[i - 1] < gap - 1e-6) { F.push(tier + ': two ' + name + ' calls ' + (ts[i] - ts[i - 1]).toFixed(2) + ' s apart (its gap ' + gap + ' s)'); break; }
+    }
+    // the dog: at most one a declared gap (150 s) in the village by day, and it does bark
+    const dogs = emCount(st, 'dog'), dogGap = M.SPECIES.find(x => x[0] === M.S.dog)[2];
+    if (!(dogs >= 1) && tier === 'full') F.push(tier + ': no dog in ' + Math.round(villageS) + ' s of village by day (the walk proves nothing)');
+    if (dogs > villageS / dogGap + 1) F.push(tier + ': ' + dogs + ' barks in ' + Math.round(villageS) + ' s of village by day (the declared rate: <= one a ' + dogGap + ' s)');
+    if (dogs > villageS / 150 + 1) F.push(tier + ': the dog is not rare: ' + dogs + ' barks in ' + Math.round(villageS) + ' s (the user: "here and there", <= one a 150 s)');
+    if (tier === 'full' && report) report.push('the emitters over 2 h of walk (gamer): ' + M.SOUNDS.filter(x => !x[2]).map(x => x[0] + ' ' + emCount(st, x[0])).join(', ') + '; at most ' + st.maxV + ' at once; the dog ' + dogs + ' in ' + Math.round(villageS) + ' s of village by day');
+  }
+  // THE CAP, forced: ten calls at once -> exactly `cap` sound, the rest refused
+  for (const [tier, cap] of [['full', 6], ['light', 3]]) {
+    const st = M.emittersState(tier); st.ready.fill(1);
+    let ok = 0; for (let k = 0; k < 10; k++) if (M.fire(st, M.S.gull, -1, 1) >= 0) ok++;
+    if (ok !== cap || st.refused[0] !== 10 - cap) F.push(tier + ': 10 calls at once -> ' + ok + ' sound, ' + st.refused[0] + ' refused (want ' + cap + ' and ' + (10 - cap) + ')');
+  }
+  // THE JITTER: +-1.5 semitones, +-2 dB around the sound's level, spread over the range
+  const st = M.emittersState('full'); st.ready.fill(1); M.seed(st, 99);
+  const rs = [], gs = [];
+  for (let k = 0; k < 400; k++) { const v = M.fire(st, M.S.crow, -1, 1); rs.push(12 * Math.log2(st.vR[v])); gs.push(20 * Math.log10(st.vG[v]) - M.SOUNDS[M.S.crow][3]); st.vOn[v] = 0; }
+  const mn = a => Math.min(...a), mx = a => Math.max(...a);
+  if (!(mn(rs) >= -1.5 - 1e-9 && mx(rs) <= 1.5 + 1e-9 && mx(rs) - mn(rs) > 2.5)) F.push('the pitch jitter spans ' + mn(rs).toFixed(2) + '..' + mx(rs).toFixed(2) + ' st (want within +-1.5, spread > 2.5)');
+  if (!(mn(gs) >= -2 - 1e-9 && mx(gs) <= 2 + 1e-9 && mx(gs) - mn(gs) > 3.3)) F.push('the gain jitter spans ' + mn(gs).toFixed(2) + '..' + mx(gs).toFixed(2) + ' dB (want within +-2, spread > 3.3)');
+  return F;
+}
+// THE CEILING: silent above 150 m AGL - no call, no loop, no pass, wherever, whatever is near; a ground call below
+function checkEmAgl(S) {
+  const MM = emModelOf(S), M = MM.M, F = [];
+  const tram = { a: [-880, 5, -800], b: [-880, 600, 600], v: 6, dwell: 10 };
+  for (const h of [150, 220, 400]) for (const [nm, x, z, sun] of [['forest', -900, -800, 40], ['beach', 880, 0, 40], ['village', 400, -1000, 40], ['forest at night', -900, -800, -15]]) {
+    const prov = emMovers({ car: [x - 200, z + 10, 12, 0, 40], tram: { a: [x + 20, 5, z], b: [x + 20, 300, z + 1500], v: 6, dwell: 8 }, boats: [[x + 30, z + 30]] });
+    const st = emRun(MM, { x, z, h, sun, sec: 300, prov });
+    let loops = 0; for (let k = 0; k < M.NL; k++) loops += st.lOn[k];
+    if (st.log.length || loops) F.push(nm + ' at ' + h + ' m AGL: ' + st.log.length + ' calls (' + [...new Set(st.log.map(r => r[1]))].join(', ') + '), ' + loops + ' loops on');
+  }
+  const low = emRun(MM, { x: -900, z: -800, h: 100, sun: 40, sec: 600 }), gnd = emRun(MM, { x: -900, z: -800, h: 1.7, sun: 40, sec: 600 });
+  if (!(emCount(gnd, 'crow') > emCount(low, 'crow') && emCount(low, 'crow') >= 0)) F.push('the fade: ' + emCount(gnd, 'crow') + ' crows on the ground vs ' + emCount(low, 'crow') + ' at 100 m (want fewer up there)');
+  if (!(low.clk[2] > 0 && low.clk[2] < 1)) F.push('at 100 m AGL the height factor is ' + low.clk[2] + ' (want between 0 and 1: the fade from 60 m)');
+  return F;
+}
+// THE OBJECTS: the pass bound to the car, the tram's bell / hum / creak, the mill by its generator, the boats
+function checkEmObjects(S) {
+  const MM = emModelOf(S), M = MM.M, F = [];
+  // (a) a car along z = 15 at 12 m/s, passing the listener at (0, 0): ONE pass, bound to it, started 2.4-3.6 s before
+  {
+    const prov = emMovers({ car: [-150, 15, 12, 0, 0] });
+    const st = emRun(MM, { x: 0, z: 0, h: 1.7, sun: 40, sec: 24, prov, world: ambWorld(), each: (s, t) => {
+      for (let k = 0; k < M.NV; k++) if (s.vOn[k] && s.vS[k] === M.S.pickup) { const cx = -150 + 12 * t; if (Math.abs(s.vX[k] - cx) > 2.5) { s.badFollow = (s.badFollow || 0) + 1; } }
+    } });
+    const ps = st.log.filter(r => r[1] === 'pickup');
+    if (ps.length !== 1) F.push('a car passing 15 m away: ' + ps.length + ' passes (want 1)');
+    // (the window is the design's, written here: the recording's pass peaks ~3 s in - not read back from the model)
+    else { const tc = 150 / 12 - ps[0][0]; if (!(tc >= 2.25 && tc <= 3.75)) F.push('the pass started ' + tc.toFixed(2) + ' s before the closest approach (want 2.4..3.6)'); }
+    if (st.badFollow) F.push('the pass did not ride the car (' + st.badFollow + ' frames more than 2.5 m off it)');
+    const far = emRun(MM, { x: 0, z: 0, h: 1.7, sun: 40, sec: 24, prov: emMovers({ car: [-150, 90, 12, 0, 0] }) });
+    if (emCount(far, 'pickup')) F.push('a car passing 90 m away called a pass');
+  }
+  // (b) the tram: a cabin leaving a station 30 m away -> the bell; its hum on while near, louder running; the creak
+  {
+    const prov = emMovers({ tram: { a: [30, 5, 0], b: [30, 500, 1800], v: 6, dwell: 12 } });
+    let gRun = 0, gDock = 1, on = 0;
+    const st = emRun(MM, { x: 0, z: 0, h: 1.7, sun: 40, sec: 200, prov, each: (s, t) => {
+      for (let k = 0; k < M.NL; k++) if (s.lOn[k] && s.lS[k] === M.S.tramhum) { on++; const u = t % (2 * (Math.hypot(495, 1800) / 6 + 12)); if (u > 13 && u < 40) gRun = Math.max(gRun, s.lG[k]); if (u < 11.5 && t > 1) gDock = Math.min(gDock, s.lG[k]); }
+    } });
+    const bells = st.log.filter(r => r[1] === 'bell');
+    if (!bells.length || Math.abs(bells[0][0] - 12) > 0.3) F.push('the tram leaving the station 30 m away rang ' + bells.length + ' bells' + (bells.length ? ', the first at ' + bells[0][0] + ' s' : '') + ' (want one at its departure, 12 s)');
+    if (!on) F.push('no tram hum near a running cabin');
+    if (!(gRun > 0.8 && gDock < 0.3)) F.push('the tram hum: ' + gRun.toFixed(2) + ' running, ' + gDock.toFixed(2) + ' docked (want > 0.8 and < 0.3)');
+    if (!emCount(st, 'creak')) F.push('no cabin creak in 200 s of a running cabin near');
+    // out of reach: the hum goes, the creak stops
+    let late = 0; const st2 = emRun(MM, { x: 0, z: 0, h: 1.7, sun: 40, sec: 200, prov, each: (s, t) => { if (t > 150) for (let k = 0; k < M.NL; k++) if (s.lOn[k] && s.lS[k] === M.S.tramhum && s.lG[k] > 0.01) late++; } });
+    if (late) F.push('the tram hum still on ' + (late / 60).toFixed(1) + ' s while both cabins are out of reach');
+    if (st2.log.some(r => r[1] === 'creak' && r[0] > 150)) F.push('a creak from a cabin out of reach');
+  }
+  // (c) the mill: a record whose site's generator preset says P.mill -> a loop within reach, by day; none at night / far
+  {
+    const W = ambWorld();
+    W.premises.rec.layers.sites = [{ id: 'mine', at: { x: 0, z: 300, yaw: 0 }, items: [{ id: 'm', key: 'house/kennecott mill', x: 10, z: 0 }, { id: 'c', key: 'house/mine cottage', x: 60, z: 0 }] }];
+    const gens = { HOUSE_GEN: { PRESETS: { 'kennecott mill': { mill: 1 }, 'mine cottage': {} } } };
+    const loopOf = st => { let g = 0; for (let k = 0; k < M.NL; k++) if (st.lOn[k] && st.lS[k] === M.S.mill) g = Math.max(g, st.lG[k]); return g; };
+    const day = emRun(MM, { x: 0, z: 100, h: 1.7, sun: 30, sec: 5, world: W, gens });
+    if (!(loopOf(day) > 0.9)) F.push('the mill 200 m away by day: its loop at ' + loopOf(day).toFixed(2) + ' (want on)');
+    if (day.anc.length !== 3) F.push('the mill: ' + day.anc.length / 3 + ' anchors from the record (want 1: the mill, not the cottage)');
+    else if (Math.abs(day.anc[0] - 10) > 0.01 || Math.abs(day.anc[2] - 300) > 0.01) F.push('the mill anchored at (' + day.anc[0] + ', ' + day.anc[2] + ') (want its item: (10, 300))');
+    const night = emRun(MM, { x: 0, z: 100, h: 1.7, sun: -20, sec: 5, world: W, gens });
+    let nOn = 0; for (let k = 0; k < M.NL; k++) if (night.lOn[k] && night.lS[k] === M.S.mill) nOn++;
+    if (nOn || night.want[M.S.mill]) F.push('the mill at night: its loop ' + (nOn ? 'on' : 'off') + ', its sound ' + (night.want[M.S.mill] ? 'wanted' : 'not wanted') + ' (want neither: nothing made at night)');
+    const far = emRun(MM, { x: 0, z: -400, h: 1.7, sun: 30, sec: 5, world: W, gens });
+    if (loopOf(far) > 0.01) F.push('the mill 700 m away: its loop on');
+    const none = emRun(MM, { x: 0, z: 100, h: 1.7, sun: 30, sec: 5, world: W, gens: { HOUSE_GEN: { PRESETS: {} } } });
+    if (none.anc.length) F.push('a preset without P.mill made a mill (the generator declares, not the record\'s key)');
+  }
+  // (d) the boats: by day an outboard now and then near them; at night none; far none
+  {
+    const boatOn = st => st.log.filter(r => r[1] === 'boat:on').length;
+    const prov = () => emMovers({ boats: [[900, 40], [905, 52]] });
+    const d = emRun(MM, { x: 880, z: 0, h: 1.7, sun: 30, sec: 900, prov: prov() });
+    if (!(boatOn(d) >= 2 && boatOn(d) <= 900 / M.BOAT.gap + 1)) F.push('boats 50 m away by day: ' + boatOn(d) + ' outboard episodes in 15 min (want 2..' + Math.floor(900 / M.BOAT.gap + 1) + ')');
+    const n = emRun(MM, { x: 880, z: 0, h: 1.7, sun: -20, sec: 600, prov: prov() });
+    if (boatOn(n)) F.push('an outboard at night (' + boatOn(n) + ')');
+    const f = emRun(MM, { x: 880, z: -600, h: 1.7, sun: 30, sec: 400, prov: prov() });
+    if (boatOn(f)) F.push('an outboard from boats 640 m away');
+  }
+  return F;
+}
+// the page: the real audio.js, samples.js, the ambience and the emitters; a context with panners and buffers
+function emPage(S, o) {
+  o = o || {};
+  const R = { fetch: 0, decode: 0, sources: [], panners: [], buffers: 0 };
+  const cat = JSON.parse(fs.readFileSync(path.join(ROOT, 'src/viewer/audio/sfx_catalogue.json'), 'utf8'));
+  const media = {}; for (const e of cat) (media[e.key] = media[e.key] || []).push(e.file);
+  const dur = {}; for (const e of cat) dur[e.file] = e.durationS;
+  const mkBuf = (n, sr, d) => { const a = d || new Float32Array(n); return { length: n, numberOfChannels: 1, sampleRate: sr, duration: n / sr, getChannelData: () => a, copyToChannel(y) { a.set(y); } }; };
+  const prov = o.movers || null;
+  const pg = makePage(S, Object.assign({ quiet: true, search: o.search || '',
+    before: w => { w.FLYDIY_AUDIO_MEDIA = media; w.FLYDIY_ASSET_BASE = ''; w.ASSET_FETCH = u => { R.fetch++; return Promise.resolve(new Uint8Array(Math.max(1, Math.round((dur[u] || 1) * 100)))); };
+                   w.GFX = { get: () => ({ preset: o.tier || 'gamer' }) };
+                   if (prov) w.WORLD = { premises: { soundObjects: out => prov.objects(out) } };
+                   if (o.before) o.before(w); },
+    after: [[S.samples, 'samples.js'], [S.spcfg, 'space_config.js'], [S.ambmodel, 'ambience_model.js'], [S.amb, 'ambience.js'], [S.emmodel, 'emitters_model.js'], [S.em, 'emitters.js']],
+    ctx: (proto, C) => {
+      const prm = v => ({ value: v, setTargetAtTime(x) { this.value = x; C.sched++; }, setValueAtTime(x) { this.value = x; C.sched++; },
+                          cancelScheduledValues() {}, linearRampToValueAtTime(x) { this.value = x; C.sched++; } });
+      proto.createGain = function () { C.nodes++; return { gain: prm(1), connect(n) { this.to = n; }, disconnect() {} }; };
+      proto.createBiquadFilter = function () { C.nodes++; return { type: '', frequency: prm(20000), Q: prm(1), connect(n) { this.to = n; }, disconnect() {} }; };
+      proto.createPanner = function () { C.nodes++; const p = { positionX: prm(0), positionY: prm(0), positionZ: prm(0), connect(n) { this.to = n; }, disconnect() {} }; R.panners.push(p); return p; };
+      proto.createBuffer = (ch, n, sr) => { R.buffers++; return mkBuf(n, sr); };
+      proto.createBufferSource = function () { C.nodes++; const s = { buffer: null, loop: false, playbackRate: prm(1), connect(n) { this.to = n; }, disconnect() {}, start(t) { this.on = 1; this.t0 = t; }, stop() { this.on = 0; } }; R.sources.push(s); return s; };
+      // (the decoded length is the catalogue's: the fetch encoded the file's seconds in its byte count)
+      proto.decodeAudioData = function (ab, ok) { R.decode++; const b = mkBuf(Math.round(ab.byteLength / 100 * 48000), 48000); if (ok) ok(b); return Promise.resolve(b); };
+    } }, o.page || {}));
+  if (!(o.page && o.page.noGesture)) pg.gesture('pointerdown');
+  const fb = FLOWN[5];
+  pg.sim = stubSim(fb, { mains: [true, true], tw: false, water: false }); pg.def = fb.def;
+  pg.camera = { position: { x: 0, y: 22, z: 500 }, matrixWorld: { elements: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1] } }; pg.cam = { mode: 'chase' };
+  pg.R = R; pg.prov = prov;
+  pg.world = o.world || ambWorld();
+  if (o.sun != null) pg.world.day.sunEl = o.sun;
+  let clk = 0;
+  pg.go = () => { clk += 1 / 60; if (prov) prov.T[0] = clk; pg.A.update(pg.sim, pg.camera, 1 / 60, pg.def, pg.cam, !!pg.garage, pg.world); };
+  pg.settle = async n => { for (let i = 0; i < n; i++) { pg.go(); if (i % 4 === 0) { await null; pg.runTimers(); } } for (let i = 0; i < 8; i++) await null; };
+  pg.at = (x, z, h) => { const W = pg.world; pg.camera.position.x = x; pg.camera.position.z = z; pg.camera.position.y = Math.max(W.terrainH(x, z), W.waterH(x, z)) + h; };
+  return pg;
+}
+// NOTHING BEFORE THE GESTURE, nothing before a frame, nothing near nothing; ?audio=0 builds no emitters
+async function checkEmGesture(S) {
+  const F = [];
+  const pg = emPage(S);
+  if (!pg.win.EMITTERS) return ['the emitters did not register (window.EMITTERS absent)'];
+  if (pg.R.fetch || pg.R.decode || pg.R.buffers) F.push('the gesture fetched ' + pg.R.fetch + ' / decoded ' + pg.R.decode + ' / made ' + pg.R.buffers + ' buffers before any frame');
+  const urls = []; const f0 = pg.win.ASSET_FETCH; pg.win.ASSET_FETCH = u => { urls.push(u); return f0(u); };
+  // nothing near: 500 m over the forest - no emitter key fetched, no source, no buffer made
+  pg.at(-900, -800, 500); await pg.settle(600);
+  const emKeys = /bird_|dog_|mech_door|vehicle_/;
+  if (urls.some(u => emKeys.test(u)) || pg.R.sources.some(s => s.buffer && !s.loop && s.buffer.length < 48000 * 3)) F.push('500 m up, nothing near: the emitters fetched ' + urls.filter(u => emKeys.test(u)).length + ' files');
+  if (pg.win.EMITTERS.procBytes()) F.push('500 m up: a procedural buffer was made (' + pg.win.EMITTERS.procBytes() + ' B)');
+  // down in the forest by day: the crow's key is fetched after the frames began
+  pg.at(-900, -800, 1.7); await pg.settle(300);
+  if (!urls.some(u => /bird_crow/.test(u))) F.push('4 s in the forest by day and the crow was not fetched');
+  const pre = makePage(S, { quiet: true, before: w => { w.ASSET_FETCH = () => { F.push('a fetch before the gesture'); return Promise.resolve(new Uint8Array(1)); }; w.FLYDIY_AUDIO_MEDIA = { 'bird.crow': ['c.mp3'] }; },
+    after: [[S.samples, 'samples.js'], [S.ambmodel, 'ambience_model.js'], [S.amb, 'ambience.js'], [S.emmodel, 'emitters_model.js'], [S.em, 'emitters.js']] });
+  const b = FLOWN[5], sim = stubSim(b, { mains: [true, true], tw: false, water: false }), W = ambWorld(), cam = { position: { x: -900, y: 21.7, z: -800 } };
+  for (let i = 0; i < 600; i++) pre.A.update(sim, cam, 1 / 60, b.def, { mode: 'chase' }, false, W);
+  for (let i = 0; i < 8; i++) await null;
+  if (pre.C.ctx !== 0) F.push('a context before the gesture (' + pre.C.ctx + ')');
+  const off = makePage(S, { quiet: true, search: '?audio=0', after: [[S.samples, 'samples.js'], [S.ambmodel, 'ambience_model.js'], [S.amb, 'ambience.js'], [S.emmodel, 'emitters_model.js'], [S.em, 'emitters.js']] });
+  if (off.win.EMITTERS) F.push('?audio=0 built the emitters');
+  return F;
+}
+// THE PAGE PLAYS WHAT THE MODEL SAYS: a call starts a buffer source at its place (the panner in the camera's frame), the
+// pass rides its car with the doppler (up approaching, down receding), a loop plays the procedural buffer, the muffle
+async function checkEmPlay(S) {
+  const F = [];
+  const prov = emMovers({ car: [-200, 15, 14, 0, 0], tram: { a: [40, 5, 0], b: [40, 600, 2000], v: 6, dwell: 6 } });
+  const pg = emPage(S, { movers: prov, sun: 40 });
+  pg.at(0, 0, 1.7);
+  const E = pg.win.EMITTERS, M = E.model;
+  // the camera turned: looking down +x (right +z, back -x): a source ahead on +x sits at -Z in the camera's frame
+  pg.camera.matrixWorld.elements = [0, 0, 1, 0, 0, 1, 0, 0, -1, 0, 0, 0, 0, 0, 0, 1];
+  const rates = [];
+  for (let i = 0; i < 60 * 24; i++) { pg.go(); if (i % 4 === 0) { await null; pg.runTimers(); }
+    const st = E.state; for (let k = 0; k < M.NV; k++) if (st.vOn[k] && st.vS[k] === M.S.pickup && st.vF[k] >= 0) { const s = pg.R.sources.filter(x => x.buffer && !x.loop).pop(); rates.push([i / 60, s ? s.playbackRate.value / st.vR[k] : 1, st.vX[k]]); } }
+  if (!rates.length) F.push('the car passed and no pass played');
+  else {
+    const before = rates.filter(r => r[2] < -20), after = rates.filter(r => r[2] > 20);
+    if (!before.length || !after.length) F.push('the pass did not span the car\'s approach and its leaving (' + before.length + ' / ' + after.length + ' frames)');
+    else if (!(Math.max(...before.map(r => r[1])) > 1.01 && Math.min(...after.map(r => r[1])) < 0.99)) F.push('no doppler on the pass: x' + Math.max(...before.map(r => r[1])).toFixed(3) + ' approaching, x' + Math.min(...after.map(r => r[1])).toFixed(3) + ' leaving (want > 1.01 and < 0.99)');
+  }
+  // the tram's hum: a looping source on the procedural buffer, its bell a one-shot
+  const loops = pg.R.sources.filter(s => s.loop && s.buffer);
+  if (!loops.length) F.push('no loop played by the tram running 40 m away');
+  if (!(E.procBytes() > 0)) F.push('no procedural buffer made for the tram');
+  // a static call placed in the camera's frame: the bell (made: the tram is near) straight ahead (+x, 50 m) -> the
+  // panner at (0, 0, -50)
+  const st = E.state;
+  if (E.resident(M.S.bell) !== 2) F.push('the tram\'s bell was not made (resident ' + E.resident(M.S.bell) + ')');
+  for (let k = 0; k < M.NV; k++) st.vT1[k] = 0;
+  pg.go();
+  st.pos[0] = 50; st.pos[1] = st.L[1]; st.pos[2] = 0;
+  const v = M.fire(st, M.S.bell, -1, 1); pg.go();
+  const pan = pg.R.panners[v];
+  if (!(pan && Math.abs(pan.positionX.value) < 0.5 && Math.abs(pan.positionZ.value + 50) < 0.5)) F.push('a call 50 m ahead placed at (' + (pan ? [pan.positionX.value, pan.positionY.value, pan.positionZ.value].map(q => q.toFixed(1)).join(', ') : '-') + ') in the camera\'s frame (want (0, 0, -50))');
+  // the muffle: a closed cockpit ducks the emitters (-12 dB, 900 Hz)
+  pg.A.params.s[pg.A.params.I.open] = 0; pg.cam.mode = 'cockpit'; await pg.settle(4);
+  const duck = pg.R.panners.length ? pg.R.panners[0].to.to.to : null;   // panner -> emIn -> emLP -> emDuck
+  if (!(duck && duck.gain && Math.abs(20 * Math.log10(duck.gain.value) + 12) < 0.1)) F.push('a closed cockpit: the emitters at ' + (duck && duck.gain ? (20 * Math.log10(duck.gain.value)).toFixed(1) : '?') + ' dB (want -12)');
+  return F;
+}
+// THE BUDGET: the emitters' decoded one-shots under the tier's class budget; released when long unwanted
+async function checkEmBudget(S, report) {
+  const F = [];
+  for (const [tier, budget] of [['gamer', 8 * 1048576], ['potato', 3 * 1048576]]) {
+    // decoded one-shots at their catalogue length (a crow is 0.39 s, a gull 6 s): the budget is real
+    const pg = emPage(S, { tier, sun: 40 });
+    const SM = pg.win.AUDIO_SAMPLES, E = pg.win.EMITTERS;
+    let maxB = 0, drops = 0, lastB = 0, over = 0;
+    const spots = [[-900, -800, 40], [880, 0, 40], [400, -1000, 40], [-900, -800, -15], [AMB_LAKE[0] + AMB_LAKE[2] + 5, AMB_LAKE[1], -3], [0, 500, 40]];
+    for (let f = 0; f < 60 * 450; f++) {
+      if (f % (60 * 75) === 0) { const s = spots[(f / (60 * 75)) % spots.length]; pg.at(s[0], s[1], 1.7); pg.world.day.sunEl = s[2]; }
+      pg.go();
+      if (f % 4 === 0) { await null; pg.runTimers(); }
+      const by = SM.classBytes('emit');
+      if (by > maxB) maxB = by; if (by < lastB) drops++; lastB = by;
+      if (by > budget) over++;
+    }
+    if (over) F.push(tier + ': ' + (maxB / 1048576).toFixed(2) + ' MB decoded in the emitters\' class (the budget ' + budget / 1048576 + ' MB)');
+    if (!(maxB > 0)) F.push(tier + ': nothing decoded over 10 min of walk (the budget is untested)');
+    if (drops < 1) F.push(tier + ': the emitters\' bytes never went down (nothing released in 7.5 min)');
+    if (SM.classBytes('amb') && SM.classOf('dog') === SM.classOf('amb.forest.day')) F.push(tier + ': the dog shares the beds\' class');
+    if (report) report.push('the emitters on ' + tier + ': peak ' + (maxB / 1048576).toFixed(2) + ' / ' + budget / 1048576 + ' MB decoded (one-shots), ' + drops + ' releases in 7.5 min, procedural ' + (E.procBytes() / 1024).toFixed(0) + ' KB');
+  }
+  return F;
+}
+// ALLOCATION: AUDIO.update with the emitters - a walk past a running tram and a passing car, calls firing - measured
+// against its TWIN, the same page and walk without the emitters (the page's own frame - the ambience, the stubs - is
+// not the emitters'): the difference within the scheduled params' boxes (48 B each) and the calls' own cost (4 KB each:
+// a call is an EVENT - its buffer source and the stub's record of it, its placing in the world through the world's
+// samplers and the random, code that runs a few times a minute and so boxes); then, nothing near, nothing scheduled
+async function emAllocPage(S, withEm) {
+  let tick = 0;
+  const prov = emMovers({ car: [-300, 20, 14, 0, 45], tram: { a: [-700, 5, -260], b: [-700, 500, 1500], v: 6, dwell: 8 } });
+  const pg = emPage(withEm ? S : Object.assign({}, S, { em: '' }), { movers: prov, sun: 40, page: { clock: () => ++tick } });
+  const cp = pg.camera.position;
+  pg.edge = f => { const u = (f % 1200) / 1200, a = u < 0.5 ? 2 * u : 2 - 2 * u; cp.x = -720; cp.z = -260 + 300 * a; cp.y = 21.7; pg.go(); };
+  for (let f = 0; f < 60 * 120; f++) { pg.edge(f); if (f % 8 === 0) { await null; pg.runTimers(); } }
+  return pg;
+}
+async function emAllocMeasure(pg) {
+  let best = null;
+  for (let w = 0; w < 3; w++) {
+    global.gc(); global.gc(); await new Promise(r => setTimeout(r, 5));
+    let g = 0; const obs = new PerformanceObserver(l => { g += l.getEntries().length; }); obs.observe({ entryTypes: ['gc'] });
+    const s0 = pg.C.sched, n0 = pg.R.sources.length, h0 = process.memoryUsage().heapUsed;
+    for (let f = 0; f < 10000; f++) pg.edge(f);
+    const d = process.memoryUsage().heapUsed - h0, sc = pg.C.sched - s0, cl = pg.R.sources.length - n0;
+    await new Promise(r => setTimeout(r, 5)); obs.disconnect();
+    const m = { d, g, sc, cl, net: d - 48 * sc - 4096 * cl };
+    if (!best || m.g < best.g || (m.g === best.g && m.net < best.net)) best = m;
+  }
+  return best;
+}
+async function checkEmAlloc(S, report) {
+  const F = [];
+  const pg = await emAllocPage(S, true), A = await emAllocMeasure(pg);
+  const B = await emAllocMeasure(await emAllocPage(S, false));
+  // the emitters' own: what the page with them allocates over its twin, less their params' boxes and their calls' nodes
+  const own = A.d - B.d - 48 * Math.max(0, A.sc - B.sc) - 4096 * A.cl;
+  if (A.g > B.g || own > 16384) F.push('the emitters allocate in AUDIO.update: ' + ((A.d - B.d) / 10000).toFixed(1) + ' B a frame over the page without them (' + A.d + ' vs ' + B.d + ' B, ' + A.g + ' vs ' + B.g + ' GC; ' + (A.sc - B.sc) + ' params and ' + A.cl + ' calls of theirs allow ' + (48 * Math.max(0, A.sc - B.sc) + 4096 * A.cl) + ' B + 16 KB)');
+  if (!(A.sc - B.sc >= 20 && A.cl >= 3)) F.push('the window scheduled ' + (A.sc - B.sc) + ' params of the emitters\' and started ' + A.cl + ' calls (want >= 20 and >= 3: else the walk proves nothing)');
+  // nothing near (500 m up), settled: 3000 frames move nothing and start nothing of the emitters'
+  const cp = pg.camera.position;
+  cp.y = 600; for (let f = 0; f < 60 * 20; f++) { pg.go(); if (f % 8 === 0) { await null; pg.runTimers(); } }
+  const E = pg.win.EMITTERS, st = E.state;
+  let on = 0; for (let k = 0; k < st.lOn.length; k++) on += st.lOn[k];
+  const s0 = pg.R.panners.map(p => p.positionX.value + p.positionZ.value), n0 = pg.R.sources.length;
+  for (let f = 0; f < 3000; f++) pg.go();
+  const moved = pg.R.panners.filter((p, i) => p.positionX.value + p.positionZ.value !== s0[i]).length;
+  if (on || moved || pg.R.sources.length !== n0) F.push('nothing near: ' + on + ' loops on, ' + moved + ' panners moved, ' + (pg.R.sources.length - n0) + ' sources started over 3000 frames (want none)');
+  // a STILL listener in the forest by day, calls sounding (static: placed once) and a mill's loop 150 m off (its generator's
+  // P.mill): the emitters schedule only at a call's start (its place, its gain: <= 6 params a call) - never a sounding
+  // call's panner again, nor a still loop's
+  {
+    const W = ambWorld();
+    W.premises.rec.layers.sites = [{ id: 'mine', at: { x: -900, z: -650, yaw: 0 }, items: [{ id: 'm', key: 'house/kennecott mill', x: 0, z: 0 }] }];
+    const q = emPage(S, { sun: 40, world: W, before: w => { w.HOUSE_GEN = { PRESETS: { 'kennecott mill': { mill: 1 } } }; } });
+    q.at(-900, -800, 1.7);
+    await q.settle(60 * 40);
+    const s0 = q.C.sched, n0 = q.R.sources.length;
+    let on = 0;
+    for (let f = 0; f < 60 * 60; f++) { q.go(); if (f % 8 === 0) { await null; q.runTimers(); } const st = q.win.EMITTERS.state; for (let k = 0; k < st.vOn.length; k++) on += st.vOn[k]; }
+    const sc = q.C.sched - s0, calls = q.R.sources.length - n0;
+    let mill = 0; const st = q.win.EMITTERS.state; for (let k = 0; k < st.lOn.length; k++) if (st.lOn[k] && st.lS[k] === q.win.EMITTERS.model.S.mill) mill++;
+    if (!mill) F.push('a still listener 150 m from a mill: its loop is not on (the check proves nothing)');
+    if (!(calls >= 2 && on > 60)) F.push('a minute in the forest by day: ' + calls + ' calls (want some: the check proves nothing)');
+    else if (sc > 6 * calls + 4) F.push('a still listener: ' + sc + ' params scheduled for ' + calls + ' static calls in a minute (want <= ' + (6 * calls + 4) + ': placed once, at their start)');
+  }
+  if (report) report.push('the emitters in AUDIO.update: ' + ((A.d - B.d) / 10000).toFixed(2) + ' B a frame over the page without them (' + (A.sc - B.sc) + ' params, ' + A.cl + ' calls in the window; their own after those: ' + (own / 10000).toFixed(2) + ' B a frame), ' + A.g + ' GC');
+  return F;
+}
+// THE WIRING: the build order; the source on the ambience bus; the premises renderer publishes its read-only accessor
+function checkEmWiring(S) {
+  const F = [];
+  const i1 = S.build.indexOf("'audio/ambience.js'"), i2 = S.build.indexOf("'audio/emitters_model.js'"), i3 = S.build.indexOf("'audio/emitters.js'"), i4 = S.build.indexOf("'world_boot.js', 'app.js'");
+  if (!(i1 >= 0 && i2 > i1 && i3 > i2 && i4 > i3)) F.push('the build does not list audio/emitters_model.js, audio/emitters.js after the ambience and before app.js');
+  if (!/addSource\('emitters'/.test(S.em) || !/bus\('ambience'\)/.test(S.em)) F.push('the emitters are not the ambience bus\'s source');
+  if (!/\n    soundObjects,/.test(S.prem) || !/function soundObjects\(out\)/.test(S.prem)) F.push('render_premises does not publish soundObjects (the movers\' read-only accessor)');
+  // every shipped emitter key is declared a one-shot and is one of the model's sounds; every recorded sound has its file but the loon
+  const c = { module: { exports: {} }, console: { info() {}, warn() {}, log() {} } };
+  vm.runInNewContext(S.samples, c, { filename: 'samples.js' });
+  const SM = c.module.exports, { M } = emModelOf(S);
+  const cat = JSON.parse(fs.readFileSync(path.join(ROOT, 'src/viewer/audio/sfx_catalogue.json'), 'utf8'));
+  for (const sd of M.SOUNDS) if (sd[1]) {
+    if (!SM.KEYS[sd[1]] || SM.KEYS[sd[1]].kind !== 'oneshot') F.push(sd[1] + ' is not a declared one-shot in samples.js');
+    if (sd[1] !== 'bird.loon' && !cat.some(e => e.key === sd[1])) F.push(sd[1] + ' has no file in the catalogue');
+  }
+  return F;
+}
+// THE LOADER's one-shot class: kept decoded (no loop baked), under its budget, assigned keys
+function checkEmSamples(S) {
+  const F = [];
+  const c = { module: { exports: {} }, console: { info() {}, warn() {}, log() {} } };
+  vm.runInNewContext(S.samples, c, { filename: 'samples.js' });
+  const SM = c.module.exports;
+  const mkBuf = (n, sr) => { const d = new Float32Array(n); return { length: n, numberOfChannels: 1, sampleRate: sr, duration: n / sr, getChannelData: () => d }; };
+  const ctx = { currentTime: 0, decodeAudioData: (ab, ok) => { const b = mkBuf(48000 * 6, 48000); ok(b); return Promise.resolve(b); }, createBuffer: (ch, n, sr) => mkBuf(n, sr) };
+  const I = SM.create({ manifest: { dog: ['d'], 'bird.gull': ['g'], 'mech.creak': ['c'] }, base: '', fetch: () => Promise.resolve(new Uint8Array(8)) });
+  I.attach(ctx);
+  I.setClass('emit', { budget: 2 * 1048576 }); I.assign('dog', 'emit'); I.assign('bird.gull', 'emit');
+  return I.load('dog').then(b => {
+    if (!b || b.length !== 48000 * 6) F.push('the dog in the one-shot class came back ' + (b && b.length) + ' samples (want its 6 s decoded as is)');
+    if (I.classBytes('emit') !== 48000 * 6 * 4) F.push('the one-shot class counts ' + I.classBytes('emit') + ' B (want ' + 48000 * 6 * 4 + ')');
+    return I.load('bird.gull');
+  }).then(g => {
+    if (g !== null || I.state('bird.gull') !== 'budget') F.push('a second 1.1 MB shot under a 2 MB class read ' + I.state('bird.gull') + ' (want refused)');
+    I.release('dog');
+    if (I.classBytes('emit') !== 0) F.push('the dog released left ' + I.classBytes('emit') + ' B');
+    return I.load('mech.creak');
+  }).then(() => {
+    if (I.classBytes('emit') !== 0 || !(I.bytes > 0)) F.push('the airframe\'s creak (unassigned) counted in the emitters\' class');
+    return F;
+  });
+}
+
 const CHECKS = { NUMBERS: checkNumbers, CONTACTS: checkContacts, BUDGET: checkBudget, GESTURE: checkGesture,
                  SILENCE: checkSilence, SETTINGS: checkSettings, SOURCES: checkSources, WIRING: checkWiring,
                  MUSIC_CAT: checkMusicCatalogue, MUSIC_CTX: checkMusicContexts, MUSIC_SHUFFLE: checkMusicShuffle,
@@ -2790,8 +3258,11 @@ const CHECKS = { NUMBERS: checkNumbers, CONTACTS: checkContacts, BUDGET: checkBu
                  SP_IR: checkSpIr, SP_GRAPH: checkSpGraph, SP_BUDGET: checkSpBudget, SP_CRAFT: checkSpCraft,
                  AMBPLACES: checkAmbPlaces, AMBJOLENE: checkAmbJolene, AMBSMOOTH: checkAmbSmooth, AMBAGL: checkAmbAgl, AMBLUFS: checkAmbLufs,
                  AMBGESTURE: checkAmbGesture, AMBBUDGET: checkAmbBudget, AMBALLOC: checkAmbAlloc, AMBMUFFLE: checkAmbMuffle,
-                 AMBSAMPLES: checkAmbSamples, AMBWIRING: checkAmbWiring };
-const REPORTS = { BUDGET: 1, AFVOICE: 1, AFALLOC: 1, AFFLOWN: 1, AFSOURCE: 1, SP_BUDGET: 1, AMBBUDGET: 1, AMBALLOC: 1 };
+                 AMBSAMPLES: checkAmbSamples, AMBWIRING: checkAmbWiring,
+                 EMITHABITAT: checkEmHabitat, EMITRATE: checkEmRate, EMITAGL: checkEmAgl, EMITOBJECTS: checkEmObjects,
+                 EMITGESTURE: checkEmGesture, EMITPLAY: checkEmPlay, EMITBUDGET: checkEmBudget, EMITALLOC: checkEmAlloc,
+                 EMITWIRING: checkEmWiring, EMITSAMPLES: checkEmSamples };
+const REPORTS = { BUDGET: 1, AFVOICE: 1, AFALLOC: 1, AFFLOWN: 1, AFSOURCE: 1, SP_BUDGET: 1, AMBBUDGET: 1, AMBALLOC: 1, EMITRATE: 1, EMITBUDGET: 1, EMITALLOC: 1 };
 
 // ---- THE MUTATIONS (D): [name, file, find, replace, the check that must go red] ---------------------------------
 const MUT = [
@@ -3019,6 +3490,38 @@ const MUT = [
   ['the talk through Web Audio', 'radio', '  function makeSpeaker(env) {\n', '  function makeSpeaker(env) {\n    const ac = E => new E.AudioContext();\n', 'RADIO_WIRING'],
   ['the build loses the ambience', 'build', "'audio/ambience_model.js', 'audio/ambience.js',", "'audio/ambience_model.js',", 'AMBWIRING'],
   ['AUDIO keeps the world to itself', 'audio', '    api.world = world || null;\n', '', 'AMBWIRING'],
+  // SND-AMB-2 (G1660-G1666): each break of the emitters, red on its check
+  ['owls by day', 'emmodel', '    w[3] = night * forest * ak;', '    w[3] = day * forest * ak;', 'EMITHABITAT'],
+  ['gulls inland', 'emmodel', "q = (ac - 60) / 240; const shore = 1 - (q < 0 ? 0 : q > 1 ? 1 : q);", "q = (ac - 60) / 24000; const shore = 1 - (q < 0 ? 0 : q > 1 ? 1 : q);", 'EMITHABITAT'],
+  ['a crow anywhere (no tree asked)', 'emmodel', '        if (cn >= 4) { p[0] = x;', '        if (cn >= 4 || pl === 1) { p[0] = x;', 'EMITHABITAT'],
+  ['the dog out of the village', 'emmodel', "        if (inVillage(amb, x, z) || (f[F.built] > 0.1 && isBuilt(world, x, z))) {", "        if (true) {", 'EMITHABITAT'],
+  ['the gap ignored', 'emmodel', '      if (wv <= 0.001 || t - st.last[sd] < SPT[o + 2]) continue;', '      if (wv <= 0.001) continue;', 'EMITRATE'],
+  ['the dog not rare', 'emmodel', "    [S.dog, 300, 150, 'yard', 30, 120, 1, 'village'],", "    [S.dog, 30, 15, 'yard', 30, 120, 1, 'village'],", 'EMITRATE'],
+  ['the cap ignored', 'emmodel', '    if (n >= st.cap || slot < 0) { st.refused[0]++; return -1; }', '    if (slot < 0) { st.refused[0]++; return -1; }', 'EMITRATE'],
+  ['no pitch jitter', 'emmodel', '    st.vR[i] = Math.pow(2, (2 * rnd(st) - 1) * 1.5 / 12);', '    st.vR[i] = Math.pow(2, (2 * rnd(st) - 1) * 0.1 / 12);', 'EMITRATE'],
+  ['no ceiling', 'emmodel', '  const CEIL_LO = 60, CEIL = 150;', '  const CEIL_LO = 600, CEIL = 1500;', 'EMITAGL'],
+  ['the movers above the ceiling', 'emmodel', '    if (ak > 0 && prov && prov.objects) { nn = prov.objects(o) | 0;', '    if (prov && prov.objects) { nn = prov.objects(o) | 0;', 'EMITAGL'],
+  ['the pass not bound to its car', 'emmodel', '    const v = fire(st, S.pickup, r, 1);', '    const v = fire(st, S.pickup, -1, 1);', 'EMITOBJECTS'],
+  ['the pass too early', 'emmodel', 'const PASS = { reach: 140, tLo: 2.4, tHi: 3.6,', 'const PASS = { reach: 140, tLo: 6, tHi: 9,', 'EMITOBJECTS'],
+  ['no station bell', 'emmodel', '          fire(st, S.bell, -1, 1);', '', 'EMITOBJECTS'],
+  ['the mill at night', 'emmodel', '      if (ak <= 0 || st.clk[6] <= 0) continue;', '      if (ak <= 0) continue;', 'EMITOBJECTS'],
+  ['the mill by the record\'s key', 'emmodel', '      else if (ns === \'house\' && HG && HG.PRESETS && HG.PRESETS[preset] && HG.PRESETS[preset].mill) sound = S.mill;', '      else if (/mill/.test(preset)) sound = S.mill;', 'EMITOBJECTS'],
+  ['an outboard at night', 'emmodel', '    const bw = st.clk[7] > 0.2 ? ak : 0;   // by day', '    const bw = ak;', 'EMITOBJECTS'],
+  ['the tram hum flat', 'emmodel', 'st.lG[li] = ak * (0.12 + 0.88 * vk);', 'st.lG[li] = ak;', 'EMITOBJECTS'],
+  ['every key fetched at connect', 'em', '      applyTier(tierOf());', '      applyTier(tierOf()); for (const k in OWN) if (SM.has(k)) SM.load(k);', 'EMITGESTURE'],
+  ['a procedural buffer made at once', 'em', '      if (r === 0 && want && loading < 0) begin(s);', '      if (r === 0 && (want || !SOUNDS[s][1]) && loading < 0) begin(s);', 'EMITGESTURE'],
+  ['no doppler on the pass', 'em', '      const rate = st.vR[i] * k;', '      const rate = st.vR[i];', 'EMITPLAY'],
+  ['the panner in the world\'s frame', 'em', '    const px = rx * Lf[0] + ry * Lf[1] + rz * Lf[2], py = rx * Lf[3] + ry * Lf[4] + rz * Lf[5], pz = rx * Lf[6] + ry * Lf[7] + rz * Lf[8];', '    const px = rx, py = ry, pz = rz;', 'EMITPLAY'],
+  ['the cockpit unmuffled', 'em', '      else { k = CABIN[0]; lp = CABIN[1]; }', '      else { k = CLEAR[0]; lp = CLEAR[1]; }', 'EMITPLAY'],
+  ['never released', 'em', '      if (r === 2 && !want && t - resT[s] > RELEASE_S && !playing(s)) { drop(s); continue; }', '', 'EMITBUDGET'],
+  ['the one-shot class over its budget', 'samples', '        if (C.bytes + add > C.budget) {', '        if (false) {', 'EMITBUDGET'],
+  ['the emitters allocate a frame', 'emmodel', '    clk[3] = d;\n    movers(st, prov);', '    clk[3] = d; st.trail = [d, t];\n    movers(st, prov);', 'EMITALLOC'],
+  ['a panner moved every frame', 'em', '    if (Math.abs(px - last[o]) + Math.abs(py - last[o + 1]) + Math.abs(pz - last[o + 2]) > 0.05 + 0.002 * d) {', '    if (true) {', 'EMITALLOC'],
+  ['the build loses the emitters', 'build', "              'audio/emitters_model.js', 'audio/emitters.js',", "              'audio/emitters_model.js',", 'EMITWIRING'],
+  ['the movers unpublished', 'prem', '\n    soundObjects,', '\n    soundObjectsX: null,', 'EMITWIRING'],
+  ['the pickup undeclared', 'samples', "    ['dog', 'a dog barking, far off'], ['mech.door', 'a door shutting'], ['vehicle.pickup', 'a pickup passing on gravel'],", "    ['dog', 'a dog barking, far off'], ['mech.door', 'a door shutting'],", 'EMITWIRING'],
+  ['the one-shot baked into a loop', 'samples', "      if (KEYS[key] && KEYS[key].kind === 'oneshot') {\n        const add", "      if (false) {\n        const add", 'EMITSAMPLES'],
+  ['an assignment ignored', 'samples', "    const clsOf = key => { const a = assigned[key]; if (a) return classes[a] || null;", "    const clsOf = key => { const a = null; if (a) return classes[a] || null;", 'EMITSAMPLES'],
 ];
 
 // a check returns its failures, or a promise of them (SAMPLES: the loader is promise-based)
