@@ -359,9 +359,10 @@ function makeSim(def, world) {
   // gone from the rebound. Tension hardens from ty to tu over the material's uniform elongation and breaks there;
   // compression is perfectly plastic at cy until the member has kinked (ecu) and breaks there. A brittle member
   // (spruce in tension, carbon) breaks at its yield. A broken member's k and c go to 0 (restored by reset()).
-  // THE COST: one product and two compares per beam per substep, in the beam loop that already computes the
-  // length; a member under its yield (every member of every validated build in flight, on a hard landing at the
-  // gear's limit and in the 3.8 g load test - GATE TREECRASH) never takes the branch, and its bits are the old ones.
+  // THE COST: in a frame ARMED (armFrame below: a trunk or an obstacle in reach, a scrape, a member past half its
+  // yield) one product and two compares per beam per substep in the beam loop that already has the length; unarmed,
+  // one pass over the beams a frame. A member under its yield (every member of every validated build in flight, on a
+  // hard landing at the gear's limit and in the 5.7 g load test - GATE TREECRASH) never yields, and its bits are the old ones.
   // `params.damage === false` turns it off (every limit Infinity). A hand fiche (no bm.A) has no limits.
   const DMG_ON = P_.damage !== false && typeof GEN_CRASH !== 'undefined';
   const nb = beams.length;
@@ -374,6 +375,10 @@ function makeSim(def, world) {
   // per beam: the cluster both its ends belong to (-1 none) - a set inside a shape-matched cluster re-takes the
   // cluster's rest (else the projection would pull the bend straight), a break releases the cluster
   const beamCl = new Int16Array(nb).fill(-1);
+  // the CAPS the beam loop compares against every substep (the yield in tension, in compression - a bend's when lower):
+  // contiguous typed arrays, not fields on the beam objects - fields added after the beam was made sit out of line, a
+  // pointer and a cache line more per beam per substep (measured: +5-8 % on the step with nothing touching)
+  const FY = new Float64Array(nb), FC = new Float64Array(nb);
   // THE NOSE: a fuselage member with both ends ahead of the firewall (x < 0 in the def's frame) - the engine and its
   // bearer's front, the cowl's stand-ins. It crushes round a trunk at a taxi's pace (the prop strikes, the engine
   // stops) and that is a dent, not a crash; any other member broken is (dmgFrame)
@@ -403,20 +408,20 @@ function makeSim(def, world) {
       const Dt = R ? Math.sqrt(GEN_CRASH_TUBE_DT * b.A / Math.PI) : 0;
       b.mp = R && R.ty ? R.ty * b.A * Dt / Math.PI : Infinity;
       b.thf = R ? R.thf : 0;
-      b.fyM = b.fy0; b.fy = b.fy0; b.fc = b.fc0; b.ep = 0; b.ec = 0; b.Lr = 0; b.broken = false; b.kB = 0; b.cB = 0;
+      b.fyM = b.fy0; FY[bi] = b.fy0; FC[bi] = b.fc0; b.ep = 0; b.ec = 0; b.Lr = 0; b.broken = false; b.kB = 0; b.cB = 0; b.yielded = false;
       b.dOn = false; b.dTx = 0; b.dTz = 0; b.dNx = 0; b.dNz = 0; b.dk = 0; b.ks = 0; b.kt = 0.25; b.kt1 = 0.5;
     }
   }
   // THE PROBE (params.damageProbe, GATE TREECRASH and its evidence only): nothing yields; every member's peak force
   // over its yield, per substep, tension and compression (the limits read 0 so every beam takes the branch)
   const PEAK = P_.damageProbe ? { t: new Float64Array(nb), c: new Float64Array(nb) } : null;
-  if (PEAK) for (const b of beams) { b.fyP = b.fy0; b.fcP = b.fc0; b.fy0 = 0; b.fyM = 0; b.fy = 0; b.fc0 = 0; b.fc = 0; b.mp = Infinity; }
+  if (PEAK) beams.forEach((b, bi) => { b.fyP = b.fy0; b.fcP = b.fc0; b.fy0 = 0; b.fyM = 0; FY[bi] = 0; b.fc0 = 0; FC[bi] = 0; b.mp = Infinity; });
   let clDirty = false;
   function dmgReset() {
     for (let bi = 0; bi < nb; bi++) {
       const b = beams[bi];
       if (b.broken) { b.k = b.kB; b.c = b.cB; b.broken = false; }
-      b.fyM = b.fy0; b.fy = b.fy0; b.fc = b.fc0; b.ep = 0; b.ec = 0; b.dOn = false; b.dk = 0; b.ks = 0;
+      b.fyM = b.fy0; FY[bi] = b.fy0; FC[bi] = b.fc0; b.ep = 0; b.ec = 0; b.dOn = false; b.dk = 0; b.ks = 0;
     }
     for (let i = 0; i < n; i++) { nodeDeg[i] = nodeDeg0[i]; orphan[i] = 0; }
     for (const C of clusters) { C.off = false; C.dirty = false; }
@@ -441,7 +446,7 @@ function makeSim(def, world) {
   // the caller re-reads b.L0 / b.k
   // the caps a bent member's chord carries: the material's, and a bend of depth dk straightens (tension) or folds
   // further (compression) at its plastic moment over that depth
-  function kinkCaps(b) { const fk = b.dk > 1e-6 ? b.mp / b.dk : Infinity; b.fy = b.fyM < fk ? b.fyM : fk; b.fc = b.fc0 < fk ? b.fc0 : fk; }
+  function kinkCaps(bi) { const b = beams[bi], fk = b.dk > 1e-6 ? b.mp / b.dk : Infinity; FY[bi] = b.fyM < fk ? b.fyM : fk; FC[bi] = b.fc0 < fk ? b.fc0 : fk; }
   function hingeCheck(bi) {
     const b = beams[bi], L = b.Lr;
     if (Math.atan(b.dk / (b.kt1 * L)) + Math.atan(b.dk / ((1 - b.kt1) * L)) > b.thf) beamBreak(bi);
@@ -462,24 +467,26 @@ function makeSim(def, world) {
     if (b.tens && Fs < 0) return;                    // a slack wire carries nothing to yield
     let dL;
     if (Fs > 0) {
-      if (b.dk > 0 && b.fy < b.fyM) {                // the bend pulls straight (no further than straight)
-        dL = Math.min((Fs - b.fy) / b.k, b.ks);
-        DMG.work += b.fy * dL; b.L0 += dL; b.ks -= dL;
+      const fy = FY[bi];
+      if (b.dk > 0 && fy < b.fyM) {                  // the bend pulls straight (no further than straight)
+        dL = Math.min((Fs - fy) / b.k, b.ks);
+        DMG.work += fy * dL; b.L0 += dL; b.ks -= dL;
         if (b.ks <= 1e-12) { b.ks = 0; b.dk = 0; } else b.dk = Math.sqrt(2 * b.Lr * b.kt * b.ks);
-        kinkCaps(b);
+        kinkCaps(bi);
       } else {
         if (!(b.etu > 0)) { beamBreak(bi); return; } // brittle: the yield IS the break
         const H = (b.fu - b.fy0) / (b.etu * b.Lr);   // N per metre of plastic travel (bilinear hardening)
-        dL = (Fs - b.fy) / (b.k + H);
-        DMG.work += (b.fy + 0.5 * H * dL) * dL;
-        b.L0 += dL; b.ep += dL / b.Lr; b.fyM = b.fy0 + H * b.ep * b.Lr; kinkCaps(b);
+        dL = (Fs - fy) / (b.k + H);
+        DMG.work += (fy + 0.5 * H * dL) * dL;
+        b.L0 += dL; b.ep += dL / b.Lr; b.fyM = b.fy0 + H * b.ep * b.Lr; kinkCaps(bi);
         if (b.ep >= b.etu) beamBreak(bi);
       }
     } else {
-      dL = (-Fs - b.fc) / b.k;
-      DMG.work += b.fc * dL; b.L0 -= dL;
-      if (b.dk > 0 && b.fc < b.fc0) {                // the bend folds further
-        b.ks += dL; b.dk = Math.sqrt(2 * b.Lr * b.kt * b.ks); kinkCaps(b); hingeCheck(bi);
+      const fc = FC[bi];
+      dL = (-Fs - fc) / b.k;
+      DMG.work += fc * dL; b.L0 -= dL;
+      if (b.dk > 0 && fc < b.fc0) {                // the bend folds further
+        b.ks += dL; b.dk = Math.sqrt(2 * b.Lr * b.kt * b.ks); kinkCaps(bi); hingeCheck(bi);
       } else {
         b.ec += dL / b.Lr;
         if (b.ec >= b.ecu) beamBreak(bi);
@@ -497,7 +504,7 @@ function makeSim(def, world) {
     const b = beams[bi];
     DMG.work += Pc * (dk - b.dk); b.dk = dk;
     b.ks = Math.max(b.ks, dk * dk / (2 * b.Lr * b.kt));
-    kinkCaps(b);
+    kinkCaps(bi);
     DMG.dents++;
     noteSet(bi);
     hingeCheck(bi);
@@ -506,6 +513,26 @@ function makeSim(def, world) {
   // the frame, over its weight), filtered over ~50 ms - 1 parked, 0 in the air. From the contact forces themselves,
   // not the CG's change of speed: a velocity set from outside (a placement, an air start) is no impact
   let gF = 0, cIx = 0, cIy = 0, cIz = 0;
+  // THE YIELD IS ARMED A FRAME AT A TIME (the hard gate: the step no slower with nothing touching). The beam loop's compare
+  // runs every substep of a frame in which something could yield: a trunk in reach (trunkFrame's pairs), an obstacle in
+  // reach, anything but a wheel on the ground in the last frame, a member already over HALF its yield at the frame's start
+  // (one pass over the beams a frame, not one a substep), an airframe already damaged, or the probe. Everything the
+  // validated builds fly and land on sits under 0.82 of yield (GATE TREECRASH), so a frame unarmed is a frame that could
+  // not have yielded - but for a load that jumps from under half its yield past all of it inside one frame with only
+  // the wheels down (a drop far past the gear's limit): it yields from the next frame. Measured: the compare a substep
+  // cost 4-8 % of the step on the Cub and the metal Cessna; armed by the frame it costs nothing measurable.
+  let armed = false, scrape = false;
+  const ARM_FRAC = 0.5;
+  function armFrame() {
+    armed = false;
+    if (!DMG_ON) return;
+    if (PEAK || _prN || _obstRecs.length || scrape || DMG.yields || DMG.dents) { armed = true; scrape = false; return; }
+    for (let bi = 0; bi < nb; bi++) {
+      const b = beams[bi], a3 = b.a * 3, b3 = b.b * 3;
+      const Fs = b.k * (hyp3(p[b3] - p[a3], p[b3+1] - p[a3+1], p[b3+2] - p[a3+2]) - b.L0);
+      if (Fs > ARM_FRAC * FY[bi] || -Fs > ARM_FRAC * FC[bi]) { armed = true; break; }
+    }
+  }
   // the nose ring and the engine's nodes: on the ground, the prop has been through it (a nose-over)
   const NOSE_G = new Uint8Array(n);
   if (DMG_ON) for (const i of (def.refs.noseFrame || []).concat(def.refs.engine || [])) if (i >= 0 && i < n) NOSE_G[i] = 1;
@@ -1645,8 +1672,7 @@ function makeSim(def, world) {
       const L = hyp3(dx, dy, dz) || 1e-9;
       dx/=L; dy/=L; dz/=L;
       // G1470: past its yield the member takes a set (beamYield moves L0), past its ultimate it breaks (k, c -> 0)
-      const Fs = b.k * (L - b.L0);
-      if (Fs > b.fy || -Fs > b.fc) beamYield(bi, L, Fs);
+      if (armed) { const Fs = b.k * (L - b.L0); if (Fs > FY[bi] || -Fs > FC[bi]) beamYield(bi, L, Fs); }
       const vrel = (v[b3]-v[a3])*dx + (v[b3+1]-v[a3+1])*dy + (v[b3+2]-v[a3+2])*dz;
       b.strain = (L - b.L0) / b.L0 * b.sK;
       // G185: a WIRE carries tension only — slack, it is not there (no
@@ -1721,6 +1747,7 @@ function makeSim(def, world) {
         f[i3]   -= kR*vr_*hx + kL*vl*lx;
         f[i3+2] -= kR*vr_*hz + kL*vl*lz;
       } else {
+        scrape = true;                               // G1470: something other than a wheel on the ground (arms the yield)
         const vx=v[i3], vz=v[i3+2], sp = hyp2(vx, vz);
         if (sp > 1e-6) {
           const kf = Math.min(0.8 * Fn / sp, m[i]/dt);
@@ -1907,6 +1934,7 @@ function makeSim(def, world) {
     }
     obstFrame();
     trunkFrame(dtFrame);
+    armFrame();
     for (let s = 0; s < sub; s++) { substep(dt); simT += dt; burn(dt); }
     readPanel(dtFrame);
     dmgFrame(dtFrame);
