@@ -46,3 +46,29 @@ device gate).
 - **A0 integrates.** Merge trains, the ratchet (light or full by the cargo's reach), the battery, the strict gates once
   GATE-TOOLS lands, landing and Pages.
 - Cloud sessions push `claude/<name>-*` only. Local sessions message A0 with the branch and SHA.
+
+## Status, 4 Oct 2026 ~07:30 (A0)
+
+**On Pages:** train 26 (b2f1ffdc, 3 Oct: the prop over the clouds, the user's two world looks) and **train 27** (e40628b0,
+4 Oct 03:45): SHADER-GUARD (the 76-97 s dusk freezes = the lamp pool re-keying every lit program), LIGHT-SMOOTH (the eye
+pinned the frame at x0.35; light eases; no cloud-tile flash), SIM-STALL, STRIP-SURFACE, EDITOR-VEG, UI-LAYER, WELCOME (+ the
+hangar backdrop; skips localhost so the rigs run), SMALL-FIXES, GATE-TOOLS (the strict per-train gate, tools/perf/train_gate.js),
+the rigs' Cub = builds/cub_2026-09-20_corrected.json (default is the Cub-alike), the live mirror back as an option (off).
+GEAR-WATER was dropped from 27 (GATE SOAR: its wet-body pass changes the glide in dry air) - waiting for its fix.
+
+**Train 28, final pass now** (47 commits): COLD-LINKS (cold first load 75.6 -> 57.9 s), LAKE-HOLES (carved lakebeds; merged
+with COLD-LINKS' ground keying; A0's lakeCarve() so METLA-LOAD's build read carves too), EVEN-30 (a hard 30 by default, ultra
+auto; the forest fill sliced - the taxi's 57-131 ms stalls), LIGHT-SMOOTH 2 (the plane's bake finally reads its 1.6 cm shadow
+cascade - the in-flight bands; the eye at 4 Hz; the GPU catcher), CRAFT-SHADOW (the parked shadow stands still: sun held, grid
+anchored on the aeroplane, map cached), TREE-HITBOX, HOUSE-LOD, EDITOR-LAG, METLA-LOAD (the town's boot bakes gone; the
+town-ON default HELD), METLA-TAXI (town-on taxi as even as off), RUNWAY-LOOK, RUNWAY-LIGHTS, HYBRID-FARTHER (+1.5 ms at taxi,
+accepted by the user), GARAGE-LAG-2 (+ its busy-time trade, accepted), GARAGE-INSTANT (drag ticks 26-75 ms drawn), C0 (honest
+wing sliders). Its first gate went red on CPU contention (peers' lockless node work) - a quiet prefix bisect found one cost
+(HYBRID-FARTHER) - new rule: heavy node work takes `boxlock take cpu`.
+
+**Next: train 29** = SOUND (d313481b: the engine/prop/airframe voices, 34 recorded sounds, 12 music tracks, +35.5 MB of media,
+nothing before the first click) + MEM-BUDGET (potato peak 2265 -> 1141 MB) + TOWN-COOK (Metlakatla cooked, fetched by the
+town-on page only) -> then Metlakatla ON by default (G1408 as pref v8) once its load is measured.
+
+**Open:** GEAR-WATER's fix (relay), the potato test (GTX 660) and the phone (after MEM-BUDGET), the far-town cull (a look
+decision), GARAGE-INSTANT's release (still the whole build, 330-520 ms).
