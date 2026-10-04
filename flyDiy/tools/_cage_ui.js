@@ -887,7 +887,7 @@ function secMat(name, g) {
     return null;
   SEC_LIVE[name] = SEC_EPOCH;
   SEC_CTX[name] = g || {};
-  secOwn(name);
+  if (typeof secOwn === 'function') secOwn(name);      // G1451 (a page slice without it - GATE LIVERY's - stamps alone)
   const r = A.aeroSecResolve(name, SEC_OVER,
     { cons: (g && g.cons) || consOf(), fin: g && g.fin });
   const m = A.aeroMaterial(THREE, {
