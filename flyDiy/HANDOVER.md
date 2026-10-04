@@ -72297,7 +72297,14 @@ levers, the pv 8 migration - a potato saved at pv 7 reads potato, not custom; ga
 glass / MSAA hooks, laptop -> gamer lifts the cap), SPLAT (the plain splices), POSTFX (six tiers). tools/perf/train_gate.js
 --light: RED (30 rows) and NOT a reading - a stale light baseline (its fps rows predate EVEN-30's 30 cap: 33 -> 29-30 on
 every row), a fresh profile (the program cache cold: compile 2 -> 6 s, the garage +10-15 s, "links over 5 s, a cache miss")
-and sound-coord's CPU battery running beside it; A0's same-session A/B / train 32's --full is the verdict. BOOT: PASS.
+and sound-coord's CPU battery running beside it. THE FAIR A/B (A0's slot, 23:09-23:40, one warm profile D:/tgpd, train/31
+a58ae418 in its own worktree, then this branch d649359b against it): 146 rows in slack, 3 BETTER (the Cub's chase compile
+5 631 -> 3 204 ms, cockpit 5 277 -> 2 424, fuseWidth busy 286 -> 90), 2 RED, both the metal Cessna's garage `busy` rows (the
+'frame' row 0 -> 469 ms, the summed busy 2 051 -> 2 696) - A0's train 30 note calls the garage busy rows noise; re-checked
+below. BOOT: PASS.
+THE BATTERY (`run_gates --all` under the cpu lock, 23:40-00:52, jobs 4): 164 PASS, SOFTGPU SKIP (no Playwright on the box),
+4 FAIL -> FOG and CLOUD counted five presets, STAND scanned the shed glass's old condition: updated, PASS; FRAMECOST: the stale
+parked cook (above).
 FRAMECOST: RED on a STALE PARKED COOK (parked_cook --check: manifest f5cd36, tree 887007 - the parked aeroplanes captured live,
 the HINT's signature); THE PROOF the branch moves nothing on gamer: the census (the Cub, gamer) on a train/31 worktree and on
 this branch, both stale alike: `_framecost_check.js --compare` - NO counter moves at the stand, the taxi or the boot; 1 180 MiB
