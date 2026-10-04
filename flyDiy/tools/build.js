@@ -588,6 +588,9 @@ const WORLD_PACK = (() => {
 // a <script> body needs (a top-level `import`/`export`/`await`/`return` is a
 // syntax error here where --check may re-read the file as CommonJS or ESM).
 function syntaxCheck(label, code) {
+  // REVIEW 2026-10-04: a `</script` inside an INLINED blob ends the page's script block at that byte (the inert-typing
+  // regex below rewrites `<script>` literals too); nothing carries one today, and now nothing can silently
+  if (/<\/script/i.test(code)) { console.error(`BUILD FAIL: ${label} contains '</script' - an inlined blob may not`); process.exit(1); }
   try { new vm.Script(code, { filename: label }); }
   catch (e) {
     console.error(`SYNTAX FAIL in ${label}:\n${(e.stack || String(e)).split('\n').slice(0, 5).join('\n')}`);
@@ -688,6 +691,10 @@ function buildViewer(coreBody) {
   const ANIMALS_DIR = path.join(ROOT, 'src', 'animals');
   const animals = MANIFEST.animals.map(f => read(path.join(ANIMALS_DIR, f)));
   animals.forEach((m, i) => syntaxCheck(MANIFEST.animals[i], m));
+  // REVIEW 2026-10-04: the world externals and the on-demand files are <script src> refs, not inlined, and were never
+  // syntax-checked - a broken render_premises.js built "syntax OK" and failed on the page
+  for (const [d, f] of [...MANIFEST.world, ...MANIFEST.lazy])
+    syntaxCheck(d + '/' + f, fs.readFileSync(path.join(ROOT, d, f), 'utf8'));
   const three = read(path.join(VENDOR_DIR, 'three.min.js'));
   // the lazy flag rides IN FRONT of the editor scripts, in both pages: with
   // it set, _cage_ui.js defines CAGE_UI_BOOT and returns instead of booting.
@@ -957,7 +964,11 @@ window.FLYDIY_BOOT.then(function () {
   const SFX = {};
   if (fs.existsSync(SFX_CAT)) for (const r of JSON.parse(fs.readFileSync(SFX_CAT, 'utf8'))) (SFX[r.key] = SFX[r.key] || []).push(r.file);
   const CORE_SHA = `<script>window.FLYDIY_CORE_SHA='${sha(coreBody).slice(0, 12)}';window.FLYDIY_BUILD='${BUILD_ID}';window.FLYDIY_AUDIO_SRC=${JSON.stringify(AUDIO_SRC)};window.FLYDIY_MUSIC=${MUSIC};window.FLYDIY_AUDIO_MEDIA=${JSON.stringify(SFX).replace(/</g, '\\u003c')}</script>`;
-  fs.writeFileSync(path.join(ROOT, 'version.json'), JSON.stringify({ build: BUILD_ID, date: new Date().toISOString() }) + '\n');
+  // REVIEW 2026-10-04: the date is the BUILD's - an unchanged build id keeps its date, so a battery's rebuild (run_gates
+  // always rebuilds) no longer dirties version.json and `git status` means something again
+  let vDate = new Date().toISOString();
+  try { const old = JSON.parse(fs.readFileSync(path.join(ROOT, 'version.json'), 'utf8')); if (old && old.build === BUILD_ID && old.date) vDate = old.date; } catch (e) {}
+  fs.writeFileSync(path.join(ROOT, 'version.json'), JSON.stringify({ build: BUILD_ID, date: vDate }) + '\n');
   // THE MEDIA CACHE'S WORKER (LOADING S4): media/ only, cache-first - every file
   // there is named by its content hash, so a hit can never be stale; scripts,
   // pages and everything else are never touched. One cache for every

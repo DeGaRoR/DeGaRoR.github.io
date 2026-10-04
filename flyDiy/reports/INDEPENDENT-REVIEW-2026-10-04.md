@@ -111,26 +111,47 @@ deploy workflow has never run. One physics-honesty item is large enough to be a 
 - E7 **Gates test single changes, not combinations**: pusher+tricycle, offsets+shakedown, mixed material rows, on→off→commit, rotated strips. A cheap sweep (rank / NaN / zero-length / mirror over paired configurations, and the join round trip through "off") would have caught B10, B11, A3, A5 immediately.
 - E8 **Delivery has no post-push check** (A1, B26–B28): the build is deterministic and content-addressed (the strongest part), but freshness of the committed outputs rests on discipline and nothing confirms the live build id.
 
-## F. THE SMALL FIXES, APPLIED (commit 8544302 on ccr-4c7cf662-zcpqoe)
-Source only; the generated flight_core.js / index.html / dev.html are left for the train's own "(built)" commit.
-- A6 `20_world.js:733` settlement houses register `yaw: -b.rot`. Verified with a footprint probe against the renderer's
-  frame (THREE rotation.y = −rot, scale (w, hgt, l)): 99.0 % agreement at rot −0.79 / 0.60 / 2.00 with a 0.25 m raster
-  (66–71 % before; the remaining 1 % is the raster cell).
-- A7 `app.js:4405` the dispose branch also runs for `key === 'gen'` (the cage visual).
-- A8 `app.js fullReset` resets `flYawRate` and any non-finite `az/azT/el/elT/dist/distT`; `flCamera` returns on a
-  non-finite heading. (The 30-frame watchdog cadence is left as is.)
-- B15 `20_world.js dayTick` passes the wrapped day-time difference to `seaRelax`.
-- B17 `design_flow.js` clears `lastUndo`/`armed` on `flydiy:specApplied` (fired by `CAGE_UI.applySpec`, i.e. on a load,
-  a birth or the boot seed; not on a slider commit).
-- B23 `app.js PREM.openEditor` the lazy load's rejection is logged and `PREM.loading` is released in `finally`.
-- B26 `run_gates.js` an `--only` id that names no gate (or selects nothing) exits 2 with the ids named.
-- `30_solver.js trqOf` the debug print removed.
-Verified on a worktree build: `node --check` on every file; `--only=NOPE` exits 2; GATE PACE, DAY, DEFAULT, UISMOKE,
-JOIN, DESIGN, OBSTACLE, WORLD all PASS (`--only=...`, 227 s). No anchored flight number is touched by any of them.
+## F. WHAT THE REVIEWER FIXED IN THIS BRANCH (source only; the train's own "(built)" commit rebuilds)
+Round 1 (commit 8544302), each verified on a worktree build with the eight cheap gates PACE, DAY, DEFAULT, UISMOKE,
+JOIN, DESIGN, OBSTACLE, WORLD green:
+- A6 `20_world.js` settlement houses register `yaw: -b.rot` (footprint probe: 99.0 % agreement with the drawn house at
+  three rotations, 66–71 % before). A7 `app.js` the dispose branch also runs for the cage visual. A8 `fullReset` resets
+  the camera's yaw-rate filter and any non-finite az/el/dist; `flCamera` returns on a non-finite heading. B15 `dayTick`
+  passes the wrapped day-time. B17 `design_flow.js` clears the one-slot undo on `flydiy:specApplied` (a load, not a
+  slider commit). B23 the premises editor's lazy load releases `PREM.loading` on failure. B26 `run_gates --only` with an
+  unknown id exits 2. `trqOf`'s debug print removed.
 
-Left to the coordination session with the fix described above: A1 (the workflow folder: an infra change, and Pages'
-source must be switched to Actions at the same time or the two builders race), A2, A3, A4, A5, B1, B3, B4, B10 and D1
-(each moves a flown number or a gate assertion and needs its re-anchor), and everything in B/C not listed here.
+Round 2 (this commit), verified by `node --check`, by the build (`node tools/build.js` runs the new checks) and by the
+new OBSTFRAME gate; NO gate battery was run on these (the coordinator's box runs it):
+- A4 `garage.js` `GARAGE_SPEC.set` (the new-aeroplane door: the birth flow, CAGE_RESET_BUILD) loads with no slot, no
+  plaque and a fresh log; `update` keeps them. Callers checked: app.js:10995, design_flow.js:497/540/600 only.
+- B16 `20_world.js coverAt` the early reject is the circumscribed circle (a superset of the old L1 test at every heading).
+- B18 `design_flow.js` one pair of window listeners for the registration field, re-pointed per render.
+- B19 `garage.js` the decal pages are encoded once per envelope; `writeWip` warns once when the store refuses it.
+- B24 `app.js` the world editor's `close()` hands `running` back as it found it and sets the pause button to match.
+- `30_solver.js wheelsOnGround` skips a null third wheel. `aeroskin.js aeroSetCraft` uses two scratch Matrix4 instead of
+  allocating two a frame. `input_panel.js close()` cancels the pending frame. `60_gen_spec.js` the dead first
+  `cabin.glazing` key removed (JS last-wins; no value moved).
+- `tools/build.js` `syntaxCheck` refuses an inlined blob carrying `</script`; the MANIFEST.world and MANIFEST.lazy files
+  are syntax-checked too; version.json keeps its date while the build id is unchanged (a battery no longer dirties it).
+
+Left to the coordinator with the fix described above: A1 (the workflow folder: an infra change that must be paired with
+switching Pages' source to Actions, or the two builders race), A2, A3, A5, B1, B3, B4, B5, B10, B11, B12, B20, B21, B22,
+B25, D1 (each moves a flown number, a sheet, a gate assertion or a renderer decision), and the rest of B/C.
+
+## H. GATES WRITTEN BY THE REVIEW (tools/)
+- `_obstframe_check.js` — GATE OBSTFRAME, REGISTERED (core, ~2 s): every settlement house's hitbox against the
+  renderer's frame, inside and outside its footprint; 100 % on this branch, and it fails on the old sign (the gate also
+  asks the opposite yaw and requires the registered one to fit at least as well).
+- `_stripground_check.js` — GATE STRIPGROUND, NOT registered: every generated land strip walked at 2 m, |elev −
+  terrainH| < 0.5 m and no water. RED today on A2 Pelham Field (5.43 m, 6 wet samples); register as core once A5 lands.
+- `_genpairs_check.js` — GATE GENPAIRS, NOT registered: seventeen single and paired configurations (tricycle, pusher,
+  wingTop, twin boom, V-tail, biplane, floats and their pairs) built and held finite, mirror-symmetric, every beam over
+  1 mm. RED today on every twin-boom combination (2 zero-length beams, 2 unmirrored nodes); register once B10 lands.
+  It does not see B11 (the nosewheel's brace to the engine is a legal member); GATE GEN's rigidity rank over the same
+  pairs would.
 
 ## G. GATE BASELINE
-(appended when the core battery finishes on this machine)
+The core battery was started on this machine and STOPPED on the user's instruction (the coordinator's box runs it):
+9 of 147 jobs had completed, none red (the runner buffers a gate's block until it ends, so only PASS lines had been
+seen). No verdict is claimed from it. The battery was run against the committed core, before any fix here.
