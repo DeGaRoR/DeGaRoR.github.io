@@ -1,0 +1,90 @@
+{
+ "runs": [
+  {
+   "issued": 3,
+   "renderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 3080 (0x00002216) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+   "rows": [
+    {
+     "name": "ring PROD2",
+     "ms": 21698,
+     "ok": true,
+     "log": "",
+     "vsOk": true,
+     "fsOk": true,
+     "fsLog": "",
+     "hlslFs": 163903,
+     "hlslVs": 10718
+    },
+    {
+     "name": "ring pools hoisted",
+     "ms": 15523,
+     "ok": true,
+     "log": "",
+     "vsOk": true,
+     "fsOk": true,
+     "fsLog": "",
+     "hlslFs": 164573,
+     "hlslVs": 10718
+    },
+    {
+     "name": "ring hoist+grass sel",
+     "ms": 11904,
+     "ok": true,
+     "log": "",
+     "vsOk": true,
+     "fsOk": true,
+     "fsLog": "",
+     "hlslFs": 164685,
+     "hlslVs": 10718
+    },
+    {
+     "name": "ring hoist+veg sel",
+     "ms": 15136,
+     "ok": true,
+     "log": "",
+     "vsOk": true,
+     "fsOk": true,
+     "fsLog": "",
+     "hlslFs": 164693,
+     "hlslVs": 10718
+    },
+    {
+     "name": "ring hoist+grass+veg sel",
+     "ms": 12005,
+     "ok": true,
+     "log": "",
+     "vsOk": true,
+     "fsOk": true,
+     "fsLog": "",
+     "hlslFs": 164805,
+     "hlslVs": 10718
+    },
+    {
+     "name": "outer PROD2",
+     "ms": 17522,
+     "ok": true,
+     "log": "",
+     "vsOk": true,
+     "fsOk": true,
+     "fsLog": "",
+     "hlslFs": 142470,
+     "hlslVs": 11135
+    },
+    {
+     "name": "outer pools hoisted",
+     "ms": 10571,
+     "ok": true,
+     "log": "",
+     "vsOk": true,
+     "fsOk": true,
+     "fsLog": "",
+     "hlslFs": 143140,
+     "hlslVs": 11135
+    }
+   ],
+   "file": "C:/Users/denis/AppData/Local/Temp/claude/D--Dev-DeGaRoR-github-io--claude-worktrees-zealous-maxwell-88d736/06ee03d8-f6c1-4bcf-929b-47268f7954ad/scratchpad/bench3.json",
+   "wallS": 21.7,
+   "udd": "D:\\clb3"
+  }
+ ]
+}
