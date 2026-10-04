@@ -69260,3 +69260,24 @@ GATES: POSTFX (32, the v2 catcher and the eye's cadence; negative-verified - the
 blinded: 4 red), FLIGHTREC, AA, BUILD, PROGRAMS, SHADOWSKY, LIGHT, FLOWNBAKE, FADES, UISMOKE PASS.
 VERIFICATION (GPU, pending A0's slot): the band views in flight off / on, the stand at a low sun and at noon off / on (the
 contacts must stay), a wing-glint sweep sunRough 0 / 0.12, the catcher's live summary.
+
+## G1359.1 - THE FLOWN BAKE NEVER READ ITS OWN SHADOW CASCADE: THREE'S CLONED uNearM1 (2026-10-04, LIGHT-SMOOTH, found in a GPU sweep, fixed node-only)
+
+THE FINDING (live, the user's Cub, a paused band view aloft at a golden sun): every G1359 setting gave PIXEL-IDENTICAL
+frames (slope gain 20, grazing gain 100: 0 px); the craft cascade's own bias x10: 0 px; the normal offset (which also
+feeds the 60 m box, three's per-vertex normalBias): 25 753 px. The bake material's renderer uniforms held uNearM1 =
+IDENTITY (renderer.properties.get(material).uniforms.uNearM1 !== the shared one): three clones a built-in material's
+uniforms when it makes the program - a Float32Array value is shared by reference (uNearP, uNearQ stayed live), a
+Matrix4 is COPIED. SHADOW_NEAR.inject() (reached from FB_HOOK through ATMO.inject) filled only MISSING uniforms, so the
+frozen copy stayed: nc1 = the world position, the in-cascade test always false, and the exterior - every chase view
+since C4b's bake - read the 60 m box (5.9 cm texels) on the stand and aloft. G1005's 1.6 cm craft cascade never reached
+the skin; G1359's slope gains (inside the cascade branch) could not either; what the earlier stills read as "bias 2-8
+helps" was the exposure settling between shots.
+THE FIX: inject() binds the SHARED near uniforms unconditionally (every fogged program; no source change, no relink).
+EXPECTED: the exterior's self-shadow from the 1.6 cm cascade on the ground (crisper strut / gear / wing shadows), the
+slope bias live aloft. COST TO MEASURE: uNearM1 is now uploaded to each program drawn whenever the cascade moves (it
+was frozen) - GATE FRAMECOST's uniformMatrix4fv at the taxi will rise by about the programs drawn; it is the cascade
+working, and needs its ALLOW entry once measured.
+GATE SHADOWSKY +2 (three's own clone, then inject: the shared matrix bound; the bake's path FB_HOOK -> ATMO.inject ->
+SHADOW_NEAR.inject) - negative-verified (the old conditional inject: red). SHADOWSKY, LIGHT, PROGRAMS, ATMO, FLOWNBAKE,
+WORLDRENDER, BUILD, POSTFX, ASSETS PASS. GPU verification and G1359's strength: pending a slot.
