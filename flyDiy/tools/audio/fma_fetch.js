@@ -2,6 +2,8 @@
 //
 //   node tools/audio/fma_fetch.js --albums albums.json          ledger every track of every album (metadata only)
 //   node tools/audio/fma_fetch.js --download --ids 243029,265835  fetch chosen tracks (licence re-checked per track)
+//   node tools/audio/fma_fetch.js --genre Jazz --pages 3 --tag st.jazz   ledger a genre's tracks, each album's licence read
+//                                                                          once (the genre pages list 20 tracks a page)
 //
 // Ledger: assets/audio/music_ledger.json (local). Files: assets/audio/raw/music/ (gitignored).
 // Accepted licences: CC0 1.0 and CC BY (any version). NC, ND and SA are refused — the game may be sold, and a
@@ -65,6 +67,39 @@ async function album(L, url, tag) {
   return { n, lic };
 }
 
+// a genre's pages: the tracks, then each album's licence line (one fetch per album); only accepted licences stay
+async function genre(L, name, pages, tag) {
+  const albums = new Map();
+  let kept = 0, seen = 0;
+  for (let p = 1; p <= pages; p++) {
+    const html = await get(`https://freemusicarchive.org/genre/${name}/?page=${p}`);
+    const re = /data-track-info='([^']*)'/g;
+    let m;
+    while ((m = re.exec(html))) {
+      const d = JSON.parse(unesc(m[1]));
+      seen++;
+      const albumUrl = d.url.replace(/[^/]+\/$/, '');
+      if (!albums.has(albumUrl)) {
+        await sleep(PACE);
+        try { albums.set(albumUrl, licenceOf(await get(albumUrl))); } catch (e) { albums.set(albumUrl, null); }
+      }
+      const lic = albums.get(albumUrl);
+      if (!accepted(lic)) continue;
+      const prev = L.tracks[d.id] || {};
+      L.tracks[d.id] = Object.assign({}, prev, {
+        id: d.id, title: d.title, artist: d.artistName, album: d.albumTitle, page: d.url, artistUrl: d.artistUrl,
+        file: d.fileUrl, albumLicence: lic, genre: name, rank: prev.rank || seen,
+        tags: Array.from(new Set([...(prev.tags || []), tag].filter(Boolean))),
+        seen: prev.seen || new Date().toISOString().slice(0, 10),
+      });
+      kept++;
+    }
+    save(L);
+    await sleep(PACE);
+  }
+  return { seen, kept, albums: albums.size };
+}
+
 async function download(L, ids) {
   fs.mkdirSync(RAW, { recursive: true });
   for (const id of ids) {
@@ -92,6 +127,7 @@ async function download(L, ids) {
   const opt = k => { const i = argv.indexOf(k); return i >= 0 ? argv[i + 1] : null; };
   const L = load();
   if (argv.includes('--download')) await download(L, (opt('--ids') || '').split(',').filter(Boolean).map(Number));
+  else if (opt('--genre')) console.log(opt('--genre'), await genre(L, opt('--genre'), +(opt('--pages') || 2), opt('--tag')));
   else if (opt('--albums')) {
     for (const a of JSON.parse(fs.readFileSync(opt('--albums'), 'utf8'))) {
       const r = await album(L, a.url, a.tag);

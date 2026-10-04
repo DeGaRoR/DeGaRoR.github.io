@@ -1,1 +1,189 @@
-[]
+[
+ {
+  "id": "fma238392",
+  "file": "media/audio/music/holiznacc0_yet_again.ae80f04f.mp3",
+  "title": "Yet Again",
+  "artist": "HoliznaCC0",
+  "album": "Public Domain Lofi",
+  "licence": "CC0",
+  "source": "https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/yet-again-lofi-peaceful/",
+  "station": "lofi",
+  "contexts": [
+   "garage",
+   "welcome"
+  ],
+  "lufs": -16,
+  "durationS": 135.9
+ },
+ {
+  "id": "fma275835",
+  "file": "media/audio/music/holiznacc0_break_from_reality.6cd41edd.mp3",
+  "title": "Break From Reality",
+  "artist": "HoliznaCC0",
+  "album": "Public Domain Lofi",
+  "licence": "CC0",
+  "source": "https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/break-from-reality-lofi-peaceful-mp3/",
+  "station": "lofi",
+  "contexts": [
+   "garage",
+   "welcome",
+   "cruise"
+  ],
+  "lufs": -16,
+  "durationS": 207
+ },
+ {
+  "id": "fma275843",
+  "file": "media/audio/music/holiznacc0_the_best_of_times.4c1984ae.mp3",
+  "title": "The Best Of Times",
+  "artist": "HoliznaCC0",
+  "album": "Public Domain Lofi",
+  "licence": "CC0",
+  "source": "https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/the-best-of-times-lofi-relaxing-mp3/",
+  "station": "lofi",
+  "contexts": [
+   "garage"
+  ],
+  "lufs": -16,
+  "durationS": 168
+ },
+ {
+  "id": "fma267057",
+  "file": "media/audio/music/holiznacc0_faded_in_the_sunlight.4ce1349b.mp3",
+  "title": "Faded in the Sunlight",
+  "artist": "HoliznaCC0",
+  "album": "Summer Air ( Lo-fi )",
+  "licence": "CC0",
+  "source": "https://freemusicarchive.org/music/holiznacc0/summer-air-lo-fi/faded-in-the-sunlight/",
+  "station": "lofi",
+  "contexts": [
+   "garage",
+   "welcome"
+  ],
+  "lufs": -17.2,
+  "durationS": 178.2
+ },
+ {
+  "id": "fma265836",
+  "file": "media/audio/music/holiznacc0_peaceful_drift.55118944.mp3",
+  "title": "Peaceful Drift",
+  "artist": "HoliznaCC0",
+  "album": "Public Domain Lofi",
+  "licence": "CC0",
+  "source": "https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/peaceful-drift-lofi-nostalgic-calm/",
+  "station": "lofi",
+  "contexts": [
+   "garage"
+  ],
+  "lufs": -17.4,
+  "durationS": 128.3
+ },
+ {
+  "id": "fma265847",
+  "file": "media/audio/music/holiznacc0_ease_into_night.32448511.mp3",
+  "title": "Ease into Night",
+  "artist": "HoliznaCC0",
+  "album": "Public Domain Lofi",
+  "licence": "CC0",
+  "source": "https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/ease-into-night-lofi-relax-chill/",
+  "station": "lofi",
+  "contexts": [
+   "garage"
+  ],
+  "lufs": -17.9,
+  "durationS": 151.8
+ },
+ {
+  "id": "fma268742",
+  "file": "media/audio/music/holiznacc0_washed_up.eca2e877.mp3",
+  "title": "Washed Up",
+  "artist": "HoliznaCC0",
+  "album": "OCEAN MEMORY ( Lo-fi Chill )",
+  "licence": "CC0",
+  "source": "https://freemusicarchive.org/music/holiznacc0/ocean-memory-lo-fi-chill/washed-up/",
+  "station": "lofi",
+  "contexts": [
+   "garage"
+  ],
+  "lufs": -16,
+  "durationS": 234.6
+ },
+ {
+  "id": "fma275832",
+  "file": "media/audio/music/holiznacc0_down_time.c1f35243.mp3",
+  "title": "Down Time",
+  "artist": "HoliznaCC0",
+  "album": "Public Domain Lofi",
+  "licence": "CC0",
+  "source": "https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/down-time-lofi-peaceful-mp3/",
+  "station": "lofi",
+  "contexts": [
+   "garage"
+  ],
+  "lufs": -16,
+  "durationS": 130.3
+ },
+ {
+  "id": "fma275836",
+  "file": "media/audio/music/holiznacc0_ocean_breeze.1c28251e.mp3",
+  "title": "Ocean Breeze",
+  "artist": "HoliznaCC0",
+  "album": "Public Domain Lofi",
+  "licence": "CC0",
+  "source": "https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/ocean-breeze-lofi-ukulele-peaceful-mp3/",
+  "station": "lofi",
+  "contexts": [
+   "garage",
+   "cruise"
+  ],
+  "lufs": -16,
+  "durationS": 197.6
+ },
+ {
+  "id": "fma164357",
+  "file": "media/audio/music/loyalty_freak_music_traveling_in_your_mind.993d471f.mp3",
+  "title": "Traveling in your mind",
+  "artist": "Loyalty Freak Music",
+  "album": "TO CHILL AND STAY AWAKE",
+  "licence": "CC0",
+  "source": "https://freemusicarchive.org/music/Loyalty_Freak_Music/TO_CHILL_AND_STAY_AWAKE/Loyalty_Freak_Music_-_TO_CHILL_AND_STAY_AWAKE_-_05_Traveling_in_your_mind/",
+  "station": "lofi",
+  "contexts": [
+   "cruise",
+   "welcome",
+   "garage"
+  ],
+  "lufs": -18.2,
+  "durationS": 236.6
+ },
+ {
+  "id": "fma171982",
+  "file": "media/audio/music/loyalty_freak_music_beach.b048753f.mp3",
+  "title": "Beach",
+  "artist": "Loyalty Freak Music",
+  "album": "MELODIES WITH A BEAT",
+  "licence": "CC0",
+  "source": "https://freemusicarchive.org/music/Loyalty_Freak_Music/MELODIES_WITH_A_BEAT/Loyalty_Freak_Music_-_MELODIES_WITH_A_BEAT_-_08_Beach/",
+  "station": "lofi",
+  "contexts": [
+   "garage"
+  ],
+  "lufs": -17.3,
+  "durationS": 161
+ },
+ {
+  "id": "fma279362",
+  "file": "media/audio/music/holiznacc0_kodama.566d47aa.mp3",
+  "title": "Kodama",
+  "artist": "HoliznaCC0",
+  "album": "Nature Spirit",
+  "licence": "CC0",
+  "source": "https://freemusicarchive.org/music/holiznacc0/nature-spirit/kodama/",
+  "station": "jazzblues",
+  "contexts": [
+   "garage"
+  ],
+  "lufs": -18.7,
+  "durationS": 150.7
+ }
+]
