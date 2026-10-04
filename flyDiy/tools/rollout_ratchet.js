@@ -99,10 +99,11 @@ function metrics(j) {
 // (info: printed beside the gated rows, no verdict - G1360: the uneven share is read through the distribution now)
 const RULES = {
   fps:      { up: true,  rel: 0.05, abs: 1.0,  unit: 'fps' },
-  p99:      { up: false, rel: 0.10, abs: 2,    unit: 'ms' },   // the taxi's
-  p99all:   { up: false, rel: 0.10, abs: 2,    unit: 'ms' },   // G1360: every frame after the reveal
-  over15:   { up: false, rel: 0.20, abs: 0.005, unit: '' },    // G1360: the share of frames over 1.5x their cap's frame time
-  taxiOver15: { up: false, rel: 0.20, abs: 0.005, unit: '' },
+  // p99 / over15: one frame / 2 points of slack (A0's noise check 2026-10-03: at a 30 cap p99 moves a whole frame, 33 -> 50 ms)
+  p99:      { up: false, rel: 0.10, abs: 17,   unit: 'ms' },   // the taxi's
+  p99all:   { up: false, rel: 0.10, abs: 17,   unit: 'ms' },   // G1360: every frame after the reveal
+  over15:   { up: false, rel: 0.20, abs: 0.02, unit: '' },     // G1360: the share of frames over 1.5x their cap's frame time
+  taxiOver15: { up: false, rel: 0.20, abs: 0.02, unit: '' },
   uneven:   { up: false, rel: 0,    abs: 0.05, unit: '', info: true },
   p999:     { up: false, rel: 0.25, abs: 10,   unit: 'ms', info: true },
   over3x:   { up: false, rel: 0.25, abs: 0.002, unit: '', info: true },
