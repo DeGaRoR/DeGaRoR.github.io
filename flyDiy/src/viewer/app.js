@@ -7947,6 +7947,9 @@
     // frame, so the target is what must move): the camera orbits the
     // build's own bounding centre, recomputed with every rebuild.
     edSit.updateMatrixWorld(true);
+    // G1442 (GARAGE-INSTANT): a drag's PREVIEW tick keeps the orbit's centre (the box walks every part - the
+    // crew's skinned meshes pose every vertex - ~10-15 ms a tick); the settle build re-centres it
+    if (window.CAGE_UI && window.CAGE_UI.previewTick) return;
     const bb = new THREE.Box3().setFromObject(edSitP);
     if (isFinite(bb.min.x) && isFinite(bb.max.x))
       bb.getCenter(edTarget);
