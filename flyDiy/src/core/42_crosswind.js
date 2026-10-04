@@ -88,7 +88,7 @@ function makeCrosswindProbe(def, opts) {
     // pilot crabs into it on purpose (11 deg at 4 m/s across a 20 m/s climb),
     // which is airmanship, not a swing
     if (c.ap.phase === 'LIFTOFF' && c.eLift == null) c.eLift = Math.abs(d.e || 0);
-    if (c.sim.stats && c.sim.stats().bad) { c.fin = { ok: false, why: 'broke-up' }; return true; }
+    if (c.sim.stats && c.sim.stats().bad) { c.fin = { ok: false, why: 'sim-diverged' }   /* G1800 */; return true; }
     const rep = c.ap.report;
     if (rep && (rep.outcome === 'rejected-takeoff' ||
         (rep.verdicts && rep.verdicts.length &&

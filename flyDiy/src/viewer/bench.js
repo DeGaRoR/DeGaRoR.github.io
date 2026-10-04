@@ -114,7 +114,7 @@ const BENCH_TESTS = [
     // up; fitting lift struts HALVED a jodel's deflection and RAISED its
     // yield figure, because the strut became the worst 'wing' member. So
     // the proxy is now a warning on the card, and the certificate fails on
-    // what the rig can actually see: a member that let go (BROKE UP) or a
+    // what the rig can actually see: a member that let go (BROKE UP; G1800: a NaN is SIM DIVERGED) or a
     // tip past LOAD_TIP_CAP at ultimate (GATE FLEX's reality figures: real
     // wings bend 2-4 % of the semispan at limit, 8 % at 1 g is 'folds in
     // bending'; a sixth of the span at ultimate is not a wing that held).
@@ -143,16 +143,19 @@ const BENCH_TESTS = [
         live: { g: st.n, tipPct: st.tipPct, phase: st.phase, nTarget: st.nTarget,
                 limit: st.limit, ult: st.ult, thread, rate: st.rate },
       };
-      const broke = st.verdict === 'BROKE UP';
+      // G1800: the rig's NaN / velocity-guard ending is 'SIM DIVERGED' (the numbers' fault, not a member); 'BROKE UP'
+      // stays the structure's, for the damage layer's test to destruction (DMG-D2a)
+      const diverged = st.verdict === 'SIM DIVERGED', broke = diverged || st.verdict === 'BROKE UP';
       const bent = st.ultPct != null && isFinite(st.ultPct) && st.ultPct > LOAD_TIP_CAP;
       const overYield = st.ultYield != null && isFinite(st.ultYield) && st.ultYield >= 100;
       const ok = !broke && !bent;
-      const why = broke ? 'a member let go before the ultimate load'
+      const why = diverged ? 'the simulation diverged before the ultimate load (a numerical fault, not a member)'
+                : broke ? 'a member let go before the ultimate load'
                 : bent ? 'the tip bent ' + benchNum(st.ultPct, 1) + ' % of the semispan at ultimate — past the '
                          + LOAD_TIP_CAP + ' % a wing can bend and still be called held' : '';
       return {
         done: true,
-        verdict: broke ? 'BROKE UP' : bent ? 'NOT HELD — bent ' + benchNum(st.ultPct, 1) + ' %' : 'HELD',
+        verdict: broke ? st.verdict : bent ? 'NOT HELD — bent ' + benchNum(st.ultPct, 1) + ' %' : 'HELD',
         ok,
         note: 'limit ' + benchNum(st.limitPct, 2) + ' % of semispan · ultimate '
           + benchNum(st.ultPct, 2) + ' %'
@@ -366,7 +369,7 @@ const BENCH_TESTS = [
       };
       const A = r.adv, why = [], fix = [];
       const off = !!r.lift && !r.bad;
-      if (r.bad) why.push('the simulation broke up on the water');
+      if (r.bad) why.push('the simulation diverged on the water');   // G1800
       if (A && A.reserve < 1.8) { why.push('the floats are UNDERSIZED: the pair displaces ' + benchNum(A.reserve, 2) + ' x the weight (1.8 needed)'); fix.push('a bigger float — the catalogue puts ' + benchNum(A.grossKg, 0) + ' kg on the ' + A.recommend); }
       if (!off && r.hump.R >= 0.8 * r.TW) { why.push('the hump costs R/W ' + benchNum(r.hump.R, 2) + ' at ' + benchNum(r.hump.V * 3.6, 0) + ' km/h against ' + benchNum(r.TW, 2) + ' of thrust — no margin to climb it'); fix.push('more thrust or less weight over the hump: a coarser propeller, a bigger engine, fuel off'); }
       if (!off && A && A.narrow) { why.push('the floats are NARROW for the weight (' + A.line.replace(/^.*NARROW: /, '') + ')'); fix.push('the catalogue' + String.fromCharCode(39) + 's row for ' + benchNum(A.grossKg, 0) + ' kg is the ' + A.recommend); }
@@ -375,7 +378,7 @@ const BENCH_TESTS = [
       if (!off && !why.length) why.push('it reached ' + benchNum(r.Vmax * 3.6, 0) + ' km/h on the water and stayed there (' + String(r.phase).toLowerCase() + ')');
       return {
         done: true,
-        verdict: off ? 'LIFTS OFF THE WATER' : r.bad ? 'BROKE UP' : (r.ventMax < 0.5 || r.hump.R >= 0.8 * r.TW) ? 'STUCK AT THE HUMP' : 'STAYED ON THE WATER',
+        verdict: off ? 'LIFTS OFF THE WATER' : r.bad ? 'SIM DIVERGED' : (r.ventMax < 0.5 || r.hump.R >= 0.8 * r.TW) ? 'STUCK AT THE HUMP' : 'STAYED ON THE WATER',
         ok: off,
         note: 'hump R/W ' + benchNum(r.hump.R, 2) + ' at ' + benchNum(r.hump.V * 3.6, 0) + ' km/h · T/W ' + benchNum(r.TW, 2)
             + ' · step air ' + benchNum(r.ventMax, 2) + ' · trim ' + benchNum(r.trimMin, 0) + '…' + benchNum(r.trimMax, 0) + '°'
@@ -413,7 +416,7 @@ const benchLeverLine = v => {
   if (!v) return '';
   const tip = (v.ultPct != null && isFinite(v.ultPct)) ? 'tip ' + benchNum(v.ultPct, 1) + ' %' : (v.verdict || '—');
   const y = (v.ultYield != null && isFinite(v.ultYield)) ? ' · ' + benchNum(v.ultYield, 0) + ' % of yield' : '';
-  return v.label + ' (' + v.row + '): ' + (v.verdict === 'BROKE UP' ? 'BROKE UP' : tip + y);
+  return v.label + ' (' + v.row + '): ' + (v.verdict === 'BROKE UP' || v.verdict === 'SIM DIVERGED' ? v.verdict : tip + y);   // G1800
 };
 // the trim the hand flies is clicks of TRIM_STEP (input.js, 0.02 of full
 // elevator per click); the advisor speaks in the same units

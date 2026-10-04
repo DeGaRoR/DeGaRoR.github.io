@@ -4520,6 +4520,22 @@
     const t = Math.min(Math.abs(s) / 0.02, 1), c = s > 0 ? cT : cC;
     bCol[o] = cN[0]+(c[0]-cN[0])*t; bCol[o+1] = cN[1]+(c[1]-cN[1])*t; bCol[o+2] = cN[2]+(c[2]-cN[2])*t;
   }
+  // G1804 (DMG-D0): THE DAMAGE VIEW (DEFORM §5.2; BeamNG's Stress / Deformation / Broken debug modes) - a DEBUG view: the line
+  // frame (Frame mode's lines, the Overlay's x-ray) coloured by each member's |F| / limit, its permanent set and broken
+  // (dmg_overlay.js, window.DMG_TINT: pure, node-tested) instead of its strain. Off unless ?dmgview=1 or the `overlays`
+  // flyout's pill; off, sync() is the strain colouring it always was. The inline sim's own beams carry the numbers;
+  // under the physics worker (?simw=1) the page's beams do not (the broken list crosses on change in DMG-D4a), so the
+  // view stays the strain's there
+  let dmgView = (() => { try { return /[?&]dmgview=1(&|$)/.test(location.search || ''); } catch (e) { return false; } })();
+  const dmgSync = (b, i, o) => {
+    const T = window.DMG_TINT;
+    if (!T || b.L0 == null || b.Lr == null) return false;
+    const P = sim.damagePeak && sim.damagePeak();
+    const L = Math.hypot(bPos[o+3] - bPos[o], bPos[o+4] - bPos[o+1], bPos[o+5] - bPos[o+2]);
+    T.tint(bCol, o, P ? T.ratioPeak(P, i) : T.ratioOf(b, L), T.setOf(b), !!b.broken);
+    bCol[o+3] = bCol[o]; bCol[o+4] = bCol[o+1]; bCol[o+5] = bCol[o+2];
+    return true;
+  };
   function sync() {
     for (let i = 0; i < sim.n; i++) {
       pPos[i*3] = sim.p[i*3]; pPos[i*3+1] = sim.p[i*3+1]; pPos[i*3+2] = sim.p[i*3+2];
@@ -4528,7 +4544,7 @@
       const b = sim.beams[i], a3 = b.a*3, b3 = b.b*3, o = i*6;
       bPos[o] = sim.p[a3]; bPos[o+1] = sim.p[a3+1]; bPos[o+2] = sim.p[a3+2];
       bPos[o+3] = sim.p[b3]; bPos[o+4] = sim.p[b3+1]; bPos[o+5] = sim.p[b3+2];
-      sCol(b.strain, o); sCol(b.strain, o + 3);
+      if (!(dmgView && dmgSync(b, i, o))) { sCol(b.strain, o); sCol(b.strain, o + 3); }   // G1804
     }
     pGeo.attributes.position.needsUpdate = bGeo.attributes.position.needsUpdate =
       bGeo.attributes.color.needsUpdate = true;
@@ -9787,6 +9803,12 @@
         flPills(body, SKIN_NAMES.map((n, i) => ({ label: n, value: i })),
                 o => o.value === skinMode, o => setSkinMode(o.value));
       }
+      // G1804 (DMG-D0): the damage view on the line frame (a debug view: Frame or Overlay shows the lines)
+      if (window.DMG_TINT) {
+        flRow(body, 'the frame\u2019s colours');
+        flPills(body, [{ label: 'strain', value: false }, { label: 'damage', value: true, title: '|F| / limit amber, a set orange (stretched) or cyan (crushed), broken red' }],
+                o => o.value === dmgView, o => { dmgView = o.value; });
+      }
       flRow(body, 'the F8 panel');
       if (window.DEV_PANEL) flPills(body, [{ label: 'open / close (F8)', value: 1, title: 'every dial the world publishes, nothing saved' }],
                                     () => false, () => window.DEV_PANEL.toggle());
@@ -11548,10 +11570,13 @@
       if (window.WATER && WATER.setTime) WATER.setTime(sw && sw.drawnT != null ? sw.drawnT : sim.t);
       if (CK) CK.frame(simDt, sim, ap, { day: world.day, byHand: manual });   // the panel arc: the readings, the bus, the lamps; the day's clock and the pilot's lights (SKY)
       // (G820: under the worker, its snapshot's flag too - read every frame)
-      if ((++wdFrame % 30 === 0 && !Number.isFinite(sim.p[1])) || (sw && sw.diverged)) {
+      // G1801: ...or a node past the solver's velocity guard (150 m/s off the CG: a sim fault caught before NaN; the flag is
+      // the solver's own, read every frame - the worker's is in its snapshot's F_DIVERGED)
+      if ((++wdFrame % 30 === 0 && !Number.isFinite(sim.p[1])) || (sw ? sw.diverged : !!(sim.fault && sim.fault()))) {
         // G130: a divergence is an ENDING, not a caption — the card comes up
-        // with the door home on it, and the logbook gets its broke-up row
-        endFlight('broke-up');
+        // with the door home on it, and the logbook gets its row
+        // G1800 (ruling dm4): 'sim-diverged', the numbers' fault; 'broke-up' is the STRUCTURE's (DMG-D1b fires it)
+        endFlight('sim-diverged');
         $('phName').textContent = 'SIM DIVERGED — RESET';
       }
       flDmg = sw ? sw.dmg : (sim.damage ? sim.damage() : null);   // G1470: the damage the flight carries (FLIGHT_PROBE.damage)

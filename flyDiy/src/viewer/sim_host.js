@@ -528,7 +528,7 @@ function makeSimHost(CORE, init, keptWorld) {
     if (!noDay) H.dayTick(dt);
     H.steps++;
   };
-  H.diverged = () => !Number.isFinite(sim.p[1]);
+  H.diverged = () => !Number.isFinite(sim.p[1]) || !!(sim.fault && sim.fault());   // G1801: or a node past the velocity guard
   H.crashed = () => !!(sim.damage && sim.damage().over);   // G1470 (TREE-CRASH)
 
   // THE SNAPSHOT: the head, p, v, the fuel masses into `f` (a Float64Array of H.len)

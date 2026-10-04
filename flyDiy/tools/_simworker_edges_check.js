@@ -34,7 +34,7 @@
 //   shed      #bHangar2 (the trip back: enterGarage, the reset), 60 frames of the shed - THE CONTROL SWEEP (sim.ctl's
 //             de / da / dr / flap written every frame on the page's OWN sim: under simw the mirror is down, nothing is
 //             posted), then #bGo (the roll-out trip: the aircraft's steps skipped, the stand, the world kept);
-//   diverge   sim.impulse(0, 1e300, ...) - G130: the flight broke up (the card, 'broke-up', SIM DIVERGED); simw: the
+//   diverge   sim.impulse(0, 1e300, ...) - G130: the flight diverged (the card, G1800 'sim-diverged', SIM DIVERGED); simw: the
 //             worker's snapshot flag read every frame.
 // ASSERTED, per build:
 //   1 every step both runs reached, flight by flight (a flight = the steps between two resets): p, v, CG FNV and the
@@ -362,7 +362,7 @@ function compare(A, B, say) {
     for (const k of ['phase', 'phaseAfter', 'newPilot', 'outcome', 'card', 'manual', 'disabled', 'over'])
       if (JSON.stringify(x[k]) !== JSON.stringify(y[k])) bad('event ' + x.name + ': ' + k + ' ' + JSON.stringify(x[k]) + ' vs ' + JSON.stringify(y[k]));
   }
-  const want = { flyon: e => e.newPilot === true, skip: e => e.disabled === false, diverged: e => e.outcome === 'broke-up' };
+  const want = { flyon: e => e.newPilot === true, skip: e => e.disabled === false, diverged: e => e.outcome === 'sim-diverged' };
   for (const e of A.events) if (want[e.name] && !want[e.name](e)) bad('event ' + e.name + ' did not do its thing: ' + JSON.stringify(e));
   // 4 the shed's sweep
   if (A.sweep.length || B.sweep.length) {
@@ -416,7 +416,7 @@ function smoke(B, say) {
   if (!pz || !pz.pauseSteps || pz.pauseSteps[0] !== pz.pauseSteps[1]) bad('the pause was not exact: ' + JSON.stringify(pz && pz.pauseSteps));
   const want = ['flyon', 'skip', 'rolledOut', 'diverged'];
   for (const w of want) if (!B.events.some(e => e.name === w)) bad('never reached ' + w);
-  const dv = B.events.find(e => e.name === 'diverged'); if (dv && dv.outcome !== 'broke-up') bad('the divergence ended ' + dv.outcome);
+  const dv = B.events.find(e => e.name === 'diverged'); if (dv && dv.outcome !== 'sim-diverged') bad('the divergence ended ' + dv.outcome);
   const fo = B.events.find(e => e.name === 'flyon'); if (fo && !fo.newPilot) bad('Fly on made no new pilot');
   if (B.probe && B.probe.diffs.length) bad('the worker\'s world after the edit: ' + B.probe.diffs.join(', '));
   if (B.shedPosts && (B.shedPosts.live || B.shedPosts.batches)) bad('in the shed: live ' + B.shedPosts.live + ', batches ' + B.shedPosts.batches);

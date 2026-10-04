@@ -382,11 +382,13 @@ function makeLoadTest(sim, def, cfg) {
       // is reported rather than failed on: `A = lin/rho` is one area for the
       // whole wing class and the worst member is usually the LIFT STRUT, which
       // a real aeroplane sizes on its own. See HANDOVER, GATE LOAD.
-      state.verdict = sim.stats().bad ? 'BROKE UP'
+      // G1800 (ruling dm4): a NaN or a node past the velocity guard is the SIM's fault, 'SIM DIVERGED'; 'BROKE UP' is
+      // kept for the structure letting go (the damage layer's breaks, DMG-D1b / D2)
+      state.verdict = sim.stats().bad ? 'SIM DIVERGED'
         : (state.ultYield !== null && state.ultYield >= 100 ? 'HELD — over yield'
                                                            : 'HELD');
     }
-    if (sim.stats().bad) { state.verdict = 'BROKE UP'; state.done = true; }
+    if (sim.stats().bad) { state.verdict = 'SIM DIVERGED'; state.done = true; }   // G1800
     return state;
   }
 
