@@ -47,6 +47,37 @@ device gate).
   GATE-TOOLS lands, landing and Pages.
 - Cloud sessions push `claude/<name>-*` only. Local sessions message A0 with the branch and SHA.
 
+## Status, 4 Oct 2026 ~22:45 (A0)
+
+**Pages:** train 30 (live since 18:05). GitHub had started NO Pages deploy for trains 28-30 - the site served train 27 for
+~14 h and the user's first potato test ran on train 27; re-triggered with an empty commit, now verified after every landing.
+- **Train 28** (9825e1e0): COLD-LINKS, EVEN-30, LIGHT-SMOOTH 2, CRAFT-SHADOW, TREE-HITBOX, HOUSE-LOD (+ the house worker's lod 1
+  packed with every attribute), EDITOR-LAG, METLA-LOAD, METLA-TAXI, RUNWAY-LOOK, RUNWAY-LIGHTS, HYBRID-FARTHER, GARAGE-LAG-2,
+  GARAGE-INSTANT, C0. LAKE-HOLES dropped (4 gates). Its "trips red was the box" verdict was WRONG: the cost needs a taxi first.
+- **Train 29** (e3575943): MEM-BUDGET (potato peak 2265 -> 1141 MB), TOWN-COOK; HYBRID-FARTHER's band reverted (after a taxi the
+  trip took 2.8 s and a 5.2 s re-link - HYBRID-TRIPS fixes it properly).
+- **Train 30** (a1ffcf5b): SOUND (engine / prop / airframe, 34 sounds, 12 lo-fi tracks, lazy) + LAKE-HOLES reworked (no white
+  gaps at the shore; the banks steep - SHORES).
+
+**Train 31 (landing tonight):** RELEASE-FAST, SOFT-GPU (the world draws on SwiftShader: cloud stills), the cover fix for every
+machine (potato / retro's 'cover off' never reached the ring: ~30 M triangles a frame), music OFF by default. Last check: a
++1.5 s garage load on both aircraft, being bisected (SOFT-GPU vs RELEASE-FAST).
+
+**The potato test (GTX 660, on train 27):** loads and flies, ~2 fps in the world (GPU ~500 ms a frame, 16.7 M triangles at
+taxi), 18 fps in the garage, 141 s to the garage. POTATO-DEEP (G1520) cuts for a playable 30, then a laptop (HD 620) rung;
+the user retests on train 31.
+
+**Next trains:** 32 = HYBRID-TRIPS (+ G1493: the live aeroplane's decals on its control surfaces), POSE-BACK (no backward
+jump at low fps), UPDATE-NOW (the "new version - Update" button), GEAR-WATER + GEAR-WATER 2 (water: the slam, flooding,
+wing buoyancy; nothing in dry air), TREE-CRASH (yield, bend, break, the crash ending - damage OFF by default), the
+MOBILE-GARAGE study doc; WOODLAND / SHORES after the user's look call. 33 = sound-next (the radio). 34+ = the DEFORM plan
+(futureDesigns/DEFORM-AND-BREAK-2026-10-04.md, G1800-G1899, owned by the local Deform Coordinator: D0-D1 -> 34 with the
+potato cuts, D2-D3 -> 35 damage ON, D4-D5 -> 36-37). The mobile garage itself: later (a new feature); its touch-first slider
+rules feed the slider revamp now.
+
+**Running:** WOODLAND, SHORES, HYBRID-TRIPS, POTATO-DEEP (local GPU); TANKS-FLOAT, GROUND-LATTICE (cloud); the Sound
+Coordinator (radio), the Deform Coordinator.
+
 ## Status, 4 Oct 2026 ~07:30 (A0)
 
 **On Pages:** train 26 (b2f1ffdc, 3 Oct: the prop over the clouds, the user's two world looks) and **train 27** (e40628b0,
