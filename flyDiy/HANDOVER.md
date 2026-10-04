@@ -73206,19 +73206,33 @@ same held frame - the bake | live before | live after).
 **G1494 `?fbake=hyease[=s]` (OFF by default): THE BAND AS A DISSOLVE IN TIME.** The live shader wanted from hyA (back under
 hyA x 0.9), t walks there over 0.5 s; a steady distance draws ONE surface (in the band both draw, each on a discarding twin).
 
-THE TAXI'S OWN COST (rollout_perf, the Cub, HOME, 25 s, medians; COORD's CPU battery ran beside these):
-| chase taxi | render ms | loop JS ms |
-| band 1.0-1.25 (t ~0.47, both surfaces) | 14.2 / 13.7 | 18.7 / 18.0 |
-| train 29's band (t 0, the bake) | 12.0 / 10.7 | 16.3 / 14.9 |
-| forced bake (hy=0) / forced live (hy=1) | 11.6 / 13.1 | 16.1 / 17.4 |
-So the farther band costs ~+2.5 ms render at the taxi (G1325 admitted +1.5): ~1.6 ms is the live aeroplane itself (its
-per-material draws on the procedural shader), ~0.85 ms the band (two surfaces, no early-Z) - the part G1494 removes. All
-at the 30 cap (30 fps delivered, 0 % uneven): no frame-rate cost on this box.
+THE TAXI'S OWN COST (rollout_perf, the Cub, HOME, 25 s, medians; a peer's CPU battery beside both sets - the ABBA order is
+what makes them comparable; reports/evidence/HYBRID-TRIPS/taxi_cost_abba.json, taxi_cost_rollout_perf.json):
+| chase taxi, ABBA (rule old ease ease old rule) | render ms | loop JS ms |
+| band 1.0-1.25, the rule (t ~0.47: both surfaces) | 13.0 / 12.7 = 12.85 | 17.1 |
+| train 29's band 1.6-2.0 (t 0: the bake) | 10.5 / 10.9 = 10.7 | 14.75 |
+| band 1.0-1.25 + ?fbake=hyease (t walks to 1: live alone) | 11.9 / 12.3 = 12.1 | 16.25 |
+| (the first set, unordered: forced bake hy=0 / forced live hy=1) | 11.6 / 13.1 | 16.1 / 17.4 |
+| cockpit ABBA (new old old new): new / old | 12.45 / 13.55 | 16.75 / 18.25 |
+**The farther band costs +2.15 ms render (+2.35 loop) at the chase taxi** (G1325 admitted +1.5): ~1.4 ms is the live
+aeroplane itself (its per-material draws on the procedural shader), ~0.75 ms the band (two surfaces on discarding twins, no
+early-Z). **G1494 (`?fbake=hyease`) takes the band's part off: +1.4 ms**, and the still dither on the skin goes. The cockpit
+is unaffected (equal within noise). All at the 30 cap: 30 fps delivered, 0 % uneven - no frame-rate cost on this box.
+hyease on the trips (hybrid_trips.js): the taxi's t 0.21 -> 1 (mean 0.98), 0 links; world -> garage 0.37 s, round trip 2
+8.84 s. **FOR A0 / THE USER: G1494 is OFF by default** (a look change: the band becomes a 0.5 s dissolve at 1 px a texel
+instead of a range of distances) - one line to ship it (FB.hyEase 0.5 in flown_bake.js's FB).
+STRICT GATE (train_gate --full vs train 26's baseline, twice, a peer's CPU battery beside both): besides train 30's known
+reds (the 30 cap's 7 fps rows, the Cub's "frame busy"): chase render Cub 9.55 -> 11.45 / 11.65, metal 9.65 -> 11.85 / 11.45
+ms and chase loop +2.0-2.3 ms = the band's cost above (the user's "keep, admit the cost", G1325); taskWorst / fuseLen busy /
+mn_strip worst task / Cub cockpit render red in ONE run only (contention). The trips' rows (run 1): every one in slack. Run 2's
+bench was killed at the gate's time limit in the warm load (the same build's loads ran clean in hybrid_trips.js minutes
+before) - its rows MISSING, not measured; A0's train 32 pass re-runs them.
 LOOK: reports/evidence/HYBRID-TRIPS/stills_bake_live.jpg (tools/perf/hybrid_trips_stills.js: where 1.6 px, the taxi's
 ~1.05 px and 1.0 px a texel fall - 5.8 / 8.5 / 9.3 m): at 1.6 and at the taxi the bake's letters and cheat line stair-step,
 the live shader is clean - what G1325 buys.
 GATES: FLOWNBAKE PASS (82: +rest(), +the enterGarage call, +the band, +G1493's skinned craft position); LIVERY,
-LIVERYREACH, ATMO, WEATHER, PARTS PASS.
+LIVERYREACH, ATMO, WEATHER, PARTS PASS. NOT RUN BY ME: FRAMECOST and the full battery (the box was A0's train 32 pass -
+a CPU battery would have sat beside its timed gate; that pass runs them).
 TRAPS: (1) the hybrid's state outlives the flight unless something puts it back - a new door out of the world goes through
 enterGarage or calls FLOWN_BAKE.rest(). (2) A SkinnedMesh view with no boundingBox makes any Box3.setFromObject over the
 craft walk every vertex through its bones (G1170.2 set the sphere, not the box). (3) A program key counts the scene's
