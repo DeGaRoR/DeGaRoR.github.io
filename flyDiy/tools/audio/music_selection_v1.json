@@ -395,6 +395,171 @@
    ],
    "verdict": "maybe",
    "note": "the user: very ambient more than jazz"
+  },
+  {
+   "id": 233918,
+   "station": "roots",
+   "contexts": [
+    "garage",
+    "cruise"
+   ],
+   "verdict": "keep",
+   "pick": "coordinator",
+   "note": "gap fill, unheard: the user asked for at least 10, ideally 20 tracks on Radio Jolene (2026-10-04); same artists as their radio-bench keeps"
+  },
+  {
+   "id": 237242,
+   "station": "roots",
+   "contexts": [
+    "garage",
+    "cruise"
+   ],
+   "verdict": "keep",
+   "pick": "coordinator",
+   "note": "gap fill, unheard: the user asked for at least 10, ideally 20 tracks on Radio Jolene (2026-10-04); same artists as their radio-bench keeps"
+  },
+  {
+   "id": 237915,
+   "station": "roots",
+   "contexts": [
+    "garage",
+    "cruise"
+   ],
+   "verdict": "keep",
+   "pick": "coordinator",
+   "note": "gap fill, unheard: the user asked for at least 10, ideally 20 tracks on Radio Jolene (2026-10-04); same artists as their radio-bench keeps"
+  },
+  {
+   "id": 246044,
+   "station": "roots",
+   "contexts": [
+    "garage",
+    "cruise"
+   ],
+   "verdict": "keep",
+   "pick": "coordinator",
+   "note": "gap fill, unheard: the user asked for at least 10, ideally 20 tracks on Radio Jolene (2026-10-04); same artists as their radio-bench keeps"
+  },
+  {
+   "id": 250186,
+   "station": "roots",
+   "contexts": [
+    "garage",
+    "cruise"
+   ],
+   "verdict": "keep",
+   "pick": "coordinator",
+   "note": "gap fill, unheard: the user asked for at least 10, ideally 20 tracks on Radio Jolene (2026-10-04); same artists as their radio-bench keeps"
+  },
+  {
+   "id": 252236,
+   "station": "roots",
+   "contexts": [
+    "garage",
+    "cruise"
+   ],
+   "verdict": "keep",
+   "pick": "coordinator",
+   "note": "gap fill, unheard: the user asked for at least 10, ideally 20 tracks on Radio Jolene (2026-10-04); same artists as their radio-bench keeps"
+  },
+  {
+   "id": 278389,
+   "station": "roots",
+   "contexts": [
+    "garage",
+    "cruise"
+   ],
+   "verdict": "keep",
+   "pick": "coordinator",
+   "note": "gap fill, unheard: the user asked for at least 10, ideally 20 tracks on Radio Jolene (2026-10-04); same artists as their radio-bench keeps"
+  },
+  {
+   "id": 278390,
+   "station": "roots",
+   "contexts": [
+    "garage",
+    "cruise"
+   ],
+   "verdict": "keep",
+   "pick": "coordinator",
+   "note": "gap fill, unheard: the user asked for at least 10, ideally 20 tracks on Radio Jolene (2026-10-04); same artists as their radio-bench keeps"
+  },
+  {
+   "id": 278392,
+   "station": "roots",
+   "contexts": [
+    "garage",
+    "cruise"
+   ],
+   "verdict": "keep",
+   "pick": "coordinator",
+   "note": "gap fill, unheard: the user asked for at least 10, ideally 20 tracks on Radio Jolene (2026-10-04); same artists as their radio-bench keeps"
+  },
+  {
+   "id": 278394,
+   "station": "roots",
+   "contexts": [
+    "garage",
+    "cruise"
+   ],
+   "verdict": "keep",
+   "pick": "coordinator",
+   "note": "gap fill, unheard: the user asked for at least 10, ideally 20 tracks on Radio Jolene (2026-10-04); same artists as their radio-bench keeps"
+  },
+  {
+   "id": 278395,
+   "station": "roots",
+   "contexts": [
+    "garage",
+    "cruise"
+   ],
+   "verdict": "keep",
+   "pick": "coordinator",
+   "note": "gap fill, unheard: the user asked for at least 10, ideally 20 tracks on Radio Jolene (2026-10-04); same artists as their radio-bench keeps"
+  },
+  {
+   "id": 278396,
+   "station": "roots",
+   "contexts": [
+    "garage",
+    "cruise"
+   ],
+   "verdict": "keep",
+   "pick": "coordinator",
+   "note": "gap fill, unheard: the user asked for at least 10, ideally 20 tracks on Radio Jolene (2026-10-04); same artists as their radio-bench keeps"
+  },
+  {
+   "id": 278397,
+   "station": "roots",
+   "contexts": [
+    "garage",
+    "cruise"
+   ],
+   "verdict": "keep",
+   "pick": "coordinator",
+   "note": "gap fill, unheard: the user asked for at least 10, ideally 20 tracks on Radio Jolene (2026-10-04); same artists as their radio-bench keeps"
+  },
+  {
+   "id": 278398,
+   "station": "roots",
+   "contexts": [
+    "garage",
+    "cruise"
+   ],
+   "verdict": "keep",
+   "pick": "coordinator",
+   "note": "gap fill, unheard: the user asked for at least 10, ideally 20 tracks on Radio Jolene (2026-10-04); same artists as their radio-bench keeps"
+  },
+  {
+   "id": 278399,
+   "station": "roots",
+   "contexts": [
+    "garage",
+    "cruise"
+   ],
+   "verdict": "keep",
+   "pick": "coordinator",
+   "note": "gap fill, unheard: the user asked for at least 10, ideally 20 tracks on Radio Jolene (2026-10-04); same artists as their radio-bench keeps"
   }
  ],
  "stationsRule": "the user, 2026-10-04: six stations - Jazz, Lo-fi/Hip-hop, Dub/Ambient, Local roots radio, Blues, Classical; all calm; PURE INSTRUMENTAL (no lyrics)",
