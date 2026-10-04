@@ -26,7 +26,8 @@ over a recording GL, real ms, ~1.6x the box's JS). **SwiftShader** = headless Ch
 3. **One row model, two renderers.** Today's row tuple gains six optional fields (`unit`, `group`, `tier`, `fine`,
    `detents`, `help`). A desktop renderer and a touch renderer read it, and both emit the same `tick` / `release`
    events GARAGE-INSTANT already keys on. On touch **only the knob moves a value**; a finger anywhere else on a
-   slider scrolls the list (R4, the user's ruling). **The slider revamp must decide this now** (§2.9). The rest of the phone
+   slider scrolls the list (R4, the user's ruling). The parts tree holds only the aeroplane; the reference plane and
+   the hangar move to the rail (R24, the user's ruling). **The slider revamp must decide this now** (§2.9). The rest of the phone
    UI can come later without a rewrite.
 4. **Phone → computer by link**: `#build=<base64url(deflate-raw(JSON))>` in the URL fragment, so GitHub Pages stays
    static and no server sees the build. The payload is a **patch over a frozen stock base** (20 changed rows = 401
@@ -277,6 +278,29 @@ What the editor is today (the digest of `tools/_cage_ui.js` / `src/viewer/editor
 - **R21. No edit by dragging in the 3D view in v1** (no handle-dragging on the model). It is tempting, but on a small
   screen it fights the orbit. The pin (R17) shows *where*; the knob changes *how much*.
 
+### 2.8b The tree is the aeroplane: the reference plane and the hangar leave it
+- **R24 (the user's ruling, 2026-10-04): the parts tree drops its two non-aeroplane roots.** *"Take out the
+  reference plane and hangar entries from the parts tree to simplify, and have those in the rails, or at the top."*
+  - Today the tree's top level is a registry of peers (`CAGE_TREE_ROOTS`, `editor.js:173-330`): `craft` ("My Plane",
+    the 8 assemblies), `ref` ("Reference plane", with G573's two rows, 3D model and Blueprint) and `shed`
+    ("The shed", the hangar group's rows).
+  - **The tree.** It holds only the aeroplane: its heading is the build's name, and selecting the heading shows every
+    row, as the craft root does now. Its rows are the 8 assemblies (Design & construction, Fuselage, Wings, Tail,
+    Control hardware, Powerplant, Running gear, Build) and their parts.
+  - **Desktop.** The reference plane and the hangar become **entries on the view's icon rail** (the G78 rail:
+    camera, display, night, explode, ...), each with its own flyout. They are display and room state, never in the
+    spec, and the rail is where "how you look" lives. The reference flyout keeps 3D model / Blueprint as a segmented
+    switch. The hangar flyout carries the shed's size, parts and mood, and the *night* flyout keeps borrowing the
+    light rows. (The ribbon at the top is the alternative the user allowed; the rail keeps the ribbon for the build's
+    verbs.)
+  - **Phone.** The same two entries sit on the 3D view's own rail (REF, ⌂: `mock_1_portrait.png`; the left rail in
+    landscape: `mock_2_landscape.png`), each opening a bottom sheet. In v1 a phone's REF offers the blueprint image
+    only (the 3D reference models are large payloads), and ⌂ the phone shed's light and mood.
+  - **The mechanism.** The registry gains `place: 'tree' | 'rail' | 'top'`; `ref` and `shed` declare `'rail'`, and
+    the rail renders a root's `panel()` as its flyout. A stored selection of `ref`, `ref.model`, `ref.bp` or `shed`
+    (`flydiy.edPart`) migrates to `craft`. GATE VIEW's label finds keep working (the rows are the same elements,
+    moved). Sketch: `mock_5_desktop_tree_rail.png` (`desktop.html`).
+
 ### 2.9 Undo, and the row model built once
 - **R22. Undo / redo, one entry per gesture.** A drag's ticks fold into its press; a held stepper run is one entry; a
   typed value is one entry. Entries are `{key, from, to}` on the spec's P. They are tiny: 1,000 entries would be
@@ -317,6 +341,8 @@ What the editor is today (the digest of `tools/_cage_ui.js` / `src/viewer/editor
      its own element (not a styled native range on a phone) and the scale stays scrollable.
   8. **Sizes come from CSS tokens** (`--row`, `--tap`, `--lab`), switched by `(pointer: coarse)`. No pixel
      constants in JS. (`layoutRight()`'s 390 / 250 / 46 are the ones to move.)
+  9. **The tree holds only the aeroplane** (R24): the reference plane and the hangar are rail entries
+     (`CAGE_TREE_ROOTS` `place`), on the desktop and the phone alike.
 
   The layout chrome (chips vs tree, sheet vs column, rail vs ribbon) can come in M4 without touching a row.
 
@@ -437,7 +463,7 @@ numbers.
 
 | session | scope | G-block | gates | where |
 |---|---|---|---|---|
-| **M3 ROW-MODEL** (inside the slider revamp; **first**) | the descriptor fields (§2.9 table); `mkRow` → descriptor + `deskRow` (pixel-identical to today); `tier` / `help` written during the per-slider review; the undo history at `GARAGE_SPEC.update` (one entry per gesture, ⌘Z / Ctrl+Z, ribbon arrows); steppers and typing on the tick path | G1520-G1529 | GATE PARTS (every row claimed), GATE INSTANT (unchanged), **new GATE ROWS** (every row has tier / group; ≤ 8 basic per part; no `title=` without `help`), **new GATE UNDO** (undo × N returns the boot hash) | cloud (node) + box (the look) |
+| **M3 ROW-MODEL** (inside the slider revamp; **first**) | the descriptor fields (§2.9 table); the tree holds only the aeroplane, with the reference plane and the hangar on the rail (R24); `mkRow` → descriptor + `deskRow` (pixel-identical to today); `tier` / `help` written during the per-slider review; the undo history at `GARAGE_SPEC.update` (one entry per gesture, ⌘Z / Ctrl+Z, ribbon arrows); steppers and typing on the tick path | G1520-G1529 | GATE PARTS (every row claimed), GATE INSTANT (unchanged), **new GATE ROWS** (every row has tier / group; ≤ 8 basic per part; no `title=` without `help`; the tree's roots are `craft` alone), **new GATE UNDO** (undo × N returns the boot hash) | cloud (node) + box (the look) |
 | **M1 GARAGE-MODE** | `?mode=garage`: the boot's world rows off (§1.2 table), no ISLAND_LOADER fetch, no sim worker; on a desktop the roll-out builds the world lazily (the LOADING-S3 path, kept beside B9's one loading); the mode is **not** shown on a desktop unless asked | G1530-G1534 | GATE ROUNDTRIP (both modes), GATE INSTANT, **new GATE GARAGEONLY** (node: no world step ran, 0 island bytes, heap ≤ the measured floor + 10 %), FRAMECOST (garage profile unchanged) | cloud (node), then box: heap_steps + the phone rig |
 | **M5 SHARE** | `#build=` links (patch over frozen bases + whole spec), `media/bases/` content-addressed, the arrival card, Send (Web Share, copy, QR when it fits), new-slot import, hash cleared | G1535-G1539 | **new GATE SHARE** (node: export → link → import byte-identical spec on the 5 validated builds, patch and whole; a corrupted / oversized / future-version link refused or warned; a 60-row patch ≤ 1.3 KB); GATE BUILD, GATE SAVE | cloud |
 | **M2 PHONE-SHED** | the phone rung of the garage (§1.5: props off, glass off, crew meshes hidden, shadows off, pixel ratio ≤ 1.5, readouts on demand); the welcome's phone gate offers "Build on this phone (garage only)" | G1540-G1544 | GATE GFX (no desktop preset changes), FRAMECOST's garage profile **on the phone rung** (draws ≤ 300, triangles ≤ 0.6 M), GATE SOFTGPU | cloud + **phone** (heap ≤ 700 MB, no kill, drag drawn ≤ 150 ms p50) |
@@ -464,7 +490,7 @@ numbers.
 - **Touch precision.** 2.3 px per step coarse on a 412 px screen (§2.3). Fine mode, steppers and typing are the answer,
   and the user's thumb is the test (M4).
 - **The revamp's timing.** If the revamp ships rows as hand-built DOM with hover-only help and no `tier`, mobile becomes
-  a second editor. The eight decisions in §2.9 cost the revamp little now and save the rewrite.
+  a second editor. The nine decisions in §2.9 cost the revamp little now and save the rewrite.
 - **Two boots.** B9 made one loading on purpose (no world builds under the player's nose). A garage mode brings back
   "the first roll-out builds the world" on any computer that opens it. Keep the mode out of the desktop's default path
   (only a phone, or `?mode=garage`), and the link's arrival on a computer boots the **full** game.
@@ -476,7 +502,7 @@ numbers.
 ## 6. FILES OF THIS STUDY
 
 - `futureDesigns/mobile-garage/`:
-  - mock-ups: `index.html`, `portrait.html`, `landscape.html`, `handoff.html`, `rowmodel.html`
+  - mock-ups: `index.html`, `portrait.html`, `landscape.html`, `handoff.html`, `rowmodel.html`, `desktop.html` (the tree and the rail, R24)
   - the prototype renderer: `rowkit.js`
   - the wing's real rows in the proposed descriptor: `mock_rows.js`
   - `mock.css` and a real QR: `qr_patch20.svg`

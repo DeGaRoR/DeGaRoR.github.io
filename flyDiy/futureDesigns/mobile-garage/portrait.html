@@ -14,7 +14,7 @@
     </div>
     <div class="view" style="height:330px" id="view">
       <div class="readout">empty <b>352 kg</b> · stall <b>61 km/h</b> · T/O <b>142 m</b></div>
-      <div class="vt"><button class="ib" aria-label="front">⟲</button><button class="ib" aria-label="frame">⌖</button></div>
+      <div class="vt"><button class="ib" aria-label="front">⟲</button><button class="ib" aria-label="frame">⌖</button><span class="vsep"></span><button class="ib scene" aria-label="reference plane" title="">REF</button><button class="ib scene" aria-label="hangar">⌂</button></div>
       <div class="hint">1 finger orbit · 2 fingers zoom + pan · tap a part to pick it</div>
     </div>
     <div class="parts" id="parts"></div>
@@ -32,7 +32,8 @@
   <h3>What this shows</h3>
   <ul>
     <li><b>The view stays on top</b> (36 % of the height): the slider's result is visible while the thumb moves. The plaque's three numbers sit in the view. They are the pre-plaque from the birth flow, worked out in the garage with no world. <i>The numbers here are illustrative.</i></li>
-    <li><b>Part chips</b> replace the tree column. The tree still exists one tap away (☰). The chips are the parts of the selected assembly. Tapping a part in the view selects it and scrolls the chips.</li>
+    <li><b>Part chips</b> replace the tree column. The tree is one tap away (☰), and <b>it holds only the aeroplane</b>. The chips are the parts of the selected assembly. Tapping a part in the view selects it and scrolls the chips.</li>
+    <li><b>The reference plane and the hangar are not in the tree.</b> They are scene entries on the view's own rail (REF, ⌂), each opening its own sheet. On a phone in v1, REF offers the blueprint only (an image), and ⌂ the phone shed's light and mood.</li>
     <li><b>The trunk first</b> (fitted / type / position / size), then <b>N more rows · show</b> for the "more" tier. The expert tier stays off on a phone unless asked.</li>
     <li><b>Every row is 56 px</b>: label, value chip (tap to type), − / + (48 px, hold to repeat), and the scale. <b>Only the knob moves the value</b> (a 48 px hit area round it). A finger landing anywhere else on the scale scrolls the list, and never edits.</li>
     <li><b>Undo / redo</b> in the thumb zone: one step per gesture.</li>

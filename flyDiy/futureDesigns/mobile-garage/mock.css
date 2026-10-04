@@ -135,3 +135,30 @@ button{font:inherit;color:inherit}
 .steps .ok{color:var(--ed-ok)} .steps .run{color:var(--ed-warn)} .steps .todo{color:var(--ed-faint)}
 .row2{display:flex;gap:10px;justify-content:flex-end;margin-top:14px}
 .rk-t,.bar,.parts,.top{user-select:none;-webkit-user-select:none}
+
+.vsep{display:block;height:1px;width:32px;margin:4px auto;background:var(--ed-border)}
+.ib.scene{font-size:12px;font-weight:600;letter-spacing:.04em;color:var(--ed-acc)}
+.tab.scene{line-height:1.1;color:var(--ed-acc)} .tab.scene small{font-size:9.5px;color:var(--ed-faint);font-weight:400}
+/* the desktop sketch (desktop.html) */
+.dk{width:1280px;height:720px;display:grid;grid-template-columns:46px 1fr 390px 250px;grid-template-rows:44px 1fr;background:#14120f;border:1px solid var(--ed-border);border-radius:8px;overflow:hidden;font-size:12px}
+.dk .dtop{grid-column:1/-1}
+.dk .spine{background:var(--ed-board);border-right:1px solid var(--ed-hair)}
+.dk .dv{position:relative;background:radial-gradient(120% 90% at 50% 30%,#3a342c 0%,#1d1a16 70%)}
+.dk .drail{position:absolute;left:10px;top:10px;display:flex;flex-direction:column;gap:4px;background:var(--ed-plate);border:1px solid var(--ed-border);border-radius:10px;padding:5px}
+.dk .drail button{width:64px;height:40px;border:0;border-radius:7px;background:transparent;color:var(--ed-dim);font-size:10.5px}
+.dk .drail button.on{background:var(--ed-acc-soft);color:var(--ed-ink)}
+.dk .drail button.scene{color:var(--ed-acc)}
+.dk .drail .rs{height:1px;background:var(--ed-border);margin:3px 4px}
+.dk .fly{position:absolute;left:90px;top:10px;width:300px;background:var(--ed-plate);border:1px solid var(--ed-border);border-radius:10px;padding:10px 12px;color:var(--ed-dim)}
+.dk .fly h4{margin:0 0 6px;color:var(--ed-ink);font-weight:500;font-size:13px}
+.dk .fly .seg{display:flex;gap:4px;margin:6px 0 8px}.dk .fly .seg span{padding:4px 10px;border-radius:12px;border:1px solid var(--ed-btn-bd)}.dk .fly .seg span.on{background:var(--ed-acc);color:var(--ed-acc-ink)}
+.dk .fly .fr{display:grid;grid-template-columns:110px 1fr 46px;gap:10px;align-items:center;height:26px}
+.dk .fly .fr i{height:3px;background:var(--ed-track);border-radius:2px;position:relative}.dk .fly .fr i::after{content:'';position:absolute;left:40%;top:-4px;width:11px;height:11px;border-radius:6px;background:var(--ed-acc)}
+.dk .props{background:var(--ed-panel);border-left:1px solid var(--ed-hair);overflow:hidden}
+.dk .tree{background:var(--ed-board);border-left:1px solid var(--ed-hair);padding:8px 0}
+.dk .tree .th{padding:4px 12px 8px;color:var(--ed-ink);font:500 13.5px/1.35 'IBM Plex Sans';border-bottom:1px solid var(--ed-hair);margin-bottom:4px}
+.dk .tree .th small{display:block;color:var(--ed-faint);font-weight:400;font-size:11px}
+.dk .tree .ta{padding:5px 12px;color:var(--ed-ink);font-weight:500}
+.dk .tree .tp{padding:3px 12px 3px 26px;color:var(--ed-dim)}
+.dk .tree .ta.on{background:var(--ed-acc-soft)}
+.dk .gone{margin:10px 12px;padding:8px;border:1px dashed var(--ed-btn-bd);border-radius:6px;color:var(--ed-faint);font-size:11px;text-decoration:line-through}
