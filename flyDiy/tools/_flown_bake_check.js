@@ -456,6 +456,16 @@ check(list.length === 7 && list.filter(e => e.at).length === 2 && list.some(e =>
   check(cl0 === true, '8 train 21 the live exterior is the default in the cockpit (the user, 2026-10-01); ?fbake=cockpitbake the fallback', String(cl0));
   const t1 = FB.hybrid(0.5), f1 = FB.FB_FADE.value; FB.FB.hyForce = 1; const t2 = FB.hybrid(0.2); FB.FB.hyForce = null; FB.hybrid(0);
   check(t1 === 0.5 && f1 === 0.5 && t2 === 1 && FB.FB_FADE.value === 0, '8 G1120 one fade for both sides (FB_FADE), the rigs\' hold (FB.hyForce) wins over the rule', JSON.stringify({ t1, f1, t2 }));
+  // G1490 HYBRID-TRIPS: the way back puts the flown model AT REST (the band twins off, the live meshes parked, t 0) - a model
+  // left in the band met the shed and the next roll-out shot on programs keyed in the hangar's lights by no compile (5.2 s);
+  // ?fbake=norest the A/B; G1325's band (1.0-1.25) the default again
+  FB.hybrid(0.5); const inBand = o2.meshes[0].material !== inMat && !!o2.meshes[0].material.userData.flownBand && k1.parent === g2;
+  FB.FB.noRest = true; FB.rest(); const keptNoRest = o2.meshes[0].material !== inMat && FB.FB_FADE.value === 0.5; FB.FB.noRest = false;
+  FB.rest();
+  const atRest = o2.meshes[0].material === inMat && o2.meshes[0].visible && k1.parent === null && !k1.visible && k1.material === live && FB.FB_FADE.value === 0 && FB.FB.hyT === 0;
+  check(inBand && keptNoRest && atRest && /function enterGarage\(\) \{\s*parkedFlush\(\);[\s\S]{0,400}?FLOWN_BAKE\.rest\(\)/.test(fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'app.js'), 'utf8')) && FB.FB.hyA === 1.0 && FB.FB.hyB === 1.25,
+    '8 G1490 the way back (enterGarage) puts the flown model at rest: the folds on their own baked material, the live meshes parked, t 0 (?fbake=norest the A/B); the band 1.0-1.25 (G1325)',
+    JSON.stringify({ inBand, keptNoRest, atRest, hyA: FB.FB.hyA, hyB: FB.FB.hyB }));
   const tw = FB.liveTwin(live), bw = FB.bandOf(tw), sh = { uniforms: {}, vertexShader: 'void main() {\n}', fragmentShader: '#include <common>\nvoid main() {\n}' };
   const sh0 = { uniforms: {}, vertexShader: 'void main() {\n}', fragmentShader: '#include <common>\nvoid main() {\n}' };
   try { bw.onBeforeCompile.call(bw, sh, null); } catch (e) {}

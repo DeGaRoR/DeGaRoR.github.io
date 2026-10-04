@@ -1,0 +1,26 @@
+MASTER BENCHMARK  2026-10-04T16:19:21.521Z  commit a1ffcf5b (build 239328e5d9b4)  2216x1023
+
+LOADS (s)
+  profile D:\mbn1810 (fresh, warmed once) · GPU cache after the warm-up 11 MB, cub warm: navigation -> garage 12.5 MB
+  cub     warm: navigation -> garage                      51  links 406 (worst 9.5 s, 2 > 5 s)  cache: MISS suspected (2 links > 5 s)
+  cub     garage -> world (first) @HOME                  9.2  (wall 9.2)  frames 28.9 fps, worst 266.7 ms, task 266 ms  links 1 (worst 0 s)
+  cub     warm: first flight                            60.2
+  cub     world -> garage @HOME                          2.7  (wall 2.8)  links 9 (worst 0.1 s)
+  cub     round trip 2: garage -> world                 14.2  (wall 14.4)  frames 18.8 fps, worst 5385.5 ms, task 5367 ms  links 6 (worst 5.3 s, 1 > 5 s)
+  cub     round trip 2: world -> garage                  0.2  (wall 0.4)  screen 0.2 s  frames 14.8 fps, worst 33.5 ms, task 56 ms  links 4 (worst 0 s)
+
+SCENES  build | scene | fps delivered | uneven | p50 / p90 / p99 / p99.9 / worst ms | >1.5x cap | >3x | >100 ms | >1 s | at 30 cap | tasks >=200 ms / >=1 s (worst)
+  cub               taxi chase @HOME              30    0 %  33.3 / 33.4 / 33.5 / 33.7 / 33.7     0 %      0 %   0   0  100 %   0 / 0 (0)
+
+FRAME LENGTHS  build | scene | frames per bucket: <20 | 20-40 | 40-60 | 60-100 | 100-250 | 250-1000 | >1000 ms
+  cub               taxi chase @HOME                0     450       0       0       0       0       0
+
+COMPARED WITH THE START OF THE RUN
+  first flight, warm (s)        cub          64 -> 60.2     x1.06 better   (A0 baseline (PLAYTEST-2026-09-26 s0.2, 3da1c82a))
+  taxi fps @HOME                cub        13.5 -> 30       x2.22 better   (A0 baseline (PLAYTEST-2026-09-26 s0.2, 3da1c82a))
+  taxi fps @HOME                cub       31.15 -> 30       WORSE   (train 11's ratchet baseline (c73886d3))
+  taxi p99 (ms)                 cub        33.5 -> 33.5     WORSE   (train 11's ratchet baseline (c73886d3))
+  taxi uneven                   cub        0.11 -> 0        x110000000 better   (train 11's ratchet baseline (c73886d3))
+  taxi worst frame (ms)         cub         634 -> 33.7     x18.81 better   (A0 baseline (PLAYTEST-2026-09-26 s0.2, 3da1c82a))
+  worst main-thread task (ms)   cub       17000 -> 5367     x3.17 better   (A0 baseline (PLAYTEST-2026-09-26 s0.2, 3da1c82a))
+  worst main-thread task (ms)   cub        1002 -> 5367     WORSE   (train 11's ratchet baseline (c73886d3))
