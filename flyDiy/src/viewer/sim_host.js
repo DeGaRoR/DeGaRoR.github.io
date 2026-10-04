@@ -287,6 +287,7 @@ function makeSimHost(CORE, init, keptWorld) {
   // airspeed, the wind, easK - read by the pilot's first update before the first step, when a flight starts `started`,
   // as the skip's does), the aerodynamics' circulation memory and the like carry over on the page, and must here
   const kept = init.keepSim || null;
+  if (typeof init.damage === 'boolean') globalThis.FLYDIY_DAMAGE = init.damage;   // G1898: the page's ?damage, before makeSim reads it
   const def = kept ? kept.def : CORE.buildGen(init.spec);
   const sim = kept ? kept.sim : CORE.makeSim(def, world);
   const n = sim.n, withV = !!init.withV, dayOn = init.day !== false;

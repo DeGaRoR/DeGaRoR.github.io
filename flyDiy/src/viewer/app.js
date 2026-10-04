@@ -11443,6 +11443,9 @@
   // SIMW-BENCH (G1095-G1099, the box 2026-09-30): KEPT - as even as inline at the 30 the cap settles on, the same frames,
   // the page's loop 19.5 -> 13.8 ms (Cub) / 22.7 -> 13.6 ms (metal Cessna); 60 holds on neither path (HANDOVER G1095-G1099)
   const SIMW_DEFAULT = true;
+  // G1898: ?damage=1|0 - the damage layer for this page's flights (and the worker's, through its init), ahead of
+  // GEN_DAMAGE_DEFAULT; a build's own params.damage still wins
+  try { const m = /[?&]damage=([01])(&|$)/.exec(location.search || ''); if (m) window.FLYDIY_DAMAGE = m[1] === '1'; } catch (e) {}
   const SIMW_ON = (() => { try { const m = /[?&]simw=([01])(&|$)/.exec(location.search || ''); if (m) return m[1] === '1';
     const p = prefGet('flydiy.simw', ''); if (p === '0' || p === '1') return p === '1'; } catch (e) {} return SIMW_DEFAULT; })();
   const SIMW = (SIMW_ON && typeof SIM_LINK !== 'undefined' && typeof location !== 'undefined') ? SIM_LINK.make({

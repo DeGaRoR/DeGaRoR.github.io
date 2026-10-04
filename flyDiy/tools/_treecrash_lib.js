@@ -43,7 +43,7 @@ function defOf(key, opts) {
   }
   const d = _defs[key];
   // a shallow copy with its own params (the probe flag) - the beams are copied by makeSim
-  return Object.assign({}, d, { params: Object.assign({}, d.params, (opts && opts.probe) ? { damageProbe: true } : {}, (opts && opts.elastic) ? { damage: false } : {}) });
+  return Object.assign({}, d, { params: Object.assign({}, d.params, (opts && opts.probe) ? { damageProbe: true } : {}, { damage: !(opts && opts.elastic) }) });   // G1898: the damage gates say what they test (the default is off)
 }
 
 // a flat world at `elev` with a trunk set of its own (the TREEHIT gate's world)

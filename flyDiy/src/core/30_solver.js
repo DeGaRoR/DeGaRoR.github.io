@@ -363,8 +363,10 @@ function makeSim(def, world) {
   // yield) one product and two compares per beam per substep in the beam loop that already has the length; unarmed,
   // one pass over the beams a frame. A member under its yield (every member of every validated build in flight, on a
   // hard landing at the gear's limit and in the 5.7 g load test - GATE TREECRASH) never yields, and its bits are the old ones.
-  // `params.damage === false` turns it off (every limit Infinity). A hand fiche (no bm.A) has no limits.
-  const DMG_ON = P_.damage !== false && typeof GEN_CRASH !== 'undefined';
+  // `params.damage === false` turns it off (every limit Infinity); G1898: so does leaving it unset while the default is off. A hand fiche (no bm.A) has no limits.
+  // G1898: on only when asked (params.damage, else the page's ?damage, else GEN_DAMAGE_DEFAULT - 60_gen_spec.js)
+  const DMG_ON = (P_.damage ?? (typeof FLYDIY_DAMAGE === 'boolean' ? FLYDIY_DAMAGE
+                  : typeof GEN_DAMAGE_DEFAULT !== 'undefined' && GEN_DAMAGE_DEFAULT)) === true && typeof GEN_CRASH !== 'undefined';
   const nb = beams.length;
   const DMG = { yields: 0, breaks: 0, work: 0, broken: [], firstBreak: null, firstYield: null,
                 crashed: false, reason: null, at: null, dented: false, propStrike: false, propAt: null,
@@ -569,7 +571,8 @@ function makeSim(def, world) {
     // a holed hull slice (GEAR-WATER 2's S8.br: the slam past its skin's breach pressure) is skin damage - a dent
     if (typeof WB !== 'undefined' && WB && WB.slices) { let h = 0; for (const S8 of WB.slices) if (S8.br) h++; DMG.holed = h; }
     if (DMG.yields || DMG.dents || DMG.holed) DMG.dented = true;
-    if (DMG.crashed) return;
+    // G1898: with the layer off there is no crash ending either (a 9 g impact flew on in master: off = master's game)
+    if (DMG.crashed || !DMG_ON) return;
     const why = DMG.primary ? 'a ' + (DMG.firstPrimary.cls || 'member') + ' member broke'
       : gF > CRASH_G ? 'an impact of ' + gF.toFixed(0) + ' g'
       : DMG.work > CRASH_J ? 'the airframe crushed (' + (DMG.work / 1000).toFixed(1) + ' kJ of plastic work)' : null;
