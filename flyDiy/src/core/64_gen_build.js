@@ -851,6 +851,15 @@ function genShakedown(def, opts) {
 // corners, and the editor's fuel-aboard slider (the user: "we need to see how
 // the CG is changing with the amount of fuel (through a slider)"). A pack does
 // not drain, and this leaves it alone: only a liquid-fuel list is scaled.
+//
+// THE SAME AIRFRAME (SPEC-FIXPOINT G1550, the review's A2 / E1): the copy is
+// of a RESOLVED spec, and buildGen re-resolves it - so the resolved spec is a
+// fixed point of resolveSpec (offsets consumed once, derived values cut to
+// their envelope as they are made), it carries the frame's own choices
+// (S._frame: the gear, the structure's scale, the floats' gross, the gauge),
+// and the tanks, the lines and the caps keep their design size (designCap,
+// designL). What changes is the loading, and only the loading. To build a NEW
+// airframe from a resolved spec, delete its `_frame` (GATE SPECFIX).
 // ---------------------------------------------------------------------------
 function genSpecAtFuel(S, litres) {
   const cs = JSON.parse(JSON.stringify(S));
@@ -858,8 +867,14 @@ function genSpecAtFuel(S, litres) {
   const keepF = cs.fuel.litres;
   const L = Math.max(0, litres || 0);
   const k = keepF > 0 ? L / keepF : 0;
+  // SPEC-FIXPOINT (G1550): each vessel keeps its DESIGN capacity beside the
+  // drained one, idempotently, as fuel.designL does below - the shell, the
+  // plumbing and the filler caps are the airframe's and are sized off it
   if (cs.energy && cs.energy.kind !== 'battery' && Array.isArray(cs.energy.vessels))
-    for (const v of cs.energy.vessels) v.capacity = v.capacity * k;
+    for (const v of cs.energy.vessels) {
+      if (!(v.designCap > 0)) v.designCap = v.capacity;
+      v.capacity = v.capacity * k;
+    }
   cs.fuel.litres = L;
   // PERF STUDY chantier 1: the DESIGN capacity rides along, idempotently —
   // the frame's gauge is sized for full tanks (genDesignGross), and a spec
@@ -877,9 +892,24 @@ function genSpecAtFuel(S, litres) {
 function buildGen(specIn) {
   const R = resolveSpec(specIn || GEN_DEFAULT);
   const S = R.spec;
-  // which fields the player left to the generator, so the editor can say so
-  S._auto = R.auto;
+  // which fields the player left to the generator, so the editor can say so.
+  // A re-fed resolved spec (the corners, the slider) derives nothing new - its
+  // fields are all set - so the record it arrived with is kept beside this
+  // pass's (SPEC-FIXPOINT: the rebuilt spec is the spec it was built from).
+  S._auto = Object.assign({}, S._auto && typeof S._auto === 'object' ? S._auto : null, R.auto);
+  // SPEC-FIXPOINT (A2 / E1): the gear's INPUTS as the stand had them. The
+  // write-back below puts the frame's choices into gear.x / track / twX /
+  // twY, which are also genFrame's inputs; a re-fed spec restores the
+  // originals, so its frame reads what the stand's frame read.
+  const FK0 = S._frame && typeof S._frame === 'object' ? S._frame : null;
+  if (FK0 && FK0.gearIn && typeof FK0.gearIn === 'object')
+    for (const k of ['x', 'track', 'twX', 'twY'])
+      if (k in FK0.gearIn) S.gear[k] = FK0.gearIn[k];
+  const gearIn = { x: S.gear.x, track: S.gear.track, twX: S.gear.twX, twY: S.gear.twY };
   const fr = genFrame(S);
+  // what the frame chose, kept: a re-fed resolved spec rebuilds this airframe
+  // (genFrame's own note), not a new one solved at the re-fed loading
+  S._frame = Object.assign({}, fr.frameKeep, { gearIn });
   // gear placement needs the CG, so genFrame owns it — hand the numbers it
   // chose back on the resolved spec, or the editor has nothing to report
   for (const [k, v] of [['track', fr.parts.tr], ['x', fr.parts.gx],
