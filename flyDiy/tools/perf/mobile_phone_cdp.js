@@ -14,6 +14,8 @@
 //             second requestAnimationFrame after it: what the eye waits for); median of --reps.
 //   frames  - --frames seconds of requestAnimationFrame intervals in the garage at rest, and the same while the camera
 //             orbits (a scripted one-finger drag on the canvas through Input.dispatchTouchEvent): p50 / p95 / p99 / > 50 ms.
+//   share   - what the phone's share sheet accepts: navigator.share, canShare for a build FILE as .json / .txt / .flydiy
+//             (Chrome's permitted file types), and the storage: persisted(), estimate() - and the display mode / DPR.
 //   soak    - --soak minutes (default 10) of the worst honest case - a slider scrubbed back and forth, a tick every 100 ms,
 //             a release every 2 s - with, every 30 s: fps over the window, the battery temperature (dumpsys battery,
 //             tenths of a degree), the thermal status and the HAL's skin/CPU/GPU temperatures (dumpsys thermalservice,
@@ -138,6 +140,18 @@ async function connect() {
     while (Date.now() - t0 < 900000) { await sleep(2000); let st = 'x'; try { st = await C.ev('window.BOOT ? BOOT.state : (document.readyState === "complete" ? "gone" : "x")', 5000); } catch (e) {} if (st === 'gone') break; }
     await sleep(3000);
   }
+  // ---- SHARE + STORAGE PROBE (G1517): can this phone's share sheet carry a build FILE, and will its storage keep it ----
+  // Chrome shares only a permitted list of file types (JSON is not believed to be on it: the .txt twin is the fallback);
+  // persisted() / estimate() say whether a build saved on the phone survives storage pressure.
+  try { R.share = JSON.parse(await C.ev(`(async () => {
+    const f = (n, t) => { try { return new File(['{"what":"flydiy-build"}'], n, { type: t }); } catch (e) { return null; } };
+    const can = x => { try { return !!(navigator.canShare && x && navigator.canShare({ files: [x] })); } catch (e) { return 'throws: ' + e.name; } };
+    const st = navigator.storage || {};
+    return JSON.stringify({ share: typeof navigator.share === 'function', canShareUrl: (() => { try { return !!(navigator.canShare && navigator.canShare({ url: location.href })); } catch (e) { return false; } })(),
+      json: can(f('My Cub.flydiy.json', 'application/json')), txt: can(f('My Cub.flydiy.txt', 'text/plain')), flydiy: can(f('My Cub.flydiy', 'application/octet-stream')),
+      persisted: st.persisted ? await st.persisted() : null, estimate: st.estimate ? await st.estimate().then(e => ({ quotaMB: Math.round(e.quota / 1048576), usageMB: +(e.usage / 1048576).toFixed(1) })) : null,
+      standalone: matchMedia('(display-mode: standalone)').matches, coarse: matchMedia('(pointer: coarse)').matches, dpr: devicePixelRatio, w: innerWidth, h: innerHeight });
+  })()`, 15000)); log('share/storage probe: ' + JSON.stringify(R.share)); save(); } catch (e) { R.share = { error: String(e) }; }
   // the page-side helpers: a drag the player's way, timed to the handler and to the second frame after it
   await C.ev(`window.__MP = {
     frame2: () => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r))),

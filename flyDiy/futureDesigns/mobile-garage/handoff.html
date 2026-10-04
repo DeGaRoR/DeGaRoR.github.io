@@ -13,11 +13,11 @@
     <div class="bsheet">
       <div class="grab"></div>
       <h2>Send “My Cub” to your computer</h2>
-      <p>The build is a few hundred bytes: the stock Cub plus your 20 changes. Nothing is uploaded. The link carries the build itself.</p>
-      <button class="act primary"><span class="ic">⤴</span><span><b>Share link…</b><small>the phone's share sheet: mail it to yourself, a chat, notes</small></span></button>
+      <p>No account, no upload to us: the build goes through your own mail or messages, as a small file (21 KB) or a link.</p>
+      <button class="act primary"><span class="ic">⤴</span><span><b>Send the file…</b><small>the share sheet: Gmail, WhatsApp, Messenger, Drive, Nearby… (My Cub.flydiy.json)</small></span></button>
+      <button class="act"><span class="ic">🔗</span><span><b>Send a link…</b><small>the same build inside a link (401 characters): tap it at home</small></span></button>
       <button class="act"><span class="ic">▦</span><span><b>Show QR code</b><small>scan it with the computer's webcam (or from another phone)</small></span></button>
-      <button class="act"><span class="ic">⧉</span><span><b>Copy link</b><small>401 characters</small></span></button>
-      <button class="act"><span class="ic">⬇</span><span><b>Save .json file</b><small>today's export file, the same one the computer imports</small></span></button>
+      <button class="act"><span class="ic">⬇</span><span><b>Save to this phone's files</b><small>a copy in Downloads, for a cable or a cloud drive</small></span></button>
     </div>
   </div>
 </div>
@@ -52,6 +52,19 @@
     <div class="bar"><div class="tabs"><button class="tab">design</button><button class="tab">shape</button><button class="tab on">bench</button></div></div>
   </div>
 </div>
+<div>
+  <p class="cap">7 · your aeroplanes, kept on this phone (and the install)</p>
+  <div class="phone portrait">
+    <div class="top"><button class="ib">‹</button><div class="name">Your aeroplanes<small>kept on this phone · 3 builds · 64 KB</small></div><button class="ib">＋</button></div>
+    <div style="flex:1;overflow:auto;padding:10px 14px">
+      <div class="lock" style="background:rgba(230,219,201,.06);border-color:var(--ed-border)"><span class="ic">⇩</span><span><b>Install flyDiy on this phone</b><br>Opens full screen from the home screen, works offline on the train, keeps your builds safe from clean-ups, and appears in the share sheet to receive builds. <span class="pill acc" style="display:inline-flex;align-items:center;margin-top:8px">Install</span></span></div>
+      <button class="act"><span class="ic">✈</span><span><b>My Cub</b><small>edited 18:40 · <span style="color:var(--ed-warn)">changed since sent</span></small></span></button>
+      <button class="act"><span class="ic">✈</span><span><b>Bush Jodel</b><small>edited yesterday · sent 21:05 ✓</small></span></button>
+      <button class="act"><span class="ic">✈</span><span><b>Float twin</b><small>edited Monday · never sent</small></span></button>
+      <p style="color:var(--ed-faint);font-size:12px">Every change is saved on the phone as you go (the autosave). A build you have not sent is marked: the phone may be lost, and the computer is where it flies.</p>
+    </div>
+  </div>
+</div>
 <div style="flex-basis:100%"></div>
 <div>
   <p class="cap">6 · the computer opens the link</p>
@@ -75,7 +88,8 @@
 <div class="notes">
   <h3>The flow</h3>
   <ul>
-    <li><b>Phone</b>: Send → the share sheet (Web Share API, <code>navigator.share({title, url})</code>) is the default. QR and copy are the fallbacks, and the .json file is always there.</li>
+    <li><b>Phone</b>: Send → <b>the file through the share sheet</b> (Web Share API level 2, <code>navigator.share({files: [build]})</code>): mail it to yourself, WhatsApp it, Messenger, Drive. No backend: the user's own channels carry it. Chrome's share sheet takes a permitted list of file types. If <code>canShare</code> refuses <code>.json</code>, the same bytes go as <code>My Cub.flydiy.txt</code>. The link, the QR and a plain download are the other buttons.</li>
+    <li><b>Receiving</b>: the computer opens the mail or WhatsApp Web attachment, or drops it on the garage. Import accepts <code>.json</code> and <code>.txt</code>. With the PWA installed, a desktop double-click on the file opens flyDiy (<code>file_handlers</code>), and on a phone flyDiy appears in the share sheet (<code>share_target</code>).</li>
     <li><b>The link</b>: <code>#build=1.&lt;base64url(deflate-raw(JSON))&gt;</code>. The fragment never reaches the server, so GitHub Pages stays static. <code>1.</code> is a patch over a frozen base, <code>0.</code> is a whole spec.</li>
     <li><b>Computer</b>: the page sees <code>#build=</code> before the welcome screen. After the boot it shows this card. Open = today's import path (<code>GARAGE_SPEC</code> load: normalise, migrate, clamp), saved as a new slot. The hash is then cleared, so a reload does not import twice.</li>
     <li>What the phone could not do happens on the computer: the bench, the flown bake, the world.</li>

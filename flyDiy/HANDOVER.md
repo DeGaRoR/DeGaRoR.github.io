@@ -71864,10 +71864,16 @@ futureDesigns/ and reports/.
      touch);
    - **the parts tree holds only the aeroplane**; the reference plane and the hangar move to the rail (R24).
    The doc §2.9 lists the nine decisions the revamp must take so mobile is not a rewrite.
-4. **Phone → computer = a link.** `#build=` holds a deflate-raw + base64url patch over a frozen stock base: 20 rows =
-   401 chars, a v13 QR. The whole spec is ~9.6 k chars (a link, never a QR). It goes through the Web Share API; copy,
-   QR and the .json file are the fallbacks. No cloud store. The computer opens it on an arrival card (checked, built,
-   bench, the flown bake at roll-out) as a new slot.
+4. **Phone → computer with no backend** (the user: "sending yourself a json through mail or WhatsApp or Messenger").
+   - The **build file** (today's export envelope, 7-21 KB) goes through the share sheet (Web Share level 2), as
+     `.json`, or as `.txt` if Chrome's permitted types refuse JSON. Import must then accept `.txt`: today `#gFile`
+     takes `.json` only. The phone rig's probe answers it on the S20 FE.
+   - A `#build=` **link** is the second button: a patch over a frozen base, 20 rows = 401 chars, a v13 QR.
+   - Builds are **kept on the phone** (today's localStorage slots + `persist()`, marked sent / unsent).
+   - **Make it a PWA (M7)**: one manifest, the same page, `sw.js` gains a page cache. It installs full screen, works
+     offline in the studio, keeps its storage (iOS spares home-screen apps from the 7-day eviction), receives builds
+     from the share sheet (`share_target`), and on the desktop a double-click opens a build file (`file_handlers`).
+   - The computer opens it on an arrival card (checked, built, bench, the flown bake at roll-out) as a new slot.
 5. **The phone does not fly.** The bench check (the shakedown needs no world) is shown, and the plaque reads "not yet
    flown".
 
@@ -71887,7 +71893,7 @@ desktop trunk, automatically at each release"; doc §6).
   - no UA / width tests outside welcome.js and the profile table.
 
 **THE PLAN** (G-blocks suggested, A0 assigns): M3 ROW-MODEL inside the revamp (first) → M1 GARAGE-MODE (+ the
-PROFILES table and GATE MOBILE's skeleton) → M5 SHARE → M2 PHONE-STUDIO → M4 TOUCH-UI → M6 PHONE-SOAK (+ an iPhone).
+PROFILES table and GATE MOBILE's skeleton) → M5 SHARE → M2 PHONE-STUDIO → M4 TOUCH-UI → M7 PWA → M6 PHONE-SOAK (+ an iPhone).
 
 **FOR A0 ON THE BOX:** `node tools/perf/mobile_phone_cdp.js --url "http://localhost:8700/flyDiy/index.html?gfx=potato"
 --build cub` (after `adb reverse tcp:8700 tcp:8700`). It measures boot (the heap per step, Chrome's PSS, a kill caught
