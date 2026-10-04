@@ -74437,6 +74437,10 @@ G1385 THE TANKS (32_hydro.js wetTanks, called by wetBuild):
 
 COST: unchanged dry - the tanks are built and computed only on armed frames (G1384's wetArmFrame), and wetBuild runs once.
 Wet: per compute, per side tank, a weighted mean over 2-4 nodes, one smoothstep, one exp() once holed - 2 to 4 tanks a build.
+Measured (tools/tanks_float_cost.js, reports/evidence/TANKS-FLOAT/wet_cost.txt): the wet pass on one frozen state (the user's
+Cub 10 s afloat), best of 7 x 20 000 computes - 17.6 us a compute on the base, 16.9 us here: below the box's noise. The
+step's wall in the water moves with the FLOATING STATE, not the pass (interleaved, the Cub afloat: base 2.17-2.67 ms a
+frame, this 2.15-2.75, this with its tanks stripped 2.28-2.49).
 
 DRY AIR, MASTER'S TO THE BIT (tools/tanks_float_dry.js, run on master 44b7a38's core, the base's and this branch's;
 reports/evidence/TANKS-FLOAT/dry_hashes.txt): the Cub, the metal Cessna and the Jodel 5 s on HOME's stand, 15 s at 600 m
@@ -74489,3 +74493,14 @@ G1384's own lines move as they must (the stock build's nose tank is behind its f
 OWED / FOR A0: the breach pressures (WB_TANK_BREACH) and the "fuel displaces" choice against the user's eye; a slam on the wing
 slabs (a wing tank holed by a cartwheel) belongs to DAMAGE; WATER-LOOK can bubble a holed tank's air off its nodes
 (sim.wetBody.tanks[k].f rising).
+
+GATES on this branch (cloud, 4 cores):
+- HYDRODYN PASS (with the G1385 section above); WATER, FLOATS, SEAPLANE, SOAR PASS (`--only=`, SOAR 550 s wall under the
+  battery's peers).
+- THE CORE BATTERY (`node tools/run_gates.js`, jobs 4, 46 min wall): 137 of 140 gates PASS (147 jobs with the shards); three red, none this branch's:
+  - SETTLE (bake budget, 712 ms) and AUDIOENG (heap window 284 kB of 256) - LOAD: re-run alone, quiet, both PASS.
+  - FRAMECOST (24 counters: stand/taxi draws, uniforms, the landing's 768 bytes) - RED ON THE BASE TOO, the same 24 to the
+    unit (claude/gear-water-buoy 5ecabad, run the same way). The gate's own hint: the parked cook is STALE (manifest
+    f5cd36beab5d, this tree 6d541c54e369), so every parked aeroplane is captured live. The cook refuses a software
+    renderer by design ("cook on the GPU" - this box has SwiftShader only). A0: re-cook on the box, then FRAMECOST,
+    as the train does on its final build.
