@@ -70959,3 +70959,26 @@ listen for the press reads the same. The strict gate's garage rows should be com
 
 Rigs: garage_census.js (node, every widget), garage_lag.js (the box), garage_drag_strip.js (the box: a drag frame by frame),
 _instant_check.js (GATE INSTANT). GPU: 26 min in two slots (03:46-03:59, 04:47-05:00), both under boxlock, reserved by A0.
+
+## TRAIN 28 LANDED (2026-10-04, A0 the coordinator)
+
+Cargo (on train 27 = e40628b0): COLD-LINKS G1310-G1314 (the cold first visit 75.6 -> 57.9 s to the garage), EVEN-30
+G1295-G1299 (a hard 30 by default, ultra auto; the forest fill sliced), LIGHT-SMOOTH 2 G1357-G1359.1 (the plane reads its
+own sharp shadow cascade - the wing's bands gone; the eye throttled; the GPU catcher), CRAFT-SHADOW G1410-G1414 (the
+parked shadow stands still), TREE-HITBOX G1330-G1334, HOUSE-LOD G1395-G1398, EDITOR-LAG G1400-G1404 (+ EDITOR-VEG's
+vegChanged), METLA-LOAD G1405-G1407 (G1408, the town ON by default, HELD for train 30), RUNWAY-LOOK G1390-G1395,
+RUNWAY-LIGHTS G1415-G1419 (+ A0: its fixture and glow materials through MATLIB, a 'points' class), HYBRID-FARTHER G1325
+(the user: "keep, admit the cost", +1.5 ms GPU at taxi), GARAGE-LAG-2 G1300-G1303 (the busy rise accepted by the user),
+C0 G1283 (honest wing sliders), METLA-TAXI G1435-G1439, GARAGE-INSTANT G1440-G1446.
+DROPPED: LAKE-HOLES G1335-G1339 (+ A0's lakeCarve for METLA-LOAD's build read) - it broke PREMRASTER, PREMCOOK,
+HOUSEWORKER and HYDRODYN; reverted (921bcf9b). COLD-LINKS reworked it on claude/cold-links-lakes-2 for train 30.
+FIXED IN THE TRAIN: HOUSEWORKER - HOUSE-LOD's lod1Bags keeps the town shader's channels (uv, aHouseAO/Lit/Win) while the
+house worker packed lod 1 as position + normal (premises_build.js LITE): 84 / 137 entries differed. COLD-LINKS' 04f4cd3c
+packs every attribute, PB_V 1 -> 2 (the worker's IndexedDB key), the premises manifest's page hash re-cooked.
+STRICT GATE: the first full run read 52 reds on a box shared with peers' lockless node work (6 census processes + other
+batteries) - since then heavy node work takes `boxlock.sh take cpu`. Quiet re-run: 17 reds = the 30 cap (8, intended),
+HYBRID-FARTHER (4, accepted), garage busy (2, accepted) and the world <-> garage trips (0.23 -> 2.7 s, garage -> world
+8.9 -> 14.2 s); a quiet master_bench bisect (train 27, +COLD-LINKS, the train before the lakes, the tip) read 8.9-9.1 /
+0.2-0.3 s on every tree: the trips red was the box, not a session. FRAMECOST PASS (65 counters down, the hybrid's rises
+on the ALLOW list); the final build (with the fix): HOUSEWORKER 137/137, PREMCOOK, PREMISES, MEDIA, ASSETS, BUILD, TARR,
+FRAMECOST PASS; trips 9.1 / 0.2 s, warm first flight 52.3 s (54.3 before the fix); the parked aeroplanes re-cooked on it.
