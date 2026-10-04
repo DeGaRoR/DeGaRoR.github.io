@@ -234,10 +234,28 @@ function engineSoundConfig(spec, engineIndex, registry) {
     gain: 0.1,
     jitter: { idle: twoStroke ? 0.45 : 0.32, cruise: 0.05, cold: 0.25,
               misIdle: twoStroke ? 0.04 : 0.01 },
-    crankRpm: Math.round(twoStroke ? 290 : Math.max(120, Math.min(280, 300 - 12 * dispL))),
-    starter: { pinion: twoStroke ? 8 : 14, segments: 16, level: 0.02 },
+    // a big engine cranks slower (SND-ENGINE-2: the O-540's growl "a little
+    // down pitch"; nothing under 6 L moves)
+    crankRpm: Math.round(twoStroke ? 290
+      : Math.max(120, Math.min(280, 300 - 12 * dispL - 2.5 * Math.pow(Math.max(0, dispL - 6), 2)))),
+    // THE START (SND-ENGINE-2, the user's review: the whine "R2D2", "too
+    // present", the engine "too weak when starting"): the starter is a low
+    // growl (band centre `hz` at crankRpm, lower for a bigger motor) some
+    // 25 dB(A) under the old whine; the cranking engine (crankLevel, each
+    // compression's chuff down the pipe at crankPuff) carries the sound over
+    // it, and the catch's first firings bark ~6 dB(A) over the cranking
+    // (catchK). GATE AUDIOENG §9 holds all three.
+    starter: { ratio: twoStroke ? 8 : 14,
+               hz: Math.round(Math.max(180, Math.min(420, 330 * Math.pow(2.8 / dispL, 0.3)))),
+               level: twoStroke ? 0.0015 : 0.003 },
+    crankLevel: 0.13, crankPuff: 1.0, catchK: 2.0,
+    // the misfire's cough in the pipe: a low-passed thump with a 4 ms rise,
+    // ~8 dB under the old white-noise crack (SND-ENGINE-2: "clicks too loud
+    // vs the engine", "could be better blended")
+    cough: { level: 1.2, hz: 900, rise: 0.004 },
     blower,
-    tick: { rate: 4, level: 0.02 },
+    // the cooling ticks: dry noise clicks (SND-ENGINE-2: no modes, no bells)
+    tick: { rate: 4, level: 0.03 },
     heatTau: 120,
   };
   cfg.gain = engineSoundGain(cfg);
@@ -248,8 +266,28 @@ function engineSoundConfig(spec, engineIndex, registry) {
 // full-power RMS grows with the cylinder count and falls with the pipes'
 // length; this holds every validated engine's full-power peak near -6 dBFS
 // so the bus has headroom. Measured by tools/audio/render.js --calibrate.
+// A two-stroke sits 3 dB lower (SND-ENGINE-2: the 582 "a tad annoying, too
+// loud" — its every-revolution firing and bright intake read louder than the
+// RMS says).
 function engineSoundGain(cfg) {
-  return r4(0.25 * Math.pow(cfg.dispL / 2.8, 0.15) / Math.sqrt(Math.max(1, cfg.cyl) / 4));
+  return r4(0.25 * Math.pow(cfg.dispL / 2.8, 0.15) / Math.sqrt(Math.max(1, cfg.cyl) / 4)
+            * (cfg.twoStroke ? 0.708 : 1));
+}
+
+// SEVERAL ENGINES (SND-ENGINE-2): each voice at -10 log10(N) dB, so N engines
+// sum (incoherently: their cranks are not phase-locked) to the level of one —
+// a twin is not 3 dB louder than a single. N = the aeroplane's piston voices.
+function engineSoundCountGain(n) {
+  return 1 / Math.sqrt(Math.max(1, n | 0));
+}
+function engineSoundPistonCount(spec, registry) {
+  let n = 0;
+  const N = spec && Array.isArray(spec.engines) ? spec.engines.length : 0;
+  for (let i = 0; i < N; i++) {
+    const { E, row } = engineSoundRow(spec, i, registry);
+    if (E && row && row.family !== 'electric' && row.family !== 'turbine') n++;
+  }
+  return n;
 }
 
 // THE SIM -> THE VOICE'S PARAMETERS (allocation-free; SND-CORE's
@@ -307,8 +345,9 @@ if (typeof module !== 'undefined' && module.exports) {
                      ENGINE_SOUND_PARAMS, ENGINE_SOUND_STARVE_S, ENGINE_SOUND_COLD_S,
                      engineSoundConfig, engineSoundInputs, engineSoundShafts,
                      engineSoundFiringOrder, engineSoundParseName, engineSoundRowOk,
-                     engineSoundGain };
+                     engineSoundGain, engineSoundCountGain, engineSoundPistonCount };
 } else if (typeof window !== 'undefined') {
   window.ENGINE_SOUND = { ENGINE_SOUND_TABLE, ENGINE_SOUND_PARAMS, engineSoundConfig,
-                          engineSoundInputs, engineSoundShafts };
+                          engineSoundInputs, engineSoundShafts, engineSoundCountGain,
+                          engineSoundPistonCount };
 }

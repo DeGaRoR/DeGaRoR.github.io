@@ -68855,3 +68855,69 @@ FOR THE COORDINATOR TO WIRE: (1) nothing in app.js; the build lines are in; (2) 
 NOT DONE / OWED: the engine heard THROUGH the disc (the chop of the exhaust note) - it needs the engine's audio routed
   into the prop node; the PT6's reduction-gear whine and the turbine's starter-generator; per-sample (not per-block) chop
   depth. The Selfridge et al. paper itself was not reachable (egress blocked) - its method is used as SOUND §1.2 cites it.
+
+## G1615-G1619 - SND-ENGINE-2: THE USER'S ENGINE LAB REVIEW, FIXED - THE STARTER, THE COOLING TICKS, THE CLICKS, THE TWIN'S LEVEL (2026-10-04, SND-ENGINE-2 for the Sound Coordinator, cloud, node only; branch claude/snd-engine2-g1615 off claude/sound-integration 6e2204c0; G1619 unused)
+
+The review (reports/evidence/SND-ENGINE/REVIEW-2026-10-04.md): THE RUNNING VOICE IS RIGHT (7/7 sweeps and run-ups) - the pipes,
+the firing, the load law and the running jitter are NOT retuned here. Fixed only what it flagged. Evidence:
+reports/evidence/SND-ENGINE-2/ (10 Opus + 10 PNG, 1.4 MB, README: per file, what changed and what to listen for, BEFORE = the same
+name in ../SND-ENGINE/).
+G1615 THE STARTER ("R2D2", "too present", "engine too weak when starting"; 4/5 starts Close/Wrong). engine_worklet.js: the DC
+commutator whine (a ~1 kHz tone + 2 harmonics) is deleted. In its place, a geared starter's GROWL: noise (its own xorshift stream)
+-> RBJ band-pass Q 1.2 centred at cfg.starter.hz x (voice rpm / crankRpm) -> two one-pole low-passes at 2.2 x the centre, AM once
+per motor revolution (cfg.starter.ratio motor turns a crank turn, a fresh grit each turn: the Bendix's mesh), heavier as the crank
+slows into each compression. hz from the displacement: 330 x (2.8/L)^0.3, clamped 180-420 (A-65 330, 5.9 L 264, O-540 233, 582 420).
+The CRANKING ENGINE carries the sound: each compression's chuff (air pushed down the pipe) goes into the exhaust network through
+the cough path (crankPuff 1.0), at crankLevel 0.13 (was 0.3 - the old crank was 6 dB over the catch on the Cub). The CATCH barks:
+catchK 2.0 on the level and +0.4 on the combustion, fading over 1.8 s. Measured (GATE AUDIOENG §9; before = §9 run on the G1613
+worklet + config): starter centroid 347 / 273 / 256 / 468 Hz (was 1076 / 926 / 785 / 670), strongest bin 2.5-3.5 dB over its
+third octave (was 18-29: a tone), -61.8 to -66.2 dB RMS (was -36.4: 25 dB under), -67.6 dB(A) on the Cub (was -36.3); the cranking
+engine over the starter on all five; the catch +6.0 (Cub) / +7.5 (Cessna) / +14.5 (O-540) / +14.8 (582) dB(A) over the cranking
+(was 8-11 dB UNDER it: the whine buried the catch).
+G1616 THE COOLING TICKS ("far too synthetic, does feel like bells" - Wrong). The three ringing modes are gone: each tick is a dry
+noise burst, high-passed at 1.5-3.5 kHz and low-passed (two poles) at 3.5-10 kHz, both random per tick (its own tilt), under an
+envelope with tau 0.4-1.5 ms. Rate law unchanged (irregular, thinning with tau 150 s). tick.level 0.03. Measured on cessna_hot:
+median 2.25 ms to -20 dB (was 36), spectral flatness 1.5-8 kHz 0.98 (was 0.25), loudest -10.8 dB re the idle's RMS (was +10.1).
+THE HOOK for a recorded tick: port.postMessage({type: 'tick', synth: 0..1, post: true|false}) - synth scales the synthetic tick
+(0 = off), post sends {type: 'tick', amp 0..1, frame} per tick (frame = samples since the voice was made; one preallocated
+object, posted only when asked). No tick sample exists yet (no SND-AIRFRAME samples.js / mech.tick; SND-ASSETS' 34 shipped files
+have none): the coordinator wires it when one ships.
+G1617 THE CLICKS ("clicks too loud vs the engine", "could be better blended"; the 582 renders and the Cub's starve). The misfire's
+cough was white noise with an instant attack into the straight pipe. It is now low-passed noise (cough.hz 900, two poles, its own
+stream) under an envelope rising over cough.rise 4 ms, still into the straight pipe (muffler + outlet colour it), cough.level 1.2.
+Loudest 5 ms of the isolated cough re the running RMS: cub/starve -5.9 dB (was +2.3), twin582/runup -4.9 (was +4.2),
+twin582/sweep -9.8 (was +2.4) - 8 to 12 dB lower. The starve's story (thickening misfires, sag, dry, windmill) is unchanged.
+G1618 THE LOUDNESS ("the twin a tad annoying, too loud"). Three causes, all fixed: (a) the two voices were PHASE-LOCKED (both cranks
+from angle 0 at the solver's identical rpm: +6 dB coherent) - each voice's starting crank angle now comes from its seed; (b)
+engineSoundCountGain(N) = 1/sqrt(N) per voice, N = engineSoundPistonCount(spec), applied in src_engine.js build() (two lines:
+`kN`, `cfg.gain *= kN`) and in render.js renderScene for summed engines; (c) engineSoundGain x 0.708 (-3 dB) for a two-stroke.
+The twin sums to -1.0 dB re one 582 (was +6.0). THE O-540 START ("base growl a little down pitch; high pitch too synthetic"):
+the high layer was the whine (G1615); crankRpm now takes off 2.5 (L - 6)^2 above 6 L -> the O-540 cranks at 173 rpm (was 194),
+nothing at or under 6 L moves (Cub 266, Cessna 229 unchanged; GATE §6's 100-300 rpm crank holds).
+ALSO: the DC blockers' states are flushed under 1e-30 per block (a lone tick on a sleeping voice left a tail decaying through
+float32's subnormal range - §3's 40 s hot-shutdown row caught it).
+GATE AUDIOENG §9 REVIEW (new, 23 rows): per build the starter's centroid < 600 Hz and no tonal bin (< 12 dB over its third octave),
+its RMS <= the old whine's -36.4 dB - 10, the cranking engine >= the starter in dB(A), the catch >= the cranking + 4 dB(A); the
+ticks' median decay < 5 ms, flatness > 0.35, loudest <= idle RMS - 6 dB, the hook (one message a tick; synth 0 -> silence);
+the three scenes' cough <= its old value - 6 dB (and > old - 20: still heard); the twin <= +1 dB re one, with the piston counts.
+(The brief's centroid bound was 1.5 kHz; the old whine already sat under it at 670-1076 Hz, so it could not go red - 600 Hz does.)
+NEGATIVE-VERIFIED, one sabotage per check, each red: whine (the G1613 whine put back on top: centroid 1074 Hz, a 29 dB bin),
+loudstarter (x12: -40.2 dB), flatcatch (catchK 0, crankLevel 0.3: catch under the crank), ring (tau 30 ms: 41.75 ms), tone
+(a 4 kHz tone under the burst: flatness 0.07), loudtick (x10: +8.5 dB), hook (post off, synth on), crack (cough x4, no rise,
+no low-pass: +15 dB), locked (both cranks from 0, full level: +6.0 dB). And §9 run on the G1613 voice: all 23 rows red.
+The starter and the cough draw their noise from their own xorshift streams (rs[1], rs[2]), so switching either off moves no other
+draw - that is how §9 isolates them (render with and without, subtract).
+render.js: --out=DIR --names=a,b (the SND-ENGINE-2 evidence; a few lines in main()), and summed engines at the count gain.
+GATES: AUDIOENG PASS (full, 101 rows incl. every sabotage, 122 s - inside its wall of 200), AUDIO PASS, BUILD PASS (run_gates
+--only=AUDIO,AUDIOENG,BUILD: BATTERY PASS; the runner's rebuilt dev.html / index.html / sw.js / version.json restored - no built
+file in this branch). Physics untouched (§8 INERT green; no src/core, no solver file). Node smoke of src_engine.js (stubbed Web
+Audio): the Cub 1 voice at gain 0.25, the twin 582 2 voices at 0.1398 (= 0.1977 / sqrt 2).
+FOR THE COORDINATOR: (1) SND-PROP (claude/snd-prop-g1620) touches src_engine.js, render.js and _engine_check.js too: my hunks are
+src_engine build() (2 lines), render.js renderScene (3 lines) + main() (--out/--names, 6 lines), _engine_check.js (secReview
+appended before SECTIONS + one SECTIONS row + 5 header lines) - all additive; (2) the tick hook waits for a CC0 tick sample;
+(3) SND-TUNE: every level here is by measurement against the old voice, not against a recording - the user's ear on the 10 new
+renders decides (the starter at -31 dB(A) re the whine may now be TOO quiet for some; starter.level is one number).
+FINAL REPORT: branch claude/snd-engine2-g1615. Review items: 1 starter -> G1615; 2 ticks -> G1616 (+ hook); 3 clicks -> G1617;
+4 loudness -> G1618 (phase, count gain, two-stroke -3 dB); 5 O-540 start -> G1615 + G1618 (173 rpm, 233 Hz growl). Gates: AUDIOENG
+(+§9, 9 new sabotages red), AUDIO, BUILD PASS. Evidence: reports/evidence/SND-ENGINE-2/{cub,jodel,cessna,cessnaFloats,twin582}_start,
+cessna_hot, cub_starve, twin582_runup, twin582_runup_twin, twin582_sweep (.ogg + .png) + README.md.

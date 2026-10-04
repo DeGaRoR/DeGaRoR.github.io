@@ -28,6 +28,11 @@
 // §7 CPU        ms per 128-frame block per voice (bound 1.0 ms)
 // §8 INERT      the sound row is physics-inert: resolveSpec, buildGen and 4 s
 //               of the solver bit-identical with and without it, on all five
+// §9 REVIEW     the user's Engine Lab review (SND-ENGINE-2): the starter low,
+//               toneless, 10 dB under the old whine, under the cranking engine,
+//               the catch over the cranking; the ticks dry (< 5 ms), broadband,
+//               under idle, the tick hook; the coughs 6 dB lower against the
+//               running voice; the twin within +1 dB of one
 // §P1-§P9      THE PROP, THE TURBINE, THE ELECTRIC MOTOR (SND-PROP, G1623):
 //               tools/audio/_prop_check.js's sections, appended below (one
 //               place per voice; run alone: node tools/audio/_prop_check.js)
@@ -516,6 +521,211 @@ function secInert(brk) {
   return rows;
 }
 
+// §9 REVIEW (SND-ENGINE-2, G1615-G1619): the user's Engine Lab review
+// (reports/evidence/SND-ENGINE/REVIEW-2026-10-04.md) — the starter, the
+// cooling ticks, the clicks and the twin's level, each held against the
+// G1613 voice's own numbers (OLD: this section run on 90c8b214's worklet and
+// config, where every row below is red)
+const OLD = {
+  starterDb: 20 * Math.log10(0.02 * Math.sqrt((1 + 0.35 * 0.35 + 0.15 * 0.15) / 2)),   // the whine's RMS, -36.4 dB
+  starterHz: { cub: 1076, jodel: 1076, cessna: 926, cessnaFloats: 785, twin582: 670 },  // its centroid
+  tickDecayMs: 36.0, tickFlat: 0.250, tickOverIdleDb: 10.1,
+  clickDb: { 'cub/starve': 2.3, 'twin582/runup': 4.2, 'twin582/sweep': 2.4 },        // cough peak over the running RMS
+  twinDb: 6.0,                                                                         // the twin over one
+};
+const dbOf = x => 20 * Math.log10(x + 1e-30);
+const rmsIn = (y, a, b) => { let s = 0; const i0 = Math.floor(a * SR), i1 = Math.floor(b * SR); for (let k = i0; k < i1; k++) s += y[k] * y[k]; return Math.sqrt(s / Math.max(1, i1 - i0)); };
+// Welch: the mean power spectrum of 4096-sample Hann segments, half-overlapped
+function welch(y, a, b) {
+  const L = 4096, P = new Float64Array(L / 2);
+  let n = 0;
+  for (let o = Math.floor(a * SR); o + L <= Math.floor(b * SR); o += L / 2, n++) {
+    const S = R.spectrum(y, o, L, SR, L);
+    for (let k = 0; k < L / 2; k++) P[k] += S.mag[k] * S.mag[k];
+  }
+  for (let k = 0; k < L / 2; k++) P[k] /= Math.max(1, n);
+  return { P, binHz: SR / L };
+}
+const centroidOf = W => { let n = 0, d = 0; for (let k = 1; k < W.P.length; k++) { n += W.P[k] * k * W.binHz; d += W.P[k]; } return n / d; };
+// the strongest bin over the median of its third-octave neighbourhood, dB
+function tonalDb(W, f0, f1) {
+  let worst = -99;
+  for (let k = Math.ceil(f0 / W.binHz); k <= f1 / W.binHz; k++) {
+    const lo = Math.max(1, Math.floor(k / 1.122)), hi = Math.min(W.P.length - 1, Math.ceil(k * 1.122));
+    const nb = []; for (let q = lo; q <= hi; q++) nb.push(W.P[q]);
+    nb.sort((x, z) => x - z);
+    worst = Math.max(worst, 10 * Math.log10(W.P[k] / (nb[nb.length >> 1] + 1e-40)));
+  }
+  return worst;
+}
+// A-weighted RMS (IEC 61672 A curve on the spectrum), dB
+function dbA(y, a, b) {
+  const W = welch(y, a, b);
+  let pw = 0, pa = 0;
+  for (let k = 1; k < W.P.length; k++) {
+    const f2 = (k * W.binHz) ** 2;
+    const ra = 12194 ** 2 * f2 * f2 / ((f2 + 20.6 ** 2) * Math.sqrt((f2 + 107.7 ** 2) * (f2 + 737.9 ** 2)) * (f2 + 12194 ** 2)) * 1.2589;
+    pw += W.P[k]; pa += W.P[k] * ra * ra;
+  }
+  return dbOf(rmsIn(y, a, b) * Math.sqrt(pa / (pw + 1e-40)));
+}
+// a scene rendered from one voice, `patch(proc, cfg)` applied once it is made
+function sceneOf(B, sc, patch, seed) {
+  const S = R.SCENES[sc], cfg = clone(B.configs[0]);
+  if (patch && patch.cfg) patch.cfg(cfg);
+  const v = R.makeVoice(W48, cfg, seed || 1, S.heat, S.state ? S.state(B, cfg) : null);
+  if (patch && patch.proc) patch.proc(v.proc, cfg);
+  return R.renderVoice(v, S.seconds, S.scene(B, cfg)).y;
+}
+// sabotage helpers: wrap a processor's process() to add something after it
+function wrapAfter(proc, add) {
+  const p0 = proc.process.bind(proc);
+  proc.process = (i, o, P) => { const r = p0(i, o, P); add(o[0][0]); return r; };
+}
+function secReview(brk) {
+  const rows = [];
+  const want = k => !brk || brk === k;
+  const SUB = { whine: 's', loudstarter: 's', flatcatch: 's', ring: 't', tone: 't', loudtick: 't', hook: 't', crack: 'c', locked: 'w' };
+  const part = brk ? SUB[brk] : null;
+  // ---- THE STARTER, the five builds: the start scene, the starter isolated
+  // (its own noise stream: starterLevel = 0 moves no other draw)
+  if (!part || part === 's') {
+    const patchS = {
+      cfg: c => { if (brk === 'loudstarter') c.starter.level *= 12;
+                  if (brk === 'flatcatch') { c.catchK = 0; c.crankLevel = 0.3; } },
+      proc: (proc, c) => {
+        if (brk !== 'whine') return;
+        // the G1613 commutator whine put back on top: 0.02 x the starter's
+        // envelope, pinion 14 x 16 segments a crank rpm
+        let ph = 0;
+        wrapAfter(proc, y => {
+          const st = proc.starterLevel > 0 ? 0.02 * proc.starterEnv : 0;
+          if (!(st > 1e-5)) return;
+          for (let s = 0; s < y.length; s++) {
+            ph += proc.vRpm * (c.twoStroke ? 8 : 14) * 16 / 60 / SR; ph -= Math.floor(ph);
+            const q = 2 * Math.PI * ph;
+            y[s] += st * (Math.sin(q) + 0.35 * Math.sin(2 * q) + 0.15 * Math.sin(3 * q));
+          }
+        });
+      },
+    };
+    const set = brk ? BUILDS.filter(B => B.key === 'cub' || B.key === 'cessnaFloats') : BUILDS;
+    for (const B of set) {
+      const full = sceneOf(B, 'start', patchS);
+      const eng = sceneOf(B, 'start', { cfg: patchS.cfg, proc: (p, c) => { p.starterLevel = 0; patchS.proc(p, c); } });
+      const st = full.map((x, k) => x - eng[k]);
+      const Ws = welch(st, 0.9, 2.0);
+      const cen = centroidOf(Ws), tone = tonalDb(Ws, 60, 6000), lev = dbOf(rmsIn(st, 0.9, 2.0));
+      rows.push([cen < 600 && tone < 12,
+                 `${B.key} starter: centroid ${cen.toFixed(0)} Hz (< 600; was ${OLD.starterHz[B.key]}), strongest bin ${tone.toFixed(1)} dB over its third octave (< 12: no tone)`]);
+      const aS = dbA(st, 0.9, 2.0), aE = dbA(eng, 0.9, 2.0), aC = dbA(full, 0.9, 2.0), aK = dbA(full, 2.15, 3.15);
+      rows.push([lev <= OLD.starterDb - 10 && aE >= aS,
+                 `${B.key} starter: ${lev.toFixed(1)} dB RMS (<= ${(OLD.starterDb - 10).toFixed(1)}: 10 under the whine's ${OLD.starterDb.toFixed(1)}); `
+                 + `the cranking engine ${aE.toFixed(1)} dB(A) over the starter's ${aS.toFixed(1)} (>= it)`]);
+      rows.push([aK >= aC + 4,
+                 `${B.key} the catch ${aK.toFixed(1)} dB(A) over the cranking ${aC.toFixed(1)} (>= +4: the first firings louder)`]);
+    }
+  }
+  // ---- THE TICKS: the Cessna's hot shutdown, 8-26 s (the voice asleep: the
+  // ticks are all there is)
+  if (!part || part === 't') {
+    const B = BUILDS[2];
+    const patchT = {
+      cfg: c => { if (brk === 'loudtick') c.tick.level *= 10; },
+      proc: proc => {
+        if (brk === 'ring') {            // the burst left to ring 30 ms
+          const p0 = proc.process.bind(proc), rr = Math.exp(-1 / (0.03 * SR));
+          proc.process = (i, o, P) => { if (proc.tickF[0] > 0) proc.tickF[1] = rr; return p0(i, o, P); };
+        }
+        if (brk === 'tone') {            // a 4 kHz tone under the burst's envelope
+          let ph = 0;
+          wrapAfter(proc, y => { const F = proc.tickF; if (!(F[0] > 0)) { ph = 0; return; }
+            for (let s = 0; s < y.length; s++) { ph += 4000 / SR; y[s] += 3 * F[0] * Math.sin(2 * Math.PI * ph); } });
+        }
+      },
+    };
+    const y = sceneOf(B, 'hot', patchT);
+    const a = 8, b = 26;
+    // each tick: its peak in a 0.25 ms RMS envelope, the time to -20 dB
+    const w = 12, env = [];
+    for (let o = a * SR; o + w < b * SR; o += w) { let s = 0; for (let q = o; q < o + w; q++) s += y[q] * y[q]; env.push(Math.sqrt(s / w)); }
+    const top = Math.max(...env), dec = [];
+    let pk = 0;
+    for (let i = 1; i < env.length - 1; i++) if (env[i] > env[i - 1] && env[i] >= env[i + 1] && env[i] > 0.03 * top) {
+      let j = i; while (j < env.length && env[j] > env[i] * 0.1) j++;
+      dec.push((j - i) * w / SR * 1000); pk = Math.max(pk, env[i]); i = j;
+    }
+    dec.sort((p, q) => p - q);
+    const med = dec.length ? dec[dec.length >> 1] : 99;
+    const Wt = welch(y, a, b);
+    let lg = 0, ar = 0, n = 0;
+    for (let k = Math.ceil(1500 / Wt.binHz); k < 8000 / Wt.binHz; k++) { lg += Math.log(Wt.P[k] + 1e-40); ar += Wt.P[k]; n++; }
+    const flat = Math.exp(lg / n) / (ar / n);
+    const idle = dbOf(rmsIn(y, 1, 2.8)), over = dbOf(pk) - idle;
+    rows.push([dec.length > 20 && med < 5,
+               `cessna ticks: ${dec.length}, median ${med.toFixed(2)} ms to -20 dB (< 5; was ${OLD.tickDecayMs}): dry, no ring`]);
+    rows.push([flat > 0.35, `cessna ticks: spectral flatness 1.5-8 kHz ${flat.toFixed(3)} (> 0.35; was ${OLD.tickFlat}): broadband, no pitch`]);
+    rows.push([over <= -6, `cessna ticks: loudest ${over.toFixed(1)} dB re the idle's RMS (<= -6; was +${OLD.tickOverIdleDb})`]);
+    // THE HOOK: post: true sends one message a tick; synth: 0 silences the
+    // synthetic one (a recorded tick replaces it)
+    {
+      let posted = 0;
+      const yh = sceneOf(B, 'hot', { proc: proc => {
+        proc.port.postMessage = m => { if (m && m.type === 'tick' && m.amp > 0) posted++; };
+        proc._onMessage({ type: 'tick', post: brk !== 'hook', synth: brk === 'hook' ? 1 : 0 });
+        R._lastProc = proc;
+      } });
+      const ticks = R._lastProc.stats[4];
+      const left = dbOf(rmsIn(yh, 8, 26));
+      rows.push([posted === ticks && ticks > 20 && left < -150,
+                 `the tick hook: ${posted} messages for ${ticks} ticks; synth 0 leaves ${left.toFixed(0)} dB (< -150)`]);
+    }
+  }
+  // ---- THE CLICKS: the cough isolated (its own noise stream: coughK = 0
+  // moves no other draw), its loudest 5 ms against the running RMS
+  if (!part || part === 'c') {
+    const plan = [['cub', 'starve', 8, 20], ['twin582', 'runup', 0, 2], ['twin582', 'sweep', 0, 3]];
+    for (const [k, sc, a, b] of plan) {
+      const B = BUILDS.find(x => x.key === k);
+      const cfgP = c => { if (brk === 'crack') { c.cough.level *= 4; c.cough.rise = 1e-6; c.cough.hz = 20000; } };
+      const full = sceneOf(B, sc, { cfg: cfgP });
+      const eng = sceneOf(B, sc, { cfg: cfgP, proc: p => { p.coughK = 0; } });
+      const w = Math.floor(0.005 * SR);
+      let pk = 0, s2 = 0;
+      for (let o = Math.floor(a * SR); o + w < b * SR; o += w >> 1) {
+        let s = 0; for (let q = o; q < o + w; q++) { const d = full[q] - eng[q]; s += d * d; }
+        pk = Math.max(pk, Math.sqrt(s / w));
+      }
+      const rel = dbOf(pk) - dbOf(rmsIn(eng, a, b)), old = OLD.clickDb[k + '/' + sc];
+      rows.push([rel <= old - 6 && rel > old - 20,
+                 `${k}/${sc} clicks: the loudest cough ${rel.toFixed(1)} dB re the running RMS (<= ${(old - 6).toFixed(1)}: 6 under the old ${old >= 0 ? '+' : ''}${old}; > ${(old - 20).toFixed(1)}: still heard)`]);
+    }
+  }
+  // ---- THE TWIN: both 582s summed, each at -10 log10(2) dB (src_engine.js
+  // through engineSoundCountGain), within +1 dB of one
+  if (!part || part === 'w') {
+    const T = BUILDS[4];
+    const one = R.renderScene(W48, T, 'runup', { seed: 1 }).y;
+    let two;
+    if (brk === 'locked') {
+      // the G1613 twin: both cranks from angle 0, each at full level
+      const S = R.SCENES.runup;
+      two = null;
+      for (const i of [0, 1]) {
+        const v = R.makeVoice(W48, T.configs[i], 1 + i * 7919, S.heat, S.state(T, T.configs[i]));
+        v.proc.net.currentRevolution = 0;
+        const r = R.renderVoice(v, S.seconds, S.scene(T, T.configs[i])).y;
+        if (!two) two = r; else for (let k = 0; k < two.length; k++) two[k] += r[k];
+      }
+    } else two = R.renderScene(W48, T, 'runup', { seed: 1, engines: [0, 1] }).y;
+    const d = dbOf(rmsIn(two, 1, 12)) - dbOf(rmsIn(one, 1, 12));
+    const nT = CFGM.engineSoundPistonCount(T.spec, C.POWERPLANTS), nC = CFGM.engineSoundPistonCount(BUILDS[0].spec, C.POWERPLANTS);
+    rows.push([d <= 1 && d > -4 && nT === 2 && nC === 1 && Math.abs(CFGM.engineSoundCountGain(nT) - Math.SQRT1_2) < 1e-12,
+               `twin582: both summed ${d >= 0 ? '+' : ''}${d.toFixed(1)} dB re one (<= +1; was +${OLD.twinDb}); piston voices: twin ${nT}, Cub ${nC}; each at ${(20 * Math.log10(CFGM.engineSoundCountGain(nT))).toFixed(2)} dB`]);
+  }
+  return rows;
+}
+
 const SECTIONS = [
   ['§1 CONFIG', secConfig, ['drift', 'parse', 'firing']],
   ['§2 FIRING', secFiring, ['cyl', 'stroke']],
@@ -525,6 +735,7 @@ const SECTIONS = [
   ['§6 LIFE', secLife, ['crank', 'nocatch', 'rundown', 'ticks', 'misfire', 'ctl', 'blower']],
   ['§7 CPU', secCpu, ['cpu']],
   ['§8 INERT', secInert, ['physics']],
+  ['§9 REVIEW', secReview, ['whine', 'loudstarter', 'flatcatch', 'ring', 'tone', 'loudtick', 'hook', 'crack', 'locked']],
 ].concat(require('./_prop_check.js').PROP_SECTIONS);
 
 async function main() {
