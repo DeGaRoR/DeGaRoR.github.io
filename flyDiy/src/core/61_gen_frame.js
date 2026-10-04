@@ -308,6 +308,22 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
                  vis: vis || null, L };
     if (opt && opt.tens) bm.tens = true;
     if (opt && opt.pre) bm.pre = opt.pre;
+    // G1470 (TREE-CRASH): THE MEMBER'S SECTION, for the damage model (30_solver.js): the area its mass is
+    // billed at (lin / rho at its gauge, the aft taper and the box webs in - the same A the load test
+    // judges a class by, per member) and the material it is made of (the GEN_MATERIALS key whose `phys`
+    // it reads; GEN_CRASH carries that material's ultimate and its elongation). Read by nothing else.
+    {
+      const bk = bucketOf(cls, mnt), g1 = bk && GG ? GG[bk] : 1;
+      const webK = (opt && opt.web && MM.coverGauged) ? (R.boxWebK == null ? 1 : R.boxWebK) : 1;
+      const lin = row(MM.lin, cls, tSecM);
+      // ...but never under its CLASS's section (lin / rho of the row, ungauged: exactly what the load test judges a
+      // class by, 65_gen_loadtest yieldPct): a member billed lighter than its class - a box web billed as skin, the
+      // aft taper, the gauge under 1 - has the rest of its strength in the skin, which the lattice bills under
+      // `cover`, not `lin`. Measured: on the metal Cessna its own billed area put a wing member at 133 % of yield
+      // at the 3.8 g limit (a 172's wing holds it), the class's at 52 % - the load test's own figure.
+      bm.A = lin > 0 && MM.phys ? Math.max(lin * aftG * webK * g1, lin) / MM.phys.rho : 0;
+      bm.mat = genPhysKey(MM.phys);
+    }
     beams.push(bm);
     // structural mass: linear density x length, half to each end (this is the
     // whole structural mass model — there is no separate mass budget to keep

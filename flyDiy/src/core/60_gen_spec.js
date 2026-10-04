@@ -307,6 +307,69 @@ const GEN_MATERIALS = {
 };
 
 // ===========================================================================
+// GEN_CRASH (G1470, TREE-CRASH) — WHERE A MEMBER STOPS SPRINGING BACK, AND WHERE IT BREAKS
+// ===========================================================================
+// The user (2026-10-04): "The crash should be as realistic as possible ... I hope the nodes and beam mesh
+// from the plane can deform." The solver's beams were purely elastic: a trunk stopped the aeroplane and the
+// airframe sprang it back 5-10 m. Each member now YIELDS (its rest length moves - the bend stays, and the
+// work done moving it is gone from the rebound) and past its ultimate it BREAKS (30_solver.js).
+//
+// JUDGED ON FORCE, NOT ON THE SPRING'S STRAIN. A beam's k is a calibrated lattice spring (the tube row's
+// fuselage is ~50x under the E*A/L of the tube it names; see GEN_MATERIALS.tubeFabric), so the sim's elastic
+// strain is not the metal's. Its FORCE is (the load test's own proxy, 65_gen_loadtest: "failure is a force
+// threshold"): a member yields at sigY x A, A its billed section (61_gen_frame bm.A = lin / rho at its gauge).
+// What happens AFTER yield is geometry, and the lattice's geometry is the aeroplane's own metres: a member
+// whose rest length has moved 8 % has stretched 8 %. So the ultimate is an ELONGATION, the material's.
+//   ty   tensile yield, Pa (phys.sigY, the row's own number: the load test's allowable)
+//   tu   tensile ultimate, Pa: the force climbs linearly from ty*A to tu*A over the plastic strain etu
+//        (bilinear hardening), and the member breaks there
+//   etu  plastic strain at the tensile break: the UNIFORM elongation (before necking), not the 2-inch gauge
+//        figure, because a lattice member is 0.5-1.5 m long and a neck is a few millimetres of it
+//   cy   compressive yield, Pa: the row's governing compression allowable (sigY is defined that way)
+//   ecu  plastic shortening at which a member in compression has KINKED (a tube buckled flat, a spruce spar
+//        crushed through): it carries nothing past it. A truss tube kinks long before the metal runs out.
+// Sources (handbook class values, as GEN_MATERIALS.phys):
+//   4130 normalized tube   MIL-HDBK-5J Table 2.3.1.0(b): Ftu 95 / Fty 75 ksi (x1.27 on sigY), elongation
+//                          10-12 % (S-basis), uniform ~8 %. Kink: AC 43.13-1B 4-46 treats a dented / bent
+//                          tube as unairworthy past a few % of its diameter; 3 % of length is folded.
+//   Sitka spruce           USDA FPL-GTR-190 Wood Handbook (2010) Table 5-3a, 12 % MC: compression parallel
+//                          38.7 MPa (the row's sigY), MOR 70 MPa; ANC-18: tension parallel ~ the MOR.
+//                          Tension is BRITTLE (it breaks at ~0.6 % strain with no plastic range: ty = tu);
+//                          compression crushes and keeps crushing (Bodig & Jayne, Mechanics of Wood: a
+//                          plateau to ~2-3 % before the fibres kink through).
+//   2024-T3 sheet          MIL-HDBK-5J Table 3.2.3.0(b): Ftu 64 / Fty 47 ksi (x1.36), elongation 15 %,
+//                          uniform ~10 %. A riveted skin-stringer field folds in compression early: 3 %.
+//   6061-T6 tube           MIL-HDBK-5J Table 3.6.2.0(b): Ftu 42 / Fty 35 ksi (x1.20), elongation 10 %,
+//                          uniform ~6 %.
+//   carbon / epoxy UD      no yield (GEN_MATERIALS.carbon): linear to failure, ~1.1 % strain; ty = tu, 0.
+//   fabric covering        NOT A MEMBER (cover is mass only, 60_gen_spec), so nothing reads this row: AC
+//                          43.13-1B Table 2-1, grade A cotton 80 lb/in new (14 kN/m), a polyester system
+//                          (Ceconite, Poly-Fiber STCs) at or over it, ~15-20 % elongation. A fabric wing's
+//                          MEMBERS are its spruce spars (GEN_SURF_MATERIALS.fabric.phys = the wood row).
+//   thf  the FOLD ANGLE (rad) at which a member BENT SIDEWAYS (a trunk at a point along it) has torn through: the
+//        sum of the two arms' rotations at the bend. Its plastic moment is ty x Z_p, Z_p a thin tube's A D / pi with
+//        D / wall = GEN_CRASH_TUBE_DT (1" x 0.035" 4130 is 29; a lattice member of any material is read as that tube
+//        of its own area - the spruce spar's 0.11 m equivalent tube carries 3.2 kN m, a real 3/4 x 5 1/2" spar 0.9
+//        about its weak axis and 6.5 about its strong one). A welded or riveted tube folds flat and still hangs on
+//        (Jones, Structural Impact, ch. 3: a tube's hinge runs to large rotations before it tears): 1.2 rad steel,
+//        0.8 the aluminiums (lower elongation). Spruce breaks in bending at about span / 25 of deflection (Wood
+//        Handbook ch. 5, work to maximum load): 0.12 rad. Carbon: 0.05.
+const GEN_CRASH_TUBE_DT = 30;
+const GEN_CRASH = {
+  tubeFabric: { ty: 460e6, tu: 460e6 * 95 / 75, etu: 0.08, cy: 460e6, ecu: 0.03, thf: 1.2 },
+  wood:       { ty: 70e6,  tu: 70e6,            etu: 0,    cy: 39e6,  ecu: 0.03, thf: 0.12 },
+  alloy:      { ty: 345e6, tu: 345e6 * 64 / 47, etu: 0.10, cy: 345e6, ecu: 0.03, thf: 0.8 },
+  aluTube:    { ty: 276e6, tu: 276e6 * 42 / 35, etu: 0.06, cy: 276e6, ecu: 0.03, thf: 0.8 },
+  carbon:     { ty: 1500e6, tu: 1500e6,         etu: 0,    cy: 1500e6, ecu: 0,   thf: 0.05 },
+  fabric:     { cover: true, tuN_m: 14e3, etu: 0.15 },   // reported only (above)
+};
+// the GEN_MATERIALS key a phys row is (surface rows share their structure's phys object)
+function genPhysKey(ph) {
+  for (const k in GEN_MATERIALS) if (GEN_MATERIALS[k].phys === ph) return k;
+  return null;
+}
+
+// ===========================================================================
 // GEN_SURF_MATERIALS (G213) — WHAT A WING OR A TAIL IS BUILT OF
 // ===========================================================================
 // The user, 2026-09-07: "In a plywood plane, the wing is wooden structure,
