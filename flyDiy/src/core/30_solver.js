@@ -1771,6 +1771,21 @@ function makeSim(def, world) {
       Mz += (p[i*3]-cgx)*(f[i*3+1]-G*m[i]) - (p[i*3+1]-cgy)*f[i*3];
     return -Mz;   // nose-up positive, gravity excluded
   }
+  // G1813: the kinked members' floors - push only, below the crushed length (out of substep's own body: measured, the
+  // loop inline cost the metal Cessna's step ~2 % in the air with no floor at all)
+  function floorPass() {
+    for (let q = 0; q < nFlr; q++) {
+      const b = beams[FLR[q]], a3 = b.a*3, b3 = b.b*3;
+      let dx = p[b3]-p[a3], dy = p[b3+1]-p[a3+1], dz = p[b3+2]-p[a3+2];
+      const L = hyp3(dx, dy, dz) || 1e-9;
+      if (L >= b.Lf) continue;
+      dx /= L; dy /= L; dz /= L;
+      const Fb = b.kB * (L - b.Lf) + b.cB * ((v[b3]-v[a3])*dx + (v[b3+1]-v[a3+1])*dy + (v[b3+2]-v[a3+2])*dz);
+      if (Fb >= 0) continue;
+      f[a3]+=Fb*dx; f[a3+1]+=Fb*dy; f[a3+2]+=Fb*dz;
+      f[b3]-=Fb*dx; f[b3+1]-=Fb*dy; f[b3+2]-=Fb*dz;
+    }
+  }
   function substep(dt) {
     for (let i = 0; i < n; i++) { f[i*3]=0; f[i*3+1]=G*m[i]; f[i*3+2]=0; }
     aeroPass(false);
@@ -1793,18 +1808,7 @@ function makeSim(def, world) {
       f[a3]+=Fb*dx; f[a3+1]+=Fb*dy; f[a3+2]+=Fb*dz;
       f[b3]-=Fb*dx; f[b3+1]-=Fb*dy; f[b3+2]-=Fb*dz;
     }
-    // G1813: the kinked members' floors - push only, below the crushed length
-    for (let q = 0; q < nFlr; q++) {
-      const b = beams[FLR[q]], a3 = b.a*3, b3 = b.b*3;
-      let dx = p[b3]-p[a3], dy = p[b3+1]-p[a3+1], dz = p[b3+2]-p[a3+2];
-      const L = hyp3(dx, dy, dz) || 1e-9;
-      if (L >= b.Lf) continue;
-      dx /= L; dy /= L; dz /= L;
-      const Fb = b.kB * (L - b.Lf) + b.cB * ((v[b3]-v[a3])*dx + (v[b3+1]-v[a3+1])*dy + (v[b3+2]-v[a3+2])*dz);
-      if (Fb >= 0) continue;
-      f[a3]+=Fb*dx; f[a3+1]+=Fb*dy; f[a3+2]+=Fb*dz;
-      f[b3]-=Fb*dx; f[b3+1]-=Fb*dy; f[b3+2]-=Fb*dz;
-    }
+    if (nFlr) floorPass();                           // G1813: the kinked members' floors (none: one compare)
     // ground: wheels roll, everything else scrapes. Terrain-aware.
     const gH = world ? world.terrainH : null;
     for (let i = 0; i < n; i++) {
