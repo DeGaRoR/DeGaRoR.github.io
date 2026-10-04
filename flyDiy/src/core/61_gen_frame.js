@@ -2743,9 +2743,14 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   // while its mount crushes, it closes once the node has come within SUPP_GAP of its stand-off of the firewall (L0 =
   // the distance it would have to that corner then, `pre` its rigging fraction) and pushes from there, on the cabin's
   // frame. Data only: the solver makes them members with the
-  // damage layer on (30_solver.js), so a build flown without damage has the same members it always had. (The gear leg
-  // into the cabin floor, the wing root into the cabin's side and a crushed belly were looked for in the same cases -
-  // the trunk flights, the nose-ins and pancakes on the ground and the water, the bench to destruction - and not seen.)
+  // damage layer on (30_solver.js), so a build flown without damage has the same members it always had. (Looked for in
+  // the same cases - the trunk flights, the nose-ins and pancakes on the ground and the water, the bench to
+  // destruction: the gear leg into the cabin floor and a crushed belly, never seen. A WING into the cabin, seen only
+  // after its attachment had gone - a strut-braced wing folding at its first station once the strut let go (0.10-0.14
+  // m, the Jodel and the Cessna hit 2.5 m out), the Cub's root end on its strut alone, the root fittings torn (0.18 m,
+  // the trunk centreline, once this limiter stops the cabin there): a free end sweeping the hull, §8.2's point-against-
+  // tube case. Limiters from its root nodes to the cabin's far corners were tried: the 0.18 m went, the other wing's
+  // root went in 0.11 m a second later, at 16-32 more members in the beam loop - not kept.)
   const SUPP_GAP = 0.2, dmgSupp = [];
   if (F[0]) for (let i = 0; i < nodes.length; i++) {
     if (dmgPart(i).p !== 'eng') continue;                        // the nose engine (a wing engine is no firewall's)
