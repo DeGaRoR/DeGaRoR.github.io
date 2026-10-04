@@ -71817,3 +71817,21 @@ HOUSEWORKER, MEDIA, ASSETS, BUILD, PREMCOOK, FLOWNBAKE) PASS; the parked aeropla
   (train 29: MEM-BUDGET, TOWN-COOK) every gate this touches passes: HOUSEWORKER, PREMRASTER, PREMCOOK, HYDRODYN, LAKEBED, SPLAT, WATER, FLOATS, SEAPLANE,
   PROGRAMS, BOOT, BUILD, GFX. FOR TRAIN 30'S LOOK CHECK: r_airport:grade's feathered edge carved up to 5.6 m lower at
   (-228, -499) - LAKE-HOLES' rule as written (a still before landing, A0).
+
+## TRAIN 30 LANDED (2026-10-04, A0 the coordinator)
+
+Cargo (on train 29 = e3575943): SOUND (the Sound Coordinator's claude/sound-integration d313481b, merged: the engine /
+prop / airframe voices, 34 recorded sounds, 12 lo-fi tracks, +36 MB media/audio, all lazy after the first click, ?audio=0
+builds nothing; GATE AUDIO + AUDIOENG in the battery), LAKE-HOLES G1335-G1339 back with COLD-LINKS' fixes G1314.2
+(claude/cold-links-lakes-2 8de69d30: the lakebeds carved, the ground drawn whole - no holes at the shore; PREMRASTER /
+PREMCOOK hold the raster to the carved surface, HYDRODYN's lake ownership; the r_airport:grade note: the carve lowers its
+feathered edge by up to 5.6 m at (-228, -499), kept as LAKE-HOLES' rule).
+A0 IN THE TRAIN: GATE ROUNDTRIP expects SOUND's rail section (audio: sound); FRAMECOST admits LAKE-HOLES' taxi triangles
+(+185.8 k, +1.4 %, the carved beds and skirts drawn as ground).
+STRICT GATE (full, vs train 26's baseline): 108 rows in slack, 41 better, 8 RED = the 30 cap's 7 fps rows (EVEN-30,
+intended) + the Cub's garage "frame busy" 241 -> 363 ms - a quiet garage_lag A/B (train 29 / train 30, the Cub x3) read
+that row 305 vs 279 ms (train 30 LOWER): noise; every sync row (input -> drawn) equal. The trips, the loads, chase /
+cockpit / taxi render and the floats' water taxi in slack. BATTERY: FRAMECOST (a stale parked cook first, then the lake
+triangles - admitted) and ROUNDTRIP (fixed) were the reds; all green on the final build; the parked aeroplanes re-cooked.
+LOOK (A0's real-GPU stills, reports/evidence/LAKE-HOLES/a0_gpu_train29_vs_30.jpg): the white gaps at the shore are gone;
+the carved banks now read as steep, texture-stretched slopes where a lake sits under a bank - a follow-up for the look.
