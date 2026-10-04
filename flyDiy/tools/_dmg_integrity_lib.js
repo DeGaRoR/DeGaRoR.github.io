@@ -102,7 +102,9 @@ function groundCase(key, o) {
 function noSupp(def) { return Object.assign({}, def, { parts: Object.assign({}, def.parts, { dmg: Object.assign({}, def.parts.dmg, { supp: [] }) }) }); }
 
 // ---- the wreck drawn ----
+let _drawN = 0;
 function draw(sim, def, o) {
+  const cid = 'c' + (_drawN++) + '_';                  // (clip ids unique: several drawings share one page)
   const P = def.parts.dmg.part, p = sim.p, n = sim.n;
   // the cabin's own frame (rings 1 and 3 - the firewall ring is the first to crush), x from the firewall as built
   const T = {}; def.nodes.forEach((nd, i) => { if (nd.tag && T[nd.tag] == null) T[nd.tag] = i; });
@@ -116,8 +118,10 @@ function draw(sim, def, o) {
   const loc = i => { const d = [p[i*3] - c[0], p[i*3+1] - c[1], p[i*3+2] - c[2]]; return [d[0]*xA[0] + d[1]*xA[1] + d[2]*xA[2], d[0]*yU[0] + d[1]*yU[1] + d[2]*yU[2], d[0]*zR[0] + d[1]*zR[1] + d[2]*zR[2]]; };
   const Lp = Array.from({ length: n }, (_, i) => loc(i));
   const col = q => q === 'body' ? '#555' : /^eng/.test(q) ? '#c0392b' : /^wing/.test(q) ? '#2e6db4' : /^(gear|tw|float)/.test(q) ? '#8e44ad' : '#16a085';
-  const fitI = []; for (let i = 0; i < n; i++) if (P[i] === 'body') fitI.push(i);
-  const lo = [0, 1, 2].map(k => Math.min(...fitI.map(i => Lp[i][k])) - (o.pad || 0.9)), hi = [0, 1, 2].map(k => Math.max(...fitI.map(i => Lp[i][k])) + (o.pad || 0.9));
+  const fd = pieces(sim), core = fd(T.S1BL), fitI = []; for (let i = 0; i < n; i++) if (P[i] === 'body' && fd(i) === core) fitI.push(i);   // (the cabin's own piece)
+  // the 5th..95th percentile of the cabin's body nodes, padded (a stretched or torn node does not set the scale)
+  const pct = (k, q) => { const a = fitI.map(i => Lp[i][k]).sort((x, y) => x - y); return a[Math.max(0, Math.min(a.length - 1, Math.round(q * (a.length - 1))))]; };
+  const lo = [0, 1, 2].map(k => pct(k, 0.05) - (o.pad || 0.9)), hi = [0, 1, 2].map(k => pct(k, 0.95) + (o.pad || 0.9));
   const views = [['side (x aft, y up)', 0, 1], ['top (x aft, z right)', 0, 2], ['front (z right, y up)', 2, 1]];
   const W = o.w || 960, H = o.h || 300, PAD = 10, panW = [hi[0] - lo[0], hi[0] - lo[0], hi[2] - lo[2]];
   const sc = Math.min((W - 4 * PAD) / (panW[0] + panW[1] + panW[2]), (H - 30) / Math.max(hi[1] - lo[1], hi[2] - lo[2]));
@@ -129,7 +133,7 @@ function draw(sim, def, o) {
     const yc = 30 + (H - 30) / 2, mb = (lo[ib] + hi[ib]) / 2, sg = vi === 1 ? -1 : 1;
     const X = q => x0 + (vi === 2 ? (q[ia] - lo[ia]) : (q[ia] - lo[ia])) * sc, Y = q => yc - sg * (q[ib] - mb) * sc;
     s += `<rect x="${x0.toFixed(1)}" y="22" width="${wv.toFixed(1)}" height="${H - 8}" fill="none" stroke="#ddd"/><text x="${(x0 + 4).toFixed(1)}" y="34" fill="#888">${nm}</text>`;
-    s += `<clipPath id="c${vi}"><rect x="${x0.toFixed(1)}" y="22" width="${wv.toFixed(1)}" height="${H - 8}"/></clipPath><g clip-path="url(#c${vi})">`;
+    s += `<clipPath id="${cid}${vi}"><rect x="${x0.toFixed(1)}" y="22" width="${wv.toFixed(1)}" height="${H - 8}"/></clipPath><g clip-path="url(#${cid}${vi})">`;
     sim.beams.forEach(b => {
       const A = Lp[b.a], B = Lp[b.b], ln = `x1="${X(A).toFixed(1)}" y1="${Y(A).toFixed(1)}" x2="${X(B).toFixed(1)}" y2="${Y(B).toFixed(1)}"`;
       if (b.supp) { if (o.supp === false) return; const Lc = Math.hypot(p[b.b*3]-p[b.a*3], p[b.b*3+1]-p[b.a*3+1], p[b.b*3+2]-p[b.a*3+2]), on = Lc < b.L0;
