@@ -160,8 +160,12 @@ const gearDefaults = () => JSON.parse(JSON.stringify(DEF));
 // A station's own view of P: the globals, with its leg options laid over.
 // Takes P as an argument rather than closing over it — the one change from
 // the bench's `legP`, because the cage editor's layer has a P of its own.
+// G1441 (GARAGE-INSTANT): an OVERLAY on P, not a copy - the leg builders only read it (no key walked, none written:
+// _gear_gen / _gear_kit / _hinge_gen / _rod_fit), so every read answers as the copy's did, and a read of a key the
+// station does not override is a read of P itself (the post chain's recording view sees which keys the gear reads;
+// a copy read every key, and the gear rebuilt on every drag tick whatever moved).
 const gearLegP = (P, i) => {
-  const o = Object.assign({}, P);
+  const o = Object.create(P);
   for (const k of LEG_KEYS) o[k] = P['s' + i + '_' + k];
   return o;
 };

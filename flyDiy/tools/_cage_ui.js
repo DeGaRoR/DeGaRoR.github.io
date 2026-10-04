@@ -1490,6 +1490,10 @@ if (typeof window !== 'undefined' && window.addEventListener) {
 // wing and the gear) is kept with it and put back on a hit: a headless caller in between may have built another
 // aeroplane. `CAGE_UI.sheetKeep = false` builds every time.
 let SHEET_KEY = null, SHEET_VAL = null, SHEET_MEMB;
+// G1442: the sheet the stand's fuselage was last built from (a preview needs it on the stand), the previews counted
+let LAST_SHEET = null;
+const PREVIEW = { n: 0, last: null };
+const PREVIEW_OFF = () => /(^|[?&])garage=old(&|$)/.test((typeof location !== 'undefined' && location.search) || '');
 const specKey = o => JSON.stringify(o, (k, x) => (typeof x === 'number' && !isFinite(x)) ? 'num:' + x
   : (x && typeof x === 'object' && !Array.isArray(x)) ? Object.keys(x).sort().reduce((a, kk) => { a[kk] = x[kk]; return a; }, {}) : x);
 function sheetKept(P, opts) {
@@ -1567,6 +1571,28 @@ function* buildSteps() {
   // the node gates hold the mesh the layers see; the page holds no copy
   const built = sheetKept(P, { step, level: L });
   const spec = built.spec, m = built.cage;
+  // G1442 (GARAGE-INSTANT): A DRAG TICK THAT KEEPS THE SHEET IS A PREVIEW. The fuselage on the stand is this
+  // sheet's already (its mesh, its decals, its weathering, the panels), so only the layers whose inputs moved run
+  // (CAGE_CHAIN.plan: the P keys each read on its last run, and the layers that feed it); the others stand as their
+  // last run drew them, the detail layers that do run wait as G1303 has them wait. The settle build (the release,
+  // the pointer up, the pause) is the whole build that follows every drag, as before.
+  const CH = window.CAGE_CHAIN;
+  const plan = (DRAG_TICK && CH && CH.on && built === LAST_SHEET && meshObj && !PREVIEW_OFF() &&
+    !(window.CAGE_UI && window.CAGE_UI.dragDefer === false)) ? CH.plan(P) : null;
+  if (plan) {
+    yield 'post';
+    DRAG_LATE = true;
+    if (DRAG_T) { clearTimeout(DRAG_T); DRAG_T = null; }
+    PREVIEW.n++; PREVIEW.last = plan;
+    // a stat line nobody reads: the layers append to it
+    const ctx = { scene, spec, mesh: built.sheet, P, stat: { textContent: '' }, defer: true, preview: true };
+    try { CH.run(ctx, P, plan); } catch (e) { console.error('page post hook (preview):', e); }
+    if (PAGE.late && PAGE.late.length)
+      for (const f of PAGE.late.splice(0)) try { f(); } catch (e) { console.error('page late hook:', e); }
+    draw();
+    return;
+  }
+  LAST_SHEET = built;
   M0 = m;
   let s = built.mesh;
   MS = s;
@@ -1743,7 +1769,11 @@ function* buildSteps() {
   const defer = DRAG_TICK && !(window.CAGE_UI && window.CAGE_UI.dragDefer === false);
   DRAG_LATE = defer;
   if (!defer && DRAG_T) { clearTimeout(DRAG_T); DRAG_T = null; }
-  if (PAGE.post) try { PAGE.post({ scene, spec, mesh: sFix, P, stat: $('stat'), defer }); }
+  if (PAGE.post) try {
+    const ctx = { scene, spec, mesh: sFix, P, stat: $('stat'), defer };
+    // G1441: the chain records what each layer reads (the preview's plan is made from it)
+    if (CH && CH.run) CH.run(ctx, P, null); else PAGE.post(ctx);
+  }
   catch (e) { console.error('page post hook:', e); }
   // G331: LATE — what a layer wants drawn once every layer has drawn (the
   // crew's floor, cut round the other layers' meshes), in this same task
@@ -4965,6 +4995,7 @@ if (PAGE.defaultStep && $('step')) $('step').value = PAGE.defaultStep;
 anchorSize();                              // the page opens at its ×1
 syncSliders();
 window.CAGE_UI = { P, build, repaint, draw, applyPreset, syncSliders, reg: () => decReg(),   // G318: the tape reads it
+  preview: PREVIEW,                      // G1442: the drag previews (n, the last plan)
   // THE TWO HALVES OF A LOAD (G63). `applySpec` puts a build into the editor;
   // `toSpec` takes the editor's whole parameter set out as the spec's `cage`
   // fragment — layer keys included, view keys excluded. Every shelf load,
