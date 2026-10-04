@@ -64,7 +64,7 @@
 (function () {
   const W = (typeof window !== 'undefined') ? window : globalThis;
   const FB = { V: 2, S: 2048, Sin: 2048, gutter: 4, gutterIn: 2, keep: 4, on: true, ab: false, quiet: false, sliceMs: 40, worker: true,
-                hybrid: true, hyA: 1.6, hyB: 2.0,    // train 29 (A0): G1325's farther band (1.0-1.25) is back OUT: live at the taxi, the world -> garage trip took 2.8 s and the next garage -> world re-linked the live program (a 5.2 s task); it returns with that fixed
+                hybrid: true, hyA: 1.0, hyB: 1.25,   // G1325 HYBRID-FARTHER's band (the live aeroplane from 1 px a texel; was 1.6-2.0), back with G1490: train 29 took it out (live at the taxi, the way back cost 2.8 s and the next roll-out a 5.2 s link - the band twins drawn in the shed's lights, see rest()); ?fbake=hy1.6-2.0 the old band
                 eyeR: 1.5, eyeOnly: true, shadowFolds: true,
                 cockpitLive: true,                 // train 21 (the user, 2026-10-01: "ship the live cockpit exterior"): the eye's zone live in the cockpit, the detailed textures at the seat (~+0.6 ms Cub/Cessna render); ?fbake=cockpitbake restores the bake there
                 swingPad: 0.5 };   // G1170.2: a moving part's travel beyond its turn (a Fowler flap's run, the gear's stroke), m   // G1124.1: the exterior live in the cockpit (the eye's zone) - off: +2.4 ms there (the Cessna)   // G1124: the eye zone's reach past the cabin (m); the cockpit's cuts   // THE HYBRID (below): the live shader from hyA screen pixels a texel, whole at hyB
@@ -92,6 +92,7 @@
     if (on.has('warmcanvas')) FB.warmCanvas = true;  // (b): the warm draws into the canvas, not the AA's intermediate target
     if (on.has('warmfree')) FB.warmFree = true;    // isolation: the warm draw's buffers freed once it is done (resident, or first-drawn?)
     if (on.has('noshadowfolds')) FB.shadowFolds = false;   // G1124 off: the live meshes cast their own shadows
+    if (on.has('norest')) FB.noRest = true;   // G1490's A/B: the way back leaves the flown model as the flight left it (no rest())
     for (const x of on) { const m = /^hy([\d.]+)-([\d.]+)$/.exec(x); if (m) { FB.hyA = +m[1]; FB.hyB = Math.max(+m[1] + 0.01, +m[2]); } }   // the band
     for (const x of on) { const m = /^hy=([\d.]+)$/.exec(x); if (m) FB.hyForce = Math.min(1, Math.max(0, +m[1])); }   // t held (the A/B rigs)
   } catch (e) {}
@@ -769,6 +770,20 @@
     for (const F of FOLDS) if (F.fade) F.fade(F.set === 'in' ? tIn : F.zone === 'eye' ? tEye : t);
     return t;
   }
+  // G1490 HYBRID-TRIPS: THE HYBRID IS A FLIGHT STATE. Only the flight's loop sets t (app.js, every frame); the shed never
+  // does - so the craft went back into the room as the last flight frame left it: inside the band (G1325's 1.0-1.25 px
+  // put the taxi's chase at t 0.33-0.48) every flown mesh wore its BAND TWIN and the live views stood in the graph. The
+  // shed and the next roll-out's shot then drew that model in the HANGAR's lights (five shadowed lamps, the craft's own:
+  // spotLights[6], spotShadowMap[5]) - programs no compile ever keyed, linked in the shot's first frame (round trip 2:
+  // five band twins, 5.2 s in one task). The way back puts it AT REST: t 0, the folds on their own baked material, the
+  // live meshes parked - the model the shed's compiles and the shot have always been keyed for (the band 1.6-2.0's
+  // taxi already left it so). The next flight frame sets t again, on the programs the craft step warmed in the world.
+  function rest() {
+    if (FB.noRest) return;
+    shadowFolds(false);
+    FB_FADE.value = 0; FB.hyT = FB.hyTEye = FB.hyTIn = 0;
+    for (const F of FOLDS) if (F.fade) F.fade(0);
+  }
   function materialOf(THREE, d, set) {
     const mk = (lv, srgb) => {
       const t = new THREE.DataTexture(lv[0].data, d.S, d.S, THREE.RGBAFormat, THREE.UnsignedByteType);
@@ -1381,7 +1396,7 @@
     return done(statsOf(per));
   }
 
-  W.FLOWN_BAKE = { FB, step, note, forPayload, show, showFold, mergeModel, hybrid, nearT, liveTwin, bandOf, FB_FADE, folds: () => FOLDS.slice(),
+  W.FLOWN_BAKE = { FB, step, note, forPayload, show, showFold, mergeModel, hybrid, rest, nearT, liveTwin, bandOf, FB_FADE, folds: () => FOLDS.slice(),
                    warmPairs: () => FB.noWarm ? [] : FOLDS.flatMap(F => F.pairs ? F.pairs() : []), eyeZone, shadowFolds,
                    withKept: fn => { const back = FOLDS.map(F => F.unpark ? F.unpark() : null); try { return fn(); } finally { for (const b of back) if (b) b(); } }, workerSource, bakedNames, bakedSets, groupsOf, keyOf, extOf, uvsOf, splitGroup, aeroArgs, mipSteps, toksvig, dilate,
                    bakeHook, FB_HOOK, BAKE_FS, graze: FB_U.uFbGraze, sunRough: FB_U.uFbSun,   // G1350: graze.value 1 = the old relief at a low sun; G1358: sunRough.value 0 = the old glint
