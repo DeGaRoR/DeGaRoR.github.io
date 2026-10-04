@@ -254,5 +254,22 @@ const SN = new Function('THREE', src('src/viewer/shadow_near.js') + '\nreturn SH
   ok(/if \(window\.SHADOW_NEAR && SHADOW_NEAR\.hook\) SHADOW_NEAR\.hook\(renderer\);/.test(src('src/viewer/app.js')), '5 G1125: app.js hooks the renderer\'s shadow pass');
 }
 
+// ---- 6 G1359.1: THE NEAR UNIFORMS ARE BOUND, NOT THREE'S CLONE ---------------------------------------------------
+// three clones a built-in material's uniforms when it makes the program: the vec4s keep their Float32Array, but uNearM1
+// (a Matrix4) is COPIED - an identity, frozen. inject() used to fill only what was missing, so the flown bake (whose
+// FB_HOOK reaches it through ATMO.inject) kept the frozen copy: its in-cascade test always failed and the exterior read
+// the 60 m box everywhere (measured live 2026-10-04: the bake's renderer uniforms held uNearM1 = identity).
+{
+  if (!SN.installed) SN.install();
+  const L = THREE.ShaderLib.physical.uniforms, sh = { uniforms: THREE.UniformsUtils.clone(L) };
+  const clonedBefore = sh.uniforms.uNearM1 !== L.uNearM1 && sh.uniforms.uNearM1.value !== L.uNearM1.value;
+  SN.inject(sh);
+  ok(clonedBefore && sh.uniforms.uNearM1 === L.uNearM1 && sh.uniforms.uNearQ === L.uNearQ && sh.uniforms.uNearP === L.uNearP,
+    "6 G1359.1: inject() binds the SHARED near uniforms over three's clone (the cascade's matrix is live in every program)");
+  const at = src('src/viewer/atmo.js'), fb = src('src/viewer/flown_bake.js');
+  ok(/SHADOW_NEAR\.inject\(sh\)/.test(at) && /const FB_HOOK = function \(sh\) \{\s*if \(typeof ATMO !== 'undefined'\) ATMO\.inject\(sh\);/.test(fb),
+    '6 G1359.1: the flown bake binds them (FB_HOOK -> ATMO.inject -> SHADOW_NEAR.inject)');
+}
+
 console.log(fails ? `GATE SHADOWSKY: FAIL (${fails})` : 'GATE SHADOWSKY: PASS');
 process.exit(fails ? 1 : 0);

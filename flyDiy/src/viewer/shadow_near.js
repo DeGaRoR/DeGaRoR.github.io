@@ -187,7 +187,15 @@ var SHADOW_NEAR = (function () {
     return true;
   }
   // inject(shader): the scalar for a program built outside ShaderLib's copy (the prototype hook / ATMO.inject chain)
-  function inject(sh) { if (sh && sh.uniforms && !sh.uniforms.uNearP) { sh.uniforms.uNearP = nearUniforms.uNearP; sh.uniforms.uNearQ = nearUniforms.uNearQ; sh.uniforms.uNearM1 = nearUniforms.uNearM1; } }
+  // G1359.1 THE BAKE NEVER READ ITS OWN CASCADE (LIGHT-SMOOTH, 2026-10-04). three CLONES a built-in material's uniforms
+  // when it makes the program (UniformsUtils.clone): the two vec4s keep their Float32Array (shared by reference), but
+  // uNearM1 is a Matrix4 and is COPIED - an identity, frozen. This used to fill only what was missing, so a program that
+  // already had the clone kept it: in the flown bake (the exterior every chase view draws since C4b) nc1 was the world
+  // position itself, the in-cascade test always failed, and the skin read the 60 m box (5.9 cm texels) everywhere -
+  // the 1.6 cm cascade of G1005 never reached it, and G1359's slope gains (in the cascade branch) could not either.
+  // Measured live: the cascade's bias x10 changed 0 pixels, the bake's renderer uniforms held uNearM1 = identity.
+  // The SHARED objects are bound now, every time (ATMO.inject calls this for every fogged program, the bake's included).
+  function inject(sh) { if (sh && sh.uniforms) { sh.uniforms.uNearP = nearUniforms.uNearP; sh.uniforms.uNearQ = nearUniforms.uNearQ; sh.uniforms.uNearM1 = nearUniforms.uNearM1; } }
   // ---- THE LIGHT --------------------------------------------------------------------------
   // make(scene, sunTarget): the black light with its 2048^2 map over the near box; its shadow camera sees NEAR_LAYER only
   function make(scene) {
