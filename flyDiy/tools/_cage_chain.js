@@ -50,6 +50,11 @@
     fin: ['stab', 'access', 'light', 'hinge'], stab: ['access', 'light', 'hinge'],
     access: [], light: [], energy: [], hinge: [], panel: [], ext: [],
   };
+  // an edge that holds only while its reader uses it: the gear reads the wing for the legs it roots ON the wing (the
+  // low-wing rule; CAGE_GEAR.onWing, its last run's count) - a high wing's gear stands on the fuselage alone
+  const WHEN = {
+    'wing>gear': () => { const G = window.CAGE_GEAR; return !(G && G.onWing === 0); },
+  };
   const ALWAYS = new Set(['panel', 'cowlAft', 'ext']);   // a stat line / an early return / the understudy pass
   const L = [];
   const C = window.CAGE_CHAIN = {
@@ -126,6 +131,12 @@
       C.last = L.map(l => ({ name: l.name, ran: l.ran, ms: +l.ms.toFixed(2) }));
     }
   };
+  // only(names): a plan that runs the named layers (and the always-run ones) and skips the rest
+  C.only = names => {
+    if (!C.on || !C.ok || L.length !== ORDER.length) return null;
+    const set = new Set(names);
+    return { run: L.map(l => set.has(l.name) || ALWAYS.has(l.name)), why: L.map(l => set.has(l.name) ? 'only' : ALWAYS.has(l.name) ? 'always' : '') };
+  };
   // plan(P): which layers a drag tick runs. null when no plan can be made (never on, a bad order, a layer never run)
   C.plan = P => {
     if (!C.on || !C.ok || !L.length || L.length !== ORDER.length) return null;
@@ -139,7 +150,7 @@
       else if (fed.has(Ly.name)) r = 'fed';
       else if (Ly.all && !same(snapV(P), Ly.allSnap)) r = 'all';
       else for (const [k, v] of Ly.reads) if (!same(snapV(P[k]), v)) { r = k; break; }
-      if (r) { run[i] = true; why[i] = r; if (r !== 'always') for (const n of FEEDS[Ly.name] || []) fed.add(n); }
+      if (r) { run[i] = true; why[i] = r; if (r !== 'always') for (const n of FEEDS[Ly.name] || []) { const w = WHEN[Ly.name + '>' + n]; if (!w || w()) fed.add(n); } }
     }
     return { run, why };
   };
