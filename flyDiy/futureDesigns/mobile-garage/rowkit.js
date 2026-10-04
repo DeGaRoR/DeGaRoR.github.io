@@ -58,10 +58,9 @@
   }
 
   // ---- TOUCH: the phone control ----
-  // Rules (MOBILE-GARAGE-2026-10-04.md §2): a 56 px row, a 48 px hit band; a tap on the track does NOT jump the value
-  // (a scroll that lands on a row must never edit); the drag is RELATIVE (it starts where the value is, the finger can
-  // land anywhere on the band); a vertical start scrolls the list instead (touch-action: pan-y); press-and-hold 350 ms
-  // before moving = FINE (x0.1); a live bubble above the finger (the finger hides the thumb); - / + steppers with repeat;
+  // Rules (MOBILE-GARAGE-2026-10-04.md §2): a 56 px row; ONLY THE KNOB MOVES THE VALUE (a 48 px hit area round it) -
+  // a touch anywhere else on the scale scrolls the sheet (touch-action: pan-y) and never edits; the knob's drag is
+  // RELATIVE (no jump to the finger); press-and-hold the knob 350 ms before moving = FINE (x0.1); a live bubble above the finger (the finger hides the thumb); - / + steppers with repeat;
   // a tap on the value opens the decimal keypad; named detents (the archetype's value, the loaded design's) pull 2 %.
   function touchRow(r, P, emit) {
     const kind = ROWKIT.infer(r), row = el('div', 'rk-t rk-t-' + kind); row.dataset.k = r.key;
@@ -101,19 +100,21 @@
           go(); tm = setTimeout(function rep() { go(); tm = setTimeout(rep, 80); }, 400); },
         up() { clearTimeout(tm); if (H.open) { const v = P[r.key]; H.end(); emit(r.key, v, 'release'); } } }; };
     for (const [b, d] of [[minus, -1], [plus, 1]]) { const s = stepper(d); b.onpointerdown = s.down; b.onpointerup = b.onpointerleave = b.onpointercancel = s.up; }
-    // the relative scrub
+    // THE KNOB IS THE ONLY HANDLE (the user, 2026-10-04: "move sliders only by dragging the [knob], NOT by touching the
+    // position on the scale, otherwise it conflicts with simply scrolling through the slider list"). The band has NO
+    // pointer listener and touch-action: pan-y - a finger landing anywhere on the scale scrolls the sheet, whatever its
+    // direction. The knob (26 px drawn, a 48 px hit area: .rk-t-knob::before) has touch-action: none and takes the
+    // pointer at once; the drag is relative (the value moves by the finger's travel, no jump to where it pressed).
     let g = null;
-    band.addEventListener('pointerdown', e => {
-      g = { id: e.pointerId, x0: e.clientX, y0: e.clientY, v0: P[r.key], w: track.getBoundingClientRect().width, mode: 'wait', fine: false, t0: performance.now() };
-      g.hold = setTimeout(() => { if (g && g.mode === 'wait') { g.fine = true; band.classList.add('rk-fine'); } }, 350);
+    knob.addEventListener('pointerdown', e => {
+      e.preventDefault(); e.stopPropagation(); knob.setPointerCapture(e.pointerId);
+      g = { id: e.pointerId, x0: e.clientX, v0: P[r.key], w: track.getBoundingClientRect().width, mode: 'wait', fine: false };
+      band.classList.add('rk-held'); H.begin(r.key, g.v0);
+      g.hold = setTimeout(() => { if (g && g.mode === 'wait') { g.fine = true; band.classList.add('rk-fine'); } }, 350);   // held still: fine
     });
-    band.addEventListener('pointermove', e => {
-      if (!g || e.pointerId !== g.id) return; const dx = e.clientX - g.x0, dy = e.clientY - g.y0;
-      if (g.mode === 'wait') {
-        if (Math.abs(dy) > 10 && Math.abs(dy) > Math.abs(dx)) { clearTimeout(g.hold); g = null; band.classList.remove('rk-fine'); return; }  // a scroll: let it go
-        if (Math.abs(dx) < 8) return;
-        g.mode = 'drag'; clearTimeout(g.hold); band.setPointerCapture(e.pointerId); band.classList.add('rk-drag'); H.begin(r.key, g.v0); g.x0 = e.clientX;
-      }
+    knob.addEventListener('pointermove', e => {
+      if (!g || e.pointerId !== g.id) return;
+      if (g.mode === 'wait') { if (Math.abs(e.clientX - g.x0) < 3) return; g.mode = 'drag'; clearTimeout(g.hold); band.classList.add('rk-drag'); g.x0 = e.clientX; }
       const gain = g.fine ? 0.1 : 1; let v = g.v0 + (e.clientX - g.x0) / g.w * (r.hi - r.lo) * gain;
       for (const d of r.detents || []) if (Math.abs(v - d.v) < 0.02 * (r.hi - r.lo) && !g.fine) v = d.v;   // a detent pulls
       v = snap(clamp(v, r.lo, r.hi), r);
@@ -121,9 +122,9 @@
       bubble.textContent = fmt(v, r) + unit;
     });
     const up = e => { if (!g || e.pointerId !== g.id) return; clearTimeout(g.hold);
-      if (g.mode === 'drag') { H.end(); emit(r.key, P[r.key], 'release'); }
-      band.classList.remove('rk-drag', 'rk-fine'); g = null; };
-    band.addEventListener('pointerup', up); band.addEventListener('pointercancel', up);
+      H.end(); if (g.mode === 'drag') emit(r.key, P[r.key], 'release');
+      band.classList.remove('rk-drag', 'rk-fine', 'rk-held'); g = null; };
+    knob.addEventListener('pointerup', up); knob.addEventListener('pointercancel', up);
     // tap the value: the decimal keypad, in place
     val.onclick = () => { const t = el('input', 'rk-t-type'); t.inputMode = 'decimal'; t.value = fmt(P[r.key], r);
       head.replaceChild(t, val); t.focus(); t.select();

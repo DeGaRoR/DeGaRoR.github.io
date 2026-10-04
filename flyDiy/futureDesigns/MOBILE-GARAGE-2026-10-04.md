@@ -25,7 +25,8 @@ over a recording GL, real ms, ~1.6x the box's JS). **SwiftShader** = headless Ch
    budget of 300), no transmission glass, no crew meshes, no shadow maps, and a capped pixel ratio.
 3. **One row model, two renderers.** Today's row tuple gains six optional fields (`unit`, `group`, `tier`, `fine`,
    `detents`, `help`). A desktop renderer and a touch renderer read it, and both emit the same `tick` / `release`
-   events GARAGE-INSTANT already keys on. **The slider revamp must decide this now** (§2.9). The rest of the phone
+   events GARAGE-INSTANT already keys on. On touch **only the knob moves a value**; a finger anywhere else on a
+   slider scrolls the list (R4, the user's ruling). **The slider revamp must decide this now** (§2.9). The rest of the phone
    UI can come later without a rewrite.
 4. **Phone → computer by link**: `#build=<base64url(deflate-raw(JSON))>` in the URL fragment, so GitHub Pages stays
    static and no server sees the build. The payload is a **patch over a frozen stock base** (20 changed rows = 401
@@ -177,19 +178,28 @@ What the editor is today (the digest of `tools/_cage_ui.js` / `src/viewer/editor
 ### 2.1 Target sizes
 - **R1.** Every target is **≥ 48 × 48 CSS px** (Material's 48 dp; WCAG 2.5.5 AAA asks 44). A drawn control may be
   smaller (the help ring is 28 px) only if its hit area is 48 (`::after { inset: -10px }`).
-- **R2.** A phone row is **56 px**: a label line (28 px: label, help, value chip) over a control line (48 px band and
-  steppers). This holds 9-10 rows in a portrait sheet below a 330 px view. The desktop row stays 30 px; the row
+- **R2.** A phone row is **56 px**: a label line (28 px: label, help, value chip) over a control line (the scale with its
+  48 px knob hit area, and the steppers). This holds 9-10 rows in a portrait sheet below a 330 px view. The desktop row stays 30 px; the row
   model makes that difference, not a fork of the code.
 - **R3.** Adjacent targets are ≥ 8 px apart (chips 6 px apart, plus their own padding).
 
 ### 2.2 Drag, tap-to-edit and steppers: all three, on every slider
-- **R4. The band drags *relatively*.** A drag starts from the current value, wherever the finger lands on the 48 px
-  band, and moves the full range over the band's width. **A tap on the band does not jump the value**: a scroll that
-  lands on a row must never edit (native `<input type=range>` jumps on tap, which is why the prototype draws its own
-  band).
-- **R5. Direction decides.** A vertical start (|dy| > 10 px and > |dx|) is a scroll and the row lets go
-  (`touch-action: pan-y` on the band). A horizontal start (|dx| > 8 px) captures the pointer and scrubs. A 550-row
-  sheet scrolls without editing anything.
+- **R4. ONLY THE KNOB MOVES THE VALUE** (the user's ruling, 2026-10-04: *"move sliders only by dragging the
+  [knob], NOT by touching the position on the scale, otherwise it conflicts with simply scrolling through the slider
+  list"*). The knob is drawn 26 px with a **48 px hit area** (R1). A finger that lands anywhere else on the scale
+  (track, fill, ticks) **does nothing to the value**, whatever its direction: the sheet scrolls. Native
+  `<input type=range>` jumps to the touched position and grabs the gesture, which is why the touch renderer draws its
+  own scale.
+- **R5. The knob takes the finger at once, the scale never does.** The knob has `touch-action: none` and captures the
+  pointer on `pointerdown`, so no direction guessing is needed. The scale and the row have `touch-action: pan-y` and
+  no pointer listener. The knob's drag is **relative**: the value moves by the finger's travel (the full range over
+  the scale's width) and never jumps to where the finger pressed. A 550-row sheet scrolls without editing anything,
+  even when every swipe starts on a slider. The cost is a 48 px square per row (the knob's hit area) from which a
+  swipe drags the knob instead of scrolling. A vertical swipe there moves nothing, and the list scrolls from
+  everywhere else.
+  Checked on the prototype with CDP touch events (`reports/evidence/MOBILE-GARAGE/rowkit_touch_check.txt`): a tap,
+  a horizontal drag and a vertical swipe on the scale leave the value at 1.60 m, and the vertical swipe scrolls the
+  sheet (300 → 394 px). A drag from the knob moves it to 1.85 m and opens one undo entry.
 - **R6. − / + steppers** (48 px) move one `step`; held, they repeat (400 ms, then every 80 ms). A held run is **one**
   undo entry and **one** release.
 - **R7. Tap the value chip to type.** A decimal keypad (`inputmode="decimal"`), clamped and snapped like today's
@@ -198,20 +208,20 @@ What the editor is today (the digest of `tools/_cage_ui.js` / `src/viewer/editor
   ≤ 8 stops) become chips. The widget is **still inferred from the range**, as `_cage_ui.js:2148` does.
 
 ### 2.3 Coarse and fine on a small screen
-- **R9. Fine = press and hold 0.35 s still, then drag:** ×0.1 gain, shown by an amber knob and "fine ×0.1". It needs
+- **R9. Fine = press and hold the knob 0.35 s still, then drag:** ×0.1 gain, shown by an amber knob and "fine ×0.1". It needs
   no second finger and no mode button.
 - **R10. Detents.** Named values (the archetype's, the loaded design's, the stock base's) pull within 2 % of the
   range in coarse mode, and not in fine. This replaces double-click-to-reset on a phone, together with "reset" in the
   row's ⋯ menu.
 - **R11.** A **live bubble above the finger** shows the value while dragging: the finger hides the knob.
-- At 412 CSS px, a span row (6.5-18 m, step 0.1, 115 steps) has a band ~260 px wide: **2.3 px per step coarse,
+- At 412 CSS px, a span row (6.5-18 m, step 0.1, 115 steps) has a scale ~260 px wide: **2.3 px per step coarse,
   23 px per step fine**. A finger's ~7 mm (~45 px) contact patch cannot hit 2.3 px. Fine and the steppers are
   therefore not optional. Typing is the fallback for an exact number.
 
 ### 2.4 The two events stay the editor's
 - **R12. A touch drag is the same `tick` → `release` as a mouse drag.** GARAGE-INSTANT keys its previews on
   `pointerdown` on the row (`DRAG_ON`), `input` (`DRAG_TICK`) and `change` / `pointerup` (`dragSettle`). The touch
-  band emits exactly those. Steppers and typing emit `tick`s then one `release` (today's keyboard and typed path is a
+  knob emits exactly those (pointerdown on the knob = `DRAG_ON`). Steppers and typing emit `tick`s then one `release` (today's keyboard and typed path is a
   plain whole build, 200-260 ms on the box; the stepper's repeat must use the tick path or a held + costs a whole
   build every 80 ms).
 - **R13. Ticks are paced to frames.** At most one tick per rAF; pointer moves in between are coalesced, keeping the
@@ -261,11 +271,11 @@ What the editor is today (the digest of `tools/_cage_ui.js` / `src/viewer/editor
 - **R20. The view and the sheet never share a gesture.**
   - In the view: 1 finger orbits, 2 fingers pinch-zoom **and pan** (two-finger pan is new; pan is mouse-only today,
     app.js:4556), tap picks, double-tap frames the part.
-  - In the sheet: vertical scrolls, horizontal on a band scrubs.
+  - In the sheet: any swipe scrolls, except one that starts on a knob, which drags that knob (R4).
   - The view has `touch-action: none`; the sheet has `pan-y`. A finger that starts in one stays in it until it lifts
     (pointer capture).
 - **R21. No edit by dragging in the 3D view in v1** (no handle-dragging on the model). It is tempting, but on a small
-  screen it fights the orbit. The pin (R17) shows *where*; the band changes *how much*.
+  screen it fights the orbit. The pin (R17) shows *where*; the knob changes *how much*.
 
 ### 2.9 Undo, and the row model built once
 - **R22. Undo / redo, one entry per gesture.** A drag's ticks fold into its press; a held stepper run is one entry; a
@@ -303,7 +313,9 @@ What the editor is today (the digest of `tools/_cage_ui.js` / `src/viewer/editor
      and typed edits take the preview path too.
   5. **An undo history** at the `GARAGE_SPEC.update` boundary, one entry per gesture.
   6. **No information only in hover**: every new hover affordance needs a tap twin (R17-R18).
-  7. **Sizes come from CSS tokens** (`--row`, `--tap`, `--lab`), switched by `(pointer: coarse)`. No pixel
+  7. **The knob is the slider's only handle on touch** (R4-R5): no jump-to-position, so the revamp's slider is
+     its own element (not a styled native range on a phone) and the scale stays scrollable.
+  8. **Sizes come from CSS tokens** (`--row`, `--tap`, `--lab`), switched by `(pointer: coarse)`. No pixel
      constants in JS. (`layoutRight()`'s 390 / 250 / 46 are the ones to move.)
 
   The layout chrome (chips vs tree, sheet vs column, rail vs ribbon) can come in M4 without touching a row.
@@ -452,7 +464,7 @@ numbers.
 - **Touch precision.** 2.3 px per step coarse on a 412 px screen (§2.3). Fine mode, steppers and typing are the answer,
   and the user's thumb is the test (M4).
 - **The revamp's timing.** If the revamp ships rows as hand-built DOM with hover-only help and no `tier`, mobile becomes
-  a second editor. The seven decisions in §2.9 cost the revamp little now and save the rewrite.
+  a second editor. The eight decisions in §2.9 cost the revamp little now and save the rewrite.
 - **Two boots.** B9 made one loading on purpose (no world builds under the player's nose). A garage mode brings back
   "the first roll-out builds the world" on any computer that opens it. Keep the mode out of the desktop's default path
   (only a phone, or `?mode=garage`), and the link's arrival on a computer boots the **full** game.
