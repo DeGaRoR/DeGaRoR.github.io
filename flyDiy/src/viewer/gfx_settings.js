@@ -35,6 +35,13 @@
   const RIG = W.WELCOME && typeof W.WELCOME.RIG === 'boolean' ? W.WELCOME.RIG
     : !!(W.navigator && (W.navigator.webdriver || /HeadlessChrome/.test(W.navigator.userAgent || '')));
   const FORCE = k => !!(W.location && new RegExp('[?&]' + k + '=1').test(W.location.search || ''));
+  // THE SOFTWARE RUNG (G1460, SOFT-GPU): the card welcome.js probed is a software renderer (SwiftShader - every cloud
+  // session's headless Chromium -, llvmpipe, the Basic Render Driver). It is a rung UNDER potato, not a sixth preset:
+  // potato's options when nothing was chosen, plus the boot's longer watchdogs (boot.js) and the frame's software
+  // fallbacks (app.js / hangar.js / render_world.js ask GFX.soft()). On a graphics card it is false and none of it runs:
+  // the presets, their resolved options and every program key are the ones they were (GATE GFX holds it).
+  // ?soft=1 turns it on over a real card (A0's A/B on the box), ?soft=0 off over a software one.
+  const SOFT = !/[?&]soft=0(&|$)/.test((W.location && W.location.search) || '') && (FORCE('soft') || !!(W.WELCOME && W.WELCOME.SOFT === true));
 
   // ---- the options: named steps over the handles ---------------------------
   const OPTIONS = [
@@ -309,10 +316,12 @@
   // the eye writes its factor here and nowhere else: the schedule keeps declaring the base
   const setEye = k => { eyeK = Math.max(0.25, Math.min(4, +k || 1)); const R = W.FLYDIY_RENDERER; if (R && expBase != null) R.toneMappingExposure = expBase * (S.exposure || 1) * eyeK; return eyeK; };
   const FPS_STEPS = OPTIONS.find(o => o.k === 'fps').steps.map(s => s.v);
+  let saved = false;                         // G1460: a choice was read back (the software rung leaves it alone)
   const load = () => {
     let v0 = null;                           // the stored pref after its migrations (G1295: did it carry a frame rate?)
     try {
       const v = JSON.parse(W.localStorage.getItem(KEY) || 'null');
+      saved = !!(v && typeof v === 'object');
       // A CHOICE SAVED BEFORE THE TIERS' LAST CHANGES (pv < 3: G516's soft bloom; G528 made the auto scale the default
       // and G551 made it an option again) - once: a player who was ON a preset gets that preset as it is now (the old
       // names mapped), or every returning player would read 'custom'; a player's own custom mix keeps its options, but
@@ -338,6 +347,8 @@
     if (!S.fpsOwn && !(v0 && FPS_STEPS.includes(v0.fps))) S.fps = FPS_OF(S.preset);   // G1295: none stored (or no step) - the preset's
     // Friendly Welcome (A0, 2026-10-02): ?gfx=<preset> picks a preset BEFORE the load and keeps it (a weak card or a phone
     // never reached the graphics menu: the GTX 660 loaded on gamer and drew nothing). The player's later choice still wins
+    // G1460: the software rung starts on potato when nothing was chosen (no saved choice, no ?gfx=, no welcome pick)
+    if (SOFT && !saved && !/[?&]gfx=/.test((W.location && W.location.search) || '') && !(W.WELCOME && W.WELCOME.pick)) { Object.assign(S, PRESETS.potato); S.preset = 'potato'; S.build = 'potato'; if (!S.fpsOwn) S.fps = FPS_OF('potato'); }
     try { const q = /[?&]gfx=([a-z]+)/.exec((W.location && W.location.search) || ''); const want = q && q[1];
           if (want && PRESETS[want] && (S.preset !== want || S.build !== want)) { Object.assign(S, PRESETS[want]); S.preset = want; S.build = want; if (!S.fpsOwn) S.fps = FPS_OF(want); save(); } } catch (e) {}
     // G1210 (WELCOME): the welcome screen's pick (or the device gate's "try anyway": potato), taken the same way - it ran
@@ -618,6 +629,8 @@
     BUDGETS, budget,   // G1230: the build budget the world builds to (GFX.budget().mipSkip, .townBoot, ...)
     set, apply, mount, mountWorld, presetOf, frameText,
     setExposure, setEye, eye: () => eyeK, exposureBase: () => expBase,
+    // G1460: the software rung - null on a graphics card; else what the rung is and why
+    soft: () => (SOFT ? { tier: 'software', gpu: (W.WELCOME && W.WELCOME.env && W.WELCOME.env.gpu) || '', forced: FORCE('soft'), preset: S.preset } : null),
     // the world calls this once it exists (render_world.js, end of build)
     onWorld: () => { applied = {}; apply(); },
     // what each option costs to change, for anyone who asks

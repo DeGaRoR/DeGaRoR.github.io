@@ -296,5 +296,58 @@ console.log('GATE GFX');
      'index.html: welcome.js after boot.js and before the core; the island loader holds on FLYDIY_WELCOME before its first fetch');
 }
 
+// 9. G1460 (SOFT-GPU) THE SOFTWARE RUNG IS INERT ON A GRAPHICS CARD. welcome.js's isSoftware on the GPU table (only the
+//    software renderers), gfx_settings.js's GFX.soft() null on every card - and then the resolved options, the saved
+//    choice and the presets table are, key for key, a boot without the rung's code; on SwiftShader it starts on potato,
+//    and a player's saved choice, ?gfx= and ?soft=0 win over it. Every place the game changes for the rung asks
+//    GFX.soft() in a conditional (listed and counted below) - so a null answer is the old path, by construction.
+{
+  const wsrc = fs.readFileSync(path.join(__dirname, '..', 'src', 'viewer', 'welcome.js'), 'utf8');
+  const ww = { navigator: {} }; ww.window = ww;
+  vm.runInNewContext(wsrc, Object.assign({ window: ww }, ww));
+  const WL = ww.WELCOME;
+  const SW = ['Google SwiftShader', 'ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)',
+    'llvmpipe (LLVM 15.0.7, 256 bits)', 'Mesa softpipe', 'ANGLE (Microsoft, Microsoft Basic Render Driver Direct3D11 vs_5_0 ps_5_0, D3D11)'];
+  const HW = ['ANGLE (NVIDIA, NVIDIA GeForce RTX 3080 (0x00002206) Direct3D11 vs_5_0 ps_5_0, D3D11)', 'NVIDIA GeForce GTX 660/PCIe/SSE2',
+    'ANGLE (Intel, Intel(R) UHD Graphics 620 (0x00005917) Direct3D11 vs_5_0 ps_5_0, D3D11)', 'AMD Radeon RX 6800 XT', 'Apple M2', 'Adreno (TM) 650', 'Mali-G57 MC2', ''];
+  ok(SW.every(n => WL.isSoftware(n)) && HW.every(n => !WL.isSoftware(n)), 'isSoftware: the ' + SW.length + ' software renderers yes, the ' + HW.length + ' cards (an empty name included) no');
+  ok(SW.every(n => WL.gpuClass(n).cls === 'potato'), "...and gpuClass still classes them potato (G1210's table, through isSoftware)");
+  const gsrc = fs.readFileSync(path.join(__dirname, '..', 'src', 'viewer', 'gfx_settings.js'), 'utf8');
+  const bootG = (store, welcome, search) => { const w = makeWindow(store); if (welcome) w.WELCOME = welcome; if (search) w.location = { search };
+    vm.runInNewContext(gsrc, Object.assign({ window: w, setInterval: () => 0, clearInterval: () => {} }, w)); return w; };
+  const card = gpu => ({ RIG: true, SOFT: WL.isSoftware(gpu), env: { gpu }, pick: null });
+  const CASES = [[{}, ''], [{}, '?gfx=potato'], [{}, '?gfx=ultra'], [{ 'flydiy.gfx': JSON.stringify({ preset: 'retro', pv: 6 }) }, ''],
+    [{ 'flydiy.gfx': JSON.stringify({ preset: 'custom', pv: 6, shadows: 'off', aa: 'msaa4' }) }, ''], [{ 'flydiy.gfx': '{corrupt' }, '']];
+  let same = true, nulls = true;
+  for (const gpu of HW) for (const [st, q] of CASES) {
+    const A = bootG(Object.assign({}, st), null, q), B = bootG(Object.assign({}, st), card(gpu), q);
+    if (B.GFX.soft() !== null) nulls = false;
+    if (JSON.stringify(A.GFX.get()) !== JSON.stringify(B.GFX.get()) || A.localStorage.getItem('flydiy.gfx') !== B.localStorage.getItem('flydiy.gfx')
+        || JSON.stringify(A.GFX.PRESETS) !== JSON.stringify(B.GFX.PRESETS)) { same = false; console.log('    differs: ' + gpu + ' ' + JSON.stringify(st) + ' ' + q); }
+  }
+  ok(nulls, 'GFX.soft() is null on every card (' + HW.length + ' names x ' + CASES.length + ' starts)');
+  ok(same, 'on a card the resolved options, the saved choice and the presets table are those of a boot without the rung (' + HW.length * CASES.length + ' boots compared)');
+  const S0 = bootG({}, card(SW[1]), '');
+  const PICK = o => Object.fromEntries(S0.GFX.OPTIONS.filter(x => !x.free).map(x => [x.k, o[x.k]]));
+  ok(S0.GFX.soft() && S0.GFX.soft().tier === 'software' && S0.GFX.get().preset === 'potato' && JSON.stringify(PICK(S0.GFX.get())) === JSON.stringify(PICK(S0.GFX.PRESETS.potato)),
+     'on SwiftShader with nothing chosen: the software rung, on potato\'s options (' + (S0.GFX.soft() && S0.GFX.soft().tier) + ', ' + S0.GFX.get().preset + ')');
+  ok(S0.localStorage.getItem('flydiy.gfx') === null, '...and nothing saved for it (the rung is not a player\'s choice)');
+  ok(bootG({ 'flydiy.gfx': JSON.stringify({ preset: 'gamer', pv: 6 }) }, card(SW[1]), '').GFX.get().preset === 'gamer', 'a saved choice wins over the rung (gamer stays gamer)');
+  ok(bootG({}, card(SW[1]), '?gfx=retro').GFX.get().preset === 'retro', '?gfx= wins over the rung');
+  ok(bootG({}, card(SW[1]), '?soft=0').GFX.soft() === null && bootG({}, card(SW[1]), '?soft=0').GFX.get().preset === 'gamer', '?soft=0 turns the rung off (the default preset, as before G1460)');
+  ok(!!bootG({}, card(HW[0]), '?soft=1').GFX.soft(), '?soft=1 turns it on over a card (A0\'s A/B on the box)');
+  ok(bootG({}, null, '').GFX.soft() === null, 'no welcome.js (a harness, an old page): no rung');
+  // every site the rung changes asks GFX.soft() in a conditional, nowhere else
+  const SITES = { 'boot.js': 1, 'render_world.js': 2, 'hangar.js': 1, 'app.js': 1, 'aa_resolve.js': 1 };
+  const sites = [];
+  for (const f of Object.keys(SITES)) {
+    const src = fs.readFileSync(path.join(__dirname, '..', 'src', 'viewer', f), 'utf8');
+    src.split('\n').forEach((l, i) => { if (/GFX\.soft\(\)/.test(l) && !/^\s*\/\//.test(l)) sites.push([f, i + 1, /GFX\.soft && [\w.]*GFX\.soft\(\)\s*(\)|&&|\?|;)/.test(l)]); });
+  }
+  const per = f => sites.filter(s => s[0] === f).length;
+  ok(sites.every(s => s[2]) && Object.keys(SITES).every(f => per(f) >= SITES[f]),
+     'every rung site is a conditional on GFX.soft() (' + sites.map(s => s[0] + ':' + s[1]).join(', ') + ')');
+}
+
 console.log(fails ? 'GATE GFX: FAIL' : 'GATE GFX: PASS');
 process.exit(fails ? 1 : 0);

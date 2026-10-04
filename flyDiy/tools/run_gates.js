@@ -550,6 +550,11 @@ const GATES = [
   // against the sheet's polar, and a ridge beat that GAINS height where the same beat without the
   // terrain term is on the ground inside the run
   { id: 'SOAR', file: 'test_soar.js', tier: 'full', wall: 240 },
+  // G1460 (SOFT-GPU): THE GAME DRAWS ITS WORLD ON A SOFTWARE GPU - headless Chromium on SwiftShader (every cloud
+  // session's browser), the real page: the garage boot to its end, Roll out, the stand, one drawn frame with the ground
+  // and the aeroplane in it (not the clear colour; the aeroplane hidden changes it). Full tier: a software GL boots in
+  // ~15-20 min on a 4-core box; the whole machine's cores (weight 4). SKIP where there is no Playwright (the box)
+  { id: 'SOFTGPU', file: '_softgpu_check.js', tier: 'full', timeout: 2 * 3600_000, weight: 4, wall: 1800 },
   // structural realism instrument (appended: keeps the battery log prefix
   // diffable). Measures only — it asserts finiteness and determinism, not
   // bounds. See test_flex.js's header and HANDOVER's STRUCTURAL REALISM.

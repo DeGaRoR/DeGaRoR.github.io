@@ -144,6 +144,10 @@
   const TSL_ON = !!renderer.isWebGPURenderer;
   if (typeof window !== 'undefined') { window.FLYDIY_TSL_ON = TSL_ON; window.FLYDIY_RENDERER = renderer; }   // the graphics menu's tone/exposure rows drive it
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.75));
+  // G1460 (SOFT-GPU) NO ANISOTROPY ON A SOFTWARE RENDERER: SwiftShader filters on the CPU, an anisotropic fetch up to 16
+  // bilinear taps - and the ground, the pavement and the props ask for 8-16. three clamps every texture's anisotropy to
+  // capabilities.getMaxAnisotropy() at upload, so the rung answers 1 there; on a card nothing changes
+  if (typeof window !== 'undefined' && window.GFX && window.GFX.soft && window.GFX.soft()) renderer.capabilities.getMaxAnisotropy = () => 1;
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   // EXPOSURE GOES THROUGH THE MENU (G286 + the colour rows): the menu keeps the
@@ -5238,6 +5242,7 @@
                           // G326: ...and a capture rig that wants a given view says so
                           camSet: (a, e, d) => { az = azT = a; el = elT = e; dist = distT = d; flReveal = 0; },
                           camMode: m => flCamMode(m),                                   // C4a (G870): the A/B rig's chase / cockpit views
+                          craft: () => craft,                                   // G1460: the drawn aeroplane, for GATE SOFTGPU's hidden-craft frame
                           renderer: () => renderer, hangarScene: () => hangarScene, camera: () => camera, pan: (x, y, z) => edPan.set(x, y, z), camGet: () => ({ az, el, dist, eye: camera.position.toArray(), target: target.toArray(), fov: camera.fov, exposure: renderer.toneMappingExposure, tone: renderer.toneMapping, envDeferred, envDirty, envAway, envPM: !!envPM, envSource }) };   // G439: the rig reads the eye back
   // ---- MANUAL CONTROLS (G200): who is flying, and the ending when it is you
   // The toggle is a KEY (apToggle) and a pill in the `controls` flyout;

@@ -382,6 +382,9 @@
       // sample of the stencil: 11.6 ms at 8x MSAA, 1080p, 300 m over the Jolene field (the frame study)
       S.rt.resolveStencilBuffer = false;
       S.rt.samples = Math.min(S.tier === 'off' && !S.needRT && S.rz ? 4 : S.samples, S.maxSamples);
+      // G1460 (SOFT-GPU): no MSAA in the target on a software renderer - SwiftShader runs the fragment work per sample, and
+      // the scene pass is the whole frame there (the resolve's tent filter still smooths the edges a little)
+      if (typeof window !== 'undefined' && window.GFX && window.GFX.soft && window.GFX.soft()) S.rt.samples = 0;
       // THE TWO LINES THAT KEEP THE GAME LOOKING LIKE THE GAME (see THE TARGET
       // IS DISPLAY-SPACE in the header): the XR-target rule makes r186 treat
       // this target like the canvas — materials tone-map and encode on the
