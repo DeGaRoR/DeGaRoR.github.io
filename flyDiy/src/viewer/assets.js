@@ -142,11 +142,11 @@
   const waiting = g => { const p = g.attributes.position; return !!(p && p.array && p.array.length); };
   let FL = null;
   function flush(renderer) {
-    if (!PEND.size || !renderer || typeof renderer.render !== 'function' || typeof THREE === 'undefined' || !THREE.WebGLRenderTarget) return 0;
+    if (!PEND.size || !renderer || typeof renderer.render !== 'function' || typeof THREE === 'undefined' || !THREE.WebGLRenderTarget || typeof MATLIB === 'undefined' || !MATLIB.shared) return 0;
     const list = [...PEND].filter(waiting); PEND.clear();
     if (!list.length) return 0;
     if (!FL) { FL = { scene: new THREE.Scene(), cam: new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1), rt: new THREE.WebGLRenderTarget(1, 1, { depthBuffer: false }),
-                      mat: new THREE.MeshBasicMaterial({ colorWrite: false, depthWrite: false, depthTest: false }) };
+                      mat: MATLIB.shared(THREE, 'basic', { colorWrite: false, depthWrite: false, depthTest: false }, 'geoflush') };   // (MATLIB's: GATE ASSETS)
                 FL.scene.matrixWorldAutoUpdate = false; }
     const keep = list.map(g => [g, g.drawRange.start, g.drawRange.count]), meshes = [];
     for (const g of list) { g.setDrawRange(0, 0); const m = new THREE.Mesh(g, FL.mat); m.frustumCulled = false; m.matrixAutoUpdate = false; FL.scene.add(m); meshes.push(m); }
