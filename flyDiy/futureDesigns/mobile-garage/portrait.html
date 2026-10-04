@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Phone garage, portrait</title>
+<link rel="stylesheet" href="mock.css">
+</head><body>
+<div class="stage">
+<div>
+  <p class="cap">1 · phone, portrait (412 × 915 CSS px = the S20 FE)</p>
+  <div class="phone portrait" id="ph">
+    <div class="top">
+      <button class="ib" aria-label="menu">☰</button>
+      <div class="name">My Cub<small>from the stock Cub · saved on this phone</small></div>
+      <button class="pill acc" id="send">Send to computer</button>
+    </div>
+    <div class="view" style="height:330px" id="view">
+      <div class="readout">empty <b>352 kg</b> · stall <b>61 km/h</b> · T/O <b>142 m</b></div>
+      <div class="vt"><button class="ib" aria-label="front">⟲</button><button class="ib" aria-label="frame">⌖</button></div>
+      <div class="hint">1 finger orbit · 2 fingers zoom + pan · tap a part to pick it</div>
+    </div>
+    <div class="parts" id="parts"></div>
+    <div class="crumb">Aeroplane › Wings › <b style="color:var(--ed-ink)">Wing</b> · 7 of 14 rows</div>
+    <div class="sheet" id="sheet"></div>
+    <div class="bar">
+      <button class="ib" id="undo" aria-label="undo" disabled>↶</button>
+      <button class="ib" id="redo" aria-label="redo" disabled>↷</button>
+      <div class="tabs"><button class="tab">design</button><button class="tab on">shape</button><button class="tab">finish</button></div>
+      <button class="ib" aria-label="more">⋯</button>
+    </div>
+  </div>
+</div>
+<div class="notes">
+  <h3>What this shows</h3>
+  <ul>
+    <li><b>The view stays on top</b> (36 % of the height): the slider's result is visible while the thumb moves. The plaque's three numbers sit in the view. They are the pre-plaque from the birth flow, worked out in the garage with no world. <i>The numbers here are illustrative.</i></li>
+    <li><b>Part chips</b> replace the tree column. The tree still exists one tap away (☰). The chips are the parts of the selected assembly. Tapping a part in the view selects it and scrolls the chips.</li>
+    <li><b>The trunk first</b> (fitted / type / position / size), then <b>N more rows · show</b> for the "more" tier. The expert tier stays off on a phone unless asked.</li>
+    <li><b>Every row is a 56 px band</b>: label, value chip (tap to type), − / + (48 px, hold to repeat), and a 48 px scrub band. A tap on the band does not jump the value.</li>
+    <li><b>Undo / redo</b> in the thumb zone: one step per gesture.</li>
+    <li><b>No hover</b>: the help is an <i>i</i> that opens the row's own line, and the amber notes stay inline.</li>
+  </ul>
+  <h3>Try it</h3>
+  <p>Drag a band sideways to scrub, or drag up and down to scroll the sheet. Press, hold for 0.35 s, then drag for fine (×0.1). The span snaps onto the stock Cub's 10.7 m.</p>
+</div>
+</div>
+<script src="rowkit.js"></script><script src="mock_rows.js"></script>
+<script>
+const v = document.getElementById('view'); v.insertAdjacentHTML('afterbegin', MOCK_PLANE(412, 330, 'wing'));
+const parts = ['Wing', 'Ailerons', 'Flaps', 'Struts', 'Lights', 'Fuel in wing'];
+document.getElementById('parts').innerHTML = parts.map((p, i) => `<button class="chip${i ? '' : ' on'}">${p}</button>`).join('');
+const P = Object.assign({}, MOCK_P), sheet = document.getElementById('sheet');
+const undo = document.getElementById('undo'), redo = document.getElementById('redo');
+let tier = 'basic';
+const draw = () => ROWKIT.render(sheet, MOCK_ROWS, { mode: 'touch', P, tier, onChange() {}, onMore() { tier = 'more'; draw(); } });
+draw();
+ROWKIT.history.listeners.push(h => { undo.disabled = !h.past.length; redo.disabled = !h.future.length; });
+undo.onclick = () => { const e = ROWKIT.history.undo(); if (e) { P[e.key] = e.v; draw(); } };
+redo.onclick = () => { const e = ROWKIT.history.redo(); if (e) { P[e.key] = e.v; draw(); } };
+document.getElementById('send').onclick = () => location.href = 'handoff.html';
+</script>
+</body></html>

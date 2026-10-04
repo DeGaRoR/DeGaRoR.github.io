@@ -1,0 +1,103 @@
+{
+ "at": "2026-10-04T15:49:38.813Z",
+ "builds": {
+  "cub": {
+   "file": "builds/cub_2026-09-20_corrected.json",
+   "envelope": 19394,
+   "spec": 19305,
+   "gzip": 7177,
+   "deflateRaw": 7159,
+   "brotli": 6220,
+   "b64url": 9546,
+   "cageRaw": 14188,
+   "cageDeflate": 4849,
+   "numericLeaves": 1054
+  },
+  "jodel": {
+   "file": "builds/jodel_2026-09-20_corrected.json",
+   "envelope": 20043,
+   "spec": 19422,
+   "gzip": 7206,
+   "deflateRaw": 7188,
+   "brotli": 6219,
+   "b64url": 9584,
+   "cageRaw": 14145,
+   "cageDeflate": 4790,
+   "numericLeaves": 1057
+  },
+  "cessna": {
+   "file": "builds/cessna172_2026-09-20_corrected.json",
+   "envelope": 21137,
+   "spec": 20001,
+   "gzip": 7581,
+   "deflateRaw": 7563,
+   "brotli": 6609,
+   "b64url": 10084,
+   "cageRaw": 14009,
+   "cageDeflate": 4765,
+   "numericLeaves": 1067
+  },
+  "metal": {
+   "file": "bugReports/cessnaMetal (1).json",
+   "envelope": 20801,
+   "spec": 19793,
+   "gzip": 7453,
+   "deflateRaw": 7435,
+   "brotli": 6501,
+   "b64url": 9914,
+   "cageRaw": 14001,
+   "cageDeflate": 4755,
+   "numericLeaves": 1066
+  },
+  "floats": {
+   "file": "bugReports/cessnaFloatsWOrks.json",
+   "envelope": 20522,
+   "spec": 19514,
+   "gzip": 7377,
+   "deflateRaw": 7359,
+   "brotli": 6413,
+   "b64url": 9812,
+   "cageRaw": 14000,
+   "cageDeflate": 4756,
+   "numericLeaves": 1055
+  },
+  "twin": {
+   "file": "tools/fixtures/build_v7_ultralight_2026-09-05.json",
+   "envelope": 8745,
+   "spec": 5540,
+   "gzip": 2549,
+   "deflateRaw": 2531,
+   "brotli": 2270,
+   "b64url": 3375,
+   "cageRaw": 1831,
+   "cageDeflate": 886,
+   "numericLeaves": 240
+  }
+ },
+ "patch": {
+  "5": {
+   "json": 167,
+   "deflateRaw": 129,
+   "b64url": 172,
+   "qr": "v15-L"
+  },
+  "20": {
+   "json": 493,
+   "deflateRaw": 291,
+   "b64url": 388,
+   "qr": "v15-L"
+  },
+  "60": {
+   "json": 1500,
+   "deflateRaw": 678,
+   "b64url": 904,
+   "qr": "v25-L"
+  },
+  "150": {
+   "json": 3654,
+   "deflateRaw": 1438,
+   "b64url": 1918,
+   "qr": "v40-L (print)"
+  }
+ }
+}

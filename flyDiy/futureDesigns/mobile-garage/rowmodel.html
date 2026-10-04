@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>One row model</title>
+<link rel="stylesheet" href="mock.css">
+<style>pre{background:#151311;border:1px solid var(--ed-hair);border-radius:6px;padding:12px;font-size:11.5px;color:var(--ed-dim);max-width:460px;white-space:pre-wrap;margin:0}
+.log{white-space:pre;font:12px ui-monospace,monospace;color:var(--ed-faint);height:120px;overflow:auto;background:#151311;border:1px solid var(--ed-hair);border-radius:6px;padding:8px;width:390px;margin-top:10px}</style>
+</head><body>
+<div class="stage">
+<div>
+  <p class="cap">7a · desktop: the same descriptors, today's 30 px row</p>
+  <div class="desk" id="desk"></div>
+  <div class="log" id="logD"></div>
+</div>
+<div>
+  <p class="cap">7b · phone: the same descriptors, the 56 px touch row</p>
+  <div class="phone portrait" style="height:auto;max-height:915px"><div class="sheet" id="touch" style="max-height:800px"></div></div>
+  <div class="log" id="logT"></div>
+</div>
+<div>
+  <p class="cap">7c · the descriptor (one row)</p>
+<pre>// today (tools/_cage_wing.js:142):
+['wgSpan', 'span', 6.5, 18, 0.1, { ...on, dim: 'm', note: spanNote }]
+
+// the revamp: the same tuple, plus optional fields
+{ key: 'wgSpan', label: 'span', lo: 6.5, hi: 18, step: 0.1,
+  when: P =&gt; +P.wingOn,          // exists?   (today's opts.when)
+  unit: 'm',                     // was dim:'m' (the only unit concept today)
+  group: 'size',                 // the trunk heading / the part's group
+  tier: 'basic',                 // basic | more | expert  (was level:'expert')
+  fine: 0.01,                    // the fine-drag step (defaults to step/10)
+  detents: [{ v: 10.7, label: 'Cub (stock)' }],  // the archetype's, the loaded design's
+  help: 'Tip to tip. …',         // ONE line, replaces title= and hover pins
+  note: spanNote,                // the amber line, inline on both
+  cost: 'preview' }              // what a tick costs (GARAGE-INSTANT's previews)
+
+// the widget is still inferred, never chosen:
+//   0..1 step 1 / two names  -&gt; check   (phone: a toggle)
+//   3+ names                 -&gt; select  (phone: chips, a sheet past 6)
+//   integer, &lt;= 8 stops      -&gt; stepper (phone: chips)
+//   else                     -&gt; slider  (phone: scrub band + − / + + typed value)
+
+// both renderers emit the SAME two events the editor keys on today:
+//   'tick'    = a drag preview  (DRAG_TICK, G1442-G1444)
+//   'release' = the settle      (dragSettle -&gt; the whole/planned build, G1451)</pre>
+</div>
+</div>
+<script src="rowkit.js"></script><script src="mock_rows.js"></script>
+<script>
+const P = Object.assign({}, MOCK_P);
+const say = id => (k, v, ph) => { const l = document.getElementById(id); l.textContent = ph.padEnd(8) + k + ' = ' + v + '\n' + l.textContent; };
+const redraw = () => {
+  ROWKIT.render(document.getElementById('desk'), MOCK_ROWS, { mode: 'desk', P, tier: 'expert', more: false, onChange: (k, v, ph) => { say('logD')(k, v, ph); if (ph === 'release') redrawT(); } });
+};
+const redrawT = () => ROWKIT.render(document.getElementById('touch'), MOCK_ROWS, { mode: 'touch', P, tier: 'expert', more: false, onChange: (k, v, ph) => { say('logT')(k, v, ph); if (ph === 'release') redraw(); } });
+redraw(); redrawT();
+</script>
+</body></html>
