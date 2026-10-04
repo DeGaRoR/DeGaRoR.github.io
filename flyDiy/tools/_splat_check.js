@@ -256,7 +256,8 @@ function checkShader(G, splice, quiet) {
   // at 400 m: "they look like speckles on a surface, not like puddles"). The shore is
   // widened and the wet margin opened with distance; both must be scaled by `far`, or
   // the fix for altitude quietly softens the pond you are taxiing past.
-  { const pool = (glsl.match(/the pools: muskeg AND scrub[\s\S]{0,2400}/) || [''])[0];
+  // (COLD-LINKS G1312: the mask is computed in sPools, once a pixel before the candidate loop; sMatPass only applies it)
+  { const pool = (glsl.match(/void sPools\(vec3 P\)\{[\s\S]{0,2400}/) || [''])[0];
     say(/float far = clamp\(pd \/ 500\.0, 0\.0, 1\.0\);/.test(pool), 'the pond block measures its own distance (far, 0 at the eye and 1 by 500 m)');
     say(/uSPud\.z \* \(1\.0 \+ uSPud2\.x \* far\)/.test(pool), "the shore's width rides it (pudFar)");
     say(/float rim = uSPud2\.y \* far;/.test(pool), 'the wet margin rides it too (pudRim) - nothing softens up close'); }
