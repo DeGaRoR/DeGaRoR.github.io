@@ -596,6 +596,11 @@ const GATES = [
   // walked at 2 m down its centreline and both edges, |elev - terrainH| < 0.5 m and no water, seeds 0-3 (seed 0's
   // A2 Pelham Field sat across a river); ~6 s
   { id: 'STRIPGROUND', file: '_stripground_check.js', tier: 'core', wall: 8 },
+  // GEN-PAIRS G1580 (REVIEW 2026-10-04 B10 / E7): the lattice over seventeen single and paired configurations
+  // (tricycle, pusher, wingTop, twin boom, V-tail, biplane, floats and their pairs) - every node finite, every
+  // mass positive, every member over 1 mm and none refused by B() (parts.degenerate), the lattice mirrored; ~5 s.
+  // Red before G1580 on every twin-boom combination. GATE GEN's PAIRS block holds the same pairs' rank and stance.
+  { id: 'GENPAIRS', file: '_genpairs_check.js', tier: 'core', wall: 10 },
 ];
 
 const args = process.argv.slice(2);

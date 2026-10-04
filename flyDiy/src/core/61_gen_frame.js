@@ -96,6 +96,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   const R = GEN_RULES;
   const D = Math.PI / 180;
   const nodes = [], beams = [];
+  const degenerate = [];                            // B10: the members B() refused (zero length)
   const clusters = [];                              // G294: rigid node groups (the tube)
   // G327: a fin's cluster — its truss and the station it stands on — with
   // its stiffness declared as a K_tip for the end-of-lattice resolution
@@ -201,6 +202,13 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   };
   const B = (a, b, cls, ext, vis, mnt, opt) => {
     const L = Math.hypot(P[b][0]-P[a][0], P[b][1]-P[a][1], P[b][2]-P[a][2]);
+    // A MEMBER BETWEEN TWO POINTS THAT ARE ONE POINT IS REFUSED (REVIEW
+    // 2026-10-04 B10): its strain is (L - 0) / 0 = Infinity on every
+    // shakedown and the load rig's force on it is NaN, which the rig then
+    // skipped without a word. Not built, and COUNTED on parts.degenerate,
+    // so GATE GENPAIRS sees a call site that asked for one; a node that
+    // coincides with another is the call site's to alias.
+    if (!(L >= 1e-6) || a === b) { degenerate.push([a, b, cls]); return; }
     const isG = cls === 'gear';
     // GEN_RULES.wingK: the wing class is x19 softer than the cap its own mass
     // already buys. See the constant for the measurements and the substep
@@ -261,8 +269,15 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     // clamp resonating with a fuselage row that is already stiff. Steel
     // x10 is x1.5 over carbon's own row and the rig is quiet.
     // G185: the truss classes are steel on every airframe too
+    // THE WING CLASS IS THE WING'S ROW, WHATEVER SECTION IS OPEN (REVIEW
+    // 2026-10-04 B12). The cantilever's lower box and the lift struts are
+    // built under sec('bracing'), and that switch put MB back on the
+    // FUSELAGE's row: on the stock cantilever 96 of 158 wing-class members
+    // were tubeFabric's k, mass and price, the Jodel's box wood's. The row
+    // is chosen by class now — the open plane's (MSEC.wings, set per plane
+    // in buildPlane) — and the section still only says where the mass bills.
     const steel = mnt || cls === 'cabane' || cls === 'interplane' || cls === 'wire';
-    const MM = steel ? (GEN_MATERIALS.tubeFabric || MB) : MB;
+    const MM = steel ? (GEN_MATERIALS.tubeFabric || MB) : cls === 'wing' ? MSEC.wings : MB;
     const mK = mnt ? (R.mountK == null ? 1 : R.mountK) : 1;
     // G199.5: a ROD boom's bays are a tube, not a lattice — GEN_RULES.rodBoomK
     // on every fuselage-class member aft of the cabin box (the post, the
@@ -743,6 +758,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     return cab.h * POSk + (cH > 0 ? cH : R.wingStandoff * (POSk >= 0.75 ? 1 : POSk <= 0.25 ? -1 : 0));
   };
   const buildPlane = (k) => {
+  MSEC.wings = genSurfMaterial(S, 'wing', k);     // B12: THIS plane's row (a biplane's two may differ)
   sec('wings');
   curPlane = k;
   const w = S.wings[k], G = (S.geom.planes && S.geom.planes[k]) || S.geom;
@@ -1181,6 +1197,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   };
   const planes = [buildPlane(0)];
   for (let k = 1; k < S.wings.length; k++) planes.push(buildPlane(k));
+  MSEC.wings = genSurfMaterial(S, 'wing', 0);     // B12: every later sec('wings') is plane 0's, as before
   // ---- 3b. THE INTERPLANE TRUSS (G185) ----------------------------------
   // Both planes exist now. Per side: the interplane strut between the two
   // station pairs ('N' = two posts and a diagonal, all drawn; 'I' = a blade,
@@ -1625,7 +1642,19 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     // keys off): the stab's own point on each boom, mid-chord at the drawn
     // stab station — what the tail-arm rig loads, the gauge reads and the
     // game's tail assembly anchors on
-    HTL = N(xStab, yStab, -bx, 'HTL'); HTR = N(xStab, yStab, bx, 'HTR');
+    // ...AND WHERE THE STAB SITS ON THE BOOM'S CROWN (stabY unset: yStab is
+    // the crown at xStab, which is the tail station's x) that point IS the
+    // tail triangle's top: the tag goes on that node (REVIEW 2026-10-04
+    // B10 — a second node on top of it was two zero-length members, strain
+    // Infinity on every twin-boom shakedown). The aliased node's ties to I,
+    // O and the bay before are the boom's own members already.
+    const onCrown = sd => {
+      const q = chains[sd][iTail].T;
+      return Math.hypot(P[q][0] - xStab, P[q][1] - yStab, Math.abs(P[q][2]) - bx) < 1e-3 ? q : -1;
+    };
+    const aL = onCrown('L'), aR = onCrown('R');
+    if (aL >= 0) { HTL = aL; nodes[aL].tag = 'HTL'; } else HTL = N(xStab, yStab, -bx, 'HTL');
+    if (aR >= 0) { HTR = aR; nodes[aR].tag = 'HTR'; } else HTR = N(xStab, yStab, bx, 'HTR');
     // T2.3 (140): the incidence on the twin boom's stab too (LE up +)
     const tanI = Math.tan(((t.hInc || 0) * Math.PI) / 180);
     const yR = z => yStab - (xRH(z) - xFH(z)) * tanI;
@@ -1642,6 +1671,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
       const q = chains[sd][iTail], prev = chains[sd][iTail - 1];
       const H = sd === 'L' ? HTL : HTR;
       for (const nd of [HF[sd][iBoom], HR[sd][iBoom], HB[sd][iBoom], H]) {
+        if (nd === q.T) continue;                                // B10: aliased, its ties are the boom's
         B(nd, q.T, 'tail'); B(nd, q.I, 'tail'); B(nd, q.O, 'tail'); B(nd, prev.T, 'tail');
       }
       B(H, HF[sd][iBoom], 'tail'); B(H, HR[sd][iBoom], 'tail'); B(H, HB[sd][iBoom], 'tail');
@@ -1974,8 +2004,15 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   // is what a real aeroplane does when the gear lives that far forward — and
   // which keeps rule 7's "into HEAVY nodes" satisfied.
   const aheadOfAll = ST[0].x > gx + 0.10;
-  const fwdL = aheadOfAll ? EL : F[iFwd].BL, fwdR = aheadOfAll ? ER : F[iFwd].BR;
-  const AA = F[Math.max(iAft, aheadOfAll ? 0 : Math.min(iFwd + 1, F.length - 1))];
+  // ...ONLY A NOSE ENGINE'S MOUNT (REVIEW 2026-10-04 B11). EL / ER are
+  // reassigned to the engine's own nodes on a pusher, an over-wing pylon or
+  // the wing nacelles (block 2b), and the mains then hung 2.3 m gear-class
+  // braces off an engine at the back of the cabin or out on the wing. With no
+  // mount ahead of the firewall the firewall ring is the forward anchor, and
+  // the drag brace goes one ring aft so it is not the leg's own member.
+  const engFwd = aheadOfAll && noseEng;
+  const fwdL = engFwd ? EL : F[iFwd].BL, fwdR = engFwd ? ER : F[iFwd].BR;
+  const AA = F[Math.max(iAft, engFwd ? 0 : Math.min(iFwd + 1, F.length - 1))];
   const trike = S.gear.type === 'tricycle';
   let GAL, GAR, TW, twX, twY, FLOATS = null;
   if (S.gear.type !== 'floats') {
@@ -2038,7 +2075,11 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     // A real nose gear is one strut and a drag link, so the firewall pair is
     // the leg and the other four are links.
     B(TW, F[0].BL, 'gear', false, 'leg'); B(TW, F[0].BR, 'gear', false, 'leg');
-    B(TW, EL, 'gear', false, 'wire'); B(TW, ER, 'gear', false, 'wire');
+    // B11: the engine mount only when the engine IS on the nose; a pusher's
+    // or a nacelle's EL / ER are 2.3 m away — the firewall's top corners are
+    // the airframe above the leg there (off the belly plane, rule 10)
+    const twUpL = noseEng ? EL : F[0].TL, twUpR = noseEng ? ER : F[0].TR;
+    B(TW, twUpL, 'gear', false, 'wire'); B(TW, twUpR, 'gear', false, 'wire');
     B(TW, F[Math.min(1, F.length-1)].BL, 'gear', false, 'wire');
     B(TW, F[Math.min(1, F.length-1)].BR, 'gear', false, 'wire');
     pt(TW, R.wheelTwKg(S.gear.twR) + mFairTw);        // the nosewheel with its fork, by size
@@ -2622,6 +2663,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     // PERF STUDY chantier 1: what the pass measured for the gauge (pass 1)
     // and the gauge it was billed at (pass 2)
     gauged, gaugeRef, gauge: GG,
+    degenerate,                 // B10: [a, b, cls] of every member B() refused at zero length
   };
   // G314: a cluster that declared a stiffness and its calibration pair gets
   // its omega now, on the final masses (omega scales as sqrt(K / M))
