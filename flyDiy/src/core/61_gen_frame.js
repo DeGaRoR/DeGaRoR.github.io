@@ -2733,7 +2733,34 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     if (inT1[bi] > 2) dmgIssues.push('member ' + bi + ' taken by ' + inT1[bi] + ' groups');
     if (dmgPart(b.a).p !== dmgPart(b.b).p && b.grp < 0 && !inT1[bi]) dmgIssues.push('member ' + bi + ' (' + dmgPart(b.a).p + ' - ' + dmgPart(b.b).p + ') joins two parts in no group');
   }
-  parts.dmg = { groups: dmgGroups.map(G => ({ id: G.id, key: G.key, part: G.part, joint: G.joint, anchor: G.anchor, t0: G.t0, t1: G.t1 })), issues: dmgIssues };
+  // G1822 (DMG-D1b, DEFORM-AND-BREAK §4.6 / §8.1): SUPPORT LIMITERS where a crash gate showed parts passing through
+  // each other (L9), and only there: THE NOSE ENGINE THROUGH THE FIREWALL. In GATE TREECRASH's 30 m/s trunk flights the
+  // engine's nodes, its mount gone, travelled 0.23-0.36 m into the cabin's bays (the Cub's through five of them), and the
+  // metal Cessna's still-mounted engine 0.31-0.44 m in a severe nose-in. Each engine node gets a compression-only limiter
+  // to each corner of the ring BEHIND the firewall (ring 1: a limiter to the firewall's own corners lies across a
+  // centred node's path - the Cessna's engine CG node, 0.18 m ahead of a 1.1 m ring, met them at under 2 % of its
+  // stand-off and went through - while one to ring 1 lies along it): slack while the engine is where it was built and
+  // while its mount crushes, it closes once the node has come within SUPP_GAP of its stand-off of the firewall (L0 =
+  // the distance it would have to that corner then, `pre` its rigging fraction) and pushes from there, on the cabin's
+  // frame. Data only: the solver makes them members with the
+  // damage layer on (30_solver.js), so a build flown without damage has the same members it always had. (The gear leg
+  // into the cabin floor, the wing root into the cabin's side and a crushed belly were looked for in the same cases -
+  // the trunk flights, the nose-ins and pancakes on the ground and the water, the bench to destruction - and not seen.)
+  const SUPP_GAP = 0.2, dmgSupp = [];
+  if (F[0]) for (let i = 0; i < nodes.length; i++) {
+    if (dmgPart(i).p !== 'eng') continue;                        // the nose engine (a wing engine is no firewall's)
+    const ax = P[i][0], stand = ST[0].x - ax;
+    if (!(stand > 0.05)) continue;
+    const x1 = ax + (1 - SUPP_GAP) * stand;                       // where the node is when the limiter closes
+    const R1 = F[1] || F[0];
+    for (const c of [R1.BL, R1.BR, R1.TL, R1.TR]) {
+      const d0 = Math.hypot(P[c][0] - ax, P[c][1] - P[i][1], P[c][2] - P[i][2]), d1 = Math.hypot(P[c][0] - x1, P[c][1] - P[i][1], P[c][2] - P[i][2]);
+      if (d0 > 1e-6) dmgSupp.push({ a: i, b: c, pre: 1 - d1 / d0, path: 'engine-firewall' });
+    }
+  }
+  parts.dmg = { groups: dmgGroups.map(G => ({ id: G.id, key: G.key, part: G.part, joint: G.joint, anchor: G.anchor, t0: G.t0, t1: G.t1 })), issues: dmgIssues,
+    // G1821 (DMG-D1b): every node's part (the body's 'body'), for the refs-core's gate (the body frame's refs on the body)
+    part: nodes.map((_, i) => dmgPart(i).p), supp: dmgSupp };
   return { nodes, beams, refs, parts, clusters };
 }
 

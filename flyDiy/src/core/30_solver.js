@@ -367,13 +367,32 @@ function makeSim(def, world) {
   // G1898: on only when asked (params.damage, else the page's ?damage, else GEN_DAMAGE_DEFAULT - 60_gen_spec.js)
   const DMG_ON = (P_.damage ?? (typeof FLYDIY_DAMAGE === 'boolean' ? FLYDIY_DAMAGE
                   : typeof GEN_DAMAGE_DEFAULT !== 'undefined' && GEN_DAMAGE_DEFAULT)) === true && typeof GEN_CRASH !== 'undefined';
+  // G1822 (DMG-D1b, §4.6 / §8.1): THE SUPPORT LIMITERS (61_gen_frame's parts.dmg.supp: the nose engine held off the
+  // firewall, on the cabin's first ring), members only with the damage layer on and appended after the build's own (whose indices stay). The mirror of
+  // a slack wire (G185): compression-only, carrying nothing until its gap closes (its L0 the gap short of the drawn
+  // length, `pre` as a wire's rigging), then the stiffest member's k at either end (the cabin ring's, as a rule: the
+  // engine's own bearer's k held only part of it - the metal Cessna's engine CG node, pinned by a trunk at 30 m/s with
+  // the whole cabin behind it, ended 0.28 m past the firewall on the bearer's k, 0.11 m on the ring's; finite, the
+  // energy never above the impact's, at the solver's step with the node's own members gone by then). No
+  // limits, no mass, no group, no strain readout (sK 0); not a member that holds (the orphan count, the component test),
+  // not one a trunk can bend (the trunk pairs)
+  if (DMG_ON && def.parts && def.parts.dmg && def.parts.dmg.supp && def.parts.dmg.supp.length) {
+    const kN = new Float64Array(n), cN = new Float64Array(n);
+    for (const b of beams) for (const i of [b.a, b.b]) { if (b.k > kN[i]) kN[i] = b.k; if (b.c > cN[i]) cN[i] = b.c; }
+    for (const S of def.parts.dmg.supp) {
+      const k = Math.max(kN[S.a], kN[S.b]), c = Math.max(cN[S.a], cN[S.b]);
+      beams.push({ a: S.a, b: S.b, k, c, cls: 'supp', pre: S.pre, supp: true, path: S.path, grp: -1, seam: null, L0: 0, strain: 0, sK: 0, kF: k, cF: c });
+    }
+  }
   const nb = beams.length;
   const DMG = { yields: 0, breaks: 0, work: 0, broken: [], firstBreak: null, firstYield: null,
                 crashed: false, reason: null, at: null, dented: false, propStrike: false, propAt: null,
                 gPeak: 0, setMax: 0, orphans: [], members: 0, dents: 0, primary: 0, firstPrimary: null, holed: 0,
                 // DMG-D1a: the groups broken (in order, G1815), the kink floors (G1813), the spruce cracks and their log
                 // [member, stage, t] (G1814), the frames armed (the census GATE DMGMEMBERS reads parked)
-                groups: [], floors: 0, cracks: 0, rag: [], armedN: 0 };
+                groups: [], floors: 0, cracks: 0, rag: [], armedN: 0,
+                // DMG-D1b: the body frame's refs parted (G1821: when, which node), the strips split / dropped (G1820)
+                brokeUp: null, stripsSplit: 0, stripsDropped: 0 };
   // per node: the members still holding it (an ORPHAN, every member broken, is debris: gravity and the ground
   // only, its aero dropped - a lone node carries a strip's lift on its own few kilos and would be flung)
   const nodeDeg = new Int32Array(n), nodeDeg0 = new Int32Array(n), orphan = new Uint8Array(n);
@@ -387,17 +406,71 @@ function makeSim(def, world) {
   // THE NOSE: a fuselage member with both ends ahead of the firewall (x < 0 in the def's frame) - the engine and its
   // bearer's front, the cowl's stand-ins. It crushes round a trunk at a taxi's pace (the prop strikes, the engine
   // stops) and that is a dent, not a crash; any other member broken is (dmgFrame)
-  // THE STRIPS A MEMBER HOLDS: every aero strip with both the member's ends among its nodes - torn with it
-  const stripDead = new Uint8Array(def.strips.length), beamStrips = [];
-  {
-    const sets = def.strips.map(st => { const S = new Set(st.w.map(w => w[0])); for (const k of ['fIn', 'fOut', 'rIn', 'rOut']) if (st[k] != null) S.add(st[k]); return S; });
-    for (let bi = 0; bi < nb; bi++) { const b = beams[bi], L = []; sets.forEach((S, si) => { if (S.has(b.a) && S.has(b.b)) L.push(si); }); beamStrips.push(L); }
+  // G1820 (DMG-D1b, §4.5): THE STRIP COMPONENT TEST, in place of TREE-CRASH's "a strip dies with any member between two
+  // of its nodes" (one broken diagonal silenced a bay still whole). On a break EVENT (the outermost beamBreak, its
+  // group included; never per substep) a union-find over the live members (and the clusters still holding) gives the
+  // pieces. A strip whose weight set now spans two of them is SPLIT - its weights renormalised onto the piece holding
+  // most of them - or, if no piece holds 70 %, DROPPED. A strip that reads its chord and normal off its own spar nodes
+  // (fIn..rOut: every wing, stab and fin bay of a generated build) is dropped if those part (its frame would be read
+  // across the gap); one that reads them off the body axes is dropped off the core's piece. A part that came off whole
+  // keeps its strips (a wing that came off tumbles under its own aero). `SW` is what the aero pass spreads with: the
+  // build's own st.w arrays until a split
+  const stripDead = new Uint8Array(def.strips.length), SW = def.strips.map(st => st.w);
+  const STRIP_KEEP = 0.7;
+  // G1821 (§4.5): THE REFS-CORE. bodyAxes() averages noseFrame / tailMid / upLo / upHi: every out.* the pilot, the
+  // HUD, the camera and the autopilot read comes from them. If a break puts them on two pieces the body frame would
+  // average a wreck: the flight ends there, BROKE UP (DMG.brokeUp, the reason 'broke up: ...'). (Not refs.origin, the
+  // drawing's datum: it is the wing roots', which a wing coming off takes along - DMG-D4's to re-pin)
+  const REFS = [...new Set([].concat(def.refs.noseFrame || [], def.refs.tailMid || [], def.refs.upLo || [], def.refs.upHi || []))].filter(i => i >= 0 && i < n);
+  const ufP = new Int32Array(n);
+  const ufFind = i => { while (ufP[i] !== i) { ufP[i] = ufP[ufP[i]]; i = ufP[i]; } return i; };
+  // the pieces now: live members (a kink floor pushes only, a SUPPORT limiter only touches: neither holds), clusters still on
+  function pieces() {
+    for (let i = 0; i < n; i++) ufP[i] = i;
+    for (let bi = 0; bi < nb; bi++) { const b = beams[bi]; if (b.broken || b.supp) continue; const x = ufFind(b.a), y = ufFind(b.b); if (x !== y) ufP[x] = y; }
+    for (const C of clusters) if (!C.off) { const r0 = ufFind(C.idx[0]); for (const i of C.idx) { const x = ufFind(i); if (x !== r0) ufP[x] = r0; } }
+    return ufFind;
+  }
+  const _cr = new Int32Array(8), _cs = new Float64Array(8);
+  let brkDepth = 0;
+  function compEvent() {
+    const fd = pieces();
+    const core = REFS.length ? fd(REFS[0]) : -1;
+    if (REFS.length && !DMG.brokeUp) for (const i of REFS) if (fd(i) !== core) {
+      DMG.brokeUp = { t: simT, node: i, tag: def.nodes[i].tag || null };
+      if (!DMG.crashed) { DMG.crashed = true; DMG.at = simT; }
+      DMG.reason = 'broke up: the fuselage parted (' + (def.nodes[i].tag || 'node ' + i) + ' off the core)';
+      DMG.over = true;                               // the body frame does not average a wreck: the flight ends now
+      break;
+    }
+    for (let si = 0; si < def.strips.length; si++) {
+      if (stripDead[si]) continue;
+      const st = def.strips[si], W = st.w;
+      // the weight on each piece the strip's nodes sit on (a strip has a handful of nodes)
+      let nr = 0, tot = 0;
+      for (let q = 0; q < W.length; q++) {
+        const r = fd(W[q][0]), w = W[q][1]; tot += w; let h = 0;
+        while (h < nr && _cr[h] !== r) h++;
+        if (h === nr) { if (nr === 8) { h = 7; } else { _cr[nr] = r; _cs[nr++] = 0; } }
+        _cs[h] += w;
+      }
+      let keep = _cr[0], best = _cs[0];
+      for (let h = 1; h < nr; h++) if (_cs[h] > best) { best = _cs[h]; keep = _cr[h]; }
+      const whole = nr === 1;
+      const frameOff = st.fIn != null ? (fd(st.fIn) !== keep || fd(st.fOut) !== keep || fd(st.rIn) !== keep || fd(st.rOut) !== keep) : (core >= 0 && keep !== core);
+      if ((!whole && !(best >= STRIP_KEEP * tot)) || frameOff) { stripDead[si] = 1; SW[si] = W; DMG.stripsDropped++; continue; }
+      if (whole) continue;
+      if (SW[si] !== W && SW[si].every(x => fd(x[0]) === keep)) continue;   // split before, nothing new
+      SW[si] = W.filter(x => fd(x[0]) === keep).map(x => [x[0], x[1] / best]);
+      DMG.stripsSplit++;
+    }
+    aicHash = NaN;                                   // the induction's control points move with the weights
   }
   const noseB = new Uint8Array(nb);
   // ---- DMG-D1a MEMBERS (G1810-G1815): the members' own limits, stamped once here (nothing new per substep) ----
   // THE BUILD'S SEED (G1811, G1814): the scatter of a glue line and of a spruce member is the build's own and never
   // changes between runs: an FNV hash of the nodes as built and the member count, then one per member and purpose
-  let dmgSeed = 0x811c9dc5 ^ nb;
+  let dmgSeed = 0x811c9dc5 ^ def.beams.length;      // (G1822: the build's own members - the limiters seed nothing)
   if (DMG_ON) for (const nd of def.nodes) for (let k = 0; k < 3; k++) { dmgSeed = Math.imul(dmgSeed ^ (Math.round(nd.p[k] * 1e6) | 0), 16777619) >>> 0; }
   const dmgRnd = (bi, salt) => { let h = Math.imul(dmgSeed ^ Math.imul(bi + 1, 0x9e3779b1), 0x85ebca6b) ^ Math.imul(salt, 0xc2b2ae35);
     h = Math.imul(h ^ (h >>> 16), 0x7feb352d); h = Math.imul(h ^ (h >>> 15), 0x846ca68b); return ((h ^ (h >>> 16)) >>> 0) / 4294967296; };
@@ -460,7 +533,7 @@ function makeSim(def, world) {
     const nodeCl = new Int16Array(n).fill(-1);
     clusters.forEach((C, ci) => { for (const i of C.idx) nodeCl[i] = ci; });
     for (let bi = 0; bi < nb; bi++) {
-      const b = beams[bi]; nodeDeg0[b.a]++; nodeDeg0[b.b]++;
+      const b = beams[bi]; if (!b.supp) { nodeDeg0[b.a]++; nodeDeg0[b.b]++; }   // (G1822: a limiter holds nothing)
       if (nodeCl[b.a] >= 0 && nodeCl[b.a] === nodeCl[b.b]) beamCl[bi] = nodeCl[b.a];
       const R = DMG_ON && b.A > 0 && b.mat ? GEN_CRASH[b.mat] : null;
       b.fy0 = R && R.ty ? R.ty * b.A : Infinity;     // tension yield, N
@@ -495,7 +568,8 @@ function makeSim(def, world) {
     nFlr = 0; grpDone.fill(0); DMG.groups.length = 0; DMG.floors = 0; DMG.cracks = 0; DMG.rag.length = 0; DMG.armedN = 0;
     for (let i = 0; i < n; i++) { nodeDeg[i] = nodeDeg0[i]; orphan[i] = 0; }
     for (const C of clusters) { C.off = false; C.dirty = false; }
-    clDirty = false; stripDead.fill(0);
+    clDirty = false; stripDead.fill(0); for (let si = 0; si < SW.length; si++) SW[si] = def.strips[si].w;
+    DMG.brokeUp = null; DMG.stripsSplit = 0; DMG.stripsDropped = 0;
     DMG.yields = 0; DMG.breaks = 0; DMG.work = 0; DMG.broken.length = 0; DMG.firstBreak = null; DMG.firstYield = null;
     DMG.crashed = false; DMG.over = false; DMG.reason = null; DMG.at = null; DMG.dented = false; DMG.propStrike = false; DMG.propAt = null;
     DMG.gPeak = 0; DMG.setMax = 0; DMG.orphans.length = 0; DMG.members = 0; DMG.dents = 0; DMG.primary = 0; DMG.firstPrimary = null; DMG.holed = 0; gF = 0; cIx = cIy = cIz = 0;
@@ -512,14 +586,15 @@ function makeSim(def, world) {
     if (b.kink) { FLR[nFlr++] = bi; DMG.floors++; }  // G1813: the crushed member stays a floor
     if (!noseB[bi]) { DMG.primary++; if (!DMG.firstPrimary) DMG.firstPrimary = { beam: bi, cls: b.cls, t: simT }; }
     if (beamCl[bi] >= 0) clusters[beamCl[bi]].off = true;
-    for (const si of beamStrips[bi]) stripDead[si] = 1;
     for (const i of [b.a, b.b]) if (--nodeDeg[i] <= 0 && !orphan[i]) { orphan[i] = 1; DMG.orphans.push(i); }
     // G1815: the member's group breaks whole (once)
     const g = grpOf[bi];
+    brkDepth++;
     if (g >= 0 && !grpDone[g]) {
       grpDone[g] = 1; DMG.groups.push({ grp: g, key: DGR[g].key, seam: b.seam || null, by: bi, cls: b.cls, t: simT });
       for (const j of grpAll[g]) beamBreak(j, 'group');
     }
+    if (--brkDepth === 0) compEvent();               // G1820 / G1821: once per event, its group whole
   }
   // the return mapping: the member's force k (L - L0) is held at the yield surface by moving L0; returns nothing,
   // the caller re-reads b.L0 / b.k
@@ -731,7 +806,7 @@ function makeSim(def, world) {
     // substeps walk the pairs alone (a trunk under the wingtip is a few beams, not all 389)
     if (_tkN) for (let bi = 0; bi < beams.length && _prN < PR_CAP; bi++) {
       const b = beams[bi], ia = b.a * 3, ib = b.b * 3;
-      if (b.broken) continue;                        // G1470: a broken member is two loose ends, not a bar
+      if (b.broken || b.supp) continue;              // G1470: a broken member is two loose ends, not a bar (G1822: a limiter is no bar)
       const bx0 = Math.min(p[ia], p[ib]) - mg, bx1 = Math.max(p[ia], p[ib]) + mg, bz0 = Math.min(p[ia+2], p[ib+2]) - mg, bz1 = Math.max(p[ia+2], p[ib+2]) + mg;
       const by0 = Math.min(p[ia+1], p[ib+1]) - mg, by1 = Math.max(p[ia+1], p[ib+1]) + mg;
       for (let k = 0; k < _tkN && _prN < PR_CAP; k++) {
@@ -1051,9 +1126,9 @@ function makeSim(def, world) {
   const bHalf = new Float64Array(NPL);
   const ellF = u => { u = Math.max(-1, Math.min(1, u)); return 0.5 * (u * Math.sqrt(1 - u * u) + Math.asin(u)); };
   let aicHash = NaN, aicFresh = true;
-  const cpOf = (st, o) => {                 // a strip's control point: its attach-weighted c/4
+  const cpOf = (ti, o) => {                 // a strip's control point: its attach-weighted c/4 (G1820: a split strip's)
     o[0] = o[1] = o[2] = 0;
-    for (const [i, w] of st.w) { o[0] += p[i*3]*w; o[1] += p[i*3+1]*w; o[2] += p[i*3+2]*w; }
+    for (const [i, w] of SW[ti]) { o[0] += p[i*3]*w; o[1] += p[i*3+1]*w; o[2] += p[i*3+2]*w; }
     return o;
   };
   // the bound vortex of a wing strip: the quarter-chord line over the
@@ -1104,7 +1179,7 @@ function makeSim(def, world) {
       Ez[j] = LOADING === 'uniform' ? 1
             : (u1 - u0 > 1e-9 ? (ellF(u1) - ellF(u0)) / (u1 - u0) : Math.sqrt(Math.max(0, 1 - u0 * u0)));
     }
-    for (let ti = 0; ti < NST; ti++) { cpOf(def.strips[ti], _P); cpt[ti*3] = _P[0]; cpt[ti*3+1] = _P[1]; cpt[ti*3+2] = _P[2]; }
+    for (let ti = 0; ti < NST; ti++) { cpOf(ti, _P); cpt[ti*3] = _P[0]; cpt[ti*3+1] = _P[1]; cpt[ti*3+2] = _P[2]; }
     for (let q = 0; q < NP; q++) {
       const ti = pairs[q][0], sj = pairs[q][1];
       const rc = IND.core * def.strips[sj].chord;
@@ -1503,7 +1578,7 @@ function makeSim(def, world) {
     let stripIdx = -1;
     for (const st of def.strips) {
       stripIdx++;
-      // G1470: a strip a broken member ran through is no longer a wing (its nodes are two pieces): no lift, no drag
+      // G1470 / G1820: a strip whose nodes a break has parted is no longer a wing: no lift, no drag (the component test)
       if (stripDead[stripIdx]) { if (NP) Gam[stripIdx] = 0; continue; }
       // --- strip frame ---
       // a strip that names its four spar nodes (the wing's, and since TAIL
@@ -1549,7 +1624,7 @@ function makeSim(def, world) {
       }
       // --- local velocity + position via attach weights ---
       let vx=0, vy=0, vz=0, spx=0, spy=0, spz=0;
-      for (const [i, w] of st.w) {
+      for (const [i, w] of SW[stripIdx]) {           // G1820: a split strip's weights
         vx+=v[i*3]*w; vy+=v[i*3+1]*w; vz+=v[i*3+2]*w;
         spx+=p[i*3]*w; spy+=p[i*3+1]*w; spz+=p[i*3+2]*w;
       }
@@ -1640,7 +1715,7 @@ function makeSim(def, world) {
         if (out.dump) out.dump.push({ side: st.side, t: st.t, wash: st.wash,
           al: al*57.3, Fy, ch: st.chord }); }
       else if (st.kind === 'stab' || st.kind === 'vtail') out.stabFy += Fy;
-      for (const [i, w] of st.w) {
+      for (const [i, w] of SW[stripIdx]) {
         f[i*3] += Fx*w; f[i*3+1] += Fy*w; f[i*3+2] += Fz*w;
       }
       // wing pitching moment as front/rear spar couple (d = spar spacing 0.78 m)
@@ -1804,7 +1879,8 @@ function makeSim(def, world) {
       b.strain = (L - b.L0) / b.L0 * b.sK;
       // G185: a WIRE carries tension only — slack, it is not there (no
       // spring, and no damper either: a slack cable damps nothing)
-      const Fb = (b.tens && L <= b.L0) ? 0 : b.k * (L - b.L0) + b.c * vrel;
+      // G1822: a SUPPORT limiter the mirror: compression only - open, it is not there
+      const Fb = (b.tens && L <= b.L0) || (b.supp && L >= b.L0) ? 0 : b.k * (L - b.L0) + b.c * vrel;
       f[a3]+=Fb*dx; f[a3+1]+=Fb*dy; f[a3+2]+=Fb*dz;
       f[b3]-=Fb*dx; f[b3+1]-=Fb*dy; f[b3+2]-=Fb*dz;
     }
@@ -2202,6 +2278,8 @@ function makeSim(def, world) {
            damage: () => DMG, damagePeak: () => PEAK,
            // G1815: break one member as a crash would (GATE DMGMEMBERS' closed-set check: its group, and nothing more)
            damageBreak: bi => { if (DMG_ON && bi >= 0 && bi < nb) beamBreak(bi, 'gate'); },
+           // G1820: the strips as the aero pass flies them (dead, and each one's weights: the build's or a split's)
+           damageStrips: () => ({ dead: stripDead, w: SW }),
            reset, stance, step, trueBox, probe, stats, impulse, wheelsOnGround, wheelContacts, cgPos, cgVel, axes,
            // G197: the kernel's sources, readable (the gate asserts the weights' normalisation)
            induction: () => ({ WS: WS.slice(), plane: Array.from(PLANE), bHalf: Array.from(bHalf), Ez: Array.from(Ez), Dz: Array.from(Dz), Gam: Array.from(Gam), Wg: Array.from(Wg), zA: WS.map(j => sZA[j]), zB: WS.map(j => sZB[j]), A: WS.map(j => [sA[j*3], sA[j*3+1], sA[j*3+2]]), B: WS.map(j => [sB[j*3], sB[j*3+1], sB[j*3+2]]), d: sD.slice(), cpt: Array.from(cpt), pairs: pairs.length, loading: LOADING }),
