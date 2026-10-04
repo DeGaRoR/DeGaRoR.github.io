@@ -189,7 +189,7 @@ function flyRun(C, sim, def, TH, strip, elev, o) {
     if (vPass === null && along > o.D + 10) vPass = v[0] * fx + v[2] * fz;
     const D = dmgSim(sim);
     if (f % 3 === 0) trace.push({ t: sim.t, along, v: v[0] * fx + v[2] * fz, ke, yields: D.yields, members: D.members, breaks: D.breaks, work: D.work, setMax: D.setMax, g: D.gPeak });
-    if (o.every && f % o.every === 0) frames.push({ t: sim.t, along, broken: D.broken.slice(), beams: sim.beams.map(b => [loc(sim.p[b.a*3], sim.p[b.a*3+2]), loc(sim.p[b.b*3], sim.p[b.b*3+2])]) });
+    if (o.every && f % o.every === 0) frames.push({ t: sim.t, along, broken: D.broken.slice(), bent: sim.beams.reduce((a, b, i) => (b.yielded ? (a.push(i), a) : a), []), beams: sim.beams.map(b => [loc(sim.p[b.a*3], sim.p[b.a*3+2]), loc(sim.p[b.b*3], sim.p[b.b*3+2])]) });
   }
   const c = sim.cgPos(), along = (c[0] - c0[0]) * fx + (c[2] - c0[2]) * fz;
   const hash = require('crypto').createHash('md5').update(Buffer.from(sim.p.buffer)).update(Buffer.from(sim.v.buffer)).digest('hex').slice(0, 12);

@@ -45,9 +45,9 @@ const svgDoc = (w, h, body, title) => `<svg xmlns="http://www.w3.org/2000/svg" w
 function lineChart(x0, y0, w, h, title, series, xl, yl, o = {}) {
   const pts = series.flatMap(s => s.pts);
   const xmin = o.xmin ?? Math.min(...pts.map(p => p[0])), xmax = o.xmax ?? Math.max(...pts.map(p => p[0]));
-  let ymin = o.ymin ?? Math.min(...pts.map(p => p[1])), ymax = o.ymax ?? Math.max(...pts.map(p => p[1]));
+  let ymin = o.ymin ?? Math.min(...pts.map(p => p[1])), ymax = o.ymax ?? Math.max(...pts.map(p => p[1]), o.hline != null ? o.hline + 0.5 : -Infinity);
   if (ymax - ymin < 1e-6) ymax = ymin + 1;
-  const pl = 48, pr = 10, pt = 26, pb = 34, W = w - pl - pr, H = h - pt - pb;
+  const pl = 48, pr = 10, pt = 44, pb = 34, W = w - pl - pr, H = h - pt - pb;
   const X = x => x0 + pl + (x - xmin) / (xmax - xmin) * W, Y = y => y0 + pt + H - (y - ymin) / (ymax - ymin) * H;
   let s = `<text x="${x0 + pl}" y="${y0 + 16}" font-size="13" font-weight="bold" fill="${COL.ink}">${esc(title)}</text>`;
   const nice = (a, b, n) => { const st = Math.pow(10, Math.floor(Math.log10((b - a) / n))); const m = [1, 2, 5, 10].find(k => (b - a) / (st * k) <= n) * st; const r = []; for (let v = Math.ceil(a / m) * m; v <= b + 1e-9; v += m) r.push(+v.toFixed(6)); return r; };
@@ -58,29 +58,26 @@ function lineChart(x0, y0, w, h, title, series, xl, yl, o = {}) {
   if (o.hline != null) s += `<line x1="${x0 + pl}" x2="${x0 + pl + W}" y1="${Y(o.hline)}" y2="${Y(o.hline)}" stroke="${COL.ink2}" stroke-dasharray="3 3"/><text x="${x0 + pl + W - 2}" y="${Y(o.hline) - 4}" font-size="10" text-anchor="end" fill="${COL.ink2}">${esc(o.hlineLabel || '')}</text>`;
   series.forEach((S, i) => {
     s += `<polyline fill="none" stroke="${S.color}" stroke-width="2" ${S.dash ? 'stroke-dasharray="' + S.dash + '"' : ''} points="${S.pts.map(p => X(p[0]).toFixed(1) + ',' + Y(Math.max(ymin, Math.min(ymax, p[1]))).toFixed(1)).join(' ')}"/>`;
-    const lx = x0 + pl + 8 + i * 150, ly = y0 + pt + 10;
+    const lx = x0 + pl + i * 170, ly = y0 + 30;
     s += `<line x1="${lx}" x2="${lx + 18}" y1="${ly}" y2="${ly}" stroke="${S.color}" stroke-width="2" ${S.dash ? 'stroke-dasharray="' + S.dash + '"' : ''}/><text x="${lx + 22}" y="${ly + 4}" font-size="10" fill="${COL.ink}">${esc(S.label)}</text>`;
   });
   return s;
 }
 
-// the beams from above (the track along x, left up): grey intact, yellow bent / set, red dashed broken; the trunk
-function topdown(x0, y0, w, h, title, r, view) {
-  const sim = r.sim, P = sim.p, loc = r.loc;
-  const pts = []; for (let i = 0; i < sim.n; i++) pts.push(loc(P[i*3], P[i*3+2]));
-  const cx = view ? view[0] : pts.reduce((a, p) => a + p[0], 0) / pts.length, cy = view ? view[1] : pts.reduce((a, p) => a + p[1], 0) / pts.length;
-  const span = view ? view[2] : 16, sc = Math.min(w, h - 30) / span;
-  const X = x => x0 + w / 2 + (x - cx) * sc, Y = y => y0 + 30 + (h - 30) / 2 - (y - cy) * sc;
+// the beams from above (the track along x, left up), from a recorded frame: grey whole, yellow bent / set, red dashed
+// broken; the trunk. `view` [cx, cy, span] in the track's frame
+function topdown(x0, y0, w, h, title, r, F, view, foot) {
+  const sc = Math.min(w, h - 30) / view[2];
+  const X = x => x0 + w / 2 + (x - view[0]) * sc, Y = y => y0 + 30 + (h - 30) / 2 - (y - view[1]) * sc;
   let s = `<text x="${x0 + 6}" y="${y0 + 16}" font-size="13" font-weight="bold" fill="${COL.ink}">${esc(title)}</text>`;
   s += `<circle cx="${X(r.trunk[0])}" cy="${Y(r.trunk[1])}" r="${Math.max(2, r.trunkR * sc)}" fill="#6b4f2a"/>`;
-  const order = sim.beams.map((b, i) => i).sort((a, b) => (sim.beams[a].broken ? 2 : sim.beams[a].yielded ? 1 : 0) - (sim.beams[b].broken ? 2 : sim.beams[b].yielded ? 1 : 0));
+  const st = new Uint8Array(F.beams.length); for (const i of F.bent) st[i] = 1; for (const i of F.broken) st[i] = 2;
+  const order = F.beams.map((b, i) => i).sort((a, b) => st[a] - st[b]);
   for (const bi of order) {
-    const b = sim.beams[bi], A = pts[b.a], B = pts[b.b];
-    const c = b.broken ? COL.broken : b.yielded ? COL.bent : COL.beam, wd = b.broken || b.yielded ? 1.6 : 0.8;
-    s += `<line x1="${X(A[0]).toFixed(1)}" y1="${Y(A[1]).toFixed(1)}" x2="${X(B[0]).toFixed(1)}" y2="${Y(B[1]).toFixed(1)}" stroke="${c}" stroke-width="${wd}" ${b.broken ? 'stroke-dasharray="3 2"' : ''}/>`;
+    const [A, B] = F.beams[bi], c = st[bi] === 2 ? COL.broken : st[bi] === 1 ? COL.bent : COL.beam, wd = st[bi] ? 1.6 : 0.8;
+    s += `<line x1="${X(A[0]).toFixed(1)}" y1="${Y(A[1]).toFixed(1)}" x2="${X(B[0]).toFixed(1)}" y2="${Y(B[1]).toFixed(1)}" stroke="${c}" stroke-width="${wd}" ${st[bi] === 2 ? 'stroke-dasharray="3 2"' : ''}/>`;
   }
-  const d = r.dmg;
-  s += `<text x="${x0 + 6}" y="${y0 + h - 4}" font-size="10" fill="${COL.ink2}">${esc(d.crashed ? 'CRASHED: ' + d.reason : d.members ? 'dented, no crash' : 'no set')} · ${d.members || 0} set · ${d.breaks} broken · ${(d.work / 1000).toFixed(1)} kJ</text>`;
+  s += `<text x="${x0 + 6}" y="${y0 + h - 4}" font-size="10" fill="${COL.ink2}">${esc(foot)}</text>`;
   return s;
 }
 const legendTD = (x, y) => `<g font-size="11" fill="${COL.ink}"><line x1="${x}" x2="${x + 18}" y1="${y}" y2="${y}" stroke="${COL.beam}" stroke-width="1"/><text x="${x + 22}" y="${y + 4}">a member, whole</text>
@@ -97,7 +94,7 @@ const CASES = {
 const BUILDS = ['cub', 'metal'];
 const runs = {};
 for (const k of BUILDS) for (const c of Object.keys(CASES)) for (const el of [true, false]) {
-  const r = L.atTrunk(k, Object.assign({ elastic: el }, CASES[c].o));
+  const r = L.atTrunk(k, Object.assign({ elastic: el, every: 3 }, CASES[c].o));
   runs[k + ':' + c + ':' + (el ? 'before' : 'now')] = r;
   console.log(k, c, el ? 'before' : 'now   ', 'reach', r.reach.toFixed(2), 'end', r.end.toFixed(2), 'back', (r.reach - r.end).toFixed(2), r.dmg.crashed ? 'CRASH ' + r.dmg.reason : '-', r.dmg.members + ' set ' + r.dmg.breaks + ' broken');
 }
@@ -136,16 +133,26 @@ fs.writeFileSync(path.join(OUT, 'runs.json'), JSON.stringify(summary, null, 1));
   const head = `<text x="10" y="24" font-size="15" font-weight="bold" fill="${COL.ink}">TREE-CRASH: the damage against time (now) - the members that took a set and the members that broke</text>`;
   fs.writeFileSync(path.join(OUT, 'damage_time.svg'), svgDoc(2 * w, 40 + 2 * h, head + body, 'TREE-CRASH damage over time'));
 }
-// topdown_<case>.svg: before | now, for each build
+// topdown_<case>.svg: per build, before and now 0.6 s after the impact (the view on the trunk), and now at the end (the
+// view on the wreck)
 for (const c of Object.keys(CASES)) {
-  const w = 440, h = 420; let body = '';
-  BUILDS.forEach((k, row) => ['before', 'now'].forEach((s, col) => {
-    const r = runs[k + ':' + c + ':' + s];
-    const view = [r.trunk[0], r.trunk[1] + (CASES[c].o.off ? 0 : 0), c === 'treehit' || c === 'taxi3' ? 14 : 22];
-    body += topdown(col * w, 40 + row * h, w, h, L.BUILDS[k].label + ' - ' + (s === 'before' ? 'before (elastic: master)' : 'now'), r, view);
-  }));
-  const head = `<text x="10" y="22" font-size="15" font-weight="bold" fill="${COL.ink}">TREE-CRASH: ${esc(CASES[c].label)} - the beams from above at the end (${CASES[c].o.secs} s)</text>` + legendTD(10, 34);
-  fs.writeFileSync(path.join(OUT, 'topdown_' + c + '.svg'), svgDoc(2 * w, 40 + 2 * h, head + body, 'TREE-CRASH top-down ' + c));
+  const w = 400, h = 380, D = CASES[c].o.D; let body = '';
+  BUILDS.forEach((k, row) => {
+    const rb = runs[k + ':' + c + ':before'], rn = runs[k + ':' + c + ':now'];
+    const imp = (r => { const T = r.trace.find(x => x.along >= D - 3); return T ? T.t : r.trace[r.trace.length - 1].t; })(rb);
+    const at = (r, t) => r.frames.reduce((a, F) => (Math.abs(F.t - t) < Math.abs(a.t - t) ? F : a), r.frames[0]);
+    const span = c === 'taxi3' || c === 'treehit' ? 14 : 20, t0 = rb.trace[0].t - 1 / 60;
+    const Fb = at(rb, imp + 0.6), Fn = at(rn, imp + 0.6), Fe = rn.frames[rn.frames.length - 1];
+    const cen = F => { let x = 0, y = 0; for (const [A, B] of F.beams) { x += A[0] + B[0]; y += A[1] + B[1]; } return [x / (2 * F.beams.length), y / (2 * F.beams.length)]; };
+    const ce = cen(Fe);
+    const lab = L.BUILDS[k].label, dn = rn.dmg;
+    body += topdown(0, 40 + row * h, w, h, lab + ' - before, ' + (Fb.t - t0).toFixed(1) + ' s', rb, Fb, [rb.trunk[0], rb.trunk[1], span], 'elastic (master): nothing yields');
+    body += topdown(w, 40 + row * h, w, h, lab + ' - now, ' + (Fn.t - t0).toFixed(1) + ' s', rn, Fn, [rn.trunk[0], rn.trunk[1], span], Fn.bent.length + ' set, ' + Fn.broken.length + ' broken by then');
+    body += topdown(2 * w, 40 + row * h, w, h, lab + ' - now, the end (' + (Fe.t - t0).toFixed(1) + ' s, ' + ce[0].toFixed(0) + ' m on)', rn, Fe, [ce[0], ce[1], span],
+      (dn.crashed ? 'CRASHED: ' + dn.reason : dn.members ? 'dented, no crash' : 'no set') + ' · ' + dn.members + ' set · ' + dn.breaks + ' broken · ' + (dn.work / 1000).toFixed(1) + ' kJ');
+  });
+  const head = `<text x="10" y="22" font-size="15" font-weight="bold" fill="${COL.ink}">TREE-CRASH: ${esc(CASES[c].label)} - the beams from above</text>` + legendTD(10, 34);
+  fs.writeFileSync(path.join(OUT, 'topdown_' + c + '.svg'), svgDoc(3 * w, 40 + 2 * h, head + body, 'TREE-CRASH top-down ' + c));
 }
 console.log('wrote', fs.readdirSync(OUT).join(', '));
 
