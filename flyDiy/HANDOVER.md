@@ -71835,7 +71835,7 @@ cockpit / taxi render and the floats' water taxi in slack. BATTERY: FRAMECOST (a
 triangles - admitted) and ROUNDTRIP (fixed) were the reds; all green on the final build; the parked aeroplanes re-cooked.
 LOOK (A0's real-GPU stills, reports/evidence/LAKE-HOLES/a0_gpu_train29_vs_30.jpg): the white gaps at the shore are gone;
 the carved banks now read as steep, texture-stretched slopes where a lake sits under a bank - a follow-up for the look.
-## G1460-G1469 - SOFT-GPU: THE CLOUD SESSIONS' SOFTWARE GPU AS A TEST CASE - A 'SOFTWARE' RUNG UNDER POTATO, GATE SOFTGPU, AND A STILL ANY CLOUD SESSION CAN TAKE (2026-10-04, SOFT-GPU for A0, cloud, no GPU)
+## G1460-G1469 - SOFT-GPU: THE CLOUD SESSIONS' SOFTWARE GPU AS A TEST CASE - THE `minimum` PRESET (TAILORED TO SOFTWARE RENDERING), FOUR FIXES FOR EVERY MACHINE, GATE SOFTGPU, AND A STILL ANY CLOUD SESSION CAN TAKE (2026-10-04, SOFT-GPU for A0, cloud, no GPU)
 
 The user (2026-10-04): "Can we use the cloud sessions' software GPU as a test case too? Right now it can't load the game."
 Every cloud session has headless Chromium 141 + SwiftShader (ANGLE on SwiftShader's Vulkan, `--use-angle=swiftshader
@@ -71850,10 +71850,12 @@ at five places, each named:
 1. **The boot's watchdog** (boot.js): the garage chain is 24 steps and takes ~6-16 min on SwiftShader (the flown bake's
    render 47 s, the parked far levels 27-72 s each, the world's compile, the `frames` warm draw 46-70 s); the 120 s hard
    timeout lifted the overlay at ~130-140 s (`boot: hard timeout - never landed: props 434/534, prop textures 232/235`)
-   and the chain ran on behind it - a rig waiting on BOOT 'gone' clicked Roll out a third of the way through.
+   and the chain ran on behind it - a rig waiting on BOOT 'gone' clicked Roll out a third of the way through. FIXED FOR
+   EVERY MACHINE (G1462 b).
 2. **A real bug, any GPU** (render_world.js plantWoodland): `world: after the build TypeError: Cannot read properties of
    null (reading 'setMatrixAt')` - side() pushes a null impostor per EMPTY series before the side's one mesh, and the fill
-   read imps[0]: whenever series 0 had no tree in a chunk the whole planting threw. FIXED (the last entry), G1461.
+   read imps[0]: whenever series 0 had no tree in a chunk the whole planting threw. G1461's fix (the last entry) is HELD by
+   A0 in train 31 for WOODLAND G1480 - not in this branch's delta.
 3. **The shed's frame, ~9-10 s**: 6 402 draw calls, but the cost is the transmission pass - the hangar's window glass
    (`transmission: 0.9`, one material on 19 panes) makes three draw the opaque room again into a mipmapped target every
    frame: 8.9 s -> 4.4 s with it at 0. (Then the crew ~0.8 s, the physical materials ~0.6 s; shadows ~0; scale 0.67 -> 0.5
@@ -71861,71 +71863,80 @@ at five places, each named:
 4. **A real bug, any GPU** (the menu's rows vs the cover ring): GFX.onWorld (app.js worldBuilt) runs before render_world
    makes the cover ring (treeSettle -> afterBuild), and nothing applies the menu again - so potato's `cover: 'off'` (and
    retro's 'lean') never reach it: the live ring read `{on: true, reach: 220, density: 2}` under potato, ~30 M triangles a
-   frame at the stand. Fixed FOR THE SOFTWARE RUNG ONLY (below); **DECISION for A0 / the user: the same is true on a
-   graphics card - potato and retro draw the full cover there today. Dropping the `GFX.soft()` test on the one line
-   (render_world.js, after the cliffs, "THE MENU'S ROWS REACH THE RING") fixes it for every machine** - it changes what
-   potato/retro cards draw (to what their preset says), so it is not this session's to land.
+   frame at the stand - on EVERY machine, cards included. FIXED FOR EVERY MACHINE (G1462 c, the user: "let's fix the
+   issues for all"): potato and retro now draw the cover their preset says; current / gamer / ultra's 'full' is the
+   ring's own default, unchanged.
 5. **The stand's frame, 200-400 s - and NOT the game's**: with every object of the world scene hidden the frames still
    alternated ~0.2 s / 200-400 s, and no `renderer.render` took more than ~10 s with `gl.finish()` around it; the blocking
    call was the flight recorder's `getParameter(UNMASKED_RENDERER)` (a sync point, every 30 s = every frame there) waiting
    on the GPU process. The GPU process's other client is Chrome's own COMPOSITOR on SwiftShader: the stand's HUD plates
    (`backdrop-filter: blur(16px) saturate(1.15)`, flight.css) over a canvas that changes every frame. The rig runs Chrome's
    software compositor (`--disable-gpu-compositing --disable-accelerated-2d-canvas`) and no backdrop blur; WebGL stays on
-   SwiftShader. (A player on a software renderer keeps the blur: the rung does not touch CSS. Owed if wanted.)
+   SwiftShader. (A player on a software renderer keeps the blur: the game does not touch CSS. Owed if wanted.)
 6. **The near world BLACK at the stand** (after 1-5): the sky and the Lambert far terrain right, every
    MeshStandardMaterial of the world (the splat ground, the pavement, the trees, the sheds, the aeroplane) pure black -
    the ATMO sky probe's PMREM (`scene.environment`) poisons the Standard lighting on SwiftShader (black = a NaN in the
    IBL; not BC7 - the shed's KTX2 props draw right in the garage, whose environment is its own cube). Proven on the live
    page: `WORLD.scene.environment = null` (+ the 6 materials holding envMap) and the same frame drew whole
    (`reports/evidence/SOFT-GPU/finding_stand_black_with_probe.jpg` -> `finding_stand_probe_removed_live.jpg`). The
-   NaN's source is NOT found (owed if a real card ever shows it: the dome's radiance into a half-float cube, the PMREM
-   blur, or the probe crossfade's blit) - the rung takes no probe. A LEAD: every boot logs
-   `THREE.DataUtils.toHalfFloat(): Value out of range` (x10+) - a CPU-packed half-float table (a LUT?) carries values
-   past 65504, i.e. +Inf texels; a GPU's filtering may hide what SwiftShader turns into NaN (Inf x 0).
+   cause: the probe shoots ATMO's dome UNTONED into a half-float cube and the sun's disc is ~1.4e4 x uScale - past
+   65504 the write is +Inf where the hardware does not saturate (SwiftShader), and the PMREM's filtering makes Inf x 0 a
+   NaN. FIXED FOR EVERY MACHINE (G1462 d): the dome's colour clamped to 65000 (a no-op on screen, where the tone map
+   follows, and on a card that saturates). Also: the alps env's CPU-packed halves (`toHalfFloat: Value out of range`,
+   x10+ a boot) clamped to 65504 - that env is the 'alps' lighting row's only.
 Also seen, not stopping anything: ~100 `.gz.bin` fetches reported `net::ERR_ABORTED` by Playwright during the boot (the files
 serve 200 and the props land - prefetch cancellations); KHR_parallel_shader_compile absent (three warns once).
 Earlier sessions' "the renderer reported one draw call, two triangles" was renderer.info after the LAST render of the
 frame - the AA resolve's blit - not the scene's (info resets per render()).
 
-**G1462 - THE SOFTWARE RUNG.** One answer, asked everywhere: `GFX.soft()` (gfx_settings.js) - null on a graphics card;
-on a software renderer `{ tier: 'software', gpu, forced, preset }`. The card is welcome.js's own probe (it reads the
-renderer's name on EVERY boot already: no new context, no new probe): `WELCOME.isSoftware(name)` (SwiftShader, llvmpipe,
-softpipe, Software, Basic Render - G1210's regex, now one function gpuClass uses too) -> `WELCOME.SOFT`. `?soft=1` turns it
-on over a card (the A/B on the box), `?soft=0` off. What the rung does - every site a conditional on `GFX.soft()`:
-- gfx_settings.js: starts on POTATO when nothing was chosen (no saved choice, no ?gfx=, no welcome pick), not saved (a
-  player's choice, ?gfx= and ?soft=0 win over it). Not a sixth preset: the presets table is untouched.
-- boot.js: the watchdogs (idle, hard, the skip button) x20 - the overlay waits for the whole chain.
-- app.js: `renderer.capabilities.getMaxAnisotropy = () => 1` (three clamps every texture's anisotropy to it at upload;
-  SwiftShader filters on the CPU, an anisotropic fetch up to 16 taps).
-- aa_resolve.js: the scene target at 0 samples (SwiftShader shades per sample).
-- hangar.js: the window glass's transmission 0 (plain see-through panes at their 0.5 opacity).
-- render_world.js: GFX.onWorld again once the cover ring exists (item 4); NO SKY PROBE (item 6: probe and probeIn null -
-  the null path the code already guards; no cube bakes either).
-- the rig, not the game: Chrome's software compositor and no CSS backdrop blur (item 5).
-MEASURED with the rung (this container, 4 cores, dev.html): the garage chain 951 s -> ~470 s (no hard timeout), the
-roll-out ~2.5 min to the stand, a stand frame ~33 s (from 200-400 s), the shed's screenshot 14 s, the stand's ~3 min.
-WRONG-LOOKING ON THE SOFTWARE RUNG (by design, listed): no sky reflections / image-based light in the world (no probe: the
-metal and the glass read flat, the shade sides lit by the hemisphere only); the shed's windows do not refract (no transmission); textures blur at
-grazing angles (no anisotropy); edges alias more (no MSAA in the target; the resolve's tent still runs); potato's look
-(no shadows in the world, no clouds, no cover, lean ground, the town at its least).
+**G1462 - THE REWORK (the user, 2026-10-04: "a minimum preset, that will actually be tailored to software rendering,
+and therefore run on almost anything. And yes, let's fix the issues for all. It is useful for the welcome screen to
+recognize software GPU, if only for the dev process in the cloud").** The first cut (a 'software rung' asked through
+`GFX.soft()` at six sites, real cards provably untouched) is GONE; in its place:
+a. **THE `minimum` PRESET**, a sixth tier under potato: potato with four rows lower - render scale 50 % (0.67), aa 'none'
+   (a new step and AA tier: no samples in the scene at all, where 'off' still drew four under the reversed depth;
+   a software renderer shades every sample), texture filtering 'plain' (a NEW row: no anisotropy - SwiftShader filters on
+   the CPU, up to 16 taps a fetch; the handle is GFX.filterHook(renderer), app.js hands the renderer over at creation and
+   three asks capabilities.getMaxAnisotropy() at every upload: the textures uploaded after a change obey, all at the next
+   load), window glass 'plain' (a NEW row: no transmission on the shed's panes - half the shed's frame on SwiftShader; the
+   next shed build takes it). Potato's build budget (BUDGETS.minimum = potato's row). Every other tier carries the two new
+   rows at what it always drew ('aniso', 'refract'), so its picture is unchanged; a pref saved before (no such rows) reads
+   its preset unchanged. The menu shows filtering under performance, the glass under light & shadows.
+   The welcome screen: `WELCOME.isSoftware(name)` (SwiftShader, llvmpipe, softpipe, Software, Basic Render - one function
+   the GPU table uses) suggests MINIMUM for a software renderer (it was potato); `WELCOME.SOFT` -> `GFX.software()`, and a
+   software renderer with nothing chosen starts on minimum, unsaved (the rigs - the cloud sessions' included - see no
+   screen, so the menu does it); a saved choice, ?gfx= and a pick win.
+b. **THE BOOT WATCHDOG, FOR EVERY MACHINE** (boot.js): the hard limit is 2 min WITHOUT THE CHAIN MOVING (from the later of
+   the run's start, the current step's start, the landing's start), no longer 2 min in all - a slow machine's boot is a
+   long chain of slow steps that finish. And a check firing 6 s+ late is a busy page (one long task held the thread: a
+   46-70 s frame on SwiftShader), not 30 s of silence; and silence INSIDE A RUNNING STEP is that step's work (a step
+   awaiting a worker or the GPU - the flown bake renders 47 s on SwiftShader in a worker - says nothing for its whole
+   length: the first minimum run was lifted there, 'nothing landed for 30 s' at 172 s): a running step's limit is the hard
+   one, 2 min since it started; the 30 s silence rule stays the landing's (the assets that must arrive) and between steps.
+   A step that never ends is still caught at 2 min (the skip button shows at 14 s of silence, as before). BOOT.log's
+   'fail' now names the step it lifted in.
+c. **THE COVER ROW, FOR EVERY MACHINE** - LANDED BY A0 IN TRAIN 31 (`GFX.reapply()` once the cover ring exists: only the
+   rows a late handle never took). This branch keeps A0's call and only rewrites its comment (it still said "the software
+   rung's only").
+d. **THE PROBE'S NaN, FOR EVERY MACHINE** (atmo.js): the dome's colour clamped under a half's largest finite. Item 6.
+No software special case is left in the game: the frame asks the menu's rows, never "is this a software renderer".
+WRONG-LOOKING ON MINIMUM (by design): half the pixels enlarged (soft), every edge a staircase (no MSAA), the far ground and
+the runway markings blur at grazing angles (no anisotropy), the shed's windows do not refract; and potato's look (no
+shadows in the world, no clouds, no cover, lean ground, the town at its least, no parked aeroplanes).
 
-**G1463 - REAL GPUS UNTOUCHED (GATE GFX §9, node).** isSoftware on 5 software names yes / 8 cards (an empty name
-included) no; GFX.soft() null on every card x 6 starts (no pref, ?gfx=potato, ?gfx=ultra, a saved retro, a saved custom
-mix, a corrupt pref) and, for all 48 boots, the resolved options, the saved choice and the presets table equal to a boot
-without the rung, key for key; on SwiftShader: potato's options, nothing saved; a saved choice / ?gfx= / ?soft=0 win; ?soft=1
-on a card turns it on; no welcome.js = no rung; and the SITES check: every line that asks GFX.soft() in boot.js, app.js,
-aa_resolve.js, hangar.js, render_world.js is a conditional on it (listed with line numbers in the gate's output) - so a null
-answer is the old path by construction: the boot spec, the presets' resolved settings and every program key on a card are
-the ones they were (the glass's transmission, the world's environment (no probe), the target's samples and the anisotropy are the only
-program-key / GL-state moves, all behind it). FOR A0 ON THE BOX (timing, nothing should move): the strict gate as per train (`node tools/perf/train_gate.js`
-as usual) - and one A/B of the rung itself over the card: `?soft=1` vs nothing on index.html - the boot curve
-(`node tools/boot_perf.js --url http://localhost:<port>/flyDiy/index.html?soft=1`, then without it) and one roll-out
-(`node tools/rollout_perf.js <its usual box flags> --q soft=1`, then without) - to see what the rung costs/buys on a card
-(nothing of it runs there unless asked).
+**G1463 - THE NODE PROOF (GATE GFX §9, reworked).** isSoftware: 5 software names yes, 8 cards (an empty name included) no;
+the welcome suggests minimum for exactly the software ones; minimum = potato with exactly aa / filter / glass / scale
+lower, on potato's budget; every other tier 'aniso' + 'refract'; a pre-G1460 pref reads its preset; on a card the menu's
+start is the one without the probe's answer (8 cards x 6 starts = 48 boots, key for key); on a software renderer:
+minimum, its budget, unsaved, and a saved choice / ?gfx= win; the filter hook answers 1 on plain and the renderer's own 16
+on sharp; and no `GFX.soft` / `GFX.software()` anywhere in boot.js, app.js, aa_resolve.js, hangar.js, render_world.js.
+(What moves on a card, and what A0 runs on the box: the REPORT FOR A0 at the end of this entry.)
+Gates that counted five tiers or four AA tiers, updated: GFX, AA, POSTFX, FOG, CLOUD; GATE STAND's glass regex (train 31's,
+written for the first cut's GFX.soft()) reads the window-glass row.
 
 **G1464 - GATE SOFTGPU (tools/_softgpu_check.js, run_gates tier 'full', weight 4, ~20-30 min on a 4-core cloud box;
-SKIP where there is no Playwright, i.e. the box).** The real page on SwiftShader through tools/soft_still.js: the rung on
-(software, potato, no ?gfx=), the garage boot's WHOLE chain (BOOT 'gone' with every step run, no 'fail' in BOOT.log), Roll
+SKIP where there is no Playwright, i.e. the box).** The real page on SwiftShader through tools/soft_still.js: known as a
+software renderer and started on minimum (no ?gfx=), the garage boot's WHOLE chain (BOOT 'gone' with every step run, no 'fail' in BOOT.log), Roll
 out to the stand (a trip done, the verbs up), then ONE DRAWN FRAME: under 50 % of its pixels the clear colour, the most
 common colour under 60 %, the lower half's luma spread > 4 (the ground has texture), the frame's draw calls (every pass,
 info held for one frame) > 20, the aeroplane hidden changes > 0.3 % of the pixels, and no page error.
@@ -71933,14 +71944,14 @@ info held for one frame) > 20, the aeroplane hidden changes > 0.3 % of the pixel
 **G1465 - A STILL FROM ANY CLOUD SESSION: `tools/soft_still.js`** (that is what lets cloud sessions ship their own evidence
 from now on). It serves the repo itself (a free port), finds Playwright (`require('playwright')`, then the cloud image's
 `/opt/node-tools/node_modules/playwright`), boots the page on SwiftShader with the software compositor, waits for the garage
-chain, rolls out, sets the view and writes a JPEG plus one `SOFT_STILL {json}` line (the timings, the renderer, the rung,
+chain, rolls out, sets the view and writes a JPEG plus one `SOFT_STILL {json}` line (the timings, the renderer, the preset,
 the frame's draw calls / triangles, the picture's numbers, the page errors):
 
     node tools/soft_still.js --out reports/evidence/<SESSION>/stand.jpg                 # the stand, the default build, afternoon
     node tools/soft_still.js --place garage --out .../garage.jpg                         # the shed instead
     node tools/soft_still.js --page dev.html --build builds/cub_2026-09-20_corrected.json --day golden \
          --cam chase --orbit 200,12,18 --q 'world=jolene' --size 1280x720 --out .../x.jpg   # a build, a time, a camera
-    (--gfx retro forces a preset over the rung; --keep-hud keeps the HUD; --aero-check adds the craft-hidden diff;
+    (--gfx retro forces a preset (a software renderer starts on minimum); --keep-hud keeps the HUD; --aero-check adds the craft-hidden diff;
      --json <file> the record; --secs the budget, default 3600)
 
 Wall clock on this container (4 cores): the garage chain ~8-10 min, the roll-out ~1-2.5 min, a stand frame ~30 s, the
@@ -71958,27 +71969,32 @@ NOTES / TRAPS (for the next cloud session):
 - `pkill -f <pattern>` from the Bash tool matches the tool's own shell (its command line carries the pattern) and kills it:
   kill by `pgrep -f "^node tools/..."` PIDs instead.
 - One SwiftShader page at a time: it takes every core; two in parallel each run at about half speed.
-OWED: the probe's NaN on SwiftShader (item 6) - found, gated, not root-caused; the cover-row bug on cards (item 4) - A0's /
-the user's call; a player's own software renderer keeps the CSS backdrop blur (the rig drops it).
+OWED: a player's own software renderer keeps the CSS backdrop blur (the rig drops it); a measurement of minimum on a
+weak REAL laptop (whether its rows are worth folding into potato).
 
-**G1466 - RESULTS ON TRAIN 29 (this container, 4 cores).** GATE SOFTGPU on index.html: PASS - the rung on (software,
-potato), the garage chain whole in 584 s (24 steps, no hard timeout), the stand at 643 s (the roll-out shot ended by its
-watchdog, as noted), the frame 1 338 draw calls / 7.6 M triangles, 0.0 % clear colour, 2 215 colours, the lower half's
-spread 17.9, the aeroplane hidden -> 6.8 % of the pixels change, no page error; 1 284 s in all (two pages were running
-at once: alone ~17 min). The changed files' gates and the asked ones on the rebased tree: BOOT, BUILD, GFX (with §8
-WELCOME's checks and the new §9), UISMOKE, AA, WORLDRENDER, TREES, PROGRAMS, COVER, HANGAR - PASS. GATE GFX §9's negative
-checks (the rung leaking onto a card; a site that is not a conditional) turn it red. No full battery (A0's, per train).
+**G1466 - RESULTS (train 30, this container, 4 cores, the rework).** GATE SOFTGPU on index.html: PASS - known as a
+software renderer, started on minimum (no ?gfx=), the garage chain whole under the loading screen in 285 s (24 steps; the
+first cut on potato took 584 s, the untouched page 951 s and lifted early), the stand at 328 s (the roll-out shot ended by
+its own watchdog, as noted), the frame 1 323 draw calls / 7.8 M triangles WITH the sky probe (item 6's clamp: the near
+world lit, not black), 0.1 % clear colour, 2 439 colours, the lower half's spread 16.5, the aeroplane hidden -> 6.8 % of
+the pixels change, no page error; 732 s in all. (Its run before the in-step silence rule failed one check - the watchdog
+lifted the overlay at 172 s, 'nothing landed for 30 s' - which is why that rule exists.) The changed files' gates and the
+asked ones: BOOT, BUILD, GFX (§8 WELCOME's checks, §9 reworked), UISMOKE, AA, POSTFX, FOG, CLOUD, ATMO, WORLDRENDER, TREES,
+PROGRAMS, COVER, HANGAR - PASS. No full battery (A0's, per train).
 **EVIDENCE** (`reports/evidence/SOFT-GPU/`, headless Chromium 141 + SwiftShader, the FIRST stills of the world a cloud
-session has rendered; "finding" = taken on the live page while diagnosing, "after" = tools/soft_still.js on the branch):
-- `after_stand_index_afternoon.jpg` - GATE SOFTGPU's own frame (index.html, the default build = the Cub, afternoon, the
-  page's camera, HUD hidden): the Cub on the apron at HOME, the sheds, the town, the forest, the mountains. DECISION for
-  A0 / the user: none - the software rung's look (potato, no probe: flatter metal and shade sides) is for a test rig.
-- `after_garage_dev.jpg` - the shed on dev.html with the workshop UI (`--place garage --keep-hud`): the Cub, the room's
-  lamps and props, the CG / neutral point marks. No decision.
+session has rendered; "finding" = taken on the live page while diagnosing):
+- `minimum_stand_index_afternoon.jpg` - GATE SOFTGPU's own frame: index.html, the default build (the Cub), afternoon, the
+  page's camera, HUD hidden, the minimum preset with the sky probe on: the Cub on the apron at HOME, the sheds, the town,
+  the forest, the mountains - soft (half the pixels) and stair-stepped (no MSAA), as designed. DECISION for A0 / the user:
+  minimum's look (is it acceptable as the floor a player can pick?).
+- (potato, `--gfx potato`: NO STILL - the container restarted at the stand. Measured before it: the garage chain 545 s, the
+  stand at 1 149 s - the roll-out alone ~10 min against minimum's 33 s. That gap is what minimum is for.)
+- `after_garage_dev.jpg` - the shed on dev.html with the workshop UI (`--place garage --keep-hud`; the first cut, plain
+  glass as minimum has it): the Cub, the room's lamps and props, the CG / neutral point marks. No decision.
 - `finding_stand_black_with_probe.jpg` - before item 6's fix (the near world black, the sky and far terrain right).
 - `finding_stand_probe_removed_live.jpg` - the same page, `scene.environment` removed by hand: the stand whole (HUD on).
 - `finding_garage_live_chooser.jpg` - the shed on SwiftShader under the first-launch chooser (the garage was never the
-  problem; its frame was ~9 s, now ~4 s).
+  problem; its frame was ~9 s, ~4 s with plain glass).
 Generated outputs (index.html, dev.html, tools/flight_core.js, sw.js, version.json) NOT committed - A0 builds.
 
 ## G1450-G1455 - RELEASE-FAST: THE RELEASE RUNS WHAT THE DRAG REACHED; THE SHEET'S STAGES, THE CAVITY BAKE, THE TANK SOUP AND THE SOLES KEPT BY THEIR INPUTS (2026-10-04, RELEASE-FAST for A0, a CLOUD session: node only, no GPU; branch claude/release-fast-g1450, written off claude/garage-instant-g1440 6d7bbb8a, rebased onto master = train 28 9825e1e2)
@@ -72218,3 +72234,96 @@ The parked aeroplanes re-cooked on the final build.
 LESSONS: a killed script leaves its boxlock files (its trap never runs) - train 31's re-pass waited 40 min on A0's own stale
 CPU lock; boxlock's `take` once wrote its lock and then waited on itself (the noclobber write's status lost) - A0's scripts
 now accept a lock already in their own name.
+
+## G1467-G1469 - SOFT-GPU REWORK: REPORT FOR A0 (THE INTEGRATOR) - THE `minimum` PRESET REPLACES TRAIN 31'S SOFTWARE RUNG (2026-10-05, SOFT-GPU, cloud, no GPU)
+
+**TO A0, IN ONE LINE:** branch `claude/soft-gpu-g1460`, ONE commit on train 31 (bff4f64), rebased and re-gated there. It
+REPLACES the software rung you landed in train 31 (G1460-G1466, `GFX.soft()`) with a real sixth preset, `minimum`, and
+lands two more fixes for every machine. The user's rulings, 2026-10-04, verbatim:
+  - "I thought that software rendering could be considered equivalent to really bad computers ... Do we need to have an
+    exception, or is this just sub potato setting?"
+  - "Ok for a minimum preset, that will actually be tailored to software rendering, and therefore run on almost anything.
+    And yes, let's fix the issues for all. It is useful for the welcome screen to recognize software GPU, if only for the
+    dev process in the cloud with you."
+The full design and measurements are in the G1460-G1469 entry above (rewritten for the rework: items 1-6, G1462 a-d,
+G1463); this entry is what you need to merge, gate and decide.
+
+**1. WHAT THE COMMIT CHANGES AGAINST TRAIN 31 (19 files with the HANDOVER and the evidence; generated outputs NOT committed - you build):**
+- REMOVED (train 31's rung, every site): `GFX.soft()`, `?soft=1` / `?soft=0`, the boot watchdog's x20 on software, the
+  software-only no-anisotropy (app.js), no-target-MSAA (aa_resolve.js), no-transmission glass (hangar.js) and NO SKY PROBE
+  (render_world.js). Nothing in the game asks "is this a software renderer" any more.
+- ADDED - THE `minimum` PRESET (gfx_settings.js), first in PRESETS: potato with four rows lower - render scale 50 %,
+  aa 'none' (a NEW step + a NEW AA tier `none` in aa_resolve.js: 0 samples in the scene, where 'off' draws 4 under the
+  reversed depth), texture filtering 'plain' (a NEW menu row `filter`, performance group: no anisotropy - the handle is
+  `GFX.filterHook(renderer)`, called once by app.js at renderer creation; three reads `capabilities.getMaxAnisotropy()` at
+  every upload), window glass 'plain' (a NEW menu row `glass`, light & shadows group: no transmission on the shed's panes;
+  hangar.js reads the row at the shed's build). `BUDGETS.minimum` = potato's row. Every other preset carries the new rows
+  at what it always drew (`filter: 'aniso'`, `glass: 'refract'`) - their pictures do not move.
+- welcome.js: ORDER / LABEL / WHY gain `minimum`; `gpuClass` returns 'minimum' for a software renderer (was 'potato').
+  gfx_settings.js: `SOFTWARE` (= WELCOME.SOFT) starts the menu on minimum when nothing was chosen (no saved choice, no
+  ?gfx=, no welcome pick) - the rigs and cloud sessions never see the welcome, so the menu does it; `GFX.software()` reports it.
+- FIXED FOR EVERY MACHINE (new in this commit):
+  (a) boot.js - THE WATCHDOG: the hard limit is 2 min WITHOUT THE CHAIN MOVING (from the latest of the run's start, the
+      current step's start, the landing's start), no longer 2 min in all; a check firing 6 s+ late counts as a busy page
+      (one long task), not silence; INSIDE A RUNNING STEP silence is the step's work (its limit is the hard one), the 30 s
+      silence rule stays for the landing and between steps; `BOOT.log`'s 'fail' entry now carries `step`.
+  (b) atmo.js - THE SKY PROBE'S NaN: the dome's output clamped to 65000 (the probe shoots it untoned into a half-float
+      cube; the sun's disc ~1.4e4 x uScale overflowed to +Inf on SwiftShader and the PMREM made it NaN: every Standard
+      material of the world black). So the probe is back ON everywhere, software included.
+  (c) render_world.js - the alps env's CPU-packed halves clamped to 65504 (`toHalfFloat: Value out of range`, x10+ a boot;
+      only the 'alps' lighting row uses that env).
+- KEPT AS YOU LANDED IT: the cover-row fix (`GFX.reapply()` - only its comment rewritten, it still said "the software
+  rung's only"). STILL HELD AS YOU DECIDED: G1461, the woodland imps[0] fix (WOODLAND G1480) - not in this delta; the
+  throw shows on every SwiftShader boot as a console WARNING (`world: after the build TypeError ... setMatrixAt`).
+- Gates edited: GFX (§1b six tiers; the OLD_MEDIUM rows; the GPU table's software names -> minimum; §9 rewritten - see 3),
+  AA (five tiers), POSTFX / FOG / CLOUD (six presets), STAND (your train-31 glass regex now reads the glass row),
+  SOFTGPU + tools/soft_still.js (the preset, not the rung; the boot 'fail' reason and step reported; the world's held
+  rows recorded: preset, cover, ring on/off, AA samples, probe on).
+
+**2. MERGE NOTES.** Rebased onto bff4f64 with two conflicts, both resolved toward train 31: render_world.js (your
+`GFX.reapply()` line kept), tools/_gfx_check.js (§9: the rework's version replaces the rung's, including your train-31
+site count, which no longer has sites to count). HANDOVER: the G1460-G1469 entry is edited IN PLACE where you landed it (it
+said "rung" throughout), and this entry is appended after TRAIN 31.
+
+**3. WHAT MOVES ON A CARD - FOR YOUR STRICT GATE (all intended):**
+- The boot watchdog (1a) applies to EVERY overlay - the garage boot, the roll-out screen, the settings screen. On the box
+  no step approaches 2 min, so nothing should move; a genuinely hung step now lifts after 2 min instead of 30 s (the skip
+  button still shows at 14 s of silence). Watch: boot curves, ROUNDTRIP, the roll-out rows.
+- The dome clamp (1b) RE-KEYS ONE PROGRAM family (the sky dome's source changed: the main dome and the probe's) - one cold
+  link on the first boot after the update; the picture should not move (tone-mapped on screen; the probe saturates on a
+  card). Watch: PROGRAMS/FRAMECOST's census if it hashes sources; a noon and a sunset GPU still if you want proof.
+- GFX.get() carries two more keys (`filter`, `glass`): a saved pref gains them on its next save; an old pref reads its
+  preset unchanged (GATE GFX §9). Nothing cooked or saved is keyed on them (`gfxKey()` is per-session trip planning only).
+- A card's menu start is unchanged (GATE GFX §9: 8 card names x 6 starts = 48 boots, key for key, with and without the
+  probe's answer); the presets above minimum resolve exactly as before.
+
+**4. WHAT I RAN (this container, 4 cores, train 31 + the commit, built):**
+- GFX, STAND, BOOT, BUILD, UISMOKE, AA, POSTFX, FOG, CLOUD, ATMO, WORLDRENDER, PROGRAMS, HANGAR, COVER, TREES: PASS.
+- GATE SOFTGPU (index.html): PASS - a software renderer known as one, started on minimum, the garage chain whole under the
+  loading screen in 434 s (the battery above was running at the same time on the same cores; alone on train 30: 285 s),
+  the stand at 485 s, 1 026 draw calls / 7.8 M triangles with the probe on, the aeroplane hidden -> 6.5 % of the pixels
+  change, no page error; 965 s in all.
+- NOT RUN: the full battery (yours, per train); anything on a GPU.
+- For comparison (train 30, SwiftShader): potato with every fix - the garage 545 s, the stand 1 149 s (the roll-out alone
+  ~10 min); minimum - 285 s / 328 s. The untouched train-27 page: 951 s and the world never drew.
+
+**5. WHAT TO RUN ON THE BOX:**
+- The full battery and the strict gate as per train (SOFTGPU SKIPs there - no Playwright).
+- `minimum` on a real card, once, as the floor: the boot curve
+  `node tools/boot_perf.js --url http://localhost:<port>/flyDiy/index.html?gfx=minimum` and a roll-out
+  `node tools/rollout_perf.js <your usual box flags> --q gfx=minimum`, against potato the same way.
+- If you want the probe clamp proven on a card: one still at noon and one at sunset (`?day=noon`, `?day=sunset`), before /
+  after this commit - the sky and the craft's reflections should match.
+
+**6. DECISIONS FOR A0 / THE USER:**
+- `minimum`'s look as a floor a player can pick: `reports/evidence/SOFT-GPU/minimum_stand_index_afternoon.jpg` (half
+  resolution, stair-stepped edges, plain filtering - by design).
+- Whether any of minimum's rows belong in potato: needs one measurement on a weak REAL laptop (none here).
+- G1461 (the woodland fix): still yours / WOODLAND G1480's.
+- A player on a software renderer still gets the HUD's CSS backdrop blur, which Chrome composites on the same CPU (the rig
+  turns it off; the game does not). Owed if wanted - a CSS rule under minimum would do it.
+
+**7. EVIDENCE (`reports/evidence/SOFT-GPU/`):** `minimum_stand_index_afternoon.jpg` (GATE SOFTGPU's frame, train 30, the
+probe on); `after_garage_dev.jpg` (the shed, first cut, plain glass as minimum has it); the three `finding_*` frames from
+the diagnosis. `after_stand_index_afternoon.jpg` (the rung's frame, no probe) is DELETED - superseded. No potato still:
+the container restarted at its stand.

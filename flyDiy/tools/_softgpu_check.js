@@ -8,8 +8,8 @@
 // Every cloud session has a headless Chromium on SwiftShader and no graphics card; until G1460 the game drew its UI
 // there and not its world. This boots the REAL page there through tools/soft_still.js - the garage, Roll out, the
 // stand - and asserts on what a player would see (tier 'full': it is slow, ~10-20 min on a 4-core cloud box):
-//   1 the page knew it was on a software renderer: GFX.soft() names the tier 'software' and the renderer string is
-//     a software one, the preset the rung chose is potato (no ?gfx= given);
+//   1 the page knew it was on a software renderer (welcome.js's probe: GFX.software(), a software renderer string) and
+//     started on the minimum preset (no ?gfx= given);
 //   2 the garage boot ran its whole chain (BOOT 'gone' with every step run, no hard timeout lifting it early) and the
 //     roll-out reached the stand (a trip done, the stand's verbs up);
 //   3 ONE DRAWN FRAME OF THE WORLD: the still is not the clear colour (under 50 % of its pixels the renderer's clear
@@ -47,10 +47,11 @@ const ok = (c, msg) => { console.log((c ? '  ok   ' : '  FAIL ') + msg); if (!c)
   const P = R.picture || {}, I = R.info || {};
   console.log('  SOFTGPU ' + JSON.stringify({ t: R.t, gpu: R.gpu, soft: R.soft, info: I, picture: P, aero: R.aero, trip: R.trip }));
   // 1
-  ok(!!R.soft && R.soft.tier === 'software' && /SwiftShader|llvmpipe|softpipe|Software/i.test(R.gpu || ''), 'the software rung is on: ' + (R.soft && R.soft.tier) + ' on ' + R.gpu);
-  ok(!!R.soft && R.soft.preset === 'potato', 'the rung chose potato with no ?gfx= (' + (R.soft && R.soft.preset) + ')');
+  ok(!!R.soft && R.soft.software === true && /SwiftShader|llvmpipe|softpipe|Software/i.test(R.gpu || ''), 'a software renderer, known as one: ' + (R.soft && R.soft.software) + ' on ' + R.gpu);
+  ok(!!R.soft && R.soft.preset === 'minimum', 'it started on the minimum preset with no ?gfx= (' + (R.soft && R.soft.preset) + ')');
   // 2
-  ok(R.t && R.t.garage > 0 && R.bootDone === true && !R.hardTimeout, 'the garage boot ran its whole chain (' + R.bootSteps + ' steps, ' + (R.t && R.t.garage) + ' s' + (R.hardTimeout ? ', HARD TIMEOUT' : '') + ')');
+  ok(R.t && R.t.garage > 0 && R.bootDone === true && !R.hardTimeout, 'the garage boot ran its whole chain under the loading screen (' + R.bootSteps + ' steps, ' + (R.t && R.t.garage) + ' s' +
+     (R.hardTimeout ? '; the watchdog LIFTED IT EARLY: ' + JSON.stringify(R.bootFail && { reason: R.bootFail.reason, step: R.bootFail.step, t: R.bootFail.t, missing: (R.bootFail.missing || []).slice(0, 4) }) : '') + ')');
   ok(R.t && R.t.stand > 0 && R.trip && R.trip.kind, 'the roll-out reached the stand (' + (R.t && R.t.stand) + ' s, trip ' + JSON.stringify(R.trip) + ')');
   // 3
   ok(P.clearShare < 0.5, 'the still is not the clear colour (' + (100 * P.clearShare).toFixed(1) + ' % of the pixels are)');

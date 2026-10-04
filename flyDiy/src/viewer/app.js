@@ -144,10 +144,9 @@
   const TSL_ON = !!renderer.isWebGPURenderer;
   if (typeof window !== 'undefined') { window.FLYDIY_TSL_ON = TSL_ON; window.FLYDIY_RENDERER = renderer; }   // the graphics menu's tone/exposure rows drive it
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.75));
-  // G1460 (SOFT-GPU) NO ANISOTROPY ON A SOFTWARE RENDERER: SwiftShader filters on the CPU, an anisotropic fetch up to 16
-  // bilinear taps - and the ground, the pavement and the props ask for 8-16. three clamps every texture's anisotropy to
-  // capabilities.getMaxAnisotropy() at upload, so the rung answers 1 there; on a card nothing changes
-  if (typeof window !== 'undefined' && window.GFX && window.GFX.soft && window.GFX.soft()) renderer.capabilities.getMaxAnisotropy = () => 1;
+  // G1460: the graphics menu's texture filtering row (plain = no anisotropy - the minimum preset's) owns the anisotropy
+  // three clamps every upload to, from the shed's first texture on
+  if (typeof window !== 'undefined' && window.GFX && window.GFX.filterHook) window.GFX.filterHook(renderer);
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   // EXPOSURE GOES THROUGH THE MENU (G286 + the colour rows): the menu keeps the

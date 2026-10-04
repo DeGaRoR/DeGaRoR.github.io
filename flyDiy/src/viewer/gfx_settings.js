@@ -35,13 +35,10 @@
   const RIG = W.WELCOME && typeof W.WELCOME.RIG === 'boolean' ? W.WELCOME.RIG
     : !!(W.navigator && (W.navigator.webdriver || /HeadlessChrome/.test(W.navigator.userAgent || '')));
   const FORCE = k => !!(W.location && new RegExp('[?&]' + k + '=1').test(W.location.search || ''));
-  // THE SOFTWARE RUNG (G1460, SOFT-GPU): the card welcome.js probed is a software renderer (SwiftShader - every cloud
-  // session's headless Chromium -, llvmpipe, the Basic Render Driver). It is a rung UNDER potato, not a sixth preset:
-  // potato's options when nothing was chosen, plus the boot's longer watchdogs (boot.js) and the frame's software
-  // fallbacks (app.js / hangar.js / render_world.js ask GFX.soft()). On a graphics card it is false and none of it runs:
-  // the presets, their resolved options and every program key are the ones they were (GATE GFX holds it).
-  // ?soft=1 turns it on over a real card (A0's A/B on the box), ?soft=0 off over a software one.
-  const SOFT = !/[?&]soft=0(&|$)/.test((W.location && W.location.search) || '') && (FORCE('soft') || !!(W.WELCOME && W.WELCOME.SOFT === true));
+  // A SOFTWARE RENDERER (G1460, SOFT-GPU): the card welcome.js probed is SwiftShader (every cloud session's headless
+  // Chromium), llvmpipe or the Basic Render Driver - no graphics card in use. It starts on `minimum` when nothing was
+  // chosen (the rigs never see the welcome screen, which suggests the same); a saved choice, ?gfx= and a pick win
+  const SOFTWARE = !!(W.WELCOME && W.WELCOME.SOFT === true);
 
   // ---- the options: named steps over the handles ---------------------------
   const OPTIONS = [
@@ -55,7 +52,8 @@
         { v: 30, label: '30', why: 'capped at 30 fps: every frame the same length, two physics steps each - the even frame, the default on every preset but ultra' },
         { v: 'off', label: 'uncapped', why: 'every refresh of the screen drawn (a 144 Hz screen draws up to 144)' } ] },
     { k: 'aa', label: 'anti-aliasing', steps: [
-        { v: 'off',  label: 'off', why: 'the canvas’s 4x MSAA, none under the clouds - the cheapest frame' },
+        { v: 'none', label: 'none', why: 'no MSAA in the scene at all (G1460): the staircase on every edge, the cheapest frame where the fragments are the cost - a software renderer shades every sample' },
+        { v: 'off',  label: 'off', why: 'the canvas’s 4x MSAA, none under the clouds' },
         { v: 'msaa4', label: 'soft', why: '4x MSAA in the target (G1250: half the 8x memory)' },
         { v: 'msaa', label: 'smooth', why: '8x MSAA' },
         { v: 'full', label: 'smoothest', why: '8x MSAA and a 1.25x supersample - the dearest frame' } ] },
@@ -69,6 +67,12 @@
         { v: 0.67, label: '67 %', why: '45 % of the pixels' },
         { v: 0.5,  label: '50 %', why: 'a quarter of the pixels - an old or integrated card on a big screen' },
         { v: 'auto', label: 'auto', why: 'adaptive: held at 60 fps, 100 % down to 50 % as the frame needs, and only where the pixels are the cost (a step that does not pay is taken back) - aa_resolve.js AUTO. Off by default: the player turns it on' } ] },
+    // G1460 (SOFT-GPU) TEXTURE FILTERING: the anisotropic filter on every texture three uploads (the ground, the pavement and
+    // the props ask for 8-16 taps). A card's texture units do it for almost nothing; a software renderer filters on the CPU,
+    // up to 16 bilinear taps a fetch. Takes effect for the textures uploaded after it - all of them at the next load
+    { k: 'filter', label: 'texture filtering', steps: [
+        { v: 'plain', label: 'plain', why: 'trilinear only: the ground and the runway blur toward the horizon - for a software renderer' },
+        { v: 'aniso', label: 'sharp', why: 'anisotropic, as each texture asks (8-16x): the far ground and the runway markings stay sharp' } ] },
     { k: 'density', label: 'forest density', steps: [
         { v: 100, label: 'sparse', why: 'a tree every 10.2 m at most - 95 a hectare' },
         { v: 128, label: 'normal', why: 'a tree every 8 m at most - 156 a hectare' },
@@ -91,6 +95,11 @@
         { v: 'on',  label: 'on', why: 'the ground under the crowns is in their shade' } ] },
     // THE SKY'S OWN (S7): the sun's glare (the corona in the sky and the flare over the frame) and
     // the mist (the day's humidity as a ground layer) - each off or on; the dials are F8's
+    // G1460 (SOFT-GPU) THE SHED'S WINDOWS: three's transmission pass draws the whole opaque room again into a mipmapped target
+    // every frame the glass is in view - half the shed's frame on SwiftShader (8.9 -> 4.4 s). The next shed build takes it
+    { k: 'glass', label: 'window glass', steps: [
+        { v: 'plain', label: 'plain', why: 'see-through panes at their own opacity, no refraction - one pass fewer' },
+        { v: 'refract', label: 'refracting', why: 'the room seen through the glass, bent and blurred (a transmission pass every frame)' } ] },
     { k: 'glare', label: 'sun glare', steps: [
         { v: 'off', label: 'off', why: 'no corona, no flare' },
         { v: 'on',  label: 'on', why: 'the corona round the sun and a flare over the frame, hidden behind the wing and the hills' } ] },
@@ -257,11 +266,15 @@
   const POST_BLOOM = Object.assign({}, POST_OFF, { bloom: 'soft' });
   const COLOUR = { lighting: 'sunset', tone: 'cineon', exposure: 1, colour: 'managed' };
   const PRESETS = {
-    potato:  Object.assign({ ground: 'lean', scale: 0.67, cover: 'off',  scenery: 'low',  drawDist: 'vis', terrain: 3, aa: 'off',  density: 100, bands: 'near', shadows: 'off',   canopy: 'off', rails: 'off', poles: 'off', glare: 'off', sway: 'off', mist: 'on',    clouds: 'off',  water: 'simple', mirror: 'off' }, COLOUR, POST_OFF),
-    retro:   Object.assign({ ground: 'lean', scale: 0.85, cover: 'lean', scenery: 'lean', drawDist: 'vis', terrain: 2, aa: 'off',   density: 100, bands: 'near', shadows: 'near',  canopy: 'off', rails: 'on', poles: 'off', glare: 'on',  sway: 'off', mist: 'on',    clouds: 'off',  water: 'simple', mirror: 'off' }, COLOUR, POST_OFF),
-    current: Object.assign({ ground: 'far1', scale: 1,    cover: 'full', scenery: 'full', drawDist: 'vis', terrain: 2, aa: 'off',   density: 128, bands: 'near', shadows: 'full',  canopy: 'on',  rails: 'on', poles: 'on', glare: 'on',  sway: 'on',  mist: 'on',    clouds: 'half', water: 'simple',   mirror: 'off' }, COLOUR, POST_BLOOM),
-    gamer:   Object.assign({ ground: 'far1', scale: 1,    cover: 'full', scenery: 'full', drawDist: 'vis', terrain: 1, aa: 'msaa', density: 128, bands: 'mid', shadows: 'full',  canopy: 'on',  rails: 'on', poles: 'on', glare: 'on',  sway: 'on',  mist: 'land',  clouds: 'half', water: 'simple',   mirror: 'off' }, COLOUR, POST_BLOOM),
-    ultra:   Object.assign({ ground: 'full', scale: 1,    cover: 'full', scenery: 'full', drawDist: 'vis', terrain: 1, aa: 'full', density: 200, bands: 'mid', shadows: 'ultra', canopy: 'on',  rails: 'on', poles: 'on', glare: 'on',  sway: 'on',  mist: 'banks', clouds: 'full', water: 'full',   mirror: 'off' }, COLOUR, POST_BLOOM),
+    // G1460 (SOFT-GPU, the user 2026-10-04: "a minimum preset, tailored to software rendering, and therefore run on almost
+    // anything"): potato, then what a CPU renderer pays most for - half the pixels, no MSAA in the scene, no anisotropy,
+    // plain window glass. Measured on SwiftShader (4 cores): the garage ~8-10 min to boot, the stand ~30 s a frame
+    minimum: Object.assign({ ground: 'lean', scale: 0.5,  cover: 'off',  scenery: 'low',  drawDist: 'vis', terrain: 3, aa: 'none', filter: 'plain', glass: 'plain', density: 100, bands: 'near', shadows: 'off',   canopy: 'off', rails: 'off', poles: 'off', glare: 'off', sway: 'off', mist: 'on',    clouds: 'off',  water: 'simple', mirror: 'off' }, COLOUR, POST_OFF),
+    potato:  Object.assign({ ground: 'lean', scale: 0.67, cover: 'off',  scenery: 'low',  drawDist: 'vis', terrain: 3, aa: 'off',  filter: 'aniso', glass: 'refract', density: 100, bands: 'near', shadows: 'off',   canopy: 'off', rails: 'off', poles: 'off', glare: 'off', sway: 'off', mist: 'on',    clouds: 'off',  water: 'simple', mirror: 'off' }, COLOUR, POST_OFF),
+    retro:   Object.assign({ ground: 'lean', scale: 0.85, cover: 'lean', scenery: 'lean', drawDist: 'vis', terrain: 2, aa: 'off',   filter: 'aniso', glass: 'refract', density: 100, bands: 'near', shadows: 'near',  canopy: 'off', rails: 'on', poles: 'off', glare: 'on',  sway: 'off', mist: 'on',    clouds: 'off',  water: 'simple', mirror: 'off' }, COLOUR, POST_OFF),
+    current: Object.assign({ ground: 'far1', scale: 1,    cover: 'full', scenery: 'full', drawDist: 'vis', terrain: 2, aa: 'off',   filter: 'aniso', glass: 'refract', density: 128, bands: 'near', shadows: 'full',  canopy: 'on',  rails: 'on', poles: 'on', glare: 'on',  sway: 'on',  mist: 'on',    clouds: 'half', water: 'simple',   mirror: 'off' }, COLOUR, POST_BLOOM),
+    gamer:   Object.assign({ ground: 'far1', scale: 1,    cover: 'full', scenery: 'full', drawDist: 'vis', terrain: 1, aa: 'msaa', filter: 'aniso', glass: 'refract', density: 128, bands: 'mid', shadows: 'full',  canopy: 'on',  rails: 'on', poles: 'on', glare: 'on',  sway: 'on',  mist: 'land',  clouds: 'half', water: 'simple',   mirror: 'off' }, COLOUR, POST_BLOOM),
+    ultra:   Object.assign({ ground: 'full', scale: 1,    cover: 'full', scenery: 'full', drawDist: 'vis', terrain: 1, aa: 'full', filter: 'aniso', glass: 'refract', density: 200, bands: 'mid', shadows: 'ultra', canopy: 'on',  rails: 'on', poles: 'on', glare: 'on',  sway: 'on',  mist: 'banks', clouds: 'full', water: 'full',   mirror: 'off' }, COLOUR, POST_BLOOM),
   };
   // G1113 (TREES-NEAR, 2026-09-30): gamer draws 'minimum' (the full tree to 30 m, its light rung to 60 m) - the step that held
   // the rule "no regression" against master on the low flight over the forest (60 m AGL, the headline), the Cub's and the
@@ -287,6 +300,7 @@
   // Going DOWN is live (GFX.set: the stream's reach shrinks at once); going up applies to what builds next, and to
   // everything at the next load. Without the table (a gate's stub, no window.GFX) every lever reads full.
   const BUDGETS = {
+    minimum: { heapMB: 700,  mipSkip: 1, townBoot: 1200, townReach: 2000, parked: false, forestK: 0.65, islandColour: false, islandHalf: true },   // G1460: potato's row
     potato:  { heapMB: 700,  mipSkip: 1, townBoot: 1200, townReach: 2000, parked: false, forestK: 0.65, islandColour: false, islandHalf: true },
     retro:   { heapMB: 1500, mipSkip: 0, townBoot: 4000, townReach: 6000, parked: true, forestK: 1 },
     current: { heapMB: 1500, mipSkip: 0, townBoot: 4000, townReach: 6000, parked: true, forestK: 1 },
@@ -294,8 +308,9 @@
     ultra:   { heapMB: 2000, mipSkip: 0, townBoot: 4000, townReach: 6000, parked: true, forestK: 1 },
   };
   const DEFAULT = 'gamer';
-  const PRESET_LABEL = { potato: 'potato', retro: '5 years ago', current: 'current', gamer: 'gamer', ultra: 'ultra' };
+  const PRESET_LABEL = { minimum: 'minimum', potato: 'potato', retro: '5 years ago', current: 'current', gamer: 'gamer', ultra: 'ultra' };
   const PRESET_WHY = {
+    minimum: 'runs on almost anything, a software renderer included (no graphics card): potato at half the pixels, no anti-aliasing, plain texture filtering and window glass',
     potato:  'an integrated or very old GPU: the scene at 67 % of the screen, no shadows, no clouds, no ground cover, the town at its least, sparse forest',
     retro:   'a card that was good five years ago (GTX 1060 class): 85 % of the screen, the near shadow, no clouds, lean ground cover and town, sparse forest',
     current: 'a current mid-range card (RTX 3060 class): gamer without the 8x MSAA, the mirror and the mist march',
@@ -347,8 +362,8 @@
     if (!S.fpsOwn && !(v0 && FPS_STEPS.includes(v0.fps))) S.fps = FPS_OF(S.preset);   // G1295: none stored (or no step) - the preset's
     // Friendly Welcome (A0, 2026-10-02): ?gfx=<preset> picks a preset BEFORE the load and keeps it (a weak card or a phone
     // never reached the graphics menu: the GTX 660 loaded on gamer and drew nothing). The player's later choice still wins
-    // G1460: the software rung starts on potato when nothing was chosen (no saved choice, no ?gfx=, no welcome pick)
-    if (SOFT && !saved && !/[?&]gfx=/.test((W.location && W.location.search) || '') && !(W.WELCOME && W.WELCOME.pick)) { Object.assign(S, PRESETS.potato); S.preset = 'potato'; S.build = 'potato'; if (!S.fpsOwn) S.fps = FPS_OF('potato'); }
+    // G1460: a software renderer starts on minimum when nothing was chosen (no saved choice, no ?gfx=, no welcome pick)
+    if (SOFTWARE && !saved && !/[?&]gfx=/.test((W.location && W.location.search) || '') && !(W.WELCOME && W.WELCOME.pick)) { Object.assign(S, PRESETS.minimum); S.preset = 'minimum'; S.build = 'minimum'; if (!S.fpsOwn) S.fps = FPS_OF('minimum'); }
     try { const q = /[?&]gfx=([a-z]+)/.exec((W.location && W.location.search) || ''); const want = q && q[1];
           if (want && PRESETS[want] && (S.preset !== want || S.build !== want)) { Object.assign(S, PRESETS[want]); S.preset = want; S.build = want; if (!S.fpsOwn) S.fps = FPS_OF(want); save(); } } catch (e) {}
     // G1210 (WELCOME): the welcome screen's pick (or the device gate's "try anyway": potato), taken the same way - it ran
@@ -523,8 +538,8 @@
   // menu mounts before and after the grouping). The groups are the host's collapsible sections when it gives
   // H.section, and are ordered by what a player reaches for: the cost first, the picture's parts after it.
   const GROUPS = [
-    { k: 'perf', label: 'performance', sub: 'the preset, the frame rate, the scale, the smoothing', rows: ['fps', 'scale', 'aa', 'drawDist'] },
-    { k: 'light', label: 'light & shadows', sub: 'the shadows, the light rig, the exposure, the tone curve', rows: ['shadows', 'canopy', 'lighting', 'exposure', 'tone', 'compositing', 'colour'] },
+    { k: 'perf', label: 'performance', sub: 'the preset, the frame rate, the scale, the smoothing', rows: ['fps', 'scale', 'aa', 'filter', 'drawDist'] },
+    { k: 'light', label: 'light & shadows', sub: 'the shadows, the light rig, the exposure, the tone curve', rows: ['shadows', 'canopy', 'glass', 'lighting', 'exposure', 'tone', 'compositing', 'colour'] },
     { k: 'terrain', label: 'terrain & vegetation', sub: 'the ground, the forest, the cover', rows: ['terrain', 'ground', 'density', 'bands', 'sway', 'cover'] },
     { k: 'water', label: 'water', sub: 'the sea and its reflections', rows: ['water', 'mirror'] },
     { k: 'sky', label: 'sky', sub: 'the clouds, the mist, the sun', rows: ['clouds', 'mist', 'glare'] },
@@ -629,8 +644,11 @@
     BUDGETS, budget,   // G1230: the build budget the world builds to (GFX.budget().mipSkip, .townBoot, ...)
     set, apply, mount, mountWorld, presetOf, frameText,
     setExposure, setEye, eye: () => eyeK, exposureBase: () => expBase,
-    // G1460: the software rung - null on a graphics card; else what the rung is and why
-    soft: () => (SOFT ? { tier: 'software', gpu: (W.WELCOME && W.WELCOME.env && W.WELCOME.env.gpu) || '', forced: FORCE('soft'), preset: S.preset } : null),
+    software: () => SOFTWARE,
+    // G1460: the texture filtering row's handle - three clamps every texture's anisotropy to capabilities.getMaxAnisotropy()
+    // as it uploads it; app.js hands the renderer over the moment it exists, so the shed's first textures already obey
+    filterHook: R => { const c = R && R.capabilities; if (!c || c.__filterHook) return; const own = c.getMaxAnisotropy;
+      c.getMaxAnisotropy = () => (S.filter === 'plain' ? 1 : own.call(c)); c.__filterHook = true; },   // G1460: welcome.js's probe named a software renderer (the cloud sessions' SwiftShader)
     // the world calls this once it exists (render_world.js, end of build)
     onWorld: () => { applied = {}; apply(); },
     reapply: () => apply(),   // train 31: the rows a late handle (the cover ring) never took - nothing already applied runs again

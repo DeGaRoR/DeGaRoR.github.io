@@ -3,7 +3,7 @@
 //
 // Every cloud session has a browser and no graphics card: headless Chromium on SwiftShader (ANGLE's CPU Vulkan).
 // Until G1460 the game's UI drew there but its WORLD did not, so every picture of the world was A0's to take on the
-// box. This rig boots the real page on SwiftShader (the 'software' rung, gfx_settings.js SOFT), takes it through the
+// box. This rig boots the real page on SwiftShader (on the `minimum` preset the menu starts a software renderer on), takes it through the
 // garage, the roll-out and the stand, points the camera and writes ONE still - so a cloud session ships its own
 // evidence. Slow by nature (a software GL: minutes to boot, seconds a frame); NEVER read a frame time off it.
 //
@@ -15,7 +15,7 @@
 //        [--cam chase|orbit|wing|cockpit]  the stand's camera mode (default: the page's own)
 //        [--orbit az,el,dist]              a fixed orbit view (deg, deg, m) - FLIGHT_PROBE.camSet
 //        [--q 'k=v&k2=v2']                 more URL parameters (e.g. world=jolene, cloud=0.4)
-//        [--gfx potato|retro|...]          a preset (default: none - the software rung picks itself)
+//        [--gfx potato|retro|...]          a preset (default: none - a software renderer starts on minimum)
 //        [--size 960x540] [--quality 80] [--secs 900] [--port 0 (auto)] [--json out.json] [--keep-hud]
 //        [--aero-check]                    also take the frame with the aeroplane hidden and report the difference
 //   -> the JPEG, and one line `SOFT_STILL {json}`: the timings (boot, roll-out, reveal), the renderer string, the
@@ -134,18 +134,18 @@ async function still(o) {
         await sleep(every);
       }
     };
-    // THE GARAGE: the boot chain ran to its end (BOOT 'gone' and the roll-out button) - on the software rung the
-    // overlay waits for the whole chain (SOFT's longer watchdogs), so 'gone' is the garage drawn
+    // THE GARAGE: the boot chain ran to its end (BOOT 'gone' and the roll-out button) - with G1460's watchdog (2 min without the chain moving) the
+    // overlay waits for the whole chain, so 'gone' is the garage drawn
     // (the chain's own count too: a watchdog that lifted the overlay early leaves steps still to run behind it)
     await until('the garage', () => window.BOOT && BOOT.state === 'gone' && BOOT.set === 'garage' && BOOT.stepI >= (BOOT.steps || []).length && !BOOT.current
       && /Roll out/.test((document.getElementById('bGo') || {}).textContent || ''));
     R.t.garage = T();
     Object.assign(R, await page.evaluate(() => ({ bootDone: BOOT.stepI >= BOOT.steps.length, bootSteps: BOOT.steps.length,
-      hardTimeout: (BOOT.log || []).some(e => e && e.k === 'fail') })));
+      hardTimeout: (BOOT.log || []).some(e => e && e.k === 'fail'), bootFail: ((BOOT.log || []).find(e => e && e.k === 'fail') || null) })));
     R.gpu = await page.evaluate(() => { try { const g = window.FLYDIY_RENDERER.getContext(); const d = g.getExtension('WEBGL_debug_renderer_info'); return d ? g.getParameter(d.UNMASKED_RENDERER_WEBGL) : g.getParameter(g.RENDERER); } catch (e) { return null; } });
-    R.soft = await page.evaluate(() => window.GFX && GFX.soft ? GFX.soft() : null);
+    R.soft = await page.evaluate(() => window.GFX && GFX.software ? { software: GFX.software(), preset: GFX.get().preset } : null);
     R.gfx = await page.evaluate(() => { try { return JSON.parse(localStorage.getItem('flydiy.gfx') || 'null'); } catch (e) { return null; } });
-    log('garage', R.gpu, 'tier', R.soft && R.soft.tier);
+    log('garage', R.gpu, 'preset', R.soft && R.soft.preset);
     // the chain's last steps settle; then the chooser away (a fresh profile's), exactly as the shot itself would
     await page.evaluate(() => { for (const x of document.querySelectorAll('.dfClose')) try { x.click(); } catch (e) {} });
     if (o.place === 'stand') {
@@ -179,6 +179,10 @@ async function still(o) {
     const shot = async () => (await page.screenshot({ type: 'png', timeout: o.secs * 1000 }));
     const png = await shot();
     R.t.still = T();
+    // the menu's rows as the world holds them (G1460: the cover row reaching the ring is checked, not assumed)
+    R.world = await page.evaluate(() => { try { const c = window.TREE_FILL && TREE_FILL.cover && TREE_FILL.cover(); const g = window.GFX && GFX.get();
+      return { preset: g && g.preset, cover: g && g.cover, ringOn: c && c.get ? c.get().on : null, aa: window.FLYDIY_AA && FLYDIY_AA.report ? FLYDIY_AA.report().samples : null,
+               probe: !!(window.WORLD && WORLD.scene && WORLD.scene.environment) }; } catch (e) { return null; } });
     R.info = await page.evaluate(() => { const r = window.FLYDIY_RENDERER; const i = r && r.info; return i ? { calls: i.render.calls, triangles: i.render.triangles, programs: (i.programs || []).length, textures: i.memory.textures, geometries: i.memory.geometries } : null; });
     R.clear = await page.evaluate(() => { try { const c = new THREE.Color(); window.FLYDIY_RENDERER.getClearColor(c); c.convertLinearToSRGB(); return [Math.round(c.r * 255), Math.round(c.g * 255), Math.round(c.b * 255)]; } catch (e) { return null; } });
     const A = await analyse(browser, png, o.quality, R.clear);

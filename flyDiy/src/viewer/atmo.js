@@ -746,7 +746,11 @@ ${MIST_GLSL}
       }
       // the mist over the sky itself: a ray above the horizon leaves the layer (the integral converges)
       L = mistApply(L * uScale, d, 60000.0, uEyeY) / max(1e-9, uScale);
-      gl_FragColor = vec4(L * uScale, 1.0);
+      // G1460 (SOFT-GPU): no colour past a half float's largest finite. The sky probe shoots this dome UNTONED into a
+      // half-float cube, and the sun's disc is ~1.4e4 x uScale: past 65504 a write is +Inf where the hardware does not
+      // saturate (SwiftShader), the PMREM's filtering turns Inf x 0 into NaN, and every Standard material lit by the
+      // probe drew black. On screen the tone map follows, so nothing it shows moves
+      gl_FragColor = vec4(min(L * uScale, vec3(65000.0)), 1.0);
       #include <tonemapping_fragment>
       #include <colorspace_fragment>
     }`;

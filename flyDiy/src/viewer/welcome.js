@@ -26,9 +26,10 @@
   const W = typeof window !== 'undefined' ? window : null;
   if (!W) return;
   const KEY = 'flydiy.welcome';
-  const ORDER = ['potato', 'retro', 'current', 'gamer', 'ultra'];   // GATE GFX holds it to Object.keys(GFX.PRESETS)
-  const LABEL = { potato: 'potato', retro: '5 years ago', current: 'current', gamer: 'gamer', ultra: 'ultra' };
+  const ORDER = ['minimum', 'potato', 'retro', 'current', 'gamer', 'ultra'];   // GATE GFX holds it to Object.keys(GFX.PRESETS)
+  const LABEL = { minimum: 'minimum', potato: 'potato', retro: '5 years ago', current: 'current', gamer: 'gamer', ultra: 'ultra' };
   const WHY = {
+    minimum: 'runs on almost anything, even with no graphics card (a software renderer): the plainest picture',
     potato: 'an integrated or older card, a laptop: the lightest picture',
     retro: 'a card that was good five years ago (GTX 1060 class)',
     current: 'a current mid-range card (RTX 3060 class)',
@@ -55,14 +56,14 @@
   // -> { cls, why }. Ordered: the software renderers and the integrated parts first, then the families by number;
   // a name the table does not know is 'current' (the middle: never the dearest on a guess, never the poorest)
   // G1460 (SOFT-GPU): a software renderer - no graphics card in use (SwiftShader: every cloud session's headless Chromium;
-  // llvmpipe / softpipe: Mesa's; Microsoft's Basic Render Driver). The game's 'software' rung keys on this answer
-  // (gfx_settings.js SOFT); on any other name it is false and nothing of the rung exists
+  // llvmpipe / softpipe: Mesa's; Microsoft's Basic Render Driver). Suggested `minimum` (the tier made for it); WELCOME.SOFT
+  // tells the menu, which starts there when nothing was chosen - the rigs, the cloud sessions' included, see no screen
   const isSoftware = raw => /SwiftShader|llvmpipe|softpipe|Software|Basic Render/i.test(String(raw || ''));
   const gpuClass = raw => {
     const s = cleanGpu(raw);
     let m;
     if (!s) return { cls: 'current', why: 'the card did not say its name' };
-    if (isSoftware(s)) return { cls: 'potato', why: 'a software renderer (no graphics card in use)' };
+    if (isSoftware(s)) return { cls: 'minimum', why: 'a software renderer (no graphics card in use)' };   // G1460: the tier made for it
     if (/Mali|Adreno|PowerVR|Apple A\d|Videocore/i.test(s)) return { cls: 'potato', why: 'a phone or tablet graphics part' };
     if (/Intel/i.test(s) && /\b(HD|UHD|Iris)\b/i.test(s)) return { cls: 'potato', why: 'Intel integrated graphics' };
     if (/Radeon\(TM\) Graphics|Radeon Graphics|Radeon Vega \d+ Graphics|Vega \d+ Graphics/i.test(s)) return { cls: 'potato', why: 'AMD integrated graphics' };

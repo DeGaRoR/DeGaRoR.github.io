@@ -436,16 +436,27 @@
     if (t - B._watchArmed < 1900) return;
     // a 9 s block is a normal step on a slow machine: the button is a safety
     // valve, not a verdict - it shows at 14 s of silence, the overlay gives up
-    // at 30 s of silence or 2 min in all
-    // G1460 (SOFT-GPU): ON A SOFTWARE RENDERER the clock is twenty times longer - SwiftShader compiles every program
-    // and draws every frame on the CPU (a garage boot ~6 min, one frame of the shed up to a minute): the 120 s hard
-    // timeout lifted the overlay a third of the way through the chain. Read at the check (welcome.js decides after
-    // this script); 1 on every graphics card
-    const k = (typeof window !== 'undefined' && window.GFX && window.GFX.soft && window.GFX.soft()) ? 20 : 1;
-    const idle = (B.opt.idle || 30000) * k, hard = (B.opt.hard || 120000) * k, skipAt = (B.opt.skipAt || 14000) * k;
+    // at 30 s of silence or 2 min without the chain moving (G1460, below)
+    // G1460 (SOFT-GPU) THE HARD LIMIT IS 2 MIN WITHOUT THE CHAIN MOVING, not 2 min in all: it counts from the later of the
+    // run's start, the current step's start and the landing's. A slow machine's boot is a long chain of slow steps that
+    // all finish - a software renderer's garage chain is ~8-10 min, a weak laptop's cold boot can pass 2 min too - and the
+    // old clock lifted the overlay on it a third of the way through (`hard timeout - never landed: props 434/534`), the
+    // chain running on behind it. A step that hangs is still caught: 30 s of silence (idle), or 2 min in ONE step while
+    // its events trickle
+    // ...AND A LATE CHECK IS A BUSY PAGE, NOT A SILENT ONE: this timer is armed for 2 s; firing 6 s or more late means the
+    // main thread was held by one long task (a frame that compiles, a bake - 46-70 s each on SwiftShader), which is work.
+    // A boot waiting on something that never comes leaves the thread free, the check fires on time and idle catches it
+    if (t - B._watchArmed > 6000) B.lastEvent = Math.max(B.lastEvent, t - 2000);
+    const idle = B.opt.idle || 30000, hard = B.opt.hard || 120000, skipAt = B.opt.skipAt || 14000;
     if (t - B.lastEvent >= skipAt || t - B.opt.t0 >= 45000) { const b = $('bootSkip'); if (b) b.hidden = false; }
     const compiling = B._shaderT && t - B._shaderT < idle;   // G567: a moving shader count is not a stuck boot
-    if (t - B.lastEvent >= idle || (t - B.opt.t0 >= hard && !compiling)) { fail(t - B.opt.t0 >= hard ? 'hard timeout' : 'nothing landed for ' + Math.round(idle / 1000) + ' s'); return; }
+    const moved = Math.max(B.opt.t0, B.state === 'landing' ? (B._landT || 0) : (B._stepT || 0));
+    // SILENCE INSIDE A RUNNING STEP IS THE STEP'S WORK (G1460): a step awaiting a worker or the GPU (the flown bake's render,
+    // 47 s on SwiftShader, in a worker) leaves this thread free and says nothing - the 30 s silence verdict lifted the
+    // overlay there ('nothing landed for 30 s', a software renderer at 172 s). While a step is running its limit is the
+    // hard one (2 min since IT started); the silence rule is the landing's (the assets that must arrive) and between steps
+    const silent = t - B.lastEvent >= idle && !(B.state === 'loading' && B.current);
+    if (silent || (t - moved >= hard && !compiling)) { fail(t - moved >= hard ? 'hard timeout' : 'nothing landed for ' + Math.round(idle / 1000) + ' s'); return; }
     B._watchArmed = t; if (hasTimer) setTimeout(watch, 2000);
   }
   function armWatch() { B.lastEvent = now(); }
@@ -598,7 +609,7 @@
   function fail(reason) {
     if (B.state === 'gone' || B.state === 'ready') return;
     const miss = pending();
-    rec('fail', { reason, missing: miss, failed: B.failed.slice() });
+    rec('fail', { reason, missing: miss, failed: B.failed.slice(), step: B.current ? B.current.id : null });   // (G1460: in which step)
     if (typeof console !== 'undefined') console.warn('boot: ' + reason + (miss.length ? ' - never landed: ' + miss.join(', ') : '') + (B.failed.length ? ' - failed: ' + B.failed.join(', ') : ''));
     B.state = 'ready'; hide();
   }

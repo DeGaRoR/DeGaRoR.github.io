@@ -750,12 +750,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     // Once per world, here, because this is where the world's own fields are already in hand.
     try { const f = ATMO.bakeField && ATMO.bakeField(renderer, world); if (f) console.log('mist field: ' + f.N + '^2 in ' + f.ms.toFixed(0) + ' ms, band ceiling ' + f.yHi.toFixed(0) + ' m'); } catch (e) { console.warn('mist field: ' + e.message); }
     if (typeof SKY_LIGHT !== 'undefined' && SKY_LIGHT.calibrate()) ATMO.U.scale.value = SKY_LIGHT.K().K_SUN * Math.PI;
-    // G1460 (SOFT-GPU) NO SKY PROBE ON A SOFTWARE RENDERER: on SwiftShader the probe's PMREM poisons every Standard
-    // material of the world - the ground, the trees, the sheds and the aeroplane drew BLACK at the stand (the Lambert far
-    // terrain and the sky right), and with scene.environment taken away the same frame drew whole. No probe (null, the
-    // path a world without ATMO takes for it), no cube bakes; the hemisphere and the sun light the world
-    const softEnv = typeof window !== 'undefined' && window.GFX && window.GFX.soft && window.GFX.soft();
-    probe = softEnv ? null : ATMO.makeProbe(renderer, { frameYaw: 0, cap: capOf, gb, onSwap: t => { envMap = t; scene.environment = t; },   // the cap: THE GROUND UNDER THE CRAFT (above)
+    probe = ATMO.makeProbe(renderer, { frameYaw: 0, cap: capOf, gb, onSwap: t => { envMap = t; scene.environment = t; },   // the cap: THE GROUND UNDER THE CRAFT (above)
       // CLOUDS C3: the layer over the dome in the probe's scene (the water and the skin reflect the clouds),
       // re-baked as the clouds drift past the eye
       decorate: typeof CLOUDS !== 'undefined' && CLOUDS.domeMesh ? es => { const m = CLOUDS.domeMesh(0, 20, 24); if (m) es.add(m); } : null,
@@ -768,7 +763,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     // material in the cabin took it as its ambient from below. The same sky over a NEUTRAL cap (the
     // cabin's own floor and walls, a dark warm grey) is the environment while the eye is in the cockpit
     // (app.js hands the view over through WORLD_RIG.interior); baked on the world probe's schedule.
-    probeIn = softEnv ? null : ATMO.makeProbe(renderer, { frameYaw: 0, capHex: 0x3f3c38, gb, onSwap: t => { envIn = t; if (interiorView) scene.environment = t; },
+    probeIn = ATMO.makeProbe(renderer, { frameYaw: 0, capHex: 0x3f3c38, gb, onSwap: t => { envIn = t; if (interiorView) scene.environment = t; },
       decorate: typeof CLOUDS !== 'undefined' && CLOUDS.domeMesh ? es => { const m = CLOUDS.domeMesh(0, 20, 24); if (m) es.add(m); } : null });
     if (probeIn) probeIn.bake(world.day);
   } else {
@@ -5191,10 +5186,8 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
           // THE CLIFFS (cliffs.js, 2026-09-22): the photoscanned faces stood in the island's own steep ground, once at boot
           if (typeof CLIFFS !== 'undefined' && world.island) { try { cliffs = CLIFFS.make(THREE, { scene, world, treeBuild, treeList, LEAF: TREE_LEAF, pack: TREE_PACK }); cliffs.build(); } catch (e) { console.warn('cliffs: ' + (e && e.message)); } }
           // G1460 (SOFT-GPU) THE MENU'S ROWS REACH THE RING. GFX.onWorld (app.js worldBuilt) ran before this block made
-          // the ring, and nothing applies the menu again: the cover row never reached it - potato's 'off' drew the full
-          // ring (reach 220, density 2: ~30 M triangles a frame, 3-9 MINUTES a frame on SwiftShader). The same is true on
-          // a graphics card (potato and retro draw the full cover there too); this re-apply is the software rung's only,
-          // so a card's picture stays as it was - dropping the soft() test fixes it for every machine (A0's / the user's call)
+          // the ring, and nothing applied the menu again: the cover row never reached it - potato's 'off' and retro's 'lean'
+          // drew the full ring (reach 220, density 2: ~30 M triangles a frame at the stand, on every machine)
           if (typeof window !== 'undefined' && window.GFX && window.GFX.reapply) window.GFX.reapply();   // train 31 (the user, 2026-10-04: "fix for all"): every machine; only the cover row (the ring's handle is new) - not the whole menu again (onWorld cost the warm settle +0.7 s)
         })).catch(e => { console.error('cover ring: ' + (e && e.message)); });
       // THE REACHABLE CATALOGUE, AGAIN (AS1, G908: trees.js treeReach). An F8 biome or mix edit (or a premises
@@ -6842,7 +6835,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         const s2l = v => (v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4));
         for (let i = 0, n = W * H; i < n; i++) {
           for (let ch = 0; ch < 3; ch++)
-            out[i * 4 + ch] = half(s2l(bd[i * 4 + ch] / 255) * invK * Math.pow(2, (gd[i * 4 + ch] / 255) * gmax));
+            out[i * 4 + ch] = half(Math.min(65504, s2l(bd[i * 4 + ch] / 255) * invK * Math.pow(2, (gd[i * 4 + ch] / 255) * gmax)));   // (G1460: a half's largest finite - past it toHalfFloat warns and packs +Inf)
           out[i * 4 + 3] = half(1);
         }
         const t = new THREE.DataTexture(out, W, H, THREE.RGBAFormat, THREE.HalfFloatType);

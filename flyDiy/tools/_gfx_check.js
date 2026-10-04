@@ -85,15 +85,16 @@ console.log('GATE GFX');
   m({ preset: 'gamer', pv: 7, fps: 'auto', fpsOwn: true }, 'auto', 'pv 7: a picked auto stays');
   m({ preset: 'ultra', pv: 2 }, 'auto', 'an old pref on ultra (no frame rate stored) reads auto');
 }
-// 1b. the five tiers (PERF 2026-09-23): named, labelled, gamer the default, and gamer IS the medium of before
+// 1b. the tiers (PERF 2026-09-23; G1460 put `minimum` under potato): named, labelled, gamer the default, and gamer IS the medium of before
 {
   const w = boot({});
   const G = w.GFX;
-  ok(Object.keys(G.PRESETS).join(',') === 'potato,retro,current,gamer,ultra' && G.DEFAULT === 'gamer',
-     'five tiers, potato .. ultra, gamer the default (' + Object.keys(G.PRESETS).join(',') + ')');
+  ok(Object.keys(G.PRESETS).join(',') === 'minimum,potato,retro,current,gamer,ultra' && G.DEFAULT === 'gamer',
+     'six tiers, minimum .. ultra, gamer the default (' + Object.keys(G.PRESETS).join(',') + ')');
   const OLD_MEDIUM = { ground: 'far1', terrain: 1, scale: 1, drawDist: 'vis', aa: 'msaa', density: 128, bands: 'near', shadows: 'full', canopy: 'on', rails: 'on', poles: 'on', lighting: 'sunset', tone: 'cineon', exposure: 1, colour: 'managed', glare: 'on', sway: 'on', mist: 'land', clouds: 'half', bloom: 'off', look: 'off', lens: 'off', rays: 'off', ao: 'off', eye: 'off', compositing: 'linear', water: 'simple', mirror: 'off' };
   OLD_MEDIUM.cover = 'full'; OLD_MEDIUM.scenery = 'full';   // G570's rows: gamer keeps the whole of both
   OLD_MEDIUM.bloom = 'soft';   // the default look (2026-09-23): the soft bloom from 'current' up
+  OLD_MEDIUM.filter = 'aniso'; OLD_MEDIUM.glass = 'refract';   // G1460's rows: what every tier above minimum always drew
   OLD_MEDIUM.bands = 'mid';   // G1113 'minimum', G1114.2 'mid': gamer's trees whole to 50 m, the light rung to 120 m (TREES-NEAR, the user's call)
   ok(G.OPTIONS.every(o => G.PRESETS.gamer[o.k] === OLD_MEDIUM[o.k]), 'gamer is the medium of before, option for option (plus the far ground lean, G513; simple water and no mirror since 2026-10-03, the user)');
   const w2 = boot({ 'flydiy.gfx': JSON.stringify(Object.assign({ preset: 'medium' }, OLD_MEDIUM)) });
@@ -234,12 +235,12 @@ console.log('GATE GFX');
     ['NVIDIA GeForce RTX 4090', 'gamer'], ['NVIDIA GeForce RTX 4060', 'current'],
     ['AMD Radeon RX 6700 XT', 'current'], ['AMD Radeon RX 6800 XT', 'gamer'], ['AMD Radeon RX 7900 XTX', 'gamer'],
     ['AMD Radeon(TM) Graphics', 'potato'],
-    ['Google SwiftShader', 'potato'], ['ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)', 'potato'],
+    ['Google SwiftShader', 'minimum'], ['ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)', 'minimum'],
     ['Apple M2 Pro', 'current'], ['', 'current'], ['Some Future Card 9000', 'current'],
   ];
   const bad = GPUS.filter(([n, c, clean]) => WL.gpuClass(n).cls !== c || (clean && WL.cleanGpu(n) !== clean));
   for (const [n, c] of bad) console.log('    ' + JSON.stringify(n) + ' -> ' + WL.gpuClass(n).cls + ' (' + WL.cleanGpu(n) + '), want ' + c);
-  ok(!bad.length, 'the GPU table on ' + GPUS.length + ' sample names: Intel HD/UHD/Iris, GTX 6xx-9xx, Mali/Adreno potato; GTX 10xx, RX 4xx/5xx retro; RTX 20xx / below a 3070 current; 3070+ / RX 6800+ gamer; unknown current');
+  ok(!bad.length, 'the GPU table on ' + GPUS.length + ' sample names: Intel HD/UHD/Iris, GTX 6xx-9xx, Mali/Adreno potato; software renderers minimum; GTX 10xx, RX 4xx/5xx retro; RTX 20xx / below a 3070 current; 3070+ / RX 6800+ gamer; unknown current');
   ok(WL.memClass({ mobile: true, mem: 8 }).cls === 'potato' && WL.memClass({ mem: 4 }).cls === 'potato' && WL.memClass({ mem: 2 }).cls === 'potato' &&
      WL.memClass({ mem: 8 }).cls === 'gamer' && WL.memClass({ mem: 0 }).cls === 'gamer', 'the memory class: a phone or 4 GB or less caps at potato; 8 GB, or nothing said, caps nothing');
   // the decision: (env, store, query, navigator)
@@ -296,11 +297,12 @@ console.log('GATE GFX');
      'index.html: welcome.js after boot.js and before the core; the island loader holds on FLYDIY_WELCOME before its first fetch');
 }
 
-// 9. G1460 (SOFT-GPU) THE SOFTWARE RUNG IS INERT ON A GRAPHICS CARD. welcome.js's isSoftware on the GPU table (only the
-//    software renderers), gfx_settings.js's GFX.soft() null on every card - and then the resolved options, the saved
-//    choice and the presets table are, key for key, a boot without the rung's code; on SwiftShader it starts on potato,
-//    and a player's saved choice, ?gfx= and ?soft=0 win over it. Every place the game changes for the rung asks
-//    GFX.soft() in a conditional (listed and counted below) - so a null answer is the old path, by construction.
+// 9. G1460 (SOFT-GPU) THE MINIMUM PRESET AND THE SOFTWARE RENDERER. welcome.js's isSoftware on the GPU table (only the
+//    software renderers); `minimum` is potato plus what a CPU renderer pays most for (half the pixels, no MSAA in the scene,
+//    plain filtering, plain glass) on potato's build budget; every other tier keeps the two new rows at what it always drew
+//    (a pref saved before G1460 reads its preset unchanged); on a card the menu's start is the one it was (48 boots
+//    compared with and without the probe's answer), on a software renderer it starts on minimum, unsaved, and a saved
+//    choice / ?gfx= win; the filter row's hook answers 1 on plain and the renderer's own maximum otherwise
 {
   const wsrc = fs.readFileSync(path.join(__dirname, '..', 'src', 'viewer', 'welcome.js'), 'utf8');
   const ww = { navigator: {} }; ww.window = ww;
@@ -311,42 +313,41 @@ console.log('GATE GFX');
   const HW = ['ANGLE (NVIDIA, NVIDIA GeForce RTX 3080 (0x00002206) Direct3D11 vs_5_0 ps_5_0, D3D11)', 'NVIDIA GeForce GTX 660/PCIe/SSE2',
     'ANGLE (Intel, Intel(R) UHD Graphics 620 (0x00005917) Direct3D11 vs_5_0 ps_5_0, D3D11)', 'AMD Radeon RX 6800 XT', 'Apple M2', 'Adreno (TM) 650', 'Mali-G57 MC2', ''];
   ok(SW.every(n => WL.isSoftware(n)) && HW.every(n => !WL.isSoftware(n)), 'isSoftware: the ' + SW.length + ' software renderers yes, the ' + HW.length + ' cards (an empty name included) no');
-  ok(SW.every(n => WL.gpuClass(n).cls === 'potato'), "...and gpuClass still classes them potato (G1210's table, through isSoftware)");
+  ok(SW.every(n => WL.gpuClass(n).cls === 'minimum') && HW.every(n => WL.gpuClass(n).cls !== 'minimum'), 'the welcome suggests minimum for a software renderer, and for nothing else');
   const gsrc = fs.readFileSync(path.join(__dirname, '..', 'src', 'viewer', 'gfx_settings.js'), 'utf8');
   const bootG = (store, welcome, search) => { const w = makeWindow(store); if (welcome) w.WELCOME = welcome; if (search) w.location = { search };
     vm.runInNewContext(gsrc, Object.assign({ window: w, setInterval: () => 0, clearInterval: () => {} }, w)); return w; };
+  const G = bootG({}, null, '').GFX, P = G.PRESETS, OPT = G.OPTIONS.filter(o => !o.free).map(o => o.k);
+  const M = P.minimum, Pp = P.potato;
+  const moved = OPT.filter(k => M[k] !== Pp[k]).sort().join();
+  ok(moved === 'aa,filter,glass,scale' && M.scale === 0.5 && M.aa === 'none' && M.filter === 'plain' && M.glass === 'plain',
+     'minimum is potato with four rows lower: ' + OPT.filter(k => M[k] !== Pp[k]).map(k => k + ' ' + Pp[k] + ' -> ' + M[k]).join(', '));
+  ok(JSON.stringify(G.BUDGETS.minimum) === JSON.stringify(G.BUDGETS.potato), "minimum builds to potato's budget (" + JSON.stringify(G.BUDGETS.minimum) + ')');
+  ok(Object.keys(P).filter(p => p !== 'minimum').every(p => P[p].filter === 'aniso' && P[p].glass === 'refract'), 'every tier above minimum keeps sharp filtering and refracting glass (what it drew before G1460)');
+  ok(['potato', 'retro', 'gamer', 'ultra'].every(p => bootG({ 'flydiy.gfx': JSON.stringify(Object.assign({}, P[p], { preset: p, pv: 7, filter: undefined, glass: undefined })) }, null, '').GFX.get().preset === p),
+     'a pref saved before G1460 (no filter / glass rows) reads its preset unchanged');
   const card = gpu => ({ RIG: true, SOFT: WL.isSoftware(gpu), env: { gpu }, pick: null });
-  const CASES = [[{}, ''], [{}, '?gfx=potato'], [{}, '?gfx=ultra'], [{ 'flydiy.gfx': JSON.stringify({ preset: 'retro', pv: 6 }) }, ''],
-    [{ 'flydiy.gfx': JSON.stringify({ preset: 'custom', pv: 6, shadows: 'off', aa: 'msaa4' }) }, ''], [{ 'flydiy.gfx': '{corrupt' }, '']];
-  let same = true, nulls = true;
+  const CASES = [[{}, ''], [{}, '?gfx=potato'], [{}, '?gfx=ultra'], [{ 'flydiy.gfx': JSON.stringify({ preset: 'retro', pv: 7 }) }, ''],
+    [{ 'flydiy.gfx': JSON.stringify({ preset: 'custom', pv: 7, shadows: 'off', aa: 'msaa4' }) }, ''], [{ 'flydiy.gfx': '{corrupt' }, '']];
+  let same = true;
   for (const gpu of HW) for (const [st, q] of CASES) {
     const A = bootG(Object.assign({}, st), null, q), B = bootG(Object.assign({}, st), card(gpu), q);
-    if (B.GFX.soft() !== null) nulls = false;
-    if (JSON.stringify(A.GFX.get()) !== JSON.stringify(B.GFX.get()) || A.localStorage.getItem('flydiy.gfx') !== B.localStorage.getItem('flydiy.gfx')
-        || JSON.stringify(A.GFX.PRESETS) !== JSON.stringify(B.GFX.PRESETS)) { same = false; console.log('    differs: ' + gpu + ' ' + JSON.stringify(st) + ' ' + q); }
+    if (B.GFX.software() || JSON.stringify(A.GFX.get()) !== JSON.stringify(B.GFX.get()) || A.localStorage.getItem('flydiy.gfx') !== B.localStorage.getItem('flydiy.gfx')) { same = false; console.log('    differs: ' + gpu + ' ' + JSON.stringify(st) + ' ' + q); }
   }
-  ok(nulls, 'GFX.soft() is null on every card (' + HW.length + ' names x ' + CASES.length + ' starts)');
-  ok(same, 'on a card the resolved options, the saved choice and the presets table are those of a boot without the rung (' + HW.length * CASES.length + ' boots compared)');
+  ok(same, 'on a card the menu starts where it did without the probe\'s answer (' + HW.length * CASES.length + ' boots compared)');
   const S0 = bootG({}, card(SW[1]), '');
-  const PICK = o => Object.fromEntries(S0.GFX.OPTIONS.filter(x => !x.free).map(x => [x.k, o[x.k]]));
-  ok(S0.GFX.soft() && S0.GFX.soft().tier === 'software' && S0.GFX.get().preset === 'potato' && JSON.stringify(PICK(S0.GFX.get())) === JSON.stringify(PICK(S0.GFX.PRESETS.potato)),
-     'on SwiftShader with nothing chosen: the software rung, on potato\'s options (' + (S0.GFX.soft() && S0.GFX.soft().tier) + ', ' + S0.GFX.get().preset + ')');
-  ok(S0.localStorage.getItem('flydiy.gfx') === null, '...and nothing saved for it (the rung is not a player\'s choice)');
-  ok(bootG({ 'flydiy.gfx': JSON.stringify({ preset: 'gamer', pv: 6 }) }, card(SW[1]), '').GFX.get().preset === 'gamer', 'a saved choice wins over the rung (gamer stays gamer)');
-  ok(bootG({}, card(SW[1]), '?gfx=retro').GFX.get().preset === 'retro', '?gfx= wins over the rung');
-  ok(bootG({}, card(SW[1]), '?soft=0').GFX.soft() === null && bootG({}, card(SW[1]), '?soft=0').GFX.get().preset === 'gamer', '?soft=0 turns the rung off (the default preset, as before G1460)');
-  ok(!!bootG({}, card(HW[0]), '?soft=1').GFX.soft(), '?soft=1 turns it on over a card (A0\'s A/B on the box)');
-  ok(bootG({}, null, '').GFX.soft() === null, 'no welcome.js (a harness, an old page): no rung');
-  // every site the rung changes asks GFX.soft() in a conditional, nowhere else
-  const SITES = { 'boot.js': 1, 'render_world.js': 1, 'hangar.js': 1, 'app.js': 1, 'aa_resolve.js': 1 };   // train 31: the cover ring's re-apply runs on every machine now (the user: fix for all)
-  const sites = [];
-  for (const f of Object.keys(SITES)) {
-    const src = fs.readFileSync(path.join(__dirname, '..', 'src', 'viewer', f), 'utf8');
-    src.split('\n').forEach((l, i) => { if (/GFX\.soft\(\)/.test(l) && !/^\s*\/\//.test(l)) sites.push([f, i + 1, /GFX\.soft && [\w.]*GFX\.soft\(\)\s*(\)|&&|\?|;)/.test(l)]); });
-  }
-  const per = f => sites.filter(s => s[0] === f).length;
-  ok(sites.every(s => s[2]) && Object.keys(SITES).every(f => per(f) >= SITES[f]),
-     'every rung site is a conditional on GFX.soft() (' + sites.map(s => s[0] + ':' + s[1]).join(', ') + ')');
+  ok(S0.GFX.software() && S0.GFX.get().preset === 'minimum' && S0.GFX.get().build === 'minimum' && S0.localStorage.getItem('flydiy.gfx') === null,
+     'on a software renderer with nothing chosen: minimum, its budget, nothing saved (' + S0.GFX.get().preset + ')');
+  ok(bootG({ 'flydiy.gfx': JSON.stringify({ preset: 'gamer', pv: 7 }) }, card(SW[1]), '').GFX.get().preset === 'gamer', 'a saved choice wins over it');
+  ok(bootG({}, card(SW[1]), '?gfx=potato').GFX.get().preset === 'potato', '?gfx= wins over it');
+  // the filter row's hook: three asks capabilities.getMaxAnisotropy() at every upload
+  const caps = { getMaxAnisotropy: () => 16 }, R = { capabilities: caps };
+  const Wf = bootG({}, null, '?gfx=minimum'); Wf.GFX.filterHook(R); const a1 = caps.getMaxAnisotropy();
+  Wf.GFX.set('filter', 'aniso'); const a2 = caps.getMaxAnisotropy();
+  ok(a1 === 1 && a2 === 16, 'the filter hook: plain answers 1, sharp the renderer\'s own 16 (' + a1 + ', ' + a2 + ')');
+  // no software special case left in the game: the rung's GFX.soft() is gone
+  const src = ['boot.js', 'app.js', 'aa_resolve.js', 'hangar.js', 'render_world.js'].map(f => fs.readFileSync(path.join(__dirname, '..', 'src', 'viewer', f), 'utf8')).join('\n');
+  ok(!/GFX\.soft\b/.test(src) && !/GFX\.software\(\)/.test(src), 'no software special case in the game: the frame asks the menu\'s rows, never "is this a software renderer"');
 }
 
 console.log(fails ? 'GATE GFX: FAIL' : 'GATE GFX: PASS');
