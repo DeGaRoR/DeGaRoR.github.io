@@ -68508,3 +68508,114 @@ at 6034 engine rpm; a steady frame schedules nothing but the 1 s-tau warm-up (~e
 BUILD, UISMOKE, JOIN PASS. NOT YET: a browser (the first real context and the worklet's load on Pages) - the strict gates'
 headed Chrome clicks, so A0's train run is the first real hearing; GATE AUDIO does not yet cover src_engine (SND-PROP
 extends GATE AUDIO when it adds its own source next to this one).
+
+## G1620-G1623 - SND-PROP: THE PROPELLER VOICE, THE TURBINE AND THE ELECTRIC MOTOR, DRIVEN BY THE ENGINE VOICE, HEARD OFFLINE, GATED (2026-10-04, SND-PROP for the Sound Coordinator, cloud, node only; block G1620-G1629, G1624-G1629 unused)
+
+Branch `claude/snd-prop-g1620` off `claude/sound-integration` (32f01f8a). Design: futureDesigns/SOUND-2026-10-04.md §1.2/§3.2-§3.4/§8/§9.
+G1620 THE VOICES - `src/viewer/audio/prop_worklet.js`, ONE AudioWorklet module, THREE processors (a second module beside
+engine_worklet.js rather than an extension of it: the port's file keeps its MIT header and its own change list, and this
+code is not a port, so nothing here carries a licence). Written for flyDiy; methods cited (CREDITS.md, Sound, a new subsection).
+  'flydiy-prop' - one per engine. INPUT 0 = the driver's control output 1 (engine rpm/1000, prop rpm/1000), read PER
+  SAMPLE: the prop turns with the crank, the catch surge and the run-down the engine voice makes; unconnected it falls back
+  to its k-rate `rpm` (x `gear` for the mesh). k-rate params: rpm, thrust (N, out.thrustPer[i]), thr (the lever, x running),
+  c (out.c), V, alpha, beta (rad), interior. TIP MACH IS COMPUTED PER BLOCK FROM THE LIVE PROP RPM (pi D n/60 / c, helical
+  with V), not taken from P.tipM: a cranking prop must be quiet; it equals P.tipM in a steady state.
+  Contents (SOUND §3.2): TONAL m = 1..8 at m B Omega, each level Gutin's - (0.6 thrust/Tstatic + 0.4 thr + 0.25 Mh^2/0.65^2
+  thickness) x Mh x m x J_mB(m B 0.8 Mh sin 75 deg), the Bessel factor exact per block (Miller's backward recurrence, inline),
+  normalised to the fundamental at Mh 0.65 - so the levels rise with tip Mach and the roll-off flattens toward sonic by
+  physics, not a table; an UNSTEADY floor m^-1.3 growing with incidence; the 1P wobble (sidebands) at incidence; blade-to-
+  blade irregularity +-3 % per passage. SNARL above helical Mh 0.82-1.0: every m >= 2 lifted toward the fundamental (a
+  transonic tip's pulse steepens toward a shock: a flat spectrum) + a mild saturation (1 + 1.2 sn; a hard clip shaves off
+  the very spikes the snarl is - measured: the first version, drive 1 + 5 sn, LOWERED the upper share). BROADBAND: four
+  span sections r/R .45 .65 .80 .95, each a TPT band-pass on noise at St U/t (St 0.2, U = hypot(Omega r, V), t nominal
+  thickness), amplitude U^3 (Selfridge et al.'s compact sources), with the loading. CHOP: the broadband (and 30 % of the
+  tonal) modulated at BPF by a raised-cosine pulse, depth 0.15 + 1.4 incidence (+0.25 in the cockpit), incidence =
+  |sin a| + 0.8 |sin b| faded in over 5-15 m/s (alpha is noise on the ground). GEAR WHINE on geared engines at engine
+  rpm/60 x pinion teeth, with the torque. BETA BUZZ: tip Mach high (0.5-0.7), thrust ~0 (< 0.08-0.3 Tstatic), lever back
+  (< 0.35) - the PT6 at taxi: upper harmonics and irregularity up. Outputs: 0 = mono (tonal + broadband); 1 = 2 channels
+  [tonal (+ snarl, whine), broadband (+ chop)] - the same sound split for SND-SPACE. DC blockers per part, NaN guard that
+  resets, states flushed below 1e-20, asleep 1 s after the prop stops (states zeroed).
+  'flydiy-turbine' - the PT6 rows (the solver publishes Np only, constant-speed): Ng DERIVED from the power fraction
+  (lever x running): idle 52 %, ngIdle + (1.01 - ngIdle) power^0.7, the starter's 17 %; spool 2.5 s light-off / 1.5 s up /
+  2 s down running, 6 s + friction after shutdown (the long whine down); Np toward the solver's with 2 s / 6 s + friction.
+  Tone stack: three axial stages + the centrifugal impeller at Ng rev/s x NOMINAL blade counts (26, 39, 44; 30), the first
+  stage's 2nd harmonic, level Ng^2, faded out toward 0.45 sr instead of folding; combustion roar (a 600 Hz 2-pole rumble +
+  a 1.4 kHz band) with the fuel flow, once lit. The prop in beta is the prop voice's own (above).
+  'flydiy-electric' - the whine at the electrical frequency (pole pairs x rpm/60): torque ripple 6 f_e, 12 f_e, the 2 f_e
+  hum, with the current (0.12 + 0.88 power); the inverter's PWM f_sw +- 2 f_e, faint, whenever armed. gain 0.012: very
+  quiet on purpose (§3.4). Spool 0.25 s powered, 2.5 s freewheeling.
+  Both drivers publish THE SAME control output as the piston voice (output 1: driver rpm/1000 - Ng rpm | motor rpm -,
+  prop rpm/1000), so every prop node is wired the same way. ALLOCATION-FREE (G1610's lesson kept): every per-block and
+  per-sample computation inline in process(), no call that takes or returns a double, no per-block closure, typed state.
+G1621 THE CONFIG AND THE SOURCE - `src/viewer/audio/prop_config.js` (pure, node + page: window.PROP_SOUND):
+  propSoundConfig(spec, i, registry?, prop?) -> {driver: 'piston'|'turbine'|'electric', prop: {blades, D, Tstatic, gear,
+  pinion, ratedPropRpm, gain + the tuning knobs}, turbine | electric}. blades: engines[i].sound.blades -> spec.prop.blades
+  -> the registry's -> 2 (audio_params' own order; the gate holds them equal); D, Tstatic: the solver's prop record
+  (def.params.prop) when passed; pinion: the Rotax boxes by ratio (C 2.62 = 55/21, B 2.58 = 62/24, 2.43 = 51/21, 2.27 =
+  50/22), other reductions 21, direct drive and turbine 0; pole pairs 10 (>= 5 kW) / 7 (RC), PWM 12 / 16 kHz.
+  propSoundInputs(P, i, dst, o) / propDriverInputs(P, i, dst, o): the block -> the params, allocation-free.
+  `src/viewer/audio/src_prop.js`: AUDIO.addSource('prop'): loads 'prop_worklet', per engine of the flown aeroplane (rebuilt
+  on P.def) one 'flydiy-prop' (numberOfInputs 1, channelCount 2 explicit/discrete, outputs [1, 2]); for turbine / electric
+  rows also their driver node, its output 1 -> the prop; for piston rows the prop listens to src_engine's node through THE
+  HOOK (the one src_engine.js edit, 3 lines: `AUDIO.voices.engine[i] = node`, cleared on teardown) and RE-WIRES whenever
+  that node changes (either module may load first; a rebuild may land on another frame; the old edge is removed with
+  disconnect(prop, 1)). Output 0 of each -> aircraft.ext and, through a placeholder 1.4 kHz low-pass, aircraft.int (as
+  src_engine; SND-SPACE replaces both). Per frame: reads only the block, schedules only what moved (rpm 0.5, thrust 0.5 %
+  of Tstatic, thr 0.002, c 0.5, V 0.2, alpha/beta 0.002; interior / running / starter by setValueAtTime).
+  tools/build.js (one line each): MANIFEST.audio.modules += 'prop_worklet.js'; viewer.scripts += 'audio/prop_config.js',
+  'audio/src_prop.js' after src_engine.js. No app.js edit.
+G1622 THE HARNESS - `tools/audio/render_prop.js` (a sibling of render.js, on its shim / FFT / WAV / PNG): CHAINS (driver +
+  prop, the driver's control output arrays handed by reference as the prop's input), the solver's laws (genShaftRpm ->
+  genEngineRpm; thrust thr x max(0, Tstatic - kV2 V^2), sea level), scenes runup / takeoff (V to Vr, rotation) / climb
+  (Vy, alpha 0.2, a sideslip) / tipsweep (the Cub's engine on a 2.3 m prop forced 1800 -> 3150 rpm: Mh 0.64 -> 1.11) /
+  start (key: crank, catch or light-off, burst, off, run-down) / taxi; --bench, --calibrate, --wav. render.js's
+  spectrogramPng gained `traces` (the BPF in white, the 582's firing in cyan; `firing` unchanged).
+  The eight builds: the six validated (the user's Cub, the Jodel, the Cessna, the metal Cessna O-540, the Cessna on Wipline
+  floats, the twin-582) + a PT6 ARCHETYPE (the metal Cessna's airframe on pt6a114a_hartzell3, 3 blades 2.69 m) + an
+  ELECTRIC ARCHETYPE (the twin-boom fixture, E-811). EVIDENCE: reports/evidence/SND-PROP/ - 31 Opus + 31 PNG + README
+  (4.4 MB; what to listen for in each; the prop table).
+G1623 THE GATE - `tools/audio/_prop_check.js`: nine sections APPENDED TO GATE AUDIOENG (_engine_check.js SECTIONS
+  .concat(PROP_SECTIONS): one place per voice, no new registry row; standalone `node tools/audio/_prop_check.js`, ~40 s
+  with the sabotages; `--only=P2`). §P1 config on the eight (driver, blades, D, gear, teeth; = audio_params' block) §P2 BPF
+  within +-0.01 % at four rpm on all eight, the prop DRIVEN by its engine voice (prominence >= 49 dB) §P3 the 582: firing
+  199.3 Hz +55 dB and BPF 76.1 Hz +54 dB both in the mix (x2.62), the mesh 2093 Hz +75 dB; the Cub firing = BPF = 70.5 Hz,
+  no mesh §P4 snarl: the upper-harmonic share -12.1 / -7.1 / +0.8 / +4.8 / +8.0 dB at Mh .7/.8/.9/.95/1.0, the snarl's own
+  share 0.0 dB below 0.8 and +3.6 / +4.0 dB at .95 / 1.0 (against the same voice, snarl off) §P5 23 engine+prop renders:
+  peak <= 0.64, DC <= 4e-4, no NaN, no subnormal in outputs or states; asleep 30 s after shutdown; hostile params + a NaN
+  in a filter recover §P6 0 GCs over 20 000 blocks of prop (driven + fallback), turbine, electric §P7 the prop turns with
+  the Cub's crank (BPF 8.8 Hz, solver 0 rpm), 65 % of idle 0.4 s after the key off, stopped by 5.5 s; PT6 Ng 52.0 / 101.0 %,
+  69 % 2 s after shutdown, the first stage exact (8450 Hz at idle); beta buzz 1.0 taxi / 0 climb; E-811 ripple exact
+  (2000 Hz), x4 with current; the chop at BPF +32 dB climbing, 8.5 dB deeper than level §P8 CPU §P9 THE SOURCES (stub
+  AudioContext / AudioWorkletNode recording every edge, the REAL audio.js + audio_params.js + engine_config.js +
+  src_engine.js + prop_config.js + src_prop.js in one vm context, the real solver): the Cub 1 engine + 1 prop, engine
+  output 1 -> prop input 0 with the PROP module loaded FIRST; a new def (the twin 582): 2 + 2, each prop on its own engine,
+  the old edges gone; PT6 1 turbine + 1 prop, electric 1 + 1, no piston node; a steady frame schedules 0 prop/driver params
+  in 120 frames; AUDIO.update with both sources 0 GCs over 2 x 10 000 frames (+7.6 kB, 8 us a frame). 22 SABOTAGES, each
+  red (blades, teeth, ratio, no whine, snarl off - a TEXT mutation of the worklet -, NaN, clip, DC, no sleep, an allocating
+  process(), the prop unwired, Ng idle, pole pairs, no chop, CPU; in the sources: no wire, scheduling every frame, no
+  rebuild, no hook in src_engine, an allocating update). Three tests were wrong on the first run, not the voices: the
+  allocation probe passed fresh `[]` / `[[]]` literals per call (its own garbage, 32-120 B a block); the source probe's
+  forced gc() between its two windows was counted; the snarl's first form failed its own test (above).
+CPU PER VOICE (node 22, this container, 128-frame block; real time 2.67 ms at 48 kHz): prop 0.008-0.016 ms (<= 0.6 %),
+  turbine 0.006 ms, electric 0.007 ms; the piston voice beside it 0.03-0.06 ms (SND-ENGINE's).
+GATES (run_gates --only=AUDIO,AUDIOENG,BUILD,UISMOKE, BATTERY PASS): AUDIO PASS 3.6 s, BUILD PASS 1.4 s, UISMOKE PASS 125 s,
+  AUDIOENG PASS 152 s (its eight sections + the nine prop sections, 132 + 22 controls red). Built files restored after the
+  runner's rebuild (none in this branch). Merged origin/claude/sound-integration (db91a50d, the Engine Lab review) - no conflict.
+THE ENGINE LAB REVIEW (db91a50d) AND THIS EVIDENCE: the `*_start` renders here carry the engine's starter the user rejected
+  ("R2D2") - judge the prop in them by the crank's whooshes and the run-down, not the whine; `twin582_runup_twin` (both
+  engines + both props, peak 0.62) is louder still than the engine-only twin the user found tiring - the multi-engine level
+  law should cover the props too (src_prop sums the props as src_engine sums the engines: one gain per voice).
+SND-TUNE's LIST (the README has it in full): the prop / engine balance (prop ~1 dB under the A-65s at full static, +10 dB
+  over the O-540s - the O-540's own dip helps); the broadband's share, Strouhal, thicknesses, Q; the snarl's onset and lift;
+  the chop law and its tonal share; thickness / unsteady floor; the whine level and nominal teeth; the PT6's nominal blade
+  counts, whine level, roar, spool constants (its planetary gearbox not modelled); the motor's pole pairs, PWM, level.
+FOR THE COORDINATOR TO WIRE: (1) nothing in app.js; the build lines are in; (2) A0's train: the browser's first real
+  load of prop_worklet.js (Pages, the SW media rule as for engine_worklet.js) and the first listen; (3) SND-SPACE: take the
+  prop's OUTPUT 1 (tonal / broadband apart) for directivity (tonal max ~10-20 deg behind the disc plane, nil on the axis),
+  doppler and the cabin; replace both placeholder low-passes; (4) the turbine / electric drivers live in src_prop.js
+  (src_engine.js still skips piston:false rows) - if the coordinator prefers every driver in src_engine, move build()'s
+  driver half there and publish it through the same hook; (5) GATE AUDIOENG's wall: 153 s measured on this box with the
+  prop sections (bound 200) - if the train's box is slower, raise `wall` in run_gates.js (not touched here).
+NOT DONE / OWED: the engine heard THROUGH the disc (the chop of the exhaust note) - it needs the engine's audio routed
+  into the prop node; the PT6's reduction-gear whine and the turbine's starter-generator; per-sample (not per-block) chop
+  depth. The Selfridge et al. paper itself was not reachable (egress blocked) - its method is used as SOUND §1.2 cites it.
