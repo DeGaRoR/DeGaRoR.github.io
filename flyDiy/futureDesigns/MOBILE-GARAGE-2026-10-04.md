@@ -82,16 +82,48 @@ roll-out of a visit"). That is the LOADING-S3 path the game had before B9: a gar
 ### 1.3 Measured: the garage without the world (node, prototype)
 
 `tools/perf/mobile_garage_node.js --mode garage` applies the table to app.js as a source transform **in the rig
-only**. It wraps `vm.runInContext`; the nine replacements must each match exactly once, or the rig stops. It then
+only**. It wraps `vm.runInContext`; the ten replacements must each match exactly once, or the rig stops. It then
 boots dev.html with `?world=none` on the validated builds. Tree: train 30 + RELEASE-FAST (G1450) + SOFT-GPU (G1460),
 merged locally, unpushed: the garage A0 is about to have. The rig ran on the cloud's 4 cores, one run at a time.
 
-⟨TABLE-1.3⟩
+| run (node, 4 cores, one at a time) | boot (real s) | boot steps run | read from disk (MB) | heap + ArrayBuffers after GC (MB) | GL programs linked | page errors |
+|---|---:|---:|---:|---:|---:|---:|
+| full / Cub | 295.1 | 21 | 229.6 | 827.5 + 2027.6 = **2855** | 406 | 53 (the impostor bakes' blank reads: the harness has no pixels) |
+| **garage-only / Cub** | **33.1** | 8 | **43.2** | 208.7 + 266.0 = **475** | 127 | **0** |
+| full / metal Cessna | 302.9 | 21 | 233.5 | 861.5 + 2052.7 = **2914** | 406 | 53 (same) |
+| **garage-only / metal** | **37.1** | 9 | **47.1** | 240.8 + 292.4 = **533** | 123 | **0** |
+
+"Read" means the page's fetches and image loads, measured on disk. The page's own scripts are not counted (dev.html's are about 12.5 MB, see §1.4). By kind, the full Cub reads world 54.4 + geo 50.7 + tex 82.5 MB. The garage-only Cub reads world 0, geo 10.6 and tex 26.7 MB. Where the full boot's time goes, in node: settle 119 s, world 35 s, bake 28 s, town 26 s, snapshot 17 s, ring 16 s and parking 16 s. The garage-only boot's longest steps are compile (6.3 s), aircraft (3.6 s), seed (3.5 s) and editor (3.4 s).
+
+The drags (node real ms, median of 2 reps after a warm-up, 4 ticks each; `tick` = one input handler, `release` = change + pointerup):
+
+| row | full Cub tick / release | garage-only Cub | full metal | garage-only metal | the release |
+|---|---:|---:|---:|---:|---|
+| wgSpan (wing span) | 137 / 343 | 112 / 354 | 139 / 463 | 128 / 414 | planned (RELEASE-FAST) |
+| wgChord | 139 / 349 | 113 / 313 | 150 / 552 | 132 / 426 | planned |
+| stSpan (tail) | 16 / 300 | 15 / 277 | 20 / 327 | 19 / 312 | planned |
+| s1X (gear) | 127 / 384 | 109 / 283 | 122 / 339 | 112 / 280 | planned |
+| paxLen (bay length) | 32 / 1573 | 36 / 1556 | 40 / 2410 | 30 / 2183 | whole ("a deformed drag") |
+| halfW (fuselage width) | 24 / 1465 | 19 / 1080 | 44 / 2716 | 37 / 2199 | whole ("a deformed drag") |
+| seatH (seat height) | 217 / 1081 | 190 / 872 | 315 / 1466 | 279 / 1578 | whole ("the crew moved in the drag") |
 
 What it shows:
 - **The garage-only boot works.** 0 page errors, the editor seeded, the drags preview and release exactly as in the
   full boot (the `CAGE_UI.release` reasons are the same).
-- ⟨FINDINGS-1.3⟩
+**The memory floor is about 6× lower:** 475-533 MB against 2.86-2.91 GB in the same harness. That is the
+  same order as MEM-BUDGET's browser floor ("the garage up" ~414 MB on potato, *with* the island loaded); §1.4 has
+  the browser's own number. The ArrayBuffers the world held (~1.75 GB) are simply never made.
+- **Boot time and bytes fall by 5-9×.** The boot drops from ~300 s to 33-37 s in node (the box is ~1.6× faster).
+  Bytes read fall from 230 MB to 43-47 MB, and GL programs from 406 to 123-127.
+- **A drag costs the same in both modes,** a little less in garage-only (less GC pressure). The garage mode does not
+  make sliders faster; GARAGE-INSTANT and RELEASE-FAST do. **The phone's worst feel will be the whole-build
+  releases**: the cage rows (paxLen, halfW: 1.1-2.2 s in node, so ~0.7-1.4 s on the box and perhaps 3-6 s on a
+  phone) and the crew rows (seatH). R19 (the release never blanks the view) and taking the cage rows into
+  RELEASE-FAST's plan are the two answers. Box and phone numbers are A0's (§1.6).
+- **The prototype's lesson:** the boot's last step (`recheck`) re-plans the aircraft's keyed steps. With `bake`
+  and `craft` taken out, it ran the **flown bake** there: SwiftShader's first garage-only run spent 140 → 340 s
+  in it (`swift_garage_cub_v1_recheck_baked.json`). A real garage mode must take the re-plan out too (the tenth
+  replacement).
 
 ### 1.4 Measured: the same in a real browser (SwiftShader)
 
