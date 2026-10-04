@@ -1375,6 +1375,7 @@ const level = (P, k) => {
 const prevPost = PAGE.post;
 PAGE.post = (ctx) => {
   if (prevPost) prevPost(ctx);
+  if (ctx.defer) { if (group) group.visible = false; return; }   // G1303: a drag tick - built when the hand stops
   const { scene, P, stat } = ctx;
   if (group) {
     group.traverse(c => { if (c.geometry) c.geometry.dispose(); });

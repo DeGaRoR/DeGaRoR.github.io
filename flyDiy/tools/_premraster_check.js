@@ -26,7 +26,10 @@ const O = W.premises.overlay, base = W.premises.base, F = O.frame;
 verdict(O.raster && O.raster.on, 'the raster is on when asked for (groundRaster)');
 const W0 = C.makeWorld(0, { island: C.ISLAND_GEN.makeIsland(boot), premises: PREM });
 verdict(W0.premises.overlay.raster && !W0.premises.overlay.raster.on, 'and off by default (the analytic ground, the same bits)');
-const exact = (x, z) => O.terrainH(x, z, base.terrainH(x, z));
+// the reference: the ANALYTIC composer, carved as terrainH carves (20_world terrainHExact) - since LAKE-HOLES (G1335) the
+// world carves the lakebed after composing, so the composer alone differs from ANY ground by the carve (5.6 m by a lake's
+// bank under r_airport's grade): the raster is held to the composer it bakes, under the same carve (COLD-LINKS lakes-2)
+const exact = W.terrainHExact ? (x, z) => W.terrainHExact(x, z) : (x, z) => O.terrainH(x, z, base.terrainH(x, z));
 let s = 20260926; const rnd = () => { s = (Math.imul(s, 1103515245) + 12345) >>> 0; return s / 4294967296; };
 // ---- 1. the raster against the analytic path
 {

@@ -741,6 +741,9 @@ if (typeof window !== 'undefined')
 // DOM element that belongs to this file.
 if (typeof window !== 'undefined') window.CAGE_AERO_ON = aeroOn;
 
+// G1301: noted for the repaint (a page slice without the note answers the same material)
+let PAINT_KIND = 'c';
+const paintNote = (m, name) => typeof paintRec === 'function' ? paintRec(m, PAINT_KIND, name, null) : m;
 const matOf = name => {
   const a = alphaOf(name);
   if (aeroOn()) {
@@ -773,7 +776,7 @@ const matOf = name => {
                   ? ':G' + [GLASS.opacity, GLASS.scratch, GLASS.wipe,
                             GLASS.grime, GLASS.refl, GLASS.rainbow, P.glazeMat || 0].join(',')
                   : '');
-    if (matCache[key]) return matCache[key];
+    if (matCache[key]) return paintNote(matCache[key], name);
     if (A.AERO_GLASS.has(name)) {
       // the VIEW alpha still wins when it is asking for less: `glass a` is a
       // way of LOOKING at the build and must be able to see through it
@@ -824,7 +827,7 @@ const matOf = name => {
         side: THREE.DoubleSide,
       });
     }
-    return matCache[key];
+    return paintNote(matCache[key], name);
   }
   const neutral = !$('color').checked;
   const key = (neutral ? 'n:' : 'c:') + name + ':' + a;
@@ -876,7 +879,7 @@ function secMat(name, g) {
   SEC_CTX[name] = g || {};
   const r = A.aeroSecResolve(name, SEC_OVER,
     { cons: (g && g.cons) || consOf(), fin: g && g.fin });
-  return A.aeroMaterial(THREE, {
+  const m = A.aeroMaterial(THREE, {
     // `tint0` is the LAYER'S legacy palette colour — the birch-vs-beech of a
     // blade, a spat's pale grey — used only when the whole walk says nothing:
     // an inherited colour beats a default, a default beats the finish base
@@ -924,6 +927,127 @@ function secMat(name, g) {
     // reads a blade and the spinner in their own polar frame
     spin: name === 'spinner' ? 2 : (name === 'prop' ? 1 : 0),
   });
+  // G1301: noted for the repaint (a page slice without the note - GATE LIVERY's - answers the same material)
+  return typeof paintRec === 'function' ? paintRec(m, 's', name, g) : m;
+}
+// G1301 (GARAGE-LAG-2): THE PAINT ROWS REPAINT, THEY DO NOT REBUILD. A colour well, a metallic or a dial changes
+// which material a section wears and nothing else - and each notch of the picker rebuilt the whole aeroplane (the
+// sheet, every layer: 250-370 ms on the box for a colour). Every material the build hands out passes through matOf
+// (the cage's sections) or secMat (the layers'), and both are pure functions of the section, the layer's `g` and the
+// override maps; so each material handed out is noted with the requests that produced it (PAINT_REQ, cleared at the
+// head of every build), and a repaint asks the SAME factories the same requests over the moved maps and puts the
+// answers in place of the old materials on the editor's meshes - the materials the build would have produced, from
+// the same pools. Then the build's own tail: the panel sync, the weathering (it reads the bases), the follow rows and
+// draw() (the clip, the autosave, the bench's dirty flag). It falls back to build() whenever it cannot answer for
+// itself: no requests on record, a factory that answers null, one material handed out for requests that now answer
+// differently, or a glass companion it does not know how to re-tint. `CAGE_UI.repaintOn = false` builds every time.
+const PAINT_REQ = new Map();            // material -> Map(request key -> [kind, section, g])
+// THE CRAFT FRAME A BUILD MEASURED IN. A build sets it from the mount as the PREVIOUS build's draw placed it (the sit
+// follows the gear), and the layers publish craft-space uniforms in it (the footwell, the weathering's sources): after
+// a change that moved the sit, the next build is the one that brings them up to date. A repaint publishes none, so it
+// repaints only while the mount still stands where the last build measured it; otherwise it is that next build.
+let CRAFT_KEY = null;
+const craftKey = () => {
+  const mnt = (window.CAGE_JOIN && window.CAGE_JOIN.mount && window.CAGE_JOIN.mount()) ||
+              ((typeof window !== 'undefined') && window.CAGE_UI_SCENE);
+  if (!mnt) return 'none';
+  mnt.updateWorldMatrix(true, false);
+  return mnt.matrixWorld.elements.join(',');
+};
+let PAINT_REC = true;
+let EXT_PASS = null;                    // the game's understudy pass (EXT), run after a repaint as after the post chain
+function paintRec(m, kind, name, g) {
+  if (!m || !PAINT_REC) return m;
+  let q = PAINT_REQ.get(m);
+  if (!q) PAINT_REQ.set(m, q = new Map());
+  let gk = '';
+  if (g) try { gk = JSON.stringify(g); } catch (e) { gk = '?' + Math.random(); }
+  const k = kind + ':' + name + ':' + gk;
+  if (!q.has(k)) q.set(k, [kind, name, g ? Object.assign({}, g) : g]);   // a copy: a layer may reuse its g
+  return m;
+}
+function repaint() {
+  const t0 = performance.now(), info = (why, n) => { if (window.CAGE_UI) window.CAGE_UI.repaintInfo = { why, swapped: n || 0, ms: +(performance.now() - t0).toFixed(1) }; };
+  if ((window.CAGE_UI && window.CAGE_UI.repaintOn === false) || !PAINT_REQ.size || !meshObj) { build(); info('build: off or nothing on record'); return; }
+  if (craftKey() !== CRAFT_KEY) { build(); info('build: the sit moved since the last build'); return; }
+  // THE CAGE'S OWN MESH IS REPAINTED SLOT BY SLOT: meshFrom made it as matNames.map(matOf), so each group's section
+  // is known and a material two sections shared (the body and a liner on one finish, untinted) splits cleanly when
+  // the pick reaches one of them. Every other mesh is repainted through the record: a material whose requests now
+  // answer differently is shared by meshes this path cannot tell apart, and the repaint is a build.
+  const names = meshObj.userData && meshObj.userData.matNames;
+  const mm0 = Array.isArray(meshObj.material) ? meshObj.material : null;
+  const ownSlots = !!(names && mm0 && mm0.length === names.length &&
+    mm0.every((m, k) => { const q = PAINT_REQ.get(m); return !!(q && q.has('m:' + names[k] + ':')); }));
+  const live = Object.assign({}, SEC_LIVE), ctx0 = Object.assign({}, SEC_CTX);
+  const swap = new Map();
+  let ok = true, mm1 = null, clash = '';
+  PAINT_REC = false;
+  try {
+    if (ownSlots) mm1 = names.map(matOf);
+    for (const [m, q] of PAINT_REQ) {
+      let nu = null;
+      for (const [kind, name, g] of q.values()) {
+        if (kind === 'm' && ownSlots) continue;          // the cage mesh's own slots: answered above
+        const x = kind === 's' ? secMat(name, g) : matOf(name);
+        if (!x || (nu && x !== nu)) { ok = false; clash = [...q.values()].map(v => v[0] + ':' + v[1]).join(' '); break; }
+        nu = x;
+      }
+      if (!ok) break;
+      if (nu && nu !== m) swap.set(m, nu);
+    }
+    if (mm1 && mm1.some(x => !x)) ok = false;
+  } catch (e) { ok = false; }
+  PAINT_REC = true;
+  // secMat stamps the section's epoch and ctx as it answers: the build's own stamps stand
+  for (const k in SEC_LIVE) delete SEC_LIVE[k];
+  for (const k in SEC_CTX) delete SEC_CTX[k];
+  Object.assign(SEC_LIVE, live); Object.assign(SEC_CTX, ctx0);
+  if (!ok) { build(); info('build: a request answers otherwise (' + clash + ')'); return; }
+  const meshMoved = ownSlots ? mm1.some((x, k) => x !== mm0[k])
+    : (Array.isArray(meshObj.material) ? meshObj.material : [meshObj.material]).some(x => swap.has(x));
+  if (swap.size || meshMoved) {
+    // the glass companions: the cage's own (meshFrom's) is made again by meshFrom's own call over the new
+    // materials; a companion anywhere else over a moved material is a door this path does not know
+    const A0 = AK();
+    let foreign = false;
+    scene.traverse(o => {
+      if (!o.isMesh || !o.userData || !o.userData.aeroCompanion || !o.parent || o.parent === meshObj) return;
+      const hm = Array.isArray(o.parent.material) ? o.parent.material : [o.parent.material];
+      if (hm.some(x => swap.has(x))) foreign = true;
+    });
+    if (foreign || (meshMoved && !(A0 && A0.aeroGlassCompanion))) { build(); info('build: a glass companion it does not know'); return; }
+    scene.traverse(o => {
+      if (!o.material || (o.userData && o.userData.aeroCompanion) || (ownSlots && o === meshObj)) return;
+      if (Array.isArray(o.material)) { if (o.material.some(x => swap.has(x))) o.material = o.material.map(x => swap.get(x) || x); }
+      else if (swap.has(o.material)) o.material = swap.get(o.material);
+    });
+    if (ownSlots && meshMoved) meshObj.material = mm1;
+    // a layer's colour DERIVED from a swapped material (the cowl's twins) is the layer's to derive again, then the
+    // understudy pass, as after the post chain
+    if (PAGE.repaint) for (const f of PAGE.repaint) try { f(swap, scene); } catch (e) { console.error('page repaint hook:', e); }
+    if (EXT_PASS) EXT_PASS();
+    if (meshMoved) {
+      for (const c of meshObj.children.slice()) if (c.userData && c.userData.aeroCompanion) meshObj.remove(c);
+      meshGlass(meshObj);
+    }
+    // the record follows the swap: the next repaint starts from what the meshes now wear
+    const next = new Map();
+    const put = (t, k, v) => { let n = next.get(t); if (!n) next.set(t, n = new Map()); if (!n.has(k)) n.set(k, v); };
+    for (const [m, q] of PAINT_REQ)
+      for (const [k, v] of q) if (!(ownSlots && v[0] === 'm')) put(swap.get(m) || m, k, v);
+    if (ownSlots) mm1.forEach((x, k) => put(x, 'm:' + names[k] + ':', ['m', names[k], null]));
+    PAINT_REQ.clear();
+    for (const [m, q] of next) PAINT_REQ.set(m, q);
+  }
+  // the build's own tail, in its order: the panel (decals re-read the paint block, as a build does), the second
+  // panel look, the weathering (it reads the bases), the rows, the draw
+  try { buildMatPanel(); decRange(); decApplyRanges(); applyDecals(); }
+  catch (e) { console.error('CAGE_UI: the finish panels did not build —', e); }
+  try { applyWeather(); } catch (e) { console.error('weather:', e); }
+  applyRowVis();
+  syncFollow();
+  draw();
+  info('swap', swap.size + (meshMoved ? 1 : 0));
 }
 // the panel's view of the walk, for its own rows' labels and wells: the
 // same resolver, over the same maps, with the ctx the layer last drew with
@@ -1066,21 +1190,25 @@ function meshFrom(m) {
       if (hi0 > lo0) GLASS_EXT[nm] = [lo0 * F, lo1 * F, hi0 * F, hi1 * F];
     });
   }
-  const mesh = new THREE.Mesh(g, mats.map(matOf));
+  PAINT_KIND = 'm';                      // G1301: the cage mesh's slots, by section (repaint)
+  let mats0;
+  try { mats0 = mats.map(matOf); } finally { PAINT_KIND = 'c'; }
+  const mesh = new THREE.Mesh(g, mats0);
   mesh.userData.surfMats = surfMats;
   mesh.userData.matNames = mats;
   // THE GLASS COMPANION (G206): every pane is two draws — the multiply pass
   // rides the same faces as a child mesh one renderOrder earlier. Inert when
   // the panes are not AEROSKIN glass (the flat view), tagged so the join and
   // the highlight walk past it. See aeroskin.js's glass family header.
-  {
-    const A0 = AK();
-    if (A0 && A0.aeroGlassCompanion)
-      A0.aeroGlassCompanion(THREE, mesh, mesh.material, m0 =>
-        A0.aeroGlassTint(THREE, { tintLin: m0.color.getHex(),
-                                  opacity: m0.opacity }));
-  }
+  meshGlass(mesh);
   return mesh;
+}
+function meshGlass(mesh) {
+  const A0 = AK();
+  if (A0 && A0.aeroGlassCompanion)
+    A0.aeroGlassCompanion(THREE, mesh, mesh.material, m0 =>
+      A0.aeroGlassTint(THREE, { tintLin: m0.color.getHex(),
+                                opacity: m0.opacity }));
 }
 
 // THE FIELD, SEEN (G66). A 0.25 m checkerboard straight off (sL, sC): if the
@@ -1330,6 +1458,230 @@ function updateDims(box, FS) {
 // of parked.js's captures under the roll-out screen (applySpecSteps). build() runs it to the end - every slider,
 // every door, exactly as before.
 function build() { const g = buildSteps(); while (!g.next().done); }
+// G1303 (GARAGE-LAG-2): THE DETAIL LAYERS WAIT FOR THE PAUSE. A slider dragged under a held pointer rebuilt every
+// layer on every tick; the ones that only DRESS the aeroplane - the lights, the control hinges, the access fittings,
+// the tanks (the energy layer reads the crew and the wing; nothing that builds before it reads it) - ride the post
+// chain with `ctx.defer` set while the pointer is down, keep their last group hidden and return. The sheet, the
+// structure, the crew and every layer something else reads are built as before. The full build follows the drag:
+// on the slider's release (`change`), on the pointer coming up anywhere, or 350 ms after the last tick - one build,
+// with the sheet kept (G1300), so the aeroplane standing when the hand stops is the one a plain build makes (GATE-
+// side: tools/perf/garage_lag_same.js). A click, a typed value, the keyboard, a select: a plain build, as before.
+// `CAGE_UI.dragDefer = false` builds every tick in full; `CAGE_UI.dragSettleMs` moves the 350 ms pause.
+let DRAG_ON = null, DRAG_TICK = false, DRAG_LATE = false, DRAG_T = null;
+function dragSettle() {
+  if (DRAG_T) { clearTimeout(DRAG_T); DRAG_T = null; }
+  if (DRAG_LATE) { DRAG_LATE = false; build(); }
+}
+function dragSettleSoon() {
+  if (DRAG_T) clearTimeout(DRAG_T);
+  DRAG_T = setTimeout(() => { DRAG_T = null; dragSettle(); }, (window.CAGE_UI && window.CAGE_UI.dragSettleMs) || 350);
+}
+if (typeof window !== 'undefined' && window.addEventListener) {
+  const up = () => { if (DRAG_ON) { DRAG_ON = null; dragSettle(); } };
+  window.addEventListener('pointerup', up, true);
+  window.addEventListener('pointercancel', up, true);
+}
+// G1300 (GARAGE-LAG-2): THE SHEET IS KEPT WHILE ITS SPEC IS. cageSheet is cageSpec(P) and then a function of that spec
+// alone (with the step, the level, and whether the view is exploded): a wing, tail, gear, engine or paint row moves
+// nothing in the cage spec, and rebuilt the same fuselage sheet on every tick (~100-200 ms of the box's 250-370). The
+// key is the spec itself (sorted keys; a non-finite number spelled out so NaN never meets null), so the same spec is
+// the same sheet - the previous build's object, which every layer's mesh-keyed cache (FIT_SITE's WeakMaps, the energy
+// layer's body signature) then answers from too. The one global the sheet's build publishes (CAGE_MEMBERS, read by the
+// wing and the gear) is kept with it and put back on a hit: a headless caller in between may have built another
+// aeroplane. `CAGE_UI.sheetKeep = false` builds every time.
+let SHEET_KEY = null, SHEET_VAL = null, SHEET_MEMB;
+// G1442: the sheet the stand's fuselage was last built from (a preview needs it on the stand), the previews counted
+let LAST_SHEET = null;
+const PREVIEW = { n: 0, last: null, deform: 0, deformWhy: '' };
+let DEFORMED = false;                   // a deformed tick since the last whole build (its sit is the stand's)
+const PREVIEW_OFF = () => /(^|[?&])garage=old(&|$)/.test((typeof location !== 'undefined' && location.search) || '');
+// G1443 (GARAGE-INSTANT): THE STAND, DEFORMED. A drag tick on a row that moves the CAGE (the fuselage's length,
+// widths, heights, the nose, the deck lines - the same cage topology) would rebuild the sheet (subdivision, glass,
+// cuts, rims, interior, shoulder: 55-250 ms) and every layer on it. The preview moves what stands instead:
+//   - the subdivided BASE surface of the new cage is exact and cheap (the cage, subdivided L times and the arcs
+//     refitted, as cageSheet starts; ~2.6k of the Cub's 23k sheet vertices) and is the sheet's own vertex prefix
+//     (checked once per stand: the stand's base computed from its cage must equal that prefix, or no deform);
+//   - every vertex the passes added after it (rims, linings, the interior, the shoulder, the cut edges) moves with
+//     its nearest base vertex (the stand's own geometry: positions written in place, normals kept);
+//   - every layer's part rides rigidly with the base vertices nearest it (its translation the mean of their moves;
+//     a part on the centreline keeps its lateral place).
+// Nothing is built: the settle build (the release, the pointer up, the pause) is the whole build, sheet and layers.
+// A row whose cage does not move (the sheet's detail rows), a topology change, an exploded view: not this path.
+const DEFORM = new WeakMap();           // stand -> { ok, nBase, map, topo, followers }
+const topoKey = c => { let h = c.V.length + '|'; for (const f of c.F) h += f.v.join(',') + ';'; return h; };
+function standInfo(stand, L) {
+  let I = DEFORM.get(stand);
+  if (I) return I;
+  I = { ok: false, why: '' };
+  DEFORM.set(stand, I);
+  const V = stand.mesh && stand.mesh.V, m0 = stand.cage;
+  if (!V || !m0 || !G.cageSubdivide) { I.why = 'no generator'; return I; }
+  let b = m0;
+  for (let i = 0; i < L; i++) b = G.cageSubdivide(b);
+  if (L > 0) { if (!G.cageRefitArc) { I.why = 'no refit'; return I; } b = G.cageRefitArc(b); }
+  const nB = b.V.length;
+  if (nB > V.length) { I.why = 'base larger than the sheet'; return I; }
+  for (let i = 0; i < nB; i++) {
+    const p = b.V[i], q = V[i];
+    if (Math.abs(p[0] - q[0]) + Math.abs(p[1] - q[1]) + Math.abs(p[2] - q[2]) > 1e-7) { I.why = 'the sheet does not start with its base'; return I; }
+  }
+  // each added vertex -> its nearest base vertex (a uniform grid over the base)
+  let lo = [1e9, 1e9, 1e9], hi = [-1e9, -1e9, -1e9];
+  for (let i = 0; i < nB; i++) for (let a = 0; a < 3; a++) { const x = V[i][a]; if (x < lo[a]) lo[a] = x; if (x > hi[a]) hi[a] = x; }
+  const ext = Math.max(hi[0] - lo[0], hi[1] - lo[1], hi[2] - lo[2]) || 1;
+  const cs = ext / Math.max(4, Math.cbrt(nB) * 1.5);
+  const cell = new Map(), ck = (x, y, z) => x + ',' + y + ',' + z;
+  for (let i = 0; i < nB; i++) {
+    const k = ck(Math.floor((V[i][0] - lo[0]) / cs), Math.floor((V[i][1] - lo[1]) / cs), Math.floor((V[i][2] - lo[2]) / cs));
+    let a = cell.get(k); if (!a) cell.set(k, a = []); a.push(i);
+  }
+  const near = (p, k) => {             // the k nearest base vertices (k = 1: the nearest)
+    const cx = Math.floor((p[0] - lo[0]) / cs), cy = Math.floor((p[1] - lo[1]) / cs), cz = Math.floor((p[2] - lo[2]) / cs);
+    const best = [];                   // [d2, i] sorted
+    for (let r = 0; r < 64; r++) {
+      for (let x = cx - r; x <= cx + r; x++) for (let y = cy - r; y <= cy + r; y++) for (let z = cz - r; z <= cz + r; z++) {
+        if (Math.max(Math.abs(x - cx), Math.abs(y - cy), Math.abs(z - cz)) !== r) continue;
+        const a = cell.get(ck(x, y, z)); if (!a) continue;
+        for (const i of a) {
+          const d2 = (V[i][0] - p[0]) ** 2 + (V[i][1] - p[1]) ** 2 + (V[i][2] - p[2]) ** 2;
+          if (best.length < k || d2 < best[best.length - 1][0]) {
+            best.push([d2, i]); best.sort((u, w) => u[0] - w[0]); if (best.length > k) best.pop();
+          }
+        }
+      }
+      // every cell within r rings is seen: done once the k-th is closer than the ring's inner edge
+      if (best.length >= k && Math.sqrt(best[best.length - 1][0]) <= r * cs) break;
+    }
+    return best;
+  };
+  const map = new Int32Array(V.length);
+  for (let i = 0; i < V.length; i++) map[i] = i < nB ? i : (near(V[i], 1)[0] || [0, 0])[1];
+  I.ok = true; I.nBase = nB; I.map = map; I.near = near; I.topo = topoKey(m0); I.followers = null;
+  return I;
+}
+// the layers' parts, each with its anchor (base vertices and weights, in the sheet's own frame) and its pose
+function standFollowers(I) {
+  if (I.followers) return I.followers;
+  const out = [];
+  meshObj.updateWorldMatrix(true, false);
+  const toSheet = new THREE.Matrix4().copy(meshObj.matrixWorld).invert();
+  const sph = new THREE.Sphere(), c = new THREE.Vector3();
+  for (const g of scene.children) {
+    if (g === meshObj || !g.name || !/^cageLayer:/.test(g.name) || !g.visible) continue;
+    for (const o of g.children) {
+      // the part's centre: its meshes' bounding spheres, in the sheet's frame
+      let n = 0; const acc = new THREE.Vector3();
+      o.updateWorldMatrix(true, true);
+      o.traverse(x => {
+        if (!x.isMesh || !x.geometry || !x.geometry.attributes || !x.geometry.attributes.position) return;
+        if (!x.geometry.boundingSphere) x.geometry.computeBoundingSphere();
+        sph.copy(x.geometry.boundingSphere).applyMatrix4(x.matrixWorld);
+        acc.add(c.copy(sph.center).applyMatrix4(toSheet)); n++;
+      });
+      if (!n) continue;
+      acc.multiplyScalar(1 / n);
+      const nb = I.near([acc.x, acc.y, acc.z], 8);
+      if (!nb.length) continue;
+      const w = nb.map(([d2]) => 1 / (Math.sqrt(d2) + 1e-3)), ws = w.reduce((a, x) => a + x, 0);
+      out.push({ o, p0: o.position.clone(), idx: nb.map(x => x[1]), w: w.map(x => x / ws), centred: Math.abs(acc.x) < 0.05 });
+    }
+  }
+  I.followers = out;
+  return out;
+}
+// one drag tick: true when the stand was deformed to the new cage (nothing else to do), false: build as before
+function deformTick(stand, step, L) {
+  if (!stand || !meshObj || stand.mesh !== MS || (P.explodeD || 0) > 0 || !G.buildCage2 || !G.cageSpec) { PREVIEW.deformWhy = 'no stand'; return false; }
+  const m1 = G.buildCage2(G.cageSpec({ ...P }), step), m0 = stand.cage;
+  if (!m0 || m1.V.length !== m0.V.length || m1.F.length !== m0.F.length) { PREVIEW.deformWhy = 'the cage changed its topology'; return false; }
+  let mv = 0;
+  for (let i = 0; i < m1.V.length; i++)
+    mv = Math.max(mv, Math.abs(m1.V[i][0] - m0.V[i][0]) + Math.abs(m1.V[i][1] - m0.V[i][1]) + Math.abs(m1.V[i][2] - m0.V[i][2]));
+  if (!(mv > 1e-9)) { PREVIEW.deformWhy = 'the cage did not move'; return false; }
+  const I = standInfo(stand, L);
+  if (!I.ok) { PREVIEW.deformWhy = I.why; return false; }
+  if (topoKey(m1) !== I.topo) { PREVIEW.deformWhy = 'the cage changed its topology'; return false; }
+  let b = m1;
+  for (let i = 0; i < L; i++) b = G.cageSubdivide(b);
+  if (L > 0) b = G.cageRefitArc(b);
+  const nB = I.nBase, V = stand.mesh.V;
+  if (b.V.length !== nB) { PREVIEW.deformWhy = 'the base changed size'; return false; }
+  const D = new Float32Array(nB * 3);
+  for (let i = 0; i < nB; i++) { D[i * 3] = b.V[i][0] - V[i][0]; D[i * 3 + 1] = b.V[i][1] - V[i][1]; D[i * 3 + 2] = b.V[i][2] - V[i][2]; }
+  const pa = meshObj.geometry.attributes.position, a = pa.array, map = I.map;
+  if (a.length !== V.length * 3) { PREVIEW.deformWhy = 'the stand is not this sheet'; return false; }
+  const F = standFollowers(I);
+  for (let i = 0; i < V.length; i++) {
+    const j = map[i] * 3, p = V[i];
+    a[i * 3] = p[0] + D[j]; a[i * 3 + 1] = p[1] + D[j + 1]; a[i * 3 + 2] = p[2] + D[j + 2];
+  }
+  pa.needsUpdate = true;
+  meshObj.geometry.boundingSphere = null; meshObj.geometry.boundingBox = null;
+  // the parts ride: the anchor's move, sheet frame -> the part's parent frame (the sheet's own scale/pose)
+  const t = new THREE.Vector3(), w0 = new THREE.Vector3(), w1 = new THREE.Vector3(), inv = new THREE.Matrix4();
+  meshObj.updateWorldMatrix(true, false);
+  for (const f of F) {
+    if (!f.o.parent) continue;
+    t.set(0, 0, 0);
+    for (let k = 0; k < f.idx.length; k++) { const j = f.idx[k] * 3; t.x += f.w[k] * D[j]; t.y += f.w[k] * D[j + 1]; t.z += f.w[k] * D[j + 2]; }
+    if (f.centred) t.x = 0;
+    w0.set(0, 0, 0).applyMatrix4(meshObj.matrixWorld); w1.copy(t).applyMatrix4(meshObj.matrixWorld);
+    inv.copy(f.o.parent.matrixWorld).invert();
+    w0.applyMatrix4(inv); w1.applyMatrix4(inv);
+    f.o.position.copy(f.p0).add(w1.sub(w0));
+  }
+  I.dirty = true; DEFORMED = true;
+  PREVIEW.deform++; PREVIEW.deformWhy = 'deformed (' + F.length + ' parts ride)';
+  return true;
+}
+// the layers ran: the parts that ride are the ones standing now (and a fresh mesh is undeformed)
+function standParts(stand, freshMesh) {
+  const I = stand && DEFORM.get(stand);
+  if (!I) return;
+  I.followers = null;
+  if (freshMesh) I.dirty = false;
+}
+// THE HAND IS ON A SLIDER: the stand's base and map are measured in the gap before its first move (a tick that
+// comes first measures them itself)
+function standSoon() {
+  setTimeout(() => {
+    try { if (DRAG_ON && LAST_SHEET && meshObj && LAST_SHEET.mesh === MS && !((P.explodeD || 0) > 0)) {
+      const I = standInfo(LAST_SHEET, +$('lvl').value); if (I.ok) standFollowers(I); } } catch (e) {}
+  }, 0);
+}
+// the stand as it was built (a drag that came back to the stand's own cage, before a preview of it)
+function standRestore(stand) {
+  const I = stand && DEFORM.get(stand);
+  if (!I || !I.dirty || !meshObj || stand.mesh !== MS) return;
+  const V = stand.mesh.V, a = meshObj.geometry.attributes.position.array;
+  if (a.length === V.length * 3) {
+    for (let i = 0; i < V.length; i++) { a[i * 3] = V[i][0]; a[i * 3 + 1] = V[i][1]; a[i * 3 + 2] = V[i][2]; }
+    meshObj.geometry.attributes.position.needsUpdate = true;
+    meshObj.geometry.boundingSphere = null; meshObj.geometry.boundingBox = null;
+  }
+  for (const f of I.followers || []) f.o.position.copy(f.p0);
+  I.dirty = false;
+}
+const specKey = o => JSON.stringify(o, (k, x) => (typeof x === 'number' && !isFinite(x)) ? 'num:' + x
+  : (x && typeof x === 'object' && !Array.isArray(x)) ? Object.keys(x).sort().reduce((a, kk) => { a[kk] = x[kk]; return a; }, {}) : x);
+function sheetKeyOf(P, opts) {
+  let key = null;
+  if (G.cageSpec && !(window.CAGE_UI && window.CAGE_UI.sheetKeep === false))
+    try { key = specKey(G.cageSpec({ ...P })) + '|' + opts.step + '|' + opts.level + '|' + ((P.explodeD || 0) > 0 ? 1 : 0); }
+    catch (e) { key = null; }
+  return key;
+}
+function sheetKept(P, opts) {
+  const key = sheetKeyOf(P, opts);
+  if (key != null && key === SHEET_KEY) {
+    if (typeof window !== 'undefined') window.CAGE_MEMBERS = SHEET_MEMB;
+    return SHEET_VAL;
+  }
+  const v = G.cageSheet(P, opts);
+  SHEET_KEY = key; SHEET_VAL = v;
+  SHEET_MEMB = typeof window !== 'undefined' ? window.CAGE_MEMBERS : undefined;
+  return v;
+}
 function* buildSteps() {
   // T2.1: a retired row (a preset written against the ring editor, a class
   // seed's taperW) is lifted into the frames' rows the moment it lands in P
@@ -1389,14 +1741,56 @@ function* buildSteps() {
   // subdivide, glass sill, cut, canopy, rims, interior, the explode undo —
   // lives in CAGE2.cageSheet, so the headless tail (_tail_headless.js) and
   // the node gates hold the mesh the layers see; the page holds no copy
-  const built = G.cageSheet(P, { step, level: L });
+  // G1443: a drag tick that moves the cage deforms the stand (above) instead of building a sheet
+  const previewOk = DRAG_TICK && !PREVIEW_OFF() && !(window.CAGE_UI && window.CAGE_UI.dragDefer === false) &&
+    !(window.CAGE_UI && window.CAGE_UI.deformOn === false);
+  let cageStill = false;                 // G1444: a drag tick on one of the sheet's detail rows (the cage stands)
+  if (previewOk && LAST_SHEET && meshObj && sheetKeyOf(P, { step, level: L }) !== SHEET_KEY) {
+    let ok = false;
+    try { ok = deformTick(LAST_SHEET, step, L); } catch (e) { PREVIEW.deformWhy = 'threw: ' + (e && e.message); ok = false; }
+    cageStill = !ok && PREVIEW.deformWhy === 'the cage did not move';
+    if (ok) {
+      yield 'post';
+      DRAG_LATE = true;
+      if (DRAG_T) { clearTimeout(DRAG_T); DRAG_T = null; }
+      PREVIEW.n++; PREVIEW.last = null;
+      previewDraw();
+      return;
+    }
+  }
+  const built = sheetKept(P, { step, level: L });
   const spec = built.spec, m = built.cage;
+  // G1442 (GARAGE-INSTANT): A DRAG TICK THAT KEEPS THE SHEET IS A PREVIEW. The fuselage on the stand is this
+  // sheet's already (its mesh, its decals, its weathering, the panels), so only the layers whose inputs moved run
+  // (CAGE_CHAIN.plan: the P keys each read on its last run, and the layers that feed it); the others stand as their
+  // last run drew them, the detail layers that do run wait as G1303 has them wait. The settle build (the release,
+  // the pointer up, the pause) is the whole build that follows every drag, as before.
+  const CH = window.CAGE_CHAIN;
+  const plan = (DRAG_TICK && CH && CH.on && built === LAST_SHEET && meshObj && !PREVIEW_OFF() &&
+    !(window.CAGE_UI && window.CAGE_UI.dragDefer === false)) ? CH.plan(P) : null;
+  if (plan) {
+    standRestore(LAST_SHEET);
+    yield 'post';
+    DRAG_LATE = true;
+    if (DRAG_T) { clearTimeout(DRAG_T); DRAG_T = null; }
+    PREVIEW.n++; PREVIEW.last = plan;
+    // a stat line nobody reads: the layers append to it
+    const ctx = { scene, spec, mesh: built.sheet, P, stat: { textContent: '' }, defer: true, preview: true };
+    try { CH.run(ctx, P, plan); } catch (e) { console.error('page post hook (preview):', e); }
+    standParts(built, false);
+    if (PAGE.late && PAGE.late.length)
+      for (const f of PAGE.late.splice(0)) try { f(); } catch (e) { console.error('page late hook:', e); }
+    previewDraw();
+    return;
+  }
+  LAST_SHEET = built;
   M0 = m;
   let s = built.mesh;
   MS = s;
 
   disposeObj(meshObj);
   for (const k in matCache) delete matCache[k];
+  PAINT_REQ.clear();
   // ZERO SKIN (G26.4, user): beyond the alpha slider — with skinOn 0
   // BOTH skin families (the fuselage: skin, pillar bands, taper
   // section, taper panels, cut doors — AND the interior linings:
@@ -1513,6 +1907,18 @@ function* buildSteps() {
   // THE CRAFT FRAME, before anything is placed in it. The cage's own axes are
   // x lateral, z forward, y up; `aft` flips the along axis so a station means
   // the same thing here as it does in the surface field.
+  // G1443: AFTER A DEFORMED DRAG THE SIT IS PUT FIRST. A build measures the craft frame from where the previous draw
+  // put the mount, and the layers (the crew's limbs) are posed in it; a drag's last tick used to be a whole build at
+  // the final rows, so this build met the final sit. A deformed tick moves no gear: the gear is built once on this
+  // sheet and the stand placed by it (the draw) before the frame is measured - the sit this build then meets is the
+  // final rows', as it was.
+  if (DEFORMED && CH && CH.only && PAGE.post) {
+    const pre = CH.only(['gear', 'float']);   // the floats stand a floatplane (CAGE_GEAR.gy)
+    if (pre) try {
+      CH.run({ scene, spec, mesh: built.sheet, P, stat: { textContent: '' }, defer: false }, P, pre);
+      draw();
+    } catch (e) { console.error('page post hook (sit pre-pass):', e); }
+  }
   try {
     const A0 = AK(), root = (typeof window !== 'undefined') && window.CAGE_UI_SCENE;
     // THE CRAFT FRAME IS THE AEROPLANE'S, NOT THE ROOM'S (G216, the user:
@@ -1536,6 +1942,7 @@ function* buildSteps() {
       if (mnt) { mnt.updateWorldMatrix(true, false); mw = mnt.matrixWorld; }
       A0.aeroSetCraft(THREE, mw,
                       { lateral: 'x', along: 'z', up: 'y', aft: true });
+      CRAFT_KEY = craftKey();                       // G1301: the frame this build's layers publish in
     }
     // THE CABIN'S DARKNESS FOLLOWS THE GLAZING (G206.1): a glazed cabin
     // keeps the lab's whole darkness, an open one (no pane drawn) keeps
@@ -1559,10 +1966,36 @@ function* buildSteps() {
   // layers stamp SEC_LIVE as they draw, and the panel gets a SECOND look
   // below. Cheap by construction: buildMatPanel's signature check makes the
   // second call a no-op on every build where no layer appeared or vanished.
+  // G1444 (GARAGE-INSTANT): A DETAIL ROW'S DRAG TICK - the cage stands, the sheet's details moved (a rim, a seal,
+  // the dash, the shoulder): the sheet and its mesh are this build's (above), and the layers are planned as a kept
+  // sheet's are (G1442) - the parts stand where the cage holds them; the settle build is whole.
+  const plan2 = cageStill && CH && CH.on ? CH.plan(P) : null;
+  if (plan2) {
+    yield 'post';
+    DRAG_LATE = true;
+    if (DRAG_T) { clearTimeout(DRAG_T); DRAG_T = null; }
+    PREVIEW.n++; PREVIEW.last = plan2;
+    const ctx2 = { scene, spec, mesh: sFix, P, stat: { textContent: '' }, defer: true, preview: true };
+    try { CH.run(ctx2, P, plan2); } catch (e) { console.error('page post hook (preview):', e); }
+    standParts(built, true);
+    if (PAGE.late && PAGE.late.length)
+      for (const f of PAGE.late.splice(0)) try { f(); } catch (e) { console.error('page late hook:', e); }
+    previewDraw();
+    return;
+  }
   SEC_EPOCH++;
   yield 'post';                          // G680: the layers in a task of their own when a caller slices the build
-  if (PAGE.post) try { PAGE.post({ scene, spec, mesh: sFix, P, stat: $('stat') }); }
+  // G1303: a drag tick defers the detail layers; any other build is whole, and settles a deferred one
+  const defer = DRAG_TICK && !(window.CAGE_UI && window.CAGE_UI.dragDefer === false);
+  DRAG_LATE = defer;
+  if (!defer && DRAG_T) { clearTimeout(DRAG_T); DRAG_T = null; }
+  if (PAGE.post) try {
+    const ctx = { scene, spec, mesh: sFix, P, stat: $('stat'), defer };
+    // G1441: the chain records what each layer reads (the preview's plan is made from it)
+    if (CH && CH.run) CH.run(ctx, P, null); else PAGE.post(ctx);
+  }
   catch (e) { console.error('page post hook:', e); }
+  standParts(built, true);               // G1443: new parts on a fresh mesh
   // G331: LATE — what a layer wants drawn once every layer has drawn (the
   // crew's floor, cut round the other layers' meshes), in this same task
   if (PAGE.late && PAGE.late.length)
@@ -1578,8 +2011,33 @@ function* buildSteps() {
   applyRowVis();
   syncFollow();                          // T2.1: the follow rows read the new derivation
   draw();
+  // G1443: AFTER A DEFORMED DRAG THE SIT CATCHES UP IN THIS BUILD. A build measures the craft frame from where the
+  // previous draw put the mount (CRAFT_KEY), and a drag's last tick used to be a whole build with the final rows, so
+  // the settle build met the final sit. A deformed tick moves no gear: the sit this build measured is the stand's,
+  // and this draw has just put the mount where the final rows put it - so the frame is measured again from there
+  // (one shared uniform, uCraftInv: the value the next plain build would set).
+  if (DEFORMED) {
+    DEFORMED = false;
+    try {
+      const A0 = AK();
+      if (A0 && A0.aeroSetCraft && craftKey() !== CRAFT_KEY) {
+        const mnt = (window.CAGE_JOIN && window.CAGE_JOIN.mount && window.CAGE_JOIN.mount()) ||
+                    ((typeof window !== 'undefined') && window.CAGE_UI_SCENE);
+        let mw = new THREE.Matrix4();
+        if (mnt) { mnt.updateWorldMatrix(true, false); mw = mnt.matrixWorld; }
+        A0.aeroSetCraft(THREE, mw, { lateral: 'x', along: 'z', up: 'y', aft: true });
+        CRAFT_KEY = craftKey();
+      }
+    } catch (e) {}
+  }
 }
 
+// G1442: a preview's draw - the room keeps the orbit's centre (app.js placeEditor reads CAGE_UI.previewTick)
+function previewDraw() {
+  const U = window.CAGE_UI;
+  if (U) U.previewTick = true;
+  try { draw(); } finally { if (U) U.previewTick = false; }
+}
 function draw() {
   // EXT: the game's loop renders the shared scene; ping the mount so the
   // sit transform follows every rebuild (pitch/gy move with the gear)
@@ -1845,8 +2303,14 @@ const mkRow = (parent, k, label, lo, hi, st, val, oninput, names, opts) => {
     }
     rng.oninput = e => {
       vf.value = fmtV(+e.target.value);
-      oninput(rel ? (sizeRef || 1) * +e.target.value : +e.target.value);
+      // G1303: a tick under a held pointer is a DRAG tick - the detail layers wait for the pause (dragBuild)
+      DRAG_TICK = DRAG_ON === rng;
+      try { oninput(rel ? (sizeRef || 1) * +e.target.value : +e.target.value); }
+      finally { DRAG_TICK = false; }
+      if (DRAG_LATE) dragSettleSoon();
     };
+    rng.addEventListener('pointerdown', () => { DRAG_ON = rng; standSoon(); });
+    rng.addEventListener('change', () => { if (DRAG_ON === rng) DRAG_ON = null; dragSettle(); });
     vf.onchange = () => {                // typed values clamp to the range
       if (rng.disabled) { vf.value = fmtV(rng.value); return; }
       let v = parseFloat(vf.value);
@@ -2201,6 +2665,7 @@ fillPresetSel();
           roughness: 0.85, metalness: 0.0,
           vertexColors: m.vertexColors });
         u.userData.cageUni = 1;        // never understudy an understudy
+        u.userData.cageUniOf = m;      // G1301: whose understudy (a repaint hook reads through it)
         uniFor.set(m, u);
       }
       u.color.copy(m.color);
@@ -2248,6 +2713,7 @@ fillPresetSel();
     };
     const prevPost = PAGE.post;
     PAGE.post = ctx => { if (prevPost) prevPost(ctx); extPass(); };
+    EXT_PASS = extPass;                  // G1301: a repaint ends the way a build does
     extPass();
 
     // THE HANGAR SECTION (G40, rebuilt G41): lighting, then ONE
@@ -3392,13 +3858,13 @@ function glassWell(row, nm) {
                     ? GLASS.tint : 0xaec9d8) >>> 0).toString(16).padStart(6, '0');
   c.title = 'the tint of this pane';
   c.oninput = () => { secTint[nm] = parseInt(c.value.slice(1), 16);
-    aeroSavePrefs(); build(); };
+    aeroSavePrefs(); repaint(); };
   const k = row.querySelector('span.k');
   if (k) { k.style.cursor = 'pointer';
     k.ondblclick = () => { delete secTint[nm];
       c.value = '#' + ((GLASS.tint != null ? GLASS.tint : 0xaec9d8) >>> 0)
         .toString(16).padStart(6, '0');
-      aeroSavePrefs(); build(); }; }
+      aeroSavePrefs(); repaint(); }; }
   row.appendChild(c);
 }
 
@@ -4288,7 +4754,7 @@ function buildMatPanel() {
         : A.AERO_FINISH[secFin.body || A.aeroFinishFor('body', cons)].base;
       baseReach(secTint, prev, v, null, (a, b) => (a >>> 0) === (b >>> 0));
       secTint.body = v;
-      aeroSavePrefs(); build();
+      aeroSavePrefs(); repaint();
     };
     d.appendChild(c);
     // G215: THE BASE PAINT'S METAL, the same reach as its colour — every
@@ -4307,7 +4773,7 @@ function buildMatPanel() {
       const prev = secMetal.body != null ? secMetal.body : null;   // unset = 0, the neutral
       baseReach(secMetal, prev, x <= 0 ? null : x, 0, (a, b) => Math.abs(a - b) < 1e-6);
       if (x <= 0) delete secMetal.body; else secMetal.body = x;
-      aeroSavePrefs(); build();
+      aeroSavePrefs(); repaint();
     };
     dm.appendChild(im); dm.appendChild(vm);
     // G316 (the user: "we need both base metallic and base roughness for the
@@ -4329,7 +4795,7 @@ function buildMatPanel() {
       const prev = secRough.body != null ? secRough.body : null;   // unset = 1, the neutral
       baseReach(secRough, prev, Math.abs(x - 1) < 1e-6 ? null : x, 1, (a, b) => Math.abs(a - b) < 1e-6);
       if (Math.abs(x - 1) < 1e-6) delete secRough.body; else secRough.body = x;
-      aeroSavePrefs(); build();
+      aeroSavePrefs(); repaint();
     };
     dr.appendChild(ir); dr.appendChild(vr);
   }
@@ -4514,7 +4980,7 @@ function buildMatPanel() {
     });
     col.oninput = () => {
       secTint[nm] = parseInt(col.value.slice(1), 16);
-      aeroSavePrefs(); build();
+      aeroSavePrefs(); repaint();
     };
     row.appendChild(col);
     // double-click the LABEL to drop the whole section back to its finish's
@@ -4546,7 +5012,7 @@ function buildMatPanel() {
         show();
         const x = +inp.value;
         if (x <= 0) delete secMetal[nm]; else secMetal[nm] = x;
-        aeroSavePrefs(); build();
+        aeroSavePrefs(); repaint();
       };
       d.appendChild(inp); d.appendChild(v);
     }
@@ -4587,13 +5053,13 @@ function buildMatPanel() {
         show();
         const x = +inp.value;
         if (Math.abs(x - 1) < 1e-6) delete store[nm]; else store[nm] = x;
-        aeroSavePrefs(); build();
+        aeroSavePrefs(); repaint();
       };
       d.appendChild(inp); d.appendChild(v);
       d.firstChild.style.cursor = 'pointer';
       d.firstChild.ondblclick = () => {
         delete store[nm]; inp.value = '1'; show();
-        aeroSavePrefs(); build();
+        aeroSavePrefs(); repaint();
       };
     }
   }
@@ -4774,7 +5240,8 @@ if (typeof ResizeObserver !== 'undefined')
 if (PAGE.defaultStep && $('step')) $('step').value = PAGE.defaultStep;
 anchorSize();                              // the page opens at its ×1
 syncSliders();
-window.CAGE_UI = { P, build, draw, applyPreset, syncSliders, reg: () => decReg(),   // G318: the tape reads it
+window.CAGE_UI = { P, build, repaint, draw, applyPreset, syncSliders, reg: () => decReg(),   // G318: the tape reads it
+  preview: PREVIEW,                      // G1442: the drag previews (n, the last plan)
   // THE TWO HALVES OF A LOAD (G63). `applySpec` puts a build into the editor;
   // `toSpec` takes the editor's whole parameter set out as the spec's `cage`
   // fragment — layer keys included, view keys excluded. Every shelf load,

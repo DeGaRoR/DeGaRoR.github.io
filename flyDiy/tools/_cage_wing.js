@@ -102,15 +102,46 @@ PAGE.defaults = Object.assign({
 
 // ---- panel ----------------------------------------------------------------
 const on = { when: P => +P.wingOn };
+// G1283 (CONFIGURATIONS §9, RULING 3): A ROW THE RESOLVER MOVED SAYS SO. The
+// span and the tip chord are clamped against the CHORD (GEN_WING_ENVELOPE:
+// span / chord, tip / root), so no fixed slider range is honest at every
+// chord - wgChordTip 0.55 on a 2.10 root flew 0.945 m, in silence. The row
+// reads back the wing this layer's own resolve drew (CAGE_WING.flown, the
+// flown wing) and names the rule when it is not the row. (P, plane): the
+// second plane's copies are called through w2Row's key map with plane 1.
+const flownOf = (P, plane) => {
+  const W = window.CAGE_WING, f = W && W.flown && W.flown[plane || 0];
+  // only a read-back of THESE rows: a resolve that threw leaves the last one
+  return f && f.of.span === +P.wgSpan && f.of.chord === +P.wgChord &&
+         f.of.tip === +P.wgChordTip ? f : null;
+};
+const ENVW = () => (typeof GEN_WING_ENVELOPE !== 'undefined' ? GEN_WING_ENVELOPE : null);
+const spanNote = (P, plane) => {
+  const f = flownOf(P, plane), E = ENVW();
+  if (!f || !E || !(Math.abs(f.span - f.of.span) > 0.005)) return '';
+  return `flies ${f.span.toFixed(2)} m — the span is held to ` +
+         `${E.spanPerChord[0]}–${E.spanPerChord[1]} × the root chord`;
+};
+const tipNote = (P, plane) => {
+  const f = flownOf(P, plane), E = ENVW();
+  if (!f || !E) return '';
+  const tip = f.chord * f.taper;
+  if (!(Math.abs(tip - f.of.tip) > 0.005)) return '';
+  return `flies ${tip.toFixed(2)} m — the tip is held to ` +
+         `${E.taper[0]}–${E.taper[1]} × the root chord`;
+};
 const WING_ITEMS = [
   ['wingOn',   'wings',          0, 1, 1],
   // G185: 'parasol' — on cabane struts above the deck, lift struts to the
   // lower longeron (a Pietenpol); its height is wgParaH
   ['wgPos',    'position',       0, 3, 1,
    ['high wing', 'mid wing', 'low wing', 'parasol'], on],
-  ['wgSpan',   'span',           6.5, 14, 0.1, { ...on, dim: 'm' }],
-  ['wgChord',  'root chord',     1.15, 2.10, 0.05, { ...on, dim: 'm' }],
-  ['wgChordTip', 'tip chord',    0.55, 2.10, 0.05, { ...on, dim: 'm' }],
+  // G1283: span and chord reach GEN_WING_ENVELOPE's own bounds (GATE DESIGN
+  // holds them equal) - the 2026-09-04 sailplane opening (0.80 m, 18 m) had
+  // reached the clamp and the class seed (15 x 1.00) but not these rows
+  ['wgSpan',   'span',           6.5, 18, 0.1, { ...on, dim: 'm', note: spanNote }],
+  ['wgChord',  'root chord',     0.80, 2.10, 0.05, { ...on, dim: 'm' }],
+  ['wgChordTip', 'tip chord',    0.55, 2.10, 0.05, { ...on, dim: 'm', note: tipNote }],
   ['wgTip',    'tips',           0, TIP_KEYS.length - 1, 1,
    TIP_KEYS.map(k => GEN_TIPS[k].name), on],
   ['wgCrankAt', 'crank at',      0, 0.85, 0.05, on],
@@ -220,10 +251,11 @@ const W2_DROP = new Set(['wingOn', 'wgPos', 'wgBrace', 'wgStruts', 'wgStrutZ', '
                          'wgDx', 'wgDy', 'wgParaH']);
 const w2Key = k => 'w2' + k.slice(2);
 const w2On = P => +P.wingOn && +P.w2On;
-const w2When = f => P => w2On(P) && (!f || f(new Proxy(P, {
-  // the first plane's `when`s read wg* keys; the second plane's rows answer
-  // with their own values under those names
-  get: (t, k) => (typeof k === 'string' && /^wg[A-Z]/.test(k)) ? t[w2Key(k)] : t[k] })));
+// the first plane's `when`s read wg* keys; the second plane's rows answer
+// with their own values under those names
+const w2View = P => new Proxy(P, {
+  get: (t, k) => (typeof k === 'string' && /^wg[A-Z]/.test(k)) ? t[w2Key(k)] : t[k] });
+const w2When = f => P => w2On(P) && (!f || f(w2View(P)));
 const w2Row = it => {
   if (Array.isArray(it[1])) {                 // a nested group
     const last = it[it.length - 1];
@@ -238,6 +270,9 @@ const w2Row = it => {
   const last = out[out.length - 1];
   const opts = (last && typeof last === 'object' && !Array.isArray(last)) ? last : null;
   const o2 = Object.assign({}, opts || {}, { when: w2When(opts && opts.when) });
+  // G1283: a note reads the first plane's keys and plane 0's flown wing;
+  // the copy reads its own, through the same key map
+  if (opts && opts.note) o2.note = P => opts.note(w2View(P), 1);
   if (opts) out[out.length - 1] = o2; else out.push(o2);
   return out;
 };
@@ -1969,7 +2004,13 @@ PAGE.post = ctx => {
                        wingRay, nodeCage, nodeCageBody, AF, FS,
                        // G185: every plane, with the index of the lowest (the
                        // gear's) and the upper (the pylon engine's)
-                       planes, lowest, upper };
+                       planes, lowest, upper,
+                       // G1283: what the resolve made of each plane's planform
+                       // rows (the rows' notes read it back)
+                       flown: def.spec.wings.map((w, k) => ({
+                         span: w.span, chord: w.chord, taper: w.taper,
+                         of: k === 0 ? { span: +P.wgSpan, chord: +P.wgChord, tip: +P.wgChordTip }
+                                     : { span: +P.w2Span, chord: +P.w2Chord, tip: +P.w2ChordTip } })) };
   // THE TWIN BOOMS (2026-09-04, TWIN-BOOM spec §1.3; REBUILT G267 — the
   // user: "their end toward the wing should be profiled, customizable like
   // the nose cone (from ogival to conical). Their other end should offer the

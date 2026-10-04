@@ -56,18 +56,19 @@ const GROUND_LIB = (() => {
   // library ~38 MB), the same arrays a grow would lend. A failure is not kept (the next pack tries again).
   const KT = new Map();
   function transcoded(url, F) {
-    let p = KT.get(url);
+    const sk = KTX2.skip ? KTX2.skip() : 0, key = sk ? url + '|skip' : url;   // G1230: the budget's top mip skipped (ktx2.js)
+    let p = KT.get(key);
     if (p) { stats.ktx2Shared++; return p; }
-    p = F(url).then(b => { stats.ktx2Bytes += b.length; return KTX2.parse(b, 'ground'); });
-    KT.set(url, p);
-    p.catch(() => { if (KT.get(url) === p) KT.delete(url); });
+    p = F(url).then(b => { stats.ktx2Bytes += b.length; return KTX2.parse(b, 'ground', sk); });
+    KT.set(key, p);
+    p.catch(() => { if (KT.get(key) === p) KT.delete(key); });
     return p;
   }
   // THE KTX2 PACK: two compressed planes, or a rejection (the caller falls back to the raw layers)
   function packKtx(items, prev, F) {
-    const px = PX(), n = items.length;
+    const px = KTX2.dim ? KTX2.dim(PX()) : PX(), n = items.length;   // G1230: half a side under the budget's mip skip
     const had = new Map();
-    if (prev && prev.A && prev.A.ktx2 && prev.N && prev.N.ktx2 && prev.urls) prev.urls.forEach((u, j) => { if (u && prev.A.layers[j] && prev.N.layers[j]) had.set(u, j); });
+    if (prev && prev.A && prev.A.ktx2 && prev.A.px === px && prev.N && prev.N.ktx2 && prev.urls) prev.urls.forEach((u, j) => { if (u && prev.A.layers[j] && prev.N.layers[j]) had.set(u, j); });
     const A = { ktx2: true, px, format: null, type: null, levels: 0, layers: new Array(n) }, N = Object.assign({}, A, { layers: new Array(n) });
     const one = (plane, i, url) => transcoded(url, F).then(t => {
       if (t.width !== px || t.height !== px) throw new Error(url + ' is ' + t.width + ' x ' + t.height);
@@ -121,9 +122,10 @@ const GROUND_LIB = (() => {
   // before AS3), KTX2 -> CompressedArrayTexture (the file's mips). o: { srgb, aniso }
   function arrayTexture(THREE, plane, n, o) {
     o = o || {};
-    const px = PX();
+    let px = PX();
     let t;
     if (plane && plane.ktx2) {
+      px = plane.px || px;   // (G1230: the planes' own side - half under the budget's mip skip)
       const mips = [];
       for (let l = 0; l < plane.levels; l++) {
         const parts = plane.layers.map(L => L[l]), size = parts.reduce((s, d) => s + d.byteLength, 0);

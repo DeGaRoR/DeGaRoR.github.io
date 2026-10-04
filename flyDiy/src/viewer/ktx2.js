@@ -27,10 +27,25 @@
 //   KTX2.parse(bytes, family) -> Promise<{ mipmaps: [{ data, width, height }], width, height, format, type }> (one
 //                            layer; rejects on any failure; the bytes are transferred)
 //   KTX2.load(url, family) -> the same, fetched (ASSET_FETCH) and transcoded ONCE per url for the page
-//   KTX2.stats()          -> { files, bytes, failed, fallbacks, target, off, workers }
+//   KTX2.stats()          -> { files, bytes, failed, fallbacks, target, off, workers, skipped }
+//   KTX2.skip()           -> the levels the budget drops off the top (0 or 1; GFX.budget().mipSkip, G1230)
+//   KTX2.dim(w)           -> the width a w-wide file lands at under that skip (its callers size their arrays by it)
+//
+// THE TOP MIP SKIPPED (G1230, MEM-BUDGET): a preset whose budget says mipSkip (potato) keeps a file's chain from its
+// SECOND level: a quarter of the bytes held (the transcodes are kept per url, the props' and MATLIB's pages read them)
+// and uploaded. Only a file with a chain to give (>= 2 levels) and >= SKIP_MIN wide on its top level; dim() is the
+// same rule, so MATLIB's pages and the ground library's planes are sized as their layers land.
 'use strict';
 const KTX2 = (() => {
-  const stats = { files: 0, bytes: 0, failed: 0, fallbacks: 0, target: null, off: null, workers: 0 };
+  const stats = { files: 0, bytes: 0, failed: 0, fallbacks: 0, target: null, off: null, workers: 0, skipped: 0 };
+  const SKIP_MIN = 128;
+  function skip() {
+    if (typeof window === 'undefined') return 0;
+    const q = (typeof location !== 'undefined' && location.search) || '';
+    const m = /[?&]mipskip=([01])(?:&|$)/.exec(q); if (m) return +m[1];   // the A/B
+    const G = window.GFX; return G && typeof G.budget === 'function' ? (G.budget().mipSkip | 0) : 0;
+  }
+  const dim = (w, sk) => ((sk === undefined ? skip() : sk) && w >= SKIP_MIN ? w >> 1 : w);
   const EXTS = ['EXT_texture_compression_bptc', 'WEBGL_compressed_texture_s3tc', 'WEBGL_compressed_texture_astc', 'WEBGL_compressed_texture_etc'];
   let loader = null, pending = null;
   function off(family) {
@@ -74,7 +89,8 @@ const KTX2 = (() => {
     return pending;
   }
   // one file -> its transcoded mip chain. The bytes are TRANSFERRED to a worker (the caller's copy is gone after).
-  function parse(bytes, family) {
+  function parse(bytes, family, sk) {
+    if (sk === undefined) sk = skip();
     const why = off(family);
     if (why) { stats.off = why; return Promise.reject(new Error('ktx2 off: ' + why)); }
     return ready().then(L => new Promise((res, rej) => {
@@ -84,7 +100,9 @@ const KTX2 = (() => {
         if (!t || !t.mipmaps || !t.mipmaps.length || t.isCompressedArrayTexture || (t.image && t.image.depth > 1)) { stats.failed++; rej(new Error('ktx2: not a single-layer texture')); return; }
         stats.files++; stats.bytes += n;
         stats.target = stats.target || t.format;
-        res({ mipmaps: t.mipmaps, width: t.image.width, height: t.image.height, format: t.format, type: t.type });
+        let mips = t.mipmaps, w = t.image.width, h = t.image.height;
+        if (mips.length >= 2 && dim(w, sk) !== w) { mips = mips.slice(1); w = mips[0].width; h = mips[0].height; stats.skipped++; }   // G1230: the top level dropped
+        res({ mipmaps: mips, width: w, height: h, format: t.format, type: t.type });
         t.mipmaps = []; t.dispose();
       }, e => { stats.failed++; rej(e instanceof Error ? e : new Error('ktx2: ' + e)); });
     }));
@@ -94,13 +112,14 @@ const KTX2 = (() => {
   // not kept: the next ask tries again.
   const LOADS = new Map();
   function load(url, family) {
-    let p = LOADS.get(url);
+    const sk = skip(), key = sk ? url + '|skip' : url;   // (G1230: a budget changed in flight transcodes anew at its own size)
+    let p = LOADS.get(key);
     if (p) return p;
-    p = (typeof ASSET_FETCH === 'function' ? ASSET_FETCH(url) : Promise.reject(new Error('ktx2: no ASSET_FETCH'))).then(b => parse(b, family));
-    LOADS.set(url, p);
-    p.catch(() => { if (LOADS.get(url) === p) LOADS.delete(url); });
+    p = (typeof ASSET_FETCH === 'function' ? ASSET_FETCH(url) : Promise.reject(new Error('ktx2: no ASSET_FETCH'))).then(b => parse(b, family, sk));
+    LOADS.set(key, p);
+    p.catch(() => { if (LOADS.get(key) === p) LOADS.delete(key); });
     return p;
   }
-  return { off, parse, load, ready, stats: () => Object.assign({}, stats, { off: off() }), _stats: stats };
+  return { off, parse, load, ready, skip, dim, stats: () => Object.assign({}, stats, { off: off() }), _stats: stats };
 })();
 if (typeof window !== 'undefined') window.KTX2 = KTX2;

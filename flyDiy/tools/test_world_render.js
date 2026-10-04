@@ -217,6 +217,7 @@ const fs = require('fs');
 // scenes. Evaluating them together here is what keeps this sandbox honest —
 // injecting each symbol by name would drift the moment the factory grew one.
 const vsrc = f => fs.readFileSync(path.join(__dirname, '..', 'src', 'viewer', f), 'utf8');
+global.MATLIB = require(path.join(__dirname, '..', 'src', 'viewer', 'matlib.js'));   // the runway lights' materials are made through it (train 28)
 const src = [vsrc('site_ground.js'), vsrc('render_world.js')].join(String.fromCharCode(10));
 const scene = new Obj3(); scene.fog = null;
 const camera = new Obj3(); camera.far = 6000;

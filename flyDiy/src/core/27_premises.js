@@ -930,6 +930,7 @@ const PAVE_FADE = 6;      // the fade past the band (PAVEMENT.RECIPE.fadeW's def
 // opts.rwyTrees. Default 'today' until the user has judged.
 const RWY_TREES = ['today', 'map', 'mapx'];
 const PAVE_SIDE = 1.8;    // a side-faded pavement's DRAWN side: the recipe's sideW 1.2 + edgeChip 0.6 (GATE PAVEMENT holds it)
+const PAVE_SIDE_SOFT = 7.9;   // G1395: a soft / grass pavement's: the torn edge's reach, 3.05 x edgeSoft 2.6 (GATE PAVEMENT holds it)
 function rwyTreesMode(o) {
   let v = o && o.rwyTrees;
   if (v == null && typeof window !== 'undefined' && window.FLYDIY_RWYTREES != null) v = window.FLYDIY_RWYTREES;
@@ -1621,6 +1622,9 @@ function compose(rec0, world, opts) {
       ro.pts = pts;
       // a TAXIWAY: a concrete road 10 m wide or more that meets a strip or an apron - its sides are the airfield's (G980)
       ro.taxiway = (RUNWAY_LOOKS[ro.look] || {}).cls === 'concrete' && ro.w >= 10 && !!(ro.joinA || ro.joinB);
+      // G1391 (RUNWAY-LOOK): a SIDED road fades its side out over PAVE_SIDE as a strip does (its declared width the drawn
+      // one) - every road but one whose entry declares its own band, unless the premises' recipe says roadSide 0
+      ro.sided = ro.taxiway || ((ro.band === null || ro.band === undefined) && !(rec.pavement && +rec.pavement.roadSide === 0));
     }
   }
   // G980: the bands the ground's own code is drawn under (stampTtype): a strip's box and a paved polygon, each out
@@ -2046,6 +2050,18 @@ function compose(rec0, world, opts) {
       if (!index.query(lx, lz)) return h;
       return grHeight(lx, lz, h);
     },
+    // G1406 (METLA-LOAD): WOULD terrainFast BAKE HERE? - the raster is on, a modifier's cell holds the point and no cooked
+    // cell does (a tile there is baked lazily, 1-1.6 ms, the first time anything reads it). The world's BUILD READ
+    // (20_world.js terrainHBuild) takes the analytic path where this says so: a geometry builder reads a far tile a few
+    // dozen times, ~17 times cheaper than its bake. It never asks what the cache holds, so its answer is the same
+    // whatever was read before; where a cell is cooked it is the raster's own bits
+    rasterLazyAt(x, z) {
+      if (!grOn) return false;
+      const dx = x - F.anchor.x, dz = z - F.anchor.z, lx = dx * F.c - dz * F.s, lz = dx * F.s + dz * F.c;
+      if (!index.query(lx, lz)) return false;
+      const S = GR_TS * GR_CELL;
+      return !(grCook && grCook.has(grCellKey(Math.floor(lx / S), Math.floor(lz / S))));
+    },
     get raster() { return grOn ? { on: true, tile: GR_TS, cap: GR_CAP, tiles: grTiles.size, ...grStats, rMaxBaked: grRmax, cookedCells: grCook ? grCook.size : 0 } : { on: false }; },
     // (G835) the cooked raster: a cell's signature, the cook's walk, the load
     rasterCellSig, rasterCellParts, rasterModParts, rasterEach, rasterLoad, rasterCell: GR_TS * GR_CELL, rasterTile: GR_TS,
@@ -2200,15 +2216,15 @@ function compose(rec0, world, opts) {
   // -> null | { d, id, kind, cls } (d: metres inside that pavement's edge, > -margin; kind 'surface' for a polygon).
   // G1091: a tree's trunk and the pavement. 'today' is coverAt's kill verbatim (the pavement, its band, the fade: 46 m
   // past 13/31's edge). 'map' / 'mapx' keep a tree off the paving and what the pavement DRAWS past its edge: a strip, a
-  // paved polygon and a taxiway fade their side out over PAVE_SIDE (G660, G980); an ordinary road still draws its
-  // gravel band and fades over PAVE_FADE past it, so its reach is 'today's (band + fade). The PAVED surface polygons
+  // paved polygon, a taxiway and (G1391) every SIDED road fade their side out over PAVE_SIDE (G660, G980); a road with a
+  // band of its own still draws its band and fades over PAVE_FADE past it, so its reach is 'today's (band + fade). The PAVED surface polygons
   // are the derived excludes' (never lifted).
   function treePaveAt(x, z) {
     if (RWT === 'today') { const c = coverAt(x, z, 1); return !!(c && c.kill > 0); }
     const L = F.toLocal(x, z), lx = L[0], lz = L[1];
     const cell = CIDX.query(lx, lz);
     if (cell) for (const it of cell) {
-      const reach = it.kind === 'road' && !(it.road && it.road.taxiway) ? it.band + PAVE_FADE : PAVE_SIDE;
+      const reach = it.kind === 'road' && !(it.road && it.road.sided) ? it.band + PAVE_FADE : (it.soft ? PAVE_SIDE_SOFT : PAVE_SIDE);   // G1391: a sided road's side; G1395: a soft one's wider fade
       if (dEdgeOf(it, lx, lz) > -reach) return true;
     }
     return false;
@@ -2742,7 +2758,7 @@ function collect(globals) {
            byCat(c) { const out = []; entries.forEach(e => { if ((e.cat || (e.kind === 'park' ? 'landmark' : null)) === c) out.push(e); }); return out; } };
 }
 
-const API = { PREMISES_V, LAYERS, smoothPath, SURFACE, SURFACE_NAMES, ROAD_CLS, ROAD_LOOK, roadLook, PAVE_BAND, PAVE_FADE, PAVE_SIDE, RWY_TREES, rwyTreesMode, RWY_CLEAR_DEF, runwayClearOf, runwayClearPoly, inRwyClear, VEG_MODES, vegOf, vegMixOf, paveBand, PAV_KEYS, PAV_MARKS, STAND_KEYS, ZONE_GRASS, zoneGrass, ZONE_KINDS, ZONE_RULES, KIND_RULES, CATEGORIES, THEMES, THEME_DEF, themeOf, RUNWAY_LOOKS, runwaySite, runwayIsWater, HANGAR_DIMS, PREMISES_MIGRATORS, GENERATORS,
+const API = { PREMISES_V, LAYERS, smoothPath, SURFACE, SURFACE_NAMES, ROAD_CLS, ROAD_LOOK, roadLook, PAVE_BAND, PAVE_FADE, PAVE_SIDE, RWY_TREES, rwyTreesMode, RWY_CLEAR_DEF, runwayClearOf, runwayClearPoly, inRwyClear, VEG_MODES, vegOf, vegMixOf, paveBand, PAV_KEYS, PAV_MARKS, STAND_KEYS, ZONE_GRASS, zoneGrass, ZONE_KINDS, ZONE_RULES, KIND_RULES, CATEGORIES, THEMES, THEME_DEF, themeOf, RUNWAY_LOOKS, runwaySite, runwayIsWater, HANGAR_DIMS, PREMISES_MIGRATORS, GENERATORS, PAVE_SIDE_SOFT,
   fnv, hash32, mulberry32, seedOf, fbm,
   polyBBox, polyCentroid, polyArea, polyCCW, inPoly, sdPoly, distPtSeg, polySimple, ensureCCW, smf01, polysOverlap,
   polyRoad, roadDist, roadInPoly, shoreDepth, sowPlots, planForest, pickFor, PICK_TAGS, RUNWAY_DEF, ALTIPORT, runwayProfile, profileIssues, runwayShoulder, runwayEnds, runwayBox, runwayAerodrome, siteFrame, placeSite, siteShelves, slotAt, polyDrop, bankFalloff, shelfCovers, cellTol, deltaAt, LINK_SOLVERS, solveLinks,

@@ -303,12 +303,90 @@ function checkEnvelope(A) {
     const c = (o.seed && o.seed.cage) || (o.writes && o.writes.cage) || {};
     const chord = +c.wgChord, span = +c.wgSpan;
     if (!Number.isFinite(chord) || !Number.isFinite(span)) continue;
-    const okChord = chord >= 0.80 && chord <= 2.10;
-    const okSpan = span >= Math.max(6.5, 4.0 * chord) &&
-                   span <= Math.min(18.0, 20.0 * chord);
+    // G1283: the envelope's one home, not a copy of its numbers
+    const E = CORE.GEN_WING_ENVELOPE;
+    const okChord = chord >= E.chord[0] && chord <= E.chord[1];
+    const okSpan = span >= Math.max(E.span[0], E.spanPerChord[0] * chord) &&
+                   span <= Math.min(E.span[1], E.spanPerChord[1] * chord);
     ok = check(okChord && okSpan,
       'live class declares a wing outside clampSpec\'s envelope (the clamp ' +
       'would bite a declared value)', `${o.value}: ${span} x ${chord}`) && ok;
+  }
+  return ok;
+}
+
+// ---------------------------------------------------------------------------
+// 4b WING ROWS (G1283, CONFIGURATIONS §9, RULING 3) — a slider moves a number
+// or says it does not. The span and chord rows reach GEN_WING_ENVELOPE's own
+// bounds (the sailplane opening reached the clamp and the seed, not the rows:
+// the sail card's 15 x 1.00 sat outside a 6.5-14 / 1.15-2.10 panel); every
+// live class seed sits inside the row that will show it; and the rows whose
+// clamp rides the chord (span, tip chord) carry a note that reads back the
+// resolved wing — said exactly when the resolver moved the row, on either
+// plane. `R` is the rows by key (the selftest hands in broken copies).
+// ---------------------------------------------------------------------------
+const WING_ROWS = (() => {
+  const out = new Map();
+  const walk = items => { for (const it of items) {
+    if (Array.isArray(it[1])) { walk(it[1]); continue; }
+    if (!out.has(it[0])) out.set(it[0], it);
+  } };
+  for (const g of W.CAGE_PAGE.groupsOverride || []) walk(g[1]);
+  return out;
+})();
+const rowOpts = row => row.slice(5).find(x => x && typeof x === 'object' && !Array.isArray(x)) || {};
+const JOIN = require(path.join(T, '_cage_join.js'));
+const JT = { TIP_KEYS: Object.keys(CORE.GEN_TIPS), FLAP_KEYS: Object.keys(CORE.GEN_FLAPS), PRESET_NAMES: [] };
+// the note against a REAL resolve of these rows (the join's spec -> resolveSpec),
+// published the way the wing layer publishes CAGE_WING.flown
+function noteAt(R, key, over) {
+  const P = Object.assign({}, PAGE_BASE, { wingOn: 1 }, over);
+  const S = CORE.resolveSpec(JOIN.cageJoinSpec(P, {}, JT)).spec;
+  const was = W.CAGE_WING;
+  W.CAGE_WING = { flown: S.wings.map((w, k) => ({ span: w.span, chord: w.chord, taper: w.taper,
+    of: k === 0 ? { span: +P.wgSpan, chord: +P.wgChord, tip: +P.wgChordTip }
+                : { span: +P.w2Span, chord: +P.w2Chord, tip: +P.w2ChordTip } })) };
+  try { const n = rowOpts(R.get(key)).note; return typeof n === 'function' ? n(P) || '' : null; }
+  finally { W.CAGE_WING = was; }
+}
+function checkWingRows(A, R) {
+  let ok = true;
+  const E = CORE.GEN_WING_ENVELOPE;
+  for (const [k, env] of [['wgSpan', E.span], ['wgChord', E.chord]]) {
+    const r = R.get(k);
+    ok = check(!!r && r[2] === env[0] && r[3] === env[1],
+      'a wing row does not reach the flown envelope (or reaches past it)',
+      `${k}: row ${r && r[2]}-${r && r[3]}, envelope ${env[0]}-${env[1]}`) && ok;
+  }
+  for (const o of A.rowOptions(A.rowByKey['class'])) {
+    if (o.inactive) continue;
+    const c = (o.seed && o.seed.cage) || {};
+    for (const k of ['wgSpan', 'wgChord', 'wgChordTip']) {
+      const r = R.get(k);
+      if (c[k] == null || !r) continue;
+      ok = check(c[k] >= r[2] && c[k] <= r[3],
+        'a live class seeds a wing value its own row cannot show',
+        `${o.value}: ${k} ${c[k]} outside ${r[2]}-${r[3]}`) && ok;
+    }
+  }
+  // the notes: said where the resolver moved the row, silent where it did not
+  const cases = [
+    ['wgChordTip', { wgChord: 2.10, wgChordTip: 0.55 }, /^flies 0\.9[45] m/],   // §9's own case: 0.945 m
+    ['wgChordTip', { wgChord: 1.70, wgChordTip: 1.75 }, /^flies 1\.70 m/],      // the ceiling: tip over root
+    ['wgChordTip', { wgChord: 1.60, wgChordTip: 1.10 }, /^$/],
+    ['wgSpan', { wgChord: 2.10, wgSpan: 6.5 }, /^flies 8\.40 m/],               // 4 x chord
+    ['wgSpan', { wgChord: 0.80, wgSpan: 18 }, /^flies 16\.00 m/],               // 20 x chord
+    ['wgSpan', { wgChord: 1.00, wgSpan: 15 }, /^$/],                             // the sail seed
+    // the second plane's copy reads its own rows and plane 1's resolve
+    ['w2ChordTip', { w2On: 1, wgChord: 1.60, wgChordTip: 1.10, w2Chord: 2.10, w2ChordTip: 0.55 }, /^flies 0\.9[45] m/],
+    ['w2ChordTip', { w2On: 1, wgChord: 2.10, wgChordTip: 0.55, w2Chord: 1.60, w2ChordTip: 1.10 }, /^$/],
+  ];
+  for (const [k, over, re] of cases) {
+    let n;
+    try { n = noteAt(R, k, over); } catch (e) { n = 'threw: ' + e.message; }
+    ok = check(typeof n === 'string' && re.test(n),
+      'a wing row the resolver moves does not say so (or speaks when it did not move)',
+      `${k} ${JSON.stringify(over)}: note ${JSON.stringify(n)}`) && ok;
   }
   return ok;
 }
@@ -488,6 +566,7 @@ checkShape(D);
 checkOptions(D);
 checkWrites(D);
 checkEnvelope(D);
+checkWingRows(D, WING_ROWS);
 checkArchetypes(D);
 checkFidelity(D);
 checkCoherence(D);
@@ -601,6 +680,28 @@ if (process.argv.includes('--selftest')) {
       delete A.rowByKey.suspension.pair; return checkCoherence(A); }],
     ['a pair kept by nothing anyone defends', A => {
       A.rowByKey.prop.pair[0].via = 'hope'; return checkCoherence(A); }],
+    // G1283: the wing rows must themselves be breakable
+    ['the span row stopping short of the envelope (the §9 14 m)', A => {
+      const R = new Map(WING_ROWS); const r = R.get('wgSpan').slice(); r[3] = 14;
+      R.set('wgSpan', r); return checkWingRows(A, R); }],
+    ['the chord row stopping short of the sail seed', A => {
+      const R = new Map(WING_ROWS); const r = R.get('wgChord').slice(); r[2] = 1.15;
+      R.set('wgChord', r); return checkWingRows(A, R); }],
+    ['the tip chord row silent when the taper floor moves it', A => {
+      const R = new Map(WING_ROWS); const r = R.get('wgChordTip').slice();
+      const i = r.findIndex(x => x && typeof x === 'object' && !Array.isArray(x));
+      r[i] = Object.assign({}, r[i]); delete r[i].note;
+      R.set('wgChordTip', r); return checkWingRows(A, R); }],
+    ['a note that speaks all the time', A => {
+      const R = new Map(WING_ROWS); const r = R.get('wgSpan').slice();
+      const i = r.findIndex(x => x && typeof x === 'object' && !Array.isArray(x));
+      r[i] = Object.assign({}, r[i], { note: () => 'flies 8.40 m' });
+      R.set('wgSpan', r); return checkWingRows(A, R); }],
+    ['the second plane\'s note reading the first plane', A => {
+      const R = new Map(WING_ROWS); const r = R.get('w2ChordTip').slice();
+      const i = r.findIndex(x => x && typeof x === 'object' && !Array.isArray(x));
+      r[i] = Object.assign({}, r[i], { note: rowOpts(WING_ROWS.get('wgChordTip')).note });
+      R.set('w2ChordTip', r); return checkWingRows(A, R); }],
     ['a seed on a key that exists nowhere', A => {
       const o = A.rowByKey.role.options.find(x => x.seed);
       o.seed.cage.noSuchParam = 1; return checkWrites(A); }],

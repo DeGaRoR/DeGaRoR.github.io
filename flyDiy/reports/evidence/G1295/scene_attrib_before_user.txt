@@ -1,0 +1,53 @@
+
+== cub | garage | 300 frames, 30.0 fps | > 1.5x cap 0 % | <20 0 % · 20-40 100 % · 40-60 0 % · 60-100 0 % · 100-250 0 % · 250-1000 0 % · >1000 0 % | p99 33.5, worst 33.5
+   events {"gc":1,"loaf":1}
+   LoAF scripts: 1x 197 ms FrameRequestCallback loop | 1x 28 ms BUTTON#bGo.onclick
+
+== cub | taxi chase @HOME | 1188 frames, 29.7 fps | > 1.5x cap 1.4 % | <20 1.5 % · 20-40 96 % · 40-60 1.5 % · 60-100 0.17 % · 100-250 0.34 % · 250-1000 0 % · >1000 0 % | p99 50.1, worst 133.3
+   long frames by the PREVIOUS frame's top slot: fill 16x (128, 100, 98, 97, 69, 58 ms)
+   events {"longtask":23,"loaf":4,"gc":1}
+   LoAF scripts: 4x 482 ms FrameRequestCallback loop
+   GL sync stalls > 2 ms: gbsd 16x, sum 64 ms, max 10.2
+
+== cub | taxi cockpit @HOME | 301 frames, 30.0 fps | > 1.5x cap 0 % | <20 1.0 % · 20-40 98 % · 40-60 0.66 % · 60-100 0 % · 100-250 0 % · 250-1000 0 % · >1000 0 % | p99 33.5, worst 50
+   events {}
+   GL sync stalls > 2 ms: gbsd 1x, sum 3 ms, max 2.9
+
+== cub | low pass @HOME | 434 frames, 28.9 fps | > 1.5x cap 6.9 % | <20 11 % · 20-40 74 % · 40-60 11 % · 60-100 3.2 % · 100-250 0 % · 250-1000 0 % · >1000 0 % | p99 66.8, worst 83.4
+   long frames by the PREVIOUS frame's top slot: fill 2x (70, 11 ms) | render 27x (11, 10, 10, 10, 10, 10 ms) | cover 1x (11 ms)
+   events {"gc":1,"longtask":7}
+   GL sync stalls > 2 ms: gbsd 93x, sum 2816 ms, max 74.2
+
+== cub | taxi chase @mn_strip | 1191 frames, 29.8 fps | > 1.5x cap 0.67 % | <20 1.0 % · 20-40 98 % · 40-60 1.0 % · 60-100 0.080 % · 100-250 0.25 % · 250-1000 0 % · >1000 0 % | p99 50, worst 116.8
+   long frames by the PREVIOUS frame's top slot: fill 6x (110, 103, 101, 83, 42, 40 ms) | world 1x (31 ms) | render 1x (9 ms)
+   events {"longtask":14,"loaf":4,"gc":3}
+   LoAF scripts: 4x 454 ms FrameRequestCallback loop
+   GL sync stalls > 2 ms: gbsd 18x, sum 139 ms, max 32.4
+
+== cub | taxi cockpit @mn_strip | 301 frames, 30.0 fps | > 1.5x cap 0.33 % | <20 0.66 % · 20-40 99 % · 40-60 0.33 % · 60-100 0 % · 100-250 0 % · 250-1000 0 % · >1000 0 % | p99 33.5, worst 50.1
+   long frames by the PREVIOUS frame's top slot: render 1x (9 ms)
+   events {}
+
+== cub | low pass @mn_strip | 450 frames, 30.0 fps | > 1.5x cap 0.22 % | <20 0.44 % · 20-40 99 % · 40-60 0.44 % · 60-100 0 % · 100-250 0 % · 250-1000 0 % · >1000 0 % | p99 33.5, worst 50.1
+   long frames by the PREVIOUS frame's top slot: world 1x (36 ms)
+   events {"longtask":2}
+   GL sync stalls > 2 ms: gbsd 5x, sum 44 ms, max 17
+
+== floats | water taxi @SEA | 729 frames, 29.1 fps | > 1.5x cap 1.8 % | <20 0.96 % · 20-40 96 % · 40-60 1.1 % · 60-100 0.96 % · 100-250 0.69 % · 250-1000 0 % · >1000 0 % | p99 83.3, worst 133.3
+   long frames by the PREVIOUS frame's top slot: fill 12x (132, 112, 100, 89, 86, 82 ms) | world 1x (36 ms)
+   events {"longtask":19,"loaf":9,"gc":1}
+   LoAF scripts: 9x 937 ms FrameRequestCallback loop | 1x 31 ms TimerHandler:setTimeout @index.html
+
+fence callers (cub):
+  2907x index.html:9491:52463 < eye (<anonymous>:438:14 < Object.render [as post] (<anonymous>:475:28 < Object.render (<anonymous>:524:21
+  53x index.html:9491:52463 < sheetCheckAsync (<anonymous>:3080:39 < bakeImpostorAtlasNow (<anonymous>:3293:140 < bakeImpostorAtlas (<anonymous>:3065:21
+  6x index.html:9491:52463 < src/viewer/flown_bake.js?v=d65f120a:382:108 < src/viewer/flown_bake.js?v=d65f120a:1311:12 < src/viewer/flown_bake.js?v=d65f120a:1375:17
+  6x index.html:9491:52463 < skyFractionAsync (<anonymous>:404:14 < ask (<anonymous>:860:58 < calibrateCover (<anonymous>:866:76
+  1x index.html:9491:52463 < skyFractionAsync (<anonymous>:404:14 < ask (<anonymous>:860:58 < calibrateCover (<anonymous>:862:34
+
+fence callers (floats):
+  486x index.html:9491:52463 < eye (<anonymous>:438:14 < Object.render [as post] (<anonymous>:475:28 < Object.render (<anonymous>:524:21
+  53x index.html:9491:52463 < sheetCheckAsync (<anonymous>:3080:39 < bakeImpostorAtlasNow (<anonymous>:3293:140 < bakeImpostorAtlas (<anonymous>:3065:21
+  12x index.html:9491:52463 < src/viewer/flown_bake.js?v=d65f120a:382:108 < src/viewer/flown_bake.js?v=d65f120a:1311:12 < src/viewer/flown_bake.js?v=d65f120a:1375:17
+  6x index.html:9491:52463 < skyFractionAsync (<anonymous>:404:14 < ask (<anonymous>:860:58 < calibrateCover (<anonymous>:866:76
+  1x index.html:9491:52463 < skyFractionAsync (<anonymous>:404:14 < ask (<anonymous>:860:58 < calibrateCover (<anonymous>:862:34

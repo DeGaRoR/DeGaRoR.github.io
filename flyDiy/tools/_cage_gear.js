@@ -625,6 +625,7 @@ PAGE.post = ctx => {
   // trace of an automatic decision the builder never clicked
   if (onWing) notes.push('mains on wing');
   window.CAGE_GEAR = { AF, contacts, pitch, gy, saddles: saddlesOut,
+    onWing,                              // G1441: legs rooted on the wing (the drag preview's wing -> gear edge)
     // G58.3: the separable units' anchors, for the join's moving parts
     units: { legs: legUnits.map(u => ({ kind: u.kind, axle: u.axle,
                                         root: u.root, moving: u.moving })),

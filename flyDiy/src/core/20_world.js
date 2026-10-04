@@ -47,6 +47,8 @@ function makeWorld(seed, opts) {
   // the ground there is under the level. That also settles what a premises
   // grade does near a bank - dig below the level and the cut is under water,
   // honestly, because the lake does not follow the spade.
+  // (G1335: the island's carved lakebed, read by terrainH - here for the same reason: terrainH runs while the world is made)
+  const LAKE_BED = ISL && ISL.lakeBed ? ISL.lakeBed : null;
   const lakeLevelAt = (() => {
     const recs = (ISL && ISL.lakes || []).filter(L => L.level > 0.2 && L.cells >= 3);
     if (!recs.length) return null;
@@ -515,14 +517,68 @@ function makeWorld(seed, opts) {
   const TH_N = 16384;
   // (G611: and the ground's version - the climate's lattice of the solver's ground reads it)
   function terrainClear() { if (thX) thX.fill(NaN); groundVer = (groundVer | 0) + 1; }
+  // G1436 (METLA-TAXI): A SCOPE OF BUILD READS - while buildReads(+1)..(-1) is open, a read that would bake a raster tile
+  // lazily answers terrainHBuild's way (the analytic composer, not memoised - so the memo keeps the raster's bits), and
+  // every other read is terrainH as ever. For a walk that reads through world functions it does not own (the forest
+  // fill's surface, slope and pool taps): with the town on, the fill's 9 km ring crosses Metlakatla's uncooked cells at
+  // run time and its rows baked ~300 tiles a 20 s taxi at HOME (the 21-87 ms 'fill' frames) - METLA-LOAD's boot used to
+  // have baked them. `var`: terrainH is hoisted and called before this line runs.
+  var buildDepth;
+  function buildReads(d) { buildDepth = Math.max(0, (buildDepth | 0) + d); }
   function terrainH(x, z) {
+    if (buildDepth && PM && PM.rasterLazyAt && PM.rasterLazyAt(x, z)) return PM.terrainH(x, z, baseH(x, z));
     if (!thX) { thX = new Float64Array(TH_N).fill(NaN); thZ = new Float64Array(TH_N); thH = new Float64Array(TH_N); }
     const i = (Math.imul((x * 4096) | 0, 73856093) ^ Math.imul((z * 4096) | 0, 19349663)) & (TH_N - 1);
     if (thX[i] === x && thZ[i] === z) return thH[i];
     const h0 = baseH(x, z);
     // (G614: the premises' raster - the composed ground baked lazily off the same modifiers, 27_premises.js)
-    const h = PM ? (PM.terrainFast ? PM.terrainFast(x, z, h0) : PM.terrainH(x, z, h0)) : h0;
+    let h = PM ? (PM.terrainFast ? PM.terrainFast(x, z, h0) : PM.terrainH(x, z, h0)) : h0;
+    // THE CARVED LAKEBED (LAKE-HOLES G1335, 28_island.js lakeBed): under every lake the ground lies under the water,
+    // continuous with its bank - the renderer no longer cuts it away, and the floats, the wheels and the drawn ground
+    // all read this one surface. On the composed ground: where no premises modifier acts the bed is min(h, bed); where
+    // one does, a FILL stays a fill (G753: 02/20's pond is the runway's) - the modifiers are blends, affine in the
+    // ground under them, so composing on the bed as well says how much of the ground they keep (1 - w); a modifier
+    // that holds half or more of it (w >= 0.5) is the old composition on the raw ground, fading to the bed's as w -> 0
+    // (continuous at the modifier's rim, where w is 0). The memo above holds the answer.
+    if (LAKE_BED) h = lakeCarve(x, z, h0, h, hb => (PM.terrainFast ? PM.terrainFast(x, z, hb) : PM.terrainH(x, z, hb)));
     thX[i] = x; thZ[i] = z; thH[i] = h;
+    return h;
+  }
+
+  // G1406 (METLA-LOAD): THE BUILD READ - the composed ground for a ONE-OFF read (a mesh's vertices, a road's samples, a
+  // placement's test): terrainH where the premises' raster is cooked or absent (the same bits), the ANALYTIC composer
+  // where terrainH would bake a raster tile lazily (27_premises.js rasterLazyAt) - the raster is that composer to GR_TOL
+  // (1 cm). The town's premises build read ~11 000 uncooked tiles 9-10 km from HOME at every town-on boot (~10 s of
+  // main-thread bakes); the wheels, the wind and every repeated read keep terrainH. Not memoised: the memo is terrainH's
+  function terrainHBuild(x, z) {
+    if (!(PM && PM.rasterLazyAt && PM.rasterLazyAt(x, z))) return terrainH(x, z);
+    const h0 = baseH(x, z), h = PM.terrainH(x, z, h0);
+    return LAKE_BED ? lakeCarve(x, z, h0, h, hb => PM.terrainH(x, z, hb)) : h;   // (the bed, as terrainH carves it)
+  }
+  // THE EXACT GROUND (COLD-LINKS x LAKE-HOLES, lakes-2): the ANALYTIC composer everywhere, carved as terrainH carves - the
+  // source the premises' raster approximates (GATE PREMRASTER / PREMCOOK hold the raster and the cook to it). The raster
+  // world's terrainH carves AFTER composing, so the composer alone is no longer its reference: under a lake's bank the two
+  // differ by the carve itself (up to 5.6 m beside r_airport's grade), not by the raster. Not memoised, never on a hot path.
+  function terrainHExact(x, z) {
+    const h0 = baseH(x, z);
+    if (!PM) return LAKE_BED ? lakeCarve(x, z, h0, h0, null) : h0;
+    const h = PM.terrainH(x, z, h0);
+    return LAKE_BED ? lakeCarve(x, z, h0, h, hb => PM.terrainH(x, z, hb)) : h;
+  }
+  // the carve as one function (A0, train 28): terrainH and METLA-LOAD's build read (terrainHBuild) BOTH carve - the build
+  // read composed the uncooked town cells on the raw ground and skipped the bed (GATE LAKEBED: a ring over a lake there)
+  function lakeCarve(x, z, h0, h, compose) {
+    if (LAKE_BED) {
+      const b = LAKE_BED(x, z);
+      if (b < h) {
+        if (!PM || h === h0) h = b;
+        else {
+          const hb = Math.min(h0, b), hc = compose(hb);
+          const w = h0 > hb ? 1 - (h - hc) / (h0 - hb) : 1, t = Math.max(0, Math.min(1, w / 0.5));
+          h = hc + (h - hc) * t * t * (3 - 2 * t);
+        }
+      }
+    }
     return h;
   }
 
@@ -623,7 +679,7 @@ function makeWorld(seed, opts) {
             j3 = hash2(gx + 1229, gz + 4051);
       const x = G0x + (gx + 0.15 + 0.70 * j1) * GS;
       const z = G0z + (gz + 0.15 + 0.70 * j2) * GS;
-      const h = terrainH(x, z);
+      const h = terrainHBuild(x, z);   // (G1406: the build read - a placement, read once)
       // THE TREELINE IS THE ANALYTIC WORLD'S (G1112, TREES-NEAR): 165 m is its biome model's number. On a data island
       // the tree map decides (effClass TREE below, the same map the renderer's fill stands on): Jolene's woods run to
       // ~600 m, and 48 % of its TREE ground lies above 165 m - drawn forest nothing could hit
@@ -661,6 +717,9 @@ function makeWorld(seed, opts) {
     }
   }
   const obstacles = (typeof OBSTACLES !== 'undefined') ? OBSTACLES.make() : null;
+  // G1330 (TREE-HITBOX): the trunks of the trees the viewer DRAWS (29_obstacles.js TREE_HITS) - empty in a world no
+  // viewer stands on; the woodland above keeps its own cylinders, so a headless world collides as it always did
+  const treeHits = (typeof TREE_HITS !== 'undefined') ? TREE_HITS.make() : null;
   if (obstacles && SET && SET.buildings) {
     // the analytic world's settlement boxes (23_world_settle.js): w along the row, l across it,
     // stood on the ground at their centre; a box shape per size class, shared
@@ -691,6 +750,10 @@ function makeWorld(seed, opts) {
       // the island: the sea is the DEM at 0 (sea level does the edges), a lake
       // is its own record, a river is the hydrology's reach - and the fill's
       // lake level is not asked for at all (21_world_hydro riverWater)
+      // (G1335: INSIDE A LAKE'S LINE the water is the lake that owns the carved bed there - 28_island lakeBed.levelAt, one
+      // lake a texel - before the sea's rule: the carve takes a lake's middle under 0.05 (the East Point lens, 2.67 m, its
+      // DEM 0.83, carved to -0.3), and the sea is not there. A lagoon at the sea's own level owns a level of 0: the sea.)
+      if (LAKE_BED) { const lo = LAKE_BED.levelAt(x, z); if (lo > 0.05 && lo >= t) return lo; }
       if (t <= 0.05) return 0;
       let onBank = false;
       if (lakeLevelAt) { const L = lakeLevelAt(x, z, t); if (L.level > -Infinity) return L.level; onBank = L.covered; }
@@ -711,6 +774,8 @@ function makeWorld(seed, opts) {
     if (t < 0 && blendM(x, z, h0(x, z)) < 0) return 0;
     return -Infinity;
   }
+  // (G1406) waterH's build read (the two-argument call, on terrainHBuild)
+  function waterHBuild(x, z) { return waterAt(terrainHBuild(x, z), x, z); }
   function waterH(x, z, t) {
     const h = waterAt(terrainH(x, z), x, z);
     // THE SEA HAS WAVES (H4, G393; ruling ap: ONE surface, physics and
@@ -1094,12 +1159,13 @@ function makeWorld(seed, opts) {
     v: 1, seed: SEED,
     bounds: BOUNDS,
     island: ISL ? { id: ISL.id, canopyAt: ISL.canopyAt, effClass: ISL.effClass, classAt: ISL.classAt, coastAt: ISL.coastAt, seaFloor: ISL.seaFloor,
+                    lakeBed: ISL.lakeBed || null, LAKE_BED: ISL.LAKE_BED || null,   // G1335: the carved lakebed (the far terrain's patches take it)
                     WC: ISL.WC, hMax: ISL.hMax, grid: ISL.grid, albedo: ISL.albedo,
                     tint: ISL.tint, ori1: ISL.ori1, coast: ISL.coastU8 || null, canopy: ISL.canopyU8 || null, canopyP90: ISL.canopyP90,
                     cover: ISL.coverU8 || null, ndvi: ISL.ndvi || null, lake: ISL.lake || null, ttype: ISL.ttype || null, lakes: ISL.lakes || null, hydro: ISL.hydro, cellAt: ISL.cellAt,
                     farHeader: ISL.farHeader, farRoot: ISL.farRoot,
                     places: (ISL.premCook && ISL.premCook.places) || null } : null,   // G841: the premises cook's places (the tallies render_premises dresses on)
-    terrainH, waterH, surface, SURFACE, groundMaxRect,
+    terrainH, waterH, terrainHBuild, terrainHExact, waterHBuild, buildReads, surface, SURFACE, groundMaxRect,
     get slopeMax() { return PM ? undefined : SLOPE_MAX; },   // the cone's bound (30_solver.js); none under a premises layer
     TILE, tile, aerodromes, settlements: SET.settlements,
     treesNear, canopyH,
@@ -1129,7 +1195,7 @@ function makeWorld(seed, opts) {
     // pushes world.sea at the shader when `seaChanged` says the trains moved)
     get seaTarget() { return seaTarget; }, seaRelax,
     // ---- v0 shim: same live objects, byte-identical values ----
-    trees, meadows, CELL, wind, setWind,
+    trees, meadows, CELL, wind, setWind, treeHits,
     // ---- THE CLIMATE (K0): the field's keeper — sample(), the relief raster, the stats
     climate,
     // ---- THE PREMISES (G385): the layer, its record, and the setter that recomposes it live

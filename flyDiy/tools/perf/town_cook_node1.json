@@ -1,0 +1,225 @@
+{
+ "before": "origin/claude/metla-load-g1405",
+ "fetch": {
+  "today": {
+   "cells": 92,
+   "ship": 5625669,
+   "raw": 45408384
+  },
+  "loader ?town=0": {
+   "variant": "default",
+   "cells": 92,
+   "ship": 5625669,
+   "raw": 45408384,
+   "sameAsToday": true
+  },
+  "loader ?town=1": {
+   "variant": "town",
+   "cells": 134,
+   "ship": 19544976,
+   "raw": 131131552,
+   "sameAsToday": false
+  },
+  "loader no query": {
+   "variant": "town",
+   "cells": 134,
+   "ship": 19544976,
+   "raw": 131131552,
+   "sameAsToday": false
+  },
+  "loader no query pref {\"pv\":7,\"town\":\"nearby\"}": {
+   "variant": "default",
+   "cells": 92,
+   "ship": 5625669,
+   "raw": 45408384,
+   "sameAsToday": true
+  },
+  "loader no query pref {\"pv\":6,\"town\":\"nearby\"}": {
+   "variant": "town",
+   "cells": 134,
+   "ship": 19544976,
+   "raw": 131131552,
+   "sameAsToday": false
+  },
+  "loader no query pref {\"pv\":7,\"town\":\"all\"}": {
+   "variant": "town",
+   "cells": 134,
+   "ship": 19544976,
+   "raw": 131131552,
+   "sameAsToday": false
+  },
+  "sim_host default": {
+   "cells": 92,
+   "ship": 5625669,
+   "raw": 45408384,
+   "sameAsToday": true
+  },
+  "house_worker default": {
+   "cells": 92,
+   "ship": 5625669,
+   "raw": 45408384,
+   "sameAsToday": true
+  },
+  "sim_host town": {
+   "cells": 134,
+   "ship": 19544976,
+   "raw": 131131552,
+   "sameAsToday": false
+  },
+  "house_worker town": {
+   "cells": 134,
+   "ship": 19544976,
+   "raw": 131131552,
+   "sameAsToday": false
+  },
+  "sim_host undefined": {
+   "cells": 137,
+   "ship": 19740242,
+   "raw": 133039568,
+   "sameAsToday": false
+  },
+  "house_worker undefined": {
+   "cells": 137,
+   "ship": 19740242,
+   "raw": 133039568,
+   "sameAsToday": false
+  },
+  "shipped": {
+   "all": {
+    "raw": 133039568,
+    "ship": 19740242
+   },
+   "perVariant": {
+    "default": {
+     "cells": 92,
+     "raw": 45408384,
+     "ship": 5625669
+    },
+    "town": {
+     "cells": 134,
+     "raw": 131131552,
+     "ship": 19544976
+    }
+   },
+   "before": {
+    "raw": 45408384,
+    "ship": 5625669
+   }
+  }
+ },
+ "bakes": {
+  "town on before": {
+   "first": {
+    "cells": {
+     "taken": 84,
+     "stale": 8
+    },
+    "makeWorld": 99,
+    "sweep": 5118
+   },
+   "full": {
+    "cells": {
+     "taken": 89,
+     "stale": 3
+    },
+    "sweep": 4508,
+    "sweepMs": 11014
+   },
+   "overflight": {
+    "bakes": 8134,
+    "km": 12.6,
+    "reads": 1004410
+   }
+  },
+  "town on after": {
+   "first": {
+    "cells": {
+     "taken": 123,
+     "stale": 11
+    },
+    "makeWorld": 36,
+    "sweep": 1712
+   },
+   "full": {
+    "cells": {
+     "taken": 134,
+     "stale": 0
+    },
+    "sweep": 0,
+    "sweepMs": 1555
+   },
+   "overflight": {
+    "bakes": 0,
+    "km": 12.6,
+    "reads": 1004410
+   }
+  }
+ },
+ "error": {
+  "town on before": {
+   "reads": 834176,
+   "p50mm": 0,
+   "p99mm": 1.594,
+   "p999mm": 4.08,
+   "maxMm": 47.448,
+   "over10mm": 40,
+   "nonzero": 100791
+  },
+  "town on after": {
+   "reads": 834176,
+   "p50mm": 0,
+   "p99mm": 0,
+   "p999mm": 0,
+   "maxMm": 0,
+   "over10mm": 0,
+   "nonzero": 0
+  }
+ },
+ "townOff": {
+  "reads": 841344,
+  "firstDiffer": 0,
+  "fullDiffer": 0,
+  "cells": {
+   "first": [
+    {
+     "taken": 85,
+     "stale": 7
+    },
+    {
+     "taken": 85,
+     "stale": 7
+    }
+   ],
+   "full": [
+    {
+     "taken": 92,
+     "stale": 0
+    },
+    {
+     "taken": 92,
+     "stale": 0
+    }
+   ]
+  },
+  "bakes": {
+   "first": [
+    756,
+    756
+   ],
+   "full": [
+    0,
+    0
+   ]
+  }
+ },
+ "metlakatla": {
+  "centre": [
+   -3058,
+   -8445
+  ],
+  "home": [
+   -154,
+   712
+  ]
+ }
+}

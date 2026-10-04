@@ -160,7 +160,9 @@ function simHostBootBytes(boot) {
 // loader does (src/core/premises_packs.json -> boot.premCook): makeWorld reads
 // the cooked tiles where the page does, and a tile baked here instead differs
 // from the cook in the last bits - the climate's relief raster carries that
-// island-wide into the rich wind.
+// island-wide into the rich wind. G1430 (TOWN-COOK): `variant` (the page's:
+// 'town' or 'default', build.js FLYDIY_TOWN_VARIANT) takes the cells `in` that
+// variant alone, as the page's loader does; without it, every cell.
 function simHostFetchBoot(base, name, opts) {
   opts = opts || {};
   const F = opts.fetch || fetch;
@@ -181,7 +183,7 @@ function simHostFetchBoot(base, name, opts) {
         const pi = (PP.islands || []).find(w => w.id === name);
         if (!pi || !pi.raster) return boot;
         const got = [];
-        return Promise.all(pi.raster.cells.map(c => F(base + c.src).then(res => { if (!res.ok) throw new Error(c.src + ' ' + res.status); return res.arrayBuffer(); })
+        return Promise.all(pi.raster.cells.filter(c => !opts.variant || !c.in || c.in.indexOf(opts.variant) >= 0).map(c => F(base + c.src).then(res => { if (!res.ok) throw new Error(c.src + ' ' + res.status); return res.arrayBuffer(); })
           .then(gz).then(u => got.push({ ci: c.c[0], cj: c.c[1], sig: c.sig, bytes: u })))).then(() => { boot.premCook = { raster: got }; return boot; });
       }).catch(() => boot);   // a cook that does not arrive is a lazy raster (the page's rule)
     });
@@ -240,11 +242,15 @@ function simHostWorldOp(world, c) {
     const build = r => { const GEN = G[r.gen]; return GEN && GEN.build ? GEN.build(r.P, 0) : null; };
     world.premises.set(c.rec, c.extra ? { build } : undefined);
   } else if (c.cmd === 'obst') {
-    const R = world.obstacles; if (!R) return false;
+    const R = world.obstacles, TH = world.treeHits; if (!R) return false;
     const ids = world.__simIds || (world.__simIds = new Map());
     const idOf = id => (ids.has(id) ? ids.get(id) : id);
     for (const o of c.ops || []) {
-      if (o.op === 'add') { const id = R.add({ x: o.x, z: o.z, yaw: o.yaw, y0: o.y0, shape: o.shape, tag: o.tag }); ids.set(o.id, id); }
+      // G1330 (TREE-HITBOX): the trunks the page's viewer draws (world.treeHits), a set by key
+      if (o.op === 'tset') { if (TH) TH.set(o.key, o.arr); }
+      else if (o.op === 'tdrop') { if (TH) TH.drop(o.key); }
+      else if (o.op === 'tclear') { if (TH) TH.clear(); }
+      else if (o.op === 'add') { const id = R.add({ x: o.x, z: o.z, yaw: o.yaw, y0: o.y0, shape: o.shape, tag: o.tag }); ids.set(o.id, id); }
       else if (o.op === 'move') R.move(idOf(o.id), o.x, o.z, o.yaw, o.y0);
       else if (o.op === 'remove') { R.remove(idOf(o.id)); ids.delete(o.id); }
       else if (o.op === 'clear') { R.clear(); ids.clear(); }
@@ -718,7 +724,7 @@ function simHostBody(CORE, SH, port) {
   function fetchThen(F, then) {
     const t0 = performance.now();
     making = true;
-    SH.simHostFetchBoot(F.base, F.name, { hydro: F.hydro, raster: F.raster }).then(boot => {
+    SH.simHostFetchBoot(F.base, F.name, { hydro: F.hydro, raster: F.raster, variant: F.variant }).then(boot => {
       bootInfo = { fetchMs: performance.now() - t0, bytes: boot ? SH.simHostBootBytes(boot) : 0,
                    cooked: boot && boot.premCook ? boot.premCook.raster.length : 0 };
       try { then(boot); } catch (err) { post({ kind: 'error', error: String(err && err.stack || err) }); }

@@ -70030,3 +70030,2054 @@ bed never released" went green. Now: a CLIMB from the shore to 500 m at 25 m/s (
 direct observation over the whole walk - a playing bed going straight 2 -> 0 can only be the timer's release (the eviction
 goes through 4) - "no bed was released by the RELEASE_S timer" fails otherwise. Verified both ways: green on the sources,
 red with the release line removed. GATE AUDIO PASS, 180 / 180 mutations caught (run under the CPU lock, A0's box rule).
+
+## G1310-G1314 - COLD-LINKS: THE COLD FIRST VISIT 75.6 -> 57.9 s TO THE GARAGE; THE GROUND'S LINKS 40-52 s -> 13-17 s (THE SAME PICTURE BY CONSTRUCTION); ONE SOURCE LINKED ONCE (2026-10-04, COLD-LINKS for A0, local GPU; branch claude/cold-links-g1310 off train/27 98a01aff)
+
+THE PROBLEM (CESSNA-LINKS G1221): a cold first visit waits ~75 s for the garage. Seven world links of 13-52 s each, all
+issued at ~14 s, and the garage could not show before the longest ended. Named here by source (the node page's sources
+equal the GPU's byte for byte - tools/perf/cold_links_src.js against cessna_links --dump): 2017c124 = island-ring (the near
+ring, Standard), 521f85e5 = island-fine (Standard, issued at ~40 s - also on the critical path), 61441ef3/5bdaa018 =
+island-outer-dry, 61441ef3/3bb8028f = island-outer AND premises-patch-materials-2 (the double link), 2ab7a933 =
+premises-patch-materials-s1 (the 'uMat' program), 04b8b778 = the pavement. The "two ~130 KB PBR programs" were the ring
+and the fine ring.
+
+**G1310 ONE SOURCE, ONE LINK.** The premises patch's far-terrain clone (render_premises matOwn, k = 1, patchInject2 false)
+compiles exactly the outer ring's text (ATMO.inject is idempotent, injectMaterials adds nothing) under its own key
+'premises-patch-materials-2', so three linked that ~100 KB program twice, at the same moment (41-48 s each, cold). Now a
+clone that injects nothing (patchInject2 false, or no set painted) keys as its base (three shares the program, and the
+uniforms stay the clone's own). A painted one keys apart and carries the base's key too. Node: 394 -> 393 programs.
+
+**G1311 THE PRODUCTION GROUND.** The ground programs compiled inspection code that the default state never runs:
+gClassSmooth (the class layer's 8 x 3 blur: constant-bound loops unrolled, 50 fetches, at two call sites - the stack's
+class layer, under the stack's start by default, and paint mode 4), its call inside the stack loop with a `continue`
+(ANGLE's 'Lod0' copy on top), F8's ten paint modes (uGMode 1-10, gTT / gTTCol / gClassRow / gClassCol), and the splat's
+magenta selection mask. They are compiled now only when the state asks: render_world groundFull() = a paint mode, or a
+stack that draws its class layer, or the mask shown (SPLAT_GROUND api.masking). The program text is the same on the
+default path. The full text keys apart (':full'). GROUND_FAMILY (the rings, the twin, the fine ring and the premises
+patch's clones: islandKeyed / m.groundFamily) re-keys together when F8 crosses the line (groundSync from set, setLayer,
+showMask), once - inside the full program every edit is a uniform again. Checked in node (the real three on the
+recording GL): 7 materials re-key to ':full' with gClassSmooth / the magenta in their programs, and back. Also out:
+the hex cut's test (uSHexPx: a dial nothing ever set off 0, inlined at every sSet).
+
+**G1312 THE POOLS' MASK BEFORE THE LOOP.** tools/perf/cold_links_bench.js (new: the heavy programs' exact sources linked
+cold in a fresh Chrome, the disk shader cache off, all at once as the game issues them, each completion polled,
+LINK_STATUS checked) on the near ring with one splat feature cut at a time (bench2_out.json, one run): production
+29.8 s; no pools 16.1, no grass pull 19.9, no recolour 26.0, no veg 27.5; structure: no hex 11.7, no triplanar 11.5,
+one set a triplet 7.2; the material chain cut 1.0 (the splat is ALL the cost: the ring without it links in 0.7 s). The
+HLSL is the same size in every variant (159-164 KB): FXC's time follows the flow control, not the length. The pools'
+mask reads the position, the eye and the slope - never the terrain type - yet it was computed in sMatPass, inside the
+candidate loop. It is computed now once before the loop (sPools, when muskeg or scrub votes), with the same expressions
+in the same order. Bench 3 (one run): ring 21.7 -> 15.5 s, outer 17.5 -> 10.6 s. (A bench's absolute times depend on
+how many programs it links at once - 29.8 s among 10, 21.7 s among 7: compare within a run only.)
+
+**G1313 THE LOADS** (tools/perf/cessna_links.js --fly: navigation -> garage, then the roll-out and 15 s of taxi; the
+validated Cub; a fresh short profile per cold load; the warm load a fresh Chrome on the same profile; both trees built
+from their own src/ with FLYDIY_BUILD pinned to the parked cook's dc2f085cb441 (tools/perf/lc_build.sh) - train 27's
+committed page is still train 26's build. Before = train/27 98a01aff, after = this branch. tools/perf/cold_links/):
+
+| Cub, median [min-max], n = 3 | before (train 27) | after |
+|---|---|---|
+| cold: navigation -> garage | 75.6 s [72.7-76.2] | **57.9 s [57.1-58.2]** |
+| cold: first flight (garage + roll-out) | 84.8 s [81.9-85.4] | **67.2 s [66.3-67.5]** |
+| cold: worst link | 50.0 s [46.7-51.6] | **15.5 s [15.0-16.7]** |
+| cold: links / over 5 s | 394 / 7 [7-8] | 393 / 6 |
+| roll-out | 9.2 s | 9.3 s |
+| warm: navigation -> garage | (ratchet 40.7; CESSNA-LINKS abab 39.9-41.2) | 40.7 s [39.4-41.2] |
+| warm: first flight | - | 49.8 s [48.4-50.4] |
+
+Per program, cold (median [min-max]): ring 50.0 [46.7-51.6] -> 15.2 [15.0-16.7]; fine ring 29.9 [27.3-30.1] -> 14.8
+[14.4-15.5]; outer 43.6 [40.9-47.9] x2 -> 13.5 [13.2-14.9] x1; outer-dry 39.0 [31.8-47.1] -> 12.7 [12.3-13.9]; patch
+42.3 [31.8-45.9] -> 12.9 [11.2-13.8]; pavement (unchanged) 13.2 [12.8-13.7] -> 13.0 [12.8-14.5]. The ground no longer
+sets the pace alone: the pavement is now as long, and every heavy program is issued at ~14 s.
+
+**OPEN (not chased - the load budget was spent):** on the warm loads two or three of the CHANGED ground programs (the
+ring and the patch every time, one of outer / outer-dry) re-link 7-10 s though the cold load had linked the same source
+('seen@0'). CESSNA-LINKS' warm loads of the base (a Chrome per load) hit every heavy program, and the pavement, whose
+source did not change, hits here too. It costs no garage time (they end by ~21 s, the garage is at 40.7 s), but it is a
+difference: an A/B of base vs branch warm loads in the same rig is the next check (and Chrome's GPU cache entry for a
+program linked at ~14 s of a first load).
+
+**THE PICTURE:** no stills were taken (the load budget). Every change is the same arithmetic by construction - dead code
+out under a state that cannot reach it, and one block moved out of a loop with its expressions unchanged; FXC may order
+the moved floats differently (ULPs). A0's look gates / fixed-camera stills should confirm.
+
+**NEXT LEVERS (measured, not taken):** (1) the grass pull as a select (`mix(c, hue * l, gr > 0.001 ? dark * gr : 0.0)`,
+exact): ring 15.5 -> 11.9 s on the bench, but it computes the pull on every fetch of every set, where the branch skipped
+the sets without grass (27 inlined sites) - it needs a GPU frame A/B against the strict fps gates first; the veg as a
+select gained nothing. (2) The structure (hex / triplanar / three sets a triplet) is the rest, and its loop forms are
+recorded failures (G568: 1.5-2x slower ground). (3) The issue time: every heavy program waits for 'garage:town' (~14 s).
+(4) The pavement (13 s, its debug view's 11-way select is small) is now as long as the ground.
+
+GATES: PROGRAMS, BOOT, GFX, BUILD - PASS (run_gates --only). Not run (A0's): the battery, FRAMECOST (the ground's
+programs change text: a parked cook / census re-take is A0's), SPLAT (WRONG as first written: three of its pond checks read the moved block - fixed in G1314.1 below).
+Budget: 9 loads (3 + 3 + 3), 3 link benches, ~17 min of GPU under the lock (window 02:09-02:25 reserved by A0; a
+1-minute bench at 00:52 ran during A0's CPU battery - classifier refused withdrawing the queued take; within-run A/B
+only). The built outputs are NOT committed (pinned build id): rebuild at landing.
+## G1357 - THE FRAME CATCHER: A FRAME APART FROM BOTH NEIGHBOURS IS SAVED INTO THE USER'S OWN FLIGHT LOG (2026-10-03, LIGHT-SMOOTH for A0, node only - no GPU)
+
+The user's full-screen white / pale-blue single frames ("a frame that misses rendering") were not reproduced on the
+bench (5 865 traced frames, G1350's re-test). So the user's flight catches them itself, into the log "Save log" writes.
+- post_fx.js `catcher` (POST_FX.catcher): aa_resolve's new TAP (after the post chain, every frame the resolve has a
+  target - always, under the reversed depth buffer) draws a 64 x 36 copy of the frame's target through the EYE's own
+  program (a second material, the same shader: no new link) into one of 4 small targets and reads it back with
+  three's readRenderTargetPixelsAsync - a pixel-pack buffer, a fence, polled by zero-timeout waits on a timer: NO GPU
+  SYNC. A frame whose slot is still in flight is SKIPPED and counted, never waited on. When a read lands: the mean
+  (display values; the linear compositing's sRGB-tagged 8-bit target decoded once, G1356), the pale-sky share, the
+  white share, into a ring of the last 8 frames. A frame is CAUGHT when it stands apart from BOTH neighbours: the mean
+  past 0.06 the same way against each (a one-frame spike - the bench's normal flight peaked at 0.0098, the cloud-tile
+  flash of G1353 at 0.11), or a sky share over 0.7 / a white share over 0.5 with both neighbours under half of it. A
+  lasting step (a camera cut) is not a catch.
+- A catch is a flight-recorder EVENT 'catch' (IndexedDB as it goes, the saved log's events): why, the recorder's
+  frame index (join it to the row: draws, tris, the CPU split, dt), the mean against its neighbours, the shares, the
+  exposure base, eyeK and its mean, far / near / the eye's height, the clouds' shadow flag and in-cloud density, the
+  hidden terrain quadrants, the post rows and the AA tier - and for the first 6 of a session, 5 s apart, the frame's
+  64 x 36 picture as a JPEG data URL (~2 KB). The log's header carries catcher.summary(): taps, reads, skipped,
+  caught, and ITS OWN COST measured live (tapUs mean / max a frame, readUs a landed read).
+- tools/analyze_log.js: a CAUGHT FRAMES section (each catch with its state, the catcher's count and cost);
+  `--catches <dir>` writes the JPEGs out.
+- The frame's path allocates nothing of its own but the read's promise (typed rings; the readable object is built only
+  on a catch). Off: localStorage flydiy.rec.catch = '0'; ?rec=0 (the recorder off) leaves the tap uninstalled.
+- WHAT IT CANNOT SEE: the bloom, the rays and the glare are drawn onto the canvas AFTER the target it copies - a white
+  frame made by them alone passes it. (A pale frame from the clouds' composite, the mist, the exposure, the eye or a
+  sky-only scene is in the target.) three's async read also calls gl.flush() once a frame: a submission, not a wait.
+- COST: not measured on the GPU here (A0: node only). By construction no sync; the live numbers come back in the next
+  log the user saves (header.catcher.tapUs / readUs) - check them there.
+GATES: POSTFX +8 (G1357: the catcher run against a stub renderer whose frames the test chooses - a one-frame spike
+caught once with its frame and neighbours, a lasting step not caught, the state in the event, a busy slot skipped
+without waiting, no synchronous read; detect() on its own; the shot cap / spacing, the switch; the wiring) -
+negative-verified (the spike threshold raised: 3 checks red; the busy skip removed: 1 red); FLIGHTREC, AA, BUILD,
+FADES, UISMOKE PASS.
+
+## G1357 v2, G1358, G1359 - THE CATCHER READS NOTHING A FRAME, THE EYE READS 4 TIMES A SECOND, THE SUN'S GLINT A LITTLE WIDER, THE WING'S SELF-SHADOW BANDS IN FLIGHT (2026-10-04, LIGHT-SMOOTH for A0 / EVEN-30)
+
+- G1357 v2 THE CATCHER, NO READ A FRAME (post_fx.js; EVEN-30 traced ~220 long tasks of 50-96 ms in the user's first
+  100 s after the reveal to three's readRenderTargetPixelsAsync: in Chrome the fence's clientWaitSync and the
+  getBufferSubData after it are SYNCHRONOUS calls into the GPU process - while it links, a read a frame is a wait a
+  frame). v1 (f3a5d6e2) read a 64 x 36 copy back every frame and never rode a train. v2 decides on the GPU: each frame's
+  copy (alpha = a pale-sky texel) goes into one of 8 mip-mapped half-float slots (their 1 x 1 mip: the mean colour and
+  the sky share); a one-pixel draw reads the 1 x 1 mips of frames N-2, N-1, N and DISCARDS unless N-1 stands apart from
+  both (the luma spike past 0.06 the same way, or the sky share past 0.7 with both neighbours under half), inside an
+  occlusion query (ANY_SAMPLES_PASSED_CONSERVATIVE) whose answer Chrome hands back a frame or two later from its own copy.
+  Only a yes costs a read (the frame's copy and the three means into an 8-bit 64 x 37 target, once) - a few a session,
+  and past the 6 pictures not even that (the event carries the numbers alone). Its three small programs are in the
+  roll-out's warm list (warmList), so none links in flight. GATE POSTFX: the stub GPU evaluates the decision as the
+  shader does - the spike caught once with its frame and neighbours, a lasting step not, ONE read in the whole run.
+- G1357 THE EYE READS 4 TIMES A SECOND (post_fx.js EYE_READ_MS 250): still one read in flight, issued from the frame
+  (EVEN-30: never from a free-running timer - it would land mid-frame of a busy GPU anyway), at most every 250 ms. Its
+  loop's time constant is 1.5-2 s: nothing is lost. GATE POSTFX: 40 frames back to back read <= one per 250 ms.
+- G1358 THE GLINT, A LITTLE LESS (flown_bake.js FB_HOOK; the user: "try a little less, ok"): for the SUN's direct light
+  only, the bake's base and clear coat take a roughness floor uFbSun = 0.12 round lights_fragment_begin and get their own
+  back before the environment's reflection (lights_fragment_maps / _end) - the sky and the ground reflect as before, the
+  sun's highlight is wider and lower. A uniform (FLOWN_BAKE.sunRough; 0 = the old glint). UNPROVEN SO FAR: the "blown
+  fuselage patch" in the golden-hour taxi frame does NOT change with it (1 258 vs 1 257 blown pixels) - it is the low SUN
+  itself, peeking past the fuselage (the glare and the bloom), not a reflection; the first in-flight sweep found no wing
+  glint (it locked onto a view into the sun). Kept because it is harmless; see the verification below.
+- G1359 THE BANDS ON THE WING IN FLIGHT (shadow_near.js; the user, watching the golden-hour run on the box: "a lot of
+  banded shadows"). Diagonal light / dark stripes across the lit top of the wing and the tail, IN FLIGHT. In one paused
+  frame (orbit el 0.3, AGL 121 m, sun 7.5 deg, craft cascade at its 30 m cap = 5.86 cm a texel at 1024): the craft's
+  receiveShadow OFF - gone; the bake's normal map OFF - still there: SELF-SHADOW ACNE of the craft cascade. On the stand
+  the cascade is 1.6 cm a texel and clean, which is why the stand / taxi stills showed none and the first slope-bias cut
+  (reverted in G1350) "changed nothing" - it was tested where there was nothing to fix. Live on that frame: the bias x2-x10
+  faded them, the normal offset at 3 texels cleared them best. Now, for the CRAFT'S OWN MATERIALS only (CRAFT_NEAR_ONLY:
+  the ground never casts, so it cannot self-shadow, and a grazing offset there would lift the tyres' shadows off their
+  contacts): the bias x (1 + uNearQ.z tan) and the normal offset x (1 + 2.5 (1 - N.L)) - ~2.9 texels on that wing, ~1.1 on
+  a skin facing a noon sun. Uniform values, but two lines in the near rule: EVERY LIT PROGRAM'S SOURCE CHANGES (one relink
+  each on the first load after it, as G650's did; the train re-cooks). S.slopeK 0 / S.normalGraze 0 = the old lookup.
+GATES: POSTFX (32, the v2 catcher and the eye's cadence; negative-verified - the eye's throttle removed: red, the spike
+blinded: 4 red), FLIGHTREC, AA, BUILD, PROGRAMS, SHADOWSKY, LIGHT, FLOWNBAKE, FADES, UISMOKE PASS.
+VERIFICATION (GPU, pending A0's slot): the band views in flight off / on, the stand at a low sun and at noon off / on (the
+contacts must stay), a wing-glint sweep sunRough 0 / 0.12, the catcher's live summary.
+
+## G1359.1 - THE FLOWN BAKE NEVER READ ITS OWN SHADOW CASCADE: THREE'S CLONED uNearM1 (2026-10-04, LIGHT-SMOOTH, found in a GPU sweep, fixed node-only)
+
+THE FINDING (live, the user's Cub, a paused band view aloft at a golden sun): every G1359 setting gave PIXEL-IDENTICAL
+frames (slope gain 20, grazing gain 100: 0 px); the craft cascade's own bias x10: 0 px; the normal offset (which also
+feeds the 60 m box, three's per-vertex normalBias): 25 753 px. The bake material's renderer uniforms held uNearM1 =
+IDENTITY (renderer.properties.get(material).uniforms.uNearM1 !== the shared one): three clones a built-in material's
+uniforms when it makes the program - a Float32Array value is shared by reference (uNearP, uNearQ stayed live), a
+Matrix4 is COPIED. SHADOW_NEAR.inject() (reached from FB_HOOK through ATMO.inject) filled only MISSING uniforms, so the
+frozen copy stayed: nc1 = the world position, the in-cascade test always false, and the exterior - every chase view
+since C4b's bake - read the 60 m box (5.9 cm texels) on the stand and aloft. G1005's 1.6 cm craft cascade never reached
+the skin; G1359's slope gains (inside the cascade branch) could not either; what the earlier stills read as "bias 2-8
+helps" was the exposure settling between shots.
+THE FIX: inject() binds the SHARED near uniforms unconditionally (every fogged program; no source change, no relink).
+EXPECTED: the exterior's self-shadow from the 1.6 cm cascade on the ground (crisper strut / gear / wing shadows), the
+slope bias live aloft. COST TO MEASURE: uNearM1 is now uploaded to each program drawn whenever the cascade moves (it
+was frozen) - GATE FRAMECOST's uniformMatrix4fv at the taxi will rise by about the programs drawn; it is the cascade
+working, and needs its ALLOW entry once measured.
+GATE SHADOWSKY +2 (three's own clone, then inject: the shared matrix bound; the bake's path FB_HOOK -> ATMO.inject ->
+SHADOW_NEAR.inject) - negative-verified (the old conditional inject: red). SHADOWSKY, LIGHT, PROGRAMS, ATMO, FLOWNBAKE,
+WORLDRENDER, BUILD, POSTFX, ASSETS PASS. GPU verification and G1359's strength: pending a slot.
+
+G1359.1 VERIFIED (GPU, 2026-10-04 02:55-03:08, the user's Cub and gfx row, the eye off for the stills; BEFORE = the bake's
+uniforms given the frozen identity uNearM1 back in the same page, AFTER = the fix): all 87 craft programs bound to the shared
+matrix. In flight at a golden sun the wing's diagonal bands go (1.7 % of the frame changes - the bands themselves); on the
+stand the exterior's self-shadow is a little crisper (0.15-1.25 %); the cockpit is unchanged (it draws the live materials).
+G1359'S STRENGTH, on the fixed binding (the band views, the false darkening against self-shadow OFF, master's bias = 1):
+(1, 2.5) 0.36-0.44, (2, 8) 0.32-0.38 - the rest is the wing's own shading; by eye (1, 2.5) is already as clean as the
+strongest, so the DEFAULT STAYS (1, 2.5) - the setting the stand stills were taken with (no detached strut / gear shadow).
+GATE FRAMECOST (after a parked re-cook): uniformMatrix4fv did NOT rise (taxi 1420.5 -> 1389.5, Cub); two Cub taxi rows rose
+with the catcher v2's two small draws a frame - bindFramebuffer 24 -> 27.5, tris.other 28 -> 32 - admitted (ALLOW, rise
+4, G1357). EVIDENCE: 7_wing_bands_inflight_before_after.jpg (the bands, before / after - a USER DECISION was "keep self-
+shadow everywhere": this is it working), 8_stand_lowsun_before_after.jpg (the stand at a low sun, before / after).
+## G1295-G1299 - EVEN-30: A HARD 30 BY DEFAULT (ULTRA KEEPS AUTO); THE USER'S CHOPPY TAXI WAS THE FOREST FILL BUILDING A CHUNK IN ONE FRAME; THE LOW PASS WAS THE EYE'S READBACK (2026-10-04, EVEN-30 for A0, local GPU; branch claude/even-30-g1295 on master e40628b0)
+
+THE USER'S TARGET: an even 30, 1-5 % unevenness, evenness before fps; "framerate is bad at start, stays choppy till the Cub
+reaches the runway; framerate in flight not great" on their custom near-ultra set (density 200, aa full, ground full, the
+eye on, the live mirror, rays, bloom strong, clouds full, water full).
+
+**THE USER'S LOG** (flydiy-flightlog-20261003T165355, 1.5 h, train 25, fps auto). Frames over 50 ms: boot 7.2 %, garage
+0.3 %, stand 0.44 %, TAXI 5.8 %, FLIGHT 4.6 %. Auto flapped all session: 130 drops from 60, 127 failed trials of 60 (one
+every ~34 s, each a juddering second). After the reveal the long frames climbed 11 % -> 29 % over 60-80 s of taxi and fell
+to 0 at ~100 s (the "choppy till the runway"), with ~220 long tasks of 50-96 ms that LoAF pinned on three's probeAsync
+(`setTimeout r`, the readRenderTargetPixelsAsync fence poll). The one 79 s frame is SHADER-GUARD's (fixed, train 27).
+
+**G1295 THE FRAME RATE FOLLOWS THE PRESET** (gfx_settings.js FPS_OF): a hard 30 on potato .. gamer and on a custom mix,
+auto on ultra, until the player picks a frame rate (fpsOwn - kept from then on, through any preset pick). pv 6 -> 7: a
+stored 'auto' was the old DEFAULT, not a pick, so it takes the preset's (the user's custom set -> 30); a stored 60 / 30 /
+uncapped stays the player's. app.js PACE boots at 30 until gfx_settings applies (auto only when stored as a pick, or on
+ultra). GATE GFX +8 checks (defaults per preset, a pick survives a preset pick, the migration cases), GATE PACE +1 (the
+boot default; its auto checks now state a picked auto).
+**G1296 AUTO'S BACKOFF RUNS TO 5 MIN** (was 30 s): 5, 10, 20 .. 300 s after each failed trial of 60; 60 held 20 s still
+forgets it (G990). GATE PACE's backoff check asserts it passes 30 s and stays under 300.
+
+**MEASURED, BEFORE** (train 27 as built, 98a01aff / build 5c1b7ba420cd with A0's parked cook; master_bench, the user's Cub,
+HOME + the mine strip, a fresh profile warmed once, `--gfx` the gamer default / the user's set, both at a hard 30;
+reports/evidence/G1295/). Frame lengths, share per bucket < 20 / 20-40 / 40-60 / 60-100 / 100-250 ms, frames > 250:
+
+| set | scene | fps | < 20 / 20-40 / 40-60 / 60-100 / 100-250 % / > 250 | > 1.5x cap | uneven | worst ms |
+|---|---|---|---|---|---|---|
+| gamer | garage | 30 | 0.0 / 100.0 / 0.0 / 0.0 / 0.0 / 0 fr | 0 % | 0 % | 33.7 |
+| gamer | taxi chase @HOME (from the stand, 40 s) | 30 | 0.25 / 99.6 / 0.17 / 0.0 / 0.0 / 0 fr | 0 % | 1 % | 50 |
+| gamer | taxi cockpit @HOME | 30 | 0.0 / 100.0 / 0.0 / 0.0 / 0.0 / 0 fr | 0 % | 0 % | 33.5 |
+| gamer | low pass @HOME | 30 | 0.0 / 100.0 / 0.0 / 0.0 / 0.0 / 0 fr | 0 % | 0 % | 33.7 |
+| gamer | taxi chase @mn_strip | 30 | 0.25 / 99.6 / 0.17 / 0.0 / 0.0 / 0 fr | 0.08 % | 1 % | 50.1 |
+| gamer | taxi cockpit @mn_strip | 30 | 0.0 / 100.0 / 0.0 / 0.0 / 0.0 / 0 fr | 0 % | 0 % | 33.5 |
+| gamer | low pass @mn_strip | 30 | 0.44 / 99.1 / 0.44 / 0.0 / 0.0 / 0 fr | 0.22 % | 2 % | 50.1 |
+| gamer | water taxi @SEA (cessnaFloatsWOrks) | 29.9 | 0.27 / 99.3 / 0.27 / 0.13 / 0.0 / 0 fr | 0.27 % | 1 % | 83.4 |
+| user | garage | 30 | 0.0 / 100.0 / 0.0 / 0.0 / 0.0 / 0 fr | 0 % | 0 % | 33.5 |
+| user | taxi chase @HOME (from the stand, 40 s) | 29.7 | 1.5 / 96.5 / 1.5 / 0.17 / 0.34 / 0 fr | 1.4 % | 6 % | 133.3 |
+| user | taxi cockpit @HOME | 30 | 1.0 / 98.3 / 0.66 / 0.0 / 0.0 / 0 fr | 0 % | 3 % | 50 |
+| user | low pass @HOME | 28.9 | 11.1 / 74.4 / 11.3 / 3.2 / 0.0 / 0 fr | 6.9 % | 40 % | 83.4 |
+| user | taxi chase @mn_strip | 29.8 | 1.0 / 97.6 / 1.0 / 0.08 / 0.25 / 0 fr | 0.67 % | 4 % | 116.8 |
+| user | taxi cockpit @mn_strip | 30 | 0.66 / 99.0 / 0.33 / 0.0 / 0.0 / 0 fr | 0.33 % | 2 % | 50.1 |
+| user | low pass @mn_strip | 30 | 0.44 / 99.1 / 0.44 / 0.0 / 0.0 / 0 fr | 0.22 % | 2 % | 50.1 |
+| user | water taxi @SEA | 29.1 | 0.96 / 96.3 / 1.1 / 0.96 / 0.69 / 0 fr | 1.8 % | 6 % | 133.3 |
+
+GAMER AT A HARD 30 IS ALREADY EVEN everywhere (<= 0.27 % over 1.5x the cap, none over 100 ms; the hard 30 alone removes
+auto's trials). The user's set was not, for two causes:
+
+**CAUSE 1 - THE FOREST FILL BUILT A FINISHED CHUNK IN ONE FRAME (G1297, render_world.js).** Read on the late frame itself,
+every slot looked normal (work ~18 ms) and LoAF put 60-140 ms "inside the loop" - THE RECORDER'S dt IS THE GAP BEFORE A
+FRAME: the cost is the PREVIOUS frame's. There: 16 of the HOME taxi's 16 long frames, 6 of 8 at the mine, 12 of 13 on the
+water follow a frame whose `fill` slot ran 57-131 ms. fillStep's walk was budgeted (4 ms, a row at a time) but a walked
+chunk was BUILT whole - every instance's matrix and colour into each rung part and the merged impostor (density 200:
+tens of thousands; gamer's 128 peaks ~38 ms). Now build() is buildGen(), a generator that yields when the frame's fill
+budget is spent (between subjects and every 256 instances); fillStep resumes it next frame; nothing joins the scene before
+its last slice (a chunk evicted half-built leaves nothing; one evicted in its last slices is dropped at once). build()
+drains it whole for gen() (the teleport) and the gates. SAME TREES: a stubbed world (GATE WORLDRENDER's harness) grown at a
+1000 ms and a 0.3 ms budget (51 vs 790 frames) builds 104 parts, 84 388 trees, 174 meshes and an identical matrix digest.
+
+**CAUSE 2 - THE EYE'S READBACK, EVERY FRAME (LIGHT-SMOOTH's G1357 v2, post_fx.js, carried on this branch).** Low pass
+HOME: 93 getBufferSubData stalls over 2 ms in 15 s, 2.8 s in all, max 74 ms (the long frames' previous frames are normal:
+the cost is the read's continuation task BETWEEN frames); fence callers over the session: the eye 2 907, the impostor
+sheet checks 53, flown_bake 6, the cloud fit 7. clientWaitSync never blocked: Chrome's getBufferSubData (MapBufferRange)
+is a sync IPC that waits on the GPU process's queue - a frame of work on a GPU-bound set. LIGHT-SMOOTH: the eye reads at
+most every 250 ms, issued from the frame; the frame catcher decides on the GPU (no read a frame). Expected ~7x fewer
+stalls, not zero: if the after-run still shows eye stalls on the user's set, the zero-read eye (the 16x16 mean eased into
+a 1x1 target on the GPU, applied where the tone curve is) is LIGHT-SMOOTH's next step.
+
+**AFTER: NOT MEASURED HERE** - my after-slot aborted in 10 s on a busy port (8771: a peer's stale cel_driver.js) and the box
+went on to METLA-TAXI; A0 takes the after numbers in train 28's pass, the same line: `node tools/master_bench.js --port <free>
+--fallback D:/Dev/DeGaRoR.github.io --builds cub --places HOME,mn_strip --only garage,taxi,pass,water --water-builds floats
+--no-water-pass --no-cold --gfx reports/evidence/G1295/gfx_<gamer|user>30.json --rec <dir> --garage 10 --taxi 40 --cockpit 10
+--pass 15 --water 25`, then `node tools/perf/scene_attrib.js <report.json> <dir>`. The before ran on train 27 at 98a01aff;
+train 27's tip adds the GEAR-WATER revert, the light ease's steps and the mirror off by default (the user's set stores
+`mirror: live`, so it still draws it) - the fixes act on slots attributed directly.
+
+**TOOLS.** master_bench.js: `--gfx <file>` (every load's flydiy.gfx), `--rec <dir>` (the recorder's ring per page; every
+clientWaitSync / getBufferSubData / readPixels over 2 ms and a stack per fenceSync), `--glprof` (every WebGL call over
+8 ms, every rAF callback over 40 ms and the microtasks after it), each scene's t0 / t1. tools/perf/scene_attrib.js: per
+scene the distribution, the long frames charged to the PREVIOUS frame's top slot, the events, the GL stalls, the readers.
+**GATES** (node, the branch on e40628b0): GFX, PACE, BOOT, BUILD (the brief's), POSTFX, WORLDRENDER, TREES, COVER PASS.
+**BOX:** 2 timed runs, 14 GPU minutes (01:31-01:45), under A0's reservation.
+**TRAPS.** (1) A recorder row's dt is the gap before it: charge a long frame to the frame before. (2) A slot lost in 10 s
+to a stale peer server on the cook's port: check the ports (netstat) before a slot. (3) TaskStop on a waiting `boxlock
+take` runner leaves both the script and the take alive: kill the script by PID first, then the take.
+
+## G1330-G1334 - TREE-HITBOX: EVERY TREE DRAWN HAS A TRUNK IN THE PHYSICS, TESTED AGAINST THE BEAMS (2026-10-03, TREE-HITBOX for A0, cloud, node only; block G1330-G1334, G1333-G1334 unused)
+
+The user (2026-10-03): "trees have no hitbox, only some of them. We should at least be able to hit the trunks."
+
+### G1330 - the census: what was drawn, what could be hit
+| kind | drawn by | collidable before |
+|---|---|---|
+| woodland physics trees (`world.trees`, 64 m grid) | render_world plantWoodland | yes, the core cylinder (0.7 s + 0.12, 4.6 s tall) |
+| their 2-4 clump neighbours each | plantWoodland | no |
+| hand-placed trees (`TREE_PLACE`: the analytic aerodrome's windbreak) | plantWoodland | no |
+| the FOREST FILL (base + complement parts, 1024 m chunks, every rung and the impostors) | render_world walk/build | no |
+| premises zone and placed trees (`O.records.trees`) | render_premises buildTrees | no |
+
+- **The partition cell, the rung and the impostor were never the cause.** Collision was never tied to what is drawn. Only `world.trees` reached the solver.
+- **Measured on the page in node** (Jolene, HOME's stand, every tree within 1 km): fill 15 857 drawn, **2** collidable before (fill trees that happened to stand on a woodland cylinder), **15 857 now**.
+- **The census showed 0 woodland trees drawn. A pre-existing bug, NOT FIXED** (perf-sensitive, the user's / A0's call):
+  - On Jolene, plantWoodland draws NOTHING. Its `fill()` reads `H.imps[0]`, which is `null` when no tree of a side was dealt series 0 (`imps.push(null)` for an empty series; the merged impostor is pushed after). It throws `Cannot read properties of null (reading 'setMatrixAt')` on the first cell, inside a `.catch(() => {})`.
+  - Master is the same. Jolene's 24 662 woodland physics trees (92 within 1 km of HOME) are unseen cylinders.
+  - The fix is one token (`H.imps[H.imps.length - 1]`), but it would draw ~100 000 more trees on the island: FRAMECOST and rollout_perf first.
+  - GATE TREEHIT prints a NOTE while this holds.
+- The premises' trees: Jolene's fixture has none keyed. Metlakatla's are registered by the same path (`'prem'`), not measured here (the town is off by default).
+
+### G1331 - the trunk index (src/core/29_obstacles.js TREE_HITS; 20_world.js `world.treeHits`)
+- **Why the viewer registers and the core does not re-derive (G1112's proposal, not taken):**
+  - The fill's walk reads the viewer's data: the colour boot's NDVI (not in the worker's trimmed boot), the biome mixes, the tree pack's pools and sizes (SP_SIZE), and the 'forest density' setting (NG).
+  - So the VIEWER registers what it draws, and the trees you can hit are exactly the trees you see, at any density.
+- **A set** is `key -> Float32Array` stride 5: `x, z, y0` (the drawn foot, the collection's sink included), `r`, `y1` (the trunk's top).
+  - Each set is binned once at `set()` into a CSR grid: 8 m cells, doubled until the box is at most 2^18 cells, so an island-wide set uses 64 m cells.
+  - The API: `set` / `drop` / `clear` / `has` / `keys` / `get` / `at(x, y, z, fn)` / `count` / `sets` / `top` / `list`.
+- **THE RULE, `TREE_HITS.trunkOf(H, wFrac)`.** H is the drawn height: the subject's `h` (`treeTrunk(key)`, trees.js, from the pack) times the instance's drawn y scale.
+  - The radius is 2 % of H, held to 0.3..0.6 m.
+  - The top is (0.95 - wFrac) x H, held to 0.5..0.8 H. wFrac is the crown's half width over H from the subject's bb: a spruce 0.71 H, a maple 0.5 H.
+  - The crown is NOT solid (optional in the brief): the wing passes through branches, not wood.
+- **Who registers:**
+  - **The fill:** a set per built chunk part (`'fill:cx,cz:part'`). Registered when its chunk's nearest point is within HIT_ON = 1200 m of the aeroplane's CG, dropped past HIT_OFF = 1800 m or when the part is evicted. Built from the part's records (`rec.mats`) when it registers, so far parts cost nothing.
+    - At HOME: 20 sets, 59 571 trunks.
+  - **The woodland:** one set `'wood'` (its clump neighbours and the placed trees). A physics tree's drawn trunk starts ON TOP of its core cylinder: never two springs at one point. Today it is empty on Jolene (above).
+  - **render_premises:** `'prem'`, the game's keyed record trees.
+- **The worker:** `sim_link.js` wraps `set` / `drop` / `clear` into the obstacle op queue (`tset` / `tdrop` / `tclear`). Each set is cloned on the post, and `liveOps` replays the live sets when the worker's world is made. `sim_host.js` simHostWorldOp applies them and bumps `__simV` like any world op.
+
+### G1332 - the solver (30_solver.js): BEAMS against trunks, gathered once a frame
+- **NODES ARE NOT ENOUGH.**
+  - With the woodland's node test, a 0.3 m trunk on the taxiing aeroplane's own centreline let it through: the CG reached 72 m against a trunk at 60.
+  - Even a 0.8 m trunk passed at 0.7 m and 2.5 m off the centreline. The stock build's nodes stand up to 0.8 m apart, and a beam is up to 4.9 m long.
+- **trunkFrame (once a frame, no allocation)** gathers into fixed buffers: the trunks whose circle meets the aeroplane's box (its nodes' extent + 2|v|dt + 1 m) and whose foot..top spans its heights (512 at most, each from its centre's cell), and the (beam, trunk) pairs whose boxes meet (8192 at most).
+- **Each substep** walks the pairs alone. Per pair:
+  - The closest point of the beam to the trunk's axis (horizontal), inside r, between the foot and the top.
+  - It pushes both ends along the normal by their share (1 - t, t).
+- **THE GROUND'S spring and damper, per node (KGn, CGn).**
+  - The force is `max(0, KGn pen - CGn vn)`: damped both ways, and never pulling.
+  - The woodland's KTn (at most 2.2e4) could not hold a taxiing aeroplane inside 0.3 m: the axis crossed the beam and the spring pushed it on through.
+  - The first cut damped the velocity INTO the trunk only. The evidence pictures showed the spring handing the impact back: a 30 m/s aeroplane bounced 15 m off a 0.3 m trunk. Damped both ways it no longer does.
+  - What rebound is left (the taxi rolls ~5 m back, the flight ~10 m) is the airframe's own elastic beams springing back. There is no plastic or damage model.
+  - Stable at the build's 76 substeps a frame (dt 0.22 ms; ω dt ≤ 0.55 with 18 beams on the lightest node).
+- **The woodland's own cylinders are unchanged** (node test, KTn), so every existing gate is byte for byte the same. With no set registered the new code does one length check a frame.
+- `sim.trunkHits()`: beam-trunk contacts since the sim was made (the gate's count).
+- **The sweep** (a 0.3 m trunk at 60 m, the stock build taxied at it, the CG's furthest point by lateral offset):
+
+  | offset (m) | 0 | 0.7 | 1.5 | 2.5 | 3.5 | 4.5 | 5.5 (past the tip) |
+  |---|---|---|---|---|---|---|---|
+  | node test | 72 | 82 | 82 | 83 | 82 | 83 | 83 |
+  | beams, KTn | 60 | 76 | 79 | 77 | 63 | 64 | 83 |
+  | beams, KGn (shipped) | 59 | 60 | 60 | 61 | 63 | 64 | 83 |
+
+- **Cost** (node, stock build, `sim.step(1/60)`, 300 steps): 40 trunks inside the aeroplane's box and none touching, +0.03 ms a step (2.33 against 2.30 on the same sim). 20 fill sets with none near: within noise.
+
+### G1333 - GATE TREEHIT extended (tools/_treehit_check.js)
+- **3 (core):**
+  - trunkOf's numbers.
+  - 20 000 points (half beside a trunk) against the brute force: 0 differ, the island-wide set on 64 m cells.
+  - drop.
+  - The worker's world takes `tset` / `tdrop` / `tclear` through simHostWorldOp.
+- **4 (core), a fill trunk by the rule (a 15 m fir, r 0.3 m) through `world.treeHits`:**
+  - Taxied at it, it stops the aeroplane (58.7 of 60 m; 82.7 with none).
+  - Across the span (0.7..4.5 m off): the CG never more than 4 m past the trunk's line.
+  - **FLOWN at it at 4 m AGL, 30 m/s: stopped (the CG no further than ~38.5 of 40 m).** With no trunk it flies past at 32.1 m/s.
+- **5 (FULL: `--all`, or run outside the runner's core tier, as RWYTREES' page part; ~4 min, ~4 GB):**
+  - The page in node, Jolene, rolled out: the census table above, every fill / woodland / premises tree drawn within 1 km collidable.
+  - Then the page's OWN registered fill trunk nearest the stand (67 m, r 0.30, 6.3 m long) flown as in 4.
+  - The census probes 0.2 m over a tree's root: a 1.5 m sapling's trunk tops out at 1 m.
+- `TREE_LOD.drawn(x, z, r)` (render_world.js): every partition instance near a point, flat `[x, y, z, own]`, for the census.
+
+### Notes, open
+- **A crash is not modelled.** A trunk now stops the aeroplane hard (30 m/s to 0 in a few metres) with no damage and no event. A damage/crash hook on `trunkHits` is the user's call.
+- **A free camera far from the aeroplane:** the fill's complement within FILL_ACT is streamed round the CG (worldUpdate's cg), so the trunks follow the aeroplane, not the eye.
+- **Physics depends on 'forest density'.** It is now part of the physics: the trees you see are the trees you hit, so a denser setting is a denser forest to hit.
+- **The flight recorder's replays** carry no tree sets. A replay over a forest without the viewer would fly through the fill trunks (as before).
+
+### G1334 - the evidence (reports/evidence/TREE-HITBOX/, `node tools/treehit_evidence.js`)
+**A hitbox is invisible to a render.** The trees draw the same before and after, so a SwiftShader screenshot can't show this change. The pictures are the solver's own: the stock build's beams seen from above, every few frames, against a forest-fill trunk (flat world at 300 m, node). 'MASTER' is a fill tree with no trunk in the physics (master's case: the fill was never collidable).
+- `taxi_before_after.jpg`: taxied at a fill tree. Master rolls through (CG to 77 m); now it stops at the trunk. No decision of yours hangs on it.
+- `flight_before_after.jpg`: flown at it at 4 m AGL, 30 m/s. Master flies straight through; now it is stopped dead.
+  - **A DECISION HANGS ON IT: a stop, not a crash.** There is no damage model. Whether a trunk hit at speed should end the flight (a crash event on `sim.trunkHits()`) is your call.
+- `wing_offset.jpg`: the trunk 2.5 m off the centreline. The wing meets it, the airframe bends round it and the aeroplane slews. A node-only test let this through. No decision.
+- `sweep.jpg`: the taxi's CG furthest point by the trunk's lateral offset for the three contact models tried (G1332's table). It shows why the shipped one tests beams with the ground's spring. No decision.
+- `census.jpg`: every tree drawn within 1 km of HOME, collidable on master against now (the page in node).
+  - **A DECISION HANGS ON IT: the woodland draws nothing on Jolene** (pre-existing, G1330). Fixing it draws ~100 000 more trees: a perf call (yours / A0's).
+
+**GATES** (node, cloud; `run_gates --only=TREEHIT,TREES,SIMWORKER,BUILD`, the full battery left to A0 as asked): **TREEHIT PASS (26/26, the page census included, 292 s), TREES PASS, SIMWORKER PASS, BUILD PASS** - BATTERY: PASS on the final tree.
+- Census (`--page`): fill 15 857 drawn / 15 857 collidable / 2 before; woodland 0 drawn (92 physics trees within 1 km, unseen); premises 0. 59 571 trunks in 20 sets at HOME.
+- The generated outputs (flight_core.js, index.html, dev.html, sw.js, version.json) are NOT committed (SHARED-TREE-PRACTICES 5): the train's build makes them.
+- **FRAMECOST and the rollout ratchet NOT run** (not in this brief). The viewer's new work:
+  - the fill's trunk sets, built when a part comes within 1.2 km (~16 000 trunks x 5 floats, ~1 ms each, a few a minute at 60 m/s);
+  - the clone to the worker;
+  - trunkFrame's box walk each frame.
+  A0's train numbers will show it if it shows.
+
+## G1395-G1399 HOUSE-LOD: THE FAR HOUSES ON THE TOWN'S OWN SHADER, NO BOXES; THE SWAP BY PROJECTED SIZE (2026-10-03, a cloud session for A0, node only; branch claude/house-lod-g1395 off train 25 = 5502f45; G1397-G1399 unused)
+
+The user, 3 Oct: "The low LODs of the buildings are really too low for now, and they swap a little too late."
+On C0's ladder (G800-G802), the low rung was G559's plain vertex colour on the generator's lod 1 (one mean colour a bag:
+no boards, no paint texture, no dirt line, the panes a flat dark), and past 1.2 km a BOX (G594: 10 triangles, the walls
+one colour, the top flat at 85 % of the ridge). The swap was at a fixed 150 m, where the median house's radius is ~70 px
+tall at 1080p.
+NO `flyDiy/CLAUDE.md` EXISTS on master (the brief named one): this session followed this file's SESSION RITUAL.
+
+G1395 THE FAR TOWN ON THE TOWN'S SHADER (src/viewer/render_premises.js, house_tarr.js)
+- **What it draws.** A banded house's lod 1 now merges through house_tarr exactly as the near town's lod 0 does (G574),
+  with the same finish. So the far house keeps:
+  - its walls' boards, paint and texture, its dirt line and weathering;
+  - its roof sheet and the roof's SHAPE (the generator's lod 1: gable / saltbox / gambrel planes, the porch roof);
+  - the window rhythm (lod 1's panes, on the glass program: the lamps light them at night);
+  - the porch, posts, deck and chimney silhouettes lod 1 builds ("TWO MESHES, ONE CONSTRUCTION": not a decimation).
+  Probed on 40 random houses: every lod-1 bag rides the stack (the panes as glass, the rest plain). Lod 1 is 993
+  triangles a house against lod 0's 11 648.
+- **How.** `lod1Bags` keeps the town shader's channels (uv, AO / lit / win; it dropped them) and marks each bag `shell`
+  (siding, roof, stone, log, floor) or detail. `out.root` (never in a scene) takes the house's matrix for the merge.
+  `hlodFarTarr` groups a cell's banded lod-1 bags by classify key and merges them through `TA.merge`. They are drawn on
+  `TA.material(kind, side, dith, false, true)`, the town material's FAR variant: one program each for plain and glass,
+  key `:lodfar`. Each vertex carries `aHC` (its house's centre, and its radius signed: negative = detail).
+- **What falls back.** A bag the stack cannot take yet (a layer still loading) goes to G559's plain lod-1 far town and
+  its box, as before. The cell is marked `tarrShort` and rebakes on the stack's ready signal (the existing path).
+- **NO BOX PAST 1.2 KM** for a house on the town's shader. The far town is the coarsest rung: the DETAIL (trims, posts,
+  deck, metal, panes, piles) dissolves on a second band (below), the SHELLS (walls, roof, chimney) stay at any distance.
+  So the coarsest house is a simplified mesh with its roof, not a box. The detail's vertices are dropped in the vertex
+  stage once the house is wholly past that band. The items' boxes (G594) and the plain fallback's boxes are unchanged.
+
+G1396 THE SWAP BY PROJECTED SIZE (the dithered fade kept)
+- **The edge.** Each house's edge is its radius x F / swapPx. R is detailOf's R. F is the camera's focal length in
+  drawing-buffer rows: 0.5 h / tan(fov / 2), h capped at hMax 1440, from `getEffectiveFOV` so a zoom counts. The edge
+  is clamped to LOD_E [60, 600] m.
+  - The band keeps its share of the edge: fadeW / near, 40 m at 150.
+  - The detail band: R x F / detailPx, at least the edge + its band; a tenth of b wide, centred on b.
+- **The defaults.** swapPx 48, detailPx 9. At 1080p and the game's 46 deg (F 1272):
+  | house radius (40 random houses) | lod 0 -> lod 1 (was 150 m) | detail leaves (was: box at 1.2 km) |
+  |---|---|---|
+  | 5.2 m (min) | 138 m | 735 m |
+  | 8.3 m (median) | 220 m | 1 173 m |
+  | 15.7 m (max) | 416 m | 2 219 m |
+  A shed swaps nearer than before, a big house further, and the median house at 220 m, where its radius is 48 px
+  instead of 70. The swap now happens on a smaller house on screen, and onto a rung that wears the same texture.
+- **Both rungs agree.** Both carry the house's radius:
+  - the near rung (the lod-0 TARR merges and G566's banded buckets) as `aHR`, a float a vertex;
+  - the far rung as `aHC.w`.
+  Both compute the same per-pixel edge from it, so the dither stays complementary (GATE TARR 5e2).
+  - `aHR` / `aHC` on house_tarr's drawn-only merges give their arrays back on upload, as G1200's do.
+- **The CPU visibility** stays a superset of the shader: per cell, the near rung while d < the largest banded house's
+  edge + band; the far town while the farthest reach > the smallest's edge - band.
+  - The houses' own leftover bags (lamps, smoke) switch per cell at the largest banded house's edge.
+  - A cell of items alone keeps the fixed 150 m hard switch. The edges' span is taken over the banded houses only, so
+    an aerodrome's club does not push its own cell's switch out to 600 m.
+- **The uniforms.** uLodS / uLodSB (F / swapPx, F / detailPx) are set each tick. 0 = fixed metres: G801's band, bit for
+  bit (GATE TARR 5e sweeps it unchanged).
+- **The flags.**
+  - `?houselod=N` (N > 1) and `?houselod=1` now mean fixed metres, with no projection.
+  - `?lodpx=N` sets the swap at N px of radius.
+  - Live: `WORLD.premises.hlod.{proj, swapPx, detailPx, hMax}` (the next frame), `near` / `fadeW` as before.
+  - `?houselod=0` still gives C0's "before": lod 0 far and no band, so no far town on the town's shader either.
+
+G1395-G1396 BUDGET - THE NODE FRAMECOST CENSUS AT HOME, master 5502f45 -> this branch (per frame, medians):
+| build / view | draws.main | tris.main | programs | draws.shadow |
+|---|---|---|---|---|
+| Cub stand | 914 -> 923 (+9) | 17 487 823 -> 17 585 463 (+97 640, +0.56 %) | 98 -> 99.5 | 169 -> 172 |
+| Cub taxi | 844 -> 853 (+9) | 13 043 865 -> 13 141 505 (+97 640, +0.75 %) | 81.5 -> 83.5 | 100 = |
+| Cessna stand | 925 -> 934 (+9) | 17 610 628 -> 17 708 268 (+97 640) | 96.5 -> 98.5 | 176 = |
+| Cessna taxi | 854 -> 863 (+9) | 13 164 382 -> 13 262 022 (+97 640) | 80.5 -> 82.5 | 106 = |
+- **What the rise is.** It is Jolene's village 3.5 km out:
+  - The draws: its five cells' far town, plain + glass, where one box mesh a cell was.
+  - The triangles: its 96 lod-1 houses' meshes in place of 96 x 10 box triangles. The detail's ~70 % is dropped in the
+    vertex stage at that range, but the census counts what is submitted.
+  - The programs: the two far variants.
+  - The shadow +3 at the Cub stand is not traced: the Cessna's is flat. The likely cause is a cell's near rung, now
+    shown (as a superset) further out.
+- **Boot.** `garage:frames` bufferData +11.6 MB (335.7 -> 347.3 MB, +3.5 %): the far town's channels (uv, AO, slot,
+  aHC) against the plain colour's. The houses' lod-1 builds are unchanged (house.build1 96, tris1 102 536).
+- **The final census.** Re-run on the final source (after the item-cell fix): the same numbers to the last count.
+- **The gate.** FRAMECOST PASS against the committed baseline (every rise inside the 1 % + slack tolerance). NO ALLOW row
+  was added and the baseline was NOT re-taken: A0's train re-takes it on the merged tree.
+
+GATES (as briefed, node): PREMISES 354 PASS, PREMCOOK PASS (the cook's lifts untouched: no stale cook), METKIT 45 PASS,
+FRAMECOST PASS (before, after, final), BUILD PASS. All on the final source, as A0 asked: the gates for the
+files touched, not the full battery. Also GATE TARR (82/82; not in the brief, but its §5 pins the band's
+text and transpiles its GLSL). It was updated:
+- 5b / 5b2: lod 1's channels, every bag rides the stack, the shells;
+- 5e2 / 5e3: the band swept by projected size for five radii, complementary everywhere, each house banded about its
+  own edge, the detail gone past b and whole before it, the shells never leaving;
+- 5i2: the vertex cull transpiled and swept, fixed and projected, for the shell and the detail;
+- 5l0: the far variant's program; 5m: G566's clone carries aHR; 5p: the flags; 5q: the wiring.
+The full tier was not run.
+
+STILLS - NOT TAKEN; WHAT A SOFTWARE RENDER CAN'T SHOW:
+- **What was tried.** Two attempts, about an hour, with tools/shadowsky_shots.js copied to the scratchpad and pointed at
+  /opt/pw-browsers' Chromium with `--use-angle=swiftshader --enable-unsafe-swiftshader`. WebGL2 itself works there
+  (ANGLE / SwiftShader, MAX_ARRAY_TEXTURE_LAYERS 2048).
+- **What came back.** The rig's roll-out flow never reached the world view on a fresh profile under SwiftShader. Both
+  pages ended on the pre-flight panel or the "New aeroplane" picker, over an empty canvas: UI only, which this change
+  does not touch. Nothing of that is committed.
+- **What a software render can't show, even when it runs:**
+  - the band's dither and any shimmer, which are a motion and frame-rate judgement;
+  - the far town's fragment cost.
+  The look check below and the frame_perf pair are owed on the box.
+
+EVIDENCE (reports/evidence/HOUSE-LOD/):
+- `lod_edges_before_after.jpeg`: where each rung changes by house radius at 1080p, before (150 m / the box at 1.2 km)
+  vs after (R x F / 48 px, the detail at R x F / 9 px, no box). Computed from the shipped constants, not rendered from
+  the game. A0's decision hangs on it: are the defaults swapPx 48 / detailPx 9 right, or should the swap move further
+  out? That is the user's "a little too late".
+
+THE LOOK CHECK (for A0 / the user, on the box; Jolene's village, the G802 poses):
+- **Approach and look.** Approach from (900, -2000) toward (900, -2600).
+  - The far houses should now read as the same houses: their paint, boards, roof sheet and windows.
+  - The swap: the median house at ~220 m, a big one at ~400 m, a shed at ~140 m. Each should be a short stipple at
+    most, with nothing changing colour.
+- **From the stand.** Look at the village 3.5 km out: roofs with their pitch and the walls' paint where the boxes were.
+- **What to judge.**
+  - The detail's band at ~1.2 km on a median house (the trims and the panes dissolving away).
+  - Whether the shells far off flicker. G594's reason for the box was coloured pixels flickering on a plain lod-0 far
+    town; the town shader's mip-mapped arrays should be calmer, but this was not seen here (no GPU).
+- **The dials.** `WORLD.premises.hlod.swapPx` (48: lower = later) and `.detailPx` (9) move the next frame.
+  - A/B: `?houselod=0` (C0's before), `?houselod=150` (fixed 150 m on the new far town), `?lodpx=30`.
+- **OWED (GPU).** frame_perf at:900:-2250:20 and the stand, `?houselod=150` vs default: the far town's fragment cost on
+  the town shader against the plain colour's, and the vertex stage's culls.
+
+OPEN / NOT DONE
+- The town kit (C3b/C3c, `townkit.js`) keeps its own fixed band (E0 = HLOD.near 150, E1 1.2 km). It is drawn only on
+  a flag / with the town on. Giving it the projection is the kit host's own vertex data (it carries no radius yet).
+- The site items (club, sheds, churches) are still G559's lod-0 far version on the hard per-cell switch at 150 m: no
+  lod 1, no band (G801's reason: ~7 item programs to clone).
+
+## G1398 HOUSE-LOD: THE HANGARS - THE MAIN HANGAR'S FAR RUNG IS ITS OWN SHELL (THE GREEN DOORS KEPT), ITS SWITCH BY PROJECTED SIZE; A PREMISES HANGAR'S FAR VERSION KEEPS ITS WALLS AND DOORS (2026-10-03, the same cloud session, node + headless SwiftShader; on G1395-G1396)
+
+The user, 3 Oct, after G1395: "same goes for the hangars, and the main hangar loses its green doors, a distinctive
+feature."
+There are TWO kinds of hangar, and both lost their doors the same way: the far version kept only the largest few parts.
+
+1. THE MAIN HANGAR (the club shed by the strip, render_world.js standShed)
+   - **Before.** A `THREE.LOD` switched it at a fixed 320 m to a BOX plus a roof prism, both in the wall cladding. No
+     doors, no plinth, no glazing; it read as a dark slab. At 1080p the shed's radius (20.7 m) is ~80 px at 320 m.
+   - **The coarse rung is now the shell's own large pieces** (`shellCoarse`). With the shell merged by material
+     (G600), the coarse rung is every merged mesh holding at least `SHELL.coarseShare` (3 %) of the shell's surface.
+     It shares the near rung's geometry and material: nothing is copied.
+     - Kept: the cladding, the roof, the GREEN DOORS (8.3 % of the shell), the brick stem.
+     - Dropped: the steel, gutters, trims, beams, brass. The club shell keeps 8 pieces (432 triangles), the timber
+       shell 6.
+   - **The openings.** The glazing band and the roof lights are transparent, so mergeShell keeps them apart. Dropped,
+     they would be HOLES in the coarse rung (seen in the first render). They come in as ONE opaque vertex-coloured
+     mesh, each piece in its material's colour x opacity (as the pane reads over the dark inside), casting nothing:
+     one draw instead of eleven transparent ones.
+   - **Shadows.** Only the outer wall (wallOut; `wall` on the timber shell, which has no wallOut piece) and roofOut cast:
+     two casters, as the box had.
+   - **The switch by projected size** (the houses' G1396 rule). `lod.update` sets the coarse level's distance each
+     render to R x F / `SHELL.swapPx`: R the shell's bounding radius, F the camera's focal length in drawing-buffer
+     rows (capped at 1440), clamped to `SHELL.swapM` [200, 900] m. With swapPx 48 the club shed switches at ~550 m
+     at 1080p (was 320).
+   - **Fallback.** The box stays for a shell that did not merge (`SHELL.merge` false).
+2. THE PREMISES HANGARS (HANGAR_GEN items: every other hangar on the islands, render_premises.js detailOf)
+   - **Before.** The second cut (G557: under 60 px, a building keeps only its 3 largest plain bags) and the far
+     version (G559's plain-colour merge of the same `keep`) kept the floor and the two roof skins: on a hangar shell
+     they are the three largest. So past ~150 m a premises hangar was a floor and a floating roof: no walls, no doors.
+   - **After.** A bag that wears a HANGAR SHELL material (`HANGAR_GEN.LIB`, hangar.js's own, shared by every shell)
+     and holds `DETAIL.keepShare` (4 %) of the building's plain surface stays as well: its walls (~12 % each skin),
+     its doors (~8 %) and its brick stem (~4 %).
+   - **Not extended to houses or other items.** Applied to every building, the same rule cost +25 main draws at
+     HOME's stand (measured; the houses are G1395's).
+   - **The switch stays the fixed 150 m per cell.** I tried the items by projected size and left it out:
+     - At HOME it moved nothing: two censuses with and without it were identical to the count. The +164 / +194 I first
+       blamed on it was the parked cook, below.
+     - Away from HOME, a 20 m hangar's cell would switch at ~530 m instead of 150. Every item cell (club, sheds, fuel,
+       objects) in that range would draw its near merges, which the HOME census cannot see.
+     - That is a cost to measure on the GPU, not to guess, so the items' edge is untouched. A dial in lodEdgeCPU's
+       caller if A0 wants it.
+
+BUDGET - THE NODE FRAMECOST CENSUS AT HOME:
+- **The clean A/B.** `FRAMECOST_QUERY=parkcook=0` on BOTH sides: the G1395 commit (d5066e3) -> this commit, per frame.
+  | build / view | draws.main | draws.shadow | tris.main | tris.shadow | programs |
+  |---|---|---|---|---|---|
+  | Cub stand | 1062 = | 365.5 = | 17 586 787 = | 2 869 343.5 = | 106 = |
+  | Cub taxi | 980 = | 161 = | 13 189 968 = | 1 861 635.5 -> 1 861 664.5 (+29) | 90.5 = |
+  | Cessna stand | 1073 = | 372.5 = | 17 690 540 = | 2 949 770.5 = | 104 = |
+  | Cessna taxi | 989 = | 167 = | 13 308 023 = | 1 978 213.5 -> 1 978 242.5 (+29) | 89.5 = |
+  - At the taxi the main shed is on its coarse rung in the shadow map: 2 shell casters where the box's 2 were (+29
+    triangles).
+  - Boot bufferData is equal to the byte.
+  - At HOME the premises rule moves nothing: no hangar shell is past its 60 px cut in either view.
+- **THE PARKED COOK GOES STALE (for A0).** render_world.js is in FLYDIY_BUILD (the inlined viewer), and the parked
+  cook's signature carries FLYDIY_BUILD.
+  - So this commit stales `media/parked` (`node tools/parked_cook.js --check`: manifest af99bcc23a8a, this tree
+    different). The census then captures the three parked aeroplanes live: +138 main draws ("parked" 2 -> 140 at
+    the stand), +190 shadow.
+  - That is the cook, not the hangar: render_premises.js / house_tarr.js are lazy (not in the build id), which is why
+    G1395 did not trip it.
+  - **The train must re-cook** (`node tools/parked_cook.js`, GPU), as for any change to the inlined viewer.
+  - **The gate.** FRAMECOST against the committed baseline (cook on): FAIL (25), every red row the parked aeroplanes
+    captured live. The per-category diff vs G1395's census is `parked` 2 -> 140 (stand) / 0 -> 126 (taxi) main and
+    3 -> 45 / 5 -> 127 shadow, and the shell's 2 casters for the box's 2; nothing else. NO ALLOW row: the re-cook
+    clears it.
+
+GATES (the files touched; not the full battery, as A0 asked): STAND (its §1 updated) PASS, TARR 82/82 PASS, PREMISES PASS, PREMCOOK PASS (detailOf and standShed are outside the cook's lifts), METKIT PASS, BUILD PASS; FRAMECOST: see above (red on the stale parked cook alone; the clean A/B is flat).
+- **GATE STAND, its §1 updated.** The lift follows the SHELL line, which now carries the coarse dials. New checks:
+  - 1b: the coarse rung keeps the walls and the door, not the trim nor the glass, on the near rung's own geometry;
+  - 1b2: only the named materials cast;
+  - 1b3: the openings as ONE opaque vertex-coloured mesh exactly where the pane stood, casting nothing;
+  - 1c: the wiring (the coarse rung from the merged shell, the box only when it did not merge, the switch by
+    projected size).
+
+EVIDENCE (reports/evidence/HOUSE-LOD/), rendered by tools/perf/hangar_lod.html (new, committed). It is three r186 +
+hangar.js's own exterior build + render_world's mergeShell / shellCoarse LIFTED from the source, on headless Chromium /
+SwiftShader. A hemisphere light and a sun, NO environment map: in the game the glass and the roof lights also reflect
+the sky (scene.environment), so they read paler there.
+- `main_hangar_far_rung_90m.jpeg`: the main hangar's near rung | the BOX rung of before (no doors, a dark slab) | the new
+  coarse rung (the green doors, the cladding, the stem, the glazing band as a dark strip). Seen at 90 m with a 30 deg
+  lens so it is large; in the game the coarse rung shows from ~550 m. A decision hangs on it: is the coarse rung
+  faithful enough, or should the doors' trims (dark green, 3 % of the shell) come too (coarseShare 0.025)?
+- `main_hangar_far_rung_back_90m.jpeg`: the same from behind (the back wall, the roof lights). No decision.
+- `main_hangar_at_560m_zoomed.jpeg`: at 560 m, about where it switches now, through a 9 deg lens (x5): what a
+  sharp-eyed pilot sees. No decision.
+- `premises_hangar_far_version_90m.jpeg`: a premises hangar's far version, drawn as G559 draws it (each part flat in its
+  colour x its texture's mean; the far town's 0.2 gain left out, the page's exposure is not the game's): near | BEFORE
+  (floor + two roof skins, floating) | AFTER (+ walls, doors, stem). No decision: this is the bug the user named.
+- **What a software render cannot show.** The game's exposure and sky reflections, and the switch in motion (the
+  main hangar's swap is still a hard THREE.LOD switch, now between near-identical meshes: only the steel and the trims
+  go).
+
+NOT DONE
+- The premises hangars switch at the fixed per-cell 150 m (see 2).
+- They keep G559's plain colour far version (hangar.js's materials are not the house shader's, so they cannot ride
+  G1395's textured far town).
+- The main hangar's swap is not dithered (the trees' / houses' band would need a program variant on the shell's
+  materials).
+
+## G1400-G1404 - EDITOR-LAG: EVERY MOUSEMOVE OF A DRAG RECOMPOSED THE WHOLE PREMISES; THE DRAG'S PREVIEW, THE COMMIT'S GROUND SKIPPED WHERE NOTHING MOVES IT, THE CABLE STATIONS MEMOISED; A CORNER DRAG THAT THREW SINCE IT WAS WRITTEN (2026-10-03, EDITOR-LAG for A0, cloud - headless Chromium on SwiftShader, no GPU, no boxlock; branch claude/editor-lag-g1400 off origin/master 5502f450)
+
+The user (2026-10-03): "the editor is also far too laggy when handling objects such as taxi points or assets ... like the
+garage, its response time should be gated for regressions." (flyDiy/CLAUDE.md named in the brief does not exist on master:
+the ritual above was followed.)
+
+**THE RIG** (`tools/perf/editor_lag.js`, new; garage_lag.js's method): per tree (`git archive <sha> flyDiy | tar -x` under
+`<repo>/_ab/<sha>/`, or the worktree) a fresh Chrome, index.html booted (first boot), the world editor opened
+(`PREMISES_EDITOR.openEditor()`), the fixtures found or added untimed (HOME's stand and way out, the prop `af_fuel_truck`,
+the site `s_club`, the zone `z_harbour`), then seven actions x `--reps`: DRAGS - taxiDrag (`tx0`), propMove (the prop's disc),
+houseMove (the site's `at`), runwayEnd (`e1`, across the strip), polyVertex (the zone's `v0`): dragStart, `--moves` moves
+1.5 m apart, dragEnd; CLICKS - taxiAdd / taxiDel (the inspector's "add a taxi point" / "drop the last taxi point" buttons).
+`move` = the move's handler + the host's ground pick (the ray march the mouse runs first), `mframe` = to the second rAF,
+`up`/`click` = the release's (the commit's) handler, `busy`/`settle` = long tasks to 700 ms quiet; `--prof` = one untimed rep
+under a CDP CPU profile (self by fn / file, inclusive under the input). The hand is the editor's own drag in three beats - NEW
+premises_ui cmds `dragStart {key}`, `dragMove {x, z}`, `dragEnd` (the startDrag / moveDrag / onUp the mouse runs):
+synthetic MouseEvents at the projected handle did not land headless (the ray missed by 700 m - not chased). The base tree was
+given the same three cmds (harness only). Cloud: `MB_CHROME=/opt/pw-browsers/chromium-1194/chrome-linux/chrome
+MB_CHROME_FLAGS="--headless=new --use-angle=swiftshader --enable-unsafe-swiftshader --no-sandbox" node tools/perf/editor_lag.js
+--port 8776 --size 1280x640 --udd <dir> --trees base=_ab/5502f450/flyDiy,here=flyDiy --reps 2 --moves 4 [--prof]`
+(master_bench.js: `MB_CHROME` names another binary - the only change there). HEADLESS CAVEAT: every SwiftShader frame is a
+long task, so busy/settle are inflated by frames; `move`/`up`/`click` (synchronous handlers) are the honest numbers here.
+
+**WHAT A MOVE COST** (base profile, `editor_lag_g1400_base_prof.json`): premises_ui moveDrag ended in `R.setRecord(rec);
+R.rebuild({ ground: false })` - the game path of which is `world.premises.set` = PREMISES_GEN.compose of every layer (the
+height memo cleared, the ttype stamp redone, the tram's cable solver BUILDING its two stations three times each to read their
+hooks: 1.1 s), then materials, lots, the whole pavement (roadGeometry, stripKeep), every strip's pattern, the houses' sync, the
+trees, the freeze - 3-8 s a move headless. The commit (onUp / an inspector button -> dirty) added the game's whole ground
+patch (5.8 s, bbox ignored in the game path) and WORLD.refreshGround over the premises' whole extent (3.2 s, FARLOD resink).
+
+**THE FIXES**
+- G1400 THE DRAG'S PREVIEW (render_premises `preview(entry, layer, before)` / `previewEnd()`; premises_ui moveDrag calls it,
+  a renderer without one rebuilds as before): the feature's outline (and selection twin, a strip's box and shoulder), the
+  handles, a point object's built group (HOUSES `ob:<id>`) or a site's item groups + lots + feet + fences CARRIED by the
+  move's delta (frozen matrices re-posed, the prop instancer touched), the dragged strip's taxi pattern re-derived alone
+  (`PG.runwaySite` over the composed site's parked list and stand elevation) when only its way out moved. Nothing composes;
+  the ground under the hand is the drag's start. The release is dirty() as before; rebuildSteps calls previewEnd() FIRST
+  (every carried group back at its built pose before syncHouses compares seeds) - the settled world is the old code path's.
+- G1401 A STRIP'S WAY OUT IS NOT ITS GROUND (premises_ui `groundOf`): a runways edit whose before/after differ only in
+  `stand`, `taxiOut`, `taxiOut1`, `site` (the pattern's holds) commits as a non-ground layer - no ground patch - and
+  app.js onRebuilt skips refreshGround for it (no terrain modifier reads those keys: the grade reads c / len / hdg / profile;
+  27_premises runwaySite is the only reader). Applies to drags, the inspector's add / drop buttons, undo / redo.
+- G1402 AN OBJECT IS NOT GROUND: app.js onRebuilt(layer) skips refreshGround for the `objects` layer (no modifier is
+  made from an object; the strips still repaint - the parked aeroplanes ride on the site).
+- G1403 THE CABLE STATIONS MEMOISED (render_premises `buildFor`): keyed gen + JSON(P), 48 entries; GEN.build is pure and
+  the solver only reads the hooks. compose 1340 -> 116-145 ms headless on every commit.
+- G1404 A CORNER DRAG THREW (since premises_ui was ported): moveDrag's way-out branch read `drag.runway.indexOf` for a
+  polygon's / road's corner (no runway key) - a TypeError on every move: no zone / surface / material / road corner could be
+  dragged (master's bench row: `polyVertex page: TypeError`). Guarded `drag.runway && (...)`.
+
+**THE TABLE** (median ms, headless SwiftShader 1280x640, 2 reps x 4 moves; base = 5502f450, here = this branch; reports
+`tools/perf/editor_lag_g1400_base.json` (+ `_base_prof.json`, a 3-rep profiled base run of the first two rows, 3440 / 8972 /
+9434 - same picture), `_here.json`, `_here_prof.json`; the base pass overlapped a `--jobs=1` gate run):
+
+| action | move before | move after | commit before | commit after |
+|---|---:|---:|---:|---:|
+| drag a taxi point | 3081 | 11.5 | 8946 | 2720 |
+| add a taxi point (click) | - | - | 10050 | 2470 |
+| drop a taxi point (click) | - | - | 8426 | 2516 |
+| move a prop (asset) | 3404 | 0.4 | 4587 | 2641 |
+| move a house (site) | 3745 | 0.6 | 5109 | 3544 |
+| drag a runway end | 7831 | 6.6 | 21338 | 20395 |
+| drag a polygon corner | throws | 1.2 | - | 4191 |
+
+The move's frame (to the second rAF) is 33-40 ms after (two SwiftShader frames); 3.1-8.5 s before. A runway end's commit
+is still a full ground edit (the patch, the pavement, the re-sample) - unchanged by design.
+
+**WHAT IS LEFT** (here's commit profile, `_here_prof.json`): every commit still runs the whole pavement (buildRoadsSteps
+1.9-2.1 s headless: roadGeometry 1.55 s, stripKeep 1.2 s) whatever the layer - the next step is a signature of the roads'
+inputs (roads, runways, material, the recipe) so a prop / house / way-out commit keeps the built pavement; then the game
+path's whole ground patch for a ground edit (bbox ignored) and refreshGround's whole-extent resink.
+
+**FOR A0**: baseline `editor_lag.js` on the box (GPU, the absolute times are yours) and add it to the strict train gate;
+`move` per action is the regression number (the preview's cost), `up`/`click` the commit's. Generated files (index.html,
+dev.html, sw.js, version.json) were rebuilt locally and NOT committed - app.js's onRebuilt change lands with the train build.
+
+**GATES** (`node tools/run_gates.js --only=PREMISES,PREMCOOK,PAVEMENT,TAXICLEAR,BUILD --jobs=1`, cloud): TAXICLEAR PASS
+57.6 s, BUILD PASS 1.9 s, PREMISES PASS 100.5 s (354 checks, 6 fixtures), PREMCOOK PASS 311.3 s (PREMCOOK lifts
+render_premises' placement code: the preview sits outside its lifted ranges; the cook's hash held), PAVEMENT PASS 14.1 s -
+BATTERY: PASS. No ROUTES gate exists. The full battery not run (A0's, per train).
+
+## G1405-G1409 - METLA-LOAD: THE TOWN'S +18 s LOAD WAS THE PREMISES' GEOMETRY BAKING METLAKATLA'S RASTER; A BUILD READ THAT NEVER BAKES (FIXED, 0 BYTES ON THE WIRE); THE TOWN ON BY DEFAULT IN ITS OWN COMMIT (2026-10-03, METLA-LOAD for A0, cloud - no GPU)
+
+**VERDICT.** The boot's ~11 000 town-on raster bakes are gone: a town-on headless boot bakes 0 tiles after the town composes
+(388 before it, 93 with the town off, on the same build). The town-off page is bit-identical. Nothing new is shipped: no cook
+change, 0 bytes on the wire (the "+14 MB" option was not needed). Metlakatla is **ON by default** in a SEPARATE commit (G1408)
+that A0 can drop if the box A/B disagrees. **Not done:** the Cub's town-on taxi unevenness (16 %). The cloud has no GPU and
+SwiftShader's frame pacing means nothing, so it was not measured.
+
+**G1405 THE READERS** (the measurement). Headless Chromium + SwiftShader (cloud CPU, ~2x slower than the box), town on, every
+non-quiet grBake's caller stack aggregated by a TEMPORARY hook in 27_premises.js (not committed), from navigation to the garage
+and the first roll-out. Master 5502f45: **11 581 bakes, 24.6 s** of main-thread CPU (box ~10.5 s: METLA-RETURN's grStats.bakeMs).
+Town off on master: 544 / 0.62 s. The town's bakes were the PREMISES' GEOMETRY BUILDS, not the flight:
+
+| reader (master, town on) | bakes |
+|---|---|
+| the premises patch (render_premises.js buildPatchSteps: its 2 m vertex grid through world.terrainH) | 4 507 |
+| the roads (roadGeometry through render_premises heightAt) | 3 410 |
+| the scenery life (scenery_life.js clear / mastLife / litter through the host's heightAt and waterAt) | 756 |
+| the rails (buildRail's waterY through world.waterH) | 724 |
+| the paved polygons (polyGeometry) | 466 |
+| the traffic's first pose (syncTraffic, at the build) | 50 |
+| world-level: the ring's 513^2 heights, the colour bake's slope + fields + minimap water, the clutter trees, the mist field, makeWorld's trees, relief, the biome's tree slope, world.surface | 1 668 |
+
+Each one reads a far tile a few dozen times, and the lazy raster bakes the WHOLE tile (17^2-65^2 lattice nodes, refined) on
+the first read. In node (premises_cook's headless world, town variant, all 13 034 modifier tiles on a 2 m grid, 834 176 reads):
+analytic composer 387 ms vs the lazy raster 6 788 ms (4 508 bakes).
+
+**G1406 THE BUILD READ** (20_world.js terrainHBuild / waterHBuild, 27_premises.js rasterLazyAt). It is the composed ground for
+a ONE-OFF read: terrainH (the same bits, its memo) wherever the premises raster is cooked or absent, and the ANALYTIC composer
+(PM.terrainH over baseH) where terrainH would bake a tile lazily (the raster is on, a modifier's cell holds the point, and no
+cooked cell does). It never bakes and never asks what the cache holds, so its answer does not depend on read order. Readers
+switched: render_premises.js (heightAt in the game, so the roads, polygons, rails, strips, the life's heightAt and waterAt, the
+traffic and the editor handles; the patch's Y0; the rails' waterY), render_world.js (the ring's heights, the colour bake's
+slope stencil, the field patches, the minimap's water, the clutter trees), atmo.js (the mist field), 20_world.js (makeWorld's
+collidable-tree placement). **Kept on terrainH** (shared with the wheels or the wind): world.surface / islandGround, buildRelief
+(the wind's relief), the biome's treeAt slope, the cover ring and fill at run time, and everything the solver reads.
+- TOWN OFF: bit-identical. 0 of 552 832 reads differ, 0 bakes either way (every modifier cell is cooked: taken 92 / stale 0).
+- TOWN ON (node, the 834 176 reads): the build read 911-918 ms, 0 bakes; terrainH 7 377-8 183 ms, 4 508 bakes. Where it reads
+  the composer (288 512 reads, Metlakatla's uncooked cells) it differs from the raster the wheels read: p50 0.00 mm, p99 0.01 mm,
+  p99.9 3.2 mm, 47 reads over 10 mm, 11 over 20 mm, **max 39 mm**. That is the RASTER's own error against the composer on
+  steep ground (G614's GR_RELIEF bound assumes 2 m of relief in a tile), not the build read's. A drawn surface there can sit up
+  to ~4 cm off the wheels' ground at a handful of points in Metlakatla; HOME and every cooked cell are unchanged.
+- HEADLESS (cloud, town on, Cub, before = master 5502f45 / after = this branch): garage UI 13.1 / 12.7 s, boot screen gone
+  129.6 / 129.9 s (SwiftShader's compiles dominate both, so the time does not resolve the box's 18 s), raster bakes by the
+  garage **9 157 (15.8 s) -> 0**, after the roll-out **9 913 (17.7 s) -> 0**, 0 exceptions. Boot-wide (probe): 11 581 / 24.6 s
+  -> 388 / 0.64 s; town off on the same build 93 / 0.17 s. The residual ~300 town-on bakes (~0.2 s on the box, estimated) are
+  all BEFORE the town composes (the first composition, 8 stale cells) - world.surface in the colour bake (191), the biome's
+  tree slope (~100), relief (37), kept on terrainH as above.
+- Not measured: flying OVER Metlakatla still bakes lazily under the wheels, the near ring and the fill there (unchanged from
+  master: only cooking the town variant removes those - the next option if the overflight hitches).
+
+**G1407 THE RIG.** tools/perf/metla_ab.js's side A is now `?town=0` (with the town on by default, "no query" is the town ON);
+B stays `?town=1`. **master_bench and the ratchet now measure the town-on page by default: their baselines need re-taking.**
+
+**G1408 THE DEFAULT** (its own commit - revert it alone to keep the town off). world_boot.js TOWN.all = on unless the GRAPHICS
+'town' row says 'nearby' or the URL ?town=0 (?town=1 still forces on). gfx_settings.js: the town row's first step (a free row's
+default) is 'all'; pref pv 7: a pref saved before it with 'nearby' (every saved pref carries the old default) takes the new
+one, once - a player who picks 'nearby' again keeps it. GATE PREMISES 14q asserts the new default; its old line's label now
+reads "drops the town at load when asked". Headless: a fresh profile and a pv-6 'nearby' pref both boot town on (row 'all',
+pv 7), 0 bakes, 0 exceptions. Taken under step 4's condition (boot bakes gone, no new cost measurable headless), with two
+open points for A0's box A/B: the residual ~0.2 s, and the Cub's taxi below.
+
+**G1409 THE CUB'S TOWN-ON TAXI (16 % against 10-13 %)**: NOT MEASURED. No GPU in the cloud, and SwiftShader's frame pacing is
+not the box's. METLA-RETURN's finding stands: 0 bakes in the taxi, so it is not the raster. The first suspect is still the far
+town (the kit host's 426 boxes, one draw). The next measurement is metla_ab with --cpuprof taxi, Cub only, ABBA on the box,
+with the recorder's slots for the frame's GPU vs work split.
+
+**WIRE COST:** 0 bytes (option 1: no reader bakes; no worker, no cook). Cooking the town variant (+14 MB shipped) would only
+remove the bakes when flying over Metlakatla itself.
+
+GATES (node, run_gates --only, both commits): PREMISES, PREMCOOK, PREMRASTER, METKIT, LIFE, BUILD - all PASS (BATTERY: PASS, exit
+0) on G1406 alone and again with G1408. The full battery is A0's.
+EVIDENCE (flyDiy/reports/evidence/G1405/, headless SwiftShader):
+- g1405_boot_bakes_by_reader.jpg - the boot's lazy bakes by reader, town on, before vs after (the table above). Your decision
+  on the default (G1408) hangs on it, with the box A/B.
+- g1405_build_read_gap_map.jpg - Metlakatla's tiles: where the meshes now read the composer and how far that is from the
+  wheels' raster (max 39 mm, a few steep spots). Informative; a decision hangs on it only if you would rather cook the town
+  variant (+14 MB) to keep meshes and wheels on the same bits.
+- g1405_garage_town_on.jpg - the garage, town on, after. The before is byte-identical (the UI is unchanged), so it was not
+  kept. No decision hangs on it.
+- WHAT A SOFTWARE RENDER CANNOT SHOW: the flight over Metlakatla. In this headless rig the world scene did not draw (the
+  pre-flight card stayed over a blank sky after the roll-out), so there is no before/after of the town's roads and ground from
+  the air. The change is below 1 mm at 99.9 % of the town's reads (the map); a look from the air on the box would confirm it.
+Touched: src/core/20_world.js, src/core/27_premises.js, src/viewer/render_premises.js, src/viewer/render_world.js,
+src/viewer/atmo.js (G1406); src/viewer/world_boot.js, src/viewer/gfx_settings.js, tools/_premises_check.js (G1408);
+tools/perf/metla_ab.js (G1407). The generated files (flight_core.js, index.html, dev.html, sw.js, version.json) are not
+committed - A0's built commit.
+
+## G1390-G1395 - RUNWAY-LOOK: THE DECLARED WIDTH IS THE DRAWN WIDTH WHATEVER THE SURFACE; THE RUNWAY'S AND ITS SIDES' LOOK PER SURFACE TYPE, IN THE EDITOR AND THE WORLD LOOK (2026-10-03, RUNWAY-LOOK for A0, cloud - no GPU; branch claude/runway-look-g1390 off master 5502f45)
+
+The user, 3 Oct: (1) "I would want to color the runway and its sides further, more control over those"; (2) "The grass
+runway for example is very thin at the same dimensions as the dirt runway / path, which is very large".
+
+G1390 WHY, MEASURED (tools/pavement_widths.js, below; the shader's alpha law through a CPU twin, across 2 km of an 18 m
+strip / a 6 m road; drawn = mean width at alpha >= .5, opaque = the narrowest all-opaque width over every u, reach = the
+side's last island at alpha >= .05; metres):
+
+    kind           decl |  BEFORE drawn  opaque  reach |  NOW drawn  opaque  reach
+    concrete strip   18 |        18.02   16.80  20.90 |      18.02   16.80  20.90   (untouched)
+    gravel/dirt/sand 18 |        19.48   10.35  28.20 |      19.89   17.00  28.20   (G1395: the side IS master's)
+    grass strip      18 |         8.10    1.25  27.80 |      19.89   17.00  28.20
+    paved road        6 |        15.70    9.80  20.50 |       6.02    4.90   8.90
+    soft / grass road 6 |        15.70    9.80  20.50 |       7.32    5.00  13.40   (a grass road: its tracks alone, by design)
+
+Three causes. THE SOFT EDGE (gravel, dirt, sand, grass) was smoothstep(-1.1 s, 0.5 s) of dE + s x three octaves of noise
+(s = edgeSoft 2.6): centred 0.78 m OUTSIDE the declared edge with +-5 m of noise either way - opaque only ~6 m inside the
+edge, islands of dirt ~8 m past it (the "very large" dirt). THE GRASS STRIP kept 45 % of its lawn over its whole width
+(+ its worn band) over an island of grass: what read was the worn band, a third of the width (the "very thin" grass).
+THE ROADS drew their band (1.2 m) and the fade past it (fadeW 6 m) at full weight: a 6 m path drew 15.7 m.
+
+G1391 THE WIDTH (src/viewer/pavement.js GLSL.map step 10, opaqueDepth; 27_premises roadObjs `sided`, treePaveAt;
+render_premises / render_world the `side` and `kind` they pass). (a) A soft edge is FILLED to the declared width (opaque
+from edgeChip 0.6 m in, as a paved edge chips); outside it the side is master's torn edge unchanged (G1395 below). (b) A grass STRIP is its own mown lawn over its declared width
+(alpha 1); a grass road / polygon is still the world's grass with tracks in it. (c) opaqueDepth(cls, halfW, recipe,
+KIND): every class edgeChip + 0.2 but a grass road / polygon (Infinity, never sunk) - so the patch now sinks under the
+soft strips and the grass strips too (they are opaque from 0.8 m in); render_premises passes pavedAt's kind, the
+builders 'strip' / 'road' / 'poly'. (d) A road is SIDED (roadObj.sided: its side fades like a strip's, a taxiway's
+G980 rule) unless its entry declares its own `band` (the inspector's band row draws the band again, per road) or the
+premises say `pavement.roadSide: 0` (a new recipe knob, edge zone section; every road's band back). The analytic world's
+road net follows roadSide too. treePaveAt ('map' trees) keys on `sided` (was taxiway), and a soft / grass pavement's
+side reaches PAVE_SIDE_SOFT 7.9 m (G1395: the torn edge's reach, 3.05 x edgeSoft; GATE PAVEMENT holds it). NB the coverAt kill (vegetation)
+is UNCHANGED: band + fade beside every pavement, as before - only the drawn surface moved.
+
+G1392 THE LOOK (pavement.js RECIPE / KNOBS / lookOf / applyOne, step 10b). Per SURFACE TYPE - pv paved (concrete,
+asphalt), sf soft (gravel, dirt, sand), gr grass - nine knobs: Bright, Hue + Tint (an rgb multiplier 1 + k cos(2pi(h -
+c/3)): its mean stays 1, brightness alone moves the light), Wear (x the class's crackK damageK patchK mossK stainK rubberK
+on paved, wheelBand coarseK rutDepth treadK on soft / grass, clamped to each knob's max), SideBright / SideHue /
+SideTint, SideW (paved: m past the edge zone, -1 = sideW; soft / grass: the torn edge's spread, -1 = edgeSoft 2.6 m, the
+islands reaching ~3 x it) and SideA (the alpha the side starts from: the blend into the island's ground; -1 = sideA; the
+soft and grass default 0 = the torn edge alone). The defaults draw G1391 exactly (multipliers
+1). The shader: col x mix(side, surface, wPav), the paint keeping its own; the multipliers ride spare texels (uWet.yzw
+the surface, uEdge2.zw + uSpec.w the side), so PV_VEC / PV.W and the table's layout are unchanged; uSide.yz carry the
+type's side. groundColor (the cover ring's tuft beside a pavement) takes the side's multiplier.
+
+G1393 THE CENSUS AND THE TWIN. PAVEMENT.alphaTwin (the edge law, the side, the band + fade, line for line; noise ported)
++ tools/pavement_widths.js (the table above; `--json`; BEFORE is the pre-G1391 law ported in the tool only). GATE
+PAVEMENT 13 (new): every strip kind and road class draws at least its declared width (- 0.4 m) and at most + 0.8 x its
+soft spread, the opaque core >= declared - 2 x opaqueDepth, the side within its reach (PAVE_SIDE / 3.05 x the spread); the grass strip = the dirt strip; the twin's five laws verbatim in GLSL.map (a
+shader edit that drops one goes red); the 27 knobs; a part's uniforms carry its type's look and wear; the live overlay.
+
+G1394 THE CONTROLS. EDITOR: the FILE section's pavement > three "runway look: ..." sections (KNOBS rows: saved in
+rec.pavement, the premises' envelope, exported with them), and each runway's / road's / apron's inspector a "look of
+every <its type> pavement" fold with the same nine rows (writing rec.pavement; a button back to the module's). WORLD
+LOOK: a RUNWAYS section (src/viewer/world_rail.js buildRunway): the 27 knobs per type, LIVE over every pavement in the
+page (PAVEMENT.look(THREE, {..}) - an overlay over every part's own recipe, a row repack each, no rebuild; null clears),
+kept in the look's localStorage delta, in the export (`runway`, `where.runway`, the changes list against RECIPE) and
+applied from a pasted / loaded look. GATE PREMISES 17 (new): a premises with a look and roadSide round-trips (envelope
++ normalise), raises no issue, reaches O.pavement and resolve per type; a road is sided unless it declares a band;
+roadSide 0 draws every band.
+
+G1395 THE SIDE BLENDS AS BEFORE (the user on the evidence: "the new side patch blend a lot worse with the environment
+than before, please fix that"). The first cut tore the soft edge over 1.8 m with a hard threshold - a ruled line from the
+air (evidence 2, 8). A second cut (a fade whose reach wandered 1.4-4.6 m) still read straight: master's edge blended
+because its POSITION wandered +-5 m (three octaves x the 2.6 m spread) with a 4 m partial-alpha ramp. So the soft side is
+now master's law line for line - e2 = dE + s x (the 15 m / 4 m / 1 m octaves), smoothstep(-1.1 s, 0.5 s, e2), s =
+min(sfSideW or grSideW (-1 = edgeSoft), 0.6 x halfW) - and the declared width is filled under it: wPav = max(that,
+smoothstep(-edgeChip, edgeChip, dE)). Outside the edge the mean alpha is master's to the pixel (evidence 5: the dirt curves
+coincide; 8: the edge zoomed); inside it is opaque from 0.6 m in. The grass strip takes the same edge. A narrower or
+tighter side: sfSideW / grSideW (the spread), per premises or live in the world look.
+
+GATES (node, cloud, this tree, after G1395; the full battery left to A0's train): `run_gates --only=PAVEMENT,PREMISES,BUILD`
+BATTERY PASS - BUILD PASS 2.7 s, PREMISES PASS 102 s (17 new: the look's round trip, `sided`, roadSide 0), PAVEMENT PASS 22 s
+(13 new, 9 checks: the census, the twin's laws, the knobs, a part's look, the live overlay, opaqueDepth). RWYTREES core
+(`GATES_CORE=1 node tools/_rwytrees_check.js`, what the core battery runs) PASS, 20 checks. Its FULL tier (run before G1395) under `--only`
+(which implies full) ran past the runner's 30 min spawn cap on this box: steps 1-7 all ok (map / mapx: 0 visible trees
+on paving, taxiway 2.2 / apron 2.1 / road 1.8 m nearest - a sided road's side), step 8's C172 circuit ok, then the
+Cub circuits were cut by the timeout (ETIMEDOUT, no check failed) - A0's train runs it with its own wall.
+The built files (index.html, dev.html, sw.js, version.json, tools/flight_core.js) are NOT committed: the train builds.
+NOT DONE HERE (no GPU): the look itself on the island (see EVIDENCE below for the bench under SwiftShader).
+A0: (1) the soft strips' side is master's torn edge again (G1395), the core filled - judge the fill line from the air
+(a dirt strip's inner 0.6 m); (2) a grass strip is now an opaque mown lawn (fieldgrass graded): judge
+it against the island's grass, grBright / grTint / grHue to match or contrast; (3) the roads lost their gravel bands
+(roadSide 0 restores all, a road's own band row restores one) - the island's town roads and the analytic world's net are
+the ones to look at; (4) the patch now sinks 0.8 m under soft and grass strips (G660's rule, opaque from 0.8 m in) - a
+grazing look along a grass strip's edge for any ground showing through.
+EVIDENCE (flyDiy/reports/evidence/runway-look/; the pavement bench tools/_pavement.html under headless SwiftShader,
+BEFORE = master's pavement.js swapped in, AFTER = this branch; the bench's 45 m strip, its 6 m dirt road, its grass
+ground - not the island, whose splat ground, sink and lighting a software render of the bench does not show):
+- 1_grass_strip_topdown.jpg - the grass strip: before only the worn band a third of the width read, after the mown
+  lawn over the whole declared width. A0 DECISION: the opaque lawn's colour against the island's grass (grBright/grTint).
+- 2_dirt_strip_topdown.jpg - the dirt strip (re-shot after G1395): the side tears into the grass as master's did,
+  the core is solid. USER DECISION: whether the side now blends as before (the reason for G1395).
+- 3_concrete_strip_topdown.jpg - the concrete strip: identical before / after (the paved law is untouched). No decision.
+- 4_grass_strip_aerial.jpg - the same grass strip from 520 m: the full width reads at a distance. Informs decision 1.
+- 5_width_profiles.jpg - the mean alpha across a grass / dirt / concrete strip and a dirt road (the CPU twin GATE
+  PAVEMENT 13 holds, not a render; after G1395 the dirt strip's curve outside the edge lies on master's): the road's 15.7 m before vs its 6 m now is shown only here (the bench clips a
+  road's shoulder to 3 m). A0 DECISION: the roads losing their bands by default (roadSide 1).
+- 6_look_knobs_applied.jpg - the runway look live (PAVEMENT.look): grass brighter / yellower, wear 0.4 (the worn
+  band gone), a 4 m darker tinted side at alpha 0.4, the dirt road tinted. Shows the controls work; no decision.
+- 7_look_knob_rows.jpg - the three "runway look" sections in the bench's aside (the same KNOBS table the editor's FILE >
+  pavement section lists). NOT PICTURED: the per-runway "look of every ..." fold in the premises inspector and the world
+  look's RUNWAYS section (the game page under SwiftShader was not attempted). No decision.
+- 8_dirt_edge_zoom.jpg - the dirt strip's edge at 2x, master over this branch after G1395: the same torn edge. Answers
+  the user's "blends a lot worse" - USER DECISION hangs on it with image 2.
+(Images 1, 2, 3, 4 and 6 are re-shot after G1395; 7 is unchanged.)
+
+## G1415-G1419 - RUNWAY-LIGHTS: THE "HUGE BALLS" REPLACED BY A WWII-STYLE FITTING AND A POINT OF LIGHT THAT DIMS WITH DISTANCE (2026-10-03, a cloud session for A0; branch claude/runway-lights-g1415 off train 26 b2f1ffdc)
+
+THE ASK (the user, 2026-10-03): "the runway lights are naive. They're huge balls. Real things would have a proper geometry,
+and a bulb with realistic lighting values. Under the constraint of kept performance, can we replace those with proper
+3D models and light models inspired by real, old runway lights (they date back WWII)."
+
+WHY THEY WERE BALLS: G443/G1066's runwayLightsApply scaled every lens, every night frame, to hold ~3 mrad of the view (up
+to 150x its 7 cm radius: a 10 m ball at 3 km), on the CPU, one matrix a light a frame, with frustum culling off.
+
+WHAT IT IS BASED ON (period sources found by web search; the fetches themselves were blocked by this container's egress,
+so only search abstracts were read - nothing beyond them is claimed):
+- the RAF's DREM Mk II lighting (1940, Wg Cdr Atcherley at RAF Drem; the RAF standard after): a low-intensity system
+  with 15 W lamps; flarepath lights along the runway edges ("Double Flare Path lights (15 watt) ... at 100 yards
+  interval"); the fitting a "15w pygmy well-glass fitting" under C6 flarepath / C5 crossbar lamp covers with "coloured
+  filters" and a reflector; "round cast iron cover with slots for light emission", coloured shrouds for runway vs
+  perimeter track; the fittings bolted into a concrete ground socket (RAF Beaulieu's surviving base); funnel lights 40 W.
+- the RAE "GLIM LAMP" (1937): "a vertical cylinder, approximately 12 inches in height by 8 inches diameter. A glass domed
+  top contained a large reflector ... a 2 volt, 1.5 watt bulb"; "interchangeable white, orange and red globes for
+  marking the flarepath, boundary and obstructions".
+- the colours: flarepath WHITE (Glim, Drem); threshold GREEN / runway end RED is the standardised practice (a search
+  abstract states it, not tied to a named WWII source) - the game keeps its green thresholds and still has no red end
+  row (RWY_LIGHTS has none; not added: the core's places are G1066's and untouched).
+  Sources: rafdrem.co.uk/lighting.html, dunsfoldairfield.org (outer circle lighting), rafbeaulieu.co.uk (runway light
+  fitting socket), aviationtrails.co.uk (RAF Drem), the airfield research group forum (disused fixtures), the
+  "glim lamp" key.aero / metal-detecting forum abstracts.
+
+THE FIXTURE (render_world.js rwyLathe / rwyFixtureGeo; one geometry for every strip, 240 triangles):
+- ELEVATED (grass): a cast-iron foot plate 22 cm across, a tapered cast stem, the fitting's collar, a WELL-GLASS 13.4 cm
+  across with 7 cm of glass showing, the cast cover over it (Drem's "cast iron cover"); 35.6 cm overall (the brief's
+  30-40 cm; the Glim's 12 in). Painted iron (roughness 0.6) and glass (0.06) on a 2-texel roughness/metalness map.
+- FLUSH (G1066's lights that fall on pavement): a cast ring 26 cm across flush with the surface (8 mm proud) round a
+  glass dome 2.5 cm proud.
+- ONE DRAW FOR BOTH: the flush fitting is stored MIRRORED 2 m under the elevated one (RWY_DEEP), its winding kept so it is
+  inside out; a flush instance is the geometry flipped in y and lifted 2 m, which brings the flush fitting up the right
+  way out and sends the elevated one 2 m under the ground inside out (culled), and vice versa. GATE RWYLIGHTS checks
+  the winding both ways.
+- the threshold's GREEN GLASS is the instance colour (over the dark iron it is invisible); no emissive any more: by day
+  the light is glass and metal, it does not glow.
+
+THE LIGHT (rwyGlowMat: three's own points program with its size and shape taken over by onBeforeCompile; one POINTS
+layer a strip, one vertex a light):
+- colour: an incandescent bulb at 2800 K - Planck x the CIE 1931 observer (Wyman 2013 fit) -> linear sRGB
+  1 : 0.445 : 0.117 - behind its glass. Edge: a 15 W lamp behind clear glass, ~9 cd. Threshold: a 40 W lamp (the Drem
+  funnel's rating) behind a signal-green filter (a 505 nm pass band, 26 % luminous transmission, colour 0 : 1 : 0.26),
+  ~9 cd - so the green row reads as bright as the white one. (The luminous efficacy ~11 lm/W and the 9 cd are my
+  estimates for a vacuum lamp in a shrouded fitting, not a period figure.)
+- size: a sharp Gaussian core as wide as the lens's own angular size and never under 1.5 px at 1080 lines (the same
+  angle above), a halo of 6 % of the peak (for the eye with bloom off; the bloom's own pass takes the core);
+- brightness: falls with distance by Stevens' law for a point source (apparent brightness ~ illuminance^0.5, so
+  ~ sqrt(I) / d): uRwyL x 1000 / d. A core over the display's HDR ceiling (6) widens instead, its flux kept - the glare
+  a near light has. The level law of G443 stays (on from 2 deg of sun down, 1.2 x (0.92/exposure)^0.9).
+- the atmosphere TRANSMITS it and adds nothing: the AP's alpha and the mist's T = mist(1) - mist(0) (mistApply is affine
+  in the colour) multiply the light; the in-scatter is not added (an additive sprite would carry a square of haze).
+  One + one blending, no depth write, drawn after the opaque pass; the point is moved 15 cm toward the eye so the lens's
+  own glass and cover do not hide it. Without the atmosphere splice (the headless gate) the material runs fogless.
+- NOTHING PER LIGHT PER FRAME: runwayLightsApply writes one uniform and, only when the state turns, the strips' layers'
+  visibility; the target's half-height is set in the layer's onBeforeRender (the resolve's target is the canvas x the
+  supersample x the render scale) and marks the material for upload only when it changes. The fixtures are
+  FRUSTUM-CULLED again (their InstancedMesh sphere), the layers too.
+
+PERFORMANCE - GATE FRAMECOST, before (train 26, = its baseline) vs after, the four day views (Cub / metal Cessna, stand /
+taxi; Jolene, 7 strips):
+| counter (per frame)        | cub stand        | cub taxi         | cessna stand      | cessna taxi       |
+| draws.main                 | 914 -> 907       | 844 -> 837       | 925 -> 918        | 854 -> 847        |
+| draws.shadow               | 169.5 = 169.5    | 100.5 = 100.5    | 176.5 -> 177.5 *  | 106.5 = 106.5     |
+| programs used              | 98 = 98          | 81.5 = 81.5      | 96.5 = 96.5       | 80.5 = 80.5       |
+| tris.main                  | 17.488M -> 17.528M (+40k, +0.23 %), the same +40k in every view                        |
+| gl.calls                   | -15 / -15 / -13 / -15; uniform bytes -288 each; frustum tests +7 each (culling back)   |
+| programs linked (the boot) | 373 -> 374 (cub), 369 -> 370 (cessna): the glow's one program                         |
+  (*) the runway fixtures cast no shadow (castShadow false, as before); this half-draw in one view is a median of a
+  counter that already varies frame to frame there - not traced further.
+- BY DAY: one fixture draw a strip instead of two, culled; the glow layers hidden (not even frustum-tested).
+- AT NIGHT: fixture + glow = two draws a strip, the count the two colour meshes always were, now culled; one program more
+  than the day's (the glow), the old per-light matrix loop (every light, every night frame) gone.
+- TRIANGLES: 240 a light (both fixtures, 16 of them degenerate at the cover's apex) vs the old 124 (an 8x6 sphere, a stem,
+  a can): +40k on Jolene's ~345 lights, +0.23 % of the frame. Cut from a first 368/light (+85k) by trimming the
+  profile and drawing the flush fitting at 6 sides.
+- The ratchet: PASS; three boot counters fell (garage frames draws.total 4677 -> 4614, craft gl.calls 14205 -> 14054).
+  The baseline was NOT updated here (A0's per train).
+
+GATES RUN (touched files only): RWYLIGHTS PASS (section 2 rewritten for the new fixture: its size, the flush fitting,
+the winding the flip needs, the colours, one fixture + one glow a strip, both culled, the shader's law, the haze, the
+mute, nothing per light per frame), CLOUD PASS (its three G443 source checks re-pointed: the places' line, the light's
+law and culling, the strip's two objects and their removal), WORLDRENDER PASS, BUILD PASS, FRAMECOST PASS. The glow
+program was also compiled with the atmosphere splice installed (atmo.js ATMO.init on the bench): it links, the mist
+transmittance is in it.
+
+THE SCREENSHOTS - flyDiy/reports/evidence/RUNWAY-LIGHTS/, each a side-by-side BEFORE (master's code) | AFTER (this
+branch's), off a BENCH, not the game: tools/rwylights_bench.html lifts each side's light block out of the two
+render_world.js texts (as GATE RWYLIGHTS does) onto a 30 x 900 m strip with the core's spacing, the far end's
+thresholds flush on a concrete pad; three r186, ACES, exposure 1, no post, no aerial perspective, SwiftShader.
+`node tools/rwylights_shots.js <master render_world.js> [outDir] [--gpu]` re-shoots them. The game itself was booted
+in headless SwiftShader (the garage in ~150 s) but its roll-out did not finish within ~40 min on this 4-core container
+beside the FRAMECOST run, so there are NO in-game shots: A0, please look at the lights in the game on the GPU box (the
+approach at night on Jolene, the stand, a taxi past the edge row by day).
+- night_1km.jpg - the approach at 1 km, 3 deg (fov 25, a zoomed eye): before, the rows are continuous fat bands (the
+  grown balls touch); after, separate points, the edge rows warm white, the near threshold green.
+- night_300m.jpg - 300 m: the same; after, the near lights a little brighter than the far ones.
+- night_stand.jpg - from a stand 95 m off the strip: points with a small glow instead of white discs.
+- night_taxi.jpg - taxiing 8 m beside the edge row: the near lights bright with a glare, the far ones dimmer and
+  smaller - the fall-off by distance; before, every light the same disc.
+- day_close.jpg - 2 m from an edge light: the fitting (foot, stem, collar, well-glass, cover) vs the white egg on a pole.
+- day_taxiway.jpg - the strip edge from 20 m: a row of small dark fittings at the edge.
+- day_flush.jpg - the flush threshold lights on the pad: a dark cast ring round a green dome.
+WHAT A SOFTWARE RENDER CANNOT SHOW: the bloom (off on the bench; the game's soft bloom will add a halo round the core),
+the true brightness under the game's night exposure (the bench runs exposure 1 with the level law's k = 1), the aerial
+perspective's dimming of the far lights, and the display's own gamma/brightness.
+
+DECISIONS FOR THE USER:
+1. COLOUR: 2800 K reads clearly ORANGE-white through ACES at night (the period's incandescent look). If it reads too
+   orange in the game, 3000 K is one line (RWY_KIND.edge.light; 3000 K = 1 : 0.485 : 0.155).
+2. BRIGHTNESS: the reference (uRwyL x 1000 / d: the edge light's peak = the old lens's 1.2 at 1 km, 4 at 300 m, 0.4 at
+   3 km) is a first setting, judged on a software render - to be tuned on the GPU with the bloom on.
+3. OMNIDIRECTIONAL: Drem's flarepath fittings were SHROUDED (seen only from the approach); these shine all round, as
+   before. A shroud (the glow dimmed away from the landing directions) is one more dot product in the vertex shader if
+   wanted.
+4. NO RED END ROW: the game has none (the core's RWY_LIGHTS); the period and modern practice both have one. Adding it is
+   a core change (25_airfield.js) and GATE RWYLIGHTS' counts - left for a ruling.
+5. The node (WebGPU) renderer path ignores onBeforeCompile: there the glow would be three's plain 1-px points (dim
+   dots). The WebGL path is the shipped one.
+
+FILES: src/viewer/render_world.js (the fixture, the glow, runwayLightsApply, the switchboard's mute, the strip's removal);
+tools/_rwylights_check.js (section 2), tools/_cloud_check.js (three G443 source checks); new tools/rwylights_bench.html,
+tools/rwylights_shots.js; reports/evidence/RUNWAY-LIGHTS/ (7 JPEGs, 19-31 KB, bench.json).
+
+## G1325 - HYBRID-FARTHER: THE LIVE AEROPLANE TAKES OVER FROM 1 px A TEXEL (WAS 1.6) (2026-10-03, HYBRID-FARTHER for A0, cloud, headless; block G1325-G1329, G1326-G1329 unused; branch claude/hybrid-farther-g1325 off train 26 b2f1ffdc)
+
+The user: the baked texture is too pixelated before the switch - "the transition to the detailed texture needs to happen
+sooner, so farther".
+**G1325 THE BAND (src/viewer/flown_bake.js FB.hyA / FB.hyB): 1.6 -> 2.0 becomes 1.0 -> 1.25 screen px a texel.** The bake is
+now drawn only where one atlas texel covers at most one pixel (never magnified); the dither band starts there, the live
+shader is whole at 1.25. Distances (900 px buffer, 46 deg; from G1120's 5.8 m / 6.5 m at 1.6): the Cub enters the band at
+9.3 m (was 5.8) and is live at 7.4 m (was 4.7); the Cessna 10.4 m (was 6.5) -> 8.3 m (was 5.4). The old band stays a dial
+(?fbake=hy1.6-2.0).
+**WHAT IT COSTS (from G1120's mags, not re-measured):** the default chase (~15 m, 0.56-0.61 px a texel at 900 px) stays on the
+bake at 900 and 1080 px; at a 1440 px buffer it reads ~0.9-0.98, just under the band (a little closer and it dithers);
+at 2160 px (4K, scale 1) it is ~1.35-1.45: fully live (it was on the bake there, below 1.6).
+Live = the kept live meshes drawn instead of the folds: the hybrid's aeroplane is 144 main draws + 76 shadow (G1124.5,
+Cessna cockpit) against the folds' handful; the shadow stays on the folds (G1124 a) at any t. The stand's framing (distT 15.7 m
+on the Cub, headless) is ~0.6 px a texel: the bake, unchanged.
+**BLOCKED - THE STILLS AND THE HEADLESS COUNTS:** headless Chromium + SwiftShader on Linux (playwright, dev.html, the default
+Cub) rolls out and bakes (FB.last: cm 0.74, the render 39 s) but at the stand FLIGHT_PROBE.model() stays null, the folds 0,
+renderer.info.render.frame does not move over 3 s and the camera never settles (dist 25.47 -> distT 15.73), with or
+without the rig clock (navigator.webdriver off + a Chrome UA: PACE.legacy false, the same). So no census and no stills
+from the cloud. The rig: reports/evidence/HYBRID-FARTHER/rig.js (both rules on one page: FB.hyA/hyB set live; the bake and
+the live forced at 1.0 / 1.25 / 1.6 px a texel from the chase's side). On the box: tools/hybrid_ab.js with STILL at the
+old and new distances (the Cub 5.8 / 9.3 m, the metal Cessna 6.5 / 10.4 m) gives the pairs; FRAMECOST's stand + chase
+census for the counts. GATES: FLOWNBAKE, BUILD PASS.
+
+## G1300-G1303 - GARAGE-LAG-2: THE SHEET KEPT WHILE ITS SPEC IS, THE PAINT ROWS REPAINT, THE TANK'S SHAKEDOWN OFF THE RELEASE, THE DETAIL LAYERS AFTER THE DRAG (2026-10-03, GARAGE-LAG-2 for A0, a CLOUD session: headless Chromium 141 on SwiftShader, 4 cores; branch claude/garage-lag-2-g1300 off train 26 = b2f1ffdc)
+
+The ask (the user, via A0): "an instantaneous feeling". On the box (master 5502f450, median ms a change, Cub / metal) most
+changes were 245-275 / 370-410, the TANK CAPACITY 692 / 1034, and a paint row rebuilt the whole aeroplane. GARAGE-LAG's
+next steps (G1280-G1282 "NOT INSTANT YET") named the three structural moves; this session made four, each exact:
+
+**G1300 THE SHEET IS KEPT WHILE ITS SPEC IS** (`tools/_cage_ui.js` sheetKept, in buildSteps). `cageSheet(P)` is
+`cageSpec({...P})` and then a function of that spec alone (with the step, the level and whether the view is exploded) -
+read off its source: nothing after the cageSpec line reads P but `explodeD`. A wing, tail, gear, engine or paint row moves
+nothing in the cage spec (measured in node: `wgSpan`, `s1X`, `stSpan` leave cageSpec's output identical; `frCabTopW`
+moves `frames`), so every such tick rebuilt the same fuselage sheet (~100-200 ms of the box's 250-370). The key is the
+spec itself (sorted keys, a non-finite number spelled out so NaN never meets null) + step + level + exploded; the same key
+hands back the previous build's object, so every mesh-keyed cache downstream (FIT_SITE's WeakMaps, the energy layer's body
+signature) answers too. The one global the sheet's build publishes (`CAGE_MEMBERS`, read by the wing and the gear) is kept
+with it and put back on a hit. The layers never write into the sheet (grep: no assignment into ctx.mesh / ctx.spec in any
+layer; their caches are WeakMaps on it). `CAGE_UI.sheetKeep = false` builds every time.
+
+**G1301 THE PAINT ROWS REPAINT** (`_cage_ui.js` repaint; the base colour, base metallic, base roughness, every section's
+colour well, metallic and x-dials, the panes' tint wells). Every material a build hands out passes through matOf (the
+cage's sections) or secMat (the layers'), pure functions of the section, the layer's `g` and the override maps. Each is
+now noted with the requests that produced it (PAINT_REQ, cleared at the head of each build; a copy of `g`); a repaint asks
+the SAME factories the same requests over the moved maps and puts the answers on the editor's meshes - the materials a
+build would have produced, out of the same pools. The cage's own mesh is repainted slot by slot from its matNames
+(meshFrom made it as `matNames.map(matOf)`), so a material two cage sections shared splits cleanly. Then the build's own
+tail: the panels (the decals re-read the paint block, as a build does), the weathering (it reads the bases), the rows,
+draw() (the clip, the autosave, the bench's dirty flag). A layer that DERIVES a colour from a factory's answer gets the swap
+through `PAGE.repaint` (one today: the cowl's dark interior, 6 % of the skin's albedo - INNER_LAST), and the game's
+understudy pass (EXT_PASS) ends it as it ends the post chain. It IS a build whenever it cannot answer for itself: nothing on
+record, a factory that answers null (the diagnostic palette), one material handed out for requests that now answer
+differently (the fin's skin and rudder share one until a pick separates them: the FIRST base-colour notch after a build
+builds, the rest repaint), a glass companion it does not know, or the sit moved since the last build (a build measures the
+craft frame from where the PREVIOUS build's draw put the mount, and the layers publish craft-space uniforms in it - the
+footwell, the weathering's sources; after a change that moved the sit, the next build is the one that brings them up to
+date, so a repaint then is that build). `CAGE_UI.repaintInfo` says which way the last one went; `CAGE_UI.repaintOn = false`
+builds every time.
+
+**G1302 THE TANK'S RELEASE** (`src/core/43_pilot.js`, `src/viewer/app.js`, `tools/_cage_energy.js`). The release committed
+the energy block inside the change event; GARAGE_SPEC.update put a new aeroplane on the stand (setAircraft): 0.4-0.7 s of it
+the shakedown behind the pilot's machine sheet, which makePilot read at construction (SH0), the rest the flown model and the
+room. Three parts, the check never estimated:
+- the pilot reads its sheet LAZILY: every read of SH0 is a call to the memo (sheetOf), VAppr a lazy accessor, gsMax /
+  gammaGA / sheetVAppr / VApprShort functions of it - the same sheet off the same shakedown, built the first time the pilot
+  needs it. Node, both cores: no shakedown call at construction (was 1), and a 240 s circuit of the default build flown
+  by both cores (eager b2f1ffdc, lazy) compared bit for bit every 10 s (phase, VAppr, CG, velocity, the phase list and the
+  verdicts): IDENTICAL.
+- in the garage the readouts take the shakedown only when it is already known (this page's memo or the core's store): the
+  plaque steps down (as it does with no numbers) and the flight plate's Vs holds 0, and the REAL shakedown runs post-idle,
+  debounced (600 ms after the last change, then an idle slot), and both re-read it. Anything that needs it now still calls
+  shakeOf and gets it then: the roll-out's plate (flRender outside the garage), the pilot in flight, the bench's check, the
+  sim worker's init (sim_link). One reader can still pull it in the garage: the netto variometer, only when its flyout row
+  is on (apSheet in hud()).
+- the energy panel's range rows (capacity, size, station, level, turn) commit on release POST-IDLE (commitSoon: 250 ms,
+  then an idle slot, at most 1.5 s; a second release folds in): the same commit through the same door (savePrefs, the
+  resolve, B9's nothing-new test, update, the readouts). The tank in the editor is drawn by the drag's own relayout as
+  before; nothing that needs the tanks in the spec waits on it - the join's export reads the layer (CAGE_ENERGY.toSpec), so a
+  roll-out, save or export straight after the release carries them.
+
+**G1303 THE DETAIL LAYERS WAIT FOR THE END OF A DRAG** (`_cage_ui.js` mkRow's slider + buildSteps; `_cage_light.js`,
+`_cage_hinge.js`, `_cage_access.js`, `_cage_energy.js`). A tick under a held pointer (pointerdown on that slider) runs the
+post chain with `ctx.defer`: the lights, the control hinges, the access fittings and the tanks keep their last group HIDDEN
+and return (nothing that builds before them reads them; the energy layer reads the crew and the wing, which still build).
+The sheet, the structure, the crew, the panel and every layer something else reads build as before. The full build
+follows the drag: the slider's release (`change`), the pointer coming up anywhere, or 350 ms after the last tick - one
+build, with the sheet kept. A click, a typed value, the keyboard (input + change with no pointer), a select: a plain build.
+`CAGE_UI.dragDefer = false` builds every tick whole; `CAGE_UI.dragSettleMs` moves the pause. VISIBLE: while the hand is on
+a slider the lights, hinges, access fittings and tanks are not drawn; they come back when it stops (stills below).
+
+**THE TABLE** - this cloud box, both sides on the same machine in the same session, `tools/perf/garage_lag.js --norender`
+(below), median (max) `sync` ms a change, reps 5, the Cub (`garage_lag_cub_wip.json`); base = train 26 b2f1ffdc served from
+`_ab/base`, after = this branch served from `_ab/after`. busy = the long tasks in the window (the deferred settle build, the
+post-idle commit), reported where they moved work out of the handler:
+
+(1) PAIRED, THE SAME PAGE AT THE SAME MOMENT (`garage_lag_same.js`: the row moved the player's way = this branch's
+path, then the same parameters built the long way = a full build with the sheet rebuilt and nothing deferred, i.e. what
+b2f1ffdc runs for that row; ms of the handler, one sample each, the Cub, rendering on). This is the cleanest A/B the cloud
+gave: the two paths share the page, the cache state and the minute.
+
+| Cub, cloud | this branch's path | short ms | long ms (as b2f1ffdc) | ratio |
+|---|---|---:|---:|---:|
+| fuselage length (`p_paxLen`) | drag tick: sheet rebuilt, detail layers deferred | 490 | 818 | 0.60 |
+| fuselage width (`p_halfW`) | drag tick, ditto | 460 | 772 | 0.60 |
+| cabin frame (`p_frCabTopW`) | drag tick, ditto | 460-605 | 877-900 | 0.52-0.69 |
+| wing span (`p_wgSpan`) | drag tick: sheet KEPT, detail deferred | 592 | 812 | 0.73 |
+| wing chord | ditto | 592 | 823 | 0.72 |
+| tail size (`p_stSpan`) | ditto | 502 | 818 | 0.61 |
+| gear track (`p_s1X`) | ditto | 569 | 710 | 0.80 |
+| engine (a select: a plain build) | sheet kept | 655 | 787 | 0.83 |
+| base colour, the first notch after a build | a build (the fin's shared material) | 696 | 747 | 0.93 |
+| base colour, every later notch | REPAINT | 12.5 | 646 | 0.02 |
+| base metallic | REPAINT | 12.9 | 600 | 0.02 |
+| a section's colour well | REPAINT | 10.8 | 587 | 0.02 |
+| a section's roughness x dial | REPAINT | 12.1 | 820 | 0.01 |
+
+(the drag ticks' settle build - the one full build when the hand stops, sheet kept - is not in `short`; it is in busy below.)
+
+(2) CROSS-TREE, `garage_lag.js --norender`, median (max) sync ms of 5 reps, base served from `_ab/base`, after from
+`_ab/after`, one session each, the same machine (`abN_basecub.json`, `abN_aftercub.json` in the scratchpad - not kept):
+
+| Cub, cloud, norender | base b2f1ffdc | after | after busy (incl. the settle build) |
+|---|---:|---:|---:|
+| fuselage length | 694 (1038) | 999 (1085) * | 2057 |
+| fuselage width | 715 (906) | 665 (1402) | 1912 |
+| wing span | 601 (709) | - | - |
+| wing chord | 641 (933) | - | - |
+| tail size | 635 (784) | - | - |
+| gear track | 611 (627) | - | - |
+| engine | 608 (726) | - | - |
+
+\* run while six gates were running niced beside it (killed when this row came in: 4 vCPUs that are SMT siblings - nice
+does not protect a main thread from that); not a clean number. The after run then died at wing span (a 240 s page timeout,
+render loop stopped, the same death base had died at its tank row); the rest of (2) is not measured. Use (1).
+
+THE TANK ROW, from the box's own profile (GARAGE-LAG's `garage_lag_fixdev1.json`, dev.html): of the release's 748 / 1090 ms
+handler (Cub / metal), 714 / 1056 were `commit` -> GARAGE_SPEC.update -> setAircraft, 413 / 703 of it the pilot's shakedown;
+relayout (the drag's own tank) 33 ms. After G1302 the handler is the relayout and the commit's scheduling (the release no
+longer commits in the event), the commit runs post-idle WITHOUT the shakedown (~0.3 s on the box: the model, applyEnv, the
+cavity bake), and the shakedown runs post-idle after that, alone. Inferred, not timed here: neither tree's tank row survived
+the cloud. A0's box run is the number.
+
+**WHY --norender, AND WHAT IS NOT MEASURED HERE.** In the cloud the page renders on SwiftShader: a new program links in
+tens of seconds to minutes, inside whatever rep it lands in (frames of 25-66 s, a 240 s page timeout on the tank row's
+model build, a warm-up load wedged in the GPU process for 10+ min on a fresh profile - three runs of the full rig died
+that way). `--norender` (new) stops the page's render loop once it is loaded (requestAnimationFrame answers nothing): the
+handler and its JS tails are measured, the frames are not. It is a cloud measurement: A0's box run (the default, rendering)
+is the one that counts. The metal Cessna and the tank row did not get a clean pass here before the time bound (above).
+Drag emulation (new, default on): a slider's tick dispatches `pointerdown` first, as under a held pointer, and never its
+release, so G1303's settle build lands inside the rep's window (busy); `--nodrag` is the bare input event. A tree that does
+not listen for pointerdown (base) is unchanged by it.
+
+**EXACT, BOTH WAYS** (`tools/perf/garage_lag_same.js`, new): in the real page the row is moved the player's way (its
+widget, its event; a slider dragged and released), the editor's whole scene is fingerprinted (every object in order: type,
+name, visibility, matrix; each mesh's geometry - counts, sums over positions and index; every material slot: type, colour,
+opacity, flags, defines, every uniform's value, the userData walked by hand), then the same parameters are built the long
+way (`sheetKeep = false`, `build()`) twice and compared. An object the long way itself does not repeat is noise, never a
+difference; bones are the crew's idle animation (name only). Cub, on the final code (`same7`): wing span (sheet kept, drag
+deferred then settled), cabin frame (sheet rebuilt, deferred then settled), base colour (first notch: the build fallback),
+base metallic, a section's roughness dial, base colour again (a repaint through the cowl's hook): PASS, all six SAME (the
+long way repeats itself but for 3 objects). Earlier runs on the same paths (geometry code unchanged since): fuselage
+length / width, wing chord, tail size, gear track, engine, a section colour well, base roughness - SAME. The first runs found two real
+differences, both fixed and re-checked: the cowl's derived interior (PAGE.repaint) and the sit-moved case (CRAFT_KEY).
+The metal Cessna was not run through it before the bound (QUESTION for A0: run it on the box -
+`node tools/perf/garage_lag_same.js --port <p> --udd <fresh>`; it exits 1 on any difference).
+
+**GATES** (the seven asked; LIVERYREACH does not exist in run_gates.js - LIVERY is the livery gate and was run in its
+place), on the final code: BUILD, LIVERY, FIT, RAYINDEX, HANGAR, ENERGY PASS (one run), TANKMOUNT PASS (its own
+run). The pilot change (core) is not covered by any of the seven: the bit-for-bit circuit above is its evidence, and A0's
+full battery (TAKEOFF, PLAN, ARCH, SEAPLANE, the pilot gates) is the real test.
+
+**EVIDENCE**: none kept. The one visible change is G1303 (during a drag the lights, hinges, access fittings and tanks are
+not drawn; they come back when the hand stops). `tools/perf/garage_lag_shots.js` (new: settled / mid-drag / released, the
+pause held off for the mid-drag shot) ran, but in the cloud's headless SwiftShader the garage's WebGL view captures blank
+(the UI only), so the three JPEGs showed nothing and were not committed. On the box: `node tools/perf/garage_lag_shots.js
+--port <p> --udd <fresh> --dir reports/evidence/GARAGE-LAG-2 [--build metal]`.
+
+Not done / for A0:
+- the metal Cessna's table and the tank row on the box (`node tools/perf/garage_lag.js --port <p> --udd <fresh>
+  --trees base=_ab/b2f1ffdc/flyDiy,after=_ab/<sha>/flyDiy`; the default renders; drag emulation is on);
+- fuselage rows still rebuild the sheet (it IS what they change): on the box the Cub's ~250 ms minus the deferred layers;
+  the metal's sheet alone is 175-215 ms - under 150 needs the sheet itself (cageSubdivide / cageRims / cageInterior,
+  ~equal thirds) or a coarser drag sheet (L1 while dragging, L2 on release: a visible change, the user's call);
+- the tank release's remaining commit (~0.3 s on the box: the flown model, the room's applyEnv -> Box3.setFromObject over
+  the crew's skinned meshes ~100 ms, the cavity bake ~80 ms) is post-idle now, not gone;
+- the first base-colour notch after a build is a build (the fin's skin and rudder share a material until a pick separates
+  them; a per-slot record for the layers' meshes would lift it).
+
+## G1283 - C0 WING SLIDERS: THE THREE §9 ROWS MOVE A NUMBER OR SAY THEY DO NOT (2026-10-03, C0 for A0, cloud, node gates only; block G1283, no sub-numbers)
+
+futureDesigns/CONFIGURATIONS-2026-09-27.md §9 named three wing rows that do not reach what they say (RULING 3). Each was
+re-verified against the code first; the fixes are honesty only - no clamp moved, clampWing's 0.45 taper floor untouched (a
+physics ruling for the user).
+**ONE HOME FOR THE WING'S CLAMP** (`60_gen_spec.js`): `GEN_WING_ENVELOPE` (chord, span, spanPerChord, taper, xLE,
+placeDx/Dy), GEN_TAIL_ENVELOPE's pattern; clampWing reads it with the SAME numbers, exported. Proof it is bit-identical:
+every fixture build plus the six validated aeroplanes (Cub corrected, Jodel corrected, Cessna corrected, metal Cessna, the
+C172 on Wipline floats, the twin-582 floatplane) resolved under master's flight_core and this one - the whole resolved spec
++ genFrame cg0 + node count hashed: 15/15 identical; the resolved wing (chord, taper, span, xLE, place.dx) identical.
+1. **wgChordTip - REAL, fixed by a row note.** The join writes taper max(0.2, tip/root), clampWing floors it at 0.45, so
+   0.55 on a 2.10 root flew (and drew - the wing layer resolves the same spec) 0.945 m. It has a CEILING twin: tip over
+   root caps at taper 1 - the user's Cub carries wgChordTip 1.75 on a 1.70 root and flies 1.70. The floor rides the chord,
+   so no fixed range is honest; the row's `note` (the T2.2 mechanism) reads back the wing the layer's own resolve drew
+   (`CAGE_WING.flown`, per plane, keyed on the rows it came from so a resolve that threw says nothing) and says
+   "flies 0.95 m — the tip is held to 0.45–1 × the root chord". The Cub's tip row now shows that line; nothing flies
+   differently. The second plane's copy reads its own rows through w2Row's key map (`w2View`, the `when` Proxy, lifted).
+2. **wgDx - PARTLY REAL, §9 had the wrong clamp and the wrong end.** In the editor the join MEASURES xLE off the drawn wing
+   and zeroes place.dx (G295), so place.dx's -1.2..1.8 never binds there; the binding clamp is clampWing's xLE -0.20..3.00,
+   which rides the drawn cabin: the Jodel (xLE -0.012 at wgDx 0.45) stops moving its flown wing near wgDx 0.64 forward.
+   No row range can say that, so the cut is an ERRS row in measure(), the tail's P1 pattern: `cageWingStationCut(xLE, ENV)`
+   (pure, exported) - "the drawn leading edge stands -0.350 m aft of the firewall, outside the flown envelope -0.2–3 m, and
+   flies clamped". place.dx = -wgDx only on the headless design bake, where wgDx above 1.2 would be cut - ARCHETYPE-ONLY,
+   LOGGED NOT CHASED: no card writes more than 0.60. The row's range is unchanged (-1.5..1.8).
+3. **wgSpan - REAL, fixed by the range** (6.5-14 -> 6.5-18), and its sibling: **wgChord** 1.15-2.10 -> 0.80-2.10. The
+   2026-09-04 sailplane opening reached the clamp and the sail class seed (15.0 x 1.00) but neither row. The span's
+   coupled bounds (4-20 x the chord: 6.5 m on a 2.10 chord flies 8.40) get the same read-back note as the tip.
+GATES. DESIGN +§4b WING ROWS: span and chord rows equal GEN_WING_ENVELOPE; every live class seed inside its row; the notes
+said exactly where a real resolve moved the row (floor, ceiling, 4x, 20x, the sail seed silent, the second plane both ways);
+checkEnvelope reads the envelope instead of its copied literals; five new --selftest breaks, all caught. JOIN +G1283: the
+station cut agrees with resolveSpec at 10/10 probes (said <=> the flown xLE is not the measured one), inside is silent.
+Negative-verified on the SOURCE too: span row back to 14, chord back to 1.15, the tip note removed, the second plane's
+note un-mapped -> DESIGN red; the cut always silent / always speaking -> JOIN red.
+BATTERY (--only, 22 gates on the files touched, GEN included since clampWing is core): 21 PASS. ROLLANIM read 1 of 777 red
+under the 4-job pool - G1115's fixed roll at 65.5 bytes / frame (bound 64); alone it passes 3 of 3, and four copies at once
+read 33.5 on this branch AND on master alike - a heap-delta under the GEN shards' load, no roll code touched here.
+ARCHETYPES (full tier) not run: the bakes never read the panel rows and the core change is bit-identical (above).
+Not done (logged): the tip row's static floor stays 0.55 (the envelope's lowest legal tip is 0.36, on a 0.80 chord - the
+note covers the rest of the dead zone); the station cut is an ERRS row on the bench, not a live row note (it needs the
+cage's measurement, which measure() takes at build & fly, not at every slider tick).
+
+
+## G1335-G1339 - LAKE-HOLES: THE LAKES WERE CUT OUT OF THE GROUND; THE BED IS CARVED NOW, THE GROUND WHOLE, AND A GATE SAYS NO LAKE EDGE HAS A GAP (2026-10-03, LAKE-HOLES for A0, a cloud session: node + headless Chromium / SwiftShader; branch claude/lake-holes-g1335 off train 26 = b2f1ffdc)
+
+The user (3 Oct, screenshots): "the lakes were made by CUTTING the terrain" - wherever a shore stood over the water, a
+vertical gap between the ground's jagged cut edge and the flat water, the clear colour through it, worst on far shores;
+"unacceptable". Fixed in the CONSTRUCTION: the island pack carries no cut (its DEM is the IFSAR surface, each lake flat at
+or over its level) - the cut was the renderer's, the bed is carved in src/ at run time; no world prep re-run.
+- G1335 THE CENSUS (which ground cut holes). ONE hook made every island ground program (render_world islandGroundHookFor)
+  and it carried `if (uGWaterMap > 0.5 && lsd > 1.0) discard;` (2026-09-21: "no ground inside the water") into ALL of
+  them: the near ring (side -1: the whole 512^2 ring AND its RINGLOD chunks, one material), the fine tiles (+1), the twin
+  under the premises' patch (0), the far terrain's quadrants where a lake's box reached a leaf; only the far terrain's
+  lake-free `|dry` twin (PERF 2026-09-23) and the sea did not cut. And near a lake the fine tiles took the RING's 17.6 m
+  chords (a blend within 30 m of a lake, 2026-09-22) - the chords that stood over the water and were cut. Node census
+  (GATE LAKEBED's, Jolene with its premises): of 178 028 field texels a metre or more inside the 252 drawn lakes, the
+  island's raw ground stood OVER the drawn water at 3 711, in 160 lakes, up to 21.9 m (a bank the field calls lake) - each
+  one a cut edge over the water; the ring's chords added the rest. The physics agreed with neither: the DEM flat AT or
+  over the level is dry to waterAt (`level >= t`): of 2.03 M 5 m samples in the lakes' boxes (banks included) 0.33 M
+  were water to the floats (0.77 M now); the lake at (-289, -526) read waterH -Infinity at its middle.
+- G1336 THE CARVED LAKEBED (28_island.js lakeBed, LAKE_BED; 20_world.js terrainH, waterAt). Inside a lake's field (the
+  physics' field, + inside) the ground is held under the level: `edge` 0.5 m at the line, smoothstep to `depth` 3.0 m by
+  `shoreW` 12 m in; on the bank (to `bank` 30 m out) under level - 0.5 + s + s^2/16 (1:1 out of the line, steepening:
+  8 m over the water 6 m out), min with the ground - it only ever LOWERS (the codec's ceilings hold; a real bed, a bank
+  under the lake, is kept: the DEM has no bathymetry, the min would take it). ONE LAKE A TEXEL: a byte mask per lake over
+  its box and the bank's reach (0.67 MB on Jolene, built in ~40 ms: makeIsland 318 -> ~360 ms) - inside texels to the
+  lake whose box holds them, overlaps to the one whose level the DEM is nearest; bank texels to the lake of the nearest
+  inside texel (a 3-4 chamfer). Rules by boxes alone stepped 10 m where two lakes' boxes meet (9052, -7604) and dug a
+  60 m pit round a hillside pond inside a big lake's box (1926, -18309) - the gate's walk found both. A LAGOON AT THE
+  SEA'S LEVEL (its inside DEM median <= 0.05: 14 small coastal records at ~2.7 m whose ground is 0) owns a level of 0.
+  The bed is taken by makeWorld's terrainH on the COMPOSED ground (the raw ground stays the hydrology's and the premises'
+  base - nothing authored moves): no modifier -> min(h, bed); under one, a FILL stays a fill (the modifiers are affine in
+  the ground, so composing on the bed as well gives their weight w; w >= 0.5 is the old composition, fading to the bed's
+  as w -> 0, continuous at the modifier's rim) - 02/20's pond stays the runway's (G753). waterAt: inside a lake's line
+  the water is the OWNER's level, before the sea's rule (the East Point lens, 2.67 m on a DEM of 0.83, carved under 0.05
+  at its middle, stays a lake). The memo holds the answer; a cold terrainH: 1e6 random points ~0.65 -> ~0.71 s (a 256 m
+  cell array says "no lake here" before any field read), 1e6 inside lakes' boxes ~0.52 -> ~0.67 s (node, this box).
+- G1337 THE RENDERER (render_world.js). No ground program discards for a lake (the near ring, the fine tiles, the twin,
+  the far terrain: every one keeps early-Z now - the cut's discard was 2.6 ms of the far terrain's 5.6 at the stand on
+  the wet patches); the `dry` hook, its material and the `|dry` quadrant split are gone (one material, a quadrant one
+  draw: 26 -> 16 far meshes at the field, the same 1 125 patches / 2.59 M tris); the far patches take lakeBed as they take
+  the sea's shelf; the fine tiles are the carved surface at a shore too (the blend to the ring's chords removed - the
+  flattening staircase it hid lies under the water now); a lake's quad stands at lakeBed.levelOf(L) (the level its bed
+  is carved under and its physics floats on; the waterH median is the fallback). The water's look is unchanged: its
+  field fade (-2..+2 m) and its analytic column (water.js: 1.2 m a metre of field, to 8 m - deeper than the carved bed
+  near the line: 2.4 m read at 2 m in where the bed is 0.7 m) keep the muskeg lake's "bed only along the very edge"
+  (G460.4); the bed under it is the ground's own dark-peat paint (lsd > -1), now on real geometry. NO SKIRT anywhere:
+  every lake carves (the cases that do not carve cleanly are drawn, not skirted - a premises modifier holding the ground
+  over a bank: 1 texel 10 cm over the 29.55 m lake at (-149, 269); where two lakes' beds meet, a step of their levels'
+  difference, 0.43 m the worst, under water; far-terrain nodes coarser than a small lake carry the bed only at their
+  vertices - such a lake can sit under the coarse surface until the cut refines; the far LOD's error does not count
+  the carve).
+- G1338 GATE LAKEBED (core, new; tools/_lakebed_check.js, ~6 s): (1) no ground program discards for the lake field (the
+  hook's two discards are the fine disc's), one far material, the far patches and the ring / fine tiles on the carved
+  ground; (2) on Jolene with its premises, the renderer's own lakeR / quad rules / quad level LIFTED: every texel a
+  metre inside a drawn lake has its ground under the drawn water (0 over; 1 held by a premises modifier), 02/20's pond
+  still filled, the bed only lowers; (3) the edge walk - 15 802 line points of the drawn lakes, a 0.1 m walk from 6 m out
+  to 6 m in: no jump over the raw DEM's own + 0.5 m, the ground under the water 2 m in, the physics' water there.
+  Checked against the base tree: FAIL (5).
+- G1339 EVIDENCE (reports/evidence/LAKE-HOLES/, 8 JPEGs 15-26 KB + stills.json; tools/lake_holes_still.js). The GAME's
+  page could not be pictured on this box: on SwiftShader its roll-out's first-light step never resolves (holdRender stays
+  up, every update runs, nothing is drawn - 187 programs, 120 empty frames a second for 10 min), and a rig-side draw of
+  WORLD.scene came out black near the eye (the page's own shadow / probe passes never ran). tools/lake_holes_shot.js is
+  that rig, kept for the GPU box (`--gl gpu`: the far / near / air / farTier views from a forced eye, the frame's draws
+  and triangles). The stills are the CONSTRUCTION, drawn by a reduced renderer in headless Chromium + SwiftShader: both
+  trees composed in node (the base's worktree, this one), the near ring's own 17.6 m grid and the fine disc's 5 m tiles
+  within 700 m of the eye (geomorphed to the ring), each tree's terrainH, its lakeR field and quad levels lifted, the
+  base's ground program cutting at lsd > 1 m - the island's tint and one sun, NOT the game's shading - over a RED clear
+  colour under a sky dome, so a hole is red, and counted (`holes`: red pixels whose ray dips under what the drawn window
+  can hold):
+  * before_far.jpg - the lake at (-289, -526), level 25.81, from 1.8 m over its west end across 260 m: red slivers under
+    every far bank, the cut edges standing over the water (293 hole px).
+  * after_far.jpg - the same eye: the banks run down into the water, the bed under it (0).
+  * before_near.jpg - its north shore 40 m off: the sky seen THROUGH the bank and a red band at the waterline (14 506).
+  * after_near.jpg - the bank whole, sloping under the water; the fine tiles' 5 m surface at the shore (0).
+  * before_air.jpg - 220 m over the ground west of it, five lakes in view: red rims on their far shores (707).
+  * after_air.jpg - none at any lake (8 isolated px away from the lakes: the reduced renderer's ring-to-fine seam).
+  * before_far2.jpg - another lake's far shore, (-1454, -216), level 25.81: sky through the banks, red at both ends (2 026).
+  * after_far2.jpg - the shore continuous (0).
+- COUNTS (the terrain's triangles and draws; A0 times the GPU on the box): no vertex added or removed anywhere (the same
+  ring, fine tiles and far cut - 1 125 patches, 2.592 M tris at the field); the far terrain 26 -> 16 meshes (the `|dry`
+  split gone); one ground program fewer (`island-outer-dry`); every ground program without a discard (early-Z).
+  Read off the page on SwiftShader (tools/lake_holes_shot.js, the far cut's stats, gfx default): at the far view base 26
+  far meshes / 1 125 patches / 2 592 000 tris, this branch 16 / 1 125 / 2 592 000; the ring 1 draw / 524 288 tris both.
+  The frame totals the rig's own draw counted (base 131 draws / 2.57 M tris, this branch 244 / 18.5 M) are NOT an A/B:
+  on a software GL the streamers had not reached the same state (the base's fine disc held 0 tiles, this one 93; the
+  cover and the trees streamed differently) - the box's FRAMECOST is the measure.
+- GATES (this container, 4 cores): WATER, FLOATS, SEAPLANE, SPLAT, BUILD, LAKEBED: PASS (before the change: the five
+  PASS too). Not run (A0's battery): LOOKS reads lakeR and the natural lakes' fields on the carved world (its pond and
+  lens checks hold by GATE LAKEBED's numbers); WORLD / HYDRO / GE / PREMISES / PREMRASTER / COVER / FRAMECOST will see the
+  carved ground and the far meshes' count - the lakes' terrainH is lower, their waterH is now water where it was dry.
+- FOR A0: generated outputs NOT committed (tools/flight_core.js, index.html, dev.html, sw.js, version.json: `node
+  tools/build.js`). The physics change is real: floats now have water on the lakes the DEM held at their level (the
+  floatplane's lakes deepen from ~0 to the bed's 0.5-3 m); FLOATS and SEAPLANE pass. The look to check on the box:
+  tools/lake_holes_shot.js --gl gpu (and the user's far shores).
+
+**G1314.1 COLD-LINKS x LAKE-HOLES (2026-10-04, for A0's train 28; branch claude/cold-links-lakes = master e40628b0 + COLD-LINKS
++ LAKE-HOLES 659c22b6).** The merge keeps LAKE-HOLES as written (the bed carved, no ground program discards for a lake, the
+`dry` twin and its outer-dry program gone) and COLD-LINKS' production / full keying on every ground material that remains
+(islandKeyed: ring, twin, fine, outer x2; the premises clones). Node census: 392 programs (393 - outer-dry). THE TEXTS: every
+heavy program's source equals what the GPU linked in G1313's after loads except LAKE-HOLES' one removed line
+(`if (uGWaterMap > 0.5 && lsd > 1.0) discard;`) - the vertex shaders and the pavement byte-identical, and the merged outer
+ring byte-identical to the measured outer-dry (12.7 s [12.3-13.9] cold): one heavy cold link fewer, none new.
+GATE SPLAT went red on COLD-LINKS itself (not the merge): its three pond checks sliced the text after the pond block's
+anchor in sMatPass, and G1312 moved the mask to sPools - the gate now reads sPools (the same three expressions, the same
+`far` law). Gates on the merge: SPLAT, WATER, FLOATS, SEAPLANE, LAKEBED, PROGRAMS, BOOT, BUILD, GFX - PASS. No GPU.
+
+## G1410-G1414 - CRAFT-SHADOW: THE AEROPLANE'S SHADOW STANDS STILL BY CONSTRUCTION - THE SUN HELD, THE TEXEL GRID ANCHORED ON THE AEROPLANE, THE MAP CACHED (2026-10-03, CRAFT-SHADOW for A0, cloud box, SwiftShader; the 2048 craft viewport built and PULLED - G1414)
+
+The user (3 Oct, a Cub parked at Jolene after a landing, 18:11 AKDT, low sun, light breeze, moving cumulus, three
+screenshots): "the plane shadow is constantly redrawn ... The shadow's outline should remain still, yet the redraw [is]
+different constantly ... a clearly very pixelated shadow that gets redrawn very often, and the edgy contours are not falling
+exactly in the same place ... The plane deserves its specific, HD shadow."
+
+- G1410 THE CAUSE, MEASURED (tools/_craftshadow_probe.js: the page in node - tools/_page_node.js, the real three r186 on
+  the recording GL, a virtual clock: deterministic, frame for frame). The stock Cub rolled out to HOME's stand, the hand
+  on the controls, the key off, the stand's brakes (0.6), the game day's 8 kt breeze and 'cuh' cumulus; 90 frames a run,
+  one input frozen at a time; logged each frame: the sun the near light is drawn with, the cascade's aim, uNearM1, every
+  craft mesh's matrix, the near map drawn or not. BEFORE (the base, sun 8 deg):
+    run             near map drawn   uNearM1 changed   the near light's sun
+    live            90 / 90          89 / 89           changed (engine-on run: 63 of 90 frames, up to 0.0031 deg a frame)
+    clock frozen    90 / 90          89 / 89           0
+    cloud shadow 0  90 / 90          89 / 89           37 of 90, up to 0.0012 deg (the clouds feed it: see 2)
+    paused          90 / 90           0 / 89           0
+  Three inputs move the craft's map or its lookup while "nothing moves":
+  1. THE NEAR MAP IS DRAWN EVERY FRAME, whatever changed (render_world worldUpdate: needsUpdate every frame).
+  2. THE SUN: render_world's dayApply re-reads the day's sun on its 0.02 deg guard AND whenever the clouds' light at the
+     eye (CLOUDS.sunT, G1352) moves 1 % - several times a second under drifting cumulus: "only the clouds move" turns the
+     shadow's light by thousandths of a degree. A thousandth of a degree moves the shadow itself by a fraction of a
+     millimetre - but:
+  3. THE GRID: render_world's snapToTexels counts the texels from the WORLD'S ORIGIN; the stand is 730 m from it. A sun
+     turn of 0.003 deg slides the craft cascade's texel grid ~4 cm at the aeroplane - two of its 2 cm texels - so every
+     re-read redrew every edge's staircase on a new phase: the contour "not falling in the same place". (SHADOWSKY row:
+     a 0.03 deg turn - render_world's grid 0.98 texel, the anchored one 0.00.) And the aim was never snapped along the
+     light, so a tenth of a millimetre of creep moved the lookup's matrix (89 / 89 with the clock frozen).
+  4. THE AEROPLANE REALLY MOVES A LITTLE: on the stand's brakes in the 8 kt breeze the Cub creeps ~2 cm/s and its parts
+     move 0.3-0.9 mm a frame (a separate physics question - a braked taildragger should not creep; not touched here).
+  "PIXELATED", quantified: at 8 deg the craft's cascade had grown to a 10.4 m half (the penumbra rule: the sun's 0.53 deg
+  at the CG's slant fitted into radiusMax texels) - 2.02 cm texels at 1024, 14.5 cm long on the ground along the sun's
+  line (1 / sin 8 deg = 7.2); the kernel four square taps at +-1.07 texel (radius 2.13): two ramps across an edge. The
+  PHYSICAL penumbra (0.0093 rad x the occluder's distance along the ray): the wing (~2 m up) at 8 deg 13 cm across the
+  light, the tail ~8 cm, the tyres 0; at noon (58 deg) the wing 2.2 cm.
+- G1411 THE DESIGN (shadow_near.js; its header's G1410 section). Built: the CACHED, ANCHORED CASCADE. Weighed against a
+  projected high-res silhouette decal for the ground shadow (+ the cascade for self-shadow): a decal is planar - wrong on
+  a slope, a kerb, a hangar wall, another aeroplane - and still needs the cascade for the wing on the fuselage; the
+  cascade done right is the same picture on every receiver, with no new program. What was built:
+    THE SUN HELD (holdSun): the near map's direction moves only past S.sunEps 0.01 deg (the main light still follows the
+      day: shading is untouched - only where the shadow is drawn from steps, a 0.01 deg step moves a wing's ground
+      shadow ~2 mm at 8 deg);
+    THE GRID ANCHORED (anchorAt / snapA): both viewports' texels counted from a point on the aeroplane, re-taken only when
+      the held sun turns (at the aeroplane nothing slides) or 500 m away; snapped on the light's axis too, and rebuilt
+      from the anchor so one texel's worth of creep gives the same bits;
+    THE MAP CACHED (due(), from aim() - this frame's pose, the last word before the render): drawn only when a number it
+      is drawn or read with changed (both viewports' aims, sizes, depths, bias, radius, window, the map size), a craft
+      part (a casting mesh or a bone) moved more than a quarter of the craft's texel (1.7 mm) since the map was drawn or
+      was shown / hidden, a near caster came, went or moved, the map is gone, or every S.cacheMaxS 2 s (a redraw of a
+      still scene is the same map to the bit). Otherwise the map AND its lookup stand: uNearM1 and three's box matrix are
+      only taken when the map is drawn (updateMatrices). Only with the renderer's pass hooked (G1125's hook - what the far
+      pass hides is shown again whether the near map drew or not); S.cache false = drawn every frame as before;
+    FINER, SAME SHADER: the craft's cascade fitted to its own sphere at any sun on the ground - the penumbra rule grows it
+      only past S.penFitTx 24 texels (at height): a Cub's 7.0 m half, 1.36 cm a texel at 1024 (2.02 before at 8 deg; 9.8
+      cm along the ground at 8 deg, 14.5 before), 0.68 cm under 'ultra'; the craft's radius capped at S.radiusCraft 2.5
+      (the square four-tap kernel bands past it). This is CRISPER than the physical penumbra under the wing at a low sun
+      (13 cm) - the user's "crisp"; true contact hardening (sharp at the tyres, soft under the wing) needs a blocker
+      search (+8-16 taps in every lit program, inlined three times by fxc): not built, against the compile rule.
+    NO SHADER CHANGE: the near rule and the PCF kernel are byte-identical to the base (no program, no compile growth).
+  AFTER (same probe, same runs, sun 8 deg; the eps a quarter of the 1.36 cm texel = 3.4 mm):
+    run             near map drawn   uNearM1 changed   why it was drawn (incl. the 30 warm frames)
+    live            17 / 90           4 / 90           the creep (craft 20), the held sun's steps and the aim (key 6)
+    clock frozen    10 / 90           3 / 90           craft 9, key 4
+    cloud shadow 0  11 / 90           4 / 90
+    paused           0 / 90           0 / 90           - the parked shadow is the same map to the bit
+    taxiing         90 / 90          89 / 90           moving: every frame, as before (the HD-variant run; the same law)
+  What still redraws on the stand is the aeroplane's own creep in the breeze (point 4): when it moves, the shadow moves
+  with it - by the physical amount, on the same grid, never re-rolled.
+- G1412 COST. FRAMECOST census (the Cub, FRAMECOST_QUERY=parkcook=0 both sides, the census's own PAUSED views; the base
+  worktree vs this tree - measured with the G1414 atlas in; draws and triangles do not depend on the viewport's size):
+  stand draws.shadow 366 -> 261, tris.shadow 2.94 M -> 2.12 M, draws.total 1433 -> 1328, gl.calls 11 892 -> 11 539,
+  uniformMatrix4fv 1623 -> 1573; the taxi pin (paused) draws.shadow 161.5 -> 135.5, tris.shadow 1.93 M -> 1.43 M;
+  draws.main and tris.main identical; programs 104 -> 100.5 (a held frame binds no near-map depth program). MOVING (the
+  taxi probe, ENGINE=on TAXI=1): the near map drawn 90 / 90 before and after - the same draws and triangles, no saving,
+  no extra. The per-frame check (aim(), only while the map is cached): one walk of the craft's casting meshes and bones
+  (79 on the stock Cub) and the near casters (113 at HOME's stand), 15 matrix floats each against the snapshot. MEMORY:
+  none (the 2 x 1 atlas as before; one Float64Array(16) per part). SHADERS: unchanged. The full FRAMECOST gate was not
+  run here (A0's train battery); BUILD, SHADOWSKY, LIGHT, CONTACT pass; FADES fails its one renderOrder row on the base
+  too (cs_base, untouched) - not this change.
+- G1414 THE HD HALF, BUILT AND PULLED (A0 DECISION). Built and gated (SHADOWSKY green): the craft's viewport at 2x the
+  box's side up to 2048 (a (k + 1) x k atlas: 3072 x 2048 under 'full', 0.68 cm texels for a Cub, +32 MB of GPU memory -
+  three's PCF target is RGBA8 + 32-bit depth), the near rule's bounds and texel size from uNearQ.z
+  (`vec2 nEx = vec2(uNearQ.z + 1.0, uNearQ.z)`, margins 0.01 / nEx, the box at x > k / (k + 1), y < 1 / k,
+  `shadowMapSize * nEx`), and the four PCF taps on a rotated grid (RGSS, each axis at -1/2, -1/6, 1/6, 1/2 of the radius:
+  four ramps across an edge, not two). In this container's SwiftShader every session with that shader half drew a NaN
+  MAIN PASS (the sky included) at the chase-from-above view (orbit 2.0 / 0.55 / 15) of the parked Cub, which the base page
+  drew cleanly there; the NaN then lived on in some persistent target (switching shadows off afterwards: still NaN).
+  Every JS-side uniform read finite; the cause was not found in the time. Pulled: the shader is the base's to the byte;
+  craftK() returns 1 (layout() keeps the (k + 1) x k code for the day the rule is generalised). On the GPU box: re-apply
+  the three shader edits above, set craftK() back to S.craftK, look for the NaN at that view, then judge the 2048 look.
+- G1414 NEXT (A0, 3 Oct, while this ran: LIGHT-SMOOTH found the in-flight wing bands are self-shadow acne from the craft
+  cascade grown to its 30 m cap - 5.9 cm texels - and is landing a craft-only slope-scaled normal offset / bias in
+  shadow_near.js, uniform-only; it was NOT on origin when this was pushed: the merge meets this entry's edits in place()
+  / fitCraft() (nearScalars[1..3], the bias and normal offset) - take both). The growth is the PENUMBRA rule (fitCraft's
+  `pen`: the ground shadow's blur from height in at most N texels), not the ground shadow's footprint - an orthographic
+  light sees the craft and its ground shadow on the same rays, so the lateral box never has to grow for the ground.
+  S.penFitTx 24 (this entry) moves the growth from slant ~12 m to ~35 m: on the stand and taxiing the cascade stays at
+  the sphere (7.0 m); in flight at a low sun it still reaches the 30 m cap. THE SPLIT A0 proposes, as designed here (not
+  built - it is a shader change, and this session's shader half had to be pulled, G1414): the craft's SELF-shadow
+  (CRAFT_NEAR_ONLY materials) read a viewport ALWAYS fitted to the sphere (7 m, 1.36 cm; never grown), the GROUND read
+  the grown one (the penumbra at height). Cheapest form: a third viewport in the atlas (3 x 1, +8 MB at 1024) drawn with
+  the craft alone (its walk is already pruned to the craft), the craft materials' lookup switched to it by the define
+  they already carry - one getShadow either way (no new taps, no new program: the define exists); the cache above covers
+  all three viewports (one key). Or, without a third viewport: never grow the cascade (penFitTx -> infinity) and let the
+  far map carry the ground shadow's blur from height - but the far map no longer draws the craft (G1080.2), so no.
+- G1413 EVIDENCE (reports/evidence/CRAFT-SHADOW/; SwiftShader in this container - tools/craftshadow_frames.js: the game's
+  rAF queued from the first script and pumped until the roll-out is done, then each frame drawn by hand and read in the
+  same task; the base page vs the same page with only shadow_near.js swapped; ~45 s a frame; post stack off):
+  - 1_parked_before_strip.jpg - BEFORE: 6 consecutive frames (2 solver steps apart) of the parked Cub, engine off, 16:00
+    sun 43 deg, and each frame's difference to the one before. No decision.
+  - 2_parked_after_strip.jpg - AFTER: the same setup. No decision.
+  - 3_shadow_closeup_before_after.jpg - the wing's ground shadow at full resolution, before over after, with the
+    differences. No decision.
+  THE STRIPS DO NOT SEPARATE BEFORE FROM AFTER (changed pixels 22 312 / 15 606 / 6 951 / 1 918 / 742 before, 22 262 /
+  15 574 / 6 884 / 2 025 / 668 after): what changes is the whole apron sliding under the orbit camera that follows the
+  creeping Cub (point 4), settling; and at ~45 s of wall clock a rig frame, the sun never re-read between two captures -
+  the mechanism of points 2-3 needs the clouds' light at the eye to move between frames, which this rig's frames did
+  not give. THE PROOF IS THE PROBE'S (G1410 / G1411 tables). A0 / the user: the eye on the GPU box, the user's Cub at
+  13/31 18:11 with moving cumulus, ?shadoweyes-style A/B by SHADOW_NEAR.S.{cache,anchor,sunHold} (each false = the old
+  behaviour, live). NOT PRODUCED: the low-sun strip (at 8-12 deg HOME's stand lies in a building's shadow), the noon still
+  and the taxi still (time: the rig's ~45 s frames, two sessions lost to a memory thrash and the G1414 NaN).
+TOOLS: tools/_craftshadow_probe.js (the probe; ENGINE=on TAXI=1 for the taxi run), tools/craftshadow_frames.js (the
+SwiftShader frame rig, --serve to keep the page), tools/craftshadow_evidence.js (strips and differences into JPEGs).
+GATES: SHADOWSKY PASS (its G1005 rows generalised to the atlas; four G1410 rows: the held sun, the anchored grid against
+render_world's, the cache's draw / hold decisions, cache off and unhooked = every frame), BUILD PASS, LIGHT PASS, CONTACT
+PASS; FADES FAIL (1) - the same row fails on the untouched base. FRAMECOST: the census above, the gate not run.
+TRAPS: a SwiftShader page's "overlay gone" is NOT the garage's end - a roll-out pressed before the first frame's step
+(BOOT.log step 'firstFrame', the page's `loop` requested) deadlocks: the trip's first light waits on frames from a loop
+not started yet. Two SwiftShader pages at once on this 15 GB box thrash (~7 GB each). A Raycaster over the scene from the
+page hangs it (the forest's instanced meshes). Changing ShaderChunk text in a live page recompiles nothing (three keys
+programs by parameters).
+
+## LIGHT-SMOOTH + CRAFT-SHADOW TOGETHER (claude/light-smooth-craft, on master e40628b0, 2026-10-04): G1357-G1359.1 and G1410-G1414 in one shadow_near.js
+
+- THE ONE SLOT BOTH USED: uNearQ.z. G1359 reads it (and .w) in the near rule as the craft's bias slope gain and grazing
+  normal gain (fitCraft writes both every frame); G1410's layout() wrote the 2048 craft viewport's side ratio into it
+  (craftK() is pinned to 1 and the shader never read it - "the shader half NOT landed", G1414). The slot is G1359's;
+  layout() no longer writes it; a craft viewport that lands takes a uniform of its own.
+- THEY DO NOT FIGHT: place() runs every frame and calls layout() then fitCraft(), so the lookup's numbers (bias, radius,
+  normal offset, G1359's gains, the window) are current while the MAP is cached; the cascade's matrix (uNearM1, set in the
+  shadow pass) changes only when the map is drawn - a cached map keeps its own matrix, and since G1359.1 the bake reads that
+  shared matrix (before it, the bake never read the cascade at all). G1410's cache key carries the radius and uNearQ.z, so
+  a change of G1359's slope gain re-draws (lookup-only, harmless, rare).
+- MEASURED (node, tools/_craftshadow_probe.js on this branch): golden and noon, the stand - the map drawn 20 / 120 frames
+  live, 1 / 120 paused; the cascade 1.36 cm a texel on the ground; uNearM1 changed 3-6 times in 120 frames (G1410's
+  numbers). Aloft the cascade still grows to its 30 m cap for the penumbra (penFitTx) - the case G1359 was verified in.
+- GATES: SHADOWSKY (G1359.1's and G1410's checks), LIGHT, CONTACT, FADES, POSTFX, PROGRAMS, BUILD PASS. FRAMECOST not
+  re-run here (the box was the garage census's, then train 28's): its census after a parked re-cook is the train's.
+
+## G1435-G1439 - METLA-TAXI: THE TOWN-ON TAXI WAS THE FOREST FILL BAKING METLAKATLA'S RASTER IN FLIGHT (METLA-LOAD HAD TAKEN THOSE BAKES OUT OF THE BOOT) AND THE FAR CARS STILL IN THREE'S WALKS; BOTH FIXED, THE TOWN'S LOOK UNCHANGED (2026-10-04, METLA-TAXI for A0, local GPU)
+
+BASE: train/27 (b6c3e879, then master e40628b0) + origin/claude/metla-load-g1405. The user's Cub (builds/cub_2026-09-20_corrected
+.json), HOME, chase taxi 20 s + low pass 12 s, gamer and the user's custom near-ultra (shader_guard USER_GFX), ABBA rows A,B,T,B,A
+(A = ?town=0, B = ?town=1, T = town on + the far hide at the taxi's middle), one Chrome per row, profile D:/umt1.
+
+**READ "UNEVEN" AT 30.** master_bench's uneven % counts every change of refresh multiple - at the taxi most of it is the AUTO
+cap's 60 trial (its 16.7 ms frames among the 33.3 ones): the town-OFF gamer taxi's 10 % "uneven" was 0.9 % between two frames
+both capped at 30. metla_ab --frames now reports `uneven@30`, the frames per cap and the refresh-multiple ladder.
+
+**THE BEFORE (gamer).** Town ON was far worse than METLA-RETURN measured (16 %): taxi 23.8-25.1 fps, uneven@30 46-48 % (65 % the
+T row), p99 67 ms; pass 17-23 fps, 50-65 %. Town OFF 30.3-31.3 fps, uneven@30 1-12 %. Per frame: work 31.9 against 21.2 ms.
+- **G1436 THE FILL BAKED METLAKATLA IN FLIGHT.** The taxi baked 318 lazy raster tiles (the pass 852) - every one under the forest
+  fill's walk (metla_ab --cpuprof's grBake callers per 20 s: fillStep > walk > codeAt > terrainH 86-100 ms, > forestHere >
+  islandSurface > terrainFast 70-82 ms, > poolPick > terrainH 57-59 ms): the fill's 9 km ring crosses Metlakatla's UNCOOKED
+  cells as the eye moves, and its 'fill' frames ran 21-87 ms. METLA-RETURN saw 0 bakes in the taxi only because its boot had
+  baked ~12 300 tiles into the cache; METLA-LOAD (G1406) removed those boot bakes and the fill paid them in flight. FIX:
+  20_world.js `buildReads(+1 / -1)` - a SCOPE of build reads: while it is open, a terrainH read that would bake a tile lazily
+  answers terrainHBuild's way (the analytic composer, not memoised, so the memo keeps the raster's bits); every other read is
+  terrainH as ever. render_world.js: the fill's walk runs in it (try/finally) - the surface, slope and pool taps it makes through
+  world functions it does not own included. Where the raster is cooked or absent the answer is the same bits (HOME, every cell
+  of the town-off page); in Metlakatla's uncooked cells a tree's foot may differ from the wheels' raster by <= ~4 cm (G1406's
+  measured raster-vs-composer gap, p99.9 3.2 mm). With TOWN-COOK's cook the scope is a no-op there (rasterLazyAt is false on a
+  cooked cell) and stays as the guard for anything uncooked. After: 0 bakes in the taxi and the pass on both presets.
+- **G1437 THE FAR CARS STAYED IN THE FRAME'S WALKS.** G1192 stopped POSING Metlakatla's ~49 cars past their reach, but each car's
+  LOD ladder stood in the scene: updateMatrixWorld re-composed it and projectObject updated its LOD every frame (the even
+  frames' profile, town on - off: updateMatrixWorld +1.9 ms, projectObject +1.2 ms). FIX (render_premises.js moveTraffic): on
+  the road's reach transition its cars go hidden with matrixWorldAutoUpdate false, and back when the eye returns (the pose
+  re-sets them). Nothing of them drew there (their last LOD level is empty at the reach). The census: the premises' matrix walk
+  1 107 nodes town on vs 1 104 off (168 car nodes out).
+- **THE CENSUS** (tools/perf/metla_toggle_far.js, metla_ab sides C / T): what the town still adds from HOME - 228 road batches
+  (78 casting) and 33 ground-patch chunks drawn when the eye faces Metlakatla (+100-260 calls), 2 kit-host BatchedMeshes, and
+  +2 500 projectObject visits (the record trees' 321 cell LODs - their 8 028 instanced rungs are invisible past TREE_GONE and
+  frozen; the road batches). NOT CHANGED: that is the town's far look. Hiding all of it mid-taxi: in the census rows nothing
+  measurable (uneven@30 0.7 -> 1.9 %); in a loaded row (the after-run's T) 61 -> 36 % - see OPEN.
+
+**BEFORE / AFTER (the same runs; AFTER = this branch)** - taxi: fps / uneven / uneven@30 / p99 / worst ms / bakes; pass the same:
+
+| preset | row | BEFORE taxi | BEFORE pass | AFTER taxi | AFTER pass |
+|---|---|---|---|---|---|
+| gamer | A off | 31.3 / 10 % / 1 % / 33.5 / 50 / 0 | 29.6 / 13 % / 13 % / 50 / 67 / 0 | 31.2 / 9 % / 1 % / 33.5 / 50 / 0 | 29.9 / 3 % / 3 % / 50 / 83 / 0 |
+| gamer | B on | 25.1 / 50 % / 48 % / 66.7 / 100 / 318 | 22.5 / 51 % / 50 % / 83 / 117 / 852 | 32.3 / 24 % / 4 % / 50 / 50 / 0 | 29.3 / 23 % / 18 % / 50 / 67 / 0 |
+| gamer | T on | 23.8 / 53 % / 65 % / 66.8 / 117 / 318 | 17.2 / 65 % / 65 % / 117 / 133 / 852 | 26.7 / 48 % / 61 % / 66.6 / 100 / 0 | 25.0 / 46 % / 46 % / 67 / 83 / 0 |
+| gamer | B on | 23.8 / 51 % / 46 % / 66.8 / 100 / 318 | 20.3 / 58 % / 58 % / 100 / 133 / 852 | 31.2 / 23 % / 10 % / 50 / 50 / 0 | 28.8 / 14 % / 14 % / 67 / 100 / 0 |
+| gamer | A off | 30.3 / 16 % / 12 % / 50 / 50 / 0 | 28.1 / 28 % / 28 % / 50 / 100 / 0 | 32.9 / 20 % / 2 % / 33.5 / 50 / 0 | 31.3 / 8 % / 3 % / 50 / 83 / 0 |
+| user | A off | 30.6 / 24 % / 6 % / 83 / 133 / 0 | 27.3 / 58 % / 56 % / 83 / 133 / 0 | 30.2 / 27 % / 10 % / 83.5 / 150 / 0 | 27.6 / 53 % / 51 % / 100 / 117 / 0 |
+| user | B on | 29.8 / 19 % / 11 % / 83 / 150 / 0 | 27.0 / 40 % / 41 % / 83 / 133 / 375 | 29.8 / 33 % / 18 % / 83.5 / 150 / 0 | 27.0 / 51 % / 51 % / 83 / 134 / 0 |
+| user | T on | 29.9 / 32 % / 24 % / 83 / 150 / 0 | 27.1 / 56 % / 51 % / 83.5 / 117 / 415 | 30.3 / 31 % / 15 % / 83 / 167 / 0 | 27.3 / 55 % / 51 % / 100 / 133 / 0 |
+| user | B on | 30.1 / 33 % / 12 % / 100 / 183 / 0 | 27.1 / 49 % / 47 % / 100 / 133 / 270 | 30.2 / 28 % / 6 % / 83 / 100 / 0 | 27.0 / 59 % / 60 % / 100 / 117 / 0 |
+| user | A off | 29.5 / 29 % / 14 % / 100 / 150 / 0 | 27.5 / 55 % / 56 % / 67 / 133 / 0 | 30.3 / 26 % / 9 % / 83 / 150 / 0 | 27.6 / 52 % / 48 % / 100 / 117 / 0 |
+
+(The census rows, the AFTER build, gamer: C off 32.3 fps / uneven@30 0.6 %, T on 32.9 / 0.7 %, 0 bakes.)
+VERDICT. GAMER: the town-on taxi uneven@30 46-48 % -> 4-10 % (off 1-2 %), 24-25 -> 31-32 fps, worst 100 -> 50 ms, 0 bakes; the
+pass 50-58 % -> 14-18 % (off 3 %). Not yet exactly the town-off's: the far draws remain (render 16-17 ms against 10-13 in the
+even frames), and the after-run's T row ran heavy throughout (render 24 ms even with the far town hidden - the box, not the
+town; its hide still took 61 -> 36 %). USER SET: town on = town off within the rows' spread (taxi @30 6-18 % vs 9-10 %); both
+sides are dominated by the density-200 forest fill's own chunk build (getBufferSubData stalls, 70-135 ms 'fill' frames on BOTH
+sides - EVEN-30's G1297), not by the town.
+
+**OPEN, FOR A0 / THE USER.** (1) A far cull of Metlakatla's road batches and ground-patch chunks past ~6-7 km (a 5-7 m road is
+under a pixel wide there) would take the last +100-260 calls off the stand's view - it CHANGES the town's far look, so not done
+unasked; stills of Metlakatla from the stand and a low pass would decide it. (2) ~1 320 lazy bakes (0.7-1.4 s) still run town-on
+BEFORE the taxi (boot / roll-out readers, unchanged here) - TOWN-COOK's. (3) The look did not change (no stills taken): the far
+cars drew nothing there, the fill's trees move <= ~4 cm, in Metlakatla only.
+
+THE RIG (tools/perf/metla_ab.js, G1435): --gfx user|<file>; --frames (every recorder row: frame_dist's distribution, uneven@30,
+caps, the ladder, the even / long frames' mean slots, work, calls, tris - a long interval's cost read in the frame BEFORE it);
+--cpuprof also split PER FRAME (the profile aligned on a 12 ms __mtCal marker; self time a frame per class, and long - even);
+--toggle <file.js> on sides T (town on) / C (town off) at the taxi's middle, its result kept in the row; --fallback for a
+worktree. tools/perf/metla_toggle_far.js: the far hide + the census (the render world is window.WORLD - FLIGHT_PROBE.world() is
+the core's). Evidence: tools/perf/metla_taxi/ (before_*.log, after_*.log, census.log, compact JSONs).
+GPU: ~44 min (slots 03:18-03:40, 04:00-04:03, 05:00-05:19). GATES (node, run_gates --only, this build): BUILD, PREMISES,
+PREMRASTER, TREE, TREES, METKIT, LIFE - all PASS. Touched: src/core/20_world.js, src/viewer/render_world.js (G1436),
+src/viewer/render_premises.js (G1437), tools/perf/metla_ab.js, tools/perf/metla_toggle_far.js (G1435). The parked aeroplanes
+were NOT re-cooked (no FRAMECOST run; both A/B sides share the stale cook) - A0's train cook. Generated files not committed.
+
+## G1440-G1446 - GARAGE-INSTANT: A DRAG TICK RUNS ONLY WHAT THE ROW MOVES - THE POST CHAIN FLAT AND RECORDED, THE FUSELAGE DEFORMED IN PLACE; THE RELEASE IS THE WHOLE BUILD, EXACT (2026-10-04, GARAGE-INSTANT for A0, local GPU; branch claude/garage-instant-g1440 on train/28 80f20e0b)
+
+The user (2026-10-04): "I'd want to go further on ensuring fast reaction time to sliders in the garage" ("an
+instantaneous feeling"). TARGET (A0's brief): every slider's drag tick (input -> the changed aeroplane drawn) <= 50 ms
+median, <= 100 ms p90, on the user's Cub (builds/cub_2026-09-20_corrected.json) and the metal Cessna; the exact
+full-detail result may follow on release (<= 300 ms), never a different aeroplane.
+
+**THE BOX** (`tools/perf/garage_lag.js`, the strict gate's rig: index.html, the tab in front, rendering; base = train 27 +
+GARAGE-LAG-2 served from _ab/018af825, after = this branch's b09f41e2, both in one session 04:47-05:00 on D:/ugi1; median
+(max) of 5 reps; handler = the input event's handler, drawn = to the second rAF after it; `tools/perf/garage_instant_gl.json`):
+
+| build | row | base handler / drawn | AFTER handler / drawn | after max |
+|---|---|---:|---:|---:|
+| Cub | fuselage length (`p_paxLen`, a cage row: deformed) | 230 / 305 | **7 / 49** | 8 / 51 |
+| Cub | fuselage width (`p_halfW`, deformed) | 224 / 277 | **6 / 47** | 7 / 49 |
+| Cub | cabin frame (`p_frCabTopW`, deformed) | 183 / 231 | **5 / 49** | 10 / 50 |
+| Cub | wing span (kept sheet: wing + brace + fed layers) | 156 / 207 | **25 / 66** | 33 / 71 |
+| Cub | wing chord | 157 / 200 | **24 / 64** | 26 / 65 |
+| Cub | tail size (kept sheet: stab) | 156 / 204 | **5 / 26** | 5 / 43 |
+| Cub | gear track (kept sheet: gear + fed) | 157 / 206 | **25 / 65** | 25 / 66 |
+| metal | fuselage length | 307 / 383 | **9 / 60** | 13 / 64 |
+| metal | fuselage width | 290 / 350 | **7 / 57** | 8 / 59 |
+| metal | cabin frame | 317 / 375 | **7 / 55** | 12 / 61 |
+| metal | wing span | 194 / 256 | **25 / 75** | 35 / 80 |
+| metal | wing chord | 189 / 246 | **26 / 73** | 35 / 81 |
+| metal | tail size | 188 / 250 | **4 / 57** | 6 / 62 |
+| metal | gear track | 187 / 266 | **22 / 71** | 24 / 73 |
+| both | engine (a select: a plain build), tank capacity, livery colour | unchanged (Cub 215 / 29 / 5, metal 260 / 34 / 5) | | |
+
+(slot 1, 03:46-03:59, the Tier-1 WIP alone on the same rig: the same kept-sheet rows; base Cub length 200 / 264, then
+230 / 305 in slot 2 - slot 2's first base row ran beside two minutes of this session's node processes, killed at 04:49.)
+"drawn" carries two vsyncs (the rig waits for the SECOND rAF: ~17-33 ms whatever the handler; the livery row - a 5 ms
+repaint - reads 38) and the render of what changed. So: every slider row of the script now answers its handler in
+4-26 ms; drawn 26-75 ms - the deformed fuselage rows and the tail at or under 50-60, the wing and gear rows 64-75 (the
+wing's and the gear's own layers rebuild, 20-25 ms, and their new meshes upload).
+
+**THE DRAG, FRAME BY FRAME** (`tools/perf/garage_drag_strip.js`, new: press, four ticks a frame apart, release; the shot
+after each tick; the pause held off) - evidence `reports/evidence/GARAGE-INSTANT/`: `cub_paxLen_drag.jpg` (the Cub's
+cabin bay shortened 20 % of its range: ticks 5-6 ms handler, 31-52 ms drawn, deformed; release 334 ms handler / 405 drawn),
+`cub_wgSpan_drag.jpg` (ticks 25-28 / 64-70; release 240 / 310), `metal_halfW_drag.jpg` (the metal Cessna narrowed:
+ticks 6-10 / 55-61; release 417 / 507), `metal_paxLen_drag.jpg` (ticks 6-8 / 34-61; release 520 / 613); the per-tick
+numbers in `cub_strip.json`, `metal_strip.json`. The previews and the released whole build stand as the same aeroplane in
+every strip (the fourth tile is the exact build).
+
+**G1440 THE CENSUS** (`tools/perf/garage_census.js`, new, NODE - no GPU, no lock). The page in node booted into the garage,
+then EVERY widget - each p_<key> row (slider, select, checkbox, stepper), the finish tab's colour wells, every other range
+(the materials lab's dials, the energy panel) - moved the player's way: a slider is pressed, a frame later moved (a drag
+tick), then released. REAL ms (process.hrtime - the node page's performance.now is its virtual clock): `tick` the input
+handler, `release` the change + pointer-up + the page's timer callbacks over the next second (the settle build, the commits;
+the readout worker's jobs are dropped - the harness otherwise waits for a worker's 3 s shakedown before each turn), the
+sheet's ms and each layer's self ms (the flat chain's own clock). `--prof` (the inspector's CPU profile of a rep, self and
+inclusive), `--shard i/n`, `--kinds`, `--only`, `--lvl`. Node reads ~1.6x the box (and more under the 6-10 processes the
+census ran as); it is for the SHAPE of the tail - every row - the box measures the numbers. Summary kept:
+`tools/perf/garage_instant_census.json` (per row: before / after tick and release, sheet, preview).
+
+THE TAIL, BEFORE (train 27 + GARAGE-LAG-2, node, median (p90) ms a tick): Cub 829 visible widgets - 213 sliders 367 (545),
+selects 500 (682), checkboxes 511 (680), steppers 512 (606); the colour wells 7, the other ranges 7 (the repaint and the
+tank rows were already quick). Metal 897 widgets - 223 sliders 440 (713), selects 577, checkboxes 596 (960), steppers 587.
+Where a tick went (profiles inside the handler, Cub wing span, node ~316 ms): crew 73 (its floor cut 43), wing 38, gear
+33, cowl 28, engine 20, the fuselage mesh rebuilt off a KEPT sheet 20, the weathering's cavity bake 21, GC 93 - every
+layer on every tick whatever the row moved; a fuselage row added the sheet (Cub 45-90, metal 180-260: the shoulder's
+panels 83, the interior 58, the drawn windows' knife 48, rims 17, subdivision 12) and every layer on the new sheet.
+
+THE TAIL, AFTER (sliders, node, contended): Cub 367 (545) -> **67 (112)**, 181 of 213 under 100; metal 440 (713) ->
+**62 (275)**, 168 of 223 under 100. What is left over 100 (node): the sheet's DETAIL rows on the metal Cessna (rim
+width / rise / rivets, the dash's back / lip / crown, the shoulder, the sills, the door depth, the firewall seal, the
+cowl's ease: 300-480 node ~ 180-290 box - the sheet itself, G1444) and on the Cub (dash back 266, rims 125-140); the
+crew's rows (seat and pedal stations, the trim controls: the crew layer and its floor 120-145); a few flap/trim rows.
+The clicks (selects, checkboxes, steppers) are unchanged: a plain build.
+
+**G1441-G1444 THE DESIGN** - what a tick truly needs to recompute. Weighed:
+- a dependency graph parameter -> layers (TAKEN, G1441-G1442): exact where it matters (each layer's own P reads, recorded
+  on every run), generic (no layer edited), cheap (a Map per layer run);
+- a drag preview of the touched part transformed in place (TAKEN for the cage rows, G1443): the fuselage's own geometry
+  moved onto the new cage, every layer's part riding with it;
+- a worker for the cage generation (NOT TAKEN): the layers build THREE objects against the scene and the DOM, so only the
+  sheet (55-250 ms) could move off-thread and the main thread would rebuild every layer on its arrival - the latency
+  stays at least the sheet's;
+- caching generator outputs keyed by their inputs: the layer skip IS this at the layer's grain (its group is the cached
+  output, its recorded reads the key); at the sheet's pass grain it is the next step (below);
+- a coarser sheet while dragging (MEASURED, NOT TAKEN as the lever): the metal's sheet L2 260 -> L1 120 ms (node), the
+  layers unchanged (~250): half a fuselage row, a visibly faceted fuselage, nothing for the other rows.
+
+**G1441 THE POST CHAIN, FLAT** (`tools/_cage_chain.js`, new; build.js MANIFEST.editor after _cage_char.js, before
+_cage_crew.js). Every layer chains `const prevPost = PAGE.post; PAGE.post = ctx => { prevPost(ctx); ... }`. The file makes
+CAGE_PAGE.post an accessor: an assignment REGISTERS the layer, the prevPost it reads is a stub that runs the layers below
+it - the same nesting, order and code (the engine's and the floats' starters, which run before their prevPost, still run
+first). Added: (1) a layer can be SKIPPED (its group stays as its last run drew it; the layers below still run) - only a
+plan skips; (2) every run RECORDS the P keys the layer read and their values (ctx.P and CAGE_UI.P are a Proxy view of P for
+the length of the chain: reads answer the object's own values, writes go to the object; a key walk - a spread,
+Object.keys - marks the layer as reading everything); (3) each layer's self ms (CAGE_CHAIN.last). A PLAN runs a layer
+when a key it read reads differently now, when it never ran, when it always runs (the panel's stat line, the cowl's aft
+stub, the ui's understudy pass), or when a layer that FEEDS it ran: the forward reads of what an earlier layer publishes
+(each file's window.* reads): crew -> light, energy; cowl -> engine, access; engine -> access; wing -> brace, gear*,
+float, fin, stab, access, light, energy, hinge; gear -> float, fin, stab, access, hinge; fin -> stab, access, light, hinge;
+stab -> access, light, hinge. *Only while the gear's last run rooted a leg ON the wing (`CAGE_GEAR.onWing`, new: the
+low-wing rule). A read of a LATER layer's global is the previous build's by design (the load order's own comments) and
+makes no edge. The registration order is asserted against the script names where a stack names them (dev.html, node): a
+page whose files register otherwise gets no plans (CAGE_CHAIN.ok false, every build whole). `?garage=old` or
+CAGE_CHAIN.on = false: registrations only, nothing recorded or skipped.
+`_gear_page.js` gearLegP: the station's view of P is an OVERLAY (Object.create(P) + the leg keys) instead of a copy - the
+leg builders only read it (no key walked or written in _gear_gen / _gear_kit / _hinge_gen / _rod_fit) - so the gear's
+recorded reads are its own keys (the copy read every key: the gear ran on every tick).
+
+**G1442 A KEPT SHEET'S DRAG TICK IS A PREVIEW** (`_cage_ui.js` buildSteps). A drag tick (G1303's held pointer) whose sheet
+is the stand's (G1300's key unchanged): nothing of the fuselage is rebuilt (its mesh, decals, weathering, the panels); the
+chain runs under the plan with ctx.defer (a detail layer that must run hides, as G1303 has it), then the crew's late floor
+if the crew ran, and a draw that keeps the orbit's centre (`app.js` placeEditor skips its whole-aeroplane box on
+CAGE_UI.previewTick; over the crew's skinned meshes it was 10-15 ms a tick). A layer the row does not reach stands
+untouched and VISIBLE: G1303 hid the lights, hinges, access fittings and tanks on every drag - now only on the drags that
+move them.
+
+**G1443 THE STAND, DEFORMED** (`_cage_ui.js` deformTick, standInfo, standFollowers). A drag tick on a row that moves the
+CAGE (lengths, widths, heights, deck lines, the nose; 19 of the Cub's 49 sheet rows) with the same cage topology: the new
+cage subdivided L times and its arcs refitted - cageSheet's own first steps, EXACT (`cageRefitArc` now exported by CAGE2) -
+is the BASE surface (the Cub's 2 594 of 23 013 sheet vertices), and the base is the sheet's own vertex PREFIX (asserted
+once per stand: else no deform); every vertex a later pass added (rims, linings, interior, shoulder, cut edges) moves with
+its nearest base vertex (a grid, measured once per stand - on the press, before the first move: `standSoon`); the
+positions are written into the standing geometry in place (normals kept); every layer's part (each child of each
+cageLayer:* group) rides rigidly with the weighted mean move of the 8 base vertices nearest its centre (a part on the
+centreline keeps its lateral place). Nothing is built. A row whose cage does not move, a topology change, an exploded
+view: not this path. `CAGE_UI.deformOn = false` turns it off.
+THE SETTLE BUILD AFTER A DEFORMED DRAG PUTS THE SIT FIRST. A build measures the craft frame from where the previous draw
+put the mount, and the crew's limbs are posed in that frame. A drag's last tick used to be a whole build at the final rows,
+so the settle build met the final sit; a deformed tick moves no gear. So after a deformed drag the gear and the floats are
+built once on the new sheet and the stand placed (a draw) before the frame is measured, then the whole chain (and the
+frame is measured again after the final draw if it still moved). Without it GATE INSTANT read the shared uCraftInv 0.2
+deg off and the crew's arms ~1e-4 off (found by the gate, fixed, re-run). Its cost: the release of a deformed drag carries
+the gear (and floats) once more (~20 ms box).
+
+**G1444 A DETAIL ROW'S DRAG TICK** (the cage stands, the sheet's details move: rims, seals, panes, the dash, the shoulder,
+skin and shell thickness, the cowl rings; 29 of the Cub's sheet rows): the sheet and its mesh are built (G1300's cache
+misses), the layers are planned as a kept sheet's (G1442).
+
+**G1445 GATE INSTANT** (`tools/_instant_check.js`, new; run_gates core, ~7 min). The page in node, on the Cub and the metal
+Cessna (`--builds` any of cub, metal, jodel, cessna, floats), twelve rows - kept-sheet layer rows (wing span / chord, tail,
+gear track, seat height), deformed cage rows (length, width, roof, nose droop), detail rows (rim width, dash depth) - each
+dragged the player's way (press, four ticks at four values, release, the settle build), the whole scene fingerprinted
+(garage_lag_same.js's fingerprint) and the resolved spec (the join's export) hashed, then the same rows built the long way
+(sheetKeep off, build()) twice: an object the long way does not repeat itself is noise; anything else FAILS. It also says
+how many ticks were previews and how many deformed. RESULTS (train/28 base, final code): Cub, metal Cessna, Jodel, Cessna
+172 - PASS, every row SAME, 4/4 previews each (the cage rows 4/4 deformed). Boot resolved-spec hashes identical to train 27 +
+GARAGE-LAG-2 (cub ca8086e8, metal 6fee07e8, jodel 6760b1e5, cessna ba7fb2a6, floats d4c0a24e). Cessna floats: the drag's
+release ends on the BASE TREE'S OWN aeroplane (`--settle 8000`, both trees, rows length / width / nose droop: the same spec
+hashes, scene DIFFER 0 in both), but neither tree's release equals ITS long build: the floats' CG handshake (G396: the step
+follows the CG the balance answers, a rebuild when it moved 2 cm) is history-dependent within its threshold - pre-existing,
+not this branch's; the floats are not in the gate's default builds.
+
+GATES on the final code (train/28 base): run_gates --only FIT, JOIN, TANKMOUNT, ENERGY, HANGAR, RAYINDEX, PARTS, FRAMES,
+SAVE, DESIGN, GEAR, BUILD, UISMOKE, BOOT, MOUNT, LIVERY, INSTANT - all PASS (BATTERY PASS, --jobs=5, 612 s). FRAMECOST not run (the editor's files are in
+FLYDIY_BUILD: the parked cook's stale signature - A0's per train).
+
+RIG CHANGE (garage_lag.js, both trees alike): a slider's tick PRESSES a frame before it moves (the pointerdown is outside
+the timed handler) - a hand comes down before it drags, and G1443 measures the stand on the press; a tree that does not
+listen for the press reads the same. The strict gate's garage rows should be compared against a baseline taken with it.
+
+**NOT INSTANT YET - what is left, measured:**
+1. THE RELEASE is the whole build, as before, and is over the brief's 300 ms on the fuselage rows and on the metal
+   Cessna: Cub kept-sheet rows ~220-240 ms handler (wing release 240 / drawn 310), Cub fuselage rows ~330 (405 drawn: the
+   sheet + every layer + the sit pre-pass), metal 417-520 (507-613 drawn). Under 300 needs the build itself: the sheet's
+   passes (the shoulder's panels, the interior, the knife) and the crew.
+2. THE SHEET'S DETAIL ROWS on the metal Cessna (~25 rows: rims, dash, shoulder, sills, seals, door depth; 180-290 ms box):
+   a pass cache inside cageSheet keyed by each pass's own spec reads (the same recording, on the spec) would leave a dash
+   row the interior + shoulder, a shoulder row the shoulder alone - exact, and it shortens the release too. Or deform
+   those as well (the cage does not move; their passes do).
+3. THE CREW'S ROWS (seat / pedal / stick stations, ~120-145 ms node): the crew layer and its floor cut run whole.
+4. THE CLICKS (selects, checkboxes, steppers: ~200-260 ms box) are plain builds; the plan could serve them too (preview
+   now, the whole build in the next idle slot) - not a slider, not in the brief.
+5. "drawn" carries two vsyncs by the rig's definition (~17-33 ms): the handler is what the code can still cut.
+
+Rigs: garage_census.js (node, every widget), garage_lag.js (the box), garage_drag_strip.js (the box: a drag frame by frame),
+_instant_check.js (GATE INSTANT). GPU: 26 min in two slots (03:46-03:59, 04:47-05:00), both under boxlock, reserved by A0.
+
+## TRAIN 28 LANDED (2026-10-04, A0 the coordinator)
+
+Cargo (on train 27 = e40628b0): COLD-LINKS G1310-G1314 (the cold first visit 75.6 -> 57.9 s to the garage), EVEN-30
+G1295-G1299 (a hard 30 by default, ultra auto; the forest fill sliced), LIGHT-SMOOTH 2 G1357-G1359.1 (the plane reads its
+own sharp shadow cascade - the wing's bands gone; the eye throttled; the GPU catcher), CRAFT-SHADOW G1410-G1414 (the
+parked shadow stands still), TREE-HITBOX G1330-G1334, HOUSE-LOD G1395-G1398, EDITOR-LAG G1400-G1404 (+ EDITOR-VEG's
+vegChanged), METLA-LOAD G1405-G1407 (G1408, the town ON by default, HELD for train 30), RUNWAY-LOOK G1390-G1395,
+RUNWAY-LIGHTS G1415-G1419 (+ A0: its fixture and glow materials through MATLIB, a 'points' class), HYBRID-FARTHER G1325
+(the user: "keep, admit the cost", +1.5 ms GPU at taxi), GARAGE-LAG-2 G1300-G1303 (the busy rise accepted by the user),
+C0 G1283 (honest wing sliders), METLA-TAXI G1435-G1439, GARAGE-INSTANT G1440-G1446.
+DROPPED: LAKE-HOLES G1335-G1339 (+ A0's lakeCarve for METLA-LOAD's build read) - it broke PREMRASTER, PREMCOOK,
+HOUSEWORKER and HYDRODYN; reverted (921bcf9b). COLD-LINKS reworked it on claude/cold-links-lakes-2 for train 30.
+FIXED IN THE TRAIN: HOUSEWORKER - HOUSE-LOD's lod1Bags keeps the town shader's channels (uv, aHouseAO/Lit/Win) while the
+house worker packed lod 1 as position + normal (premises_build.js LITE): 84 / 137 entries differed. COLD-LINKS' 04f4cd3c
+packs every attribute, PB_V 1 -> 2 (the worker's IndexedDB key), the premises manifest's page hash re-cooked.
+STRICT GATE: the first full run read 52 reds on a box shared with peers' lockless node work (6 census processes + other
+batteries) - since then heavy node work takes `boxlock.sh take cpu`. Quiet re-run: 17 reds = the 30 cap (8, intended),
+HYBRID-FARTHER (4, accepted), garage busy (2, accepted) and the world <-> garage trips (0.23 -> 2.7 s, garage -> world
+8.9 -> 14.2 s); a quiet master_bench bisect (train 27, +COLD-LINKS, the train before the lakes, the tip) read 8.9-9.1 /
+0.2-0.3 s on every tree: the trips red was the box, not a session. FRAMECOST PASS (65 counters down, the hybrid's rises
+on the ALLOW list); the final build (with the fix): HOUSEWORKER 137/137, PREMCOOK, PREMISES, MEDIA, ASSETS, BUILD, TARR,
+FRAMECOST PASS; trips 9.1 / 0.2 s, warm first flight 52.3 s (54.3 before the fix); the parked aeroplanes re-cooked on it.
+## G1230-G1236 - MEM-BUDGET: A BUILD BUDGET PER PRESET (GFX.BUDGETS) AND UPLOAD AS YOU BUILD; POTATO'S LOAD PEAK HALVED (2265 -> 1141 MB), THE 700 MB GOAL NOT MET (2026-10-03, MEM-BUDGET for A0, CLOUD: headless Chrome + SwiftShader; branch claude/mem-budget-g1230 off train 26 = b2f1ffdc)
+
+THE PROBLEM (futureDesigns/FRIENDLY-WELCOME-BUDGETS.md): the S20 FE loaded potato along gamer's curve (heap ~1.9 GB, killed in
+"building the field"). A preset changed what is DRAWN, never what is BUILT AND HELD.
+**G1230 THE TABLE.** `BUDGETS` sits beside `PRESETS` in src/viewer/gfx_settings.js, and the world reads it through
+`GFX.budget()`. Each row holds heapMB (the target: potato 700, retro/current 1500, gamer/ultra 2000) plus the levers the world
+reads AS IT BUILDS. `S.build` names the preset whose row applies; `?gfx=` and the preset pill set it, and a custom mix keeps its
+last preset's row. Without GFX (a node stub), every lever reads full. The retro, current, gamer and ultra rows are the full
+build, and their draws do not move (GATES below).
+| lever | potato | the rest | where |
+|---|---|---|---|
+| mipSkip: a KTX2 transcode keeps its chain from level 2 (>= 128 px, >= 2 levels) | 1 | 0 | ktx2.js `KTX2.skip()/dim()` (its LOADS key carries the skip); matlib.js pages sized by `KTX2.dim`; ground_lib.js planes (`plane.px`); trees.js leaf coverage chains (`mips.shift()`) |
+| townBoot / townReach: premises built at the boot / streamed in flight and at the settle | 1200 / 2000 m | 4000 / 6000 m | render_world PREM_BOOT; premises STREAM.reach (GFX.apply sets it, so lowering is live) |
+| parked: the parked aeroplanes built | false | true | render_premises buildObject (an aircraft object returns null) |
+| forestK: the forest's reaches (FAR_WOOD, FAR_FILL, uThin) | 0.65 | 1 | render_world (instances grow with the reach squared) |
+| islandColour: the albedo + tint grids (2 x 35 MB) kept after the build | false | true | app.js worldBuilt nulls them on the island object, the world's view and ISLAND_BOOT.grid; their textures are on the GPU already |
+| islandHalf: those two textures at half the grid's side (2x2 box) | true | false | render_world rgbTexels (A and B stay full: the lake cut, the splat's codes) |
+| terrain: the far terrain's and the ring's FIRST cut at the preset's tolPx | 3 | the preset's | render_world FARLOD / RINGLOD (was cut at 1 px, then re-cut at onWorld) |
+**G1231 UPLOAD AS YOU BUILD (every preset).** (a) `GPU_ONLY_GEO(g, true)` plus `GPU_ONLY_GEO.flush(renderer)` in assets.js. A
+draw-only geometry marked early is drawn once by a stand-in mesh (MATLIB's basic material) into a 1x1 target with its draw range
+at 0. three's own path uploads every attribute and the index and draws nothing, so the release frees the CPU copy as the build
+slice ends: app.js geoFlush runs on every world slice and on the town, forest and settle ticks. Marked: the far terrain quads and
+the patch LODs. NOT the town's TARR merges: marking them too cut the node harness's arrayBuffers by -151 MB, but this session did
+not prove what reads them before first light, so they wait for first light as before. ?geoflush=0 is the A/B. (b) The four
+island textures (render_world gpuUploadNow) get `renderer.initTexture` right after 'island ground'. Their gpuOnly bytes (~162 MiB
+of derived RGBA) go there, not at the 'upload' step.
+**LIGHTER = LIVE.** Going down, only the town's stream reach applies at once (GFX.apply). The other levers (mipSkip, forestK,
+islandColour/Half, parked) apply at the next load; a rebuild in the background is not done.
+
+**MEASURED, POTATO.** tools/perf/heap_steps.js's recorder in headless Chrome + SwiftShader, 960x540, the Cub, a fresh profile
+per run, ONE run at a time (two rigs at once stall the page on this 4-core box). The numbers are MB of ArrayBuffer backing
+stores: the most that each phase's rows reached (no GC), then after the load plus a full GC. Before = train 26 in a worktree,
+after = this branch. The rows are in reports/evidence/MEM-BUDGET/heap_*.json; table.js prints this table from them.
+| step | potato BEFORE (train 26) | potato AFTER, run 1 | potato AFTER, run 2 (+ islandHalf) |
+|---|---:|---:|---:|
+| reading the island | 260 | 247 | 240 |
+| reading the model | 405 | 420 | 455 |
+| the garage up (workshop / stand) | 474 | 473 | 414 |
+| world: island ground .. ground colour | 721 | 563 | 563 |
+| world: ring .. fill | 896 | 631 | 735 |
+| world: premises made .. patch block | 1209 | 922 | 916 |
+| world: lots .. ground under | 1344 | 1058 | 1061 |
+| world: far terrain sink, meadows | 1447 | 1145 | 1141 |
+| building the field | 1590 | 864 | 865 |
+| parking the other aeroplanes | 1724 | 880 | 883 |
+| growing the forest | 1807 | 893 | 898 |
+| the world settling | 2225 | 905 | 919 |
+| baking / your aeroplane, built | 2193 | 1052 | 1077 |
+| pictures, upload, compile, first light | 2265 | 1074 | 1103 |
+| PEAK (no GC, the run) | 2265 | 1145 | 1141 |
+| after the load + a full GC | 1720 | 868 | - |
+The peak is now the END OF THE WORLD STEP (1141 MB, 'meadows'). It is mostly garbage the step has not yet given back: the next
+step's GC drops it to 865 MB. Run 2's islandHalf moves nothing visible at the peak (the noise), but it takes 69 MB of derived
+texels and GPU memory out of the build. Live after the load: 1720 -> 868 MB (-50 %).
+Who keeps the 868 (tracker, >= 256 KB): the prop library's merges 59, the island's grids 12 x 7 (cover, ndvi, ori, canopy,
+coast, ttype, lake), the flown bake's atlases 35, the core's hydrology 48, the leaf chains 15 (were 48), KTX2 transcodes 4 (were
+101 on gamer); plus ~490 MB in stores under 256 KB, not attributed. The floor BEFORE the world is ~450 MB ('reading the model':
+the island's files + the core's composition + the garage). No lever here touches it.
+**GAMER (unchanged look, same draws).** FRAMECOST's node page (the real three on a recording GL, deterministic) reports the
+memory after the roll-out. Same gate, master with a stale cook vs this branch: arrayBuffers Cub 1960.7 -> 1896.8 MiB, Cessna
+1980.3 -> 1916.4 (-64, the early upload). With the TARR merges flushed too: 1809 / 1829 (-151; not landed, see above). The
+headless gamer heap run was not repeated after the changes within the 5 h. Train 26's gamer rows (B_gamer, stalled in "building
+the field") are in heap_B_gamer.json: the world step peaked at 1550 MB.
+
+**GATES** (run_gates --only=FRAMECOST,GFX,ASSETS,BOOT,BUILD): GFX, BOOT, BUILD PASS. ASSETS PASS after the stand-in material
+moved to MATLIB (its first run was red: a `new THREE.MeshBasicMaterial` in assets.js). FRAMECOST RED HERE FOR A REASON OUTSIDE
+THIS BRANCH: the parked aeroplanes' cook is keyed on FLYDIY_BUILD, so ANY rebuild leaves it stale and the parked aeroplanes are
+captured live. The proof: master b2f1ffdc with one space added to a comment (a new build id, nothing else) gives the SAME 26 reds
+to the unit (Cub stand draws.main 914 -> 1053, draws.shadow 169.5 -> 366, taxi 844 -> 971; Cessna stand 925 -> 1064) as every
+variant of this branch (the flush off, the island upload off, the budget off, gfx_settings reverted, ktx2/matlib/ground_lib/
+render_premises reverted: all identical). parked_cook.js refuses a software renderer ("cook on the GPU"), so it could not be
+re-cooked in the cloud. (This branch's final run: the Cessna's rows are those same reds to within 2 shadow draws; the Cub's
+process was OOM-killed because two FRAMECOSTs shared the container's 15 GB.) **A0: re-cook on the box (`node tools/parked_cook.js`), then FRAMECOST.** It should pass with no counter
+moved: gamer's levers are the full build, the island upload and the geometry flush happen inside boot steps whose GL rows
+FRAMECOST admits, and the stand/taxi views draw the same.
+STILLS: reports/evidence/MEM-BUDGET/potato_stand_swiftshader.jpg is the roll-out reached under ?gfx=potato (the stand, after 80 s;
+heap there: 153 MB V8, 1040 MB of backing stores, no GC). SwiftShader draws NO WORLD FRAME in this container within the minutes a
+shot can wait (the sky colour behind the HUD, in the garage too), so the still shows the flight's UI and not the look. **The
+potato stills of the world (stand, chase, tower) are A0's, on the box or the phone.** What potato drops, so the eye knows what to
+check: houses past 2 km (1.2 km at the boot), the parked aeroplanes, the forest past ~5.9 km (fill thinning 1.95-2.9 km), the
+top mip of every KTX2 map and leaf map, and half-resolution island colour (the albedo and tint maps).
+**WHAT IS LEFT FOR <= 700 (each a session):** (1) the world step's GARBAGE (~280 MB at its end: the patch's grids, the island's
+packed A/B derive, the far terrain's first cut before the sink, coverage getImageData) - free it or allocate less; (2) the ~490 MB
+in small stores (not attributed: HT_MIN=4096 on a box run); (3) the prop library's merges (59); (4) the island's grids at half
+resolution for a phone (core: 28_island's readers); (5) a gate measuring each preset against BUDGETS.heapMB (heap_steps under
+?gfx=); (6) lighter = live for the rest (unbuild the far houses, re-transcode at the new skip).
+## G1430-G1434 - TOWN-COOK: METLAKATLA'S RASTER COOKED (+14.11 MB, 43 FILES) AND FETCHED BY A TOWN-ON PAGE ONLY; 0 BAKES ONCE THE TOWN COMPOSES AND 0 OVER THE TOWN; THE 47 mm GAP GONE; THE TOWN-OFF PAGE THE SAME FILES AND BITS (2026-10-04, TOWN-COOK for A0, cloud - no GPU)
+
+**VERDICT.** With the town on, the town's composition takes all 134 of its cooked cells and bakes nothing: 0 bakes from any
+reader of any modifier tile (834 176 reads; 4 508 before) and 0 along a 12.6 km overflight of Metlakatla (8 134 before). The
+build read now equals the wheels' raster at every read (before: max 47.4 mm). The town-off page fetches the same 92 files and
+reads the same bits. **Not done:** fetching by proximity (G1433 explains why, with numbers), and 0 bakes at boot in the
+strict sense: a town-on boot still bakes 134 tiles (354 before; town off 87). All of them happen in the page's FIRST,
+generator-less composition, which the town-off page has too (G1433). **Two costs for you to decide on:** +14.11 MB in git;
+and the town-on page holds +85.7 MB more raw raster in each of three threads (page, physics worker, house worker), ~+257 MB
+in all (MEM-DIET's budget).
+
+**G1430 FETCH BY VARIANT** (build.js island loader, sim_host.js simHostFetchBoot, house_worker.js fetchCook). Each manifest
+cell names the variants it serves (`in`). Each fetcher takes only the cells of the page's variant. The loader decides the
+variant before the world boots, using world_boot.js TOWN's rule: `?town=` first, else the GRAPHICS 'town' row ('nearby' with
+pv >= 7 means off). It publishes the result as FLYDIY_TOWN_VARIANT. The two workers get the composed one (FLYDIY_TOWN.all)
+from sim_link / the house worker's init. Without a variant (old callers, node's island_node.js) a fetcher takes every cell,
+as before. world_boot warns if the loader and the composition ever disagree (the cost would be lazy bakes, never a wrong
+ground).
+
+**G1431 THE COOK** (premises_cook.js EVERYWHERE = default + town). Raster: 137 cells, 19.74 MB shipped (was 92 cells,
+5.63 MB). 89 cells are shared by both variants, 45 are the town's own (Metlakatla, 4 683 tiles, 8.9-10.4 km from HOME's
+stand), and 3 are default-only. That is 43 new files (two of the 45 cells are byte-identical to another cell and share its
+file) and +14.11 MB. The manifest now records what each variant fetches (raster.fetched: default 92 cells 5.63 MB / 45.41 MB
+raw; town 134 cells 19.54 MB / 131.13 MB raw).
+**keepShipped (new, in the cook):** node 22's zlib compresses the same content to different bytes, and the first re-cook
+renamed all 150 files. That re-shipped the default page's unchanged cells and changed the bytes a town-off page fetches. Now
+an existing file of the same stem whose gunzip equals the new content keeps its bytes. The re-cook then wrote 43 files,
+deleted 0, and left every default and places file name unchanged.
+**GATE PREMCOOK 3's count follows rasterLoad.** A 256 m square can now carry one file per variant. rasterLoad takes the
+first cell of a square whose signature matches and skips that square's later cells, so the expected refused count is 43,
+not 45.
+
+**G1432 THE PROOF.** tools/perf/town_cook_node.js runs the three fetchers' own code over this checkout (the loader is cut
+from the built index.html and run in a vm; a fetch that reads the disk). It also runs the page's two compositions:
+makeWorld's, which has no generators (index.html composes before the world pack's tags run), then render_premises' with the
+catalogue. Before = the manifest at claude/metla-load-g1405. Output: tools/perf/town_cook_node1.json.
+
+| node | town OFF before | town OFF after | town ON before | town ON after |
+|---|---|---|---|---|
+| raster cells fetched at boot (each fetcher) | 92 | 92 (the same files) | 92 (89 used) | 134 |
+| shipped bytes / raw bytes kept per thread | 5.63 / 45.41 MB | 5.63 / 45.41 MB | 5.63 / 45.41 MB | 19.54 / 131.13 MB |
+| fetched by proximity | 0 | 0 | 0 | 0 |
+| first composition (no generators): cells taken / refused | 85 / 7 | 85 / 7 | 84 / 8 | 123 / 11 |
+| ... every tile read once (the worst-case reader): bakes | 756 | 756 | 5 118 | 1 712 |
+| the town's composition: cells taken / refused | 92 / 0 | 92 / 0 | 89 / 3 | 134 / 0 |
+| ... every modifier tile on a 2 m grid (834 176 reads): bakes | 0 | 0 | 4 508 (11.0 s node) | **0** (1.6 s, decodes) |
+| ... overflight HOME -> Metlakatla -> 3 km past, every 50 m the wheels' point + a 4 x 4 km grid at 64 m (1.0 M reads) | - | - | 8 134 | **0** |
+| ... build read vs the wheels' terrainH on the 834 176 reads | 0 | 0 | p99 1.59, p99.9 4.08, **max 47.4 mm**; 40 reads over 10 mm | **0 reads differ** |
+
+Fetcher cases, all as expected: `?town=0` and a pv-7 'nearby' pref give default, 92 cells, the same files as today.
+`?town=1`, no query, a pv-6 'nearby' pref (migrated to on) and a pv-7 'all' pref give town, 134 cells. sim_host and
+house_worker with variant default give the same files as today; with town, 134 cells; with none, all 137. Town off, every
+read equal: 841 344 reads over every tile of both variants, 0 differ in either composition.
+(The sweep reads OFF the lattice's nodes, at +0.37 / +1.13 m. A tile's nodes sit on the frame's odd metres, where the raster
+is the composer to 1e-13 m. METLA-LOAD's 39 mm was the same gap on another grid.)
+
+**HEADLESS PAGE BOOT** (tools/perf/town_cook_boot.js, the cloud's Chromium + SwiftShader, fresh profile, to the garage +
+20 s, bakes summed over every premises overlay the page made; tools/perf/town_cook_boot1.json). Before = a built worktree of
+claude/metla-load-g1405. These are counts, not times: SwiftShader, with the gates running beside two of the loads.
+
+| headless | town OFF before | town OFF after | town ON before | town ON after |
+|---|---|---|---|---|
+| raster responses / bytes on the wire (3 threads, cold cache) | 276 / 16.88 MB | 276 / 16.88 MB | 276 / 16.88 MB | 402 / 58.63 MB |
+| first composition: cells taken / refused, bakes | 85 / 7, 87 | 85 / 7, 87 | 84 / 8, 354 | 123 / 11, **134** |
+| the town's composition: cells taken / refused, bakes | 92 / 0, 0 | 92 / 0, 0 | 89 / 3, 0 | 134 / 0, **0** |
+| exceptions | 0 | 0 | 0 | 0 |
+
+The wire shows 3x because each thread fetches the same URLs. On a warm browser the HTTP cache and sw.js's /media/ cache
+serve the two workers, but the cold headless profile fetched them three times.
+
+**G1433 WHAT IS LEFT, AND WHY NOT BY PROXIMITY.**
+- **THE 134 BOOT BAKES are the FIRST composition's.** world_boot's makeWorld composes before the world pack's generator
+  tags run, so the items' ground blocks are missing. 11 cooked cells are stale for that composition:
+  - 7 are stale in the town-off page too (HOME's own cell is one of them). These are the town-off page's 87 bakes, unchanged.
+  - 4 are in Metlakatla, from the ball park and harbour items (sport/ and marine/). They cost 47 more bakes, ~0.05-0.08 s on the box at 1-1.6 ms a tile.
+
+  The readers are the island-wide ones that METLA-LOAD kept on terrainH: the wind's relief, the colour bake's world.surface
+  and the biome's tree slope. They cache that first ground for the session. The fix belongs to both pages: compose the first
+  world with the generators, or move those readers after the town composes. It is not done here because it changes the
+  town-off page.
+- **NOT BY PROXIMITY.** The numbers rule it out for the default spawn:
+  (1) HOME's stand is 8.9-10.4 km from every one of the 45 cells. The forest fill's ring reaches ~9.8 km (FAR_FILL 9 km +
+  half a 1 024 m chunk's diagonal) and reads terrainH, so a load radius safe for it already holds the town at HOME.
+  (2) At every town-on boot the premises' geometry (patch, roads, rails, polygons: METLA-LOAD's ~11 000 reads of the town)
+  is BUILT on the build read. Built without the cells, those meshes keep the composer's ground, which is the 47 mm gap this
+  job removes, unless they are rebuilt when the cells arrive.
+  (3) Relief, world.surface and the tree slope read every cell at boot (above).
+
+  A real proximity scheme would need several pieces: a pending-cell state in 27_premises (read the composer for a named but
+  unfetched cell instead of baking); world.rasterAdd plus a 'raster' world op to the physics and house workers; rebuilding
+  the town's geometry when a cell arrives; and boot sets for the workers that know the spawn. It saves 13.9 MB on the wire
+  and ~257 MB resident only for a town-on player who never comes within ~10 km of Metlakatla, and HOME is within 10 km.
+- **THE MEMORY** is the cheaper lever: the cells could stay gzipped in memory and be inflated per cell on first read (a
+  synchronous JS inflate; ~20 KB of code). That is a follow-up if +257 MB town-on is too much for the phones.
+
+**G1434 FOR THE BOX: THE A/B, AND THE CUB'S TAXI (16 % uneven).** tools/perf/metla_ab.js now:
+- takes a build file in --builds;
+- logs `bootRaster` at the garage and after the roll-out (the variant, the cells fetched, every overlay's taken / refused and
+  bakes, summed);
+- with --over <s>, places the aeroplane --over-lead 2500 m short of Metlakatla's centre (--over-at -3058,-8445, the town
+  cells' centroid) on the HOME -> town bearing, 150 m over the ground at 45 m/s, with the pilot re-engaged as the pass does.
+  It logs the scene's raster delta and the closest approach. The table adds the boot bakes and OVER fps / uneven / worst /
+  bakes.
+
+Commands (a fresh profile each; the first run warms it):
+```
+node tools/perf/metla_ab.js --port 8651 --udd D:/utc1 --order A,B,B,A --builds builds/cub_2026-09-20_corrected.json --taxi 15 --pass 15 --over 60 --out tools/perf/town_cook_ab1.json
+node tools/perf/metla_ab.js --port 8652 --udd D:/utc2 --order B,A,A,B --builds builds/cub_2026-09-20_corrected.json --taxi 15 --pass 15 --cpuprof taxi --out tools/perf/town_cook_ab1_prof.json
+```
+For "before", run the first command from a worktree of claude/metla-load-g1405 (built), with this branch's metla_ab.js
+copied in. The rig serves its own checkout's pages.
+
+What to expect:
+- Garage: town on vs off = the +14 MB fetch and its gunzip, less ~220 boot bakes (~0.2 s) against
+  METLA-LOAD's build.
+- bootRaster: B ~134, A ~87 (box: ~0.13 / ~0.09 s).
+- OVER bakes: 0 on both sides (A is the default variant, which is cooked whole too).
+- TAXI: the cook changes nothing per frame at HOME (0 bakes there before and after).
+
+**Suspects for the Cub's town-on taxi (16 %)**, in the order to check:
+1. The far town's kit host: 426 boxes in one draw, on the GPU. If it is the cause, the long rows' `gpu` column carries it.
+2. What the town runs every frame wherever the eye is: the traffic advancing on every road past its cull (G1192) and the
+   scenery life's tick over the town. If these are the cause, they show in the taxi's --cpuprof self time.
+3. NEW with this cook: a larger heap (+86 MB per thread), so longer major GCs. This shows as "(garbage collector)" in the
+   profile.
+
+The Cub alone at 16 % (metal 13-15 %) suggests something in its view rather than its physics, so (1) comes first.
+
+GATES (node, run_gates --only, this branch, built): MEDIA, ASSETS, BUILD, PREMISES, PREMRASTER, PREMCOOK, METKIT, LIFE, and
+for the two workers' files SIMWORKER and HOUSEWORKER (the four page children bit for bit, 706 s) - all PASS (BATTERY: PASS).
+The full battery is A0's.
+Touched: tools/build.js, src/viewer/sim_host.js, src/viewer/sim_link.js, src/viewer/house_worker.js, src/viewer/world_boot.js
+(G1430); tools/premises_cook.js, src/core/premises_packs.json, media/world/jolene/premises/ (+43), tools/_premcook_check.js
+(G1431); tools/perf/town_cook_node.js (+ _node1.json), tools/perf/town_cook_boot.js (+ _boot1.json), tools/perf/metla_ab.js
+(G1432). The generated files (flight_core.js, index.html, dev.html, sw.js, version.json) are not committed - A0's built
+commit.
+
+## TRAIN 29 LANDED (2026-10-04, A0 the coordinator)
+
+Cargo (on train 28 = 9825e1e0): MEM-BUDGET G1230-G1236 (a build budget per preset, GFX.BUDGETS, and upload as built:
+the potato load peak 2265 -> 1141 MB, held after the load 1720 -> 868 MB; A0: S.build set wherever a preset is set, the
+far terrain's tolerance from BUD.terrain), TOWN-COOK G1430-G1434 (Metlakatla's raster cooked, +14.11 MB, fetched only by
+a town-on page; metla_ab keeps METLA-TAXI's version, TOWN-COOK's --over options dropped).
+FIXED IN THE TRAIN: (1) HYBRID-FARTHER G1325's band back to 1.6-2.0 - CORRECTION of train 28's note: the trips red was
+NOT the box. It needs a taxi first (train_gate's bench taxis 450 frames before world -> garage; A0's first bisect ran
+`--only loads` and missed it). With `--only loads,taxi --taxi 450`: train 27 / train 28 to RUNWAY-LIGHTS (Pb) 0.3 s and
+8.9 s; + G1325 (Pc) world -> garage 2.8 s and garage -> world 14.1 s with ONE 5.2 s link (the live aeroplane used at
+the taxi, its program re-linked on the way back). HYBRID-TRIPS G1490 brings the farther band back without it.
+(2) GATE WORLDRENDER: its node harness loads MATLIB (train 28's runway-light materials are made through it; train 28
+landed with it red - its final build ran the changed gates only, not the battery).
+STRICT GATE (full, vs train 26's baseline, final build): 107 rows in slack, 43 better, 7 RED = the 30 cap's fps rows
+(EVEN-30, intended, as in train 28); the trips 0.2 / 8.9 s, floats 0.2 s, render and garage in slack. BATTERY: the
+full battery on the first build (WORLDRENDER only red), the changed gates on the final build (WORLDRENDER, FRAMECOST,
+HOUSEWORKER, MEDIA, ASSETS, BUILD, PREMCOOK, FLOWNBAKE) PASS; the parked aeroplanes re-cooked on it.
+
+## G1314.2 - COLD-LINKS x LAKE-HOLES, LAKES-2: THE FOUR GATES LAKE-HOLES NEVER RAN (2026-10-04, COLD-LINKS for A0's train 30; branch claude/cold-links-lakes-2 = master e3575943 (train 29 landed) + a revert of 921bcf9b (LAKE-HOLES + its merge check + A0's lakeCarve back) + the fixes; node only)
+
+- **PREMRASTER / PREMCOOK** held the premises raster to the BARE analytic composer; since LAKE-HOLES the world carves the
+  lakebed after composing (terrainH -> lakeCarve), so the two differed by the carve itself (worst 5.6 m beside
+  r_airport's grade, where the grade follows the ground and the bank is carved under it - LAKE-HOLES' rule, kept; a
+  design question for whoever owns the airport's edges, not a raster error). New world.terrainHExact (20_world.js): the
+  analytic composer carved as terrainH carves; both gates read it. The raster against it: worst 18 mm (bound 6 cm).
+- **HYDRODYN** (a) a 5-cell pond at 9.06 m answered 4.03 / 6.47: its texels are all on the field's line (128), where
+  lakeBed.levelAt answered a NEIGHBOUR'S BANK texel - levelAt now answers inside texels (255) only; waterAt's own rules
+  answer on the line, as before LAKE-HOLES. And a texel inside a lake's own box now beats a neighbour that reaches it
+  only by its one-texel pad (a point 5 m inside a 31.70 m lake went to the 32.52 m one by the DEM rule alone).
+  (b) the hover check took points whose CARVED ground is under a record's level - a 13.88 m pond's carved bed inside an
+  11.63 m lake's box let 26 of the pond's own points in as 2.25 m 'hovers'; one lake a texel (G1336), so a point another
+  lake owns is counted as a neighbouring record. Now: 283 lakes on their own level, 0 not; 1 point 0.42 m over (the
+  gate's documented overlapping-box case).
+- **HOUSEWORKER** was NOT LAKE-HOLES': red on train 28 itself (HOUSE-LOD G1395's lod 1 vs the worker's position + normal
+  pack) - fixed in train 28 (04f4cd3c -> 45567842: lod 1 packed whole, PB_V 2, premises re-cooked). On master e3575943
+  (train 29: MEM-BUDGET, TOWN-COOK) every gate this touches passes: HOUSEWORKER, PREMRASTER, PREMCOOK, HYDRODYN, LAKEBED, SPLAT, WATER, FLOATS, SEAPLANE,
+  PROGRAMS, BOOT, BUILD, GFX. FOR TRAIN 30'S LOOK CHECK: r_airport:grade's feathered edge carved up to 5.6 m lower at
+  (-228, -499) - LAKE-HOLES' rule as written (a still before landing, A0).
+
+## TRAIN 30 LANDED (2026-10-04, A0 the coordinator)
+
+Cargo (on train 29 = e3575943): SOUND (the Sound Coordinator's claude/sound-integration d313481b, merged: the engine /
+prop / airframe voices, 34 recorded sounds, 12 lo-fi tracks, +36 MB media/audio, all lazy after the first click, ?audio=0
+builds nothing; GATE AUDIO + AUDIOENG in the battery), LAKE-HOLES G1335-G1339 back with COLD-LINKS' fixes G1314.2
+(claude/cold-links-lakes-2 8de69d30: the lakebeds carved, the ground drawn whole - no holes at the shore; PREMRASTER /
+PREMCOOK hold the raster to the carved surface, HYDRODYN's lake ownership; the r_airport:grade note: the carve lowers its
+feathered edge by up to 5.6 m at (-228, -499), kept as LAKE-HOLES' rule).
+A0 IN THE TRAIN: GATE ROUNDTRIP expects SOUND's rail section (audio: sound); FRAMECOST admits LAKE-HOLES' taxi triangles
+(+185.8 k, +1.4 %, the carved beds and skirts drawn as ground).
+STRICT GATE (full, vs train 26's baseline): 108 rows in slack, 41 better, 8 RED = the 30 cap's 7 fps rows (EVEN-30,
+intended) + the Cub's garage "frame busy" 241 -> 363 ms - a quiet garage_lag A/B (train 29 / train 30, the Cub x3) read
+that row 305 vs 279 ms (train 30 LOWER): noise; every sync row (input -> drawn) equal. The trips, the loads, chase /
+cockpit / taxi render and the floats' water taxi in slack. BATTERY: FRAMECOST (a stale parked cook first, then the lake
+triangles - admitted) and ROUNDTRIP (fixed) were the reds; all green on the final build; the parked aeroplanes re-cooked.
+LOOK (A0's real-GPU stills, reports/evidence/LAKE-HOLES/a0_gpu_train29_vs_30.jpg): the white gaps at the shore are gone;
+the carved banks now read as steep, texture-stretched slopes where a lake sits under a bank - a follow-up for the look.

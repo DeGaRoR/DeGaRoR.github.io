@@ -58,19 +58,32 @@ console.log('GATE GFX');
     if (!o.steps.some(s => s.v === G.PRESETS[p][o.k])) { complete = false; console.log('    ' + p + '.' + o.k + ' = ' + G.PRESETS[p][o.k] + ' is not a step'); }
   ok(complete, 'every preset resolves every option to a named step (' + Object.keys(G.PRESETS).length + ' presets, ' + G.OPTIONS.filter(o => !o.free).length + ' options; the free ones apart)');
 }
-// 1a. THE FRAME RATE (G586) is a FREE option: no preset sets it, 'auto' by default, and picking a cap
-// leaves the preset what it was
+// 1a. THE FRAME RATE (G586) is a FREE option: no preset's options carry it, and picking a cap leaves the preset what it
+// was. G1295 (EVEN-30): its DEFAULT follows the preset - a hard 30 on every preset but ultra (auto) - until the player picks
+// one; an old pref's 'auto' (the old default) takes the preset's, an old 60 / 30 / uncapped stays the player's
 {
   const w = boot({});
   const G = w.GFX, o = G.OPTIONS.find(x => x.k === 'fps');
   ok(!!o && o.free && o.steps.map(x => x.v).join(',') === 'auto,60,30,off' && Object.keys(G.PRESETS).every(p => !('fps' in G.PRESETS[p])),
      'the frame rate: auto / 60 / 30 / uncapped, set by no preset');
-  ok(G.get().fps === 'auto', "the frame rate's default is auto (" + G.get().fps + ')');
+  ok(G.get().fps === 30, "the frame rate's default is 30 on gamer (" + G.get().fps + ')');
+  ok(G.set('preset', 'ultra').fps === 'auto' && G.set('preset', 'potato').fps === 30 && G.set('preset', 'current').fps === 30,
+     'picking a preset brings its frame rate: ultra auto, the others 30');
+  G.set('preset', 'gamer');
   const before = G.get().preset;
-  const after = G.set('fps', 30);
-  ok(after.fps === 30 && after.preset === before, 'a 30 cap leaves the preset ' + before + ' (' + after.preset + ')');
+  const after = G.set('fps', 60);
+  ok(after.fps === 60 && after.preset === before && after.fpsOwn === true, 'a 60 cap leaves the preset ' + before + ' (' + after.preset + ') and is the player’s');
+  ok(G.set('preset', 'ultra').fps === 60 && G.set('preset', 'retro').fps === 60, "the player's frame rate survives a preset pick");
   const w2 = boot({ 'flydiy.gfx': JSON.stringify({ preset: 'gamer', pv: 3, fps: 'bogus' }) });
-  ok(w2.GFX.get().fps === 'auto', 'a stored frame rate that is not a step reads auto');
+  ok(w2.GFX.get().fps === 30, 'a stored frame rate that is not a step reads the preset’s (30 on gamer: ' + w2.GFX.get().fps + ')');
+  const m = (st, want, what) => { const g = boot({ 'flydiy.gfx': JSON.stringify(st) }).GFX.get(); ok(g.fps === want, what + ' (' + g.fps + ')'); };
+  m({ preset: 'gamer', pv: 6, fps: 'auto' }, 30, "pv 6: gamer's stored 'auto' (the old default) becomes 30");
+  m(Object.assign({}, G.PRESETS.ultra, { preset: 'ultra', pv: 6, fps: 'auto' }), 'auto', "pv 6: ultra's stored 'auto' stays auto");
+  m({ preset: 'custom', pv: 6, fps: 'auto', aa: 'full', density: 200 }, 30, "pv 6: a custom mix's 'auto' becomes 30 (the user's near-ultra)");
+  m({ preset: 'gamer', pv: 6, fps: 60 }, 60, 'pv 6: a stored 60 stays (the player’s)');
+  m({ preset: 'gamer', pv: 6, fps: 'off' }, 'off', 'pv 6: a stored uncapped stays');
+  m({ preset: 'gamer', pv: 7, fps: 'auto', fpsOwn: true }, 'auto', 'pv 7: a picked auto stays');
+  m({ preset: 'ultra', pv: 2 }, 'auto', 'an old pref on ultra (no frame rate stored) reads auto');
 }
 // 1b. the five tiers (PERF 2026-09-23): named, labelled, gamer the default, and gamer IS the medium of before
 {

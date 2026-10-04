@@ -109,6 +109,19 @@
     return out;
   }
   const withBin = () => PACK ? PACK.collections.filter(c => c.bin && wanted(c)) : [];
+  // G1330 (TREE-HITBOX): a subject's height (model metres) and its crown's half width over that height - what the
+  // solver's trunk is made of (29_obstacles.js TREE_HITS.trunkOf, times the drawn scale). null for an unknown key
+  const TRUNK = new Map();
+  function treeTrunk(k) {
+    if (TRUNK.has(k)) return TRUNK.get(k);
+    if (!PACK) return null;
+    let r = null;
+    for (const c of PACK.collections) { if (!c.subjects) continue;
+      for (const s of c.subjects) if (key(c, s) === k) { const bb = s.bb, h = s.h || (bb ? bb[4] - bb[1] : 0);
+        if (h > 0) r = { h, wf: bb ? Math.max(bb[3] - bb[0], bb[5] - bb[2]) / 2 / h : 0.3 }; } }
+    if (r) TRUNK.set(k, r);
+    return r;
+  }
 
   function treeReady() {
     return !!PACK && withBin().every(c => BINS.has(c.name));
@@ -189,6 +202,9 @@
       mips.push(cur);
       w = nw; h = nh;
     }
+    // G1230 (MEM-BUDGET): a budget that skips the top mip (potato's; ktx2.js KTX2.dim) keeps the chain from its second
+    // level - a quarter of the bytes held (these ImageData chains live as long as the textures: ~48 MB of leaf maps)
+    if (mips.length > 1 && w0 >= 256 && typeof KTX2 !== 'undefined' && KTX2.dim && KTX2.dim(w0) !== w0) mips.shift();   // (tex.image stays the Image: three sizes the upload off mipmaps[0])
     tex.mipmaps = mips;
     tex.generateMipmaps = false;
     tex.minFilter = THREE.LinearMipmapLinearFilter;
@@ -706,6 +722,7 @@
     window.treeReachOf = treeReachOf;
     window.treeWanted = treeWanted;
     window.treeList = treeList;
+    window.treeTrunk = treeTrunk;
     window.treeBuild = treeBuild;
     window.treeMapsReady = treeMapsReady;
     window.TREE_LEAF = treeLeaf;
