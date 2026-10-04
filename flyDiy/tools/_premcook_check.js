@@ -97,8 +97,13 @@ const WL = K.islandWorld(ID, VD);
 tq = Date.now(); const OL = WL.premises.set(rec0, { catalogue: CAT, globals: GENS, build, pool: [], raster: true }); const tLazy = Date.now() - tq;
 console.log('     compose + load: ' + tCook + ' ms with the cook, ' + tLazy + ' ms without (the difference: the cells\' signatures and indexes)');
 const mine = ISL.raster.cells.filter(c => c.in.indexOf(VD.name) >= 0);
-ok(OC.rasterCooked && OC.rasterCooked.taken === mine.length && OC.rasterCooked.stale === ISL.raster.cells.length - mine.length,
-  VD.name + ': every cooked cell of the variant taken (' + (OC.rasterCooked ? OC.rasterCooked.taken + ' taken, ' + OC.rasterCooked.stale + ' refused' : 'no load') + '; ' + mine.length + ' cooked)');
+// (G1430: 'town' is cooked whole too, so a 256 m cell can carry one file per variant) rasterLoad takes the first cell of a
+// square whose signature is the composition's and SKIPS the square's later ones: the refused are the other variants'
+// cells listed before this variant's in their square, or in a square it does not have
+const mineAt = new Map(); ISL.raster.cells.forEach((c, i) => { if (c.in.indexOf(VD.name) >= 0) mineAt.set(c.c[0] + ',' + c.c[1], i); });
+const refusedWant = ISL.raster.cells.filter((c, i) => c.in.indexOf(VD.name) < 0 && !(mineAt.get(c.c[0] + ',' + c.c[1]) < i)).length;
+ok(OC.rasterCooked && OC.rasterCooked.taken === mine.length && OC.rasterCooked.stale === refusedWant,
+  VD.name + ': every cooked cell of the variant taken (' + (OC.rasterCooked ? OC.rasterCooked.taken + ' taken, ' + OC.rasterCooked.stale + ' refused' : 'no load') + '; ' + mine.length + ' cooked, ' + refusedWant + ' of the other variant\'s to refuse)');
 let s = 20260927; const rnd = () => { s = (Math.imul(s, 1103515245) + 12345) >>> 0; return s / 4294967296; };
 const S = OC.rasterCell, Fr = OC.frame;
 {
