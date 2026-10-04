@@ -228,7 +228,7 @@ const SIM_LINK = (() => {
       const isl = W.ISLAND_BOOT;
       return { premises: o.premises ? o.premises() : null, seed: 0, day: world.day ? world.day.spec() : null,
                opts: { groundRaster: !!W.FLYDIY_GROUND_RASTER },
-               fetch: isl ? { base: host.base, name: isl.id, hydro: isl.hydro, raster: !!W.FLYDIY_GROUND_RASTER } : null, boot: null };
+               fetch: isl ? { base: host.base, name: isl.id, hydro: isl.hydro, raster: !!W.FLYDIY_GROUND_RASTER, variant: W.FLYDIY_TOWN ? (W.FLYDIY_TOWN.all ? 'town' : 'default') : W.FLYDIY_TOWN_VARIANT } : null, boot: null };
     }
     function prewarm() {
       if (worldSent || dead) return !dead;
