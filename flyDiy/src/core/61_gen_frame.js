@@ -308,6 +308,10 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
                  vis: vis || null, L };
     if (opt && opt.tens) bm.tens = true;
     if (opt && opt.pre) bm.pre = opt.pre;
+    // G1803 (DMG-D0): THE LEDGER SECTION open as the member is built (sec(): 'fuselage', 'wings', 'bracing', 'tail', 'gear',
+    // 'engines', ...) - the one its mass and money are billed to below, so the repair bill (DEFORM §10) sums a beam's
+    // plastic work (DMG.wB) into the section that paid for it. Stamped here, no cost at run time
+    bm.sec = SEC;
     // G1470 (TREE-CRASH): THE MEMBER'S SECTION, for the damage model (30_solver.js): the area its mass is
     // billed at (lin / rho at its gauge, the aft taper and the box webs in - the same A the load test
     // judges a class by, per member) and the material it is made of (the GEN_MATERIALS key whose `phys`

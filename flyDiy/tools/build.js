@@ -465,6 +465,8 @@ const MANIFEST = {
               // G1630-G1633 (SND-AIRFRAME): the airframe's numbers, the sample slots, the airframe source
               'audio/airframe_model.js', 'audio/samples.js', 'audio/src_airframe.js',
               // G999: the world's composition, run by the promote in a task of its own ahead of app.js's evaluation
+              // G1804 (DMG-D0): the damage view's colours (window.DMG_TINT, pure; app.js sync() reads it)
+              'dmg_overlay.js',
               'world_boot.js', 'app.js',
               'dev_panel.js'],   // (the WORLD rail, world_rail.js, rides the world pack above - G582)
   },

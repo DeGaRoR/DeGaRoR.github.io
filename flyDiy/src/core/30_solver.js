@@ -371,6 +371,10 @@ function makeSim(def, world) {
   const DMG = { yields: 0, breaks: 0, work: 0, broken: [], firstBreak: null, firstYield: null,
                 crashed: false, reason: null, at: null, dented: false, propStrike: false, propAt: null,
                 gPeak: 0, setMax: 0, orphans: [], members: 0, dents: 0, primary: 0, firstPrimary: null, holed: 0 };
+  // G1802 (DMG-D0): THE PLASTIC WORK PER BEAM (J), beside the total: what the repair bill sums by the ledger's section
+  // (bm.sec, G1803; DEFORM §10). Written only where the total is (beamYield, beamKink: the armed path), zeroed by reset()
+  DMG.wB = new Float64Array(nb);
+  const dmgW = (bi, w) => { DMG.work += w; DMG.wB[bi] += w; };
   // per node: the members still holding it (an ORPHAN, every member broken, is debris: gravity and the ground
   // only, its aero dropped - a lone node carries a strip's lift on its own few kilos and would be flung)
   const nodeDeg = new Int32Array(n), nodeDeg0 = new Int32Array(n), orphan = new Uint8Array(n);
@@ -432,6 +436,7 @@ function makeSim(def, world) {
     DMG.crashed = false; DMG.over = false; DMG.reason = null; DMG.at = null; DMG.dented = false; DMG.propStrike = false; DMG.propAt = null;
     DMG.gPeak = 0; DMG.setMax = 0; DMG.orphans.length = 0; DMG.members = 0; DMG.dents = 0; DMG.primary = 0; DMG.firstPrimary = null; DMG.holed = 0; gF = 0; cIx = cIy = cIz = 0;
     for (const b of beams) b.yielded = false;
+    DMG.wB.fill(0);   // G1802
   }
   function beamBreak(bi) {
     const b = beams[bi];
@@ -472,21 +477,21 @@ function makeSim(def, world) {
       const fy = FY[bi];
       if (b.dk > 0 && fy < b.fyM) {                  // the bend pulls straight (no further than straight)
         dL = Math.min((Fs - fy) / b.k, b.ks);
-        DMG.work += fy * dL; b.L0 += dL; b.ks -= dL;
+        dmgW(bi, fy * dL); b.L0 += dL; b.ks -= dL;
         if (b.ks <= 1e-12) { b.ks = 0; b.dk = 0; } else b.dk = Math.sqrt(2 * b.Lr * b.kt * b.ks);
         kinkCaps(bi);
       } else {
         if (!(b.etu > 0)) { beamBreak(bi); return; } // brittle: the yield IS the break
         const H = (b.fu - b.fy0) / (b.etu * b.Lr);   // N per metre of plastic travel (bilinear hardening)
         dL = (Fs - fy) / (b.k + H);
-        DMG.work += (fy + 0.5 * H * dL) * dL;
+        dmgW(bi, (fy + 0.5 * H * dL) * dL);
         b.L0 += dL; b.ep += dL / b.Lr; b.fyM = b.fy0 + H * b.ep * b.Lr; kinkCaps(bi);
         if (b.ep >= b.etu) beamBreak(bi);
       }
     } else {
       const fc = FC[bi];
       dL = (-Fs - fc) / b.k;
-      DMG.work += fc * dL; b.L0 -= dL;
+      dmgW(bi, fc * dL); b.L0 -= dL;
       if (b.dk > 0 && fc < b.fc0) {                // the bend folds further
         b.ks += dL; b.dk = Math.sqrt(2 * b.Lr * b.kt * b.ks); kinkCaps(bi); hingeCheck(bi);
       } else {
@@ -504,7 +509,7 @@ function makeSim(def, world) {
   // or folds on (beamYield) at that force, and the frame round it moves as far as that lets it
   function beamKink(bi, dk, Pc) {
     const b = beams[bi];
-    DMG.work += Pc * (dk - b.dk); b.dk = dk;
+    dmgW(bi, Pc * (dk - b.dk)); b.dk = dk;
     b.ks = Math.max(b.ks, dk * dk / (2 * b.Lr * b.kt));
     kinkCaps(bi);
     DMG.dents++;
@@ -769,6 +774,23 @@ function makeSim(def, world) {
   // the load factor and the rates: finite differences over one frame,
   // filtered (a node-beam sim's raw acceleration is the truss ringing)
   let vPrev = null, hdgPrev = null;
+  // G1801 (DMG-D0): THE VELOCITY GUARD (DEFORM §5.4): a node faster than VGUARD m/s relative to the CG is a SIM FAULT, not a
+  // flight - caught here before it becomes NaN, and the flight ends 'sim-diverged' (app.js, sim_host.js through
+  // H.diverged, the rigs through stats().bad). Once a frame (readPanel, beside its CG pass), never a substep: n
+  // subtractions and a compare. A NaN velocity trips it too. Read-only: the physics' bits are untouched. The validated
+  // builds' worst in their gates is far under it (GATE DMGINST's census: a torn piece whips at ~70 m/s)
+  const VGUARD = 150, VGUARD2 = VGUARD * VGUARD;
+  const VG = { vMax: 0, node: -1, peak: 0, fault: null };   // this frame's fastest node (m/s rel. the CG), the peak since reset, the fault
+  function guardFrame(cv) {
+    let mx = 0, im = -1, nan = false;
+    for (let i = 0; i < n; i++) {
+      const i3 = i * 3, dx = v[i3] - cv[0], dy = v[i3+1] - cv[1], dz = v[i3+2] - cv[2], s2 = dx*dx + dy*dy + dz*dz;
+      if (s2 > mx) { mx = s2; im = i; } else if (s2 !== s2) { nan = true; im = i; }
+    }
+    VG.vMax = Math.sqrt(mx); VG.node = im;
+    if (VG.vMax > VG.peak) VG.peak = VG.vMax;
+    if (!VG.fault && (nan || mx > VGUARD2)) VG.fault = { why: nan ? 'nan' : 'speed', node: im, v: nan ? NaN : VG.vMax, t: simT };
+  }
   out.nz = 1; out.nzMax = 1; out.nzMin = 1; out.r = 0; out.beta = 0;
   out.pitch = 0; out.roll = 0; out.hdg = 0; out.rpm = []; out.rpmEng = [];
   function resetPanel() {
@@ -780,6 +802,7 @@ function makeSim(def, world) {
     for (const vs of fuel.vessels) vs.litres = vs.litres0;
     vPrev = null; hdgPrev = null;
     out.nz = 1; out.nzMax = 1; out.nzMin = 1; out.r = 0;
+    VG.vMax = 0; VG.node = -1; VG.peak = 0; VG.fault = null;   // G1801
   }
   // the key, the starter and the hand on the prop. `start: true` cranks
   // (1.5 s, the viewer's `starterOk` deciding whether the bus can), `swing:
@@ -855,6 +878,7 @@ function makeSim(def, world) {
   function readPanel(dtFrame) {
     bodyAxes();
     const cv = cgVel();
+    guardFrame(cv);   // G1801
     if (vPrev && dtFrame > 0) {
       const ax = (cv[0] - vPrev[0]) / dtFrame, ay = (cv[1] - vPrev[1]) / dtFrame,
             az = (cv[2] - vPrev[2]) / dtFrame;
@@ -2025,7 +2049,7 @@ function makeSim(def, world) {
     let smax = 0, bad = false;
     for (const b of beams) smax = Math.max(smax, Math.abs(b.strain));
     for (let i = 0; i < n; i++) if (!isFinite(p[i*3+1])) bad = true;
-    return { smax, bad };
+    return { smax, bad: bad || !!VG.fault };   // G1801: a node past the velocity guard is a sim fault too
   }
   function impulse(i, ix, iy, iz) { v[i*3]+=ix/m[i]; v[i*3+1]+=iy/m[i]; v[i*3+2]+=iz/m[i]; }
   function wheelsOnGround() {
@@ -2093,6 +2117,8 @@ function makeSim(def, world) {
            // G1470: the damage - yields, breaks (beam indices), plastic work (J), the largest set (strain), the peak
            // filtered g, the prop strike, and the verdict: crashed (with why and when) / dented / neither
            damage: () => DMG, damagePeak: () => PEAK,
+           // G1801: the velocity guard - { vMax, node, peak, fault: null | { why: 'speed' | 'nan', node, v, t } }
+           guard: () => VG, fault: () => VG.fault,
            reset, stance, step, trueBox, probe, stats, impulse, wheelsOnGround, wheelContacts, cgPos, cgVel, axes,
            // G197: the kernel's sources, readable (the gate asserts the weights' normalisation)
            induction: () => ({ WS: WS.slice(), plane: Array.from(PLANE), bHalf: Array.from(bHalf), Ez: Array.from(Ez), Dz: Array.from(Dz), Gam: Array.from(Gam), Wg: Array.from(Wg), zA: WS.map(j => sZA[j]), zB: WS.map(j => sZB[j]), A: WS.map(j => [sA[j*3], sA[j*3+1], sA[j*3+2]]), B: WS.map(j => [sB[j*3], sB[j*3+1], sB[j*3+2]]), d: sD.slice(), cpt: Array.from(cpt), pairs: pairs.length, loading: LOADING }),

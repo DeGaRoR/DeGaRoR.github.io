@@ -116,7 +116,7 @@ function loadTest(def, n, matKey, surface) {
   const S = rig.state;
   return { st: rig.stations, semi: rig.semi, defl: S.defl, tip: S.tipPct,
            worst: S.worstPct === null ? null : { cls: S.worstCls, pct: S.worstPct },
-           bad: S.verdict === 'BROKE UP', W: rig.W, n: n };
+           bad: S.verdict === 'SIM DIVERGED' || S.verdict === 'BROKE UP', W: rig.W, n: n };   // G1800: the NaN's verdict renamed
 }
 
 // a wing seen from the front, bending up. 24 columns root -> tip.

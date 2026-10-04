@@ -71,7 +71,7 @@
 //
 // THE REPORT contract is the test pilot's, unchanged: ap.report =
 // { verdicts: [{t, code, note}], outcome, landing, card?, phases[], abort? }.
-// outcome ∈ completed | rejected-takeoff | gave-up (| broke-up by a runner).
+// outcome ∈ completed | rejected-takeoff | gave-up (| sim-diverged / broke-up / crashed by a runner, G1800).
 // Units are SI throughout; PILOT_UNITS converts for a panel that wants kt,
 // fpm and ft.
 // G381 (2026-09-13, the user: "the new autopilot flying the circuit is a
