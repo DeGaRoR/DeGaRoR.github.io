@@ -250,6 +250,44 @@ const SPLAT_GROUND = (() => {
   // triplet IDENTICAL to the near (forest, old forest, sand, snow, shingle, dense scrub) is not sampled twice. The
   // pass that completes the type returns true with it in gSOut; the other returns false. Same sets, same blend,
   // same mix as the three branches it replaced.
+  // THE POOLS' MASK, ONCE A PIXEL, BEFORE THE CANDIDATE LOOP (COLD-LINKS G1312): it reads the ground's position, the eye
+  // and the slope - never the terrain type - so it was the same number for muskeg and for scrub, yet it was computed inside
+  // sMatPass, in the loop; FXC took ~14 of the near ring's ~30 s cold link to compile it there (tools/perf/cold_links_bench.js,
+  // 2026-10-04: the ring with the block cut 16.1 s, with it 29.8 s). The same expressions in the same order, run before the loop
+  // when a pool-bearing type votes here (sSplat): the picture is the same and no pixel computes it twice.
+  float gSPoolM = 0.0, gSPoolD = 1.0;
+  void sPools(vec3 P){
+    // A POND IS A SHORE AND A MARGIN, NOT A SPOT (the user, 2026-09-23, from 400 m
+    // over the strip: "puddles just look too harsh seen from there. They look like
+    // speckles on a surface, not like puddles"). Two reasons it read as a speckle:
+    //   THE SHORE WAS UNDER A PIXEL. pudEdge is 0.01 noise units = 1.33 m of ground,
+    //   which is right at walking distance and invisible at altitude, so the mask's
+    //   0..1 ramp fell inside one pixel and every pond had a hard, aliasing rim.
+    //   uSPud2.x widens it with distance (the 0.5 contour is fixed - the ramp is
+    //   centred on the threshold - so the pond neither grows nor shrinks).
+    //   AND IT HAD NO MARGIN. Real muskeg water sits in a wet hollow: peat-stained
+    //   shallows over the bed, then open water. uSPud2.y is where the open water
+    //   starts in the mask; under it the ground's own colour goes dark and wet and
+    //   KEEPS ITS ROUGHNESS, so only the middle of a pond is a mirror.
+    // BOTH RIDE THE SAME DISTANCE TERM, and both are ZERO at the eye: a pond you
+    // taxi past keeps the hard shoreline and the open water it has today (which is
+    // what it looks like from the bank), and only the pond a kilometre off becomes
+    // a soft wet hollow. The complaint was about altitude; the close view was not
+    // broken and must not be traded away to fix it.
+    float pd = distance(P.xz, cameraPosition.xz);
+    float far = clamp(pd / 500.0, 0.0, 1.0);
+    float e = uSPud.z * (1.0 + uSPud2.x * far);
+    float m = gfPoolAt((P.xz + vec2(uSPud.x)) * uSPud.w, uSPud.y, e);
+    // A PUDDLE NEEDS A LEVEL PLACE (2026-09-23, the user: "real puddles would be distributed along
+    // terrain depressions ... here you splatter them everywhere"). Measured on Jolene before this:
+    // 42 % of the pools stood on ground steeper than 10 degrees, because the field never asked the
+    // terrain anything. Full water under half of uSPud2.w degrees, none above it - and the same ramp
+    // runs on the CPU in render_world's poolAt, so the tufts and the debris agree with what is drawn.
+    if (uSPud2.w > 0.01) m *= clamp((uSPud2.w - gSSlope) / (uSPud2.w * 0.5), 0.0, 1.0);
+    float rim = uSPud2.y * far;
+    float deep = rim > 0.001 ? smoothstep(rim, 1.0, m) : 1.0;
+    gSPoolM = m; gSPoolD = deep;
+  }
   Smp gSNear, gSFar, gSOut;
   bool sMatPass(int i, int pass, vec3 P, vec3 tw, float seaAng, float fw, float slope){
     vec4 A = uSMatA[i]; vec4 S = uSMatS[i]; vec4 M = uSMatM[i];
@@ -280,37 +318,8 @@ const SPLAT_GROUND = (() => {
     if (V.y > 0.0 || V.x > 0.0) { vec2 gf = gfShade(P.xz, V.z); o.c.rgb = gfHueTurn(o.c.rgb, gf.x * V.x) * (1.0 + gf.y * V.y); }
     gSRel = gLuma(o.c.rgb) / max(uSLum[int(A.x + 0.5)], 1e-3);   // the texel over its set's mean: the texture alone, no set colour
     if ((i == 3 || i == 7) && uSPud.y > 0.0) {   // the pools: muskeg AND scrub (the user, 2026-09-21: the scrub is the muskeg)
-      // A POND IS A SHORE AND A MARGIN, NOT A SPOT (the user, 2026-09-23, from 400 m
-      // over the strip: "puddles just look too harsh seen from there. They look like
-      // speckles on a surface, not like puddles"). Two reasons it read as a speckle:
-      //   THE SHORE WAS UNDER A PIXEL. pudEdge is 0.01 noise units = 1.33 m of ground,
-      //   which is right at walking distance and invisible at altitude, so the mask's
-      //   0..1 ramp fell inside one pixel and every pond had a hard, aliasing rim.
-      //   uSPud2.x widens it with distance (the 0.5 contour is fixed - the ramp is
-      //   centred on the threshold - so the pond neither grows nor shrinks).
-      //   AND IT HAD NO MARGIN. Real muskeg water sits in a wet hollow: peat-stained
-      //   shallows over the bed, then open water. uSPud2.y is where the open water
-      //   starts in the mask; under it the ground's own colour goes dark and wet and
-      //   KEEPS ITS ROUGHNESS, so only the middle of a pond is a mirror.
-      // BOTH RIDE THE SAME DISTANCE TERM, and both are ZERO at the eye: a pond you
-      // taxi past keeps the hard shoreline and the open water it has today (which is
-      // what it looks like from the bank), and only the pond a kilometre off becomes
-      // a soft wet hollow. The complaint was about altitude; the close view was not
-      // broken and must not be traded away to fix it.
-      float pd = distance(P.xz, cameraPosition.xz);
-      float far = clamp(pd / 500.0, 0.0, 1.0);
-      float e = uSPud.z * (1.0 + uSPud2.x * far);
-      float m = gfPoolAt((P.xz + vec2(uSPud.x)) * uSPud.w, uSPud.y, e);
-      // A PUDDLE NEEDS A LEVEL PLACE (2026-09-23, the user: "real puddles would be distributed along
-      // terrain depressions ... here you splatter them everywhere"). Measured on Jolene before this:
-      // 42 % of the pools stood on ground steeper than 10 degrees, because the field never asked the
-      // terrain anything. Full water under half of uSPud2.w degrees, none above it - and the same ramp
-      // runs on the CPU in render_world's poolAt, so the tufts and the debris agree with what is drawn.
-      if (uSPud2.w > 0.01) m *= clamp((uSPud2.w - gSSlope) / (uSPud2.w * 0.5), 0.0, 1.0);
-      float rim = uSPud2.y * far;
-      float deep = rim > 0.001 ? smoothstep(rim, 1.0, m) : 1.0;
-      o.c.rgb = mix(o.c.rgb, mix(o.c.rgb * uSPud2.z, vec3(0.022, 0.030, 0.034), deep), m);   // still water, linear
-      o.n = mix(o.n, vec4(0.0, 0.0, 0.0, 0.03), m * deep);
+      o.c.rgb = mix(o.c.rgb, mix(o.c.rgb * uSPud2.z, vec3(0.022, 0.030, 0.034), gSPoolD), gSPoolM);   // still water, linear (the mask: sPools)
+      o.n = mix(o.n, vec4(0.0, 0.0, 0.0, 0.03), gSPoolM * gSPoolD);
     }
     gSOut = o; return true;
   }
@@ -368,6 +377,8 @@ const SPLAT_GROUND = (() => {
     // a continue - the splat's every set was read at MIP 0 at every distance: shimmer, and a texture cache blown
     // on every ground pixel past a few hundred metres. The same test as an if-block keeps the derivatives.
     // two passes a terrain type (sMatPass: near, far), the bound still a uniform
+    gSPoolM = 0.0; gSPoolD = 1.0;
+    if (uSPud.y > 0.0 && (w[3] >= 0.004 || w[7] >= 0.004)) sPools(vWPi);   // the pools' mask (G1312: out of the loop)
     for (int j = 0; j < uSNCode * 2; j++) {
       int i = j / 2;
       if (w[i] >= 0.004 && n < uSNCand && sMatPass(i, j - i * 2, vWPi, tw, seaAng, fw, slope)) {
