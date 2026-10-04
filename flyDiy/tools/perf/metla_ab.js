@@ -153,8 +153,13 @@ function frameRead(R, a, z) {
   const by = {}; for (const c of ['even', 'long']) { by[c] = { n: cls[c].length }; for (const k of keys) by[c][k] = mean(cls[c], k); }
   // the k-ladder: how many frames at 1x, 2x, 3x+ of the 60 Hz refresh (what 'uneven' counts changes of)
   const lad = {}; for (const x of dts) { const k = Math.min(4, Math.max(1, Math.round(x / (1000 / 60)))); lad[k] = (lad[k] || 0) + 1; }
+  // the auto cap's own share (a 60 trial's frames are 16.7 ms: 'uneven' counts every switch) and the unevenness of the
+  // frames AT 30 alone (two consecutive frames, both at the 30 cap, on different refresh multiples)
+  const capN = {}; for (const i of idx) capN[R.cap[i]] = (capN[R.cap[i]] || 0) + 1;
+  let n30 = 0, ch30 = 0; for (let j = 1; j < idx.length; j++) { const i = idx[j], h = idx[j - 1]; if (R.cap[i] !== 30 || R.cap[h] !== 30) continue; n30++; if (Math.round(R.dt[i] / (1000 / 60)) !== Math.round(R.dt[h] / (1000 / 60))) ch30++; }
+  const uneven30 = n30 ? +(ch30 / n30).toFixed(3) : null;
   const slotLine = ['even', 'long'].map(c => c + ' (' + by[c].n + '): ' + keys.filter(k => by[c][k] != null && (by[c][k] >= 0.3 || k === 'gpu')).map(k => k + ' ' + by[c][k]).join(' ')).join(' || ');
-  return { dist: d, by, ladder: lad, line: (d && FD.line ? FD.line(d) : '') + ' ladder(x16.7ms) ' + JSON.stringify(lad), slotLine };
+  return { dist: d, by, ladder: lad, caps: capN, uneven30, line: (d && FD.line ? FD.line(d) : '') + ' ladder(x16.7ms) ' + JSON.stringify(lad) + ' caps ' + JSON.stringify(capN) + ' uneven@30 ' + uneven30, slotLine };
 }
 
 // G1435: the CPU profile split per frame. The page clock of a sample = its profile time + off, off from the marker __mtCal
