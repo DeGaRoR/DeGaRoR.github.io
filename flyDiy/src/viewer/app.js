@@ -5221,6 +5221,7 @@
   // hopeless build keep trying; Restart and the hangar door stay the real
   // exits. fullReset clears the latch.
   let flightOver = false;
+  let flDmg = null;           // G1470 (TREE-CRASH): sim.damage() - the worker's verdict under the physics worker
   let flNextLeg = null;   // G700: the selects' block publishes nextLeg here - `Fly on` chains the next leg in place
   let userPaused = false;     // G650: set by the Pause button alone; the world's clocks hold on it (FLYDIY_HELD)
   function endFlight(outcome) {
@@ -5244,6 +5245,7 @@
                           setManual, manual: () => manual, input: () => INP,     // G200
                           nextLeg: () => (flNextLeg ? (flNextLeg(), true) : false),   // G820 (C1c): Fly on's own chain, for a rig that cannot fly a circuit first
                           over: () => flightOver,                               // G820: the card's latch (an ending, G130)
+                          damage: () => flDmg,                                  // G1470: the crash's verdict (the worker's under it)
                           // G1096: A RIG'S PLACEMENT, on the sim that flies - never sim().p / .v by hand: under the physics
                           // worker the page's sim is a view the next snapshot rewrites. { at: [x, y, z] the CG's place (a
                           // null axis kept) | by: [dx, dy, dz], zeroV, dv: [vx, vy, vz] } -> a promise of the CG
@@ -11476,6 +11478,9 @@
   // SIMW-BENCH (G1095-G1099, the box 2026-09-30): KEPT - as even as inline at the 30 the cap settles on, the same frames,
   // the page's loop 19.5 -> 13.8 ms (Cub) / 22.7 -> 13.6 ms (metal Cessna); 60 holds on neither path (HANDOVER G1095-G1099)
   const SIMW_DEFAULT = true;
+  // G1898: ?damage=1|0 - the damage layer for this page's flights (and the worker's, through its init), ahead of
+  // GEN_DAMAGE_DEFAULT; a build's own params.damage still wins
+  try { const m = /[?&]damage=([01])(&|$)/.exec(location.search || ''); if (m) window.FLYDIY_DAMAGE = m[1] === '1'; } catch (e) {}
   const SIMW_ON = (() => { try { const m = /[?&]simw=([01])(&|$)/.exec(location.search || ''); if (m) return m[1] === '1';
     const p = prefGet('flydiy.simw', ''); if (p === '0' || p === '1') return p === '1'; } catch (e) {} return SIMW_DEFAULT; })();
   const SIMW = (SIMW_ON && typeof SIM_LINK !== 'undefined' && typeof location !== 'undefined') ? SIM_LINK.make({
@@ -11583,6 +11588,14 @@
         // with the door home on it, and the logbook gets its broke-up row
         endFlight('broke-up');
         $('phName').textContent = 'SIM DIVERGED — RESET';
+      }
+      flDmg = sw ? sw.dmg : (sim.damage ? sim.damage() : null);   // G1470: the damage the flight carries (FLIGHT_PROBE.damage)
+      if (!flightOver && (sw ? sw.crashed : (sim.damage && sim.damage().over))) {
+        // G1470 (TREE-CRASH): a member broke, the impact passed 9 g or the airframe crushed - the wreck at rest, the
+        // flight is over with its own row in the logbook; the card says why
+        const D = flDmg;
+        endFlight('crashed');
+        $('phName').textContent = 'CRASHED' + (D && D.reason ? ': ' + D.reason : '') + ' — RESET';
       }
     } else if (SIMW) SIMW.idle();       // G815: nothing flies this frame (a pause, the card) - the worker's clock stops
     if (FR) FR.lap(FR.S.other);        // G620: the hand, the shed, the day, the director, the panel

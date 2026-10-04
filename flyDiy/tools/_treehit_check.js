@@ -21,6 +21,8 @@
 //      set: taxied at it - on the centreline and across the span to the tip - it stops the aeroplane like the
 //      woodland's cylinder (the solver tests BEAMS against trunks: the nodes alone let a 0.3 m trunk through);
 //      flown at it at 4 m AGL, 30 m/s, the airframe meets it and loses speed (with no set it flies through untouched)
+//      G1470 (TREE-CRASH): the airframe now yields, bends round the trunk and breaks (30_solver.js) - across the span the
+//      trunk either holds the aeroplane or breaks the wing on it (a crash); it never lets a whole wing through
 //   5. THE CENSUS (FULL: the page in node, Jolene, rolled out - tools/_page_node.js): every tree drawn within 1 km of
 //      the aeroplane, by kind (the fill, the woodland with its neighbours and placed trees, the premises' trees),
 //      collidable now (a trunk at its root, or the woodland's core cylinder) against before (the core cylinder alone);
@@ -194,7 +196,10 @@ function flyAt(trunk, o) {
     if (vPass === null && along > o.D + 10) { const v = sim.cgVel(); vPass = v[0] * fx + v[2] * fz; }
   }
   hits = sim.trunkHits();
-  return { bad, reach, hits, vPass };
+  // G1470 (TREE-CRASH): what the trunk did to the airframe (a yield, a break, a crash)
+  const D = sim.damage ? sim.damage() : null;
+  const dmg = D ? { crashed: D.crashed, reason: D.reason, members: D.members, wing: D.broken.filter(i => sim.beams[i].cls === 'wing').length, breaks: D.breaks } : null;
+  return { bad, reach, hits, vPass, dmg };
 }
 function flightChecks(trunk, tag) {
   const D = 60, TOUCH = 6;
@@ -205,10 +210,13 @@ function flightChecks(trunk, tag) {
   // across the span (the stock build's tips at +-5 m): the wing meets it - the aeroplane slews round it, its CG held
   // within a few metres past the trunk's line, never the free run's 80+
   const offs = [0.7, 1.5, 2.5, 3.5, 4.5], side = offs.map(off => flyAt(trunk, { elev: 300, D, thr: 1, rollThen: 0.35, secs: 14, off }));
-  yes(side.every(r => !r.bad && r.hits > 0 && r.reach < D + 5), tag + ': across the span, ' + offs.map((off, i) => off + ' m -> ' + side[i].reach.toFixed(0)).join(', ') + ' m (the CG past the trunk\'s line by 5 m at most)');
+  // ...or, since TREE-CRASH (G1470), the wing BROKE on it: a 10 m/s taxi into a trunk a wing's length out tears the wing and
+  // the aeroplane goes on past (a crash, its own verdict) - what the trunk may no longer do is let a whole wing through
+  const held = r => r.reach < D + 5, tore = r => !!(r.dmg && r.dmg.crashed && r.dmg.wing > 0);
+  yes(side.every(r => !r.bad && r.hits > 0 && (held(r) || tore(r))), tag + ': across the span, ' + offs.map((off, i) => off + ' m -> ' + side[i].reach.toFixed(0) + (held(side[i]) ? '' : ' (the wing broke on it: ' + side[i].dmg.wing + ' members, a crash)')).join(', ') + ' m (the CG past the trunk\'s line by 5 m at most, or the wing broken on it)');
   const Df = 40, a = flyAt(null, { elev: 300, agl: 4, V: 30, D: Df, thr: 1, secs: 4 }), b = flyAt(trunk, { elev: 300, agl: 4, V: 30, D: Df, thr: 1, secs: 4 });
   yes(!a.bad && !b.bad && a.hits === 0 && a.vPass !== null && b.hits > 0 && (b.vPass === null || a.vPass - b.vPass > 5),
-    tag + ': flown at it (4 m AGL, 30 m/s): ' + b.hits + ' beam contacts, ' + (b.vPass === null ? 'stopped by it (the CG to ' + b.reach.toFixed(1) + ' m of ' + Df + ')' : (a.vPass - b.vPass).toFixed(1) + ' m/s lost passing it')
+    tag + ': flown at it (4 m AGL, 30 m/s): ' + b.hits + ' beam contacts, ' + (b.vPass === null ? 'stopped by it (the CG to ' + b.reach.toFixed(1) + ' m, the trunk at ' + Df + (b.dmg && b.dmg.crashed ? '; a crash: ' + b.dmg.breaks + ' members broken' : '') + ')' : (a.vPass - b.vPass).toFixed(1) + ' m/s lost passing it')
     + '; with no trunk it flies on past at ' + a.vPass.toFixed(1) + ' m/s, nothing touched');
 }
 {

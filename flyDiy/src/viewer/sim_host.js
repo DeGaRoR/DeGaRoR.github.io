@@ -132,7 +132,7 @@ const SIM_HOST_LOG = 8192;         // applied commands kept for {cmd:'log'}
 const SIM_SNAP = { SEQ: 0, STEP: 1, T: 2, WALL: 3, STEPMS: 4, DIL: 5, WV: 6, N: 7, FLAGS: 8, CG: 9, CGV: 12,
                    TOTALM: 15, WHEELS: 16, SMAX: 17, LATE: 18, DROPPED: 19, MAXMS: 20, RAN: 21, ALLOCS: 22,
                    RATE: 23, EPOCH: 24, NF: 25, DUE: 26, HEAD: 27,
-                   F_DIVERGED: 1, F_V: 2, F_RUNNING: 4, F_MANUAL: 8, F_STARTED: 16 };
+                   F_DIVERGED: 1, F_V: 2, F_RUNNING: 4, F_MANUAL: 8, F_STARTED: 16, F_CRASHED: 32 };   // F_CRASHED: G1470, the wreck at rest
 
 const simHostGet = (o, k) => { const p = k.split('.'); for (const s of p) { if (o == null) return undefined; o = o[s]; } return o; };
 const simHostSet = (o, k, v) => { const p = k.split('.'); for (let i = 0; i < p.length - 1; i++) o = (o[p[i]] = o[p[i]] || {}); o[p[p.length - 1]] = v; };
@@ -287,6 +287,7 @@ function makeSimHost(CORE, init, keptWorld) {
   // airspeed, the wind, easK - read by the pilot's first update before the first step, when a flight starts `started`,
   // as the skip's does), the aerodynamics' circulation memory and the like carry over on the page, and must here
   const kept = init.keepSim || null;
+  if (typeof init.damage === 'boolean') globalThis.FLYDIY_DAMAGE = init.damage;   // G1898: the page's ?damage, before makeSim reads it
   const def = kept ? kept.def : CORE.buildGen(init.spec);
   const sim = kept ? kept.sim : CORE.makeSim(def, world);
   const n = sim.n, withV = !!init.withV, dayOn = init.day !== false;
@@ -528,13 +529,14 @@ function makeSimHost(CORE, init, keptWorld) {
     H.steps++;
   };
   H.diverged = () => !Number.isFinite(sim.p[1]);
+  H.crashed = () => !!(sim.damage && sim.damage().over);   // G1470 (TREE-CRASH)
 
   // THE SNAPSHOT: the head, p, v, the fuel masses into `f` (a Float64Array of H.len)
   H.write = (f, x) => {
     const cg = sim.cgPos(), cv = sim.cgVel();
     f[S.STEP] = H.steps; f[S.T] = sim.t; f[S.WV] = world.__simV || 0; f[S.N] = n;
     f[S.FLAGS] = (H.diverged() ? S.F_DIVERGED : 0) | (withV ? S.F_V : 0) | (x.running ? S.F_RUNNING : 0) |
-                 (H.manual ? S.F_MANUAL : 0) | (H.started ? S.F_STARTED : 0);
+                 (H.manual ? S.F_MANUAL : 0) | (H.started ? S.F_STARTED : 0) | (H.crashed() ? S.F_CRASHED : 0);
     f[S.CG] = cg[0]; f[S.CG + 1] = cg[1]; f[S.CG + 2] = cg[2];
     f[S.CGV] = cv[0]; f[S.CGV + 1] = cv[1]; f[S.CGV + 2] = cv[2];
     f[S.TOTALM] = sim.totalM; f[S.WHEELS] = sim.wheelsOnGround(); f[S.SMAX] = sim.stats().smax;
@@ -575,6 +577,8 @@ function makeSimHost(CORE, init, keptWorld) {
     return {
       out: simHostPlain(sim.out, 3, ['hydro']),
       eng: simHostPlain(sim.eng, 3),
+      // G1470: the crash's verdict for the page's card (why), once it is one
+      dmg: sim.damage && sim.damage().crashed ? (d => ({ crashed: d.crashed, over: d.over, reason: d.reason, at: d.at, propStrike: d.propStrike, members: d.members, breaks: d.breaks })) (sim.damage()) : null,
       fuel: simHostPlain(sim.fuel, 3),
       // G1180 (LOC-SWITCH): a float's tables of vectors (W, dq, per) do not survive the plain copy at depth 2 - they
       // came over as arrays of undefined and the page's spray threw on every frame under the worker (the water taxi
