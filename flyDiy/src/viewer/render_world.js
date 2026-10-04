@@ -2502,7 +2502,8 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
           // painted floor had shown over the plane as "a different tile")
           if (seaFloor) { const sd = world.island.coastAt(x, z); if (sd < 0) y = Math.min(y, seaFloor(sd)); }
           // ...and the carved lakebed (G1335): the asset is the raw DEM, its lakes flat at (or over) their level
-          if (lakeBed) { const b = lakeBed(x, z); if (b < y) y = b; }
+          // (SHORES G1500: with the ground - the bank's cap reads it, 28_island lakeBed)
+          if (lakeBed) { const b = lakeBed(x, z, y); if (b < y) y = b; }
           const din = Math.max(Math.abs(x), Math.abs(z));
           if (din < INNER) y -= 1.5 * Math.min(1, (INNER - din) / 200);
           // THE FAR TIER UNDER A PREMISES (G527; the Metlakatla session's sinkFar, G511 on its branch):
