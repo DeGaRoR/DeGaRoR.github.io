@@ -461,7 +461,8 @@ const MANIFEST = {
               'audio/audio_params.js', 'audio/audio.js', 'audio/engine_config.js', 'audio/src_engine.js',
               // G1620 (SND-PROP): the prop's config and its source (after src_engine: it hooks the engine voices)
               'audio/prop_config.js', 'audio/src_prop.js',
-              'audio/music.js',
+              // G1675 (SND-RADIO): Radio Jolene's talk (the breaks from the game, the voice), before the player that speaks it
+              'audio/radio_talk.js', 'audio/music.js',
               // G1630-G1633 (SND-AIRFRAME): the airframe's numbers, the sample slots, the airframe source
               'audio/airframe_model.js', 'audio/samples.js', 'audio/src_airframe.js',
               // G1640-G1646 (SND-SPACE): the space's numbers, then the space (the cabin, the panners, the shed's room)

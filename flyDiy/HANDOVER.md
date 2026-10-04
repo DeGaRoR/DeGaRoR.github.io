@@ -70113,6 +70113,7 @@ programs change text: a parked cook / census re-take is A0's), SPLAT (WRONG as f
 Budget: 9 loads (3 + 3 + 3), 3 link benches, ~17 min of GPU under the lock (window 02:09-02:25 reserved by A0; a
 1-minute bench at 00:52 ran during A0's CPU battery - classifier refused withdrawing the queued take; within-run A/B
 only). The built outputs are NOT committed (pinned build id): rebuild at landing.
+
 ## G1357 - THE FRAME CATCHER: A FRAME APART FROM BOTH NEIGHBOURS IS SAVED INTO THE USER'S OWN FLIGHT LOG (2026-10-03, LIGHT-SMOOTH for A0, node only - no GPU)
 
 The user's full-screen white / pale-blue single frames ("a frame that misses rendering") were not reproduced on the
@@ -70220,6 +70221,7 @@ GATE FRAMECOST (after a parked re-cook): uniformMatrix4fv did NOT rise (taxi 142
 with the catcher v2's two small draws a frame - bindFramebuffer 24 -> 27.5, tris.other 28 -> 32 - admitted (ALLOW, rise
 4, G1357). EVIDENCE: 7_wing_bands_inflight_before_after.jpg (the bands, before / after - a USER DECISION was "keep self-
 shadow everywhere": this is it working), 8_stand_lowsun_before_after.jpg (the stand at a low sun, before / after).
+
 ## G1295-G1299 - EVEN-30: A HARD 30 BY DEFAULT (ULTRA KEEPS AUTO); THE USER'S CHOPPY TAXI WAS THE FOREST FILL BUILDING A CHUNK IN ONE FRAME; THE LOW PASS WAS THE EYE'S READBACK (2026-10-04, EVEN-30 for A0, local GPU; branch claude/even-30-g1295 on master e40628b0)
 
 THE USER'S TARGET: an even 30, 1-5 % unevenness, evenness before fps; "framerate is bad at start, stays choppy till the Cub
@@ -71802,6 +71804,7 @@ HYBRID-FARTHER (4, accepted), garage busy (2, accepted) and the world <-> garage
 0.2-0.3 s on every tree: the trips red was the box, not a session. FRAMECOST PASS (65 counters down, the hybrid's rises
 on the ALLOW list); the final build (with the fix): HOUSEWORKER 137/137, PREMCOOK, PREMISES, MEDIA, ASSETS, BUILD, TARR,
 FRAMECOST PASS; trips 9.1 / 0.2 s, warm first flight 52.3 s (54.3 before the fix); the parked aeroplanes re-cooked on it.
+
 ## G1230-G1236 - MEM-BUDGET: A BUILD BUDGET PER PRESET (GFX.BUDGETS) AND UPLOAD AS YOU BUILD; POTATO'S LOAD PEAK HALVED (2265 -> 1141 MB), THE 700 MB GOAL NOT MET (2026-10-03, MEM-BUDGET for A0, CLOUD: headless Chrome + SwiftShader; branch claude/mem-budget-g1230 off train 26 = b2f1ffdc)
 
 THE PROBLEM (futureDesigns/FRIENDLY-WELCOME-BUDGETS.md): the S20 FE loaded potato along gamer's curve (heap ~1.9 GB, killed in
@@ -71888,6 +71891,7 @@ packed A/B derive, the far terrain's first cut before the sink, coverage getImag
 in small stores (not attributed: HT_MIN=4096 on a box run); (3) the prop library's merges (59); (4) the island's grids at half
 resolution for a phone (core: 28_island's readers); (5) a gate measuring each preset against BUDGETS.heapMB (heap_steps under
 ?gfx=); (6) lighter = live for the rest (unbuild the far houses, re-transcode at the new skip).
+
 ## G1430-G1434 - TOWN-COOK: METLAKATLA'S RASTER COOKED (+14.11 MB, 43 FILES) AND FETCHED BY A TOWN-ON PAGE ONLY; 0 BAKES ONCE THE TOWN COMPOSES AND 0 OVER THE TOWN; THE 47 mm GAP GONE; THE TOWN-OFF PAGE THE SAME FILES AND BITS (2026-10-04, TOWN-COOK for A0, cloud - no GPU)
 
 **VERDICT.** With the town on, the town's composition takes all 134 of its cooked cells and bakes nothing: 0 bakes from any
@@ -72081,3 +72085,144 @@ cockpit / taxi render and the floats' water taxi in slack. BATTERY: FRAMECOST (a
 triangles - admitted) and ROUNDTRIP (fixed) were the reds; all green on the final build; the parked aeroplanes re-cooked.
 LOOK (A0's real-GPU stills, reports/evidence/LAKE-HOLES/a0_gpu_train29_vs_30.jpg): the white gaps at the shore are gone;
 the carved banks now read as steep, texture-stretched slopes where a lake sits under a bank - a follow-up for the look.
+
+## G1675-G1679 - SND-RADIO: THE SIX STATIONS AND RADIO JOLENE'S TALK - A STATION PER PLAYER, ITS OWN BAGS, THE LO-FI FALLBACK, THE PICKER AND THE KEYS; THE BREAKS WRITTEN FROM THE GAME (AWOS, MARINE, PILOTS, BULLETINS), READ BY speechSynthesis OVER A 16 % BED; GATED (2026-10-04, SND-RADIO for the Sound Coordinator, cloud, node only; branch claude/snd-radio-stations off origin/claude/sound-next 11822e3c, merged with 771d31f0 (rulings s10-s13))
+
+Design: futureDesigns/SOUND-2026-10-04.md §7, rulings s6 / s10 / s12; HANDOVER G1670-G1674 (the player); tools/audio/
+music_selection_v1.json (the six stations); the approved Radio Jolene bench (its behaviour reproduced; its source is the
+coordinator's, not seen here - the behaviour is from the brief: talk every 2 tracks, George en-GB, rate / pitch 0.95, music 0.8,
+the next track under the talk at ~16 % rising over 1.5 s).
+G1675 THE STATIONS - src/viewer/audio/music.js (+202 / -32). STATIONS = jazz, lofi, dubambient, roots ("Radio Jolene (local
+  roots)"), blues, classical - the selection file's keys in its order (GATE AUDIO holds it). Each catalogue track's optional
+  `station` (absent = lofi; validate() refuses an unknown one). ONE current station per player: localStorage
+  flydiy.audio.station (default lofi; 'off' = THE RADIO OFF: contextOf's answer is replaced by none, the playing track fades as
+  any context change). The contexts still decide WHEN (welcome / garage / cruise only with music in flight - s6 - / photo);
+  the station decides WHAT: stationLists(cat, st) (pure) = the station's own tracks per context with FALLBACK's borrowing
+  inside the station, else LO-FI's for that context (fell[c]); a station with no track at all = lo-fi everywhere, and the
+  picker says "Blues - no tracks yet, plays Lo-fi / Hip-hop". BAGS PER STATION (bagsBy, made on first use, kept across
+  switches): a station's round is never broken by a visit elsewhere (no repeat within a station). setStation(s) persists,
+  cancels a talk, crossfades (4 s) into the new station's next track (a garage silence ends), shows "♪ <station>" on the
+  now-playing line; stepStation(+-1) wraps the six ('off' only from the picker). KEYS ] / [ (next / previous station): free
+  in input.js's ACTIONS (checked by the gate), a keydown listener music.js adds on connect and removes on disconnect, never
+  with a modifier, in a text field, or when the input profile (FLYDIY_INPUT.profile().bindings) binds the code - no input.js
+  touch. THE CATALOGUE: Kodama's station 'jazzblues' -> 'jazz' (1 line: the selection file already says jazz; the old
+  combined station predates the six - prep_music.js copies the selection, so a re-run writes the same).
+G1676 THE PICKER - AUDIO.addRows (both rails, no UI file touched): 'station' (a select: the six + radio off, each with its
+  fallback line), 'Radio Jolene talk' (toggle, on by default; flydiy.audio.radioTalk), 'talk every' (range 1-6 tracks,
+  default 2; flydiy.audio.radioEvery), 'voice' (automatic = Microsoft George when present, then the system's English voices;
+  flydiy.audio.radioVoice; a stored voice absent from this machine is listed "(not on this system)"). Every storage access in
+  try/catch (a throwing localStorage is gated).
+G1677 RADIO JOLENE'S TALK - src/viewer/audio/radio_talk.js (new, 376 lines, ~27 KB) -> window.RADIO_TALK. PURE (node):
+  readGame(world, {sim}) reads AUDIO.world (no new hook: G1651's) and returns the numbers + `.declared`:
+    THE GAME'S NUMBERS (all present on Jolene - the evidence's three days declare NOTHING):
+      wind      world.climate.surfaceWind().base (the 10 m wind, grid x east / z south) -> FROM, TRUE, by day.geo.convergenceDeg
+                (09_climate bearingToBase inverted: Jolene's 19.32 deg - the 250 deg breeze reads back 250); gust factor
+                climate.spec.gust (a front's gustK in it)
+      visibility world.climate.haze().surfaceVisM (Koschmieder, column + ground layer: the number a pilot is told)
+      sky       day.cloudCoverEff over day.cloudBase (the LCL, read as height above the field) + day.cloudUpper decks that
+                name a base
+      temp/dew  day.oatC / day.dewC          QNH  day.qnhEff (a front's dQnh in it)
+      time      day.utc (zulu), day.localSeconds (part of day, the time check)
+      sea       world.seaTarget.A (the wind sea the world raises; seas = 2A)
+      front     day.storm (phase, inS, windK now) + day.stormSpec (windK, veerDeg)
+      places    world.aerodromes: HOME 'Jolene AFB 13/31' = "Jolene field" (designator dropped, AFB said "field"), the
+                field's designators (13/31, 02/20), the one-way strips (landHdg set: Tamgas Hill Strip, Jumbo Mine Street,
+                East Point Clearing, Skyline Altiport) with their look, the sea lanes (Annette Dock, Metlakatla Seaplane Base)
+    DECLARED (used only when the game has none, each named in `.declared`): no climate -> the solver's out.windX/Z (gusts
+      unknown), else calm; visibility -> day.visibilityKm, else 16 km; cloud base 1500 m; 15 / 5 C; QNH 1013.25; no
+      seaTarget -> the world's law 0.018 x wind; a front's windK 2.2 / veer 55 (07_day STORM_D's defaults); no HOME -> "Jolene
+      field". RULES declared: gusts reported when peaks (kt(1+g)) and lulls (kt(1-g)) differ by >= 10 kt (METAR); calm < 1 kt;
+      AWOS sees to 12 000 ft; oktas few < 2.5/8 < scattered < 4.5/8 < broken < 7.5/8 < overcast; heights to 100 ft under
+      5 000, 500 to 10 000, 1 000 above, never under 100; small craft advisory >= 23 kt, gale >= 34 kt; the strip soft at
+      rh >= 0.85 or a front passing; the favoured runway compares designator x 10 with the TRUE wind (no magnetic variation
+      carried).
+  THE SEGMENTS ({ kind, key, text } - the text is data; LINES are the static ones by key, so a recorded clip can replace the
+    voice per key - s12's rendered clips): stationId (greeting by part of day + "Radio Jolene, ninety point seven, community
+    radio for Jolene Island and the Sound." + a time check every other one), back ("That was T by A, and before that, T2 by
+    A2." - HoliznaCC0 said "Holizna"), awos ("Jolene field automated weather observation, one seven three four zulu. Wind two
+    seven zero at two zero gusts two six. Visibility two. Sky condition ceiling eight hundred overcast. Temperature minus
+    three, dew point minus eight. Altimeter two niner niner two." - every digit one by one, 9 "niner", "visibility one zero"
+    at 10 SM and above, fractions, "less than one quarter", "clear below one two thousand"), marine (the inside waters, compass
+    words, 5 kt steps, seas, advisory / gale, fog, the front's outlook: "A front within the next few hours: southwest wind
+    twenty-five knots, gusts to forty, seas building to two feet" - the rise still to come, kNow divided out), pilots (the
+    favoured runway, "Tamgas Hill Strip, gravel, soft after the rain: it is one way, so land uphill and take off downhill",
+    "The seaplane lane at Annette Dock is active", "the eagles are back on runway one three this morning"), bulletin (mill,
+    tram, ferry, fuel dock, potluck, coho run, library), swap (four). breakScript(state, wx, tracks, {tuneIn}): tuning in =
+    ID + weather; else the back-announce, the ID every other break, one feature of the rotation awos / bulletin / pilots /
+    marine / awos / swap. THE VOICE makeSpeaker(window): speechSynthesis, one utterance per segment, done() once (last onend,
+    or cancel), a cancelled break's late onend ignored (generation counter); voice by name, else George, else en-GB, else en.
+G1678 THE BREAK IN THE PLAYER (music.js): on the roots station with the talk on, a break is OWED after `talk every` tracks
+  started on the station, and on tuning in (setStation('roots'), or the page's first music on roots). At the next transition
+  (a crossfade's end in welcome / cruise / photo; a track's END in the garage - THE BREAK TAKES THE SILENCE'S PLACE; a context
+  entry) nextWithTalk speaks it and starts the next track UNDER it: PS[S_BED] = BED_K 0.16, the deck faded in over 1.5 s to
+  0.16 x its trim; when the voice ends, endTalk fades the deck to its trim over BED_UP_S 1.5 s (equal-power, from wherever it
+  stands; 1.3 % overshoot at 81 % of the rise). THE BED IS THE DECK'S GAIN: the voice is not Web Audio and cannot be ducked by
+  it. NEVER: before the gesture (the speaker is made in connect; gated with frames run and stations switched before one); while
+  a duck holds (engine start / catch, the stall warning: the transition takes its silence, the break stays owed); during one
+  (onDuck cancels it); in a suspend (hidden / paused / unfocused: AUDIO 'suspend' cancels it); with the voice at 0. THE VOICE'S
+  LEVEL: min(1, master x music x VOICE_K 1.25) (the bench: music at 0.8 of the voice). A WATCHDOG (PS[S_TALK]: the break's
+  estimated length at 14 chars/s / rate + 0.6 s a segment + 8 s) ends a voice whose onend never comes (Chrome's long-utterance
+  bug). The frame: typed slots only (the watchdog's countdown), nothing allocated (100 000 frames under a talk: +4 KB = noise,
+  0 GC); the breaks' strings are made at transitions, events, not frames.
+G1679 GATE AUDIO extended (tools/audio/_audio_check.js +452 / -6; FILES += radio_talk.js, music_selection_v1.json, input.js
+  (read-only: the free keys)). musicPage loads radio_talk.js before music.js (the build's order), takes a speech stub, a game
+  world, a station, noGesture / badStorage. SIX CHECKS: RADIO_STATIONS (the keys = the ruling's; the shipped stations = the
+  selection's; validate; stationLists jazz / blues / off; sixteen visits roots <-> lofi / jazz: roots' starts are whole rounds;
+  a switch crossfades - 2 elements a second in, 1 after; blues plays lo-fi; off streams nothing; persisted and read back; a
+  throwing localStorage), RADIO_PICKER (the rows; seven choices; the fallback line; choosing; talk every / talk / voice
+  persisted; the English voices only; ] [ wrap; ctrl, a text field, a profile binding yield; input.js binds no bracket),
+  RADIO_SCRIPTS (the AWOS edge cases - calm, gusts by spread, 360, a gale, 10 / 37 / 1.6 / 0.2 / 2.9 / 9.2 / 0.5 SM, clear,
+  800 ft broken, 1200 ft overcast, two decks, above 12 000, a deck on the ground, -3 / -12 / -0.4 / 19 C, 29.92 / 29.29 /
+  30.42, zulu past midnight - the whole cold observation off a game-shaped world with Jolene's convergence, nothing declared;
+  an empty world declares wind / visibility / temperature / QNH; marine gale / advisory / variable / fog / front / quiet;
+  pilots favoured 20 / calm 13, uphill, soft only when wet, the lane, the eagles; the ID's words; the back-announce; twelve
+  breaks: every feature, the ID every other, every static key a LINE), RADIO_TALK (a stub speechSynthesis counting
+  utterances: 0 before the gesture; the tune-in = ID + weather in George at 0.95 / 0.95, volume 0.6; the track at 16 % +-2 %
+  under it for 6 s, rising, at 100 % 1.6 s after the voice, the rise 1.5 s; three hours in the garage at talk every 2 then 3:
+  exactly N tracks between breaks; the break's track starts WITH it (no silence); none with the talk off, on lo-fi, on jazz;
+  an engine start cancels a talk and restores the level; a stall at a track's end: no break, the silence; a hidden tab
+  cancels; the watchdog ends a voice that never ends; a stored voice used), RADIO_BUDGET (under a talk: nothing scheduled,
+  0 GC, no growth over 100 000 frames), RADIO_WIRING (radio_talk.js before music.js; the catalogue's stations the ruling's;
+  radio_talk.js touches no Web Audio). Two old mutations re-anchored (the level untrimmed; the build loses music.js).
+  SELFTEST 219 mutations (180 + 39 new), each red on its own check with its reason - two of mine first stayed green and the
+  TESTS were wrong or the mutation equivalent: one bag per visit passed seven visits by luck of the seed (now sixteen, red);
+  "every station talks" was equivalent (the track counter is gated to roots too: the mutation now opens both).
+  GATE AUDIO: PASS, 98.6 s wall (limit 160), sources byte-identical.
+EVIDENCE reports/evidence/SND-RADIO/README.md + summary.json, written by tools/audio/radio_scripts.js (node, ~11 s): JOLENE AS
+  THE GAME SHIPS IT (tools/island_node.js + the premises fixture: the real world module) under three of the weather panel's
+  days - the game's day (the 8 kt breeze, 16:00), "a front" an hour out at 06:10, "gale" at 07:45 - the numbers read (none
+  declared), the tune-in and six breaks each, verbatim; the source table; the edge cases. (The back-announces name the shipped
+  catalogue's tracks; the roots station has no track yet, so today Radio Jolene plays lo-fi under its talk - by the fallback.)
+HOT FILES (for A0): tools/build.js +2 / -1 (MANIFEST.viewer.scripts += 'audio/radio_talk.js' before 'audio/music.js', one
+  comment line). NO app.js / editor.js / body.html / input.js / css edit: the rows go through AUDIO.addRows, the keys are
+  music.js's own listener, the station line reuses #musicNow. +~27 KB (radio_talk.js) +~9 KB (music.js) in index.html.
+  src/viewer/audio/music_catalogue.json 1 line (jazzblues -> jazz).
+GATES: AUDIO PASS (98.6 s); MEDIA, BUILD, VIEW, UISMOKE PASS (run_gates --only; the generated index.html / dev.html / sw.js /
+  version.json restored, not committed). Not run: a browser - the real speechSynthesis (voices loading late: the voice row is
+  rebuilt each time the menu opens; Chrome's onend; Safari), the bed by ear, the picker's look.
+FINAL REPORT
+  Branch   claude/snd-radio-stations (pushed); off claude/sound-next 11822e3c, merged 771d31f0.
+  Files    NEW src/viewer/audio/radio_talk.js, tools/audio/radio_scripts.js, reports/evidence/SND-RADIO/{README.md,summary.json};
+           CHANGED src/viewer/audio/music.js, src/viewer/audio/music_catalogue.json (1 line), tools/audio/_audio_check.js,
+           tools/build.js (MANIFEST, 1 entry).
+  API      AUDIO_MUSIC: STATIONS, STATION_KEYS, stationLists(cat, st), stationOf(t), stationLine(s), setStation(s, quiet),
+           stepStation(d), station, stationFell, talk / setTalk(on), talkEvery / setTalkEvery(n), voice / setVoice(name),
+           talking, cancelTalk(), BED_K, BED_IN_S, BED_UP_S, VOICE_K, TALK_EVERY. RADIO_TALK: readGame(world, {sim}),
+           breakScript(state, wx, tracks, {tuneIn}), awos / marine / pilots / stationId / backAnnounce / windAwos / skyAwos /
+           altimeter / zulu / visWords / heightWords / digits / signed / whenWords, LINES / BULLETINS / SWAPS / FEATURES / DECL,
+           estSeconds, makeSpeaker(env) -> { speak(segs, {voice, rate, pitch, volume}, done), cancel(silent), voices(),
+           pickVoice(name), available(), speaking }. Prefs: flydiy.audio.station / radioTalk / radioEvery / radioVoice.
+  Weather  game: climate surfaceWind (+ convergence) and spec.gust, haze().surfaceVisM, day cloudCoverEff / cloudBase /
+           cloudUpper, oatC, dewC, qnhEff, utc, localSeconds, rh, storm / stormSpec, world.seaTarget.A, world.aerodromes.
+           declared (fallbacks only, listed in .declared; none used on Jolene): the solver's wind, the day's column
+           visibility / 16 km, base 1500 m, 15 / 5 C, 1013.25, the sea law, STORM_D's 2.2 / 55, "Jolene field"; the rules above.
+  Gates    GATE AUDIO RADIO_STATIONS / RADIO_PICKER / RADIO_SCRIPTS / RADIO_TALK / RADIO_BUDGET / RADIO_WIRING, 39 mutations.
+  Evidence reports/evidence/SND-RADIO/README.md (three game weathers, verbatim scripts).
+FOR THE COORDINATOR: (1) add the jazz / dubambient / roots / blues / classical tracks with their `station` as the user approves
+  them - the picker's "no tracks yet" lines disappear by themselves; (2) s12's rendered voice: the segments carry keys - LINES
+  by key, and the AWOS / marine sentences are built from a small closed vocabulary (the digits, niner, thousand, hundred, wind,
+  at, gusts, visibility, the fractions, sky condition, few / scattered / ceiling / broken / overcast, clouds at, clear below,
+  temperature, dew point, minus, altimeter, zulu, automated weather observation) - a clip player behind makeSpeaker's speak()
+  can assemble them the way real stations do; (3) SND-TUNE: BED_K 0.16, the 1.5 s rise, VOICE_K, talk every 2, the rotation
+  and the bulletins' words are constants / data at the heads of music.js and radio_talk.js; (4) the user may want the station
+  on the cockpit radio one day (a dash action in input.js would replace the ] / [ listener).
