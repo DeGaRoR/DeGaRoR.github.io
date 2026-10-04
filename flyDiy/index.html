@@ -9527,6 +9527,14 @@ if (typeof module !== 'undefined' && module.exports) module.exports = THREE;
   // 60 fps all the way (rollout_perf A/B). ?raster=0 or localStorage flydiy.raster = '0' turns it off; node (the gates)
   // keeps the analytic path unless FLYDIY_GROUND_RASTER=1 (GATE PREMRASTER holds the two within tolerance)
   window.FLYDIY_GROUND_RASTER = rq !== '0';
+  // (G1430, TOWN-COOK) THE VARIANT THIS PAGE WILL COMPOSE - 'town' (Metlakatla on) or 'default' (cut) - read here, before
+  // the world boots, by world_boot.js TOWN's own rule (?town=1|all / ?town=0 in the URL, else the GRAPHICS 'town' row:
+  // 'nearby' off, anything else on; gfx_settings.js reads a pref saved before pv 7 with 'nearby' as the new default), so the
+  // raster cells fetched below are this variant's alone: a town-off page never pays the town's cells
+  var tq = new URLSearchParams(location.search).get('town'), townOn = true;
+  if (tq !== null) townOn = tq === '1' || tq === 'all';
+  else { try { var gp = JSON.parse(localStorage.getItem('flydiy.gfx') || 'null'); townOn = !(gp && gp.town === 'nearby' && gp.pv >= 7); } catch (e) {} }
+  window.FLYDIY_TOWN_VARIANT = townOn ? 'town' : 'default';
   // (G1091, POLISH-2) THE TREES BY THE RUNWAYS: ?rwytrees=today|map|mapx (or localStorage flydiy.rwytrees) - read by
   // the premises' composition (27_premises.js rwyTreesMode) for a data island; anything else is 'today', the default
   var rt = new URLSearchParams(location.search).get('rwytrees');
@@ -9601,7 +9609,10 @@ if (typeof module !== 'undefined' && module.exports) module.exports = THREE;
               .catch(function (e) { console.warn('flyDiy: the cooked tallies (' + vn + ') did not load (' + (e && e.message) + '); the live ones dress'); }));
           });
         }
-        if (window.FLYDIY_GROUND_RASTER && pi.raster) jobs = jobs.concat(pi.raster.cells.map(function (c) {
+        // (G1430) the cells of THIS page's variant alone (a cell names the variants it serves, c.in; a manifest without
+        // it, every cell)
+        var vn = window.FLYDIY_TOWN_VARIANT;
+        if (window.FLYDIY_GROUND_RASTER && pi.raster) jobs = jobs.concat(pi.raster.cells.filter(function (c) { return !c.in || c.in.indexOf(vn) >= 0; }).map(function (c) {
           return fetch(c.src).then(function (res) { if (!res.ok) throw new Error(c.src + ' ' + res.status); return res.arrayBuffer(); })
             .then(gz).then(function (u) { got.push({ ci: c.c[0], cj: c.c[1], sig: c.sig, bytes: u }); });
         }));
@@ -43182,7 +43193,7 @@ if (typeof module !== 'undefined')
   module.exports = { TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, TREE_HITS, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, RWY_LIGHTS, runwayLightStrips, runwayLightSite, runwayLightPoints, STRIP_SURFACES, stripSurface, stripGear, stripAllows, stripFallback, stripLandable, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, atmosWater, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, CLIMATE, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, decodeAnimal, decodeAnimalClips, registerAnimal, animalList, animalClips, animalClip, ANIMAL_REG, makeSim, HYDRO, makeBus, vortexKernel, makeAutopilot, makeTestPilot, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, seatOnGround, placeAtLineup, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, POLARS, PAR, RHO, hyp2, hyp3, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genPlanePair, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, genTrueBox, genNetEig, genRigidFloatOf, GEN_BOX_N, GEN_BOX_KMIN, GEN_NET_MAX, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC, GP_PARKED_FOOT, GP_PARKED_DEFAULT, GP_CLEAR, GP_HALF_DEFAULT, parkedFoot, gpParkedDist, gpClearWay, GEN_WING_ENVELOPE };
 </script>
 <script type="text/x-flydiy">window.BOOT&&BOOT.phase('core','reading the model')</script>
-<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='96a220795a6d';window.FLYDIY_BUILD='c37c1d1cb960'</script>
+<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='96a220795a6d';window.FLYDIY_BUILD='d3c513bb7804'</script>
 <script type="text/x-flydiy" src="src/models/pa18_model.js?v=d854feec"></script>
 <script type="text/x-flydiy" src="src/models/c172_model.js?v=52c3ced6"></script>
 <script type="text/x-flydiy" src="src/models/d112_model.js?v=3678040d"></script>
@@ -106149,21 +106160,57 @@ if (!window.CAGE_UI_LAZY) CAGE_UI_BOOT();
 // physics, no terrainH, no merge or re-sink from it, never re-uploaded (a rebuild makes a NEW geometry) - the textures'
 // gpuOnly rule (render_world.js G907) for geometry. One renderer draws the world (app.js), so one upload is the only one.
 // ?gpuonly=0 keeps every copy (the A/B).
+// GPU_ONLY_GEO.flush(renderer) - G1230 (MEM-BUDGET): UPLOAD AS YOU BUILD. A draw-only geometry gave its bytes back at
+// its first draw - first light, the end of the load - so every copy the world built was held through the whole load
+// (the peak). flush() uploads the ones still waiting NOW: each drawn once by a stand-in mesh (the same geometry, a plain
+// material, no culling) into a 1x1 target with its draw range at 0 - three's own path uploads every attribute (the
+// render list's objects.update) and the index (the binding setup) and draws nothing; the release above then runs. The
+// world's build calls it as each slice ends (app.js buildWorldSliced, the town step). Only a geometry its maker marks
+// `early` (GPU_ONLY_GEO(g, true)) waits for it: the far terrain's quads, the patch's LODs - not the town's TARR merges,
+// which the far town's bake and the cell rebakes still meet before first light. ?geoflush=0: as before (the A/B).
 (() => {
   'use strict';
   const off = typeof location !== 'undefined' && /[?&]gpuonly=0(?:&|$)/.test(location.search || '');
-  const stats = { geos: 0, bytes: 0 };
+  const stats = { geos: 0, bytes: 0, flushed: 0, flushes: 0 };
+  const noFlush = typeof location !== 'undefined' && /[?&]geoflush=0(?:&|$)/.test(location.search || '');
+  const PEND = new Set();
   function release() { const a = this.array; if (a && a.length) { stats.bytes += a.byteLength; this.array = new a.constructor(0); } }
-  function gpuOnlyGeo(g) {
+  function gpuOnlyGeo(g, early) {
     if (off || !g || !g.attributes) return g;
     if (!g.boundingSphere) g.computeBoundingSphere();
     if (!g.boundingBox) g.computeBoundingBox();
     for (const k in g.attributes) { const a = g.attributes[k]; if (a && !a.isInterleavedBufferAttribute && a.onUpload) a.onUpload(release); }
     if (g.index && g.index.onUpload) g.index.onUpload(release);
     stats.geos++;
+    if (early && !noFlush) { PEND.add(g); g.addEventListener('dispose', () => PEND.delete(g)); }
     return g;
   }
+  const waiting = g => { const p = g.attributes.position; return !!(p && p.array && p.array.length); };
+  let FL = null;
+  function flush(renderer) {
+    if (!PEND.size || !renderer || typeof renderer.render !== 'function' || typeof THREE === 'undefined' || !THREE.WebGLRenderTarget || typeof MATLIB === 'undefined' || !MATLIB.shared) return 0;
+    const list = [...PEND].filter(waiting); PEND.clear();
+    if (!list.length) return 0;
+    if (!FL) { FL = { scene: new THREE.Scene(), cam: new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1), rt: new THREE.WebGLRenderTarget(1, 1, { depthBuffer: false }),
+                      mat: MATLIB.shared(THREE, 'basic', { colorWrite: false, depthWrite: false, depthTest: false }, 'geoflush') };   // (MATLIB's: GATE ASSETS)
+                FL.scene.matrixWorldAutoUpdate = false; }
+    const keep = list.map(g => [g, g.drawRange.start, g.drawRange.count]), meshes = [];
+    for (const g of list) { g.setDrawRange(0, 0); const m = new THREE.Mesh(g, FL.mat); m.frustumCulled = false; m.matrixAutoUpdate = false; FL.scene.add(m); meshes.push(m); }
+    const rt0 = renderer.getRenderTarget(), ac = renderer.autoClear, ie = renderer.info ? renderer.info.autoReset : true;
+    try {
+      renderer.autoClear = false; if (renderer.info) renderer.info.autoReset = false;
+      renderer.setRenderTarget(FL.rt); renderer.render(FL.scene, FL.cam);
+    } catch (e) { if (typeof console !== 'undefined') console.warn('geometry flush:', e && e.message); }
+    finally {
+      renderer.setRenderTarget(rt0); renderer.autoClear = ac; if (renderer.info) renderer.info.autoReset = ie;
+      for (const m of meshes) FL.scene.remove(m);
+      for (const [g, s0, c0] of keep) g.setDrawRange(s0, c0);
+    }
+    stats.flushes++; stats.flushed += list.length;
+    return list.length;
+  }
   gpuOnlyGeo.stats = stats;
+  gpuOnlyGeo.flush = flush;
   if (typeof window !== 'undefined') window.GPU_ONLY_GEO = gpuOnlyGeo;
 })();
 </script>
@@ -106435,7 +106482,9 @@ var MATLIB = (() => {
     return pg;
   }
   function layer(THREE, tw) {
-    const lk = tw.url + '|' + tw.kind;
+    // G1230: under the budget's mip skip (ktx2.js) a layer lands at half its side - its page is that size (its own pool)
+    if (KTX2.dim && KTX2.dim(tw.w) !== tw.w) tw = Object.assign({}, tw, { w: tw.w >> 1, h: Math.max(1, tw.h >> 1), skip: 1 });
+    const lk = tw.url + '|' + tw.kind + (tw.skip ? '|skip' : '');
     let L = LAYERS.get(lk);
     if (L) return L;
     const key = tw.kind + '|' + tw.w + 'x' + tw.h + '|' + tw.codec + '|' + (tw.alpha ? 'a' : '');
@@ -113196,10 +113245,25 @@ if (typeof module !== 'undefined' && module.exports) module.exports = { GROUND_T
 //   KTX2.parse(bytes, family) -> Promise<{ mipmaps: [{ data, width, height }], width, height, format, type }> (one
 //                            layer; rejects on any failure; the bytes are transferred)
 //   KTX2.load(url, family) -> the same, fetched (ASSET_FETCH) and transcoded ONCE per url for the page
-//   KTX2.stats()          -> { files, bytes, failed, fallbacks, target, off, workers }
+//   KTX2.stats()          -> { files, bytes, failed, fallbacks, target, off, workers, skipped }
+//   KTX2.skip()           -> the levels the budget drops off the top (0 or 1; GFX.budget().mipSkip, G1230)
+//   KTX2.dim(w)           -> the width a w-wide file lands at under that skip (its callers size their arrays by it)
+//
+// THE TOP MIP SKIPPED (G1230, MEM-BUDGET): a preset whose budget says mipSkip (potato) keeps a file's chain from its
+// SECOND level: a quarter of the bytes held (the transcodes are kept per url, the props' and MATLIB's pages read them)
+// and uploaded. Only a file with a chain to give (>= 2 levels) and >= SKIP_MIN wide on its top level; dim() is the
+// same rule, so MATLIB's pages and the ground library's planes are sized as their layers land.
 'use strict';
 const KTX2 = (() => {
-  const stats = { files: 0, bytes: 0, failed: 0, fallbacks: 0, target: null, off: null, workers: 0 };
+  const stats = { files: 0, bytes: 0, failed: 0, fallbacks: 0, target: null, off: null, workers: 0, skipped: 0 };
+  const SKIP_MIN = 128;
+  function skip() {
+    if (typeof window === 'undefined') return 0;
+    const q = (typeof location !== 'undefined' && location.search) || '';
+    const m = /[?&]mipskip=([01])(?:&|$)/.exec(q); if (m) return +m[1];   // the A/B
+    const G = window.GFX; return G && typeof G.budget === 'function' ? (G.budget().mipSkip | 0) : 0;
+  }
+  const dim = (w, sk) => ((sk === undefined ? skip() : sk) && w >= SKIP_MIN ? w >> 1 : w);
   const EXTS = ['EXT_texture_compression_bptc', 'WEBGL_compressed_texture_s3tc', 'WEBGL_compressed_texture_astc', 'WEBGL_compressed_texture_etc'];
   let loader = null, pending = null;
   function off(family) {
@@ -113243,7 +113307,8 @@ const KTX2 = (() => {
     return pending;
   }
   // one file -> its transcoded mip chain. The bytes are TRANSFERRED to a worker (the caller's copy is gone after).
-  function parse(bytes, family) {
+  function parse(bytes, family, sk) {
+    if (sk === undefined) sk = skip();
     const why = off(family);
     if (why) { stats.off = why; return Promise.reject(new Error('ktx2 off: ' + why)); }
     return ready().then(L => new Promise((res, rej) => {
@@ -113253,7 +113318,9 @@ const KTX2 = (() => {
         if (!t || !t.mipmaps || !t.mipmaps.length || t.isCompressedArrayTexture || (t.image && t.image.depth > 1)) { stats.failed++; rej(new Error('ktx2: not a single-layer texture')); return; }
         stats.files++; stats.bytes += n;
         stats.target = stats.target || t.format;
-        res({ mipmaps: t.mipmaps, width: t.image.width, height: t.image.height, format: t.format, type: t.type });
+        let mips = t.mipmaps, w = t.image.width, h = t.image.height;
+        if (mips.length >= 2 && dim(w, sk) !== w) { mips = mips.slice(1); w = mips[0].width; h = mips[0].height; stats.skipped++; }   // G1230: the top level dropped
+        res({ mipmaps: mips, width: w, height: h, format: t.format, type: t.type });
         t.mipmaps = []; t.dispose();
       }, e => { stats.failed++; rej(e instanceof Error ? e : new Error('ktx2: ' + e)); });
     }));
@@ -113263,14 +113330,15 @@ const KTX2 = (() => {
   // not kept: the next ask tries again.
   const LOADS = new Map();
   function load(url, family) {
-    let p = LOADS.get(url);
+    const sk = skip(), key = sk ? url + '|skip' : url;   // (G1230: a budget changed in flight transcodes anew at its own size)
+    let p = LOADS.get(key);
     if (p) return p;
-    p = (typeof ASSET_FETCH === 'function' ? ASSET_FETCH(url) : Promise.reject(new Error('ktx2: no ASSET_FETCH'))).then(b => parse(b, family));
-    LOADS.set(url, p);
-    p.catch(() => { if (LOADS.get(url) === p) LOADS.delete(url); });
+    p = (typeof ASSET_FETCH === 'function' ? ASSET_FETCH(url) : Promise.reject(new Error('ktx2: no ASSET_FETCH'))).then(b => parse(b, family, sk));
+    LOADS.set(key, p);
+    p.catch(() => { if (LOADS.get(key) === p) LOADS.delete(key); });
     return p;
   }
-  return { off, parse, load, ready, stats: () => Object.assign({}, stats, { off: off() }), _stats: stats };
+  return { off, parse, load, ready, skip, dim, stats: () => Object.assign({}, stats, { off: off() }), _stats: stats };
 })();
 if (typeof window !== 'undefined') window.KTX2 = KTX2;
 </script>
@@ -113791,18 +113859,19 @@ const GROUND_LIB = (() => {
   // library ~38 MB), the same arrays a grow would lend. A failure is not kept (the next pack tries again).
   const KT = new Map();
   function transcoded(url, F) {
-    let p = KT.get(url);
+    const sk = KTX2.skip ? KTX2.skip() : 0, key = sk ? url + '|skip' : url;   // G1230: the budget's top mip skipped (ktx2.js)
+    let p = KT.get(key);
     if (p) { stats.ktx2Shared++; return p; }
-    p = F(url).then(b => { stats.ktx2Bytes += b.length; return KTX2.parse(b, 'ground'); });
-    KT.set(url, p);
-    p.catch(() => { if (KT.get(url) === p) KT.delete(url); });
+    p = F(url).then(b => { stats.ktx2Bytes += b.length; return KTX2.parse(b, 'ground', sk); });
+    KT.set(key, p);
+    p.catch(() => { if (KT.get(key) === p) KT.delete(key); });
     return p;
   }
   // THE KTX2 PACK: two compressed planes, or a rejection (the caller falls back to the raw layers)
   function packKtx(items, prev, F) {
-    const px = PX(), n = items.length;
+    const px = KTX2.dim ? KTX2.dim(PX()) : PX(), n = items.length;   // G1230: half a side under the budget's mip skip
     const had = new Map();
-    if (prev && prev.A && prev.A.ktx2 && prev.N && prev.N.ktx2 && prev.urls) prev.urls.forEach((u, j) => { if (u && prev.A.layers[j] && prev.N.layers[j]) had.set(u, j); });
+    if (prev && prev.A && prev.A.ktx2 && prev.A.px === px && prev.N && prev.N.ktx2 && prev.urls) prev.urls.forEach((u, j) => { if (u && prev.A.layers[j] && prev.N.layers[j]) had.set(u, j); });
     const A = { ktx2: true, px, format: null, type: null, levels: 0, layers: new Array(n) }, N = Object.assign({}, A, { layers: new Array(n) });
     const one = (plane, i, url) => transcoded(url, F).then(t => {
       if (t.width !== px || t.height !== px) throw new Error(url + ' is ' + t.width + ' x ' + t.height);
@@ -113856,9 +113925,10 @@ const GROUND_LIB = (() => {
   // before AS3), KTX2 -> CompressedArrayTexture (the file's mips). o: { srgb, aniso }
   function arrayTexture(THREE, plane, n, o) {
     o = o || {};
-    const px = PX();
+    let px = PX();
     let t;
     if (plane && plane.ktx2) {
+      px = plane.px || px;   // (G1230: the planes' own side - half under the budget's mip skip)
       const mips = [];
       for (let l = 0; l < plane.levels; l++) {
         const parts = plane.layers.map(L => L[l]), size = parts.reduce((s, d) => s + d.byteLength, 0);
@@ -118850,6 +118920,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports = TREE_PACK;
       mips.push(cur);
       w = nw; h = nh;
     }
+    // G1230 (MEM-BUDGET): a budget that skips the top mip (potato's; ktx2.js KTX2.dim) keeps the chain from its second
+    // level - a quarter of the bytes held (these ImageData chains live as long as the textures: ~48 MB of leaf maps)
+    if (mips.length > 1 && w0 >= 256 && typeof KTX2 !== 'undefined' && KTX2.dim && KTX2.dim(w0) !== w0) mips.shift();   // (tex.image stays the Image: three sizes the upload off mipmaps[0])
     tex.mipmaps = mips;
     tex.generateMipmaps = false;
     tex.minFilter = THREE.LinearMipmapLinearFilter;
@@ -120782,6 +120855,9 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   for (;;) { const r = g.next(); if (r.done) return r.value; }
 }
 function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
+  // G1230 (MEM-BUDGET): the build budget of the player's preset (gfx_settings.js BUDGETS) - what this build makes and
+  // holds; null (a gate's stub, no GFX): everything at full
+  const BUD = (typeof window !== 'undefined' && window.GFX && typeof window.GFX.budget === 'function') ? window.GFX.budget() : null;
   const BUILT = { done: false, q: [] };
   const afterBuild = fn => { if (BUILT.done) fn(); else BUILT.q.push(fn); };
   const C = h => new THREE.Color(h).convertSRGBToLinear();
@@ -121063,7 +121139,10 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
   // ~3.4 M matrices + colours, every chunk's near AND impostor mesh). 9 km stays; the far quarter
   // (the base) is what the mountains get, the complement to uThin.y. The whole 39 km square is
   // ~2 800 chunks - a coarser far tier (one card per 4 trees) is the step that gets there.
-  const NEAR_R = 30, FAR_WOOD = world.island ? 9000 : 5400, FAR_FILL = world.island ? 9000 : 4000, FAR_FADE = 500;
+  // G1230: a budget's forestK (potato's 0.65) pulls the forest's reaches in - the base's and the fill's instances go as
+  // the reach squared (9 -> 5.9 km: 0.42 of the far stands built and held); 1 everywhere else
+  const FK = BUD && BUD.forestK > 0 && BUD.forestK < 1 ? BUD.forestK : 1;
+  const NEAR_R = 30, FAR_WOOD = Math.round((world.island ? 9000 : 5400) * FK), FAR_FILL = Math.round((world.island ? 9000 : 4000) * FK), FAR_FADE = 500;
   const uNear = { value: NEAR_R };     // live: every tree material reads it
   // THE RING THINS WITH DISTANCE, IT DOES NOT POP (LOADING S3, G420). The
   // fill's far chunks used to be a different, quarter-density set and a
@@ -121078,7 +121157,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
   // (a plain {x, y} where the headless stub has no Vector2 - GATE WORLDRENDER;
   // three uploads a vec2 uniform off .x/.y either way)
   const v2 = (x, y) => THREE.Vector2 ? new THREE.Vector2(x, y) : { x, y, set(a, b) { this.x = a; this.y = b; return this; } };
-  const uThin = { value: v2(world.island ? 3000 : 2500, world.island ? 4500 : 3400) };   // 2026-09-21: 4200 -> 4500 on an island (12000 tried: see the reach)
+  const uThin = { value: v2((world.island ? 3000 : 2500) * FK, (world.island ? 4500 : 3400) * FK) };   // 2026-09-21: 4200 -> 4500 on an island (12000 tried: see the reach)
   const U_NOTHIN = { value: v2(1e9, 1e9 + 1) };
   // the two inner edges of the ladder, shared by every rung material the
   // same way uNear is - a dial can move them and every band follows
@@ -122377,6 +122456,12 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     // grids (which the core and the CPU readers keep) before three's next upload of it.
     const gpuTex = [];
     const gpuOnly = (t, derive) => { t.onUpdate = () => { t.image.data = null; }; gpuTex.push([t, derive]); return t; };
+    // G1230 (MEM-BUDGET): UPLOADED AS THE STEP ENDS, NOT AT FIRST LIGHT. The four island textures (~162 MiB of derived
+    // bytes) were the GPU's only at the loading's 'upload' step - held through the whole load, the town's and the forest's
+    // peak included. initTexture now: onUpdate drops the bytes there and then (the derivation stays for a lost context)
+    const gpuUploadNow = () => { if (!renderer || typeof renderer.initTexture !== 'function') return 0; let n = 0;
+      for (const [t] of gpuTex) if (t.image && t.image.data && t.version > 0) { try { renderer.initTexture(t); n++; } catch (e) { console.warn('island texture upload:', e && e.message); } }
+      return n; };
     const gpuRestore = () => { let n = 0; for (const [t, derive] of gpuTex) if (!t.image.data) { t.image.data = derive(); t.needsUpdate = true; n++; } return n; };
     { const cv = renderer && renderer.domElement;
       if (cv && cv.addEventListener) {
@@ -122384,12 +122469,25 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         cv.__islandTexRestore = gpuRestore;
         cv.addEventListener('webglcontextrestored', gpuRestore);
       } }
+    // G1230 (MEM-BUDGET): a budget with islandHalf (potato) derives the two colour textures (the albedo, the tint) at
+    // half the grid's side - a 2x2 box of the RGB grid a texel: 46 -> 11.6 MiB each made and uploaded (the GPU's too).
+    // The terrain codes (B: the splat's 5x5 cell kernel) and A (the lake cut, the coast) stay at the grid's own cell
+    const IG = ISLA ? ISLA.grid : null, IHALF = !!(ISLA && BUD && BUD.islandHalf), W2 = IHALF ? Math.ceil(IG.w / 2) : (IG ? IG.w : 0), H2 = IHALF ? Math.ceil(IG.h / 2) : (IG ? IG.h : 0);
+    const rgbTexels = src => { const G = IG, n = G.w * G.h; const out = new Uint8Array(W2 * H2 * 4);
+      if (!src) { out.fill(110); return out; }
+      if (!IHALF) { for (let i = 0, j = 0; i < n; i++, j += 4) { out[j] = src[i * 3]; out[j + 1] = src[i * 3 + 1]; out[j + 2] = src[i * 3 + 2]; out[j + 3] = 255; } return out; }
+      for (let y = 0; y < H2; y++) { const y0 = 2 * y, y1 = Math.min(G.h - 1, y0 + 1);
+        for (let x = 0; x < W2; x++) { const x0 = 2 * x, x1 = Math.min(G.w - 1, x0 + 1), o = (y * W2 + x) * 4;
+          const a = (y0 * G.w + x0) * 3, b = (y0 * G.w + x1) * 3, c = (y1 * G.w + x0) * 3, d = (y1 * G.w + x1) * 3;
+          for (let k = 0; k < 3; k++) out[o + k] = (src[a + k] + src[b + k] + src[c + k] + src[d + k] + 2) >> 2;
+          out[o + 3] = 255; } }
+      return out; };
     if (ISLA) {
-      const G = ISLA.grid, n = G.w * G.h, src = ISLA.albedo;
-      const albedoRGBA = () => { const rgba = new Uint8Array(n * 4);
-        for (let i = 0, j = 0; i < n; i++, j += 4) { rgba[j] = src[i * 3]; rgba[j + 1] = src[i * 3 + 1]; rgba[j + 2] = src[i * 3 + 2]; rgba[j + 3] = 255; }
-        return rgba; };
-      islandTex = gpuOnly(new THREE.DataTexture(albedoRGBA(), G.w, G.h, THREE.RGBAFormat, THREE.UnsignedByteType), albedoRGBA);
+      const G = ISLA.grid, n = G.w * G.h;
+      // (G1230: read at the call, not captured - a budget that drops the colour grids once drawn (app.js) leaves this a
+      // flat mid grey on a lost context instead of holding 35 MB for it)
+      const albedoRGBA = () => rgbTexels(ISLA.albedo);
+      islandTex = gpuOnly(new THREE.DataTexture(albedoRGBA(), W2, H2, THREE.RGBAFormat, THREE.UnsignedByteType), albedoRGBA);
       islandTex.colorSpace = THREE.SRGBColorSpace; islandTex.magFilter = islandTex.minFilter = THREE.LinearFilter;
       islandTex.generateMipmaps = false; islandTex.anisotropy = MAX_ANISO; islandTex.flipY = false; islandTex.needsUpdate = true;
       // row 0 of the grid is its north edge (z0): v runs with z, no flip
@@ -122454,10 +122552,8 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       // 2 x 3095 = 6190 bytes, not a multiple of 4: the unpack alignment is 1 or every row after the first shears
       const pk2 = (r, g) => { const make = () => { const d = new Uint8Array(n * 2); for (let k = 0, j = 0; k < n; k++, j += 2) { d[j] = r ? r[k] : 0; d[j + 1] = g ? g[k] : 0; } return d; };
         const t = dataTex(make()); t.format = THREE.RGFormat; t.unpackAlignment = 1; return gpuOnly(t, make); };
-      const tintRGBA = () => { const rgba = new Uint8Array(n * 4);
-        for (let i = 0, j = 0; i < n; i++, j += 4) { rgba[j] = ISLA.tint[i * 3]; rgba[j + 1] = ISLA.tint[i * 3 + 1]; rgba[j + 2] = ISLA.tint[i * 3 + 2]; rgba[j + 3] = 255; }
-        return rgba; };
-      const tintTex = gpuOnly(new THREE.DataTexture(tintRGBA(), G.w, G.h, THREE.RGBAFormat, THREE.UnsignedByteType), tintRGBA);
+      const tintRGBA = () => rgbTexels(ISLA.tint);
+      const tintTex = gpuOnly(new THREE.DataTexture(tintRGBA(), W2, H2, THREE.RGBAFormat, THREE.UnsignedByteType), tintRGBA);
       tintTex.colorSpace = THREE.SRGBColorSpace; tintTex.magFilter = tintTex.minFilter = THREE.LinearFilter;
       tintTex.generateMipmaps = false; tintTex.flipY = false; tintTex.anisotropy = MAX_ANISO; tintTex.needsUpdate = true;
       function dataTex1() { const t = new THREE.DataTexture(new Uint8Array(4), 1, 1, THREE.RGBAFormat, THREE.UnsignedByteType); t.needsUpdate = true; return t; }
@@ -122495,6 +122591,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       });
       GROUND.on = true;
       classWeights();   // a saved stack that starts at the class layer asks for them now
+      gpuUploadNow();
       if (typeof WATER !== 'undefined' && WATER.setSDF) WATER.setSDF(gU.uGPackA.value, gU.uGGrid.value);   // G460: the water reads the coast and lake fields (kept until the material is made below)
       // THE SPLAT (alpha splatting, 2026-09-20): the ground drawn by terrain
       // type from the library (src/viewer/splat_ground.js owns it): two
@@ -122971,7 +123068,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     // every chunk edge close the cracks between two levels. ?ringlod=0: the ring whole (the A/B).
     yield 'ring lod';
     const RINGLOD = { on: !!(THREE.Sphere && THREE.BufferAttribute) && !(typeof location !== 'undefined' && /[?&]ringlod=0/.test(location.search)),
-                      C: 16, strides: [1, 2, 4, 8], tolPx: 1, minQuads: 25, rimE: 0.5, hyst: 0.1, chunks: [], group: null,
+                      C: 16, strides: [1, 2, 4, 8], tolPx: BUD && BUD.terrain > 1 ? BUD.terrain : 1, minQuads: 25, rimE: 0.5, hyst: 0.1, chunks: [], group: null,
                       stats: { draws: 0, tris: 0, levels: [0, 0, 0, 0] } };
     if (RINGLOD.on) {
       const GW = 513, Q = 512 / RINGLOD.C, SEG = 2 * INNER / 512;
@@ -123187,7 +123284,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       // the cracks between two levels (and the T-junctions the leaves always had).
       const FH = world.island.farHeader, N = FH.patch + 1, Pn = FH.patch, NN = N * N, NV = NN + 4 * N;
       const seaFloor = world.island.seaFloor, qs = FH.side / 4;
-      const FARLOD = { tolPx: 1, rimE: 0.5, budget: 2, every: 6, tick: 0, quads: new Map(), cache: new Map(), stamp: 0, eye: null, K: 0,
+      const FARLOD = { tolPx: BUD && BUD.terrain > 1 ? BUD.terrain : 1, rimE: 0.5, budget: 2, every: 6, tick: 0, quads: new Map(), cache: new Map(), stamp: 0, eye: null, K: 0,
                        stats: { nodes: 0, tris: 0, quads: 0, rebuilds: 0, cached: 0, ms: 0 } };
       const boxOf = n => { const s = FH.side / (1 << n.d); return [FH.bounds.x0 + n.ix * s, FH.bounds.z0 + n.iz * s, s]; };
       const underRing = (ox, oz, s) => ox > -INNER + 250 && ox + s < INNER - 250 && oz > -INNER + 250 && oz + s < INNER - 250;   // fully under the inner ring
@@ -123320,7 +123417,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         geo.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
         geo.setIndex(new THREE.BufferAttribute(idx, 1));
         // G1200: drawn only - a re-cut builds a new geometry from the patch cache (FARLOD.cache keeps the patches' own)
-        if (nodes.length) { geo.computeBoundingSphere(); geo.computeBoundingBox(); if (typeof GPU_ONLY_GEO === 'function') GPU_ONLY_GEO(geo); }
+        if (nodes.length) { geo.computeBoundingSphere(); geo.computeBoundingBox(); if (typeof GPU_ONLY_GEO === 'function') GPU_ONLY_GEO(geo, true); }   // (G1230: uploaded as the build's slice ends)
         else if (Q.m.geometry.boundingSphere) { geo.boundingSphere = Q.m.geometry.boundingSphere; geo.boundingBox = Q.m.geometry.boundingBox; geo.setDrawRange(0, 0); }
         const old = Q.m.geometry; Q.m.geometry = geo; if (old && old.dispose) old.dispose();
         Q.sig = Q.wantSig; Q.tris = nodes.length * TPL.length / 3; FARLOD.stats.rebuilds++;
@@ -126872,7 +126969,9 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
   // synchronous drain inside the world step; the game then streams by the aircraft's position (worldUpdate ->
   // premisesR.stream: within its reach, on a 3 ms/frame bank). Only a page with no roll-out screen (the harness: no
   // compileAsync) still drains the old way at the make.
-  const PREM_BOOT = 4000;
+  // G1230 (MEM-BUDGET): a lighter preset's budget builds the town nearer (GFX.budget().townBoot / townReach) - the
+  // house worker's results are kept as every rebake's sources, ~212 MB on gamer: what is never built is never held
+  const PREM_BOOT = BUD && BUD.townBoot > 0 ? BUD.townBoot : 4000;
   const premRenderer = () => renderer, premCamera = () => camera;   // the far town's bake links its programs off the frame (G593)
   if (world.premises && world.premises.rec && window.RENDER_PREMISES) {
     try {
@@ -126896,6 +126995,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         renderer: premRenderer, camera: premCamera,
       });
       yield 'premises made';
+      if (BUD && BUD.townReach > 0 && premisesR.streamState) premisesR.streamState.reach = BUD.townReach;   // G1230: the stream's reach, the budget's
       if (premisesR.rebuildSteps) yield* premisesR.rebuildSteps(); else premisesR.rebuild();   // G680: the rebuild in its own slices
       if (typeof renderer.compileAsync !== 'function' || !premisesR.prewarm) { if (premisesR.drainNear) premisesR.drainNear(0, 0, PREM_NEAR); else while (premisesR.stats.queued) premisesR.step(4); }   // G562 / G591: the rest streams in the game
       // the rings were sampled before the patch stood: sink them under it now (G434.1)
@@ -146043,7 +146143,9 @@ function simHostBootBytes(boot) {
 // loader does (src/core/premises_packs.json -> boot.premCook): makeWorld reads
 // the cooked tiles where the page does, and a tile baked here instead differs
 // from the cook in the last bits - the climate's relief raster carries that
-// island-wide into the rich wind.
+// island-wide into the rich wind. G1430 (TOWN-COOK): `variant` (the page's:
+// 'town' or 'default', build.js FLYDIY_TOWN_VARIANT) takes the cells `in` that
+// variant alone, as the page's loader does; without it, every cell.
 function simHostFetchBoot(base, name, opts) {
   opts = opts || {};
   const F = opts.fetch || fetch;
@@ -146064,7 +146166,7 @@ function simHostFetchBoot(base, name, opts) {
         const pi = (PP.islands || []).find(w => w.id === name);
         if (!pi || !pi.raster) return boot;
         const got = [];
-        return Promise.all(pi.raster.cells.map(c => F(base + c.src).then(res => { if (!res.ok) throw new Error(c.src + ' ' + res.status); return res.arrayBuffer(); })
+        return Promise.all(pi.raster.cells.filter(c => !opts.variant || !c.in || c.in.indexOf(opts.variant) >= 0).map(c => F(base + c.src).then(res => { if (!res.ok) throw new Error(c.src + ' ' + res.status); return res.arrayBuffer(); })
           .then(gz).then(u => got.push({ ci: c.c[0], cj: c.c[1], sig: c.sig, bytes: u })))).then(() => { boot.premCook = { raster: got }; return boot; });
       }).catch(() => boot);   // a cook that does not arrive is a lazy raster (the page's rule)
     });
@@ -146605,7 +146707,7 @@ function simHostBody(CORE, SH, port) {
   function fetchThen(F, then) {
     const t0 = performance.now();
     making = true;
-    SH.simHostFetchBoot(F.base, F.name, { hydro: F.hydro, raster: F.raster }).then(boot => {
+    SH.simHostFetchBoot(F.base, F.name, { hydro: F.hydro, raster: F.raster, variant: F.variant }).then(boot => {
       bootInfo = { fetchMs: performance.now() - t0, bytes: boot ? SH.simHostBootBytes(boot) : 0,
                    cooked: boot && boot.premCook ? boot.premCook.raster.length : 0 };
       try { then(boot); } catch (err) { post({ kind: 'error', error: String(err && err.stack || err) }); }
@@ -147237,7 +147339,7 @@ const SIM_LINK = (() => {
       const isl = W.ISLAND_BOOT;
       return { premises: o.premises ? o.premises() : null, seed: 0, day: world.day ? world.day.spec() : null,
                opts: { groundRaster: !!W.FLYDIY_GROUND_RASTER },
-               fetch: isl ? { base: host.base, name: isl.id, hydro: isl.hydro, raster: !!W.FLYDIY_GROUND_RASTER } : null, boot: null };
+               fetch: isl ? { base: host.base, name: isl.id, hydro: isl.hydro, raster: !!W.FLYDIY_GROUND_RASTER, variant: W.FLYDIY_TOWN ? (W.FLYDIY_TOWN.all ? 'town' : 'default') : W.FLYDIY_TOWN_VARIANT } : null, boot: null };
     }
     function prewarm() {
       if (worldSent || dead) return !dead;
@@ -147753,22 +147855,22 @@ function houseWorkerBody(G, port) {
     for (const [, f] of HW_FILES) G.importScripts(m.urls[f]);
     for (const [g, f] of HW_LAZY) if (m.lazy && m.lazy.indexOf(g) >= 0 && m.urls[f]) G.importScripts(m.urls[f]);
     // the island's trimmed boot, and its cooked raster cells when the page reads them (the loader's rule: a cook that
-    // does not arrive is a lazy raster)
-    const boot = await SH.simHostFetchBoot(m.base, m.island, { raster: !!m.raster });
+    // does not arrive is a lazy raster) - G1430: the cells of the page's variant alone (m.variant, 'town' / 'default')
+    const boot = await SH.simHostFetchBoot(m.base, m.island, { raster: !!m.raster, variant: m.variant });
     if (!boot) throw new Error('no island "' + m.island + '"');
-    if (m.raster && !boot.premCook) boot.premCook = await fetchCook(m.base, m.island);
+    if (m.raster && !boot.premCook) boot.premCook = await fetchCook(m.base, m.island, m.variant);
     const island = G.ISLAND_GEN.makeIsland(boot);
     st.world = G.makeWorld(0, { premises: m.premises, island });
     st.initMs = now() - t0;
     port.post({ cmd: 'ready', ms: st.initMs });
   }
-  function fetchCook(base, name) {
+  function fetchCook(base, name, variant) {
     const gz = buf => new Response(new Blob([buf]).stream().pipeThrough(new DecompressionStream('gzip'))).arrayBuffer().then(b => new Uint8Array(b));
     return fetch(base + 'src/core/premises_packs.json').then(r => (r.ok ? r.json() : { islands: [] })).then(PP => {
       const pi = (PP.islands || []).find(w => w.id === name);
       if (!pi || !pi.raster) return null;
       const got = [];
-      return Promise.all(pi.raster.cells.map(c => fetch(base + c.src).then(res => { if (!res.ok) throw new Error(c.src + ' ' + res.status); return res.arrayBuffer(); })
+      return Promise.all(pi.raster.cells.filter(c => !variant || !c.in || c.in.indexOf(variant) >= 0).map(c => fetch(base + c.src).then(res => { if (!res.ok) throw new Error(c.src + ' ' + res.status); return res.arrayBuffer(); })
         .then(gz).then(u => got.push({ ci: c.c[0], cj: c.c[1], sig: c.sig, bytes: u })))).then(() => ({ raster: got }));
     }).catch(() => null);
   }
@@ -147902,7 +148004,7 @@ const HOUSE_WORKER = (() => {
       w.onmessage = e => { try { msg(e.data); } catch (err) { console.warn('house worker message:', err); } };
       w.onerror = err => fail('the worker failed: ' + (err && err.message || err));
       const lazy = HW_LAZY.filter(([g]) => /sport\//.test(o.premises) && g === 'SPORT_GEN' || /marine\//.test(o.premises) && g === 'MARINE_GEN').map(([g]) => g);
-      w.postMessage({ cmd: 'init', base, urls, island: o.island, premises: o.premises, raster: !!W.FLYDIY_GROUND_RASTER, lazy, build: ver || 'dev',
+      w.postMessage({ cmd: 'init', base, urls, island: o.island, premises: o.premises, raster: !!W.FLYDIY_GROUND_RASTER, variant: W.FLYDIY_TOWN ? (W.FLYDIY_TOWN.all ? 'town' : 'default') : W.FLYDIY_TOWN_VARIANT, lazy, build: ver || 'dev',
                       flags: { FLYDIY_GROUND_RASTER: W.FLYDIY_GROUND_RASTER } });
       S.urls = urls;
       return api;
@@ -150405,6 +150507,27 @@ if (typeof module !== 'undefined') module.exports = { buildPatternVis };
   // the user chose). Affordable since G1114.1's partition lever: on the low flight over the forest 'mid' measured what
   // 'minimum' does (37.5 vs 37.6 fps, loop +0.4 ms) and better than master's 'minimum' on every line; the taxi inside
   // the ratchet's slack (one run: the Cub's unevenness 11.8 -> 13.6 %, render +0.4 ms) - the user's decision.
+  // THE BUILD BUDGET (G1230, MEM-BUDGET; futureDesigns/FRIENDLY-WELCOME-BUDGETS.md §2). A preset above says what is
+  // DRAWN; this says what is BUILT AND HELD - the S20 FE loaded potato along gamer's curve (heap ~1.9 GB, killed in
+  // "building the field") because no preset built less. heapMB is the preset's target (the load's peak backing stores,
+  // tools/perf/heap_steps.js ?gfx=<preset>); the rest are the levers the world reads AS IT BUILDS (GFX.budget()):
+  //   mipSkip    the KTX2 transcodes' top mip dropped (ktx2.js): a quarter of the bytes per texture, held and uploaded
+  //   townBoot   the premises built under the loading screen within this many metres of the stand (render_world PREM_BOOT)
+  //   townReach  the premises' stream in flight and at the settle (render_premises STREAM.reach)
+  //   parked     the parked aeroplanes captured and baked (app.js 'parking'; parked.js) - off: none built
+  //   forestK    the forest's reaches (the base to 9 km, the fill's thinning ramp) scaled: its instances go as the square
+  //   islandHalf the island's two colour textures (albedo, tint) derived at half the grid's side (render_world)
+  //   islandColour  false: the island's albedo and tint grids dropped once the world is built (their textures are the GPU's)
+  //   terrain    the far terrain's and the ring's first cut at the preset's own tolerance (S.terrain), not 1 px then re-cut
+  // Going DOWN is live (GFX.set: the stream's reach shrinks at once); going up applies to what builds next, and to
+  // everything at the next load. Without the table (a gate's stub, no window.GFX) every lever reads full.
+  const BUDGETS = {
+    potato:  { heapMB: 700,  mipSkip: 1, townBoot: 1200, townReach: 2000, parked: false, forestK: 0.65, islandColour: false, islandHalf: true },
+    retro:   { heapMB: 1500, mipSkip: 0, townBoot: 4000, townReach: 6000, parked: true, forestK: 1 },
+    current: { heapMB: 1500, mipSkip: 0, townBoot: 4000, townReach: 6000, parked: true, forestK: 1 },
+    gamer:   { heapMB: 2000, mipSkip: 0, townBoot: 4000, townReach: 6000, parked: true, forestK: 1 },
+    ultra:   { heapMB: 2000, mipSkip: 0, townBoot: 4000, townReach: 6000, parked: true, forestK: 1 },
+  };
   const DEFAULT = 'gamer';
   const PRESET_LABEL = { potato: 'potato', retro: '5 years ago', current: 'current', gamer: 'gamer', ultra: 'ultra' };
   const PRESET_WHY = {
@@ -150419,7 +150542,7 @@ if (typeof module !== 'undefined') module.exports = { buildPatternVis };
   // G1295 (EVEN-30): the frame rate a preset brings while the player has not picked one - a hard 30 everywhere but ultra
   // (auto's trials of 60 were the judder: the user's 1.5 h log, 130 drops from 60 and 127 failed trials). 'custom' takes 30
   const FPS_OF = p => (p === 'ultra' ? 'auto' : 30);
-  const S = Object.assign({ preset: DEFAULT, pv: 7, fps: FPS_OF(DEFAULT), fpsOwn: false }, PRESETS[DEFAULT]);   // pv: the pref's version (4: G570, the cover and town rows; 5: G1113, gamer's and ultra's tree bands; 6: G1114.2, gamer's 'mid'; 7: G1295, the frame rate per preset); fps: G586's frame rate (a free option); fpsOwn: the player picked it
+  const S = Object.assign({ preset: DEFAULT, build: DEFAULT, pv: 7, fps: FPS_OF(DEFAULT), fpsOwn: false }, PRESETS[DEFAULT]);   // pv: the pref's version (4: G570, the cover and town rows; 5: G1113, gamer's and ultra's tree bands; 6: G1114.2, gamer's 'mid'; 7: G1295, the frame rate per preset); fps: G586's frame rate (a free option); fpsOwn: the player picked it; build (G1230): the preset whose BUDGETS row the world builds to (a custom mix keeps the last preset's)
   let expBase = null;                        // the exposure the writers last declared
   let eyeK = 1;                              // the eye's factor (post_fx.js's auto exposure); 1 with the row off
   // THE ONE WAY EXPOSURE IS WRITTEN: base in, base x step x eye on the renderer. A
@@ -150453,16 +150576,18 @@ if (typeof module !== 'undefined') module.exports = { buildPatternVis };
     for (const o of OPTIONS) if (!o.steps.some(s => s.v === S[o.k])) S[o.k] = o.free ? o.steps[0].v : PRESETS[DEFAULT][o.k];
     S.preset = presetOf();
     S.fpsOwn = S.fpsOwn === true;
+    if (PRESETS[S.preset]) S.build = S.preset; else if (!BUDGETS[S.build]) S.build = DEFAULT;   // G1230: a custom mix builds to its last preset's budget
     if (!S.fpsOwn && !(v0 && FPS_STEPS.includes(v0.fps))) S.fps = FPS_OF(S.preset);   // G1295: none stored (or no step) - the preset's
     // Friendly Welcome (A0, 2026-10-02): ?gfx=<preset> picks a preset BEFORE the load and keeps it (a weak card or a phone
     // never reached the graphics menu: the GTX 660 loaded on gamer and drew nothing). The player's later choice still wins
     try { const q = /[?&]gfx=([a-z]+)/.exec((W.location && W.location.search) || ''); const want = q && q[1];
-          if (want && PRESETS[want] && S.preset !== want) { Object.assign(S, PRESETS[want]); S.preset = want; if (!S.fpsOwn) S.fps = FPS_OF(want); save(); } } catch (e) {}
+          if (want && PRESETS[want] && (S.preset !== want || S.build !== want)) { Object.assign(S, PRESETS[want]); S.preset = want; S.build = want; if (!S.fpsOwn) S.fps = FPS_OF(want); save(); } } catch (e) {}
     // G1210 (WELCOME): the welcome screen's pick (or the device gate's "try anyway": potato), taken the same way - it ran
     // before this script, only when nothing was chosen yet for this graphics card, and never beside ?gfx=
     try { const wp = W.WELCOME && W.WELCOME.pick;
-          if (wp && PRESETS[wp] && !/[?&]gfx=/.test((W.location && W.location.search) || '')) { if (S.preset !== wp) Object.assign(S, PRESETS[wp]); S.preset = wp; if (!S.fpsOwn) S.fps = FPS_OF(wp); save(); } } catch (e) {}
+          if (wp && PRESETS[wp] && !/[?&]gfx=/.test((W.location && W.location.search) || '')) { if (S.preset !== wp) Object.assign(S, PRESETS[wp]); S.preset = wp; S.build = wp; if (!S.fpsOwn) S.fps = FPS_OF(wp); save(); } } catch (e) {}
   };
+  const budget = () => Object.assign({ preset: BUDGETS[S.build] ? S.build : DEFAULT, terrain: S.terrain }, BUDGETS[S.build] || BUDGETS[DEFAULT]);
   const save = () => { try { W.localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} };
   // which preset the current options ARE, or 'custom'
   const presetOf = () => {
@@ -150482,6 +150607,7 @@ if (typeof module !== 'undefined') module.exports = { buildPatternVis };
       if (C) { cov.set(C); applied.cover = S.cover; }
     }
     const PR = world && world.premises;
+    if (PR && PR.streamState && applied.build !== S.build) { PR.streamState.reach = budget().townReach; applied.build = S.build; }   // G1230: the town's stream to the budget's reach (down: at once)
     if (PR && PR.hlod && PR.detail && applied.scenery !== S.scenery) {
       const D = { full: { near: 150, px2: 60, props: true }, lean: { near: 60, px2: 150, props: true }, low: { near: 25, px2: 300, props: false } }[S.scenery];
       if (D) { PR.hlod.near = D.near; PR.detail.px2 = D.px2; PR.detail.props = D.props; applied.scenery = S.scenery; }
@@ -150580,7 +150706,7 @@ if (typeof module !== 'undefined') module.exports = { buildPatternVis };
     }
   };
   const set = (k, v) => {
-    if (k === 'preset') { if (!PRESETS[v]) return S; Object.assign(S, PRESETS[v]); S.preset = v; if (!S.fpsOwn) S.fps = FPS_OF(v); }   // G1295: the preset's frame rate, unless the player picked one
+    if (k === 'preset') { if (!PRESETS[v]) return S; Object.assign(S, PRESETS[v]); S.preset = v; S.build = v; if (!S.fpsOwn) S.fps = FPS_OF(v); }   // G1295: the preset's frame rate, unless the player picked one
     else { S[k] = v; S.preset = presetOf(); if (k === 'fps') S.fpsOwn = true; }
     if (W.FLIGHT_REC && W.FLIGHT_REC.event) W.FLIGHT_REC.event('gfx', null, k + ' = ' + v);   // G620: the flight log's settings events
     save(); apply();
@@ -150731,6 +150857,7 @@ if (typeof module !== 'undefined') module.exports = { buildPatternVis };
   W.GFX = {
     OPTIONS, PRESETS, PRESET_LABEL, DEFAULT, BANDS, SHADOWS, GROUPS,
     get: () => Object.assign({}, S),
+    BUDGETS, budget,   // G1230: the build budget the world builds to (GFX.budget().mipSkip, .townBoot, ...)
     set, apply, mount, mountWorld, presetOf, frameText,
     setExposure, setEye, eye: () => eyeK, exposureBase: () => expBase,
     // the world calls this once it exists (render_world.js, end of build)
@@ -155940,6 +156067,9 @@ window.FLYDIY_WORLD_COMPOSE = function () {
       return PREMISES_GEN.envelope(U.name, D.rec, U.plaque, U.log); } catch (e) { return premisesAtBoot; }
   })();
   if (typeof window !== 'undefined') window.FLYDIY_TOWN = TOWN;
+  // (G1430, TOWN-COOK) the island loader fetched the raster cells of the variant IT read (build.js FLYDIY_TOWN_VARIANT, this
+  // rule before GFX was in): a disagreement is a cook refused (lazy bakes), never a wrong ground - said, not hidden
+  try { const v = window.FLYDIY_TOWN_VARIANT; if (v && v !== (TOWN.all ? 'town' : 'default')) console.warn('flyDiy: the loader fetched the ' + v + ' raster cells, the page composes ' + (TOWN.all ? 'town' : 'default') + ' - those cells bake lazily'); } catch (e) {}
   // THE GENERATORS ONLY SOME PLACES NAME (AS1, G909): _sport_gen.js and _marine_gen.js load on demand (build.js
   // MANIFEST.lazy) - asked for here when the placed record names a sport/ or marine/ key (Metlakatla's: the town on),
   // long before the roll-out composes the places (render_world's premises step waits for them)
@@ -156006,11 +156136,11 @@ window.FLYDIY_WORLD_COMPOSE = function () {
 <script type="text/x-flydiy" src="src/viewer/powerline.js?v=5f386c32"></script>
 <script type="text/x-flydiy" src="tools/_village_gen.js?v=f80b94dd"></script>
 <script type="text/x-flydiy" src="src/viewer/parked.js?v=a0ccc317"></script>
-<script type="text/x-flydiy" src="src/viewer/flown_bake.js?v=f242e68e"></script>
+<script type="text/x-flydiy" src="src/viewer/flown_bake.js?v=144c0e85"></script>
 <script type="text/x-flydiy" src="src/viewer/scenery_life.js?v=7b78ce7e"></script>
 <script type="text/x-flydiy" src="src/viewer/premises_build.js?v=fef8d2ea"></script>
 <script type="text/x-flydiy" src="src/viewer/house_tarr.js?v=15f0669d"></script>
-<script type="text/x-flydiy" src="src/viewer/render_premises.js?v=6ed85fd7"></script>
+<script type="text/x-flydiy" src="src/viewer/render_premises.js?v=50b86953"></script>
 <script type="text/x-flydiy">
 (() => {
   // THE LOADING SCREEN (LOADING S1, 2026-09-14): src/viewer/boot.js ran before
@@ -156498,6 +156628,16 @@ window.FLYDIY_WORLD_COMPOSE = function () {
     // GFX (G286): the saved graphics settings are applied the moment the
     // world exists - before its first chunk of forest is planted
     if (typeof window !== 'undefined' && window.GFX) window.GFX.onWorld();
+    // G1230 (MEM-BUDGET): A BUDGET WITHOUT THE ISLAND'S COLOUR GRIDS (potato's islandColour: false). The Landsat albedo
+    // and the tint (2 x 35 MB, RGB over the 3095 x 3920 grid) are read on the CPU only to derive their textures (on the
+    // GPU since the 'island ground' step) and by the ground cover's colour (off on potato: it falls back to its sets'
+    // own colours) - so once the world is built they go: the island object's, the world's view of it and the boot's
+    try {
+      const B = window.GFX && window.GFX.budget ? window.GFX.budget() : null;
+      if (B && B.islandColour === false) {
+        for (const o of [WB.islandAtBoot, world.island, window.ISLAND_BOOT && window.ISLAND_BOOT.grid]) if (o) { o.albedo = null; o.tint = null; }
+      }
+    } catch (e) { console.warn('island colour drop:', e && e.message); }
     return WF;
   }
   function buildWorld() {
@@ -156510,6 +156650,9 @@ window.FLYDIY_WORLD_COMPOSE = function () {
   // Jolene build yields, measured - a guess only shapes the bar, which never passes 0.95 before the end). The harness
   // (no compileAsync) and a page without the generator build in one call, as before.
   const WORLD_YIELDS = 150;
+  // G1230 (MEM-BUDGET): UPLOAD AS YOU BUILD - the draw-only geometry a build slice made goes to the GPU as the slice ends
+  // (its CPU copy freed there), not at first light: the far terrain's quads, the town's merges, the patch's LODs
+  const geoFlush = () => { if (typeof GPU_ONLY_GEO === 'function' && GPU_ONLY_GEO.flush && typeof renderer.compileAsync === 'function') GPU_ONLY_GEO.flush(renderer); };
   function buildWorldSliced() {
     if (WF) return;
     if (typeof buildWorldSceneSteps !== 'function' || typeof renderer.compileAsync !== 'function') { buildWorld(); return; }
@@ -156523,6 +156666,7 @@ window.FLYDIY_WORLD_COMPOSE = function () {
         try { do { r = g.next(); n++; if (!r.done) lab = r.value; } while (!r.done && performance.now() - t0 < 40); }
         catch (e) { console.error('world build:', e); res(); return; }
         worst = Math.max(worst, performance.now() - t0);
+        geoFlush();   // G1230: the slice's draw-only geometry uploaded now, its CPU copy freed (assets.js GPU_ONLY_GEO.flush)
         if (r.done) {
           worldBuilt(r.value);
           if (window.FLYDIY_LOG_COMPILE || window.FLYDIY_LOG_WORLD) console.log('world: ' + n + ' yields, ' + Math.round(performance.now() - t00) + ' ms, the longest slice ' + Math.round(worst) + ' ms');
@@ -163367,6 +163511,7 @@ window.FLYDIY_WORLD_COMPOSE = function () {
         try { while (performance.now() - t0 < 40 && n < 1500) { WF.worldUpdate(cg); n++; } }
         catch (e) { console.warn('world settle:', e && e.message); n = 1500; }
         finally { window.FLYDIY_SLICE = null; if (keep) camera.position.copy(keep); }
+        geoFlush();   // G1230
         if (idle()) { const c = count(); if (c === last) still++; else { still = 0; last = c; } } else still = 0;
         const done = still >= 3 || n >= 1500 || performance.now() - t00 > 45000;
         BOOT.phase('settle', 'the world settling round the stand' + (ST ? ' · ' + (ST.near || 0) + ' to build' : ''), done ? 1 : Math.min(0.95, n / 600));
@@ -163443,6 +163588,7 @@ window.FLYDIY_WORLD_COMPOSE = function () {
         const tick = () => {
           let r; try { r = WF.premisesPrewarm(cg, { budgetMs: 40 }); } catch (e) { console.warn('town:', e && e.message); res(); return; }
           built += r.built || 0;
+          geoFlush();   // G1230
           BOOT.phase('town', 'building the field ' + built + ' / ' + (built + (r.near || 0)), (built + (r.near || 0)) ? built / (built + (r.near || 0)) : 1);
           if (r.done) res(); else if (r.wait) workerNap(r.wait).then(() => setTimeout(tick, 0)); else setTimeout(tick, 0);   // G830: the house worker's next answer
         };
@@ -163471,6 +163617,7 @@ window.FLYDIY_WORLD_COMPOSE = function () {
         let ticks = 0;
         const tick = () => {
           let r; try { r = WF.prewarm(cg, { budgetMs: 40, reach: RING_REACH }); } catch (e) { console.warn('prewarm:', e && e.message); res(); return; }
+          geoFlush();   // G1230
           const doneN = (r.base || 0) + (r.fill || 0), want = doneN + (r.queued || 0);
           BOOT.phase('ring', 'growing the forest ' + doneN + ' / ' + Math.max(want, 1), want ? doneN / want : 0);
           if (r.done || ++ticks > 900) res(); else setTimeout(tick, 0);
