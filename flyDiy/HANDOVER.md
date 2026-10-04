@@ -68398,3 +68398,140 @@ Touched: src/core/20_world.js, src/core/27_premises.js, src/viewer/render_premis
 src/viewer/atmo.js (G1406); src/viewer/world_boot.js, src/viewer/gfx_settings.js, tools/_premises_check.js (G1408);
 tools/perf/metla_ab.js (G1407). The generated files (flight_core.js, index.html, dev.html, sw.js, version.json) are not
 committed - A0's built commit.
+
+## G1430-G1434 - TOWN-COOK: METLAKATLA'S RASTER COOKED (+14.11 MB, 43 FILES) AND FETCHED BY A TOWN-ON PAGE ONLY; 0 BAKES ONCE THE TOWN COMPOSES AND 0 OVER THE TOWN; THE 47 mm GAP GONE; THE TOWN-OFF PAGE THE SAME FILES AND BITS (2026-10-04, TOWN-COOK for A0, cloud - no GPU)
+
+**VERDICT.** With the town on, the town's composition takes all 134 of its cooked cells and bakes nothing: 0 bakes from any
+reader of any modifier tile (834 176 reads; 4 508 before) and 0 along a 12.6 km overflight of Metlakatla (8 134 before). The
+build read now equals the wheels' raster at every read (before: max 47.4 mm). The town-off page fetches the same 92 files and
+reads the same bits. **Not done:** fetching by proximity (G1433 explains why, with numbers), and 0 bakes at boot in the
+strict sense: a town-on boot still bakes 134 tiles (354 before; town off 87). All of them happen in the page's FIRST,
+generator-less composition, which the town-off page has too (G1433). **Two costs for you to decide on:** +14.11 MB in git;
+and the town-on page holds +85.7 MB more raw raster in each of three threads (page, physics worker, house worker), ~+257 MB
+in all (MEM-DIET's budget).
+
+**G1430 FETCH BY VARIANT** (build.js island loader, sim_host.js simHostFetchBoot, house_worker.js fetchCook). Each manifest
+cell names the variants it serves (`in`). Each fetcher takes only the cells of the page's variant. The loader decides the
+variant before the world boots, using world_boot.js TOWN's rule: `?town=` first, else the GRAPHICS 'town' row ('nearby' with
+pv >= 7 means off). It publishes the result as FLYDIY_TOWN_VARIANT. The two workers get the composed one (FLYDIY_TOWN.all)
+from sim_link / the house worker's init. Without a variant (old callers, node's island_node.js) a fetcher takes every cell,
+as before. world_boot warns if the loader and the composition ever disagree (the cost would be lazy bakes, never a wrong
+ground).
+
+**G1431 THE COOK** (premises_cook.js EVERYWHERE = default + town). Raster: 137 cells, 19.74 MB shipped (was 92 cells,
+5.63 MB). 89 cells are shared by both variants, 45 are the town's own (Metlakatla, 4 683 tiles, 8.9-10.4 km from HOME's
+stand), and 3 are default-only. That is 43 new files (two of the 45 cells are byte-identical to another cell and share its
+file) and +14.11 MB. The manifest now records what each variant fetches (raster.fetched: default 92 cells 5.63 MB / 45.41 MB
+raw; town 134 cells 19.54 MB / 131.13 MB raw).
+**keepShipped (new, in the cook):** node 22's zlib compresses the same content to different bytes, and the first re-cook
+renamed all 150 files. That re-shipped the default page's unchanged cells and changed the bytes a town-off page fetches. Now
+an existing file of the same stem whose gunzip equals the new content keeps its bytes. The re-cook then wrote 43 files,
+deleted 0, and left every default and places file name unchanged.
+**GATE PREMCOOK 3's count follows rasterLoad.** A 256 m square can now carry one file per variant. rasterLoad takes the
+first cell of a square whose signature matches and skips that square's later cells, so the expected refused count is 43,
+not 45.
+
+**G1432 THE PROOF.** tools/perf/town_cook_node.js runs the three fetchers' own code over this checkout (the loader is cut
+from the built index.html and run in a vm; a fetch that reads the disk). It also runs the page's two compositions:
+makeWorld's, which has no generators (index.html composes before the world pack's tags run), then render_premises' with the
+catalogue. Before = the manifest at claude/metla-load-g1405. Output: tools/perf/town_cook_node1.json.
+
+| node | town OFF before | town OFF after | town ON before | town ON after |
+|---|---|---|---|---|
+| raster cells fetched at boot (each fetcher) | 92 | 92 (the same files) | 92 (89 used) | 134 |
+| shipped bytes / raw bytes kept per thread | 5.63 / 45.41 MB | 5.63 / 45.41 MB | 5.63 / 45.41 MB | 19.54 / 131.13 MB |
+| fetched by proximity | 0 | 0 | 0 | 0 |
+| first composition (no generators): cells taken / refused | 85 / 7 | 85 / 7 | 84 / 8 | 123 / 11 |
+| ... every tile read once (the worst-case reader): bakes | 756 | 756 | 5 118 | 1 712 |
+| the town's composition: cells taken / refused | 92 / 0 | 92 / 0 | 89 / 3 | 134 / 0 |
+| ... every modifier tile on a 2 m grid (834 176 reads): bakes | 0 | 0 | 4 508 (11.0 s node) | **0** (1.6 s, decodes) |
+| ... overflight HOME -> Metlakatla -> 3 km past, every 50 m the wheels' point + a 4 x 4 km grid at 64 m (1.0 M reads) | - | - | 8 134 | **0** |
+| ... build read vs the wheels' terrainH on the 834 176 reads | 0 | 0 | p99 1.59, p99.9 4.08, **max 47.4 mm**; 40 reads over 10 mm | **0 reads differ** |
+
+Fetcher cases, all as expected: `?town=0` and a pv-7 'nearby' pref give default, 92 cells, the same files as today.
+`?town=1`, no query, a pv-6 'nearby' pref (migrated to on) and a pv-7 'all' pref give town, 134 cells. sim_host and
+house_worker with variant default give the same files as today; with town, 134 cells; with none, all 137. Town off, every
+read equal: 841 344 reads over every tile of both variants, 0 differ in either composition.
+(The sweep reads OFF the lattice's nodes, at +0.37 / +1.13 m. A tile's nodes sit on the frame's odd metres, where the raster
+is the composer to 1e-13 m. METLA-LOAD's 39 mm was the same gap on another grid.)
+
+**HEADLESS PAGE BOOT** (tools/perf/town_cook_boot.js, the cloud's Chromium + SwiftShader, fresh profile, to the garage +
+20 s, bakes summed over every premises overlay the page made; tools/perf/town_cook_boot1.json). Before = a built worktree of
+claude/metla-load-g1405. These are counts, not times: SwiftShader, with the gates running beside two of the loads.
+
+| headless | town OFF before | town OFF after | town ON before | town ON after |
+|---|---|---|---|---|
+| raster responses / bytes on the wire (3 threads, cold cache) | 276 / 16.88 MB | 276 / 16.88 MB | 276 / 16.88 MB | 402 / 58.63 MB |
+| first composition: cells taken / refused, bakes | 85 / 7, 87 | 85 / 7, 87 | 84 / 8, 354 | 123 / 11, **134** |
+| the town's composition: cells taken / refused, bakes | 92 / 0, 0 | 92 / 0, 0 | 89 / 3, 0 | 134 / 0, **0** |
+| exceptions | 0 | 0 | 0 | 0 |
+
+The wire shows 3x because each thread fetches the same URLs. On a warm browser the HTTP cache and sw.js's /media/ cache
+serve the two workers, but the cold headless profile fetched them three times.
+
+**G1433 WHAT IS LEFT, AND WHY NOT BY PROXIMITY.**
+- **THE 134 BOOT BAKES are the FIRST composition's.** world_boot's makeWorld composes before the world pack's generator
+  tags run, so the items' ground blocks are missing. 11 cooked cells are stale for that composition:
+  - 7 are stale in the town-off page too (HOME's own cell is one of them). These are the town-off page's 87 bakes, unchanged.
+  - 4 are in Metlakatla, from the ball park and harbour items (sport/ and marine/). They cost 47 more bakes, ~0.05-0.08 s on the box at 1-1.6 ms a tile.
+
+  The readers are the island-wide ones that METLA-LOAD kept on terrainH: the wind's relief, the colour bake's world.surface
+  and the biome's tree slope. They cache that first ground for the session. The fix belongs to both pages: compose the first
+  world with the generators, or move those readers after the town composes. It is not done here because it changes the
+  town-off page.
+- **NOT BY PROXIMITY.** The numbers rule it out for the default spawn:
+  (1) HOME's stand is 8.9-10.4 km from every one of the 45 cells. The forest fill's ring reaches ~9.8 km (FAR_FILL 9 km +
+  half a 1 024 m chunk's diagonal) and reads terrainH, so a load radius safe for it already holds the town at HOME.
+  (2) At every town-on boot the premises' geometry (patch, roads, rails, polygons: METLA-LOAD's ~11 000 reads of the town)
+  is BUILT on the build read. Built without the cells, those meshes keep the composer's ground, which is the 47 mm gap this
+  job removes, unless they are rebuilt when the cells arrive.
+  (3) Relief, world.surface and the tree slope read every cell at boot (above).
+
+  A real proximity scheme would need several pieces: a pending-cell state in 27_premises (read the composer for a named but
+  unfetched cell instead of baking); world.rasterAdd plus a 'raster' world op to the physics and house workers; rebuilding
+  the town's geometry when a cell arrives; and boot sets for the workers that know the spawn. It saves 13.9 MB on the wire
+  and ~257 MB resident only for a town-on player who never comes within ~10 km of Metlakatla, and HOME is within 10 km.
+- **THE MEMORY** is the cheaper lever: the cells could stay gzipped in memory and be inflated per cell on first read (a
+  synchronous JS inflate; ~20 KB of code). That is a follow-up if +257 MB town-on is too much for the phones.
+
+**G1434 FOR THE BOX: THE A/B, AND THE CUB'S TAXI (16 % uneven).** tools/perf/metla_ab.js now:
+- takes a build file in --builds;
+- logs `bootRaster` at the garage and after the roll-out (the variant, the cells fetched, every overlay's taken / refused and
+  bakes, summed);
+- with --over <s>, places the aeroplane --over-lead 2500 m short of Metlakatla's centre (--over-at -3058,-8445, the town
+  cells' centroid) on the HOME -> town bearing, 150 m over the ground at 45 m/s, with the pilot re-engaged as the pass does.
+  It logs the scene's raster delta and the closest approach. The table adds the boot bakes and OVER fps / uneven / worst /
+  bakes.
+
+Commands (a fresh profile each; the first run warms it):
+```
+node tools/perf/metla_ab.js --port 8651 --udd D:/utc1 --order A,B,B,A --builds builds/cub_2026-09-20_corrected.json --taxi 15 --pass 15 --over 60 --out tools/perf/town_cook_ab1.json
+node tools/perf/metla_ab.js --port 8652 --udd D:/utc2 --order B,A,A,B --builds builds/cub_2026-09-20_corrected.json --taxi 15 --pass 15 --cpuprof taxi --out tools/perf/town_cook_ab1_prof.json
+```
+For "before", run the first command from a worktree of claude/metla-load-g1405 (built), with this branch's metla_ab.js
+copied in. The rig serves its own checkout's pages.
+
+What to expect:
+- Garage: town on vs off = the +14 MB fetch and its gunzip, less ~220 boot bakes (~0.2 s) against
+  METLA-LOAD's build.
+- bootRaster: B ~134, A ~87 (box: ~0.13 / ~0.09 s).
+- OVER bakes: 0 on both sides (A is the default variant, which is cooked whole too).
+- TAXI: the cook changes nothing per frame at HOME (0 bakes there before and after).
+
+**Suspects for the Cub's town-on taxi (16 %)**, in the order to check:
+1. The far town's kit host: 426 boxes in one draw, on the GPU. If it is the cause, the long rows' `gpu` column carries it.
+2. What the town runs every frame wherever the eye is: the traffic advancing on every road past its cull (G1192) and the
+   scenery life's tick over the town. If these are the cause, they show in the taxi's --cpuprof self time.
+3. NEW with this cook: a larger heap (+86 MB per thread), so longer major GCs. This shows as "(garbage collector)" in the
+   profile.
+
+The Cub alone at 16 % (metal 13-15 %) suggests something in its view rather than its physics, so (1) comes first.
+
+GATES (node, run_gates --only, this branch, built): MEDIA, ASSETS, BUILD, PREMISES, PREMRASTER, PREMCOOK, METKIT, LIFE, and
+for the two workers' files SIMWORKER and HOUSEWORKER (the four page children bit for bit, 706 s) - all PASS (BATTERY: PASS).
+The full battery is A0's.
+Touched: tools/build.js, src/viewer/sim_host.js, src/viewer/sim_link.js, src/viewer/house_worker.js, src/viewer/world_boot.js
+(G1430); tools/premises_cook.js, src/core/premises_packs.json, media/world/jolene/premises/ (+43), tools/_premcook_check.js
+(G1431); tools/perf/town_cook_node.js (+ _node1.json), tools/perf/town_cook_boot.js (+ _boot1.json), tools/perf/metla_ab.js
+(G1432). The generated files (flight_core.js, index.html, dev.html, sw.js, version.json) are not committed - A0's built
+commit.
