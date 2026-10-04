@@ -71980,3 +71980,219 @@ session has rendered; "finding" = taken on the live page while diagnosing, "afte
 - `finding_garage_live_chooser.jpg` - the shed on SwiftShader under the first-launch chooser (the garage was never the
   problem; its frame was ~9 s, now ~4 s).
 Generated outputs (index.html, dev.html, tools/flight_core.js, sw.js, version.json) NOT committed - A0 builds.
+
+## G1450-G1455 - RELEASE-FAST: THE RELEASE RUNS WHAT THE DRAG REACHED; THE SHEET'S STAGES, THE CAVITY BAKE, THE TANK SOUP AND THE SOLES KEPT BY THEIR INPUTS (2026-10-04, RELEASE-FAST for A0, a CLOUD session: node only, no GPU; branch claude/release-fast-g1450, written off claude/garage-instant-g1440 6d7bbb8a, rebased onto master = train 28 9825e1e2)
+
+The user: "fast reaction time to sliders in the garage" - "an instantaneous feeling". GARAGE-INSTANT (G1440-G1446) made a
+DRAG TICK cheap; the RELEASE (the hand lets go) was still the whole exact build (box: Cub ~220-340 ms, metal ~330-520),
+and the metal Cessna's sheet-detail rows ~180-290 ms a tick. Brief: release <= 150 ms (Cub) / <= 250 ms (metal), the
+metal's detail rows <= 100 ms a tick, every release EXACT (GATE INSTANT SAME on the five validated builds).
+
+**G1450 THE PROFILE** (`tools/perf/garage_release.js`, new: the page in node, each row dragged - pointerdown, four ticks
+a frame apart with the settle held off - then the RELEASE (change + pointerup) timed in REAL ms; each chain layer's
+self ms (CAGE_CHAIN.last), the sheet, CAGE_ON_BUILD, the page's timers after it (idle), `--prof` the inspector's
+profile of the release with the generator passes and steps named). The base's release (node, two pages beside each
+other, so ~3-4x the box) is the whole build whatever the row:
+- every layer, every time: Cub ~600-750 ms of layers (crew 100-155, energy 60-125, wing ~90, gear ~75, hinge ~70,
+  cowl ~55-67, access ~45, eng ~45); metal ~700-1500 (crew 170-350, energy 80-390, hinge 76-200, access 60-160);
+- the fuselage's mesh made again off a KEPT sheet (meshFrom 54-145) and its cavity bake again (aeroWxCavity 80-110 a
+  release, every geometry of every layer re-baked though most came out the same);
+- CAGE_ON_BUILD 35-120 (placeEditor's whole-aeroplane box);
+- a fuselage row adds the sheet (metal 560-870: the shoulder + door panel ~190, the knife ~60, the interior ~65-140,
+  the rims ~20-60, subdivision ~25) and GC is 40 % of everything (the tank soup's 45 000 little arrays, the crew's
+  points, the bake's neighbour lists).
+What the change could not have touched: on a wing / tail / gear / crew row the sheet, the fuselage's mesh and bake,
+and every layer the row's P keys do not reach; on a sheet-detail row the passes before the one it moves; on any row
+the bake of a geometry that came out the same.
+
+**G1451 THE RELEASE RUNS WHAT THE DRAG REACHED** (`_cage_ui.js` releaseSteps / releaseWhy, `_cage_chain.js` plan(P, true,
+mesh), `_cage_crew.js` CAGE_CREW_FLOOR). A drag's release (dragSettle: the slider's change, the pointer up, the pause) on
+a sheet that is the stand's no longer runs the whole build. CAGE_CHAIN.plan(P, true, sheet) is the drag's plan (each
+layer's recorded P reads against P now, the forward FEEDS) plus:
+- STALE: a layer that last ran under a drag's defer (G1303: access, light, energy, hinge - they hid and returned, their
+  reads not taken) runs;
+- SHEET: a layer that last ran on another sheet runs (a detail row's tick, G1444, built the sheet and ran only the
+  planned layers: its release runs every layer, but not the fuselage's mesh again);
+- THE RELEASE'S OWN EDGES (REL_FEEDS, which may point at an EARLIER layer; the pass repeats until nothing is added):
+  wing -> eng (the propeller-clearance microtask reads the wing's probes), gear -> eng (the aft skin), wing -> cowl when
+  the engine is wing-mounted (engMount >= 2: engineFaces stands on the wing), eng / cowl -> energy (the tanks' clearance
+  probes their meshes, HIT_LAYERS);
+- the always-run three (panel, cowlAft, ext).
+The fuselage's mesh, its materials, the cage overlay, the zones, the dims STAND (its inputs: the kept sheet, the
+pre-chain rows PRE_KEYS - every `P.` the ui file reads outside the layers - and the view's switches; any of them moved:
+whole). Kept layers keep their groups; then, as a whole build ends: the finish panels, the scene's ORDER put back (a
+layer that ran re-added its groups at the end of the scene; a whole build leaves them in the chain's order - the
+fingerprint is ordered), the sections a kept layer drew stay live (SEC_LIVE: each section's stamping layer is recorded,
+secOwn), the paint record keeps exactly what the meshes wear (a dead material leaves it), the weathering (its sources
+are re-read; the cavity bake bakes only the new geometries, G1454), the rows, the draw. The status line is rebuilt from
+each layer's own words (CAGE_CHAIN records what each layer's body appended).
+THE FLOOR (the crew's, cut round every other layer's meshes on the late hook): with the crew kept, it is taken out for
+the chain (a whole build's chain never sees its build's floor) and put back unless a re-run layer reaches it - a mesh
+that reached the board's height band on the last cut left the scene, or a re-run layer's new group holds one that does
+(the same test sceneCuts applies; the band and the hits are recorded on each cut) - then it is cut again through the
+crew's own closure (the same group, anchors, seats, sheet, controls).
+(the same band test now also skips a mesh wholly fore or aft of the board's RUN: buildFloor drops every cut piece
+whose middle is outside [z0 + 1 cm, z1 - 1 cm], so such a mesh's cuts never reach the board - the floor's own cut skips
+it too, exact)
+WHOLE, as before, when: the sheet moved (a cage row: the deformed drag's settle, G1443), the craft frame the kept
+layers published in is not the mount's now (the sit moved - and the first release after a build that moved the sit:
+the boot's), a pre-chain row moved, a chain that threw or never recorded, `?garage=old`, CAGE_UI.releaseFast = false,
+and two found by the gate:
+- A FLOATPLANE (P.gearFloats): the float layer stands its step on the CG the balance worker answers (FLYDIY_CG_MODEL,
+  G396 - not a P key, no record holds it) and the handshake rebuilds when it moves 2 cm; the partial release left the
+  floats one handshake build off the base (crew footwell / weathering uniforms 2 cm in the craft frame). Whole now: the
+  floats rows give the BASE TREE'S OWN results, hash for hash (below);
+- A CREW REBUILT BY THE DRAG ON AN UNCHANGED SHEET (a crew row: seat, pedal, stick stations): the Cessna 172's seat
+  height ended with the wing tanks' outboard end 1 cm off the plain build (x1 2.771 vs 2.781 m) - the wing group, the
+  tank state, the bays and the shelf's resolved spec all equal (probed), forcing the crew into the release not enough;
+  a dependency of the tanks' wing fit no record or edge names yet. Whole now (the crew rows are the base's whole
+  build); with the sheet changed every layer runs anyway and those rows pass.
+CAGE_UI.release says which way each went ({n, whole, last: {ran, why, floor, ms} | {whole: why}});
+CAGE_UI.releaseForce = [names] (a bisecting knob) runs named layers too. CAGE_UI.release says which way each went ({n, whole, last: {ran, why, floor, ms} | {whole: why}}).
+
+**G1452 THE SHEET'S STAGES KEPT WHILE THEIR INPUTS ARE** (`_cage_gen.js` cageSheetKept, opts.passKeep; `_cage_ui.js`
+sheetKept passes it unless the sheet is not kept / ?garage=old). cageSheet runs as four stages - the cage through the
+canopy (subdivision, refit, the drawn band, sill, cut, knife), the rims, the interior, the shoulder (+ door panel) -
+each keyed by its input (the previous stage's kept object) and the JSON of the spec keys it read on its last run (the
+spec is handed to the passes through a recording view). Measured first: no pass reads P, a clock or a random number;
+the rims and the interior APPEND to the mesh they are handed and REPLACE face entries (no vertex, field entry, crease or
+face object of their input is written), so each is handed a shallow copy (V/F/A/N sliced) and the kept output stays as
+built; the interior's one global (CAGE_MEMBERS) is kept with it. A rim row reruns rims + interior + shoulder, a dash
+row the interior + shoulder, a shoulder / door-panel row the shoulder alone. EXACT: 93 sheets a build (a sequence of 24
+detail and cage rows, each nudged twice and back), kept vs plain, bit-identical meshes on all five builds; the plain
+cageSheet itself unchanged (85-sheet hash vs the base). Over the sequence the kept path is ~55-65 % of the plain one.
+And four exact micro-cuts in the shoulder: orientPart's position keys once per vertex and numeric edge keys; the door
+panel's base sampler memoised per (y, z) (the caps, walls and chamfer re-ask the outline's points), its cells numeric;
+the dash footprint measured once, not once per door; shoulderTrace's keys per vertex.
+
+**G1453 GATE INSTANT, THE RELEASE PATH** (`tools/_instant_check.js`). The pause that settles a drag is held off while
+the hand is down (in node a build's own clock calls carried it past 350 ms inside the gap between two ticks: the settle
+ran mid-drag and the change found nothing to do) - the slider's change and the pointer up ARE the release now; each row
+says which way its release went; the long way builds with every RELEASE-FAST cache off (RELEASE_FAST_OFF: the stages,
+the bake, the soup, the soles); two rows added (dashBack: interior + shoulder stages; shoulderT: the shoulder alone).
+
+**G1454 THE CAVITY BAKE IS A FUNCTION OF ITS GEOMETRY** (`src/viewer/aeroweather.js`). aeroWxCavity reads the positions,
+index, normals, count and unit only: a geometry made again the same (the fuselage's mesh off a kept sheet, a layer part
+a rebuild did not move) takes its bake back - keyed by a hash of the arrays and CONFIRMED element for element, the
+answer copied, up to 40 MB of recent bakes. And the bake's neighbour lists are two flat arrays filled in the same edge
+order (each vertex sums the same terms in the same order): exact, ~1.4x. Unit test: kept vs plain, 60 geometries, Object.is
+on every value.
+
+**G1455 THE LAYERS' OWN REPEATS** (`_cage_energy.js`, `_cage_char.js`). The tank layer's surface soup (the sheet + the
+engine's and cowl's triangles, 15 numbers each) is one Float64Array (the same doubles in the same order; the metal's
+45 000 little arrays were a large share of a release's garbage) and the sheet's part is kept per sheet object; its
+engine/cowl intrusion count skips a mesh whose box (the geometry's corners through the same two matrices, padded 1 mm)
+misses every tank's box (pointInBox would refuse each vertex). The crew's soleAt keeps WHICH vertices are the sole (a
+fact of the shared character geometry's skin weights and the bone names) per geometry; the pose is applied every call.
+
+**THE TABLE** - this cloud box (4 vCPU, node 22, no GPU), `tools/perf/garage_release.js`, base = 6d7bbb8a (built,
+served from a worktree) and after = this branch, BOTH TREES RUN AT ONCE on the same rows (so they share the load; node
+here read ~4-5x the box, the cubs and the metals each beside a gate) - the RATIO is the result, the box's numbers are
+A0's to take. Median of 3 reps, ms: `tick` the drag tick's handler, `RELEASE` the change + pointerup handler (the
+settle build inside it). The first row of each run is the boot's whole release on both trees and is left out (wgChord
+in the table is the second drag of the page, warm). Kept: `tools/perf/garage_release_{base,after}_{cub,metal}.json`.
+
+| cub row | base tick | after tick | base RELEASE | after RELEASE | after: the release ran |
+|---|---:|---:|---:|---:|---|
+| wgChord | 217.2 | 213.7 | 1838.7 | **702.4** | partial: access light energy hinge |
+| wgSpan | 185.7 | 198.1 | 2099.8 | **809.6** | partial: access light energy hinge |
+| stSpan | 22.8 | 18.6 | 2080.1 | **432.4** | partial: access light hinge |
+| s1X | 188.4 | 261.7 | 1723.5 | **358.5** | partial: access light hinge |
+| seatH | 338.8 | 312.3 | 1741.5 | **1546.2** | whole (the crew moved in the drag) |
+| paxLen | 45.9 | 61.6 | 3598.7 | **3932.2** | whole (a deformed drag) |
+| halfW | 29.8 | 33.6 | 2123.7 | **2767** | whole (a deformed drag) |
+| rimW | 423.4 | 417.8 | 1868.8 | **1842.1** | partial: crew cowl eng gear float fin stab access light energy hinge |
+| dashBack | 677.7 | 675.1 | 2849 | **1834.5** | partial: cowl eng wing brace gear float fin stab access light energy hinge |
+| shoulderT | 178 | 87.9 | 1616.9 | **1153.5** | partial: crew cowl eng wing brace gear float fin stab access light energy hinge |
+
+| metal row | base tick | after tick | base RELEASE | after RELEASE | after: the release ran |
+|---|---:|---:|---:|---:|---|
+| wgChord | 189.4 | 126.7 | 2063.6 | **409.1** | partial: access light energy hinge |
+| wgSpan | 147.1 | 126.6 | 1454.2 | **462.9** | partial: access light energy hinge |
+| stSpan | 16.7 | 19.4 | 1311.3 | **288.4** | partial: access light hinge |
+| s1X | 101.3 | 114.1 | 1264.5 | **320.6** | partial: access light hinge |
+| paxLen | 36 | 38.6 | 3000.7 | **2644.7** | whole (a deformed drag) |
+| halfW | 28.2 | 28.2 | 2160.7 | **2290.5** | whole (a deformed drag) |
+| rimW | 671.6 | 672.8 | 1263.2 | **1430.2** | partial: crew cowl eng gear float fin stab access light energy hinge |
+| dashBack | 760.1 | 664.4 | 1910.8 | **983.2** | partial: cowl eng wing brace gear float fin stab access light energy hinge |
+| shoulderT | 410.7 | 206.4 | 1052.5 | **1721.7** | partial: crew cowl eng wing brace gear float fin stab access light energy hinge |
+| rimRivet | 501.3 | 611.9 | 1034.6 | **1010.8** | partial: crew cowl eng gear float fin stab access light energy hinge |
+
+
+READING IT: the kept-sheet rows (wing, tail, gear: the brief's "wing span ... release") release 2.6-5x faster - the box
+had them at Cub ~220-240 / metal ~330-420 ms, so ~50-90 / ~70-130 ms (UNDER the 150 / 250 targets, to be confirmed on
+the box). The sheet-detail rows' release keeps the fuselage's mesh and its bake and the passes before the moved one
+(dash back 1.55x Cub / 1.9x metal, shoulder 1.4x Cub; a rim row reruns nearly everything and is flat). The cage
+(fuselage) rows, the crew rows and the floatplane stay the whole build (flat, within this box's noise): NOT met - see
+below. The detail rows' TICKS (the sheet built, G1444): Cub shoulder 178 -> 88, metal shoulder 411 -> 206, dash back
+760 -> 664; rims flat (node, same load) - the metal's <= 100 ms box target is met at best by the shoulder rows.
+
+
+**EXACTNESS - GATE INSTANT on the final code** (node; each row dragged, released, then built the long way twice with
+every RELEASE-FAST cache off; the boot spec hashes unchanged: cub ca8086e8, metal 6fee07e8, jodel 6760b1e5, cessna
+ba7fb2a6, floats d4c0a24e):
+- Cub PASS (11 rows SAME, frCabTopW has no visible slider; + dashBack, shoulderT, rimRivet, dashLip SAME), metal
+  Cessna PASS (11), Jodel PASS (10; two rows hidden on it), Cessna 172: 12 SAME and seatH DIFFER 4 (the tanks: the crew
+  rule below), then the re-gate after the rule - seatH, wgChord, stSpan, dashBack: PASS. The Cub / metal / Jodel runs
+  are of the code before the floor's z test, the floats rule and the crew rule (each only makes a release whole or
+  skips a mesh that cuts nothing: the Cessna, floats and cross-tree runs below are of the final code). Each row says how its release went: partial on the wing, tail, gear rows (the four deferred detail layers +
+  the always-run three), partial with every layer on the detail rows ('sheet'), whole on the cage rows (deformed),
+  the crew rows and the first release after the boot.
+- Cessna floats (`--settle 8000`, 7 rows, BOTH TREES): the base tree FAILs all 7 (the pre-existing CG handshake -
+  scene DIFFER 0 or 2, spec differs: GARAGE-INSTANT's note); this branch gives THE BASE TREE'S OWN RESULT ON EVERY ROW,
+  hash for hash. Not worse; still documented, not fixed.
+- CROSS-TREE (new, `xtree`: the garage booted in each tree and three plain builds fingerprinted, the base against this
+  branch with every cache ON): Cub, metal Cessna, Cessna 172 - SCENE SAME (775 / 1134 / 1134 objects, only the crew's
+  3 idle bones vary, on either tree) and the same spec hashes (the Cessna's plain builds drift ba7fb2a6 -> 2f47c658
+  on BOTH trees alike). The plain build is the base's aeroplane.
+- The sheet's stages: 93 sheets a build (24 detail and cage rows, each nudged twice and back), kept vs plain,
+  bit-identical on all five builds; the plain cageSheet's hash unchanged on 85 sheets; the cavity bake: kept vs plain,
+  Object.is on every value.
+
+**GATES** (the files touched: _cage_chain, _cage_ui, _cage_crew, _cage_gen, _shoulder_gen, _cage_energy, _cage_char,
+aeroweather, _instant_check, run_gates, garage_lag): `run_gates --only=FIT,JOIN,TANKMOUNT,ENERGY,HANGAR,RAYINDEX,PARTS,
+FRAMES,SAVE,DESIGN,GEAR,MOUNT,LIVERY,BUILD,UISMOKE --jobs=2`: 14 PASS, LIVERY FAIL (its slice of secMat lacked the new
+section-owner helper: guarded as secMat guards paintRec, re-run alone: GATE LIVERY PASS, 114 checks); INSTANT above.
+Not run: the full battery (A0's per train), BOOT, FRAMECOST.
+
+
+**FOR A0 - THE BOX RE-TIME** (this session had no GPU; every number above is node). First `node tools/build.js` on the branch
+(the built page files are NOT committed - index.html / dev.html / sw.js / flight_core.js / version.json are A0's per train;
+the node rigs and gates need a built dev.html to load _cage_chain.js at all), then serve both trees as before
+(`git archive 6d7bbb8a flyDiy | tar -x -C _ab/6d7bbb8a`, the same for this branch's READY sha, each built).
+- THE RELEASE (the brief's number: the slider let go -> the exact aeroplane drawn), the drag strip, base then after, a
+  fresh profile each (the pause is held off during the ticks, the release is the slider's change + the pointer up):
+  `node tools/perf/garage_drag_strip.js --port 8879 --udd D:/ugrf1 --tree _ab/6d7bbb8a/flyDiy --build cub --row p_wgSpan,p_stSpan,p_s1X,p_seatH,p_paxLen,p_halfW,p_rimW,p_dashBack --dir reports/evidence/RELEASE-FAST/base_cub`
+  `node tools/perf/garage_drag_strip.js --port 8879 --udd D:/ugrf2 --tree _ab/<READY>/flyDiy --build cub --row p_wgSpan,p_stSpan,p_s1X,p_seatH,p_paxLen,p_halfW,p_rimW,p_dashBack --dir reports/evidence/RELEASE-FAST/after_cub`
+  and the same two with `--build metal --row p_wgSpan,p_stSpan,p_s1X,p_paxLen,p_halfW,p_rimW,p_dashBack,p_shoulderT,p_rimRivet`
+  (udd ugrf3 / ugrf4). The line to read is each row's `release handler X ms, drawn Y ms`; `*_strip.json` keeps them.
+  NOTE the first drag after a load is a whole release on both trees (the boot's build measured the craft frame one draw
+  early: "the sit moved") - the strip's FIRST row is that one; put a throwaway row first (e.g. p_wgChord) to read them all
+  warm, or read row 1 as the cold case.
+- THE TICKS (the metal's detail rows: the brief's <= 100 ms), garage_lag with the new opt-in rows:
+  `node tools/perf/garage_lag.js --port 8771 --udd D:/ugrf5 --trees base=_ab/6d7bbb8a/flyDiy,after=_ab/<READY>/flyDiy --builds metal --reps 5 --only rimW,rimRivet,dashBack,shoulderT,seatH`
+  and the default script (no --only) for the rest of the drag ticks, both builds, to confirm nothing moved backwards.
+- GATE INSTANT on the box: `node tools/run_gates.js --only INSTANT` (Cub + metal, now 14 rows each with the release
+  path), and `node --max-old-space-size=4096 tools/_instant_check.js --builds jodel,cessna` for the other two.
+
+
+**NOT MET / WHAT IS LEFT, measured:**
+1. THE CAGE ROWS' RELEASE (fuselage length, width, roof, nose, the frames) is the whole build: every layer stands on
+   the sheet (each destructures ctx.mesh; the fit sites raycast it), so a moved cage reruns them all; this session cut
+   only what a whole build repeats (the cavity bake of unchanged parts, the tank soup's garbage, the soles' scan, the
+   shoulder's keys, the floor's far meshes) - within noise here. Under 150 / 250 ms needs the layers to say WHAT of
+   the sheet they read (a per-layer record of the mesh, as the P reads are recorded), or the sheet's details deformed
+   like its base (G1443) so the layers can ride.
+2. THE CREW ROWS' RELEASE is whole (the Cessna's tank fit, above). The probe that found it: tank state, bays, shelf
+   spec, wing group all equal; the wing tank's outboard end differs. A next session can find the edge (the gate row
+   reproduces in 7 min: `node --max-old-space-size=4096 tools/_instant_check.js --builds cessna --only wgChord,seatH`
+   with the rule taken out) and turn the rule into an edge.
+3. THE METAL'S DETAIL TICKS: the sheet's stages cut the passes before the moved one; the rim rows (rims -> interior ->
+   shoulder) and the dash rows (interior + shoulder) are still the sheet's heaviest passes, and the tick still makes
+   the fuselage's mesh (meshFrom, 50 000 vertices) and bakes it. Next: the interior's own stages, the mesh made only
+   for the groups that moved.
+4. A0's box numbers: everything here is node (no GPU in the cloud); the strip and garage_lag lines above are the
+   re-time. The built page files are not committed.
+
+Rigs: garage_release.js (new: node, the release per row, `--prof`), garage_lag.js (+ opt-in detail rows),
+garage_drag_strip.js (unchanged), _instant_check.js (the release path). Cloud session, ~3.6 h, node only.
