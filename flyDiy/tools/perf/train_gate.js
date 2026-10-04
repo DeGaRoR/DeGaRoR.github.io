@@ -96,11 +96,21 @@ function steps(dir, port, udd) {
 // rule: up (higher is better), rel / abs (the slack is the larger of |baseline| * rel and abs), info (printed, never red)
 const R_LOAD = { warm: { rel: 0.10, abs: 4, unit: 's' }, cold: { rel: 0.12, abs: 8, unit: 's' }, trip: { rel: 0.15, abs: 1.5, unit: 's' } };
 const R_SCENE = {
-  fps: { up: true, rel: 0.05, abs: 1, unit: 'fps' }, p99: { rel: 0.10, abs: 2, unit: 'ms' }, over15: { rel: 0.20, abs: 0.005, unit: '' },
+  // p99 / over15 widened by A0's noise check (2026-10-03, the same tree run twice: metal chase p99 33.5 -> 50 ms - at a 30 cap a
+  // frame is 33 or 50 ms, so p99 moves a whole frame; Cub taxi over15 4.5 -> 5.9 %): p99 one frame (17 ms), over15 2 points
+  fps: { up: true, rel: 0.05, abs: 1, unit: 'fps' }, p99: { rel: 0.10, abs: 17, unit: 'ms' }, over15: { rel: 0.20, abs: 0.02, unit: '' },
   over100: { rel: 0, abs: 1, unit: '' }, taskWorst: { rel: 0.15, abs: 150, unit: 'ms' }, tasks1s: { rel: 0, abs: 0, unit: '' },
   p999: { rel: 0.25, abs: 10, unit: 'ms', info: true }, over3x: { rel: 0.25, abs: 0.002, unit: '', info: true }, uneven: { rel: 0, abs: 0.05, unit: '', info: true },
 };
-const R_GARAGE = { change: { rel: 0.12, abs: 25, unit: 'ms' }, total: { rel: 0.06, abs: 60, unit: 'ms' } };
+// change widened by the noise check (the same tree twice: Cub livery busy 319 -> 378, metal engine busy 425 -> 477 ms)
+const R_GARAGE = { change: { rel: 0.25, abs: 60, unit: 'ms' }, total: { rel: 0.06, abs: 60, unit: 'ms' } };
+function ruleNow(b) {
+  const f = String(b.id).split('|'), name = f[f.length - 1];
+  if (b.part === 'rollout' && RT.RULES[name]) return Object.assign({ info: false }, RT.RULES[name]);
+  if (b.part === 'garage') return / ALL$/.test(f[1] || '') ? R_GARAGE.total : (name === 'sync' || name === 'busy') ? R_GARAGE.change : null;
+  if (b.part === 'bench' && name !== 'sec' && R_SCENE[name]) return R_SCENE[name];
+  return null;
+}
 const r4 = x => x == null || !isFinite(x) ? null : Math.round(x * 10000) / 10000;
 const readJSON = f => { try { return JSON.parse(fs.readFileSync(f, 'utf8')); } catch (e) { return null; } };
 
@@ -163,8 +173,11 @@ function compare(G, B) {
   const now = new Map(G.rows.map(r => [r.id, r])), ran = new Set(G.meta.parts || []);
   for (const b of B.rows) {
     if (!ran.has(b.part)) { out.skipped++; continue; }
-    const n = now.get(b.id), R = b.rule || {};
-    const was = b.value, v = n ? n.value : null;
+    // the rule from TODAY's tables where the row's kind is known (a widened slack applies to an older baseline too -
+    // A0, 2026-10-03: --update copied the old slacks with the values); the stored rule otherwise
+    const n = now.get(b.id), R = ruleNow(b) || b.rule || {};
+    // a worst-task row is absent when the step had no long task at all (the noise check: two trips' rows came and went) - that is 0
+    const was = b.value, v = n ? n.value : (/\|taskWorst$/.test(b.id) ? 0 : null);
     if (was == null) continue;
     if (v == null) { if (!R.info) out.red.push({ id: b.id, what: b.what, was, now: null, why: n ? 'not measured' : 'MISSING (the row is gone)' }); continue; }
     const slack = Math.max(R.abs || 0, Math.abs(was) * (R.rel || 0));

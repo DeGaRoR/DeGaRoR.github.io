@@ -69275,3 +69275,29 @@ generated outputs are still not committed.
   against LE.setSunI / setHemiI). LE.writes counts the writes.
 - G1351.1 GATE ASSETS, "mats: atmo.js has 6 (allowed 5)": the probe crossfade's material is made through
   MATLIB.make(THREE, 'shader', ...) (AS4a: one place materials are made); without MATLIB (a node host) the probe cuts.
+
+## TRAIN 27 LANDED (2026-10-04, A0 the coordinator)
+
+Cargo (on train 26 = b2f1ffdc): GATE-TOOLS G1360-G1364 (the frame-length distribution; the per-train strict gate
+tools/perf/train_gate.js, its baselines taken on train 26 with the user's Cub and a noise check that widened four rules),
+SHADER-GUARD G1340-G1344 (the 76-97 s frames = the premises lamp pool's visible count re-keying every lit program at dusk;
+the pool armed / not, the roll-out compiling under its screen; a draw guard that never presents a held frame), LIGHT-SMOOTH
+G1350-G1356 + G1351.1/G1352.1 (the eye's double-encoded readback pinned the exposure at x0.35; the light eases, written only
+in perceptible steps; the cloud tile never draws a full-sun frame; the probe crossfades through MATLIB), SIM-STALL
+G1365-G1369, STRIP-SURFACE G1375-G1379, EDITOR-VEG G1385-G1389, UI-LAYER G1370-G1374, WELCOME G1210-G1219 (+ the
+hangar Cub behind the card; the welcome and the device gate stay out of localhost - the box's rigs drive a headed Chrome
+with webdriver off and the welcome held every boot of the first gate run), SMALL-FIXES G1320-G1322 (+ G1321.2 the
+windscreen frame back under Cabin, the user's reversal), the rigs' Cub = builds/cub_2026-09-20_corrected.json (default is
+the Cub-alike archetype), the live water mirror back in the menu, off by default (the user).
+DROPPED: GEAR-WATER G1380-G1383 - GATE SOAR's negative control: its wet-body pass changes the glide in DRY air (mean sink
+-0.33 -> -0.24 m/s, ends 33 m over the face); reverted (80057a3f); train 26 and train 27 without it pass. Back after a fix.
+STRICT GATE (full, vs train 26): loads, taxi, chase/cockpit, water within slack. Garage: the first run's Cub tank / livery /
+frame "busy" reds were one noisy step - a quiet garage_lag bisect (train 27 / without GEAR-WATER / without SMALL-FIXES /
+train 26, Cub x3) read train 27 = train 26 (tank 695 vs 690, frames 243 vs 247, livery noisy on every tree); the landing
+check (garage only) reds Cub wingSpan busy 251 -> 323, metal fuseLen busy 441 -> 574 and the metal busy sum +8 % - "busy"
+moves row to row run to run, every "sync" row (input -> drawn) is in slack: ALLOWED BY THE USER BY NAME (2026-10-04 03:05,
+"land now"). GARAGE-INSTANT's census looks at busy time.
+DUSK A/B (the 8 always-on lamp lights at night, the Cub, ABAB): taxi equal, stand ~2 fps lower delivered (53.0 / 49.8 vs
+53.8 / 51.4) - accepted. BATTERY: CLOUD + ANIMALS (stale text checks: lampsOn(day), the surface word) fixed; ASSETS +
+FRAMECOST (LIGHT-SMOOTH's fix) and SOAR (GEAR-WATER out) green; the changed gates re-run green on the final build; the
+parked aeroplanes re-cooked on it.

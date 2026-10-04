@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 23f2d541434bcc10
+// body-sha256: 119431ce0061497c
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -3412,20 +3412,31 @@ function makeWorld(seed, opts) {
   // (G527.3, East Point) leaves the clearing to the premises' own excludes)
   var aeroTreeBox = null;   // (`var`: setPremises clears it and runs before this line)
   const rwyTrees = () => (ISL && PM && PM.rwyTrees) || 'today';
+  // G1385 (EDITOR-VEG): a strip's own `clear` (27_premises.js runwayClearOf: side, beyond, taper, bushes) replaces the
+  // generic box for that strip and stands in every variant; past the ends the half-width grows by taper a metre.
+  // Without one, the box is today's to the bit (taper 0: |al| < hl && |ac| < hw).
+  const aeroBoxes = () => aeroTreeBox || (aeroTreeBox = aerodromes.filter(a => a.treeClear || a.treeBox !== false).map(a => {
+    const cl = a.treeClear || null;
+    return (typeof a.hdg === 'number' && a.wid)
+      ? { x: a.x, z: a.z, cx: Math.cos(a.hdg), sz: Math.sin(a.hdg), rl: a.len / 2, hl: a.len / 2 + (cl ? cl.beyond : 150), hw: a.wid / 2 + (cl ? cl.side : 60), tp: cl ? cl.taper : 0, strip: true, own: !!cl, bushes: !!(cl && cl.bushes) }
+      : { x: a.x, z: a.z, r2: (a.len / 2 + 70) ** 2, own: false, bushes: false };
+  }));
+  const inAeroBox = (e, x, z) => {
+    const dx = x - e.x, dz = z - e.z;
+    if (!e.strip) return dx * dx + dz * dz < e.r2;
+    const al = Math.abs(dx * e.cx + dz * e.sz), ac = Math.abs(-dx * e.sz + dz * e.cx);
+    return al < e.hl && ac < (e.tp && al > e.rl ? Math.max(0, e.hw + e.tp * (al - e.rl)) : e.hw);
+  };
   function treeAeroBlocked(x, z) {
-    if (rwyTrees() === 'today') {
-      if (!aeroTreeBox) aeroTreeBox = aerodromes.filter(a => a.treeBox !== false).map(a => (typeof a.hdg === 'number' && a.wid)
-        ? { x: a.x, z: a.z, cx: Math.cos(a.hdg), sz: Math.sin(a.hdg), hl: a.len / 2 + 150, hw: a.wid / 2 + 60, strip: true }
-        : { x: a.x, z: a.z, r2: (a.len / 2 + 70) ** 2 });
-      for (const e of aeroTreeBox) {
-        const dx = x - e.x, dz = z - e.z;
-        if (!e.strip) { if (dx * dx + dz * dz < e.r2) return true; continue; }
-        const al = dx * e.cx + dz * e.sz, ac = -dx * e.sz + dz * e.cx;
-        if (Math.abs(al) < e.hl && Math.abs(ac) < e.hw) return true;
-      }
-      const c = coverAt(x, z, 1); return !!(c && c.kill > 0);
-    }
+    const today = rwyTrees() === 'today';
+    for (const e of aeroBoxes()) if ((today || e.own) && inAeroBox(e, x, z)) return true;
+    if (today) { const c = coverAt(x, z, 1); return !!(c && c.kill > 0); }
     return !!(PM && PM.treePaveAt && PM.treePaveAt(x, z));
+  }
+  // the tall vegetation (the cover ring's shrubs) a strip's own clearance keeps out when it says `bushes`
+  function bushAeroBlocked(x, z) {
+    for (const e of aeroBoxes()) if (e.bushes && inAeroBox(e, x, z)) return true;
+    return false;
   }
 
   // trees: stage-2 biome placement — deterministic jittered 64 m grid,
@@ -3466,6 +3477,7 @@ function makeWorld(seed, opts) {
       if (SET.roadNear(x, z) < 12) continue;   // clear of roads (the ANALYTIC world's; SET is a stub on an island)
       if (SET.inCore(x, z)) continue;          // clear of settlement cores
       if (AERO.inBox(x, z, 30)) continue;      // clear of strips + margin
+      if (PM && PM.vegAt && PM.vegAt(x, z) === null) continue;   // G1385: a cover polygon whose vegetation is none
       if (PM && PM.excludeAt(x, z, 'trees')) continue;   // clear of the premises' excludes: its plots, its strips' boxes, its sites, its clear zones
       // ...and clear of the premises' PAVEMENTS and their bands (2026-09-22, the user: "we have a lot
       // of trees on the roads"). On an island SET is stubbed, so this is the only thing that keeps a
@@ -3964,7 +3976,7 @@ function makeWorld(seed, opts) {
     // G1091: the trees by the runways - the variant ('today' | 'map' | 'mapx', a data island's; 'today' elsewhere),
     // the runways' clearance at a point (the box in 'today', the pavement by the variant) and the class a tree's
     // placement reads; the woodland above and the renderer's fill ask the same three
-    rwyTrees, treeAeroBlocked, treeGround,
+    rwyTrees, treeAeroBlocked, bushAeroBlocked, treeGround,
   };
 }
 // ============================================================
@@ -5952,6 +5964,85 @@ function sitePatternIssues(pat, aero, site, Rmin, patternPath) {
   }
   return out;
 }
+
+// ===========================================================================
+// THE STRIP'S SURFACE, AND WHO MAY LAND ON IT (G1375 STRIP-SURFACE, the user 2026-10-03: "We need to indicate the
+// strip surface: water, dirt, concrete, grass, etc. And disallow the water runways for the wheel planes, and the
+// ground runways for the seaplanes.")
+// ===========================================================================
+// DERIVED, NOT LISTED: every aerodrome record already says what it is - `kind: 'water'` / `water` (a sea lane),
+// the SURFACE enum (20_world's SURFACE, 27_premises' copy: the analytic strips and the generated ones), and on a
+// premises strip the runway's LOOK (27_premises RUNWAY_LOOKS: concrete, old concrete, asphalt, gravel, dirt, sand,
+// grass), which names the pavement finer than the friction enum does (dirt rides GRAVEL's row there). The look
+// wins where it names something; the enum otherwise. `snow` is in the vocabulary for a record that says so
+// (`snow: true` or `look: 'snow'`) - no world carries one yet, and the friction enum has no row for it.
+// -> { key, word, cls } - cls is what the gear rule reads: 'water' | 'snow' | 'grass' | 'hard'
+const STRIP_SURFACES = {
+  asphalt:  { word: 'asphalt',  cls: 'hard' },
+  concrete: { word: 'concrete', cls: 'hard' },
+  paved:    { word: 'paved',    cls: 'hard' },
+  gravel:   { word: 'gravel',   cls: 'hard' },
+  dirt:     { word: 'dirt',     cls: 'hard' },
+  sand:     { word: 'sand',     cls: 'hard' },
+  grass:    { word: 'grass',    cls: 'grass' },
+  snow:     { word: 'snow',     cls: 'snow' },
+  water:    { word: 'water',    cls: 'water' },
+};
+const STRIP_LOOK_SURF = { asphalt: 'asphalt', concrete: 'concrete', worn: 'concrete', gravel: 'gravel', dirt: 'dirt', sand: 'sand', grass: 'grass', snow: 'snow' };
+// the SURFACE enum's index -> the vocabulary (GRASS 0, ROCK 1, SCREE 2, FOREST_FLOOR 3, WATER 4, PAVED 5, GRAVEL 6, SAND 7)
+const STRIP_ENUM_SURF = ['grass', 'gravel', 'gravel', 'dirt', 'water', 'paved', 'gravel', 'sand'];
+function stripSurface(a) {
+  const mk = key => Object.assign({ key }, STRIP_SURFACES[key]);
+  if (!a) return mk('grass');
+  if (a.kind === 'water' || a.water || +a.surface === 4) return mk('water');
+  if (a.snow || a.look === 'snow') return mk('snow');
+  if (typeof a.look === 'string' && STRIP_LOOK_SURF[a.look]) return mk(STRIP_LOOK_SURF[a.look]);
+  const e = STRIP_ENUM_SURF[+a.surface];
+  return mk(e || 'grass');
+}
+// THE GEAR, as the rule reads it: 'wheels' | 'floats' | 'amphibian' | 'skis'. Asked of a spec (gear.type), a built
+// def (def.spec), or a running sim (sim.hydro: the solver carries floats). The spec's normaliser knows taildragger /
+// tricycle / floats today; `amphibian` (or floats with `amphibian: true`) and `skis` are read where a record says
+// so, so the rule below is whole the day the garage builds one
+function stripGear(x) {
+  if (!x) return 'wheels';
+  if (typeof x === 'string') return x;
+  const g = (x.gear && typeof x.gear === 'object') ? x.gear : (x.spec && x.spec.gear) || null;
+  if (g) {
+    const t = String(g.type || '');
+    if (t === 'amphibian' || (g.floats && g.floats.amphibian === true)) return 'amphibian';
+    if (t === 'skis' || g.skis === true) return 'skis';
+    if (t === 'floats') return 'floats';
+    return 'wheels';
+  }
+  return x.hydro ? 'floats' : 'wheels';
+}
+// THE RULE: wheels - anywhere but water; floats - water only; amphibians - both; skis - snow, and grass.
+// -> { ok, why } - `why` is the sentence a disabled choice shows
+function stripAllows(gear, a) {
+  const G = stripGear(gear), S = stripSurface(a);
+  if (G === 'amphibian') return { ok: true, why: '' };
+  if (G === 'floats') return S.cls === 'water' ? { ok: true, why: '' } : { ok: false, why: 'floats land on water only' };
+  if (G === 'skis') return (S.cls === 'snow' || S.cls === 'grass') ? { ok: true, why: '' } : { ok: false, why: 'skis need snow or grass' };
+  return S.cls === 'water' ? { ok: false, why: 'a water lane: wheels cannot land on it' } : { ok: true, why: '' };
+}
+// THE GRACEFUL FALLBACK: `want` if this gear may use it, else HOME, else SEA, else the first aerodrome it may
+// (meadows aside: they are no route's end) - null when the world has none for it
+function stripFallback(gear, aerodromes, want) {
+  const L = aerodromes || [];
+  if (want && stripAllows(gear, want).ok) return want;
+  const ok = a => a && a.kind !== 'meadow' && stripAllows(gear, a).ok;
+  return L.find(a => a.id === 'HOME' && ok(a)) || L.find(a => a.id === 'SEA' && ok(a)) || L.find(ok) || null;
+}
+// THE PILOTS' GUARD (40_autopilot, 41_test_pilot, 43_pilot setRoute / departFrom): a destination this gear may not
+// land on is never planned - the circuit at `from` when it may, else the fallback above; `why` is the verdict
+// line (empty when nothing changed, or when the world offers nothing better)
+function stripLandable(gear, aerodromes, from, to) {
+  if (!to || stripAllows(gear, to).ok) return { to, why: '' };
+  const alt = stripFallback(gear, aerodromes, from);
+  if (!alt || alt === to) return { to, why: '' };
+  return { to: alt, why: (to.name || to.id) + ' is ' + stripSurface(to).word + ' (' + stripAllows(gear, to).why + ') - landing at ' + (alt.name || alt.id) + ' instead' };
+}
 // ===========================================================================
 // THE FIT-OUT — what a hangar IS, what is IN it, and what you can DO there.
 // ===========================================================================
@@ -7563,6 +7654,66 @@ function rwyTreesMode(o) {
   v = String(v == null ? '' : v).toLowerCase();
   return RWY_TREES.indexOf(v) >= 0 ? v : 'today';
 }
+// THE STRIP'S TREE CLEARANCE (G1385 EDITOR-VEG, contract v1.31, the user: "I need to better control tree exclusion
+// zones around runways"): a strip's `clear` { side, beyond, taper, bushes } is the clearing the trees keep from it -
+// `side` metres past each edge, `beyond` metres past each end, and past the ends the half-width grows by `taper`
+// metres a metre (0 a rectangle, 0.15 an approach surface's splay, < 0 an end that narrows). `bushes` keeps the
+// cover ring's shrubs out of it as well (the tall vegetation; the grass and the flowers stay). NO `clear` is
+// today's generic box exactly - wid/2 + 60 across, len/2 + 150 along, no taper, the bushes kept (20_world.js
+// treeAeroBlocked, render_world's analytic treeEx) - and only in 'today'. An AUTHORED clearance is the strip's own
+// word: it stands in every variant (rwyTreesMode) and it wins over treeBox false.
+const RWY_CLEAR_DEF = { side: 60, beyond: 150, taper: 0, bushes: false };
+// A COVER POLYGON'S VEGETATION (G1385 EDITOR-VEG, contract v1.31, the user: "I would like the polygons to be more
+// flexible and accept any type of vegetation, from none, to an existing biome, to a new biome"). A `ttype` polygon's
+// `veg`, saved with it:
+//   { mode: 'none' }                                   nothing of a biome grows inside (no tree, no tuft, no bush)
+//   { mode: 'biome', mix: 'conifer' }                  any mix of tools/_trees_tuning.json (the payload's biomes)
+//   { mode: 'new', species: { name: { proportion, density?, size? }, ... }, density: trees/ha, under: bushes/1000 m2,
+//     cover: the grass's factor }                     a biome defined in place - the mix '@' + the polygon's id
+// The `code` may then be null: the polygon stamps no terrain type and only says what grows. Without `veg` a
+// polygon is what it was (its code's biome).
+const VEG_MODES = ['none', 'biome', 'new'];
+const hasCode = c => c.code !== null && c.code !== undefined && c.code !== '' && isFinite(+c.code);
+function vegOf(c) {
+  const v = c && c.veg;
+  if (!v || typeof v !== 'object' || VEG_MODES.indexOf(v.mode) < 0) return null;
+  if (v.mode === 'biome' && !(typeof v.mix === 'string' && v.mix)) return null;
+  if (v.mode === 'new' && !(v.species && typeof v.species === 'object' && Object.keys(v.species).length)) return null;
+  return v;
+}
+// the mix a 'new' vegetation plants: the bench's shape ({ species, forest }) - `density` trees a hectare is the
+// forest's count in its 220 m stand (28c_biomes B.density), `under` the bushes, `cover` the grass's factor
+const VEG_R = 220;
+function vegMixOf(v) {
+  const sp = {};
+  for (const k of Object.keys(v.species)) { const r = v.species[k] || {}; const o = { proportion: isFinite(+r.proportion) ? Math.max(0, +r.proportion) : 1 };
+    for (const q of ['density', 'size', 'patch', 'dead']) if (isFinite(+r[q]) && r[q] !== null && r[q] !== '') o[q] = +r[q];
+    sp[k] = o; }
+  const ha = isFinite(+v.density) ? Math.max(0, +v.density) : 100;
+  return { species: sp, forest: { ground: 'plane', radius: VEG_R, count: Math.round(ha * Math.PI * VEG_R * VEG_R / 10000),
+    under: isFinite(+v.under) ? Math.max(0, +v.under) : 2, cover: isFinite(+v.cover) ? Math.max(0, +v.cover) : 1, reach: VEG_R } };
+}
+function runwayClearOf(r) {
+  const c = r && r.clear;
+  if (!c || typeof c !== 'object') return null;
+  const n = (v, d, lo, hi) => (isFinite(+v) && v !== null && v !== '' ? clamp(+v, lo, hi) : d);
+  return { side: n(c.side, RWY_CLEAR_DEF.side, 0, 600), beyond: n(c.beyond, RWY_CLEAR_DEF.beyond, 0, 3000),
+           taper: n(c.taper, RWY_CLEAR_DEF.taper, -1, 1), bushes: !!c.bushes };
+}
+// the clearance as a box in the axis frame of the strip: al along (from the centre), ac across; true inside.
+// e = { rl: len/2, hw: wid/2 + side, hl: len/2 + beyond, tp: taper }
+function inRwyClear(e, al, ac) {
+  al = Math.abs(al); ac = Math.abs(ac);
+  if (al >= e.hl) return false;
+  return ac < (al > e.rl && e.tp ? Math.max(0, e.hw + e.tp * (al - e.rl)) : e.hw);
+}
+// the same clearance as a polygon in the PREMISES frame (the editor's outline; eight corners, CCW)
+function runwayClearPoly(r, cl) {
+  cl = cl || runwayClearOf(r) || RWY_CLEAR_DEF;
+  const E = runwayEnds(r), hw = r.wid / 2 + cl.side, hwE = Math.max(0, hw + cl.taper * cl.beyond), rl = r.len / 2, hl = rl + cl.beyond;
+  const P = (u, v) => [r.c[0] + E.d[0] * u + E.n[0] * v, r.c[1] + E.d[1] * u + E.n[1] * v];
+  return [P(-hl, -hwE), P(-rl, -hw), P(rl, -hw), P(hl, -hwE), P(hl, hwE), P(rl, hw), P(-rl, hw), P(-hl, hwE)];
+}
 function paveBand(entry, cls, isRoad) {
   const b = entry && entry.band !== undefined && entry.band !== null ? +entry.band : (isRoad ? Math.min(PAVE_BAND[cls] || 2, 1.2) : (PAVE_BAND[cls] || 2));
   return Math.max(0, b);
@@ -7738,6 +7889,9 @@ function runwayAerodrome(r, F, elev, flats, hAt, gradedRoads) {
            // THE TREES ROUND THE STRIP ARE THE RECORD'S (G527.3, contract v1.25): treeBox false - the renderer's generic box
            // (len/2 + 150 along, wid/2 + 60 across) is not cut; the strip's own box + 30 m and the authored excludes are
            treeBox: r.treeBox !== false,
+           // THE STRIP'S OWN CLEARANCE (G1385, contract v1.31): `clear` authored - its sides, ends and taper replace the
+           // generic box (and stand in every rwytrees variant); null - the generic box, as before (runwayClearOf)
+           treeClear: runwayClearOf(r),
            // THE WAY OUT OF A ONE-WAY STRIP (G527.3, contract v1.25): `departure` names the end the take-off leaves OVER
            // (0|1); without it a one-way strip is left the way it is landed. East Point is landed over the sea and left
            // back out over it - the trees close in at the other end
@@ -8131,7 +8285,9 @@ function compose(rec0, world, opts) {
     return null;
   };
   const excl = rec.layers.exclude.filter(s => s.poly && s.poly.length >= 3).map(s => { const what = s.what || ['trees'], fan = fanOf(s.poly, what); return Object.assign({ poly: s.poly, bbox: polyBBox(s.poly), what, id: s.id || null }, fan ? { fan } : {}); });
-  for (const r of runways) { if (runwayIsWater(r)) continue; const box = runwayBox(r, 30); excl.push({ poly: box, bbox: polyBBox(box), what: ['trees', 'settle', 'plots'], derived: true, runway: r.id, rwy: true }); }
+  // (G1385: a strip with its own `clear` hands its trees to that clearance - the box + 30 m keeps the plots and the
+  // settlements off, and a clearance narrower than 30 m is then what the user asked for, not the box's)
+  for (const r of runways) { if (runwayIsWater(r)) continue; const box = runwayBox(r, 30); excl.push({ poly: box, bbox: polyBBox(box), what: runwayClearOf(r) ? ['settle', 'plots'] : ['trees', 'settle', 'plots'], derived: true, runway: r.id, rwy: true }); }
   // a hard surface (paved / gravel / sand) grows no tree and takes no plot: an apron is an apron
   for (const sp of rec.layers.surface) if (sp.poly && sp.poly.length >= 3 && [SURFACE.PAVED, SURFACE.GRAVEL, SURFACE.SAND].indexOf(+sp.surface) >= 0) {
     const sh = +sp.surface !== SURFACE.PAVED ? shoulderOf(sp.poly) : null;
@@ -8202,7 +8358,8 @@ function compose(rec0, world, opts) {
     const reach = paveBand(pp, RUNWAY_LOOKS[pp.look].cls, true) + PAVE_FADE, bb = pp.bbox;
     bandStamps.push({ bbox: { x0: bb.x0 - reach, z0: bb.z0 - reach, x1: bb.x1 + reach, z1: bb.z1 + reach }, reach, sd: (x, z) => sdPoly(pp.poly, x, z) });
   }
-  const ttypes = rec.layers.ttype.filter(c => c.poly && c.poly.length >= 3 && isFinite(+c.code))
+  // (G1385: a cover polygon may carry only a vegetation - its code null, nothing stamped; +null is 0, the sea)
+  const ttypes = rec.layers.ttype.filter(c => c.poly && c.poly.length >= 3 && hasCode(c))
     .map(c => ({ id: c.id, poly: c.poly, bbox: polyBBox(c.poly), code: Math.round(+c.code),
                  // `from` (contract v1.22): the codes this stamp is allowed to REPLACE. Without it a
                  // stamp is flat and paints the bog, the rock and the beach the same as the wood;
@@ -8226,6 +8383,13 @@ function compose(rec0, world, opts) {
                  // the BIOME decide what stands there, which is the whole point of
                  // painting a terrain type instead of placing trees.
                  cover: isFinite(+c.cover) ? Math.round(+c.cover) : null }));
+  // THE POLYGONS' OWN VEGETATION (G1385, contract v1.31): a cover polygon's `veg` - none, an existing biome by name,
+  // or a biome of its own ('@' + its id, registered by the renderer from vegMixes). The LAST polygon over a point has
+  // the word (the record's order, as the stamps). vegAt answers undefined where no polygon speaks.
+  const vegPolys = rec.layers.ttype.filter(c => c.poly && c.poly.length >= 3 && vegOf(c))
+    .map(c => { const v = vegOf(c); return { id: c.id, poly: c.poly, bbox: polyBBox(c.poly), mix: v.mode === 'none' ? null : v.mode === 'biome' ? v.mix : '@' + c.id }; });
+  const vegMixes = {};
+  for (const c of rec.layers.ttype) { const v = c.poly && c.poly.length >= 3 && vegOf(c); if (v && v.mode === 'new') vegMixes['@' + c.id] = vegMixOf(v); }
   let ext = rec.frame.extent;
   if (!ext) {
     let x0 = Infinity, z0 = Infinity, x1 = -Infinity, z1 = -Infinity;
@@ -8479,6 +8643,16 @@ function compose(rec0, world, opts) {
   for (const r of rec.layers.zones) if (r.poly && r.poly.length >= 3) { /* an airfield zone is its runway's ground: no plots, no trees */ if (r.kind === 'airfield') excl.push({ poly: r.poly, bbox: polyBBox(r.poly), what: ['trees', 'plots'], derived: true }); }
   const O = {
     n: mods.length, nAuthored: nAuth, rec, frame: F, extent: ext, index, roads: roadObjs.filter(r => !r.runway), runways, aerodromes, shelves, ttypes,
+    // G1385: the cover polygons' vegetation - vegAt(x, z) -> undefined (no polygon here) | null (none) | a mix name;
+    // vegMixes the polygons' own biomes by '@id'; vegSig a string that changes when any of it does (the renderer's replant)
+    // (and the strips' own clearances - G1385's third item: the fill and the ring replant on either)
+    vegPolys, vegMixes, vegSig: JSON.stringify([vegPolys, vegMixes, runways.map(r => runwayClearOf(r))]),
+    vegAt(x, z) {
+      if (!vegPolys.length) return undefined;
+      const dx = x - F.anchor.x, dz = z - F.anchor.z, lx = dx * F.c - dz * F.s, lz = dx * F.s + dz * F.c;
+      for (let i = vegPolys.length - 1; i >= 0; i--) { const v = vegPolys[i]; if (inBB(v.bbox, lx, lz) && inPoly(v.poly, lx, lz)) return v.mix; }
+      return undefined;
+    },
     // THE STAMP: the island's ttype grid is ONE array, read by the tree
     // walk (render_world's ttypeAt), by the cover ring and by the ground's packed
     // texture. Writing the code into it once, here, is why one polygon moves the
@@ -9080,7 +9254,9 @@ function issues(rec0) {
   for (const c of rec.layers.ttype) {
     if (!c.poly || c.poly.length < 3) out.push('ttype ' + c.id + ': needs a polygon');
     const code = Math.round(+c.code);
-    if (!isFinite(code) || code < 2 || code > 16) out.push('ttype ' + c.id + ': code ' + c.code + ' is not a terrain type a place may stamp (2..16)');
+    if (c.veg !== undefined && c.veg !== null && !vegOf(c)) out.push('ttype ' + c.id + ': vegetation ' + JSON.stringify(c.veg) + ' is not none, a biome by name or a new biome with species');
+    if (!hasCode(c)) { if (!vegOf(c)) out.push('ttype ' + c.id + ': neither a terrain type nor a vegetation'); }
+    else if (!isFinite(code) || code < 2 || code > 16) out.push('ttype ' + c.id + ': code ' + c.code + ' is not a terrain type a place may stamp (2..16)');
     else if (code === 12 || code === 13 || code === 14) out.push('ttype ' + c.id + ': ' + code + ' is DERIVED from slope and canopy, not stamped');
   }
   for (const k of LAYERS) for (const e of rec.layers[k]) { if (ids.has(e.id)) out.push('duplicate id ' + e.id); ids.add(e.id); }
@@ -9283,7 +9459,7 @@ function collect(globals) {
            byCat(c) { const out = []; entries.forEach(e => { if ((e.cat || (e.kind === 'park' ? 'landmark' : null)) === c) out.push(e); }); return out; } };
 }
 
-const API = { PREMISES_V, LAYERS, smoothPath, SURFACE, SURFACE_NAMES, ROAD_CLS, ROAD_LOOK, roadLook, PAVE_BAND, PAVE_FADE, PAVE_SIDE, RWY_TREES, rwyTreesMode, paveBand, PAV_KEYS, PAV_MARKS, STAND_KEYS, ZONE_GRASS, zoneGrass, ZONE_KINDS, ZONE_RULES, KIND_RULES, CATEGORIES, THEMES, THEME_DEF, themeOf, RUNWAY_LOOKS, runwaySite, runwayIsWater, HANGAR_DIMS, PREMISES_MIGRATORS, GENERATORS,
+const API = { PREMISES_V, LAYERS, smoothPath, SURFACE, SURFACE_NAMES, ROAD_CLS, ROAD_LOOK, roadLook, PAVE_BAND, PAVE_FADE, PAVE_SIDE, RWY_TREES, rwyTreesMode, RWY_CLEAR_DEF, runwayClearOf, runwayClearPoly, inRwyClear, VEG_MODES, vegOf, vegMixOf, paveBand, PAV_KEYS, PAV_MARKS, STAND_KEYS, ZONE_GRASS, zoneGrass, ZONE_KINDS, ZONE_RULES, KIND_RULES, CATEGORIES, THEMES, THEME_DEF, themeOf, RUNWAY_LOOKS, runwaySite, runwayIsWater, HANGAR_DIMS, PREMISES_MIGRATORS, GENERATORS,
   fnv, hash32, mulberry32, seedOf, fbm,
   polyBBox, polyCentroid, polyArea, polyCCW, inPoly, sdPoly, distPtSeg, polySimple, ensureCCW, smf01, polysOverlap,
   polyRoad, roadDist, roadInPoly, shoreDepth, sowPlots, planForest, pickFor, PICK_TAGS, RUNWAY_DEF, ALTIPORT, runwayProfile, profileIssues, runwayShoulder, runwayEnds, runwayBox, runwayAerodrome, siteFrame, placeSite, siteShelves, slotAt, polyDrop, bankFalloff, shelfCovers, cellTol, deltaAt, LINK_SOLVERS, solveLinks,
@@ -9777,6 +9953,7 @@ if (typeof module !== 'undefined' && module.exports && !module.exports.makeWorld
 //                     by canopy; the shader's smoothstep becomes a draw on r in
 //                     [0,1) so the split is the same share, jittered per point
 //     B.mixAt(code)   the mix name or null (no biome here: sea, snow, built...)
+//     B.mixHere(code, x, z)  the same at a point, a premises polygon's own vegetation first (B.over)
 //     B.mixOf(name)   the mix record
 //     B.density(name) the mix's trees per m2 (its `count` in its `radius`)
 //     B.set(code, mixName) / B.export()   F8's handle
@@ -9812,6 +9989,14 @@ const BIOMES = (() => {
     };
     B.mixAt = code => { const m = B.map[code]; return (m && B.mixes[m]) ? m : null; };
     B.mixOf = name => B.mixes[name] || null;
+    // A POLYGON'S OWN VEGETATION (G1385 EDITOR-VEG, contract v1.31): `over(x, z)` - set by the renderer from the
+    // premises' vegAt - says undefined (the polygon has nothing to say: the code's biome), null (no vegetation) or a
+    // mix name (an existing biome, or a premises' own '@id' mix registered in B.mixes). mixHere is mixAt at a POINT.
+    B.over = null;
+    B.mixHere = (code, x, z) => {
+      if (B.over) { const o = B.over(x, z); if (o !== undefined) return (o && B.mixes[o]) ? o : null; }
+      return code < 0 ? null : B.mixAt(code);
+    };
     // trees per m2: the bench's `count` in its stand of `radius` (220 m by default)
     B.density = name => { const M = B.mixes[name]; if (!M || !M.forest) return 0; const r = M.forest.radius || 220; return (M.forest.count || 0) / (Math.PI * r * r); };
     B.set = (code, name) => { if (name === null || name === '' || name === undefined) delete B.map[code]; else B.map[code] = name; return B.map[code] || null; };
@@ -14242,15 +14427,19 @@ function makeAutopilot(sim, def, world) {
     restAlt: null, refAlt: null, altRef: 0, tdInfo: null, dbg: {},
     route: null, xc: false, frame: null, gaN: 0, gaWhy: null,
   };
-  ap.setRoute = (from, to) => {
+  // G1375 STRIP-SURFACE: no destination on a surface this gear may not use (25_airfield.js stripLandable)
+  const gearK = typeof stripGear === 'function' ? stripGear(def && def.spec && def.spec.gear ? def : sim) : 'wheels';
+  const landable = (from, to) => (typeof stripLandable === 'function') ? stripLandable(gearK, world && world.aerodromes, from, to).to : to;
+  const setRoute0 = (from, to) => {
     ap.route = { from, to };
     ap.xc = from !== to;
     ap.frame = mkFrame(from);               // departure frame
     ap.altRef = from.elev;
     ap.shortFld = false;                    // set per-arrival in enterArrival
   };
-  ap.setRoute(world ? world.aerodromes[0] : HOMEISH,
-              world ? world.aerodromes[0] : HOMEISH);
+  ap.setRoute = (from, to) => setRoute0(from, landable(from, to));
+  setRoute0(world ? world.aerodromes[0] : HOMEISH,
+            world ? world.aerodromes[0] : HOMEISH);
   // W14 multi-hop: depart from wherever the aircraft is standing on
   // `from` — no reset, no teleport. The plan runs on the first update
   // (it needs the live pose): takeoff INTO the wind when there is any,
@@ -14287,6 +14476,7 @@ function makeAutopilot(sim, def, world) {
     ap.taxiPath = null;
     ap.taxiOut = Array.isArray(siteOrTaxiOut) && siteOrTaxiOut.length ? siteOrTaxiOut
                : (site && site.taxiOut) || null;
+    to = landable(from, to);
     ap.route = { from, to };
     ap.xc = from !== to;
     ap.altRef = from.elev;
@@ -14294,7 +14484,6 @@ function makeAutopilot(sim, def, world) {
     ap.trackHold = false;
     ap.taxiTgt = null;
     ap.taxiPath = null;
-    ap.taxiOut = (taxiOut && taxiOut.length) ? taxiOut : null;
     ap.phase = 'DEPART'; phaseT = 0;
   };
   // arrival switch: destination landing frame + arrival altitude refs
@@ -15172,15 +15361,24 @@ function makeTestPilot(sim, def, world) {
   const say = (code, note) => {
     ap.report.verdicts.push({ t: Math.round(ap.t * 10) / 10, code, note });
   };
-  ap.setRoute = (from, to) => {
+  // G1375 STRIP-SURFACE: no destination on a surface this gear may not use (25_airfield.js stripLandable)
+  const gearK = typeof stripGear === 'function' ? stripGear(def && def.spec && def.spec.gear ? def : sim) : 'wheels';
+  const landable = (from, to) => {
+    if (typeof stripLandable !== 'function') return to;
+    const L = stripLandable(gearK, world && world.aerodromes, from, to);
+    if (L.why) say('wrong-surface', L.why);
+    return L.to;
+  };
+  const setRoute0 = (from, to) => {
     ap.route = { from, to };
     ap.xc = from !== to;
     ap.frame = mkFrame(from);
     ap.altRef = from.elev;
     ap.shortFld = false;
   };
-  ap.setRoute(world ? world.aerodromes[0] : HOMEISH,
-              world ? world.aerodromes[0] : HOMEISH);
+  ap.setRoute = (from, to) => setRoute0(from, landable(from, to));
+  setRoute0(world ? world.aerodromes[0] : HOMEISH,
+            world ? world.aerodromes[0] : HOMEISH);
   // G151: `taxiOut` — the site's declared way out. Donor's signature, carried.
   // G193: the pattern of an aerodrome, built once per record from its site
   // (25_airfield.js sitePattern) — the graph the taxi follows and the two
@@ -15207,6 +15405,7 @@ function makeTestPilot(sim, def, world) {
     ap.taxiPath = null;
     ap.taxiOut = Array.isArray(siteOrTaxiOut) && siteOrTaxiOut.length ? siteOrTaxiOut
                : (site && site.taxiOut) || null;
+    to = landable(from, to);
     ap.route = { from, to };
     ap.xc = from !== to;
     ap.altRef = from.elev;
@@ -16503,7 +16702,17 @@ function makePilot(sim, def, world, opts) {
     const d = (from && to && from !== to) ? Math.hypot(to.x - from.x, to.z - from.z) : 0;
     return 600 + 1.6 * d / Math.max(15, ap.VCruise || A.VCruise || 30);
   };
-  ap.setRoute = (from, to) => {
+  // G1375 STRIP-SURFACE: the gear this pilot lands on (25_airfield.js stripGear: the build's spec, else the sim's
+  // floats) - no destination is planned on a surface it may not use (stripLandable: the circuit, else the fallback)
+  const gearK = typeof stripGear === 'function' ? stripGear(def && def.spec && def.spec.gear ? def : sim) : 'wheels';
+  ap.gear = gearK;
+  const landable = (from, to) => {
+    if (typeof stripLandable !== 'function') return to;
+    const L = stripLandable(gearK, world && world.aerodromes, from, to);
+    if (L.why) say('wrong-surface', L.why);
+    return L.to;
+  };
+  const setRoute0 = (from, to) => {
     ap.route = { from, to };
     ap.xc = from !== to;
     ap.frame = mkFrame(from);
@@ -16511,7 +16720,8 @@ function makePilot(sim, def, world, opts) {
     ap.shortFld = false;
     ap.budget = Math.max(ap.budget, routeBudget(from, to));
   };
-  ap.setRoute(world ? world.aerodromes[0] : HOMEISH, world ? world.aerodromes[0] : HOMEISH);
+  ap.setRoute = (from, to) => setRoute0(from, landable(from, to));
+  setRoute0(world ? world.aerodromes[0] : HOMEISH, world ? world.aerodromes[0] : HOMEISH);
   let holdN = 0, planN = 0;
   // G771: `opts.atHold` = the pose ap.lineupPose() gave, the aeroplane placed on it (placeAtLineup): DEPART
   // takes THAT direction and goes to STOP / HOLD with no route - the state the taxi ends in - instead of
@@ -16524,6 +16734,7 @@ function makePilot(sim, def, world, opts) {
     ap.path = null; ap.pathI = 0; ap.stopAfterLineup = false; holdN = 0; planN = 0;
     ap.taxiOut = Array.isArray(siteOrTaxiOut) && siteOrTaxiOut.length ? siteOrTaxiOut
                : (site && site.taxiOut) || null;
+    to = landable(from, to);
     ap.route = { from, to };
     ap.xc = from !== to;
     ap.altRef = from.elev;
@@ -18054,6 +18265,7 @@ function makePilot(sim, def, world, opts) {
         const ld = (SH && SH.LDbest > 0) ? SH.LDbest : 8;
         let best = null, bestD = Infinity;
         for (const a of (world && world.aerodromes) || []) {
+          if (typeof stripAllows === 'function' && !stripAllows(gearK, a).ok) continue;   // G1375: never a forced landing on the wrong surface
           const d = Math.hypot(a.x - cg[0], a.z - cg[2]);
           if (d < bestD) { bestD = d; best = a; }
         }
@@ -33118,4 +33330,4 @@ function playerShedDims(doc, id, site) {
   return { HW: d.HW || h.HW, HD: d.HD || h.HD, EAVE: d.EAVE || h.EAVE };
 }
 if (typeof module !== 'undefined')
-  module.exports = { TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, RWY_LIGHTS, runwayLightStrips, runwayLightSite, runwayLightPoints, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, atmosWater, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, CLIMATE, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, decodeAnimal, decodeAnimalClips, registerAnimal, animalList, animalClips, animalClip, ANIMAL_REG, makeSim, HYDRO, makeBus, vortexKernel, makeAutopilot, makeTestPilot, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, seatOnGround, placeAtLineup, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, POLARS, PAR, RHO, hyp2, hyp3, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genPlanePair, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, genTrueBox, genNetEig, genRigidFloatOf, GEN_BOX_N, GEN_BOX_KMIN, GEN_NET_MAX, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC, GP_PARKED_FOOT, GP_PARKED_DEFAULT, GP_CLEAR, GP_HALF_DEFAULT, parkedFoot, gpParkedDist, gpClearWay };
+  module.exports = { TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, RWY_LIGHTS, runwayLightStrips, runwayLightSite, runwayLightPoints, STRIP_SURFACES, stripSurface, stripGear, stripAllows, stripFallback, stripLandable, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, atmosWater, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, CLIMATE, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, decodeAnimal, decodeAnimalClips, registerAnimal, animalList, animalClips, animalClip, ANIMAL_REG, makeSim, HYDRO, makeBus, vortexKernel, makeAutopilot, makeTestPilot, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, seatOnGround, placeAtLineup, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, POLARS, PAR, RHO, hyp2, hyp3, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genPlanePair, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, genTrueBox, genNetEig, genRigidFloatOf, GEN_BOX_N, GEN_BOX_KMIN, GEN_NET_MAX, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC, GP_PARKED_FOOT, GP_PARKED_DEFAULT, GP_CLEAR, GP_HALF_DEFAULT, parkedFoot, gpParkedDist, gpClearWay };
