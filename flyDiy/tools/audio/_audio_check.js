@@ -1865,7 +1865,7 @@ async function checkRadioClips(S) {
   const F = [];
   // ALL CLIPS: the tune-in plays, nothing spoken
   const pg = radioClipPage(S, { station: 'roots' }), M = pg.M, V = pg.V;
-  pg.F.run(0.5); await tick(); await tick(); pg.F.run(0.5);
+  pg.F.run(0.5); await tick(); await tick(); pg.F.run(1.5);   // (past the bed's 1.5 s fade-in)
   const T = M.talker;
   if (!T || !T.last) return ['the roots tune-in did not reach the talker (talker ' + !!T + ')'];
   const plan = T.last.groups.map(g => (g.clips ? 'clips' : 'speech') + ':' + g.kinds.join('+')).join(' | ');
@@ -1903,6 +1903,17 @@ async function checkRadioClips(S) {
     for (const b of all) for (const x of b) { if (!Array.isArray(x.clips)) { bad.add(x.kind + ': no clips'); continue; } for (const k of x.clips) if (typeof k === 'string' && !pg.clips[k]) bad.add(x.kind + ': ' + k); }
     if (bad.size) F.push('a segment names clips the voice does not render: ' + [...bad].slice(0, 6).join(', '));
     if (RT.clipLines({}).hasOwnProperty('d.1') || Object.keys(RT.clipLines({})).some(k => VMd.VOCAB[k] != null)) F.push('a station line shares a key with VOICE_MODEL\'s words');
+  }
+  // A REGULAR BREAK (after the tune-in): the back-announce of the tracks just played, by their ids, in clips
+  {
+    const p = radioClipPage(S, { station: 'roots', every: 1 });
+    let seen = 0;
+    for (let i = 0; i < 400 && p.M._C.talks < 2; i++) { p.F.run(1); await tick(); await tick(); if (p.V.srcs.length > seen) { seen = p.V.srcs.length; endClips(p.V); } }
+    const L = p.M.talker && p.M.talker.last, segs = p.M._lastSegs ? p.M._lastSegs() : [];
+    const pl = L ? L.groups.map(g => (g.clips ? 'clips' : 'speech') + ':' + g.kinds.join('+')).join(' | ') : 'none';
+    if (p.M._C.talks < 2 || !/^clips:back/.test(pl) || p.sp.speaks) F.push('the second break played ' + pl + ' with ' + p.sp.speaks + ' utterances (want its back-announce in clips)');
+    const back = segs.find(x => x.kind === 'back');
+    if (!back || !back.clips || !back.clips.some(k => /^ba\.(r|l|j)\d$/.test(k))) F.push('the back-announce does not name the track\'s own clip (ba.<id>): ' + JSON.stringify(back && back.clips));
   }
   // PER SEGMENT: one AWOS word missing -> the ID's clips, then the AWOS spoken (after the clips, not over them)
   {
@@ -3805,7 +3816,7 @@ const MUT = [
   ['the decoded source kept', 'samples', 'r.bufs = [lb]; r.loopBuf = lb; r.size = size;', 'r.bufs = bufs; r.loopBuf = lb; r.size = size; C.bytes += sizeOf(bufs[0]);', 'AMBSAMPLES'],
   // SND-RADIO (G1675-G1679)
   ['the stations out of the ruling\'s order', 'music', "const STATIONS = [['jazz', 'Jazz'], ['lofi', 'Lo-fi / Hip-hop'],", "const STATIONS = [['lofi', 'Lo-fi / Hip-hop'], ['jazz', 'Jazz'],", 'RADIO_STATIONS'],
-  ['an unknown station validates', 'music', "if (t.station != null && STATION_KEYS.indexOf(t.station) < 0)", "if (false)", 'RADIO_STATIONS'],
+  ['an unknown station validates', 'music', "if (t.station != null && REAL_KEYS.indexOf(t.station) < 0)", "if (false)", 'RADIO_STATIONS'],
   ['one bag for every visit', 'music', 'bags = bagsBy[station] || (bagsBy[station] = lists.map(makeBag));', 'bags = lists.map(makeBag);', 'RADIO_STATIONS'],
   ['no lo-fi fallback', 'music', 'lists: own.map((l, c) => (l.length ? l : lo[c].slice()))', 'lists: own', 'RADIO_STATIONS'],
   ['the station not persisted', 'music', "station = s; prefPut('station', s);", 'station = s;', 'RADIO_STATIONS'],
@@ -3880,11 +3891,10 @@ const MUT = [
   // SND-VOICE (G1626-G1629)
   ['a word with no clip', 'voicecat', '"d.7": {', '"d.7x": {', 'VOICE_CAT'],
   ['a non-commercial voice', 'voicecat', '"datasetLicence":"public domain"', '"datasetLicence":"CC BY-NC-SA 4.0"', 'VOICE_CAT'],
-  ['a clip that does not resolve', 'voicecat', '"file":"media/audio/voice/id_1.', '"file":"media/audio/voice/id_1x.', 'VOICE_CAT'],
+  ['a clip that does not resolve', 'voicecat', '"file":"media/audio/voice/id_main.', '"file":"media/audio/voice/id_mainx.', 'VOICE_CAT'],
   ['the lineage forgotten', 'voicecat', '"lineage":"', '"lineage":"","was":"', 'VOICE_CAT'],
   ['a new track never announced', 'catalogue', '"id": "fma238392"', '"id": "fma238392x"', 'VOICE_CAT'],
   ['a place never rendered', 'voicescript', '"Annette Dock",', '"Annette Dock", "Nowhere Dock",', 'VOICE_CAT'],
-  ['CREDITS names another voice', 'credits', '**en_US-john-medium**', '**en_US-norman-medium**', 'VOICE_CAT'],
   ['nine said "nine"', 'voicemodel', "'eight', 'niner']", "'eight', 'nine']", 'VOICE_AWOS'],
   ['never calm', 'voicemodel', 'if (kt < 3) G.push', 'if (kt < 0) G.push', 'VOICE_AWOS'],
   ['every gust reported', 'voicemodel', 'hasG = gu >= kt + 3;', 'hasG = gu > 0;', 'VOICE_AWOS'],
@@ -3904,7 +3914,7 @@ const MUT = [
   ['GATE MEDIA blind to the voice', 'mediachk', "'music_catalogue.json', 'voice_catalogue.json']", "'music_catalogue.json']", 'VOICE_WIRING'],
   // G1680-G1684 (SND-RADIO-2): the user's voice, the mix, the recorded voice in the talk, the space's frame
   ['john still shipped', 'voicecat', '"name":"norman","id":"en_US-norman-medium"', '"name":"john","id":"en_US-norman-medium"', 'VOICE_CAT'],
-  ['CREDITS without norman', 'credits', '**en_US-norman-medium**', '**en_US-john-medium**', 'VOICE_CAT'],
+  ['CREDITS names another voice (not norman)', 'credits', '**en_US-norman-medium**', '**en_US-john-medium**', 'VOICE_CAT'],
   ['a line the clip does not say', 'radio', "'intro.bulletin': 'Island bulletins.',", "'intro.bulletin': 'Island news.',", 'VOICE_CAT'],
   ['no mix station', 'music', "['classical', 'Classical'], ['mix', 'Random']];", "['classical', 'Classical']];", 'RADIO_STATIONS'],
   ['the mix misses a station', 'music', 'for (const k of REAL_KEYS) stationLists(cat, k)', 'for (const k of REAL_KEYS.slice(1)) stationLists(cat, k)', 'RADIO_STATIONS'],
