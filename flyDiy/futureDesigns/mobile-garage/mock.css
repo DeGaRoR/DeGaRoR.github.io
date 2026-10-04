@@ -68,7 +68,9 @@ button{font:inherit;color:inherit}
 .rk-t-band{position:relative;flex:1;height:var(--tap);touch-action:pan-y}
 .rk-t-track{position:absolute;left:0;right:0;top:50%;height:6px;margin-top:-3px;border-radius:3px;background:var(--ed-track);overflow:hidden}
 .rk-t-fill{height:100%;background:var(--ed-acc);opacity:.75}
-.rk-t-knob{position:absolute;top:50%;width:26px;height:26px;margin:-13px 0 0 -13px;border-radius:13px;background:var(--ed-acc);box-shadow:0 1px 4px rgba(0,0,0,.6)}
+.rk-t-knob{position:absolute;top:50%;width:26px;height:26px;margin:-13px 0 0 -13px;border-radius:13px;background:var(--ed-acc);box-shadow:0 1px 4px rgba(0,0,0,.6);touch-action:none;cursor:grab;z-index:2}
+.rk-t-knob::before{content:'';position:absolute;inset:-11px}  /* the knob's hit area: 48 px; the scale around it scrolls */
+.rk-held .rk-t-knob{transform:scale(1.25);box-shadow:0 0 0 6px var(--ed-acc-soft),0 1px 4px rgba(0,0,0,.6)}
 .rk-t-det{position:absolute;top:50%;width:2px;height:16px;margin:-8px 0 0 -1px;background:var(--ed-faint)}
 .rk-t-bubble{display:none;position:absolute;bottom:52px;left:50%;transform:translateX(-50%);background:var(--ed-acc);color:var(--ed-acc-ink);padding:6px 12px;border-radius:10px;font-weight:500;font-variant-numeric:tabular-nums;white-space:nowrap}
 .rk-t-fine{display:none;position:absolute;right:0;top:-2px;font-size:11px;color:var(--ed-warn)}
