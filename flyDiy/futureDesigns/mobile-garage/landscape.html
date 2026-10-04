@@ -19,13 +19,13 @@
       <button class="ib" aria-label="menu">☰</button>
       <button class="tab">design</button><button class="tab on">shape</button><button class="tab">finish</button>
       <span class="vsep"></span>
-      <button class="tab scene">REF<br><small>reference</small></button><button class="tab scene">⌂<br><small>hangar</small></button>
+      <button class="tab scene">REF<br><small>reference</small></button><button class="tab scene">☀<br><small>light</small></button>
       <div style="flex:1"></div>
       <button class="ib" id="undo" aria-label="undo" disabled>↶</button>
       <button class="ib" id="redo" aria-label="redo" disabled>↷</button>
     </div>
     <div class="lv">
-      <div class="view" id="view">
+      <div class="view studio" id="view">
         <div class="readout">empty <b>352 kg</b> · stall <b>61 km/h</b> · T/O <b>142 m</b></div>
         <div class="vt"><button class="ib">⟲</button><button class="ib">⌖</button></div>
         <div class="hint">1 finger orbit · 2 fingers zoom + pan · tap a part</div>
@@ -42,7 +42,7 @@
   <h3>Landscape</h3>
   <ul>
     <li><b>View on the left, rows on the right</b> (380 px, the desktop's 390 px column). In landscape the panel mirrors the desktop layout.</li>
-    <li><b>The tabs and undo move to a left rail</b>, so the thumb reaches them while the phone is held in two hands. The rail also carries <b>the reference plane and the hangar</b>, which are no longer in the parts tree.</li>
+    <li><b>The tabs and undo move to a left rail</b>, so the thumb reaches them while the phone is held in two hands. The rail also carries <b>the reference plane and the studio light</b>, which are not in the parts tree. There is no garage on a phone: a black studio.</li>
     <li><b>The same rows, the same renderer</b> as portrait. Only the container changes. A <code>@media (orientation)</code> rule picks the layout, and nothing in the row knows which one it is in.</li>
     <li>The 3D view gets 471 × 412 px here. In portrait it gets 412 × 330 px.</li>
   </ul>
@@ -50,7 +50,7 @@
 </div>
 <script src="rowkit.js"></script><script src="mock_rows.js"></script>
 <script>
-const v = document.getElementById('view'); v.insertAdjacentHTML('afterbegin', MOCK_PLANE(471, 412, 'wing'));
+const v = document.getElementById('view'); v.insertAdjacentHTML('afterbegin', MOCK_PLANE(471, 412, 'wing', true));
 document.getElementById('parts').innerHTML = ['Wing', 'Ailerons', 'Flaps', 'Struts', 'Lights'].map((p, i) => `<button class="chip${i ? '' : ' on'}">${p}</button>`).join('');
 const P = Object.assign({}, MOCK_P), sheet = document.getElementById('sheet');
 let tier = 'more';

@@ -27,13 +27,15 @@ window.MOCK_ROWS = [
   { key: 'wgThick', label: 'thickness', lo: 9, hi: 18, step: 1, unit: '%', group: 'aerofoil', tier: 'expert' },
 ];
 // a side view of a high-wing taildragger, standing in for the editor's scene (the cloud has no GPU for a real still)
-window.MOCK_PLANE = (w, h, sel) => {
+window.MOCK_PLANE = (w, h, sel, studio) => {   // studio: the phone's black studio (G1516) - no room, a pool of light on the floor
   const s = Math.min(w / 420, h / 260), ox = w / 2 - 210 * s, oy = h / 2 - 120 * s;
   const T = (x, y) => (ox + x * s).toFixed(1) + ',' + (oy + y * s).toFixed(1);
   const wingC = sel === 'wing' ? '#e6dbc9' : '#8b8173', wingO = sel === 'wing' ? 1 : 0.9;
   return `<svg viewBox="0 0 ${w} ${h}" xmlns="http://www.w3.org/2000/svg">
   <defs><linearGradient id="fl" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#2b2620"/><stop offset="1" stop-color="#16130f"/></linearGradient></defs>
-  <rect x="0" y="${(oy + 205 * s).toFixed(1)}" width="${w}" height="${h}" fill="url(#fl)"/>
+  ${studio ? `<radialGradient id="pool" cx="0.5" cy="0.5" r="0.5"><stop offset="0" stop-color="#2a2a2a"/><stop offset="0.6" stop-color="#121212"/><stop offset="1" stop-color="#000" stop-opacity="0"/></radialGradient>
+  <rect x="0" y="0" width="${w}" height="${h}" fill="#000"/><ellipse cx="${(ox + 210 * s).toFixed(1)}" cy="${(oy + 205 * s).toFixed(1)}" rx="${260 * s}" ry="${46 * s}" fill="url(#pool)"/>`
+  : `<rect x="0" y="${(oy + 205 * s).toFixed(1)}" width="${w}" height="${h}" fill="url(#fl)"/>`}
   <ellipse cx="${(ox + 200 * s).toFixed(1)}" cy="${(oy + 212 * s).toFixed(1)}" rx="${170 * s}" ry="${9 * s}" fill="rgba(0,0,0,.45)"/>
   <polygon points="${T(60, 110)} ${T(110, 92)} ${T(300, 98)} ${T(395, 118)} ${T(392, 128)} ${T(300, 140)} ${T(110, 150)} ${T(58, 140)}" fill="#c9a43a" stroke="#000" stroke-opacity=".35"/>
   <polygon points="${T(120, 96)} ${T(150, 70)} ${T(215, 72)} ${T(240, 98)}" fill="#7fa3b8" fill-opacity=".55" stroke="#000" stroke-opacity=".35"/>
