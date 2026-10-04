@@ -28,6 +28,9 @@
 // §7 CPU        ms per 128-frame block per voice (bound 1.0 ms)
 // §8 INERT      the sound row is physics-inert: resolveSpec, buildGen and 4 s
 //               of the solver bit-identical with and without it, on all five
+// §P1-§P9      THE PROP, THE TURBINE, THE ELECTRIC MOTOR (SND-PROP, G1623):
+//               tools/audio/_prop_check.js's sections, appended below (one
+//               place per voice; run alone: node tools/audio/_prop_check.js)
 'use strict';
 const fs = require('fs');
 const path = require('path');
@@ -522,7 +525,7 @@ const SECTIONS = [
   ['§6 LIFE', secLife, ['crank', 'nocatch', 'rundown', 'ticks', 'misfire', 'ctl', 'blower']],
   ['§7 CPU', secCpu, ['cpu']],
   ['§8 INERT', secInert, ['physics']],
-];
+].concat(require('./_prop_check.js').PROP_SECTIONS);
 
 async function main() {
   const t0 = Date.now();

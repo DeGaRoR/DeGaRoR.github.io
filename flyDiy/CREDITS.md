@@ -1122,8 +1122,24 @@ ruling s2): no recording ships, the sound is computed from the aeroplane.
   crank noise, the reference's ignition phase, the two-stroke, allocation-free
   processing, and the flight-sim life: load, jitter, misfire, starter, catch,
   run-down, ticking, blower whistle).
-- The propeller voice follows R. Selfridge, D. Moffat and J. D. Reiss, *Physically derived sound synthesis
-  model of a propeller*, Audio Mostly 2017 (doi 10.1145/3123514.3123524), and Gutin's propeller-noise theory.
+
+### The propeller, turbine and electric voices (code — `src/viewer/audio/prop_worklet.js`, SND-PROP G1620)
+
+Written for flyDiy: **no code is ported**, so there is no licence to carry. The methods it follows, cited:
+
+- **L. Gutin**, *"On the sound field of a rotating propeller"* (1936; NACA TM 1195, 1948) — the steady-loading
+  tones at m·B·Ω, their level through the Bessel factor J_mB(m·B·M·sin θ): why the levels rise with tip Mach and
+  the roll-off flattens toward sonic.
+- **R. Selfridge, D. Moffat and J. D. Reiss**, *"Physically derived sound synthesis model of a propeller"*, Audio
+  Mostly 2017 (doi 10.1145/3123514.3123524) — the blade as compact sources along its span, each shedding at the
+  Strouhal frequency of its own section speed (the broadband). The paper's full text was not reachable from the
+  build box; the method is used as SOUND-2026-10-04 §1.2 summarises it.
+- **Miller's backward recurrence** for J_n(x) (J. C. P. Miller, 1952; as described in *Numerical Recipes*
+  §6.5) — the algorithm, written anew for the audio thread.
+- **A. Farnell**, *Designing Sound* (MIT Press 2010), the jet-engine and motor practicals — the turbine's tone
+  stack + roar and the electric motor's whine, as methods.
+- The nominal numbers (the Rotax gearboxes' teeth, the PT6's Ng and stage blade counts, the motors' pole pairs
+  and PWM rates) are declared in `src/viewer/audio/prop_config.js` as starting points for the ear (SND-TUNE).
 
 ### Music (candidates under review — the shipped list is written here when the user picks)
 
