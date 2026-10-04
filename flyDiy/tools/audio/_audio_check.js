@@ -2206,6 +2206,7 @@ function checkRadioXfade(S) {
 // EXISTS, with its text and a dur > 0; no orphan in media/audio/voice; EVERY TRACK OF EVERY STATION BACK-ANNOUNCED - Radio
 // Jolene's at least three times, in whole takes that say the track's spoken title (voice_script.json 'titles') and its
 // artist; the catalogue's totals true; the voice under 12 MB (reported) - and never over 14.
+const who3 = (B, v) => (B.voices[v] && B.voices[v].name) || v;
 function checkVoiceCat(S, report) {
   const F = [];
   let cat; try { cat = JSON.parse(S.voicecat); } catch (e) { return ['voice_catalogue.json does not parse: ' + e.message]; }
@@ -2238,6 +2239,9 @@ function checkVoiceCat(S, report) {
     for (const k of keys) { const x = A.items[k]; if (!x || x.track !== t.id || say(x.text).indexOf(say(ti)) < 0 || say(x.text).indexOf(say(ar)) < 0) F.push('the back-announce ' + k + ' does not credit "' + ti + '" by ' + ar); }
     if (new Set(keys.map(k => A.items[k] && A.items[k].text)).size !== keys.length) F.push(t.id + ': two back-announces say the same');
   }
+  // THE PHONE LINE: a caller's take (a LibriTTS resident) is rendered through it, the host's and the studio guests' never
+  const B = GEN(S);
+  if (B) for (const k in A.items) { const vv = B.voices[A.items[k].v] || {}; if (!!A.items[k].phone !== (vv.model === 'libritts')) F.push(k + ': ' + who3(B, A.items[k].v) + (A.items[k].phone ? ' on the phone line' : ' not on the phone line')); }
   if (report) report.push('VOICE_CAT: ' + Object.keys(A.items).length + ' takes, ' + (secs / 60).toFixed(1) + ' min, ' + (bytes / 1048576).toFixed(2) + ' MB of voice (aim 12 MB)');
   if (bytes > 14 * 1048576) F.push('the voice weighs ' + (bytes / 1048576).toFixed(2) + ' MB (aim 12, never over 14)');
   return F;
@@ -4087,6 +4091,7 @@ const MUT = [
   ['CREDITS forgets the officer\'s voice', 'credits', '**en_US-kristin-medium**', '**en_US-kristin2-medium**', 'VOICE_LICENCE'],
   ['john hosts', 'voicecat', ' "voice": {\n  "name": "norman",\n  "id": "en_US-norman-medium"', ' "voice": {\n  "name": "john",\n  "id": "en_US-john-medium"', 'VOICE_LICENCE'],
   ['a take that does not resolve', 'shipscript', '"file":"media/audio/voice/id_generic_1.', '"file":"media/audio/voice/id_generic_1x.', 'VOICE_CAT'],
+  ['the host on the phone line', 'shipscript', '"v":"carl","cat":"call"', '"v":"norman","cat":"call"', 'VOICE_CAT'],
   ['the spoken title not the one said', 'voicescript', '"fma237449": "Ships"', '"fma237449": "Tall Ships"', 'VOICE_CAT'],
   ['no talk-up', 'music', 'const TALK_UP_S = 6, TUNE_LATE_S = 10;', 'const TALK_UP_S = 0, TUNE_LATE_S = 10;', 'RADIO_XFADE'],
   ['Radio Jolene keeps the garage\'s silences', 'music', '  const gapped = c => GAPPED[c] === 1 && !(station === ST_TALK && talkOn);', '  const gapped = c => GAPPED[c] === 1;', 'RADIO_XFADE'],

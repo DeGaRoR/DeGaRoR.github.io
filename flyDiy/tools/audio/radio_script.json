@@ -3,41 +3,51 @@
  "seed": 20261004,
  "voices": {
   "norman": {
-   "model": "norman"
+   "model": "norman",
+   "name": "Norman"
   },
   "walt": {
-   "model": "john"
+   "model": "john",
+   "name": "Chief Walt Brennan"
   },
   "dana": {
-   "model": "kristin"
+   "model": "kristin",
+   "name": "Officer Dana Hale"
   },
   "carl": {
    "model": "libritts",
-   "speaker": 189
+   "speaker": 189,
+   "name": "Carl Jensen"
   },
   "bobby": {
    "model": "libritts",
-   "speaker": 576
+   "speaker": 576,
+   "name": "Bobby Tran"
   },
   "wendell": {
    "model": "libritts",
-   "speaker": 27
+   "speaker": 27,
+   "name": "Wendell Price"
   },
   "ada": {
    "model": "libritts",
-   "speaker": 567
+   "speaker": 567,
+   "name": "Ada Thorne"
   },
   "marjorie": {
    "model": "libritts",
-   "speaker": 315
+   "speaker": 315,
+   "name": "Marjorie Fisk"
   },
   "bev": {
    "model": "libritts",
-   "speaker": 585
+   "speaker": 585,
+   "name": "Bev Kessler"
   },
   "ruthann": {
    "model": "libritts",
-   "speaker": 162
+   "speaker": 162,
+   "name": "Ruth Ann Moss"
   }
  },
  "items": {
@@ -1384,7 +1394,7 @@
   "th.dog.2.b": {
    "v": "bobby",
    "cat": "call",
-   "text": "Hey there, Norman, good morning. I think I saw the Pruitts' dog this morning, behind the fish plant. Brown, one floppy ear, real interested in our garbage. He took off toward the old cannery before I could grab him.",
+   "text": "Hey there, Norman, how's it going. I think I saw the Pruitts' dog this morning, behind the fish plant. Brown, one floppy ear, real interested in our garbage. He took off toward the old cannery before I could grab him.",
    "phone": 1
   },
   "th.dog.2.c": {
@@ -1495,7 +1505,7 @@
   "th.barge.1": {
    "v": "norman",
    "cat": "barge",
-   "text": "A word from the harbour. The barge is running late with this weather, and Gus Lindgren says it won't leave town until things settle. If you're waiting on freight, or on that new refrigerator, sit tight. The store has enough milk to get us through, June says, if we don't all panic at once."
+   "text": "A word from the harbour. The barge is running late, the weather down the coast has held it up in town. Gus Lindgren says it won't leave until things settle. If you're waiting on freight, or on that new refrigerator, sit tight. The store has enough milk to get us through, June says, if we don't all panic at once."
   },
   "th.barge.2": {
    "v": "norman",
@@ -1617,7 +1627,7 @@
   "th.burnban.2": {
    "v": "norman",
    "cat": "fire",
-   "text": "Good news from the fire hall. With all this rain, Chief Brennan has lifted the burn ban. Beach fires are back, as long as they're small, watched, and out before you go home. The chief asks that nobody burn anything that used to be a couch."
+   "text": "Good news from the fire hall. After last week's rain, Chief Brennan has lifted the burn ban. Beach fires are back, as long as they're small, watched, and out before you go home. The chief asks that nobody burn anything that used to be a couch."
   },
   "th.volunteer.1": {
    "v": "norman",
@@ -1760,7 +1770,7 @@
   "nt.pancakes.16.b": {
    "v": "ruthann",
    "cat": "call",
-   "text": "Good morning to you, Norman. Just a reminder that the fire department pancake breakfast is Sunday at the fire hall. It's all you can eat, and the money goes to the new pump. Walt is flipping, so come early before he gets tired.",
+   "text": "Hi there, Norman, it's Ruth Ann. Just a reminder that the fire department pancake breakfast is Sunday at the fire hall. It's all you can eat, and the money goes to the new pump. Walt is flipping, so come early before he gets tired.",
    "phone": 1
   },
   "nt.pancakes.16.c": {

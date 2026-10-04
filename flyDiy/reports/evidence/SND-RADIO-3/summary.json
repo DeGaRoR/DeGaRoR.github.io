@@ -1,0 +1,142 @@
+{
+ "generated": "node tools/audio/radio_broadcast.js",
+ "day": {
+  "windKt": 8,
+  "visM": 60000,
+  "conditions": {
+   "part": "afternoon",
+   "tag": "afternoon",
+   "sky": "fair",
+   "wind": "light",
+   "gusty": false,
+   "hazards": [
+    "eagles"
+   ],
+   "trend": null,
+   "temp": null
+  },
+  "declared": []
+ },
+ "voice": {
+  "takes": 338,
+  "minutes": 34.5,
+  "MB": 12.04
+ },
+ "roots": 7,
+ "horizon": [
+  {
+   "day": "the game's day",
+   "sky": "fair",
+   "wind": "light",
+   "hazards": [
+    "eagles"
+   ],
+   "breaksIn2h": 34,
+   "firstRepeatH": 1.68,
+   "firstRepeat": "wx.fair.1",
+   "repeatRate6h": 0.647
+  },
+  {
+   "day": "fog, morning",
+   "sky": "mist",
+   "wind": "light",
+   "hazards": [],
+   "breaksIn2h": 34,
+   "firstRepeatH": 1.84,
+   "firstRepeat": "ad.store.1",
+   "repeatRate6h": 0.651
+  },
+  {
+   "day": "a gale in a front",
+   "sky": "fair",
+   "wind": "gale",
+   "hazards": [
+    "windBoat",
+    "windPilot"
+   ],
+   "breaksIn2h": 34,
+   "firstRepeatH": 1.68,
+   "firstRepeat": "wx.fair.1",
+   "repeatRate6h": 0.648
+  },
+  {
+   "day": "a calm night",
+   "sky": "fair",
+   "wind": "calm",
+   "hazards": [],
+   "breaksIn2h": 34,
+   "firstRepeatH": 1.84,
+   "firstRepeat": "ad.store.1",
+   "repeatRate6h": 0.651
+  }
+ ],
+ "montage": {
+  "breaks": 7,
+  "tracks": 12,
+  "bytes": 9600566
+ },
+ "ads": [
+  {
+   "key": "ad.cafe.1",
+   "text": "A few words now for the Copper Kettle. Lorna Beck has soup, coffee, and the best halibut sandwich on the island. Her soup of the day is whatever the boats brought in, and it's always good. The Copper Kettle, warm inside, whatever it's doing outside."
+  },
+  {
+   "key": "ad.engine.1",
+   "text": "Here's a word from Pete's Small Engine. Pete Navarro fixes chainsaws, generators and lawn mowers, and he tunes them too. If it's got a pull cord and it won't start, Pete has heard it before. Pete's Small Engine, behind the fire hall, because winter is coming and your generator knows it."
+  },
+  {
+   "key": "ad.air.1",
+   "text": "This part of the show comes to you from Blue Heron Air. Jim Corrigan flies charters to town and back, freight and passengers. Jim has landed on every stretch of water within an hour of here, and most of them on purpose. Blue Heron Air, from the float plane dock, weather permitting."
+  }
+ ],
+ "interview": [
+  {
+   "who": "Norman",
+   "text": "I've got Chief Walt Brennan here in the studio, which is to say the back room, before the fair on Saturday. Walt, thanks for coming in."
+  },
+  {
+   "who": "Chief Walt Brennan",
+   "text": "Happy to be here, Norman. Any excuse to sit in a chair that does not have a pager on it."
+  },
+  {
+   "who": "Norman",
+   "text": "The fire department is running the chowder table again this year?"
+  },
+  {
+   "who": "Chief Walt Brennan",
+   "text": "We sure are, Norman. Danny's making his mother's recipe, and he's sworn us all to secrecy."
+  },
+  {
+   "who": "Norman",
+   "text": "And I hear you're bringing the engine down for the kids?"
+  },
+  {
+   "who": "Chief Walt Brennan",
+   "text": "We'll park the engine by the hall, and the kids can climb all over it, within reason."
+  },
+  {
+   "who": "Norman",
+   "text": "Anything folks should know before they come?"
+  },
+  {
+   "who": "Chief Walt Brennan",
+   "text": "Bring a camp stove for the food tables if you like, but keep a bucket of water handy. And we would love a few more volunteers this winter."
+  },
+  {
+   "who": "Norman",
+   "text": "What does a new volunteer need to bring?"
+  },
+  {
+   "who": "Chief Walt Brennan",
+   "text": "Boots, a good attitude, and your Tuesday evenings free. We train you on everything else."
+  },
+  {
+   "who": "Norman",
+   "text": "Chowder, a fire engine, and a standing invitation. Thanks for coming in, Walt."
+  },
+  {
+   "who": "Chief Walt Brennan",
+   "text": "Thank you for having me, Norman. I will see everybody on Saturday."
+  }
+ ]
+}

@@ -50,10 +50,11 @@ function rng(seed) {
 // messages). The callers: LibriTTS speakers (en_US-libritts-high, CC BY 4.0), chosen for distinct, clean voices
 // (median pitch and noise floor measured over 100 speakers; reports/evidence/SND-RADIO-3/voices/).
 const VOICES = {
-  norman: { model: 'norman' }, walt: { model: 'john' }, dana: { model: 'kristin' },
-  carl: { model: 'libritts', speaker: 189 }, bobby: { model: 'libritts', speaker: 576 }, wendell: { model: 'libritts', speaker: 27 },
-  ada: { model: 'libritts', speaker: 567 }, marjorie: { model: 'libritts', speaker: 315 }, bev: { model: 'libritts', speaker: 585 },
-  ruthann: { model: 'libritts', speaker: 162 },
+  norman: { model: 'norman', name: 'Norman' }, walt: { model: 'john', name: 'Chief Walt Brennan' }, dana: { model: 'kristin', name: 'Officer Dana Hale' },
+  carl: { model: 'libritts', speaker: 189, name: 'Carl Jensen' }, bobby: { model: 'libritts', speaker: 576, name: 'Bobby Tran' },
+  wendell: { model: 'libritts', speaker: 27, name: 'Wendell Price' }, ada: { model: 'libritts', speaker: 567, name: 'Ada Thorne' },
+  marjorie: { model: 'libritts', speaker: 315, name: 'Marjorie Fisk' }, bev: { model: 'libritts', speaker: 585, name: 'Bev Kessler' },
+  ruthann: { model: 'libritts', speaker: 162, name: 'Ruth Ann Moss' },
 };
 const CALLERS = { carl: 1, bobby: 1, wendell: 1, ada: 1, marjorie: 1, bev: 1, ruthann: 1 };
 
@@ -310,7 +311,7 @@ const THREADS = {
     T('lost', 1, "Here's one for the lost and found. Biscuit, the Pruitt kids' dog, slipped his collar last night down by the laundry. He's a scruffy brown fellow with one ear up and one ear down. He answers to Biscuit, and to the sound of a sandwich being unwrapped. If you see him, call the laundry, or just tell Tommy and Jess. Those kids are worried sick."),
     T('call', 8, [
       'We have Bobby Tran on the line, calling from the fish plant. Go ahead, Bobby, you are on the air.',
-      ['bobby', "Hey there, Norman, good morning. I think I saw the Pruitts' dog this morning, behind the fish plant. Brown, one floppy ear, real interested in our garbage. He took off toward the old cannery before I could grab him."],
+      ['bobby', "Hey there, Norman, how's it going. I think I saw the Pruitts' dog this morning, behind the fish plant. Brown, one floppy ear, real interested in our garbage. He took off toward the old cannery before I could grab him."],
       "Thanks, Bobby, that's good news. So Biscuit was down by the old cannery, folks. If you're out that way, bring a sandwich.",
     ]),
     T('thanks', 15, "Good news from the Pruitt house. Biscuit is home, safe and sound. Pearl Whitaker found him asleep on a pile of life jackets at the Swap Shed. She says he didn't even pretend to be sorry. Tommy and Jess want to thank everyone who looked. Biscuit has a new collar, and a new interest in staying home."),
@@ -341,7 +342,7 @@ const THREADS = {
     T('thanks', 16, "The boardwalk's done, and you can walk to the float plane dock without saying a prayer. Thank you to everyone who showed up. That's Lyle and Ruth Ann Moss, Danny Kessler, the Pruitts, Pete Navarro and Bobby Tran. And Nadia Kowalski, who drove more nails than anybody. Also me, I held the doughnuts."),
   ],
   barge: [
-    T('barge', 4, "A word from the harbour. The barge is running late with this weather, and Gus Lindgren says it won't leave town until things settle. If you're waiting on freight, or on that new refrigerator, sit tight. The store has enough milk to get us through, June says, if we don't all panic at once."),
+    T('barge', 4, "A word from the harbour. The barge is running late, the weather down the coast has held it up in town. Gus Lindgren says it won't leave until things settle. If you're waiting on freight, or on that new refrigerator, sit tight. The store has enough milk to get us through, June says, if we don't all panic at once."),
     T('barge', 10, "The barge is on its way, folks, and it should tie up at the harbour tomorrow on the morning tide. Sam Whitcomb asks that everyone keep their trucks off the main dock while they unload. Fuel deliveries go first, then freight, then that refrigerator."),
     T('thanks', 14, "The barge is in and unloaded, and nobody dropped anything in the harbour this time. Thanks to Sam Whitcomb and the dock crew for a long cold day's work. If you had freight coming, it's at the warehouse behind the store. Ray says bring something with your name on it."),
   ],
@@ -385,7 +386,7 @@ const THREADS = {
       'Officer Hale dropped off a message for us, so here it is in her own words.',
       ['dana', "This is Officer Dana Hale, for the fire department. It's been a dry spell, so there is a burn ban on the whole island until further notice. That means no beach fires and no burning brush. Smokehouses are fine if you keep a hose close by. Thanks for looking out for each other."],
     ]),
-    T('fire', 12, "Good news from the fire hall. With all this rain, Chief Brennan has lifted the burn ban. Beach fires are back, as long as they're small, watched, and out before you go home. The chief asks that nobody burn anything that used to be a couch."),
+    T('fire', 12, "Good news from the fire hall. After last week's rain, Chief Brennan has lifted the burn ban. Beach fires are back, as long as they're small, watched, and out before you go home. The chief asks that nobody burn anything that used to be a couch."),
   ],
   volunteer: [
     T('fire', 6, "The fire department has a training night this Tuesday at the fire hall. If you've ever thought about volunteering, come and watch. Danny Kessler will show you the pump, and Ruth Ann Moss will show you the paperwork. The chief will show you where the coffee is."),
@@ -432,7 +433,7 @@ const NOTICES = [
   ]],
   ['pancakes', [
     'Ruth Ann Moss is calling from the fire hall. Go ahead, Ruth Ann.',
-    ['ruthann', "Good morning to you, Norman. Just a reminder that the fire department pancake breakfast is Sunday at the fire hall. It's all you can eat, and the money goes to the new pump. Walt is flipping, so come early before he gets tired."],
+    ['ruthann', "Hi there, Norman, it's Ruth Ann. Just a reminder that the fire department pancake breakfast is Sunday at the fire hall. It's all you can eat, and the money goes to the new pump. Walt is flipping, so come early before he gets tired."],
     'Pancakes, a good cause, and the chief with a spatula. See you there, Ruth Ann.',
   ]],
   ['officer', [

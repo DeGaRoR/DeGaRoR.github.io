@@ -1,0 +1,131 @@
+{
+ "line": "Hi there, Norman, thanks for taking my call. I found a green skiff on the beach past the point this morning.",
+ "rows": [
+  {
+   "file": "candidate_john.mp3",
+   "voice": "john",
+   "speaker": null,
+   "phone": false,
+   "s": 7.24
+  },
+  {
+   "file": "candidate_kristin.mp3",
+   "voice": "kristin",
+   "speaker": null,
+   "phone": false,
+   "s": 6.58
+  },
+  {
+   "file": "candidate_libritts_189_carl.mp3",
+   "voice": "libritts",
+   "speaker": 189,
+   "phone": false,
+   "s": 6.53
+  },
+  {
+   "file": "candidate_libritts_576_bobby.mp3",
+   "voice": "libritts",
+   "speaker": 576,
+   "phone": false,
+   "s": 6.84
+  },
+  {
+   "file": "candidate_libritts_27_wendell.mp3",
+   "voice": "libritts",
+   "speaker": 27,
+   "phone": false,
+   "s": 6.45
+  },
+  {
+   "file": "candidate_libritts_567_ada.mp3",
+   "voice": "libritts",
+   "speaker": 567,
+   "phone": false,
+   "s": 7.09
+  },
+  {
+   "file": "candidate_libritts_315_marjorie.mp3",
+   "voice": "libritts",
+   "speaker": 315,
+   "phone": false,
+   "s": 7.26
+  },
+  {
+   "file": "candidate_libritts_585_bev.mp3",
+   "voice": "libritts",
+   "speaker": 585,
+   "phone": false,
+   "s": 6.62
+  },
+  {
+   "file": "candidate_libritts_162_ruthann.mp3",
+   "voice": "libritts",
+   "speaker": 162,
+   "phone": false,
+   "s": 6.15
+  },
+  {
+   "file": "candidate_john_phone.mp3",
+   "voice": "john",
+   "speaker": null,
+   "phone": true,
+   "s": 7.24
+  },
+  {
+   "file": "candidate_kristin_phone.mp3",
+   "voice": "kristin",
+   "speaker": null,
+   "phone": true,
+   "s": 6.58
+  },
+  {
+   "file": "candidate_libritts_189_carl_phone.mp3",
+   "voice": "libritts",
+   "speaker": 189,
+   "phone": true,
+   "s": 6.53
+  },
+  {
+   "file": "candidate_libritts_576_bobby_phone.mp3",
+   "voice": "libritts",
+   "speaker": 576,
+   "phone": true,
+   "s": 6.84
+  },
+  {
+   "file": "candidate_libritts_27_wendell_phone.mp3",
+   "voice": "libritts",
+   "speaker": 27,
+   "phone": true,
+   "s": 6.45
+  },
+  {
+   "file": "candidate_libritts_567_ada_phone.mp3",
+   "voice": "libritts",
+   "speaker": 567,
+   "phone": true,
+   "s": 7.09
+  },
+  {
+   "file": "candidate_libritts_315_marjorie_phone.mp3",
+   "voice": "libritts",
+   "speaker": 315,
+   "phone": true,
+   "s": 7.26
+  },
+  {
+   "file": "candidate_libritts_585_bev_phone.mp3",
+   "voice": "libritts",
+   "speaker": 585,
+   "phone": true,
+   "s": 6.62
+  },
+  {
+   "file": "candidate_libritts_162_ruthann_phone.mp3",
+   "voice": "libritts",
+   "speaker": 162,
+   "phone": true,
+   "s": 6.15
+  }
+ ]
+}
