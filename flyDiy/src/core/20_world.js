@@ -555,6 +555,16 @@ function makeWorld(seed, opts) {
     const h0 = baseH(x, z), h = PM.terrainH(x, z, h0);
     return LAKE_BED ? lakeCarve(x, z, h0, h, hb => PM.terrainH(x, z, hb)) : h;   // (the bed, as terrainH carves it)
   }
+  // THE EXACT GROUND (COLD-LINKS x LAKE-HOLES, lakes-2): the ANALYTIC composer everywhere, carved as terrainH carves - the
+  // source the premises' raster approximates (GATE PREMRASTER / PREMCOOK hold the raster and the cook to it). The raster
+  // world's terrainH carves AFTER composing, so the composer alone is no longer its reference: under a lake's bank the two
+  // differ by the carve itself (up to 5.6 m beside r_airport's grade), not by the raster. Not memoised, never on a hot path.
+  function terrainHExact(x, z) {
+    const h0 = baseH(x, z);
+    if (!PM) return LAKE_BED ? lakeCarve(x, z, h0, h0, null) : h0;
+    const h = PM.terrainH(x, z, h0);
+    return LAKE_BED ? lakeCarve(x, z, h0, h, hb => PM.terrainH(x, z, hb)) : h;
+  }
   // the carve as one function (A0, train 28): terrainH and METLA-LOAD's build read (terrainHBuild) BOTH carve - the build
   // read composed the uncooked town cells on the raw ground and skipped the bed (GATE LAKEBED: a ring over a lake there)
   function lakeCarve(x, z, h0, h, compose) {
@@ -1155,7 +1165,7 @@ function makeWorld(seed, opts) {
                     cover: ISL.coverU8 || null, ndvi: ISL.ndvi || null, lake: ISL.lake || null, ttype: ISL.ttype || null, lakes: ISL.lakes || null, hydro: ISL.hydro, cellAt: ISL.cellAt,
                     farHeader: ISL.farHeader, farRoot: ISL.farRoot,
                     places: (ISL.premCook && ISL.premCook.places) || null } : null,   // G841: the premises cook's places (the tallies render_premises dresses on)
-    terrainH, waterH, terrainHBuild, waterHBuild, buildReads, surface, SURFACE, groundMaxRect,
+    terrainH, waterH, terrainHBuild, terrainHExact, waterHBuild, buildReads, surface, SURFACE, groundMaxRect,
     get slopeMax() { return PM ? undefined : SLOPE_MAX; },   // the cone's bound (30_solver.js); none under a premises layer
     TILE, tile, aerodromes, settlements: SET.settlements,
     treesNear, canopyH,

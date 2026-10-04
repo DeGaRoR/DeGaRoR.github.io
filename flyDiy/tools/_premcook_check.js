@@ -110,7 +110,7 @@ const S = OC.rasterCell, Fr = OC.frame;
   let worstL = 0, n = 0; const errs = []; let worstA = null;
   for (const c of mine) for (let k = 0; k < 1200; k++) {
     const w = Fr.toWorld((c.c[0] + rnd()) * S, (c.c[1] + rnd()) * S);
-    const hc = WC.terrainH(w[0], w[1]), hl = WL.terrainH(w[0], w[1]), ha = OL.terrainH(w[0], w[1], WL.premises.base.terrainH(w[0], w[1]));
+    const hc = WC.terrainH(w[0], w[1]), hl = WL.terrainH(w[0], w[1]), ha = WL.terrainHExact ? WL.terrainHExact(w[0], w[1]) : OL.terrainH(w[0], w[1], WL.premises.base.terrainH(w[0], w[1]));   // (the analytic ground, carved as terrainH carves: 20_world terrainHExact - PREMRASTER's reference)
     worstL = Math.max(worstL, Math.abs(hc - hl)); const d = Math.abs(hc - ha); errs.push(d); if (!worstA || d > worstA.d) worstA = { d, x: w[0], z: w[1] }; n++;
   }
   errs.sort((a, b) => a - b); const q = f => errs[Math.floor(f * (errs.length - 1))];
