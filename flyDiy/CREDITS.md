@@ -1052,6 +1052,33 @@ signs on a clear ground (`assets/billboards/signs_sheet_1.png`), cut by
 General Store, Tidal Cup Cafe, Bear Coast Tours, Sitka Spruce Lumber, North
 Channel Motel, Tongass Marine Supply. No third-party licence applies.
 
+## The engine sound synthesis (`src/viewer/audio/engine_worklet.js`, SND-ENGINE G1610)
+
+The piston engine's voice is a PORT of two MIT-licensed programs (SOUND-2026-10-04
+ruling s2): no recording ships, the sound is computed from the aeroplane.
+
+- **engine-sound-generator** by **Antonio-R1** — the JavaScript AudioWorklet
+  (`src/engine_sound_generator/engine_sound_generator_worklet.js` and
+  `waveguide.js`) our worklet starts from: the cylinder / intake / exhaust /
+  extractor waveguides, the straight pipe, the parallel-waveguide muffler and
+  the outlet. https://github.com/Antonio-R1/engine-sound-generator —
+  **MIT**, *Copyright (c) 2021-2022 Antonio-R1*.
+- **enginesound** by **DasEtwas** — the Rust reference implementation
+  Antonio-R1 ported: per-cylinder crank offsets and pipes, the valve and
+  ignition functions, the waveguide soft limit, the DC filter and the seeded
+  xorshift noise. https://github.com/DasEtwas/enginesound — **MIT**,
+  *Copyright (c) 2020 DasEtwas*.
+- Both after S. Baldan, S. Delle Monache et al., *"Physically informed car
+  engine sound synthesis for virtual and augmented environments"*, SIVE
+  workshop at IEEE VR 2015 (the model; cited, no code).
+- MIT requires the copyright and permission notice in copies: both notices
+  and the full MIT text are kept verbatim at the head of
+  `src/viewer/audio/engine_worklet.js`, which also lists every change made in
+  the port (sample-rate independence, per-instance parameters, the zero-mean
+  crank noise, the reference's ignition phase, the two-stroke, allocation-free
+  processing, and the flight-sim life: load, jitter, misfire, starter, catch,
+  run-down, ticking, blower whistle).
+
 ## The world's data — Jolene Island (raw in `assets/island/raw/jolene/` (local, gitignored); SHIPPED as `media/world/jolene/`)
 
 Jolene Island is Annette Island, Southeast Alaska, taken whole from public

@@ -68348,3 +68348,73 @@ BATTERY: two reds, both explained. FADES: its pattern read `const AERO_CLEAR = (
 red) - the pattern takes any number form now (a5f8a2f0), PASS. FRAMECOST: tris.shadow +71 969 (+2.3 %) at the stand and the
 taxi, Cub and Cessna alike = the world look's castMinH 0.5 -> 0.35 m (more cover-ring bushes cast); no fps cost on the light
 pass; admitted, the baseline re-taken (3 rises). Parked aeroplanes re-cooked on the final build.
+
+## G1610-G1613 - SND-ENGINE: THE PISTON ENGINE VOICE, PORTED, FED FROM THE AEROPLANE, HEARD OFFLINE, GATED (2026-10-04, SND-ENGINE for the Sound Coordinator, cloud, node only; block G1610-G1619, G1614-G1619 unused)
+
+Branch `claude/snd-engine-j4phkw` off `claude/sound-integration` (2d630792). Design: futureDesigns/SOUND-2026-10-04.md §3.1/§8/§9.
+G1610 THE PORT - `src/viewer/audio/engine_worklet.js`, one AudioWorkletProcessor `registerProcessor('flydiy-engine')`:
+Antonio-R1's engine-sound-generator worklet + waveguide.js (MIT), itself DasEtwas/enginesound (MIT, Rust) after Baldan &
+Delle Monache 2015; both notices and the MIT text kept verbatim at the head, which also lists every change. Changes: lengths in
+metres and filters in Hz, converted with the worklet's `sampleRate` (upstream hard-codes 44 100 and samples); per-instance
+config (cylinders, per-cylinder crank offsets = the firing order, per-cylinder pipes as enginesound has them); the crank noise
+made zero-mean (upstream's `i * LP(0.25 random)` was a static 0.125-cycle-per-index shift of the firing order); ignition at the
+reference's phase 0.5 (Antonio-R1 fired at 0, before the exhaust valve); the two-stroke (one rev a cycle, ports around BDC);
+enginesound's waveguide soft limit, DC filter and seeded xorshift; a +-1e-18 anti-denormal bias; a NaN guard that resets.
+ALLOCATION-FREE BY CONSTRUCTION, and it took two rounds: a call that passes or returns a double which V8 declines to inline
+boxes it (measured 140 B a block), and a RARE method (the per-cycle draw, the tick) runs in V8's lower tiers where every
+double is boxed. So no per-sample method takes or returns a double (inputs/outputs are fields), the low-pass filters and the
+delay writes are inline, the PRNG is a local int, and the per-cycle draw and the tick are written inside the one hot loop.
+On top (SOUND §3.1): load -> ignition strength, intake roar and a smoothed level (idle ~10 dB under full power); cycle-to-cycle
+jitter (sd 0.34 at idle, 0.05 in cruise, more when cold); misfires and exhaust coughs on starvation with an rpm sag (an idle's
+odd miss does not move the pitch: the sim's rpm is the authority); the STARTER (a DC commutator whine + the crank at
+`crankRpm` labouring through each compression - the solver reports 0 rpm while cranking, so the voice makes the crank); the
+CATCH (first cycles misfiring, a surge to ~1.4x idle, settle); the RUN-DOWN (inertia + friction: ~2 s from idle; the solver
+drops at once); a voice asleep after 1.5 s of silence (pipes zeroed, near-zero CPU); after-shutdown TICKING from an exhaust
+heat that builds while running (three random 1.8-7 kHz modes, rate decaying over minutes); the blower whistle (super: with
+the crank; turbo: spooling on rpm x load). Prop NOT here (SND-PROP): output 1 carries engine and prop rpm (engine/gear) as a
+control signal, the voice's own (cranking, surge and run-down included).
+G1611 THE CONFIG - `src/viewer/audio/engine_config.js` (pure, node): `engineSoundConfig(spec, i, registry?)` -> the plain
+config; `engineSoundInputs(sim, i, dst, o, runS)` writes the six AudioParams (rpm = out.rpmEng[i]; load = ctl.thr x the
+engine's lever x out.powerK; running; starter = eng[i].crank > 0; starve = the last 20 s of fuel.enduranceS, 1 on out.starved;
+cold = the first 240 s of `runS`, which the caller holds) allocation-free; `engineSoundShafts(cfg, rpm)` -> engine / prop /
+firing Hz. Cylinders: spec.engines[i].sound -> a custom row's own name ("custom Flat (boxer) 4-cyl 5.9 L") -> the declared
+ENGINE_SOUND_TABLE keyed by POWERPLANTS row (27 piston rows, generated from the editor presets) -> flat-4 2.8 L, named in
+`source`. THE JOIN (incremental, physics-inert, declared): `window.CAGE_ENG_SOUND(P)` in tools/_cage_eng.js reads
+{cyl, arch, twoStroke, dispL} off the same dial dict as the mesh and the facts (engSpecOfP); the join's measure() carries it
+as M.engineSound and cageJoinSpec writes `engines[i].sound` (both entries of a wing pair). Not clamped in 60_gen_spec (no
+src/core edit): engine_config validates the row itself. Equal to the table on all 27 catalogue piston presets; the two fantasy
+presets (flat twin / flat six, which fly the A-65 row) are where it beats the table. The five validated saves predate it and
+read the table (the Cessna: its custom name), the same numbers.
+G1612 THE HARNESS - `tools/audio/render.js`: the worklet's own text wrapped in a function under a three-global shim (NOT a vm
+context: the contextified global's interceptors measured the voice 10x slower), WAV, a log-frequency spectrogram PNG writer
+(node zlib, own CRC), FFT, the scenes (sweep, run-up through the solver's genShaftRpm at V = 0, key start/run/off, starvation
+in cruise, hot shutdown, the twin). `--bench`, `--calibrate`, `--wav`. Evidence: reports/evidence/SND-ENGINE/ (18 Opus +
+18 PNG, 2.5 MB, README: what to listen for in each). The Jodel flies the Cub's A-65 and the static rpm law does not see the
+prop at V = 0, so its renders differ only by seed - the difference between them is SND-PROP's.
+G1613 THE GATE - `tools/audio/_engine_check.js`, GATE AUDIOENG (registered, core, ~3 min; `--quick`, `--only=3,6`): §1 config
+(the five builds, even firing orders, table vs the editor, the join's row), §2 the firing-frequency peak within +-3 % at six rpm
+idle..rated on all five at 48 kHz and two at 44.1 kHz (measured +-0.01 %, prominence >= 36 dB), §3 no NaN / clip / DC /
+subnormal on 26 renders + a free ring-down + hostile params, §4 0 GCs over 20 000 blocks through every state (child with
+--expose-gc; GC entries counted by their own start time - they arrive late), §5 seeded, §6 the life DRIVEN BY makeSim
+(setEngine key/start/off on the Cub: crank 195-266 rpm while the solver reads <= 6 (the settling aeroplane's windmill: it never turns a cranking engine),
+surge 904 over 644, run-down 1.00 s to 30 % of idle and 1.98 s to stop, ticks hot vs cold, 86 % misfires starving vs 0 %, jitter, prop = engine/2.62, the M-14P's
+whistle), §7 CPU (A-65 0.075 ms, O-540 0.111, 582 0.051 per 128-frame block = 2-4 % of real time), §8 INERT: resolveSpec +
+buildGen + 4 s of the solver bit-identical with and without the sound row on all five. EVERY assertion has a sabotage that
+must turn it red (21 controls); three stayed green on the first run and the TESTS were wrong, not the voice: the clip sabotage
+too weak, the seed sabotage patching a method that no longer exists, and the denormal scenario - a parked voice never decays
+(the frozen piston term holds a DC steady state), so it never tested the bias; it now rings an unexcited network down freely
+(54 731 subnormals without the bias, 0 with).
+GATES: AUDIOENG, JOIN, ENGID, DESIGN, PARTS, PANEL, ENERGY, SAVE, FRAMES, STARTER - PASS (run_gates --only, the built files
+restored after the runner's rebuild: no built file is in this branch).
+FOR THE COORDINATOR TO WIRE (no app.js / build.js edit here): (1) engine_config.js into the main-thread bundle (it reads the
+bundle's POWERPLANTS and GEN_SHAFT; pass `registry` where they are not global); (2) engine_worklet.js served as a file for
+`ctx.audioWorklet.addModule()` (SW media rule / build copy - it must not be concatenated into a bundle; its trailing
+`module.exports` guard is inert in the worklet scope); (3) one node per engine: `new AudioWorkletNode(ctx, 'flydiy-engine',
+{numberOfInputs: 0, numberOfOutputs: 2, outputChannelCount: [1, 2] (or [3, 2] for exhaust/intake/block), processorOptions:
+{config: engineSoundConfig(spec, i), seed: 1 + i, heat, running, rpm}})` - `running/rpm` for a voice made with the engine
+already turning (no catch); (4) per frame: engineSoundInputs -> the six k-rate params (setTargetAtTime tau ~30 ms on rpm/load;
+running/starter as set values); (5) a rebuilt aeroplane: port.postMessage({type: 'config', config}) or a new node; heat via
+{type: 'heat'}; (6) output 1 is SND-PROP's input; (7) the editor bundle carries the two tools/_cage_* edits at the next build;
+(8) CORE's _audio_check.js absorbs or calls GATE AUDIOENG.
+SND-TUNE's list (README): the O-540's ~10 dB dip above ~2 200 rpm (a pipe anti-resonance of the default lengths); cranking
+louder than idle; the level law; every pipe length a starting point - the firing frequency is the only number held exactly.

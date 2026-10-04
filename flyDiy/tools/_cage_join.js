@@ -288,6 +288,13 @@ function cageJoinSpec(P, M, T) {
         // "modified <name>"/"custom ...", never a wrong name). The preset key
         // above survives as the fallback row and the prop-diameter default.
         ...(M.engineFacts ? { custom: M.engineFacts } : {}),
+        // SND-ENGINE (G1611): THE SOUND ROW — {cyl, arch, twoStroke, dispL}
+        // off the dials the engine page shows (CAGE_ENG_SOUND), for the engine
+        // voice (src/viewer/audio/engine_config.js). DECLARED PHYSICS-INERT:
+        // no resolve, frame or solver path reads it (GATE AUDIO proves the
+        // validated builds bit-identical with and without it). Absent when
+        // the measurement has none; the voice then reads its fallback table.
+        ...(M.engineSound ? { sound: Object.assign({}, M.engineSound) } : {}),
         // G194: the hand, seen from behind (+1 clockwise). A pair's row says
         // same hand / tops inward / tops outward; tops inward is port +1,
         // starboard -1 (down-going blades inboard). A single mount is +1.
@@ -1603,6 +1610,14 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
         if (ef) M.engineFacts = ef;
       } catch (e) { ERRS.push('the engine could not be resolved to facts: '
                               + e.message); }
+    // SND-ENGINE (G1611): the engine voice's row — cylinders, layout, stroke —
+    // off the same dials. Physics-inert; a throw only costs the voice its row
+    // (engine_config.js falls back to the registry table), so it is not an ERR.
+    if (typeof window.CAGE_ENG_SOUND === 'function')
+      try {
+        const es = window.CAGE_ENG_SOUND(P);
+        if (es) M.engineSound = es;
+      } catch (e) { /* the declared fallback table answers */ }
     return M;
   };
   const tables = () => ({
