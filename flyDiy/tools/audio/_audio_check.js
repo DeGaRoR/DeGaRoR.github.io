@@ -27,8 +27,10 @@
 //                   measurement in a child process: fresh realms; G1680: taken twice, by default and on TurboFan alone,
 //                   --no-maglev), SP_CRAFT - each described at the head of its block.
 //   RADIO THE STATIONS AND RADIO JOLENE'S TALK (SND-RADIO, G1675-G1679) RADIO_STATIONS (G1681: + the mix), RADIO_PICKER,
-//                   RADIO_SCRIPTS, RADIO_TALK, RADIO_BUDGET, RADIO_WIRING; RADIO_CLIPS (SND-RADIO-2, G1683: the recorded
-//                   voice in the talk) - each described at the head of its block.
+//                   RADIO_TALK, RADIO_BUDGET, RADIO_WIRING; RADIO_CLIPS (SND-RADIO-2, G1683: the recorded voice in the talk;
+//                   G1702: the takes of the lazily fetched broadcast); THE LIVING RADIO (SND-RADIO-3, G1700-G1704): RADIO_LINT,
+//                   RADIO_HORIZON, RADIO_WX, RADIO_XFADE, VOICE_LICENCE (RADIO_SCRIPTS, VOICE_AWOS, VOICE_MARINE retired with
+//                   the AWOS and the marine forecast) - each described at the head of its block.
 //   D  THE SELFTEST every check above is run again on MUTATED source text (in memory: nothing on disk is touched)
 //                   and must go red; then the files on disk are re-read and must be byte-identical to the start.
 //   node tools/audio/_audio_check.js             -> the checks + the selftest -> "GATE AUDIO: PASS|FAIL"
@@ -69,7 +71,11 @@ const FILES = {
   // SND-VOICE (G1626-G1629): Radio Jolene's words, their player, the catalogue, the script, GATE MEDIA's list
   voicemodel: 'src/viewer/audio/voice_model.js', voice: 'src/viewer/audio/voice.js', voicecat: 'src/viewer/audio/voice_catalogue.json',
   voicescript: 'tools/audio/voice_script.json', mediachk: 'tools/_media_check.js',
+  // SND-RADIO-3 (G1700-G1704): the broadcast as written (radio_gen.js's) and as shipped (the media file the catalogue names)
+  radioscript: 'tools/audio/radio_script.json',
 };
+{ let f = null; try { f = JSON.parse(fs.readFileSync(path.join(__dirname, '..', '..', 'src/viewer/audio/voice_catalogue.json'), 'utf8')).script.file; } catch (e) {}
+  FILES.shipscript = f && fs.existsSync(path.join(__dirname, '..', '..', f)) ? f : 'tools/audio/radio_script.json'; }
 const readAll = () => { const S = {}; for (const k in FILES) S[k] = fs.readFileSync(path.join(ROOT, FILES[k]), 'utf8'); return S; };
 const shaOf = S => crypto.createHash('sha256').update(Object.keys(FILES).map(k => S[k]).join('\u0000')).digest('hex');
 const SRC0 = readAll(), SHA0 = shaOf(SRC0);
@@ -161,7 +167,7 @@ function makePage(S, opt) {
     vm.runInContext(S.srcaf, ctx, { filename: 'src_airframe.js' });
   }
   const fire = (M, t, ev) => { for (const fn of (M[t] || []).slice()) fn(ev || { type: t }); };
-  return { A: win.AUDIO, C, win, doc, store, L, DL, params,
+  return { A: win.AUDIO, C, win, doc, store, L, DL, params, vmctx: ctx,
     gesture: (t) => fire(L, t || 'pointerdown'),
     winEvent: t => fire(L, t), docEvent: t => fire(DL, t),
     runTimers: () => { const a = timers.splice(0); for (const x of a) if (x.fn) x.fn(); },
@@ -1407,13 +1413,7 @@ function checkMusicWiring(S) {
 //                   it), 'Radio Jolene talk', 'talk every' (persisted), 'voice' (the system's English voices; persisted);
 //                   the keys ] / [ step the station, never with a modifier, in a text field, or when the input
 //                   profile binds the key; input.js's defaults bind neither.
-//   RADIO_SCRIPTS   the pure talk: AWOS digits (niner, calm, gusts by the 10 kt spread, 360, 10 SM -> "one zero",
-//                   fractions, under a quarter, ceilings under 1000 ft, 12 000 ft clear, minus temperatures, QNH 29.92 ->
-//                   "two niner niner two"), a whole observation read off a game-shaped world (the convergence applied,
-//                   nothing declared) and off an empty one (everything declared), the marine forecast (advisory / gale /
-//                   variable / fog / a front's outlook), the notes for pilots (favoured runway, one-way strip uphill,
-//                   soft when wet, the sea lane, the eagles), the station ID's exact words, the back-announce, the
-//                   rotation (every feature, the ID every other break, every static key a LINE).
+//   (RADIO_SCRIPTS, the AWOS and marine forecast's words, is RETIRED with them - G1701; RADIO_WX holds the weather in words.)
 //   RADIO_TALK      the player with a stub speechSynthesis that counts utterances: nothing spoken before the gesture
 //                   (frames run, the station set); after it the tune-in break (ID + weather) with the first track UNDER
 //                   it at 16 % of its level, rising to its level over 1.5 s when the voice stops; a break every N
@@ -1458,11 +1458,17 @@ function speechStub(voices) {
   return { S, U };
 }
 // a radio page: RSYN, the speech stub, the game's world on AUDIO.world, a station
+// G1702: the shipped broadcast, with the radio catalogue's tracks given the back-announces of a Radio Jolene track
+function radioTestScript(S) {
+  const A = JSON.parse(S.shipscript), roots = Object.keys(A.pools.ba).filter(id => A.pools.ba[id].length >= 3);
+  RSYN.forEach((t, i) => { A.pools.ba[t.id] = A.pools.ba[roots[i % roots.length]].slice(); });
+  return A;
+}
 function radioPage(S, o) {
   o = o || {};
   const sp = o.speech || speechStub();
   const pg = musicPage(S, Object.assign({ cat: RSYN, durs: RSYN_DUR, speech: sp, world: radioWorld(RW_DAY) }, o,
-    { beforeGesture: (p, M) => { if (o.station) M.setStation(o.station, true); if (o.every) M.setTalkEvery(o.every); if (o.talk === false) M.setTalk(false); if (o.beforeGesture) o.beforeGesture(p, M); } }));
+    { beforeGesture: (p, M) => { if (!o.noScript && p.win.RADIO_TALK) p.win.RADIO_TALK.setScript(radioTestScript(S)); if (o.station) M.setStation(o.station, true); if (o.every) M.setTalkEvery(o.every); if (o.talk === false) M.setTalk(false); if (o.beforeGesture) o.beforeGesture(p, M); } }));
   pg.sp = sp.S;
   return pg;
 }
@@ -1610,77 +1616,6 @@ function checkRadioPicker(S) {
   return F;
 }
 
-function checkRadioScripts(S) {
-  const F = [], R = loadRadio(S.radio);
-  const eq = (got, want, why) => { if (got !== want) F.push(why + ': "' + got + '" (want "' + want + '")'); };
-  eq(R.digits('2992'), 'two niner niner two', 'digits 2992');
-  eq(R.altimeter(101325), 'two niner niner two', 'QNH 1013.25 hPa');
-  eq(R.altimeter(99200), 'two niner two niner', 'QNH 992 hPa');
-  eq(R.altimeter(103000), 'three zero four two', 'QNH 1030 hPa');
-  const w = (kt, dir, gust) => R.windAwos({ windKt: kt, windDirT: dir, gust: gust || 0 });
-  eq(w(0.4, 120), 'wind calm', 'a calm');
-  eq(w(8, 250, 0.15), 'wind two five zero at eight', 'a breeze');
-  eq(w(20, 270, 0.3), 'wind two seven zero at two zero gusts two six', 'gusts (peaks 26, lulls 14)');
-  eq(w(20, 270, 0.2), 'wind two seven zero at two zero', 'an 8 kt spread (no gust reported)');
-  eq(w(12, 2), 'wind three six zero at one two', 'a north wind (360, never 000)');
-  eq(w(35, 249, 0.5), 'wind two five zero at three five gusts five three', 'a gale');
-  const v = sm => R.visWords(sm);
-  eq(v(10), 'one zero', '10 SM'); eq(v(37), 'one zero', '37 SM'); eq(v(1.6), 'one and one half', '1.6 SM'); eq(v(0.2), 'less than one quarter', '0.2 SM');
-  eq(v(2.9), 'two and one half', '2.9 SM'); eq(v(9.2), 'niner', '9.2 SM'); eq(v(0.5), 'one half', '0.5 SM');
-  const sky = L => R.skyAwos({ layers: L });
-  eq(sky([{ cover: 0.03, baseM: 600 }]), 'sky condition clear below one two thousand', 'a clear sky');
-  eq(sky([{ cover: 0.7, baseM: 800 * FT_M }]), 'sky condition ceiling eight hundred broken', 'a ceiling under 1000 ft');
-  eq(sky([{ cover: 1, baseM: 1210 * FT_M }]), 'sky condition ceiling one thousand two hundred overcast', 'a 1200 ft overcast');
-  eq(sky([{ cover: 0.2, baseM: 4230 * FT_M }, { cover: 0.95, baseM: 9100 * FT_M }]), 'sky condition few clouds at four thousand two hundred, ceiling niner thousand overcast', 'two decks');
-  eq(sky([{ cover: 0.9, baseM: 13000 * FT_M }]), 'sky condition clear below one two thousand', 'a deck above the ceilometer');
-  eq(sky([{ cover: 0.4, baseM: 20 }]), 'sky condition scattered clouds at one hundred', 'a deck on the ground (100 ft, never zero)');
-  eq(R.signed(-3), 'minus three', '-3 C'); eq(R.signed(-12), 'minus one two', '-12 C'); eq(R.signed(-0.4), 'zero', '-0.4 C'); eq(R.signed(19), 'one niner', '19 C');
-  eq(R.zulu(17 * 3600 + 54 * 60 + 40), 'one seven five four', '17:54:40 Z'); eq(R.zulu(86400 + 300), 'zero zero zero five', 'past midnight');
-  // a whole observation off a game-shaped world (convergence 19.32: the wind's grid vector back to 270 true)
-  const cold = radioWorld({ t: -3, td: -7.6, baseM: 250, cover: 1, qnh: 101325, utc: 17 * 3600 + 34 * 60, local: 9 * 3600 + 34 * 60, rh: 0.7, kt: 20, dir: 270, gust: 0.3, visM: 2.4 * SM_M });
-  const wx = R.readGame(cold);
-  eq(R.awos(wx), 'Jolene field automated weather observation, one seven three four zulu. Wind two seven zero at two zero gusts two six. Visibility two. Sky condition ceiling eight hundred overcast. Temperature minus three, dew point minus eight. Altimeter two niner niner two.', 'the cold observation');
-  if (wx.declared.length) F.push('a full game world still declared: ' + wx.declared.join('; '));
-  const none = R.readGame({});
-  for (const k of ['wind', 'visibility', 'temperature', 'QNH']) if (!none.declared.some(d => d.indexOf(k) === 0)) F.push('an empty world does not declare its ' + k);
-  if (none.field !== 'Jolene field') F.push('an empty world\'s field is ' + none.field);
-  // the marine forecast
-  const mar = o => R.marine(R.readGame(radioWorld(Object.assign({}, RW_DAY, o))));
-  if (!/gale warning/.test(mar({ kt: 35, gust: 0.5 }))) F.push('35 kt is no gale warning: ' + mar({ kt: 35 }));
-  if (!/small craft advisory/.test(mar({ kt: 25 })) || /gale/.test(mar({ kt: 25 }))) F.push('25 kt is no small craft advisory: ' + mar({ kt: 25 }));
-  if (/advisory|warning/.test(mar({ kt: 10 }))) F.push('10 kt carries an advisory');
-  if (!/variable winds five knots or less/.test(mar({ kt: 3 }))) F.push('3 kt is not "variable winds five knots or less": ' + mar({ kt: 3 }));
-  if (!/Patchy fog/.test(mar({ visM: 3000 }))) F.push('3 km of visibility is no patchy fog');
-  const front = mar({ local: 6 * 3600, storm: { I: 0, phase: 'none', inS: 4 * 3600 }, kt: 12 });
-  if (!/A front later this morning: .*wind twenty-five knots.*seas building to/.test(front)) F.push('a front 4 h out reads: ' + front);
-  if (!/little change/.test(mar({}))) F.push('a quiet day has no outlook');
-  // the notes for pilots
-  const pil = (o, k) => R.pilots(R.readGame(radioWorld(Object.assign({}, RW_DAY, o))), k || 0);
-  const p0 = pil({});
-  if (!/runway two zero is favoured/.test(p0)) F.push('a 250 wind does not favour runway two zero: ' + p0);
-  if (!/runway one three is favoured, the wind calm/.test(pil({ kt: 0.3 }))) F.push('a calm does not favour the home runway one three: ' + pil({ kt: 0.3 }));
-  if (!/Tamgas Hill Strip, gravel: it is one way, so land uphill/.test(p0)) F.push('the one-way Tamgas Hill Strip is not "land uphill": ' + p0);
-  if (!/soft after the rain/.test(pil({ rh: 0.9 })) || /soft/.test(p0)) F.push('the strip is soft ' + (/soft/.test(p0) ? 'on a dry day' : 'never'));
-  if (!/seaplane lane at Annette Dock is active/.test(p0)) F.push('the sea lane is not active in the notes');
-  if (!/eagles are back on runway one three this afternoon/.test(p0)) F.push('the eagles are not on runway one three this afternoon: ' + p0);
-  // the ID, the back-announce, the rotation
-  if (R.stationId(R.readGame(radioWorld(RW_DAY)), 0).indexOf('Radio Jolene, ninety point seven, community radio for Jolene Island and the Sound.') < 0) F.push('the station ID is reworded');
-  eq(R.backAnnounce([{ title: 'Yet Again', artist: 'HoliznaCC0' }, { title: 'Kodama', artist: 'HoliznaCC0' }]), 'That was Yet Again by Holizna, and before that, Kodama by Holizna.', 'the back-announce');
-  for (const k of ['mill', 'tram', 'ferry', 'fuel', 'potluck', 'coho', 'library']) if (!R.LINES['bulletin.' + k]) F.push('no bulletin ' + k);
-  const st = { k: 0 }, wxs = R.readGame(radioWorld(RW_DAY)), kinds = new Set();
-  const tune = R.breakScript(st, wxs, [], { tuneIn: true });
-  if (tune.map(x => x.kind).join() !== 'id,awos') F.push('the tune-in break is ' + tune.map(x => x.kind).join() + ' (want id,awos)');
-  for (let i = 0; i < 12; i++) {
-    const b = R.breakScript(st, wxs, [{ title: 'A', artist: 'B' }]);
-    for (const x of b) { kinds.add(x.kind); if (typeof x.text !== 'string' || !x.text || typeof x.key !== 'string') F.push('a segment is not { kind, key, text }'); if (/\./.test(x.key) && !R.LINES[x.key]) F.push('the key ' + x.key + ' is not a LINE'); }
-    if (b[0].kind !== 'back') F.push('break ' + i + ' does not open on the back-announce');
-    if (b.some(x => x.kind === 'id') !== ((st.k - 1) % 2 === 0)) F.push('break ' + (st.k - 1) + ' has the ID ' + (b.some(x => x.kind === 'id') ? '' : 'not ') + '(want every other)');
-  }
-  for (const k of ['back', 'id', 'awos', 'marine', 'pilots', 'bulletin', 'swap']) if (!kinds.has(k)) F.push('twelve breaks never carried ' + k);
-  return F;
-}
-
-// the deck the radio's current track plays on, and its level now
 const deckNow = pg => { const a = pg.M._ps[5]; return a >= 0 ? { k: a, lvl: pg.M._lvlAt(a, pg.A.ctx.currentTime), t: pg.M._dk[a * 10 + 1] } : null; };
 const trimOfIdx = (pg, t) => pg.M.trimOf(pg.M.catalogue[t]);
 function checkRadioTalk(S) {
@@ -1695,7 +1630,11 @@ function checkRadioTalk(S) {
   const pg = radioPage(S, { station: 'roots' }), X = pg.F, M = pg.M, sp = pg.sp;
   X.run(2);
   const ut = sp.all.map(u => u.text);
-  if (ut.length !== 2 || ut[0].indexOf('Radio Jolene, ninety point seven') < 0 || ut[1].indexOf('automated weather observation') < 0) F.push('the tune-in spoke ' + ut.length + ': ' + ut.map(t => t.slice(0, 40)).join(' | '));
+  {   // G1702: an ID and the weather in words - the script's takes, read by the fallback voice here (no AUDIO_VOICE on this page)
+    const A = JSON.parse(S.shipscript), ids = new Set(), wxs = Object.keys(A.items).filter(k => /^wx\./.test(k)).map(k => A.items[k].text);
+    for (const p in A.pools.id) for (const k of A.pools.id[p]) ids.add(A.items[k].text);
+    if (ut.length !== 2 || !ids.has(ut[0]) || !ut[1] || /\d/.test(ut[1]) || !wxs.some(w => ut[1].indexOf(w) === 0)) F.push('the tune-in spoke ' + ut.length + ': ' + ut.map(t => t.slice(0, 40)).join(' | ') + ' (want a station ID, then the weather in words)');
+  }
   const u0 = sp.all[0] || {};
   if (!u0.voice || u0.voice.name !== 'Microsoft George - English (United Kingdom)' || u0.rate !== 0.95 || u0.pitch !== 0.95) F.push('the voice is ' + (u0.voice && u0.voice.name) + ' at rate ' + u0.rate + ', pitch ' + u0.pitch + ' (want George, 0.95, 0.95)');
   if (!near(u0.volume, Math.min(1, 0.8 * 0.6 * 1.25), 1e-9)) F.push('the voice volume is ' + u0.volume + ' (want master x music x 1.25 = 0.6)');
@@ -1758,11 +1697,14 @@ function checkRadioTalk(S) {
     p.M.setTalkEvery(1);
     const n0 = p.sp.speaks;
     let ducked = false;
-    p.F.each = () => { const a = p.M._ps[5]; if (!ducked && a >= 0) { const rem = p.M._dk[a * 10 + 3] - p.M._dk[a * 10 + 2]; if (rem < 1) { ducked = true; p.A.emit('stall'); } } };
-    p.F.run(80, 0.25);
+    // (G1703: the stall comes before the talk-up's window opens, and holds through the transition)
+    p.F.each = () => { const a = p.M._ps[5]; if (!ducked && a >= 0) { const rem = p.M._dk[a * 10 + 3] - p.M._dk[a * 10 + 2]; if (rem < 7.5 && rem > 6.5) { ducked = true; p.A.emit('stall'); } } };
+    const s0 = p.F.starts.length;
+    for (let i = 0; i < 400 && !ducked; i++) p.F.run(0.25, 0.25);
+    p.F.run(12, 0.25);
     if (!ducked) F.push('the duck test never reached a track\'s end');
     else if (p.sp.speaks !== n0) F.push('a break was spoken under a duck (' + (p.sp.speaks - n0) + ' utterances)');
-    else if (!(p.M._ps[1] > 0) && p.F.streaming()) F.push('the ducked transition did not take the silence');
+    else if (p.F.starts.length === s0) F.push('the ducked transition did not move on to the next track');
   }
   // A SUSPEND cancels a talk
   {
@@ -1844,133 +1786,135 @@ function checkRadioWiring(S) {
 //                THE SUSPEND -> an engine start stops every source of a playing break (and ducks the bus they pass), a
 //                hidden tab stops them; the watchdog armed for the clips' own length; frames under a clip talk allocate
 //                nothing (100 000, 0 GC).
-// a radio page with the recorded voice (o.drop: keys the catalogue lacks)
+// a radio page with the recorded voice: the broadcast script fetched LAZILY through ASSET_FETCH (as the game does), the
+// takes played on stub buffer sources (o.drop: a test on the keys AUDIO_VOICE is handed - those missing)
 function radioClipPage(S, o) {
   o = o || {};
-  const RT = loadRadio(S.radio), VMd = loadVoiceModel(S.voicemodel), script = JSON.parse(S.voicescript);
-  const RL = RT.clipLines(script.places || {}), clips = {};
-  const keys = Object.keys(RL).concat(Object.keys(VMd.VOCAB)); for (const t of RSYN) keys.push(...VMd.trackKeys(t));
-  for (const k of keys) if (!(o.drop || []).includes(k)) clips[k] = { file: 'media/audio/voice/' + k.replace(/\W+/g, '_') + '.00000000.mp3', text: RL[k] || VMd.VOCAB[k] || k, dur: 0.3 };
-  const V = { srcs: [], gains: [], fetches: 0 };
-  const pg = radioPage(S, Object.assign({}, o, {
+  const script = radioTestScript(S), V = { srcs: [], gains: [], fetches: 0, scriptFetches: 0 };
+  const bytes = Buffer.from(JSON.stringify(script));
+  const pg = radioPage(S, Object.assign({}, o, { noScript: true,
     extra: [[S.voicemodel, 'voice_model.js'], [S.voice, 'voice.js']],
-    beforeWin: win => { win.FLYDIY_VOICE = { voice: { name: 'norman', render: { lufs: -20 } }, clips };
-      win.ASSET_FETCH = () => { V.fetches++; return Promise.resolve(new Uint8Array(Math.round(0.4 * 48000))); }; },
+    beforeWin: win => { win.FLYDIY_VOICE = { voice: { name: 'norman', render: { lufs: -20 } }, script: { file: 'media/audio/voice/radio_script.00000000.json' } };
+      win.ASSET_FETCH = u => { V.fetches++; if (/\.json$/.test(u)) { V.scriptFetches++; return Promise.resolve(new Uint8Array(bytes)); } return Promise.resolve(new Uint8Array(Math.round(0.4 * 48000))); }; },
+    beforeGesture: (p, M) => { if (o.drop) { const AV = p.vmctx.AUDIO_VOICE, sc = AV.setClips; AV.setClips = c => { const f = {}; for (const k in c) if (!o.drop(k)) f[k] = c[k]; sc(f); }; } if (o.beforeGesture) o.beforeGesture(p, M); },
     ctxHook: P => {
       const g0 = P.createGain;
       P.createGain = function () { const g = g0.call(this); g.to = []; g.connect = d => { g.to.push(d); return d; }; V.gains.push(g); return g; };
       P.decodeAudioData = (ab, ok) => { const d = new Float32Array(ab.byteLength).fill(0.1); const b = { length: d.length, numberOfChannels: 1, sampleRate: 48000, duration: d.length / 48000, getChannelData: () => d }; ok(b); return Promise.resolve(b); };
       P.createBufferSource = function () { const x = { to: null, stopped: 0, onended: null, connect(d) { x.to = d; }, start(t, off, dur) { V.srcs.push({ x, t, off, dur }); }, stop() { x.stopped = 1; } }; return x; };
     } }));
-  return Object.assign(pg, { V, RL, VMd, clips });
+  return Object.assign(pg, { V, script });
 }
 const tick = () => new Promise(r => setImmediate(r));
+const ticks = async n => { for (let i = 0; i < (n || 4); i++) await tick(); };
 const endClips = V => { const l = V.srcs[V.srcs.length - 1]; if (l && l.x.onended) l.x.onended(); };
+const planOf = M => (M.talker && M.talker.last ? M.talker.last.groups.map(g => (g.clips ? 'clips' : 'speech') + ':' + g.kinds.join('+')).join(' | ') : 'none');
 async function checkRadioClips(S) {
   const F = [];
-  // ALL CLIPS: the tune-in plays, nothing spoken
+  // THE LAZY SCRIPT AND THE LATE TUNE-IN: the gesture on Radio Jolene fetches the broadcast once; the first track starts
+  // at its level, and when the script is in, the owed tune-in talks over it (the track brought down to the bed)
   const pg = radioClipPage(S, { station: 'roots' }), M = pg.M, V = pg.V;
-  pg.F.run(0.5); await tick(); await tick(); pg.F.run(1.5);   // (past the bed's 1.5 s fade-in)
+  pg.F.run(0.3);
+  const d00 = deckNow(pg);
+  await ticks(); pg.F.run(1.7);
+  if (V.scriptFetches !== 1) F.push('the broadcast script was fetched ' + V.scriptFetches + ' times on tuning in (want once)');
   const T = M.talker;
-  if (!T || !T.last) return ['the roots tune-in did not reach the talker (talker ' + !!T + ')'];
-  const plan = T.last.groups.map(g => (g.clips ? 'clips' : 'speech') + ':' + g.kinds.join('+')).join(' | ');
-  if (plan !== 'clips:id+awos') F.push('the tune-in with every clip present played ' + plan + ' (want one clip group: id+awos)');
-  if (pg.sp.speaks) F.push('the tune-in with every clip present spoke ' + pg.sp.speaks + ' utterances (want 0)');
+  if (!T || !T.last) return F.concat(['the roots tune-in did not reach the talker (talker ' + !!T + ')']);
+  if (!d00) F.push('no track while the script was loading');
+  const plan = planOf(M);
+  if (plan !== 'clips:id+wx') F.push('the tune-in with every take present played ' + plan + ' (want one clip group: id+wx)');
+  if (pg.sp.speaks) F.push('the tune-in with every take present spoke ' + pg.sp.speaks + ' utterances (want 0)');
   const segs = M._lastSegs ? M._lastSegs() : null;
   const want = segs ? segs.reduce((n, x) => n + x.clips.filter(k => typeof k === 'string').length, 0) : -1;
-  if (V.srcs.length !== want) F.push('the tune-in started ' + V.srcs.length + ' buffer sources (want one per clip key: ' + want + ')');
+  if (V.srcs.length !== want) F.push('the tune-in started ' + V.srcs.length + ' buffer sources (want one per take: ' + want + ')');
   const t0 = V.srcs.length ? V.srcs[0].t : 0, gapFree = V.srcs.every((x, i) => !i || x.t >= V.srcs[i - 1].t + V.srcs[i - 1].dur - 1e-9);
-  if (!gapFree) F.push('the clips overlap: not one sequence');
+  if (!gapFree) F.push('the takes overlap: not one sequence');
   const d0 = deckNow(pg);
-  if (!d0 || !near(d0.lvl, 0.16 * trimOfIdx(pg, d0.t), 0.02)) F.push('under the clips the track is at ' + (d0 ? (d0.lvl / trimOfIdx(pg, d0.t) * 100).toFixed(1) : '-') + ' % (want 16)');
+  if (!d0 || !near(d0.lvl, 0.16 * trimOfIdx(pg, d0.t), 0.02)) F.push('under the late tune-in the track is at ' + (d0 ? (d0.lvl / trimOfIdx(pg, d0.t) * 100).toFixed(1) : '-') + ' % (want 16)');
   const wd = M._ps[8], len = V.srcs.length ? V.srcs[V.srcs.length - 1].t + V.srcs[V.srcs.length - 1].dur - t0 : 0;
-  if (!(wd > len && wd < len + 20)) F.push('the watchdog is armed for ' + wd.toFixed(1) + ' s (want the clips\' ' + len.toFixed(1) + ' s + the slack)');
+  if (!(wd > len && wd < len + 20)) F.push('the watchdog is armed for ' + wd.toFixed(1) + ' s (want the takes\' ' + len.toFixed(1) + ' s + the slack)');
   // THE ROUTE: the reading's gain -> radioIn -> the duck -> the music bus; radioIn at clipK
   const rin = M.radioIn, gv = V.gains.find(g => g.to.length && g.to[0] === rin && g !== rin);
   const duck = rin && rin.to[0], bus = pg.A.bus('music');
-  if (!gv) F.push('the clips do not pass radioIn');
+  if (!gv) F.push('the takes do not pass radioIn');
   if (!rin || !duck || !duck.to || duck.to[0] !== bus || V.gains.filter(g => g.to.indexOf(bus) >= 0).length !== 1) F.push('radioIn does not feed the music\'s duck (the one gain into the music bus)');
-  if (rin && !near(rin.gain.value, 1.25 * Math.pow(10, 4 / 20), 1e-9)) F.push('radioIn is x' + (rin && rin.gain.value) + ' (want VOICE_K x the 4 dB from the clips\' -20 LUFS to the tracks\' -16)');
-  // the end of the last clip: the talk ends, the track rises over 1.5 s
+  if (rin && !near(rin.gain.value, 1.25 * Math.pow(10, 4 / 20), 1e-9)) F.push('radioIn is x' + (rin && rin.gain.value) + ' (want VOICE_K x the 4 dB from the takes\' -20 LUFS to the tracks\' -16)');
+  // the end of the last take: the talk ends, the track rises over 1.5 s
   endClips(V); const tEnd = pg.A.ctx.currentTime;
   pg.F.step(0.1, 16);
-  if (M.talking) F.push('the last clip ended but the talk did not');
+  if (M.talking) F.push('the last take ended but the talk did not');
   const d1 = deckNow(pg);
   const mid = d1 ? M._lvlAt(d1.k, tEnd + 0.75) / trimOfIdx(pg, d1.t) : 0;
-  if (!d1 || !near(d1.lvl, trimOfIdx(pg, d1.t), 0.02) || !near(M._lvlAt(d1.k, tEnd + 1.5), trimOfIdx(pg, d1.t), 0.02) || !(mid > 0.3 && mid < 0.99)) F.push('after the clips the track does not rise over 1.5 s to its level (mid-rise ' + (mid * 100).toFixed(0) + ' %)');
-  // EVERY SEGMENT'S CLIPS ARE RENDERED KEYS: twelve breaks on the Jolene-shaped world
+  if (!d1 || !near(d1.lvl, trimOfIdx(pg, d1.t), 0.02) || !near(M._lvlAt(d1.k, tEnd + 1.5), trimOfIdx(pg, d1.t), 0.02) || !(mid > 0.3 && mid < 0.99)) F.push('after the takes the track does not rise over 1.5 s to its level (mid-rise ' + (mid * 100).toFixed(0) + ' %)');
+  // NOT ON ANOTHER STATION: lo-fi fetches no script; tuning Radio Jolene then does
   {
-    const RT = loadRadio(S.radio), VMd = pg.VMd, ctx = { module: { exports: {} }, VOICE_MODEL: VMd };
-    vm.runInNewContext(S.radio, ctx, { filename: 'radio_talk.js' });
-    const R2 = ctx.module.exports, st = { k: 0 }, wx = R2.readGame(radioWorld(RW_DAY)), bad = new Set();
-    const tr = [RSYN[0], RSYN[3]].map(t => ({ id: t.id, title: t.title, artist: t.artist }));
-    const all = [R2.breakScript(st, wx, [], { tuneIn: true })]; for (let i = 0; i < 12; i++) all.push(R2.breakScript(st, wx, tr));
-    for (const b of all) for (const x of b) { if (!Array.isArray(x.clips)) { bad.add(x.kind + ': no clips'); continue; } for (const k of x.clips) if (typeof k === 'string' && !pg.clips[k]) bad.add(x.kind + ': ' + k); }
-    if (bad.size) F.push('a segment names clips the voice does not render: ' + [...bad].slice(0, 6).join(', '));
-    if (RT.clipLines({}).hasOwnProperty('d.1') || Object.keys(RT.clipLines({})).some(k => VMd.VOCAB[k] != null)) F.push('a station line shares a key with VOICE_MODEL\'s words');
+    const p = radioClipPage(S, { station: 'lofi' });
+    p.F.run(2); await ticks();
+    if (p.V.scriptFetches) F.push('on lo-fi the broadcast script was fetched (' + p.V.scriptFetches + ')');
+    p.M.setStation('roots'); await ticks(); p.F.run(0.5);
+    if (p.V.scriptFetches !== 1) F.push('tuning Radio Jolene fetched the script ' + p.V.scriptFetches + ' times (want once)');
   }
-  // A REGULAR BREAK (after the tune-in): the back-announce of the tracks just played, by their ids, in clips
+  // A REGULAR BREAK: the program's next break, its back-announce in takes by the track's id
   {
     const p = radioClipPage(S, { station: 'roots', every: 1 });
     let seen = 0;
-    for (let i = 0; i < 400 && p.M._C.talks < 2; i++) { p.F.run(1); await tick(); await tick(); if (p.V.srcs.length > seen) { seen = p.V.srcs.length; endClips(p.V); } }
-    const L = p.M.talker && p.M.talker.last, segs = p.M._lastSegs ? p.M._lastSegs() : [];
-    const pl = L ? L.groups.map(g => (g.clips ? 'clips' : 'speech') + ':' + g.kinds.join('+')).join(' | ') : 'none';
-    if (p.M._C.talks < 2 || !/^clips:back/.test(pl) || p.sp.speaks) F.push('the second break played ' + pl + ' with ' + p.sp.speaks + ' utterances (want its back-announce in clips)');
-    const back = segs.find(x => x.kind === 'back');
-    if (!back || !back.clips || !back.clips.some(k => /^ba\.(r|l|j)\d$/.test(k))) F.push('the back-announce does not name the track\'s own clip (ba.<id>): ' + JSON.stringify(back && back.clips));
+    for (let i = 0; i < 400 && p.M._C.talks < 2; i++) { p.F.run(1); await ticks(2); if (p.V.srcs.length > seen) { seen = p.V.srcs.length; endClips(p.V); } }
+    const pl = planOf(p.M), segs2 = p.M._lastSegs ? p.M._lastSegs() : [];
+    const back = segs2.find(x => x.kind === 'back'), tr = back && p.M.catalogue.find(t => (p.script.pools.ba[t.id] || []).indexOf(back.items[0]) >= 0);
+    if (p.M._C.talks < 2 || !/^clips:/.test(pl) || pl.indexOf('|') >= 0 || p.sp.speaks) F.push('the second break played ' + pl + ' with ' + p.sp.speaks + ' utterances (want all of it in takes)');
+    if (!back || !tr) F.push('the back-announce is not one of the track\'s own takes: ' + JSON.stringify(back && back.items));
   }
-  // PER SEGMENT: one AWOS word missing -> the ID's clips, then the AWOS spoken (after the clips, not over them)
+  // PER SEGMENT: the weather's takes missing -> the ID's takes, then the weather spoken (after them, not over them)
   {
-    const p = radioClipPage(S, { station: 'roots', drop: ['w.zulu'] });
-    p.F.run(0.5); await tick(); await tick(); p.F.run(0.5);
-    const pl = p.M.talker && p.M.talker.last ? p.M.talker.last.groups.map(g => (g.clips ? 'clips' : 'speech') + ':' + g.kinds.join('+')).join(' | ') : 'none';
-    if (pl !== 'clips:id | speech:awos') F.push('without w.zulu the tune-in played ' + pl + ' (want the ID\'s clips, the AWOS spoken)');
-    if (p.sp.speaks) F.push('the AWOS was spoken over the ID\'s clips (' + p.sp.speaks + ' utterances before the clips ended)');
+    const p = radioClipPage(S, { station: 'roots', drop: k => /^wx\./.test(k) });
+    p.F.run(0.3); await ticks(); p.F.run(0.3);
+    const pl = planOf(p.M);
+    if (pl !== 'clips:id | speech:wx') F.push('without the weather\'s takes the tune-in played ' + pl + ' (want the ID\'s takes, the weather spoken)');
+    if (p.sp.speaks) F.push('the weather was spoken over the ID\'s takes (' + p.sp.speaks + ' utterances before the takes ended)');
     const nid = p.V.srcs.length;
-    endClips(p.V); await tick(); p.F.run(0.2);
-    if (p.sp.speaks !== 1 || !/automated weather observation/.test((p.sp.all[0] || {}).text || '')) F.push('after the ID\'s clips the AWOS was not spoken (' + p.sp.speaks + ')');
-    if (p.V.srcs.length !== nid) F.push('the AWOS with a missing word still played clips');
-    if (!p.M.talking) F.push('the talk ended before the spoken AWOS');
+    endClips(p.V); await ticks(); p.F.run(0.2);
+    if (p.sp.speaks !== 1 || /\d/.test((p.sp.all[0] || {}).text || '1')) F.push('after the ID\'s takes the weather was not spoken in words (' + p.sp.speaks + ')');
+    if (p.V.srcs.length !== nid) F.push('the weather with its takes missing still played takes');
+    if (!p.M.talking) F.push('the talk ended before the spoken weather');
     p.sp.endAll(); p.F.run(0.2);
-    if (p.M.talking) F.push('the spoken AWOS ended but the talk did not');
+    if (p.M.talking) F.push('the spoken weather ended but the talk did not');
   }
-  // ... and the ID's line missing -> the ID spoken, the AWOS's clips after the utterance
+  // ... and the IDs' takes missing -> the ID spoken, the weather's takes after the utterance
   {
-    const p = radioClipPage(S, { station: 'roots', drop: ['id.main'] });
-    p.F.run(0.5); await tick(); await tick();
-    if (p.sp.speaks !== 1 || p.V.srcs.length) F.push('without id.main: ' + p.sp.speaks + ' utterances, ' + p.V.srcs.length + ' clips before the ID ended (want 1, 0)');
-    p.sp.endAll(); await tick(); await tick(); p.F.run(0.2);
-    if (!p.V.srcs.length || p.sp.speaks !== 1) F.push('after the spoken ID the AWOS\'s clips did not play (' + p.V.srcs.length + ' sources)');
+    const p = radioClipPage(S, { station: 'roots', drop: k => /^id\./.test(k) });
+    p.F.run(0.3); await ticks();
+    if (p.sp.speaks !== 1 || p.V.srcs.length) F.push('without the IDs\' takes: ' + p.sp.speaks + ' utterances, ' + p.V.srcs.length + ' takes before the ID ended (want 1, 0)');
+    p.sp.endAll(); await ticks(); p.F.run(0.2);
+    if (!p.V.srcs.length || p.sp.speaks !== 1) F.push('after the spoken ID the weather\'s takes did not play (' + p.V.srcs.length + ' sources)');
   }
-  // THE DUCKS: an engine start stops the reading (its sources) and ducks the bus the clips pass
+  // THE DUCKS: an engine start stops the reading (its sources) and ducks the bus the takes pass
   {
     const p = radioClipPage(S, { station: 'roots' });
-    p.F.run(0.5); await tick(); await tick();
+    p.F.run(0.3); await ticks(); p.F.run(0.2); await ticks();
     const n = p.V.srcs.length;
     p.A.emit('engine', 'start'); p.F.run(0.2);
-    if (!n || p.V.srcs.some(x => !x.x.stopped) || p.M.talking) F.push('an engine start did not stop the clips (' + p.V.srcs.filter(x => !x.x.stopped).length + ' of ' + n + ' still playing)');
+    if (!n || p.V.srcs.some(x => !x.x.stopped) || p.M.talking) F.push('an engine start did not stop the takes (' + p.V.srcs.filter(x => !x.x.stopped).length + ' of ' + n + ' still playing)');
     const dk = p.M.radioIn && p.M.radioIn.to[0];
-    if (!dk || !(dk.gain.value < 0.5)) F.push('the duck the clips pass is not down under the engine start (' + (dk && dk.gain.value) + ')');
+    if (!dk || !(dk.gain.value < 0.5)) F.push('the duck the takes pass is not down under the engine start (' + (dk && dk.gain.value) + ')');
   }
   // THE SUSPEND: a hidden tab stops them
   {
     const p = radioClipPage(S, { station: 'roots' });
-    p.F.run(0.5); await tick(); await tick();
+    p.F.run(0.3); await ticks(); p.F.run(0.2); await ticks();
     p.doc.hidden = true; p.docEvent('visibilitychange'); p.runTimers(); p.F.run(0.2);
-    if (!p.V.srcs.length || p.V.srcs.some(x => !x.x.stopped) || p.M.talking) F.push('a hidden tab left the clips playing');
+    if (!p.V.srcs.length || p.V.srcs.some(x => !x.x.stopped) || p.M.talking) F.push('a hidden tab left the takes playing');
   }
   // NOTHING BEFORE THE GESTURE
   {
     const p = radioClipPage(S, { station: 'roots', noGesture: true });
-    p.F.run(3); await tick();
-    if (p.V.fetches || p.V.srcs.length) F.push('before the gesture: ' + p.V.fetches + ' clip fetches, ' + p.V.srcs.length + ' sources');
+    p.F.run(3); await ticks();
+    if (p.V.fetches || p.V.srcs.length) F.push('before the gesture: ' + p.V.fetches + ' fetches, ' + p.V.srcs.length + ' sources');
   }
-  // THE FRAME under a clip talk: nothing allocated
+  // THE FRAME under a talk of takes: nothing allocated
   {
     const p = radioClipPage(S, { station: 'roots' });
-    p.F.run(0.5); await tick(); await tick();
-    if (!p.M.talking) F.push('no clip talk to measure under');
+    p.F.run(0.3); await ticks(); p.F.run(0.2); await ticks();
+    if (!p.M.talking) F.push('no talk of takes to measure under');
     p.M._ps[8] = 1e9;
     const P = p.A.params, up = p.M.source.update, one = () => up(P, 1 / 60, p.A);
     for (let i = 0; i < 20000; i++) one();
@@ -1982,9 +1926,325 @@ async function checkRadioClips(S) {
     for (let i = 0; i < 100000; i++) one();
     const dB = process.memoryUsage().heapUsed - h0, gIn = gcs - g0;
     obs.disconnect();
-    MUSIC_REPORT.push('the radio\'s update() under a CLIP talk: heap ' + (dB >= 0 ? '+' : '') + dB + ' B over 100 000 frames, ' + gIn + ' GC');
-    if (gIn > 0 || dB > 16384) F.push('the frame under a clip talk allocates: ' + dB + ' B over 100 000 frames, ' + gIn + ' GC');
+    MUSIC_REPORT.push('the radio\'s update() under a talk of TAKES: heap ' + (dB >= 0 ? '+' : '') + dB + ' B over 100 000 frames, ' + gIn + ' GC');
+    if (gIn > 0 || dB > 16384) F.push('the frame under a talk of takes allocates: ' + dB + ' B over 100 000 frames, ' + gIn + ' GC');
   }
+  return F;
+}
+
+// ==== SND-RADIO-3 (G1700-G1704): THE LIVING RADIO ===================================================================
+//   RADIO_LINT     THE WRITING RULES on every take the broadcast plays (the shipped script, media/audio/voice/
+//                  radio_script.<h8>.json) and every line the generator wrote (tools/audio/radio_script.json): no digit, no
+//                  acronym in capitals, no colon, semicolon, dash, bracket or quote, no instrument word (zulu, niner,
+//                  altimeter, knots ...), never two digit words in a row (a spelled number), every sentence 4 to 22 words
+//                  (an initial - Matthew C. Wright - ends none), a closing stop; the spoken titles carry no store-listing
+//                  words; the rendered text IS the written text.
+//   RADIO_HORIZON  two hours of broadcast simulated on the SHIPPED catalogue's Radio Jolene tracks (their lengths, the
+//                  shuffle bag's rule, a break every TALK_EVERY tracks, the 4 s crossfades) under four game weathers and
+//                  three seeds: no take heard twice; every thread's steps heard in order; no break the same shape as the
+//                  one before; the cursor persisted - a second session (a fresh page reading the stored cursor) continues
+//                  with the next break, never the first; the repeat-free horizon and the repeat rate over six hours
+//                  reported.
+//   RADIO_WX       the weather in words on game-shaped worlds (readGame -> conditions -> the chosen takes): clear / fair /
+//                  cloudy / grey / low / mist / fog / rain by the game's cover, base, visibility and front; the wind band
+//                  by the game's wind; fog and gale advice on those days; the soft strips after a front; eagles only on a
+//                  calm day; a lead tagged for another part of the day never chosen; two or three sentences, no digit.
+//   VOICE_LICENCE  every voice the broadcast uses has a licence record (MIT engine, the model's licence, the dataset, its
+//                  licence and URL, a from-scratch lineage), the dataset public domain / CC0 / CC BY 4.0 - never NC / ND /
+//                  SA -, a credit line for CC BY; CREDITS.md's VOICE block names each with its licence and credit; the
+//                  host is the user's pick (norman).
+//   RADIO_XFADE    on Radio Jolene with the talk on: song to song in the garage FADES (equal-power, XFADE_S, no silence);
+//                  a break starts TALK_UP_S before the track's end - the voice starts over the outro (the outgoing track
+//                  still sounding), the outgoing track fades out (equal-power) over what is left of it, the next one
+//                  comes in under the voice at the bed and rises after it; the talk off keeps the garage's silences.
+//   (VOICE_CAT is rewritten below: every track of every station back-announced, Radio Jolene's several times.)
+const SHIP = S => { try { return JSON.parse(S.shipscript); } catch (e) { return null; } };
+const GEN = S => { try { return JSON.parse(S.radioscript); } catch (e) { return null; } };
+const RAD_BANNED = /\b(zulu|niner|altimeter|knots?|statute|metar|awos|okta|hectopascals?)\b/i;
+const RAD_DIGITW = '(?:zero|one|two|three|four|five|six|seven|eight|nine|niner)';
+function radioLint(text) {
+  const F = [];
+  if (/\d/.test(text)) F.push('a digit');
+  if (/[:;()\[\]{}"“”‘—–\-\/\\*_#@&%]/.test(text)) F.push('a colon, semicolon, dash, bracket, quote or symbol');
+  if (/\b[A-Z]{2,}\b/.test(text)) F.push('an acronym in capitals');
+  if (RAD_BANNED.test(text)) F.push('an instrument word');
+  if (new RegExp('\\b' + RAD_DIGITW + '[ ,]+' + RAD_DIGITW + '\\b', 'i').test(text)) F.push('two digit words in a row');
+  const body = text.replace(/\b([A-Z])\.\s+(?=[A-Z])/g, '$1 ');
+  for (const s of body.split(/(?<=[.!?])\s+/)) { const w = s.trim().split(/\s+/).filter(Boolean).length; if (w < 4 || w > 22) F.push('a sentence of ' + w + ' words'); }
+  if (!/[.!?]$/.test(String(text).trim())) F.push('no closing stop');
+  return F;
+}
+function checkRadioLint(S) {
+  const F = [], A = SHIP(S), B = GEN(S);
+  if (!A) return ['the shipped broadcast script does not parse (' + FILES.shipscript + ')'];
+  if (!B) return ['tools/audio/radio_script.json does not parse'];
+  let n = 0;
+  for (const [label, sc] of [['shipped', A], ['written', B]]) for (const k in sc.items) {
+    n++;
+    for (const p of radioLint(sc.items[k].text)) F.push(label + ' ' + k + ': ' + p + ' - "' + sc.items[k].text.slice(0, 70) + '"');
+  }
+  for (const k in A.items) if (!B.items[k] || B.items[k].text !== A.items[k].text) F.push('the shipped take ' + k + ' is not the written line (re-render: prep_voice.js)');
+  for (const k in B.items) if (!A.items[k]) F.push('the written line ' + k + ' has no shipped take');
+  const VS = JSON.parse(S.voicescript);
+  for (const id in VS.titles || {}) if (/royalty free|["“”]|\s-\s/i.test(VS.titles[id]) || radioLint(VS.titles[id] + ' is the title.').some(p => !/sentence/.test(p))) F.push('the spoken title of ' + id + ' reads "' + VS.titles[id] + '"');
+  if (n < 400) F.push('only ' + n + ' takes linted');
+  return F.slice(0, 12);
+}
+
+// a broadcast simulated on the shipped catalogue's Radio Jolene tracks (o.cat: another list) - [{ t, segs, shape }]
+const RWX = {   // four game days (radioWorld's shape), the weather the horizon is measured under
+  fair: { t: 12, td: 6, baseM: 1100, cover: 0.25, qnh: 101325, utc: 0, local: 15 * 3600, rh: 0.6, kt: 7, dir: 250, gust: 0.1, visM: 40000 },
+  night: { t: 6, td: 2, baseM: 1500, cover: 0, qnh: 101325, utc: 0, local: 23 * 3600, rh: 0.6, kt: 1, dir: 0, gust: 0, visM: 40000 },
+  fog: { t: 8, td: 7.5, baseM: 80, cover: 1, qnh: 101325, utc: 0, local: 8 * 3600, rh: 0.98, kt: 6, dir: 120, gust: 0, visM: 600 },
+  gale: { t: 9, td: 7, baseM: 400, cover: 1, qnh: 99000, utc: 0, local: 13 * 3600, rh: 0.95, kt: 40, dir: 160, gust: 0.3, visM: 6000, storm: { phase: 'passage', inS: 0, I: 1, windK: 2 } },
+};
+function radioSim(RT, script, cat, wx, hours, seed, cursor) {
+  RT.setScript(script);
+  let a = seed || 7; const r = () => (a = (a * 16807) % 2147483647) / 2147483647;
+  const c = cursor || { v: '', k: 0, n: 0, h: {} }, out = [];
+  let t = 0, bag = [], last = null, since = 0;
+  const next = () => {
+    if (!bag.length) { bag = cat.slice(); for (let i = bag.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [bag[i], bag[j]] = [bag[j], bag[i]]; } if (bag.length > 1 && bag[0] === last) { const j = 1 + Math.floor(r() * (bag.length - 1)); [bag[0], bag[j]] = [bag[j], bag[0]]; } }
+    return (last = bag.shift());
+  };
+  if (!cursor) out.push({ t: 0, segs: RT.breakScript(c, wx, [], { tuneIn: true }), tune: 1 });
+  let tr = next();
+  while (t < hours * 3600) {
+    t += tr.durationS - 4; since++;
+    const prev = tr; tr = next();
+    if (since >= 2) { since = 0; const k = c.k; out.push({ t, k, segs: RT.breakScript(c, wx, [{ id: prev.id, title: prev.title, artist: prev.artist }]) }); }
+  }
+  return { out, c };
+}
+const keysOf = b => { const o = []; for (const s of b.segs) for (const k of s.items || []) o.push(k); return o; };
+function checkRadioHorizon(S, report) {
+  const F = [], A = SHIP(S);
+  if (!A) return ['no shipped broadcast script'];
+  const roots = JSON.parse(S.catalogue).filter(t => t.station === 'roots');
+  if (roots.length < 2) return ['the catalogue has ' + roots.length + ' Radio Jolene tracks'];
+  const RT = loadRadio(S.radio);
+  let horizon = Infinity, rate6 = 0, runs = 0;
+  for (const wname in RWX) for (const seed of [7, 11, 23]) {
+    const wx = RT.readGame(radioWorld(RWX[wname]));
+    const { out } = radioSim(RT, A, roots, wx, 6, seed);
+    const seen = new Map(); let first = null, tot = 0, rep = 0;
+    for (const b of out) for (const k of keysOf(b)) { tot++; if (seen.has(k)) { rep++; if (!first) first = { t: b.t, k, was: seen.get(k) }; } seen.set(k, b.t); }
+    runs++; rate6 += rep / Math.max(1, tot);
+    const fh = first ? first.t : Infinity;
+    if (fh < horizon) horizon = fh;
+    if (fh < 2 * 3600) F.push(wname + ' (seed ' + seed + '): ' + first.k + ' heard again at ' + (first.t / 3600).toFixed(2) + ' h (first at ' + (first.was / 3600).toFixed(2) + ' h)');
+    // THE THREADS: each thread's steps first heard in their order, every step heard within the first lap
+    const at = {};
+    for (const b of out) for (const s of b.segs) if (s.th && at[s.key] == null) at[s.key] = b.t;
+    for (const th in A.threads) {
+      const ts = A.threads[th].map(id => at[id]);
+      if (ts.some(x => x == null)) { F.push('the thread ' + th + ' was not told whole in six hours (' + wname + ')'); continue; }
+      for (let i = 1; i < ts.length; i++) if (!(ts[i] > ts[i - 1])) { F.push('the thread ' + th + ': step ' + (i + 1) + ' before step ' + i + ' (' + wname + ', seed ' + seed + ')'); break; }
+    }
+  }
+  // no break the same shape as the one before (the program's order: the weather, the ID, the kinds of segment)
+  const shape = b => b.map(t => (t[0] === '@' ? t : (A.segments[t] || {}).cat)).join(' ');
+  for (let i = 1; i < A.program.length; i++) if (shape(A.program[i]) === shape(A.program[i - 1])) F.push('breaks ' + i + ' and ' + (i + 1) + ' have the same shape: ' + shape(A.program[i]));
+  // every program token is a slot or a segment of the script
+  for (const b of A.program) for (const t of b) if (t[0] !== '@' && !A.segments[t]) F.push('the program names ' + t + ', no segment');
+  // THE CURSOR PERSISTED: a page's breaks write it; a fresh page reading the same storage continues with the next break
+  {
+    const store = {}, env = { localStorage: { getItem: k => (k in store ? store[k] : null), setItem: (k, v) => { store[k] = String(v); } } };
+    const R1 = loadRadio(S.radio); R1.setScript(A);
+    const wx = R1.readGame(radioWorld(RWX.fair));
+    const c1 = R1.cursor(env);
+    let lastK = -1;
+    const tr = i => { const t = roots[i % roots.length]; return [{ id: t.id, title: t.title, artist: t.artist }]; };
+    for (let i = 0; i < 5; i++) { lastK = c1.k; R1.breakScript(c1, wx, tr(i)); R1.saveCursor(c1, env); }
+    const R2 = loadRadio(S.radio); R2.setScript(A);
+    const c2 = R2.cursor(env);
+    if (c2.k !== (lastK + 1) % A.program.length) F.push('a new session starts at break ' + (c2.k + 1) + ' (want ' + ((lastK + 1) % A.program.length + 1) + ': the broadcast continues)');
+    const segs = R2.breakScript(c2, wx, tr(5));
+    const heard = new Set(Object.keys(c1.h));
+    const again = keysOf({ segs }).filter(k => /^(id|wx|ba)\./.test(k) && heard.has(k));
+    if (again.length) F.push('the second session repeats the first one\'s takes: ' + again.join(', '));
+    const bad = { localStorage: { getItem() { throw new Error('denied'); }, setItem() { throw new Error('denied'); } } };
+    const R3 = loadRadio(S.radio); R3.setScript(A);
+    try { const c3 = R3.cursor(bad); R3.breakScript(c3, wx, []); R3.saveCursor(c3, bad); if (c3.k !== 1) F.push('a throwing storage: the cursor at ' + c3.k); } catch (e) { F.push('a throwing storage throws: ' + e.message); }
+  }
+  if (report) report.push('RADIO_HORIZON: repeat-free for ' + (horizon === Infinity ? 'more than 6' : (horizon / 3600).toFixed(2)) + ' h (the worst of ' + runs + ' runs: four weathers x three seeds, ' + roots.length + ' Radio Jolene tracks, a break every 2), repeat rate over six hours ' + (rate6 / runs * 100).toFixed(0) + ' %');
+  return F;
+}
+
+// the weather in words: the chosen takes' pools, for a game day
+function checkRadioWx(S) {
+  const F = [], A = SHIP(S);
+  if (!A) return ['no shipped broadcast script'];
+  const RT = loadRadio(S.radio); RT.setScript(A);
+  const P = A.pools.wx, poolOf = {};
+  for (const sky in P.lead) for (const k of P.lead[sky]) poolOf[k] = 'lead.' + sky;
+  for (const b in P.wind) for (const k of P.wind[b]) poolOf[k] = 'wind.' + b;
+  for (const k of P.gusty) poolOf[k] = 'gusty';
+  for (const h in P.advice) for (const k of P.advice[h]) poolOf[k] = 'advice.' + h;
+  for (const o in P.outlook) for (const k of P.outlook[o]) poolOf[k] = 'outlook.' + o;
+  for (const f in P.feel) for (const k of P.feel[f]) poolOf[k] = 'feel.' + f;
+  const base = { t: 10, td: 4, baseM: 1200, cover: 0.2, qnh: 101325, utc: 0, local: 14 * 3600, rh: 0.6, kt: 8, dir: 250, gust: 0.1, visM: 40000 };
+  // [why, the day, the sky, the wind band, pools that must be heard in 8 weather segments, pools never heard]
+  const cases = [
+    ['a clear calm afternoon', { cover: 0, kt: 2 }, 'clear', 'calm', ['advice.eagles'], ['advice.fogPilot', 'advice.windBoat']],
+    ['a fair breeze', { cover: 0.3, kt: 14 }, 'fair', 'breezy', [], ['advice.eagles']],
+    ['broken cloud', { cover: 0.7, baseM: 900 }, 'cloudy', 'light', [], []],
+    ['overcast', { cover: 1, baseM: 900 }, 'grey', 'light', [], []],
+    ['a low deck', { cover: 1, baseM: 150 }, 'low', 'light', [], ['advice.eagles']],
+    ['haze', { visM: 3000 }, 'mist', 'light', [], ['advice.fogPilot']],
+    ['fog', { visM: 500, cover: 1, baseM: 60, kt: 3 }, 'fog', 'calm', ['advice.fogPilot', 'advice.fogBoat'], ['advice.eagles']],
+    ['a gale in the front', { kt: 40, gust: 0.3, cover: 1, baseM: 400, visM: 6000, storm: { phase: 'passage', inS: 0, windK: 2 } }, 'rain', 'gale', ['advice.windBoat', 'advice.windPilot', 'advice.softStrip', 'gusty|outlook.easing'], ['advice.eagles']],
+    ['a front on the way', { kt: 12, storm: { phase: 'pre', inS: 3 * 3600, windK: 1 } }, 'fair', 'breezy', ['outlook.front'], []],
+    ['a frosty morning', { t: -2, td: -5, local: 8 * 3600, kt: 2, cover: 0 }, 'clear', 'calm', ['advice.frost', 'feel.cold'], []],
+    ['a mild night', { t: 18, td: 10, local: 23 * 3600, kt: 6, cover: 0.3 }, 'fair', 'light', ['feel.mild'], ['advice.eagles']],
+  ];
+  for (const [why, o, sky, band, must, never] of cases) {
+    const day = Object.assign({}, base, o), wx = RT.readGame(radioWorld(day)), c = { v: '', k: 0, n: 0, h: {} };
+    const k = RT.conditions(wx);
+    if (k.sky !== sky || k.wind !== band) { F.push(why + ': conditions read ' + k.sky + ' / ' + k.wind + ' (want ' + sky + ' / ' + band + ')'); continue; }
+    const heard = new Set(), tag = k.tag;
+    for (let i = 0; i < 8; i++) {
+      const segs = RT.breakScript(c, wx, [], { tuneIn: true }), w = segs.find(x => x.kind === 'wx');
+      if (!w) { F.push(why + ': no weather segment'); break; }
+      if (w.items.length < 2 || w.items.length > 3) F.push(why + ': a weather segment of ' + w.items.length + ' sentences');
+      if (/\d/.test(w.text) || RAD_BANNED.test(w.text)) F.push(why + ': numbers in the weather: ' + w.text);
+      const lead = poolOf[w.items[0]];
+      if (lead !== 'lead.' + sky) F.push(why + ': the weather opens with ' + w.items[0] + ' (' + lead + ', want lead.' + sky + ')');
+      const part = A.items[w.items[0]] && A.items[w.items[0]].part;
+      if (part && part !== tag) F.push(why + ': a lead for the ' + part + ' chosen in the ' + k.part);
+      for (const x of w.items) { heard.add(poolOf[x]); const p = poolOf[x] || ''; if (/^wind\./.test(p) && p !== 'wind.' + band) F.push(why + ': the wind said ' + p + ' (want wind.' + band + ')'); if (/^lead\./.test(p) && x !== w.items[0]) F.push(why + ': two leads'); }
+    }
+    for (const m of must) if (!m.split('|').some(x => heard.has(x))) F.push(why + ': in eight weather segments never ' + m);
+    for (const m of never) if (heard.has(m)) F.push(why + ': ' + m + ' on such a day');
+  }
+  return F;
+}
+
+// THE VOICES' LICENCES
+const USER_VOICE = { name: 'norman', id: 'en_US-norman-medium' };   // the user, 2026-10-04: "norman voice is the best"
+function checkVoiceLicence(S) {
+  const F = [];
+  let cat; try { cat = JSON.parse(S.voicecat); } catch (e) { return ['voice_catalogue.json does not parse: ' + e.message]; }
+  const V = cat.voices || {}, A = SHIP(S), B = GEN(S);
+  if (!A || !B) return ['no broadcast script'];
+  if (!cat.voice || cat.voice.name !== USER_VOICE.name || cat.voice.id !== USER_VOICE.id) F.push('the host is ' + (cat.voice && cat.voice.id) + ', not the user\'s pick ' + USER_VOICE.id);
+  const used = new Set(); for (const k in A.items) { const vv = B.voices[A.items[k].v]; if (!vv) F.push(k + ': the voice ' + A.items[k].v + ' is not declared'); else used.add(vv.model); }
+  for (const m of used) {
+    const v = V[m];
+    if (!v) { F.push('the broadcast uses ' + m + ', and the catalogue has no licence record for it'); continue; }
+    for (const k of ['id', 'engine', 'modelLicence', 'dataset', 'datasetLicence', 'datasetUrl', 'lineage']) if (!(typeof v[k] === 'string' && v[k].trim())) F.push(m + ': the record has no ' + k);
+    const dl = String(v.datasetLicence || '');
+    if (/\bNC\b|\bND\b|\bSA\b|non-?commercial|share-?alike|no-?deriv/i.test(dl) || !/^(public domain|CC0|CC BY 4\.0)$/i.test(dl)) F.push(m + ': the dataset licence "' + dl + '" is not public domain / CC0 / CC BY 4.0');
+    if (/^CC BY/i.test(dl) && !(v.credit && v.credit.length > 10)) F.push(m + ': a CC BY dataset and no credit line');
+    if (!/\bMIT\b/.test(String(v.engine)) || /GPL/.test(String(v.engine).replace(/espeak/ig, ''))) F.push(m + ': the engine is not the MIT Piper');
+    if (!/^MIT/.test(String(v.modelLicence))) F.push(m + ': the model licence is ' + v.modelLicence);
+    if (!/scratch/i.test(String(v.lineage))) F.push(m + ': the lineage does not reach a voice trained from scratch: ' + v.lineage);
+  }
+  const b = S.credits.indexOf('<!-- VOICE:BEGIN'), e = S.credits.indexOf('<!-- VOICE:END -->');
+  const block = b >= 0 && e > b ? S.credits.slice(b, e) : '';
+  for (const m of used) { const v = V[m]; if (v && (!block.includes('**' + v.id + '**') || !block.includes(v.datasetLicence) || (v.credit && !block.includes(v.credit)))) F.push('CREDITS.md\'s VOICE block does not credit ' + v.id + ' with its dataset licence' + (v.credit ? ' and credit' : '')); }
+  return F;
+}
+
+// SONG TO SONG AND THE TALK-UP (a radio page: the deck levels read back off the scheduled curves)
+const TALK_UP_WANT = 6;   // the talk-up (G1703): the break starts 6 s before a track's end
+function checkRadioXfade(S) {
+  const F = [];
+  const lvl = (p, k) => p.M._lvlAt(k, p.A.ctx.currentTime);
+  // SONG TO SONG in the garage on Radio Jolene: a fade, no silence (talk on, no break owed: talk every 6)
+  {
+    const p = radioPage(S, { station: 'roots', every: 6 });
+    let maxGap = 0, gap = 0, xf = null;
+    p.F.run(2); p.sp.endAll(); p.F.run(2);
+    p.F.each = () => {
+      const s0 = p.M._dk[0], s1 = p.M._dk[10], playing = (s0 === 2 || s0 === 3) + (s1 === 2 || s1 === 3);
+      gap = playing ? 0 : gap + 0.1; if (gap > maxGap) maxGap = gap;
+      if (!xf && s0 === 3 && s1 === 2) xf = { t: p.F.t, k: 1 }; else if (!xf && s1 === 3 && s0 === 2) xf = { t: p.F.t, k: 0 };
+      if (xf && !xf.mid && p.F.t >= xf.t + 2) { const kin = xf.k, kout = 1 - kin, ti = trimOfIdx(p, p.M._dk[kin * 10 + 1]), to = trimOfIdx(p, p.M._dk[kout * 10 + 1]);
+        xf.mid = { a: lvl(p, kout) / to, b: lvl(p, kin) / ti }; }
+    };
+    p.F.run(240, 0.1);
+    if (maxGap > 0.25) F.push('on Radio Jolene the garage went silent ' + maxGap.toFixed(1) + ' s between songs (want a fade)');
+    if (!xf || !xf.mid) F.push('no crossfade song to song on Radio Jolene in the garage');
+    else if (!near(xf.mid.a * xf.mid.a + xf.mid.b * xf.mid.b, 1, 0.06) || !(xf.mid.a > 0.3 && xf.mid.b > 0.3)) F.push('the song-to-song fade is not equal-power: ' + xf.mid.a.toFixed(2) + ' / ' + xf.mid.b.toFixed(2) + ' halfway');
+  }
+  // THE TALK-UP: talk every 1 - the break starts TALK_UP_S before the end, over the outro
+  {
+    const p = radioPage(S, { station: 'roots', every: 1 });
+    p.F.run(1); p.sp.endAll(); p.F.run(2);   // (past the tune-in)
+    const talks0 = p.M._C.talks;
+    let at = null;
+    p.F.each = () => {
+      if (at || p.M._C.talks === talks0) return;
+      const a = p.M._ps[5], kin = a, kout = 1 - a;
+      at = { t: p.F.t, out: p.M._dk[kout * 10 + 0], outLvl: lvl(p, kout) / trimOfIdx(p, p.M._dk[kout * 10 + 1]), outStop: p.M._dk[kout * 10 + 4],
+        inLvl: lvl(p, kin), kin, kout, inTrim: trimOfIdx(p, p.M._dk[kin * 10 + 1]), ctx0: p.A.ctx.currentTime };
+      at.fd = p.M._dk[kout * 10 + 6];
+      // (the fades' curves read now, while the decks still hold them)
+      at.half = p.M._lvlAt(kout, at.ctx0 + at.fd / 2) / trimOfIdx(p, p.M._dk[kout * 10 + 1]);
+      at.bed2 = p.M._lvlAt(kin, at.ctx0 + 2) / at.inTrim;
+    };
+    p.F.run(200, 0.05);
+    if (!at) return F.concat(['no break reached in the talk-up test']);
+    if (at.out !== 3) F.push('at the break the old track is not fading (state ' + at.out + ')');
+    if (!(at.outLvl > 0.5)) F.push('the voice started after the outro (the old track at ' + (at.outLvl * 100).toFixed(0) + ' % - want the talk over it)');
+    if (!(at.fd > TALK_UP_WANT - 0.6 && at.fd <= TALK_UP_WANT + 0.05)) F.push('the old track fades over ' + at.fd.toFixed(2) + ' s (want what is left of it: the talk-up, ' + TALK_UP_WANT + ' s)');
+    if (!near(at.half, Math.cos(Math.PI / 4), 0.08)) F.push('the outro fade is not equal-power (' + (at.half * 100).toFixed(0) + ' % halfway, want 71)');
+    if (!near(at.bed2, 0.16, 0.02)) F.push('under the voice the next track is at ' + (at.bed2 * 100).toFixed(0) + ' % (want the 16 % bed)');
+  }
+  // THE TALK OFF: the garage keeps its silences on Radio Jolene too
+  {
+    const p = radioPage(S, { station: 'roots', talk: false });
+    let maxGap = 0, gap = 0;
+    p.F.each = () => { const s0 = p.M._dk[0], s1 = p.M._dk[10], playing = (s0 === 2 || s0 === 3) + (s1 === 2 || s1 === 3); gap = playing ? 0 : gap + 0.25; if (gap > maxGap) maxGap = gap; };
+    p.F.run(400, 0.25);
+    if (maxGap < 20) F.push('with the talk off the garage had no silence on Radio Jolene (longest ' + maxGap.toFixed(0) + ' s)');
+  }
+  return F;
+}
+
+// VOICE_CAT (G1701): the catalogue points at the shipped broadcast; every take a content-hashed media/audio/voice file that
+// EXISTS, with its text and a dur > 0; no orphan in media/audio/voice; EVERY TRACK OF EVERY STATION BACK-ANNOUNCED - Radio
+// Jolene's at least three times, in whole takes that say the track's spoken title (voice_script.json 'titles') and its
+// artist; the catalogue's totals true; the voice under 12 MB (reported) - and never over 14.
+const who3 = (B, v) => (B.voices[v] && B.voices[v].name) || v;
+function checkVoiceCat(S, report) {
+  const F = [];
+  let cat; try { cat = JSON.parse(S.voicecat); } catch (e) { return ['voice_catalogue.json does not parse: ' + e.message]; }
+  const A = SHIP(S);
+  if (!cat.script || !/^media\/audio\/voice\/radio_script\.[0-9a-f]{8}\.json$/.test(cat.script.file || '')) return ['the catalogue names no content-hashed broadcast script: ' + JSON.stringify(cat.script)];
+  if (!A) return ['the broadcast script ' + cat.script.file + ' does not parse'];
+  if (cat.clips) F.push('the inlined catalogue still carries clips (the takes are the lazily fetched script\'s)');
+  const dir = path.join(ROOT, 'media', 'audio', 'voice');
+  const onDisk = new Set(fs.existsSync(dir) ? fs.readdirSync(dir) : []), named = new Set([cat.script.file.split('/').pop()]);
+  let bytes = fs.existsSync(path.join(ROOT, cat.script.file)) ? fs.statSync(path.join(ROOT, cat.script.file)).size : 0, secs = 0;
+  for (const k in A.items) {
+    const c = A.items[k];
+    if (!/^media\/audio\/voice\/[a-z0-9_]+\.[0-9a-f]{8}\.mp3$/.test(c.file || '')) { F.push(k + ': the file ' + c.file + ' is not media/audio/voice/<stem>.<h8>.mp3'); continue; }
+    const f = c.file.split('/').pop();
+    if (!named.has(f)) { named.add(f); if (onDisk.has(f)) bytes += fs.statSync(path.join(dir, f)).size; }
+    if (!onDisk.has(f)) F.push(k + ': ' + c.file + ' does not resolve');
+    if (!(c.dur > 0.5 && c.dur < 40)) F.push(k + ': dur ' + c.dur);
+    if (!(typeof c.text === 'string' && c.text.trim())) F.push(k + ': no text');
+    secs += c.dur || 0;
+  }
+  for (const f of onDisk) if (!named.has(f)) F.push('an orphan in media/audio/voice: ' + f);
+  if (cat.script.items !== Object.keys(A.items).length || Math.abs(cat.script.bytes - bytes) > 1 || Math.abs(cat.script.seconds - secs) > 0.5) F.push('the catalogue\'s totals (' + cat.script.items + ' takes, ' + cat.script.bytes + ' B, ' + cat.script.seconds + ' s) are not the script\'s (' + Object.keys(A.items).length + ', ' + bytes + ', ' + secs.toFixed(1) + ')');
+  // every track of every station back-announced
+  const VS = JSON.parse(S.voicescript), say = t => String(t || '').toLowerCase().replace(/[^a-z0-9' ]+/g, ' ').replace(/\s+/g, ' ').trim();
+  for (const t of JSON.parse(S.catalogue)) {
+    const keys = (A.pools.ba || {})[t.id] || [], need = (t.station || 'lofi') === 'roots' ? 3 : 1;
+    if (keys.length < need) { F.push('the track ' + t.id + ' (' + (t.station || 'lofi') + ') has ' + keys.length + ' back-announce(s) (want ' + need + ')'); continue; }
+    const ti = VS.titles && VS.titles[t.id], ar = VS.artists && VS.artists[t.artist];
+    if (!ti || !ar) { F.push('voice_script.json says no spoken title / artist for ' + t.id); continue; }
+    for (const k of keys) { const x = A.items[k]; if (!x || x.track !== t.id || say(x.text).indexOf(say(ti)) < 0 || say(x.text).indexOf(say(ar)) < 0) F.push('the back-announce ' + k + ' does not credit "' + ti + '" by ' + ar); }
+    if (new Set(keys.map(k => A.items[k] && A.items[k].text)).size !== keys.length) F.push(t.id + ': two back-announces say the same');
+  }
+  // THE PHONE LINE: a caller's take (a LibriTTS resident) is rendered through it, the host's and the studio guests' never
+  const B = GEN(S);
+  if (B) for (const k in A.items) { const vv = B.voices[A.items[k].v] || {}; if (!!A.items[k].phone !== (vv.model === 'libritts')) F.push(k + ': ' + who3(B, A.items[k].v) + (A.items[k].phone ? ' on the phone line' : ' not on the phone line')); }
+  if (report) report.push('VOICE_CAT: ' + Object.keys(A.items).length + ' takes, ' + (secs / 60).toFixed(1) + ' min, ' + (bytes / 1048576).toFixed(2) + ' MB of voice (aim 12 MB)');
+  if (bytes > 14 * 1048576) F.push('the voice weighs ' + (bytes / 1048576).toFixed(2) + ' MB (aim 12, never over 14)');
   return F;
 }
 
@@ -3459,19 +3719,8 @@ function checkEmSamples(S) {
 }
 
 // ==== SND-VOICE (G1626-G1629) ======================================================================================
-//   VOICE_CAT    the catalogue (src/viewer/audio/voice_catalogue.json, tools/audio/prep_voice.js's): the voice's licence
-//                record whole (engine, model licence, dataset, its licence and URL, the lineage) with a clean dataset
-//                licence (public domain / CC0 / CC BY - a credit line for CC BY; never NC / ND / SA); every clip a
-//                content-hashed media/audio/voice file that EXISTS, with its text and a dur > 0; every VOCAB word, every
-//                voice_script.json line and every music track's back-announce (ba / title / artist) has its clip; no
-//                orphan file in media/audio/voice; CREDITS.md's VOICE block names the voice and its dataset licence.
-//   VOICE_AWOS   awosClips on the edge cases, read back as words: calm, gusts (and one too small to report), variable,
-//                north, 10 SM exactly and 12 SM, quarters, ceilings under 1000 ft, 12 000 ft = sky clear, minus
-//                temperatures (-0.3 reads zero), QNH 29.92 in inches AND in pascals -> "two niner niner two" (1014.1 hPa
-//                rounds to 29.95, not truncates), the time
-//                from minutes; the final take at each group's end; 400 fuzzed observations: every key in VOCAB, rests
-//                positive, never two in a row, never first or last.
-//   VOICE_MARINE marineClips: the compass, the range, the seas (foot / feet), the advisory, the trend; fuzzed the same way.
+//   VOICE_CAT    (G1701: with the SND-RADIO-3 block above) the shipped broadcast's takes, every track back-announced.
+//   (VOICE_AWOS and VOICE_MARINE are RETIRED with the AWOS and marine assemblers they tested - G1701.)
 //   VOICE_PLAY   the player on a stub context: nothing fetched without a context; play schedules each clip at the end of
 //                the one before plus the rest, sample-exact, from its codec-pad offset, for its catalogue dur; a failed
 //                clip closes up (its rests stay); stop() stops every source; the decoded bytes back under the budget
@@ -3479,99 +3728,6 @@ function checkEmSamples(S) {
 //   VOICE_WIRING the build lists voice_model.js then voice.js and inlines voice_catalogue.json as FLYDIY_VOICE; GATE MEDIA
 //                reads voice_catalogue.json.
 function loadVoiceModel(text) { const c = { module: { exports: {} } }; vm.runInNewContext(text, c, { filename: 'voice_model.js' }); return c.module.exports; }
-const voiceWords = (M, seq) => seq.filter(k => typeof k === 'string').map(k => (M.VOCAB[k] == null ? '<' + k + '>' : M.VOCAB[k].replace(/[.,]/g, '').toLowerCase())).join(' ');
-const USER_VOICE = { name: 'norman', id: 'en_US-norman-medium' };   // the user, 2026-10-04: "norman voice is the best"
-const clips0 = S => { try { return JSON.parse(S.voicecat).clips || {}; } catch (e) { return {}; } };
-function checkVoiceCat(S) {
-  const F = [];
-  let cat; try { cat = JSON.parse(S.voicecat); } catch (e) { return ['voice_catalogue.json does not parse: ' + e.message]; }
-  const v = cat.voice || {}, M = loadVoiceModel(S.voicemodel);
-  for (const k of ['id', 'engine', 'modelLicence', 'dataset', 'datasetLicence', 'datasetUrl', 'lineage']) if (!(typeof v[k] === 'string' && v[k].trim())) F.push('the voice record has no ' + k);
-  const dl = String(v.datasetLicence || '');
-  if (/\bNC\b|\bND\b|\bSA\b|non-?commercial|share-?alike|no-?deriv/i.test(dl) || !/^(public domain|CC0|CC BY 4\.0)$/i.test(dl)) F.push('the dataset licence "' + dl + '" is not public domain / CC0 / CC BY 4.0');
-  if (/^CC BY/i.test(dl) && !(v.credit && v.credit.length > 10)) F.push('a CC BY dataset and no credit line');
-  if (!/\bMIT\b/.test(String(v.engine)) || /GPL/.test(String(v.engine).replace(/espeak/ig, ''))) F.push('the engine is not the MIT Piper: ' + v.engine);
-  if (!/scratch|fine-tuned .*scratch/i.test(String(v.lineage))) F.push('the lineage does not reach a voice trained from scratch: ' + v.lineage);
-  const clips = cat.clips || {}, keys = Object.keys(clips);
-  const want = new Set(Object.keys(M.VOCAB)), script = JSON.parse(S.voicescript);
-  for (const k in script.lines || {}) want.add(k);
-  // G1682: the talk's own lines (radio_talk.js clipLines over the script's places), each clip saying EXACTLY the line
-  const RL = loadRadio(S.radio).clipLines(script.places || {});
-  for (const k in RL) { want.add(k); if (clips0(S)[k] && clips0(S)[k].text !== RL[k]) F.push('the clip ' + k + ' says "' + clips0(S)[k].text + '", the talk "' + RL[k] + '"'); }
-  // G1680: THE USER'S PICK - norman ("norman voice is the best")
-  if (v.name !== USER_VOICE.name || v.id !== USER_VOICE.id) F.push('the shipped voice is ' + v.name + ' (' + v.id + '), not the user\'s pick ' + USER_VOICE.name + ' (' + USER_VOICE.id + ')');
-  for (const t of JSON.parse(S.catalogue)) for (const k of M.trackKeys(t)) want.add(k);
-  for (const k of want) if (!clips[k]) F.push('no clip for ' + k);
-  const dir = path.join(ROOT, 'media', 'audio', 'voice');
-  const onDisk = new Set(fs.existsSync(dir) ? fs.readdirSync(dir) : []), named = new Set();
-  for (const k of keys) {
-    const c = clips[k];
-    if (!/^media\/audio\/voice\/[a-z0-9_]+\.[0-9a-f]{8}\.mp3$/.test(c.file || '')) { F.push(k + ': the file ' + c.file + ' is not media/audio/voice/<stem>.<h8>.mp3'); continue; }
-    named.add(c.file.split('/').pop());
-    if (!onDisk.has(c.file.split('/').pop())) F.push(k + ': ' + c.file + ' does not resolve');
-    if (!(c.dur > 0.05 && c.dur < 20)) F.push(k + ': dur ' + c.dur);
-    if (!(typeof c.text === 'string' && c.text.trim())) F.push(k + ': no text');
-  }
-  for (const f of onDisk) if (!named.has(f)) F.push('an orphan in media/audio/voice: ' + f);
-  const b = S.credits.indexOf('<!-- VOICE:BEGIN'), e = S.credits.indexOf('<!-- VOICE:END -->');
-  const block = b >= 0 && e > b ? S.credits.slice(b, e) : '';
-  if (!block.includes('**' + v.id + '**') || !block.includes(dl) || (v.credit && !block.includes(v.credit))) F.push('CREDITS.md\'s VOICE block does not name ' + v.id + ' with its dataset licence' + (v.credit ? ' and credit' : ''));
-  return F;
-}
-function voiceFuzz(F, M, label, make, fn) {
-  let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
-  for (let n = 0; n < 400; n++) {
-    const o = make(rnd), s = fn(o), j = JSON.stringify(o);
-    if (typeof s[0] !== 'string' || typeof s[s.length - 1] !== 'string') { F.push(label + ' fuzz: a rest first or last for ' + j); break; }
-    for (let i = 0; i < s.length; i++) {
-      const x = s[i];
-      if (typeof x === 'number') { if (!(x > 0 && x < 2)) { F.push(label + ' fuzz: a rest of ' + x + ' for ' + j); return; } if (typeof s[i + 1] === 'number') { F.push(label + ' fuzz: two rests in a row for ' + j); return; } }
-      else if (M.VOCAB[x] == null) { F.push(label + ' fuzz: the key ' + x + ' is no word for ' + j); return; }
-    }
-  }
-}
-function checkVoiceAwos(S) {
-  const F = [], M = loadVoiceModel(S.voicemodel), A = o => voiceWords(M, M.awosClips(o));
-  const HEAD = 'jolene field automated weather observation ';
-  const cases = [
-    ['calm, 10 SM, sky clear', { timeZ: '0950', wind: { dirDeg: 200, kt: 2 }, visSM: 10, sky: [], tempC: 12, dewC: 8, altInHg: 30.01 },
-      'zero niner five zero zulu wind calm visibility one zero sky clear below one two thousand temperature one two dew point eight altimeter three zero zero one'],
-    ['the gusty low day', { timeZ: '1753', wind: { dirDeg: 268, kt: 15, gustKt: 26 }, visSM: 2, wx: ['light_rain', 'mist'], sky: [{ cover: 'SCT', ft: 300 }, { cover: 'BKN', ft: 600 }, { cover: 'OVC', ft: 1400 }], tempC: -2, dewC: -4, altInHg: 29.92 },
-      'one seven five three zulu wind two seven zero at one five gusts two six visibility two light rain mist scattered three hundred ceiling six hundred broken one thousand four hundred overcast temperature minus two dew point minus four altimeter two niner niner two'],
-    ['a gust too small, north, 12 SM, 12 000 ft', { timeZ: 1073, wind: { dirDeg: 2, kt: 10, gustKt: 11 }, visSM: 12, sky: [{ cover: 'BKN', ft: 12000 }], tempC: -0.3, dewC: -12, qnhPa: 101325 },
-      'one seven five three zulu wind three six zero at one zero visibility one zero sky clear below one two thousand temperature zero dew point minus one two altimeter two niner niner two'],
-    ['variable, quarters, a 900 ft ceiling, remarks', { timeZ: '0005', wind: { dirDeg: null, kt: 4 }, visSM: 0.5, wx: ['fog'], sky: [{ cover: 'OVC', ft: 900 }], tempC: 3, dewC: 3, qnhPa: 101410, rmk: ['birds'] },
-      'zero zero zero five zulu wind variable at four visibility one half fog ceiling niner hundred overcast temperature three dew point three altimeter two niner niner five remarks bird activity in the vicinity of the airport'],
-    ['under a quarter, 5000 and 8000 ft', { timeZ: '2359', wind: { dirDeg: 135, kt: 7 }, visSM: 0.1, sky: [{ cover: 'FEW', ft: 5000 }, { cover: 'OVC', ft: 8000 }], tempC: 19, dewC: 17, altInHg: 30.12 },
-      'two three five niner zulu wind one four zero at seven visibility less than one quarter few clouds five thousand ceiling eight thousand overcast temperature one niner dew point one seven altimeter three zero one two'],
-  ];
-  for (const [what, o, want] of cases) { const got = A(o); if (got !== HEAD + want) F.push(what + ': "' + got.slice(HEAD.length) + '" (want "' + want + '")'); }
-  if (M.VOCAB['d.9'] !== 'niner,' || M.VOCAB['d.9.f'] !== 'niner.') F.push('nine is not "niner"');
-  // the final takes: each group's last digit / height word falls, a continuing one inside
-  const s = M.awosClips(cases[1][1]), at = k => s.indexOf(k);
-  const before = k => { const i = at(k); for (let j = i - 1; j >= 0; j--) if (typeof s[j] === 'string') return s[j]; return null; };
-  if (before('w.gusts') !== 'd.5') F.push('the wind speed before its gust is ' + before('w.gusts') + ' (want the continuing d.5)');
-  if (before('w.visibility') !== 'd.6.f' || before('w.temperature') !== 'w.overcast' || s[s.length - 1] !== 'd.2.f') F.push('a group does not end on its final take: ' + [before('w.visibility'), before('w.temperature'), s[s.length - 1]].join(' / '));
-  voiceFuzz(F, M, 'AWOS', r => ({ timeZ: Math.floor(r() * 1440), wind: { dirDeg: r() < 0.1 ? null : r() * 400 - 20, kt: r() * 40, gustKt: r() * 60 },
-    visSM: r() < 0.2 ? r() : r() * 15, wx: r() < 0.5 ? [M.WX[Math.floor(r() * M.WX.length)]] : [],
-    sky: Array.from({ length: Math.floor(r() * 4) }, () => ({ cover: ['FEW', 'SCT', 'BKN', 'OVC'][Math.floor(r() * 4)], ft: r() * 14000 })),
-    tempC: r() * 70 - 35, dewC: r() * 60 - 40, altInHg: 28 + r() * 3, rmk: r() < 0.3 ? [M.REMARKS[Math.floor(r() * M.REMARKS.length)]] : [] }), M.awosClips);
-  return F;
-}
-function checkVoiceMarine(S) {
-  const F = [], M = loadVoiceModel(S.voicemodel), A = o => voiceWords(M, M.marineClips(o));
-  const cases = [
-    [{ dirDeg: 135, kt: [10, 15], seasFt: 2, sky: 'fog', when: 'this_morning', advisory: true, trend: 'rising' },
-      'and the marine forecast for the sound small craft advisory in effect southeast wind ten to fifteen knots rising seas two feet patchy fog this morning'],
-    [{ dirDeg: null, kt: 2, seasFt: 0.5, sky: 'fair' }, 'and the marine forecast for the sound variable wind less than five knots seas less than one foot fair'],
-    [{ dirDeg: 350, kt: [22, 31], seasFt: 1, trend: 'easing' }, 'and the marine forecast for the sound north wind twenty to thirty knots easing seas one foot'],
-    [{ dirDeg: 250, kt: 12, seasFt: 6, sky: 'showers', when: 'tonight' }, 'and the marine forecast for the sound west wind twelve knots seas six feet scattered showers tonight'],
-  ];
-  for (const [o, want] of cases) { const got = A(o); if (got !== want) F.push('"' + got + '" (want "' + want + '")'); }
-  voiceFuzz(F, M, 'marine', r => ({ dirDeg: r() < 0.1 ? null : r() * 360, kt: [r() * 20, 20 + r() * 40], seasFt: r() * 15, sky: ['fair', 'fog', 'rain', 'showers', 'x'][Math.floor(r() * 5)],
-    when: ['this_morning', 'tonight', null][Math.floor(r() * 3)], advisory: r() < 0.3, trend: ['rising', 'easing', null][Math.floor(r() * 3)] }), M.marineClips);
-  return F;
-}
 async function checkVoicePlay(S) {
   const F = [];
   const c = { module: { exports: {} }, console: { info() {}, warn() {}, log() {} } };
@@ -3623,8 +3779,9 @@ const CHECKS = { NUMBERS: checkNumbers, CONTACTS: checkContacts, BUDGET: checkBu
                  MUSIC_CAT: checkMusicCatalogue, MUSIC_CTX: checkMusicContexts, MUSIC_SHUFFLE: checkMusicShuffle,
                  MUSIC_GAPS: checkMusicGaps, MUSIC_XFADE: checkMusicXfade, MUSIC_DUCK: checkMusicDuck,
                  MUSIC_BUDGET: checkMusicBudget, MUSIC_CREDITS: checkMusicCredits, MUSIC_WIRING: checkMusicWiring,
-                 RADIO_STATIONS: checkRadioStations, RADIO_PICKER: checkRadioPicker, RADIO_SCRIPTS: checkRadioScripts,
+                 RADIO_STATIONS: checkRadioStations, RADIO_PICKER: checkRadioPicker,
                  RADIO_TALK: checkRadioTalk, RADIO_BUDGET: checkRadioBudget, RADIO_WIRING: checkRadioWiring, RADIO_CLIPS: checkRadioClips,
+                 RADIO_LINT: checkRadioLint, RADIO_HORIZON: checkRadioHorizon, RADIO_WX: checkRadioWx, RADIO_XFADE: checkRadioXfade, VOICE_LICENCE: checkVoiceLicence,
                  AFMODEL: checkAfModel, AFVOICE: checkAfVoice, AFALLOC: checkAfAlloc, AFFLOWN: checkAfFlown, AFSOURCE: checkAfSource,
                  SAMPLES: checkSamples, INERT: checkInert,
                  SP_CABIN: checkSpCabin, SP_DOPPLER: checkSpDoppler, SP_ABSORB: checkSpAbsorb, SP_XFADE: checkSpXfade,
@@ -3635,8 +3792,8 @@ const CHECKS = { NUMBERS: checkNumbers, CONTACTS: checkContacts, BUDGET: checkBu
                  EMITHABITAT: checkEmHabitat, EMITRATE: checkEmRate, EMITAGL: checkEmAgl, EMITOBJECTS: checkEmObjects,
                  EMITGESTURE: checkEmGesture, EMITPLAY: checkEmPlay, EMITBUDGET: checkEmBudget, EMITALLOC: checkEmAlloc,
                  EMITWIRING: checkEmWiring, EMITSAMPLES: checkEmSamples,
-                 VOICE_CAT: checkVoiceCat, VOICE_AWOS: checkVoiceAwos, VOICE_MARINE: checkVoiceMarine, VOICE_PLAY: checkVoicePlay, VOICE_WIRING: checkVoiceWiring };
-const REPORTS = { BUDGET: 1, AFVOICE: 1, AFALLOC: 1, AFFLOWN: 1, AFSOURCE: 1, SP_BUDGET: 1, AMBBUDGET: 1, AMBALLOC: 1, EMITRATE: 1, EMITBUDGET: 1, EMITALLOC: 1 };
+                 VOICE_CAT: checkVoiceCat, VOICE_PLAY: checkVoicePlay, VOICE_WIRING: checkVoiceWiring };
+const REPORTS = { RADIO_HORIZON: 1, VOICE_CAT: 1, BUDGET: 1, AFVOICE: 1, AFALLOC: 1, AFFLOWN: 1, AFSOURCE: 1, SP_BUDGET: 1, AMBBUDGET: 1, AMBALLOC: 1, EMITRATE: 1, EMITBUDGET: 1, EMITALLOC: 1 };
 
 // ---- THE MUTATIONS (D): [name, file, find, replace, the check that must go red] ---------------------------------
 const MUT = [
@@ -3835,23 +3992,11 @@ const MUT = [
   ['the keys over a binding', 'music', "if (keyBound(e.code)) return;", '', 'RADIO_PICKER'],
   ['the keys with a modifier', 'music', 'if (!e || e.repeat || e.metaKey || e.ctrlKey || e.altKey || e.isComposing) return;', 'if (!e || e.repeat) return;', 'RADIO_PICKER'],
   ['the talk frequency not persisted', 'music', "prefPut('radioEvery', talkEvery);", '', 'RADIO_PICKER'],
-  ['nine said nine', 'radio', "'eight', 'niner'];", "'eight', 'nine'];", 'RADIO_SCRIPTS'],
-  ['a calm read as a wind', 'radio', 'if (kt < CALM_KT) return \'wind calm\';', '', 'RADIO_SCRIPTS'],
-  ['gusts always reported', 'radio', 'GUST_SPREAD_KT = 10,', 'GUST_SPREAD_KT = 0,', 'RADIO_SCRIPTS'],
-  ['ten miles said ten', 'radio', "[10, 'one zero']];", "[10, 'ten']];", 'RADIO_SCRIPTS'],
-  ['a ceiling under 1000 ft as zero thousand', 'radio', 'if (th > 0) o.push(digits(th) + \' thousand\');', 'o.push(digits(th) + \' thousand\');', 'RADIO_SCRIPTS'],
-  ['a minus dropped', 'radio', "return (r < 0 ? 'minus ' : '') + digits(Math.abs(r));", 'return digits(Math.abs(r));', 'RADIO_SCRIPTS'],
-  ['the altimeter in hectopascals', 'radio', 'Math.round(qnhPa / INHG * 100)', 'Math.round(qnhPa / 100)', 'RADIO_SCRIPTS'],
-  ['the convergence ignored', 'radio', 'norm360(Math.atan2(-b[0], b[2]) / D2R + conv)', 'norm360(Math.atan2(-b[0], b[2]) / D2R)', 'RADIO_SCRIPTS'],
-  ['the strip never soft', 'radio', 'SOFT_RH = 0.85;', 'SOFT_RH = 2;', 'RADIO_SCRIPTS'],
-  ['the station ID reworded', 'radio', "'Radio Jolene, ninety point seven, community radio for Jolene Island and the Sound.'", "'Radio Jolene, ninety seven, community radio for Jolene Island.'", 'RADIO_SCRIPTS'],
-  ['the ID in every break', 'radio', 'if (k % 2 === 0) S.push(seg(', 'if (true) S.push(seg(', 'RADIO_SCRIPTS'],
   ['a voice at load', 'music', '\n  mountCreditLink();\n', '\n  mountCreditLink(); if (G.RADIO_TALK) G.RADIO_TALK.makeSpeaker(G).speak([{ text: LINES_ID }], {}, null);\n', 'RADIO_TALK', t => t.replace("  const PFX = 'flydiy.audio.';", "  const PFX = 'flydiy.audio.', LINES_ID = 'Radio Jolene';")],
   ['no bed under the voice', 'music', 'const BED_K = 0.16,', 'const BED_K = 1,', 'RADIO_TALK'],
   ['the bed never rises', 'music', 'fadeTo(a, trims[DK[a * K_N + K_TRACK]], BED_UP_S);', 'void 0;', 'RADIO_TALK'],
   ['the bed rises over 5 s', 'music', 'BED_UP_S = 1.5,', 'BED_UP_S = 5,', 'RADIO_TALK'],
   ['a break every track', 'music', 'PS[S_COUNT] >= talkEvery', 'PS[S_COUNT] >= 1', 'RADIO_TALK'],
-  ['the garage keeps its silence', 'music', 'if (GAPPED[c]) { if (!nextWithTalk(c)) PS[S_GAP] =', 'if (GAPPED[c]) { if (true) PS[S_GAP] =', 'RADIO_TALK'],
   ['a break under a duck', 'music', "speaker.available() && !(PS[S_DUCK] > 0) &&", 'speaker.available() &&', 'RADIO_TALK'],
   ['a duck talks on', 'music', '    cancelTalk();   // a talk break never under an engine start or a stall warning\n', '', 'RADIO_TALK'],
   ['a hidden tab talks on', 'music', "au.onEvent('suspend', () => { cancelTalk(); for", "au.onEvent('suspend', () => { for", 'RADIO_TALK'],
@@ -3897,21 +4042,7 @@ const MUT = [
   ['the one-shot baked into a loop', 'samples', "      if (KEYS[key] && KEYS[key].kind === 'oneshot') {\n        const add", "      if (false) {\n        const add", 'EMITSAMPLES'],
   ['an assignment ignored', 'samples', "    const clsOf = key => { const a = assigned[key]; if (a) return classes[a] || null;", "    const clsOf = key => { const a = null; if (a) return classes[a] || null;", 'EMITSAMPLES'],
   // SND-VOICE (G1626-G1629)
-  ['a word with no clip', 'voicecat', '"d.7": {', '"d.7x": {', 'VOICE_CAT'],
-  ['a non-commercial voice', 'voicecat', '"datasetLicence":"public domain"', '"datasetLicence":"CC BY-NC-SA 4.0"', 'VOICE_CAT'],
-  ['a clip that does not resolve', 'voicecat', '"file":"media/audio/voice/id_main.', '"file":"media/audio/voice/id_mainx.', 'VOICE_CAT'],
-  ['the lineage forgotten', 'voicecat', '"lineage":"', '"lineage":"","was":"', 'VOICE_CAT'],
   ['a new track never announced', 'catalogue', '"id": "fma238392"', '"id": "fma238392x"', 'VOICE_CAT'],
-  ['a place never rendered', 'voicescript', '"Annette Dock",', '"Annette Dock", "Nowhere Dock",', 'VOICE_CAT'],
-  ['nine said "nine"', 'voicemodel', "'eight', 'niner']", "'eight', 'nine']", 'VOICE_AWOS'],
-  ['never calm', 'voicemodel', 'if (kt < 3) G.push', 'if (kt < 0) G.push', 'VOICE_AWOS'],
-  ['every gust reported', 'voicemodel', 'hasG = gu >= kt + 3;', 'hasG = gu > 0;', 'VOICE_AWOS'],
-  ['no minus', 'voicemodel', "if (r < 0) a.push('w.minus');", '', 'VOICE_AWOS'],
-  ['10 SM read as a digit', 'voicemodel', "if (!(v >= 0) || v >= 10) vg.push('d.1', 'd.0.f');", "if (!(v >= 0) || v > 10) vg.push('d.1', 'd.0.f');", 'VOICE_AWOS'],
-  ['ceilings floored at 1000 ft', 'voicemodel', 'ft = Math.max(100, Math.round(', 'ft = Math.max(1000, Math.round(', 'VOICE_AWOS'],
-  ['the altimeter truncated', 'voicemodel', 'String(Math.round(alt * 100))', 'String(Math.floor(alt * 100))', 'VOICE_AWOS'],
-  ['the compass floored', 'voicemodel', "g.push('mar.' + COMPASS[Math.round(", "g.push('mar.' + COMPASS[Math.floor(", 'VOICE_MARINE'],
-  ['one feet', 'voicemodel', "n === 'n.1' ? 'mar.foot' : 'mar.feet'", "'mar.feet'", 'VOICE_MARINE'],
   ['a gap after every clip', 'voice', 'src.start(t0 + a.t, r.off, a.dur);', 'src.start(t0 + a.t + 0.01 * srcs.length, r.off, a.dur);', 'VOICE_PLAY'],
   ['the codec pad played', 'voice', 'if (Math.abs(x[i]) > PAD_FLOOR) return Math.max(0, i / sr - LEAD_S);', 'if (Math.abs(x[i]) > PAD_FLOOR) return 0;', 'VOICE_PLAY'],
   ['a fetch before the gesture', 'voice', '      if (!c || !ctx) return Promise.resolve(null);', '      if (!c) return Promise.resolve(null);', 'VOICE_PLAY'],
@@ -3921,9 +4052,6 @@ const MUT = [
   ['the catalogue not inlined', 'build', 'window.FLYDIY_VOICE=${', 'window.FLYDIY_VOICES=${', 'VOICE_WIRING'],
   ['GATE MEDIA blind to the voice', 'mediachk', "'music_catalogue.json', 'voice_catalogue.json']", "'music_catalogue.json']", 'VOICE_WIRING'],
   // G1680-G1684 (SND-RADIO-2): the user's voice, the mix, the recorded voice in the talk, the space's frame
-  ['john still shipped', 'voicecat', '"name":"norman","id":"en_US-norman-medium"', '"name":"john","id":"en_US-norman-medium"', 'VOICE_CAT'],
-  ['CREDITS names another voice (not norman)', 'credits', '**en_US-norman-medium**', '**en_US-john-medium**', 'VOICE_CAT'],
-  ['a line the clip does not say', 'radio', "'intro.bulletin': 'Island bulletins.',", "'intro.bulletin': 'Island news.',", 'VOICE_CAT'],
   ['no mix station', 'music', "['classical', 'Classical'], ['mix', 'Random']];", "['classical', 'Classical']];", 'RADIO_STATIONS'],
   ['the mix misses a station', 'music', 'for (const k of REAL_KEYS) stationLists(cat, k)', 'for (const k of REAL_KEYS.slice(1)) stationLists(cat, k)', 'RADIO_STATIONS'],
   ['the mix lists a track twice', 'music', 'for (let i = 0; i < m.length; i++) if (m[i]) l.push(i);', 'for (let i = 0; i < m.length; i++) if (m[i]) l.push(i, i);', 'RADIO_STATIONS'],
@@ -3937,6 +4065,42 @@ const MUT = [
   ['the speech over the clips', 'radio', "if (!g.clips) { say(g); return; }", "if (!g.clips) { say(g); if (i < groups.length) next(); return; }", 'RADIO_CLIPS'],
   ['the clips past the ducks', 'music', 'radioIn.connect(duck);', "radioIn.connect(au.bus('music'));", 'RADIO_CLIPS'],
   ['the clips at the speech\'s level', 'music', 'return VOICE_K * Math.pow(10, (LUFS_TARGET - l) / 20); };', 'return VOICE_K; };', 'RADIO_CLIPS'],
+  // SND-RADIO-3 (G1700-G1704): THE LIVING RADIO
+  ['a digit in a take', 'shipscript', 'Ninety years on this island', '90 years on this island', 'RADIO_LINT'],
+  ['a colon in a take', 'shipscript', 'Mark your calendars, folks.', 'Mark your calendars: folks.', 'RADIO_LINT'],
+  ['an acronym in a take', 'shipscript', 'four wheelers', 'ATVs', 'RADIO_LINT'],
+  ['a spelled number in a take', 'shipscript', 'Doors open at the hall at ten.', 'Doors open at the hall at one zero.', 'RADIO_LINT'],
+  ['a sentence run long', 'shipscript', 'at ten. The boat races', 'at ten and the boat races', 'RADIO_LINT'],
+  ['a take that is not the written line', 'radioscript', 'Doors open at the hall at ten.', 'Doors open at the hall at eleven.', 'RADIO_LINT'],
+  ['a store-listing title', 'voicescript', '"fma278388": "A Cloudy Life"', '"fma278388": "Calming Royalty Free Guitar A Cloudy Life"', 'RADIO_LINT'],
+  ['the pools forget what was heard', 'radio', '    if (best) c.h[best] = c.n;\n', '\n', 'RADIO_HORIZON'],
+  ['the program never advances', 'radio', 'c.k = (c.k + 1) % SCRIPT.program.length;', 'c.k = c.k % SCRIPT.program.length;', 'RADIO_HORIZON'],
+  ['the program read out of order', 'radio', 'c.k = (c.k + 1) % SCRIPT.program.length;', 'c.k = (c.k + 7) % SCRIPT.program.length;', 'RADIO_HORIZON'],
+  ['the cursor never saved', 'radio', '    try { if (E.localStorage) E.localStorage.setItem(CURSOR_KEY, JSON.stringify(c)); } catch (e) {}', '', 'RADIO_HORIZON'],
+  ['a new session restarts the broadcast', 'radio', "    if (!c || typeof c !== 'object' || typeof c.k !== 'number'", "    c = null; if (!c || typeof c !== 'object' || typeof c.k !== 'number'", 'RADIO_HORIZON'],
+  ['fog read as mist', 'radio', 'FOG_M = 1000,', 'FOG_M = 100,', 'RADIO_WX'],
+  ['a gale read as a windy day', 'radio', "[34, 'windy'], [Infinity, 'gale']", "[60, 'windy'], [Infinity, 'gale']", 'RADIO_WX'],
+  ['a low deck read as grey', 'radio', 'LOW_M = 300,', 'LOW_M = 30,', 'RADIO_WX'],
+  ['no advice in the fog', 'radio', "if (sky === 'fog') hazards.push('fogPilot', 'fogBoat');", '', 'RADIO_WX'],
+  ['eagles in a gale', 'radio', "if (day && (wind === 'calm' || wind === 'light') &&", 'if (day &&', 'RADIO_WX'],
+  ['a lead for any part of the day', 'radio', 'return !p || p === k.tag; });', 'return true; });', 'RADIO_WX'],
+  ['the weather one sentence', 'radio', '    const e1 = stalest(extras); if (e1) { const x = pick(c, e1); if (x) out.push(x); }\n', '\n', 'RADIO_WX'],
+  ['the front never passes', 'radio', "const rain = !!(s && s.phase === 'passage');", 'const rain = false;', 'RADIO_WX'],
+  ['a share-alike caller voice', 'voicecat', '"datasetLicence": "CC BY 4.0"', '"datasetLicence": "CC BY-NC-SA 4.0"', 'VOICE_LICENCE'],
+  ['the CC BY credit dropped', 'voicecat', '"credit": "LibriTTS corpus', '"credit_": "LibriTTS corpus', 'VOICE_LICENCE'],
+  ['a guest fine-tuned from lessac', 'voicecat', 'fine-tuned (600 epochs) from en_US-kristin-medium, itself trained from scratch on public-domain LibriVox', 'fine-tuned from en_US-lessac-medium (Blizzard 2013)', 'VOICE_LICENCE'],
+  ['CREDITS forgets the officer\'s voice', 'credits', '**en_US-kristin-medium**', '**en_US-kristin2-medium**', 'VOICE_LICENCE'],
+  ['john hosts', 'voicecat', ' "voice": {\n  "name": "norman",\n  "id": "en_US-norman-medium"', ' "voice": {\n  "name": "john",\n  "id": "en_US-john-medium"', 'VOICE_LICENCE'],
+  ['a take that does not resolve', 'shipscript', '"file":"media/audio/voice/id_generic_1.', '"file":"media/audio/voice/id_generic_1x.', 'VOICE_CAT'],
+  ['the host on the phone line', 'shipscript', '"v":"carl","cat":"call"', '"v":"norman","cat":"call"', 'VOICE_CAT'],
+  ['the spoken title not the one said', 'voicescript', '"fma237449": "Ships"', '"fma237449": "Tall Ships"', 'VOICE_CAT'],
+  ['no talk-up', 'music', 'const TALK_UP_S = 6, TUNE_LATE_S = 10;', 'const TALK_UP_S = 0, TUNE_LATE_S = 10;', 'RADIO_XFADE'],
+  ['Radio Jolene keeps the garage\'s silences', 'music', '  const gapped = c => GAPPED[c] === 1 && !(station === ST_TALK && talkOn);', '  const gapped = c => GAPPED[c] === 1;', 'RADIO_XFADE'],
+  ['the outro cut', 'music', 'const d = rem > xf ? rem : xf; fadeOut(a, d);', 'const d = rem > xf ? rem : xf; fadeOut(a, 0.1);', 'RADIO_XFADE'],
+  ['the talk off never silent', 'music', '  const gapped = c => GAPPED[c] === 1 && !(station === ST_TALK && talkOn);', '  const gapped = c => GAPPED[c] === 1 && station !== ST_TALK;', 'RADIO_XFADE'],
+  ['the script fetched off Radio Jolene', 'music', '    if (!ctx || station !== ST_TALK || !RT || !RT.load || RT.ready()) return;', '    if (!ctx || !RT || !RT.load || RT.ready()) return;', 'RADIO_CLIPS'],
+  ['no late tune-in', 'music', '    RT.load(G).then(ok => { if (ok) lateTuneIn(); });', '    RT.load(G);', 'RADIO_CLIPS'],
+  ['the takes not handed to the player', 'radio', '      if (ok && V && V.setClips) V.setClips(SCRIPT.items);', '', 'RADIO_CLIPS'],
   ['a cancelled break reads on', 'radio', '      if (h) { try { h.stop(); } catch (e) {} }\n      sp.cancel(true);', '      sp.cancel(true);', 'RADIO_CLIPS'],
   ['the watchdog on the text', 'music', '(speaker.seconds ? speaker.seconds(segs, RT.RATE) : RT.estSeconds(segs, RT.RATE))', '(RT.estSeconds(segs, RT.RATE) * 3)', 'RADIO_CLIPS'],
   ['a back-announce with no track id', 'music', '{ id: cat[t].id, title: cat[t].title, artist: cat[t].artist }', '{ title: cat[t].title, artist: cat[t].artist }', 'RADIO_CLIPS'],

@@ -268,10 +268,16 @@ function manifestFiles() {
   // (the coordinator's prep owns media/audio/music) - each named by its inlined catalogue
   const sound = ['sfx_catalogue.json', 'music_catalogue.json', 'voice_catalogue.json'].map(f => path.join(ROOT, 'src', 'viewer', 'audio', f))
     .filter(f => fs.existsSync(f));
+  // G1701 (SND-RADIO-3): Radio Jolene's takes are named by the broadcast script the voice catalogue points at (a media
+  // file itself, fetched lazily by the game): it is read as a manifest too
+  try {
+    const vc = JSON.parse(fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'audio', 'voice_catalogue.json'), 'utf8'));
+    if (vc.script && vc.script.file && fs.existsSync(path.join(ROOT, vc.script.file))) sound.push(path.join(ROOT, vc.script.file));
+  } catch (e) {}
   return v.concat(packs, pier, totems, panelhw, cabin, models, chars, animals, trees, shots, worlds, townkit, sound);
 }
 
-const REF_RE = /media\/[A-Za-z0-9_\-./]+?\.(?:jpg|png|webp|bin|ktx2|mp3)/g;   // webp: LOADING S4's texture prep; ktx2: AS3's (G916); mp3: the sound (G1636)
+const REF_RE = /media\/[A-Za-z0-9_\-./]+?\.(?:jpg|png|webp|bin|ktx2|mp3|json)/g;   // webp: LOADING S4's texture prep; ktx2: AS3's (G916); mp3: the sound (G1636); json: Radio Jolene's broadcast script (G1701)
 
 function collectRefs(files) {
   const refs = new Map();               // rel path -> first manifest naming it

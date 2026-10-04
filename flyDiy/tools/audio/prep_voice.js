@@ -1,108 +1,109 @@
-// SND-VOICE (G1626-G1628): Radio Jolene's voice, rendered offline (SOUND-2026-10-04 ruling s12).
+// SND-VOICE (G1626-G1628), SND-RADIO-3 (G1701): Radio Jolene's voices, rendered offline (SOUND-2026-10-04 ruling s12).
 //
-//   node tools/audio/prep_voice.js [--voice norman]          render every clip -> media/audio/voice/ + the catalogue
-//   node tools/audio/prep_voice.js --demo [--voices a,b,c]   the evidence: 3 demo renders per shortlisted voice
-//   node tools/audio/prep_voice.js --fetch [--voices a,b]    download the voice models into assets/audio/voices/
-//   node tools/audio/prep_voice.js --check                   exit 1 when the catalogue / media / CREDITS are stale
+//   node tools/audio/prep_voice.js            render every item of tools/audio/radio_script.json -> media/audio/voice/
+//                                             + the broadcast script (media) + the catalogue + CREDITS
+//   node tools/audio/prep_voice.js --demo     the evidence: the guest-voice candidates and the host's prosody, side by side
+//                                             (reports/evidence/SND-RADIO-3/voices/)
+//   node tools/audio/prep_voice.js --fetch [--voices a,b]   download the voice models into assets/audio/voices/
+//   node tools/audio/prep_voice.js --check    exit 1 when the catalogue / media / CREDITS are stale
 //
-// THE CLIPS (G1682: the talk's own words): src/viewer/audio/radio_talk.js's clipLines(places) - every line Radio Jolene's
-// break says whole, exactly as its text says it (the ID, the bulletins, the swap corner, the greetings, the time check,
-// the pilots' and the marine forecast's phrases, a line per voice_script.json place) -, voice_script.json's extra lines, the AWOS and
-// marine vocabulary (src/viewer/audio/voice_model.js's VOCAB: the assembler and the words it needs are one file),
-// and per track of src/viewer/audio/music_catalogue.json its back-announce ('ba.<id>': "That was <title>, by
-// <artist>."), its title and its artist (VOICE_MODEL.trackKeys). A new catalogue track needs a re-run (GATE AUDIO's
-// VOICE_CAT goes red until then).
-// THE CHAIN, per clip: Piper (tools/audio/voice_render.py, one python process per run) -> 16-bit WAV at the voice's
-// 22 050 Hz -> high-pass 60 Hz -> trimmed (20 ms before the first frame within 45 dB of the clip's loudest, 60 ms
-// after the last) -> 5 / 25 ms fades -> levelled to -20 LUFS (BS.1770 K-weighting, 100 ms blocks gated at -70 LUFS
-// and -10 LU: short words have no 400 ms block) and never above -1 dBFS -> MP3 mono 48 kb/s (lamejs, a tool
-// dependency) -> media/audio/voice/<key>.<h8>.mp3 through _media_lib (content-hashed, owned dir, pruned).
-// THE CATALOGUE: src/viewer/audio/voice_catalogue.json = { voice: {the licence record}, clips: { key: { file, text,
-// dur } } } - inlined by the build as window.FLYDIY_VOICE; GATE MEDIA reads it like the sound's other catalogues.
+// THE ITEMS (G1701): tools/audio/radio_gen.js writes the broadcast (radio_script.json): every item a whole line written
+// for the ear, with its voice. Each is ONE Piper take (one per sentence, joined with a breath - voice_render.py), never a
+// word cut out of a carrier: the AWOS vocabulary and its carriers are retired (the user: "a series of numbers, badly
+// linked"). The voices: norman, the host (the user's pick); john, Chief Walt Brennan; kristin, Officer Dana Hale; LibriTTS
+// speakers for the residents who phone in. Each voice's prosody lives in voice_render.py's PROSODY.
+// THE CHAIN, per clip: Piper -> 16-bit WAV at 22 050 Hz -> high-pass 60 Hz -> trimmed (20 ms before the first frame within
+// 45 dB of the clip's loudest, 60 ms after the last - the user: the endings are fine, the trim is unchanged) -> 5 / 25 ms
+// fades -> A CALLER'S LINE through the PHONE (band-pass 300-3400 Hz, two biquads each side, then a light tanh saturation)
+// -> levelled to -20 LUFS (BS.1770 K-weighting, 100 ms blocks gated at -70 LUFS and -10 LU) and never above -1 dBFS ->
+// MP3 mono 48 kb/s (lamejs) -> media/audio/voice/<key>.<h8>.mp3 through _media_lib (content-hashed, owned dir, pruned).
+// THE SCRIPT, SHIPPED: the broadcast with each item's file and dur -> media/audio/voice/radio_script.<h8>.json, fetched by
+// radio_talk.js only once Radio Jolene is the station (after the gesture). THE CATALOGUE (src/viewer/audio/
+// voice_catalogue.json, inlined by the build as window.FLYDIY_VOICE) stays small: the voices' licence records, the
+// script's file, the totals. A CACHE (assets/audio/voice_cache/, local) keeps each take by the hash of its voice, speaker,
+// words and voice_render.py: a re-run renders only what changed.
 'use strict';
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
+const crypto = require('crypto');
 const cp = require('child_process');
 const ROOT = path.resolve(__dirname, '..', '..');
 const ML = require(path.join(ROOT, 'tools', '_media_lib.js'));
 const X = require(path.join(__dirname, 'excerpt.js'));
-const VM = require(path.join(ROOT, 'src', 'viewer', 'audio', 'voice_model.js'));
-const RT = require(path.join(ROOT, 'src', 'viewer', 'audio', 'radio_talk.js'));   // G1682: the station's own lines
 
 const SUBDIR = 'audio/voice';
 const CAT = path.join(ROOT, 'src', 'viewer', 'audio', 'voice_catalogue.json');
-const MUSIC = path.join(ROOT, 'src', 'viewer', 'audio', 'music_catalogue.json');
+const RSCRIPT = path.join(__dirname, 'radio_script.json');
 const SCRIPT = path.join(__dirname, 'voice_script.json');
+const RENDER_PY = path.join(__dirname, 'voice_render.py');
 const CREDITS = path.join(ROOT, 'CREDITS.md');
 const VOICES_DIR = path.join(ROOT, 'assets', 'audio', 'voices');   // local (assets/ is gitignored): the models
-const EVIDENCE = path.join(ROOT, 'reports', 'evidence', 'SND-VOICE');
+const CACHE = path.join(ROOT, 'assets', 'audio', 'voice_cache');
+const EVIDENCE = path.join(ROOT, 'reports', 'evidence', 'SND-RADIO-3', 'voices');
 const BEGIN = '<!-- VOICE:BEGIN (generated by tools/audio/prep_voice.js from src/viewer/audio/voice_catalogue.json - do not edit) -->';
 const END = '<!-- VOICE:END -->';
 const TARGET_LUFS = -20, KBPS = 48;
+const PHONE = { lowHz: 300, highHz: 3400, drive: 2.2 };
 
-// THE SHORTLIST - each row read off the voice's own MODEL_CARD (copied into reports/evidence/SND-VOICE/cards/).
-// Only voices TRAINED FROM SCRATCH on clean data (or fine-tuned from one that was) are here: most Piper English
-// voices are fine-tuned from 'lessac' (Blizzard 2013, a research-only licence), so their weights carry it whatever
-// their own dataset's licence - see the README's rejected list.
+// THE VOICES - each row read off the voice's own MODEL_CARD (the tarball's, the same file as rhasspy/piper-voices';
+// copies in reports/evidence/SND-VOICE/cards/ and SND-RADIO-3/voices/cards/). Only voices TRAINED FROM SCRATCH on clean
+// data (or fine-tuned from one that was) are here: most Piper English voices are fine-tuned from 'lessac' (Blizzard
+// 2013, a research-only licence), so their weights carry it whatever their own dataset's licence - SND-VOICE's README
+// lists the voices turned down.
 const ENGINE = 'Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships';
 const MODEL_LIC = 'MIT (the rhasspy/piper-voices repository)';
 const MIRROR = id => `https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/vits-piper-${id}.tar.bz2`;
 const HF = id => { const [lang, name, q] = id.split('-'); return `https://huggingface.co/rhasspy/piper-voices/tree/main/${lang.split('_')[0]}/${lang}/${name}/${q}`; };
 const VOICES = {
-  norman: { id: 'en_US-norman-medium', speaker: null, who: 'male, US, low and even', quality: 'medium',
+  norman: { id: 'en_US-norman-medium', who: 'male, US, low and even', quality: 'medium', role: 'Norman, the host',
     dataset: 'LibriVox readings by one reader, ~15.5 h, compiled by Bryce Beattie', datasetLicence: 'public domain',
     datasetUrl: 'https://librivox.org', lineage: 'trained from scratch (1200 epochs, medium)' },
-  john: { id: 'en_US-john-medium', speaker: null, who: 'male, US', quality: 'medium',
+  john: { id: 'en_US-john-medium', who: 'male, US', quality: 'medium', role: 'Chief Walt Brennan (the interview)',
     dataset: 'LibriVox readings by one reader, ~12.5 h, compiled by Bryce Beattie', datasetLicence: 'public domain',
     datasetUrl: 'https://librivox.org', lineage: 'fine-tuned (600 epochs) from en_US-kristin-medium, itself trained from scratch on public-domain LibriVox' },
-  libritts: { id: 'en_US-libritts-high', speaker: 856, who: 'male, US (LibriTTS speaker index 856 of 904)', quality: 'high',
+  kristin: { id: 'en_US-kristin-medium', who: 'female, US', quality: 'medium', role: 'Officer Dana Hale (recorded messages)',
+    dataset: 'LibriVox readings by one reader, ~11.5 h, compiled by Bryce Beattie', datasetLicence: 'public domain',
+    datasetUrl: 'https://librivox.org', lineage: 'trained from scratch (2000 epochs, medium)' },
+  libritts: { id: 'en_US-libritts-high', who: 'US, 904 speakers (LibriTTS)', quality: 'high', role: 'the residents who phone in',
     dataset: 'LibriTTS train-clean-360 (Zen et al. 2019; from LibriSpeech, from LibriVox)', datasetLicence: 'CC BY 4.0',
     datasetUrl: 'http://www.openslr.org/60/', lineage: 'trained from scratch on train-clean-360',
     credit: 'LibriTTS corpus by Heiga Zen et al. (Google), CC BY 4.0, http://www.openslr.org/60/' },
-  cori: { id: 'en_GB-cori-high', speaker: null, who: 'female, UK', quality: 'high',
+  cori: { id: 'en_GB-cori-high', who: 'female, UK', quality: 'high', role: 'not used (SND-VOICE shortlist)',
     dataset: 'LibriVox readings by one reader, ~24 h, compiled by Bryce Beattie', datasetLicence: 'public domain',
     datasetUrl: 'https://librivox.org', lineage: 'trained from scratch (500 epochs, high)' },
 };
-// THE CHOICE: G1628 shipped john (the calmest pace, the best ASR round trip); THE USER PICKED NORMAN by ear on the
-// listening page (2026-10-04, "norman voice is the best") - G1680 re-rendered everything with it. Another voice is one
-// re-run, --voice <name>.
+// THE HOST: SND-VOICE shipped john; THE USER PICKED NORMAN by ear (2026-10-04, "norman voice is the best"). The guests
+// (G1701): the candidates the user hears in reports/evidence/SND-RADIO-3/voices/ - one re-run moves a role to another voice.
 const CHOSEN = 'norman';
-const SHORTLIST = ['john', 'norman', 'libritts', 'cori'];
+const GUESTS = ['john', 'kristin', 'libritts'];
 
 function voiceRecord(name) {
   const v = VOICES[name];
-  return { name, id: v.id, speaker: v.speaker, who: v.who, quality: v.quality, engine: ENGINE, modelLicence: MODEL_LIC,
+  return { name, id: v.id, who: v.who, role: v.role, quality: v.quality, engine: ENGINE, modelLicence: MODEL_LIC,
     modelUrl: HF(v.id), dataset: v.dataset, datasetLicence: v.datasetLicence, datasetUrl: v.datasetUrl, lineage: v.lineage,
-    credit: v.credit || null, render: { lengthScale: { lines: 1.08, words: 1.0 }, lufs: TARGET_LUFS, kbps: KBPS } };
+    credit: v.credit || null, render: { lufs: TARGET_LUFS, kbps: KBPS, takes: 'whole' } };
 }
 
-// ---- the clip list ---------------------------------------------------------------------------------------------
+// ---- the clip list: the broadcast's items ---------------------------------------------------------------------------
 function clipList() {
-  const S = JSON.parse(fs.readFileSync(SCRIPT, 'utf8'));
-  const items = [];
-  const RL = RT.clipLines(S.places || {});
-  // (a word or two is rendered in a carrier - the clock, the parts of the day, "is favoured," - a greeting is a phrase)
-  for (const k in RL) items.push({ key: k, text: RL[k], kind: RL[k].split(/\s+/).length > 2 || /^greet\./.test(k) ? 'line' : 'word' });
-  for (const k in S.lines || {}) items.push({ key: k, text: S.lines[k], kind: 'line' });
-  for (const k in VM.VOCAB) items.push({ key: k, text: VM.VOCAB[k], kind: 'word' });
-  const tracks = fs.existsSync(MUSIC) ? JSON.parse(fs.readFileSync(MUSIC, 'utf8')) : [];
-  const seen = new Set(items.map(i => i.key));
-  for (const t of tracks) {
-    const [ba, ti, ar] = VM.trackKeys(t);
-    for (const [key, text, kind] of [[ba, `That was ${t.title}, by ${t.artist}.`, 'line'], [ti, t.title, 'word'], [ar, t.artist, 'word']])
-      if (!seen.has(key)) { seen.add(key); items.push({ key, text, kind }); }
-  }
-  return { items, say: S.say || {} };
+  if (!fs.existsSync(RSCRIPT)) throw new Error('no ' + path.relative(ROOT, RSCRIPT) + ' - run node tools/audio/radio_gen.js');
+  const R = JSON.parse(fs.readFileSync(RSCRIPT, 'utf8')), S = JSON.parse(fs.readFileSync(SCRIPT, 'utf8'));
+  const items = Object.keys(R.items).map(key => {
+    const it = R.items[key], vv = R.voices[it.v];
+    if (!vv || !VOICES[vv.model]) throw new Error(key + ': no voice ' + it.v);
+    return { key, text: it.text, v: it.v, model: vv.model, speaker: vv.speaker != null ? vv.speaker : null, phone: !!it.phone };
+  });
+  return { items, say: S.say || {}, script: R };
 }
 // the words the voice is given: the 'say' respellings, whole words only
 function spoken(text, say) {
   let s = text;
-  for (const w in say) s = s.replace(new RegExp('\\b' + w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b', 'g'), say[w]);
+  for (const w in say) s = s.replace(new RegExp('\\b' + w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '(?=\\W|$)', 'g'), say[w]);
   return s;
 }
 
-// ---- the signal ------------------------------------------------------------------------------------------------
+// ---- the signal ------------------------------------------------------------------------------------------------------
 function readWav(file) {
   const b = fs.readFileSync(file);
   let p = 12, sr = 22050, data = null;
@@ -129,9 +130,24 @@ function biquad(x, b0, b1, b2, a1, a2) {
   for (let i = 0; i < x.length; i++) { const v = b0 * x[i] + b1 * x1 + b2 * x2 - a1 * y1 - a2 * y2; x2 = x1; x1 = x[i]; y2 = y1; y1 = v; y[i] = v; }
   return y;
 }
-function highpass(x, sr, f0) {
-  const w = 2 * Math.PI * f0 / sr, c = Math.cos(w), al = Math.sin(w) / (2 * 0.7071), a0 = 1 + al;
+function highpass(x, sr, f0, q) {
+  const w = 2 * Math.PI * f0 / sr, c = Math.cos(w), al = Math.sin(w) / (2 * (q || 0.7071)), a0 = 1 + al;
   return biquad(x, (1 + c) / 2 / a0, -(1 + c) / a0, (1 + c) / 2 / a0, -2 * c / a0, (1 - al) / a0);
+}
+function lowpass(x, sr, f0, q) {
+  const w = 2 * Math.PI * f0 / sr, c = Math.cos(w), al = Math.sin(w) / (2 * (q || 0.7071)), a0 = 1 + al;
+  return biquad(x, (1 - c) / 2 / a0, (1 - c) / a0, (1 - c) / 2 / a0, -2 * c / a0, (1 - al) / a0);
+}
+// THE PHONE LINE (a caller): the telephone band, 300-3400 Hz (two Butterworth sections a side: 24 dB/oct), then a light
+// saturation (tanh, the peak first brought to 0.7) - a landline's colour, applied here, never live
+function phone(x, sr) {
+  const Q1 = 0.5412, Q2 = 1.3066;   // the two sections of a 4th-order Butterworth
+  let y = highpass(highpass(x, sr, PHONE.lowHz, Q1), sr, PHONE.lowHz, Q2);
+  y = lowpass(lowpass(y, sr, PHONE.highHz, Q1), sr, PHONE.highHz, Q2);
+  let pk = 0; for (let i = 0; i < y.length; i++) pk = Math.max(pk, Math.abs(y[i]));
+  const g = pk > 0 ? 0.7 / pk : 1, n = Math.tanh(PHONE.drive);
+  for (let i = 0; i < y.length; i++) y[i] = Math.tanh(PHONE.drive * g * y[i]) / n;
+  return y;
 }
 function kweight(x, sr) {   // BS.1770's two stages (excerpt.js's, which does not export them)
   let f0 = 1681.974450955533, G = 3.999843853973347, Q = 0.7071752369554196;
@@ -141,7 +157,7 @@ function kweight(x, sr) {   // BS.1770's two stages (excerpt.js's, which does no
   f0 = 38.13547087602444; Q = 0.5003270373238773; K = Math.tan(Math.PI * f0 / sr); a0 = 1 + K / Q + K * K;
   return biquad(y, 1, -2, 1, 2 * (K * K - 1) / a0, (1 - K / Q + K * K) / a0);
 }
-// gated loudness on 100 ms blocks (75 % overlap): the speech's level, short words included
+// gated loudness on 100 ms blocks (75 % overlap): the speech's level
 function speechLufs(x, sr) {
   const y = kweight(x, sr), n = Math.max(1, Math.round(0.1 * sr)), hop = Math.max(1, n >> 2), bl = [];
   for (let i = 0; i + n <= y.length || (!bl.length && i === 0); i += hop) {
@@ -171,9 +187,9 @@ function level(x, sr) {
   const pk = X.peak([x]) * g; if (pk > 0.89) g *= 0.89 / pk;
   return x.map(v => v * g);
 }
-const process1 = (x, sr) => level(trim(highpass(x, sr, 60), sr), sr);
+const process1 = (x, sr, ph) => { const t = trim(highpass(x, sr, 60), sr); return level(ph ? phone(t, sr) : t, sr); };
 
-// ---- Piper -----------------------------------------------------------------------------------------------------
+// ---- Piper -----------------------------------------------------------------------------------------------------------
 function modelOf(name) {
   const v = VOICES[name]; if (!v) throw new Error('unknown voice ' + name + ' (have ' + Object.keys(VOICES).join(', ') + ')');
   const d = path.join(VOICES_DIR, v.id), m = path.join(d, v.id + '.onnx');
@@ -184,120 +200,109 @@ function python() {
   for (const py of ['python3', 'python', 'py']) { const r = cp.spawnSync(py, ['-c', 'import piper.voice'], { encoding: 'utf8' }); if (!r.error && r.status === 0) return py; }
   throw new Error('no python with piper - pip install "piper-tts==1.2.0" (MIT; NOT a later one: piper1-gpl is GPL-3.0)');
 }
-// THE CARRIER: a word of one or two is said inside a comma list and cut out of it (voice_render.py's ALIGNED) - a
-// continuing take in the middle ("zero, seven, zero." -> "seven,"), a final take at the end ("zero, zero, seven.");
-// a longer item is its own phrase
-const CARRY = 'zero';
-function carrier(text, kind) {
-  const bare = text.replace(/[.,!?;:]+\s*$/, '').trim();
-  if (kind !== 'word' || bare.split(/\s+/).length > 2 || /[.,!?;:]/.test(bare)) return { text };
-  return /,\s*$/.test(text) || !/[.!?]\s*$/.test(text) ? { text: `${CARRY}, ${bare}, ${CARRY}.`, pick: 1 } : { text: `${CARRY}, ${CARRY}, ${bare}.`, pick: 2 };
-}
-// render items [{key, text, kind}] with a voice -> Map key -> { x, sr } (processed)
-function render(name, items, say) {
-  const v = VOICES[name], m = modelOf(name);
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'flydiy_voice_'));
-  const job = { model: m.model, config: m.config, speaker: v.speaker, seed: 1, noise_scale: 0.667, noise_w: 0.8, out: tmp,
-    items: items.map(it => Object.assign({ key: it.key, length_scale: it.kind === 'line' ? 1.08 : 1.0 }, carrier(spoken(it.text, say), it.kind))) };
-  fs.writeFileSync(path.join(tmp, 'job.json'), JSON.stringify(job));
-  const r = cp.spawnSync(python(), [path.join(__dirname, 'voice_render.py'), path.join(tmp, 'job.json')], { encoding: 'utf8', maxBuffer: 1 << 26 });
-  if (r.status !== 0) throw new Error('voice_render.py: ' + (r.stderr || r.stdout).slice(-2000));
-  const out = new Map();
-  for (const it of items) { const { sr, x } = readWav(path.join(tmp, it.key + '.wav')); out.set(it.key, { sr, x: process1(x, sr) }); }
-  fs.rmSync(tmp, { recursive: true, force: true });
+const PY_SHA = () => crypto.createHash('sha256').update(fs.readFileSync(RENDER_PY)).digest('hex').slice(0, 16);
+// render items [{key, text, model, speaker, phone}] -> Map key -> { x, sr } (processed). Each take is cached by its
+// voice, speaker, spoken words and the render script.
+function render(items, say, opt) {
+  const o = opt || {}, py = PY_SHA(), out = new Map(), todo = new Map();
+  fs.mkdirSync(CACHE, { recursive: true });
+  const words = it => (o.raw ? it.text : spoken(it.text, say));
+  const cacheOf = it => path.join(CACHE, crypto.createHash('sha256').update([py, it.model, it.speaker, words(it), o.seed || 1].join('\u0000')).digest('hex').slice(0, 24) + '.wav');
+  for (const it of items) { const c = cacheOf(it); if (!fs.existsSync(c)) { if (!todo.has(it.model)) todo.set(it.model, []); todo.get(it.model).push(it); } }
+  for (const [model, list] of todo) {
+    const m = modelOf(model), tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'flydiy_voice_'));
+    const job = { model: m.model, config: m.config, voice: model, seed: o.seed || 1, out: tmp,
+      items: list.map(it => ({ key: it.key.replace(/[^a-z0-9_.-]+/gi, '_'), text: words(it), speaker: it.speaker })) };
+    fs.writeFileSync(path.join(tmp, 'job.json'), JSON.stringify(job));
+    process.stdout.write('rendering ' + list.length + ' takes with ' + model + ' ...\n');
+    const r = cp.spawnSync(python(), [RENDER_PY, path.join(tmp, 'job.json')], { encoding: 'utf8', maxBuffer: 1 << 26 });
+    if (r.status !== 0) throw new Error('voice_render.py: ' + (r.stderr || r.stdout).slice(-2000));
+    for (const it of list) fs.copyFileSync(path.join(tmp, it.key.replace(/[^a-z0-9_.-]+/gi, '_') + '.wav'), cacheOf(it));
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+  for (const it of items) { const { sr, x } = readWav(cacheOf(it)); out.set(it.key, { sr, x: process1(x, sr, it.phone), raw: x }); }
   return out;
 }
-// a sequence (clip keys and rests) laid end to end, the way AUDIO_VOICE.play schedules it
-function assemble(seq, clips) {
-  const sr = clips.values().next().value.sr, parts = [];
-  for (const s of seq) {
-    if (typeof s === 'number') parts.push(new Float32Array(Math.round(s * sr)));
-    else { const c = clips.get(s); if (!c) throw new Error('assemble: no clip ' + s); parts.push(c.x); }
-  }
-  const y = new Float32Array(parts.reduce((a, p) => a + p.length, 0)); let o = 0;
-  for (const p of parts) { y.set(p, o); o += p.length; }
-  return { x: y, sr };
-}
 
-// ---- the evidence ----------------------------------------------------------------------------------------------
-// the gusty, low-ceiling day: 270 at 15 gusting 26, 2 SM in light rain and mist, ceiling 600 broken, 1400 overcast,
-// minus two over minus four, 29.92
-const DEMO_OBS = { timeZ: '1753', wind: { dirDeg: 268, kt: 15, gustKt: 26 }, visSM: 2, wx: ['light_rain', 'mist'],
-  sky: [{ cover: 'SCT', ft: 300 }, { cover: 'BKN', ft: 600 }, { cover: 'OVC', ft: 1400 }], tempC: -2, dewC: -4, altInHg: 29.92 };
-function demo(names) {
-  const { items, say } = clipList();
-  const want = new Set(['id.main', 'bulletin.ferry', ...VM.awosClips(DEMO_OBS).filter(k => typeof k === 'string')]);
-  const sub = items.filter(i => want.has(i.key));
-  fs.mkdirSync(EVIDENCE, { recursive: true });
-  const rows = [];
-  for (const name of names) {
-    const clips = render(name, sub, say);
-    const outs = [['station_id', ['id.main']], ['bulletin', ['bulletin.ferry']], ['awos_gusty_low', VM.awosClips(DEMO_OBS)]];
-    for (const [what, seq] of outs) {
-      const { x, sr } = assemble(seq, clips);
-      const file = `${name}_${what}.mp3`;
-      fs.writeFileSync(path.join(EVIDENCE, file), X.encodeMp3([x], sr, 64));
-      if (process.env.VOICE_WAV) writeWav(path.join(process.env.VOICE_WAV, `${name}_${what}.wav`), x, sr);
-      rows.push({ voice: name, what, file, s: +(x.length / sr).toFixed(2), lufs: +X.loudness([x], sr).toFixed(1) });
-      console.log('demo', file, (x.length / sr).toFixed(2) + ' s');
-    }
-    const card = modelOf(name).card, cards = path.join(EVIDENCE, 'cards');
-    if (fs.existsSync(card)) { fs.mkdirSync(cards, { recursive: true }); fs.copyFileSync(card, path.join(cards, VOICES[name].id + '.MODEL_CARD.md')); }
-  }
-  fs.writeFileSync(path.join(EVIDENCE, 'demos.json'), JSON.stringify({ obs: DEMO_OBS, rows }, null, 1) + '\n');
-}
-
-// ---- the shipped set -------------------------------------------------------------------------------------------
+// ---- the shipped set -------------------------------------------------------------------------------------------------
 function creditsBlock(cat) {
-  const v = cat.voice;
-  const row = `- **Radio Jolene's voice** (\`media/audio/voice/\`, ${Object.keys(cat.clips).length} clips): the Piper voice ` +
-    `**${v.id}** (${v.who}; model ${v.modelLicence}, ${v.modelUrl}), trained on ${v.dataset} - ${v.datasetLicence} ` +
-    `(${v.datasetUrl}); ${v.lineage}. Rendered offline with ${v.engine}.` + (v.credit ? ` Credit: ${v.credit}.` : '');
-  return [BEGIN, row, '', END].join('\n');
+  const rows = Object.values(cat.voices).map(v => `- **${v.role}**: the Piper voice **${v.id}** (${v.who}; model ${v.modelLicence}, ` +
+    `${v.modelUrl}), trained on ${v.dataset} - ${v.datasetLicence} (${v.datasetUrl}); ${v.lineage}.` + (v.credit ? ` Credit: ${v.credit}.` : ''));
+  const head = `Radio Jolene's talk (\`media/audio/voice/\`, ${cat.script.items} takes, ${Math.round(cat.script.seconds / 60)} minutes), ` +
+    `rendered offline with ${ENGINE}:`;
+  return [BEGIN, head, ...rows, '', END].join('\n');
 }
 function withCredits(text, block) {
   if (text.includes(BEGIN.slice(0, 20))) return text.replace(/<!-- VOICE:BEGIN[\s\S]*?<!-- VOICE:END -->/, block);
   const i = text.indexOf('<!-- SFX:END -->');
   if (i < 0) throw new Error('CREDITS.md has no SFX:END to follow');
   const j = i + '<!-- SFX:END -->'.length;
-  const head = '\n\n### Radio Jolene\'s voice (`media/audio/voice/`)\n\nA neural text-to-speech voice, rendered OFFLINE into ' +
-    'clips (ruling s12): the engine\'s licence and the voice\'s training-data licence are both checked clean ' +
-    '(`reports/evidence/SND-VOICE/README.md` has the comparison and the voices turned down). The weather is ' +
-    'assembled from recorded words, the way real automated stations work.\n\n';
-  return text.slice(0, j) + head + block + text.slice(j);
+  return text.slice(0, j) + '\n\n### Radio Jolene\'s voices (`media/audio/voice/`)\n\n' + block + text.slice(j);
 }
-function ship(name) {
-  const { items, say } = clipList();
-  const clips = render(name, items, say);
-  const emitted = [], cat = { voice: voiceRecord(name), clips: {} };
+function ship() {
+  const { items, say, script } = clipList();
+  const clips = render(items, say);
+  const emitted = [], shipped = {};
   for (const it of items) {
     const { x, sr } = clips.get(it.key);
     const rel = ML.writeMedia(SUBDIR, it.key.replace(/[^a-z0-9_]+/gi, '_').toLowerCase(), 'mp3', X.encodeMp3([x], sr, KBPS));
     emitted.push(rel);
-    cat.clips[it.key] = { file: rel, text: it.text, dur: +(x.length / sr).toFixed(3) };
+    shipped[it.key] = Object.assign({ file: rel, dur: +(x.length / sr).toFixed(3) }, script.items[it.key]);
   }
+  // the broadcast, as the game reads it (radio_talk.js): every item with its file and length
+  const body = { about: 'Radio Jolene\'s broadcast as the game plays it - written by tools/audio/radio_gen.js, rendered by tools/audio/prep_voice.js. Do not edit.',
+    seed: script.seed, items: shipped, segments: script.segments, threads: script.threads, pools: script.pools, program: script.program };
+  const srel = ML.writeMedia(SUBDIR, 'radio_script', 'json', Buffer.from(JSON.stringify(body)));
+  emitted.push(srel);
   const gone = ML.pruneMedia(SUBDIR, emitted);
   if (gone.length) console.log('pruned', gone.length, 'files');
-  // one clip per line: a re-render's diff reads as the clips that changed
-  const body = Object.keys(cat.clips).map(k => ` ${JSON.stringify(k)}: ${JSON.stringify(cat.clips[k])}`).join(',\n');
-  fs.writeFileSync(CAT, '{\n"voice": ' + JSON.stringify(cat.voice) + ',\n"clips": {\n' + body + '\n}\n}\n');
-  fs.writeFileSync(CREDITS, withCredits(fs.readFileSync(CREDITS, 'utf8'), creditsBlock(cat)));
   const bytes = [...new Set(emitted)].reduce((a, r) => a + fs.statSync(path.join(ROOT, r)).size, 0);
-  const secs = Object.values(cat.clips).reduce((a, c) => a + c.dur, 0);
-  console.log(Object.keys(cat.clips).length, 'clips,', secs.toFixed(1), 's,', (bytes / 1048576).toFixed(2), 'MB in media/' + SUBDIR, '(voice ' + name + ')');
+  const secs = Object.values(shipped).reduce((a, c) => a + c.dur, 0);
+  const voices = {}; for (const n of [CHOSEN, ...GUESTS]) voices[n] = voiceRecord(n);
+  const cat = { voice: voiceRecord(CHOSEN), voices,
+    script: { file: srel, items: items.length, seconds: +secs.toFixed(1), bytes } };
+  fs.writeFileSync(CAT, JSON.stringify(cat, null, 1) + '\n');
+  fs.writeFileSync(CREDITS, withCredits(fs.readFileSync(CREDITS, 'utf8'), creditsBlock(cat)));
+  console.log(items.length + ' takes, ' + secs.toFixed(1) + ' s, ' + (bytes / 1048576).toFixed(2) + ' MB in media/' + SUBDIR);
 }
 function check() {
   const bad = [];
   const cat = JSON.parse(fs.readFileSync(CAT, 'utf8'));
   const { items } = clipList();
-  for (const it of items) if (!cat.clips[it.key]) bad.push('no clip for ' + it.key);
-  for (const k in cat.clips) if (!fs.existsSync(path.join(ROOT, cat.clips[k].file))) bad.push('missing ' + cat.clips[k].file);
-  const dir = path.join(ML.MEDIA, 'audio', 'voice'), files = fs.existsSync(dir) ? fs.readdirSync(dir) : [];
-  const ref = new Set(Object.values(cat.clips).map(c => c.file.split('/').pop()));
-  for (const f of files) if (!ref.has(f)) bad.push('orphan media/audio/voice/' + f);
+  const sfile = cat.script && path.join(ROOT, cat.script.file);
+  if (!sfile || !fs.existsSync(sfile)) bad.push('missing the shipped script ' + (cat.script && cat.script.file));
+  else {
+    const S = JSON.parse(fs.readFileSync(sfile, 'utf8'));
+    for (const it of items) if (!S.items[it.key] || S.items[it.key].text !== it.text) bad.push('no take (or a stale one) for ' + it.key);
+    const ref = new Set(Object.values(S.items).map(c => c.file.split('/').pop()).concat([cat.script.file.split('/').pop()]));
+    for (const k in S.items) if (!fs.existsSync(path.join(ROOT, S.items[k].file))) bad.push('missing ' + S.items[k].file);
+    const dir = path.join(ML.MEDIA, 'audio', 'voice');
+    for (const f of fs.existsSync(dir) ? fs.readdirSync(dir) : []) if (!ref.has(f)) bad.push('orphan media/audio/voice/' + f);
+  }
   if (!fs.readFileSync(CREDITS, 'utf8').includes(creditsBlock(cat))) bad.push('CREDITS.md VOICE block is stale');
-  console.log(bad.length ? bad.join('\n') : 'voice: current (' + Object.keys(cat.clips).length + ' clips)');
+  console.log(bad.length ? bad.join('\n') : 'voice: current (' + items.length + ' takes)');
   process.exit(bad.length ? 1 : 0);
+}
+
+// ---- the evidence: the guest-voice candidates and the host's prosody ---------------------------------------------------
+function demo() {
+  const R = JSON.parse(fs.readFileSync(RSCRIPT, 'utf8')), S = JSON.parse(fs.readFileSync(SCRIPT, 'utf8'));
+  fs.mkdirSync(path.join(EVIDENCE, 'cards'), { recursive: true });
+  const line = 'Hi there, Norman, thanks for taking my call. I found a green skiff on the beach past the point this morning.';
+  const rows = [], items = [];
+  for (const v of ['john', 'kristin']) items.push({ key: 'candidate_' + v, text: line, model: v, speaker: null, phone: false });
+  for (const v in R.voices) if (R.voices[v].model === 'libritts') items.push({ key: 'candidate_libritts_' + R.voices[v].speaker + '_' + v, text: line, model: 'libritts', speaker: R.voices[v].speaker, phone: false });
+  // the same lines on the phone, as the broadcast plays them
+  for (const it of items.slice()) items.push(Object.assign({}, it, { key: it.key + '_phone', phone: true }));
+  const clips = render(items, S.say || {});
+  for (const it of items) {
+    const { x, sr } = clips.get(it.key), file = it.key + '.mp3';
+    fs.writeFileSync(path.join(EVIDENCE, file), X.encodeMp3([x], sr, 64));
+    rows.push({ file, voice: it.model, speaker: it.speaker, phone: it.phone, s: +(x.length / sr).toFixed(2) });
+  }
+  for (const v of ['norman', ...GUESTS]) { const c = modelOf(v).card; if (fs.existsSync(c)) fs.copyFileSync(c, path.join(EVIDENCE, 'cards', VOICES[v].id + '.MODEL_CARD.md')); }
+  fs.writeFileSync(path.join(EVIDENCE, 'candidates.json'), JSON.stringify({ line, rows }, null, 1) + '\n');
+  console.log('demo: ' + rows.length + ' files in ' + path.relative(ROOT, EVIDENCE));
 }
 function fetchVoices(names) {
   for (const name of names) {
@@ -318,12 +323,11 @@ function fetchVoices(names) {
 
 if (require.main === module) {
   const argv = process.argv.slice(2), arg = k => { const i = argv.indexOf(k); return i >= 0 ? argv[i + 1] : null; };
-  const names = (arg('--voices') || SHORTLIST.join(',')).split(',');
   try {
     if (argv.includes('--check')) check();
-    else if (argv.includes('--fetch')) fetchVoices(names);
-    else if (argv.includes('--demo')) demo(names);
-    else ship(arg('--voice') || CHOSEN);
+    else if (argv.includes('--fetch')) fetchVoices((arg('--voices') || [CHOSEN, ...GUESTS].join(',')).split(','));
+    else if (argv.includes('--demo')) demo();
+    else ship();
   } catch (e) { console.error(e.message || e); process.exit(1); }
 }
-module.exports = { VOICES, CHOSEN, SHORTLIST, DEMO_OBS, voiceRecord, clipList, render, assemble, writeWav, speechLufs, trim, spoken, creditsBlock };
+module.exports = { VOICES, CHOSEN, GUESTS, PHONE, voiceRecord, clipList, render, spoken, readWav, writeWav, speechLufs, trim, phone, creditsBlock, TARGET_LUFS, KBPS };
