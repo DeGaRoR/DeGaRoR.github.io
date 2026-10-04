@@ -71862,3 +71862,28 @@ asked for, and the P5g "structural failure" step of GAME-LAYER-2026-09-14.
   tagged in the doc; open the named NASA TMs and CFR sections on the box before a number becomes a gate. Copyright
   (§13): no code was copied; never paste RoR (GPLv3) or BeamNG Lua (bCDDL) into `src/`; BEA reports are non-commercial
   only. The repository has no LICENSE file (the user's call).
+
+## DEFORM-AND-BREAK x TREE-CRASH - THE DESIGN RE-BASED, G1800-G1899, THE USER'S RULINGS ON THE BENCH AND THE BILL (2026-10-04, DESIGN session for A0, doc only; branch ccr-435c971f-h3rnbe)
+
+FOR A0, answering A0's two messages. `futureDesigns/DEFORM-AND-BREAK-2026-10-04.md`:
+- **§4.0 (new): TREE-CRASH is the base.** A table of what G1470-G1479 already lands against what each DMG step adds:
+  - landed: materials, return mapping with hardening, kink, breaks, trunk bending, prop seize, `crashed`, armed
+    compare, `damageProbe` census;
+  - DMG adds: Euler `Fc`; a kink floor (a kinked member keeps compression-only so nodes cannot pass through); seams,
+    fittings and bonds; break groups; the strip component test in place of the any-break kill; refs-core; SUPPORT
+    beams; per-beam work.
+  - §4.1-§4.2 are now read as deltas. The first draft's per-substep rate limit is dropped: the return mapping's
+    hardening and the etu / ecu travel caps do that job.
+- **§11 in A0's order:** train 32 TREE-CRASH (damage off) -> D0 -> D1 reconcile and extend -> D2 calibration, damage ON
+  (train 35) -> D3 -> D4 -> D5. G-blocks G1800-G1899, sliced per step. About 10-12 sessions after TREE-CRASH; the thin
+  slice is 3-4.
+- **§12 rulings written in:**
+  - (dm6) the bench's test to destruction is FREE;
+  - (dm9) the repair bill is charged only on an explicit garage Repair; until then the aeroplane is DAMAGED in the
+    garage. This is a garage state, not per-beam damage, so (bh) holds.
+- **ASKED OF A0 (dm10): grounded until repaired (a, recommended) or pay at launch (b)?**
+  - (a) reads closer to the user's "explicitly repairs", keeps the wreck visible with its bill, fits the fleet game,
+    and gives a write-off a home (Scrap / Sell only).
+  - If (a): may a damaged aeroplane be edited (proposed: yes, and a rebuilt section is billed at build price instead
+    of its repair line)? What does the garage draw (proposed: the pristine model, a DAMAGED tag and the bill, and the
+    wreck's last frame as a logbook still)?
