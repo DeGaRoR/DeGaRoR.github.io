@@ -3,12 +3,12 @@
  "date": "2026-10-04",
  "from": "the user's verdicts on the 'flyDiy Music Picks' board (31 judged of 51; 'so far, holizna is the best'). Station LO-FI first; the other stations (jazz, blues, dub, electronic, ambient, classical, rock) follow from a short station board.",
  "stations": {
-  "lofi": "Lo-fi - calm, peaceful lo-fi, HoliznaCC0 at its heart (the user's favourite)",
-  "jazzblues": "Jazz & Blues - calm",
-  "dub": "Dub & Reggae - instrumental, laid back",
-  "electronic": "Electronic & Ambient - downtempo, chill-out, ambient",
-  "classical": "Classical - calm piano, strings, guitar",
-  "acoustic": "Acoustic & Easy Rock - soft"
+  "jazz": "Jazz - calm, instrumental",
+  "lofi": "Lo-fi / Hip-hop - HoliznaCC0 at its heart (the user's favourite)",
+  "dubambient": "Dub / Ambient - laid back, instrumental",
+  "roots": "Local Roots Radio - Radio Jolene, the island's community station: instrumental roots, folk, maritime, with talk (station IDs, airfield weather, marine forecast, bulletins)",
+  "blues": "Blues - swamp / delta / slide, instrumental",
+  "classical": "Classical - calm piano"
  },
  "items": [
   {
@@ -110,7 +110,7 @@
   },
   {
    "id": 279362,
-   "station": "jazzblues",
+   "station": "jazz",
    "contexts": [
     "garage"
    ],
@@ -118,5 +118,5 @@
    "note": "user: jazz section"
   }
  ],
- "stationsRule": "the user, 2026-10-04: max 6 stations, covering a large panel, all calm"
+ "stationsRule": "the user, 2026-10-04: six stations - Jazz, Lo-fi/Hip-hop, Dub/Ambient, Local roots radio, Blues, Classical; all calm; PURE INSTRUMENTAL (no lyrics)"
 }
