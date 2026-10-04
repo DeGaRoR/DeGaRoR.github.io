@@ -43,6 +43,13 @@ function buildPatternVis(THREE, pattern, groundY, core) {
                    // pilot's planned legs in the air (its circuit, drawn as it plans it)
                    papi: new THREE.Group(), legs: new THREE.Group() };
   for (const k in layers) { layers[k].name = 'pattern:' + k; layers[k].renderOrder = 8; group.add(layers[k]); }
+  // G1370 (UI-LAYER, the user: the path ribbons "reflect, and they're not hidden in screenshot mode. They should be
+  // clearly considered UI elements"): the graph, the slopes, the targets and the pilot's legs are drawn ON the
+  // picture - claimed onto the UI layer (ui_layer.js: the main camera alone sees it; the mirror, the probes and photo
+  // mode do not; they never cast). The PAPI is not: it is a fixture of the airfield, lit, and it reflects
+  const UIL = (typeof UI_LAYER !== 'undefined') ? UI_LAYER : null;
+  const ui = o => (UIL ? UIL.claim(o) : o);
+  const UI_KEYS = ['graph', 'slope', 'targets', 'legs'];
 
   // ---- the graph -----------------------------------------------------------
   const sampler = core && core.patternPath;
@@ -297,13 +304,13 @@ function buildPatternVis(THREE, pattern, groundY, core) {
     g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(pos), 3));
     legsObj = new THREE.LineSegments(g, lineMat(0xffb257, 0.55));
     legsObj.renderOrder = 8; legsObj.frustumCulled = false;
-    layers.legs.add(legsObj);
+    layers.legs.add(ui(legsObj));
   };
 
   let activeK = -1;
   const api = {
     papiUpdate, setLegs,
-    group, layers,
+    group, layers, UI_KEYS,
     // the direction the pilot is landing (frame.k) brightens that slope and
     // redraws it at the slope actually flown
     setActive(k, gsActive) {
@@ -313,7 +320,7 @@ function buildPatternVis(THREE, pattern, groundY, core) {
           layers.slope.remove(so.obj);
           if (so.obj.geometry) so.obj.geometry.dispose();
           so.obj = so.mk(gsActive); so.gs = gsActive;
-          layers.slope.add(so.obj);
+          layers.slope.add(ui(so.obj));
         }
         so.obj.material.opacity = on ? 0.9 : 0.3;
       }
@@ -334,6 +341,7 @@ function buildPatternVis(THREE, pattern, groundY, core) {
       if (group.parent) group.parent.remove(group);
     },
   };
+  for (const k of UI_KEYS) ui(layers[k]);   // G1370: everything built above (setLegs / setActive claim what they add later)
   api.setLayers({ graph: false, slope: false, targets: false });
   return api;
 }

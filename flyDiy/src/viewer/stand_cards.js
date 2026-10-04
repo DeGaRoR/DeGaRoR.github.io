@@ -119,7 +119,7 @@ const STAND_CARDS = (() => {
         if (!ISLC || !ISLC.ttype) continue;
         if (!forestHere(x, z) && !openHere(x, z)) continue;
         const tt = ttypeAt(x, z); if (tt < 2) continue;
-        const mix = BIO.mixAt(codeAt(x, z, hsh(gx + 21, gz + 23))); if (!mix) continue;
+        const mix = BIO.mixHere ? BIO.mixHere(codeAt(x, z, hsh(gx + 21, gz + 23)), x, z) : BIO.mixAt(codeAt(x, z, hsh(gx + 21, gz + 23))); if (!mix) continue;
         const MF = BIO.mixOf(mix).forest || {};
         let can = ISLC.canopyAt(x, z), floored = false;
         if (tt === 3 || tt === 2) can = Math.min(can, 3.0);

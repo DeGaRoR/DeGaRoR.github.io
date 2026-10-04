@@ -1,0 +1,20 @@
+[19:35:14] loaded {"state":"ready","sec":98.8}
+[19:35:17] rollOut "bGo"
+[19:35:27] rolledOut {"n":2,"kind":"rollout","done":true,"ms":9104,"anim":"played","ran":[],"boot":"gone","shed":false}
+[19:35:29] run 2.8499999999997123
+[19:35:33] skip "ok"
+[19:37:34] lineupTrip null
+[19:37:39] fly {"t":243289.09999996424,"ph":"BASE","agl":128.5,"progs":436,"add":420,"worst":133.4}
+[19:37:54] fly {"t":258359.59999996424,"ph":"BASE","agl":130.5,"progs":436,"add":420,"worst":50}
+[19:38:09] fly {"t":273398.59999996424,"ph":"BASE","agl":132.3,"progs":436,"add":420,"worst":50}
+[19:38:24] fly {"t":288488,"ph":"FINAL","agl":158.7,"progs":436,"add":420,"worst":49.9}
+[19:38:39] fly {"t":303534.09999996424,"ph":"FINAL","agl":133.9,"progs":436,"add":420,"worst":33.5}
+[19:38:54] fly {"t":318584.2999999523,"ph":"FINAL","agl":106.4,"progs":436,"add":420,"worst":50}
+[19:38:54] guard {"held":20,"compiles":18,"ready":18,"timedOut":0}
+[19:38:54] lamps {"armed":true,"ready":null,"prepping":null,"litNow":0,"pool":8}
+programs: 420 made, 27 destroyed; 1 made from the skip on
+frames over 250 ms after the skip: []
+  1 x SAME KEY AS AN EARLIER PROGRAM (released and re-made)
+     names 
+     frames 41407 lights D2/2 P10/0 S1/0 H1 rt rt2770x1279 boot gone
+     who Object.x [as acquireProgram] @index.html?day=2026-06-22T06:30Z:9085:12209 < yl @index.html?day=2026-06-22T06:30Z:9136:39715 < $d @index.html?day=2026-06-22T06:3

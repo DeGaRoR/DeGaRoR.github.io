@@ -113,9 +113,15 @@ function simHostProbe(world, pts, t, H, opts) {
 }
 // the core names the worker's Blob picks out of the imported bundle
 const SIM_HOST_CORE = ['ISLAND_GEN', 'makeWorld', 'buildGen', 'makeSim', 'makePilot', 'makeAutopilot',
-                       'makeTestPilot', 'navMake', 'siteOf', 'placeAtStand', 'placeAtAerodrome', 'seatOnGround', 'placeAtLineup'];
+                       'makeTestPilot', 'navMake', 'siteOf', 'placeAtStand', 'placeAtAerodrome', 'seatOnGround', 'placeAtLineup',
+                       'stripSurface', 'stripGear'];
 const SIM_HOST_DT = 1 / 60;
 const SIM_HOST_CATCH = 4;          // steps owed per turn at most (G586's frame owed 4)
+// G1365 (SIM-STALL): THE PAGE'S HEARTBEAT. The page beats once a drawn frame ({cmd:'beat'}, sim_view.js frame(T));
+// the clock steps no further than this past the last beat it heard. A page that stops presenting frames (a main-thread
+// freeze - the user's 79 s one, a tab away) HOLDS the flight there, and the next beat re-anchors the clock: the flight
+// goes on from where it held, the lost wall time not owed (no catch-up, no teleport). PACE's stall (app.js) is the same 250 ms
+const SIM_HOST_STALL_MS = 250;
 const SIM_HOST_POOL = 7;           // snapshot buffers: the page holds up to five (sim_view.js's ring, G1100), the host writes the next, one in flight
 const SIM_HOST_LOG = 8192;         // applied commands kept for {cmd:'log'}
 // THE SNAPSHOT'S HEAD (float64 slots), then p (3n), then v (3n, when asked), then the fuel nodes' masses
@@ -307,10 +313,13 @@ function makeSimHost(CORE, init, keptWorld) {
     const PL = init.place || {}, ap = H.ap;
     const from = aeroById(PL.from || 'HOME');
     const to = (PL.to == null || PL.to === 'CIRCUIT') ? from : aeroById(PL.to);
-    if (sim.hydro) {
-      const sea = aeroById('SEA') || { hdg: Math.PI / 2, spawn: [0, 1285], elev: 0 };
+    // G1375 (app.js applyRoute): the water lane the page's route names, the old SEA when it names land
+    const wet = a => a && (typeof CORE.stripSurface === 'function' ? CORE.stripSurface(a).cls === 'water' : a.kind === 'water');
+    const gearK = typeof CORE.stripGear === 'function' ? CORE.stripGear(def && def.spec && def.spec.gear ? def : sim) : 'floats';
+    if (sim.hydro && (wet(from) || gearK === 'floats')) {
+      const sea = wet(from) ? from : ((world.aerodromes || []).find(wet) || aeroById('SEA') || { hdg: Math.PI / 2, spawn: [0, 1285], elev: 0 });
       CORE.placeAtAerodrome(sim, sea);
-      ap.setRoute(sea, (PL.to == null || PL.to === 'CIRCUIT' || PL.to === 'SEA') ? sea : to);
+      ap.setRoute(sea, (PL.to == null || PL.to === 'CIRCUIT' || to === from) ? sea : to);
       return;
     }
     if (typeof sim.stance === 'function') sim.stance();
@@ -616,9 +625,10 @@ function simHostBody(CORE, SH, port) {
   let making = false, held = [];    // G820: a boot being fetched - what arrives meanwhile waits for it, in order
   let pool = [], allocs = 0, seq = 0;
   let running = false, wall0 = 0, step0 = 0, rate = 1, timer = null;
+  let beatAt = 0, stalled = false;  // G1365: the last page beat heard (wall ms); the clock held for want of one
   // G612's readings: a step's cost (ms, eased), the dilation's window (sim s at the set rate over wall s,
   // decaying over a second) and the sim time let go when the physics cannot hold real time
-  const P = { stepMs: 0, simW: 0, wallW: 0, lastWall: 0, droppedS: 0, guarded: 0 };
+  const P = { stepMs: 0, simW: 0, wallW: 0, lastWall: 0, droppedS: 0, guarded: 0, stalls: 0, stallS: 0, stallAt: 0 };
   const dil = () => (P.wallW > 0.2 ? P.simW / P.wallW : 1);
   const post = (m, tr) => { try { port.post(m, tr || []); } catch (e) { /* the page is gone */ } };
   // (due: G1100, the newest state's moment on the clock's schedule - the pump's; none = now)
@@ -642,7 +652,11 @@ function simHostBody(CORE, SH, port) {
   function pump() {
     timer = null;
     if (!running || !H) return;
-    const t = wallNow();
+    let t = wallNow();
+    // G1365: the page has drawn nothing for SIM_HOST_STALL_MS - the clock runs to that moment and holds (the next beat
+    // goes on from here: beat() below)
+    const cut = beatAt + SIM_HOST_STALL_MS, hold = t > cut;
+    if (hold) t = cut;
     const dW = Math.min(0.25, Math.max(0, (t - P.lastWall) / 1000));
     P.lastWall = t;
     let owed = Math.floor((t - wall0) / 1000 * 60 * rate) - (H.steps - step0);
@@ -662,10 +676,18 @@ function simHostBody(CORE, SH, port) {
     P.simW = P.simW * k + ran / 60 / rate; P.wallW = P.wallW * k + dW;
     if (ran) publish(ran, maxMs, wall0 + (H.steps - step0) / (60 * rate) * 1000);   // one snapshot a turn: the newest state (G1100: stamped with when it was due)
     if (!running) return;
+    if (hold) { stalled = true; P.stalls++; P.stallAt = cut; return; }   // held: no timer until a beat
     const next = wall0 + (H.steps - step0 + 1) / (60 * rate) * 1000;
     timer = setTimeout(pump, Math.max(0, next - wallNow()));
   }
-  function stopClock() { running = false; if (timer) { clearTimeout(timer); timer = null; } }
+  function stopClock() { running = false; stalled = false; if (timer) { clearTimeout(timer); timer = null; } }
+  // G1365: the page drew a frame. A held clock re-anchors on now: the wall time it spent held is let go, not owed
+  function beat() {
+    beatAt = wallNow();
+    if (!running || !stalled || !H) return;
+    stalled = false; P.stallS += (beatAt - P.stallAt) / 1000;
+    anchor(); pump();
+  }
   function initHost(m) {
     stopClock();
     const keep = m.world === 'keep' ? world : null;
@@ -731,7 +753,8 @@ function simHostBody(CORE, SH, port) {
           initHost(m);
           return;
         case 'release': if (m.buf) pool.push(m.buf); return;
-        case 'run': if (H && !running) { running = true; anchor(); pump(); } return;
+        case 'run': if (H && !running) { running = true; beatAt = wallNow(); anchor(); pump(); } return;
+        case 'beat': beat(); return;
         case 'pause': stopClock(); if (H) publish(0, 0); return;
         // G1096: a rig's placement - at once, at this step boundary (lockstep: after every step the page posted; real
         // time: between two turns), the snapshot published, then the word the page's promise waits for
@@ -766,7 +789,7 @@ function simHostBody(CORE, SH, port) {
         case 'resend': if (H) { H.forgetRare(); publish(0, 0); } return;   // a new view: the pilot's rare fields again
         case 'log': if (H) { post({ kind: 'log', list: H.log.slice(), dropped: H.logDropped, late: H.late }); if (m.clear) H.log.length = 0; } return;
         case 'ping': post({ kind: 'pong', t: m.t, tw: wallNow(), buf: m.buf }, m.buf ? [m.buf] : []); return;
-        case 'state': post({ kind: 'state', running, rate, stepMs: P.stepMs, dilation: dil(), droppedS: P.droppedS, guarded: P.guarded,
+        case 'state': post({ kind: 'state', running, rate, stepMs: P.stepMs, dilation: dil(), droppedS: P.droppedS, guarded: P.guarded, stalls: P.stalls, stallS: P.stallS, stalled,
                              allocs, steps: H ? H.steps : 0, late: H ? H.late : 0, queued: H ? H.queue.length : 0,
                              worldV: world ? world.__simV || 0 : 0, preWorld: preWorld.length, dropped }); return;
         case 'stop': stopClock(); H = null; world = null; if (port.close) port.close(); return;
@@ -826,5 +849,5 @@ if (typeof window !== 'undefined') {
                       place: simHostPlace, KEYS: SIM_HOST_KEYS, SNAP: SIM_SNAP };
 }
 if (typeof module !== 'undefined' && module.exports)
-  module.exports = { SIM_HOST_KEYS, SIM_HOST_CORE, SIM_HOST_DT, SIM_HOST_CATCH, SIM_SNAP, simHostTrimBoot, simHostBootBytes, simHostWorldOp, simHostIsWorldOp, simHostMakeWorld, simHostProbe, simHostPlace,
+  module.exports = { SIM_HOST_KEYS, SIM_HOST_CORE, SIM_HOST_DT, SIM_HOST_CATCH, SIM_HOST_STALL_MS, SIM_SNAP, simHostTrimBoot, simHostBootBytes, simHostWorldOp, simHostIsWorldOp, simHostMakeWorld, simHostProbe, simHostPlace,
                      simHostFetchBoot, simHostPlain, makeSimHost, simHostDefSig, simHostBody, simHostSource, simHostStart };

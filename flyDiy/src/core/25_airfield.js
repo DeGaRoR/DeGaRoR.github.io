@@ -939,3 +939,82 @@ function sitePatternIssues(pat, aero, site, Rmin, patternPath) {
   }
   return out;
 }
+
+// ===========================================================================
+// THE STRIP'S SURFACE, AND WHO MAY LAND ON IT (G1375 STRIP-SURFACE, the user 2026-10-03: "We need to indicate the
+// strip surface: water, dirt, concrete, grass, etc. And disallow the water runways for the wheel planes, and the
+// ground runways for the seaplanes.")
+// ===========================================================================
+// DERIVED, NOT LISTED: every aerodrome record already says what it is - `kind: 'water'` / `water` (a sea lane),
+// the SURFACE enum (20_world's SURFACE, 27_premises' copy: the analytic strips and the generated ones), and on a
+// premises strip the runway's LOOK (27_premises RUNWAY_LOOKS: concrete, old concrete, asphalt, gravel, dirt, sand,
+// grass), which names the pavement finer than the friction enum does (dirt rides GRAVEL's row there). The look
+// wins where it names something; the enum otherwise. `snow` is in the vocabulary for a record that says so
+// (`snow: true` or `look: 'snow'`) - no world carries one yet, and the friction enum has no row for it.
+// -> { key, word, cls } - cls is what the gear rule reads: 'water' | 'snow' | 'grass' | 'hard'
+const STRIP_SURFACES = {
+  asphalt:  { word: 'asphalt',  cls: 'hard' },
+  concrete: { word: 'concrete', cls: 'hard' },
+  paved:    { word: 'paved',    cls: 'hard' },
+  gravel:   { word: 'gravel',   cls: 'hard' },
+  dirt:     { word: 'dirt',     cls: 'hard' },
+  sand:     { word: 'sand',     cls: 'hard' },
+  grass:    { word: 'grass',    cls: 'grass' },
+  snow:     { word: 'snow',     cls: 'snow' },
+  water:    { word: 'water',    cls: 'water' },
+};
+const STRIP_LOOK_SURF = { asphalt: 'asphalt', concrete: 'concrete', worn: 'concrete', gravel: 'gravel', dirt: 'dirt', sand: 'sand', grass: 'grass', snow: 'snow' };
+// the SURFACE enum's index -> the vocabulary (GRASS 0, ROCK 1, SCREE 2, FOREST_FLOOR 3, WATER 4, PAVED 5, GRAVEL 6, SAND 7)
+const STRIP_ENUM_SURF = ['grass', 'gravel', 'gravel', 'dirt', 'water', 'paved', 'gravel', 'sand'];
+function stripSurface(a) {
+  const mk = key => Object.assign({ key }, STRIP_SURFACES[key]);
+  if (!a) return mk('grass');
+  if (a.kind === 'water' || a.water || +a.surface === 4) return mk('water');
+  if (a.snow || a.look === 'snow') return mk('snow');
+  if (typeof a.look === 'string' && STRIP_LOOK_SURF[a.look]) return mk(STRIP_LOOK_SURF[a.look]);
+  const e = STRIP_ENUM_SURF[+a.surface];
+  return mk(e || 'grass');
+}
+// THE GEAR, as the rule reads it: 'wheels' | 'floats' | 'amphibian' | 'skis'. Asked of a spec (gear.type), a built
+// def (def.spec), or a running sim (sim.hydro: the solver carries floats). The spec's normaliser knows taildragger /
+// tricycle / floats today; `amphibian` (or floats with `amphibian: true`) and `skis` are read where a record says
+// so, so the rule below is whole the day the garage builds one
+function stripGear(x) {
+  if (!x) return 'wheels';
+  if (typeof x === 'string') return x;
+  const g = (x.gear && typeof x.gear === 'object') ? x.gear : (x.spec && x.spec.gear) || null;
+  if (g) {
+    const t = String(g.type || '');
+    if (t === 'amphibian' || (g.floats && g.floats.amphibian === true)) return 'amphibian';
+    if (t === 'skis' || g.skis === true) return 'skis';
+    if (t === 'floats') return 'floats';
+    return 'wheels';
+  }
+  return x.hydro ? 'floats' : 'wheels';
+}
+// THE RULE: wheels - anywhere but water; floats - water only; amphibians - both; skis - snow, and grass.
+// -> { ok, why } - `why` is the sentence a disabled choice shows
+function stripAllows(gear, a) {
+  const G = stripGear(gear), S = stripSurface(a);
+  if (G === 'amphibian') return { ok: true, why: '' };
+  if (G === 'floats') return S.cls === 'water' ? { ok: true, why: '' } : { ok: false, why: 'floats land on water only' };
+  if (G === 'skis') return (S.cls === 'snow' || S.cls === 'grass') ? { ok: true, why: '' } : { ok: false, why: 'skis need snow or grass' };
+  return S.cls === 'water' ? { ok: false, why: 'a water lane: wheels cannot land on it' } : { ok: true, why: '' };
+}
+// THE GRACEFUL FALLBACK: `want` if this gear may use it, else HOME, else SEA, else the first aerodrome it may
+// (meadows aside: they are no route's end) - null when the world has none for it
+function stripFallback(gear, aerodromes, want) {
+  const L = aerodromes || [];
+  if (want && stripAllows(gear, want).ok) return want;
+  const ok = a => a && a.kind !== 'meadow' && stripAllows(gear, a).ok;
+  return L.find(a => a.id === 'HOME' && ok(a)) || L.find(a => a.id === 'SEA' && ok(a)) || L.find(ok) || null;
+}
+// THE PILOTS' GUARD (40_autopilot, 41_test_pilot, 43_pilot setRoute / departFrom): a destination this gear may not
+// land on is never planned - the circuit at `from` when it may, else the fallback above; `why` is the verdict
+// line (empty when nothing changed, or when the world offers nothing better)
+function stripLandable(gear, aerodromes, from, to) {
+  if (!to || stripAllows(gear, to).ok) return { to, why: '' };
+  const alt = stripFallback(gear, aerodromes, from);
+  if (!alt || alt === to) return { to, why: '' };
+  return { to: alt, why: (to.name || to.id) + ' is ' + stripSurface(to).word + ' (' + stripAllows(gear, to).why + ') - landing at ' + (alt.name || alt.id) + ' instead' };
+}

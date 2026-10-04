@@ -1,0 +1,14 @@
+[18:40:06] loaded {"state":"ready","sec":109.8}
+[18:40:09] rollOut "bGo"
+[18:40:18] rolledOut {"n":2,"kind":"rollout","done":true,"ms":9210,"anim":"played","ran":[],"boot":"gone","shed":false}
+[18:40:21] run 2.333333333333433
+[18:40:25] skip "ok"
+[18:42:25] lineupTrip null
+[18:42:30] fly {"t":254025.10000002384,"ph":"DOWNWIND","agl":129,"progs":382,"add":364,"worst":166.8}
+[18:42:45] fly {"t":269107,"ph":"BASE","agl":128.3,"progs":382,"add":364,"worst":50.1}
+programs: 364 made, 17 destroyed; 1 made from the skip on
+frames over 250 ms after the skip: [[177482,317]]
+  1 x SAME KEY AS AN EARLIER PROGRAM (released and re-made)
+     names 
+     frames 38373 lights D2/2 P2/0 S1/0 H1 rt rt2770x1279 boot gone
+     who Object.x [as acquireProgram] @index.html:9085:12209 < yl @index.html:9136:39715 < og @index.html:9136:43996 < Jd.renderBufferDirect @index.html:9136:29712

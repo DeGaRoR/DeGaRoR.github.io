@@ -256,6 +256,8 @@
 #flActs { position:absolute; right:22px; bottom:18px;
   display:flex; align-items:center; gap:9px; flex-wrap:wrap;
   justify-content:flex-end; max-width:calc(100% - 44px); }
+/* G1370 (UI-LAYER): the verbs wait for the reveal - none of them during the roll-out shot (app.js rollShotUi) */
+body.rollShot #flActs { display:none !important; }
 
 #ui .verb { font:500 12px/1 'IBM Plex Sans'; letter-spacing:.1em;
   text-transform:uppercase; color:var(--ed-ink);

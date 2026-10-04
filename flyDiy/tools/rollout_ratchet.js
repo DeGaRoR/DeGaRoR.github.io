@@ -23,21 +23,23 @@
 // refresh count - the judder a 60 Hz screen shows), dt p99, loop JS, render CPU, solver, frames over 100 ms after the
 // reveal, main-thread tasks over 1 s and over 200 ms (boot included), the longest world slice, the roll-out screen
 // (garage ready -> reveal), the roll-out's compile step, the settings probe's worst task.
+// THE DISTRIBUTION (G1360, GATE-TOOLS; the user, 2026-10-03: "a distribution instead of one uneven %"): every frame after the
+// reveal through tools/frame_dist.js - the histogram (< 20 ... > 1000 ms), p50 / p90 / p99 / p99.9, the share over 1.5x and
+// 3x the frame's own cap, the frames over 100 ms and 1 s. The ratchet GATES on p99 (the taxi's and every frame's), the
+// share over 1.5x the cap (every frame's and the taxi's) and the frames over 100 ms, each with its slack; the uneven share,
+// p99.9, the share over 3x and the frames over 1 s are printed beside them (INFO rows: no verdict). Read from the run's
+// frames, so a run JSON from before G1360 is measured too; a baseline from before it says "not measured" until --update.
 // Absolute targets (PLAYTEST-2026-09-26 §4, printed, not the ratchet's verdict): R1 no frame over 100 ms after the
 // reveal, R2 never 3 s below 30, R3 >= 50 fps delivered, R4 no task over 1 s, R5 uneven <= 15 % and p99 <= 2 x the
 // cap's interval.
 'use strict';
 const fs = require('fs'), path = require('path');
-const args = process.argv.slice(2);
-const UPDATE = args.includes('--update');
-const bi = args.indexOf('--baseline');
-const BASE = bi >= 0 ? args[bi + 1] : path.join(__dirname, 'perf', 'ratchet_baseline.json');
-const files = args.filter((a, i) => !a.startsWith('--') && !(bi >= 0 && i === bi + 1));
-if (!files.length) { console.error('usage: node tools/rollout_ratchet.js [--update] [--baseline f.json] run1.json [run2.json ...]'); process.exit(2); }
+const FD = require('./frame_dist.js');
 
 const REFRESH = 1000 / 60;
 const med = a => { const s = a.filter(x => x != null && isFinite(x)).sort((x, y) => x - y); if (!s.length) return null; const m = s.length >> 1; return s.length & 1 ? s[m] : (s[m - 1] + s[m]) / 2; };
 const r2 = x => x == null ? null : Math.round(x * 100) / 100;
+const r4 = x => x == null ? null : Math.round(x * 10000) / 10000;
 
 // one run -> its metrics
 function metrics(j) {
@@ -46,7 +48,10 @@ function metrics(j) {
   // the last element holding one of the phase names
   const PH = new Set(['stand', 'taxi', 'takeoff', 'air']), f0 = (j.frames || []).find(r => r.some(v => PH.has(v)));
   let li = -1; if (f0) for (let i = f0.length - 1; i >= 0; i--) if (PH.has(f0[i])) { li = i; break; }
-  const fr = li < 0 ? [] : (j.frames || []).filter(r => r[li] === 'taxi');
+  const all = (j.frames || []).filter(r => r[1] > 0);
+  const fr = li < 0 ? [] : all.filter(r => r[li] === 'taxi');
+  // G1360: the distributions - every frame after the reveal, and the taxi's (frame rows: [t, dt, ..., cap at 6, ...])
+  const dAll = FD.dist(all.map(r => r[1]), all.map(r => r[6])), dTaxi = FD.dist(fr.map(r => r[1]), fr.map(r => r[6]));
   let uneven = null;
   if (fr.length > 10) {   // the refresh count of each interval; uneven = it changed from the previous one
     let n = 0, ch = 0, prev = null;
@@ -84,14 +89,25 @@ function metrics(j) {
     flight: j.tReveal != null && j.tGarage != null ? j.tGarage + j.tReveal : null,
     compile, settings: settingsWorst,
     cap: taxi.cap30 != null && taxi.cap30 > 0.5 ? 30 : 60,
+    p99all: dAll.n ? dAll.p99 : null, over15: dAll.n ? dAll.over15.share : null, taxiOver15: dTaxi.n ? dTaxi.over15.share : null,
+    p999: dAll.n ? dAll.p999 : null, over3x: dAll.n ? dAll.over3x.share : null, over1s: dAll.n ? dAll.over1s : null,
+    _dts: all.map(r => r[1]), _caps: all.map(r => r[6]),   // (pooled per group for the printed histogram; not stored)
   };
 }
 
 // the ratchet: direction, relative tolerance, absolute slack (a small number's noise is absolute, not relative)
+// (info: printed beside the gated rows, no verdict - G1360: the uneven share is read through the distribution now)
 const RULES = {
   fps:      { up: true,  rel: 0.05, abs: 1.0,  unit: 'fps' },
-  uneven:   { up: false, rel: 0,    abs: 0.05, unit: '' },
-  p99:      { up: false, rel: 0.10, abs: 2,    unit: 'ms' },
+  // p99 / over15: one frame / 2 points of slack (A0's noise check 2026-10-03: at a 30 cap p99 moves a whole frame, 33 -> 50 ms)
+  p99:      { up: false, rel: 0.10, abs: 17,   unit: 'ms' },   // the taxi's
+  p99all:   { up: false, rel: 0.10, abs: 17,   unit: 'ms' },   // G1360: every frame after the reveal
+  over15:   { up: false, rel: 0.20, abs: 0.02, unit: '' },     // G1360: the share of frames over 1.5x their cap's frame time
+  taxiOver15: { up: false, rel: 0.20, abs: 0.02, unit: '' },
+  uneven:   { up: false, rel: 0,    abs: 0.05, unit: '', info: true },
+  p999:     { up: false, rel: 0.25, abs: 10,   unit: 'ms', info: true },
+  over3x:   { up: false, rel: 0.25, abs: 0.002, unit: '', info: true },
+  over1s:   { up: false, rel: 0,    abs: 0,    unit: '', info: true },
   loop:     { up: false, rel: 0.10, abs: 0.8,  unit: 'ms' },
   render:   { up: false, rel: 0.10, abs: 0.6,  unit: 'ms' },
   solver:   { up: false, rel: 0.15, abs: 0.6,  unit: 'ms' },
@@ -107,19 +123,6 @@ const RULES = {
   settings: { up: false, rel: 0.20, abs: 150,  unit: 'ms' },
 };
 
-const groups = {};
-for (const f of files) {
-  const j = JSON.parse(fs.readFileSync(f, 'utf8'));
-  const key = [path.basename(String(j.build || 'OLD-STOCK')), j.cold ? 'cold' : 'warm', j.world || 'jolene', (j.size || []).join('x'), j.gpu || '?'].join(' | ')
-    + (j.camAsked ? ' | view ' + j.camAsked : '');   // A5-CAP: the cockpit profile is its own group
-  (groups[key] = groups[key] || []).push({ f, m: metrics(j), fx: { cold: !!j.cold } });
-}
-const agg = {};
-for (const [k, runs] of Object.entries(groups)) {
-  const o = {}; for (const name of Object.keys(RULES).concat(['below30s', 'cap'])) o[name] = r2(med(runs.map(r => r.m[name])));
-  o.runs = runs.length; o.files = runs.map(r => path.basename(r.f)); agg[k] = o;
-}
-
 function targets(k, m) {
   const capIv = 1000 / (m.cap || 60);
   const t = [['R1 no frame > 100 ms', m.over100 === 0], ['R2 < 3 s below 30', m.below30s != null && m.below30s < 3], ['R3 >= 50 fps delivered', m.fps != null && m.fps >= 50],
@@ -127,34 +130,61 @@ function targets(k, m) {
   return t.map(([n, ok]) => (ok ? 'PASS ' : 'FAIL ') + n).join(' · ');
 }
 
-if (UPDATE) {
-  const out = { date: new Date().toISOString(), note: 'rollout_ratchet baseline (G1015): medians per group; re-take after every landed train with --update', groups: agg };
-  fs.mkdirSync(path.dirname(BASE), { recursive: true });
-  fs.writeFileSync(BASE, JSON.stringify(out, null, 1) + '\n');
-  for (const [k, m] of Object.entries(agg)) console.log(`BASELINE ${k} (${m.runs} runs)\n  ${Object.keys(RULES).map(n => `${n} ${m[n]}`).join(' · ')}\n  targets: ${targets(k, m)}`);
-  console.log(`-> ${BASE}`);
-  process.exit(0);
-}
-
-if (!fs.existsSync(BASE)) { console.error(`no baseline at ${BASE} - take one with --update`); process.exit(2); }
-const base = JSON.parse(fs.readFileSync(BASE, 'utf8')).groups || {};
-let red = 0, compared = 0;
-for (const [k, m] of Object.entries(agg)) {
-  const b = base[k];
-  console.log(`\n== ${k}  (${m.runs} run${m.runs > 1 ? 's' : ''}${m.runs < 2 ? ' - ONE run: noise not averaged, re-run before trusting a red' : ''})`);
-  if (!b) { console.log('  no baseline for this group (another build, GPU or size?) - not compared'); continue; }
-  compared++;
-  for (const [n, R] of Object.entries(RULES)) {
-    const now = m[n], was = b[n];
-    if (now == null || was == null) { console.log(`  ${n.padEnd(9)} ${String(was).padStart(8)} -> ${String(now).padStart(8)}  (not measured)`); continue; }
-    const slack = Math.max(R.abs, Math.abs(was) * R.rel);
-    const worse = R.up ? was - now : now - was;
-    const verdict = worse > slack ? 'RED' : (worse < -slack ? 'better (ratchet down: --update after landing)' : 'ok');
-    if (verdict === 'RED') red++;
-    console.log(`  ${n.padEnd(9)} ${String(was).padStart(8)} -> ${String(now).padStart(8)} ${R.unit.padEnd(3)} (slack ${r2(slack)})  ${verdict}`);
+// the main (G1360: the module also exports metrics() and RULES - tools/perf/train_gate.js reads the runs the same way)
+function main() {
+  const args = process.argv.slice(2);
+  const UPDATE = args.includes('--update');
+  const bi = args.indexOf('--baseline');
+  const BASE = bi >= 0 ? args[bi + 1] : path.join(__dirname, 'perf', 'ratchet_baseline.json');
+  const files = args.filter((a, i) => !a.startsWith('--') && !(bi >= 0 && i === bi + 1));
+  if (!files.length) { console.error('usage: node tools/rollout_ratchet.js [--update] [--baseline f.json] run1.json [run2.json ...]'); process.exit(2); }
+  const groups = {};
+  for (const f of files) {
+    const j = JSON.parse(fs.readFileSync(f, 'utf8'));
+    const key = [path.basename(String(j.build || 'OLD-STOCK')), j.cold ? 'cold' : 'warm', j.world || 'jolene', (j.size || []).join('x'), j.gpu || '?'].join(' | ')
+      + (j.camAsked ? ' | view ' + j.camAsked : '');   // A5-CAP: the cockpit profile is its own group
+    (groups[key] = groups[key] || []).push({ f, m: metrics(j), fx: { cold: !!j.cold } });
   }
-  console.log(`  targets: ${targets(k, m)}`);
+  const agg = {};
+  const pooled = {};   // G1360: every run's frames of a group, pooled: the printed histogram
+  for (const [k, runs] of Object.entries(groups)) {
+    const o = {}; for (const name of Object.keys(RULES).concat(['below30s', 'cap'])) o[name] = /^(over15|taxiOver15|over3x)$/.test(name) ? r4(med(runs.map(r => r.m[name]))) : r2(med(runs.map(r => r.m[name])));
+    o.runs = runs.length; o.files = runs.map(r => path.basename(r.f)); agg[k] = o;
+    pooled[k] = FD.dist([].concat(...runs.map(r => r.m._dts)), [].concat(...runs.map(r => r.m._caps)));
+  }
+
+  if (UPDATE) {
+    const out = { date: new Date().toISOString(), note: 'rollout_ratchet baseline (G1015): medians per group; re-take after every landed train with --update', groups: agg };
+    fs.mkdirSync(path.dirname(BASE), { recursive: true });
+    fs.writeFileSync(BASE, JSON.stringify(out, null, 1) + '\n');
+    for (const [k, m] of Object.entries(agg)) console.log(`BASELINE ${k} (${m.runs} runs)\n  ${Object.keys(RULES).map(n => `${n} ${m[n]}`).join(' · ')}\n  lengths: ${FD.line(pooled[k])}\n  targets: ${targets(k, m)}`);
+    console.log(`-> ${BASE}`);
+    process.exit(0);
+  }
+
+  if (!fs.existsSync(BASE)) { console.error(`no baseline at ${BASE} - take one with --update`); process.exit(2); }
+  const base = JSON.parse(fs.readFileSync(BASE, 'utf8')).groups || {};
+  let red = 0, compared = 0;
+  for (const [k, m] of Object.entries(agg)) {
+    const b = base[k];
+    console.log(`\n== ${k}  (${m.runs} run${m.runs > 1 ? 's' : ''}${m.runs < 2 ? ' - ONE run: noise not averaged, re-run before trusting a red' : ''})`);
+    if (!b) { console.log('  no baseline for this group (another build, GPU or size?) - not compared'); continue; }
+    compared++;
+    for (const [n, R] of Object.entries(RULES)) {
+      const now = m[n], was = b[n];
+      if (now == null || was == null) { console.log(`  ${n.padEnd(10)} ${String(was).padStart(8)} -> ${String(now).padStart(8)}  (not measured)`); continue; }
+      const slack = Math.max(R.abs, Math.abs(was) * R.rel);
+      const worse = R.up ? was - now : now - was;
+      const verdict = R.info ? (worse > slack ? 'info (worse)' : 'info') : worse > slack ? 'RED' : (worse < -slack ? 'better (ratchet down: --update after landing)' : 'ok');
+      if (verdict === 'RED') red++;
+      console.log(`  ${n.padEnd(10)} ${String(was).padStart(8)} -> ${String(now).padStart(8)} ${R.unit.padEnd(3)} (slack ${r4(slack)})  ${verdict}`);
+    }
+    console.log(`  lengths (${m.runs} run${m.runs > 1 ? 's' : ''} pooled): ${FD.line(pooled[k])}`);
+    console.log(`  targets: ${targets(k, m)}`);
+  }
+  if (!compared) { console.error('\nNOTHING COMPARED: no group matches the baseline'); process.exit(2); }
+  console.log(red ? `\nRATCHET: RED (${red}) - the train does not land; find the cost or ALLOW it with the user` : '\nRATCHET: PASS');
+  process.exit(red ? 1 : 0);
 }
-if (!compared) { console.error('\nNOTHING COMPARED: no group matches the baseline'); process.exit(2); }
-console.log(red ? `\nRATCHET: RED (${red}) - the train does not land; find the cost or ALLOW it with the user` : '\nRATCHET: PASS');
-process.exit(red ? 1 : 0);
+if (require.main === module) main();
+module.exports = { metrics, RULES, med };

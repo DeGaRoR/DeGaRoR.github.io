@@ -220,33 +220,21 @@ const CAGE_PARTS = [
   // frame FOLLOWS, not the cabin's own. The boom's aft roof/keel and the
   // tail cone's section rows came here too — they were those frames' rows
   // already, filed under their bays.
+  // G1321 (2026-10-03, the user: "map these sections to their respective
+  // parts in the editor's tree"): each frame's group now sits under the part
+  // it shapes — nose frame -> Nose, windscreen / door-post / cabin frames -> Cabin
+  // (G1321.2: the windscreen frame back from Windscreen, the user's call), passenger -> Passenger bay, boom -> Boom, tail -> Tail cone. The
+  // reference section stays here (every frame follows it), and selecting
+  // Fuselage still shows every frame, part by part (an assembly shows its
+  // children's rows).
   { key: 'fuselage', name: 'Fuselage', parent: null, layer: 'cage',
     sections: ['body', 'ceilingLoop', 'floorLoop', 'waistband'],
     place: { at: 'the whole shell' },          // (waistY sits in the reference section since T2.2)
     groups: [
       ['reference section', ['roofY', 'keelY', 'waistY', 'halfW', 'roofHalfW']],
-      ['nose frame', ['frNoseTopY', 'frNoseBotY', 'frNoseTopW', 'frNoseBotW',
-                      'noseLen', 'frNoseBotZ']],
-      ['windscreen frame', ['frWinTopY', 'frWinWaistY', 'frWinBotY',
-                            'frWinTopW', 'frWinWaistW', 'frWinBotW',
-                            'wsTopOff', 'wsRun', 'frWinBotZ']],
-      ['door-post frame', ['frPostTopY', 'frPostWaistY', 'frPostBotY',
-                           'frPostTopW', 'frPostWaistW', 'frPostBotW',
-                           'frPostTopZ', 'frPostWaistZ', 'frPostBotZ'], EXPERT],
-      ['cabin frame', ['frCabTopY', 'frCabWaistY', 'frCabBotY',
-                       'frCabTopW', 'frCabWaistW', 'frCabBotW',
-                       'frCabTopZ', 'frCabWaistZ', 'frCabBotZ']],
-      ['passenger frame', ['frPaxTopY', 'frPaxWaistY', 'frPaxBotY',
-                           'frPaxTopW', 'frPaxWaistW', 'frPaxBotW',
-                           'frPaxTopZ', 'frPaxWaistZ', 'frPaxBotZ',
-                           'frPaxProfile', 'frPaxEase', 'frPaxBias',
-                           'frPaxBulgeH', 'frPaxBulgeW', 'frPaxLoops']],
-      ['boom frame', ['aftRoofY', 'frBoomWaistY', 'aftKeelY',
-                      'frBoomTopW', 'frBoomWaistW', 'frBoomBotW',
-                      'frBoomTopZ', 'frBoomWaistZ', 'frBoomBotZ']],
-      ['tail frame', ['tailRoofY', 'frTailWaistY', 'tailKeelY',
-                      'frTailTopW', 'tailHalfW', 'frTailBotW',
-                      'frTailTopZ', 'frTailWaistZ', 'frTailBotZ']],
+      // (the frames' own rows — nose, windscreen, door-post, cabin,
+      // passenger, boom, tail — sit with the part each frame shapes since
+      // G1321; selecting Fuselage still shows them all, part by part)
       ['longerons', ['bandH', 'crSill', 'crKeel', 'crCeil', 'ceilInset',
                      'ringPullIn']],
       ['section', ['topRound', 'botRound', 'topAngCeil', 'topAngRoof']],
@@ -261,6 +249,10 @@ const CAGE_PARTS = [
              at: 'forward of the windscreen' },
     groups: [
       // (noseLen is the nose FRAME's deck fore/aft since T2.1)
+      // G1321 (the user: "map these sections to their respective parts in
+      // the editor's tree"): the frame this part shapes, moved from Fuselage
+      ['nose frame', ['frNoseTopY', 'frNoseBotY', 'frNoseTopW', 'frNoseBotW',
+                      'noseLen', 'frNoseBotZ']],
       ['shape', ['noseW', 'noseH', 'noseDroop', 'noseCrown',
                  'wsBaseLift', 'crSillNose']],
       ['tip', ['noseTip', 'noseTipV', 'crNoseCap', 'crFrontCap']],
@@ -290,6 +282,21 @@ const CAGE_PARTS = [
       // (halfW / roofHalfW / roofY / keelY = the frames' REFERENCE SECTION
       // since T2.1; the cabin pillar pair is the CABIN FRAME there)
       ['dimensions', ['pilotLen', 'floorY']],
+      // G1321 (the user: "map these sections to their respective parts in
+      // the editor's tree"): the frames this part shapes, moved from Fuselage
+      // G1321.2 (the user, 2026-10-03, reversing G1321.1: "the windshield frame
+      // should sit under cabin, not windshield"): the cabin's front ring - wsRun /
+      // wsTopOff its waist / top fore-aft since T2.1 - first, nose to tail; it
+      // stays reachable on a glazeOn=0 build (an open cockpit still has the ring)
+      ['windscreen frame', ['frWinTopY', 'frWinWaistY', 'frWinBotY',
+                            'frWinTopW', 'frWinWaistW', 'frWinBotW',
+                            'wsTopOff', 'wsRun', 'frWinBotZ']],
+      ['door-post frame', ['frPostTopY', 'frPostWaistY', 'frPostBotY',
+                           'frPostTopW', 'frPostWaistW', 'frPostBotW',
+                           'frPostTopZ', 'frPostWaistZ', 'frPostBotZ'], EXPERT],
+      ['cabin frame', ['frCabTopY', 'frCabWaistY', 'frCabBotY',
+                       'frCabTopW', 'frCabWaistW', 'frCabBotW',
+                       'frCabTopZ', 'frCabWaistZ', 'frCabBotZ']],
       // mirror + canopy -> `design`: they decide whether there IS a pod and
       // what kind, which is a configuration question. What is left here is
       // the SHAPE of the one you chose.
@@ -312,7 +319,7 @@ const CAGE_PARTS = [
     sections: ['windshield'],
     place: { at: 'on the cabin front ring' },
     groups: [
-      // (wsRun / wsTopOff = the windscreen FRAME's waist / top fore-aft, T2.1)
+      // (the windscreen frame is the CABIN's again - G1321.2)
       ['shape', ['wsBaseBow', 'wsCeilBow']],
       // the bubble canopy IS the screen's own continuation (2026-09-04)
       ['bubble canopy', ['bubble', 'arcFit', 'bubH', 'bubAt', 'bubW',
@@ -413,6 +420,13 @@ const CAGE_PARTS = [
       // G180: who sits in each bay is the BAY's own row — click a bay, seat
       // its passengers (bays counted front to back from the cockpit)
       ['aboard', ['paxOcc1', 'paxOcc2', 'paxOcc3', 'paxOcc4']],
+      // G1321 (the user: "map these sections to their respective parts in
+      // the editor's tree"): the frame this part shapes, moved from Fuselage
+      ['passenger frame', ['frPaxTopY', 'frPaxWaistY', 'frPaxBotY',
+                           'frPaxTopW', 'frPaxWaistW', 'frPaxBotW',
+                           'frPaxTopZ', 'frPaxWaistZ', 'frPaxBotZ',
+                           'frPaxProfile', 'frPaxEase', 'frPaxBias',
+                           'frPaxBulgeH', 'frPaxBulgeW', 'frPaxLoops']],
       // (the aft bulkhead's lean = the passenger FRAME's fore/aft rows, T2.1)
       ['glazing', ['winSillPax']],
       // (the drawn windows are their own part under Glazing since T2.2)
@@ -465,6 +479,11 @@ const CAGE_PARTS = [
       ['tail end', ['boomTailLen', 'boomTailK', 'boomTailCap']],
       // (aft roof / keel = the BOOM FRAME under Fuselage, T2.1)
       ['length', ['boomLen']],
+      // G1321 (the user: "map these sections to their respective parts in
+      // the editor's tree"): the frame this part shapes, moved from Fuselage
+      ['boom frame', ['aftRoofY', 'frBoomWaistY', 'aftKeelY',
+                      'frBoomTopW', 'frBoomWaistW', 'frBoomBotW',
+                      'frBoomTopZ', 'frBoomWaistZ', 'frBoomBotZ']],
       ['pod ring', ['boomMidOn', 'boomMidT', 'boomMidPinch']],
     ] },
 
@@ -475,6 +494,11 @@ const CAGE_PARTS = [
     groups: [
       // (the cone's half-width / roof / keel = the TAIL FRAME, T2.1)
       ['cone', ['tailLen']],
+      // G1321 (the user: "map these sections to their respective parts in
+      // the editor's tree"): the frame this part shapes, moved from Fuselage
+      ['tail frame', ['tailRoofY', 'frTailWaistY', 'tailKeelY',
+                      'frTailTopW', 'tailHalfW', 'frTailBotW',
+                      'frTailTopZ', 'frTailWaistZ', 'frTailBotZ']],
       // the pod's aero tail where the pod ends at the bulkhead (a rod boom,
       // twin booms) — moved here from the Boom (G267)
       ['aero aft', ['aeroAftOn', 'aeroAftLen', 'aeroAftDroop', 'aeroAftTip',

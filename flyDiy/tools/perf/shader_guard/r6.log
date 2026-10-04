@@ -1,0 +1,16 @@
+[20:02:29] loaded {"state":"ready","sec":90.7}
+[20:02:32] shedDusk true
+[20:02:35] rollOut "bGo"
+[20:02:44] rolledOut {"n":2,"kind":"rollout","done":true,"ms":9100,"anim":"played","ran":[],"boot":"gone","shed":false}
+[20:02:47] run 2.8666666666663665
+[20:02:51] skip "ok"
+[20:04:51] lineupTrip null
+[20:04:56] fly {"t":238084.69999998808,"ph":"BASE","agl":126.9,"progs":436,"add":432,"worst":116.6}
+[20:04:56] guard {"held":18,"compiles":16,"ready":16,"timedOut":0,"what":[["Mesh/MeshStandardMaterial",0,4],["Mesh/MeshStandardMaterial",0,4],["Mesh/MeshStandardMaterial",0,4],["Mesh/MeshStandardMaterial",0,4],["Mesh/MeshStandardMaterial",0,4],["Mesh/MeshStandardMaterial",0,4],["Mesh/MeshStandardMaterial",0,4],["Mesh/MeshStandardMaterial",0,4],["cover:shrub/HollyBranchAtlas",0,2],["cover:shrub/HollyBark",0,2],["LineSegments/LineBasicMaterial",2,69],["cover:shrub/RaspberryBranchAtlas",0,3],["cover:shrub/RaspberryBark",0,3],["Mesh/MeshStandardMaterial",0,3],["Mesh/MeshStandardMaterial",0,3],["Mesh/MeshStandardMaterial",0,3]]}
+[20:04:56] lamps {"armed":true,"ready":null,"prepping":null,"litNow":0,"pool":8}
+programs: 432 made, 27 destroyed; 1 made from the skip on
+frames over 250 ms after the skip: []
+  1 x SAME KEY AS AN EARLIER PROGRAM (released and re-made)
+     names 
+     frames 45569 lights D2/2 P10/0 S1/0 H1 rt rt2770x1279 boot gone
+     who Object.x [as acquireProgram] @index.html:9085:12209 < yl @index.html:9136:39715 < $d @index.html:9136:31446 < @index.html:9136:32247

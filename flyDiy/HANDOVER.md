@@ -68035,6 +68035,78 @@ same picture, the clouds aside (the wall clock).
 GATES (node): FRAMECOST, ROUNDTRIP, STAND, BOOT, ASSETS, PARKED, BUILD - PASS (run_gates, parked re-cooked on this build).
 Touched for METLA-RETURN: render_premises.js - two lines in buildPatchSteps (GPU_ONLY_GEO on the patch LOD geometry; the
 grids nulled at its end; `const` -> `let` for Y/Y0/UV and NRM); house_tarr.js - one line in merge (GPU_ONLY_GEO).
+## G1210-G1219 - WELCOME: THE WELCOME SCREEN (TWO DETECTED AXES, THE LOWER WINS) AND THE DEVICE GATE, BEFORE THE HEAVY LOAD (2026-10-03, WELCOME for A0, cloud, no GPU)
+
+The contract: `futureDesigns/FRIENDLY-WELCOME-BUDGETS.md` §3 layer 1 (WELCOME-TEST, slim) and the DEVICE-GATE row of §5.
+Screenshot (headless SwiftShader, `?welcome=1`, "choose another" open): `reports/WELCOME-G1210.png`.
+
+**WHERE IT RUNS.** `src/viewer/welcome.js`, its OWN inline block right after boot.js's in the BOOT slot (a plain script
+tag in dev.html; `MANIFEST.viewer.welcome`) - before the vendor, the core and the island. When it shows a screen it
+publishes `window.FLYDIY_WELCOME` (a Promise of the preset picked), and the shared `ISLAND_LOADER` chains it into
+`FLYDIY_BOOT` ahead of its first fetch: the island's ~35 MB and every script's promote wait for Play. Measured headless:
+0 world requests while the screen is up, 110 after Play. `BOOT.shift(ms)` (boot.js, new) moves the loading screen's T0
+past the wait, so the scripts' share of the bar and the measured weights (flydiy.boot.ms) do not count the reading time.
+
+**THE WELCOME** (first visit with a given graphics card): "Your computer" - the GPU (a throwaway WebGL2 context on a
+DETACHED canvas, WEBGL_debug_renderer_info's unmasked renderer, the context let go at once: no page listener sees its
+loss), CPU threads, `navigator.deviceMemory`, the screen - then "Suggested: <preset>" with Play, or "choose another" (the
+five presets as pills). The suggestion is the LOWER of:
+- the GPU class, `WELCOME.gpuClass(name)`: software renderers (SwiftShader, llvmpipe), Mali / Adreno / PowerVR, Intel
+  HD/UHD/Iris, AMD integrated, GTX 6xx-9xx, GT/MX, R7/R9 -> potato; GTX 10xx/16xx, RX 4xx/5xx, RX Vega -> retro; RTX 20xx,
+  RTX 30/40/50 below the x070, RX 5000, RX 6000 below 6800, RX 7000 below 7800 -> current; RTX x070+ (3070, 4070, 4090...),
+  RX 6800+/7800+/9070+ -> gamer; anything else (Apple M, a name not said) -> current. The name is cleaned of ANGLE's
+  wrapper, PCI id and API suffix (`cleanGpu`): that is both what the screen shows and the key it is remembered by.
+- the memory class, `WELCOME.memClass`: a phone/tablet, or deviceMemory <= 4 -> potato cap; otherwise no cap.
+REMEMBERED PER CARD (localStorage `flydiy.welcome` = {gpu, preset, suggested, at}); a new card asks again. The pick
+reaches the menu as `WELCOME.pick`, which gfx_settings.js takes exactly like `?gfx=` (the preset's options, saved).
+THE PLAYER'S CHOICE ALWAYS WINS: `?gfx=` skips the screen and beats a pick; a preset ALREADY SAVED in the menu
+(`flydiy.gfx`, a returning player) is adopted silently (the card recorded with that preset, no screen); a later menu
+choice is never touched. GRAPHICS > performance has a new row "this computer: re-check my computer" (not on the
+loading screen's setup): the welcome again IN PLACE, Play applies the preset live (`pick('preset', p)`).
+
+**THE DEVICE GATE**: a phone/tablet (`userAgentData.mobile`; without userAgentData, a UA naming Android/iPhone/iPad/
+Mobile; or a coarse pointer with NO fine pointer on a screen whose short side is <= 1100 px - an iPad says it is a Mac,
+a touch laptop has a mouse) or a browser without WebGL2 gets a polite page: what was detected, "flyDiy is made for a
+computer, for now", and "try anyway (experimental)", which continues on potato and is remembered (`tried`).
+**THE LOST CONTEXT**: a `webglcontextlost` on the game's canvas (#c / FLYDIY_RENDERER.domElement, connected) shows "The
+graphics card stopped drawing ... ran out of memory on the <preset> preset" with "Reload on potato" (`?gfx=potato`) and
+"reload as it is"; a `webglcontextrestored` takes it down. (flight_recorder.js keeps logging both events, as A0 wired.)
+
+**THE RIGS NEVER SEE ANY OF IT**: welcome.js's `isRig` is gfx_settings.js's G528 test (navigator.webdriver or
+HeadlessChrome), and gfx_settings now takes `WELCOME.RIG` when present (one answer). `?welcome=1` / `?devgate=1` force a
+screen for a rig that wants to look (the screenshot); the lost-context message never shows in a rig.
+
+**VERIFY** - GATE GFX §8 (welcome.js in a vm): the GPU table on 32 sample strings (ANGLE / Mesa / plain, the user's
+machines: GTX 660, GTX 1060 3GB, RTX 3080, UHD 620, Adreno 650); the memory class; the lower-wins rule (3080 + 4 GB ->
+potato, 1060 + 8 GB -> retro); remembered per card through the ANGLE name; a saved menu choice adopted; ?gfx skips,
+?welcome forces; the gate on stubbed navigators (Android Chrome, iPad Safari, Firefox Android by UA; NOT a touch laptop
+nor a desktop; no WebGL2); "try anyway" remembered; the rigs (webdriver, HeadlessChrome) see neither screen, a phone and
+no-WebGL2 included; the pick becomes the saved preset, ?gfx beats it; the re-check row mounts (not under noReload);
+index.html order (welcome after boot.js, before the core; the loader holds before its first fetch). Headless Chromium
+(playwright, SwiftShader): the welcome and the gate render, Play releases the load, the rig loads untouched, the
+lost-context message appears / clears and stays off in a rig.
+
+**GATES** (the files touched; the full battery is A0's on the train): `node tools/run_gates.js --only=GFX,BOOT,UISMOKE,BUILD`
+on the final tree (23b0cda, base origin/master 5502f45) - GFX PASS 0.1 s, BOOT PASS 0.1 s, UISMOKE PASS 129.9 s, BUILD PASS
+1.2 s; BATTERY: PASS. No GPU gates run (cloud). The generated pages (index.html, dev.html, sw.js, version.json) are not
+committed: A0's built commit regenerates them (build.js picks welcome.js up from `MANIFEST.viewer.welcome`).
+
+**EVIDENCE** (`reports/evidence/WELCOME/`, headless Chromium + SwiftShader, 1280x720 unless said; "before" = master
+5502f45's index.html, "after" = this branch built; headless is a rig, so the after shots force the screens with
+`?welcome=1` / `?devgate=1` and the lost context lifts the rig flag by hand):
+- `before-1-first-visit-desktop.jpg` - master: a first visit goes straight into the loading screen on gamer, whatever the card. No decision.
+- `after-1-first-visit-desktop.jpg` - the welcome: the computer, "Suggested: potato" (SwiftShader -> software renderer), Play. DECISION: the wording and the layout of the screen.
+- `after-2-choose-another.jpg` - "choose another" open, 5 years ago picked, Play follows the pick. DECISION: whether all five presets (ultra included) are offered.
+- `before-3-phone.jpg` - master on a Pixel 7 (emulated): the load starts, the loading screen on gamer (the S20 FE was killed at "building the field"). No decision.
+- `after-3-phone.jpg` - the device gate on the Pixel 7: what was detected, "made for a computer, for now", "try anyway (experimental)". DECISION: the wording, and that the gate stays until the pocket/potato budgets hold.
+- `before-4-context-lost.jpg` - master after a webglcontextlost on #c: no message. A SYNTHETIC event: the shed keeps drawing here; a real loss (the GTX 660's) is a frozen or blank canvas, which a software render cannot produce. No decision.
+- `after-4-context-lost.jpg` - the same event after: "The graphics card stopped drawing" with Reload on potato / reload as it is. DECISION: the wording.
+- `after-5-graphics-menu-recheck.jpg` - the shed's GRAPHICS > performance fold: the new "this computer: re-check my computer" row under the preset. DECISION: its place in the menu.
+No rendering changed: every shot is UI; nothing here depends on the GPU's picture.
+
+**FOR LATER**: the GPU table is a guess anchored on §2's rows - LADDER-TUNE retunes it from the user's machines; the
+"short timed test" of §3 is not built; a `pocket` preset (§2) needs a row in ORDER/LABEL and in the table's phones.
+
 ## G1220-G1224 - CESSNA-LINKS: THE METAL'S "7 LINKS OVER 5 s" WERE THE RIG'S SLOT, NOT THE BUILD - IN ONE CHROME SESSION THE GROUND'S HEAVY PROGRAMS HIT AND MISS ON ALTERNATE LOADS; THE RIGS NOW OPEN A FRESH CHROME PER WARM LOAD (2026-10-02, CESSNA-LINKS for A0, local GPU)
 
 THE FINDING (A0): the aluminium Cessna reached the garage ~20 s after the Cub on every warm load (metla_ab1: Cub 44.5-45.9 s,
@@ -68921,3 +68993,795 @@ FINAL REPORT: branch claude/snd-engine2-g1615. Review items: 1 starter -> G1615;
 4 loudness -> G1618 (phase, count gain, two-stroke -3 dB); 5 O-540 start -> G1615 + G1618 (173 rpm, 233 Hz growl). Gates: AUDIOENG
 (+§9, 9 new sabotages red), AUDIO, BUILD PASS. Evidence: reports/evidence/SND-ENGINE-2/{cub,jodel,cessna,cessnaFloats,twin582}_start,
 cessna_hot, cub_starve, twin582_runup, twin582_runup_twin, twin582_sweep (.ogg + .png) + README.md.
+
+## G1360-G1364 - GATE-TOOLS: THE FRAME-LENGTH DISTRIBUTION; THE PER-TRAIN STRICT GATE (2026-10-03, a cloud session for A0; branch claude/gate-tools-g1360 off master 5502f45 - NOTHING RUN IN A BROWSER: no GPU, no box)
+
+The user (2026-10-03): (1) a frame-length DISTRIBUTION instead of one "uneven %"; (2) "no regression accepted, ever" -
+one per-train check with a light and a full mode, a stored baseline, the RED rows named. Note: there is no
+flyDiy/CLAUDE.md on master (the brief named one); the session worked from this file's conventions.
+
+**G1360-G1361 THE DISTRIBUTION** (`tools/frame_dist.js`, one reading for every rig): a histogram over < 20, 20-40, 40-60,
+60-100, 100-250, 250-1000, > 1000 ms (a frame on an edge is in the upper bucket); p50 / p90 / p99 / p99.9 (nearest rank,
+the rigs' convention); the share of frames over 1.5x and 3x THEIR OWN cap's frame time (the per-frame cap: the recorder's
+`cap` column, rollout_perf's r[6], master_bench's r[2]; uncapped / the rig clock = 60 Hz); the frames over 100 ms and 1 s.
+A small bucket prints as a count ("10 fr") - the user's 1.5 h flight would read `<20 .. · 20-40 86 % · 40-60 4 % · 60-100
+1.6 % · 100-250 0.3 % · 250-1000 10 fr · >1000 7 fr`.
+- `tools/analyze_log.js`: a FRAME-LENGTH DISTRIBUTION section (the scored frames as a table with bars, then one line per
+  phase); `A.dist` and `phases[].dist` in --json. GATE FLIGHTREC asserts it on the scripted bad session (every frame in
+  one bucket, the 150 ms freeze in 100-250, the 50 ms climb in 40-60, the 25 ms taxi in 20-40, over 100 ms = 1). PASS.
+- `tools/rollout_perf.js`: `phases.<p>.dist` and `dist` (every frame after the reveal); a `lengths:` line per phase, the
+  table after them.
+- `tools/rollout_ratchet.js` GATES on the distribution: `p99` (taxi, as before) and `p99all` (every frame) rel 10 % / abs
+  2 ms; `over15` (every frame) and `taxiOver15`, the share over 1.5x the cap, rel 20 % / abs 0.5 pp; `over100` abs 1 (as
+  before). `uneven` is now an INFO row (printed, never red) with `p999`, `over3x`, `over1s`; each group prints its pooled
+  histogram. Read from the run's frames, so the train-25 run JSONs are measured too. `metrics()` / `RULES` exported.
+  Tried on the committed `ratchet_md_before/after_cub_*.json`: the Cub at the 30 cap reads 20-40 86 %, > 1.5x 1.8-1.9 %
+  (the auto cap at 60 delivering 33 ms frames counts as doubled - that is the definition), PASS.
+- `tools/master_bench.js`: every scene and trip row carries p90 / p99.9 / over15 / over3x / over1s and `dist` (the
+  bucket counts); the table prints them and a FRAME LENGTHS histogram per scene. `--report` on an old JSON prints '-'.
+  New subset flags (for the gate; `--plan` honours them): `--places HOME,mn_strip`, `--water-builds floats`,
+  `--no-water-pass`, `--cockpit 0`.
+
+**G1362-G1364 THE TRAIN GATE** (`tools/perf/train_gate.js`): runs, one after the other, (a) the master_bench subset - every
+load (full: the cold one too), the garage scene, the taxi at HOME and at ONE remote strip (`--remote`, default mn_strip,
+the farthest stand: the heaviest new-stand load), the water taxi of `bugReports/cessnaFloatsWOrks.json`, the Cub only;
+(b) `rollout_perf.js` at HOME, `--cam chase` and `--cam cockpit`, the Cub (`--build default`) and `bugReports/cessnaMetal
+(1).json`, `--reps` runs a group; (c) `garage_lag.js` on this tree, Cub + metal, the ten changes. Then ONE JSON of rows
+(`tools/perf/train_gate_<label>.json`; the rigs' reports and one log per step in `tools/perf/tg_<label>/`), each row with its
+rule (direction, rel, abs, info), compared with `tools/perf/train_gate_baseline_<light|full>.json`: past its slack = RED,
+a row in the baseline that is gone or unmeasured = RED, a failed step = exit 1. Rows: the ratchet's metrics per group
+(medians); per garage change sync and busy (rel 12 % / abs 25 ms) and their sums per build (rel 6 % / abs 60 ms); per load
+its seconds (warm rel 10 % / 4 s, cold 12 % / 8 s, trips 15 % / 1.5 s) and the worst task under it; per bench scene fps,
+p99, over 1.5x the cap, over 100 ms, tasks over 1 s, the worst task (p99.9, over 3x, uneven, a warm load's links over 5 s
+are INFO). A baseline from another GPU, viewport or mode does not compare (exit 2).
+- `--light`: 1 rollout run a group x 20 s, garage reps 2, no cold load - ~15 min (17 with overheads).
+- `--full`: 2 runs a group x 25 s, garage reps 3, the cold load - ~25 min (28 with overheads). `--secs` / `--reps` trim.
+- `--plan` prints every step's command line and minutes (no browser). `--compare <gate.json>` / `--update <gate.json>`
+  re-compare or take the baseline from a saved run (no browser). `--only rollout,garage,bench` runs a part (rows of parts
+  not run are not compared). Ports: P (rollout), P+1 (garage), P+2 (bench). One fresh profile per gate run under
+  `--udd` (default <tmp>/tg<MMDDhhmm>): the bench runs first (its discarded load warms the Cub), then one discarded short
+  metal run, then the rollout runs, then the garage (no second warm-up: the profile exists).
+- Tested here without a browser: `--plan` both modes and with --only; the row builders and the comparison on committed
+  reports (the ratchet_md runs, garage_lag_t25.json, master_bench_15d18675.json): an injected p99 rise and a removed load
+  come out RED by name, train 25's garage fix comes out as 47 "better" rows, a mode mismatch refuses, the same JSON
+  against itself PASSES.
+
+**WHAT A0 MUST RUN ON THE BOX** (none of this has met a browser):
+1. `node tools/perf/train_gate.js --plan` and `--plan --light`: the steps and the paths look right on Windows.
+2. On the landed train-25 tree (5502f45 + this branch), under the GPU lock, idle box: `node tools/perf/train_gate.js
+   --full --port 8700 --udd D:/tg --label t25 --update`, then the same with `--light --label t25l --update` - the two
+   baselines (`tools/perf/train_gate_baseline_full.json`, `_light.json`); commit them. Check the full run's minutes
+   (`meta.minutes`) against the ~25 min plan; if it is long, trim `--secs` (and say so in the baseline's commit).
+3. THE NOISE CHECK before trusting a red: run the full gate a second time on the SAME tree and compare it
+   (`--compare tools/perf/train_gate_t25b.json`). Every RED on an unchanged tree is a slack too tight for the box: widen
+   that rule (R_LOAD / R_SCENE / R_GARAGE in train_gate.js, RULES in rollout_ratchet.js) by the measured spread and note
+   it here. The same for the light mode, which has one run a group and will be the noisier.
+4. Confirm in the first run's logs: master_bench took `--places HOME,mn_strip` (two land stands only), the floats' water
+   taxi ran with no low passes, `--cockpit 0` skipped the cockpit taxi; rollout_perf's `--cam chase` reports `cam chase`.
+5. The ratchet: re-take its baseline so the new rows (p99all, over15, taxiOver15) exist -
+   `node tools/rollout_ratchet.js --update <the train-25 rollout_ratchet_*.json>` (the old baseline reads them as "not
+   measured" until then; uneven moved to INFO).
+6. From train 26 on: `node tools/perf/train_gate.js --full --port 8700 --udd D:/tg --label t26` per train; RED = the
+   train does not land; after a landing, `--update tools/perf/train_gate_t26.json`.
+
+## G1320-G1324 - SMALL-FIXES: THE BASE COLOUR NOW REACHES THE CUB'S RUDDER (AND EVERY LAYER PART THAT WORE THE OLD BASE); THE FRAME ROWS' TOGGLE IN THE LABEL'S COLUMN, THE FRAMES UNDER THEIR PARTS (2026-10-03, SMALL-FIXES for A0, cloud, no GPU; branch claude/small-fixes-g1320 off origin/master 5502f45)
+
+The user (3 Oct): (1) "changing the aircraft's global colour leaves the Cub's rudder in its old colour"; (2) the editor's
+new frame (structure) controls carry an on/off toggle that shrinks the slider until unusable — full-width sliders, the
+toggle compact beside the label, and the frame sections mapped to their respective parts in the editor's tree.
+
+**G1320 CUB-RUDDER-COLOUR — the cause.** The `base colour` row (`_cage_ui.js`, G214/G468's `baseReach`) writes every
+exterior CAGE section (skin, rail, pillar roles) and `body`, and clears the parent-wearing / soft-pinned layer parts that
+held the old base; it never looked at the other AERO_SEC LAYER sections ("the wing and the tail keep their own"). The
+stock Cub's spec carries `finish.sections.finRud = { tint: 0xffcd00 }` — the body's yellow written explicitly on the rudder
+— while `finSkin` has no tint (it follows `body` through the chain). A pick moved `body` (the fin followed) and left the
+rudder's explicit yellow standing. The Jodel has the same shape (`wingSkin`, `wingTip`, `finRud` = the body's cream).
+NOT the flown bake: `flown_bake.js keyOf` hashes `JSON.stringify(spec)`, and the spec's finish carries the tints, so any
+change of the tint map re-keys the atlas; the live material and the bake both resolve the rudder through `aeroSecResolve`,
+so once the map is right both are.
+**The fix:** the reach is hoisted PURE into AEROSKIN as `aeroBaseReach(map, prev, next, neutral, eq, names)` (window and
+module exports; `_cage_ui.js`'s `baseReach` is now a one-line call), with G468's rule ("equal = it was following, and
+follows on; different = the builder's own, kept") extended to every other layer section (not `wears:'parent'`, not
+`finFollows`, not `tintOwn`): one holding `prev` whose chain up to `body` follows the base all the way is CLEARED (it
+follows the body from here); one under a parent of its own colour (the Cessna-style tip under an own-coloured wing) is
+WRITTEN `next`. The verdicts are read off the map as it stood before the pick. Same rule for the metal and roughness
+reaches (they share the function). A rudder painted a colour of its own is untouched.
+
+**GATE LIVERYREACH** (new, core, `tools/_livery_reach_check.js`, 0.1 s): for the stock Cub (tubeFabric), Jodel (wood) and
+Cessna (alloy) from `_cage_page5.js` builds, over every section the spec can paint (the cage's exterior sections, every
+AERO_SEC row, every section the finish names: 49-50 each), resolves what each section WEARS before and after a pick
+(`aeroSecResolve` for a layer, the override for a cage section) and requires: rule 1 — a section that wore the old base
+(an override equal to it, or no override anywhere up a chain ending at `body`) wears the new one; rule 2 — a section whose
+override chain gave it its own colour keeps it. NEGATIVE-VERIFIED in-file: the pre-G1320 reach must fail rule 1 on the
+Cub's `finRud` (it does). Result: cub / jodel / cessna "every section right".
+
+**G1321 FRAMES IN THE TREE.** `_cage_parts.js`: the frame groups move from Fuselage to the part each frame shapes — nose
+frame -> Nose · deck; windscreen frame -> Windscreen (G1321.1, the user's call after a first cut under Cabin: it hides
+with the Glazing part on a `glazeOn=0` build, like every glass row); door-post (expert) and cabin frames -> Cabin;
+passenger frame (with its profile rows) -> Passenger bay; boom frame -> Boom; tail frame -> Tail cone. The
+reference section, longerons, section, creases and compensation stay on Fuselage. Selecting Fuselage still shows every
+frame (an assembly shows its children's rows, part by part); the row-hover frame highlight is keyed by row, not part
+(`editor.js FRAME_ROW`), so it is unchanged. GATE PARTS (one owner per row) PASS.
+
+**G1322 FRAME-UI.** The follow (`opts.follow`, the frames) and link (`opts.link`) checkboxes were the editor's full 30 px
+toggle plus a 14 px gap taken out of the SLIDER; on a length row (the metre readout too) that left ~36 px of track. Now
+`_cage_ui.js` puts class `tog` on such a row and `editor.css` sits a compact 22 x 12 toggle in the LABEL's column (label
+width `--ed-lab - 28px`, toggle margin `6px - --ed-gap`): label + toggle = the label column, and the slider is exactly as
+wide as every other row's. Measured headless (chromium, body.html + style.css + editor.css, a length row in `#edRows`):
+plain row slider 80 px; frame row before 36 px, after 80 px. The bench pages (no editor.css) are unchanged.
+
+**GATES** (cloud, `run_gates.js --only=`): BUILD, UISMOKE, HANGAR, FLOWNBAKE PASS; plus LIVERYREACH (new), SKINMAT, PARTS,
+FRAMES PASS (G1321.1 re-ran PARTS, FRAMES, UISMOKE, BUILD: PASS). The generated files (index.html, dev.html, sw.js, version.json) are NOT committed — A0's train builds them.
+G1323-G1324 unused.
+
+## G1375-G1379 - STRIP-SURFACE: EVERY STRIP SAYS ITS SURFACE; WHEELS NEVER TO WATER, FLOATS NEVER TO LAND (2026-10-03, STRIP-SURFACE, cloud, no GPU; branch claude/strip-surface-g1375 off master 5502f45)
+
+The user (2026-10-03): "We need to indicate the strip surface: water, dirt, concrete, grass, etc. And disallow the
+water runways for the wheel planes, and the ground runways for the seaplanes."
+
+**G1375 THE SURFACE IS DERIVED, NOT LISTED** (`src/core/25_airfield.js`, end of file). `stripSurface(a)` reads what
+every record already carries: `kind: 'water'` / `water` (a sea lane) -> water; the premises runway's LOOK
+(27_premises RUNWAY_LOOKS: worn / concrete -> concrete, asphalt, gravel, dirt, sand, grass), which names the pavement
+finer than the friction enum (dirt rides GRAVEL's row there); else the SURFACE enum (GRASS, PAVED -> 'paved', GRAVEL,
+SAND; ROCK / SCREE -> gravel, FOREST_FLOOR -> dirt). -> `{ key, word, cls }`, cls `water | snow | grass | hard` is what
+the rule reads. `snow` is in the vocabulary (`snow: true` or `look: 'snow'` on a record) but NO WORLD CARRIES ONE and
+the friction enum has no row for it. The census (both shipped worlds): analytic HOME grass, SEA water, A0 paved,
+A1-A4 grass, A5-A7 gravel; Jolene 02/20 + 13/31 concrete (worn), Tamgas / Jumbo Mine / East Point gravel, Annette Dock
++ Metlakatla water, Skyline Altiport grass.
+
+**G1376 THE RULE** (`stripGear`, `stripAllows`, `stripFallback`, `stripLandable`, exported). `stripGear(spec | def |
+sim)` -> `wheels | floats | amphibian | skis`: the spec's gear.type (taildragger / tricycle -> wheels, floats), a def's
+`def.spec`, else `sim.hydro`. wheels: anything but water; floats: water only; amphibian: both; skis: snow and grass.
+A refusal carries its sentence (`floats land on water only`, `a water lane: wheels cannot land on it`, `skis need snow
+or grass`). THE GARAGE BUILDS NEITHER AN AMPHIBIAN NOR SKIS TODAY: the spec normaliser knows taildragger / tricycle /
+floats only, and a float build has no wheels (61_gen_frame). `gear.type: 'amphibian'` / `gear.floats.amphibian: true`
+and `gear.type: 'skis'` are read where a record says so (the floats normaliser passes `amphibian` through), so the rule
+is whole the day the garage builds one; the gate's amphibian is the float Cessna with that flag.
+
+**G1377 THE PILOTS NEVER PLAN THE WRONG SURFACE.** 43_pilot, 40_autopilot and 41_test_pilot wrap `setRoute` and
+`departFrom` in `stripLandable`: a destination the gear may not use becomes the circuit at `from` when it may, else the
+fallback (HOME, else SEA, else the first non-meadow strip it may use); makePilot and the test pilot say
+`wrong-surface` with the reason. The constructors' own HOME default is NOT guarded (`setRoute0`), so a float pilot's
+budget and report are what they were before the caller's real setRoute. 43_pilot's forced landing (GLIDE, out of fuel)
+skips aerodromes of the wrong surface when picking the nearest. ALSO FIXED: 40_autopilot's `departFrom` threw a
+ReferenceError on every call (a leftover `ap.taxiOut = (taxiOut && ...)` line, `taxiOut` undefined - the classic pilot
+could never depart from a stand); the line went, the assignment above it already did the job.
+
+**G1378 THE UI** (`src/viewer/app.js`, `sim_host.js`). Every route picker (the garage's #edRoute, the roll-out's
+#bootRoute, the flight's #selFrom / #selDest) labels each strip `Name · surface`, and a strip the gear may not use is
+a DISABLED option that says why (`Home Strip · grass — floats land on water only`, also as its title). The gear is the
+bench's build in the shed (genSpec) and the flying build elsewhere (def.spec, else sim.hydro) - `routeGear`; the
+pickers re-fill on pointerenter / focus only when the gear changed (a refill under an open list closes it).
+`FLYDIY_ROUTE.sync` re-fits too; `FLYDIY_ROUTE.gear()` reads the gear the labels are for. A SAVED ROUTE THE GEAR MAY
+NOT FLY IS FITTED, NOT REFUSED (`routeFitted`): the departure falls back (HOME / the sea lane / the first legal strip),
+the destination to the circuit; the remembered pref (flydiy.route) is not rewritten by a fit, so the build that may fly
+it gets it back at the next boot. In the shed `applyRoute` fits only the placement, never the pickers (the def there can
+be the last flown build's). A float build now starts on THE LANE THE ROUTE NAMES (Jolene's Metlakatla, not always
+Annette Dock), and the old SEA when the route names land - app.js applyRoute, standAnchor, and the worker's
+sim_host.js place() alike (SIM_HOST_CORE gained stripSurface, stripGear). THE MAP: a water lane's dot is blue, every
+label carries the surface word, and a strip the flying gear may not use is labelled faint.
+
+**G1379 GATE STRIPSURF** (`tools/_surface_check.js`, core, ~10 s, `--selftest`, `--show`): A every aerodrome of both
+worlds has a surface word, water exactly on the water lanes, the premises look named; B the matrix (the stock Cub card
+joined -> wheels, bugReports/cessnaFloatsWOrks.json -> floats, the same + amphibian flag -> amphibian, and skis) over
+every non-meadow aerodrome of both worlds, each refusal with its reason; C the three pilots on the three builds in both
+worlds (the Cub HOME -> SEA becomes the HOME circuit, the floats SEA -> HOME the SEA circuit, a floats circuit at HOME
+lands on water, lane to lane kept, the amphibian keeps both and never says wrong-surface; departFrom the same), and the
+fallback a saved route meets. The selftest doctors the rule (floats on land, wheels on water, a refusal with no reason)
+and the surface (a lane read as grass, the look ignored, none at all): all six go red.
+
+NOT DONE / NEXT: no browser check of the pickers (no GPU in the cloud; UISMOKE boots the page); skis and amphibians
+need gear in the garage first (a spec type, wheels in the float hull); snow needs a surface in the data (a record flag
+or a climate snow line) and a friction row.
+
+GATES (cloud, --only, jobs 4): STRIPSURF (+ --selftest), NAV, PILOT (3 shards), TAKEOFF, TAXICLEAR, PLAN, LINEUP,
+UISMOKE, FLOATS, SEAPLANE, BUILD - all PASS. Not run: --all (the brief named the gates). The generated outputs
+(index.html, dev.html, tools/flight_core.js, sw.js, version.json) are NOT committed - A0's build commit makes them.
+
+## G1385-G1389 - EDITOR-VEG: THE GRASS AND THE BUSHES GET THEIR OWN COLOUR; A POLYGON GROWS ANYTHING (NONE, A BIOME, A NEW BIOME); EACH STRIP ITS OWN TREE CLEARANCE (2026-10-03, EDITOR-VEG for A0, cloud - no GPU, no boxlock; branch claude/editor-veg-g1385 off master 5502f45)
+
+The user (3 Oct), three items: (1) "We are missing coloration options for the grass and the bushes in the world editor";
+(2) "I would like the polygons to be more flexible and accept any type of vegetation, from none, to an existing biome, to
+a new biome"; (3) "I need to better control tree exclusion zones around runways".
+
+**G1385 - THE GRASS'S AND THE BUSHES' COLOUR.** `trees.js` grows `KIND_MASTER { cover, shrub }` (hue added, sat and light
+multiplied, identity by default) riding ON TOP of what each kind rode before: a shrub on `MASTER` (the trees'), a cover on
+`COVER_BASE` (sat 1.58, light 1.12 - G551's bench master, which the cover ring used to write AFTER the hook). `retint` now
+owns the cover's base, so a latent bug is gone: moving the trees' master or any species tint used to retint every hooked
+material with MASTER and dropped the grass onto the conifers' 0.42 lightness. `hookLeaf` records the material's kind (one
+material per collection, so one kind). API: `TREE_LEAF.kinds() / kindMaster(k) / kindTint(k, {hue, sat, light}) / retint(mat)`.
+THE WORLD RAIL, VEGETATION: two new folds, "the grass' colour" and "the bushes' colour" (hue / saturation / lightness,
+double-click back to the default). TYPES > biome: every BUSH and GRASS species card now has its own hue / saturation /
+lightness (the trees had theirs; the flowers are pictures and stay untinted). THE LOOK: `kindTint { cover, shrub }` is in
+`flydiy_world_look` beside `tints` / `leafMaster`, saved as a delta, put back by applyLook, and the export's `changes` now
+list `tints.*`, `leafMaster.*` and `kindTint.*` (they were exported but never diffed); `where.kindTint` names trees.js.
+
+**G1386 - A POLYGON'S VEGETATION (contract v1.31).** The cover (`ttype`) polygon carries `veg`: `{mode:'none'}`,
+`{mode:'biome', mix}` (any of `_trees_tuning.json`'s mixes) or `{mode:'new', species:{name:{proportion,...}}, density
+(trees/ha), under (bushes/1000 m2), cover (grass factor)}`; its `code` may be null (stamps nothing, only says what grows).
+Composer (`27_premises.js`): `vegOf / vegMixOf`, `O.vegPolys`, `O.vegMixes['@id']` (the bench's `{species, forest}` shape,
+count = ha x pi 220^2 / 1e4), `O.vegAt(x, z)` (undefined: no polygon / null: none / a mix name; the last polygon wins, a bbox
+reject first), `O.vegSig`; issues name a bad `veg` and a polygon saying nothing. `28c_biomes.js`: `B.over` + `B.mixHere(code,
+x, z)`; every planter asks it - the fill's walk, the woodland's draw, `TREE_FILL.at`, the cover ring's sub-grid and rock plan,
+the stand cards. `render_world.js` copies the '@' mixes into BIO.mixes whenever the composed premises is another one, and
+`TREE_FILL.vegChanged()` (app.js onRebuilt, after every editor edit) replants the fill and the ring only when `vegSig`
+moved. `treeReachOf` reaches the polygons' species. 'none' also keeps the COLLIDABLE woodland out (20_world.js) so no
+invisible tree stands where nothing is drawn - at the world's make (a live edit moves the drawn trees, the collidable ones
+at the next load). THE EDITOR (TREES section): a new **vegetation** tool draws one; the inspector: terrain type (none /
+2..16 but the derived three), vegetation pills (its type's / none / a biome / a new biome), the biome select, or - new -
+trees/ha, bushes, grass, one share slider and a remove per species, "+ species" from the catalogue (tree, dead, shrub,
+cover) and "start from" an existing biome. The `ttype` layer is now drawn, selectable and in the feature list (it was not:
+Metlakatla's lush belts were authored outside the editor). The world rail never offers or exports an '@' mix.
+
+**G1387 - EACH STRIP'S TREE CLEARANCE (contract v1.31).** A runway's `clear {side, beyond, taper, bushes}` (27_premises
+`RWY_CLEAR_DEF {60, 150, 0, false}`, `runwayClearOf`, `inRwyClear`, `runwayClearPoly`); the aerodrome carries
+`treeClear` (null without). `20_world.js aeroBoxes / treeAeroBlocked`: an authored clearance replaces the generic box for
+its strip, past the ends the half-width grows by taper a metre, and it stands in EVERY rwytrees variant (the generic box
+stays 'today's only) and over `treeBox: false`; without one the box is today's to the bit. `bushAeroBlocked` keeps the
+cover ring's shrubs out where the clearance says `bushes`. render_world's analytic `treeEx` reads the same. With its own
+clearance a strip's derived box + 30 m keeps only the plots and the settlements (a clearance narrower than 30 m is then
+what was asked). THE EDITOR (AIRFIELD, a strip selected): "its own tree clearance" on/off, each side 0-300 m, past each
+end 0-1500 m, the taper -0.5..+0.5, "the bushes too"; the clearance drawn round the strip in green (bright when its own,
+faint when today's box). Default unchanged: no Jolene strip carries one.
+
+**G1388 - VERIFY (node).** GATE PREMISES 17 (new, headless): the round trip (envelope -> unwrap: the same `ttype` polygons
+and `veg`, the same `clear`), no issues, two bad records named, vegAt (the biome, none over it, its own '@k3', nothing),
+the '@k3' mix (250 /ha, its bushes and grass), only coded polygons stamp, `mixHere`, the aerodrome's `treeClear` (null
+without), the taper geometry, the editor's outline, the derived box handing its trees over. GATE RWYTREES 9 (new, core,
++2 Jolenes ~15 s): a NODE CENSUS of the collidable trees round 02/20 - today 43 in a 200 m / 500 m / +0.15 trapezoid,
+with that clearance 0; a 10 m / 20 m clearance lets 6 into today's 60 m box and keeps its own empty; the taper reaches
+260 m 400 m past the end. By hand (scratch): a 400 m 'none' square in Jolene's forest: 16 collidable trees -> 0.
+
+**G1389 - GATES.** PREMISES, PREMCOOK, TREES, RWYTREES (full: the page harness's fill per variant and the circuits), BUILD
+- `node tools/run_gates.js --only=PREMISES,PREMCOOK,TREES,RWYTREES,BUILD --jobs=1` on this branch: TREES PASS 11.5 s, BUILD
+PASS 1.5 s, PREMISES PASS 85.6 s (366 checks, 17 included), PREMCOOK PASS 271.2 s, RWYTREES PASS 1584.0 s (full: the
+page harness's fill per variant, the circuits flown, 9 included; the table's 'today' columns as before) - BATTERY: PASS.
+Built files (index.html, dev.html, flight_core.js, sw.js, version.json) not committed: A0's build. Not run (not asked): the rest of the battery; no GPU look at the colours (the dials are identity by
+default, so nothing moves until the user moves them). OPEN: a 'none' or biome polygon edited live moves the drawn trees at
+once and the collidable woodland at the next load; the cover ring plants a 32 m cell's CENTRE mix, so a polygon edge
+inside a cell follows the cell (as every biome edge does); a veg-only polygon writes no `cover` class, so over BUILT/CROP
+ground (a town) the fill still refuses to plant - give it a code and `cover` (v1.30) for that.
+
+## G1380-G1383 - GEAR-WATER: THE TAILWHEEL'S "3-5 cm" IS THE DRAWN GROUND'S 5 m LATTICE, NOT THE WHEEL; A WHEELED AEROPLANE MEETS THE WATER (2026-10-03, GEAR-WATER for A0, cloud, node only; block G1380-G1384, G1384 unused)
+
+The user (3 Oct): "the cub still has about 3-5 cm below its tail wheel not touching the ground. I think it's an issue of
+the physical model either not being well centered on the wheel or not having the correct diameter"; "the cub attempted a
+sea landing, of course it failed, but I noticed there's been no big drag from the water as I expected".
+
+G1380 THE TAILWHEEL: THE WHEEL IS RIGHT, THE GROUND UNDER IT IS TWO SURFACES (measured; NOT fixed - a choice for A0).
+- The wheel is one truth already. tools/ground_gap.js (G1000's rig, flown def + the join's snapshot + poseModel's
+  arithmetic), stock Cub at rest, settled 6 s or 30 s alike: drawn tyre R 0.08 = node r 0.08, contact radius rC 0.083
+  (G661's static deflection), drawn tyre bottom -0.3 mm, drawn axle on its node within 0.6 / 1.3 / 0 mm. Jodel tail
+  +8.4 mm (its drawn axle 10 mm over the node - the largest residual found, still not centimetres); the metal Cessna's
+  nose +1.3 mm. The castor's swivel is vertical in the model frame on the Cub, Jodel, Stearman and Pietenpol (steering
+  cannot lift the drawn wheel). tools/ground_surface.js, the Cub taxiing out of HOME's stand: tail on the apron -1.5 mm
+  mean (p5 -2.3, p95 -1.2). The physics worker ships float64 and checks the def's signature: the page draws the
+  worker's own nodes.
+- What the eye compares the tyre with off the pavement is render_world.js's FINE tiles: vertices every 5 m on the world
+  grid, world.terrainH sampled there, linear between. world.terrainH - what the solver's wheels stand on - is the
+  codec's quadtree, bilinear in leaves FINER than 5 m. tools/ground_lattice.js (new), 8 000 land points on Jolene,
+  drawn - terrainH:
+  - 5 m (as drawn): p5 -63.7 mm, p95 +57.2; |e| p50 10.2, p95 94.6; 23.9 % of the land over 3 cm;
+  - 2.5 m: p5 -17.9, p95 +16.6; 4.7 % over 3 cm;
+  - 1 m: p5 -2.8, p95 +2.4; 0.4 % over 3 cm.
+  Wherever the drawn chord passes under the true surface the tyre reads afloat, over it sunk - G1000's own playtest line
+  ("depending on where they are, they either sunk a little, or float a little"). The mains show it too; an 8 cm tyre
+  makes 3-5 cm the whole gap you can see. Round the aerodromes the premises' patch (3 m grid) stands -20.1 mm (p5 -26.3,
+  p95 -14.6) under terrainH: G1001's LEFT "lots' offset", still there (ground_surface --grid).
+- Not fixed here, because both fixes are bigger than a wheel and neither could be seen without the GPU (the page stalls
+  under SwiftShader before the flown model is built): (a) the solver stands on the drawn surface (a contact height that
+  reproduces FINE.build's lattice off the premises - every island trajectory moves by centimetres); (b) a 1 m ground
+  tier under the aeroplane (the fine tile discarding inside it as the ring does inside the disc). The rig gives the
+  number either fix must bring to < 5 mm.
+
+G1381 THE WATER MEETS A WHEELED AEROPLANE (32_hydro.js wetBuild / wetSolverPass / wetCompute; 30_solver.js).
+- Before: the floats' hull was the only thing the water pushed on. A wheeled build went through the surface and rolled on
+  the seabed (G435 only ended the flight a metre under).
+- Now a build WITHOUT floats carries a wet body (sim.wetBody; out.wetDrag / out.wetBuoy, never the body on `out` - the
+  worker posts `out` every snapshot):
+  - THE BELLY: parts.F's stations and the tail post close a box hull. Its triangles are clipped against the surface as
+    the float's panels are: Newtonian pressure Cp 1 x 1/2 rho Vn^2 on a face advancing into the water (on the inclined
+    bottom that is the planing lift and its drag) and skin friction Cf 0.006 along it. BUOYANCY BY VOLUME: 27 samples a
+    slice, each its Jacobian's share, wet on a 0.15 m ramp, times WB_BUOY 0.35 (a fabric fuselage floods - inferred),
+    landed by its trilinear weights. The first cut put the head on every face; 19 m down the frame was crushed between
+    pressures a flooded fuselage does not feel, and the Cub "flew" along the seabed at 77 km/h.
+  - THE FLYING SURFACES as two-sided plates (each strip's spar quad, its area scaled to the strip's): a wing or a stab
+    meeting the water flat-on is a paddle.
+  - THE TYRES: a bluff plate (the immersed chord x 0.5 R of width, Cd 1.0) in the wheel's plane, the disc segment
+    across it (Cd 1.2), the displaced volume. Hydroplaning lift is a stated cut.
+  - Stable the float's way: a compute hands a node at most its own momentum against its velocity over the held interval
+    (slamCap). Run at HYDRO_HZ, held between computes. Dry (the lowest node 1.5 m + 3 x the sea's amplitude over the
+    water at the first hull node, or no water) costs one waterH sample a compute and hands nothing.
+  - A float build gets no wet body: the floatplanes run the float pass alone, to the bit (GATE FLOATS, SEAPLANE).
+- MEASURED (analytic world, the SEA lane, 0.3 m over the water, -1 m/s, power off; the scratch ditch rig = HYDRODYN's
+  section):
+  - stock Cub at 80 km/h: 64.9 km/h at 0.5 s, under 10 km/h at 0.93 s, peak deceleration 9.0 g. It noses over to the
+    vertical (86 deg at 1.0 s), then floats nose-down, tail up, 0.4-1.1 m of CG under the surface (buoyancy 4.1-5.4 kN
+    against 4.7 kN of weight);
+  - Jodel 0.77 s / 6.5 g; C172 1.00 s / 7.2 g; RV 0.87 s / 6.8 g; GEN_DEFAULT 0.88 s, 90 deg nose-down;
+  - the Cub at 120 km/h balloons off the first touch and comes back at 73 km/h, stopped 0.5 s later.
+
+G1382 THE NET. GATE HYDRODYN, new section:
+- the stock taildragger ditched at 80 km/h is under 10 km/h inside 3 s, finite (0.88 s);
+- it noses over past 45 deg (90);
+- dry on its strip, hydroWet stays 0 over 2 s;
+- a float build has no wet body.
+
+GATES (node tools/run_gates.js --only=FLOATS,SEAPLANE,GEAR,STAND,CONTACT,GROUNDLIB,BUILD,HYDRODYN,HYDRO,WATER, on
+origin/master 5502f45): all PASS, BATTERY: PASS, exit 0 (wall 240 s, jobs 4). The full battery is A0's (per A0). GATE
+FLOATS' whole output is byte-identical to master's (diff of the two logs: 0 lines).
+OWED (A0's call): G1380's ground fix, (a) or (b) above; the Jodel's 10 mm tail-axle residual.
+READY for A0 (2026-10-03): the gates for the files touched, on the branch's source (136a692 + this HANDOVER) -
+STRIPSURF PASS (+ --selftest PASS: all six doctored checks go red), NAV PASS, PILOT PASS (3 shards), TAKEOFF PASS,
+TAXICLEAR PASS, PLAN PASS, LINEUP PASS, UISMOKE PASS (app.js / sim_host.js), FLOATS PASS, SEAPLANE PASS, BUILD PASS.
+The full battery is A0's (per train). Base: master 5502f45, not rebased. Likely conflict spots when assembling: the
+tail of src/core/25_airfield.js, the 90_node_exports.js export line, run_gates.js's NAV row neighbourhood, and
+app.js's route block (applyRoute, the selects' block, the map's aerodrome loop).
+**GATE RESULTS (G1360-G1364, the cloud, on 5502f45 + this branch; no rebase - A0 resolves on the train):** only the gate of
+the files touched, not the full battery. `node --max-old-space-size=4096 tools/run_gates.js --no-build --only=FLIGHTREC`:
+**FLIGHTREC PASS** (1.7 s; it covers analyze_log.js and its new distribution assertion). No battery gate covers the other
+touched files (frame_dist.js, rollout_perf.js, rollout_ratchet.js, master_bench.js, perf/train_gate.js); their no-browser
+checks, all clean: `node --check` on each; `rollout_ratchet.js --update` on the committed ratchet_md_before_cub runs, then the
+after runs against it - RATCHET: PASS with the new rows; `master_bench.js --report master_bench_15d18675.json` (an old JSON)
+prints; `master_bench.js --plan` with the subset flags lists HOME + mn_strip and the floats' water taxi alone (~6 min);
+`train_gate.js --plan` 25 min (28 with overheads), `--plan --light` 15 (17); `train_gate.js --compare` on rows built from
+committed reports: an injected p99 rise and a removed load RED by name (exit 1), the same JSON against itself PASS. Nothing
+browser-side has been run: the box steps 1-6 above stand.
+**GATE RESULTS AT THE READY HEAD** (A0's ask: the gates for the files touched, no full battery — A0 runs it on the
+train; cloud, `run_gates.js --only=`, base 5502f45, not rebased):
+
+| gate | why (file touched) | result |
+|---|---|---|
+| BUILD | every source -> the generated files | PASS |
+| UISMOKE | `_cage_ui.js`, `_cage_parts.js`, `editor.css` (the editor's wiring) | PASS (118.7 s, after G1321.1) |
+| SKINMAT | `aeroskin.js` (AERO_SEC, the resolver) | PASS |
+| LIVERYREACH | `aeroskin.js` `aeroBaseReach` (new gate) | PASS (cub, jodel, cessna; the negative bites) |
+| PARTS | `_cage_parts.js` (one owner per row) | PASS |
+| FRAMES | `_cage_parts.js` frame groups | PASS |
+| HANGAR | listed by the brief | PASS |
+| FLOWNBAKE | listed by the brief (the bake's key over the spec) | PASS |
+
+Full battery (`--all`) NOT run, on A0's instruction. Generated files not committed. G1323-G1324 unused.
+
+## G1370-G1374 - UI-LAYER: THE IN-WORLD HELPERS ON A LAYER ONLY THE EYE SEES; THE VERBS OFF FOR THE ROLL-OUT SHOT (2026-10-03, UI-LAYER for A0, cloud - no GPU; branch claude/ui-layer-g1370 off master 5502f45)
+
+The user (2026-10-03): the autopilot's path ribbons "reflect, and they're not hidden in screenshot mode. They should be
+clearly considered UI elements"; the action buttons must not show during the roll-out cinematic; and any other in-world
+helper with the same problem goes on the same layer.
+
+**G1370 THE UI LAYER** (`src/viewer/ui_layer.js`, new, in the viewer's scripts right after matlib.js): layer **30**
+(29 is the warm-up's, 31 shadow_near's empty layer, 2-5 the shadow scheme's). `UI_LAYER.claim(obj)` puts obj and every
+descendant on the UI layer ALONE (mask = 1 << 30), castShadow / receiveShadow off, `userData.uiLayer = true`;
+`see(cam, on)` / `blind(cam)`. Layers are per object in three (a child does not inherit its group's), so every site
+claims what it ADDS. The rules:
+- ONLY THE MAIN CAMERA SEES IT: app.js `UIL.see(camera)` once; its clones (the warm-up views) inherit it. Every other
+  camera is born on layer 0 alone: the water's planar mirror (water.js `MIR.cam` - blinded every capture all the same),
+  the shed's reflection probe (the CubeCamera's six - blinded), the world's FAR / COVER maps, the bakers.
+- PHOTO MODE = THE LAYER OFF THE EYE: `shotSet(on)` -> `UIL.see(camera, !on)`. One switch, whichever module made the
+  helper. (No photo mode landed on master and no claude/celebration-* branch is on origin: this is the screenshot mode,
+  G255's `shotSet` / `window.SHOT_MODE`. A CELEBRATION photo mode should call `SHOT_MODE.enter()` or `UI_LAYER.see(camera,
+  false)` - nothing else to do.)
+- NEVER A SHADOW CASTER: three r186's shadow walk tests layers against the MAIN camera (G1080.2), so a helper the eye sees
+  IS walked - castShadow off keeps it out. AND THE SHADOW TAGGING LEAVES IT ALONE: render_world.js `nearWatch` enabled
+  FAR_LAYER (2) on everything in the world scene and CRAFT_LAYER (5) on everything under the craft (the CG posts ride
+  `craft`); shadow_near.js `tag` / `tagCraft` / `apply` did the same. The main camera has 3 and 5 enabled, so a helper
+  carrying those bits would survive photo mode. All four now skip `userData.uiLayer`; hangar.js's craft floor print
+  (layer 4, `craft.traverse`) skips it too (it had been printing the editor's selection silhouette meshes into the floor).
+- A Raycaster (layer 0) no longer hits a helper: the pick code already skipped every overlay (edHi), so nothing changes.
+
+**WHAT MOVED (G1371)**:
+- pattern_vis.js: the taxi graph's ribbons, discs, stop bars and arrows; the two glide slopes (and the active one when
+  setActive redraws it); the two touchdown targets; the PILOT'S PLANNED LEGS (the circuit line in the air, on by default
+  - the one the user saw in the lake). Also the copies render_premises.js builds through the same builder. **The PAPI stays
+  a world object** (lit boxes on the airfield: it reflects and it is in the photo). `api.UI_KEYS` names the four.
+- app.js: the CG / NP posts (`gGrp`, `gInd`) and their label sprites (already hidden in the shot and the roll-out by
+  `placeIndicators`; now out of the mirror and the probe too).
+- editor.js: the selection / hover outlines (`hiEdges`) and silhouette pairs (`hiSilPair`).
+- NOT MOVED, deliberately: the beam skeleton (`lines` / `pts` under `craft`) - with the skin off it IS the aeroplane's
+  drawing, a view mode, not an overlay; aeroskin.js's glass companion (`edHi` set, but a part of the skin); the premises
+  editor's outlines, plots, links and ghost (render_premises.js) - its selection raycasts those lines (a layer-0
+  Raycaster would stop hitting them) and the flight chrome is off under `body.premOpen`. Candidates if the user asks.
+
+**G1372 THE VERBS WAIT FOR THE REVEAL**: `body.rollShot` (flight.css: `#flActs { display:none !important }` - Pause,
+Restart, Skip to line-up, Fly the circuit, The shed). app.js `rollShotUi(on)` (a hoisted declaration: `enterGarage`,
+above it, runs at boot): ON in `rollAnimPlay` before `ROLLANIM.play` (the shot's first frame); OFF first thing in
+`flRevealStart` (the reveal hands over), at a solo shot's end (back to the shed), and in `enterGarage` (a roll-in over the
+trip). A throw, a skip or the 30 s timeout all go on to the reveal, so all clear it.
+
+**G1373 GATE UILAYER** (`tools/_ui_layer_check.js`, core, ~5 s; row after ROLLANIM): real three r186, the real core
+(HOME's declared pattern, its sampler), pattern_vis.js and shadow_near.js, three's own criteria (`layers.test` for a
+camera; visible + layers vs the main camera + castShadow for the shadow walk). U1 every graph / slope / targets / legs
+object (32 on HOME, the legs and a redrawn slope included) on the UI layer alone, casting nothing; the PAPI on layer 0.
+U2 the eye sees them; photo mode, the mirror camera (blinded and bare), the probe's six faces and an ortho map camera
+see none; the PAPI stays in the mirror and the shot. U3 the shadow walk reaches none; shadow_near's tagCraft / tag / apply
+leave a claimed child of the craft at 1 << 30 while the skin is tagged as before. U4 the wiring in the sources and the
+BUILT index.html (ui_layer.js before pattern_vis.js and app.js). U5 the CSS rule, `rollShotUi(true)` before
+`ROLLANIM.play`, the three clears, and rollShotUi itself toggling the class on a stub body. Negative control: with
+UI_LAYER absent, U1 / U2 fail (28 of 32 helpers seen in photo mode, all of them in the mirror).
+
+**G1374 GATES** (cloud, no GPU; `run_gates.js --only=UISMOKE,ROLLANIM,BUILD,UILAYER`): UISMOKE PASS 218.5 s, ROLLANIM
+PASS 52.3 s (777 checks), UILAYER PASS 3.8 s (32 ok), BUILD PASS 3.1 s - BATTERY: PASS. Then the gates that read the
+touched files (water.js, shadow_near.js, render_world.js, hangar.js, editor.js, pattern_vis.js), `--only=CLOUD,WORLDRENDER,
+STAND,SHADOWSKY,ASSETS,LIGHT,VIEW,WATER,HANGAR`: CLOUD 3.8 s, WORLDRENDER 12.3 s, STAND 0.3 s, SHADOWSKY 0.5 s, ASSETS
+37.1 s, LIGHT 0.1 s, VIEW 0.1 s, WATER 8.3 s, HANGAR 1.8 s - all PASS, BATTERY: PASS. Not run (A0 runs it every train):
+the battery, FRAMECOST, the page itself. The mirror's draw count can only fall (fewer objects pass its layer test).
+NOT SEEN ON A SCREEN: the cloud has no GPU - A0's eyeball: a circuit over the lake with legs on (no line in the water),
+photo mode (no ribbon, no legs), a roll-out (no verbs until the stand's first frame). No flyDiy/CLAUDE.md exists on
+master (the brief named one); the session ritual here was HANDOVER's.
+OWED (A0's call): G1380's ground fix, (a) or (b) above - then TW_DRAW_DROP back to 0.
+
+G1383 THE USER'S CALL: THE DRAWN TAIL GEAR 2 cm DOWN (app.js TW_DRAW_DROP, poseModel's nodeLocal; tools/ground_gap.js
+mirrors it; GATE CONTACT --drawn expects it).
+- The user, on G1380: "what about just an offset then? It does not look like it's on the ground. 2 cm down would be good".
+- A TAILDRAGGER's tail node is read 0.02 m lower, world-down, by every drawn rig that rides it: the castor, the
+  tailwheel inside it, the spring, the steering links. One move, so nothing separates. Drawing only: the solver's
+  contact, the contact shadow and every physics number are untouched. A tricycle's nosewheel and the mains are not
+  moved (G661: a drawn tyre sunk into the runway was "not acceptable").
+- ground_gap, at rest on flat ground, drawn tail tyre bottom: Cub -0.3 -> -19.9 mm; Jodel +8.4 -> -11.1 (its 10 mm axle
+  residual eats half); stock -5.1 -> -24.7. On the 5 m drawn lattice (G1380) the 2 cm now reads as contact where the
+  ground is drawn under the true surface (the floating half: p50 of the gap 10 mm, p95 57-64 mm) and as 2 cm into a
+  pavement, where the drawn surface is terrainH within 4 mm.
+- GATES after G1383 (--only=CONTACT,GEAR,STAND,BUILD,UISMOKE): all PASS, BATTERY: PASS, exit 0 (wall 180 s); and
+  node tools/_contact_check.js --drawn: PASS (stock tail -24.7 mm against the 20 mm expected, 8 mm tolerance).
+
+## G1365-G1369 - SIM-STALL: A FROZEN PAGE HOLDS THE FLIGHT; IT GOES ON FROM WHERE IT HELD (2026-10-03, SIM-STALL for A0, cloud - no GPU, no boxlock; branch claude/sim-stall-g1365 off origin/master 5502f45)
+
+The user (3 Oct), after a 79 s main-thread freeze: "with the principle of keeping the physics going, when it unfreezes, I
+find it miles away already. All very bad." The physics worker (on by default since train 17) runs its own clock: the page
+froze, the worker did not, so it kept flying 79 s of real time while nothing was drawn. The page's own clock (PACE) owed
+4 catch-up steps after any long frame on top of that, and so did the inline path.
+
+**THE RULE (one number, 250 ms: a frame this late is a STALL, not a hitch - the same line G620's freeze readout draws):**
+- G1365 THE HEARTBEAT (`sim_view.js` frame(T)): every frame the page draws on the real-time clock posts `{cmd:'beat'}`.
+  Lockstep (the rig, every page gate) draws at T = Infinity and posts none, so the gates' message streams are as before.
+- G1366 THE WORKER HOLDS (`sim_host.js` pump, `SIM_HOST_STALL_MS = 250`): the clock steps no further than 250 ms past the
+  last beat it heard. Past that it publishes the last steps, marks itself `stalled` and sets no timer. The next beat
+  re-anchors the clock on now (`anchor()`), so the flight goes on from where it held, and the lost wall time is let go
+  rather than owed (no catch-up and no teleport; at most 250 ms of flight past the last drawn frame). 'run' counts as a beat.
+  `{cmd:'state'}` adds `stalls`, `stallS` (the wall seconds let go) and `stalled`. A tab sent to the background now holds
+  as well (rAF stops, so the beats stop). The inline loop always stood still there; the worker used to fly on.
+- G1367 THE PACER (`app.js` PACE.frame): a frame 250 ms or more after the last is an ORDINARY frame of the cap. It owes the
+  cap's own steps (1 at 60, 2 at 30) at the cap's own dt (so `fdt`, the hand's input and the cameras, gets no 0.25 s
+  either), and `acc` is zeroed. It used to owe 4 steps (1/15 s) and dt 0.25. `state().stats.stalls` counts these frames.
+  Hitches under 250 ms are untouched: a 200 ms frame still owes 4 and forgets the rest. The rig clock (legacy) is untouched.
+- The page side needed nothing else. sim_view's adapt() already ignores a lag of 0.25 s or more ("a pause, a stall"). The
+  first frame back extrapolates at most one step from the last snapshot. The next snapshot is due "now" on the
+  re-anchored clock.
+
+**PROOF**
+- G1368 GATE SIMWORKER section 1b (new): the Blob's host (simHostSource in a worker-like global) with its clock swapped for a
+  fake one (`performance` / `setTimeout` read off the global at each call; the fake timer keeps node's 1 ms minimum).
+  Without it the pump re-arms at 0 ms forever on a still clock. The pilot taxis out 5 s in at 3.6 m/s, the page beats at
+  60 Hz for 1 s, then **60 s with no beat**: the host held after 15 steps, **0.904 m** from where the page last drew it
+  (216 m unheld). With the page back: 58 steps in its first second, 1 a turn, `stallS` 59.767. And section 3 on the real
+  worker_threads Worker: a 1.5 s page freeze in the middle of the real-time run left 14 steps while frozen (held), 29 in the
+  half second after, 1.27 s let go, and **the host's log replays inline through the hold to the bit** (every published
+  snapshot). The gate now takes ~58 s (was ~46); run_gates wall 60 -> 70.
+- G1369 GATE PACE section 4: the 900 ms stall now owes 1 step at dt 1/60 (it owed 4), the 200 ms hitch still owes 4. New:
+  a 60 s freeze at the 30 and the 60 cap moves the sim one cap frame (33.3 / 16.7 ms), and the second after flies 1.000 s
+  (real time again, nothing owed).
+- GATES: SIMWORKER PASS (35 checks), PACE PASS, BUILD PASS, SIMWORKER-PAGE PASS (16 min: cub and cessna 1200 steps + 1200 frames bit-identical, 0 solver steps on the page), SIMWORKER-EDGES PASS (20 min: cub and cessna 2750 steps + 2747 frames bit-identical across every edge).
+  No other gates and no full battery (the brief). Not run: EDGES `--realtime` (the page's virtual clock against the
+  worker's real one; it now beats through sim_link, but a node page slower than 250 ms a frame would hold the worker
+  between frames, which is by design and is the 4-fps case below).
+- Generated outputs (index.html, dev.html, sw.js, version.json, flight_core.js) are NOT committed: A0's built commit.
+
+**NOTES FOR A0**
+- A page that really runs at 4 fps or worse (frames of 250 ms or more) now holds the worker for a moment every frame: the sim
+  runs at about 250 / frame-ms of real time. Inline at that rate it already did worse (4 steps = 67 ms a frame).
+- Not done: the worker's OWN stall (its thread starved) is still G612's dilation, as before. A per-frame `beat` is one more
+  tiny postMessage a frame. It could ride the frame's batch, but the batch is only posted when there are commands.
+## G1350-G1356 - LIGHT-SMOOTH: THE STRIPES WERE THE BAKE'S NORMAL MAP, THE LIGHT EASES INSTEAD OF STEPPING, THE CLOUD SHADOWS HOLD THROUGH A RE-BAKE, THE EYE READ ITS FRAME TWICE ENCODED (2026-10-03, LIGHT-SMOOTH for A0, local GPU)
+
+The user (3 Oct, log flydiy-flightlog-20261003T165355-7u7a, gfx: eye on, bloom strong, rays on, mirror live, linear
+compositing): (1) banded shadows on the stock Cub's wings and tail at golden hour; (2) "luminosity adjustments happen all
+of a sudden, one frame over the other"; (3) "frequent white flashes, single frame, looks like thunder"; (4) "some random
+frames are entirely pale blue sky, and I have some flicker". Measured with a new in-page luma trace (tools/luma_trace.js
+driving a live_driver page; tools/luma_trace_page.js: each rAF that drew, the canvas into 48 x 27 cells in the same task -
+mean, centre third, rgb, sky cells - beside the live sun / hemisphere / exposure / eye / probe bakes / cloud-shadow flag;
+frames that jump keep a JPEG).
+- G1350 THE STRIPES ARE NOT SHADOWS (flown_bake.js FB_HOOK). In the page: the bands stay with the craft's receiveShadow
+  OFF (58 meshes) and with the craft cascade's bias x20 (a slope-scaled bias was tried first: 0 pixels changed, on the
+  stand and at 140 m with the cascade at its 30 m cap - reverted); they go with the bake's normalScale 0. The visible Cub
+  at chase range is the flown bake, and its BAKED NORMAL MAP's rib tapes, under a sun that grazes the skin (N.L 0.14 on a
+  wing at 8 deg), tilt their two flanks to N.L ~0.3 and ~0: a lit / dark band a rib apart. Fix: the relief fades with the
+  geometric normal's angle to the sun (directional light 0) - full above N.L 0.5, down to uFbGraze 0.25 at a grazing sun.
+  Noon is untouched (14 pixels differ in a side still). FLOWN_BAKE.graze.value 1 = the old relief. The live skin has no
+  normal map (aeroskin.js).
+- G1351 THE PROBE CROSSFADES (atmo.js makeProbe). Every bake was a swap of the environment every glossy material reads -
+  the sun's 1.5 deg, 400 m of cloud drift (every ~4 s at clock x10), the ground under the craft by a 1 % step. A PMREM is a
+  2D CubeUV atlas, so a third target (`shown`, whose identity never changes - no envMap churn either) is drawn as mix(the
+  previous bake, the new one) over PROBE_FADE.s = 2 s (smoothstep, wall clock): one 768 x 1024 fullscreen draw per frame
+  while a fade runs. A maybe() bake waits for a running fade; bake(day, cut) is a cut (the boot; the shed's probe - app.js
+  passes cut, nothing steps it). Cost: +6.3 MB of GPU memory per probe (world, cabin, shed).
+- G1352 THE LIGHT EASES (render_world.js dayApply, window.LIGHT_EASE). The physical path re-applied the day only past the
+  sun-moved guard (0.02 deg: ~5 s at clock x1), so what else it reads arrived in steps on that beat: the clouds'
+  transmittance at the eye (the hemisphere x up to 1.7 under a cloud), the eye's altitude, the exposure's 1 % steps. Now
+  CLOUDS.sunT is sampled at 4 Hz and eased (0.8 s); a 1 % move re-applies the day (at most every 0.3 s); and the key's and
+  the hemisphere's intensity and colour, the ground half and the exposure base EASE toward what applyDay produced (tau
+  1.2 s). A value written by anyone else (the F8 rig rows, the shed's exposure, the light switches) is taken at once.
+  LIGHT_EASE.on false = the old cut. A still taken after a time jump now needs ~5 s to settle.
+- G1353 THE CLOUD SHADOWS HOLD THROUGH A RE-BAKE (clouds.js update) - THE "THUNDER". `on` was off whenever the shadow tile
+  was DIRTY, and the tile is re-baked later in the same frame (draw -> bakeShadow): every frame that dirtied it (a third of
+  a degree of sun with an upper deck; a map / deck change; the cover fit's ~10 frames + its 300 ms debounce) drew the
+  whole ground in FULL SUN. Reproduced with CLOUDS.refit(): the frame mean +0.111 for ONE frame and back, then ~10 frames
+  bright again through the fit. A tile baked once now stays on until the new one lands (S.shadowHold 0 = the old cut).
+  What is left at a refit is the fit re-drawing the visible clouds (+0.04-0.07 steps); a refit happens only on a cover /
+  base / dial change.
+- G1354 THE EYE'S LOOP (post_fx.js): its target is the exposure the MEASURED frame was drawn with plus that frame's error
+  (a late async read no longer integrates the same error again: no overshoot); time constants 0.6 / 1.6 -> 1.5 / 2.0 s.
+- G1355 THE RAYS (post_fx.js): a NaN / Inf guard and a clamp in the shafts' mask (the bloom had one, the rays did not), and
+  the shafts fade out as the sun nears the frame's edge (SKY_GLARE drops ndc.ok at 1.6: they were cut on one frame).
+- G1356 THE EYE READ ITS FRAME TWICE ENCODED (post_fx.js) - A0: PART OF "THE SCENE GOT TOO DARK" FOR ANYONE WITH `eye` ON
+  (the user has it on). Under the linear compositing T.eye is an 8-bit target tagged sRGB, which three r186 stores as
+  SRGB8_ALPHA8: the GPU encoded on the store what pfxCurve had already encoded. Measured: the eye read 0.57 for a frame
+  whose canvas mean was ~0.3, and sat PINNED on its -1.5 stop floor (eyeK 0.354 - the whole frame x0.35) through the
+  first two runs. The bytes are now decoded once (a 256-entry table; the hardware's encode is the standard curve). After:
+  eyeK 0.90 at the same spot, its mean 0.41 against the 0.40 target; over 90 s of flight it ranged 0.48-1.05 at <= 0.67 %
+  a frame. The display compositing's T.eye is plain RGBA8 and unaffected. WITH THE EYE ON THE PICTURE IS BRIGHTER NOW.
+
+FOUND, NOT FIXED (items 3-4):
+- A ONE-FRAME WHITE GLINT OFF THE WING (evidence 4): in flight the whole flat, clear-coated wing reflects the sun for one
+  frame and the strong bloom spreads it (centre luma 0.37 -> 0.48 -> 0.39). The clear coat's roughness floor is 0.0525
+  (G206, FB_HOOK): a highlight a fraction of a degree wide, crossed in one frame by the craft's own motion. Proposed (a
+  look decision): a higher roughness floor for the SUN's direct specular on the craft only (environment reflections
+  unchanged), so a glint lasts a few frames at a lower peak. Not landed: the GPU budget was spent and it changes the
+  craft's look.
+- ALL-SKY FRAMES: not reproduced in ~7 min of traced flight (no frame with a sky-cell share over 0.41), and the draw-call
+  column of the user's own 117 844-frame log never collapses mid-flight - not a skipped pass. Ruled out by reading: the
+  reversed depth state (nothing in src resets it), the camera (no pose spike in the log), the in-cloud slab (the user flew
+  well under the ~1 300 m base). The log shows 746 program links during that flight; if the frames are the stalls, they
+  are SHADER-GUARD's.
+
+MEASURED (tools/luma_trace.js, RTX 3080, 1600 x 900, the user's gfx row, stock Cub, Jolene, orbit camera, clouds drifting
+at clock x10; 30 s blocks alternating the old cut and the new path in one page, then 2 min new): BEFORE blocks - the
+hemisphere up to 7.9 % in one frame, the exposure 1.0-1.7 %, the centre luma's step max 0.037; AFTER blocks and the 2-min
+run - the hemisphere <= 0.73 %, the exposure 0, the centre max <= 0.009, the frame mean's max 0.0035, no frame above 0.01,
+no all-sky frame, the cloud shadows never dropped; 30 probe bakes in the 2 min, all faded. (That run still had the eye
+pinned; the G1356 run's numbers are above.)
+EVIDENCE (reports/evidence/LIGHT-SMOOTH/; GPU renders, nothing software-rendered):
+- 1_cub_runway_golden_master_vs_branch.jpg - the USER'S Cub (builds/cub_2026-09-20_corrected.json) lined up on 13/31 at
+  golden hour, from behind: master b2f1ffdc vs this branch. Brighter after = the eye fix (G1356). No decision.
+- 2_cub_runway_golden_fade_off_on.jpg - the same paused frame, the graze fade off / on: the rib lines softened. No decision.
+- 3_cub_taxi_runway_end.jpg - taxiing to the runway end before the U-turn (the user's spot), fade off / on: no bands
+  either way; the blown patch on the fuselage is the sun's glint (see 4). No decision.
+- 4_wing_glint_one_frame.jpg - the one-frame white wing glint in flight, and the next frame (shot on the chooser's
+  Cub-alike; the user's Cub glints the same way on its fuselage, image 3). A0 DECISION: the craft's sun-specular floor (above).
+- 5_luma_trace_before_after.jpg - per-frame steps of the centre luma / hemisphere / exposure; red blocks the old cut, green
+  the new (the tall bars at a red block's first frame are the toggle snapping back to the old light). No decision.
+- 6_cloud_refit_flash.jpg - the frame mean through forced cloud re-fits, hold off vs on. No decision.
+RE-TEST IN THE USER'S CONDITION (A0, 2026-10-03 22:10-22:21, 2 runs, ~11 min GPU): THE FIRST STILLS WERE THE CHOOSER'S
+CUB-ALIKE (live_driver's `stock` pin, G770), not the user's Cub - the user's is builds/cub_2026-09-20_corrected.json
+(piperCub). With it - golden hour, clock x1, clouds drifting, the user's gfx row, the autopilot taxiing along 13/31 to its
+end and the line-up, a paused still pair every ~7 s (21 pairs), then six views round it lined up - master b2f1ffdc and
+this branch show the same faint chordwise rib lines on the wing and tail tops and NO shadow banding; the fade softens
+the lines (<= 0.7 % of the pixels change). The strong bands the user reported were not reproduced on this Cub; what
+does stand out at golden hour is the sun's specular glint on the fuselage side, blown out by the strong bloom (the
+same mechanism as the one-frame wing glint, item 4) - if the user's "stripes" were seen in another view or under
+cloud, a screenshot from them would pin it.
+THE PALE / WHITE FULL-SCREEN FRAME (the user: "a frame that misses rendering and gives a white or pale blue render") is
+NOT the cloud-tile flash (G1353 is a real flash, of the ground only). Not reproduced: the luma catcher over that run (taxi,
+take-off, a minute of flight; 5 865 frames) saw no frame-mean step over 0.014, a sky-cell share <= 0.26, and 848-1 223
+draw calls on EVERY frame. Ruled out by reading and the user's log: a skipped / thrown frame (no err or contextlost event,
+no noRender flag in flight, no draw-call collapse in 117 844 frames; the canvas has alpha false, so an undrawn frame
+presents BLACK - a pale frame is a DRAWN one), three skipping unlinked programs (r186 waits for the link; SHADER-GUARD
+confirmed), an exposure write without the eye (every writer goes through GFX), a NaN far plane (rejected). Left: an
+overlay drawn over the frame (the clouds' composite quad at a bad key depth, the in-scene mist) or an exposure / bloom
+spike on one frame. tools/luma_trace.js `taxi` mode is the catcher (each jumping frame keeps a JPEG with its draw
+calls, far plane and hidden quadrants); the cheapest next step is to give the user the same catcher in the flight
+recorder so their own session names the frame.
+GATES: the brief's FADES SHADOWSKY BUILD - PASS; and the source scans of the files touched, POSTFX ATMO CLOUD LIGHT
+FLOWNBAKE WEATHER - PASS. No battery, no ratchet (A0 integrates). Program changes: FRAMECOST will read the stale parked
+cook on this branch until the train re-cooks.
+BUDGET: ~37 min under the GPU lock, 3 page loads in one live_driver (C:/lsm1, ports 8641 / 9641 / 8642).
+TRAPS: an 8-bit render target tagged SRGBColorSpace is SRGB8_ALPHA8 in three r186 - a shader that writes encoded values
+into it is encoded twice (the "XR target" display rule's case). A still after a DAY_CLOCK jump needs ~5 s now (the light's
+ease, the probe's fade, the eye). The luma rig must read the canvas in the same task as the frame (the drawing buffer is
+gone after presentation) and skip callbacks that drew nothing (the 30 cap).
+**EVIDENCE** (`reports/evidence/G1320/`, A0's ask; before = origin/master 5502f45 served as-is, after = this branch built;
+headless Chromium + SwiftShader at 1440x900, the stock Cub (`tools/perf/garage_lag_cub_wip.json`) in the garage, the
+editor's column cropped). The garage's 3D view drew the sky only under headless SwiftShader (the renderer reported one
+draw call, two triangles, with `?gfx=potato` too), so NO render of the rudder could be taken: the livery image is the
+resolver's answer (`aeroSecResolve`, the path the live material and the flown bake both take), not a picture of the
+aeroplane. A GPU render (the Cub with a new base colour, the rudder in view) is what a software run could not show.
+- `before_fuselage_cabin_frame.jpg` — master, Fuselage selected: the frames are all Fuselage groups; in the cabin frame the
+  six follow rows' sliders are ~36 px beside the plain rows' 80 px (the full 30 px toggle took the track). No decision.
+- `after_cabin_frame.jpg` — this branch, Cabin selected: the cabin frame is the Cabin's own group; the toggles are compact in
+  the label column and every slider is the same 80 px. DECISION for A0/the user: long labels now ellipsize one notch
+  earlier ("waist half-wi…", "bottom half-…"; the full label stays in the tooltip) — the price of the toggle's place.
+- `before_windscreen.jpg` — master, windscreen selected: no frame rows (shape and bubble canopy only). No decision.
+- `after_windscreen_frame.jpg` — this branch, windscreen selected: the windscreen frame's nine rows head the part
+  (G1321.1, the user's call). No decision (already ruled).
+- `livery_resolver_before_after.jpg` — the base colour picked blue on the stock Cub, Jodel and Cessna: per section, before
+  the pick / after on master / after on this branch. Cub: the rudder stays yellow on master, follows on this branch.
+  DECISION for A0/the user: on the stock JODEL the fix also moves the wing, its tips, ailerons, flaps (and the second
+  wing's, when fitted) and the rudder to the new colour — they carried the body's cream as explicit tints, so G468's
+  "equal = following" rule reads them as following. The Cessna's painted parts carry their own colours: unchanged.
+
+**G1374.1 EVIDENCE** (`reports/evidence/G1370/`, headless Chromium + SwiftShader, before = master 5502f45 built, after =
+this branch built; the rig in `rig/` - `record.js` dumps HOME's pattern for `component.html`, `compshot.js` / `shoot.js`
+take the frames). WHAT A SOFTWARE RENDER COULD NOT SHOW: the full page's world does not draw under SwiftShader here (the
+stand's canvas is flat sky after a 450 s boot; the HUD and the verbs do draw), so there is no in-game lake reflection and
+no in-game photo-mode frame. The ribbons are shown in a COMPONENT render instead: the real three r186, each tree's own
+pattern_vis.js (+ ui_layer.js after), HOME's real declared pattern (taxi graph, slopes, targets, PAPI) and a synthetic
+300 m circuit fed through setLegs, seen by the eye, by the eye with shotSet's switch, and by a mirror camera built as
+water.js builds it. And the roll-out shot is REFUSED in a fresh headless boot (`FLYDIY_TRIPS`: anim 'cannot',
+`FLYDIY_ROLLPLAN()` null - rollAnimCan false, no error logged; the same on master), so no frame mid-shot exists: the verbs'
+CSS half is shown by setting `body.rollShot` by hand on the real page at the stand; WHEN the class is set (before
+ROLLANIM.play, cleared in flRevealStart) is GATE UILAYER U5's.
+- `ribbons_before.jpg` - master: the eye, photo mode and the mirror camera each draw all 36 pattern objects (the legs and
+  the slopes in the mirror's upside-down frame, the ribbons in photo mode). The user's report, reproduced. No decision.
+- `ribbons_after.jpg` - this branch, same cameras: the eye 36 of 36; photo mode and the mirror 8 of 36 (the PAPI's boxes
+  only). **Decision for A0 / the user: the PAPI stays in the mirror and the photo (treated as an airfield fixture, not UI)
+  - say if it should go too** (one line: add 'papi' to pattern_vis.js UI_KEYS).
+- `verbs_before.jpg` - master at the stand with `body.rollShot` set by hand: the verbs stay (no rule) - what master shows
+  through the roll-out shot. No decision.
+- `verbs_after.jpg` - this branch, the same: #flActs display:none - no Skip to line-up / Fly the circuit / The shed.
+  No decision.
+- `verbs_after_reveal.jpg` - this branch at the stand after the reveal (the class cleared by flRevealStart): the verbs are
+  back. No decision.
+
+## G1340-G1344 - SHADER-GUARD: THE 79 s FRAMES WERE THE PREMISES LAMPS' COUNT - EVERY LIT PROGRAM RE-KEYED WHEN THE NUMBER OF LIT LAMPS NEAR THE EYE CHANGED (2026-10-03, SHADER-GUARD for A0, local GPU)
+
+**THE EVIDENCE** (the user's flight-recorder logs, train 25 af99bcc23a8a, custom near-ultra): 79 / 79 / 78 s frames from the
+line-up skip's take-off on, 97 s at a roll-out after 69 min in the shed. Each is ONE frame, ~60 NEW program ids linked in it
+(447-508, then 496-537, then 538-581), five of them ~12 s each (the ground's heavy programs), the rest ~0.25 s. The sim
+flew on in its worker meanwhile, so each freeze landed somewhere new and found a new count. (The frame's `shader` slot read
+54 ms: the waits fell outside the open frame - the watchdog below counts both.)
+
+**THE RIG: tools/perf/shader_guard.js** (new). The user's gfx, roll out, skip to line up, the pilot's take-off and circuit;
+every program three makes (renderer.info.programs' push: name, cache key, frame, the visible lights by kind, the target,
+the caller) and destroys; each new key against the same name's nearest earlier key, field by field. `--tree` serves a
+`git archive` copy from the same root (the bisect), `--day` the day, `--shed-dusk` night falling while in the shed.
+
+**G1340 THE CAUSE.** The premises' LAMP POOL (G449, render_premises.js LAMPS): from dusk (sun under 2 deg) its 8
+  point lights were assigned to the published lamps nearest the eye within 500 m, and an UNASSIGNED one was made invisible.
+  three keys every lit program on the count of VISIBLE point lights (numPointLights), so each change in the number of
+  lamps within reach re-keyed every lit material in the world. The rig at dusk (r2, train 25 + the user's gfx): the
+  stand (2 craft lights + 8 lamps = P10) to the hold, a kilometre from the town (2 + 2 = P4) -> one 95.2 s frame, then
+  23.2 s; every new key differs from its predecessor in the light-count fields only (#35-#43: 10 -> 4), on everything
+  lit: trees (M_Branch / M_Bark / BirchBranchAtlas / CommonBark), grass1, pavement, life:kit, parked:baked, flown:baked,
+  water, the characters, the town's matlib array, the animals. The same run on the game's own 16:00 day (r1): 1 program
+  after the skip, worst frame 317 ms. Not the mirror, not fog, not the shadow type: the light count alone.
+  - The 97 s roll-out after an hour in the shed: the day clock runs in the shed; it crossed dusk there, and the roll-out's
+    'worldCompile' was keyed on the graphics alone (gfxKey) - it did not run, and the first world frame met the lamps'
+    new count unlinked.
+  - The user's "it did not do this a week or two ago": the skip button arrived 27 Sep (G771); the pool is older (G449,
+    21 Sep). What changed is the user's day: the saved day reached dusk.
+
+**G1341 THE BISECT** (dusk, the same rig and settings, a fresh profile each): 
+  - 3da1c82a (26 Sep, no skip button yet - the pilot taxied out of the stand on its own): THE SAME - eight frames of
+    86-94 s, about 70 programs keyed for EACH lamp count P3 .. P10 (r4, pulled from the page over CDP after the rig's
+    poll stalled on the old FLIGHT_PROBE: tools/perf/shader_guard/r4_3da1_dusk_pulled.json).
+  - 8f8d1884 (19 Sep, before G449): no pool; the light state D1/1 P2 S1 H1 the whole run, 3 programs made in flight - no
+    storm (its frame times are not measured: that tree has no FLYDIY_PACE.end for the rig's hook).
+  - So it is NOT a regression of the last week: the pool has re-keyed the world at dusk since 21 Sep.
+
+**G1342 THE FIX: THE POOL'S COUNT IS FIXED, AND IT CHANGES ONLY ONCE ITS PROGRAMS ARE LINKED.**
+- render_premises.js LAMPS: the pool is ARMED (all 8 visible, an unassigned lamp at intensity 0) or not (none visible).
+  update() never toggles a light's `visible` any more; it arms / disarms only when the day crosses the lamps' threshold
+  (sun 2 deg), and then only after `LAMPS.prep(want)` resolved; mute() darkens and keeps the count. No prep (the benches):
+  at once, as before.
+- app.js lampsPrep(want): the world's lit programs (compileSliced, the frame's target) and the shadow pass's depth variants
+  (compileDepthVariants, sliced) keyed with the pool dressed as it WILL be, a slice a task, linked on the driver's threads.
+  render_world.js: setLampsPrep / lampsWant / lampsArm.
+- The roll-out: 'worldCompile' keys on the lamps' wanted count too and arms the pool before it compiles - dusk falling in
+  the shed now compiles under the roll-out screen with its progress, not in the first frame.
+
+**G1343 THE SAFETY NET.**
+- THE DRAW GUARD (shader_warm.js PROG_WARM.guard, installed in app.js; `?guard=0` turns it off): in the world scene, a draw
+  of a material three has no program for yet - or one the guard is still linking - is held (skipped), its program compiled
+  after the frame through compileAsync (a stand-in, the scene's lights and fog, the target it drew into), drawn once ready
+  (20 s cap). A HELD FRAME IS NEVER PRESENTED (A0's ruling: a partial frame - a ground missing, the sky's colour - is the
+  user's "pale-blue missed frame"): aa_resolve.js `hold` skips the resolve and the post hook when the guard held a draw,
+  app.js skips the glare, nothing reaches the canvas, the page keeps the last whole frame. The guard is armed only
+  behind the AA target (with aa off the scene draws on the canvas itself: nothing is held there). Its stats
+  (FLYDIY_GUARD.stats.what) name the first 40 held materials with frames held and ms to ready. Not the shadow pass (scene null: the warm-ups' depth set) and not the full-screen passes (holding a resolve
+  would blank the frame). A material whose programs exist but whose KEY changes (a light count, a define) is not held -
+  that is what the lamps' prep and the watchdog cover. The garage is not guarded (its editor's builds: STRICT-GATES).
+- THE WATCHDOG (flight_recorder.js): every program three makes is named with what changed in its key against the last
+  program of its name ('#i:a>b'); a frame whose shader time (its slot, or the link waits since the last frame) passes
+  50 ms is an event `shaderslow` with that list.
+- THE SETTINGS: unchanged - a settings change already compiles under its screen (G879 / G991); GATE GFX passes.
+- THE MIRROR: 'live' left the reflections row; ultra is mirror off (it keeps the full water). A saved 'live' falls back to
+  the default preset's (off) at load.
+
+**G1344 BEFORE / AFTER** (the user's settings, dusk 2026-06-22T06:30Z, warm profile, roll-out -> skip -> take-off ->
+circuit): 
+  | run | build | scenario | after the skip / roll-out | worst frame, whole run |
+  |---|---|---|---|---|
+  | r1 | train 25 | 16:00 day, skip | 1 program; no frame > 250 ms | 317 ms (before the skip) |
+  | r2 | train 25 | DUSK, skip | 115 programs; 95 203 ms + 23 192 ms + 3 218 ms frames | 95.2 s |
+  | r3 | + G1340 | DUSK, skip | 1 program; no frame > 250 ms (worst 133 ms); light state P10 constant | 867 ms (the roll-out's first draws, before the skip) |
+  | r6 | + G1340 | dusk boot, night in the shed, roll-out, skip | no frame > 250 ms | 684 ms |
+  | r7 | + G1340 (+ whole-frame hold) | 16:00 boot, night falling in the shed, roll-out, skip | the roll-out re-ran worldCompile + frames UNDER ITS SCREEN (51 s, 141 programs, the heaviest 41 s on the driver's thread; held frames under the screen <= 717 ms); after it worst 617 ms | 617 ms outside the screen |
+  - Every frame over 250 ms left on the fix is a first draw of programs linked earlier (the watchdog says so: "no new
+    program: waits on programs made earlier" - G879's ANGLE first-draw cost), none over 1 s.
+  - The draw guard held, per run: r3 20 draws / 18 compiles; r6 18 / 16; r7 8 / 8 - all small: plain
+    MeshStandardMaterial pieces, cover:shrub Holly / Raspberry atlas and bark, one LineSegments; ready in 1-4 ms, the
+    LineSegments 69 ms (2 frames). With the whole-frame hold those frames re-show the last whole frame.
+
+**THE OTHER TWO REPORTS.**
+- The no-physics (scenery) mode's minute: the lamps are assigned round the EYE (render_world passes camera.position), so
+  a free camera roaming the town at dusk changed the count at every 30-frame re-pick - the same cause, the same fix (not
+  re-run here: the run budget went to the bisect).
+- The pale-blue / white single frames: NOT this cause on train 25. three r186 does not skip an unlinked program - the draw
+  blocks on getUniforms until the link ends (that block IS the 79 s frame), so a link burst never draws a partial frame;
+  the user's log (93 846 frames) has no flight frame under 250 draw calls outside a screen. Not reproduced. The only
+  partial-frame risk this work could add (the guard's held draws) is closed by the whole-frame hold above.
+
+**GATES:** PROGRAMS, BOOT, ROUNDTRIP, GFX, BUILD - PASS (run_gates --no-build). FRAMECOST and the ratchet are A0's
+(the pool's count at night is now always 8: a lit program at night carries 8 point lights where it carried 0-8; by day
+none, as before). NOT DONE: the garage is not guarded (the editor's builds draw new materials every tick - holding them is
+a GARAGE-LAG / STRICT-GATES question); a key change on an EXISTING material other than the lamps is logged, not held.
+Budget: 7 browser runs, ~47 min of GPU under the lock.
+
+**EVIDENCE** (`reports/evidence/G1375/`, A0's ask, 2026-10-03). Headless Chromium on SwiftShader, the game as served
+(`tools/surface_shot.js`): "before" = master 5502f45's committed index.html, "after" = this branch's build, Jolene (the
+game's default world), each load with a build in flydiy.wip and a saved route in flydiy.route (the Cub: HOME -> SEA, the
+float Cessna `bugReports/cessnaFloatsWOrks.json`: HOME -> A3, an id Jolene does not have). The pickers are shot with
+their lists EXPANDED IN PLACE (`select.size`: a native drop-down does not paint headless), so the chosen value is not
+highlighted - `pickers.txt` lists each picker's value and options ([x] = disabled). All UI, nothing GPU-dependent: a
+software render shows all of it. Not shot: the roll-out screen's #bootRoute (its shot timed out on the busy boot, and
+it carries the same options as the garage's); master's floats pickers (byte-identical to image 1 - master labels
+nothing and refuses nothing, whatever the gear).
+- `1_before_cub_pickers.jpg` - master, the Cub: plain names, Annette Dock (a water lane) offered to wheels. No decision.
+- `2_after_cub_pickers.jpg` - the Cub: every strip with its surface, `Annette Dock · water — a water lane: wheels cannot
+  land on it` faint and disabled in both lists; the saved HOME -> SEA fitted to the circuit (pickers.txt). No decision.
+- `4_after_floats_pickers.jpg` - the float Cessna: every land strip faint, `— floats land on water only`, Annette Dock the
+  one choice; the saved route fitted to the sea lane / the circuit. DECISION: the reason is spelled on every refused
+  row (seven times here) - say if you prefer the bare greyed row with the reason only in the tooltip.
+- `5_before_cub_map.jpg` - master's big map in flight, the Cub: the saved route drawn from Jolene 13/31 to Annette Dock
+  (the amber dash) - a wheeled aeroplane sent to land on the water. No decision.
+- `6_after_cub_map.jpg` - the same load: no leg to the water (the 13/31 circuit), every label with its surface, Annette
+  Dock's faint (the gear may not use it); every label inside the map (the longer labels ran off its edge until the
+  placer was told the bounds - fixed in this follow-up). No decision.
+- `7_before_floats_map.jpg` - master, the float Cessna: the route still names Jolene 13/31 (its ring on the runway)
+  while the aeroplane sits at Annette Dock. No decision.
+- `8_after_floats_map.jpg` - the float Cessna: departure and circuit both Annette Dock, the land strips faint. DECISION
+  (small): faint labels for the strips the gear may not use - say if they should rather vanish from the map.
+
+FOLLOW-UP CHANGES since the READY above (found by the evidence): `option:disabled` reads faint in the three pickers'
+CSS (editor.css #edRoute and #ui .fsel, style.css #bootRoute: the inherited ink hid the browser's grey); the map's label
+placer keeps labels inside the canvas (app.js labFits). Gates re-run for them: BUILD, UISMOKE, STRIPSURF PASS. The
+generated outputs are still not committed.
+
+## G1352.1 + G1351.1 - TRAIN 27'S TWO REDS FROM LIGHT-SMOOTH: THE EASE WROTE THE LIGHTS EVERY FRAME, THE PROBE'S FADE MADE ITS OWN MATERIAL (2026-10-04, LIGHT-SMOOTH for A0, node only)
+
+- G1352.1 GATE FRAMECOST, taxi gl.uniform3f 62 -> 239 (Cub) / 64 -> 238 (Cessna): LIGHT_EASE wrote its eased key,
+  hemisphere and ground half every frame, and three uploads a light's uniforms to every program that draws whenever
+  the values CHANGE (WebGLUniforms compares against its cache) - ~88 programs x 2 colours a frame, for as long as the
+  ease ran (with the clock running and the clouds drifting: always). The ease still runs every frame inside LE; the
+  LIGHTS are written only when the eased value has moved a step since the last write (LE_STEP: 0.4 % of an intensity,
+  0.003 of a colour channel, 0.2 % of the exposure - under what an eye can see between two frames) and once more,
+  exactly, on arrival; a re-apply of the day (applyDay writes the target over the lights) puts back EXACTLY what was on
+  screen (LE.w*), so three sees no change. Someone else's write is still caught by lightEase (the light as it stands
+  against LE.setSunI / setHemiI). LE.writes counts the writes.
+- G1351.1 GATE ASSETS, "mats: atmo.js has 6 (allowed 5)": the probe crossfade's material is made through
+  MATLIB.make(THREE, 'shader', ...) (AS4a: one place materials are made); without MATLIB (a node host) the probe cuts.
+
+## TRAIN 27 LANDED (2026-10-04, A0 the coordinator)
+
+Cargo (on train 26 = b2f1ffdc): GATE-TOOLS G1360-G1364 (the frame-length distribution; the per-train strict gate
+tools/perf/train_gate.js, its baselines taken on train 26 with the user's Cub and a noise check that widened four rules),
+SHADER-GUARD G1340-G1344 (the 76-97 s frames = the premises lamp pool's visible count re-keying every lit program at dusk;
+the pool armed / not, the roll-out compiling under its screen; a draw guard that never presents a held frame), LIGHT-SMOOTH
+G1350-G1356 + G1351.1/G1352.1 (the eye's double-encoded readback pinned the exposure at x0.35; the light eases, written only
+in perceptible steps; the cloud tile never draws a full-sun frame; the probe crossfades through MATLIB), SIM-STALL
+G1365-G1369, STRIP-SURFACE G1375-G1379, EDITOR-VEG G1385-G1389, UI-LAYER G1370-G1374, WELCOME G1210-G1219 (+ the
+hangar Cub behind the card; the welcome and the device gate stay out of localhost - the box's rigs drive a headed Chrome
+with webdriver off and the welcome held every boot of the first gate run), SMALL-FIXES G1320-G1322 (+ G1321.2 the
+windscreen frame back under Cabin, the user's reversal), the rigs' Cub = builds/cub_2026-09-20_corrected.json (default is
+the Cub-alike archetype), the live water mirror back in the menu, off by default (the user).
+DROPPED: GEAR-WATER G1380-G1383 - GATE SOAR's negative control: its wet-body pass changes the glide in DRY air (mean sink
+-0.33 -> -0.24 m/s, ends 33 m over the face); reverted (80057a3f); train 26 and train 27 without it pass. Back after a fix.
+STRICT GATE (full, vs train 26): loads, taxi, chase/cockpit, water within slack. Garage: the first run's Cub tank / livery /
+frame "busy" reds were one noisy step - a quiet garage_lag bisect (train 27 / without GEAR-WATER / without SMALL-FIXES /
+train 26, Cub x3) read train 27 = train 26 (tank 695 vs 690, frames 243 vs 247, livery noisy on every tree); the landing
+check (garage only) reds Cub wingSpan busy 251 -> 323, metal fuseLen busy 441 -> 574 and the metal busy sum +8 % - "busy"
+moves row to row run to run, every "sync" row (input -> drawn) is in slack: ALLOWED BY THE USER BY NAME (2026-10-04 03:05,
+"land now"). GARAGE-INSTANT's census looks at busy time.
+DUSK A/B (the 8 always-on lamp lights at night, the Cub, ABAB): taxi equal, stand ~2 fps lower delivered (53.0 / 49.8 vs
+53.8 / 51.4) - accepted. BATTERY: CLOUD + ANIMALS (stale text checks: lampsOn(day), the surface word) fixed; ASSETS +
+FRAMECOST (LIGHT-SMOOTH's fix) and SOAR (GEAR-WATER out) green; the changed gates re-run green on the final build; the
+parked aeroplanes re-cooked on it.

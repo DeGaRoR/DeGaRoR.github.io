@@ -1039,6 +1039,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     const craft = nearCraftRoot(root);
     root.traverse(o => {
       if (!nearWatched.has(o)) { nearWatched.add(o); o.addEventListener('childadded', nearOnAdd); o.addEventListener('childremoved', nearOnRemove); }
+      if (o.userData.uiLayer) return;   // G1370: a UI helper (ui_layer.js) keeps its one layer - it casts nothing, and a far / craft bit would show it to photo mode
       if (craft) {   // a piece joining the craft after tagCraft: the craft's near layer, the craft's far state (follow() owns it)
         if (o !== craft) { o.layers.enable(SHADOW_NEAR.CRAFT_LAYER || NL); if (craft.layers.isEnabled(FL)) o.layers.enable(FL); else o.layers.disable(FL); }   // G1005: the craft's cascade layer
         return;
@@ -1176,13 +1177,14 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
   // the circle.
   // ...unless the strip says its trees are the record's (G527.3, the user at East Point: "you've cut too much in the
   // trees"): treeBox false leaves the clearing to the premises' own excludes (the strip's box + 30 m, the fans)
-  const treeEx = world.aerodromes.filter(a => a.treeBox !== false).map(a => (typeof a.hdg === 'number' && a.wid)
-    ? { x: a.x, z: a.z, cx: Math.cos(a.hdg), sz: Math.sin(a.hdg), hl: a.len / 2 + 150, hw: a.wid / 2 + 60, strip: true }
-    : { x: a.x, z: a.z, r2: (a.len / 2 + 70) ** 2 });
+  // (G1385: a strip's own `clear` - side, beyond, taper - replaces the box for that strip; 20_world.js aeroBoxes' rule)
+  const treeEx = world.aerodromes.filter(a => a.treeClear || a.treeBox !== false).map(a => { const cl = a.treeClear || null; return (typeof a.hdg === 'number' && a.wid)
+    ? { x: a.x, z: a.z, cx: Math.cos(a.hdg), sz: Math.sin(a.hdg), rl: a.len / 2, hl: a.len / 2 + (cl ? cl.beyond : 150), hw: a.wid / 2 + (cl ? cl.side : 60), tp: cl ? cl.taper : 0, strip: true }
+    : { x: a.x, z: a.z, r2: (a.len / 2 + 70) ** 2 }; });
   const inEx = (e, x, z) => {
     if (!e.strip) return (x - e.x) * (x - e.x) + (z - e.z) * (z - e.z) < e.r2;
-    const dx = x - e.x, dz = z - e.z, al = dx * e.cx + dz * e.sz, ac = -dx * e.sz + dz * e.cx;
-    return Math.abs(al) < e.hl && Math.abs(ac) < e.hw;
+    const dx = x - e.x, dz = z - e.z, al = Math.abs(dx * e.cx + dz * e.sz), ac = Math.abs(-dx * e.sz + dz * e.cx);
+    return al < e.hl && ac < (e.tp && al > e.rl ? Math.max(0, e.hw + e.tp * (al - e.rl)) : e.hw);
   };
   // ORDERED BY COST (W0c.30): the corridor and the aerodromes are a compare,
   // the woodland bins a few distances, the classifier 2.4 us - and it was
@@ -4060,6 +4062,21 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     // payload's (tree_prep.py bakes the bench's tuning); F8 edits BIO.map and exports it.
     yield 'biomes';
     const BIO = (typeof BIOMES !== 'undefined' && typeof TREE_PACK !== 'undefined') ? BIOMES.make(TREE_PACK) : null;
+    // THE COVER POLYGONS' OWN VEGETATION (G1385 EDITOR-VEG): the premises' vegAt answers first at a point (none, a
+    // biome by name, or the polygon's own '@id' mix), BIO.mixHere asks it; the '@' mixes are copied into BIO.mixes
+    // whenever the composed premises is another one (the editor recomposes on every edit) - TREE_FILL.vegChanged
+    // replants when what they say changed. The world rail's export leaves the '@' mixes out (they are the record's).
+    let vegO = null, vegSigNow = '', vegPlanted = null;
+    const vegSync = () => {
+      const O = world.premises && world.premises.overlay; vegO = O;
+      const sig = (O && O.vegSig) || '';
+      if (sig === vegSigNow) return;
+      for (const k of Object.keys(BIO.mixes)) if (k[0] === '@') delete BIO.mixes[k];
+      if (O && O.vegMixes) for (const k in O.vegMixes) BIO.mixes[k] = JSON.parse(JSON.stringify(O.vegMixes[k]));
+      vegSigNow = sig;
+    };
+    if (BIO) { vegSync(); vegPlanted = vegSigNow; }
+    if (BIO) BIO.over = (x, z) => { const O = world.premises && world.premises.overlay; if (O !== vegO) vegSync(); return O && O.vegAt ? O.vegAt(x, z) : undefined; };
     const treePool = () => {
       const pool = [];
       for (const e of treeList()) {
@@ -4209,7 +4226,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       const d = 8, sl = Math.hypot(world.terrainH(x + d, z) - world.terrainH(x - d, z), world.terrainH(x, z + d) - world.terrainH(x, z - d)) / (2 * d);
       return BIO.codeOf(tt, Math.atan(sl) * 180 / Math.PI, ISLC.canopyAt(x, z), r);
     };
-    const biomeAt = (x, z, r) => { const c = codeAt(x, z, r); return c < 0 ? null : BIO.mixAt(c); };
+    const biomeAt = (x, z, r) => BIO.mixHere(codeAt(x, z, r), x, z);
     function plantWoodland() {
       // Undo the previous plant. The InstancedMeshes and the impostor atlas are
       // OURS and go; the geometry and materials of a real tree are NOT — they
@@ -4686,7 +4703,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
               // kind, its species the pool (codeAt / biomeAt below - the cover ring's too)
               const tt = ttypeAt(x, z);
               if (BIO) {
-                mixHere = BIO.mixAt(codeAt(x, z, hsh(ix + 21, iz + 23)));
+                mixHere = BIO.mixHere(codeAt(x, z, hsh(ix + 21, iz + 23)), x, z);
                 kind = mixHere ? Math.min(1, BIO.density(mixHere) * spc * spc * FILL.island.biomeGain) : 0;
               } else kind = tt === 8 ? 1.0 : tt === 7 ? 0.5 : tt === 3 ? 0.12 : tt === 2 ? 0.04 : 0.0;
               if (tt === 3 || tt === 2) can = Math.min(can, 3.0);        // the bog's and the heath's are stunted
@@ -4984,11 +5001,13 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
             const slopeDeg = Math.atan(sl) * 180 / Math.PI, canopy = ISLC.canopyAt(x, z);
             const code = BIO.codeOf(tt, slopeDeg, canopy, 0.5);
             const k = ISLC.cellAt ? ISLC.cellAt(x, z) : -1;
-            return { tt, code, name: BIO.names[code] || String(code), mix: BIO.mixAt(code), canopy, slopeDeg,
+            return { tt, code, name: BIO.names[code] || String(code), mix: BIO.mixHere(code, x, z), canopy, slopeDeg,
                      ndvi: (ISLC.ndvi && k >= 0) ? ISLC.ndvi[k] / 127 - 1 : null };
           },
           setBiome: (code, mix) => { if (!BIO) return null; const r = BIO.set(code, mix); biomePools.clear(); evictAll(); reachRefresh(); return r; },
           reach: () => reachRefresh(),   // G908: re-read what the map can reach (after a premises re-stamp); true when it grew
+          // G1385: after a premises edit (app.js onRebuilt) - the cover polygons' vegetation re-read; replants only when it changed
+          vegChanged: () => { if (!BIO) return false; vegSync(); if (vegSigNow === vegPlanted) return false; vegPlanted = vegSigNow; biomePools.clear(); evictAll(); if (coverRing) coverRing.replant(); reachRefresh(); return true; },
           // L4 (the F8 biomes fold): one number of one mix moved live - a species row's
           // proportion / dead / density / patch / size, or the forest's count / under / rocks /
           // blotch - the fill re-pools and replants, the ring replants; the export carries it
@@ -5780,6 +5799,10 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
   yield 'props';
   if (typeof propInstAttach === 'function') propInstAttach(THREE, scene);
   let premisesR = null;
+  // G1340: the premises lamps' level by the day (0..1: on below a 2 deg sun) and the host's compile of the pool's other
+  // count (app.js lampsPrep: the lit programs keyed and linked in the background before the pool arms / disarms)
+  const lampsOn = day => Math.max(0, Math.min(1, (2 - day.sunEl) / 4));
+  let lampsPrep = null;
   // THE PATCH'S TWO GROUNDS (G527): a chunk inside the inner ring wears the ring's material and uv law, a chunk
   // past it the far terrain's (render_premises patchPick) - it was one choice for the whole record by its
   // extent, so a place 4.5 km out took the airfield's patch off the ring's material with it
@@ -6300,6 +6323,81 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
   if (typeof window !== 'undefined') window.SHADOW_RATE = SHADOW_RATE;
   const WARM_SUN = C(0xffa652);
   let dayVer = -1, dayEl = NaN, dayAz = NaN;
+  // G1352 THE LIGHT EASES (LIGHT-SMOOTH, 2026-10-03; the user: "luminosity adjustments happen all of a sudden, one frame
+  // over the other"). The physical path re-applied the day only past the sun-moved guard below (0.02 deg: ~5 s of a
+  // real-time clock), so everything else it reads arrived in steps on that beat: the clouds' transmittance at the eye
+  // (the hemisphere x up to 1.7 under a cloud, its colour toward the sun's - a cloud's edge became a cut seconds after
+  // the eye crossed it), the eye's altitude, the exposure's 1 % steps. Now (1) the clouds' sunT is sampled at 4 Hz and
+  // eased (tau 0.8 s), and a move of 1 % re-applies the day (at most every 0.3 s - applyDay integrates the sky's
+  // irradiance on the CPU, ~0.5 ms); (2) what applyDay produces is a TARGET: the key's and the hemisphere's intensity and
+  // colour, the ground half and the exposure base ease toward it on the wall clock (LE.tau 1.2 s: 95 % in 3.6 s). A writer
+  // other than this (the F8 rig rows, the shed's exposure) is seen as a value we did not set and taken at once.
+  // LE.on false is the old cut.
+  const LE = { on: true, tau: 1.2, tauCloud: 0.8, init: false, last: 0, cT: 1, cTraw: 1, cTat: 0, cTapplied: 1, applyAt: 0,
+    sunI: 0, hemiI: 0, ex: NaN, sunC: C(0xffffff), hemiC: C(0xffffff), gndC: C(0xffffff), wSunC: C(0xffffff), wHemiC: C(0xffffff), wGndC: C(0xffffff),
+    tSunI: 0, tHemiI: 0, tEx: NaN, tSunC: C(0xffffff), tHemiC: C(0xffffff), tGndC: C(0xffffff), setSunI: NaN, setHemiI: NaN, setEx: NaN, eases: 0, applies: 0, writes: 0 };
+  if (typeof window !== 'undefined') window.LIGHT_EASE = LE;
+  const exBaseNow = () => { const G = (typeof window !== 'undefined') ? window.GFX : null; return (G && G.exposureBase && G.exposureBase() != null) ? G.exposureBase() : (renderer ? renderer.toneMappingExposure : NaN); };
+  function exSet(v) {
+    const G = (typeof window !== 'undefined') ? window.GFX : null;
+    if (G && G.setExposure) G.setExposure(renderer, v); else if (renderer) renderer.toneMappingExposure = v;
+    LE.setEx = exBaseNow();
+  }
+  // lightTake(ex): applyDay has just written the lights - those values are the targets; the lights go back to the eased ones
+  function lightTake(ex) {
+    LE.tSunI = sun.intensity; LE.tHemiI = hemi.intensity; LE.tSunC.copy(sun.color); LE.tHemiC.copy(hemi.color); LE.tGndC.copy(hemi.groundColor); LE.tEx = ex;
+    // not easing yet (or off): the target at once. (Someone else's write - a rig row, the shed - is caught by lightEase, which
+    // runs earlier in the same frame and takes the lights as they stand; the written and the eased value differ by design.)
+    if (!LE.on || !LE.init) {
+      LE.sunI = LE.tSunI; LE.hemiI = LE.tHemiI; LE.sunC.copy(LE.tSunC); LE.hemiC.copy(LE.tHemiC); LE.gndC.copy(LE.tGndC);
+    }
+    if (!LE.on || !LE.init || !(LE.ex > 0) || LE.setEx !== exBaseNow()) LE.ex = ex;
+    const snapped = LE.sunI === LE.tSunI && LE.hemiI === LE.tHemiI;
+    LE.init = true; LE.applies++;
+    // applyDay has just written the target over the lights: a snap writes it; an ease puts back EXACTLY what was on screen
+    // (the last written values - three then sees no change and uploads nothing) and steps toward the target from there
+    if (snapped || !(LE.setSunI === LE.setSunI)) lightShow(true);
+    else { sun.intensity = LE.setSunI; sun.color.copy(LE.wSunC); hemi.intensity = LE.setHemiI; hemi.color.copy(LE.wHemiC); hemi.groundColor.copy(LE.wGndC); }
+  }
+  // G1352.1 THE EASE WRITES IN PERCEPTIBLE STEPS (train 27's GATE FRAMECOST: gl.uniform3f 62 -> 239 a frame at the taxi).
+  // three uploads a light's uniforms to every program that draws whenever the values CHANGE - an ease that wrote its
+  // new value every frame re-uploaded the key's and the hemisphere's colours ~88 programs x 2 a frame for as long as it
+  // ran (and with the clock running and the clouds drifting it always runs). The ease still runs every frame inside
+  // LE; the LIGHTS are written only when the eased value has moved a step since the last write (0.4 % of an
+  // intensity, 0.003 of a colour channel, 0.2 % of the exposure - each under what an eye can see between two frames)
+  // and once more, exactly, when it arrives. Most frames write nothing; a cloud's edge is a few small steps a second.
+  const LE_STEP = { i: 0.004, c: 0.003, ex: 0.002 };
+  const relD = (a, b) => Math.abs(a - b) / Math.max(1e-9, Math.abs(b));
+  const colD = (a, b) => Math.max(Math.abs(a.r - b.r), Math.abs(a.g - b.g), Math.abs(a.b - b.b));
+  function lightShow(force) {
+    if (force || relD(LE.sunI, sun.intensity) > LE_STEP.i || relD(LE.hemiI, hemi.intensity) > LE_STEP.i
+        || colD(LE.sunC, sun.color) > LE_STEP.c || colD(LE.hemiC, hemi.color) > LE_STEP.c || colD(LE.gndC, hemi.groundColor) > LE_STEP.c) {
+      sun.intensity = LE.sunI; sun.color.copy(LE.sunC); hemi.intensity = LE.hemiI; hemi.color.copy(LE.hemiC); hemi.groundColor.copy(LE.gndC);
+      LE.setSunI = sun.intensity; LE.setHemiI = hemi.intensity; LE.wSunC.copy(LE.sunC); LE.wHemiC.copy(LE.hemiC); LE.wGndC.copy(LE.gndC); LE.writes++;
+    }
+    if (LE.ex > 0 && Math.abs(LE.ex - LE.setEx) > LE.ex * (force ? 1e-4 : LE_STEP.ex)) exSet(LE.ex);
+  }
+  // lightEase(): a frame of the ease (every dayApply, the guard's early return included)
+  function lightEase(now) {
+    const dt = LE.last ? Math.min(0.25, Math.max(0, (now - LE.last) / 1000)) : 0; LE.last = now;
+    if (!LE.init) return;
+    if (sun.intensity !== LE.setSunI || hemi.intensity !== LE.setHemiI) { LE.sunI = sun.intensity; LE.hemiI = hemi.intensity; LE.sunC.copy(sun.color); LE.hemiC.copy(hemi.color); LE.gndC.copy(hemi.groundColor); }
+    if (LE.setEx !== exBaseNow()) LE.ex = exBaseNow();
+    const k = LE.on && LE.tau > 0 ? 1 - Math.exp(-dt / LE.tau) : 1;
+    if (k <= 0) return;
+    const d = Math.abs(LE.tSunI - LE.sunI) + Math.abs(LE.tHemiI - LE.hemiI) + (LE.tEx > 0 ? Math.abs(LE.tEx - LE.ex) : 0);
+    const dc = Math.abs(LE.tSunC.r - LE.sunC.r) + Math.abs(LE.tSunC.g - LE.sunC.g) + Math.abs(LE.tSunC.b - LE.sunC.b) + Math.abs(LE.tHemiC.r - LE.hemiC.r) + Math.abs(LE.tHemiC.b - LE.hemiC.b) + Math.abs(LE.tGndC.g - LE.gndC.g);
+    if (d < 1e-7 && dc < 1e-6) return;
+    LE.sunI += (LE.tSunI - LE.sunI) * k; LE.hemiI += (LE.tHemiI - LE.hemiI) * k;
+    LE.sunC.lerp(LE.tSunC, k); LE.hemiC.lerp(LE.tHemiC, k); LE.gndC.lerp(LE.tGndC, k);
+    if (LE.tEx > 0 && LE.ex > 0) LE.ex += (LE.tEx - LE.ex) * k;
+    LE.eases++;
+    // arrived (every part within a step of its target): the target exactly, written once - the ease then rests (d = 0 above)
+    const there = relD(LE.sunI, LE.tSunI) < LE_STEP.i && relD(LE.hemiI, LE.tHemiI) < LE_STEP.i && colD(LE.sunC, LE.tSunC) < LE_STEP.c
+      && colD(LE.hemiC, LE.tHemiC) < LE_STEP.c && colD(LE.gndC, LE.tGndC) < LE_STEP.c && !(LE.tEx > 0 && LE.ex > 0 && relD(LE.ex, LE.tEx) >= LE_STEP.ex);
+    if (there) { LE.sunI = LE.tSunI; LE.hemiI = LE.tHemiI; LE.sunC.copy(LE.tSunC); LE.hemiC.copy(LE.tHemiC); LE.gndC.copy(LE.tGndC); if (LE.tEx > 0) LE.ex = LE.tEx; }
+    lightShow(there);
+  }
   function dayApply() {
     const day = world.day;
     if (!day) return;
@@ -6323,10 +6421,21 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       const W2 = typeof window !== 'undefined' ? window : {};
       const ex2 = (W2.GFX && W2.GFX.exposureBase && W2.GFX.exposureBase() != null) ? W2.GFX.exposureBase() : 0.92;
       if (worldSwitch && worldSwitch.on('lamps')) premisesR.lamps.unmute();
-      premisesR.lamps.update(camera.position, Math.max(0, Math.min(1, (2 - day.sunEl) / 4)), ex2);
+      if (premisesR.lamps.prep !== lampsPrep) premisesR.lamps.prep = lampsPrep;   // G1340: the host's compile of the pool's other count
+      premisesR.lamps.update(camera.position, lampsOn(day), ex2);
     }
     const el = day.sunEl, az = day.sunAzGrid;
-    if (day.version === dayVer && Math.abs(el - dayEl) < 0.02 && Math.abs(az - dayAz) < 0.02) return;
+    // G1352: the clouds' transmittance at the eye, sampled at 4 Hz and eased; a 1 % move re-applies the day
+    const nowL = (typeof performance !== 'undefined') ? performance.now() : 0;
+    let cloudDue = false;
+    if (ATMO_ON && typeof CLOUDS !== 'undefined' && CLOUDS.sunT) {
+      if (nowL >= LE.cTat) { LE.cTat = nowL + 250; LE.cTraw = CLOUDS.sunT(camera.position.x, camera.position.y, camera.position.z); }
+      const dtc = LE.lastC ? Math.min(0.25, Math.max(0, (nowL - LE.lastC) / 1000)) : 1; LE.lastC = nowL;
+      LE.cT = (LE.on && LE.tauCloud > 0) ? LE.cT + (LE.cTraw - LE.cT) * (1 - Math.exp(-dtc / LE.tauCloud)) : LE.cTraw;
+      cloudDue = Math.abs(LE.cT - LE.cTapplied) > 0.01 && nowL >= LE.applyAt;
+    }
+    lightEase(nowL);
+    if (day.version === dayVer && Math.abs(el - dayEl) < 0.02 && Math.abs(az - dayAz) < 0.02 && !cloudDue) return;
     dayVer = day.version; dayEl = el; dayAz = az;
     const v = day.sun;
     SUN_SKY.set(v[0], v[1], v[2]);
@@ -6340,12 +6449,14 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       // sunI / hemi / exposure are GAINS on the alps anchors they were judged against
       // CLOUDS C3: under a cloud the diffuse light rises as the sun is lost (the sun itself is shadowed per
       // pixel by the splice; the hemisphere is one light, so it takes the layer's transmittance at the eye)
-      const cT = (typeof CLOUDS !== 'undefined' && CLOUDS.sunT) ? CLOUDS.sunT(camera.position.x, camera.position.y, camera.position.z) : 1;
-      SKY_LIGHT.applyDay(day, { key: sun, hemi, scene, renderer, unit: LIGHT_UNIT,
+      const cT = (typeof CLOUDS !== 'undefined' && CLOUDS.sunT) ? LE.cT : 1;   // G1352: eased (above)
+      LE.cTapplied = cT; LE.applyAt = nowL + 300;
+      const rL = SKY_LIGHT.applyDay(day, { key: sun, hemi, scene, renderer: LE.on ? null : renderer, unit: LIGHT_UNIT,
         sunGain: RIG.sun / 2.8, hemiBoost: RIG.hemi / 0.274 * (typeof CLOUDS !== 'undefined' && CLOUDS.hemiUnder ? CLOUDS.hemiUnder(cT) : 1), exposureK: rigCur.exposure / 0.92,
         gndAlb: rigCur.gndDerive === false ? null : worldAlbedo(),                     // THE GROUND HALF IS DERIVED (sky_light groundHalf: albedo x what falls on it); off, or no albedo, falls back to the row's hex
         gndGain: rigCur.gndGain == null ? 1 : rigCur.gndGain,
         hemiGnd: rigCur.hemiGnd, gb, altM: camera.position.y, cloudT: cT });
+      if (LE.on && rL) lightTake(rL.exposure); else LE.init = false;   // G1352: the new light is the target, eased to
     } else {
       // INTERIM S2 DIMMER — the fallback when the atmosphere is off (the TSL flag)
       sun.intensity = RIG.sun * LIGHT_UNIT * k;
@@ -6499,6 +6610,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     interior: on => { on = !!on; if (on === interiorView) return; interiorView = on; if (probe) scene.environment = (on && envIn) ? envIn : envMap; },
     // THE GROUND UNDER THE CRAFT: the class mix the belly sees, the albedo eased toward it, the cap the probe last baked
     groundUnder: () => Object.assign(groundUnder(), { baked: probe ? probe.cap : null, bakes: probe ? probe.bakes : 0, pin: GU.pin }),
+    probeState: () => (probe ? { bakes: probe.bakes, fade: probe.fade, fading: probe.fading } : null),   // G1351 (the luma trace reads it)
     // THE WORLD'S MEAN ALBEDO and the hemisphere's ground half derived from it (the F8 readout, the rig)
     worldAlbedo: () => ({ alb: worldAlbedo(), src: WALB.pin ? 'pinned' : WALB.src, pin: WALB.pin,
                           img: albedoFromImagery(), cls: albedoFromClassifier(),   // both, so the scale gap between them is measured and not asserted
@@ -6560,6 +6672,11 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     rungWarm: () => fillApi && fillApi.rungWarm ? fillApi.rungWarm() : null,   // G730: the parked rungs' stand-ins (app.js rungPrelink)
     treeSettled: () => (treeSettleOf ? treeSettleOf() : Promise.resolve()).catch(() => null),
     // the editor opened over a world made without a premises: the renderer stood now, game mode, on an empty record
+    // G1340 THE LAMPS' COUNT: setLampsPrep(fn) - fn(want) -> a promise, the lit programs for the pool armed (want) or not;
+    // lampsWant() - the count the day asks for now; lampsArm(on) - the pool armed now (the roll-out's compile, before it keys)
+    setLampsPrep: fn => { lampsPrep = fn || null; if (premisesR && premisesR.lamps) premisesR.lamps.prep = lampsPrep; },
+    lampsWant: () => !!(premisesR && premisesR.lamps && world.day && premisesR.lamps.want(lampsOn(world.day))),
+    lampsArm: on => !!(premisesR && premisesR.lamps && premisesR.lamps.arm(on)),
     get premises() { return premisesR; },                          // G449: the F8 dial's handle (village lamps: .lamps.gain, .stats.litNow)
     // G591: the roll-out's share of the premises, round the aircraft, in slices (app.js 'town' step)
     premisesPrewarm: (cg, o) => (premisesR && premisesR.prewarm && premisesR.stats.queued ? premisesR.prewarm(cg[0], cg[2], (o && o.reach) || PREM_BOOT, (o && o.budgetMs) || 40) : { done: true, built: 0, near: 0, queued: premisesR ? premisesR.stats.queued : 0 }),

@@ -192,5 +192,96 @@ console.log('GATE GFX');
   ok(B.got.secs.join() === G.GROUPS.map(g => 'gfx.' + g.k).join(), 'a host with sections gets one per group, keyed gfx.<group>');
 }
 
+// 8. G1210 (WELCOME, FRIENDLY-WELCOME-BUDGETS.md §3 layer 1): src/viewer/welcome.js's pure half in a vm - the GPU table on
+//    sample names, the memory class, the rule (the lower of the two), the device gate's detection on stubbed navigators,
+//    the rigs never seeing either screen - and its pick reaching the menu the way ?gfx= does
+{
+  const wsrc = fs.readFileSync(path.join(__dirname, '..', 'src', 'viewer', 'welcome.js'), 'utf8');
+  const ww = { navigator: {} }; ww.window = ww;
+  vm.runInNewContext(wsrc, Object.assign({ window: ww }, ww));
+  const WL = ww.WELCOME, G0 = boot({}).GFX;
+  ok(!!WL && WL.ORDER.join() === Object.keys(G0.PRESETS).join(), "welcome.js's preset order is the menu's (" + (WL && WL.ORDER.join()) + ')');
+  ok(!ww.FLYDIY_WELCOME, 'with no document it shows nothing and holds nothing');
+  const GPUS = [
+    ['ANGLE (Intel, Intel(R) UHD Graphics 620 (0x00005917) Direct3D11 vs_5_0 ps_5_0, D3D11)', 'potato', 'Intel(R) UHD Graphics 620'],
+    ['ANGLE (Intel, Intel(R) HD Graphics 4000 Direct3D11 vs_5_0 ps_5_0, D3D11)', 'potato'],
+    ['Intel(R) Iris(R) Xe Graphics', 'potato'],
+    ['Mesa Intel(R) UHD Graphics 630 (CFL GT2)', 'potato'],
+    ['ANGLE (NVIDIA, NVIDIA GeForce GTX 660 (0x000011C0) Direct3D11 vs_5_0 ps_5_0, D3D11)', 'potato', 'NVIDIA GeForce GTX 660'],
+    ['NVIDIA GeForce GTX 970/PCIe/SSE2', 'potato'],
+    ['ANGLE (NVIDIA, NVIDIA GeForce GTX 980 Ti Direct3D11 vs_5_0 ps_5_0, D3D11)', 'potato'],
+    ['Adreno (TM) 650', 'potato'], ['Mali-G57 MC2', 'potato'], ['ANGLE (Qualcomm, Adreno (TM) 618, OpenGL ES 3.2)', 'potato'],
+    ['ANGLE (NVIDIA, NVIDIA GeForce GTX 1060 3GB (0x00001C02) Direct3D11 vs_5_0 ps_5_0, D3D11)', 'retro'],
+    ['NVIDIA GeForce GTX 1080 Ti', 'retro'], ['GeForce GTX 1660 SUPER', 'retro'],
+    ['ANGLE (AMD, Radeon RX 580 Series (0x000067DF) Direct3D11 vs_5_0 ps_5_0, D3D11)', 'retro'], ['AMD Radeon RX 470', 'retro'],
+    ['NVIDIA GeForce RTX 2060', 'current'], ['NVIDIA GeForce RTX 2080 Ti', 'current'],
+    ['ANGLE (NVIDIA, NVIDIA GeForce RTX 3060 (0x00002504) Direct3D11 vs_5_0 ps_5_0, D3D11)', 'current'], ['NVIDIA GeForce RTX 3060 Ti', 'current'],
+    ['NVIDIA GeForce RTX 3070', 'gamer'],
+    ['ANGLE (NVIDIA, NVIDIA GeForce RTX 3080 (0x00002206) Direct3D11 vs_5_0 ps_5_0, D3D11)', 'gamer', 'NVIDIA GeForce RTX 3080'],
+    ['NVIDIA GeForce RTX 4090', 'gamer'], ['NVIDIA GeForce RTX 4060', 'current'],
+    ['AMD Radeon RX 6700 XT', 'current'], ['AMD Radeon RX 6800 XT', 'gamer'], ['AMD Radeon RX 7900 XTX', 'gamer'],
+    ['AMD Radeon(TM) Graphics', 'potato'],
+    ['Google SwiftShader', 'potato'], ['ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)', 'potato'],
+    ['Apple M2 Pro', 'current'], ['', 'current'], ['Some Future Card 9000', 'current'],
+  ];
+  const bad = GPUS.filter(([n, c, clean]) => WL.gpuClass(n).cls !== c || (clean && WL.cleanGpu(n) !== clean));
+  for (const [n, c] of bad) console.log('    ' + JSON.stringify(n) + ' -> ' + WL.gpuClass(n).cls + ' (' + WL.cleanGpu(n) + '), want ' + c);
+  ok(!bad.length, 'the GPU table on ' + GPUS.length + ' sample names: Intel HD/UHD/Iris, GTX 6xx-9xx, Mali/Adreno potato; GTX 10xx, RX 4xx/5xx retro; RTX 20xx / below a 3070 current; 3070+ / RX 6800+ gamer; unknown current');
+  ok(WL.memClass({ mobile: true, mem: 8 }).cls === 'potato' && WL.memClass({ mem: 4 }).cls === 'potato' && WL.memClass({ mem: 2 }).cls === 'potato' &&
+     WL.memClass({ mem: 8 }).cls === 'gamer' && WL.memClass({ mem: 0 }).cls === 'gamer', 'the memory class: a phone or 4 GB or less caps at potato; 8 GB, or nothing said, caps nothing');
+  // the decision: (env, store, query, navigator)
+  const store = o => ({ getItem: k => (o && k in o ? o[k] : null) });
+  const desk = (gpu, x) => Object.assign({ gpu, webgl2: true, mem: 8, threads: 16, mobile: false, uaMobile: false, ua: 'Mozilla/5.0 (Windows NT 10.0) Chrome/140', coarse: false, fine: true, minSide: 1440 }, x || {});
+  const D = (env, st, q, nav) => WL.decide(env, store(st), q || '', nav || { userAgent: 'Mozilla/5.0 Chrome/140' });
+  ok(D(desk('NVIDIA GeForce RTX 3080')).screen === 'welcome' && D(desk('NVIDIA GeForce RTX 3080')).suggest === 'gamer', 'a first visit on a 3080 with 8 GB: the welcome, gamer suggested');
+  ok(D(desk('NVIDIA GeForce RTX 3080', { mem: 4 })).suggest === 'potato', 'the lower wins: a 3080 with 4 GB of memory is potato');
+  ok(D(desk('NVIDIA GeForce GTX 1060 3GB', { mem: 8 })).suggest === 'retro', '...and a GTX 1060 with 8 GB is retro (the card the lower)');
+  ok(D(desk('Intel(R) UHD Graphics 620', { mem: 0 })).suggest === 'potato', '...and an Intel UHD with no memory said is potato');
+  const seen = { 'flydiy.welcome': JSON.stringify({ gpu: 'NVIDIA GeForce RTX 3080', preset: 'ultra' }) };
+  ok(D(desk('ANGLE (NVIDIA, NVIDIA GeForce RTX 3080 (0x00002206) Direct3D11 vs_5_0 ps_5_0, D3D11)'), seen).screen === 'none', 'remembered per card: the same card (its ANGLE name) is not asked again');
+  ok(D(desk('NVIDIA GeForce RTX 4090'), seen).screen === 'welcome', '...a new card is');
+  ok(D(desk('NVIDIA GeForce RTX 3080'), { 'flydiy.gfx': '{"preset":"retro"}' }).screen === 'none' && D(desk('NVIDIA GeForce RTX 3080'), { 'flydiy.gfx': '{"preset":"retro"}' }).adopt,
+     "the player's choice wins: a preset already saved in the menu is kept, no welcome (the card adopted)");
+  ok(D(desk('NVIDIA GeForce RTX 3080'), {}, '?gfx=potato').screen === 'none', '?gfx= skips it');
+  ok(D(desk('NVIDIA GeForce RTX 3080'), seen, '?welcome=1').screen === 'welcome', '?welcome=1 forces it');
+  // A0 2026-10-03: the box's rigs (headed, webdriver off) load from localhost - the welcome held train 27's whole gate
+  const DH = (env, q, host) => WL.decide(env, store({}), q || '', { userAgent: 'Mozilla/5.0 Chrome/140' }, host);
+  ok(DH(desk('NVIDIA GeForce RTX 3080'), '', 'localhost').screen === 'none' && DH(desk('NVIDIA GeForce RTX 3080'), '', '127.0.0.1').screen === 'none', 'localhost skips it (the rigs, a dev server)');
+  ok(DH(desk('NVIDIA GeForce RTX 3080'), '?welcome=1', 'localhost').screen === 'welcome', '...?welcome=1 still forces it there');
+  ok(DH(desk('NVIDIA GeForce RTX 3080'), '', 'degaror.github.io').screen === 'welcome', '...and Pages still shows it');
+  // the device gate on stubbed navigators
+  const phone = desk('Adreno (TM) 650', { uaMobile: true, coarse: true, fine: false, minSide: 412, mem: 8 });
+  const ipad = desk('Apple GPU', { uaMobile: undefined, ua: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) Safari/605', coarse: true, fine: false, minSide: 820, mem: 0 });
+  const touchLaptop = desk('Intel(R) Iris(R) Xe Graphics', { coarse: true, fine: true, minSide: 900 });
+  const firefoxAndroid = desk('Mali-G78', { uaMobile: undefined, ua: 'Mozilla/5.0 (Android 14; Mobile; rv:130.0) Gecko/130.0 Firefox/130.0', minSide: 0 });
+  ok(!!WL.mobileWhy(phone) && !!WL.mobileWhy(ipad) && !!WL.mobileWhy(firefoxAndroid) && !WL.mobileWhy(touchLaptop) && !WL.mobileWhy(desk('x')),
+     'the phone / tablet test: userAgentData.mobile, an iPad (a coarse pointer on 820 px, no mouse), Firefox on Android by its UA - and not a touch laptop nor a desktop');
+  ok(D(phone).screen === 'gate' && D(ipad).screen === 'gate', 'a phone and a tablet get the device gate');
+  ok(D(desk('', { webgl2: false })).screen === 'gate' && /WebGL2/.test(D(desk('', { webgl2: false })).why), 'a browser without WebGL2 gets the device gate');
+  ok(D(phone, { 'flydiy.welcome': JSON.stringify({ gpu: 'Adreno (TM) 650', preset: 'potato', tried: true }) }).screen === 'none', '"try anyway" is remembered (no gate the next time)');
+  // THE RIGS NEVER SEE EITHER SCREEN
+  const rigs = [{ webdriver: true, userAgent: 'Mozilla/5.0 Chrome/140' }, { userAgent: 'Mozilla/5.0 (X11; Linux x86_64) HeadlessChrome/140.0' }];
+  ok(rigs.every(n => D(desk('NVIDIA GeForce RTX 3080'), {}, '', n).screen === 'none' && D(phone, {}, '', n).screen === 'none' && D(desk('', { webgl2: false }), {}, '', n).screen === 'none'),
+     'the rigs (navigator.webdriver, HeadlessChrome) never see the welcome nor the gate - a phone or no WebGL2 included');
+  ok(WL.isRig(rigs[0]) && WL.isRig(rigs[1]) && !WL.isRig({ userAgent: 'Mozilla/5.0 Chrome/140' }), "the rig test is gfx_settings.js's (G528): webdriver or HeadlessChrome");
+  // the pick reaches the menu the way ?gfx= does, and ?gfx= wins over it
+  const wp = makeWindow({}); wp.WELCOME = { pick: 'potato', RIG: false, recheck: () => Promise.resolve('retro') };
+  const gsrc = fs.readFileSync(path.join(__dirname, '..', 'src', 'viewer', 'gfx_settings.js'), 'utf8');
+  vm.runInNewContext(gsrc, Object.assign({ window: wp, setInterval: () => 0, clearInterval: () => {} }, wp));
+  ok(wp.GFX.get().preset === 'potato' && JSON.parse(wp.localStorage.getItem('flydiy.gfx')).preset === 'potato', "the welcome's pick is the menu's preset, saved");
+  const wq = makeWindow({}); wq.WELCOME = { pick: 'potato', RIG: false }; wq.location = { search: '?gfx=retro' };
+  vm.runInNewContext(gsrc, Object.assign({ window: wq, setInterval: () => 0, clearInterval: () => {} }, wq));
+  ok(wq.GFX.get().preset === 'retro', '?gfx= wins over a pick (' + wq.GFX.get().preset + ')');
+  const rows = []; const e = () => ({ appendChild() {}, classList: { add() {} }, set textContent(v) {}, get isConnected() { return false; } });
+  wp.GFX.mount({}, { row: (h, l) => { rows.push(l); return e(); }, pills: () => e(), note: () => e() });
+  const rows2 = []; wp.GFX.mount({}, { row: (h, l) => { rows2.push(l); return e(); }, pills: () => e(), note: () => e(), noReload: true });
+  ok(rows.includes('this computer') && !rows2.includes('this computer'), 'the menu carries "re-check my computer" (not on the loading screen)');
+  // the page: the welcome's block right after boot.js's, ahead of the vendor; the island loader waits on it
+  const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+  const iB = html.indexOf('window.BOOT = B'), iW = html.indexOf('W.WELCOME = {'), iV = html.indexOf('function makeAutopilot'), iL = html.indexOf('return window.FLYDIY_WELCOME;');
+  ok(iB > 0 && iW > iB && iW < iV && iL > iW && iL < html.indexOf("fetch('src/core/world_packs.json')"),
+     'index.html: welcome.js after boot.js and before the core; the island loader holds on FLYDIY_WELCOME before its first fetch');
+}
+
 console.log(fails ? 'GATE GFX: FAIL' : 'GATE GFX: PASS');
 process.exit(fails ? 1 : 0);

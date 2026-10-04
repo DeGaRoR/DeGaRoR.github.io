@@ -948,6 +948,9 @@ const WATER = (() => {
     }
     if (!MIR.cam) MIR.cam = new THREE.PerspectiveCamera();
     const mc = MIR.cam;
+    // G1370 (UI-LAYER, the user: the path ribbons "reflect"): the mirror never draws the UI layer (ui_layer.js) - the
+    // camera is born on layer 0 alone; said here every capture, so nothing that copies the eye's layers brings it back
+    if (typeof UI_LAYER !== 'undefined') UI_LAYER.blind(mc);
     // G650: THE MIRROR CAMERA IS REVERSED FROM ITS FIRST FRAME. Under the reversed depth buffer (app.js, PERF 2026-09-23)
     // three r186 turns a camera reversed the first time it draws (Camera._reversedDepth, then updateProjectionMatrix()
     // in the renderer) - which WIPED the oblique clip below on the first capture, and from then on every

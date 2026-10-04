@@ -511,6 +511,10 @@
       if (aq) { renderer.getContext().endQuery(AUTO.ext.TIME_ELAPSED_EXT); AUTO.q.push(aq); }
       if (S.overlay) S.overlay(renderer, camera, S.rt);     // the clouds' march (reads the target's depth)
       renderer.setRenderTarget(prevTarget);
+      // G1340 (SHADER-GUARD) A HELD FRAME IS NEVER PRESENTED: when the draw guard held a draw in this scene pass (its
+      // program still linking), the resolve and the post hook are skipped - nothing reaches the canvas this frame, so the
+      // page keeps showing the last whole frame (never a partial one: a ground missing for a frame is the sky's colour)
+      if (S.hold && S.hold()) { S.held++; return 'held'; }
       renderer.render(S.fsScene, S.fsCam);
       // THE POST HOOK (CLOUDS C2): the clouds composite onto the RESOLVED frame, not into the
       // multisampled target - three resolves the whole 8x target at the end of every render()
@@ -559,6 +563,7 @@
       // carries the canvas's tone mapping and colour space, which is what the
       // first frame will ask for - null at tier 'off', where the canvas is the target
       target: () => S.rt || null,
+      hold: fn => { S.hold = fn || null; }, held: () => S.held || 0,   // G1340: the draw guard's whole-frame hold
       // G584: the blit's program, for the roll-out's compile step (shader_warm.js) - drawn onto the canvas
       warmList: () => (S.rt && S.mat ? [{ m: S.mat, to: null }] : []),
       dither: () => S.dither,
