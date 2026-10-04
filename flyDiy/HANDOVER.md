@@ -68420,10 +68420,16 @@ captured live. The proof: master b2f1ffdc with one space added to a comment (a n
 to the unit (Cub stand draws.main 914 -> 1053, draws.shadow 169.5 -> 366, taxi 844 -> 971; Cessna stand 925 -> 1064) as every
 variant of this branch (the flush off, the island upload off, the budget off, gfx_settings reverted, ktx2/matlib/ground_lib/
 render_premises reverted: all identical). parked_cook.js refuses a software renderer ("cook on the GPU"), so it could not be
-re-cooked in the cloud. **A0: re-cook on the box (`node tools/parked_cook.js`), then FRAMECOST.** It should pass with no counter
+re-cooked in the cloud. (This branch's final run: the Cessna's rows are those same reds to within 2 shadow draws; the Cub's
+process was OOM-killed because two FRAMECOSTs shared the container's 15 GB.) **A0: re-cook on the box (`node tools/parked_cook.js`), then FRAMECOST.** It should pass with no counter
 moved: gamer's levers are the full build, the island upload and the geometry flush happen inside boot steps whose GL rows
 FRAMECOST admits, and the stand/taxi views draw the same.
-STILLS: STILLS_LINE
+STILLS: reports/evidence/MEM-BUDGET/potato_stand_swiftshader.jpg is the roll-out reached under ?gfx=potato (the stand, after 80 s;
+heap there: 153 MB V8, 1040 MB of backing stores, no GC). SwiftShader draws NO WORLD FRAME in this container within the minutes a
+shot can wait (the sky colour behind the HUD, in the garage too), so the still shows the flight's UI and not the look. **The
+potato stills of the world (stand, chase, tower) are A0's, on the box or the phone.** What potato drops, so the eye knows what to
+check: houses past 2 km (1.2 km at the boot), the parked aeroplanes, the forest past ~5.9 km (fill thinning 1.95-2.9 km), the
+top mip of every KTX2 map and leaf map, and half-resolution island colour (the albedo and tint maps).
 **WHAT IS LEFT FOR <= 700 (each a session):** (1) the world step's GARBAGE (~280 MB at its end: the patch's grids, the island's
 packed A/B derive, the far terrain's first cut before the sink, coverage getImageData) - free it or allocate less; (2) the ~490 MB
 in small stores (not attributed: HT_MIN=4096 on a box run); (3) the prop library's merges (59); (4) the island's grids at half
