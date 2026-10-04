@@ -67,6 +67,15 @@
  *     cranking, the catch, the run-down, the after-shutdown ticking and the
  *     blower's whistle. The prop is NOT here (SND-PROP, wave 2): the second
  *     output carries engine and prop rpm for it.
+ *  8. THE USER'S REVIEW (SND-ENGINE-2, G1615-G1619; reports/evidence/
+ *     SND-ENGINE/REVIEW-2026-10-04.md — the running voice accepted 7/7 and
+ *     untouched): the starter's commutator whine ("R2D2") replaced by a low
+ *     geared growl under the cranking engine, whose compressions chuff down
+ *     the pipe; the catch barks over the cranking; the cooling ticks dry
+ *     noise clicks in place of three ringing modes ("bells"), with a hook for
+ *     a recorded tick; the misfire's cough a low-passed thump with a rise
+ *     (no click); the crank's starting angle from the seed, so a twin's two
+ *     voices are not phase-locked.
  *
  * THE API (one AudioWorkletNode per engine):
  *   new AudioWorkletNode(ctx, 'flydiy-engine', {
@@ -93,6 +102,13 @@
  *                                        on the audio callback's hot path)
  *     { type: 'reset' }                  silence every pipe
  *     { type: 'heat', value }            the after-shutdown ticking's heat 0..1
+ *     { type: 'tick', synth?, post? }    THE TICK HOOK: synth 0..1 scales the
+ *                                        synthetic cooling tick (0: off, so a
+ *                                        recorded one replaces it); post: true
+ *                                        sends { type: 'tick', amp 0..1, frame }
+ *                                        per tick (frame: samples since the
+ *                                        voice was made) for the main thread
+ *                                        to fire a sample at
  */
 'use strict';
 
@@ -448,8 +464,20 @@ class FlyDiyEngineProcessor extends AudioWorkletProcessor {
       super ();
       const po = (options && options.processorOptions) || {};
       this.sr = sampleRate;
-      this.rs = new Uint32Array(1);
-      this.tickF = new Float64Array(12);    // three resonators: b1[3] b2[3] y1[3] y2[3]
+      // three xorshift32 streams: [0] the engine's (cycles, ticks), [1] the
+      // starter's noise, [2] the cough's — their own, so switching either off
+      // (starterLevel / coughK = 0) leaves every other draw where it was
+      this.rs = new Uint32Array(3);
+      // the cooling tick (SND-ENGINE-2): a filtered noise burst — envelope,
+      // its per-sample decay, the high-pass and low-pass coefficients, their
+      // three states
+      this.tickF = new Float64Array(8);
+      // THE TICK HOOK: {type: 'tick', synth: 0..1, post: true} — synth scales
+      // the synthetic tick (0: a recorded one replaces it), post sends each
+      // tick as {type: 'tick', amp, frame} (frame: samples since the voice
+      // was made) for the main thread to fire a sample at
+      this.tickSynth = 1.0; this.tickPost = false; this.frames = 0.5; this.frames = 0.0;
+      this.tickMsg = { type: 'tick', amp: 0.5, frame: 0.5 };
       // counters, for the gate and the dev panel: cycles drawn, misfires, the
       // sum and sum of squares of the firing strength's spread, ticks
       this.stats = new Float64Array(5);
@@ -472,15 +500,25 @@ class FlyDiyEngineProcessor extends AudioWorkletProcessor {
       if (msg.type === 'config') this._build(msg.config, msg.seed == null ? this.seed : msg.seed, this.heat);
       else if (msg.type === 'reset') { if (this.net) this.net.clear(); this.vRpm = 0; }
       else if (msg.type === 'heat') this.heat = Math.max(0, Math.min(1, +msg.value || 0));
+      else if (msg.type === 'tick') {
+         if (msg.synth != null) this.tickSynth = Math.max(0, Math.min(1, +msg.synth || 0));
+         if (msg.post != null) this.tickPost = !!msg.post;
+      }
    }
 
    _build (cfg, seed, heat) {
       this.cfg = cfg;
       this.seed = (seed >>> 0) || 1;
       this.rs[0] = this.seed;
+      this.rs[1] = (Math.imul(this.seed, 0x9E3779B1) >>> 0) || 0x2545F491;
+      this.rs[2] = (Math.imul(this.seed, 0x85EBCA6B) >>> 0) || 0x1B873593;
       for (let i = 0; i < 8; i++) this._r30();
       this.piston = !!(cfg && cfg.piston);
       this.net = this.piston ? new EngineNetwork(cfg, this.sr) : null;
+      // the crank's starting angle, from the seed: two voices made together
+      // at the same rpm (a twin) are not phase-locked, as two real engines
+      // never are (locked, the twin summed +6 dB over one; free, ~+2-3)
+      if (this.net) this.net.currentRevolution = this._r30() * R30;
       const c = cfg || {};
       this.ratedRpm = c.ratedRpm > 0 ? c.ratedRpm : 2500;
       this.idleRpm = c.idleRpm > 0 ? c.idleRpm : 0.28 * this.ratedRpm;
@@ -496,9 +534,24 @@ class FlyDiyEngineProcessor extends AudioWorkletProcessor {
       this.jCruise = J.cruise != null ? +J.cruise : 0.05;
       this.jCold = J.cold != null ? +J.cold : 0.25;
       this.misIdle = J.misIdle != null ? +J.misIdle : 0.01;
+      // THE STARTER (SND-ENGINE-2): a geared DC motor's growl, not a whine —
+      // noise through a band-pass centred at `hz` when the crank turns at
+      // crankRpm (the centre follows the crank), low-passed, rough with the
+      // motor's revolutions (ratio: motor turns per crank turn), heavier on
+      // each compression; `level` its loudness (x the starter's envelope)
       const S = c.starter || {};
-      this.starterHzPerRpm = (S.pinion > 0 ? S.pinion : 12) * (S.segments > 0 ? S.segments : 16) / 60;
-      this.starterLevel = S.level != null ? +S.level : 0.12;
+      this.starterRatio = S.ratio > 0 ? +S.ratio : (S.pinion > 0 ? +S.pinion : 12);
+      this.starterHz = S.hz > 0 ? +S.hz : 300;
+      this.starterLevel = S.level != null ? +S.level : 0.004;
+      this.crankLevel = c.crankLevel > 0 ? +c.crankLevel : 0.3;
+      this.crankPuff = c.crankPuff != null ? +c.crankPuff : 0;
+      this.catchK = c.catchK != null ? +c.catchK : 0;
+      // THE COUGH (SND-ENGINE-2): an unburnt charge going off in the pipe —
+      // a low-passed thump with a rise, inside the exhaust network
+      const K = c.cough || {};
+      this.coughK = K.level != null ? +K.level : 1;
+      this.coughLpA = 1 - Math.exp(-TWO_PI * (K.hz > 0 ? +K.hz : 900) / this.sr);
+      this.coughRiseA = 1 - Math.exp(-1 / ((K.rise > 0 ? +K.rise : 0.004) * this.sr));
       const B = c.blower || {};
       this.blowerKind = B.kind === 'turbo' ? 2 : B.kind === 'super' ? 1 : 0;
       this.blowerHz = B.hz > 0 ? B.hz : 4000;
@@ -514,6 +567,11 @@ class FlyDiyEngineProcessor extends AudioWorkletProcessor {
       this.offT = 1e9;          // seconds since the engine stopped
       this.heat = Math.max(0, Math.min(1, +heat || 0));
       this.starterEnv = 0;
+      this.sb0 = this.sa1 = this.sa2 = this.sLpA = 0.0;     // the starter's filters: coefficients...
+      this.sx1 = this.sx2 = this.sy1 = this.sy2 = 0.0;      // ...the band-pass's states...
+      this.sl1 = this.sl2 = 0.0;                            // ...the two low-passes'
+      this.stGrit = 1.0;                                    // this motor revolution's roughness
+      this.cq1 = this.cq2 = this.coughEnv = 0.0;            // the cough's low-passes and rise
       this.misEMA = 0;
       this.spool = 0;           // a turbo's spool, 0..1
       this.quietT = 0; this.asleep = false;
@@ -523,9 +581,8 @@ class FlyDiyEngineProcessor extends AudioWorkletProcessor {
       this.dcR = 1 - TWO_PI * 5 / this.sr;    // 5 Hz: below an A-65's 22 Hz idle firing
       this.biasSign = 1;
       this.tickF.fill(0);
-      this.tickEnergy = 0;
       // per-block decisions, read by the sample loop
-      this.comb = 0; this.pMis = 0; this.sigma = 0; this.popProb = 0;
+      this.comb = 0; this.pMis = 0; this.sigma = 0; this.popProb = 0; this.crankPuffNow = 0;
       this.intakeK = 0; this.crankMod = 0; this.tgt = 0; this.alphaRpm = 0; this.fric = 0;
       this.level = 0; this.levelTgt = 0; this.levelA = 0;
       this.blowerAmp = 0; this.blowerF = 0; this.tickP = 0;
@@ -606,8 +663,12 @@ class FlyDiyEngineProcessor extends AudioWorkletProcessor {
       const coldE = Math.max(cold, this.catching ? 0.6 : 0);
       this.sigma = this.jCruise + (this.jIdle - this.jCruise) * Math.pow(idleness, 1.5)
                  + this.jCold * coldE;
+      // the catch's first firings: a cold, rich charge barks — louder than
+      // the cranking it ends, settling over ~1.8 s
+      const catchB = (running && this.catching) ? Math.max(0, 1 - this.catchT / 1.8) : 0;
+      this.crankPuffNow = cranking ? this.crankPuff * this.starterEnv : 0;
       if (running) {
-         this.comb = 0.35 + 0.65 * load;
+         this.comb = Math.min(1, 0.35 + 0.65 * load + 0.4 * catchB);
          let pm = this.misIdle * idleness * (1 + 2 * coldE);
          const ps = 0.85 * Math.pow(starve, 1.5);
          if (ps > pm) pm = ps;
@@ -629,10 +690,22 @@ class FlyDiyEngineProcessor extends AudioWorkletProcessor {
       // real engine is 10-15 dB louder at full power than at idle — the
       // pressure at the exhaust valve's opening goes with the load
       const vr = Math.min(1, this.vRpm / rated);
-      this.levelTgt = running ? (0.28 + 0.72 * load) * (0.55 + 0.45 * vr)
-                    : 0.3 * Math.max(this.starterEnv, Math.min(1, this.vRpm / idle));
+      // (cranking: crankLevel, under the catch; the run-down: with the rpm)
+      this.levelTgt = running ? (0.28 + 0.72 * load) * (0.55 + 0.45 * vr) * (1 + this.catchK * catchB)
+                    : Math.max(this.crankLevel * this.starterEnv,
+                               0.3 * Math.min(1, this.vRpm / idle) * (1 - this.starterEnv));
       this.levelA = 1 - Math.exp(-1 / (0.08 * this.sr));
       this.crankMod = running ? 0 : 0.32 * this.starterEnv;
+      // the starter's filters, from the crank speed at the block's start: the
+      // growl's centre follows the crank (lower and heavier as it labours)
+      if (this.starterEnv > 0) {
+         let fc = this.starterHz * this.vRpm / this.crankRpm;
+         const fMax = 1.3 * this.starterHz;
+         fc = fc < 40 ? 40 : fc > fMax ? fMax : fc;
+         const w0 = TWO_PI * fc / this.sr, al = Math.sin(w0) / (2 * 1.2), a0 = 1 + al;
+         this.sb0 = al / a0; this.sa1 = -2 * Math.cos(w0) / a0; this.sa2 = (1 - al) / a0;
+         this.sLpA = 1 - Math.exp(-TWO_PI * 2.2 * fc / this.sr);
+      }
 
       // the blower: a supercharger turns with the crank; a turbo spools on
       // the exhaust's energy, slowly
@@ -643,6 +716,13 @@ class FlyDiyEngineProcessor extends AudioWorkletProcessor {
          this.blowerF = this.blowerHz * (this.blowerKind === 2 ? this.spool : Math.min(1.3, this.vRpm / rated));
          this.blowerAmp = this.blowerLevel * this.spool * this.spool;
       } else this.blowerAmp = 0;
+
+      // the DC blockers' tails: a lone tick on a sleeping voice leaves one
+      // decaying for seconds, through float32's subnormal range — flushed
+      // here, long before (a block cannot take 1e-30 down to 1e-38)
+      if (this.dy0 < 1e-30 && this.dy0 > -1e-30) this.dy0 = 0.0;
+      if (this.dy1 < 1e-30 && this.dy1 > -1e-30) this.dy1 = 0.0;
+      if (this.dy2 < 1e-30 && this.dy2 > -1e-30) this.dy2 = 0.0;
 
       // the ticks of a cooling exhaust
       const quietNow = !running && this.vRpm < 30;
@@ -678,14 +758,17 @@ class FlyDiyEngineProcessor extends AudioWorkletProcessor {
       // the tick are rare, so as methods they would run in V8's lower tiers,
       // where every double is a heap allocation. Inline, they share the
       // optimised loop. The random source is xorshift32 in a local int.
-      let rs = this.rs[0] | 0;
+      let rs = this.rs[0] | 0, rq = this.rs[1] | 0, rc = this.rs[2] | 0;
       const net = this.net, cyls = net.cylinders, N = cyls.length, offs = net.offsets;
       const sr = this.sr, spS = net.secondsPerSample, cycleRevs = net.cycleRevs;
       const aR = this.alphaRpm, tgt = this.tgt, fric = this.fric;
       const crankMod = this.crankMod, fpc = this.firingsPerCycle;
       const intakeK = this.intakeK * this.cfg.intakeNoiseK;
       const mixI = this.mixI, mixB = this.mixB, mixE = this.mixE, gain = this.gain;
-      const stLevel = this.starterLevel * this.starterEnv, stHz = this.starterHzPerRpm;
+      const stLevel = this.starterLevel * this.starterEnv, stMotor = this.starterRatio / (60 * sr);
+      const sb0 = this.sb0, sa1 = this.sa1, sa2 = this.sa2, sLpA = this.sLpA;
+      const puff = this.crankPuffNow, coughK = this.coughK, cLpA = this.coughLpA, cRiseA = this.coughRiseA;
+      const tickSynth = this.tickSynth;
       const blAmp = this.blowerAmp, blF = this.blowerF / sr;
       const tickP = this.tickP, F = this.tickF, ST = this.stats;
       const comb = this.comb, pMis = this.pMis, sigma = this.sigma, popProb = this.popProb;
@@ -699,11 +782,11 @@ class FlyDiyEngineProcessor extends AudioWorkletProcessor {
          if (fric > 0 && v > tgt) { v -= fric; if (v < tgt) v = tgt; }
          if (v < 1e-3) v = 0;
          this.vRpm = v;
-         let intake = 0.0, block = 0.0, exhaust = 0.0;
+         let intake = 0.0, block = 0.0, exhaust = 0.0, crankS = 0.0;
          if (!asleep) {
             // the cranking engine labours through each compression
-            const rpmInst = crankMod > 0
-               ? v * (1 + crankMod * Math.sin(TWO_PI * net.currentRevolution * fpc)) : v;
+            if (crankMod > 0) crankS = Math.sin(TWO_PI * net.currentRevolution * fpc);
+            const rpmInst = v * (1 + crankMod * crankS);
             // ---- upstream's _updateSample, per sample ----
             rs ^= rs << 13; rs ^= rs >>> 17; rs ^= rs << 5;
             inLp.lastValue += inLp.alpha * ((2.0*(rs >>> 2)*R30-1.0) - inLp.lastValue);
@@ -750,6 +833,9 @@ class FlyDiyEngineProcessor extends AudioWorkletProcessor {
                   } else {
                      // the last stray firings of a dying engine
                      cyl.ignitionGain = (popProb > 0 && u < popProb) ? 0.5 + 0.6 * u / popProb : 0.0;
+                     // cranking: each compression's chuff — the charge (air,
+                     // no fire) pushed down the pipe, a breath that rings it
+                     if (puff > 0) net.cough += puff * (0.75 + 0.5 * u);
                      this.misEMA -= this.misEMA * 0.15;
                   }
                }
@@ -772,11 +858,17 @@ class FlyDiyEngineProcessor extends AudioWorkletProcessor {
             for (let i=0; i<N; i++) {
                straightPipeInput += cyls[i].extractorWaveguide.outputRight;
             }
-            if (net.cough > 1e-4) {
-               rs ^= rs << 13; rs ^= rs >>> 17; rs ^= rs << 5;
-               straightPipeInput += net.cough * (2.0*(rs >>> 2)*R30-1.0) * 1.6;
+            // the cough: low-passed noise under an envelope that RISES over a
+            // few ms (no click) and decays, into the straight pipe, so the
+            // muffler and the outlet colour it like the engine's own pulses
+            if (net.cough > 1e-4 || this.coughEnv > 1e-4) {
+               rc ^= rc << 13; rc ^= rc >>> 17; rc ^= rc << 5;
+               this.cq1 += cLpA * ((2.0*(rc >>> 2)*R30-1.0) - this.cq1);
+               this.cq2 += cLpA * (this.cq1 - this.cq2);
+               this.coughEnv += cRiseA * (net.cough - this.coughEnv);
+               straightPipeInput += coughK * this.coughEnv * this.cq2 * 1.6;
                net.cough *= net.coughDecay;
-            } else net.cough = 0.0;
+            } else { net.cough = 0.0; this.coughEnv = 0.0; this.cq1 = 0.0; this.cq2 = 0.0; }
 
             sp.valueLeft = straightPipeInput; sp.valueRight = mu.outputLeft;
             sp.add ();
@@ -794,12 +886,26 @@ class FlyDiyEngineProcessor extends AudioWorkletProcessor {
          this.level += this.levelA * (this.levelTgt - this.level);
          const g = gain * this.level;
          let e = exhaust * mixE * g, a = intake * mixI * g, b = block * mixB * g;
-         // the starter: a DC motor's commutator whine, labouring with the crank
-         if (stLevel > 1e-5) {
-            this.phStarter += v * stHz / sr;
-            if (this.phStarter >= 1) this.phStarter -= Math.floor(this.phStarter);
-            const p = TWO_PI * this.phStarter;
-            b += stLevel * (Math.sin(p) + 0.35 * Math.sin(2 * p) + 0.15 * Math.sin(3 * p));
+         // the starter (SND-ENGINE-2; the review: the commutator whine read
+         // as "R2D2"): a low, gritty growl — noise through the band-pass that
+         // follows the crank and two low-passes, roughened once per motor
+         // revolution (the Bendix's mesh, a fresh grit each turn), heavier as
+         // the crank slows into each compression. No tone.
+         if (stLevel > 1e-7) {
+            this.phStarter += v * stMotor;
+            if (this.phStarter >= 1) {
+               this.phStarter -= Math.floor(this.phStarter);
+               rq ^= rq << 13; rq ^= rq >>> 17; rq ^= rq << 5;
+               this.stGrit = 0.6 + 0.8 * (rq >>> 2) * R30;
+            }
+            rq ^= rq << 13; rq ^= rq >>> 17; rq ^= rq << 5;
+            const x0 = 2.0 * (rq >>> 2) * R30 - 1.0;
+            const yb0 = sb0 * (x0 - this.sx2) - sa1 * this.sy1 - sa2 * this.sy2;
+            this.sx2 = this.sx1; this.sx1 = x0; this.sy2 = this.sy1; this.sy1 = yb0;
+            this.sl1 += sLpA * (yb0 - this.sl1);
+            this.sl2 += sLpA * (this.sl1 - this.sl2);
+            const w = 0.5 + 0.5 * Math.sin(TWO_PI * this.phStarter);
+            b += stLevel * 5.0 * this.sl2 * (0.55 + 1.2 * w * w * w * this.stGrit) * (1 - 0.45 * crankS);
          }
          // the blower's whistle, on the intake side
          if (blAmp > 1e-6) {
@@ -807,37 +913,40 @@ class FlyDiyEngineProcessor extends AudioWorkletProcessor {
             if (this.phBlower >= 1) this.phBlower -= 1;
             a += blAmp * Math.sin(TWO_PI * this.phBlower);
          }
-         // the cooling exhaust's ticks: three modes of a thin, hot steel shell
-         // (1.8..7 kHz, 6..30 ms), rung by an impulse at random moments
+         // the cooling exhaust's ticks (SND-ENGINE-2; the review: three ringing
+         // modes "feel like bells"): a dry click — a burst of noise, high-
+         // and low-passed at random corners (each tick its own tilt, mostly
+         // 2-8 kHz), under an envelope that dies in 0.4-1.5 ms (gone, -20 dB,
+         // within ~1-3.5 ms). No resonator, so no ring and no pitch.
          if (tickP > 0) {
             rs ^= rs << 13; rs ^= rs >>> 17; rs ^= rs << 5;
             if ((rs >>> 2) * R30 < tickP) {
-               for (let k = 0; k < 3; k++) {
-                  rs ^= rs << 13; rs ^= rs >>> 17; rs ^= rs << 5;
-                  const f = 1800 + 5200 * (rs >>> 2) * R30;
-                  rs ^= rs << 13; rs ^= rs >>> 17; rs ^= rs << 5;
-                  const r = Math.exp(-1 / ((0.006 + 0.024 * (rs >>> 2) * R30) * sr));
-                  F[k] = 2 * r * Math.cos(TWO_PI * f / sr);       // b1
-                  F[3 + k] = -r * r;                              // b2
-               }
                rs ^= rs << 13; rs ^= rs >>> 17; rs ^= rs << 5;
-               const ka = this.tickLevel * (0.3 + 0.7 * (rs >>> 2) * R30);
-               F[6] += ka; F[7] -= 0.7 * ka; F[8] += 0.5 * ka;
-               this.tickEnergy = 1.0;
+               F[1] = Math.exp(-1 / ((0.0004 + 0.0011 * (rs >>> 2) * R30) * sr));
+               rs ^= rs << 13; rs ^= rs >>> 17; rs ^= rs << 5;
+               F[2] = 1 - Math.exp(-TWO_PI * (1500 + 2000 * (rs >>> 2) * R30) / sr);
+               rs ^= rs << 13; rs ^= rs >>> 17; rs ^= rs << 5;
+               F[3] = 1 - Math.exp(-TWO_PI * (3500 + 6500 * (rs >>> 2) * R30) / sr);
+               rs ^= rs << 13; rs ^= rs >>> 17; rs ^= rs << 5;
+               const ka = 0.3 + 0.7 * (rs >>> 2) * R30;
+               F[0] = this.tickLevel * ka;
                ST[4] += 1;
+               if (this.tickPost && this.port) {
+                  const M = this.tickMsg;
+                  M.amp = ka; M.frame = this.frames + s;
+                  this.port.postMessage(M);
+               }
             }
          }
-         if (this.tickEnergy > 0) {
-            let t = 0.0;
-            for (let k = 0; k < 3; k++) {
-               const y = F[k] * F[6 + k] + F[3 + k] * F[9 + k];
-               F[9 + k] = F[6 + k];
-               F[6 + k] = y;
-               t += y;
-            }
-            e += t;
-            this.tickEnergy *= 0.99995;
-            if (this.tickEnergy < 1e-3) { this.tickEnergy = 0.0; for (let k = 6; k < 12; k++) F[k] = 0.0; }
+         if (F[0] > 0) {
+            rs ^= rs << 13; rs ^= rs >>> 17; rs ^= rs << 5;
+            const x0 = 2.0 * (rs >>> 2) * R30 - 1.0;
+            F[4] += F[2] * (x0 - F[4]);              // the high-pass's low part...
+            F[5] += F[3] * ((x0 - F[4]) - F[5]);     // ...taken off, then two low-passes
+            F[6] += F[3] * (F[5] - F[6]);
+            e += tickSynth * F[0] * F[6];
+            F[0] *= F[1];
+            if (F[0] < 1e-7) { F[0] = 0.0; F[4] = F[5] = F[6] = 0.0; }
          }
          const ye = e - this.dc0 + dcR * this.dy0; this.dc0 = e; this.dy0 = ye;
          const ya = a - this.dc1 + dcR * this.dy1; this.dc1 = a; this.dy1 = ya;
@@ -860,7 +969,8 @@ class FlyDiyEngineProcessor extends AudioWorkletProcessor {
             ctl[1][s] = this.vRpm * invGear * 0.001;
          }
       }
-      this.rs[0] = rs;
+      this.rs[0] = rs; this.rs[1] = rq; this.rs[2] = rc;
+      this.frames += n;
       return true;
    }
 

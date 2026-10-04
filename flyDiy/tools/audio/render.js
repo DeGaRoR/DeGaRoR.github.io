@@ -15,6 +15,7 @@
 //   node tools/audio/render.js --wav           keep WAVs (<= 1 MB each) instead of Opus
 //   node tools/audio/render.js --bench         ms per 128-frame block, per voice
 //   node tools/audio/render.js --calibrate     full-power peak/RMS per voice
+//   --out=reports/evidence/SND-ENGINE-2 --names=cub_start,cessna_hot   another folder, those renders only
 //
 // Also a library: GATE AUDIO (tools/audio/_engine_check.js) renders through it.
 'use strict';
@@ -160,8 +161,10 @@ function renderScene(W, B, sceneKey, opts) {
   const S = SCENES[sceneKey];
   const engines = o.engines || [0];
   let mix = null, ctl = null;
+  // several engines summed: each at -10 log10(N) dB, as src_engine.js builds them (SND-ENGINE-2)
+  const kN = CONFIG.engineSoundCountGain(engines.length);
   for (const i of engines) {
-    const cfg = B.configs[i];
+    const cfg = kN < 1 ? Object.assign({}, B.configs[i], { gain: B.configs[i].gain * kN }) : B.configs[i];
     const voice = makeVoice(W, cfg, (o.seed || 1) + i * 7919, o.heat != null ? o.heat : S.heat,
                             S.state ? S.state(B, cfg) : null);
     const r = renderVoice(voice, o.seconds || S.seconds, S.scene(B, cfg));
@@ -319,6 +322,8 @@ function main() {
   const keepWav = argv.includes('--wav') || !ffmpegOk();
   const sr = 48000;
   const W = loadWorklet(sr);
+  const names = (argv.find(a => a.startsWith('--names=')) || '').slice(8).split(',').filter(Boolean);
+  const outDir = argv.find(a => a.startsWith('--out=')) ? at(argv.find(a => a.startsWith('--out=')).slice(6)) : OUT_DIR;
   const builds = VALIDATED.filter(v => !only.length || only.includes(v.key)).map(loadBuild);
 
   if (argv.includes('--calibrate')) {
@@ -345,7 +350,7 @@ function main() {
     return;
   }
 
-  fs.mkdirSync(OUT_DIR, { recursive: true });
+  fs.mkdirSync(outDir, { recursive: true });
   const tmp = fs.mkdtempSync(path.join(require('os').tmpdir(), 'snd-engine-'));
   const made = [];
   for (const B of builds) {
@@ -353,8 +358,9 @@ function main() {
     for (const [scene, o] of plan) {
       // the Jodel flies the Cub's A-65, and at V = 0 the solver's rpm law does
       // not see the prop: its own seed at least makes it its own engine
-      const r = renderScene(W, B, scene, Object.assign({ seed: B.key === 'jodel' ? 2 : 1 }, o));
       const name = `${B.key}_${o.tag || scene}`;
+      if (names.length && !names.includes(name)) continue;
+      const r = renderScene(W, B, scene, Object.assign({ seed: B.key === 'jodel' ? 2 : 1 }, o));
       const s = stats(r.y);
       const cfg = B.configs[0];
       // the expected firing frequency, traced on the spectrogram from the
@@ -363,8 +369,8 @@ function main() {
         const b = Math.min(r.ctlE.length - 1, Math.floor(t * sr / BLOCK));
         return r.ctlE[b] / 60 * cfg.firingPerRev;
       };
-      fs.writeFileSync(path.join(OUT_DIR, name + '.png'), spectrogramPng(r.y, sr, { firing }));
-      const wav = path.join(keepWav ? OUT_DIR : tmp, name + '.wav');
+      fs.writeFileSync(path.join(outDir, name + '.png'), spectrogramPng(r.y, sr, { firing }));
+      const wav = path.join(keepWav ? outDir : tmp, name + '.wav');
       if (keepWav) {
         // <= 1 MB: 22.05 kHz 16-bit mono would still be 44 kB/s; decimate by 2
         const half = new Float32Array(r.y.length >> 1);
@@ -374,7 +380,7 @@ function main() {
         fs.writeFileSync(wav, wavBytes(r.y, sr));
         execFileSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-y', '-i', wav,
           '-c:a', 'libopus', '-b:a', '48k', '-application', 'audio',
-          path.join(OUT_DIR, name + '.ogg')]);
+          path.join(outDir, name + '.ogg')]);
         fs.unlinkSync(wav);
       }
       made.push({ name, scene, peak: s.peak, rms: s.rms });

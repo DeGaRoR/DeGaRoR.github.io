@@ -26,10 +26,12 @@
     def = P.def;
     const ES = W.ENGINE_SOUND, spec = def && def.spec;
     if (!ES || !spec || !ready) return;
+    const kN = ES.engineSoundCountGain(ES.engineSoundPistonCount(spec));   // N engines: each -10 log10(N) dB (SND-ENGINE-2)
     for (let i = 0; i < Math.min(MAX, P.nE); i++) {
       let cfg;
       try { cfg = ES.engineSoundConfig(spec, i); } catch (e) { console.warn('flyDiy audio: engine ' + i + ' has no voice', e); continue; }
       if (!cfg || cfg.piston === false) continue;   // electric / turbine: SND-PROP's wave
+      cfg.gain *= kN;
       const rpm = +P.rpmEng[i] || 0, running = (+P.running[i] || 0) > 0;
       const node = new AudioWorkletNode(ctx, 'flydiy-engine', {
         numberOfInputs: 0, numberOfOutputs: 2, outputChannelCount: [1, 2],
