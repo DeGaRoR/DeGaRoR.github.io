@@ -72562,3 +72562,48 @@ and one more press fixes it (refreshing that entry would cost a second request; 
 (2) The phone garage is MOBILE-GARAGE's: the pill sits 128 px up, centred, over whatever that layout puts there.
 (3) Pages not deploying at all (the trigger of this ask) is not fixable from the page: version.json then equals the
 stale page and nothing shows - the stamp is how to see it (compare with the train's build in its commit message).
+
+## G1510-G1519 - MOBILE-GARAGE: BUILD IT ON THE PHONE, FLY IT AT HOME - A STUDY: A GARAGE-ONLY MODE, ONE ROW MODEL FOR THE SLIDER REVAMP, THE BUILD AS A LINK (2026-10-04, MOBILE-GARAGE for A0, cloud - node + headless SwiftShader, no GPU; branch claude/mobile-garage-g1510 off train 30 = a1ffcf5b; G1515-G1519 unused)
+
+THE DOC: `futureDesigns/MOBILE-GARAGE-2026-10-04.md`. Mock-ups: `futureDesigns/mobile-garage/` (index.html; rowkit.js = the
+prototype renderer). Evidence: `reports/evidence/MOBILE-GARAGE/`. NOTHING SHIPPED CHANGED: four rigs under tools/perf/
+(`mobile_share_size.js`, `mobile_garage_node.js`, `mobile_garage_swift.js`, `mobile_phone_cdp.js`), the rest under
+futureDesigns/ and reports/.
+
+**THE RECOMMENDATION.**
+1. **`?mode=garage`, the same page.** It boots the garage's 10 steps and none of the world's 14 (+ no island fetch, no
+   sim worker, and the boot's `recheck` re-planning nothing: left in, it ran the flown bake). Measured with a rig-only
+   source transform:
+   - node: boot ~300 s → 33-37 s, 230 → 43-47 MB read, heap + ArrayBuffers after GC 2.86-2.91 GB → 0.48-0.53 GB,
+     0 errors, the drags identical;
+   - SwiftShader at 412 × 915: 215 → 58 MB on the wire, JS heap peak 1,530 → 365 MB (the S20 FE's budget is 700).
+2. **The phone shed** (M2): no props (6,402 draws vs a budget of 300), no transmission glass, crew meshes hidden, no
+   shadow maps, pixel ratio ≤ 1.5, audio lazy.
+3. **One row model, two renderers** (decide INSIDE the slider revamp, now). Today's tuple gains `unit`, `group`,
+   `tier`, `fine`, `detents`, `help`. Two renderers, desk and touch, emit the same tick / release GARAGE-INSTANT keys
+   on. Undo, one entry per gesture.
+   THE USER'S RULINGS (4 Oct):
+   - on touch **only the knob moves a slider**; the scale scrolls the list (R4-R5, checked on the prototype with CDP
+     touch);
+   - **the parts tree holds only the aeroplane**; the reference plane and the hangar move to the rail (R24).
+   The doc §2.9 lists the nine decisions the revamp must take so mobile is not a rewrite.
+4. **Phone → computer = a link.** `#build=` holds a deflate-raw + base64url patch over a frozen stock base: 20 rows =
+   401 chars, a v13 QR. The whole spec is ~9.6 k chars (a link, never a QR). It goes through the Web Share API; copy,
+   QR and the .json file are the fallbacks. No cloud store. The computer opens it on an arrival card (checked, built,
+   bench, the flown bake at roll-out) as a new slot.
+5. **The phone does not fly.** The bench check (the shakedown needs no world) is shown, and the plaque reads "not yet
+   flown".
+
+**THE PLAN** (G-blocks suggested, A0 assigns): M3 ROW-MODEL inside the revamp (first) → M1 GARAGE-MODE → M5 SHARE →
+M2 PHONE-SHED → M4 TOUCH-UI → M6 PHONE-SOAK (+ an iPhone).
+
+**FOR A0 ON THE BOX:** `node tools/perf/mobile_phone_cdp.js --url "http://localhost:8700/flyDiy/index.html?gfx=potato"
+--build cub` (after `adb reverse tcp:8700 tcp:8700`). It measures boot (the heap per step, Chrome's PSS, a kill caught
+with its step), drag (handler and drawn), frames (rest, orbit) and a 10-min soak (fps, battery / HAL temperatures).
+Smoke-tested on desktop headless Chromium only; every phone number is the box's. Today's game will likely die in the
+world on the phone: that row is M1's baseline.
+
+**FOUND ON THE WAY:**
+- Today's editor at 412 px shows its columns and no 3D view at all (`swift_today_editor_at_412px.jpg`).
+- The cage rows' releases (paxLen, halfW) are still whole builds at 1.1-2.7 s in node: the phone's worst feel, and
+  RELEASE-FAST's next target.

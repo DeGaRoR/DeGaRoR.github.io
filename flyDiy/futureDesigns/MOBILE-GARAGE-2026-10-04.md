@@ -19,8 +19,9 @@ over a recording GL, real ms, ~1.6x the box's JS). **SwiftShader** = headless Ch
 
 1. **A garage-only mode of the same page** (`?mode=garage`, which the welcome's phone gate offers as "build on this
    phone"). It boots the garage's 10 steps and none of the world's 14. The island (37.3 MB) is never fetched, and the
-   roll-out button becomes **Send to computer**. Measured in node: the boot runs and the sliders work with the world
-   taken out (§1.3).
+   roll-out button becomes **Send to computer**. Measured with a prototype (§1.3-1.4): 0 errors, the sliders work
+   as in the full game. Node: boot ~300 s → 33-37 s, 230 → 43-47 MB read, memory after GC 2.9 → 0.48-0.53 GB.
+   SwiftShader: 215 → 58 MB on the wire, **JS heap peak 1,530 → 365 MB** (the S20 FE's budget is 700).
 2. **A "phone shed"**: the editor's aeroplane on a plain floor. No shed props (6,402 draw calls today against a phone
    budget of 300), no transmission glass, no crew meshes, no shadow maps, and a capped pixel ratio.
 3. **One row model, two renderers.** Today's row tuple gains six optional fields (`unit`, `group`, `tier`, `fine`,
@@ -75,7 +76,8 @@ roll-out of a visit"). That is the LOADING-S3 path the game had before B9: a gar
 | bake (C4a flown bake, 2048² atlas) | off | roll-out only; the computer does it |
 | restore (the certificate) | kept | the plaque |
 | images, upload, worldCompile, frames, craft | off | the world's pictures and programs |
-| compile, firstFrame, recheck | kept | the shed's programs |
+| compile, firstFrame | kept | the shed's programs |
+| recheck (the aircraft's keyed steps re-planned) | kept, **re-planning nothing** | with bake and craft out it would run the flown bake (§1.3) |
 | sim worker prewarm (after the boot) | off | flight |
 | the island download (ISLAND_LOADER, 37.3 MB; raster 5.6-19.5 MB) | **never fetched** | `?world=none` in the prototype; a real mode skips the loader |
 
@@ -110,7 +112,7 @@ The drags (node real ms, median of 2 reps after a warm-up, 4 ticks each; `tick` 
 What it shows:
 - **The garage-only boot works.** 0 page errors, the editor seeded, the drags preview and release exactly as in the
   full boot (the `CAGE_UI.release` reasons are the same).
-**The memory floor is about 6× lower:** 475-533 MB against 2.86-2.91 GB in the same harness. That is the
+- **The memory floor is about 6× lower:** 475-533 MB against 2.86-2.91 GB in the same harness. That is the
   same order as MEM-BUDGET's browser floor ("the garage up" ~414 MB on potato, *with* the island loaded); §1.4 has
   the browser's own number. The ArrayBuffers the world held (~1.75 GB) are simply never made.
 - **Boot time and bytes fall by 5-9×.** The boot drops from ~300 s to 33-37 s in node (the box is ~1.6× faster).
@@ -128,11 +130,30 @@ What it shows:
 ### 1.4 Measured: the same in a real browser (SwiftShader)
 
 `tools/perf/mobile_garage_swift.js` drives headless Chromium on SwiftShader at the phone's viewport (412 × 915) with
-Playwright. In garage mode it serves app.js through `page.route` with the same nine replacements. It records the heap
+Playwright. In garage mode it serves app.js through `page.route` with the same ten replacements. It records the heap
 per boot step (CDP), the bytes on the wire by kind (CDP `encodedDataLength`; `_serve.js` does not compress, so these
 are the bytes **before** GitHub Pages' gzip), and a still of the garage.
 
-⟨TABLE-1.4⟩
+| run (SwiftShader, Chromium 141, the 'software' rung = potato) | bytes on the wire, uncompressed (MB) | of which | requests | JS heap peak (V8 + backing stores, MB) | after GC (MB) | programs | errors |
+|---|---:|---|---:|---:|---:|---:|---:|
+| full / Cub | **214.7** | tex 103.7, world 54.5, geo 43.1, scripts 12.5, audio 2.8 | 1,325 | **1,530** (at "upload") | 203 + 1,016 = **1,219** | 349 | 0 |
+| **garage-only / Cub** | **57.8** | tex 33.8, scripts 12.5, geo 10.6, audio 2.8, **world 0** | 639 | **365** (at "first light") | 69 + 228 = **297** | 123 | 0 |
+| (the first prototype, whose `recheck` ran the flown bake) | 58.0 | same | 641 | 560 | 73 + 457 = 530 | 126 | 0 |
+
+- **The browser's garage-only peak is 365 MB: 4.2× below the full boot's 1,530 MB**, under the S20 FE's 700 MB
+  budget (FRIENDLY-WELCOME-BUDGETS' "good smartphone") and the "pocket" phone's 400 MB. That is the JS side only.
+  The GPU's share (textures, the shed's 6,402 draws' buffers) is the phone rig's PSS column to read (§1.6).
+- **The wire.** 57.8 MB before Pages' compression. The 12.5 MB of scripts gzip to ~3-4 MB (index.html: 10.9 MB →
+  3.6 MB gzip, 2.8 MB brotli). KTX2, JPEG and the binary geometry barely shrink. So a first visit is **~48 MB**: ~20 s
+  at 20 Mbit/s on 4G, against ~85 s for the full game's ~205 MB. The shed's props are most of the garage's tex + geo;
+  without them (§1.5, M2) the estimate is **~25-30 MB** (to measure in M2). After the first visit `sw.js` serves
+  /media/ from its cache (content-hashed): ~0 MB.
+- **Times on SwiftShader are not a phone's.** The garage-only boot took 364 s and the full one 417 s, because every
+  frame and program link takes seconds in software. The garage-only boot's last 217 s were "the last pieces landing"
+  (the shed's frames). Only bytes and memory are read off this table; the drag handlers (wgSpan 144 / 389 ms, stSpan
+  18 / 270 ms garage-only; full 129 / 578 and 19 / 249) agree with node's.
+- The still at the phone's size (`swift_garage_cub.jpg`, also `swift_today_editor_at_412px.jpg`) is today's desktop
+  editor squeezed to 412 px: the columns cover the view (§2).
 
 ### 1.5 What of the garage to drop or simplify on a phone (the "phone shed", M2)
 
@@ -141,7 +162,7 @@ measured costs:
 
 | item | today | phone | evidence |
 |---|---|---|---|
-| **the shed's props** (benches, shelves, tools, the hanging mobile, ~120 props) | 6,402 draw calls in the shed; props geo 9.6 MB + tex 12.3 MB on the wire | **off**: a floor, a sweep backdrop and one key light | SOFT-GPU: 6,402 draws; budget ≤ 300 |
+| **the shed's props** (benches, shelves, tools, the hanging mobile...) | 6,402 draw calls in the shed; props geo 9.6 MB (ASSET-PREP, G1240) + tex ~12 MB (the 2026-09-15 cold boot's census) on the wire | **off**: a floor, a sweep backdrop and one key light | SOFT-GPU: 6,402 draws; budget ≤ 300 |
 | **hangar glass** (`transmission 0.9`, 19 panes, hangar.js:775) | re-renders the room into a mipmapped target every frame | **off** (opaque or no windows) | SOFT-GPU: shed frame 8.9 → 4.4 s on SwiftShader with transmission 0 |
 | **shadows** (2048 map, near/full) | potato: off already | **off**; one contact shadow under the gear (C0 / A6 contact shadow) | potato preset |
 | **AA** (canvas 4× MSAA, or 8× + targets) | gamer: msaa 8× | **canvas MSAA off, pixel ratio capped at 1.5** (the S20 FE's DPR is 2.625; today's cap is 1.75 × potato's 0.67 scale) | a 412 × 330 view at 1.5 = 0.31 MP |
@@ -152,12 +173,12 @@ measured costs:
 | **inspector readouts** (the shakedown 0.4-0.7 s desktop, the balance and readout workers) | post-idle, 600 ms after the last change (G1302) | **the bench tab only**, on demand, and in its worker. The phone's CPU is ~3× slower than the box (estimate: box to measure) | G1302 |
 | **the materials lab dials, the energy panel** (414-461 "other ranges" on Cub / metal) | in the inspector | **expert tier**: off on a phone unless asked | GARAGE-INSTANT census |
 | **reference planes, blueprint sheets** | display state | **off** (never in a save anyway) | refplane.js:9-22 |
-| **sound** (SND-*) | the shed is silent (SND-MUSIC: silences in the shed) | unchanged | |
+| **sound** (SND-*) | the shed is silent (SND-MUSIC: silences in the shed), yet the garage boot fetches 2.8 MB of audio | **lazy**: fetched at the first sound, never in the shed | SwiftShader wire census (§1.4) |
 
 A slider tick on the phone is GARAGE-INSTANT's preview path. It keys on `pointerdown` on the row, so a touch drag
 takes it (§2.4). On the box a tick is 5-25 ms of handler and a release 240-520 ms (RELEASE-FAST cuts wing, tail and
 gear releases to an estimated 50-130 ms). **On a phone, multiply by ~3-5 (to measure).** A release near 1-2 s on the
-cage rows (paxLen, halfW, seatH) would be the phone's worst feel. §2.6 hides it behind the preview: the release keeps
+cage rows (paxLen, halfW, seatH) would be the phone's worst feel. R19 (§2.6) hides it behind the preview: the release keeps
 the last preview on screen until the exact build lands.
 
 ### 1.6 The phone rig (A0, the box, the S20 FE)
@@ -214,9 +235,11 @@ What the editor is today (the digest of `tools/_cage_ui.js` / `src/viewer/editor
 ### 2.1 Target sizes
 - **R1.** Every target is **≥ 48 × 48 CSS px** (Material's 48 dp; WCAG 2.5.5 AAA asks 44). A drawn control may be
   smaller (the help ring is 28 px) only if its hit area is 48 (`::after { inset: -10px }`).
-- **R2.** A phone row is **56 px**: a label line (28 px: label, help, value chip) over a control line (the scale with its
-  48 px knob hit area, and the steppers). This holds 9-10 rows in a portrait sheet below a 330 px view. The desktop row stays 30 px; the row
-  model makes that difference, not a fork of the code.
+- **R2. A phone row has two lines.** A label line (28 px: label, help, value chip) sits over a control line (the scale
+  with its 48 px knob hit area, and the steppers). Measured in the prototype: a slider row is **94 px**, a select
+  (chips) 82 px, a toggle 56 px. A portrait sheet below a 330 px view is ~386 px, which is **about 4 slider rows**;
+  landscape's is 305 px, about 3. That is why the tiers (R14) matter as much as the sizes. The desktop row stays
+  30 px; the row model makes that difference, not a fork of the code.
 - **R3.** Adjacent targets are ≥ 8 px apart (chips 6 px apart, plus their own padding).
 
 ### 2.2 Drag, tap-to-edit and steppers: all three, on every slider
