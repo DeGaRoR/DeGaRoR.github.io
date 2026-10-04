@@ -1910,7 +1910,7 @@ if (typeof window !== 'undefined') window.CAGE_CREW_FLOOR = {
       if (!top || top === group || !/^cageLayer:/.test(top.name || '') || !top.visible || top.parent !== B.scene) continue;
       top.updateMatrixWorld(true);
       let hit = false;
-      top.traverse(o => { if (!hit && floorReaches(o, inv, M, B.yLo, B.yHi)) hit = true; });
+      top.traverse(o => { if (!hit && floorReaches(o, inv, M, B.yLo, B.yHi, B.zA, B.zB)) hit = true; });
       if (hit) return true;
     }
     return false;
@@ -2051,7 +2051,10 @@ function floorWalls(mesh, k, yAt, zF, zA) {
 let FLOOR_BAND = null;
 // THE MESHES THAT CAN CUT THE BOARD: a visible, opaque, unskinned mesh of a cageLayer:* group (not the crew's own)
 // whose box reaches the board's height band
-function floorReaches(o, inv, M, yLo, yHi) {
+// ...and whose box reaches the board's RUN along z: a cut piece is kept only when its middle lies inside
+// [z0 + 1 cm, z1 - 1 cm] (buildFloor), and every piece of a mesh's cuts lies inside the mesh's z extent - a mesh wholly
+// fore or aft of the run (by a micrometre) cuts nothing the board keeps (zA, zB: the run, optional)
+function floorReaches(o, inv, M, yLo, yHi, zA, zB) {
   if (!o.isMesh || !o.visible || o.isSkinnedMesh || !o.geometry || !o.geometry.attributes.position) return false;
   const m0 = Array.isArray(o.material) ? o.material[0] : o.material;
   if (!m0 || m0.visible === false || m0.transparent) return false;
@@ -2060,7 +2063,9 @@ function floorReaches(o, inv, M, yLo, yHi) {
   // a cheap bound first: the mesh's box must reach into the board
   if (!g.boundingBox) g.computeBoundingBox();
   const bb = g.boundingBox.clone().applyMatrix4(M);
-  return !(bb.min.y > yHi || bb.max.y < yLo);
+  if (bb.min.y > yHi || bb.max.y < yLo) return false;
+  if (zA != null && (bb.max.z < zA - 1e-6 || bb.min.z > zB + 1e-6)) return false;
+  return true;
 }
 function sceneCuts(scene, yAt, offs, crewGroup, zLo, zHi) {
   const out = [], v = [new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3()];
@@ -2069,14 +2074,14 @@ function sceneCuts(scene, yAt, offs, crewGroup, zLo, zHi) {
   const inv = new THREE.Matrix4().copy(crewGroup.matrixWorld).invert(), M = new THREE.Matrix4();
   let yLo = Infinity, yHi = -Infinity;
   for (let z = zLo; z <= zHi + 1e-9; z += 0.05) { const y = yAt(z); yLo = Math.min(yLo, y + Math.min(...offs)); yHi = Math.max(yHi, y + Math.max(...offs)); }
-  const hits = [];
-  FLOOR_BAND = { scene, crewGroup, inv: inv.clone(), yLo, yHi, hits };
+  const hits = [], zA = zLo + 0.01, zB = zHi - 0.01;
+  FLOOR_BAND = { scene, crewGroup, inv: inv.clone(), yLo, yHi, zA, zB, hits };
   for (const top of scene.children) {
     if (top === crewGroup || !/^cageLayer:/.test(top.name || '') || !top.visible) continue;
     top.updateMatrixWorld(true);
     top.traverse(o => {
       // (traverse walks into hidden children as well: the visible test is the mesh's own, as it always was)
-      if (!floorReaches(o, inv, M, yLo, yHi)) return;
+      if (!floorReaches(o, inv, M, yLo, yHi, zA, zB)) return;
       hits.push(o);
       const g = o.geometry, p = g.attributes.position, idx = g.index;
       const n = idx ? idx.count : p.count;
