@@ -7,8 +7,9 @@
 //   - the PAVEMENT (pavement.js stripGeometry / roadGeometry / polyGeometry, render_premises' and render_world's own
 //     arguments): opaque inside its edge (aPav dE >= 0.3 m, G1004's trap 1), drawn at terrainH there since G1001;
 //   - the premises' GROUND PATCH (render_premises.js buildPatchSteps): 64 m chunks over what the record touches
-//     (activeChunks, LIFTED from the source), a 2 m world grid, the diagonal (i+1, j)-(i, j+1), its vertex law LIFTED
-//     too: terrainH - PATCH_TUCK.drop r - tuck (1 - r)^2 - the pavement's sink;
+//     (activeChunks, LIFTED from the source - tools/_patch_law.js), a 2 m world grid, the diagonal (i+1, j)-(i, j+1),
+//     its vertex law LIFTED too: terrainH - patchDrop r - tuck (1 - r)^2 - the pavement's sink (G1541: the drop is 2 cm
+//     only under a pavement and its side and in the lots' zones; before, a flat 2 cm - the same rig reads either source);
 //   - the FINE TILES (render_world.js FINE.build): FINE.step (LIFTED) on the world grid, terrainH - ringSink, the
 //     a-b-d / b-c-d split - where the patch tucks under them or is not built at all.
 // Opaque ground over opaque ground: the higher one is seen (the patch / fine pair), the pavement over both.
@@ -16,12 +17,15 @@
 //   node tools/ground_drawn.js [--lattice] [--stands] [--taxi] [--builds cub,jodel,cessna] [--secs 90] [--json f]
 //     (no section flag: all three)
 //   --lattice  drawn - terrainH (mm) over every Jolene aerodrome's footprint (the runway box + 120 m, 1 m jittered
-//              grid), per layer on top, and per POSITION IN THE LATTICE CELL (vertex / edge / centre)
+//              grid), per layer on top ('rim': a pavement's outer 1.5 m, its side lift still falling), the patch's OPEN
+//              GRASS apart (3 m+ off any pavement, outside the lots' zones, past the border tuck), and per POSITION IN
+//              THE LATTICE CELL (vertex / edge / diagonal / interior)
 //   --stands   each build placed at each stand (siteOf().stand, placeAtStand), settled; per wheel: the DRAWN tyre's
 //              least height over the drawn ground (tools/ground_gap.js poseWheels: the editor's own wheel meshes posed
 //              by app.js poseModel's arithmetic, TW_DRAW_DROP read off app.js) and the physics contact over terrainH
 //   --taxi     THE PILOT out of HOME's and w3's stands (placeAtStand + departFrom, ground_surface.js's flight) until
 //              the take-off roll; the same per wheel, 10 Hz, by the layer on top
+//   --none     nothing printed but the header: require() it for drawnAt, PATCH, MESHES (GATE CONTACT section 5)
 // FLYDIY_GROUND_RASTER=1 (the page's default since build.js: ?raster=0 turns it off) for the page's own terrainH.
 'use strict';
 const fs = require('fs');

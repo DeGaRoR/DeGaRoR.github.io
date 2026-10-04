@@ -74504,3 +74504,120 @@ GATES on this branch (cloud, 4 cores):
     f5cd36beab5d, this tree 6d541c54e369), so every parked aeroplane is captured live. The cook refuses a software
     renderer by design ("cook on the GPU" - this box has SwiftShader only). A0: re-cook on the box, then FRAMECOST,
     as the train does on its final build.
+## G1540-G1544 - GROUND-LATTICE: UNDER THE WHEELS THE DRAWN GROUND WAS THE PREMISES' PATCH 2 cm UNDER terrainH (NOT THE 5 m LATTICE), AND A PIT PAST A DEAD-END ROAD; THE PATCH AT terrainH WHERE THE WHEELS ROLL, THE PIT GONE, TW_DRAW_DROP 0 (2026-10-04, GROUND-LATTICE for A0, cloud, node only; branch claude/ground-lattice-g1540 off claude/gear-water-buoy 5ecabad)
+
+The brief (A0): G1380's owed fix - name exactly where the drawn ground and the physics ground disagree under the wheels
+(grass strips, pavement, the stand, slopes; how many cm, by lattice position), fix it in the construction (the contact
+reads the surface as drawn, or the drawn ground follows terrainH under the aerodromes - whichever is cheaper and keeps
+physics = drawing), then TW_DRAW_DROP = 0. No physics cost, no change to flight.
+
+THE CHOICE: THE DRAWING FOLLOWS. Under an aerodrome the wheels never meet the 5 m fine tiles G1380 measured: they meet the
+PAVEMENT (drawn at terrainH since G1001) or the PREMISES' GROUND PATCH (render_premises buildPatchSteps: a 2 m world grid
+over every 64 m chunk the record touches - every runway + shoulder + 30 m, every stand, road and site). The patch stood
+2 cm under terrainH everywhere (G434.2, for the lot lawns). The contact reading the drawn surface would have needed the
+solver to know which of a dozen meshes is on top (render-side state), cost terrainH samples and moved every ground
+trajectory; moving the patch costs nothing at run time and leaves the solver's bits alone.
+
+G1540 WHERE THE TWO GROUNDS DISAGREE (tools/ground_drawn.js, new; tools/_patch_law.js, new). The rig stacks what the page
+draws: the pavement (pavement.js builders with render_premises' / render_world's own arguments, opaque from aPav dE 0.3 m),
+the patch (its chunks, border tuck, drop and the pavement's sink LIFTED from render_premises.js - _patch_law.js, shared
+with ground_surface.js, which kept its own copy of the law until now), the fine tiles (FINE.step lifted, terrainH -
+ringSink) - the higher opaque ground is the one seen. Under each wheel: the drawn tyre's least height over that ground
+(ground_gap.js poseWheels: the editor's own wheel meshes posed by poseModel's arithmetic, TW_DRAW_DROP read off app.js).
+Jolene, FLYDIY_GROUND_RASTER=1 (the page's default), base 5ecabad vs this branch, the same rig (copied into a worktree of
+the base). Drawn ground on top - terrainH, every aerodrome's runway box + 120 m on a jittered 1 m grid (mm):
+
+| surface on top | base: p5 / p50 / p95 | after |
+|---|---|---|
+| pavement interior (aprons, roads, strips; past the 1.5 m rim) | -2.6..+4.0 aprons, -1.8..+1.3 roads, 0.0 concrete strips, -2.3..+0.3 the grass strip | unchanged |
+| pavement RIM (dE 0.3-1.5 m: G1001's side lift falling to 0 over liftIn) | +2..+10 / +25..+35 / +53..+66 | unchanged (named below) |
+| the patch, open grass (3 m+ off any pavement, outside the lots' zones, past the border tuck; 1.44 M points) | -27.2 / -20.0 / -14.6 | -7.3 / 0.0 / +5.4 |
+| ...at its vertices | -22.3 / -20.0 / -18.3 | -2.3 / 0.0 / +1.7 |
+| ...on its edges | -25.1 / -20.0 / -16.5 | -5.2 / 0.0 / +3.4 |
+| ...on the diagonal (i+1, j)-(i, j+1) | -29.4 / -20.0 / -12.3 | -9.5 / 0.0 / +7.6 |
+| ...inside the triangles | -28.6 / -20.0 / -13.6 | -8.7 / 0.0 / +6.3 |
+| the fine tiles (5 m; only past the premises - never under a stand or a taxi) | -155 / -6.1 / +15.5 (the boxes reach banks and lakes) | unchanged |
+
+- THE PAVEMENT is the solver's surface (G1001), but for its RIM: inside the outer 1.5 m the side's 7 cm lift is still
+  falling, so a tyre crossing an edge sinks up to 5-6 cm into the drawn rim for that metre and a half (taxi samples: "rim"
+  rows, -13..-50 mm). G1001's design (the side must stand over the ground it fades onto); not changed.
+- THE PATCH (every aerodrome's grass, w3's stand, the grass a pilot cuts across): 20 mm under, then its 2 m chords - on a
+  slope or a grade's feather the diagonal and the triangles' insides stray most (the "by position" rows).
+- THE STAND AT HOME is a concrete apron (34 m inside its edge) drawn at terrainH to 0.1 mm. G1383's TW_DRAW_DROP sank
+  the Cub's tail 19.9 mm INTO it (the Jodel's 12.2). The float G1383 papered over was the patch's 2 cm on grass: at w3's
+  stand the mains of all three aeroplanes stood +19..+21 mm over the drawn ground (the tail compensated by the drop).
+- A DEAD-END ROAD: pavedAt's dEdge for a road is w/2 less the distance to the polyline - a round cap past each end -
+  while the ribbon ends square (roadGeometry: s 0..L). The patch is sunk by pavedAt (up to 0.8 m), so past every dead end
+  a half disc of patch was sunk under nothing: under mn_strip's stand (the START of mn_stand_lane) the parked mains of
+  the Cub, the Jodel and the Cessna stood 230-590 mm over the drawn ground. Also at w3 (the Jodel's taxi: p95 +231 mm).
+- THE GRASS APRON / GRASS ROAD (nv_meadow at nv_strip's stand, r_strip - the only two on Jolene): a translucent overlay at
+  terrainH (the tyres on it within -1..+6 mm), the patch seen THROUGH it 93 mm under (its 2 cm + SINK.pre's 7). Not
+  changed: owed (the overlay would need a depth offset instead of a gap; a GPU look).
+- THE BUILD READ: where the premises raster is not cooked the patch's vertices read the analytic composer (terrainHBuild,
+  G1406) and the wheels the lazily baked raster - within GR_TOL (1 cm): the vertex rows' +-2 mm. Not changed.
+
+G1541 THE PATCH AT terrainH WHERE THE WHEELS ROLL (render_premises.js patchDrop, PATCH_TUCK.drop / lotR0 / lotR1 / sideR0
+/ sideR1; 27_premises.js pavedAt(x, z, reach)). The 2 cm is the margin a TRANSLUCENT layer is drawn over the ground with,
+so it is kept only where one lies over the patch:
+- a pavement's interior and its side: the full 2 cm from sideR0 (1.2 m) outside the edge in, 0 by sideR1 (3 m) out
+  (pavedAt's new `reach`: a pavement whose edge lies within it outside the point). A first cut put the whole patch at
+  terrainH and GATE CONTACT's pavement-over-ground ratchet went red: apron edge 17 -> 35 (limit 30), road band 79 -> 100
+  (limit 90), every pavement's side fade 2 cm nearer the ground. With the side kept: 17, 79 + (G1542) 7, sides +2 / +27.
+- a lot: within lotR0 (8 m) of a zone 27_premises sows plots in (residential, commercial, industrial, harbour, park),
+  0 by lotR1 (12 m) - a lot patch runs 5 m past its plot. The lots also carry their own 2 cm (lotGround T.h + 0.02, a
+  polygon offset): with the patch at terrainH under them, 3.1 % of the zones' 1.37 m sample points have a 2 m chord over
+  the lawn (1.2 % today) - so the villages keep the old 4 cm. Per 64 m chunk the zones that can reach it are found once.
+- everywhere else (the open grass: the stands on grass, between and beside the pavements past 3 m) the patch IS the
+  ground the eye sees under a tyre, at terrainH. The nearest lot zone to a Jolene stand is 1 km off (w3); nv_clearing
+  and tw_z_clear are 'clear' zones (no plots).
+G1542 THE DEAD END (27_premises.js pavedAt: roadDeadEnds, roadEndIn, PAVE_END_IN; pavement.js sinkAt(dE, d0, dPre);
+render_premises sinkOf and _patch_law pass q.dPre). For the patch's sink a road's DEAD end (nothing else paved within
+0.5 m of its end point - a junction or a lane onto an apron keeps its round cap, covered by the other pavement) is an edge
+like its sides: past it nothing is paved, not even a side; the deep sink (0.8 m) is held PAVE_END_IN (the patch's 2 m
+cell) inside it so no deeply sunk vertex lies within a cell of the end; the last 2 m take the edge's 7 cm (dPre, G1001's
+pre-sink law) and the 2 cm (G1541's side). pavedNear / coverAt keep the round cap (the stones, the trees, the life). The
+ratchet's road band 79 -> 86 (limit 90): the last 2 m of seven Metlakatla street ends and r_airport's, where the road
+now stands 2 + 7 cm over the patch instead of 0.8 m; mk_r_airport's north end runs into a 1.4 m step of the DEM (the
+road's own 3 m rows can't follow it either). The mains parked just past mn_stand_lane's start keep 10-17 mm: the 2 m cell
+carries the last 2 m's 9 cm a little way out (from 230-590).
+G1543 TW_DRAW_DROP = 0 (app.js; the dial and its code stay, a nonzero value is the old rig for an A/B). ground_gap.js
+reads it off app.js (it hard-coded 0.02); GATE CONTACT --drawn expects every stock wheel on the ground at rest.
+G1544 THE PROOF AND THE NET.
+THE STANDS (the drawn tyre's least height over the drawn ground, mm, settled 10 s; base -> after; + afloat, - into it):
+
+| stand (surface) | Cub mains / tail | Jodel mains / tail | Cessna mains / nose |
+|---|---|---|---|
+| HOME (concrete apron) | +0.1 +0.1 / -19.9 -> +0.1 +0.1 / -0.3 | +0.2 +0.2 / -12.2 -> +0.2 +0.2 / +7.3 | -0.0 -0.0 / +1.3 -> same |
+| w3 (the patch) | +18.7 +19.3 / -0.0 -> -1.3 -0.7 / -0.4 | +19.0 +19.3 / +8.0 -> -1.0 -0.7 / +7.5 | +20.0 +20.7 / +19.5 -> +0.0 +0.7 / -0.5 |
+| mn_strip (past a dead end) | +576 +490 / +0.1 -> +13.6 +9.6 / -0.3 | +577 +488 / +7.8 -> +16.7 +10.4 / +7.3 | +229 +352 / +1.3 -> -0.0 -0.0 / +1.3 |
+| nv_strip (the grass apron) | +2.6 -1.4 / -16.8 -> +2.6 -1.4 / +2.7 | +4.8 -0.2 / -6.9 -> +4.8 -0.2 / +12.3 | +5.8 -0.1 / +11.1 -> same |
+| tw_ski (concrete apron) | +0.0 +0.2 / -20.0 -> +0.0 +0.2 / -0.4 | +0.1 +0.1 / -12.5 -> +0.1 +0.1 / +7.0 | +0.0 +0.3 / +0.9 -> same |
+
+THE JODEL'S TAIL +7.3 mm is its own drawn axle 9.5 mm over its node (ground_gap: axle drawn - node 2.2 / 9.5 / 0 mm; the
+join measures twY off the gear page's contact, the castor draws its hub off twLegDrop/rake) - G1380's owed "Jodel 10 mm
+tail-axle residual", seen now that the drop is gone. Not this chantier (the gear's construction, not the ground).
+THE TAXI (THE PILOT out of the stand to the roll, 90 s, 10 Hz; per wheel by the surface on top; p50 [p5..p95] mm):
+- HOME, Cub tail: apron -20.8 [-21.9..-20.5] -> -1.1 [-2.2..-0.8]; road -21.9 -> -2.3 [-5.6..-0.2]; strip -22.8 -> -3.1.
+  Jodel tail: apron -14.9 -> +4.6, road -19.1 -> +0.4 [-6.5..+5.4], strip -20.7 -> -1.2. Mains and the Cessna unchanged
+  (+1..+6: the tyre spring unloading at taxi, G1000).
+- w3: Cub mains on the patch +20.0 [+16.0..+24.2] -> 0.0 [-4.0..+4.6] (L), +20.2 -> +0.2 [-2.7..+3.6] (R); tail on the
+  road / strip -21.2 / -20.8 -> -1.6 / -1.2. Cessna on the patch: mains +17.4 / +17.2 -> -2.6 / -2.8, nose +21.7 -> +1.7.
+  Jodel mains on the patch +23.5 [+20.4..+231] -> +14.3 [+0.4..+27.8] (its few samples on the patch are within 3 m of a
+  pavement's edge, where G1541 keeps the 2 cm; the 231 was the dead end).
+THE NET (GATE CONTACT, new section 5, core): TW_DRAW_DROP 0 in app.js; render_premises drops by patchDrop; the
+drop 0 on the open grass round every Jolene aerodrome (591 points, 0 dropped) and 2 cm under the pavements (252, their
+side included); 2 cm inside a residential zone; mn_strip's stand is mn_stand_lane's start, 1.5 m past it nothing paved,
+nothing sunk, the drawn patch within 2 cm of the ground (0.0 mm; it was a 0.4-0.6 m pit), 1 m inside the edge's pre-sink
+(5.2 cm), 6 m inside the deep sink; the stock build's tyres on the drawn ground at every Jolene stand (|tyre - drawn|, |drawn - terrainH|
+< 15 mm: HOME 0.6/0.0, w3 -1.0/1.4, mn_strip 13.1/-12.5, nv_strip 6.4/-4.3, tw_ski 0.4/0.1). Section 1's ratchet (the
+pavement within 5 mm of the patch) on _patch_law: apron edge 17, apron side 101, road band 86, road edge 213, road side
+2648 (base 17 / 99 / 79 / 212 / 2621; the old copy of the law and the lifted one read the base identically).
+NO PHYSICS COST, NO CHANGE TO FLIGHT: 30_solver.js, terrainH and the contact are untouched; pavedAt is read by the patch
+alone. Node, the island world with its premises and the raster on, final positions after 900 frame-steps, SHA-1 of p,
+base 5ecabad vs this branch - IDENTICAL for the user's Cub and the metal Cessna, THE PILOT taxiing out of HOME and 400 m
+up (b094a118 / 0f8e5f7e, f02dc2cf / f74a3a0e). Step time: see GATES below.
+STILLS: the cloud has no GPU and SOFT-GPU's tools/soft_still.js is not on this base: A0 shoots
+tools/perf/ground_lattice_views.json with tools/shadowsky_shots.js (pages: the base's index.html built as
+index_before.html, and this branch's) - HOME's stand at wheel height (the tail, both sides, a quarter), w3's stand on the
+patch and mn_strip's dead end ("at" [x, z, agl]: the user's Cub's resting CG height 1.095 m - the stock build 1.208, the
+Jodel 1.016, the Cessna 1.100); the views' az is the orbit's, A0 keeps the frames that show the tyres.
