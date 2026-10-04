@@ -155,6 +155,8 @@
   };
   // the layer whose own body is running (a section stamped now is that layer's), or null
   C.cur = () => CUR;
+  // the run counter (each layer's `seq` is the counter at its last run)
+  C.seqNow = () => SEQ;
   // only(names): a plan that runs the named layers (and the always-run ones) and skips the rest
   C.only = names => {
     if (!C.on || !C.ok || L.length !== ORDER.length) return null;

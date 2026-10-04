@@ -1727,7 +1727,7 @@ const preKey = () => {
       v('surf'), v('curv'), v('wire'), v('cage'), v('color'), v('lvl'), v('step'), !!VIEW.loops, G.CAGE_UNIT || 1]);
   } catch (e) { return null; }
 };
-let PRE_KEY = null, STAT0 = '';
+let PRE_KEY = null, STAT0 = '', WHOLE_SEQ = 0;      // WHOLE_SEQ: the chain's run counter after the last whole build
 const RELEASE_INFO = { n: 0, whole: 0, last: null };
 function releaseWhy(built) {
   const CH = window.CAGE_CHAIN;
@@ -1798,6 +1798,7 @@ function* releaseSteps(built, rplan) {
   applyRowVis();
   syncFollow();
   draw();
+  WHOLE_SEQ = CH.seqNow ? CH.seqNow() : WHOLE_SEQ;      // what stands is a whole build's aeroplane
   RELEASE_INFO.n++;
   RELEASE_INFO.last = { ran: CH.layers.filter((l, i) => rplan.run[i]).map(l => l.name), why: rplan.why.map((y, i) => y ? CH.layers[i].name + '(' + y + ')' : null).filter(Boolean).join(' '),
     floor, ms: +(performance.now() - t0).toFixed(1) };
@@ -1909,8 +1910,14 @@ function* buildSteps() {
     // a bisecting knob: CAGE_UI.releaseForce = [layer names] runs them too
     const RF = window.CAGE_UI && window.CAGE_UI.releaseForce;
     if (rplan && Array.isArray(RF)) CH.layers.forEach((l, i) => { if (RF.includes(l.name) && !rplan.run[i]) { rplan.run[i] = true; rplan.why[i] = 'forced'; } });
-    if (rplan) { yield* releaseSteps(built, rplan); return; }
-    RELEASE_INFO.whole++; RELEASE_INFO.last = { whole: why || 'no plan' };
+    // A CREW THAT MOVED IN THE DRAG, ON A SHEET THAT DID NOT: the whole build. GATE INSTANT (the Cessna 172's seat
+    // height) found the tanks' wing fit 1 cm off the plain build when the crew had been rebuilt by the previews and the
+    // layers between it and the tanks were kept (a dependency no record or edge names yet); with the sheet changed every
+    // layer runs anyway and the rows pass (dash, rims, shoulder on all four builds)
+    const crewL = CH.layers.find(l => l.name === 'crew');
+    const crewMoved = !!(rplan && crewL && crewL.seq > WHOLE_SEQ && !rplan.why.includes('sheet') && !(Array.isArray(RF) && RF.length));
+    if (rplan && !crewMoved) { yield* releaseSteps(built, rplan); return; }
+    RELEASE_INFO.whole++; RELEASE_INFO.last = { whole: crewMoved ? 'the crew moved in the drag' : (why || 'no plan') };
   }
   LAST_SHEET = built;
   M0 = m;
@@ -2128,6 +2135,7 @@ function* buildSteps() {
   // G331: LATE — what a layer wants drawn once every layer has drawn (the
   // crew's floor, cut round the other layers' meshes), in this same task
   if (!drainLate()) LATE_SECS = new Set();
+  if (CH && CH.seqNow) WHOLE_SEQ = CH.seqNow();
   for (const k in SEC_LIVE)
     if (SEC_LIVE[k] !== SEC_EPOCH) { delete SEC_LIVE[k]; delete SEC_CTX[k]; }
   try { buildMatPanel(); } catch (e) {}
