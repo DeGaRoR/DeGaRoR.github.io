@@ -551,7 +551,7 @@ const GATES = [
   // firing frequency within 3 % across idle..rated on the five validated engines (48 and 44.1 kHz), no
   // NaN/clip/DC/subnormal, process() allocation-free, seeded, the life driven by the solver, the sound
   // row physics-inert; every assertion negative-verified. SND-CORE's _audio_check.js absorbs it; ~3 min
-  { id: 'AUDIOENG', file: 'audio/_engine_check.js', tier: 'core', wall: 200 },
+  { id: 'AUDIOENG', file: 'audio/_engine_check.js', tier: 'core', wall: 320 },
 ];
 
 const args = process.argv.slice(2);

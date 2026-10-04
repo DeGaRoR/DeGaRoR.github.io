@@ -1407,7 +1407,7 @@ const MUT = [
   // SND-AIRFRAME (G1630-G1635)
   ['the stall alpha deaf to the flaps', 'params', 'st[0] + (st[1] - st[0]) * Math.min(1, fl / st[2])', 'st[0]', 'NUMBERS'],
   ['the build loses the airframe source', 'build', "'audio/airframe_model.js', 'audio/samples.js', 'audio/src_airframe.js',", "'audio/airframe_model.js', 'audio/samples.js',", 'WIRING'],
-  ['the airframe worklet not served', 'build', "['engine_worklet.js', 'airframe_worklet.js']", "['engine_worklet.js']", 'WIRING'],
+  ['the airframe worklet not served', 'build', "'prop_worklet.js', 'airframe_worklet.js']", "'prop_worklet.js']", 'WIRING'],
   ['the wind flat in V', 'model', 'const w25 = V > 2 ? vn * vn * Math.sqrt(vn) : 0;', 'const w25 = V > 2 ? 0.5 : 0;', 'AFMODEL'],
   ['the wind\'s band fixed', 'model', 'tg[T.windF] = V > 2 ? 250 + 28 *', 'tg[T.windF] = V > 2 ? 250 + 0 *', 'AFMODEL'],
   ['a touchdown every frame on the wheels', 'model', 'if (!on || was || off < A.tdOffS) continue;', 'if (!on) continue;', 'AFMODEL'],
@@ -1477,7 +1477,7 @@ const MUT = [
   ['CREDITS.md stale', 'credits', 'No track ships yet.', 'Nothing ships yet.', 'MUSIC_CREDITS'],
   ['the about line not extended', 'music', '\n  mountCreditLink();\n', '\n', 'MUSIC_CREDITS'],
   ['the screen forgets the engine synth', 'music', "line: 'engine-sound-generator by Antonio-R1 (MIT, © 2021-2022 Antonio-R1), the AudioWorklet our engine voice is ported from',", "line: 'the engine synthesiser',", 'MUSIC_CREDITS'],
-  ['the build loses music.js', 'build', "'audio/src_engine.js', 'audio/music.js',", "'audio/src_engine.js',", 'MUSIC_WIRING'],
+  ['the build loses music.js', 'build', "              'audio/music.js',\n", '', 'MUSIC_WIRING'],
   ['the build forgets the catalogue', 'build', ';window.FLYDIY_MUSIC=${MUSIC}', '', 'MUSIC_WIRING'],
   ['sw.js cuts no range', 'build', 'if (range) { e.respondWith(ranged(req, range)); return; }', '', 'MUSIC_WIRING'],
   ['the engine emits no start', 'engine', "if (vals3) A.emit('engine', 'start'); ", '', 'MUSIC_WIRING'],
