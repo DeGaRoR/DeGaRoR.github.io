@@ -33,10 +33,12 @@ The sessions since then changed what this doc can stand on:
 Nothing in `src/` breaks, yields or ends a flight on load today. **"BROKE UP" means the sim went NaN**
 (`app.js:11546`, `65_gen_loadtest.js:372`), and the bench card words it as "a member let go" (`bench.js:148`).
 
-No G-block is reserved yet. **A0 to assign one** (suggested: the next free hundred after SOUND's G1600-G1699).
-Sessions would be named `DMG-*`.
+**G-block G1800-G1899, sessions `DMG-*`** (A0, 2026-10-04; G17xx is partly SOUND's). **Re-based on TREE-CRASH**
+(G1470-G1479, train 32), which A0 pointed to and the first draft did not know: see **§4.0**; the plan in §11 follows
+A0's order.
 
-**Revised the same day (second pass)** after the user's own crash study and four answers:
+**Third pass (same day): re-based on TREE-CRASH (§4.0, §11, A0's order and G-block) and the user's rulings on
+the bench and the repair bill (§12).** **Revised the same day (second pass)** after the user's own crash study and four answers:
 - the reference aircraft: Cub, Cessna 172, Robin/Jodel, Beaver;
 - damage is not carried between flights; a repair bill is computed instead;
 - fire needs conditions;
@@ -320,14 +322,14 @@ Each was added because something kept going wrong [SUMMARY unless tagged; versio
 | beam law | `-k dL - d v`, axial | `k(L-L0) + c·vrel`, axial | none |
 | beam types | NORMAL, SUPPORT, BOUNDED, ANISOTROPIC, PRESSURED, HYDRO, LBEAM, torsionbar, rails | NORMAL, `tens` wire (G185), gear leg | SUPPORT (one line) |
 | rotational stiffness | LBEAM, torsionbars, rigidifiers | shape-matched clusters + twist (G294-G350) | equivalent |
-| plasticity | `beamDeform` moves rest length; hardening; `deformLimit*`; `deformLimitStress` | **none** ("no plastic or damage model", HANDOVER:70114) | **the work** |
-| breaking | `beamStrength`; RoR: not if it orphans a contact node | **none**; "BROKE UP" = NaN | **the work** |
+| plasticity | `beamDeform` moves rest length; hardening; `deformLimit*`; `deformLimitStress` | **TREE-CRASH (train 32)**: return mapping, bilinear hardening, 3 % kink; damage off by default | Euler `Fc`, seams (§4.0) |
+| breaking | `beamStrength`; RoR: not if it orphans a contact node | **TREE-CRASH**: k, c to 0; strips through it die; orphan nodes are debris. "BROKE UP" is still NaN | component test, groups, kink floor (§4.0) |
 | part detach | `breakGroup` / `breakGroupType` | none | §4.4 |
 | visual damage switch | `deformGroup` + `deformationTriggerRatio` | none | §5.3 |
 | node collision | node vs triangle (2.5 cm skin), self-collision opt-in | node vs ground (penalty), node vs obstacle, **beam vs trunk** (G1330) | ours has no triangles; fine for v1 |
 | aero | per-triangle flat plate; damage-aware since 0.39 | strip theory on live nodes, polars, propwash | **ours is better** |
 | skin | flexbody, 3-4 nodes per vertex, `breakMeshes` | affine blend on generated wings/cage (`poseSkinGen`); station overlay on fleet models; rigid parts | mesh breaking (§5.1) |
-| damage tally | `onBeamDeformed` → per-part damage → repair cost | `out.nzMax` only, read by nothing | §5.4 |
+| damage tally | `onBeamDeformed` → per-part damage → repair cost | TREE-CRASH `sim.damage()`: total work, broken list, peak g | per-beam work, the bill (§10) |
 | instability handling | per-vehicle "instability detected"; RoR Mach-20 guard | NaN check every 30 frames → `broke-up` | rename + guard (§5.4) |
 | debug views | beam Stress / Displacement / **Deformation** / **Broken**; node Forces / Stability | Frame mode strain colour ±2 % (`app.js:4518`) | add permanent set + broken |
 | size | about 300-400 nodes, about 4000 beams per car; caps 4000/20000 (0.14) | 93-165 nodes, 394-758 beams | coarser (§6.4) |
@@ -337,10 +339,44 @@ Each was added because something kept going wrong [SUMMARY unless tagged; versio
 ## 4. THE PHYSICS LAYER — what we build
 
 All of it is additive in the G3.3/G3.4 sense. **A beam with no limits stamped behaves exactly as today.** The fleet
-log diff stays empty until a build opts in, and a param (`params.damage`, default off until §11's D2 gate) turns the
-whole layer off.
+log diff stays empty until a build opts in, and `params.damage` (TREE-CRASH's switch: `false` = master's bits,
+default off in train 32 until D2) turns the whole layer off.
 
-### 4.1 Limits stamped in `B()` (`61_gen_frame.js`, beside k and c)
+### 4.0 RE-BASED ON TREE-CRASH (A0, 2026-10-04) — what train 32 already lands
+
+**Read this before §4.1-§4.7.** The first draft of this doc did not know about **TREE-CRASH** (G1470-G1479, branch
+`claude/tree-crash-g1470`, READY). A0 lands it in **train 32 with damage OFF by default**. It already builds most of
+§4.1-§4.2, much of it better than drafted here, so **TREE-CRASH's loop is the base**. §4.1-§4.7 now read as the
+DELTAS to it, and D1 (§11) is "reconcile and extend TREE-CRASH", not "write the beam loop". What it lands (HANDOVER
+G1470-G1479; `30_solver.js` on that branch):
+
+| this doc asked for | TREE-CRASH has it | D-step action |
+|---|---|---|
+| per-member limits from material × area (§4.1) | **yes**: `GEN_CRASH` rows (4130, spruce, 2024-T3, 6061-T6, carbon; MIL-HDBK-5J and Wood Handbook values: `ty / tu / etu / cy / ecu / thf`); `bm.A` = billed section, **never under the class's** (`61_gen_frame.js`), `bm.mat` | keep. Add `Fc = min(cy·A, Euler)` (D1): a 0.7 m 1" × 0.035" 4130 tube buckles at about 0.7 × its crush force, longer tubes far lower. `cy = sigY` alone is the short-tube case |
+| yield moves the rest length (L3) | **yes**, as an exact **return mapping** with **bilinear hardening** in tension (ty → tu over the uniform elongation `etu`, then it breaks); compression **perfectly plastic** at `cy` to the 3 % kink (`ecu`), then it breaks | keep. The return mapping is cleaner than §4.2's rate-limited flow. L4's anti-ratchet is its hardening plus the `etu` / `ecu` travel caps, so **the per-substep rate limit is dropped**. A `deformLimitStress`-style cap is only needed if a gate shows runaway hardening |
+| elastic force only in the yield test (L8) | **yes** (`Fs = k (L - L0)`) | keep |
+| brittle wood in tension, brittle carbon (§7.1 #6, #7) | **yes**: spruce `ty = tu`, `etu = 0` (breaks at yield); compression crushes to 3 %; carbon breaks at yield | D1 adds the **ragged break** (2-3 stages, seeded ±15 % scatter) and the **seam / fitting / bond / opening** tags (§7.2) |
+| a broken beam: no force (§4.2) | **yes**: k and c to 0, restored by `reset()` | keep. **One change (D1): a member that KINKED in compression keeps a compression-only floor** (a SUPPORT, §4.6) at its crushed length, so the nodes it held apart cannot pass through each other. That is L5 (RoR never lets crushing make a member slack) and §8.1's first clipping layer |
+| orphaned aero (§4.5) | **partly**: a break kills every strip with both of the member's ends among its nodes (`stripDead`); a node with every member broken is **debris** (gravity and ground, no aero) | D1: replace "kill on any break inside the strip" with §4.5's **component test** (split or drop only when the strip's nodes have actually parted), else one broken diagonal silences a still-attached bay. Add the **body-frame refs-core** check |
+| clusters (§4.7) | **yes, more than drafted**: a set inside a shape-matched cluster re-takes its rest (§4.7 ii, plastic clusters); a break releases the cluster (`C.off`) | D3 adds the **root moment / torque limits** and the **mid-span boom station** (§7.1 #8) |
+| bending round a trunk | **beyond this doc**: a member pushed at a point along it collapses at `P_c = M_p / (L t (1-t))`, keeps its bend (`dk`), its chord capped at `M_p / dk`, and tears at the fold angle (`thf`) | keep. Note its own open point: only trunks bend members sideways; the ground and obstacles push nodes |
+| prop strike (§5.3) | **physics yes**: a trunk in the disc, or the nose ring or engine nodes on the ground, seizes the engine (`eng.seized`) | D4 adds the **visual** (bent or broken blades as debris) and the bill line |
+| `crashed` ending (§5.4) | **yes**: `endFlight('crashed')` when a non-nose member breaks, or contact g over **9 g for 50 ms** (23.561), or **1.5 kJ** of plastic work. Under all three a set is a **dent**. `over` once at rest. Water pushes count | keep. D5 adds the reason-specific endings and the fire. Note the user may find "a 5 m/s taxi into a trunk = crash" harsh: `CRASH_J` is the knob (TREE-CRASH's own open point) |
+| quiet-path cost (L7) | **yes, measured**: the compare is **armed a frame at a time** (a trunk or obstacle in reach, a scrape, a member past half its yield, water dynamic, any prior damage). Nothing touching: one pass over the beams a frame, about 0.1 % | keep. D1's added checks must live inside the armed path |
+| the "would-yield" census (D0) | **yes**: `params.damageProbe` / `sim.damagePeak()` per member, and **GATE TREECRASH**. The validated builds peak at **0.12-0.19** of yield in a circuit, **0.13-0.21** in a FAR 23.473 drop, and **0.28-0.82** at 5.7 g on the bench (worst: the Cessna on floats' wing). §D's "crash-only" re-measured: **nothing yields in normal operations** | D0 shrinks to the rename, the overlay, the tags and per-beam work |
+| the bench's bags | **fixed**: pressed every substep (they rang at 2 × the static force); a slack wire reads zero | — |
+| reset heals (§4.2) | **yes** | — |
+| damage tally (§10) | **total** plastic work, the broken list, the peak g | D5 (or D0) adds **per-beam work** (one Float64Array) so the bill is per section |
+| skin over a break (§5.1, §8.4) | **no**: a broken-off part stays drawn, stretched; only the reason crosses the worker (G1474, "A0's call; about a session") | D4: send the broken list over the worker on change; mesh breaking in `poseSkinGen` |
+| fittings, gear bracket, seams, SUPPORT beams, break groups, Euler, debris for non-member parts (cowl, spinner, fairings, glazing), clipping gate, fire, bill | **no** (its own open point: "strength is per member, not per joint … the prop, the spinner and the cowl skin are not members") | D1-D5 as §11 |
+
+**What does not change:** the calibration question. TREE-CRASH is calibration (a), physics-only `sigY·A`, and its own
+census confirms that nothing yields in normal operations. **D2's certificate anchoring (§4.3 c) plus the gear
+bracket (§7.3) is what makes over-g and a bad landing mean something, and it is the step at which A0 turns damage
+ON (train 35).**
+
+
+### 4.1 Limits stamped in `B()` (`61_gen_frame.js`, beside k and c) — TREE-CRASH has this; the deltas are Euler and seams
 
 The costed design, with three changes from what BeamNG taught.
 
@@ -366,7 +402,7 @@ kFix = k                                  // L11: never recomputed from the move
   whole leg.
 - **Clusters** (fin, rod, boom, float) get limits per cluster, not per member (§4.7).
 
-### 4.2 The beam loop (`30_solver.js:1413-1425`)
+### 4.2 The beam loop (`30_solver.js:1413-1425`) — the first draft; TREE-CRASH's return mapping supersedes it (§4.0)
 
 ```
 if (b.broken) { b.strain = 0; continue; }                // no force, no damper
@@ -568,9 +604,9 @@ few of them:
   before NaN.
 - **`broke-up` now means the structure**: the body-frame refs split (§4.5), or the wing, tail or fuselage-core
   group broke.
-- **`crashed`** (new): an impact whose plastic work in one second exceeds the build's survivable threshold, or any
-  break while in ground, obstacle or trunk contact. **This is TREE-HITBOX's open call answered: a trunk at speed
-  yields and breaks members, and `crashed` fires from the structure, not from `trunkHits()` counting.**
+- **`crashed`** is **landed by TREE-CRASH** (G1473): `endFlight('crashed')` on a non-nose member broken, contact g
+  over 9 g for 50 ms, or 1.5 kJ of plastic work; a set below that is a dent. This answers TREE-HITBOX's open call.
+  D5 adds the reasons as distinct endings (gear collapse, nose-over, wing failure, fire).
 - **Damage tally** (BeamNG's `onBeamDeformed` → part damage): Σ`wPl` per group, plus broken groups. This is the
   number the repair bill reads (§10). **Ruling (bh) is taken: damage is not carried**, so `reset()` keeps
   repairing for free and nothing per-beam is saved. If persistence is ever wanted, the per-beam state (`L0` deltas,
@@ -873,8 +909,9 @@ The facts to read are all present today:
 
 ## 10. REPAIR COST — damage is not carried; the bill is computed
 
-**Ruling (bh) taken by the user, 2026-10-04: damage is not carried between flights.** Wear will come later and act
-on reliability, as a separate system. **Repair cost is computed** at the end of every flight that took damage. The
+**Rulings (bh), (dm9) and (dm10) (§12):** damage is not carried into a flight. Wear comes later and acts on
+reliability, as a separate system. **The bill is computed** at the end of every flight that took damage, stored with
+the aeroplane's DAMAGED state in the garage, and **charged to the wallet only when the player presses Repair**. The
 ledger already has cost centres.
 
 ### 10.1 What exists
@@ -920,57 +957,93 @@ fraction applied to the player's 172-alike. Labour factors per material are real
 The tally is a few dozen sums at the end of a flight, from per-beam `wPl` and the broken bits the worker already
 publishes on change (§5.4). **The bill is the cheapest feature in this doc and the most legible.** It is a list of
 real-sounding lines that tells the player what happened ("prop strike: teardown inspection"). It sits in D5 but can
-ship with D1's physics as a debug readout.
+ship with D0's per-beam work as a debug readout. Per-beam work is the one input TREE-CRASH does not already keep:
+it has the total, `DMG.work`.
 
 ---
 
-## 11. THE PLAN, AND HOW BIG IT IS
+## 11. THE PLAN, AND HOW BIG IT IS — in A0's order, on TREE-CRASH
 
-Each step lands behind `params.damage` until its gates pass. Nothing changes flight behaviour before D2's gate says
-so. Session counts are an **estimate** in this project's units (a cloud session; a train is a batch of sessions
-integrated by A0), not a measurement.
+G-block **G1800-G1899**, sessions `DMG-*` (A0). Each step lands behind `params.damage` until its gates pass.
+Session counts are an **estimate** in this project's units (a cloud session; a train is a batch A0 integrates), not
+a measurement.
 
 | step | content | sessions | gates |
 |---|---|---|---|
-| **D0 — instruments** | `sim-diverged` vs `broke-up` split; velocity guard; per-beam `|F|` exposed (`stats().beamF` on demand); Frame mode `|F|/Fy` overlay with **limits stamped but inert**; beams stamped with section and seam tags | 1 | log diff empty; fleet "would-yield" census (§D re-measured, flight box on) for GATE SOAR / FLEX / LOAD / CROSSWIND / taxi. **Expected zero in flight** |
-| **D1 — the beam loop** | §4.2; materials per 7.1 (ductile alloy and tube, splintering wood, brittle carbon); seams and fittings (7.2); groups (§4.4); strip split/drop (§4.5); refs-core check; SUPPORT beams on the known paths (8.1) | 2 | stock step within 2 % of 2.30 ms; quiet fleet bit-identical; **spawn-settle gives zero plastic flow on every archetype**; a 30 m/s trunk hit breaks and does not diverge; no strip spans two components after a break |
-| **D2 — certificate and gear** | §4.3 (c): four load cases, envelope, stamping, floors; **the gear calibration (7.3)**; TEST TO DESTRUCTION; break-order gate (7.2) | 2 | broke-at g within [1.5, 1.5·m] × limit; existing landing gates clean (gear bracket 1); the first break is a fitting or seam; bad-design wing fails the bench |
-| **D3 — clusters** | §4.7 (i) root limits, twist torque limit, **mid-span boom station** (7.1 #8) | 1 | fin, boom and float detach cleanly; the boom splits at a station |
-| **D4 — the visible wreck** | mesh breaking (§5.1, 8.4); **debris** for cowl, prop, fairings, wheels (8.3); prop strike; fabric wrinkle; fleet-model part detach; GATE CLIP on the wreck (8.5); cockpit camera rule | 2-3 | no intrusion or stretch on the scenario end states; prop strike on every nose-over |
-| **D5 — endings, bill, fire** | `crashed` / `fire` endings; the repair bill (§10); fire conditions (§9); worker events; SND hooks | 1-2 | the bill's lines match each scenario's reference damage list; fire base rate in band (9.2) |
-| **tuning the classics** | the scenario gates (7.4) on the four reference aircraft, against the reports | about 2 | every row of 7.4 matches its expected column |
+| **train 32 — TREE-CRASH** (not ours; G1470-G1479) | materials, return mapping, kink, breaks, trunk bending, debris nodes, prop seize, `crashed`, GATE TREECRASH. **Damage OFF by default** | — | its own (45/45 incl. water) |
+| **D0 — instruments** (G1800-G1809) | `sim-diverged` vs `broke-up` split (`app.js` watchdog, `bench.js:148`); velocity guard; Frame mode overlay of `|F|/limit` from `damagePeak()`, permanent set and broken; beams stamped with **section** (the ledger's `sec`) and **seam** tags (§7.2); **per-beam plastic work** | 1 | log diff empty with damage off; GATE TREECRASH unchanged; tags cover every beam of the five validated builds |
+| **D1 — reconcile and extend TREE-CRASH's loop** (G1810-G1829) | Euler `Fc`; the kink floor (a kinked member keeps a compression-only floor); seams, fittings and bonds with their brittleness and joint efficiency; wood's ragged break; **break groups** (§4.4: the fittings and the attachments); the strip **component test** replacing the any-break kill, plus the refs-core check (§4.5); **SUPPORT beams** on the known intrusion paths (§4.6, §8.1). All inside TREE-CRASH's armed path | 2 | stock step within 2 % of G1332's 2.30 ms with nothing touching (TREE-CRASH's arming method); damage-off bits unchanged; GATE TREECRASH still green; spawn-settle zero set; first break is a fitting or seam (§7.2); no strip spans two components after a break |
+| **D2 — calibration; damage ON (train 35)** (G1830-G1839) | §4.3 (c): the four load cases, the envelope, the certificate-anchored limits with physics floors and Euler ceilings; **the gear bracket (§7.3)**; TEST TO DESTRUCTION on the bench (**free**, §12); the card prints limit, ultimate and broke-at | 2 | broke-at g within [1.5, 1.5·m] × limit; the existing landing gates and TREECRASH's normal-ops margins clean; the bad-design wing fails the bench; **then A0 turns `params.damage` on** |
+| **D3 — clusters** (G1840-G1849) | §4.7 (i) root moment and torque limits on top of TREE-CRASH's release and re-rest; the **mid-span boom station** (§7.1 #8) | 1 | fin, boom and float detach cleanly; the boom splits at a station |
+| **D4 — the wreck** (G1850-G1869) | the broken list over the worker on change; **mesh breaking** in `poseSkinGen` (G1474's owed session); **debris** for the non-member parts: cowl, spinner, prop blades, fairings, glazing, wheels (§8.3); the prop strike's visual; fabric wrinkle; fleet-model part detach; **GATE CLIP on the wreck** (§8.5); cockpit camera rule | 2-3 | no intrusion or stretch on the scenario end states; prop strike drawn on every nose-over |
+| **D5 — endings, garage repair, fire** (G1870-G1889) | reason-specific endings on TREE-CRASH's `crashed`; **the repair bill** (§10) from per-beam work by section plus the fixed event lines; **the garage's damaged state and its Repair action** (§12 dm9, dm10): the aeroplane is stored damaged, the bill is shown, the wallet is charged only on Repair; write-off at about 75 %; the fire conditions (§9), fire = hull loss; SND hooks | 1-2 | the bill's lines match each scenario's reference damage list; a damaged aeroplane follows dm10; fire base rate in band (9.2) |
+| **tuning the classics** (G1890-G1899) | the scenario gates (§7.4) on the reference aircraft, against the reports and NASA's 172 tests (A0 opens the NASA reports and CFR sections on the box when a number becomes a gate) | about 2 | every row of §7.4 matches its expected column |
 
-**About 11-13 sessions, two to three trains, to a first convincing model.** The risk is not the solver (the beam
-loop is twenty lines) but **tuning** (the gear bracket, nose-overs that happen on soft ground and not on every taxi)
-and **D4's visual layer**.
+**About 10-12 sessions after TREE-CRASH**, roughly two trains plus train 35's switch-on. TREE-CRASH took the core
+solver work and most of the first draft's D0. The risk stays in **tuning** (the gear bracket, soft-field nose-overs
+that do not happen on every taxi) and in **D4's visual layer**.
 
-**The thin slice, about 5-6 sessions**: D0 + D1, plus prop strike, the gear bracket, cowl and wheel debris, mesh
-breaking, and the bill as a readout. No certificate anchoring, no fire. It already makes a nose-over or a hard
-landing an event.
+**The thin slice, about 3-4 sessions on top of train 32**: D0, the D1 items that keep a wreck honest (kink floor,
+component test, groups), D4's mesh breaking and debris, and the bill as a readout.
 
-**Not in this plan:** self-collision beyond 8.2, collision triangles, monocoque crumpling, fatigue, post-buckling
-softening, plastic clusters (§4.7 ii), yield on total force, length-aware k, persisted damage.
+**Not in this plan:** self-collision beyond §8.2, collision triangles, monocoque crumpling, fatigue, post-buckling
+softening, yield on total force, length-aware k, damage carried into a flight.
 
 ---
 
 ## 12. RULINGS
 
-- **(dm1) Calibration: certificate-anchored (§4.3 c)**, with physics floors and Euler as a hard ceiling. The gear
-  has its own bracket (7.3). **Recommended.**
+**Taken by the user** (2026-10-04, the last two relayed by A0):
+- **(bh) Damage is NOT carried into a flight.** Wear comes later and acts on reliability. A repair bill is computed
+  from the ledger's sections (§10).
+- **(dm6) The bench's TEST TO DESTRUCTION is FREE.** It never costs the airframe or the wallet. It is the
+  simulator a designer uses to find the broke-at g, and D2 builds it that way.
+- **(dm9) A crash's repair bill IS charged to the wallet, but only when the player explicitly repairs the aeroplane
+  from the garage.** A **Repair** action shows the bill (§10's lines, per section plus the fixed events) and charges
+  it on confirm. Until then the aeroplane stays **damaged in the garage**. That is a garage state (a tag, the bill,
+  the damaged sections, a write-off flag), **not** per-beam damage, so (bh) holds: no bent member ever reaches a
+  flight. The wallet itself is GAME-LAYER's P5a. Until it exists, Repair shows the bill and records it in the
+  logbook.
+
+**Proposed, for A0 to confirm with the user:**
+- **(dm10) What a damaged aeroplane can do until it is repaired.** The two readings:
+  - **(a) Grounded until repaired (recommended).** The garage marks it DAMAGED with the bill. Fly is disabled; the
+    only ways forward are Repair (pay the bill), Scrap or Sell as salvage, and for a write-off (§10's 75 %) only
+    Scrap or Sell.
+  - **(b) Pay at launch.** Fly is allowed, and pressing it presents the bill: "repair and fly". There is no
+    separate damaged state the player lives with.
+
+  **Why (a) reads better:**
+  - It is what the user said: the charge happens only on an *explicit* repair, and (b) folds the repair into the
+    fly button.
+  - It keeps the consequence visible. The wreck has a place in the hangar, with its bill, until the player deals
+    with it.
+  - It fits the fleet game (GAME-LAYER: several aeroplanes, routes). A grounded airframe costs time and options,
+    and the player flies another one meanwhile.
+  - It gives write-off a natural home: no Repair button, only Scrap or Sell.
+
+  **Two sub-points for A0 if (a) is taken:**
+  - **Editing a damaged aeroplane in the garage.** Proposed: allowed. A section the player rebuilds or replaces is
+    billed at its build price instead of its repair line, so rebuilding the wing that broke replaces that line.
+    Repair then charges only the rest.
+  - **What the garage draws.** Proposed: the pristine model with a DAMAGED tag and the bill's list, plus the
+    wreck's last frame as a still in the logbook. Storing per-beam state only to draw it would contradict (bh)'s
+    spirit.
+
+**Recommended, standing:**
+- **(dm1) Calibration: certificate-anchored (§4.3 c)** with physics floors and Euler as a hard ceiling. The gear
+  has its own bracket (§7.3). This is the D2 step that turns damage on.
 - **(dm2) Failure before deformation stands** (GAME-LAYER (bd)). Crumpling stays out; the wreck reads through
-  failure, debris and draping fabric. **Recommended.**
-- **(dm3) TREE-HITBOX's open call: a trunk at speed is a crash**, fired from the structure, not from `trunkHits()`
-  counting. **Recommended.**
-- **(dm4) `broke-up` is renamed `sim-diverged` for the NaN case.** **Recommended**; it costs nothing.
-- **(dm5) Prop strike is the first state switch.** **Recommended.**
-- **(bh) RULED 2026-10-04 by the user: damage is NOT carried between flights.** Wear comes later and acts on
-  reliability. A **repair bill is computed** per flight from the ledger's sections (§10).
-- **(dm6) Does TEST TO DESTRUCTION cost the airframe?** **Owed.**
-- **(dm7) The NASA 172 tests and the 7.4 scenarios are the acceptance suite** for "convincing". **Recommended.**
+  failure, debris and draping fabric.
+- **(dm3) A trunk at speed is a crash fired from the structure.** **Landed by TREE-CRASH**: `crashed` from a
+  primary member breaking, 9 g, or 1.5 kJ. Its own open point stays open: `CRASH_J` if a slow taxi into a trunk
+  reads too harsh.
+- **(dm4) `broke-up` is renamed `sim-diverged` for the NaN case** (D0).
+- **(dm5) Prop strike is the first state switch.** The physics is landed by TREE-CRASH (`eng.seized`); D4 draws it.
+- **(dm7) The NASA 172 tests and the §7.4 scenarios are the acceptance suite.** A0 opens the NASA reports and CFR
+  sections on the box when a number becomes a gate.
 - **(dm8) Fire** (§9): conditions plus a seeded roll, base-rate checked, always a write-off. Crash-resistant tanks
-  are garage options. **Recommended**; visuals owed to POST-FX.
-- **(dm9) Is the repair bill charged to the wallet** (GAME-LAYER P5a) or shown only? **Owed**; it decides how
-  harsh a hard landing feels.
+  are garage options. Visuals owed to POST-FX.
 
 ---
 
