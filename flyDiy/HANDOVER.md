@@ -69451,3 +69451,20 @@ TRAPS: a SwiftShader page's "overlay gone" is NOT the garage's end - a roll-out 
 not started yet. Two SwiftShader pages at once on this 15 GB box thrash (~7 GB each). A Raycaster over the scene from the
 page hangs it (the forest's instanced meshes). Changing ShaderChunk text in a live page recompiles nothing (three keys
 programs by parameters).
+
+## LIGHT-SMOOTH + CRAFT-SHADOW TOGETHER (claude/light-smooth-craft, on master e40628b0, 2026-10-04): G1357-G1359.1 and G1410-G1414 in one shadow_near.js
+
+- THE ONE SLOT BOTH USED: uNearQ.z. G1359 reads it (and .w) in the near rule as the craft's bias slope gain and grazing
+  normal gain (fitCraft writes both every frame); G1410's layout() wrote the 2048 craft viewport's side ratio into it
+  (craftK() is pinned to 1 and the shader never read it - "the shader half NOT landed", G1414). The slot is G1359's;
+  layout() no longer writes it; a craft viewport that lands takes a uniform of its own.
+- THEY DO NOT FIGHT: place() runs every frame and calls layout() then fitCraft(), so the lookup's numbers (bias, radius,
+  normal offset, G1359's gains, the window) are current while the MAP is cached; the cascade's matrix (uNearM1, set in the
+  shadow pass) changes only when the map is drawn - a cached map keeps its own matrix, and since G1359.1 the bake reads that
+  shared matrix (before it, the bake never read the cascade at all). G1410's cache key carries the radius and uNearQ.z, so
+  a change of G1359's slope gain re-draws (lookup-only, harmless, rare).
+- MEASURED (node, tools/_craftshadow_probe.js on this branch): golden and noon, the stand - the map drawn 20 / 120 frames
+  live, 1 / 120 paused; the cascade 1.36 cm a texel on the ground; uNearM1 changed 3-6 times in 120 frames (G1410's
+  numbers). Aloft the cascade still grows to its 30 m cap for the penumbra (penFitTx) - the case G1359 was verified in.
+- GATES: SHADOWSKY (G1359.1's and G1410's checks), LIGHT, CONTACT, FADES, POSTFX, PROGRAMS, BUILD PASS. FRAMECOST not
+  re-run here (the box was the garage census's, then train 28's): its census after a parked re-cook is the train's.
