@@ -441,7 +441,7 @@ function aeroWxBakeCavity(THREE, obj, unit) {
     if (!geo || !geo.attributes || geo.attributes.aCav || !geo.attributes.position) return;
     if (!geo.attributes.normal) geo.computeVertexNormals();
     const p = geo.attributes.position.array, nr = geo.attributes.normal.array;
-    const cav = (typeof window !== 'undefined' && window.AERO_WX_CAV_OFF) ? aeroWxCavity(p, geo.index ? geo.index.array : null, nr, geo.attributes.position.count, u)
+    const cav = (typeof window !== 'undefined' && (window.AERO_WX_CAV_OFF || window.RELEASE_FAST_OFF)) ? aeroWxCavity(p, geo.index ? geo.index.array : null, nr, geo.attributes.position.count, u)
       : aeroWxCavityKept(p, geo.index ? geo.index.array : null, nr, geo.attributes.position.count, u);
     geo.setAttribute('aCav', new THREE.BufferAttribute(cav, 1));
     done++;

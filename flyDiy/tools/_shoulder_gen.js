@@ -173,6 +173,9 @@ function shoulderTrace(mesh, spec, opt, CAGE) {
   const yRef = openTop ? (CN.ref === 'waist' ? spec.waistY : spec.bandY) : null;
 
   const own = new Map();
+  // G1452 (RELEASE-FAST): a vertex's position key once (a face with no cutOff stands on V itself)
+  const PKV = new Map();
+  const pkAt = (f, P, e) => { if (f.cutOff) return pk(P[e]); const vi = f.v[e]; let k = PKV.get(vi); if (k === undefined) PKV.set(vi, k = pk(P[e])); return k; };
   F.forEach((f, fi) => {
     const c = faceClass(f);
     if (!c) return;
@@ -181,7 +184,7 @@ function shoulderTrace(mesh, spec, opt, CAGE) {
     for (const p of P) cy += p[1] / n;
     for (let e = 0; e < n; e++) {
       const a = P[e], b = P[(e + 1) % n];
-      const A = pk(a), B = pk(b);
+      const A = pkAt(f, P, e), B = pkAt(f, P, (e + 1) % n);
       const k = A < B ? A + '|' + B : B + '|' + A;
       let r = own.get(k);
       if (!r) own.set(k, r = { a: A < B ? a : b, b: A < B ? b : a, o: [] });

@@ -707,7 +707,7 @@ function soupAdd(buf, n, ax, ay, az, bx, by, bz, cx, cy, cz) {
   buf[o + 12] = Math.max(ax, bx, cx); buf[o + 13] = Math.max(ay, by, cy); buf[o + 14] = Math.max(az, bz, cz);
 }
 function sheetSoup(M, FS) {
-  const k = SHEET_SOUP.get(M);
+  const k = window.RELEASE_FAST_OFF ? null : SHEET_SOUP.get(M);
   if (k && k.FS === FS) return k;
   let nT = 0;
   for (const f of M.F) { const v = f.v; if (v && v.length >= 3) nT += v.length - 2; }
@@ -790,6 +790,33 @@ function segCrosses(c, q, tris) {
   }
   return false;
 }
+// the layer-frame box of a mesh (its geometry's box corners through matrixWorld then inv, as each vertex goes) against
+// each body's box as pointInBox reads it (a box turned about y: its axis-aligned extent), both padded by a millimetre
+// and a millionth of their size - far over the rounding of either path - so a false 'far' cannot be
+function meshNearBodies(o, inv, bodies) {
+  const g = o.geometry;
+  if (!g.boundingBox) g.computeBoundingBox();
+  const bb = g.boundingBox;
+  if (!bb || !isFinite(bb.min.x) || !isFinite(bb.max.x)) return true;
+  const V = new THREE.Vector3(), lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity];
+  for (let k = 0; k < 8; k++) {
+    V.set(k & 1 ? bb.max.x : bb.min.x, k & 2 ? bb.max.y : bb.min.y, k & 4 ? bb.max.z : bb.min.z).applyMatrix4(o.matrixWorld).applyMatrix4(inv);
+    const q = [V.x, V.y, V.z];
+    for (let a = 0; a < 3; a++) { if (!isFinite(q[a])) return true; if (q[a] < lo[a]) lo[a] = q[a]; if (q[a] > hi[a]) hi[a] = q[a]; }
+  }
+  const pad = a => 1e-3 + 1e-6 * (Math.abs(lo[a]) + Math.abs(hi[a]));
+  for (const r of bodies) {
+    const c = r.c, e = r.e, cs = Math.abs(Math.cos(r.rot)), sn = Math.abs(Math.sin(r.rot));
+    const ex = [cs * e[0] + sn * e[2], e[1], sn * e[0] + cs * e[2]];
+    let hit = true;
+    for (let a = 0; a < 3 && hit; a++) {
+      const p = pad(a) + 1e-6 * Math.abs(c[a]) + 1e-6 * ex[a];
+      if (lo[a] > c[a] + ex[a] + p || hi[a] < c[a] - ex[a] - p) hit = false;
+    }
+    if (hit) return true;
+  }
+  return false;
+}
 let LAYOUT_INV = null, LAYOUT_SCENE = null;     // drawResults' standoff test asks the same surfaces
 function layerHits(scene, inv, results, ctx) {
   const G = VG();
@@ -806,6 +833,9 @@ function layerHits(scene, inv, results, ctx) {
       if (!o.isMesh || !o.geometry || o.visible === false) return;
       const pos = o.geometry.getAttribute('position');
       if (!pos) return;
+      // G1455 (RELEASE-FAST): a mesh whose box (its geometry's, through the same two matrices, padded) misses every
+      // tank's box cannot put a vertex in one - pointInBox would refuse each; the count is the same without the walk
+      if (!meshNearBodies(o, inv, bodies)) return;
       for (let i = 0; i < pos.count; i++) {
         V.set(pos.getX(i), pos.getY(i), pos.getZ(i)).applyMatrix4(o.matrixWorld).applyMatrix4(inv);
         const p = [V.x, V.y, V.z];
