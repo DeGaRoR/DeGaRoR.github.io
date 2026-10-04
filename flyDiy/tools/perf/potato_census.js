@@ -116,6 +116,8 @@ const CENSUS = (frames, split) => `
     // every texture and target by OWNER (the name's part after '@' or before the first '/'), the rest by its shape
     const own = {}; const MB = x => +(x / 1048576).toFixed(1);
     for (const a of out.vram.all) { if (a.kind === 'buffer') continue; const n = names.get(a.o); const k = n ? (n.split(' @ ').pop().split(' / ')[0]) : ('? ' + a.kind + ' ' + a.w + 'x' + a.h + (a.d > 1 ? 'x' + a.d : '')); own[k] = (own[k] || 0) + a.bytes; }
+    { const nm = {}; for (const a of out.vram.all) { const n = names.get(a.o); if (!n || a.kind === 'buffer') continue; const k = n.replace(/#\d+/g, '') + ' ' + a.w + 'x' + a.h + (a.d > 1 ? 'x' + a.d : ''); nm[k] = (nm[k] || 0) + a.bytes; }
+      out.vram.texByNameMB = Object.fromEntries(Object.entries(nm).sort((a, b) => b[1] - a[1]).slice(0, 60).map(([k, v]) => [k, MB(v)])); }
     out.vram.texByOwnerMB = Object.fromEntries(Object.entries(own).sort((a, b) => b[1] - a[1]).filter(e => e[1] > 524288).map(([k, v]) => [k, MB(v)]));
     delete out.vram.all;
     // the geometry's bytes by owner (the attributes' and indices' sizes, uploaded whether or not the CPU copy was released)
@@ -203,6 +205,8 @@ const CENSUS = (frames, split) => `
   res.t.garage = await until(`window.BOOT && BOOT.state === 'gone' && window.FLIGHT_PROBE`, 900000, 'the garage boot');
   console.log('garage up in ' + ((Date.now() - T0) / 1000).toFixed(1) + ' s');
   res.boot = await run('return window.BOOT && BOOT.log ? BOOT.log.filter(e => e.k === "step").map(e => [e.id, e.ms]) : null;');
+  // the first launch's chooser over the shed: keep the build it offers (the still shows the room, not the cards)
+  await run(`for (const b of document.querySelectorAll('button, [role=button], div, span')) { if (/^\s*keep the current build\s*$/i.test(b.textContent || '') && b.offsetParent) { b.click(); break; } } return 1;`);
   if (EVAL) console.log('eval: ' + JSON.stringify(await run(EVAL)).slice(0, 300));
   await sleep(8000);
   if (VIEWS.includes('garage')) { await census('garage', SPLIT); await shot('garage'); }
