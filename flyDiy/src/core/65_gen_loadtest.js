@@ -354,7 +354,9 @@ function makeLoadTest(sim, def, cfg) {
     for (let bi = 0; bi < sim.beams.length; bi++) {
       const bm = sim.beams[bi];
       const cls = bm.cls || (bm.gear ? 'gear' : 'chassis');
-      const F = Math.abs(bm.k * bm.strain * bm.L0);
+      // (G1470: a SLACK wire carries nothing - the solver's own rule, G185 - and was read as a compression of k x its
+      // slack: the wired biplane's 'wire at 200 % of yield' was a wire hanging loose. Read as zero.)
+      const F = (bm.tens && bm.strain < 0) ? 0 : Math.abs(bm.k * bm.strain * bm.L0);
       const g = peak[cls] || (peak[cls] = { F: 0, bi: -1 });
       if (F > g.F) { g.F = F; g.bi = bi; }
     }
