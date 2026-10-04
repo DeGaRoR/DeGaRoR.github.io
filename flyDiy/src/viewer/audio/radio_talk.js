@@ -147,9 +147,11 @@ var RADIO_TALK = (function () {
     const base = typeof E.FLYDIY_ASSET_BASE === 'string' ? E.FLYDIY_ASSET_BASE : '';
     loadState = 'loading';
     loading = Promise.resolve().then(() => f(base + c.file)).then(u8 => {
-      const txt = typeof u8 === 'string' ? u8 : typeof TextDecoder !== 'undefined' ? new TextDecoder('utf-8').decode(u8) : String.fromCharCode.apply(null, u8);
+      let txt = typeof u8 === 'string' ? u8 : '';
+      if (!txt && typeof TextDecoder !== 'undefined') txt = new TextDecoder('utf-8').decode(u8);
+      else if (!txt) for (let i = 0; i < u8.length; i += 8192) txt += String.fromCharCode.apply(null, u8.subarray(i, i + 8192));   // (the script is ASCII)
       const ok = setScript(JSON.parse(txt));
-      const V = E.AUDIO_VOICE;
+      const V = E.AUDIO_VOICE || (typeof AUDIO_VOICE !== 'undefined' ? AUDIO_VOICE : null);
       if (ok && V && V.setClips) V.setClips(SCRIPT.items);
       return ok;
     }).catch(e => { loadState = 'failed'; if (E.console) E.console.warn('radio: the broadcast script did not load - ' + (e && e.message || e)); return false; });
@@ -183,7 +185,8 @@ var RADIO_TALK = (function () {
     if (best) c.h[best] = c.n;
     return best;
   }
-  const staleness = (c, keys) => { let m = Infinity; for (const k of keys || []) if (SCRIPT.items[k]) { const h = c.h[k] != null ? c.h[k] : -1; if (h < m) m = h; } return m; };
+  // when a pool was last drawn from (the latest hearing of any of its takes; -1 never): the pools rotate by it
+  const lastUsed = (c, keys) => { let m = -1; for (const k of keys || []) if (SCRIPT.items[k] && c.h[k] != null && c.h[k] > m) m = c.h[k]; return m; };
 
   // ---- THE SEGMENTS ----------------------------------------------------------------------------------------------------
   const textOf = keys => keys.map(k => SCRIPT.items[k].text).join(' ');
@@ -193,10 +196,10 @@ var RADIO_TALK = (function () {
     return { kind, key, text: textOf(keys), clips, items: keys.slice() };
   }
   function idSeg(c, wx) {
-    const P = SCRIPT.pools.id, part = partOfDay(wx.local);
-    // alternate the part of the day's greeting and a generic ID, whichever was heard longer ago
-    const useGen = staleness(c, P.generic) <= staleness(c, P[part]);
-    const k = pick(c, useGen ? P.generic : P[part]) || pick(c, P.generic);
+    // the generic IDs and the part of the day's greetings interleaved, the least recently heard of them (ties: in turn)
+    const P = SCRIPT.pools.id, g = P.generic || [], q = P[partOfDay(wx.local)] || [], all = [];
+    for (let i = 0; i < Math.max(g.length, q.length); i++) { if (i < g.length) all.push(g[i]); if (i < q.length) all.push(q[i]); }
+    const k = pick(c, all);
     return k ? segOf('id', 'id', [k], R_SENT) : null;
   }
   function backSeg(c, track) {
@@ -220,7 +223,7 @@ var RADIO_TALK = (function () {
     if (k.hazards.indexOf('eagles') >= 0) extras.push(P.advice.eagles);
     if (k.trend) extras.push(P.outlook[k.trend]);
     if (k.temp) extras.push(P.feel[k.temp]);
-    const stalest = list => { let best = null, bs = Infinity; for (const e of list) if (e && e.length) { const st = staleness(c, e); if (st < bs) { bs = st; best = e; } } return best; };
+    const stalest = list => { let best = null, bs = Infinity; for (const e of list) if (e && e.length) { const st = lastUsed(c, e); if (st < bs) { bs = st; best = e; } } return best; };
     const e1 = stalest(extras); if (e1) { const x = pick(c, e1); if (x) out.push(x); }
     const e2 = stalest(k.hazards.filter(h => h !== 'eagles').map(h => P.advice[h])); if (e2) { const x = pick(c, e2); if (x) out.push(x); }
     return out.length ? segOf('wx', 'wx', out, R_SENT) : null;
