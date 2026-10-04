@@ -72358,6 +72358,7 @@ THE SESSIONS TO A GOOD WATER MODEL (recommendation; each one session, none compl
    its empty wing tanks as the real ones do.
 5. GROUND-LATTICE (G1380's owed fix): the tailwheel's real ground, then TW_DRAW_DROP back to 0.
 
-GATES on this branch: HYDRODYN PASS (above). The rest of the battery runs on claude/gear-water-g1380's READY commit
+GATES on this branch: HYDRODYN PASS (above); SOAR PASS (its control comes down on the lake at 119 m, "the surface under it 119 m
+(water)"). The rest of the battery runs on claude/gear-water-g1380's READY commit
 (this branch adds only 32_hydro.js, two lines of 30_solver.js and HYDRODYN's section); the water gates to re-run when A0
 picks it: HYDRODYN, WATER, FLOATS, SEAPLANE, SOAR.
