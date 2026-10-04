@@ -94,6 +94,9 @@ const MANIFEST = {
     // box and by the panel to come.
     '38_nav.js',
     '39_ground_path.js',
+    // THE SERVOS (G1570, review E4): the inner loops of all three pilots, one
+    // module and one gain table (SERVO_GAINS); pure, read by 40_, 41_ and 43_.
+    '39b_servos.js',
     '40_autopilot.js',
     // the TEST PILOT (G107): the second autopilot, forked from 40_ — bounded
     // attempts, structured verdicts. Generated builds fly it; the fleet keeps 40_.
