@@ -343,22 +343,6 @@
   "durationS": 161.1
  },
  {
-  "id": "fmaia_goldberg_10",
-  "file": "media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_9_canone_al.e45ed934.mp3",
-  "title": "Goldberg Variations, BWV 988: Variatio 9, Canone alla Terza",
-  "artist": "Kimiko Ishizaka (J. S. Bach)",
-  "album": "The Open Goldberg Variations",
-  "licence": "CC0",
-  "source": "https://archive.org/details/OpenGoldbergVariations",
-  "station": "classical",
-  "contexts": [
-   "garage",
-   "welcome"
-  ],
-  "lufs": -16.8,
-  "durationS": 126.2
- },
- {
   "id": "fmaia_goldberg_14",
   "file": "media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_13.e46289fd.mp3",
   "title": "Goldberg Variations, BWV 988: Variatio 13",
@@ -375,38 +359,6 @@
   "durationS": 254.5
  },
  {
-  "id": "fmaia_goldberg_16",
-  "file": "media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_15_canone_a.a901fceb.mp3",
-  "title": "Goldberg Variations, BWV 988: Variatio 15, Canone alla Quinta",
-  "artist": "Kimiko Ishizaka (J. S. Bach)",
-  "album": "The Open Goldberg Variations",
-  "licence": "CC0",
-  "source": "https://archive.org/details/OpenGoldbergVariations",
-  "station": "classical",
-  "contexts": [
-   "garage",
-   "welcome"
-  ],
-  "lufs": -19,
-  "durationS": 272.5
- },
- {
-  "id": "fmaia_goldberg_19",
-  "file": "media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_18_canone_a.04d16da3.mp3",
-  "title": "Goldberg Variations, BWV 988: Variatio 18, Canone alla Sexta",
-  "artist": "Kimiko Ishizaka (J. S. Bach)",
-  "album": "The Open Goldberg Variations",
-  "licence": "CC0",
-  "source": "https://archive.org/details/OpenGoldbergVariations",
-  "station": "classical",
-  "contexts": [
-   "garage",
-   "welcome"
-  ],
-  "lufs": -16.2,
-  "durationS": 109.3
- },
- {
   "id": "fmaia_goldberg_20",
   "file": "media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_19.024a83f6.mp3",
   "title": "Goldberg Variations, BWV 988: Variatio 19",
@@ -421,22 +373,6 @@
   ],
   "lufs": -16.2,
   "durationS": 85
- },
- {
-  "id": "fmaia_goldberg_22",
-  "file": "media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_21_canone_a.8bb8420a.mp3",
-  "title": "Goldberg Variations, BWV 988: Variatio 21, Canone alla Settima",
-  "artist": "Kimiko Ishizaka (J. S. Bach)",
-  "album": "The Open Goldberg Variations",
-  "licence": "CC0",
-  "source": "https://archive.org/details/OpenGoldbergVariations",
-  "station": "classical",
-  "contexts": [
-   "garage",
-   "welcome"
-  ],
-  "lufs": -19.5,
-  "durationS": 234.5
  },
  {
   "id": "fmaia_goldberg_25",
@@ -471,22 +407,6 @@
   "durationS": 122.8
  },
  {
-  "id": "fmaia_goldberg_30",
-  "file": "media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_30_quodlibe.adfe2090.mp3",
-  "title": "Goldberg Variations, BWV 988: Variatio 30, Quodlibet",
-  "artist": "Kimiko Ishizaka (J. S. Bach)",
-  "album": "The Open Goldberg Variations",
-  "licence": "CC0",
-  "source": "https://archive.org/details/OpenGoldbergVariations",
-  "station": "classical",
-  "contexts": [
-   "garage",
-   "welcome"
-  ],
-  "lufs": -16,
-  "durationS": 121.2
- },
- {
   "id": "fmaia_goldberg_31",
   "file": "media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_aria_da_capo.b65c85c5.mp3",
   "title": "Goldberg Variations, BWV 988: Aria da capo",
@@ -517,22 +437,6 @@
   ],
   "lufs": -19.6,
   "durationS": 299.5
- },
- {
-  "id": "fmaia_goldberg_04",
-  "file": "media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_3_canone_al.c316d469.mp3",
-  "title": "Goldberg Variations, BWV 988: Variatio 3, Canone all'Unisuono",
-  "artist": "Kimiko Ishizaka (J. S. Bach)",
-  "album": "The Open Goldberg Variations",
-  "licence": "CC0",
-  "source": "https://archive.org/details/OpenGoldbergVariations",
-  "station": "classical",
-  "contexts": [
-   "garage",
-   "welcome"
-  ],
-  "lufs": -17.9,
-  "durationS": 116.8
  },
  {
   "id": "fma278391",
@@ -648,7 +552,7 @@
  {
   "id": "fma273704p1",
   "file": "media/audio/music/daniel_william_lawrence_ghostman_blues_full_album_part_1.cc7cdbdd.mp3",
-  "title": "Ghostman Blues - Full Album — part 1",
+  "title": "Ghostman Blues, part 1",
   "artist": "Daniel William Lawrence",
   "album": "Ghostman Blues - Full Album (Traditional, Instrumental Blues)",
   "licence": "CC0",
@@ -663,7 +567,7 @@
  {
   "id": "fma273704p3",
   "file": "media/audio/music/daniel_william_lawrence_ghostman_blues_full_album_part_3.0ee810e4.mp3",
-  "title": "Ghostman Blues - Full Album — part 3",
+  "title": "Ghostman Blues, part 3",
   "artist": "Daniel William Lawrence",
   "album": "Ghostman Blues - Full Album (Traditional, Instrumental Blues)",
   "licence": "CC0",
@@ -678,7 +582,7 @@
  {
   "id": "fma271999p2",
   "file": "media/audio/music/daniel_william_lawrence_a_land_of_corn_and_wine_part_2.1a3e2a6e.mp3",
-  "title": "A Land of Corn and Wine — part 2",
+  "title": "A Land of Corn and Wine, part 2",
   "artist": "Daniel William Lawrence",
   "album": "A Land of Corn and Wine",
   "licence": "CC0",
@@ -689,5 +593,68 @@
   ],
   "lufs": -16,
   "durationS": 355.7
+ },
+ {
+  "id": "fma277192",
+  "file": "media/audio/music/ketsa_time_falls_like_autumn_leaves.0b326725.mp3",
+  "title": "Time falls like Autumn Leaves",
+  "artist": "Ketsa",
+  "album": null,
+  "licence": "CC-BY 4.0",
+  "source": "https://freemusicarchive.org/music/Ketsa/soul-sighs/time-falls-like-autumn-leaves/",
+  "station": "jazz",
+  "contexts": [
+   "garage",
+   "cruise"
+  ],
+  "lufs": -16,
+  "durationS": 159.7
+ },
+ {
+  "id": "fma279132",
+  "file": "media/audio/music/1000_handz_neighbor.194f378e.mp3",
+  "title": "Neighbor",
+  "artist": "1000 Handz",
+  "album": null,
+  "licence": "CC-BY 4.0",
+  "source": "https://freemusicarchive.org/music/1000-handz/cc-by-free-to-use-chillstudylounge-instrumentals/neighbor/",
+  "station": "jazz",
+  "contexts": [
+   "garage",
+   "cruise"
+  ],
+  "lufs": -16,
+  "durationS": 129.9
+ },
+ {
+  "id": "fma279302",
+  "file": "media/audio/music/1000_handz_busted_tape.8ac88609.mp3",
+  "title": "Busted Tape",
+  "artist": "1000 Handz",
+  "album": null,
+  "licence": "CC-BY 4.0",
+  "source": "https://freemusicarchive.org/music/1000-handz/cc-by-free-to-use-chillstudylounge-instrumentals/busted-tape/",
+  "station": "jazz",
+  "contexts": [
+   "garage"
+  ],
+  "lufs": -16,
+  "durationS": 66
+ },
+ {
+  "id": "fma277908",
+  "file": "media/audio/music/pamela_yuen_beloved.95635664.mp3",
+  "title": "Beloved",
+  "artist": "Pamela Yuen",
+  "album": null,
+  "licence": "CC-BY 4.0",
+  "source": "https://freemusicarchive.org/music/pamela-yuen/ambient-music-1/beloved-1/",
+  "station": "dubambient",
+  "contexts": [
+   "garage",
+   "cruise"
+  ],
+  "lufs": -16,
+  "durationS": 211.7
  }
 ]

@@ -1997,7 +1997,7 @@ function ambAt(M, W, x, z, h, o) {
   for (let i = 0; i < 60 * (o.sec || 1.2); i++) M.ambienceStep(st, P, W, 1 / 60);
   return st;
 }
-const AMB_GROUND = ['amb.forest.day', 'amb.forest.night', 'amb.meadow', 'amb.shore.surf', 'amb.shore.rocks', 'amb.lake.near', 'amb.lake.shore', 'amb.lake.lap',
+const AMB_GROUND = ['amb.forest.day', 'amb.forest.night', 'amb.meadow', 'amb.shore.surf', 'amb.shore.rocks', 'amb.lake.near', 'amb.lake.shore', 'amb.lake.lap', 'amb.sea.open',
                     'amb.stream', 'amb.harbour', 'amb.village', 'amb.airfield', 'amb.frogs.night'];
 const AMB_WINDS = ['amb.wind.light', 'amb.wind.clear', 'amb.wind.mountain', 'amb.wind.storm'];
 // the expectations: [place, x, z, h, opts, [[bed, '>=' | '<=', value], ...]] on the TARGETS (st.t) after one round
@@ -2013,7 +2013,8 @@ const AMB_PLACES = [
   ['out of the garage', 0, 500, 1.7, { rain: 1 }, [['amb.hangar', '<=', 0.001], ['amb.rain.roof', '<=', 0.001]]],
   ['the strip', 300, 900, 1.7, {}, [['amb.airfield', '>=', 0.9]]],
   ['the water lane (no fence)', 1200, 0, 1.7, {}, [['amb.airfield', '<=', 0.01]]],
-  ['under the sea', 1300, 0, 0, { y: -3 }, [['amb.shore.rocks', '>=', 0.99], ['amb.wind.light', '<=', 0.001], ['amb.lake.lap', '<=', 0.001]]],
+  ['under the sea', 1300, 0, 0, { y: -3 }, [['amb.shore.rocks', '>=', 0.99], ['amb.wind.light', '<=', 0.001], ['amb.lake.lap', '<=', 0.001], ['amb.sea.open', '<=', 0.001]]],
+  ['out at sea', 1500, 0, 1.7, {}, [['amb.sea.open', '>=', 0.3], ['amb.lake.lap', '<=', 0.3], ['amb.forest.day', '<=', 0.01]]],
   ['the forest at night', -900, -800, 1.7, { sun: -12 }, [['amb.forest.night', '>=', 0.8], ['amb.forest.day', '<=', 0.02]]],
   ['the lake shore at night', AMB_LAKE[0] + AMB_LAKE[2] + 5, AMB_LAKE[1], 1.7, { sun: -12 }, [['amb.frogs.night', '>=', 0.5]]],
   ['the lake shore by day', AMB_LAKE[0] + AMB_LAKE[2] + 5, AMB_LAKE[1], 1.7, {}, [['amb.frogs.night', '<=', 0.02], ['amb.loons', '<=', 0.02]]],

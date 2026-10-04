@@ -516,5 +516,19 @@
   "source": "https://freesound.org/people/Alex_hears_things/sounds/352356/",
   "licenceChecked": "2026-10-04",
   "pick": "coordinator"
+ },
+ {
+  "key": "amb.sea.open",
+  "file": "media/audio/sfx/amb_sea_open_460061.6c0c2f0e.mp3",
+  "kind": "bed",
+  "durationS": 32,
+  "lufs": -23,
+  "id": 460061,
+  "title": "sailboat underway.wav",
+  "author": "canoeCG",
+  "licence": "CC0-1.0",
+  "source": "https://freesound.org/people/canoeCG/sounds/460061/",
+  "licenceChecked": "2026-10-04",
+  "pick": "coordinator"
  }
 ]

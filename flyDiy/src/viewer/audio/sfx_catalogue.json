@@ -257,5 +257,12 @@
   "kind": "bed",
   "durationS": 32,
   "lufs": -29.7
+ },
+ {
+  "key": "amb.sea.open",
+  "file": "media/audio/sfx/amb_sea_open_460061.6c0c2f0e.mp3",
+  "kind": "bed",
+  "durationS": 32,
+  "lufs": -23
  }
 ]

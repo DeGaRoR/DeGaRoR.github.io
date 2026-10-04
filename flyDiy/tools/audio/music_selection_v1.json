@@ -8,7 +8,8 @@
   "dubambient": "Dub / Ambient - laid back, instrumental",
   "roots": "Local Roots Radio - Radio Jolene, the island's community station: instrumental roots, folk, maritime, with talk (station IDs, airfield weather, marine forecast, bulletins)",
   "blues": "Blues - swamp / delta / slide, instrumental",
-  "classical": "Classical - calm piano"
+  "classical": "Classical - calm piano",
+  "mix": "All stations - every track of the six, shuffled (a virtual station: no tracks of its own)"
  },
  "items": [
   {
@@ -206,16 +207,6 @@
    "verdict": "keep"
   },
   {
-   "id": "ia_goldberg_10",
-   "station": "classical",
-   "contexts": [
-    "garage",
-    "welcome"
-   ],
-   "verdict": "keep",
-   "note": "the user: all Goldberg variations are OK for the classical station"
-  },
-  {
    "id": "ia_goldberg_14",
    "station": "classical",
    "contexts": [
@@ -226,37 +217,7 @@
    "note": "the user: all Goldberg variations are OK for the classical station"
   },
   {
-   "id": "ia_goldberg_16",
-   "station": "classical",
-   "contexts": [
-    "garage",
-    "welcome"
-   ],
-   "verdict": "keep",
-   "note": "the user: all Goldberg variations are OK for the classical station"
-  },
-  {
-   "id": "ia_goldberg_19",
-   "station": "classical",
-   "contexts": [
-    "garage",
-    "welcome"
-   ],
-   "verdict": "keep",
-   "note": "the user: all Goldberg variations are OK for the classical station"
-  },
-  {
    "id": "ia_goldberg_20",
-   "station": "classical",
-   "contexts": [
-    "garage",
-    "welcome"
-   ],
-   "verdict": "keep",
-   "note": "the user: all Goldberg variations are OK for the classical station"
-  },
-  {
-   "id": "ia_goldberg_22",
    "station": "classical",
    "contexts": [
     "garage",
@@ -286,16 +247,6 @@
    "note": "the user: all Goldberg variations are OK for the classical station"
   },
   {
-   "id": "ia_goldberg_30",
-   "station": "classical",
-   "contexts": [
-    "garage",
-    "welcome"
-   ],
-   "verdict": "keep",
-   "note": "the user: all Goldberg variations are OK for the classical station"
-  },
-  {
    "id": "ia_goldberg_31",
    "station": "classical",
    "contexts": [
@@ -307,16 +258,6 @@
   },
   {
    "id": "ia_goldberg_01",
-   "station": "classical",
-   "contexts": [
-    "garage",
-    "welcome"
-   ],
-   "verdict": "keep",
-   "note": "the user: all Goldberg variations are OK for the classical station"
-  },
-  {
-   "id": "ia_goldberg_04",
    "station": "classical",
    "contexts": [
     "garage",
@@ -417,7 +358,45 @@
    ],
    "verdict": "keep",
    "note": "radio bench: music good"
+  },
+  {
+   "id": 277192,
+   "station": "jazz",
+   "contexts": [
+    "garage",
+    "cruise"
+   ],
+   "verdict": "keep"
+  },
+  {
+   "id": 279132,
+   "station": "jazz",
+   "contexts": [
+    "garage",
+    "cruise"
+   ],
+   "verdict": "keep",
+   "note": "the user also tagged it Lo-fi / Hip-hop: it may play there in the mix"
+  },
+  {
+   "id": 279302,
+   "station": "jazz",
+   "contexts": [
+    "garage"
+   ],
+   "verdict": "keep"
+  },
+  {
+   "id": 277908,
+   "station": "dubambient",
+   "contexts": [
+    "garage",
+    "cruise"
+   ],
+   "verdict": "maybe",
+   "note": "the user: very ambient more than jazz"
   }
  ],
- "stationsRule": "the user, 2026-10-04: six stations - Jazz, Lo-fi/Hip-hop, Dub/Ambient, Local roots radio, Blues, Classical; all calm; PURE INSTRUMENTAL (no lyrics)"
+ "stationsRule": "the user, 2026-10-04: six stations - Jazz, Lo-fi/Hip-hop, Dub/Ambient, Local roots radio, Blues, Classical; all calm; PURE INSTRUMENTAL (no lyrics)",
+ "classicalTrim": "2026-10-04, the user: trim the classical station (no re-encoding): 3 piano + 6 Goldberg (Aria, Var 13, 19, 24, 26, Aria da capo); the rest of the Goldberg stays whitelisted, not shipped"
 }

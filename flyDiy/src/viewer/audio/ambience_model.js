@@ -60,6 +60,8 @@ var AMBIENCE_MODEL = (function () {
     // the coordinator's three gap fills for SND-AMB-1's list (2026-10-04, CC0, unheard by the user): rain outside, birds over
     // open ground by day, and a lake shore recorded louder than amb.lake.near (which stays, lower, as texture)
     ['amb.rain.outside', -8, -23, 0], ['amb.birds.open', -10, -23, 0], ['amb.lake.shore', -8, -29.7, 0],
+    // the open sea, past the surf (the user: "keep looking for an open sea option"): water along a hull underway
+    ['amb.sea.open', -8, -23, 0],
     // the user: amb.loons "not too loud, really background"
     ['amb.loons', -17, -23, 0],
   ];
@@ -67,7 +69,7 @@ var AMBIENCE_MODEL = (function () {
   const B = {}; BEDS.forEach((b, i) => { B[b[0].slice(4).replace(/\.(\w)/g, (m, c) => c.toUpperCase())] = i; });
   // B.forestDay, B.forestNight, B.meadow, B.windLight, B.windClear, B.windMountain, B.windStorm, B.shoreSurf,
   // B.shoreRocks, B.lakeNear, B.lakeLap, B.stream, B.harbour, B.village, B.airfield, B.hangar, B.rainRoof,
-  // B.frogsNight, B.loons, B.rainOutside, B.birdsOpen, B.lakeShore
+  // B.frogsNight, B.loons, B.rainOutside, B.birdsOpen, B.lakeShore, B.seaOpen
 
   // THE FEATURES (st.f)
   const FN = ['x', 'y', 'z', 'agl', 'elev', 'under', 'tree', 'shrub', 'grass', 'built', 'bare', 'water', 'wet',
@@ -420,7 +422,8 @@ var AMBIENCE_MODEL = (function () {
     const L = f[F.lake];
     const lap = L >= 0 ? 1 : 1 - rv[R.lap];
     const sea = c < 0 ? rv[R.sea] * 0.8 : 0;                      // the open sea, past the surf: a lapping too
-    T[B.lakeLap] = g * Math.max(lap, sea);
+    T[B.lakeLap] = g * Math.max(lap, 0.3 * sea);   // a little lapping stays under the open sea's own bed
+    T[B.seaOpen] = g * sea;
     const nearK = L >= 0 ? 1 - rv[R.nearIn] : 1 - rv[R.nearOut];
     T[B.lakeShore] = gN * nearK;            // the louder shore recording carries "very close to the water"
     T[B.lakeNear] = 0.4 * gN * nearK;       // the user's keep, lower, as texture under it

@@ -253,6 +253,13 @@
    "kind": "bed",
    "pick": "coordinator",
    "note": "SND-AMB-1 asked: a louder lake-shore bed than amb.lake.near (+11.4 dB); unheard"
+  },
+  {
+   "key": "amb.sea.open",
+   "id": 460061,
+   "kind": "bed",
+   "pick": "coordinator",
+   "note": "the user: keep looking for an open sea option - water along a hull underway, no shore, no engine; unheard"
   }
  ],
  "rejected_guidance": {
@@ -261,5 +268,5 @@
   "busy beds": "user rejected busy / urban / church / car-park beds and sharp high-pitched tree wind",
   "tyre squeal and crash": "rejected"
  },
- "note2": "2026-10-04: three gap fills for SND-AMB-1 (rain outside, open-ground birds, a louder lake shore); crickets alone = amb.forest.night (333221, a crickets-only recording); an open-sea bed is still missing"
+ "note2": "2026-10-04: three gap fills for SND-AMB-1 (rain outside, open-ground birds, a louder lake shore); crickets alone = amb.forest.night (333221, a crickets-only recording); open sea = amb.sea.open (460061, a sailboat underway)"
 }
