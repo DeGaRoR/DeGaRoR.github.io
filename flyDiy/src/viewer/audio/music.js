@@ -13,7 +13,7 @@
 //                           thread's decode are noise next to the load's own fetches and compiles; nothing is
 //                           fetched or made before the gesture, nothing is decoded on the main thread.
 //                 GARAGE    the shed (AUDIO.inGarage), with SILENCE GAPS of GAP_MIN_S..GAP_MAX_S between tracks
-//                           (silence is part of calm); the setting 'music in the garage' (on) - it also covers
+//                           (silence is part of calm); the setting 'music in the garage' (OFF by default since 2026-10-04) - it also covers
 //                           the welcome.
 //                 CRUISE    in flight ONLY with 'music in flight' on (s6: off by default), and then only in a
 //                           cruise: off the ground, AGL >= CRUISE.enterAgl held CRUISE.dwellS, flaps up, not

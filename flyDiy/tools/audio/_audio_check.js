@@ -1039,7 +1039,9 @@ function fakeDom(state) {
 function musicPage(S, o) {
   o = o || {};
   const st = { made: 0, plays: 0, srcs: [], els: [], durOf: u => (o.durs || SYN_DUR)[u] || 60 };
-  const pg = makePage(S, { quiet: true, store: o.store || {}, dom: () => fakeDom(st), clock: o.clock, badStorage: o.badStorage, ctx: o.ctxHook,
+  const store = o.store || {};
+  if (!o.factory && !('flydiy.audio.musicGarage' in store)) store['flydiy.audio.musicGarage'] = '1';   // the shipped default is OFF (2026-10-04): the music checks turn it on
+  const pg = makePage(S, { quiet: true, store, dom: () => fakeDom(st), clock: o.clock, badStorage: o.badStorage, ctx: o.ctxHook,
     before: win => { win.FLYDIY_MUSIC = o.cat || SYN; if (o.base != null) win.FLYDIY_ASSET_BASE = o.base; if (o.boot) win.BOOT = o.boot;
       if (o.beforeWin) o.beforeWin(win);   // G1683: the recorded voice's catalogue and fetch
       if (o.speech) { win.speechSynthesis = o.speech.S; win.SpeechSynthesisUtterance = o.speech.U; }   // G1678: the voice's stub
@@ -1380,7 +1382,9 @@ function checkMusicWiring(S) {
   if (S.build.indexOf("if (range) { e.respondWith(ranged(req, range)); return; }") < 0 || S.build.indexOf("status: 206") < 0) F.push('sw.js answers no Range request (an <audio> element\'s) from the media cache');
   if (S.engine.indexOf("A.emit('engine', 'start')") < 0 || S.engine.indexOf("A.emit('engine', 'catch')") < 0) F.push('src_engine.js emits no engine start / catch for the music to duck under');
   const pg = makePage(S, { quiet: true }), row = pg.A.SETTINGS.find(r => r[0] === 'musicGarage');
-  if (!row || row[1] !== 1 || row[2] !== 'bool') F.push('the settings have no "music in the garage" (on)');
+  if (!row || row[1] !== 0 || row[2] !== 'bool') F.push('the settings have no "music in the garage" (off by default: the user, 2026-10-04)');
+  { const fb = { state: 'landing' }, fp = musicPage(S, { factory: true, boot: fb }); fp.F.run(2); fb.state = 'gone'; fp.F.garage = true; fp.F.run(4);
+    if (fp.M.context !== 'none' || fp.F.streaming() !== 0 || fp.F.starts.length) F.push('a fresh player hears music (' + fp.M.context + ', ' + fp.F.starts.length + ' starts): the shipped default is music OFF'); }
   if (typeof pg.A.addRows !== 'function') F.push('AUDIO.addRows is missing (the skip track row)');
   // the menu: the skip row and the credits row are drawn under the settings
   const st = { made: 0, plays: 0, srcs: [], els: [], durOf: () => 60 };
@@ -3740,7 +3744,7 @@ const MUT = [
   ['the build forgets the catalogue', 'build', ';window.FLYDIY_MUSIC=${MUSIC}', '', 'MUSIC_WIRING'],
   ['sw.js cuts no range', 'build', 'if (range) { e.respondWith(ranged(req, range)); return; }', '', 'MUSIC_WIRING'],
   ['the engine emits no start', 'engine', "if (vals3) A.emit('engine', 'start'); ", '', 'MUSIC_WIRING'],
-  ['no garage setting', 'audio', "    ['musicGarage', 1, 'bool',", "    ['musicGarageX', 1, 'bool',", 'MUSIC_WIRING'],
+  ['no garage setting', 'audio', "    ['musicGarage', 0, 'bool',", "    ['musicGarageX', 0, 'bool',", 'MUSIC_WIRING'],
   ['the skip row gone', 'music', "btn('skip track', 'skip', () => skip());", '', 'MUSIC_WIRING'],
   // SND-SPACE (G1640-G1646)
   ['the metal cabin as fabric', 'spcfg', "alloy: 'metal'", "alloy: 'fabric'", 'SP_CABIN'],
