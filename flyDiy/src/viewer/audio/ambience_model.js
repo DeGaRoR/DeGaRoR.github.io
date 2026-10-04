@@ -71,6 +71,24 @@ var AMBIENCE_MODEL = (function () {
   // B.shoreRocks, B.lakeNear, B.lakeLap, B.stream, B.harbour, B.village, B.airfield, B.hangar, B.rainRoof,
   // B.frogsNight, B.loons, B.rainOutside, B.birdsOpen, B.lakeShore, B.seaOpen
 
+  // THE SOUNDS DRAWN ON THE MAP (G1656: the premises record's `sounds` layer, the world editor's SOUND section): how far
+  // each bed carries from a point or an area the user drew - the user sets where and on / off, the ambience says how far.
+  // A POINT is at full within REACH_CORE x its reach (at least 6 m), then a smoothstep to nothing at its reach; an AREA
+  // is at full inside, then the same smoothstep over its reach outside. ON = max(the rules' target, that weight); OFF =
+  // the rules' target x (1 - that weight). The ground's beds keep their height fade; the winds have none.
+  const REACH = {
+    'amb.forest.day': 120, 'amb.forest.night': 120, 'amb.meadow': 100, 'amb.birds.open': 150,
+    'amb.wind.light': 300, 'amb.wind.clear': 300, 'amb.wind.mountain': 300, 'amb.wind.storm': 300,
+    'amb.shore.surf': 300, 'amb.shore.rocks': 200, 'amb.lake.near': 30, 'amb.lake.shore': 30, 'amb.lake.lap': 80,
+    'amb.sea.open': 300, 'amb.stream': 120, 'amb.harbour': 200, 'amb.village': 150, 'amb.airfield': 250,
+    'amb.hangar': 40, 'amb.rain.roof': 30, 'amb.rain.outside': 150, 'amb.frogs.night': 200, 'amb.loons': 500,
+  };
+  const REACH_DEF = 120, REACH_CORE = 0.2;
+  const reachOf = key => (REACH[key] > 0 ? REACH[key] : REACH_DEF);
+  // the beds without a height fade (a drawn wind stays a wind at 300 m)
+  const NOFADE = new Uint8Array(BEDS.length);
+  BEDS.forEach((b, i) => { if (/^amb\.wind\./.test(b[0])) NOFADE[i] = 1; });
+
   // THE FEATURES (st.f)
   const FN = ['x', 'y', 'z', 'agl', 'elev', 'under', 'tree', 'shrub', 'grass', 'built', 'bare', 'water', 'wet',
               'coast', 'rocky', 'lake', 'stream', 'village', 'harbour', 'aero', 'wind', 'sun', 'storm', 'rain',
@@ -113,6 +131,9 @@ var AMBIENCE_MODEL = (function () {
       wnd: new Float64Array(3), tmp: new Float64Array(8), rv: new Float64Array(NR),
       // the world, read once per world / premises record: rasters, zones (world coordinates), aerodromes
       wref: null, prem: null, isl: null, zk: null, zb: null, zp: null, ad: null, sett: null,
+      // the drawn sounds (G1656): sd 6 a sound [bed, on, reach, core, x | -, z | -], sb an area's box (4), sp an area's
+      // polygon (an empty array for a point); son / soff the round's weights per bed; snd [the count]
+      sd: new Float64Array(0), sb: new Float64Array(0), sp: [], son: new Float32Array(NB), soff: new Float32Array(NB), sn: new Int32Array(1),
     };
     st.clk[11] = -1;
     st.f[F.coast] = FAR; st.f[F.lake] = -FAR; st.f[F.stream] = FAR;
@@ -134,9 +155,41 @@ var AMBIENCE_MODEL = (function () {
     st.sett = new Float64Array(S.length * 3);
     S.forEach((s, i) => { st.sett[i * 3] = +s.x || 0; st.sett[i * 3 + 1] = +s.z || 0; st.sett[i * 3 + 2] = +s.r || 80; });
   }
+  // THE DRAWN SOUNDS, from a record (the world's composed one, or the editor's live one: ambienceSounds) in its frame
+  function ambienceSounds(st, rec, frame) {
+    const A = rec && rec.layers && Array.isArray(rec.layers.sounds) ? rec.layers.sounds : [];
+    const F0 = frame && typeof frame.toWorld === 'function' ? frame : null;
+    const keep = A.filter(e => e && typeof e.key === 'string' && BEDS.some(b => b[0] === e.key) &&
+      (Array.isArray(e.poly) ? e.poly.length >= 3 : isFinite(+e.x) && isFinite(+e.z)));
+    st.sd = new Float64Array(keep.length * 6); st.sb = new Float64Array(keep.length * 4); st.sp = [];
+    keep.forEach((e, i) => {
+      const b = BEDS.findIndex(r => r[0] === e.key), R = reachOf(e.key), o = 6 * i;
+      st.sd[o] = b; st.sd[o + 1] = e.on === false ? 0 : 1; st.sd[o + 2] = R; st.sd[o + 3] = Math.max(6, REACH_CORE * R);
+      if (Array.isArray(e.poly)) {
+        const p = new Float64Array(e.poly.length * 2);
+        let x0 = 1e18, z0 = 1e18, x1 = -1e18, z1 = -1e18;
+        e.poly.forEach((q, k) => {
+          const w = F0 ? F0.toWorld(+q[0], +q[1]) : q;
+          p[2 * k] = +w[0]; p[2 * k + 1] = +w[1];
+          x0 = Math.min(x0, p[2 * k]); x1 = Math.max(x1, p[2 * k]); z0 = Math.min(z0, p[2 * k + 1]); z1 = Math.max(z1, p[2 * k + 1]);
+        });
+        st.sd[o + 4] = NaN; st.sd[o + 5] = NaN;
+        st.sb[4 * i] = x0; st.sb[4 * i + 1] = z0; st.sb[4 * i + 2] = x1; st.sb[4 * i + 3] = z1;
+        st.sp.push(p);
+      } else {
+        const w = F0 ? F0.toWorld(+e.x, +e.z) : [+e.x, +e.z];
+        st.sd[o + 4] = +w[0]; st.sd[o + 5] = +w[1];
+        st.sp.push(new Float64Array(0));
+      }
+    });
+    st.sn[0] = keep.length;
+    st.son.fill(0); st.soff.fill(0);
+    return keep.length;
+  }
   function prepZones(st, world) {
     const pm = world && world.premises, rec = pm ? pm.rec : null, ov = pm ? pm.overlay : null;
     st.prem = rec || null;
+    ambienceSounds(st, rec, ov && ov.frame);
     const Z = rec && rec.layers && Array.isArray(rec.layers.zones) ? rec.layers.zones : [];
     const F0 = ov && ov.frame && typeof ov.frame.toWorld === 'function' ? ov.frame : null;
     const keep = Z.filter(z => ZK[z.kind] && Array.isArray(z.poly) && z.poly.length >= 3);
@@ -303,6 +356,26 @@ var AMBIENCE_MODEL = (function () {
           if (v > vil) vil = v;
         }
         f[F.village] = vil; f[F.harbour] = har;
+        // THE DRAWN SOUNDS: each one's weight here (1 at its point's core / inside its area, a smoothstep to 0 at its reach)
+        const sd = st.sd, sb = st.sb, sp = st.sp, son = st.son, soff = st.soff, ns = st.sn[0];
+        son.fill(0); soff.fill(0);
+        for (let i = 0; i < ns; i++) {
+          const o = 6 * i;
+          let d = 0, R = sd[o + 2];
+          if (sp[i].length) {
+            if (x < sb[4 * i] - R || x > sb[4 * i + 2] + R || z < sb[4 * i + 1] - R || z > sb[4 * i + 3] + R) continue;
+            polyDist(sp[i], xi, zi, tm, 7); d = tm[7];
+          } else {
+            // a point: full within its core, the fade from the core's edge to the reach (0 AT the reach, the ring drawn)
+            const dx = x - sd[o + 4], dz = z - sd[o + 5];
+            d = Math.sqrt(dx * dx + dz * dz) - sd[o + 3];
+            R = R - sd[o + 3];
+            if (d < 0) d = 0;
+            if (d >= R) continue;
+          }
+          const q = 1 - d / R, qq = q < 0 ? 0 : q, v = qq * qq * (3 - 2 * qq), b = sd[o] | 0;
+          if (sd[o + 1] > 0) { if (v > son[b]) son[b] = v; } else if (v > soff[b]) soff[b] = v;
+        }
       } else if (ph === 21) {
         // THE AERODROMES: inside the runway's box + a margin (the fence's stand-in), fading AERO_FALL m outside
         if (garage || !world) { f[F.aero] = 0; continue; }
@@ -438,12 +511,19 @@ var AMBIENCE_MODEL = (function () {
     const nearStill = Math.max(1 - rv[R.still], sat(f[F.wet] * 1.5), 0.6 * strm);
     T[B.frogsNight] = g * night * nearStill;
     T[B.loons] = gL * Math.max(twi, 0.3 * night) * (L >= 0 ? 1 : 1 - rv[R.loon]);
+    // THE DRAWN SOUNDS (G1656): on raises a bed to its weight there (the ground's beds still fade with height), off lowers it
+    const son = st.son, soff = st.soff;
+    for (let b = 0; b < NB; b++) {
+      const on = son[b] * (NOFADE[b] ? 1 : g);
+      if (on > T[b]) T[b] = on;
+      if (soff[b] > 0) T[b] = T[b] * (1 - soff[b]);
+    }
     return T;
   }
 
   const gainOf = (st, b) => st.w[b] * st.lv[b];
-  return { ambienceState, ambienceStep, ambienceTargets, gainOf, BEDS, NB, B, F, FN, NF, FAR,
-           AM_ROUND_S, AM_TAU, AM_RATE, AM_FLOOR, AM_LUFS, AM_PHASES, polyDist };
+  return { ambienceState, ambienceStep, ambienceTargets, ambienceSounds, gainOf, BEDS, NB, B, F, FN, NF, FAR,
+           AM_ROUND_S, AM_TAU, AM_RATE, AM_FLOOR, AM_LUFS, AM_PHASES, polyDist, REACH, REACH_DEF, REACH_CORE, reachOf };
 })();
 if (typeof window !== 'undefined') window.AMBIENCE_MODEL = AMBIENCE_MODEL;
 if (typeof module !== 'undefined' && module.exports) module.exports = AMBIENCE_MODEL;

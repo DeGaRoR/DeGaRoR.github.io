@@ -66,6 +66,8 @@ const FILES = {
   engw: 'src/viewer/audio/engine_worklet.js', propw: 'src/viewer/audio/prop_worklet.js',
   // SND-AMB-1 (G1650-G1654): the ambience's numbers and its source
   ambmodel: 'src/viewer/audio/ambience_model.js', amb: 'src/viewer/audio/ambience.js',
+  // G1656-G1658 (SND-AMB-1, the user's SOUND section): the record's layer, the world editor, its marks
+  core27: 'src/core/27_premises.js', premui: 'src/viewer/premises_ui.js', rprem: 'src/viewer/render_premises.js',
   // SND-AMB-2 (G1660-G1666): the emitters' numbers, the emitters, the premises renderer's read-only accessor
   emmodel: 'src/viewer/audio/emitters_model.js', em: 'src/viewer/audio/emitters.js', prem: 'src/viewer/render_premises.js',
   // SND-VOICE (G1626-G1629): Radio Jolene's words, their player, the catalogue, the script, GATE MEDIA's list
@@ -2859,7 +2861,7 @@ function ambWorld(o) {
     surface: (x, z) => (x > 850 && x <= 900 ? 7 : x < -300 && z < 0 ? 3 : 0),
     hydro: { distW: (x, z) => { const dl = Math.round(Math.sqrt((x - AMB_LAKE[0]) * (x - AMB_LAKE[0]) + (z - AMB_LAKE[1]) * (z - AMB_LAKE[1]))) - AMB_LAKE[2];
                                 const ds = 900 - x, d = dl < ds ? dl : ds; return d > 0 ? d : 0; } },
-    premises: { rec: { layers: { zones: [{ kind: 'residential', poly: [[200, -1200], [600, -1200], [600, -800], [200, -800]] },
+    premises: { rec: { layers: { sounds: o.sounds || [], zones: [{ kind: 'residential', poly: [[200, -1200], [600, -1200], [600, -800], [200, -800]] },
                                         { kind: 'forest', poly: [[-1500, -1500], [-300, -1500], [-300, 0]] }] } },
                 overlay: { frame: { toWorld: (x, z) => [x, z] } } },
     aerodromes: [{ x: 300, z: 900, hdg: 0, len: 600, wid: 30, kind: 'strip' }, { x: 1200, z: 0, hdg: 0, len: 1500, wid: 200, kind: 'water' }],
@@ -3047,7 +3049,9 @@ function ambPage(S, o) {
   pg.sim = stubSim(fb, { mains: [true, true], tw: false, water: false }); pg.def = fb.def;
   pg.camera = { position: { x: 0, y: 22, z: 500 } }; pg.cam = { mode: 'chase' };
   pg.R = R;
-  pg.world = ambWorld();
+  // G1656: two drawn sounds on the alloc walk's path (x -700, z -260..160): the loons on 200 m east of it, the forest's
+  // day bed OFF over a strip of it - every frame of that walk runs the drawn sounds' code
+  pg.world = ambWorld({ sounds: AMB_DRAWN });
   pg.go = () => pg.A.update(pg.sim, pg.camera, 1 / 60, pg.def, pg.cam, !!pg.garage, pg.world);
   pg.settle = async n => { for (let i = 0; i < n; i++) { pg.go(); if (i % 4 === 0) await null; } for (let i = 0; i < 8; i++) await null; };
   pg.at = (x, z, h) => { const W = pg.world; pg.camera.position.x = x; pg.camera.position.z = z; pg.camera.position.y = Math.max(W.terrainH(x, z), W.waterH(x, z)) + h; };
@@ -3238,6 +3242,129 @@ function checkAmbSamples(S) {
   });
 }
 // THE WIRING: the build lists the two files after samples.js; AUDIO publishes the world; the ambience is on its bus
+
+// ---- G1656-G1658: THE SOUNDS DRAWN IN THE WORLD EDITOR ---------------------------------------------------------------
+const AMB_DRAWN = [{ id: 'a1', kind: 'sound', x: -500, z: 0, key: 'amb.loons', on: true },
+                   { id: 'a2', kind: 'sound', poly: [[-800, -200], [-600, -200], [-600, -100], [-800, -100]], key: 'amb.forest.day', on: false }];
+// the model: a point is at full at its core and gone at its reach; an area at full inside and gone a reach outside; OFF
+// silences; a ground bed still fades with height and a wind does not; the record's frame is honoured; the live record
+// (the editor's, AMBIENCE.soundsChanged) replaces the composed one
+function checkAmbDrawn(S) {
+  const F = [], M = ambModelOf(S);
+  const T = (st, k) => st.t[M.BEDS.findIndex(b => b[0] === k)];
+  const Rl = M.reachOf('amb.loons'), Rh = M.reachOf('amb.harbour');
+  if (!(Rl > 0 && Rh > 0) || M.reachOf('amb.nothing') !== M.REACH_DEF) F.push('the reach table: loons ' + Rl + ', harbour ' + Rh + ', an unknown bed ' + M.reachOf('amb.nothing'));
+  const sounds = [{ id: 'a1', kind: 'sound', x: 0, z: 500, key: 'amb.loons', on: true },
+                  { id: 'a2', kind: 'sound', poly: [[300, 300], [500, 300], [500, 500], [300, 500]], key: 'amb.harbour', on: true },
+                  { id: 'a3', kind: 'sound', poly: [[-1100, -900], [-700, -900], [-700, -600], [-1100, -600]], key: 'amb.forest.day', on: false },
+                  { id: 'a4', kind: 'sound', x: -400, z: 600, key: 'amb.wind.storm', on: true },
+                  { id: 'bad', kind: 'sound', x: 0, z: 0, key: 'amb.nothing', on: true }];
+  const W = ambWorld({ sounds });
+  const at = (x, z, h) => ambAt(M, W, x, z, h || 1.7);
+  // the loons by day on the meadow: none by the rules, 1 at the point, partial half a reach out, 0 past the reach
+  const l0 = T(at(0, 500), 'amb.loons'), lh = T(at(0, 500 + Rl / 2), 'amb.loons'), lf = T(at(0, 500 + Rl + 20), 'amb.loons');
+  if (!(l0 >= 0.99 && lh > 0.1 && lh < 0.9 && lf <= 1e-6)) F.push('a point sound (loons): ' + l0.toFixed(2) + ' at it, ' + lh.toFixed(2) + ' half a reach out, ' + lf.toFixed(3) + ' past its reach (want 1, between, 0)');
+  // the harbour's area: 1 inside, partial half a reach outside, 0 past
+  const h0 = T(at(400, 400), 'amb.harbour'), hh = T(at(500 + Rh / 2, 400), 'amb.harbour'), hf = T(at(500 + Rh + 20, 400), 'amb.harbour');
+  if (!(h0 >= 0.99 && hh > 0.1 && hh < 0.9 && hf <= 1e-6)) F.push('a sound area (harbour): ' + h0.toFixed(2) + ' inside, ' + hh.toFixed(2) + ' half a reach out, ' + hf.toFixed(3) + ' past (want 1, between, 0)');
+  // OFF over the forest: the forest's day bed silenced inside, itself again past the reach
+  const fIn = T(at(-900, -750), 'amb.forest.day'), fOut = T(at(-900, -750 + 400 + M.reachOf('amb.forest.day')), 'amb.forest.day');
+  const fFree = T(ambAt(M, ambWorld(), -900, -750, 1.7), 'amb.forest.day');
+  if (!(fFree > 0.7 && fIn <= 0.01)) F.push('an OFF area over the forest: forest.day ' + fIn.toFixed(2) + ' inside (the forest alone ' + fFree.toFixed(2) + ')');
+  if (!(fOut > 0.5)) F.push('past an OFF area\'s reach the forest is still ' + fOut.toFixed(2));
+  // height: the loons' point at 200 m AGL silent (a ground bed), the storm's at 300 m still there (a wind)
+  const lHigh = T(at(0, 500, 200), 'amb.loons'), sHigh = T(at(-400, 600, 300), 'amb.wind.storm');
+  if (!(lHigh <= 1e-6 && sHigh >= 0.99)) F.push('height: the loons\' point at 200 m reads ' + lHigh.toFixed(3) + ' (want 0), the storm\'s at 300 m ' + sHigh.toFixed(2) + ' (want 1)');
+  // an unknown bed is dropped, not an error; the count
+  const st = M.ambienceState(), n = M.ambienceSounds(st, { layers: { sounds } }, null);
+  if (n !== 4) F.push('ambienceSounds kept ' + n + ' of 5 (want 4: the unknown bed dropped)');
+  // the frame: a record whose anchor is 1000 m east puts its point there
+  const fr = { toWorld: (x, z) => [x + 1000, z] };
+  M.ambienceSounds(st, { layers: { sounds: [sounds[0]] } }, fr);
+  if (!(st.sd[4] === 1000 && st.sd[5] === 500)) F.push('the frame not honoured: the point at ' + st.sd[4] + ', ' + st.sd[5] + ' (want 1000, 500)');
+  // the live record replaces the composed one, and a later composition's record is read again
+  const W2 = ambWorld({ sounds: [] }), st2 = M.ambienceState(), AP = loadParams(SRC0.params), P = AP.audioParamsBlock();
+  P.s[P.I.listenerX] = 0; P.s[P.I.listenerY] = 21.7; P.s[P.I.listenerZ] = 500;
+  M.ambienceStep(st2, P, W2, 1 / 60);
+  M.ambienceSounds(st2, { layers: { sounds: [sounds[0]] } }, null);
+  for (let i = 0; i < 60; i++) M.ambienceStep(st2, P, W2, 1 / 60);
+  const live = T(st2, 'amb.loons');
+  W2.premises.rec = { layers: { zones: W2.premises.rec.layers.zones, sounds: [] } };   // a composition: a new record, no sound
+  for (let i = 0; i < 60; i++) M.ambienceStep(st2, P, W2, 1 / 60);
+  if (!(live >= 0.99 && T(st2, 'amb.loons') <= 1e-6)) F.push('the live record\'s point read ' + live.toFixed(2) + ', after a new composition ' + T(st2, 'amb.loons').toFixed(2) + ' (want 1, then 0)');
+  return F;
+}
+// the record: the layer, its prefix, its issues; and INERT - the same premises composed with and without sounds give the
+// same ground, the same surfaces, the same aerodromes, the same raster signatures
+function checkAmbRecord(S) {
+  const F = [];
+  const c = { module: { exports: {} }, console: { info() {}, warn() {}, log() {} } };
+  vm.runInNewContext(S.core27 + '\n;module.exports = typeof PREMISES_GEN !== "undefined" ? PREMISES_GEN : null;', c, { filename: '27_premises.js' });
+  const PG = c.module.exports || FC.PREMISES_GEN;
+  if (PG.LAYERS.indexOf('sounds') < 0) F.push('the record has no sounds layer');
+  const r = PG.normalise({ layers: { sounds: [{ id: 'a1', kind: 'sound', x: 1, z: 2, key: 'amb.loons', on: true }] } });
+  if (!r.layers.sounds || r.layers.sounds.length !== 1 || PG.newId(r, 'sounds') !== 'snd1') F.push('normalise / newId: ' + JSON.stringify(r.layers.sounds) + ' next ' + PG.newId(r, 'sounds'));
+  if (!PG.findById(r, 'a1') || PG.findById(r, 'a1').layer !== 'sounds') F.push('findById does not reach a sound');
+  const iss = PG.issues(PG.normalise({ layers: { sounds: [{ id: 'a1', kind: 'sound', poly: [[0, 0], [10, 0]], key: 'amb.loons' }, { id: 'a2', kind: 'sound', x: 0, z: 0, key: 'loons' }, { id: 'a3', kind: 'sound', key: 'amb.loons' }] } })).filter(i => /^sound/.test(i));
+  if (iss.length !== 3) F.push('issues() on three bad sounds: ' + JSON.stringify(iss));
+  if (PG.issues(r).some(i => /^sound/.test(i))) F.push('a good sound has an issue: ' + PG.issues(r).filter(i => /^sound/.test(i)));
+  // INERT, on THIS text's compose: a small premises (a raise, a road, a surface patch) over the analytic world with and
+  // without sounds on top of it - the same composed heights, surfaces and ground modifiers (AMBINERT does Jolene whole)
+  const W = FC.makeWorld(0);
+  const base = { seed: 3, layers: { terrain: [{ id: 't1', kind: 'raise', poly: [[0, 0], [80, 0], [80, 80], [0, 80]], dh: 4, falloff: 12 }],
+    roads: [{ id: 'r1', pts: [[-50, 40], [150, 40]], w: 4, cls: 'gravel', graded: true, falloff: 6 }], surface: [{ id: 'y1', poly: [[100, 100], [140, 100], [140, 140], [100, 140]], surface: 6 }] } };
+  const withS = JSON.parse(JSON.stringify(base)); withS.layers.sounds = [{ id: 'a1', kind: 'sound', x: 40, z: 40, key: 'amb.loons', on: true }, { id: 'a2', kind: 'sound', poly: [[0, 0], [120, 0], [120, 120]], key: 'amb.village', on: false }];
+  const sig = rr => { const O = PG.compose(PG.normalise(rr), W, { pool: () => [], globals: {} }), out = [];
+    for (let i = 0; i < 30; i++) { const x = -40 + i * 7, z = -20 + i * 6; out.push(O.terrainAt(x, z).toFixed(4), O.surfaceAt ? O.surfaceAt(x, z) : ''); }
+    return out.join(',') + '|' + (O.n || 0); };
+  const a = sig(base), b = sig(withS);
+  if (a !== b) F.push('the compose of THIS text: two sounds moved the composed ground or surfaces');
+  return F;
+}
+function checkAmbInert() {
+  const F = [];
+  if (!JOLENE) JOLENE = require(path.join(ROOT, 'tools', 'audio', 'ambience_render.js')).loadJolene();
+  const W = JOLENE, PG = FC.PREMISES_GEN, rec0 = W.premises.rec;
+  const sig = () => {
+    const O = W.premises.overlay, out = [];
+    for (let i = 0; i < 40; i++) { const x = -2000 + i * 97, z = 800 - i * 113; out.push(W.terrainH(x, z).toFixed(4), W.surface(x | 0, z | 0)); }
+    out.push(W.aerodromes.length, O && O.records ? O.records.items.length : -1, O && O.rasterCellSig ? O.rasterCellSig(0, 0) + O.rasterCellSig(-2, -4) : '');
+    return out.join(',');
+  };
+  const a = sig();
+  const withS = Object.assign({}, rec0, { layers: Object.assign({}, rec0.layers, { sounds: [{ id: 'a1', kind: 'sound', x: -100, z: 640, key: 'amb.loons', on: true },
+    { id: 'a2', kind: 'sound', poly: [[150, -700], [450, -700], [450, -400], [150, -400]], key: 'amb.harbour', on: false }] }) });
+  W.premises.set(withS);
+  const b = sig();
+  W.premises.set(rec0);
+  if (a !== b) F.push('two sounds in Jolene\'s record moved its ground, surfaces, aerodromes or raster signatures');
+  // the control: a terrain modifier does move them (the probe can see a change)
+  W.premises.set(Object.assign({}, rec0, { layers: Object.assign({}, rec0.layers, { terrain: rec0.layers.terrain.concat([{ id: 'tx', kind: 'raise', poly: [[-1900, 700], [-1500, 700], [-1500, 400], [-1900, 400]], dh: 9, falloff: 10 }]) }) }));
+  const c = sig();
+  W.premises.set(rec0);
+  if (c === a) F.push('the control (a 9 m raise) moved nothing: the probe is blind');
+  return F;
+}
+// the editor: the SOUND section and its two tools, the drawn area's layer, a sound edit composing nothing and moving no
+// ground, the ambience told, the marks drawn, a point sound draggable and pickable
+function checkAmbEditor(S) {
+  const F = [], U = S.premui, Rr = S.rprem;
+  const need = (src, re, what) => { if (!re.test(src)) F.push(what); };
+  need(U, /\{ k: 'sounds',\s+label: 'SOUND',\s+icon: '[^']*',\s+tools: \['select', 'soundpt', 'soundarea', 'probe'\] \}/, 'the editor has no SOUND section with its two tools');
+  need(U, /soundarea: 'sounds' \}/, 'the sound area is not a polygon tool of the sounds layer');
+  need(U, /if \(layer === 'sounds'\) return false;/, 'a sound edit is not ground-free (the game would re-sample its ground)');
+  need(U, /window\.AMBIENCE\.soundsChanged\(rec\)/, 'the editor does not tell the ambience');
+  // a sound's id unique over EVERY layer (the real page's first proof: Jolene's animal hotspots are a1.., and findById
+  // answered the elk herd for the point sound a1)
+  need(U, /function soundId\(\) \{ for \(let i = 1; ; i\+\+\) \{ const id = 'snd' \+ i; if \(!PG\.findById\(rec, id\)\) return id; \} \}/, 'a sound\'s id is not unique over every layer');
+  if ((U.match(/id: soundId\(\), kind: 'sound'/g) || []).length !== 2) F.push('the point and the area do not both take soundId()');
+  need(U, /\(e\.kind === 'sound' && !e\.poly\)\) \{ drag = /, 'a point sound cannot be dragged');
+  need(Rr, /if \(dirty && dirty\.layer === 'sounds' && O\) \{\n      if \(o\.editing\(\)\) \{ soundOutlines\(\); buildHandles\(\); \}/, 'a sound edit recomposes the world (or redraws every outline)');
+  need(Rr, /'ttype', 'sounds'\]\) for \(const e of rec\.layers\[layer\]/, 'the renderer does not draw the sounds');
+  need(Rr, /if \(layer === 'sounds'\) soundMarks\(e\);/, 'the sounds have no marks (pin, rings, reach)');
+  need(Rr, /for \(const so of rec\.layers\.sounds \|\| \[\]\) if \(!so\.poly/, 'a point sound cannot be picked');
+  return F;
+}
 function checkAmbWiring(S) {
   const F = [];
   const i0 = S.build.indexOf("'audio/samples.js'"), i1 = S.build.indexOf("'audio/ambience_model.js'"), i2 = S.build.indexOf("'audio/ambience.js'"), i3 = S.build.indexOf("'world_boot.js', 'app.js'");
@@ -3789,6 +3916,7 @@ const CHECKS = { NUMBERS: checkNumbers, CONTACTS: checkContacts, BUDGET: checkBu
                  AMBPLACES: checkAmbPlaces, AMBJOLENE: checkAmbJolene, AMBSMOOTH: checkAmbSmooth, AMBAGL: checkAmbAgl, AMBLUFS: checkAmbLufs,
                  AMBGESTURE: checkAmbGesture, AMBBUDGET: checkAmbBudget, AMBALLOC: checkAmbAlloc, AMBMUFFLE: checkAmbMuffle,
                  AMBSAMPLES: checkAmbSamples, AMBWIRING: checkAmbWiring,
+                 AMBDRAWN: checkAmbDrawn, AMBRECORD: checkAmbRecord, AMBINERT: checkAmbInert, AMBEDITOR: checkAmbEditor,
                  EMITHABITAT: checkEmHabitat, EMITRATE: checkEmRate, EMITAGL: checkEmAgl, EMITOBJECTS: checkEmObjects,
                  EMITGESTURE: checkEmGesture, EMITPLAY: checkEmPlay, EMITBUDGET: checkEmBudget, EMITALLOC: checkEmAlloc,
                  EMITWIRING: checkEmWiring, EMITSAMPLES: checkEmSamples,
@@ -4009,6 +4137,21 @@ const MUT = [
   ['the talk through Web Audio', 'radio', '  function makeSpeaker(env) {\n', '  function makeSpeaker(env) {\n    const ac = E => new E.AudioContext();\n', 'RADIO_WIRING'],
   ['the build loses the ambience', 'build', "'audio/ambience_model.js', 'audio/ambience.js',", "'audio/ambience_model.js',", 'AMBWIRING'],
   ['AUDIO keeps the world to itself', 'audio', '    api.world = world || null;\n', '', 'AMBWIRING'],
+  // G1656-G1658 (SND-AMB-1): the sounds drawn in the world editor
+  ['a drawn point carries twice as far', 'ambmodel', '            R = R - sd[o + 3];\n', '            R = 2 * R;\n', 'AMBDRAWN'],
+  ['an OFF sound plays', 'ambmodel', "st.sd[o + 1] = e.on === false ? 0 : 1;", 'st.sd[o + 1] = 1;', 'AMBDRAWN'],
+  ['a drawn ground bed heard at 200 m', 'ambmodel', 'const on = son[b] * (NOFADE[b] ? 1 : g);', 'const on = son[b];', 'AMBDRAWN'],
+  ['the record\'s frame ignored', 'ambmodel', "        const w = F0 ? F0.toWorld(+e.x, +e.z) : [+e.x, +e.z];", "        const w = [+e.x, +e.z];", 'AMBDRAWN'],
+  ['the live record never read', 'ambmodel', '    ambienceSounds(st, rec, ov && ov.frame);\n', '\n', 'AMBDRAWN'],
+  ['no sounds layer', 'core27', "'objects', 'ttype', 'sounds'];", "'objects', 'ttype'];", 'AMBRECORD'],
+  ['a sound with no bed passes', 'core27', "if (typeof e.key !== 'string' || !/^amb\\./.test(e.key)) out.push(what + ': no ambience bed (amb.*)');", '', 'AMBRECORD'],
+  ['a sound composes ground', 'core27', "  const mods = [];\n  for (const m of rec.layers.terrain) { const M = makeModifier(m, F.y0); if (M) mods.push(M); }", "  const mods = [];\n  for (const m of rec.layers.terrain.concat((rec.layers.sounds || []).filter(q => q.x !== undefined).map(q => ({ id: 'snd', kind: 'raise', poly: [[q.x - 30, q.z - 30], [q.x + 30, q.z - 30], [q.x + 30, q.z + 30], [q.x - 30, q.z + 30]], dh: 2, falloff: 8 })))) { const M = makeModifier(m, F.y0); if (M) mods.push(M); }", 'AMBRECORD'],
+  ['a sound id unique to its layer only', 'premui', "e = { id: soundId(), kind: 'sound', poly, key, on: true }; }", "e = { id: PG.newId(rec, 'sounds'), kind: 'sound', poly, key, on: true }; }", 'AMBEDITOR'],
+  ['no SOUND section', 'premui', "tools: ['select', 'soundpt', 'soundarea', 'probe'] },", "tools: ['select', 'probe'] },", 'AMBEDITOR'],
+  ['a sound edit re-samples the ground', 'premui', "    if (layer === 'sounds') return false;   // G1656", "    if (layer === 'soundz') return false;   // G1656", 'AMBEDITOR'],
+  ['the ambience never told', 'premui', 'if (window.AMBIENCE && window.AMBIENCE.soundsChanged) window.AMBIENCE.soundsChanged(rec);', '', 'AMBEDITOR'],
+  ['a sound edit recomposes', 'rprem', "if (dirty && dirty.layer === 'sounds' && O) {", "if (dirty && dirty.layer === 'soundz' && O) {", 'AMBEDITOR'],
+  ['no marks', 'rprem', "      if (layer === 'sounds') soundMarks(e);", '', 'AMBEDITOR'],
   // SND-AMB-2 (G1660-G1666): each break of the emitters, red on its check
   ['owls by day', 'emmodel', '    w[3] = night * forest * ak;', '    w[3] = day * forest * ak;', 'EMITHABITAT'],
   ['gulls inland', 'emmodel', "q = (ac - 60) / 240; const shore = 1 - (q < 0 ? 0 : q > 1 ? 1 : q);", "q = (ac - 60) / 24000; const shore = 1 - (q < 0 ? 0 : q > 1 ? 1 : q);", 'EMITHABITAT'],

@@ -31,7 +31,9 @@
 const PG = (typeof window !== 'undefined' && window.PREMISES_GEN) || (typeof require === 'function' && require('../src/core/27_premises.js'));
 
 const CHUNK = 64;
-const LAYER_COL = { terrain: 0xffa040, surface: 0x4fa7ff, material: 0xd28cff, exclude: 0xff5a5a, zones: 0x6fd08c, roads: 0xe0d090, runways: 0xffffff, objects: 0x9fe0ff, ttype: 0xb6e05a };   // ttype: the cover polygons (G1385: their vegetation)
+const LAYER_COL = { terrain: 0xffa040, surface: 0x4fa7ff, material: 0xd28cff, exclude: 0xff5a5a, zones: 0x6fd08c, roads: 0xe0d090, runways: 0xffffff, objects: 0x9fe0ff, ttype: 0xb6e05a, sounds: 0xe07bd8 };
+// G1656 THE SOUNDS: a sound that plays (magenta), a sound silenced there (a muted red); its reach drawn faint
+const SOUND_COL = { on: 0xe07bd8, off: 0xc0606a };   // ttype: the cover polygons (G1385: their vegetation)
 const ZONE_COL = { residential: 0x6fd08c, commercial: 0x5db3ff, industrial: 0xe0a060, harbour: 0x4fc7d0, park: 0xa0e070, airfield: 0xffffff, forest: 0x2f8f4f, clear: 0xd0c090 };
 const LIFT = 0.18;
 const TREE_BANDS = [0, 60, 132];
@@ -1005,7 +1007,7 @@ function make(THREE, scene, world, rec0, opts) {
   }
   function worldPts(entry) {
     const F = O.frame;
-    const src = entry.poly || (entry.pts ? entry.pts.map(p => [p[0], p[1]]) : (entry.kind === 'tree' || entry.kind === 'prop' || entry.kind === 'billboard' || entry.kind === 'aircraft' || entry.kind === 'animal' ? [[entry.x, entry.z]] : (entry.c && entry.len ? (E => [E.end0, E.end1])(PG.runwayEnds(Object.assign({}, PG.RUNWAY_DEF, entry))) : [])));
+    const src = entry.poly || (entry.pts ? entry.pts.map(p => [p[0], p[1]]) : (entry.kind === 'tree' || entry.kind === 'prop' || entry.kind === 'billboard' || entry.kind === 'aircraft' || entry.kind === 'animal' || entry.kind === 'sound' ? [[entry.x, entry.z]] : (entry.c && entry.len ? (E => [E.end0, E.end1])(PG.runwayEnds(Object.assign({}, PG.RUNWAY_DEF, entry))) : [])));
     return src.map(p => F.toWorld(p[0], p[1]));
   }
   function lineFor(layer, entry, colour, sel) {
@@ -1019,11 +1021,59 @@ function make(THREE, scene, world, rec0, opts) {
     line.renderOrder = 8; line.name = layer + ':' + entry.id; line.userData.premId = entry.id;
     return line;
   }
+  // G1656 THE SOUND'S MARKS, ground-following lines like every outline: a POINT gets a pin (a 7 m post), a ring where it is
+  // at full and a faint ring at its reach; an AREA a faint line its reach away (the outline itself is lineFor's). The reach
+  // is the ambience's (AMBIENCE_MODEL.reachOf: how far that bed carries), 120 m where the sound is not loaded.
+  const SOUND_MARKS = [':pin', ':core', ':reach'];
+  function soundMarks(e) {
+    for (const k of SOUND_MARKS) { const L = LINES.get(e.id + k); if (L) { G.outlines.remove(L.line); L.line.geometry.dispose(); L.line.material.dispose(); LINES.delete(e.id + k); } }
+    const M = window.AMBIENCE_MODEL, reach = M && M.reachOf ? M.reachOf(e.key) : 120, F = O.frame;
+    const col = SOUND_COL[e.on === false ? 'off' : 'on'], sel = e.id === selectedId;
+    const add = (key, arr, op) => {
+      const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(arr, 3));
+      const line = new THREE.Line(geo, new THREE.LineBasicMaterial({ color: col, transparent: true, opacity: sel ? Math.min(1, op + 0.25) : op, depthTest: false }));
+      line.renderOrder = 8; line.name = 'sounds:' + e.id + key; line.userData.premId = e.id;
+      G.outlines.add(line); LINES.set(e.id + key, { line, layer: 'sounds', entry: e, mark: true });
+    };
+    const ring = r => { const out = []; for (let i = 0; i <= 64; i++) { const a = i / 64 * Math.PI * 2; out.push([+e.x + r * Math.cos(a), +e.z + r * Math.sin(a)]); } return out.map(q => F.toWorld(q[0], q[1])); };
+    if (Array.isArray(e.poly) && e.poly.length >= 3) {
+      // the area's reach: each corner pushed out along its bisector (a mitre, held to 2 x the reach at a sharp corner)
+      const P = e.poly, n = P.length, sgn = PG.polyArea(P) >= 0 ? 1 : -1, out = [];
+      for (let i = 0; i < n; i++) {
+        const a = P[(i + n - 1) % n], b = P[i], c = P[(i + 1) % n];
+        const n1 = norm2(b[1] - a[1], -(b[0] - a[0])), n2 = norm2(c[1] - b[1], -(c[0] - b[0]));
+        let mx = n1[0] + n2[0], mz = n1[1] + n2[1]; const ml = Math.hypot(mx, mz) || 1; mx /= ml; mz /= ml;
+        const k = Math.min(2, 1 / Math.max(0.2, mx * n1[0] + mz * n1[1]));
+        out.push(F.toWorld(b[0] + sgn * mx * reach * k, b[1] + sgn * mz * reach * k));
+      }
+      add(':reach', groundLoop(out, true, LIFT), 0.35);
+      return;
+    }
+    if (!isFinite(+e.x) || !isFinite(+e.z)) return;
+    const w = F.toWorld(+e.x, +e.z), h = heightAt(w[0], w[1]);
+    add(':pin', new Float32Array([w[0], h, w[1], w[0], h + 7, w[1]]), 0.95);
+    add(':core', groundLoop(ring(Math.max(6, 0.2 * reach)), true, LIFT), 0.85);
+    add(':reach', groundLoop(ring(reach), true, LIFT), 0.35);
+  }
+  const norm2 = (x, z) => { const l = Math.hypot(x, z) || 1; return [x / l, z / l]; };
+  // a sound edit redraws the SOUNDS' lines alone (every other outline - Jolene's 70-odd roads and zones, each a ground
+  // loop sampled every 2 m - is the same; buildOutlines redraws them all)
+  function soundOutlines() {
+    for (const [k, L] of Array.from(LINES)) if (L.layer === 'sounds') { G.outlines.remove(L.line); L.line.geometry.dispose(); L.line.material.dispose(); LINES.delete(k); }
+    for (const e of rec.layers.sounds || []) {
+      soundMarks(e);
+      const line = lineFor('sounds', e, SOUND_COL[e.on === false ? 'off' : 'on'], e.id === selectedId);
+      if (!line) continue;
+      G.outlines.add(line); LINES.set(e.id, { line, layer: 'sounds', entry: e });
+      if (e.id === selectedId) { const l2 = lineFor('sounds', e, 0xffffff, true); l2.material.opacity = 0.9; l2.position.y = 0.06; G.outlines.add(l2); LINES.set(e.id + ':sel', { line: l2, layer: 'sounds', entry: e }); }
+    }
+  }
   function buildOutlines() {
     for (const [, L] of LINES) { G.outlines.remove(L.line); L.line.geometry.dispose(); L.line.material.dispose(); }
     LINES.clear();
-    for (const layer of ['terrain', 'surface', 'material', 'exclude', 'zones', 'roads', 'ttype']) for (const e of rec.layers[layer] || []) {
-      const col = layer === 'zones' ? (ZONE_COL[e.kind] || LAYER_COL.zones) : (LAYER_COL[layer] || 0xffffff);
+    for (const layer of ['terrain', 'surface', 'material', 'exclude', 'zones', 'roads', 'ttype', 'sounds']) for (const e of rec.layers[layer] || []) {
+      if (layer === 'sounds') soundMarks(e);   // G1656: a point's pin and rings, an area's reach (its outline below)
+      const col = layer === 'zones' ? (ZONE_COL[e.kind] || LAYER_COL.zones) : layer === 'sounds' ? SOUND_COL[e.on === false ? 'off' : 'on'] : (LAYER_COL[layer] || 0xffffff);
       const line = lineFor(layer, e, col, e.id === selectedId);
       if (!line) continue;
       G.outlines.add(line); LINES.set(e.id, { line, layer, entry: e });
@@ -2346,6 +2396,8 @@ function make(THREE, scene, world, rec0, opts) {
           G.runways.add(grp);
         } catch (err) {}
       }
+    } else if (layer === 'sounds') {
+      soundMarks(e);   // G1656: its pin and rings follow the hand
     } else if (layer === 'objects' && before && isFinite(+e.x) && isFinite(+e.z)) {
       // a prop, a tree, a billboard, an aeroplane: its built group carried (the ground's rise with it, its `y` kept)
       const h = HOUSES.get('ob:' + id);
@@ -3388,6 +3440,13 @@ function make(THREE, scene, world, rec0, opts) {
   function* rebuildSteps(dirty) {
     const t0 = performance.now();
     previewEnd();   // G1400: a drag's carried groups back where they were built, before anything compares seeds
+    // G1656 A SOUND EDIT COMPOSES NOTHING: the record's sounds move no ground, no plot, no house - their marks are redrawn,
+    // the ambience is told by the editor (AMBIENCE.soundsChanged), the next real edit composes them into the world
+    if (dirty && dirty.layer === 'sounds' && O) {
+      if (o.editing()) { soundOutlines(); buildHandles(); }
+      stats.ms = performance.now() - t0; stats.rebuilt = 0;
+      return stats;
+    }
     if (!(composedFresh && dirty === undefined)) { O = composeNow(); hwCompose(); }
     composedFresh = false;
     refreshBounds();
@@ -3458,7 +3517,7 @@ function make(THREE, scene, world, rec0, opts) {
     const F = O.frame, L = F.toLocal(x, z);
     let best = null, bestA = Infinity, near = null, nearD = 1.5;
     for (const [id, e] of LINES) {
-      if (id.endsWith(':sel')) continue;
+      if (id.endsWith(':sel') || e.mark) continue;
       const en = e.entry;
       if (en.poly) {
         if (PG.inPoly(en.poly, L[0], L[1])) { const a = Math.abs(PG.polyArea(en.poly)); if (a < bestA) { bestA = a; best = e; } }
@@ -3474,6 +3533,10 @@ function make(THREE, scene, world, rec0, opts) {
     let tree = null, td = 2.5;
     for (const ob of rec.layers.objects) if (ob.kind === 'tree' || ob.kind === 'prop' || ob.kind === 'billboard' || ob.kind === 'aircraft' || ob.kind === 'animal') { const d = Math.hypot(ob.x - L[0], ob.z - L[1]); if (d < td) { td = d; tree = ob; } }
     if (tree) return { id: tree.id, layer: 'objects', entry: tree };
+    // G1656: a point sound within three metres of its pin
+    let snd = null, sd = 3;
+    for (const so of rec.layers.sounds || []) if (!so.poly && isFinite(+so.x)) { const d = Math.hypot(so.x - L[0], so.z - L[1]); if (d < sd) { sd = d; snd = so; } }
+    if (snd) return { id: snd.id, layer: 'sounds', entry: snd };
     const r = near || best;
     return r ? { id: r.entry.id, layer: r.layer, entry: r.entry } : null;
   }

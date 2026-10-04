@@ -92,3 +92,33 @@ The full tier (gamer): N = 6, 24 MB decoded.
 - **Rain.** There is no precipitation in the world yet (owed by CLIMATE). `AMBIENCE.rain(v)` is the hook, and the
   garage's roof-rain bed answers it (GATE AUDIO AMBPLACES).
 - **The listening.** No session can hear this file. The levels are first guesses for SND-TUNE.
+
+## The SOUND section of the world editor (G1656–G1658, `editor/`)
+
+`tools/audio/sound_editor_proof.js` drives the **built game page** in headless Chromium. The game boots on Jolene, rolls
+out, a click unlocks the sound, and the world editor opens. Then the editor's own script API (the same paths the mouse
+runs) does the following:
+
+1. It drops a **point sound**: loons, 80 m off the stand.
+2. It draws a **sound area**: the harbour's bed, over the heath.
+3. It draws an **OFF area**: the airfield's bed, silenced around the stand.
+4. It drags the point 30 m.
+5. It probes what is heard.
+
+What the page reported (`proof.json`):
+
+| What | Result |
+|---|---|
+| The record | `snd1` (a point, dragged from x −100 to −70), `snd2` (an area, on), `snd3` (an area, off); no issues |
+| The renderer's sound lines | 7: the point's pin, full-strength ring and reach ring; each area's outline and reach line |
+| The ambience | holds 3 sounds, told by the editor without a recomposition |
+| At the point | loons 1.00 (no loons by the rules there, by day) |
+| In the harbour area | harbour 1.00 |
+| At the stand | the airfield bed silenced (1.00 → absent) |
+| The cost of an edit | a sound edit 141 ms (the inspector's probe included); a zone edit 3760 ms (a full composition); no page error |
+
+- `inspector_point.png`: the SOUND section in the editor's rail, a selected point sound (the bed, ON / OFF, its reach,
+  and **HEARD HERE**: the beds the ambience plays at that spot, as bars).
+- `inspector_probe.png`: the section with no selection, the bed to draw, and the probe's bars.
+- `map.png`: the editor's whole page. The 3D viewport stays blank under this box's software renderer (SwiftShader), so the
+  drawn lines are proved by name in `proof.json`, not by the picture. A GPU box shows them.

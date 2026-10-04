@@ -24,7 +24,8 @@
 //
 // window.AMBIENCE: { model, state (the model's st), tier(), setTier('full' | 'mid' | 'light'), rain(v) (0..1, the
 //   CLIMATE hook: the roof's rain in the garage; -1 hands it back to world.day.precip), resident(b) (0 none,
-//   1 loading, 2 playing, 3 refused, 4 fading out), gain(b) (what was last scheduled) }
+//   1 loading, 2 playing, 3 refused, 4 fading out), gain(b) (what was last scheduled), soundsChanged(rec) (G1656: the
+//   world editor's live record - its drawn sounds heard at once) }
 'use strict';
 (function () {
   const W = typeof window !== 'undefined' ? window : globalThis;
@@ -188,6 +189,12 @@
     tier: () => tierName,
     setTier(name) { applyTier(name); },
     rain(v) { st.clk[11] = v == null || v < 0 ? -1 : Math.min(1, +v || 0); },
+    // G1656: the world editor's SOUND section edits the record's `sounds` without recomposing the world (it moves no
+    // ground): it hands its live record here; the next composition's record (world.premises.rec) is read as before
+    soundsChanged(rec) {
+      const W2 = W.AUDIO && W.AUDIO.world, ov = W2 && W2.premises && W2.premises.overlay;
+      return M.ambienceSounds(st, rec, ov && ov.frame);
+    },
     resident: b => res[b], gain: b => lastG[b],
     get loading() { return loading; },
   };

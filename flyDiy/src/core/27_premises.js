@@ -61,7 +61,13 @@ const PREMISES_V = 1;
 // NOT `cover`: `coverAt` on the overlay already means what the COVER RING may plant
 // at a point (the pavement's kill and boost, the plot's grass rule), and two unrelated
 // things sharing that word in one file is how a reader is misled.
-const LAYERS = ['terrain', 'surface', 'material', 'exclude', 'roads', 'runways', 'zones', 'sites', 'links', 'objects', 'ttype'];
+const LAYERS = ['terrain', 'surface', 'material', 'exclude', 'roads', 'runways', 'zones', 'sites', 'links', 'objects', 'ttype', 'sounds'];
+// THE SOUNDS (G1656, SND-AMB-1 for the user): what the ambience hears, drawn on the map. PHYSICS-INERT - nothing composes
+// them (compose reads its layers by name; the raster's signature hashes terrain modifiers, not the record): the ambience
+// (src/viewer/audio/ambience_model.js) is their only reader. An entry is a POINT { id, kind: 'sound', x, z, key, on } or an
+// AREA { id, kind: 'sound', poly, key, on }: `key` an ambience bed (amb.*), `on` true = the bed at full there (fading out
+// over the bed's own reach), false = the bed silenced there (coming back over the same reach). How far a bed carries is
+// the ambience's (AMBIENCE_MODEL.REACH), never the record's.
 const SURFACE = { GRASS: 0, ROCK: 1, SCREE: 2, FOREST_FLOOR: 3, WATER: 4, PAVED: 5, GRAVEL: 6, SAND: 7 };
 const SURFACE_NAMES = ['GRASS', 'ROCK', 'SCREE', 'FOREST_FLOOR', 'WATER', 'PAVED', 'GRAVEL', 'SAND'];
 const ROAD_CLS = { gravel: SURFACE.GRAVEL, paved: SURFACE.PAVED, track: SURFACE.GRASS, path: SURFACE.GRASS };
@@ -600,7 +606,7 @@ function rasterTileDecode(C, e) {
 function DEF() {
   return { v: PREMISES_V, id: 'premises', name: '', seed: 1, theme: THEME_DEF,
            frame: { kind: 'free', extent: null, anchors: {} },
-           layers: { terrain: [], surface: [], material: [], exclude: [], roads: [], runways: [], zones: [], sites: [], links: [], objects: [], ttype: [] },
+           layers: { terrain: [], surface: [], material: [], exclude: [], roads: [], runways: [], zones: [], sites: [], links: [], objects: [], ttype: [], sounds: [] },
            budget: { tris: 400000, lights: 24, smoke: 6, people: 40 } };
 }
 const PREMISES_MIGRATORS = {};
@@ -663,7 +669,7 @@ function restorePlaces(rec, cut) {
   }
   return out;
 }
-const ID_PREFIX = { terrain: 't', surface: 'y', material: 'm', exclude: 'x', roads: 'r', runways: 'w', zones: 'z', sites: 's', links: 'l', objects: 'o', ttype: 'k' };
+const ID_PREFIX = { terrain: 't', surface: 'y', material: 'm', exclude: 'x', roads: 'r', runways: 'w', zones: 'z', sites: 's', links: 'l', objects: 'o', ttype: 'k', sounds: 'snd' };   // (snd: authored records already use a1.. for animal hotspots)
 function newId(rec, layer) {
   const used = new Set((rec.layers[layer] || []).map(e => e.id));
   for (let i = 1; ; i++) { const id = (ID_PREFIX[layer] || layer[0]) + i; if (!used.has(id)) return id; }
@@ -2515,6 +2521,16 @@ function issues(rec0) {
     if (e.band !== undefined && e.band !== null && !(+e.band >= 0)) out.push(what + ': band must be 0 or more');
     if (e.pav) out.push.apply(out, pavIssues(what, e.pav));
     if (e.look !== undefined && e.look !== null && !RUNWAY_LOOKS[e.look]) out.push(what + ': unknown look ' + e.look);
+  }
+  // THE SOUNDS (G1656): a point or a polygon, a bed key, on / off (which beds exist is the ambience's to say: the page's
+  // AMBIENCE_MODEL when it is loaded)
+  const BEDS = typeof AMBIENCE_MODEL !== 'undefined' && AMBIENCE_MODEL.BEDS ? AMBIENCE_MODEL.BEDS.map(b => b[0]) : null;
+  for (const e of rec.layers.sounds) {
+    const what = 'sound ' + e.id;
+    if (e.poly) { if (e.poly.length < 3) out.push(what + ': a polygon needs three points'); else if (!polySimple(e.poly)) out.push(what + ': the polygon crosses itself'); }
+    else if (!(isFinite(+e.x) && isFinite(+e.z))) out.push(what + ': a point needs x and z');
+    if (typeof e.key !== 'string' || !/^amb\./.test(e.key)) out.push(what + ': no ambience bed (amb.*)');
+    else if (BEDS && BEDS.indexOf(e.key) < 0) out.push(what + ': unknown bed ' + e.key);
   }
   for (const r of rec.layers.roads) { if (!r.pts || r.pts.length < 2) out.push('road ' + r.id + ': a road needs two points'); else if (!(+r.w > 0)) out.push('road ' + r.id + ': width must be positive'); }
   for (const r of rec.layers.runways) {
