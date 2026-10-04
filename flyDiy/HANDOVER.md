@@ -72882,3 +72882,29 @@ FOR A0, answering A0's two messages. `futureDesigns/DEFORM-AND-BREAK-2026-10-04.
   - If (a): may a damaged aeroplane be edited (proposed: yes, and a rebuilt section is billed at build price instead
     of its repair line)? What does the garage draw (proposed: the pristine model, a DAMAGED tag and the bill, and the
     wreck's last frame as a logbook still)?
+
+## DEFORM COORDINATOR - THE DAMAGE MODEL'S INTEGRATION BRANCH, THE PLAN AS SESSIONS, THE USER'S FINAL RULINGS (2026-10-04, local, branch claude/dmg-integration)
+
+A sub-coordinator under A0, as the Sound Coordinator is for sound. Scope: deformation, structural failure, crashes,
+fire, the repair bill (`futureDesigns/DEFORM-AND-BREAK-2026-10-04.md`).
+- **The branch:** `claude/dmg-integration` off master (train 30), carrying the design session's four doc commits
+  (902d3a6, 5978f88, 18bc13d, 354925e; doc + HANDOVER only) and this fourth pass. Every `claude/dmg-*` worker
+  branch merges here; A0 gets one frozen, rebased SHA per train.
+- **§12, the user's rulings, final:** dm10 a damaged aeroplane is GROUNDED UNTIL REPAIRED (a write-off: Scrap / Sell,
+  no Repair); dm11 it may be edited, a rebuilt section billed at its build price instead of its repair line; dm12 the
+  garage draws the pristine model + DAMAGED tag + the bill + the wreck's last frame as a logbook still (no per-beam
+  state stored). With bh, dm6, dm9.
+- **§11.1, the sessions:** D0 INSTRUMENTS G1800-G1809 and D1a MEMBERS G1810-G1819 now, in parallel, cloud, off
+  TREE-CRASH; D1b WRECK INTEGRITY G1820-G1829 (train 34 = D0 + D1a + D1b); D2a CERTIFICATE G1830-G1834, D2b GEAR
+  G1835-G1839, D3 CLUSTERS G1840-G1849 (train 35, damage ON); D4a SKIN G1850-G1859 (cloud) and D4b WRECK DRAWN
+  G1860-G1869 [LOCAL-GPU] (train 36); D5 ENDINGS / BILL / FIRE G1870-G1889 and TUNE G1890-G1897 (train 37);
+  G1898-G1899 the coordinator's own.
+- **§11.2, every step's acceptance:** damage off = master's bytes; the stock step within 2 % of G1332's 2.30 ms with
+  nothing touching (checks only inside `armFrame`'s armed path); normal operations never yield (TREECRASH's margins);
+  **the WATER CASE** (pancake, 100 km/h ditch, float nose-in - GEAR-WATER 2 needs nothing more); **GATE DMGFPS**
+  (the physics dt is fixed at 1/60, so 2 / 5 / 10 / 30 fps change the batching only: verdict, broken list and work
+  equal the 60 fps run); validated builds only (the user's Cub file, not 'default'; the Beaver rows run on the
+  Cessna on floats and the Cub / Jodel).
+- **§11.4, the switch:** proposed to A0 for train 32 - one constant `GEN_DAMAGE_DEFAULT = false` beside `GEN_CRASH`,
+  `DMG_ON = (P_.damage ?? GEN_DAMAGE_DEFAULT) === true && ...`, the damage gates set `damage: true` explicitly,
+  `?damage=1|0` on the page; train 35 flips the one constant.

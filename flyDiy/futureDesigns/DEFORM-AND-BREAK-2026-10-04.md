@@ -37,6 +37,11 @@ Nothing in `src/` breaks, yields or ends a flight on load today. **"BROKE UP" me
 (G1470-G1479, train 32), which A0 pointed to and the first draft did not know: see **§4.0**; the plan in §11 follows
 A0's order.
 
+**Fourth pass (DEFORM COORDINATOR, same day, branch `claude/dmg-integration`):** the user's final rulings dm10-dm12
+(§12); the WATER CASE and the low-frame-rate rule in every step's acceptance; the validated builds the scenarios run
+on; the G-block sub-allocation, the sessions as chips and the hand-off per train (**§11.1-§11.4**); the damage switch's
+default as one constant (§11.4).
+
 **Third pass (same day): re-based on TREE-CRASH (§4.0, §11, A0's order and G-block) and the user's rulings on
 the bench and the repair bill (§12).** **Revised the same day (second pass)** after the user's own crash study and four answers:
 - the reference aircraft: Cub, Cessna 172, Robin/Jodel, Beaver;
@@ -989,11 +994,87 @@ component test, groups), D4's mesh breaking and debris, and the bill as a readou
 **Not in this plan:** self-collision beyond §8.2, collision triangles, monocoque crumpling, fatigue, post-buckling
 softening, yield on total force, length-aware k, damage carried into a flight.
 
+### 11.1 The sessions, the G-block and the trains (DEFORM COORDINATOR's allocation, 2026-10-04)
+
+The coordinator (local, `claude/dmg-integration`) integrates every `claude/dmg-*` branch, runs the gates and hands A0
+**one frozen, rebased SHA per train**. Cloud first: the physics is node-only. Only D4b needs the box's GPU.
+
+| session | G | where | base / depends on | content (§) | train |
+|---|---|---|---|---|---|
+| **DMG-D0 INSTRUMENTS** | G1800-G1809 | cloud | TREE-CRASH | `sim-diverged` / `broke-up` split (dm4: `app.js` watchdog, `65_gen_loadtest.js`, `bench.js:148`); the velocity guard (§5.4: a node over 150 m/s relative to the CG = a sim fault); **per-beam plastic work** (one `Float64Array`, `DMG.wB`); every beam stamped with its ledger **section** (`bm.sec`, §10.1); the Frame-mode overlay (`|F|/limit`, set, broken; §5.2); **GATE DMGFPS** (§11.2 #5) | 34 |
+| **DMG-D1a MEMBERS** | G1810-G1819 | cloud | TREE-CRASH; parallel to D0 | the **seam** tags (`fitting / rivet / bond / opening`, §7.2) and their rules (brittle fittings, η, Kt; until D2 a fitting's `Fu` is 1.15 × its member's physics `Fu`); **Euler `Fc`** (§4.1); the **kink floor** (§4.0: a kinked member keeps a compression-only floor at its crushed length); wood's **ragged break** (2-3 stages, seeded ±15 %); **break groups** (§4.4) with the closed-set assertion | 34 |
+| **DMG-D1b WRECK INTEGRITY** | G1820-G1829 | cloud | D1a | the strip **component test** in place of the any-break kill, the **refs-core** check (`broke-up` when the body frame's refs part, §4.5); **SUPPORT beams** on the known intrusion paths, only where a gate shows a pass-through (§4.6, §8.1) | 34 |
+| **DMG-D2a CERTIFICATE** | G1830-G1834 | cloud | D1b | §4.3 (c): the four load cases, the per-beam envelope, the stamp with physics floors and the Euler ceiling; the bench's **TEST TO DESTRUCTION** (free, dm6); the card prints limit / ultimate / broke-at; the bad-design wing fails its bench | 35 |
+| **DMG-D2b GEAR** | G1835-G1839 | cloud | D2a | the gear bracket (§7.3); the landing gates; **the default flip** (§11.4) as its last commit, A0's to take | 35 |
+| **DMG-D3 CLUSTERS** | G1840-G1849 | cloud | D1b (parallel to D2) | §4.7 (i) root moment / torque limits on TREE-CRASH's release; the mid-span boom station (§7.1 #8); float struts against the water case | 35 |
+| **DMG-D4a SKIN** | G1850-G1859 | cloud (+ `tools/soft_still.js` once train 31 lands) | D1b | the broken list over the worker on change (G1474's owed hop); **mesh breaking** in `poseSkinGen`; fabric drape; the geometry checked in node (no stretched triangle over a broken member) | 36 |
+| **DMG-D4b WRECK DRAWN** `[LOCAL-GPU]` | G1860-G1869 | local, GPU lock | D4a | debris for the non-member parts (cowl, spinner, blades, fairings, glazing, wheels, §8.3); the prop strike drawn; fleet-model part detach; **GATE CLIP on the wreck** (§8.5); the cockpit camera rule; FRAMECOST on a wreck | 36 |
+| **DMG-D5 ENDINGS, BILL, FIRE** | G1870-G1889 | cloud | D0 (per-beam work), D2 | reason-specific endings; **the bill** (§10) per section + event lines; the garage's DAMAGED state, Repair / Scrap / Sell, edits billed at build price, the pristine model + tag + bill + logbook still (dm9-dm12); write-off; fire (§9); SND hooks (crash sounds agreed with the Sound Coordinator) | 37 |
+| **DMG-TUNE** | G1890-G1897 | cloud (A0 opens the NASA / CFR sources on the box first) | all | §7.4's scenarios on the validated builds (§11.2 #6) | 37 |
+| coordinator | G1898-G1899 | local | — | integration fixes, the switch (§11.4) | each |
+
+**Parallelism:** D0 ∥ D1a now (both off TREE-CRASH; the coordinator merges `30_solver.js`). D2a ∥ D3 once D1b is in.
+D4a can start on D1b. A0 may move the train slots; the table moves with them.
+
+### 11.2 Every step's acceptance (on top of its own gates)
+
+1. **Off = master.** With `params.damage === false` every physics gate's output is byte for byte the previous
+   train's (TREE-CRASH's G1478 method: GATES_CORE=1, the whole output diffed).
+2. **PERFORMANCE, no regression ever.** The stock build's `sim.step(1/60)` in node, the layer on and nothing
+   touching, **within 2 % of G1332's 2.30 ms** (TREE-CRASH's `treecrash_evidence.js --perf-only`: the median of 5
+   processes' medians, 600 steps, the Cub and the Cessna, ground and air, a far trunk set registered). Every new
+   check lives **inside the armed path** (`armFrame`). The in-contact cost is reported, not gated. A0's strict gate
+   (`tools/perf/train_gate.js`) on every train.
+3. **Normal operations never yield.** TREECRASH's margins on the validated builds (circuit 0.12-0.19 of yield,
+   FAR 23.473 drop 0.13-0.21, bench 5.7 g up to 0.82) stay under 1 and are re-printed by every step; D2 adds a
+   hard landing at the gear's limit and the card's limit-g pull (no set) and changes what "yield" means only through
+   the certificate.
+4. **THE WATER CASE** (GEAR-WATER 2, G1384: the water reaches the beams as the ground does; it needs nothing more
+   from the water): **the 5 m/s level pancake, the Cub's 100 km/h / 4 m/s / 10° nose-down ditch, and the float
+   nose-in** (90 km/h, 5 m/s, 20°), all in GATE TREECRASH §6 today. Each step keeps them green and reports their
+   damage list; an ordinary float touchdown (8-24 % of yield) never yields; D3 adds the float strut letting go on
+   the nose-in; a holed slice (S8.br) stays a dent, not a crash.
+5. **LOW FRAME RATE never fakes a yield or a crash.** The physics dt is fixed: the page flies `nStep = pc.steps ×
+   simRate` steps of 1/60 a frame (`app.js` loop), the worker `H.step` likewise, and `dmgFrame`'s 50 ms filter uses
+   the solver's own 1/60. So a low frame rate changes the BATCHING, not the step. **GATE DMGFPS (D0):** a trunk crash,
+   a legal hard landing and the water pancake, stepped as the page batches them at **2 / 5 / 10 / 30 fps** (30 / 12 /
+   6 / 2 steps a frame, the PACE cap's dilation included) and through the worker host; the verdict, the broken list
+   and the plastic work equal the 60 fps run (bitwise where only the batching differs), and the no-yield cases stay
+   at zero. **Never pass a page dt into the damage layer.** POSE-BACK (G1530, train 32) is re-checked under it.
+6. **Validated builds only:** the user's Cub `builds/cub_2026-09-20_corrected.json` (not 'default'), the Jodel, the
+   Cessna, the Cessna on floats, the twin on floats. §7.4's Beaver rows run on the Cessna on floats (float dig-in)
+   and the Cub / Jodel (ground loop); the Beaver stays a reference for the outcome. Archetypes are never tuned.
+7. **Numbers that become gates** come from sources A0 has opened on the box (§1); search summaries stay ranges.
+   Nothing from RoR (GPLv3) or BeamNG Lua (bCDDL) is pasted into `src/` (§13).
+
+### 11.3 How a DMG session works
+
+- Branch off **`origin/claude/tree-crash-g1470`** until train 32 lands, off master after (rebase then). Push only
+  **`claude/dmg-<name>`**; never master; never the generated files (`index.html`, `dev.html`, `sw.js`,
+  `version.json`, `tools/flight_core.js`, the parked cook).
+- Its G-numbers on every commit; **READY commit subject** `READY: G18xx-G18yy DMG-<NAME> - <what>`; a **HANDOVER
+  entry** (what changed, the gates with their numbers, perf, the open questions); evidence (plots, top-downs,
+  stills) under `flyDiy/reports/evidence/DMG-<NAME>/`.
+- Cloud sessions cannot message the coordinator: the coordinator reads their HANDOVER diffs on their branches.
+
+### 11.4 The switch's default — one constant
+
+TREE-CRASH reads `DMG_ON = P_.damage !== false && …` (on unless told off). For train 32 (off by default) and train
+35 (on), the coordinator's proposal to A0:
+- `60_gen_spec.js`, beside `GEN_CRASH`: `const GEN_DAMAGE_DEFAULT = false;` and in `30_solver.js`:
+  `const DMG_ON = (P_.damage ?? GEN_DAMAGE_DEFAULT) === true && typeof GEN_CRASH !== 'undefined';`
+- the damage gates and the evidence say what they test: `_treecrash_lib.js` sets `damage: true` (and `false` for
+  `elastic`), as does any DMG gate;
+- the page: `?damage=1` / `?damage=0` set `params.damage` for a flight, so the user can try it before train 35;
+- **train 35 (D2b's last commit) flips the one constant**; `params.damage === false` stays master's bits for A/B.
+- With the default off, the gates whose numbers TREE-CRASH moved only through yielding (TREEHIT, OBSTACLE, BIPLANE's
+  wire probe) read master's numbers again; LOAD's bag fix (G1472) is independent of the switch.
+
 ---
 
 ## 12. RULINGS
 
-**Taken by the user** (2026-10-04, the last two relayed by A0):
+**Taken by the user** (2026-10-04, dm6 onwards relayed by A0; all final):
 - **(bh) Damage is NOT carried into a flight.** Wear comes later and acts on reliability. A repair bill is computed
   from the ledger's sections (§10).
 - **(dm6) The bench's TEST TO DESTRUCTION is FREE.** It never costs the airframe or the wallet. It is the
@@ -1005,30 +1086,21 @@ softening, yield on total force, length-aware k, damage carried into a flight.
   flight. The wallet itself is GAME-LAYER's P5a. Until it exists, Repair shows the bill and records it in the
   logbook.
 
-**Proposed, for A0 to confirm with the user:**
-- **(dm10) What a damaged aeroplane can do until it is repaired.** The two readings:
-  - **(a) Grounded until repaired (recommended).** The garage marks it DAMAGED with the bill. Fly is disabled; the
-    only ways forward are Repair (pay the bill), Scrap or Sell as salvage, and for a write-off (§10's 75 %) only
-    Scrap or Sell.
-  - **(b) Pay at launch.** Fly is allowed, and pressing it presents the bill: "repair and fly". There is no
-    separate damaged state the player lives with.
+- **(dm10) A damaged aeroplane is GROUNDED UNTIL REPAIRED** (the user via A0, 2026-10-04; option (a) of the third
+  pass). The garage marks it DAMAGED with its bill. Fly is disabled; the ways forward are **Repair** (pay the bill),
+  **Scrap** or **Sell** as salvage. A **write-off** (§10's ~75 %) has no Repair: only Scrap or Sell. The rejected
+  reading (b), "pay at launch", folded the repair into the Fly button.
+- **(dm11) A damaged aeroplane MAY be edited** (the user via A0). A section the player rebuilds or replaces is billed
+  at its **build price** instead of its repair line; Repair then charges only the rest. (A rebuilt section's repair
+  line leaves the bill the moment the section is rebuilt; the build price is charged by the garage's ordinary
+  ledger, so nothing is billed twice.)
+- **(dm12) The garage draws the PRISTINE model** + a **DAMAGED tag** + **the bill** + **the wreck's last frame as a
+  logbook still** (the user via A0). No per-beam state is stored: damage is not carried between flights (bh).
 
-  **Why (a) reads better:**
-  - It is what the user said: the charge happens only on an *explicit* repair, and (b) folds the repair into the
-    fly button.
-  - It keeps the consequence visible. The wreck has a place in the hangar, with its bill, until the player deals
-    with it.
-  - It fits the fleet game (GAME-LAYER: several aeroplanes, routes). A grounded airframe costs time and options,
-    and the player flies another one meanwhile.
-  - It gives write-off a natural home: no Repair button, only Scrap or Sell.
-
-  **Two sub-points for A0 if (a) is taken:**
-  - **Editing a damaged aeroplane in the garage.** Proposed: allowed. A section the player rebuilds or replaces is
-    billed at its build price instead of its repair line, so rebuilding the wing that broke replaces that line.
-    Repair then charges only the rest.
-  - **What the garage draws.** Proposed: the pristine model with a DAMAGED tag and the bill's list, plus the
-    wreck's last frame as a still in the logbook. Storing per-beam state only to draw it would contradict (bh)'s
-    spirit.
+**What the garage stores for a damaged aeroplane (dm9-dm12, D5):** `{ damaged: true, writeOff, bill: [{ section |
+event, line, cost }], at: flight id, still: logbook image id }` on the build's garage record. Nothing in the
+build's spec changes, so a damaged build is the same spec as the pristine one; the tag is the garage's, and
+clearing it (Repair) is the only thing Repair does besides charging.
 
 **Recommended, standing:**
 - **(dm1) Calibration: certificate-anchored (§4.3 c)** with physics floors and Euler as a hard ceiling. The gear
