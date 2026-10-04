@@ -300,8 +300,19 @@ function makeLoadTest(sim, def, cfg) {
   // strains 0.11-0.20 at 1 g, tips -13 % to +35 %, tubeFabric alone sane)
   // made it a defect. A trestle does not let go between substeps: the
   // clamp now runs inside the frame, after every substep.
+  // G1470 (TREE-CRASH): ...AND THE BAGS PRESS EVERY SUBSTEP. They were one impulse a FRAME (n W dt on the bag nodes,
+  // then SUB substeps free): the true metal box's kilohertz modes rang at 2x the bags' static force between frames
+  // (measured on the metal Cessna's lift strut at 3.8 g: 106 % of its yield at the substep peak, 52 % sampled at the
+  // frame's end, the static answer). Harmless while nothing read a substep's force; the damage model does (a member
+  // yields at its force), and a sandbag does not hit the wing 60 times a second. The same impulse a frame, spread over
+  // its substeps: the settled shape, the deflections and the frame-end forces are the same load.
+  const _imp = [];   // [node, ix, iy, iz] per bag / carried node, this frame's whole impulse
   function stepClamped(dt) {
-    for (let k = 0; k < SUB; k++) { sim.step(dt / SUB, 1); clamp(); }
+    for (let k = 0; k < SUB; k++) {
+      for (let q = 0; q < _imp.length; q++) { const I = _imp[q]; sim.impulse(I[0], I[1] / SUB, I[2] / SUB, I[3] / SUB); }
+      sim.step(dt / SUB, 1); clamp();
+    }
+    _imp.length = 0;
   }
   function step(dt) {
     if (state.done || !ok) return state;
@@ -325,14 +336,14 @@ function makeLoadTest(sim, def, cfg) {
     // fin's case (P4) presses SIDEWAYS along the body's own right axis.
     if (AX === 1) {
       for (let k = 0; k < bags.length; k++)
-        sim.impulse(bags[k][0], 0, -n * bags[k][1] * dt, 0);
+        _imp.push([bags[k][0], 0, -n * bags[k][1] * dt, 0]);
       // ...and what the wing carries pulls the other way (G179, see `carried`)
       for (let k = 0; k < carried.length; k++)
-        sim.impulse(carried[k], 0, n * def.nodes[carried[k]].m * 9.81 * dt, 0);
+        _imp.push([carried[k], 0, n * def.nodes[carried[k]].m * 9.81 * dt, 0]);
     } else {
       const zB = sim.axes()[2];
       for (let k = 0; k < bags.length; k++)
-        sim.impulse(bags[k][0], -n * bags[k][1] * dt * zB[0], -n * bags[k][1] * dt * zB[1], -n * bags[k][1] * dt * zB[2]);
+        _imp.push([bags[k][0], -n * bags[k][1] * dt * zB[0], -n * bags[k][1] * dt * zB[1], -n * bags[k][1] * dt * zB[2]]);
     }
     stepClamped(dt); relax();
 
