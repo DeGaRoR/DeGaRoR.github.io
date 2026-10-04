@@ -34,6 +34,7 @@ var AUDIO_PARAMS = (function () {
   'use strict';
   const AP_MAX_ENG = 4;
   const AP_CONTACT_HZ = 30;
+  const AP_AGL_HZ = 2;   // G1672: two terrain samples twice a second (a sample returns a boxed double: rare on purpose)
   // the scalars, in block order (append only: a source may hold an index)
   const AP_SCALARS = [
     'nEng', 'dt',   // (no sim time: sim.t is a getter on both paths, and a getter's double comes back boxed)
@@ -47,6 +48,9 @@ var AUDIO_PARAMS = (function () {
     'camMode', 'interior', 'inGarage', 'held', 'listenerX', 'listenerY', 'listenerZ',
     // the cabin from the build (§4: the insulation is the build's): 1 = no glazing (an open cockpit)
     'open',
+    // G1672: the height above the ground or the water under the aeroplane, metres, read at AP_AGL_HZ (the music's
+    // cruise, the ambience's altitude weights - coarse consumers); with no world, the altitude itself
+    'agl',
   ];
   const AP_ENGINE = ['rpm', 'rpmEng', 'thr', 'running', 'crank', 'key', 'thrustPer',
                      'cyl', 'twoStroke', 'blades', 'D', 'gear', 'family',
@@ -69,7 +73,8 @@ var AUDIO_PARAMS = (function () {
   function audioParamsBlock() {
     const block = new Float32Array(LEN);
     // clk[0]: the seconds since the contacts were last read (a typed slot: a double in an object field is a fresh box per write)
-    const out = { block, I, s: block.subarray(0, NS), def: null, nE: 0, clk: new Float64Array(1) };
+    // clk[1]: the seconds since the height above ground was last read (G1672)
+    const out = { block, I, s: block.subarray(0, NS), def: null, nE: 0, clk: new Float64Array(2) };
     AP_ENGINE.forEach((k, j) => { out[k] = block.subarray(NS + j * AP_MAX_ENG, NS + (j + 1) * AP_MAX_ENG); });
     // the surfaces' wheel nodes (resolved per def): mains then tail, -1 = none
     out.wheelNode = new Int32Array(3).fill(-1);
@@ -118,7 +123,7 @@ var AUDIO_PARAMS = (function () {
     W[2] = refs.tw != null && refs.tw >= 0 ? refs.tw : -1;
     out.s[I.open] = spec.cabin && spec.cabin.glazing === 'none' ? 1 : 0;
     out.s[I.nEng] = nE;
-    out.nE = nE; out.def = def; out.clk[0] = 1e9;   // a new aeroplane reads its contacts on its first frame
+    out.nE = nE; out.def = def; out.clk[0] = 1e9; out.clk[1] = 1e9;   // a new aeroplane reads its contacts on its first frame
   }
 
   const num = (x, d) => (typeof x === 'number' && x === x ? x : d);
@@ -198,11 +203,26 @@ var AUDIO_PARAMS = (function () {
       s[I.surf1] = m1 ? (wat ? AP_SURF_WATER : surfAt(world, sim, W[1])) : -1;
       s[I.surfT] = tw ? (wat ? AP_SURF_WATER : surfAt(world, sim, W[2])) : -1;
     }
+    // the height above ground (G1672), at AP_AGL_HZ: the altitude less the higher of the terrain and the water under
+    // the first main (or node 0), sampled at whole metres. Written here, in the hot function: a helper called twice a
+    // second would run in V8's lower tiers, where every double is a fresh box (the world's own samplers still box
+    // their answers - two calls at 2 Hz, the world's)
+    clk[1] += num(dt, 0);
+    if (clk[1] >= 1 / AP_AGL_HZ) {
+      clk[1] = 0;
+      const alt = s[I.alt];
+      if (world && typeof world.terrainH === 'function' && sim && sim.p) {
+        const n = out.wheelNode[0] >= 0 ? out.wheelNode[0] : 0, x = sim.p[n * 3] | 0, z = sim.p[n * 3 + 2] | 0;
+        let g = +world.terrainH(x, z);
+        if (typeof world.waterH === 'function') { const w = +world.waterH(x, z); if (w > g) g = w; }
+        s[I.agl] = g === g ? alt - g : alt;
+      } else s[I.agl] = alt;
+    }
     return out;
   }
 
   return { audioParams, audioParamsBlock, audioResolve, AP_SCALARS, AP_ENGINE, AP_MAX_ENG, AP_CAM, AP_KEY, AP_FAMILY,
-           AP_FALLBACK, AP_CONTACT_HZ, I };
+           AP_FALLBACK, AP_CONTACT_HZ, AP_AGL_HZ, I };
 })();
 if (typeof window !== 'undefined') window.AUDIO_PARAMS = AUDIO_PARAMS;
 if (typeof module !== 'undefined' && module.exports) module.exports = AUDIO_PARAMS;

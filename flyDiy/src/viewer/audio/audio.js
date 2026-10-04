@@ -66,6 +66,7 @@ var AUDIO = (function () {
     ['muteUnfocused', 1, 'bool', 'mute when unfocused', 'silent while another window has the focus'],
     ['headset', 0, 'bool', 'headset', 'in the cockpit, the way a pilot hears it: ~15 dB quieter'],
     ['musicFlight', 0, 'bool', 'music in flight', 'the music plays in the shed; in the air only with this on'],
+    ['musicGarage', 1, 'bool', 'music in the garage', 'the shed\'s playlist, with silences between the tracks'],   // G1672 (music.js)
   ];
   const DEF = {}; for (const r of SETTINGS) DEF[r[0]] = r[1];
   const readSetting = k => {
@@ -93,6 +94,8 @@ var AUDIO = (function () {
       if (kind === 'vol') kit.range(body, label, 0, 100, 1, () => Math.round(api.get(k) * 100), v => api.set(k, v / 100), v => v + ' %');
       else toggle(label, () => !!api.get(k), on => api.set(k, on ? 1 : 0));
     }
+    // G1672: the rows a source adds (music.js: skip track, now playing), each in its own try
+    for (const fn of api.rowHooks || []) { try { fn(body, kit, toggle); } catch (e) { console.warn('flyDiy audio: a settings row threw', e); } }
   }
 
   // ---- ?audio=0: NOTHING. A stub with the same surface, no listener, no block, no context -------------------
@@ -100,7 +103,7 @@ var AUDIO = (function () {
     const stub = { enabled: false, state: 'off', ctx: null, params: null, stats: null,
       update() {}, bus() { return null; }, addSource() { return null; }, onEvent() {}, emit() {},
       module() { return Promise.resolve(false); }, get: k => readSetting(k), set() {},
-      stateLine: () => 'off', unlock() {},
+      stateLine: () => 'off', unlock() {}, addRows() {}, inGarage: false, welcome: false,
       enable(on) { if (on && query !== '0') prefSet(PREF, '1'); },
       mount(body, kit) { mountRows(stub, body, kit, true); } };
     return stub;
@@ -118,6 +121,15 @@ var AUDIO = (function () {
   let ctx = null, P = null;
   let suspendTimer = 0, silent = false, hidden = false, focused = true, held = false;
   let interior = 0, flying = 0;
+  // G1672 THE WELCOME: the first boot's loading screen (BOOT, boot.js) is not the air - nothing flies under it, and
+  // the welcome music plays there. Latched off for good once that overlay is gone (a later roll-out screen is not it).
+  let welcome = 1, garage = 0;
+  const welcomeNow = () => {
+    if (!welcome) return 0;
+    const B = W.BOOT;
+    if (!B || B.state === 'gone') welcome = 0;
+    return welcome;
+  };
   // the listener, handed to audioParams; its position in a typed slot (a double written into an object field is a fresh
   // heap box on every write - the frame must not allocate)
   const CAM = { mode: null, inGarage: false, held: false, p: new Float64Array(3) };
@@ -129,6 +141,8 @@ var AUDIO = (function () {
 
   const api = {
     enabled: true, state: 'armed', ctx: null, params: null, stats, SETTINGS,
+    rowHooks: [], addRows(fn) { api.rowHooks.push(fn); },   // G1672: fn(body, kit, toggle) adds rows under the settings
+    get inGarage() { return garage === 1; }, get welcome() { return welcome === 1; },   // G1672: what update() last saw
     bus: name => N[name] || null,
     get: k => set[k],
     set(k, v) {
@@ -308,7 +322,8 @@ var AUDIO = (function () {
     const cp = camera && camera.position;
     if (cp) { CAM.p[0] = cp.x; CAM.p[1] = cp.y; CAM.p[2] = cp.z; }
     if (P && sim && def) AP.audioParams(sim, CAM, def, P, world, dt);
-    const inn = !inGarage && CAM.mode === 'cockpit' ? 1 : 0, fl = inGarage ? 0 : 1;
+    garage = inGarage ? 1 : 0;
+    const wl = welcomeNow(), inn = !inGarage && CAM.mode === 'cockpit' ? 1 : 0, fl = inGarage || wl ? 0 : 1;
     if (inn !== interior || fl !== flying) {
       const was = interior; interior = inn; flying = fl; applyGains();
       if (was !== inn) emit('perspective', inn);

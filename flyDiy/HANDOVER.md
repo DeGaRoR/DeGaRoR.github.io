@@ -68508,3 +68508,99 @@ at 6034 engine rpm; a steady frame schedules nothing but the 1 s-tau warm-up (~e
 BUILD, UISMOKE, JOIN PASS. NOT YET: a browser (the first real context and the worklet's load on Pages) - the strict gates'
 headed Chrome clicks, so A0's train run is the first real hearing; GATE AUDIO does not yet cover src_engine (SND-PROP
 extends GATE AUDIO when it adds its own source next to this one).
+
+## G1670-G1674 - SND-MUSIC: THE MUSIC PLAYER - STREAMED, FOUR CONTEXTS, SHUFFLED, SILENCES IN THE SHED, EQUAL-POWER CROSSFADES, DUCKED, CREDITED BY CONSTRUCTION (2026-10-04, SND-MUSIC for the Sound Coordinator, cloud, node only; branch claude/snd-music-g1670 off claude/sound-integration 32f01f8a; G1675-G1679 unused)
+
+Design: futureDesigns/SOUND-2026-10-04.md §2.4 / §7.2 / §7.3, rulings s4 (streamed, never decoded), s6 (music in flight OFF by
+default), s9 (credits by construction). No real music ships: src/viewer/audio/music_catalogue.json is `[]` (silent player, "No
+music ships yet." on the credits screen) until the coordinator writes the user's picks.
+G1670 src/viewer/audio/music.js -> window.AUDIO_MUSIC + AUDIO.addSource('music'). TWO <audio> elements, made in connect() (the
+  gesture) -> MediaElementAudioSourceNode -> a gain each -> one duck gain -> AUDIO.bus('music'); preload 'none' until a track is
+  asked of them; a finished / faded element is emptied (pause, removeAttribute('src'), load()). An element connects to a media
+  source once in its life, so sound off/on makes two new ones. CONTEXTS (contextOf, pure): WELCOME = the first boot's loading
+  screen once the gesture exists (AUDIO.welcome) - DECIDED: music may start during the load (one element at ~16 KB/s, decoded by
+  the media thread, nothing on the main thread, nothing before the gesture); GARAGE = AUDIO.inGarage, track to its end then a
+  RANDOM 30-120 s SILENCE, the next at full level; CRUISE = only with 'music in flight' on and only in a cruise (cruiseStep,
+  pure: off the ground, agl >= 200 m held 20 s, flaps <= 0.05, V >= 15; out at once below 120 m, flaps out, vs < -2.5 under
+  450 m = the approach, a wheel down); PHOTO = the hook for CELEBRATION: AUDIO_MUSIC.setPhoto(on) or AUDIO.emit('photo', on)
+  (outranks the rest; a photo mode that sets FLYDIY_HELD silences ALL sound - audio.js's pause - so it must not). 'music in the
+  garage' off silences welcome + garage. A context with no track of its own borrows (welcome / photo -> garage; cruise never).
+  SHUFFLE: a bag per context, every track once per round, a round never opens on the last track; seeded xorshift (seed(n)).
+  CROSSFADE 4 s EQUAL-POWER on setValueCurveAtTime (trim x sin / trim x cos of one phase, a 64-point curve computed once, a fade
+  caught mid-fade starts where it is - lvlAt), with a 3 s preload of the next element before it; welcome / cruise / photo / skip /
+  a context change crossfade. LEAVING A CONTEXT: the track plays on if it is tagged for the new context too (the welcome's track
+  carries into the shed), else a 4 s fade-out (crossfading into the new context's first track); where it stopped is kept per
+  context and resumed on the next visit (> 20 s left). DUCK -10 dB under AUDIO events 'engine' (start / catch), 'stall'
+  (SND-AIRFRAME's, when it lands) and 'duck' (anyone): attack tau 0.12 s, held 6 s after the LAST event, released tau 0.8 s.
+  LEVEL: catalogue lufs -> trim to -16 LUFS (the prep target: a residual), clamped -12..+6 dB. SUSPEND: AUDIO 'suspend' pauses the
+  playing elements, 'resume' plays them; the timers wait. THE FRAME: reads the block and typed slots (the element clocks arrive by
+  'timeupdate' into a Float64Array - a DOM double read per frame would box), schedules nothing when steady, ALLOCATES NOTHING
+  (100 000 calls: 0 GC, +4 KB = noise, 0.1 us a call). A short track gets a shorter fade (dur / 4).
+G1671 ONE LINE in src_engine.js (2 lines touched): AUDIO.emit('engine', 'start') when the starter engages, 'catch' when a
+  stopped engine starts running (not on a voice built with the engine already turning).
+G1672 SND-CORE touches. audio.js (+17 / -2): the setting ['musicGarage', 1, 'bool', 'music in the garage']; AUDIO.addRows(fn)
+  (fn(body, kit, toggle) draws rows under the settings - music.js adds 'skip track' and 'music credits'; the stub has a no-op);
+  read-only AUDIO.inGarage / AUDIO.welcome (what update() saw); THE WELCOME IS NOT THE AIR: `flying` (which zeroes the music bus
+  when music in flight is off) is now inGarage || the first boot's overlay (W.BOOT.state !== 'gone', latched off for good once
+  gone) - before, the bus sat at 0 through the whole first load because inGarage is false until enterGarage. This answers
+  SND-CORE's owed "should loading silence anything": no - the load is the welcome. audio_params.js (+23 / -3): the scalar 'agl'
+  (appended) = alt - max(terrainH, waterH) under the first main, at AP_AGL_HZ = 2, written inside audioParams (a helper called
+  twice a second runs in V8's lower tiers where every double boxes: measured +0.5 B a frame on GATE AUDIO's BUDGET until it was
+  inlined); no world -> the altitude. The world's own samplers still box their answers (two calls at 2 Hz; the world's).
+G1673 THE CATALOGUE, THE CREDITS, THE CACHE. THE SCHEMA (validate() lists what is wrong):
+    [{ id, file, title, artist, album, licence, source, contexts: ['garage'|'welcome'|'cruise'|'photo', ...], lufs, durationS, credit? }]
+    file 'media/audio/music/<stem>.<h8>.(mp3|ogg|opus|m4a|webm)' (written by _media_lib writeMedia('audio/music', stem, 'mp3', buf):
+    content-versioned), resolved as FLYDIY_ASSET_BASE + file like every baked manifest path; licence CC0 | CC0 1.0 | CC-BY 3.0 |
+    CC-BY 4.0 | Public domain (s3); source = the track's page; credit = the exact attribution a CC-BY artist asks for (Scott
+    Buckley's line), else composed '"Title" by Artist (Album) — licence'.
+  DEVIATION FROM THE BRIEF, ON PURPOSE: the catalogue lives at src/viewer/audio/music_catalogue.json, NOT media/audio/music/
+  catalogue.json. (1) sw.js serves /media/ cache-first FOR EVER and an unhashed JSON there would never update on a returning
+  player; (2) GATE MEDIA holds every file under media/ referenced by a manifest - a manifest under media/ is an orphan; (3) the
+  repo's own convention: manifests in src/, bytes in media/. The build INLINES it (window.FLYDIY_MUSIC, beside FLYDIY_AUDIO_SRC in
+  both pages): never fetched, current by construction. THE CACHE: sw.js could not cache music at all - an <audio> element asks
+  by Range, the network answers 206, and the Cache API refuses a 206; every play went to the network. build.js's sw template now
+  answers a Range request from the cache: a miss fetches the WHOLE file once (no Range), caches the 200, and every range is cut
+  from it (206 + Content-Range; suffix ranges; 416 past the end). Tested in node against the generated sw.js (four ranges, one
+  network fetch). Cost: the first play of a track waits for its whole file (~3 MB at 128 kbps); the SW holds the bytes, not the page.
+  CREDITS: the shed's about line #credit (body.html, the CC-BY model credits) gains a 'music & sound credits' link, added by
+  music.js at load (no hot-file touch; there with ?audio=0 too - attribution is not the sound's), opening a dialog: every
+  catalogue track (creditRows, linked to its page) then SOUND_CREDITS (Antonio-R1 / DasEtwas MIT, Baldan et al.). CREDITS.md's
+  "### Music" now carries a generated block (<!-- MUSIC:BEGIN ... --> / <!-- MUSIC:END -->, today "No track ships yet.") written
+  by tools/audio/music_credits.js from the catalogue (--check: exit 1 when stale); the candidates paragraph stays below it.
+  NOW PLAYING: '♪ Title — Artist · licence' for 6 s at a track's start in the garage, #musicNow (made by music.js), fixed at
+  left: var(--ws-left) + 22 px, bottom 18 px (the mirror of #edActs), pointer-events none, fades 1.2 s. Not seen in a browser.
+  TEST TRACKS: tools/audio/fixtures/make_music_fixtures.js (deterministic) -> test_chord.<h8>.wav, test_noise.<h8>.wav (2 s,
+  8 kHz mono, 32 KB each) + test_catalogue.json; GATE AUDIO only, never under media/.
+G1674 GATE AUDIO extended (tools/audio/_audio_check.js, ~5 s; FILES += music.js, src_engine.js, music_catalogue.json,
+  CREDITS.md): the page harness keeps each AudioParam's automation (at(t) evaluates setValue / setTarget / linear / curve,
+  cancel per the spec), gives the context createMediaElementSource (throws on a second connection) and a DOM with fake <audio>
+  elements on a manual clock (timeupdate / ended), and runs music.js in audio.js's own vm context. NINE CHECKS: MUSIC_CAT,
+  MUSIC_CTX (welcome -> garage carry -> flight off = faded + 0 streaming + bus 0 -> on: ground / climb / 22 s level / flaps /
+  approach / 100 m; garage off/on + RESUME; photo; suspend; sound off/on = 2 new elements), MUSIC_SHUFFLE, MUSIC_GAPS (an hour:
+  30..120 s, spread; never 3 elements, 2 only for the 3 s preload, nothing streaming in a silence but its last 3 s), MUSIC_XFADE
+  (one 4 s window, power within 2 %, trims, skip), MUSIC_DUCK (-10 +-0.5 dB, re-armed hold, released), MUSIC_BUDGET (no
+  decodeAudioData / new Audio() in the text, 2 elements + 2 sources per context born preload none, steady = nothing scheduled,
+  the update 0 GC / no growth over 100 000 frames), MUSIC_CREDITS (three catalogues, the screen's rows = the catalogue ids, the
+  origins named, CREDITS.md's block = the shipped catalogue's), MUSIC_WIRING; CONTACTS gained agl (water, land, 2 Hz, no world).
+  SELFTEST 73 mutations (27 core + 46 new), each red on its own check with the reason it was written for; files byte-identical.
+  Three of my first mutations stayed green and the TESTS were wrong (skip still worked through the next frame; the screen key
+  'Antonio' matched 'Antonio-R1'; a gap-long preload streams one element, not two) - rewritten to assert the real property.
+  A harness trap for the next session: node's performance.now() boxes (~33 B a call) - a music page measured with the default
+  clock reads 330 KB of "allocation"; the budget pages use a counter clock (as SND-CORE's does).
+HOT FILES (for A0): tools/build.js +27 / -2 (MANIFEST.viewer.scripts += 'audio/music.js' after 'audio/src_engine.js' - 1 line;
+  the catalogue inlined as window.FLYDIY_MUSIC - 3 lines + the CORE_SHA line; the sw.js template's Range handler - 23 lines);
+  src/viewer/audio/audio.js +17 / -2, audio_params.js +23 / -3, src_engine.js 2 lines (sound files, the SND-* sessions' own);
+  CREDITS.md +6 / -1 (the generated block). NO app.js / editor.js / body.html / css edit: the now-playing line, the credits link
+  and the menu rows are all made by music.js. +~31 KB of code in index.html (music.js, comments included).
+GATES: AUDIO, UISMOKE, MEDIA, BUILD, VIEW, AUDIOENG - PASS (run_gates --only; the generated index.html / dev.html / sw.js /
+  version.json restored, not committed). Not run: a browser (cloud) - the first real <audio> stream, the media element under
+  the SW's 206s, Safari's media pipeline, the now-playing line's look and the credits dialog's are the train's / the user's.
+FOR THE COORDINATOR: (1) after the user's picks: prep writes media/audio/music/<stem>.<h8>.mp3 through _media_lib and
+  src/viewer/audio/music_catalogue.json in the schema above (contexts per track: the brief's "no hooks in the garage" - a hooky
+  track goes to welcome / cruise only), then `node tools/audio/music_credits.js` (CREDITS.md) and the shipped.json rows (s9);
+  (2) GATE MEDIA: REF_RE has no mp3 and its manifest list no music_catalogue.json - the first shipped mp3 is an ORPHAN there;
+  add `mp3|ogg|opus|m4a|webm` to REF_RE and the catalogue to the manifest list in the same commit (not done here: GATE MEDIA is
+  not mine and nothing ships yet); (3) a sw.js sweep for media/audio is not needed (music is a few MB, kept like textures);
+  (4) CELEBRATION: the photo hook is AUDIO.emit('photo', true / false) and must not set FLYDIY_HELD; (5) SND-AIRFRAME: emit
+  AUDIO.emit('stall') on the warning and the music ducks; SND-AMB-1: P.s[P.I.agl] is there (2 Hz); (6) SND-TUNE: the -10 dB duck
+  depth, the 6 s hold, the gaps (30-120 s), the cruise thresholds are constants at the head of music.js - by ear.
