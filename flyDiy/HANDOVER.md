@@ -69171,3 +69171,86 @@ FOLLOW-UP CHANGES since the READY above (found by the evidence): `option:disable
 CSS (editor.css #edRoute and #ui .fsel, style.css #bootRoute: the inherited ink hid the browser's grey); the map's label
 placer keeps labels inside the canvas (app.js labFits). Gates re-run for them: BUILD, UISMOKE, STRIPSURF PASS. The
 generated outputs are still not committed.
+
+## G1310-G1314 - COLD-LINKS: THE COLD FIRST VISIT 75.6 -> 57.9 s TO THE GARAGE; THE GROUND'S LINKS 40-52 s -> 13-17 s (THE SAME PICTURE BY CONSTRUCTION); ONE SOURCE LINKED ONCE (2026-10-04, COLD-LINKS for A0, local GPU; branch claude/cold-links-g1310 off train/27 98a01aff)
+
+THE PROBLEM (CESSNA-LINKS G1221): a cold first visit waits ~75 s for the garage. Seven world links of 13-52 s each, all
+issued at ~14 s, and the garage could not show before the longest ended. Named here by source (the node page's sources
+equal the GPU's byte for byte - tools/perf/cold_links_src.js against cessna_links --dump): 2017c124 = island-ring (the near
+ring, Standard), 521f85e5 = island-fine (Standard, issued at ~40 s - also on the critical path), 61441ef3/5bdaa018 =
+island-outer-dry, 61441ef3/3bb8028f = island-outer AND premises-patch-materials-2 (the double link), 2ab7a933 =
+premises-patch-materials-s1 (the 'uMat' program), 04b8b778 = the pavement. The "two ~130 KB PBR programs" were the ring
+and the fine ring.
+
+**G1310 ONE SOURCE, ONE LINK.** The premises patch's far-terrain clone (render_premises matOwn, k = 1, patchInject2 false)
+compiles exactly the outer ring's text (ATMO.inject is idempotent, injectMaterials adds nothing) under its own key
+'premises-patch-materials-2', so three linked that ~100 KB program twice, at the same moment (41-48 s each, cold). Now a
+clone that injects nothing (patchInject2 false, or no set painted) keys as its base (three shares the program, and the
+uniforms stay the clone's own). A painted one keys apart and carries the base's key too. Node: 394 -> 393 programs.
+
+**G1311 THE PRODUCTION GROUND.** The ground programs compiled inspection code that the default state never runs:
+gClassSmooth (the class layer's 8 x 3 blur: constant-bound loops unrolled, 50 fetches, at two call sites - the stack's
+class layer, under the stack's start by default, and paint mode 4), its call inside the stack loop with a `continue`
+(ANGLE's 'Lod0' copy on top), F8's ten paint modes (uGMode 1-10, gTT / gTTCol / gClassRow / gClassCol), and the splat's
+magenta selection mask. They are compiled now only when the state asks: render_world groundFull() = a paint mode, or a
+stack that draws its class layer, or the mask shown (SPLAT_GROUND api.masking). The program text is the same on the
+default path. The full text keys apart (':full'). GROUND_FAMILY (the rings, the twin, the fine ring and the premises
+patch's clones: islandKeyed / m.groundFamily) re-keys together when F8 crosses the line (groundSync from set, setLayer,
+showMask), once - inside the full program every edit is a uniform again. Checked in node (the real three on the
+recording GL): 7 materials re-key to ':full' with gClassSmooth / the magenta in their programs, and back. Also out:
+the hex cut's test (uSHexPx: a dial nothing ever set off 0, inlined at every sSet).
+
+**G1312 THE POOLS' MASK BEFORE THE LOOP.** tools/perf/cold_links_bench.js (new: the heavy programs' exact sources linked
+cold in a fresh Chrome, the disk shader cache off, all at once as the game issues them, each completion polled,
+LINK_STATUS checked) on the near ring with one splat feature cut at a time (bench2_out.json, one run): production
+29.8 s; no pools 16.1, no grass pull 19.9, no recolour 26.0, no veg 27.5; structure: no hex 11.7, no triplanar 11.5,
+one set a triplet 7.2; the material chain cut 1.0 (the splat is ALL the cost: the ring without it links in 0.7 s). The
+HLSL is the same size in every variant (159-164 KB): FXC's time follows the flow control, not the length. The pools'
+mask reads the position, the eye and the slope - never the terrain type - yet it was computed in sMatPass, inside the
+candidate loop. It is computed now once before the loop (sPools, when muskeg or scrub votes), with the same expressions
+in the same order. Bench 3 (one run): ring 21.7 -> 15.5 s, outer 17.5 -> 10.6 s. (A bench's absolute times depend on
+how many programs it links at once - 29.8 s among 10, 21.7 s among 7: compare within a run only.)
+
+**G1313 THE LOADS** (tools/perf/cessna_links.js --fly: navigation -> garage, then the roll-out and 15 s of taxi; the
+validated Cub; a fresh short profile per cold load; the warm load a fresh Chrome on the same profile; both trees built
+from their own src/ with FLYDIY_BUILD pinned to the parked cook's dc2f085cb441 (tools/perf/lc_build.sh) - train 27's
+committed page is still train 26's build. Before = train/27 98a01aff, after = this branch. tools/perf/cold_links/):
+
+| Cub, median [min-max], n = 3 | before (train 27) | after |
+|---|---|---|
+| cold: navigation -> garage | 75.6 s [72.7-76.2] | **57.9 s [57.1-58.2]** |
+| cold: first flight (garage + roll-out) | 84.8 s [81.9-85.4] | **67.2 s [66.3-67.5]** |
+| cold: worst link | 50.0 s [46.7-51.6] | **15.5 s [15.0-16.7]** |
+| cold: links / over 5 s | 394 / 7 [7-8] | 393 / 6 |
+| roll-out | 9.2 s | 9.3 s |
+| warm: navigation -> garage | (ratchet 40.7; CESSNA-LINKS abab 39.9-41.2) | 40.7 s [39.4-41.2] |
+| warm: first flight | - | 49.8 s [48.4-50.4] |
+
+Per program, cold (median [min-max]): ring 50.0 [46.7-51.6] -> 15.2 [15.0-16.7]; fine ring 29.9 [27.3-30.1] -> 14.8
+[14.4-15.5]; outer 43.6 [40.9-47.9] x2 -> 13.5 [13.2-14.9] x1; outer-dry 39.0 [31.8-47.1] -> 12.7 [12.3-13.9]; patch
+42.3 [31.8-45.9] -> 12.9 [11.2-13.8]; pavement (unchanged) 13.2 [12.8-13.7] -> 13.0 [12.8-14.5]. The ground no longer
+sets the pace alone: the pavement is now as long, and every heavy program is issued at ~14 s.
+
+**OPEN (not chased - the load budget was spent):** on the warm loads two or three of the CHANGED ground programs (the
+ring and the patch every time, one of outer / outer-dry) re-link 7-10 s though the cold load had linked the same source
+('seen@0'). CESSNA-LINKS' warm loads of the base (a Chrome per load) hit every heavy program, and the pavement, whose
+source did not change, hits here too. It costs no garage time (they end by ~21 s, the garage is at 40.7 s), but it is a
+difference: an A/B of base vs branch warm loads in the same rig is the next check (and Chrome's GPU cache entry for a
+program linked at ~14 s of a first load).
+
+**THE PICTURE:** no stills were taken (the load budget). Every change is the same arithmetic by construction - dead code
+out under a state that cannot reach it, and one block moved out of a loop with its expressions unchanged; FXC may order
+the moved floats differently (ULPs). A0's look gates / fixed-camera stills should confirm.
+
+**NEXT LEVERS (measured, not taken):** (1) the grass pull as a select (`mix(c, hue * l, gr > 0.001 ? dark * gr : 0.0)`,
+exact): ring 15.5 -> 11.9 s on the bench, but it computes the pull on every fetch of every set, where the branch skipped
+the sets without grass (27 inlined sites) - it needs a GPU frame A/B against the strict fps gates first; the veg as a
+select gained nothing. (2) The structure (hex / triplanar / three sets a triplet) is the rest, and its loop forms are
+recorded failures (G568: 1.5-2x slower ground). (3) The issue time: every heavy program waits for 'garage:town' (~14 s).
+(4) The pavement (13 s, its debug view's 11-way select is small) is now as long as the ground.
+
+GATES: PROGRAMS, BOOT, GFX, BUILD - PASS (run_gates --only). Not run (A0's): the battery, FRAMECOST (the ground's
+programs change text: a parked cook / census re-take is A0's), SPLAT (its slope-gate pattern still matches the source).
+Budget: 9 loads (3 + 3 + 3), 3 link benches, ~17 min of GPU under the lock (window 02:09-02:25 reserved by A0; a
+1-minute bench at 00:52 ran during A0's CPU battery - classifier refused withdrawing the queued take; within-run A/B
+only). The built outputs are NOT committed (pinned build id): rebuild at landing.
