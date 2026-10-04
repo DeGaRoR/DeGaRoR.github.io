@@ -727,7 +727,10 @@ function makeWorld(seed, opts) {
     for (const b of SET.buildings) {
       const k = b.w.toFixed(1) + 'x' + b.l.toFixed(1) + 'x' + b.hgt.toFixed(1);
       let sh = shapes.get(k); if (!sh) { sh = OBSTACLES.box(b.l, b.w, b.hgt, 1.0); shapes.set(k, sh); }
-      obstacles.add({ x: b.x, z: b.z, yaw: b.rot, y0: terrainH(b.x, b.z), shape: sh, tag: 'settle' });
+      // REVIEW 2026-10-04 (A6): the renderer places the house with setFromAxisAngle(up, -b.rot) (render_world.js), and
+      // OBSTACLES' local->world frame turns the other way (29_obstacles.js penetration: local x -> (cos, -sin)), so the
+      // registered yaw is the NEGATED rotation; `yaw: b.rot` mirrored every house's box against its drawing
+      obstacles.add({ x: b.x, z: b.z, yaw: -b.rot, y0: terrainH(b.x, b.z), shape: sh, tag: 'settle' });
     }
   }
   function treesNear(x, z, out) {
@@ -1124,7 +1127,9 @@ function makeWorld(seed, opts) {
     else if (st1 > 0) climate.refresh();
     airNow();
     // the sea walks after the wind, on the same clock the wind moved on
-    seaRelax(Math.abs(day.utc - u0), simT, ax, az);
+    // REVIEW 2026-10-04 (B15): day.advance wraps utc at 86400, so the first tick across midnight read ~86380 s and the
+    // sea snapped to its target in one tick; the elapsed day-time is the wrapped difference
+    seaRelax(((day.utc - u0) % 86400 + 86400) % 86400, simT, ax, az);
   }
   // setWeather({ oatC, qnhPa, wind }) — the AIR + WIND subset, as it always was:
   // absent fields are CLEARED (the standard day, the zero wind), so the
