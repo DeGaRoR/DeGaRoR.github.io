@@ -69242,7 +69242,7 @@ once and the collidable woodland at the next load; the cover ring plants a 32 m 
 inside a cell follows the cell (as every biome edge does); a veg-only polygon writes no `cover` class, so over BUILT/CROP
 ground (a town) the fill still refuses to plant - give it a code and `cover` (v1.30) for that.
 
-## G1380-G1383 - GEAR-WATER: THE TAILWHEEL'S "3-5 cm" IS THE DRAWN GROUND'S 5 m LATTICE, NOT THE WHEEL; A WHEELED AEROPLANE MEETS THE WATER (2026-10-03, GEAR-WATER for A0, cloud, node only; block G1380-G1384, G1384 unused)
+## G1380-G1384 - GEAR-WATER: THE TAILWHEEL'S "3-5 cm" IS THE DRAWN GROUND'S 5 m LATTICE, NOT THE WHEEL; A WHEELED AEROPLANE MEETS THE WATER (2026-10-03/04, GEAR-WATER for A0, cloud, node only; block G1380-G1384)
 
 The user (3 Oct): "the cub still has about 3-5 cm below its tail wheel not touching the ground. I think it's an issue of
 the physical model either not being well centered on the wheel or not having the correct diameter"; "the cub attempted a
@@ -69423,6 +69423,37 @@ mirrors it; GATE CONTACT --drawn expects it).
   pavement, where the drawn surface is terrainH within 4 mm.
 - GATES after G1383 (--only=CONTACT,GEAR,STAND,BUILD,UISMOKE): all PASS, BATTERY: PASS, exit 0 (wall 180 s); and
   node tools/_contact_check.js --drawn: PASS (stock tail -24.7 mm against the 20 mm expected, 8 mm tolerance).
+
+G1384 OUT OF TRAIN 27 FOR GATE SOAR - FIXED (rebased onto master a1ffcf5b, train 30).
+- A0: "the wet-body pass changes the glide in DRY air: mean sink -0.33 -> -0.24 m/s, the glider ends 33 m over the
+  face". MEASURED: not dry air. SOAR S2's negative control (the ridge beat with the terrain term off) comes down at
+  t ~63 s ONTO A LAKE of the analytic world: at (8707, -6212) waterH is 118.6 m over a 87.7 m bed. Before G1381 it
+  sank through 31 m of lake to the bed, which is what "down at 95 m, on the face's own 86" measured. With G1381 it
+  stops on the surface: 119 m, and mean vs -0.24 (it floats for the last 200 s).
+- The A/B, S1 + S2 alone with the pass on and off (HYDRO.wetBuild nulled): S1 and the ridge run BYTE-IDENTICAL; only the
+  control differs. The pass was "wet" on 1 714 320 of 5 176 500 substep calls, all after t 62.95 s of the control.
+- THE GATE (tools/test_soar.js S2): "down" is now measured against the SURFACE under the control's last fix:
+  max(the face's ground, terrainH there, waterH there). The energy bound (-60 m) is unchanged.
+- AND A0's ASK, DONE ANYWAY - NOTHING IN DRY AIR (30_solver.js wetArmFrame): the wet body is built at the first FRAME
+  that can reach the water, and the pass runs only on armed frames.
+  - The arm, once a frame (never a substep): the lowest node and the mass centre each ask waterH. It arms when the lowest
+    node, less 2 x its fastest descent over the frame, 1 m and 3 x the sea's amplitude, is under that level (or the
+    mass centre less the build's reach: the farthest node + radius from the CG as built, x 1.25 + 0.5 m).
+  - Dry: nothing built (sim.wetBody is a getter, null until then), no `out` key written (hydroWet / wetDrag / wetBuoy
+    appear only once wet), no force, no state.
+  - Disarming drops the held forces (tick and wet reset).
+- PROVED:
+  - GATE HYDRODYN's dry check, rewritten: the stock build 5 s on its strip - the body never built, `out` without the
+    pass's keys, 0 node coordinates differ from a sim with the pass removed.
+  - Dry-air step, node, master a1ffcf5b vs this branch, separate processes, 3 interleaved runs of 900 frame-steps
+    (us per step, medians), the analytic world:
+    - the user's Cub (builds/cub_2026-09-20_corrected.json), on HOME 3739 -> 3655, 400 m up 3593 -> 3524;
+    - the metal Cessna (bugReports/cessnaMetal (1).json), on HOME 6356 -> 6469, up 6313 -> 6066 (within the runs'
+      own spread, 3400-4040 and 6020-6540).
+    - The final positions' SHA-1 identical to master's in all four cases.
+  - The ditching unchanged: Cub at 80 km/h under 10 km/h in 0.93 s, peak 9.0 g; GATE HYDRODYN's stock ditch 0.88 s,
+    90 deg nose-down.
+- G1383 (the drawn tail gear 2 cm down) as it was.
 
 ## G1365-G1369 - SIM-STALL: A FROZEN PAGE HOLDS THE FLIGHT; IT GOES ON FROM WHERE IT HELD (2026-10-03, SIM-STALL for A0, cloud - no GPU, no boxlock; branch claude/sim-stall-g1365 off origin/master 5502f45)
 

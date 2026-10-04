@@ -358,10 +358,18 @@ console.log('\n6. THE LAKE\'S SURFACE IS THE DATA\'S (a stub island: a bowl with
   verdict(!!sim.wetBody && finite && t10 != null && t10 < 3,
     `the stock taildragger ditched at 80 km/h is under 10 km/h in ${t10 == null ? 'never' : f(t10, 2) + ' s'} (bound 3 s), finite`);
   verdict(noseDn > 45, `...and noses over: ${f(noseDn, 0)} deg nose-down at worst (bound 45 - the tyres plough below the CG)`);
-  // dry: the same build on its strip hands the water nothing
-  const simD = C.makeSim(def, world); simD.reset(0);
-  for (let s = 0; s < 120; s++) { simD.step(1 / 60); dryF += Math.abs(simD.out.hydroWet || 0); }
-  verdict(dryF === 0, 'dry, the wheeled-water pass hands nothing (hydroWet 0 over 2 s on the strip)');
+  // G1384 (SOAR): DRY, NOTHING AT ALL - the same build on its strip, 5 s: the body is never built, `out` never carries
+  // the pass's keys, and every node's position is the same bits as a sim with the pass removed
+  const dryRun = noWet => {
+    const keep = C.HYDRO.wetBuild; if (noWet) C.HYDRO.wetBuild = undefined;
+    try { const sD = C.makeSim(def, world); sD.reset(0); for (let s = 0; s < 300; s++) sD.step(1 / 60);
+          return { p: Array.from(sD.p), built: sD.wetBody, keys: ['hydroWet', 'wetDrag', 'wetBuoy'].filter(k => k in sD.out) }; }
+    finally { C.HYDRO.wetBuild = keep; }
+  };
+  const dA = dryRun(false), dB = dryRun(true);
+  dryF = dA.p.reduce((a, x, i) => a + (x === dB.p[i] ? 0 : 1), 0);
+  verdict(dA.built === null && !dA.keys.length && dryF === 0,
+    `dry, the wheeled-water pass is not even built and changes nothing (5 s on the strip: body ${dA.built === null ? 'never built' : 'BUILT'}, out keys [${dA.keys}], ${dryF} node coordinates differ from the pass removed)`);
   const specF = JSON.parse(JSON.stringify(C.GEN_DEFAULT)); specF.gear.type = 'floats';
   let wbF = null; try { wbF = C.makeSim(C.buildGen(specF), world).wetBody; } catch (e) { wbF = 'threw ' + e.message; }
   verdict(wbF === null, 'a float build carries no wheeled-water body (the floats\' pass alone: the floatplanes unchanged)');

@@ -1564,7 +1564,8 @@ function floatAdvice(grossKg, P) {
 // Explicit and stable the float's way (slamCap): the force a compute hands a node against its own velocity is bounded
 // by that node's momentum over the held interval (it can stop the node, never reverse it). Run at the floats' rate
 // (HYDRO_HZ, held between computes), and only near water: a build with floats keeps the float pass alone (the
-// floatplanes are unchanged to the bit), and a dry flight costs one waterH sample a compute.
+// floatplanes are unchanged to the bit). G1384: the solver builds and runs this only on a frame that can reach the water
+// (30_solver.js wetArmFrame) - a dry flight builds nothing, writes nothing and is master's trajectory to the bit.
 const WB_BUOY = 0.35, WB_CP = 1.0, WB_CF = 0.006, WB_CD_TYRE = 1.0, WB_CD_SIDE = 1.2, WB_TYRE_W = 0.5, WB_DELTA = 0.15;
 // the 27 sample points of a slice (the cell midpoints of a 3 x 3 x 3 grid on the unit cube) and their trilinear weights
 const WB_Q = (() => { const q = []; for (let k = 0; k < 3; k++) for (let j = 0; j < 3; j++) for (let i = 0; i < 3; i++) {
