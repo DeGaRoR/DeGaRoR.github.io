@@ -693,54 +693,85 @@ function drawnPts(r, sol, slots, pc) {
 // engine's and the cowl's meshes as flat triangles with their boxes; a query
 // is then a box filter - fitOf asks it hundreds of times in a search
 let SURF_ALL = null;
-function surfAll(ctx, scene, inv) {
-  if (SURF_ALL && SURF_ALL.mesh === (ctx && ctx.mesh) && SURF_ALL.inv === inv) return SURF_ALL.tris;
-  const tris = [];
-  const add = (ax, ay, az, bx, by, bz, cx, cy, cz) => {
-    tris.push([ax, ay, az, bx - ax, by - ay, bz - az, cx - ax, cy - ay, cz - az,
-               Math.min(ax, bx, cx), Math.min(ay, by, cy), Math.min(az, bz, cz),
-               Math.max(ax, bx, cx), Math.max(ay, by, cy), Math.max(az, bz, cz)]);
-  };
-  const M = ctx && ctx.mesh;
-  if (M && M.F && M.V) {
-    const FS = (window.CAGE2 && window.CAGE2.CAGE_UNIT || 1) * ((ctx.P && ctx.P.planeScale) || 1);
-    for (const f of M.F) {
-      const v = f.v; if (!v || v.length < 3) continue;
-      for (let i = 1; i + 1 < v.length; i++) {
-        const A = M.V[v[0]], B = M.V[v[i]], C = M.V[v[i + 1]];
-        add(A[0] * FS, A[1] * FS, A[2] * FS, B[0] * FS, B[1] * FS, B[2] * FS, C[0] * FS, C[1] * FS, C[2] * FS);
-      }
+// G1455 (RELEASE-FAST): the soup is ONE Float64Array, 15 numbers a triangle (the same doubles, in the same order, that
+// the per-triangle arrays held - a metal Cessna's 45 000 arrays were a quarter of a release's garbage), and the
+// sheet's part is kept with the sheet (a WeakMap on the mesh object, by the scale it was built at: a release keeps the
+// sheet, and its triangles are the same numbers)
+const SHEET_SOUP = new WeakMap();
+function soupAdd(buf, n, ax, ay, az, bx, by, bz, cx, cy, cz) {
+  const o = n * 15;
+  buf[o] = ax; buf[o + 1] = ay; buf[o + 2] = az;
+  buf[o + 3] = bx - ax; buf[o + 4] = by - ay; buf[o + 5] = bz - az;
+  buf[o + 6] = cx - ax; buf[o + 7] = cy - ay; buf[o + 8] = cz - az;
+  buf[o + 9] = Math.min(ax, bx, cx); buf[o + 10] = Math.min(ay, by, cy); buf[o + 11] = Math.min(az, bz, cz);
+  buf[o + 12] = Math.max(ax, bx, cx); buf[o + 13] = Math.max(ay, by, cy); buf[o + 14] = Math.max(az, bz, cz);
+}
+function sheetSoup(M, FS) {
+  const k = SHEET_SOUP.get(M);
+  if (k && k.FS === FS) return k;
+  let nT = 0;
+  for (const f of M.F) { const v = f.v; if (v && v.length >= 3) nT += v.length - 2; }
+  const buf = new Float64Array(nT * 15);
+  let n = 0;
+  for (const f of M.F) {
+    const v = f.v; if (!v || v.length < 3) continue;
+    for (let i = 1; i + 1 < v.length; i++) {
+      const A = M.V[v[0]], B = M.V[v[i]], C = M.V[v[i + 1]];
+      soupAdd(buf, n++, A[0] * FS, A[1] * FS, A[2] * FS, B[0] * FS, B[1] * FS, B[2] * FS, C[0] * FS, C[1] * FS, C[2] * FS);
     }
   }
+  const out = { FS, buf, n };
+  SHEET_SOUP.set(M, out);
+  return out;
+}
+function surfAll(ctx, scene, inv) {
+  if (SURF_ALL && SURF_ALL.mesh === (ctx && ctx.mesh) && SURF_ALL.inv === inv) return SURF_ALL;
+  const M = ctx && ctx.mesh;
+  const sh = (M && M.F && M.V) ? sheetSoup(M, (window.CAGE2 && window.CAGE2.CAGE_UNIT || 1) * ((ctx.P && ctx.P.planeScale) || 1)) : null;
+  // the engine's and the cowl's meshes, counted first
+  const objs = [];
+  let nL = 0;
   if (scene && inv && window.THREE) {
-    const V = new THREE.Vector3(), Q = [[], [], []];
     for (const ch of scene.children) {
       if (!HIT_LAYERS.includes(ch.name || '') || ch.visible === false) continue;
       ch.traverse(o => {
         if (!o.isMesh || !o.geometry || o.visible === false) return;
         const pos = o.geometry.getAttribute('position'); if (!pos) return;
         const idx = o.geometry.index, nT = idx ? idx.count / 3 : pos.count / 3;
-        for (let t = 0; t < nT; t++) {
-          for (let k = 0; k < 3; k++) {
-            const vi = idx ? idx.getX(t * 3 + k) : t * 3 + k;
-            V.set(pos.getX(vi), pos.getY(vi), pos.getZ(vi)).applyMatrix4(o.matrixWorld).applyMatrix4(inv);
-            Q[k] = [V.x, V.y, V.z];
-          }
-          add(Q[0][0], Q[0][1], Q[0][2], Q[1][0], Q[1][1], Q[1][2], Q[2][0], Q[2][1], Q[2][2]);
-        }
+        objs.push(o); nL += Math.floor(nT) === nT ? nT : Math.ceil(nT);
       });
     }
   }
-  SURF_ALL = { mesh: ctx && ctx.mesh, inv, tris };
-  return tris;
+  const nS = sh ? sh.n : 0;
+  const buf = new Float64Array((nS + nL) * 15);
+  if (sh) buf.set(sh.buf.subarray(0, nS * 15));
+  let n = nS;
+  if (objs.length) {
+    const V = new THREE.Vector3(), Q = [[], [], []];
+    for (const o of objs) {
+      const pos = o.geometry.getAttribute('position');
+      const idx = o.geometry.index, nT = idx ? idx.count / 3 : pos.count / 3;
+      for (let t = 0; t < nT; t++) {
+        for (let k = 0; k < 3; k++) {
+          const vi = idx ? idx.getX(t * 3 + k) : t * 3 + k;
+          V.set(pos.getX(vi), pos.getY(vi), pos.getZ(vi)).applyMatrix4(o.matrixWorld).applyMatrix4(inv);
+          Q[k] = [V.x, V.y, V.z];
+        }
+        soupAdd(buf, n++, Q[0][0], Q[0][1], Q[0][2], Q[1][0], Q[1][1], Q[1][2], Q[2][0], Q[2][1], Q[2][2]);
+      }
+    }
+  }
+  SURF_ALL = { mesh: ctx && ctx.mesh, inv, buf, n };
+  return SURF_ALL;
 }
 // the surfaces a drawn tank must not cross, as triangles in this layer's
 // frame (the sheet: skin, glass, frame tubes, the dash; the engine; the
-// cowl) - only those whose box meets `bb`
+// cowl) - only those whose box meets `bb` (each a 15-number view on the soup)
 function surfTris(ctx, scene, inv, bb) {
   const out = [];
-  for (const t of surfAll(ctx, scene, inv))
-    if (!(t[12] < bb[0] || t[9] > bb[3] || t[13] < bb[1] || t[10] > bb[4] || t[14] < bb[2] || t[11] > bb[5])) out.push(t);
+  const S = surfAll(ctx, scene, inv), b = S.buf;
+  for (let i = 0, o = 0; i < S.n; i++, o += 15)
+    if (!(b[o + 12] < bb[0] || b[o + 9] > bb[3] || b[o + 13] < bb[1] || b[o + 10] > bb[4] || b[o + 14] < bb[2] || b[o + 11] > bb[5])) out.push(b.subarray(o, o + 15));
   return out;
 }
 // does the segment c -> q cross any of `tris` (Moller-Trumbore, t in (0, 1))?

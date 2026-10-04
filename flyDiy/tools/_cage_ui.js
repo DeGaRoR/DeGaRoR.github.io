@@ -866,6 +866,16 @@ const matOf = name => {
 const SEC_LIVE = {};                    // section -> epoch it last drew in
 const SEC_CTX = {};                     // section -> the g it last drew with
 let SEC_EPOCH = 0;
+// G1451 (RELEASE-FAST): WHICH LAYER DREW EACH SECTION - a release that keeps a layer keeps its sections live. A stamp
+// made while a chain layer's own body runs is that layer's (its set renewed on each of its runs); a stamp made while
+// the late hooks drain (the crew's floor) is the late set's.
+let SEC_SINK = null;
+function secOwn(name) {
+  const CH = typeof window !== 'undefined' && window.CAGE_CHAIN, ly = CH && CH.cur ? CH.cur() : null;
+  if (ly) { if (ly.secSeq !== ly.seq) { ly.secSeq = ly.seq; ly.secs = new Set(); } ly.secs.add(name); }
+  else if (SEC_SINK) SEC_SINK.add(name);
+}
+let LATE_SECS = new Set();
 const SEC_OVER = { fin: secFin, tint: secTint, tile: secTile,
                    rough: secRough, nrm: secNrm, wear: secWear,
                    cc: secCc, field: secField, metal: secMetal,
@@ -877,6 +887,7 @@ function secMat(name, g) {
     return null;
   SEC_LIVE[name] = SEC_EPOCH;
   SEC_CTX[name] = g || {};
+  secOwn(name);
   const r = A.aeroSecResolve(name, SEC_OVER,
     { cons: (g && g.cons) || consOf(), fin: g && g.fin });
   const m = A.aeroMaterial(THREE, {
@@ -1470,8 +1481,10 @@ function build() { const g = buildSteps(); while (!g.next().done); }
 let DRAG_ON = null, DRAG_TICK = false, DRAG_LATE = false, DRAG_T = null;
 function dragSettle() {
   if (DRAG_T) { clearTimeout(DRAG_T); DRAG_T = null; }
-  if (DRAG_LATE) { DRAG_LATE = false; build(); }
+  if (DRAG_LATE) { DRAG_LATE = false; RELEASE = true; try { build(); } finally { RELEASE = false; } }
 }
+// G1451 (RELEASE-FAST): the build a drag's release runs (dragSettle) - it may run only what the drag reached
+let RELEASE = false;
 function dragSettleSoon() {
   if (DRAG_T) clearTimeout(DRAG_T);
   DRAG_T = setTimeout(() => { DRAG_T = null; dragSettle(); }, (window.CAGE_UI && window.CAGE_UI.dragSettleMs) || 350);
@@ -1677,10 +1690,113 @@ function sheetKept(P, opts) {
     if (typeof window !== 'undefined') window.CAGE_MEMBERS = SHEET_MEMB;
     return SHEET_VAL;
   }
-  const v = G.cageSheet(P, opts);
+  // G1452: the sheet's own stages kept while their inputs are (cageSheet passKeep) - the long way builds them all
+  const keepOn = !(window.CAGE_UI && (window.CAGE_UI.sheetKeep === false || window.CAGE_UI.passKeep === false)) && !PREVIEW_OFF();
+  const v = G.cageSheet(P, keepOn ? Object.assign({}, opts, { passKeep: true }) : opts);
   SHEET_KEY = key; SHEET_VAL = v;
   SHEET_MEMB = typeof window !== 'undefined' ? window.CAGE_MEMBERS : undefined;
   return v;
+}
+// G331's LATE hooks (the crew's floor), drained after the chain; the sections they stamp are the late set's (G1451)
+function drainLate() {
+  if (!(PAGE.late && PAGE.late.length)) return false;
+  const sink = SEC_SINK = new Set();
+  try { for (const f of PAGE.late.splice(0)) try { f(); } catch (e) { console.error('page late hook:', e); } }
+  finally { SEC_SINK = null; }
+  LATE_SECS = sink;
+  return true;
+}
+// G1451 (RELEASE-FAST): THE RELEASE RUNS WHAT THE DRAG REACHED. A drag's release used to be the whole build: the sheet
+// (kept, G1300), the fuselage's mesh made again from it, every layer, the floor, the panels, the weathering. When the
+// sheet is the stand's (a wing, tail, gear, crew row ...) the release now runs the chain under a RELEASE plan
+// (CAGE_CHAIN.plan(P, true): the layers whose recorded P reads moved since they last ran, the ones a preview left stale
+// - the detail layers a drag defers - and every layer they feed, forward and along the release's own edges), and keeps
+// the rest as their last run drew them; the fuselage's mesh stands (its inputs - the sheet, the pre-chain rows PRE_KEYS,
+// the view's switches - are the last whole build's); the crew's floor is taken out for the chain and cut again when
+// anything else ran (it is cut round the other layers' meshes). It is the whole build whenever any of that cannot be
+// said: a sheet that moved, a deformed stand, a sit that moved since the last whole build (the craft frame the kept
+// layers published in), a chain that threw or never recorded, `?garage=old`, CAGE_UI.releaseFast = false.
+// GATE INSTANT drags and releases each row, then builds the same rows the long way: SAME.
+// the P keys the build reads outside the layers (grep `P.` in this file) and the view's switches the mesh is made by
+const PRE_KEYS = ['planeScale', 'hgFinish', 'explodeD', 'intOn', 'intDash', 'skinOn', 'glazeOn', 'glazeMat', 'whProfile',
+  'skylight', 'mirror', 'memRise', 'memPitch', 'memFast', 'memDia', 'intCons', 'doorPax', 'doorOn'];
+const preKey = () => {
+  try {
+    const v = id => { const e = $(id); return e ? (e.type === 'checkbox' ? e.checked : e.value) : null; };
+    return JSON.stringify([PRE_KEYS.map(k => P[k] === undefined ? '(u)' : (typeof P[k] === 'number' && !isFinite(P[k])) ? 'num:' + P[k] : P[k]),
+      v('surf'), v('curv'), v('wire'), v('cage'), v('color'), v('lvl'), v('step'), !!VIEW.loops, G.CAGE_UNIT || 1]);
+  } catch (e) { return null; }
+};
+let PRE_KEY = null, STAT0 = '';
+const RELEASE_INFO = { n: 0, whole: 0, last: null };
+function releaseWhy(built) {
+  const CH = window.CAGE_CHAIN;
+  if (!RELEASE) return 'not a release';
+  if (PREVIEW_OFF() || (window.CAGE_UI && window.CAGE_UI.releaseFast === false)) return 'off';
+  if (!CH || !CH.on || !CH.cur) return 'no chain';
+  if (DEFORMED) return 'a deformed drag';
+  if (built !== LAST_SHEET || !meshObj || built.mesh !== MS) return 'the sheet moved';
+  if (PRE_KEY == null || preKey() !== PRE_KEY) return 'a pre-chain row moved';
+  if (craftKey() !== CRAFT_KEY) return 'the sit moved';
+  return '';
+}
+function* releaseSteps(built, rplan) {
+  const t0 = performance.now();
+  const CH = window.CAGE_CHAIN, spec = built.spec, sFix = built.sheet;
+  // the build's own order: the finish panels, then the chain in its own task when the caller slices
+  try { buildMatPanel(); decRange(); decApplyRanges(); applyDecals(); }
+  catch (e) { console.error('CAGE_UI: the finish panels did not build —', e); }
+  SEC_EPOCH++;
+  yield 'post';
+  DRAG_LATE = false;
+  if (DRAG_T) { clearTimeout(DRAG_T); DRAG_T = null; }
+  const ci = CH.layers.findIndex(l => l.name === 'crew');
+  const FL = window.CAGE_CREW_FLOOR;
+  const floorOut = ci >= 0 && !rplan.run[ci] && FL && FL.detach ? FL.detach() : false;
+  const stat = { textContent: STAT0 };
+  const ctx = { scene, spec, mesh: sFix, P, stat, defer: false };
+  try { CH.run(ctx, P, rplan); } catch (e) { console.error('page post hook (release):', e); }
+  if ($('stat')) $('stat').textContent = STAT0 + CH.layers.map(l => l.statApp || '').join('');
+  // the scene's order as a whole build leaves it: everything else as it stands, the fuselage's own objects, then each
+  // layer's groups in the chain's order (a layer that ran re-added its groups at the end)
+  {
+    const own = [meshObj, cageObj, loopsObj].filter(o => o && o.parent === scene);
+    const lay = []; for (const l of CH.layers) for (const o of l.objs || []) if (o.parent === scene) lay.push(o);
+    const mine = new Set(own.concat(lay));
+    const order = scene.children.filter(o => !mine.has(o)).concat(own, lay);
+    if (order.length === scene.children.length && order.some((o, i) => o !== scene.children[i]))
+      scene.children.splice(0, scene.children.length, ...order);
+  }
+  standParts(built, false);
+  // the floor: cut again when any layer but the always-run ones ran (it is cut round their meshes), else put back
+  const ran = rplan.run.some((r, i) => r && rplan.why[i] !== 'always');
+  let floor = 'kept';
+  if (floorOut) {
+    const tops = []; CH.layers.forEach((l, i) => { if (rplan.run[i]) for (const o of l.objs || []) tops.push(o); });
+    if (ran && (!FL.needs || FL.needs(tops))) { const sink = SEC_SINK = new Set(); try { FL.rebuild(); } finally { SEC_SINK = null; } LATE_SECS = sink; floor = 'cut again'; }
+    else { FL.reattach(); floor = ran ? 'put back (nothing re-run reaches its band)' : 'put back'; }
+  }
+  const lateRan = drainLate();
+  if (!lateRan && ci >= 0 && rplan.run[ci]) LATE_SECS = new Set();      // the crew ran without a floor
+  // a kept layer's sections (and a kept floor's) are live as they were
+  for (const l of CH.layers) if (!l.ran && l.secs) for (const k of l.secs) if (k in SEC_CTX) SEC_LIVE[k] = SEC_EPOCH;
+  if (!lateRan && floor !== 'cut again') for (const k of LATE_SECS) if (k in SEC_CTX) SEC_LIVE[k] = SEC_EPOCH;
+  for (const k in SEC_LIVE)
+    if (SEC_LIVE[k] !== SEC_EPOCH) { delete SEC_LIVE[k]; delete SEC_CTX[k]; }
+  try { buildMatPanel(); } catch (e) {}
+  // the paint record keeps what the meshes wear: a material no mesh wears any more leaves it
+  {
+    const used = new Set();
+    scene.traverse(o => { if (o.material) for (const m of (Array.isArray(o.material) ? o.material : [o.material])) used.add(m); });
+    for (const m of [...PAINT_REQ.keys()]) if (!used.has(m)) PAINT_REQ.delete(m);
+  }
+  try { applyWeather(); } catch (e) { console.error('weather:', e); }
+  applyRowVis();
+  syncFollow();
+  draw();
+  RELEASE_INFO.n++;
+  RELEASE_INFO.last = { ran: CH.layers.filter((l, i) => rplan.run[i]).map(l => l.name), why: rplan.why.map((y, i) => y ? CH.layers[i].name + '(' + y + ')' : null).filter(Boolean).join(' '),
+    floor, ms: +(performance.now() - t0).toFixed(1) };
 }
 function* buildSteps() {
   // T2.1: a retired row (a preset written against the ring editor, a class
@@ -1778,10 +1894,16 @@ function* buildSteps() {
     const ctx = { scene, spec, mesh: built.sheet, P, stat: { textContent: '' }, defer: true, preview: true };
     try { CH.run(ctx, P, plan); } catch (e) { console.error('page post hook (preview):', e); }
     standParts(built, false);
-    if (PAGE.late && PAGE.late.length)
-      for (const f of PAGE.late.splice(0)) try { f(); } catch (e) { console.error('page late hook:', e); }
+    drainLate();
     previewDraw();
     return;
+  }
+  // G1451: a drag's release that keeps the sheet runs what the drag reached
+  if (RELEASE) {
+    const why = releaseWhy(built);
+    const rplan = !why ? CH.plan(P, true, built.sheet) : null;
+    if (rplan) { yield* releaseSteps(built, rplan); return; }
+    RELEASE_INFO.whole++; RELEASE_INFO.last = { whole: why || 'no plan' };
   }
   LAST_SHEET = built;
   M0 = m;
@@ -1892,6 +2014,7 @@ function* buildSteps() {
   $('stat').textContent =
     `cage ${m.V.length} v / ${m.F.length} q  →  L${L}: ` +
     `${s.V.length} v / ${s.F.length} q`;
+  STAT0 = $('stat').textContent; PRE_KEY = preKey();      // G1451: what a release keeps the fuselage's mesh by
   // The materials panel lists the sections THIS build actually has. Guarded
   // because build() runs during boot, BEFORE the panel's own host elements
   // exist — and they are const/let, so reaching them early is a temporal
@@ -1978,8 +2101,7 @@ function* buildSteps() {
     const ctx2 = { scene, spec, mesh: sFix, P, stat: { textContent: '' }, defer: true, preview: true };
     try { CH.run(ctx2, P, plan2); } catch (e) { console.error('page post hook (preview):', e); }
     standParts(built, true);
-    if (PAGE.late && PAGE.late.length)
-      for (const f of PAGE.late.splice(0)) try { f(); } catch (e) { console.error('page late hook:', e); }
+    drainLate();
     previewDraw();
     return;
   }
@@ -1998,8 +2120,7 @@ function* buildSteps() {
   standParts(built, true);               // G1443: new parts on a fresh mesh
   // G331: LATE — what a layer wants drawn once every layer has drawn (the
   // crew's floor, cut round the other layers' meshes), in this same task
-  if (PAGE.late && PAGE.late.length)
-    for (const f of PAGE.late.splice(0)) try { f(); } catch (e) { console.error('page late hook:', e); }
+  if (!drainLate()) LATE_SECS = new Set();
   for (const k in SEC_LIVE)
     if (SEC_LIVE[k] !== SEC_EPOCH) { delete SEC_LIVE[k]; delete SEC_CTX[k]; }
   try { buildMatPanel(); } catch (e) {}
@@ -5242,6 +5363,7 @@ anchorSize();                              // the page opens at its ×1
 syncSliders();
 window.CAGE_UI = { P, build, repaint, draw, applyPreset, syncSliders, reg: () => decReg(),   // G318: the tape reads it
   preview: PREVIEW,                      // G1442: the drag previews (n, the last plan)
+  release: RELEASE_INFO,                 // G1451: the releases (n run partially, whole, the last one's plan)
   // THE TWO HALVES OF A LOAD (G63). `applySpec` puts a build into the editor;
   // `toSpec` takes the editor's whole parameter set out as the spec's `cage`
   // fragment — layer keys included, view keys excluded. Every shelf load,
