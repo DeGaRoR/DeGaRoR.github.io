@@ -72033,3 +72033,147 @@ Against a trunk (the land builds):
 - **The thresholds (9 g, 1.5 kJ, the 3 % kink, D / wall 30) are physical anchors, not fitted.** A 5 m/s (10 kt) taxi into a trunk is a crash (1.5-2 kJ).
   If that reads harsh in play, CRASH_J is the knob.
 - **The floats' water landings and a crash ON the water** are not part of this: hydro forces do not count in the contact g.
+
+## G1800-G1809 DMG-D0 INSTRUMENTS - SIM-DIVERGED vs BROKE-UP, THE VELOCITY GUARD, PER-BEAM PLASTIC WORK, THE LEDGER SECTION ON EVERY BEAM, THE DAMAGE VIEW, GATE DMGFPS (2026-10-04, DMG-D0 for the DEFORM COORDINATOR, cloud, node only; branch claude/dmg-d0-instruments off claude/dmg-switch-g1898 = 4ca0678 (TREE-CRASH + G1898); G1807-G1809 unused)
+
+DEFORM-AND-BREAK §4.0, §5.2, §5.4, §10.1, §11.1-§11.4. Additive: with the damage layer off every physics gate prints the base's bytes (below), and
+nothing here moves a physics bit with it on either (GATE DMGFPS, TREECRASH unchanged). (There is no flyDiy/CLAUDE.md on this base; I read
+docs/SHARED-TREE-PRACTICES.md.)
+
+### G1800 - 'sim-diverged' is the numbers', 'broke-up' the structure's (ruling dm4)
+- The NaN ending is now `endFlight('sim-diverged')` (app.js watchdog; the message "SIM DIVERGED — RESET" stays). The load test's NaN verdict is
+  `'SIM DIVERGED'` (65_gen_loadtest.js); the bench card says "the simulation diverged before the ultimate load (a numerical fault, not a
+  member)" - it said "a member let go". The water bench, 42_crosswind's `why`, 41/43's outcome comments, and the readers in tools
+  (_bench_check, test_load, pilot_trace, arch_fly, _simworker_edges_check: its 'diverged' event now expects 'sim-diverged') follow.
+- **Nothing writes 'broke-up' now** (GATE DMGINST greps the 12 writers / readers). It is reserved for DMG-D1b (the refs split, a primary group
+  broken). bench.js still reads a `'BROKE UP'` verdict as "a member let go" for when D1b / D2 fire it. The logbook / card render any outcome
+  generically (`replace(/-/g, ' ')`), so a new flight's row reads "sim diverged"; old saved rows keep "broke up".
+
+### G1801 - THE VELOCITY GUARD (30_solver.js, §5.4)
+- `guardFrame(cv)` in `readPanel`, right after its CG pass, once per `sim.step` (never per substep): every node's speed off the CG. Over
+  **150 m/s**, or a NaN velocity, latches `VG.fault = { why: 'speed' | 'nan', node, v, t }`. It is read-only (the physics bits are untouched),
+  cleared by `reset()` (resetPanel). Exposed as `sim.guard()` (this frame's fastest node, its peak since reset, the fault) and `sim.fault()`.
+- Readers: `stats().bad` (so the load test, the crosswind probe, the bench rigs see it), `H.diverged()` (the worker: its loop stops and the
+  snapshot's F_DIVERGED goes up, the page's `sw.diverged`), and the page's watchdog inline (every frame - the NaN check stays every 30th).
+- **What it catches that the old watchdog never did:** every k x 5 in flight (a lattice past its integrator's limit) rings at **990 m/s and
+  stays FINITE for 600 frames** - the NaN check flies it on forever; the guard trips on frame 0. A 1e300 kick trips it the first frame ('nan').
+  The whole Cub at 195 m/s (200 m/s true at 20 km) does not: the fastest node 4.4 m/s off the CG. (At sea level 200 m/s shakes the Cub apart:
+  151 m/s off the CG - over the guard, rightly.)
+- **The census (GATE DMGINST), damage on - the fastest node off the CG:** a flown 3.8 g pull 7.8 / 13.3 / 10.3 / 9.2 / 8.4 m/s (Cub, Jodel,
+  metal Cessna, Cessna floats, twin floats); a 10 ft/s drop 1.1-3.5; the Cub's circuit 2.9; the 30 m/s trunk crashes 41.1 (Cub), 51.8
+  (Cessna), 39.7 (Cub, the wing 2.5 m out); the twin's SEVERE 150 km/h / 10 m/s / 60 deg float nose-in **91.0** (the worst: 0.61 of the
+  guard). Never tripped. The DMGFPS cases: 0.8-15.8 m/s in the drops and on the water.
+- The cost: one loop over the nodes a frame (~400 nodes, a few flops each): inside the perf noise (below).
+
+### G1802 - THE PLASTIC WORK PER BEAM (30_solver.js)
+- `DMG.wB = new Float64Array(nb)`; the four `DMG.work += x` in `beamYield` / `beamKink` became `dmgW(bi, x)` (`DMG.work += x; DMG.wB[bi] += x`:
+  the total's bits are the old ones). Zeroed in `dmgReset` (reset()). On `sim.damage()`. Only the armed, yielding path runs it.
+- The Cub at 30 m/s into a trunk: 120 beams carry work, every one yielded or bent, none negative; they sum to 105175.872 J against
+  DMG.work 105175.872 J (the metal Cessna 108684.516 / 108684.516). **By section** (the bill's input): fuselage 61.8 kJ, wings 24.9,
+  engines 9.4, gear 4.7, vessel 3.6, tail 0.8.
+
+### G1803 - EVERY BEAM CARRIES ITS LEDGER SECTION (61_gen_frame.js B())
+- `bm.sec = SEC` - the section `sec()` has open as the member is built, the one its mass and money are billed to a few lines on. Build time,
+  no run-time cost (the solver's `{ ...b }` copy carries it).
+- GATE DMGINST: every beam of the five validated builds is stamped, in the def and in the solver's copy, and every stamp is a row of that
+  build's ledger. The class x section table:
+
+  | build | beams | fus > fuselage / engines / vessel | wing > wings / bracing | tail > tail, wire > tail | gear > gear |
+  |---|---|---|---|---|---|
+  | the user's Cub | 394 | 109 / 13 / 9 | 52 / 12 | 180, 4 | 15 |
+  | Jodel | 492 | 109 / 13 / 9 | 68 / **118** | 156, 4 | 15 |
+  | metal Cessna | 442 | 109 / 13 / 9 | 62 / **74** | 156, 4 | 15 |
+  | Cessna floats | 533 | 109 / 13 / 9 | 62 / 74 | 156, 4 | 106 (the float truss) |
+  | twin floats | 519 | 109 / 28 / 9 | 52 / 12 | 199, 4 | 106 |
+
+  **'bracing' holds the wing's torsion box** (the ledger opens `sec('bracing')` before the box's webs, 61_gen_frame ~978) - on the Jodel and
+  the Cessnas most of the wing. That is the ledger's own convention, stamped as it is; D5's bill decides whether 'bracing' reads as the wing.
+
+### G1804 - THE DAMAGE VIEW (src/viewer/dmg_overlay.js, app.js sync())
+- A DEBUG view on the line frame (Frame mode's lines; on a generated build the lines show in **Overlay** mode, Frame shows the real tubes):
+  `?dmgview=1`, or the `overlays` flyout's new row "the frame's colours: strain / damage". Off (the default), `sync()` colours by strain exactly
+  as before and nothing of the module runs.
+- One colour a member, by precedence (`window.DMG_TINT`, pure, node-tested):
+
+  | kind | when | colour |
+  |---|---|---|
+  | calm | \|F\| / limit <= 0.25 | #577db0 (the frame's own neutral) |
+  | stress | \|F\| / limit 0.25 -> 1, ramping (0.625: #aba267) | #ffc71f amber at the limit and past it |
+  | set, stretched | (L0 - ks - Lr) / Lr from 0.01 % (#bc8e6b) | #ff993d at 3 % (the strain's tension orange) |
+  | set, crushed | from -0.01 % (#52b4d2); a trunk's bend (ks) counts | #4fd9e8 at 3 % (the strain's cyan) |
+  | broken | k = 0 | #e32e2b |
+
+  - |F| / limit is the solver's own comparison: tension against the hardened yield (or a bend's cap M_p / dk), compression against the crush
+    (a slack wire 0). Under the probe it is `sim.damagePeak()`'s peak. A member stretched to its yield reads 1.000000.
+  - With the layer off all 2380 members of the five builds read calm. The Cub's 30 m/s crash: 288 calm, 22 set, 84 broken.
+- **Not drawn here: the cloud cannot render the game. COORDINATOR: eyeball it on the box** (`dev.html?damage=1&dmgview=1`, fly into a trunk,
+  Overlay mode). reports/evidence/DMG-D0/overlay_colours.svg is the same function drawing the Cub's crash from above, in node.
+- Inline sim only: under the physics worker (`?simw=1`) the page's beams carry no damage state (the broken list crosses on change in D4a),
+  so the view stays the strain's there. "Broken, dashed" (§5.2) is red without dashes: the line frame is one LineSegments with vertex colours.
+
+### G1805 - GATE DMGFPS (tools/_dmgfps_check.js, run_gates core, weight 4; 130/130, ~6.5 min on 4 loaded cores)
+- **No damage code reads a page / frame dt** (checked, no fix needed): `dmgFrame`'s 50 ms filter and `armFrame` run on `sim.step`'s own
+  `dtFrame`, which the page always passes as 1/60 (app.js loop), the worker as SIM_HOST_DT, and the load rig as its fixed 1/60/SUB.
+- **The page's real batching is not the brief's.** The PACE block (lifted out of app.js, GATE PACE's way) at 30 / 10 / 5 / 2 fps flies 2 / 4 /
+  4 / 2 steps a frame capped at 30 (2 / 4 / 4 / 1 capped at 60), x2 at 2x: its 4-step ceiling and its 250 ms stall rule DILATE the sim
+  (10 fps = 40 % real time, 2 fps = 7 %) rather than batch 6, 12 or 30 steps. The gate flies both: the brief's 30 / 12 / 6 / 2 and the page's
+  16 schedules (6 distinct batchings in all), and through **makeSimHost** (its H.step and snapshot flags; turns of 1 and 4 steps, the page
+  reading every 2 / 6 / 12 / 30 steps): 14 schedules a case.
+- Cases, damage on, TREE-CRASH's own (the trunk setups hash-equal the lib's atTrunk): the Cub and the metal Cessna at 30 m/s into a trunk on the
+  centreline, the Cub's wing 2.5 m out; the FAR 23.473 drop on the Cub, the metal Cessna, the Cessna on floats (onto the water); the
+  Cessna on floats' 5 m/s level pancake; the twin's float nose-in (90 km/h, 5 m/s, 20 deg). (The Cub's pancake needs GEAR-WATER 2's wet body,
+  absent from this core - skipped, as TREECRASH skips it.)
+- **Every schedule ends at its first read at or after the 60 fps end, and is there BITWISE the 60 fps run at that step** (p and v md5, the
+  work, DMG.wB md5, the broken list, the yields), with the same verdict / reason / time. The page's reads between frames (damage, fault,
+  cgPos, cgVel, axes, wheelsOnGround, stats) move nothing.
+
+  | case | the 60 fps run | the page ends it | past the 60 fps end |
+  |---|---|---|---|
+  | Cub, trunk, centreline | CRASHED (crushed) at 1.32 s, over at step 163; 84 broken, 105.04 kJ | 1-17 steps later | +49 to +95 J, +0 broken |
+  | metal Cessna, trunk | CRASHED (crushed) at 1.30 s, over at 108; 109 broken, 108.52 kJ | 0-12 steps later | +0 J |
+  | Cub, wing 2.5 m out | CRASHED (a wing member) at 1.37 s, over at 323; 8 broken, 10.64 kJ | 1-9 steps later | +0 J |
+  | the three drops, the pancake, the nose-in | 0 yields, 0 J, nothing broken | the run's end | 0 at every rate |
+
+- Plot: reports/evidence/DMG-D0/dmgfps.svg (every batched end sits on the 60 fps work line).
+
+### G1806 - fix: DMGFPS's wing case flown 6 s (its flight is over 4 s after the 1.37 s break), --out makes its directory
+
+### THE ACCEPTANCE (§11.2)
+- **Off = the base's bytes.** TREE-CRASH's G1478 list (41 physics gates), `GATES_CORE=1 run_gates --only=... --verbose --jobs=4`, base
+  4ca0678 against this branch, each gate's whole output: **27 byte for byte** (AERO BENCH DEFAULT DRAG ENERGY FLAPS FLOATS GE GEAR HONEST
+  HOTHIGH LINEUP LOAD MASS NAV OBSTACLE PACE PLAN SEAPLANE SITE SOAR STRESS STRUT SUBSTEP TAXICLEAR TREEHIT WEIGHT); **14 differ only in
+  timings** (numbers masked, identical: BIPLANE FLEX FLIGHTREC GEN HITBOX HYDRODYN PILOT PILOTACT SETTLE SIMWORKER - its every step's FNV
+  equal, f2b3de3f / cbccf99f as before - STRIPSURF TAKEOFF TREECRASH, and MOUNT's block, which closes the log with the battery's table).
+  Both batteries: BATTERY PASS. reports/evidence/DMG-D0/battery_diff.txt, gate_battery_mine.txt.
+- **GATE TREECRASH unchanged** (its output = the base's but its wall time); LOAD, BENCH, FLEX, TREEHIT, OBSTACLE, SIMWORKER green and their
+  bytes the base's; **DMGFPS 130/130 PASS, DMGINST 32/32 PASS**; UISMOKE, BUILD, JOIN PASS (app.js / build.js touched).
+- **PERF** (`tools/treecrash_evidence.js --perf-only --perf-base <base core>`, the layer ON, nothing touching, a far 4000-trunk set; the median
+  of 5 processes' medians, 600 steps; run twice on a quiet machine, and all 10):
+
+  | case | run 1 base / now (ms) | run 2 base / now | all 10 base / now | |
+  |---|---|---|---|---|
+  | Cub, ground | 3.513 / 3.561 | 3.752 / 3.626 | 3.547 / 3.595 | +1.4 % |
+  | Cub, air | 3.474 / 3.352 | 3.473 / 3.394 | 3.473 / 3.362 | -3.2 % |
+  | metal Cessna, ground | 6.224 / 6.226 | 6.367 / 6.299 | 6.292 / 6.262 | -0.5 % |
+  | metal Cessna, air | 6.077 / 5.935 | 5.973 / 6.097 | 6.042 / 5.968 | -1.2 % |
+
+  Within 2 % everywhere (the run-to-run spread is +-3 %). The new run-time work: the guard's node pass a frame (always), the per-beam add
+  inside the yield (armed only). `bm.sec` is build time. reports/evidence/DMG-D0/perf.json.
+- Validated builds only; no archetype touched; nothing from RoR / BeamNG. Generated files not committed.
+
+### Evidence (reports/evidence/DMG-D0/, `node tools/dmg_d0_evidence.js`)
+gate_dmgfps.txt, gate_dmginst.txt, dmgfps.json / dmginst.json, dmgfps.svg (the DMGFPS comparison), overlay_colours.svg (the colour table and
+the crash drawn with it), perf.json, battery_diff.txt, gate_battery_mine.txt.
+
+### Open questions (coordinator / A0)
+- **The guard is not behind params.damage.** It is a sim-fault detector and changes no bit, so damage-off gates are byte-identical; but in the
+  game a flight with a node past 150 m/s off the CG now ends 'sim-diverged' where it flew on (finite) before - e.g. a lattice out of its
+  integrator's limit (k x 5 above). Kept on by design; one line to gate it on DMG_ON if A0 prefers.
+- **The guard's margin in a wreck:** the worst seen is 91 m/s (the twin's severe nose-in). A far faster impact (a dive into the ground near
+  Vne) could whip pieces past 150 off the CG and end 'sim-diverged' instead of 'crashed'. DMG-TUNE's scenarios should re-read
+  `sim.guard().peak`; if needed, a debris node (`DMG.orphans`) can be left out of the guard.
+- **The page at low fps runs slow, not batched** (PACE: 4 steps a frame at most, 1-2 past a 250 ms frame) - correct for the damage layer
+  (proven), but at 10 fps the game runs at 40 % real time; that is G612 / G1365's design, noted for the record.
+- **'bracing' = the wing's torsion box** in the ledger (G1803 table): D5 decides how the bill names it.
+- The view under the worker (D4a's broken-list hop), and the dashes for broken (a second LineDashedMaterial pass) - left out.
+- **The coordinator must eyeball the damage view on the box** (G1804 above).

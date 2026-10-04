@@ -31,12 +31,12 @@ const nice = (a, b, n) => { if (b - a < 1e-9) return [a]; const st = Math.pow(10
 // ---- dmgfps.svg ----
 {
   const ids = Object.keys(FPS.cases).filter(id => !FPS.cases[id].skip && !FPS.cases[id].err);
-  const cols = 2, pw = 470, ph = 230, top = 70, W = cols * pw + 20, H = top + Math.ceil(ids.length / cols) * ph + 20;
+  const cols = 2, pw = 470, ph = 230, top = 86, W = cols * pw + 20, H = top + Math.ceil(ids.length / cols) * ph + 20;
   let s = `<text x="12" y="22" font-size="15" font-weight="bold" fill="${COL.ink}">GATE DMGFPS - a low frame rate never fakes a yield or a crash</text>`;
   s += `<text x="12" y="40" font-size="11" fill="${COL.ink2}">The plastic work of the 60 fps run (one step a read) against sim time; a dot where each batched run ended - the page's first read at or after</text>`;
   s += `<text x="12" y="54" font-size="11" fill="${COL.ink2}">the 60 fps end (dashed). Every dot sits on the line: bitwise the 60 fps run at that step. The damage layer on.</text>`;
   const lg = (x, y, c, lab, dot) => (dot ? `<circle cx="${x + 9}" cy="${y}" r="4.5" fill="${c}" stroke="${COL.surf}" stroke-width="2"/>` : `<line x1="${x}" x2="${x + 18}" y1="${y}" y2="${y}" stroke="${c}" stroke-width="2"/>`) + `<text x="${x + 24}" y="${y + 4}" font-size="11" fill="${COL.ink}">${esc(lab)}</text>`;
-  s += lg(W - 520, 22, COL.ref, '60 fps run', false) + lg(W - 400, 22, COL.inline, 'batched inline (the page)', true) + lg(W - 230, 22, COL.host, 'through the worker host', true);
+  s += lg(12, 72, COL.ref, '60 fps run', false) + lg(132, 72, COL.inline, 'batched inline (the page)', true) + lg(302, 72, COL.host, 'through the worker host', true);
   ids.forEach((id, k) => {
     const r = FPS.cases[id], x0 = 10 + (k % cols) * pw, y0 = top + Math.floor(k / cols) * ph;
     const pl = 52, pr = 14, pt = 34, pb = 34, w = pw - pl - pr, h = ph - pt - pb;
@@ -71,16 +71,20 @@ const nice = (a, b, n) => { if (b - a < 1e-9) return [a]; const st = Math.pow(10
     s += `<text x="130" y="${y + 2}" font-size="12" fill="${COL.ink2}">${esc(r.at)}</text><text x="290" y="${y + 2}" font-size="11" fill="${COL.ink2}" font-family="monospace">${r.hex}</text>`;
   });
   // the crash from above (the CG at the centre, x along the track up the page)
-  const B = INST.crashTop, sc = 46, cx = 640, cy = 300;
-  s += `<text x="${cx - 300}" y="62" font-size="12" font-weight="bold" fill="${COL.ink}">the Cub, 30 m/s into a trunk, at rest - from above</text>`;
+  // the members still together (a broken one whose ends have parted is not drawn), fitted into the panel
+  const B = INST.crashTop.filter(b => !(b[4] === 'broken' && Math.hypot(b[2] - b[0], b[3] - b[1]) > 4));
+  const px0 = 360, px1 = W - 20, py0 = 80, py1 = H - 40;
+  let u0 = Infinity, u1 = -Infinity, v0 = Infinity, v1 = -Infinity;
+  for (const b of B) { u0 = Math.min(u0, b[1], b[3]); u1 = Math.max(u1, b[1], b[3]); v0 = Math.min(v0, b[0], b[2]); v1 = Math.max(v1, b[0], b[2]); }
+  const sc = Math.min((px1 - px0) / (u1 - u0), (py1 - py0) / (v1 - v0)), cx = (px0 + px1) / 2 - (u0 + u1) / 2 * sc, cy = (py0 + py1) / 2 + (v0 + v1) / 2 * sc;
+  s += `<text x="${px0}" y="62" font-size="12" font-weight="bold" fill="${COL.ink}">the Cub, 30 m/s into a trunk, at rest - from above</text>`;
   const k2n = { calm: 0, stress: 1, set: 2, broken: 3 };
   for (const b of B.slice().sort((p, q) => k2n[p[4]] - k2n[q[4]])) {
     const [ax, az, bx, bz, kind, rgb] = b;
-    if (kind === 'broken' && Math.hypot(bx - ax, bz - az) > 4) continue;
     s += `<line x1="${(cx + az * sc).toFixed(1)}" y1="${(cy - ax * sc).toFixed(1)}" x2="${(cx + bz * sc).toFixed(1)}" y2="${(cy - bx * sc).toFixed(1)}" stroke="${hex(rgb)}" stroke-width="${kind === 'calm' ? 1 : 2}"/>`;
   }
   const kc = INST.crashKinds;
-  s += `<text x="${cx - 300}" y="${H - 16}" font-size="11" fill="${COL.ink2}">${esc('members: ' + kc.calm + ' calm, ' + kc.stress + ' stressed, ' + kc.set + ' set, ' + kc.broken + ' broken')}</text>`;
+  s += `<text x="${px0}" y="${H - 16}" font-size="11" fill="${COL.ink2}">${esc('members: ' + kc.calm + ' calm, ' + kc.stress + ' stressed, ' + kc.set + ' set, ' + kc.broken + ' broken')}</text>`;
   fs.writeFileSync(path.join(OUT, 'overlay_colours.svg'), svgDoc(W, H, s, 'The damage view'));
 }
 console.log('wrote ' + OUT);

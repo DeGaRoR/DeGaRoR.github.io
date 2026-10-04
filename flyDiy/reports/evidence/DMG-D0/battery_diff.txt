@@ -1,0 +1,43 @@
+# the physics gates (TREE-CRASH G1478 list), GATES_CORE=1 --verbose --jobs=4, each gate's whole output: base = claude/dmg-switch-g1898 4ca0678, mine = this branch
+
+SAME   AERO
+SAME   BENCH
+DIFF   BIPLANE  (only timings: yes)
+SAME   DEFAULT
+SAME   DRAG
+SAME   ENERGY
+SAME   FLAPS
+DIFF   FLEX  (only timings: yes)
+DIFF   FLIGHTREC  (only timings: yes)
+SAME   FLOATS
+SAME   GE
+SAME   GEAR
+DIFF   GEN  (only timings: yes)
+DIFF   HITBOX  (only timings: yes)
+SAME   HONEST
+SAME   HOTHIGH
+DIFF   HYDRODYN  (only timings: yes)
+SAME   LINEUP
+SAME   LOAD
+SAME   MASS
+DIFF   MOUNT  (only timings, and the battery's summary table that closes the log lists this branch's 5 extra gates: DMGINST, DMGFPS, UISMOKE, BUILD, JOIN)
+SAME   NAV
+SAME   OBSTACLE
+SAME   PACE
+DIFF   PILOT  (only timings: yes)
+DIFF   PILOTACT  (only timings: yes)
+SAME   PLAN
+SAME   SEAPLANE
+DIFF   SETTLE  (only timings: yes)
+DIFF   SIMWORKER  (only timings: yes)
+SAME   SITE
+SAME   SOAR
+SAME   STRESS
+DIFF   STRIPSURF  (only timings: yes)
+SAME   STRUT
+SAME   SUBSTEP
+DIFF   TAKEOFF  (only timings: yes)
+SAME   TAXICLEAR
+DIFF   TREECRASH  (only timings: yes)
+SAME   TREEHIT
+SAME   WEIGHT
