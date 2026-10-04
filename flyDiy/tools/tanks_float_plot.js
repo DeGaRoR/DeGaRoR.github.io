@@ -22,7 +22,7 @@ const ENTRY = { settle: 'set down on the water, still', ditch: 'ditched at 80 km
 const COL = { full: '#2a78d6', half: '#eb6834', empty: '#1baf7a', base: '#8a8984' };
 const INK = '#0b0b0b', INK2 = '#52514e', GRID = '#e4e3df', SURF = '#fcfcfb';
 const PANELS = [
-  { key: 'fb', label: 'freeboard at the wing roots (m)', get: r => r.fbL == null ? null : (r.fbL + r.fbR) / 2 },
+  { key: 'fb', label: 'freeboard at the wing roots (m; clipped to +-1.5 - the sinking is the last panel)', clip: [-1.5, 1.5], get: r => r.fbL == null ? null : (r.fbL + r.fbR) / 2 },
   { key: 'pitch', label: 'pitch (deg, nose-up +)', get: r => r.pitch },
   { key: 'roll', label: 'roll (deg)', get: r => r.roll },
   { key: 'top', label: 'highest point over the water (m; under 0 = sunk)', get: r => r.top },
@@ -51,6 +51,7 @@ function svgFor(build, entry) {
     let lo = Infinity, hi = -Infinity;
     for (const s of series) for (const r of s.j.rows) { const v = P.get(r); if (v != null && Number.isFinite(v)) { lo = Math.min(lo, v); hi = Math.max(hi, v); } }
     if (P.key === 'fb' || P.key === 'top') { lo = Math.min(lo, 0); hi = Math.max(hi, 0); }
+    if (P.clip) { lo = Math.max(lo, P.clip[0]); hi = Math.min(hi, P.clip[1]); }
     const n = nice(lo, hi), Y = v => y0 + PH - PH * (v - n.a) / ((n.b - n.a) || 1);
     g += `<text x="${L}" y="${y0 - 8}" font-size="12" font-weight="600" fill="${INK2}">${esc(P.label)}</text>`;
     for (const v of n.t) { g += `<line x1="${L}" x2="${W - RT}" y1="${Y(v)}" y2="${Y(v)}" stroke="${v === 0 ? '#b9b8b2' : GRID}" stroke-width="1"/>`;

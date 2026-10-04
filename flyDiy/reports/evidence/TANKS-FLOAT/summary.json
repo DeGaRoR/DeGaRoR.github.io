@@ -1,0 +1,1154 @@
+[
+ {
+  "build": "cub",
+  "entry": "settle",
+  "fuel": "full",
+  "mass": 476.2,
+  "tRootsUnder": 5,
+  "tSunk": 219.5,
+  "secs": 600,
+  "at10": {
+   "t": 10,
+   "fbL": -0.087,
+   "fbR": -0.087,
+   "pitch": -36.12,
+   "roll": 0.004,
+   "up": 0.841,
+   "cg": 0.575,
+   "top": 2.983,
+   "flood": 0.06,
+   "tankAir": 0,
+   "buoy": 3914
+  },
+  "at60": {
+   "t": 60,
+   "fbL": -0.194,
+   "fbR": -0.194,
+   "pitch": -26.797,
+   "roll": 0,
+   "up": 0.917,
+   "cg": 0.751,
+   "top": 2.283,
+   "flood": 0.24,
+   "tankAir": 0,
+   "buoy": 4424
+  },
+  "baseSunk": 189.5,
+  "tanks": [
+   {
+    "litres": 22.5,
+    "host": "its own (ahead of the firewall)",
+    "holed": false
+   },
+   {
+    "litres": 22.5,
+    "host": "its own (ahead of the firewall)",
+    "holed": false
+   }
+  ]
+ },
+ {
+  "build": "cub",
+  "entry": "settle",
+  "fuel": "half",
+  "mass": 460,
+  "tRootsUnder": 6.5,
+  "tSunk": 231.5,
+  "secs": 600,
+  "at10": {
+   "t": 10,
+   "fbL": -0.111,
+   "fbR": -0.111,
+   "pitch": -37.541,
+   "roll": -0.003,
+   "up": 0.827,
+   "cg": 0.579,
+   "top": 3.043,
+   "flood": 0.059,
+   "tankAir": 22.5,
+   "buoy": 4279
+  },
+  "at60": {
+   "t": 60,
+   "fbL": -0.176,
+   "fbR": -0.176,
+   "pitch": -25.789,
+   "roll": 0,
+   "up": 0.924,
+   "cg": 0.739,
+   "top": 2.232,
+   "flood": 0.23,
+   "tankAir": 22.5,
+   "buoy": 4286
+  },
+  "baseSunk": 189.5,
+  "tanks": [
+   {
+    "litres": 22.5,
+    "host": "its own (ahead of the firewall)",
+    "holed": false
+   },
+   {
+    "litres": 22.5,
+    "host": "its own (ahead of the firewall)",
+    "holed": false
+   }
+  ]
+ },
+ {
+  "build": "cub",
+  "entry": "settle",
+  "fuel": "empty",
+  "mass": 443.8,
+  "tRootsUnder": 7.5,
+  "tSunk": 242.5,
+  "secs": 600,
+  "at10": {
+   "t": 10,
+   "fbL": -0.104,
+   "fbR": -0.103,
+   "pitch": -36.872,
+   "roll": -0.064,
+   "up": 0.834,
+   "cg": 0.569,
+   "top": 3.011,
+   "flood": 0.057,
+   "tankAir": 45,
+   "buoy": 4247
+  },
+  "at60": {
+   "t": 60,
+   "fbL": -0.157,
+   "fbR": -0.157,
+   "pitch": -24.917,
+   "roll": 0,
+   "up": 0.93,
+   "cg": 0.726,
+   "top": 2.191,
+   "flood": 0.22,
+   "tankAir": 45,
+   "buoy": 3924
+  },
+  "baseSunk": 189.5,
+  "tanks": [
+   {
+    "litres": 22.5,
+    "host": "its own (ahead of the firewall)",
+    "holed": false
+   },
+   {
+    "litres": 22.5,
+    "host": "its own (ahead of the firewall)",
+    "holed": false
+   }
+  ]
+ },
+ {
+  "build": "cub",
+  "entry": "ditch",
+  "fuel": "full",
+  "mass": 476.2,
+  "tRootsUnder": 2.5,
+  "tSunk": 301,
+  "secs": 600,
+  "at10": {
+   "t": 10,
+   "fbL": -0.134,
+   "fbR": -0.134,
+   "pitch": -52.665,
+   "roll": -0.027,
+   "up": 0.652,
+   "cg": 0.469,
+   "top": 3.78,
+   "flood": 0.049,
+   "tankAir": 0,
+   "buoy": 4047
+  },
+  "at60": {
+   "t": 60,
+   "fbL": -0.175,
+   "fbR": -0.175,
+   "pitch": -39.862,
+   "roll": 0.001,
+   "up": 0.804,
+   "cg": 0.631,
+   "top": 3.111,
+   "flood": 0.162,
+   "tankAir": 0,
+   "buoy": 3921
+  },
+  "baseSunk": 267.5,
+  "tanks": [
+   {
+    "litres": 22.5,
+    "host": "its own (ahead of the firewall)",
+    "holed": false
+   },
+   {
+    "litres": 22.5,
+    "host": "its own (ahead of the firewall)",
+    "holed": false
+   }
+  ]
+ },
+ {
+  "build": "cub",
+  "entry": "ditch",
+  "fuel": "half",
+  "mass": 460,
+  "tRootsUnder": 2.5,
+  "tSunk": 317,
+  "secs": 600,
+  "at10": {
+   "t": 10,
+   "fbL": -0.118,
+   "fbR": -0.118,
+   "pitch": -49.728,
+   "roll": -0.044,
+   "up": 0.69,
+   "cg": 0.467,
+   "top": 3.669,
+   "flood": 0.046,
+   "tankAir": 22.5,
+   "buoy": 4475
+  },
+  "at60": {
+   "t": 60,
+   "fbL": -0.163,
+   "fbR": -0.163,
+   "pitch": -39.07,
+   "roll": 0.002,
+   "up": 0.812,
+   "cg": 0.617,
+   "top": 3.078,
+   "flood": 0.151,
+   "tankAir": 22.5,
+   "buoy": 3835
+  },
+  "baseSunk": 267.5,
+  "tanks": [
+   {
+    "litres": 22.5,
+    "host": "its own (ahead of the firewall)",
+    "holed": false
+   },
+   {
+    "litres": 22.5,
+    "host": "its own (ahead of the firewall)",
+    "holed": false
+   }
+  ]
+ },
+ {
+  "build": "cub",
+  "entry": "ditch",
+  "fuel": "empty",
+  "mass": 443.8,
+  "tRootsUnder": 2.5,
+  "tSunk": 332,
+  "secs": 600,
+  "at10": {
+   "t": 10,
+   "fbL": -0.107,
+   "fbR": -0.106,
+   "pitch": -49.932,
+   "roll": -0.065,
+   "up": 0.688,
+   "cg": 0.436,
+   "top": 3.689,
+   "flood": 0.044,
+   "tankAir": 45,
+   "buoy": 3985
+  },
+  "at60": {
+   "t": 60,
+   "fbL": -0.149,
+   "fbR": -0.149,
+   "pitch": -38.304,
+   "roll": 0.003,
+   "up": 0.82,
+   "cg": 0.6,
+   "top": 3.049,
+   "flood": 0.141,
+   "tankAir": 45,
+   "buoy": 3569
+  },
+  "baseSunk": 267.5,
+  "tanks": [
+   {
+    "litres": 22.5,
+    "host": "its own (ahead of the firewall)",
+    "holed": false
+   },
+   {
+    "litres": 22.5,
+    "host": "its own (ahead of the firewall)",
+    "holed": false
+   }
+  ]
+ },
+ {
+  "build": "cubWing",
+  "entry": "settle",
+  "fuel": "full",
+  "mass": 476.2,
+  "tRootsUnder": 3.5,
+  "tSunk": 209.5,
+  "secs": 600,
+  "at10": {
+   "t": 10,
+   "fbL": -0.103,
+   "fbR": -0.103,
+   "pitch": -36.417,
+   "roll": -0.002,
+   "up": 0.838,
+   "cg": 0.517,
+   "top": 2.985,
+   "flood": 0.065,
+   "tankAir": 0,
+   "buoy": 3788
+  },
+  "at60": {
+   "t": 60,
+   "fbL": -0.215,
+   "fbR": -0.215,
+   "pitch": -27.674,
+   "roll": 0,
+   "up": 0.911,
+   "cg": 0.706,
+   "top": 2.32,
+   "flood": 0.26,
+   "tankAir": 0,
+   "buoy": 4329
+  },
+  "baseSunk": 189,
+  "tanks": [
+   {
+    "litres": 22.5,
+    "host": "wing slab",
+    "holed": false
+   },
+   {
+    "litres": 22.5,
+    "host": "wing slab",
+    "holed": false
+   }
+  ]
+ },
+ {
+  "build": "cubWing",
+  "entry": "settle",
+  "fuel": "half",
+  "mass": 460,
+  "tRootsUnder": 4,
+  "tSunk": 220.5,
+  "secs": 600,
+  "at10": {
+   "t": 10,
+   "fbL": -0.104,
+   "fbR": -0.104,
+   "pitch": -36.058,
+   "roll": -0.004,
+   "up": 0.842,
+   "cg": 0.543,
+   "top": 2.963,
+   "flood": 0.063,
+   "tankAir": 0.155,
+   "buoy": 4114
+  },
+  "at60": {
+   "t": 60,
+   "fbL": -0.203,
+   "fbR": -0.203,
+   "pitch": -27.406,
+   "roll": 0,
+   "up": 0.913,
+   "cg": 0.719,
+   "top": 2.314,
+   "flood": 0.252,
+   "tankAir": 18.757,
+   "buoy": 4111
+  },
+  "baseSunk": 189,
+  "tanks": [
+   {
+    "litres": 22.5,
+    "host": "wing slab",
+    "holed": false
+   },
+   {
+    "litres": 22.5,
+    "host": "wing slab",
+    "holed": false
+   }
+  ]
+ },
+ {
+  "build": "cubWing",
+  "entry": "settle",
+  "fuel": "empty",
+  "mass": 443.8,
+  "tRootsUnder": 5.5,
+  "tSunk": 232,
+  "secs": 600,
+  "at10": {
+   "t": 10,
+   "fbL": -0.107,
+   "fbR": -0.107,
+   "pitch": -36.717,
+   "roll": 0.002,
+   "up": 0.835,
+   "cg": 0.564,
+   "top": 2.998,
+   "flood": 0.061,
+   "tankAir": 0.313,
+   "buoy": 4017
+  },
+  "at60": {
+   "t": 60,
+   "fbL": -0.195,
+   "fbR": -0.195,
+   "pitch": -27.172,
+   "roll": 0,
+   "up": 0.915,
+   "cg": 0.737,
+   "top": 2.307,
+   "flood": 0.244,
+   "tankAir": 35.552,
+   "buoy": 4015
+  },
+  "baseSunk": 189,
+  "tanks": [
+   {
+    "litres": 22.5,
+    "host": "wing slab",
+    "holed": false
+   },
+   {
+    "litres": 22.5,
+    "host": "wing slab",
+    "holed": false
+   }
+  ]
+ },
+ {
+  "build": "cubWing",
+  "entry": "ditch",
+  "fuel": "full",
+  "mass": 476.2,
+  "tRootsUnder": 2.5,
+  "tSunk": 290.5,
+  "secs": 600,
+  "at10": {
+   "t": 10,
+   "fbL": -0.157,
+   "fbR": -0.156,
+   "pitch": -55.981,
+   "roll": -0.037,
+   "up": 0.608,
+   "cg": 0.368,
+   "top": 3.89,
+   "flood": 0.053,
+   "tankAir": 0,
+   "buoy": 3662
+  },
+  "at60": {
+   "t": 60,
+   "fbL": -0.212,
+   "fbR": -0.212,
+   "pitch": -40.852,
+   "roll": -0.002,
+   "up": 0.794,
+   "cg": 0.583,
+   "top": 3.129,
+   "flood": 0.188,
+   "tankAir": 0,
+   "buoy": 4483
+  },
+  "baseSunk": 268.5,
+  "tanks": [
+   {
+    "litres": 22.5,
+    "host": "wing slab",
+    "holed": false
+   },
+   {
+    "litres": 22.5,
+    "host": "wing slab",
+    "holed": false
+   }
+  ]
+ },
+ {
+  "build": "cubWing",
+  "entry": "ditch",
+  "fuel": "half",
+  "mass": 460,
+  "tRootsUnder": 2.5,
+  "tSunk": 305.5,
+  "secs": 600,
+  "at10": {
+   "t": 10,
+   "fbL": -0.17,
+   "fbR": -0.17,
+   "pitch": -56.391,
+   "roll": -0.041,
+   "up": 0.602,
+   "cg": 0.394,
+   "top": 3.892,
+   "flood": 0.052,
+   "tankAir": 0,
+   "buoy": 4332
+  },
+  "at60": {
+   "t": 60,
+   "fbL": -0.21,
+   "fbR": -0.21,
+   "pitch": -40.575,
+   "roll": 0,
+   "up": 0.796,
+   "cg": 0.605,
+   "top": 3.116,
+   "flood": 0.18,
+   "tankAir": 9.772,
+   "buoy": 4698
+  },
+  "baseSunk": 268.5,
+  "tanks": [
+   {
+    "litres": 22.5,
+    "host": "wing slab",
+    "holed": false
+   },
+   {
+    "litres": 22.5,
+    "host": "wing slab",
+    "holed": false
+   }
+  ]
+ },
+ {
+  "build": "cubWing",
+  "entry": "ditch",
+  "fuel": "empty",
+  "mass": 443.8,
+  "tRootsUnder": 2.5,
+  "tSunk": 317.5,
+  "secs": 600,
+  "at10": {
+   "t": 10,
+   "fbL": -0.158,
+   "fbR": -0.158,
+   "pitch": -56.359,
+   "roll": -0.019,
+   "up": 0.602,
+   "cg": 0.402,
+   "top": 3.902,
+   "flood": 0.05,
+   "tankAir": 0,
+   "buoy": 3820
+  },
+  "at60": {
+   "t": 60,
+   "fbL": -0.202,
+   "fbR": -0.202,
+   "pitch": -40.346,
+   "roll": 0,
+   "up": 0.799,
+   "cg": 0.622,
+   "top": 3.111,
+   "flood": 0.172,
+   "tankAir": 17.179,
+   "buoy": 4558
+  },
+  "baseSunk": 268.5,
+  "tanks": [
+   {
+    "litres": 22.5,
+    "host": "wing slab",
+    "holed": false
+   },
+   {
+    "litres": 22.5,
+    "host": "wing slab",
+    "holed": false
+   }
+  ]
+ },
+ {
+  "build": "metal",
+  "entry": "settle",
+  "fuel": "full",
+  "mass": 883.4,
+  "tRootsUnder": 359.5,
+  "tSunk": null,
+  "secs": 600,
+  "at10": {
+   "t": 10,
+   "fbL": 0.815,
+   "fbR": 0.761,
+   "pitch": -23.77,
+   "roll": 2.962,
+   "up": 0.917,
+   "cg": -0.103,
+   "top": 3.349,
+   "flood": 0.001,
+   "tankAir": 0,
+   "buoy": 7875
+  },
+  "at60": {
+   "t": 60,
+   "fbL": 0.758,
+   "fbR": 0.569,
+   "pitch": -25.689,
+   "roll": 10.407,
+   "up": 0.886,
+   "cg": -0.011,
+   "top": 3.367,
+   "flood": 0.005,
+   "tankAir": 0,
+   "buoy": 8426
+  },
+  "baseSunk": null,
+  "tanks": [
+   {
+    "litres": 14,
+    "host": "its own (ahead of the firewall)",
+    "holed": false
+   },
+   {
+    "litres": 14,
+    "host": "its own (ahead of the firewall)",
+    "holed": false
+   }
+  ]
+ },
+ {
+  "build": "metal",
+  "entry": "settle",
+  "fuel": "half",
+  "mass": 873.3,
+  "tRootsUnder": 382,
+  "tSunk": null,
+  "secs": 600,
+  "at10": {
+   "t": 10,
+   "fbL": 0.8,
+   "fbR": 0.769,
+   "pitch": -22.291,
+   "roll": 1.667,
+   "up": 0.928,
+   "cg": -0.085,
+   "top": 3.228,
+   "flood": 0.001,
+   "tankAir": 0,
+   "buoy": 8486
+  },
+  "at60": {
+   "t": 60,
+   "fbL": 0.778,
+   "fbR": 0.586,
+   "pitch": -24.554,
+   "roll": 10.58,
+   "up": 0.894,
+   "cg": -0.018,
+   "top": 3.296,
+   "flood": 0.005,
+   "tankAir": 3.843,
+   "buoy": 8325
+  },
+  "baseSunk": null,
+  "tanks": [
+   {
+    "litres": 14,
+    "host": "its own (ahead of the firewall)",
+    "holed": false
+   },
+   {
+    "litres": 14,
+    "host": "its own (ahead of the firewall)",
+    "holed": false
+   }
+  ]
+ },
+ {
+  "build": "metal",
+  "entry": "settle",
+  "fuel": "empty",
+  "mass": 863.2,
+  "tRootsUnder": 425,
+  "tSunk": null,
+  "secs": 600,
+  "at10": {
+   "t": 10,
+   "fbL": 0.823,
+   "fbR": 0.802,
+   "pitch": -19.717,
+   "roll": 1.148,
+   "up": 0.944,
+   "cg": -0.09,
+   "top": 3.047,
+   "flood": 0.001,
+   "tankAir": 0,
+   "buoy": 8552
+  },
+  "at60": {
+   "t": 60,
+   "fbL": 0.799,
+   "fbR": 0.603,
+   "pitch": -23.362,
+   "roll": 10.76,
+   "up": 0.902,
+   "cg": -0.026,
+   "top": 3.22,
+   "flood": 0.005,
+   "tankAir": 5.631,
+   "buoy": 8238
+  },
+  "baseSunk": null,
+  "tanks": [
+   {
+    "litres": 14,
+    "host": "its own (ahead of the firewall)",
+    "holed": false
+   },
+   {
+    "litres": 14,
+    "host": "its own (ahead of the firewall)",
+    "holed": false
+   }
+  ]
+ },
+ {
+  "build": "metal",
+  "entry": "ditch",
+  "fuel": "full",
+  "mass": 883.4,
+  "tRootsUnder": 358.5,
+  "tSunk": null,
+  "secs": 600,
+  "at10": {
+   "t": 10,
+   "fbL": 0.849,
+   "fbR": 0.649,
+   "pitch": -22.75,
+   "roll": 10.997,
+   "up": 0.905,
+   "cg": -0.071,
+   "top": 3.219,
+   "flood": 0.001,
+   "tankAir": 0,
+   "buoy": 8624
+  },
+  "at60": {
+   "t": 60,
+   "fbL": 0.759,
+   "fbR": 0.569,
+   "pitch": -25.657,
+   "roll": 10.421,
+   "up": 0.886,
+   "cg": -0.011,
+   "top": 3.365,
+   "flood": 0.006,
+   "tankAir": 0,
+   "buoy": 8430
+  },
+  "baseSunk": null,
+  "tanks": [
+   {
+    "litres": 14,
+    "host": "its own (ahead of the firewall)",
+    "holed": false
+   },
+   {
+    "litres": 14,
+    "host": "its own (ahead of the firewall)",
+    "holed": false
+   }
+  ]
+ },
+ {
+  "build": "metal",
+  "entry": "ditch",
+  "fuel": "half",
+  "mass": 873.3,
+  "tRootsUnder": 388,
+  "tSunk": null,
+  "secs": 600,
+  "at10": {
+   "t": 10,
+   "fbL": 0.899,
+   "fbR": 0.707,
+   "pitch": -20.542,
+   "roll": 10.52,
+   "up": 0.921,
+   "cg": -0.104,
+   "top": 3.095,
+   "flood": 0.001,
+   "tankAir": 0,
+   "buoy": 8251
+  },
+  "at60": {
+   "t": 60,
+   "fbL": 0.778,
+   "fbR": 0.586,
+   "pitch": -24.537,
+   "roll": 10.592,
+   "up": 0.894,
+   "cg": -0.018,
+   "top": 3.295,
+   "flood": 0.005,
+   "tankAir": 3.836,
+   "buoy": 8331
+  },
+  "baseSunk": null,
+  "tanks": [
+   {
+    "litres": 14,
+    "host": "its own (ahead of the firewall)",
+    "holed": false
+   },
+   {
+    "litres": 14,
+    "host": "its own (ahead of the firewall)",
+    "holed": false
+   }
+  ]
+ },
+ {
+  "build": "metal",
+  "entry": "ditch",
+  "fuel": "empty",
+  "mass": 863.2,
+  "tRootsUnder": 424,
+  "tSunk": null,
+  "secs": 600,
+  "at10": {
+   "t": 10,
+   "fbL": 0.933,
+   "fbR": 0.763,
+   "pitch": -18.648,
+   "roll": 9.287,
+   "up": 0.936,
+   "cg": -0.128,
+   "top": 2.986,
+   "flood": 0.001,
+   "tankAir": 0,
+   "buoy": 7836
+  },
+  "at60": {
+   "t": 60,
+   "fbL": 0.799,
+   "fbR": 0.603,
+   "pitch": -23.363,
+   "roll": 10.763,
+   "up": 0.902,
+   "cg": -0.026,
+   "top": 3.221,
+   "flood": 0.005,
+   "tankAir": 5.614,
+   "buoy": 8232
+  },
+  "baseSunk": null,
+  "tanks": [
+   {
+    "litres": 14,
+    "host": "its own (ahead of the firewall)",
+    "holed": false
+   },
+   {
+    "litres": 14,
+    "host": "its own (ahead of the firewall)",
+    "holed": false
+   }
+  ]
+ },
+ {
+  "build": "jodel",
+  "entry": "settle",
+  "fuel": "full",
+  "mass": 463,
+  "tRootsUnder": 2.5,
+  "tSunk": 421.5,
+  "secs": 600,
+  "at10": {
+   "t": 10,
+   "fbL": -0.21,
+   "fbR": -0.21,
+   "pitch": -89.803,
+   "roll": -0.016,
+   "up": 0.066,
+   "cg": 0.021,
+   "top": 4.132,
+   "flood": 0.028,
+   "tankAir": 0,
+   "buoy": 3751
+  },
+  "at60": {
+   "t": 60,
+   "fbL": -0.412,
+   "fbR": -0.412,
+   "pitch": -60.251,
+   "roll": 0.001,
+   "up": -0.439,
+   "cg": 0.357,
+   "top": 3.183,
+   "flood": 0.221,
+   "tankAir": 0,
+   "buoy": 4001
+  },
+  "baseSunk": 356.5,
+  "tanks": [
+   {
+    "litres": 22.5,
+    "host": "its own (ahead of the firewall)",
+    "holed": false
+   },
+   {
+    "litres": 22.5,
+    "host": "its own (ahead of the firewall)",
+    "holed": false
+   }
+  ]
+ },
+ {
+  "build": "jodel",
+  "entry": "settle",
+  "fuel": "half",
+  "mass": 446.8,
+  "tRootsUnder": 2.5,
+  "tSunk": 450.5,
+  "secs": 600,
+  "at10": {
+   "t": 10,
+   "fbL": -0.191,
+   "fbR": -0.191,
+   "pitch": -88.932,
+   "roll": -0.006,
+   "up": 0.081,
+   "cg": -0.027,
+   "top": 4.174,
+   "flood": 0.028,
+   "tankAir": 22.5,
+   "buoy": 2801
+  },
+  "at60": {
+   "t": 60,
+   "fbL": -0.389,
+   "fbR": -0.389,
+   "pitch": -57.952,
+   "roll": 0.028,
+   "up": -0.474,
+   "cg": 0.313,
+   "top": 3.125,
+   "flood": 0.212,
+   "tankAir": 22.5,
+   "buoy": 4520
+  },
+  "baseSunk": 356.5,
+  "tanks": [
+   {
+    "litres": 22.5,
+    "host": "its own (ahead of the firewall)",
+    "holed": false
+   },
+   {
+    "litres": 22.5,
+    "host": "its own (ahead of the firewall)",
+    "holed": false
+   }
+  ]
+ },
+ {
+  "build": "jodel",
+  "entry": "settle",
+  "fuel": "empty",
+  "mass": 430.6,
+  "tRootsUnder": 2.5,
+  "tSunk": 474,
+  "secs": 600,
+  "at10": {
+   "t": 10,
+   "fbL": -0.214,
+   "fbR": -0.215,
+   "pitch": -39.34,
+   "roll": 0.005,
+   "up": 0.809,
+   "cg": -0.078,
+   "top": 3.723,
+   "flood": 0.032,
+   "tankAir": 20.49,
+   "buoy": 4173
+  },
+  "at60": {
+   "t": 60,
+   "fbL": -0.427,
+   "fbR": -0.427,
+   "pitch": -44.802,
+   "roll": -0.011,
+   "up": 0.75,
+   "cg": 0.129,
+   "top": 3.719,
+   "flood": 0.219,
+   "tankAir": 45,
+   "buoy": 3609
+  },
+  "baseSunk": 356.5,
+  "tanks": [
+   {
+    "litres": 22.5,
+    "host": "its own (ahead of the firewall)",
+    "holed": false
+   },
+   {
+    "litres": 22.5,
+    "host": "its own (ahead of the firewall)",
+    "holed": false
+   }
+  ]
+ },
+ {
+  "build": "jodel",
+  "entry": "ditch",
+  "fuel": "full",
+  "mass": 463,
+  "tRootsUnder": 3.5,
+  "tSunk": null,
+  "secs": 600,
+  "at10": {
+   "t": 10,
+   "fbL": -0.226,
+   "fbR": -0.225,
+   "pitch": -79.312,
+   "roll": -0.051,
+   "up": -0.122,
+   "cg": 0.081,
+   "top": 3.841,
+   "flood": 0.032,
+   "tankAir": 0,
+   "buoy": 5583
+  },
+  "at60": {
+   "t": 60,
+   "fbL": -0.502,
+   "fbR": -0.503,
+   "pitch": -72.453,
+   "roll": 0.012,
+   "up": -0.24,
+   "cg": 0.389,
+   "top": 3.424,
+   "flood": 0.217,
+   "tankAir": 0,
+   "buoy": 4060
+  },
+  "baseSunk": 536,
+  "tanks": [
+   {
+    "litres": 22.5,
+    "host": "its own (ahead of the firewall)",
+    "holed": false
+   },
+   {
+    "litres": 22.5,
+    "host": "its own (ahead of the firewall)",
+    "holed": false
+   }
+  ]
+ },
+ {
+  "build": "jodel",
+  "entry": "ditch",
+  "fuel": "half",
+  "mass": 446.8,
+  "tRootsUnder": 3.5,
+  "tSunk": null,
+  "secs": 600,
+  "at10": {
+   "t": 10,
+   "fbL": -0.236,
+   "fbR": -0.235,
+   "pitch": -72.428,
+   "roll": -0.013,
+   "up": 0.359,
+   "cg": -0.029,
+   "top": 4.363,
+   "flood": 0.033,
+   "tankAir": 22.5,
+   "buoy": 4017
+  },
+  "at60": {
+   "t": 60,
+   "fbL": -0.443,
+   "fbR": -0.443,
+   "pitch": -66.75,
+   "roll": 0.05,
+   "up": -0.334,
+   "cg": 0.325,
+   "top": 3.35,
+   "flood": 0.21,
+   "tankAir": 22.5,
+   "buoy": 4443
+  },
+  "baseSunk": 536,
+  "tanks": [
+   {
+    "litres": 22.5,
+    "host": "its own (ahead of the firewall)",
+    "holed": false
+   },
+   {
+    "litres": 22.5,
+    "host": "its own (ahead of the firewall)",
+    "holed": false
+   }
+  ]
+ },
+ {
+  "build": "jodel",
+  "entry": "ditch",
+  "fuel": "empty",
+  "mass": 430.6,
+  "tRootsUnder": 3.5,
+  "tSunk": null,
+  "secs": 600,
+  "at10": {
+   "t": 10,
+   "fbL": -0.241,
+   "fbR": -0.241,
+   "pitch": -51.066,
+   "roll": -0.012,
+   "up": 0.673,
+   "cg": -0.06,
+   "top": 4.098,
+   "flood": 0.033,
+   "tankAir": 45,
+   "buoy": 4393
+  },
+  "at60": {
+   "t": 60,
+   "fbL": -0.435,
+   "fbR": -0.435,
+   "pitch": -45.869,
+   "roll": 0.003,
+   "up": 0.737,
+   "cg": 0.136,
+   "top": 3.748,
+   "flood": 0.22,
+   "tankAir": 45,
+   "buoy": 3624
+  },
+  "baseSunk": 536,
+  "tanks": [
+   {
+    "litres": 22.5,
+    "host": "its own (ahead of the firewall)",
+    "holed": false
+   },
+   {
+    "litres": 22.5,
+    "host": "its own (ahead of the firewall)",
+    "holed": false
+   }
+  ]
+ }
+]

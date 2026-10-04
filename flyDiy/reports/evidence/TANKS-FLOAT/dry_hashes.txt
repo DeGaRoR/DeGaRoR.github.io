@@ -1,0 +1,37 @@
+# node tools/tanks_float_dry.js --core <core> --builds cub,metal,jodel,floats (master 44b7a38 / base claude/gear-water-buoy 5ecabad / this branch)
+== /tmp/claude-0/wt_master/flyDiy/tools/flight_core.js
+cub    strip  ef1b7a0702c4b333  wet body never  step 4.81 ms
+cub    air    0b484885703c9c10  wet body never  step 2.79 ms  lowest 601 m over the surface
+cub    sea    3cde0b05885d42ae  wet body never  step 2.92 ms  lowest 601 m over the surface
+metal  strip  76f3ed829ced9b90  wet body never  step 4.83 ms
+metal  air    3f9013f9697a1563  wet body never  step 5.27 ms  lowest 481 m over the surface
+metal  sea    90b9397c88caefe1  wet body never  step 4.98 ms  lowest 388 m over the surface
+jodel  strip  6d6f84fc4c9aa81e  wet body never  step 4.02 ms
+jodel  air    f24652a51d7a6ded  wet body never  step 5.16 ms  lowest 541 m over the surface
+jodel  sea    7ed7c443d6077216  wet body never  step 5.22 ms  lowest 498 m over the surface
+floats water  d4727036ea829114  wet body never  step 9.48 ms
+floats air    5aaa4b34e7734d83  wet body never  step 5.03 ms  lowest 313 m over the surface
+== /tmp/claude-0/wt_base/flyDiy/tools/flight_core.js
+cub    strip  ef1b7a0702c4b333  wet body never  step 4.16 ms
+cub    air    0b484885703c9c10  wet body never  step 2.85 ms  lowest 601 m over the surface
+cub    sea    3cde0b05885d42ae  wet body never  step 3.51 ms  lowest 601 m over the surface
+metal  strip  76f3ed829ced9b90  wet body never  step 5.54 ms
+metal  air    3f9013f9697a1563  wet body never  step 4.88 ms  lowest 481 m over the surface
+metal  sea    90b9397c88caefe1  wet body never  step 4.75 ms  lowest 388 m over the surface
+jodel  strip  6d6f84fc4c9aa81e  wet body never  step 3.80 ms
+jodel  air    f24652a51d7a6ded  wet body never  step 5.08 ms  lowest 541 m over the surface
+jodel  sea    7ed7c443d6077216  wet body never  step 5.44 ms  lowest 498 m over the surface
+floats water  d4727036ea829114  wet body never  step 9.10 ms
+floats air    5aaa4b34e7734d83  wet body never  step 5.63 ms  lowest 313 m over the surface
+== tools/flight_core.js
+cub    strip  ef1b7a0702c4b333  wet body never  step 4.44 ms
+cub    air    0b484885703c9c10  wet body never  step 2.75 ms  lowest 601 m over the surface
+cub    sea    3cde0b05885d42ae  wet body never  step 3.08 ms  lowest 601 m over the surface
+metal  strip  76f3ed829ced9b90  wet body never  step 5.09 ms
+metal  air    3f9013f9697a1563  wet body never  step 4.89 ms  lowest 481 m over the surface
+metal  sea    90b9397c88caefe1  wet body never  step 4.98 ms  lowest 388 m over the surface
+jodel  strip  6d6f84fc4c9aa81e  wet body never  step 4.19 ms
+jodel  air    f24652a51d7a6ded  wet body never  step 5.12 ms  lowest 541 m over the surface
+jodel  sea    7ed7c443d6077216  wet body never  step 5.40 ms  lowest 498 m over the surface
+floats water  d4727036ea829114  wet body never  step 9.42 ms
+floats air    5aaa4b34e7734d83  wet body never  step 4.92 ms  lowest 313 m over the surface

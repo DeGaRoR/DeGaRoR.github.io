@@ -83,7 +83,8 @@ function run(b, entry, fk) {
     const r = { t, fbL: fb(rL), fbR: fb(rR), pitch: -Math.asin(Math.max(-1, Math.min(1, x2[1]))) * D,
                 roll: Math.asin(Math.max(-1, Math.min(1, z2[1]))) * D, up: y2[1], cg: W(c[0], c[2]) - c[1], top,
                 flood: sim.out.wetFlood || 0, tankAir, buoy: sim.out.wetBuoy || 0 };
-    rows.push(r);
+    for (const k in r) if (typeof r[k] === 'number') r[k] = +r[k].toFixed(k === 'buoy' ? 0 : k === 't' ? 2 : 3);   // mm, 0.001 deg: the evidence stays small
+    if ((s + 1) % 60 === 0) rows.push(r);           // stored a second apart; the moments below are found every half second
     const fbMax = Math.max(r.fbL == null ? -Infinity : r.fbL, r.fbR == null ? -Infinity : r.fbR);
     if (tRootsUnder == null && t > 2 && fbMax < 0) tRootsUnder = t;
     if (tSunk == null && top < 0) tSunk = t;

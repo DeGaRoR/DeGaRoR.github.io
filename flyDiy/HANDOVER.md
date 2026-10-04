@@ -71964,3 +71964,100 @@ GATES on this branch: HYDRODYN PASS (above); SOAR PASS (its control comes down o
 (water)"). The rest of the battery runs on claude/gear-water-g1380's READY commit
 (this branch adds only 32_hydro.js, two lines of 30_solver.js and HYDRODYN's section); the water gates to re-run when A0
 picks it: HYDRODYN, WATER, FLOATS, SEAPLANE, SOAR.
+
+## G1385-G1389 - TANKS-FLOAT: THE REAL TANKS FLOAT - SEALED, WHERE THE FRAME BILLED THEIR KILOS, THE FUEL IN THEM DISPLACING TOO (2026-10-04, TANKS-FLOAT for A0, cloud, node only; branch claude/tanks-float-g1385 on claude/gear-water-buoy)
+
+The ask (GEAR-WATER 2's session list, item 4): "the wing slab's air from the real tanks (GEN_TANKS: capacity - fuel), so a
+ditched Cub floats on its empty wing tanks as the real ones do"; the wing and fuselage slabs' trapped air to include each
+tank's empty volume where the tank is; a tank not flooding like fabric (sealed until a breach, the slam's rule); fuel burnt
+raising the buoyancy; nothing in dry air.
+
+FIRST, WHAT THE VALIDATED BUILDS CARRY (measured, tools/tanks_float.js's builds): the user's Cub, the Jodel and the metal
+Cessna each have ONE NOSE TANK (45 / 45 / 28 L, bay 'nose', lv 0.9 / 0.9 / 0.61) - ahead of the firewall, where no hull
+slice is (the nose bay is "collated to the firewall, on the engine side", G99). None of the three has wing tanks. The
+wing-tank path is therefore proven on the user's Cub with its 45 L moved to the wing roots (bay 'wingRoot', along 0.28 - a
+PA-18's layout; nothing else changed), named `cubWing` in the rigs. The floatplanes carry no wet body at all (wetBuild
+returns null on floats) and are untouched.
+
+G1385 THE TANKS (32_hydro.js wetTanks, called by wetBuild):
+- Each fuel vessel of spec.energy.vessels is a buoyant volume at the nodes the frame billed its kilos to (`_pair`, 61_gen_frame.js),
+  SPLIT BY SIDE (z > 5 cm / < -5 cm / between): a wing tank is two tanks, a nose tank's two side nodes two halves, each wet on
+  its own (a rolled aeroplane's low tank lifts, the high one does not). Its lift lands on those nodes by the frame's own shares.
+- Volume: the design capacity (genSpecAtFuel scales `capacity` to the litres carried and keeps the design's in fuel.designL;
+  the TANK is the design's: capacity x designL / litres; a build built empty splits designL over its vessels). Batteries:
+  none (a pack is not a tank).
+- Wet share: a smooth ramp over the tank's height at its kilos' weighted place - a wing tank its slab's thickness, a body
+  tank cbrt(V) clamped 0.1-0.6 m.
+- THE FUEL DISPLACES TOO (the one departure from the ask's wording, on purpose): the trapped AIR is capacity - fuel, as asked,
+  but a sealed tank displaces its WHOLE volume - avgas (0.72 kg/L) floats. The fuel's kilos ride the nodes the burn drains
+  (setNodeMass), so a burnt litre raises the NET lift by its 0.72 kg (the burn's own door, nothing new), and the air it leaves
+  is what a holed tank can lose. Counting the fuel as non-buoyant (lift = air only) would have sunk a full tank's 45 L x 1 kg
+  below what Archimedes gives - GATE HYDRODYN checks the fully-submerged tank lifts exactly rho g 45 L.
+- CARVED FROM ITS HOST: a wing tank's volume comes out of its slab's flooding air (the slabs holding most of its nodes - a node
+  on a rib is two strips' - carved alike), a body tank's out of its hull slice's (by its kilos' rest x between the stations).
+  At the moment of entry the build holds exactly the air it held before (HYDRODYN: the wing-tank Cub fully under lifts
+  34241.2 N with tanks and without); the tank's share just no longer floods. A tank AHEAD OF THE FIREWALL has no host: its
+  volume is new buoyancy (that nose bay had none) - the three validated builds' case.
+- SEALED: no flooding until holed. HOLED by the slam's rule: its host slice's peak slam pressure (new: slice.pk, the face loop
+  records it) past the vessel's breach (WB_TANK_BREACH: alu 400, bladder 300, moulded 300, wet 400 kPa - INFERRED: the tank
+  sits behind the skin, so it outlasts the skin's 60-250); then it floods its AIR toward its submerged share at its host
+  slice's holed rate (tau / WB_BREACH_K), drains on WB_DRAIN out of the water. A wing tank's slab takes no slam (the plates
+  are two-sided): never holed - a stated cut, as is the vent's slow leak and a holed tank's fuel spill (the fuel stays in,
+  floating on the water that came in). A nose tank has no host slice: never holed.
+- The live fuel: wetBuild takes the solver's `fuel` (30_solver.js: HYDRO.wetBuild(def, p, v, m, fuel)); each compute reads
+  fuel.vessels[k].litres (the burn's, per vessel). reset() clears the tanks (holed, fill) with the rest (wetReset).
+
+COST: unchanged dry - the tanks are built and computed only on armed frames (G1384's wetArmFrame), and wetBuild runs once.
+Wet: per compute, per side tank, a weighted mean over 2-4 nodes, one smoothstep, one exp() once holed - 2 to 4 tanks a build.
+
+DRY AIR, MASTER'S TO THE BIT (tools/tanks_float_dry.js, run on master 44b7a38's core, the base's and this branch's;
+reports/evidence/TANKS-FLOAT/dry_hashes.txt): the Cub, the metal Cessna and the Jodel 5 s on HOME's stand, 15 s at 600 m
+over HOME and 15 s at 600 m over the SEA lane; the Cessna on floats 20 s on the SEA lane at throttle 0.3 and 15 s over HOME
+- every sha1 of every node's float64 position identical across the three cores (e.g. Cub strip ef1b7a0702c4b333, metal sea
+90b9397c88caefe1, floats water d4727036ea829114), the wet body never built, sim.step's mean wall the same within the
+machine's noise (Cub air 2.79 / 2.85 / 2.75 ms).
+
+THE PROOF ON THE WATER (tools/tanks_float.js -> reports/evidence/TANKS-FLOAT/: runs/*.json, one SVG per build x entry -
+freeboard at the wing roots, pitch, roll, the airframe's highest point over the water, full / half / empty and G1384's
+before dashed - summary.md). Entries: SETTLE (set down still, the lowest node 5 cm over) and DITCH (GEAR-WATER's 80 km/h,
+sinking 1 m/s); magnetos off (nothing burns afloat); 600 s; "sunk" = the highest node under the surface.
+
+| build | entry | full | half | empty | before (G1384), full |
+|---|---|---|---|---|---|
+| the user's Cub (476 / 460 / 444 kg) | settle | sunk 219.5 s | 231.5 s | 242.5 s | 189.5 s |
+| | ditch | 301 s | 317 s | 332 s | 267.5 s |
+| Cub, 45 L in the wing roots | settle | 209.5 s | 220.5 s | 232 s | 189 s |
+| | ditch | 290.5 s | 305.5 s | 317.5 s | 268.5 s |
+| metal Cessna (883 / 873 / 863 kg) | settle | afloat at 600 s (roots under 359.5 s) | afloat (382 s) | afloat (425 s) | afloat |
+| | ditch | afloat (358.5 s) | afloat (388 s) | afloat (424 s) | afloat |
+| Jodel (463 / 447 / 431 kg) | settle | 421.5 s | 450.5 s | 474 s | 356.5 s |
+| | ditch | afloat at 600 s | afloat | afloat | 536 s |
+
+- THE CUB'S FLOATING ATTITUDE: nose down 36 deg at 10 s settling to 25-28 deg at 60 s, level in roll, its high wing on the
+  water - the roots 9-22 cm under (a high wing's root is the cabin roof: the fuselage under, the wing awash, as ditched Cubs
+  are photographed). Empty floats a little higher (60 s: -0.16 m against -0.19 full) and less nose-down (25 against 27 deg).
+- It STILL SINKS, and it should: 45 L of sealed tank is 45 kg of lift under a 444-476 kg aeroplane. What holds it is the
+  fabric wing's trapped air (G1384.4's 0.5 x the slab, flooding over 60 s); the tank adds 30-65 s (sunk 189.5 -> 219.5 s
+  full, 242.5 s empty). The tank's place matters: in the wing roots the same 45 L is CARVED from the wing's own air (which
+  it already held), so it buys less (209.5 s) than in the nose (new volume ahead of the firewall).
+- "Floats on its empty wing tanks" is a PA-18 with 2 x 68 L; the user's J-3 layout has one nose tank. A 136 L wing-tank
+  Cub (not run: not a validated build) would carry ~136 kg of sealed lift - still under its weight once the cloth floods.
+- The metal Cessna floats at 600 s in every state (as before - the alloy hull floods over 300 s); its roots go under later
+  the emptier it is (359.5 / 382 / 425 s). The Jodel ditched now stays afloat at 600 s (before: sunk at 536 s) hanging nose
+  down on its tank, the tail up; set down still it sinks 65-118 s later than before.
+
+THE NET (GATE HYDRODYN, new section G1385, ~20 s of the gate):
+- the user's Cub: its 45 L nose tank is two tanks, each at its own kilos, ahead of the firewall;
+- ARCHIMEDES fully under: the tank adds exactly rho g 45 L (441.45 N) - its fuel displaces as its air does;
+- the wing-tank Cub: tanks in their slabs, the build's whole lift fully under the same with or without them (the carve);
+- the burn raises the net lift: set down 20 s, empty floats higher than full;
+- sealed: after 20 s wet the tanks hold all their air while the fabric wing floods;
+- the breach: the stock build's tank in the aft-cabin bay (the cabin bay's slice sits over the gear and takes no slam), a
+  5 m/s pancake slams its slice past the tank's 400 kPa: holed, flooding.
+G1384's own lines move as they must (the stock build's nose tank is behind its firewall, in slice 0: that slice's air 0.85
+-> 0.71 by the carve; floods 5.5 -> 7.5 % at 10 / 20 s, was 5.9 -> 8.4; CG 0.51 m under, was 0.47; the bare frame 0.80, was
+0.83 - it floats on its tank now).
+
+OWED / FOR A0: the breach pressures (WB_TANK_BREACH) and the "fuel displaces" choice against the user's eye; a slam on the wing
+slabs (a wing tank holed by a cartwheel) belongs to DAMAGE; WATER-LOOK can bubble a holed tank's air off its nodes
+(sim.wetBody.tanks[k].f rising).
