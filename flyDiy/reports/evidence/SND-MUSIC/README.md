@@ -75,5 +75,5 @@ MUSIC_CREDITS  creditRows = the catalogue (three catalogues); the about-line but
 MUSIC_WIRING   build.js lists audio/music.js before app.js and inlines music_catalogue.json as FLYDIY_MUSIC; sw.js
                answers Range requests from the cache; src_engine.js emits engine start / catch; the settings carry
                "music in the garage" (on); the menu draws music in the garage / skip track / music credits
-SELFTEST       72 mutations of the source text (27 core + 45 music), each turns its check red; files byte-identical
+SELFTEST       73 mutations of the source text (27 core + 46 music), each turns its check red; files byte-identical
 ```

@@ -68582,7 +68582,7 @@ G1674 GATE AUDIO extended (tools/audio/_audio_check.js, ~5 s; FILES += music.js,
   decodeAudioData / new Audio() in the text, 2 elements + 2 sources per context born preload none, steady = nothing scheduled,
   the update 0 GC / no growth over 100 000 frames), MUSIC_CREDITS (three catalogues, the screen's rows = the catalogue ids, the
   origins named, CREDITS.md's block = the shipped catalogue's), MUSIC_WIRING; CONTACTS gained agl (water, land, 2 Hz, no world).
-  SELFTEST 72 mutations (27 core + 45 new), each red on its own check with the reason it was written for; files byte-identical.
+  SELFTEST 73 mutations (27 core + 46 new), each red on its own check with the reason it was written for; files byte-identical.
   Three of my first mutations stayed green and the TESTS were wrong (skip still worked through the next frame; the screen key
   'Antonio' matched 'Antonio-R1'; a gap-long preload streams one element, not two) - rewritten to assert the real property.
   A harness trap for the next session: node's performance.now() boxes (~33 B a call) - a music page measured with the default
