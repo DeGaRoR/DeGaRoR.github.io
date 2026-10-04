@@ -18,6 +18,8 @@
     <div class="rail">
       <button class="ib" aria-label="menu">☰</button>
       <button class="tab">design</button><button class="tab on">shape</button><button class="tab">finish</button>
+      <span class="vsep"></span>
+      <button class="tab scene">REF<br><small>reference</small></button><button class="tab scene">⌂<br><small>hangar</small></button>
       <div style="flex:1"></div>
       <button class="ib" id="undo" aria-label="undo" disabled>↶</button>
       <button class="ib" id="redo" aria-label="redo" disabled>↷</button>
@@ -40,7 +42,7 @@
   <h3>Landscape</h3>
   <ul>
     <li><b>View on the left, rows on the right</b> (380 px, the desktop's 390 px column). In landscape the panel mirrors the desktop layout.</li>
-    <li><b>The tabs and undo move to a left rail</b>, so the thumb reaches them while the phone is held in two hands.</li>
+    <li><b>The tabs and undo move to a left rail</b>, so the thumb reaches them while the phone is held in two hands. The rail also carries <b>the reference plane and the hangar</b>, which are no longer in the parts tree.</li>
     <li><b>The same rows, the same renderer</b> as portrait. Only the container changes. A <code>@media (orientation)</code> rule picks the layout, and nothing in the row knows which one it is in.</li>
     <li>The 3D view gets 471 × 412 px here. In portrait it gets 412 × 330 px.</li>
   </ul>
