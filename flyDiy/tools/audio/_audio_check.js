@@ -23,6 +23,8 @@
 //   W  THE WIRING   the build lists audio_params.js, audio.js before app.js, MANIFEST.audio.modules publishes
 //                   FLYDIY_AUDIO_SRC; app.js calls AUDIO.update ONCE, in loop() after the render; both rails carry
 //                   the `audio` item.
+//   SP THE SPACE    (SND-SPACE, G1640-G1646) SP_CABIN, SP_DOPPLER, SP_ABSORB, SP_XFADE, SP_IR, SP_GRAPH, SP_BUDGET (its
+//                   measurement in a child process: fresh realms), SP_CRAFT - each described at the head of its block.
 //   D  THE SELFTEST every check above is run again on MUTATED source text (in memory: nothing on disk is touched)
 //                   and must go red; then the files on disk are re-read and must be byte-identical to the start.
 //   node tools/audio/_audio_check.js             -> the checks + the selftest -> "GATE AUDIO: PASS|FAIL"
@@ -51,11 +53,17 @@ const FILES = {
   // G1674 (SND-MUSIC): the player, the engine's events, the catalogue, the credits
   music: 'src/viewer/audio/music.js', engine: 'src/viewer/audio/src_engine.js',
   catalogue: 'src/viewer/audio/music_catalogue.json', credits: 'CREDITS.md',
+  // SND-SPACE (G1640-G1646): the space's numbers, the space, the prop's source, the two voices' worklets (the doppler)
+  spcfg: 'src/viewer/audio/space_config.js', space: 'src/viewer/audio/space.js', srcprop: 'src/viewer/audio/src_prop.js',
+  engw: 'src/viewer/audio/engine_worklet.js', propw: 'src/viewer/audio/prop_worklet.js',
 };
 const readAll = () => { const S = {}; for (const k in FILES) S[k] = fs.readFileSync(path.join(ROOT, FILES[k]), 'utf8'); return S; };
 const shaOf = S => crypto.createHash('sha256').update(Object.keys(FILES).map(k => S[k]).join('\u0000')).digest('hex');
 const SRC0 = readAll(), SHA0 = shaOf(SRC0);
 const ONLY_SELFTEST = process.argv.includes('--selftest');
+// SP_BUDGET's measurement runs in a CHILD process (a fresh heap and fresh realms: a process that already ran other pages
+// carries their megamorphic call sites, whose float loads box - not the page's cost). The child flies the Cub only.
+const SPB_CHILD = (process.argv.find(a => a.startsWith('--spbudget-child=')) || '').slice(17);
 
 const FC = require(path.join(ROOT, 'tools', 'flight_core.js'));
 const { buildGen, makeSim, POWERPLANTS } = FC;
@@ -158,7 +166,7 @@ const BUILDS = [
   { name: 'cessna on floats', file: 'tools/fixtures/build_v10_c172_wipline2350_2026-09-20.json', nE: 1, cyl: 4, two: 0, gear: 1, floats: true },
   { name: 'twin 582', file: 'tools/fixtures/build_v7_ultralight_2026-09-05.json', nE: 2, cyl: 2, two: 1, gear: 2.62 },
 ];
-const FLOWN = BUILDS.map(b => {
+const FLOWN = (SPB_CHILD ? BUILDS.slice(0, 1) : BUILDS).map(b => {
   const spec = JSON.parse(fs.readFileSync(path.join(ROOT, b.file), 'utf8')).spec;
   const def = buildGen(spec), sim = makeSim(def, null);
   sim.reset(0); sim.ctl.thr = 1;
@@ -683,7 +691,8 @@ function checkAfModel(S) {
 
 function checkAfVoice(S, report) {
   const F = [], W = voiceOf(S), M = modelOf(S), I = AF_I;
-  const names = W.Processor.parameterDescriptors.map(d => d.name);
+  // (SND-SPACE's `pitch` - the doppler - is the voice's own param, not one of the model's targets)
+  const names = W.Processor.parameterDescriptors.map(d => d.name).filter(n => n !== 'pitch');
   if (names.join() !== M.AF_PARAMS.join()) F.push('the worklet\'s params ' + names.join() + ' are not the model\'s ' + M.AF_PARAMS.join());
   // THE WIND: rendered RMS monotonic in V, the centroid rising
   const P = synthP(CESSNA().def);
@@ -1366,14 +1375,583 @@ function checkMusicWiring(S) {
   return F;
 }
 
+// ==== SND-SPACE (G1640-G1646) ======================================================================================
+//   SP_CABIN    cabinTransfer on the six builds: the class by construction (the Cub fabric, the Jodel wood, the three
+//               Cessnas metal, the open twin-582), the insulation in its band (open 0-3, fabric 6-12, metal 15-25), the
+//               ORDER open < fabric < metal in insulation AND in high-frequency loss, the realised chain's octave mean
+//               = -insulation (0.1 dB), the metal's boom 80-150 Hz standing over its 500 Hz, exits open -> the open
+//               cockpit; the headset: passive 13-20 dB mean with more cut high than low, ANR cuts the low end more.
+//   SP_DOPPLER  dopplerFactor = c / (c - v_r) at a fixed listener (and the moving listener's (c - v_l) / c); a pass at
+//               60 m/s solved through the ring (retardedSolve) against the closed-form retarded geometry: the factor
+//               within 1 % all along, the delay = the distance at emission / c; RENDERED: the engine and the prop
+//               worklets at pitch 1.212 / 0.85 move their firing / BPF peak by that factor within 1 %.
+//   SP_ABSORB   airAbsorptionHz falls monotonically with distance (20 kHz near, < 1.5 kHz at 1 km, < 700 Hz at 5 km),
+//               the realised low-pass's 4 kHz loss grows with distance; the page's absorption follows the distance.
+//   SP_XFADE    CORE's viewpoint cross-fade: 150 ms, ext^2 + int^2 = 1 at every point, endpoints exact, a reversal
+//               mid-fade starts from where the fade stood (still equal power, shorter).
+//   SP_IR       the shed's IR for two shells (the club 30 x 25 x 7, the field 14 x 18 x 3.6): RT60 measured
+//               (Schroeder T20, 500 Hz and 1 kHz) within 20 % of Sabine; L/R decorrelated; unit energy; the page makes
+//               it in an idle callback (never in update()), regenerates when the shell changes, the wet sends open only
+//               in the shed.
+//   SP_GRAPH    the page (the real audio.js + the three sources + space.js on stub Web Audio, the real builds): every
+//               source enters its group (engine -> 'engine', the prop's output 1 -> a splitter -> 'propT' / 'propB',
+//               the airframe's 3 outputs: 0 the group, 1 and 2 the interior); NO placeholder low-pass left; the cabin's
+//               filters are cabinTransfer's; the headset's are its curve; the ambience ducked inside; the directivity
+//               (tonal nil on the nose axis, ~1 at 104 deg; exhaust aft over front); the panner in the camera's frame;
+//               the doppler on every voice's pitch; the lag = distance / c and the sources' schedules carry it; a cut
+//               snaps it and the sources cancel.
+//   SP_BUDGET   AUDIO.update with the three sources + space.js, the camera MOVING past the aeroplane at 60 m/s (so the
+//               space schedules every frame): 0 GC in 10 000 frames, < 0.3 ms; a steady frame schedules nothing.
+//   SP_CRAFT    addCraft through a node baker (the real worklets under render.js's shim): 5 rpm points, seamless loops;
+//               the tiers (2 full <= 500 m, the engine only <= 5 km up to 8 baked, beyond silent); the blend weights at
+//               equal power; playbackRate = rpm / point x the doppler.
+const SPC_FILES = ['spcfg', 'space'];
+function loadSpaceCfg(text) { const c = { module: { exports: {} } }; vm.runInNewContext(text, c, { filename: 'space_config.js' }); return c.module.exports; }
+const SPC_CACHE = {};
+const spcOf = S => SPC_CACHE.t === S.spcfg ? SPC_CACHE.M : (SPC_CACHE.t = S.spcfg, SPC_CACHE.M = loadSpaceCfg(S.spcfg));
+const SPC_BUILDS = () => FLOWN.map(b => ({ name: b.name, spec: b.spec, def: b.def }));
+
+function checkSpCabin(S) {
+  const F = [], SC = spcOf(S);
+  const want = ['fabric', 'wood', 'metal', 'metal', 'metal', 'open'];
+  const T = SPC_BUILDS().map(b => SC.cabinTransfer(b.def.spec));
+  T.forEach((t, i) => { if (t.cls !== want[i]) F.push(FLOWN[i].name + ': the cabin class ' + t.cls + ' (want ' + want[i] + ', ' + t.source + ')'); });
+  const band = { open: [0, 3], fabric: [6, 12], wood: [6, 12], metal: [15, 25] };
+  T.forEach((t, i) => { const b = band[t.cls]; if (b && !(t.insulationDb >= b[0] && t.insulationDb <= b[1])) F.push(FLOWN[i].name + ': insulation ' + t.insulationDb + ' dB outside ' + b.join('-')); });
+  const op = T[5], fa = T[0], me = T[2];
+  if (!(op.insulationDb < fa.insulationDb && fa.insulationDb < me.insulationDb)) F.push('the insulation does not order open < fabric < metal: ' + [op.insulationDb, fa.insulationDb, me.insulationDb].join(' / '));
+  if (!(op.hfLossDb > fa.hfLossDb && fa.hfLossDb > me.hfLossDb)) F.push('the high-frequency loss does not order open < fabric < metal: ' + [op.hfLossDb, fa.hfLossDb, me.hfLossDb].map(x => x.toFixed(1)).join(' / '));
+  if (!(me.hfLossDb < -10)) F.push('the metal cabin\'s high-frequency loss is weak (' + me.hfLossDb.toFixed(1) + ' dB, 4 kHz against 500 Hz)');
+  if (!(fa.hfLossDb > -7)) F.push('the fabric cabin\'s high-frequency loss is not weak (' + fa.hfLossDb.toFixed(1) + ' dB)');
+  for (const t of T) {
+    const m = SC.meanDb(t, SC.INSUL_F);
+    if (Math.abs(m + t.insulationDb) > 0.1) F.push(t.cls + ': the realised chain\'s octave mean ' + m.toFixed(2) + ' dB, not -' + t.insulationDb);
+  }
+  if (!(me.boomHz >= 80 && me.boomHz <= 150)) F.push('the metal cabin\'s boom at ' + me.boomHz + ' Hz (want 80-150)');
+  else if (!(SC.chainDb(me, me.boomHz) - SC.chainDb(me, 500) > 3)) F.push('the metal cabin does not boom: ' + SC.chainDb(me, me.boomHz).toFixed(1) + ' dB at its mode vs ' + SC.chainDb(me, 500).toFixed(1) + ' at 500 Hz');
+  if (fa.boomHz !== 0) F.push('the fabric cabin booms (' + fa.boomHz + ' Hz)');
+  const ex = SC.cabinTransfer(FLOWN[2].def.spec, { exits: 1 });
+  if (Math.abs(ex.insulationDb - op.insulationDb) > 1e-9 || ex.ambienceDb !== SC.CABIN_CLASSES.open.ambDb) F.push('the Cessna with its exits open is not the open cockpit (' + ex.insulationDb + ' dB)');
+  if (!(me.ambienceK < fa.ambienceK && fa.ambienceK < op.ambienceK)) F.push('the ambience duck does not order with the insulation');
+  // the headset
+  const hp = SC.headsetMeanDb('passive'), ha = SC.headsetMeanDb('anr'), h0 = SC.headsetMeanDb(0);
+  const lo = k => SC.chainDb(SC.headsetCurve(k), 80), hi = k => SC.chainDb(SC.headsetCurve(k), 4000);
+  if (Math.abs(h0) > 1e-9) F.push('the headset off is not flat (' + h0 + ' dB)');
+  if (!(hp <= -13 && hp >= -20)) F.push('the passive headset\'s mean ' + hp.toFixed(1) + ' dB (want 13-20 dB of cut)');
+  if (!(hi('passive') < lo('passive') - 6)) F.push('the passive headset does not cut the high end more (' + lo('passive').toFixed(1) + ' / ' + hi('passive').toFixed(1) + ' dB at 80 Hz / 4 kHz)');
+  if (!(lo('anr') < lo('passive') - 4)) F.push('the ANR headset does not take the low end (' + lo('anr').toFixed(1) + ' vs passive ' + lo('passive').toFixed(1) + ' dB at 80 Hz)');
+  if (!(ha <= hp)) F.push('the ANR headset cuts less than the passive one (' + ha.toFixed(1) + ' vs ' + hp.toFixed(1) + ')');
+  return F;
+}
+
+// the closed form of a straight pass: x(t) = (v t, 0, 0) past a listener at (0, 0, D); the emission time te solves
+// t - te = |x(te) - L| / c (bisection), the radial speed then: v x . n
+function passTruth(t, v, D, c) {
+  let lo = t - 100, hi = t;
+  for (let k = 0; k < 80; k++) { const m = (lo + hi) / 2, x = v * m, r = Math.hypot(x, D); if (t - m > r / c) lo = m; else hi = m; }
+  const te = (lo + hi) / 2, x = v * te, r = Math.hypot(x, D), vr = v * (-x) / r;   // toward the listener: + approaching
+  return { te, tau: t - te, k: c / (c - vr), r };
+}
+function checkSpDoppler(S) {
+  const F = [], SC = spcOf(S), c = 343;
+  for (const v of [-80, -30, 0, 25, 60, 120]) {
+    const k = SC.dopplerFactor(c, v, 0), w = c / (c - v);
+    if (Math.abs(k / w - 1) > 1e-9) F.push('dopplerFactor(' + v + ' m/s toward) = ' + k + ' (want c/(c-v) = ' + w + ')');
+  }
+  if (Math.abs(SC.dopplerFactor(c, 0, -30) - (c + 30) / c) > 1e-9) F.push('a listener moving toward a still source is not (c + v)/c');
+  // the pass: 60 m/s, the listener 40 m off the track, frames at 60 Hz, from -900 m to +900 m
+  const R = SC.ringMake(2048), PB = new Float64Array(4), AT = new Float64Array(5), RS = new Float64Array(8);
+  const v = 60, D = 40, dt = 1 / 60;
+  let worst = 0, worstT = 0, worstTau = 0, n = 0;
+  for (let i = 0; i <= 1800; i++) {
+    const t = -15 + i * dt;
+    PB[0] = t; PB[1] = v * t; PB[2] = 0; PB[3] = 0;
+    SC.ringPush(R, PB);
+    if (t < -11) continue;   // the ring's velocity has settled, the retarded instant inside the ring
+    AT[0] = t; AT[1] = 0; AT[2] = 0; AT[3] = D; AT[4] = c;
+    SC.retardedSolve(R, AT, RS);
+    const id = 1 / RS[7], nx = -RS[1] * id, ny = -RS[2] * id, nz = (D - RS[3]) * id;
+    const k = SC.dopplerFactor(c, RS[4] * nx + RS[5] * ny + RS[6] * nz, 0);
+    const tr = passTruth(t, v, D, c);
+    const e = Math.abs(k / tr.k - 1);
+    if (e > worst) { worst = e; worstT = t; }
+    const et = Math.abs(RS[0] - tr.tau); if (et > worstTau) worstTau = et;
+    n++;
+  }
+  if (!(worst < 0.01)) F.push('the pass\'s doppler off the closed form by ' + (worst * 100).toFixed(2) + ' % at t ' + worstT.toFixed(2) + ' s (want < 1 %)');
+  if (!(worstTau < 2e-3)) F.push('the pass\'s propagation delay off by ' + (worstTau * 1000).toFixed(2) + ' ms (want < 2 ms)');
+  // RENDERED: the voices' own pitch param
+  const E = loadEngW(S), Pw = loadPropW(S), b = FLOWN[0];
+  const ecfg = ECFG_.engineSoundConfig(b.spec, 0, POWERPLANTS);
+  const pk = (k, which) => {
+    let y;
+    if (which === 'engine') {
+      const v = RND.makeVoice(E, ecfg, 3, 0, { running: true, rpm: 2100 });
+      v.params.rpm[0] = 2100; v.params.load[0] = 0.8; v.params.running[0] = 1; v.params.pitch[0] = k;
+      const nb = Math.ceil(2.5 * 48000 / 128); y = new Float32Array(nb * 128);
+      for (let i = 0; i < nb; i++) { v.proc.process(v.inputs, v.outputs, v.params); y.set(v.outputs[0][0], i * 128); }
+    } else {
+      const pr = new Pw.P({ processorOptions: { config: { blades: 2, D: 1.9, Tstatic: 1500, gear: 1, gain: 0.12 }, seed: 5 } });
+      const pp = {}; for (const d of Pw.P.parameterDescriptors) pp[d.name] = new Float32Array([d.defaultValue]);
+      pp.rpm[0] = 2100; pp.thrust[0] = 1200; pp.thr[0] = 0.8; pp.c[0] = 340; pp.pitch[0] = k;
+      const out = [[new Float32Array(128)], [new Float32Array(128), new Float32Array(128)]];
+      const nb = Math.ceil(2.5 * 48000 / 128); y = new Float32Array(nb * 128);
+      for (let i = 0; i < nb; i++) { pr.process([[]], out, pp); y.set(out[1][0], i * 128); }   // the tonal part
+    }
+    const Sp = RND.spectrum(y, y.length - 65536, 65536, 48000, 262144);
+    const f0 = which === 'engine' ? 2100 / 60 * 2 : 2100 / 60 * 2;   // a flat-4's firing = the 2-blade BPF = 70 Hz
+    return RND.peakIn(Sp, f0 * k * 0.93, f0 * k * 1.07).hz;
+  };
+  for (const which of ['engine', 'prop']) {
+    const base = pk(1, which);
+    for (const k of [1.212, 0.85]) {
+      const f = pk(k, which), r = f / base;
+      if (!(Math.abs(r / k - 1) < 0.01)) F.push('the ' + which + ' worklet at pitch ' + k + ': its peak moved x' + r.toFixed(4) + ' (' + base.toFixed(2) + ' -> ' + f.toFixed(2) + ' Hz; want within 1 %)');
+      SP_REPORT.push(which + ' at pitch ' + k + ': ' + base.toFixed(2) + ' -> ' + f.toFixed(2) + ' Hz (x' + r.toFixed(4) + ')');
+    }
+  }
+  SP_REPORT.push('the 60 m/s pass: the ring\'s doppler within ' + (worst * 100).toFixed(3) + ' % of c/(c - v_r(te)), the delay within ' + (worstTau * 1000).toFixed(2) + ' ms');
+  return F;
+}
+const SP_REPORT = [];
+const ECFG_ = require(path.join(ROOT, 'src', 'viewer', 'audio', 'engine_config.js'));
+function loadW(text, file) {
+  const reg = {}, mod = { exports: {} };
+  class AWP { constructor() { this.port = { onmessage: null, postMessage() {} }; } }
+  vm.runInThisContext('(function (AudioWorkletProcessor, registerProcessor, sampleRate, currentTime, module) {' + text + '\n})', { filename: file })(AWP, (n, c) => { reg[n] = c; }, 48000, 0, mod);
+  return reg;
+}
+const WCACHE = {};
+const loadEngW = S => (WCACHE.e === S.engw ? WCACHE.E : (WCACHE.e = S.engw, WCACHE.E = { Processor: loadW(S.engw, 'engine_worklet.js')['flydiy-engine'], sr: 48000 }));
+const loadPropW = S => { if (WCACHE.p !== S.propw) { const r = loadW(S.propw, 'prop_worklet.js'); WCACHE.p = S.propw; WCACHE.P = { P: r['flydiy-prop'], T: r['flydiy-turbine'], X: r['flydiy-electric'] }; } return WCACHE.P; };
+
+function checkSpAbsorb(S) {
+  const F = [], SC = spcOf(S);
+  let prev = Infinity, prevLoss = 0;
+  for (const d of [1, 5, 20, 60, 150, 400, 1000, 2500, 5000, 10000]) {
+    const f = SC.airAbsorptionHz(d);
+    if (!(f <= prev)) F.push('the absorption corner rises with distance: ' + f.toFixed(0) + ' Hz at ' + d + ' m after ' + prev.toFixed(0));
+    if (d >= 60 && !(f < prev)) F.push('the absorption corner flat at ' + d + ' m (' + f.toFixed(0) + ' Hz)');
+    const loss = -SC.biquadDb('lowpass', f, -3.01, 0, 4000, 48000);
+    if (d >= 60 && !(loss > prevLoss)) F.push('the realised 4 kHz loss does not grow with distance at ' + d + ' m (' + loss.toFixed(1) + ' dB)');
+    prev = f; prevLoss = loss;
+  }
+  if (!(SC.airAbsorptionHz(5) >= 15000)) F.push('the air near the aeroplane already filters (' + SC.airAbsorptionHz(5).toFixed(0) + ' Hz at 5 m)');
+  if (!(SC.airAbsorptionHz(1000) < 1500 && SC.airAbsorptionHz(5000) < 700)) F.push('the far air is not dull enough (' + SC.airAbsorptionHz(1000).toFixed(0) + ' Hz at 1 km, ' + SC.airAbsorptionHz(5000).toFixed(0) + ' at 5 km)');
+  // the page: the absorption follows the camera's distance
+  const pg = spacePage(S, { record: true });
+  const fr = [];
+  for (const d of [20, 400, 3000]) { pg.place(0, 30, d); for (let i = 0; i < 4; i++) pg.frame(); fr.push(pg.A.space.frame[pg.A.space.GAF * pg.A.space.LW + 7]); }
+  if (!(fr[0] > fr[1] && fr[1] > fr[2])) F.push('the page\'s absorption does not fall with distance: ' + fr.map(x => x.toFixed(0)).join(' / ') + ' Hz at 20 / 400 / 3000 m');
+  return F;
+}
+
+function checkSpXfade(S) {
+  const F = [], pg = livePage(S), A = pg.A;
+  const pe = A.bus('aircraft.ext').gain, pi = A.bus('aircraft.int').gain;
+  const go = (mode, t) => { pg.cam.mode = mode; if (t != null) A.ctx.currentTime = t; A.update(pg.sim, pg.camera, 1 / 60, pg.def, pg.cam, false, pg.world); };
+  go('chase', 1);
+  const curveOf = p => p.ev.filter(e => e.k === 'C').pop();
+  go('cockpit', 2);
+  const ce = curveOf(pe), ci = curveOf(pi);
+  if (!ce || !ci) return ['the viewpoint did not cross-fade with curves (ext ' + !!ce + ', int ' + !!ci + ')'];
+  if (Math.abs(ce.d - 0.15) > 1e-9 || Math.abs(ci.d - 0.15) > 1e-9) F.push('the cross-fade lasts ' + ce.d + ' s (want 0.15)');
+  let worst = 0;
+  for (let i = 0; i < ce.c.length; i++) worst = Math.max(worst, Math.abs(ce.c[i] * ce.c[i] + ci.c[i] * ci.c[i] - 1));
+  if (worst > 1e-3) F.push('the cross-fade is not equal power: ext^2 + int^2 off 1 by ' + worst.toFixed(4));
+  if (ce.c[0] !== 1 || ci.c[0] !== 0 || ce.c[ce.c.length - 1] !== 0 || ci.c[ci.c.length - 1] !== 1) F.push('the cross-fade\'s endpoints are not exact: ext ' + ce.c[0] + ' -> ' + ce.c[ce.c.length - 1] + ', int ' + ci.c[0] + ' -> ' + ci.c[ci.c.length - 1]);
+  // a reversal half way: from the share reached (0.5), back to the exterior over 75 ms, still equal power
+  go('chase', 2.075);
+  const re = curveOf(pe), ri = curveOf(pi);
+  if (!re || re === ce) F.push('a reversal mid-fade scheduled no new curve');
+  else {
+    if (Math.abs(re.d - 0.075) > 1e-6) F.push('the reversal lasts ' + re.d.toFixed(4) + ' s (want 0.075: from half way)');
+    if (Math.abs(ri.c[0] - Math.sin(Math.PI / 4)) > 1e-3) F.push('the reversal does not start from where the fade stood (int ' + ri.c[0].toFixed(3) + ', want 0.707)');
+    let w2 = 0; for (let i = 0; i < re.c.length; i++) w2 = Math.max(w2, Math.abs(re.c[i] * re.c[i] + ri.c[i] * ri.c[i] - 1));
+    if (w2 > 1e-3) F.push('the reversal is not equal power (' + w2.toFixed(4) + ')');
+  }
+  return F;
+}
+
+function checkSpIr(S) {
+  const F = [], SC = spcOf(S);
+  for (const [dims, shell] of [[{ HW: 15, HD: 12.5, EAVE: 7 }, 'club'], [{ HW: 7, HD: 9, EAVE: 3.6 }, 'field']]) {
+    const room = SC.hangarAcoustics(dims, shell), ir = SC.hangarIR(room, 48000);
+    for (const [band, bi] of [[500, 2], [1000, 3]]) {
+      const m = SC.measureRT60(ir.L, 48000, band), want = room.rt60[bi];
+      SP_REPORT.push(shell + ' ' + (2 * dims.HW) + ' x ' + (2 * dims.HD) + ' x ' + dims.EAVE + ' m: RT60 ' + band + ' Hz measured ' + m.toFixed(2) + ' s, Sabine ' + want.toFixed(2) + ' s');
+      if (!(Math.abs(m / want - 1) < 0.2)) F.push(shell + ': the IR\'s RT60 at ' + band + ' Hz is ' + m.toFixed(2) + ' s, Sabine says ' + want.toFixed(2) + ' (want within 20 %)');
+    }
+    let eL = 0, eR = 0, x = 0;
+    for (let i = 0; i < ir.length; i++) { eL += ir.L[i] * ir.L[i]; eR += ir.R[i] * ir.R[i]; x += ir.L[i] * ir.R[i]; }
+    if (Math.abs(eL - 1) > 1e-3 || Math.abs(eR - 1) > 1e-3) F.push(shell + ': the IR\'s energy ' + eL.toFixed(3) + ' / ' + eR.toFixed(3) + ' (want 1)');
+    if (!(Math.abs(x) < 0.2)) F.push(shell + ': L and R are correlated (' + x.toFixed(3) + ')');
+  }
+  const big = SC.hangarAcoustics({ HW: 15, HD: 12.5, EAVE: 7 }, 'club'), small = SC.hangarAcoustics({ HW: 7, HD: 9, EAVE: 3.6 }, 'field');
+  if (!(big.rt60Mid > small.rt60Mid)) F.push('the big shed rings no longer than the small one (' + big.rt60Mid.toFixed(2) + ' vs ' + small.rt60Mid.toFixed(2) + ' s)');
+  // the page: the IR off the frame, regenerated on a new shell, the wet only in the shed
+  const pg = spacePage(S, { record: true, shed: { dims: { HW: 15, HD: 12.5, EAVE: 7 }, shell: 'club' } }), sp = pg.A.space;
+  pg.frame(true);
+  const G = sp.graph();
+  if (G.conv.buffer) F.push('the IR was made inside update() (want: an idle callback)');
+  if (pg.idle.length !== 1) F.push('entering the shed queued ' + pg.idle.length + ' IR jobs (want 1)');
+  pg.runIdle();
+  if (!G.conv.buffer || sp.stats.irMade !== 1) F.push('the idle callback made no IR (' + sp.stats.irMade + ')');
+  for (let i = 0; i < 3; i++) pg.frame(true);
+  if (!(G.revA.gain.value > 0.1 && G.revMus.gain.value > 0)) F.push('the wet sends are shut in the shed (' + G.revA.gain.value + ')');
+  pg.shed.shell = 'field'; pg.shed.dims = { HW: 7, HD: 9, EAVE: 3.6 };
+  for (let i = 0; i < 70; i++) pg.frame(true);
+  pg.runIdle();
+  if (sp.stats.irMade !== 2 || !G.room || G.room.shell !== 'field') F.push('a new shell did not regenerate the IR (made ' + sp.stats.irMade + ', room ' + (G.room && G.room.shell) + ')');
+  for (let i = 0; i < 3; i++) pg.frame(false);
+  if (G.revA.gain.value !== 0 || G.revAmb.gain.value !== 0) F.push('the wet sends stay open out of the shed (' + G.revA.gain.value + ')');
+  return F;
+}
+
+// THE PAGE: stub Web Audio that records the graph, the real files, the real builds
+function spacePage(S, opt) {
+  const o = opt || {};
+  const engD = loadEngW(S).Processor.parameterDescriptors, prD = loadPropW(S), afD = loadVoice(S.worklet).Processor.parameterDescriptors;
+  const DESC = { 'flydiy-engine': engD, 'flydiy-prop': prD.P.parameterDescriptors, 'flydiy-turbine': prD.T.parameterDescriptors,
+                 'flydiy-electric': prD.X.parameterDescriptors, 'flydiy-airframe': afD };
+  const idle = [];
+  const shed = o.shed || { dims: { HW: 15, HD: 12.5, EAVE: 7 }, shell: 'club' };
+  const win = { location: { search: '' }, localStorage: { getItem: k => (o.store && k in o.store ? o.store[k] : null), setItem() {} },
+    performance: { now: (() => { let k = 0; return () => ++k; })() }, addEventListener() {}, removeEventListener() {},
+    document: { hidden: false, hasFocus: () => true, addEventListener() {}, removeEventListener() {} },
+    requestIdleCallback: fn => { idle.push(fn); return idle.length; },
+    GARAGE_ENV: { dims: () => shed.dims, shell: () => shed.shell } };
+  const ctx = { window: win, document: win.document, console: { warn() {}, log() {}, error() {} }, URLSearchParams,
+    POWERPLANTS, GEN_SHAFT: FC.GEN_SHAFT, setTimeout: () => 0, clearTimeout() {}, __DESC: DESC, __REC: !!o.record };
+  vm.createContext(ctx);
+  const run = (t, f) => vm.runInContext(t, ctx, { filename: f });
+  run(SPACE_STUB, 'stub_webaudio.js');
+  const C = ctx.__C, AC = ctx.AudioContext;
+  win.AudioContext = AC;
+  run(S.params, 'audio_params.js'); win.AUDIO_PARAMS = ctx.AUDIO_PARAMS;
+  run(S.audio, 'audio.js');
+  run(ENG_CFG_TEXT, 'engine_config.js'); run(S.engine, 'src_engine.js');
+  run(PROP_CFG_TEXT, 'prop_config.js'); run(S.srcprop, 'src_prop.js');
+  run(S.model, 'airframe_model.js'); run(S.samples, 'samples.js'); run(S.srcaf, 'src_airframe.js');
+  if (!o.noSpace) { run(S.spcfg, 'space_config.js'); run(S.space, 'space.js'); }
+  const A = win.AUDIO;
+  A.unlock();
+  const b = o.build || FLOWN[0];
+  const wc = { mains: [true, true], tw: true, water: false };
+  const sim = stubSim(b, wc), def = b.def;
+  sim.p = Float64Array.from(sim.p);   // its own copy: the tests move it
+  // the camera: a THREE-like object (position + matrixWorld columns right / up / back)
+  const camera = { position: { x: 0, y: 0, z: 0 }, matrixWorld: { elements: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1] } };
+  const cam = { mode: 'chase' };
+  // the aeroplane's reference: the nose frame's centre and its axes (from the solver's own nodes)
+  const avg = list => { const p = [0, 0, 0]; for (const j of list) for (let k = 0; k < 3; k++) p[k] += sim.p[j * 3 + k] / list.length; return p; };
+  const nose = avg(def.refs.noseFrame), tail = avg(def.refs.tailMid);
+  const fwd = nose.map((x, k) => x - tail[k]); const fl = Math.hypot(...fwd); for (let k = 0; k < 3; k++) fwd[k] /= fl;
+  const org = avg(def.refs.origin || def.refs.noseFrame);
+  const TT = new Float64Array(1), WORLD = { surface: () => 0 };   // (the test's own frame allocates nothing either)
+  const pg = { A, C, win, sim, def, camera, cam, idle, shed, nose, tail, fwd, org, get t() { return TT[0]; },
+    // the camera at (ahead along the nose, up, aside) metres from the airframe's reference, looking at it
+    place(ahead, up, aside) {
+      const side = [fwd[2], 0, -fwd[0]]; const sl = Math.hypot(...side) || 1;
+      for (let k = 0; k < 3; k++) side[k] /= sl;
+      const p = [0, 1, 2].map(k => org[k] + fwd[k] * ahead + side[k] * aside + (k === 1 ? up : 0));
+      camera.position.x = p[0]; camera.position.y = p[1]; camera.position.z = p[2];
+      // look at the reference: back = from the target to the eye
+      const bk = p.map((x, k) => x - org[k]); const bl = Math.hypot(...bk) || 1; for (let k = 0; k < 3; k++) bk[k] /= bl;
+      const upW = [0, 1, 0], rt = [upW[1] * bk[2] - upW[2] * bk[1], upW[2] * bk[0] - upW[0] * bk[2], upW[0] * bk[1] - upW[1] * bk[0]];
+      const rl = Math.hypot(...rt) || 1; for (let k = 0; k < 3; k++) rt[k] /= rl;
+      const u = [bk[1] * rt[2] - bk[2] * rt[1], bk[2] * rt[0] - bk[0] * rt[2], bk[0] * rt[1] - bk[1] * rt[0]];
+      const e = camera.matrixWorld.elements;
+      e[0] = rt[0]; e[1] = rt[1]; e[2] = rt[2]; e[4] = u[0]; e[5] = u[1]; e[6] = u[2]; e[8] = bk[0]; e[9] = bk[1]; e[10] = bk[2];
+    },
+    frame(garage) { TT[0] += 1 / 60; A.ctx.currentTime = TT[0]; A.update(sim, camera, 1 / 60, def, cam, garage === true, WORLD); },
+    runIdle() { const a = idle.splice(0); for (const f of a) f(); },
+    aw: name => C.aw.filter(n => n.name === name),
+  };
+  return pg;
+}
+// the stub Web Audio of the space's page, as TEXT run inside the page's realm (see spacePage)
+const SPACE_STUB = `
+var __C = { sched: 0, cancel: 0, nodes: [], aw: [], posted: 0 };
+(function () {
+  var C = __C, REC = __REC;
+  function mkParam(v) {
+    var p = { value: v, n: 0, ev: REC ? [] : null };
+    if (REC) {
+      p.setTargetAtTime = function (x, t, tau) { this.value = x; this.n++; C.sched++; this.ev.push({ k: 'T', v: x, t: t, tau: tau }); };
+      p.setValueAtTime = function (x, t) { this.value = x; this.n++; this.ev.push({ k: 'V', v: x, t: t }); };
+      p.setValueCurveAtTime = function (c, t, d) { this.value = c[c.length - 1]; C.sched++; this.ev.push({ k: 'C', c: Float32Array.from(c), t: t, d: d }); };
+      p.cancelScheduledValues = function (t) { C.cancel++; this.ev.push({ k: 'X', t: t }); };
+    } else {
+      p.setTargetAtTime = function () { this.n++; C.sched++; };
+      p.setValueAtTime = function () { this.n++; };
+      p.setValueCurveAtTime = function () { C.sched++; };
+      p.cancelScheduledValues = function () { C.cancel++; };
+    }
+    p.linearRampToValueAtTime = function (x) { this.value = x; C.sched++; };
+    return p;
+  }
+  function node(kind, extra) {
+    var n = { kind: kind, edges: [],
+      connect: function (d, oo, ii) { this.edges.push({ d: d, o: oo | 0, i: ii | 0 }); return d; },
+      disconnect: function (d, oo) { this.edges = d === undefined ? [] : this.edges.filter(function (e) { return !(e.d === d && (oo === undefined || e.o === oo)); }); } };
+    for (var k in extra || {}) n[k] = extra[k];
+    C.nodes.push(n); return n;
+  }
+  function syncP(v) { return { then: function (f) { return syncP(f ? f(v) : v); }, catch: function () { return this; } }; }
+  function AC() { this.currentTime = 0; this.sampleRate = 48000; this.destination = node('dest'); this.listener = {};
+    this.audioWorklet = { addModule: function () { return syncP(true); } }; }
+  AC.prototype.createGain = function () { return node('gain', { gain: mkParam(1) }); };
+  AC.prototype.createDynamicsCompressor = function () { return node('comp', { threshold: mkParam(0), knee: mkParam(0), ratio: mkParam(0), attack: mkParam(0), release: mkParam(0) }); };
+  AC.prototype.createBiquadFilter = function () { return node('biquad', { type: 'lowpass', frequency: mkParam(350), Q: mkParam(1), gain: mkParam(0) }); };
+  AC.prototype.createStereoPanner = function () { return node('stereo', { pan: mkParam(0) }); };
+  AC.prototype.createPanner = function () { return node('panner', { positionX: mkParam(0), positionY: mkParam(0), positionZ: mkParam(0), panningModel: 'equalpower' }); };
+  AC.prototype.createConvolver = function () { return node('convolver', { buffer: null, normalize: true }); };
+  AC.prototype.createChannelSplitter = function (n) { return node('splitter', { n: n }); };
+  AC.prototype.createChannelMerger = function (n) { return node('merger', { n: n }); };
+  AC.prototype.createBuffer = function (ch, len, sr) { var d = []; for (var k = 0; k < ch; k++) d.push(new Float32Array(len));
+    return { numberOfChannels: ch, length: len, sampleRate: sr, duration: len / sr, getChannelData: function (k) { return d[k]; }, copyToChannel: function (a, k) { d[k].set(a); } }; };
+  AC.prototype.createBufferSource = function () { return node('source', { buffer: null, loop: false, playbackRate: mkParam(1), start: function () { this.started = true; }, stop: function () { this.stopped = true; } }); };
+  AC.prototype.resume = function () { return Promise.resolve(); };
+  AC.prototype.suspend = function () { return Promise.resolve(); };
+  AC.prototype.close = function () { return Promise.resolve(); };
+  function AWN(c, name, opts) {
+    var n = node('aw:' + name);
+    for (var k in n) this[k] = n[k];
+    C.nodes[C.nodes.length - 1] = this;
+    this.name = name; this.opts = opts; this.parameters = new Map();
+    var D = __DESC[name] || [];
+    for (var i = 0; i < D.length; i++) this.parameters.set(D[i].name, mkParam(D[i].defaultValue));
+    var self = this;
+    this.port = { postMessage: function (m) { C.posted++; (self.msgs = self.msgs || []).push(m); } };
+    C.aw.push(this);
+  }
+  this.AudioContext = AC; this.AudioWorkletNode = AWN;
+})();
+`;
+const ENG_CFG_TEXT = fs.readFileSync(path.join(ROOT, 'src/viewer/audio/engine_config.js'), 'utf8');
+const PROP_CFG_TEXT = fs.readFileSync(path.join(ROOT, 'src/viewer/audio/prop_config.js'), 'utf8');
+
+function checkSpGraph(S) {
+  const F = [], pg = spacePage(S, { record: true }), A = pg.A, sp = A.space;
+  if (!sp) return ['space.js did not register AUDIO.space'];
+  pg.place(60, 2, 0);
+  for (let i = 0; i < 6; i++) pg.frame();
+  const G = sp.graph(), eng = pg.aw('flydiy-engine'), prop = pg.aw('flydiy-prop'), af = pg.aw('flydiy-airframe');
+  if (eng.length !== 1 || prop.length !== 1 || af.length !== 1) return ['the page made ' + eng.length + ' engine / ' + prop.length + ' prop / ' + af.length + ' airframe nodes (want 1 / 1 / 1)'];
+  const g0 = G.groups[0], gA = G.groups[sp.GAF];
+  if (!g0 || !gA) return ['the groups were not made (engine ' + !!g0 + ', airframe ' + !!gA + ')'];
+  const to = (n, d, oo) => n.edges.some(e => e.d === d && (oo === undefined || e.o === oo));
+  if (!to(eng[0], g0.ins[0], 0)) F.push('the engine\'s output 0 does not enter its group\'s exhaust input');
+  if (to(eng[0], A.bus('aircraft.ext')) || to(eng[0], A.bus('aircraft.int'))) F.push('the engine still feeds the buses directly');
+  const spl = prop[0].edges.find(e => e.o === 1 && e.d.kind === 'splitter');
+  if (!spl) F.push('the prop\'s output 1 does not reach a splitter');
+  else if (!to(spl.d, g0.ins[1], 0) || !to(spl.d, g0.ins[2], 1)) F.push('the splitter does not feed propT (tonal, channel 0) and propB (broadband, channel 1)');
+  if (prop[0].edges.some(e => e.o === 0)) F.push('the prop\'s mono output 0 is still wired (it would double the prop)');
+  if (af[0].opts.numberOfOutputs !== 3 || String(af[0].opts.outputChannelCount) !== '1,2,1') F.push('the airframe node is not made with 3 outputs [1, 2, 1] (' + af[0].opts.numberOfOutputs + ', ' + af[0].opts.outputChannelCount + ')');
+  if (!to(af[0], gA.ins[3], 0) || !to(af[0], G.intIn, 1) || !to(af[0], G.intIn, 2)) F.push('the airframe\'s outputs: 0 -> its group ' + to(af[0], gA.ins[3], 0) + ', 1 -> interior ' + to(af[0], G.intIn, 1) + ', 2 -> interior ' + to(af[0], G.intIn, 2));
+  // no placeholder low-pass anywhere (the 1.4 kHz the sources had); the cabin filters are cabinTransfer's
+  const ph = pg.C.nodes.filter(n => n.kind === 'biquad' && n.type === 'lowpass' && Math.abs(n.frequency.value - 1400) < 1);
+  if (ph.length) F.push(ph.length + ' placeholder 1.4 kHz low-pass(es) left in the graph');
+  const cab = sp.cabin(), want = SPCFG_PAGE(S).cabinTransfer(pg.def.spec);
+  if (!cab || cab.cls !== want.cls) F.push('the page\'s cabin is ' + (cab && cab.cls) + ' (want ' + want.cls + ')');
+  const sh = want.filters.find(f => f.type === 'highshelf'), lp = want.filters.find(f => f.type === 'lowpass');
+  if (Math.abs(G.shelf.gain.value - sh.gain) > 1e-6 || Math.abs(G.lp.frequency.value - lp.f) > 1e-6 || Math.abs(G.cabGain.gain.value - Math.pow(10, want.gainDb / 20)) > 1e-6)
+    F.push('the cabin\'s nodes are not cabinTransfer\'s (shelf ' + G.shelf.gain.value + ' / ' + sh.gain + ', lp ' + G.lp.frequency.value + ' / ' + lp.f + ', gain ' + G.cabGain.gain.value + ')');
+  if (!to(G.cabGain, G.intIn) || !to(G.hsGain, A.bus('aircraft.int'))) F.push('the cabin does not reach the interior through the headset');
+  if (!to(g0.side, G.cabIn) || !to(gA.side, G.cabIn)) F.push('the groups do not feed the cabin');
+  if (!to(g0.pan, A.bus('aircraft.ext')) || !to(g0.lpf, g0.pan) || !to(g0.sum, g0.lpf)) F.push('the exterior chain is not sum -> absorption -> panner -> aircraft.ext');
+  // the directivity: the camera on the nose axis ahead -> the tonal at its floor; 14 deg behind the disc plane -> ~1;
+  // the exhaust aft over ahead
+  const dirAt = (ahead, aside) => { pg.place(ahead, 0, aside); for (let i = 0; i < 6; i++) pg.frame(); return [0, 1, 2].map(k => g0.dirs[k].gain.value); };
+  const front = dirAt(200, 0.01), plane = dirAt(-200 * Math.tan(14 * Math.PI / 180), 200), aft = dirAt(-200, 0.01);
+  if (!(front[1] < 0.06)) F.push('the prop\'s tonal on the nose axis is ' + front[1].toFixed(3) + ' (want nil, the floor)');
+  if (!(plane[1] > 0.97)) F.push('the prop\'s tonal 14 deg behind the disc plane is ' + plane[1].toFixed(3) + ' (want ~1)');
+  if (!(aft[0] > front[0] + 0.3)) F.push('the exhaust is not aft-biased: ahead ' + front[0].toFixed(2) + ', aft ' + aft[0].toFixed(2));
+  if (!(plane[2] > front[2])) F.push('the broadband is not stronger in the disc plane (' + plane[2].toFixed(2) + ' vs ' + front[2].toFixed(2) + ' on the axis)');
+  // the panner in the camera's frame: the aeroplane straight ahead of the eye -> (0, 0, -d)
+  pg.place(300, 0, 0); for (let i = 0; i < 8; i++) pg.frame();
+  const px = gA.pan.positionX.value, py = gA.pan.positionY.value, pz = gA.pan.positionZ.value;
+  if (!(Math.abs(px) < 1 && Math.abs(py) < 1 && pz < -290 && pz > -310)) F.push('the panner is not in the camera\'s frame: (' + [px, py, pz].map(x => x.toFixed(1)).join(', ') + ') for the aeroplane 300 m ahead of the eye');
+  // the lag: distance / c, carried by the sources' schedules
+  const lag = A.lagS[0], dist = sp.frame[sp.GAF * sp.LW + 9], c = pg.sim.out ? 20.0468 * Math.sqrt(9 + 273.15) : 343;
+  if (!(Math.abs(lag - dist / c) < 0.02)) F.push('the lag ' + lag.toFixed(3) + ' s is not the distance / c (' + (dist / c).toFixed(3) + ')');
+  pg.sim.out.rpmEng = pg.sim.out.rpmEng.map(x => x * 0.7); pg.sim.out.rpm = pg.sim.out.rpm.map(x => x * 0.7);
+  pg.frame();
+  const er = eng[0].parameters.get('rpm').ev.filter(e => e.k === 'T').pop();
+  if (!er || Math.abs(er.t - (pg.t + lag)) > 0.03) F.push('the engine\'s rpm is not scheduled at now + the lag (' + (er ? (er.t - pg.t).toFixed(3) : 'none') + ' s ahead, lag ' + lag.toFixed(3) + ')');
+  // the doppler: the camera moving toward the aeroplane at 50 m/s -> pitch (c + 50) / c on every voice
+  for (let i = 0; i < 40; i++) { pg.place(300 - 50 * (i / 60), 0, 0); pg.frame(); }
+  const kW = (c + 50) / c;
+  for (const [nm, n] of [['engine', eng[0]], ['prop', prop[0]], ['airframe', af[0]]]) {
+    const pv = n.parameters.get('pitch').value;
+    if (!(Math.abs(pv / kW - 1) < 0.01)) F.push('the ' + nm + '\'s pitch ' + pv.toFixed(4) + ' (want the doppler ' + kW.toFixed(4) + ' for an eye closing at 50 m/s)');
+  }
+  // a cut (the cockpit): the lag snaps to 0, 'space-cut' fires, the sources cancel what they scheduled ahead
+  const c0 = pg.C.cancel;
+  pg.cam.mode = 'cockpit'; pg.place(-1, 1, 0); pg.frame();
+  if (A.lagS[0] !== 0) F.push('the cockpit kept a lag of ' + A.lagS[0].toFixed(3) + ' s');
+  if (!(pg.C.cancel > c0 + 6)) F.push('a cut did not make the sources cancel their schedules (' + (pg.C.cancel - c0) + ' cancels)');
+  // the headset and the ambience inside
+  A.set('headset', 1); pg.frame();
+  const hc = SPCFG_PAGE(S).headsetCurve('passive');
+  if (Math.abs(G.hsHi.gain.value - hc.filters[0].gain) > 1e-6 || Math.abs(G.hsGain.gain.value - Math.pow(10, hc.gainDb / 20)) > 1e-6) F.push('the headset\'s nodes are not its passive curve');
+  if (Math.abs(A.bus('aircraft').gain.value - A.get('aircraft')) > 1e-9) F.push('the flat -15 dB headset still applies over the space\'s curve');
+  const ak = A.bus('ambience').gain.value / A.get('environment'), wantK = want.ambienceK * SPCFG_PAGE(S).headsetK('passive');
+  if (!(Math.abs(ak - wantK) < 1e-6)) F.push('the ambience inside is x' + ak.toFixed(4) + ' (want the insulation duck x the headset: ' + wantK.toFixed(4) + ')');
+  A.set('headsetAnr', 1); pg.frame();
+  if (Math.abs(G.hsLo.gain.value - SPCFG_PAGE(S).headsetCurve('anr').filters[1].gain) > 1e-6) F.push('the ANR setting did not set the low-shelf');
+  // without space.js the sources keep the old routing (no placeholder, both buses)
+  const p0 = spacePage(S, { noSpace: true }); p0.place(60, 2, 0); for (let i = 0; i < 3; i++) p0.frame();
+  const e0 = p0.aw('flydiy-engine')[0];
+  if (!e0 || !to(e0, p0.A.bus('aircraft.ext'), 0) || !to(e0, p0.A.bus('aircraft.int'), 0)) F.push('without space.js the engine is not on both buses');
+  return F;
+}
+const SPCFG_PAGE = S => spcOf(S);
+
+// the measurement itself (the child runs it): the aeroplane flies past the still eye at 60 m/s along its nose (typed
+// writes only: the test allocates nothing of its own), back to the start every 800 m (a teleport: the ring forgets it)
+function spBudgetMeasure(S) {
+  const pg = spacePage(S, { record: false });
+  pg.place(0, 20, 60);
+  const p = pg.sim.p, p0 = Float64Array.from(p), fw = Float64Array.from(pg.fwd), X = new Float64Array(1);
+  const go = () => {
+    X[0] += 1; if (X[0] > 400) X[0] = -400;
+    const dx = fw[0] * X[0], dy = fw[1] * X[0], dz = fw[2] * X[0];
+    for (let j = 0; j < p.length; j += 3) { p[j] = p0[j] + dx; p[j + 1] = p0[j + 1] + dy; p[j + 2] = p0[j + 2] + dz; }
+    pg.frame();
+  };
+  X[0] = -400;
+  for (let i = 0; i < 20000; i++) go();
+  let gcs = 0;
+  const obs = new PerformanceObserver(list => { gcs += list.getEntries().length; });
+  obs.observe({ entryTypes: ['gc'] });
+  global.gc(); global.gc();
+  const gcs0 = gcs, h0 = process.memoryUsage().heapUsed, s0 = pg.C.sched;
+  const t0 = performance.now();
+  for (let i = 0; i < 10000; i++) go();
+  const ms = (performance.now() - t0) / 10000;
+  const dB = process.memoryUsage().heapUsed - h0, gIn = gcs - gcs0;
+  obs.disconnect();
+  const sch = (pg.C.sched - s0) / 10000;
+  for (let i = 0; i < 200; i++) pg.frame();
+  const s1 = pg.C.sched;
+  for (let i = 0; i < 2000; i++) pg.frame();
+  return { dB, gIn, ms, sch, steady: pg.C.sched - s1 };
+}
+const SPB_KEYS = ['params', 'audio', 'engine', 'srcprop', 'model', 'samples', 'srcaf', 'spcfg', 'space', 'worklet', 'engw', 'propw'];
+let SPB_N = 0;
+function checkSpBudget(S, report) {
+  const F = [], os = require('os');
+  const tmp = path.join(os.tmpdir(), 'flydiy_spbudget_' + process.pid + '_' + (SPB_N++) + '.json');
+  const sub = {}; for (const k of SPB_KEYS) sub[k] = S[k];
+  fs.writeFileSync(tmp, JSON.stringify(sub));
+  let r = null;
+  try {
+    const out = execFileSync(process.execPath, ['--expose-gc', '--max-semi-space-size=64', __filename, '--spbudget-child=' + tmp], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+    r = JSON.parse(out.trim().split('\n').pop());
+  } catch (e) { return ['the budget child failed: ' + String(e && (e.stderr || e.message) || e).split('\n').slice(0, 3).join(' | ')]; }
+  finally { try { fs.unlinkSync(tmp); } catch (e) {} }
+  if (report) report.push('update() with the three sources + space.js, the aeroplane passing the eye at 60 m/s (a fresh process): heap ' + (r.dB >= 0 ? '+' : '') + r.dB + ' B over 10 000 frames (' + (r.dB / 10000).toFixed(2) + ' B a frame), ' + r.gIn + ' GC, ' + (r.ms * 1000).toFixed(1) + ' us a frame (with the test\'s own node shift), ' + r.sch.toFixed(1) + ' params scheduled a frame');
+  if (r.gIn > 0) F.push('a GC ran inside the moving window (' + r.gIn + '): the space allocates');
+  if (r.dB > 16384) F.push('the moving frames grew the heap ' + r.dB + ' B over 10 000 frames (' + (r.dB / 10000).toFixed(1) + ' B a frame)');
+  if (!(r.ms < 0.3)) F.push('update() with space.js costs ' + r.ms.toFixed(3) + ' ms a frame (budget 0.3)');
+  if (!(r.sch > 3)) F.push('the moving frames scheduled ' + r.sch.toFixed(2) + ' params a frame (the space is not following the aeroplane)');
+  if (r.steady !== 0) F.push('a steady frame scheduled ' + r.steady + ' params over 2000 frames (want 0)');
+  return F;
+}
+
+// the node baker: the same engine and prop worklets under the shim (render.js / render_prop.js), one render per point
+function nodeBaker(S) {
+  return job => {
+    const E = loadEngW(S), Pw = loadPropW(S), eng = [], broad = [];
+    const gear = job.engine.gear > 0 ? job.engine.gear : 1;
+    for (const rpm of job.points) {
+      const v = RND.makeVoice(E, job.engine, 11, 0, { running: true, rpm });
+      const load = Math.max(0.1, Math.min(1, (rpm - job.engine.idleRpm) / Math.max(1, job.engine.ratedRpm - job.engine.idleRpm)));
+      v.params.rpm[0] = rpm; v.params.load[0] = load; v.params.running[0] = 1;
+      const pr = new Pw.P({ processorOptions: { config: job.prop, seed: 12 } });
+      const pp = {}; for (const d of Pw.P.parameterDescriptors) pp[d.name] = new Float32Array([d.defaultValue]);
+      pp.rpm[0] = rpm / gear; pp.thrust[0] = load * (job.prop.Tstatic || 1000); pp.thr[0] = load; pp.V[0] = 30;
+      const pout = [[new Float32Array(128)], [new Float32Array(128), new Float32Array(128)]], pin = [[v.outputs[1][0], v.outputs[1][1]]];
+      const nb = Math.ceil(job.seconds * job.sr / 128), yE = new Float32Array(nb * 128), yB = new Float32Array(nb * 128);
+      for (let b = 0; b < nb; b++) {
+        v.proc.process(v.inputs, v.outputs, v.params); pr.process(pin, pout, pp);
+        for (let k = 0; k < 128; k++) { yE[b * 128 + k] = v.outputs[0][0][k] + pout[1][0][k]; yB[b * 128 + k] = pout[1][1][k]; }
+      }
+      eng.push(yE); broad.push(yB);
+    }
+    return { eng, broad, sr: job.sr };
+  };
+}
+async function checkSpCraft(S) {
+  const F = [], SC = spcOf(S);
+  // the tiers, pure
+  const d = new Float64Array([4500, 120, 6000, 480, 300, 900, 1500, 2000, 2500, 3000, 3500, 4000, 4200, 4900]), n = d.length;
+  const ord = new Int32Array(n), tier = new Uint8Array(n);
+  SC.craftTiers(d, n, ord, tier);
+  const nF = Array.from(tier).filter(t => t === SC.TIER_FULL).length, nE = Array.from(tier).filter(t => t === SC.TIER_ENGINE).length;
+  if (tier[1] !== SC.TIER_FULL || tier[4] !== SC.TIER_FULL) F.push('the two nearest within 500 m are not full (' + tier[1] + ', ' + tier[4] + ')');
+  if (tier[3] !== SC.TIER_ENGINE) F.push('the third craft within 500 m is not demoted to the engine tier (cap 2 full): ' + tier[3]);
+  if (tier[2] !== SC.TIER_SILENT) F.push('a craft at 6 km is audible (' + tier[2] + ')');
+  if (nF !== 2 || nE !== 8) F.push('the caps: ' + nF + ' full + ' + nE + ' engine-only (want 2 + 8)');
+  if (tier[13] !== SC.TIER_SILENT || tier[12] !== SC.TIER_SILENT) F.push('the farthest within 5 km took a voice past the cap');
+  // the blend at equal power, the rate
+  const pts = SC.bakePoints(700, 2500, 5), BL = new Float64Array(5);
+  if (pts.length !== 5 || pts[0] !== 700 || Math.abs(pts[4] - 2500) > 1e-9) F.push('the bake points ' + pts.map(x => x.toFixed(0)).join(' '));
+  const mid = (pts[1] + pts[2]) / 2;
+  SC.loopBlend(pts, mid, BL);
+  if (BL[0] !== 1 || BL[1] !== 2 || Math.abs(BL[3] - mid / pts[1]) > 1e-12 || Math.abs(BL[4] - mid / pts[2]) > 1e-12) F.push('the blend between points 1 and 2 reads ' + Array.from(BL).map(x => x.toFixed(3)).join(' '));
+  // through the page: a craft baked by the node baker, then flown past the camera
+  const pg = spacePage(S, { record: true }), sp = pg.A.space, b = FLOWN[0];
+  sp.setBaker(nodeBaker(S));
+  const cfgE = ECFG_.engineSoundConfig(b.spec, 0, POWERPLANTS);
+  const PRC = require(path.join(ROOT, 'src', 'viewer', 'audio', 'prop_config.js'));
+  const cfgP = PRC.propSoundConfig(b.spec, 0, POWERPLANTS, b.def.params.prop).prop;
+  const cr = sp.addCraft('ai1', { engineCfg: cfgE, propCfg: cfgP }, { sr: 48000 });
+  await new Promise(r => setTimeout(r, 0)); await new Promise(r => setTimeout(r, 0));
+  if (!cr || cr.state !== 'ready') return F.concat(['the craft did not bake (' + (cr && cr.state) + (cr && cr.why ? ': ' + cr.why : '') + ')']);
+  if (cr.loops.eng.length !== 5 || cr.loops.broad.length !== 5) F.push('the craft baked ' + cr.loops.eng.length + ' engine loops (want 5)');
+  // seamless: the wrap's step against the loop's own sample-to-sample steps
+  for (let k = 0; k < cr.loops.eng.length; k++) {
+    const y = cr.loops.eng[k]; let st = 0; for (let i = 1; i < y.length; i++) st += Math.abs(y[i] - y[i - 1]);
+    const mean = st / (y.length - 1), wrap = Math.abs(y[0] - y[y.length - 1]);
+    if (!(wrap < 6 * mean + 1e-6)) F.push('loop ' + k + ' has a seam: the wrap steps ' + wrap.toExponential(2) + ' against a mean step of ' + mean.toExponential(2));
+  }
+  pg.place(60, 2, 0); pg.frame();
+  const L = [pg.camera.position.x, pg.camera.position.y, pg.camera.position.z];
+  const put = (dx, rpm) => { cr.st[0] = L[0] + dx; cr.st[1] = L[1]; cr.st[2] = L[2] + 1; cr.st[3] = 1; cr.st[4] = 0; cr.st[5] = 0; cr.st[6] = rpm; cr.st[7] = 0.8; };
+  put(-3000, 2200); for (let i = 0; i < 10; i++) pg.frame();
+  if (cr.tier !== SC.TIER_ENGINE || !cr.voice || cr.voice.layers.length !== 1) F.push('a craft at 3 km is not on the engine-only tier (' + cr.tier + ', ' + (cr.voice ? cr.voice.layers.length : 0) + ' layers)');
+  put(-200, 2200); for (let i = 0; i < 10; i++) pg.frame();
+  if (cr.tier !== SC.TIER_FULL || !cr.voice || cr.voice.layers.length !== 2) F.push('a craft at 200 m is not full (' + cr.tier + ')');
+  // flying toward the eye at 60 m/s: the rate = rpm / point x c / (c - 60) on the bracket's sources
+  for (let i = 0; i < 90; i++) { put(-200 + 60 * i / 60, 2200); pg.frame(); }
+  SC.loopBlend(cr.points, cr.rpmS[0], BL);
+  const c = 20.0468 * Math.sqrt(9 + 273.15), kD = c / (c - 60);
+  const src = cr.voice.layers[0].srcs[BL[0] | 0], want = BL[3] * kD;
+  if (!(Math.abs(src.playbackRate.value / want - 1) < 0.01)) F.push('the craft\'s loop rate ' + src.playbackRate.value.toFixed(4) + ' (want rpm / point x the doppler = ' + want.toFixed(4) + ')');
+  const gs = cr.voice.layers[0].gains.map(g => g.gain.value);
+  const p2 = gs.reduce((a, g) => a + g * g, 0);
+  if (!(Math.abs(p2 - 1) < 0.02)) F.push('the craft\'s blend is not equal power (sum of squares ' + p2.toFixed(3) + ': ' + gs.map(g => g.toFixed(2)).join(' ') + ')');
+  put(-8000, 2200); for (let i = 0; i < 5; i++) pg.frame();
+  if (cr.tier !== SC.TIER_SILENT || cr.voice) F.push('a craft at 8 km still has a voice (tier ' + cr.tier + ')');
+  sp.removeCraft('ai1');
+  if (sp.crafts().length) F.push('removeCraft left ' + sp.crafts().length);
+  SP_REPORT.push('a baked craft (the Cub\'s A-65): 5 loops of ' + (cr.loops.eng[0].length / 48000).toFixed(2) + ' s at ' + cr.points.map(x => x.toFixed(0)).join(' / ') + ' rpm; tiers 3 km engine-only, 200 m full, 8 km silent');
+  return F;
+}
+
 const CHECKS = { NUMBERS: checkNumbers, CONTACTS: checkContacts, BUDGET: checkBudget, GESTURE: checkGesture,
                  SILENCE: checkSilence, SETTINGS: checkSettings, SOURCES: checkSources, WIRING: checkWiring,
                  MUSIC_CAT: checkMusicCatalogue, MUSIC_CTX: checkMusicContexts, MUSIC_SHUFFLE: checkMusicShuffle,
                  MUSIC_GAPS: checkMusicGaps, MUSIC_XFADE: checkMusicXfade, MUSIC_DUCK: checkMusicDuck,
                  MUSIC_BUDGET: checkMusicBudget, MUSIC_CREDITS: checkMusicCredits, MUSIC_WIRING: checkMusicWiring,
                  AFMODEL: checkAfModel, AFVOICE: checkAfVoice, AFALLOC: checkAfAlloc, AFFLOWN: checkAfFlown, AFSOURCE: checkAfSource,
-                 SAMPLES: checkSamples, INERT: checkInert };
-const REPORTS = { BUDGET: 1, AFVOICE: 1, AFALLOC: 1, AFFLOWN: 1, AFSOURCE: 1 };
+                 SAMPLES: checkSamples, INERT: checkInert,
+                 SP_CABIN: checkSpCabin, SP_DOPPLER: checkSpDoppler, SP_ABSORB: checkSpAbsorb, SP_XFADE: checkSpXfade,
+                 SP_IR: checkSpIr, SP_GRAPH: checkSpGraph, SP_BUDGET: checkSpBudget, SP_CRAFT: checkSpCraft };
+const REPORTS = { BUDGET: 1, AFVOICE: 1, AFALLOC: 1, AFFLOWN: 1, AFSOURCE: 1, SP_BUDGET: 1 };
 
 // ---- THE MUTATIONS (D): [name, file, find, replace, the check that must go red] ---------------------------------
 const MUT = [
@@ -1396,7 +1974,7 @@ const MUT = [
   ['a hidden tab plays', 'audio', 'const want = hidden || held ||', 'const want = held ||', 'SILENCE'],
   ['the suspend never comes', 'audio', 'suspendTimer = setTimeout(doSuspend,', 'suspendTimer = setTimeout(() => {},', 'SILENCE'],
   ['the settings not persisted', 'audio', "prefSet(PREF + '.' + k, set[k]);", '', 'SETTINGS'],
-  ['the headset in the open', 'audio', 'const hs = interior && set.headset ? HEADSET_K : 1;', 'const hs = set.headset ? HEADSET_K : 1;', 'SETTINGS'],
+  ['the headset in the open', 'audio', 'const hs = interior && set.headset && !sp ? HEADSET_K : 1;', 'const hs = set.headset && !sp ? HEADSET_K : 1;', 'SETTINGS'],
   ['music in flight by default', 'audio', "set.music * (flying && !set.musicFlight ? 0 : 1)", 'set.music', 'SETTINGS'],
   ['a throwing source kept', 'audio', "catch (e) { r.live = false; console.warn('flyDiy audio: the source '", "catch (e) { console.warn('flyDiy audio: the source '", 'SOURCES'],
   ['sound off keeps the context', 'audio', 'ctx = null; api.ctx = null; silent = false;', 'api.ctx = null; silent = false;', 'SOURCES'],
@@ -1420,15 +1998,15 @@ const MUT = [
   ['the worklet\'s params renamed', 'worklet', "'stallK', 'creak', 'flapM', 'open', 'duck'];", "'stallK', 'creak', 'flapM', 'open', 'duk'];", 'AFVOICE'],
   ['gravel sounds like scree', 'worklet', '[0.65, 0.20, 3200, 0.8, 28, 3500, 4, 0],', '[0.95, 0.30, 1500, 0.8, 12, 1900, 9, 0],', 'AFVOICE'],
   ['the touchdown deaf to its severity', 'worklet', 'this.voice(VK_LOW, 1, 1.1, k * (0.08 + 0.35 * s), 0.05 + 0.09 * s, 90 + 150 * s, 0, 1, 0, 0.9);\n      this.voice(VK_BAND, 1, 0.3, k * (0.05 + 0.15 * s)', 'this.voice(VK_LOW, 1, 1.1, k * 0.25, 0.1, 160, 0, 1, 0, 0.9);\n      this.voice(VK_BAND, 1, 0.3, k * 0.12', 'AFVOICE'],
-  ['the horn outside', 'worklet', 'inn += dS * 0.12 * sp *', 'ext += dS * 0.12 * sp *', 'AFVOICE'],
+  ['the horn outside', 'worklet', 'io += dS * 0.12 * sp *', 'ext += dS * 0.12 * sp *', 'AFVOICE'],
   ['the closed cabin as loud as the open', 'worklet', '(1 - op) * 2.2 * z[Z_CABW]', '(1 - op) * 22 * z[Z_CABW]', 'AFVOICE'],
-  ['the NaN unguarded', 'worklet', "if (!(yE === yE) || !(yI === yI)) { nanHit = 1; yE = 0; yI = 0; }", '', 'AFVOICE'],
+  ['the NaN unguarded', 'worklet', "if (!(yE === yE) || !(yI === yI) || !(yR === yR) || !(yO === yO)) { nanHit = 1; yE = 0; yI = 0; yR = 0; yO = 0; }", '', 'AFVOICE'],
   ['process() allocates', 'worklet', '    this.stats[3]++;\n', '    this.stats[3]++; this.lastBlock = [n];\n', 'AFALLOC'],
   ['a DC offset out', 'worklet', '      oE[j] = yE;\n', '      oE[j] = yE + 0.01;\n', 'AFFLOWN'],
   ['the wind blows the ceiling', 'model', 'Vref: 50, windExt: 0.08,', 'Vref: 50, windExt: 8,', 'AFFLOWN'],
   ['the floats\' splash lost', 'model', "if (wet && !(s[SI.pwet] > 0) && Math.min(s[SI.off0], s[SI.off1]) >= A.tdOffS)", "if (false)", 'AFFLOWN'],
   ['the source schedules every frame', 'srcaf', '        if (v === last[i]) continue;\n', '', 'AFSOURCE'],
-  ['the source drops the events', 'srcaf', "          node.port.postMessage({ t: 'ev', e, s, a: E[o + 2], b: E[o + 3], k: rec });", '', 'AFSOURCE'],
+  ['the source drops the events', 'srcaf', "          node.port.postMessage({ t: 'ev', e, s, a: E[o + 2], b: E[o + 3], k: rec, d: lag });", '', 'AFSOURCE'],
   ['the targets unquantised', 'model', 'if (q > 0) tg[i] = Math.round(tg[i] / q) * q;', 'tg[i] = tg[i] + 1e-6 * Math.random();', 'AFSOURCE'],
   ['the stall never told', 'srcaf', "stallClk[1] = 1; api.emit('stall', 1); }", 'stallClk[1] = 1; }', 'AFSOURCE'],
   ['the slots fetch at attach', 'samples', 'attach(c) { ctx = c; return api; },', 'attach(c) { ctx = c; for (const k in KEYS) load(k); return api; },', 'SAMPLES'],
@@ -1483,6 +2061,49 @@ const MUT = [
   ['the engine emits no start', 'engine', "if (vals3) A.emit('engine', 'start'); ", '', 'MUSIC_WIRING'],
   ['no garage setting', 'audio', "    ['musicGarage', 1, 'bool',", "    ['musicGarageX', 1, 'bool',", 'MUSIC_WIRING'],
   ['the skip row gone', 'music', "btn('skip track', 'skip', () => skip());", '', 'MUSIC_WIRING'],
+  // SND-SPACE (G1640-G1646)
+  ['the metal cabin as fabric', 'spcfg', "alloy: 'metal'", "alloy: 'fabric'", 'SP_CABIN'],
+  ['the open cockpit ignored', 'spcfg', "if (cab.glazing === 'none') return { cls: 'open'", "if (false) return { cls: 'open'", 'SP_CABIN'],
+  ['the insulation unsolved', 'spcfg', 'ch.gainDb = -insul - meanDb(ch, INSUL_F);', 'ch.gainDb = -insul;', 'SP_CABIN'],
+  ['the metal\'s high end let through', 'spcfg', 'metal:      { insul: 20, shelfHz: 1000, shelfDb: -12, lpHz: 3200,', 'metal:      { insul: 20, shelfHz: 6000, shelfDb: -2, lpHz: 18000,', 'SP_CABIN'],
+  ['no cabin boom', 'spcfg', 'if (boomDb > 0.05) filters.push(', 'if (false) filters.push(', 'SP_CABIN'],
+  ['the exits ignored', 'spcfg', 'let ex = +o.exits || 0;', 'let ex = 0;', 'SP_CABIN'],
+  ['a flat headset', 'spcfg', "{ type: 'highshelf', f: 1500, Q: 0, gain: -10 }", "{ type: 'highshelf', f: 1500, Q: 0, gain: 0 }", 'SP_CABIN'],
+  ['ANR without its low end', 'spcfg', "gain: kind === 'anr' ? -7 : 0", 'gain: 0', 'SP_CABIN'],
+  ['the doppler inverted', 'spcfg', 'let k = (cc - vl) / (cc - vs);', 'let k = (cc - vs) / (cc - vl);', 'SP_DOPPLER'],
+  ['the doppler not retarded', 'spcfg', 'ringAt(R, t - tau, out);', 'ringAt(R, t, out);', 'SP_DOPPLER'],
+  ['the engine deaf to its pitch', 'engw', 'let r2 = rev + spP*rpmInst/(60.0*cycleRevs);', 'let r2 = rev + spS*rpmInst/(60.0*cycleRevs);', 'SP_DOPPLER'],
+  ['the prop deaf to its pitch', 'propw', 'const isrP = pch / (60 * sr);', 'const isrP = 1 / (60 * sr);', 'SP_DOPPLER'],
+  ['the air never filters', 'spcfg', 'const f = Math.sqrt(3 / (ABS_K * dd));', 'const f = 20000 + 0 * dd;', 'SP_ABSORB'],
+  ['the page forgets the air', 'space', 'fAbs = SC.airAbsorptionHz(dist);', 'fAbs = 20000;', 'SP_ABSORB'],
+  ['a linear viewpoint fade', 'audio', 'XC_E[i] = Math.cos(a); XC_I[i] = Math.sin(a);', 'XC_E[i] = 1 - a / (Math.PI / 2); XC_I[i] = a / (Math.PI / 2);', 'SP_XFADE'],
+  ['a 50 ms viewpoint', 'audio', 'const XFADE_S = 0.15,', 'const XFADE_S = 0.05,', 'SP_XFADE'],
+  ['a reversal from the end', 'audio', 'x = XF[2] + (XF[0] - XF[2]) * u;', 'x = XF[0];', 'SP_XFADE'],
+  ['the IR deaf to Sabine', 'spcfg', 'const dec = Math.exp(-6.907755 / (room.rt60[b] * fs));', 'const dec = Math.exp(-6.907755 / (1.0 * fs));', 'SP_IR'],
+  ['a mono IR', 'spcfg', 'for (let ch = 0; ch < 2; ch++) {\n      const y = out[ch];', 'for (let ch = 0; ch < 2; ch++) {\n      const y = out[ch]; s = 0x2f6e2b1;', 'SP_IR'],
+  ['the IR made on the frame', 'space', 'if (W.requestIdleCallback) W.requestIdleCallback(run, { timeout: 2000 }); else setTimeout(run, 0);', 'run();', 'SP_IR'],
+  ['the IR never regenerated', 'space', 'if (key === G.irKey || key === G.irPending) return;', 'if (G.irKey || key === G.irPending) return;', 'SP_IR'],
+  ['the shed\'s room everywhere', 'space', 'const v = on && G.irKey ? WETS[k] : 0;', 'const v = G.irKey ? WETS[k] : 0;', 'SP_IR'],
+  ['the placeholder low-pass back', 'engine', "      if (sp) node.connect(sp, 0); else { node.connect(outExt, 0); node.connect(outInt, 0); }", "      if (sp) node.connect(sp, 0); else { node.connect(outExt, 0); node.connect(outInt, 0); }\n      { const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 1400; node.connect(lp, 0); }", 'SP_GRAPH'],
+  ['the prop\'s parts not apart', 'srcprop', 'node.connect(sp, 1); sp.connect(sT, 0); sp.connect(sB, 1); splits.push(sp);', 'node.connect(sT, 0); splits.push(sp);', 'SP_GRAPH'],
+  ['the interior layers through the cabin', 'srcaf', '        if (SPC) node.connect(int, 2);', '        if (SPC) node.connect(api.space.graph().cabIn, 2);', 'SP_GRAPH'],
+  ['an omnidirectional prop', 'spcfg', 'if (kind === DIR_TONAL) { const g = s2 * (1 - TONAL_A * c) / TONAL_NORM; return g > TONAL_FLOOR ? g : TONAL_FLOOR; }', 'if (kind === DIR_TONAL) return 1;', 'SP_GRAPH'],
+  ['the exhaust forward', 'spcfg', 'if (kind === DIR_EXHAUST) return 0.55 + 0.45 * (1 - c) * 0.5;', 'if (kind === DIR_EXHAUST) return 0.55 + 0.45 * (1 + c) * 0.5;', 'SP_GRAPH'],
+  ['the panner in world coordinates', 'space', 'X3[0] = rx * L[3] + ry * L[4] + rz * L[5]; X3[1] = rx * L[6] + ry * L[7] + rz * L[8]; X3[2] = rx * L[9] + ry * L[10] + rz * L[11];', 'X3[0] = rx; X3[1] = ry; X3[2] = rz;', 'SP_GRAPH'],
+  ['no lag published', 'space', '    if (A.lagS) A.lagS[0] = lag;\n', '\n', 'SP_GRAPH'],
+  ['the engine ignores the lag', 'engine', 'const t = ctx.currentTime + (A.lagS ? A.lagS[0] : 0);', 'const t = ctx.currentTime;', 'SP_GRAPH'],
+  ['no doppler on the voices', 'space', '      X3[3] = kDop; pitchGroup(gi);', '      X3[3] = 1; pitchGroup(gi);', 'SP_GRAPH'],
+  ['a cut unheard', 'space', "      A.emit('space-cut');\n", '\n', 'SP_GRAPH'],
+  ['the headset\'s curve unused', 'space', 'st(G.hsHi.gain, h.filters[0].gain);', 'st(G.hsHi.gain, 0);', 'SP_GRAPH'],
+  ['the ambience not ducked inside', 'space', 'const k = cab ? cab.ambienceK : 1, hk = headsetKind();', 'const k = 1, hk = headsetKind();', 'SP_GRAPH'],
+  ['the cabin\'s gain unset', 'space', 'st(G.cabGain.gain, Math.pow(10, cab.gainDb / 20));', '', 'SP_GRAPH'],
+  ['the space allocates a frame', 'space', '    stats.frames++;\n', '    stats.frames++; stats.lastP = [P.s[0]];\n', 'SP_BUDGET'],
+  ['the space schedules every frame', 'space', 'if (Math.abs(fAbs - last[o + 7]) > 0.015 * fAbs) {', 'if (true) {', 'SP_BUDGET'],
+  ['three full voices', 'spcfg', 'CAP_FULL = 2, CAP_BAKED = 8;', 'CAP_FULL = 3, CAP_BAKED = 8;', 'SP_CRAFT'],
+  ['audible past 5 km', 'spcfg', 'if (!(d <= TIER_ENGINE_M) || used >= cb + cf) break;', 'if (used >= cb + cf) break;', 'SP_CRAFT'],
+  ['a seam in the loop', 'spcfg', 'out[j] = y[start + f + j] * go + y[start + i] * gi;', 'out[j] = y[start + f + j];', 'SP_CRAFT'],
+  ['the craft deaf to the doppler', 'space', 'const rate = (k === i0 ? BL[3] : BL[4]) * kDop;', 'const rate = (k === i0 ? BL[3] : BL[4]);', 'SP_CRAFT'],
+  ['a linear loop blend', 'space', 'const g = k === i0 ? (i1 === i0 ? 1 : Math.cos(Math.PI / 2 * u)) : k === i1 ? Math.sin(Math.PI / 2 * u) : 0;', 'const g = k === i0 ? (i1 === i0 ? 1 : 1 - u) : k === i1 ? u : 0;', 'SP_CRAFT'],
 ];
 
 // a check returns its failures, or a promise of them (SAMPLES: the loader is promise-based)
@@ -1500,6 +2121,11 @@ async function runChecks(S, report) {
   return res;
 }
 
+if (SPB_CHILD) {
+  const sub = JSON.parse(fs.readFileSync(SPB_CHILD, 'utf8'));
+  console.log(JSON.stringify(spBudgetMeasure(Object.assign({}, SRC0, sub))));
+  return;
+}
 let fails = 0, pristine = null;
 const say = (ok, msg) => { console.log((ok ? '  ok   ' : '  FAIL ') + msg); if (!ok) fails++; };
 (async () => {
@@ -1511,7 +2137,7 @@ if (!ONLY_SELFTEST) {
     say(!res[k].length, k + (res[k].length ? ': ' + res[k].length + ' failure(s)' : ''));
     for (const f of res[k]) console.log('         ' + f);
   }
-  for (const r of report.concat(MUSIC_REPORT)) console.log('  info ' + r);
+  for (const r of report.concat(MUSIC_REPORT, SP_REPORT)) console.log('  info ' + r);
   for (const b of FLOWN) {
     const AP = loadParams(SRC0.params), o = AP.audioParamsBlock();
     AP.audioParams(b.sim, { mode: 'chase' }, b.def, o, null, 1 / 60);

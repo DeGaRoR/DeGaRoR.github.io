@@ -464,6 +464,8 @@ const MANIFEST = {
               'audio/music.js',
               // G1630-G1633 (SND-AIRFRAME): the airframe's numbers, the sample slots, the airframe source
               'audio/airframe_model.js', 'audio/samples.js', 'audio/src_airframe.js',
+              // G1640-G1646 (SND-SPACE): the space's numbers, then the space (the cabin, the panners, the shed's room)
+              'audio/space_config.js', 'audio/space.js',
               // G999: the world's composition, run by the promote in a task of its own ahead of app.js's evaluation
               'world_boot.js', 'app.js',
               'dev_panel.js'],   // (the WORLD rail, world_rail.js, rides the world pack above - G582)

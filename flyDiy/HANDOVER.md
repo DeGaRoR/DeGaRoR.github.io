@@ -69785,3 +69785,120 @@ DUSK A/B (the 8 always-on lamp lights at night, the Cub, ABAB): taxi equal, stan
 53.8 / 51.4) - accepted. BATTERY: CLOUD + ANIMALS (stale text checks: lampsOn(day), the surface word) fixed; ASSETS +
 FRAMECOST (LIGHT-SMOOTH's fix) and SOAR (GEAR-WATER out) green; the changed gates re-run green on the final build; the
 parked aeroplanes re-cooked on it.
+
+## G1640-G1646 - SND-SPACE: THE TWO PERSPECTIVES AND THE SPACE - THE CABIN FROM THE BUILD, THE HEADSET, THE 150 ms VIEWPOINT, THE PANNERS, THE AIR, THE DOPPLER ON THE VOICES, THE LAG, OTHER AIRCRAFT'S BAKED LOOPS, THE SHED'S GENERATED ROOM (2026-10-04, SND-SPACE for the Sound Coordinator, cloud, node only; branch claude/snd-space-k4ci8w off origin/claude/sound-next d313481b; G1647-G1649 unused)
+
+Design: futureDesigns/SOUND-2026-10-04.md §1.3 / §4 / §5 / §9, rulings s5 (the insulation from the build) and s7 (the headset,
+default off). Physics untouched (no src/core, no join, no app.js edit). Every placeholder the wave-2 sessions left is gone.
+G1640 THE NUMBERS - `src/viewer/audio/space_config.js` -> SPACE_CONFIG (pure, node + page). cabinTransfer(spec, {exits}): the
+  fuselage material (spec.material, else spec.fuselage.material) and the glazing (cabin.glazing 'none' or cabin.doorOff =
+  open) -> a CLASS (declared table: tubeFabric/steel fabric, wood/fabric-over-wood wood, aluTube ultralight, alloy metal,
+  carbon composite) -> insulation (the mean of the 250/500/1k/2k octaves) + the shape: a cabin BOOM (peaking at the first
+  transverse mode c/2W, W = 2 cabin.halfW, clamped 80-150 Hz; stiff shells only), a high-shelf, a low-pass corner, the
+  broadband gain SOLVED so the realised octave mean is exactly -insulation; exits 0..1 blends to the open cockpit (MSFS's
+  exits open/closed: AUDIO.space.setExits). The validated builds: the Cub fabric 8 dB (4 kHz vs 500 Hz -4.4 dB, no boom),
+  the Jodel wood 11 dB (boom 150 Hz +2), the three Cessnas metal 20 dB (-17 dB HF, boom 150 / 145 Hz +6), the twin-582 open
+  2 dB. The ambience duck inside by class (1 / 4 / 6 / 9 / 14 / 18 dB). headsetCurve: passive = -13 dB + a -10 dB high-shelf
+  at 1.5 kHz (-13 @80 Hz, -23 @4 kHz, mean 15.4 dB), ANR = + a -7 dB low-shelf at 300 Hz (-20 @80 Hz, mean 16.8). biquadDb /
+  chainDb: the Web Audio spec's own BiquadFilterNode formulas (lowpass Q in dB: -3.01 = Butterworth). dopplerFactor(c, vs,
+  vl) = (c - vl)/(c - vs). airAbsorptionHz(d) = sqrt(3/(k d)), k from ISO 9613-1's 29 dB/km at 4 kHz: 12.9 kHz @10 m, 4.1 kHz
+  @100 m, 1.29 kHz @1 km, 575 Hz @5 km. directivity: exhaust 0.55 + 0.45 (1 - cos)/2 (aft, MSFS's combustion cone 180), prop
+  TONAL sin^2 (1 - 0.6 cos) normalised (peak 104 deg = 14 deg behind the disc, floor 0.03 = nil on the axis), BROADBAND 0.5 +
+  0.5 sin^2, airframe omni. THE PROPAGATION: a ring per emitter (t, x, y, z, smoothed v; 1024 frames ~17 s), retardedSolve =
+  the fixed point t - te = |x(te) - L|/c (binary search, no closure: allocation-free) -> the position and velocity THEN.
+  xfadeCurve (equal power). hangarAcoustics(dims, shell): genHangarBuild's half-dims and RIDGE, hangar.js's door (open, alpha
+  1), the shell's materials (club steel sheet, works brick, field timber; steel roof; the portal's north glazing band),
+  floor contents, the air's 4mV -> Sabine per octave (club 30x25x7 3.1-3.2 s mid, field 14x18x3.6 2.2-2.3 s, works 4.7-5.0 s);
+  hangarIR: octave noise bands under exp(-6.91 t/RT60_b), independent L/R, unit energy, pre-delay, seeded (club ~35 ms in
+  node); measureRT60 (Schroeder T20). craftTiers (<= 500 m full, <= 5 km engine only, beyond silent; 2 full + 8 baked,
+  nearest first; allocation-free), bakePoints, loopBlend, makeLoop (equal-power seam).
+G1641 THE DOPPLER ON THE VOICES (small, additive): a k-rate `pitch` (0.5..2, default 1) on 'flydiy-engine' (the crank's phase,
+  the starter's and the blower's x pitch; the life model and the control output stay physical), 'flydiy-prop' (the three
+  phases, the sections' Strouhal bands; tip Mach / loading / Bessel levels the prop's own), 'flydiy-turbine', 'flydiy-electric'
+  (their phase increments, the roar's band) and 'flydiy-airframe' (the exterior bands and the brake squeal; NOT in
+  AF_PARAM_NAMES - the model's list is unchanged). Rendered: pitch 1.212 / 0.85 moves the engine's and the prop's peaks
+  x1.2120 / x0.8500 (GATE AUDIO SP_DOPPLER).
+G1642 THE AIRFRAME'S THIRD OUTPUT (backward compatible: two outputs behave exactly as before): made with 3 outputs [1, 2, 1],
+  output 0 = the exterior (as before), output 1 = STEREO structure-borne + the cabin's own wind, NO placeholder low-pass and
+  no airborne part (that is output 0 through the cabin now), the event voices panned by their wheel (a 0 left -0.6, 1 right
+  +0.6), output 2 = the interior-only layers (stall warning, creaks/rattles, flap motor, lever) - they bypass the cabin. An
+  event's `d` = the propagation lag (the voice waits).
+G1643 CORE (audio.js, small): the viewpoint cross-fade is now MSFS's 150 ms at EQUAL POWER (setValueCurveAtTime of cos/sin,
+  endpoints exact; a reversal mid-fade starts from the share it reached, over the remaining fraction of 150 ms); the headset:
+  when AUDIO.space exists its curve is on the interior chain (the flat -15 dB stays the fallback without space.js); the
+  ambience inside = environment x AUDIO.space.ambienceK(interior) (the build's duck x the headset's mean); settings
+  `headsetAnr` ("headset: noise cancelling", off) and `hrtf` ("3D on headphones", off); AUDIO.lagS (Float64Array(1)),
+  AUDIO.space, AUDIO.camera / AUDIO.sim (references set in update - the space reads the camera's matrixWorld and the solver's
+  nodes; nothing allocated), AUDIO.refreshGains().
+G1644 THE SPACE - `src/viewer/audio/space.js` -> AUDIO.space = window.AUDIO_SPACE (+ AUDIO.addSource('space')). The graph is made
+  lazily on the context (whichever of the sources and space.js connects first). PER SOURCE GROUP (one per engine, one for the
+  airframe): input(kind, i) - 'engine' | 'propT' | 'propB' | 'airframe' - -> directivity gain -> group sum -> AIR ABSORPTION
+  low-pass -> PannerNode (equal-power, or HRTF with the setting; inverse, ref = the aeroplane's viewDist clamped 6-20 m, so
+  the chase view keeps today's level) -> aircraft.ext; and input -> the group's side (StereoPanner: a twin's engines +-) ->
+  THE CABIN (boom -> shelf -> low-pass -> gain, cabinTransfer's numbers) -> interior() -> THE HEADSET (high-shelf, low-shelf,
+  gain; 0 dB off) -> aircraft.int. THE LISTENER = the camera: the panners are placed in the CAMERA'S FRAME (its matrixWorld
+  columns; the AudioListener never moves - one set of params per emitter, no listener API differences). PER FRAME per group:
+  the group's position from the solver's nodes (refs.engine/engineOf per engine, refs.origin for the airframe; the nose =
+  noseFrame - tailMid), the ring, the retarded solve, the panner, the directivity, the absorption, the DOPPLER (c - vL.n)/(c -
+  vS.n) -> AUDIO.voices.engine[i] / prop[i] / driver[i] / airframe `pitch` (tau 40 ms), and THE LAG: the main group's delay
+  -> AUDIO.lagS[0]; the sources add it to every schedule time (the throttle is heard when its sound arrives; an airframe
+  event carries it). The lag rises freely, falls at most 0.5 s/s (a real pass falls at v/c < 0.3); a CUT (perspective, the
+  shed, the eye jumping > 25 m) snaps it and emits 'space-cut' - each source then cancels what it had scheduled ahead and
+  re-schedules. Interior and the shed: lag 0. THE SHED (its scene is not the world's): the room mode - the sound 8 m ahead,
+  no space; the aircraft / ambience / music buses -> wet sends (0.25 / 0.16 / 0.12, only while inGarage, only once an IR
+  exists) -> ConvolverNode (normalize off) -> master; the shed's dims and shell read from window.GARAGE_ENV.dims()/.shell()
+  (app.js's own, no edit) once a second in the shed; a new key -> the IR generated in a requestIdleCallback (setTimeout 0 on
+  Safari), never in update(). OTHER AIRCRAFT: addCraft(id, specLike | {engineCfg, propCfg}, {points, sr}) -> a handle whose
+  `st` Float64Array [x, y, z, fx, fy, fz, engine rpm, thr, on] the caller writes; at add the craft's engine + prop voice is
+  BAKED at 5 rpm points (idle..rated, denser at the top) - in a page by an OfflineAudioContext running the same two worklets
+  (engine -> prop, ch0 engine + tonal, ch1 broadband), in node by setBaker(fn) - into seamless loops; per frame the tiers
+  (craftTiers), a voice made / dropped on a tier change only (full = engine + broadband layers, engine tier = the engine
+  layer), each point a looping buffer source, the two around the rpm blended at equal power, playbackRate = rpm/point x the
+  doppler, the craft's own ring / retarded solve / directivity / absorption / panner -> the world bus (outside and through
+  the cabin). Piston crafts only (a turbine / electric craft reports state 'failed'). removeCraft, crafts(). THE SOURCES
+  (small, additive): src_engine / src_prop / src_airframe enter AUDIO.space.input(...) / interior() when space.js is there
+  (the engine's output 0 -> 'engine'; the prop's output 1 -> a splitter -> 'propT' / 'propB', its mono output 0 left
+  unwired; a turbine / electric driver -> 'engine'; the airframe in 3-output mode: 0 -> its group, 1 and 2 -> the interior;
+  the recorded loops: outside ones into the group, inside ones to the interior; a touchdown's / chirp's recorded one-shot
+  leans to its wheel), else the buses directly (no placeholder); the three placeholder low-passes (1.4 kHz x 2, the
+  worklet's 900 / 380 Hz airborne one in 3-output mode) are gone; AUDIO.voices.prop / .driver / .airframe published;
+  'space-cut' handled. tools/build.js (MANIFEST only): viewer.scripts += 'audio/space_config.js', 'audio/space.js' after
+  src_airframe.js. No new worklet module.
+G1645 THE EVIDENCE - `tools/audio/space_render.js` (the worklets under render.js's shim, render_prop's chains, space_config's
+  numbers, the Web Audio spec's node formulas written out: biquads, the equal-power panner, an FFT convolver). reports/
+  evidence/SND-SPACE/ (1.4 MB: 9 stereo Opus + 9 spectrograms + README + summary.json): the Cub and the Cessna's run-up inside
+  vs outside (inside - dry at full power: the Cub -8.2 dB overall, -15 dB above 2 kHz; the Cessna -12.4 dB overall, -36 dB
+  above 2 kHz - the engine's energy is under 250 Hz where the metal cabin insulates least and booms) + the Cessna with the
+  passive headset; the 60 m/s fly-bys 40 m off a fixed listener (the firing measured 103.80 -> 72.92 Hz on the Cub = the
+  prediction x1.212 / x0.851; delay 4.24 s at the start, 0.117 s at the pass; absorption 1.07 kHz far, 6.4 kHz close); the
+  Cub's run-up in the club and field sheds' generated IRs (RT60 1 kHz measured 3.12 / 2.28 s against Sabine 3.22 / 2.31).
+G1646 THE GATE - GATE AUDIO (tools/audio/_audio_check.js) gains SP_CABIN, SP_DOPPLER, SP_ABSORB, SP_XFADE, SP_IR, SP_GRAPH,
+  SP_BUDGET, SP_CRAFT (each described at its block's head) and 42 mutations, each red on its check: 146 / 146 caught, sources
+  byte-identical after, ~40 s (was ~34; run_gates' `wall: 45` hint still holds). SP_GRAPH runs the REAL audio.js + the three
+  sources + space.js on a stub Web Audio (evaluated INSIDE the page's realm) on the Cub. SP_BUDGET's measurement runs in a CHILD
+  process: the aeroplane passing the eye at 60 m/s -> 0.59 B a frame (noise), 0 GC, ~23 us a frame in node with the test's own
+  node shift, 7.9 params scheduled a frame; a steady frame schedules nothing. Mutation anchors moved with the lines they guard
+  (the horn outside, the NaN guard, the headset in the open, the event message); AFVOICE compares the worklet's names less
+  `pitch`.
+FOUND ON THE WAY, for anyone gating a per-frame path in node: (1) a stub AudioParam whose methods live in ANOTHER vm realm
+  boxes every double handed to it (a call across native contexts is never inlined) - the same space.js measured 196 B a frame
+  against a gate-realm stub and 0.4 B against a stub evaluated in the page's realm; (2) a process that already ran other pages
+  measures ~1 KB a frame even WITHOUT the code under test (megamorphic call sites from many realms: SND-AIRFRAME's finding) -
+  measure in a fresh process; (3) a closure built per call inside a binary search (ringAt's first form) was 384 B a frame.
+GATES: AUDIO PASS (146 / 146, 40 s), AUDIOENG PASS (184 s: the worklets' new param is inert at its default), BUILD PASS, UISMOKE
+  PASS (run_gates --only; the generated index.html / dev.html / sw.js / version.json restored - none is in this branch; the
+  built pages carry SPACE_CONFIG / AUDIO_SPACE and the content-versioned refs). Not run: a browser (cloud).
+FOR THE COORDINATOR TO WIRE: (1) nothing in app.js - the listener's orientation comes from AUDIO.update's own camera argument
+  (matrixWorld, fresh after the render), the shed from GARAGE_ENV; (2) A0's train is the first real hearing: Chrome's panner
+  position automation, the convolver's load on entering the shed (the IR is made in an idle callback, ~35 ms once per shell -
+  chunk it if a hitch shows), Firefox's PannerNode without positionX falls back to setPosition; (3) a door-open state, when
+  the game has one -> AUDIO.space.setExits(0..1); (4) the fleet / observatory: AUDIO.space.addCraft + write `st` (the bake needs
+  OfflineAudioContext + AudioWorklet: Chrome, Firefox, Safari 14.1+); (5) DECIDE the HRTF default: SOUND §5 says "HRTF option
+  on gamer" but 'gamer' is the DEFAULT graphics preset (gfx_settings.js), so it would turn HRTF on for nearly everyone,
+  speaker users included - left as an opt-in setting; (6) SND-AIRFRAME / SND-TUNE: the airframe's exterior wind is the wind
+  the CAMERA hears - right for a chase view that moves with the aeroplane, wrong for the tower or a fixed observer (it rides
+  the airframe group); gate windL by the camera mode in airframe_model / src_airframe; (7) the recorded one-shots and loops
+  (samples.js) are spatialised but carry no doppler and no lag (their playbackRate / start time are not driven); (8)
+  SND-TUNE: every number in CABIN_CLASSES, the headset curve, the directivity shapes, the wet sends and the materials'
+  alpha is a first guess against the literature, none matched to a recording; the inside levels are relative to the chase
+  view (the exterior chain is unity at the view distance).
