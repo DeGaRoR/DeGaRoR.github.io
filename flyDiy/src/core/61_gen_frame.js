@@ -2320,6 +2320,15 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
       S.energy.kind === 'battery' ? 'battery' : 'fuel',
       v.capacity, S.energy.vessel || (S.energy.kind === 'battery' ? 'packCase' : 'alu'),
       S.energy.kind === 'battery' ? S.energy.cell : S.energy.fuel);
+    // THE TANK IS THE AIRFRAME'S, ITS CONTENTS ARE THE LOADING (SPEC-FIXPOINT
+    // G1550). genSpecAtFuel drains a vessel by its capacity, and the shell was
+    // sized off that same number - so the dry corner flew without its tanks
+    // (the metal Cessna's 4.3 kg of shells billed 0) and the reserve sheet with
+    // smaller ones. A drained vessel carries its design capacity (`designCap`,
+    // fuel.designL's twin); the shell and its price are that vessel's.
+    const rD = (S.energy.kind !== 'battery' && v.designCap > v.capacity)
+      ? genVesselResolve('fuel', v.designCap, S.energy.vessel || 'alu', S.energy.fuel) : r;
+    if (rD !== r) { r.vesselKg = rD.vesselKg; r.emptyKg = rD.emptyKg; r.price = rD.price; }
     let pair;
     if (BAY.on === 'strut') {
       // G477: A POD ON EACH FRONT LIFT STRUT — the vessel's litres shared
@@ -2457,8 +2466,11 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     const exhM = electric ? 0 : O.exhaustKgKW * kW;
     // THE FUEL PLUMBING, from the litres. A pack's cabling is the energy
     // module's, not this row's, so an electric aeroplane pays nothing here.
-    const plumbM = (electric || S.fuelL <= 0) ? 0
-                 : O.fuelKgFixed + O.fuelKgL * S.fuelL;
+    // (SPEC-FIXPOINT: off the DESIGN litres when the spec is a fuel state -
+    // the plumbing is the airframe's, a dry corner keeps its lines)
+    const plumbL = (S.fuel && S.fuel.designL > 0) ? S.fuel.designL : S.fuelL;
+    const plumbM = (electric || plumbL <= 0) ? 0
+                 : O.fuelKgFixed + O.fuelKgL * plumbL;
     // THE CONTROLS, from the reach: out to the tips and back to the tail.
     // Dual controls are a second stick and a second set of pedals.
     const reach = S.geom.semi + S.fuse.tailArm;
@@ -2673,6 +2685,26 @@ function genDesignGross(S, a, cg) {
 function genFrame(S) {
   const R = GEN_RULES, D = Math.PI / 180;
   const M = GEN_MATERIALS[S.material];
+  // THE SAME AIRFRAME, RE-FED (SPEC-FIXPOINT G1550, the review's A2). A
+  // resolved spec carries what this function chose for it (S._frame, written
+  // by buildGen): the mains' station and track, the structure's scale, the
+  // gross the floats are sized from and the gauge. The reserve sheet, the CG
+  // corners and the editor's fuel slider re-feed the resolved spec at another
+  // loading, and every one of those numbers used to be solved again - off a
+  // first pass that read the WRITTEN-BACK gear station (so a floatplane's
+  // corners were a different lattice even at the same fuel: 1018.19 vs
+  // 1018.09 kg on the validated Cessna floats) and off the loaded mass (so the
+  // floats, the stiffness and the gear walked with the fuel). A spec that
+  // carries the record builds the airframe it describes, once, at its loading.
+  const FK = S._frame;
+  if (FK && typeof FK === 'object' && isFinite(FK.gx) && isFinite(FK.tr) &&
+      isFinite(FK.kScale) && FK.gauge && typeof FK.gauge === 'object') {
+    const outK = genLattice(S, FK.gx, FK.tr, FK.kScale, FK.gross, FK.gauge);
+    outK.cg0 = genLatticeCG(outK.nodes);
+    outK.parts.designGross = FK.W0;
+    outK.frameKeep = FK;
+    return outK;
+  }
   const a = genLattice(S, S.gear.x, S.gear.track);
   const cg1 = genLatticeCG(a.nodes);
   // THE GAUGE (PERF STUDY chantier 1): the design gross solved on the first
@@ -2738,5 +2770,7 @@ function genFrame(S) {
   const out = genLattice(S, gx, tr, kScale, cg[3], DG.gauge);   // H1: the gross mass sizes the floats
   out.cg0 = genLatticeCG(out.nodes);
   out.parts.designGross = DG.W0;                    // the plaque's and GATE WEIGHT's
+  // what a re-fed resolved spec rebuilds from (above; buildGen keeps it)
+  out.frameKeep = { gx, tr, kScale, gross: cg[3], gauge: DG.gauge, W0: DG.W0 };
   return out;
 }

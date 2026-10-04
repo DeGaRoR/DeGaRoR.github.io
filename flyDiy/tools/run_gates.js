@@ -300,6 +300,12 @@ const GATES = [
   { id: 'COWL', file: '_cowl_check.js', tier: 'core' },       // the cowl, and the engine inside it
   { id: 'ENGMESH', file: '_eng_mesh_check.js', tier: 'core' },// the engine's own health + ledger
   { id: 'JOIN', file: '_join_check.js', tier: 'core' },       // editor -> spec -> a buildable aeroplane
+  // THE RESOLVED SPEC IS A FIXED POINT AND THE CORNERS ARE THE STAND (SPEC-FIXPOINT G1550, the 2026-10-04
+  // review's A2 / A3 / B8 / B9 / B13 / E1-E3): GEN_FIELDS against GEN_DEFAULT and clampSpec; clamp idempotent;
+  // resolve(resolve(s)) == resolve(s); buildGen leaves its input alone and rebuilds def.spec; the six CG corners
+  // the same lattice as the stand - on the five validated builds and an offset / envelope / null corpus; and the
+  // page's join headless, on -> off -> commit through the garage's merge, back to never-on. ~70 s (the joins).
+  { id: 'SPECFIX', file: '_specfix_check.js', tier: 'core', wall: 75 },
   // G134: the custom engine — thermo laws over the registry, the clamp
   // door, and the row reaching the frame; ENGID is the identity ruling
   // (untouched preset = the certified row; deviated = modified/custom)

@@ -25,7 +25,7 @@ const C = require('./flight_core.js');
 const CAGE2 = require('./_cage_gen.js');
 const { cageJoinSpec } = require('./_cage_join.js');
 const { GEN_DEFAULT, GEN_SPEC_V, GEN_TIPS, GEN_FLAPS,
-        genNormaliseSpec, resolveSpec } = C;
+        genNormaliseSpec, genSpecMerge, resolveSpec } = C;
 
 let fails = 0;
 const ok = (cond, label) => {
@@ -90,7 +90,7 @@ const gbox = {
   Blob: function () {}, URL: { createObjectURL: () => '', revokeObjectURL() {} },
   setTimeout: () => {},
   // the two core globals garage.js reads out of the bundle it is inlined into
-  GEN_SPEC_V, genNormaliseSpec,
+  GEN_SPEC_V, genNormaliseSpec, genSpecMerge,
 };
 gbox.window = { localStorage: store, CAGE2, CAGE_PAGE: CAGE_PAGE };
 vm.createContext(gbox);
@@ -360,7 +360,10 @@ function nullPaths(o, pre, out) {
      '...and the paint you chose');
   ok(R.prop.blades === 3 && R.cowl.intake === 'twin' && R.fuel.litres === 77,
      '...and the prop, the cowl and the fuel');
-  ok(R.wings[0].place && R.wings[0].place.dx === 0.13,
+  // (SPEC-FIXPOINT: the RESOLVED spec has consumed the nudge into xLE and
+  // zeroed it - read the build, where the merge keeps it, and the record)
+  ok(SHELF.get().wings[0].place && SHELF.get().wings[0].place.dx === 0.13 &&
+     R._offsets && R._offsets['wings.0.place.dx'] === 0.13,
      '...and the wing placement, which merges INSIDE the wing the join rewrote');
   ok(Math.abs(R.wings[0].span - 11.2) < 1e-9,
      'while the joined rows land: span is the editor\'s');
