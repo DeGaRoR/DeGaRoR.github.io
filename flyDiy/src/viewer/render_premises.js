@@ -1298,6 +1298,25 @@ function make(THREE, scene, world, rec0, opts) {
       if (c.hit) { const R = OBS(); if (R) R.move(c.hit, w[0], w[1], ry, gy); }
     }
   }
+  // G1663 (SND-AMB-2) WHAT MOVES AND WHAT FLOATS, FOR THE SOUND - READ-ONLY and allocation-free (audio/emitters.js asks
+  // every frame: hot, so optimised - a reader asked ten times a second runs cold and boxes every double it reads): rows of 6 into `out` (a Float64Array) - [kind, x, y, z, a, b] in the world: kind 1 a tram cabin
+  // (a its speed m/s, b 1 running / 0 docked), 2 a traffic car (a its speed, b its length m), 3 a house pier's boat (a 0,
+  // b 1) - answering the rows written (at most out.length / 6). Nothing here is written to; the callbacks are made once.
+  const SO = { out: null, n: 0, max: 0 };
+  const soRow = (k, x, y, z, a, b) => { if (SO.n >= SO.max) return; const o = SO.out, q = SO.n * 6; o[q] = k; o[q + 1] = x; o[q + 2] = y; o[q + 3] = z; o[q + 4] = a; o[q + 5] = b; SO.n++; };
+  const soTram = t => { const R = t.run, ob = R && R.objs; if (!ob) return; for (let i = 0; i < 2; i++) { const c = ob[i]; if (c) soRow(1, c.position.x, c.position.y, c.position.z, R.v || 0, R.phase === 'move' ? 1 : 0); } };
+  const soRoad = t => { const cs = t.cars; for (let i = 0; i < cs.length; i++) { const c = cs[i], p = c.grp.position; soRow(2, p.x, p.y, p.z, c.v, c.K ? c.K.L : 4.5); } };
+  const soHouse = h => {
+    const st = h.built && h.built.stats, pr = st && st.pier, bs = pr && pr.boats; if (!bs || !h.grp) return;
+    const g = h.grp, cy = Math.cos(g.rotation.y), sy = Math.sin(g.rotation.y);
+    for (let i = 0; i < bs.length; i++) { const b = bs[i]; soRow(3, g.position.x + b.x * cy + b.z * sy, g.position.y + (b.y || 0), g.position.z - b.x * sy + b.z * cy, 0, 1); }
+  };
+  function soundObjects(out) {
+    SO.out = out; SO.n = 0; SO.max = Math.floor(out.length / 6);
+    TRAMS.forEach(soTram); TRAFFIC.forEach(soRoad); HOUSES.forEach(soHouse);
+    SO.out = null;
+    return SO.n;
+  }
   // the clock: the host's dt in seconds; the cabins and the traffic move
   // A DISTANT HOUSE DRAWS ITS WALLS AND ROOF (PERF 2026-09-23). A house is ~11 bag meshes, each its own finish
   // (no two houses share a material, so nothing batches), and the frame is CPU-bound on the draw count: at 300 m
@@ -3249,6 +3268,7 @@ function make(THREE, scene, world, rec0, opts) {
     animals: () => (ANIM ? ANIM.list() : []),
     animalRun: () => ANIM,
     traffic: () => Array.from(TRAFFIC, ([id, t]) => ({ road: id, cars: t.cars.map(c => ({ key: c.key, s: c.s, dir: c.dir, v: c.v, x: c.grp.position.x, y: c.grp.position.y, z: c.grp.position.z, hit: c.hit })) })),
+    soundObjects,                                                  // G1663 (SND-AMB-2): the movers for the sound, read-only
     obstacle: id => { const R = OBS(); return R ? R.get(id) : null; },   // (G844: one record, its shape - GATE HOUSEWORKER's digest)
     obstacles: () => { const R = OBS(); return R ? R.list().filter(r => OBST_IDS.has(r.id)).map(r => ({ id: r.id, tag: r.tag, x: r.x, z: r.z, yaw: r.yaw, y0: r.y0, top: r.shape.top, cells: r.shape.cells, cell: r.shape.cell })) : []; },
     setRecord: r => { rec = PG.normalise(r); composedFresh = false; },
