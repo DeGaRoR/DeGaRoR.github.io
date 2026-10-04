@@ -178,7 +178,7 @@ const GATES = [
   // G1470 (TREE-CRASH): the airframe yields, breaks and crashes against a trunk and never in what it was built for - the
   // load test to 5.7 g, a flown 3.8 g pull, a drop at FAR 23.473's sink and its cap, a circuit (no yield on the five validated
   // builds); a taxi into a trunk dents, a 30 m/s flight into one crashes with a wing broken; reset heals. Three builds at once
-  { id: 'TREECRASH', file: '_treecrash_check.js', tier: 'core', weight: 3, wall: 900 },
+  { id: 'TREECRASH', file: '_treecrash_check.js', tier: 'core', weight: 3, wall: 600 },
   // G286: the graphics settings menu - presets, the pref, the handles
   { id: 'GFX', file: '_gfx_check.js', tier: 'core' },
   // G584: the programs - the real three on a fake GL: the depth warm-up is the shadow pass's own set, two
