@@ -571,11 +571,14 @@ const GATES = [
   // row physics-inert; every assertion negative-verified. SND-CORE's _audio_check.js absorbs it; ~3 min
   { id: 'AUDIOENG', file: 'audio/_engine_check.js', tier: 'core', wall: 320 },
   // REVIEW 2026-10-04 (A6): the settlement houses' hitboxes stand where the houses are drawn - the registry's frame
-  // against the renderer's, sampled inside and outside every footprint; ~2 s. Two sibling gates written by the same
-  // review are NOT registered because they are red on master until their finding is fixed: _stripground_check.js
-  // (A5: every generated strip on the ground its record says - A2 Pelham Field sits across a river) and
-  // _genpairs_check.js (B10: the lattice over paired configurations - the twin boom's two zero-length beams)
+  // against the renderer's, sampled inside and outside every footprint; ~2 s. A sibling gate written by the same
+  // review is NOT registered because it is red on master until its finding is fixed: _genpairs_check.js (B10: the
+  // lattice over paired configurations - the twin boom's two zero-length beams)
   { id: 'OBSTFRAME', file: '_obstframe_check.js', tier: 'core', wall: 5 },
+  // REVIEW 2026-10-04 (A5), registered with G1560 WORLD-STRIPS: every generated strip on the ground its record says -
+  // walked at 2 m down its centreline and both edges, |elev - terrainH| < 0.5 m and no water, seeds 0-3 (seed 0's
+  // A2 Pelham Field sat across a river); ~6 s
+  { id: 'STRIPGROUND', file: '_stripground_check.js', tier: 'core', wall: 8 },
 ];
 
 const args = process.argv.slice(2);

@@ -50,14 +50,18 @@ const HOT_DAY = { oatC: 35, qnhPa: 100800,
                   wind: { base: [-2.2, 0, 2.6], gust: 0.7, refH: 10 } };
 const STD = null;
 const worldAt = w => { const W = makeWorld(); if (w) W.setWeather(w); return W; };
+// THE HOT STRIP: the highest of seed 0's fly-in strips (G1560 WORLD-STRIPS: the world's towns re-sited on the lakes'
+// outlet rivers, REVIEW B14/D8, and 'Brekk Strip', 113 m, is no more - Tyl, 103 m, the same 340 m of gravel, stands
+// unmoved and is the highest now). By role, not by name: the next re-siting does not break the gate.
+const HIGH = makeWorld().aerodromes.filter(a => a.kind === 'strip').sort((a, b) => b.elev - a.elev)[0].name;
 const GEN_ZS = buildGen().parts.zs;
 
 // ---- 1. the solver is in the air the model says it is in --------------------
 console.log('--- 1. the solver reports its own air ---');
 {
   const W = worldAt(HOT);
-  const strip = W.aerodromes.find(a => a.name === 'Brekk Strip');
-  yes(!!strip, 'Brekk Strip exists');
+  const strip = W.aerodromes.find(a => a.name === HIGH);
+  yes(!!strip && strip.elev > 80, `${HIGH} exists, ${strip ? strip.elev.toFixed(0) : '?'} m up`);
   const def = buildGen(), sim = makeSim(def, W);
   sim.reset(0);
   placeAtAerodrome(sim, strip);
@@ -80,7 +84,7 @@ console.log('--- 1. the solver reports its own air ---');
   sim2.reset(0); placeAtAerodrome(sim2, strip);
   for (let f = 0; f < 120; f++) sim2.step(1 / 60);
   yes(sim2.out.sigma < 1 && sim2.out.sigma > 0.98,
-      `a 113 m strip on a standard day is sigma ${sim2.out.sigma.toFixed(4)} — small, and real`);
+      `a ${strip.elev.toFixed(0)} m strip on a standard day is sigma ${sim2.out.sigma.toFixed(4)} — small, and real`);
   yes(sim2.out.powerK === 1 || sim2.out.powerK < 1, 'and the engine notices');
 }
 
@@ -138,8 +142,8 @@ function takeoffRun(build, weather, stripName) {
   return { run: null, why: 'never reached 2.5 m in 120 s' };
 }
 for (const [name, build] of [['GEN', buildGen]]) {
-  const a = takeoffRun(build, STD, 'Brekk Strip');
-  const b = takeoffRun(build, HOT, 'Brekk Strip');
+  const a = takeoffRun(build, STD, HIGH);
+  const b = takeoffRun(build, HOT, HIGH);
   if (a.run == null || b.run == null) {
     fail(`${name}: no take-off measured (${a.why || ''} ${b.why || ''})`);
     continue;
@@ -262,13 +266,13 @@ console.log('--- 3. electric against piston, in the same thin air ---');
 console.log('--- 4. a whole circuit, off a hot strip, in sheared wind ---');
 const R = [];
 R.push(runCircuit({
-  id: 'HH-GEN', build: buildGen, world: worldAt(HOT_DAY), from: 'Brekk Strip',
+  id: 'HH-GEN', build: buildGen, world: worldAt(HOT_DAY), from: HIGH,
   uprightCheck: false, perturb: { z: 1.0, v: 0.001 }, settleS: 12, maxS: 320,
   // tip/mid stations from the spec, like GATE STRESS: the generated wing
   // moves when a slider does
   tip: { tag: 'WF', midZ: GEN_ZS[0], tipZ: GEN_ZS[GEN_ZS.length - 1], tol: 0.1 },
   flapDuring: () => true,
-  wingNote: 'hot afternoon, 113 m gravel strip, wind sheared off a 10 m reference',
+  wingNote: 'hot afternoon, ~100 m gravel strip, wind sheared off a 10 m reference',
   extraLines: c => {
     const W = c.world, s = c.sim.cgPos();
     // AGL, not MSL — this strip's own ground is 113 m up, and sampling the

@@ -24,9 +24,15 @@ const { makeWorld } = require('./flight_core.js');
 // missing trees all lie 0–350 m past the ends of the eight strips, none
 // elsewhere. Grid, meadows and anchors held: the ground did not move.
 // History: TREES a6b54c58 (24816) through W12.)
-const GOLDEN_GRID = '69dd5914';
-const GOLDEN_TREES = '75835e6e';
-const GOLDEN_TREE_COUNT = 24711;
+// (G1560-G1569 WORLD-STRIPS, 2026-10-04: GRID + TREES re-captured for the REVIEW's A5 / B14 / D8 - every lake's outlet
+// river traced (B14: 105 lakes at seed 0 had none), the landlocked basins under 0 m lakes instead of sea (D8: 49
+// components), so the stage-3 towns re-sited on the new water (settlement scoring reads the rivers) and the stage-4
+// strips with them, each walked at 4 m on its centreline and both edges (A5), and the grade's box widened to its
+// whole feather. Meadows and the four anchors held: the home lowlands did not move. History: GRID 69dd5914, TREES
+// 75835e6e (24711) from G455.)
+const GOLDEN_GRID = 'd7f99085';
+const GOLDEN_TREES = 'a84580cb';
+const GOLDEN_TREE_COUNT = 24686;
 const GOLDEN_MEADOWS = '85de271f';
 const GOLDEN_ANCHORS = ['0', '0.21004043626020646', '29.022467498732595', '32.70294769782758'];
 
@@ -141,6 +147,36 @@ checks['waterH sea/land'] = W.waterH(0, 4000) === 0 && W.terrainH(0, 4000) < 0 &
   }
   checks['surface consistency'] = ok && rocks > 0 &&
     W.surface(-520, 0) === W.SURFACE.GRASS && W.surface(-450, 0) === W.aerodromes[0].surface;
+}
+
+// --- THE WATER'S TOPOLOGY (G1561/G1562, REVIEW 2026-10-04 B14 / D8), on the bake's own grids ---
+{
+  const G = W.hydro.grids, N = G.N, M = N * N, NBX = [1, -1, 0, 0, 1, 1, -1, -1], NBZ = [0, 0, 1, -1, 1, -1, 1, -1];
+  // D8: the sea is the below-0 ground that reaches the domain's edge, every cell of it; what does not reach it is a lake
+  const seen = new Uint8Array(M), st = [];
+  for (let k = 0; k < M; k++) { const ix = k % N, iz = (k / N) | 0; if ((ix === 0 || iz === 0 || ix === N - 1 || iz === N - 1) && G.H[k] < 0) { seen[k] = 1; st.push(k); } }
+  while (st.length) { const c = st.pop(), cx = c % N, cz = (c / N) | 0;
+    for (let d = 0; d < 8; d++) { const nx = cx + NBX[d], nz = cz + NBZ[d]; if (nx < 0 || nz < 0 || nx >= N || nz >= N) continue; const n = nz * N + nx; if (!seen[n] && G.H[n] < 0) { seen[n] = 1; st.push(n); } } }
+  let seaOk = true, low = 0, lowWet = 0;
+  for (let k = 0; k < M; k++) {
+    if (!!G.sea[k] !== !!seen[k]) seaOk = false;
+    if (G.H[k] < 0 && !seen[k]) { low++; if (!G.lake[k]) seaOk = false;
+      const x = G.x0 + (k % N + 0.5) * G.dx, z = G.z0 + (((k / N) | 0) + 0.5) * G.dz, w = W.waterH(x, z);
+      if (w > W.terrainH(x, z) && w !== 0) lowWet++; }
+  }
+  checks[`D8 the sea reaches the edge; the ${low} landlocked cells under 0 are lakes (${lowWet} wet at their own level)`] = seaOk && low > 0 && lowWet >= low * 0.95;
+  // B14: every lake whose outlet is river-sized has a river leaving it
+  const A0 = 274650 / (G.dx * G.dz);
+  let outl = 0, untraced = 0;
+  const done = new Int32Array(M).fill(-1);
+  for (let k = 0; k < M; k++) {
+    if (!G.lake[k]) continue;
+    let cur = k, g = 0; while (cur >= 0 && G.lake[cur] && g++ < M) cur = G.flow[cur];
+    if (cur < 0 || done[cur] >= 0) continue;
+    done[cur] = 1;
+    if (G.acc[cur] > A0 && !G.sea[cur]) { outl++; if (!G.claimed[cur]) untraced++; }
+  }
+  checks[`B14 every river-sized lake outlet heads a reach (${outl} outlets, ${untraced} untraced)`] = outl > 0 && untraced === 0;
 }
 
 // --- treesNear index contract ---

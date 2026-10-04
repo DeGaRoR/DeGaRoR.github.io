@@ -259,7 +259,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
   }
   let fillUpdate = () => {};          // W13 woodland fill streamer (set in the tree block)
   const lakeQuads = [];   // the drawn lake surfaces (box + y): waterDrawY reads them
-  let seaPlaneY = 0;      // the drawn sea plane's y (0 with the water shader, -0.4 without it)
+  let seaPlaneY = 0;      // the drawn sea plane's y: 0, the level the floats ride, on every tier (G1563, REVIEW B25)
   let coverRing = null, fillPoolAt = null, standCards = null;   // standCards: the far forest as stand cards (stand_cards.js)   // fillPoolAt: the puddle test the walker shares with the ring (set with it)               // G454.13 the cover ring (set in the tree block once the payload is in)
   let fillApi = null;                 // S3: the ring's prewarm / ringReady / ringStat (set in the fill block)
   let treeSettleOf = null;            // S3: () => the payload's settle promise (set in the tree block)
@@ -2690,7 +2690,10 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       return g;
     })();
     const water = new THREE.Mesh(wtag(farGeo, 0, false), waterMat);
-    seaPlaneY = WSH ? 0.0 : -0.4;   // the DRAWN sea level, for waterDrawY (WSH is this block's own: reading it from the API below threw every frame, G460.11.5)
+    // G1563 (REVIEW 2026-10-04 B25): the stock tier (no water shader) drew its far sea 0.4 m under the level while the
+    // floats ride waterH = 0 - a hull afloat on the physics' sea sat 0.4 m over the drawn water; the lake half was G1335's.
+    // Both tiers draw the sea AT the level now (the shore seam G396.2 hid with the drop is the stock tier's to wear).
+    seaPlaneY = 0.0;   // the DRAWN sea level, for waterDrawY (WSH is this block's own: reading it from the API below threw every frame, G460.11.5)
     water.position.set((BX0 + BX1) / 2, seaPlaneY, (BZ0 + BZ1) / 2);
     water.renderOrder = -10;   // the first transparent drawn, whatever its bounding sphere says from far offshore
     if (WSH) WSH.watch(water, renderer);   // the perf rig's GPU timer round its draw
@@ -2699,8 +2702,8 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     // carve-out): a 360 m patch of the sea around the aeroplane, its
     // vertices displaced every frame by the world's OWN waterH(x, z, t) —
     // the function the floats are pushed by — so the hull sits in the
-    // wave it is drawn in. Shown only with a sea state (the flat far sea
-    // stays as it was, 0.4 m under the true level, on a calm day); the
+    // wave it is drawn in. Shown only with a sea state (on a calm day the
+    // flat far sea is the level itself - G460 with the shader, G1563 without); the
     // patch is snapped to its own grid step so it does not swim.
     // G460: the patch's vertices are lifted by the SHADER now (the same trains,
     // the solver's clock) - the CPU loop of 9 409 waterH calls and a normal
@@ -2756,7 +2759,14 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       // is displaced (a sea state, the full tier) and the far plane is cut out
       // under it; flat, it would fight the plane it is coplanar with.
       const waves = !!(S && S.A > 0);
-      if (world.waterH(cx, cz) !== 0 || (WSH && !(waves && WSH.S.displace))) { seaNear.visible = false; if (WSH) WSH.setNear(0, 0, 0, false); return; }
+      // G1563 (REVIEW B25): the stock tier's far plane is AT the level too now, so it takes the shader tier's rule - the
+      // patch only when it is displaced (flat, it fought the coplanar plane); and while the wavy patch is up the far
+      // plane steps down under its deepest trough (the stock tier cannot cut it out under the patch as uWNear does),
+      // back to the level the moment the patch goes
+      if (world.waterH(cx, cz) !== 0 || (WSH ? !(waves && WSH.S.displace) : !waves)) {
+        seaNear.visible = false; if (WSH) WSH.setNear(0, 0, 0, false); else water.position.y = seaPlaneY; return;
+      }
+      if (!WSH) { let reach = 0; for (const w of (S.W || [])) if (w.felt !== false) reach += Math.abs(w.A); water.position.y = seaPlaneY - reach - 0.05; }
       const step = SEAW / SEAN;
       const ox = Math.round(cx / step) * step, oz = Math.round(cz / step) * step;
       seaNear.position.set(ox, 0.0, oz);
@@ -6963,8 +6973,8 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     if (typeof TREE_LEAF !== 'undefined' && TREE_LEAF.tint) { TREE_LEAF.tint({ light: ENV_ALB.base * ENV_ALB.k }); uILit.value = 0.9 * 1.38 * ENV_ALB.k; }   // uILit is the impostor/geometry match (0.9), not the level: it scales with the dial, the tint carries the level
     return ENV_ALB.k;
   };
-  // waterDrawY(x, z): the y of the water surface DRAWN here - a lake's quad, else the sea plane (0 with the
-  // shader, -0.4 without it), else null. The physics' waterH is its own model (a procedural lake can sit 0.6 m
+  // waterDrawY(x, z): the y of the water surface DRAWN here - a lake's quad, else the sea plane (0, every tier:
+  // G1563), else null. The physics' waterH is its own model (a procedural lake can sit 0.6 m
   // over the DEM lake the renderer draws); anything that must agree with the PICTURE reads this.
   function waterDrawY(x, z) {
     for (let i = 0; i < lakeQuads.length; i++) { const q = lakeQuads[i]; if (x >= q.x0 && x <= q.x1 && z >= q.z0 && z <= q.z1) return q.y; }
