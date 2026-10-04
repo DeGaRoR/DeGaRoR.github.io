@@ -587,6 +587,10 @@ const GATES = [
   // (A5: every generated strip on the ground its record says - A2 Pelham Field sits across a river) and
   // _genpairs_check.js (B10: the lattice over paired configurations - the twin boom's two zero-length beams)
   { id: 'OBSTFRAME', file: '_obstframe_check.js', tier: 'core', wall: 5 },
+  // RELEASE-CHECKS G1591 (review B27): the committed index.html / dev.html / sw.js / flight_core.js / version.json are
+  // a build of the sources - rebuilt into a temp dir and compared; a stale "(built)" commit is red, a source commit's
+  // lag is named (BUILT_STRICT=1: red too - A0's landing runs it so on the (built) commit). ~2 s.
+  { id: 'BUILT', file: '_built_check.js', tier: 'core', wall: 5 },
 ];
 
 const args = process.argv.slice(2);
