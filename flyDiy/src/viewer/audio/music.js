@@ -203,6 +203,10 @@ var AUDIO_MUSIC = (function () {
 
   // ---- PURE: the shuffle bag (every track once per round; a round never opens on the last one played) ---------
   const RNG = new Uint32Array(1); RNG[0] = 0x9e3779b9;
+  // a NEW deal every launch (the user, 2026-10-05: "always the same music when I start the garage"): seeded from
+  // the machine's randomness at load; the gate re-seeds with seed(n) to replay
+  try { const c = G.crypto; if (c && c.getRandomValues) c.getRandomValues(RNG); else RNG[0] = (Math.random() * 4294967296) ^ Date.now(); } catch (e) {}
+  if (!RNG[0]) RNG[0] = 0x9e3779b9;
   function rand() { let x = RNG[0]; x ^= x << 13; x ^= x >>> 17; x ^= x << 5; RNG[0] = x; return (RNG[0] >>> 0) / 4294967296; }
   function makeBag(list) { return { ix: Int16Array.from(list), n: list.length, i: list.length, last: -1 }; }
   function bagShuffle(b) {
@@ -253,8 +257,16 @@ var AUDIO_MUSIC = (function () {
   const RESUME_T = new Int16Array(4).fill(-1), RESUME_P = new Float64Array(4);
   let cat = [], urls = [], trims = new Float64Array(0), nows = [], lists = [[], [], [], []], bags = [], bad = new Uint8Array(0);
   // the radio: the station, its lists' fallbacks, every station's bags, the talk's settings, the voice, the rotation
-  let station = prefGet('station', ST_DEFAULT), fell = [0, 0, 0, 0], bagsBy = {};
-  if (station !== 'off' && STATION_KEYS.indexOf(station) < 0) station = ST_DEFAULT;
+  // the station a new player hears: Radio Jolene (the user, 2026-10-05); ST_DEFAULT stays lo-fi, the fallback of a
+  // station with no tracks and of a track with no station
+  const ST_START = ST_TALK;
+  let station = prefGet('station', ST_START), fell = [0, 0, 0, 0], bagsBy = {};
+  if (station !== 'off' && STATION_KEYS.indexOf(station) < 0) station = ST_START;
+  // JOINING A BROADCAST (the user: "starting at a different point each time, like you take it in flight"): the first
+  // track after a launch or a station switch starts JOIN_MIN..JOIN_MAX of its way in, like tuning a live radio; Norman's
+  // tune-in is then skipped (TUNE_LATE_S) and he speaks at the next break. setJoin(false): the gate's replay
+  const JOIN_MIN = 0.15, JOIN_MAX = 0.6;
+  let JOIN_ON = 1, JOIN = 1;
   let talkOn = prefGet('radioTalk', '1') !== '0', voiceName = prefGet('radioVoice', '');
   let talkEvery = Math.max(TALK_MIN, Math.min(TALK_MAX, Math.round(+prefGet('radioEvery', TALK_EVERY)) || TALK_EVERY));
   let speaker = null, radioIn = null, lastSegs = null;   // the talker (RADIO_TALK.makeTalker), the recorded voice's gain (into the duck)
@@ -366,6 +378,8 @@ var AUDIO_MUSIC = (function () {
     if (t >= 0 && !bad[t] && eligible(t, c)) { pos = RESUME_P[c]; bags[c].last = t; } else t = bagNext(bags[c], bad);
     RESUME_T[c] = -1;
     if (t < 0) return;
+    if (JOIN && JOIN_ON && !(pos > 0) && cat[t].durationS > 0) pos = cat[t].durationS * (JOIN_MIN + (JOIN_MAX - JOIN_MIN) * rand());
+    JOIN = 0;
     start(freeDeck(), t, fade, pos);
   }
   function preloadNext(c) {
@@ -448,7 +462,7 @@ var AUDIO_MUSIC = (function () {
   function setStation(s, quiet) {
     if (s !== 'off' && STATION_KEYS.indexOf(s) < 0) return false;
     if (s === station) return true;
-    station = s; prefPut('station', s);
+    station = s; prefPut('station', s); JOIN = 1;
     cancelTalk();
     rebuildLists();
     RESUME_T.fill(-1);
@@ -726,7 +740,7 @@ var AUDIO_MUSIC = (function () {
     get talkEvery() { return talkEvery; }, setTalkEvery(n) { talkEvery = Math.max(TALK_MIN, Math.min(TALK_MAX, Math.round(+n) || TALK_EVERY)); prefPut('radioEvery', talkEvery); },
     get voice() { return voiceName; }, setVoice(n) { voiceName = String(n || ''); prefPut('radioVoice', voiceName); },
     get talking() { return PS[S_TALK] > 0; }, cancelTalk, get talker() { return speaker; }, get radioIn() { return radioIn; }, clipK, VOICE_LUFS,
-    seed(n) { RNG[0] = (n >>> 0) || 1; }, setCatalogue, get catalogue() { return cat; },
+    seed(n) { RNG[0] = (n >>> 0) || 1; }, setJoin(on) { JOIN_ON = on ? 1 : 0; }, get joinRange() { return [JOIN_MIN, JOIN_MAX]; }, setCatalogue, get catalogue() { return cat; },
     skip, setPhoto, openCredits, mountCreditLink, nowPlaying,
     get context() { return PS[S_CUR] >= 0 ? CTX_NAMES[PS[S_CUR]] : 'none'; },
     // the gate's window on the slots (read-only views)
