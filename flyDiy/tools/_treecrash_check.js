@@ -20,6 +20,11 @@
 //   4. A FLIGHT INTO A TRUNK at 30 m/s, 4 m AGL (the centreline, and the wing 2.5 m out): a crash, a wing member broken,
 //      every number finite, no energy from nowhere (the kinetic energy never above the impact's)
 //   5. reset() makes the aeroplane whole: the same taxi after a crash flies the fresh sim's bits
+//   6. THE WATER (A0, with GEAR-WATER 2's wet body - the wheeled cases skip without 32_hydro's wetBuild): a 5 m/s level
+//      pancake and a 100 km/h nose-in ditch (4 m/s, 10 deg) on the Cub, a float nose-in (90 km/h, 5 m/s, 20 deg) on the
+//      twin; and a severe nose-in on each (the Cub 180 km/h / 10 m/s / 60 deg, the twin 150 / 10 / 60) that must yield and
+//      break. The water reaches the beams through the nodes as the ground does: in every case the damage model yields
+//      exactly when the probe's peak passes 1 (the same beam-load path), finite; a holed hull slice is skin damage
 //
 // Run: node tools/_treecrash_check.js   (one final `GATE TREECRASH: PASS|FAIL`; the builds in parallel child processes)
 'use strict';
@@ -58,6 +63,16 @@ if (argv[0] === '--build') {
     const a = L.atTrunk(k, { D: 4, V: 3, thr: 0, secs: 3 }), b = L.atTrunk(k, { D: 40, agl: 4, V: 30, thr: 0, secs: 3, then: { D: 4, V: 3, thr: 0, secs: 3 } });
     out.reset = { same: a.hash === b.hash, a: a.hash, b: b.hash, crashedBefore: b.crashedBefore };
   }
+  // 6. the water
+  const WATER = { cub: [['a 5 m/s level pancake', { V: 0.3, sink: 5, pitch: 0 }, 'wet'], ['a 100 km/h nose-in ditch (4 m/s, 10 deg)', { V: 100 / 3.6, sink: 4, pitch: 10 }, 'wet'],
+                        ['SEVERE: 180 km/h, 10 m/s, 60 deg nose-in', { V: 180 / 3.6, sink: 10, pitch: 60, severe: true }, 'wet']],
+                  twinFloats: [['a float nose-in (90 km/h, 5 m/s, 20 deg)', { V: 90 / 3.6, sink: 5, pitch: 20 }, 'floats'],
+                               ['SEVERE: 150 km/h, 10 m/s, 60 deg nose-in', { V: 150 / 3.6, sink: 10, pitch: 60, severe: true }, 'floats']] };
+  if (WATER[k]) out.water = WATER[k].map(([lab, o, kind]) => {
+    if (kind === 'wet' && !(C.HYDRO && typeof C.HYDRO.wetBuild === 'function')) return { lab, skip: true };
+    const r = L.waterCase(k, Object.assign({ secs: 4 }, o)), p = L.waterCase(k, Object.assign({ secs: 4, probe: true }, o)).peak;
+    return { lab, severe: !!o.severe, peak: p, dmg: r.dmg, holed: r.holed, slam: r.slamKPa, finite: r.finite, yieldedCls: r.yieldedCls };
+  });
   console.log('RESULT ' + JSON.stringify(out));
   process.exit(0);
 }
@@ -104,6 +119,18 @@ const pk = p => (p ? f2(p.max) + ' (' + (p.t >= p.c ? p.clsT + ', tension' : p.c
     }
     console.log('5. reset heals');
     yes(r.reset.same && r.reset.crashedBefore, 'after a crash, reset() and the same taxi: the fresh sim\'s bits (' + r.reset.a + ' / ' + r.reset.b + ')');
+  }
+  for (const k of keys) {
+    const r = R[k]; if (!r || !r.water) continue;
+    console.log('6. the water - ' + L.BUILDS[k].label);
+    for (const w of r.water) {
+      if (w.skip) { console.log('  --    ' + w.lab + ': needs GEAR-WATER 2\'s wet body (32_hydro.js wetBuild), not in this core - skipped'); continue; }
+      const d = w.dmg, same = (w.peak.max >= 1) === (d.members > 0);
+      const what = w.lab + ': the worst member ' + pk(w.peak) + '; ' + d.members + ' set' + (d.members ? ' ' + JSON.stringify(w.yieldedCls) : '') + ', ' + d.breaks + ' broken'
+        + (w.slam != null ? ', the slam ' + w.slam.toFixed(0) + ' kPa, ' + w.holed + ' hull slice(s) holed' : '') + ', ' + f2(d.gPeak) + ' g, '
+        + (d.crashed ? 'CRASHED (' + d.reason + ')' : d.dented ? 'dented, no crash' : 'no damage');
+      yes(w.finite && same && (!w.severe || (d.members > 0 && d.breaks > 0 && d.crashed)), what + (w.severe ? ' - must yield, break and crash' : '') + '; the damage follows the beams\' own loads');
+    }
   }
   console.log('  ' + (checks - fails) + '/' + checks + ' checks');
   console.log('GATE TREECRASH: ' + (fails ? 'FAIL' : 'PASS'));
