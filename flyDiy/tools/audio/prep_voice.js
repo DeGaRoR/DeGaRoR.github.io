@@ -5,7 +5,9 @@
 //   node tools/audio/prep_voice.js --fetch [--voices a,b]    download the voice models into assets/audio/voices/
 //   node tools/audio/prep_voice.js --check                   exit 1 when the catalogue / media / CREDITS are stale
 //
-// THE CLIPS: tools/audio/voice_script.json's lines (station IDs, bulletins, pilot notes, swap corner), the AWOS and
+// THE CLIPS (G1682: the talk's own words): src/viewer/audio/radio_talk.js's clipLines(places) - every line Radio Jolene's
+// break says whole, exactly as its text says it (the ID, the bulletins, the swap corner, the greetings, the time check,
+// the pilots' and the marine forecast's phrases, a line per voice_script.json place) -, voice_script.json's extra lines, the AWOS and
 // marine vocabulary (src/viewer/audio/voice_model.js's VOCAB: the assembler and the words it needs are one file),
 // and per track of src/viewer/audio/music_catalogue.json its back-announce ('ba.<id>': "That was <title>, by
 // <artist>."), its title and its artist (VOICE_MODEL.trackKeys). A new catalogue track needs a re-run (GATE AUDIO's
@@ -26,6 +28,7 @@ const ROOT = path.resolve(__dirname, '..', '..');
 const ML = require(path.join(ROOT, 'tools', '_media_lib.js'));
 const X = require(path.join(__dirname, 'excerpt.js'));
 const VM = require(path.join(ROOT, 'src', 'viewer', 'audio', 'voice_model.js'));
+const RT = require(path.join(ROOT, 'src', 'viewer', 'audio', 'radio_talk.js'));   // G1682: the station's own lines
 
 const SUBDIR = 'audio/voice';
 const CAT = path.join(ROOT, 'src', 'viewer', 'audio', 'voice_catalogue.json');
@@ -61,10 +64,10 @@ const VOICES = {
     dataset: 'LibriVox readings by one reader, ~24 h, compiled by Bryce Beattie', datasetLicence: 'public domain',
     datasetUrl: 'https://librivox.org', lineage: 'trained from scratch (500 epochs, high)' },
 };
-// THE CHOICE (G1628): john - the calmest pace of the four (1.95 words/s against norman's 2.37), the best male
-// intelligibility in the evidence's ASR round trip; norman is a close second. The user picks by ear
-// (reports/evidence/SND-VOICE/): another voice is one re-run, --voice <name>.
-const CHOSEN = 'john';
+// THE CHOICE: G1628 shipped john (the calmest pace, the best ASR round trip); THE USER PICKED NORMAN by ear on the
+// listening page (2026-10-04, "norman voice is the best") - G1680 re-rendered everything with it. Another voice is one
+// re-run, --voice <name>.
+const CHOSEN = 'norman';
 const SHORTLIST = ['john', 'norman', 'libritts', 'cori'];
 
 function voiceRecord(name) {
@@ -78,7 +81,10 @@ function voiceRecord(name) {
 function clipList() {
   const S = JSON.parse(fs.readFileSync(SCRIPT, 'utf8'));
   const items = [];
-  for (const k in S.lines) items.push({ key: k, text: S.lines[k], kind: 'line' });
+  const RL = RT.clipLines(S.places || {});
+  // (a word or two is rendered in a carrier - the clock, the parts of the day, "is favoured," - a greeting is a phrase)
+  for (const k in RL) items.push({ key: k, text: RL[k], kind: RL[k].split(/\s+/).length > 2 || /^greet\./.test(k) ? 'line' : 'word' });
+  for (const k in S.lines || {}) items.push({ key: k, text: S.lines[k], kind: 'line' });
   for (const k in VM.VOCAB) items.push({ key: k, text: VM.VOCAB[k], kind: 'word' });
   const tracks = fs.existsSync(MUSIC) ? JSON.parse(fs.readFileSync(MUSIC, 'utf8')) : [];
   const seen = new Set(items.map(i => i.key));
@@ -220,13 +226,13 @@ const DEMO_OBS = { timeZ: '1753', wind: { dirDeg: 268, kt: 15, gustKt: 26 }, vis
   sky: [{ cover: 'SCT', ft: 300 }, { cover: 'BKN', ft: 600 }, { cover: 'OVC', ft: 1400 }], tempC: -2, dewC: -4, altInHg: 29.92 };
 function demo(names) {
   const { items, say } = clipList();
-  const want = new Set(['id.1', 'bul.ferry', ...VM.awosClips(DEMO_OBS).filter(k => typeof k === 'string')]);
+  const want = new Set(['id.main', 'bulletin.ferry', ...VM.awosClips(DEMO_OBS).filter(k => typeof k === 'string')]);
   const sub = items.filter(i => want.has(i.key));
   fs.mkdirSync(EVIDENCE, { recursive: true });
   const rows = [];
   for (const name of names) {
     const clips = render(name, sub, say);
-    const outs = [['station_id', ['id.1']], ['bulletin', ['bul.ferry']], ['awos_gusty_low', VM.awosClips(DEMO_OBS)]];
+    const outs = [['station_id', ['id.main']], ['bulletin', ['bulletin.ferry']], ['awos_gusty_low', VM.awosClips(DEMO_OBS)]];
     for (const [what, seq] of outs) {
       const { x, sr } = assemble(seq, clips);
       const file = `${name}_${what}.mp3`;

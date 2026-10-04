@@ -156,30 +156,42 @@ var SPACE_CONFIG = (function () {
   const headsetK = kind => Math.pow(10, headsetMeanDb(kind) / 20);
 
   // ---- THE PROPAGATION ------------------------------------------------------------------------------------------
-  function dopplerFactor(c, vs, vl) {
+  // THE FRAME'S FORMS (G1680, SND-RADIO-2): each law below READS its arguments from a Float64Array and WRITES its
+  // answer into the next slot - dopplerAt(F, i): F[i] c, F[i+1] vs, F[i+2] vl -> F[i+3]; absorbAt(F, i): F[i] d ->
+  // F[i+1]; dirAt(kind, F, i): F[i] cosT -> F[i+1]; ringAtSlot(R, out): te in out[0]. A call that passes or returns a
+  // double BOXES it (a fresh heap number) whenever the optimiser does not inline the call: on a Node without Maglev
+  // space.js's moving frame grew the heap ~90-150 B a frame through dopplerFactor alone. A typed slot is never boxed,
+  // so the frame does not depend on the inliner. The scalar forms (dopplerFactor, ...) are the same laws, for the
+  // tools and the gate.
+  const SCR = new Float64Array(8);
+  function dopplerAt(F, i) {
+    const c = F[i], vs = F[i + 1], vl = F[i + 2];
     const cc = c > 100 ? c : C0;
     let k = (cc - vl) / (cc - vs);
-    return k === k ? (k < 0.5 ? 0.5 : k > 2 ? 2 : k) : 1;
+    F[i + 3] = k === k ? (k < 0.5 ? 0.5 : k > 2 ? 2 : k) : 1;
   }
+  function dopplerFactor(c, vs, vl) { SCR[0] = c; SCR[1] = vs; SCR[2] = vl; dopplerAt(SCR, 0); return SCR[3]; }
   const ABS_K = 29e-3 / (4000 * 4000);   // dB / m / Hz^2 (29 dB/km at 4 kHz)
-  function airAbsorptionHz(d) {
-    const dd = d > 1 ? d : 1;
+  function absorbAt(F, i) {
+    const d = F[i], dd = d > 1 ? d : 1;
     const f = Math.sqrt(3 / (ABS_K * dd));
-    return f > 20000 ? 20000 : f < 250 ? 250 : f;
+    F[i + 1] = f > 20000 ? 20000 : f < 250 ? 250 : f;
   }
+  function airAbsorptionHz(d) { SCR[4] = d; absorbAt(SCR, 4); return SCR[5]; }
   // the radiation patterns
   const DIR_EXHAUST = 0, DIR_TONAL = 1, DIR_BROAD = 2, DIR_OMNI = 3;
   const TONAL_A = 0.6, TONAL_FLOOR = 0.03;
   // the tonal's normaliser: the maximum of sin^2 (1 - a cos) at cos = (2 - sqrt(4 + 12 a^2)) / 6a
   const TONAL_CMAX = (2 - Math.sqrt(4 + 12 * TONAL_A * TONAL_A)) / (6 * TONAL_A);
   const TONAL_NORM = (1 - TONAL_CMAX * TONAL_CMAX) * (1 - TONAL_A * TONAL_CMAX);
-  function directivity(kind, cosT) {
-    const c = cosT > 1 ? 1 : cosT < -1 ? -1 : cosT, s2 = 1 - c * c;
-    if (kind === DIR_EXHAUST) return 0.55 + 0.45 * (1 - c) * 0.5;
-    if (kind === DIR_TONAL) { const g = s2 * (1 - TONAL_A * c) / TONAL_NORM; return g > TONAL_FLOOR ? g : TONAL_FLOOR; }
-    if (kind === DIR_BROAD) return 0.5 + 0.5 * s2;
-    return 1;
+  function dirAt(kind, F, i) {
+    const cosT = F[i], c = cosT > 1 ? 1 : cosT < -1 ? -1 : cosT, s2 = 1 - c * c;
+    if (kind === DIR_EXHAUST) { F[i + 1] = 0.55 + 0.45 * (1 - c) * 0.5; return; }
+    if (kind === DIR_TONAL) { const g = s2 * (1 - TONAL_A * c) / TONAL_NORM; F[i + 1] = g > TONAL_FLOOR ? g : TONAL_FLOOR; return; }
+    if (kind === DIR_BROAD) { F[i + 1] = 0.5 + 0.5 * s2; return; }
+    F[i + 1] = 1;
   }
+  function directivity(kind, cosT) { SCR[6] = cosT; dirAt(kind, SCR, 6); return SCR[7]; }
   // THE RING of an emitter's past: R = { a: Float64Array(cap * 7) [t x y z vx vy vz], cap, n (filled), head (newest) }
   const RW = 7;
   function ringMake(cap) { return { a: new Float64Array(cap * RW), cap, n: new Int32Array(2) }; }   // n[0] count, n[1] head
@@ -204,8 +216,10 @@ var SPACE_CONFIG = (function () {
   // a jump (a respawn, a camera cut does not matter here - only the emitter's own teleport): forget the past
   function ringReset(R) { R.n[0] = 0; R.n[1] = 0; }
   // the state at time te, linearly interpolated (binary search over the ring's monotonic times) -> out[1..6]
-  function ringAt(R, te, out) {
-    const a = R.a, cap = R.cap, cnt = R.n[0], h = R.n[1];
+  // (ringAtSlot: te read from out[0] - the frame's form)
+  function ringAt(R, te, out) { out[0] = te; ringAtSlot(R, out); }
+  function ringAtSlot(R, out) {
+    const te = out[0], a = R.a, cap = R.cap, cnt = R.n[0], h = R.n[1];
     if (cnt === 0) { out[1] = out[2] = out[3] = out[4] = out[5] = out[6] = 0; return; }
     const old = (h - cnt + 1 + cap) % cap;
     let lo = 0, hi = cnt - 1;   // logical indices, 0 = oldest (no closure for the lookup: the frame allocates nothing)
@@ -221,7 +235,7 @@ var SPACE_CONFIG = (function () {
     const t = at[0], Lx = at[1], Ly = at[2], Lz = at[3], c = at[4] > 100 ? at[4] : C0;
     let tau = 0;
     for (let it = 0; it < 6; it++) {
-      ringAt(R, t - tau, out);
+      out[0] = t - tau; ringAtSlot(R, out);   // (te in the slot: a double argument would box)
       const dx = out[1] - Lx, dy = out[2] - Ly, dz = out[3] - Lz;
       const d = Math.sqrt(dx * dx + dy * dy + dz * dz), nt = d / c;
       out[7] = d;
@@ -382,8 +396,9 @@ var SPACE_CONFIG = (function () {
     return out;
   }
   // which two points bracket rpm, and the equal-power weight of the upper one; out Float64Array [i0, i1, w1, rate0, rate1]
-  function loopBlend(points, rpm, out) {
-    const n = points.length;
+  function loopBlend(points, rpm, out) { out[0] = rpm; loopBlendSlot(points, out); }
+  function loopBlendSlot(points, out) {   // (the frame's form: the rpm read from out[0])
+    const rpm = out[0], n = points.length;
     let i0 = 0;
     while (i0 < n - 2 && rpm > points[i0 + 1]) i0++;
     const i1 = n > 1 ? i0 + 1 : 0, a = points[i0], b = points[i1];
@@ -406,11 +421,11 @@ var SPACE_CONFIG = (function () {
   }
 
   return { CABIN_CLASSES, MATERIAL_CLASS, INSUL_F, cabinClassOf, cabinTransfer, biquadCoefs, biquadDb, chainDb, meanDb,
-           headsetCurve, headsetMeanDb, headsetK, dopplerFactor, airAbsorptionHz, directivity,
+           headsetCurve, headsetMeanDb, headsetK, dopplerFactor, airAbsorptionHz, directivity, dopplerAt, absorbAt, dirAt, ringAtSlot,
            DIR_EXHAUST, DIR_TONAL, DIR_BROAD, DIR_OMNI, TONAL_A, TONAL_FLOOR, RW, ringMake, ringPush, ringReset, ringAt,
            retardedSolve, XFADE_S, xfadeCurve, OCT, ALPHA, AIR_4M, SHELL_MAT, hangarAcoustics, hangarIR, measureRT60,
            TIER_FULL_M, TIER_ENGINE_M, CAP_FULL, CAP_BAKED, TIER_SILENT, TIER_ENGINE, TIER_FULL, craftTiers, bakePoints,
-           loopBlend, makeLoop, C0 };
+           loopBlend, loopBlendSlot, makeLoop, C0 };
 })();
 if (typeof window !== 'undefined') window.SPACE_CONFIG = SPACE_CONFIG;
 if (typeof module !== 'undefined' && module.exports) module.exports = SPACE_CONFIG;

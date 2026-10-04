@@ -63,6 +63,14 @@
 // The voice: by name (flydiy.audio.radioVoice; else Microsoft George en-GB when present), rate / pitch 0.95, its
 // volume master x music x VOICE_K (the user's bench: music at 0.8 of the voice). A browser that never fires onend is
 // ended by a watchdog (the break's estimated length + TALK_SLACK_S).
+// THE RECORDED VOICE (G1683, SND-RADIO-2; ruling s12): the talker (RADIO_TALK.makeTalker) plays each segment's CLIPS
+// (AUDIO_VOICE, the station's voice rendered offline - norman) when every key of it has a clip, and falls back to
+// speechSynthesis PER SEGMENT; consecutive clip segments play as one gap-free sequence. The clips are Web Audio: they
+// pass radioIn (the level: clipK = VOICE_K x the clips' -20 LUFS brought to the tracks' -16) -> the music's DUCK -> the
+// music bus, so the ducks, the music volume and the context's suspend reach them; the bed under them is the deck's
+// gain as before, and the watchdog's estimate is the clips' own length.
+// THE MIX (G1681): the seventh station, 'Random' - every track the six would play in a context, one bag, no repeat
+// inside a round. Radio Jolene's talk stays on its own station (roots): the mix is music only.
 //
 // THE CATALOGUE (src/viewer/audio/music_catalogue.json, written by the coordinator's prep tool from the user's
 // picks; the build inlines it as window.FLYDIY_MUSIC - a manifest, not a media file: under media/ an unhashed
@@ -98,9 +106,16 @@ var AUDIO_MUSIC = (function () {
   const XF_N = 64;
   // THE STATIONS (key, the picker's label) - the keys are music_selection_v1.json's, in its order (GATE AUDIO holds it)
   const STATIONS = [['jazz', 'Jazz'], ['lofi', 'Lo-fi / Hip-hop'], ['dubambient', 'Dub / Ambient'], ['roots', 'Radio Jolene (local roots)'],
-    ['blues', 'Blues'], ['classical', 'Classical']];
-  const STATION_KEYS = STATIONS.map(s => s[0]), ST_DEFAULT = 'lofi', ST_TALK = 'roots';
+    ['blues', 'Blues'], ['classical', 'Classical'], ['mix', 'Random']];
+  // G1681 THE MIX ('Random', the user: "a random station mixing all the music"): a VIRTUAL station - no track is
+  // tagged mix (validate refuses it); per context its list is the UNION of the six stations' lists (each with its own
+  // fallbacks), so its bag is every track any station would play there, shuffled, no repeat inside a round
+  const ST_MIX = 'mix', STATION_KEYS = STATIONS.map(s => s[0]), ST_DEFAULT = 'lofi', ST_TALK = 'roots';
+  const REAL_KEYS = STATION_KEYS.filter(k => k !== ST_MIX);
   const BED_K = 0.16, BED_IN_S = 1.5, BED_UP_S = 1.5, VOICE_K = 1 / 0.8, TALK_SLACK_S = 8;
+  // G1683 THE RECORDED VOICE's level: its clips are levelled to VOICE_LUFS (prep_voice.js; the catalogue's render.lufs),
+  // the tracks to LUFS_TARGET - the radio gain lifts the clips by the difference, then VOICE_K (the voice over the music)
+  const VOICE_LUFS = -20;
   const TALK_EVERY = 2, TALK_MIN = 1, TALK_MAX = 6;
   const PFX = 'flydiy.audio.';
   const prefGet = (k, d) => { try { const v = G.localStorage && G.localStorage.getItem(PFX + k); return v == null ? d : v; } catch (e) { return d; } };
@@ -138,7 +153,7 @@ var AUDIO_MUSIC = (function () {
       if (typeof t.licence !== 'string' || !LICENCE_RE.test(t.licence)) F.push(at + 'licence ' + t.licence + ' is not CC0 / CC-BY / public domain (s3)');
       if (/^CC-BY/i.test(t.licence || '') && !t.credit && !(t.artist && t.title)) F.push(at + 'CC-BY needs its credit');
       if (!Array.isArray(t.contexts) || !t.contexts.length || t.contexts.some(c => CTX_NAMES.indexOf(c) < 0)) F.push(at + 'contexts must be some of ' + CTX_NAMES.join(', '));
-      if (t.station != null && STATION_KEYS.indexOf(t.station) < 0) F.push(at + 'station ' + t.station + ' is not one of ' + STATION_KEYS.join(', '));
+      if (t.station != null && REAL_KEYS.indexOf(t.station) < 0) F.push(at + 'station ' + t.station + ' is not one of ' + REAL_KEYS.join(', ') + (t.station === ST_MIX ? ' (the mix is virtual: it has no tracks of its own)' : ''));
       if (!(t.durationS > 0)) F.push(at + 'durationS must be > 0');
       if (t.lufs != null && !(typeof t.lufs === 'number' && t.lufs < 0 && t.lufs > -60)) F.push(at + 'lufs ' + t.lufs + ' out of range');
     });
@@ -155,6 +170,12 @@ var AUDIO_MUSIC = (function () {
   // a station's lists: its own tracks per context, else lo-fi's for that context (fell[c] = 1); empty = it has none at all
   function stationLists(cat, st) {
     if (STATION_KEYS.indexOf(st) < 0) return { lists: CTX_NAMES.map(() => []), fell: [0, 0, 0, 0], empty: true };
+    if (st === ST_MIX) {   // the union of the six, in catalogue order, each track once
+      const u = CTX_NAMES.map(() => new Uint8Array(cat.length));
+      for (const k of REAL_KEYS) stationLists(cat, k).lists.forEach((l, c) => { for (const i of l) u[c][i] = 1; });
+      const lists = u.map(m => { const l = []; for (let i = 0; i < m.length; i++) if (m[i]) l.push(i); return l; });
+      return { lists, fell: [0, 0, 0, 0], empty: !cat.length };
+    }
     const of = k => cat.map((t, i) => (stationOf(t) === k ? i : -1)).filter(i => i >= 0);
     const mine = of(st), own = contextLists(cat, mine), lo = st === ST_DEFAULT ? own : contextLists(cat, of(ST_DEFAULT));
     const fell = own.map(l => (l.length || st === ST_DEFAULT ? 0 : 1));
@@ -224,7 +245,10 @@ var AUDIO_MUSIC = (function () {
   if (station !== 'off' && STATION_KEYS.indexOf(station) < 0) station = ST_DEFAULT;
   let talkOn = prefGet('radioTalk', '1') !== '0', voiceName = prefGet('radioVoice', '');
   let talkEvery = Math.max(TALK_MIN, Math.min(TALK_MAX, Math.round(+prefGet('radioEvery', TALK_EVERY)) || TALK_EVERY));
-  let speaker = null;
+  let speaker = null, radioIn = null, lastSegs = null;   // the talker (RADIO_TALK.makeTalker), the recorded voice's gain (into the duck)
+  const voiceApi = () => G.AUDIO_VOICE || (typeof AUDIO_VOICE !== 'undefined' ? AUDIO_VOICE : null);
+  const clipK = () => { const v = G.FLYDIY_VOICE && G.FLYDIY_VOICE.voice, l = v && v.render && typeof v.render.lufs === 'number' ? v.render.lufs : VOICE_LUFS;
+    return VOICE_K * Math.pow(10, (LUFS_TARGET - l) / 20); };
   const TALK_ST = { k: 0 };
   let ctx = null, A = null, decks = [], duck = null, offs = [];
   const C = { elements: 0, starts: 0, xfades: 0, ducks: 0, talks: 0, talkCuts: 0 };   // counters (the gate reads them)
@@ -360,16 +384,18 @@ var AUDIO_MUSIC = (function () {
       (PS[S_TUNE] > 0 || PS[S_COUNT] >= talkEvery) && voiceVolume() > 0;
   }
   const voiceVolume = () => (A ? Math.min(1, A.get('master') * A.get('music') * VOICE_K) : 0);
-  const trackRow = t => (t >= 0 && cat[t] ? { title: cat[t].title, artist: cat[t].artist } : null);
+  const trackRow = t => (t >= 0 && cat[t] ? { id: cat[t].id, title: cat[t].title, artist: cat[t].artist } : null);   // (id: the back-announce's clips)
   // a break, then the next track of context c under it (at the bed, faded in over BED_IN_S); false when none is owed
   function nextWithTalk(c) {
     if (!talkDue() || typeof G.RADIO_TALK === 'undefined') return false;
     const RT = G.RADIO_TALK, tune = PS[S_TUNE] > 0;
     const wx = RT.readGame(A.world, { sim: A.sim });
     const segs = RT.breakScript(TALK_ST, wx, tune ? [] : [trackRow(REC[0]), trackRow(REC[1])], { tuneIn: tune });
-    if (!speaker.speak(segs, { voice: voiceName, rate: RT.RATE, pitch: RT.PITCH, volume: voiceVolume() }, endTalk)) return false;
+    lastSegs = segs;
+    // (the recorded clips into radioIn - the duck, the music bus, the suspend - per segment; speechSynthesis for the rest)
+    if (!speaker.speak(segs, { voice: voiceName, rate: RT.RATE, pitch: RT.PITCH, volume: voiceVolume(), dest: radioIn, gain: 1 }, endTalk)) return false;
     C.talks++;
-    PS[S_TALK] = RT.estSeconds(segs, RT.RATE) + TALK_SLACK_S; PS[S_BED] = BED_K; PS[S_TUNE] = 0; PS[S_COUNT] = 0;
+    PS[S_TALK] = (speaker.seconds ? speaker.seconds(segs, RT.RATE) : RT.estSeconds(segs, RT.RATE)) + TALK_SLACK_S; PS[S_BED] = BED_K; PS[S_TUNE] = 0; PS[S_COUNT] = 0;
     startNext(c, BED_IN_S);
     return true;
   }
@@ -617,7 +643,11 @@ var AUDIO_MUSIC = (function () {
     }
     PS[S_CUR] = C_NONE; PS[S_ACT] = -1; PS[S_GAP] = -1; PS[S_DUCK] = 0; PS[S_BED] = 1; PS[S_TALK] = 0;
     // the radio's voice and keys: made here, on the gesture (nothing is spoken before one)
-    speaker = typeof G.RADIO_TALK !== 'undefined' ? G.RADIO_TALK.makeSpeaker(G) : null;
+    // G1683: the talker plays a segment's recorded clips (AUDIO_VOICE) when they all exist, else speaks it; the clips
+    // pass radioIn -> the duck -> the music bus, so the music's ducks, its volume and the context's suspend reach them
+    radioIn = c.createGain(); radioIn.gain.value = clipK(); radioIn.connect(duck);
+    const RT = typeof G.RADIO_TALK !== 'undefined' ? G.RADIO_TALK : null;
+    speaker = RT ? (RT.makeTalker ? RT.makeTalker(G, voiceApi) : RT.makeSpeaker(G)) : null;
     if (G.addEventListener) G.addEventListener('keydown', onKey);
     if (station === ST_TALK) PS[S_TUNE] = 1;   // the first music of the page on the roots station opens with its ID
     offs = [au.onEvent('engine', onDuck), au.onEvent('stall', onDuck), au.onEvent('duck', onDuck),
@@ -630,6 +660,8 @@ var AUDIO_MUSIC = (function () {
     offs = [];
     if (speaker) speaker.cancel(true);
     speaker = null; PS[S_BED] = 1; PS[S_TALK] = 0;
+    try { if (radioIn) radioIn.disconnect(); } catch (e) {}
+    radioIn = null;
     if (G.removeEventListener) G.removeEventListener('keydown', onKey);
     for (let k = 0; k < decks.length; k++) {
       release(k);
@@ -649,17 +681,17 @@ var AUDIO_MUSIC = (function () {
   const api = {
     CTX_NAMES, CRUISE, XFADE_S, GAP_MIN_S, GAP_MAX_S, DUCK_K, DUCK_HOLD_S, LUFS_TARGET, SOUND_CREDITS, FILE_RE, LICENCE_RE,
     validate, contextLists, creditRows, creditLine, cruiseStep, contextOf, makeBag, bagNext, trimOf,
-    STATIONS, STATION_KEYS, BED_K, BED_IN_S, BED_UP_S, VOICE_K, TALK_EVERY, stationLists, stationOf, stationLine,
+    STATIONS, STATION_KEYS, ST_MIX, BED_K, BED_IN_S, BED_UP_S, VOICE_K, TALK_EVERY, stationLists, stationOf, stationLine,
     setStation, stepStation, get station() { return station; }, get stationFell() { return fell.slice(); },
     get talk() { return talkOn; }, setTalk(on) { talkOn = !!on; prefPut('radioTalk', talkOn ? 1 : 0); if (!talkOn) cancelTalk(); },
     get talkEvery() { return talkEvery; }, setTalkEvery(n) { talkEvery = Math.max(TALK_MIN, Math.min(TALK_MAX, Math.round(+n) || TALK_EVERY)); prefPut('radioEvery', talkEvery); },
     get voice() { return voiceName; }, setVoice(n) { voiceName = String(n || ''); prefPut('radioVoice', voiceName); },
-    get talking() { return PS[S_TALK] > 0; }, cancelTalk,
+    get talking() { return PS[S_TALK] > 0; }, cancelTalk, get talker() { return speaker; }, get radioIn() { return radioIn; }, clipK, VOICE_LUFS,
     seed(n) { RNG[0] = (n >>> 0) || 1; }, setCatalogue, get catalogue() { return cat; },
     skip, setPhoto, openCredits, mountCreditLink, nowPlaying,
     get context() { return PS[S_CUR] >= 0 ? CTX_NAMES[PS[S_CUR]] : 'none'; },
     // the gate's window on the slots (read-only views)
-    _dk: DK, _ps: PS, _C: C, _decks: () => decks, _lvlAt: lvlAt, _talkSt: TALK_ST, source: { connect, update, disconnect },
+    _dk: DK, _ps: PS, _C: C, _decks: () => decks, _lvlAt: lvlAt, _talkSt: TALK_ST, _lastSegs: () => lastSegs, source: { connect, update, disconnect },
   };
 
   mountCreditLink();

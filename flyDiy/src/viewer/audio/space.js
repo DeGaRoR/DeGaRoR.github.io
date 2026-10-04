@@ -46,10 +46,11 @@ var AUDIO_SPACE = (function () {
   const grpNodes = new Array(NG).fill(null);  // per group: Int32Array of the solver's node indices
   let noseN = null, tailN = null;
   // the frame's typed state
-  const T = new Float64Array(6);              // 0 clock, 1 lag, 2 garage poll, 3 interior was, 4 garage was, 5 cuts
+  const T = new Float64Array(7);              // 0 clock, 1 lag, 2 garage poll, 3 interior was, 4 garage was, 5 dt, 6 c
   const L = new Float64Array(16);             // 0-2 position, 3-5 right, 6-8 up, 9-11 back, 12-14 velocity, 15 have
   const AT = new Float64Array(5), RS = new Float64Array(8), PB = new Float64Array(4), FWD = new Float64Array(3);
   const X3 = new Float64Array(4);              // the helpers' arguments (a double handed to a call V8 does not inline boxes)
+  const SD = new Float64Array(8);              // G1680: SPACE_CONFIG's laws in their slot forms (cosT, dir | d, Hz | c, vs, vl, k)
   const rings = []; for (let g = 0; g < NG; g++) rings.push(SC.ringMake(RING_CAP));
   const LW = 12;                              // per group: 0-2 position, 3-6 directivity, 7 absorption Hz, 8 pitch, 9 dist
   const last = new Float64Array(NG * LW).fill(-1e9);
@@ -309,9 +310,12 @@ var AUDIO_SPACE = (function () {
         X3[0] = rx * L[3] + ry * L[4] + rz * L[5]; X3[1] = rx * L[6] + ry * L[7] + rz * L[8]; X3[2] = rx * L[9] + ry * L[10] + rz * L[11];
         placeRel(gr.pan, o);
         cosT = FWD[0] * nx + FWD[1] * ny + FWD[2] * nz;
-        for (let k = 0; k < 4; k++) if (gr.dirs[k]) { X3[3] = SC.directivity(KDIR[k], cosT); schedK(gr.dirs[k].gain, o + 3 + k); }
-        fAbs = SC.airAbsorptionHz(dist);
-        kDop = SC.dopplerFactor(c, RS[4] * nx + RS[5] * ny + RS[6] * nz, L[12] * nx + L[13] * ny + L[14] * nz);
+        // (the laws in their slot forms: a double handed to or returned by a call the optimiser does not inline is boxed)
+        SD[0] = cosT;
+        for (let k = 0; k < 4; k++) if (gr.dirs[k]) { SC.dirAt(KDIR[k], SD, 0); X3[3] = SD[1]; schedK(gr.dirs[k].gain, o + 3 + k); }
+        SD[2] = dist; SC.absorbAt(SD, 2); fAbs = SD[3];
+        SD[4] = c; SD[5] = RS[4] * nx + RS[5] * ny + RS[6] * nz; SD[6] = L[12] * nx + L[13] * ny + L[14] * nz;
+        SC.dopplerAt(SD, 4); kDop = SD[7];
         if (!haveMain && (gi === 0 || gi === GAF)) { lagT = RS[0]; haveMain = 1; }
       }
       if (Math.abs(fAbs - last[o + 7]) > 0.015 * fAbs) { last[o + 7] = fAbs; gr.lpf.frequency.setTargetAtTime(fAbs, G.ctx.currentTime, TAU); }
@@ -331,7 +335,7 @@ var AUDIO_SPACE = (function () {
     // THE SHED: the wet sends while in it, the IR checked once a second (made off the frame)
     wet(garage);
     if (garage) { T[2] -= d0; if (T[2] <= 0) { T[2] = 1; shedCheck(); } } else T[2] = 0;
-    if (crafts.length) craftsFrame(d0, c);
+    if (crafts.length) { T[6] = c; craftsFrame(); }   // (dt in T[5], c in T[6]: no double handed to a call)
   }
   // the engines' sides in the cabin (a twin's left engine leans left), once per aeroplane: the engine group's offset
   // along the aeroplane's right axis (up x aft, the solver's zRt), 3 m = 0.6
@@ -357,7 +361,7 @@ var AUDIO_SPACE = (function () {
   // ---- THE SHED'S ROOM ------------------------------------------------------------------------------------------
   const WETS = [WET_AIRCRAFT, WET_AMBIENCE, WET_MUSIC];
   function wet(on) {
-    const ns = [G.revA, G.revAmb, G.revMus];
+    const ns = G.wetNodes || (G.wetNodes = [G.revA, G.revAmb, G.revMus]);   // (made once per graph: not an array a frame)
     for (let k = 0; k < 3; k++) {
       const v = on && G.irKey ? WETS[k] : 0;
       if (G.wet[k] === v) continue;
@@ -404,7 +408,7 @@ var AUDIO_SPACE = (function () {
   const crafts = [];
   const CR_MAX = 32;
   const crDist = new Float64Array(CR_MAX), crOrder = new Int32Array(CR_MAX), crTier = new Uint8Array(CR_MAX);
-  const BL = new Float64Array(5), CA = new Float64Array(5), CR = new Float64Array(8), CP = new Float64Array(4);
+  const BL = new Float64Array(5), CA = new Float64Array(5), CR = new Float64Array(8), CP = new Float64Array(4), CD = new Float64Array(12);
   let baker = null;
   function setBaker(fn) { baker = typeof fn === 'function' ? fn : null; }
   function craftCfg(specLike) {
@@ -508,7 +512,8 @@ var AUDIO_SPACE = (function () {
     try { v.pan.disconnect(); } catch (e) {}
     cr.voice = null;
   }
-  function craftsFrame(dt, c) {
+  function craftsFrame() {
+    const dt = T[5], c = T[6];
     const n = Math.min(crafts.length, CR_MAX);
     for (let i = 0; i < n; i++) {
       const cr = crafts[i], st = cr.st;
@@ -539,14 +544,17 @@ var AUDIO_SPACE = (function () {
       }
       let fl = Math.sqrt(st[3] * st[3] + st[4] * st[4] + st[5] * st[5]) || 1;
       const cosT = (st[3] * nx + st[4] * ny + st[5] * nz) / fl;
-      const kDop = SC.dopplerFactor(c, CR[4] * nx + CR[5] * ny + CR[6] * nz, L[12] * nx + L[13] * ny + L[14] * nz);
-      const fAbs = SC.airAbsorptionHz(d);
+      CD[0] = c; CD[1] = CR[4] * nx + CR[5] * ny + CR[6] * nz; CD[2] = L[12] * nx + L[13] * ny + L[14] * nz;
+      SC.dopplerAt(CD, 0); const kDop = CD[3];
+      CD[4] = d; SC.absorbAt(CD, 4); const fAbs = CD[5];
       if (Math.abs(fAbs - lw[3]) > 0.015 * fAbs) { lw[3] = fAbs; v.lpf.frequency.setTargetAtTime(fAbs, t, TAU); }
-      SC.loopBlend(cr.points, cr.rpmS[0], BL);
+      BL[0] = cr.rpmS[0]; SC.loopBlendSlot(cr.points, BL);
       const i0 = BL[0] | 0, i1 = BL[1] | 0, u = BL[2];
       for (let l = 0; l < v.layers.length; l++) {
         const Ly = v.layers[l], o = 4 + l * 10;
-        const gd = l === 0 ? 0.5 * (SC.directivity(SC.DIR_EXHAUST, cosT) + SC.directivity(SC.DIR_TONAL, cosT)) : SC.directivity(SC.DIR_BROAD, cosT);
+        CD[8] = cosT; CD[10] = cosT;
+        if (l === 0) { SC.dirAt(SC.DIR_EXHAUST, CD, 8); SC.dirAt(SC.DIR_TONAL, CD, 10); } else { SC.dirAt(SC.DIR_BROAD, CD, 8); CD[11] = CD[9]; }
+        const gd = l === 0 ? 0.5 * (CD[9] + CD[11]) : CD[9];
         if (Math.abs(gd - lw[o]) > 0.005) { lw[o] = gd; Ly.dir.gain.setTargetAtTime(gd, t, TAU); }
         for (let k = 0; k < Ly.srcs.length; k++) {
           const g = k === i0 ? (i1 === i0 ? 1 : Math.cos(Math.PI / 2 * u)) : k === i1 ? Math.sin(Math.PI / 2 * u) : 0;

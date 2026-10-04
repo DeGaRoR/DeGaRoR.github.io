@@ -64,10 +64,12 @@ var VOICE_MODEL = (function () {
   });
   const COMPASS = ['north', 'northeast', 'east', 'southeast', 'south', 'southwest', 'west', 'northwest'];
   for (const c of COMPASS) VOCAB['mar.' + c] = c;
-  // the marine numbers: words, to 50 by the fives above 12
+  // the marine numbers: words, to 50 (80 for the radio's gusts) by the fives above 12
   const NUMW = { 1: 'one', 2: 'two', 3: 'three', 4: 'four', 5: 'five', 6: 'six', 7: 'seven', 8: 'eight', 9: 'nine', 10: 'ten',
     11: 'eleven', 12: 'twelve', 15: 'fifteen', 20: 'twenty', 25: 'twenty five', 30: 'thirty', 35: 'thirty five',
-    40: 'forty', 45: 'forty five', 50: 'fifty' };
+    40: 'forty', 45: 'forty five', 50: 'fifty',
+    // G1682: a gale's gusts (the radio's marine forecast: "gusts to fifty-five")
+    55: 'fifty five', 60: 'sixty', 65: 'sixty five', 70: 'seventy', 75: 'seventy five', 80: 'eighty' };
   for (const n in NUMW) VOCAB['n.' + n] = NUMW[n];
   // the back-announce frames (the per-track clips are catalogue keys: 'ba.<track id>', 'title.<id>', 'artist.<slug>')
   Object.assign(VOCAB, { 'ba.that_was': 'That was', 'ba.by': 'by', 'ba.before_that': 'Before that,',
