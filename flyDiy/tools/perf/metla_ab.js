@@ -80,8 +80,8 @@ const CHECK = `JSON.stringify((() => { const P = WORLD && WORLD.premises; const 
     const RS = "JSON.stringify((() => { const P = FLIGHT_PROBE.world().premises, O = P && P.overlay; return O ? Object.assign({ cooked: O.rasterCooked || null }, O.raster) : null; })())";
     const r0 = JSON.parse(await b.ev(RS).catch(() => 'null'));
     const cal = prof ? +(await b.ev(CAL)) : null;
-    const t0 = await now(); let tMid = null;
-    if (TOGGLE && tog && name === 'taxi') { await sleep(sec * 500); tMid = await now(); const tg = await b.ev(TOGGLE, 20000).catch(e => 'error ' + e.message); log('toggle at ' + Math.round(tMid) + ': ' + String(tg).slice(0, 300)); await sleep(sec * 500); }
+    const t0 = await now(); let tMid = null, tg = null;
+    if (TOGGLE && tog && name === 'taxi') { await sleep(sec * 500); tMid = await now(); tg = await b.ev(TOGGLE, 20000).catch(e => 'error ' + e.message); log('toggle at ' + Math.round(tMid) + ': ' + String(tg).slice(0, 300)); await sleep(sec * 500); }
     else await sleep(sec * 1000);
     const t1 = await now();
     const r1 = JSON.parse(await b.ev(RS).catch(() => 'null'));
@@ -92,7 +92,7 @@ const CHECK = `JSON.stringify((() => { const P = WORLD && WORLD.premises; const 
     const tasks = d.lt.filter(x => x[0] + x[1] > t0 && x[0] < t1).sort((a, c) => c[1] - a[1]).slice(0, 5);
     const rows = FRAMES ? JSON.parse(await b.ev(ROWSQ(t0, t1), 30000)) : null;
     const halves = rows ? (tMid ? [['h0', t0, tMid], ['h1', tMid, t1]] : [['all', t0, t1]]).map(([k, a, z]) => [k, frameRead(rows, a, z)]) : null;
-    return { scene: name, st, rec, tasks, t0, t1, tMid, raster, rows, halves: halves ? Object.fromEntries(halves) : null,
+    return { scene: name, st, rec, tasks, t0, t1, tMid, toggle: tg, raster, rows, halves: halves ? Object.fromEntries(halves) : null,
       cpu: cpu ? hot(cpu, tasks.filter(x => x[1] >= 100), t0) : null, perFrame: cpu && rows ? perFrame(cpu, rows, cal, tMid) : null };
   };
   const flying = async () => { await sleep(1500); const a = await b.ev(MB.A.simT); await sleep(1200); const c = await b.ev(MB.A.simT); if (!(c > a)) await b.ev(MB.A.run); };

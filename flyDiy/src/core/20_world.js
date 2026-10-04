@@ -517,7 +517,16 @@ function makeWorld(seed, opts) {
   const TH_N = 16384;
   // (G611: and the ground's version - the climate's lattice of the solver's ground reads it)
   function terrainClear() { if (thX) thX.fill(NaN); groundVer = (groundVer | 0) + 1; }
+  // G1436 (METLA-TAXI): A SCOPE OF BUILD READS - while buildReads(+1)..(-1) is open, a read that would bake a raster tile
+  // lazily answers terrainHBuild's way (the analytic composer, not memoised - so the memo keeps the raster's bits), and
+  // every other read is terrainH as ever. For a walk that reads through world functions it does not own (the forest
+  // fill's surface, slope and pool taps): with the town on, the fill's 9 km ring crosses Metlakatla's uncooked cells at
+  // run time and its rows baked ~300 tiles a 20 s taxi at HOME (the 21-87 ms 'fill' frames) - METLA-LOAD's boot used to
+  // have baked them. `var`: terrainH is hoisted and called before this line runs.
+  var buildDepth;
+  function buildReads(d) { buildDepth = Math.max(0, (buildDepth | 0) + d); }
   function terrainH(x, z) {
+    if (buildDepth && PM && PM.rasterLazyAt && PM.rasterLazyAt(x, z)) return PM.terrainH(x, z, baseH(x, z));
     if (!thX) { thX = new Float64Array(TH_N).fill(NaN); thZ = new Float64Array(TH_N); thH = new Float64Array(TH_N); }
     const i = (Math.imul((x * 4096) | 0, 73856093) ^ Math.imul((z * 4096) | 0, 19349663)) & (TH_N - 1);
     if (thX[i] === x && thZ[i] === z) return thH[i];
@@ -1146,7 +1155,7 @@ function makeWorld(seed, opts) {
                     cover: ISL.coverU8 || null, ndvi: ISL.ndvi || null, lake: ISL.lake || null, ttype: ISL.ttype || null, lakes: ISL.lakes || null, hydro: ISL.hydro, cellAt: ISL.cellAt,
                     farHeader: ISL.farHeader, farRoot: ISL.farRoot,
                     places: (ISL.premCook && ISL.premCook.places) || null } : null,   // G841: the premises cook's places (the tallies render_premises dresses on)
-    terrainH, waterH, terrainHBuild, waterHBuild, surface, SURFACE, groundMaxRect,
+    terrainH, waterH, terrainHBuild, waterHBuild, buildReads, surface, SURFACE, groundMaxRect,
     get slopeMax() { return PM ? undefined : SLOPE_MAX; },   // the cone's bound (30_solver.js); none under a premises layer
     TILE, tile, aerodromes, settlements: SET.settlements,
     treesNear, canopyH,

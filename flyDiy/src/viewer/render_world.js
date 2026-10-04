@@ -4840,7 +4840,15 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       // screen. At 60 m/s the ring needs ~8 ms of work a second; 4 ms a
       // frame is thirty times that.
       let PROBE = null;   // G1091: TREE_FILL.plants' list while it walks (x, z, 1 on the forest's rule / 0 the open ground's)
+      // G1436 (METLA-TAXI): the walk reads the ground in a scope of BUILD READS (20_world.js buildReads) - a tree's
+      // placement, read once: where a read would bake a raster tile lazily (Metlakatla's uncooked cells, which the
+      // 9 km ring crosses from HOME) it takes the analytic composer instead (the raster to 1 cm), never a 1-1.6 ms bake
       function walk(cx, cz, recs, g0, g1, part) {
+        if (!world.buildReads) return walkRows(cx, cz, recs, g0, g1, part);
+        world.buildReads(1);
+        try { return walkRows(cx, cz, recs, g0, g1, part); } finally { world.buildReads(-1); }
+      }
+      function walkRows(cx, cz, recs, g0, g1, part) {
         const ng = NG, spc = CH / ng;
         for (let gz = g0; gz < g1; gz++) for (let gx = 0; gx < ng; gx++) {
           // the base part is the even sub-lattice; the fill part the rest
