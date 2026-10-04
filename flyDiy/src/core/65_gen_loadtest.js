@@ -42,10 +42,14 @@
 //
 // And the load is RAMPED, not stepped: DEFDAMP is a rate with tau = 2 s, so a
 // step leaves the wing ringing past fifteen seconds and reading it at one
-// instant samples the ring. `relax` bleeds the deformation velocity — only the
-// part relative to the mass-weighted mean, so rigid motion is untouched — which
-// converges to the same static answer quickly. Legitimate because only the
-// settled state is wanted; nothing here claims to be a transient.
+// instant samples the ring. `relax` bleeds the velocity relative to the
+// mass-weighted mean, which converges to the same static answer quickly.
+// Legitimate because only the settled state is wanted; nothing here claims to
+// be a transient. (G1885: the off-the-mean bleed takes rigid ROTATION too - the
+// review's D1 against the solver's own damper, which now damps only the
+// velocity off the rigid-body field. Here it stays: the aeroplane is bolted to
+// the trestles every substep, so it has no rigid motion to lose, and the
+// settled answer is the same either way.)
 //
 // The acceptance number is LINEARITY: 3.8 g of bags must give 3.8x the
 // deflection. All three broken rigs failed it. See HANDOVER, GATE LOAD.

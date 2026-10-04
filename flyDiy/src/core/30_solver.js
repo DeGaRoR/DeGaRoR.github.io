@@ -1632,7 +1632,10 @@ function makeSim(def, world) {
   // (the G115 yaw probe ran free-yaw decay at two settings; the probe
   // retired with the fleet, 2026-09-05), not for play.
   // No fiche and no generated build sets it, so everything flies 0.5 as ever.
-  const G = -9.81, DEFDAMP = def.params.defDamp ?? 0.5;
+  // G1885: it damps the DEFORMATION only (the velocity off the rigid-body field, substep below); defDampMean
+  // brings back the pre-G1885 damper (off the mean velocity, which damped rigid rotation too) for GATE DMGDAMP's
+  // control - an instrument, like defDamp; no build sets it.
+  const G = -9.81, DEFDAMP = def.params.defDamp ?? 0.5, DEFDAMP_MEAN = !!def.params.defDampMean;
   // ground stiffness scales with node mass so light aircraft stay stable at the same dt
   const KGn = new Float64Array(n), CGn = new Float64Array(n),
         KTn = new Float64Array(n), CTn = new Float64Array(n);
@@ -1896,19 +1899,69 @@ function makeSim(def, world) {
       }
     }
     if (out.trq) out.trqTotal = trqOf();
-    // integrate; damp only deformation (velocity relative to rigid mean)
-    let vmx=0, vmy=0, vmz=0;
-    for (let i = 0; i < n; i++) { vmx+=v[i*3]*m[i]; vmy+=v[i*3+1]*m[i]; vmz+=v[i*3+2]*m[i]; }
-    vmx/=totalM; vmy/=totalM; vmz/=totalM;
+    // integrate; damp only deformation (G1885: the velocity relative to the RIGID-BODY field, not to the mean)
     // G348: a fresh reset's clusters take their rest from THIS pose (placed)
     if (clusterFresh) { for (const C of clusters) clusterRest(C); clusterFresh = false; }
     const dp = Math.max(0, 1 - DEFDAMP * dt);
-    for (let i = 0; i < n; i++) {
-      const i3 = i*3, im = dt/m[i];
-      v[i3]   = vmx + (v[i3]   + f[i3]*im   - vmx) * dp;
-      v[i3+1] = vmy + (v[i3+1] + f[i3+1]*im - vmy) * dp;
-      v[i3+2] = vmz + (v[i3+2] + f[i3+2]*im - vmz) * dp;
-      p[i3] += v[i3]*dt; p[i3+1] += v[i3+1]*dt; p[i3+2] += v[i3+2]*dt;
+    if (DEFDAMP_MEAN) {
+      // the pre-G1885 damper, kept for GATE DMGDAMP's control only (params.defDampMean; no build sets it)
+      let vmx=0, vmy=0, vmz=0;
+      for (let i = 0; i < n; i++) { vmx+=v[i*3]*m[i]; vmy+=v[i*3+1]*m[i]; vmz+=v[i*3+2]*m[i]; }
+      vmx/=totalM; vmy/=totalM; vmz/=totalM;
+      for (let i = 0; i < n; i++) {
+        const i3 = i*3, im = dt/m[i];
+        v[i3]   = vmx + (v[i3]   + f[i3]*im   - vmx) * dp;
+        v[i3+1] = vmy + (v[i3+1] + f[i3+1]*im - vmy) * dp;
+        v[i3+2] = vmz + (v[i3+2] + f[i3+2]*im - vmz) * dp;
+        p[i3] += v[i3]*dt; p[i3+1] += v[i3+1]*dt; p[i3+2] += v[i3+2]*dt;
+      }
+    } else {
+      // G1885: THE DAMPER TAKES DEFORMATION, NOT ROTATION. It damped v - v_mean, and a rigid rotation is not in
+      // the mean: in vacuum the stock build's roll, pitch and yaw all decayed as exp(-0.5 t) (the independent
+      // review's D1, measured) - a 2 s angular damper on every aeroplane, independent of the air. Now the forces
+      // go in first (v* = v + f dt/m), then the rigid-body field of v* is taken out, v_r(x) = v_cm + w x (x - x_cm)
+      // with w = I^-1 L about the CG (I the nodes' inertia tensor, L their angular momentum, this substep's), and
+      // only v* - v_r is damped. v_r is the mass-weighted least-squares rigid fit, so the damped remainder carries
+      // no momentum and no angular momentum: the damper takes energy out of the deformation and never P or L, and
+      // the forces' impulse goes in whole (the mean's damper scaled the net force by dp as well). The sums ride the
+      // loop that adds the forces; positions relative to node 0 (an aeroplane kilometres from the origin keeps
+      // its digits in the second moments). DEFDAMP's value is the deformation's, unchanged.
+      const ox = p[0], oy = p[1], oz = p[2];
+      let Px=0, Py=0, Pz=0, Rx=0, Ry=0, Rz=0, Lx=0, Ly=0, Lz=0, Sxx=0, Syy=0, Szz=0, Sxy=0, Sxz=0, Syz=0;
+      for (let i = 0; i < n; i++) {
+        const i3 = i*3, mi = m[i], im = dt/mi;
+        const vx = v[i3] += f[i3]*im, vy = v[i3+1] += f[i3+1]*im, vz = v[i3+2] += f[i3+2]*im;
+        const rx = p[i3] - ox, ry = p[i3+1] - oy, rz = p[i3+2] - oz;
+        const mx = mi*rx, my = mi*ry, mz = mi*rz;
+        Px += mi*vx; Py += mi*vy; Pz += mi*vz; Rx += mx; Ry += my; Rz += mz;
+        Lx += my*vz - mz*vy; Ly += mz*vx - mx*vz; Lz += mx*vy - my*vx;
+        Sxx += mx*rx; Syy += my*ry; Szz += mz*rz; Sxy += mx*ry; Sxz += mx*rz; Syz += my*rz;
+      }
+      if (dp < 1) {
+        const iM = 1 / totalM, ux = Px*iM, uy = Py*iM, uz = Pz*iM, cx = Rx*iM, cy = Ry*iM, cz = Rz*iM;
+        // about the CG: L - M c x v_cm, and the second moments by the parallel axis
+        Lx -= Ry*uz - Rz*uy; Ly -= Rz*ux - Rx*uz; Lz -= Rx*uy - Ry*ux;
+        Sxx -= Rx*cx; Syy -= Ry*cy; Szz -= Rz*cz; Sxy -= Rx*cy; Sxz -= Rx*cz; Syz -= Ry*cz;
+        const a = Syy + Szz, b = Sxx + Szz, c = Sxx + Syy;           // I = [[a,-Sxy,-Sxz],[-Sxy,b,-Syz],[-Sxz,-Syz,c]]
+        const k0 = b*c - Syz*Syz, k1 = Sxy*c + Syz*Sxz, k2 = Sxy*Syz + b*Sxz;
+        const det = a*k0 - Sxy*k1 - Sxz*k2;
+        let wx = 0, wy = 0, wz = 0;
+        if (det > 1e-12 * a * b * c) {
+          const id = 1 / det, k4 = a*c - Sxz*Sxz, k5 = a*Syz + Sxy*Sxz, k8 = a*b - Sxy*Sxy;
+          wx = (k0*Lx + k1*Ly + k2*Lz) * id;
+          wy = (k1*Lx + k4*Ly + k5*Lz) * id;
+          wz = (k2*Lx + k5*Ly + k8*Lz) * id;
+        }
+        const qx = ox + cx, qy = oy + cy, qz = oz + cz;
+        for (let i = 0; i < n; i++) {
+          const i3 = i*3, rx = p[i3] - qx, ry = p[i3+1] - qy, rz = p[i3+2] - qz;
+          const rgx = ux + wy*rz - wz*ry, rgy = uy + wz*rx - wx*rz, rgz = uz + wx*ry - wy*rx;
+          v[i3]   = rgx + (v[i3]   - rgx) * dp;
+          v[i3+1] = rgy + (v[i3+1] - rgy) * dp;
+          v[i3+2] = rgz + (v[i3+2] - rgz) * dp;
+          p[i3] += v[i3]*dt; p[i3+1] += v[i3+1]*dt; p[i3+2] += v[i3+2]*dt;
+        }
+      } else for (let i = 0; i < n; i++) { const i3 = i*3; p[i3] += v[i3]*dt; p[i3+1] += v[i3+1]*dt; p[i3+2] += v[i3+2]*dt; }
     }
     // G294 / G350: the tube holds its shape, and its twist; G1470: a cluster a member broke inside lets go, one a
     // member took a set inside holds its NEW shape (its rest re-taken here, after the substep that bent it)
