@@ -1303,6 +1303,10 @@ function make(THREE, scene, world, rec0, opts) {
   function moveTraffic(t, dt, eye) {
     const F = O.frame, off = Math.max(0.9, Math.min(1.6, t.w / 4)), b = t.box;
     const pose = !eye || !b || Math.hypot(Math.max(b[0] - eye.x, 0, eye.x - b[2]), Math.max(b[1] - eye.z, 0, eye.z - b[3])) <= t.reach;
+    // G1437 (METLA-TAXI): ...AND OUT OF THE FRAME'S WALKS. An unposed car still stood in the scene graph - its LOD ladder
+    // re-composed by updateMatrixWorld and its LOD updated by the render's projectObject every frame, for a car that
+    // draws nothing there (its last level is empty at the reach). Hidden and its matrices held until the eye comes back
+    if (pose !== t.shown) { t.shown = pose; for (const c of t.cars) { c.grp.visible = pose; c.grp.matrixWorldAutoUpdate = pose; } }
     for (const c of t.cars) {
       // the one ahead in my direction: slow to its speed inside two lengths, else my own
       let gap = Infinity, vAhead = c.v0;
