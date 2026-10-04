@@ -179,11 +179,515 @@
   "album": "Nature Spirit",
   "licence": "CC0",
   "source": "https://freemusicarchive.org/music/holiznacc0/nature-spirit/kodama/",
-  "station": "jazzblues",
+  "station": "jazz",
   "contexts": [
    "garage"
   ],
   "lufs": -18.7,
   "durationS": 150.7
+ },
+ {
+  "id": "fma278622",
+  "file": "media/audio/music/ketsa_as_above_so_below.89e379ac.mp3",
+  "title": "As Above So Below",
+  "artist": "Ketsa",
+  "album": null,
+  "licence": "CC-BY 4.0",
+  "source": "https://freemusicarchive.org/music/Ketsa/soul-sighs/as-above-so-below-1/",
+  "station": "jazz",
+  "contexts": [
+   "garage"
+  ],
+  "lufs": -16,
+  "durationS": 233.4
+ },
+ {
+  "id": "fma279012",
+  "file": "media/audio/music/ketsa_time_runs_like_the_thames.6ff984d7.mp3",
+  "title": "Time Runs Like The Thames",
+  "artist": "Ketsa",
+  "album": null,
+  "licence": "CC-BY 4.0",
+  "source": "https://freemusicarchive.org/music/Ketsa/vintage-modernity/time-runs-like-the-thames/",
+  "station": "jazz",
+  "contexts": [
+   "garage"
+  ],
+  "lufs": -16,
+  "durationS": 274
+ },
+ {
+  "id": "fmaia_shreveport_stomp",
+  "file": "media/audio/music/jelly_roll_morton_shreveport_stomp.e54398f1.mp3",
+  "title": "Shreveport Stomp",
+  "artist": "Jelly Roll Morton",
+  "album": "1924",
+  "licence": "Public domain",
+  "source": "https://archive.org/details/shreveport-stomp-jelly-roll-morton-1924",
+  "station": "jazz",
+  "contexts": [
+   "garage"
+  ],
+  "lufs": -21,
+  "durationS": 171
+ },
+ {
+  "id": "fmaia_wolverine_blues",
+  "file": "media/audio/music/benson_orchestra_of_chicago_jelly_roll_morton_wolverine_blues.1d938bf6.mp3",
+  "title": "Wolverine Blues",
+  "artist": "Benson Orchestra of Chicago (Jelly Roll Morton)",
+  "album": "1923, Library of Congress National Jukebox",
+  "licence": "Public domain",
+  "source": "https://archive.org/details/loc-jukebox-67806-wolverine-blues",
+  "station": "jazz",
+  "contexts": [
+   "garage"
+  ],
+  "lufs": -17.5,
+  "durationS": 184.8
+ },
+ {
+  "id": "fma278664",
+  "file": "media/audio/music/tommaso_croce_generic_sloppy_dub.9cc4f5ec.mp3",
+  "title": "Generic Sloppy Dub",
+  "artist": "Tommaso Croce",
+  "album": null,
+  "licence": "CC-BY 4.0",
+  "source": "https://freemusicarchive.org/music/Dilating_Times/backwards/generic-sloppy-dub/",
+  "station": "dubambient",
+  "contexts": [
+   "garage",
+   "cruise"
+  ],
+  "lufs": -17.4,
+  "durationS": 316.7
+ },
+ {
+  "id": "fma278757",
+  "file": "media/audio/music/1000_handz_greenery.6b82d1b4.mp3",
+  "title": "Greenery",
+  "artist": "1000 Handz",
+  "album": null,
+  "licence": "CC-BY 4.0",
+  "source": "https://freemusicarchive.org/music/1000-handz/cc-by-free-to-use-chillstudylounge-instrumentals/greenery/",
+  "station": "dubambient",
+  "contexts": [
+   "garage",
+   "cruise"
+  ],
+  "lufs": -16,
+  "durationS": 209.4
+ },
+ {
+  "id": "fma278845",
+  "file": "media/audio/music/guided_levitation_return_to_our_home.763873e2.mp3",
+  "title": "Return To Our Home",
+  "artist": "Guided Levitation",
+  "album": null,
+  "licence": "CC-BY 4.0",
+  "source": "https://freemusicarchive.org/music/guided-levitation/eternal/return-to-our-home/",
+  "station": "dubambient",
+  "contexts": [
+   "garage",
+   "cruise"
+  ],
+  "lufs": -16,
+  "durationS": 430.2
+ },
+ {
+  "id": "fma279307",
+  "file": "media/audio/music/matthew_c_wright_calming_royalty_free_piano_a_season_of_change.1228ba10.mp3",
+  "title": "Calming Royalty Free Piano - \"A Season of Change\"",
+  "artist": "Matthew C. Wright",
+  "album": null,
+  "licence": "CC-BY 4.0",
+  "source": "https://freemusicarchive.org/music/matthew-c-wright/slow-royalty-free-piano-away-for-autumn/calming-royalty-free-piano-a-season-of-change/",
+  "station": "classical",
+  "contexts": [
+   "garage",
+   "welcome"
+  ],
+  "lufs": -17.6,
+  "durationS": 151
+ },
+ {
+  "id": "fma279308",
+  "file": "media/audio/music/matthew_c_wright_gentle_royalty_free_piano_autumn_sunshine.cfc128af.mp3",
+  "title": "Gentle Royalty Free Piano - \"Autumn Sunshine\"",
+  "artist": "Matthew C. Wright",
+  "album": null,
+  "licence": "CC-BY 4.0",
+  "source": "https://freemusicarchive.org/music/matthew-c-wright/slow-royalty-free-piano-away-for-autumn/gentle-royalty-free-piano-autumn-sunshine/",
+  "station": "classical",
+  "contexts": [
+   "garage",
+   "welcome"
+  ],
+  "lufs": -18.7,
+  "durationS": 186.2
+ },
+ {
+  "id": "fma279304",
+  "file": "media/audio/music/matthew_c_wright_gentle_royalty_free_piano_rustling.3ea1a7a8.mp3",
+  "title": "Gentle Royalty Free Piano - \"Rustling\"",
+  "artist": "Matthew C. Wright",
+  "album": null,
+  "licence": "CC-BY 4.0",
+  "source": "https://freemusicarchive.org/music/matthew-c-wright/slow-royalty-free-piano-away-for-autumn/gentle-royalty-free-piano-rustling/",
+  "station": "classical",
+  "contexts": [
+   "garage",
+   "welcome"
+  ],
+  "lufs": -17,
+  "durationS": 161.1
+ },
+ {
+  "id": "fmaia_goldberg_10",
+  "file": "media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_9_canone_al.e45ed934.mp3",
+  "title": "Goldberg Variations, BWV 988: Variatio 9, Canone alla Terza",
+  "artist": "Kimiko Ishizaka (J. S. Bach)",
+  "album": "The Open Goldberg Variations",
+  "licence": "CC0",
+  "source": "https://archive.org/details/OpenGoldbergVariations",
+  "station": "classical",
+  "contexts": [
+   "garage",
+   "welcome"
+  ],
+  "lufs": -16.8,
+  "durationS": 126.2
+ },
+ {
+  "id": "fmaia_goldberg_14",
+  "file": "media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_13.e46289fd.mp3",
+  "title": "Goldberg Variations, BWV 988: Variatio 13",
+  "artist": "Kimiko Ishizaka (J. S. Bach)",
+  "album": "The Open Goldberg Variations",
+  "licence": "CC0",
+  "source": "https://archive.org/details/OpenGoldbergVariations",
+  "station": "classical",
+  "contexts": [
+   "garage",
+   "welcome"
+  ],
+  "lufs": -17.2,
+  "durationS": 254.5
+ },
+ {
+  "id": "fmaia_goldberg_16",
+  "file": "media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_15_canone_a.a901fceb.mp3",
+  "title": "Goldberg Variations, BWV 988: Variatio 15, Canone alla Quinta",
+  "artist": "Kimiko Ishizaka (J. S. Bach)",
+  "album": "The Open Goldberg Variations",
+  "licence": "CC0",
+  "source": "https://archive.org/details/OpenGoldbergVariations",
+  "station": "classical",
+  "contexts": [
+   "garage",
+   "welcome"
+  ],
+  "lufs": -19,
+  "durationS": 272.5
+ },
+ {
+  "id": "fmaia_goldberg_19",
+  "file": "media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_18_canone_a.04d16da3.mp3",
+  "title": "Goldberg Variations, BWV 988: Variatio 18, Canone alla Sexta",
+  "artist": "Kimiko Ishizaka (J. S. Bach)",
+  "album": "The Open Goldberg Variations",
+  "licence": "CC0",
+  "source": "https://archive.org/details/OpenGoldbergVariations",
+  "station": "classical",
+  "contexts": [
+   "garage",
+   "welcome"
+  ],
+  "lufs": -16.2,
+  "durationS": 109.3
+ },
+ {
+  "id": "fmaia_goldberg_20",
+  "file": "media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_19.024a83f6.mp3",
+  "title": "Goldberg Variations, BWV 988: Variatio 19",
+  "artist": "Kimiko Ishizaka (J. S. Bach)",
+  "album": "The Open Goldberg Variations",
+  "licence": "CC0",
+  "source": "https://archive.org/details/OpenGoldbergVariations",
+  "station": "classical",
+  "contexts": [
+   "garage",
+   "welcome"
+  ],
+  "lufs": -16.2,
+  "durationS": 85
+ },
+ {
+  "id": "fmaia_goldberg_22",
+  "file": "media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_21_canone_a.8bb8420a.mp3",
+  "title": "Goldberg Variations, BWV 988: Variatio 21, Canone alla Settima",
+  "artist": "Kimiko Ishizaka (J. S. Bach)",
+  "album": "The Open Goldberg Variations",
+  "licence": "CC0",
+  "source": "https://archive.org/details/OpenGoldbergVariations",
+  "station": "classical",
+  "contexts": [
+   "garage",
+   "welcome"
+  ],
+  "lufs": -19.5,
+  "durationS": 234.5
+ },
+ {
+  "id": "fmaia_goldberg_25",
+  "file": "media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_24_canone_a.38d27e77.mp3",
+  "title": "Goldberg Variations, BWV 988: Variatio 24, Canone all'Ottava",
+  "artist": "Kimiko Ishizaka (J. S. Bach)",
+  "album": "The Open Goldberg Variations",
+  "licence": "CC0",
+  "source": "https://archive.org/details/OpenGoldbergVariations",
+  "station": "classical",
+  "contexts": [
+   "garage",
+   "welcome"
+  ],
+  "lufs": -16.4,
+  "durationS": 165.5
+ },
+ {
+  "id": "fmaia_goldberg_27",
+  "file": "media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_26.cb2b4f50.mp3",
+  "title": "Goldberg Variations, BWV 988: Variatio 26",
+  "artist": "Kimiko Ishizaka (J. S. Bach)",
+  "album": "The Open Goldberg Variations",
+  "licence": "CC0",
+  "source": "https://archive.org/details/OpenGoldbergVariations",
+  "station": "classical",
+  "contexts": [
+   "garage",
+   "welcome"
+  ],
+  "lufs": -16,
+  "durationS": 122.8
+ },
+ {
+  "id": "fmaia_goldberg_30",
+  "file": "media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_30_quodlibe.adfe2090.mp3",
+  "title": "Goldberg Variations, BWV 988: Variatio 30, Quodlibet",
+  "artist": "Kimiko Ishizaka (J. S. Bach)",
+  "album": "The Open Goldberg Variations",
+  "licence": "CC0",
+  "source": "https://archive.org/details/OpenGoldbergVariations",
+  "station": "classical",
+  "contexts": [
+   "garage",
+   "welcome"
+  ],
+  "lufs": -16,
+  "durationS": 121.2
+ },
+ {
+  "id": "fmaia_goldberg_31",
+  "file": "media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_aria_da_capo.b65c85c5.mp3",
+  "title": "Goldberg Variations, BWV 988: Aria da capo",
+  "artist": "Kimiko Ishizaka (J. S. Bach)",
+  "album": "The Open Goldberg Variations",
+  "licence": "CC0",
+  "source": "https://archive.org/details/OpenGoldbergVariations",
+  "station": "classical",
+  "contexts": [
+   "garage",
+   "welcome"
+  ],
+  "lufs": -17.2,
+  "durationS": 170.1
+ },
+ {
+  "id": "fmaia_goldberg_01",
+  "file": "media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_aria.8a525c07.mp3",
+  "title": "Goldberg Variations, BWV 988: Aria",
+  "artist": "Kimiko Ishizaka (J. S. Bach)",
+  "album": "The Open Goldberg Variations",
+  "licence": "CC0",
+  "source": "https://archive.org/details/OpenGoldbergVariations",
+  "station": "classical",
+  "contexts": [
+   "garage",
+   "welcome"
+  ],
+  "lufs": -19.6,
+  "durationS": 299.5
+ },
+ {
+  "id": "fmaia_goldberg_04",
+  "file": "media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_3_canone_al.c316d469.mp3",
+  "title": "Goldberg Variations, BWV 988: Variatio 3, Canone all'Unisuono",
+  "artist": "Kimiko Ishizaka (J. S. Bach)",
+  "album": "The Open Goldberg Variations",
+  "licence": "CC0",
+  "source": "https://archive.org/details/OpenGoldbergVariations",
+  "station": "classical",
+  "contexts": [
+   "garage",
+   "welcome"
+  ],
+  "lufs": -17.9,
+  "durationS": 116.8
+ },
+ {
+  "id": "fma278391",
+  "file": "media/audio/music/matthew_c_wright_peaceful_royalty_free_guitar_i_m_callin_late.73576f4b.mp3",
+  "title": "Peaceful Royalty Free Guitar - \"I'm Callin' Late\"",
+  "artist": "Matthew C. Wright",
+  "album": null,
+  "licence": "CC-BY 4.0",
+  "source": "https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/peaceful-royalty-free-guitar-im-callin-late/",
+  "station": "roots",
+  "contexts": [
+   "garage",
+   "cruise"
+  ],
+  "lufs": -19.2,
+  "durationS": 138.8
+ },
+ {
+  "id": "fma279039",
+  "file": "media/audio/music/mr_smith_ranchero.03b7fda8.mp3",
+  "title": "Ranchero",
+  "artist": "Mr Smith",
+  "album": null,
+  "licence": "CC-BY 4.0",
+  "source": "https://freemusicarchive.org/music/mr-smith/synchromatic/ranchero/",
+  "station": "roots",
+  "contexts": [
+   "garage",
+   "cruise"
+  ],
+  "lufs": -16.5,
+  "durationS": 114.2
+ },
+ {
+  "id": "fma278388",
+  "file": "media/audio/music/matthew_c_wright_calming_royalty_free_guitar_a_cloudy_life.5400048e.mp3",
+  "title": "Calming Royalty Free Guitar - \"A Cloudy Life\"",
+  "artist": "Matthew C. Wright",
+  "album": null,
+  "licence": "CC-BY 4.0",
+  "source": "https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/calming-royalty-free-guitar-a-cloudy-life/",
+  "station": "roots",
+  "contexts": [
+   "garage"
+  ],
+  "lufs": -19,
+  "durationS": 170.8
+ },
+ {
+  "id": "fma237449",
+  "file": "media/audio/music/mr_smith_ships.d2277b62.mp3",
+  "title": "Ships",
+  "artist": "Mr Smith",
+  "album": null,
+  "licence": "CC-BY 4.0",
+  "source": "https://freemusicarchive.org/music/mr-smith/a-new-roar/ships/",
+  "station": "roots",
+  "contexts": [
+   "garage",
+   "cruise"
+  ],
+  "lufs": -16.6,
+  "durationS": 82.1
+ },
+ {
+  "id": "fma248055",
+  "file": "media/audio/music/mr_smith_quidi_vidi.94325e9a.mp3",
+  "title": "Quidi Vidi",
+  "artist": "Mr Smith",
+  "album": null,
+  "licence": "CC-BY 4.0",
+  "source": "https://freemusicarchive.org/music/mr-smith/kerplunk/quidi-vidi/",
+  "station": "roots",
+  "contexts": [
+   "garage",
+   "cruise"
+  ],
+  "lufs": -16,
+  "durationS": 66.9
+ },
+ {
+  "id": "fma248226",
+  "file": "media/audio/music/mr_smith_in_the_mist.4ca7d4da.mp3",
+  "title": "In the Mist",
+  "artist": "Mr Smith",
+  "album": null,
+  "licence": "CC-BY 4.0",
+  "source": "https://freemusicarchive.org/music/mr-smith/kerplunk/in-the-mist/",
+  "station": "roots",
+  "contexts": [
+   "garage",
+   "cruise"
+  ],
+  "lufs": -16,
+  "durationS": 54.7
+ },
+ {
+  "id": "fma256748",
+  "file": "media/audio/music/maarten_schellekens_whispers_of_the_glen.a0af8efe.mp3",
+  "title": "Whispers of the Glen",
+  "artist": "Maarten Schellekens",
+  "album": null,
+  "licence": "CC0",
+  "source": "https://freemusicarchive.org/music/maarten-schellekens/public-domain-1/whispers-of-the-glen/",
+  "station": "roots",
+  "contexts": [
+   "garage",
+   "cruise"
+  ],
+  "lufs": -16,
+  "durationS": 161.6
+ },
+ {
+  "id": "fma273704p1",
+  "file": "media/audio/music/daniel_william_lawrence_ghostman_blues_full_album_part_1.cc7cdbdd.mp3",
+  "title": "Ghostman Blues - Full Album — part 1",
+  "artist": "Daniel William Lawrence",
+  "album": "Ghostman Blues - Full Album (Traditional, Instrumental Blues)",
+  "licence": "CC0",
+  "source": "https://freemusicarchive.org/music/daniel-william-lawrence/ghostman-blues-full-album-traditional-instrumental-blues/ghostman-blues-full-album-traditional-instrumental-blues-album/",
+  "station": "blues",
+  "contexts": [
+   "garage"
+  ],
+  "lufs": -16,
+  "durationS": 161
+ },
+ {
+  "id": "fma273704p3",
+  "file": "media/audio/music/daniel_william_lawrence_ghostman_blues_full_album_part_3.0ee810e4.mp3",
+  "title": "Ghostman Blues - Full Album — part 3",
+  "artist": "Daniel William Lawrence",
+  "album": "Ghostman Blues - Full Album (Traditional, Instrumental Blues)",
+  "licence": "CC0",
+  "source": "https://freemusicarchive.org/music/daniel-william-lawrence/ghostman-blues-full-album-traditional-instrumental-blues/ghostman-blues-full-album-traditional-instrumental-blues-album/",
+  "station": "blues",
+  "contexts": [
+   "garage"
+  ],
+  "lufs": -16.1,
+  "durationS": 178.9
+ },
+ {
+  "id": "fma271999p2",
+  "file": "media/audio/music/daniel_william_lawrence_a_land_of_corn_and_wine_part_2.1a3e2a6e.mp3",
+  "title": "A Land of Corn and Wine — part 2",
+  "artist": "Daniel William Lawrence",
+  "album": "A Land of Corn and Wine",
+  "licence": "CC0",
+  "source": "https://freemusicarchive.org/music/daniel-william-lawrence/a-land-of-corn-and-wine/a-land-of-corn-and-wine-traditional-instrumental-blues-full-album/",
+  "station": "blues",
+  "contexts": [
+   "garage"
+  ],
+  "lufs": -16,
+  "durationS": 355.7
  }
 ]

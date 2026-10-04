@@ -25,6 +25,11 @@ const BOARDS = {
     intro: 'Five public-domain candidates: classic jazz from 1923-24 (US public domain, over 70 years old in Europe, so the old shellac crackle comes with it) and two pieces of Kimiko Ishizaka’s CC0 Open Goldberg Variations for the classical station. The two Ketsa jazz tracks are already in.',
     contexts: ['Jazz', 'Classical', 'Radio Jolene (heritage hour)'], labels: ['Keep', 'Maybe', 'No'],
   },
+  gtjazz: {
+    title: 'flyDiy Lounge Jazz',
+    intro: 'Modern, calm jazz for the Jazz station, closer to a racing game’s menu music than to the 1920s: five CC-BY candidates (credited). The two Ketsa tracks you approved are already in. One prolific catalogue of smooth-jazz tracks was left out because it looks machine-generated.',
+    contexts: ['Jazz', 'Lo-fi / Hip-hop', 'Dub / Ambient'], labels: ['Keep', 'Maybe', 'No'],
+  },
   engine: {
     title: 'flyDiy Engine Lab',
     intro: "The procedural engines as they sound today, rendered offline from the exact code the game runs (no propeller yet: that comes next). Judge each render and say what's off. Your notes go to the tuning session.",

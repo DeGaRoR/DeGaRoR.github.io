@@ -116,6 +116,307 @@
    ],
    "verdict": "keep",
    "note": "user: jazz section"
+  },
+  {
+   "id": 278622,
+   "station": "jazz",
+   "contexts": [
+    "garage"
+   ],
+   "verdict": "maybe",
+   "note": "Ketsa - the user: go with the 2 Ketsa"
+  },
+  {
+   "id": 279012,
+   "station": "jazz",
+   "contexts": [
+    "garage"
+   ],
+   "verdict": "maybe",
+   "note": "Ketsa - the user: go with the 2 Ketsa"
+  },
+  {
+   "id": "ia_shreveport_stomp",
+   "station": "jazz",
+   "contexts": [
+    "garage"
+   ],
+   "verdict": "keep"
+  },
+  {
+   "id": "ia_wolverine_blues",
+   "station": "jazz",
+   "contexts": [
+    "garage"
+   ],
+   "verdict": "maybe"
+  },
+  {
+   "id": 278664,
+   "station": "dubambient",
+   "contexts": [
+    "garage",
+    "cruise"
+   ],
+   "verdict": "keep"
+  },
+  {
+   "id": 278757,
+   "station": "dubambient",
+   "contexts": [
+    "garage",
+    "cruise"
+   ],
+   "verdict": "keep"
+  },
+  {
+   "id": 278845,
+   "station": "dubambient",
+   "contexts": [
+    "garage",
+    "cruise"
+   ],
+   "verdict": "keep"
+  },
+  {
+   "id": 279307,
+   "station": "classical",
+   "contexts": [
+    "garage",
+    "welcome"
+   ],
+   "verdict": "keep"
+  },
+  {
+   "id": 279308,
+   "station": "classical",
+   "contexts": [
+    "garage",
+    "welcome"
+   ],
+   "verdict": "keep"
+  },
+  {
+   "id": 279304,
+   "station": "classical",
+   "contexts": [
+    "garage",
+    "welcome"
+   ],
+   "verdict": "keep"
+  },
+  {
+   "id": "ia_goldberg_10",
+   "station": "classical",
+   "contexts": [
+    "garage",
+    "welcome"
+   ],
+   "verdict": "keep",
+   "note": "the user: all Goldberg variations are OK for the classical station"
+  },
+  {
+   "id": "ia_goldberg_14",
+   "station": "classical",
+   "contexts": [
+    "garage",
+    "welcome"
+   ],
+   "verdict": "keep",
+   "note": "the user: all Goldberg variations are OK for the classical station"
+  },
+  {
+   "id": "ia_goldberg_16",
+   "station": "classical",
+   "contexts": [
+    "garage",
+    "welcome"
+   ],
+   "verdict": "keep",
+   "note": "the user: all Goldberg variations are OK for the classical station"
+  },
+  {
+   "id": "ia_goldberg_19",
+   "station": "classical",
+   "contexts": [
+    "garage",
+    "welcome"
+   ],
+   "verdict": "keep",
+   "note": "the user: all Goldberg variations are OK for the classical station"
+  },
+  {
+   "id": "ia_goldberg_20",
+   "station": "classical",
+   "contexts": [
+    "garage",
+    "welcome"
+   ],
+   "verdict": "keep",
+   "note": "the user: all Goldberg variations are OK for the classical station"
+  },
+  {
+   "id": "ia_goldberg_22",
+   "station": "classical",
+   "contexts": [
+    "garage",
+    "welcome"
+   ],
+   "verdict": "keep",
+   "note": "the user: all Goldberg variations are OK for the classical station"
+  },
+  {
+   "id": "ia_goldberg_25",
+   "station": "classical",
+   "contexts": [
+    "garage",
+    "welcome"
+   ],
+   "verdict": "keep",
+   "note": "the user: all Goldberg variations are OK for the classical station"
+  },
+  {
+   "id": "ia_goldberg_27",
+   "station": "classical",
+   "contexts": [
+    "garage",
+    "welcome"
+   ],
+   "verdict": "keep",
+   "note": "the user: all Goldberg variations are OK for the classical station"
+  },
+  {
+   "id": "ia_goldberg_30",
+   "station": "classical",
+   "contexts": [
+    "garage",
+    "welcome"
+   ],
+   "verdict": "keep",
+   "note": "the user: all Goldberg variations are OK for the classical station"
+  },
+  {
+   "id": "ia_goldberg_31",
+   "station": "classical",
+   "contexts": [
+    "garage",
+    "welcome"
+   ],
+   "verdict": "keep",
+   "note": "the user: all Goldberg variations are OK for the classical station"
+  },
+  {
+   "id": "ia_goldberg_01",
+   "station": "classical",
+   "contexts": [
+    "garage",
+    "welcome"
+   ],
+   "verdict": "keep",
+   "note": "the user: all Goldberg variations are OK for the classical station"
+  },
+  {
+   "id": "ia_goldberg_04",
+   "station": "classical",
+   "contexts": [
+    "garage",
+    "welcome"
+   ],
+   "verdict": "keep",
+   "note": "the user: all Goldberg variations are OK for the classical station"
+  },
+  {
+   "id": 278391,
+   "station": "roots",
+   "contexts": [
+    "garage",
+    "cruise"
+   ],
+   "verdict": "keep"
+  },
+  {
+   "id": 279039,
+   "station": "roots",
+   "contexts": [
+    "garage",
+    "cruise"
+   ],
+   "verdict": "keep"
+  },
+  {
+   "id": 278388,
+   "station": "roots",
+   "contexts": [
+    "garage"
+   ],
+   "verdict": "maybe"
+  },
+  {
+   "id": 237449,
+   "station": "roots",
+   "contexts": [
+    "garage",
+    "cruise"
+   ],
+   "verdict": "keep",
+   "note": "radio bench: music good"
+  },
+  {
+   "id": 248055,
+   "station": "roots",
+   "contexts": [
+    "garage",
+    "cruise"
+   ],
+   "verdict": "keep",
+   "note": "radio bench: music good"
+  },
+  {
+   "id": 248226,
+   "station": "roots",
+   "contexts": [
+    "garage",
+    "cruise"
+   ],
+   "verdict": "keep",
+   "note": "radio bench: music good"
+  },
+  {
+   "id": 256748,
+   "station": "roots",
+   "contexts": [
+    "garage",
+    "cruise"
+   ],
+   "verdict": "keep",
+   "note": "radio bench: music good"
+  },
+  {
+   "id": "273704p1",
+   "station": "blues",
+   "contexts": [
+    "garage"
+   ],
+   "verdict": "keep",
+   "note": "radio bench: music good"
+  },
+  {
+   "id": "273704p3",
+   "station": "blues",
+   "contexts": [
+    "garage"
+   ],
+   "verdict": "keep",
+   "note": "radio bench: music good"
+  },
+  {
+   "id": "271999p2",
+   "station": "blues",
+   "contexts": [
+    "garage"
+   ],
+   "verdict": "keep",
+   "note": "radio bench: music good"
   }
  ],
  "stationsRule": "the user, 2026-10-04: six stations - Jazz, Lo-fi/Hip-hop, Dub/Ambient, Local roots radio, Blues, Classical; all calm; PURE INSTRUMENTAL (no lyrics)"
