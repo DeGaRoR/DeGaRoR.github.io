@@ -656,5 +656,245 @@
   ],
   "lufs": -16,
   "durationS": 211.7
+ },
+ {
+  "id": "fma233918",
+  "file": "media/audio/music/mr_smith_the_newfie.010088ef.mp3",
+  "title": "The Newfie",
+  "artist": "Mr Smith",
+  "album": null,
+  "licence": "CC-BY 4.0",
+  "source": "https://freemusicarchive.org/music/mr-smith/a-new-roar/the-newfie/",
+  "station": "roots",
+  "contexts": [
+   "garage",
+   "cruise"
+  ],
+  "lufs": -16,
+  "durationS": 87.3
+ },
+ {
+  "id": "fma237242",
+  "file": "media/audio/music/mr_smith_da_rock.f15eeafe.mp3",
+  "title": "Da Rock",
+  "artist": "Mr Smith",
+  "album": null,
+  "licence": "CC-BY 4.0",
+  "source": "https://freemusicarchive.org/music/mr-smith/a-new-roar/da-rock/",
+  "station": "roots",
+  "contexts": [
+   "garage",
+   "cruise"
+  ],
+  "lufs": -16,
+  "durationS": 119
+ },
+ {
+  "id": "fma237915",
+  "file": "media/audio/music/mr_smith_nfld.ba344a97.mp3",
+  "title": "NFLD",
+  "artist": "Mr Smith",
+  "album": null,
+  "licence": "CC-BY 4.0",
+  "source": "https://freemusicarchive.org/music/mr-smith/a-new-roar/nfld/",
+  "station": "roots",
+  "contexts": [
+   "garage",
+   "cruise"
+  ],
+  "lufs": -16,
+  "durationS": 105.5
+ },
+ {
+  "id": "fma246044",
+  "file": "media/audio/music/mr_smith_the_newfie_pt_2.6d0e2be2.mp3",
+  "title": "The Newfie Pt 2",
+  "artist": "Mr Smith",
+  "album": null,
+  "licence": "CC-BY 4.0",
+  "source": "https://freemusicarchive.org/music/mr-smith/kerplunk/the-newfie-pt-2/",
+  "station": "roots",
+  "contexts": [
+   "garage",
+   "cruise"
+  ],
+  "lufs": -16,
+  "durationS": 85.4
+ },
+ {
+  "id": "fma250186",
+  "file": "media/audio/music/mr_smith_sun_glitter.0a050709.mp3",
+  "title": "Sun Glitter",
+  "artist": "Mr Smith",
+  "album": null,
+  "licence": "CC-BY 4.0",
+  "source": "https://freemusicarchive.org/music/mr-smith/kerplunk/sun-glitter/",
+  "station": "roots",
+  "contexts": [
+   "garage",
+   "cruise"
+  ],
+  "lufs": -16,
+  "durationS": 66.5
+ },
+ {
+  "id": "fma252236",
+  "file": "media/audio/music/mr_smith_birchy_nap.e91e17e6.mp3",
+  "title": "Birchy Nap",
+  "artist": "Mr Smith",
+  "album": null,
+  "licence": "CC-BY 4.0",
+  "source": "https://freemusicarchive.org/music/mr-smith/kerplunk/birchy-nap/",
+  "station": "roots",
+  "contexts": [
+   "garage",
+   "cruise"
+  ],
+  "lufs": -16,
+  "durationS": 55.2
+ },
+ {
+  "id": "fma278389",
+  "file": "media/audio/music/matthew_c_wright_quiet_royalty_free_guitar_brown_hair_and_chacos.53071383.mp3",
+  "title": "Quiet Royalty Free Guitar - \"Brown Hair and Chacos\"",
+  "artist": "Matthew C. Wright",
+  "album": null,
+  "licence": "CC-BY 4.0",
+  "source": "https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/quiet-royalty-free-guitar-brown-hair-and-chacos/",
+  "station": "roots",
+  "contexts": [
+   "garage",
+   "cruise"
+  ],
+  "lufs": -18.5,
+  "durationS": 151
+ },
+ {
+  "id": "fma278390",
+  "file": "media/audio/music/matthew_c_wright_slow_royalty_free_guitar_how_about_forever.19ea0bdb.mp3",
+  "title": "Slow Royalty Free Guitar - \"How About Forever\"",
+  "artist": "Matthew C. Wright",
+  "album": null,
+  "licence": "CC-BY 4.0",
+  "source": "https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/slow-royalty-free-guitar-how-about-forever/",
+  "station": "roots",
+  "contexts": [
+   "garage",
+   "cruise"
+  ],
+  "lufs": -20.4,
+  "durationS": 189.2
+ },
+ {
+  "id": "fma278392",
+  "file": "media/audio/music/matthew_c_wright_relaxing_royalty_free_guitar_just_a_flight_away.b39b38a7.mp3",
+  "title": "Relaxing Royalty Free Guitar - \"Just a Flight Away\"",
+  "artist": "Matthew C. Wright",
+  "album": null,
+  "licence": "CC-BY 4.0",
+  "source": "https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/relaxing-royalty-free-guitar-just-a-flight-away/",
+  "station": "roots",
+  "contexts": [
+   "garage",
+   "cruise"
+  ],
+  "lufs": -17.9,
+  "durationS": 124.3
+ },
+ {
+  "id": "fma278394",
+  "file": "media/audio/music/matthew_c_wright_peaceful_royalty_free_guitar_montana.ac8ceebf.mp3",
+  "title": "Peaceful Royalty Free Guitar - \"Montana\"",
+  "artist": "Matthew C. Wright",
+  "album": null,
+  "licence": "CC-BY 4.0",
+  "source": "https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/peaceful-royalty-free-guitar-montana/",
+  "station": "roots",
+  "contexts": [
+   "garage",
+   "cruise"
+  ],
+  "lufs": -18.9,
+  "durationS": 156
+ },
+ {
+  "id": "fma278395",
+  "file": "media/audio/music/matthew_c_wright_soothing_royalty_free_guitar_old_steel.a75dce3f.mp3",
+  "title": "Soothing Royalty Free Guitar - \"Old Steel\"",
+  "artist": "Matthew C. Wright",
+  "album": null,
+  "licence": "CC-BY 4.0",
+  "source": "https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/soothing-royalty-free-guitar-old-steel/",
+  "station": "roots",
+  "contexts": [
+   "garage",
+   "cruise"
+  ],
+  "lufs": -20.6,
+  "durationS": 131.9
+ },
+ {
+  "id": "fma278396",
+  "file": "media/audio/music/matthew_c_wright_relaxing_royalty_free_guitar_so_proud_of_you.dd50ab59.mp3",
+  "title": "Relaxing Royalty Free Guitar - \"So Proud of You\"",
+  "artist": "Matthew C. Wright",
+  "album": null,
+  "licence": "CC-BY 4.0",
+  "source": "https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/relaxing-royalty-free-guitar-so-proud-of-you/",
+  "station": "roots",
+  "contexts": [
+   "garage",
+   "cruise"
+  ],
+  "lufs": -19.5,
+  "durationS": 205.4
+ },
+ {
+  "id": "fma278397",
+  "file": "media/audio/music/matthew_c_wright_quiet_royalty_free_guitar_this_here_house.560c1a4a.mp3",
+  "title": "Quiet Royalty Free Guitar - \"This Here House\"",
+  "artist": "Matthew C. Wright",
+  "album": null,
+  "licence": "CC-BY 4.0",
+  "source": "https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/quiet-royalty-free-guitar-this-here-house/",
+  "station": "roots",
+  "contexts": [
+   "garage",
+   "cruise"
+  ],
+  "lufs": -22,
+  "durationS": 157
+ },
+ {
+  "id": "fma278398",
+  "file": "media/audio/music/matthew_c_wright_calming_royalty_free_guitar_time_to_let_go.c14ebc99.mp3",
+  "title": "Calming Royalty Free Guitar - \"Time to Let Go\"",
+  "artist": "Matthew C. Wright",
+  "album": null,
+  "licence": "CC-BY 4.0",
+  "source": "https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/calming-royalty-free-guitar-time-to-let-go/",
+  "station": "roots",
+  "contexts": [
+   "garage",
+   "cruise"
+  ],
+  "lufs": -20.4,
+  "durationS": 178.8
+ },
+ {
+  "id": "fma278399",
+  "file": "media/audio/music/matthew_c_wright_simple_royalty_free_guitar_village_on_the_lake.b92784aa.mp3",
+  "title": "Simple Royalty Free Guitar - \"Village on the Lake\"",
+  "artist": "Matthew C. Wright",
+  "album": null,
+  "licence": "CC-BY 4.0",
+  "source": "https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/simple-royalty-free-guitar-village-on-the-lake/",
+  "station": "roots",
+  "contexts": [
+   "garage",
+   "cruise"
+  ],
+  "lufs": -18.9,
+  "durationS": 130.3
  }
 ]
