@@ -571,7 +571,7 @@ function makeWorld(seed, opts) {
   // read composed the uncooked town cells on the raw ground and skipped the bed (GATE LAKEBED: a ring over a lake there)
   function lakeCarve(x, z, h0, h, compose) {
     if (LAKE_BED) {
-      const b = LAKE_BED(x, z);
+      const b = LAKE_BED(x, z, h0);   // (SHORES G1500: the raw ground - the bank's cap: no deeper than LAKE-HOLES' bank + `cap`)
       if (b < h) {
         if (!PM || h === h0) h = b;
         else {

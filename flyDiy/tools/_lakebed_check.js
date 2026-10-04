@@ -23,6 +23,9 @@
 //      under the drawn water 2 m in, and the physics agrees (waterH over terrainH there: the floats
 //      ride what is drawn).
 //
+//   4. THE BANK SHELVES (SHORES G1500): never cut more than LAKE_BED.cap under LAKE-HOLES' bank, continuous over the
+//      bank's reach, and 2-4 m out of the line the ground within 1.5 m of the water (the shelf) where the DEM stood over it.
+//
 //   node tools/_lakebed_check.js   -> "GATE LAKEBED: PASS|FAIL", exit 1 on FAIL
 'use strict';
 const fs = require('fs');
@@ -45,7 +48,7 @@ console.log('GATE LAKEBED');
       '1 the hook\'s only discards are the fine disc\'s (the near ring inside it, a fine tile outside it)', disc + ' discard(s)');
   }
   ok(!/OuterDry|outer-dry|\|dry/.test(RW), '1 the far terrain is one material (the lake-free twin and its quadrant split are gone)');
-  ok(RW.includes('const seaFloor = world.island.seaFloor, lakeBed = world.island.lakeBed,') && RW.includes('if (lakeBed) { const b = lakeBed(x, z); if (b < y) y = b; }'),
+  ok(RW.includes('const seaFloor = world.island.seaFloor, lakeBed = world.island.lakeBed,') && RW.includes('if (lakeBed) { const b = lakeBed(x, z, y); if (b < y) y = b; }'),
     '1 the far terrain\'s patches take the carved bed (the asset is the raw DEM)');
   // (train 28: METLA-LOAD's ring reads the build read gB = world.terrainHBuild || world.terrainH - accepted only while the
   // build read carves the bed too, 20_world.js lakeCarve on both paths)
@@ -142,6 +145,47 @@ if (W && blkR && blkS && blkY) {
   ok(steps === 0, '3 the ground is continuous across every line (no jump over the raw DEM\'s own + 0.5 m on a 0.1 m walk)', steps + ' steps; worst +' + worstStep.toFixed(2) + ' m' + (worstAt ? ' at ' + worstAt : ''));
   ok(wetFail === 0, '3 two metres in, the ground is under the drawn water', wetFail + ' dry');
   ok(physFail === 0, '3 ...and the physics has water there (the floats ride what is drawn)', physFail + ' without');
+
+  // ---- 4. the bank shelves (SHORES G1500) ----------------------------------------------------------------------
+  // the bank is a profile (LAKE_BED.prof: a lip, a shelf at the waterline, a 37 deg face) capped at `cap` metres under
+  // LAKE-HOLES' bank (s + s^2/16) - never deeper, fading to it at the reach - and continuous over the reach
+  if (typeof LB.rise === 'function' && typeof LB.riseOld === 'function' && LB.cap > 0) {
+    const LF = I.lake;
+    const lakeAt = (x, z) => { const u = (x - G.x0) / G.cell - 0.5, v = (z - G.z0) / G.cell - 0.5; const i = Math.max(0, Math.min(G.w - 2, Math.floor(u))), j = Math.max(0, Math.min(G.h - 2, Math.floor(v)));
+      const fu = Math.max(0, Math.min(1, u - i)), fv = Math.max(0, Math.min(1, v - j)), p = j * G.w + i;
+      return (((LF[p] * (1 - fu) + LF[p + 1] * fu) * (1 - fv) + (LF[p + G.w] * (1 - fu) + LF[p + G.w + 1] * fu) * fv) - 128) * 4; };
+    let bank = 0, over = 0, worstOver = 0, reachSteps = 0, worstReach = 0, shelf = 0, shelfOk = 0;
+    for (let j = 1; j < G.h - 1; j++) for (let i = 1; i < G.w - 1; i++) {
+      const c = LF[j * G.w + i]; if (c >= 128 || c < 128 - Math.ceil(LB.bank / 4) - 3) continue;
+      const x = G.x0 + (i + 0.5) * G.cell, z = G.z0 + (j + 0.5) * G.cell, sd = lakeAt(x, z);
+      if (sd >= 0) continue;
+      const r = B.terrainH(x, z), gentle = I.lakeBed(x, z);
+      if (sd > -LB.bank && gentle < Infinity) {
+        bank++;
+        const b0 = gentle - LB.rise(-sd), old = Math.min(r, b0 + LB.riseOld(-sd)), h = W.terrainH(x, z);
+        if (Math.abs(rawH(x, z) - r) < 1e-9) { const d = old - h - LB.cap; if (d > 0.01) { over++; if (d > worstOver) worstOver = d; } }
+        // the shelf: 2-4 m out, where the DEM stood a metre or more over it, the ground is within 1.5 m of the water
+        for (const [ox, oz] of [[-2.5, -2.5], [2.5, -2.5], [-2.5, 2.5], [2.5, 2.5]]) {   // (quarter points: a centre's field is a multiple of 4 m)
+          const qx = x + ox, qz = z + oz, qs = lakeAt(qx, qz), qg = I.lakeBed(qx, qz);
+          if (!(-qs > 2 && -qs < 4) || !(qg < Infinity) || Math.abs(rawH(qx, qz) - B.terrainH(qx, qz)) > 1e-9) continue;
+          const q0 = qg - LB.rise(-qs) + LB.edge;   // the water's level there
+          if (B.terrainH(qx, qz) > q0 + 1.5) { shelf++; if (W.terrainH(qx, qz) - q0 < 1.5) shelfOk++; }
+        }
+      }
+      // over the reach: a 0.25 m walk out of the lake, the carved ground's change beyond the raw's own
+      if (sd < -LB.bank + 3 && sd > -LB.bank - 3) {
+        const e = 1.5, gx = lakeAt(x + e, z) - lakeAt(x - e, z), gz = lakeAt(x, z + e) - lakeAt(x, z - e), gl = Math.hypot(gx, gz); if (gl < 1e-6) continue;
+        const nx = -gx / gl, nz = -gz / gl; let pc = null, pr = null;
+        for (let t = -3; t <= 3; t += 0.25) { const qx = x + nx * t, qz = z + nz * t, hc = W.terrainH(qx, qz), hr = rawH(qx, qz);
+          if (pc !== null) { const st = Math.abs(hc - pc) - Math.abs(hr - pr); if (st > worstReach) worstReach = st; if (st > 0.5) reachSteps++; }
+          pc = hc; pr = hr; }
+      }
+    }
+    console.log('  (the bank: ' + bank + ' texels within ' + LB.bank + ' m out of a lake line; the shelf 2-4 m out under a bank: ' + shelfOk + ' of ' + shelf + ' within 1.5 m of the water)');
+    ok(over === 0, '4 the bank never cuts more than `cap` (' + LB.cap + ' m) under the LAKE-HOLES bank (s + s^2/16)', over + ' over' + (over ? ', worst ' + worstOver.toFixed(2) + ' m' : ''));
+    ok(reachSteps === 0, '4 the ground is continuous over the bank reach (no jump over the raw DEM own + 0.5 m on a 0.25 m walk)', reachSteps + ' steps; worst +' + worstReach.toFixed(2) + ' m');
+    ok(shelf > 100 && shelfOk / shelf > 0.9, '4 the bank shelves into the water (2-4 m out, under a bank a metre and a half over the water: the ground within 1.5 m of it)', shelfOk + ' of ' + shelf);
+  } else ok(false, '4 the bank law carries its profile, the LAKE-HOLES reference and the cap (28_island LAKE_BED.rise / riseOld / cap)');
   }
 }
 console.log('GATE LAKEBED: ' + (fails ? 'FAIL (' + fails + ')' : 'PASS'));

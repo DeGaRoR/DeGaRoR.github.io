@@ -98,6 +98,7 @@ const SPLAT_GROUND = (() => {
   float gSPixM = 1.0;      // the fragment's footprint on the ground, metres a pixel (sSplat, in uniform flow)
   float gSSlope = 0.0;     // the ground's slope in degrees at this fragment (sSplat, before the candidates): a puddle needs a level place
   uniform vec2 uSSeam, uSNrm, uSLakeE;
+  uniform vec4 uSBank;   // SHORES G1500: the carved bank - x its reach (m), y/z the slope (deg) its rock takes over between, w the wet band (m)
   uniform float uSBeachRot;
   uniform int uSNCode, uSNCand;
   vec3 gSN; float gSRough; float gSHexRot;
@@ -362,6 +363,17 @@ const SPLAT_GROUND = (() => {
     w[12] = w[6] * sCliff; w[6] *= 1.0 - sCliff;
     w[13] = w[8] * sOld;   w[8] *= 1.0 - sOld;
     w[14] = w[7] * sDense; w[7] *= 1.0 - sDense;
+    // THE CARVED BANK IS ROCK WHERE IT IS STEEP (SHORES G1500, the user 2026-10-04: the lake banks "read as steep, stretched
+    // slopes"). LAKE-HOLES carves the bed and its bank into the DEM (28_island lakeBed): within the bank's reach of a lake's
+    // line a face the carve made steep wore the hill's own grass or forest floor, and the macro's 10 m imagery (the tint, the
+    // radar) was laid on it from above - stretched down the face. There, past the slope's lo..hi, every code that is not
+    // already mineral hands its weight to the cliff's rock (12, the island's own steep face); the macro gives way on it below
+    // (a texture from above has nothing to say about a face). A bank the carve left gentle keeps its ground.
+    float gSBank = 0.0;
+    if (uSBank.x > 0.0 && lsd < 1.0 && lsd > -uSBank.x) {
+      gSBank = (1.0 - smoothstep(0.6 * uSBank.x, uSBank.x, -lsd)) * smoothstep(uSBank.y, uSBank.z, slope);
+      for (int i = 2; i < uSNCode; i++) if (i != 4 && i != 5 && i != 6 && i != 11 && i != 12) { w[12] += w[i] * gSBank; w[i] *= 1.0 - gSBank; }
+    }
     vec2 e = vec2(1.0 / uGGrid.z, 1.0 / uGGrid.w) * 1.5;
     vec2 gr = vec2(texture2D(uGPackA, uv + vec2(e.x, 0.0)).b - texture2D(uGPackA, uv - vec2(e.x, 0.0)).b,
                    texture2D(uGPackA, uv + vec2(0.0, e.y)).b - texture2D(uGPackA, uv - vec2(0.0, e.y)).b);
@@ -416,7 +428,10 @@ const SPLAT_GROUND = (() => {
     // green valley, the brown slope, the pale flat) were thrown away. macroLum (uSDist2.w) keeps them: the
     // detail's texel over its set's mean is the texture alone (rel), and mac * rel is the imagery's colour AND
     // brightness wearing that texture. macroNear (uSDist2.y) is still how much of the detail's own colour gives way.
-    if (uSDist2.y > 0.0) { float lc = gLuma(col); vec3 tinted = mac * mix(lc / max(gLuma(mac), 1e-3), rel, uSDist2.w); col = mix(col, tinted, uSDist2.y); }
+    if (uSDist2.y > 0.0) { float lc = gLuma(col); vec3 tinted = mac * mix(lc / max(gLuma(mac), 1e-3), rel, uSDist2.w); col = mix(col, tinted, uSDist2.y * (1.0 - gSBank)); }
+    // THE WATERLINE IS WET (SHORES G1500): the bank's first metres over a lake - the shelf the carve leaves - darken toward a
+    // wet margin (a submerged grain keeps ~0.55 of its albedo, water.js G799's number) and take a little gloss
+    if (uSBank.w > 0.0 && lsd < 1.0 && lsd > -uSBank.w) { float wet = 1.0 - smoothstep(0.0, uSBank.w, -lsd); col *= 1.0 - 0.45 * wet; gSRough = mix(gSRough, min(gSRough, 0.45), wet); }
     return mix(col, mac, mw);
   }
 `;
@@ -587,7 +602,7 @@ const SPLAT_GROUND = (() => {
       const T = isla && isla.ttype; if (!T) return null;
       const seen = new Uint8Array(256); for (let k = 0; k < T.length; k++) seen[T[k]] = 1;
       if (seen[0]) seen[4] = 1; if (seen[1]) seen[3] = 1; seen[0] = seen[1] = 0;
-      if (seen[6]) seen[12] = 1; if (seen[8]) seen[13] = 1; if (seen[7]) seen[14] = 1;
+      if (seen[6] || seen[1]) seen[12] = 1; if (seen[8]) seen[13] = 1; if (seen[7]) seen[14] = 1;   // (a lake's steep bank wears 12 too: SHORES G1500)
       const keys = new Set();
       for (let c = 0; c < NCODE; c++) { const m = seen[c] && R.codes[c]; if (!m) continue;
         for (const k of (m.tex || []).concat(m.far || [])) if (k) keys.add(k); }
@@ -633,6 +648,7 @@ const SPLAT_GROUND = (() => {
       uSSplit: { value: V4() }, uSSplit2: { value: V4() }, uSDist: { value: V4() }, uSDist2: { value: V4() }, uSHex: { value: V4() }, uSPud: { value: V4() }, uSPud2: { value: V4() }, uSVeg: { value: V4() },
       uSFarN: { value: 3 }, uSNearN: { value: 3 },   // the blend's depth (sMat): 3 = the recipe's, 1 = one set (the GRAPHICS 'ground' row)
       uSSeam: { value: new THREE.Vector2() }, uSNrm: { value: new THREE.Vector2() }, uSLakeE: { value: new THREE.Vector2(1, 1) },
+      uSBank: { value: V4() },
       uSBeachRot: { value: 0 }, uSNCode: { value: NCODE }, uSNCand: { value: 8 },
     };
     let ready = false;
@@ -695,6 +711,7 @@ const SPLAT_GROUND = (() => {
       U.uSPud2.value.set(K.pudFar === undefined ? 0 : K.pudFar, K.pudRim === undefined ? 0 : K.pudRim, K.pudWet === undefined ? 0.5 : K.pudWet, K.pudFlat === undefined ? 0 : K.pudFlat);
       U.uSVeg.value.set(K.vegLush === undefined ? 0 : K.vegLush, 0, 0, 0);   // the green INSIDE a texture, per texel (2026-09-23)
       U.uSLakeE.value.set(K.lakeEdge, 1);
+      U.uSBank.value.set(K.bankReach === undefined ? 0 : K.bankReach, K.bankLo || 0, K.bankHi || 1, K.bankWet || 0);   // SHORES G1500
       U.uSBeachRot.value = K.beachRot * Math.PI / 180;
       U.uSplatOn.value = (ready && R.on) ? 1 : 0;
     };
