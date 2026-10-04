@@ -2327,6 +2327,21 @@ const AERO_MAIN_VS = `
   vCraftNrm = mat3(uCraftInv) * mat3(modelMatrix) * objectNormal;
 `;
 
+// G1493 (HYBRID-TRIPS): ...AND ON A SKINNED MESH, WHERE THE SKELETON PUT IT. AERO_MAIN_VS runs at begin_vertex, before
+// skinning_vertex: `transformed` is still the BIND-space position. A plain mesh's object space is its part's own (the
+// part's pivot in modelMatrix), so that is right; but C4b's moving folds and the hybrid's live views on them (G1170) are
+// SkinnedMeshes whose part rides a BONE - their positions part-local about the pivot, modelMatrix the model group's. The
+// craft position then lost the pivot: an aileron's or a flap's decal box was read near the fuselage - the cheat line and
+// the registration painted on the control surfaces, live only (the bake places a part at its pivot: right). So a skinned
+// program takes vCraftPos again after skinning (AERO_CABIN_HOOK's G272 rule for the crew's legs); vCraftNrm needs nothing
+// (skinnormal_vertex has already turned objectNormal by begin_vertex). Only a skinned program's text changes - a plain
+// one's source stays byte for byte (no program cache miss for it).
+function aeroSkinnedCraft(shader, vs) {
+  if (!shader || !shader.skinning) return vs;
+  return vs.replace('#include <project_vertex>',
+    'vCraftPos = (uCraftInv * modelMatrix * vec4(transformed, 1.0)).xyz;   // G1493: after skinning\n#include <project_vertex>');
+}
+
 // ---------------------------------------------------------------------------
 // THE STRUCTURE GRAMMAR (G68)
 // ---------------------------------------------------------------------------
@@ -3275,10 +3290,10 @@ const AEROSKIN_HOOK = function (shader) {
   // the aeroplane-wide ones, BY REFERENCE: one write reaches every section
   const d = this.userData.aeroD;
   if (d) for (const k in d) shader.uniforms[k] = d[k];
-  shader.vertexShader = shader.vertexShader
+  shader.vertexShader = aeroSkinnedCraft(shader, shader.vertexShader
     .replace('#include <common>', AERO_PARS_VS + '\n#include <common>')
     .replace('#include <begin_vertex>',
-             '#include <begin_vertex>\n' + AERO_MAIN_VS);
+             '#include <begin_vertex>\n' + AERO_MAIN_VS));
   shader.fragmentShader = shader.fragmentShader
     .replace('#include <common>',
              AERO_NMAT_FS + AERO_PARS_FS + (W ? W.AERO_WX_PARS_FS : '')
@@ -3526,10 +3541,10 @@ const AEROGLASS_HOOK = function (shader) {
   for (const k in u) shader.uniforms[k] = u[k];
   const d = this.userData.aeroD;
   if (d) for (const k in d) shader.uniforms[k] = d[k];
-  shader.vertexShader = shader.vertexShader
+  shader.vertexShader = aeroSkinnedCraft(shader, shader.vertexShader
     .replace('#include <common>', AERO_PARS_VS + '\n#include <common>')
     .replace('#include <begin_vertex>',
-             '#include <begin_vertex>\n' + AERO_MAIN_VS);
+             '#include <begin_vertex>\n' + AERO_MAIN_VS));
   shader.fragmentShader = shader.fragmentShader
     .replace('#include <common>', AERO_PARS_FS + (W ? W.AERO_WX_PARS_FS : '')
              + '\n#include <common>')
