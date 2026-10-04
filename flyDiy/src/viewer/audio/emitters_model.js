@@ -37,7 +37,7 @@
 // ============================================================
 var EMITTERS_MODEL = (function () {
   'use strict';
-  const G = typeof globalThis !== 'undefined' ? globalThis : {};
+  const G = typeof window !== 'undefined' ? window : typeof globalThis !== 'undefined' ? globalThis : {};
   const AM = G.AMBIENCE_MODEL || (typeof AMBIENCE_MODEL !== 'undefined' ? AMBIENCE_MODEL : null) ||
              (typeof require === 'function' ? require('./ambience_model.js') : null);
   const F = AM ? AM.F : null;
@@ -64,8 +64,9 @@ var EMITTERS_MODEL = (function () {
   const NS = SOUNDS.length;
   const S = {}; SOUNDS.forEach((s, i) => { S[s[0]] = i; });
 
-  // THE SPECIES and the village's sounds (the random ones): [sound, mean s between calls at weight 1, the gap s (never
-  // the same sooner), place, dMin, dMax, series (calls in a burst: a crow's caws), habitat]
+  // THE SPECIES and the village's sounds (the random ones): [sound, mean s, the gap s (never the same sooner), place,
+  // dMin, dMax, series (calls in a burst: a crow's caws), habitat]. Once the gap has passed a call comes at weight /
+  // mean per second: at weight 1 the calls are gap + mean apart on average (the dog: 150 + 300 = one in 7.5 minutes)
   //   habitat: 'woods' crows (the forest, the village's edge, a little in the open), 'coast' eagles (near the sea, in
   //   the trees), 'shore' gulls (the shore, the harbour), 'night' owls (the forest at night), 'lake' loons (on and near
   //   a lake at dawn and dusk), 'village' the dog and the door (a village zone or built cover, by day)
@@ -78,7 +79,7 @@ var EMITTERS_MODEL = (function () {
     [S.gull, 18, 8, 'sea', 15, 140, 1, 'shore'],
     [S.owl, 55, 35, 'tree', 35, 150, 1, 'night'],
     [S.loon, 45, 30, 'lake', 40, 400, 1, 'lake'],
-    // THE DOG: the user's "here and there" - a call at most every 150 s, ~one in 5 minutes inside a village by day
+    // THE DOG: the user's "here and there" - a call at most every 150 s, ~one in 7.5 minutes inside a village by day
     [S.dog, 300, 150, 'yard', 30, 120, 1, 'village'],
     [S.door, 200, 90, 'yard', 12, 60, 1, 'village'],
   ];
@@ -140,12 +141,14 @@ var EMITTERS_MODEL = (function () {
     SOUNDS.forEach((s, i) => { st.dur[i] = s[5] > 0 ? s[5] : 2; });
     return st;
   }
-  // the seeded random (xorshift32): one call site per use keeps it cheap; a value in [0, 1)
+  // the seeded random (mulberry32: integer ops only; xorshift32's small values come in clumps - a state with few bits set
+  // evolves slowly - and a rare per-frame Poisson test on it went minutes without a call, then several); a value in [0, 1)
   function rnd(st) {
-    const r = st.rng; let x = r[0];
-    x ^= x << 13; x >>>= 0; x ^= x >>> 17; x ^= x << 5; x >>>= 0;
-    r[0] = x;
-    return x / 4294967296;
+    const r = st.rng, a = (r[0] + 0x6D2B79F5) >>> 0;
+    r[0] = a;
+    let x = Math.imul(a ^ (a >>> 15), a | 1);
+    x ^= x + Math.imul(x ^ (x >>> 7), x | 61);
+    return ((x ^ (x >>> 14)) >>> 0) / 4294967296;
   }
   function seed(st, s) { st.rng[0] = (s >>> 0) || 1; }
 
@@ -272,7 +275,8 @@ var EMITTERS_MODEL = (function () {
         const cn = canopyAt(world, x, z);
         if (cn >= 4) { p[0] = x; p[2] = z; p[1] = groundAt(world, x, z) + cn * (0.6 + 0.3 * rnd(st)); return 1; }
         if (pl === 2 && k >= 4) { p[0] = x; p[2] = z; p[1] = groundAt(world, x, z) + 40 + 40 * rnd(st); return 1; }
-        if (pl === 1 && k >= 6 && (f[F.village] > 0.3 || f[F.built] > 0.1)) { p[0] = x; p[2] = z; p[1] = groundAt(world, x, z) + 6; return 1; }
+        // a roof or a pole: only in the village (its zone) or on built ground
+        if (pl === 1 && k >= 4 && (f[F.village] > 0.3 || f[F.built] > 0.1) && (inVillage(amb, x, z) || isBuilt(world, x, z))) { p[0] = x; p[2] = z; p[1] = groundAt(world, x, z) + 6; return 1; }
       } else if (pl === 3 || pl === 4) {
         const g = groundAt(world, x, z), wv = waterAt(world, x, z);
         if (wv > g + 0.3 && (pl === 3 || waterIsLake(world, x, z))) { p[0] = x; p[2] = z; p[1] = wv + (pl === 3 ? 6 + rnd(st) * 18 : 0.3); return 1; }
@@ -368,8 +372,9 @@ var EMITTERS_MODEL = (function () {
       if (wv > 0.03) { st.want[sd] = 1; st.wantT[sd] = t; } else if (t - st.wantT[sd] > 0.5) st.want[sd] = 0;
       if (wv <= 0.001 || t - st.last[sd] < SPT[o + 2]) continue;
       // (the random inline: a double returned by a call V8 does not inline is a fresh heap box, every frame)
-      let xr = rg[0]; xr ^= xr << 13; xr >>>= 0; xr ^= xr >>> 17; xr ^= xr << 5; xr >>>= 0; rg[0] = xr;
-      if (xr / 4294967296 >= wv * d / SPT[o + 1]) continue;
+      const ra = (rg[0] + 0x6D2B79F5) >>> 0; rg[0] = ra;
+      let xr = Math.imul(ra ^ (ra >>> 15), ra | 1); xr ^= xr + Math.imul(xr ^ (xr >>> 7), xr | 61);
+      if (((xr ^ (xr >>> 14)) >>> 0) / 4294967296 >= wv * d / SPT[o + 1]) continue;
       if (!st.ready[sd]) continue;
       if (!place(st, r, amb, world)) { st.last[sd] = t - SPT[o + 2] * 0.5; continue; }   // no tree here: try again later
       const n = SPT[o + 6] > 1 ? 1 + Math.floor(rnd(st) * SPT[o + 6]) : 1;
