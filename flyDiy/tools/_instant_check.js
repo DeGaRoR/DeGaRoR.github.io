@@ -9,6 +9,10 @@
 // not repeat is noise - the crew's idle pose - and is counted apart). The resolved spec (the join's export) is
 // compared too, and each row's ticks must have been PREVIEWS (G1442 kept sheet / G1443 deformed stand / G1444 detail
 // row) - a row that silently fell back to whole builds is reported. Also the build's resolved-spec hash at boot.
+// G1453 (RELEASE-FAST): the drag's RELEASE is the settle (the pause held off while the hand is down), and it may run
+// only what the drag reached (G1451) - each row says which way its release went; the long way builds with every
+// RELEASE-FAST cache off (the sheet's stages, the cavity bake, the tank soup, the soles: RELEASE_FAST_OFF). dashBack
+// and shoulderT (G1452's interior + shoulder and shoulder-only stages) joined the rows.
 // Usage: node --max-old-space-size=4096 tools/_instant_check.js [--builds cub,metal,jodel,cessna,floats] [--only k1,k2]
 // Exit 1 on any difference. No --help.
 'use strict';
@@ -20,7 +24,7 @@ const BUILDS = { cub: 'builds/cub_2026-09-20_corrected.json', metal: 'bugReports
   cessna: 'builds/cessna172_2026-09-20_corrected.json', floats: 'bugReports/cessnaFloatsWOrks.json' };
 const WANT = opt('builds', 'cub,metal').split(',');
 // the rows: one or more of each preview kind (a kept sheet's layer rows, the cage's rows, the sheet's detail rows)
-const ROWS = (opt('only', null) ? opt('only').split(',') : ['wgSpan', 'wgChord', 'stSpan', 's1X', 'seatH', 'paxLen', 'halfW', 'roofY', 'noseDroop', 'rimW', 'dashDepth', 'frCabTopW']);
+const ROWS = (opt('only', null) ? opt('only').split(',') : ['wgSpan', 'wgChord', 'stSpan', 's1X', 'seatH', 'paxLen', 'halfW', 'roofY', 'noseDroop', 'rimW', 'dashDepth', 'frCabTopW', 'dashBack', 'shoulderT']);
 const log = s => console.log('  ' + s);
 // --settle: the page's ms after the release (the floats' CG handshake - the balance's answer, a rebuild when the CG
 // moved 2 cm - closes over a few seconds of the page's clock; a drag compared before it closes compares two moments)
