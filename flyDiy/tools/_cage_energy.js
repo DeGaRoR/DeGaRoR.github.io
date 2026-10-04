@@ -515,9 +515,10 @@ function placeAll(ctx, inv) {
             const half = { x: bf.W / 2 + 0.02, z: bf.L / 2 + 0.02 };
             const zMid = (zFw != null ? (zFw - mid / FS) * FS : 0);
             let crewTop = -Infinity;
-            for (const p of CREW_PTS)
-              if (Math.abs(p[0]) <= half.x && Math.abs(p[2] - zMid) <= half.z && p[1] > crewTop)
-                crewTop = p[1];
+            for (let i = 0, P3 = CREW_PTS.buf; i < CREW_PTS.n; i++) {
+              const x = P3[i * 3], y = P3[i * 3 + 1], z = P3[i * 3 + 2];
+              if (Math.abs(x) <= half.x && Math.abs(z - zMid) <= half.z && y > crewTop) crewTop = y;
+            }
             const lvB = bay.lv || [0, 1];
             const bandTop = ext.yLo + lvB[1] * (ext.yHi - ext.yLo);
             if (isFinite(crewTop)) {
@@ -597,24 +598,32 @@ function commitSoon() {
 // auto-fit asks the same question a hundred times
 let CREW_PTS = null;
 function crewPoints(scene, inv) {
-  if (!scene || !window.THREE) return [];
+  if (!scene || !window.THREE) return { buf: new Float64Array(0), n: 0 };
   let crew = null;
   for (const ch of scene.children)
     if ((ch.name || '') === 'cageLayer:crew') crew = ch;
-  if (!crew) return [];
+  if (!crew) return { buf: new Float64Array(0), n: 0 };
   crew.updateMatrixWorld(true);
-  const V = new THREE.Vector3(), out = [];
+  // G1455 (RELEASE-FAST): the points in one Float64Array, x y z each (the same doubles the little arrays held)
+  const V = new THREE.Vector3(), meshes = [];
+  let n = 0;
   crew.traverse(o => {
     if (!o.isMesh || !o.geometry) return;
     const pos = o.geometry.getAttribute('position');
     if (!pos) return;
+    meshes.push(o); n += pos.count;
+  });
+  const buf = new Float64Array(n * 3);
+  let k = 0;
+  for (const o of meshes) {
+    const pos = o.geometry.getAttribute('position');
     for (let i = 0; i < pos.count; i++) {
       V.set(pos.getX(i), pos.getY(i), pos.getZ(i))
         .applyMatrix4(o.matrixWorld).applyMatrix4(inv);
-      out.push([V.x, V.y, V.z]);
+      buf[k++] = V.x; buf[k++] = V.y; buf[k++] = V.z;
     }
-  });
-  return out;
+  }
+  return { buf, n };
 }
 function crewHits(scene, inv, results) {
   const G = VG();
@@ -622,8 +631,11 @@ function crewHits(scene, inv, results) {
   const bodies = results.filter(r => r.on === 'body' && r.c);
   if (!bodies.length) return;
   if (!CREW_PTS) CREW_PTS = crewPoints(scene, inv);
-  for (const p of CREW_PTS)
-    for (const r of bodies) if (G.pointInBox(p, r, 0.01)) r.crewHits++;
+  const q = [0, 0, 0], B3 = CREW_PTS.buf;
+  for (let i = 0; i < CREW_PTS.n; i++) {
+    q[0] = B3[i * 3]; q[1] = B3[i * 3 + 1]; q[2] = B3[i * 3 + 2];
+    for (const r of bodies) if (G.pointInBox(q, r, 0.01)) r.crewHits++;
+  }
   for (const r of bodies) if (r.crewHits) {
     r.ok = false;
     r.why.push('through the crew (' + r.crewHits + ' points)');

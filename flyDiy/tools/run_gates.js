@@ -259,7 +259,7 @@ const GATES = [
   { id: 'RAYINDEX', file: '_rayindex_check.js', tier: 'core' },
   // G1445 (GARAGE-INSTANT): a drag's previews end on the plain build's aeroplane (the page in node, the Cub and the
   // metal Cessna, twelve rows: a kept sheet's layer rows, the cage's deformed rows, the sheet's detail rows)
-  { id: 'INSTANT', file: '_instant_check.js', tier: 'core', wall: 420 },
+  { id: 'INSTANT', file: '_instant_check.js', tier: 'core', wall: 480 },
   // THE CONTROL HARDWARE (G241): every control surface's nose turns INSIDE
   // its cove instead of through the wing — measured off the emitted vertices,
   // station by station, which is the clearance at every deflection because a

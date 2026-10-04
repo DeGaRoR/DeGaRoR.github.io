@@ -855,9 +855,11 @@ function zip(outer, inner, mk) {
 // coherent windings across position-shared edges, then positive volume
 function orientPart(V, faces) {
   // G1452 (RELEASE-FAST): each vertex's position key once (the same pk string), the edge key off the two
-  const PK = new Map();
+  // ...and a number per distinct key (the edge's two numbers, low first, are its key: the same edges are one edge)
+  const PK = new Map(), PID = new Map(), SID = new Map();
   const pkI = i => { let s = PK.get(i); if (s === undefined) PK.set(i, s = pk(V[i])); return s; };
-  const keyOf = (a, b) => { const A = pkI(a), B = pkI(b); return A < B ? A + '|' + B : B + '|' + A; };
+  const idI = i => { let d = PID.get(i); if (d === undefined) { const s = pkI(i); d = SID.get(s); if (d === undefined) SID.set(s, d = SID.size); PID.set(i, d); } return d; };
+  const keyOf = (a, b) => { const A = idI(a), B = idI(b); return A < B ? A * 67108864 + B : B * 67108864 + A; };
   const eF = new Map();
   faces.forEach((f, i) => { const n = f.v.length; for (let e = 0; e < n; e++) {
     const k = keyOf(f.v[e], f.v[(e + 1) % n]); if (!eF.has(k)) eF.set(k, []); eF.get(k).push(i); } });
@@ -1181,6 +1183,10 @@ function panelBuild(mesh, spec, opt) {
     (faceClass(f) === 'G' ? d.glass : d.skin).push(P);
   });
   const shParts = (mesh.shoulder && mesh.shoulder.parts) || [];
+  const DASH = { z: null, y: null };
+  if (doors.size) for (const f of mesh.F) if (f.m === 'dash' || f.m === 'dashFace') for (const vi of f.v) {
+    const p = mesh.V[vi]; if (DASH.z == null || p[2] < DASH.z) DASH.z = p[2]; if (DASH.y == null || p[1] < DASH.y) DASH.y = p[1];
+  }
   for (const d of doors.values()) {
     const side = d.side, off = d.cutOff || [0, 0, 0];
     if (!d.skin.length) continue;
@@ -1202,11 +1208,9 @@ function panelBuild(mesh, spec, opt) {
     // tightest kept — a raked edge read over a tall band overran the door
     // at the top-front corner by 13 cm on the first cut (GATE SHOULDER)
     const edge = (y, which) => { const e = extentAt(d.skin, y); return e ? e[which] : null; };
-    // the dashboard's footprint: the panel stays behind its aft face
-    let zDash = null, yDash = null;
-    for (const f of mesh.F) if (f.m === 'dash' || f.m === 'dashFace') for (const vi of f.v) {
-      const p = mesh.V[vi]; if (zDash == null || p[2] < zDash) zDash = p[2]; if (yDash == null || p[1] < yDash) yDash = p[1];
-    }
+    // the dashboard's footprint: the panel stays behind its aft face (G1452: measured once, before the doors - it is
+    // the mesh's, not the door's)
+    const zDash = DASH.z, yDash = DASH.y;
     const zAt = (y, which) => {
       let v = null;
       for (const dy of [-0.012, 0, 0.012]) { const e = edge(y + dy, which); if (e == null) continue; v = v == null ? e : (which ? Math.min(v, e) : Math.max(v, e)); }
