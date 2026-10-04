@@ -640,6 +640,7 @@
   // missing constructor should leave the room unbuilt, not throw on boot.
   const hangarScene = new THREE.Scene();
   let hangar = null, hangarTried = false;
+  if (typeof window !== 'undefined') window.FLYDIY_SHED = () => hangar;   // G1522: the garage's shed (its materials), for the menu's live rows
   // WHERE THE REFLECTIONS COME FROM (user: "can we get lighting from HDRI? Try
   // that as a new option"). Two sources, one target:
   //   'room' — a cube camera on the floor sees the glazing, the roof lights and

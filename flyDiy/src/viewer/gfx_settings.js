@@ -115,11 +115,15 @@
     { k: 'ground', label: 'ground blend', steps: [
         { v: 'full', label: 'full', why: 'every terrain type blends its 2-3 texture sets at every distance' },
         { v: 'far1', label: 'lean far', why: 'one set per terrain type past ~400 m, where a blotch is a few pixels; all of them near (~10 ms on a 5120 x 1440 screen at 300 m, 5 ms at 30 m)' },
-        { v: 'lean', label: 'lean', why: 'one set per terrain type everywhere - the material patchwork near the ground is gone, its colour stays' } ] },
+        { v: 'lean', label: 'lean', why: 'one set per terrain type everywhere - the material patchwork near the ground is gone, its colour stays' },
+        // G1521 (POTATO-DEEP, the user on the GTX 660: "detailed ground textures were still present" - 'lean' is the same
+        // splat program with one set a type: the 5 x 5 code vote, hex-tiled colour + normal fetches, the IBL'd roughness)
+        { v: 'plain', label: 'plain', why: 'no ground textures: the satellite colour with a fine grain - the cheapest ground (no texture sets fetched, a far shorter compile)' } ] },
     { k: 'terrain', label: 'terrain detail', steps: [
         { v: 1, label: 'exact', why: 'every ridge and bank to a pixel (the whole ring, the far terrain at 1 px)' },
         { v: 2, label: 'fine', why: 'the terrain within 2 px of its true shape - a far ridge may shift by a pixel as you fly' },
-        { v: 3, label: 'coarse', why: 'within 3 px - the far ground visibly re-cuts as you fly; for cards that need the time' } ] },    { k: 'mist', label: 'mist', steps: [
+        { v: 3, label: 'coarse', why: 'within 3 px - the far ground visibly re-cuts as you fly; for cards that need the time' },
+        { v: 6, label: 'rough', why: 'within 6 px - the far ridges re-cut as you fly, the near ground as it was; for integrated graphics (G1524)' } ] },    { k: 'mist', label: 'mist', steps: [
         { v: 'off',   label: 'off', why: 'no ground mist whatever the day' },
         { v: 'on',    label: 'flat', why: 'the day’s humidity as one level layer over the world (the closed form: no cost)' },
         { v: 'land',  label: 'on the land', why: 'the layer lies in the valleys and on the water instead of at one altitude (F2: a short march, a few tenths of a ms)' },
@@ -257,7 +261,11 @@
   const POST_BLOOM = Object.assign({}, POST_OFF, { bloom: 'soft' });
   const COLOUR = { lighting: 'sunset', tone: 'cineon', exposure: 1, colour: 'managed' };
   const PRESETS = {
-    potato:  Object.assign({ ground: 'lean', scale: 0.67, cover: 'off',  scenery: 'low',  drawDist: 'vis', terrain: 3, aa: 'off',  density: 100, bands: 'near', shadows: 'off',   canopy: 'off', rails: 'off', poles: 'off', glare: 'off', sway: 'off', mist: 'on',    clouds: 'off',  water: 'simple', mirror: 'off' }, COLOUR, POST_OFF),
+    // G1524 (POTATO-DEEP): THE LAPTOP RUNG, under potato - integrated graphics (the user's EliteBook: Intel HD 620, ~1/3 of
+    // the GTX 660 potato was cut for, its memory the system's DDR4): potato's rows at half the screen's resolution, the far
+    // terrain rough; its BUDGETS row holds less (no target MSAA, the town and forest nearer)
+    laptop:  Object.assign({ ground: 'plain', scale: 0.5,  cover: 'off',  scenery: 'low',  drawDist: 'vis', terrain: 6, aa: 'off',  density: 100, bands: 'near', shadows: 'off',   canopy: 'off', rails: 'off', poles: 'off', glare: 'off', sway: 'off', mist: 'on',    clouds: 'off',  water: 'simple', mirror: 'off' }, COLOUR, POST_OFF),
+    potato:  Object.assign({ ground: 'plain', scale: 0.67, cover: 'off',  scenery: 'low',  drawDist: 'vis', terrain: 3, aa: 'off',  density: 100, bands: 'near', shadows: 'off',   canopy: 'off', rails: 'off', poles: 'off', glare: 'off', sway: 'off', mist: 'on',    clouds: 'off',  water: 'simple', mirror: 'off' }, COLOUR, POST_OFF),
     retro:   Object.assign({ ground: 'lean', scale: 0.85, cover: 'lean', scenery: 'lean', drawDist: 'vis', terrain: 2, aa: 'off',   density: 100, bands: 'near', shadows: 'near',  canopy: 'off', rails: 'on', poles: 'off', glare: 'on',  sway: 'off', mist: 'on',    clouds: 'off',  water: 'simple', mirror: 'off' }, COLOUR, POST_OFF),
     current: Object.assign({ ground: 'far1', scale: 1,    cover: 'full', scenery: 'full', drawDist: 'vis', terrain: 2, aa: 'off',   density: 128, bands: 'near', shadows: 'full',  canopy: 'on',  rails: 'on', poles: 'on', glare: 'on',  sway: 'on',  mist: 'on',    clouds: 'half', water: 'simple',   mirror: 'off' }, COLOUR, POST_BLOOM),
     gamer:   Object.assign({ ground: 'far1', scale: 1,    cover: 'full', scenery: 'full', drawDist: 'vis', terrain: 1, aa: 'msaa', density: 128, bands: 'mid', shadows: 'full',  canopy: 'on',  rails: 'on', poles: 'on', glare: 'on',  sway: 'on',  mist: 'land',  clouds: 'half', water: 'simple',   mirror: 'off' }, COLOUR, POST_BLOOM),
@@ -284,18 +292,35 @@
   //   islandHalf the island's two colour textures (albedo, tint) derived at half the grid's side (render_world)
   //   islandColour  false: the island's albedo and tint grids dropped once the world is built (their textures are the GPU's)
   //   terrain    the far terrain's and the ring's first cut at the preset's own tolerance (S.terrain), not 1 px then re-cut
+  //   shedGlass  false: the garage shed's window panes draw no transmission (G1522: three's transmission pass draws the room a
+  //              second time into a mipmapped target every frame)
+  // THE CARD'S MEMORY (G1523, POTATO-DEEP: the GTX 660 has 2 GB and potato held 2.23 GB of it - tools/perf/potato_census.js; past
+  // the card the driver pages over PCIe every frame: the user's world frames were 450-580 ms of GPU at 6-17 M triangles while
+  // the shed, whose working set fits, drew 6 M in 49 ms):
+  //   impTile    the tree impostors' view tile in px (render_world IMP_TILE; 8 x 8 views a sheet): 64 = a 512 sheet, a quarter of
+  //              the 1024 sheet's bytes (the two layer arrays 630 -> 158 MB on Jolene)
+  //   aeroAtlas  the aeroplane's decal atlas in px (aeroskin.js AERO_ATLAS_PX): 2048 = a quarter of 4096's 85 MB
+  //   flownBake  false: the flown bake is not made (flown_bake.js step): the live aeroplane flies - its six 2048 atlases and
+  //              working targets never held (~230 MB), the roll-out's 'bake' step (27 s on the GTX 660 box) skipped
+  //   msaa       the scene target's MSAA samples at most (aa_resolve.js setMsaaCap; laptop 0) - absent: the tier's own
+  //   shedLamps  false: the shed's lamps cast no shadow (hangar.js lamp: five 1024 spot maps, ~3 600 depth draws a frame -
+  //              74 % of the shed's draws); the key light's map stays (the aeroplane's shadow on the floor)
   // Going DOWN is live (GFX.set: the stream's reach shrinks at once); going up applies to what builds next, and to
   // everything at the next load. Without the table (a gate's stub, no window.GFX) every lever reads full.
   const BUDGETS = {
-    potato:  { heapMB: 700,  mipSkip: 1, townBoot: 1200, townReach: 2000, parked: false, forestK: 0.65, islandColour: false, islandHalf: true },
+    laptop:  { heapMB: 600,  mipSkip: 1, townBoot: 800,  townReach: 1200, parked: false, forestK: 0.5,  islandColour: false, islandHalf: true, shedGlass: false,
+               impTile: 64, aeroAtlas: 2048, flownBake: false, shedLamps: false, msaa: 0 },
+    potato:  { heapMB: 700,  mipSkip: 1, townBoot: 1200, townReach: 2000, parked: false, forestK: 0.65, islandColour: false, islandHalf: true, shedGlass: false,
+               impTile: 64, aeroAtlas: 2048, flownBake: false, shedLamps: false },
     retro:   { heapMB: 1500, mipSkip: 0, townBoot: 4000, townReach: 6000, parked: true, forestK: 1 },
     current: { heapMB: 1500, mipSkip: 0, townBoot: 4000, townReach: 6000, parked: true, forestK: 1 },
     gamer:   { heapMB: 2000, mipSkip: 0, townBoot: 4000, townReach: 6000, parked: true, forestK: 1 },
     ultra:   { heapMB: 2000, mipSkip: 0, townBoot: 4000, townReach: 6000, parked: true, forestK: 1 },
   };
   const DEFAULT = 'gamer';
-  const PRESET_LABEL = { potato: 'potato', retro: '5 years ago', current: 'current', gamer: 'gamer', ultra: 'ultra' };
+  const PRESET_LABEL = { laptop: 'laptop', potato: 'potato', retro: '5 years ago', current: 'current', gamer: 'gamer', ultra: 'ultra' };
   const PRESET_WHY = {
+    laptop:  'integrated graphics (Intel HD / UHD, AMD Radeon Graphics) or a phone: potato at half the screen’s resolution, the far terrain rough, no smoothing in the frame, the town and the forest nearer',
     potato:  'an integrated or very old GPU: the scene at 67 % of the screen, no shadows, no clouds, no ground cover, the town at its least, sparse forest',
     retro:   'a card that was good five years ago (GTX 1060 class): 85 % of the screen, the near shadow, no clouds, lean ground cover and town, sparse forest',
     current: 'a current mid-range card (RTX 3060 class): gamer without the 8x MSAA, the mirror and the mist march',
@@ -307,7 +332,7 @@
   // G1295 (EVEN-30): the frame rate a preset brings while the player has not picked one - a hard 30 everywhere but ultra
   // (auto's trials of 60 were the judder: the user's 1.5 h log, 130 drops from 60 and 127 failed trials). 'custom' takes 30
   const FPS_OF = p => (p === 'ultra' ? 'auto' : 30);
-  const S = Object.assign({ preset: DEFAULT, build: DEFAULT, pv: 7, fps: FPS_OF(DEFAULT), fpsOwn: false }, PRESETS[DEFAULT]);   // pv: the pref's version (4: G570, the cover and town rows; 5: G1113, gamer's and ultra's tree bands; 6: G1114.2, gamer's 'mid'; 7: G1295, the frame rate per preset); fps: G586's frame rate (a free option); fpsOwn: the player picked it; build (G1230): the preset whose BUDGETS row the world builds to (a custom mix keeps the last preset's)
+  const S = Object.assign({ preset: DEFAULT, build: DEFAULT, pv: 8, fps: FPS_OF(DEFAULT), fpsOwn: false }, PRESETS[DEFAULT]);   // pv: the pref's version (4: G570, the cover and town rows; 5: G1113, gamer's and ultra's tree bands; 6: G1114.2, gamer's 'mid'; 7: G1295, the frame rate per preset); fps: G586's frame rate (a free option); fpsOwn: the player picked it; build (G1230): the preset whose BUDGETS row the world builds to (a custom mix keeps the last preset's)
   let expBase = null;                        // the exposure the writers last declared
   let eyeK = 1;                              // the eye's factor (post_fx.js's auto exposure); 1 with the row off
   // THE ONE WAY EXPOSURE IS WRITTEN: base in, base x step x eye on the renderer. A
@@ -336,6 +361,9 @@
       // pv 6 -> 7 (G1295): a stored 'auto' was the old DEFAULT, not a pick - it takes the preset's (30, ultra auto); a stored
       // 60 / 30 / uncapped was the player's own choice and stays
       if (v && !(v.pv >= 7)) { if (v.fps === 60 || v.fps === 30 || v.fps === 'off') v.fpsOwn = true; else delete v.fps; v.pv = 7; }
+      // pv 7 -> 8 (G1520-G1529, POTATO-DEEP): potato's rows moved (the plain ground, ...) - a player ON potato takes potato as it
+      // is now (else the saved rows read 'custom'); every other preset's rows are the ones they were
+      if (v && !(v.pv >= 8)) { if (v.preset === 'potato') { for (const o of OPTIONS) if (!o.free) delete v[o.k]; Object.assign(v, PRESETS.potato); } v.pv = 8; }
       v0 = v && typeof v === 'object' ? v : null;
       try { W.localStorage.removeItem(KEY + '.auto'); } catch (e) {}   // G528's first-launch reading, retired with its probe
       if (v && typeof v === 'object') for (const k in v) if (k in S) S[k] = v[k];
@@ -369,6 +397,10 @@
   const apply = () => {
     const AA = W.FLYDIY_AA, world = W.WORLD, rig = W.WORLD_RIG;
     if (W.FLYDIY_PACE && applied.fps !== S.fps) { W.FLYDIY_PACE.set(S.fps); applied.fps = S.fps; }   // G586: the frame cap
+    // G1522 (POTATO-DEEP): the shed's window glass to the budget (shedGlass false: no transmission pass) - built that way, switched
+    // live when the preset changes in the shed (three re-keys the material when transmission crosses 0)
+    { const H = typeof W.FLYDIY_SHED === 'function' ? W.FLYDIY_SHED() : null, g = H && H.mats && H.mats.glass;
+      if (g && g.isMeshPhysicalMaterial && !SOFT) { const tr = budget().shedGlass === false ? 0 : 0.90; if (g.transmission !== tr) g.transmission = tr; } }
     // the cover ring and the premises (G570): both exist only in the flight world, so they apply when it has them
     const cov = W.TREE_FILL && W.TREE_FILL.cover ? W.TREE_FILL.cover() : null;
     if (cov && cov.set && applied.cover !== S.cover) {
@@ -382,6 +414,8 @@
       if (D) { PR.hlod.near = D.near; PR.detail.px2 = D.px2; PR.detail.props = D.props; applied.scenery = S.scenery; }
     }
     if (AA && AA.setTier && applied.aa !== S.aa) { AA.setTier(S.aa); applied.aa = S.aa; }
+    { const cap = budget().msaa; const want = cap == null ? null : cap;   // G1524: the budget's sample cap (laptop 0)
+      if (AA && AA.setMsaaCap && (applied.msaa === undefined ? want != null : applied.msaa !== want)) { AA.setMsaaCap(want); applied.msaa = want; } }   // (a budget without a cap never calls it)
     if (AA && AA.setScale && applied.scale !== S.scale) {
       // 'auto' (G528): the controller starts from 100 %; a rig (a headless or driven browser) keeps 100 % unless ?autoscale=1
       const auto = S.scale === 'auto' && (!RIG || FORCE('autoscale'));
@@ -417,7 +451,9 @@
     if (W.SKY_GLARE && applied.glare !== S.glare) { W.SKY_GLARE.S.on = S.glare !== 'off'; if (W.ATMO && W.ATMO.U && W.ATMO.U.glare) W.ATMO.U.glare.value = S.glare !== 'off' ? (W.ATMO.glareDial != null ? W.ATMO.glareDial : 1) : 0; applied.glare = S.glare; }
     if (W.WORLD && W.WORLD.vis && applied.drawDist !== S.drawDist) { W.WORLD.vis.on = S.drawDist !== 'full'; applied.drawDist = S.drawDist; }
     { const sp = W.WORLD && W.WORLD.ground && W.WORLD.ground.splat && W.WORLD.ground.splat();
-      if (sp && sp.blend && applied.ground !== S.ground) { sp.blend(S.ground === 'lean' ? 1 : 3, S.ground === 'full' ? 3 : 1, S.ground === 'full' ? 0 : 100, S.ground === 'full' ? 0 : 400); applied.ground = S.ground; } }
+      if (sp && sp.blend && applied.ground !== S.ground) { sp.blend(S.ground === 'lean' || S.ground === 'plain' ? 1 : 3, S.ground === 'full' ? 3 : 1, S.ground === 'full' ? 0 : 100, S.ground === 'full' ? 0 : 400);
+        if (sp.plain) sp.plain(S.ground === 'plain');   // G1521: the plain ground re-keys the ground's programs (and fetches the sets the first time a step wants them)
+        applied.ground = S.ground; } }
     if (W.WORLD && W.WORLD.ground && applied.terrain !== S.terrain) {
       const g = W.WORLD.ground, far = g.farLod && g.farLod(), ring = g.ringLod && g.ringLod();
       if (far || ring) { if (far) { far.tolPx = S.terrain; far.update(true); } if (ring) { ring.tolPx = S.terrain; ring.update(); } applied.terrain = S.terrain; }
