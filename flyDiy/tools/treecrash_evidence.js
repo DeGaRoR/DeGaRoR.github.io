@@ -5,7 +5,8 @@
 //   damage_time.svg    members set, members broken and the plastic work against time, the 30 m/s flights
 //   topdown_<case>.svg the aeroplane's beams from above at the end, before and now: bent members, broken ones, the trunk
 //   perf.json / perf   sim.step(1/60) with nothing touching: master's core against this one, alternating processes
-// Run: node tools/treecrash_evidence.js [--perf-base <master's tools/flight_core.js>] [--no-perf]
+// Run: node tools/treecrash_evidence.js [--perf-base <master's tools/flight_core.js>] [--no-perf | --perf-only]
+//      (the perf child loads _treecrash_lib.js beside the core it is given: copy it next to master's)
 'use strict';
 const fs = require('fs'), path = require('path');
 const argv = process.argv.slice(2);
@@ -36,6 +37,7 @@ if (argv[0] === '--perf-child') {
 
 const L = require('./_treecrash_lib.js');
 fs.mkdirSync(OUT, { recursive: true });
+const PERF_ONLY = argv.includes('--perf-only');
 // the palette (dataviz reference instance): before = slot 1 blue, now = slot 2 orange; bent = yellow, broken = red (+ dashes)
 const COL = { before: '#2a78d6', now: '#eb6834', bent: '#c98500', broken: '#e34948', ink: '#0b0b0b', ink2: '#52514e', grid: '#e4e3df', beam: '#8a8984', surf: '#fcfcfb' };
 const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;');
@@ -95,11 +97,12 @@ const CASES = {
 };
 const BUILDS = ['cub', 'metal'];
 const runs = {};
-for (const k of BUILDS) for (const c of Object.keys(CASES)) for (const el of [true, false]) {
+if (!PERF_ONLY) for (const k of BUILDS) for (const c of Object.keys(CASES)) for (const el of [true, false]) {
   const r = L.atTrunk(k, Object.assign({ elastic: el, every: 3 }, CASES[c].o));
   runs[k + ':' + c + ':' + (el ? 'before' : 'now')] = r;
   console.log(k, c, el ? 'before' : 'now   ', 'reach', r.reach.toFixed(2), 'end', r.end.toFixed(2), 'back', (r.reach - r.end).toFixed(2), r.dmg.crashed ? 'CRASH ' + r.dmg.reason : '-', r.dmg.members + ' set ' + r.dmg.breaks + ' broken');
 }
+if (!PERF_ONLY) {
 const summary = {};
 for (const key of Object.keys(runs)) { const r = runs[key]; summary[key] = { reach: +r.reach.toFixed(3), end: +r.end.toFixed(3), back: +(r.reach - r.end).toFixed(3), crashed: r.dmg.crashed, reason: r.dmg.reason, members: r.dmg.members, breaks: r.dmg.breaks, brokenCls: r.dmg.brokenCls, work: +r.dmg.work.toFixed(1), gPeak: +r.dmg.gPeak.toFixed(2), prop: r.dmg.propStrike, keMaxOverKe0: +(r.keMax / r.ke0).toFixed(4), finite: r.finite }; }
 fs.writeFileSync(path.join(OUT, 'runs.json'), JSON.stringify(summary, null, 1));
@@ -159,6 +162,7 @@ for (const c of Object.keys(CASES)) {
   fs.writeFileSync(path.join(OUT, 'topdown_' + c + '.svg'), svgDoc(3 * w, 40 + 2 * h, head + body, 'TREE-CRASH top-down ' + c));
 }
 console.log('wrote', fs.readdirSync(OUT).join(', '));
+}
 
 // perf: master's core (--perf-base) against this one, alternating child processes, nothing touching
 if (!argv.includes('--no-perf')) {
