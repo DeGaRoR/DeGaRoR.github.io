@@ -36,6 +36,17 @@ Nothing in `src/` breaks, yields or ends a flight on load today. **"BROKE UP" me
 No G-block is reserved yet. **A0 to assign one** (suggested: the next free hundred after SOUND's G1600-G1699).
 Sessions would be named `DMG-*`.
 
+**Revised the same day (second pass)** after the user's own crash study and four answers:
+- the reference aircraft: Cub, Cessna 172, Robin/Jodel, Beaver;
+- damage is not carried between flights; a repair bill is computed instead;
+- fire needs conditions;
+- clipping after deformation must be handled;
+- how big the job is.
+
+New: **§7** real crashes (each observation checked against accident reports, CFR Part 23 and NASA's crash tests,
+and given its mechanism), **§8** clipping, **§9** fire, **§10** repair cost, **§11** the plan with its size,
+**§12** rulings, **§13** copyright. §1-§6 stand, with the material rules now set by §7.
+
 ---
 
 ## 0. THE IDEA IN ONE PARAGRAPH
@@ -78,7 +89,7 @@ What nobody public says, and stays unknown here:
 - whether stiffness changes after yield (all evidence says no).
 
 Raw material from the three research passes (source extracts, the RoR and Lua files) sits in that session's
-scratchpad and is not committed. The URLs are in §9.
+scratchpad and is not committed. The URLs are in §14.
 
 ---
 
@@ -126,7 +137,8 @@ scratchpad and is not committed. The URLs are in §9.
 - **Lesson L2 — the same order as ours.** An elastic sim that flies (or drives) first, then a deformation layer
   bolted onto the same beam. Nobody rebuilt the core for damage.
 
-**The RoR algorithm, as it runs today** [READ-RoR, `ActorForcesEuler.cpp` ~1316-1445]. This is the ancestor of
+**The RoR algorithm, as it runs today** [READ-RoR, `ActorForcesEuler.cpp` ~1316-1445], restated in our own
+notation (not RoR's code, which is GPLv3; see §13). This is the ancestor of
 BeamNG's `beamDeform`:
 
 ```
@@ -325,7 +337,7 @@ Each was added because something kept going wrong [SUMMARY unless tagged; versio
 ## 4. THE PHYSICS LAYER — what we build
 
 All of it is additive in the G3.3/G3.4 sense. **A beam with no limits stamped behaves exactly as today.** The fleet
-log diff stays empty until a build opts in, and a param (`params.damage`, default off until §7's D2 gate) turns the
+log diff stays empty until a build opts in, and a param (`params.damage`, default off until §11's D2 gate) turns the
 whole layer off.
 
 ### 4.1 Limits stamped in `B()` (`61_gen_frame.js`, beside k and c)
@@ -344,8 +356,10 @@ kFix = k                                  // L11: never recomputed from the move
 
 - **`Fc` is the high-value line** (costed design): long slender tubes buckle far below yield, and that is what a
   crashed tube-and-fabric fuselage looks like (§6.4).
-- **Materials** gain `sigU`, `eBreak` and `brittle` in `phys` (`60_gen_spec.js:88-338`). Wood and carbon are
-  brittle, which means **`Fu ≈ Fy`, the BeamNG glass case** (`beamStrength` ≈ `beamDeform`: it breaks without
+- **Materials** gain `sigU`, `eBreak` and `brittle` in `phys` (`60_gen_spec.js:88-338`). **§7.1 sets the
+  behaviour per material from the crash record**: alloy and tube are ductile; wood splinters in tension and crushes in
+  compression; carbon is brittle along its bonds; seams and fittings are their own class (§7.2). Wood and carbon in
+  tension are brittle, which means **`Fu ≈ Fy`, the BeamNG glass case** (`beamStrength` ≈ `beamDeform`: it breaks without
   bending). Steel 4130 and 2024-T3 are ductile.
 - **Wires (`tens`)** get `Fu` only; a slack wire has nothing to yield.
 - **Gear legs** get limits from the archetype (`GEN_SUSPENSION`), not `sigY*A`: the leg is a spring standing for a
@@ -539,7 +553,7 @@ few of them:
 |---|---|---|
 | **prop strike** | a prop-disc node in ground or obstacle contact with rpm > 0 | prop bent (mesh swap or blade deflection), engine stops (`e.running = false`, the path fuel starvation already takes, `30_solver.js:560-578`), sound `SND` impact |
 | windscreen cracked | any windscreen-frame beam permanent set > 0.5 % | material swap (crack decal) |
-| fabric torn | a covered bay's diagonal broken, or a bay > x % permanent set | covering alpha holes on that bay (the wear layer's crack network, WEATHERING-2026-09-13, is a candidate for the pattern) |
+| fabric torn | **only** a broken group under the panel, or a trunk or obstacle puncture. Fabric does NOT tear on a bent frame; it drapes (§7.1 #5) | covering holes on that panel (the wear layer's crack network, WEATHERING-2026-09-13, is a candidate for the pattern) |
 | gear collapsed | gear group broken | leg drawn folded; the wheel node is free |
 | fuel leak | a tank-node beam broken | `mFuel` drains through `setNodeMass` (the chantier's door exists, `61_gen_frame.js:2362`) |
 
@@ -558,11 +572,9 @@ few of them:
   break while in ground, obstacle or trunk contact. **This is TREE-HITBOX's open call answered: a trunk at speed
   yields and breaks members, and `crashed` fires from the structure, not from `trunkHits()` counting.**
 - **Damage tally** (BeamNG's `onBeamDeformed` → part damage): Σ`wPl` per group, plus broken groups. This is the
-  number a repair cost reads (GAME-LAYER P5c "win, damage, or lose it"; ruling **(bh)**):
-  - **if damage persists, what persists is the per-beam state**: `L0` deltas, `broken` bits, `plast`, `FyH`/`FcH`;
-  - about 450 beams × 5 floats is about 9 KB raw, quantised much less;
-  - `reset()` then rebuilds from def + state instead of def alone. "Reset repairs for free" becomes a garage action
-    with a price.
+  number the repair bill reads (§10). **Ruling (bh) is taken: damage is not carried**, so `reset()` keeps
+  repairing for free and nothing per-beam is saved. If persistence is ever wanted, the per-beam state (`L0` deltas,
+  `broken` bits, `plast`, `FyH`/`FcH`) is about 9 KB raw.
 - **Worker snapshot** (ARCH-2026-09-27): the main thread needs a broken-bit array and the `L0` set for the views. It
   is sent **on change only**, as an event message, not in the per-frame snapshot.
 - **Sound** (SOUND-2026-10-04, which put "crash/deformation sounds beyond impacts" out of scope): the break event
@@ -588,8 +600,8 @@ node with a contact radius, rolling resistance and grip, and that is the right s
 
 ### 6.4 Crumpling sheet metal
 - Car crumpling reads because about 400 nodes and about 4000 beams resolve a crush zone into folds.
-- A **tube-and-fabric** aeroplane's wreck is bays of buckled tubes, torn fabric and a folded wing. **Our coarse
-  truss plus Euler buckling plus fabric holes is the correct resolution** for that, by luck of the archetype.
+- A **tube-and-fabric** aeroplane's wreck is bays of buckled tubes, fabric draped over them and a folded wing. **Our
+  coarse truss plus Euler buckling plus draping fabric is the correct resolution** for that, by luck of the archetype.
 - A **monocoque** (C172, alloy row) would need a dense skin lattice to crumple. That is GAME-LAYER's "can wait
   years", and stays there. It gets part detach plus dent decals.
 
@@ -601,46 +613,401 @@ Stamp once.
 
 ---
 
-## 7. THE PLAN — sessions, in order
+## 7. WHAT REAL CRASHES LOOK LIKE — the user's study, the references, and what each one needs
+
+The user's own crash study (2026-10-04) is the target picture: what a player must recognise. The reference aircraft
+are:
+- **the Piper Cub family** (J-3, PA-18): steel tube and fabric, strut-braced, tailwheel;
+- **the Cessna 172**: alloy semi-monocoque, strut-braced, tricycle with spring-steel mains and an oleo nose leg;
+- **the Robin/Jodel wooden aircraft** (D11/D112/D117/D140, DR400): wooden box spar, ply D-box, fabric;
+- **the DHC-2 Beaver**: alloy, strut-braced, R-985 radial, wheels or floats.
+
+The four builds validated against fiches are the 172, the Jodel, the Chinook and the Cub (`60_gen_spec.js:1308`).
+The Beaver exists as a cage archetype.
+
+Each observation below is checked against public accident reports and crash tests, and given its mechanism in this
+design. Evidence tags:
+- **[NASA]**: NASA Langley full-scale crash tests, public domain;
+- **[NTSB]**, **[AAIB]**, **[BEA]**, **[ATSB]**, **[TSB]**: accident investigation bodies;
+- **[CFR]**: 14 CFR Part 23, using pre-amendment-64 numbering.
+
+**Every figure here came through search summaries** (the proxy blocked the PDFs; see §13). The NASA and CFR
+documents are named so a session on the box opens them before a number becomes a gate.
+
+### 7.1 The observations, one by one
+
+| # | the user saw | the references say | mechanism here | step |
+|---|---|---|---|---|
+| 1 | **nose cowl and prop are hit first; the prop bends or breaks first** | NASA TP-1477: every test had two impacts, nose first, then the cabin near the wing. NASA's 172 Test 1 (2015): nose tyre first. Under power a prop shows S-bending and leading-edge gouging; windmilling, much less [NTSB]. Lycoming SB 533 / Continental SB96-11: **any** contact while running is a prop strike, including a gear collapse at rest | **prop strike** state switch (§5.3), severity from rpm × contact speed; blades bent (under power) or nicked (windmilling); the engine stops (`e.running = false`). A teardown line on the bill (§10) | D4 |
+| 2 | **the cowl opens and is ejected** | An NTSB factual report found the left cowling panel "farthest from the main wreckage" (one case; no systematic study found). AGATE designed a "non-scooping" lower cowl and firewall, which implies the stock cowl digs in and fails | the cowl is **debris** (§8.3): a rigid panel set on fasteners. When the firewall ring or mount yields past a small set, or a cowl node takes ground contact above a speed, the panels leave as rigid bodies with their anchor's velocity | D4 |
+| 3 | **the engine mount deforms; sometimes the engine flies away** | the C172 FE model makes mount, gear and firewall steel and everything else aluminium [NASA 20160006503]. NTSB often records "engine separated from the firewall and displaced". Part 23 sizes the mount for torque and 1.33 g side load only (23.361/23.363), **with no crash case** | the `mnt` members (`61_gen_frame.js:139, 266`) are **ductile steel with a low yield**: they bend first and absorb. The **mount bolts are a break group** at the firewall with `Fu` from an emergency forward load (see 7.3). The engine (90-290 kg on two to four nodes) loads its mount by inertia; that alone does it | D1-D2 |
+| 4 | **all-metal deforms a lot and barely breaks; wings only under very large loads** | 2024-T3 elongation at break about 18 %. NASA TP-1042: liveable volume kept at 27 m/s. Ultimate = 1.5 × limit (23.303); fittings × 1.15 (23.625) | alloy row: **long plastic travel** (large `eBreak`), hardening on. The wing breaks only past the certificate's ultimate (§4.3) | D1-D2 |
+| 5 | **steel tube bends without breaking; the fabric wraps the bent frame like a deflated balloon** | Piper: 4130 forward and highly stressed, **1025 mild steel aft of the baggage bay until 1982**; the softer aft tubes buckle and twist, absorbing energy (AOPA). Polyester fabric (Poly-Fiber, Ceconite) about 105-115 lb/in, about 1.3-1.4 × the Grade A cotton baseline | tubeFabric row: Euler buckling plateau (`Fc`), **never breaks on crush** (§4.2), long tension travel. **Fabric never deletes on a bent frame**: the skin stays bound to its nodes (`poseSkinGen`), so a crushed bay drapes by itself. A **wrinkle term** from each panel's area shrink (a normal-map blend) makes it read as slack cloth, not stretched paint. The `fabric torn` switch (§5.3) is **demoted**: holes only on a broken group or a trunk or obstacle puncture | D1, D4 |
+| 6 | **wood breaks with no permanent set, and not cleanly** | Wood-mechanics practice (the USDA Wood Handbook's): tension parallel to grain fails brittle, often *splintering*; compression crushes, **ductile**. Sitka spruce: compression about 38 MPa against a modulus of rupture about 70. A 6° grain slope can cut impact bending strength by 45 % (AC 43.13). Glue joints are their own failure mode (casein, UF) | wood row: **tension `Fu ≈ Fy`** (no permanent set, the BeamNG glass case). **Compression** gets a short crush plateau at the crushing stress. **Ragged break**: a member breaks in 2-3 stages (strength falls to 60 % then 0 over a few ms, so it splinters rather than snaps), with a ±15 % seeded per-member scatter for grain and glue. **Glue lines** (spar-to-ply, rib gussets) are seams (7.2) | D1 |
+| 7 | **composites break hard, along seam lines** | FAA review of 73 bond-related accidents: disbonds along spar and skin bonds, stabilisers lost at the bond. ATSB: composites "shatter rather than deform". Counterpoint: AGATE's crashworthy Lancair shows design can change this | carbon row: brittle everywhere (`Fu ≈ Fy`, no plastic travel). **Bond lines are seams** with a lower `Fu` (7.2), so failure finds them first | D1 |
+| 8 | **booms crack, often in the middle** | NASA's 172 Test 3 (tail-low on soil) "snapped the fuselage in half". NTSB: "tailcone separated just aft of the baggage compartment", held by the control cables | two cases. **Monocoque tailcone**: a seam at the cabin-to-tailcone joint aft of the baggage bay. **Rod or tube boom** (the twin-boom and rod builds): the boom cluster (§4.7) gets a **mid-span weak station**. A bending-moment limit at its middle as well as its root splits it into two rigid halves. The user's "in the middle" and the reports' "just aft of the cabin" are both stations; the generator puts one at each | D3 |
+| 9 | **wheels and suspension break easily and get thrown — and must be polished, because hard-landing gear failure is real** | **the strongest evidence set of all** (7.3). Cub: lug and bracket fatigue, gear collapse [AAIB G-BEUA, G-BJIV]. 172: nose leg pushed up through its housing, **firewall buckled around the nose-gear mount** (NTSB ERA15CA038; AAIB G-NWFC, G-GFMT; ATSB VH-EIB). DR400: nose gear breaks on the third bounce, then a wooden prop strike [BEA F-GTPE]. Jodel: main gear bolted to the spar, broken in ground loops [BEA F-BLMO] | **the gear gets its own calibration** (7.3), **not** the generic one | D2 |
+| 10 | **everything breaks along seams and openings** | NTSB: tailcone "broken out … along the rivet lines"; fuselage "broken … at the windscreen frame and cabin door posts". The FAA AD on 172/182/206/210 forward-doorpost cracking (the strut attach) shows where the load concentrates | **seams and openings** (7.2) | D1 |
+| 11 | **wings dislocate, bending and breaking at the cabin attach points** | NASA's 172 Test 2 (nose-down on soft soil): "wings wrenched off and the fuselage flipped tail over nose onto its back". 172 wings attach with two shear pins plus one strut. In-flight analogue: a strut nut fails and the wing breaks at the root [NTSB DEN05FA032] | the **wing root and strut-pin groups are the weakest links of the wing load path** (7.2's break order). The spar between them is ductile (alloy, tube) or splinters (wood) only after the fitting has gone | D1-D2 |
+| 12 | **the engine bay is almost always damaged and bent relative to the frame** | NASA TP-1699 (four high-wing singles, 25 m/s): −30° on soil gave "massive structural damage in the engine compartment and fire wall"; floor pulses up to 45 g on soil. AGATE: soft soil is among the most severe cases | the **firewall ring** (ring 0, `61_gen_frame.js:485-527`) and mount are the designed plastic zone. The engine's inertia plus nose ground contact bends the bay relative to the cabin. **GATE**: after each nose impact in 7.4, the firewall's permanent set is the largest of any ring | D1-D2 |
+| 13 | **nose-over, flip onto the back, broken gear: the classics** | de Voogt & Louteiro 2024 (134 NTSB accidents, CC BY): nose-overs are about 12 % of GA accidents; 58 % tailwheel; 78 % on landing; wind or terrain in 65 %; 3 % fatal. Nall (AOPA): tailwheel in more than 40 % of landing accidents. 23.561(d) **already assumes a turnover with the nose strut failed** | **scenario gates** (7.4): each classic is scripted, run on the reference builds, and its outcome and damage list checked against a real report | D2-D4 |
+| 14 | **fire** | §9 | §9 | D5 |
+
+### 7.2 Seams, openings and the break order
+
+Joints and cutouts are where a crash finds the structure. That is a fact about load concentration and fasteners, not
+about the certified strength: 23.625 makes fittings 1.15 × stronger for the certified cases, and crashes still tear
+along rivet lines. The generator knows every seam it builds, so each beam gets a `seam` tag:
+
+| tag | where (the generator already builds these) | rule |
+|---|---|---|
+| `fitting` | wing root pins, strut pins (both ends), tail attach, gear attach, mount bolts, float struts | its own break group (§4.4). **Brittle** (shear of a bolt or lug: `Fu ≈ Fy`, no plastic travel). `Fu = 1.15 × F_cert` (23.625) |
+| `rivet` | monocoque frame-to-skin lines, the cabin-to-tailcone joint, longeron splices | `Fu = η × member Fu`, joint efficiency **η ≈ 0.7** (a riveted lap joint is weaker than its sheet). Short plastic travel |
+| `bond` | composite skin-to-spar and skin-to-skin; wood glue lines (ply to spar, rib gussets) | brittle, `Fu = η_b × member Fu`, η_b ≈ 0.6-0.8 with a seeded scatter (glue quality) |
+| `opening` | members bordering the door, the windscreen frame, side windows, inspection holes (glazing: `61_gen_frame.js:2466`) | stress-concentration knockdown on `Fu` (Kt ≈ 1.5-2 on the frame members). Doorposts are the 172's known hot spot |
+
+**The break order is a GATE, not a hope.** Under TEST TO DESTRUCTION and in the scenario gates, the first group to
+break must be a fitting or a seam:
+- on a strut-braced wing: the root pin or strut pin;
+- on a cantilever wood wing: the root fitting or a glue line;
+- never the middle of a ductile spar.
+
+If a build breaks in the middle of a member first, its numbers are wrong, and the gate says which.
+
+### 7.3 The gear: its own calibration, because it is real
+
+Gear failure is a normal-operations outcome, not just a crash outcome. A flight school's 172 bends a nose fork from
+a bad flare. So the gear is calibrated against certification and the NASA tests, not against §4.3's flight cases:
+
+- **Limit descent velocity** (23.473): `V = 4.4 (W/S)^¼` ft/s, bounded to **7-10 ft/s (2.1-3.0 m/s)**. The drop
+  test is 23.725.
+- **Reserve energy** (**23.727**; not 23.726, which the first pass got wrong): the gear **may yield but must not
+  fail** at **1.2 × V** with lift equal to weight. That is 2.6-3.7 m/s.
+- **Side and ground loads**, which are the ground loop and the braked swerve:
+  - 23.485 side load: 1.33 g vertical, 0.83 g side (0.5 W inboard on one side, 0.33 W outboard on the other);
+  - 23.493 braked roll: 0.8 friction about one locked main;
+  - 23.497 tailwheel: up-and-aft obstruction at 45°, and a side load equal to the vertical;
+  - 23.499 nosewheel: 2.25 × static vertical, with 0.8 drag or 0.7 side.
+- **Where it actually fails** [NASA 172 Test 1]: about **7 m/s vertical** (276 in/s) at 18 m/s forward on concrete.
+  The **nose gear separated and the mains spread**.
+
+**So the bracket per gear archetype**:
+1. **Survives** with no permanent set up to V. This is GATE: the existing landing gates at their measured sink
+   rates stay clean, the "no ruined normal flying" guarantee.
+2. **Yields, does not break,** up to 1.2 V: the spring-steel leg spreads and stays spread, an oleo bottoms. The
+   bill shows an inspection.
+3. **Breaks** between about 1.2 V and the NASA point, at a seeded station:
+
+   | archetype | breaks at |
+   |---|---|
+   | bungee (Cub) | the lug or bracket, a `fitting` |
+   | spring steel (172 mains, Jodel) | the leg yields a long way first (it is the energy absorber), then breaks at the attach |
+   | oleo nose (172, DR400) | the fork bends, then the strut is driven up into the firewall: **the firewall buckle is the classic damage line**, and it is a mechanism (the strut top is a SUPPORT beam against the firewall ring that transfers the load into it), not a decal |
+   | Jodel mains | bolted through the spar, so a gear failure can take spar damage with it |
+
+4. **Side loads break gear too.** A ground loop past the 23.485 / 23.497 envelope folds a main, and the low wing
+   then strikes. That is the Cub and Beaver ground-loop report in one line.
+
+This uses the existing `GEN_SUSPENSION` archetypes (`60_gen_spec.js:1912-1916`) and the springs the gates already
+measure. Wheels are debris when their group breaks (§8.3).
+
+### 7.4 The scenario gates — the classics, nailed against real reports
+
+Each scenario is a scripted run, like the existing pilot and gate tools. It runs on the reference builds and checks
+the outcome and the damage list. Expected values are written down **before** tuning:
+
+| scenario | script | expected (reference) |
+|---|---|---|
+| **NASA 172 Test 1**: hard landing on concrete | 18 m/s forward, 7 m/s down, 1.5° nose-up | nose gear separates, mains spread, prop strike; **cabin intact** |
+| **NASA 172 Test 2**: nose-down on soft soil | per the NASA TM (open on the box) | **wings wrenched off at the attach**, flip tail over nose onto the back |
+| **NASA 172 Test 3**: tail-low on soil | per the NASA TM | flips onto the roof, **fuselage snaps behind the cabin** |
+| **soft-field nose-over** (Cub, Jodel) | a taildragger rolls into soft ground or ploughed earth at 8-12 m/s, or brakes hard | pitches over; **prop strike**; rests inverted (BEA/AAIB G-BBPS) or on its nose; **fin and rudder damaged** (NTSB J-3 reports) |
+| **ground loop** (Cub, Jodel, Beaver) | crosswind or tailwind landing, loss of directional control | a main gear folds (side load), the **low wing strikes**: wingtip, spar, struts (NTSB PA-18 ×3; Beaver ANC03LA102) |
+| **porpoise** (172, DR400) | nose-first touchdown, two to three bounces | **nose gear collapses on the third bounce**, prop strike, **firewall buckled around the nose-gear mount** (NTSB ERA15CA038, BEA F-GTPE) |
+| **float dig-in** (Beaver) | a float bow digs in on landing | water loop or cartwheel, the wing hits the water, **float-strut fittings fail in overload**, capsize (NTSB ANC19FA035; TSB A18A0053) |
+| **over-g** (all) | a pull to ultimate × 1.1 | the wing fails **at a root or strut fitting**, at the g on the card (§4.3) |
+| **tree at speed** (all) | TREE-HITBOX's 30 m/s trunk | engine bay bends, the wing dislocates at the attach, `crashed` fires |
+
+The NASA tests are public domain and documented with accelerometers. **Matching their outcome and their order of
+failure is the most credible "convincing" a sim can claim.** Deceleration is a second check: cabin floor under
+about 25-30 g on concrete; AGATE's 95th-percentile survivable envelope is 15 g longitudinal and 24 g vertical.
+
+---
+
+## 8. CLIPPING AFTER DEFORMATION
+
+What BeamNG players complained about, as far as the record goes:
+- meshes stretched across broken parts;
+- parts passing through each other (engines into cabins, wheels through bodywork);
+- vehicles sticking together.
+
+BeamNG patched these one at a time (`breakMeshes`, SUPPORT beams, NONCOLLIDABLE anti-clip triangles, breakable
+inter-part collision in 0.5). We plan for it from the start, in five layers, cheapest first.
+
+### 8.1 Stop it in the physics, on the known paths
+We have **no self-collision at all**. For an aeroplane the intrusion paths are few, and the generator knows them all:
+- engine to firewall to cabin;
+- gear leg top to cabin floor (the 172 nose strut is a real one, 7.3);
+- wing root to cabin side;
+- cabin roof to floor (the flip).
+
+Each is a **SUPPORT beam** (§4.6): one line, carries nothing until the gap closes, costs nothing in flight. The crush
+floor `Lmin` (§4.2) stops nodes passing through each other along a beam.
+
+### 8.2 Selective point-against-tube collision, only after damage
+If a scenario gate still shows passthrough, add a node-against-beam-capsule test for a short list of pairs:
+- wheel nodes and mount nodes against the cabin box members;
+- the prop hub against the cabin.
+
+The trunk test already does beam-against-cylinder with a per-frame pair list (`30_solver.js:369-414, 1533-1553`), so
+this is the same pattern. It **switches on at the first yield event**, so flight pays nothing.
+
+### 8.3 Drop it before it clips: debris
+Clipping mostly comes from rigid, non-structural shells sitting on a moved frame:
+- cowl panels;
+- wheel pants and fairings;
+- windscreen and glazing;
+- prop blades;
+- a detached wheel.
+
+These become **debris**: on a trigger, the shell leaves its anchor as a rigid body with its anchor's velocity plus a
+small seeded spin, and falls and bounces on the analytic ground. Triggers are:
+- the anchor group breaks;
+- the anchor's permanent set passes a small threshold;
+- it takes direct ground contact above a speed.
+
+This is **outside the beam solver** (a few rigid bodies, no beams), runs on the main thread from the event message,
+and expires after a few seconds or at rest. That is the user's "the cowl opens and gets ejected" and "wheels are sent
+flying", and it removes the shells that would otherwise clip.
+
+### 8.4 No stretched skin
+On a group break, skin triangles spanning two components are hidden (§5.1). Fabric over a bent tube frame stays
+bound and drapes (7.1 #5). The wrinkle term keeps a shrunken panel from reading as a stretched one.
+
+### 8.5 Measure it — GATE CLIP, extended to the wreck
+FITMENT-STUDY-2026-09-12 built **GATE CLIP** (`tools/_clip_check.js`, G299) under the ruling "must measure clipping
+IN FLIGHT after deformation". This extends it to the end state of every scenario in 7.4:
+- **intrusion**: skin vertices of one part inside another part's hull (the cabin box first);
+- **stretch**: skin triangles whose edge ratio against rest exceeds 3.
+
+Both fail the gate. Two more rules:
+- **The camera**: after `crashed` with cabin intrusion, the cockpit view cuts to the outside view. The IK
+  crash-test dummy is not drawn inside a crushed cabin.
+- **The ground**: skin between contact nodes can dip under terrain today. Worse after deformation, it is checked by
+  the same gate against `terrainH`, and fixed with extra contact nodes on the offenders only.
+
+---
+
+## 9. FIRE
+
+The user's ask: conditions that check for it. The record is clear on the conditions and rough on the rates.
+
+### 9.1 What the record says
+- **How often**:
+  - NTSB-AAS-80-2: 8 % of 22,002 GA accidents (1974-78) had post-crash fire. In severe accidents fatality was 59 %
+    with fire against 13 % without.
+  - FAA AIR723-2023-01-S-2800: about 9 % of small-aeroplane accidents (2012-2021); 68 % of fire accidents fatal.
+  - TSB Canada SII A05-01: fire or smoke contributed in 128 of 521 otherwise survivable accidents.
+- **Where the fuel is matters.**
+  - The J-3's tank sits in the cabin in front of the front-seat occupant: 58 % of its fatal accidents (1970-2013)
+    had post-crash fire.
+  - The PA-18, with wing tanks: 43 % (AVweb).
+  - Piper SL 955 / SB 868 thickened the PA-11/PA-18 header tank because it ruptured in impacts.
+- **What causes it.** TSB's four conditions are:
+  1. an ignition source near fuel;
+  2. fuel near the occupants;
+  3. escape blocked;
+  4. no suppression.
+
+  FAA 2023's fire subset counts 91 tank ruptures and 71 fuel-line ruptures. Gascolators, carburettors and filters
+  were the release point in 11, 9 and 6 accidents. 104 fire fatalities were in accidents with electrical arcing as a
+  probable source.
+- **Fuel type.** Avgas has a low flash point and lights from a spark. Jet-A has a flash point of about 38 °C but a
+  lower autoignition temperature (about 210 °C against about 450 °C), so it is dangerous as mist or on hot engine
+  parts.
+- **Timing.** Escape windows in fuel-fed light-aircraft fires are quoted under 20 s.
+- **Mitigations**:
+  - firewall: 2,000 °F for 15 min (23.1191);
+  - no tank on the engine side of the firewall (23.967);
+  - Army crash-resistant fuel systems (self-sealing breakaway fittings, tear-resistant bladders): 66 % fewer
+    post-crash fires;
+  - the Part 23 crash-resistant fuel system rule (NPRM 85-7A) was withdrawn in 1999.
+
+### 9.2 The conditions, as code
+At a `crashed` event, and every second for 30 s after it, evaluate:
+
+```
+release  = tank group broken                           // 91/… in FAA 2023: tank rupture
+         | (tank location's permanent set > s_tank)    // a crushed nose tank, a folded wing root tank
+         | (firewall ring set > s_fw && fuel line crosses it)   // line or gascolator torn (71 + 11)
+         | (inverted && fuel > 0 && t_inverted > 5 s)  // vents and caps leak on its back
+ignition = engine hot (GEN_ENG_THERMO temp > T_ign of the fuel)  // the thermal model exists
+         | (engine running or windmilling && release near the engine bay)
+         | (bus.master && battery or bus cable run in a damaged group)   // arcing: 31_elec's switch
+         | (prop strike under power && release)        // sparks
+         | (electric build && battery group crushed)   // thermal runaway: its own, slower path
+fire     = release && ignition && seeded roll < p      // p scaled by how much fuel and how close the two are
+```
+
+The facts to read are all present today:
+- tank placement: `GEN_TANKS` nose, wing root or outboard (`60_gen_spec.js:1516`);
+- fuel litres;
+- the fuel type: `GEN_FUELS`;
+- engine temperature: `GEN_ENG_THERMO`;
+- the master switch and battery: `31_elec.js`;
+- attitude and the break and set events from §4.
+
+**The base rate is the check.** Over the scenario suite plus random crash sweeps, fire occurs in roughly 5-15 % of
+`crashed` endings and is much likelier for nose tanks than wing tanks. If the conditions produce 50 %, they are wrong.
+
+### 9.3 What fire does
+- **In the game**, fire is a **hull loss** for the repair bill (§10) and an ending (`fire`).
+- **Garage content**: a crash-resistant tank and breakaway fittings, and a master switch the pilot actually turns
+  off. These are real choices, cost money and weight, and lower `p`. The game teaches what 23.967 and the Army
+  learnt.
+- **Visuals**: smoke and flame at the release point, then spreading. Owed to the POST-FX / particles owners and
+  priced there.
+- **Sound**: a roar bed. Owed to SND.
+
+---
+
+## 10. REPAIR COST — damage is not carried; the bill is computed
+
+**Ruling (bh) taken by the user, 2026-10-04: damage is not carried between flights.** Wear will come later and act
+on reliability, as a separate system. **Repair cost is computed** at the end of every flight that took damage. The
+ledger already has cost centres.
+
+### 10.1 What exists
+`genFrame`'s **ledger** bills mass and cost per **section** as the aeroplane is built: `fuselage`, `wings`,
+`bracing`, `tail`, `gear`, `engines`, `cabin`, `fuel`, `panel`, `avionics`, `elec`, `outfit`, `paint` and others
+(`61_gen_frame.js:405-446`, `sec(...)`, `bill(mass, cost)`). The section is open when each node and member is built,
+so **every beam can be stamped with its section at build time** at no cost. `GEN_PRICES` holds the bought parts:
+wheels, seats, fairings (`60_gen_spec.js:2100`). Engines and props are priced by the registry (`genEnginePrice`).
+
+### 10.2 The bill
+For each section:
+```
+damage_s = Σ wPl (plastic work) over the section's beams / W_ref_s     // how bent, 0..1+
+broken_s = any of the section's break groups broken
+repair_s = cost_s × labour_s × min(1, a·damage_s + (broken_s ? b : 0))
+```
+plus **fixed event lines**, which are what real bills are made of:
+
+| event | line | real anchor (USD, search summaries, to calibrate RATIOS, not prices) |
+|---|---|---|
+| prop strike | new prop **+ engine teardown inspection**. With a seeded 10-20 % chance, internal damage (crankshaft, gear) **+ overhaul** | wood Cub prop about 4.3-4.4 k (Aircraft Spruce 2025); 172 metal prop about 5.9-13 k; teardown about 4 k (2007) to about 13 k (2024); **all-in prop-strike claim on a 172 about 27 k (2024)**; only 10-20 % of torn-down engines show internal damage (AOPA 2007) |
+| firewall buckled | firewall section repair | crack repair about 5 k; sheet plus stiffeners about 20 k (156 h); a new 182 firewall about 40 k |
+| nose gear | fork and strut | 172 nose fork about 4.2-5.3 k (McFarlane) |
+| main gear leg | per leg | 172 spring-steel leg about 8-9.2 k; Cub gear vee about 0.3-0.5 k (Univair) |
+| lift strut | per strut | PA-18 sealed strut about 0.7-3 k |
+| engine mount | the mount | J-3 mount about 1.3 k (Aircraft Spruce) |
+| cowl | per panel | 172 cowl set about 2.5 k |
+| fabric | per panel recovered | Cub full recover about 40 k (shop); fuselage only about 10-12 k |
+| wing (wood) | rebuild | DR400 spar AD reinforcement about €3 k (a floor, not a rebuild) |
+
+**Write-off**: when the bill reaches **about 75 % of the hull value** (insurer practice; policies 75-90 %), the
+aeroplane is a total loss and the bill says so. Hull value is the build's own ledger total. **Fire is always a
+write-off.**
+
+**Calibrate as ratios.** Our credits are not dollars, so each line's fraction of a reference aircraft's value is
+carried onto the build's own ledger total. The prop strike's 27 k against a 172's value, for example, becomes a
+fraction applied to the player's 172-alike. Labour factors per material are real:
+- a fabric recover is mostly labour;
+- a wood repair needs a qualified wood shop;
+- composite needs a bond repair.
+
+### 10.3 What it costs to build
+The tally is a few dozen sums at the end of a flight, from per-beam `wPl` and the broken bits the worker already
+publishes on change (§5.4). **The bill is the cheapest feature in this doc and the most legible.** It is a list of
+real-sounding lines that tells the player what happened ("prop strike: teardown inspection"). It sits in D5 but can
+ship with D1's physics as a debug readout.
+
+---
+
+## 11. THE PLAN, AND HOW BIG IT IS
 
 Each step lands behind `params.damage` until its gates pass. Nothing changes flight behaviour before D2's gate says
-so.
+so. Session counts are an **estimate** in this project's units (a cloud session; a train is a batch of sessions
+integrated by A0), not a measurement.
 
-| step | content | size | gates |
+| step | content | sessions | gates |
 |---|---|---|---|
-| **D0 — instruments** | `sim-diverged` vs `broke-up` split; velocity guard; per-beam `|F|` exposed (`stats().beamF` on demand); Frame mode `|F|/Fy` overlay with **limits stamped but inert** | S | log diff empty; fleet "would-yield" census (§D re-measured on the current fleet, flight box on): how many beams would yield in GATE SOAR / FLEX / LOAD / CROSSWIND / taxi. **Expected: zero in flight, which is §D's crash-only finding re-confirmed** |
-| **D1 — the beam loop** | §4.2 in `30_solver.js`, physics-only limits (calibration (a)); `breakBeam`, groups (§4.4), strip split/drop (§4.5), refs-core check | M | stock step within 2 % of 2.30 ms; quiet fleet flies bit-identical (no limit reached); **spawn-settle produces zero plastic flow on every archetype** (BeamNG's "parts breaking on spawn" debug mode as a gate); a scripted trunk hit at 30 m/s breaks and does not diverge; after every break, no strip spans two components |
-| **D2 — certificate anchoring** | §4.3 (c): the four load cases, the envelope, the stamping, the floors; TEST TO DESTRUCTION on the bench; the card prints limit, ultimate and broke-at | M | every archetype's broke-at g within [1.5, 1.5·m] × limit; no archetype yields in its own normal-ops gates; the bad-design case (a deliberately under-strutted wing) fails the bench, as G458 intended |
-| **D3 — clusters and supports** | §4.7 (i) cluster root limits, twist torque limit; SUPPORT beams where D1/D2's crash gates showed passthrough | S-M | fin, boom and float detach cleanly; no node of a broken gear passes the cabin floor |
-| **D4 — the visible wreck** | mesh breaking (§5.1), part detach for fleet models, Frame-mode permanent set and broken view, the state switches of §5.3 with **prop strike first** | M | no stretched skin across a broken group (pixel check on the scripted breaks); prop strike on every nose-over in G1380's ditching runs |
-| **D5 — the game** | `crashed` ending; the damage tally; worker events; SND hooks; persistence **if (bh) rules it** | M | a route resolved by the real solver (GAME-LAYER P5c) can end `crashed` and report the damage |
+| **D0 — instruments** | `sim-diverged` vs `broke-up` split; velocity guard; per-beam `|F|` exposed (`stats().beamF` on demand); Frame mode `|F|/Fy` overlay with **limits stamped but inert**; beams stamped with section and seam tags | 1 | log diff empty; fleet "would-yield" census (§D re-measured, flight box on) for GATE SOAR / FLEX / LOAD / CROSSWIND / taxi. **Expected zero in flight** |
+| **D1 — the beam loop** | §4.2; materials per 7.1 (ductile alloy and tube, splintering wood, brittle carbon); seams and fittings (7.2); groups (§4.4); strip split/drop (§4.5); refs-core check; SUPPORT beams on the known paths (8.1) | 2 | stock step within 2 % of 2.30 ms; quiet fleet bit-identical; **spawn-settle gives zero plastic flow on every archetype**; a 30 m/s trunk hit breaks and does not diverge; no strip spans two components after a break |
+| **D2 — certificate and gear** | §4.3 (c): four load cases, envelope, stamping, floors; **the gear calibration (7.3)**; TEST TO DESTRUCTION; break-order gate (7.2) | 2 | broke-at g within [1.5, 1.5·m] × limit; existing landing gates clean (gear bracket 1); the first break is a fitting or seam; bad-design wing fails the bench |
+| **D3 — clusters** | §4.7 (i) root limits, twist torque limit, **mid-span boom station** (7.1 #8) | 1 | fin, boom and float detach cleanly; the boom splits at a station |
+| **D4 — the visible wreck** | mesh breaking (§5.1, 8.4); **debris** for cowl, prop, fairings, wheels (8.3); prop strike; fabric wrinkle; fleet-model part detach; GATE CLIP on the wreck (8.5); cockpit camera rule | 2-3 | no intrusion or stretch on the scenario end states; prop strike on every nose-over |
+| **D5 — endings, bill, fire** | `crashed` / `fire` endings; the repair bill (§10); fire conditions (§9); worker events; SND hooks | 1-2 | the bill's lines match each scenario's reference damage list; fire base rate in band (9.2) |
+| **tuning the classics** | the scenario gates (7.4) on the four reference aircraft, against the reports | about 2 | every row of 7.4 matches its expected column |
 
-**Not in this plan:** self-collision, collision triangles, monocoque crumpling, fatigue, post-buckling softening,
-plastic clusters (§4.7 ii), yield on total force, length-aware k. Each is a later doc, if a gate ever asks for it.
+**About 11-13 sessions, two to three trains, to a first convincing model.** The risk is not the solver (the beam
+loop is twenty lines) but **tuning** (the gear bracket, nose-overs that happen on soft ground and not on every taxi)
+and **D4's visual layer**.
 
----
+**The thin slice, about 5-6 sessions**: D0 + D1, plus prop strike, the gear bracket, cowl and wheel debris, mesh
+breaking, and the bill as a readout. No certificate anchoring, no fire. It already makes a nose-over or a hard
+landing an event.
 
-## 8. RULINGS
-
-- **(dm1) Calibration: certificate-anchored (§4.3 c)**, with physics floors and Euler as a hard ceiling.
-  **Recommended.** It is the only option where "the certificate was right" is literally true. The alternatives are
-  (a) crash-only, or (b) one global knockdown tuned "until it feels right", which §D ruled out.
-- **(dm2) Failure before deformation stands** (GAME-LAYER (bd)). D0-D3 are failure; D4 adds only what failure needs
-  to be readable (skin breaking, part detach, prop strike). Crumpling stays out. **Recommended.**
-- **(dm3) TREE-HITBOX's open call: a trunk at speed is a crash**, and it fires from the structure (`crashed` from
-  plastic work or a break in contact), not from `trunkHits()` counting. **Recommended.**
-- **(dm4) `broke-up` is renamed `sim-diverged` for the NaN case**, and `broke-up` is reserved for the structure.
-  **Recommended**; it is a D0 item and costs nothing.
-- **(dm5) Prop strike is the first state switch.** **Recommended**: the cheapest visible consequence, and on every
-  nose-over.
-- **(bh) Does damage persist between flights?** **Still owed, and still the user's.** This design makes either
-  answer cheap: the per-beam state (§5.4) is a few KB, and reset-from-state is the only change.
-- **(dm6) Does TEST TO DESTRUCTION cost the airframe in the game layer** (a destroyed prototype costs its build
-  price)? **Owed**; it decides whether the bench is a free simulator or a real test.
+**Not in this plan:** self-collision beyond 8.2, collision triangles, monocoque crumpling, fatigue, post-buckling
+softening, plastic clusters (§4.7 ii), yield on total force, length-aware k, persisted damage.
 
 ---
 
-## 9. REFERENCES
+## 12. RULINGS
+
+- **(dm1) Calibration: certificate-anchored (§4.3 c)**, with physics floors and Euler as a hard ceiling. The gear
+  has its own bracket (7.3). **Recommended.**
+- **(dm2) Failure before deformation stands** (GAME-LAYER (bd)). Crumpling stays out; the wreck reads through
+  failure, debris and draping fabric. **Recommended.**
+- **(dm3) TREE-HITBOX's open call: a trunk at speed is a crash**, fired from the structure, not from `trunkHits()`
+  counting. **Recommended.**
+- **(dm4) `broke-up` is renamed `sim-diverged` for the NaN case.** **Recommended**; it costs nothing.
+- **(dm5) Prop strike is the first state switch.** **Recommended.**
+- **(bh) RULED 2026-10-04 by the user: damage is NOT carried between flights.** Wear comes later and acts on
+  reliability. A **repair bill is computed** per flight from the ledger's sections (§10).
+- **(dm6) Does TEST TO DESTRUCTION cost the airframe?** **Owed.**
+- **(dm7) The NASA 172 tests and the 7.4 scenarios are the acceptance suite** for "convincing". **Recommended.**
+- **(dm8) Fire** (§9): conditions plus a seeded roll, base-rate checked, always a write-off. Crash-resistant tanks
+  are garage options. **Recommended**; visuals owed to POST-FX.
+- **(dm9) Is the repair bill charged to the wallet** (GAME-LAYER P5a) or shown only? **Owed**; it decides how
+  harsh a hard landing feels.
+
+---
+
+## 13. COPYRIGHT — what we consulted, and what it allows
+
+**Short answer: we are clear, as long as we keep doing what we did: read, learn, cite, and write our own.** Ideas,
+algorithms, physical facts and numbers are not protected by copyright. Expression and code are. Nothing was copied
+into the tree, and this doc carries short attributed quotations only, for commentary.
+
+| source | licence | what we did | rule going forward |
+|---|---|---|---|
+| Rigs of Rods engine source | **GPLv3** | read; the algorithm restated in our own pseudo-code (§2.2), short code comments quoted with attribution | **never paste RoR code into `src/`**: one copied function would put the project under GPLv3. Implement from §4.2, which is our own design |
+| RoR documentation | licence not confirmed | a few one-line quotations, attributed | quotation only |
+| BeamNG VS Code JBeam extension, Blender JBeam Editor | **MIT** (© 2023 BeamNG GmbH) | read the parameter docs and defaults | facts only; nothing to copy anyway |
+| BeamNG vehicle Lua 0.36 | **bCDDL 1.1** (a CDDL-style file licence) | read through a third-party GitHub mirror; parameter names and two comments quoted | **never paste it into `src/`**: a copied file must stay bCDDL with its notice. We copied nothing |
+| BeamNG docs, blog, release notes, forum | © BeamNG and the posters | search summaries only, paraphrased with links | facts and paraphrase only; never paste their text into the game or docs |
+| "BeamNG", "JBeam" | trademarks | named for comparison | fine in design docs; **not in the product's name, store page or marketing** |
+| NTSB, FAA (ADs, CFR, ACs), NASA (civil-servant reports) | **US public domain** | cited, numbers used | free to use; still cite |
+| UK AAIB | **Open Government Licence v3** | cited | reuse with acknowledgement |
+| ATSB (Australia) | **CC BY 4.0** (logos and third-party photos excluded) | cited | reuse with attribution |
+| BEA (France) | free **non-commercial** reuse with source and date; **commercial use needs authorisation** | cited, paraphrased | if the game is ever sold, keep to facts and links, no BEA text or figures |
+| TSB Canada, Transport Canada and EASA ADs | Crown / official, current terms unconfirmed | cited | facts and links |
+| de Voogt & Louteiro 2024 (MDPI *Safety*) | **CC BY 4.0** | cited | free with attribution |
+| journals, magazines, vendors, insurers, forums (AOPA, Flying, AVweb, Aircraft Spruce, Univair, McFarlane, insurers, PoA, supercub.org) | © | prices and facts, cited | **facts only**; prices are facts, not expression |
+| Wikipedia | CC BY-SA | not quoted | quoting text would carry share-alike: don't |
+| crash photos and videos anywhere | © their authors | **none downloaded or committed** | links only; never ship a crash photo as a texture or reference image in the tree |
+
+Two loose ends, both outside this doc:
+- **The repository has no LICENSE file.** The site is public on GitHub Pages, which by default means "all rights
+  reserved". That is fine for us, but the SOUND plan ports MIT code (credit kept in CREDITS.md) and GPL code must
+  never come in. Choosing a licence is the user's call, and it matters if the game is ever sold or opened.
+- **BEA's commercial clause** is the only restriction that bites if the game becomes commercial. Everything else
+  used here is public domain, OGL, CC BY, or facts.
+
+---
+
+## 14. REFERENCES
 
 Read directly:
 - Rigs of Rods source: `github.com/RigsOfRods/rigs-of-rods`, master, `source/main/physics/ActorForcesEuler.cpp`
@@ -688,3 +1055,38 @@ In this tree:
 - PHYSICS-PERF-2026-09-24
 - SOUND-2026-10-04:428
 - ARCH-2026-09-27
+
+Added in the second pass (all through search summaries; open on the box before a number becomes a gate):
+- 14 CFR Part 23, pre-amendment-64 sections, via govinfo annual editions (public domain): 23.303, 23.337, 23.361,
+  23.363, 23.473, 23.485, 23.493, 23.497, 23.499, 23.561, 23.562, 23.625, 23.725, **23.727** (reserve energy),
+  23.967, 23.1191; amendment 64's 23.2430 (eCFR). FAA AC 23.562-1.
+- NASA crash tests (NTRS, public domain): TP-1042 (1978), TP-1210, TP-1477 (1980), TP-1699 (1980); Littell,
+  NASA/TM-2015-218987 (the 2015 Cessna 172 tests); Fasanella and Jackson, NTRS 20160010792 (172 LS-DYNA); NASA
+  20160006503 (172 FE model materials); Jones and Lyle, NTRS 20040191337 (AGATE Lancair).
+- AGATE Small Airplane Crashworthiness Design Guide (Simula, Hurley and Vandenburg), agate.niar.wichita.edu: cite
+  only.
+- FAA AIR723-2023-01-S-2800, *Post-Crash Fires in General Aviation Airplanes* (2023), rosap.ntl.bts.gov/view/dot/77378;
+  NTSB-AAS-80-2 (1980); TSB Canada SII A05-01 (2006); Federal Register 1999-12-30 (NPRM 85-7A withdrawn); DTIC
+  ADA401947 and NTSB ASR-16-02 (crash-resistant fuel systems); FAA review *Bond-Related Aircraft
+  Accidents/Incidents* (rosap dot/57647).
+- de Voogt and Louteiro 2024, *Safety* 10(2):39 (MDPI, CC BY 4.0): nose-over accidents.
+- Accident reports (public domain / OGL / CC BY / BEA non-commercial):
+  - Cub: NTSB GAA18CA303 and the PA-18 ground loops (Centennial 2019, Kerrville 2019); J-3 nose-overs (Quincy 2007,
+    Glenwood Springs 2013, Bald Head Island 2022); AAIB G-AJAD, G-BEUA (gear lug fatigue), G-BJIV (bungee bracket).
+  - Cessna 172: NTSB ERA15CA038 (nose strut through housing, firewall buckle), CEN13CA090, ERA14CA081; AAIB G-NWFC,
+    G-GFMT, G-BAEY, G-BUJN; ATSB 199603044 (VH-EIB).
+  - Jodel and Robin: AAIB G-BHNL, G-BBPS (inverted, beyond repair), G-BDIH, G-INNI, G-CBMT, G-FTIL; BEA F-BLMO,
+    F-GLVK, F-GTPE, F-GSBN, F-GNNE.
+  - Beaver: NTSB ANC19LA028, ANC19FA035 (float fittings in ductile overstress), ANC03LA102; TSB A18A0053, A23P0091,
+    A19O0089.
+- Airworthiness directives and service letters:
+  - lift-strut ADs (93-10-06, 99-01-05, FR 2013-29396);
+  - Cessna doorpost AD (SEB93-5, SEB95-19);
+  - EASA AD 2007-0071R2 and EAD 2022-0267-E / 2023-0048-E (DR400 spars; the latter revoked);
+  - Transport Canada CF-1985-08R4 and CF-2020-22 (Beaver);
+  - Piper SL 955 / SB 868 (header tank);
+  - Lycoming SB 533 and Continental SB96-11 (prop strike).
+- Repair-cost anchors (facts, ©): Aircraft Spruce catalogue 2024-25 (props, J-3 mount); Univair (Cub gear and
+  struts); McFarlane (172 nose fork, spring-steel legs); AOPA 2007 "Two dreaded words" (teardown, 10-20 % internal
+  damage); Global Aerospace 2024 (prop-strike claim inflation); AssuredPartners 2023 (constructive total loss);
+  Aviation Consumer (hard-landing damage); owner forums as low-confidence context.
