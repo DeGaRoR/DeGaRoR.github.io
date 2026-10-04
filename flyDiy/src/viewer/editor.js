@@ -1628,6 +1628,9 @@ function editorInit(api) {
     // G760: `clouds` is a fold of `night` now (the flight rail's SKY & WORLD, mirrored).
     { k: 'graphics', label: 'graphics', title: 'How much the card draws',
       icon: 'M3 5.2h12|M3 9h12|M3 12.8h12|M6.4 5.2a1.3 1.3 0 1 0 0-.1|M11.2 9a1.3 1.3 0 1 0 0-.1|M7.6 12.8a1.3 1.3 0 1 0 0-.1' },
+    // G1600: THE SOUND - the same menu the flight rail opens (audio.js AUDIO.mount). LITERAL FIELDS ONLY (GATE VIEW).
+    { k: 'audio', label: 'sound', title: 'The sound: the volumes, the headset, the music in flight',
+      icon: 'M2.8 7h2.8l4-3.4v10.8l-4-3.4H2.8Z|M12.4 6.4a3.6 3.6 0 0 1 0 5.2|M14.4 4.4a6.4 6.4 0 0 1 0 9.2' },
     { k: 'legend', label: 'legend', title: 'What the marks in the room mean',
       icon: 'M9 15.4A6.4 6.4 0 1 0 9 2.6a6.4 6.4 0 0 0 0 12.8Z|M6.9 7.2a2.1 2.1 0 1 1 3 1.9c-.6.3-.9.7-.9 1.4v.4|M9 13.1v.1' },
   ];
@@ -2026,6 +2029,7 @@ function editorInit(api) {
     if (t.k === 'camera') buildCamera(body);
     if (t.k === 'controls') buildControls(body);
     if (t.k === 'graphics') buildGraphics(body);   // GFX, in its seven folds (G760)
+    if (t.k === 'audio' && window.AUDIO) window.AUDIO.mount(body, Object.assign(railRows(), { refresh: () => openFly('audio') }));   // G1600
     // THE SKY (G760): the day panel with the weather (2026-09-20), the clouds panel, the shed's light rows
     // borrowed into their own fold, the map - each a fold, remembered with the flight rail's
     let rowsHost = body;

@@ -68420,6 +68420,580 @@ BATTERY: two reds, both explained. FADES: its pattern read `const AERO_CLEAR = (
 red) - the pattern takes any number form now (a5f8a2f0), PASS. FRAMECOST: tris.shadow +71 969 (+2.3 %) at the stand and the
 taxi, Cub and Cessna alike = the world look's castMinH 0.5 -> 0.35 m (more cover-ring bushes cast); no fps cost on the light
 pass; admitted, the baseline re-taken (3 rises). Parked aeroplanes re-cooked on the final build.
+
+## G1600-G1604 - SND-CORE: THE SOUND'S SKELETON - window.AUDIO, THE PARAMETER BLOCK, THE BUSES, THE SETTINGS, GATE AUDIO (2026-10-04, SND-CORE for the Sound Coordinator, cloud, node only; branch claude/snd-core-g1600 off claude/sound-integration; G1605-G1609 unused)
+
+Design: futureDesigns/SOUND-2026-10-04.md §2 / §8 / §9 / §10 (wave 1). No sound is made yet: no synth, no file (SND-ENGINE's).
+G1600 src/viewer/audio/audio.js -> window.AUDIO. NOTHING BEFORE A GESTURE: at load it only listens for the first
+  pointerdown / keydown (capture, on window); the handler makes the AudioContext and the graph, then the listeners go.
+  ?audio=0, or localStorage flydiy.audio = '0' (?audio=1 outranks the pref), builds NOTHING: AUDIO is a stub with the same
+  surface (update() returns at once), no listener, no block, no context. THE BUSES (§2.2): sources -> aircraft.ext /
+  aircraft.int -> aircraft -> master; ambience, music, ui -> master; master -> fade -> limiter (DynamicsCompressor -1 dBFS,
+  ratio 20, knee 0, attack 2 ms) -> out. THE SILENCE: hidden tab, the pause (FLYDIY_HELD, read in update) or an unfocused
+  window (the setting) ramp `fade` to 0 over 0.2 s, then ctx.suspend(); back -> resume() and the ramp up (a flip back inside
+  the fade cancels the suspend). The perspective cross-fade (ext <-> int, tau 50 ms ~ 150 ms) follows interior = the
+  cockpit eye outside the shed. Loading (BOOT) does not silence anything yet (owed: say whether it should, SND-MUSIC).
+G1601 src/viewer/audio/audio_params.js -> AUDIO_PARAMS, PURE (node). audioParams(sim, cam, def, out, world, dt) fills ONE
+  Float32Array: out.s[out.I.<name>] (nEng dt V Veas Vg alpha beta nz vs alt oatC c rho thrust wash starved energyFrac
+  thrMaster onGround main0 main1 tail water surf0 surf1 surfT hydroWet submerged flap brake de da dr camMode interior
+  inGarage held listenerX/Y/Z open) and per engine (4 slots, views on the same block) rpm rpmEng thr running crank key
+  thrustPer cyl twoStroke blades D gear family fireHz bpfHz tipM tipMh. fireHz = rpmEng/60 x cyl/2 (x cyl two-stroke),
+  bpfHz = rpm/60 x blades, tipM = pi D rpm/60 / c, c = 20.0468 sqrt(oatC + 273.15). The per-aeroplane constants are
+  resolved once per def: spec.engines[i].sound = {cyl, twoStroke, blades} when present (SND-ENGINE's join), else
+  spec.prop.blades, else AP_FALLBACK (four-stroke 4, two-stroke 2, radial 9, electric / turbine 0 = no firing pulse; a
+  custom engine's name "custom <arch> <n>-cyl" gives n). Contacts + the surface code under each wheel at 30 Hz.
+G1602 THE FRAME: one line in app.js loop(), after the render's POSE_LERP.back(): AUDIO.update(sim, camera, fdt, def, cam,
+  inGarage, world). ZERO ALLOCATION (measured: 0.4 B/frame over 10 000 = noise; 2-3 us a frame in node). Found on the way,
+  for anyone writing a per-frame path in this codebase: a double written into an OBJECT FIELD is a fresh heap box per write
+  (moved to Float64Array slots: the contacts clock, the listener, AUDIO.stats); a read of a HOLEY double array merges with
+  undefined and boxes (the solver's out.thrustPer is holey - `Ti.length = nE` - read with a unary plus); `a && a.x` on a
+  double boxes; a double passed to a non-inlined call boxes (world.surface gets whole metres, `| 0`).
+  NOT OURS, reported: the INLINE solver's wheelContacts() builds an object per call (~700 B/frame at 30 Hz, GATE AUDIO prints
+  it); under the worker (the default) sim.ctl is sim_link.js's Proxy and every lever read comes back boxed through its trap
+  (~7 doubles a frame) and sim.t is a getter (dropped from the block). OWED to sim_link (not touched): a raw ctl handle.
+G1603 SETTINGS on both rails: the flight rail's item `audio` (label "sound", between graphics and dev; section `sound`,
+  FL_SEC_BUILD.sound) and the shed rail's `audio` item (editor.js RAIL + one line in openFly), both AUDIO.mount(body, kit)
+  in their own rows: the sound switch (off = ctx.close() + flydiy.audio '0'; on = a new context now, the click is the
+  gesture), master / aircraft / environment / music / interface (0-100 %), mute when unfocused (on), headset (off: -15 dB
+  on aircraft + ambience in the cockpit), music in flight (off: the music bus at 0 out of the shed). localStorage
+  flydiy.audio.<key>, every access in try/catch. GATE UISMOKE learned the sixth item (fly,view,sky,graphics,audio,dev; its
+  9 rows) and runs the two audio files from source (2 lines + 4).
+G1604 GATE AUDIO tools/audio/_audio_check.js (core, ~3 s; --selftest alone lists the mutations). NUMBERS on six builds flown
+  0.5 s at full throttle by the real solver (the user's Cub, the Jodel, the Cessna's custom flat-4, the metal Cessna's O-540,
+  the Cessna on Wipline floats, the twin-582 ultralight): the solver's rpm to the float, rpmEng = rpm x gear, firing / BPF /
+  tip Mach / helical tip Mach against independent arithmetic, the levers, the key, plausibility windows. CONTACTS (30 Hz,
+  the water code, the shed's cockpit pref is not interior). BUDGET (no heap growth and no GC in 10 000 frames under a
+  64 MB young generation, < 0.3 ms, no AudioParam scheduled in a steady frame). GESTURE (nothing before it, 1 context and
+  9 nodes after, listeners gone; ?audio=0 and the pref: no listener, no block, no context). SILENCE, SETTINGS, SOURCES
+  (a throwing source is switched off; same name replaces; off/on cycle), WIRING (the build list, FLYDIY_AUDIO_SRC, ONE
+  AUDIO.update between the render and PACE.end, both rails). SELFTEST: 27 mutations of the source TEXT (in memory, nothing
+  on disk touched), each must turn its check red (and its check must be green on the pristine text), then the files are
+  re-read and hashed: byte-identical.
+THE BUILD: MANIFEST.viewer.scripts carries 'audio/audio_params.js', 'audio/audio.js' before world_boot.js / app.js (inlined
+  in index.html, refs in dev.html; +30 KB of code). MANIFEST.audio.modules (empty now) is the list of AudioWorklet modules:
+  never inlined, never a <script> tag - served as their own files, their content-versioned URLs published in both pages as
+  window.FLYDIY_AUDIO_SRC = { stem: 'src/viewer/audio/<f>?v=<sha8>' } (with FLYDIY_CORE_SHA). SND-ENGINE: add
+  'engine_worklet.js' to MANIFEST.audio.modules and call AUDIO.module('engine_worklet') inside its source's connect().
+THE API FOR SND-ENGINE / PROP / AIRFRAME / MUSIC (no app.js touch needed):
+  AUDIO.addSource(name, { connect(ctx, AUDIO), update(P, dt, AUDIO), disconnect() }) - connect once the context exists,
+  wire to AUDIO.bus('aircraft.ext' | 'aircraft.int' | 'aircraft' | 'ambience' | 'music' | 'ui' | 'master'); update every
+  frame with P (P.s[P.I.V], P.rpm[i], P.fireHz[i], P.bpfHz[i], P.tipM[i] ...), allocation-free (AudioParam
+  setTargetAtTime, tau ~30 ms; port.postMessage only for discrete events - a message is a structured clone).
+  AUDIO.module(stem) -> promise; AUDIO.onEvent('ready' | 'suspend' | 'resume' | 'settings' | 'perspective' | any, fn) /
+  AUDIO.emit; AUDIO.get / set (the settings); AUDIO.params, AUDIO.stats {calls, ms, maxMs, sources}, AUDIO.state.
+§9 AS MEASURED (2026-10-04): (1) the blade count IS in the spec - spec.prop.blades (60_gen_spec.js:3288, clamped 2-6 at
+  :4303); the generator's prop synthesis uses it. (2) "the twin-582 floats fixture" (build_v7_ultralight_2026-09-05.json) is
+  a TAILDRAGGER on wheels (no hydro); the only floats build is the Cessna on Wipline floats. (3) the solver's
+  wheelsOnGround() / wheelContacts() allocate per call on the inline path; onGround here is derived from the contacts (the
+  same count). (4) app.js lines held: loop 11288, the render ~11535, FL_RAIL 8827, SIMW_DEFAULT 11279. (5) the metal
+  Cessna's O-540 reads 4 cylinders on the fallback - it is a six; the join owes it.
+  A TUNING NOTE FOR SND-PROP: on every direct-drive flat-4 with two blades (the Cub, the Jodel, both Cessnas) the firing
+  frequency and the BPF are THE SAME number (70.5 Hz on the Cub static) - the gearbox is what separates them (the 582: 199.5
+  Hz firing over a 76.1 Hz BPF).
+GATES: AUDIO, BUILD, UISMOKE, VIEW, FLIGHTREC, MEDIA, PACE, BOOT, SIMWORKER PASS. Generated files (index.html, dev.html,
+  sw.js, version.json, flight_core.js) not committed (built by the train). Not run: a browser (cloud): the first real
+  context, the limiter's sound and the rails' look are the user's / the integration's to see.
+
+## G1610-G1613 - SND-ENGINE: THE PISTON ENGINE VOICE, PORTED, FED FROM THE AEROPLANE, HEARD OFFLINE, GATED (2026-10-04, SND-ENGINE for the Sound Coordinator, cloud, node only; block G1610-G1619, G1614-G1619 unused)
+
+Branch `claude/snd-engine-j4phkw` off `claude/sound-integration` (2d630792). Design: futureDesigns/SOUND-2026-10-04.md §3.1/§8/§9.
+G1610 THE PORT - `src/viewer/audio/engine_worklet.js`, one AudioWorkletProcessor `registerProcessor('flydiy-engine')`:
+Antonio-R1's engine-sound-generator worklet + waveguide.js (MIT), itself DasEtwas/enginesound (MIT, Rust) after Baldan &
+Delle Monache 2015; both notices and the MIT text kept verbatim at the head, which also lists every change. Changes: lengths in
+metres and filters in Hz, converted with the worklet's `sampleRate` (upstream hard-codes 44 100 and samples); per-instance
+config (cylinders, per-cylinder crank offsets = the firing order, per-cylinder pipes as enginesound has them); the crank noise
+made zero-mean (upstream's `i * LP(0.25 random)` was a static 0.125-cycle-per-index shift of the firing order); ignition at the
+reference's phase 0.5 (Antonio-R1 fired at 0, before the exhaust valve); the two-stroke (one rev a cycle, ports around BDC);
+enginesound's waveguide soft limit, DC filter and seeded xorshift; a +-1e-18 anti-denormal bias; a NaN guard that resets.
+ALLOCATION-FREE BY CONSTRUCTION, and it took two rounds: a call that passes or returns a double which V8 declines to inline
+boxes it (measured 140 B a block), and a RARE method (the per-cycle draw, the tick) runs in V8's lower tiers where every
+double is boxed. So no per-sample method takes or returns a double (inputs/outputs are fields), the low-pass filters and the
+delay writes are inline, the PRNG is a local int, and the per-cycle draw and the tick are written inside the one hot loop.
+On top (SOUND §3.1): load -> ignition strength, intake roar and a smoothed level (idle ~10 dB under full power); cycle-to-cycle
+jitter (sd 0.34 at idle, 0.05 in cruise, more when cold); misfires and exhaust coughs on starvation with an rpm sag (an idle's
+odd miss does not move the pitch: the sim's rpm is the authority); the STARTER (a DC commutator whine + the crank at
+`crankRpm` labouring through each compression - the solver reports 0 rpm while cranking, so the voice makes the crank); the
+CATCH (first cycles misfiring, a surge to ~1.4x idle, settle); the RUN-DOWN (inertia + friction: ~2 s from idle; the solver
+drops at once); a voice asleep after 1.5 s of silence (pipes zeroed, near-zero CPU); after-shutdown TICKING from an exhaust
+heat that builds while running (three random 1.8-7 kHz modes, rate decaying over minutes); the blower whistle (super: with
+the crank; turbo: spooling on rpm x load). Prop NOT here (SND-PROP): output 1 carries engine and prop rpm (engine/gear) as a
+control signal, the voice's own (cranking, surge and run-down included).
+G1611 THE CONFIG - `src/viewer/audio/engine_config.js` (pure, node): `engineSoundConfig(spec, i, registry?)` -> the plain
+config; `engineSoundInputs(sim, i, dst, o, runS)` writes the six AudioParams (rpm = out.rpmEng[i]; load = ctl.thr x the
+engine's lever x out.powerK; running; starter = eng[i].crank > 0; starve = the last 20 s of fuel.enduranceS, 1 on out.starved;
+cold = the first 240 s of `runS`, which the caller holds) allocation-free; `engineSoundShafts(cfg, rpm)` -> engine / prop /
+firing Hz. Cylinders: spec.engines[i].sound -> a custom row's own name ("custom Flat (boxer) 4-cyl 5.9 L") -> the declared
+ENGINE_SOUND_TABLE keyed by POWERPLANTS row (27 piston rows, generated from the editor presets) -> flat-4 2.8 L, named in
+`source`. THE JOIN (incremental, physics-inert, declared): `window.CAGE_ENG_SOUND(P)` in tools/_cage_eng.js reads
+{cyl, arch, twoStroke, dispL} off the same dial dict as the mesh and the facts (engSpecOfP); the join's measure() carries it
+as M.engineSound and cageJoinSpec writes `engines[i].sound` (both entries of a wing pair). Not clamped in 60_gen_spec (no
+src/core edit): engine_config validates the row itself. Equal to the table on all 27 catalogue piston presets; the two fantasy
+presets (flat twin / flat six, which fly the A-65 row) are where it beats the table. The five validated saves predate it and
+read the table (the Cessna: its custom name), the same numbers.
+G1612 THE HARNESS - `tools/audio/render.js`: the worklet's own text wrapped in a function under a three-global shim (NOT a vm
+context: the contextified global's interceptors measured the voice 10x slower), WAV, a log-frequency spectrogram PNG writer
+(node zlib, own CRC), FFT, the scenes (sweep, run-up through the solver's genShaftRpm at V = 0, key start/run/off, starvation
+in cruise, hot shutdown, the twin). `--bench`, `--calibrate`, `--wav`. Evidence: reports/evidence/SND-ENGINE/ (18 Opus +
+18 PNG, 2.5 MB, README: what to listen for in each). The Jodel flies the Cub's A-65 and the static rpm law does not see the
+prop at V = 0, so its renders differ only by seed - the difference between them is SND-PROP's.
+G1613 THE GATE - `tools/audio/_engine_check.js`, GATE AUDIOENG (registered, core, ~3 min; `--quick`, `--only=3,6`): §1 config
+(the five builds, even firing orders, table vs the editor, the join's row), §2 the firing-frequency peak within +-3 % at six rpm
+idle..rated on all five at 48 kHz and two at 44.1 kHz (measured +-0.01 %, prominence >= 36 dB), §3 no NaN / clip / DC /
+subnormal on 26 renders + a free ring-down + hostile params, §4 0 GCs over 20 000 blocks through every state (child with
+--expose-gc; GC entries counted by their own start time - they arrive late), §5 seeded, §6 the life DRIVEN BY makeSim
+(setEngine key/start/off on the Cub: crank 195-266 rpm while the solver reads <= 6 (the settling aeroplane's windmill: it never turns a cranking engine),
+surge 904 over 644, run-down 1.00 s to 30 % of idle and 1.98 s to stop, ticks hot vs cold, 86 % misfires starving vs 0 %, jitter, prop = engine/2.62, the M-14P's
+whistle), §7 CPU (A-65 0.075 ms, O-540 0.111, 582 0.051 per 128-frame block = 2-4 % of real time), §8 INERT: resolveSpec +
+buildGen + 4 s of the solver bit-identical with and without the sound row on all five. EVERY assertion has a sabotage that
+must turn it red (21 controls); three stayed green on the first run and the TESTS were wrong, not the voice: the clip sabotage
+too weak, the seed sabotage patching a method that no longer exists, and the denormal scenario - a parked voice never decays
+(the frozen piston term holds a DC steady state), so it never tested the bias; it now rings an unexcited network down freely
+(54 731 subnormals without the bias, 0 with).
+GATES: AUDIOENG, JOIN, ENGID, DESIGN, PARTS, PANEL, ENERGY, SAVE, FRAMES, STARTER - PASS (run_gates --only, the built files
+restored after the runner's rebuild: no built file is in this branch).
+FOR THE COORDINATOR TO WIRE (no app.js / build.js edit here): (1) engine_config.js into the main-thread bundle (it reads the
+bundle's POWERPLANTS and GEN_SHAFT; pass `registry` where they are not global); (2) engine_worklet.js served as a file for
+`ctx.audioWorklet.addModule()` (SW media rule / build copy - it must not be concatenated into a bundle; its trailing
+`module.exports` guard is inert in the worklet scope); (3) one node per engine: `new AudioWorkletNode(ctx, 'flydiy-engine',
+{numberOfInputs: 0, numberOfOutputs: 2, outputChannelCount: [1, 2] (or [3, 2] for exhaust/intake/block), processorOptions:
+{config: engineSoundConfig(spec, i), seed: 1 + i, heat, running, rpm}})` - `running/rpm` for a voice made with the engine
+already turning (no catch); (4) per frame: engineSoundInputs -> the six k-rate params (setTargetAtTime tau ~30 ms on rpm/load;
+running/starter as set values); (5) a rebuilt aeroplane: port.postMessage({type: 'config', config}) or a new node; heat via
+{type: 'heat'}; (6) output 1 is SND-PROP's input; (7) the editor bundle carries the two tools/_cage_* edits at the next build;
+(8) CORE's _audio_check.js absorbs or calls GATE AUDIOENG.
+SND-TUNE's list (README): the O-540's ~10 dB dip above ~2 200 rpm (a pipe anti-resonance of the default lengths); cranking
+louder than idle; the level law; every pipe length a starting point - the firing frequency is the only number held exactly.
+
+## G1614 - THE ENGINE SOURCE: SND-ENGINE's voice wired into SND-CORE's AUDIO (2026-10-04, Sound Coordinator, integration)
+
+`src/viewer/audio/src_engine.js` registers `AUDIO.addSource('engine', ...)`: on the context it loads the worklet module
+(`AUDIO.module('engine_worklet')`, MANIFEST.audio.modules now `['engine_worklet.js']`, served as its own file, never
+inlined), then makes one `AudioWorkletNode('flydiy-engine')` per piston engine of the flown aeroplane from
+`ENGINE_SOUND.engineSoundConfig(spec, i)`, rebuilt when `P.def` changes (electric / turbine rows: no node, SND-PROP's).
+Output 0 goes to `aircraft.ext` and, through a PLACEHOLDER cabin low-pass (1.4 kHz, SND-SPACE replaces it with the
+build's cabin transfer), to `aircraft.int`; output 1 (engine rpm, prop rpm - the voice's own) is left for SND-PROP.
+Per frame it reads only the parameter block (rpmEng, thr, running, crank, starved; the warm-up clock in a Float64Array)
+and schedules only what moved (rpm/load by setTargetAtTime tau 30 ms, the switches by setValueAtTime, cold tau 1 s).
+MANIFEST.viewer.scripts gains `audio/engine_config.js`, `audio/src_engine.js` after `audio/audio.js`.
+Node smoke (stubbed Web Audio, the real solver): the Cub -> 1 voice at 2119 rpm full throttle; the twin 582 -> 2 voices
+at 6034 engine rpm; a steady frame schedules nothing but the 1 s-tau warm-up (~every 2.4 s). GATES: AUDIO, AUDIOENG,
+BUILD, UISMOKE, JOIN PASS. NOT YET: a browser (the first real context and the worklet's load on Pages) - the strict gates'
+headed Chrome clicks, so A0's train run is the first real hearing; GATE AUDIO does not yet cover src_engine (SND-PROP
+extends GATE AUDIO when it adds its own source next to this one).
+
+## G1670-G1674 - SND-MUSIC: THE MUSIC PLAYER - STREAMED, FOUR CONTEXTS, SHUFFLED, SILENCES IN THE SHED, EQUAL-POWER CROSSFADES, DUCKED, CREDITED BY CONSTRUCTION (2026-10-04, SND-MUSIC for the Sound Coordinator, cloud, node only; branch claude/snd-music-g1670 off claude/sound-integration 32f01f8a; G1675-G1679 unused)
+
+Design: futureDesigns/SOUND-2026-10-04.md §2.4 / §7.2 / §7.3, rulings s4 (streamed, never decoded), s6 (music in flight OFF by
+default), s9 (credits by construction). No real music ships: src/viewer/audio/music_catalogue.json is `[]` (silent player, "No
+music ships yet." on the credits screen) until the coordinator writes the user's picks.
+G1670 src/viewer/audio/music.js -> window.AUDIO_MUSIC + AUDIO.addSource('music'). TWO <audio> elements, made in connect() (the
+  gesture) -> MediaElementAudioSourceNode -> a gain each -> one duck gain -> AUDIO.bus('music'); preload 'none' until a track is
+  asked of them; a finished / faded element is emptied (pause, removeAttribute('src'), load()). An element connects to a media
+  source once in its life, so sound off/on makes two new ones. CONTEXTS (contextOf, pure): WELCOME = the first boot's loading
+  screen once the gesture exists (AUDIO.welcome) - DECIDED: music may start during the load (one element at ~16 KB/s, decoded by
+  the media thread, nothing on the main thread, nothing before the gesture); GARAGE = AUDIO.inGarage, track to its end then a
+  RANDOM 30-120 s SILENCE, the next at full level; CRUISE = only with 'music in flight' on and only in a cruise (cruiseStep,
+  pure: off the ground, agl >= 200 m held 20 s, flaps <= 0.05, V >= 15; out at once below 120 m, flaps out, vs < -2.5 under
+  450 m = the approach, a wheel down); PHOTO = the hook for CELEBRATION: AUDIO_MUSIC.setPhoto(on) or AUDIO.emit('photo', on)
+  (outranks the rest; a photo mode that sets FLYDIY_HELD silences ALL sound - audio.js's pause - so it must not). 'music in the
+  garage' off silences welcome + garage. A context with no track of its own borrows (welcome / photo -> garage; cruise never).
+  SHUFFLE: a bag per context, every track once per round, a round never opens on the last track; seeded xorshift (seed(n)).
+  CROSSFADE 4 s EQUAL-POWER on setValueCurveAtTime (trim x sin / trim x cos of one phase, a 64-point curve computed once, a fade
+  caught mid-fade starts where it is - lvlAt), with a 3 s preload of the next element before it; welcome / cruise / photo / skip /
+  a context change crossfade. LEAVING A CONTEXT: the track plays on if it is tagged for the new context too (the welcome's track
+  carries into the shed), else a 4 s fade-out (crossfading into the new context's first track); where it stopped is kept per
+  context and resumed on the next visit (> 20 s left). DUCK -10 dB under AUDIO events 'engine' (start / catch), 'stall'
+  (SND-AIRFRAME's, when it lands) and 'duck' (anyone): attack tau 0.12 s, held 6 s after the LAST event, released tau 0.8 s.
+  LEVEL: catalogue lufs -> trim to -16 LUFS (the prep target: a residual), clamped -12..+6 dB. SUSPEND: AUDIO 'suspend' pauses the
+  playing elements, 'resume' plays them; the timers wait. THE FRAME: reads the block and typed slots (the element clocks arrive by
+  'timeupdate' into a Float64Array - a DOM double read per frame would box), schedules nothing when steady, ALLOCATES NOTHING
+  (100 000 calls: 0 GC, +4 KB = noise, 0.1 us a call). A short track gets a shorter fade (dur / 4).
+G1671 ONE LINE in src_engine.js (2 lines touched): AUDIO.emit('engine', 'start') when the starter engages, 'catch' when a
+  stopped engine starts running (not on a voice built with the engine already turning).
+G1672 SND-CORE touches. audio.js (+17 / -2): the setting ['musicGarage', 1, 'bool', 'music in the garage']; AUDIO.addRows(fn)
+  (fn(body, kit, toggle) draws rows under the settings - music.js adds 'skip track' and 'music credits'; the stub has a no-op);
+  read-only AUDIO.inGarage / AUDIO.welcome (what update() saw); THE WELCOME IS NOT THE AIR: `flying` (which zeroes the music bus
+  when music in flight is off) is now inGarage || the first boot's overlay (W.BOOT.state !== 'gone', latched off for good once
+  gone) - before, the bus sat at 0 through the whole first load because inGarage is false until enterGarage. This answers
+  SND-CORE's owed "should loading silence anything": no - the load is the welcome. audio_params.js (+23 / -3): the scalar 'agl'
+  (appended) = alt - max(terrainH, waterH) under the first main, at AP_AGL_HZ = 2, written inside audioParams (a helper called
+  twice a second runs in V8's lower tiers where every double boxes: measured +0.5 B a frame on GATE AUDIO's BUDGET until it was
+  inlined); no world -> the altitude. The world's own samplers still box their answers (two calls at 2 Hz; the world's).
+G1673 THE CATALOGUE, THE CREDITS, THE CACHE. THE SCHEMA (validate() lists what is wrong):
+    [{ id, file, title, artist, album, licence, source, contexts: ['garage'|'welcome'|'cruise'|'photo', ...], lufs, durationS, credit? }]
+    file 'media/audio/music/<stem>.<h8>.(mp3|ogg|opus|m4a|webm)' (written by _media_lib writeMedia('audio/music', stem, 'mp3', buf):
+    content-versioned), resolved as FLYDIY_ASSET_BASE + file like every baked manifest path; licence CC0 | CC0 1.0 | CC-BY 3.0 |
+    CC-BY 4.0 | Public domain (s3); source = the track's page; credit = the exact attribution a CC-BY artist asks for (Scott
+    Buckley's line), else composed '"Title" by Artist (Album) — licence'.
+  DEVIATION FROM THE BRIEF, ON PURPOSE: the catalogue lives at src/viewer/audio/music_catalogue.json, NOT media/audio/music/
+  catalogue.json. (1) sw.js serves /media/ cache-first FOR EVER and an unhashed JSON there would never update on a returning
+  player; (2) GATE MEDIA holds every file under media/ referenced by a manifest - a manifest under media/ is an orphan; (3) the
+  repo's own convention: manifests in src/, bytes in media/. The build INLINES it (window.FLYDIY_MUSIC, beside FLYDIY_AUDIO_SRC in
+  both pages): never fetched, current by construction. THE CACHE: sw.js could not cache music at all - an <audio> element asks
+  by Range, the network answers 206, and the Cache API refuses a 206; every play went to the network. build.js's sw template now
+  answers a Range request from the cache: a miss fetches the WHOLE file once (no Range), caches the 200, and every range is cut
+  from it (206 + Content-Range; suffix ranges; 416 past the end). Tested in node against the generated sw.js (four ranges, one
+  network fetch). Cost: the first play of a track waits for its whole file (~3 MB at 128 kbps); the SW holds the bytes, not the page.
+  CREDITS: the shed's about line #credit (body.html, the CC-BY model credits) gains a 'music & sound credits' link, added by
+  music.js at load (no hot-file touch; there with ?audio=0 too - attribution is not the sound's), opening a dialog: every
+  catalogue track (creditRows, linked to its page) then SOUND_CREDITS (Antonio-R1 / DasEtwas MIT, Baldan et al.). CREDITS.md's
+  "### Music" now carries a generated block (<!-- MUSIC:BEGIN ... --> / <!-- MUSIC:END -->, today "No track ships yet.") written
+  by tools/audio/music_credits.js from the catalogue (--check: exit 1 when stale); the candidates paragraph stays below it.
+  NOW PLAYING: '♪ Title — Artist · licence' for 6 s at a track's start in the garage, #musicNow (made by music.js), fixed at
+  left: var(--ws-left) + 22 px, bottom 18 px (the mirror of #edActs), pointer-events none, fades 1.2 s. Not seen in a browser.
+  TEST TRACKS: tools/audio/fixtures/make_music_fixtures.js (deterministic) -> test_chord.<h8>.wav, test_noise.<h8>.wav (2 s,
+  8 kHz mono, 32 KB each) + test_catalogue.json; GATE AUDIO only, never under media/.
+G1674 GATE AUDIO extended (tools/audio/_audio_check.js, ~5 s; FILES += music.js, src_engine.js, music_catalogue.json,
+  CREDITS.md): the page harness keeps each AudioParam's automation (at(t) evaluates setValue / setTarget / linear / curve,
+  cancel per the spec), gives the context createMediaElementSource (throws on a second connection) and a DOM with fake <audio>
+  elements on a manual clock (timeupdate / ended), and runs music.js in audio.js's own vm context. NINE CHECKS: MUSIC_CAT,
+  MUSIC_CTX (welcome -> garage carry -> flight off = faded + 0 streaming + bus 0 -> on: ground / climb / 22 s level / flaps /
+  approach / 100 m; garage off/on + RESUME; photo; suspend; sound off/on = 2 new elements), MUSIC_SHUFFLE, MUSIC_GAPS (an hour:
+  30..120 s, spread; never 3 elements, 2 only for the 3 s preload, nothing streaming in a silence but its last 3 s), MUSIC_XFADE
+  (one 4 s window, power within 2 %, trims, skip), MUSIC_DUCK (-10 +-0.5 dB, re-armed hold, released), MUSIC_BUDGET (no
+  decodeAudioData / new Audio() in the text, 2 elements + 2 sources per context born preload none, steady = nothing scheduled,
+  the update 0 GC / no growth over 100 000 frames), MUSIC_CREDITS (three catalogues, the screen's rows = the catalogue ids, the
+  origins named, CREDITS.md's block = the shipped catalogue's), MUSIC_WIRING; CONTACTS gained agl (water, land, 2 Hz, no world).
+  SELFTEST 73 mutations (27 core + 46 new), each red on its own check with the reason it was written for; files byte-identical.
+  Three of my first mutations stayed green and the TESTS were wrong (skip still worked through the next frame; the screen key
+  'Antonio' matched 'Antonio-R1'; a gap-long preload streams one element, not two) - rewritten to assert the real property.
+  A harness trap for the next session: node's performance.now() boxes (~33 B a call) - a music page measured with the default
+  clock reads 330 KB of "allocation"; the budget pages use a counter clock (as SND-CORE's does).
+HOT FILES (for A0): tools/build.js +27 / -2 (MANIFEST.viewer.scripts += 'audio/music.js' after 'audio/src_engine.js' - 1 line;
+  the catalogue inlined as window.FLYDIY_MUSIC - 3 lines + the CORE_SHA line; the sw.js template's Range handler - 23 lines);
+  src/viewer/audio/audio.js +17 / -2, audio_params.js +23 / -3, src_engine.js 2 lines (sound files, the SND-* sessions' own);
+  CREDITS.md +6 / -1 (the generated block). NO app.js / editor.js / body.html / css edit: the now-playing line, the credits link
+  and the menu rows are all made by music.js. +~31 KB of code in index.html (music.js, comments included).
+GATES: AUDIO, UISMOKE, MEDIA, BUILD, VIEW, AUDIOENG - PASS (run_gates --only; the generated index.html / dev.html / sw.js /
+  version.json restored, not committed). Not run: a browser (cloud) - the first real <audio> stream, the media element under
+  the SW's 206s, Safari's media pipeline, the now-playing line's look and the credits dialog's are the train's / the user's.
+FOR THE COORDINATOR: (1) after the user's picks: prep writes media/audio/music/<stem>.<h8>.mp3 through _media_lib and
+  src/viewer/audio/music_catalogue.json in the schema above (contexts per track: the brief's "no hooks in the garage" - a hooky
+  track goes to welcome / cruise only), then `node tools/audio/music_credits.js` (CREDITS.md) and the shipped.json rows (s9);
+  (2) GATE MEDIA: REF_RE has no mp3 and its manifest list no music_catalogue.json - the first shipped mp3 is an ORPHAN there;
+  add `mp3|ogg|opus|m4a|webm` to REF_RE and the catalogue to the manifest list in the same commit (not done here: GATE MEDIA is
+  not mine and nothing ships yet); (3) a sw.js sweep for media/audio is not needed (music is a few MB, kept like textures);
+  (4) CELEBRATION: the photo hook is AUDIO.emit('photo', true / false) and must not set FLYDIY_HELD; (5) SND-AIRFRAME: emit
+  AUDIO.emit('stall') on the warning and the music ducks; SND-AMB-1: P.s[P.I.agl] is there (2 Hz); (6) SND-TUNE: the -10 dB duck
+  depth, the 6 s hold, the gaps (30-120 s), the cruise thresholds are constants at the head of music.js - by ear.
+
+## G1630-G1635 - SND-AIRFRAME: THE AIRFRAME VOICE - WIND, GROUND BY SURFACE, TOUCHDOWN AND CHIRP, WATER AND THE STEP, THE STALL WARNING BY KIND, MECHANISMS; THE SAMPLE SLOTS; GATED (2026-10-04, SND-AIRFRAME for the Sound Coordinator, cloud, node only; branch claude/snd-airframe-g1630 off claude/sound-integration 32f01f8a, merged with e587281e (SND-MUSIC); G1636-G1639 unused)
+
+Design: futureDesigns/SOUND-2026-10-04.md §3.5 / §4 / §8 / §9. Everything is SYNTHESIS: no audio file added; the sample
+slots are declared and empty, and every layer sounds without its sample.
+G1630 THE NUMBERS. audio_params.js gains ONE scalar, appended: `aStall` - the body alpha the wing stalls at NOW, in out.alpha's
+  own frame: the build's measured clean stall (64_gen_build.js genClMax -> params.gen.aStall), toward the measured landing-flap
+  stall (gen.aStallLdg) by ctl.flap / flaps.ldg, or minus the polar's dAStall x flap where the landing setting is flapless; 0 = no
+  measured stall (nothing warns). MEASURED: the solver's own out.alpha with the probe's flow at gen.aStall reads it back within
+  0.007 rad on all six builds (GATE AUDIO NUMBERS checks < 0.01) - the probe's "body angle" is out.alpha's frame. The rest is
+  `src/viewer/audio/airframe_model.js` -> AIRFRAME_MODEL (pure, node): airframeStep(P, st, dt) -> st.tg (the 20 layer
+  targets, AF_PARAMS order, QUANTISED so a steady frame repeats them exactly) + st.ev (a 16-slot ring [type, sev, a, b]).
+  WIND amplitude ~ (V/50)^2.5 (15 dB a doubling), band 250 + 28 V Hz, turbulence from |beta|/0.2 + alpha past 75 % of the
+  stall (the buffet); exterior gentle (0.08), closed cabin 0.1 (rendered through the cabin low-pass), OPEN cockpit 0.2
+  (rendered +14 dB over the closed cabin at 50 m/s). GROUND ground speed x the GROUND_SURF row under the mains (else the tail)
+  x the share of wheels down; the tailwheel rattle on the rough rows (AF_ROUGH); the brake squeal under brake below 9 m/s
+  (35 % off paved). TOUCHDOWN per wheel on a contact's RISING EDGE after >= 0.12 s off, severity from the lowest out.vs of the
+  last ~0.3 s (3 m/s = 1): one per wheel, a 50 ms hop does not re-fire, a 0.5 s bounce does; a main on PAVED after >= 1 s in the
+  air above 12 m/s CHIRPS (the spin-up); sev > 0.35 THUMPS the suspension; a rolling load spike (nz off its own 1 s mean by
+  > 0.4) thumps. A spawn ON its wheels settles 1.5 s without events (the Cub's tail taps down at spawn - measured). WATER (the
+  floats: P.s[I.water]) spray hiss with speed, slaps slow in displacement and a fast chatter ON THE STEP (mains wet, the
+  afterbody dry = `tail` 0, the floats' own contact semantics), a SPLASH on the first touch, no tyre event; a WHEELED aeroplane
+  in water (row 4 under a wheel, no hydro): the drag roar and a splash on entry. STALL WARNING: the band is the last 0.075 rad
+  (4.3 deg) before P.s[I.aStall], gated by airflow from 55 % to 85 % of the build's measured stall speed (a seaplane's
+  nose-high hump at 9 m/s does not sound it - found in the evidence and fixed); 'reed' level and pitch follow the margin (it
+  moans in), 'buzzer' latches on past 15 % of the band and off under 5 %. THE KIND (declared table, physics-inert, on the
+  RESOLVED spec - resolveSpec drops meta.class and names the material spec.material): spec.systems.stallWarn when present
+  (nothing writes it yet: an editor control may), else a certified class (n23 / util, when present) high wing reed / low wing
+  buzzer, else a METAL HIGH WING reed (the Cessna archetype), a metal low wing with an electric system buzzer (Piper / Robin),
+  everything else none (tube-and-fabric: the Cub, the ultralights; wood: the Jodel; unknown). Validated builds: Cub none,
+  Jodel none, Cessna reed, metal Cessna reed, Cessna on floats reed, twin 582 none. MECHANISMS flaps moving: the electric
+  motor (metal + an electric system: the Cessna) or the LEVER event at each start of travel (the Cub); creaks from nz off its
+  mean and the control rates (modest: interior, rare bursts).
+G1631 THE VOICE - `src/viewer/audio/airframe_worklet.js`, registerProcessor('flydiy-airframe'), 20 k-rate params (the model's
+  names; GATE AUDIO compares the lists), events by port message {t:'ev', e, s, a, b, k} (k 1 = a recording plays beside it:
+  the procedural at 35 %), {t:'reset'}. OUTPUT 0 EXTERIOR mono, OUTPUT 1 INTERIOR mono (the cabin's mix with a PLACEHOLDER cabin
+  low-pass inside: 900 Hz on the airborne layers, 380 Hz on a closed cabin's wind; the stall warning, creaks, flap motor and
+  lever exist only there). Surfaces from an 8-column table per row (rumble, hiss band, Poisson shot-noise CRUNCH grains per
+  m/s and their band and decay, a tread hum at ground speed / 3 cm on paved). Simper TPT state-variable filters written inline,
+  one Float64Array of state, an int PRNG; a layer silent at both ends of a block is not computed; DC blockers, a +-0.98 guard
+  (counted - never reached in any render), a NaN reset, a +-1e-18 alternating bias. CHOICE (worklet vs native nodes): the
+  worklet measures 0.05 % of real time idle, 0.14 % cruise wind, 0.31 % a take-off roll, 2.7 % with every layer and voices at
+  once (node, per 128-frame block: --bench); the native equivalent is ~35 nodes (noise buffers, ~15 biquads, ~15 gains) that a
+  browser renders every quantum whether their gain is 0 or not, and it cannot run in node for the gate. Not measured: a native
+  graph's own cost (node has no Web Audio) - the choice rests on the worklet's measured cost and its testability.
+G1632 THE SAMPLE SLOTS - `src/viewer/audio/samples.js` -> AUDIO_SAMPLES: attach(ctx), load(key) -> Promise<AudioBuffer|null>,
+  ready / state ('absent' | 'idle' | 'loading' | 'ready' | 'failed' | 'budget') / has / pick, loop(key, dest) -> {gain, rate, out,
+  stop}, oneShot(key, [[node, gain], ...], gain, {semi, db}), bytes, budget, create(opts) (an instance: the gate's stubs). The
+  MANIFEST it reads: window.FLYDIY_AUDIO_MEDIA = { key: [url, ...] } (NOT published by build.js yet - the coordinator's prep.js
+  owns it), each url prefixed by FLYDIY_ASSET_BASE, fetched through ASSET_FETCH only when load() is asked (after the gesture,
+  the first time the layer is heard), decoded by ctx.decodeAudioData; two asks one fetch; a failure stays failed; decoded bytes
+  under 6 MB (refused past it, said once). LOOPS: the codec pad trimmed (|x| < 1e-4, <= 50 ms), the equal-power crossfade
+  (<= 1.5 s, <= a quarter of the file) BAKED ONCE into one looping AudioBufferSourceNode - a steady frame touches nothing, never a
+  seam. ONE-SHOTS: a random variant, pitch +-1.5 semitones, gain +-2 dB (defaults). THE KEYS (declared, each with its kind, its
+  layer and what the recording should be): gnd.grass, gnd.gravel, gnd.asphalt, gnd.dirt, gnd.rattle (loops), gnd.thump,
+  gnd.squeal (one-shots), gnd.brake (loop), water.spray (loop), water.slap, water.splash, mech.switch, mech.lever (one-shots),
+  mech.flap (loop), mech.creak, mech.rattle (one-shots), stall.reed, stall.buzzer (loops). Blending: a loop follows its layer's
+  level and sets the worklet's `duck` bit (1 ground, 2 water, 4 wind, 8 creaks, 16 stall: the procedural at 30 %); an event's
+  one-shot plays beside the procedural (at 35 %). mech.switch is declared for the panel's later use (nothing triggers it here).
+G1633 THE SOURCE - `src/viewer/audio/src_airframe.js` in src_engine.js's shape: AUDIO.addSource('airframe'), on connect
+  AUDIO.module('airframe_worklet') then ONE AudioWorkletNode('flydiy-airframe', 2 mono outputs): output 0 -> aircraft.ext,
+  output 1 -> aircraft.int. Per frame: the model, then only the params that moved (setTargetAtTime tau 30 ms, the discrete ones
+  setValueAtTime), then the frame's events (one port message each; the recording when its key resolved, asked on the first such
+  event). AUDIO.emit('stall') at the warning's onset and every 2 s while it sounds - SND-MUSIC's duck (its entry asked for it).
+  Allocation: 0.4 B a steady frame (noise), nothing scheduled; the model allocates nothing on continuously moving frames, an
+  event frame < 1 KB (it posts a message anyway). tools/build.js (MANIFEST entries only): viewer.scripts += 'audio/airframe_model.js',
+  'audio/samples.js', 'audio/src_airframe.js' after src_engine / music; audio.modules += 'airframe_worklet.js' (served, never
+  inlined: FLYDIY_AUDIO_SRC.airframe_worklet, checked in a build).
+G1634 THE EVIDENCE - `tools/audio/airframe_render.js`: the worklet under render.js's shim, DRIVEN BY makeSim on a stub world (flat
+  ground of one row / a lake), each 16 ms frame through audio_params -> the model -> the params as setTargetAtTime would ->
+  the worklet, SND-ENGINE's voice alongside for the mixes; --only, --wav, --bench; a library for the gate (runScene, onFrame).
+  reports/evidence/SND-AIRFRAME/ (2.6 MB): 7 scenes x (exterior, interior, the mix in the scene's perspective) Opus + 2
+  spectrograms each + README (what to listen for) + summary.json (every event, contact change, level): the Cub taxiing grass
+  then gravel and braking; the Cub's take-off (two tail taps, lift-off 11.3 s); the Cub's firm landing (1.8 m/s sink, both mains
+  severity 0.63, the struts' thump); the Cessna on paved (the chirp at 0.50 s, the tread hum falling, the brake squeal); the
+  Cessna's stall (flap motor, the reed on at 9.34 s at alpha 0.230 = exactly the band's bottom, 0.305 - 0.075); the floats' step
+  taxi (on the step 7.4 s, off 23.9 s); the floats' water landing (splashes 1.00 and 0.75, no tyre sound). No guard hit, no NaN.
+G1635 THE GATE - GATE AUDIO (tools/audio/_audio_check.js) extended, merged with SND-MUSIC's: NUMBERS (the stall alpha at flap 0
+  and full flap on six builds, and the probe's frame), WIRING (the three scripts, the served module), AFMODEL (the wind's level
+  and band rise with V; open > closed; once per wheel per rising edge, debounced, a bounce re-fires; severity orders with the
+  sink; a spawn on its wheels is silent; the chirp only on paved after a real spin-down; the floats' one splash and no tyre;
+  the reed 0 below its band, ~0.5 half way, 1 at the stall, 0 without airflow; kind none never warns; the six kinds; the
+  explicit field outranks; the buzzer's latch 0,1,1,0), AFVOICE (rendered: the wind's RMS +>2 dB a step 15..90 m/s and its
+  centroid rising 1.9 -> 4.6 kHz; open cockpit +14 dB inside; the seven land rows' octave spectra pairwise >= 2 dB apart -
+  closest grass/scree 2.2 dB; touchdown energy -41.9 / -36.0 / -30.5 dB at severity 0.2 / 0.5 / 0.9; the warning inside only and
+  only for a kind; hostile NaN / Inf / 1e9 params stay finite and under the guard), AFALLOC (the model 0 B on 20 000 moving
+  frames, < 1 KB an event; process() 0 GC over 20 000 blocks with every layer and voices ringing; 46 us a block in node),
+  AFFLOWN (the REAL SOLVER recorded once and replayed: the Cub's mains touch once each at their contact frames, severity 0.63
+  at a 1.77 m/s sink; the Cessna chirps on paved; the floats splash without a tyre; the reed comes on at the bottom of its band
+  and is never silent inside it; no NaN / guard / DC > 1e-3 on any render), AFSOURCE (the page: one node, 2 mono outputs, the
+  module added; 30 000 steady frames schedule 0 params, post 0 events, 0.4 B a frame; a paved arrival posts two touchdowns and
+  one chirp; 'stall' emitted at the onset and once 2 s later, never without a warning), SAMPLES (lazy, shared, failed stays
+  failed, the budget, the seam, the pad, the jitter's bounds, the declared keys), INERT (spec.systems.stallWarn leaves buildGen's
+  params and 2 s of node positions bit-identical; the control - 30 kg of baggage - moves them). 58 SND-AIRFRAME mutations, each
+  red on its check: 104 / 104 caught with SND-MUSIC's, the sources byte-identical after. ~34 s (was ~3 s: 10 s of it records
+  the real solver once; `--times` prints each check's share). New: `--only=AFMODEL,...` (a debugging aid that ends PARTIAL,
+  never PASS) and `--times`.
+FOUND ON THE WAY, for anyone gating a per-frame path: P blocks from MANY vm realms make a function's typed-array loads
+  megamorphic, and a megamorphic float load BOXES (the gate's first probe read 350 B a frame that the page never pays); node's
+  performance.now() boxes (~16 B a call: CORE's counter clock is the cure); a test's own object literals per call count too.
+GATES: AUDIO PASS (merged tree, 104 / 104), BUILD PASS, UISMOKE PASS (both on the merged tree; the generated files restored -
+  none is in this branch). Physics: no src/core, no join, no app.js edit; the one declared spec field proven inert (INERT).
+NOT DONE (in §3.5 but not in this brief, or owed): gyros spin-up / spin-down; trim wheel, throttle, mixture, fuel valve,
+  switch and door sounds (mech.switch is a slot only); creaks from the beams' strain (nz and the control rates only); per-wheel
+  compression (none in the solver - events from contact edges + out.vs, as §9 says); a reset in place (skipToLineup) does not
+  re-arm the spawn's settle window (only a new def does) - a lineup could tap its tail once.
+FOR THE COORDINATOR TO WIRE: (1) nothing in app.js - the scripts and the served module are in MANIFEST; (2) prep.js: publish
+  window.FLYDIY_AUDIO_MEDIA = { key: [media/audio/... urls] } in both pages (like FLYDIY_AUDIO_SRC) and the SW media rule for
+  media/audio/; the keys above, mono MP3, one-shots short and dry, loops >= 6 s; (3) run_gates.js: GATE AUDIO's comment says
+  ~3 s - it is ~34 s now (a `wall: 45` hint); I did not touch run_gates.js; (4) SND-SPACE: output 1 carries a placeholder cabin
+  inside the worklet - to own the cabin transfer, split the interior-only layers onto a third output (stall, creaks, flap,
+  lever) and take output 0 through the build's cabin; the event messages carry the wheel (a: 0 left, 1 right, 2 tail, 3 a
+  rolling thump) for panning; (5) the editor may write spec.systems.stallWarn ('reed' | 'buzzer' | 'none') - inert, proven;
+  (6) an AUDIO 'reset' hook on skipToLineup / rollOut would let the model re-arm its settle window.
+SND-TUNE's LIST (every number is a first guess against the engine's level, none matched to a recording): the levels -
+  exterior wind ~ -15 dB under the engine at cruise, the take-off roll ~ -10 dB, taxi ~ -20 dB; the wind's exponent (2.5) and
+  band (250 + 28 V); the cabin placeholder (900 / 380 Hz) and the open-cockpit blast (+14 dB); the surface table (8 columns x 8
+  rows; grass vs scree is the closest pair); the tread hum (3 cm pitch) and the brake squeal (1.25 kHz) - both could grate;
+  the reed (470 -> 580 Hz soft-clipped sine + breath) against a C172 horn, the buzzer (400 Hz square); the touchdown voices
+  (thump 90 - 240 Hz, scuff by surface, chirp 2.3 -> 1.5 kHz); the slap rates (displacement vs step) and the spray band; the
+  creak resonators (520 / 1350 Hz: metal and fabric not told apart yet); the flap motor (165 Hz saw); the warning band (0.075
+  rad) and its airflow gate (55 - 85 % of Vs).
+
+## G1636 - THE RECORDED SOUNDS SHIP, AND THE PAGES NAME THEM (2026-10-04, Sound Coordinator, integration)
+
+The user judged 61 of the 135 candidates on the "flyDiy Sound Picks" board and asked to stop reviewing near-duplicates,
+so the coordinator finalised `tools/audio/sfx_selection_v1.json`: the user's keeps, one per role, duplicates dropped, three
+gap fills marked `pick: 'coordinator'` (an owl, a summer meadow, one UI click - unheard by the user). `tools/audio/prep_sfx.js`
+cuts and levels them (mono, high-pass, a bed = its steadiest 32 s at -23 LUFS, a loop 10 s, a shot its event at a -3 dBFS
+peak capped -16 LUFS; MP3 96/128 kb/s) into `media/audio/sfx/` through _media_lib (owned dir, pruned), and writes
+`src/viewer/audio/sfx_catalogue.json` (the manifest), `tools/audio/shipped.json` (the ledger: source, author, CC0, the
+date the licence line was re-checked) and CREDITS.md's generated block (SFX:BEGIN/END, one row per file).
+`prep_sfx.js --check` exits 1 on a missing file, an orphan or a stale CREDITS block. 34 files, 7.7 MB: 19 beds (forest day /
+night, 4 winds, surf, rocky shore, lake near / lapping, stream, harbour, village, airfield, hangar, roof drip, frogs, loons,
+meadow), 1 loop (gravel rolling), 14 shots (eagle x2, gull, crow, owl, dog, creak x2, door, switch x2, drip, UI click, pickup).
+THE PAGES: build.js inlines `window.FLYDIY_AUDIO_MEDIA = { key: [url, ...] }` from the catalogue beside FLYDIY_MUSIC
+(SND-AIRFRAME's samples.js reads it: gnd.gravel, mech.creak, mech.switch resolve today; the amb.* keys wait for SND-AMB-1).
+GATE MEDIA learns the two sound catalogues and the .mp3 extension (media/audio/* is held referenced == present like every
+other media directory). run_gates: GATE AUDIO `wall: 45` (SND-AIRFRAME made it ~34 s). GATES: AUDIO, AUDIOENG, BUILD,
+UISMOKE, MEDIA, BOOT PASS.
+
+## G1620-G1623 - SND-PROP: THE PROPELLER VOICE, THE TURBINE AND THE ELECTRIC MOTOR, DRIVEN BY THE ENGINE VOICE, HEARD OFFLINE, GATED (2026-10-04, SND-PROP for the Sound Coordinator, cloud, node only; block G1620-G1629, G1624-G1629 unused)
+
+Branch `claude/snd-prop-g1620` off `claude/sound-integration` (32f01f8a). Design: futureDesigns/SOUND-2026-10-04.md §1.2/§3.2-§3.4/§8/§9.
+G1620 THE VOICES - `src/viewer/audio/prop_worklet.js`, ONE AudioWorklet module, THREE processors (a second module beside
+engine_worklet.js rather than an extension of it: the port's file keeps its MIT header and its own change list, and this
+code is not a port, so nothing here carries a licence). Written for flyDiy; methods cited (CREDITS.md, Sound, a new subsection).
+  'flydiy-prop' - one per engine. INPUT 0 = the driver's control output 1 (engine rpm/1000, prop rpm/1000), read PER
+  SAMPLE: the prop turns with the crank, the catch surge and the run-down the engine voice makes; unconnected it falls back
+  to its k-rate `rpm` (x `gear` for the mesh). k-rate params: rpm, thrust (N, out.thrustPer[i]), thr (the lever, x running),
+  c (out.c), V, alpha, beta (rad), interior. TIP MACH IS COMPUTED PER BLOCK FROM THE LIVE PROP RPM (pi D n/60 / c, helical
+  with V), not taken from P.tipM: a cranking prop must be quiet; it equals P.tipM in a steady state.
+  Contents (SOUND §3.2): TONAL m = 1..8 at m B Omega, each level Gutin's - (0.6 thrust/Tstatic + 0.4 thr + 0.25 Mh^2/0.65^2
+  thickness) x Mh x m x J_mB(m B 0.8 Mh sin 75 deg), the Bessel factor exact per block (Miller's backward recurrence, inline),
+  normalised to the fundamental at Mh 0.65 - so the levels rise with tip Mach and the roll-off flattens toward sonic by
+  physics, not a table; an UNSTEADY floor m^-1.3 growing with incidence; the 1P wobble (sidebands) at incidence; blade-to-
+  blade irregularity +-3 % per passage. SNARL above helical Mh 0.82-1.0: every m >= 2 lifted toward the fundamental (a
+  transonic tip's pulse steepens toward a shock: a flat spectrum) + a mild saturation (1 + 1.2 sn; a hard clip shaves off
+  the very spikes the snarl is - measured: the first version, drive 1 + 5 sn, LOWERED the upper share). BROADBAND: four
+  span sections r/R .45 .65 .80 .95, each a TPT band-pass on noise at St U/t (St 0.2, U = hypot(Omega r, V), t nominal
+  thickness), amplitude U^3 (Selfridge et al.'s compact sources), with the loading. CHOP: the broadband (and 30 % of the
+  tonal) modulated at BPF by a raised-cosine pulse, depth 0.15 + 1.4 incidence (+0.25 in the cockpit), incidence =
+  |sin a| + 0.8 |sin b| faded in over 5-15 m/s (alpha is noise on the ground). GEAR WHINE on geared engines at engine
+  rpm/60 x pinion teeth, with the torque. BETA BUZZ: tip Mach high (0.5-0.7), thrust ~0 (< 0.08-0.3 Tstatic), lever back
+  (< 0.35) - the PT6 at taxi: upper harmonics and irregularity up. Outputs: 0 = mono (tonal + broadband); 1 = 2 channels
+  [tonal (+ snarl, whine), broadband (+ chop)] - the same sound split for SND-SPACE. DC blockers per part, NaN guard that
+  resets, states flushed below 1e-20, asleep 1 s after the prop stops (states zeroed).
+  'flydiy-turbine' - the PT6 rows (the solver publishes Np only, constant-speed): Ng DERIVED from the power fraction
+  (lever x running): idle 52 %, ngIdle + (1.01 - ngIdle) power^0.7, the starter's 17 %; spool 2.5 s light-off / 1.5 s up /
+  2 s down running, 6 s + friction after shutdown (the long whine down); Np toward the solver's with 2 s / 6 s + friction.
+  Tone stack: three axial stages + the centrifugal impeller at Ng rev/s x NOMINAL blade counts (26, 39, 44; 30), the first
+  stage's 2nd harmonic, level Ng^2, faded out toward 0.45 sr instead of folding; combustion roar (a 600 Hz 2-pole rumble +
+  a 1.4 kHz band) with the fuel flow, once lit. The prop in beta is the prop voice's own (above).
+  'flydiy-electric' - the whine at the electrical frequency (pole pairs x rpm/60): torque ripple 6 f_e, 12 f_e, the 2 f_e
+  hum, with the current (0.12 + 0.88 power); the inverter's PWM f_sw +- 2 f_e, faint, whenever armed. gain 0.012: very
+  quiet on purpose (§3.4). Spool 0.25 s powered, 2.5 s freewheeling.
+  Both drivers publish THE SAME control output as the piston voice (output 1: driver rpm/1000 - Ng rpm | motor rpm -,
+  prop rpm/1000), so every prop node is wired the same way. ALLOCATION-FREE (G1610's lesson kept): every per-block and
+  per-sample computation inline in process(), no call that takes or returns a double, no per-block closure, typed state.
+G1621 THE CONFIG AND THE SOURCE - `src/viewer/audio/prop_config.js` (pure, node + page: window.PROP_SOUND):
+  propSoundConfig(spec, i, registry?, prop?) -> {driver: 'piston'|'turbine'|'electric', prop: {blades, D, Tstatic, gear,
+  pinion, ratedPropRpm, gain + the tuning knobs}, turbine | electric}. blades: engines[i].sound.blades -> spec.prop.blades
+  -> the registry's -> 2 (audio_params' own order; the gate holds them equal); D, Tstatic: the solver's prop record
+  (def.params.prop) when passed; pinion: the Rotax boxes by ratio (C 2.62 = 55/21, B 2.58 = 62/24, 2.43 = 51/21, 2.27 =
+  50/22), other reductions 21, direct drive and turbine 0; pole pairs 10 (>= 5 kW) / 7 (RC), PWM 12 / 16 kHz.
+  propSoundInputs(P, i, dst, o) / propDriverInputs(P, i, dst, o): the block -> the params, allocation-free.
+  `src/viewer/audio/src_prop.js`: AUDIO.addSource('prop'): loads 'prop_worklet', per engine of the flown aeroplane (rebuilt
+  on P.def) one 'flydiy-prop' (numberOfInputs 1, channelCount 2 explicit/discrete, outputs [1, 2]); for turbine / electric
+  rows also their driver node, its output 1 -> the prop; for piston rows the prop listens to src_engine's node through THE
+  HOOK (the one src_engine.js edit, 3 lines: `AUDIO.voices.engine[i] = node`, cleared on teardown) and RE-WIRES whenever
+  that node changes (either module may load first; a rebuild may land on another frame; the old edge is removed with
+  disconnect(prop, 1)). Output 0 of each -> aircraft.ext and, through a placeholder 1.4 kHz low-pass, aircraft.int (as
+  src_engine; SND-SPACE replaces both). Per frame: reads only the block, schedules only what moved (rpm 0.5, thrust 0.5 %
+  of Tstatic, thr 0.002, c 0.5, V 0.2, alpha/beta 0.002; interior / running / starter by setValueAtTime).
+  tools/build.js (one line each): MANIFEST.audio.modules += 'prop_worklet.js'; viewer.scripts += 'audio/prop_config.js',
+  'audio/src_prop.js' after src_engine.js. No app.js edit.
+G1622 THE HARNESS - `tools/audio/render_prop.js` (a sibling of render.js, on its shim / FFT / WAV / PNG): CHAINS (driver +
+  prop, the driver's control output arrays handed by reference as the prop's input), the solver's laws (genShaftRpm ->
+  genEngineRpm; thrust thr x max(0, Tstatic - kV2 V^2), sea level), scenes runup / takeoff (V to Vr, rotation) / climb
+  (Vy, alpha 0.2, a sideslip) / tipsweep (the Cub's engine on a 2.3 m prop forced 1800 -> 3150 rpm: Mh 0.64 -> 1.11) /
+  start (key: crank, catch or light-off, burst, off, run-down) / taxi; --bench, --calibrate, --wav. render.js's
+  spectrogramPng gained `traces` (the BPF in white, the 582's firing in cyan; `firing` unchanged).
+  The eight builds: the six validated (the user's Cub, the Jodel, the Cessna, the metal Cessna O-540, the Cessna on Wipline
+  floats, the twin-582) + a PT6 ARCHETYPE (the metal Cessna's airframe on pt6a114a_hartzell3, 3 blades 2.69 m) + an
+  ELECTRIC ARCHETYPE (the twin-boom fixture, E-811). EVIDENCE: reports/evidence/SND-PROP/ - 31 Opus + 31 PNG + README
+  (4.4 MB; what to listen for in each; the prop table).
+G1623 THE GATE - `tools/audio/_prop_check.js`: nine sections APPENDED TO GATE AUDIOENG (_engine_check.js SECTIONS
+  .concat(PROP_SECTIONS): one place per voice, no new registry row; standalone `node tools/audio/_prop_check.js`, ~40 s
+  with the sabotages; `--only=P2`). §P1 config on the eight (driver, blades, D, gear, teeth; = audio_params' block) §P2 BPF
+  within +-0.01 % at four rpm on all eight, the prop DRIVEN by its engine voice (prominence >= 49 dB) §P3 the 582: firing
+  199.3 Hz +55 dB and BPF 76.1 Hz +54 dB both in the mix (x2.62), the mesh 2093 Hz +75 dB; the Cub firing = BPF = 70.5 Hz,
+  no mesh §P4 snarl: the upper-harmonic share -12.1 / -7.1 / +0.8 / +4.8 / +8.0 dB at Mh .7/.8/.9/.95/1.0, the snarl's own
+  share 0.0 dB below 0.8 and +3.6 / +4.0 dB at .95 / 1.0 (against the same voice, snarl off) §P5 23 engine+prop renders:
+  peak <= 0.64, DC <= 4e-4, no NaN, no subnormal in outputs or states; asleep 30 s after shutdown; hostile params + a NaN
+  in a filter recover §P6 0 GCs over 20 000 blocks of prop (driven + fallback), turbine, electric §P7 the prop turns with
+  the Cub's crank (BPF 8.8 Hz, solver 0 rpm), 65 % of idle 0.4 s after the key off, stopped by 5.5 s; PT6 Ng 52.0 / 101.0 %,
+  69 % 2 s after shutdown, the first stage exact (8450 Hz at idle); beta buzz 1.0 taxi / 0 climb; E-811 ripple exact
+  (2000 Hz), x4 with current; the chop at BPF +32 dB climbing, 8.5 dB deeper than level §P8 CPU §P9 THE SOURCES (stub
+  AudioContext / AudioWorkletNode recording every edge, the REAL audio.js + audio_params.js + engine_config.js +
+  src_engine.js + prop_config.js + src_prop.js in one vm context, the real solver): the Cub 1 engine + 1 prop, engine
+  output 1 -> prop input 0 with the PROP module loaded FIRST; a new def (the twin 582): 2 + 2, each prop on its own engine,
+  the old edges gone; PT6 1 turbine + 1 prop, electric 1 + 1, no piston node; a steady frame schedules 0 prop/driver params
+  in 120 frames; AUDIO.update with both sources 0 GCs over 2 x 10 000 frames (+7.6 kB, 8 us a frame). 22 SABOTAGES, each
+  red (blades, teeth, ratio, no whine, snarl off - a TEXT mutation of the worklet -, NaN, clip, DC, no sleep, an allocating
+  process(), the prop unwired, Ng idle, pole pairs, no chop, CPU; in the sources: no wire, scheduling every frame, no
+  rebuild, no hook in src_engine, an allocating update). Three tests were wrong on the first run, not the voices: the
+  allocation probe passed fresh `[]` / `[[]]` literals per call (its own garbage, 32-120 B a block); the source probe's
+  forced gc() between its two windows was counted; the snarl's first form failed its own test (above).
+CPU PER VOICE (node 22, this container, 128-frame block; real time 2.67 ms at 48 kHz): prop 0.008-0.016 ms (<= 0.6 %),
+  turbine 0.006 ms, electric 0.007 ms; the piston voice beside it 0.03-0.06 ms (SND-ENGINE's).
+GATES (run_gates --only=AUDIO,AUDIOENG,BUILD,UISMOKE, BATTERY PASS): AUDIO PASS 3.6 s, BUILD PASS 1.4 s, UISMOKE PASS 125 s,
+  AUDIOENG PASS 152 s (its eight sections + the nine prop sections, 132 + 22 controls red). Built files restored after the
+  runner's rebuild (none in this branch). Merged origin/claude/sound-integration (db91a50d, the Engine Lab review) - no conflict.
+THE ENGINE LAB REVIEW (db91a50d) AND THIS EVIDENCE: the `*_start` renders here carry the engine's starter the user rejected
+  ("R2D2") - judge the prop in them by the crank's whooshes and the run-down, not the whine; `twin582_runup_twin` (both
+  engines + both props, peak 0.62) is louder still than the engine-only twin the user found tiring - the multi-engine level
+  law should cover the props too (src_prop sums the props as src_engine sums the engines: one gain per voice).
+SND-TUNE's LIST (the README has it in full): the prop / engine balance (prop ~1 dB under the A-65s at full static, +10 dB
+  over the O-540s - the O-540's own dip helps); the broadband's share, Strouhal, thicknesses, Q; the snarl's onset and lift;
+  the chop law and its tonal share; thickness / unsteady floor; the whine level and nominal teeth; the PT6's nominal blade
+  counts, whine level, roar, spool constants (its planetary gearbox not modelled); the motor's pole pairs, PWM, level.
+FOR THE COORDINATOR TO WIRE: (1) nothing in app.js; the build lines are in; (2) A0's train: the browser's first real
+  load of prop_worklet.js (Pages, the SW media rule as for engine_worklet.js) and the first listen; (3) SND-SPACE: take the
+  prop's OUTPUT 1 (tonal / broadband apart) for directivity (tonal max ~10-20 deg behind the disc plane, nil on the axis),
+  doppler and the cabin; replace both placeholder low-passes; (4) the turbine / electric drivers live in src_prop.js
+  (src_engine.js still skips piston:false rows) - if the coordinator prefers every driver in src_engine, move build()'s
+  driver half there and publish it through the same hook; (5) GATE AUDIOENG's wall: 153 s measured on this box with the
+  prop sections (bound 200) - if the train's box is slower, raise `wall` in run_gates.js (not touched here).
+NOT DONE / OWED: the engine heard THROUGH the disc (the chop of the exhaust note) - it needs the engine's audio routed
+  into the prop node; the PT6's reduction-gear whine and the turbine's starter-generator; per-sample (not per-block) chop
+  depth. The Selfridge et al. paper itself was not reachable (egress blocked) - its method is used as SOUND §1.2 cites it.
+
+## G1615-G1619 - SND-ENGINE-2: THE USER'S ENGINE LAB REVIEW, FIXED - THE STARTER, THE COOLING TICKS, THE CLICKS, THE TWIN'S LEVEL (2026-10-04, SND-ENGINE-2 for the Sound Coordinator, cloud, node only; branch claude/snd-engine2-g1615 off claude/sound-integration 6e2204c0; G1619 unused)
+
+The review (reports/evidence/SND-ENGINE/REVIEW-2026-10-04.md): THE RUNNING VOICE IS RIGHT (7/7 sweeps and run-ups) - the pipes,
+the firing, the load law and the running jitter are NOT retuned here. Fixed only what it flagged. Evidence:
+reports/evidence/SND-ENGINE-2/ (10 Opus + 10 PNG, 1.4 MB, README: per file, what changed and what to listen for, BEFORE = the same
+name in ../SND-ENGINE/).
+G1615 THE STARTER ("R2D2", "too present", "engine too weak when starting"; 4/5 starts Close/Wrong). engine_worklet.js: the DC
+commutator whine (a ~1 kHz tone + 2 harmonics) is deleted. In its place, a geared starter's GROWL: noise (its own xorshift stream)
+-> RBJ band-pass Q 1.2 centred at cfg.starter.hz x (voice rpm / crankRpm) -> two one-pole low-passes at 2.2 x the centre, AM once
+per motor revolution (cfg.starter.ratio motor turns a crank turn, a fresh grit each turn: the Bendix's mesh), heavier as the crank
+slows into each compression. hz from the displacement: 330 x (2.8/L)^0.3, clamped 180-420 (A-65 330, 5.9 L 264, O-540 233, 582 420).
+The CRANKING ENGINE carries the sound: each compression's chuff (air pushed down the pipe) goes into the exhaust network through
+the cough path (crankPuff 1.0), at crankLevel 0.13 (was 0.3 - the old crank was 6 dB over the catch on the Cub). The CATCH barks:
+catchK 2.0 on the level and +0.4 on the combustion, fading over 1.8 s. Measured (GATE AUDIOENG §9; before = §9 run on the G1613
+worklet + config): starter centroid 347 / 273 / 256 / 468 Hz (was 1076 / 926 / 785 / 670), strongest bin 2.5-3.5 dB over its
+third octave (was 18-29: a tone), -61.8 to -66.2 dB RMS (was -36.4: 25 dB under), -67.6 dB(A) on the Cub (was -36.3); the cranking
+engine over the starter on all five; the catch +6.0 (Cub) / +7.5 (Cessna) / +14.5 (O-540) / +14.8 (582) dB(A) over the cranking
+(was 8-11 dB UNDER it: the whine buried the catch).
+G1616 THE COOLING TICKS ("far too synthetic, does feel like bells" - Wrong). The three ringing modes are gone: each tick is a dry
+noise burst, high-passed at 1.5-3.5 kHz and low-passed (two poles) at 3.5-10 kHz, both random per tick (its own tilt), under an
+envelope with tau 0.4-1.5 ms. Rate law unchanged (irregular, thinning with tau 150 s). tick.level 0.03. Measured on cessna_hot:
+median 2.25 ms to -20 dB (was 36), spectral flatness 1.5-8 kHz 0.98 (was 0.25), loudest -10.8 dB re the idle's RMS (was +10.1).
+THE HOOK for a recorded tick: port.postMessage({type: 'tick', synth: 0..1, post: true|false}) - synth scales the synthetic tick
+(0 = off), post sends {type: 'tick', amp 0..1, frame} per tick (frame = samples since the voice was made; one preallocated
+object, posted only when asked). No tick sample exists yet (no SND-AIRFRAME samples.js / mech.tick; SND-ASSETS' 34 shipped files
+have none): the coordinator wires it when one ships.
+G1617 THE CLICKS ("clicks too loud vs the engine", "could be better blended"; the 582 renders and the Cub's starve). The misfire's
+cough was white noise with an instant attack into the straight pipe. It is now low-passed noise (cough.hz 900, two poles, its own
+stream) under an envelope rising over cough.rise 4 ms, still into the straight pipe (muffler + outlet colour it), cough.level 1.2.
+Loudest 5 ms of the isolated cough re the running RMS: cub/starve -5.9 dB (was +2.3), twin582/runup -4.9 (was +4.2),
+twin582/sweep -9.8 (was +2.4) - 8 to 12 dB lower. The starve's story (thickening misfires, sag, dry, windmill) is unchanged.
+G1618 THE LOUDNESS ("the twin a tad annoying, too loud"). Three causes, all fixed: (a) the two voices were PHASE-LOCKED (both cranks
+from angle 0 at the solver's identical rpm: +6 dB coherent) - each voice's starting crank angle now comes from its seed; (b)
+engineSoundCountGain(N) = 1/sqrt(N) per voice, N = engineSoundPistonCount(spec), applied in src_engine.js build() (two lines:
+`kN`, `cfg.gain *= kN`) and in render.js renderScene for summed engines; (c) engineSoundGain x 0.708 (-3 dB) for a two-stroke.
+The twin sums to -1.0 dB re one 582 (was +6.0). THE O-540 START ("base growl a little down pitch; high pitch too synthetic"):
+the high layer was the whine (G1615); crankRpm now takes off 2.5 (L - 6)^2 above 6 L -> the O-540 cranks at 173 rpm (was 194),
+nothing at or under 6 L moves (Cub 266, Cessna 229 unchanged; GATE §6's 100-300 rpm crank holds).
+ALSO: the DC blockers' states are flushed under 1e-30 per block (a lone tick on a sleeping voice left a tail decaying through
+float32's subnormal range - §3's 40 s hot-shutdown row caught it).
+GATE AUDIOENG §9 REVIEW (new, 23 rows): per build the starter's centroid < 600 Hz and no tonal bin (< 12 dB over its third octave),
+its RMS <= the old whine's -36.4 dB - 10, the cranking engine >= the starter in dB(A), the catch >= the cranking + 4 dB(A); the
+ticks' median decay < 5 ms, flatness > 0.35, loudest <= idle RMS - 6 dB, the hook (one message a tick; synth 0 -> silence);
+the three scenes' cough <= its old value - 6 dB (and > old - 20: still heard); the twin <= +1 dB re one, with the piston counts.
+(The brief's centroid bound was 1.5 kHz; the old whine already sat under it at 670-1076 Hz, so it could not go red - 600 Hz does.)
+NEGATIVE-VERIFIED, one sabotage per check, each red: whine (the G1613 whine put back on top: centroid 1074 Hz, a 29 dB bin),
+loudstarter (x12: -40.2 dB), flatcatch (catchK 0, crankLevel 0.3: catch under the crank), ring (tau 30 ms: 41.75 ms), tone
+(a 4 kHz tone under the burst: flatness 0.07), loudtick (x10: +8.5 dB), hook (post off, synth on), crack (cough x4, no rise,
+no low-pass: +15 dB), locked (both cranks from 0, full level: +6.0 dB). And §9 run on the G1613 voice: all 23 rows red.
+The starter and the cough draw their noise from their own xorshift streams (rs[1], rs[2]), so switching either off moves no other
+draw - that is how §9 isolates them (render with and without, subtract).
+render.js: --out=DIR --names=a,b (the SND-ENGINE-2 evidence; a few lines in main()), and summed engines at the count gain.
+GATES: AUDIOENG PASS (full, 101 rows incl. every sabotage, 122 s - inside its wall of 200), AUDIO PASS, BUILD PASS (run_gates
+--only=AUDIO,AUDIOENG,BUILD: BATTERY PASS; the runner's rebuilt dev.html / index.html / sw.js / version.json restored - no built
+file in this branch). Physics untouched (§8 INERT green; no src/core, no solver file). Node smoke of src_engine.js (stubbed Web
+Audio): the Cub 1 voice at gain 0.25, the twin 582 2 voices at 0.1398 (= 0.1977 / sqrt 2).
+FOR THE COORDINATOR: (1) SND-PROP (claude/snd-prop-g1620) touches src_engine.js, render.js and _engine_check.js too: my hunks are
+src_engine build() (2 lines), render.js renderScene (3 lines) + main() (--out/--names, 6 lines), _engine_check.js (secReview
+appended before SECTIONS + one SECTIONS row + 5 header lines) - all additive; (2) the tick hook waits for a CC0 tick sample;
+(3) SND-TUNE: every level here is by measurement against the old voice, not against a recording - the user's ear on the 10 new
+renders decides (the starter at -31 dB(A) re the whine may now be TOO quiet for some; starter.level is one number).
+FINAL REPORT: branch claude/snd-engine2-g1615. Review items: 1 starter -> G1615; 2 ticks -> G1616 (+ hook); 3 clicks -> G1617;
+4 loudness -> G1618 (phase, count gain, two-stroke -3 dB); 5 O-540 start -> G1615 + G1618 (173 rpm, 233 Hz growl). Gates: AUDIOENG
+(+§9, 9 new sabotages red), AUDIO, BUILD PASS. Evidence: reports/evidence/SND-ENGINE-2/{cub,jodel,cessna,cessnaFloats,twin582}_start,
+cessna_hot, cub_starve, twin582_runup, twin582_runup_twin, twin582_sweep (.ogg + .png) + README.md.
+
 ## G1360-G1364 - GATE-TOOLS: THE FRAME-LENGTH DISTRIBUTION; THE PER-TRAIN STRICT GATE (2026-10-03, a cloud session for A0; branch claude/gate-tools-g1360 off master 5502f45 - NOTHING RUN IN A BROWSER: no GPU, no box)
 
 The user (2026-10-03): (1) a frame-length DISTRIBUTION instead of one "uneven %"; (2) "no regression accepted, ever" -

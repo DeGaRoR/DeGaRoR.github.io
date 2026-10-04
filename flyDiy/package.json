@@ -1,10 +1,12 @@
 {
   "name": "flydiy",
   "private": true,
-  "description": "flyDiy — vendor build only: `npm install && node tools/vendor_three.js` regenerates vendor/three.min.js (W0.5a). The KTX2 bakers (AS3) also run basisu v1.16.4 from basis_universal@1.16.4-1. The game and its gates have no other dependency.",
+  "description": "flyDiy — vendor build only: `npm install && node tools/vendor_three.js` regenerates vendor/three.min.js (W0.5a). The KTX2 bakers (AS3) also run basisu v1.16.4 from basis_universal@1.16.4-1. The game and its gates have no other dependency. The SOUND asset tools (tools/audio/excerpt.js, prep) decode with audio-decode and encode with lamejs; tools only, nothing shipped carries them.",
   "devDependencies": {
     "esbuild": "0.28.2",
     "three": "0.186.0",
-    "basis_universal": "1.16.4-1"
+    "basis_universal": "1.16.4-1",
+    "audio-decode": "3.12.0",
+    "lamejs": "1.2.1"
   }
 }

@@ -1,0 +1,122 @@
+{
+ "v": 1,
+ "date": "2026-10-04",
+ "from": "the user's verdicts on the 'flyDiy Music Picks' board (31 judged of 51; 'so far, holizna is the best'). Station LO-FI first; the other stations (jazz, blues, dub, electronic, ambient, classical, rock) follow from a short station board.",
+ "stations": {
+  "lofi": "Lo-fi - calm, peaceful lo-fi, HoliznaCC0 at its heart (the user's favourite)",
+  "jazzblues": "Jazz & Blues - calm",
+  "dub": "Dub & Reggae - instrumental, laid back",
+  "electronic": "Electronic & Ambient - downtempo, chill-out, ambient",
+  "classical": "Classical - calm piano, strings, guitar",
+  "acoustic": "Acoustic & Easy Rock - soft"
+ },
+ "items": [
+  {
+   "id": 238392,
+   "station": "lofi",
+   "contexts": [
+    "garage",
+    "welcome"
+   ],
+   "verdict": "keep"
+  },
+  {
+   "id": 275835,
+   "station": "lofi",
+   "contexts": [
+    "garage",
+    "welcome",
+    "cruise"
+   ],
+   "verdict": "keep"
+  },
+  {
+   "id": 275843,
+   "station": "lofi",
+   "contexts": [
+    "garage"
+   ],
+   "verdict": "keep"
+  },
+  {
+   "id": 267057,
+   "station": "lofi",
+   "contexts": [
+    "garage",
+    "welcome"
+   ],
+   "verdict": "maybe"
+  },
+  {
+   "id": 265836,
+   "station": "lofi",
+   "contexts": [
+    "garage"
+   ],
+   "verdict": "maybe"
+  },
+  {
+   "id": 265847,
+   "station": "lofi",
+   "contexts": [
+    "garage"
+   ],
+   "verdict": "maybe",
+   "note": "user: good for night/evening in the garage, melody a little too repetitive"
+  },
+  {
+   "id": 268742,
+   "station": "lofi",
+   "contexts": [
+    "garage"
+   ],
+   "verdict": "maybe"
+  },
+  {
+   "id": 275832,
+   "station": "lofi",
+   "contexts": [
+    "garage"
+   ],
+   "verdict": "maybe"
+  },
+  {
+   "id": 275836,
+   "station": "lofi",
+   "contexts": [
+    "garage",
+    "cruise"
+   ],
+   "verdict": "maybe"
+  },
+  {
+   "id": 164357,
+   "station": "lofi",
+   "contexts": [
+    "cruise",
+    "welcome",
+    "garage"
+   ],
+   "verdict": "maybe",
+   "note": "user: more up tempo than the rest, still chill, more groovy"
+  },
+  {
+   "id": 171982,
+   "station": "lofi",
+   "contexts": [
+    "garage"
+   ],
+   "verdict": "maybe"
+  },
+  {
+   "id": 279362,
+   "station": "jazzblues",
+   "contexts": [
+    "garage"
+   ],
+   "verdict": "keep",
+   "note": "user: jazz section"
+  }
+ ],
+ "stationsRule": "the user, 2026-10-04: max 6 stations, covering a large panel, all calm"
+}

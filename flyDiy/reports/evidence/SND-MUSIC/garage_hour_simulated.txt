@@ -1,0 +1,29 @@
+# An hour in the shed, simulated in node (GATE AUDIO's harness: the real audio.js + music.js, fake <audio> elements on a
+# manual clock, seed 11). Garage list: w0 w1 w2 w3 g4 (durations / lufs invented). Each track to its end, then a random
+# 30-120 s silence; every five starts a round with no repeat; never the same track twice in a row.
+  0:00  w2 (70 s, trim -3.0 dB)  then 66 s of silence
+  2:15  w1 (47 s, trim 3.0 dB)  then 55 s of silence
+  3:57  w3 (52 s, trim -1.5 dB)  then 49 s of silence
+  5:38  g4 (58 s, trim 1.0 dB)  then 84 s of silence
+  8:00  w0 (61 s, trim 2.0 dB)  then 119 s of silence
+ 11:00  w1 (47 s, trim 3.0 dB)  then 64 s of silence
+ 12:51  w2 (70 s, trim -3.0 dB)  then 120 s of silence
+ 16:01  w0 (61 s, trim 2.0 dB)  then 107 s of silence
+ 18:49  g4 (58 s, trim 1.0 dB)  then 102 s of silence
+ 21:29  w3 (52 s, trim -1.5 dB)  then 39 s of silence
+ 23:00  w2 (70 s, trim -3.0 dB)  then 66 s of silence
+ 25:15  w3 (52 s, trim -1.5 dB)  then 115 s of silence
+ 28:03  g4 (58 s, trim 1.0 dB)  then 118 s of silence
+ 30:59  w1 (47 s, trim 3.0 dB)  then 92 s of silence
+ 33:18  w0 (61 s, trim 2.0 dB)  then 57 s of silence
+ 35:16  w2 (70 s, trim -3.0 dB)  then 72 s of silence
+ 37:38  g4 (58 s, trim 1.0 dB)  then 75 s of silence
+ 39:51  w1 (47 s, trim 3.0 dB)  then 116 s of silence
+ 42:34  w0 (61 s, trim 2.0 dB)  then 69 s of silence
+ 44:44  w3 (52 s, trim -1.5 dB)  then 89 s of silence
+ 47:04  g4 (58 s, trim 1.0 dB)  then 68 s of silence
+ 49:10  w3 (52 s, trim -1.5 dB)  then 67 s of silence
+ 51:09  w2 (70 s, trim -3.0 dB)  then 114 s of silence
+ 54:12  w1 (47 s, trim 3.0 dB)  then 97 s of silence
+ 56:36  w0 (61 s, trim 2.0 dB)  then 81 s of silence
+ 58:59  w2 (70 s, trim -3.0 dB)

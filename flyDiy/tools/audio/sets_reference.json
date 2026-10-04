@@ -1,0 +1,15 @@
+[
+ {"tag": "ref.c172", "q": "cessna 172", "pages": 1},
+ {"tag": "ref.c172.int", "q": "cessna interior", "pages": 1},
+ {"tag": "ref.cub", "q": "piper cub", "pages": 1},
+ {"tag": "ref.rotax912", "q": "rotax 912", "pages": 1},
+ {"tag": "ref.rotax582", "q": "rotax 582", "pages": 1},
+ {"tag": "ref.ultralight", "q": "ultralight aircraft", "pages": 1},
+ {"tag": "ref.flyby", "q": "propeller plane flyby", "pages": 1},
+ {"tag": "ref.startup", "q": "airplane engine start propeller", "pages": 1},
+ {"tag": "ref.taxi", "q": "small plane taxi", "pages": 1},
+ {"tag": "ref.int", "q": "small airplane cockpit flight", "pages": 1},
+ {"tag": "ref.stallhorn", "q": "stall horn", "pages": 1},
+ {"tag": "ref.turboprop", "q": "turboprop", "pages": 1},
+ {"tag": "ref.floatplane", "q": "floatplane", "pages": 1}
+]

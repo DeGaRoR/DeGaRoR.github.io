@@ -8977,6 +8977,7 @@
     // G286: GRAPHICS - the menu a PC game has (gfx_settings.js's, both rails host it); G760: in its seven groups
     { k: 'graphics', label: 'graphics', title: 'How much the card draws',
       icon: 'M3 5.2h12|M3 9h12|M3 12.8h12|M6.4 5.2a1.3 1.3 0 1 0 0-.1|M11.2 9a1.3 1.3 0 1 0 0-.1|M7.6 12.8a1.3 1.3 0 1 0 0-.1', secs: [] },
+    { k: 'audio', label: 'sound', head: 'The sound', title: 'The sound: the volumes, the headset, the music in flight', icon: 'M2.8 7h2.8l4-3.4v10.8l-4-3.4H2.8Z|M12.4 6.4a3.6 3.6 0 0 1 0 5.2|M14.4 4.4a6.4 6.4 0 0 1 0 9.2', secs: ['sound'] },   // G1600 (audio.js AUDIO.mount)
     { k: 'dev', label: 'dev', dev: true, head: 'The developer’s tools', title: 'The developer’s tools: the world editor, the test mode without physics, the flight log, the overlays',
       icon: 'M6.4 5 2.8 9l3.6 4|M11.6 5l3.6 4-3.6 4|M10.2 3.6 7.8 14.4', secs: ['scenery', 'world', 'log', 'overlays'] },
   ];
@@ -9015,6 +9016,7 @@
     { k: 'world', label: 'world', title: 'The world editor', head: 'world editor', sub: 'the scenery editor, the WORLD rail (F9)' },
     // G620: THE FLIGHT LOG - the recording's state, save log, the previous session
     { k: 'log', label: 'flight log', title: 'The flight recorder', head: 'flight log', sub: 'save this session, or the one before' },
+    { k: 'sound', label: 'sound', title: 'The volumes, the headset, the music', sub: 'the volumes, the headset, the music in flight' },   // G1600
     { k: 'overlays', label: 'overlays', title: 'What is drawn over the aeroplane and the screen for a developer', sub: 'the covering, the F8 panel' },
   ];
   const FL_RAIL_BY = {}, FL_SEC_BY = {}, FL_HOME = {};
@@ -9293,6 +9295,7 @@
   const FL_SEC_BUILD = {
     route: b => FL_BUILD.slot_route(b),
     weather: b => { FL_BUILD.air(b); FL_BUILD.weather(b); },
+    sound: b => (window.AUDIO ? window.AUDIO.mount(b, { row: flRow, range: flRange, toggle: flToggle, note: flNote }) : flNote(b, 'This build has no sound.')),   // G1600
   };
   // THE RAIL, for the gates and the rigs: the items and their sections, where an old item lives, open(k) (an
   // item, a section or an old item's name), and census(k) - the item built with every fold open, its rows,
@@ -11718,6 +11721,7 @@
       }
     }
     POSE_LERP.back();                  // G1100: the newest step's positions back, bit for bit, before anything else reads them
+    if (window.AUDIO) AUDIO.update(sim, camera, fdt, def, cam, inGarage, world);   // G1600: the sound's numbers off the newest step (audio.js; nothing before a gesture)
     if (FR) FR.end(true, cg);          // G620: the glare and the rest to `other`; the row written
     PACE.end(perfNow() - tLoop0, physMs, pc.steps, typeof ts === 'number' ? ts : perfNow(), simwRan >= 0 ? 0 : ran);   // (G820: the worker's steps are not the page's: their cost is not a page step's)   // G586: auto's reading (G612: and the guard's)
     BOOT.frame();     // the loading screen counts frames: it lifts three quiet ones after the last landing

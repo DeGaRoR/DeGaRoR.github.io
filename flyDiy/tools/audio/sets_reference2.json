@@ -1,0 +1,14 @@
+[
+ {"tag": "ref.c172", "q": "cessna", "pages": 2},
+ {"tag": "ref.light", "q": "light aircraft", "pages": 2},
+ {"tag": "ref.light", "q": "small plane", "pages": 2},
+ {"tag": "ref.int", "q": "airplane interior propeller", "pages": 1},
+ {"tag": "ref.int", "q": "cockpit propeller", "pages": 1},
+ {"tag": "ref.takeoff", "q": "plane takeoff propeller", "pages": 1},
+ {"tag": "ref.rotax", "q": "rotax", "pages": 1},
+ {"tag": "ref.twostroke", "q": "two stroke engine", "pages": 1},
+ {"tag": "ref.boxer", "q": "boxer engine", "pages": 1},
+ {"tag": "ref.radial", "q": "radial engine", "pages": 1},
+ {"tag": "ref.seaplane", "q": "seaplane", "pages": 1},
+ {"tag": "ref.stallhorn", "q": "stall warning", "pages": 1}
+]

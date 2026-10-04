@@ -72,6 +72,10 @@ const GATES = [
   // a freeze is kept, the GPU query yields to another's, the ring and the chunks, analyze_log.js scoring two
   // scripted sessions, the recorder's own cost (time and allocation a frame) and its wiring; ~10 s
   { id: 'FLIGHTREC', file: '_flightrec_check.js', tier: 'core' },
+  // THE SOUND (G1604, SOUND-2026-10-04 §8): audio_params.js on six validated builds (firing, BPF, tip Mach off the
+  // solver's rpm), AUDIO.update's budget (no heap, < 0.3 ms), nothing before a gesture, ?audio=0 builds nothing, the
+  // silence, the settings, the sources, the wiring - and every check mutated red (--selftest alone); ~3 s
+  { id: 'AUDIO', file: 'audio/_audio_check.js', tier: 'core', wall: 45 },
   // SKY S1/S2 (2026-09-14): the day object and the almanac, headless
   { id: 'DAY', file: 'test_day.js', tier: 'core' },
   // THE CLIMATE (K0, 2026-09-22): the one wind field - the G72 column bit-identical against a
@@ -555,6 +559,11 @@ const GATES = [
   // engine stays on its bearer, the bearer stops ringing, the wing root
   // stays put against the firewall. Negative control on the twin fixture.
   { id: 'MOUNT', file: '_mount_check.js', tier: 'core', wall: 130 },
+  // SND-ENGINE (G1613): the engine part of GATE AUDIO - the worklet run in node under a shim: the
+  // firing frequency within 3 % across idle..rated on the five validated engines (48 and 44.1 kHz), no
+  // NaN/clip/DC/subnormal, process() allocation-free, seeded, the life driven by the solver, the sound
+  // row physics-inert; every assertion negative-verified. SND-CORE's _audio_check.js absorbs it; ~3 min
+  { id: 'AUDIOENG', file: 'audio/_engine_check.js', tier: 'core', wall: 320 },
 ];
 
 const args = process.argv.slice(2);

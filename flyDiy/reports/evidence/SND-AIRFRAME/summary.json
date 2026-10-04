@@ -1,0 +1,381 @@
+{
+ "cub_taxi_grass": {
+  "label": "the user's Cub taxiing: grass, then a gravel stretch (x < -25 m), braked to a stop",
+  "seconds": 22,
+  "kind": "tubeFabric high wing: no warning",
+  "cam": "cockpit",
+  "ext": {
+   "peak": 0.288,
+   "rmsDb": "-38.7"
+  },
+  "int": {
+   "peak": 0.222,
+   "rmsDb": "-39.1"
+  },
+  "events": [],
+  "notes": [
+   "0.00 s contacts LR- (Vg 0.2 m/s, vs -0.15)",
+   "0.62 s contacts LRT (Vg 0.3 m/s, vs -0.29)",
+   "0.77 s contacts LR- (Vg 0.1 m/s, vs 0.01)",
+   "1.01 s contacts LRT (Vg 0.1 m/s, vs -0.05)"
+  ],
+  "guarded": 0,
+  "nan": 0
+ },
+ "cub_takeoff": {
+  "label": "the user's Cub taking off from grass: full throttle, tail up, lift-off ~11 s, climbing",
+  "seconds": 20,
+  "kind": "tubeFabric high wing: no warning",
+  "cam": "chase",
+  "ext": {
+   "peak": 0.176,
+   "rmsDb": "-40.4"
+  },
+  "int": {
+   "peak": 0.145,
+   "rmsDb": "-39.0"
+  },
+  "events": [
+   {
+    "t": 9.424,
+    "type": "touchdown",
+    "e": 1,
+    "sev": 0.081,
+    "a": 2,
+    "b": 0,
+    "vs": 0,
+    "Vg": 13.74
+   },
+   {
+    "t": 9.856,
+    "type": "touchdown",
+    "e": 1,
+    "sev": 0.082,
+    "a": 2,
+    "b": 0,
+    "vs": -0.01,
+    "Vg": 14.32
+   }
+  ],
+  "notes": [
+   "0.00 s contacts LR- (Vg 0.2 m/s, vs -0.15)",
+   "0.62 s contacts LRT (Vg 0.3 m/s, vs -0.29)",
+   "0.77 s contacts LR- (Vg 0.1 m/s, vs 0.02)",
+   "1.06 s contacts LRT (Vg 0.1 m/s, vs -0.07)",
+   "7.87 s contacts LR- (Vg 11.3 m/s, vs 0.02)",
+   "9.41 s contacts LRT (Vg 13.7 m/s, vs -0.00)",
+   "9.60 s contacts LR- (Vg 14.0 m/s, vs 0.01)",
+   "9.84 s contacts LRT (Vg 14.3 m/s, vs -0.01)",
+   "11.33 s contacts LR- (Vg 16.2 m/s, vs 0.03)",
+   "11.76 s contacts --- (Vg 16.7 m/s, vs 0.12)"
+  ],
+  "guarded": 0,
+  "nan": 0
+ },
+ "cub_firm_landing": {
+  "label": "the user's Cub arriving firm on grass: 2.4 m/s sink at 1.15 Vs, three-point, braked roll-out",
+  "seconds": 12,
+  "kind": "tubeFabric high wing: no warning",
+  "cam": "chase",
+  "ext": {
+   "peak": 0.444,
+   "rmsDb": "-36.2"
+  },
+  "int": {
+   "peak": 0.228,
+   "rmsDb": "-35.2"
+  },
+  "events": [
+   {
+    "t": 0.592,
+    "type": "touchdown",
+    "e": 1,
+    "sev": 0.628,
+    "a": 0,
+    "b": 0,
+    "vs": -1.79,
+    "Vg": 18.45
+   },
+   {
+    "t": 0.592,
+    "type": "thump",
+    "e": 3,
+    "sev": 0.596,
+    "a": 0,
+    "b": 0,
+    "vs": -1.79,
+    "Vg": 18.45
+   },
+   {
+    "t": 0.592,
+    "type": "touchdown",
+    "e": 1,
+    "sev": 0.628,
+    "a": 1,
+    "b": 0,
+    "vs": -1.79,
+    "Vg": 18.45
+   },
+   {
+    "t": 0.8,
+    "type": "thump",
+    "e": 3,
+    "sev": 0.475,
+    "a": 3,
+    "b": 0,
+    "vs": 0.44,
+    "Vg": 18.14
+   },
+   {
+    "t": 6.016,
+    "type": "touchdown",
+    "e": 1,
+    "sev": 0.092,
+    "a": 2,
+    "b": 0,
+    "vs": -0.04,
+    "Vg": 10.87
+   }
+  ],
+  "notes": [
+   "0.00 s contacts --- (Vg 18.6 m/s, vs -2.37)",
+   "0.58 s contacts LR- (Vg 18.5 m/s, vs -1.79)",
+   "1.10 s contacts --- (Vg 17.8 m/s, vs -0.04)",
+   "1.20 s contacts LR- (Vg 17.8 m/s, vs -0.19)",
+   "6.00 s contacts LRT (Vg 10.9 m/s, vs -0.04)"
+  ],
+  "guarded": 0,
+  "nan": 0
+ },
+ "cessna_paved_landing": {
+  "label": "the Cessna 172 landing on paved: mains first at 27 m/s (the chirp), the nose down, braked to a walk (the squeal)",
+  "seconds": 18,
+  "kind": "metal high wing (the Cessna archetype)",
+  "cam": "cockpit",
+  "ext": {
+   "peak": 0.56,
+   "rmsDb": "-33.0"
+  },
+  "int": {
+   "peak": 0.376,
+   "rmsDb": "-33.2"
+  },
+  "events": [
+   {
+    "t": 0.496,
+    "type": "touchdown",
+    "e": 1,
+    "sev": 0.815,
+    "a": 0,
+    "b": 5,
+    "vs": -2.26,
+    "Vg": 27.04
+   },
+   {
+    "t": 0.496,
+    "type": "thump",
+    "e": 3,
+    "sev": 0.799,
+    "a": 0,
+    "b": 5,
+    "vs": -2.26,
+    "Vg": 27.04
+   },
+   {
+    "t": 0.496,
+    "type": "chirp",
+    "e": 2,
+    "sev": 0.851,
+    "a": 0,
+    "b": 5,
+    "vs": -2.26,
+    "Vg": 27.04
+   },
+   {
+    "t": 0.496,
+    "type": "touchdown",
+    "e": 1,
+    "sev": 0.815,
+    "a": 1,
+    "b": 5,
+    "vs": -2.26,
+    "Vg": 27.04
+   },
+   {
+    "t": 0.544,
+    "type": "touchdown",
+    "e": 1,
+    "sev": 0.756,
+    "a": 2,
+    "b": 5,
+    "vs": -1.23,
+    "Vg": 26.94
+   },
+   {
+    "t": 0.704,
+    "type": "thump",
+    "e": 3,
+    "sev": 0.473,
+    "a": 3,
+    "b": 5,
+    "vs": 0.96,
+    "Vg": 26.82
+   },
+   {
+    "t": 0.912,
+    "type": "thump",
+    "e": 3,
+    "sev": 0.305,
+    "a": 3,
+    "b": 5,
+    "vs": -0.68,
+    "Vg": 26.73
+   },
+   {
+    "t": 0.928,
+    "type": "touchdown",
+    "e": 1,
+    "sev": 0.297,
+    "a": 0,
+    "b": 5,
+    "vs": -0.71,
+    "Vg": 26.72
+   },
+   {
+    "t": 0.928,
+    "type": "touchdown",
+    "e": 1,
+    "sev": 0.297,
+    "a": 1,
+    "b": 5,
+    "vs": -0.71,
+    "Vg": 26.72
+   },
+   {
+    "t": 2.08,
+    "type": "touchdown",
+    "e": 1,
+    "sev": 0.142,
+    "a": 2,
+    "b": 5,
+    "vs": -0.2,
+    "Vg": 26.15
+   }
+  ],
+  "notes": [
+   "0.00 s contacts --- (Vg 27.0 m/s, vs -1.64)",
+   "0.48 s contacts LR- (Vg 27.0 m/s, vs -2.26)",
+   "0.53 s contacts LRT (Vg 26.9 m/s, vs -1.23)",
+   "0.77 s contacts --T (Vg 26.8 m/s, vs 0.13)",
+   "0.91 s contacts LRT (Vg 26.7 m/s, vs -0.71)",
+   "1.15 s contacts LR- (Vg 26.6 m/s, vs 0.49)",
+   "2.06 s contacts LRT (Vg 26.2 m/s, vs -0.20)"
+  ],
+  "guarded": 0,
+  "nan": 0
+ },
+ "cessna_stall": {
+  "label": "the Cessna 172 at 600 m: flaps to 30 % (the motor), idle, a slow pull into the stall - the reed horn moans in, the buffet",
+  "seconds": 24,
+  "kind": "metal high wing (the Cessna archetype)",
+  "cam": "cockpit",
+  "ext": {
+   "peak": 0.044,
+   "rmsDb": "-45.3"
+  },
+  "int": {
+   "peak": 0.144,
+   "rmsDb": "-25.5"
+  },
+  "events": [],
+  "notes": [
+   "0.00 s contacts --- (Vg 36.0 m/s, vs -0.10)",
+   "9.34 s stall warning on: alpha 0.230 rad vs stall 0.305 (V 27.1 m/s)"
+  ],
+  "guarded": 0,
+  "nan": 0
+ },
+ "floats_step_taxi": {
+  "label": "the Cessna on Wipline floats: idle taxi, full power, over the hump onto the step, power back, off the step",
+  "seconds": 26,
+  "kind": "metal high wing (the Cessna archetype)",
+  "cam": "chase",
+  "ext": {
+   "peak": 0.283,
+   "rmsDb": "-33.6"
+  },
+  "int": {
+   "peak": 0.215,
+   "rmsDb": "-39.3"
+  },
+  "events": [],
+  "notes": [
+   "0.00 s contacts LRT (Vg 0.1 m/s, vs -0.07)",
+   "0.00 s off the step (displacement) at 0.1 m/s",
+   "7.44 s contacts LR- (Vg 7.2 m/s, vs 0.01)",
+   "7.44 s ON the step at 7.2 m/s",
+   "23.90 s contacts LRT (Vg 7.5 m/s, vs 0.08)",
+   "23.90 s off the step (displacement) at 7.5 m/s",
+   "24.43 s contacts LR- (Vg 6.4 m/s, vs -0.19)",
+   "24.43 s ON the step at 6.4 m/s",
+   "24.62 s contacts LRT (Vg 6.2 m/s, vs -0.21)",
+   "24.62 s off the step (displacement) at 6.2 m/s"
+  ],
+  "guarded": 0,
+  "nan": 0
+ },
+ "floats_water_landing": {
+  "label": "the Cessna on floats landing on the lake: 1.3 m/s sink at 25 m/s, the splash, the run-off on the step, settling",
+  "seconds": 16,
+  "kind": "metal high wing (the Cessna archetype)",
+  "cam": "chase",
+  "ext": {
+   "peak": 0.502,
+   "rmsDb": "-28.6"
+  },
+  "int": {
+   "peak": 0.275,
+   "rmsDb": "-34.9"
+  },
+  "events": [
+   {
+    "t": 0.592,
+    "type": "splash",
+    "e": 4,
+    "sev": 1,
+    "a": 0,
+    "b": 4,
+    "vs": -2.82,
+    "Vg": 25.11
+   },
+   {
+    "t": 1.504,
+    "type": "splash",
+    "e": 4,
+    "sev": 0.745,
+    "a": 0,
+    "b": 4,
+    "vs": -0.79,
+    "Vg": 23.27
+   }
+  ],
+  "notes": [
+   "0.00 s contacts --- (Vg 25.0 m/s, vs -1.36)",
+   "0.00 s off the step (displacement) at 25.0 m/s",
+   "0.58 s contacts LR- (Vg 25.1 m/s, vs -2.82)",
+   "0.58 s ON the step at 25.1 m/s",
+   "1.01 s contacts --- (Vg 23.6 m/s, vs 0.88)",
+   "1.01 s off the step (displacement) at 23.6 m/s",
+   "1.49 s contacts LR- (Vg 23.3 m/s, vs -0.79)",
+   "1.49 s ON the step at 23.3 m/s",
+   "9.07 s contacts LRT (Vg 8.1 m/s, vs 0.38)",
+   "9.07 s off the step (displacement) at 8.1 m/s",
+   "9.36 s contacts LR- (Vg 7.4 m/s, vs -0.19)",
+   "9.36 s ON the step at 7.4 m/s",
+   "9.94 s contacts LRT (Vg 6.3 m/s, vs -0.07)",
+   "9.94 s off the step (displacement) at 6.3 m/s"
+  ],
+  "guarded": 0,
+  "nan": 0
+ }
+}

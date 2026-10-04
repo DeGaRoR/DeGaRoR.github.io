@@ -263,6 +263,14 @@ const MANIFEST = {
   lazy: [['tools', '_sport_gen.js'], ['tools', '_marine_gen.js'], ['src/viewer', 'premises_host.js'], ['src/viewer', 'premises_ui.js'],
          ['src/viewer', 'world_rail.js'], ['vendor/ktx2', 'ktx2_loader.js'],
          ['src/viewer', 'townkit.js'], ['src/viewer', 'kit_lot.js']].filter(([d, f]) => fs.existsSync(path.join(ROOT, d, f))),
+  // THE SOUND'S MODULES (G1600, SOUND-2026-10-04 §2.1): src/viewer/audio/'s AudioWorklet modules. The audio thread loads
+  // a module BY URL (ctx.audioWorklet.addModule), so they are never inlined and never a <script> tag: each is served as
+  // its own file and the build publishes the content-versioned URLs as window.FLYDIY_AUDIO_SRC (stem -> url, in both
+  // pages, with the core's sha); AUDIO.module(stem) adds one. SND-ENGINE adds 'engine_worklet.js' here, nothing else.
+  // (The audio SCRIPTS - audio_params.js, audio.js - ride MANIFEST.viewer.scripts, before app.js.)
+  // SND-AIRFRAME (G1633) adds 'airframe_worklet.js' (the wind, the ground, the water, the stall warning, the creaks);
+  // SND-PROP (G1620) 'prop_worklet.js' (the propeller, the turbine, the electric motor).
+  audio: { modules: ['engine_worklet.js', 'prop_worklet.js', 'airframe_worklet.js'].filter(f => fs.existsSync(path.join(ROOT, 'src', 'viewer', 'audio', f))) },
   viewer: {
     shell: 'shell.html',
     // TWO STYLESHEETS, IN ORDER (G77). style.css is the GAME's — the flight
@@ -449,6 +457,13 @@ const MANIFEST = {
               // B10 (G1035): the roll-out shot - publishes window.ROLLANIM at eval; app.js's frame loop calls
               // its two hooks and the optional call site (?rollanim=) plays it
               'rollanim.js',
+              // THE SOUND (G1600): the parameter block, then window.AUDIO (MANIFEST.audio below holds its served modules)
+              'audio/audio_params.js', 'audio/audio.js', 'audio/engine_config.js', 'audio/src_engine.js',
+              // G1620 (SND-PROP): the prop's config and its source (after src_engine: it hooks the engine voices)
+              'audio/prop_config.js', 'audio/src_prop.js',
+              'audio/music.js',
+              // G1630-G1633 (SND-AIRFRAME): the airframe's numbers, the sample slots, the airframe source
+              'audio/airframe_model.js', 'audio/samples.js', 'audio/src_airframe.js',
               // G999: the world's composition, run by the promote in a task of its own ahead of app.js's evaluation
               'world_boot.js', 'app.js',
               'dev_panel.js'],   // (the WORLD rail, world_rail.js, rides the world pack above - G582)
@@ -931,7 +946,17 @@ window.FLYDIY_BOOT.then(function () {
   // them (the server's copy, fetched with no-store) and into sw.js - the version
   // line in the GRAPHICS menu compares the first two
   const BUILD_ID = sha(coreBody + scripts.join('\n') + editor.join('\n')).slice(0, 12);
-  const CORE_SHA = `<script>window.FLYDIY_CORE_SHA='${sha(coreBody).slice(0, 12)}';window.FLYDIY_BUILD='${BUILD_ID}'</script>`;
+  const AUDIO_SRC = {};   // G1600: the served audio modules, stem -> content-versioned url (MANIFEST.audio)
+  for (const f of MANIFEST.audio.modules) AUDIO_SRC[f.replace(/\.js$/, '')] = 'src/viewer/audio/' + f + ver(path.join(VIEW_DIR, 'audio', f));
+  // G1673: the music catalogue (a manifest, inlined - never fetched, so never stale under sw.js's cache-first media rule)
+  const MUSIC_CAT = path.join(VIEW_DIR, 'audio', 'music_catalogue.json');
+  const MUSIC = fs.existsSync(MUSIC_CAT) ? JSON.stringify(JSON.parse(fs.readFileSync(MUSIC_CAT, 'utf8'))).replace(/</g, '\\u003c') : '[]';
+  // G1636: the recorded sounds (tools/audio/prep_sfx.js -> src/viewer/audio/sfx_catalogue.json), inlined the same way as
+  // { key: [media/audio/sfx/... url, ...] } - SND-AIRFRAME's samples.js reads it; the ambience reads the amb.* keys
+  const SFX_CAT = path.join(VIEW_DIR, 'audio', 'sfx_catalogue.json');
+  const SFX = {};
+  if (fs.existsSync(SFX_CAT)) for (const r of JSON.parse(fs.readFileSync(SFX_CAT, 'utf8'))) (SFX[r.key] = SFX[r.key] || []).push(r.file);
+  const CORE_SHA = `<script>window.FLYDIY_CORE_SHA='${sha(coreBody).slice(0, 12)}';window.FLYDIY_BUILD='${BUILD_ID}';window.FLYDIY_AUDIO_SRC=${JSON.stringify(AUDIO_SRC)};window.FLYDIY_MUSIC=${MUSIC};window.FLYDIY_AUDIO_MEDIA=${JSON.stringify(SFX).replace(/</g, '\\u003c')}</script>`;
   fs.writeFileSync(path.join(ROOT, 'version.json'), JSON.stringify({ build: BUILD_ID, date: new Date().toISOString() }) + '\n');
   // THE MEDIA CACHE'S WORKER (LOADING S4): media/ only, cache-first - every file
   // there is named by its content hash, so a hit can never be stale; scripts,
@@ -989,11 +1014,33 @@ self.addEventListener('fetch', e => {
   if (req.method !== 'GET') return;
   let u; try { u = new URL(req.url); } catch (err) { return; }
   if (u.origin !== self.location.origin || u.pathname.indexOf('/media/') < 0) return;
+  // G1673: an <audio> element asks by Range (the music, media/audio/): the cache cannot hold a 206, so the whole
+  // file is fetched once (no Range), cached, and every range is cut from it
+  const range = req.headers.get('range');
+  if (range) { e.respondWith(ranged(req, range)); return; }
   e.respondWith(caches.open(CACHE).then(c => c.match(req).then(hit => hit || fetch(req).then(res => {
     if (res && res.ok) c.put(req, res.clone()).catch(() => {});
     return res;
   }))));
 });
+async function ranged(req, range) {
+  try {
+    const c = await caches.open(CACHE);
+    let res = await c.match(req.url);
+    if (!res) {
+      res = await fetch(req.url);
+      if (!res || res.status !== 200) return fetch(req);
+      c.put(req.url, res.clone()).catch(() => {});
+    }
+    const buf = await res.arrayBuffer(), n = buf.byteLength, m = /bytes=(\\d*)-(\\d*)/.exec(range) || [];
+    let a = m[1] ? +m[1] : 0, b = m[2] ? +m[2] : n - 1;
+    if (!m[1] && m[2]) { a = Math.max(0, n - +m[2]); b = n - 1; }
+    if (a >= n) return new Response(null, { status: 416, headers: { 'Content-Range': 'bytes */' + n } });
+    b = Math.min(b, n - 1);
+    return new Response(buf.slice(a, b + 1), { status: 206, headers: { 'Content-Range': 'bytes ' + a + '-' + b + '/' + n,
+      'Content-Length': String(b - a + 1), 'Content-Type': res.headers.get('Content-Type') || 'audio/mpeg', 'Accept-Ranges': 'bytes' } });
+  } catch (err) { return fetch(req); }
+}
 `);
   art = fill(art, 'VENDOR', `<script>\n${three}\n</script>\n<script>(function(){var cm=null;try{cm=localStorage.getItem('flydiy.cm');}catch(e){}if(cm==='0')THREE.ColorManagement.enabled=false;})();</script>\n${MARK('vendor')}\n<!--ISLAND-LOADER-->`);
   art = fill(art, 'CORE', `<script>\n${coreBody}</script>\n${MARK('core')}\n${CORE_SHA}`);
