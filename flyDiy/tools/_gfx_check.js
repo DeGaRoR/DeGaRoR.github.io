@@ -338,7 +338,7 @@ console.log('GATE GFX');
   ok(!!bootG({}, card(HW[0]), '?soft=1').GFX.soft(), '?soft=1 turns it on over a card (A0\'s A/B on the box)');
   ok(bootG({}, null, '').GFX.soft() === null, 'no welcome.js (a harness, an old page): no rung');
   // every site the rung changes asks GFX.soft() in a conditional, nowhere else
-  const SITES = { 'boot.js': 1, 'render_world.js': 2, 'hangar.js': 1, 'app.js': 1, 'aa_resolve.js': 1 };
+  const SITES = { 'boot.js': 1, 'render_world.js': 1, 'hangar.js': 1, 'app.js': 1, 'aa_resolve.js': 1 };   // train 31: the cover ring's re-apply runs on every machine now (the user: fix for all)
   const sites = [];
   for (const f of Object.keys(SITES)) {
     const src = fs.readFileSync(path.join(__dirname, '..', 'src', 'viewer', f), 'utf8');

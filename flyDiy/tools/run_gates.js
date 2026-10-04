@@ -674,14 +674,18 @@ async function runPool(list, slots, onStart, onDone) {
 const partOf = r => { const m = /^SHARD (\d+)\/(\d+): (\d+) of (\d+) heavy jobs$/m.exec(r.stderr || ''); return m ? { k: +m[3], K: +m[4] } : null; };
 
 function printGate(g, results) {
-  let pass = true;
+  let pass = true, skipped = false;
   console.log(`=== ${g.id} ===`);
   const parts = results.map(partOf);
   const partitionOk = results.length === 1 ||
     (parts.every(Boolean) && parts.every(p => p.K === parts[0].K) && parts.reduce((s, p) => s + p.k, 0) === parts[0].K);
   for (const r of results) {
     const stdout = r.stdout || '';
-    const ok = r.status === 0 && !r.error && new RegExp(`^GATE ${g.id}: PASS$`, 'm').test(stdout);
+    // train 31 (A0): `GATE <ID>: SKIP` with exit 0 is a gate that cannot run on this machine (SOFTGPU: no Playwright on
+    // the box) - shown as SKIP, never as a PASS and never as a FAIL
+    const skip = r.status === 0 && !r.error && new RegExp(`^GATE ${g.id}: SKIP$`, 'm').test(stdout);
+    if (skip) skipped = true;
+    const ok = skip || (r.status === 0 && !r.error && new RegExp(`^GATE ${g.id}: PASS$`, 'm').test(stdout));
     if (!ok) pass = false;
     if (r.job.shard) console.log(`--- shard ${r.job.shard.i}/${r.job.shard.n} (${r.secs} s) ---`);
     if (ok && !verbose && partitionOk) {
@@ -699,7 +703,7 @@ function printGate(g, results) {
     console.log(`(shard partition disagrees: ${parts.map(p => p ? `${p.k}/${p.K}` : 'none').join(' ')} — a heavy job was dropped or flown twice)`);
   }
   const secs = results.reduce((m, r) => Math.max(m, +r.secs), 0).toFixed(1);
-  return { pass, secs, shards: results.length };
+  return { pass, skipped, secs, shards: results.length };
 }
 
 (async () => {
@@ -740,7 +744,7 @@ function printGate(g, results) {
   console.log('\n──────── summary ────────');
   for (const g of selected) {
     const d = done.get(g.id);
-    console.log(`${g.id.padEnd(9)} ${d.pass ? 'PASS' : 'FAIL'}  ${d.secs.padStart(6)} s${d.shards > 1 ? `  [${d.shards} shards]` : ''}`);
+    console.log(`${g.id.padEnd(9)} ${d.skipped ? 'SKIP' : d.pass ? 'PASS' : 'FAIL'}  ${d.secs.padStart(6)} s${d.shards > 1 ? `  [${d.shards} shards]` : ''}`);
     if (!d.pass) anyFail = true;
   }
   const total = selected.reduce((s, g) => s + Number(done.get(g.id).secs), 0).toFixed(1);
