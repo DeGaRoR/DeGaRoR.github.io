@@ -74642,3 +74642,93 @@ side lift under a crossing tyre (G1001's law); the fine tiles' 5 m lattice OFF t
 a forced landing in a meadow still reads +-5 cm - a 1 m tier under the aeroplane, G1380's option (b)); the analytic
 world's Home Strip keeps its constant 5 cm lift (no sinkD0, render_world 5516). The stills: A0's box (views JSON above).
 
+## G1560-G1569 - WORLD-STRIPS: A STRIP STANDS ON ITS OWN GROUND, EVERY LAKE SPILLS A RIVER, THE SEA IS WHAT REACHES THE SEA, THE STOCK TIER'S SEA AT THE LEVEL; GATE STRIPGROUND REGISTERED (2026-10-04, WORLD-STRIPS for A0, a CLOUD session: node only, no GPU; branch claude/world-strips-g1560 off master bff4f64b = train 31, with origin/ccr-4c7cf662-zcpqoe merged for tools/_stripground_check.js and its B16 coverAt fix)
+
+The REVIEW 2026-10-04 findings A5, B14, B25 and D8, and C-world's grade box. Source only, as the review's commits
+were; the train's "(built)" commit rebuilds. Everything that moved is listed per world in
+`reports/WORLD-STRIPS-2026-10-04.md`, with node-rendered top-down before / after / diff maps in
+`reports/evidence/WORLD-STRIPS/`. Two new tools re-make them against any pair of cores: `tools/world_moves.js`
+(the lists) and `tools/world_topmap.js` (the PNGs).
+
+**JOLENE (the default map) - what moved: 40 river reaches added (B14), nothing else.** All 8 aerodromes are
+byte-identical in ground and water over each strip and 300 m past its ends. The 206 lakes and the sea mask are
+identical. 0.031 % of the island's ground is lowered (≤ 1.16 m) by the eight lakes' new outlet creeks, and ≈ 13 ha
+are newly wet; nothing dried. terrainH / waterH cost is unchanged within noise. A5 and the grade box cannot reach an
+island (it takes no generated strips). D8 is NOT applied there: the island's sea is its data's (28_island's coast
+field). The bake's five "landlocked" pockets at −5 m are that field's own shelf behind sub-cell channels.
+
+**G1560 - A5, the strip probe (24_world_aero.js).** probe() still scores a candidate on its eleven centreline
+points, so every score and every pick that was clean is what it was. The candidate that WINS is now walked by
+clean(): every 4 m down the centreline and down both edges of the graded flat (wid/2 + 6), refused on a carve
+(tV2's carve depth, passed in as `carved`), on water, or under 1.2 m. A refused candidate gives way to the next in
+the score's own order (main fields: all admitted candidates sorted by cost then search order; backcountry: a site
+re-enters the list at its next heading's flatness). A town with NO clean candidate gets a nudge pass: each
+admitted candidate is slid ±80/160 m along and ±60..240 m across its axis, re-scored and walked, so the field moves
+instead of vanishing and later ids hold. Seed 0's Pelham Field was the case: every candidate crossed a 45 m
+river's bank, and with A5 alone it moved 168 m on the same heading. Only winners are walked: the aero bake went
+87-114 → 95-111 ms at seed 0 (noise-level), and 0 on Jolene. Before this, EVERY seed walked had a broken field
+(seed 0 Pelham 5.59 m / 17 wet samples, seeds 1, 2, 3, 7, 12345 one or two each, up to 7.02 m / 69). Now none does.
+**G1564 - the grade's box** holds the whole feather: grade() flattens wid/2 + 6 across, and the box stopped at
+wid/2 + feather, a C0 step 6 m short of the feather's end along both long sides. The box is now
+|dz|·len/2 + |dx|·(wid/2 + 6) + feather. inBox / surfaceAt only read the box as an early reject, so their
+answers are unchanged.
+
+**G1561 - B14, the lakes' outlets (21_world_hydro.js).** A lake fed by nothing river-sized spills a river-sized
+outlet, and the head test vetoed that cell: its upstream neighbour is a lake cell with acc > A0. No traced reach
+entered the lake, so none carried on out of it. Seed 0: 105 of 233 lakes with a river-sized outlet had no river
+leaving them; Jolene: 8 of 52. A second pass after the first traces from every river-sized land cell still
+unclaimed that no unclaimed river-sized LAND cell flows into. Those cells lie below such lakes. Every reach the
+first pass traced stays byte for byte, and the trace itself is the same function. scan() gained a bank-inflated
+box reject per segment: bit-identical over 400 k probes, and it pays back part of the third more segments B14 adds
+at seed 0 (912 → 1349). The code costs nothing on its own (a B14-off build of this core reads as fast as master).
+Seed 0's domain-random terrainH is +3-6 % on a ±5 % noisy box, all of it from the added river data.
+
+**G1562 - D8, the sea by connectivity (21_world_hydro.js, 20_world.js waterAt).** With cfg.seaConnected (the
+analytic world only), the sea is the below-0 ground 8-connected to the domain's edge, where the flood drains. A
+basin under 0 that does not reach the edge is land to the flood, which fills it to its spill: a LAKE. waterAt's
+sea rule also asks HYD.seaAt (false where a landlocked cell is one of the point's four bilinear cells). Seed 0: 49
+components (4 561 cells) left the sea, none joined, and the ocean's coast did not move. Many deep northern ones
+were holes INSIDE lakes the flood already had at 78-200 m (the lake's water at its level all round, "sea" at 0 in
+the middle); those lakes are whole now. The biggest, 3 020 cells (6.6 km2, 120 m deep, (−5799, −10162)), holds
+1.49 m. A landlocked cell shallower than lakeMin (1.5 m) is wet at the spill but its BED IS NOT CARVED (lakeAt's
+`bed` read skips it). Without that, the 2 m lake carve dug ponds into five centimetre-deep dips in the home
+lowlands: (−874, −816), (−2002, −778), (−2930, 211), (−2930, 352) and (−2789, 375). Their ground is as it was, and
+their water is 0.27 / 0.08 m instead of the sea's 0. The settlement bake reads sea||lake the same, so the flip itself
+moves no town.
+
+**G1563 - B25 (render_world.js).** The stock tier (no water shader) drew its far sea at −0.4 m while the floats
+ride waterH = 0. seaPlaneY is 0 on every tier. The stock tier then takes the shader tier's rule for the near patch:
+shown only when it is displaced (a sea state), because flat it fights the coplanar plane. While the wavy patch is up,
+the far plane steps down by the felt trains' summed amplitude + 5 cm (the stock tier cannot cut the plane out under
+the patch as uWNear does), and it goes back to the level the moment the patch goes. One y assignment a frame, no
+draw added. NOT seen on a GPU here: A0's eye on the stock tier (?water=0) owes the shore seam that the −0.4 hid
+(G396.2).
+
+**SEED 0 - THE CASCADE (the coordinator's to weigh).** Stage 3 scores town sites on the rivers (the near-water
+bonus, the confluence bonus, the dryness block), so B14's new rivers and D8's lakes re-sited the towns, and stage
+4's strips followed. Holtorham, Holwick and Vimfield are gone; Vimdorf, Alwick (−3352, −914, beside the circuit band)
+and Dalford are new. Morford Airfield (A0) moved 1.47 km to (−4699, −118) hdg 112.5. Pelham Field is A1, 0.53 km
+from where it stood. A2 = Lunford Field and A3 = Berton Field (480 m, ~11 km out) are new fields. Tyl Strip (A4 now)
+did not move. Ulv (A5) and a new Stein (A6) are the backcountry strips; Brekk is gone. 8 generated strips → 7.
+Meadows, the sea lane, HOME and the four golden anchors held. In the home box (x −6300..600, z −3300..2600) the
+ground moved at 5 % of 10 m samples: the new outlet rivers from the mountain lakes to the sea (one crosses the
+circuit band at x ≈ −2800, 2 km west of HOME's threshold), Alwick's roads, and Morford's grade
+(reports/evidence/WORLD-STRIPS/seed0_home_box.png). GATE WORLD's GRID + TREES goldens are re-captured
+(GRID d7f99085, TREES a84580cb, 24 686 trees). Two invariants are added to it: the sea is exactly the edge-connected
+below-0 ground and every landlocked cell is a lake (D8); every river-sized lake outlet heads a reach (B14). Each
+was checked red on a core without its fix.
+**GATES THAT NAME SEED-0 STRIPS:** test_hothigh.js (HOTHIGH, full tier) flew 'Brekk Strip' (113 m). It now takes
+the highest fly-in strip by role (Tyl, 103 m, unmoved). NOT RUN here (full tier). pilot_matrix.js (PILOTMATRIX, full
+tier) flies 'A0', 'A3', 'A5' by id: A0 is still Morford's 900 m paved field but moved; A3 is still "a 480 m grass
+strip, ~10 km out" but Berton, not Pelwick; A5 is still a 340 m gravel fly-in strip but Ulv, not Tyl. The ratchet's
+seed-0 destination cells will read new numbers. Its baseline is A0's to re-take. NOT RUN here.
+
+**G1565 - GATE STRIPGROUND, registered (core, ~6 s).** Every generated strip of seeds 0-3 walked at 2 m on its
+centreline AND both edges: |elev − terrainH| < 0.5 m and no water. Red on master (5 strips on 4 seeds), green here.
+
+**NOT DONE (C-world, read but not in the brief):** the climate relief raster is never rebuilt on groundVer. A
+premises edit (setPremises → terrainClear) leaves `relief` built off the old ground. The fix is to rebuild in
+ensureRelief() when env.groundVer() moved, but that is a ~raster-ms hitch on a live edit, so it is the climate
+owner's call.
+
+BATTERY: see the closing lines of this entry.
