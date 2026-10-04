@@ -46,6 +46,7 @@
 //                        (interior <-> exterior), and any a source declares
 //   AUDIO.get(k) / AUDIO.set(k, v)   the settings (SETTINGS below)
 //   AUDIO.params         the block (audio_params.js); AUDIO.stats the cost
+//   AUDIO.world          the world update() was last handed (G1651: the ambience samples it around the listener)
 // ============================================================
 var AUDIO = (function () {
   'use strict';
@@ -141,6 +142,7 @@ var AUDIO = (function () {
 
   const api = {
     enabled: true, state: 'armed', ctx: null, params: null, stats, SETTINGS,
+    world: null,   // G1651: the world update() was last handed (the ambience reads the cover, the coast, the zones off it)
     rowHooks: [], addRows(fn) { api.rowHooks.push(fn); },   // G1672: fn(body, kit, toggle) adds rows under the settings
     get inGarage() { return garage === 1; }, get welcome() { return welcome === 1; },   // G1672: what update() last saw
     bus: name => N[name] || null,
@@ -323,6 +325,7 @@ var AUDIO = (function () {
     if (cp) { CAM.p[0] = cp.x; CAM.p[1] = cp.y; CAM.p[2] = cp.z; }
     if (P && sim && def) AP.audioParams(sim, CAM, def, P, world, dt);
     garage = inGarage ? 1 : 0;
+    api.world = world || null;
     const wl = welcomeNow(), inn = !inGarage && CAM.mode === 'cockpit' ? 1 : 0, fl = inGarage || wl ? 0 : 1;
     if (inn !== interior || fl !== flying) {
       const was = interior; interior = inn; flying = fl; applyGains();

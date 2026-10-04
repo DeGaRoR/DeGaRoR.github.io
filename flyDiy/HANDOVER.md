@@ -69785,3 +69785,114 @@ DUSK A/B (the 8 always-on lamp lights at night, the Cub, ABAB): taxi equal, stan
 53.8 / 51.4) - accepted. BATTERY: CLOUD + ANIMALS (stale text checks: lampsOn(day), the surface word) fixed; ASSETS +
 FRAMECOST (LIGHT-SMOOTH's fix) and SOAR (GEAR-WATER out) green; the changed gates re-run green on the final build; the
 parked aeroplanes re-cooked on it.
+
+## G1650-G1654 - SND-AMB-1: THE AMBIENCE BED MIXER - THE WORLD AROUND THE LISTENER, 19 BEDS WEIGHTED, SMOOTHED, LOADED BY PROXIMITY UNDER THE BUDGET, HEARD ON JOLENE, GATED (2026-10-04, SND-AMB-1 for the Sound Coordinator, cloud, node only; branch claude/snd-amb1-ambience off claude/sound-next d313481b; G1655-G1659 unused)
+
+Design: futureDesigns/SOUND-2026-10-04.md §6 / §2.4 / §9. No audio file added (the 19 beds are G1636's). No app.js edit.
+G1650 THE NUMBERS - `src/viewer/audio/ambience_model.js` -> AMBIENCE_MODEL (pure, node). ambienceStep(st, P, world, dt) reads
+  the world around the LISTENER (P.s listenerX/Y/Z = the camera) ONE ITEM A FRAME, a round of 24 items every ~0.5 s at any
+  frame rate: (0) the terrain and the water under the listener -> AGL, under water; (1-16) WorldCover in two rings (35 + 0.4 AGL
+  m and 110 + 0.6 AGL m, 8 points each, the listener's cell x4 / inner x2 / outer x1) read straight off island.cover/canopy
+  (tree cover under 2.5 m of canopy = shrub, 28_island.js's reclass); the analytic world falls back to world.surface rows;
+  (17) the coast's signed field (island.coast, + inland, bilinear) and its gradient -> the shore point; (18) THE SHORE'S KIND:
+  its GROUND_SURF row 8 m inland (rock / scree -> rocks, sand -> surf), else bare cover -> 0.8, else its slope over 35 m
+  (0.12..0.4 -> 0..1); (19) the lake's signed field (island.lake, + inside) and the rivers (world.hydro.distW, counted only
+  when neither a lake nor the sea is nearer - distW counts both); (20) the premises zones in world coordinates through the
+  record's frame (residential / commercial / park / industrial -> village, harbour -> harbour; distance to the polygon,
+  fading over 120 / 180 m; re-read when world.premises.rec changes) and the analytic world's settlements (discs); (21) the
+  aerodromes' fences, standing in: the runway's box + 200 m along + max(120 m, 12 % of its length) across (HOME's stand is
+  274 m off its centreline), fading over 200 m; water lanes have none; (22) the climate wind AT the listener,
+  world.climate.sample (never world.wind: its linearised cache is the inline solver's); (23) the sun (world.day.sunEl - DAY_CLOCK
+  walks it), the day's front (day.storm.I), the rain (the hook: AMBIENCE.rain(v), else world.day.precip when CLIMATE adds it).
+  THE RULES (ambienceTargets, one target 0..1 a bed, every smoothstep from ONE ramp table):
+    height     g = 1 - smooth(15, 150, AGL) on every ground bed (silent above ~150 m); the surf 30..220 m, the village and
+               harbour 25..200 m, the loons 40..320 m, the lake's edge 4..25 m. The winds never fade.
+    day        day = smooth(-7, 3, sun deg); twilight = 1 - |sun + 3| / 9 (dawn and dusk).
+    winds      on the SHELTERED wind (x (1 - 0.65 forest) below 25 m, back to the open wind by 60 m: under a canopy the trees take
+               it - they rustle instead): light below ~3.5-7.5 m/s, clear 3..6 up and 11..15 down, mountain = smooth(2, 5) x
+               alpine (terrain 250..600 m or AGL 150..400 m) or 0.6 x the night's open ground (its crickets), storm = smooth(11,
+               17) or the day's front; alpine cuts light / clear by half / 0.6.
+    cover      forest.day = g x day x forest (1.6 x tree share) x rustle (0.75 + 0.5 x wind/12); forest.night the same at night;
+               meadow = g x (day + 0.2 night) x open (grass + 0.6 shrub + 0.5 wetland + 0.25 bare) x (1 - 0.6 forest).
+    shore      within 30..250 m of the waterline inland, 60..300 m out to sea; surf x (1 - rocky), rocks x rocky, x (0.7 + 0.3 wind/10).
+    water      lake.lap on the lake and within 10..70 m of it (and the open sea past 100..300 m, x 0.8); lake.near ONLY at the
+               edge (4..25 m inland, 10..30 m out: the user's "only very close"); stream 12..110 m from a river.
+    places     village = the zone, or 0.8 x built cover x (1 - airfield) (a runway's pavement is built too); harbour = its zone;
+               airfield = inside the fence.
+    night      frogs = night x (still water within 20..250 m, wetland, a stream); loons = max(twilight, 0.3 night) on and within
+               30..450 m of a lake, at -17 dB (the user's "really background").
+    garage     hangar 1, rain.roof = the rain, and the door: forest 0.22 day / 0.2 night, meadow 0.15 day, light wind 0.15.
+    under water  only shore.rocks (the user's "also fine as the underwater bed"), muffled by the source.
+  SMOOTHING once a round: w += (t - w)(1 - e^(-dt/2 s)), the step clamped to 0.35 a second. LEVELS: the bed's mix dB + its
+  catalogue trim to -23 LUFS (BEDS mirrors sfx_catalogue.json's lufs; GATE AUDIO AMBLUFS holds them equal).
+  ALLOCATION: the probe and the targets run EVERY frame (a few dozen operations), the helpers take whole metres and answer
+  into typed slots, the smoothsteps are one loop over a table: a function called twice a second runs in V8's lower tiers,
+  and twenty-odd helper calls passed TurboFan's inlining budget - each call it did not inline boxed its doubles (measured:
+  ~270 B a frame before, 0.45 B after on a stub world). On the REAL Jolene the world's own samplers box ~27 B a frame
+  (terrainH / waterH / distW / climate.sample, once a round) - the world's, as G1672 found for the AGL.
+G1651 THE SOURCE - `src/viewer/audio/ambience.js`: AUDIO.addSource('ambience'). outside beds -> outIn -> lowpass -> duck ->
+  AUDIO.bus('ambience'); room beds (hangar, roof rain) -> roomIn -> the bus. THE MUFFLE: a closed cockpit -12 dB / 900 Hz,
+  an open cockpit (P.s open) -2 dB / 9 kHz, the garage's door -6 dB / 2.5 kHz, under water -3 dB / 350 Hz; SND-SPACE's
+  insulation outranks the cockpit fallback when it publishes one: AUDIO.cabin = { outDb, outLpHz } at connect, or
+  AUDIO.emit('cabin', { outDb, outLpHz }) (null hands it back). LOADING BY PROXIMITY, every frame (cheap, and hot): the beds
+  ranked by target gain (a resident one x1.5: no thrash); the top N above the floor (gain 0.012) are wanted; ONE fetch /
+  decode at a time (the transient decode stays one bed's); a wanted bed with no free slot takes the slot of the lowest
+  resident outside the top N, which fades out over ~0.4 s and is released 1.2 s later; a resident silent for 12 s is
+  released anyway; a refusal (budget / failed fetch) waits 10 s. THE TIERS from GFX.get().preset at connect (potato ->
+  light, retro -> mid, the rest -> full; AMBIENCE.setTier): full 24 MB / N 6 / 20 s loops, mid 12 MB / 4 / 15 s, light 8
+  MB / 3 / 20 s at HALF RATE; the loop's length is also cut so N loops fit at the context's rate (a 96 kHz device). Gains:
+  setTargetAtTime (tau 0.3 s) only when a quantised gain moved - a frame between rounds schedules nothing.
+  window.AMBIENCE = { model, state, beds, tier(), setTier(name), rain(v), resident(b), gain(b), loading }.
+  audio.js: ONE line - AUDIO.world = the world update() was handed (the sources get only P; the ambience samples the world).
+G1652 THE LOADER'S CLASSES - samples.js (REUSED, not a second loader): a key's class is its prefix; a declared class
+  ('amb': ambience.js sets it) has ITS OWN budget and counter (the airframe's grains keep their 6 MB, untouched), bakes its
+  loop to its own shape (maxS seconds + the crossfade, decim 2 = a 15-tap half-band to half rate) and keeps ONLY the baked
+  loop (the decoded source dropped: half the bytes). New: release(key) (frees a ready key's bytes; a refused class key back
+  to 'idle'; a load in flight is dropped when it lands), setClass(cls, cfg), classBytes(cls), classOf(key); the 19 amb.*
+  keys declared as loops. Nothing changed for the grains' path.
+G1653 THE EVIDENCE - `tools/audio/ambience_render.js` -> reports/evidence/SND-AMB-1/ (1.2 MB): a straight path across
+  JOLENE (the shipped media/world/jolene + the premises fixture: the real world module) from the stand at Jolene AFB over the
+  heath, the forest (inside z_village), a village street, the shore, the harbour's water, then a climb to 300 m over the bay
+  (200 s, the game's day 2026-06-21 16:00, 8 kt from 250). THE PAGE'S CODE PLAYS IT: ambience.js + ambience_model.js +
+  samples.js in a vm on a RECORDING AudioContext, the shipped MP3s fetched off the disk (120 ms latency simulated) and
+  decoded by ffmpeg, baked by the loader's own bakeLoop; the mix is rendered from what the source scheduled.
+  flight_day.opus + flight_day.png (one lane a bed, the height, the beds decoded), flight_night.png (23:45, weights),
+  places.png (seven canned places on Jolene), summary.json, README.md ("what you should hear when"). Measured: at most 6 beds
+  decoded at once, peak 21.3 MB of 24, 28 fetches in 200 s; the ground beds gone by 150 m on the climb (the surf last); at
+  night frogs at the stand's pond, forest.night, the mountain wind's crickets on the heath.
+G1654 THE GATE - GATE AUDIO extended: AMBPLACES (a synthetic island in the island's shape - sea + sandy beach, forest, lake,
+  a village zone, a strip, a water lane, a meadow: 21 canned places - forest interior, beach, village street, lake shore and
+  60 m from it, 500 m AGL, the garage dry / raining / out of it, the strip, the water lane, under the sea, the forest and the
+  lake shore at night, the lake by day and at dusk, calm / 7 / 16 m/s, the night's open ground, the sheltered forest floor),
+  AMBJOLENE (the evidence's seven places on the real Jolene), AMBSMOOTH (600 s of random walk with teleports: no weight moves
+  > 0.35/s, nothing moves between rounds, ~2 rounds a second; a forest -> beach teleport cross-fades over seconds), AMBAGL
+  (monotone, silent at 150 / 300 m, the winds stay), AMBLUFS (every catalogue amb.* file a bed with its LUFS, the levels, the
+  loons <= -15 dB), AMBGESTURE (the real audio.js: nothing fetched before the gesture nor before the first frame, nothing
+  without a context, ?audio=0 builds no ambience), AMBBUDGET (3 min of random walk on gamer and potato: <= 24 / 8 MB and <= 6
+  / 3 beds every frame - peaks 21.3 / 5.5 MB, 6 / 3 beds - loads and releases, the potato's loops at 24 kHz; then 40 s at 500
+  m: the silent ground beds released), AMBALLOC (90 000 frames warmed, 10 000 moving frames: 2.8 B a frame, 0 GC - the boxed
+  arguments of the ~880 setTargetAtTime calls, allowed at 48 B each; standing still schedules 0 params), AMBMUFFLE (the six
+  muffle states), AMBSAMPLES (the class budget apart from the grains, maxS, decim with an 18 kHz tone killed and 1 kHz kept,
+  release, retry after a refusal, a release during a load), AMBWIRING (the build order, AUDIO.world). 34 SND-AMB-1 mutations,
+  each red on its check: 138 / 138 caught with the earlier 104, the sources byte-identical after. makePage gained an
+  `opt.ctx` hook (more of the context) and an `info` in its quiet console.
+GATES: AUDIO PASS (138 / 138), BUILD PASS, UISMOKE PASS, BOOT PASS, MEDIA PASS (UISMOKE, BOOT and MEDIA on a freshly built
+  tree: the checkout's generated pages were stale and UISMOKE failed on the untouched base for that reason alone; the
+  generated files restored, none in this branch).
+FOR THE COORDINATOR: (1) run_gates.js: GATE AUDIO is now ~2.5 min with its self-test (AMBBUDGET's walks and AMBJOLENE's
+  compose are most of it) - its `wall: 45` wants ~180; I did not touch run_gates.js. (2) Nothing in app.js; MANIFEST lists
+  'audio/ambience_model.js', 'audio/ambience.js' after samples.js. (3) SND-SPACE: publish AUDIO.cabin / emit 'cabin' with
+  { outDb, outLpHz } for the outside heard from the cabin; the ambience takes it. (4) CLIMATE: rain -> AMBIENCE.rain(0..1) or
+  world.day.precip; today only the garage's roof plays it. (5) SND-DEVICES: "audio: light" can call AMBIENCE.setTier('light').
+  (6) SND-AMB-2's emitters can read AMBIENCE.state.f (the features: forest share, coast distance, lake distance, zones, wind,
+  sun) instead of sampling the world again.
+MISSING ASSETS (asked of the coordinator, no file added here): an OUTSIDE rain bed (rain on leaves / on water - only the
+  roof's exists, so outside rain has no voice); a dawn chorus / day birds over the open (the meadow bed carries the open by
+  day, the forest bed the woods); an open-sea bed far from any shore (amb.lake.lap stands in at 0.8); a quieter, longer
+  amb.lake.near (its file is -34.4 LUFS: trimmed +11.4 dB, then -10 dB in the mix); crickets alone (amb.wind.mountain
+  carries them at night, with its wind).
+SND-TUNE's LIST: every bed's mix level (BEDS) - first guesses, none heard; the 150 m fade; the 0.35/s rate and the 2 s tau;
+  the fence's margins; the shore's slope thresholds (Jolene's coast has no SAND row: the slope decides everywhere); the
+  muffle fallbacks (-12 dB / 900 Hz); the loons at -17 dB.
+NOT DONE: positional emitters (SND-AMB-2); rain outside (no bed, no precipitation); the sea state beyond the wind (world.sea
+  not read); the garage's hint is a fixed mix, not the world outside the shed's door.
