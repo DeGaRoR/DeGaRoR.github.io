@@ -69454,6 +69454,41 @@ G1384 OUT OF TRAIN 27 FOR GATE SOAR - FIXED (rebased onto master a1ffcf5b, train
   - The ditching unchanged: Cub at 80 km/h under 10 km/h in 0.93 s, peak 9.0 g; GATE HYDRODYN's stock ditch 0.88 s,
     90 deg nose-down.
 - G1383 (the drawn tail gear 2 cm down) as it was.
+- Rebased onto master 44b7a38 (A0's second note). 44b7a38 is the empty Pages re-trigger over a1ffcf5b: the same tree,
+  so every measurement here stands for it.
+
+THE WATER PLAN - FOR A0'S APPROVAL (the user asked for it to be submitted). Steps 0-1 are built; 2-5 are proposals.
+0. THIS COMMIT, G1380-G1384: the wheeled-water pass, armed per frame (nothing in dry air), the drawn tail gear 2 cm down.
+   APPROVE: the GATE SOAR amendment. Its S2 negative control lands on a 31 m lake of the analytic world, and "down" is
+   now measured against max(ground, water) under its last fix. Without it, a correct water model fails that check;
+   the energy bound (-60 m) is unchanged.
+1. BUILT, NOT YET IN A TRAIN - G1384.1-G1384.4 on claude/gear-water-buoy (on top of this commit; its own HANDOVER
+   entry). Only on armed frames.
+   - the slam (the floats' Wagner entry term on the hull's downward faces; deadrise floored at 10 deg);
+   - the air a build holds, by fuselage material and wing surface (the covered hull's own volume; covering 'open'
+     holds none);
+   - gradual flooding toward the waterline, ten times faster once holed;
+   - the wings' buoyancy.
+   Measured:
+   - the 5 m/s pancake loads the fuselage 39 % of yield (ground 22 %, before 11 %);
+   - a fabric Cub floods and sinks in 150-300 s; the alloy Cub and the C172 still float at 300 s (3 % / 14 % flooded);
+   - GATE HYDRODYN (+5 checks, ~1 min more) and GATE SOAR pass on that branch.
+   APPROVE: the INFERRED tables, WB_MAT / WB_WING:
+   - fuselage air 0.85-0.9; flooding time 40 s fabric, 150 s wood, 300 s alloy, 900 s carbon;
+   - breach pressure 60-250 kPa;
+   - fabric wing air 0.5.
+   Then pick the branch.
+2. DAMAGE (the study under way): it needs nothing more from the water. Water loads the frame as the ground does
+   (forces on nodes; neither the 360 Hz hold nor the force cap moves the peaks: measured). PROPOSED for its
+   acceptance, water cases beside the ground's:
+   - the 5 m/s pancake;
+   - the 100 km/h / 4 m/s / 10 deg Cub ditch (fus 70-84 %, wires 113-117 % of yield);
+   - the float ultralight's 90 km/h nose-in (wires 112 %).
+3. WATER-LOOK (local GPU): spray and wake off the wet body as the floats' buildWaterFx does - the tyres, the hull's wet
+   faces, the tips - from WB.drag, the slam peak and the wet centroids; bubbles while out.wetFlood rises.
+4. TANKS-FLOAT (small, node): the wing slab's air from the real tanks (GEN_TANKS capacity - fuel) instead of 0.5.
+5. GROUND-LATTICE (G1380's owed fix): the solver on the drawn surface, or a 1 m ground tier under the aeroplane;
+   tools/ground_lattice.js is the acceptance; then TW_DRAW_DROP back to 0.
 
 ## G1365-G1369 - SIM-STALL: A FROZEN PAGE HOLDS THE FLIGHT; IT GOES ON FROM WHERE IT HELD (2026-10-03, SIM-STALL for A0, cloud - no GPU, no boxlock; branch claude/sim-stall-g1365 off origin/master 5502f45)
 
