@@ -40,13 +40,13 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
     for (let k = 1; k <= TICKS; k++) {
       const r = JSON.parse(await b.ev(`(async () => { const S = window.__ds, el = S.el, lo = +el.min, hi = +el.max;
         const dir = (hi - S.x0) >= (S.x0 - lo) ? 1 : -1; el.value = String(Math.min(hi, Math.max(lo, S.x0 + dir * (hi - lo) * ${SPAN} * ${k} / ${TICKS})));
-        const pv = window.CAGE_UI.preview ? window.CAGE_UI.preview.n : 0;
+        const pv = window.CAGE_UI.preview ? window.CAGE_UI.preview.n : 0, dv = window.CAGE_UI.preview ? window.CAGE_UI.preview.deform : 0;
         const t = performance.now(); el.dispatchEvent(new Event('input')); const sync = performance.now() - t;
         await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
         return JSON.stringify({ v: el.value, sync: +sync.toFixed(1), drawn: +(performance.now() - t).toFixed(1), preview: window.CAGE_UI.preview ? window.CAGE_UI.preview.n > pv : false,
-          why: window.CAGE_UI.preview ? window.CAGE_UI.preview.deformWhy : '' }); })()`, 120000));
+          deformed: window.CAGE_UI.preview ? window.CAGE_UI.preview.deform > dv : false }); })()`, 120000));
       const f = await shot(key + '_' + k + '_tick');
-      console.log('  ' + f + '  value ' + r.v + '  handler ' + r.sync + ' ms, drawn ' + r.drawn + ' ms' + (r.preview ? '  (preview' + (/deformed/.test(r.why) ? ', deformed' : '') + ')' : '  (whole build)'));
+      console.log('  ' + f + '  value ' + r.v + '  handler ' + r.sync + ' ms, drawn ' + r.drawn + ' ms' + (r.preview ? '  (preview' + (r.deformed ? ', deformed' : '') + ')' : '  (whole build)'));
       out.push(Object.assign({ build: BK, row: ROW, tick: k, file: f }, r));
     }
     const rel = JSON.parse(await b.ev(`(async () => { window.CAGE_UI.dragSettleMs = 0; const el = window.__ds.el; const t = performance.now();
