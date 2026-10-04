@@ -69307,3 +69307,15 @@ working, and needs its ALLOW entry once measured.
 GATE SHADOWSKY +2 (three's own clone, then inject: the shared matrix bound; the bake's path FB_HOOK -> ATMO.inject ->
 SHADOW_NEAR.inject) - negative-verified (the old conditional inject: red). SHADOWSKY, LIGHT, PROGRAMS, ATMO, FLOWNBAKE,
 WORLDRENDER, BUILD, POSTFX, ASSETS PASS. GPU verification and G1359's strength: pending a slot.
+
+G1359.1 VERIFIED (GPU, 2026-10-04 02:55-03:08, the user's Cub and gfx row, the eye off for the stills; BEFORE = the bake's
+uniforms given the frozen identity uNearM1 back in the same page, AFTER = the fix): all 87 craft programs bound to the shared
+matrix. In flight at a golden sun the wing's diagonal bands go (1.7 % of the frame changes - the bands themselves); on the
+stand the exterior's self-shadow is a little crisper (0.15-1.25 %); the cockpit is unchanged (it draws the live materials).
+G1359'S STRENGTH, on the fixed binding (the band views, the false darkening against self-shadow OFF, master's bias = 1):
+(1, 2.5) 0.36-0.44, (2, 8) 0.32-0.38 - the rest is the wing's own shading; by eye (1, 2.5) is already as clean as the
+strongest, so the DEFAULT STAYS (1, 2.5) - the setting the stand stills were taken with (no detached strut / gear shadow).
+GATE FRAMECOST (after a parked re-cook): uniformMatrix4fv did NOT rise (taxi 1420.5 -> 1389.5, Cub); two Cub taxi rows rose
+with the catcher v2's two small draws a frame - bindFramebuffer 24 -> 27.5, tris.other 28 -> 32 - admitted (ALLOW, rise
+4, G1357). EVIDENCE: 7_wing_bands_inflight_before_after.jpg (the bands, before / after - a USER DECISION was "keep self-
+shadow everywhere": this is it working), 8_stand_lowsun_before_after.jpg (the stand at a low sun, before / after).
