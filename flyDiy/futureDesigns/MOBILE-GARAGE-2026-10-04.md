@@ -18,7 +18,7 @@ over a recording GL, real ms, ~1.6x the box's JS). **SwiftShader** = headless Ch
 ## 0. THE RECOMMENDATION, IN SIX LINES
 
 1. **A garage-only mode of the same page** (`?mode=garage`, which the welcome's phone gate offers as "build on this
-   phone"). It boots the garage's 11 steps and none of the world's 13. The island (37.3 MB) is never fetched, and the
+   phone"). It boots the garage's 10 steps and none of the world's 14. The island (37.3 MB) is never fetched, and the
    roll-out button becomes **Send to computer**. Measured in node: the boot runs and the sliders work with the world
    taken out (§1.3).
 2. **A "phone shed"**: the editor's aeroplane on a plain floor. No shed props (6,402 draw calls today against a phone
