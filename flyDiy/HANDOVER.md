@@ -71835,3 +71835,70 @@ cockpit / taxi render and the floats' water taxi in slack. BATTERY: FRAMECOST (a
 triangles - admitted) and ROUNDTRIP (fixed) were the reds; all green on the final build; the parked aeroplanes re-cooked.
 LOOK (A0's real-GPU stills, reports/evidence/LAKE-HOLES/a0_gpu_train29_vs_30.jpg): the white gaps at the shore are gone;
 the carved banks now read as steep, texture-stretched slopes where a lake sits under a bank - a follow-up for the look.
+
+## G1490-G1494 - HYBRID-TRIPS: THE HYBRID IS A FLIGHT STATE - THE WAY BACK PUTS THE FLOWN MODEL AT REST ON ITS BAKE; G1325'S BAND (1.0-1.25 px A TEXEL) BACK WITH 0 COST ON THE TRIPS; THE LIVE SHADER'S DECALS ON THE CONTROL SURFACES FIXED (2026-10-04, HYBRID-TRIPS for A0, local GPU; branch claude/hybrid-trips-g1490 on train 30 a1ffcf5b)
+
+THE PROBLEM (A0's bisect, train 28): with HYBRID-FARTHER's band the Cub's world -> garage after a taxi went 0.3 -> 2.8 s
+and the next garage -> world 8.9 -> 14.1 s with one 5.2 s task; train 29 put the band back to 1.6-2.0.
+**G1490 WHAT IT WAS (tools/perf/hybrid_trips.js: every linkProgram hashed with its caller and its sync wait, three's
+programs per phase, a CPU profile of the way back).** Nothing ever put the hybrid's t back: only the flight's loop sets it
+(app.js flCamera returns early in the shed). The chase taxi stands at 1.05-1.12 px a texel - INSIDE the 1.0-1.25 band
+(t 0.33-0.48): every flown mesh on its BAND TWIN, the live views in the graph. The craft went into the shed like that:
+- **world -> garage +2.5 s:** applyEnv's Box3.setFromObject(craft) (enterGarage) walked every unparked SKINNED live view
+  (its boundingBox null) - all the fold's vertices through the bones (expandByObject 2.45 s, applyBoneTransform 1.2 s self).
+- **round trip 2's 5.2 s task = FIVE synchronous links** (flown:baked:band x2, aeroskin:band x3, 0.46-1.54 s each, every one
+  a NEW source; issued by renderBufferDirect, waited in getProgramInfoLog): the roll-out SHOT (ROLLANIM.play in hangarScene)
+  drew the band twins in the HANGAR's lights. THE KEY DIFF (reports/evidence/HYBRID-TRIPS/keydiff_norest.txt; the two
+  sources beside it): the defines identical; the lights dir 2 / point 2 / spot 1 / hemi 1 / 2 dir shadow maps (the world,
+  as the craft step warmed them) -> dir 1 / point 3 / spot 6 / hemi 0 / 5 spot shadow maps (the shed's five lamps + the
+  craft's own). No compile ever keyed the twins in the shed (compileCraftShed walks the graph, where they are parked at the
+  build). Nothing was disposed - the KEY was new. Train 29's band leaves the taxi at t 0 (the folds' own baked material,
+  compiled for the shed): none of it.
+**G1491 THE FIX - FLOWN_BAKE.rest() (flown_bake.js), the first thing enterGarage does (app.js):** t 0, the folds on their own
+baked material, the live meshes parked, FB_FADE 0 - the model the shed's compiles and the shot are keyed for. The next
+flight frame sets t again on the programs the craft step warmed in the world (the taxi links 0). It covers the cockpit's
+way back too (its eye zone is live with ANY band). `?fbake=norest` the A/B.
+**G1492 THE BAND BACK: FB.hyA / hyB 1.0 / 1.25** (`?fbake=hy1.6-2.0` the old band).
+
+THE TRIPS (the Cub at HOME after a 15 s taxi chase - the strict gate's own sequence; one tree, a fresh profile each;
+master_bench MB_Q=<query> gives a same-tree A/B):
+| master_bench --builds cub --only loads,taxi --places HOME --taxi 15 | world -> garage | round trip 2 | its worst task |
+| A0, train 28 (with G1325) | 2.8 s | 14.1 s | 5.2 s |
+| ?fbake=norest (band 1.0-1.25, the bug) | 2.7 s | 14.2 s | 5367 ms |
+| **band 1.0-1.25 + rest()** | **0.3 s** | **8.9 s** | **0 ms** |
+| ?fbake=hy1.6-2.0 (train 29's band) | 0.3 s | 8.9 s | 0 ms |
+| the floats (water taxi, then world -> garage): norest / fixed | 2.7 s / 0.3 s | | |
+hybrid_trips.js: norest 2.83 / 14.26 s (5 new links, 5.27 s sync) -> fixed 0.29 / 8.85 s (no slow link).
+
+**G1493 THE DECALS ON THE FLAPS (A0 relaying the user, the metal Cessna at chase distance with the farther band).** The LIVE
+shader was wrong, the bake right: AERO_MAIN_VS takes vCraftPos (the decal and marking boxes) at begin_vertex, BEFORE
+skinning; C4b's moving folds and the hybrid's views on them (G1170) are SkinnedMeshes whose parts ride a bone (positions
+part-local about the pivot) - a flap, an aileron, the rudder, a spat read their boxes pivot-shifted, near the fuselage:
+chunks of the cheat line painted on them. The bake places a part at its pivot, and FB_HOOK reads after skinning. The bug
+predates G1325 (the live views showed only inside ~5 m and in the cockpit). aeroskin.js aeroSkinnedCraft: a SKINNED
+AEROSKIN / AEROGLASS program re-takes vCraftPos after skinning_vertex (AERO_CABIN_HOOK's G272 rule); vCraftNrm was already
+skinned; a plain program's text is byte for byte the same (no program-cache miss).
+reports/evidence/HYBRID-TRIPS/decals_metal_before_after.jpg / decals_cub_before_after.jpg (tools/perf/decal_stills.js: the
+same held frame - the bake | live before | live after).
+**G1494 `?fbake=hyease[=s]` (OFF by default): THE BAND AS A DISSOLVE IN TIME.** The live shader wanted from hyA (back under
+hyA x 0.9), t walks there over 0.5 s; a steady distance draws ONE surface (in the band both draw, each on a discarding twin).
+
+THE TAXI'S OWN COST (rollout_perf, the Cub, HOME, 25 s, medians; COORD's CPU battery ran beside these):
+| chase taxi | render ms | loop JS ms |
+| band 1.0-1.25 (t ~0.47, both surfaces) | 14.2 / 13.7 | 18.7 / 18.0 |
+| train 29's band (t 0, the bake) | 12.0 / 10.7 | 16.3 / 14.9 |
+| forced bake (hy=0) / forced live (hy=1) | 11.6 / 13.1 | 16.1 / 17.4 |
+So the farther band costs ~+2.5 ms render at the taxi (G1325 admitted +1.5): ~1.6 ms is the live aeroplane itself (its
+per-material draws on the procedural shader), ~0.85 ms the band (two surfaces, no early-Z) - the part G1494 removes. All
+at the 30 cap (30 fps delivered, 0 % uneven): no frame-rate cost on this box.
+LOOK: reports/evidence/HYBRID-TRIPS/stills_bake_live.jpg (tools/perf/hybrid_trips_stills.js: where 1.6 px, the taxi's
+~1.05 px and 1.0 px a texel fall - 5.8 / 8.5 / 9.3 m): at 1.6 and at the taxi the bake's letters and cheat line stair-step,
+the live shader is clean - what G1325 buys.
+GATES: FLOWNBAKE PASS (82: +rest(), +the enterGarage call, +the band, +G1493's skinned craft position); LIVERY,
+LIVERYREACH, ATMO, WEATHER, PARTS PASS.
+TRAPS: (1) the hybrid's state outlives the flight unless something puts it back - a new door out of the world goes through
+enterGarage or calls FLOWN_BAKE.rest(). (2) A SkinnedMesh view with no boundingBox makes any Box3.setFromObject over the
+craft walk every vertex through its bones (G1170.2 set the sphere, not the box). (3) A program key counts the scene's
+lights: a material compiled only in the world links fresh the first time the shed draws it. (4) app.js / aeroskin.js are
+in FLYDIY_BUILD: the parked cook goes stale - A0 re-cooks on the final build (I cooked locally for my runs, not committed).
+(5) Node writes from Git Bash: '/c/...' paths are D:\c\... to Windows node - pass 'C:/...'.

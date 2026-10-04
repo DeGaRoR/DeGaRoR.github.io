@@ -1,0 +1,109 @@
+{
+ "note": "rollout_perf, the Cub, HOME, 25 s, medians; COORD CPU battery beside (contended); order: new, old, old, new, hy=0, hy=1, cockpit new, cockpit old",
+ "rows": [
+  {
+   "run": "rp_chase_hy0",
+   "url": "http://localhost:8831/flyDiy/index.html?fbake=hy=0",
+   "taxi": {
+    "renderMed": 11.6,
+    "renderP90": 16,
+    "shadowMed": 2.2,
+    "workMed": 16.1,
+    "fpsDelivered": 30,
+    "dtP99": 33.6,
+    "frames": 856
+   }
+  },
+  {
+   "run": "rp_chase_hy1",
+   "url": "http://localhost:8831/flyDiy/index.html?fbake=hy=1",
+   "taxi": {
+    "renderMed": 13.1,
+    "renderP90": 16.8,
+    "shadowMed": 1.9,
+    "workMed": 17.4,
+    "fpsDelivered": 29.9,
+    "dtP99": 33.6,
+    "frames": 851
+   }
+  },
+  {
+   "run": "rp_chase_new_184138",
+   "url": "http://localhost:8831/flyDiy/index.html",
+   "taxi": {
+    "renderMed": 14.2,
+    "renderP90": 18.2,
+    "shadowMed": 2.3,
+    "workMed": 18.7,
+    "fpsDelivered": 30,
+    "dtP99": 33.5,
+    "frames": 845
+   }
+  },
+  {
+   "run": "rp_chase_new_184639",
+   "url": "http://localhost:8831/flyDiy/index.html",
+   "taxi": {
+    "renderMed": 13.7,
+    "renderP90": 17.3,
+    "shadowMed": 1.8,
+    "workMed": 18,
+    "fpsDelivered": 29.9,
+    "dtP99": 33.7,
+    "frames": 869
+   }
+  },
+  {
+   "run": "rp_chase_old_184319",
+   "url": "http://localhost:8831/flyDiy/index.html?fbake=hy1.6-2.0",
+   "taxi": {
+    "renderMed": 12,
+    "renderP90": 15.4,
+    "shadowMed": 2.3,
+    "workMed": 16.3,
+    "fpsDelivered": 30,
+    "dtP99": 33.6,
+    "frames": 847
+   }
+  },
+  {
+   "run": "rp_chase_old_184501",
+   "url": "http://localhost:8831/flyDiy/index.html?fbake=hy1.6-2.0",
+   "taxi": {
+    "renderMed": 10.7,
+    "renderP90": 13.9,
+    "shadowMed": 1.8,
+    "workMed": 14.9,
+    "fpsDelivered": 30,
+    "dtP99": 33.6,
+    "frames": 857
+   }
+  },
+  {
+   "run": "rp_cockpit_new",
+   "url": "http://localhost:8831/flyDiy/index.html",
+   "taxi": {
+    "renderMed": 15.7,
+    "renderP90": 21.8,
+    "shadowMed": 2.4,
+    "workMed": 21.1,
+    "fpsDelivered": 29.9,
+    "dtP99": 50,
+    "frames": 861
+   }
+  },
+  {
+   "run": "rp_cockpit_old",
+   "url": "http://localhost:8831/flyDiy/index.html?fbake=hy1.6-2.0",
+   "taxi": {
+    "renderMed": 12.3,
+    "renderP90": 15.4,
+    "shadowMed": 1.8,
+    "workMed": 16.7,
+    "fpsDelivered": 30,
+    "dtP99": 33.6,
+    "frames": 855
+   }
+  }
+ ]
+}
