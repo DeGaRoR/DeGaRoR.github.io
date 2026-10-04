@@ -1501,10 +1501,11 @@ function checkRadioStations(S) {
   for (const k of M.STATION_KEYS.filter(k => k !== 'mix')) if (M.stationLists(ship, k).lists[1].some(i => shipMix.lists[1].indexOf(i) < 0)) F.push('the shipped mix misses a ' + k + ' track');
   {   // the player on the mix: two whole rounds of the garage, every track once a round, the six stations' all heard
     const pm = radioPage(S, { station: 'mix', seed: 9 }), n = pm.M.stationLists(RSYN, 'mix').lists[1].length;
-    pm.F.run(1.5 * 3600, 0.25);
+    pm.F.run(1.5 * 3600, 1);
     const ids = pm.F.starts.map(x => x.id);
-    if (ids.length < 2 * n) F.push('the mix started ' + ids.length + ' tracks in 1.5 hours (want two rounds of ' + n + ')');
-    for (let r = 0; r + n <= Math.min(ids.length, 2 * n); r += n) if (new Set(ids.slice(r, r + n)).size !== n) { F.push('the mix repeated inside a round: ' + ids.slice(0, 2 * n).join()); break; }
+    if (!n) F.push('the mix has no garage tracks');
+    else if (ids.length < 2 * n) F.push('the mix started ' + ids.length + ' tracks in 1.5 hours (want two rounds of ' + n + ')');
+    for (let r = 0; n && r + n <= Math.min(ids.length, 2 * n); r += n) if (new Set(ids.slice(r, r + n)).size !== n) { F.push('the mix repeated inside a round: ' + ids.slice(0, 2 * n).join()); break; }
     const heard = new Set(ids.map(stationOfId));
     for (const k of ['lofi', 'roots', 'jazz']) if (!heard.has(k)) F.push('the mix never played ' + k);
     if (pm.sp.speaks) F.push('the mix talked (' + pm.sp.speaks + ' utterances): the talk is the roots station\'s');
@@ -3987,6 +3988,7 @@ if (!ONLY_SELFTEST) {
     const S = Object.assign({}, SRC0);
     S[file] = SRC0[file].replace(find, () => repl);
     if (also) S[file] = also(S[file]);
+    if (process.env.AUDIO_TRACE) console.log('  .. ' + name + ' (' + check + ')');   // (a debugging aid: which mutation is running)
     const red = await runCheck(check, S, null);
     if (red.length) caught++;
     if (ONLY_SELFTEST || !red.length) say(red.length > 0, 'SELF-TEST "' + name + '" turns ' + check + ' red' + (red.length ? ': ' + red[0] : ' - MISSED'));
