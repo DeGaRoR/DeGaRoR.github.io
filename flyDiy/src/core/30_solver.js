@@ -370,7 +370,10 @@ function makeSim(def, world) {
   const nb = beams.length;
   const DMG = { yields: 0, breaks: 0, work: 0, broken: [], firstBreak: null, firstYield: null,
                 crashed: false, reason: null, at: null, dented: false, propStrike: false, propAt: null,
-                gPeak: 0, setMax: 0, orphans: [], members: 0, dents: 0, primary: 0, firstPrimary: null, holed: 0 };
+                gPeak: 0, setMax: 0, orphans: [], members: 0, dents: 0, primary: 0, firstPrimary: null, holed: 0,
+                // DMG-D1a: the groups broken (in order, G1815), the kink floors (G1813), the spruce cracks and their log
+                // [member, stage, t] (G1814), the frames armed (the census GATE DMGMEMBERS reads parked)
+                groups: [], floors: 0, cracks: 0, rag: [], armedN: 0 };
   // per node: the members still holding it (an ORPHAN, every member broken, is debris: gravity and the ground
   // only, its aero dropped - a lone node carries a strip's lift on its own few kilos and would be flung)
   const nodeDeg = new Int32Array(n), nodeDeg0 = new Int32Array(n), orphan = new Uint8Array(n);
@@ -391,6 +394,67 @@ function makeSim(def, world) {
     for (let bi = 0; bi < nb; bi++) { const b = beams[bi], L = []; sets.forEach((S, si) => { if (S.has(b.a) && S.has(b.b)) L.push(si); }); beamStrips.push(L); }
   }
   const noseB = new Uint8Array(nb);
+  // ---- DMG-D1a MEMBERS (G1810-G1815): the members' own limits, stamped once here (nothing new per substep) ----
+  // THE BUILD'S SEED (G1811, G1814): the scatter of a glue line and of a spruce member is the build's own and never
+  // changes between runs: an FNV hash of the nodes as built and the member count, then one per member and purpose
+  let dmgSeed = 0x811c9dc5 ^ nb;
+  if (DMG_ON) for (const nd of def.nodes) for (let k = 0; k < 3; k++) { dmgSeed = Math.imul(dmgSeed ^ (Math.round(nd.p[k] * 1e6) | 0), 16777619) >>> 0; }
+  const dmgRnd = (bi, salt) => { let h = Math.imul(dmgSeed ^ Math.imul(bi + 1, 0x9e3779b1), 0x85ebca6b) ^ Math.imul(salt, 0xc2b2ae35);
+    h = Math.imul(h ^ (h >>> 16), 0x7feb352d); h = Math.imul(h ^ (h >>> 15), 0x846ca68b); return ((h ^ (h >>> 16)) >>> 0) / 4294967296; };
+  // G1812 (§4.1): A MEMBER IN COMPRESSION BUCKLES BEFORE IT CRUSHES once it is slender: Fc = min(cy A, pi^2 E I / L^2),
+  // pinned (K = 1), E the material's own (GEN_MATERIALS phys), I a thin tube's of the member's own A at D / wall =
+  // GEN_CRASH_TUBE_DT (the bend's section, G1471): A = pi D t, so I = pi D^3 t / 8 = A D^2 / 8 with D^2 = DT A / pi. A
+  // 0.7 m 1" x 0.035" 4130 tube buckles at ~0.75 of its crush force; the long ones far lower. ONLY WHERE THE MEMBER IS A
+  // TUBE: the welded / bolted truss of a tube row (4130, 6061: the lattice's fuselage members are its longerons,
+  // posts and diagonals), the engine bearer (4130 on every aeroplane), the cabane and interplane struts. Measured
+  // otherwise: the tail truss's root members (1.3-1.6 m stand-ins for the stab's attach), the strut fan's hidden
+  // members (to 5.8 m: the lumped stand-in for a spar box) and the monocoque's members (a skin-stringer panel, not a
+  // tube - §6.4) read 2-7x a thin tube's Euler load in a FAR 23.473 drop and at 5.7 g on the bench. NOT THE DRAWN
+  // LIFT STRUTS EITHER: in the lattice they work in COMPRESSION at positive g (the metal Cessna's 21-28 kN at 5.7 g on
+  // the bench, 15-21 kN in a flown 5.25 g pull; the Cub's front strut 1.2 kN at 4 g) - the boxed outer panel's upper
+  // caps push the crank's upper nodes inboard and the hidden lower chord is the tension member (G140: "the strut is
+  // the lower chord") - and a thin tube of their A (79-204 mm2, 2.6-4 m) buckles at 0.9-5 kN: the Cessna's struts
+  // kinked at 2.7 g in flight. A real strut's compression case (negative g, a jury strut, a streamline section) is the
+  // certificate's, DMG-D2. Not a wire (no compression), not the gear (its limits are the gear bracket's, DMG-D2b: a
+  // leg is a spring standing for a whole leg)
+  // G1811 (§7.2): THE SEAMS. A FITTING (a bolt or a lug in shear) is brittle: it breaks at its strength with no set,
+  // Fu = 1.15 x its member's physics Fu (FAR 23.625's fitting factor; DMG-D2 replaces it with the certificate's); in
+  // compression the member it ends is what buckles. A RIVET line's joint efficiency ~0.7 of the sheet's Fu, a short
+  // plastic travel (2 %); a BOND (a glue line, a composite skin joint) brittle at 0.6-0.8 of its member's Fu, the
+  // glue's quality a seeded scatter; an OPENING's frame takes a stress concentration Kt 1.5-2 on Fu (seeded), a short
+  // travel if its metal has any. (Summaries' ranges, not certified numbers: §1, §11.2 #7.)
+  // G1814 (§7.1 #6): SPRUCE IN TENSION does not snap clean: +-15 % seeded strength (grain, knots), then it breaks in
+  // 2 or 3 stages (seeded): it cracks to 60 % of its strength, pulls out at that over RAG_SLIP of its length, (to 30 %
+  // and pulls out again,) then lets go
+  const RAG_SLIP = 0.005;
+  function dmgMember(bi, b, R) {
+    const Lb = b.L > 0 ? b.L : 0, ph = typeof GEN_MATERIALS !== 'undefined' && GEN_MATERIALS[b.mat] ? GEN_MATERIALS[b.mat].phys : null;
+    const tube = b.cls === 'cabane' || b.cls === 'interplane' || (b.cls === 'fus' && (b.mat === 'tubeFabric' || b.mat === 'aluTube'));
+    if (tube && !b.tens && ph && ph.E > 0 && Lb > 0) {
+      const fe = Math.PI * Math.PI * ph.E * (b.A * (GEN_CRASH_TUBE_DT * b.A / Math.PI) / 8) / (Lb * Lb);
+      if (fe < b.fc0) b.fc0 = fe;
+    }
+    const fu = R.tu * b.A;
+    if (b.seam === 'fitting') { b.fy0 = b.fu = 1.15 * fu; b.etu = 0; }
+    else if (b.seam === 'rivet') { b.fu = 0.7 * fu; b.fy0 = Math.min(b.fy0, 0.9 * b.fu); b.etu = R.etu > 0 ? Math.min(R.etu, 0.02) : 0; if (!(b.etu > 0)) b.fy0 = b.fu; }
+    else if (b.seam === 'bond') { b.fy0 = b.fu = (0.6 + 0.2 * dmgRnd(bi, 1)) * fu; b.etu = 0; }
+    else if (b.seam === 'opening') { b.fu = fu / (1.5 + 0.5 * dmgRnd(bi, 2)); b.fy0 = Math.min(b.fy0, 0.9 * b.fu); b.etu = R.etu > 0 ? Math.min(R.etu, 0.02) : 0; if (!(b.etu > 0)) b.fy0 = b.fu; }
+    if (b.mat === 'wood' && b.seam !== 'fitting' && b.seam !== 'bond' && !(b.etu > 0)) {
+      b.fy0 *= 1 + 0.15 * (2 * dmgRnd(bi, 3) - 1); b.fu = b.fy0;
+      b.rgN = dmgRnd(bi, 4) < 0.5 ? 2 : 3;
+    }
+  }
+  // G1815 (§4.4): THE BREAK GROUPS (61_gen_frame's table): a member that breaks its group (type 0: bm.grp) takes every
+  // member of the group with it, the pair's own links (type 1) included, which break no group themselves
+  const DGR = DMG_ON && def.parts && def.parts.dmg ? def.parts.dmg.groups : [];
+  const grpOf = new Int32Array(nb).fill(-1), grpAll = DGR.map(G => G.t0.concat(G.t1)), grpDone = new Uint8Array(DGR.length);
+  if (DGR.length) for (let bi = 0; bi < nb; bi++) { const g = beams[bi].grp; if (g >= 0 && g < DGR.length) grpOf[bi] = g; }
+  // G1813 (§4.0): THE KINK FLOOR: a member that KINKED in compression (past ecu) is broken but keeps a compression-only
+  // floor at its crushed length (its old k and c, pushing only): the nodes it held apart cannot pass through each
+  // other (RoR never lets a crushed member go slack). In tension: nothing. The list is walked after the beam loop only
+  // while it is not empty
+  const FLR = new Int32Array(nb);
+  let nFlr = 0;
   for (let bi = 0; bi < nb; bi++) { const b = beams[bi]; if (b.cls === 'fus' && def.nodes[b.a].p[0] < -0.05 && def.nodes[b.b].p[0] < -0.05) noseB[bi] = 1; }
   {
     const nodeCl = new Int16Array(n).fill(-1);
@@ -410,6 +474,8 @@ function makeSim(def, world) {
       const Dt = R ? Math.sqrt(GEN_CRASH_TUBE_DT * b.A / Math.PI) : 0;
       b.mp = R && R.ty ? R.ty * b.A * Dt / Math.PI : Infinity;
       b.thf = R ? R.thf : 0;
+      b.rgN = 0; b.rgS = 0; b.rgD = 0; b.kink = false; b.Lf = 0;
+      if (R) dmgMember(bi, b, R);                    // G1811-G1814 (DMG-D1a): Euler, the seams, wood's ragged break
       b.fyM = b.fy0; FY[bi] = b.fy0; FC[bi] = b.fc0; b.ep = 0; b.ec = 0; b.Lr = 0; b.broken = false; b.kB = 0; b.cB = 0; b.yielded = false;
       b.dOn = false; b.dTx = 0; b.dTz = 0; b.dNx = 0; b.dNz = 0; b.dk = 0; b.ks = 0; b.kt = 0.25; b.kt1 = 0.5;
     }
@@ -424,7 +490,9 @@ function makeSim(def, world) {
       const b = beams[bi];
       if (b.broken) { b.k = b.kB; b.c = b.cB; b.broken = false; }
       b.fyM = b.fy0; FY[bi] = b.fy0; FC[bi] = b.fc0; b.ep = 0; b.ec = 0; b.dOn = false; b.dk = 0; b.ks = 0;
+      b.rgS = 0; b.rgD = 0; b.kink = false; b.Lf = 0;
     }
+    nFlr = 0; grpDone.fill(0); DMG.groups.length = 0; DMG.floors = 0; DMG.cracks = 0; DMG.rag.length = 0; DMG.armedN = 0;
     for (let i = 0; i < n; i++) { nodeDeg[i] = nodeDeg0[i]; orphan[i] = 0; }
     for (const C of clusters) { C.off = false; C.dirty = false; }
     clDirty = false; stripDead.fill(0);
@@ -433,16 +501,25 @@ function makeSim(def, world) {
     DMG.gPeak = 0; DMG.setMax = 0; DMG.orphans.length = 0; DMG.members = 0; DMG.dents = 0; DMG.primary = 0; DMG.firstPrimary = null; DMG.holed = 0; gF = 0; cIx = cIy = cIz = 0;
     for (const b of beams) b.yielded = false;
   }
-  function beamBreak(bi) {
+  // (G1816) why a member broke, for the break-order gate: 'fold' (bent round a trunk past its fold angle), 'kink'
+  // (crushed past ecu), 'ragged' (spruce's last stage), 'tension' (brittle at its strength, or ductile at etu), 'group'
+  function beamBreak(bi, how) {
     const b = beams[bi];
     if (b.broken) return;
     b.kB = b.k; b.cB = b.c; b.k = 0; b.c = 0; b.broken = true;
     DMG.breaks++; DMG.broken.push(bi);
-    if (!DMG.firstBreak) DMG.firstBreak = { beam: bi, cls: b.cls, t: simT };
+    if (!DMG.firstBreak) DMG.firstBreak = { beam: bi, cls: b.cls, t: simT, seam: b.seam || null, grp: grpOf[bi], how: how || 'tension' };
+    if (b.kink) { FLR[nFlr++] = bi; DMG.floors++; }  // G1813: the crushed member stays a floor
     if (!noseB[bi]) { DMG.primary++; if (!DMG.firstPrimary) DMG.firstPrimary = { beam: bi, cls: b.cls, t: simT }; }
     if (beamCl[bi] >= 0) clusters[beamCl[bi]].off = true;
     for (const si of beamStrips[bi]) stripDead[si] = 1;
     for (const i of [b.a, b.b]) if (--nodeDeg[i] <= 0 && !orphan[i]) { orphan[i] = 1; DMG.orphans.push(i); }
+    // G1815: the member's group breaks whole (once)
+    const g = grpOf[bi];
+    if (g >= 0 && !grpDone[g]) {
+      grpDone[g] = 1; DMG.groups.push({ grp: g, key: DGR[g].key, seam: b.seam || null, by: bi, cls: b.cls, t: simT });
+      for (const j of grpAll[g]) beamBreak(j, 'group');
+    }
   }
   // the return mapping: the member's force k (L - L0) is held at the yield surface by moving L0; returns nothing,
   // the caller re-reads b.L0 / b.k
@@ -451,7 +528,7 @@ function makeSim(def, world) {
   function kinkCaps(bi) { const b = beams[bi], fk = b.dk > 1e-6 ? b.mp / b.dk : Infinity; FY[bi] = b.fyM < fk ? b.fyM : fk; FC[bi] = b.fc0 < fk ? b.fc0 : fk; }
   function hingeCheck(bi) {
     const b = beams[bi], L = b.Lr;
-    if (Math.atan(b.dk / (b.kt1 * L)) + Math.atan(b.dk / ((1 - b.kt1) * L)) > b.thf) beamBreak(bi);
+    if (Math.atan(b.dk / (b.kt1 * L)) + Math.atan(b.dk / ((1 - b.kt1) * L)) > b.thf) beamBreak(bi, 'fold');
   }
   function noteSet(bi) {
     const b = beams[bi], set = Math.abs(b.L0 - b.Lr) / b.Lr;
@@ -475,6 +552,20 @@ function makeSim(def, world) {
         DMG.work += fy * dL; b.L0 += dL; b.ks -= dL;
         if (b.ks <= 1e-12) { b.ks = 0; b.dk = 0; } else b.dk = Math.sqrt(2 * b.Lr * b.kt * b.ks);
         kinkCaps(bi);
+      } else if (b.rgN) {                            // G1814: spruce cracks, pulls out, lets go
+        const crack = b.rgS === 0;
+        if (crack) { b.rgS = 1; b.rgD = 0; b.fyM = 0.6 * b.fy0; kinkCaps(bi); DMG.cracks++; if (DMG.rag.length < 4096) DMG.rag.push(bi, 1, simT); }
+        const cap = FY[bi];
+        if (Fs > cap) {
+          dL = (Fs - cap) / b.k; DMG.work += cap * dL; b.L0 += dL;
+          if (!crack) b.rgD += dL;                   // (the crack's own release is not pull-out)
+          if (b.rgD >= RAG_SLIP * b.Lr) {
+            b.rgS++; b.rgD = 0;
+            if (DMG.rag.length < 4096) DMG.rag.push(bi, b.rgS, simT);
+            if (b.rgS >= b.rgN) { beamBreak(bi, 'ragged'); return; }
+            b.fyM = 0.3 * b.fy0; kinkCaps(bi); DMG.cracks++;
+          }
+        }
       } else {
         if (!(b.etu > 0)) { beamBreak(bi); return; } // brittle: the yield IS the break
         const H = (b.fu - b.fy0) / (b.etu * b.Lr);   // N per metre of plastic travel (bilinear hardening)
@@ -491,7 +582,7 @@ function makeSim(def, world) {
         b.ks += dL; b.dk = Math.sqrt(2 * b.Lr * b.kt * b.ks); kinkCaps(bi); hingeCheck(bi);
       } else {
         b.ec += dL / b.Lr;
-        if (b.ec >= b.ecu) beamBreak(bi);
+        if (b.ec >= b.ecu) { b.kink = true; b.Lf = L; beamBreak(bi, 'kink'); }   // G1813: kinked - a floor at its crushed length
       }
     }
     noteSet(bi);
@@ -544,11 +635,11 @@ function makeSim(def, world) {
   function armFrame() {
     armed = false;
     if (!DMG_ON) return;
-    if (PEAK || _prN || _obstRecs.length || scrape || DMG.yields || DMG.dents || waterDynamic()) { armed = true; scrape = false; return; }
+    if (PEAK || _prN || _obstRecs.length || scrape || DMG.yields || DMG.dents || waterDynamic()) { armed = true; scrape = false; DMG.armedN++; return; }
     for (let bi = 0; bi < nb; bi++) {
       const b = beams[bi], a3 = b.a * 3, b3 = b.b * 3;
       const Fs = b.k * (hyp3(p[b3] - p[a3], p[b3+1] - p[a3+1], p[b3+2] - p[a3+2]) - b.L0);
-      if (Fs > ARM_FRAC * FY[bi] || -Fs > ARM_FRAC * FC[bi]) { armed = true; break; }
+      if (Fs > ARM_FRAC * FY[bi] || -Fs > ARM_FRAC * FC[bi]) { armed = true; DMG.armedN++; break; }
     }
   }
   // the nose ring and the engine's nodes: on the ground, the prop has been through it (a nose-over)
@@ -1702,6 +1793,18 @@ function makeSim(def, world) {
       f[a3]+=Fb*dx; f[a3+1]+=Fb*dy; f[a3+2]+=Fb*dz;
       f[b3]-=Fb*dx; f[b3+1]-=Fb*dy; f[b3+2]-=Fb*dz;
     }
+    // G1813: the kinked members' floors - push only, below the crushed length
+    for (let q = 0; q < nFlr; q++) {
+      const b = beams[FLR[q]], a3 = b.a*3, b3 = b.b*3;
+      let dx = p[b3]-p[a3], dy = p[b3+1]-p[a3+1], dz = p[b3+2]-p[a3+2];
+      const L = hyp3(dx, dy, dz) || 1e-9;
+      if (L >= b.Lf) continue;
+      dx /= L; dy /= L; dz /= L;
+      const Fb = b.kB * (L - b.Lf) + b.cB * ((v[b3]-v[a3])*dx + (v[b3+1]-v[a3+1])*dy + (v[b3+2]-v[a3+2])*dz);
+      if (Fb >= 0) continue;
+      f[a3]+=Fb*dx; f[a3+1]+=Fb*dy; f[a3+2]+=Fb*dz;
+      f[b3]-=Fb*dx; f[b3+1]-=Fb*dy; f[b3+2]-=Fb*dz;
+    }
     // ground: wheels roll, everything else scrapes. Terrain-aware.
     const gH = world ? world.terrainH : null;
     for (let i = 0; i < n; i++) {
@@ -2093,6 +2196,8 @@ function makeSim(def, world) {
            // G1470: the damage - yields, breaks (beam indices), plastic work (J), the largest set (strain), the peak
            // filtered g, the prop strike, and the verdict: crashed (with why and when) / dented / neither
            damage: () => DMG, damagePeak: () => PEAK,
+           // G1815: break one member as a crash would (GATE DMGMEMBERS' closed-set check: its group, and nothing more)
+           damageBreak: bi => { if (DMG_ON && bi >= 0 && bi < nb) beamBreak(bi, 'gate'); },
            reset, stance, step, trueBox, probe, stats, impulse, wheelsOnGround, wheelContacts, cgPos, cgVel, axes,
            // G197: the kernel's sources, readable (the gate asserts the weights' normalisation)
            induction: () => ({ WS: WS.slice(), plane: Array.from(PLANE), bHalf: Array.from(bHalf), Ez: Array.from(Ez), Dz: Array.from(Dz), Gam: Array.from(Gam), Wg: Array.from(Wg), zA: WS.map(j => sZA[j]), zB: WS.map(j => sZB[j]), A: WS.map(j => [sA[j*3], sA[j*3+1], sA[j*3+2]]), B: WS.map(j => [sB[j*3], sB[j*3+1], sB[j*3+2]]), d: sD.slice(), cpt: Array.from(cpt), pairs: pairs.length, loading: LOADING }),
