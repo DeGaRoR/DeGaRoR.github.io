@@ -1374,6 +1374,8 @@
     const THREE = W.THREE, vis = opt && opt.payload, spec = opt && opt.spec;
     const phase = (l, f) => { if (opt && opt.phase) try { opt.phase(l, f); } catch (e) {} };
     if (!FB.on || W.FLYDIY_FLOWN_BAKE === 0 || !THREE || !vis || !vis.cage || !W.AEROSKIN || !W.PARKED || !W.PARKED.unwrap) return null;
+    // G1523 (POTATO-DEEP): a build budget without the bake (potato) - the live shader flies, nothing baked nor held
+    if (W.GFX && typeof W.GFX.budget === 'function' && W.GFX.budget().flownBake === false) { log('the budget makes no bake (' + W.GFX.budget().preset + ')'); return null; }
     const R = renderer();
     if (!R) return null;
     const sets = bakedSets(vis), jobs = [];

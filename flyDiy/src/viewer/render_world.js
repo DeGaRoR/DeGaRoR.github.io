@@ -1767,7 +1767,10 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       // type from the library (src/viewer/splat_ground.js owns it): two
       // texture arrays on top of the island's five units - 10 / 14 / 15 of 16
       // on the near ring / outer ring / premises patch (tools/sampler_census.js)
-      SPL = (typeof SPLAT_GROUND !== 'undefined' && SPLAT_GROUND) ? SPLAT_GROUND.make(gU, ISLA) : null;
+      // G1521 (POTATO-DEEP): the GRAPHICS row's 'plain' ground at the build (potato) - the programs carry no splat and the
+      // sets are never fetched until a step asks for them (gfx_settings.js apply: sp.plain(false))
+      const GPLAIN0 = typeof window !== 'undefined' && window.GFX && window.GFX.get && window.GFX.get().ground === 'plain';
+      SPL = (typeof SPLAT_GROUND !== 'undefined' && SPLAT_GROUND) ? SPLAT_GROUND.make(gU, ISLA, { plain: GPLAIN0 }) : null;
       // THE FINE RING (TERRAIN FOLLOW-UP 2, 2026-09-22): `side` says what a material does at the disc
       // of fine tiles round the eye - the near ring (-1) DISCARDS its fragments inside the disc's
       // radius, a fine tile (+1) discards outside it and GEOMORPHS its rim to the ring's own surface
@@ -1786,14 +1789,19 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       // (':full') and the ground's materials (GROUND_FAMILY, the premises patch's clones included) re-key when F8 crosses
       // the line, once: every later edit inside the full program is a uniform again.
       const groundFull = () => (GROUND.mode | 0) !== 0 || (stackStart() === 0 && !!STACK[0].on) || !!(SPL && SPL.api.masking());   // (+ the splat's magenta mask)
-      groundSync = () => { const f = groundFull(); if (f === groundFullNow) return; groundFullNow = f; for (const m of GROUND_FAMILY) m.needsUpdate = true; };
+      // G1521: ...and the PLAIN ground (the 'ground' row's cheapest step): the splat's text out of every ground program
+      const groundPlain = () => !!(SPL && SPL.api.plain());
+      let groundPlainNow = groundPlain();
+      groundSync = () => { const f = groundFull(), p = groundPlain(); if (f === groundFullNow && p === groundPlainNow) return; groundFullNow = f; groundPlainNow = p; for (const m of GROUND_FAMILY) m.needsUpdate = true; };
       groundFullNow = groundFull();
       if (SPL) SPL.api.onInspect = () => groundSync();
-      groundKey = base => () => base + (groundFull() ? ':full' : '');
+      groundKey = base => () => base + (groundFull() ? ':full' : '') + (groundPlain() ? ':plain' : '');
       const islandGroundHookFor = (side, rock) => sh => {
         const full = groundFull();
+        // G1521: the splat in this program, or not (the plain ground: none of its text, its arrays or its uniforms)
+        const SP = SPL && !SPL.api.plain() ? SPL : null;
         if (typeof ATMO !== 'undefined') ATMO.inject(sh);   // S4: the aerial-perspective sampler (a hook of its own loses the prototype's)
-        Object.assign(sh.uniforms, gU, SPL ? SPL.uniforms : {});
+        Object.assign(sh.uniforms, gU, SP ? SP.uniforms : {});
         sh.vertexShader = sh.vertexShader
           .replace('#include <common>', '#include <common>\nvarying vec3 vWPi;\nuniform vec4 uFine;\n' +
             (side > 0 ? 'attribute float aCoarse; attribute vec3 aCoarseN;\nfloat fineK(){ return 1.0 - smoothstep(uFine.z - uFine.w, uFine.z, distance(position.xz, uFine.xy)); }\n' : ''))
@@ -1848,7 +1856,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
             'vec3 gClassCol(float c){ if (abs(c-10.0)<0.5) return vec3(0.06,0.20,0.06); if (abs(c-20.0)<0.5) return vec3(0.28,0.31,0.10);\n' +
             '  if (abs(c-30.0)<0.5) return vec3(0.36,0.41,0.12); if (abs(c-50.0)<0.5) return vec3(0.35,0.20,0.20); if (abs(c-60.0)<0.5) return vec3(0.28,0.25,0.22);\n' +
             '  if (abs(c-80.0)<0.5) return vec3(0.02,0.06,0.20); if (abs(c-90.0)<0.5) return vec3(0.16,0.28,0.16); if (abs(c-100.0)<0.5) return vec3(0.38,0.36,0.15); return vec3(0.2); }' : '') +
-            (SPL ? (full ? SPL.glslCommonFull : SPL.glslCommon) : ''))
+            (SP ? (full ? SP.glslCommonFull : SP.glslCommon) : ''))
           .replace('#include <map_fragment>', '#include <map_fragment>\n' +
             // the fine disc's edge: one of the two surfaces per pixel, decided before any of the ground's cost
             (side < 0 ? 'if (uFine.z > 0.0 && distance(vWPi.xz, uFine.xy) < uFine.z) discard;\n' : side > 0 ? 'if (distance(vWPi.xz, uFine.xy) > uFine.z) discard;\n' : '') +
@@ -1896,7 +1904,13 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
             '  }\n' +
             // THE SPLAT over the stack (the stack is the macro it fades to at distance); the
             // rocky shore band below yields to it (the splat's own shingle / sand / cliff)
-            (SPL ? '  if (!gDeep) {\n' + SPL.glslMap + '  }\n' : '') +
+            (SP ? '  if (!gDeep) {\n' + SP.glslMap + '  }\n' : '') +
+            // THE PLAIN GROUND'S GRAIN (G1521, POTATO-DEEP): no texture at all - two octaves of the hook's own value noise
+            // over the stack's colour, each faded out where its cell is under ~2 pixels (the footprint, so it never fizzes):
+            // the near ground reads as ground, not as the satellite's 30 m smear, for a handful of ALU and no sampler
+            (SPL && !SP ? '  if (!gDeep) { float gpx = length(fwidth(vWPi.xz));\n' +
+                          '    float ga = 1.0 - smoothstep(0.45, 1.1, gpx * 0.75), gb = 1.0 - smoothstep(0.45, 1.1, gpx * 0.16);\n' +
+                          '    if (gb > 0.0) t *= 1.0 + 0.20 * ga * (gVnoise(vWPi.xz * 0.75) - 0.5) + 0.24 * gb * (gVnoise(vWPi.xz * 0.16 + 17.0) - 0.5); }\n' : '') +
             // THE ROCK MAP (rock_map.js): the rocks' own image where the cover ring's meshes have thinned - the
             // ring's fade law (trees.js FADE_VS) at this fragment's distance says how many meshes stand here, the
             // map fills the rest; a soft edge at the map's rim; albedo, lit below like the ground's own
@@ -1917,7 +1931,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
             // the water's fade, and the blue bed had read as a cyan ring round every lake from the air)
             '  if (uGWaterMap > 0.5 && lsd > -1.0) t = mix(t, vec3(0.045, 0.055, 0.035), smoothstep(-1.0, 3.0, lsd));\n' +
             '  vec3 rock = vec3(0.27, 0.25, 0.20) * (0.75 + 0.5 * r1);\n' +
-            '  t = mix(t, rock, smoothstep(16.0, 0.0, sd) * 0.8 * uGShore' + (SPL ? ' * (1.0 - uSplatOn)' : '') + ');\n' +
+            '  t = mix(t, rock, smoothstep(16.0, 0.0, sd) * 0.8 * uGShore' + (SP ? ' * (1.0 - uSplatOn)' : '') + ');\n' +
             // below the waterline the ground IS water-coloured, so a polygon that
             // straddles the shore never shows a seabed above the water plane.
             // AND ONLY BELOW IT (G460.2, the user: "a lot of blue going onto the sea-side cliffs"): the far
@@ -1949,10 +1963,10 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
             '  else if (uGMode == 7) { float hh = clamp(vWPi.y / uGHMax, 0.0, 1.0); t = mix(mix(vec3(0.02,0.15,0.03), vec3(0.45,0.40,0.18), min(1.0, hh*1.6)), vec3(0.9), max(0.0, hh-0.6)*2.5); }\n' +
             '  else if (uGMode == 8) t = mix(vec3(0.05), vec3(0.9), snowA);\n' : '') +
             '  diffuseColor.rgb = t; }');
-        if (SPL) sh.fragmentShader = sh.fragmentShader
-          .replace('#include <normal_fragment_maps>', '#include <normal_fragment_maps>' + SPL.glslNormal)
+        if (SP) sh.fragmentShader = sh.fragmentShader
+          .replace('#include <normal_fragment_maps>', '#include <normal_fragment_maps>' + SP.glslNormal)
           // the sets' roughness (a Standard ring only: a Lambert has no roughnessmap_fragment and the line is a no-op)
-          .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>' + SPL.glslRough);
+          .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>' + SP.glslRough);
         // THE IBL'S DIFFUSE STAYS OUT (the near ring is a Standard, above): r186 hands scene.environment
         // to every lit material as irradiance AND radiance; the world's ambient is the hemisphere,
         // so the irradiance line is cut and the probe reaches the ground as its reflection only
@@ -3145,7 +3159,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     // Affordable because the atlas is baked ONCE per subject and series and
     // shared by both layers (below); at 4 MB a sheet, two sheets, 18 atlases
     // it is ~150 MB of VRAM, baked at boot.
-    const IMP_G = 8, IMP_TILE = 128;
+    const IMP_G = 8, IMP_TILE = BUD && BUD.impTile > 0 ? BUD.impTile : 128;   // G1523 (POTATO-DEEP): the budget's tile (potato 64: a 512 sheet)
     // THE ATLAS CACHE. The woodland and the fill bake the same subject's same
     // series from the same parts array (treeBuild hands the same one out),
     // and each disposed its own copy on replant. One bake per parts array,

@@ -1378,7 +1378,9 @@ const AERO_ATLAS_N = 4;              // 4x4 pages
 // desktop game carries; the envelope keeps a 512 px copy of an image page
 // (aeroDecalImageData), not the page. Every pixel size below (dilation,
 // the outline stroke) scales with the page.
-const AERO_ATLAS_PX = 4096;
+// G1523 (POTATO-DEEP): the build budget's size (potato 2048: 21 MB, not 85) - taken when the atlas is first made (this script
+// runs before gfx_settings.js); every reader below reads it after aeroAtlas() made the canvas
+let AERO_ATLAS_PX = 4096;
 const AERO_PAGE_REF = 256;           // what the pixel sizes were tuned at
 // the fraction of page 0 the registration's glyph box occupies, written by
 // aeroDecalText and read by the placement (G207)
@@ -1387,6 +1389,8 @@ let AERO_ATLAS = null, AERO_ATLAS_CV = null;
 
 function aeroAtlas(THREE) {
   if (AERO_ATLAS) return AERO_ATLAS;
+  { const G = typeof window !== 'undefined' && window.GFX && typeof window.GFX.budget === 'function' ? window.GFX.budget() : null;
+    if (G && G.aeroAtlas > 0) AERO_ATLAS_PX = G.aeroAtlas; }   // G1523: the budget's (a page 512 px at 2048)
   const S = AERO_ATLAS_PX;
   const cv = document.createElement('canvas');
   cv.width = cv.height = S;

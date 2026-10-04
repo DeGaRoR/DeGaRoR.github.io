@@ -26,10 +26,11 @@
   const W = typeof window !== 'undefined' ? window : null;
   if (!W) return;
   const KEY = 'flydiy.welcome';
-  const ORDER = ['potato', 'retro', 'current', 'gamer', 'ultra'];   // GATE GFX holds it to Object.keys(GFX.PRESETS)
-  const LABEL = { potato: 'potato', retro: '5 years ago', current: 'current', gamer: 'gamer', ultra: 'ultra' };
+  const ORDER = ['laptop', 'potato', 'retro', 'current', 'gamer', 'ultra'];   // GATE GFX holds it to Object.keys(GFX.PRESETS)
+  const LABEL = { laptop: 'laptop', potato: 'potato', retro: '5 years ago', current: 'current', gamer: 'gamer', ultra: 'ultra' };
   const WHY = {
-    potato: 'an integrated or older card, a laptop: the lightest picture',
+    laptop: 'integrated graphics (Intel HD / UHD, AMD Radeon Graphics), a phone: the lightest picture',
+    potato: 'an older or entry-level card (GTX 600-900, GT / MX), Intel Iris Xe: the light picture',
     retro: 'a card that was good five years ago (GTX 1060 class)',
     current: 'a current mid-range card (RTX 3060 class)',
     gamer: 'a strong card (RTX 3080 class): the reference',
@@ -63,9 +64,12 @@
     let m;
     if (!s) return { cls: 'current', why: 'the card did not say its name' };
     if (isSoftware(s)) return { cls: 'potato', why: 'a software renderer (no graphics card in use)' };
-    if (/Mali|Adreno|PowerVR|Apple A\d|Videocore/i.test(s)) return { cls: 'potato', why: 'a phone or tablet graphics part' };
-    if (/Intel/i.test(s) && /\b(HD|UHD|Iris)\b/i.test(s)) return { cls: 'potato', why: 'Intel integrated graphics' };
-    if (/Radeon\(TM\) Graphics|Radeon Graphics|Radeon Vega \d+ Graphics|Vega \d+ Graphics/i.test(s)) return { cls: 'potato', why: 'AMD integrated graphics' };
+    // G1524 (POTATO-DEEP): the integrated parts and the phones take the LAPTOP rung (the user's EliteBook: an Intel HD 620, ~1/3
+    // of the GTX 660 potato was cut for); Intel's Iris Xe (96 EU, about a GTX 660) stays potato
+    if (/Mali|Adreno|PowerVR|Apple A\d|Videocore/i.test(s)) return { cls: 'laptop', why: 'a phone or tablet graphics part' };
+    if (/Intel/i.test(s) && /\bIris\b/i.test(s) && /\bXe\b/i.test(s)) return { cls: 'potato', why: 'Intel Iris Xe graphics' };
+    if (/Intel/i.test(s) && /\b(HD|UHD|Iris)\b/i.test(s)) return { cls: 'laptop', why: 'Intel integrated graphics' };
+    if (/Radeon\(TM\) Graphics|Radeon Graphics|Radeon Vega \d+ Graphics|Vega \d+ Graphics/i.test(s)) return { cls: 'laptop', why: 'AMD integrated graphics' };
     if ((m = /RTX\s*(\d{2})(\d{2})/i.exec(s))) {
       const series = +m[1], tier = +m[2];
       if (series === 20) return { cls: 'current', why: 'an RTX 20 series card' };

@@ -61,7 +61,7 @@ const CATS = [
   ['antennas', 'antennas', 3, 'dishes on the south walls, TV aerials on ridges, a lattice mast by each settlement and field'],
 ];
 // the GRAPHICS tier scales every distance (the potato draws the life at half its reach)
-const TIER_DIST = { potato: 0.5, retro: 0.7, current: 0.85, gamer: 1, ultra: 1.3 };
+const TIER_DIST = { laptop: 0.35, potato: 0.5, retro: 0.7, current: 0.85, gamer: 1, ultra: 1.3 };   // G1524: the laptop rung nearer still
 const CELL = 64;
 
 // ---- the procedural kit ---------------------------------------------------------------------------------------

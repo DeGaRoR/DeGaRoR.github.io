@@ -385,6 +385,9 @@
       // G1460 (SOFT-GPU): no MSAA in the target on a software renderer - SwiftShader runs the fragment work per sample, and
       // the scene pass is the whole frame there (the resolve's tent filter still smooths the edges a little)
       if (typeof window !== 'undefined' && window.GFX && window.GFX.soft && window.GFX.soft()) S.rt.samples = 0;
+      // G1524 (POTATO-DEEP): the build budget's cap on the target's samples (laptop 0: an integrated part's memory bandwidth
+      // is the frame - four samples are four times the target's bytes written and resolved); GFX.apply sets it (setMsaaCap)
+      if (S.msaaCap != null) S.rt.samples = Math.min(S.rt.samples, S.msaaCap);
       // THE TWO LINES THAT KEEP THE GAME LOOKING LIKE THE GAME (see THE TARGET
       // IS DISPLAY-SPACE in the header): the XR-target rule makes r186 treat
       // this target like the canvas — materials tone-map and encode on the
@@ -570,6 +573,8 @@
       // first frame will ask for - null at tier 'off', where the canvas is the target
       target: () => S.rt || null,
       hold: fn => { S.hold = fn || null; }, held: () => S.held || 0,   // G1340: the draw guard's whole-frame hold
+      // G1524: the budget's sample cap (null = none); a change rebuilds the target
+      setMsaaCap: n => { n = n == null ? null : Math.max(0, n | 0); if (n === (S.msaaCap == null ? null : S.msaaCap)) return n; S.msaaCap = n; if (S.rt) buildRT(); return S.msaaCap; },
       // G584: the blit's program, for the roll-out's compile step (shader_warm.js) - drawn onto the canvas
       warmList: () => (S.rt && S.mat ? [{ m: S.mat, to: null }] : []),
       dither: () => S.dither,
