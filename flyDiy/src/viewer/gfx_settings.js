@@ -633,6 +633,7 @@
     soft: () => (SOFT ? { tier: 'software', gpu: (W.WELCOME && W.WELCOME.env && W.WELCOME.env.gpu) || '', forced: FORCE('soft'), preset: S.preset } : null),
     // the world calls this once it exists (render_world.js, end of build)
     onWorld: () => { applied = {}; apply(); },
+    reapply: () => apply(),   // train 31: the rows a late handle (the cover ring) never took - nothing already applied runs again
     // what each option costs to change, for anyone who asks
     restart: () => ({ aa: 'live (reallocates the frame)', density: 'live (re-streams the forest, ~10 s)',
                       bands: 'live', shadows: 'live (recompiles the lit surfaces)', canopy: 'live', lighting: 'live', scale: 'live (reallocates the frame; auto re-sizes it at most every 2 s)',

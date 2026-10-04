@@ -5195,7 +5195,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
           // ring (reach 220, density 2: ~30 M triangles a frame, 3-9 MINUTES a frame on SwiftShader). The same is true on
           // a graphics card (potato and retro draw the full cover there too); this re-apply is the software rung's only,
           // so a card's picture stays as it was - dropping the soft() test fixes it for every machine (A0's / the user's call)
-          if (typeof window !== 'undefined' && window.GFX && window.GFX.onWorld) window.GFX.onWorld();   // train 31 (the user, 2026-10-04: "fix for all"): every machine, not the software rung only
+          if (typeof window !== 'undefined' && window.GFX && window.GFX.reapply) window.GFX.reapply();   // train 31 (the user, 2026-10-04: "fix for all"): every machine; only the cover row (the ring's handle is new) - not the whole menu again (onWorld cost the warm settle +0.7 s)
         })).catch(e => { console.error('cover ring: ' + (e && e.message)); });
       // THE REACHABLE CATALOGUE, AGAIN (AS1, G908: trees.js treeReach). An F8 biome or mix edit (or a premises
       // re-stamp, then TREE_FILL.reach()) can name a species the map could not reach at boot and so never fetched:
