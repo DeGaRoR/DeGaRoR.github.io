@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 96a220795a6d3ecd
+// body-sha256: ce7a7a1d1eae56e1
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -2879,6 +2879,8 @@ function makeWorld(seed, opts) {
   // the ground there is under the level. That also settles what a premises
   // grade does near a bank - dig below the level and the cut is under water,
   // honestly, because the lake does not follow the spade.
+  // (G1335: the island's carved lakebed, read by terrainH - here for the same reason: terrainH runs while the world is made)
+  const LAKE_BED = ISL && ISL.lakeBed ? ISL.lakeBed : null;
   const lakeLevelAt = (() => {
     const recs = (ISL && ISL.lakes || []).filter(L => L.level > 0.2 && L.cells >= 3);
     if (!recs.length) return null;
@@ -3362,7 +3364,15 @@ function makeWorld(seed, opts) {
     if (thX[i] === x && thZ[i] === z) return thH[i];
     const h0 = baseH(x, z);
     // (G614: the premises' raster - the composed ground baked lazily off the same modifiers, 27_premises.js)
-    const h = PM ? (PM.terrainFast ? PM.terrainFast(x, z, h0) : PM.terrainH(x, z, h0)) : h0;
+    let h = PM ? (PM.terrainFast ? PM.terrainFast(x, z, h0) : PM.terrainH(x, z, h0)) : h0;
+    // THE CARVED LAKEBED (LAKE-HOLES G1335, 28_island.js lakeBed): under every lake the ground lies under the water,
+    // continuous with its bank - the renderer no longer cuts it away, and the floats, the wheels and the drawn ground
+    // all read this one surface. On the composed ground: where no premises modifier acts the bed is min(h, bed); where
+    // one does, a FILL stays a fill (G753: 02/20's pond is the runway's) - the modifiers are blends, affine in the
+    // ground under them, so composing on the bed as well says how much of the ground they keep (1 - w); a modifier
+    // that holds half or more of it (w >= 0.5) is the old composition on the raw ground, fading to the bed's as w -> 0
+    // (continuous at the modifier's rim, where w is 0). The memo above holds the answer.
+    if (LAKE_BED) h = lakeCarve(x, z, h0, h, hb => (PM.terrainFast ? PM.terrainFast(x, z, hb) : PM.terrainH(x, z, hb)));
     thX[i] = x; thZ[i] = z; thH[i] = h;
     return h;
   }
@@ -3373,7 +3383,35 @@ function makeWorld(seed, opts) {
   // (1 cm). The town's premises build read ~11 000 uncooked tiles 9-10 km from HOME at every town-on boot (~10 s of
   // main-thread bakes); the wheels, the wind and every repeated read keep terrainH. Not memoised: the memo is terrainH's
   function terrainHBuild(x, z) {
-    return PM && PM.rasterLazyAt && PM.rasterLazyAt(x, z) ? PM.terrainH(x, z, baseH(x, z)) : terrainH(x, z);
+    if (!(PM && PM.rasterLazyAt && PM.rasterLazyAt(x, z))) return terrainH(x, z);
+    const h0 = baseH(x, z), h = PM.terrainH(x, z, h0);
+    return LAKE_BED ? lakeCarve(x, z, h0, h, hb => PM.terrainH(x, z, hb)) : h;   // (the bed, as terrainH carves it)
+  }
+  // THE EXACT GROUND (COLD-LINKS x LAKE-HOLES, lakes-2): the ANALYTIC composer everywhere, carved as terrainH carves - the
+  // source the premises' raster approximates (GATE PREMRASTER / PREMCOOK hold the raster and the cook to it). The raster
+  // world's terrainH carves AFTER composing, so the composer alone is no longer its reference: under a lake's bank the two
+  // differ by the carve itself (up to 5.6 m beside r_airport's grade), not by the raster. Not memoised, never on a hot path.
+  function terrainHExact(x, z) {
+    const h0 = baseH(x, z);
+    if (!PM) return LAKE_BED ? lakeCarve(x, z, h0, h0, null) : h0;
+    const h = PM.terrainH(x, z, h0);
+    return LAKE_BED ? lakeCarve(x, z, h0, h, hb => PM.terrainH(x, z, hb)) : h;
+  }
+  // the carve as one function (A0, train 28): terrainH and METLA-LOAD's build read (terrainHBuild) BOTH carve - the build
+  // read composed the uncooked town cells on the raw ground and skipped the bed (GATE LAKEBED: a ring over a lake there)
+  function lakeCarve(x, z, h0, h, compose) {
+    if (LAKE_BED) {
+      const b = LAKE_BED(x, z);
+      if (b < h) {
+        if (!PM || h === h0) h = b;
+        else {
+          const hb = Math.min(h0, b), hc = compose(hb);
+          const w = h0 > hb ? 1 - (h - hc) / (h0 - hb) : 1, t = Math.max(0, Math.min(1, w / 0.5));
+          h = hc + (h - hc) * t * t * (3 - 2 * t);
+        }
+      }
+    }
+    return h;
   }
 
   // ---- stage 2 biomes: analytic classifier + tree placement plan ----
@@ -3544,6 +3582,10 @@ function makeWorld(seed, opts) {
       // the island: the sea is the DEM at 0 (sea level does the edges), a lake
       // is its own record, a river is the hydrology's reach - and the fill's
       // lake level is not asked for at all (21_world_hydro riverWater)
+      // (G1335: INSIDE A LAKE'S LINE the water is the lake that owns the carved bed there - 28_island lakeBed.levelAt, one
+      // lake a texel - before the sea's rule: the carve takes a lake's middle under 0.05 (the East Point lens, 2.67 m, its
+      // DEM 0.83, carved to -0.3), and the sea is not there. A lagoon at the sea's own level owns a level of 0: the sea.)
+      if (LAKE_BED) { const lo = LAKE_BED.levelAt(x, z); if (lo > 0.05 && lo >= t) return lo; }
       if (t <= 0.05) return 0;
       let onBank = false;
       if (lakeLevelAt) { const L = lakeLevelAt(x, z, t); if (L.level > -Infinity) return L.level; onBank = L.covered; }
@@ -3949,12 +3991,13 @@ function makeWorld(seed, opts) {
     v: 1, seed: SEED,
     bounds: BOUNDS,
     island: ISL ? { id: ISL.id, canopyAt: ISL.canopyAt, effClass: ISL.effClass, classAt: ISL.classAt, coastAt: ISL.coastAt, seaFloor: ISL.seaFloor,
+                    lakeBed: ISL.lakeBed || null, LAKE_BED: ISL.LAKE_BED || null,   // G1335: the carved lakebed (the far terrain's patches take it)
                     WC: ISL.WC, hMax: ISL.hMax, grid: ISL.grid, albedo: ISL.albedo,
                     tint: ISL.tint, ori1: ISL.ori1, coast: ISL.coastU8 || null, canopy: ISL.canopyU8 || null, canopyP90: ISL.canopyP90,
                     cover: ISL.coverU8 || null, ndvi: ISL.ndvi || null, lake: ISL.lake || null, ttype: ISL.ttype || null, lakes: ISL.lakes || null, hydro: ISL.hydro, cellAt: ISL.cellAt,
                     farHeader: ISL.farHeader, farRoot: ISL.farRoot,
                     places: (ISL.premCook && ISL.premCook.places) || null } : null,   // G841: the premises cook's places (the tallies render_premises dresses on)
-    terrainH, waterH, terrainHBuild, waterHBuild, buildReads, surface, SURFACE, groundMaxRect,
+    terrainH, waterH, terrainHBuild, terrainHExact, waterHBuild, buildReads, surface, SURFACE, groundMaxRect,
     get slopeMax() { return PM ? undefined : SLOPE_MAX; },   // the cone's bound (30_solver.js); none under a premises layer
     TILE, tile, aerodromes, settlements: SET.settlements,
     treesNear, canopyH,
@@ -9588,6 +9631,143 @@ var ISLAND_GEN = (function () {
     // eps 4: a shallower start let it lift the floor above the water plane in
     // patches - G402), -14 m by 500 m out, the DEM's own value on land.
     const seaFloor = sd => { const t = Math.min(1, -sd / 500); return -5.0 - 9.0 * t * t * (3 - 2 * t); };
+    // THE LAKEBEDS ARE CARVED (LAKE-HOLES G1335, the user 2026-10-03: "unacceptable"). The IFSAR DEM returns a lake's
+    // SURFACE, so the prep's flattened lake stood at its own level - often over it, 4 282 field texels on Jolene 0.8-3 m
+    // and some 5 m - and the renderer CUT the ground away inside every lake (a discard a metre in) to hide it: wherever
+    // the shore stood over the water the eye saw a vertical gap between the ground's jagged cut edge and the flat water,
+    // the clear colour through it. Now the ground is CONTINUOUS and lies under the water: inside a lake's field
+    // (the physics' lake field, + inside) the ground is held under the lake's level - `edge` under it at the line,
+    // sloping to `depth` by `shoreW` metres in - and on the bank (outside the line) under a slope that rises out of the
+    // line at 1:1 and steepens (s + s^2/16: 8 m over the water 6 m out, 86 m by 30), so a bank over the water meets the bed without a step (min with the DEM: a ground
+    // already lower - a real bed, a bank below the lake - is kept; this only ever LOWERS the ground, so every ceiling
+    // the codec gives (hMaxRect) still holds). WHICH LAKE: each field texel has ONE owner, made once here - an inside
+    // texel (the field > 0) belongs to the lake whose box holds it, and where boxes overlap to the one whose level the
+    // DEM there is nearest (the prep flattened each lake to its own level; a pond's box over a big lake's water is not
+    // the pond's); a bank texel (within `bank` metres out) to the lake of the nearest inside texel. The bed and its bank
+    // are then one lake's on both sides of the line and continuous across it (a rule by boxes alone stepped 10 m where
+    // two lakes' boxes meet at different levels, and dug a 60 m pit round a hillside pond inside a big lake's box -
+    // GATE LAKEBED's walk). The records are the ones the world keeps (level > 0.2, cells >= 3); a texel no record owns is
+    // left as the DEM has it. Per lake a byte mask over its box and the bank's reach: 0.67 MB on Jolene, built in ~40 ms.
+    const LAKE_BED = { edge: 0.5, depth: 3.0, shoreW: 12, bank: 30 };
+    const lakeBed = (() => {
+      const LF = src.grid.lake, recs = (src.grid.lakes || []).filter(L => L.level > 0.2 && L.cells >= 3);
+      if (!LF || !recs.length) return null;
+      const R = Math.ceil(LAKE_BED.bank / cell) + 1, VB = 128 - Math.ceil(LAKE_BED.bank / 4);   // the bank's reach: in texels, as a field byte
+      const own = recs.map(L => {
+        const i0 = Math.max(0, Math.floor((L.x0 - gx0) / cell) - 1 - R), i1 = Math.min(W - 1, Math.ceil((L.x1 - gx0) / cell) + 1 + R);
+        const j0 = Math.max(0, Math.floor((L.z0 - gz0) / cell) - 1 - R), j1 = Math.min(Hn - 1, Math.ceil((L.z1 - gz0) / cell) + 1 + R);
+        const o = { L, level: L.level, i0, j0, w: i1 - i0 + 1, h: j1 - j0 + 1, m: null };
+        o.m = new Uint8Array(o.w * o.h);
+        // inside: the box + a texel (255)
+        const bi0 = Math.max(i0, Math.floor((L.x0 - gx0) / cell) - 1), bi1 = Math.min(i1, Math.ceil((L.x1 - gx0) / cell) + 1);
+        const bj0 = Math.max(j0, Math.floor((L.z0 - gz0) / cell) - 1), bj1 = Math.min(j1, Math.ceil((L.z1 - gz0) / cell) + 1);
+        const ins = [];
+        for (let j = bj0; j <= bj1; j++) for (let i = bi0; i <= bi1; i++) if (LF[j * W + i] > 128) { o.m[(j - j0) * o.w + (i - i0)] = 255; ins.push(i, j); }
+        // A LAGOON AT THE SEA'S LEVEL: a record whose inside the DEM holds at the sea's 0 (a tidal flat on the coast; the
+        // record says ~2.7 m, the ground 0) is the SEA's water - the physics' sea rule takes it (20_world waterAt) and the
+        // renderer draws its quad there (0, the median of the physics' samples) - so its bed is carved under 0, not under
+        // a record the water never stands at. The median of up to 16 of its inside texels.
+        if (ins.length) { const st = Math.max(1, Math.floor(ins.length / 2 / 16)), hs = [];
+          for (let q = 0; q < ins.length; q += 2 * st) hs.push(terrainQ(gx0 + (ins[q] + 0.5) * cell, gz0 + (ins[q + 1] + 0.5) * cell));
+          hs.sort((p, q) => p - q); if (hs[hs.length >> 1] <= 0.05) o.level = 0; }
+        return o;
+      });
+      const pairs = [];
+      for (let a = 0; a < own.length; a++) for (let b = a + 1; b < own.length; b++) {
+        const A = own[a], B = own[b];
+        if (A.i0 < B.i0 + B.w && B.i0 < A.i0 + A.w && A.j0 < B.j0 + B.h && B.j0 < A.j0 + A.h) pairs.push([A, B]);
+      }
+      // a texel both claim: the one rule decides, and the loser's byte is cleared
+      const contest = (keepA) => { for (const [A, B] of pairs) {
+        const i0 = Math.max(A.i0, B.i0), i1 = Math.min(A.i0 + A.w, B.i0 + B.w), j0 = Math.max(A.j0, B.j0), j1 = Math.min(A.j0 + A.h, B.j0 + B.h);
+        for (let j = j0; j < j1; j++) for (let i = i0; i < i1; i++) {
+          const ka = (j - A.j0) * A.w + (i - A.i0), kb = (j - B.j0) * B.w + (i - B.i0), va = A.m[ka], vb = B.m[kb];
+          if (!va || !vb) continue;
+          if (keepA(A, B, va, vb, i, j)) B.m[kb] = 0; else A.m[ka] = 0;
+        } } };
+      // the inside: the lake whose own box holds the texel's centre, over one that reaches it only by its one-texel pad
+      // (COLD-LINKS x LAKE-HOLES, lakes-2: a point 5 m inside a 31.70 m lake's box went to the 32.52 m lake whose box
+      // ends 5 m short of it, by the DEM rule alone - GATE HYDRODYN); both boxes or neither: the level the DEM is nearest;
+      // a tie, the smaller box
+      const inBox = (L, x, z) => x >= L.x0 && x <= L.x1 && z >= L.z0 && z <= L.z1;
+      contest((A, B, va, vb, i, j) => {
+        const x = gx0 + (i + 0.5) * cell, z = gz0 + (j + 0.5) * cell, ba = inBox(A.L, x, z), bb = inBox(B.L, x, z);
+        if (ba !== bb) return ba;
+        const h = terrainQ(x, z), da = Math.abs(h - A.level), db = Math.abs(h - B.level);
+        if (da !== db) return da < db;
+        return (A.L.x1 - A.L.x0) * (A.L.z1 - A.L.z0) <= (B.L.x1 - B.L.x0) * (B.L.z1 - B.L.z0); });
+      // the bank: the nearest inside texel's lake (1 + its squared distance in texels) - a chamfer distance (3-4) over the
+      // lake's rect, two passes (a 9 x 9 window search per bank texel was half the build)
+      for (const o of own) {
+        const m = o.m, w = o.w, h = o.h, d = new Uint16Array(w * h);
+        for (let k = 0; k < d.length; k++) d[k] = m[k] === 255 ? 0 : 65000;
+        for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) { const k = j * w + i; let v = d[k]; if (!v) continue;
+          if (i > 0 && d[k - 1] + 3 < v) v = d[k - 1] + 3;
+          if (j > 0) { if (d[k - w] + 3 < v) v = d[k - w] + 3; if (i > 0 && d[k - w - 1] + 4 < v) v = d[k - w - 1] + 4; if (i < w - 1 && d[k - w + 1] + 4 < v) v = d[k - w + 1] + 4; }
+          d[k] = v; }
+        for (let j = h - 1; j >= 0; j--) for (let i = w - 1; i >= 0; i--) { const k = j * w + i; let v = d[k]; if (!v) continue;
+          if (i < w - 1 && d[k + 1] + 3 < v) v = d[k + 1] + 3;
+          if (j < h - 1) { if (d[k + w] + 3 < v) v = d[k + w] + 3; if (i < w - 1 && d[k + w + 1] + 4 < v) v = d[k + w + 1] + 4; if (i > 0 && d[k + w - 1] + 4 < v) v = d[k + w - 1] + 4; }
+          d[k] = v; }
+        for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) {
+          const k = j * w + i; if (m[k]) continue;
+          const v = LF[(j + o.j0) * W + (i + o.i0)]; if (v > 128 || v < VB) continue;
+          const dd = d[k] / 3; if (dd <= R + 0.5) m[k] = 1 + Math.round(dd * dd);
+        }
+      }
+      // ...and two lakes' banks: the nearer; a tie, the higher level (the lesser cut)
+      contest((A, B, va, vb) => (va !== vb ? va < vb : A.level >= B.level));
+      // the lakes over 256 m cells, a flat array over the grid (an empty cell is the common case and the cheap one: the
+      // physics' hot path asks terrainH per node per substep - no field read there)
+      const CELL = 256, CX = Math.ceil(W * cell / CELL) + 1, CZ = Math.ceil(Hn * cell / CELL) + 1, cells = new Array(CX * CZ);
+      const cellOf = (x, z) => { const ix = Math.floor((x - gx0) / CELL), iz = Math.floor((z - gz0) / CELL); return ix < 0 || iz < 0 || ix >= CX || iz >= CZ ? -1 : iz * CX + ix; };
+      for (const o of own)
+        for (let ix = Math.floor(o.i0 * cell / CELL); ix <= Math.floor((o.i0 + o.w) * cell / CELL) && ix < CX; ix++)
+          for (let iz = Math.floor(o.j0 * cell / CELL); iz <= Math.floor((o.j0 + o.h) * cell / CELL) && iz < CZ; iz++) {
+            const k = iz * CX + ix; (cells[k] || (cells[k] = [])).push(o);
+          }
+      const sm = t => (t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t));
+      // the bed's height at (x, z), or Infinity where no lake holds the ground down
+      const bed = (x, z) => {
+        const ci = cellOf(x, z), a = ci < 0 ? null : cells[ci];
+        if (!a) return Infinity;
+        const sd = lakeAt(x, z);
+        if (sd < -LAKE_BED.bank) return Infinity;
+        const ti = Math.floor((x - gx0) / cell), tj = Math.floor((z - gz0) / cell);
+        let lv = -Infinity;
+        for (let n = 0; n < a.length; n++) {
+          const o = a[n], i = ti - o.i0, j = tj - o.j0;
+          if (i < 0 || j < 0 || i >= o.w || j >= o.h || !o.m[j * o.w + i]) continue;
+          lv = o.level; break;
+        }
+        if (lv === -Infinity) return Infinity;
+        if (sd >= 0) return lv - LAKE_BED.edge - (LAKE_BED.depth - LAKE_BED.edge) * sm(sd / LAKE_BED.shoreW);
+        const s = -sd;
+        return lv - LAKE_BED.edge + s + s * s / 16;
+      };
+      // the owning lake's level INSIDE its line (the field >= 0), or -Infinity: the physics' water there (20_world waterAt)
+      // - one lake per texel, the bed's own, so the floats ride the surface the bed was carved under
+      bed.levelAt = (x, z) => {
+        const ci = cellOf(x, z), a = ci < 0 ? null : cells[ci];
+        if (!a || lakeAt(x, z) < 0) return -Infinity;
+        const ti = Math.floor((x - gx0) / cell), tj = Math.floor((z - gz0) / cell);
+        for (let n = 0; n < a.length; n++) {
+          const o = a[n], i = ti - o.i0, j = tj - o.j0;
+          // (an INSIDE texel only - 255. A bank texel ON the line - the field's 128, lakeAt 0 - is another lake's water or
+          // none: a 5-cell pond at 9.06 m whose texels are all 128 answered its neighbours' 4.03 and 6.47 through their banks,
+          // GATE HYDRODYN; waterAt's own rules answer there, as before LAKE-HOLES. COLD-LINKS x LAKE-HOLES, lakes-2)
+          if (i >= 0 && j >= 0 && i < o.w && j < o.h && o.m[j * o.w + i] === 255) return o.level;
+        }
+        return -Infinity;
+      };
+      // a record's level as the bed takes it (the renderer's quad: 0 for a lagoon at the sea's level, else its own)
+      const byRec = new Map(own.map(o => [o.L, o.level]));
+      bed.levelOf = L => (byRec.has(L) ? byRec.get(L) : L.level);
+      bed.bytes = own.reduce((t, o) => t + o.m.length, 0);
+      return bed;
+    })();
+    // (the bed is NOT applied here: this is the island's raw ground, the one the hydrology is baked on and the premises
+    // are composed over - makeWorld's terrainH takes the bed on top of the composed ground, 20_world.js G1335)
     const terrainH = coast
       ? (x, z) => { const h = terrainQ(x, z); const sd = coastAt(x, z);
                     return sd >= 0 ? h : Math.min(h, seaFloor(sd)); }
@@ -9613,6 +9793,9 @@ var ISLAND_GEN = (function () {
       geo: Object.assign({}, ISLAND_GEO[src.id] || ISLAND_GEO.jolene, H.geo || {}),
       hMax: H.hMax || 0,
       terrainH, classAt, canopyAt, effClass, cellAt, coastAt, lakeAt, seaFloor: coast ? seaFloor : null, WC,
+      // (G1335) the carved lakebed (null without a lake field): makeWorld's terrainH and the far terrain's patches (the asset
+      // is the raw DEM) take it as they take the sea's shelf; LAKE_BED the law's dials (GATE LAKEBED reads them)
+      lakeBed, LAKE_BED,
       // the ground's ceiling over a rectangle (the codec's maxRect; the coast's min only lowers it)
       hMaxRect: (ax, az, bx, bz) => TERRAIN_CODEC.maxRect(root, H, ax, az, bx, bz),
       albedo: src.grid.albedo || null,

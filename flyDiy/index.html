@@ -12508,6 +12508,8 @@ function makeWorld(seed, opts) {
   // the ground there is under the level. That also settles what a premises
   // grade does near a bank - dig below the level and the cut is under water,
   // honestly, because the lake does not follow the spade.
+  // (G1335: the island's carved lakebed, read by terrainH - here for the same reason: terrainH runs while the world is made)
+  const LAKE_BED = ISL && ISL.lakeBed ? ISL.lakeBed : null;
   const lakeLevelAt = (() => {
     const recs = (ISL && ISL.lakes || []).filter(L => L.level > 0.2 && L.cells >= 3);
     if (!recs.length) return null;
@@ -12991,7 +12993,15 @@ function makeWorld(seed, opts) {
     if (thX[i] === x && thZ[i] === z) return thH[i];
     const h0 = baseH(x, z);
     // (G614: the premises' raster - the composed ground baked lazily off the same modifiers, 27_premises.js)
-    const h = PM ? (PM.terrainFast ? PM.terrainFast(x, z, h0) : PM.terrainH(x, z, h0)) : h0;
+    let h = PM ? (PM.terrainFast ? PM.terrainFast(x, z, h0) : PM.terrainH(x, z, h0)) : h0;
+    // THE CARVED LAKEBED (LAKE-HOLES G1335, 28_island.js lakeBed): under every lake the ground lies under the water,
+    // continuous with its bank - the renderer no longer cuts it away, and the floats, the wheels and the drawn ground
+    // all read this one surface. On the composed ground: where no premises modifier acts the bed is min(h, bed); where
+    // one does, a FILL stays a fill (G753: 02/20's pond is the runway's) - the modifiers are blends, affine in the
+    // ground under them, so composing on the bed as well says how much of the ground they keep (1 - w); a modifier
+    // that holds half or more of it (w >= 0.5) is the old composition on the raw ground, fading to the bed's as w -> 0
+    // (continuous at the modifier's rim, where w is 0). The memo above holds the answer.
+    if (LAKE_BED) h = lakeCarve(x, z, h0, h, hb => (PM.terrainFast ? PM.terrainFast(x, z, hb) : PM.terrainH(x, z, hb)));
     thX[i] = x; thZ[i] = z; thH[i] = h;
     return h;
   }
@@ -13002,7 +13012,35 @@ function makeWorld(seed, opts) {
   // (1 cm). The town's premises build read ~11 000 uncooked tiles 9-10 km from HOME at every town-on boot (~10 s of
   // main-thread bakes); the wheels, the wind and every repeated read keep terrainH. Not memoised: the memo is terrainH's
   function terrainHBuild(x, z) {
-    return PM && PM.rasterLazyAt && PM.rasterLazyAt(x, z) ? PM.terrainH(x, z, baseH(x, z)) : terrainH(x, z);
+    if (!(PM && PM.rasterLazyAt && PM.rasterLazyAt(x, z))) return terrainH(x, z);
+    const h0 = baseH(x, z), h = PM.terrainH(x, z, h0);
+    return LAKE_BED ? lakeCarve(x, z, h0, h, hb => PM.terrainH(x, z, hb)) : h;   // (the bed, as terrainH carves it)
+  }
+  // THE EXACT GROUND (COLD-LINKS x LAKE-HOLES, lakes-2): the ANALYTIC composer everywhere, carved as terrainH carves - the
+  // source the premises' raster approximates (GATE PREMRASTER / PREMCOOK hold the raster and the cook to it). The raster
+  // world's terrainH carves AFTER composing, so the composer alone is no longer its reference: under a lake's bank the two
+  // differ by the carve itself (up to 5.6 m beside r_airport's grade), not by the raster. Not memoised, never on a hot path.
+  function terrainHExact(x, z) {
+    const h0 = baseH(x, z);
+    if (!PM) return LAKE_BED ? lakeCarve(x, z, h0, h0, null) : h0;
+    const h = PM.terrainH(x, z, h0);
+    return LAKE_BED ? lakeCarve(x, z, h0, h, hb => PM.terrainH(x, z, hb)) : h;
+  }
+  // the carve as one function (A0, train 28): terrainH and METLA-LOAD's build read (terrainHBuild) BOTH carve - the build
+  // read composed the uncooked town cells on the raw ground and skipped the bed (GATE LAKEBED: a ring over a lake there)
+  function lakeCarve(x, z, h0, h, compose) {
+    if (LAKE_BED) {
+      const b = LAKE_BED(x, z);
+      if (b < h) {
+        if (!PM || h === h0) h = b;
+        else {
+          const hb = Math.min(h0, b), hc = compose(hb);
+          const w = h0 > hb ? 1 - (h - hc) / (h0 - hb) : 1, t = Math.max(0, Math.min(1, w / 0.5));
+          h = hc + (h - hc) * t * t * (3 - 2 * t);
+        }
+      }
+    }
+    return h;
   }
 
   // ---- stage 2 biomes: analytic classifier + tree placement plan ----
@@ -13173,6 +13211,10 @@ function makeWorld(seed, opts) {
       // the island: the sea is the DEM at 0 (sea level does the edges), a lake
       // is its own record, a river is the hydrology's reach - and the fill's
       // lake level is not asked for at all (21_world_hydro riverWater)
+      // (G1335: INSIDE A LAKE'S LINE the water is the lake that owns the carved bed there - 28_island lakeBed.levelAt, one
+      // lake a texel - before the sea's rule: the carve takes a lake's middle under 0.05 (the East Point lens, 2.67 m, its
+      // DEM 0.83, carved to -0.3), and the sea is not there. A lagoon at the sea's own level owns a level of 0: the sea.)
+      if (LAKE_BED) { const lo = LAKE_BED.levelAt(x, z); if (lo > 0.05 && lo >= t) return lo; }
       if (t <= 0.05) return 0;
       let onBank = false;
       if (lakeLevelAt) { const L = lakeLevelAt(x, z, t); if (L.level > -Infinity) return L.level; onBank = L.covered; }
@@ -13578,12 +13620,13 @@ function makeWorld(seed, opts) {
     v: 1, seed: SEED,
     bounds: BOUNDS,
     island: ISL ? { id: ISL.id, canopyAt: ISL.canopyAt, effClass: ISL.effClass, classAt: ISL.classAt, coastAt: ISL.coastAt, seaFloor: ISL.seaFloor,
+                    lakeBed: ISL.lakeBed || null, LAKE_BED: ISL.LAKE_BED || null,   // G1335: the carved lakebed (the far terrain's patches take it)
                     WC: ISL.WC, hMax: ISL.hMax, grid: ISL.grid, albedo: ISL.albedo,
                     tint: ISL.tint, ori1: ISL.ori1, coast: ISL.coastU8 || null, canopy: ISL.canopyU8 || null, canopyP90: ISL.canopyP90,
                     cover: ISL.coverU8 || null, ndvi: ISL.ndvi || null, lake: ISL.lake || null, ttype: ISL.ttype || null, lakes: ISL.lakes || null, hydro: ISL.hydro, cellAt: ISL.cellAt,
                     farHeader: ISL.farHeader, farRoot: ISL.farRoot,
                     places: (ISL.premCook && ISL.premCook.places) || null } : null,   // G841: the premises cook's places (the tallies render_premises dresses on)
-    terrainH, waterH, terrainHBuild, waterHBuild, buildReads, surface, SURFACE, groundMaxRect,
+    terrainH, waterH, terrainHBuild, terrainHExact, waterHBuild, buildReads, surface, SURFACE, groundMaxRect,
     get slopeMax() { return PM ? undefined : SLOPE_MAX; },   // the cone's bound (30_solver.js); none under a premises layer
     TILE, tile, aerodromes, settlements: SET.settlements,
     treesNear, canopyH,
@@ -19217,6 +19260,143 @@ var ISLAND_GEN = (function () {
     // eps 4: a shallower start let it lift the floor above the water plane in
     // patches - G402), -14 m by 500 m out, the DEM's own value on land.
     const seaFloor = sd => { const t = Math.min(1, -sd / 500); return -5.0 - 9.0 * t * t * (3 - 2 * t); };
+    // THE LAKEBEDS ARE CARVED (LAKE-HOLES G1335, the user 2026-10-03: "unacceptable"). The IFSAR DEM returns a lake's
+    // SURFACE, so the prep's flattened lake stood at its own level - often over it, 4 282 field texels on Jolene 0.8-3 m
+    // and some 5 m - and the renderer CUT the ground away inside every lake (a discard a metre in) to hide it: wherever
+    // the shore stood over the water the eye saw a vertical gap between the ground's jagged cut edge and the flat water,
+    // the clear colour through it. Now the ground is CONTINUOUS and lies under the water: inside a lake's field
+    // (the physics' lake field, + inside) the ground is held under the lake's level - `edge` under it at the line,
+    // sloping to `depth` by `shoreW` metres in - and on the bank (outside the line) under a slope that rises out of the
+    // line at 1:1 and steepens (s + s^2/16: 8 m over the water 6 m out, 86 m by 30), so a bank over the water meets the bed without a step (min with the DEM: a ground
+    // already lower - a real bed, a bank below the lake - is kept; this only ever LOWERS the ground, so every ceiling
+    // the codec gives (hMaxRect) still holds). WHICH LAKE: each field texel has ONE owner, made once here - an inside
+    // texel (the field > 0) belongs to the lake whose box holds it, and where boxes overlap to the one whose level the
+    // DEM there is nearest (the prep flattened each lake to its own level; a pond's box over a big lake's water is not
+    // the pond's); a bank texel (within `bank` metres out) to the lake of the nearest inside texel. The bed and its bank
+    // are then one lake's on both sides of the line and continuous across it (a rule by boxes alone stepped 10 m where
+    // two lakes' boxes meet at different levels, and dug a 60 m pit round a hillside pond inside a big lake's box -
+    // GATE LAKEBED's walk). The records are the ones the world keeps (level > 0.2, cells >= 3); a texel no record owns is
+    // left as the DEM has it. Per lake a byte mask over its box and the bank's reach: 0.67 MB on Jolene, built in ~40 ms.
+    const LAKE_BED = { edge: 0.5, depth: 3.0, shoreW: 12, bank: 30 };
+    const lakeBed = (() => {
+      const LF = src.grid.lake, recs = (src.grid.lakes || []).filter(L => L.level > 0.2 && L.cells >= 3);
+      if (!LF || !recs.length) return null;
+      const R = Math.ceil(LAKE_BED.bank / cell) + 1, VB = 128 - Math.ceil(LAKE_BED.bank / 4);   // the bank's reach: in texels, as a field byte
+      const own = recs.map(L => {
+        const i0 = Math.max(0, Math.floor((L.x0 - gx0) / cell) - 1 - R), i1 = Math.min(W - 1, Math.ceil((L.x1 - gx0) / cell) + 1 + R);
+        const j0 = Math.max(0, Math.floor((L.z0 - gz0) / cell) - 1 - R), j1 = Math.min(Hn - 1, Math.ceil((L.z1 - gz0) / cell) + 1 + R);
+        const o = { L, level: L.level, i0, j0, w: i1 - i0 + 1, h: j1 - j0 + 1, m: null };
+        o.m = new Uint8Array(o.w * o.h);
+        // inside: the box + a texel (255)
+        const bi0 = Math.max(i0, Math.floor((L.x0 - gx0) / cell) - 1), bi1 = Math.min(i1, Math.ceil((L.x1 - gx0) / cell) + 1);
+        const bj0 = Math.max(j0, Math.floor((L.z0 - gz0) / cell) - 1), bj1 = Math.min(j1, Math.ceil((L.z1 - gz0) / cell) + 1);
+        const ins = [];
+        for (let j = bj0; j <= bj1; j++) for (let i = bi0; i <= bi1; i++) if (LF[j * W + i] > 128) { o.m[(j - j0) * o.w + (i - i0)] = 255; ins.push(i, j); }
+        // A LAGOON AT THE SEA'S LEVEL: a record whose inside the DEM holds at the sea's 0 (a tidal flat on the coast; the
+        // record says ~2.7 m, the ground 0) is the SEA's water - the physics' sea rule takes it (20_world waterAt) and the
+        // renderer draws its quad there (0, the median of the physics' samples) - so its bed is carved under 0, not under
+        // a record the water never stands at. The median of up to 16 of its inside texels.
+        if (ins.length) { const st = Math.max(1, Math.floor(ins.length / 2 / 16)), hs = [];
+          for (let q = 0; q < ins.length; q += 2 * st) hs.push(terrainQ(gx0 + (ins[q] + 0.5) * cell, gz0 + (ins[q + 1] + 0.5) * cell));
+          hs.sort((p, q) => p - q); if (hs[hs.length >> 1] <= 0.05) o.level = 0; }
+        return o;
+      });
+      const pairs = [];
+      for (let a = 0; a < own.length; a++) for (let b = a + 1; b < own.length; b++) {
+        const A = own[a], B = own[b];
+        if (A.i0 < B.i0 + B.w && B.i0 < A.i0 + A.w && A.j0 < B.j0 + B.h && B.j0 < A.j0 + A.h) pairs.push([A, B]);
+      }
+      // a texel both claim: the one rule decides, and the loser's byte is cleared
+      const contest = (keepA) => { for (const [A, B] of pairs) {
+        const i0 = Math.max(A.i0, B.i0), i1 = Math.min(A.i0 + A.w, B.i0 + B.w), j0 = Math.max(A.j0, B.j0), j1 = Math.min(A.j0 + A.h, B.j0 + B.h);
+        for (let j = j0; j < j1; j++) for (let i = i0; i < i1; i++) {
+          const ka = (j - A.j0) * A.w + (i - A.i0), kb = (j - B.j0) * B.w + (i - B.i0), va = A.m[ka], vb = B.m[kb];
+          if (!va || !vb) continue;
+          if (keepA(A, B, va, vb, i, j)) B.m[kb] = 0; else A.m[ka] = 0;
+        } } };
+      // the inside: the lake whose own box holds the texel's centre, over one that reaches it only by its one-texel pad
+      // (COLD-LINKS x LAKE-HOLES, lakes-2: a point 5 m inside a 31.70 m lake's box went to the 32.52 m lake whose box
+      // ends 5 m short of it, by the DEM rule alone - GATE HYDRODYN); both boxes or neither: the level the DEM is nearest;
+      // a tie, the smaller box
+      const inBox = (L, x, z) => x >= L.x0 && x <= L.x1 && z >= L.z0 && z <= L.z1;
+      contest((A, B, va, vb, i, j) => {
+        const x = gx0 + (i + 0.5) * cell, z = gz0 + (j + 0.5) * cell, ba = inBox(A.L, x, z), bb = inBox(B.L, x, z);
+        if (ba !== bb) return ba;
+        const h = terrainQ(x, z), da = Math.abs(h - A.level), db = Math.abs(h - B.level);
+        if (da !== db) return da < db;
+        return (A.L.x1 - A.L.x0) * (A.L.z1 - A.L.z0) <= (B.L.x1 - B.L.x0) * (B.L.z1 - B.L.z0); });
+      // the bank: the nearest inside texel's lake (1 + its squared distance in texels) - a chamfer distance (3-4) over the
+      // lake's rect, two passes (a 9 x 9 window search per bank texel was half the build)
+      for (const o of own) {
+        const m = o.m, w = o.w, h = o.h, d = new Uint16Array(w * h);
+        for (let k = 0; k < d.length; k++) d[k] = m[k] === 255 ? 0 : 65000;
+        for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) { const k = j * w + i; let v = d[k]; if (!v) continue;
+          if (i > 0 && d[k - 1] + 3 < v) v = d[k - 1] + 3;
+          if (j > 0) { if (d[k - w] + 3 < v) v = d[k - w] + 3; if (i > 0 && d[k - w - 1] + 4 < v) v = d[k - w - 1] + 4; if (i < w - 1 && d[k - w + 1] + 4 < v) v = d[k - w + 1] + 4; }
+          d[k] = v; }
+        for (let j = h - 1; j >= 0; j--) for (let i = w - 1; i >= 0; i--) { const k = j * w + i; let v = d[k]; if (!v) continue;
+          if (i < w - 1 && d[k + 1] + 3 < v) v = d[k + 1] + 3;
+          if (j < h - 1) { if (d[k + w] + 3 < v) v = d[k + w] + 3; if (i < w - 1 && d[k + w + 1] + 4 < v) v = d[k + w + 1] + 4; if (i > 0 && d[k + w - 1] + 4 < v) v = d[k + w - 1] + 4; }
+          d[k] = v; }
+        for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) {
+          const k = j * w + i; if (m[k]) continue;
+          const v = LF[(j + o.j0) * W + (i + o.i0)]; if (v > 128 || v < VB) continue;
+          const dd = d[k] / 3; if (dd <= R + 0.5) m[k] = 1 + Math.round(dd * dd);
+        }
+      }
+      // ...and two lakes' banks: the nearer; a tie, the higher level (the lesser cut)
+      contest((A, B, va, vb) => (va !== vb ? va < vb : A.level >= B.level));
+      // the lakes over 256 m cells, a flat array over the grid (an empty cell is the common case and the cheap one: the
+      // physics' hot path asks terrainH per node per substep - no field read there)
+      const CELL = 256, CX = Math.ceil(W * cell / CELL) + 1, CZ = Math.ceil(Hn * cell / CELL) + 1, cells = new Array(CX * CZ);
+      const cellOf = (x, z) => { const ix = Math.floor((x - gx0) / CELL), iz = Math.floor((z - gz0) / CELL); return ix < 0 || iz < 0 || ix >= CX || iz >= CZ ? -1 : iz * CX + ix; };
+      for (const o of own)
+        for (let ix = Math.floor(o.i0 * cell / CELL); ix <= Math.floor((o.i0 + o.w) * cell / CELL) && ix < CX; ix++)
+          for (let iz = Math.floor(o.j0 * cell / CELL); iz <= Math.floor((o.j0 + o.h) * cell / CELL) && iz < CZ; iz++) {
+            const k = iz * CX + ix; (cells[k] || (cells[k] = [])).push(o);
+          }
+      const sm = t => (t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t));
+      // the bed's height at (x, z), or Infinity where no lake holds the ground down
+      const bed = (x, z) => {
+        const ci = cellOf(x, z), a = ci < 0 ? null : cells[ci];
+        if (!a) return Infinity;
+        const sd = lakeAt(x, z);
+        if (sd < -LAKE_BED.bank) return Infinity;
+        const ti = Math.floor((x - gx0) / cell), tj = Math.floor((z - gz0) / cell);
+        let lv = -Infinity;
+        for (let n = 0; n < a.length; n++) {
+          const o = a[n], i = ti - o.i0, j = tj - o.j0;
+          if (i < 0 || j < 0 || i >= o.w || j >= o.h || !o.m[j * o.w + i]) continue;
+          lv = o.level; break;
+        }
+        if (lv === -Infinity) return Infinity;
+        if (sd >= 0) return lv - LAKE_BED.edge - (LAKE_BED.depth - LAKE_BED.edge) * sm(sd / LAKE_BED.shoreW);
+        const s = -sd;
+        return lv - LAKE_BED.edge + s + s * s / 16;
+      };
+      // the owning lake's level INSIDE its line (the field >= 0), or -Infinity: the physics' water there (20_world waterAt)
+      // - one lake per texel, the bed's own, so the floats ride the surface the bed was carved under
+      bed.levelAt = (x, z) => {
+        const ci = cellOf(x, z), a = ci < 0 ? null : cells[ci];
+        if (!a || lakeAt(x, z) < 0) return -Infinity;
+        const ti = Math.floor((x - gx0) / cell), tj = Math.floor((z - gz0) / cell);
+        for (let n = 0; n < a.length; n++) {
+          const o = a[n], i = ti - o.i0, j = tj - o.j0;
+          // (an INSIDE texel only - 255. A bank texel ON the line - the field's 128, lakeAt 0 - is another lake's water or
+          // none: a 5-cell pond at 9.06 m whose texels are all 128 answered its neighbours' 4.03 and 6.47 through their banks,
+          // GATE HYDRODYN; waterAt's own rules answer there, as before LAKE-HOLES. COLD-LINKS x LAKE-HOLES, lakes-2)
+          if (i >= 0 && j >= 0 && i < o.w && j < o.h && o.m[j * o.w + i] === 255) return o.level;
+        }
+        return -Infinity;
+      };
+      // a record's level as the bed takes it (the renderer's quad: 0 for a lagoon at the sea's level, else its own)
+      const byRec = new Map(own.map(o => [o.L, o.level]));
+      bed.levelOf = L => (byRec.has(L) ? byRec.get(L) : L.level);
+      bed.bytes = own.reduce((t, o) => t + o.m.length, 0);
+      return bed;
+    })();
+    // (the bed is NOT applied here: this is the island's raw ground, the one the hydrology is baked on and the premises
+    // are composed over - makeWorld's terrainH takes the bed on top of the composed ground, 20_world.js G1335)
     const terrainH = coast
       ? (x, z) => { const h = terrainQ(x, z); const sd = coastAt(x, z);
                     return sd >= 0 ? h : Math.min(h, seaFloor(sd)); }
@@ -19242,6 +19422,9 @@ var ISLAND_GEN = (function () {
       geo: Object.assign({}, ISLAND_GEO[src.id] || ISLAND_GEO.jolene, H.geo || {}),
       hMax: H.hMax || 0,
       terrainH, classAt, canopyAt, effClass, cellAt, coastAt, lakeAt, seaFloor: coast ? seaFloor : null, WC,
+      // (G1335) the carved lakebed (null without a lake field): makeWorld's terrainH and the far terrain's patches (the asset
+      // is the raw DEM) take it as they take the sea's shelf; LAKE_BED the law's dials (GATE LAKEBED reads them)
+      lakeBed, LAKE_BED,
       // the ground's ceiling over a rectangle (the codec's maxRect; the coast's min only lowers it)
       hMaxRect: (ax, az, bx, bz) => TERRAIN_CODEC.maxRect(root, H, ax, az, bx, bz),
       albedo: src.grid.albedo || null,
@@ -43193,7 +43376,7 @@ if (typeof module !== 'undefined')
   module.exports = { TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, TREE_HITS, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, RWY_LIGHTS, runwayLightStrips, runwayLightSite, runwayLightPoints, STRIP_SURFACES, stripSurface, stripGear, stripAllows, stripFallback, stripLandable, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, atmosWater, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, CLIMATE, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, decodeAnimal, decodeAnimalClips, registerAnimal, animalList, animalClips, animalClip, ANIMAL_REG, makeSim, HYDRO, makeBus, vortexKernel, makeAutopilot, makeTestPilot, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, seatOnGround, placeAtLineup, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, POLARS, PAR, RHO, hyp2, hyp3, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genPlanePair, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, genTrueBox, genNetEig, genRigidFloatOf, GEN_BOX_N, GEN_BOX_KMIN, GEN_NET_MAX, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC, GP_PARKED_FOOT, GP_PARKED_DEFAULT, GP_CLEAR, GP_HALF_DEFAULT, parkedFoot, gpParkedDist, gpClearWay, GEN_WING_ENVELOPE };
 </script>
 <script type="text/x-flydiy">window.BOOT&&BOOT.phase('core','reading the model')</script>
-<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='96a220795a6d';window.FLYDIY_BUILD='d3c513bb7804'</script>
+<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='ce7a7a1d1eae';window.FLYDIY_BUILD='f5cd36beab5d';window.FLYDIY_AUDIO_SRC={"engine_worklet":"src/viewer/audio/engine_worklet.js?v=856e2c24","prop_worklet":"src/viewer/audio/prop_worklet.js?v=b90ce587","airframe_worklet":"src/viewer/audio/airframe_worklet.js?v=b7f16185"};window.FLYDIY_MUSIC=[{"id":"fma238392","file":"media/audio/music/holiznacc0_yet_again.ae80f04f.mp3","title":"Yet Again","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/yet-again-lofi-peaceful/","station":"lofi","contexts":["garage","welcome"],"lufs":-16,"durationS":135.9},{"id":"fma275835","file":"media/audio/music/holiznacc0_break_from_reality.6cd41edd.mp3","title":"Break From Reality","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/break-from-reality-lofi-peaceful-mp3/","station":"lofi","contexts":["garage","welcome","cruise"],"lufs":-16,"durationS":207},{"id":"fma275843","file":"media/audio/music/holiznacc0_the_best_of_times.4c1984ae.mp3","title":"The Best Of Times","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/the-best-of-times-lofi-relaxing-mp3/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":168},{"id":"fma267057","file":"media/audio/music/holiznacc0_faded_in_the_sunlight.4ce1349b.mp3","title":"Faded in the Sunlight","artist":"HoliznaCC0","album":"Summer Air ( Lo-fi )","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/summer-air-lo-fi/faded-in-the-sunlight/","station":"lofi","contexts":["garage","welcome"],"lufs":-17.2,"durationS":178.2},{"id":"fma265836","file":"media/audio/music/holiznacc0_peaceful_drift.55118944.mp3","title":"Peaceful Drift","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/peaceful-drift-lofi-nostalgic-calm/","station":"lofi","contexts":["garage"],"lufs":-17.4,"durationS":128.3},{"id":"fma265847","file":"media/audio/music/holiznacc0_ease_into_night.32448511.mp3","title":"Ease into Night","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/ease-into-night-lofi-relax-chill/","station":"lofi","contexts":["garage"],"lufs":-17.9,"durationS":151.8},{"id":"fma268742","file":"media/audio/music/holiznacc0_washed_up.eca2e877.mp3","title":"Washed Up","artist":"HoliznaCC0","album":"OCEAN MEMORY ( Lo-fi Chill )","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/ocean-memory-lo-fi-chill/washed-up/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":234.6},{"id":"fma275832","file":"media/audio/music/holiznacc0_down_time.c1f35243.mp3","title":"Down Time","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/down-time-lofi-peaceful-mp3/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":130.3},{"id":"fma275836","file":"media/audio/music/holiznacc0_ocean_breeze.1c28251e.mp3","title":"Ocean Breeze","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/ocean-breeze-lofi-ukulele-peaceful-mp3/","station":"lofi","contexts":["garage","cruise"],"lufs":-16,"durationS":197.6},{"id":"fma164357","file":"media/audio/music/loyalty_freak_music_traveling_in_your_mind.993d471f.mp3","title":"Traveling in your mind","artist":"Loyalty Freak Music","album":"TO CHILL AND STAY AWAKE","licence":"CC0","source":"https://freemusicarchive.org/music/Loyalty_Freak_Music/TO_CHILL_AND_STAY_AWAKE/Loyalty_Freak_Music_-_TO_CHILL_AND_STAY_AWAKE_-_05_Traveling_in_your_mind/","station":"lofi","contexts":["cruise","welcome","garage"],"lufs":-18.2,"durationS":236.6},{"id":"fma171982","file":"media/audio/music/loyalty_freak_music_beach.b048753f.mp3","title":"Beach","artist":"Loyalty Freak Music","album":"MELODIES WITH A BEAT","licence":"CC0","source":"https://freemusicarchive.org/music/Loyalty_Freak_Music/MELODIES_WITH_A_BEAT/Loyalty_Freak_Music_-_MELODIES_WITH_A_BEAT_-_08_Beach/","station":"lofi","contexts":["garage"],"lufs":-17.3,"durationS":161},{"id":"fma279362","file":"media/audio/music/holiznacc0_kodama.566d47aa.mp3","title":"Kodama","artist":"HoliznaCC0","album":"Nature Spirit","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/nature-spirit/kodama/","station":"jazzblues","contexts":["garage"],"lufs":-18.7,"durationS":150.7}];window.FLYDIY_AUDIO_MEDIA={"amb.forest.day":["media/audio/sfx/amb_forest_day_288899.157bf96e.mp3"],"amb.forest.night":["media/audio/sfx/amb_forest_night_333221.3df54da1.mp3"],"amb.wind.light":["media/audio/sfx/amb_wind_light_160469.4d45c6a1.mp3"],"amb.wind.clear":["media/audio/sfx/amb_wind_clear_156414.f23315bb.mp3"],"amb.wind.mountain":["media/audio/sfx/amb_wind_mountain_165526.140f3920.mp3"],"amb.wind.storm":["media/audio/sfx/amb_wind_storm_157280.9fdd2a2c.mp3"],"amb.shore.surf":["media/audio/sfx/amb_shore_surf_155641.27350310.mp3"],"amb.shore.rocks":["media/audio/sfx/amb_shore_rocks_155895.6ee71344.mp3"],"amb.lake.near":["media/audio/sfx/amb_lake_near_135046.22d12339.mp3"],"amb.lake.lap":["media/audio/sfx/amb_lake_lap_428088.0018a69a.mp3"],"amb.stream":["media/audio/sfx/amb_stream_264180.4ff25da2.mp3"],"amb.harbour":["media/audio/sfx/amb_harbour_339440.fc5b7cd1.mp3"],"amb.village":["media/audio/sfx/amb_village_435819.20299c23.mp3"],"amb.airfield":["media/audio/sfx/amb_airfield_319102.6b4237cf.mp3"],"amb.hangar":["media/audio/sfx/amb_hangar_427861.f9afe454.mp3"],"amb.rain.roof":["media/audio/sfx/amb_rain_roof_329578.c0aba715.mp3"],"amb.frogs.night":["media/audio/sfx/amb_frogs_night_135561.9aa1f6e9.mp3"],"amb.loons":["media/audio/sfx/amb_loons_39339.7d136ae5.mp3"],"amb.meadow":["media/audio/sfx/amb_meadow_639459.3facef88.mp3"],"bird.eagle":["media/audio/sfx/bird_eagle_381200.1d11590c.mp3","media/audio/sfx/bird_eagle_392212.13114290.mp3"],"bird.gull":["media/audio/sfx/bird_gull_166710.bb2f19eb.mp3"],"bird.crow":["media/audio/sfx/bird_crow_182090.1a94cd39.mp3"],"bird.owl":["media/audio/sfx/bird_owl_465697.2ee834d0.mp3"],"dog":["media/audio/sfx/dog_160366.86fe02dc.mp3"],"gnd.gravel":["media/audio/sfx/gnd_gravel_251661.0e48f11b.mp3"],"mech.creak":["media/audio/sfx/mech_creak_119468.101f6d88.mp3","media/audio/sfx/mech_creak_238289.6d8b72b3.mp3"],"mech.door":["media/audio/sfx/mech_door_345066.66dbaf6d.mp3"],"mech.switch":["media/audio/sfx/mech_switch_361371.9ced067b.mp3","media/audio/sfx/mech_switch_423957.6b08a0c1.mp3"],"water.drip":["media/audio/sfx/water_drip_166986.f81c294b.mp3"],"ui.click":["media/audio/sfx/ui_click_528561.bdd8b52e.mp3"],"vehicle.pickup":["media/audio/sfx/vehicle_pickup_450227.be208f91.mp3"]}</script>
 <script type="text/x-flydiy" src="src/models/pa18_model.js?v=d854feec"></script>
 <script type="text/x-flydiy" src="src/models/c172_model.js?v=52c3ced6"></script>
 <script type="text/x-flydiy" src="src/models/d112_model.js?v=3678040d"></script>
@@ -81528,6 +81711,25 @@ window.CAGE_ENG_FACTS = (P) => {
   return facts;
 };
 
+// THE SOUND ROW (SND-ENGINE G1611, SOUND-2026-10-04 §9): what the engine
+// voice needs and the registry does not hold — the cylinders, their layout and
+// the stroke — read off the SAME dial dict the mesh and the facts read
+// (engSpecOfP: a catalogue engine's preset geometry, the custom engine's
+// dials). PHYSICS-INERT, declared: the join writes it as
+// spec.engines[i].sound and nothing in the resolve or the solver reads it;
+// src/viewer/audio/engine_config.js does. null for an electric or a turbine
+// (no piston voice) and with the layer off.
+window.CAGE_ENG_SOUND = (P) => {
+  if (!+P.engOn) return null;
+  const spec = engSpecOfP(P);
+  if (!['flat', 'inline', 'vee', 'radial'].includes(spec.arch)) return null;
+  const cyl = Math.round(+spec.cyl);
+  if (!(cyl >= 1)) return null;
+  const dispL = Math.PI / 4 * spec.bore * spec.bore * spec.stroke * cyl * 1000;
+  return { cyl, arch: spec.arch, twoStroke: spec.twoStroke ? 1 : 0,
+           dispL: isFinite(dispL) && dispL > 0 ? +dispL.toFixed(2) : null };
+};
+
 // ---- panel ----------------------------------------------------------------
 // THE CATALOGUE, PLUS ONE (2026-09-05, the user's picker ruling: "either
 // the user picks an existing engine (after choosing the type of engine),
@@ -97215,6 +97417,13 @@ function cageJoinSpec(P, M, T) {
         // "modified <name>"/"custom ...", never a wrong name). The preset key
         // above survives as the fallback row and the prop-diameter default.
         ...(M.engineFacts ? { custom: M.engineFacts } : {}),
+        // SND-ENGINE (G1611): THE SOUND ROW — {cyl, arch, twoStroke, dispL}
+        // off the dials the engine page shows (CAGE_ENG_SOUND), for the engine
+        // voice (src/viewer/audio/engine_config.js). DECLARED PHYSICS-INERT:
+        // no resolve, frame or solver path reads it (GATE AUDIO proves the
+        // validated builds bit-identical with and without it). Absent when
+        // the measurement has none; the voice then reads its fallback table.
+        ...(M.engineSound ? { sound: Object.assign({}, M.engineSound) } : {}),
         // G194: the hand, seen from behind (+1 clockwise). A pair's row says
         // same hand / tops inward / tops outward; tops inward is port +1,
         // starboard -1 (down-going blades inboard). A single mount is +1.
@@ -98533,6 +98742,14 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
         if (ef) M.engineFacts = ef;
       } catch (e) { ERRS.push('the engine could not be resolved to facts: '
                               + e.message); }
+    // SND-ENGINE (G1611): the engine voice's row — cylinders, layout, stroke —
+    // off the same dials. Physics-inert; a throw only costs the voice its row
+    // (engine_config.js falls back to the registry table), so it is not an ERR.
+    if (typeof window.CAGE_ENG_SOUND === 'function')
+      try {
+        const es = window.CAGE_ENG_SOUND(P);
+        if (es) M.engineSound = es;
+      } catch (e) { /* the declared fallback table answers */ }
     return M;
   };
   const tables = () => ({
@@ -122527,7 +122744,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     Object.assign(GROUND, { classBlur: 0, edgeWobble: 0, waterMap: (world.island && world.island.hydro === 'proc') ? 0 : 1 });   // ?hydro=proc: the bake's water alone, for a clean A/B
     const gU = {}; groundU = gU;
     let classWeights = () => false;   // the class weight textures on demand (AS1, G906; set below on an island)
-    let islandGroundHook = null, islandGroundHook0 = null, islandGroundHookOuter = null, islandGroundHookOuterDry = null, islandGroundHookFine = null, SPL = null;
+    let islandGroundHook = null, islandGroundHook0 = null, islandGroundHookOuter = null, islandGroundHookFine = null, SPL = null;
     // the island ground's materials (and the premises patch's clones of them: render_premises matOwn) - re-keyed together
     // when the production / full line is crossed (groundSync, G1311); groundKey: a material's program key on that line
     const GROUND_FAMILY = new Set();
@@ -122603,9 +122820,8 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       // radius, a fine tile (+1) discards outside it and GEOMORPHS its rim to the ring's own surface
       // (aCoarse / aCoarseN: the ring's triangles sampled exactly, so the two coincide at the edge),
       // the twin and the outer ring (0) do neither. uFine = (cx, cz, R, band); R 0 = the disc is off.
-      // dry: the ground is known to hold no lake (the far terrain's lake-free patches, PERF 2026-09-23) - its
-      // program carries no `discard`, so the rasteriser keeps early-Z for it (the lake cut's discard was 2.6 ms
-      // of the far terrain's 5.6 at the Jolene stand: a shader that may discard is depth-tested late)
+      // (the `dry` twin is gone with the lake cut, G1335: no ground program discards for a lake any more - every one
+      // keeps early-Z, which the lake cut's discard had cost the far terrain's wet patches, 2.6 ms of its 5.6 at the stand)
       // THE PRODUCTION GROUND (COLD-LINKS G1311): the paint modes (F8's tint / radar / canopy / class / ndvi / coast /
       // height / snow / terrain type / lakes views) and the class layer's smoothing are INSPECTION - the default stack
       // starts at the tint (stackStart 1) and paints mode 0, so neither runs - yet FXC compiled them into every ground
@@ -122621,7 +122837,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       groundFullNow = groundFull();
       if (SPL) SPL.api.onInspect = () => groundSync();
       groundKey = base => () => base + (groundFull() ? ':full' : '');
-      const islandGroundHookFor = (side, rock, dry) => sh => {
+      const islandGroundHookFor = (side, rock) => sh => {
         const full = groundFull();
         if (typeof ATMO !== 'undefined') ATMO.inject(sh);   // S4: the aerial-perspective sampler (a hook of its own loses the prototype's)
         Object.assign(sh.uniforms, gU, SPL ? SPL.uniforms : {});
@@ -122691,13 +122907,12 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
             '  bool gDeep = vWPi.y < -25.0;\n' +
             '  vec3 tint = texture2D(uGTint, guv).rgb;\n' +
             '  float lsd = (gLake(guv) * 255.0 - 128.0) * 4.0;\n' +
-            // NO GROUND INSIDE THE WATER (2026-09-21, the user, the fifth time: "super harsh transitions
-            // light blue - dark blue ... lakes should have a single colour"): the ring's 17.6 m chords run
-            // ABOVE the lake plane in a band along every outline (the edge is concave), and that ground,
-            // painted with the bed colour, was the pale stair-stepped rim round the darker water. Past a
-            // metre inside the line the surface quad is opaque and covers everything: the ground is not
-            // drawn there at all. The fade band (-3..+1 m) keeps its bank showing through the shallows.
-            (dry ? '' : '  if (uGWaterMap > 0.5 && lsd > 1.0) discard;\n') +
+            // THE GROUND IS NOT CUT UNDER A LAKE (LAKE-HOLES G1335, the user 2026-10-03: "unacceptable"). Since
+            // 2026-09-21 every fragment a metre inside the lake field was DISCARDED ("no ground inside the water": the
+            // ring's chords stood over the flattened lake in a pale rim) - and wherever the shore stood over the water
+            // that left a vertical gap between the ground's cut edge and the flat water, the clear colour through it,
+            // worst on far shores. The ground is CARVED now (28_island.js lakeBed: under the level from the line in,
+            // the bank sloped down to it) and drawn whole; the water lies on it and the depth test makes the shore.
             // THE SHORE IS A MIXED PIXEL (G406): a 30 m Landsat texel over a 20 m pond is half
             // water, dark; within 45 m of a lake edge the tint is taken from 45 m further out
             // (the field's own gradient says which way out is)
@@ -122807,7 +123022,6 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       islandGroundHook = islandGroundHookFor(-1, true);        // the near ring (the rock map: 13 units)
       islandGroundHook0 = islandGroundHookFor(0, false);       // the twin (the premises patch: 15, no room)
       islandGroundHookOuter = islandGroundHookFor(0, true);    // the outer ring (15)
-      islandGroundHookOuterDry = islandGroundHookFor(0, true, true);   // ... where it holds no lake (no discard)
       islandGroundHookFine = islandGroundHookFor(1, true);     // the fine tiles
     }
     groundApi = {
@@ -123200,24 +123414,23 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         return cA;
       };
       const H = (x, z) => world.terrainH(x, z) - groundSink(x, z);
-      // THE LAKE BANKS KEEP THE RING'S SHAPE: island_prep flattens a lake's cells to one level, and at 5 m
-      // the fine surface shows that flattening as a 10 m STAIRCASE round every lake (the ring's 17.6 m
-      // chords had smoothed it away; seen 2026-09-22 at -564,-1336). Until the prep feathers its lakes,
-      // a fine vertex within 30 m of a lake's edge blends back to the ring's height and normal.
-      const lakeSD = lakeRsd;   // (G751: the drawn lakes' field)
-      const sm = (lo, hi, v) => { const t = Math.max(0, Math.min(1, (v - lo) / (hi - lo))); return t * t * (3 - 2 * t); };
+      // THE LAKE BANKS ARE THE FINE SURFACE AGAIN (G1335). Since 2026-09-22 a fine vertex within 30 m of a lake's edge
+      // blended back to the ring's height and normal: island_prep flattens a lake's cells to its level and at 5 m that
+      // flattening showed as a 10 m STAIRCASE round every lake (seen at -564,-1336). The flattened cells are the lake's
+      // own and the bed is carved under them now (28_island lakeBed: under the water from the line in, the bank sloped
+      // to it), so the staircase is under the water - and the ring's 17.6 m chords near a shore were what stood over the
+      // water inside the line (the bed's dark paint above the surface, the old "stair-stepped rim"): the fine tiles take
+      // the carved surface itself, the shore within a few metres of the field's line.
       FINE.build = (tx, tz) => {
         const T = FINE.T, st = FINE.step, n = T / st + 1, x0 = tx * T, z0 = tz * T;
         const pos = new Float32Array(n * n * 3), nor = new Float32Array(n * n * 3), uv = new Float32Array(n * n * 2), ac = new Float32Array(n * n), acn = new Float32Array(n * n * 3);
         for (let j = 0, k = 0; j < n; j++) for (let i = 0; i < n; i++, k++) {
           const x = x0 + i * st, z = z0 + j * st;
           const c = coarseAt(x, z); ac[k] = c[0]; acn[k * 3] = c[1]; acn[k * 3 + 1] = c[2]; acn[k * 3 + 2] = c[3];
-          const lk = sm(-30, -6, lakeSD(x, z));   // 0 away from lakes, 1 at the bank: the ring's shape there
-          pos[k * 3] = x; pos[k * 3 + 1] = H(x, z) * (1 - lk) + c[0] * lk; pos[k * 3 + 2] = z;
+          pos[k * 3] = x; pos[k * 3 + 1] = H(x, z); pos[k * 3 + 2] = z;
           // the normal from the surface itself at +-2.5 m (not from this tile's triangles: a tile edge would shade differently from its neighbour)
-          let nx = (H(x - 2.5, z) - H(x + 2.5, z)) / 5, nz = (H(x, z - 2.5) - H(x, z + 2.5)) / 5; let l = Math.hypot(nx, 1, nz);
-          nx = nx / l * (1 - lk) + c[1] * lk; let ny = 1 / l * (1 - lk) + c[2] * lk; nz = nz / l * (1 - lk) + c[3] * lk; l = Math.hypot(nx, ny, nz) || 1;
-          nor[k * 3] = nx / l; nor[k * 3 + 1] = ny / l; nor[k * 3 + 2] = nz / l;
+          const nx = (H(x - 2.5, z) - H(x + 2.5, z)) / 5, nz = (H(x, z - 2.5) - H(x, z + 2.5)) / 5, l = Math.hypot(nx, 1, nz);
+          nor[k * 3] = nx / l; nor[k * 3 + 1] = 1 / l; nor[k * 3 + 2] = nz / l;
           const t = islandUV ? islandUV(x, z) : [(x + INNER) / (2 * INNER), 1 - (z + INNER) / (2 * INNER)]; uv[k * 2] = t[0]; uv[k * 2 + 1] = t[1];
         }
         const idx = [];
@@ -123267,10 +123480,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       if (islandGroundHook) islandKeyed(oMat, 'island-outer');
       outerMatShared = oMat;
       outerUVShared = islandUV ? ((x, z) => islandUV(x, z)) : ((x, z) => [(x - BX0) / SIZE, 1 - (z - BZ0) / SIZE]);   // the far terrain's own law (patchOf)
-      // the lake-free twin (no discard: early-Z) for the patches no lake reaches (PERF 2026-09-23)
-      const oMatDry = islandGroundHookOuterDry ? worldLambert({ map: outerTex }) : oMat;
-      if (oMatDry !== oMat) { oMatDry.onBeforeCompile = sh => { canopyHook(sh); islandGroundHookOuterDry(sh); }; islandKeyed(oMatDry, 'island-outer-dry'); }
-      const LAKEBOX = (world.island.lakes || []).map(L => [L.x0 - 30, L.z0 - 30, L.x1 + 30, L.z1 + 30]);
+      // (the lake-free twin, PERF 2026-09-23, is gone with the lake cut, G1335: one material, every quadrant one draw)
       // THE CUT FOLLOWS THE EYE (PERF 2026-09-23, the frame study: every leaf drawn at every
       // distance was 8.5 M triangles, most of them under a pixel - ~7 ms of the GPU at the stand
       // in 2x2 shading quads they barely touch, each shaded again by 8x MSAA - and ~9 s of boot).
@@ -123283,7 +123493,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       // swapped when its cut changes, `budget` a frame. Skirts under every patch's edge close
       // the cracks between two levels (and the T-junctions the leaves always had).
       const FH = world.island.farHeader, N = FH.patch + 1, Pn = FH.patch, NN = N * N, NV = NN + 4 * N;
-      const seaFloor = world.island.seaFloor, qs = FH.side / 4;
+      const seaFloor = world.island.seaFloor, lakeBed = world.island.lakeBed, qs = FH.side / 4;
       const FARLOD = { tolPx: BUD && BUD.terrain > 1 ? BUD.terrain : 1, rimE: 0.5, budget: 2, every: 6, tick: 0, quads: new Map(), cache: new Map(), stamp: 0, eye: null, K: 0,
                        stats: { nodes: 0, tris: 0, quads: 0, rebuilds: 0, cached: 0, ms: 0 } };
       const boxOf = n => { const s = FH.side / (1 << n.d); return [FH.bounds.x0 + n.ix * s, FH.bounds.z0 + n.iz * s, s]; };
@@ -123299,11 +123509,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         const nh = hts(n);
         let lo = Infinity, hi = -Infinity; for (let k = 0; k < NN; k++) { const y = nh[k]; if (y < lo) lo = y; if (y > hi) hi = y; }
         n.lo = lo; n.hi = hi; n.e = 0;
-        if (!n.kids) {   // does a lake (its box, +30 m) reach this leaf? the lake-free leaves draw without the lake cut
-          const s = FH.side / (1 << n.d), x0 = FH.bounds.x0 + n.ix * s, z0 = FH.bounds.z0 + n.iz * s;
-          n.lake = LAKEBOX.some(b => b[0] < x0 + s && b[2] > x0 && b[1] < z0 + s && b[3] > z0);
-          return;
-        }
+        if (!n.kids) return;
         let e = 0;
         for (const c of n.kids) {
           measure(c);
@@ -123316,7 +123522,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
           }
           if (ec + c.e > e) e = ec + c.e;
         }
-        n.e = e; n.lake = n.kids.some(c => c.lake);
+        n.e = e;
       })(world.island.farRoot);
       // one index template for every patch: the grid (the leaves' winding, face up) and four skirts,
       // each skirt quad wound to face out of the patch (checked on a flat patch, not reasoned)
@@ -123347,6 +123553,8 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
           // mesh takes the island's shelf like the sampler does (G402 - the
           // painted floor had shown over the plane as "a different tile")
           if (seaFloor) { const sd = world.island.coastAt(x, z); if (sd < 0) y = Math.min(y, seaFloor(sd)); }
+          // ...and the carved lakebed (G1335): the asset is the raw DEM, its lakes flat at (or over) their level
+          if (lakeBed) { const b = lakeBed(x, z); if (b < y) y = b; }
           const din = Math.max(Math.abs(x), Math.abs(z));
           if (din < INNER) y -= 1.5 * Math.min(1, (INNER - din) / 200);
           // THE FAR TIER UNDER A PREMISES (G527; the Metlakatla session's sinkFar, G511 on its branch):
@@ -123393,14 +123601,14 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
             const dx = Math.max(ox - ex, 0, ex - ox - s), dz = Math.max(oz - ez, 0, ez - oz - s), dy = Math.max(n.lo - ey, 0, ey - n.hi);
             if (n.e * K > FARLOD.tolPx * Math.max(1, Math.hypot(dx, dy, dz))) { n.kids.forEach(walk); return; }
           }
-          const key = Math.floor((ox + s / 2 - FH.bounds.x0) / qs) + ',' + Math.floor((oz + s / 2 - FH.bounds.z0) / qs) + (n.lake ? '' : '|dry');
+          const key = Math.floor((ox + s / 2 - FH.bounds.x0) / qs) + ',' + Math.floor((oz + s / 2 - FH.bounds.z0) / qs);
           let a = out.get(key); if (!a) out.set(key, a = []); a.push(n);
         })(world.island.farRoot);
         return out;
       };
       const quadMesh = key => {
         let Q = FARLOD.quads.get(key); if (Q) return Q;
-        const m = new THREE.Mesh(new THREE.BufferGeometry(), key.endsWith('|dry') ? oMatDry : oMat); m.receiveShadow = true; m.matrixAutoUpdate = false; m.renderOrder = -0.1; scene.add(m);   // the farthest ground last (ORDER_NOTE)
+        const m = new THREE.Mesh(new THREE.BufferGeometry(), oMat); m.receiveShadow = true; m.matrixAutoUpdate = false; m.renderOrder = -0.1; scene.add(m);   // the farthest ground last (ORDER_NOTE)
         m.userData.farTerrain = true; VIS.meshes.push(m);   // F1: the contract hides these by distance
         FARLOD.quads.set(key, Q = { m, sig: '', want: null, wantSig: '', tris: 0 });
         return Q;
@@ -123771,7 +123979,9 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
           const hs = [[cx, cz], [cx - qx, cz], [cx + qx, cz], [cx, cz - qz], [cx, cz + qz]]
             .map(q => (world.waterH ? world.waterH(q[0], q[1]) : NaN))
             .filter(h => Number.isFinite(h) && Math.abs(h - L.level) < 3).sort((p1, p2) => p1 - p2);
-          const lakeY = hs.length ? hs[hs.length >> 1] : L.level + 0.02;
+          // (G1335: with the bed carved the island says the level itself - the one its bed lies under and its physics
+          // floats on, 28_island lakeBed.levelOf: 0 for a lagoon at the sea's level; the samples are the fallback)
+          const lakeY = world.island.lakeBed && world.island.lakeBed.levelOf ? world.island.lakeBed.levelOf(L) : hs.length ? hs[hs.length >> 1] : L.level + 0.02;
           g.translate(cx, lakeY, cz); lakeGeos.push(wtag(g, 1, false)); n++;
           // the DRAWN level, for anything that needs the plane the eye sees rather than the physics' (the water's
           // planar mirror: it reflects about a plane, and 0.6 m of error there stretches the reflection, G460.11.4)
@@ -152502,6 +152712,9 @@ function editorInit(api) {
     // G760: `clouds` is a fold of `night` now (the flight rail's SKY & WORLD, mirrored).
     { k: 'graphics', label: 'graphics', title: 'How much the card draws',
       icon: 'M3 5.2h12|M3 9h12|M3 12.8h12|M6.4 5.2a1.3 1.3 0 1 0 0-.1|M11.2 9a1.3 1.3 0 1 0 0-.1|M7.6 12.8a1.3 1.3 0 1 0 0-.1' },
+    // G1600: THE SOUND - the same menu the flight rail opens (audio.js AUDIO.mount). LITERAL FIELDS ONLY (GATE VIEW).
+    { k: 'audio', label: 'sound', title: 'The sound: the volumes, the headset, the music in flight',
+      icon: 'M2.8 7h2.8l4-3.4v10.8l-4-3.4H2.8Z|M12.4 6.4a3.6 3.6 0 0 1 0 5.2|M14.4 4.4a6.4 6.4 0 0 1 0 9.2' },
     { k: 'legend', label: 'legend', title: 'What the marks in the room mean',
       icon: 'M9 15.4A6.4 6.4 0 1 0 9 2.6a6.4 6.4 0 0 0 0 12.8Z|M6.9 7.2a2.1 2.1 0 1 1 3 1.9c-.6.3-.9.7-.9 1.4v.4|M9 13.1v.1' },
   ];
@@ -152900,6 +153113,7 @@ function editorInit(api) {
     if (t.k === 'camera') buildCamera(body);
     if (t.k === 'controls') buildControls(body);
     if (t.k === 'graphics') buildGraphics(body);   // GFX, in its seven folds (G760)
+    if (t.k === 'audio' && window.AUDIO) window.AUDIO.mount(body, Object.assign(railRows(), { refresh: () => openFly('audio') }));   // G1600
     // THE SKY (G760): the day panel with the weather (2026-09-20), the clouds panel, the shed's light rows
     // borrowed into their own fold, the map - each a fold, remembered with the flight rail's
     let rowsHost = body;
@@ -156004,6 +156218,2404 @@ const ROLLANIM = (() => {
   return api;
 })();
 if (typeof module !== 'undefined' && module.exports) module.exports = ROLLANIM;
+</script>
+<script type="text/x-flydiy">
+// ============================================================
+// THE SOUND'S NUMBERS (G1601, SOUND-2026-10-04 §2.1 / §9). PURE: no Web Audio,
+// no DOM, runs in node - GATE AUDIO (tools/audio/_audio_check.js) tests this.
+//
+// audioParams(sim, cam, def, out, world) fills ONE preallocated Float32Array
+// (out.block) from what the solver already publishes - the same `sim.*` the
+// renderer reads, so the physics worker (on by default, sim_link.js mirrors
+// the snapshot into the page's sim) and the inline solver read alike:
+//
+//   SCALARS   out.s[I.name] (I = out.I, the index of each name in AP_SCALARS)
+//   ENGINES   per engine i < AP_MAX_ENG, a Float32Array view each:
+//             out.rpm[i] prop rpm, out.rpmEng[i] engine rpm, out.thr[i] the
+//             lever the solver applies (ctl.thr x ctl.eng[i]), running / crank /
+//             key, thrustPer, and the DERIVED numbers the voices are made of:
+//               fireHz  firing frequency  rpmEng/60 x cyl/2  (x cyl: two-stroke)
+//               bpfHz   blade passage     rpm/60 x blades
+//               tipM    tip Mach          pi D rpm/60 / c,  c from out.oatC
+//               tipMh   helical tip Mach  hypot(tip speed, V) / c
+//
+// THE PER-AEROPLANE CONSTANTS (cylinders, stroke, blades, D, gear, family) are
+// resolved ONCE per def (audioResolve; out.def is the def they were read off):
+// spec.engines[i].sound = { cyl, arch, twoStroke, blades } when present (the
+// join SND-ENGINE adds), else spec.prop.blades, else AP_FALLBACK below. Every
+// later call writes numbers into the block and allocates nothing.
+//
+// THE CONTACTS are read at AP_CONTACT_HZ, not every frame: sim.wheelContacts()
+// is the snapshot's object under the worker, but the INLINE solver's builds
+// a fresh one per call (30_solver.js wheelContacts), and world.surface() costs
+// a few terrain samples - 30 Hz is 33 ms of touchdown latency, inside a frame
+// pair. onGround is derived from the contacts (the same count wheelsOnGround
+// gives: mains + the tail / the floats' afterbody), so that is never called.
+// ============================================================
+var AUDIO_PARAMS = (function () {
+  'use strict';
+  const AP_MAX_ENG = 4;
+  const AP_CONTACT_HZ = 30;
+  const AP_AGL_HZ = 2;   // G1672: two terrain samples twice a second (a sample returns a boxed double: rare on purpose)
+  // the scalars, in block order (append only: a source may hold an index)
+  const AP_SCALARS = [
+    'nEng', 'dt',   // (no sim time: sim.t is a getter on both paths, and a getter's double comes back boxed)
+    'V', 'Veas', 'Vg', 'alpha', 'beta', 'nz', 'vs', 'alt', 'oatC', 'c', 'rho',
+    'thrust', 'wash', 'starved', 'energyFrac', 'thrMaster',
+    // the ground: contacts (1/0), their count, and the GROUND_SURF code under each (-1 = not touching)
+    'onGround', 'main0', 'main1', 'tail', 'water', 'surf0', 'surf1', 'surfT',
+    'hydroWet', 'submerged',
+    'flap', 'brake', 'de', 'da', 'dr',
+    // the listener: the camera mode's code (AP_CAM), interior (the cockpit eye), the shed, the pause
+    'camMode', 'interior', 'inGarage', 'held', 'listenerX', 'listenerY', 'listenerZ',
+    // the cabin from the build (§4: the insulation is the build's): 1 = no glazing (an open cockpit)
+    'open',
+    // G1672: the height above the ground or the water under the aeroplane, metres, read at AP_AGL_HZ (the music's
+    // cruise, the ambience's altitude weights - coarse consumers); with no world, the altitude itself
+    'agl',
+    // THE STALL (G1630, SND-AIRFRAME): the body alpha the wing stalls at NOW, in out.alpha's own frame - the build's
+    // measured clean stall (64_gen_build.js genClMax: params.gen.aStall, the probe's body angle), moved toward the
+    // measured landing-flap stall (gen.aStallLdg) by ctl.flap / flaps.ldg; a flapless setting moves it by the polar's
+    // own dAStall x flap. 0 = this build has no measured stall (nothing warns).
+    'aStall',
+  ];
+  const AP_ENGINE = ['rpm', 'rpmEng', 'thr', 'running', 'crank', 'key', 'thrustPer',
+                     'cyl', 'twoStroke', 'blades', 'D', 'gear', 'family',
+                     'fireHz', 'bpfHz', 'tipM', 'tipMh'];
+  const AP_CAM = { orbit: 0, chase: 1, wing: 2, tower: 3, cockpit: 4, free: 5 };
+  const AP_KEY = { off: 0, l: 1, r: 2, both: 3, start: 4 };
+  const AP_FAMILY = { four: 0, two: 1, electric: 2, turbine: 3 };
+  const AP_SURF_WATER = 4;   // GROUND_SURF's WATER row (00_registry.js)
+  // THE DECLARED FALLBACKS, until spec.engines[i].sound says (SND-ENGINE's join): a four-stroke is a flat four, a
+  // two-stroke an inline twin (the 503 / 582; the 277 is a single), a radial nine (the Rotec, the R-985, the M-14P);
+  // electric and turbine have no firing pulse (cyl 0 -> fireHz 0). A custom engine's name carries its count
+  // (_cage_eng.js: "custom <arch> <n>-cyl <L> L"), which outranks the family.
+  const AP_FALLBACK = { cyl: { four: 4, two: 2, radial: 9, electric: 0, turbine: 0 }, blades: 2, D: 1.8 };
+  const I = {};
+  AP_SCALARS.forEach((k, i) => { I[k] = i; });
+  const NS = AP_SCALARS.length;
+  const LEN = NS + AP_ENGINE.length * AP_MAX_ENG;
+
+  // the block and its views: made once (a new block per AUDIO, never per frame)
+  function audioParamsBlock() {
+    const block = new Float32Array(LEN);
+    // clk[0]: the seconds since the contacts were last read (a typed slot: a double in an object field is a fresh box per write)
+    // clk[1]: the seconds since the height above ground was last read (G1672)
+    const out = { block, I, s: block.subarray(0, NS), def: null, nE: 0, clk: new Float64Array(2),
+                  // the stall's per-def constants: clean, landing-flap, the landing notch, the polar's dAStall (G1630)
+                  stall: new Float64Array(4) };
+    AP_ENGINE.forEach((k, j) => { out[k] = block.subarray(NS + j * AP_MAX_ENG, NS + (j + 1) * AP_MAX_ENG); });
+    // the surfaces' wheel nodes (resolved per def): mains then tail, -1 = none
+    out.wheelNode = new Int32Array(3).fill(-1);
+    return out;
+  }
+
+  function registry() {
+    if (typeof POWERPLANTS !== 'undefined') return POWERPLANTS;            // the page: the core's global
+    return (typeof globalThis !== 'undefined' && globalThis.POWERPLANTS) || {};   // node: the gate sets it
+  }
+  // the engine facts the solver flies (30_solver.js: P_.engine || PP.engine, P_.prop || PP.prop)
+  function engineOf(def) {
+    const P = (def && def.params) || {}, PP = registry()[P.powerplant] || {};
+    return { EN: P.engine || PP.engine || {}, PR: P.prop || PP.prop || {} };
+  }
+  function cylFallback(EN, se) {
+    const nm = (se && se.custom && se.custom.name) || EN.name || '';
+    const m = /(\d+)-cyl\b/.exec(nm);
+    if (m) return +m[1];
+    const fam = EN.family || 'four';
+    if (fam === 'electric' || fam === 'turbine') return 0;
+    if (EN.layout === 'radial') return AP_FALLBACK.cyl.radial;
+    return AP_FALLBACK.cyl[fam] != null ? AP_FALLBACK.cyl[fam] : AP_FALLBACK.cyl.four;
+  }
+  // ONCE PER DEF: the constants a voice needs and the solver does not publish. Allocates (a def changes on a new
+  // aeroplane, not on a frame); every engine slot past the aeroplane's count is zeroed.
+  function audioResolve(def, out) {
+    const spec = (def && def.spec) || {}, { EN, PR } = engineOf(def);
+    const ses = Array.isArray(spec.engines) ? spec.engines : [];
+    const nE = Math.max(0, Math.min(AP_MAX_ENG, (def && def.params && def.params.nEngines) || (ses.length || 1)));
+    const fam = EN.family || 'four';
+    for (let i = 0; i < AP_MAX_ENG; i++) {
+      if (i >= nE) { for (const k of AP_ENGINE) out[k][i] = 0; continue; }
+      const se = ses[i] || ses[0] || null, sd = (se && se.sound) || null;
+      out.cyl[i] = sd && sd.cyl > 0 ? sd.cyl : cylFallback(EN, se);
+      out.twoStroke[i] = sd && sd.twoStroke != null ? (sd.twoStroke ? 1 : 0) : (fam === 'two' ? 1 : 0);
+      out.blades[i] = (sd && sd.blades > 0) ? sd.blades : (spec.prop && spec.prop.blades > 0) ? spec.prop.blades
+                    : (PR.blades > 0 ? PR.blades : AP_FALLBACK.blades);
+      out.D[i] = PR.D > 0 ? PR.D : AP_FALLBACK.D;
+      out.gear[i] = EN.gear > 0 ? EN.gear : 1;
+      out.family[i] = AP_FAMILY[fam] != null ? AP_FAMILY[fam] : 0;
+    }
+    const W = out.wheelNode, refs = (def && def.refs) || {};
+    const mains = Array.isArray(refs.mains) ? refs.mains : [];
+    W[0] = mains.length > 0 ? mains[0] : -1; W[1] = mains.length > 1 ? mains[1] : -1;
+    W[2] = refs.tw != null && refs.tw >= 0 ? refs.tw : -1;
+    out.s[I.open] = spec.cabin && spec.cabin.glazing === 'none' ? 1 : 0;
+    const G = (def && def.params && def.params.gen) || {}, FL = def && def.params && def.params.flaps;
+    const pw = def && def.params && def.params.polarWing;
+    const a0 = G.aStall > 0 ? G.aStall : (pw && pw.aStall > 0 ? pw.aStall : 0);
+    out.stall[0] = a0;
+    out.stall[1] = G.aStallLdg > 0 ? G.aStallLdg : a0;
+    out.stall[2] = FL && FL.ldg > 0 ? FL.ldg : 0;
+    out.stall[3] = FL && FL.dAStall > 0 ? FL.dAStall : 0;
+    out.s[I.nEng] = nE;
+    out.nE = nE; out.def = def; out.clk[0] = 1e9; out.clk[1] = 1e9;   // a new aeroplane reads its contacts on its first frame
+  }
+
+  const num = (x, d) => (typeof x === 'number' && x === x ? x : d);
+  function surfAt(world, sim, node) {
+    if (node < 0 || !world || typeof world.surface !== 'function' || !sim.p) return -1;
+    // whole metres (int32: passed as small integers - a double argument to a call is a fresh box), finer than a surface
+    const v = world.surface(sim.p[node * 3] | 0, sim.p[node * 3 + 2] | 0);
+    return typeof v === 'number' ? v : -1;
+  }
+
+  // THE FRAME. cam: { mode, inGarage, held, p: Float64Array(3) | x, y, z } (the listener: app.js's cam.mode, the camera).
+  // dt the frame's seconds (it times the contacts' sampling). Returns out.
+  function audioParams(sim, cam, def, out, world, dt) {
+    if (out.def !== def) audioResolve(def, out);
+    const s = out.s, o = (sim && sim.out) || {}, ctl = (sim && sim.ctl) || {};
+    const nE = out.nE;
+    s[I.dt] = num(dt, 0);
+    s[I.V] = num(o.V, 0); s[I.Veas] = num(o.Veas, 0); s[I.Vg] = num(o.Vg, 0);
+    s[I.alpha] = num(o.alpha, 0); s[I.beta] = num(o.beta, 0); s[I.nz] = num(o.nz, 1); s[I.vs] = num(o.vs, 0);
+    s[I.alt] = num(o.alt, 0);
+    const oat = num(o.oatC, 15);
+    s[I.oatC] = oat;
+    const c = 20.0468 * Math.sqrt(Math.max(1, oat + 273.15));   // sqrt(1.4 x 287.05 x T)
+    s[I.c] = c;
+    s[I.rho] = num(o.rho, 1.225);
+    s[I.thrust] = num(o.thrust, 0); s[I.wash] = num(o.wash, 0);
+    s[I.starved] = o.starved ? 1 : 0; s[I.energyFrac] = num(o.energyFrac, 1);
+    s[I.hydroWet] = num(o.hydroWet, 0); s[I.submerged] = o.submerged ? 1 : 0;
+    const thr = num(ctl.thr, 0);
+    s[I.thrMaster] = thr;
+    s[I.flap] = num(ctl.flap, 0); s[I.brake] = num(ctl.brake, 0);
+    s[I.de] = num(ctl.de, 0); s[I.da] = num(ctl.da, 0); s[I.dr] = num(ctl.dr, 0);
+    // the stall alpha at this flap: toward the measured landing stall over the landing notch, else the polar's delta
+    const st = out.stall, fl = s[I.flap];
+    s[I.aStall] = st[0] <= 0 ? 0 : st[2] > 0 ? st[0] + (st[1] - st[0]) * Math.min(1, fl / st[2]) : st[0] - st[3] * fl;
+    // the engines: the solver's own numbers, then the voices' frequencies off them
+    const rpmA = o.rpm, rpmEA = o.rpmEng, TP = o.thrustPer, E = sim && sim.eng, L = ctl.eng, V = s[I.V];
+    for (let i = 0; i < nE; i++) {
+      // array reads with a unary plus (see thrustPer below): a hole reads NaN, never a boxed undefined
+      const rp0 = rpmA ? +rpmA[i] : 0, rp = rp0 === rp0 ? rp0 : 0;
+      const re0 = rpmEA ? +rpmEA[i] : rp * out.gear[i], re = re0 === re0 ? re0 : rp * out.gear[i];
+      out.rpm[i] = rp; out.rpmEng[i] = re;
+      const le = L && L[i];
+      out.thr[i] = Math.max(0, Math.min(1, thr * (le ? (le.on ? +le.thr : 0) : 1)));
+      const e = E && E[i];
+      out.running[i] = e ? (e.running ? 1 : 0) : 1;
+      out.crank[i] = e ? num(e.crank, 0) : 0;
+      out.key[i] = e && AP_KEY[e.key] != null ? AP_KEY[e.key] : AP_KEY.both;
+      // (+x: the solver's thrustPer is a HOLEY double array - `Ti.length = nE` - and a plain read merges with
+      // undefined, which boxes; the unary plus keeps the load a float64, a hole reading NaN -> 0)
+      const tp = TP ? +TP[i] : 0;
+      out.thrustPer[i] = tp === tp ? tp : 0;
+      out.fireHz[i] = re / 60 * (out.twoStroke[i] ? out.cyl[i] : out.cyl[i] / 2);
+      out.bpfHz[i] = rp / 60 * out.blades[i];
+      const tip = Math.PI * out.D[i] * rp / 60;
+      out.tipM[i] = tip / c;
+      out.tipMh[i] = Math.sqrt(tip * tip + V * V) / c;
+    }
+    // the listener
+    const md = cam && cam.mode, ig = !!(cam && cam.inGarage);
+    s[I.camMode] = md != null && AP_CAM[md] != null ? AP_CAM[md] : -1;
+    s[I.inGarage] = ig ? 1 : 0;
+    s[I.interior] = !ig && md === 'cockpit' ? 1 : 0;
+    s[I.held] = cam && cam.held ? 1 : 0;
+    const lp = cam && cam.p;   // a Float64Array(3) (audio.js: no box per frame), else { x, y, z }
+    if (lp) { s[I.listenerX] = lp[0]; s[I.listenerY] = lp[1]; s[I.listenerZ] = lp[2]; }
+    else { s[I.listenerX] = num(cam && cam.x, 0); s[I.listenerY] = num(cam && cam.y, 0); s[I.listenerZ] = num(cam && cam.z, 0); }
+    // the contacts and what is under them, at AP_CONTACT_HZ
+    const clk = out.clk;
+    clk[0] += num(dt, 0);
+    if (clk[0] >= 1 / AP_CONTACT_HZ) {
+      clk[0] = 0;
+      const wc = sim && typeof sim.wheelContacts === 'function' ? sim.wheelContacts() : null;
+      const m = wc && wc.mains, W = out.wheelNode;
+      const m0 = m && m.length > 0 && m[0] ? 1 : 0, m1 = m && m.length > 1 && m[1] ? 1 : 0, tw = wc && wc.tw ? 1 : 0;
+      const wat = wc && wc.water ? 1 : 0;
+      s[I.main0] = m0; s[I.main1] = m1; s[I.tail] = tw; s[I.water] = wat;
+      s[I.onGround] = m0 + m1 + tw;
+      s[I.surf0] = m0 ? (wat ? AP_SURF_WATER : surfAt(world, sim, W[0])) : -1;
+      s[I.surf1] = m1 ? (wat ? AP_SURF_WATER : surfAt(world, sim, W[1])) : -1;
+      s[I.surfT] = tw ? (wat ? AP_SURF_WATER : surfAt(world, sim, W[2])) : -1;
+    }
+    // the height above ground (G1672), at AP_AGL_HZ: the altitude less the higher of the terrain and the water under
+    // the first main (or node 0), sampled at whole metres. Written here, in the hot function: a helper called twice a
+    // second would run in V8's lower tiers, where every double is a fresh box (the world's own samplers still box
+    // their answers - two calls at 2 Hz, the world's)
+    clk[1] += num(dt, 0);
+    if (clk[1] >= 1 / AP_AGL_HZ) {
+      clk[1] = 0;
+      const alt = s[I.alt];
+      if (world && typeof world.terrainH === 'function' && sim && sim.p) {
+        const n = out.wheelNode[0] >= 0 ? out.wheelNode[0] : 0, x = sim.p[n * 3] | 0, z = sim.p[n * 3 + 2] | 0;
+        let g = +world.terrainH(x, z);
+        if (typeof world.waterH === 'function') { const w = +world.waterH(x, z); if (w > g) g = w; }
+        s[I.agl] = g === g ? alt - g : alt;
+      } else s[I.agl] = alt;
+    }
+    return out;
+  }
+
+  return { audioParams, audioParamsBlock, audioResolve, AP_SCALARS, AP_ENGINE, AP_MAX_ENG, AP_CAM, AP_KEY, AP_FAMILY,
+           AP_FALLBACK, AP_CONTACT_HZ, AP_AGL_HZ, I };
+})();
+if (typeof window !== 'undefined') window.AUDIO_PARAMS = AUDIO_PARAMS;
+if (typeof module !== 'undefined' && module.exports) module.exports = AUDIO_PARAMS;
+</script>
+<script type="text/x-flydiy">
+// ============================================================
+// THE SOUND (G1600, SOUND-2026-10-04 §2): window.AUDIO - the context, the
+// gesture unlock, the bus graph, the settings, the frame's update and the
+// registration API every later SND-* session plugs into without touching
+// app.js again.
+//
+//   NOTHING BEFORE A GESTURE   at load this file makes no AudioContext and no
+//             node: it listens for the first pointerdown / keydown anywhere (the
+//             game has no click-to-start) and builds everything inside that
+//             handler (the browsers' autoplay rule asks the same).
+//   ?audio=0  (or localStorage flydiy.audio = '0'; ?audio=1 outranks the pref)
+//             builds NOTHING: no listener, no parameter block, no context.
+//             AUDIO is then a stub whose update() returns at once - the A/B
+//             switch for A0's rigs.
+//   THE BUSES (§2.2)  sources -> aircraft.ext / aircraft.int -> aircraft ->
+//             master; ambience, music, ui -> master; master -> fade -> soft
+//             limiter (a DynamicsCompressor at -1 dBFS, fast attack) -> out.
+//             `fade` is the silence's own gain: a hidden tab, the pause, an
+//             unfocused window (the setting) ramp it to 0 over 0.2 s and the
+//             context is suspended after; it resumes and ramps back on return.
+//   THE FRAME AUDIO.update(sim, camera, dt, def, cam, inGarage, world) - one
+//             call in app.js's loop, after the render. It fills ONE Float32
+//             block (audio_params.js) and hands it to each source's update;
+//             it allocates nothing and costs well under 0.3 ms (GATE AUDIO).
+//   SETTINGS  five volumes (master, aircraft, environment, music, interface),
+//             mute when unfocused (on), headset (off), music in flight (off);
+//             localStorage flydiy.audio.<key>, every access in try/catch.
+//             AUDIO.mount(body, kit) draws them in either rail's own rows.
+//
+// THE API FOR THE SND-* SESSIONS
+//   AUDIO.addSource(name, { connect(ctx, AUDIO), update(P, dt, AUDIO), disconnect() })
+//        connect runs once the context exists (at once if it does); it makes the
+//        source's nodes and connects them to AUDIO.bus(...). update runs every
+//        frame with P = the parameter block (P.s[P.I.V], P.rpm[i], P.fireHz[i] ...).
+//        It must not allocate: drive AudioParams (setTargetAtTime, tau ~ 0.03 s),
+//        post a message only for a discrete event. A source that throws is
+//        switched off and said in the console. Same name again = replaced.
+//   AUDIO.bus(name)      'master' | 'aircraft' | 'aircraft.ext' | 'aircraft.int' |
+//                        'ambience' | 'music' | 'ui' -> its GainNode (null before
+//                        the gesture: use it inside connect)
+//   AUDIO.module(stem)   ctx.audioWorklet.addModule of a served module, once ->
+//                        a promise (window.FLYDIY_AUDIO_SRC[stem], the build's
+//                        content-versioned URL, else src/viewer/audio/<stem>.js)
+//   AUDIO.onEvent(type, fn) / AUDIO.emit(type, detail)   'ready' (the context
+//                        made), 'suspend', 'resume', 'settings', 'perspective'
+//                        (interior <-> exterior), and any a source declares
+//   AUDIO.get(k) / AUDIO.set(k, v)   the settings (SETTINGS below)
+//   AUDIO.params         the block (audio_params.js); AUDIO.stats the cost
+// ============================================================
+var AUDIO = (function () {
+  'use strict';
+  const W = typeof window !== 'undefined' ? window : {};
+  const PREF = 'flydiy.audio';
+  const pref = (k, d) => { try { const v = W.localStorage && W.localStorage.getItem(k); return v == null ? d : v; } catch (e) { return d; } };
+  const prefSet = (k, v) => { try { if (W.localStorage) W.localStorage.setItem(k, String(v)); } catch (e) {} };
+  const query = (() => { try { return new URLSearchParams(W.location ? W.location.search : '').get('audio'); } catch (e) { return null; } })();
+  const OFF = query === '0' || (query !== '1' && pref(PREF, '1') === '0');
+
+  // THE SETTINGS: [key, default, kind, label, line]
+  const SETTINGS = [
+    ['master', 0.8, 'vol', 'master', 'everything'],
+    ['aircraft', 1.0, 'vol', 'aircraft', 'the engine, the propeller, the airframe'],
+    ['environment', 0.8, 'vol', 'environment', 'the wind, the birds, the sea, the shed'],
+    ['music', 0.6, 'vol', 'music', ''],
+    ['interface', 0.7, 'vol', 'interface', 'the clicks'],
+    ['muteUnfocused', 1, 'bool', 'mute when unfocused', 'silent while another window has the focus'],
+    ['headset', 0, 'bool', 'headset', 'in the cockpit, the way a pilot hears it: ~15 dB quieter'],
+    ['musicFlight', 0, 'bool', 'music in flight', 'the music plays in the shed; in the air only with this on'],
+    ['musicGarage', 1, 'bool', 'music in the garage', 'the shed\'s playlist, with silences between the tracks'],   // G1672 (music.js)
+  ];
+  const DEF = {}; for (const r of SETTINGS) DEF[r[0]] = r[1];
+  const readSetting = k => {
+    const v = +pref(PREF + '.' + k, DEF[k]);
+    return v === v ? (SETTINGS.find(r => r[0] === k)[2] === 'bool' ? (v ? 1 : 0) : Math.max(0, Math.min(1, v))) : DEF[k];
+  };
+
+  // the rows the menu draws (either rail's kit: row, range, toggle?, note)
+  function mountRows(api, body, kit, stub) {
+    const note = (t) => (kit.note ? kit.note(body, t) : null);
+    const toggle = (label, get, set) => {
+      if (kit.toggle) return kit.toggle(body, label, get, set);
+      const r = kit.row(body, label), c = document.createElement('input');
+      c.type = 'checkbox'; c.checked = !!get(); c.onchange = () => set(c.checked);
+      r.appendChild(c); return r;
+    };
+    toggle('sound', () => !stub && api.state !== 'off', on => api.enable(on));
+    if (stub) {
+      note(query === '0' ? 'Sound is off for this page (?audio=0).'
+                         : 'Sound is off. Switched on, it starts with the next page load.');
+      return;
+    }
+    note(api.stateLine());
+    for (const [k, , kind, label] of SETTINGS) {
+      if (kind === 'vol') kit.range(body, label, 0, 100, 1, () => Math.round(api.get(k) * 100), v => api.set(k, v / 100), v => v + ' %');
+      else toggle(label, () => !!api.get(k), on => api.set(k, on ? 1 : 0));
+    }
+    // G1672: the rows a source adds (music.js: skip track, now playing), each in its own try
+    for (const fn of api.rowHooks || []) { try { fn(body, kit, toggle); } catch (e) { console.warn('flyDiy audio: a settings row threw', e); } }
+  }
+
+  // ---- ?audio=0: NOTHING. A stub with the same surface, no listener, no block, no context -------------------
+  if (OFF) {
+    const stub = { enabled: false, state: 'off', ctx: null, params: null, stats: null,
+      update() {}, bus() { return null; }, addSource() { return null; }, onEvent() {}, emit() {},
+      module() { return Promise.resolve(false); }, get: k => readSetting(k), set() {},
+      stateLine: () => 'off', unlock() {}, addRows() {}, inGarage: false, welcome: false,
+      enable(on) { if (on && query !== '0') prefSet(PREF, '1'); },
+      mount(body, kit) { mountRows(stub, body, kit, true); } };
+    return stub;
+  }
+
+  const AP = W.AUDIO_PARAMS || (typeof AUDIO_PARAMS !== 'undefined' ? AUDIO_PARAMS : null);
+  const now = () => (W.performance && W.performance.now ? W.performance.now() : Date.now());
+  const HEADSET_K = Math.pow(10, -15 / 20);   // §4: a passive headset, ~15 dB
+  const FADE_S = 0.2, XFADE_TAU = 0.05, GAIN_TAU = 0.03;
+  const BUSES = ['master', 'aircraft', 'aircraft.ext', 'aircraft.int', 'ambience', 'music', 'ui'];
+
+  const set = {}; for (const r of SETTINGS) set[r[0]] = readSetting(r[0]);
+  const srcs = [], handlers = {}, modules = {};
+  const N = {};   // the nodes, by bus name (+ fade, limiter)
+  let ctx = null, P = null;
+  let suspendTimer = 0, silent = false, hidden = false, focused = true, held = false;
+  let interior = 0, flying = 0;
+  // G1672 THE WELCOME: the first boot's loading screen (BOOT, boot.js) is not the air - nothing flies under it, and
+  // the welcome music plays there. Latched off for good once that overlay is gone (a later roll-out screen is not it).
+  let welcome = 1, garage = 0;
+  const welcomeNow = () => {
+    if (!welcome) return 0;
+    const B = W.BOOT;
+    if (!B || B.state === 'gone') welcome = 0;
+    return welcome;
+  };
+  // the listener, handed to audioParams; its position in a typed slot (a double written into an object field is a fresh
+  // heap box on every write - the frame must not allocate)
+  const CAM = { mode: null, inGarage: false, held: false, p: new Float64Array(3) };
+  // the bus targets last scheduled (a frame schedules nothing unless one moved)
+  const tgt = new Float64Array(BUSES.length).fill(-1);
+  // the cost: calls, the smoothed ms a frame, the worst (typed slots, for the same reason)
+  const ST = new Float64Array(3);
+  const stats = { get calls() { return ST[0]; }, get ms() { return ST[1]; }, get maxMs() { return ST[2]; }, get sources() { return srcs.length; } };
+
+  const api = {
+    enabled: true, state: 'armed', ctx: null, params: null, stats, SETTINGS,
+    rowHooks: [], addRows(fn) { api.rowHooks.push(fn); },   // G1672: fn(body, kit, toggle) adds rows under the settings
+    get inGarage() { return garage === 1; }, get welcome() { return welcome === 1; },   // G1672: what update() last saw
+    bus: name => N[name] || null,
+    get: k => set[k],
+    set(k, v) {
+      if (!(k in set)) return;
+      const kind = SETTINGS.find(r => r[0] === k)[2];
+      set[k] = kind === 'bool' ? (v ? 1 : 0) : Math.max(0, Math.min(1, +v || 0));
+      prefSet(PREF + '.' + k, set[k]);
+      applyGains(); silence(); emit('settings', { k, v: set[k] });
+    },
+    addSource(name, src) {
+      for (let i = srcs.length - 1; i >= 0; i--) if (srcs[i].name === name) { disconnectSrc(srcs[i]); srcs.splice(i, 1); }
+      const rec = { name, src, live: false };
+      srcs.push(rec);
+      if (ctx) connectSrc(rec);
+      return rec;
+    },
+    onEvent(type, fn) { (handlers[type] = handlers[type] || []).push(fn); return () => { const h = handlers[type]; const i = h.indexOf(fn); if (i >= 0) h.splice(i, 1); }; },
+    emit: (type, detail) => emit(type, detail),
+    module(stem) {
+      if (!ctx || !ctx.audioWorklet) return Promise.resolve(false);
+      if (!modules[stem]) {
+        const map = W.FLYDIY_AUDIO_SRC || {};
+        modules[stem] = ctx.audioWorklet.addModule(map[stem] || ('src/viewer/audio/' + stem + '.js')).then(() => true);
+      }
+      return modules[stem];
+    },
+    unlock: () => unlock(),
+    enable(on) {
+      prefSet(PREF, on ? '1' : '0');
+      if (on) { if (api.state === 'off') api.state = 'armed'; unlock(); }   // the click on the switch IS a gesture
+      else close();
+    },
+    stateLine() {
+      if (api.state === 'armed') return 'Waiting for the first click or key (the browser asks for one).';
+      if (api.state === 'unsupported') return 'This browser has no Web Audio.';
+      if (api.state === 'failed') return 'The browser refused the sound context.';
+      if (api.state === 'off') return 'Sound is off.';
+      return (api.state === 'suspended' ? 'Silent (hidden, paused or unfocused)' : 'Playing') +
+        (ctx ? ' · ' + Math.round(ctx.sampleRate / 100) / 10 + ' kHz' : '') + ' · ' + srcs.length + ' source' + (srcs.length === 1 ? '' : 's');
+    },
+    mount(body, kit) { mountRows(api, body, kit, false); },
+    update,
+  };
+
+  function emit(type, detail) {
+    const h = handlers[type]; if (!h) return;
+    for (let i = 0; i < h.length; i++) { try { h[i](detail, api); } catch (e) { console.warn('flyDiy audio: a ' + type + ' handler threw', e); } }
+  }
+  function connectSrc(rec) {
+    rec.live = false;
+    try { if (rec.src.connect) rec.src.connect(ctx, api); rec.live = true; }
+    catch (e) { console.warn('flyDiy audio: the source ' + rec.name + ' did not connect', e); }
+  }
+  function disconnectSrc(rec) {
+    try { if (rec.live && rec.src.disconnect) rec.src.disconnect(); } catch (e) {}
+    rec.live = false;
+  }
+
+  // ---- THE GESTURE -------------------------------------------------------------------------------------
+  function arm() {
+    if (!W.addEventListener) return;
+    W.addEventListener('pointerdown', unlock, true);
+    W.addEventListener('keydown', unlock, true);
+  }
+  function disarm() {
+    if (!W.removeEventListener) return;
+    W.removeEventListener('pointerdown', unlock, true);
+    W.removeEventListener('keydown', unlock, true);
+  }
+  function unlock() {
+    if (ctx || api.state === 'off') { disarm(); return; }
+    disarm();
+    const AC = W.AudioContext || W.webkitAudioContext;
+    if (!AC) { api.state = 'unsupported'; return; }
+    try { ctx = new AC({ latencyHint: 'interactive' }); }
+    catch (e) { api.state = 'failed'; console.warn('flyDiy audio: no context', e); return; }
+    api.ctx = ctx;
+    build();
+    if (!P && AP) { P = AP.audioParamsBlock(); api.params = P; }
+    api.state = 'running';
+    try { const r = ctx.resume && ctx.resume(); if (r && r.catch) r.catch(() => {}); } catch (e) {}
+    const D = W.document;
+    if (D && D.addEventListener) {
+      hidden = !!D.hidden;
+      D.addEventListener('visibilitychange', onVis);
+    }
+    if (D && typeof D.hasFocus === 'function') { try { focused = !!D.hasFocus(); } catch (e) {} }
+    W.addEventListener('blur', onBlur); W.addEventListener('focus', onFocus);
+    for (const rec of srcs) connectSrc(rec);
+    applyGains(); silence();
+    emit('ready', ctx);
+  }
+  function build() {
+    const g = () => ctx.createGain();
+    const L = N.limiter = ctx.createDynamicsCompressor();
+    L.threshold.value = -1; L.knee.value = 0; L.ratio.value = 20; L.attack.value = 0.002; L.release.value = 0.12;
+    N.fade = g(); N.fade.gain.value = 1;
+    for (const b of BUSES) N[b] = g();
+    N.master.connect(N.fade); N.fade.connect(L); L.connect(ctx.destination);
+    N.aircraft.connect(N.master);
+    N['aircraft.ext'].connect(N.aircraft); N['aircraft.int'].connect(N.aircraft);
+    N.ambience.connect(N.master); N.music.connect(N.master); N.ui.connect(N.master);
+    tgt.fill(-1);
+  }
+  function close() {
+    clearSuspend();
+    for (const rec of srcs) disconnectSrc(rec);
+    const D = W.document;
+    if (D && D.removeEventListener) D.removeEventListener('visibilitychange', onVis);
+    if (W.removeEventListener) { W.removeEventListener('blur', onBlur); W.removeEventListener('focus', onFocus); }
+    disarm();
+    if (ctx) { try { const r = ctx.close(); if (r && r.catch) r.catch(() => {}); } catch (e) {} }
+    ctx = null; api.ctx = null; silent = false;
+    for (const k of Object.keys(N)) delete N[k];
+    for (const k of Object.keys(modules)) delete modules[k];
+    api.state = 'off';
+  }
+
+  // ---- THE GAINS: scheduled only when a target moves -----------------------------------------------------
+  function ramp(i, node, v, tau) {
+    if (tgt[i] === v) return;
+    tgt[i] = v;
+    const p = node.gain;
+    if (p.setTargetAtTime) p.setTargetAtTime(v, ctx.currentTime, tau); else p.value = v;
+  }
+  function applyGains() {
+    if (!ctx) return;
+    const hs = interior && set.headset ? HEADSET_K : 1;
+    ramp(0, N.master, set.master, GAIN_TAU);
+    ramp(1, N.aircraft, set.aircraft * hs, GAIN_TAU);
+    ramp(2, N['aircraft.ext'], interior ? 0 : 1, XFADE_TAU);   // the viewpoint's cross-fade, ~150 ms
+    ramp(3, N['aircraft.int'], interior ? 1 : 0, XFADE_TAU);
+    ramp(4, N.ambience, set.environment * hs, GAIN_TAU);
+    ramp(5, N.music, set.music * (flying && !set.musicFlight ? 0 : 1), GAIN_TAU);
+    ramp(6, N.ui, set.interface, GAIN_TAU);
+  }
+
+  // ---- THE SILENCE: hidden / paused / unfocused -> 0.2 s to nothing, then suspend; back on return --------
+  function clearSuspend() { if (suspendTimer) { clearTimeout(suspendTimer); suspendTimer = 0; } }
+  function doSuspend() {
+    suspendTimer = 0;
+    if (!ctx || !silent) return;
+    try { const r = ctx.suspend(); if (r && r.catch) r.catch(() => {}); } catch (e) {}
+    api.state = 'suspended'; emit('suspend');
+  }
+  function silence() {
+    if (!ctx) return;
+    const want = hidden || held || (!!set.muteUnfocused && !focused);
+    if (want === silent) return;
+    silent = want;
+    const p = N.fade.gain, t = ctx.currentTime;
+    clearSuspend();
+    if (p.cancelScheduledValues) { p.cancelScheduledValues(t); p.setValueAtTime(p.value, t); }
+    if (want) {
+      if (p.linearRampToValueAtTime) p.linearRampToValueAtTime(0, t + FADE_S); else p.value = 0;
+      suspendTimer = setTimeout(doSuspend, FADE_S * 1000 + 20);
+    } else {
+      try { const r = ctx.resume(); if (r && r.catch) r.catch(() => {}); } catch (e) {}
+      if (p.linearRampToValueAtTime) p.linearRampToValueAtTime(1, t + FADE_S); else p.value = 1;
+      if (api.state === 'suspended') { api.state = 'running'; emit('resume'); }
+    }
+  }
+  function onVis() { hidden = !!(W.document && W.document.hidden); silence(); }
+  function onBlur() { focused = false; silence(); }
+  function onFocus() { focused = true; silence(); }
+
+  // ---- THE FRAME ------------------------------------------------------------------------------------------
+  // sim: the page's sim (the worker's snapshot mirrored, or the inline solver); camera: the THREE camera (the
+  // listener's position); dt: the frame's seconds; def: the flown aeroplane (def.spec, def.params, def.refs);
+  // cam: app.js's camera prefs ({ mode }); inGarage; world (world.surface for the ground under the wheels).
+  function update(sim, camera, dt, def, cam, inGarage, world) {
+    if (!ctx) return;
+    const t0 = now();
+    CAM.mode = cam ? cam.mode : null;
+    CAM.inGarage = !!inGarage;
+    CAM.held = !!W.FLYDIY_HELD;
+    const cp = camera && camera.position;
+    if (cp) { CAM.p[0] = cp.x; CAM.p[1] = cp.y; CAM.p[2] = cp.z; }
+    if (P && sim && def) AP.audioParams(sim, CAM, def, P, world, dt);
+    garage = inGarage ? 1 : 0;
+    const wl = welcomeNow(), inn = !inGarage && CAM.mode === 'cockpit' ? 1 : 0, fl = inGarage || wl ? 0 : 1;
+    if (inn !== interior || fl !== flying) {
+      const was = interior; interior = inn; flying = fl; applyGains();
+      if (was !== inn) emit('perspective', inn);
+    }
+    if (CAM.held !== held) { held = CAM.held; silence(); }
+    if (P) for (let i = 0; i < srcs.length; i++) {
+      const r = srcs[i];
+      if (!r.live || !r.src.update) continue;
+      try { r.src.update(P, dt, api); }
+      catch (e) { r.live = false; console.warn('flyDiy audio: the source ' + r.name + ' threw and is off', e); }
+    }
+    const ms = now() - t0;
+    ST[0]++; ST[1] += (ms - ST[1]) * 0.02; if (ms > ST[2]) ST[2] = ms;
+  }
+
+  arm();
+  return api;
+})();
+if (typeof window !== 'undefined') window.AUDIO = AUDIO;
+if (typeof module !== 'undefined' && module.exports) module.exports = AUDIO;
+</script>
+<script type="text/x-flydiy">
+// ENGINE SOUND CONFIG (SND-ENGINE, G1610-G1619; SOUND-2026-10-04 §3.1).
+//
+// PURE: (spec, engine index) -> the plain-object config the piston voice
+// (engine_worklet.js, 'flydiy-engine') is built from. No Web Audio, no DOM,
+// runs in node; GATE AUDIO (tools/audio/_engine_check.js) tests it.
+//
+// WHAT THE AEROPLANE SAYS AND WHERE IT IS READ:
+//   rpm, gear, family, aspiration   the registry row (POWERPLANTS[type].engine)
+//                                   or the build's custom row (engines[i].custom)
+//   cylinders, layout, stroke       engines[i].sound — {cyl, arch, twoStroke,
+//                                   dispL}, written by the editor's join
+//                                   (tools/_cage_join.js, from the dials the
+//                                   engine page shows; PHYSICS-INERT, declared:
+//                                   nothing in the resolve or the solver reads it)
+//                                   ...else a custom row's own name ("custom
+//                                   Flat (boxer) 4-cyl 5.9 L", the join's format)
+//                                   ...else ENGINE_SOUND_TABLE below, keyed by
+//                                   the POWERPLANTS row (a build saved before the
+//                                   join wrote the row)
+//                                   ...else a flat four of 2.8 L, said so in
+//                                   `source`
+// Every number below the table is a STARTING POINT for the user's ear (SND-TUNE,
+// wave 4), not a measurement — the firing frequency is the one thing the gate
+// holds exactly.
+'use strict';
+
+// THE DECLARED FALLBACK (keyed by POWERPLANTS row). Generated from the
+// editor's own presets (tools/_eng_page.js PRESETS through
+// tools/_cage_join.js CAGE_JOIN_ENGINES: cyl, arch, twoStroke, and the
+// displacement pi/4 bore^2 stroke cyl); GATE AUDIO's §config re-derives it
+// from those two files and fails on any drift. Electric and turbine rows are
+// absent on purpose: they have no piston voice (SND-PROP's wave).
+const ENGINE_SOUND_TABLE = {
+  a65_sensenich74:   { cyl: 4,  arch: 'flat',   twoStroke: 0, dispL: 2.80 },
+  o200_eprops:       { cyl: 4,  arch: 'flat',   twoStroke: 0, dispL: 3.29 },
+  io360_mccauley:    { cyl: 4,  arch: 'flat',   twoStroke: 0, dispL: 5.92 },
+  jabiru2200_std:    { cyl: 4,  arch: 'flat',   twoStroke: 0, dispL: 2.21 },
+  vw2180_wood:       { cyl: 4,  arch: 'flat',   twoStroke: 0, dispL: 2.18 },
+  rotax912_warp:     { cyl: 4,  arch: 'flat',   twoStroke: 0, dispL: 1.21 },
+  rotax277_pusher:   { cyl: 1,  arch: 'inline', twoStroke: 1, dispL: 0.28 },
+  rotax582_ivo:      { cyl: 2,  arch: 'inline', twoStroke: 1, dispL: 0.58 },
+  verner7u_wood:     { cyl: 7,  arch: 'radial', twoStroke: 0, dispL: 2.25 },
+  rotec3600_std:     { cyl: 9,  arch: 'radial', twoStroke: 0, dispL: 3.61 },
+  r985_hs2b20:       { cyl: 9,  arch: 'radial', twoStroke: 0, dispL: 16.17 },
+  r1830_hs23e50:     { cyl: 14, arch: 'radial', twoStroke: 0, dispL: 29.98 },
+  mikron3_wood:      { cyl: 4,  arch: 'inline', twoStroke: 0, dispL: 2.44 },
+  gipsymajor1_wood:  { cyl: 4,  arch: 'inline', twoStroke: 0, dispL: 6.12 },
+  hirth508_wood:     { cyl: 8,  arch: 'vee',    twoStroke: 0, dispL: 7.97 },
+  argus10c_wood:     { cyl: 8,  arch: 'vee',    twoStroke: 0, dispL: 12.67 },
+  o320_mccauley:     { cyl: 4,  arch: 'flat',   twoStroke: 0, dispL: 5.24 },
+  o540_hartzell:     { cyl: 6,  arch: 'flat',   twoStroke: 0, dispL: 8.87 },
+  io550_hartzell3:   { cyl: 6,  arch: 'flat',   twoStroke: 0, dispL: 9.05 },
+  io720_hartzell3:   { cyl: 8,  arch: 'flat',   twoStroke: 0, dispL: 11.83 },
+  rotax915_carbon:   { cyl: 4,  arch: 'flat',   twoStroke: 0, dispL: 1.35 },
+  ranger440_wood:    { cyl: 6,  arch: 'inline', twoStroke: 0, dispL: 7.23 },
+  w670_hs2b:         { cyl: 7,  arch: 'radial', twoStroke: 0, dispL: 10.94 },
+  r755_hs2b:         { cyl: 7,  arch: 'radial', twoStroke: 0, dispL: 12.42 },
+  m14p_v530:         { cyl: 9,  arch: 'radial', twoStroke: 0, dispL: 10.13 },
+  r1340_hs12d40:     { cyl: 9,  arch: 'radial', twoStroke: 0, dispL: 22.02 },
+  rotax503_wood:     { cyl: 2,  arch: 'inline', twoStroke: 1, dispL: 0.59 },
+};
+const ENGINE_SOUND_DEFAULT = { cyl: 4, arch: 'flat', twoStroke: 0, dispL: 2.8 };
+const ENGINE_SOUND_ARCHS = ['flat', 'inline', 'vee', 'radial'];
+
+// the custom row's name, as _cage_eng.js CAGE_ENG_FACTS writes it:
+// "custom <archName> <n>-cyl <litres> L" (archName from _eng_gen.js ENG_ARCH)
+const ENGINE_SOUND_ARCH_WORDS = [['flat', 'flat'], ['boxer', 'flat'], ['inline', 'inline'],
+                                 ['radial', 'radial'], ['v', 'vee']];
+function engineSoundParseName(name) {
+  if (typeof name !== 'string') return null;
+  const m = /(\d+)\s*-\s*cyl/i.exec(name);
+  if (!m) return null;
+  const lower = name.toLowerCase();
+  let arch = null;
+  for (const [w, a] of ENGINE_SOUND_ARCH_WORDS)
+    if (new RegExp('(^|[^a-z])' + w + '([^a-z]|$)').test(lower)) { arch = a; break; }
+  const L = /(\d+(?:\.\d+)?)\s*L\b/.exec(name);
+  return { cyl: +m[1], arch: arch || 'flat', dispL: L ? +L[1] : null };
+}
+
+// a sound row is honest only inside the arrangements the voice knows
+function engineSoundRowOk(s) {
+  return !!(s && typeof s === 'object' && ENGINE_SOUND_ARCHS.includes(s.arch)
+    && Number.isInteger(+s.cyl) && +s.cyl >= 1 && +s.cyl <= 28);
+}
+
+// THE FIRING ORDER, as a list of 0-based cylinder numbers in the order they
+// fire. Every layout here fires EVENLY — 720/N degrees on a four-stroke,
+// 360/N on a two-stroke — so the firing frequency is rpm/60 x N/2 (or x N);
+// what the order changes is WHICH pipe each pulse goes down, and that is the
+// character (a boxer's two-and-two bank pattern, a radial's every-other).
+function engineSoundFiringOrder(arch, N, twoStroke) {
+  const seq = a => a.map(c => c - 1);
+  if (N === 1) return [0];
+  if (twoStroke) return Array.from({ length: N }, (_, i) => i);   // 1-2(-3): one per 360/N
+  if (arch === 'radial') {
+    // single row (odd N): every other cylinder, 1-3-5-...-2-4-...; two rows
+    // (even N): the R-1830's 1-10-5-14-..., i.e. +N/2+2 around the circle
+    const step = N % 2 ? 2 : N / 2 + 2;
+    const out = [];
+    for (let k = 0, c = 0; k < N; k++, c = (c + step) % N) out.push(c);
+    return out;
+  }
+  if (arch === 'flat') {
+    if (N === 2) return [0, 1];
+    if (N === 4) return seq([1, 3, 2, 4]);                 // Continental / Lycoming
+    if (N === 6) return seq([1, 4, 5, 2, 3, 6]);           // O-540 / IO-550
+    if (N === 8) return seq([1, 5, 8, 3, 6, 4, 7, 2]);     // IO-720
+  }
+  if (arch === 'inline') {
+    if (N === 2) return [0, 1];
+    if (N === 4) return seq([1, 3, 4, 2]);
+    if (N === 6) return seq([1, 5, 3, 6, 2, 4]);
+  }
+  if (arch === 'vee' && N === 8) return seq([1, 5, 4, 8, 6, 3, 7, 2]);
+  if (arch === 'vee' && N === 12) return seq([1, 12, 5, 8, 3, 10, 6, 7, 2, 11, 4, 9]);
+  // anything else: odd cylinders then even, still evenly spaced
+  const out = [];
+  for (let c = 0; c < N; c += 2) out.push(c);
+  for (let c = 1; c < N; c += 2) out.push(c);
+  return out;
+}
+
+const r4 = x => Math.round(x * 1e4) / 1e4;
+
+// the registry row of engine `i`, a custom row winning (G134's rule)
+function engineSoundRow(spec, i, registry) {
+  const REG = registry || (typeof POWERPLANTS !== 'undefined' ? POWERPLANTS : null);
+  const E = spec && Array.isArray(spec.engines) ? spec.engines[i] : null;
+  if (!E) return { E: null, row: null };
+  const base = REG && REG[E.type] ? REG[E.type].engine : null;
+  const row = E.custom && isFinite(E.custom.powerW) ? Object.assign({}, base || {}, E.custom) : base;
+  return { E, row };
+}
+
+// THE CONFIG. `registry` defaults to the bundle's POWERPLANTS.
+function engineSoundConfig(spec, engineIndex, registry) {
+  const i = engineIndex | 0;
+  const { E, row } = engineSoundRow(spec, i, registry);
+  const fam = row && row.family;
+  if (!E || !row || fam === 'electric' || fam === 'turbine') {
+    return { v: 1, piston: false, engineIndex: i, type: E ? E.type : null,
+             family: fam || null, ratedRpm: row && row.rpm || 0,
+             gear: row && row.gear > 0 ? row.gear : 1 };
+  }
+  // the cylinders: the join's row, the custom name, the table, the default
+  let src = 'default', S = ENGINE_SOUND_DEFAULT;
+  const tab = ENGINE_SOUND_TABLE[E.type] || null;
+  const parsed = E.custom ? engineSoundParseName(E.custom.name) : null;
+  if (engineSoundRowOk(E.sound)) { S = E.sound; src = 'spec.sound'; }
+  else if (parsed) { S = parsed; src = 'custom.name'; }
+  else if (tab) { S = tab; src = 'table'; }
+  const N = Math.round(+S.cyl);
+  const arch = S.arch;
+  // the stroke: the row the sound came from, else the family (a custom
+  // two-stroke says so through its family, never through its name)
+  const twoStroke = (src === 'spec.sound' || src === 'table') ? !!+S.twoStroke
+    : (fam === 'two');
+  const dispL = +S.dispL > 0 ? +S.dispL
+    : (parsed && parsed.dispL > 0 ? parsed.dispL : (tab ? tab.dispL : ENGINE_SOUND_DEFAULT.dispL));
+  const ratedRpm = row.rpm > 0 ? row.rpm : 2500;
+  const idleK = (typeof GEN_SHAFT !== 'undefined' && GEN_SHAFT.idleK > 0) ? GEN_SHAFT.idleK : 0.28;
+  const gear = row.gear > 0 ? row.gear : 1;
+
+  // the firing order -> each cylinder's crank offset in the cycle: the k-th
+  // to fire reaches the ignition phase k/N of a cycle after the first
+  const order = engineSoundFiringOrder(arch, N, twoStroke);
+  const offsets = new Array(N).fill(0);
+  order.forEach((c, k) => { offsets[c] = r4(((1 - k / N) % 1 + 1) % 1); });
+
+  // THE PIPES, from the displacement. Per-cylinder volume sets the bore (the
+  // chamber waveguide) and the scale of every runner (bigger engine, longer
+  // pipes, lower resonances); the whole engine's displacement sets the
+  // collector and the tail pipe. 0.7 L a cylinder (the A-65) is scale 1.
+  const Vc = dispL / N;                          // litres a cylinder
+  const s = Math.cbrt(Vc / 0.7);                 // runner scale
+  const S2 = Math.cbrt(dispL / 2.8);             // whole-engine scale
+  const bore = Math.cbrt(4 * Vc * 1e-3 / Math.PI);   // m, bore ~ stroke
+  const intakeLen = [], exhaustLen = [], extractorLen = [];
+  for (let c = 0; c < N; c++) {
+    let ex, xt, inl = 0.40 * s;
+    if (twoStroke) {
+      // a tuned pipe: a short header into one expansion chamber and silencer
+      ex = 0.28 * s; xt = 0.85 * s; inl = 0.22 * s;
+    } else if (arch === 'radial') {
+      // short stacks into a collector ring that leaves at the bottom: the
+      // path round the ring is the cylinder's angle from the outlet
+      const rows = N > 9 ? 2 : 1, perRow = Math.ceil(N / rows);
+      const th = 2 * Math.PI * (c % perRow) / perRow;            // 0 = top
+      const ring = 0.38 * S2 * Math.abs(Math.PI - th);
+      ex = 0.22 * s; xt = 0.12 + ring + (rows > 1 && c >= perRow ? 0.15 * S2 : 0);
+    } else if (arch === 'flat') {
+      // two banks (odd / even cylinder), front to rear: each bank one long
+      // and one short header, crossed — the two-and-two pattern of a boxer
+      const bank = c % 2 ? -1 : 1, rowN = Math.max(1, Math.ceil(N / 2) - 1);
+      const pos = Math.floor(c / 2) / rowN - 0.5;
+      ex = 0.55 * s * (1 + 0.14 * pos * bank); xt = 0.30 * S2;
+    } else if (arch === 'vee') {
+      const half = N / 2, bank = c < half ? 1 : -1, pos = (c % half) / Math.max(1, half - 1) - 0.5;
+      ex = 0.50 * s * (1 + 0.12 * pos); xt = 0.35 * S2 * (bank > 0 ? 1 : 1.08);
+    } else {
+      // an in-line bank into a collector at its rear end
+      const pos = N > 1 ? c / (N - 1) - 0.5 : 0;
+      ex = 0.50 * s * (1 - 0.16 * pos); xt = 0.30 * S2;
+    }
+    intakeLen.push(r4(inl)); exhaustLen.push(r4(ex)); extractorLen.push(r4(xt));
+  }
+  const radial = arch === 'radial';
+  const blower = row.aspiration === 'super' ? { kind: 'super', hz: 3200, level: 0.012 }
+    : row.aspiration === 'turbo' ? { kind: 'turbo', hz: 6000, level: 0.018 }
+    : { kind: 'none', hz: 0, level: 0 };
+  const cfg = {
+    v: 1, piston: true, engineIndex: i, type: E.type, name: row.name || E.type,
+    source: src, family: twoStroke ? 'two' : 'four', arch, cyl: N, twoStroke: twoStroke ? 1 : 0,
+    dispL: r4(dispL), ratedRpm, idleRpm: Math.round(idleK * ratedRpm), gear,
+    // what the gate checks: firing pulses per crank revolution
+    firingPerRev: twoStroke ? N : N / 2,
+    firingOrder: order.map(c => c + 1), offsets,
+    cylinderLen: r4(bore), intakeLen, exhaustLen, extractorLen,
+    // upstream's reflection factors (Antonio-R1's sounds_worklet.htm)
+    intakeOpenRefl: 0.01, intakeClosedRefl: 0.95,
+    exhaustOpenRefl: 0.01, exhaustClosedRefl: 0.95,
+    straightPipeLen: r4((twoStroke ? 0.25 : radial ? 0.60 : 0.45) * S2), straightPipeRefl: 0.01,
+    // THE MUFFLER, by family until the build says (ROADMAP Phase 2 item 3):
+    // an aero four-stroke's is a light can inside the heat muff, a radial's
+    // collector is nearly open, a two-stroke's silencer box is the real one
+    mufflerLens: (twoStroke ? [0.10, 0.15, 0.21, 0.28] : [0.06, 0.09, 0.12, 0.16]).map(x => r4(x * S2)),
+    mufflerAction: twoStroke ? 0.35 : radial ? 0.08 : 0.12,
+    outletLen: 0.04, outletRefl: 0.01,
+    ignitionTime: twoStroke ? 0.05 : 0.03, pistonK: 1.5, ignitionK: 5.0,
+    intakeNoiseK: twoStroke ? 0.6 : 0.35, intakeNoiseHz: 11000,
+    blockLpHz: 125, crankFluct: 0.01, crankFluctHz: 75,
+    mix: { intake: twoStroke ? 0.35 : 0.25, block: 0.15, exhaust: 0.65 },
+    gain: 0.1,
+    jitter: { idle: twoStroke ? 0.45 : 0.32, cruise: 0.05, cold: 0.25,
+              misIdle: twoStroke ? 0.04 : 0.01 },
+    // a big engine cranks slower (SND-ENGINE-2: the O-540's growl "a little
+    // down pitch"; nothing under 6 L moves)
+    crankRpm: Math.round(twoStroke ? 290
+      : Math.max(120, Math.min(280, 300 - 12 * dispL - 2.5 * Math.pow(Math.max(0, dispL - 6), 2)))),
+    // THE START (SND-ENGINE-2, the user's review: the whine "R2D2", "too
+    // present", the engine "too weak when starting"): the starter is a low
+    // growl (band centre `hz` at crankRpm, lower for a bigger motor) some
+    // 25 dB(A) under the old whine; the cranking engine (crankLevel, each
+    // compression's chuff down the pipe at crankPuff) carries the sound over
+    // it, and the catch's first firings bark ~6 dB(A) over the cranking
+    // (catchK). GATE AUDIOENG §9 holds all three.
+    starter: { ratio: twoStroke ? 8 : 14,
+               hz: Math.round(Math.max(180, Math.min(420, 330 * Math.pow(2.8 / dispL, 0.3)))),
+               level: twoStroke ? 0.0015 : 0.003 },
+    crankLevel: 0.13, crankPuff: 1.0, catchK: 2.0,
+    // the misfire's cough in the pipe: a low-passed thump with a 4 ms rise,
+    // ~8 dB under the old white-noise crack (SND-ENGINE-2: "clicks too loud
+    // vs the engine", "could be better blended")
+    cough: { level: 1.2, hz: 900, rise: 0.004 },
+    blower,
+    // the cooling ticks: dry noise clicks (SND-ENGINE-2: no modes, no bells)
+    tick: { rate: 4, level: 0.03 },
+    heatTau: 120,
+  };
+  cfg.gain = engineSoundGain(cfg);
+  return cfg;
+}
+
+// THE LEVEL (the harness's calibration, a law not a table): the voice's
+// full-power RMS grows with the cylinder count and falls with the pipes'
+// length; this holds every validated engine's full-power peak near -6 dBFS
+// so the bus has headroom. Measured by tools/audio/render.js --calibrate.
+// A two-stroke sits 3 dB lower (SND-ENGINE-2: the 582 "a tad annoying, too
+// loud" — its every-revolution firing and bright intake read louder than the
+// RMS says).
+function engineSoundGain(cfg) {
+  return r4(0.25 * Math.pow(cfg.dispL / 2.8, 0.15) / Math.sqrt(Math.max(1, cfg.cyl) / 4)
+            * (cfg.twoStroke ? 0.708 : 1));
+}
+
+// SEVERAL ENGINES (SND-ENGINE-2): each voice at -10 log10(N) dB, so N engines
+// sum (incoherently: their cranks are not phase-locked) to the level of one —
+// a twin is not 3 dB louder than a single. N = the aeroplane's piston voices.
+function engineSoundCountGain(n) {
+  return 1 / Math.sqrt(Math.max(1, n | 0));
+}
+function engineSoundPistonCount(spec, registry) {
+  let n = 0;
+  const N = spec && Array.isArray(spec.engines) ? spec.engines.length : 0;
+  for (let i = 0; i < N; i++) {
+    const { E, row } = engineSoundRow(spec, i, registry);
+    if (E && row && row.family !== 'electric' && row.family !== 'turbine') n++;
+  }
+  return n;
+}
+
+// THE SIM -> THE VOICE'S PARAMETERS (allocation-free; SND-CORE's
+// audio_params calls it per engine per frame). Writes six numbers into
+// `dst` at `o`: rpm, load, running, starter, starve, cold — the processor's
+// AudioParams, in its descriptor order. Prop rpm is NOT a parameter: the
+// voice's control output carries it (engine rpm / cfg.gear), so the prop
+// turns with the cranking, the surge and the run-down the engine voice makes.
+//   rpm      out.rpmEng[i] (the solver's engine speed, through the gearbox)
+//   load     the engine's own throttle (ctl.thr x its lever) x out.powerK
+//   running  eng[i].running; starter: eng[i].crank > 0
+//   starve   the last STARVE_S seconds of fuel (fuel.enduranceS), and 1 once
+//            out.starved — the burn stops the engine there; the voice coughs
+//            on the way
+//   cold     1 at the first catch, gone after COLD_S of running — the voice
+//            keeps no clock of its own across a session, so the caller holds
+//            the warm-up: pass `runS` (seconds this engine has run)
+const ENGINE_SOUND_STARVE_S = 20, ENGINE_SOUND_COLD_S = 240;
+function engineSoundInputs(sim, i, dst, o, runS) {
+  o = o | 0;
+  const out = sim && sim.out, eng = sim && sim.eng && sim.eng[i];
+  const ctl = sim && sim.ctl, fuel = sim && sim.fuel;
+  const rpm = out && out.rpmEng && out.rpmEng[i] > 0 ? out.rpmEng[i] : 0;
+  const running = eng ? !!eng.running : !!(out && rpm > 0);
+  let thr = ctl ? +ctl.thr || 0 : 0;
+  const lev = ctl && ctl.eng && ctl.eng[i];
+  if (lev) thr *= lev.on ? +lev.thr : 0;
+  thr = thr < 0 ? 0 : thr > 1 ? 1 : thr;
+  const pk = out && out.powerK >= 0 ? Math.min(1.2, out.powerK) : 1;
+  let starve = 0;
+  if (out && out.starved) starve = 1;
+  else if (fuel && fuel.kind !== 'battery' && isFinite(fuel.enduranceS))
+    starve = Math.max(0, Math.min(1, 1 - fuel.enduranceS / ENGINE_SOUND_STARVE_S));
+  const run = runS > 0 ? runS : 0;
+  dst[o] = rpm;
+  dst[o + 1] = running ? Math.min(1, thr * pk) : 0;
+  dst[o + 2] = running ? 1 : 0;
+  dst[o + 3] = eng && eng.crank > 0 ? 1 : 0;
+  dst[o + 4] = starve;
+  dst[o + 5] = running ? Math.max(0, 1 - run / ENGINE_SOUND_COLD_S) : 0;
+  return dst;
+}
+const ENGINE_SOUND_PARAMS = ['rpm', 'load', 'running', 'starter', 'starve', 'cold'];
+
+// the two shaft speeds of a config at an engine rpm — the gearbox split the
+// prop voice (SND-PROP) needs; the worklet's control output is the live one
+function engineSoundShafts(cfg, engineRpm) {
+  const g = cfg && cfg.gear > 0 ? cfg.gear : 1;
+  return { engineRpm, propRpm: engineRpm / g,
+           firingHz: cfg && cfg.piston ? engineRpm / 60 * cfg.firingPerRev : 0 };
+}
+
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = { ENGINE_SOUND_TABLE, ENGINE_SOUND_DEFAULT, ENGINE_SOUND_ARCHS,
+                     ENGINE_SOUND_PARAMS, ENGINE_SOUND_STARVE_S, ENGINE_SOUND_COLD_S,
+                     engineSoundConfig, engineSoundInputs, engineSoundShafts,
+                     engineSoundFiringOrder, engineSoundParseName, engineSoundRowOk,
+                     engineSoundGain, engineSoundCountGain, engineSoundPistonCount };
+} else if (typeof window !== 'undefined') {
+  window.ENGINE_SOUND = { ENGINE_SOUND_TABLE, ENGINE_SOUND_PARAMS, engineSoundConfig,
+                          engineSoundInputs, engineSoundShafts, engineSoundCountGain,
+                          engineSoundPistonCount };
+}
+</script>
+<script type="text/x-flydiy">
+// THE ENGINE SOURCE (Sound Coordinator integration, G1614; SOUND-2026-10-04 §2.1 / §3.1).
+//
+// Wires SND-ENGINE's piston voice (engine_worklet.js, 'flydiy-engine') into SND-CORE's window.AUDIO:
+// one AudioWorkletNode per piston engine of the flown aeroplane, rebuilt when the aeroplane changes
+// (P.def), fed every frame from the parameter block P (no sim reads here: audio_params already did them).
+//   output 0  the voice (mono)  -> aircraft.ext, and aircraft.int through a placeholder cabin low-pass
+//                                  (SND-SPACE replaces it with the build's cabin transfer, §4)
+//   output 1  control: engine rpm, prop rpm (the voice's own, cranking and run-down included) - SND-PROP's input
+// Allocation-free per frame: the AudioParams are cached per voice, the warm-up clock is a typed slot.
+'use strict';
+(function () {
+  const W = typeof window !== 'undefined' ? window : globalThis;
+  if (!W.AUDIO || !W.AUDIO.enabled) return;   // ?audio=0: nothing at all
+  const MAX = 4, TAU = 0.03, CABIN_HZ = 1400;
+  const voices = [];                    // { node, params: [6 AudioParam], cfg }
+  const runS = new Float64Array(MAX);   // seconds each engine has run (the voice's "cold")
+  const last = new Float64Array(MAX * 6).fill(-1);
+  let ctx = null, A = null, def = null, ready = false, building = false, cabin = null, outExt = null, outInt = null;
+  const pub = (W.AUDIO.voices = W.AUDIO.voices || {}); pub.engine = [];   // SND-PROP: engine i's node (its output 1 drives the prop)
+
+  function teardown() {
+    for (const v of voices) { try { v.node.disconnect(); } catch (e) {} }
+    voices.length = 0; last.fill(-1); pub.engine.length = 0;
+  }
+  function build(P) {
+    teardown();
+    def = P.def;
+    const ES = W.ENGINE_SOUND, spec = def && def.spec;
+    if (!ES || !spec || !ready) return;
+    const kN = ES.engineSoundCountGain(ES.engineSoundPistonCount(spec));   // N engines: each -10 log10(N) dB (SND-ENGINE-2)
+    for (let i = 0; i < Math.min(MAX, P.nE); i++) {
+      let cfg;
+      try { cfg = ES.engineSoundConfig(spec, i); } catch (e) { console.warn('flyDiy audio: engine ' + i + ' has no voice', e); continue; }
+      if (!cfg || cfg.piston === false) continue;   // electric / turbine: SND-PROP's wave
+      cfg.gain *= kN;
+      const rpm = +P.rpmEng[i] || 0, running = (+P.running[i] || 0) > 0;
+      const node = new AudioWorkletNode(ctx, 'flydiy-engine', {
+        numberOfInputs: 0, numberOfOutputs: 2, outputChannelCount: [1, 2],
+        processorOptions: { config: cfg, seed: 1 + i, running, rpm },
+      });
+      node.connect(outExt, 0);
+      node.connect(cabin, 0);
+      const params = ES.ENGINE_SOUND_PARAMS.map(n => node.parameters.get(n));
+      voices.push({ node, params, cfg, i });
+      pub.engine[i] = node;
+    }
+  }
+
+  W.AUDIO.addSource('engine', {
+    connect(c, api) {
+      ctx = c; A = api; ready = false;
+      outExt = api.bus('aircraft.ext'); outInt = api.bus('aircraft.int');
+      cabin = c.createBiquadFilter(); cabin.type = 'lowpass'; cabin.frequency.value = CABIN_HZ; cabin.Q.value = 0.5;
+      cabin.connect(outInt);
+      building = true;
+      api.module('engine_worklet').then(ok => { ready = !!ok; building = false; def = null; },
+        e => { building = false; console.warn('flyDiy audio: the engine voice did not load', e); });
+    },
+    update(P, dt) {
+      if (!ready) return;
+      if (P.def !== def) build(P);
+      const t = ctx.currentTime;
+      for (let k = 0; k < voices.length; k++) {
+        const v = voices[k], i = v.i, o = k * 6;
+        const running = (+P.running[i] || 0) > 0;
+        runS[k] = running ? runS[k] + dt : 0;
+        const vals0 = +P.rpmEng[i] || 0;
+        const vals1 = running ? Math.min(1, Math.max(0, +P.thr[i] || 0)) : 0;
+        const vals2 = running ? 1 : 0;
+        const vals3 = (+P.crank[i] || 0) > 0 ? 1 : 0;
+        const vals4 = (+P.s[P.I.starved] || 0) > 0 ? 1 : 0;
+        const vals5 = running ? Math.max(0, 1 - runS[k] / 240) : 0;
+        // schedule only what moved (a steady frame schedules nothing)
+        if (Math.abs(vals0 - last[o]) > 0.5) { v.params[0].setTargetAtTime(vals0, t, TAU); last[o] = vals0; }
+        if (Math.abs(vals1 - last[o + 1]) > 0.002) { v.params[1].setTargetAtTime(vals1, t, TAU); last[o + 1] = vals1; }
+        if (vals2 !== last[o + 2]) { if (vals2 && last[o + 2] === 0) A.emit('engine', 'catch'); v.params[2].setValueAtTime(vals2, t); last[o + 2] = vals2; }   // G1672: the music ducks under a start
+        if (vals3 !== last[o + 3]) { if (vals3) A.emit('engine', 'start'); v.params[3].setValueAtTime(vals3, t); last[o + 3] = vals3; }
+        if (vals4 !== last[o + 4]) { v.params[4].setValueAtTime(vals4, t); last[o + 4] = vals4; }
+        if (Math.abs(vals5 - last[o + 5]) > 0.01) { v.params[5].setTargetAtTime(vals5, t, 1); last[o + 5] = vals5; }
+      }
+    },
+    disconnect() { teardown(); try { cabin && cabin.disconnect(); } catch (e) {} ctx = null; ready = false; def = null; },
+  });
+})();
+</script>
+<script type="text/x-flydiy">
+// PROP SOUND CONFIG (SND-PROP, G1620-G1629; SOUND-2026-10-04 §3.2-§3.4).
+//
+// PURE: (spec, engine index, registry?, the solver's prop record?) -> the plain
+// configs the voices in prop_worklet.js are built from. No Web Audio, no DOM,
+// runs in node; GATE AUDIOENG's prop sections (tools/audio/_prop_check.js) test it.
+//
+//   propSoundConfig(spec, i, registry, prop) -> {
+//     v, engineIndex, type, family ('four' | 'two' | 'electric' | 'turbine'),
+//     driver: 'piston' | 'turbine' | 'electric'   which voice turns the prop
+//     prop:   { blades, D, Tstatic, gear, pinion, ratedPropRpm, gain, ... }   'flydiy-prop'
+//     turbine | electric: the driver's own config when the engine voice is not
+//             the piston one ('flydiy-turbine' / 'flydiy-electric')
+//   }
+//
+// WHERE EACH NUMBER COMES FROM
+//   blades   spec.engines[i].sound.blades -> spec.prop.blades (the build's prop
+//            layer, 60_gen_spec.js clamps 2-6) -> the registry's prop row ->
+//            2 (audio_params' own order: the two agree by construction)
+//   D, Tstatic  the solver's prop record (def.params.prop) when passed, else
+//            the registry row's prop, else 1.8 m / 1000 N
+//   gear     the engine row (custom row first, G134's rule); 1 = direct drive
+//   pinion   THE GEARBOX'S TEETH, nominal: the Rotax boxes by ratio (C 2.62 =
+//            55/21, B 2.58 = 62/24, 912's 2.43 = 51/21, 2.27 = 50/22), any
+//            other reduction 21 teeth; direct drive and the turbine 0 (the
+//            PT6's planetary box is the turbine voice's, not modelled yet)
+//   turbine  Ng 100 % = 37 500 rpm (the PT6A family), idle 52 %, three axial
+//            stages + one centrifugal impeller with NOMINAL blade counts
+//   electric pole pairs 10 on an aircraft motor (EMRAX / E-811 class, >= 5 kW),
+//            7 on an RC outrunner; PWM 12 kHz (aircraft) / 16 kHz (RC)
+// Every level below is a STARTING POINT for SND-TUNE (wave 4); the gate holds
+// the frequencies (BPF, firing, mesh) exactly, not the levels.
+'use strict';
+
+const PROP_SOUND_GEARBOX = [   // [ratio, pinion teeth, wheel teeth] — nominal
+  [2.62, 21, 55], [2.58, 24, 62], [2.43, 21, 51], [2.27, 22, 50],
+];
+const PROP_SOUND_TURBINE = { ngMaxRpm: 37500, ngIdle: 0.52, ngStart: 0.17, stages: [26, 39, 44], impeller: 30 };
+
+function propSoundRow(spec, i, registry) {
+  const REG = registry || (typeof POWERPLANTS !== 'undefined' ? POWERPLANTS : null) || {};
+  const E = spec && Array.isArray(spec.engines) ? spec.engines[i] : null;
+  if (!E) return { E: null, row: null, PR: null };
+  const base = REG[E.type] || null;
+  const en = base ? base.engine : null;
+  const row = E.custom && isFinite(E.custom.powerW) ? Object.assign({}, en || {}, E.custom) : en;
+  return { E, row, PR: base ? base.prop : null };
+}
+
+function propSoundPinion(gear) {
+  if (!(gear > 1.01)) return 0;
+  for (const [r, p] of PROP_SOUND_GEARBOX) if (Math.abs(gear - r) < 0.006) return p;
+  return 21;
+}
+
+function propSoundConfig(spec, engineIndex, registry, prop) {
+  const i = engineIndex | 0;
+  const { E, row, PR } = propSoundRow(spec, i, registry);
+  const r = row || {};
+  const fam = r.family || 'four';
+  const pr = prop || PR || {};
+  const sd = E && E.sound;
+  const blades = (sd && sd.blades > 0) ? Math.round(sd.blades)
+               : (spec && spec.prop && spec.prop.blades > 0) ? Math.round(spec.prop.blades)
+               : (pr.blades > 0 ? Math.round(pr.blades) : 2);
+  const D = pr.D > 0 ? +pr.D : 1.8;
+  const Tstatic = pr.Tstatic > 0 ? +pr.Tstatic : 1000;
+  const gear = r.gear > 0 ? +r.gear : 1;
+  const rated = r.rpm > 0 ? +r.rpm : 2500;
+  const driver = fam === 'turbine' ? 'turbine' : fam === 'electric' ? 'electric' : 'piston';
+  const out = {
+    v: 1, engineIndex: i, type: E ? E.type : null, family: fam, driver,
+    prop: {
+      blades: Math.max(1, Math.min(8, blades)), D, Tstatic, gear,
+      pinion: driver === 'piston' ? propSoundPinion(gear) : 0,
+      ratedPropRpm: Math.round(rated / gear),
+      // the levels (SND-TUNE's): tonal, broadband share, gear whine, thickness share, unsteady floor,
+      // blade-to-blade irregularity
+      gain: propSoundGain(D, blades, driver),
+      broadband: driver === 'electric' ? 0.6 : 0.5,
+      whine: 0.03, thickness: 0.25, unsteady: 0.06, irregularity: 0.03, snarl: 1,
+    },
+    turbine: null, electric: null,
+  };
+  if (driver === 'turbine') {
+    out.turbine = Object.assign({ v: 1, engineIndex: i, ratedPropRpm: Math.round(rated / gear), gain: 0.35, roar: 0.6 },
+                                PROP_SOUND_TURBINE, { stages: PROP_SOUND_TURBINE.stages.slice() });
+  } else if (driver === 'electric') {
+    const big = (r.powerW || 0) >= 5000;
+    out.electric = { v: 1, engineIndex: i, gear, polePairs: big ? 10 : 7, pwmHz: big ? 12000 : 16000,
+                     gain: 0.012, pwm: 0.25 };
+  }
+  return out;
+}
+
+// THE LEVEL (a law, the harness's calibration: tools/audio/render_prop.js
+// --calibrate): a bigger disc is louder at the same tip Mach (the source's
+// area), more blades share the load (each tone sits higher, B times the
+// frequency, the fundamental lower). Holds a full-power static prop near
+// -14 dBFS peak, under the engine voice's -6 (the mix ~ -8).
+function propSoundGain(D, blades, driver) {
+  const b = Math.max(2, blades | 0);
+  const k = 0.1 * Math.pow(Math.max(0.2, D) / 1.9, 0.5) * Math.sqrt(2 / b);
+  return Math.round(k * 1e4) / 1e4;
+}
+
+// THE SIM -> THE VOICES' PARAMETERS (allocation-free; src_prop.js calls them
+// per engine per frame off the parameter block P). Each writes into `dst` at
+// `o`, in the processor's descriptor order.
+//   prop:   rpm, thrust, thr, c, V, alpha, beta, interior
+//   driver: rpm, power, running, starter
+const PROP_SOUND_PARAMS = ['rpm', 'thrust', 'thr', 'c', 'V', 'alpha', 'beta', 'interior'];
+const PROP_DRIVER_PARAMS = ['rpm', 'power', 'running', 'starter'];
+function propSoundInputs(P, i, dst, o) {
+  o = o | 0;
+  const s = P.s, I = P.I;
+  const run = (+P.running[i] || 0) > 0;
+  dst[o] = +P.rpm[i] || 0;
+  dst[o + 1] = +P.thrustPer[i] || 0;
+  dst[o + 2] = run ? Math.max(0, Math.min(1, +P.thr[i] || 0)) : 0;
+  dst[o + 3] = +s[I.c] || 340;
+  dst[o + 4] = +s[I.V] || 0;
+  dst[o + 5] = +s[I.alpha] || 0;
+  dst[o + 6] = +s[I.beta] || 0;
+  dst[o + 7] = (+s[I.interior] || 0) > 0 ? 1 : 0;
+  return dst;
+}
+function propDriverInputs(P, i, dst, o) {
+  o = o | 0;
+  const run = (+P.running[i] || 0) > 0;
+  dst[o] = +P.rpm[i] || 0;
+  dst[o + 1] = run ? Math.max(0, Math.min(1, +P.thr[i] || 0)) : 0;
+  dst[o + 2] = run ? 1 : 0;
+  dst[o + 3] = (+P.crank[i] || 0) > 0 ? 1 : 0;
+  return dst;
+}
+
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = { PROP_SOUND_GEARBOX, PROP_SOUND_TURBINE, PROP_SOUND_PARAMS, PROP_DRIVER_PARAMS,
+                     propSoundConfig, propSoundPinion, propSoundGain, propSoundInputs, propDriverInputs };
+} else if (typeof window !== 'undefined') {
+  window.PROP_SOUND = { PROP_SOUND_PARAMS, PROP_DRIVER_PARAMS, propSoundConfig, propSoundInputs, propDriverInputs };
+}
+</script>
+<script type="text/x-flydiy">
+// THE PROP SOURCE (SND-PROP, G1621; SOUND-2026-10-04 §3.2-§3.4).
+//
+// Wires prop_worklet.js into SND-CORE's window.AUDIO, the way src_engine.js wires the piston voice:
+// per engine of the flown aeroplane, rebuilt when the aeroplane changes (P.def), fed every frame from the
+// parameter block P (no sim reads here: audio_params already did them).
+//   'flydiy-prop'        one per engine. Input 0 = the DRIVER's control output 1 (engine rpm, prop rpm):
+//                        a piston engine's node from src_engine.js (published as AUDIO.voices.engine[i] -
+//                        the one-line hook there), re-wired whenever that node changes (its module may load
+//                        after this one, its rebuild may land on another frame); or the turbine / electric
+//                        driver made here.
+//   'flydiy-turbine' / 'flydiy-electric'   the engine voice of the rows src_engine skips (cfg.piston false):
+//                        made HERE, one per such engine, their output 1 into the prop.
+//   output 0 (mono) of each -> aircraft.ext, and aircraft.int through a PLACEHOLDER cabin low-pass (SND-SPACE
+//   replaces both with directivity and the build's cabin transfer, §4/§5; the prop's output 1 keeps the tonal
+//   and broadband parts apart for it).
+// Allocation-free per frame: AudioParams cached per voice, values through typed scratch, schedule only what moved.
+'use strict';
+(function () {
+  const W = typeof window !== 'undefined' ? window : globalThis;
+  if (!W.AUDIO || !W.AUDIO.enabled) return;   // ?audio=0: nothing at all
+  const MAX = 4, TAU = 0.03, CABIN_HZ = 1400, NP = 8, ND = 4;
+  // the smallest change worth a schedule, per prop parameter (rpm thrust thr c V alpha beta interior);
+  // thrust is relative to the static thrust (below)
+  const EPS = [0.5, 0.005, 0.002, 0.5, 0.2, 0.002, 0.002, 0.5];
+  const props = [];      // { node, params[8], i, Ts }
+  const drivers = [];    // { node, params[4], i } (turbine / electric)
+  const wired = [];      // per prop k: the driver node its input 0 listens to (null: not yet)
+  const valP = new Float64Array(NP), valD = new Float64Array(ND);
+  const lastP = new Float64Array(MAX * NP).fill(-1e9), lastD = new Float64Array(MAX * ND).fill(-1e9);
+  let ctx = null, def = null, ready = false, cabin = null, outExt = null;
+
+  function teardown() {
+    for (const v of props) { try { v.node.disconnect(); } catch (e) {} }
+    for (const v of drivers) { try { v.node.disconnect(); } catch (e) {} }
+    for (let k = 0; k < wired.length; k++) {
+      // a piston node is src_engine's: only our edge to the dead prop goes (disconnect(dest, output))
+      const w = wired[k]; if (w && props[k] && w !== props[k].drv) { try { w.disconnect(props[k].node, 1); } catch (e) {} }
+    }
+    props.length = 0; drivers.length = 0; wired.length = 0; lastP.fill(-1e9); lastD.fill(-1e9);
+  }
+  function build(P) {
+    teardown();
+    def = P.def;
+    const PS = W.PROP_SOUND, spec = def && def.spec;
+    if (!PS || !spec || !ready) return;
+    const prop = def.params && def.params.prop;
+    for (let i = 0; i < Math.min(MAX, P.nE); i++) {
+      let cfg;
+      try { cfg = PS.propSoundConfig(spec, i, undefined, prop); } catch (e) { console.warn('flyDiy audio: prop ' + i + ' has no voice', e); continue; }
+      const running = (+P.running[i] || 0) > 0, rpm = +P.rpm[i] || 0;
+      let drv = null;
+      if (cfg.driver === 'turbine' || cfg.driver === 'electric') {
+        drv = new AudioWorkletNode(ctx, 'flydiy-' + cfg.driver, {
+          numberOfInputs: 0, numberOfOutputs: 2, outputChannelCount: [1, 2],
+          processorOptions: { config: cfg[cfg.driver], seed: 1 + i, running, rpm },
+        });
+        drv.connect(outExt, 0); drv.connect(cabin, 0);
+        drivers.push({ node: drv, params: PS.PROP_DRIVER_PARAMS.map(n => drv.parameters.get(n)), i });
+      }
+      const node = new AudioWorkletNode(ctx, 'flydiy-prop', {
+        numberOfInputs: 1, numberOfOutputs: 2, outputChannelCount: [1, 2],
+        channelCount: 2, channelCountMode: 'explicit', channelInterpretation: 'discrete',
+        processorOptions: { config: cfg.prop, seed: 101 + i },
+      });
+      node.connect(outExt, 0); node.connect(cabin, 0);
+      props.push({ node, params: PS.PROP_SOUND_PARAMS.map(n => node.parameters.get(n)), i, Ts: cfg.prop.Tstatic, drv });
+      wired.push(null);
+    }
+  }
+  // the prop's input: its own driver, else src_engine's node for that engine (when it exists, and again
+  // whenever it is a new one)
+  function wire(k) {
+    const v = props[k];
+    const vs = W.AUDIO.voices, en = v.drv || (vs && vs.engine ? vs.engine[v.i] || null : null);
+    if (en === wired[k]) return;
+    const old = wired[k];
+    if (old && old !== v.drv) { try { old.disconnect(v.node, 1); } catch (e) {} }
+    if (en) en.connect(v.node, 1, 0);
+    wired[k] = en;
+  }
+
+  W.AUDIO.addSource('prop', {
+    connect(c, api) {
+      ctx = c; ready = false;
+      outExt = api.bus('aircraft.ext');
+      cabin = c.createBiquadFilter(); cabin.type = 'lowpass'; cabin.frequency.value = CABIN_HZ; cabin.Q.value = 0.5;
+      cabin.connect(api.bus('aircraft.int'));
+      api.module('prop_worklet').then(ok => { ready = !!ok; def = null; },
+        e => console.warn('flyDiy audio: the prop voice did not load', e));
+    },
+    update(P) {
+      if (!ready) return;
+      if (P.def !== def) build(P);
+      const PS = W.PROP_SOUND, t = ctx.currentTime;
+      for (let k = 0; k < props.length; k++) {
+        const v = props[k], o = k * NP;
+        wire(k);
+        PS.propSoundInputs(P, v.i, valP, 0);
+        for (let j = 0; j < NP; j++) {
+          const x = valP[j];
+          const eps = j === 1 ? EPS[1] * v.Ts : EPS[j];
+          if (Math.abs(x - lastP[o + j]) <= eps) continue;
+          lastP[o + j] = x;
+          if (j === 7) v.params[j].setValueAtTime(x, t); else v.params[j].setTargetAtTime(x, t, TAU);
+        }
+      }
+      for (let k = 0; k < drivers.length; k++) {
+        const v = drivers[k], o = k * ND;
+        PS.propDriverInputs(P, v.i, valD, 0);
+        for (let j = 0; j < ND; j++) {
+          const x = valD[j];
+          if (Math.abs(x - lastD[o + j]) <= (j === 0 ? 0.5 : 0.002)) continue;
+          lastD[o + j] = x;
+          if (j >= 2) v.params[j].setValueAtTime(x, t); else v.params[j].setTargetAtTime(x, t, TAU);
+        }
+      }
+    },
+    disconnect() { teardown(); try { cabin && cabin.disconnect(); } catch (e) {} ctx = null; ready = false; def = null; },
+  });
+})();
+</script>
+<script type="text/x-flydiy">
+// ============================================================
+// THE MUSIC (SND-MUSIC G1670-G1674, SOUND-2026-10-04 §2.4 / §7.2 / §7.3, rulings s4 / s6 / s9): window.AUDIO_MUSIC,
+// the playlist player, registered as AUDIO.addSource('music', ...) on the 'music' bus.
+//
+//   STREAMED, NEVER DECODED WHOLE (§2.4, s4)  each track plays through an <audio> element ->
+//             MediaElementAudioSourceNode: the browser's media pipeline buffers a few seconds of compressed bytes
+//             (a 3-minute track decoded to PCM would be ~69 MB). TWO elements at most, made on the context (the
+//             gesture), preload 'none' until a track is asked of them; one streams at a time except for the
+//             seconds of a crossfade (and its LEAD_S of preload). A finished or faded element is emptied (src
+//             removed, load()) so its buffer and its connection go.
+//   THE CONTEXTS  WELCOME   the first boot's loading screen once the gesture exists (AUDIO.welcome). Decided: the
+//                           music MAY start during the load - one element streaming ~16 KB/s and the media
+//                           thread's decode are noise next to the load's own fetches and compiles; nothing is
+//                           fetched or made before the gesture, nothing is decoded on the main thread.
+//                 GARAGE    the shed (AUDIO.inGarage), with SILENCE GAPS of GAP_MIN_S..GAP_MAX_S between tracks
+//                           (silence is part of calm); the setting 'music in the garage' (on) - it also covers
+//                           the welcome.
+//                 CRUISE    in flight ONLY with 'music in flight' on (s6: off by default), and then only in a
+//                           cruise: off the ground, AGL >= CRUISE.enterAgl held CRUISE.dwellS, flaps up, not
+//                           descending low (the approach); left at once below CRUISE.exitAgl, flaps out, a
+//                           descent under CRUISE.approachAgl, or a wheel down (the parameter block: onGround,
+//                           agl, V, vs, flap).
+//                 PHOTO     the hook for the CELEBRATION photo mode: AUDIO_MUSIC.setPhoto(on) or
+//                           AUDIO.emit('photo', on). (A photo mode that sets FLYDIY_HELD silences ALL sound -
+//                           audio.js's pause - so it must not, if it wants its music.)
+//             A context with no track tagged for it borrows FALLBACK's (welcome and photo -> garage; cruise never).
+//   SHUFFLE   per context a bag: every track once before any repeats; a new round never opens on the track that
+//             closed the last one. Seeded xorshift (AUDIO_MUSIC.seed(n)), so the gate replays.
+//   CROSSFADE XFADE_S = 4 s EQUAL-POWER between the two elements (gains trim x sin / trim x cos of the same phase:
+//             the power sum is constant), on setValueCurveAtTime with the curve computed once (a fade out of a
+//             gain caught mid-fade starts from where it is). Welcome / cruise / photo crossfade track to track;
+//             the garage lets a track end, waits its gap, then starts the next at full level.
+//   LEAVING A CONTEXT  the playing track fades out over XFADE_S (crossfading into the new context's first track
+//             if it has one) unless the track is tagged for the new context too - then it simply plays on (the
+//             welcome's track carries into the shed). Where it stopped is kept per context (RESUME_S) and the
+//             next visit resumes it.
+//   DUCKING   -10 dB (DUCK_K) for DUCK_HOLD_S under an event: AUDIO.emit('engine', 'start' | 'catch')
+//             (src_engine.js), 'stall' (SND-AIRFRAME's warning, when it lands), or any source's 'duck'; attack tau
+//             DUCK_IN_TAU, release tau DUCK_OUT_TAU; a second event re-arms the hold.
+//   THE LEVEL  catalogue lufs -> trim to LUFS_TARGET (-16 LUFS, the prep tool's target: a residual), clamped.
+//   SUSPEND   AUDIO's 'suspend' (hidden / paused / unfocused) pauses the playing elements, 'resume' plays them.
+//   THE FRAME update(P, dt, A) reads the block and typed slots, schedules nothing in a steady frame and
+//             ALLOCATES NOTHING (the element clocks arrive by 'timeupdate' into a Float64Array; a track start,
+//             a fade, a duck are events, not frames). GATE AUDIO measures it.
+//
+// THE CATALOGUE (src/viewer/audio/music_catalogue.json, written by the coordinator's prep tool from the user's
+// picks; the build inlines it as window.FLYDIY_MUSIC - a manifest, not a media file: under media/ an unhashed
+// JSON would be held forever by sw.js's cache-first rule, and GATE MEDIA would call it an orphan):
+//   [{ id, file, title, artist, album, licence, source, contexts: ['garage','welcome','cruise','photo'],
+//      lufs, durationS, credit? }]
+//   file    'media/audio/music/<stem>.<h8>.mp3' - written through tools/_media_lib.js writeMedia('audio/music',
+//           ...), content-versioned, so sw.js's /media/ rule caches it for good; resolved against
+//           FLYDIY_ASSET_BASE like every baked manifest's paths (_media_lib BASE_DECL)
+//   licence 'CC0' | 'CC0 1.0' | 'CC-BY 3.0' | 'CC-BY 4.0' | 'Public domain' (s3)   source  the track's page URL
+//   credit  the exact attribution line a CC-BY artist asks for (Scott Buckley's), else one is composed
+//   AUDIO_MUSIC.validate(cat) lists what is wrong with one.
+//
+// THE CREDITS (s9: by construction): the credits screen lists every catalogue track (creditRows) and the sound's
+// origins (SOUND_CREDITS: the engine synth); a "music & sound" button is added to the shed's about line #credit
+// (body.html, where the CC-BY model credits are). CREDITS.md's music list is generated from the same catalogue
+// (tools/audio/music_credits.js); GATE AUDIO holds both equal to it.
+// THE NOW-PLAYING LINE: "title — artist · licence" for NOW_S at a track's start in the garage, bottom-left of
+// the workshop view (#musicNow, made here; no hot file carries it). The sound menu gains 'skip track' and a
+// 'music credits' row (AUDIO.addRows).
+// ============================================================
+var AUDIO_MUSIC = (function () {
+  'use strict';
+  const G = typeof window !== 'undefined' ? window : globalThis;
+  const CTX_NAMES = ['welcome', 'garage', 'cruise', 'photo'];
+  const C_NONE = -1, C_WELCOME = 0, C_GARAGE = 1, C_CRUISE = 2, C_PHOTO = 3;
+  const FALLBACK = [C_GARAGE, -1, -1, C_GARAGE];   // welcome / photo with no track of their own borrow the garage's
+  const GAPPED = [0, 1, 0, 0];                       // the garage waits between tracks
+  const XFADE_S = 4, LEAD_S = 3, GAP_MIN_S = 30, GAP_MAX_S = 120, RETRY_S = 2, RESUME_S = 20, NOW_S = 6;
+  const DUCK_K = Math.pow(10, -10 / 20), DUCK_HOLD_S = 6, DUCK_IN_TAU = 0.12, DUCK_OUT_TAU = 0.8;
+  const LUFS_TARGET = -16, TRIM_MIN = 0.25, TRIM_MAX = 2;
+  const CRUISE = { enterAgl: 200, exitAgl: 120, dwellS: 20, minV: 15, flapMax: 0.05, approachVs: -2.5, approachAgl: 450 };
+  const XF_N = 64;
+  const CURVE_IN = new Float32Array(XF_N), CURVE_OUT = new Float32Array(XF_N);
+  for (let i = 0; i < XF_N; i++) { const x = i / (XF_N - 1) * Math.PI / 2; CURVE_IN[i] = Math.sin(x); CURVE_OUT[i] = Math.cos(x); }
+  CURVE_IN[0] = 0; CURVE_OUT[XF_N - 1] = 0;   // (cos(pi/2) is 6e-17: the ends are exact)
+  const LICENCE_RE = /^(CC0( 1\.0)?|CC-BY [34]\.0|Public domain)$/i;
+  const FILE_RE = /^media\/audio\/music\/[A-Za-z0-9_-]+\.[0-9a-f]{8}\.(mp3|ogg|opus|m4a|webm)$/;
+  // the sound's origins on the credits screen (CREDITS.md's Sound section carries each in full; GATE AUDIO checks)
+  const SOUND_CREDITS = [
+    { what: 'The engine synthesiser', key: 'Antonio-R1',
+      line: 'engine-sound-generator by Antonio-R1 (MIT, © 2021-2022 Antonio-R1), the AudioWorklet our engine voice is ported from',
+      url: 'https://github.com/Antonio-R1/engine-sound-generator' },
+    { what: '', key: 'DasEtwas',
+      line: 'enginesound by DasEtwas (MIT, © 2020 DasEtwas), the reference implementation it follows',
+      url: 'https://github.com/DasEtwas/enginesound' },
+    { what: '', key: 'Baldan',
+      line: 'after S. Baldan, S. Delle Monache et al., "Physically informed car engine sound synthesis for virtual and augmented environments", SIVE / IEEE VR 2015',
+      url: '' },
+  ];
+
+  // ---- PURE: the catalogue ---------------------------------------------------------------------------------
+  function validate(cat, opt) {
+    const F = [], ids = new Set(), fileRe = (opt && opt.fileRe) || FILE_RE;
+    if (!Array.isArray(cat)) return ['the catalogue is not an array'];
+    cat.forEach((t, i) => {
+      const at = 'track ' + i + (t && t.id ? ' (' + t.id + ')' : '') + ': ';
+      if (!t || typeof t !== 'object') { F.push(at + 'not an object'); return; }
+      if (typeof t.id !== 'string' || !/^[a-z0-9_-]+$/i.test(t.id)) F.push(at + 'id must be a word');
+      else if (ids.has(t.id)) F.push(at + 'id repeated'); else ids.add(t.id);
+      if (typeof t.file !== 'string' || !fileRe.test(t.file)) F.push(at + 'file ' + t.file + ' is not a content-versioned media/audio/music path');
+      for (const k of ['title', 'artist', 'source']) if (typeof t[k] !== 'string' || !t[k]) F.push(at + k + ' missing');
+      if (t.album != null && typeof t.album !== 'string') F.push(at + 'album must be a string');
+      if (typeof t.licence !== 'string' || !LICENCE_RE.test(t.licence)) F.push(at + 'licence ' + t.licence + ' is not CC0 / CC-BY / public domain (s3)');
+      if (/^CC-BY/i.test(t.licence || '') && !t.credit && !(t.artist && t.title)) F.push(at + 'CC-BY needs its credit');
+      if (!Array.isArray(t.contexts) || !t.contexts.length || t.contexts.some(c => CTX_NAMES.indexOf(c) < 0)) F.push(at + 'contexts must be some of ' + CTX_NAMES.join(', '));
+      if (!(t.durationS > 0)) F.push(at + 'durationS must be > 0');
+      if (t.lufs != null && !(typeof t.lufs === 'number' && t.lufs < 0 && t.lufs > -60)) F.push(at + 'lufs ' + t.lufs + ' out of range');
+    });
+    return F;
+  }
+  // per context, the catalogue indices that may play there (FALLBACK when a context has none of its own)
+  function contextLists(cat) {
+    const L = CTX_NAMES.map(n => cat.map((t, i) => (t.contexts.indexOf(n) >= 0 ? i : -1)).filter(i => i >= 0));
+    return L.map((l, c) => (l.length || FALLBACK[c] < 0 ? l : L[FALLBACK[c]].slice()));
+  }
+  const trimOf = t => (typeof t.lufs === 'number' ? Math.max(TRIM_MIN, Math.min(TRIM_MAX, Math.pow(10, (LUFS_TARGET - t.lufs) / 20))) : 1);
+  const creditLine = t => t.credit || ('"' + t.title + '" by ' + t.artist + (t.album ? ' (' + t.album + ')' : '') + ' — ' + t.licence);
+  function creditRows(cat) {
+    return (Array.isArray(cat) ? cat : []).map(t => ({ id: t.id, title: t.title, artist: t.artist, album: t.album || '',
+      licence: t.licence, source: t.source, line: creditLine(t) }));
+  }
+  const nowLine = t => t.title + ' — ' + t.artist + ' · ' + t.licence;
+
+  // ---- PURE: the shuffle bag (every track once per round; a round never opens on the last one played) ---------
+  const RNG = new Uint32Array(1); RNG[0] = 0x9e3779b9;
+  function rand() { let x = RNG[0]; x ^= x << 13; x ^= x >>> 17; x ^= x << 5; RNG[0] = x; return (RNG[0] >>> 0) / 4294967296; }
+  function makeBag(list) { return { ix: Int16Array.from(list), n: list.length, i: list.length, last: -1 }; }
+  function bagShuffle(b) {
+    const a = b.ix;
+    for (let i = b.n - 1; i > 0; i--) { const j = Math.floor(rand() * (i + 1)), t = a[i]; a[i] = a[j]; a[j] = t; }
+    if (b.n > 1 && a[0] === b.last) { const j = 1 + Math.floor(rand() * (b.n - 1)), t = a[0]; a[0] = a[j]; a[j] = t; }
+    b.i = 0;
+  }
+  // the next index from the bag, skipping `bad` (a Uint8Array of failed tracks); -1 when nothing can play
+  function bagNext(b, bad) {
+    for (let tries = 0; tries < 2 * b.n + 1; tries++) {
+      if (b.i >= b.n) { if (!b.n) return -1; bagShuffle(b); }
+      const t = b.ix[b.i++];
+      if (bad && bad[t]) continue;
+      b.last = t; return t;
+    }
+    return -1;
+  }
+
+  // ---- PURE: the cruise and the context ---------------------------------------------------------------------
+  // st: Float64Array(2) [in cruise, seconds the entry conditions have held]; returns 1 in a cruise
+  function cruiseStep(st, onGround, agl, V, vs, flap, dt) {
+    const approach = flap > CRUISE.flapMax || (vs < CRUISE.approachVs && agl < CRUISE.approachAgl);
+    if (onGround > 0 || agl < CRUISE.exitAgl || approach || V < CRUISE.minV) { st[0] = 0; st[1] = 0; return 0; }
+    if (st[0] > 0) return 1;
+    if (agl >= CRUISE.enterAgl) { st[1] += dt; if (st[1] >= CRUISE.dwellS) st[0] = 1; } else st[1] = 0;
+    return st[0] > 0 ? 1 : 0;
+  }
+  function contextOf(welcome, photo, garage, musicGarage, musicFlight, cruise) {
+    if (photo) return C_PHOTO;
+    if (welcome || garage) return musicGarage ? (welcome ? C_WELCOME : C_GARAGE) : C_NONE;
+    return musicFlight && cruise ? C_CRUISE : C_NONE;
+  }
+
+  // ---- THE PLAYER ---------------------------------------------------------------------------------------------
+  // the deck slots (Float64Array per deck: a double in an object field is a fresh heap box per write)
+  const ST_IDLE = 0, ST_LOADED = 1, ST_PLAYING = 2, ST_FADING = 3;
+  const K_STATE = 0, K_TRACK = 1, K_POS = 2, K_DUR = 3, K_STOP = 4, K_T0 = 5, K_FD = 6, K_FA = 7, K_FB = 8, K_PAUSED = 9, K_N = 10;
+  const DK = new Float64Array(2 * K_N);
+  // the player's slots: cur context, gap left, duck left, now-playing left, retry left, the active deck, photo
+  const PS = new Float64Array(8);
+  const S_CUR = 0, S_GAP = 1, S_DUCK = 2, S_NOW = 3, S_RETRY = 4, S_ACT = 5, S_PHOTO = 6;
+  const CRUISE_ST = new Float64Array(2);
+  const RESUME_T = new Int16Array(4).fill(-1), RESUME_P = new Float64Array(4);
+  let cat = [], urls = [], trims = new Float64Array(0), nows = [], lists = [[], [], [], []], bags = [], bad = new Uint8Array(0);
+  let ctx = null, A = null, decks = [], duck = null, offs = [];
+  const C = { elements: 0, starts: 0, xfades: 0, ducks: 0 };   // counters (the gate reads them)
+  PS[S_CUR] = C_NONE; PS[S_GAP] = -1; PS[S_ACT] = -1;
+  for (let k = 0; k < 2; k++) DK[k * K_N + K_STOP] = -1;
+
+  function setCatalogue(c) {
+    cat = Array.isArray(c) ? c.filter(t => t && Array.isArray(t.contexts) && typeof t.file === 'string') : [];
+    const base = typeof G.FLYDIY_ASSET_BASE === 'string' ? G.FLYDIY_ASSET_BASE : '';
+    urls = cat.map(t => (/^(https?:|\/|\.)/.test(t.file) ? t.file : base + t.file));
+    trims = Float64Array.from(cat.map(trimOf));
+    nows = cat.map(nowLine);
+    lists = contextLists(cat);
+    bags = lists.map(makeBag);
+    bad = new Uint8Array(cat.length);
+    RESUME_T.fill(-1);
+  }
+  const eligible = (t, c) => c >= 0 && t >= 0 && lists[c].indexOf(t) >= 0;   // (a context switch, not a frame)
+
+  // the gain a deck's fade has at audio time t: FA x cos + FB x sin of the same phase (a level: FD = 0 -> FB)
+  function lvlAt(k, t) {
+    const o = k * K_N, fd = DK[o + K_FD];
+    const x = fd > 0 ? Math.max(0, Math.min(1, (t - DK[o + K_T0]) / fd)) : 1;
+    const ph = x * Math.PI / 2;
+    return x >= 1 ? DK[o + K_FB] : DK[o + K_FA] * Math.cos(ph) + DK[o + K_FB] * Math.sin(ph);
+  }
+  // schedule an equal-power fade of deck k from its present level to `to` over d seconds (d = 0: a step)
+  function fadeTo(k, to, d) {
+    const o = k * K_N, dk = decks[k], p = dk.gain.gain, t = ctx.currentTime, from = lvlAt(k, t);
+    DK[o + K_T0] = t; DK[o + K_FD] = d; DK[o + K_FA] = from; DK[o + K_FB] = to;
+    if (p.cancelScheduledValues) p.cancelScheduledValues(t);
+    if (!(d > 0)) { if (p.setValueAtTime) p.setValueAtTime(to, t); else p.value = to; return; }
+    const cv = dk.curve;
+    for (let i = 0; i < XF_N; i++) cv[i] = from * CURVE_OUT[i] + to * CURVE_IN[i];
+    try { p.setValueCurveAtTime(cv, t, d); }
+    catch (e) { p.setTargetAtTime(to, t, d / 3); }   // a browser that refuses the curve still fades
+  }
+  function release(k) {
+    const o = k * K_N, el = decks[k] && decks[k].el;
+    DK[o + K_STATE] = ST_IDLE; DK[o + K_TRACK] = -1; DK[o + K_STOP] = -1; DK[o + K_PAUSED] = 0; DK[o + K_POS] = 0;
+    if (PS[S_ACT] === k) PS[S_ACT] = -1;
+    if (!el) return;
+    try { el.pause(); el.removeAttribute('src'); el.load(); } catch (e) {}
+    el.preload = 'none';
+  }
+  function load(k, t, pos) {
+    const o = k * K_N, el = decks[k].el;
+    release(k);
+    DK[o + K_STATE] = ST_LOADED; DK[o + K_TRACK] = t; DK[o + K_POS] = pos || 0; DK[o + K_DUR] = cat[t].durationS;
+    DK[o + K_FD] = 0; DK[o + K_FB] = 0;
+    el.preload = 'auto';
+    el.src = urls[t];
+    if (pos > 0) { try { el.currentTime = pos; } catch (e) {} }
+  }
+  // start deck k (loading track t when it is not already loaded with it); fade: the seconds of its fade-in (0 = full)
+  function start(k, t, fade, pos) {
+    const o = k * K_N;
+    if (!(DK[o + K_STATE] === ST_LOADED && DK[o + K_TRACK] === t)) load(k, t, pos);
+    DK[o + K_STATE] = ST_PLAYING;
+    PS[S_ACT] = k; PS[S_GAP] = -1;
+    DK[o + K_FD] = 0; DK[o + K_FB] = 0;   // from silence
+    fadeTo(k, trims[t], fade);
+    C.starts++;
+    try { const r = decks[k].el.play(); if (r && r.catch) r.catch(() => {}); } catch (e) {}
+    if (PS[S_CUR] === C_GARAGE) showNow(t);
+    if (A) A.emit('music', t);
+  }
+  function fadeOut(k, d) {
+    const o = k * K_N;
+    if (DK[o + K_STATE] === ST_IDLE) return;
+    if (DK[o + K_STATE] === ST_LOADED) { release(k); return; }
+    DK[o + K_STATE] = ST_FADING; DK[o + K_STOP] = d + 0.05;
+    if (PS[S_ACT] === k) PS[S_ACT] = -1;
+    fadeTo(k, 0, d);
+  }
+  const other = k => (k === 0 ? 1 : 0);
+  // a free deck: an idle one, else the one fading the longest (cut), never the active one
+  function freeDeck() {
+    const a = PS[S_ACT];
+    for (let k = 0; k < 2; k++) if (k !== a && DK[k * K_N + K_STATE] === ST_IDLE) return k;
+    const k = a >= 0 ? other(a) : (DK[K_STOP] <= DK[K_N + K_STOP] ? 0 : 1);
+    release(k);
+    return k;
+  }
+  // the next track of context c on a free deck: the preloaded one if it is there, the resume point, or the bag's
+  function startNext(c, fade) {
+    if (c < 0 || !bags[c]) return;
+    for (let k = 0; k < 2; k++) {
+      const o = k * K_N;
+      if (DK[o + K_STATE] === ST_LOADED && k !== PS[S_ACT] && eligible(DK[o + K_TRACK], c)) { start(k, DK[o + K_TRACK], fade, DK[o + K_POS]); return; }
+    }
+    let t = RESUME_T[c], pos = 0;
+    if (t >= 0 && !bad[t] && eligible(t, c)) { pos = RESUME_P[c]; bags[c].last = t; } else t = bagNext(bags[c], bad);
+    RESUME_T[c] = -1;
+    if (t < 0) return;
+    start(freeDeck(), t, fade, pos);
+  }
+  function preloadNext(c) {
+    const a = PS[S_ACT], k = a >= 0 ? other(a) : 0, o = k * K_N;
+    if (DK[o + K_STATE] !== ST_IDLE) return;
+    const t = bagNext(bags[c], bad);
+    if (t >= 0) load(k, t, 0);
+  }
+  function switchTo(c) {
+    const prev = PS[S_CUR], a = PS[S_ACT];
+    PS[S_CUR] = c; PS[S_GAP] = -1; PS[S_RETRY] = 0;
+    const at = a >= 0 ? DK[a * K_N + K_TRACK] : -1;
+    // a preloaded deck for the old context goes
+    for (let k = 0; k < 2; k++) if (DK[k * K_N + K_STATE] === ST_LOADED && !eligible(DK[k * K_N + K_TRACK], c)) release(k);
+    if (a >= 0 && c >= 0 && eligible(at, c)) return;   // the track plays on into the new context
+    if (a >= 0) {
+      const pos = DK[a * K_N + K_POS];
+      if (prev >= 0 && pos > 1 && pos < DK[a * K_N + K_DUR] - RESUME_S) { RESUME_T[prev] = at; RESUME_P[prev] = pos; }
+      fadeOut(a, XFADE_S);
+    }
+    hideNow();
+    if (c >= 0) startNext(c, a >= 0 ? XFADE_S : (GAPPED[c] ? 0 : XFADE_S));
+  }
+
+  // the element events (made once per element, on connect): the clocks into typed slots, the end, a failure
+  function onTime(k) { const el = decks[k].el, v = +el.currentTime; if (v === v) DK[k * K_N + K_POS] = v; }
+  function onDur(k) { const el = decks[k].el, v = +el.duration; if (v > 0 && v < 1e6) DK[k * K_N + K_DUR] = v; }
+  function onEnded(k) {
+    const st = DK[k * K_N + K_STATE], was = PS[S_ACT] === k;
+    release(k);
+    if (st !== ST_PLAYING || !was) return;
+    const c = PS[S_CUR];
+    if (c < 0) return;
+    if (GAPPED[c]) PS[S_GAP] = GAP_MIN_S + rand() * (GAP_MAX_S - GAP_MIN_S);
+    else startNext(c, 0);   // (a track whose length was wrong: no crossfade came)
+  }
+  function onError(k) {
+    const t = DK[k * K_N + K_TRACK], was = PS[S_ACT] === k && DK[k * K_N + K_STATE] === ST_PLAYING;
+    if (t >= 0) { bad[t] = 1; console.warn('flyDiy music: ' + (cat[t] && cat[t].file) + ' did not play; skipped for this page'); }
+    release(k);
+    if (was) PS[S_RETRY] = RETRY_S;
+  }
+
+  // ---- DUCKING -----------------------------------------------------------------------------------------------
+  function onDuck() {
+    if (!ctx || !duck) return;
+    C.ducks++;
+    const fresh = !(PS[S_DUCK] > 0);
+    PS[S_DUCK] = DUCK_HOLD_S;
+    if (!fresh) return;
+    const p = duck.gain, t = ctx.currentTime;
+    if (p.cancelScheduledValues) p.cancelScheduledValues(t);
+    p.setTargetAtTime(DUCK_K, t, DUCK_IN_TAU);
+  }
+  function unDuck() {
+    PS[S_DUCK] = 0;
+    const p = duck.gain, t = ctx.currentTime;
+    if (p.cancelScheduledValues) p.cancelScheduledValues(t);
+    p.setTargetAtTime(1, t, DUCK_OUT_TAU);
+  }
+
+  // ---- THE FRAME ---------------------------------------------------------------------------------------------
+  function update(P, dt, au) {
+    if (!ctx) return;
+    const s = P.s, I = P.I, garage = au.inGarage;
+    const cruise = garage ? (CRUISE_ST[0] = 0, CRUISE_ST[1] = 0, 0) : cruiseStep(CRUISE_ST, s[I.onGround], s[I.agl], s[I.V], s[I.vs], s[I.flap], dt);
+    const want = contextOf(au.welcome, PS[S_PHOTO] > 0, garage, au.get('musicGarage'), au.get('musicFlight'), cruise);
+    if (want !== PS[S_CUR]) switchTo(want);
+    if (au.state === 'suspended') return;   // the timers wait with the sound
+    for (let k = 0; k < 2; k++) {
+      const o = k * K_N;
+      if (DK[o + K_STOP] >= 0) { DK[o + K_STOP] -= dt; if (DK[o + K_STOP] <= 0) release(k); }
+    }
+    if (PS[S_DUCK] > 0) { PS[S_DUCK] -= dt; if (PS[S_DUCK] <= 0) unDuck(); }
+    if (PS[S_NOW] > 0) { PS[S_NOW] -= dt; if (PS[S_NOW] <= 0) hideNow(); }
+    const c = PS[S_CUR];
+    if (c < 0) return;
+    if (PS[S_RETRY] > 0) { PS[S_RETRY] -= dt; if (PS[S_RETRY] <= 0) { PS[S_RETRY] = 0; startNext(c, 0); } return; }
+    const a = PS[S_ACT];
+    if (GAPPED[c]) {
+      if (PS[S_GAP] >= 0) {
+        PS[S_GAP] -= dt;
+        if (PS[S_GAP] <= LEAD_S) preloadNext(c);
+        if (PS[S_GAP] <= 0) { PS[S_GAP] = -1; startNext(c, 0); }
+      } else if (a < 0) startNext(c, 0);   // nothing playing, no gap running (a failed start, a skip into silence)
+      return;
+    }
+    if (a < 0) { startNext(c, XFADE_S); return; }
+    const o = a * K_N, rem = DK[o + K_DUR] - DK[o + K_POS], xf = Math.min(XFADE_S, DK[o + K_DUR] / 4);   // (a short track: a shorter fade)
+    if (rem <= xf + LEAD_S) preloadNext(c);
+    if (rem <= xf) { C.xfades++; fadeOut(a, xf); startNext(c, xf); }
+  }
+
+  // skip: the next track now (a crossfade; in a garage gap, the wait ends)
+  function skip() {
+    const c = PS[S_CUR], a = PS[S_ACT];
+    if (!ctx || c < 0) return false;
+    if (a >= 0) fadeOut(a, XFADE_S);
+    PS[S_GAP] = -1;
+    startNext(c, a >= 0 ? XFADE_S : 0);
+    return true;
+  }
+
+  // ---- THE NOW-PLAYING LINE (the garage; made on its first use) ------------------------------------------------
+  let nowEl = null;
+  function showNow(t) {
+    const D = G.document;
+    if (!D || !D.createElement || !D.body) return;
+    if (!nowEl) {
+      nowEl = D.createElement('div');
+      nowEl.id = 'musicNow';
+      nowEl.setAttribute('aria-live', 'polite');
+      nowEl.style.cssText = 'position:fixed;left:calc(var(--ws-left, 0px) + 22px);bottom:18px;z-index:41;pointer-events:none;' +
+        'font:12px/1.4 inherit;letter-spacing:.02em;color:rgba(235,232,224,.82);text-shadow:0 1px 3px rgba(0,0,0,.6);' +
+        'opacity:0;transition:opacity 1.2s ease;max-width:46vw;white-space:nowrap;overflow:hidden;text-overflow:ellipsis';
+      D.body.appendChild(nowEl);
+    }
+    nowEl.textContent = '♪ ' + nows[t];
+    nowEl.style.opacity = '1';
+    PS[S_NOW] = NOW_S;
+  }
+  function hideNow() { PS[S_NOW] = 0; if (nowEl) nowEl.style.opacity = '0'; }
+  const nowPlaying = () => { const a = PS[S_ACT]; const t = a >= 0 ? DK[a * K_N + K_TRACK] : -1; return t >= 0 ? cat[t] : null; };
+
+  // ---- THE CREDITS SCREEN (on the shed's about line, and the sound menu) ----------------------------------------
+  function openCredits() {
+    const D = G.document;
+    if (!D || !D.createElement || !D.body) return null;
+    const old = D.getElementById && D.getElementById('musicCredits');
+    if (old) { old.remove(); return null; }
+    const box = D.createElement('div');
+    box.id = 'musicCredits';
+    box.setAttribute('role', 'dialog'); box.setAttribute('aria-label', 'Music and sound credits');
+    box.style.cssText = 'position:fixed;inset:0;z-index:90;display:flex;align-items:center;justify-content:center;background:rgba(10,10,12,.62)';
+    const card = D.createElement('div');
+    card.style.cssText = 'max-width:min(640px,92vw);max-height:84vh;overflow:auto;padding:22px 24px;background:#1b1c1f;color:#e9e6de;' +
+      'border:1px solid rgba(255,255,255,.12);border-radius:6px;font:13px/1.5 inherit';
+    const el = (tag, txt, css) => { const e = D.createElement(tag); if (txt != null) e.textContent = txt; if (css) e.style.cssText = css; return e; };
+    card.appendChild(el('h2', 'Music & sound', 'margin:0 0 12px;font-size:16px;font-weight:600'));
+    card.appendChild(el('h3', 'Music', 'margin:10px 0 6px;font-size:13px;opacity:.75'));
+    const rows = creditRows(cat);
+    if (!rows.length) card.appendChild(el('p', 'No music ships yet.', 'margin:0;opacity:.7'));
+    const ul = el('ul', null, 'margin:0;padding-left:18px');
+    for (const r of rows) {
+      const li = el('li', null, 'margin:2px 0');
+      li.dataset.track = r.id;
+      if (r.source) { const a = el('a', r.line, 'color:inherit'); a.href = r.source; a.target = '_blank'; a.rel = 'noopener'; li.appendChild(a); }
+      else li.textContent = r.line;
+      ul.appendChild(li);
+    }
+    if (rows.length) card.appendChild(ul);
+    card.appendChild(el('h3', 'Sound', 'margin:14px 0 6px;font-size:13px;opacity:.75'));
+    for (const r of SOUND_CREDITS) {
+      const p = el('p', null, 'margin:2px 0');
+      if (r.what) p.appendChild(el('b', r.what + ': '));
+      if (r.url) { const a = el('a', r.line, 'color:inherit'); a.href = r.url; a.target = '_blank'; a.rel = 'noopener'; p.appendChild(a); }
+      else p.appendChild(el('span', r.line));
+      card.appendChild(p);
+    }
+    card.appendChild(el('p', 'The full list, with every licence: CREDITS.md in the game\'s repository.', 'margin:14px 0 0;opacity:.6'));
+    const close = el('button', 'close', 'margin-top:14px'); close.className = 'pill';
+    card.appendChild(close);
+    box.appendChild(card);
+    const shut = () => { box.remove(); if (D.removeEventListener) D.removeEventListener('keydown', onKey, true); };
+    const onKey = e => { if (e.key === 'Escape') { e.stopPropagation(); shut(); } };
+    close.onclick = shut;
+    box.onclick = e => { if (e.target === box) shut(); };
+    if (D.addEventListener) D.addEventListener('keydown', onKey, true);
+    D.body.appendChild(box);
+    return box;
+  }
+  // the about line's button (body.html #credit, the shed's information panel): legal attribution, so it is there
+  // whether the sound is on or not
+  function mountCreditLink() {
+    const D = G.document, line = D && D.getElementById && D.getElementById('credit');
+    if (!line || !D.createElement || (D.getElementById('musicCreditsBtn'))) return false;
+    const b = D.createElement('a');
+    b.id = 'musicCreditsBtn'; b.href = '#'; b.textContent = 'music & sound credits';
+    b.onclick = e => { if (e && e.preventDefault) e.preventDefault(); openCredits(); };
+    line.appendChild(D.createTextNode(' · '));
+    line.appendChild(b);
+    return true;
+  }
+
+  // ---- THE SOURCE ----------------------------------------------------------------------------------------------
+  function connect(c, au) {
+    disconnect();
+    ctx = c; A = au;
+    const D = G.document;
+    duck = c.createGain(); duck.gain.value = 1;
+    duck.connect(au.bus('music'));
+    decks = [];
+    if (!D || !D.createElement || !c.createMediaElementSource) { ctx = null; return; }   // no media elements here
+    for (let k = 0; k < 2; k++) {
+      const el = D.createElement('audio');
+      C.elements++;
+      el.preload = 'none';
+      el.crossOrigin = 'anonymous';
+      const src = c.createMediaElementSource(el), gain = c.createGain();
+      gain.gain.value = 0;
+      src.connect(gain); gain.connect(duck);
+      const h = { timeupdate: () => onTime(k), durationchange: () => onDur(k), loadedmetadata: () => onDur(k), ended: () => onEnded(k), error: () => onError(k) };
+      for (const ev in h) el.addEventListener(ev, h[ev]);
+      decks.push({ el, src, gain, h, curve: new Float32Array(XF_N) });
+      DK[k * K_N + K_STATE] = ST_IDLE; DK[k * K_N + K_TRACK] = -1; DK[k * K_N + K_STOP] = -1;
+    }
+    PS[S_CUR] = C_NONE; PS[S_ACT] = -1; PS[S_GAP] = -1; PS[S_DUCK] = 0;
+    offs = [au.onEvent('engine', onDuck), au.onEvent('stall', onDuck), au.onEvent('duck', onDuck),
+      au.onEvent('photo', on => setPhoto(on)),
+      au.onEvent('suspend', () => { for (let k = 0; k < 2; k++) if (DK[k * K_N + K_STATE] >= ST_PLAYING) { DK[k * K_N + K_PAUSED] = 1; try { decks[k].el.pause(); } catch (e) {} } }),
+      au.onEvent('resume', () => { for (let k = 0; k < 2; k++) if (DK[k * K_N + K_PAUSED]) { DK[k * K_N + K_PAUSED] = 0; try { const r = decks[k].el.play(); if (r && r.catch) r.catch(() => {}); } catch (e) {} } })];
+  }
+  function disconnect() {
+    for (const f of offs) { try { f(); } catch (e) {} }
+    offs = [];
+    for (let k = 0; k < decks.length; k++) {
+      release(k);
+      const d = decks[k];
+      for (const ev in d.h) d.el.removeEventListener(ev, d.h[ev]);
+      try { d.src.disconnect(); d.gain.disconnect(); } catch (e) {}
+    }
+    decks = [];
+    try { if (duck) duck.disconnect(); } catch (e) {}
+    duck = null; ctx = null; A = null;
+    PS[S_CUR] = C_NONE; PS[S_ACT] = -1;
+    hideNow();
+  }
+  function setPhoto(on) { PS[S_PHOTO] = on ? 1 : 0; }
+
+  setCatalogue(G.FLYDIY_MUSIC || []);
+  const api = {
+    CTX_NAMES, CRUISE, XFADE_S, GAP_MIN_S, GAP_MAX_S, DUCK_K, DUCK_HOLD_S, LUFS_TARGET, SOUND_CREDITS, FILE_RE, LICENCE_RE,
+    validate, contextLists, creditRows, creditLine, cruiseStep, contextOf, makeBag, bagNext, trimOf,
+    seed(n) { RNG[0] = (n >>> 0) || 1; }, setCatalogue, get catalogue() { return cat; },
+    skip, setPhoto, openCredits, mountCreditLink, nowPlaying,
+    get context() { return PS[S_CUR] >= 0 ? CTX_NAMES[PS[S_CUR]] : 'none'; },
+    // the gate's window on the slots (read-only views)
+    _dk: DK, _ps: PS, _C: C, _decks: () => decks, _lvlAt: lvlAt, source: { connect, update, disconnect },
+  };
+
+  mountCreditLink();
+  const AU = G.AUDIO;
+  if (AU && AU.enabled) {
+    AU.addSource('music', api.source);
+    if (AU.addRows) AU.addRows((body, kit) => {
+      const np = nowPlaying();
+      if (kit.note) kit.note(body, np ? 'Now playing: ' + nowLine(np) : (cat.length ? 'No music playing.' : 'No music ships yet.'));
+      const btn = (label, text, fn) => { const r = kit.row(body, label), b = G.document.createElement('button'); b.textContent = text; b.className = 'pill'; b.onclick = fn; r.appendChild(b); return r; };
+      btn('skip track', 'skip', () => skip());
+      btn('music credits', 'open', () => openCredits());
+    });
+  }
+  return api;
+})();
+if (typeof window !== 'undefined') window.AUDIO_MUSIC = AUDIO_MUSIC;
+if (typeof module !== 'undefined' && module.exports) module.exports = AUDIO_MUSIC;
+</script>
+<script type="text/x-flydiy">
+// ============================================================
+// THE AIRFRAME'S NUMBERS (G1630, SND-AIRFRAME; SOUND-2026-10-04 §3.5 / §4 / §9).
+// PURE: no Web Audio, no DOM - runs in node, GATE AUDIO tests it.
+//
+// From the parameter block P (audio_params.js) one frame at a time, it writes
+// the TARGETS of every airframe layer (the k-rate AudioParams of the worklet
+// 'flydiy-airframe', airframe_worklet.js, in AF_PARAMS order) and queues the
+// discrete EVENTS (touchdown per wheel, tyre chirp, suspension thump, splash,
+// flap lever) into a preallocated ring. Allocation-free per frame: the state is
+// typed slots (a double written into an object field is a fresh heap box -
+// G1602's finding), the targets a Float32Array, the events a Float64Array.
+//
+//   WIND      true airspeed V: amplitude ~ (V/50)^2.5 (15 dB a doubling), the
+//             band centre 250 + 28 V Hz; sideslip and the alpha past 75 % of
+//             the stall add turbulence (the buffet). Exterior: the camera's
+//             gentle wind. Interior: a closed cabin's muffled hiss, or - open
+//             cockpit (P.s[I.open]) - the blast, ~4x the closed level.
+//   GROUND    ground speed x the GROUND_SURF row under the mains (the tail when
+//             only it touches) x how many wheels touch; the tailwheel rattle on
+//             the rough rows; the brakes squeal at walking speed.
+//   TOUCHDOWN a contact's RISING EDGE (after >= AF_TUNE.tdOffS off the ground),
+//             once per wheel, severity from the sink rate just before it (the
+//             lowest out.vs of the last ~0.3 s): 3 m/s = 1. A main on PAVED
+//             (row 5) after >= 1 s in the air above 12 m/s CHIRPS (the wheel
+//             spins up); a hard one (sev > 0.35) also THUMPS the suspension, as
+//             does a load spike rolling (nz off its own mean by > 0.4).
+//   WATER     floats wet (P.s[I.water]): spray hiss with speed, slaps (slow
+//             and heavy in displacement, a fast chatter ON THE STEP - the
+//             afterbody dry: mains wet, `tail` = 0), a SPLASH on the first
+//             touch. A wheeled aeroplane in water (row 4 under a wheel, no
+//             hydro): the heavy drag roar and a splash on entry.
+//   STALL     alpha against P.s[I.aStall] (the build's measured stall at this
+//             flap): the warning band is the last AF_TUNE.warnA rad (~4.3 deg)
+//             before it, gated by airflow (55 %..85 % of the build's measured stall speed). KIND per aeroplane
+//             (stallKind below): 'reed' level and pitch follow the margin (it
+//             moans as it starts), 'buzzer' latches on/off, 'none' is silent.
+//   MECHANISM flaps moving: an electric motor (metal + an electric system) or
+//             the lever's clunk (manual: one event per start of travel);
+//             creaks from nz off its mean and the control rates.
+// Scheduling: every target is QUANTISED (AF_Q, at the frame's end) so a steady frame reproduces
+// the last value exactly and the source schedules nothing.
+// ============================================================
+var AIRFRAME_MODEL = (function () {
+  'use strict';
+  // the worklet's k-rate params, in order (airframe_worklet.js declares the same list; GATE AUDIO compares them)
+  const AF_PARAMS = ['windL', 'windF', 'windT', 'windI', 'gndL', 'gndS', 'gndV', 'tailR', 'brk',
+                     'watL', 'watV', 'watStep', 'watSlap', 'watDrag', 'stall', 'stallK', 'creak', 'flapM', 'open', 'duck'];
+  const T = {}; AF_PARAMS.forEach((k, i) => { T[k] = i; });
+  // the quantum of each target (a steady frame lands on the same step), 0 = discrete
+  const AF_Q = { windL: 0.002, windF: 10, windT: 0.02, windI: 0.002, gndL: 0.002, gndS: 0, gndV: 0.25, tailR: 0.01,
+                 brk: 0.01, watL: 0.002, watV: 0.25, watStep: 0, watSlap: 0.01, watDrag: 0.01, stall: 0.01, stallK: 0,
+                 creak: 0.05, flapM: 0, open: 0, duck: 0 };
+  const QV = new Float64Array(AF_PARAMS.length); AF_PARAMS.forEach((k, i) => { QV[i] = AF_Q[k]; });
+  // THE EVENTS: [type, severity 0..1, a, b] - a: the wheel (0 left main, 1 right main, 2 tail) / the surface; b: the surface
+  const AF_EV = { TD: 1, CHIRP: 2, THUMP: 3, SPLASH: 4, LEVER: 5 };
+  const AF_EV_NAMES = ['', 'touchdown', 'chirp', 'thump', 'splash', 'lever'];
+  const EV_CAP = 16, EV_W = 4;
+  // the per-type rate limit (s): one touchdown per wheel per 0.25 s, ...
+  const AF_RATE = [0, 0.25, 0.4, 0.2, 0.3, 0.35];
+  const AF_SURF_PAVED = 5, AF_SURF_WATER = 4;
+  // the rough rows' tailwheel rattle (GROUND_SURF codes 0..7: grass rock scree forest water paved gravel sand)
+  const AF_ROUGH = [0.5, 1.0, 0.9, 0.7, 0, 0.12, 0.8, 0.4];
+  const AF_TUNE = {
+    Vref: 50, windExt: 0.08, windCab: 0.1, windOpen: 0.2, windMax: 2.2,
+    gnd: 0.025, gndVref: 12, wat: 0.07, drag: 0.12,
+    warnA: 0.075, settleS: 1.5, flowLo: 0.55, flowSpan: 0.3, VsDef: 20, tdOffS: 0.12, tdVs: 3, chirpV: 12, chirpOffS: 1.0,
+  };
+  // STALL WARNING KINDS: 0 none, 1 reed (airflow-driven), 2 buzzer (electric)
+  const AF_STALL = { none: 0, reed: 1, buzzer: 2 };
+  // THE DECLARED TABLE (physics-inert: no solver reads any of it), on the facts the RESOLVED spec keeps (def.spec:
+  // resolveSpec drops meta.class and names the material spec.material / fuselage.material). An explicit
+  // spec.systems.stallWarn ('reed' | 'buzzer' | 'none') outranks it - nothing writes that field yet; an editor control may.
+  //   a certified class, when the spec still carries it (n23 'Normal category', util): high wing reed, else buzzer;
+  //   a METAL high wing - the Cessna archetype: the reed (the leading-edge whistle, no power needed);
+  //   a METAL low / mid wing with an electric system - the Piper / Robin archetype: the vane and the electric horn;
+  //   everything else - tube-and-fabric (the Cub, the ultralights), wood (the Jodel), composite, unknown: none.
+  const materialOf = s => s.material || (s.fuselage && (s.fuselage.material || s.fuselage.mat)) || null;
+  const elecOf = s => { const el = s.systems && s.systems.elec; return !!(el && el.battery && el.battery !== 'none'); };
+  function stallKind(spec) {
+    const s = spec || {}, sys = s.systems || {}, ex = sys.stallWarn;
+    if (ex != null && AF_STALL[ex] != null) return { kind: AF_STALL[ex], source: 'spec.systems.stallWarn' };
+    const cls = s.meta && s.meta.class, w = Array.isArray(s.wings) ? s.wings[0] : s.wings;
+    const high = !!(w && w.position === 'high'), mat = materialOf(s);
+    if (cls === 'n23' || cls === 'util') return { kind: high ? AF_STALL.reed : AF_STALL.buzzer, source: 'class ' + cls + (high ? ', high wing' : ', low wing') };
+    if (mat === 'alloy' && high) return { kind: AF_STALL.reed, source: 'metal high wing (the Cessna archetype)' };
+    if (mat === 'alloy' && elecOf(s)) return { kind: AF_STALL.buzzer, source: 'metal low wing, electric (the Piper archetype)' };
+    return { kind: AF_STALL.none, source: (mat || 'unknown') + ' ' + (high ? 'high' : 'low') + ' wing: no warning' };
+  }
+  // electric flaps: a metal aeroplane with an electric system (the C172's motor), else the lever
+  function flapsElectric(spec) {
+    const s = spec || {};
+    return materialOf(s) === 'alloy' && elecOf(s);
+  }
+
+  // the state: typed slots only
+  const S_ = ['t', 'pm0', 'pm1', 'ptw', 'pwet', 'off0', 'off1', 'offT', 'vsMin', 'nzM', 'pde', 'pda', 'pdr', 'pflap',
+              'fmov', 'buzz', 'lastSurf', 'kind', 'elec', 'first', 'pdrag', 'rate', 'grace', 'esev', 'vs0'];
+  const SI = {}; S_.forEach((k, i) => { SI[k] = i; });
+  function airframeState() {
+    return { s: new Float64Array(S_.length), last: new Float64Array(AF_RATE.length * 3).fill(-1e9),
+             tg: new Float32Array(AF_PARAMS.length), ev: new Float64Array(EV_CAP * EV_W), evN: new Int32Array(1),
+             def: null, kindSource: '' };
+  }
+  function resolve(st, def) {
+    const spec = def && def.spec, k = stallKind(spec), s = st.s;
+    s.fill(0); st.last.fill(-1e9); st.tg.fill(0); st.evN[0] = 0;
+    s[SI.kind] = k.kind; s[SI.elec] = flapsElectric(spec) ? 1 : 0; s[SI.first] = 1; s[SI.lastSurf] = 0;
+    s[SI.off0] = s[SI.off1] = s[SI.offT] = 1e3; s[SI.nzM] = 1;
+    // the build's own stall speed (measured, landing flap: the slowest it flies), for the airflow a reed or a vane needs
+    const G = (def && def.params && def.params.gen) || {};
+    s[SI.vs0] = G.VsFlap > 0 ? G.VsFlap : G.VsMeas > 0 ? G.VsMeas : AF_TUNE.VsDef;
+    st.kindSource = k.source; st.def = def;
+  }
+  // (the frame calls no helper of ours with a double: one V8 declines to inline boxes every double it is passed -
+  // SND-ENGINE's and SND-CORE's finding; Math.min / Math.max are inlined builtins. emit() takes doubles, but runs
+  // only on an event, which posts a message anyway.)
+  // an event, rate-limited per type and per key (a: the wheel for touchdowns; 0 otherwise). INTS only (type, a, b): the
+  // severity rides in the typed slot s[SI.esev] (a double argument would be a box per call)
+  function emit(st, type, a, b) {
+    const t = st.s[SI.t], li = type * 3 + (type === AF_EV.TD ? a : 0);
+    if (t - st.last[li] < AF_RATE[type]) return;
+    st.last[li] = t;
+    const n = st.evN[0];
+    if (n >= EV_CAP) return;
+    const o = n * EV_W, E = st.ev, sv = st.s[SI.esev];
+    E[o] = type; E[o + 1] = sv < 0 ? 0 : sv > 1 ? 1 : sv; E[o + 2] = a; E[o + 3] = b;
+    st.evN[0] = n + 1;
+  }
+
+  // THE FRAME. P: the parameter block; st: airframeState(); dt: s. The caller drains st.ev[0 .. st.evN[0]) and
+  // zeroes st.evN[0]. Returns st.tg.
+  function airframeStep(P, st, dt) {
+    if (st.def !== P.def) resolve(st, P.def);
+    const I = P.I, p = P.s, s = st.s, tg = st.tg, A = AF_TUNE;
+    const h = dt > 0 && dt < 1 ? dt : 0;
+    s[SI.t] += h;
+    const V = p[I.V], Vg = p[I.Vg], alpha = p[I.alpha], beta = p[I.beta], vs = p[I.vs], nz = p[I.nz];
+    const m0 = p[I.main0] > 0, m1 = p[I.main1] > 0, tw = p[I.tail] > 0, water = p[I.water] > 0, open = p[I.open] > 0;
+    const aS = p[I.aStall];
+    // the sink just before a contact: the lowest vs, relaxing toward the present at 4 m/s per s
+    s[SI.vsMin] = Math.min(vs, s[SI.vsMin] + 4 * h);
+    // ---- WIND ----
+    const vn = Math.min(A.windMax, Math.max(0, V / A.Vref));
+    const w25 = V > 2 ? vn * vn * Math.sqrt(vn) : 0;
+    // the airflow a reed / a vane needs: nothing under 55 % of the build's stall speed, full from 85 % (a taxi into a
+    // breeze, a seaplane's nose-high hump, never sounds it)
+    const vs0 = s[SI.vs0], airflow = Math.min(1, Math.max(0, (V - A.flowLo * vs0) / (A.flowSpan * vs0)));
+    const buffet = aS > 0 ? Math.min(1, Math.max(0, (alpha - 0.75 * aS) / (0.25 * aS))) * airflow : 0;
+    const turb = Math.min(1, Math.max(0, Math.abs(beta) / 0.2 + buffet));
+    tg[T.windL] = A.windExt * w25 * (1 + 0.3 * turb);
+    tg[T.windF] = V > 2 ? 250 + 28 * Math.min(110, Math.max(0, V)) : 250;
+    tg[T.windT] = turb;
+    tg[T.windI] = (open ? A.windOpen : A.windCab) * w25 * (1 + 0.3 * turb);
+    tg[T.open] = open ? 1 : 0;
+    // ---- GROUND ----
+    const surf = m0 ? p[I.surf0] : m1 ? p[I.surf1] : tw ? p[I.surfT] : -1;
+    if (surf >= 0) s[SI.lastSurf] = surf;
+    const onLand = !water && surf >= 0 && surf !== AF_SURF_WATER;
+    const cover = ((m0 ? 1 : 0) + (m1 ? 1 : 0) + (tw ? 0.6 : 0)) / 2.6;
+    const vr = Math.min(2.5, Math.max(0, Vg / A.gndVref));
+    tg[T.gndL] = onLand ? A.gnd * Math.pow(vr, 1.1) * (0.5 + 0.5 * cover) : 0;
+    tg[T.gndS] = s[SI.lastSurf];
+    tg[T.gndV] = Math.min(60, Math.max(0, Vg));
+    const ls = s[SI.lastSurf] | 0;
+    tg[T.tailR] = onLand && tw ? AF_ROUGH[ls] * Math.min(1, Math.max(0, Vg / 8)) : 0;
+    const brake = p[I.brake];
+    tg[T.brk] = onLand && (m0 || m1) && brake > 0.2 && Vg > 0.3 && Vg < 9
+      ? brake * Math.min(1, Math.max(0, Vg / 1.5)) * Math.min(1, Math.max(0, (9 - Vg) / 5)) * (ls === AF_SURF_PAVED ? 1 : 0.35) : 0;
+    // ---- WATER ----
+    const wet = water && (m0 || m1);
+    tg[T.watL] = wet ? A.wat * Math.pow(Math.min(1.6, Math.max(0, (Vg - 1) / 18)), 1.3) : 0;
+    tg[T.watV] = wet ? Math.min(40, Math.max(0, Vg)) : 0;
+    tg[T.watStep] = wet && !tw && Vg > 4 ? 1 : 0;
+    tg[T.watSlap] = wet ? Math.min(1, Math.max(0, 0.3 + Vg / 15)) : 0;
+    const inDrag = !water && ((m0 && p[I.surf0] === AF_SURF_WATER) || (m1 && p[I.surf1] === AF_SURF_WATER) || (tw && p[I.surfT] === AF_SURF_WATER));
+    tg[T.watDrag] = inDrag ? Math.min(1.2, Math.max(0, 0.25 + Vg / 12)) : 0;
+    // ---- CONTACT EVENTS ----
+    const first = s[SI.first] > 0;   // a new aeroplane (or a reset) starts where it stands: no event on its first frame
+    // ...and one spawned ON the ground settles for AF_TUNE.settleS (the structure finds its stance, a tail taps down):
+    // no contact event in that window. One spawned in the air (a placed approach) has no grace.
+    if (first) s[SI.grace] = m0 || m1 || tw ? A.settleS : 0;   // (`water` alone is the floats' flag, wet or not)
+    else if (s[SI.grace] > 0) s[SI.grace] = Math.max(0, s[SI.grace] - h);
+    const sev = Math.min(1, Math.max(0, -s[SI.vsMin] / A.tdVs));
+    if (!first && !(s[SI.grace] > 0)) {
+      for (let k = 0; k < 3; k++) {
+        const on = k === 0 ? m0 : k === 1 ? m1 : tw, was = (k === 0 ? s[SI.pm0] : k === 1 ? s[SI.pm1] : s[SI.ptw]) > 0;
+        const off = k === 0 ? s[SI.off0] : k === 1 ? s[SI.off1] : s[SI.offT];
+        if (!on || was || off < A.tdOffS) continue;
+        const sk = k === 0 ? p[I.surf0] : k === 1 ? p[I.surf1] : p[I.surfT];
+        if (water || sk === AF_SURF_WATER) continue;   // the water's own splash, below
+        { s[SI.esev] = 0.08 + 0.92 * sev; emit(st, AF_EV.TD, k | 0, sk | 0); }
+        if (sev > 0.35) { s[SI.esev] = sev; emit(st, AF_EV.THUMP, k | 0, sk | 0); }
+        if (k < 2 && sk === AF_SURF_PAVED && off >= A.chirpOffS && Vg > A.chirpV)
+          { s[SI.esev] = Math.min(1, Math.max(0, (Vg - A.chirpV) / 18)) * (0.5 + 0.5 * sev) + 0.1; emit(st, AF_EV.CHIRP, k | 0, sk | 0); }
+      }
+      if (wet && !(s[SI.pwet] > 0) && Math.min(s[SI.off0], s[SI.off1]) >= A.tdOffS)
+        { s[SI.esev] = Math.min(1, Math.max(0, 0.2 + 0.6 * sev + Vg / 60)); emit(st, AF_EV.SPLASH, 0, AF_SURF_WATER); }
+      if (inDrag && !(s[SI.pdrag] > 0)) { s[SI.esev] = Math.min(1, Math.max(0, 0.4 + Vg / 25)); emit(st, AF_EV.SPLASH, 1, AF_SURF_WATER); }
+      // rolling: a load spike off nz's own mean
+      if (onLand && Vg > 2 && Math.abs(nz - s[SI.nzM]) > 0.4) { s[SI.esev] = Math.min(0.8, Math.max(0, Math.abs(nz - s[SI.nzM]) / 1.5)); emit(st, AF_EV.THUMP, 3, ls); }
+    }
+    s[SI.off0] = m0 ? 0 : s[SI.off0] + h; s[SI.off1] = m1 ? 0 : s[SI.off1] + h; s[SI.offT] = tw ? 0 : s[SI.offT] + h;
+    s[SI.pm0] = m0 ? 1 : 0; s[SI.pm1] = m1 ? 1 : 0; s[SI.ptw] = tw ? 1 : 0; s[SI.pwet] = wet ? 1 : 0; s[SI.pdrag] = inDrag ? 1 : 0;
+    // ---- STALL ----
+    const kind = s[SI.kind];
+    let sw = 0;
+    if (kind > 0 && aS > 0) {
+      const m = (alpha - (aS - A.warnA)) / A.warnA;
+      if (kind === AF_STALL.reed) sw = Math.min(1, Math.max(0, m)) * airflow;
+      else {   // the vane's switch: on past 15 % of the band, off under 5 %
+        if (s[SI.buzz] > 0) { if (m < 0.05 || airflow < 0.3) s[SI.buzz] = 0; }
+        else if (m >= 0.15 && airflow >= 0.5) s[SI.buzz] = 1;
+        sw = s[SI.buzz];
+      }
+    }
+    tg[T.stall] = sw;
+    tg[T.stallK] = kind;
+    // ---- MECHANISMS ----
+    const fl = p[I.flap], dfl = h > 0 ? Math.abs(fl - s[SI.pflap]) / h : 0;
+    const mov = !first && dfl > 0.01;
+    if (mov && !(s[SI.fmov] > 0) && !(s[SI.elec] > 0)) { s[SI.esev] = 0.7; emit(st, AF_EV.LEVER, 0, 0); }
+    s[SI.fmov] = mov ? 1 : 0; s[SI.pflap] = fl;
+    tg[T.flapM] = mov && s[SI.elec] > 0 ? 1 : 0;
+    const rate = h > 0 ? (Math.abs(p[I.de] - s[SI.pde]) + Math.abs(p[I.da] - s[SI.pda]) + 0.5 * Math.abs(p[I.dr] - s[SI.pdr])) / h : 0;
+    s[SI.rate] += (rate - s[SI.rate]) * Math.min(1, Math.max(0, h / 0.15));
+    const crk = first ? 0 : Math.min(1, Math.max(0, Math.abs(nz - s[SI.nzM]) / 0.8)) * (V > 5 || onLand ? 1 : 0) + 0.3 * Math.min(1, Math.max(0, (s[SI.rate] - 0.5) / 4));
+    tg[T.creak] = Math.min(1, Math.max(0, crk)) < 0.05 ? 0 : Math.min(1, Math.max(0, crk));
+    s[SI.nzM] += (nz - s[SI.nzM]) * Math.min(1, Math.max(0, h / 1.0));
+    s[SI.pde] = p[I.de]; s[SI.pda] = p[I.da]; s[SI.pdr] = p[I.dr];
+    s[SI.first] = 0;
+    // the quantum: a steady frame lands on the same step, so the source schedules nothing
+    for (let i = 0; i < QV.length; i++) { const q = QV[i]; if (q > 0) tg[i] = Math.round(tg[i] / q) * q; }
+    return tg;
+  }
+
+  return { airframeStep, airframeState, stallKind, flapsElectric, AF_PARAMS, AF_Q, AF_EV, AF_EV_NAMES, AF_RATE,
+           AF_ROUGH, AF_TUNE, AF_STALL, EV_CAP, EV_W, T };
+})();
+if (typeof window !== 'undefined') window.AIRFRAME_MODEL = AIRFRAME_MODEL;
+if (typeof module !== 'undefined' && module.exports) module.exports = AIRFRAME_MODEL;
+</script>
+<script type="text/x-flydiy">
+// ============================================================
+// THE SAMPLE SLOTS (G1632, SND-AIRFRAME; SOUND-2026-10-04 §2.4 / §3.5 / §7).
+// window.AUDIO_SAMPLES - a tiny manifest-driven loader for the recorded grains
+// that BLEND INTO a procedural layer (every layer sounds without its sample).
+//
+//   THE KEYS     AUDIO_SAMPLES.KEYS below: the declared slots, each with its
+//                kind (loop / one-shot), the layer it blends into and what the
+//                recording should be. A key with no file is simply absent.
+//   THE MANIFEST window.FLYDIY_AUDIO_MEDIA = { key: [url, ...] } - written by the
+//                coordinator's tools/audio/prep.js (the shipped files under
+//                media/audio/, content-hashed through _media_lib, MP3, mono);
+//                each url is prefixed with FLYDIY_ASSET_BASE (the baked
+//                manifests' rule). Nothing ships today: every key is absent.
+//   LAZY         nothing is fetched or decoded before load(key) is asked, and
+//                load is only asked after the gesture (a source's connect /
+//                update): ASSET_FETCH (assets.js, the one network door) ->
+//                ctx.decodeAudioData. Two asks share one load; a failure stays
+//                failed (no retry storm, assets.js's rule).
+//   BUDGETED     decoded bytes (frames x channels x 4) under `budget` (default
+//                6 MB for the airframe's grains; §2.4's ambience has its own);
+//                a key that would pass it is refused, said once.
+//   PLAYERS      loop(key, dest) - ONE AudioBufferSourceNode looping a buffer
+//                whose equal-power crossfade (1-2 s, §2.4: never at a codec seam)
+//                is BAKED ONCE at decode, so a loop never re-schedules and a
+//                steady frame touches nothing; a leading / trailing codec pad
+//                (|x| < 1e-4, <= 50 ms) is trimmed first. oneShot(key, outs,
+//                gain) - a random variant, pitch +-jitter semitones, gain
+//                +-jitter dB, to each [node, gain] of outs.
+//
+// API: AUDIO_SAMPLES.attach(ctx, opts?) (the source's connect), .load(key) ->
+//   Promise<AudioBuffer | null> (the first variant; all are loaded), .ready(key),
+//   .state(key) 'absent' | 'idle' (files, not asked) | 'loading' | 'ready' | 'failed' | 'budget',
+//   .pick(key) a random variant (sync, null until ready), .loop(key, dest),
+//   .oneShot(key, outs, gain, jitter?), .bytes, .detach(); AUDIO_SAMPLES.create(opts)
+//   makes an independent instance (GATE AUDIO's stubs).
+// ============================================================
+var AUDIO_SAMPLES = (function () {
+  'use strict';
+  // THE DECLARED SLOTS: kind, the layer they blend into, what the recording is. SND-ASSETS fills them.
+  const KEYS = {
+    'gnd.grass':    { kind: 'loop', layer: 'ground (row 0 grass)', what: 'a tyre rolling on mown grass, 10-20 km/h, no engine' },
+    'gnd.gravel':   { kind: 'loop', layer: 'ground (rows 6 gravel, 2 scree)', what: 'tyres on loose gravel, the crunch' },
+    'gnd.asphalt':  { kind: 'loop', layer: 'ground (row 5 paved)', what: 'a tyre on asphalt / concrete, the hum' },
+    'gnd.dirt':     { kind: 'loop', layer: 'ground (rows 1 rock, 3 forest floor, 7 sand)', what: 'a tyre on dirt / packed earth' },
+    'gnd.rattle':   { kind: 'loop', layer: 'the tailwheel rattle', what: 'a small wheel rattling on a rough strip' },
+    'gnd.thump':    { kind: 'oneshot', layer: 'touchdown / suspension', what: 'a tyre landing, a strut bottoming (dry, close)' },
+    'gnd.squeal':   { kind: 'oneshot', layer: 'the tyre chirp', what: 'a tyre spinning up on concrete (a landing chirp)' },
+    'gnd.brake':    { kind: 'loop', layer: 'the brake squeal', what: 'a disc brake squealing at walking pace' },
+    'water.spray':  { kind: 'loop', layer: 'the spray hiss', what: 'a boat hull at speed, spray' },
+    'water.slap':   { kind: 'oneshot', layer: 'float / hull slaps', what: 'a wave slapping a hull, single' },
+    'water.splash': { kind: 'oneshot', layer: 'water touch / entry', what: 'a heavy splash' },
+    'mech.switch':  { kind: 'oneshot', layer: 'the panel (later)', what: 'a toggle switch click' },
+    'mech.lever':   { kind: 'oneshot', layer: 'the manual flap lever', what: 'a lever ratchet and clunk' },
+    'mech.flap':    { kind: 'loop', layer: 'the electric flap motor', what: 'a small DC motor running' },
+    'mech.creak':   { kind: 'oneshot', layer: 'airframe creaks', what: 'a wooden / tubular structure creaking' },
+    'mech.rattle':  { kind: 'oneshot', layer: 'airframe rattles', what: 'a loose panel / buckle rattling once' },
+    'stall.reed':   { kind: 'loop', layer: 'the reed stall horn', what: 'a Cessna stall horn sounding (steady part)' },
+    'stall.buzzer': { kind: 'loop', layer: 'the electric stall warning', what: 'an electric stall horn' },
+  };
+  const DEF_BUDGET = 6 * 1024 * 1024;
+  const W = typeof window !== 'undefined' ? window : (typeof globalThis !== 'undefined' ? globalThis : {});
+
+  function create(opts) {
+    const o = opts || {};
+    let ctx = null;
+    const recs = {};   // key -> { state, bufs, loopBuf, promise }
+    let bytes = 0, said = false;
+    const budget = o.budget > 0 ? o.budget : DEF_BUDGET;
+    const rnd = o.random || Math.random;
+    const manifest = () => o.manifest || W.FLYDIY_AUDIO_MEDIA || {};
+    const base = () => (o.base != null ? o.base : (typeof W.FLYDIY_ASSET_BASE === 'string' ? W.FLYDIY_ASSET_BASE : ''));
+    const fetchBytes = url => (o.fetch ? o.fetch(url) : W.ASSET_FETCH ? W.ASSET_FETCH(url)
+      : Promise.reject(new Error('audio samples: no ASSET_FETCH for ' + url)));
+    const urls = key => { const m = manifest()[key]; return Array.isArray(m) ? m : typeof m === 'string' ? [m] : []; };
+    const rec = key => recs[key] || (recs[key] = { state: urls(key).length ? 'idle' : 'absent', bufs: null, loopBuf: null, promise: null });
+
+    function decode(u8) {
+      // decodeAudioData DETACHES its ArrayBuffer: hand it a copy of exactly the bytes
+      const ab = u8.buffer.slice(u8.byteOffset, u8.byteOffset + u8.byteLength);
+      return new Promise((res, rej) => {
+        const p = ctx.decodeAudioData(ab, res, rej);
+        if (p && p.then) p.then(res, rej);
+      });
+    }
+    const sizeOf = b => b.length * b.numberOfChannels * 4;
+
+    function load(key) {
+      if (!ctx) return Promise.resolve(null);
+      const r = rec(key);
+      if (r.state === 'absent') return Promise.resolve(null);
+      if (r.promise) return r.promise;
+      r.state = 'loading';
+      const B = base();
+      r.promise = Promise.all(urls(key).map(u => fetchBytes(B + u).then(decode))).then(bufs => {
+        const add = bufs.reduce((s, b) => s + sizeOf(b), 0);
+        if (bytes + add > budget) {
+          r.state = 'budget';
+          if (!said) { said = true; console.info('flyDiy audio: the sample ' + key + ' would pass the ' + Math.round(budget / 1048576) + ' MB budget; its layer stays procedural'); }
+          return null;
+        }
+        bytes += add;
+        r.bufs = bufs; r.state = 'ready';
+        if (KEYS[key] && KEYS[key].kind === 'loop') { r.loopBuf = bakeLoop(bufs[0]); bytes += sizeOf(r.loopBuf); }
+        return bufs[0];
+      }, e => { r.state = 'failed'; console.warn('flyDiy audio: the sample ' + key + ' did not load; its layer stays procedural', e); return null; });
+      return r.promise;
+    }
+
+    // THE LOOP, baked once: the codec's pads trimmed, then the tail crossfaded (equal power) into the head
+    function bakeLoop(b) {
+      const sr = b.sampleRate, ch = b.numberOfChannels, L = b.length;
+      const padMax = Math.floor(0.05 * sr);
+      let a = 0, z = L;
+      const d0 = b.getChannelData(0);
+      while (a < padMax && a < L && Math.abs(d0[a]) < 1e-4) a++;
+      while (L - z < padMax && z > a && Math.abs(d0[z - 1]) < 1e-4) z--;
+      const len = z - a;
+      const X = Math.max(1, Math.min(Math.floor(1.5 * sr), Math.floor(len / 4)));
+      const M = len - X;
+      if (M < 64) return b;   // too short to loop with a fade: as it is
+      const out = ctx.createBuffer(ch, M, sr);
+      for (let c = 0; c < ch; c++) {
+        const src = b.getChannelData(c), dst = out.getChannelData(c);
+        for (let i = 0; i < M; i++) dst[i] = src[a + i];
+        for (let i = 0; i < X; i++) {
+          const t = (i + 0.5) / X;
+          dst[i] = src[a + i] * Math.sin(0.5 * Math.PI * t) + src[a + M + i] * Math.cos(0.5 * Math.PI * t);
+        }
+      }
+      return out;
+    }
+
+    // a looping player: buffer source -> its own gain -> dest (the caller ramps .gain and .rate)
+    function loop(key, dest) {
+      const r = rec(key);
+      if (!ctx || r.state !== 'ready' || !r.loopBuf) return null;
+      const src = ctx.createBufferSource(), g = ctx.createGain();
+      src.buffer = r.loopBuf; src.loop = true;
+      g.gain.value = 0;
+      src.connect(g); if (dest) g.connect(dest);
+      // a random start, so two loops of one file never phase
+      src.start(ctx.currentTime, rnd() * r.loopBuf.duration);
+      return { key, src, gain: g.gain, rate: src.playbackRate, out: g,
+               stop() { try { src.stop(); } catch (e) {} try { src.disconnect(); g.disconnect(); } catch (e) {} } };
+    }
+
+    // a one-shot: a random variant, pitch +-jit.semi semitones, gain +-jit.db dB, to each [node, gain] of outs
+    function oneShot(key, outs, gain, jit) {
+      const r = rec(key);
+      if (!ctx || r.state !== 'ready' || !r.bufs || !r.bufs.length) return false;
+      const j = jit || {}, semi = j.semi != null ? j.semi : 1.5, db = j.db != null ? j.db : 2;
+      const b = r.bufs[Math.min(r.bufs.length - 1, Math.floor(rnd() * r.bufs.length))];
+      const src = ctx.createBufferSource();
+      src.buffer = b;
+      src.playbackRate.value = Math.pow(2, (2 * rnd() - 1) * semi / 12);
+      const k = (gain == null ? 1 : gain) * Math.pow(10, (2 * rnd() - 1) * db / 20);
+      for (const [node, gi] of outs) {
+        const g = ctx.createGain(); g.gain.value = k * gi;
+        src.connect(g); g.connect(node);
+      }
+      src.start(ctx.currentTime);
+      return true;
+    }
+
+    const api = {
+      KEYS,
+      attach(c) { ctx = c; return api; },
+      detach() { ctx = null; for (const k in recs) delete recs[k]; bytes = 0; said = false; },
+      load,
+      state: key => rec(key).state,
+      ready: key => rec(key).state === 'ready',
+      has: key => urls(key).length > 0,
+      pick(key) { const r = rec(key); return r.state === 'ready' && r.bufs.length ? r.bufs[Math.floor(rnd() * r.bufs.length)] : null; },
+      loop, oneShot, bakeLoop: b => bakeLoop(b),
+      get bytes() { return bytes; }, budget,
+    };
+    return api;
+  }
+
+  const main = create();
+  main.create = create;
+  return main;
+})();
+if (typeof window !== 'undefined') window.AUDIO_SAMPLES = AUDIO_SAMPLES;
+if (typeof module !== 'undefined' && module.exports) module.exports = AUDIO_SAMPLES;
+</script>
+<script type="text/x-flydiy">
+// THE AIRFRAME SOURCE (G1633, SND-AIRFRAME; SOUND-2026-10-04 §3.5 / §4).
+//
+// Wires the airframe voice (airframe_worklet.js, 'flydiy-airframe': wind, ground, water, stall warning, creaks,
+// the flap motor and the event one-shots) into SND-CORE's window.AUDIO: ONE AudioWorkletNode for the flown
+// aeroplane, fed every frame from the parameter block P through airframe_model.js (the targets + the events).
+//   output 0  EXTERIOR mono -> aircraft.ext
+//   output 1  INTERIOR mono -> aircraft.int (the cabin's own mix, a placeholder cabin low-pass inside the worklet:
+//             SND-SPACE replaces it with the build's cabin transfer; the stall warning, creaks, flap motor and
+//             lever are interior-only by construction)
+// THE SAMPLES (samples.js): when a declared key resolves, its recording BLENDS IN - a ground / water / stall / flap
+// loop follows its layer's level (the worklet's `duck` bit lowers the procedural one to 30 %), an event plays its
+// one-shot beside the procedural (the worklet's at 35 %). A key is asked for the first time its layer is heard.
+// Per frame: the model (allocation-free), then ONLY the params that moved (the targets are quantised, so a steady
+// frame schedules nothing), then the frame's events (a port message each - an event, never a frame).
+// AUDIO.emit('stall') at the warning's onset and every 2 s while it sounds (the music ducks under it, G1672).
+'use strict';
+(function () {
+  const W = typeof window !== 'undefined' ? window : globalThis;
+  if (!W.AUDIO || !W.AUDIO.enabled) return;   // ?audio=0: nothing at all
+  const AF = W.AIRFRAME_MODEL;
+  if (!AF) return;
+  const TAU = 0.03, NP = AF.AF_PARAMS.length, T = AF.T, Q = AF.AF_Q;
+  const st = AF.airframeState();
+  const last = new Float64Array(NP).fill(-1);
+  const discrete = new Uint8Array(NP);
+  AF.AF_PARAMS.forEach((k, i) => { discrete[i] = Q[k] === 0 ? 1 : 0; });
+  let ctx = null, node = null, params = null, ready = false, ext = null, int = null, SM = null;
+  // THE SAMPLES: the surface row -> its loop key; the loops in play (one per key, made when the key resolves)
+  const SURF_KEY = ['gnd.grass', 'gnd.dirt', 'gnd.gravel', 'gnd.dirt', null, 'gnd.asphalt', 'gnd.gravel', 'gnd.dirt'];
+  // [key, the param that sets its level, the duck bit, the level -> loop gain, interior share]
+  const LOOPS = [
+    ['gnd.grass', T.gndL, 1, 6, 0.4], ['gnd.gravel', T.gndL, 1, 6, 0.4], ['gnd.asphalt', T.gndL, 1, 6, 0.4], ['gnd.dirt', T.gndL, 1, 6, 0.4],
+    ['gnd.rattle', T.tailR, 0, 0.1, 0.6], ['gnd.brake', T.brk, 0, 0.05, 0.4],
+    ['water.spray', T.watL, 2, 4, 0.4], ['mech.flap', T.flapM, 0, 0.05, 1], ['stall.reed', T.stall, 16, 0.12, 1], ['stall.buzzer', T.stall, 16, 0.07, 1],
+  ];
+  const loopP = new Array(LOOPS.length).fill(null);   // the players
+  const loopG = new Float64Array(LOOPS.length).fill(-1), asked = new Uint8Array(LOOPS.length);
+  // the events' one-shot keys and routes ([node, gain] pairs, made at connect)
+  const EV_KEY = [null, 'gnd.thump', 'gnd.squeal', 'gnd.thump', 'water.splash', 'mech.lever'];
+  let EV_OUT = null;
+  const evAsked = new Uint8Array(EV_KEY.length);
+  // the warning's own event for the rest of the sound (SND-MUSIC ducks under it): AUDIO.emit('stall') at the onset and
+  // every STALL_EMIT_S while it sounds (the music's duck holds 6 s); [0] the seconds since the last, [1] sounding
+  const STALL_EMIT_S = 2, stallClk = new Float64Array(2);
+
+  function loopWanted(i, tg) {
+    const L = LOOPS[i], key = L[0];
+    if (L[1] === T.gndL) return SURF_KEY[tg[T.gndS] | 0] === key;
+    if (key === 'stall.reed') return tg[T.stallK] === AF.AF_STALL.reed;
+    if (key === 'stall.buzzer') return tg[T.stallK] === AF.AF_STALL.buzzer;
+    return true;
+  }
+  function samples(tg, t) {
+    let duck = 0;
+    for (let i = 0; i < LOOPS.length; i++) {
+      const L = LOOPS[i], want = loopWanted(i, tg), lvl = want ? tg[L[1]] : 0;
+      if (want && lvl > 0 && !asked[i]) {   // the first time this layer is heard: ask for its recording
+        asked[i] = 1;
+        if (SM.has(L[0])) SM.load(L[0]).then(b => { if (b && ctx && !loopP[i]) { const p = SM.loop(L[0], ext); if (p) { p.out.connect(L[4] < 1 ? intShare(L[4]) : int); loopP[i] = p; } } });
+      }
+      const p = loopP[i];
+      if (!p) continue;
+      if (want) duck |= L[2];
+      const g = Math.round(lvl * L[3] * 500) / 500;
+      if (g !== loopG[i]) { p.gain.setTargetAtTime(g, t, TAU); loopG[i] = g; }
+    }
+    return duck;
+  }
+  const shares = {};
+  function intShare(k) {   // a fixed gain into the interior bus per share (made once)
+    if (!shares[k]) { shares[k] = ctx.createGain(); shares[k].gain.value = k; shares[k].connect(int); }
+    return shares[k];
+  }
+
+  function teardown() {
+    for (let i = 0; i < loopP.length; i++) { if (loopP[i]) loopP[i].stop(); loopP[i] = null; }
+    loopG.fill(-1); asked.fill(0); evAsked.fill(0);
+    for (const k in shares) { try { shares[k].disconnect(); } catch (e) {} delete shares[k]; }
+    if (node) { try { node.disconnect(); } catch (e) {} }
+    node = null; params = null; last.fill(-1);
+  }
+
+  W.AUDIO.addSource('airframe', {
+    connect(c, api) {
+      ctx = c; ready = false;
+      ext = api.bus('aircraft.ext'); int = api.bus('aircraft.int');
+      SM = W.AUDIO_SAMPLES ? W.AUDIO_SAMPLES.attach(c) : null;
+      EV_OUT = [null,
+        [[ext, 1], [int, 0.6]],        // touchdown: outside, and through the structure
+        [[ext, 1], [int, 0.3]],        // the chirp
+        [[ext, 0.5], [int, 1]],        // the suspension thump: mostly inside
+        [[ext, 1], [int, 0.5]],        // the splash
+        [[int, 1]]];                   // the lever: inside only
+      api.module('airframe_worklet').then(ok => {
+        if (!ok || ctx !== c) return;
+        node = new AudioWorkletNode(c, 'flydiy-airframe', {
+          numberOfInputs: 0, numberOfOutputs: 2, outputChannelCount: [1, 1], processorOptions: { seed: 7 } });
+        node.connect(ext, 0); node.connect(int, 1);
+        params = AF.AF_PARAMS.map(n => node.parameters.get(n));
+        ready = true;
+      }, e => console.warn('flyDiy audio: the airframe voice did not load', e));
+    },
+    update(P, dt, api) {
+      if (!ready) return;
+      const tg = AF.airframeStep(P, st, dt);
+      const t = ctx.currentTime;
+      if (tg[T.stall] > 0) {
+        stallClk[0] += dt;
+        if (!(stallClk[1] > 0) || stallClk[0] >= STALL_EMIT_S) { stallClk[0] = 0; stallClk[1] = 1; api.emit('stall', 1); }
+      } else stallClk[1] = 0;
+      if (SM) tg[T.duck] = samples(tg, t);
+      // schedule only what moved (the targets are quantised: a steady frame reproduces them exactly)
+      for (let i = 0; i < NP; i++) {
+        const v = tg[i];
+        if (v === last[i]) continue;
+        if (discrete[i]) params[i].setValueAtTime(v, t); else params[i].setTargetAtTime(v, t, TAU);
+        last[i] = v;
+      }
+      // the events: a one-shot recording when its key resolved (asked on the first such event), the procedural always
+      const n = st.evN[0];
+      if (n > 0) {
+        const E = st.ev;
+        for (let k = 0; k < n; k++) {
+          const o = k * AF.EV_W, e = E[o], s = E[o + 1];
+          const key = EV_KEY[e];
+          let rec = 0;
+          if (SM && key) {
+            if (SM.ready(key)) rec = SM.oneShot(key, EV_OUT[e], 0.3 + 0.7 * s) ? 1 : 0;
+            else if (!evAsked[e] && SM.has(key)) { evAsked[e] = 1; SM.load(key); }
+          }
+          node.port.postMessage({ t: 'ev', e, s, a: E[o + 2], b: E[o + 3], k: rec });
+        }
+        st.evN[0] = 0;
+      }
+    },
+    disconnect() { teardown(); ctx = null; ready = false; if (SM) SM.detach(); SM = null; st.def = null; },
+  });
+})();
 </script>
 <script type="text/x-flydiy">
 // world_boot.js - THE WORLD THE BOOT COMPOSES, IN A TASK OF ITS OWN (G999, A5-LOAD, the Jolene playtest's R4)
@@ -165121,6 +167733,7 @@ window.FLYDIY_WORLD_COMPOSE = function () {
     // G286: GRAPHICS - the menu a PC game has (gfx_settings.js's, both rails host it); G760: in its seven groups
     { k: 'graphics', label: 'graphics', title: 'How much the card draws',
       icon: 'M3 5.2h12|M3 9h12|M3 12.8h12|M6.4 5.2a1.3 1.3 0 1 0 0-.1|M11.2 9a1.3 1.3 0 1 0 0-.1|M7.6 12.8a1.3 1.3 0 1 0 0-.1', secs: [] },
+    { k: 'audio', label: 'sound', head: 'The sound', title: 'The sound: the volumes, the headset, the music in flight', icon: 'M2.8 7h2.8l4-3.4v10.8l-4-3.4H2.8Z|M12.4 6.4a3.6 3.6 0 0 1 0 5.2|M14.4 4.4a6.4 6.4 0 0 1 0 9.2', secs: ['sound'] },   // G1600 (audio.js AUDIO.mount)
     { k: 'dev', label: 'dev', dev: true, head: 'The developer’s tools', title: 'The developer’s tools: the world editor, the test mode without physics, the flight log, the overlays',
       icon: 'M6.4 5 2.8 9l3.6 4|M11.6 5l3.6 4-3.6 4|M10.2 3.6 7.8 14.4', secs: ['scenery', 'world', 'log', 'overlays'] },
   ];
@@ -165159,6 +167772,7 @@ window.FLYDIY_WORLD_COMPOSE = function () {
     { k: 'world', label: 'world', title: 'The world editor', head: 'world editor', sub: 'the scenery editor, the WORLD rail (F9)' },
     // G620: THE FLIGHT LOG - the recording's state, save log, the previous session
     { k: 'log', label: 'flight log', title: 'The flight recorder', head: 'flight log', sub: 'save this session, or the one before' },
+    { k: 'sound', label: 'sound', title: 'The volumes, the headset, the music', sub: 'the volumes, the headset, the music in flight' },   // G1600
     { k: 'overlays', label: 'overlays', title: 'What is drawn over the aeroplane and the screen for a developer', sub: 'the covering, the F8 panel' },
   ];
   const FL_RAIL_BY = {}, FL_SEC_BY = {}, FL_HOME = {};
@@ -165437,6 +168051,7 @@ window.FLYDIY_WORLD_COMPOSE = function () {
   const FL_SEC_BUILD = {
     route: b => FL_BUILD.slot_route(b),
     weather: b => { FL_BUILD.air(b); FL_BUILD.weather(b); },
+    sound: b => (window.AUDIO ? window.AUDIO.mount(b, { row: flRow, range: flRange, toggle: flToggle, note: flNote }) : flNote(b, 'This build has no sound.')),   // G1600
   };
   // THE RAIL, for the gates and the rigs: the items and their sections, where an old item lives, open(k) (an
   // item, a section or an old item's name), and census(k) - the item built with every fold open, its rows,
@@ -167862,6 +170477,7 @@ window.FLYDIY_WORLD_COMPOSE = function () {
       }
     }
     POSE_LERP.back();                  // G1100: the newest step's positions back, bit for bit, before anything else reads them
+    if (window.AUDIO) AUDIO.update(sim, camera, fdt, def, cam, inGarage, world);   // G1600: the sound's numbers off the newest step (audio.js; nothing before a gesture)
     if (FR) FR.end(true, cg);          // G620: the glare and the rest to `other`; the row written
     PACE.end(perfNow() - tLoop0, physMs, pc.steps, typeof ts === 'number' ? ts : perfNow(), simwRan >= 0 ? 0 : ran);   // (G820: the worker's steps are not the page's: their cost is not a page step's)   // G586: auto's reading (G612: and the guard's)
     BOOT.frame();     // the loading screen counts frames: it lifts three quiet ones after the last landing
