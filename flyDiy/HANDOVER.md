@@ -69400,3 +69400,87 @@ GATE FRAMECOST (after a parked re-cook): uniformMatrix4fv did NOT rise (taxi 142
 with the catcher v2's two small draws a frame - bindFramebuffer 24 -> 27.5, tris.other 28 -> 32 - admitted (ALLOW, rise
 4, G1357). EVIDENCE: 7_wing_bands_inflight_before_after.jpg (the bands, before / after - a USER DECISION was "keep self-
 shadow everywhere": this is it working), 8_stand_lowsun_before_after.jpg (the stand at a low sun, before / after).
+## G1295-G1299 - EVEN-30: A HARD 30 BY DEFAULT (ULTRA KEEPS AUTO); THE USER'S CHOPPY TAXI WAS THE FOREST FILL BUILDING A CHUNK IN ONE FRAME; THE LOW PASS WAS THE EYE'S READBACK (2026-10-04, EVEN-30 for A0, local GPU; branch claude/even-30-g1295 on master e40628b0)
+
+THE USER'S TARGET: an even 30, 1-5 % unevenness, evenness before fps; "framerate is bad at start, stays choppy till the Cub
+reaches the runway; framerate in flight not great" on their custom near-ultra set (density 200, aa full, ground full, the
+eye on, the live mirror, rays, bloom strong, clouds full, water full).
+
+**THE USER'S LOG** (flydiy-flightlog-20261003T165355, 1.5 h, train 25, fps auto). Frames over 50 ms: boot 7.2 %, garage
+0.3 %, stand 0.44 %, TAXI 5.8 %, FLIGHT 4.6 %. Auto flapped all session: 130 drops from 60, 127 failed trials of 60 (one
+every ~34 s, each a juddering second). After the reveal the long frames climbed 11 % -> 29 % over 60-80 s of taxi and fell
+to 0 at ~100 s (the "choppy till the runway"), with ~220 long tasks of 50-96 ms that LoAF pinned on three's probeAsync
+(`setTimeout r`, the readRenderTargetPixelsAsync fence poll). The one 79 s frame is SHADER-GUARD's (fixed, train 27).
+
+**G1295 THE FRAME RATE FOLLOWS THE PRESET** (gfx_settings.js FPS_OF): a hard 30 on potato .. gamer and on a custom mix,
+auto on ultra, until the player picks a frame rate (fpsOwn - kept from then on, through any preset pick). pv 6 -> 7: a
+stored 'auto' was the old DEFAULT, not a pick, so it takes the preset's (the user's custom set -> 30); a stored 60 / 30 /
+uncapped stays the player's. app.js PACE boots at 30 until gfx_settings applies (auto only when stored as a pick, or on
+ultra). GATE GFX +8 checks (defaults per preset, a pick survives a preset pick, the migration cases), GATE PACE +1 (the
+boot default; its auto checks now state a picked auto).
+**G1296 AUTO'S BACKOFF RUNS TO 5 MIN** (was 30 s): 5, 10, 20 .. 300 s after each failed trial of 60; 60 held 20 s still
+forgets it (G990). GATE PACE's backoff check asserts it passes 30 s and stays under 300.
+
+**MEASURED, BEFORE** (train 27 as built, 98a01aff / build 5c1b7ba420cd with A0's parked cook; master_bench, the user's Cub,
+HOME + the mine strip, a fresh profile warmed once, `--gfx` the gamer default / the user's set, both at a hard 30;
+reports/evidence/G1295/). Frame lengths, share per bucket < 20 / 20-40 / 40-60 / 60-100 / 100-250 ms, frames > 250:
+
+| set | scene | fps | < 20 / 20-40 / 40-60 / 60-100 / 100-250 % / > 250 | > 1.5x cap | uneven | worst ms |
+|---|---|---|---|---|---|---|
+| gamer | garage | 30 | 0.0 / 100.0 / 0.0 / 0.0 / 0.0 / 0 fr | 0 % | 0 % | 33.7 |
+| gamer | taxi chase @HOME (from the stand, 40 s) | 30 | 0.25 / 99.6 / 0.17 / 0.0 / 0.0 / 0 fr | 0 % | 1 % | 50 |
+| gamer | taxi cockpit @HOME | 30 | 0.0 / 100.0 / 0.0 / 0.0 / 0.0 / 0 fr | 0 % | 0 % | 33.5 |
+| gamer | low pass @HOME | 30 | 0.0 / 100.0 / 0.0 / 0.0 / 0.0 / 0 fr | 0 % | 0 % | 33.7 |
+| gamer | taxi chase @mn_strip | 30 | 0.25 / 99.6 / 0.17 / 0.0 / 0.0 / 0 fr | 0.08 % | 1 % | 50.1 |
+| gamer | taxi cockpit @mn_strip | 30 | 0.0 / 100.0 / 0.0 / 0.0 / 0.0 / 0 fr | 0 % | 0 % | 33.5 |
+| gamer | low pass @mn_strip | 30 | 0.44 / 99.1 / 0.44 / 0.0 / 0.0 / 0 fr | 0.22 % | 2 % | 50.1 |
+| gamer | water taxi @SEA (cessnaFloatsWOrks) | 29.9 | 0.27 / 99.3 / 0.27 / 0.13 / 0.0 / 0 fr | 0.27 % | 1 % | 83.4 |
+| user | garage | 30 | 0.0 / 100.0 / 0.0 / 0.0 / 0.0 / 0 fr | 0 % | 0 % | 33.5 |
+| user | taxi chase @HOME (from the stand, 40 s) | 29.7 | 1.5 / 96.5 / 1.5 / 0.17 / 0.34 / 0 fr | 1.4 % | 6 % | 133.3 |
+| user | taxi cockpit @HOME | 30 | 1.0 / 98.3 / 0.66 / 0.0 / 0.0 / 0 fr | 0 % | 3 % | 50 |
+| user | low pass @HOME | 28.9 | 11.1 / 74.4 / 11.3 / 3.2 / 0.0 / 0 fr | 6.9 % | 40 % | 83.4 |
+| user | taxi chase @mn_strip | 29.8 | 1.0 / 97.6 / 1.0 / 0.08 / 0.25 / 0 fr | 0.67 % | 4 % | 116.8 |
+| user | taxi cockpit @mn_strip | 30 | 0.66 / 99.0 / 0.33 / 0.0 / 0.0 / 0 fr | 0.33 % | 2 % | 50.1 |
+| user | low pass @mn_strip | 30 | 0.44 / 99.1 / 0.44 / 0.0 / 0.0 / 0 fr | 0.22 % | 2 % | 50.1 |
+| user | water taxi @SEA | 29.1 | 0.96 / 96.3 / 1.1 / 0.96 / 0.69 / 0 fr | 1.8 % | 6 % | 133.3 |
+
+GAMER AT A HARD 30 IS ALREADY EVEN everywhere (<= 0.27 % over 1.5x the cap, none over 100 ms; the hard 30 alone removes
+auto's trials). The user's set was not, for two causes:
+
+**CAUSE 1 - THE FOREST FILL BUILT A FINISHED CHUNK IN ONE FRAME (G1297, render_world.js).** Read on the late frame itself,
+every slot looked normal (work ~18 ms) and LoAF put 60-140 ms "inside the loop" - THE RECORDER'S dt IS THE GAP BEFORE A
+FRAME: the cost is the PREVIOUS frame's. There: 16 of the HOME taxi's 16 long frames, 6 of 8 at the mine, 12 of 13 on the
+water follow a frame whose `fill` slot ran 57-131 ms. fillStep's walk was budgeted (4 ms, a row at a time) but a walked
+chunk was BUILT whole - every instance's matrix and colour into each rung part and the merged impostor (density 200:
+tens of thousands; gamer's 128 peaks ~38 ms). Now build() is buildGen(), a generator that yields when the frame's fill
+budget is spent (between subjects and every 256 instances); fillStep resumes it next frame; nothing joins the scene before
+its last slice (a chunk evicted half-built leaves nothing; one evicted in its last slices is dropped at once). build()
+drains it whole for gen() (the teleport) and the gates. SAME TREES: a stubbed world (GATE WORLDRENDER's harness) grown at a
+1000 ms and a 0.3 ms budget (51 vs 790 frames) builds 104 parts, 84 388 trees, 174 meshes and an identical matrix digest.
+
+**CAUSE 2 - THE EYE'S READBACK, EVERY FRAME (LIGHT-SMOOTH's G1357 v2, post_fx.js, carried on this branch).** Low pass
+HOME: 93 getBufferSubData stalls over 2 ms in 15 s, 2.8 s in all, max 74 ms (the long frames' previous frames are normal:
+the cost is the read's continuation task BETWEEN frames); fence callers over the session: the eye 2 907, the impostor
+sheet checks 53, flown_bake 6, the cloud fit 7. clientWaitSync never blocked: Chrome's getBufferSubData (MapBufferRange)
+is a sync IPC that waits on the GPU process's queue - a frame of work on a GPU-bound set. LIGHT-SMOOTH: the eye reads at
+most every 250 ms, issued from the frame; the frame catcher decides on the GPU (no read a frame). Expected ~7x fewer
+stalls, not zero: if the after-run still shows eye stalls on the user's set, the zero-read eye (the 16x16 mean eased into
+a 1x1 target on the GPU, applied where the tone curve is) is LIGHT-SMOOTH's next step.
+
+**AFTER: NOT MEASURED HERE** - my after-slot aborted in 10 s on a busy port (8771: a peer's stale cel_driver.js) and the box
+went on to METLA-TAXI; A0 takes the after numbers in train 28's pass, the same line: `node tools/master_bench.js --port <free>
+--fallback D:/Dev/DeGaRoR.github.io --builds cub --places HOME,mn_strip --only garage,taxi,pass,water --water-builds floats
+--no-water-pass --no-cold --gfx reports/evidence/G1295/gfx_<gamer|user>30.json --rec <dir> --garage 10 --taxi 40 --cockpit 10
+--pass 15 --water 25`, then `node tools/perf/scene_attrib.js <report.json> <dir>`. The before ran on train 27 at 98a01aff;
+train 27's tip adds the GEAR-WATER revert, the light ease's steps and the mirror off by default (the user's set stores
+`mirror: live`, so it still draws it) - the fixes act on slots attributed directly.
+
+**TOOLS.** master_bench.js: `--gfx <file>` (every load's flydiy.gfx), `--rec <dir>` (the recorder's ring per page; every
+clientWaitSync / getBufferSubData / readPixels over 2 ms and a stack per fenceSync), `--glprof` (every WebGL call over
+8 ms, every rAF callback over 40 ms and the microtasks after it), each scene's t0 / t1. tools/perf/scene_attrib.js: per
+scene the distribution, the long frames charged to the PREVIOUS frame's top slot, the events, the GL stalls, the readers.
+**GATES** (node, the branch on e40628b0): GFX, PACE, BOOT, BUILD (the brief's), POSTFX, WORLDRENDER, TREES, COVER PASS.
+**BOX:** 2 timed runs, 14 GPU minutes (01:31-01:45), under A0's reservation.
+**TRAPS.** (1) A recorder row's dt is the gap before it: charge a long frame to the frame before. (2) A slot lost in 10 s
+to a stale peer server on the cook's port: check the ports (netstat) before a slot. (3) TaskStop on a waiting `boxlock
+take` runner leaves both the script and the take alive: kill the script by PID first, then the take.
