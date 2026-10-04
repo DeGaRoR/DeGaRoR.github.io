@@ -36,7 +36,7 @@ const OUT = path.join(__dirname, 'radio_script.json');
 const SCRIPT = path.join(__dirname, 'voice_script.json');
 const MUSIC = path.join(ROOT, 'src', 'viewer', 'audio', 'music_catalogue.json');
 const SEED = 20261004;
-const BREAKS = 30;            // the program's length: about 2.6 hours at 'talk every 2' on Radio Jolene's 22 tracks
+const BREAKS = 34;            // the program's length: past two hours at 'talk every 2' on Radio Jolene's 22 tracks (about 30 breaks)
 const ROOTS = 'roots';
 
 // ---- the random (mulberry32: seeded, the same every run) -------------------------------------------------------------
@@ -308,10 +308,10 @@ const WX = {
 const T = (cat, target, turns) => ({ cat, target, turns: Array.isArray(turns) ? turns : [turns] });
 const THREADS = {
   dog: [
-    T('lost', 1, "Here's one for the lost and found. Biscuit, the Pruitt kids' dog, slipped his collar last night down by the laundry. He's a scruffy brown fellow with one ear up and one ear down. He answers to Biscuit, and to the sound of a sandwich being unwrapped. If you see him, call the laundry, or just tell Tommy and Jess. Those kids are worried sick."),
+    T('lost', 1, "Here's one for the lost and found. Biscuit, the Pruitt kids' dog, slipped his collar last night down by the laundry. He's a scruffy brown fellow with one ear up and one ear down. He answers to Biscuit, and to a sandwich being unwrapped. If you see him, tell Tommy and Jess at the laundry."),
     T('call', 8, [
       'We have Bobby Tran on the line, calling from the fish plant. Go ahead, Bobby, you are on the air.',
-      ['bobby', "Hey there, Norman, how's it going. I think I saw the Pruitts' dog this morning, behind the fish plant. Brown, one floppy ear, real interested in our garbage. He took off toward the old cannery before I could grab him."],
+      ['bobby', "Hey there, Norman, how's it going. I think I saw the Pruitts' dog this morning, behind the fish plant. He took off toward the old cannery before I could grab him."],
       "Thanks, Bobby, that's good news. So Biscuit was down by the old cannery, folks. If you're out that way, bring a sandwich.",
     ]),
     T('thanks', 15, "Good news from the Pruitt house. Biscuit is home, safe and sound. Pearl Whitaker found him asleep on a pile of life jackets at the Swap Shed. She says he didn't even pretend to be sorry. Tommy and Jess want to thank everyone who looked. Biscuit has a new collar, and a new interest in staying home."),
@@ -326,15 +326,13 @@ const THREADS = {
       ['walt', "We sure are, Norman. Danny's making his mother's recipe, and he's sworn us all to secrecy."],
       "And I hear you're bringing the engine down for the kids?",
       ['walt', "We'll park the engine by the hall, and the kids can climb all over it, within reason."],
-      'Anything folks should know before they come?',
-      ['walt', "Bring a camp stove for the food tables if you like, but keep a bucket of water handy. And we would love a few more volunteers this winter."],
-      'What does a new volunteer need to bring?',
+      'And you are looking for volunteers, I hear. What does a new one need to bring?',
       ['walt', 'Boots, a good attitude, and your Tuesday evenings free. We train you on everything else.'],
       'Chowder, a fire engine, and a standing invitation. Thanks for coming in, Walt.',
       ['walt', 'Thank you for having me, Norman. I will see everybody on Saturday.'],
     ]),
     T('event', 18, "The fair is this Saturday, folks. Doors open at the hall at ten. The boat races start when the tide's right, and the chowder runs out when it runs out. Bring a chair, bring a dollar for the raffle, and bring your cousin."),
-    T('thanks', 25, "Now that was a fair. Thank you to everyone who came out Saturday. The chowder was gone by one, and the raffle raised enough for the new hall stove. Mae Holloway won the pie contest again, and that makes four. Next year we're hiring a lawyer. Thanks to Lorna for running the tables, and to the fire department for the chowder and the patience."),
+    T('thanks', 25, "Now that was a fair. Thank you to everyone who came out Saturday. The raffle raised enough for the new hall stove. Mae Holloway won the pie contest again, and that makes four. Next year we're hiring a lawyer."),
   ],
   boardwalk: [
     T('work', 3, "Calling all hands, folks. The boardwalk out to the float plane dock has some soft boards, and one of them nearly ate my boot yesterday. Work party Saturday morning after the tide turns. Bring a hammer, bring gloves, and bring a thermos. I'll bring the doughnuts, and the bad jokes come free."),
@@ -342,14 +340,14 @@ const THREADS = {
     T('thanks', 16, "The boardwalk's done, and you can walk to the float plane dock without saying a prayer. Thank you to everyone who showed up. That's Lyle and Ruth Ann Moss, Danny Kessler, the Pruitts, Pete Navarro and Bobby Tran. And Nadia Kowalski, who drove more nails than anybody. Also me, I held the doughnuts."),
   ],
   barge: [
-    T('barge', 4, "A word from the harbour. The barge is running late, the weather down the coast has held it up in town. Gus Lindgren says it won't leave until things settle. If you're waiting on freight, or on that new refrigerator, sit tight. The store has enough milk to get us through, June says, if we don't all panic at once."),
+    T('barge', 4, "A word from the harbour. The barge is running late, the weather down the coast has held it up in town. If you're waiting on freight, or on that new refrigerator, sit tight. June says the store has enough milk, if we don't all panic at once."),
     T('barge', 10, "The barge is on its way, folks, and it should tie up at the harbour tomorrow on the morning tide. Sam Whitcomb asks that everyone keep their trucks off the main dock while they unload. Fuel deliveries go first, then freight, then that refrigerator."),
     T('thanks', 14, "The barge is in and unloaded, and nobody dropped anything in the harbour this time. Thanks to Sam Whitcomb and the dock crew for a long cold day's work. If you had freight coming, it's at the warehouse behind the store. Ray says bring something with your name on it."),
   ],
   skiff: [
     T('call', 5, [
       "We've got Carl Jensen on the line. Go ahead, Carl, you're on Radio Jolene.",
-      ['carl', "Hi there, Norman, thanks for taking my call. My skiff slipped her line at high tide last night, and she's gone. She's a green fourteen footer with a white stripe and a bad attitude. If anybody sees her, give me a shout at the boat works."],
+      ['carl', "Hi there, Norman, thanks for taking my call. My skiff slipped her line at high tide last night, and she's gone. She's green with a white stripe and a bad attitude. If anybody sees her, give me a shout at the boat works."],
       "A green skiff with a white stripe, folks. Keep your eyes peeled along the beaches. We'll find her, Carl.",
     ]),
     T('lost', 11, "An update on Carl Jensen's skiff. Jim Corrigan spotted her from the air, sitting high and dry on the beach past the point. She's upside down, but she's in one piece. Carl's headed out there with Lyle Moss to flip her back over. Nice eyes, Jim Corrigan."),
@@ -377,14 +375,14 @@ const THREADS = {
     T('library', 22, "Marjorie Fisk at the library is having a book sale on Saturday, upstairs over the store. Paperbacks a quarter, hardbacks a dollar, and the mystery shelf is overflowing. The money goes to new shelves, because the old ones are leaning like the dock pilings."),
     T('call', 28, [
       'I have Marjorie Fisk on the line, from the library. Go ahead, Marjorie, you are on the air.',
-      ['marjorie', "Hello there, Norman, thank you. I just wanted to say thank you to everyone who came to the book sale. We sold almost everything, and we raised enough for two new shelves. And whoever bought all the westerns, I know it was you, Wendell."],
+      ['marjorie', "Hello there, Norman, thank you. I just wanted to thank everyone who came to the book sale. We raised enough for two new shelves. And whoever bought all the westerns, I know it was you, Wendell."],
       "Thank you kindly, Marjorie. I'll be in for a mystery next week, and I won't say which one.",
     ]),
   ],
   burnban: [
     T('officer', 0, [
       'Officer Hale dropped off a message for us, so here it is in her own words.',
-      ['dana', "This is Officer Dana Hale, for the fire department. It's been a dry spell, so there is a burn ban on the whole island until further notice. That means no beach fires and no burning brush. Smokehouses are fine if you keep a hose close by. Thanks for looking out for each other."],
+      ['dana', "This is Officer Dana Hale, for the fire department. It's been a dry spell, so there is a burn ban on the whole island until further notice. No beach fires and no burning brush. Smokehouses are fine if you keep a hose close by."],
     ]),
     T('fire', 12, "Good news from the fire hall. After last week's rain, Chief Brennan has lifted the burn ban. Beach fires are back, as long as they're small, watched, and out before you go home. The chief asks that nobody burn anything that used to be a couch."),
   ],
@@ -396,7 +394,7 @@ const THREADS = {
     T('lost', 9, "Found on the main dock, a pair of red rubber boots, ladies size, nearly new. Gus has them in the harbour office. Whoever walked home without their boots, I'd love to hear the story."),
     T('call', 19, [
       'Wendell Price is on the line now. Go ahead, Wendell, you are on the air.',
-      ['wendell', "Norman, those red boots at the harbour office are mine. They're not ladies boots, they're just red. My wife bought them. Tell Gus I'll be by for them, and tell him to stop laughing."],
+      ['wendell', "Norman, those red boots at the harbour office are mine. They're not ladies boots, they're just red. Tell Gus to stop laughing."],
       "Thanks for calling, Wendell. The red boots have an owner, and the owner has his dignity, mostly.",
     ]),
   ],
@@ -404,7 +402,7 @@ const THREADS = {
     T('notice', 18, "Ada Thorne turns ninety on Sunday. Ninety years on this island, and she still walks to the store every morning. There's a card at the counter of the Tibbets store for everyone to sign, and June says there'll be cake. Don't tell Ada about the cake."),
     T('call', 24, [
       'We have a very special caller. Ada Thorne is on the line. Happy birthday to you, Ada.',
-      ['ada', "Oh, thank you, Norman dear. I just wanted to thank everybody for the card, and the cake, and all the visits. Ninety is nothing special, you just keep waking up. But it was lovely, and I'm keeping the leftover cake."],
+      ['ada', "Oh, thank you, Norman dear. Thank you all for the card, and the cake, and the visits. Ninety is nothing special, you just keep waking up. But I'm keeping the leftover cake."],
       "You've earned it, Ada. Happy birthday from all of us at Radio Jolene.",
     ]),
   ],
@@ -413,12 +411,10 @@ const THREADS = {
 // ---- THE STANDALONE NOTICES (no thread; placed where a break has room) ------------------------------------------------
 const NOTICES = [
   ['bingo', "Bingo at the hall Wednesday night, folks. Agnes Cole is calling, cards are a dollar, and the big prize this week is a whole smoked salmon from Kessler's. Agnes asks that everyone please stop yelling bingo when it isn't."],
-  ['bingo', "A reminder that bingo is on again Wednesday at the hall. Last week Wendell won three times in a row, and there's been an inquiry. Agnes promises a fresh deck of cards and a very close eye."],
   ['harbour', "A word from Gus at the harbour. There's a big log drifting around the channel past the fuel dock, mostly under water. If you're running the channel, keep a sharp eye out, and slow down."],
   ['harbour', "Gus Lindgren asks everyone to keep the end of the main float clear. That's where the float plane ties up, and Jim doesn't want to land on your crab pots."],
   ['harbour', "The fuel dock will be closed Monday morning while Sid Mercer fixes the pump. He says it'll be open by noon, and if not, by the time he says it'll be open."],
   ['berries', "Here's the berry report for you. The salmonberries are out along the creek trail, and they're good this year. Please leave some for the bears, and please make some noise while you pick. They're not great with surprises."],
-  ['bees', "Marty Shaw tells me his bees made more honey than he can eat this year, which nobody believed was possible. He's got jars at the store, and he says they taste like fireweed and stubbornness."],
   ['fire', "A reminder from the fire department. Smoke alarm batteries are free at the fire hall, all you have to do is come and ask. Chief Brennan says if your alarm is chirping, it is not a bird."],
   ['fire', "Chimney season is coming, folks. If you burn wood, get your chimney swept before the first cold snap. Danny Kessler has the brushes, and he'll do it for a pot of coffee and the story of your last chimney fire."],
   ['clinic', "Flu shots are in at the clinic. Rosa Delgado is giving them every afternoon this week. It takes two minutes, it doesn't hurt much, and she has lollipops, which are not only for the kids."],
@@ -428,17 +424,17 @@ const NOTICES = [
   ['thanks', "A big thank you to the school kids who cleaned up the beach by the boat ramp. Three bags of garbage, two old tires, and one very confused crab, returned to the water."],
   ['smokehouse', [
     "I've got Bev Kessler on the line from the smokehouse. Go ahead, Bev, you're on.",
-    ['bev', "Hi there, Norman, how are you. I just want folks to know the big smokehouse has room this week, if you've got fish you want smoked. Bring it cleaned, bring your own salt if you're particular, and I'll take care of the rest."],
+    ['bev', "Hi there, Norman, how are you. The big smokehouse has room this week, if you've got fish you want smoked. Bring it cleaned, and I'll take care of the rest."],
     "Thanks for that, Bev. Room at the smokehouse, folks, and nobody does it better.",
   ]],
   ['pancakes', [
     'Ruth Ann Moss is calling from the fire hall. Go ahead, Ruth Ann.',
-    ['ruthann', "Hi there, Norman, it's Ruth Ann. Just a reminder that the fire department pancake breakfast is Sunday at the fire hall. It's all you can eat, and the money goes to the new pump. Walt is flipping, so come early before he gets tired."],
+    ['ruthann', "Hi there, Norman, it's Ruth Ann. The fire department pancake breakfast is Sunday at the fire hall, and the money goes to the new pump. Walt is flipping, so come early."],
     'Pancakes, a good cause, and the chief with a spatula. See you there, Ruth Ann.',
   ]],
   ['officer', [
     'Officer Hale asked me to play this one, so listen up.',
-    ['dana', "This is Officer Dana Hale. A black bear has been visiting the dump after dark. Please keep your garbage inside until pickup day, and don't feed him, even by accident. If you see him in the village, give him room and let me know. Thank you, and stay safe out there."],
+    ['dana', "This is Officer Dana Hale. A black bear has been visiting the dump after dark. Please keep your garbage inside until pickup day, and don't feed him, even by accident. If you see him in the village, give him room and let me know."],
   ]],
   ['officer', [
     'A recorded message from Officer Hale.',
@@ -654,7 +650,7 @@ function build() {
 // two (never the same business twice running); call-ins and the officer spread out; the notices fill the rest.
 function schedule(r, steps, notices, ads, asides, segments) {
   const B = BREAKS, cap = [], slot = Array.from({ length: B }, () => []);
-  for (let b = 0; b < B; b++) cap[b] = 2 + (r() < 0.12 ? 1 : 0);
+  for (let b = 0; b < B; b++) cap[b] = 2;
   // the threads, in target order; the interview is a break of its own
   const placed = {};
   for (const s of steps.slice().sort((a, b) => a.target - b.target || a.i - b.i)) {
@@ -699,8 +695,8 @@ function schedule(r, steps, notices, ads, asides, segments) {
     // ads never open a break; calls and the interview after the community notice
     segsB.sort((x, y) => rank(kind(x)) - rank(kind(y)));
     const tok = [];
-    // a station ID every third break, the weather every fifth (with the tune-in's: about six in two hours)
-    const id = b % 3 === 0, wx = b % 5 === 2 && !segsB.some(x => kind(x) === 'interview');
+    // a station ID every third break, the weather every sixth (with the tune-in's: six in two hours)
+    const id = b % 3 === 0, wx = b % 6 === 2 && !segsB.some(x => kind(x) === 'interview');
     if (id && b % 2 === 0) tok.push('@id');
     tok.push('@ba');
     if (id && b % 2 === 1) tok.push('@id');

@@ -2054,11 +2054,12 @@ function checkRadioHorizon(S, report) {
     const wx = R1.readGame(radioWorld(RWX.fair));
     const c1 = R1.cursor(env);
     let lastK = -1;
-    for (let i = 0; i < 5; i++) { lastK = c1.k; R1.breakScript(c1, wx, [{ id: roots[0].id, title: roots[0].title, artist: roots[0].artist }]); R1.saveCursor(c1, env); }
+    const tr = i => { const t = roots[i % roots.length]; return [{ id: t.id, title: t.title, artist: t.artist }]; };
+    for (let i = 0; i < 5; i++) { lastK = c1.k; R1.breakScript(c1, wx, tr(i)); R1.saveCursor(c1, env); }
     const R2 = loadRadio(S.radio); R2.setScript(A);
     const c2 = R2.cursor(env);
     if (c2.k !== (lastK + 1) % A.program.length) F.push('a new session starts at break ' + (c2.k + 1) + ' (want ' + ((lastK + 1) % A.program.length + 1) + ': the broadcast continues)');
-    const segs = R2.breakScript(c2, wx, [{ id: roots[0].id, title: roots[0].title, artist: roots[0].artist }]);
+    const segs = R2.breakScript(c2, wx, tr(5));
     const heard = new Set(Object.keys(c1.h));
     const again = keysOf({ segs }).filter(k => /^(id|wx|ba)\./.test(k) && heard.has(k));
     if (again.length) F.push('the second session repeats the first one\'s takes: ' + again.join(', '));

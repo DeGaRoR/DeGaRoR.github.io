@@ -18,11 +18,11 @@
   "declared": []
  },
  "voice": {
-  "takes": 338,
-  "minutes": 34.5,
-  "MB": 12.04
+  "takes": 352,
+  "minutes": 34.8,
+  "MB": 12.15
  },
- "roots": 7,
+ "roots": 22,
  "horizon": [
   {
    "day": "the game's day",
@@ -31,20 +31,20 @@
    "hazards": [
     "eagles"
    ],
-   "breaksIn2h": 34,
-   "firstRepeatH": 1.68,
+   "breaksIn2h": 30,
+   "firstRepeatH": 2.18,
    "firstRepeat": "wx.fair.1",
-   "repeatRate6h": 0.647
+   "repeatRate6h": 0.551
   },
   {
    "day": "fog, morning",
    "sky": "mist",
    "wind": "light",
    "hazards": [],
-   "breaksIn2h": 34,
-   "firstRepeatH": 1.84,
-   "firstRepeat": "ad.store.1",
-   "repeatRate6h": 0.651
+   "breaksIn2h": 30,
+   "firstRepeatH": 2.25,
+   "firstRepeat": "id.generic.1",
+   "repeatRate6h": 0.556
   },
   {
    "day": "a gale in a front",
@@ -54,25 +54,25 @@
     "windBoat",
     "windPilot"
    ],
-   "breaksIn2h": 34,
-   "firstRepeatH": 1.68,
+   "breaksIn2h": 30,
+   "firstRepeatH": 2.18,
    "firstRepeat": "wx.fair.1",
-   "repeatRate6h": 0.648
+   "repeatRate6h": 0.553
   },
   {
    "day": "a calm night",
    "sky": "fair",
    "wind": "calm",
    "hazards": [],
-   "breaksIn2h": 34,
-   "firstRepeatH": 1.84,
-   "firstRepeat": "ad.store.1",
-   "repeatRate6h": 0.651
+   "breaksIn2h": 30,
+   "firstRepeatH": 2.25,
+   "firstRepeat": "id.generic.1",
+   "repeatRate6h": 0.556
   }
  ],
  "montage": {
-  "breaks": 7,
-  "tracks": 12,
+  "breaks": 6,
+  "tracks": 10,
   "bytes": 9600566
  },
  "ads": [
@@ -116,15 +116,7 @@
   },
   {
    "who": "Norman",
-   "text": "Anything folks should know before they come?"
-  },
-  {
-   "who": "Chief Walt Brennan",
-   "text": "Bring a camp stove for the food tables if you like, but keep a bucket of water handy. And we would love a few more volunteers this winter."
-  },
-  {
-   "who": "Norman",
-   "text": "What does a new volunteer need to bring?"
+   "text": "And you are looking for volunteers, I hear. What does a new one need to bring?"
   },
   {
    "who": "Chief Walt Brennan",

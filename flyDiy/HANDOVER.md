@@ -72565,3 +72565,125 @@ FOR THE COORDINATOR: (1) GATE AUDIO's wall: 241 s here vs 160 - measure on the b
   (3) a new music track or strip / lane -> re-run prep_voice.js (VOICE_CAT red until then; the talk speaks it meanwhile); (4)
   SND-TUNE: clipK, SEG_REST, the rests, the 'voice' row now only picking the fallback's voice (relabel?), the mix's label;
   (5) SND-VOICE's own evidence (reports/evidence/SND-VOICE/) still holds its john-era demos: `prep_voice.js --demo` regenerates them.
+
+## G1700-G1704 - SND-RADIO-3: THE LIVING RADIO - NORMAN AND THE ISLAND (A BIBLE, A CAST, THREADS THAT MOVE, ADS FROM A GRAMMAR), THE WEATHER IN WORDS FROM THE GAME, WHOLE TAKES IN FOUR CLEAN VOICES (CALLERS ON THE PHONE LINE), A PERSISTED BROADCAST CURSOR, THE TALK-UP OVER THE FADING OUTRO; THE AWOS RETIRED; GATED (2026-10-04, SND-RADIO-3 for the Sound Coordinator, cloud, node + python tools; branch claude/snd-radio3-living-radio off origin/claude/sound-next b380604e, merged with origin/claude/jolene-22 13e6c1ab)
+
+The user's verdict (2026-10-04, Radio Jolene in norman's voice): the automated weather was "a series of numbers, badly linked",
+the stitched text "really messes up punctuation, giving it a real robotic feeling" - make it LIVE: a rugged, warm host, a remote
+rural community at the scale of a few dozen people, threads that progress, two hours before anything repeats, fades and spoken
+credits, other voices. The Coordinator's architecture kept: PROCEDURAL OFFLINE, WHOLE TAKES AT RUNTIME.
+G1700 THE BIBLE AND THE GENERATOR - tools/audio/radio_bible.md (Norman: mid fifties, ex-fisherman, chairs the hall committee,
+  organises the work parties, warm dry humour, never a caricature; the writing-for-the-ear rules; the respect rules: Jolene and
+  everyone on it invented, no real Metlakatla person / organisation / business named or imitated, no cultural specifics; 34
+  named residents, 10 businesses, the places Norman names). tools/audio/radio_gen.js (node, seeded mulberry32, deterministic;
+  --check, --print) holds the same as data and writes tools/audio/radio_script.json: 352 items in 63 segments - 14 STORY THREADS
+  told in order (Biscuit the dog lost / sighted by a caller / home; the fall fair announced / pie bakers / the chief's interview /
+  the reminder / the thanks; the boardwalk work party called / Frank's cedar / the report with names; the barge late / due / in;
+  Carl's skiff (his call-in) / spotted from the air / back; Pickles the cat; the fiddle night; the school play; the visiting
+  doctor; the book sale (Marjorie's call); the burn ban (the officer's recorded message) / lifted; the new fire volunteer; the
+  red boots (Wendell's call); Ada's ninetieth (her call)), 15 standalone notices (bingo, harbour, fuel dock, berries, the fire
+  hall, the clinic, story hour, lost and found, thank-yous, two officer messages, two call-ins), 10 ADS from a grammar (business
+  x what they sell x a local gimmick x a closing line, three hand-polished: POLISH), the pools: 24 station IDs (8 generic + 4 per
+  part of the day), 138 weather sentences, 101 back-announces. THE PROGRAM: 34 breaks (~2.3 h at 'talk every 2' on the 22
+  tracks), two segments a break, the threads at least two breaks apart and in order, an ad most breaks (never the same business
+  running), calls and the officer spread, a station ID every third break, the weather every sixth; no two breaks the same shape.
+  THE WRITING RULES (the generator refuses a line, RADIO_LINT holds them again): no digit, no capitalised acronym, no colon /
+  semicolon / dash / bracket / quote, no instrument word, never two digit words in a row, sentences 4-22 words, a closing stop;
+  no phone numbers ("leave a note at the store"). THE BACK-ANNOUNCES: every Radio Jolene track at least three phrasings (more on
+  a station of few tracks: enough for two hours), 18 frames ("That was Matthew C. Wright, This Here House. A lovely one, that.");
+  every other station's track one short take ("That was Beach, by Loyalty Freak Music.") for the fallback; the titles SAID as a
+  person would: voice_script.json 'titles' / 'artists' (the spoken-title map: the store-listing words dropped, "NFLD" ->
+  Newfoundland, "Pt 2" -> part two, the Goldberg variations as "Variation thirteen of the Goldberg Variations"; the generator
+  derives a missing one and writes it back; hand-editable); 'say' respells for the voice only (Jo-leen, Matthew See Wright, Kiddy
+  Viddy, Mister Smith ...). voice_script.json's 'places' and 'lines' are gone with the AWOS.
+G1701 THE VOICES AND THE RENDER - tools/audio/voice_render.py: WHOLE TAKES (one Piper take per sentence, joined with a breath;
+  SND-VOICE's carrier / ALIGNED cut retired with the word clips), PROSODY per voice in one table (norman length_scale 1.06,
+  noise_scale 0.62, noise_w 0.90, 0.34 s between sentences; a question +0.08 s; every gap nudged up to +-0.05 s seeded per item
+  so no two are alike), the noise banks seeded per SENTENCE from its own text (a take is a function of its words). The trim is
+  unchanged (the user: the endings are fine). tools/audio/prep_voice.js: renders radio_script.json's items, a CACHE
+  (assets/audio/voice_cache/, by voice + speaker + words + the render script's hash: a re-run renders only what changed), the
+  CALLERS through the PHONE LINE at render time (two Butterworth sections a side: 300-3400 Hz, then tanh saturation at drive
+  2.2; measured on a caller: -11 dB under 250 Hz, -16 dB over 4 kHz), -20 LUFS, MP3 mono 48 kb/s (SND-RADIO-2's), _media_lib.
+  352 takes, 34.8 min, 12.15 MB (the aim 12: the 15 new tracks' 45 back-announces put it over; the program was tightened
+  twice to get here). THE VOICES - only clean lineages, each read off its model card (the tarball's, = rhasspy/piper-voices'):
+    norman  en_US-norman-medium  the host (the user's pick)        LibriVox, public domain  trained from scratch
+    john    en_US-john-medium    Chief Walt Brennan (interview)    LibriVox, public domain  fine-tuned from kristin (from scratch, PD)
+    kristin en_US-kristin-medium Officer Dana Hale (messages)      LibriVox, public domain  trained from scratch
+    libritts en_US-libritts-high the 7 residents who phone in      LibriTTS clean-360, CC BY 4.0 (credit Zen et al.)  from scratch
+  The callers: LibriTTS speakers 189 (Carl), 576 (Bobby), 27 (Wendell), 567 (Ada), 315 (Marjorie), 585 (Bev), 162 (Ruth Ann),
+  chosen from 100 speakers by median pitch, pitch movement and noise floor (three men, four women, all distinct). The dataset pages
+  (openslr.org, librivox.org, keithito.com, brycebeattie.com) and Hugging Face are blocked by this container's egress policy
+  (WebFetch too): the licences are the model cards' own, as SND-VOICE's were; LJ Speech's public domain corroborated via
+  lhotse / keithito's tacotron README on GitHub. THE SHIPPED SCRIPT: media/audio/voice/radio_script.<h8>.json (every item with its
+  file and dur), FETCHED LAZILY by radio_talk.js; src/viewer/audio/voice_catalogue.json (inlined as FLYDIY_VOICE) shrinks from
+  44 KB to ~5 KB: the voices' licence records + the script's file and totals. CREDITS.md's VOICE block credits all four.
+  tools/_media_check.js: REF_RE += json, and the script the catalogue names is read as a manifest (its takes are not orphans).
+G1702 THE RUNTIME CHOOSES - src/viewer/audio/radio_talk.js rewritten (the AWOS, the marine forecast, the pilots' notes, clipLines and
+  every number word retired): readGame (kept: the climate's wind and gust, the surface visibility, the day's decks, temperature,
+  humidity, the front) -> conditions(wx) QUANTISED, never quoted: part of the day; sky clear / fair / cloudy / grey / low (a
+  broken+ deck under 300 m) / mist (< 5 km) / fog (< 1 km) / rain (a front passing); wind calm < 4 kt / light < 11 / breezy < 18 /
+  windy < 34 / gale; gusty (a 10 kt spread); hazards fog (pilots, boaters), a strong wind (boats, pilots), soft gravel strips (a
+  front, or wet under cloud), frost (<= 1 C), eagles (a calm day); trend front (< 18 h) / easing; feel cold (<= 3 C) / mild
+  (>= 16 C). A WEATHER SEGMENT = the sky's lead (a lead tagged for another part of the day never chosen) + the least recently
+  drawn of wind / gusts / eagles / outlook / feel + on a real hazard its advice: two or three whole sentences. load(env) fetches
+  the script through ASSET_FETCH once (after the gesture, only on Radio Jolene) and hands its items to AUDIO_VOICE.setClips
+  (voice.js: + setClips). THE CURSOR { v, k, n, h }: the program's next break, the breaks heard, when each pooled take was last
+  heard - PERSISTED in localStorage flydiy.audio.radioCursor (try/catch): a new session continues; a new script starts at its top.
+  The pools pick the least recently heard take that fits (the IDs interleave generic and the part of the day's; the weather's
+  extras rotate by when each pool was last drawn from). breakScript(cursor, wx, tracks, {tuneIn}): the tune-in = an ID and the
+  weather (the program does not move), else the program's next break with '@id' / '@ba' (the track just played) / '@wx' filled.
+  A track the broadcast was not written for is back-announced by speechSynthesis (spoken text; no take). makeTalker /
+  makeSpeaker unchanged (speechSynthesis only the fallback for a missing take). voice_model.js shrinks to timeline().
+G1703 THE FADES AND THE TALK-UP (music.js) - on Radio Jolene with its talk on the garage FADES song to song (gapped(c): no
+  silences - a station does not go quiet; the talk off keeps them); a break owed starts TALK_UP_S = 6 s before the track's end:
+  the outgoing track fades out equal-power over what is left of it, Norman talks over the outro, the next track comes in under
+  him at the 16 % bed (1.5 s) and rises over 1.5 s after the last take (the XFADE equal-power curve kept; talkDue is asked only
+  in a track's last 9 s - no frame cost). The script loads on tuning in (loadScript: connect / setStation); no break before it is
+  in; a LATE TUNE-IN (the script arriving after the first track started) talks over that track if it is under 10 s in, bringing
+  it down to the bed. The cursor is read at connect and saved after every break. The shuffle bag unchanged: 22 tracks, no repeat
+  inside a round. AUDIO.update unchanged in cost (the radio's frame under a talk of takes: +4.3 KB over 100 000 frames, 0 GC).
+G1704 GATE AUDIO AND THE EVIDENCE - tools/audio/_audio_check.js: FILES += radioscript (the written) and shipscript (the media file
+  the catalogue names, so a mutation reaches what the game plays). NEW: RADIO_LINT (every shipped and written take: the rules;
+  the rendered = the written; the spoken titles clean), RADIO_HORIZON (two hours simulated on the shipped 22 Radio Jolene tracks
+  under four game weathers x three seeds: no take twice, every thread in order, no two breaks of one shape, the cursor persisted
+  - a fresh page continues with the next break and repeats none of the first session's takes - a throwing storage survived;
+  reports the horizon and the six-hour repeat rate), RADIO_WX (eleven game days: the sky, the band, the advice heard, never
+  eagles in a gale or fog advice on a clear day, no lead from another part of the day, 2-3 sentences, no digit), VOICE_LICENCE
+  (every voice the broadcast uses: a whole record, public domain / CC0 / CC BY 4.0, never NC / ND / SA, the CC BY credit, MIT
+  engine and model, a from-scratch lineage, CREDITS names each; the host norman), RADIO_XFADE (song to song on Radio Jolene in
+  the garage: no silence, equal-power halfway; the talk-up: the voice over the outro at > 50 %, the outro fading over ~6 s
+  equal-power, the next track at the 16 % bed; the talk off keeps the silences). REWRITTEN: VOICE_CAT (the script's takes exist,
+  no orphan, the totals true, every track of every station back-announced - Radio Jolene's three times, each take crediting the
+  spoken title and artist - the callers and only they on the phone line, the voice <= 14 MB, reported), RADIO_CLIPS (the lazy
+  fetch once on tuning in, none on lo-fi, the late tune-in over the young track at the bed, the regular break in takes, the
+  per-segment fallback on the weather's and the IDs' takes, the route, the ducks, the suspend, nothing before the gesture, the
+  frame). RADIO_TALK: the tune-in is an ID and the weather in words; the duck test before the talk-up window. RETIRED with the
+  code they tested: RADIO_SCRIPTS, VOICE_AWOS, VOICE_MARINE (and tools/audio/radio_scripts.js, radio_break_render.js). 35 new
+  mutations (lint x7, horizon x5, wx x8, licence x5, cat x3 with the phone line, xfade x4, the lazy script x3), 29 retired with
+  their checks or the code they anchored on (292 -> 298). Each new check negative-verified: every new mutation red on its own check.
+  EVIDENCE reports/evidence/SND-RADIO-3/ (tools/audio/radio_broadcast.js; prep_voice.js --demo for voices/): README.md (what to
+  listen for), montage_20min.mp3 (9.2 MB: a player tuning in again at the program's break 11 on Jolene's own day - the tune-in,
+  six breaks with a call-in, the chief's interview, ads, the weather - mixed as music.js mixes it, -17 LUFS) + montage_20min.md,
+  transcript_2h.md (the first two hours, word for word, with the tracks), ad_cafe_1 / ad_engine_1 / ad_air_1.mp3, interview.mp3,
+  call_in.mp3, voices/ (the guest candidates, the same line dry and through the phone, + the model cards), summary.json.
+GATES: AUDIO PASS (298 / 298 mutations, sources byte-identical, ~190 s wall on this 4-core box); BUILD, UISMOKE, MEDIA, BOOT
+  PASS (run_gates --only; the generated index.html / dev.html / sw.js / version.json restored, not committed; MEDIA: a fresh page
+  +245.7 KB over the stale committed one, budget 307.2 - the inlined voice catalogue is ~39 KB SMALLER than SND-RADIO-2's).
+  Not run: a browser (the lazy fetch through the real ASSET_FETCH and sw.js, the talk-up by ear, Chrome's speechSynthesis fallback).
+FINAL REPORT
+  Branch    claude/snd-radio3-living-radio (pushed), off origin/claude/sound-next b380604e, merged origin/claude/jolene-22 13e6c1ab.
+  Horizon   two hours repeat-free on the 22 tracks (the worst of 12 runs 2.20 h; 30 breaks in two hours at talk every 2, the
+            program 34); the repeat rate over six hours 55 % (the program loops after ~2.3 h; the pools keep choosing the least
+            recently heard). 'talk every 1' halves the horizon.
+  Voice     352 takes, 34.8 min, 12.15 MB (aim 12); four voices, all clean; the callers on the phone line.
+  Files     NEW tools/audio/{radio_bible.md, radio_gen.js, radio_script.json, radio_broadcast.js}, reports/evidence/SND-RADIO-3/;
+            CHANGED src/viewer/audio/{radio_talk.js, music.js, voice.js, voice_model.js, voice_catalogue.json},
+            tools/audio/{prep_voice.js, voice_render.py, voice_script.json, _audio_check.js}, tools/_media_check.js (REF_RE + json,
+            the script read as a manifest), CREDITS.md (the VOICE block), media/audio/voice/ (352 takes + the script);
+            REMOVED tools/audio/{radio_scripts.js, radio_break_render.js}. No app.js / build.js / index edit.
+FOR THE COORDINATOR: (1) the user picks the guests by ear in voices/ (john / kristin / the seven LibriTTS speakers): a role moves
+  to another voice in radio_gen.js VOICES, then prep_voice.js; (2) SND-TUNE: PROSODY in voice_render.py, TALK_UP_S, the bed, the
+  phone drive; (3) more broadcast = a longer program and more pools (radio_gen.js), at about 6 KB a second of speech; (4) a new
+  catalogue track: radio_gen.js (writes its spoken title) then prep_voice.js - VOICE_CAT is red until then, the talk speaks its
+  credit meanwhile; (5) GATE AUDIO measured ~190 s here (run_gates' wall is 160 - SND-RADIO-2 measured the same overrun);
+  SP_BUDGET's TurboFan mutation missed once under load in a full run and was caught alone (a contended sample, as before).
