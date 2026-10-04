@@ -23,7 +23,7 @@
 // axis so a stick can be identified by wiggling it, and the profile as a
 // document: defaults, export, import.
 (() => {
-  let inp = null, host = null, built = false, rafOn = false, opts = {};
+  let inp = null, host = null, built = false, rafOn = false, rafId = 0, opts = {};
   let tuneFor = null;             // { id, dev } whose tuning row is open
   const $ = id => document.getElementById(id);
   const el = (tag, cls, txt) => {
@@ -240,7 +240,7 @@
   let lastL = null;
   function tick() {
     if (!rafOn) return;
-    requestAnimationFrame(tick);
+    rafId = requestAnimationFrame(tick);
     if (!inp || !host || host.hidden) return;
     const st = inp.state();
     // a listen that ended (the model bound something) redraws the rows
@@ -286,14 +286,14 @@
     tuneFor = null;
     renderDevs(); renderRows();
     inp.onChange(() => { if (!host.hidden) renderRows(); });
-    if (!rafOn) { rafOn = true; requestAnimationFrame(tick); }
+    if (!rafOn) { rafOn = true; rafId = requestAnimationFrame(tick); }
     return true;
   }
   function close() {
     if (!host) return;
     if (inp && inp.listening()) inp.cancelListen();
     host.hidden = true;
-    rafOn = false;
+    rafOn = false; if (rafId) { cancelAnimationFrame(rafId); rafId = 0; }   // REVIEW 2026-10-04: no second loop on a quick re-open
   }
   const isOpen = () => !!(host && !host.hidden);
   const toggle = (model, o) => (isOpen() ? (close(), false) : open(model, o));

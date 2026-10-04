@@ -69,9 +69,23 @@ function svgFor(icon) {
 // ---------------------------------------------------------------------------
 let armed = null;          // { rowKey, value, count }
 let lastUndo = null;       // { label, cage: {k: prev}, spec: patch-of-prev }
+// REVIEW 2026-10-04 (B17): the one-slot undo (and an armed starter) belong to the build they were taken on; a LOAD
+// (CAGE_UI.applySpec fires 'flydiy:specApplied' - a fleet load, a birth, the boot seed) replaces that build, and the
+// panel still offered "undo <tile>" that wrote the previous aeroplane's rows into the new one
+if (typeof window !== 'undefined') window.addEventListener('flydiy:specApplied', () => {
+  if (!lastUndo && !armed) return;
+  lastUndo = null; armed = null;
+  try { refresh(); } catch (e) {}
+});
 let hostEl = null;         // where the tiles currently live
 let birthEl = null;
 let inlineHost = null;     // { el, sel } — the tiles sprinkled into STRUCTURE
+let regRefresh = null;     // the registration field's own refresh (B18): the live input's, re-pointed per render
+if (typeof window !== 'undefined') {
+  const regPoke = () => { if (regRefresh) try { regRefresh(); } catch (e) {} };
+  window.addEventListener('flydiy:specApplied', regPoke);
+  window.addEventListener('flydiy:specUpdated', regPoke);
+}
 
 // WHICH PART A MACRO ROW BELONGS TO (2026-09-04, the user: "sprinkle back the
 // controls into the shape section ... I can't find the rod setting when
@@ -276,8 +290,9 @@ function rowBlock(row) {
     };
     inp.value = readSpec();
     const refresh = () => { if (document.activeElement !== inp) inp.value = readSpec(); };
-    window.addEventListener('flydiy:specApplied', refresh);
-    window.addEventListener('flydiy:specUpdated', refresh);
+    // REVIEW 2026-10-04 (B18): one pair of window listeners for the module, re-pointed at the live input - a pair was
+    // added on every render of this row (every refresh, every tile render) and never removed
+    regRefresh = refresh;
     inp.addEventListener('focus', refresh);
     inp.addEventListener('change', () => {
       const patch = {};
