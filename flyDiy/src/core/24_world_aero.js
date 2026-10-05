@@ -10,7 +10,7 @@
 // Deterministic: fixed iteration orders, hash jitter only.
 // ============================================================
 function bakeAerodromes(D) {
-  // D: { terrain(x,z), water(x,z), carved(x,z), settlements, meadows, roadNear, SURFACE, salt }
+  // D: { terrain(x,z), water(x,z), carved(x,z), settlements, meadows, roadNear, SURFACE, salt, buildings (G1928) }
   const t0 = Date.now();
   const { terrain, water, carved, settlements, meadows, roadNear, SURFACE, salt } = D;
   const houses = D.buildings || [];
