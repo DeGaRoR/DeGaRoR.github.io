@@ -3027,8 +3027,8 @@ const GEN_DEFAULT = {
     // THE GLAZING (2026-09-04, the user: "we need to be able to deactivate
     // the glazing too"): 'glass' bills the windscreen and the side windows
     // as always; 'none' is an open cockpit — no glass mass. The cage's
-    // `glazeOn` row is the one writer (tools/_cage_join.js).
-    glazing: 'glass',
+    // `glazeOn` row is the one writer (tools/_cage_join.js). (REVIEW 2026-10-04: the key was declared twice in this
+    // literal, 'glass' here and 'bubble' below; the last wins in JS, so the dead first one is gone - no value moved.)
     // T2.2: WHAT the glazing is made of (one material for the whole aeroplane,
     // the cage's `glazeMat` row), and the glazed AREA the join MEASURES off
     // the built skin — windscreen, side windows, skylight, every drawn pane

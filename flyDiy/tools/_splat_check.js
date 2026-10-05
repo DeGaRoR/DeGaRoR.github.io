@@ -239,7 +239,14 @@ function checkShader(G, splice, quiet) {
   say(/const gMatTwin = islandGroundHook \? worldLambert\(\{ map: tex \}\) : gMat;[\s\S]{0,200}innerPatchShared = \{ mat: gMatTwin/.test(rw), 'the premises patch clones a Lambert TWIN under the same hook (15 units; a Standard clone asks 17 and fails to link)');
   say(rw.includes(".replace('iblIrradiance += getIBLIrradiance( geometryNormal );', '/*"), "the hook cuts the IBL irradiance (the hemisphere stays the world's one ambient)");
   say(rw.includes("'vec3 iblRadiance = getIBLRadiance( geometryViewDir, geometryNormal, material.roughness )' + GLOSS + ';'") && rw.includes("'reflectedLight.directSpecular += irradiance * specularBRDF * material.multiScatteringCompensation' + GLOSS + ';'") && /const SC = THREE\.ShaderChunk, GLOSS = ' \* smoothstep\( 0\.9, 0\.6, material\.roughness \)';/.test(rw), "the hook fades both specular lobes (the probe's and the sun's) out by roughness 0.9: dry ground is the Lambert it was");
-  say(rw.includes("'#include <roughnessmap_fragment>' + SPL.glslRough"), "the sets' roughness spliced after roughnessmap_fragment");
+  // (G1521, POTATO-DEEP: the hook's splat is SP - SPL unless the plain ground keys it out)
+  say(rw.includes("'#include <roughnessmap_fragment>' + SP.glslRough"), "the sets' roughness spliced after roughnessmap_fragment");
+  // G1521: THE PLAIN GROUND ('ground' row 'plain', potato) carries none of the splat: SP is null when SPL.api.plain(), every
+  // splice of the splat's text goes through SP, the program keys ':plain', and the sets are fetched only when a step asks
+  say(rw.includes('const SP = SPL && !SPL.api.plain() ? SPL : null;') && !/SPL\.glsl(Map|Normal|Rough|Common)/.test(rw)
+      && rw.includes("(groundPlain() ? ':plain' : '')"), "the plain ground's programs carry no splat (SP null, every splice through SP, keyed ':plain')");
+  { const sg = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'splat_ground.js'), 'utf8');
+    say(/if \(!plain\) ensure\(\);/.test(sg) && /if \(!asked\) \{ LIB = keys; return true; \}/.test(sg), "a plain ground fetches no set until a step asks (ensure on plain(false), a grow before it builds nothing)"); }
   // THE FOREST FLOOR'S GRASS IS PULLED BY VALUE, TOWARD A MEASURED TARGET (2026-09-23, the user:
   // "the brightest areas are rock, the darkest are grass ... if you can selectively edit only the
   // grass"). Two things must stay true or it stops being that: the mask is the texel's LUMINANCE

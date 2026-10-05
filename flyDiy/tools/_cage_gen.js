@@ -8624,10 +8624,85 @@ function cageRefitArc(s) {
   return Object.assign({}, s, { A: A2 });
 }
 
+// G1452 (RELEASE-FAST): THE SHEET'S STAGES KEPT WHILE THEIR INPUTS ARE. cageSheet is a chain of passes over one mesh,
+// each a function of the mesh it is handed and the spec keys it reads (no pass reads P, a clock or a random number;
+// the one global, CAGE_MEMBERS, is the interior's output and is kept with it). A detail row moves one pass's keys - a
+// rim's the rims', the dash's the interior's, a shoulder's or a door panel's the shoulder's - and every pass before it
+// rebuilt the same mesh. With opts.passKeep (the editor's build: _cage_ui sheetKept) the sequence runs as four
+// stages - the cage through the canopy, the rims, the interior, the shoulder - each keyed by its input (the previous
+// stage's kept object) and the JSON of the spec keys it read on its last run (recorded through a view of the spec);
+// a stage whose key holds hands back its last output. The rims and the interior append to and replace entries in the
+// mesh they are handed (measured: no vertex, field entry, crease or face object of their input is written), so each
+// is handed a shallow copy (its arrays sliced) and the kept output stays as built. An exploded cut, a numeric step or
+// passKeep off: the plain sequence below. The editor's long way (CAGE_UI.sheetKeep = false) runs without it.
+const SHEET_STAGE = { A: null, R: null, I: null, S: null };
+const sheetSpecView = spec => {
+  const reads = new Set();
+  const px = new Proxy(spec, {
+    get(t, k) { if (typeof k === 'string') reads.add(k); return t[k]; },
+    has(t, k) { if (typeof k === 'string') reads.add(k); return k in t; },
+    ownKeys(t) { reads.add('*'); return Reflect.ownKeys(t); },
+    getOwnPropertyDescriptor(t, k) { if (typeof k === 'string') reads.add(k); return Reflect.getOwnPropertyDescriptor(t, k); },
+  });
+  return { px, reads };
+};
+const sheetJSON = x => JSON.stringify(x, (k, v) => (typeof v === 'number' && !isFinite(v)) ? 'num:' + v : v === undefined ? '(u)' : v);
+function sheetStage(slot, spec, memo, input, salt, run) {
+  const val = k => k === '*' ? (memo['*'] || (memo['*'] = sheetJSON(spec))) : (k in memo ? memo[k] : (memo[k] = sheetJSON(spec[k])));
+  const e = SHEET_STAGE[slot];
+  if (e && e.input === input && e.salt === salt) {
+    let same = true;
+    for (const [k, v] of e.reads) if (val(k) !== v) { same = false; break; }
+    if (same) { if (e.memb !== undefined && typeof window !== 'undefined') window.CAGE_MEMBERS = e.memb; return e.out; }
+  }
+  const V = sheetSpecView(spec);
+  const out = run(V.px);
+  const reads = new Map();
+  for (const k of V.reads) reads.set(k, val(k));
+  SHEET_STAGE[slot] = { input, salt, reads, out, memb: slot === 'I' && typeof window !== 'undefined' ? window.CAGE_MEMBERS : undefined };
+  return out;
+}
+const sheetShallow = m => { const o = Object.assign({}, m); for (const k of ['V', 'F', 'A', 'N']) if (Array.isArray(m[k])) o[k] = m[k].slice(); return o; };
+function cageSheetKept(spec, step, L) {
+  const memo = {};
+  const KG = (typeof KNIFE_GEN !== 'undefined') ? KNIFE_GEN
+    : (typeof require === 'function' ? require('./_knife_gen.js') : null);
+  const A = sheetStage('A', spec, memo, null, step + '|' + L + '|' + !!KG, S => {
+    const m = buildCage2(S, step);
+    let s = m;
+    for (let i = 0; i < L; i++) s = cageSubdivide(s);
+    if (L > 0) s = cageRefitArc(s);
+    const drawn = KG && S.windows && S.windows.length;
+    if (drawn)
+      s = Object.assign({}, s, { F: s.F.map(f => {
+        if (f.m !== 'pasengerWindow') return f;
+        const g = Object.assign({}, f, { m: 'body' }); delete g.win; return g;
+      }) });
+    s = cageGlassSill(s, S);
+    s = cageCut(s, S);
+    if (drawn) {
+      s.N = KG.knifeNormals(s);
+      for (const w of S.windows) {
+        if (w.refused) continue;
+        for (const side of [1, -1])
+          s = KG.knifeCut(s, w, { side, depth: w.depth, paneMat: 'drawnPane', wallMat: 'reveal' });
+      }
+    }
+    s = cageCanopy(s, S);
+    return { m, s };
+  });
+  const R = sheetStage('R', spec, memo, A, '', S => cageRims(sheetShallow(A.s), S));
+  const I = sheetStage('I', spec, memo, R, '', S => cageInterior(sheetShallow(R), S));
+  const s = sheetStage('S', spec, memo, I, '', S => cageShoulder(I, S));
+  return { spec, cage: A.m, mesh: s, sheet: s };
+}
+
 function cageSheet(P, opts) {
   const step = (opts && opts.step != null) ? opts.step : 'crease';
   const L = (opts && opts.level != null) ? +opts.level : 2;
   const spec = cageSpec({ ...P });
+  if (opts && opts.passKeep && step === 'crease' && !((P.explodeD || 0) > 0) && !(spec.cut && spec.cut.explode > 0))
+    return cageSheetKept(spec, step, L);
   const m = buildCage2(spec, step);
   let s = m;
   for (let i = 0; i < L; i++) s = cageSubdivide(s);

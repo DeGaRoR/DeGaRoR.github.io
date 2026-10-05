@@ -29,6 +29,7 @@ for (let i = 0; i < argv.length; i++) if (argv[i] === '--build') builds.push(arg
 if (!builds.length) builds.push('cub', 'stock', path.join(T, '..', 'bugReports', 'cessnaMetal (1).json'),
   path.join(T, '..', 'bugReports', 'cessnaFloats.json'));
 const SETTLE = +arg('--settle', 6);
+const TW_DRAW_DROP = 0.02;     // app.js's G1383 dial, the same number
 const JSON_OUT = argv.includes('--json');
 
 const BJ = require('./_bake_joined.js');
@@ -59,8 +60,10 @@ function poseWheels(def, sim, vis) {
             cg[1] + x * xA[1] + y * yU[1] + z * vZ[1],
             cg[2] + x * xA[2] + y * yU[2] + z * vZ[2]];
   };
+  // G1383: app.js poseModel draws a taildragger's tail gear TW_DRAW_DROP under its node (world-down)
+  const twDrop = (def.refs && def.refs.tw != null && def.refs.tw >= 0 && def.spec && def.spec.gear && def.spec.gear.type === 'taildragger') ? def.refs.tw : -1;
   const nodeLocal = idx => {
-    const i3 = idx * 3, dx = sim.p[i3] - cg[0], dy = sim.p[i3 + 1] - cg[1], dz = sim.p[i3 + 2] - cg[2];
+    const i3 = idx * 3, dx = sim.p[i3] - cg[0], dy = sim.p[i3 + 1] - (idx === twDrop ? TW_DRAW_DROP : 0) - cg[1], dz = sim.p[i3 + 2] - cg[2];
     return [dx * xA[0] + dy * xA[1] + dz * xA[2] - O[0], dx * yU[0] + dy * yU[1] + dz * yU[2] - O[1],
             dx * vZ[0] + dy * vZ[1] + dz * vZ[2]];
   };

@@ -1,0 +1,799 @@
+{
+ "date": "2026-10-04T11:22:30.619Z",
+ "build": "cub",
+ "query": "",
+ "rows": [
+  {
+   "key": "wgChord",
+   "tick": 217.2,
+   "release": 1838.7,
+   "releaseMax": 1859.5,
+   "idle": 11.3,
+   "sheet": 0,
+   "previews": "4/4/4",
+   "fn": {
+    "CAGE_ON_BUILD": 90.6
+   },
+   "chain": [
+    [
+     "crew",
+     238.2
+    ],
+    [
+     "panel",
+     1
+    ],
+    [
+     "cowl",
+     115
+    ],
+    [
+     "cowlAft",
+     0
+    ],
+    [
+     "eng",
+     121.4
+    ],
+    [
+     "wing",
+     189.7
+    ],
+    [
+     "brace",
+     0.1
+    ],
+    [
+     "gear",
+     158.2
+    ],
+    [
+     "float",
+     0
+    ],
+    [
+     "fin",
+     13.6
+    ],
+    [
+     "stab",
+     21.6
+    ],
+    [
+     "access",
+     104.9
+    ],
+    [
+     "light",
+     51.4
+    ],
+    [
+     "energy",
+     126.5
+    ],
+    [
+     "hinge",
+     146.3
+    ],
+    [
+     "ext",
+     0.3
+    ]
+   ],
+   "why": ""
+  },
+  {
+   "key": "wgSpan",
+   "tick": 185.7,
+   "release": 2099.8,
+   "releaseMax": 2292.5,
+   "idle": 13,
+   "sheet": 0,
+   "previews": "4/4/4",
+   "fn": {
+    "CAGE_ON_BUILD": 73.5
+   },
+   "chain": [
+    [
+     "crew",
+     255.9
+    ],
+    [
+     "panel",
+     1
+    ],
+    [
+     "cowl",
+     128.4
+    ],
+    [
+     "cowlAft",
+     0
+    ],
+    [
+     "eng",
+     202
+    ],
+    [
+     "wing",
+     163.2
+    ],
+    [
+     "brace",
+     0.1
+    ],
+    [
+     "gear",
+     187.8
+    ],
+    [
+     "float",
+     0.1
+    ],
+    [
+     "fin",
+     16.7
+    ],
+    [
+     "stab",
+     25.2
+    ],
+    [
+     "access",
+     112.8
+    ],
+    [
+     "light",
+     41.9
+    ],
+    [
+     "energy",
+     111.6
+    ],
+    [
+     "hinge",
+     173.6
+    ],
+    [
+     "ext",
+     0.3
+    ]
+   ],
+   "why": ""
+  },
+  {
+   "key": "stSpan",
+   "tick": 22.8,
+   "release": 2080.1,
+   "releaseMax": 2359.5,
+   "idle": 11.1,
+   "sheet": 0,
+   "previews": "4/4/4",
+   "fn": {
+    "CAGE_ON_BUILD": 70.2
+   },
+   "chain": [
+    [
+     "crew",
+     237.9
+    ],
+    [
+     "panel",
+     1.1
+    ],
+    [
+     "cowl",
+     84.9
+    ],
+    [
+     "cowlAft",
+     0
+    ],
+    [
+     "eng",
+     160.7
+    ],
+    [
+     "wing",
+     235.2
+    ],
+    [
+     "brace",
+     0.1
+    ],
+    [
+     "gear",
+     156.4
+    ],
+    [
+     "float",
+     0.1
+    ],
+    [
+     "fin",
+     5
+    ],
+    [
+     "stab",
+     26.2
+    ],
+    [
+     "access",
+     83.8
+    ],
+    [
+     "light",
+     39.1
+    ],
+    [
+     "energy",
+     137.7
+    ],
+    [
+     "hinge",
+     169.8
+    ],
+    [
+     "ext",
+     0.5
+    ]
+   ],
+   "why": ""
+  },
+  {
+   "key": "s1X",
+   "tick": 188.4,
+   "release": 1723.5,
+   "releaseMax": 1751.3,
+   "idle": 6.9,
+   "sheet": 0,
+   "previews": "4/4/4",
+   "fn": {
+    "CAGE_ON_BUILD": 58.6
+   },
+   "chain": [
+    [
+     "crew",
+     168.9
+    ],
+    [
+     "panel",
+     1
+    ],
+    [
+     "cowl",
+     87.3
+    ],
+    [
+     "cowlAft",
+     0
+    ],
+    [
+     "eng",
+     101.4
+    ],
+    [
+     "wing",
+     272.1
+    ],
+    [
+     "brace",
+     0.1
+    ],
+    [
+     "gear",
+     132.3
+    ],
+    [
+     "float",
+     0.1
+    ],
+    [
+     "fin",
+     5.9
+    ],
+    [
+     "stab",
+     13.1
+    ],
+    [
+     "access",
+     74.4
+    ],
+    [
+     "light",
+     87.8
+    ],
+    [
+     "energy",
+     85.4
+    ],
+    [
+     "hinge",
+     119.2
+    ],
+    [
+     "ext",
+     0.3
+    ]
+   ],
+   "why": ""
+  },
+  {
+   "key": "seatH",
+   "tick": 338.8,
+   "release": 1741.5,
+   "releaseMax": 1961.6,
+   "idle": 10.5,
+   "sheet": 0,
+   "previews": "4/4/4",
+   "fn": {
+    "CAGE_ON_BUILD": 58.2
+   },
+   "chain": [
+    [
+     "crew",
+     216.3
+    ],
+    [
+     "panel",
+     1
+    ],
+    [
+     "cowl",
+     92
+    ],
+    [
+     "cowlAft",
+     0
+    ],
+    [
+     "eng",
+     97.3
+    ],
+    [
+     "wing",
+     155.7
+    ],
+    [
+     "brace",
+     0.1
+    ],
+    [
+     "gear",
+     109.9
+    ],
+    [
+     "float",
+     0.1
+    ],
+    [
+     "fin",
+     14.5
+    ],
+    [
+     "stab",
+     21.6
+    ],
+    [
+     "access",
+     84.5
+    ],
+    [
+     "light",
+     75.1
+    ],
+    [
+     "energy",
+     131.7
+    ],
+    [
+     "hinge",
+     99.7
+    ],
+    [
+     "ext",
+     0.3
+    ]
+   ],
+   "why": ""
+  },
+  {
+   "key": "paxLen",
+   "tick": 45.9,
+   "release": 3598.7,
+   "releaseMax": 3917.7,
+   "idle": 19.3,
+   "sheet": 406.4,
+   "previews": "4/4/4",
+   "fn": {
+    "sheet": 406.4,
+    "CAGE_ON_BUILD": 64.6
+   },
+   "chain": [
+    [
+     "crew",
+     470.9
+    ],
+    [
+     "panel",
+     1
+    ],
+    [
+     "cowl",
+     180.6
+    ],
+    [
+     "cowlAft",
+     0
+    ],
+    [
+     "eng",
+     190.6
+    ],
+    [
+     "wing",
+     236.9
+    ],
+    [
+     "brace",
+     0.1
+    ],
+    [
+     "gear",
+     162.4
+    ],
+    [
+     "float",
+     0.1
+    ],
+    [
+     "fin",
+     24.5
+    ],
+    [
+     "stab",
+     17.3
+    ],
+    [
+     "access",
+     165
+    ],
+    [
+     "light",
+     66.3
+    ],
+    [
+     "energy",
+     264.1
+    ],
+    [
+     "hinge",
+     200.8
+    ],
+    [
+     "ext",
+     0.3
+    ]
+   ],
+   "why": ""
+  },
+  {
+   "key": "halfW",
+   "tick": 29.8,
+   "release": 2123.7,
+   "releaseMax": 2396.3,
+   "idle": 10.6,
+   "sheet": 333.3,
+   "previews": "4/4/4",
+   "fn": {
+    "sheet": 333.3,
+    "CAGE_ON_BUILD": 66.5
+   },
+   "chain": [
+    [
+     "crew",
+     343.5
+    ],
+    [
+     "panel",
+     1.1
+    ],
+    [
+     "cowl",
+     131.4
+    ],
+    [
+     "cowlAft",
+     0
+    ],
+    [
+     "eng",
+     62.7
+    ],
+    [
+     "wing",
+     97.5
+    ],
+    [
+     "brace",
+     0.1
+    ],
+    [
+     "gear",
+     85.8
+    ],
+    [
+     "float",
+     0.1
+    ],
+    [
+     "fin",
+     10.5
+    ],
+    [
+     "stab",
+     12
+    ],
+    [
+     "access",
+     127.9
+    ],
+    [
+     "light",
+     35
+    ],
+    [
+     "energy",
+     83.9
+    ],
+    [
+     "hinge",
+     108.4
+    ],
+    [
+     "ext",
+     0.3
+    ]
+   ],
+   "why": ""
+  },
+  {
+   "key": "rimW",
+   "tick": 423.4,
+   "release": 1868.8,
+   "releaseMax": 3102.9,
+   "idle": 27.2,
+   "sheet": 0,
+   "previews": "4/4/4",
+   "fn": {
+    "CAGE_ON_BUILD": 81.2
+   },
+   "chain": [
+    [
+     "crew",
+     247.4
+    ],
+    [
+     "panel",
+     5.2
+    ],
+    [
+     "cowl",
+     115.8
+    ],
+    [
+     "cowlAft",
+     0
+    ],
+    [
+     "eng",
+     149.7
+    ],
+    [
+     "wing",
+     188.2
+    ],
+    [
+     "brace",
+     0.1
+    ],
+    [
+     "gear",
+     162
+    ],
+    [
+     "float",
+     0
+    ],
+    [
+     "fin",
+     9.6
+    ],
+    [
+     "stab",
+     36
+    ],
+    [
+     "access",
+     132.1
+    ],
+    [
+     "light",
+     52.3
+    ],
+    [
+     "energy",
+     173
+    ],
+    [
+     "hinge",
+     137.3
+    ],
+    [
+     "ext",
+     0.4
+    ]
+   ],
+   "why": ""
+  },
+  {
+   "key": "dashBack",
+   "tick": 677.7,
+   "release": 2849,
+   "releaseMax": 2914.4,
+   "idle": 16.8,
+   "sheet": 0,
+   "previews": "4/4/4",
+   "fn": {
+    "CAGE_ON_BUILD": 42.4
+   },
+   "chain": [
+    [
+     "crew",
+     315.3
+    ],
+    [
+     "panel",
+     1.2
+    ],
+    [
+     "cowl",
+     164.2
+    ],
+    [
+     "cowlAft",
+     0
+    ],
+    [
+     "eng",
+     143.7
+    ],
+    [
+     "wing",
+     396.3
+    ],
+    [
+     "brace",
+     0.1
+    ],
+    [
+     "gear",
+     121.4
+    ],
+    [
+     "float",
+     0.1
+    ],
+    [
+     "fin",
+     22.7
+    ],
+    [
+     "stab",
+     17
+    ],
+    [
+     "access",
+     73.6
+    ],
+    [
+     "light",
+     58.4
+    ],
+    [
+     "energy",
+     168.6
+    ],
+    [
+     "hinge",
+     113.2
+    ],
+    [
+     "ext",
+     0.4
+    ]
+   ],
+   "why": ""
+  },
+  {
+   "key": "shoulderT",
+   "tick": 178,
+   "release": 1616.9,
+   "releaseMax": 2111.4,
+   "idle": 13.5,
+   "sheet": 0,
+   "previews": "4/4/4",
+   "fn": {
+    "CAGE_ON_BUILD": 40.2
+   },
+   "chain": [
+    [
+     "crew",
+     193.2
+    ],
+    [
+     "panel",
+     1.1
+    ],
+    [
+     "cowl",
+     122.4
+    ],
+    [
+     "cowlAft",
+     0
+    ],
+    [
+     "eng",
+     120.2
+    ],
+    [
+     "wing",
+     165.8
+    ],
+    [
+     "brace",
+     0.1
+    ],
+    [
+     "gear",
+     103.8
+    ],
+    [
+     "float",
+     0.1
+    ],
+    [
+     "fin",
+     9.2
+    ],
+    [
+     "stab",
+     13.4
+    ],
+    [
+     "access",
+     85.3
+    ],
+    [
+     "light",
+     32.7
+    ],
+    [
+     "energy",
+     110.6
+    ],
+    [
+     "hinge",
+     89.2
+    ],
+    [
+     "ext",
+     0.3
+    ]
+   ],
+   "why": ""
+  }
+ ]
+}

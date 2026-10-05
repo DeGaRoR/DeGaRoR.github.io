@@ -66,7 +66,7 @@ var AUDIO = (function () {
     ['muteUnfocused', 1, 'bool', 'mute when unfocused', 'silent while another window has the focus'],
     ['headset', 0, 'bool', 'headset', 'in the cockpit, the way a pilot hears it: ~15 dB quieter'],
     ['musicFlight', 0, 'bool', 'music in flight', 'the music plays in the shed; in the air only with this on'],
-    ['musicGarage', 1, 'bool', 'music in the garage', 'the shed\'s playlist, with silences between the tracks'],   // G1672 (music.js)
+    ['musicGarage', 0, 'bool', 'music in the garage', 'the shed\'s playlist, with silences between the tracks'],   // G1672 (music.js); OFF by default (the user, 2026-10-04: test sessions)
   ];
   const DEF = {}; for (const r of SETTINGS) DEF[r[0]] = r[1];
   const readSetting = k => {

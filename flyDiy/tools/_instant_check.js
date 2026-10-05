@@ -9,6 +9,10 @@
 // not repeat is noise - the crew's idle pose - and is counted apart). The resolved spec (the join's export) is
 // compared too, and each row's ticks must have been PREVIEWS (G1442 kept sheet / G1443 deformed stand / G1444 detail
 // row) - a row that silently fell back to whole builds is reported. Also the build's resolved-spec hash at boot.
+// G1453 (RELEASE-FAST): the drag's RELEASE is the settle (the pause held off while the hand is down), and it may run
+// only what the drag reached (G1451) - each row says which way its release went; the long way builds with every
+// RELEASE-FAST cache off (the sheet's stages, the cavity bake, the tank soup, the soles: RELEASE_FAST_OFF). dashBack
+// and shoulderT (G1452's interior + shoulder and shoulder-only stages) joined the rows.
 // Usage: node --max-old-space-size=4096 tools/_instant_check.js [--builds cub,metal,jodel,cessna,floats] [--only k1,k2]
 // Exit 1 on any difference. No --help.
 'use strict';
@@ -20,7 +24,7 @@ const BUILDS = { cub: 'builds/cub_2026-09-20_corrected.json', metal: 'bugReports
   cessna: 'builds/cessna172_2026-09-20_corrected.json', floats: 'bugReports/cessnaFloatsWOrks.json' };
 const WANT = opt('builds', 'cub,metal').split(',');
 // the rows: one or more of each preview kind (a kept sheet's layer rows, the cage's rows, the sheet's detail rows)
-const ROWS = (opt('only', null) ? opt('only').split(',') : ['wgSpan', 'wgChord', 'stSpan', 's1X', 'seatH', 'paxLen', 'halfW', 'roofY', 'noseDroop', 'rimW', 'dashDepth', 'frCabTopW']);
+const ROWS = (opt('only', null) ? opt('only').split(',') : ['wgSpan', 'wgChord', 'stSpan', 's1X', 'seatH', 'paxLen', 'halfW', 'roofY', 'noseDroop', 'rimW', 'dashDepth', 'frCabTopW', 'dashBack', 'shoulderT']);
 const log = s => console.log('  ' + s);
 // --settle: the page's ms after the release (the floats' CG handshake - the balance's answer, a rebuild when the CG
 // moved 2 cm - closes over a few seconds of the page's clock; a drag compared before it closes compares two moments)
@@ -47,16 +51,28 @@ const FP = fs.readFileSync(path.join(__dirname, 'perf', 'garage_lag_same.js'), '
       const lo = +el.min, hi = +el.max, x0 = +el.value, st = +el.step || 0.001, dir = (hi - x0) > (x0 - lo) ? 1 : -1;
       const d = Math.max(st, (hi - lo) * 0.012);
       const pv0 = U.preview ? U.preview.n : 0, df0 = U.preview ? U.preview.deform : 0;
+      // G1453 (RELEASE-FAST): THE RELEASE IS THE SETTLE. The pause that settles a drag is held off while the hand is
+      // down (the node page's clock moves ~10 us a call, so a build's own calls carried it past 350 ms inside the gap
+      // between two ticks and the settle build ran mid-drag); the slider's change and the pointer up are the release.
+      const rl0 = U.release ? U.release.n : 0, rw0 = U.release ? U.release.whole : 0;
+      U.dragSettleMs = 1e9;
       el.dispatchEvent(new PE('pointerdown'));
       for (let i = 1; i <= 4; i++) { el.value = String(Math.min(hi, Math.max(lo, x0 + dir * d * i))); el.dispatchEvent(new Ev('input')); await P.until(() => false, 30); }
+      U.dragSettleMs = 350;
       el.dispatchEvent(new Ev('change')); W.dispatchEvent(new PE('pointerup'));
+      const relN = U.release ? U.release.n - rl0 : 0, relW = U.release ? U.release.whole - rw0 : 0;
+      const relTxt = !U.release ? '' : relN ? '  release: partial [' + ((U.release.last && U.release.last.why) || '') + '; floor ' + ((U.release.last && U.release.last.floor) || '') + ']'
+        : relW ? '  release: whole (' + ((U.release.last && U.release.last.whole) || '') + ')' : '  release: none';
       await P.until(() => false, SETTLE);
       const previews = U.preview ? U.preview.n - pv0 : 0, deforms = U.preview ? U.preview.deform - df0 : 0;
       const hA = hash(), A = JSON.parse(run(FP));
-      U.sheetKeep = false; U.build(); U.sheetKeep = true;
+      // the long way: the sheet built, nothing kept (G1450-G1455's caches - the sheet's stages, the cavity bake, the
+      // tank soup, the soles - off with it: RELEASE_FAST_OFF)
+      const long = () => { U.sheetKeep = false; W.RELEASE_FAST_OFF = true; try { U.build(); } finally { U.sheetKeep = true; W.RELEASE_FAST_OFF = false; } };
+      long();
       if (SETTLE > 1500) await P.until(() => false, SETTLE);
       const hB = hash(), B = JSON.parse(run(FP));
-      U.sheetKeep = false; U.build(); U.sheetKeep = true;
+      long();
       if (SETTLE > 1500) await P.until(() => false, SETTLE);
       const C = JSON.parse(run(FP));
       const diffs = []; let noise = 0;
@@ -67,7 +83,7 @@ const FP = fs.readFileSync(path.join(__dirname, 'perf', 'garage_lag_same.js'), '
       }
       const same = !diffs.length && hA === hB;
       if (!same) bad++;
-      log(k.padEnd(12) + ' previews ' + previews + '/4 (deformed ' + deforms + ')  objects ' + A.out.length + '/' + B.out.length + '  ' + (same ? 'same' : 'DIFFER ' + diffs.length + (hA !== hB ? ' + spec ' + hA + ' vs ' + hB : '')) + (noise ? '  (noise ' + noise + ')' : '') + (previews < 4 ? '  [' + (U.preview && U.preview.deformWhy) + ']' : ''));
+      log(k.padEnd(12) + ' previews ' + previews + '/4 (deformed ' + deforms + ')  objects ' + A.out.length + '/' + B.out.length + '  ' + (same ? 'same' : 'DIFFER ' + diffs.length + (hA !== hB ? ' + spec ' + hA + ' vs ' + hB : '')) + (noise ? '  (noise ' + noise + ')' : '') + (previews < 4 ? '  [' + (U.preview && U.preview.deformWhy) + ']' : '') + relTxt);
       for (const i of diffs.slice(0, 3)) { const a = A.out[i] || '(none)', b = B.out[i] || '(none)'; let c = 0; while (c < a.length && a[c] === b[c]) c++;
         log('   @' + i + ' short: ' + a.slice(0, 50) + ' ..@' + c + ': ' + a.slice(Math.max(0, c - 60), c + 120) + '\n     long:  ' + b.slice(0, 50) + ' ..@' + c + ': ' + b.slice(Math.max(0, c - 60), c + 120)); }
       // back to the build's value (a whole build)

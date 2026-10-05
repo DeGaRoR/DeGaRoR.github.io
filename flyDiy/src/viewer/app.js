@@ -46,14 +46,17 @@
       // G909: the editor's scripts (and every generator its palette lists) load on demand the first time
       if ((!window.PREMISES_HOST || !window.PREMISES_UI || !window.MARINE_GEN) && window.FLYDIY_LAZY && !PREM.loading) {
         PREM.loading = true;
-        window.FLYDIY_LAZY(['_sport_gen', '_marine_gen', 'premises_host', 'premises_ui']).then(() => { PREM.loading = false; if (window.PREMISES_HOST && window.PREMISES_UI) PREM.openEditor(); });
+        window.FLYDIY_LAZY(['_sport_gen', '_marine_gen', 'premises_host', 'premises_ui'])
+          .then(() => { if (window.PREMISES_HOST && window.PREMISES_UI) { PREM.loading = false; PREM.openEditor(); } },
+                e => console.warn('premises editor: load failed', e))   // REVIEW 2026-10-04 (B23): a failed load is not a held door
+          .finally(() => { PREM.loading = false; });
         return;
       }
       if (PREM.loading || !window.PREMISES_HOST || !window.PREMISES_UI) return;
       const WF0 = window.WORLD; if (!WF0 || !WF0.premisesStart) return;
       PREM.R = WF0.premisesStart(); if (!PREM.R) return;
       window.PREMISES_HOST_OPEN = true;
-      running = false;
+      PREM.wasRunning = running; running = false;   // REVIEW 2026-10-04 (B24): the editor holds the flight; close() hands it back
       if (!PREM.panel) {
         // THE EDITOR'S CHROME (G398): inside #ui, so it wears the flight screen's own grammar
         // (flight.css section 9: the plate, the rail buttons, the rows, pills, switches and
@@ -107,6 +110,10 @@
     close() {
       if (!PREM.open) return;
       PREM.open = false; window.PREMISES_HOST_OPEN = false;
+      // REVIEW 2026-10-04 (B24): close() left `running` false without `userPaused` - the aeroplane held while the sea, the
+      // trees and the animals ran on (FLYDIY_HELD false), and the pause button showed the editor's hold as the player's
+      running = PREM.wasRunning !== false;
+      $('bPause').textContent = running ? 'Pause' : 'Resume'; $('bPause').classList.toggle('on', !running);
       if (PREM.ed) { PREM.ed.close(); PREM.ed = null; }
       if (PREM.host) { PREM.host.detach(); }
       PREM.panel.style.display = 'none'; PREM.view.style.display = 'none';
@@ -144,6 +151,10 @@
   const TSL_ON = !!renderer.isWebGPURenderer;
   if (typeof window !== 'undefined') { window.FLYDIY_TSL_ON = TSL_ON; window.FLYDIY_RENDERER = renderer; }   // the graphics menu's tone/exposure rows drive it
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.75));
+  // G1460 (SOFT-GPU) NO ANISOTROPY ON A SOFTWARE RENDERER: SwiftShader filters on the CPU, an anisotropic fetch up to 16
+  // bilinear taps - and the ground, the pavement and the props ask for 8-16. three clamps every texture's anisotropy to
+  // capabilities.getMaxAnisotropy() at upload, so the rung answers 1 there; on a card nothing changes
+  if (typeof window !== 'undefined' && window.GFX && window.GFX.soft && window.GFX.soft()) renderer.capabilities.getMaxAnisotropy = () => 1;
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   // EXPOSURE GOES THROUGH THE MENU (G286 + the colour rows): the menu keeps the
@@ -636,6 +647,7 @@
   // missing constructor should leave the room unbuilt, not throw on boot.
   const hangarScene = new THREE.Scene();
   let hangar = null, hangarTried = false;
+  if (typeof window !== 'undefined') window.FLYDIY_SHED = () => hangar;   // G1522: the garage's shed (its materials), for the menu's live rows
   // WHERE THE REFLECTIONS COME FROM (user: "can we get lighting from HDRI? Try
   // that as a new option"). Two sources, one target:
   //   'room' — a cube camera on the floor sees the glazing, the roof lights and
@@ -3232,6 +3244,8 @@
   // A child of a conjugated part (the wheel inside the castor) composes
   // exactly, K·A·K⁻¹ · K·B·K⁻¹ = K·A·B·K⁻¹. With no map (identity) the
   // object keeps three.js's own update.
+  // G1383: how far a taildragger's drawn tail gear sits under its node (m, world-down; drawing only - see poseModel)
+  const TW_DRAW_DROP = 0.02;
   const mR = new THREE.Matrix4();
   function poseRigid(o) {
     if (!model || !model.K4 || !o || !o.matrix || !o.matrix.multiplyMatrices || !o.quaternion) return;
@@ -3500,9 +3514,16 @@
     // construction: the leg compresses in the sim, the wheel follows.
     // Spin is rolling contact from the node's own motion along body-x
     // (which points AFT, hence the sign).
+    // G1383 (GEAR-WATER, the user: "what about just an offset then? It does not look like it's on the ground. 2 cm
+    // down would be good"): a TAILDRAGGER'S drawn tail gear rides its node TW_DRAW_DROP lower in the world (its
+    // castor, the tailwheel inside it, the spring and the steering links - everything that reads the node here).
+    // Drawing only: the solver's contact is untouched. Why it floats at all is G1380 (the open ground is drawn on
+    // a 5 m lattice; terrainH is finer), not the wheel.
+    const twDrop = (TW_DRAW_DROP && def && def.refs && def.refs.tw != null && def.refs.tw >= 0 &&
+                    def.spec && def.spec.gear && def.spec.gear.type === 'taildragger') ? def.refs.tw : -1;
     const nodeLocal = idx => {
       const i3 = idx * 3;
-      const dx = sim.p[i3] - cg[0], dy = sim.p[i3 + 1] - cg[1],
+      const dx = sim.p[i3] - cg[0], dy = sim.p[i3 + 1] - (idx === twDrop ? TW_DRAW_DROP : 0) - cg[1],
             dz = sim.p[i3 + 2] - cg[2];
       return [dx * xA[0] + dy * xA[1] + dz * xA[2] - O[0],
               dx * yU[0] + dy * yU[1] + dz * yU[2] - O[1],
@@ -4402,7 +4423,9 @@
       // (G1124.3: the flown bake's parked live meshes back in the graph so their buffers are given back too)
       const give = () => model.grp.traverse(o => {
         if (o.geometry && !o.isSkinnedMesh) o.geometry.dispose(); });
-      if (model.gen) { if (window.FLOWN_BAKE && FLOWN_BAKE.withKept) FLOWN_BAKE.withKept(give); else give(); }
+      // REVIEW 2026-10-04 (A7): the cage visual (key 'gen', the one model never cached and rebuilt on every spec commit)
+      // carries no `gen` flag - only the legacy generator entry does - so its buffers were never given back
+      if (model.gen || key === 'gen') { if (window.FLOWN_BAKE && FLOWN_BAKE.withKept) FLOWN_BAKE.withKept(give); else give(); }
       if (model.people) for (const P of model.people) {
         P.dead = true;
         if (P.inst && window.CAGE_CHAR) window.CAGE_CHAR.dispose(P.inst);
@@ -5256,6 +5279,7 @@
                           // G326: ...and a capture rig that wants a given view says so
                           camSet: (a, e, d) => { az = azT = a; el = elT = e; dist = distT = d; flReveal = 0; },
                           camMode: m => flCamMode(m),                                   // C4a (G870): the A/B rig's chase / cockpit views
+                          craft: () => craft,                                   // G1460: the drawn aeroplane, for GATE SOFTGPU's hidden-craft frame
                           renderer: () => renderer, hangarScene: () => hangarScene, camera: () => camera, pan: (x, y, z) => edPan.set(x, y, z), camGet: () => ({ az, el, dist, eye: camera.position.toArray(), target: target.toArray(), fov: camera.fov, exposure: renderer.toneMappingExposure, tone: renderer.toneMapping, envDeferred, envDirty, envAway, envPM: !!envPM, envSource }) };   // G439: the rig reads the eye back
   // ---- MANUAL CONTROLS (G200): who is flying, and the ending when it is you
   // The toggle is a KEY (apToggle) and a pill in the `controls` flyout;
@@ -6769,6 +6793,9 @@
   function parkedFlush() { if (typeof window !== 'undefined' && window.PARKED && window.PARKED.flush) window.PARKED.flush(); }   // hoisted: no TDZ
   function enterGarage() {
     parkedFlush();
+    // G1490 (HYBRID-TRIPS): the flown model back AT REST on its bake - the hybrid's t is the flight's, and a model left in
+    // the band met the shed and the next roll-out shot on programs keyed in no compile (a 5.2 s link) - flown_bake.js rest
+    if (window.FLOWN_BAKE && FLOWN_BAKE.rest) FLOWN_BAKE.rest();
     rollShotUi(false);
     rolledOut = false;
     if (specPending) { specPending = false; setAircraft('gen'); }
@@ -7878,6 +7905,12 @@
   function fullReset() {
     if (inGarage) return enterGarage();   // Reset in the garage means back to the stand
     sim.reset(0); ap = mkPilot(curKey); applyRoute(); started = false; running = true;
+    // REVIEW 2026-10-04 (A8): a diverged sim left the chase camera's yaw-rate filter and azimuth at NaN, and only the
+    // garage roll-out reveal ever rewrote them - "Fly again" after a crash placed the eye at (NaN, NaN, NaN)
+    flYawRate = 0;
+    if (!Number.isFinite(az)) az = -2.5;  if (!Number.isFinite(azT)) azT = az;
+    if (!Number.isFinite(el)) el = 0.22;  if (!Number.isFinite(elT)) elT = el;
+    if (!Number.isFinite(dist)) dist = 14; if (!Number.isFinite(distT)) distT = dist;
     // G200: who flies is remembered; the hand starts from the reset ctl
     manual = !!INP && prefGet('flydiy.flManual', '0') === '1';
     if (INP) INP.seed(sim.ctl);
@@ -10756,6 +10789,7 @@
     flApplyFov();
     const xA = sim.axes()[0], yU = sim.axes()[1];
     const hdg = Math.atan2(xA[2], xA[0]);
+    if (!Number.isFinite(hdg)) return;   // REVIEW 2026-10-04 (A8): a diverged sim must not poison the eye's filters
     let dh = hdg - flHdg0;
     while (dh > Math.PI) dh -= 2 * Math.PI;
     while (dh < -Math.PI) dh += 2 * Math.PI;
@@ -11471,9 +11505,13 @@
   // - Paused, the pose holds where it was last drawn (the alpha kept), rather than jumping to the newest step.
   // - Under the physics worker (?simw=1) the page's positions ARE the view's, interpolated already (sim_view.js frame:
   //   T - 1 step between the two newest snapshots) - this stands aside.
+  // - G1530 (POSE-BACK): THE SAME PAIR IS NEVER DRAWN BACK. A new pair is always ahead of the last one drawn (it closes a
+  //   step at least one later, and alpha is in [0, 1)); on one pair (a frame that owed no step) the alpha drawn is never
+  //   below the last one drawn on it - should the clock's accumulator be let go under a held pair (PACE.hold), the pose
+  //   holds rather than stepping back. GATE POSEBACK: the inline path monotonic at 2-30 fps through a take-off.
   const POSE_LERP = (() => {
-    const L = { sim: null, p0: null, p1: null, have: false, on: false, alpha: 1, marked: false,
-                stats: { drawn: 0, dropped: 0 } };
+    const L = { sim: null, p0: null, p1: null, have: false, on: false, alpha: 1, marked: false, gen: 0, gDrawn: -1, aDrawn: 0,
+                stats: { drawn: 0, dropped: 0, held: 0 } };
     const fits = sim => !!(sim && sim.p && sim.p.length > 0 && typeof sim.p.set === 'function');
     function arrays(sim) {
       if (L.sim !== sim || !L.p0 || L.p0.length !== sim.p.length) {
@@ -11485,25 +11523,26 @@
     // the step block, after its last step: the pair is whole
     function took(sim) {
       if (!fits(sim) || !L.marked || L.sim !== sim) { L.have = false; L.marked = false; return; }
-      L.p1.set(sim.p); L.have = true; L.marked = false;
+      L.p1.set(sim.p); L.have = true; L.marked = false; L.gen++;
     }
     // the draw: the drawn positions into sim.p (true), or nothing (false). alpha null = held (a pause): the last one
     function draw(sim, alpha) {
       if (L.on) back();
       if (alpha != null) L.alpha = alpha;
+      if (L.gDrawn === L.gen && L.alpha < L.aDrawn) { L.alpha = L.aDrawn; L.stats.held++; }   // G1530: this pair, not drawn back
       const a = L.alpha;
       if (!L.have || L.sim !== sim || !fits(sim) || sim.p.length !== L.p1.length || !(a < 1)) return false;
       const p = sim.p, p0 = L.p0, p1 = L.p1, N = p.length;
       for (let i = 0; i < N; i++) if (p[i] !== p1[i]) { L.have = false; L.stats.dropped++; return false; }   // moved outside the steps
       for (let i = 0; i < N; i++) p[i] = p0[i] + (p1[i] - p0[i]) * a;
-      L.on = true; L.stats.drawn++;
+      L.on = true; L.stats.drawn++; L.gDrawn = L.gen; L.aDrawn = a;
       return true;
     }
     // the newest step's positions back, bit for bit
     function back() { if (!L.on) return; L.on = false; if (L.sim && L.sim.p && L.sim.p.length === L.p1.length) L.sim.p.set(L.p1); }
     function drop() { back(); L.have = false; L.marked = false; }
     const api = { mark, took, draw, back, drop, get on() { return L.on; }, get alpha() { return L.alpha; },
-                  state: () => ({ have: L.have, on: L.on, alpha: L.alpha, drawn: L.stats.drawn, dropped: L.stats.dropped }) };
+                  state: () => ({ have: L.have, on: L.on, alpha: L.alpha, drawn: L.stats.drawn, dropped: L.stats.dropped, held: L.stats.held }) };
     window.FLYDIY_POSE = api;
     return api;
   })();

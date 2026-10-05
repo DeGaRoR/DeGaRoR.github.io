@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Phone garage, landscape</title>
+<link rel="stylesheet" href="mock.css">
+<style>
+.phone.landscape .lv{position:relative;flex:1;display:flex;flex-direction:column}
+.phone.landscape .lv .view{flex:1}
+.phone.landscape .side{width:380px;display:flex;flex-direction:column;border-left:1px solid var(--ed-hair);background:var(--ed-panel)}
+.phone.landscape .side .top{height:48px}
+.rail{width:64px;display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px 0;background:var(--ed-board);border-right:1px solid var(--ed-hair)}
+.rail .tab{width:56px;padding:0;font-size:11.5px;height:52px}
+</style>
+</head><body>
+<div class="stage">
+<div>
+  <p class="cap">2 · phone, landscape (915 × 412): the train-seat layout</p>
+  <div class="phone landscape">
+    <div class="rail">
+      <button class="ib" aria-label="menu">☰</button>
+      <button class="tab">design</button><button class="tab on">shape</button><button class="tab">finish</button>
+      <span class="vsep"></span>
+      <button class="tab scene">REF<br><small>reference</small></button><button class="tab scene">☀<br><small>light</small></button>
+      <div style="flex:1"></div>
+      <button class="ib" id="undo" aria-label="undo" disabled>↶</button>
+      <button class="ib" id="redo" aria-label="redo" disabled>↷</button>
+    </div>
+    <div class="lv">
+      <div class="view studio" id="view">
+        <div class="readout">empty <b>352 kg</b> · stall <b>61 km/h</b> · T/O <b>142 m</b></div>
+        <div class="vt"><button class="ib">⟲</button><button class="ib">⌖</button></div>
+        <div class="hint">1 finger orbit · 2 fingers zoom + pan · tap a part</div>
+      </div>
+    </div>
+    <div class="side">
+      <div class="top"><div class="name">Wing<small>Aeroplane › Wings</small></div><button class="pill acc" onclick="location.href='handoff.html'">Send</button></div>
+      <div class="parts" id="parts"></div>
+      <div class="sheet" id="sheet"></div>
+    </div>
+  </div>
+</div>
+<div class="notes">
+  <h3>Landscape</h3>
+  <ul>
+    <li><b>View on the left, rows on the right</b> (380 px, the desktop's 390 px column). In landscape the panel mirrors the desktop layout.</li>
+    <li><b>The tabs and undo move to a left rail</b>, so the thumb reaches them while the phone is held in two hands. The rail also carries <b>the reference plane and the studio light</b>, which are not in the parts tree. There is no garage on a phone: a black studio.</li>
+    <li><b>The same rows, the same renderer</b> as portrait. Only the container changes. A <code>@media (orientation)</code> rule picks the layout, and nothing in the row knows which one it is in.</li>
+    <li>The 3D view gets 471 × 412 px here. In portrait it gets 412 × 330 px.</li>
+  </ul>
+</div>
+</div>
+<script src="rowkit.js"></script><script src="mock_rows.js"></script>
+<script>
+const v = document.getElementById('view'); v.insertAdjacentHTML('afterbegin', MOCK_PLANE(471, 412, 'wing', true));
+document.getElementById('parts').innerHTML = ['Wing', 'Ailerons', 'Flaps', 'Struts', 'Lights'].map((p, i) => `<button class="chip${i ? '' : ' on'}">${p}</button>`).join('');
+const P = Object.assign({}, MOCK_P), sheet = document.getElementById('sheet');
+let tier = 'more';
+const draw = () => ROWKIT.render(sheet, MOCK_ROWS, { mode: 'touch', P, tier, onChange() {} });
+draw();
+const undo = document.getElementById('undo'), redo = document.getElementById('redo');
+ROWKIT.history.listeners.push(h => { undo.disabled = !h.past.length; redo.disabled = !h.future.length; });
+undo.onclick = () => { const e = ROWKIT.history.undo(); if (e) { P[e.key] = e.v; draw(); } };
+redo.onclick = () => { const e = ROWKIT.history.redo(); if (e) { P[e.key] = e.v; draw(); } };
+</script>
+</body></html>
