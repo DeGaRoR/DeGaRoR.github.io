@@ -75480,4 +75480,6 @@ PREMCOOK, PREMRASTER, CONTACT, SITE, PARKED, STRIPGROUND, HITBOX, OBSTACLE PASS.
     < 5 us is this box's noise - master reads 4.6-5.0, this tree 4.5-5.3, the same checksum 295245
   - ROUNDTRIP / INSTANT hit the runner's 30-minute wall under 4 jobs: ROUNDTRIP PASSES alone (1217 s); INSTANT (the
     garage's slider drags - nothing of this change reaches it) hit the wall alone too, still green row by row (the Cub's 14
-    rows `same`, the C172 begun) - run without the runner's wall: see the line after this one
+    rows `same`, the C172 begun) - run without the runner's wall (node tools/_instant_check.js, ~45 min on these 4
+    cores): GATE INSTANT: PASS ("every drag ended on the plain build's aeroplane")
+So: every gate this change can reach is green; FRAMECOST waits on A0's parked re-cook (the box, the train's build).
