@@ -56,8 +56,9 @@ function panel(x0, y0, w, h, xr, yr, series, o) {
   s += `<text x="${x0}" y="${y0 - 6}" font-size="12" fill="${COL.ink}">${esc(o.title)}</text>`;
   s += `<text x="${x0 + w / 2}" y="${y0 + h + 28}" font-size="10" fill="${COL.ink2}" text-anchor="middle">${esc(o.xl)}</text>`;
   s += `<text x="${x0 - 30}" y="${y0 + h / 2}" font-size="10" fill="${COL.ink2}" text-anchor="middle" transform="rotate(-90 ${x0 - 30} ${y0 + h / 2})">${esc(o.yl)}</text>`;
-  let ly = y0 + 12;
-  for (const sr of series.filter(q => q.label)) { s += `<line x1="${x0 + 8}" y1="${ly - 3}" x2="${x0 + 26}" y2="${ly - 3}" stroke="${sr.col}" stroke-width="2"${sr.dash ? ` stroke-dasharray="${sr.dash}"` : ''}/><text x="${x0 + 30}" y="${ly}" font-size="10" fill="${COL.ink}">${esc(sr.label)}</text>`; ly += 13; }
+  const lab = series.filter(q => q.label), lx0 = o.legend === 'br' ? x0 + w - 230 : x0 + 8;
+  let ly = o.legend === 'br' ? y0 + h - 8 - 13 * (lab.length - 1) : y0 + 12;
+  for (const sr of lab) { s += `<rect x="${lx0 - 3}" y="${ly - 10}" width="226" height="13" fill="${COL.surf}" opacity="0.85"/><line x1="${lx0}" y1="${ly - 3}" x2="${lx0 + 18}" y2="${ly - 3}" stroke="${sr.col}" stroke-width="2"${sr.dash ? ` stroke-dasharray="${sr.dash}"` : ''}/><text x="${lx0 + 22}" y="${ly}" font-size="10" fill="${COL.ink}">${esc(sr.label)}</text>`; ly += 13; }
   return s;
 }
 
@@ -71,8 +72,8 @@ if (GJ) {
                 ['cub:coulomb', COL.before, '5 3', 'BEFORE: Coulomb at 0.02 m/s (10 m/s)']];
   const series = pick.filter(p => res.slip[p[0]]).map(([k, col, dash, label]) => ({ col, dash, label, pts: res.slip[k].beta.map((b, i) => [b, res.slip[k].FW[i]]) }));
   const zoom = series.map(s => Object.assign({}, s, { pts: s.pts.filter(p => p[0] <= 12) }));
-  const body = panel(70, 40, 420, 300, [0, 45], [0, 0.9], series, { title: 'Side force / weight against the slip angle (10 m/s, grass mu 0.8; measured in the solver)', xl: 'slip angle beta (deg)', yl: 'F_y / W', xt: [0, 5, 10, 15, 20, 30, 45], yt: [0, 0.2, 0.4, 0.6, 0.8], bands: [{ y: 0.8, col: COL.ink2, label: 'mu N' }] })
-             + panel(570, 40, 360, 300, [0, 12], [0, 0.9], zoom, { title: 'the first 12 deg', xl: 'slip angle beta (deg)', yl: 'F_y / W', xt: [0, 2, 4, 6, 8, 10, 12], yt: [0, 0.2, 0.4, 0.6, 0.8], bands: [] });
+  const body = panel(70, 40, 420, 300, [0, 45], [0, 0.9], series, { title: 'Side force / weight against the slip angle (10 m/s, grass mu 0.8; measured in the solver)', xl: 'slip angle beta (deg)', yl: 'F_y / W', xt: [0, 5, 10, 15, 20, 30, 45], yt: [0, 0.2, 0.4, 0.6, 0.8], bands: [{ y: 0.8, col: COL.ink2, label: 'mu N' }], legend: 'br' })
+             + panel(570, 40, 360, 300, [0, 12], [0, 0.9], zoom, { title: 'the first 12 deg', xl: 'slip angle beta (deg)', yl: 'F_y / W', xt: [0, 2, 4, 6, 8, 10, 12], yt: [0, 0.2, 0.4, 0.6, 0.8], bands: [], legend: 'br' });
   fs.writeFileSync(path.join(OUT, 'slip.svg'), svgDoc(960, 390, body, 'DMG-TYRE: side force against slip angle per tyre class'));
   fs.writeFileSync(path.join(OUT, 'slip.json'), JSON.stringify(res.slip, null, 1));
   console.log('slip.svg written');
