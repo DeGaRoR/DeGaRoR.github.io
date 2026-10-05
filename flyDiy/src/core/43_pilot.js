@@ -479,7 +479,8 @@ function makePilot(sim, def, world, opts) {
   const HUM = PRA ? { n: 0, buf: null, i: 0, x: [0, 0, 0], seed: 1935 } : null;
   if (PRA) SV.slewK = PRF.smooth;
   const humRand = () => { HUM.seed = (HUM.seed + 0x6D2B79F5) | 0; let t = HUM.seed; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
-  const humanise = (dt) => {
+  const humanise = (dt, onG) => {
+    const c = sim.ctl;   // (the update's own `c` is not in scope here)
     if (PRF.hamFist > 0) {
       const a = Math.min(1, dt / 0.3), sq = Math.sqrt(2 * a);
       for (let k = 0; k < 3; k++) {
@@ -488,7 +489,10 @@ function makePilot(sim, def, world, opts) {
       }
       c.de += PRF.hamFist * HUM.x[0]; c.da += PRF.hamFist * HUM.x[1]; c.dr += PRF.hamFist * HUM.x[2];
     }
-    const N = Math.round(PRF.reaction / Math.max(1e-3, dt));
+    // ON THE WHEELS THE DELAY IS 0.15 s AT MOST: the ground steer is the tightest loop the pilot flies, and the
+    // student's 0.45 s inside it swerved the stock build 31 deg on the roll (0.10 m/s^2, a rejected take-off every
+    // time) - a person on the roll watches the centreline and the feet are quick; in the air the delay is whole
+    const N = Math.round((onG > 0 ? Math.min(PRF.reaction, 0.15) : PRF.reaction) / Math.max(1e-3, dt));
     if (N > 0) {
       if (!HUM.buf || HUM.n !== N) { HUM.n = N; HUM.buf = new Float64Array(3 * (N + 1)); for (let k = 0; k <= N; k++) { HUM.buf[3 * k] = c.de; HUM.buf[3 * k + 1] = c.da; HUM.buf[3 * k + 2] = c.dr; } HUM.i = 0; }
       const B = HUM.buf, w = HUM.i, r = (w + 1) % (N + 1);
@@ -1801,7 +1805,6 @@ function makePilot(sim, def, world, opts) {
       go('STOPPED');
     }
     const phRun = ap.phase, legRun = ap.legI;   // G710: the phase and leg this step flies (ap.intent names them, not the next)
-    if (BX.on) boxFly(); else
     if (ap.phase !== 'FINAL') slipK = 0;   // G1936: the slip is the short final's only
     if (!BX.on && c.brakeD) c.brakeD = 0;    // G1938: the differential brake is the pivot's only
     // G1938 (PILOT-ONE, the user: "No autopilot manages to turn sharp for a 180 degrees. Most planes should allow
@@ -1845,6 +1848,7 @@ function makePilot(sim, def, world, opts) {
       c.da = groundAil(0, 0.25);
       return false;
     };
+    if (BX.on) boxFly(); else
     switch (ap.phase) {
       case 'GLIDE': {
         // best glide toward the strip or the heading held, no power, flaps
@@ -2892,7 +2896,7 @@ function makePilot(sim, def, world, opts) {
         if (onG > 0) go('ROLLOUT'); else go('CLIMB');
         break;
     }
-    if (!BX.on) { apply(); flapsTo(flapTgt); if (PRA) humanise(dt); }   // G1943: a profile's hands (the expert's are the servos')
+    if (!BX.on) { apply(); flapsTo(flapTgt); if (PRA) humanise(dt, onG); }   // G1943: a profile's hands (the expert's are the servos')
     // the servo slew on the axes the pilot owns; a hand-flown axis (the box
     // with that mode released) passes through and the servo tracks it, so
     // nothing jumps when the box takes the axis
