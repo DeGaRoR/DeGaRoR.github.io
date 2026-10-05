@@ -102,6 +102,7 @@ function pull(key, o) {
     de = Math.max(-1, Math.min(1, sgn * (0.4 * e + 0.8 * I)));
     sim.ctl.de = de;
     sim.step(1 / 60);
+    if (o.onFrame) o.onFrame(sim, f);
     nzMax = Math.max(nzMax, sim.out.nz);
     if (sim.out.nz > nzT - 0.1) held += 1 / 60;
     if (f % 6 === 0) hist.push([sim.t - t0, sim.out.nz, sim.out.V]);
@@ -125,8 +126,9 @@ function hardLanding(key, o) {
   for (let i = 0; i < sim.n; i++) { sim.p[i*3+1] += gap; sim.v[i*3] = 0; sim.v[i*3+1] = -sink; sim.v[i*3+2] = 0; }
   if (o.fwd) { const fx = Math.cos(strip.hdg), fz = Math.sin(strip.hdg); for (let i = 0; i < sim.n; i++) { sim.v[i*3] = o.fwd * fx; sim.v[i*3+2] = o.fwd * fz; } }
   clearPeak(sim);
+  if (o.onStart) o.onStart(sim, def);
   let gMax = 0, yMin = Infinity;
-  for (let f = 0; f < 120; f++) { sim.step(1 / 60); gMax = Math.max(gMax, sim.out.nz); }
+  for (let f = 0; f < (o.frames || 120); f++) { sim.step(1 / 60); if (o.onFrame) o.onFrame(sim, f); gMax = Math.max(gMax, sim.out.nz); }
   return { gMax, peak: peakOf(sim), dmg: dmgOf(sim), finite: finite(sim) };
 }
 
@@ -173,6 +175,7 @@ function flyRun(C, sim, def, TH, strip, elev, o) {
   if (!o.noTrunk) TH.set('fill:test', [tx, tz, elev - tk.sink, tk.r, elev - tk.sink + tk.h]);
   sim.ctl.thr = o.thr == null ? 0 : o.thr;
   clearPeak(sim);
+  if (o.onStart) o.onStart(sim, def);
   const loc = (x, z) => [(x - c0[0]) * fx + (z - c0[2]) * fz, -((x - c0[0]) * -fz + (z - c0[2]) * fx)];
   // the mechanical energy (kinetic + the weight's potential): with the throttle shut nothing may add to it
   const energy = () => { let e = 0; for (let i = 0; i < sim.n; i++) e += sim.m[i] * (0.5 * (sim.v[i*3] ** 2 + sim.v[i*3+1] ** 2 + sim.v[i*3+2] ** 2) + 9.81 * (sim.p[i*3+1] - elev)); return e; };
@@ -184,6 +187,7 @@ function flyRun(C, sim, def, TH, strip, elev, o) {
     if (o.walk && !walked) { if (sim.trunkHits() > 0) { walked = true; sim.ctl.thr = 0; } else { const v = sim.cgVel(), V = v[0] * fx + v[2] * fz; sim.ctl.thr = Math.max(0, Math.min(1, 0.12 + 0.3 * (o.walk - V))); } }
     if (o.rollThen != null) { const c = sim.cgPos(); if ((c[0] - c0[0]) * fx + (c[2] - c0[2]) * fz > 6) sim.ctl.thr = o.rollThen; }
     sim.step(1 / 60);
+    if (o.onFrame) o.onFrame(sim, f);                // G1823 (DMG-D1b): a gate's per-frame reader (the wreck's integrity)
     if (!finite(sim)) { bad = true; break; }
     const c = sim.cgPos(), along = (c[0] - c0[0]) * fx + (c[2] - c0[2]) * fz, v = sim.cgVel();
     reach = Math.max(reach, along); maxSpread = Math.max(maxSpread, spread(sim));
@@ -221,7 +225,8 @@ function waterCase(key, o) {
   sim.ctl.thr = 0;
   clearPeak(sim);
   let finite_ = true, sp = 0;
-  for (let s = 0; s < (o.secs || 4) * 60; s++) { sim.step(1 / 60); if (!finite(sim)) { finite_ = false; break; } sp = Math.max(sp, spread(sim)); }
+  if (o.onStart) o.onStart(sim, def);
+  for (let s = 0; s < (o.secs || 4) * 60; s++) { sim.step(1 / 60); if (o.onFrame) o.onFrame(sim, s); if (!finite(sim)) { finite_ = false; break; } sp = Math.max(sp, spread(sim)); }
   const WB = sim.wetBody || null;
   return { dmg: dmgOf(sim), peak: peakOf(sim), finite: finite_, spread: sp, wet: !!(WB || sim.hydro), wetBody: !!WB, holed: WB && WB.slices ? WB.slices.filter(x => x.br).length : 0,
     slamKPa: WB && WB.slamPeak ? WB.slamPeak / 1000 : null, members: dmgOf(sim).members, cls: (sim.damage().broken || []).map(i => sim.beams[i].cls),

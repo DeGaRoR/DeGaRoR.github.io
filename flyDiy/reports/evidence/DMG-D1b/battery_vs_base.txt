@@ -1,0 +1,103 @@
+SAME 28 AERO BENCH DEFAULT DRAG ENERGY FLAPS FLOATS GE GEAR HONEST HOTHIGH LINEUP LOAD MASS MOUNT NAV OBSTACLE PACE PLAN SEAPLANE SITE SOAR STRESS STRUT SUBSTEP TAXICLEAR TREEHIT WEIGHT
+NUMBERS ONLY 12 BIPLANE FLEX FLIGHTREC GEN HYDRODYN PILOT PILOTACT SETTLE SIMWORKER STRIPSURF TAKEOFF TREECRASH
+DIFF 2 DMGMEMBERS HITBOX
+
+HITBOX: the one differing line (wall clock, 3 jobs): 'arch:c172 e: the spec shape costs less than the raster it replaces (155 ms against 144 ms)'; HITBOX alone on the same core: PASS (368 s)
+
+--- base summary
+──────── summary ────────
+SUBSTEP   PASS    38.4 s
+PACE      PASS     0.3 s
+FLIGHTREC PASS     1.4 s
+GE        PASS    79.6 s
+FLAPS     PASS     4.2 s
+STRESS    PASS    17.7 s
+GEN       PASS   526.8 s  [4 shards]
+PILOT     PASS   310.0 s  [3 shards]
+NAV       PASS     0.1 s
+STRIPSURF PASS    12.9 s
+TAKEOFF   PASS   213.6 s
+PILOTACT  PASS   208.8 s
+TAXICLEAR PASS    59.6 s
+PLAN      PASS   386.8 s
+LINEUP    PASS   188.9 s
+DEFAULT   PASS     4.0 s
+HONEST    PASS    32.9 s
+WEIGHT    PASS    44.4 s
+DRAG      PASS    28.0 s
+BIPLANE   PASS    98.7 s
+MASS      PASS    10.9 s
+TREEHIT   PASS    55.7 s
+TREECRASH PASS   508.1 s
+DMGMEMBERS PASS    64.0 s
+BENCH     PASS    67.1 s
+SIMWORKER PASS    96.0 s
+GEAR      PASS     0.9 s
+STRUT     PASS     4.6 s
+SITE      PASS     4.9 s
+OBSTACLE  PASS    14.9 s
+HITBOX    PASS   429.9 s
+HYDRODYN  PASS   111.1 s
+FLOATS    PASS    61.6 s
+SEAPLANE  PASS   236.2 s
+ENERGY    PASS    52.0 s
+SETTLE    PASS     6.7 s
+AERO      PASS     6.2 s
+HOTHIGH   PASS   196.1 s
+SOAR      PASS   769.2 s
+FLEX      PASS   271.6 s  [3 shards]
+LOAD      PASS   278.5 s
+MOUNT     PASS    73.9 s
+total           5577.2 s
+wall            4223.7 s  (jobs 2)
+
+BATTERY: PASS
+--- this branch (final code) summary
+──────── summary ────────
+SUBSTEP   PASS    34.1 s
+PACE      PASS     0.2 s
+FLIGHTREC PASS     1.4 s
+GE        PASS    75.9 s
+FLAPS     PASS     3.5 s
+STRESS    PASS    17.4 s
+GEN       PASS   459.8 s  [4 shards]
+PILOT     PASS   307.3 s  [3 shards]
+NAV       PASS     0.1 s
+STRIPSURF PASS    11.2 s
+TAKEOFF   PASS   171.2 s
+PILOTACT  PASS   169.7 s
+TAXICLEAR PASS    44.7 s
+PLAN      PASS   381.2 s
+LINEUP    PASS   184.2 s
+DEFAULT   PASS     3.7 s
+HONEST    PASS    31.1 s
+WEIGHT    PASS    40.7 s
+DRAG      PASS    23.1 s
+BIPLANE   PASS    93.7 s
+MASS      PASS     9.8 s
+TREEHIT   PASS    54.2 s
+TREECRASH PASS   510.8 s
+DMGMEMBERS PASS    46.5 s
+DMGINTEGRITY PASS    52.4 s
+BENCH     PASS    64.9 s
+SIMWORKER PASS    81.9 s
+GEAR      PASS     0.9 s
+STRUT     PASS     5.2 s
+SITE      PASS     4.7 s
+OBSTACLE  PASS    14.8 s
+HITBOX    FAIL   390.0 s
+HYDRODYN  PASS   111.3 s
+FLOATS    PASS    57.3 s
+SEAPLANE  PASS   241.0 s
+ENERGY    PASS    50.7 s
+SETTLE    PASS     6.8 s
+AERO      PASS     6.3 s
+HOTHIGH   PASS   165.5 s
+SOAR      PASS   769.3 s
+FLEX      PASS   250.9 s  [3 shards]
+LOAD      PASS   281.5 s
+MOUNT     PASS    67.1 s
+total           5298.0 s
+wall            2950.9 s  (jobs 3)
+
+BATTERY: FAIL — never deliver red.

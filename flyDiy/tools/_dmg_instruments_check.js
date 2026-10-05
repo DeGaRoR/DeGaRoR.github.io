@@ -44,8 +44,10 @@ const faultOfMade = from => made.slice(from).map(s => s.fault && s.fault()).find
 console.log('1. G1800: sim-diverged (the numbers) vs broke-up (the structure)');
 {
   const app = src('src/viewer/app.js'), lt = src('src/core/65_gen_loadtest.js'), bench = src('src/viewer/bench.js'), xw = src('src/core/42_crosswind.js');
-  yes(/endFlight\('sim-diverged'\)/.test(app) && !/endFlight\('broke-up'\)/.test(app) && /'SIM DIVERGED — RESET'/.test(app),
-    'the page\'s watchdog ends a NaN / guarded flight \'sim-diverged\' (the message "SIM DIVERGED — RESET" stays); nothing ends one \'broke-up\'');
+  // G1898.3: 'broke-up' is now written - by the structure only (DMG-D1b's refs-core, DMG.brokeUp), never by the watchdog
+  yes(/endFlight\('sim-diverged'\)/.test(app) && !/endFlight\('broke-up'\)/.test(app) && /endFlight\(up \? 'broke-up' : 'crashed'\)/.test(app)
+      && /up = !!\(D && D\.brokeUp\)/.test(app) && /'SIM DIVERGED — RESET'/.test(app),
+    'the page\'s watchdog ends a NaN / guarded flight \'sim-diverged\' (the message "SIM DIVERGED — RESET" stays); \'broke-up\' only when the structure\'s refs part (DMG.brokeUp)');
   yes(/bad \? 'SIM DIVERGED'/.test(lt) && !/'BROKE UP'/.test(lt.replace(/\/\/.*$/gm, '')), 'the load test\'s NaN verdict is \'SIM DIVERGED\' (65_gen_loadtest.js); it writes no \'BROKE UP\'');
   yes(/why: 'sim-diverged'/.test(xw) && !/'broke-up'/.test(xw.replace(/\/\/.*$/gm, '')), 'the crosswind probe\'s NaN ending is \'sim-diverged\' (42_crosswind.js)');
   const writers = [];
