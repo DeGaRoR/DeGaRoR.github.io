@@ -54,11 +54,15 @@
   };
   // -> { cls, why }. Ordered: the software renderers and the integrated parts first, then the families by number;
   // a name the table does not know is 'current' (the middle: never the dearest on a guess, never the poorest)
+  // G1460 (SOFT-GPU): a software renderer - no graphics card in use (SwiftShader: every cloud session's headless Chromium;
+  // llvmpipe / softpipe: Mesa's; Microsoft's Basic Render Driver). The game's 'software' rung keys on this answer
+  // (gfx_settings.js SOFT); on any other name it is false and nothing of the rung exists
+  const isSoftware = raw => /SwiftShader|llvmpipe|softpipe|Software|Basic Render/i.test(String(raw || ''));
   const gpuClass = raw => {
     const s = cleanGpu(raw);
     let m;
     if (!s) return { cls: 'current', why: 'the card did not say its name' };
-    if (/SwiftShader|llvmpipe|softpipe|Software|Basic Render/i.test(s)) return { cls: 'potato', why: 'a software renderer (no graphics card in use)' };
+    if (isSoftware(s)) return { cls: 'potato', why: 'a software renderer (no graphics card in use)' };
     if (/Mali|Adreno|PowerVR|Apple A\d|Videocore/i.test(s)) return { cls: 'potato', why: 'a phone or tablet graphics part' };
     if (/Intel/i.test(s) && /\b(HD|UHD|Iris)\b/i.test(s)) return { cls: 'potato', why: 'Intel integrated graphics' };
     if (/Radeon\(TM\) Graphics|Radeon Graphics|Radeon Vega \d+ Graphics|Vega \d+ Graphics/i.test(s)) return { cls: 'potato', why: 'AMD integrated graphics' };
@@ -296,8 +300,8 @@
   // ---- THE RUN ----------------------------------------------------------------------------------------------------
   const nav = W.navigator || {};
   const API = W.WELCOME = {
-    ORDER, LABEL, KEY, cleanGpu, gpuClass, memClass, mobileWhy, decide, isRig, probe,
-    RIG: isRig(nav), pick: null, decision: null, env: null,
+    ORDER, LABEL, KEY, cleanGpu, gpuClass, isSoftware, memClass, mobileWhy, decide, isRig, probe,
+    RIG: isRig(nav), SOFT: false, pick: null, decision: null, env: null,   // SOFT (G1460): the probe's card is a software renderer
     // the graphics menu's "re-check my computer": the welcome again, in place; resolves with the preset picked
     recheck: () => {
       const env = probe(), d = decide(env, { getItem: () => null }, '', {});
@@ -314,7 +318,7 @@
   }
   if (!W.document || !W.document.createElement) return;
   let d;
-  try { const env = probe(); API.env = env; d = API.decision = decide(env, W.localStorage, search(), nav, W.location && W.location.hostname); }
+  try { const env = probe(); API.env = env; API.SOFT = isSoftware(env.gpu); d = API.decision = decide(env, W.localStorage, search(), nav, W.location && W.location.hostname); }
   catch (e) { return; }   // a welcome that cannot decide is no welcome: the game loads as it did
   if (d.adopt) { let pr = 'menu'; try { pr = JSON.parse(W.localStorage.getItem('flydiy.gfx')).preset || pr; } catch (e) {} remember(W.localStorage, d, pr); }
   if (d.screen === 'none') return;

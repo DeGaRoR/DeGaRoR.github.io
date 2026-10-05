@@ -259,7 +259,7 @@ const GATES = [
   { id: 'RAYINDEX', file: '_rayindex_check.js', tier: 'core' },
   // G1445 (GARAGE-INSTANT): a drag's previews end on the plain build's aeroplane (the page in node, the Cub and the
   // metal Cessna, twelve rows: a kept sheet's layer rows, the cage's deformed rows, the sheet's detail rows)
-  { id: 'INSTANT', file: '_instant_check.js', tier: 'core', wall: 420 },
+  { id: 'INSTANT', file: '_instant_check.js', tier: 'core', wall: 480 },
   // THE CONTROL HARDWARE (G241): every control surface's nose turns INSIDE
   // its cove instead of through the wing — measured off the emitted vertices,
   // station by station, which is the clearance at every deflection because a
@@ -550,6 +550,11 @@ const GATES = [
   // against the sheet's polar, and a ridge beat that GAINS height where the same beat without the
   // terrain term is on the ground inside the run
   { id: 'SOAR', file: 'test_soar.js', tier: 'full', wall: 240 },
+  // G1460 (SOFT-GPU): THE GAME DRAWS ITS WORLD ON A SOFTWARE GPU - headless Chromium on SwiftShader (every cloud
+  // session's browser), the real page: the garage boot to its end, Roll out, the stand, one drawn frame with the ground
+  // and the aeroplane in it (not the clear colour; the aeroplane hidden changes it). Full tier: a software GL boots in
+  // ~15-20 min on a 4-core box; the whole machine's cores (weight 4). SKIP where there is no Playwright (the box)
+  { id: 'SOFTGPU', file: '_softgpu_check.js', tier: 'full', timeout: 2 * 3600_000, weight: 4, wall: 1800 },
   // structural realism instrument (appended: keeps the battery log prefix
   // diffable). Measures only — it asserts finiteness and determinism, not
   // bounds. See test_flex.js's header and HANDOVER's STRUCTURAL REALISM.
@@ -669,14 +674,18 @@ async function runPool(list, slots, onStart, onDone) {
 const partOf = r => { const m = /^SHARD (\d+)\/(\d+): (\d+) of (\d+) heavy jobs$/m.exec(r.stderr || ''); return m ? { k: +m[3], K: +m[4] } : null; };
 
 function printGate(g, results) {
-  let pass = true;
+  let pass = true, skipped = false;
   console.log(`=== ${g.id} ===`);
   const parts = results.map(partOf);
   const partitionOk = results.length === 1 ||
     (parts.every(Boolean) && parts.every(p => p.K === parts[0].K) && parts.reduce((s, p) => s + p.k, 0) === parts[0].K);
   for (const r of results) {
     const stdout = r.stdout || '';
-    const ok = r.status === 0 && !r.error && new RegExp(`^GATE ${g.id}: PASS$`, 'm').test(stdout);
+    // train 31 (A0): `GATE <ID>: SKIP` with exit 0 is a gate that cannot run on this machine (SOFTGPU: no Playwright on
+    // the box) - shown as SKIP, never as a PASS and never as a FAIL
+    const skip = r.status === 0 && !r.error && new RegExp(`^GATE ${g.id}: SKIP$`, 'm').test(stdout);
+    if (skip) skipped = true;
+    const ok = skip || (r.status === 0 && !r.error && new RegExp(`^GATE ${g.id}: PASS$`, 'm').test(stdout));
     if (!ok) pass = false;
     if (r.job.shard) console.log(`--- shard ${r.job.shard.i}/${r.job.shard.n} (${r.secs} s) ---`);
     if (ok && !verbose && partitionOk) {
@@ -694,7 +703,7 @@ function printGate(g, results) {
     console.log(`(shard partition disagrees: ${parts.map(p => p ? `${p.k}/${p.K}` : 'none').join(' ')} — a heavy job was dropped or flown twice)`);
   }
   const secs = results.reduce((m, r) => Math.max(m, +r.secs), 0).toFixed(1);
-  return { pass, secs, shards: results.length };
+  return { pass, skipped, secs, shards: results.length };
 }
 
 (async () => {
@@ -735,7 +744,7 @@ function printGate(g, results) {
   console.log('\n──────── summary ────────');
   for (const g of selected) {
     const d = done.get(g.id);
-    console.log(`${g.id.padEnd(9)} ${d.pass ? 'PASS' : 'FAIL'}  ${d.secs.padStart(6)} s${d.shards > 1 ? `  [${d.shards} shards]` : ''}`);
+    console.log(`${g.id.padEnd(9)} ${d.skipped ? 'SKIP' : d.pass ? 'PASS' : 'FAIL'}  ${d.secs.padStart(6)} s${d.shards > 1 ? `  [${d.shards} shards]` : ''}`);
     if (!d.pass) anyFail = true;
   }
   const total = selected.reduce((s, g) => s + Number(done.get(g.id).secs), 0).toFixed(1);

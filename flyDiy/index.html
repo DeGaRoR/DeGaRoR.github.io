@@ -4162,7 +4162,12 @@ body.bpOpen #edView { visibility:hidden; }
     // a 9 s block is a normal step on a slow machine: the button is a safety
     // valve, not a verdict - it shows at 14 s of silence, the overlay gives up
     // at 30 s of silence or 2 min in all
-    const idle = B.opt.idle || 30000, hard = B.opt.hard || 120000, skipAt = B.opt.skipAt || 14000;
+    // G1460 (SOFT-GPU): ON A SOFTWARE RENDERER the clock is twenty times longer - SwiftShader compiles every program
+    // and draws every frame on the CPU (a garage boot ~6 min, one frame of the shed up to a minute): the 120 s hard
+    // timeout lifted the overlay a third of the way through the chain. Read at the check (welcome.js decides after
+    // this script); 1 on every graphics card
+    const k = (typeof window !== 'undefined' && window.GFX && window.GFX.soft && window.GFX.soft()) ? 20 : 1;
+    const idle = (B.opt.idle || 30000) * k, hard = (B.opt.hard || 120000) * k, skipAt = (B.opt.skipAt || 14000) * k;
     if (t - B.lastEvent >= skipAt || t - B.opt.t0 >= 45000) { const b = $('bootSkip'); if (b) b.hidden = false; }
     const compiling = B._shaderT && t - B._shaderT < idle;   // G567: a moving shader count is not a stuck boot
     if (t - B.lastEvent >= idle || (t - B.opt.t0 >= hard && !compiling)) { fail(t - B.opt.t0 >= hard ? 'hard timeout' : 'nothing landed for ' + Math.round(idle / 1000) + ' s'); return; }
@@ -4439,11 +4444,15 @@ body.bpOpen #edView { visibility:hidden; }
   };
   // -> { cls, why }. Ordered: the software renderers and the integrated parts first, then the families by number;
   // a name the table does not know is 'current' (the middle: never the dearest on a guess, never the poorest)
+  // G1460 (SOFT-GPU): a software renderer - no graphics card in use (SwiftShader: every cloud session's headless Chromium;
+  // llvmpipe / softpipe: Mesa's; Microsoft's Basic Render Driver). The game's 'software' rung keys on this answer
+  // (gfx_settings.js SOFT); on any other name it is false and nothing of the rung exists
+  const isSoftware = raw => /SwiftShader|llvmpipe|softpipe|Software|Basic Render/i.test(String(raw || ''));
   const gpuClass = raw => {
     const s = cleanGpu(raw);
     let m;
     if (!s) return { cls: 'current', why: 'the card did not say its name' };
-    if (/SwiftShader|llvmpipe|softpipe|Software|Basic Render/i.test(s)) return { cls: 'potato', why: 'a software renderer (no graphics card in use)' };
+    if (isSoftware(s)) return { cls: 'potato', why: 'a software renderer (no graphics card in use)' };
     if (/Mali|Adreno|PowerVR|Apple A\d|Videocore/i.test(s)) return { cls: 'potato', why: 'a phone or tablet graphics part' };
     if (/Intel/i.test(s) && /\b(HD|UHD|Iris)\b/i.test(s)) return { cls: 'potato', why: 'Intel integrated graphics' };
     if (/Radeon\(TM\) Graphics|Radeon Graphics|Radeon Vega \d+ Graphics|Vega \d+ Graphics/i.test(s)) return { cls: 'potato', why: 'AMD integrated graphics' };
@@ -4681,8 +4690,8 @@ body.bpOpen #edView { visibility:hidden; }
   // ---- THE RUN ----------------------------------------------------------------------------------------------------
   const nav = W.navigator || {};
   const API = W.WELCOME = {
-    ORDER, LABEL, KEY, cleanGpu, gpuClass, memClass, mobileWhy, decide, isRig, probe,
-    RIG: isRig(nav), pick: null, decision: null, env: null,
+    ORDER, LABEL, KEY, cleanGpu, gpuClass, isSoftware, memClass, mobileWhy, decide, isRig, probe,
+    RIG: isRig(nav), SOFT: false, pick: null, decision: null, env: null,   // SOFT (G1460): the probe's card is a software renderer
     // the graphics menu's "re-check my computer": the welcome again, in place; resolves with the preset picked
     recheck: () => {
       const env = probe(), d = decide(env, { getItem: () => null }, '', {});
@@ -4699,7 +4708,7 @@ body.bpOpen #edView { visibility:hidden; }
   }
   if (!W.document || !W.document.createElement) return;
   let d;
-  try { const env = probe(); API.env = env; d = API.decision = decide(env, W.localStorage, search(), nav, W.location && W.location.hostname); }
+  try { const env = probe(); API.env = env; API.SOFT = isSoftware(env.gpu); d = API.decision = decide(env, W.localStorage, search(), nav, W.location && W.location.hostname); }
   catch (e) { return; }   // a welcome that cannot decide is no welcome: the game loads as it did
   if (d.adopt) { let pr = 'menu'; try { pr = JSON.parse(W.localStorage.getItem('flydiy.gfx')).preset || pr; } catch (e) {} remember(W.localStorage, d, pr); }
   if (d.screen === 'none') return;
@@ -43376,7 +43385,7 @@ if (typeof module !== 'undefined')
   module.exports = { TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, TREE_HITS, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, RWY_LIGHTS, runwayLightStrips, runwayLightSite, runwayLightPoints, STRIP_SURFACES, stripSurface, stripGear, stripAllows, stripFallback, stripLandable, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, atmosWater, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, CLIMATE, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, decodeAnimal, decodeAnimalClips, registerAnimal, animalList, animalClips, animalClip, ANIMAL_REG, makeSim, HYDRO, makeBus, vortexKernel, makeAutopilot, makeTestPilot, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, seatOnGround, placeAtLineup, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, POLARS, PAR, RHO, hyp2, hyp3, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genPlanePair, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, genTrueBox, genNetEig, genRigidFloatOf, GEN_BOX_N, GEN_BOX_KMIN, GEN_NET_MAX, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC, GP_PARKED_FOOT, GP_PARKED_DEFAULT, GP_CLEAR, GP_HALF_DEFAULT, parkedFoot, gpParkedDist, gpClearWay, GEN_WING_ENVELOPE };
 </script>
 <script type="text/x-flydiy">window.BOOT&&BOOT.phase('core','reading the model')</script>
-<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='ce7a7a1d1eae';window.FLYDIY_BUILD='f5cd36beab5d';window.FLYDIY_AUDIO_SRC={"engine_worklet":"src/viewer/audio/engine_worklet.js?v=856e2c24","prop_worklet":"src/viewer/audio/prop_worklet.js?v=b90ce587","airframe_worklet":"src/viewer/audio/airframe_worklet.js?v=b7f16185"};window.FLYDIY_MUSIC=[{"id":"fma238392","file":"media/audio/music/holiznacc0_yet_again.ae80f04f.mp3","title":"Yet Again","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/yet-again-lofi-peaceful/","station":"lofi","contexts":["garage","welcome"],"lufs":-16,"durationS":135.9},{"id":"fma275835","file":"media/audio/music/holiznacc0_break_from_reality.6cd41edd.mp3","title":"Break From Reality","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/break-from-reality-lofi-peaceful-mp3/","station":"lofi","contexts":["garage","welcome","cruise"],"lufs":-16,"durationS":207},{"id":"fma275843","file":"media/audio/music/holiznacc0_the_best_of_times.4c1984ae.mp3","title":"The Best Of Times","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/the-best-of-times-lofi-relaxing-mp3/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":168},{"id":"fma267057","file":"media/audio/music/holiznacc0_faded_in_the_sunlight.4ce1349b.mp3","title":"Faded in the Sunlight","artist":"HoliznaCC0","album":"Summer Air ( Lo-fi )","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/summer-air-lo-fi/faded-in-the-sunlight/","station":"lofi","contexts":["garage","welcome"],"lufs":-17.2,"durationS":178.2},{"id":"fma265836","file":"media/audio/music/holiznacc0_peaceful_drift.55118944.mp3","title":"Peaceful Drift","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/peaceful-drift-lofi-nostalgic-calm/","station":"lofi","contexts":["garage"],"lufs":-17.4,"durationS":128.3},{"id":"fma265847","file":"media/audio/music/holiznacc0_ease_into_night.32448511.mp3","title":"Ease into Night","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/ease-into-night-lofi-relax-chill/","station":"lofi","contexts":["garage"],"lufs":-17.9,"durationS":151.8},{"id":"fma268742","file":"media/audio/music/holiznacc0_washed_up.eca2e877.mp3","title":"Washed Up","artist":"HoliznaCC0","album":"OCEAN MEMORY ( Lo-fi Chill )","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/ocean-memory-lo-fi-chill/washed-up/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":234.6},{"id":"fma275832","file":"media/audio/music/holiznacc0_down_time.c1f35243.mp3","title":"Down Time","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/down-time-lofi-peaceful-mp3/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":130.3},{"id":"fma275836","file":"media/audio/music/holiznacc0_ocean_breeze.1c28251e.mp3","title":"Ocean Breeze","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/ocean-breeze-lofi-ukulele-peaceful-mp3/","station":"lofi","contexts":["garage","cruise"],"lufs":-16,"durationS":197.6},{"id":"fma164357","file":"media/audio/music/loyalty_freak_music_traveling_in_your_mind.993d471f.mp3","title":"Traveling in your mind","artist":"Loyalty Freak Music","album":"TO CHILL AND STAY AWAKE","licence":"CC0","source":"https://freemusicarchive.org/music/Loyalty_Freak_Music/TO_CHILL_AND_STAY_AWAKE/Loyalty_Freak_Music_-_TO_CHILL_AND_STAY_AWAKE_-_05_Traveling_in_your_mind/","station":"lofi","contexts":["cruise","welcome","garage"],"lufs":-18.2,"durationS":236.6},{"id":"fma171982","file":"media/audio/music/loyalty_freak_music_beach.b048753f.mp3","title":"Beach","artist":"Loyalty Freak Music","album":"MELODIES WITH A BEAT","licence":"CC0","source":"https://freemusicarchive.org/music/Loyalty_Freak_Music/MELODIES_WITH_A_BEAT/Loyalty_Freak_Music_-_MELODIES_WITH_A_BEAT_-_08_Beach/","station":"lofi","contexts":["garage"],"lufs":-17.3,"durationS":161},{"id":"fma279362","file":"media/audio/music/holiznacc0_kodama.566d47aa.mp3","title":"Kodama","artist":"HoliznaCC0","album":"Nature Spirit","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/nature-spirit/kodama/","station":"jazzblues","contexts":["garage"],"lufs":-18.7,"durationS":150.7}];window.FLYDIY_AUDIO_MEDIA={"amb.forest.day":["media/audio/sfx/amb_forest_day_288899.157bf96e.mp3"],"amb.forest.night":["media/audio/sfx/amb_forest_night_333221.3df54da1.mp3"],"amb.wind.light":["media/audio/sfx/amb_wind_light_160469.4d45c6a1.mp3"],"amb.wind.clear":["media/audio/sfx/amb_wind_clear_156414.f23315bb.mp3"],"amb.wind.mountain":["media/audio/sfx/amb_wind_mountain_165526.140f3920.mp3"],"amb.wind.storm":["media/audio/sfx/amb_wind_storm_157280.9fdd2a2c.mp3"],"amb.shore.surf":["media/audio/sfx/amb_shore_surf_155641.27350310.mp3"],"amb.shore.rocks":["media/audio/sfx/amb_shore_rocks_155895.6ee71344.mp3"],"amb.lake.near":["media/audio/sfx/amb_lake_near_135046.22d12339.mp3"],"amb.lake.lap":["media/audio/sfx/amb_lake_lap_428088.0018a69a.mp3"],"amb.stream":["media/audio/sfx/amb_stream_264180.4ff25da2.mp3"],"amb.harbour":["media/audio/sfx/amb_harbour_339440.fc5b7cd1.mp3"],"amb.village":["media/audio/sfx/amb_village_435819.20299c23.mp3"],"amb.airfield":["media/audio/sfx/amb_airfield_319102.6b4237cf.mp3"],"amb.hangar":["media/audio/sfx/amb_hangar_427861.f9afe454.mp3"],"amb.rain.roof":["media/audio/sfx/amb_rain_roof_329578.c0aba715.mp3"],"amb.frogs.night":["media/audio/sfx/amb_frogs_night_135561.9aa1f6e9.mp3"],"amb.loons":["media/audio/sfx/amb_loons_39339.7d136ae5.mp3"],"amb.meadow":["media/audio/sfx/amb_meadow_639459.3facef88.mp3"],"bird.eagle":["media/audio/sfx/bird_eagle_381200.1d11590c.mp3","media/audio/sfx/bird_eagle_392212.13114290.mp3"],"bird.gull":["media/audio/sfx/bird_gull_166710.bb2f19eb.mp3"],"bird.crow":["media/audio/sfx/bird_crow_182090.1a94cd39.mp3"],"bird.owl":["media/audio/sfx/bird_owl_465697.2ee834d0.mp3"],"dog":["media/audio/sfx/dog_160366.86fe02dc.mp3"],"gnd.gravel":["media/audio/sfx/gnd_gravel_251661.0e48f11b.mp3"],"mech.creak":["media/audio/sfx/mech_creak_119468.101f6d88.mp3","media/audio/sfx/mech_creak_238289.6d8b72b3.mp3"],"mech.door":["media/audio/sfx/mech_door_345066.66dbaf6d.mp3"],"mech.switch":["media/audio/sfx/mech_switch_361371.9ced067b.mp3","media/audio/sfx/mech_switch_423957.6b08a0c1.mp3"],"water.drip":["media/audio/sfx/water_drip_166986.f81c294b.mp3"],"ui.click":["media/audio/sfx/ui_click_528561.bdd8b52e.mp3"],"vehicle.pickup":["media/audio/sfx/vehicle_pickup_450227.be208f91.mp3"]}</script>
+<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='ce7a7a1d1eae';window.FLYDIY_BUILD='39f9e360af38';window.FLYDIY_AUDIO_SRC={"engine_worklet":"src/viewer/audio/engine_worklet.js?v=856e2c24","prop_worklet":"src/viewer/audio/prop_worklet.js?v=b90ce587","airframe_worklet":"src/viewer/audio/airframe_worklet.js?v=b7f16185"};window.FLYDIY_MUSIC=[{"id":"fma238392","file":"media/audio/music/holiznacc0_yet_again.ae80f04f.mp3","title":"Yet Again","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/yet-again-lofi-peaceful/","station":"lofi","contexts":["garage","welcome"],"lufs":-16,"durationS":135.9},{"id":"fma275835","file":"media/audio/music/holiznacc0_break_from_reality.6cd41edd.mp3","title":"Break From Reality","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/break-from-reality-lofi-peaceful-mp3/","station":"lofi","contexts":["garage","welcome","cruise"],"lufs":-16,"durationS":207},{"id":"fma275843","file":"media/audio/music/holiznacc0_the_best_of_times.4c1984ae.mp3","title":"The Best Of Times","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/the-best-of-times-lofi-relaxing-mp3/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":168},{"id":"fma267057","file":"media/audio/music/holiznacc0_faded_in_the_sunlight.4ce1349b.mp3","title":"Faded in the Sunlight","artist":"HoliznaCC0","album":"Summer Air ( Lo-fi )","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/summer-air-lo-fi/faded-in-the-sunlight/","station":"lofi","contexts":["garage","welcome"],"lufs":-17.2,"durationS":178.2},{"id":"fma265836","file":"media/audio/music/holiznacc0_peaceful_drift.55118944.mp3","title":"Peaceful Drift","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/peaceful-drift-lofi-nostalgic-calm/","station":"lofi","contexts":["garage"],"lufs":-17.4,"durationS":128.3},{"id":"fma265847","file":"media/audio/music/holiznacc0_ease_into_night.32448511.mp3","title":"Ease into Night","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/ease-into-night-lofi-relax-chill/","station":"lofi","contexts":["garage"],"lufs":-17.9,"durationS":151.8},{"id":"fma268742","file":"media/audio/music/holiznacc0_washed_up.eca2e877.mp3","title":"Washed Up","artist":"HoliznaCC0","album":"OCEAN MEMORY ( Lo-fi Chill )","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/ocean-memory-lo-fi-chill/washed-up/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":234.6},{"id":"fma275832","file":"media/audio/music/holiznacc0_down_time.c1f35243.mp3","title":"Down Time","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/down-time-lofi-peaceful-mp3/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":130.3},{"id":"fma275836","file":"media/audio/music/holiznacc0_ocean_breeze.1c28251e.mp3","title":"Ocean Breeze","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/ocean-breeze-lofi-ukulele-peaceful-mp3/","station":"lofi","contexts":["garage","cruise"],"lufs":-16,"durationS":197.6},{"id":"fma164357","file":"media/audio/music/loyalty_freak_music_traveling_in_your_mind.993d471f.mp3","title":"Traveling in your mind","artist":"Loyalty Freak Music","album":"TO CHILL AND STAY AWAKE","licence":"CC0","source":"https://freemusicarchive.org/music/Loyalty_Freak_Music/TO_CHILL_AND_STAY_AWAKE/Loyalty_Freak_Music_-_TO_CHILL_AND_STAY_AWAKE_-_05_Traveling_in_your_mind/","station":"lofi","contexts":["cruise","welcome","garage"],"lufs":-18.2,"durationS":236.6},{"id":"fma171982","file":"media/audio/music/loyalty_freak_music_beach.b048753f.mp3","title":"Beach","artist":"Loyalty Freak Music","album":"MELODIES WITH A BEAT","licence":"CC0","source":"https://freemusicarchive.org/music/Loyalty_Freak_Music/MELODIES_WITH_A_BEAT/Loyalty_Freak_Music_-_MELODIES_WITH_A_BEAT_-_08_Beach/","station":"lofi","contexts":["garage"],"lufs":-17.3,"durationS":161},{"id":"fma279362","file":"media/audio/music/holiznacc0_kodama.566d47aa.mp3","title":"Kodama","artist":"HoliznaCC0","album":"Nature Spirit","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/nature-spirit/kodama/","station":"jazzblues","contexts":["garage"],"lufs":-18.7,"durationS":150.7}];window.FLYDIY_AUDIO_MEDIA={"amb.forest.day":["media/audio/sfx/amb_forest_day_288899.157bf96e.mp3"],"amb.forest.night":["media/audio/sfx/amb_forest_night_333221.3df54da1.mp3"],"amb.wind.light":["media/audio/sfx/amb_wind_light_160469.4d45c6a1.mp3"],"amb.wind.clear":["media/audio/sfx/amb_wind_clear_156414.f23315bb.mp3"],"amb.wind.mountain":["media/audio/sfx/amb_wind_mountain_165526.140f3920.mp3"],"amb.wind.storm":["media/audio/sfx/amb_wind_storm_157280.9fdd2a2c.mp3"],"amb.shore.surf":["media/audio/sfx/amb_shore_surf_155641.27350310.mp3"],"amb.shore.rocks":["media/audio/sfx/amb_shore_rocks_155895.6ee71344.mp3"],"amb.lake.near":["media/audio/sfx/amb_lake_near_135046.22d12339.mp3"],"amb.lake.lap":["media/audio/sfx/amb_lake_lap_428088.0018a69a.mp3"],"amb.stream":["media/audio/sfx/amb_stream_264180.4ff25da2.mp3"],"amb.harbour":["media/audio/sfx/amb_harbour_339440.fc5b7cd1.mp3"],"amb.village":["media/audio/sfx/amb_village_435819.20299c23.mp3"],"amb.airfield":["media/audio/sfx/amb_airfield_319102.6b4237cf.mp3"],"amb.hangar":["media/audio/sfx/amb_hangar_427861.f9afe454.mp3"],"amb.rain.roof":["media/audio/sfx/amb_rain_roof_329578.c0aba715.mp3"],"amb.frogs.night":["media/audio/sfx/amb_frogs_night_135561.9aa1f6e9.mp3"],"amb.loons":["media/audio/sfx/amb_loons_39339.7d136ae5.mp3"],"amb.meadow":["media/audio/sfx/amb_meadow_639459.3facef88.mp3"],"bird.eagle":["media/audio/sfx/bird_eagle_381200.1d11590c.mp3","media/audio/sfx/bird_eagle_392212.13114290.mp3"],"bird.gull":["media/audio/sfx/bird_gull_166710.bb2f19eb.mp3"],"bird.crow":["media/audio/sfx/bird_crow_182090.1a94cd39.mp3"],"bird.owl":["media/audio/sfx/bird_owl_465697.2ee834d0.mp3"],"dog":["media/audio/sfx/dog_160366.86fe02dc.mp3"],"gnd.gravel":["media/audio/sfx/gnd_gravel_251661.0e48f11b.mp3"],"mech.creak":["media/audio/sfx/mech_creak_119468.101f6d88.mp3","media/audio/sfx/mech_creak_238289.6d8b72b3.mp3"],"mech.door":["media/audio/sfx/mech_door_345066.66dbaf6d.mp3"],"mech.switch":["media/audio/sfx/mech_switch_361371.9ced067b.mp3","media/audio/sfx/mech_switch_423957.6b08a0c1.mp3"],"water.drip":["media/audio/sfx/water_drip_166986.f81c294b.mp3"],"ui.click":["media/audio/sfx/ui_click_528561.bdd8b52e.mp3"],"vehicle.pickup":["media/audio/sfx/vehicle_pickup_450227.be208f91.mp3"]}</script>
 <script type="text/x-flydiy" src="src/models/pa18_model.js?v=d854feec"></script>
 <script type="text/x-flydiy" src="src/models/c172_model.js?v=52c3ced6"></script>
 <script type="text/x-flydiy" src="src/models/d112_model.js?v=3678040d"></script>
@@ -52690,6 +52699,9 @@ function shoulderTrace(mesh, spec, opt, CAGE) {
   const yRef = openTop ? (CN.ref === 'waist' ? spec.waistY : spec.bandY) : null;
 
   const own = new Map();
+  // G1452 (RELEASE-FAST): a vertex's position key once (a face with no cutOff stands on V itself)
+  const PKV = new Map();
+  const pkAt = (f, P, e) => { if (f.cutOff) return pk(P[e]); const vi = f.v[e]; let k = PKV.get(vi); if (k === undefined) PKV.set(vi, k = pk(P[e])); return k; };
   F.forEach((f, fi) => {
     const c = faceClass(f);
     if (!c) return;
@@ -52698,7 +52710,7 @@ function shoulderTrace(mesh, spec, opt, CAGE) {
     for (const p of P) cy += p[1] / n;
     for (let e = 0; e < n; e++) {
       const a = P[e], b = P[(e + 1) % n];
-      const A = pk(a), B = pk(b);
+      const A = pkAt(f, P, e), B = pkAt(f, P, (e + 1) % n);
       const k = A < B ? A + '|' + B : B + '|' + A;
       let r = own.get(k);
       if (!r) own.set(k, r = { a: A < B ? a : b, b: A < B ? b : a, o: [] });
@@ -53368,12 +53380,17 @@ function zip(outer, inner, mk) {
 
 // coherent windings across position-shared edges, then positive volume
 function orientPart(V, faces) {
-  const keyOf = (a, b) => ek(V[a], V[b]);
+  // G1452 (RELEASE-FAST): each vertex's position key once (the same pk string), the edge key off the two
+  // ...and a number per distinct key (the edge's two numbers, low first, are its key: the same edges are one edge)
+  const PK = new Map(), PID = new Map(), SID = new Map();
+  const pkI = i => { let s = PK.get(i); if (s === undefined) PK.set(i, s = pk(V[i])); return s; };
+  const idI = i => { let d = PID.get(i); if (d === undefined) { const s = pkI(i); d = SID.get(s); if (d === undefined) SID.set(s, d = SID.size); PID.set(i, d); } return d; };
+  const keyOf = (a, b) => { const A = idI(a), B = idI(b); return A < B ? A * 67108864 + B : B * 67108864 + A; };
   const eF = new Map();
   faces.forEach((f, i) => { const n = f.v.length; for (let e = 0; e < n; e++) {
     const k = keyOf(f.v[e], f.v[(e + 1) % n]); if (!eF.has(k)) eF.set(k, []); eF.get(k).push(i); } });
   const dirIn = (f, k) => { const n = f.v.length; for (let e = 0; e < n; e++) {
-    const a = f.v[e], b = f.v[(e + 1) % n]; if (keyOf(a, b) === k) return pk(V[a]) < pk(V[b]) ? 1 : -1; } return 0; };
+    const a = f.v[e], b = f.v[(e + 1) % n]; if (keyOf(a, b) === k) return pkI(a) < pkI(b) ? 1 : -1; } return 0; };
   const seen = new Uint8Array(faces.length);
   for (let s = 0; s < faces.length; s++) {
     if (seen[s]) continue;
@@ -53531,7 +53548,11 @@ function makeInnerSampler(mesh) {
   // answer there and the walk below (unchanged, the smallest x wins) gives the same number.
   const YPAD = 1e-4;
   const buckets = new Map(), faces = [];
-  const key = (side, b, c) => (side > 0 ? 'p' : 'n') + b + ':' + c;
+  // G1452 (RELEASE-FAST): a number for the cell (side, station bin, height bin) - the same cells as the string key
+  // it replaces while both bins are inside +-2^20 (+-100 km of cage); outside, the string
+  const key = (side, b, c) => (b > -1048576 && b < 1048576 && c > -1048576 && c < 1048576)
+    ? ((b + 1048576) * 2097152 + (c + 1048576)) * 2 + (side > 0 ? 1 : 0)
+    : (side > 0 ? 'p' : 'n') + b + ':' + c;
   for (const f of F) {
     if (f.shoulder || f.doorPanel || f.m === 'joint' || f.m === 'doorSeal') continue;
     // EVERYTHING the door's inside is made of: its skin and pane, the
@@ -53688,6 +53709,10 @@ function panelBuild(mesh, spec, opt) {
     (faceClass(f) === 'G' ? d.glass : d.skin).push(P);
   });
   const shParts = (mesh.shoulder && mesh.shoulder.parts) || [];
+  const DASH = { z: null, y: null };
+  if (doors.size) for (const f of mesh.F) if (f.m === 'dash' || f.m === 'dashFace') for (const vi of f.v) {
+    const p = mesh.V[vi]; if (DASH.z == null || p[2] < DASH.z) DASH.z = p[2]; if (DASH.y == null || p[1] < DASH.y) DASH.y = p[1];
+  }
   for (const d of doors.values()) {
     const side = d.side, off = d.cutOff || [0, 0, 0];
     if (!d.skin.length) continue;
@@ -53709,11 +53734,9 @@ function panelBuild(mesh, spec, opt) {
     // tightest kept — a raked edge read over a tall band overran the door
     // at the top-front corner by 13 cm on the first cut (GATE SHOULDER)
     const edge = (y, which) => { const e = extentAt(d.skin, y); return e ? e[which] : null; };
-    // the dashboard's footprint: the panel stays behind its aft face
-    let zDash = null, yDash = null;
-    for (const f of mesh.F) if (f.m === 'dash' || f.m === 'dashFace') for (const vi of f.v) {
-      const p = mesh.V[vi]; if (zDash == null || p[2] < zDash) zDash = p[2]; if (yDash == null || p[1] < yDash) yDash = p[1];
-    }
+    // the dashboard's footprint: the panel stays behind its aft face (G1452: measured once, before the doors - it is
+    // the mesh's, not the door's)
+    const zDash = DASH.z, yDash = DASH.y;
     const zAt = (y, which) => {
       let v = null;
       for (const dy of [-0.012, 0, 0.012]) { const e = edge(y + dy, which); if (e == null) continue; v = v == null ? e : (which ? Math.min(v, e) : Math.max(v, e)); }
@@ -53758,7 +53781,17 @@ function panelBuild(mesh, spec, opt) {
     const cz = outline.reduce((s2, p) => s2 + p[0] / outline.length, 0), cy = outline.reduce((s2, p) => s2 + p[1] / outline.length, 0);
     const base0 = probe(cy, cz);
     if (base0 == null) continue;
+    // G1452 (RELEASE-FAST): a point asked again (the back cap's outer ring, the walls and the chamfer all stand on
+    // the outline's points) answers what it answered - the sampler is a pure function of (y, z)
+    const baseMemo = new Map();
     const baseAbs = (y, z) => {
+      let my = baseMemo.get(y);
+      if (my === undefined) baseMemo.set(y, my = new Map());
+      let r = my.get(z);
+      if (r === undefined) my.set(z, r = baseAbs0(y, z));
+      return r;
+    };
+    const baseAbs0 = (y, z) => {
       // the innermost of the point and its 1.5 cm neighbours, so a bump in
       // the lining between samples cannot reach the panel's back
       let v = null;
@@ -62440,10 +62473,85 @@ function cageRefitArc(s) {
   return Object.assign({}, s, { A: A2 });
 }
 
+// G1452 (RELEASE-FAST): THE SHEET'S STAGES KEPT WHILE THEIR INPUTS ARE. cageSheet is a chain of passes over one mesh,
+// each a function of the mesh it is handed and the spec keys it reads (no pass reads P, a clock or a random number;
+// the one global, CAGE_MEMBERS, is the interior's output and is kept with it). A detail row moves one pass's keys - a
+// rim's the rims', the dash's the interior's, a shoulder's or a door panel's the shoulder's - and every pass before it
+// rebuilt the same mesh. With opts.passKeep (the editor's build: _cage_ui sheetKept) the sequence runs as four
+// stages - the cage through the canopy, the rims, the interior, the shoulder - each keyed by its input (the previous
+// stage's kept object) and the JSON of the spec keys it read on its last run (recorded through a view of the spec);
+// a stage whose key holds hands back its last output. The rims and the interior append to and replace entries in the
+// mesh they are handed (measured: no vertex, field entry, crease or face object of their input is written), so each
+// is handed a shallow copy (its arrays sliced) and the kept output stays as built. An exploded cut, a numeric step or
+// passKeep off: the plain sequence below. The editor's long way (CAGE_UI.sheetKeep = false) runs without it.
+const SHEET_STAGE = { A: null, R: null, I: null, S: null };
+const sheetSpecView = spec => {
+  const reads = new Set();
+  const px = new Proxy(spec, {
+    get(t, k) { if (typeof k === 'string') reads.add(k); return t[k]; },
+    has(t, k) { if (typeof k === 'string') reads.add(k); return k in t; },
+    ownKeys(t) { reads.add('*'); return Reflect.ownKeys(t); },
+    getOwnPropertyDescriptor(t, k) { if (typeof k === 'string') reads.add(k); return Reflect.getOwnPropertyDescriptor(t, k); },
+  });
+  return { px, reads };
+};
+const sheetJSON = x => JSON.stringify(x, (k, v) => (typeof v === 'number' && !isFinite(v)) ? 'num:' + v : v === undefined ? '(u)' : v);
+function sheetStage(slot, spec, memo, input, salt, run) {
+  const val = k => k === '*' ? (memo['*'] || (memo['*'] = sheetJSON(spec))) : (k in memo ? memo[k] : (memo[k] = sheetJSON(spec[k])));
+  const e = SHEET_STAGE[slot];
+  if (e && e.input === input && e.salt === salt) {
+    let same = true;
+    for (const [k, v] of e.reads) if (val(k) !== v) { same = false; break; }
+    if (same) { if (e.memb !== undefined && typeof window !== 'undefined') window.CAGE_MEMBERS = e.memb; return e.out; }
+  }
+  const V = sheetSpecView(spec);
+  const out = run(V.px);
+  const reads = new Map();
+  for (const k of V.reads) reads.set(k, val(k));
+  SHEET_STAGE[slot] = { input, salt, reads, out, memb: slot === 'I' && typeof window !== 'undefined' ? window.CAGE_MEMBERS : undefined };
+  return out;
+}
+const sheetShallow = m => { const o = Object.assign({}, m); for (const k of ['V', 'F', 'A', 'N']) if (Array.isArray(m[k])) o[k] = m[k].slice(); return o; };
+function cageSheetKept(spec, step, L) {
+  const memo = {};
+  const KG = (typeof KNIFE_GEN !== 'undefined') ? KNIFE_GEN
+    : (typeof require === 'function' ? require('./_knife_gen.js') : null);
+  const A = sheetStage('A', spec, memo, null, step + '|' + L + '|' + !!KG, S => {
+    const m = buildCage2(S, step);
+    let s = m;
+    for (let i = 0; i < L; i++) s = cageSubdivide(s);
+    if (L > 0) s = cageRefitArc(s);
+    const drawn = KG && S.windows && S.windows.length;
+    if (drawn)
+      s = Object.assign({}, s, { F: s.F.map(f => {
+        if (f.m !== 'pasengerWindow') return f;
+        const g = Object.assign({}, f, { m: 'body' }); delete g.win; return g;
+      }) });
+    s = cageGlassSill(s, S);
+    s = cageCut(s, S);
+    if (drawn) {
+      s.N = KG.knifeNormals(s);
+      for (const w of S.windows) {
+        if (w.refused) continue;
+        for (const side of [1, -1])
+          s = KG.knifeCut(s, w, { side, depth: w.depth, paneMat: 'drawnPane', wallMat: 'reveal' });
+      }
+    }
+    s = cageCanopy(s, S);
+    return { m, s };
+  });
+  const R = sheetStage('R', spec, memo, A, '', S => cageRims(sheetShallow(A.s), S));
+  const I = sheetStage('I', spec, memo, R, '', S => cageInterior(sheetShallow(R), S));
+  const s = sheetStage('S', spec, memo, I, '', S => cageShoulder(I, S));
+  return { spec, cage: A.m, mesh: s, sheet: s };
+}
+
 function cageSheet(P, opts) {
   const step = (opts && opts.step != null) ? opts.step : 'crease';
   const L = (opts && opts.level != null) ? +opts.level : 2;
   const spec = cageSpec({ ...P });
+  if (opts && opts.passKeep && step === 'crease' && !((P.explodeD || 0) > 0) && !(spec.cut && spec.cut.explode > 0))
+    return cageSheetKept(spec, step, L);
   const m = buildCage2(spec, step);
   let s = m;
   for (let i = 0; i < L; i++) s = cageSubdivide(s);
@@ -63048,6 +63156,28 @@ function fistAt(inst, side, out) {
 // the sole's contact patch, in the anchor's own axes. fitSoles() in the
 // crew layer moves the target by the difference to the ATD's mid-sole.
 const _sv = new THREE.Vector3();
+// G1455 (RELEASE-FAST): WHICH VERTICES ARE THE SOLE is a fact of the shared geometry (its skin indices and weights) and
+// the skeleton's bone names - kept per geometry, by the side and the names and the attributes' versions; the pose
+// (the bone transforms, the mesh's place) is applied on every call as before
+const SOLE_SEL = new WeakMap();
+function soleSel(g, bones, S, re) {
+  const p = g.attributes.position, si = g.attributes.skinIndex, sw = g.attributes.skinWeight;
+  const key = S + '|' + p.count + '|' + si.version + '|' + sw.version + '|' + bones.map(b => b.name).join(',');
+  let m = SOLE_SEL.get(g);
+  if (!m) SOLE_SEL.set(g, m = new Map());
+  let sel = (typeof window !== 'undefined' && window.RELEASE_FAST_OFF) ? null : m.get(key);
+  if (sel) return sel;
+  const on = bones.map(b => re.test(b.name));
+  const out = [];
+  for (let i = 0; i < p.count; i++) {
+    let w = 0;
+    for (let k = 0; k < 4; k++) if (on[si.getComponent(i, k)]) w += sw.getComponent(i, k);
+    if (w < 0.5) continue;
+    out.push(i);
+  }
+  m.set(key, sel = out);
+  return sel;
+}
 function soleAt(inst, side, frameInv, out) {
   const S = side === 'L' ? 'Left' : 'Right';
   const re = new RegExp(S + '(Foot|ToeBase)$');
@@ -63058,11 +63188,7 @@ function soleAt(inst, side, frameInv, out) {
           si = g.attributes.skinIndex, sw = g.attributes.skinWeight;
     if (!p || !si || !sw) continue;
     const bones = m.skeleton.bones;
-    const on = bones.map(b => re.test(b.name));
-    for (let i = 0; i < p.count; i++) {
-      let w = 0;
-      for (let k = 0; k < 4; k++) if (on[si.getComponent(i, k)]) w += sw.getComponent(i, k);
-      if (w < 0.5) continue;
+    for (const i of soleSel(g, bones, S, re)) {
       _sv.fromBufferAttribute(p, i);
       m.applyBoneTransform(i, _sv);
       m.localToWorld(_sv).applyMatrix4(frameInv);
@@ -63327,10 +63453,19 @@ window.CAGE_CHAR = { MAP, list: () => REG().order.map(k => REG().chars[k]),
     'wing>gear': () => { const G = window.CAGE_GEAR; return !(G && G.onWing === 0); },
   };
   const ALWAYS = new Set(['panel', 'cowlAft', 'ext']);   // a stat line / an early return / the understudy pass
+  // G1451 (RELEASE-FAST): THE RELEASE'S OWN EDGES - what a WHOLE build reads that a preview may leave one build stale:
+  // the engine's propeller-clearance check (a microtask after the chain) reads the wing's and the aft skin's probes;
+  // a wing-mounted engine's faces (the cowl's engineFaces) stand on the wing; the tanks' clearance probes the engine's
+  // and the cowl's meshes (HIT_LAYERS). A layer that ran under a drag's defer returned early (G1303: hidden, its reads
+  // not taken) and is STALE until it runs whole.
+  const REL_FEEDS = { wing: ['eng', 'cowl'], gear: ['eng'], eng: ['energy'], cowl: ['energy'] };
+  const REL_WHEN = { 'wing>cowl': P => Math.round(+(P && P.engMount) || 0) >= 2 };
+  const DEFERS = new Set(['access', 'light', 'energy', 'hinge']);
+  let SEQ = 0;
   const L = [];
   const C = window.CAGE_CHAIN = {
     on: !/(^|[?&])garage=old(&|$)/.test((typeof location !== 'undefined' && location.search) || ''),
-    ok: true, why: '', layers: L, ORDER, FEEDS,
+    ok: true, why: '', layers: L, ORDER, FEEDS, REL_FEEDS, dirty: false,
     last: null,           // the last chain: [{name, ran, ms}]
   };
   const fileOf = () => {
@@ -63355,21 +63490,32 @@ window.CAGE_CHAR = { MAP, list: () => REG().order.map(k => REG().chars[k]),
   };
   // ---- the chain ---------------------------------------------------------------------------------------------
   const stubs = [];
-  const stub = n => stubs[n] || (stubs[n] = function (ctx) { if (n > 0) runLayer(n - 1, ctx); });
+  // G1451: the status line each layer's own body appends (ctx.stat: the text after the layers below it ran, to the
+  // text after its own body) - a release that keeps a layer keeps its words
+  const statTxt = ctx => (ctx && ctx.stat && typeof ctx.stat.textContent === 'string') ? ctx.stat.textContent : null;
+  // ...and the scene's top-level objects each layer's own body added (a release that keeps a layer puts the layers'
+  // groups back in the chain's order, as a whole build leaves them)
+  const kids = ctx => (ctx && ctx.scene && ctx.scene.children) ? new Set(ctx.scene.children) : null;
+  const stub = n => stubs[n] || (stubs[n] = function (ctx) { if (n > 0) runLayer(n - 1, ctx); if (n > 0 && L[n]) { L[n].stat0 = statTxt(ctx); L[n].kids0 = kids(ctx); } });
   let childAcc = 0;
   // the clock (a node rig puts the machine's under the page's virtual one as window.__realNow)
   const now = () => (window.__realNow ? window.__realNow() : performance.now());
   function runLayer(i, ctx) {
     const Ly = L[i], plan = ctx && ctx.__plan;
     if (plan && !plan.run[i]) { Ly.ran = false; Ly.ms = 0; if (i > 0) runLayer(i - 1, ctx); return; }
-    Ly.ran = true;
+    Ly.ran = true; Ly.seq = ++SEQ; Ly.stale = !!(ctx && ctx.defer && DEFERS.has(Ly.name)); Ly.mesh = ctx ? ctx.mesh : null;
     const rec = C.on && ctx && ctx.__rec;
     const prev = CUR;
     if (rec) { CUR = Ly; Ly.reads = new Map(); Ly.all = false; Ly.allSnap = null; } else CUR = null;
     const outer = childAcc; childAcc = 0;
     const t0 = now();
+    Ly.stat0 = statTxt(ctx); Ly.kids0 = kids(ctx);
     try { return Ly.f.call(PAGE, ctx); }
     finally {
+      const k0 = Ly.kids0; Ly.kids0 = null;
+      Ly.objs = k0 ? ctx.scene.children.filter(o => !k0.has(o)) : [];
+      const st = statTxt(ctx);
+      Ly.statApp = (st != null && Ly.stat0 != null && st.length >= Ly.stat0.length && st.slice(0, Ly.stat0.length) === Ly.stat0) ? st.slice(Ly.stat0.length) : '';
       const dt = now() - t0;
       Ly.ms = dt - childAcc; childAcc = outer + dt;
       if (rec && Ly.all) Ly.allSnap = snapV(rec.P);
@@ -63396,12 +63542,18 @@ window.CAGE_CHAR = { MAP, list: () => REG().order.map(k => REG().chars[k]),
     const hadUI = !!(UI && UI.P === P);
     ctx.P = view; ctx.__rec = { P }; if (plan) ctx.__plan = plan;
     if (hadUI) UI.P = view;
+    if (!plan) C.dirty = false;
     try { PAGE.post(ctx); }
+    catch (e) { C.dirty = true; throw e; }
     finally {
       if (hadUI) UI.P = P;
       C.last = L.map(l => ({ name: l.name, ran: l.ran, ms: +l.ms.toFixed(2) }));
     }
   };
+  // the layer whose own body is running (a section stamped now is that layer's), or null
+  C.cur = () => CUR;
+  // the run counter (each layer's `seq` is the counter at its last run)
+  C.seqNow = () => SEQ;
   // only(names): a plan that runs the named layers (and the always-run ones) and skips the rest
   C.only = names => {
     if (!C.on || !C.ok || L.length !== ORDER.length) return null;
@@ -63409,19 +63561,35 @@ window.CAGE_CHAR = { MAP, list: () => REG().order.map(k => REG().chars[k]),
     return { run: L.map(l => set.has(l.name) || ALWAYS.has(l.name)), why: L.map(l => set.has(l.name) ? 'only' : ALWAYS.has(l.name) ? 'always' : '') };
   };
   // plan(P): which layers a drag tick runs. null when no plan can be made (never on, a bad order, a layer never run)
-  C.plan = P => {
+  // G1451: plan(P, true, mesh) is a RELEASE's plan (mesh: the sheet the release's layers stand on) - the drag's plan, and every layer a preview left stale, and the release's
+  // own edges (REL_FEEDS, which may point at an EARLIER layer: the pass repeats until nothing more is added)
+  C.plan = (P, release, mesh) => {
     if (!C.on || !C.ok || !L.length || L.length !== ORDER.length) return null;
-    const run = L.map(() => false), why = L.map(() => '');
+    if (release && C.dirty) return null;                  // a chain that threw: no basis for a skip
+    let run, why;
     const fed = new Set();
-    for (let i = 0; i < L.length; i++) {
-      const Ly = L[i];
-      if (!Ly.reads) return null;                         // never recorded: no basis for a skip
-      let r = '';
-      if (ALWAYS.has(Ly.name)) r = 'always';
-      else if (fed.has(Ly.name)) r = 'fed';
-      else if (Ly.all && !same(snapV(P), Ly.allSnap)) r = 'all';
-      else for (const [k, v] of Ly.reads) if (!same(snapV(P[k]), v)) { r = k; break; }
-      if (r) { run[i] = true; why[i] = r; if (r !== 'always') for (const n of FEEDS[Ly.name] || []) { const w = WHEN[Ly.name + '>' + n]; if (!w || w()) fed.add(n); } }
+    for (let pass = 0; pass < 4; pass++) {
+      const n0 = fed.size;
+      run = L.map(() => false); why = L.map(() => '');
+      for (let i = 0; i < L.length; i++) {
+        const Ly = L[i];
+        if (!Ly.reads) return null;                       // never recorded: no basis for a skip
+        let r = '';
+        if (ALWAYS.has(Ly.name)) r = 'always';
+        else if (fed.has(Ly.name)) r = 'fed';
+        else if (release && Ly.stale) r = 'stale';
+        else if (release && Ly.mesh !== mesh) r = 'sheet';      // it last ran on another sheet (a detail row's tick)
+        else if (Ly.all && !same(snapV(P), Ly.allSnap)) r = 'all';
+        else for (const [k, v] of Ly.reads) if (!same(snapV(P[k]), v)) { r = k; break; }
+        if (r) {
+          run[i] = true; why[i] = r;
+          if (r !== 'always') {
+            for (const n of FEEDS[Ly.name] || []) { const w = WHEN[Ly.name + '>' + n]; if (!w || w()) fed.add(n); }
+            if (release) for (const n of REL_FEEDS[Ly.name] || []) { const w = REL_WHEN[Ly.name + '>' + n]; if (!w || w(P)) fed.add(n); }
+          }
+        }
+      }
+      if (!release || fed.size === n0) break;
     }
     return { run, why };
   };
@@ -65309,6 +65477,43 @@ function buildPanel(parent, A, P, pilotX) {
 // so the veneer lies flat along the boards), a seam groove across ahead
 // of each seat row, screws round the edge every 12 cm.
 let FLOOR_BUILD = 0;                        // the build the deferred floor belongs to
+// G1451 (RELEASE-FAST): THE FLOOR WITHOUT THE CREW. The floor is cut round every other layer's meshes (sceneCuts), on
+// the late hook after the whole chain - so a release that keeps the crew (its inputs unmoved) but runs another layer
+// takes the floor out for the chain (a whole build's chain never sees this build's floor: the crew group is new and
+// floorless until the late hook) and cuts it again after, through the crew's own closure (the same group, anchors,
+// seats, sheet and controls the crew's last run held); nothing ran, the same floor goes back.
+let FLOOR_LAST = null;                      // { group, obj, run, detached } the crew's last floor
+if (typeof window !== 'undefined') window.CAGE_CREW_FLOOR = {
+  detach() { const F = FLOOR_LAST; if (!F || F.group !== group || !F.obj || F.obj.parent !== group) return false; group.remove(F.obj); F.detached = true; return true; },
+  reattach() { const F = FLOOR_LAST; if (F && F.detached && F.group === group && F.obj) { group.add(F.obj); F.detached = false; } },
+  rebuild() {
+    const F = FLOOR_LAST; if (!F || F.group !== group) return false;
+    if (F.obj) { F.obj.traverse(c => { if (c.geometry) c.geometry.dispose(); }); if (F.obj.parent) F.obj.parent.remove(F.obj); }
+    if (window.CAGE_CREW) delete window.CAGE_CREW.floorWhy;
+    F.run(); return true;
+  },
+  has() { return !!(FLOOR_LAST && FLOOR_LAST.group === group); },
+  // would a cut now differ? - a mesh that reached the band on the last cut has left the scene, or one of the given
+  // top-level groups (the layers a release re-ran) holds a mesh that reaches it. The crew group's frame is the one
+  // the last cut was measured in (the release runs only while the sit stands).
+  needs(tops) {
+    const B = FLOOR_BAND;
+    if (!B || !FLOOR_LAST || FLOOR_LAST.group !== group || B.crewGroup !== group) return true;
+    for (const o of B.hits) { let a = o; while (a && a.parent) a = a.parent; if (a !== B.scene) return true; }
+    const M = new THREE.Matrix4();
+    group.updateMatrixWorld(true);
+    const inv = new THREE.Matrix4().copy(group.matrixWorld).invert();
+    if (!inv.equals(B.inv)) return true;
+    for (const top of tops || []) {
+      if (!top || top === group || !/^cageLayer:/.test(top.name || '') || !top.visible || top.parent !== B.scene) continue;
+      top.updateMatrixWorld(true);
+      let hit = false;
+      top.traverse(o => { if (!hit && floorReaches(o, inv, M, B.yLo, B.yHi, B.zA, B.zB)) hit = true; });
+      if (hit) return true;
+    }
+    return false;
+  },
+};
 const FLOOR_T = 0.012;
 const FLOOR_MARGIN = 0.004;                 // the board's edge stands this far inside the wall (G354)
 let FLOOR_THRU = [];                        // [{x, z, r}] a control passing through, metres
@@ -65439,6 +65644,27 @@ function floorWalls(mesh, k, yAt, zF, zA) {
 // that only enters the underside is still a spar in the board); every cut
 // lands in the CREW group's own frame (the scene is the world's — the
 // layers' meshes come through their matrixWorld and back through ours)
+// G1451: the meshes that reached the board's band on the last cut, and the band - a release that re-ran other layers
+// asks whether any of them left or any new one reaches it (else the floor it would cut is the floor standing)
+let FLOOR_BAND = null;
+// THE MESHES THAT CAN CUT THE BOARD: a visible, opaque, unskinned mesh of a cageLayer:* group (not the crew's own)
+// whose box reaches the board's height band
+// ...and whose box reaches the board's RUN along z: a cut piece is kept only when its middle lies inside
+// [z0 + 1 cm, z1 - 1 cm] (buildFloor), and every piece of a mesh's cuts lies inside the mesh's z extent - a mesh wholly
+// fore or aft of the run (by a micrometre) cuts nothing the board keeps (zA, zB: the run, optional)
+function floorReaches(o, inv, M, yLo, yHi, zA, zB) {
+  if (!o.isMesh || !o.visible || o.isSkinnedMesh || !o.geometry || !o.geometry.attributes.position) return false;
+  const m0 = Array.isArray(o.material) ? o.material[0] : o.material;
+  if (!m0 || m0.visible === false || m0.transparent) return false;
+  const g = o.geometry;
+  M.multiplyMatrices(inv, o.matrixWorld);
+  // a cheap bound first: the mesh's box must reach into the board
+  if (!g.boundingBox) g.computeBoundingBox();
+  const bb = g.boundingBox.clone().applyMatrix4(M);
+  if (bb.min.y > yHi || bb.max.y < yLo) return false;
+  if (zA != null && (bb.max.z < zA - 1e-6 || bb.min.z > zB + 1e-6)) return false;
+  return true;
+}
 function sceneCuts(scene, yAt, offs, crewGroup, zLo, zHi) {
   const out = [], v = [new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3()];
   if (!scene || !crewGroup) return out;
@@ -65446,20 +65672,17 @@ function sceneCuts(scene, yAt, offs, crewGroup, zLo, zHi) {
   const inv = new THREE.Matrix4().copy(crewGroup.matrixWorld).invert(), M = new THREE.Matrix4();
   let yLo = Infinity, yHi = -Infinity;
   for (let z = zLo; z <= zHi + 1e-9; z += 0.05) { const y = yAt(z); yLo = Math.min(yLo, y + Math.min(...offs)); yHi = Math.max(yHi, y + Math.max(...offs)); }
+  const hits = [], zA = zLo + 0.01, zB = zHi - 0.01;
+  FLOOR_BAND = { scene, crewGroup, inv: inv.clone(), yLo, yHi, zA, zB, hits };
   for (const top of scene.children) {
     if (top === crewGroup || !/^cageLayer:/.test(top.name || '') || !top.visible) continue;
     top.updateMatrixWorld(true);
     top.traverse(o => {
-      if (!o.isMesh || !o.visible || o.isSkinnedMesh || !o.geometry || !o.geometry.attributes.position) return;
-      const m0 = Array.isArray(o.material) ? o.material[0] : o.material;
-      if (!m0 || m0.visible === false || m0.transparent) return;
+      // (traverse walks into hidden children as well: the visible test is the mesh's own, as it always was)
+      if (!floorReaches(o, inv, M, yLo, yHi, zA, zB)) return;
+      hits.push(o);
       const g = o.geometry, p = g.attributes.position, idx = g.index;
       const n = idx ? idx.count : p.count;
-      M.multiplyMatrices(inv, o.matrixWorld);
-      // a cheap bound first: the mesh's box must reach into the board
-      if (!g.boundingBox) g.computeBoundingBox();
-      const bb = g.boundingBox.clone().applyMatrix4(M);
-      if (bb.min.y > yHi || bb.max.y < yLo) return;
       const tri = [[0, 0, 0], [0, 0, 0], [0, 0, 0]];
       for (let i = 0; i + 2 < n; i += 3) {
         for (let e = 0; e < 3; e++) {
@@ -66736,16 +66959,23 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
   // ply, notched and holed round whatever breaks the plane.
   const floorN = +P.floorOn ? 1 : 0;
   FLOOR_THRU = [];
+  FLOOR_LAST = null;
   if (floorN) {
     const myGroup = group, token = ++FLOOR_BUILD;
     let done = false;
+    const floorRun = () => {
+      FLOOR_LAST = { group: myGroup, obj: null, run: floorRun, detached: false };
+      FLOOR_BAND = null;
+      try {
+        const fl = buildFloor(myGroup, A, P, mesh, places, scene);
+        FLOOR_LAST.obj = fl ? fl.obj : null;
+        if (window.CAGE_CREW) window.CAGE_CREW.floor = fl ? { holes: fl.holes, slots: fl.slots, notches: fl.notches, z: fl.z, cut: fl.cut } : null;
+      } catch (e) { console.warn('floor (G331):', e); }
+    };
     const late = () => {
       if (done || token !== FLOOR_BUILD || group !== myGroup) return;   // a newer build superseded this one
       done = true;
-      try {
-        const fl = buildFloor(myGroup, A, P, mesh, places, scene);
-        if (window.CAGE_CREW) window.CAGE_CREW.floor = fl ? { holes: fl.holes, slots: fl.slots, notches: fl.notches, z: fl.z, cut: fl.cut } : null;
-      } catch (e) { console.warn('floor (G331):', e); }
+      floorRun();
     };
     // PAGE.late: _cage_ui drains it right after the post chain, in the same
     // task — so a join that follows the build in one breath sees the floor;
@@ -94227,9 +94457,10 @@ function placeAll(ctx, inv) {
             const half = { x: bf.W / 2 + 0.02, z: bf.L / 2 + 0.02 };
             const zMid = (zFw != null ? (zFw - mid / FS) * FS : 0);
             let crewTop = -Infinity;
-            for (const p of CREW_PTS)
-              if (Math.abs(p[0]) <= half.x && Math.abs(p[2] - zMid) <= half.z && p[1] > crewTop)
-                crewTop = p[1];
+            for (let i = 0, P3 = CREW_PTS.buf; i < CREW_PTS.n; i++) {
+              const x = P3[i * 3], y = P3[i * 3 + 1], z = P3[i * 3 + 2];
+              if (Math.abs(x) <= half.x && Math.abs(z - zMid) <= half.z && y > crewTop) crewTop = y;
+            }
             const lvB = bay.lv || [0, 1];
             const bandTop = ext.yLo + lvB[1] * (ext.yHi - ext.yLo);
             if (isFinite(crewTop)) {
@@ -94309,24 +94540,32 @@ function commitSoon() {
 // auto-fit asks the same question a hundred times
 let CREW_PTS = null;
 function crewPoints(scene, inv) {
-  if (!scene || !window.THREE) return [];
+  if (!scene || !window.THREE) return { buf: new Float64Array(0), n: 0 };
   let crew = null;
   for (const ch of scene.children)
     if ((ch.name || '') === 'cageLayer:crew') crew = ch;
-  if (!crew) return [];
+  if (!crew) return { buf: new Float64Array(0), n: 0 };
   crew.updateMatrixWorld(true);
-  const V = new THREE.Vector3(), out = [];
+  // G1455 (RELEASE-FAST): the points in one Float64Array, x y z each (the same doubles the little arrays held)
+  const V = new THREE.Vector3(), meshes = [];
+  let n = 0;
   crew.traverse(o => {
     if (!o.isMesh || !o.geometry) return;
     const pos = o.geometry.getAttribute('position');
     if (!pos) return;
+    meshes.push(o); n += pos.count;
+  });
+  const buf = new Float64Array(n * 3);
+  let k = 0;
+  for (const o of meshes) {
+    const pos = o.geometry.getAttribute('position');
     for (let i = 0; i < pos.count; i++) {
       V.set(pos.getX(i), pos.getY(i), pos.getZ(i))
         .applyMatrix4(o.matrixWorld).applyMatrix4(inv);
-      out.push([V.x, V.y, V.z]);
+      buf[k++] = V.x; buf[k++] = V.y; buf[k++] = V.z;
     }
-  });
-  return out;
+  }
+  return { buf, n };
 }
 function crewHits(scene, inv, results) {
   const G = VG();
@@ -94334,8 +94573,11 @@ function crewHits(scene, inv, results) {
   const bodies = results.filter(r => r.on === 'body' && r.c);
   if (!bodies.length) return;
   if (!CREW_PTS) CREW_PTS = crewPoints(scene, inv);
-  for (const p of CREW_PTS)
-    for (const r of bodies) if (G.pointInBox(p, r, 0.01)) r.crewHits++;
+  const q = [0, 0, 0], B3 = CREW_PTS.buf;
+  for (let i = 0; i < CREW_PTS.n; i++) {
+    q[0] = B3[i * 3]; q[1] = B3[i * 3 + 1]; q[2] = B3[i * 3 + 2];
+    for (const r of bodies) if (G.pointInBox(q, r, 0.01)) r.crewHits++;
+  }
   for (const r of bodies) if (r.crewHits) {
     r.ok = false;
     r.why.push('through the crew (' + r.crewHits + ' points)');
@@ -94405,54 +94647,85 @@ function drawnPts(r, sol, slots, pc) {
 // engine's and the cowl's meshes as flat triangles with their boxes; a query
 // is then a box filter - fitOf asks it hundreds of times in a search
 let SURF_ALL = null;
-function surfAll(ctx, scene, inv) {
-  if (SURF_ALL && SURF_ALL.mesh === (ctx && ctx.mesh) && SURF_ALL.inv === inv) return SURF_ALL.tris;
-  const tris = [];
-  const add = (ax, ay, az, bx, by, bz, cx, cy, cz) => {
-    tris.push([ax, ay, az, bx - ax, by - ay, bz - az, cx - ax, cy - ay, cz - az,
-               Math.min(ax, bx, cx), Math.min(ay, by, cy), Math.min(az, bz, cz),
-               Math.max(ax, bx, cx), Math.max(ay, by, cy), Math.max(az, bz, cz)]);
-  };
-  const M = ctx && ctx.mesh;
-  if (M && M.F && M.V) {
-    const FS = (window.CAGE2 && window.CAGE2.CAGE_UNIT || 1) * ((ctx.P && ctx.P.planeScale) || 1);
-    for (const f of M.F) {
-      const v = f.v; if (!v || v.length < 3) continue;
-      for (let i = 1; i + 1 < v.length; i++) {
-        const A = M.V[v[0]], B = M.V[v[i]], C = M.V[v[i + 1]];
-        add(A[0] * FS, A[1] * FS, A[2] * FS, B[0] * FS, B[1] * FS, B[2] * FS, C[0] * FS, C[1] * FS, C[2] * FS);
-      }
+// G1455 (RELEASE-FAST): the soup is ONE Float64Array, 15 numbers a triangle (the same doubles, in the same order, that
+// the per-triangle arrays held - a metal Cessna's 45 000 arrays were a quarter of a release's garbage), and the
+// sheet's part is kept with the sheet (a WeakMap on the mesh object, by the scale it was built at: a release keeps the
+// sheet, and its triangles are the same numbers)
+const SHEET_SOUP = new WeakMap();
+function soupAdd(buf, n, ax, ay, az, bx, by, bz, cx, cy, cz) {
+  const o = n * 15;
+  buf[o] = ax; buf[o + 1] = ay; buf[o + 2] = az;
+  buf[o + 3] = bx - ax; buf[o + 4] = by - ay; buf[o + 5] = bz - az;
+  buf[o + 6] = cx - ax; buf[o + 7] = cy - ay; buf[o + 8] = cz - az;
+  buf[o + 9] = Math.min(ax, bx, cx); buf[o + 10] = Math.min(ay, by, cy); buf[o + 11] = Math.min(az, bz, cz);
+  buf[o + 12] = Math.max(ax, bx, cx); buf[o + 13] = Math.max(ay, by, cy); buf[o + 14] = Math.max(az, bz, cz);
+}
+function sheetSoup(M, FS) {
+  const k = window.RELEASE_FAST_OFF ? null : SHEET_SOUP.get(M);
+  if (k && k.FS === FS) return k;
+  let nT = 0;
+  for (const f of M.F) { const v = f.v; if (v && v.length >= 3) nT += v.length - 2; }
+  const buf = new Float64Array(nT * 15);
+  let n = 0;
+  for (const f of M.F) {
+    const v = f.v; if (!v || v.length < 3) continue;
+    for (let i = 1; i + 1 < v.length; i++) {
+      const A = M.V[v[0]], B = M.V[v[i]], C = M.V[v[i + 1]];
+      soupAdd(buf, n++, A[0] * FS, A[1] * FS, A[2] * FS, B[0] * FS, B[1] * FS, B[2] * FS, C[0] * FS, C[1] * FS, C[2] * FS);
     }
   }
+  const out = { FS, buf, n };
+  SHEET_SOUP.set(M, out);
+  return out;
+}
+function surfAll(ctx, scene, inv) {
+  if (SURF_ALL && SURF_ALL.mesh === (ctx && ctx.mesh) && SURF_ALL.inv === inv) return SURF_ALL;
+  const M = ctx && ctx.mesh;
+  const sh = (M && M.F && M.V) ? sheetSoup(M, (window.CAGE2 && window.CAGE2.CAGE_UNIT || 1) * ((ctx.P && ctx.P.planeScale) || 1)) : null;
+  // the engine's and the cowl's meshes, counted first
+  const objs = [];
+  let nL = 0;
   if (scene && inv && window.THREE) {
-    const V = new THREE.Vector3(), Q = [[], [], []];
     for (const ch of scene.children) {
       if (!HIT_LAYERS.includes(ch.name || '') || ch.visible === false) continue;
       ch.traverse(o => {
         if (!o.isMesh || !o.geometry || o.visible === false) return;
         const pos = o.geometry.getAttribute('position'); if (!pos) return;
         const idx = o.geometry.index, nT = idx ? idx.count / 3 : pos.count / 3;
-        for (let t = 0; t < nT; t++) {
-          for (let k = 0; k < 3; k++) {
-            const vi = idx ? idx.getX(t * 3 + k) : t * 3 + k;
-            V.set(pos.getX(vi), pos.getY(vi), pos.getZ(vi)).applyMatrix4(o.matrixWorld).applyMatrix4(inv);
-            Q[k] = [V.x, V.y, V.z];
-          }
-          add(Q[0][0], Q[0][1], Q[0][2], Q[1][0], Q[1][1], Q[1][2], Q[2][0], Q[2][1], Q[2][2]);
-        }
+        objs.push(o); nL += Math.floor(nT) === nT ? nT : Math.ceil(nT);
       });
     }
   }
-  SURF_ALL = { mesh: ctx && ctx.mesh, inv, tris };
-  return tris;
+  const nS = sh ? sh.n : 0;
+  const buf = new Float64Array((nS + nL) * 15);
+  if (sh) buf.set(sh.buf.subarray(0, nS * 15));
+  let n = nS;
+  if (objs.length) {
+    const V = new THREE.Vector3(), Q = [[], [], []];
+    for (const o of objs) {
+      const pos = o.geometry.getAttribute('position');
+      const idx = o.geometry.index, nT = idx ? idx.count / 3 : pos.count / 3;
+      for (let t = 0; t < nT; t++) {
+        for (let k = 0; k < 3; k++) {
+          const vi = idx ? idx.getX(t * 3 + k) : t * 3 + k;
+          V.set(pos.getX(vi), pos.getY(vi), pos.getZ(vi)).applyMatrix4(o.matrixWorld).applyMatrix4(inv);
+          Q[k] = [V.x, V.y, V.z];
+        }
+        soupAdd(buf, n++, Q[0][0], Q[0][1], Q[0][2], Q[1][0], Q[1][1], Q[1][2], Q[2][0], Q[2][1], Q[2][2]);
+      }
+    }
+  }
+  SURF_ALL = { mesh: ctx && ctx.mesh, inv, buf, n };
+  return SURF_ALL;
 }
 // the surfaces a drawn tank must not cross, as triangles in this layer's
 // frame (the sheet: skin, glass, frame tubes, the dash; the engine; the
-// cowl) - only those whose box meets `bb`
+// cowl) - only those whose box meets `bb` (each a 15-number view on the soup)
 function surfTris(ctx, scene, inv, bb) {
   const out = [];
-  for (const t of surfAll(ctx, scene, inv))
-    if (!(t[12] < bb[0] || t[9] > bb[3] || t[13] < bb[1] || t[10] > bb[4] || t[14] < bb[2] || t[11] > bb[5])) out.push(t);
+  const S = surfAll(ctx, scene, inv), b = S.buf;
+  for (let i = 0, o = 0; i < S.n; i++, o += 15)
+    if (!(b[o + 12] < bb[0] || b[o + 9] > bb[3] || b[o + 13] < bb[1] || b[o + 10] > bb[4] || b[o + 14] < bb[2] || b[o + 11] > bb[5])) out.push(b.subarray(o, o + 15));
   return out;
 }
 // does the segment c -> q cross any of `tris` (Moller-Trumbore, t in (0, 1))?
@@ -94468,6 +94741,33 @@ function segCrosses(c, q, tris) {
     const w = (dx * qx + dy * qy + dz * qz) * iv; if (w < 0 || u + w > 1) continue;
     const tt = (t[6] * qx + t[7] * qy + t[8] * qz) * iv;
     if (tt > 1e-6 && tt < 1) return true;
+  }
+  return false;
+}
+// the layer-frame box of a mesh (its geometry's box corners through matrixWorld then inv, as each vertex goes) against
+// each body's box as pointInBox reads it (a box turned about y: its axis-aligned extent), both padded by a millimetre
+// and a millionth of their size - far over the rounding of either path - so a false 'far' cannot be
+function meshNearBodies(o, inv, bodies) {
+  const g = o.geometry;
+  if (!g.boundingBox) g.computeBoundingBox();
+  const bb = g.boundingBox;
+  if (!bb || !isFinite(bb.min.x) || !isFinite(bb.max.x)) return true;
+  const V = new THREE.Vector3(), lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity];
+  for (let k = 0; k < 8; k++) {
+    V.set(k & 1 ? bb.max.x : bb.min.x, k & 2 ? bb.max.y : bb.min.y, k & 4 ? bb.max.z : bb.min.z).applyMatrix4(o.matrixWorld).applyMatrix4(inv);
+    const q = [V.x, V.y, V.z];
+    for (let a = 0; a < 3; a++) { if (!isFinite(q[a])) return true; if (q[a] < lo[a]) lo[a] = q[a]; if (q[a] > hi[a]) hi[a] = q[a]; }
+  }
+  const pad = a => 1e-3 + 1e-6 * (Math.abs(lo[a]) + Math.abs(hi[a]));
+  for (const r of bodies) {
+    const c = r.c, e = r.e, cs = Math.abs(Math.cos(r.rot)), sn = Math.abs(Math.sin(r.rot));
+    const ex = [cs * e[0] + sn * e[2], e[1], sn * e[0] + cs * e[2]];
+    let hit = true;
+    for (let a = 0; a < 3 && hit; a++) {
+      const p = pad(a) + 1e-6 * Math.abs(c[a]) + 1e-6 * ex[a];
+      if (lo[a] > c[a] + ex[a] + p || hi[a] < c[a] - ex[a] - p) hit = false;
+    }
+    if (hit) return true;
   }
   return false;
 }
@@ -94487,6 +94787,9 @@ function layerHits(scene, inv, results, ctx) {
       if (!o.isMesh || !o.geometry || o.visible === false) return;
       const pos = o.geometry.getAttribute('position');
       if (!pos) return;
+      // G1455 (RELEASE-FAST): a mesh whose box (its geometry's, through the same two matrices, padded) misses every
+      // tank's box cannot put a vertex in one - pointInBox would refuse each; the count is the same without the walk
+      if (!meshNearBodies(o, inv, bodies)) return;
       for (let i = 0; i < pos.count; i++) {
         V.set(pos.getX(i), pos.getY(i), pos.getZ(i)).applyMatrix4(o.matrixWorld).applyMatrix4(inv);
         const p = [V.x, V.y, V.z];
@@ -100995,6 +101298,16 @@ const matOf = name => {
 const SEC_LIVE = {};                    // section -> epoch it last drew in
 const SEC_CTX = {};                     // section -> the g it last drew with
 let SEC_EPOCH = 0;
+// G1451 (RELEASE-FAST): WHICH LAYER DREW EACH SECTION - a release that keeps a layer keeps its sections live. A stamp
+// made while a chain layer's own body runs is that layer's (its set renewed on each of its runs); a stamp made while
+// the late hooks drain (the crew's floor) is the late set's.
+let SEC_SINK = null;
+function secOwn(name) {
+  const CH = typeof window !== 'undefined' && window.CAGE_CHAIN, ly = CH && CH.cur ? CH.cur() : null;
+  if (ly) { if (ly.secSeq !== ly.seq) { ly.secSeq = ly.seq; ly.secs = new Set(); } ly.secs.add(name); }
+  else if (SEC_SINK) SEC_SINK.add(name);
+}
+let LATE_SECS = new Set();
 const SEC_OVER = { fin: secFin, tint: secTint, tile: secTile,
                    rough: secRough, nrm: secNrm, wear: secWear,
                    cc: secCc, field: secField, metal: secMetal,
@@ -101006,6 +101319,7 @@ function secMat(name, g) {
     return null;
   SEC_LIVE[name] = SEC_EPOCH;
   SEC_CTX[name] = g || {};
+  if (typeof secOwn === 'function') secOwn(name);      // G1451 (a page slice without it - GATE LIVERY's - stamps alone)
   const r = A.aeroSecResolve(name, SEC_OVER,
     { cons: (g && g.cons) || consOf(), fin: g && g.fin });
   const m = A.aeroMaterial(THREE, {
@@ -101599,8 +101913,10 @@ function build() { const g = buildSteps(); while (!g.next().done); }
 let DRAG_ON = null, DRAG_TICK = false, DRAG_LATE = false, DRAG_T = null;
 function dragSettle() {
   if (DRAG_T) { clearTimeout(DRAG_T); DRAG_T = null; }
-  if (DRAG_LATE) { DRAG_LATE = false; build(); }
+  if (DRAG_LATE) { DRAG_LATE = false; RELEASE = true; try { build(); } finally { RELEASE = false; } }
 }
+// G1451 (RELEASE-FAST): the build a drag's release runs (dragSettle) - it may run only what the drag reached
+let RELEASE = false;
 function dragSettleSoon() {
   if (DRAG_T) clearTimeout(DRAG_T);
   DRAG_T = setTimeout(() => { DRAG_T = null; dragSettle(); }, (window.CAGE_UI && window.CAGE_UI.dragSettleMs) || 350);
@@ -101806,10 +102122,118 @@ function sheetKept(P, opts) {
     if (typeof window !== 'undefined') window.CAGE_MEMBERS = SHEET_MEMB;
     return SHEET_VAL;
   }
-  const v = G.cageSheet(P, opts);
+  // G1452: the sheet's own stages kept while their inputs are (cageSheet passKeep) - the long way builds them all
+  const keepOn = !(window.CAGE_UI && (window.CAGE_UI.sheetKeep === false || window.CAGE_UI.passKeep === false)) && !PREVIEW_OFF();
+  const v = G.cageSheet(P, keepOn ? Object.assign({}, opts, { passKeep: true }) : opts);
   SHEET_KEY = key; SHEET_VAL = v;
   SHEET_MEMB = typeof window !== 'undefined' ? window.CAGE_MEMBERS : undefined;
   return v;
+}
+// G331's LATE hooks (the crew's floor), drained after the chain; the sections they stamp are the late set's (G1451)
+function drainLate() {
+  if (!(PAGE.late && PAGE.late.length)) return false;
+  const sink = SEC_SINK = new Set();
+  try { for (const f of PAGE.late.splice(0)) try { f(); } catch (e) { console.error('page late hook:', e); } }
+  finally { SEC_SINK = null; }
+  LATE_SECS = sink;
+  return true;
+}
+// G1451 (RELEASE-FAST): THE RELEASE RUNS WHAT THE DRAG REACHED. A drag's release used to be the whole build: the sheet
+// (kept, G1300), the fuselage's mesh made again from it, every layer, the floor, the panels, the weathering. When the
+// sheet is the stand's (a wing, tail, gear, crew row ...) the release now runs the chain under a RELEASE plan
+// (CAGE_CHAIN.plan(P, true): the layers whose recorded P reads moved since they last ran, the ones a preview left stale
+// - the detail layers a drag defers - and every layer they feed, forward and along the release's own edges), and keeps
+// the rest as their last run drew them; the fuselage's mesh stands (its inputs - the sheet, the pre-chain rows PRE_KEYS,
+// the view's switches - are the last whole build's); the crew's floor is taken out for the chain and cut again when
+// anything else ran (it is cut round the other layers' meshes). It is the whole build whenever any of that cannot be
+// said: a sheet that moved, a deformed stand, a sit that moved since the last whole build (the craft frame the kept
+// layers published in), a chain that threw or never recorded, `?garage=old`, CAGE_UI.releaseFast = false.
+// GATE INSTANT drags and releases each row, then builds the same rows the long way: SAME.
+// the P keys the build reads outside the layers (grep `P.` in this file) and the view's switches the mesh is made by
+const PRE_KEYS = ['planeScale', 'hgFinish', 'explodeD', 'intOn', 'intDash', 'skinOn', 'glazeOn', 'glazeMat', 'whProfile',
+  'skylight', 'mirror', 'memRise', 'memPitch', 'memFast', 'memDia', 'intCons', 'doorPax', 'doorOn'];
+const preKey = () => {
+  try {
+    const v = id => { const e = $(id); return e ? (e.type === 'checkbox' ? e.checked : e.value) : null; };
+    return JSON.stringify([PRE_KEYS.map(k => P[k] === undefined ? '(u)' : (typeof P[k] === 'number' && !isFinite(P[k])) ? 'num:' + P[k] : P[k]),
+      v('surf'), v('curv'), v('wire'), v('cage'), v('color'), v('lvl'), v('step'), !!VIEW.loops, G.CAGE_UNIT || 1]);
+  } catch (e) { return null; }
+};
+let PRE_KEY = null, STAT0 = '', WHOLE_SEQ = 0;      // WHOLE_SEQ: the chain's run counter after the last whole build
+const RELEASE_INFO = { n: 0, whole: 0, last: null };
+function releaseWhy(built) {
+  const CH = window.CAGE_CHAIN;
+  if (!RELEASE) return 'not a release';
+  if (PREVIEW_OFF() || (window.CAGE_UI && window.CAGE_UI.releaseFast === false)) return 'off';
+  if (!CH || !CH.on || !CH.cur) return 'no chain';
+  if (DEFORMED) return 'a deformed drag';
+  // a floatplane: the float layer stands its step on the CG the balance worker answers (FLYDIY_CG_MODEL, G396 - not a
+  // P key, so no record holds it) and the handshake rebuilds when that CG moves 2 cm; its release is the whole build,
+  // as it was
+  if (+P.gearFloats > 0) return 'a floatplane (the CG handshake)';
+  if (built !== LAST_SHEET || !meshObj || built.mesh !== MS) return 'the sheet moved';
+  if (PRE_KEY == null || preKey() !== PRE_KEY) return 'a pre-chain row moved';
+  if (craftKey() !== CRAFT_KEY) return 'the sit moved';
+  return '';
+}
+function* releaseSteps(built, rplan) {
+  const t0 = performance.now();
+  const CH = window.CAGE_CHAIN, spec = built.spec, sFix = built.sheet;
+  // the build's own order: the finish panels, then the chain in its own task when the caller slices
+  try { buildMatPanel(); decRange(); decApplyRanges(); applyDecals(); }
+  catch (e) { console.error('CAGE_UI: the finish panels did not build —', e); }
+  SEC_EPOCH++;
+  yield 'post';
+  DRAG_LATE = false;
+  if (DRAG_T) { clearTimeout(DRAG_T); DRAG_T = null; }
+  const ci = CH.layers.findIndex(l => l.name === 'crew');
+  const FL = window.CAGE_CREW_FLOOR;
+  const floorOut = ci >= 0 && !rplan.run[ci] && FL && FL.detach ? FL.detach() : false;
+  const stat = { textContent: STAT0 };
+  const ctx = { scene, spec, mesh: sFix, P, stat, defer: false };
+  try { CH.run(ctx, P, rplan); } catch (e) { console.error('page post hook (release):', e); }
+  if ($('stat')) $('stat').textContent = STAT0 + CH.layers.map(l => l.statApp || '').join('');
+  // the scene's order as a whole build leaves it: everything else as it stands, the fuselage's own objects, then each
+  // layer's groups in the chain's order (a layer that ran re-added its groups at the end)
+  {
+    const own = [meshObj, cageObj, loopsObj].filter(o => o && o.parent === scene);
+    const lay = []; for (const l of CH.layers) for (const o of l.objs || []) if (o.parent === scene) lay.push(o);
+    const mine = new Set(own.concat(lay));
+    const order = scene.children.filter(o => !mine.has(o)).concat(own, lay);
+    if (order.length === scene.children.length && order.some((o, i) => o !== scene.children[i]))
+      scene.children.splice(0, scene.children.length, ...order);
+  }
+  standParts(built, false);
+  // the floor: cut again when any layer but the always-run ones ran (it is cut round their meshes), else put back
+  const ran = rplan.run.some((r, i) => r && rplan.why[i] !== 'always');
+  let floor = 'kept';
+  if (floorOut) {
+    const tops = []; CH.layers.forEach((l, i) => { if (rplan.run[i]) for (const o of l.objs || []) tops.push(o); });
+    if (ran && (!FL.needs || FL.needs(tops))) { const sink = SEC_SINK = new Set(); try { FL.rebuild(); } finally { SEC_SINK = null; } LATE_SECS = sink; floor = 'cut again'; }
+    else { FL.reattach(); floor = ran ? 'put back (nothing re-run reaches its band)' : 'put back'; }
+  }
+  const lateRan = drainLate();
+  if (!lateRan && ci >= 0 && rplan.run[ci]) LATE_SECS = new Set();      // the crew ran without a floor
+  // a kept layer's sections (and a kept floor's) are live as they were
+  for (const l of CH.layers) if (!l.ran && l.secs) for (const k of l.secs) if (k in SEC_CTX) SEC_LIVE[k] = SEC_EPOCH;
+  if (!lateRan && floor !== 'cut again') for (const k of LATE_SECS) if (k in SEC_CTX) SEC_LIVE[k] = SEC_EPOCH;
+  for (const k in SEC_LIVE)
+    if (SEC_LIVE[k] !== SEC_EPOCH) { delete SEC_LIVE[k]; delete SEC_CTX[k]; }
+  try { buildMatPanel(); } catch (e) {}
+  // the paint record keeps what the meshes wear: a material no mesh wears any more leaves it
+  {
+    const used = new Set();
+    scene.traverse(o => { if (o.material) for (const m of (Array.isArray(o.material) ? o.material : [o.material])) used.add(m); });
+    for (const m of [...PAINT_REQ.keys()]) if (!used.has(m)) PAINT_REQ.delete(m);
+  }
+  try { applyWeather(); } catch (e) { console.error('weather:', e); }
+  applyRowVis();
+  syncFollow();
+  draw();
+  WHOLE_SEQ = CH.seqNow ? CH.seqNow() : WHOLE_SEQ;      // what stands is a whole build's aeroplane
+  RELEASE_INFO.n++;
+  RELEASE_INFO.last = { ran: CH.layers.filter((l, i) => rplan.run[i]).map(l => l.name), why: rplan.why.map((y, i) => y ? CH.layers[i].name + '(' + y + ')' : null).filter(Boolean).join(' '),
+    floor, ms: +(performance.now() - t0).toFixed(1) };
 }
 function* buildSteps() {
   // T2.1: a retired row (a preset written against the ring editor, a class
@@ -101907,10 +102331,25 @@ function* buildSteps() {
     const ctx = { scene, spec, mesh: built.sheet, P, stat: { textContent: '' }, defer: true, preview: true };
     try { CH.run(ctx, P, plan); } catch (e) { console.error('page post hook (preview):', e); }
     standParts(built, false);
-    if (PAGE.late && PAGE.late.length)
-      for (const f of PAGE.late.splice(0)) try { f(); } catch (e) { console.error('page late hook:', e); }
+    drainLate();
     previewDraw();
     return;
+  }
+  // G1451: a drag's release that keeps the sheet runs what the drag reached
+  if (RELEASE) {
+    const why = releaseWhy(built);
+    const rplan = !why ? CH.plan(P, true, built.sheet) : null;
+    // a bisecting knob: CAGE_UI.releaseForce = [layer names] runs them too
+    const RF = window.CAGE_UI && window.CAGE_UI.releaseForce;
+    if (rplan && Array.isArray(RF)) CH.layers.forEach((l, i) => { if (RF.includes(l.name) && !rplan.run[i]) { rplan.run[i] = true; rplan.why[i] = 'forced'; } });
+    // A CREW THAT MOVED IN THE DRAG, ON A SHEET THAT DID NOT: the whole build. GATE INSTANT (the Cessna 172's seat
+    // height) found the tanks' wing fit 1 cm off the plain build when the crew had been rebuilt by the previews and the
+    // layers between it and the tanks were kept (a dependency no record or edge names yet); with the sheet changed every
+    // layer runs anyway and the rows pass (dash, rims, shoulder on all four builds)
+    const crewL = CH.layers.find(l => l.name === 'crew');
+    const crewMoved = !!(rplan && crewL && crewL.seq > WHOLE_SEQ && !rplan.why.includes('sheet') && !(Array.isArray(RF) && RF.length));
+    if (rplan && !crewMoved) { yield* releaseSteps(built, rplan); return; }
+    RELEASE_INFO.whole++; RELEASE_INFO.last = { whole: crewMoved ? 'the crew moved in the drag' : (why || 'no plan') };
   }
   LAST_SHEET = built;
   M0 = m;
@@ -102021,6 +102460,7 @@ function* buildSteps() {
   $('stat').textContent =
     `cage ${m.V.length} v / ${m.F.length} q  →  L${L}: ` +
     `${s.V.length} v / ${s.F.length} q`;
+  STAT0 = $('stat').textContent; PRE_KEY = preKey();      // G1451: what a release keeps the fuselage's mesh by
   // The materials panel lists the sections THIS build actually has. Guarded
   // because build() runs during boot, BEFORE the panel's own host elements
   // exist — and they are const/let, so reaching them early is a temporal
@@ -102107,8 +102547,7 @@ function* buildSteps() {
     const ctx2 = { scene, spec, mesh: sFix, P, stat: { textContent: '' }, defer: true, preview: true };
     try { CH.run(ctx2, P, plan2); } catch (e) { console.error('page post hook (preview):', e); }
     standParts(built, true);
-    if (PAGE.late && PAGE.late.length)
-      for (const f of PAGE.late.splice(0)) try { f(); } catch (e) { console.error('page late hook:', e); }
+    drainLate();
     previewDraw();
     return;
   }
@@ -102127,8 +102566,8 @@ function* buildSteps() {
   standParts(built, true);               // G1443: new parts on a fresh mesh
   // G331: LATE — what a layer wants drawn once every layer has drawn (the
   // crew's floor, cut round the other layers' meshes), in this same task
-  if (PAGE.late && PAGE.late.length)
-    for (const f of PAGE.late.splice(0)) try { f(); } catch (e) { console.error('page late hook:', e); }
+  if (!drainLate()) LATE_SECS = new Set();
+  if (CH && CH.seqNow) WHOLE_SEQ = CH.seqNow();
   for (const k in SEC_LIVE)
     if (SEC_LIVE[k] !== SEC_EPOCH) { delete SEC_LIVE[k]; delete SEC_CTX[k]; }
   try { buildMatPanel(); } catch (e) {}
@@ -105371,6 +105810,7 @@ anchorSize();                              // the page opens at its ×1
 syncSliders();
 window.CAGE_UI = { P, build, repaint, draw, applyPreset, syncSliders, reg: () => decReg(),   // G318: the tape reads it
   preview: PREVIEW,                      // G1442: the drag previews (n, the last plan)
+  release: RELEASE_INFO,                 // G1451: the releases (n run partially, whole, the last one's plan)
   // THE TWO HALVES OF A LOAD (G63). `applySpec` puts a build into the editor;
   // `toSpec` takes the editor's whole parameter set out as the spec's `cage`
   // fragment — layer keys included, view keys excluded. Every shelf load,
@@ -107325,6 +107765,9 @@ if (typeof module !== 'undefined') module.exports = UI_LAYER;
       // sample of the stencil: 11.6 ms at 8x MSAA, 1080p, 300 m over the Jolene field (the frame study)
       S.rt.resolveStencilBuffer = false;
       S.rt.samples = Math.min(S.tier === 'off' && !S.needRT && S.rz ? 4 : S.samples, S.maxSamples);
+      // G1460 (SOFT-GPU): no MSAA in the target on a software renderer - SwiftShader runs the fragment work per sample, and
+      // the scene pass is the whole frame there (the resolve's tent filter still smooths the edges a little)
+      if (typeof window !== 'undefined' && window.GFX && window.GFX.soft && window.GFX.soft()) S.rt.samples = 0;
       // THE TWO LINES THAT KEEP THE GAME LOOKING LIKE THE GAME (see THE TARGET
       // IS DISPLAY-SPACE in the header): the XR-target rule makes r186 treat
       // this target like the canvas — materials tone-map and encode on the
@@ -121802,7 +122245,12 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     // Once per world, here, because this is where the world's own fields are already in hand.
     try { const f = ATMO.bakeField && ATMO.bakeField(renderer, world); if (f) console.log('mist field: ' + f.N + '^2 in ' + f.ms.toFixed(0) + ' ms, band ceiling ' + f.yHi.toFixed(0) + ' m'); } catch (e) { console.warn('mist field: ' + e.message); }
     if (typeof SKY_LIGHT !== 'undefined' && SKY_LIGHT.calibrate()) ATMO.U.scale.value = SKY_LIGHT.K().K_SUN * Math.PI;
-    probe = ATMO.makeProbe(renderer, { frameYaw: 0, cap: capOf, gb, onSwap: t => { envMap = t; scene.environment = t; },   // the cap: THE GROUND UNDER THE CRAFT (above)
+    // G1460 (SOFT-GPU) NO SKY PROBE ON A SOFTWARE RENDERER: on SwiftShader the probe's PMREM poisons every Standard
+    // material of the world - the ground, the trees, the sheds and the aeroplane drew BLACK at the stand (the Lambert far
+    // terrain and the sky right), and with scene.environment taken away the same frame drew whole. No probe (null, the
+    // path a world without ATMO takes for it), no cube bakes; the hemisphere and the sun light the world
+    const softEnv = typeof window !== 'undefined' && window.GFX && window.GFX.soft && window.GFX.soft();
+    probe = softEnv ? null : ATMO.makeProbe(renderer, { frameYaw: 0, cap: capOf, gb, onSwap: t => { envMap = t; scene.environment = t; },   // the cap: THE GROUND UNDER THE CRAFT (above)
       // CLOUDS C3: the layer over the dome in the probe's scene (the water and the skin reflect the clouds),
       // re-baked as the clouds drift past the eye
       decorate: typeof CLOUDS !== 'undefined' && CLOUDS.domeMesh ? es => { const m = CLOUDS.domeMesh(0, 20, 24); if (m) es.add(m); } : null,
@@ -121815,7 +122263,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     // material in the cabin took it as its ambient from below. The same sky over a NEUTRAL cap (the
     // cabin's own floor and walls, a dark warm grey) is the environment while the eye is in the cockpit
     // (app.js hands the view over through WORLD_RIG.interior); baked on the world probe's schedule.
-    probeIn = ATMO.makeProbe(renderer, { frameYaw: 0, capHex: 0x3f3c38, gb, onSwap: t => { envIn = t; if (interiorView) scene.environment = t; },
+    probeIn = softEnv ? null : ATMO.makeProbe(renderer, { frameYaw: 0, capHex: 0x3f3c38, gb, onSwap: t => { envIn = t; if (interiorView) scene.environment = t; },
       decorate: typeof CLOUDS !== 'undefined' && CLOUDS.domeMesh ? es => { const m = CLOUDS.domeMesh(0, 20, 24); if (m) es.add(m); } : null });
     if (probeIn) probeIn.bake(world.day);
   } else {
@@ -125673,6 +126121,8 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
             for (const band of H.rec.rungs[si]) for (const m of band) m.setColorAt(j, c3);
           } else for (const m of H.meshes) { m.setMatrixAt(i, m4); m.setColorAt(i, c3); }
           // the side's one impostor mesh: every tree, its series' layer
+          // (G1461 HELD by A0 for WOODLAND G1480: the fix (the side's LAST entry, imps[0] is null when series 0 is empty)
+          // draws the woodland - ~100 000 more trees on Jolene - so it waits for WOODLAND's measured decision)
           const mi = H.imps[0]; mi.setMatrixAt(i, m4); mi.setColorAt(i, c3); mi.geometry.attributes.aLayer.array[i] = H.lay[si];
         });
       };
@@ -126235,6 +126685,12 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
           if (typeof ROCK_MAP !== 'undefined' && groundU && groundU.uRockMap && renderer && renderer.setRenderTarget) rockMap = ROCK_MAP.make(THREE, { renderer, world, cover: coverRing, camera, gU: groundU });
           // THE CLIFFS (cliffs.js, 2026-09-22): the photoscanned faces stood in the island's own steep ground, once at boot
           if (typeof CLIFFS !== 'undefined' && world.island) { try { cliffs = CLIFFS.make(THREE, { scene, world, treeBuild, treeList, LEAF: TREE_LEAF, pack: TREE_PACK }); cliffs.build(); } catch (e) { console.warn('cliffs: ' + (e && e.message)); } }
+          // G1460 (SOFT-GPU) THE MENU'S ROWS REACH THE RING. GFX.onWorld (app.js worldBuilt) ran before this block made
+          // the ring, and nothing applies the menu again: the cover row never reached it - potato's 'off' drew the full
+          // ring (reach 220, density 2: ~30 M triangles a frame, 3-9 MINUTES a frame on SwiftShader). The same is true on
+          // a graphics card (potato and retro draw the full cover there too); this re-apply is the software rung's only,
+          // so a card's picture stays as it was - dropping the soft() test fixes it for every machine (A0's / the user's call)
+          if (typeof window !== 'undefined' && window.GFX && window.GFX.reapply) window.GFX.reapply();   // train 31 (the user, 2026-10-04: "fix for all"): every machine; only the cover row (the ring's handle is new) - not the whole menu again (onWorld cost the warm settle +0.7 s)
         })).catch(e => { console.error('cover ring: ' + (e && e.message)); });
       // THE REACHABLE CATALOGUE, AGAIN (AS1, G908: trees.js treeReach). An F8 biome or mix edit (or a premises
       // re-stamp, then TREE_FILL.reach()) can name a species the map could not reach at boot and so never fetched:
@@ -129341,15 +129797,19 @@ function aeroWxCavity(pos, idx, nrm, n, unit) {
     if (r === undefined) { r = i; key2rep.set(k, r); }
     rep[i] = r;
   }
-  // the neighbourhood per representative, from the triangle edges
-  const nbr = new Array(n);
-  const link = (a, b) => {
-    const ra = rep[a], rb = rep[b];
-    if (ra === rb) return;
-    (nbr[ra] || (nbr[ra] = [])).push(rb);
-    (nbr[rb] || (nbr[rb] = [])).push(ra);
-  };
+  // the neighbourhood per representative, from the triangle edges - G1454 (RELEASE-FAST): two flat arrays (a count
+  // pass, then a fill pass in the same edge order), so each list holds what the per-vertex arrays held, in their order
   const tri = idx ? idx.length / 3 : n / 3;
+  const deg = new Int32Array(n + 1);
+  const count = (a, b) => { const ra = rep[a], rb = rep[b]; if (ra === rb) return; deg[ra]++; deg[rb]++; };
+  for (let t = 0; t < tri; t++) {
+    const a = idx ? idx[t * 3] : t * 3, b = idx ? idx[t * 3 + 1] : t * 3 + 1, c = idx ? idx[t * 3 + 2] : t * 3 + 2;
+    count(a, b); count(b, c); count(c, a);
+  }
+  const off = new Int32Array(n + 1);
+  for (let i = 0; i < n; i++) off[i + 1] = off[i] + deg[i];
+  const fill = off.slice(0, n), lst = new Int32Array(off[n]);
+  const link = (a, b) => { const ra = rep[a], rb = rep[b]; if (ra === rb) return; lst[fill[ra]++] = rb; lst[fill[rb]++] = ra; };
   for (let t = 0; t < tri; t++) {
     const a = idx ? idx[t * 3] : t * 3, b = idx ? idx[t * 3 + 1] : t * 3 + 1, c = idx ? idx[t * 3 + 2] : t * 3 + 2;
     link(a, b); link(b, c); link(c, a);
@@ -129358,13 +129818,13 @@ function aeroWxCavity(pos, idx, nrm, n, unit) {
   // each side's own reading over the shared neighbourhood); clamped to
   // a millimetre's radius so a degenerate sliver cannot blow the float
   for (let i = 0; i < n; i++) {
-    const N = nbr[rep[i]];
-    if (!N || !N.length) continue;
+    const r = rep[i], j0 = off[r], j1 = off[r + 1];
+    if (j1 === j0) continue;
     const px = pos[i * 3], py = pos[i * 3 + 1], pz = pos[i * 3 + 2];
     const nx = nrm[i * 3], ny = nrm[i * 3 + 1], nz = nrm[i * 3 + 2];
     let s = 0, m = 0;
-    for (let j = 0; j < N.length; j++) {
-      const k = N[j];
+    for (let j = j0; j < j1; j++) {
+      const k = lst[j];
       const dx = pos[k * 3] - px, dy = pos[k * 3 + 1] - py, dz = pos[k * 3 + 2] - pz;
       const l2 = dx * dx + dy * dy + dz * dz;
       if (l2 < tiny * tiny) continue;
@@ -129378,6 +129838,42 @@ function aeroWxCavity(pos, idx, nrm, n, unit) {
 // mesh under an object in its material's own unit; the editor calls it from
 // applyWeather after the layers have drawn, the game once its model group
 // is whole (the parts included)
+// G1454 (RELEASE-FAST): THE BAKE IS A FUNCTION OF ITS GEOMETRY. aeroWxCavity reads the positions, the index, the
+// normals, the count and the unit, nothing else - so a geometry made again the same (the fuselage's mesh off a kept
+// sheet, a layer's part a rebuild did not move) takes the bake it had: keyed by a hash of those arrays, CONFIRMED by
+// comparing them element for element (a hash never stands for the arrays), the answer copied. The recent bakes up to
+// 40 MB of kept arrays (a whole aeroplane's parts), the oldest let go first.
+const AERO_WX_CAV = new Map(), AERO_WX_CAV_BYTES = { v: 0 };
+const aeroWxHashArr = (h, a) => {
+  if (!a) return Math.imul(h ^ 0x9e3779b9, 16777619) >>> 0;
+  const u = new Uint32Array(a.buffer, a.byteOffset, (a.byteLength / 4) | 0);
+  for (let i = 0; i < u.length; i++) h = Math.imul(h ^ u[i], 16777619);
+  for (let i = u.length * 4; i < a.byteLength; i++) h = Math.imul(h ^ new Uint8Array(a.buffer, a.byteOffset + i, 1)[0], 16777619);
+  return h >>> 0;
+};
+const aeroWxSameArr = (a, b) => {
+  if (!a || !b) return a === b;
+  if (a.constructor !== b.constructor || a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) if (a[i] !== b[i] && !(a[i] !== a[i] && b[i] !== b[i])) return false;
+  return true;
+};
+function aeroWxCavityKept(p, idx, nr, n, u) {
+  let h = aeroWxHashArr(2166136261, p); h = aeroWxHashArr(h, idx); h = aeroWxHashArr(h, nr);
+  const key = h + ':' + n + ':' + u + ':' + p.length + ':' + (idx ? idx.length : -1) + ':' + nr.length;
+  const e = AERO_WX_CAV.get(key);
+  if (e && e.n === n && e.u === u && aeroWxSameArr(e.p, p) && aeroWxSameArr(e.i, idx) && aeroWxSameArr(e.nr, nr)) {
+    AERO_WX_CAV.delete(key); AERO_WX_CAV.set(key, e);
+    return e.cav.slice();
+  }
+  const cav = aeroWxCavity(p, idx, nr, n, u);
+  const e2 = { n, u, p: p.slice(), i: idx ? idx.slice() : null, nr: nr.slice(), cav: cav.slice() };
+  e2.bytes = e2.p.byteLength + (e2.i ? e2.i.byteLength : 0) + e2.nr.byteLength + e2.cav.byteLength;
+  if (e) AERO_WX_CAV_BYTES.v -= e.bytes || 0;
+  AERO_WX_CAV.delete(key); AERO_WX_CAV.set(key, e2); AERO_WX_CAV_BYTES.v += e2.bytes;
+  while (AERO_WX_CAV.size > 1 && AERO_WX_CAV_BYTES.v > 40e6) {
+    const k0 = AERO_WX_CAV.keys().next().value; AERO_WX_CAV_BYTES.v -= AERO_WX_CAV.get(k0).bytes || 0; AERO_WX_CAV.delete(k0); }
+  return cav;
+}
 function aeroWxBakeCavity(THREE, obj, unit) {
   if (!obj) return 0;
   let done = 0;
@@ -129385,7 +129881,8 @@ function aeroWxBakeCavity(THREE, obj, unit) {
     if (!geo || !geo.attributes || geo.attributes.aCav || !geo.attributes.position) return;
     if (!geo.attributes.normal) geo.computeVertexNormals();
     const p = geo.attributes.position.array, nr = geo.attributes.normal.array;
-    const cav = aeroWxCavity(p, geo.index ? geo.index.array : null, nr, geo.attributes.position.count, u);
+    const cav = (typeof window !== 'undefined' && (window.AERO_WX_CAV_OFF || window.RELEASE_FAST_OFF)) ? aeroWxCavity(p, geo.index ? geo.index.array : null, nr, geo.attributes.position.count, u)
+      : aeroWxCavityKept(p, geo.index ? geo.index.array : null, nr, geo.attributes.position.count, u);
     geo.setAttribute('aCav', new THREE.BufferAttribute(cav, 1));
     done++;
   };
@@ -135722,7 +136219,9 @@ const M = {
   glass: new THREE.MeshPhysicalMaterial({ color: 0xdce8f0, roughness: 0.06, metalness: 0,
     // `thickness` is r132+ and this build is r128: transmission alone, with
     // the opacity carrying what the refraction slab would have.
-    transmission: 0.90, transparent: true, opacity: 0.5,
+    // G1460 (SOFT-GPU): on the software rung the panes are plain see-through glass - three's transmission pass (the
+    // opaque room drawn again into a mipmapped target, every frame) was HALF the shed's frame on SwiftShader (8.9 -> 4.4 s)
+    transmission: (typeof window !== 'undefined' && window.GFX && window.GFX.soft && window.GFX.soft()) ? 0 : 0.90, transparent: true, opacity: 0.5,
     envMapIntensity: 1.4, side: THREE.DoubleSide }),
   rubber: new THREE.MeshStandardMaterial({ color: 0x22242a, roughness: 0.95 }),
   // the filament itself: emissive, unlit by anything else, and scaled with the
@@ -150487,6 +150986,13 @@ if (typeof module !== 'undefined') module.exports = { buildPatternVis };
   const RIG = W.WELCOME && typeof W.WELCOME.RIG === 'boolean' ? W.WELCOME.RIG
     : !!(W.navigator && (W.navigator.webdriver || /HeadlessChrome/.test(W.navigator.userAgent || '')));
   const FORCE = k => !!(W.location && new RegExp('[?&]' + k + '=1').test(W.location.search || ''));
+  // THE SOFTWARE RUNG (G1460, SOFT-GPU): the card welcome.js probed is a software renderer (SwiftShader - every cloud
+  // session's headless Chromium -, llvmpipe, the Basic Render Driver). It is a rung UNDER potato, not a sixth preset:
+  // potato's options when nothing was chosen, plus the boot's longer watchdogs (boot.js) and the frame's software
+  // fallbacks (app.js / hangar.js / render_world.js ask GFX.soft()). On a graphics card it is false and none of it runs:
+  // the presets, their resolved options and every program key are the ones they were (GATE GFX holds it).
+  // ?soft=1 turns it on over a real card (A0's A/B on the box), ?soft=0 off over a software one.
+  const SOFT = !/[?&]soft=0(&|$)/.test((W.location && W.location.search) || '') && (FORCE('soft') || !!(W.WELCOME && W.WELCOME.SOFT === true));
 
   // ---- the options: named steps over the handles ---------------------------
   const OPTIONS = [
@@ -150761,10 +151267,12 @@ if (typeof module !== 'undefined') module.exports = { buildPatternVis };
   // the eye writes its factor here and nowhere else: the schedule keeps declaring the base
   const setEye = k => { eyeK = Math.max(0.25, Math.min(4, +k || 1)); const R = W.FLYDIY_RENDERER; if (R && expBase != null) R.toneMappingExposure = expBase * (S.exposure || 1) * eyeK; return eyeK; };
   const FPS_STEPS = OPTIONS.find(o => o.k === 'fps').steps.map(s => s.v);
+  let saved = false;                         // G1460: a choice was read back (the software rung leaves it alone)
   const load = () => {
     let v0 = null;                           // the stored pref after its migrations (G1295: did it carry a frame rate?)
     try {
       const v = JSON.parse(W.localStorage.getItem(KEY) || 'null');
+      saved = !!(v && typeof v === 'object');
       // A CHOICE SAVED BEFORE THE TIERS' LAST CHANGES (pv < 3: G516's soft bloom; G528 made the auto scale the default
       // and G551 made it an option again) - once: a player who was ON a preset gets that preset as it is now (the old
       // names mapped), or every returning player would read 'custom'; a player's own custom mix keeps its options, but
@@ -150790,6 +151298,8 @@ if (typeof module !== 'undefined') module.exports = { buildPatternVis };
     if (!S.fpsOwn && !(v0 && FPS_STEPS.includes(v0.fps))) S.fps = FPS_OF(S.preset);   // G1295: none stored (or no step) - the preset's
     // Friendly Welcome (A0, 2026-10-02): ?gfx=<preset> picks a preset BEFORE the load and keeps it (a weak card or a phone
     // never reached the graphics menu: the GTX 660 loaded on gamer and drew nothing). The player's later choice still wins
+    // G1460: the software rung starts on potato when nothing was chosen (no saved choice, no ?gfx=, no welcome pick)
+    if (SOFT && !saved && !/[?&]gfx=/.test((W.location && W.location.search) || '') && !(W.WELCOME && W.WELCOME.pick)) { Object.assign(S, PRESETS.potato); S.preset = 'potato'; S.build = 'potato'; if (!S.fpsOwn) S.fps = FPS_OF('potato'); }
     try { const q = /[?&]gfx=([a-z]+)/.exec((W.location && W.location.search) || ''); const want = q && q[1];
           if (want && PRESETS[want] && (S.preset !== want || S.build !== want)) { Object.assign(S, PRESETS[want]); S.preset = want; S.build = want; if (!S.fpsOwn) S.fps = FPS_OF(want); save(); } } catch (e) {}
     // G1210 (WELCOME): the welcome screen's pick (or the device gate's "try anyway": potato), taken the same way - it ran
@@ -151070,8 +151580,11 @@ if (typeof module !== 'undefined') module.exports = { buildPatternVis };
     BUDGETS, budget,   // G1230: the build budget the world builds to (GFX.budget().mipSkip, .townBoot, ...)
     set, apply, mount, mountWorld, presetOf, frameText,
     setExposure, setEye, eye: () => eyeK, exposureBase: () => expBase,
+    // G1460: the software rung - null on a graphics card; else what the rung is and why
+    soft: () => (SOFT ? { tier: 'software', gpu: (W.WELCOME && W.WELCOME.env && W.WELCOME.env.gpu) || '', forced: FORCE('soft'), preset: S.preset } : null),
     // the world calls this once it exists (render_world.js, end of build)
     onWorld: () => { applied = {}; apply(); },
+    reapply: () => apply(),   // train 31: the rows a late handle (the cover ring) never took - nothing already applied runs again
     // what each option costs to change, for anyone who asks
     restart: () => ({ aa: 'live (reallocates the frame)', density: 'live (re-streams the forest, ~10 s)',
                       bands: 'live', shadows: 'live (recompiles the lit surfaces)', canopy: 'live', lighting: 'live', scale: 'live (reallocates the frame; auto re-sizes it at most every 2 s)',
@@ -156535,7 +157048,7 @@ var AUDIO = (function () {
     ['muteUnfocused', 1, 'bool', 'mute when unfocused', 'silent while another window has the focus'],
     ['headset', 0, 'bool', 'headset', 'in the cockpit, the way a pilot hears it: ~15 dB quieter'],
     ['musicFlight', 0, 'bool', 'music in flight', 'the music plays in the shed; in the air only with this on'],
-    ['musicGarage', 1, 'bool', 'music in the garage', 'the shed\'s playlist, with silences between the tracks'],   // G1672 (music.js)
+    ['musicGarage', 0, 'bool', 'music in the garage', 'the shed\'s playlist, with silences between the tracks'],   // G1672 (music.js); OFF by default (the user, 2026-10-04: test sessions)
   ];
   const DEF = {}; for (const r of SETTINGS) DEF[r[0]] = r[1];
   const readSetting = k => {
@@ -157537,7 +158050,7 @@ if (typeof module !== 'undefined' && module.exports) {
 //                           thread's decode are noise next to the load's own fetches and compiles; nothing is
 //                           fetched or made before the gesture, nothing is decoded on the main thread.
 //                 GARAGE    the shed (AUDIO.inGarage), with SILENCE GAPS of GAP_MIN_S..GAP_MAX_S between tracks
-//                           (silence is part of calm); the setting 'music in the garage' (on) - it also covers
+//                           (silence is part of calm); the setting 'music in the garage' (OFF by default since 2026-10-04) - it also covers
 //                           the welcome.
 //                 CRUISE    in flight ONLY with 'music in flight' on (s6: off by default), and then only in a
 //                           cruise: off the ground, AGL >= CRUISE.enterAgl held CRUISE.dwellS, flaps up, not
@@ -158900,6 +159413,10 @@ window.FLYDIY_WORLD_COMPOSE = function () {
   const TSL_ON = !!renderer.isWebGPURenderer;
   if (typeof window !== 'undefined') { window.FLYDIY_TSL_ON = TSL_ON; window.FLYDIY_RENDERER = renderer; }   // the graphics menu's tone/exposure rows drive it
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.75));
+  // G1460 (SOFT-GPU) NO ANISOTROPY ON A SOFTWARE RENDERER: SwiftShader filters on the CPU, an anisotropic fetch up to 16
+  // bilinear taps - and the ground, the pavement and the props ask for 8-16. three clamps every texture's anisotropy to
+  // capabilities.getMaxAnisotropy() at upload, so the rung answers 1 there; on a card nothing changes
+  if (typeof window !== 'undefined' && window.GFX && window.GFX.soft && window.GFX.soft()) renderer.capabilities.getMaxAnisotropy = () => 1;
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   // EXPOSURE GOES THROUGH THE MENU (G286 + the colour rows): the menu keeps the
@@ -163994,6 +164511,7 @@ window.FLYDIY_WORLD_COMPOSE = function () {
                           // G326: ...and a capture rig that wants a given view says so
                           camSet: (a, e, d) => { az = azT = a; el = elT = e; dist = distT = d; flReveal = 0; },
                           camMode: m => flCamMode(m),                                   // C4a (G870): the A/B rig's chase / cockpit views
+                          craft: () => craft,                                   // G1460: the drawn aeroplane, for GATE SOFTGPU's hidden-craft frame
                           renderer: () => renderer, hangarScene: () => hangarScene, camera: () => camera, pan: (x, y, z) => edPan.set(x, y, z), camGet: () => ({ az, el, dist, eye: camera.position.toArray(), target: target.toArray(), fov: camera.fov, exposure: renderer.toneMappingExposure, tone: renderer.toneMapping, envDeferred, envDirty, envAway, envPM: !!envPM, envSource }) };   // G439: the rig reads the eye back
   // ---- MANUAL CONTROLS (G200): who is flying, and the ending when it is you
   // The toggle is a KEY (apToggle) and a pill in the `controls` flyout;

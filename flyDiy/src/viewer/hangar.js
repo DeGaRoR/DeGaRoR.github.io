@@ -772,7 +772,9 @@ const M = {
   glass: new THREE.MeshPhysicalMaterial({ color: 0xdce8f0, roughness: 0.06, metalness: 0,
     // `thickness` is r132+ and this build is r128: transmission alone, with
     // the opacity carrying what the refraction slab would have.
-    transmission: 0.90, transparent: true, opacity: 0.5,
+    // G1460 (SOFT-GPU): on the software rung the panes are plain see-through glass - three's transmission pass (the
+    // opaque room drawn again into a mipmapped target, every frame) was HALF the shed's frame on SwiftShader (8.9 -> 4.4 s)
+    transmission: (typeof window !== 'undefined' && window.GFX && window.GFX.soft && window.GFX.soft()) ? 0 : 0.90, transparent: true, opacity: 0.5,
     envMapIntensity: 1.4, side: THREE.DoubleSide }),
   rubber: new THREE.MeshStandardMaterial({ color: 0x22242a, roughness: 0.95 }),
   // the filament itself: emissive, unlit by anything else, and scaled with the

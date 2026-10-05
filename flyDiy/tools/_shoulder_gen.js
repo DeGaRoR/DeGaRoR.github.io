@@ -173,6 +173,9 @@ function shoulderTrace(mesh, spec, opt, CAGE) {
   const yRef = openTop ? (CN.ref === 'waist' ? spec.waistY : spec.bandY) : null;
 
   const own = new Map();
+  // G1452 (RELEASE-FAST): a vertex's position key once (a face with no cutOff stands on V itself)
+  const PKV = new Map();
+  const pkAt = (f, P, e) => { if (f.cutOff) return pk(P[e]); const vi = f.v[e]; let k = PKV.get(vi); if (k === undefined) PKV.set(vi, k = pk(P[e])); return k; };
   F.forEach((f, fi) => {
     const c = faceClass(f);
     if (!c) return;
@@ -181,7 +184,7 @@ function shoulderTrace(mesh, spec, opt, CAGE) {
     for (const p of P) cy += p[1] / n;
     for (let e = 0; e < n; e++) {
       const a = P[e], b = P[(e + 1) % n];
-      const A = pk(a), B = pk(b);
+      const A = pkAt(f, P, e), B = pkAt(f, P, (e + 1) % n);
       const k = A < B ? A + '|' + B : B + '|' + A;
       let r = own.get(k);
       if (!r) own.set(k, r = { a: A < B ? a : b, b: A < B ? b : a, o: [] });
@@ -851,12 +854,17 @@ function zip(outer, inner, mk) {
 
 // coherent windings across position-shared edges, then positive volume
 function orientPart(V, faces) {
-  const keyOf = (a, b) => ek(V[a], V[b]);
+  // G1452 (RELEASE-FAST): each vertex's position key once (the same pk string), the edge key off the two
+  // ...and a number per distinct key (the edge's two numbers, low first, are its key: the same edges are one edge)
+  const PK = new Map(), PID = new Map(), SID = new Map();
+  const pkI = i => { let s = PK.get(i); if (s === undefined) PK.set(i, s = pk(V[i])); return s; };
+  const idI = i => { let d = PID.get(i); if (d === undefined) { const s = pkI(i); d = SID.get(s); if (d === undefined) SID.set(s, d = SID.size); PID.set(i, d); } return d; };
+  const keyOf = (a, b) => { const A = idI(a), B = idI(b); return A < B ? A * 67108864 + B : B * 67108864 + A; };
   const eF = new Map();
   faces.forEach((f, i) => { const n = f.v.length; for (let e = 0; e < n; e++) {
     const k = keyOf(f.v[e], f.v[(e + 1) % n]); if (!eF.has(k)) eF.set(k, []); eF.get(k).push(i); } });
   const dirIn = (f, k) => { const n = f.v.length; for (let e = 0; e < n; e++) {
-    const a = f.v[e], b = f.v[(e + 1) % n]; if (keyOf(a, b) === k) return pk(V[a]) < pk(V[b]) ? 1 : -1; } return 0; };
+    const a = f.v[e], b = f.v[(e + 1) % n]; if (keyOf(a, b) === k) return pkI(a) < pkI(b) ? 1 : -1; } return 0; };
   const seen = new Uint8Array(faces.length);
   for (let s = 0; s < faces.length; s++) {
     if (seen[s]) continue;
@@ -1014,7 +1022,11 @@ function makeInnerSampler(mesh) {
   // answer there and the walk below (unchanged, the smallest x wins) gives the same number.
   const YPAD = 1e-4;
   const buckets = new Map(), faces = [];
-  const key = (side, b, c) => (side > 0 ? 'p' : 'n') + b + ':' + c;
+  // G1452 (RELEASE-FAST): a number for the cell (side, station bin, height bin) - the same cells as the string key
+  // it replaces while both bins are inside +-2^20 (+-100 km of cage); outside, the string
+  const key = (side, b, c) => (b > -1048576 && b < 1048576 && c > -1048576 && c < 1048576)
+    ? ((b + 1048576) * 2097152 + (c + 1048576)) * 2 + (side > 0 ? 1 : 0)
+    : (side > 0 ? 'p' : 'n') + b + ':' + c;
   for (const f of F) {
     if (f.shoulder || f.doorPanel || f.m === 'joint' || f.m === 'doorSeal') continue;
     // EVERYTHING the door's inside is made of: its skin and pane, the
@@ -1171,6 +1183,10 @@ function panelBuild(mesh, spec, opt) {
     (faceClass(f) === 'G' ? d.glass : d.skin).push(P);
   });
   const shParts = (mesh.shoulder && mesh.shoulder.parts) || [];
+  const DASH = { z: null, y: null };
+  if (doors.size) for (const f of mesh.F) if (f.m === 'dash' || f.m === 'dashFace') for (const vi of f.v) {
+    const p = mesh.V[vi]; if (DASH.z == null || p[2] < DASH.z) DASH.z = p[2]; if (DASH.y == null || p[1] < DASH.y) DASH.y = p[1];
+  }
   for (const d of doors.values()) {
     const side = d.side, off = d.cutOff || [0, 0, 0];
     if (!d.skin.length) continue;
@@ -1192,11 +1208,9 @@ function panelBuild(mesh, spec, opt) {
     // tightest kept — a raked edge read over a tall band overran the door
     // at the top-front corner by 13 cm on the first cut (GATE SHOULDER)
     const edge = (y, which) => { const e = extentAt(d.skin, y); return e ? e[which] : null; };
-    // the dashboard's footprint: the panel stays behind its aft face
-    let zDash = null, yDash = null;
-    for (const f of mesh.F) if (f.m === 'dash' || f.m === 'dashFace') for (const vi of f.v) {
-      const p = mesh.V[vi]; if (zDash == null || p[2] < zDash) zDash = p[2]; if (yDash == null || p[1] < yDash) yDash = p[1];
-    }
+    // the dashboard's footprint: the panel stays behind its aft face (G1452: measured once, before the doors - it is
+    // the mesh's, not the door's)
+    const zDash = DASH.z, yDash = DASH.y;
     const zAt = (y, which) => {
       let v = null;
       for (const dy of [-0.012, 0, 0.012]) { const e = edge(y + dy, which); if (e == null) continue; v = v == null ? e : (which ? Math.min(v, e) : Math.max(v, e)); }
@@ -1241,7 +1255,17 @@ function panelBuild(mesh, spec, opt) {
     const cz = outline.reduce((s2, p) => s2 + p[0] / outline.length, 0), cy = outline.reduce((s2, p) => s2 + p[1] / outline.length, 0);
     const base0 = probe(cy, cz);
     if (base0 == null) continue;
+    // G1452 (RELEASE-FAST): a point asked again (the back cap's outer ring, the walls and the chamfer all stand on
+    // the outline's points) answers what it answered - the sampler is a pure function of (y, z)
+    const baseMemo = new Map();
     const baseAbs = (y, z) => {
+      let my = baseMemo.get(y);
+      if (my === undefined) baseMemo.set(y, my = new Map());
+      let r = my.get(z);
+      if (r === undefined) my.set(z, r = baseAbs0(y, z));
+      return r;
+    };
+    const baseAbs0 = (y, z) => {
       // the innermost of the point and its 1.5 cm neighbours, so a bump in
       // the lining between samples cannot reach the panel's back
       let v = null;

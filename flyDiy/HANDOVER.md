@@ -71835,3 +71835,386 @@ cockpit / taxi render and the floats' water taxi in slack. BATTERY: FRAMECOST (a
 triangles - admitted) and ROUNDTRIP (fixed) were the reds; all green on the final build; the parked aeroplanes re-cooked.
 LOOK (A0's real-GPU stills, reports/evidence/LAKE-HOLES/a0_gpu_train29_vs_30.jpg): the white gaps at the shore are gone;
 the carved banks now read as steep, texture-stretched slopes where a lake sits under a bank - a follow-up for the look.
+## G1460-G1469 - SOFT-GPU: THE CLOUD SESSIONS' SOFTWARE GPU AS A TEST CASE - A 'SOFTWARE' RUNG UNDER POTATO, GATE SOFTGPU, AND A STILL ANY CLOUD SESSION CAN TAKE (2026-10-04, SOFT-GPU for A0, cloud, no GPU)
+
+The user (2026-10-04): "Can we use the cloud sessions' software GPU as a test case too? Right now it can't load the game."
+Every cloud session has headless Chromium 141 + SwiftShader (ANGLE on SwiftShader's Vulkan, `--use-angle=swiftshader
+--enable-unsafe-swiftshader`): the UI drew, the world never did. Base: train 27 (e40628b0), rebased on train 29 (e3575940) - the measurements before the rebase are train 27's, GATE SOFTGPU and the stills after it train 29's.
+
+**G1460 - THE DIAGNOSIS (measured, not guessed: a WebGL-call profiler wrapped over the page, a live page driven over CDP,
+`gl.finish()` timing per `renderer.render`).** SwiftShader is NOT short of features: WebGL2 with EXT_clip_control (the
+reversed depth), EXT_color_buffer_float/half_float, float linear, BC7/S3TC/ETC/ASTC (the KTX2 transcode target), MAX_SAMPLES 4
+(three clamps the 8x tiers), 8192 textures, 2048 array layers, 4096 uniform vectors; no KHR_parallel_shader_compile (three
+links synchronously: correct, slow). No shader fails, no format is refused, no exception stops the page. What stops it is TIME,
+at five places, each named:
+1. **The boot's watchdog** (boot.js): the garage chain is 24 steps and takes ~6-16 min on SwiftShader (the flown bake's
+   render 47 s, the parked far levels 27-72 s each, the world's compile, the `frames` warm draw 46-70 s); the 120 s hard
+   timeout lifted the overlay at ~130-140 s (`boot: hard timeout - never landed: props 434/534, prop textures 232/235`)
+   and the chain ran on behind it - a rig waiting on BOOT 'gone' clicked Roll out a third of the way through.
+2. **A real bug, any GPU** (render_world.js plantWoodland): `world: after the build TypeError: Cannot read properties of
+   null (reading 'setMatrixAt')` - side() pushes a null impostor per EMPTY series before the side's one mesh, and the fill
+   read imps[0]: whenever series 0 had no tree in a chunk the whole planting threw. FIXED (the last entry), G1461.
+3. **The shed's frame, ~9-10 s**: 6 402 draw calls, but the cost is the transmission pass - the hangar's window glass
+   (`transmission: 0.9`, one material on 19 panes) makes three draw the opaque room again into a mipmapped target every
+   frame: 8.9 s -> 4.4 s with it at 0. (Then the crew ~0.8 s, the physical materials ~0.6 s; shadows ~0; scale 0.67 -> 0.5
+   only 8.7 -> 7.5 s: draw/vertex bound, not fill.)
+4. **A real bug, any GPU** (the menu's rows vs the cover ring): GFX.onWorld (app.js worldBuilt) runs before render_world
+   makes the cover ring (treeSettle -> afterBuild), and nothing applies the menu again - so potato's `cover: 'off'` (and
+   retro's 'lean') never reach it: the live ring read `{on: true, reach: 220, density: 2}` under potato, ~30 M triangles a
+   frame at the stand. Fixed FOR THE SOFTWARE RUNG ONLY (below); **DECISION for A0 / the user: the same is true on a
+   graphics card - potato and retro draw the full cover there today. Dropping the `GFX.soft()` test on the one line
+   (render_world.js, after the cliffs, "THE MENU'S ROWS REACH THE RING") fixes it for every machine** - it changes what
+   potato/retro cards draw (to what their preset says), so it is not this session's to land.
+5. **The stand's frame, 200-400 s - and NOT the game's**: with every object of the world scene hidden the frames still
+   alternated ~0.2 s / 200-400 s, and no `renderer.render` took more than ~10 s with `gl.finish()` around it; the blocking
+   call was the flight recorder's `getParameter(UNMASKED_RENDERER)` (a sync point, every 30 s = every frame there) waiting
+   on the GPU process. The GPU process's other client is Chrome's own COMPOSITOR on SwiftShader: the stand's HUD plates
+   (`backdrop-filter: blur(16px) saturate(1.15)`, flight.css) over a canvas that changes every frame. The rig runs Chrome's
+   software compositor (`--disable-gpu-compositing --disable-accelerated-2d-canvas`) and no backdrop blur; WebGL stays on
+   SwiftShader. (A player on a software renderer keeps the blur: the rung does not touch CSS. Owed if wanted.)
+6. **The near world BLACK at the stand** (after 1-5): the sky and the Lambert far terrain right, every
+   MeshStandardMaterial of the world (the splat ground, the pavement, the trees, the sheds, the aeroplane) pure black -
+   the ATMO sky probe's PMREM (`scene.environment`) poisons the Standard lighting on SwiftShader (black = a NaN in the
+   IBL; not BC7 - the shed's KTX2 props draw right in the garage, whose environment is its own cube). Proven on the live
+   page: `WORLD.scene.environment = null` (+ the 6 materials holding envMap) and the same frame drew whole
+   (`reports/evidence/SOFT-GPU/finding_stand_black_with_probe.jpg` -> `finding_stand_probe_removed_live.jpg`). The
+   NaN's source is NOT found (owed if a real card ever shows it: the dome's radiance into a half-float cube, the PMREM
+   blur, or the probe crossfade's blit) - the rung takes no probe. A LEAD: every boot logs
+   `THREE.DataUtils.toHalfFloat(): Value out of range` (x10+) - a CPU-packed half-float table (a LUT?) carries values
+   past 65504, i.e. +Inf texels; a GPU's filtering may hide what SwiftShader turns into NaN (Inf x 0).
+Also seen, not stopping anything: ~100 `.gz.bin` fetches reported `net::ERR_ABORTED` by Playwright during the boot (the files
+serve 200 and the props land - prefetch cancellations); KHR_parallel_shader_compile absent (three warns once).
+Earlier sessions' "the renderer reported one draw call, two triangles" was renderer.info after the LAST render of the
+frame - the AA resolve's blit - not the scene's (info resets per render()).
+
+**G1462 - THE SOFTWARE RUNG.** One answer, asked everywhere: `GFX.soft()` (gfx_settings.js) - null on a graphics card;
+on a software renderer `{ tier: 'software', gpu, forced, preset }`. The card is welcome.js's own probe (it reads the
+renderer's name on EVERY boot already: no new context, no new probe): `WELCOME.isSoftware(name)` (SwiftShader, llvmpipe,
+softpipe, Software, Basic Render - G1210's regex, now one function gpuClass uses too) -> `WELCOME.SOFT`. `?soft=1` turns it
+on over a card (the A/B on the box), `?soft=0` off. What the rung does - every site a conditional on `GFX.soft()`:
+- gfx_settings.js: starts on POTATO when nothing was chosen (no saved choice, no ?gfx=, no welcome pick), not saved (a
+  player's choice, ?gfx= and ?soft=0 win over it). Not a sixth preset: the presets table is untouched.
+- boot.js: the watchdogs (idle, hard, the skip button) x20 - the overlay waits for the whole chain.
+- app.js: `renderer.capabilities.getMaxAnisotropy = () => 1` (three clamps every texture's anisotropy to it at upload;
+  SwiftShader filters on the CPU, an anisotropic fetch up to 16 taps).
+- aa_resolve.js: the scene target at 0 samples (SwiftShader shades per sample).
+- hangar.js: the window glass's transmission 0 (plain see-through panes at their 0.5 opacity).
+- render_world.js: GFX.onWorld again once the cover ring exists (item 4); NO SKY PROBE (item 6: probe and probeIn null -
+  the null path the code already guards; no cube bakes either).
+- the rig, not the game: Chrome's software compositor and no CSS backdrop blur (item 5).
+MEASURED with the rung (this container, 4 cores, dev.html): the garage chain 951 s -> ~470 s (no hard timeout), the
+roll-out ~2.5 min to the stand, a stand frame ~33 s (from 200-400 s), the shed's screenshot 14 s, the stand's ~3 min.
+WRONG-LOOKING ON THE SOFTWARE RUNG (by design, listed): no sky reflections / image-based light in the world (no probe: the
+metal and the glass read flat, the shade sides lit by the hemisphere only); the shed's windows do not refract (no transmission); textures blur at
+grazing angles (no anisotropy); edges alias more (no MSAA in the target; the resolve's tent still runs); potato's look
+(no shadows in the world, no clouds, no cover, lean ground, the town at its least).
+
+**G1463 - REAL GPUS UNTOUCHED (GATE GFX §9, node).** isSoftware on 5 software names yes / 8 cards (an empty name
+included) no; GFX.soft() null on every card x 6 starts (no pref, ?gfx=potato, ?gfx=ultra, a saved retro, a saved custom
+mix, a corrupt pref) and, for all 48 boots, the resolved options, the saved choice and the presets table equal to a boot
+without the rung, key for key; on SwiftShader: potato's options, nothing saved; a saved choice / ?gfx= / ?soft=0 win; ?soft=1
+on a card turns it on; no welcome.js = no rung; and the SITES check: every line that asks GFX.soft() in boot.js, app.js,
+aa_resolve.js, hangar.js, render_world.js is a conditional on it (listed with line numbers in the gate's output) - so a null
+answer is the old path by construction: the boot spec, the presets' resolved settings and every program key on a card are
+the ones they were (the glass's transmission, the world's environment (no probe), the target's samples and the anisotropy are the only
+program-key / GL-state moves, all behind it). FOR A0 ON THE BOX (timing, nothing should move): the strict gate as per train (`node tools/perf/train_gate.js`
+as usual) - and one A/B of the rung itself over the card: `?soft=1` vs nothing on index.html - the boot curve
+(`node tools/boot_perf.js --url http://localhost:<port>/flyDiy/index.html?soft=1`, then without it) and one roll-out
+(`node tools/rollout_perf.js <its usual box flags> --q soft=1`, then without) - to see what the rung costs/buys on a card
+(nothing of it runs there unless asked).
+
+**G1464 - GATE SOFTGPU (tools/_softgpu_check.js, run_gates tier 'full', weight 4, ~20-30 min on a 4-core cloud box;
+SKIP where there is no Playwright, i.e. the box).** The real page on SwiftShader through tools/soft_still.js: the rung on
+(software, potato, no ?gfx=), the garage boot's WHOLE chain (BOOT 'gone' with every step run, no 'fail' in BOOT.log), Roll
+out to the stand (a trip done, the verbs up), then ONE DRAWN FRAME: under 50 % of its pixels the clear colour, the most
+common colour under 60 %, the lower half's luma spread > 4 (the ground has texture), the frame's draw calls (every pass,
+info held for one frame) > 20, the aeroplane hidden changes > 0.3 % of the pixels, and no page error.
+
+**G1465 - A STILL FROM ANY CLOUD SESSION: `tools/soft_still.js`** (that is what lets cloud sessions ship their own evidence
+from now on). It serves the repo itself (a free port), finds Playwright (`require('playwright')`, then the cloud image's
+`/opt/node-tools/node_modules/playwright`), boots the page on SwiftShader with the software compositor, waits for the garage
+chain, rolls out, sets the view and writes a JPEG plus one `SOFT_STILL {json}` line (the timings, the renderer, the rung,
+the frame's draw calls / triangles, the picture's numbers, the page errors):
+
+    node tools/soft_still.js --out reports/evidence/<SESSION>/stand.jpg                 # the stand, the default build, afternoon
+    node tools/soft_still.js --place garage --out .../garage.jpg                         # the shed instead
+    node tools/soft_still.js --page dev.html --build builds/cub_2026-09-20_corrected.json --day golden \
+         --cam chase --orbit 200,12,18 --q 'world=jolene' --size 1280x720 --out .../x.jpg   # a build, a time, a camera
+    (--gfx retro forces a preset over the rung; --keep-hud keeps the HUD; --aero-check adds the craft-hidden diff;
+     --json <file> the record; --secs the budget, default 3600)
+
+Wall clock on this container (4 cores): the garage chain ~8-10 min, the roll-out ~1-2.5 min, a stand frame ~30 s, the
+stand's screenshot ~3 min - plan a still as a ~17-20 min background job (run_in_background), one at a time (SwiftShader
+takes every core). NEVER read a frame
+time off it.
+
+NOTES / TRAPS (for the next cloud session):
+- The roll-out SHOT runs on software and ends on its own watchdog (`FLYDIY_TRIPS` anim 'timeout', ~30 s): its 360 frames
+  are minutes there. The trip completes and the stand comes up; a still of the shot itself is not to be had this way.
+- The page's frames on SwiftShader are SECONDS (the shed ~4 s, the stand ~30 s at 960x540 potato): a CDP evaluate or a
+  screenshot waits for the main thread / the next frame - give them minutes (`soft_still.js` does), never 30 s.
+- `renderer.info` after a frame is the LAST render() of it (the AA resolve's blit: 1 call, 2 triangles): hold
+  `info.autoReset = false` over a frame to count the scene (soft_still does, `sceneCalls`).
+- `pkill -f <pattern>` from the Bash tool matches the tool's own shell (its command line carries the pattern) and kills it:
+  kill by `pgrep -f "^node tools/..."` PIDs instead.
+- One SwiftShader page at a time: it takes every core; two in parallel each run at about half speed.
+OWED: the probe's NaN on SwiftShader (item 6) - found, gated, not root-caused; the cover-row bug on cards (item 4) - A0's /
+the user's call; a player's own software renderer keeps the CSS backdrop blur (the rig drops it).
+
+**G1466 - RESULTS ON TRAIN 29 (this container, 4 cores).** GATE SOFTGPU on index.html: PASS - the rung on (software,
+potato), the garage chain whole in 584 s (24 steps, no hard timeout), the stand at 643 s (the roll-out shot ended by its
+watchdog, as noted), the frame 1 338 draw calls / 7.6 M triangles, 0.0 % clear colour, 2 215 colours, the lower half's
+spread 17.9, the aeroplane hidden -> 6.8 % of the pixels change, no page error; 1 284 s in all (two pages were running
+at once: alone ~17 min). The changed files' gates and the asked ones on the rebased tree: BOOT, BUILD, GFX (with §8
+WELCOME's checks and the new §9), UISMOKE, AA, WORLDRENDER, TREES, PROGRAMS, COVER, HANGAR - PASS. GATE GFX §9's negative
+checks (the rung leaking onto a card; a site that is not a conditional) turn it red. No full battery (A0's, per train).
+**EVIDENCE** (`reports/evidence/SOFT-GPU/`, headless Chromium 141 + SwiftShader, the FIRST stills of the world a cloud
+session has rendered; "finding" = taken on the live page while diagnosing, "after" = tools/soft_still.js on the branch):
+- `after_stand_index_afternoon.jpg` - GATE SOFTGPU's own frame (index.html, the default build = the Cub, afternoon, the
+  page's camera, HUD hidden): the Cub on the apron at HOME, the sheds, the town, the forest, the mountains. DECISION for
+  A0 / the user: none - the software rung's look (potato, no probe: flatter metal and shade sides) is for a test rig.
+- `after_garage_dev.jpg` - the shed on dev.html with the workshop UI (`--place garage --keep-hud`): the Cub, the room's
+  lamps and props, the CG / neutral point marks. No decision.
+- `finding_stand_black_with_probe.jpg` - before item 6's fix (the near world black, the sky and far terrain right).
+- `finding_stand_probe_removed_live.jpg` - the same page, `scene.environment` removed by hand: the stand whole (HUD on).
+- `finding_garage_live_chooser.jpg` - the shed on SwiftShader under the first-launch chooser (the garage was never the
+  problem; its frame was ~9 s, now ~4 s).
+Generated outputs (index.html, dev.html, tools/flight_core.js, sw.js, version.json) NOT committed - A0 builds.
+
+## G1450-G1455 - RELEASE-FAST: THE RELEASE RUNS WHAT THE DRAG REACHED; THE SHEET'S STAGES, THE CAVITY BAKE, THE TANK SOUP AND THE SOLES KEPT BY THEIR INPUTS (2026-10-04, RELEASE-FAST for A0, a CLOUD session: node only, no GPU; branch claude/release-fast-g1450, written off claude/garage-instant-g1440 6d7bbb8a, rebased onto master = train 28 9825e1e2)
+
+The user: "fast reaction time to sliders in the garage" - "an instantaneous feeling". GARAGE-INSTANT (G1440-G1446) made a
+DRAG TICK cheap; the RELEASE (the hand lets go) was still the whole exact build (box: Cub ~220-340 ms, metal ~330-520),
+and the metal Cessna's sheet-detail rows ~180-290 ms a tick. Brief: release <= 150 ms (Cub) / <= 250 ms (metal), the
+metal's detail rows <= 100 ms a tick, every release EXACT (GATE INSTANT SAME on the five validated builds).
+
+**G1450 THE PROFILE** (`tools/perf/garage_release.js`, new: the page in node, each row dragged - pointerdown, four ticks
+a frame apart with the settle held off - then the RELEASE (change + pointerup) timed in REAL ms; each chain layer's
+self ms (CAGE_CHAIN.last), the sheet, CAGE_ON_BUILD, the page's timers after it (idle), `--prof` the inspector's
+profile of the release with the generator passes and steps named). The base's release (node, two pages beside each
+other, so ~3-4x the box) is the whole build whatever the row:
+- every layer, every time: Cub ~600-750 ms of layers (crew 100-155, energy 60-125, wing ~90, gear ~75, hinge ~70,
+  cowl ~55-67, access ~45, eng ~45); metal ~700-1500 (crew 170-350, energy 80-390, hinge 76-200, access 60-160);
+- the fuselage's mesh made again off a KEPT sheet (meshFrom 54-145) and its cavity bake again (aeroWxCavity 80-110 a
+  release, every geometry of every layer re-baked though most came out the same);
+- CAGE_ON_BUILD 35-120 (placeEditor's whole-aeroplane box);
+- a fuselage row adds the sheet (metal 560-870: the shoulder + door panel ~190, the knife ~60, the interior ~65-140,
+  the rims ~20-60, subdivision ~25) and GC is 40 % of everything (the tank soup's 45 000 little arrays, the crew's
+  points, the bake's neighbour lists).
+What the change could not have touched: on a wing / tail / gear / crew row the sheet, the fuselage's mesh and bake,
+and every layer the row's P keys do not reach; on a sheet-detail row the passes before the one it moves; on any row
+the bake of a geometry that came out the same.
+
+**G1451 THE RELEASE RUNS WHAT THE DRAG REACHED** (`_cage_ui.js` releaseSteps / releaseWhy, `_cage_chain.js` plan(P, true,
+mesh), `_cage_crew.js` CAGE_CREW_FLOOR). A drag's release (dragSettle: the slider's change, the pointer up, the pause) on
+a sheet that is the stand's no longer runs the whole build. CAGE_CHAIN.plan(P, true, sheet) is the drag's plan (each
+layer's recorded P reads against P now, the forward FEEDS) plus:
+- STALE: a layer that last ran under a drag's defer (G1303: access, light, energy, hinge - they hid and returned, their
+  reads not taken) runs;
+- SHEET: a layer that last ran on another sheet runs (a detail row's tick, G1444, built the sheet and ran only the
+  planned layers: its release runs every layer, but not the fuselage's mesh again);
+- THE RELEASE'S OWN EDGES (REL_FEEDS, which may point at an EARLIER layer; the pass repeats until nothing is added):
+  wing -> eng (the propeller-clearance microtask reads the wing's probes), gear -> eng (the aft skin), wing -> cowl when
+  the engine is wing-mounted (engMount >= 2: engineFaces stands on the wing), eng / cowl -> energy (the tanks' clearance
+  probes their meshes, HIT_LAYERS);
+- the always-run three (panel, cowlAft, ext).
+The fuselage's mesh, its materials, the cage overlay, the zones, the dims STAND (its inputs: the kept sheet, the
+pre-chain rows PRE_KEYS - every `P.` the ui file reads outside the layers - and the view's switches; any of them moved:
+whole). Kept layers keep their groups; then, as a whole build ends: the finish panels, the scene's ORDER put back (a
+layer that ran re-added its groups at the end of the scene; a whole build leaves them in the chain's order - the
+fingerprint is ordered), the sections a kept layer drew stay live (SEC_LIVE: each section's stamping layer is recorded,
+secOwn), the paint record keeps exactly what the meshes wear (a dead material leaves it), the weathering (its sources
+are re-read; the cavity bake bakes only the new geometries, G1454), the rows, the draw. The status line is rebuilt from
+each layer's own words (CAGE_CHAIN records what each layer's body appended).
+THE FLOOR (the crew's, cut round every other layer's meshes on the late hook): with the crew kept, it is taken out for
+the chain (a whole build's chain never sees its build's floor) and put back unless a re-run layer reaches it - a mesh
+that reached the board's height band on the last cut left the scene, or a re-run layer's new group holds one that does
+(the same test sceneCuts applies; the band and the hits are recorded on each cut) - then it is cut again through the
+crew's own closure (the same group, anchors, seats, sheet, controls).
+(the same band test now also skips a mesh wholly fore or aft of the board's RUN: buildFloor drops every cut piece
+whose middle is outside [z0 + 1 cm, z1 - 1 cm], so such a mesh's cuts never reach the board - the floor's own cut skips
+it too, exact)
+WHOLE, as before, when: the sheet moved (a cage row: the deformed drag's settle, G1443), the craft frame the kept
+layers published in is not the mount's now (the sit moved - and the first release after a build that moved the sit:
+the boot's), a pre-chain row moved, a chain that threw or never recorded, `?garage=old`, CAGE_UI.releaseFast = false,
+and two found by the gate:
+- A FLOATPLANE (P.gearFloats): the float layer stands its step on the CG the balance worker answers (FLYDIY_CG_MODEL,
+  G396 - not a P key, no record holds it) and the handshake rebuilds when it moves 2 cm; the partial release left the
+  floats one handshake build off the base (crew footwell / weathering uniforms 2 cm in the craft frame). Whole now: the
+  floats rows give the BASE TREE'S OWN results, hash for hash (below);
+- A CREW REBUILT BY THE DRAG ON AN UNCHANGED SHEET (a crew row: seat, pedal, stick stations): the Cessna 172's seat
+  height ended with the wing tanks' outboard end 1 cm off the plain build (x1 2.771 vs 2.781 m) - the wing group, the
+  tank state, the bays and the shelf's resolved spec all equal (probed), forcing the crew into the release not enough;
+  a dependency of the tanks' wing fit no record or edge names yet. Whole now (the crew rows are the base's whole
+  build); with the sheet changed every layer runs anyway and those rows pass.
+CAGE_UI.release says which way each went ({n, whole, last: {ran, why, floor, ms} | {whole: why}});
+CAGE_UI.releaseForce = [names] (a bisecting knob) runs named layers too. CAGE_UI.release says which way each went ({n, whole, last: {ran, why, floor, ms} | {whole: why}}).
+
+**G1452 THE SHEET'S STAGES KEPT WHILE THEIR INPUTS ARE** (`_cage_gen.js` cageSheetKept, opts.passKeep; `_cage_ui.js`
+sheetKept passes it unless the sheet is not kept / ?garage=old). cageSheet runs as four stages - the cage through the
+canopy (subdivision, refit, the drawn band, sill, cut, knife), the rims, the interior, the shoulder (+ door panel) -
+each keyed by its input (the previous stage's kept object) and the JSON of the spec keys it read on its last run (the
+spec is handed to the passes through a recording view). Measured first: no pass reads P, a clock or a random number;
+the rims and the interior APPEND to the mesh they are handed and REPLACE face entries (no vertex, field entry, crease or
+face object of their input is written), so each is handed a shallow copy (V/F/A/N sliced) and the kept output stays as
+built; the interior's one global (CAGE_MEMBERS) is kept with it. A rim row reruns rims + interior + shoulder, a dash
+row the interior + shoulder, a shoulder / door-panel row the shoulder alone. EXACT: 93 sheets a build (a sequence of 24
+detail and cage rows, each nudged twice and back), kept vs plain, bit-identical meshes on all five builds; the plain
+cageSheet itself unchanged (85-sheet hash vs the base). Over the sequence the kept path is ~55-65 % of the plain one.
+And four exact micro-cuts in the shoulder: orientPart's position keys once per vertex and numeric edge keys; the door
+panel's base sampler memoised per (y, z) (the caps, walls and chamfer re-ask the outline's points), its cells numeric;
+the dash footprint measured once, not once per door; shoulderTrace's keys per vertex.
+
+**G1453 GATE INSTANT, THE RELEASE PATH** (`tools/_instant_check.js`). The pause that settles a drag is held off while
+the hand is down (in node a build's own clock calls carried it past 350 ms inside the gap between two ticks: the settle
+ran mid-drag and the change found nothing to do) - the slider's change and the pointer up ARE the release now; each row
+says which way its release went; the long way builds with every RELEASE-FAST cache off (RELEASE_FAST_OFF: the stages,
+the bake, the soup, the soles); two rows added (dashBack: interior + shoulder stages; shoulderT: the shoulder alone).
+
+**G1454 THE CAVITY BAKE IS A FUNCTION OF ITS GEOMETRY** (`src/viewer/aeroweather.js`). aeroWxCavity reads the positions,
+index, normals, count and unit only: a geometry made again the same (the fuselage's mesh off a kept sheet, a layer part
+a rebuild did not move) takes its bake back - keyed by a hash of the arrays and CONFIRMED element for element, the
+answer copied, up to 40 MB of recent bakes. And the bake's neighbour lists are two flat arrays filled in the same edge
+order (each vertex sums the same terms in the same order): exact, ~1.4x. Unit test: kept vs plain, 60 geometries, Object.is
+on every value.
+
+**G1455 THE LAYERS' OWN REPEATS** (`_cage_energy.js`, `_cage_char.js`). The tank layer's surface soup (the sheet + the
+engine's and cowl's triangles, 15 numbers each) is one Float64Array (the same doubles in the same order; the metal's
+45 000 little arrays were a large share of a release's garbage) and the sheet's part is kept per sheet object; its
+engine/cowl intrusion count skips a mesh whose box (the geometry's corners through the same two matrices, padded 1 mm)
+misses every tank's box (pointInBox would refuse each vertex). The crew's soleAt keeps WHICH vertices are the sole (a
+fact of the shared character geometry's skin weights and the bone names) per geometry; the pose is applied every call.
+
+**THE TABLE** - this cloud box (4 vCPU, node 22, no GPU), `tools/perf/garage_release.js`, base = 6d7bbb8a (built,
+served from a worktree) and after = this branch, BOTH TREES RUN AT ONCE on the same rows (so they share the load; node
+here read ~4-5x the box, the cubs and the metals each beside a gate) - the RATIO is the result, the box's numbers are
+A0's to take. Median of 3 reps, ms: `tick` the drag tick's handler, `RELEASE` the change + pointerup handler (the
+settle build inside it). The first row of each run is the boot's whole release on both trees and is left out (wgChord
+in the table is the second drag of the page, warm). Kept: `tools/perf/garage_release_{base,after}_{cub,metal}.json`.
+
+| cub row | base tick | after tick | base RELEASE | after RELEASE | after: the release ran |
+|---|---:|---:|---:|---:|---|
+| wgChord | 217.2 | 213.7 | 1838.7 | **702.4** | partial: access light energy hinge |
+| wgSpan | 185.7 | 198.1 | 2099.8 | **809.6** | partial: access light energy hinge |
+| stSpan | 22.8 | 18.6 | 2080.1 | **432.4** | partial: access light hinge |
+| s1X | 188.4 | 261.7 | 1723.5 | **358.5** | partial: access light hinge |
+| seatH | 338.8 | 312.3 | 1741.5 | **1546.2** | whole (the crew moved in the drag) |
+| paxLen | 45.9 | 61.6 | 3598.7 | **3932.2** | whole (a deformed drag) |
+| halfW | 29.8 | 33.6 | 2123.7 | **2767** | whole (a deformed drag) |
+| rimW | 423.4 | 417.8 | 1868.8 | **1842.1** | partial: crew cowl eng gear float fin stab access light energy hinge |
+| dashBack | 677.7 | 675.1 | 2849 | **1834.5** | partial: cowl eng wing brace gear float fin stab access light energy hinge |
+| shoulderT | 178 | 87.9 | 1616.9 | **1153.5** | partial: crew cowl eng wing brace gear float fin stab access light energy hinge |
+
+| metal row | base tick | after tick | base RELEASE | after RELEASE | after: the release ran |
+|---|---:|---:|---:|---:|---|
+| wgChord | 189.4 | 126.7 | 2063.6 | **409.1** | partial: access light energy hinge |
+| wgSpan | 147.1 | 126.6 | 1454.2 | **462.9** | partial: access light energy hinge |
+| stSpan | 16.7 | 19.4 | 1311.3 | **288.4** | partial: access light hinge |
+| s1X | 101.3 | 114.1 | 1264.5 | **320.6** | partial: access light hinge |
+| paxLen | 36 | 38.6 | 3000.7 | **2644.7** | whole (a deformed drag) |
+| halfW | 28.2 | 28.2 | 2160.7 | **2290.5** | whole (a deformed drag) |
+| rimW | 671.6 | 672.8 | 1263.2 | **1430.2** | partial: crew cowl eng gear float fin stab access light energy hinge |
+| dashBack | 760.1 | 664.4 | 1910.8 | **983.2** | partial: cowl eng wing brace gear float fin stab access light energy hinge |
+| shoulderT | 410.7 | 206.4 | 1052.5 | **1721.7** | partial: crew cowl eng wing brace gear float fin stab access light energy hinge |
+| rimRivet | 501.3 | 611.9 | 1034.6 | **1010.8** | partial: crew cowl eng gear float fin stab access light energy hinge |
+
+
+READING IT: the kept-sheet rows (wing, tail, gear: the brief's "wing span ... release") release 2.6-5x faster - the box
+had them at Cub ~220-240 / metal ~330-420 ms, so ~50-90 / ~70-130 ms (UNDER the 150 / 250 targets, to be confirmed on
+the box). The sheet-detail rows' release keeps the fuselage's mesh and its bake and the passes before the moved one
+(dash back 1.55x Cub / 1.9x metal, shoulder 1.4x Cub; a rim row reruns nearly everything and is flat). The cage
+(fuselage) rows, the crew rows and the floatplane stay the whole build (flat, within this box's noise): NOT met - see
+below. The detail rows' TICKS (the sheet built, G1444): Cub shoulder 178 -> 88, metal shoulder 411 -> 206, dash back
+760 -> 664; rims flat (node, same load) - the metal's <= 100 ms box target is met at best by the shoulder rows.
+
+
+**EXACTNESS - GATE INSTANT on the final code** (node; each row dragged, released, then built the long way twice with
+every RELEASE-FAST cache off; the boot spec hashes unchanged: cub ca8086e8, metal 6fee07e8, jodel 6760b1e5, cessna
+ba7fb2a6, floats d4c0a24e):
+- Cub PASS (11 rows SAME, frCabTopW has no visible slider; + dashBack, shoulderT, rimRivet, dashLip SAME), metal
+  Cessna PASS (11), Jodel PASS (10; two rows hidden on it), Cessna 172: 12 SAME and seatH DIFFER 4 (the tanks: the crew
+  rule below), then the re-gate after the rule - seatH, wgChord, stSpan, dashBack: PASS. The Cub / metal / Jodel runs
+  are of the code before the floor's z test, the floats rule and the crew rule (each only makes a release whole or
+  skips a mesh that cuts nothing: the Cessna, floats and cross-tree runs below are of the final code). Each row says how its release went: partial on the wing, tail, gear rows (the four deferred detail layers +
+  the always-run three), partial with every layer on the detail rows ('sheet'), whole on the cage rows (deformed),
+  the crew rows and the first release after the boot.
+- Cessna floats (`--settle 8000`, 7 rows, BOTH TREES): the base tree FAILs all 7 (the pre-existing CG handshake -
+  scene DIFFER 0 or 2, spec differs: GARAGE-INSTANT's note); this branch gives THE BASE TREE'S OWN RESULT ON EVERY ROW,
+  hash for hash. Not worse; still documented, not fixed.
+- CROSS-TREE (new, `xtree`: the garage booted in each tree and three plain builds fingerprinted, the base against this
+  branch with every cache ON): Cub, metal Cessna, Cessna 172 - SCENE SAME (775 / 1134 / 1134 objects, only the crew's
+  3 idle bones vary, on either tree) and the same spec hashes (the Cessna's plain builds drift ba7fb2a6 -> 2f47c658
+  on BOTH trees alike). The plain build is the base's aeroplane.
+- The sheet's stages: 93 sheets a build (24 detail and cage rows, each nudged twice and back), kept vs plain,
+  bit-identical on all five builds; the plain cageSheet's hash unchanged on 85 sheets; the cavity bake: kept vs plain,
+  Object.is on every value.
+
+**GATES** (the files touched: _cage_chain, _cage_ui, _cage_crew, _cage_gen, _shoulder_gen, _cage_energy, _cage_char,
+aeroweather, _instant_check, run_gates, garage_lag): `run_gates --only=FIT,JOIN,TANKMOUNT,ENERGY,HANGAR,RAYINDEX,PARTS,
+FRAMES,SAVE,DESIGN,GEAR,MOUNT,LIVERY,BUILD,UISMOKE --jobs=2`: 14 PASS, LIVERY FAIL (its slice of secMat lacked the new
+section-owner helper: guarded as secMat guards paintRec, re-run alone: GATE LIVERY PASS, 114 checks); INSTANT above.
+Not run: the full battery (A0's per train), BOOT, FRAMECOST.
+
+
+**FOR A0 - THE BOX RE-TIME** (this session had no GPU; every number above is node). First `node tools/build.js` on the branch
+(the built page files are NOT committed - index.html / dev.html / sw.js / flight_core.js / version.json are A0's per train;
+the node rigs and gates need a built dev.html to load _cage_chain.js at all), then serve both trees as before
+(`git archive 6d7bbb8a flyDiy | tar -x -C _ab/6d7bbb8a`, the same for this branch's READY sha, each built).
+- THE RELEASE (the brief's number: the slider let go -> the exact aeroplane drawn), the drag strip, base then after, a
+  fresh profile each (the pause is held off during the ticks, the release is the slider's change + the pointer up):
+  `node tools/perf/garage_drag_strip.js --port 8879 --udd D:/ugrf1 --tree _ab/6d7bbb8a/flyDiy --build cub --row p_wgSpan,p_stSpan,p_s1X,p_seatH,p_paxLen,p_halfW,p_rimW,p_dashBack --dir reports/evidence/RELEASE-FAST/base_cub`
+  `node tools/perf/garage_drag_strip.js --port 8879 --udd D:/ugrf2 --tree _ab/<READY>/flyDiy --build cub --row p_wgSpan,p_stSpan,p_s1X,p_seatH,p_paxLen,p_halfW,p_rimW,p_dashBack --dir reports/evidence/RELEASE-FAST/after_cub`
+  and the same two with `--build metal --row p_wgSpan,p_stSpan,p_s1X,p_paxLen,p_halfW,p_rimW,p_dashBack,p_shoulderT,p_rimRivet`
+  (udd ugrf3 / ugrf4). The line to read is each row's `release handler X ms, drawn Y ms`; `*_strip.json` keeps them.
+  NOTE the first drag after a load is a whole release on both trees (the boot's build measured the craft frame one draw
+  early: "the sit moved") - the strip's FIRST row is that one; put a throwaway row first (e.g. p_wgChord) to read them all
+  warm, or read row 1 as the cold case.
+- THE TICKS (the metal's detail rows: the brief's <= 100 ms), garage_lag with the new opt-in rows:
+  `node tools/perf/garage_lag.js --port 8771 --udd D:/ugrf5 --trees base=_ab/6d7bbb8a/flyDiy,after=_ab/<READY>/flyDiy --builds metal --reps 5 --only rimW,rimRivet,dashBack,shoulderT,seatH`
+  and the default script (no --only) for the rest of the drag ticks, both builds, to confirm nothing moved backwards.
+- GATE INSTANT on the box: `node tools/run_gates.js --only INSTANT` (Cub + metal, now 14 rows each with the release
+  path), and `node --max-old-space-size=4096 tools/_instant_check.js --builds jodel,cessna` for the other two.
+
+
+**NOT MET / WHAT IS LEFT, measured:**
+1. THE CAGE ROWS' RELEASE (fuselage length, width, roof, nose, the frames) is the whole build: every layer stands on
+   the sheet (each destructures ctx.mesh; the fit sites raycast it), so a moved cage reruns them all; this session cut
+   only what a whole build repeats (the cavity bake of unchanged parts, the tank soup's garbage, the soles' scan, the
+   shoulder's keys, the floor's far meshes) - within noise here. Under 150 / 250 ms needs the layers to say WHAT of
+   the sheet they read (a per-layer record of the mesh, as the P reads are recorded), or the sheet's details deformed
+   like its base (G1443) so the layers can ride.
+2. THE CREW ROWS' RELEASE is whole (the Cessna's tank fit, above). The probe that found it: tank state, bays, shelf
+   spec, wing group all equal; the wing tank's outboard end differs. A next session can find the edge (the gate row
+   reproduces in 7 min: `node --max-old-space-size=4096 tools/_instant_check.js --builds cessna --only wgChord,seatH`
+   with the rule taken out) and turn the rule into an edge.
+3. THE METAL'S DETAIL TICKS: the sheet's stages cut the passes before the moved one; the rim rows (rims -> interior ->
+   shoulder) and the dash rows (interior + shoulder) are still the sheet's heaviest passes, and the tick still makes
+   the fuselage's mesh (meshFrom, 50 000 vertices) and bakes it. Next: the interior's own stages, the mesh made only
+   for the groups that moved.
+4. A0's box numbers: everything here is node (no GPU in the cloud); the strip and garage_lag lines above are the
+   re-time. The built page files are not committed.
+
+Rigs: garage_release.js (new: node, the release per row, `--prof`), garage_lag.js (+ opt-in detail rows),
+garage_drag_strip.js (unchanged), _instant_check.js (the release path). Cloud session, ~3.6 h, node only.
+
+## TRAIN 31 LANDED (2026-10-04/05, A0 the coordinator)
+
+Cargo (on train 30 = a1ffcf5b): RELEASE-FAST G1450-G1455 (a slider's release runs what the drag reached; every release exact
+on the validated builds), SOFT-GPU G1460-G1466 (the world draws on SwiftShader: a 'software' rung under potato, GATE SOFTGPU
+(cloud only - SKIP on the box), tools/soft_still.js; its G1461 woodland fix HELD for WOODLAND G1480), the COVER FIX for every
+machine (the user: "fix for all" - potato / retro's 'cover off' never reached the cover ring on any card, ~30 M triangles a
+frame on the GTX 660; the ring takes its own row through GFX.reapply, not the whole menu again: onWorld's full re-apply cost
+the warm settle +0.7 s), music OFF by default (the Sound Coordinator, 9008fba8; a stored choice kept).
+A0 IN THE TRAIN: the battery shows a gate's SKIP as SKIP (run_gates.js); GATE GFX counts render_world's one rung site; GATE
+STAND reads SOFT-GPU's software-rung glass; the evening status in futureDesigns/FRIENDLY-WELCOME-PLAN-2026-10-03.md.
+STRICT GATE (full, three runs): only the 30 cap's fps rows stay red; the metal load (chase flight), the Cub chase compile and
+the metal cockpit load reds each appeared once and passed on the next run (noise). ONE STEADY COST, ALLOWED BY THE USER BY
+NAME (4 Oct 23:15, "land now, fix in 32"): the warm garage load +1.5 s on both aircraft (train 30 37.8-38.2 s, train 31
+39.3-40.3 s, inside the 3.4-3.9 s slack). A prefix bisect (_ab/R0-R2) was confounded: its trees were not parked-cooked, and
+a stale cook alone adds ~3.5 s (the parked aeroplanes captured live). Train 32 re-bisects with cooked trees.
+BATTERY: the full battery on the first build (GFX, STAND, SOFTGPU red - fixed), the changed gates on the final build PASS
+(GFX, STAND, WORLDRENDER, BOOT, FRAMECOST, ROUNDTRIP, UISMOKE, PROGRAMS, BUILD, ASSETS, INSTANT, AUDIO, AUDIOENG; SOFTGPU SKIP).
+The parked aeroplanes re-cooked on the final build.
+LESSONS: a killed script leaves its boxlock files (its trap never runs) - train 31's re-pass waited 40 min on A0's own stale
+CPU lock; boxlock's `take` once wrote its lock and then waited on itself (the noclobber write's status lost) - A0's scripts
+now accept a lock already in their own name.
