@@ -1057,6 +1057,12 @@ D4a can start on D1b. A0 may move the train slots; the table moves with them.
   entry** (what changed, the gates with their numbers, perf, the open questions); evidence (plots, top-downs,
   stills) under `flyDiy/reports/evidence/DMG-<NAME>/`.
 - Cloud sessions cannot message the coordinator: the coordinator reads their HANDOVER diffs on their branches.
+- **The gates a worker runs (the user, 2026-10-05: no full battery per session - it took hours a step).** A worker
+  runs ONLY: its own new gate; the DMG set (`DMGINST, DMGFPS, DMGMEMBERS, DMGINTEGRITY, DMGCLUSTERS, DMGCERT` - those
+  on its base) and `TREECRASH`; and, for §11.2 #1 (off = the base's bytes), the gates its files can reach - a solver
+  change: `LOAD, BENCH, FLEX, SIMWORKER, SOAR`; water code: `+ FLOATS, SEAPLANE, HYDRODYN`; viewer code: `+ UISMOKE,
+  BUILD, JOIN`; generator code: `+ GEN, MASS`. Its perf A/B as §11.2 #2. **The full 41-gate battery is the
+  coordinator's**, once per merge on `claude/dmg-integration`, and A0's per train.
 
 ### 11.4 The switch's default — one constant
 
