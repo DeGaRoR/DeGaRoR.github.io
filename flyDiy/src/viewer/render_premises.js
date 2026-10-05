@@ -669,6 +669,8 @@ function make(THREE, scene, world, rec0, opts) {
     const pavR = PAVs && O.pavedAt ? PAVs.resolve(null, O.rec, null).recipe : null;
     const sinkOf = pavR ? (x, z) => { const q = O.pavedAt(x, z); return q ? PAVs.sinkAt(q.d, PAVs.opaqueDepth(q.cls, q.halfW, pavR, q.kind), q.dPre) : 0; } : null;
     let sunk = 0;
+    // G1528 (POTATO-DEEP): each sunk vertex's own drop, kept for the deeper sink a coarse patch needs (below, the blocks)
+    const SK = sinkOf && PL.tolPx > 1 ? new Float32Array(list.length * per) : null;
     let Y = new Float32Array(list.length * per), Y0 = sinkOf ? new Float32Array(list.length * per) : Y, UV = new Float32Array(list.length * per * 2), KIND = new Uint8Array(list.length);
     for (let c = 0; c < list.length; c++) {
       const [ci, cj] = list[c].split(',').map(Number), cx0 = ci * PCH, cz0 = cj * PCH;
@@ -681,7 +683,7 @@ function make(THREE, scene, world, rec0, opts) {
         // the lot patches sat at the ground and the 4 cm lift had buried them); the ring sinks 4 m under the patch, so no
         // fight there (G434: the border tucks under the ring - G752's PATCH_TUCK)
         Y0[v] = groundB(x, z) - patchDrop(x, z) * r - PATCH_TUCK.tuck * (1 - r) * (1 - r);   // (G1406: the build read)
-        if (sinkOf) { const sk = sinkOf(x, z); Y[v] = Y0[v] - sk; if (sk > 0) sunk++; }
+        if (sinkOf) { const sk = sinkOf(x, z); Y[v] = Y0[v] - sk; if (sk > 0) sunk++; if (SK) SK[v] = sk; }
         if (uvOf) { const q = uvOf(x, z); UV[v * 2] = q[0]; UV[v * 2 + 1] = q[1]; }
       }
       if ((c & 7) === 7) yield 'patch ground';
@@ -701,6 +703,28 @@ function make(THREE, scene, world, rec0, opts) {
       const [ci, cj] = list[c].split(',').map(Number), bk = KIND[c] + '|' + Math.floor(ci / PL.block) + ',' + Math.floor(cj / PL.block);   // a block is one material (G527)
       let B = blocks.get(bk); if (!B) blocks.set(bk, B = { cs: [], k: KIND[c], x0: Infinity, z0: Infinity, x1: -Infinity, z1: -Infinity });
       B.cs.push(c); B.x0 = Math.min(B.x0, ci * PCH); B.z0 = Math.min(B.z0, cj * PCH); B.x1 = Math.max(B.x1, (ci + 1) * PCH); B.z1 = Math.max(B.z1, (cj + 1) * PCH);
+    }
+    // G1528 (POTATO-DEEP): THE SINK FOLLOWS THE PATCH'S ERROR. PAVEMENT.SINK.S (0.8 m) was "twice the worst LOD error" at 1 px;
+    // a budget's coarser levels (patchTolPx > 1: potato, laptop) stray further, and a coarse level standing over a pavement's
+    // fine ground by more than the sink pierces it from a distance. So per block, where the levels are coarser than 1 px:
+    // the worst error of every coarser level AT THE SUNK (pavement) VERTICES ALONE, x 1.25, is the block's sink if it is
+    // deeper than S - the ground under the opaque interior goes down by it (the wheels read terrainH, never the mesh; the
+    // pavement is drawn at terrainH there). At 1 px (every desktop preset) none of this runs: SK is null.
+    let sinkDeep = 0;
+    if (SK) for (const B of blocks.values()) {
+      let ePav = 0;
+      for (let L = 1; L < PL.res.length; L++) {
+        const s2 = PL.res[L] / RES, m2 = n / s2;
+        for (const c of B.cs) for (let j = 0; j <= n; j++) for (let i = 0; i <= n; i++) {
+          const f = c * per + j * (n + 1) + i; if (!(SK[f] > 0)) continue;
+          const I = Math.min(Math.floor(i / s2), m2 - 1), J = Math.min(Math.floor(j / s2), m2 - 1), fu = i / s2 - I, fv = j / s2 - J;
+          const g = (ii, jj) => Y0[c * per + jj * s2 * (n + 1) + ii * s2];
+          const h = (g(I, J) * (1 - fu) + g(I + 1, J) * fu) * (1 - fv) + (g(I, J + 1) * (1 - fu) + g(I + 1, J + 1) * fu) * fv;
+          ePav = Math.max(ePav, h - Y0[f]);   // only a coarse surface ABOVE the fine ground can show through the pavement
+        }
+      }
+      const S0 = PAVs ? PAVs.SINK.S : 0.8, k = Math.max(1, 1.25 * ePav / S0);
+      if (k > 1) { sinkDeep = Math.max(sinkDeep, k * S0); for (const c of B.cs) for (let f = c * per; f < (c + 1) * per; f++) if (SK[f] > 0) Y[f] = Y0[f] - SK[f] * k; }
     }
     const group = new THREE.Group(); group.name = 'premises:patch';
     let tris0 = 0, trisAll = 0;
@@ -722,7 +746,18 @@ function make(THREE, scene, world, rec0, opts) {
           const h = (g(I, J) * (1 - fu) + g(I + 1, J) * fu) * (1 - fv) + (g(I, J + 1) * (1 - fu) + g(I + 1, J + 1) * fu) * fv;
           err = Math.max(err, Math.abs(h - Y0[c * per + j * (n + 1) + i]));
         }
-        const d = L === 0 ? 0 : Math.max(dPrev, half + Math.max(err * PL.focal / PL.tolPx, PL.res[L] * PL.minQuads));
+        // G1528: THE PAVEMENT'S OWN TOLERANCE (a coarse budget only): how far this level's SUNK surface stands over the fine ground
+        // at the pavement's vertices - a narrow road crossing a coarse cell keeps its off-road corners at the ground, which no
+        // sink reaches. That height is held to gamer's 1 px (PL.focal / 1): the level waits until it cannot show through
+        let pierce = 0;
+        if (SK && s > 1) for (const c of B.cs) for (let j = 0; j <= n; j++) for (let i = 0; i <= n; i++) {
+          const f = c * per + j * (n + 1) + i; if (!(SK[f] > 0)) continue;
+          const I = Math.min(Math.floor(i / s), m - 1), J = Math.min(Math.floor(j / s), m - 1), fu = i / s - I, fv = j / s - J;
+          const g = (ii, jj) => Y[c * per + jj * s * (n + 1) + ii * s];
+          const h = (g(I, J) * (1 - fu) + g(I + 1, J) * fu) * (1 - fv) + (g(I, J + 1) * (1 - fu) + g(I + 1, J + 1) * fu) * fv;
+          pierce = Math.max(pierce, h - Y0[f]);
+        }
+        const d = L === 0 ? 0 : Math.max(dPrev, half + Math.max(err * PL.focal / PL.tolPx, pierce * PL.focal, PL.res[L] * PL.minQuads));
         dPrev = d;
         // the geometry: the chunk grids at stride s, plus a skirt round each chunk
         const drop = PL.skirt[L], vPer = (m + 1) * (m + 1) + 4 * (m + 1);
@@ -765,7 +800,7 @@ function make(THREE, scene, world, rec0, opts) {
       lod.updateMatrix(); lod.matrixAutoUpdate = false;
       group.add(lod);
     }
-    group.userData.chunks = list; group.userData.neighbours = A; group.userData.tris = tris0; group.userData.trisAll = trisAll; group.userData.blocks = blocks.size; group.userData.sunk = sunk;
+    group.userData.chunks = list; group.userData.neighbours = A; group.userData.tris = tris0; group.userData.trisAll = trisAll; group.userData.blocks = blocks.size; group.userData.sunk = sunk; group.userData.sinkDeep = sinkDeep;
     patch = group; patchKey = key;
     G.ground.add(patch);
     // G1200 (MEM-DIET): the sampling's grids go with the build. The patch materials' hooks (matOwn, cached across

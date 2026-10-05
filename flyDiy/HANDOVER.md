@@ -77092,3 +77092,45 @@ stand, paused; `?patchtol=1` vs `?patchtol=3` in one build, tools/perf/potato_ce
 ground shows through any runway, taxiway or far strip at either range; 0.14-0.94 % of the pixels differ by more than 40/255,
 all of them trees (the impostors' dither and sway, different run to run) and the pavement's joint lines at a sub-pixel
 camera offset - none in the shape of the ground. The stand's frame 4.23 -> 3.84 M triangles in the same runs.
+
+## G1528 POTATO-DEEP: THE PATCH AT 6 px WITH ITS OWN SINK AND A PAVEMENT TOLERANCE (train 38); NO DISTANCE CAP; THE GAMING LAPTOP'S 120 s LOAD (2026-10-05, POTATO-DEEP for A0, node first)
+
+**LEVER 1 - the premises patch at 6 px on potato / laptop (BUDGETS patchTolPx 3 -> 6), made safe for the pavement.** Two
+rules in render_premises' patch build, both only where PL.tolPx > 1 (every desktop preset is 1: `SK` null, nothing runs):
+(a) THE SINK FOLLOWS THE ERROR: per block, the worst height of every coarser level OVER the fine ground at the pavement's own
+(sunk) vertices x 1.25 is the block's sink when deeper than PAVEMENT.SINK.S (0.8 m) - the ground under the opaque interior
+drops by it (the pavement is drawn at terrainH there; the wheels read terrainH, never the mesh). Deepest on Jolene: 8.4 m.
+(b) THE PAVEMENT'S OWN TOLERANCE: a narrow road crossing a coarse cell keeps its off-road corners at the ground, which no sink
+reaches - so each level also measures its SUNK surface's height over the fine ground at the pavement's vertices and waits
+until that height is under gamer's 1 px (d >= half + pierce x focal) before it switches in. On the census views it never
+binds (the counts are (a)'s alone), it is the guarantee.
+MEASURED (FRAMECOST census, potato, the Cub; `FRAMECOST_QUERY=patchtol=N`, new `detail.patch`): the patch at the taxi 780 k
+(1 px) -> 358 k (3 px, train 37) -> 205 k (6 px); the taxi frame 4.13 -> 3.71 -> 3.56 M (-14 % vs 1 px: ~-3.4 ms on the GTX 660
+by G1527's fit). GATES PREMISES, CONTACT, PREMRASTER, PAVEMENT PASS. A dev knob `?patchtol=N` forces the level error (the
+stills' A/B). NOT LANDED WITHOUT ITS OWN STILLS (the runways at 300 m-2 km, 6 px vs 1 px).
+**LEVER 2 - the far terrain's draw-distance cap: NOT RECOMMENDED.** The far terrain (768 k at the potato taxi) is already
+cut by its PROJECTED error (6 px on potato); a distance cap removes what stands tallest on screen at range - the island's
+skyline: a 1 000 m ridge at 30 km is ~35 px tall on a 911 px canvas (K = 911 / (2 tan 23 deg) = 1 073). Scaling its K by the render scale (0.67)
+would only be a 9 px tolerance in disguise (the error the eye sees is display pixels). The next taxi triangles are elsewhere:
+forestK 0.5 on potato (the cards, ~-150 k) and the tram hidden on potato (143 k).
+
+**THE GAMING LAPTOP'S LOAD** (A0: i5-9300H 4c/8t, GTX 1660 Ti, 16 GB; retro, build 51c5b0ca; flydiy-flightlog-20261005T194416-ivvv.json):
+garage load 120.5 s - world 17.3, TOWN 38.6, settle 23.1, BAKE 38.5, worldCompile 15.1, compile 10.2; roll-out BAKE 31.3 s;
+25 long tasks of 1.0-3.1 s (setTimeout slices: a slice's single unit - a house, an HLOD merge, a bake job - overrunning its
+40 ms on a slower core). WHAT THE STEPS DO (FRAMECOST's per-step counters, retro vs potato, node, this box):
+- TOWN: retro's budget builds the premises within townBoot 4 000 m under the screen: 182 houses (86 near + 96 far, 1.19 M
+  triangles, 2.4 s of house generation alone in node here) vs potato's 1 house (1 200 m). The laptop's cores are ~2-3x
+  this box's per thread under a laptop power limit, and the step is single-threaded JS + the house worker.
+- BAKE: the flown bake is 1 020 draws, 146 MB of buffers and 83 program links (its own programs, linked cold) - on potato
+  it is skipped (G1523). The roll-out baked AGAIN because the user flew the Jodel (the garage boot bakes the build it opens
+  on; a different build is a different atlas - the IndexedDB cache serves it only on a later visit).
+- SETTLE (23 s) and WORLD (17 s): the streamers at rest round the stand and the world's composition - CPU, scaling with
+  townReach / the forest's reach.
+RECOMMENDATION (retro is not this session's to change silently - GATE GFX §10 freezes its row; the user's / A0's call):
+retro `townBoot: 1500` (the field and the village built under the screen, the rest streamed: the town step ~-60 %), and
+either `flownBake: false` on retro too (-38 s at the garage load, -31 s per new build at the roll-out; +~150 draws a
+frame - the 1660 Ti has the GPU for it, the 4-core CPU pays ~2-3 ms) or the bake moved off the boot's critical path
+(baked after the reveal, the live aeroplane flying meanwhile - FLOWN_BAKE's hybrid already swaps live <-> baked).
+The laptop rung already has both cuts (townBoot 800, no bake). McAfee: real-time scanning of the media fetches would show
+as the 'world' / 'upload' / fetch-bound steps, not as the town's or the bake's CPU - unproven either way; a second log with
+the scanner paused would settle it.

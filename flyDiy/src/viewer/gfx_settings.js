@@ -305,7 +305,7 @@
   //   town       'nearby': Metlakatla is never built, whatever the 'town' row says (A0, train 32: the row's default becomes 'all';
   //              potato, laptop and the software rung stay on the field and the sites - world_boot.js TOWN, the loader's
   //              raster variant in build.js; ?town=1 in the URL still asks for it)
-  //   patchTolPx the premises' ground patch's level error in px (render_premises PL.tolPx; potato / laptop 3 - 6 needs the pavement sink deeper): the
+  //   patchTolPx the premises' ground patch's level error in px (render_premises PL.tolPx; potato / laptop 6 - G1528: the sink follows the error, the pavement keeps 1 px): the
   //              patch was 780 k of the potato taxi's 4.1 M triangles at gamer's 1 px (G1527, the user's GTX 660 log of 5 Oct)
   //   msaa       the scene target's MSAA samples at most (aa_resolve.js setMsaaCap; laptop 0) - absent: the tier's own
   //   shedLamps  false: the shed's lamps cast no shadow (hangar.js lamp: five 1024 spot maps, ~3 600 depth draws a frame -
@@ -314,9 +314,9 @@
   // everything at the next load. Without the table (a gate's stub, no window.GFX) every lever reads full.
   const BUDGETS = {
     laptop:  { heapMB: 600,  mipSkip: 1, townBoot: 800,  townReach: 1200, parked: false, forestK: 0.5,  islandColour: false, islandHalf: true, shedGlass: false,
-               impTile: 64, aeroAtlas: 2048, flownBake: false, shedLamps: false, msaa: 0, town: 'nearby', patchTolPx: 3 },
+               impTile: 64, aeroAtlas: 2048, flownBake: false, shedLamps: false, msaa: 0, town: 'nearby', patchTolPx: 6 },
     potato:  { heapMB: 700,  mipSkip: 1, townBoot: 1200, townReach: 2000, parked: false, forestK: 0.65, islandColour: false, islandHalf: true, shedGlass: false,
-               impTile: 64, aeroAtlas: 2048, flownBake: false, shedLamps: false, town: 'nearby', patchTolPx: 3 },
+               impTile: 64, aeroAtlas: 2048, flownBake: false, shedLamps: false, town: 'nearby', patchTolPx: 6 },
     retro:   { heapMB: 1500, mipSkip: 0, townBoot: 4000, townReach: 6000, parked: true, forestK: 1 },
     current: { heapMB: 1500, mipSkip: 0, townBoot: 4000, townReach: 6000, parked: true, forestK: 1 },
     gamer:   { heapMB: 2000, mipSkip: 0, townBoot: 4000, townReach: 6000, parked: true, forestK: 1 },
