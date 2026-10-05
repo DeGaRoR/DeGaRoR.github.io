@@ -47,6 +47,34 @@ device gate).
   GATE-TOOLS lands, landing and Pages.
 - Cloud sessions push `claude/<name>-*` only. Local sessions message A0 with the branch and SHA.
 
+## Status, 6 Oct 2026 ~00:15 (A0)
+
+**Pages:** train 35 (the damage work, OFF - try ?damage=1; live 21:30, GitHub's Actions incident held it 15 min).
+- **Trains 31-35** landed 4-5 Oct: RELEASE-FAST + SOFT-GPU + the cover fix (31); HYBRID-TRIPS, TREE-CRASH, UPDATE-NOW,
+  POSE-BACK, GEAR-WATER (32); the radio + voices, the dissolve (33); POTATO-DEEP, SHORES, WOODLAND (b), STRUT-LIVERY,
+  RUNWAY-LIGHTS-2, TANKS-FLOAT, WORLD-STRIPS, animals + boombox (34); the DEFORM work D0-D4a, damage OFF (35).
+
+**Train 36 (landing ~00:40):** RELEASE-CHECKS (honest build ids, GATE BUILT, tools/pages_check.js), the blueprint library,
+the loading music (OFF by default), MILL-TAXI (stands and taxi routes clear of every building), and three fixes from the
+user's hardware tests: the GAMING LAPTOP drew no frame at all (a 120 s garage load lifted by the watchdog, then Fly,
+superseded 'first light' - the loop's only start; it now starts whenever the screen lifts), the POTATO sun's black ring (the
+render-scale upsample's negative lobes on the raw sun - clamped to its 2x2), and the worker's convSeed null.base.
+PILOT-ONE was held out: its battery went red (a crash in the personality code, the mill C172 looping, HOME's line-up, East
+Point never landing) -> PILOT-ONE-2 (cloud) for train 38.
+
+**The hardware ladder:** GTX 660 (potato) flies an even 30 in cruise; the taxi is GPU-bound (~16 ms + ~6 ms per million
+triangles; an even 30 needs ~2.8 M, today ~4.1 M, ~3.4 M with POTATO-DEEP's queued cuts). The i5-9300H / GTX 1660 Ti laptop
+(retro): 120 s garage load (the town 38.6 s, the flown bake 38.5 s on 4 power-limited cores) -> retro drops the flown bake
+(G1529, after a quiet re-measure). Metlakatla stays OFF (warm +7 s load; first visit +26 s and a 47 % uneven taxi).
+
+**JOIN-PARITY (found by DMG-D4b):** the node gates built the user's aeroplanes differently from the game - the Cessnas'
+engine 65 cm off (no cage join in node), the Cub's nose tank at the wrong end of the firewall. One build path + GATE
+JOINPARITY (cloud, G1985) -> train 38; it blocks damage ON and the DMG bundle's measurements.
+
+**Next:** 37 overnight = SND-ROLLOUT (the roll-out shot starts its engines), POTATO-DEEP G1527, DMG CERTCOST, + FLOAT-SHAPE /
+DEST-TO if READY. 38 = JOIN-PARITY, PILOT-ONE-2, DMG-FLOATTO, then the DAMP / TYRE / HULL / PLOUGH bundle, SHORES-2, POTATO
+G1528/G1529, DMG-D4b / WALL / SKINGPU / DRIVE. Chips: DEADWOOD-BRIGHT (the white dead-tree impostor).
+
 ## Status, 4 Oct 2026 ~22:45 (A0)
 
 **Pages:** train 30 (live since 18:05). GitHub had started NO Pages deploy for trains 28-30 - the site served train 27 for

@@ -77456,3 +77456,24 @@ media/blueprints/chinook2s.cec14f3e.png and the CREDITS.md line.
 - FILES: src/viewer/blueprint_library.js (new), media/blueprints/chinook2s.cec14f3e.png (new, NOT FOR RELEASE),
   src/viewer/blueprint.js (loadLibrary, the panel's library row), tools/build.js (manifest), tools/_blueprint_check.js,
   CREDITS.md.
+
+## TRAIN 36 LANDED (2026-10-06, A0 the coordinator)
+Cargo: RELEASE-CHECKS G1590-G1599 (rebased; the build id hashes every shipped input, GATE BUILT, tools/pages_check.js); the
+BLUEPRINT LIBRARY G573.2 (claude/clever-heisenberg-xmijol; GATE MEDIA now reads src/viewer/blueprint_library.js as a
+manifest - its sheet was an 'orphan'); LOAD-MUSIC (7183fe1e: a random song on every loading screen, OFF by default; the
+garage beds -12 dB); MILL-TAXI G1925-G1929 (every stand and taxi route on Jolene against every solid thing, GATE TAXICLEAR 6-9).
+A0's fixes from the user's hardware logs (5 Oct): (1) THE GAMING LAPTOP drew no frame at all (i5-9300H / GTX 1660 Ti,
+retro): a 120 s garage load lifted by the watchdog, then Fly, superseded 'first light' (G640: a newer run owns the chain) -
+the game loop's ONLY start; app.js startLoop() now also runs from the boot's done(). (2) THE POTATO SUN's black ring: the
+render-scale upsample (aa_resolve.js AA_FS_UP, Catmull-Rom) rang on the raw sun (1e4 x the sky) under linear compositing;
+clamped to the 2x2 round it (AA_LINEAR only; scale-1 presets bit-identical). (3) 09_climate.js convSeed waits for the
+worker's windSpec (null.base in the GTX 660 log).
+HELD OUT: PILOT-ONE G1935-G1944 - the full battery went red with it (INPUT: ReferenceError c in 43_pilot humanise; GEN cruise
+quiet in wind; PILOT box phase; PILOTACT taxi rudder 62/min; TAXICLEAR the mill C172 loops TAXI>STOP>HOLD>DEPART; LINEUP
+HOME; RWYTREES East Point never lands) - all six pass without it. Re-issued as [CLOUD] PILOT-ONE-2 (G1949) for train 38.
+Strict gate (re-measured on a quiet box, rollout + bench): only the known 30-fps-cap rows (chase/cockpit fps, loop, render
+~+1.5-1.8 ms the hybrid band; garage / mn_strip / water taxi fps at the cap). The first gate's 3 extra rows (chase compile,
+chase flight, garage->world worst task) were a peer's node work (DMG-WALL 21:41-21:53) - gone on the re-measure.
+Battery: PASS but for PILOT-ONE's reds; targeted re-run on the landed tree: INPUT GEN PILOT PILOTACT TAXICLEAR LINEUP RWYTREES
+AA UISMOKE DMGINST GFX ROLLANIM MEDIA BUILT PASS. Metlakatla-on measured (train 35, A,B,B,A): warm +7 s load, first visit
++26 s and a 47 % uneven taxi -> stays OFF. boxlock.sh: CPU locks now exclusive (in the main checkout; committed next train).
