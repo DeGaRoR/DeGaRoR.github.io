@@ -25,6 +25,9 @@ async function pageParity(o) {
   const ctlOf = () => { const c = sim.ctl, r = {}; for (const k in c) { const v = c[k]; r[k] = typeof v === 'object' && v ? JSON.parse(JSON.stringify(v)) : v; } return r; };
   const out = { variant: o, certBoot: certAt(), ctlBoot: ctlOf(), n: sim.n, nb: sim.beams.length };
   let massSum = 0; for (let i = 0; i < sim.n; i++) massSum += sim.m[i]; out.mass = +massSum.toFixed(3);
+  { const d = P.def(), tg = i => d.nodes[i].tag || i;
+    out.defInfo = { nodes: d.nodes.length, beams: d.beams.length, engine: (d.refs.engine || []).map(tg), noseFrame: (d.refs.noseFrame || []).map(tg),
+      engineRest: (d.refs.engine || []).map(i => d.nodes[i].p.map(x => +x.toFixed(3))), simIsDef: sim.n === d.nodes.length && sim.beams.length === d.beams.length }; }
   const strip = world.aerodromes.find(a => a.id === 'HOME') || world.aerodromes[0];
   sim.reset(0); placeAtAerodrome(sim, strip);
   const n = sim.n, p = sim.p, v = sim.v, fx = Math.cos(strip.hdg), fz = Math.sin(strip.hdg);
@@ -93,6 +96,9 @@ if (mode === 'node') {
     const { W, TH } = L.flatWorld(r.start.trunk[2]);
     if (r.start.wind) { const w = r.start.wind; W.wind = () => w; } else W.wind = null;
     const sim = C.makeSim(def, W); sim.reset(0);
+    { const tg = i => def.nodes[i].tag || i;
+      console.log(k + ': def page ' + JSON.stringify(r.defInfo));
+      console.log('   def node ' + JSON.stringify({ nodes: def.nodes.length, beams: def.beams.length, engine: def.refs.engine.map(tg), noseFrame: def.refs.noseFrame.map(tg), engineRest: def.refs.engine.map(i => def.nodes[i].p.map(x => +x.toFixed(3))) })); }
     if (sim.n !== r.n || sim.beams.length !== r.nb) { console.log(k + `: DEF DIFFERS: node n ${sim.n} nb ${sim.beams.length}, page n ${r.n} nb ${r.nb}`); continue; }
     let mass = 0; for (let i = 0; i < sim.n; i++) mass += sim.m[i];
     // (the page's exact start state - after its settle - on a fresh sim: the settle's own yields are not carried, the
