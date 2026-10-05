@@ -407,7 +407,7 @@ const MUTATIONS = [
   ['the twin\'s engines start together', 'ra', "t += crank + (kind === 2 ? S.spinS : last ? S.catchCheck : S.catchNext);", "t += k === n - 1 ? crank + S.catchCheck : 0;"],
   ['the electric motor cranks', 'ra', "const method = kind === 2 ? 'power' :", "const method = kind === 2 ? 'starter' :"],
   ['the crank counted down twice as fast', 'ra', "if (e.crank > 0) { e.crank -= d;", "if (e.crank > 0) { e.crank -= 2 * d;"],
-  ['the thrust left out', 'ra', "out.thrustPer[k] = te * Tcap;", "out.thrustPer[k] = 0;"],
+  ['the thrust left out', 'ra', "if (out.thrustPer[k] !== ti) out.thrustPer[k] = ti;", ""],
   ['the shaft law bypassed (idle at any throttle)', 'ra', "Math.sqrt(eI2[k] + eD2[k] * te)", "Math.sqrt(eI2[k])"],
   ['no throttle on the roll', 'ra', "rollThr: 0.14,", "rollThr: 0,"],
   ['the check off idle', 'ra', "if (NE) { st[11] = 0; st[12] = d; engStep(); }", "if (NE) { st[11] = 0.05; st[12] = d; engStep(); }"],

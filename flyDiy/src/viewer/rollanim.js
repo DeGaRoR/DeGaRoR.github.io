@@ -167,9 +167,14 @@ const ROLLANIM = (() => {
     // set to the rpm the engine's VOICE turns at, from a typed row: no double handed to a call)
     if (model && model.props && model.props.length) {
       const uds = [], ei = [];
-      for (const p of model.props) { const ud = p.userData || (p.userData = {}); uds.push(ud); ei.push(ud.engIdx || 0); }
+      // (a prop that never spun gets its rate as a DOUBLE field now: the start's first write is 0 - a Smi field, later
+      // generalised - and the frame's stores then boxed two doubles a frame now and then: GATE ROLLANIM's fixed roll, 65.5 B)
+      for (const p of model.props) { const ud = p.userData || (p.userData = {}); if (typeof ud.spinRate !== 'number') ud.spinRate = 1e-9; uds.push(ud); ei.push(ud.engIdx || 0); }
       const E = Int32Array.from(ei), K = 2 * Math.PI / 60;
-      rig.engVis = (ES, n) => { for (let i = 0; i < uds.length; i++) { const e = E[i]; if (e < n) uds[i].spinRate = ES[e * ESW + 8] * K; } };
+      // (written only when it moved: a double stored into an object's field can box - GATE ROLLANIM's fixed roll read +32 B a
+      // frame now and then with a store every frame; 1e-6 rad/s is nothing on screen)
+      rig.engVis = (ES, n) => { for (let i = 0; i < uds.length; i++) { const e = E[i]; if (e >= n) continue; const ud = uds[i], v = ES[e * ESW + 8] * K, d = v - ud.spinRate;
+        if (d > 1e-6 || d < -1e-6) ud.spinRate = v; } };
     }
     if (out && model && model.props && model.props.length) {
       const eng = [];                                  // (an array: a Set's iterator is an allocation a frame)
@@ -794,7 +799,7 @@ const ROLLANIM = (() => {
         if (!keyed && tS >= S.startKeyAt) { keyed = 1; for (let k = 0; k < NE; k++) engSet(k, P_KEY); }
         for (let k = 0; k < NE; k++) if (!eDone[k] && tS >= eGo[k]) { eDone[k] = 1; engSet(k, eMeth[k] === 0 ? P_START : P_SWING); }
       }
-      if (simCtl) simCtl.thr = thr;
+      if (simCtl && simCtl.thr !== thr) simCtl.thr = thr;   // (only when it stepped: see engVis)
       const L = simCtl && simCtl.eng;
       for (let k = 0; k < NE; k++) {
         const e = Eng[k], o9 = k * ESW;
@@ -804,7 +809,10 @@ const ROLLANIM = (() => {
         te = te < 0 ? 0 : te > 1 ? 1 : te;
         const n = run ? Math.sqrt(eI2[k] + eD2[k] * te) : 0, gear = eGear[k];
         ES[o9 + 5] = n; ES[o9 + 6] = n * gear;
-        out.rpm[k] = n; out.rpmEng[k] = n * gear; out.thrustPer[k] = te * Tcap;
+        const ne = n * gear, ti = te * Tcap;
+        if (out.rpm[k] !== n) out.rpm[k] = n;
+        if (out.rpmEng[k] !== ne) out.rpmEng[k] = ne;
+        if (out.thrustPer[k] !== ti) out.thrustPer[k] = ti;
         let v = ES[o9], vis;
         const kd = eKind[k];
         if (kd === 0) {
