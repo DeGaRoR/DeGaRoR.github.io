@@ -369,6 +369,7 @@
       if (v && !(v.pv >= 8)) { if (v.preset === 'potato') { for (const o of OPTIONS) if (!o.free) delete v[o.k]; Object.assign(v, PRESETS.potato); } v.pv = 8; }
       v0 = v && typeof v === 'object' ? v : null;
       try { W.localStorage.removeItem(KEY + '.auto'); } catch (e) {}   // G528's first-launch reading, retired with its probe
+      for (const o of OPTIONS) if (o.free && !(o.k in S)) S[o.k] = o.steps[0].v;   // train 32 (POTATO-DEEP's find): a free row (town) has a key, so a saved choice reads back
       if (v && typeof v === 'object') for (const k in v) if (k in S) S[k] = v[k];
     } catch (e) {}
     for (const o of OPTIONS) if (!o.steps.some(s => s.v === S[o.k])) S[o.k] = o.free ? o.steps[0].v : PRESETS[DEFAULT][o.k];
