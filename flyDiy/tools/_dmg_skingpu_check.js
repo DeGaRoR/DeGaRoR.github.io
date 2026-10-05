@@ -119,7 +119,7 @@ if (argv[0] === '--build') {
     };
     let recs = null;
     const NF = {}, S = { frames: 0, breakFrames: 0, mirrorFrames: 0, verts: 0, dP: 0, dN: 0, dPat: null, finite: true, pruned: 0, gpuRecs: 0, cpuFallback: 0,
-      tornC: 0, tornG: 0, missed: 0, late: 0, lateMax: 0, early: 0, excessG: -Infinity, excessC: -Infinity, checks: 0, checksC: 0, zeroN: 0, dNat: null, ambiguous: 0, qCpu: 0, over: 0,
+      tornC: 0, tornG: 0, missed: 0, late: 0, lateMax: 0, early: 0, excessG: -Infinity, excessC: -Infinity, checks: 0, checksC: 0, zeroN: 0, dNat: null, ambiguous: 0, qCpu: 0, over: 0, evCmp: 0, evBad: 0, evBadAt: null, evSkipped: 0,
       ms: { tear: 0, tearPl: 0, pack: 0, nodes: 0, event: 0, pose: 0 } };
     let nbSeen = 0, ND = new Float32Array(n * 8);
     for (let s = 1; s <= IN.N; s++) {
@@ -129,16 +129,35 @@ if (argv[0] === '--build') {
       if (!D.br.length) continue;
       S.frames++;
       if (!recs) {
-        recs = meshes.map(m => ({ m, C: mk(m, false), G: mk(m, true) }));
+        recs = meshes.map(m => ({ m, C: mk(m, false), G: mk(m, true), F: mk(m, false), L: mk(m, false) }));
+        for (const r of recs) r.F.R.fullNext = true;   // (F: every event full - the reference; L: skipped / local as the page)
         // the GPU's side of each record: its own drawer's CPU arrays, laid out as skin_gpu.js layout lays them (p0 = 0)
         for (const r of recs) { SB.placesOf(r.G.R); r.Dm = { recs: [{ R: r.G.R, p0: 0 }], cpu: SB.placeArrays(Math.ceil(r.G.R.pl.length / SB.GPU_W)) }; r.G.R.dvUp = -1; S.gpuRecs++; }
       }
       const brokeNow = D.br.length !== nbSeen; nbSeen = D.br.length; if (brokeNow) S.breakFrames++;
       // the events and the binding, as brkCage: a budget of places a frame, each family its own (the same decisions)
-      for (const fam of ['C', 'G']) {
+      for (const fam of ['C', 'G', 'F', 'L']) {
         let bud = BRK_BIND;
         for (const r of recs) { const R = r[fam].R; R.lastBound = 0; const t0 = process.hrtime.bigint(); SB.event(R, T, D, restD, R.baseD, Math.max(0, bud)); S.ms.event += ms(t0); bud -= R.lastBound || 0; }
         for (const r of recs) { if (bud <= 0) break; const R = r[fam].R; if (R.pending) bud -= SB.bindMore(R, T, bud); }
+      }
+      // THE INCREMENTAL EVENT = THE FULL ONE: the event-only families (no riding, no tear) compared byte for byte - every
+      // vertex's piece / dominant / ride, every place's kept weights, every triangle's state and index, the drape
+      if (brokeNow) for (const r of recs) {
+        const F = r.F.R, Lr = r.L.R; if (!F.active || !Lr.active) continue;
+        S.evCmp++;
+        const eq = (a, b) => a === b || (a && b && a.length === b.length && Buffer.compare(Buffer.from(a.buffer, a.byteOffset, a.byteLength), Buffer.from(b.buffer, b.byteOffset, b.byteLength)) === 0);
+        // per place, on the places bound in both (a place bound in one and not yet in the other - the binding budget reached
+        // it a frame or two apart: a skipped record binds through the frame's budget, not its event - rides its nearest
+        // node meanwhile); the triangles' state and the index everywhere
+        const K = F.K; SB.placesOf(F); let unb = 0, pok = true;
+        for (const v of F.pl) { if (!F.g.bound[v] || !Lr.g.bound[v]) { unb++; continue; }
+          if (F.vp[v] !== Lr.vp[v] || F.dom[v] !== Lr.dom[v] || F.ride[v] !== Lr.ride[v] || (F.sag ? F.sag[v] : 0) !== (Lr.sag ? Lr.sag[v] : 0)) { pok = false; break; }
+          for (let k = 0; k < K; k++) if (F.w2[v * K + k] !== Lr.w2[v * K + k]) { pok = false; break; } if (!pok) break; }
+        S.evUnbound = Math.max(S.evUnbound || 0, unb);
+        const ok = pok && eq(F.dead, Lr.dead) && eq(F.idx, Lr.idx);
+        if (!ok) { S.evBad++; if (!S.evBadAt) S.evBadAt = { t: +sim.t.toFixed(3), mesh: r.m.nm, places: pok, dead: eq(F.dead, Lr.dead), idx: eq(F.idx, Lr.idx), unb }; }
+        S.evSkipped = recs.reduce((a, q) => a + (q.L.R.skipped || 0), 0);
       }
       { const t0 = process.hrtime.bigint(); SB.nodeFrames(NF, T, D, restD, sim.p, true); S.ms.nodes += ms(t0); }
       const [xA, yU] = sim.axes(), cg = sim.bodyOrigin ? sim.bodyOrigin() : sim.cgPos();
@@ -262,6 +281,8 @@ const yes = (ok, msg) => { checks++; if (!ok) fails++; console.log('  ' + (ok ? 
         + S.verts + ' vertex poses on ' + S.mirrorFrames + ' record-frames (' + S.over + ' past both 0.1 mm and 8 float32 steps of the drawn frame' + (S.dPat ? '; worst ' + JSON.stringify(S.dPat) : '')
         + '); the CPU path\'s own float32 storage up to ' + (S.qCpu * 1000).toFixed(4) + ' mm; every one finite; ' + S.ambiguous + ' ambiguous (two turns 180 deg apart: either blend is one)');
       yes(S.dN <= TOL_N, 'the normals within ' + S.dN.toFixed(4) + ' deg (bound ' + TOL_N + ' deg)' + (S.dNat ? ' (worst ' + JSON.stringify(S.dNat) + ')' : '') + '; ' + S.zeroN + ' degenerate (nought both ways)');
+      yes(S.evCmp > 0 && S.evBad === 0, 'the incremental event (a record far from the break skipped, a near one re-made where touched) = the full event, byte for byte (every triangle\'s state and index; every place bound in both), at each of '
+        + S.evCmp + ' record-events (' + S.evSkipped + ' skipped whole; the weights compared on places bound in both - up to ' + (S.evUnbound || 0) + ' places a record bound a frame or two apart)' + (S.evBadAt ? ' - FIRST DIFFERENCE ' + JSON.stringify(S.evBadAt) : ''));
       yes(S.cpuFallback === 0, 'every record rides on the GPU (' + S.gpuRecs + ' records, ' + S.cpuFallback + ' on the CPU); bindings pruned past 8 slots: ' + S.pruned);
       // the tear: on the GPU's own positions a frame old, at the CPU's cadence - within 1 % of the full tear's triangles
       // missed, none later than a check and a frame (an edge stretching fast stands past the bound that frame longer:

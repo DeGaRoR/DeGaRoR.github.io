@@ -253,6 +253,7 @@
     if (!R.pending || !(budget > 0) || !R.BP) return 0;
     const take = Math.min(budget, R.pending.length), now = R.pending.subarray(0, take);
     bindSome(R, T, now);
+    if (R.nodeMask) { const K = R.K, wi = R.wi, M = R.nodeMask; for (const v of now) for (let k = 0; k < K; k++) M[wi[v * K + k]] = 1; }
     // (G1818: these places are stale on the GPU - listed, unless the whole record already is)
     if (R.pl && R.dv === R.dvUp) { const L = R.dirtyPl || (R.dirtyPl = []); for (const v of now) L.push(R.plOf[v]); }
     const nv = R.nv, rp = R.rep, done = new Uint8Array(nv); for (const v of now) done[v] = 1;
@@ -266,12 +267,28 @@
   // THE EVENT: the damage state moved (D.vB). Returns true when the index changed
   function event(R, T, D, rest, base, budget) {
     if (R.vB === D.vB) return false;
+    // G1818: AN EVENT FAR FROM THE RECORD changes nothing in it. What the event makes of a record reads, of its own nodes
+    // (every node a slot of its binding names, R.nodeMask): their pieces (D.pc), the broken pairs and broken members'
+    // ends among them, and - for the binding's order - which of them lie at a break (an end of a broken member or one live
+    // member from one). The broken list only grows within a crash: if no member broken since the record's last full event
+    // has an end or a neighbour among its nodes, and none of its nodes changed piece, the event would rebuild the same
+    // record - it is skipped (a crash breaks a few members at a time; a wreck's ~100 records each re-made at every one of
+    // them was ~35-55 ms a break event on the box)
+    if (R.active && R.evPc && R.nodeMask && D.br.length >= R.evBr && D.br.length && !R.fullNext) {
+      const M = R.nodeMask, pc = D.pc, n = M.length; let touched = false;
+      for (let k = R.evBr; k < D.br.length && !touched; k++) { const b = T.beams[D.br[k]]; if (!b) continue;
+        for (const i of [b.a, b.b]) { if (M[i]) { touched = true; break; }
+          for (const bj of T.adj[i]) { const c = T.beams[bj]; if (M[c.a] || M[c.b]) { touched = true; break; } } if (touched) break; } }
+      if (!touched) for (let i = 0; i < n; i++) if (M[i] && (pc ? pc[i] : 0) !== R.evPc[i]) { touched = true; break; }
+      if (!touched) { R.vB = D.vB; R.evBr = D.br.length; R.lastBound = 0; R.skipped = (R.skipped | 0) + 1; return false; }
+    }
     R.vB = D.vB;
     R.dv = (R.dv | 0) + 1; R.dirtyPl = null;         // (G1818: the GPU's copy of the record is stale, whole)
     const { nv, K, wi, ww } = R, idx = R.idx;
     if (!D.br.length) {                        // healed (a reset): the index as built, nothing held
       if (R.idx0) idx.set(R.idx0);
       R.active = false; R.vp = R.dom = R.w2 = R.ride = R.dead = R.watch = R.sag = null; R.torn = R.removed = 0;
+      R.evPc = R.nodeMask = null; R.evBr = 0;
       return !!R.idx0;
     }
     if (!R.idx0) R.idx0 = idx.slice();
@@ -296,19 +313,40 @@
       if (any || R.rideAll) {
         const order = first.concat(rest2), take = budget == null ? order.length : Math.min(order.length, Math.max(0, budget));
         R.pending = take < order.length ? Int32Array.from(order.slice(take)) : null;
-        bindSome(R, T, Int32Array.from(order.slice(0, take))); R.lastBound = take;
+        const now = Int32Array.from(order.slice(0, take));
+        bindSome(R, T, now); R.lastBound = take; R._evBound = now;
       }
       if (!open && R.rideAll) R.boundAll = true;
     }
+    // G1818: THE LOCAL EVENT. After a full one, an event re-makes only what it can change: a place is re-prepared when a
+    // node of its binding is TOUCHED - an end of a member broken since, a neighbour of one, or a node whose piece changed
+    // - or the event has just bound it; a triangle is re-tested when one of its vertices was; a fabric place re-draped
+    // likewise. Everything else would come out bit for bit as it stands (prepV, the triangle test and the drape read only
+    // those nodes' pieces, broken pairs and broken ends), so it is left as it stands
+    const loc = !!(R.vp && R.evPc && R.nodeMask && R.active && D.br.length >= R.evBr && !R.fullNext);
     const vp = R.vp || (R.vp = new Int32Array(nv)), dom = R.dom || (R.dom = new Int32Array(nv));
     const w2 = R.w2 || (R.w2 = new Float32Array(nv * K)), ride = R.ride || (R.ride = new Uint8Array(nv));
+    let chg = null;
+    if (loc) {
+      const n = T.n, Tm = new Uint8Array(n);
+      for (let k = R.evBr; k < D.br.length; k++) { const b = T.beams[D.br[k]]; if (!b) continue;
+        for (const i of [b.a, b.b]) { Tm[i] = 1; for (const bj of T.adj[i]) { const c = T.beams[bj]; Tm[c.a] = Tm[c.b] = 1; } } }
+      for (let i = 0; i < n; i++) if ((pc ? pc[i] : 0) !== R.evPc[i]) Tm[i] = 1;
+      chg = R._chg && R._chg.length === nv ? R._chg : (R._chg = new Uint8Array(nv));
+      chg.fill(0);
+      if (R._evBound) for (const v of R._evBound) chg[v] = 1;
+      const list = R.rep ? placesOf(R).pl : null, np = list ? list.length : nv;
+      for (let j = 0; j < np; j++) { const v = list ? list[j] : j, o = v * K;
+        if (!chg[v]) for (let k = 0; k < K; k++) if (Tm[wi[o + k]]) { chg[v] = 1; break; } }
+    }
+    R._evBound = null;
     R.BP = BP; R.pc = pc;
     // (G1818: a welded record is prepared once a place, its copies given their place's piece, dominant node and ride -
     // the same bytes prepV's copy branch wrote, without a call a vertex: ~500k vertices, ~85k places on the user's Cub)
     if (R.rep) { placesOf(R); const pl = R.pl, rp = R.rep;
-      for (let j = 0; j < pl.length; j++) prepV(R, pl[j], BP, pc);
-      for (let v = 0; v < nv; v++) { const u = rp[v]; if (u !== v) { vp[v] = vp[u]; dom[v] = dom[u]; ride[v] = ride[u]; } } }
-    else for (let v = 0; v < nv; v++) prepV(R, v, BP, pc);
+      for (let j = 0; j < pl.length; j++) if (!chg || chg[pl[j]]) prepV(R, pl[j], BP, pc);
+      for (let v = 0; v < nv; v++) { const u = rp[v]; if (u !== v && (!chg || chg[u])) { vp[v] = vp[u]; dom[v] = dom[u]; ride[v] = ride[u]; if (chg) chg[v] = 1; } } }
+    else for (let v = 0; v < nv; v++) if (!chg || chg[v]) prepV(R, v, BP, pc);
     // 3. the triangles: on one piece, and not across a broken member
     const i0 = R.idx0, nt = R.nt, dead = R.dead || (R.dead = new Uint8Array(nt));
     const watch = R._watchBuf && R._watchBuf.length === nt ? R._watchBuf : (R._watchBuf = new Int32Array(nt));
@@ -318,7 +356,8 @@
     for (let t = 0; t < nt; t++) {
       const a = i0[t * 3], b = i0[t * 3 + 1], c = i0[t * 3 + 2];
       let gone = dead[t] >= 2;                    // torn by stretch earlier (or cut off the wall): stays gone
-      if (!gone) {
+      if (!gone && chg && !chg[a] && !chg[b] && !chg[c]) gone = dead[t] === 1;   // (G1818: untouched: as it stands)
+      else if (!gone) {
         const da = dom[a], db = dom[b], dc = dom[c];
         gone = vp[a] !== vp[b] || vp[b] !== vp[c] || brk(da, db) || brk(db, dc) || brk(da, dc);
         dead[t] = gone ? 1 : 0;
@@ -331,16 +370,20 @@
     }
     R.watch = watch.slice(0, nw); R.removed = removed; R.active = true;
     // G1852: the drape - a fabric skin's vertices the broken members carried
+    // (G1818: a local event re-drapes its changed places on the sag as it stood)
+    const sag0 = R.sag;
     R.sag = null;
     if (R.fabric && rest && base) {
       const at = new Map();
       for (const bi of D.br) { const b = T.beams[bi]; if (!b) continue;
         for (const i of [b.a, b.b]) { const L = at.get(i); if (L) L.push(bi); else at.set(i, [bi]); } }
-      const sag = new Float32Array(nv);
-      let any = false;
+      const sag = chg && sag0 ? sag0 : new Float32Array(nv);
+      let any = !!(chg && sag0);
       const rp = R.rep;
       for (let v = 0; v < nv; v++) {
+        if (chg && !chg[v]) continue;
         if (rp && rp[v] !== v) { sag[v] = sag[rp[v]]; continue; }
+        if (chg) sag[v] = 0;
         const o = v * K;
         for (let k = 0; k < K; k++) {
           const A = wi[o + k], wa = ww[o + k];
@@ -361,6 +404,14 @@
       }
       if (any) R.sag = sag;
     }
+    // (G1818: what the next event compares - this one's pieces and broken count, and the record's nodes)
+    { const n = T.n, M = R.nodeMask && R.nodeMask.length === n ? R.nodeMask : (R.nodeMask = new Uint8Array(n));
+      M.fill(0);
+      if (R.rep) { const pl = placesOf(R).pl; for (let j = 0; j < pl.length; j++) { const o = pl[j] * K; for (let k = 0; k < K; k++) M[wi[o + k]] = 1; } }
+      else for (let k = 0; k < wi.length; k++) M[wi[k]] = 1;
+      const E = R.evPc && R.evPc.length === n ? R.evPc : (R.evPc = new Int32Array(n));
+      for (let i = 0; i < n; i++) E[i] = pc ? pc[i] : 0;
+      R.evBr = D.br.length; }
     return true;
   }
 
