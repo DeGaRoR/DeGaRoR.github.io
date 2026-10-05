@@ -72076,9 +72076,30 @@ pavement within 5 mm of the patch) on _patch_law: apron edge 17, apron side 101,
 NO PHYSICS COST, NO CHANGE TO FLIGHT: 30_solver.js, terrainH and the contact are untouched; pavedAt is read by the patch
 alone. Node, the island world with its premises and the raster on, final positions after 900 frame-steps, SHA-1 of p,
 base 5ecabad vs this branch - IDENTICAL for the user's Cub and the metal Cessna, THE PILOT taxiing out of HOME and 400 m
-up (b094a118 / 0f8e5f7e, f02dc2cf / f74a3a0e). Step time: see GATES below.
+up (b094a118 / 0f8e5f7e, f02dc2cf / f74a3a0e). Step time, 3 interleaved runs each (us per step, medians, the box idle):
+Cub taxi 4082 -> 4155, Cub 400 m up 4064 -> 3994, metal Cessna taxi 7239 -> 7311, up 7126 -> 7226 - inside the runs' own
+spread (3831-4182, 7054-7445); the solver's code is the base's.
 STILLS: the cloud has no GPU and SOFT-GPU's tools/soft_still.js is not on this base: A0 shoots
 tools/perf/ground_lattice_views.json with tools/shadowsky_shots.js (pages: the base's index.html built as
 index_before.html, and this branch's) - HOME's stand at wheel height (the tail, both sides, a quarter), w3's stand on the
 patch and mn_strip's dead end ("at" [x, z, agl]: the user's Cub's resting CG height 1.095 m - the stock build 1.208, the
 Jodel 1.016, the Cessna 1.100); the views' az is the orbit's, A0 keeps the frames that show the tyres.
+GATES (cloud, 4 cores, no GPU; this branch's sources, generated files rebuilt by the runner and not committed):
+- `node tools/run_gates.js --all --jobs=4` (158 jobs, wall 9 700 s): 155 PASS, 3 FAIL - none this branch's:
+  - WORLD "perf terrainH<2.5us" (2.53 under the pool's load) and SETTLE "bake budget" (909 ms): timing rows of the
+    analytic world, untouched. Re-run alone on the same tree (`--no-build --only=WORLD,SETTLE --jobs=1`): WORLD PASS
+    (1.21 us/call, the same checksum 30165946.716), SETTLE PASS (bake 332 ms) - BATTERY: PASS.
+  - FRAMECOST (24 rows: the stand's draws 914 -> 1047, uniforms x2, the taxi's tris +1.8 %, garage landing bufferData
+    0 -> 768) is RED ON THE BASE TOO: `--only=FRAMECOST` on a worktree of 5ecabad gives the same 24 rows to the digit (a
+    diff of the two FAIL lists: identical) - the base against its committed baseline on this box, A0's on the train. The
+    patch's vertex heights are all this branch changes in the drawing: no draw, triangle or uniform count can move.
+  - Every gate the brief names PASSES: STAND, TAXICLEAR, TAKEOFF, PILOT (x3), LINEUP, CONTACT (+ --drawn), HYDRODYN,
+    SOAR, LAKEBED, PREMRASTER, PREMCOOK, LOOKS, PAVEMENT, UISMOKE, ARCHETYPES, PILOTMATRIX, SEAPLANE, HOTHIGH.
+- A first --all run was cut at 155/158 by a worker restart (no FAIL in what it had printed); the numbers above are the
+  second, complete run.
+OWED (A0's call): the Jodel's tail axle (9.5 mm over its node; now the one tyre off the ground at rest: +7.3 mm); the
+grass overlays' 93 mm (nv_meadow, r_strip: a depth offset in place of the gap, a GPU look); the pavement rim's 1.5 m of
+side lift under a crossing tyre (G1001's law); the fine tiles' 5 m lattice OFF the aerodromes (G1380's island numbers:
+a forced landing in a meadow still reads +-5 cm - a 1 m tier under the aeroplane, G1380's option (b)); the analytic
+world's Home Strip keeps its constant 5 cm lift (no sinkD0, render_world 5516). The stills: A0's box (views JSON above).
+
