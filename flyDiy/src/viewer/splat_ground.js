@@ -104,8 +104,8 @@ const SPLAT_GROUND = (() => {
   uniform float uSBeachRot;
   uniform int uSNCode, uSNCand;
   vec3 gSN; float gSRough; float gSHexRot;
-  // THE SIDE PROJECTIONS' TWO AXES (SHORES-2 G1957) and a type that tiles plainly (17 the bank: no hex on a small patch)
-  vec2 gSAx1 = vec2(1.0, 0.0), gSAx2 = vec2(0.0, 1.0); float gSNoHex = 0.0;
+  // THE SIDE PROJECTIONS' TWO AXES (SHORES-2 G1957)
+  vec2 gSAx1 = vec2(1.0, 0.0), gSAx2 = vec2(0.0, 1.0);
   ${G.glsl}
   struct Smp { vec4 c; vec4 n; };
   vec3 sHweights3(float ha, float wa, float hb, float wb, float hc, float wc, float depth){
@@ -215,7 +215,7 @@ const SPLAT_GROUND = (() => {
   Smp sSet(float layer, float scale, vec3 P, vec3 tw, float ang){
     scale = max(scale, 0.01);
     vec2 p = P.xz; float ca = 1.0, sa = 0.0;
-    gSHexRot = (ang != 0.0 || gSNoHex > 0.5) ? -1.0 : uSHex.w;
+    gSHexRot = ang != 0.0 ? -1.0 : uSHex.w;
     // THE HEX CUT WAS A DIAL LEFT AT 0 (PERF 2026-09-23): the hex tiling dropped where a set's tile spans under
     // uSHexPx pixels. At 4 it showed the tiles repeating as a checker over the far field (a tile of 4-16 px
     // still has its low frequencies, and they repeat), and its 'saving' was the mip-0 bug below (NO CONTINUE):
@@ -304,8 +304,7 @@ const SPLAT_GROUND = (() => {
     if (uSNearN < 1.5) { A.y = -1.0; A.z = -1.0; }
     Smp o; o.c = vec4(0.5, 0.5, 0.5, 0.5); o.n = vec4(0.0, 0.0, 0.0, 0.8);
     if (A.x < 0.0) { gSOut = o; return pass == 0; }
-    float ang = (A.w > 0.5 && A.w < 1.5) ? seaAng : 0.0;   // A.w: 1 = the beach turned to the sea, 2 = tiled plainly (no hex: 17)
-    gSNoHex = step(1.5, A.w);
+    float ang = A.w > 0.5 ? seaAng : 0.0;
     float period = max(M.x, 0.5) * 6.0, sharp = M.y * 2.0;   // 2x (4x cut the sets into hard blotches once lit in the game)
     float m1 = A.y >= 0.0 ? gfMixK(P.xz, period, 0.52 - M.z, sharp) : 0.0;
     float m2 = A.z >= 0.0 ? gfMixK(P.xz + vec2(101.0, -77.0), period * 1.61, 0.52 - M.w, sharp) : 0.0;
@@ -363,11 +362,9 @@ const SPLAT_GROUND = (() => {
     float bankZ = step(0.5, uSBank.x) * max((1.0 - smoothstep(0.6 * bR, bR, -lsd)) * (1.0 - step(1.0, lsd)),
                                             (1.0 - smoothstep(0.6 * bR, bR, sd)) * step(-8.0, sd));
     float bn = 0.0;
-    if (bankZ > 0.0) { vec2 q = (xz + vWPi.y * vec2(0.71, -0.59)) / max(uSBank2.z, 0.5);   // (the height in it: on a face a noise of xz alone runs in vertical streaks)
-      bn = gVnoise(q * 0.21 - 5.1) * 0.45 + gVnoise(q) * 0.35 + gVnoise(q * 2.71 + 17.3) * 0.2 - 0.5; }   // (three octaves: a far bank's edge is ragged too)
     // (SHORES G1503, below: the sea's dry share is taken out of the normaliser - no loop of its own)
     float w0r = w[0], landF = (wsum - w0r) / max(wsum, 1e-4);
-    float dry = smoothstep(-0.8, 0.3, vWPi.y + bn * 0.8) * smoothstep(0.02, 0.3, landF);
+    float dry = smoothstep(-0.8, 0.3, vWPi.y) * smoothstep(0.02, 0.3, landF);
     float wnrm = max(wsum - w0r * dry, 1e-4);
     for (int i = 0; i < uSNCode; i++) w[i] /= wnrm;
     // THE SEA VOTES AS SAND UNDER THE WATER ONLY (SHORES G1503, the user 2026-10-04: the island's banks against the sea "blend
@@ -408,13 +405,15 @@ const SPLAT_GROUND = (() => {
     float gSBank = 0.0, gSBankM = 0.0;
     if (bankZ > 0.0) {   // (a uniform-bound loop under a branch most pixels skip: it linked faster than the same handover
                          // written out code by code - cold_links_bench, SHORES G1505)
+      vec2 q = (xz + vWPi.y * vec2(0.71, -0.59)) / max(uSBank2.z, 0.5);   // (the height in it: on a face a noise of xz alone runs in vertical streaks)
+      bn = gVnoise(q * 0.21 - 5.1) * 0.45 + gVnoise(q) * 0.35 + gVnoise(q * 2.71 + 17.3) * 0.2 - 0.5;   // (three octaves: a far bank's edge is ragged too)
       float sj = slope + bn * uSBank2.y;
       gSBank = bankZ * smoothstep(uSBank.y - uSBank2.x, uSBank.z + uSBank2.x, sj);
       // THE CREST OF THE SEA'S STEP (G1959): the land keeps its own height to the coastline and the shelf drops to -5 m just
       // past it (28_island seaFloor), so the face's top is the first row of land vertices - a long line at one height. The
       // rock spills over it by up to bankLip m, ragged, where the ground stands over the water (a real step, not a flat beach)
-      if (uSBankLip > 0.01) gSBank = max(gSBank, step(-8.0, sd) * (1.0 - smoothstep(uSBankLip * 0.35, uSBankLip, sd + bn * uSBankLip * 1.2))
-                                                 * smoothstep(0.3, 1.0, vWPi.y) * 0.95);
+      gSBank = max(gSBank, step(0.01, uSBankLip) * step(-8.0, sd) * (1.0 - smoothstep(uSBankLip * 0.35, max(uSBankLip, 0.02), sd + bn * uSBankLip * 1.2))
+                           * smoothstep(0.3, 1.0, vWPi.y) * 0.95);   // (no branch of its own: a branch is link time, COLD-LINKS)
       gSBankM = bankZ * smoothstep(uSBank.y - 4.0 - uSBank2.x, uSBank.y + 4.0, sj);   // the macro gives way as the rock comes
       for (int i = 2; i < uSNCode; i++) if (i != 5 && i != 6 && i != 12 && i != 17) { w[17] += w[i] * gSBank; w[i] *= 1.0 - gSBank; }
     }
@@ -729,7 +728,7 @@ const SPLAT_GROUND = (() => {
         const m = R.codes[i], A = U.uSMatA.value[i], S = U.uSMatS.value[i], F = U.uSMatF.value[i], FS = U.uSMatFS.value[i], M = U.uSMatM.value[i], Vv = U.uSVary.value[i];
         if (!m) { A.set(-1, -1, -1, 0); continue; }
         const li = k => k ? LIB.indexOf(k) : -1;
-        A.set(li(m.tex[0]), li(m.tex[1]), li(m.tex[2]), m.orient === 'sea' ? 1 : (m.hex === 0 ? 2 : 0));   // w: 1 the beach turned, 2 tiled plainly
+        A.set(li(m.tex[0]), li(m.tex[1]), li(m.tex[2]), m.orient === 'sea' ? 1 : 0);
         S.set(m.scale[0] || 1, m.scale[1] || 1, m.scale[2] || 1, 0);
         const far = m.far || [null, null, null], fs = m.farScale || [0, 0, 0];
         F.set(li(far[0]), li(far[1]), li(far[2]), 0); FS.set(fs[0] || 1, fs[1] || 1, fs[2] || 1, 0);

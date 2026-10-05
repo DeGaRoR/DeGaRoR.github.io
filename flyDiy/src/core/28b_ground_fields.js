@@ -129,7 +129,7 @@ const GROUND_FIELDS = (() => {
       // lake's line or the coast, whatever their own code, take it by a soft, noise-broken weight (splat_ground sSplat). Its
       // own rock: darkRock (Poly Haven dark_rock_02, CC0, a 2 m tile - wet, dark, fractured: the island's own stone), the
       // dark gravel at its foot (dirt; rocksG's pale stones read as a white blotch at the waterline, it2 sea_beach). The oriented two-axis triplanar keeps it unstretched. HEX KEPT ON: the coast's step is
-      // a band kilometres long and a plain 3 m tile read as a row of bricks along it (it1, close_shingle); `hex: 0` tiles plainly
+      // a band kilometres long and a plain 3 m tile read as a row of bricks along it (it1, close_shingle)
       17: { tex: ['darkRock', 'dirt', null], scale: [3.2, 1.8, 0], far: [null, null, null], farScale: [0, 0, 0], mix: [9, 2.2, -0.25, 0], vary: [4, 0.14, 12], para: 0.6 },
     },
     // the map's code names (0-11 from island_prep's ttype) and the three derived in the shader
