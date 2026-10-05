@@ -197,6 +197,7 @@ function makeSim(def, world) {
   function rotateRing(r, c, a, phi, dt, Cm) {
     const cw = Math.cos(phi), sw = Math.sin(phi), t = 1 - cw;
     const [kx, ky, kz] = a;
+    const nm = Cm ? Cm.nm : null;
     for (const i of r) {
       const i3 = i*3, x = p[i3] - c[0], y = p[i3+1] - c[1], z = p[i3+2] - c[2];
       const nx = x*(cw + kx*kx*t) + y*(kx*ky*t - kz*sw) + z*(kx*kz*t + ky*sw);
@@ -205,7 +206,7 @@ function makeSim(def, world) {
       const ex = nx - x, ey = ny - y, ez = nz - z;
       p[i3] += ex; p[i3+1] += ey; p[i3+2] += ez;
       v[i3] += ex / dt; v[i3+1] += ey / dt; v[i3+2] += ez / dt;
-      if (Cm && Cm.nm && Cm.nm[i]) { const s = m[i] / (dt * dt); clAcc(Cm, Cm.nm[i], i3, s * ex, s * ey, s * ez); }
+      if (nm !== null && nm[i]) { const s = m[i] / (dt * dt); clAcc(Cm, nm[i], i3, s * ex, s * ey, s * ez); }
     }
   }
   function twistHold(C, dt) {
@@ -355,8 +356,8 @@ function makeSim(def, world) {
     const R = C.R = extractRotation(A, C.R, 4);
     const al = C.omega > 0 ? Math.min(1, (C.omega * dt) * (C.omega * dt)) : 1, inv = al / dt;
     // G1840 (DMG-D3): on a measured substep, the projection's force on a node of a cut's part (m al e / dt^2) is that
-    // cut's reaction - reported to it (clAcc); nothing here changes what the projection does
-    const nm = C.ms ? C.nm : null;
+    // cut's reaction - reported to it (clAcc) by the same loop's twin below; the quiet loop is the base's, untouched
+    if (C.ms && C.nm) { shapeGoalReport(C, R, al, inv, dt, cx, cy, cz, qbx, qby, qbz); return; }
     for (let k = 0; k < n2; k++) {
       const i = C.idx[k], i3 = i*3;
       const qx = C.q[k*3] - qbx, qy = C.q[k*3+1] - qby, qz = C.q[k*3+2] - qbz;
@@ -366,7 +367,21 @@ function makeSim(def, world) {
       const ex = gx - p[i3], ey = gy - p[i3+1], ez = gz - p[i3+2];
       p[i3] += al * ex; p[i3+1] += al * ey; p[i3+2] += al * ez;
       v[i3] += inv * ex; v[i3+1] += inv * ey; v[i3+2] += inv * ez;
-      if (nm !== null && nm[i]) { const s = m[i] * inv / dt; clAcc(C, nm[i], i3, s * ex, s * ey, s * ez); }
+    }
+  }
+  // (G1840: shapeMatch's goal loop, the same arithmetic, reporting each part node's correction to its cuts)
+  function shapeGoalReport(C, R, al, inv, dt, cx, cy, cz, qbx, qby, qbz) {
+    const nm = C.nm, n2 = C.idx.length;
+    for (let k = 0; k < n2; k++) {
+      const i = C.idx[k], i3 = i*3;
+      const qx = C.q[k*3] - qbx, qy = C.q[k*3+1] - qby, qz = C.q[k*3+2] - qbz;
+      const gx = R[0]*qx + R[1]*qy + R[2]*qz + cx;
+      const gy = R[3]*qx + R[4]*qy + R[5]*qz + cy;
+      const gz = R[6]*qx + R[7]*qy + R[8]*qz + cz;
+      const ex = gx - p[i3], ey = gy - p[i3+1], ez = gz - p[i3+2];
+      p[i3] += al * ex; p[i3+1] += al * ey; p[i3+2] += al * ez;
+      v[i3] += inv * ex; v[i3+1] += inv * ey; v[i3+2] += inv * ez;
+      if (nm[i]) { const s = m[i] * inv / dt; clAcc(C, nm[i], i3, s * ex, s * ey, s * ez); }
     }
   }
   // ---- THE MEMBERS YIELD AND BREAK (G1470, TREE-CRASH) ----
@@ -667,7 +682,7 @@ function makeSim(def, world) {
       M[0] += y * fz - z * fy; M[1] += z * fx - x * fz; M[2] += x * fy - y * fx;
     }
   }
-  // (after the beam loop, on a measured substep) the members across each live cut: their force this substep on the part
+  // (before a measured substep: the state its beam loop reads) the members across each live cut: their force on the part
   function cutX() {
     for (const C of clusters) if (C.cuts) C.ms = !C.off && (C.nm !== null || C.twL0 !== null);
     for (let k = 0; k < CUTS.length; k++) {
@@ -688,7 +703,7 @@ function makeSim(def, world) {
       }
     }
   }
-  // (after the clusters' projection, on a measured substep) every live cut's moment and torque against its limits
+  // (after a measured substep: its projection has reported) every live cut's moment and torque against its limits
   const _ca = [0, 0, 0], _cu = [0, 0, 0];
   function clCuts() {
     let arm = false;
@@ -2153,7 +2168,6 @@ function makeSim(def, world) {
       f[b3]-=Fb*dx; f[b3+1]-=Fb*dy; f[b3+2]-=Fb*dz;
     }
     if (nFlr) floorPass();                           // G1813: the kinked members' floors (none: one compare)
-    if (clMs) cutX();                                // G1840: the members across the clusters' cuts (a measured substep)
     // ground: wheels roll, everything else scrapes. Terrain-aware.
     const gH = world ? world.terrainH : null;
     for (let i = 0; i < n; i++) {
@@ -2365,8 +2379,6 @@ function makeSim(def, world) {
     // G294 / G350: the tube holds its shape, and its twist; G1470: a cluster a member broke inside lets go, one a
     // member took a set inside holds its NEW shape (its rest re-taken here, after the substep that bent it)
     for (const C of clusters) { if (C.off) continue; shapeMatch(C, dt); twistHold(C, dt); }
-    if (clMs) clCuts();                              // G1840-G1842: the cuts against their limits
-    if (clQ.length) clApply();                       // ...and the parts that came off (re-formed rigid)
     if (clDirty) { for (const C of clusters) if (C.dirty) { C.dirty = false; clusterRest(C); twistRest(C); } clDirty = false; }
     // altitude of CG (wheel-corrected later by caller if needed)
     let cy = 0;
@@ -2412,8 +2424,17 @@ function makeSim(def, world) {
     obstFrame();
     trunkFrame(dtFrame);
     armFrame();
-    // G1840: the clusters' cuts are measured on every substep of an armed frame, and on the last of any other
-    for (let s = 0; s < sub; s++) { clMs = nCut0 > 0 && (armed || s === sub - 1); substep(dt); simT += dt; burn(dt); }
+    // G1840 (DMG-D3): the clusters' cuts are measured on every substep of an armed frame, and on the last of any other:
+    // the members across them read from the substep's own starting state (the beam loop's), the cuts judged once its
+    // projection has run, the parts that came off re-formed rigid - all out here, so substep() is the base's
+    for (let s = 0; s < sub; s++) {
+      clMs = nCut0 > 0 && (armed || s === sub - 1);
+      if (clMs) cutX();
+      substep(dt);
+      if (clMs) clCuts();
+      if (clQ.length) clApply();
+      simT += dt; burn(dt);
+    }
     readPanel(dtFrame);
     dmgFrame(dtFrame);
     dmgOver();
