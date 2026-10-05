@@ -1,0 +1,166 @@
+/* mock.css - MOBILE-GARAGE (G1512) static mock-ups. The 9b handoff's palette (src/viewer/editor.css :root), nothing else. */
+:root{
+  --ed-panel:#201d1a; --ed-board:#1a1815; --ed-plate:rgba(32,29,26,.94);
+  --ed-ink:#f4efe6; --ed-dim:#c0b8ac; --ed-faint:#97907f;
+  --ed-acc:#e6dbc9; --ed-acc-ink:#221f1b; --ed-acc-soft:rgba(230,219,201,.14);
+  --ed-hair:rgba(255,248,236,.09); --ed-border:rgba(255,248,236,.14);
+  --ed-btn-bg:rgba(255,255,255,.06); --ed-btn-bd:rgba(255,255,255,.18);
+  --ed-track:rgba(0,0,0,.3); --ed-warn:#d8a07a; --ed-bad:#e08a5a; --ed-ok:#9cc08a;
+  --tap:48px;            /* the minimum hit target (WCAG 2.5.5 AAA 44 CSS px; Material 48 dp) */
+  --row:56px;            /* a phone row: label line + control line share it with 8 px air */
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:#0f0e0c;color:var(--ed-ink);font:400 15px/1.35 'IBM Plex Sans',ui-sans-serif,system-ui,sans-serif}
+button{font:inherit;color:inherit}
+.stage{display:flex;gap:28px;flex-wrap:wrap;padding:24px;align-items:flex-start}
+.cap{color:var(--ed-faint);font-size:12px;letter-spacing:.06em;text-transform:uppercase;margin:0 0 8px}
+.phone{position:relative;background:var(--ed-panel);border:1px solid var(--ed-border);border-radius:22px;overflow:hidden;
+  box-shadow:0 20px 50px rgba(0,0,0,.5);display:flex;flex-direction:column}
+.phone.portrait{width:412px;height:915px}
+.phone.landscape{width:915px;height:412px;flex-direction:row}
+.notes{max-width:420px;color:var(--ed-dim);font-size:13.5px}
+.notes h3{color:var(--ed-ink);font-size:14px;margin:18px 0 6px}
+.notes li{margin:3px 0}
+.notes code{background:rgba(255,255,255,.06);padding:0 4px;border-radius:3px}
+
+/* the top bar */
+.top{height:52px;display:flex;align-items:center;gap:8px;padding:0 8px 0 14px;border-bottom:1px solid var(--ed-hair);background:var(--ed-board);flex:none}
+.top .name{font-weight:500;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.top .name small{display:block;color:var(--ed-faint);font-size:11.5px;font-weight:400}
+.ib{min-width:var(--tap);height:var(--tap);border-radius:12px;border:0;background:transparent;display:grid;place-items:center;font-size:20px;color:var(--ed-dim)}
+.ib:active{background:var(--ed-btn-bg)}
+.pill{height:36px;padding:0 14px;border-radius:18px;border:1px solid var(--ed-btn-bd);background:var(--ed-btn-bg);font-size:13.5px}
+.pill.acc{background:var(--ed-acc);color:var(--ed-acc-ink);border-color:var(--ed-acc);font-weight:500}
+
+/* the 3D view (a drawing stands in for the editor's own scene) */
+.view{position:relative;flex:none;background:radial-gradient(120% 90% at 50% 30%,#3a342c 0%,#1d1a16 70%);overflow:hidden;touch-action:none}
+.view svg{position:absolute;inset:0;width:100%;height:100%}
+.view .hint{position:absolute;left:10px;bottom:8px;font-size:11.5px;color:var(--ed-faint)}
+.view .vt{position:absolute;right:8px;top:8px;display:flex;flex-direction:column;gap:6px}
+.view .vt .ib{background:var(--ed-plate);border:1px solid var(--ed-border);width:var(--tap)}
+.readout{position:absolute;left:10px;top:10px;background:var(--ed-plate);border:1px solid var(--ed-border);border-radius:10px;padding:6px 10px;font-size:12px;color:var(--ed-dim)}
+.readout b{color:var(--ed-ink);font-weight:500}
+
+/* the part strip */
+.parts{display:flex;gap:6px;overflow-x:auto;padding:8px 10px;border-bottom:1px solid var(--ed-hair);flex:none;scrollbar-width:none}
+.chip{flex:none;height:40px;padding:0 14px;border-radius:20px;border:1px solid var(--ed-btn-bd);background:var(--ed-btn-bg);color:var(--ed-dim);font-size:14px}
+.chip.on{background:var(--ed-acc);color:var(--ed-acc-ink);border-color:var(--ed-acc);font-weight:500}
+.crumb{padding:8px 14px 0;color:var(--ed-faint);font-size:12px}
+
+/* the sheet */
+.sheet{flex:1;overflow-y:auto;padding:4px 0 12px;touch-action:pan-y}
+.rk-g{padding:4px 14px 8px;border-bottom:1px solid var(--ed-hair)}
+.rk-g-h{margin:10px 0 2px;font:600 11px/1 'IBM Plex Sans';letter-spacing:.09em;text-transform:uppercase;color:var(--ed-faint)}
+.rk-more{display:block;margin:12px auto;height:var(--tap);padding:0 18px;border-radius:24px;border:1px dashed var(--ed-btn-bd);background:transparent;color:var(--ed-dim)}
+
+/* touch rows (rowkit.js mode 'touch') */
+.rk-t{min-height:var(--row);padding:6px 0 4px}
+.rk-t-head{display:flex;align-items:center;gap:8px;min-height:28px}
+.rk-t-lab{flex:1;color:var(--ed-dim);font-size:14.5px}
+.rk-t-help{width:28px;height:28px;border-radius:14px;border:1px solid var(--ed-btn-bd);background:transparent;color:var(--ed-faint);font-size:12px;font-style:italic;position:relative}
+.rk-t-help::after{content:'';position:absolute;inset:-10px}  /* the hit area is 48 px, the drawn ring 28 */
+.rk-t-note{display:none;color:var(--ed-warn);font-size:12.5px;margin:2px 0 4px}
+.rk-open .rk-t-note{display:block}
+.rk-t-val{min-width:84px;height:36px;border-radius:10px;border:1px solid var(--ed-btn-bd);background:var(--ed-btn-bg);font-variant-numeric:tabular-nums;font-size:15px;text-align:right;padding:0 10px}
+.rk-t-type{width:110px;height:36px;border-radius:10px;border:1px solid var(--ed-acc);background:#000;color:var(--ed-ink);font-size:16px;text-align:right;padding:0 10px}
+.rk-t-line{display:flex;align-items:center;gap:6px}
+.rk-t-step{width:var(--tap);height:var(--tap);border-radius:12px;border:1px solid var(--ed-btn-bd);background:var(--ed-btn-bg);font-size:22px;flex:none;touch-action:manipulation}
+.rk-t-band{position:relative;flex:1;height:var(--tap);touch-action:pan-y}
+.rk-t-track{position:absolute;left:0;right:0;top:50%;height:6px;margin-top:-3px;border-radius:3px;background:var(--ed-track);overflow:hidden}
+.rk-t-fill{height:100%;background:var(--ed-acc);opacity:.75}
+.rk-t-knob{position:absolute;top:50%;width:26px;height:26px;margin:-13px 0 0 -13px;border-radius:13px;background:var(--ed-acc);box-shadow:0 1px 4px rgba(0,0,0,.6);touch-action:none;cursor:grab;z-index:2}
+.rk-t-knob::before{content:'';position:absolute;inset:-11px}  /* the knob's hit area: 48 px; the scale around it scrolls */
+.rk-held .rk-t-knob{transform:scale(1.25);box-shadow:0 0 0 6px var(--ed-acc-soft),0 1px 4px rgba(0,0,0,.6)}
+.rk-t-det{position:absolute;top:50%;width:2px;height:16px;margin:-8px 0 0 -1px;background:var(--ed-faint)}
+.rk-t-bubble{display:none;position:absolute;bottom:52px;left:50%;transform:translateX(-50%);background:var(--ed-acc);color:var(--ed-acc-ink);padding:6px 12px;border-radius:10px;font-weight:500;font-variant-numeric:tabular-nums;white-space:nowrap}
+.rk-t-fine{display:none;position:absolute;right:0;top:-2px;font-size:11px;color:var(--ed-warn)}
+.rk-drag .rk-t-bubble{display:block}
+.rk-fine .rk-t-fine{display:block}
+.rk-fine .rk-t-knob{background:var(--ed-warn)}
+.rk-t-seg{display:flex;gap:6px;flex-wrap:wrap;margin-top:4px}
+.rk-t-chip{min-width:var(--tap);height:40px;padding:0 12px;border-radius:10px;border:1px solid var(--ed-btn-bd);background:var(--ed-btn-bg);color:var(--ed-dim)}
+.rk-t-chip.on{background:var(--ed-acc);color:var(--ed-acc-ink);border-color:var(--ed-acc)}
+.rk-t-toggle{height:36px;min-width:84px;border-radius:18px;border:1px solid var(--ed-btn-bd);background:var(--ed-btn-bg);color:var(--ed-faint)}
+.rk-t-toggle.on{background:var(--ed-acc);color:var(--ed-acc-ink)}
+
+/* desktop rows (rowkit.js mode 'desk') - today's editor row: 30 px, label 113, value 64 */
+.desk{width:390px;background:var(--ed-panel);border:1px solid var(--ed-border);border-radius:6px;font-size:12px}
+.desk .rk-g{padding:2px 12px 6px}
+.desk .rk-g-h{font-size:9.5px;margin:8px 0 2px}
+.rk-d{display:grid;grid-template-columns:113px 1fr 64px;gap:14px;align-items:center;height:30px}
+.rk-d-check,.rk-d-select{grid-template-columns:113px 1fr}
+.rk-d-lab{color:var(--ed-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rk-d-rng{width:100%;accent-color:var(--ed-acc)}
+.rk-d-val{width:64px;background:transparent;border:1px solid var(--ed-hair);color:var(--ed-ink);font:inherit;text-align:right;padding:2px 4px;border-radius:3px}
+.desk select{background:#151311;color:var(--ed-ink);border:1px solid var(--ed-hair);font:inherit}
+
+/* the bottom bar */
+.bar{height:64px;display:flex;align-items:center;gap:4px;padding:0 8px;border-top:1px solid var(--ed-hair);background:var(--ed-board);flex:none}
+.tabs{flex:1;display:flex;justify-content:center;gap:2px}
+.tab{height:var(--tap);padding:0 12px;border:0;border-radius:12px;background:transparent;color:var(--ed-faint);font-size:14px}
+.tab.on{color:var(--ed-ink);background:var(--ed-acc-soft)}
+.ib[disabled]{opacity:.35}
+
+/* sheets over the phone */
+.scrim{position:absolute;inset:0;background:rgba(0,0,0,.55)}
+.bsheet{position:absolute;left:0;right:0;bottom:0;background:var(--ed-panel);border-top:1px solid var(--ed-border);border-radius:18px 18px 0 0;padding:10px 18px 20px}
+.grab{width:40px;height:4px;border-radius:2px;background:var(--ed-btn-bd);margin:0 auto 12px}
+.bsheet h2{font-size:17px;margin:4px 0 4px;font-weight:500}
+.bsheet p{color:var(--ed-dim);font-size:13.5px;margin:4px 0 12px}
+.act{display:flex;align-items:center;gap:14px;width:100%;min-height:60px;padding:8px 12px;margin:6px 0;border-radius:12px;border:1px solid var(--ed-btn-bd);background:var(--ed-btn-bg);text-align:left}
+.act .ic{width:36px;height:36px;border-radius:10px;display:grid;place-items:center;background:rgba(255,255,255,.07);font-size:18px;flex:none}
+.act b{display:block;font-weight:500}
+.act small{color:var(--ed-faint);font-size:12px}
+.act.primary{background:var(--ed-acc);color:var(--ed-acc-ink);border-color:var(--ed-acc)}
+.act.primary small{color:#5a5248}
+.qr{display:block;margin:6px auto 8px;background:#fff;padding:10px;border-radius:10px}
+.lock{display:flex;gap:10px;align-items:flex-start;background:rgba(216,160,122,.08);border:1px solid rgba(216,160,122,.35);border-radius:12px;padding:10px 12px;margin:8px 0;font-size:13px;color:var(--ed-dim)}
+.lock .ic{font-size:18px}
+.lock b{color:var(--ed-ink);font-weight:500}
+.plaque{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin:8px 0}
+.plaque div{background:rgba(255,255,255,.04);border:1px solid var(--ed-hair);border-radius:10px;padding:8px}
+.plaque small{display:block;color:var(--ed-faint);font-size:11px}
+.plaque b{font-size:16px;font-weight:500;font-variant-numeric:tabular-nums}
+.plaque .wait b{color:var(--ed-faint)}
+
+/* the computer */
+.desktop{width:1100px;height:640px;background:#14120f;border:1px solid var(--ed-border);border-radius:8px;position:relative;overflow:hidden}
+.desktop .dview{position:absolute;inset:44px 0 0 0;background:radial-gradient(120% 90% at 50% 30%,#3a342c 0%,#1d1a16 70%)}
+.desktop .dtop{height:44px;background:var(--ed-board);border-bottom:1px solid var(--ed-hair);display:flex;align-items:center;padding:0 14px;gap:10px;font-size:13px;color:var(--ed-dim)}
+.card{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:520px;background:var(--ed-panel);border:1px solid var(--ed-border);border-radius:14px;padding:20px 22px;box-shadow:0 30px 80px rgba(0,0,0,.6)}
+.card h2{margin:0 0 4px;font-size:19px;font-weight:500}
+.card p{color:var(--ed-dim);font-size:13.5px;margin:6px 0}
+.steps{list-style:none;padding:0;margin:12px 0;font-size:13.5px}
+.steps li{display:flex;gap:10px;align-items:center;padding:5px 0;color:var(--ed-dim)}
+.steps .ok{color:var(--ed-ok)} .steps .run{color:var(--ed-warn)} .steps .todo{color:var(--ed-faint)}
+.row2{display:flex;gap:10px;justify-content:flex-end;margin-top:14px}
+.rk-t,.bar,.parts,.top{user-select:none;-webkit-user-select:none}
+
+.vsep{display:block;height:1px;width:32px;margin:4px auto;background:var(--ed-border)}
+.ib.scene{font-size:12px;font-weight:600;letter-spacing:.04em;color:var(--ed-acc)}
+.tab.scene{line-height:1.1;color:var(--ed-acc)} .tab.scene small{font-size:9.5px;color:var(--ed-faint);font-weight:400}
+/* the desktop sketch (desktop.html) */
+.dk{width:1280px;height:720px;display:grid;grid-template-columns:46px 1fr 390px 250px;grid-template-rows:44px 1fr;background:#14120f;border:1px solid var(--ed-border);border-radius:8px;overflow:hidden;font-size:12px}
+.dk .dtop{grid-column:1/-1}
+.dk .spine{background:var(--ed-board);border-right:1px solid var(--ed-hair)}
+.dk .dv{position:relative;background:radial-gradient(120% 90% at 50% 30%,#3a342c 0%,#1d1a16 70%)}
+.dk .drail{position:absolute;left:10px;top:10px;display:flex;flex-direction:column;gap:4px;background:var(--ed-plate);border:1px solid var(--ed-border);border-radius:10px;padding:5px}
+.dk .drail button{width:64px;height:40px;border:0;border-radius:7px;background:transparent;color:var(--ed-dim);font-size:10.5px}
+.dk .drail button.on{background:var(--ed-acc-soft);color:var(--ed-ink)}
+.dk .drail button.scene{color:var(--ed-acc)}
+.dk .drail .rs{height:1px;background:var(--ed-border);margin:3px 4px}
+.dk .fly{position:absolute;left:90px;top:10px;width:300px;background:var(--ed-plate);border:1px solid var(--ed-border);border-radius:10px;padding:10px 12px;color:var(--ed-dim)}
+.dk .fly h4{margin:0 0 6px;color:var(--ed-ink);font-weight:500;font-size:13px}
+.dk .fly .seg{display:flex;gap:4px;margin:6px 0 8px}.dk .fly .seg span{padding:4px 10px;border-radius:12px;border:1px solid var(--ed-btn-bd)}.dk .fly .seg span.on{background:var(--ed-acc);color:var(--ed-acc-ink)}
+.dk .fly .fr{display:grid;grid-template-columns:110px 1fr 46px;gap:10px;align-items:center;height:26px}
+.dk .fly .fr i{height:3px;background:var(--ed-track);border-radius:2px;position:relative}.dk .fly .fr i::after{content:'';position:absolute;left:40%;top:-4px;width:11px;height:11px;border-radius:6px;background:var(--ed-acc)}
+.dk .props{background:var(--ed-panel);border-left:1px solid var(--ed-hair);overflow:hidden}
+.dk .tree{background:var(--ed-board);border-left:1px solid var(--ed-hair);padding:8px 0}
+.dk .tree .th{padding:4px 12px 8px;color:var(--ed-ink);font:500 13.5px/1.35 'IBM Plex Sans';border-bottom:1px solid var(--ed-hair);margin-bottom:4px}
+.dk .tree .th small{display:block;color:var(--ed-faint);font-weight:400;font-size:11px}
+.dk .tree .ta{padding:5px 12px;color:var(--ed-ink);font-weight:500}
+.dk .tree .tp{padding:3px 12px 3px 26px;color:var(--ed-dim)}
+.dk .tree .ta.on{background:var(--ed-acc-soft)}
+.dk .gone{margin:10px 12px;padding:8px;border:1px dashed var(--ed-btn-bd);border-radius:6px;color:var(--ed-faint);font-size:11px;text-decoration:line-through}
+
+.view.studio{background:#000}  /* the phone's black studio (G1516): no room at all */

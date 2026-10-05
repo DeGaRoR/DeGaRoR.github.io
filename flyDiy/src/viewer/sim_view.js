@@ -70,6 +70,17 @@ function makeSimView(def, opts) {
   // delay dipped). Now it carries the two newest snapshots' motion on for the time missing, a step at most: the pose
   // where the aeroplane is going, not where it last was. opts.starveEx false (?starvex=0) is the old jump.
   const STARVE_EX = opts.starveEx !== false;
+  // G1530 (POSE-BACK; the user at ~2 fps: "as soon as it took off ... it went a little backward over a frame"): THE DRAWN
+  // CLOCK NEVER RUNS BACK. T maps to sim time through the newest snapshot's DUE, and that mapping JUMPS BACK whenever the
+  // host lets wall time go: its clock held 250 ms past the page's last beat (G1365 - every frame of a 2 fps page) and
+  // re-anchored on the next beat, or its catch-up cap dropping the excess. A starved frame meanwhile drew the newest + a
+  // step (G1166b's bound); a frame coming soon after the re-anchor mapped to the new snapshot's time LESS the delay - up
+  // to 3-4 steps behind what was drawn (GATE POSEBACK, 2 fps with a quick frame now and then: 1.21 m back at the
+  // take-off). Now a LATER frame of the same flight draws no earlier sim time than the last one drew (MON): it holds there
+  // until the mapping catches up. Still never more than a step past the newest snapshot (the bound above); a re-query of
+  // an earlier T (a gate's probe) and frame(Infinity) are not frames of the clock. ?poseback=0 is the old mapping (an A/B)
+  const MONO = opts.monotonic !== false;
+  const MON = { T: -Infinity, t: -Infinity, ep: NaN, held: 0 };
   let delayS = fixedDelay ? opts.delayS : 1.5 * R.dt;
   const Q = [];                            // the ring, oldest first (B = its newest, A = the one before)
   const DS = { frames: 0, starved: 0, early: 0, lagMax: 0, lags: new Float64Array(60), li: 0, lastT: 0 };
@@ -138,22 +149,28 @@ function makeSimView(def, opts) {
       if (T !== Infinity) post({ cmd: 'beat' });
       const fB = B.f, ep = fB[S.EPOCH];
       let X = B, Y = B, alpha = 1;
+      // G1530: a frame after the last one, of the same flight - its drawn time no earlier than the last frame's
+      const fwd = MONO && T !== Infinity && T > MON.T && MON.ep === ep;
       if (T !== Infinity && Q.length > 1) {
         // the sim time T maps to: B's, plus the wall time since B was DUE on the host's clock, at the host's rate - less
         // the delay (fixed, or the ring's own: adapt)
         const lag = (T - dueOf(fB)) / 1000 * (fB[S.RATE] || 1);
         if (!fixedDelay) adapt(lag, T, !!(fB[S.FLAGS] & S.F_RUNNING));
-        const tau = fB[S.T] + lag - delayS;
+        let tau = fB[S.T] + lag - delayS;
+        if (fwd && tau < MON.t) { tau = MON.t; MON.held++; }   // G1530: held where the last frame drew, not back
         if (tau < fB[S.T]) {
           let j = Q.length - 1;                   // the oldest of this flight's snapshots at or after tau
           while (j > 0 && Q[j - 1].f[S.EPOCH] === ep && Q[j - 1].f[S.T] >= tau) j--;
           if (j > 0 && Q[j - 1].f[S.EPOCH] === ep) { X = Q[j - 1]; Y = Q[j]; alpha = (tau - X.f[S.T]) / (Y.f[S.T] - X.f[S.T]); }
           else { X = Y = Q[j]; alpha = 0; DS.early++; }   // before the ring: its oldest
-        } else if (fB[S.FLAGS] & S.F_RUNNING) {   // the snapshot for this moment has not come
-          DS.starved++;
+        } else if ((fB[S.FLAGS] & S.F_RUNNING) || (fwd && MON.t > fB[S.T])) {   // the snapshot for this moment has not come
+          // (G1530: or a pause after a frame drawn past the newest - held there, not snapped back to it)
+          if (fB[S.FLAGS] & S.F_RUNNING) DS.starved++; else tau = MON.t;
           // G1166b: on from the newest by the two newest's own motion (alpha past 1 extrapolates below), a step at most
-          const P = Q.length > 1 ? Q[Q.length - 2] : null;
-          if (STARVE_EX && P && P.f[S.EPOCH] === ep && fB[S.T] > P.f[S.T]) {
+          // (G1530: the newest of an EARLIER time - a pause's or a placement's snapshot repeats the newest state's)
+          let P = null;
+          for (let i = Q.length - 2; i >= 0 && !P; i--) if (Q[i].f[S.EPOCH] === ep && Q[i].f[S.T] < fB[S.T]) P = Q[i];
+          if (STARVE_EX && P) {
             X = P; Y = B; alpha = 1 + Math.min(tau - fB[S.T], R.dt) / (fB[S.T] - P.f[S.T]);
           }
         }
@@ -169,11 +186,15 @@ function makeSimView(def, opts) {
       const wShown = X === Y ? fY[S.WALL] : fX[S.WALL] + (fY[S.WALL] - fX[S.WALL]) * alpha;
       // G1100: the drawn pose's own sim time (the sea is drawn at it: app.js WATER.setTime)
       const tShown = X === Y ? fY[S.T] : fX[S.T] + (fY[S.T] - fX[S.T]) * alpha;
+      // G1530: the clock's memory - a frame's (forward, or the first of a flight), never a re-query's; frame(Infinity) is none
+      if (T === Infinity) { MON.T = MON.t = -Infinity; MON.ep = NaN; }
+      else if (fwd || MON.ep !== ep) { MON.T = T; MON.t = tShown; MON.ep = ep; }
       return { alpha, ageMs: T - wShown, t: tShown };
     },
     // G1100: the ring's reading - the delay (s), the frames drawn, those the newest snapshot had to stand for (starved:
     // its successor late) and those before the ring's oldest (early), the snapshots held
-    delay: () => ({ delayS, fixed: fixedDelay, frames: DS.frames, starved: DS.starved, early: DS.early, held: Q.length, lagMaxS: DS.lagMax }),
+    // (G1530: monoHeld - the frames held at the last drawn time rather than drawn back)
+    delay: () => ({ delayS, fixed: fixedDelay, frames: DS.frames, starved: DS.starved, early: DS.early, held: Q.length, lagMaxS: DS.lagMax, monoHeld: MON.held }),
     ring: () => Q.map(s => s.f),
 
     // ---- a message from the host; true when it was a snapshot

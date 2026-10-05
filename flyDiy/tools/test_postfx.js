@@ -62,7 +62,7 @@ const PRESETS = (() => { const w = { localStorage: { getItem: () => null, setIte
   require('vm').runInNewContext(gfx, Object.assign({ window: w, setInterval: () => 0, clearInterval() {} }, w)); return w.GFX ? w.GFX.PRESETS : {}; })();
 const presetRows = Object.keys(PRESETS);
 // every post row OFF in every preset but the soft bloom, allowed from 'current' up (the default look, 2026-09-23: 0.25 ms)
-const everyPresetOff = presetRows.length === 5 && presetRows.every(p => KEYS.every(k => PRESETS[p][k] === 'off' || (k === 'bloom' && PRESETS[p][k] === 'soft' && p !== 'potato' && p !== 'retro')));
+const everyPresetOff = presetRows.length === 6 && presetRows.every(p => KEYS.every(k => PRESETS[p][k] === 'off' || (k === 'bloom' && PRESETS[p][k] === 'soft' && p !== 'laptop' && p !== 'potato' && p !== 'retro')));   // (G1524: six tiers, the laptop rung under potato)
 const optionRows = KEYS.every(k => new RegExp("\\{ k: '" + k + "', label: '[^']+', steps: \\[\\s*\\{ v: 'off'").test(gfx));
 
 

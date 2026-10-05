@@ -1240,6 +1240,43 @@ function makeSim(def, world) {
   // nodes. No floats, no pass, no cost.
   const HY = (typeof HYDRO !== 'undefined' && HYDRO) ? HYDRO.hydroBuild(def, p, v) : null;
   out.hydro = HY;
+  // G1381 (GEAR-WATER): a build WITHOUT floats meets the water on its belly, its flying surfaces and its tyres
+  // (32_hydro.js wetBuild); a float build keeps the float pass alone. G1384 (SOAR): NOTHING IN DRY AIR - the body is
+  // built at the first frame the aeroplane can reach the water (step's arm, below) and the pass runs only on armed
+  // frames, so a dry flight builds nothing, samples nothing per substep, writes nothing to `out` and adds no force:
+  // its trajectory is master's to the bit. (On the sim, never on `out`: the physics worker posts `out` every
+  // snapshot; out.wetDrag / out.wetBuoy carry the numbers once wet.)
+  const WB_CAN = !HY && typeof HYDRO !== 'undefined' && !!HYDRO && typeof HYDRO.wetBuild === 'function';
+  let WB = null, wetArm = false, WB_REACH = 0;
+  if (WB_CAN) {   // the farthest any node (plus its radius) stands from the mass centre as built, +25 % for the flex
+    let cx = 0, cy = 0, cz = 0, mm = 0;
+    for (const nd of def.nodes) { cx += nd.p[0] * nd.m; cy += nd.p[1] * nd.m; cz += nd.p[2] * nd.m; mm += nd.m; }
+    cx /= mm || 1; cy /= mm || 1; cz /= mm || 1;
+    for (const nd of def.nodes) WB_REACH = Math.max(WB_REACH, Math.hypot(nd.p[0] - cx, nd.p[1] - cy, nd.p[2] - cz) + (nd.r || 0));
+    WB_REACH = 1.25 * WB_REACH + 0.5;
+  }
+  // once a frame: can any node reach the water this frame? The lowest node and the mass centre each ask the water
+  // under them (two waterH samples a frame, never a substep's); armed when the lowest node, less a frame of its
+  // fastest descent, a metre and three times the sea's amplitude, is under that level
+  function wetArmFrame(dtFrame) {
+    wetArm = false;
+    if (!WB_CAN || !world || typeof world.waterH !== 'function') return;
+    let iLo = 0, yLo = Infinity, vDn = 0, cx = 0, cy = 0, cz = 0, mm = 0;
+    for (let i = 0; i < n; i++) {
+      const y = p[i*3+1]; if (y < yLo) { yLo = y; iLo = i; }
+      if (-v[i*3+1] > vDn) vDn = -v[i*3+1];
+      cx += p[i*3] * m[i]; cy += y * m[i]; cz += p[i*3+2] * m[i]; mm += m[i];
+    }
+    cx /= mm; cy /= mm; cz /= mm;
+    const amp = world.sea && world.sea.A > 0 ? 3 * world.sea.A : 0;
+    const reach = yLo - 2 * vDn * dtFrame - 1.0 - amp;
+    const w1 = world.waterH(p[iLo*3], p[iLo*3+2]);
+    let near = w1 > -1e8 && reach < w1;
+    if (!near) { const w2 = world.waterH(cx, cz); near = w2 > -1e8 && Math.min(reach, cy - WB_REACH) < w2; }
+    if (!near) { if (WB) { WB.tick = 0; WB.wet = 0; } return; }
+    if (!WB) WB = HYDRO.wetBuild(def, p, v, m);
+    wetArm = !!WB;
+  }
   let totalM = 0;
   for (const nd of def.nodes) totalM += nd.m;
 
@@ -1631,6 +1668,7 @@ function makeSim(def, world) {
   }
 
   function reset(drop = 0) {
+    if (WB) HYDRO.wetReset(WB);                     // G1384.3: a fresh aeroplane is dry and whole
     dmgReset();                    // G1470: every member whole, every set undone (before G610's k restore below)
     // (G610) a reset is the aeroplane as it FLIES: a rig's trueBox() (the load test on the garage's own sim)
     // lasts until the next one, so the roll-out after a sandbag test flies the flight box again
@@ -2207,10 +2245,6 @@ function makeSim(def, world) {
 
   function trqOf() {
     let cgx=0, cgy=0;
-    if (out.trqDebugOnce) { out.trqDebugOnce = false;
-      let sp=0, sf=0, sm=0;
-      for (let i = 0; i < n; i++) { sp+=p[i*3]; sf+=f[i*3+1]; sm+=m[i]; }
-      console.log("trqOf dbg: n=", n, "sum p.x=", sp, "sum f.y=", sf, "sum m=", sm, "totalM=", totalM, "G=", typeof G !== "undefined" ? G : "UNDEF"); }
     for (let i = 0; i < n; i++) { cgx+=p[i*3]*m[i]; cgy+=p[i*3+1]*m[i]; }
     cgx/=totalM; cgy/=totalM;
     let Mz = 0;
@@ -2351,6 +2385,7 @@ function makeSim(def, world) {
     // THE WATER (H1): every wet panel of every float, onto the frame
     const wIn = DMG_ON && (HY || wetOn()) ? waterSum0() : false;   // G1470: the water's push, for the impact's g
     if (HY && world) out.hydroWet = HYDRO.hydroSolverPass(HY, world, f, simT, dt, ctl);
+    else if (wetArm) { out.hydroWet = HYDRO.wetSolverPass(WB, world, f, simT, dt); out.wetDrag = WB.drag; out.wetBuoy = WB.buoy; out.wetFlood = WB.flood; }
     if (wIn) waterSum1(dt);
     // tree collisions: cheap cylinder push-out, only when low and near trees
     if (world) {
@@ -2528,6 +2563,7 @@ function makeSim(def, world) {
     }
     obstFrame();
     trunkFrame(dtFrame);
+    wetArmFrame(dtFrame);                           // G1384: the water's pass only on a frame that can reach it
     armFrame();
     postLive = (nFlr > 0 || (nSup > 0 && (armed || DMG.breaks > 0))) ? 1 : 0;   // G1898.4
     // G1840 (DMG-D3): the clusters' cuts are measured on every substep of an armed frame, and on the last of any other:
@@ -2623,6 +2659,7 @@ function makeSim(def, world) {
       return wet + (wet === 2 && aft === 2 ? 1 : 0);
     }
     for (const i of [...def.refs.mains, def.refs.tw]) {
+      if (!(i >= 0)) continue;   // REVIEW 2026-10-04: no third wheel (tw null) read p[NaN]
       const gh = world ? world.terrainH(p[i*3], p[i*3+2]) : 0;
       if (p[i*3+1] - rC[i] - gh < 0.03) c++;
     }
@@ -2670,7 +2707,7 @@ function makeSim(def, world) {
            get t() { return simT; },
            setNodeMass,
            // the panel arc: the tanks, the engines and their one writer
-           fuel, eng, setEngine, thrEffOf, hydro: HY,
+           fuel, eng, setEngine, thrEffOf, hydro: HY, get wetBody() { return WB; },
            trunkHits: () => _tkHits,   // G1330: beam-trunk contacts (one per beam per trunk per substep) since the sim was made
            // G1470: the damage - yields, breaks (beam indices), plastic work (J), the largest set (strain), the peak
            // filtered g, the prop strike, and the verdict: crashed (with why and when) / dented / neither

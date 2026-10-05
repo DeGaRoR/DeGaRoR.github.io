@@ -158,9 +158,13 @@ console.log('S2. the ridge');
   // THE NEGATIVE CONTROL is flown on the same beat with the terrain term off: the same wind, the same
   // turns, no slope. It has only its launch height to spend (120 m over the face), so the test is that
   // it spends it - on the ground inside the run, having lost at least 60 m of energy height.
-  const cEnd = calm.y[calm.y.length - 1];
-  yes(cEnd - core.g < 30 && eC1 - eC0 < -60,
-      `with the terrain term off it goes ${eC0.toFixed(0)} -> ${eC1.toFixed(0)} m (${(eC1 - eC0).toFixed(0)} m, mean vs ${mean(calm.vs, 20, 260).toFixed(2)}) and is down at ${cEnd.toFixed(0)} m, on the face's own ${core.g.toFixed(0)}`);
+  // G1384 (GEAR-WATER): "down" is down on the SURFACE under its last fix - the ground, or the water over it. The
+  // control comes down at t ~63 s onto a lake of the analytic world (8707, -6212: water 118.6 m over a 87.7 m bed);
+  // until the wheeled-water pass (G1381) it sank through 31 m of lake to the bed, which is what this bound measured
+  const cEnd = calm.y[calm.y.length - 1], cX = calm.x[calm.x.length - 1], cZ = calm.z[calm.z.length - 1];
+  const cW = W0.waterH(cX, cZ), cSurf = Math.max(core.g, W0.terrainH(cX, cZ), cW > -1e8 ? cW : -Infinity);
+  yes(cEnd - cSurf < 30 && eC1 - eC0 < -60,
+      `with the terrain term off it goes ${eC0.toFixed(0)} -> ${eC1.toFixed(0)} m (${(eC1 - eC0).toFixed(0)} m, mean vs ${mean(calm.vs, 20, 260).toFixed(2)}) and is down at ${cEnd.toFixed(0)} m, the surface under it ${cSurf.toFixed(0)} m${cW > -1e8 && cW >= W0.terrainH(cX, cZ) ? ' (water)' : ''}, on the face's own ${core.g.toFixed(0)}`);
   const yEnd = ridge.y[ridge.y.length - 1];
   yes(yEnd > core.g + 60, `and it is still flying the face (${yEnd.toFixed(0)} m, the ground under it ${core.g.toFixed(0)})`);
 }

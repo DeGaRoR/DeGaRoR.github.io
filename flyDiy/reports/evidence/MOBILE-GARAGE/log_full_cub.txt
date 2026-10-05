@@ -1,0 +1,33 @@
+  full / cub: boot 295.1 s real; read 229.6 MB in 1068 reads; after GC heap 827.5 MB + ArrayBuffers 2027.6 MB (before the page: 5.3 + 0); errors 53
+     aeroplane                  78 ms     6.7 MB read  heap 82.8 ab 504.1
+     treeBins                 1953 ms       0 MB read  heap 91.7 ab 483.7
+     aircraft                 4151 ms    33.8 MB read  heap 95 ab 541.2
+     garage                    421 ms       0 MB read  heap 137.9 ab 541.2
+     editor                   3492 ms     2.9 MB read  heap 223.1 ab 592.9
+     seed                     7244 ms     8.1 MB read  heap 267.7 ab 788.7
+     world                   35428 ms    42.2 MB read  heap 324.2 ab 1112
+     town                    26458 ms    62.1 MB read  heap 633.6 ab 1353
+     parking                 15988 ms       0 MB read  heap 630.7 ab 1434.3
+     ring                    16347 ms    16.3 MB read  heap 760 ab 1578.2
+     settle                 118636 ms     0.6 MB read  heap 888.8 ab 2068.8
+     parked                   2377 ms       0 MB read  heap 798.8 ab 2090.4
+     snapshot                17106 ms       0 MB read  heap 930 ab 2378.7
+     bake                    27568 ms       0 MB read  heap 794.6 ab 2296.9
+     spec                     2135 ms       0 MB read  heap 843.9 ab 2296.9
+     images                    421 ms       0 MB read  heap 845.5 ab 2299.3
+     upload                    526 ms       0 MB read  heap 820.6 ab 2107.1
+     worldCompile              664 ms       0 MB read  heap 841.2 ab 2107.1
+     compile                   448 ms       0 MB read  heap 839.6 ab 2107.2
+     firstFrame               2280 ms       0 MB read  heap 866.3 ab 2107.3
+     frames                    791 ms       0 MB read  heap 885.9 ab 2107.3
+     craft                     274 ms       0 MB read  heap 877.6 ab 2107.3
+     BOOT landing             1705 ms       0 MB read  heap 889.6 ab 2107.3
+     BOOT gone                   0 ms       0 MB read  heap 889.6 ab 2107.3
+  wgSpan       tick  136.6  release   342.7  idle     8.1  {"n":2,"whole":1,"last":{"ran":["panel","cowlAft","access","light","energy","hin
+  wgChord      tick  138.5  release   348.5  idle     8.5  {"n":5,"whole":1,"last":{"ran":["panel","cowlAft","access","light","energy","hin
+  stSpan       tick   15.9  release   299.9  idle     9.2  {"n":8,"whole":1,"last":{"ran":["panel","cowlAft","access","light","hinge","ext"
+  s1X          tick  126.7  release   384.1  idle     8.8  {"n":11,"whole":1,"last":{"ran":["panel","cowlAft","access","light","hinge","ext
+  paxLen       tick   31.8  release  1572.6  idle     8.3  {"n":11,"whole":4,"last":{"whole":"a deformed drag"}}
+  halfW        tick   24.3  release  1465.3  idle    11.5  {"n":11,"whole":7,"last":{"whole":"a deformed drag"}}
+  seatH        tick  216.6  release  1080.6  idle     9.3  {"n":11,"whole":10,"last":{"whole":"the crew moved in the drag"}}
+  after the drags, GC: heap 843.6 ab 2041.3  -> ../../meas/full_cub.json

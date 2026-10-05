@@ -1,0 +1,89 @@
+{
+ "date": "2026-10-04T16:55:04.590Z",
+ "view": [
+  1.45,
+  0.12
+ ],
+ "shots": [
+  {
+   "at": "1.6",
+   "d": 5.82,
+   "draw": "bake",
+   "t": 0,
+   "mag": 1.609,
+   "file": "m1.6_bake.png"
+  },
+  {
+   "at": "1.6",
+   "d": 5.82,
+   "draw": "live",
+   "t": 1,
+   "mag": 1.609,
+   "file": "m1.6_live.png"
+  },
+  {
+   "at": "1.6",
+   "d": 5.82,
+   "draw": "rule",
+   "t": 1,
+   "mag": 1.609,
+   "file": "m1.6_rule.png"
+  },
+  {
+   "at": "taxi1.1",
+   "d": 8.46,
+   "draw": "bake",
+   "t": 0,
+   "mag": 1.045,
+   "file": "mtaxi1.1_bake.png"
+  },
+  {
+   "at": "taxi1.1",
+   "d": 8.46,
+   "draw": "live",
+   "t": 1,
+   "mag": 1.045,
+   "file": "mtaxi1.1_live.png"
+  },
+  {
+   "at": "taxi1.1",
+   "d": 8.46,
+   "draw": "rule",
+   "t": 0.1791594653908124,
+   "mag": 1.045,
+   "file": "mtaxi1.1_rule.png"
+  },
+  {
+   "at": "1.0",
+   "d": 9.31,
+   "draw": "bake",
+   "t": 0,
+   "mag": 0.939,
+   "file": "m1.0_bake.png"
+  },
+  {
+   "at": "1.0",
+   "d": 9.31,
+   "draw": "live",
+   "t": 1,
+   "mag": 0.939,
+   "file": "m1.0_live.png"
+  },
+  {
+   "at": "1.0",
+   "d": 9.31,
+   "draw": "rule",
+   "t": 0,
+   "mag": 0.939,
+   "file": "m1.0_rule.png"
+  }
+ ],
+ "ref": {
+  "d": 6,
+  "mag": 1.551,
+  "band": [
+   1,
+   1.25
+  ]
+ }
+}

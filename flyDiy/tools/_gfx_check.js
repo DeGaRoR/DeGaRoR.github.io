@@ -89,8 +89,9 @@ console.log('GATE GFX');
 {
   const w = boot({});
   const G = w.GFX;
-  ok(Object.keys(G.PRESETS).join(',') === 'potato,retro,current,gamer,ultra' && G.DEFAULT === 'gamer',
-     'five tiers, potato .. ultra, gamer the default (' + Object.keys(G.PRESETS).join(',') + ')');
+  // (G1524, POTATO-DEEP: the laptop rung under potato - six tiers)
+  ok(Object.keys(G.PRESETS).join(',') === 'laptop,potato,retro,current,gamer,ultra' && G.DEFAULT === 'gamer',
+     'six tiers, laptop .. ultra, gamer the default (' + Object.keys(G.PRESETS).join(',') + ')');
   const OLD_MEDIUM = { ground: 'far1', terrain: 1, scale: 1, drawDist: 'vis', aa: 'msaa', density: 128, bands: 'near', shadows: 'full', canopy: 'on', rails: 'on', poles: 'on', lighting: 'sunset', tone: 'cineon', exposure: 1, colour: 'managed', glare: 'on', sway: 'on', mist: 'land', clouds: 'half', bloom: 'off', look: 'off', lens: 'off', rays: 'off', ao: 'off', eye: 'off', compositing: 'linear', water: 'simple', mirror: 'off' };
   OLD_MEDIUM.cover = 'full'; OLD_MEDIUM.scenery = 'full';   // G570's rows: gamer keeps the whole of both
   OLD_MEDIUM.bloom = 'soft';   // the default look (2026-09-23): the soft bloom from 'current' up
@@ -216,14 +217,14 @@ console.log('GATE GFX');
   ok(!!WL && WL.ORDER.join() === Object.keys(G0.PRESETS).join(), "welcome.js's preset order is the menu's (" + (WL && WL.ORDER.join()) + ')');
   ok(!ww.FLYDIY_WELCOME, 'with no document it shows nothing and holds nothing');
   const GPUS = [
-    ['ANGLE (Intel, Intel(R) UHD Graphics 620 (0x00005917) Direct3D11 vs_5_0 ps_5_0, D3D11)', 'potato', 'Intel(R) UHD Graphics 620'],
-    ['ANGLE (Intel, Intel(R) HD Graphics 4000 Direct3D11 vs_5_0 ps_5_0, D3D11)', 'potato'],
+    ['ANGLE (Intel, Intel(R) UHD Graphics 620 (0x00005917) Direct3D11 vs_5_0 ps_5_0, D3D11)', 'laptop', 'Intel(R) UHD Graphics 620'],
+    ['ANGLE (Intel, Intel(R) HD Graphics 4000 Direct3D11 vs_5_0 ps_5_0, D3D11)', 'laptop'],
     ['Intel(R) Iris(R) Xe Graphics', 'potato'],
-    ['Mesa Intel(R) UHD Graphics 630 (CFL GT2)', 'potato'],
+    ['Mesa Intel(R) UHD Graphics 630 (CFL GT2)', 'laptop'],
     ['ANGLE (NVIDIA, NVIDIA GeForce GTX 660 (0x000011C0) Direct3D11 vs_5_0 ps_5_0, D3D11)', 'potato', 'NVIDIA GeForce GTX 660'],
     ['NVIDIA GeForce GTX 970/PCIe/SSE2', 'potato'],
     ['ANGLE (NVIDIA, NVIDIA GeForce GTX 980 Ti Direct3D11 vs_5_0 ps_5_0, D3D11)', 'potato'],
-    ['Adreno (TM) 650', 'potato'], ['Mali-G57 MC2', 'potato'], ['ANGLE (Qualcomm, Adreno (TM) 618, OpenGL ES 3.2)', 'potato'],
+    ['Adreno (TM) 650', 'laptop'], ['Mali-G57 MC2', 'laptop'], ['ANGLE (Qualcomm, Adreno (TM) 618, OpenGL ES 3.2)', 'laptop'],
     ['ANGLE (NVIDIA, NVIDIA GeForce GTX 1060 3GB (0x00001C02) Direct3D11 vs_5_0 ps_5_0, D3D11)', 'retro'],
     ['NVIDIA GeForce GTX 1080 Ti', 'retro'], ['GeForce GTX 1660 SUPER', 'retro'],
     ['ANGLE (AMD, Radeon RX 580 Series (0x000067DF) Direct3D11 vs_5_0 ps_5_0, D3D11)', 'retro'], ['AMD Radeon RX 470', 'retro'],
@@ -233,13 +234,13 @@ console.log('GATE GFX');
     ['ANGLE (NVIDIA, NVIDIA GeForce RTX 3080 (0x00002206) Direct3D11 vs_5_0 ps_5_0, D3D11)', 'gamer', 'NVIDIA GeForce RTX 3080'],
     ['NVIDIA GeForce RTX 4090', 'gamer'], ['NVIDIA GeForce RTX 4060', 'current'],
     ['AMD Radeon RX 6700 XT', 'current'], ['AMD Radeon RX 6800 XT', 'gamer'], ['AMD Radeon RX 7900 XTX', 'gamer'],
-    ['AMD Radeon(TM) Graphics', 'potato'],
+    ['AMD Radeon(TM) Graphics', 'laptop'],
     ['Google SwiftShader', 'potato'], ['ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)', 'potato'],
     ['Apple M2 Pro', 'current'], ['', 'current'], ['Some Future Card 9000', 'current'],
   ];
   const bad = GPUS.filter(([n, c, clean]) => WL.gpuClass(n).cls !== c || (clean && WL.cleanGpu(n) !== clean));
   for (const [n, c] of bad) console.log('    ' + JSON.stringify(n) + ' -> ' + WL.gpuClass(n).cls + ' (' + WL.cleanGpu(n) + '), want ' + c);
-  ok(!bad.length, 'the GPU table on ' + GPUS.length + ' sample names: Intel HD/UHD/Iris, GTX 6xx-9xx, Mali/Adreno potato; GTX 10xx, RX 4xx/5xx retro; RTX 20xx / below a 3070 current; 3070+ / RX 6800+ gamer; unknown current');
+  ok(!bad.length, 'the GPU table on ' + GPUS.length + ' sample names: Intel HD/UHD, AMD integrated, Mali/Adreno laptop; Iris Xe, GTX 6xx-9xx potato; GTX 10xx, RX 4xx/5xx retro; RTX 20xx / below a 3070 current; 3070+ / RX 6800+ gamer; unknown current');
   ok(WL.memClass({ mobile: true, mem: 8 }).cls === 'potato' && WL.memClass({ mem: 4 }).cls === 'potato' && WL.memClass({ mem: 2 }).cls === 'potato' &&
      WL.memClass({ mem: 8 }).cls === 'gamer' && WL.memClass({ mem: 0 }).cls === 'gamer', 'the memory class: a phone or 4 GB or less caps at potato; 8 GB, or nothing said, caps nothing');
   // the decision: (env, store, query, navigator)
@@ -249,7 +250,7 @@ console.log('GATE GFX');
   ok(D(desk('NVIDIA GeForce RTX 3080')).screen === 'welcome' && D(desk('NVIDIA GeForce RTX 3080')).suggest === 'gamer', 'a first visit on a 3080 with 8 GB: the welcome, gamer suggested');
   ok(D(desk('NVIDIA GeForce RTX 3080', { mem: 4 })).suggest === 'potato', 'the lower wins: a 3080 with 4 GB of memory is potato');
   ok(D(desk('NVIDIA GeForce GTX 1060 3GB', { mem: 8 })).suggest === 'retro', '...and a GTX 1060 with 8 GB is retro (the card the lower)');
-  ok(D(desk('Intel(R) UHD Graphics 620', { mem: 0 })).suggest === 'potato', '...and an Intel UHD with no memory said is potato');
+  ok(D(desk('Intel(R) UHD Graphics 620', { mem: 0 })).suggest === 'laptop', '...and an Intel UHD with no memory said is laptop (G1524)');
   const seen = { 'flydiy.welcome': JSON.stringify({ gpu: 'NVIDIA GeForce RTX 3080', preset: 'ultra' }) };
   ok(D(desk('ANGLE (NVIDIA, NVIDIA GeForce RTX 3080 (0x00002206) Direct3D11 vs_5_0 ps_5_0, D3D11)'), seen).screen === 'none', 'remembered per card: the same card (its ANGLE name) is not asked again');
   ok(D(desk('NVIDIA GeForce RTX 4090'), seen).screen === 'welcome', '...a new card is');
@@ -294,6 +295,119 @@ console.log('GATE GFX');
   const iB = html.indexOf('window.BOOT = B'), iW = html.indexOf('W.WELCOME = {'), iV = html.indexOf('function makeAutopilot'), iL = html.indexOf('return window.FLYDIY_WELCOME;');
   ok(iB > 0 && iW > iB && iW < iV && iL > iW && iL < html.indexOf("fetch('src/core/world_packs.json')"),
      'index.html: welcome.js after boot.js and before the core; the island loader holds on FLYDIY_WELCOME before its first fetch');
+}
+
+// 9. G1460 (SOFT-GPU) THE SOFTWARE RUNG IS INERT ON A GRAPHICS CARD. welcome.js's isSoftware on the GPU table (only the
+//    software renderers), gfx_settings.js's GFX.soft() null on every card - and then the resolved options, the saved
+//    choice and the presets table are, key for key, a boot without the rung's code; on SwiftShader it starts on potato,
+//    and a player's saved choice, ?gfx= and ?soft=0 win over it. Every place the game changes for the rung asks
+//    GFX.soft() in a conditional (listed and counted below) - so a null answer is the old path, by construction.
+{
+  const wsrc = fs.readFileSync(path.join(__dirname, '..', 'src', 'viewer', 'welcome.js'), 'utf8');
+  const ww = { navigator: {} }; ww.window = ww;
+  vm.runInNewContext(wsrc, Object.assign({ window: ww }, ww));
+  const WL = ww.WELCOME;
+  const SW = ['Google SwiftShader', 'ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)',
+    'llvmpipe (LLVM 15.0.7, 256 bits)', 'Mesa softpipe', 'ANGLE (Microsoft, Microsoft Basic Render Driver Direct3D11 vs_5_0 ps_5_0, D3D11)'];
+  const HW = ['ANGLE (NVIDIA, NVIDIA GeForce RTX 3080 (0x00002206) Direct3D11 vs_5_0 ps_5_0, D3D11)', 'NVIDIA GeForce GTX 660/PCIe/SSE2',
+    'ANGLE (Intel, Intel(R) UHD Graphics 620 (0x00005917) Direct3D11 vs_5_0 ps_5_0, D3D11)', 'AMD Radeon RX 6800 XT', 'Apple M2', 'Adreno (TM) 650', 'Mali-G57 MC2', ''];
+  ok(SW.every(n => WL.isSoftware(n)) && HW.every(n => !WL.isSoftware(n)), 'isSoftware: the ' + SW.length + ' software renderers yes, the ' + HW.length + ' cards (an empty name included) no');
+  ok(SW.every(n => WL.gpuClass(n).cls === 'potato'), "...and gpuClass still classes them potato (G1210's table, through isSoftware)");
+  const gsrc = fs.readFileSync(path.join(__dirname, '..', 'src', 'viewer', 'gfx_settings.js'), 'utf8');
+  const bootG = (store, welcome, search) => { const w = makeWindow(store); if (welcome) w.WELCOME = welcome; if (search) w.location = { search };
+    vm.runInNewContext(gsrc, Object.assign({ window: w, setInterval: () => 0, clearInterval: () => {} }, w)); return w; };
+  const card = gpu => ({ RIG: true, SOFT: WL.isSoftware(gpu), env: { gpu }, pick: null });
+  const CASES = [[{}, ''], [{}, '?gfx=potato'], [{}, '?gfx=ultra'], [{ 'flydiy.gfx': JSON.stringify({ preset: 'retro', pv: 6 }) }, ''],
+    [{ 'flydiy.gfx': JSON.stringify({ preset: 'custom', pv: 6, shadows: 'off', aa: 'msaa4' }) }, ''], [{ 'flydiy.gfx': '{corrupt' }, '']];
+  let same = true, nulls = true;
+  for (const gpu of HW) for (const [st, q] of CASES) {
+    const A = bootG(Object.assign({}, st), null, q), B = bootG(Object.assign({}, st), card(gpu), q);
+    if (B.GFX.soft() !== null) nulls = false;
+    if (JSON.stringify(A.GFX.get()) !== JSON.stringify(B.GFX.get()) || A.localStorage.getItem('flydiy.gfx') !== B.localStorage.getItem('flydiy.gfx')
+        || JSON.stringify(A.GFX.PRESETS) !== JSON.stringify(B.GFX.PRESETS)) { same = false; console.log('    differs: ' + gpu + ' ' + JSON.stringify(st) + ' ' + q); }
+  }
+  ok(nulls, 'GFX.soft() is null on every card (' + HW.length + ' names x ' + CASES.length + ' starts)');
+  ok(same, 'on a card the resolved options, the saved choice and the presets table are those of a boot without the rung (' + HW.length * CASES.length + ' boots compared)');
+  const S0 = bootG({}, card(SW[1]), '');
+  const PICK = o => Object.fromEntries(S0.GFX.OPTIONS.filter(x => !x.free).map(x => [x.k, o[x.k]]));
+  ok(S0.GFX.soft() && S0.GFX.soft().tier === 'software' && S0.GFX.get().preset === 'potato' && JSON.stringify(PICK(S0.GFX.get())) === JSON.stringify(PICK(S0.GFX.PRESETS.potato)),
+     'on SwiftShader with nothing chosen: the software rung, on potato\'s options (' + (S0.GFX.soft() && S0.GFX.soft().tier) + ', ' + S0.GFX.get().preset + ')');
+  ok(S0.localStorage.getItem('flydiy.gfx') === null, '...and nothing saved for it (the rung is not a player\'s choice)');
+  ok(bootG({ 'flydiy.gfx': JSON.stringify({ preset: 'gamer', pv: 6 }) }, card(SW[1]), '').GFX.get().preset === 'gamer', 'a saved choice wins over the rung (gamer stays gamer)');
+  ok(bootG({}, card(SW[1]), '?gfx=retro').GFX.get().preset === 'retro', '?gfx= wins over the rung');
+  ok(bootG({}, card(SW[1]), '?soft=0').GFX.soft() === null && bootG({}, card(SW[1]), '?soft=0').GFX.get().preset === 'gamer', '?soft=0 turns the rung off (the default preset, as before G1460)');
+  ok(!!bootG({}, card(HW[0]), '?soft=1').GFX.soft(), '?soft=1 turns it on over a card (A0\'s A/B on the box)');
+  ok(bootG({}, null, '').GFX.soft() === null, 'no welcome.js (a harness, an old page): no rung');
+  // every site the rung changes asks GFX.soft() in a conditional, nowhere else
+  const SITES = { 'boot.js': 1, 'render_world.js': 1, 'hangar.js': 1, 'app.js': 1, 'aa_resolve.js': 1 };   // train 31: the cover ring's re-apply runs on every machine now (the user: fix for all)
+  const sites = [];
+  for (const f of Object.keys(SITES)) {
+    const src = fs.readFileSync(path.join(__dirname, '..', 'src', 'viewer', f), 'utf8');
+    src.split('\n').forEach((l, i) => { if (/GFX\.soft\(\)/.test(l) && !/^\s*\/\//.test(l)) sites.push([f, i + 1, /GFX\.soft && [\w.]*GFX\.soft\(\)\s*(\)|&&|\?|;)/.test(l)]); });
+  }
+  const per = f => sites.filter(s => s[0] === f).length;
+  ok(sites.every(s => s[2]) && Object.keys(SITES).every(f => per(f) >= SITES[f]),
+     'every rung site is a conditional on GFX.soft() (' + sites.map(s => s[0] + ':' + s[1]).join(', ') + ')');
+}
+
+// 10. POTATO-DEEP (G1520-G1529): THE DESKTOP PRESETS UNTOUCHED, POTATO AND THE LAPTOP RUNG UNDER IT
+{
+  // the rows and the build budgets of retro .. ultra as train 31 shipped them (the user: "desktop presets must not change at all")
+  const FROZEN = {"retro":{"ground":"lean","scale":0.85,"cover":"lean","scenery":"lean","drawDist":"vis","terrain":2,"aa":"off","density":100,"bands":"near","shadows":"near","canopy":"off","rails":"on","poles":"off","glare":"on","sway":"off","mist":"on","clouds":"off","water":"simple","mirror":"off","lighting":"sunset","tone":"cineon","exposure":1,"colour":"managed","bloom":"off","look":"off","lens":"off","rays":"off","ao":"off","eye":"off","compositing":"linear"},"current":{"ground":"far1","scale":1,"cover":"full","scenery":"full","drawDist":"vis","terrain":2,"aa":"off","density":128,"bands":"near","shadows":"full","canopy":"on","rails":"on","poles":"on","glare":"on","sway":"on","mist":"on","clouds":"half","water":"simple","mirror":"off","lighting":"sunset","tone":"cineon","exposure":1,"colour":"managed","bloom":"soft","look":"off","lens":"off","rays":"off","ao":"off","eye":"off","compositing":"linear"},"gamer":{"ground":"far1","scale":1,"cover":"full","scenery":"full","drawDist":"vis","terrain":1,"aa":"msaa","density":128,"bands":"mid","shadows":"full","canopy":"on","rails":"on","poles":"on","glare":"on","sway":"on","mist":"land","clouds":"half","water":"simple","mirror":"off","lighting":"sunset","tone":"cineon","exposure":1,"colour":"managed","bloom":"soft","look":"off","lens":"off","rays":"off","ao":"off","eye":"off","compositing":"linear"},"ultra":{"ground":"full","scale":1,"cover":"full","scenery":"full","drawDist":"vis","terrain":1,"aa":"full","density":200,"bands":"mid","shadows":"ultra","canopy":"on","rails":"on","poles":"on","glare":"on","sway":"on","mist":"banks","clouds":"full","water":"full","mirror":"off","lighting":"sunset","tone":"cineon","exposure":1,"colour":"managed","bloom":"soft","look":"off","lens":"off","rays":"off","ao":"off","eye":"off","compositing":"linear"}};
+  const FROZEN_B = {"retro":{"heapMB":1500,"mipSkip":0,"townBoot":4000,"townReach":6000,"parked":true,"forestK":1},"current":{"heapMB":1500,"mipSkip":0,"townBoot":4000,"townReach":6000,"parked":true,"forestK":1},"gamer":{"heapMB":2000,"mipSkip":0,"townBoot":4000,"townReach":6000,"parked":true,"forestK":1},"ultra":{"heapMB":2000,"mipSkip":0,"townBoot":4000,"townReach":6000,"parked":true,"forestK":1}};
+  const G = boot({}).GFX;
+  ok(['retro', 'current', 'gamer', 'ultra'].every(k => JSON.stringify(G.PRESETS[k]) === JSON.stringify(FROZEN[k])), 'retro, current, gamer, ultra: every row as train 31 shipped it');
+  ok(['retro', 'current', 'gamer', 'ultra'].every(k => JSON.stringify(G.BUDGETS[k]) === JSON.stringify(FROZEN_B[k])), '...and their build budgets (none of the new levers)');
+  ok(G.PRESETS.potato.ground === 'plain' && G.PRESETS.laptop.ground === 'plain' && G.PRESETS.retro.ground === 'lean', "potato and laptop draw the plain ground; retro keeps 'lean'");
+  const BP = G.BUDGETS.potato, BL = G.BUDGETS.laptop;
+  ok(BP.impTile === 64 && BP.aeroAtlas === 2048 && BP.flownBake === false && BP.shedLamps === false && BP.shedGlass === false && BP.msaa === undefined,
+     "potato builds: impostor tile 64, aero atlas 2048, no flown bake, no lamp maps, no shed glass, the tier's own MSAA");
+  ok(BL.msaa === 0 && BL.townReach < BP.townReach && BL.forestK < BP.forestK && G.PRESETS.laptop.scale === 0.5 && G.PRESETS.laptop.terrain >= G.PRESETS.potato.terrain && G.PRESETS.potato.terrain === 6,
+     'laptop builds and draws less again: no target MSAA, the town and the forest nearer, half the resolution; both on the rough terrain (G1525)');
+  // the pref's pv 8: a player ON potato (saved before this session: the lean ground) reads potato as it is now, not custom
+  const old = { preset: 'potato', pv: 7, fps: 30, ground: 'lean', scale: 0.67, cover: 'off', scenery: 'low', terrain: 3 };
+  const wp = boot({ 'flydiy.gfx': JSON.stringify(old) });
+  ok(wp.GFX.get().preset === 'potato' && wp.GFX.get().ground === 'plain' && wp.GFX.get().pv === 8, 'a potato saved at pv 7 reads potato, the plain ground (pv 8)');
+  const wg = boot({ 'flydiy.gfx': JSON.stringify(Object.assign({}, FROZEN.gamer, { preset: 'gamer', pv: 7, fps: 30 })) });
+  ok(wg.GFX.get().preset === 'gamer' && Object.keys(FROZEN.gamer).every(k => wg.GFX.get()[k] === FROZEN.gamer[k]), '...a gamer saved at pv 7 reads gamer, every row the same');
+  const wc = boot({ 'flydiy.gfx': JSON.stringify(Object.assign({}, FROZEN.gamer, { preset: 'custom', pv: 7, fps: 30, shadows: 'off' })) });
+  ok(wc.GFX.get().preset === 'custom' && wc.GFX.get().shadows === 'off', '...a custom mix keeps its rows');
+  // the live hooks: the plain ground (the splat's plain()), the shed glass (FLYDIY_SHED), the MSAA cap (FLYDIY_AA.setMsaaCap)
+  const hook = q => { const w = makeWindow({}); const calls = { plain: [], msaa: [] };
+    w.WORLD.ground = { splat: () => ({ blend() {}, plain: v => { calls.plain.push(v); return v; } }) };
+    const glass = { isMeshPhysicalMaterial: true, transmission: 0.9 }; w.FLYDIY_SHED = () => ({ mats: { glass } }); calls.glass = glass;
+    w.FLYDIY_AA.setMsaaCap = n => { calls.msaa.push(n); return n; };
+    if (q) w.location = { search: q };
+    vm.runInNewContext(fs.readFileSync(path.join(__dirname, '..', 'src', 'viewer', 'gfx_settings.js'), 'utf8'), Object.assign({ window: w, setInterval: () => 0, clearInterval: () => {} }, w));
+    w.GFX.onWorld(); return { w, calls }; };
+  const hp = hook('?gfx=potato'), hg = hook(''), hl = hook('?gfx=laptop');
+  ok(hp.calls.plain[0] === true && hg.calls.plain[0] === false && hl.calls.plain[0] === true, 'the plain ground reaches the splat: potato and laptop plain, gamer not');
+  ok(hp.calls.glass.transmission === 0 && hg.calls.glass.transmission === 0.9, "the shed's glass: no transmission on potato, gamer's as it was");
+  hp.w.GFX.set('preset', 'gamer');
+  ok(hp.calls.glass.transmission === 0.9 && hp.calls.plain[hp.calls.plain.length - 1] === false, '...both back live when the preset goes to gamer');
+  ok(hl.calls.msaa[0] === 0 && hg.calls.msaa.length === 0 && hp.calls.msaa.length === 0, 'the MSAA cap: laptop 0; potato and gamer never set one');
+  hl.w.GFX.set('preset', 'gamer');
+  ok(hl.calls.msaa[hl.calls.msaa.length - 1] === null, '...laptop -> gamer lifts it');
+  // G1526 (A0, train 32: the 'town' row's default becomes 'all'): potato, laptop and the software rung never build Metlakatla
+  // (the row is set live: a saved 'town' does not reload into the menu on train 31 - S has no 'town' key when the pref is read;
+  // reported to A0 for G1408)
+  const town = (pref, q) => { const w = makeWindow(pref ? { 'flydiy.gfx': JSON.stringify(pref) } : {}); if (q) w.location = { search: q };
+    vm.runInNewContext(fs.readFileSync(path.join(__dirname, '..', 'src', 'viewer', 'gfx_settings.js'), 'utf8'), Object.assign({ window: w, setInterval: () => 0, clearInterval: () => {} }, w));
+    if (pref && pref.town) w.GFX.set('town', pref.town);
+    return w.GFX.townAll(); };
+  ok(G.BUDGETS.potato.town === 'nearby' && G.BUDGETS.laptop.town === 'nearby', "potato's and laptop's budgets cap the town at 'nearby'");
+  ok(town(Object.assign({}, G.PRESETS.potato, { preset: 'potato', pv: 8, town: 'all' })) === false && town(Object.assign({}, G.PRESETS.laptop, { preset: 'laptop', pv: 8, town: 'all' })) === false
+     && town({ town: 'all', pv: 8 }, '?gfx=potato') === false && town({ town: 'all', pv: 8 }, '?gfx=laptop') === false,
+     "...the row at 'all' builds no Metlakatla on potato or laptop (saved or ?gfx=)");
+  ok(town(Object.assign({}, FROZEN.gamer, { preset: 'gamer', pv: 8, town: 'all' })) === true && town(Object.assign({}, FROZEN.gamer, { preset: 'gamer', pv: 8, town: 'nearby' })) === false,
+     "...gamer builds what its row says ('all' on, 'nearby' off)");
+  { const w = makeWindow({ 'flydiy.gfx': JSON.stringify(Object.assign({}, FROZEN.gamer, { preset: 'gamer', pv: 8, town: 'all' })) }); w.WELCOME = { SOFT: true, RIG: false };
+    vm.runInNewContext(fs.readFileSync(path.join(__dirname, '..', 'src', 'viewer', 'gfx_settings.js'), 'utf8'), Object.assign({ window: w, setInterval: () => 0, clearInterval: () => {} }, w));
+    w.GFX.set('town', 'all');
+    ok(w.GFX.townAll() === false, '...the software rung builds none either (a saved gamer + all on SwiftShader)'); }
+  const wb = fs.readFileSync(path.join(__dirname, '..', 'src', 'viewer', 'world_boot.js'), 'utf8'), bj = fs.readFileSync(path.join(__dirname, 'build.js'), 'utf8');
+  ok(/window\.GFX\.townAll \? window\.GFX\.townAll\(\)/.test(wb) && /if \(gb === 'potato' \|\| gb === 'laptop'\) townOn = false;/.test(bj),
+     "the world's TOWN and the loader's raster variant both read the cap (world_boot.js GFX.townAll, build.js potato / laptop -> 'default')");
 }
 
 console.log(fails ? 'GATE GFX: FAIL' : 'GATE GFX: PASS');

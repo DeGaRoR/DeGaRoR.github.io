@@ -343,7 +343,9 @@ const SIM_LINK = (() => {
       const sx = (() => { try { return !/[?&]starvex=0(&|$)/.test(location.search || ''); } catch (e) { return true; } })();
       // ?ringdelay=<ms> - a FIXED ring delay (a stress test: under the snapshots' lateness, the starved frames come often)
       const rd = (() => { try { const x = /[?&]ringdelay=([0-9.]+)/.exec(location.search || ''); return x ? +x[1] / 1000 : null; } catch (e) { return null; } })();
-      flight.view = SIM_VIEW.make(flight.def, Object.assign({ ready: m, post: (x, tr) => post(x, tr), starveEx: sx }, rd != null ? { delayS: rd } : {}));
+      // G1530: ?poseback=0 - the drawn clock as it was (a later frame may draw an earlier sim time), for an A/B
+      const mono = (() => { try { return !/[?&]poseback=0(&|$)/.test(location.search || ''); } catch (e) { return true; } })();
+      flight.view = SIM_VIEW.make(flight.def, Object.assign({ ready: m, post: (x, tr) => post(x, tr), starveEx: sx, monotonic: mono }, rd != null ? { delayS: rd } : {}));
       if (flight.view.mismatch) { dropFlight('the worker built another aeroplane (a stale core in a cache?)'); return; }
     }
     // step 0 against the page's placed aeroplane: to the bit, or this flight stays inline

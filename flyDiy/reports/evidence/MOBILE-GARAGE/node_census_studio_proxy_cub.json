@@ -1,0 +1,1095 @@
+{
+ "date": "2026-10-04T18:42:16.894Z",
+ "mode": "garage",
+ "build": "cub",
+ "before": {
+  "heap": 5.3,
+  "ab": 0,
+  "ext": 1.4,
+  "rss": 46.8
+ },
+ "steps": [
+  {
+   "step": "aeroplane",
+   "ms": 2212,
+   "bytes": 0,
+   "heap": 69.2,
+   "ab": 30.6,
+   "ext": 32,
+   "rss": 187.3
+  },
+  {
+   "step": "aircraft",
+   "ms": 3312,
+   "bytes": 0,
+   "heap": 78.8,
+   "ab": 44,
+   "ext": 45.5,
+   "rss": 229.6
+  },
+  {
+   "step": "garage",
+   "ms": 382,
+   "bytes": 0,
+   "heap": 124.2,
+   "ab": 44,
+   "ext": 45.5,
+   "rss": 272.1
+  },
+  {
+   "step": "editor",
+   "ms": 3411,
+   "bytes": 1666458,
+   "heap": 265.4,
+   "ab": 60.9,
+   "ext": 62.7,
+   "rss": 491.2
+  },
+  {
+   "step": "seed",
+   "ms": 3064,
+   "bytes": 87917,
+   "heap": 335.7,
+   "ab": 88.7,
+   "ext": 90.2,
+   "rss": 604
+  },
+  {
+   "step": "snapshot",
+   "ms": 2615,
+   "bytes": 0,
+   "heap": 179.1,
+   "ab": 100.3,
+   "ext": 101.7,
+   "rss": 589.4
+  },
+  {
+   "step": "spec",
+   "ms": 2413,
+   "bytes": 0,
+   "heap": 225.9,
+   "ab": 105.4,
+   "ext": 106.8,
+   "rss": 611.6
+  },
+  {
+   "step": "compile",
+   "ms": 236,
+   "bytes": 0,
+   "heap": 237.8,
+   "ab": 105.4,
+   "ext": 106.8,
+   "rss": 611.8
+  },
+  {
+   "step": "firstFrame",
+   "ms": 261,
+   "bytes": 0,
+   "heap": 230.4,
+   "ab": 105.4,
+   "ext": 106.8,
+   "rss": 611.9
+  },
+  {
+   "step": "BOOT landing",
+   "ms": 315,
+   "bytes": 0,
+   "heap": 235.6,
+   "ab": 105.4,
+   "ext": 106.8,
+   "rss": 602.7
+  },
+  {
+   "step": "BOOT gone",
+   "ms": 0,
+   "bytes": 0,
+   "heap": 235.6,
+   "ab": 105.4,
+   "ext": 106.8,
+   "rss": 602.7
+  }
+ ],
+ "rows": [],
+ "bootMs": 24811,
+ "census": {
+  "src/viewer": 5,
+  "src/core": 1.9,
+  "media/tex/panel": 1.3,
+  "media/tex/skin": 0.9,
+  "vendor/three.min.js": 0.7,
+  "media/tex/vessel": 0.6,
+  "src/pier": 0.3,
+  "media/tex/cabin": 0.2,
+  "src/props": 0.1,
+  "media/tex/panelhw": 0.1,
+  "src/chars": 0.1,
+  "dev.html": 0.1,
+  "src/animals": 0.1,
+  "src/models": 0.1,
+  "media/geo/panelhw": 0.1,
+  "media/tex/wood": 0,
+  "builds/cub_2026-09-20_corrected.json": 0,
+  "src/totems": 0,
+  "src/panelhw": 0,
+  "src/cabin": 0,
+  "version.json": 0
+ },
+ "censusFiles": [
+  [
+   "media/tex/panel/labels_512x160.044eddc6.png",
+   1.3
+  ],
+  [
+   "src/viewer/app.js",
+   0.8
+  ],
+  [
+   "vendor/three.min.js",
+   0.7
+  ],
+  [
+   "src/viewer/render_world.js",
+   0.5
+  ],
+  [
+   "src/core/60_gen_spec.js",
+   0.3
+  ],
+  [
+   "src/viewer/render_premises.js",
+   0.3
+  ],
+  [
+   "src/viewer/aeroskin.js",
+   0.2
+  ],
+  [
+   "src/pier/pier_lods.js",
+   0.2
+  ],
+  [
+   "src/viewer/hangar.js",
+   0.2
+  ],
+  [
+   "src/core/27_premises.js",
+   0.2
+  ],
+  [
+   "media/tex/skin/foil_aero_512.b96de146.jpg",
+   0.2
+  ],
+  [
+   "src/viewer/editor.js",
+   0.2
+  ],
+  [
+   "src/core/43_pilot.js",
+   0.2
+  ],
+  [
+   "media/tex/vessel/plastic_arm_512.bc5b7120.jpg",
+   0.2
+  ],
+  [
+   "media/tex/skin/panel_aero_1k.3609dbf2.jpg",
+   0.2
+  ],
+  [
+   "src/core/61_gen_frame.js",
+   0.2
+  ],
+  [
+   "media/tex/vessel/plastic_diff_512.7750ccc0.jpg",
+   0.2
+  ],
+  [
+   "src/viewer/pavement.js",
+   0.1
+  ],
+  [
+   "media/tex/skin/rubberGrip_aero_512.e371d52d.jpg",
+   0.1
+  ],
+  [
+   "media/tex/skin/sillAlu_aero_1k.a51b4a39.jpg",
+   0.1
+  ],
+  [
+   "media/tex/vessel/plastic_nor_gl_512.fd96d905.jpg",
+   0.1
+  ],
+  [
+   "src/viewer/trees_pack.js",
+   0.1
+  ],
+  [
+   "media/tex/cabin/livery_chatham.9928991f.jpg",
+   0.1
+  ],
+  [
+   "media/tex/skin/leather_aero_512.73449514.jpg",
+   0.1
+  ],
+  [
+   "src/viewer/parked.js",
+   0.1
+  ],
+  [
+   "src/core/30_solver.js",
+   0.1
+  ],
+  [
+   "src/viewer/ktx2_twins.js",
+   0.1
+  ],
+  [
+   "src/viewer/water.js",
+   0.1
+  ],
+  [
+   "src/viewer/flown_bake.js",
+   0.1
+  ],
+  [
+   "media/tex/cabin/livery_admiralty.ceffd0a4.jpg",
+   0.1
+  ],
+  [
+   "src/core/32_hydro.js",
+   0.1
+  ],
+  [
+   "src/props/props_lods.js",
+   0.1
+  ],
+  [
+   "media/tex/vessel/alu_arm_512.6dacf452.jpg",
+   0.1
+  ],
+  [
+   "src/core/62_gen_aero.js",
+   0.1
+  ],
+  [
+   "dev.html",
+   0.1
+  ],
+  [
+   "src/viewer/atmo.js",
+   0.1
+  ],
+  [
+   "src/viewer/aeroweather.js",
+   0.1
+  ],
+  [
+   "src/core/20_world.js",
+   0.1
+  ],
+  [
+   "src/viewer/bench.js",
+   0.1
+  ],
+  [
+   "src/viewer/clouds.js",
+   0.1
+  ],
+  [
+   "src/viewer/scenery_life.js",
+   0.1
+  ],
+  [
+   "src/core/63_gen_wing.js",
+   0.1
+  ],
+  [
+   "src/viewer/blueprint.js",
+   0.1
+  ],
+  [
+   "src/viewer/garage.js",
+   0.1
+  ],
+  [
+   "src/viewer/cover_ring.js",
+   0.1
+  ],
+  [
+   "src/core/25_airfield.js",
+   0.1
+  ],
+  [
+   "media/tex/skin/hide_aero_512.2e381f49.jpg",
+   0.1
+  ],
+  [
+   "src/viewer/shadow_near.js",
+   0.1
+  ],
+  [
+   "media/tex/skin/plasticWorn_aero_512.81fe75e2.jpg",
+   0.1
+  ],
+  [
+   "src/core/64_gen_build.js",
+   0.1
+  ],
+  [
+   "src/viewer/splat_ground.js",
+   0.1
+  ],
+  [
+   "src/core/40_autopilot.js",
+   0.1
+  ],
+  [
+   "src/viewer/gfx_settings.js",
+   0.1
+  ],
+  [
+   "src/core/09_climate.js",
+   0.1
+  ],
+  [
+   "src/viewer/rollanim.js",
+   0.1
+  ],
+  [
+   "src/viewer/refplane.js",
+   0.1
+  ],
+  [
+   "src/viewer/sim_host.js",
+   0.1
+  ],
+  [
+   "media/tex/vessel/steel_arm_512.d8772b6a.jpg",
+   0
+  ],
+  [
+   "src/viewer/post_fx.js",
+   0
+  ],
+  [
+   "media/tex/panelhw/3a60ad7d066c.jpg",
+   0
+  ],
+  [
+   "src/viewer/flight_recorder.js",
+   0
+  ],
+  [
+   "src/core/41_test_pilot.js",
+   0
+  ],
+  [
+   "src/viewer/trees.js",
+   0
+  ],
+  [
+   "src/pier/pier_auto.js",
+   0
+  ],
+  [
+   "src/viewer/dev_panel.js",
+   0
+  ],
+  [
+   "media/geo/panelhw/hw_key.2ec98486.gz.bin",
+   0
+  ],
+  [
+   "src/viewer/boot.js",
+   0
+  ],
+  [
+   "src/core/29_obstacles.js",
+   0
+  ],
+  [
+   "src/viewer/sim_link.js",
+   0
+  ],
+  [
+   "src/core/00_registry.js",
+   0
+  ],
+  [
+   "src/viewer/premises_build.js",
+   0
+  ],
+  [
+   "src/viewer/props.js",
+   0
+  ],
+  [
+   "src/viewer/cabin.js",
+   0
+  ],
+  [
+   "src/viewer/house_tarr.js",
+   0
+  ],
+  [
+   "src/viewer/ground_tex.js",
+   0
+  ],
+  [
+   "src/viewer/aa_resolve.js",
+   0
+  ],
+  [
+   "src/viewer/input.js",
+   0
+  ],
+  [
+   "src/viewer/cockpit.js",
+   0
+  ],
+  [
+   "src/core/26_hangar_fit.js",
+   0
+  ],
+  [
+   "src/viewer/audio/music.js",
+   0
+  ],
+  [
+   "media/tex/panelhw/ddee1e364d55.jpg",
+   0
+  ],
+  [
+   "media/tex/wood/maple_aero_512.2a5e4c9d.jpg",
+   0
+  ],
+  [
+   "src/viewer/matlib.js",
+   0
+  ],
+  [
+   "src/core/28b_ground_fields.js",
+   0
+  ],
+  [
+   "src/viewer/stickers.js",
+   0
+  ],
+  [
+   "src/viewer/animal_run.js",
+   0
+  ],
+  [
+   "src/viewer/workshop.js",
+   0
+  ],
+  [
+   "media/tex/vessel/steel_diff_512.b68271e2.jpg",
+   0
+  ],
+  [
+   "src/core/60c_gen_energy.js",
+   0
+  ],
+  [
+   "src/viewer/design_flow.js",
+   0
+  ],
+  [
+   "media/tex/skin/plasticScr_aero_512.b1bfbee8.jpg",
+   0
+  ],
+  [
+   "src/pier/pier_yard.js",
+   0
+  ],
+  [
+   "src/viewer/plaque.js",
+   0
+  ],
+  [
+   "src/viewer/welcome.js",
+   0
+  ],
+  [
+   "src/viewer/animals.js",
+   0
+  ],
+  [
+   "media/geo/panelhw/hw_knob.0c26b325.gz.bin",
+   0
+  ],
+  [
+   "src/viewer/house_worker.js",
+   0
+  ],
+  [
+   "src/core/07_day.js",
+   0
+  ],
+  [
+   "src/core/65_gen_loadtest.js",
+   0
+  ],
+  [
+   "src/viewer/guardrail.js",
+   0
+  ],
+  [
+   "src/viewer/weather_ui.js",
+   0
+  ],
+  [
+   "src/viewer/audio/engine_config.js",
+   0
+  ],
+  [
+   "builds/cub_2026-09-20_corrected.json",
+   0
+  ],
+  [
+   "src/core/28_island.js",
+   0
+  ],
+  [
+   "src/viewer/pattern_vis.js",
+   0
+  ],
+  [
+   "src/viewer/audio/audio.js",
+   0
+  ],
+  [
+   "media/tex/vessel/alu_diff_512.f796b8b9.jpg",
+   0
+  ],
+  [
+   "src/core/23_world_settle.js",
+   0
+  ],
+  [
+   "src/pier/pier_car.js",
+   0
+  ],
+  [
+   "src/chars/chars_ktx2.js",
+   0
+  ],
+  [
+   "src/viewer/audio/airframe_model.js",
+   0
+  ],
+  [
+   "src/core/21_world_hydro.js",
+   0
+  ],
+  [
+   "src/viewer/spray.js",
+   0
+  ],
+  [
+   "src/viewer/sim_view.js",
+   0
+  ],
+  [
+   "src/core/05_atmos.js",
+   0
+  ],
+  [
+   "src/viewer/input_panel.js",
+   0
+  ],
+  [
+   "src/totems/totems_poles.js",
+   0
+  ],
+  [
+   "src/viewer/boot_cards.js",
+   0
+  ],
+  [
+   "src/viewer/prop_disc.js",
+   0
+  ],
+  [
+   "src/viewer/stand_cards.js",
+   0
+  ],
+  [
+   "src/viewer/audio/audio_params.js",
+   0
+  ],
+  [
+   "src/viewer/rock_map.js",
+   0
+  ],
+  [
+   "src/viewer/light_rig.js",
+   0
+  ],
+  [
+   "src/viewer/house_tex.js",
+   0
+  ],
+  [
+   "src/core/50_model_codec.js",
+   0
+  ],
+  [
+   "src/animals/bear_animal.js",
+   0
+  ],
+  [
+   "src/viewer/bench_worker.js",
+   0
+  ],
+  [
+   "src/viewer/powerline.js",
+   0
+  ],
+  [
+   "src/core/54_decimate.js",
+   0
+  ],
+  [
+   "src/animals/elk_animal.js",
+   0
+  ],
+  [
+   "src/core/60b_gen_loft.js",
+   0
+  ],
+  [
+   "src/animals/doe_animal.js",
+   0
+  ],
+  [
+   "src/core/19_terrain_codec.js",
+   0
+  ],
+  [
+   "src/viewer/shader_warm.js",
+   0
+  ],
+  [
+   "src/animals/animals_lods.js",
+   0
+  ],
+  [
+   "src/pier/pier_boat.js",
+   0
+  ],
+  [
+   "src/viewer/lot_tex.js",
+   0
+  ],
+  [
+   "src/props/props_tools.js",
+   0
+  ],
+  [
+   "src/core/08_cloud_field.js",
+   0
+  ],
+  [
+   "src/chars/remy_char.js",
+   0
+  ],
+  [
+   "src/viewer/day_clock.js",
+   0
+  ],
+  [
+   "src/chars/ch22_char.js",
+   0
+  ],
+  [
+   "src/chars/ch02_char.js",
+   0
+  ],
+  [
+   "src/animals/bird_animal.js",
+   0
+  ],
+  [
+   "src/chars/ch42_char.js",
+   0
+  ],
+  [
+   "src/viewer/site_ground.js",
+   0
+  ],
+  [
+   "src/chars/ch01_char.js",
+   0
+  ],
+  [
+   "src/props/props_storage.js",
+   0
+  ],
+  [
+   "src/viewer/sky_light.js",
+   0
+  ],
+  [
+   "src/viewer/audio/samples.js",
+   0
+  ],
+  [
+   "src/viewer/ground_lib.js",
+   0
+  ],
+  [
+   "src/viewer/hangar_sky.js",
+   0
+  ],
+  [
+   "src/core/39_ground_path.js",
+   0
+  ],
+  [
+   "src/viewer/assets.js",
+   0
+  ],
+  [
+   "src/viewer/balance.js",
+   0
+  ],
+  [
+   "media/tex/skin/plasticGrn_aero_512.a351409b.jpg",
+   0
+  ],
+  [
+   "src/chars/ch20_char.js",
+   0
+  ],
+  [
+   "src/viewer/climate_link.js",
+   0
+  ],
+  [
+   "src/core/06_solar.js",
+   0
+  ],
+  [
+   "src/viewer/cliffs.js",
+   0
+  ],
+  [
+   "src/models/yak18t_model.js",
+   0
+  ],
+  [
+   "src/viewer/clouds_ui.js",
+   0
+  ],
+  [
+   "src/core/42_crosswind.js",
+   0
+  ],
+  [
+   "src/viewer/sky_glare.js",
+   0
+  ],
+  [
+   "src/props/props_machine.js",
+   0
+  ],
+  [
+   "src/pier/pier_pier.js",
+   0
+  ],
+  [
+   "src/core/24_world_aero.js",
+   0
+  ],
+  [
+   "src/viewer/world_boot.js",
+   0
+  ],
+  [
+   "src/core/44_machine_sheet.js",
+   0
+  ],
+  [
+   "src/viewer/ktx2.js",
+   0
+  ],
+  [
+   "src/viewer/plume.js",
+   0
+  ],
+  [
+   "media/tex/panelhw/45b3f5dcacbb.jpg",
+   0
+  ],
+  [
+   "src/viewer/contact_shadow.js",
+   0
+  ],
+  [
+   "src/pier/pier_people.js",
+   0
+  ],
+  [
+   "src/viewer/tram_run.js",
+   0
+  ],
+  [
+   "src/models/pa28_model.js",
+   0
+  ],
+  [
+   "src/models/da40_model.js",
+   0
+  ],
+  [
+   "src/viewer/audio/src_airframe.js",
+   0
+  ],
+  [
+   "src/props/props_fixture.js",
+   0
+  ],
+  [
+   "src/models/g115_model.js",
+   0
+  ],
+  [
+   "src/models/stemme_model.js",
+   0
+  ],
+  [
+   "src/props/props_vessel.js",
+   0
+  ],
+  [
+   "src/viewer/audio/prop_config.js",
+   0
+  ],
+  [
+   "src/models/c195_model.js",
+   0
+  ],
+  [
+   "src/viewer/audio/src_prop.js",
+   0
+  ],
+  [
+   "src/animals/whale_animal.js",
+   0
+  ],
+  [
+   "src/core/55_animal_codec.js",
+   0
+  ],
+  [
+   "src/core/38_nav.js",
+   0
+  ],
+  [
+   "src/core/70_player.js",
+   0
+  ],
+  [
+   "src/models/c172_model.js",
+   0
+  ],
+  [
+   "src/models/d112_model.js",
+   0
+  ],
+  [
+   "src/props/props_bench.js",
+   0
+  ],
+  [
+   "src/viewer/day_ui.js",
+   0
+  ],
+  [
+   "src/models/guepard_model.js",
+   0
+  ],
+  [
+   "src/viewer/sign_tex.js",
+   0
+  ],
+  [
+   "src/viewer/storage.js",
+   0
+  ],
+  [
+   "src/viewer/audio/src_engine.js",
+   0
+  ],
+  [
+   "src/core/28c_biomes.js",
+   0
+  ],
+  [
+   "src/core/51_prop_codec.js",
+   0
+  ],
+  [
+   "src/core/22_world_biomes.js",
+   0
+  ],
+  [
+   "src/core/53_tree_codec.js",
+   0
+  ],
+  [
+   "src/props/props_curio.js",
+   0
+  ],
+  [
+   "src/core/31_elec.js",
+   0
+  ],
+  [
+   "src/core/52_char_codec.js",
+   0
+  ],
+  [
+   "src/animals/orca_animal.js",
+   0
+  ],
+  [
+   "src/models/pio200_model.js",
+   0
+  ],
+  [
+   "src/core/world_packs.json",
+   0
+  ],
+  [
+   "src/panelhw/panelhw_switch.js",
+   0
+  ],
+  [
+   "src/core/90_node_exports.js",
+   0
+  ],
+  [
+   "src/props/props_handling.js",
+   0
+  ],
+  [
+   "src/viewer/ui_layer.js",
+   0
+  ],
+  [
+   "src/models/eiii_model.js",
+   0
+  ],
+  [
+   "src/pier/pier_vehicle.js",
+   0
+  ],
+  [
+   "src/props/props_airframe.js",
+   0
+  ],
+  [
+   "src/models/pa18_model.js",
+   0
+  ],
+  [
+   "src/panelhw/panelhw_knob.js",
+   0
+  ],
+  [
+   "src/viewer/hangar_walls.js",
+   0
+  ],
+  [
+   "src/cabin/cabin_cabin.js",
+   0
+  ],
+  [
+   "src/panelhw/panelhw_button.js",
+   0
+  ],
+  [
+   "src/props/props_vehicle.js",
+   0
+  ],
+  [
+   "src/viewer/vessel_tex.js",
+   0
+  ],
+  [
+   "src/viewer/skin_tex.js",
+   0
+  ],
+  [
+   "src/chars/sitidle_anim.js",
+   0
+  ],
+  [
+   "src/chars/piloting_anim.js",
+   0
+  ],
+  [
+   "src/panelhw/panelhw_key.js",
+   0
+  ],
+  [
+   "src/viewer/wood_tex.js",
+   0
+  ],
+  [
+   "src/viewer/panel_tex.js",
+   0
+  ],
+  [
+   "src/viewer/cabin_livery.js",
+   0
+  ],
+  [
+   "src/viewer/hangar_floor.js",
+   0
+  ],
+  [
+   "version.json",
+   0
+  ]
+ ],
+ "frame": {
+  "draws": 6564,
+  "tris": 2826652,
+  "byPhase": {
+   "other": 6564
+  }
+ },
+ "studioProxy": true,
+ "afterGC": {
+  "heap": 214.7,
+  "ab": 109.3,
+  "ext": 110.7,
+  "rss": 744.1
+ },
+ "io": {
+  "fetches": 124,
+  "fetchBytes": 79680,
+  "imgLoads": 41,
+  "imgBytes": 3262315,
+  "c2dDraw": 38,
+  "c2dRead": 7,
+  "c2dReadBytes": 15204352,
+  "c2dPut": 29,
+  "workerMsgs": 0
+ },
+ "fetchedN": 124,
+ "byKind": {
+  "world": 0,
+  "json": 0,
+  "geo": 10.5
+ },
+ "bytesTotal": 3341995,
+ "errors": [],
+ "errorsN": 0,
+ "worldBuilt": false,
+ "programs": 106
+}

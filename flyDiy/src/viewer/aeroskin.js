@@ -1378,7 +1378,9 @@ const AERO_ATLAS_N = 4;              // 4x4 pages
 // desktop game carries; the envelope keeps a 512 px copy of an image page
 // (aeroDecalImageData), not the page. Every pixel size below (dilation,
 // the outline stroke) scales with the page.
-const AERO_ATLAS_PX = 4096;
+// G1523 (POTATO-DEEP): the build budget's size (potato 2048: 21 MB, not 85) - taken when the atlas is first made (this script
+// runs before gfx_settings.js); every reader below reads it after aeroAtlas() made the canvas
+let AERO_ATLAS_PX = 4096;
 const AERO_PAGE_REF = 256;           // what the pixel sizes were tuned at
 // the fraction of page 0 the registration's glyph box occupies, written by
 // aeroDecalText and read by the placement (G207)
@@ -1387,6 +1389,8 @@ let AERO_ATLAS = null, AERO_ATLAS_CV = null;
 
 function aeroAtlas(THREE) {
   if (AERO_ATLAS) return AERO_ATLAS;
+  { const G = typeof window !== 'undefined' && window.GFX && typeof window.GFX.budget === 'function' ? window.GFX.budget() : null;
+    if (G && G.aeroAtlas > 0) AERO_ATLAS_PX = G.aeroAtlas; }   // G1523: the budget's (a page 512 px at 2048)
   const S = AERO_ATLAS_PX;
   const cv = document.createElement('canvas');
   cv.width = cv.height = S;
@@ -1829,6 +1833,7 @@ const AERO_DEC_MODE = { field: 0, side: 1, plan: 2 };
 // of the craft's own root; this inverts it and folds in the axis convention,
 // so the shader gets metres in a frame it can rely on and no layer has to
 // agree with any other about units or origin — which they do not.
+let _craftP = null, _craftInv = null;   // REVIEW 2026-10-04: scratch, not two allocations a frame (made on first use: node harnesses load this file before THREE exists)
 function aeroSetCraft(THREE, rootMatrixWorld, axes) {
   const U = aeroDecUniforms(THREE);
   const a = axes || {};
@@ -1836,12 +1841,12 @@ function aeroSetCraft(THREE, rootMatrixWorld, axes) {
   const sgn = a.aft === false ? 1 : -1;
   const row = (ax, k) => (ax === 'x' ? [k, 0, 0] : ax === 'y' ? [0, k, 0] : [0, 0, k]);
   const r0 = row(lat, 1), r1 = row(along, sgn), r2 = row(up, 1);
-  const P = new THREE.Matrix4();
+  const P = _craftP || (_craftP = new THREE.Matrix4());
   P.set(r0[0], r0[1], r0[2], 0,
         r1[0], r1[1], r1[2], 0,
         r2[0], r2[1], r2[2], 0,
         0, 0, 0, 1);
-  const inv = new THREE.Matrix4();
+  const inv = (_craftInv || (_craftInv = new THREE.Matrix4())).identity();
   if (rootMatrixWorld) inv.copy(rootMatrixWorld).invert();
   U.uCraftInv.value.copy(P).multiply(inv);
 }
@@ -2325,6 +2330,21 @@ const AERO_MAIN_VS = `
   // this is a SIGN test, not a lighting normal.
   vCraftNrm = mat3(uCraftInv) * mat3(modelMatrix) * objectNormal;
 `;
+
+// G1493 (HYBRID-TRIPS): ...AND ON A SKINNED MESH, WHERE THE SKELETON PUT IT. AERO_MAIN_VS runs at begin_vertex, before
+// skinning_vertex: `transformed` is still the BIND-space position. A plain mesh's object space is its part's own (the
+// part's pivot in modelMatrix), so that is right; but C4b's moving folds and the hybrid's live views on them (G1170) are
+// SkinnedMeshes whose part rides a BONE - their positions part-local about the pivot, modelMatrix the model group's. The
+// craft position then lost the pivot: an aileron's or a flap's decal box was read near the fuselage - the cheat line and
+// the registration painted on the control surfaces, live only (the bake places a part at its pivot: right). So a skinned
+// program takes vCraftPos again after skinning (AERO_CABIN_HOOK's G272 rule for the crew's legs); vCraftNrm needs nothing
+// (skinnormal_vertex has already turned objectNormal by begin_vertex). Only a skinned program's text changes - a plain
+// one's source stays byte for byte (no program cache miss for it).
+function aeroSkinnedCraft(shader, vs) {
+  if (!shader || !shader.skinning) return vs;
+  return vs.replace('#include <project_vertex>',
+    'vCraftPos = (uCraftInv * modelMatrix * vec4(transformed, 1.0)).xyz;   // G1493: after skinning\n#include <project_vertex>');
+}
 
 // ---------------------------------------------------------------------------
 // THE STRUCTURE GRAMMAR (G68)
@@ -3274,10 +3294,10 @@ const AEROSKIN_HOOK = function (shader) {
   // the aeroplane-wide ones, BY REFERENCE: one write reaches every section
   const d = this.userData.aeroD;
   if (d) for (const k in d) shader.uniforms[k] = d[k];
-  shader.vertexShader = shader.vertexShader
+  shader.vertexShader = aeroSkinnedCraft(shader, shader.vertexShader
     .replace('#include <common>', AERO_PARS_VS + '\n#include <common>')
     .replace('#include <begin_vertex>',
-             '#include <begin_vertex>\n' + AERO_MAIN_VS);
+             '#include <begin_vertex>\n' + AERO_MAIN_VS));
   shader.fragmentShader = shader.fragmentShader
     .replace('#include <common>',
              AERO_NMAT_FS + AERO_PARS_FS + (W ? W.AERO_WX_PARS_FS : '')
@@ -3525,10 +3545,10 @@ const AEROGLASS_HOOK = function (shader) {
   for (const k in u) shader.uniforms[k] = u[k];
   const d = this.userData.aeroD;
   if (d) for (const k in d) shader.uniforms[k] = d[k];
-  shader.vertexShader = shader.vertexShader
+  shader.vertexShader = aeroSkinnedCraft(shader, shader.vertexShader
     .replace('#include <common>', AERO_PARS_VS + '\n#include <common>')
     .replace('#include <begin_vertex>',
-             '#include <begin_vertex>\n' + AERO_MAIN_VS);
+             '#include <begin_vertex>\n' + AERO_MAIN_VS));
   shader.fragmentShader = shader.fragmentShader
     .replace('#include <common>', AERO_PARS_FS + (W ? W.AERO_WX_PARS_FS : '')
              + '\n#include <common>')

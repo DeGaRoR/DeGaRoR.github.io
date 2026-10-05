@@ -1,0 +1,16 @@
+[1.6s] garage cub http://127.0.0.1:44005/flyDiy/dev.html?world=none
+[2s] scripts
+[9.8s] aeroplane
+[13.6s] garage
+[20.1s] seed
+[25.1s] snapshot
+[28.6s] restore
+[44.4s] compile
+[96.6s] firstFrame
+[140.7s] recheck
+[339.7s] BOOT landing
+[446.6s] BOOT gone
+[472.7s] boot 446.6 s; wire 58 MB in 640 requests {"html":0.1,"other":0.8,"tex":34,"script":12.5,"world":0,"json":0,"geo":10.6}; heap peak 559.9 MB, after GC 73.4 + 456.7 MB; errors 0
+[618.5s] drag {"key":"wgSpan","tick":104.2,"release":377.2}
+[730.4s] drag {"key":"stSpan","tick":17.6,"release":240.3}
+-> ../../meas/swift_garage_cub.json

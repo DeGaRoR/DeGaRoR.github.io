@@ -1,0 +1,155 @@
+{
+ "newer": "f00dcafe1535",
+ "shots": [
+  {
+   "size": "desktop",
+   "name": "welcome",
+   "file": "update_desktop_welcome.jpg",
+   "note": "the welcome card, its footer stamped",
+   "pill": true,
+   "box": [
+    589,
+    844,
+    422,
+    42
+   ],
+   "stamp": "build 13c45351 · 4 Oct 2026",
+   "url": "http://127.0.0.1:8125/flyDiy/index.html?welcome=1&update=1&audio=0&gfx=potato"
+  },
+  {
+   "size": "desktop",
+   "name": "loading",
+   "file": "update_desktop_loading.jpg",
+   "note": "the loading screen: the build under the brand",
+   "pill": true,
+   "box": [
+    589,
+    844,
+    422,
+    42
+   ],
+   "stamp": "build 13c45351 · 4 Oct 2026",
+   "url": "http://127.0.0.1:8125/flyDiy/index.html?welcome=1&update=1&audio=0&gfx=potato"
+  },
+  {
+   "size": "desktop",
+   "name": "garage",
+   "file": "update_desktop_garage.png",
+   "note": "the garage (the shed's panel stamps the build at its foot)",
+   "pill": true,
+   "box": [
+    429,
+    786,
+    422,
+    42
+   ],
+   "stamp": "build 13c45351 · 4 Oct 2026",
+   "url": "http://127.0.0.1:8125/flyDiy/index.html?welcome=1&update=1&audio=0&gfx=potato"
+  },
+  {
+   "size": "desktop",
+   "name": "flight",
+   "file": "update_desktop_flight.png",
+   "note": "in flight: the pill in the right column above the verbs, clear of the instruments",
+   "pill": true,
+   "box": [
+    1156,
+    782,
+    422,
+    42
+   ],
+   "stamp": "build 13c45351 · 4 Oct 2026",
+   "url": "http://127.0.0.1:8125/flyDiy/index.html?welcome=1&update=1&audio=0&gfx=potato"
+  },
+  {
+   "size": "desktop",
+   "name": "menu",
+   "file": "update_desktop_menu.png",
+   "note": "the GRAPHICS menu: the storage row names the build and its date",
+   "pill": true,
+   "box": [
+    1156,
+    782,
+    422,
+    42
+   ],
+   "stamp": "build 13c45351 · 4 Oct 2026",
+   "url": "http://127.0.0.1:8125/flyDiy/index.html?welcome=1&update=1&audio=0&gfx=potato"
+  },
+  {
+   "size": "phone",
+   "name": "welcome",
+   "file": "update_phone_welcome.jpg",
+   "note": "the device gate (a phone), its footer stamped",
+   "pill": true,
+   "box": [
+    76,
+    776,
+    237,
+    54
+   ],
+   "stamp": "build 13c45351 · 4 Oct 2026",
+   "url": "http://127.0.0.1:8125/flyDiy/index.html?welcome=1&update=1&audio=0&gfx=potato"
+  },
+  {
+   "size": "phone",
+   "name": "loading",
+   "file": "update_phone_loading.jpg",
+   "note": "the loading screen: the build under the brand",
+   "pill": true,
+   "box": [
+    76,
+    776,
+    237,
+    54
+   ],
+   "stamp": "build 13c45351 · 4 Oct 2026",
+   "url": "http://127.0.0.1:8125/flyDiy/index.html?welcome=1&update=1&audio=0&gfx=potato"
+  },
+  {
+   "size": "phone",
+   "name": "garage",
+   "file": "update_phone_garage.png",
+   "note": "the garage (the shed's panel stamps the build at its foot)",
+   "pill": true,
+   "box": [
+    76,
+    662,
+    237,
+    54
+   ],
+   "stamp": "build 13c45351 · 4 Oct 2026",
+   "url": "http://127.0.0.1:8125/flyDiy/index.html?welcome=1&update=1&audio=0&gfx=potato"
+  },
+  {
+   "size": "phone",
+   "name": "flight",
+   "file": "update_phone_flight.png",
+   "note": "in flight: the pill in the right column above the verbs, clear of the instruments",
+   "pill": true,
+   "box": [
+    141,
+    678,
+    237,
+    54
+   ],
+   "stamp": "build 13c45351 · 4 Oct 2026",
+   "url": "http://127.0.0.1:8125/flyDiy/index.html?welcome=1&update=1&audio=0&gfx=potato"
+  },
+  {
+   "size": "phone",
+   "name": "menu",
+   "file": "update_phone_menu.png",
+   "note": "the GRAPHICS menu: the storage row names the build and its date",
+   "pill": true,
+   "box": [
+    141,
+    678,
+    237,
+    54
+   ],
+   "stamp": "build 13c45351 · 4 Oct 2026",
+   "url": "http://127.0.0.1:8125/flyDiy/index.html?welcome=1&update=1&audio=0&gfx=potato"
+  }
+ ]
+}

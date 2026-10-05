@@ -561,7 +561,9 @@ const SPLAT_GROUND = (() => {
     } catch (e) {}
     return out;
   }
-  function make(gU, isla) {
+  // opts.plain (G1521, POTATO-DEEP): the ground starts PLAIN - the host's programs carry none of this file's code (api.plain()
+  // says so; render_world keys them ':plain') and the arrays are not fetched until a step asks for the sets (api.plain(false))
+  function make(gU, isla, opts) {
     if (!G || typeof SPLAT_TEX_SETS === 'undefined' || !SPLAT_TEX_SETS) return null;
     // ?splat=0: the ground without the splat's code at all (a clean A/B, and the compile-time control)
     try { if (/[?&]splat=0/.test(location.search)) return null; } catch (e) {}
@@ -594,11 +596,13 @@ const SPLAT_GROUND = (() => {
     const setsFor = keys => SPLAT_TEX_SETS.filter(s => !keys || keys.has(s.key));
     let LIB = setsFor(reachKeys()).map(s => s.key);
     let building = null;   // the keys an array build in flight carries
+    let plain = !!(opts && opts.plain), asked = false;   // G1521: the plain ground (no splat code drawn) and whether the arrays were ever asked for
     const grow = () => {
       const want = new Set(LIB.concat(building || []));
       const need = reachKeys(); if (need) for (const k of need) want.add(k);
       const keys = setsFor(want).map(s => s.key);
       if (keys.length === LIB.length && (!building || keys.length === building.length)) return false;
+      if (!asked) { LIB = keys; return true; }   // G1521: nothing built yet (a plain ground) - the first build takes the union
       building = keys;
       const cur = U.uSplat.value, curN = U.uSplatN.value;   // G911: the arrays standing lend their layers to the grown ones
       const prev = cur && curN && cur.image && cur.image.depth > 1 && curN.image ? { keys: LIB.slice(), A: GROUND_LIB.planeOf(cur), N: GROUND_LIB.planeOf(curN) } : null;
@@ -695,7 +699,9 @@ const SPLAT_GROUND = (() => {
       U.uSplatOn.value = (ready && R.on) ? 1 : 0;
     };
     push();
-    buildArrays(setsFor(new Set(LIB)), U, R, (a, n) => { if (a && !building) { U.uSplat.value = a; U.uSplatN.value = n; } else if (a) { a.dispose(); n.dispose(); return; } ready = true; push(); });
+    const ensure = () => { if (asked) return; asked = true;
+      buildArrays(setsFor(new Set(LIB)), U, R, (a, n) => { if (a && !building) { U.uSplat.value = a; U.uSplatN.value = n; } else if (a) { a.dispose(); n.dispose(); return; } ready = true; push(); }); };
+    if (!plain) ensure();   // G1521: a plain ground fetches no set (potato: ~22 MB of KTX2 arrays never downloaded, transcoded or held)
     const api = {
       on: () => !!R.on,
       ready: () => ready,
@@ -720,6 +726,9 @@ const SPLAT_GROUND = (() => {
       // the recolour's selection shown in magenta on one set (its key), or off (null)
       showMask: k => { U.uSMaskL.value = k ? LIB.indexOf(k) : -1; push(); if (api.onInspect) api.onInspect(); return U.uSMaskL.value; },
       masking: () => U.uSMaskL.value >= 0,   // the mask is shown: the ground's programs carry it (G1311)
+      // G1521 (POTATO-DEEP): THE PLAIN GROUND - the GRAPHICS 'ground' row's cheapest step. plain() reads it; plain(v) sets it,
+      // asks for the arrays the first time the sets are wanted, and re-keys the host's programs (onInspect: groundSync)
+      plain: v => { if (v === undefined) return plain; v = !!v; if (v === plain) return plain; plain = v; if (!plain) ensure(); if (api.onInspect) api.onInspect(); return plain; },
       onInspect: null,                        // the host's re-key (render_world groundSync)
       // the set's images (the rail's previews): diff / nor / height / rough, lazily-made Images
       images: k => SPLAT_TEX_SETS.find(x => x.key === k) || null,
