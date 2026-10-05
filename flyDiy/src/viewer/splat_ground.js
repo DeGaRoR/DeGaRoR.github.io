@@ -350,7 +350,16 @@ const SPLAT_GROUND = (() => {
       w[sCodeAt(b + o)] += k; wsum += k;
     }
     for (int i = 0; i < uSNCode; i++) w[i] /= max(wsum, 1e-4);
-    w[4] += w[0]; w[0] = 0.0;
+    // THE SEA VOTES AS SAND UNDER THE WATER ONLY (SHORES G1503, the user 2026-10-04: the island's banks against the sea "blend
+    // with an unknown texture/color reminding the sand, but without material. Messy, everything needs to have a proper ground
+    // cover"). A sea cell voted as the beach (4) everywhere: the 5 x 5 kernel carried that sand up to ~30 m onto EVERY coast -
+    // under the forest, over the rock, on the coast's steep rise, where its pale rippled set stretched. Over the waterline the
+    // sea's share now goes to the land's own codes round the pixel (shingle stays shingle, rock rock, the forest floor runs
+    // down to the water, a beach is the beach code's own); under it the bed is the sand it was (G460.5: the shallows show it)
+    { float w0 = w[0], land = 1.0 - w0; w[0] = 0.0;
+      float dry = smoothstep(-0.8, 0.3, vWPi.y) * smoothstep(0.02, 0.3, land);
+      if (dry > 0.0) { float k = 1.0 + w0 * dry / max(land, 1e-3); for (int i = 1; i < uSNCode; i++) w[i] *= k; }
+      w[4] += w0 * (1.0 - dry); }
     float lakeM = 0.0;
     if (uSLakeE.y > 0.5) lakeM = smoothstep(-uSLakeE.x * 0.5, uSLakeE.x * 0.5, lsd);
     // a LAKE cell votes as its shore (muskeg, a muddy margin): the ground under and round the water is ground;
@@ -367,12 +376,18 @@ const SPLAT_GROUND = (() => {
     // slopes"). LAKE-HOLES carves the bed and its bank into the DEM (28_island lakeBed): within the bank's reach of a lake's
     // line a face the carve made steep wore the hill's own grass or forest floor, and the macro's 10 m imagery (the tint, the
     // radar) was laid on it from above - stretched down the face. There, past the slope's lo..hi, every code that is not
-    // already mineral hands its weight to the cliff's rock (12, the island's own steep face); the macro gives way on it below
+    // already mineral hands its weight to the rocky shore (11: the dark foreshore, its pale stones and tufted upper shore - the island's own
+    // shore material; the cliff's pale rock read as a quarry ring round a lake); the macro gives way on it below
     // (a texture from above has nothing to say about a face). A bank the carve left gentle keeps its ground.
-    float gSBank = 0.0;
-    if (uSBank.x > 0.0 && lsd < 1.0 && lsd > -uSBank.x) {
-      gSBank = (1.0 - smoothstep(0.6 * uSBank.x, uSBank.x, -lsd)) * smoothstep(uSBank.y, uSBank.z, slope);
-      for (int i = 2; i < uSNCode; i++) if (i != 4 && i != 5 && i != 6 && i != 11 && i != 12) { w[12] += w[i] * gSBank; w[i] *= 1.0 - gSBank; }
+    // (SHORES G1503: and the sea's own rise - the DEM climbs off a coast the shelf meets at -5 m; its steep first metres wore
+    // the sea's sand, then the forest floor laid from above)
+    float gSBank = 0.0, gSBankM = 0.0;
+    float bankZ = max(lsd < 1.0 && lsd > -uSBank.x ? 1.0 - smoothstep(0.6 * uSBank.x, uSBank.x, -lsd) : 0.0,
+                      sd > -8.0 && sd < uSBank.x ? 1.0 - smoothstep(0.6 * uSBank.x, uSBank.x, sd) : 0.0);
+    if (uSBank.x > 0.0 && bankZ > 0.0) {
+      gSBank = bankZ * smoothstep(uSBank.y, uSBank.z, slope);
+      gSBankM = bankZ * smoothstep(uSBank.y - 10.0, uSBank.y + 2.0, slope);   // the macro gives way before the rock comes
+      for (int i = 2; i < uSNCode; i++) if (i != 4 && i != 5 && i != 6 && i != 11 && i != 12) { w[11] += w[i] * gSBank; w[i] *= 1.0 - gSBank; }
     }
     vec2 e = vec2(1.0 / uGGrid.z, 1.0 / uGGrid.w) * 1.5;
     vec2 gr = vec2(texture2D(uGPackA, uv + vec2(e.x, 0.0)).b - texture2D(uGPackA, uv - vec2(e.x, 0.0)).b,
@@ -428,7 +443,7 @@ const SPLAT_GROUND = (() => {
     // green valley, the brown slope, the pale flat) were thrown away. macroLum (uSDist2.w) keeps them: the
     // detail's texel over its set's mean is the texture alone (rel), and mac * rel is the imagery's colour AND
     // brightness wearing that texture. macroNear (uSDist2.y) is still how much of the detail's own colour gives way.
-    if (uSDist2.y > 0.0) { float lc = gLuma(col); vec3 tinted = mac * mix(lc / max(gLuma(mac), 1e-3), rel, uSDist2.w); col = mix(col, tinted, uSDist2.y * (1.0 - gSBank)); }
+    if (uSDist2.y > 0.0) { float lc = gLuma(col); vec3 tinted = mac * mix(lc / max(gLuma(mac), 1e-3), rel, uSDist2.w); col = mix(col, tinted, uSDist2.y * (1.0 - gSBankM)); }
     // THE WATERLINE IS WET (SHORES G1500): the bank's first metres over a lake - the shelf the carve leaves - darken toward a
     // wet margin (a submerged grain keeps ~0.55 of its albedo, water.js G799's number) and take a little gloss
     if (uSBank.w > 0.0 && lsd < 1.0 && lsd > -uSBank.w) { float wet = 1.0 - smoothstep(0.0, uSBank.w, -lsd); col *= 1.0 - 0.45 * wet; gSRough = mix(gSRough, min(gSRough, 0.45), wet); }
@@ -602,7 +617,7 @@ const SPLAT_GROUND = (() => {
       const T = isla && isla.ttype; if (!T) return null;
       const seen = new Uint8Array(256); for (let k = 0; k < T.length; k++) seen[T[k]] = 1;
       if (seen[0]) seen[4] = 1; if (seen[1]) seen[3] = 1; seen[0] = seen[1] = 0;
-      if (seen[6] || seen[1]) seen[12] = 1; if (seen[8]) seen[13] = 1; if (seen[7]) seen[14] = 1;   // (a lake's steep bank wears 12 too: SHORES G1500)
+      if (seen[6]) seen[12] = 1; if (seen[1] || seen[0]) seen[11] = 1; if (seen[8]) seen[13] = 1; if (seen[7]) seen[14] = 1;   // (a steep bank wears the rocky shore: SHORES G1500)
       const keys = new Set();
       for (let c = 0; c < NCODE; c++) { const m = seen[c] && R.codes[c]; if (!m) continue;
         for (const k of (m.tex || []).concat(m.far || [])) if (k) keys.add(k); }

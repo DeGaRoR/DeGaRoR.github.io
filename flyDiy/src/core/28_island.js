@@ -99,14 +99,14 @@ var ISLAND_GEN = (function () {
     // where the DEM itself was 30-45. Now the bank is a SLOPE PROFILE (`prof`: [metres out, rise per metre] knots,
     // linear between, integrated): a lip that takes the ground just over the water (1:1 for 0.4 m, as before), a SHELF
     // at the waterline (1:5.5 from 1.2 to 4.5 m out: the margin a shore has, ~1 m over the water at 4.5 m), then a FACE
-    // at 0.75 (37 deg) - the hill gives way further back instead of standing as a wall over the water.
+    // at 0.65 (33 deg) - the hill gives way further back instead of standing as a wall over the water.
     // THE CAP (`cap` 6 m): the gentle bank may cut at most `cap` metres deeper than the old law did (the ground known,
     // bed(x, z, g)) - a lake under a cliff gets its shelf and a gentle toe, then the cliff's own face lowered by at most
     // `cap` (the gentle law alone cut 35.7 m into one; no hill moves away from its lake); the cap fades to 0 over the last
     // 45 % of the reach, so at `bank` (30 m, as before: the same masks) the ground is the old law's - which met the DEM
     // before the reach everywhere on Jolene (GATE LAKEBED's walk). Without the ground (bed(x, z)) the gentle law alone.
     const LAKE_BED = { edge: 0.5, depth: 3.0, shoreW: 12, bank: 30, cap: 6,
-                       prof: [[0, 1], [0.4, 1], [1.2, 0.18], [4.5, 0.18], [8, 0.75]] };
+                       prof: [[0, 1], [0.4, 1], [1.2, 0.18], [4.5, 0.18], [8, 0.65]] };
     // the bank's rise over (level - edge) at s metres out: the profile's slope integrated (trapezoids between knots)
     const bankRise = (() => {
       const K = LAKE_BED.prof, cum = [0];
