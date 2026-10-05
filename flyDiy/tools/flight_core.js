@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 825c8d3835f5f056
+// body-sha256: 2e856f9dbc454818
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -18397,9 +18397,14 @@ function makePilot(sim, def, world, opts) {
           // ...AND ON A SHORT STRIP (under 300 m) EVERY AEROPLANE PIVOTS AT A HAIRPIN: the site's lane U-turn is a
           // 12 m arc 15 m from the end (G527), and the C172 (a nosewheel that turns on 4.4 m) swung it 7.7 m past
           // Jumbo Mine's end, 10.7 s off the strip - a pilot there turns on a toe brake instead
+          // ...ONLY ON A STRIP UNDER 300 m: on a long one the site's lane U-turn fits, and the follower's own wide
+          // turn is the base's to the bit (pivoting at Jolene HOME's lane U-turn, a fillet a hair under the Cub's
+          // 9.4 m, cost GATE LINEUP 26 s and a roll 12.7 m off the skip's pose)
           const shortHere = (ap.route.from.len || 1100) < 300;
-          const Rpiv = shortHere ? Math.max(RgMin, 13) : RgMin;
-          if (isFinite(Rpiv) && (!trike || shortHere)) {
+          const Rpiv = Math.max(RgMin, 13);
+          // (a TAILDRAGGER's: the C172's nosewheel pivot at East Point's lane U-turn looped its replanning and never
+          // rolled - a tricycle steers the U-turn as before; its wide swing at Jumbo Mine's end is OWED, G1938)
+          if (shortHere && isFinite(Rpiv) && !trike) {
             const P = ap.path.pts, s0 = P[L.i].s;
             let b0 = -1;
             for (let k = L.i; k < P.length && P[k].s - s0 < 3 + 1.5 * Vg; k++) if (Math.abs(P[k].kap) > 1 / (1.1 * Rpiv)) { b0 = k; break; }
@@ -18415,7 +18420,7 @@ function makePilot(sim, def, world, opts) {
               // A HAIRPIN IS A U-TURN (150 deg and more): a 90 deg taxi corner tighter than the wheels steer is steered
               // round as it always was - pivoting there beat the stock's taxi rudder to 62 reversals a minute (GATE
               // PILOTACT) and swung the Cub's wing within 5 m of Jolene's apron fence (GATE LINEUP)
-              if (Math.abs(turn) > 2.6) {
+              if (Math.abs(turn) > 2.6) {   // (Rpiv: 13 m at least - the site's lane U-turn is a 12 m arc)
                 piv = { hdg: P[b1].hdg, j: b1, t0: ap.t, thr: 0, sg: turn >= 0 ? 1 : -1 }; pivN++;
                 if (!pivSaid) { pivSaid = true; say('pivot', 'a ' + Math.round(Math.abs(turn) * 57.3) + ' deg turn tighter than the wheels steer (' + RgMin.toFixed(1) + ' m) — turning on the spot'); }
                 pivotFly(piv.hdg);
@@ -18457,7 +18462,7 @@ function makePilot(sim, def, world, opts) {
         const dist = Math.hypot(ddx, ddz) || 1e-9;
         pubN = 'TAXI POINT'; pubX = ap.taxiTgt[0]; pubZ = ap.taxiTgt[1];
         // G1938: the point BEHIND the aeroplane (a backtrack from where the landing stopped) is turned to on the spot
-        if (!trike && isFinite(RgMin) && (piv || (Math.abs(e) > 1.4 && Vg < 3 && dist > 3 * RgMin))) {
+        if (!trike && isFinite(RgMin) && (ap.route.from.len || 1100) < 300 && (piv || (Math.abs(e) > 1.4 && Vg < 3 && dist > 3 * RgMin))) {
           if (!piv) { piv = { hdg: Math.atan2(ddz, ddx), j: 0, t0: ap.t, thr: 0 }; if (!pivSaid) { pivSaid = true; say('pivot', 'the taxi point is behind — turning on the spot'); } }
           setStatus('turning on the spot (the inside brake, full rudder)', [cond('heading to go', Math.round(Math.abs(e) * 57.3), 6, false, 'deg')]);
           if (pivotFly(piv.hdg) || ap.t - piv.t0 > 40) { piv = null; SV.relatch(); }
