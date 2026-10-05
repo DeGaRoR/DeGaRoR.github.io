@@ -75390,3 +75390,78 @@ STRICT GATE (full): only the 30 cap's rows + the known hybrid band rows; the cha
 (T0 = tip, 16.4 ms in that session); the mn_strip trip task gone. BATTERY: the full battery on the first build (3 boombox
 reds), the changed gates on the final build PASS (FRAMECOST, KTX2, ASSETS, BOOMBOX, GENPAIRS, UISMOKE, BUILD, MEDIA, PROPS,
 SKINMAT, PARTS, HANGAR). Parked re-cooked.
+
+## G1935-G1944 - PILOT-ONE: ONE PILOT (43), THE WATER TAKE-OFF, THE SHORT STRIP AND THE TURN ON THE SPOT, PERSONALITY HOOKS (2026-10-05, PILOT-ONE for A0, a CLOUD session: node only; branch claude/pilot-one-g1935 off origin/master 55dd98b7 = train 34)
+
+THE BRIEF (the user, 5 Oct): (1) "the autopilot technique for taking off is really poor ... hops before taking off" -
+NARROWED by the user mid-session: "the remark only applies to floatplanes and water take off. The normal take off is
+OK. The technique for small strips is bad though, I have seen no autopilot succeeding in landing on the short 150 m
+runway, where they should start from farther away, use the full flaps, and aim for touching down at the beginning of the
+strip. No autopilot manages to turn sharp for a 180 degrees. Most planes should allow for almost static turn ... [that
+is] manoeuvring on the ground, turning at the end of a 1 way strip". (2) "We still have the legacy autopilot and the test
+autopilot. Are these now fully redundant? ... If the two others are now redundant, we should retire them." (3) the pilot
+personalities (design + hooks). A0's order: this lands BEFORE the Deform Coordinator's DMG-DAMP bundle.
+
+### G1935 THE AUDIT - WHAT 40 AND 41 DO THAT 43 DOES NOT (the first commit; read-only, probes in node)
+
+VERDICT: **40 (the classic) and 41 (the test pilot) are redundant.** Since G1570 the three fly one servo module; what
+is left in 40 / 41 is their PHASE MACHINES (40: an out-and-back - CRUISE, TURNBACK, INBOUND, APPROACH; 41 the same + ABORT,
+PUTDOWN, the report and the card), and 43 has every capability either has: the report contract (verdicts, outcome,
+landing, card, trimDe from the settled DOWNWIND), setCard, taxiFF, the G208.3 LIFTOFF exit and PUTDOWN, departFrom,
+reEngage, tdInfo, dbg. 43 flies WITHOUT A WORLD (probe: `makePilot(sim, def)` and `(sim, def, null)` on the stock build,
+no world: ROLL > LIFTOFF 15 s > CLIMB 24 > CROSSWIND 41 > DOWNWIND 64 > BASE 167 > FINAL 189 > FLARE 314 > ROLLOUT 321 >
+STOPPED 341, 'completed', run 223 m, sink 0.73 - the HOMEISH fallback, every world read guarded). 41 has NO water law
+(0 mentions of hydro; 43 has the hump, the step, the stick top) - the page's hydroplane test flew the seaplane's
+certificate on a pilot that did not know it was on the water.
+
+WHAT 40 / 41 HAVE THAT 43 DOES NOT:
+- the PHASE NAMES CRUISE / TURNBACK / APPROACH (43: CROSSWIND, DOWNWIND, BASE, FINAL, GLIDE; PILOT_PHASES maps them for the
+  rail). Every caller that waits for 'CRUISE' or pins 'APPROACH' must be re-pointed (an unknown phase in 43 falls to
+  ROLLOUT on the ground, CLIMB in the air - FLAPS pinned on 'APPROACH' leaves the flap at 0.000; on 'FINAL' it deploys).
+- 40's OUT-AND-BACK geometry (a downwind landing in a +z wind; the stop x and the CRUISE chatter of GEN's circuit were
+  calibrated on it); 43 lands into wind on a rectangular circuit.
+- NOTHING ELSE: 40 has no report, no budget, no card, no taxiFF; 41's card field `deFlown` is never written or read.
+
+WHAT LIVES IN 40 BUT IS NOT A PILOT (it must MOVE, not die): `placeAtAerodrome`, `placeAtStand`, `seatOnGround`,
+`placeAtLineup` (40:23-109) - the placement helpers ~31 / 21 / 6 / 8 files call.
+
+WHAT READS 40 / 41 AS TEXT: build.js (MANIFEST 100/103; the core-block marker 'function makeAutopilot' at 1163/1168),
+test_ui_smoke.js 20/45 and _gfx_check.js 295 (the same marker), 90_node_exports (the two names), GATE BENCH
+(_bench_check.js:55 reads 41's source; :202 collects phases by `ap.phase = '...'`, 43 writes `go('X')`), GATE TAKEOFF
+(206-219 loops its source checks over 40, 41, 43), sim_host.js SIM_HOST_CORE (typeof-guarded; POSEBACK iterates it).
+
+EVERY CALLER (gate = tools/run_gates.js id):
+```
+caller                              gate        pilot  what it reads / asserts that moves with the pilot
+src/viewer/app.js:4204 mkPilot      (game)      40,41  the selPilot menu: 'classic' -> 40, 'test' -> 41 (body.html:95-101); 41 the fallback
+src/viewer/app.js:5886 htStart      (game)      41     THE HYDROPLANE TEST (the seaplane's certificate): CLIMB/LIFTOFF/ABORT/STOPPED - all in 43
+src/viewer/sim_host.js:304          (worker)    40,41  mirrors mkPilot
+tools/test_stress.js:11             STRESS      40     no world; waits for CRUISE (120 s), then the abuse sequence's flap / strain bounds
+tools/test_ground_effect.js:117     GE          40     a deterministic driver: > 60 airborne frames in 40 s, A == B trajectory
+tools/test_flaps.js:62              FLAPS       40     pins phase 'APPROACH' every frame: flap at 1 s ~ rate +-20 %, full by 1/rate + 2 s
+tools/test_gen.js:44 flyLeg         GEN         40     STOPPED or CRUISE: materials (CRUISE in 60 s), shapes (CRUISE REQUIRED in 90 s), 4 x STOPPED in 600 s
+tools/test_gen.js:992               GEN         41     the extreme sweep: an outcome, verdicts on a non-'completed' one (43: same contract)
+tools/test_gen.js:1358 ap3          GEN         40     tdInfo: sink < 2.0, |z| < 6 within 480 s
+tools/test_gen.js:1484 CRUISE QUIET GEN         40     CRUISE within 200 s, then 24 s: bank p2p < 3, aileron < 2, elevator < 3 deg/s in 3 m/s +z
+tools/circuit_harness.js:54         GEN,HOTHIGH 40     the circuit: sink < 1.3 (WIDENED for 40's flare; 43 lands ~0.7), |tdZ| < 6, stopX < 40,
+                                                       chassis < 6 %, gear < 40 %, rolloutPitchMin > -4, flap -2..12 deg, chatter (CRUISE) < 8
+tools/test_hothigh.js:115           HOTHIGH     40     the run / EAS / TAS RATIOS hot vs standard (relative); 40 ran 357 m on Tyl, 43 278 m
+tools/test_input.js:325             INPUT       40,41  CRUISE in 150 s, a 6 s hand-flown bank, reEngage({phase:'CRUISE'}) (43: CLIMB - re-point)
+tools/_surface_check.js:84          STRIPSURF   40,41  routing only (the wrong-surface verdict skipped for 'classic')
+tools/_bench_check.js:348           BENCH       41     LIFTOFF -> CLIMB in 40 s, 'completed', landing run 0..600 m (all in 43)
+tools/test_massproof.js:231         MASS        41     taxiFF() falls when the tanks drain (43: the same function)
+tools/test_flex.js:265              FLEX        40     no world; CRUISE in 200 s, then 330 frames of AP cruise as the 1 g reference
+tools/gen_ap_probe.js:98            (instrument) 40    phase lists CRUISE/TURNBACK/APPROACH; asserts nothing
+src/core/42_crosswind.js            TAKEOFF     43     already 43 (its header's "test pilot" is stale)
+src/core/64_gen_build.js:888        -           -      a comment only
+tools/test_pilot.js                 PILOT       43     already 43
+```
+WHAT 43 LACKS TO REPLACE THEM: nothing in capability; the callers need (a) the phase re-mapping (CRUISE -> DOWNWIND - or
+CROSSWIND where 60-90 s is tight: 43 reaches DOWNWIND at ~64 s on the stock build, CROSSWIND at ~41; APPROACH -> FINAL),
+(b) the placement helpers moved out of 40, (c) the text-readers re-pointed, (d) the bounds 40 set re-read honestly on
+43 (the GEN circuit's sink bound 1.3 was WIDENED for 40; nothing is loosened here).
+
+RECOMMENDATION (taken, G1940-G1941 below): retire both. The placement helpers move to 25_airfield (the aerodromes'
+own geometry); every caller moves to makePilot; the menu keeps the three STYLES of THE PILOT (auto / cautious / brisk)
+and loses "Test pilot (G107)" and "Autopilot" (a stored choice of either falls back to 'auto'); a downgrade is a
+PERSONALITY on the one pilot (G1943), never a fork.
