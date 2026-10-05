@@ -26,10 +26,10 @@
 //   4 THE MINE'S APRON: a gravel apron (apron: true) under the stand and the C172's parked box, 1.5 m off every
 //     footprint, on the street's level
 // THE TOURS (one heavy job each - shards: 3):
-//   5 the user's Cub (builds/cub_2026-09-20_corrected.json): HOME > Tamgas Hill > the altiport > Jumbo Mine > East Point
-//     > 02/20 > HOME; the aluminium C172: HOME > Tamgas Hill > the altiport > 02/20 > HOME (the two short strips refuse
-//     it - G531's reserve at their length); the float Cessna (bugReports/cessnaFloatsWOrks.json): Annette Dock >
-//     Metlakatla > Annette Dock. The damage ON. Each leg: stopped at its To, no member yielded or broken, no dent, no
+//   5 the user's Cub (builds/cub_2026-09-20_corrected.json): HOME > Tamgas Hill > the altiport > Jumbo Mine > 02/20 >
+//     HOME; the aluminium C172: HOME > Tamgas Hill > the altiport > 02/20 > HOME (G531: its reserve refuses the mine's
+//     250 m); East Point (150 m) fits no validated land build (the Cub's roll alone is ~145 m - _tour_lib ORDERS); the
+//     float Cessna (bugReports/cessnaFloatsWOrks.json): Annette Dock > Metlakatla > Annette Dock. The damage ON. Each leg: stopped at its To, no member yielded or broken, no dent, no
 //     prop strike, no node inside an obstacle, no trunk hit, no ground loop (30 deg off the runway at > 5 m/s on the
 //     roll or the roll-out), no off-strip excursion (the CG off the strip's box at > 5 m/s), the final's lowest node
 //     >= 3 m over the ground and the forest under it; a one-way strip turned round on its pad (>= 150 deg on the

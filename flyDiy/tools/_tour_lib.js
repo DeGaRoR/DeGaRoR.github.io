@@ -208,16 +208,16 @@ const BUILDS = {
   cub: { key: path.join(ROOT, 'builds', 'cub_2026-09-20_corrected.json'), name: "the user's Cub", tour: 'land' },
   c172: { key: path.join(__dirname, 'fixtures', 'build_v10_cessnaMetal_2026-09-26.json'), name: 'the aluminium C172', tour: 'c172' },
   floats: { key: path.join(ROOT, 'bugReports', 'cessnaFloatsWOrks.json'), name: 'the float Cessna', tour: 'water' },
-  // the game's own Cub (the archetype, GATE ARCHETYPES' - flapped, lighter on the wing): every land strip, East Point too
-  archcub: { key: 'cub', name: 'the archetype Cub', tour: 'all' },
 };
 // THE ORDERS (the plan): clockwise round the island from HOME - Tamgas Hill 2.7 km NW, the altiport 5.4 km on, Jumbo
-// Mine 10.7 km NE, East Point 4.7 km SE of it, then 15 km home to the field's other runway (02/20) and the last leg
-// round to 13/31. The Cessna leaves out the two strips its take-off reserve refuses at their length (G531: 250 m and
-// 150 m against its 313 m). The floats: Annette Dock, Metlakatla, Annette Dock.
+// Mine 10.7 km NE, then 18 km home to the field's other runway (02/20) and the last leg round to 13/31. EAST POINT
+// (150 m) IS IN NO LAND TOUR: the user's Cub - the archetype Cub to the decimal, the only validated build that might -
+// stops 136 m after a touchdown 100 m in (85 m past the end, flown before and after the pads: tools/island_tour.js
+// --order nv_strip,nv_strip), and PILOT-ONE measured its three-point roll alone at 143-152 m: the strip at its length
+// fits no validated land build (HANDOVER G1965-G1974 says what would). The Cessna leaves out Jumbo Mine as well (G531:
+// its take-off reserve asks 313 m of the 250). The floats: Annette Dock, Metlakatla, Annette Dock.
 const ORDERS = {
-  all: 'HOME,w3,tw_ski,mn_strip,nv_strip,w2,HOME',
-  land: 'HOME,w3,tw_ski,mn_strip,nv_strip,w2,HOME',
+  land: 'HOME,w3,tw_ski,mn_strip,w2,HOME',
   c172: 'HOME,w3,tw_ski,w2,HOME',
   water: 'SEA,mk_sea,SEA',
 };
