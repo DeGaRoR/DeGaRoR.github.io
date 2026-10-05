@@ -1,0 +1,1038 @@
+tools/flight_core.js (2231.1 KB), index.html (11423.8 KB), dev.html (107.7 KB) — syntax OK, build b051f6a1a681 (309 named inputs), 1592 ms
+[run_gates] 0/7 jobs done · running DMGWALL 30 s
+[run_gates] 0/7 jobs done · running DMGWALL 60 s
+[run_gates] 0/7 jobs done · running DMGWALL 90 s
+[run_gates] 0/7 jobs done · running DMGWALL 120 s
+[run_gates] 0/7 jobs done · running DMGWALL 150 s
+[run_gates] 0/7 jobs done · running DMGWALL 180 s
+[run_gates] 0/7 jobs done · running DMGWALL 210 s
+[run_gates] 0/7 jobs done · running DMGWALL 240 s
+[run_gates] 0/7 jobs done · running DMGWALL 270 s
+[run_gates] 0/7 jobs done · running DMGWALL 300 s
+[run_gates] 0/7 jobs done · running DMGWALL 330 s
+[run_gates] 0/7 jobs done · running DMGWALL 360 s
+[run_gates] 0/7 jobs done · running DMGWALL 390 s
+[run_gates] 0/7 jobs done · running DMGWALL 420 s
+[run_gates] 0/7 jobs done · running DMGWALL 450 s
+[run_gates] 0/7 jobs done · running DMGWALL 480 s
+[run_gates] 0/7 jobs done · running DMGWALL 510 s
+[run_gates] 0/7 jobs done · running DMGWALL 540 s
+[run_gates] 0/7 jobs done · running DMGWALL 570 s
+[run_gates] 0/7 jobs done · running DMGWALL 600 s
+[run_gates] 0/7 jobs done · running DMGWALL 630 s
+[run_gates] 0/7 jobs done · running DMGWALL 660 s
+[run_gates] 0/7 jobs done · running DMGWALL 691 s
+[run_gates] 0/7 jobs done · running DMGWALL 721 s
+[run_gates] 0/7 jobs done · running DMGWALL 751 s
+[run_gates] 0/7 jobs done · running DMGWALL 781 s
+[run_gates] 0/7 jobs done · running DMGWALL 811 s
+[run_gates] 0/7 jobs done · running DMGWALL 841 s
+[run_gates] 0/7 jobs done · running DMGWALL 871 s
+[run_gates] 0/7 jobs done · running DMGWALL 901 s
+[run_gates] 0/7 jobs done · running DMGWALL 931 s
+[run_gates] 0/7 jobs done · running DMGWALL 961 s
+[run_gates] 0/7 jobs done · running DMGWALL 991 s
+[run_gates] 0/7 jobs done · running DMGWALL 1021 s
+[run_gates] 0/7 jobs done · running DMGWALL 1051 s
+[run_gates] 0/7 jobs done · running DMGWALL 1081 s
+[run_gates] 0/7 jobs done · running DMGWALL 1111 s
+[run_gates] 0/7 jobs done · running DMGWALL 1141 s
+[run_gates] 0/7 jobs done · running DMGWALL 1171 s
+[run_gates] 0/7 jobs done · running DMGWALL 1201 s
+[run_gates] 0/7 jobs done · running DMGWALL 1231 s
+[run_gates] 0/7 jobs done · running DMGWALL 1261 s
+[run_gates] 0/7 jobs done · running DMGWALL 1291 s
+[run_gates] 0/7 jobs done · running DMGWALL 1321 s
+[run_gates] 0/7 jobs done · running DMGWALL 1351 s
+[run_gates] 0/7 jobs done · running DMGWALL 1381 s
+[run_gates] 0/7 jobs done · running DMGWALL 1411 s
+[run_gates] 0/7 jobs done · running DMGWALL 1441 s
+[run_gates] 0/7 jobs done · running DMGWALL 1471 s
+[run_gates] 0/7 jobs done · running DMGWALL 1501 s
+[run_gates] 0/7 jobs done · running DMGWALL 1531 s
+[run_gates] 0/7 jobs done · running DMGWALL 1561 s
+[run_gates] 0/7 jobs done · running DMGWALL 1591 s
+[run_gates] 0/7 jobs done · running DMGWALL 1621 s
+[run_gates] 0/7 jobs done · running DMGWALL 1651 s
+[run_gates] 0/7 jobs done · running DMGWALL 1681 s
+[run_gates] 0/7 jobs done · running DMGWALL 1711 s
+[run_gates] 0/7 jobs done · running DMGWALL 1742 s
+[run_gates] 0/7 jobs done · running DMGWALL 1772 s
+[run_gates] 0/7 jobs done · running DMGWALL 1802 s
+[run_gates] 0/7 jobs done · running DMGWALL 1832 s
+[run_gates] 0/7 jobs done · running DMGWALL 1862 s
+[run_gates] 1/7 jobs done · running TREECRASH 7 s
+[run_gates] 1/7 jobs done · running TREECRASH 37 s
+[run_gates] 1/7 jobs done · running TREECRASH 67 s
+[run_gates] 1/7 jobs done · running TREECRASH 97 s
+[run_gates] 1/7 jobs done · running TREECRASH 127 s
+[run_gates] 1/7 jobs done · running TREECRASH 157 s
+[run_gates] 1/7 jobs done · running TREECRASH 187 s
+[run_gates] 1/7 jobs done · running TREECRASH 217 s
+[run_gates] 1/7 jobs done · running TREECRASH 247 s
+[run_gates] 1/7 jobs done · running TREECRASH 277 s
+[run_gates] 1/7 jobs done · running TREECRASH 307 s
+[run_gates] 1/7 jobs done · running TREECRASH 337 s
+[run_gates] 1/7 jobs done · running TREECRASH 367 s
+[run_gates] 1/7 jobs done · running TREECRASH 397 s
+[run_gates] 1/7 jobs done · running TREECRASH 427 s
+[run_gates] 1/7 jobs done · running TREECRASH 457 s
+[run_gates] 1/7 jobs done · running TREECRASH 487 s
+[run_gates] 1/7 jobs done · running TREECRASH 517 s
+[run_gates] 1/7 jobs done · running TREECRASH 547 s
+[run_gates] 1/7 jobs done · running TREECRASH 577 s
+[run_gates] 1/7 jobs done · running TREECRASH 607 s
+[run_gates] 1/7 jobs done · running TREECRASH 637 s
+[run_gates] 1/7 jobs done · running TREECRASH 667 s
+[run_gates] 1/7 jobs done · running TREECRASH 697 s
+[run_gates] 1/7 jobs done · running TREECRASH 727 s
+[run_gates] 1/7 jobs done · running TREECRASH 757 s
+[run_gates] 1/7 jobs done · running TREECRASH 787 s
+[run_gates] 1/7 jobs done · running TREECRASH 818 s
+[run_gates] 1/7 jobs done · running TREECRASH 848 s
+[run_gates] 1/7 jobs done · running TREECRASH 878 s
+[run_gates] 1/7 jobs done · running TREECRASH 908 s
+[run_gates] 4/7 jobs done · running UISMOKE 23 s, SIMWORKER 23 s
+[run_gates] 4/7 jobs done · running UISMOKE 53 s, SIMWORKER 53 s
+[run_gates] 4/7 jobs done · running UISMOKE 83 s, SIMWORKER 83 s
+[run_gates] 5/7 jobs done · running UISMOKE 113 s
+[run_gates] 5/7 jobs done · running UISMOKE 143 s
+[run_gates] 5/7 jobs done · running UISMOKE 173 s
+[run_gates] 5/7 jobs done · running UISMOKE 203 s
+=== UISMOKE ===
+the loading screen: 24 steps in order, lifted on frame 0
+the Fly button: no pulse untouched; touched, it pulses (an outline while it loads, lit when ready); reduced motion: a still ring
+manual controls: a key flew it, the AP took it back in TAXI
+honest readings: AGL 0.00 m standing, 40.00 m lifted 40 (the pilot's own datum read -0.05); IAS "13" at 12.9 km/h; fly on: a new leg in place (TAXI), not a reset
+load test: HELD — limit 0.59% ultimate 0.88% of semispan
+bench check: FLIES A CIRCUIT — 459 kg, climb 3.38 m/s, take-off 214 m
+bench density altitude: DA 1614 m — 326 m take-off, 2.52 m/s climb on 83% power, service ceiling 5286 m
+bench crosswind limit: the plaque row reads 2.0 m/s · roll 10.1 m · 13° off, and "> 10 m/s" above the cap
+bench wing loading: HELD — limit 0.59% ultimate 0.88% of semispan
+roll out reads the certificate, and is never locked
+mode: workshop in the garage
+editor panel bridge wired; width reaches the inset
+garage -> roll out -> TAXI, mode: flight
+skip to line-up: 120 m from the taxi to the hold, pilot in HOLD, the button stands down
+rail fly: route / start / patterns / engines / controls - 12 rows, 4 pills
+rail view: camera / instruments / map / trace / screen - 22 rows, 12 pills
+rail sky: night / weather / clouds / ground - 6 rows, 2 pills
+rail graphics: gfx.perf / gfx.light / gfx.terrain / gfx.water / gfx.sky / gfx.post / gfx.town - 33 rows, 106 pills
+rail audio: sound - 13 rows, 0 pills
+rail dev (behind the dev toggle): scenery / world / log / overlays - 4 rows, 3 pills (the covering hidden with #bSkin: no model on the stand here)
+graphics: 36 rows and 112 pills flat, every one reached through the rail (7 folds + the map, the meter, the log)
+the test mode: entered from DEV, the solver held 60 frames, its way out offered, left
+the shed rail: 8 items (camera display night explode controls graphics audio legend), the clouds a fold of night, the graphics in folds
+the seam holds: 22 flight ids, 20 workshop ids, 17 retired
+G1090 the top bar holds one size over 47 texts (29 phase labels): desktop 440 x 143, desktop small 372 x 76, phone screen x 132, phone small screen x 76; the pilot's area 35 px, two lines clamped + the plan line
+ran app block: raf x1847, handlers wired: _ce100 _ce1005 _ce1011 _ce1015 _ce1023 _ce1026 _ce103 _ce1035 _ce1039 _ce1043 _ce1051 _ce1054 _ce106 _ce1063 _ce1067 _ce1071 _ce1079 _ce1082 _ce1086 _ce109 _ce1095 _ce1099 _ce1103 _ce1111 _ce1114 _ce1118 _ce112 _ce1127 _ce1135 _ce1136 _ce1139 _ce1148 _ce115 _ce1156 _ce1159 _ce1163 _ce1172 _ce1176 _ce118 _ce1180 _ce1188 _ce1191 _ce1200 _ce1204 _ce121 _ce124 _ce132 _ce142 _ce146 _ce150 _ce156 _ce161 _ce162 _ce164 _ce165 _ce166 _ce169 _ce173 _ce177 _ce181 _ce185 _ce189 _ce193 _ce199 _ce204 _ce210 _ce217 _ce218 _ce219 _ce220 _ce221 _ce222 _ce227 _ce228 _ce229 _ce230 _ce234 _ce235 _ce236 _ce237 _ce238 _ce239 _ce243 _ce244 _ce245 _ce246 _ce250 _ce251 _ce254 _ce258 _ce262 _ce266 _ce270 _ce274 _ce281 _ce291 _ce301 _ce307 _ce311 _ce317 _ce321 _ce325 _ce329 _ce333 _ce341 _ce347 _ce350 _ce357 _ce358 _ce363 _ce366 _ce37 _ce371 _ce372 _ce374 _ce375 _ce376 _ce379 _ce383 _ce387 _ce391 _ce397 _ce404 _ce408 _ce412 _ce416 _ce420 _ce424 _ce428 _ce432 _ce436 _ce440 _ce444 _ce450 _ce454 _ce458 _ce461 _ce467 _ce470 _ce471 _ce472 _ce475 _ce485 _ce486 _ce49 _ce490 _ce493 _ce498 _ce520 _ce526 _ce534 _ce535 _ce538 _ce545 _ce546 _ce547 _ce548 _ce549 _ce550 _ce555 _ce556 _ce557 _ce558 _ce562 _ce563 _ce564 _ce565 _ce566 _ce567 _ce571 _ce572 _ce573 _ce574 _ce578 _ce579 _ce582 _ce589 _ce590 _ce591 _ce592 _ce596 _ce597 _ce601 _ce602 _ce606 _ce607 _ce608 _ce609 _ce610 _ce611 _ce615 _ce616 _ce617 _ce618 _ce619 _ce62 _ce620 _ce624 _ce625 _ce629 _ce630 _ce632 _ce639 _ce640 _ce641 _ce642 _ce646 _ce647 _ce648 _ce649 _ce653 _ce654 _ce655 _ce656 _ce660 _ce661 _ce662 _ce663 _ce667 _ce668 _ce672 _ce673 _ce674 _ce676 _ce683 _ce684 _ce688 _ce689 _ce691 _ce698 _ce699 _ce700 _ce704 _ce705 _ce706 _ce707 _ce711 _ce712 _ce714 _ce721 _ce722 _ce723 _ce727 _ce728 _ce729 _ce730 _ce734 _ce735 _ce736 _ce74 _ce740 _ce741 _ce745 _ce746 _ce750 _ce751 _ce753 _ce760 _ce761 _ce765 _ce766 _ce767 _ce771 _ce772 _ce776 _ce777 _ce780 _ce786 _ce791 _ce795 _ce799 _ce803 _ce807 _ce811 _ce815 _ce819 _ce823 _ce827 _ce831 _ce835 _ce838 _ce846 _ce849 _ce85 _ce858 _ce86 _ce866 _ce867 _ce87 _ce870 _ce879 _ce88 _ce884 _ce888 _ce89 _ce894 _ce898 _ce90 _ce903 _ce904 _ce906 _ce907 _ce908 _ce91 _ce911 _ce915 _ce919 _ce92 _ce923 _ce927 _ce931 _ce935 _ce939 _ce94 _ce949 _ce953 _ce957 _ce965 _ce97 _ce971 _ce974 _ce978 _ce983 bEdit bGo bHangar2 bLog bMood bPause bReset bSkin bSkip bWhy bootFly edClose flLine mm pfdFold selAc selCond selDest selFrom selPilot tabBench tabDesign
+GATE UISMOKE: PASS
+=== TREECRASH ===
+(915 s, 5 builds; the certificate's limits (DMG-D2a, 66_gen_cert.js))
+Cub:
+1. the table
+  ok    394 members, every one with a section and a GEN_CRASH material (tubeFabric, wood)
+2. nothing yields in what it was built for (the margin: the worst member's peak force over its yield)
+  ok    the load test (the certificate): nothing yields to its 3.8 g limit (the worst member 0.64 (wing, tension)); at 5.7 g HELD, 0 members set (its first set is past the limit, by design), nothing broken; the worst member at 5.7 g 0.95 (wing, tension)
+  ok    a flown pull from 42 m/s to the limit (the wing's load 3.83 W; the CG then reading 3.00 g): nothing yields; the worst member 0.95 (fus, tension)
+  ok    a drop at 2.13 m/s (7.00 ft/s, FAR 23.473): 1.67 g, nothing yields; the worst member 0.70 (gear, compression)
+  ok    a drop at 3.05 m/s (10.00 ft/s, its cap): 1.93 g, nothing yields; the worst member 0.84 (gear, compression)
+  ok    a circuit with the pilot (completed, 335 s, 1.32 g at the most): nothing yields; the worst member 0.33 (gear, tension)
+3. a taxi into a trunk, a wingtip brush
+  ok    taxied at 3 m/s into a trunk: a dent (10 members set, 0 of the nose broken, 731 J), no crash; the prop struck, the engine stopped; back 1.18 m from where it stopped
+  ok    a wingtip into a trunk at walking pace (1.4 m/s): touched (5156 contacts), 0 members set, no crash
+4. a flight into a trunk at 30 m/s
+  ok    the centreline: CRASHED (broke up: the fuselage parted (TPB off the core) at 1.32 s), 169 members broken (37 of the wing), 29.9 kJ of plastic work, 24.12 g; finite; the kinetic energy at most 100.0 % of the impact's
+  ok    the wing 2.5 m out: CRASHED (a wing member broke at 1.37 s), 121 members broken (41 of the wing), 13.8 kJ of plastic work, 9.39 g; finite; the kinetic energy at most 100.0 % of the impact's
+5. reset heals
+  ok    after a crash, reset() and the same taxi: the fresh sim's bits (fe182fe64103 / fe182fe64103)
+Jodel:
+1. the table
+  ok    492 members, every one with a section and a GEN_CRASH material (wood, tubeFabric)
+2. nothing yields in what it was built for (the margin: the worst member's peak force over its yield)
+  ok    the load test (the certificate): nothing yields to its 3.8 g limit (the worst member 0.64 (wing, tension)); at 5.7 g HELD, 0 members set (its first set is past the limit, by design), nothing broken; the worst member at 5.7 g 0.95 (wing, tension)
+  ok    a flown pull from 49 m/s to the limit (the wing's load 4.23 W; the CG then reading 2.04 g): nothing yields; the worst member 0.56 (gear, tension)
+  ok    a drop at 2.17 m/s (7.12 ft/s, FAR 23.473): 1.86 g, nothing yields; the worst member 0.64 (gear, compression)
+  ok    a drop at 3.05 m/s (10.00 ft/s, its cap): 2.21 g, nothing yields; the worst member 0.84 (gear, compression)
+  ok    a circuit with the pilot (null, 340 s, 1.67 g at the most): nothing yields; the worst member 0.29 (gear, compression)
+3. a taxi into a trunk, a wingtip brush
+  ok    taxied at 3 m/s into a trunk: a dent (10 members set, 1 of the nose broken, 1120 J), no crash; the prop struck, the engine stopped; back 0.21 m from where it stopped
+  ok    a wingtip into a trunk at walking pace (1.4 m/s): touched (6941 contacts), 0 members set, no crash
+4. a flight into a trunk at 30 m/s
+  ok    the centreline: CRASHED (broke up: the fuselage parted (TPB off the core) at 1.30 s), 204 members broken (32 of the wing), 39.6 kJ of plastic work, 26.08 g; finite; the kinetic energy at most 100.0 % of the impact's
+  ok    the wing 2.5 m out: CRASHED (a wing member broke at 1.33 s), 65 members broken (65 of the wing), 2.0 kJ of plastic work, 6.43 g; finite; the kinetic energy at most 100.0 % of the impact's
+5. reset heals
+  ok    after a crash, reset() and the same taxi: the fresh sim's bits (c903ac6134ae / c903ac6134ae)
+metal Cessna:
+1. the table
+  ok    442 members, every one with a section and a GEN_CRASH material (alloy, tubeFabric)
+2. nothing yields in what it was built for (the margin: the worst member's peak force over its yield)
+  ok    the load test (the certificate): nothing yields to its 3.8 g limit (the worst member 1.00 (wing, tension)); at 5.7 g HELD, 32 members set (its first set is past the limit, by design), nothing broken; the worst member at 5.7 g 1.47 (wing, tension)
+  ok    a flown pull from 58 m/s to the limit (the wing's load 3.82 W; the CG then reading 2.72 g): nothing yields; the worst member 0.93 (fus, tension)
+  ok    a drop at 2.38 m/s (7.79 ft/s, FAR 23.473): 2.12 g, nothing yields; the worst member 0.69 (gear, compression)
+  ok    a drop at 3.05 m/s (10.00 ft/s, its cap): 2.43 g, nothing yields; the worst member 0.84 (gear, compression)
+  ok    a circuit with the pilot (completed, 271 s, 1.76 g at the most): nothing yields; the worst member 0.36 (fus, tension)
+3. a taxi into a trunk, a wingtip brush
+  ok    taxied at 3 m/s into a trunk: a dent (11 members set, 1 of the nose broken, 929 J), no crash; the prop struck, the engine stopped; back 1.25 m from where it stopped
+  ok    a wingtip into a trunk at walking pace (1.4 m/s): touched (26134 contacts), 1 members set, no crash
+4. a flight into a trunk at 30 m/s
+  ok    the centreline: CRASHED (broke up: the fuselage parted (TPB off the core) at 1.30 s), 208 members broken (34 of the wing), 51.3 kJ of plastic work, 29.61 g; finite; the kinetic energy at most 100.0 % of the impact's
+  ok    the wing 2.5 m out: CRASHED (a wing member broke at 1.33 s), 90 members broken (36 of the wing), 10.0 kJ of plastic work, 4.28 g; finite; the kinetic energy at most 100.0 % of the impact's
+5. reset heals
+  ok    after a crash, reset() and the same taxi: the fresh sim's bits (470be4bbf1e7 / 470be4bbf1e7)
+Cessna floats:
+1. the table
+  ok    533 members, every one with a section and a GEN_CRASH material (alloy, tubeFabric)
+2. nothing yields in what it was built for (the margin: the worst member's peak force over its yield)
+  ok    the load test (the certificate): nothing yields to its 3.8 g limit (the worst member 1.00 (wing, tension)); at 5.7 g HELD, 35 members set (its first set is past the limit, by design), nothing broken; the worst member at 5.7 g 1.48 (wing, tension)
+  ok    a flown pull from 67 m/s to the limit (the wing's load 3.86 W; the CG then reading 2.89 g): nothing yields; the worst member 0.97 (fus, tension)
+  ok    a drop at 2.54 m/s (8.33 ft/s, FAR 23.473): 1.66 g, nothing yields; the worst member 0.47 (wing, tension)
+  ok    a drop at 3.05 m/s (10.00 ft/s, its cap): 1.75 g, nothing yields; the worst member 0.64 (wing, tension)
+  ok    a circuit with the pilot (null, 340 s, 2.22 g at the most): nothing yields; the worst member 0.37 (fus, tension)
+   (a floatplane: the trunk runs are the land builds')
+twin floatplane:
+1. the table
+  ok    519 members, every one with a section and a GEN_CRASH material (tubeFabric, wood)
+2. nothing yields in what it was built for (the margin: the worst member's peak force over its yield)
+  ok    the load test (the certificate): nothing yields to its 3.8 g limit (the worst member 0.64 (wing, tension)); at 5.7 g HELD, 0 members set (its first set is past the limit, by design), nothing broken; the worst member at 5.7 g 0.95 (wing, tension)
+  ok    a flown pull from 43 m/s to the limit (the wing's load 3.94 W; the CG then reading 3.00 g): nothing yields; the worst member 0.99 (fus, tension)
+  ok    a drop at 2.13 m/s (7.00 ft/s, FAR 23.473): 1.49 g, nothing yields; the worst member 0.42 (gear, tension)
+  ok    a drop at 3.05 m/s (10.00 ft/s, its cap): 1.55 g, nothing yields; the worst member 0.62 (gear, tension)
+  ok    a circuit with the pilot (completed, 292 s, 1.73 g at the most): nothing yields; the worst member 0.27 (fus, tension)
+   (a floatplane: the trunk runs are the land builds')
+6. the water - Cub
+  ok    a 5 m/s level pancake: the worst member 4.40 (fus, tension); 35 set {"fus":25,"wing":10}, 13 broken, the slam 523 kPa, 2 hull slice(s) holed, 7.78 g, CRASHED (a fus member broke); the damage follows the beams' own loads
+  ok    a 100 km/h nose-in ditch (4 m/s, 10 deg): the worst member 4.11 (fus, compression); 58 set {"fus":45,"wing":10,"tail":3}, 70 broken, the slam 302 kPa, 3 hull slice(s) holed, 12.16 g, CRASHED (a gear member broke); the damage follows the beams' own loads
+  ok    SEVERE: 180 km/h, 10 m/s, 60 deg nose-in: the worst member 17.20 (fus, compression); 157 set {"fus":54,"wing":31,"tail":72}, 177 broken, the slam 288 kPa, 5 hull slice(s) holed, 12.82 g, CRASHED (broke up: the fuselage parted (S0BR off the core)) - must yield, break and crash; the damage follows the beams' own loads
+6. the water - twin floatplane
+  ok    a float nose-in (90 km/h, 5 m/s, 20 deg): the worst member 0.83 (fus, compression); 0 set, 0 broken, 5.62 g, no damage; the damage follows the beams' own loads
+  ok    SEVERE: 150 km/h, 10 m/s, 60 deg nose-in: the worst member 14.30 (gear, tension); 205 set {"fus":67,"wing":37,"tail":101}, 220 broken, 20.60 g, CRASHED (broke up: the fuselage parted (TPB off the core)) - must yield, break and crash; the damage follows the beams' own loads
+  50/50 checks
+GATE TREECRASH: PASS
+[run_gates] 6/7 jobs done · running DMGSKIN 13 s
+[run_gates] 6/7 jobs done · running DMGSKIN 43 s
+[run_gates] 6/7 jobs done · running DMGSKIN 73 s
+[run_gates] 6/7 jobs done · running DMGSKIN 103 s
+[run_gates] 6/7 jobs done · running DMGSKIN 134 s
+=== DMGSKIN ===
+(151 s, 5 builds, damage on; TEAR 0.15)
+Cub:
+  the skin measured: 9 groups (genWing's and every member's tube), 11416 vertices, 21132 triangles; the wing fabric
+  a trunk at 30 m/s, the centreline: CRASHED (the airframe crushed (6.7 kJ of plastic work)), 82 broken, 9 frames with a new break, the skin checked on 222 frames; pieces up to 4
+  ok    the hop: inline and through the worker the same broken list and pieces at every one of 300 steps
+  ok    the hop: the sets the same whenever the host sends them, and at the end past its window
+  ok    the hop's pieces are DMG-D1b's (the gate's own union-find of the live members and clusters) on every frame
+  ok    the hop's cost in the crash: 32 payloads over 300 snapshots, 36064 bytes (1127 a payload), 3.213 ms building them
+  ok    no live skin triangle spans two pieces (generated and cage bindings, every frame from the first break)
+  ok    no live triangle spans a broken member (its vertices' dominant nodes joined only by broken members)
+  ok    no live triangle edge past (1 + 0.15) x its rest + 10 mm: the worst -0.00 mm from it ({"t":1.767,"mesh":"skin","cage":false,"tri":613}); the worst stretch of an edge of 2 cm or more 1.6453
+  ok    every skin position finite
+    the cost (node): the first break's binding 170.8 ms generated (whole), 56.5 ms cage (nearest nodes; 11416 vertices); 81 events, 3.01 ms each (both records of every group)
+    removed (two pieces / a broken member): generated 5703, cage 7202; torn (stretched past TEAR): generated 4071, cage 5586; vertices on detached pieces up to 144; the drape's deepest sag 12.5 cm; the nodes' frames 0.399 ms a frame
+  ok    before the first break poseSkinGen (an idle record passed) is the base's loop bit for bit (702 group poses)
+  ok    damage OFF: no payload (0), 0 broken, the skin the base's bit for bit on every frame (2700 group poses)
+  a trunk at 30 m/s, the wing 2.5 m out: CRASHED (a wing member broke), 17 broken, 8 frames with a new break, the skin checked on 219 frames; pieces up to 2
+  ok    the hop: inline and through the worker the same broken list and pieces at every one of 300 steps
+  ok    the hop: the sets the same whenever the host sends them, and at the end past its window
+  ok    the hop's pieces are DMG-D1b's (the gate's own union-find of the live members and clusters) on every frame
+  ok    the hop's cost in the crash: 17 payloads over 300 snapshots, 6568 bytes (386 a payload), 1.574 ms building them
+  ok    no live skin triangle spans two pieces (generated and cage bindings, every frame from the first break)
+  ok    no live triangle spans a broken member (its vertices' dominant nodes joined only by broken members)
+  ok    no live triangle edge past (1 + 0.15) x its rest + 10 mm: the worst -0.00 mm from it ({"t":2.25,"mesh":"skin","cage":false,"tri":3386}); the worst stretch of an edge of 2 cm or more 1.5545
+  ok    every skin position finite
+    the cost (node): the first break's binding 18.0 ms generated (whole), 10.0 ms cage (nearest nodes; 11416 vertices); 72 events, 1.27 ms each (both records of every group)
+    removed (two pieces / a broken member): generated 1229, cage 1613; torn (stretched past TEAR): generated 693, cage 1077; vertices on detached pieces up to 1072; the drape's deepest sag 17.9 cm; the nodes' frames 0.246 ms a frame
+  ok    before the first break poseSkinGen (an idle record passed) is the base's loop bit for bit (729 group poses)
+  ok    damage OFF: no payload (0), 0 broken, the skin the base's bit for bit on every frame (2700 group poses)
+  a severe nose-in on the ground (180 km/h, 10 m/s, 60 deg): CRASHED (a fus member broke), 29 broken, 8 frames with a new break, the skin checked on 238 frames; pieces up to 3
+  ok    the hop: inline and through the worker the same broken list and pieces at every one of 240 steps
+  ok    the hop: the sets the same whenever the host sends them, and at the end past its window
+  ok    the hop's pieces are DMG-D1b's (the gate's own union-find of the live members and clusters) on every frame
+  ok    the hop's cost in the crash: 13 payloads over 240 snapshots, 8907 bytes (685 a payload), 1.369 ms building them
+  ok    no live skin triangle spans two pieces (generated and cage bindings, every frame from the first break)
+  ok    no live triangle spans a broken member (its vertices' dominant nodes joined only by broken members)
+  ok    no live triangle edge past (1 + 0.15) x its rest + 10 mm: the worst -0.00 mm from it ({"t":1.9,"mesh":"members","cage":false,"tri":10566}); the worst stretch of an edge of 2 cm or more 1.5395
+  ok    every skin position finite
+    the cost (node): the first break's binding 17.3 ms generated (whole), 6.0 ms cage (nearest nodes; 11416 vertices); 72 events, 0.83 ms each (both records of every group)
+    removed (two pieces / a broken member): generated 1693, cage 1656; torn (stretched past TEAR): generated 1229, cage 1196; vertices on detached pieces up to 144; the drape's deepest sag 5.2 cm; the nodes' frames 0.179 ms a frame
+  ok    before the first break poseSkinGen (an idle record passed) is the base's loop bit for bit (18 group poses)
+  ok    damage OFF: no payload (0), 0 broken, the skin the base's bit for bit on every frame (2160 group poses)
+  ok    nothing broken (a FAR 23.473 drop through the host, 0 yields): no payload, no byte, no key in the meta; the check 0.365 us a snapshot
+Jodel:
+  the skin measured: 8 groups (genWing's and every member's tube), 12148 vertices, 22174 triangles; the wing fabric
+  a trunk at 30 m/s, the centreline: CRASHED (a fus member broke), 103 broken, 5 frames with a new break, the skin checked on 223 frames; pieces up to 7
+  ok    the hop: inline and through the worker the same broken list and pieces at every one of 300 steps
+  ok    the hop: the sets the same whenever the host sends them, and at the end past its window
+  ok    the hop's pieces are DMG-D1b's (the gate's own union-find of the live members and clusters) on every frame
+  ok    the hop's cost in the crash: 10 payloads over 300 snapshots, 6735 bytes (674 a payload), 2.337 ms building them
+  ok    no live skin triangle spans two pieces (generated and cage bindings, every frame from the first break)
+  ok    no live triangle spans a broken member (its vertices' dominant nodes joined only by broken members)
+  ok    no live triangle edge past (1 + 0.15) x its rest + 10 mm: the worst -0.00 mm from it ({"t":1.433,"mesh":"members","cage":false,"tri":2765}); the worst stretch of an edge of 2 cm or more 1.3851
+  ok    every skin position finite
+    the cost (node): the first break's binding 149.6 ms generated (whole), 51.4 ms cage (nearest nodes; 12148 vertices); 40 events, 5.77 ms each (both records of every group)
+    removed (two pieces / a broken member): generated 3419, cage 4249; torn (stretched past TEAR): generated 1205, cage 2227; vertices on detached pieces up to 7140; the drape's deepest sag 6.3 cm; the nodes' frames 0.387 ms a frame
+  ok    before the first break poseSkinGen (an idle record passed) is the base's loop bit for bit (616 group poses)
+  ok    damage OFF: no payload (0), 0 broken, the skin the base's bit for bit on every frame (2400 group poses)
+  a trunk at 30 m/s, the wing 2.5 m out: CRASHED (a wing member broke), 33 broken, 5 frames with a new break, the skin checked on 221 frames; pieces up to 3
+  ok    the hop: inline and through the worker the same broken list and pieces at every one of 300 steps
+  ok    the hop: the sets the same whenever the host sends them, and at the end past its window
+  ok    the hop's pieces are DMG-D1b's (the gate's own union-find of the live members and clusters) on every frame
+  ok    the hop's cost in the crash: 9 payloads over 300 snapshots, 3471 bytes (386 a payload), 1.873 ms building them
+  ok    no live skin triangle spans two pieces (generated and cage bindings, every frame from the first break)
+  ok    no live triangle spans a broken member (its vertices' dominant nodes joined only by broken members)
+  ok    no live triangle edge past (1 + 0.15) x its rest + 10 mm: the worst -0.03 mm from it ({"t":1.883,"mesh":"members","cage":true,"tri":12039}); the worst stretch of an edge of 2 cm or more 1.4633
+  ok    every skin position finite
+    the cost (node): the first break's binding 22.2 ms generated (whole), 7.7 ms cage (nearest nodes; 12148 vertices); 40 events, 1.90 ms each (both records of every group)
+    removed (two pieces / a broken member): generated 953, cage 1672; torn (stretched past TEAR): generated 390, cage 1113; vertices on detached pieces up to 1170; the drape's deepest sag 9.5 cm; the nodes' frames 0.278 ms a frame
+  ok    before the first break poseSkinGen (an idle record passed) is the base's loop bit for bit (632 group poses)
+  ok    damage OFF: no payload (0), 0 broken, the skin the base's bit for bit on every frame (2400 group poses)
+  a severe nose-in on the ground (180 km/h, 10 m/s, 60 deg): CRASHED (a fus member broke), 27 broken, 3 frames with a new break, the skin checked on 238 frames; pieces up to 3
+  ok    the hop: inline and through the worker the same broken list and pieces at every one of 240 steps
+  ok    the hop: the sets the same whenever the host sends them, and at the end past its window
+  ok    the hop's pieces are DMG-D1b's (the gate's own union-find of the live members and clusters) on every frame
+  ok    the hop's cost in the crash: 6 payloads over 240 snapshots, 2121 bytes (354 a payload), 2.2 ms building them
+  ok    no live skin triangle spans two pieces (generated and cage bindings, every frame from the first break)
+  ok    no live triangle spans a broken member (its vertices' dominant nodes joined only by broken members)
+  ok    no live triangle edge past (1 + 0.15) x its rest + 10 mm: the worst -0.09 mm from it ({"t":0.1,"mesh":"flapL","cage":false,"tri":219}); the worst stretch of an edge of 2 cm or more 1.5350
+  ok    every skin position finite
+    the cost (node): the first break's binding 16.4 ms generated (whole), 6.1 ms cage (nearest nodes; 12148 vertices); 24 events, 1.27 ms each (both records of every group)
+    removed (two pieces / a broken member): generated 489, cage 1034; torn (stretched past TEAR): generated 57, cage 602; vertices on detached pieces up to 1170; the drape's deepest sag 0.0 cm; the nodes' frames 0.216 ms a frame
+  ok    before the first break poseSkinGen (an idle record passed) is the base's loop bit for bit (16 group poses)
+  ok    damage OFF: no payload (0), 0 broken, the skin the base's bit for bit on every frame (1920 group poses)
+  ok    nothing broken (a FAR 23.473 drop through the host, 0 yields): no payload, no byte, no key in the meta; the check 0.816 us a snapshot
+metal Cessna:
+  the skin measured: 9 groups (genWing's and every member's tube), 11524 vertices, 21156 triangles; the wing not fabric
+  a trunk at 30 m/s, the centreline: CRASHED (the airframe crushed (3.4 kJ of plastic work)), 107 broken, 8 frames with a new break, the skin checked on 223 frames; pieces up to 7
+  ok    the hop: inline and through the worker the same broken list and pieces at every one of 300 steps
+  ok    the hop: the sets the same whenever the host sends them, and at the end past its window
+  ok    the hop's pieces are DMG-D1b's (the gate's own union-find of the live members and clusters) on every frame
+  ok    the hop's cost in the crash: 15 payloads over 300 snapshots, 17285 bytes (1152 a payload), 2.35 ms building them
+  ok    no live skin triangle spans two pieces (generated and cage bindings, every frame from the first break)
+  ok    no live triangle spans a broken member (its vertices' dominant nodes joined only by broken members)
+  ok    no live triangle edge past (1 + 0.15) x its rest + 10 mm: the worst -0.00 mm from it ({"t":2.283,"mesh":"members","cage":false,"tri":8369}); the worst stretch of an edge of 2 cm or more 1.6499
+  ok    every skin position finite
+    the cost (node): the first break's binding 143.5 ms generated (whole), 34.2 ms cage (nearest nodes; 11524 vertices); 72 events, 2.91 ms each (both records of every group)
+    removed (two pieces / a broken member): generated 3798, cage 5533; torn (stretched past TEAR): generated 1910, cage 4029; vertices on detached pieces up to 2834; the drape's deepest sag 0.0 cm; the nodes' frames 0.454 ms a frame
+  ok    before the first break poseSkinGen (an idle record passed) is the base's loop bit for bit (693 group poses)
+  ok    damage OFF: no payload (0), 0 broken, the skin the base's bit for bit on every frame (2700 group poses)
+  a trunk at 30 m/s, the wing 2.5 m out: CRASHED (a wing member broke), 20 broken, 3 frames with a new break, the skin checked on 221 frames; pieces up to 3
+  ok    the hop: inline and through the worker the same broken list and pieces at every one of 300 steps
+  ok    the hop: the sets the same whenever the host sends them, and at the end past its window
+  ok    the hop's pieces are DMG-D1b's (the gate's own union-find of the live members and clusters) on every frame
+  ok    the hop's cost in the crash: 3 payloads over 300 snapshots, 1654 bytes (551 a payload), 1.912 ms building them
+  ok    no live skin triangle spans two pieces (generated and cage bindings, every frame from the first break)
+  ok    no live triangle spans a broken member (its vertices' dominant nodes joined only by broken members)
+  ok    no live triangle edge past (1 + 0.15) x its rest + 10 mm: the worst -0.00 mm from it ({"t":1.8,"mesh":"skin","cage":false,"tri":2674}); the worst stretch of an edge of 2 cm or more 1.5348
+  ok    every skin position finite
+    the cost (node): the first break's binding 17.9 ms generated (whole), 6.6 ms cage (nearest nodes; 11524 vertices); 27 events, 1.43 ms each (both records of every group)
+    removed (two pieces / a broken member): generated 1196, cage 1254; torn (stretched past TEAR): generated 503, cage 561; vertices on detached pieces up to 1927; the drape's deepest sag 0.0 cm; the nodes' frames 0.271 ms a frame
+  ok    before the first break poseSkinGen (an idle record passed) is the base's loop bit for bit (711 group poses)
+  ok    damage OFF: no payload (0), 0 broken, the skin the base's bit for bit on every frame (2700 group poses)
+  a severe nose-in on the ground (180 km/h, 10 m/s, 60 deg): CRASHED (the airframe crushed (3.0 kJ of plastic work)), 63 broken, 6 frames with a new break, the skin checked on 236 frames; pieces up to 4
+  ok    the hop: inline and through the worker the same broken list and pieces at every one of 240 steps
+  ok    the hop: the sets the same whenever the host sends them, and at the end past its window
+  ok    the hop's pieces are DMG-D1b's (the gate's own union-find of the live members and clusters) on every frame
+  ok    the hop's cost in the crash: 11 payloads over 240 snapshots, 4973 bytes (452 a payload), 1.64 ms building them
+  ok    no live skin triangle spans two pieces (generated and cage bindings, every frame from the first break)
+  ok    no live triangle spans a broken member (its vertices' dominant nodes joined only by broken members)
+  ok    no live triangle edge past (1 + 0.15) x its rest + 10 mm: the worst -0.00 mm from it ({"t":2.983,"mesh":"members","cage":false,"tri":6271}); the worst stretch of an edge of 2 cm or more 1.6255
+  ok    every skin position finite
+    the cost (node): the first break's binding 15.2 ms generated (whole), 5.8 ms cage (nearest nodes; 11524 vertices); 54 events, 1.00 ms each (both records of every group)
+    removed (two pieces / a broken member): generated 4278, cage 4884; torn (stretched past TEAR): generated 3206, cage 4022; vertices on detached pieces up to 2538; the drape's deepest sag 0.0 cm; the nodes' frames 0.204 ms a frame
+  ok    before the first break poseSkinGen (an idle record passed) is the base's loop bit for bit (36 group poses)
+  ok    damage OFF: no payload (0), 0 broken, the skin the base's bit for bit on every frame (2160 group poses)
+  ok    nothing broken (a FAR 23.473 drop through the host, 0 yields): no payload, no byte, no key in the meta; the check 0.432 us a snapshot
+Cessna floats:
+  the skin measured: 10 groups (genWing's and every member's tube), 13128 vertices, 24036 triangles; the wing not fabric
+  a severe float nose-in (150 km/h, 10 m/s, 60 deg): CRASHED (a fus member broke), 59 broken, 4 frames with a new break, the skin checked on 231 frames; pieces up to 4
+  ok    the hop: inline and through the worker the same broken list and pieces at every one of 240 steps
+  ok    the hop: the sets the same whenever the host sends them, and at the end past its window
+  ok    the hop's pieces are DMG-D1b's (the gate's own union-find of the live members and clusters) on every frame
+  ok    the hop's cost in the crash: 11 payloads over 240 snapshots, 4435 bytes (403 a payload), 1.911 ms building them
+  ok    no live skin triangle spans two pieces (generated and cage bindings, every frame from the first break)
+  ok    no live triangle spans a broken member (its vertices' dominant nodes joined only by broken members)
+  ok    no live triangle edge past (1 + 0.15) x its rest + 10 mm: the worst -0.01 mm from it ({"t":0.383,"mesh":"members","cage":false,"tri":16028}); the worst stretch of an edge of 2 cm or more 1.5663
+  ok    every skin position finite
+    the cost (node): the first break's binding 115.5 ms generated (whole), 28.3 ms cage (nearest nodes; 13128 vertices); 40 events, 2.09 ms each (both records of every group)
+    removed (two pieces / a broken member): generated 1310, cage 2109; torn (stretched past TEAR): generated 302, cage 1247; vertices on detached pieces up to 2628; the drape's deepest sag 0.0 cm; the nodes' frames 0.362 ms a frame
+  ok    before the first break poseSkinGen (an idle record passed) is the base's loop bit for bit (90 group poses)
+  ok    damage OFF: no payload (0), 0 broken, the skin the base's bit for bit on every frame (2400 group poses)
+  ok    nothing broken (a FAR 23.473 drop through the host, 0 yields): no payload, no byte, no key in the meta; the check 0.504 us a snapshot
+twin floatplane:
+  the skin measured: 9 groups (genWing's and every member's tube), 11998 vertices, 21796 triangles; the wing fabric
+  a severe float nose-in (150 km/h, 10 m/s, 60 deg): CRASHED (broke up: the fuselage parted (TPB off the core)), 38 broken, 4 frames with a new break, the skin checked on 236 frames; pieces up to 6
+  ok    the hop: inline and through the worker the same broken list and pieces at every one of 240 steps
+  ok    the hop: the sets the same whenever the host sends them, and at the end past its window
+  ok    the hop's pieces are DMG-D1b's (the gate's own union-find of the live members and clusters) on every frame
+  ok    the hop's cost in the crash: 7 payloads over 240 snapshots, 3717 bytes (531 a payload), 1.783 ms building them
+  ok    no live skin triangle spans two pieces (generated and cage bindings, every frame from the first break)
+  ok    no live triangle spans a broken member (its vertices' dominant nodes joined only by broken members)
+  ok    no live triangle edge past (1 + 0.15) x its rest + 10 mm: the worst -0.00 mm from it ({"t":0.15,"mesh":"members","cage":false,"tri":14162}); the worst stretch of an edge of 2 cm or more 1.6218
+  ok    every skin position finite
+    the cost (node): the first break's binding 94.0 ms generated (whole), 26.2 ms cage (nearest nodes; 11998 vertices); 36 events, 4.17 ms each (both records of every group)
+    removed (two pieces / a broken member): generated 5137, cage 5456; torn (stretched past TEAR): generated 4317, cage 4622; vertices on detached pieces up to 5284; the drape's deepest sag 8.9 cm; the nodes' frames 0.345 ms a frame
+  ok    before the first break poseSkinGen (an idle record passed) is the base's loop bit for bit (36 group poses)
+  ok    damage OFF: no payload (0), 0 broken, the skin the base's bit for bit on every frame (2160 group poses)
+  ok    nothing broken (a FAR 23.473 drop through the host, 0 yields): no payload, no byte, no key in the meta; the check 0.378 us a snapshot
+  ok    app.js: the skin's break path (11 calls) runs only through brkGen / brkCage, each returning at once unless the damage state holds a broken member
+  116/116 checks
+GATE DMGSKIN: PASS
+=== DMGWALL ===
+(1885 s, 5 builds, damage on; the leak past 0.5 mm; the band 2 mm + 10 %; BOUND 150 mm, KAPPA 0.9)
+Cub:
+  the flown snapshot (headless, 5.7 s): 40 groups, 273408 vertices; the covering 14400 (ceilingLoop, body, waistband, floorLoop, pillarTail, pillarPassenger, pillarCabin, pillarWindow, pillarFront); the inside wall 63912 (bulkhead:684, tube:29316, cloth:30384, fireProof:384, firewall:576, shoulder:2568); furniture (keeps G1851) 8064 (dash:7032, dashFace:1032)
+  ok    the snapshot and the nodes in one frame: the covering's vertices 239 mm from their nearest node on average
+  the full binding at rest: 63696 inside vertices on the wall (93 ms, every vertex), the covering welded to 2530 vertices / 4800 triangles; inward = against the covering's winding normals
+    bulkhead    684 vertices: 684 on the wall, 0 with no covering within 150 mm (G1851's node binding); the depth p50 / p99 / max 4.8 / 5.4 / 5.4 mm
+    tube        29316 vertices: 29316 on the wall, 0 with no covering within 150 mm (G1851's node binding); the depth p50 / p99 / max 16.1 / 32.9 / 37.8 mm; 319 stand OUTSIDE the covering at rest (the base's drawing)
+    cloth       30384 vertices: 30384 on the wall, 0 with no covering within 150 mm (G1851's node binding); the depth p50 / p99 / max 1 / 4.1 / 4.1 mm
+    fireProof   384 vertices: 272 on the wall, 112 with no covering within 150 mm (G1851's node binding); the depth p50 / p99 / max 53.4 / 133 / 133 mm
+    firewall    576 vertices: 472 on the wall, 104 with no covering within 150 mm (G1851's node binding); the depth p50 / p99 / max 0.4 / 133.7 / 133.7 mm; 170 stand OUTSIDE the covering at rest (the base's drawing)
+    shoulder    2568 vertices: 2568 on the wall, 0 with no covering within 150 mm (G1851's node binding); the depth p50 / p99 / max 47.4 / 57.9 / 58.3 mm
+  ok    d. at rest the wall is the rest: 63696 inside vertices (10770 positions) posed on the covering at rest, the worst 0.0 mm off (8.9e-16 m: 32559 differ from the float64 rest in the last bit); drawn back through the rest frame, the snapshot's own positions to 0.0000 mm (float32)
+  a trunk at 30 m/s, the centreline: CRASHED (the airframe crushed (6.7 kJ of plastic work)), 82 broken, the first break at 1.317 s, the wall checked on 222 frames
+  ok    e. before the first break the inside layers are their rest bit for bit (468 group frames)
+  ok    e. damage OFF: nothing broken (0), no payload, the inside layers their rest bit for bit on every frame (1800 group frames)
+    BEFORE (the inside on its own nodes, G1851): 162614 vertex-frames out through the covering (8556 vertices), the worst 59.4 mm out; 4054 inside triangles live over a removed covering triangle (the most on a frame)
+  ok    a. AFTER: inside-wall vertices out through their own live covering past 0.5 mm: 753 vertex-frames of 5549716 measured (1.36e-4, at most 2e-4; BEFORE 202.7e-4), 434 vertices (BEFORE 8556), the worst 12.46 mm {"t":1.567,"sec":"tube","v":10268,"s":-0.01296,"s0":0.01891}; through ANY live covering (a neighbouring section slid over it across a seam included): 1235 (BEFORE 158936); at a covering doubled over on itself (no outside defined): 410 (BEFORE 3483)
+  ok    b. the wall's thickness (the distance to its own covering triangle, live) kept: 325 of 5549714 vertex-frames (0.0059 %, at most 0.2 %) off their rest by more than 2 mm + 10 %, the worst 3.89 mm past it {"t":1.433,"sec":"tube","v":28198,"d":0.0169,"d0":0.02532}; 0 past 3 mm + 60 % (at most 20 in a million); thinner where the crease held it: 105654 by the clamp, 36806 by the pinch
+  ok    c. no inside triangle live over a removed or torn covering triangle (0 on the worst frame; BEFORE 4054)
+    the wall: 10734 inside vertices bound (lazily, 10770 tested, 36 with no covering within BOUND), up to 10734 posed a frame; 9 events at 152.5 ms, the pose 29.02 ms a frame on average, 225.1 at most (node; G1851's own pose of the same groups 4.36 ms a frame)
+    removed: the covering 2496 (torn 2061); the inside wall AFTER 13518 (torn 1124), BEFORE 9671
+  a trunk at 30 m/s, the wing 2.5 m out: CRASHED (a wing member broke), 17 broken, the first break at 1.367 s, the wall checked on 219 frames
+  ok    e. before the first break the inside layers are their rest bit for bit (486 group frames)
+  ok    e. damage OFF: nothing broken (0), no payload, the inside layers their rest bit for bit on every frame (1800 group frames)
+    BEFORE (the inside on its own nodes, G1851): 112621 vertex-frames out through the covering (3878 vertices), the worst 59.4 mm out; 2094 inside triangles live over a removed covering triangle (the most on a frame)
+  ok    a. AFTER: inside-wall vertices out through their own live covering past 0.5 mm: 0 vertex-frames of 12215227 measured (0.00e-4, at most 2e-4; BEFORE 86.3e-4), 0 vertices (BEFORE 3878), the worst 0.00 mm; through ANY live covering (a neighbouring section slid over it across a seam included): 20 (BEFORE 115849); at a covering doubled over on itself (no outside defined): 4 (BEFORE 351)
+  ok    b. the wall's thickness (the distance to its own covering triangle, live) kept: 45 of 12212756 vertex-frames (0.0004 %, at most 0.2 %) off their rest by more than 2 mm + 10 %, the worst 0.53 mm past it {"t":2.75,"sec":"cloth","v":4225,"d":0.00109,"d0":0.00403}; 0 past 3 mm + 60 % (at most 20 in a million); thinner where the crease held it: 14307 by the clamp, 38935 by the pinch
+  ok    c. no inside triangle live over a removed or torn covering triangle (0 on the worst frame; BEFORE 2094)
+    the wall: 10734 inside vertices bound (lazily, 10770 tested, 36 with no covering within BOUND), up to 10734 posed a frame; 8 events at 135.7 ms, the pose 24.32 ms a frame on average, 95.0 at most (node; G1851's own pose of the same groups 4.65 ms a frame)
+    removed: the covering 450 (torn 387); the inside wall AFTER 4062 (torn 331), BEFORE 2008
+  a severe nose-in on the ground (180 km/h, 10 m/s, 60 deg): CRASHED (a fus member broke), 29 broken, the first break at 0.05 s, the wall checked on 238 frames
+  ok    e. before the first break the inside layers are their rest bit for bit (12 group frames)
+  ok    e. damage OFF: nothing broken (0), no payload, the inside layers their rest bit for bit on every frame (1440 group frames)
+    BEFORE (the inside on its own nodes, G1851): 146322 vertex-frames out through the covering (2344 vertices), the worst 53.2 mm out; 2401 inside triangles live over a removed covering triangle (the most on a frame)
+  ok    a. AFTER: inside-wall vertices out through their own live covering past 0.5 mm: 57 vertex-frames of 11875702 measured (0.05e-4, at most 2e-4; BEFORE 108.9e-4), 48 vertices (BEFORE 2344), the worst 6.97 mm {"t":0.217,"sec":"tube","v":13154,"s":-0.00747,"s0":0.01106}; through ANY live covering (a neighbouring section slid over it across a seam included): 130 (BEFORE 155949); at a covering doubled over on itself (no outside defined): 80 (BEFORE 3367)
+  ok    b. the wall's thickness (the distance to its own covering triangle, live) kept: 234 of 11875702 vertex-frames (0.0020 %, at most 0.2 %) off their rest by more than 2 mm + 10 %, the worst 4.40 mm past it {"t":0.35,"sec":"tube","v":7334,"d":0.00734,"d0":0.01527}; 0 past 3 mm + 60 % (at most 20 in a million); thinner where the crease held it: 64014 by the clamp, 33592 by the pinch
+  ok    c. no inside triangle live over a removed or torn covering triangle (0 on the worst frame; BEFORE 2401)
+    the wall: 10734 inside vertices bound (lazily, 10770 tested, 36 with no covering within BOUND), up to 10734 posed a frame; 8 events at 96.9 ms, the pose 23.25 ms a frame on average, 57.1 at most (node; G1851's own pose of the same groups 4.63 ms a frame)
+    removed: the covering 657 (torn 506); the inside wall AFTER 4853 (torn 404), BEFORE 2589
+Jodel:
+  the flown snapshot (headless, 5.2 s): 42 groups, 255762 vertices; the covering 12672 (ceilingLoop, body, waistband, floorLoop, pillarTail, pillarPassenger, pillarCabin, pillarWindow, pillarFront); the inside wall 49968 (bulkhead:684, plywood:26880, woodFrame:18876, fireProof:384, firewall:576, shoulder:2568); furniture (keeps G1851) 8064 (dash:7032, dashFace:1032)
+  ok    the snapshot and the nodes in one frame: the covering's vertices 258 mm from their nearest node on average
+  the full binding at rest: 49584 inside vertices on the wall (116 ms, every vertex), the covering welded to 2240 vertices / 4224 triangles; inward = against the covering's winding normals
+    bulkhead    684 vertices: 684 on the wall, 0 with no covering within 150 mm (G1851's node binding); the depth p50 / p99 / max 31.1 / 32 / 32 mm
+    plywood     26880 vertices: 26880 on the wall, 0 with no covering within 150 mm (G1851's node binding); the depth p50 / p99 / max 1.1 / 10.4 / 10.4 mm
+    woodFrame   18876 vertices: 18732 on the wall, 144 with no covering within 150 mm (G1851's node binding); the depth p50 / p99 / max 21.2 / 89.1 / 89.4 mm; 72 stand OUTSIDE the covering at rest (the base's drawing)
+    fireProof   384 vertices: 264 on the wall, 120 with no covering within 150 mm (G1851's node binding); the depth p50 / p99 / max 49.8 / 123.4 / 123.4 mm
+    firewall    576 vertices: 456 on the wall, 120 with no covering within 150 mm (G1851's node binding); the depth p50 / p99 / max 0.5 / 123.2 / 123.2 mm; 170 stand OUTSIDE the covering at rest (the base's drawing)
+    shoulder    2568 vertices: 2568 on the wall, 0 with no covering within 150 mm (G1851's node binding); the depth p50 / p99 / max 51.4 / 58.5 / 58.5 mm
+  ok    d. at rest the wall is the rest: 49584 inside vertices (8418 positions) posed on the covering at rest, the worst 0.0 mm off (8.9e-16 m: 29975 differ from the float64 rest in the last bit); drawn back through the rest frame, the snapshot's own positions to 0.0000 mm (float32)
+  a trunk at 30 m/s, the centreline: CRASHED (a fus member broke), 103 broken, the first break at 1.3 s, the wall checked on 223 frames
+  ok    e. before the first break the inside layers are their rest bit for bit (462 group frames)
+  ok    e. damage OFF: nothing broken (0), no payload, the inside layers their rest bit for bit on every frame (1800 group frames)
+    BEFORE (the inside on its own nodes, G1851): 148544 vertex-frames out through the covering (2786 vertices), the worst 59.5 mm out; 2820 inside triangles live over a removed covering triangle (the most on a frame)
+  ok    a. AFTER: inside-wall vertices out through their own live covering past 0.5 mm: 602 vertex-frames of 6139192 measured (0.98e-4, at most 2e-4; BEFORE 188.2e-4), 209 vertices (BEFORE 2786), the worst 17.31 mm {"t":2.017,"sec":"woodFrame","v":9812,"s":-0.01781,"s0":0.04154}; through ANY live covering (a neighbouring section slid over it across a seam included): 632 (BEFORE 153868); at a covering doubled over on itself (no outside defined): 18 (BEFORE 503)
+  ok    b. the wall's thickness (the distance to its own covering triangle, live) kept: 567 of 6139192 vertex-frames (0.0092 %, at most 0.2 %) off their rest by more than 2 mm + 10 %, the worst 7.50 mm past it {"t":1.783,"sec":"woodFrame","v":16844,"d":0.00048,"d0":0.01108}; 43 past 3 mm + 60 % (at most 20 in a million); thinner where the crease held it: 2881 by the clamp, 1293 by the pinch
+  ok    c. no inside triangle live over a removed or torn covering triangle (0 on the worst frame; BEFORE 2820)
+    the wall: 8354 inside vertices bound (lazily, 8418 tested, 64 with no covering within BOUND), up to 8354 posed a frame; 5 events at 217.6 ms, the pose 20.70 ms a frame on average, 158.7 at most (node; G1851's own pose of the same groups 4.10 ms a frame)
+    removed: the covering 1095 (torn 468); the inside wall AFTER 7058 (torn 600), BEFORE 4226
+  a trunk at 30 m/s, the wing 2.5 m out: CRASHED (a wing member broke), 33 broken, the first break at 1.333 s, the wall checked on 221 frames
+  ok    e. before the first break the inside layers are their rest bit for bit (474 group frames)
+  ok    e. damage OFF: nothing broken (0), no payload, the inside layers their rest bit for bit on every frame (1800 group frames)
+    BEFORE (the inside on its own nodes, G1851): 3617 vertex-frames out through the covering (443 vertices), the worst 43.4 mm out; 661 inside triangles live over a removed covering triangle (the most on a frame)
+  ok    a. AFTER: inside-wall vertices out through their own live covering past 0.5 mm: 97 vertex-frames of 9647475 measured (0.10e-4, at most 2e-4; BEFORE 3.6e-4), 97 vertices (BEFORE 443), the worst 33.35 mm {"t":1.5,"sec":"woodFrame","v":18410,"s":-0.03385,"s0":0.04883}; through ANY live covering (a neighbouring section slid over it across a seam included): 109 (BEFORE 2709); at a covering doubled over on itself (no outside defined): 12 (BEFORE 20)
+  ok    b. the wall's thickness (the distance to its own covering triangle, live) kept: 423 of 9647475 vertex-frames (0.0044 %, at most 0.2 %) off their rest by more than 2 mm + 10 %, the worst 1.54 mm past it {"t":4.9,"sec":"woodFrame","v":2852,"d":0.03401,"d0":0.04172}; 0 past 3 mm + 60 % (at most 20 in a million); thinner where the crease held it: 14958 by the clamp, 313 by the pinch
+  ok    c. no inside triangle live over a removed or torn covering triangle (0 on the worst frame; BEFORE 661)
+    the wall: 8354 inside vertices bound (lazily, 8418 tested, 64 with no covering within BOUND), up to 8354 posed a frame; 5 events at 118.9 ms, the pose 24.55 ms a frame on average, 139.8 at most (node; G1851's own pose of the same groups 4.06 ms a frame)
+    removed: the covering 197 (torn 87); the inside wall AFTER 1464 (torn 260), BEFORE 726
+  a severe nose-in on the ground (180 km/h, 10 m/s, 60 deg): CRASHED (a fus member broke), 27 broken, the first break at 0.05 s, the wall checked on 238 frames
+  ok    e. before the first break the inside layers are their rest bit for bit (12 group frames)
+  ok    e. damage OFF: nothing broken (0), no payload, the inside layers their rest bit for bit on every frame (1440 group frames)
+    BEFORE (the inside on its own nodes, G1851): 1637 vertex-frames out through the covering (235 vertices), the worst 23.1 mm out; 989 inside triangles live over a removed covering triangle (the most on a frame)
+  ok    a. AFTER: inside-wall vertices out through their own live covering past 0.5 mm: 74 vertex-frames of 10036424 measured (0.07e-4, at most 2e-4; BEFORE 1.5e-4), 74 vertices (BEFORE 235), the worst 5.11 mm {"t":0.267,"sec":"plywood","v":293,"s":-0.00561,"s0":0.00681}; through ANY live covering (a neighbouring section slid over it across a seam included): 74 (BEFORE 5022); at a covering doubled over on itself (no outside defined): 0 (BEFORE 11)
+  ok    b. the wall's thickness (the distance to its own covering triangle, live) kept: 0 of 10036424 vertex-frames (0.0000 %, at most 0.2 %) off their rest by more than 2 mm + 10 %, the worst 0.00 mm past it; 0 past 3 mm + 60 % (at most 20 in a million); thinner where the crease held it: 2088 by the clamp, 58 by the pinch
+  ok    c. no inside triangle live over a removed or torn covering triangle (0 on the worst frame; BEFORE 989)
+    the wall: 8354 inside vertices bound (lazily, 8418 tested, 64 with no covering within BOUND), up to 8354 posed a frame; 3 events at 210.7 ms, the pose 17.04 ms a frame on average, 47.3 at most (node; G1851's own pose of the same groups 3.81 ms a frame)
+    removed: the covering 228 (torn 118); the inside wall AFTER 1951 (torn 320), BEFORE 812
+metal Cessna:
+  the flown snapshot (headless, 6.7 s): 46 groups, 356292 vertices; the covering 17136 (ceilingLoop, body, waistband, floorLoop, pillarTail, pillarTaper, taper, pillarPassenger, pillarCabin, pillarWindow, pillarFront); the inside wall 110256 (reveal:1416, bulkhead:600, toele:39864, aluminium:40824, fireProof:384, firewall:576, shoulder:2568, doorPanel:24024); furniture (keeps G1851) 8064 (dash:7032, dashFace:1032)
+  ok    the snapshot and the nodes in one frame: the covering's vertices 319 mm from their nearest node on average
+  the full binding at rest: 109848 inside vertices on the wall (178 ms, every vertex), the covering welded to 3090 vertices / 5712 triangles; inward = against the covering's winding normals
+    reveal      1416 vertices: 1416 on the wall, 0 with no covering within 150 mm (G1851's node binding); the depth p50 / p99 / max 0 / 4.5 / 4.5 mm
+    bulkhead    600 vertices: 600 on the wall, 0 with no covering within 150 mm (G1851's node binding); the depth p50 / p99 / max 9.3 / 32 / 32 mm
+    toele       39864 vertices: 39864 on the wall, 0 with no covering within 150 mm (G1851's node binding); the depth p50 / p99 / max 1.1 / 11.2 / 11.2 mm; 2064 stand OUTSIDE the covering at rest (the base's drawing)
+    aluminium   40824 vertices: 40704 on the wall, 120 with no covering within 150 mm (G1851's node binding); the depth p50 / p99 / max 22.9 / 42 / 62.4 mm; 60 stand OUTSIDE the covering at rest (the base's drawing)
+    fireProof   384 vertices: 244 on the wall, 140 with no covering within 150 mm (G1851's node binding); the depth p50 / p99 / max 69.7 / 147.6 / 147.6 mm
+    firewall    576 vertices: 428 on the wall, 148 with no covering within 150 mm (G1851's node binding); the depth p50 / p99 / max 0.1 / 147.7 / 147.7 mm; 284 stand OUTSIDE the covering at rest (the base's drawing)
+    shoulder    2568 vertices: 2568 on the wall, 0 with no covering within 150 mm (G1851's node binding); the depth p50 / p99 / max 51.7 / 58.1 / 58.6 mm
+    doorPanel   24024 vertices: 24024 on the wall, 0 with no covering within 150 mm (G1851's node binding); the depth p50 / p99 / max 27.2 / 66 / 78.4 mm
+  ok    d. at rest the wall is the rest: 109848 inside vertices (19538 positions) posed on the covering at rest, the worst 0.0 mm off (8.9e-16 m: 63920 differ from the float64 rest in the last bit); drawn back through the rest frame, the snapshot's own positions to 0.0000 mm (float32)
+  a trunk at 30 m/s, the centreline: CRASHED (the airframe crushed (3.4 kJ of plastic work)), 107 broken, the first break at 1.3 s, the wall checked on 223 frames
+  ok    e. before the first break the inside layers are their rest bit for bit (616 group frames)
+  ok    e. damage OFF: nothing broken (0), no payload, the inside layers their rest bit for bit on every frame (2400 group frames)
+    BEFORE (the inside on its own nodes, G1851): 378462 vertex-frames out through the covering (10702 vertices), the worst 59.5 mm out; 9068 inside triangles live over a removed covering triangle (the most on a frame)
+  ok    a. AFTER: inside-wall vertices out through their own live covering past 0.5 mm: 230 vertex-frames of 10835811 measured (0.21e-4, at most 2e-4; BEFORE 233.7e-4), 205 vertices (BEFORE 10702), the worst 24.08 mm {"t":1.367,"sec":"doorPanel","v":6721,"s":-0.02458,"s0":0.02757}; through ANY live covering (a neighbouring section slid over it across a seam included): 238 (BEFORE 393706); at a covering doubled over on itself (no outside defined): 123 (BEFORE 12139)
+  ok    b. the wall's thickness (the distance to its own covering triangle, live) kept: 143 of 10835769 vertex-frames (0.0013 %, at most 0.2 %) off their rest by more than 2 mm + 10 %, the worst 5.95 mm past it {"t":1.35,"sec":"doorPanel","v":13265,"d":0.01055,"d0":0.02056}; 0 past 3 mm + 60 % (at most 20 in a million); thinner where the crease held it: 39548 by the clamp, 8192 by the pinch
+  ok    c. no inside triangle live over a removed or torn covering triangle (0 on the worst frame; BEFORE 9068)
+    the wall: 19470 inside vertices bound (lazily, 19538 tested, 68 with no covering within BOUND), up to 19470 posed a frame; 8 events at 215.0 ms, the pose 31.03 ms a frame on average, 247.6 at most (node; G1851's own pose of the same groups 5.97 ms a frame)
+    removed: the covering 1972 (torn 1284); the inside wall AFTER 20743 (torn 1001), BEFORE 12468
+  a trunk at 30 m/s, the wing 2.5 m out: CRASHED (a wing member broke), 20 broken, the first break at 1.333 s, the wall checked on 221 frames
+  ok    e. before the first break the inside layers are their rest bit for bit (632 group frames)
+  ok    e. damage OFF: nothing broken (0), no payload, the inside layers their rest bit for bit on every frame (2400 group frames)
+    BEFORE (the inside on its own nodes, G1851): 44372 vertex-frames out through the covering (1597 vertices), the worst 57.5 mm out; 1626 inside triangles live over a removed covering triangle (the most on a frame)
+  ok    a. AFTER: inside-wall vertices out through their own live covering past 0.5 mm: 58 vertex-frames of 22446175 measured (0.03e-4, at most 2e-4; BEFORE 19.1e-4), 13 vertices (BEFORE 1597), the worst 23.64 mm {"t":3.333,"sec":"aluminium","v":9914,"s":-0.02414,"s0":0.03833}; through ANY live covering (a neighbouring section slid over it across a seam included): 394 (BEFORE 44594); at a covering doubled over on itself (no outside defined): 336 (BEFORE 222)
+  ok    b. the wall's thickness (the distance to its own covering triangle, live) kept: 10 of 22446020 vertex-frames (0.0000 %, at most 0.2 %) off their rest by more than 2 mm + 10 %, the worst 9.90 mm past it {"t":1.717,"sec":"aluminium","v":10003,"d":0.02225,"d0":0.03794}; 0 past 3 mm + 60 % (at most 20 in a million); thinner where the crease held it: 6695 by the clamp, 15868 by the pinch
+  ok    c. no inside triangle live over a removed or torn covering triangle (0 on the worst frame; BEFORE 1626)
+    the wall: 19470 inside vertices bound (lazily, 19538 tested, 68 with no covering within BOUND), up to 19470 posed a frame; 3 events at 318.1 ms, the pose 27.36 ms a frame on average, 87.0 at most (node; G1851's own pose of the same groups 6.20 ms a frame)
+    removed: the covering 209 (torn 209); the inside wall AFTER 2692 (torn 217), BEFORE 1245
+  a severe nose-in on the ground (180 km/h, 10 m/s, 60 deg): CRASHED (the airframe crushed (3.0 kJ of plastic work)), 63 broken, the first break at 0.083 s, the wall checked on 236 frames
+  ok    e. before the first break the inside layers are their rest bit for bit (32 group frames)
+  ok    e. damage OFF: nothing broken (0), no payload, the inside layers their rest bit for bit on every frame (1920 group frames)
+    BEFORE (the inside on its own nodes, G1851): 105650 vertex-frames out through the covering (4949 vertices), the worst 59.4 mm out; 3956 inside triangles live over a removed covering triangle (the most on a frame)
+  ok    a. AFTER: inside-wall vertices out through their own live covering past 0.5 mm: 1506 vertex-frames of 20794775 measured (0.72e-4, at most 2e-4; BEFORE 46.9e-4), 80 vertices (BEFORE 4949), the worst 2.23 mm {"t":2.983,"sec":"toele","v":16152,"s":-0.00273,"s0":0.01117}; through ANY live covering (a neighbouring section slid over it across a seam included): 1869 (BEFORE 108981); at a covering doubled over on itself (no outside defined): 363 (BEFORE 3999)
+  ok    b. the wall's thickness (the distance to its own covering triangle, live) kept: 104 of 20794775 vertex-frames (0.0005 %, at most 0.2 %) off their rest by more than 2 mm + 10 %, the worst 7.47 mm past it {"t":2.783,"sec":"toele","v":18277,"d":0.00058,"d0":0.01117}; 16 past 3 mm + 60 % (at most 20 in a million); thinner where the crease held it: 29163 by the clamp, 22225 by the pinch
+  ok    c. no inside triangle live over a removed or torn covering triangle (0 on the worst frame; BEFORE 3956)
+    the wall: 19470 inside vertices bound (lazily, 19538 tested, 68 with no covering within BOUND), up to 19470 posed a frame; 6 events at 168.9 ms, the pose 30.86 ms a frame on average, 76.5 at most (node; G1851's own pose of the same groups 5.80 ms a frame)
+    removed: the covering 1131 (torn 789); the inside wall AFTER 8837 (torn 444), BEFORE 5242
+Cessna floats:
+  the flown snapshot (headless, 5.1 s): 47 groups, 344832 vertices; the covering 15936 (ceilingLoop, body, waistband, floorLoop, pillarTail, pillarTaper, taper, pillarPassenger, pillarCabin, pillarWindow, pillarFront); the inside wall 107784 (bulkhead:672, toele:33600, aluminium:45960, fireProof:384, firewall:576, shoulder:2568, doorPanel:24024); furniture (keeps G1851) 8064 (dash:7032, dashFace:1032)
+  ok    the snapshot and the nodes in one frame: the covering's vertices 324 mm from their nearest node on average
+  the full binding at rest: 107376 inside vertices on the wall (131 ms, every vertex), the covering welded to 2799 vertices / 5312 triangles; inward = against the covering's winding normals
+    bulkhead    672 vertices: 672 on the wall, 0 with no covering within 150 mm (G1851's node binding); the depth p50 / p99 / max 30.6 / 32 / 32 mm
+    toele       33600 vertices: 33600 on the wall, 0 with no covering within 150 mm (G1851's node binding); the depth p50 / p99 / max 1.1 / 11.2 / 11.2 mm
+    aluminium   45960 vertices: 45840 on the wall, 120 with no covering within 150 mm (G1851's node binding); the depth p50 / p99 / max 23.1 / 42.4 / 62.4 mm; 60 stand OUTSIDE the covering at rest (the base's drawing)
+    fireProof   384 vertices: 244 on the wall, 140 with no covering within 150 mm (G1851's node binding); the depth p50 / p99 / max 69.7 / 147.6 / 147.6 mm
+    firewall    576 vertices: 428 on the wall, 148 with no covering within 150 mm (G1851's node binding); the depth p50 / p99 / max 0.1 / 147.7 / 147.7 mm; 284 stand OUTSIDE the covering at rest (the base's drawing)
+    shoulder    2568 vertices: 2568 on the wall, 0 with no covering within 150 mm (G1851's node binding); the depth p50 / p99 / max 51.7 / 58.1 / 58.6 mm
+    doorPanel   24024 vertices: 24024 on the wall, 0 with no covering within 150 mm (G1851's node binding); the depth p50 / p99 / max 27.2 / 66 / 78.4 mm
+  ok    d. at rest the wall is the rest: 107376 inside vertices (19028 positions) posed on the covering at rest, the worst 0.0 mm off (8.9e-16 m: 63384 differ from the float64 rest in the last bit); drawn back through the rest frame, the snapshot's own positions to 0.0000 mm (float32)
+  a severe float nose-in (150 km/h, 10 m/s, 60 deg): CRASHED (a fus member broke), 59 broken, the first break at 0.167 s, the wall checked on 231 frames
+  ok    e. before the first break the inside layers are their rest bit for bit (63 group frames)
+  ok    e. damage OFF: nothing broken (0), no payload, the inside layers their rest bit for bit on every frame (1680 group frames)
+    BEFORE (the inside on its own nodes, G1851): 8780 vertex-frames out through the covering (2996 vertices), the worst 54.4 mm out; 3878 inside triangles live over a removed covering triangle (the most on a frame)
+  ok    a. AFTER: inside-wall vertices out through their own live covering past 0.5 mm: 17 vertex-frames of 18749995 measured (0.01e-4, at most 2e-4; BEFORE 4.2e-4), 17 vertices (BEFORE 2996), the worst 10.99 mm {"t":0.217,"sec":"aluminium","v":45932,"s":-0.01149,"s0":0.02124}; through ANY live covering (a neighbouring section slid over it across a seam included): 33 (BEFORE 8920); at a covering doubled over on itself (no outside defined): 16 (BEFORE 1156)
+  ok    b. the wall's thickness (the distance to its own covering triangle, live) kept: 0 of 18749995 vertex-frames (0.0000 %, at most 0.2 %) off their rest by more than 2 mm + 10 %, the worst 0.00 mm past it; 0 past 3 mm + 60 % (at most 20 in a million); thinner where the crease held it: 4348 by the clamp, 1114 by the pinch
+  ok    c. no inside triangle live over a removed or torn covering triangle (0 on the worst frame; BEFORE 3878)
+    the wall: 18960 inside vertices bound (lazily, 19028 tested, 68 with no covering within BOUND), up to 18960 posed a frame; 4 events at 328.1 ms, the pose 23.78 ms a frame on average, 209.9 at most (node; G1851's own pose of the same groups 5.65 ms a frame)
+    removed: the covering 831 (torn 595); the inside wall AFTER 8446 (torn 98), BEFORE 4998
+twin floatplane:
+  the flown snapshot (headless, 3.2 s): 20 groups, 129336 vertices; the covering 0 (); the inside wall 10128 (tube:8064, aluminium:2064); furniture (keeps G1851) 0
+  NO WALL ON THIS BUILD: no fuselage covering (an open frame: the inside layers tube:8064, aluminium:2064 have nothing to bind to and keep G1851's node binding) - the gate measures nothing here
+  58/58 checks
+GATE DMGWALL: PASS
+=== BUILD ===
+ok     the shelf published window.GARAGE_SPEC
+  ok     the shelf has an update door
+  ok     the stock spec carries derived nulls (76)
+  ok     the envelope is tagged flydiy-build
+  ok     the envelope stamps the spec version
+  ok     the envelope carries the plaque and the logbook beside the spec
+  ok     ...and NOT inside it — a result is not a design decision
+  ok     every derived null comes back a null, same paths
+  ok     P -> cageToSpec -> cageFromSpec is identity
+  ok     ...and the layer keys ride through, not just the cage ones
+  ok     there are stock designs to check (6)
+  ok     every stock design loads exactly as its preset applied
+  ok     negative: the un-baked preset keys alone do NOT reproduce it
+  ok     the shelf lists all 6 of them
+  ok     the page declares at least one full build
+  ok     cessna 172: the build declares sections, never a cage
+  ok     piper cub: the build declares sections, never a cage
+  ok     jodel D112: the build declares sections, never a cage
+  ok     chinook: the build declares sections, never a cage
+  ok     every declared build is a listed stock design
+  ok     cessna 172: its engine rides through (a65_sensenich74)
+  ok     cessna 172: its wing rides through
+  ok     cessna 172: its paint and registration ride through
+  ok     cessna 172: its finish rides through
+  ok     piper cub: its engine rides through (a65_sensenich74)
+  ok     piper cub: its wing rides through
+  ok     piper cub: its paint and registration ride through
+  ok     piper cub: its finish rides through
+  ok     jodel D112: its engine rides through (a65_sensenich74)
+  ok     jodel D112: its wing rides through
+  ok     jodel D112: its paint and registration ride through
+  ok     jodel D112: its finish rides through
+  ok     chinook: its engine rides through (rotax582_ivo)
+  ok     chinook: its wing rides through
+  ok     chinook: its paint and registration ride through
+  ok     chinook: its finish rides through
+  ok     a partial sectioned file keeps the controls IT carried
+  ok     ...and its propeller
+  ok     ...and its systems
+  ok     ...and its bracing
+  ok     ...and its sectioned name and registration
+  ok     ...and the cage it actually carried
+  ok     a pre-G3 flat spec still lifts into sections
+  ok     ...carrying its name
+  ok     a cage-only file loads as a whole spec, not a fragment
+  ok     ...still carrying its cage
+  ok     ...with the derived fields still null, not frozen
+  ok     the name and registration survive a build
+  ok     ...and the paint you chose
+  ok     ...and the prop, the cowl and the fuel
+  ok     ...and the wing placement, which merges INSIDE the wing the join rewrote
+  ok     while the joined rows land: span is the editor's
+  ok     ...and the measured gear
+  ok     ...and the shape rides along
+  ok     explodeD never reaches the spec
+  ok     ...while a real deviation still does
+  ok     ...and an older file carrying one cannot set it either
+  ok     the unnamed working build saves with no slot name
+  ok     ...and takes the name once you give it one
+  ok     the named slot is written
+  ok     and the shelf lists it
+  ok     saving stamps the logbook stub with a build date
+  ok     the factory finish is null — a spec that says nothing gets the aeroplane its construction implies
+  ok     a spec from before the field normalises to the factory finish
+  ok     a finish rides through normalise verbatim — aeroskin.js owns which names and ranges are real, not this level
+  ok     clampSpec nulls a truthy non-object finish, the way it does the cage
+  ok     ...and leaves a real one alone
+  ok     the join writes the finish onto the build
+  ok     ...and writes the NULL, so paint can be stripped off again
+  ok     ...and says nothing at all when nothing measured it
+  ok     a changed tint is the new one
+  ok     ...and a section whose override was cleared is GONE
+  ok     ...and so is a wear that went back to zero
+  ok     and stripping the aeroplane back to the factory finish sticks
+  ok     applySpec applies the finish on every load, guarded only against a null spec
+  ok     ...and NOT only when the file happens to carry one
+  ok     both halves are published on window.CAGE_UI
+  ok     there are vintage fixtures to load (12)
+  ok     vintage build_flat_pre-v3.json loads and lands on v10
+  ok     vintage build_v10_birdman_2026-09-18.json loads and lands on v10
+  ok     the fat build_v10_birdman_2026-09-18.json re-saves without the aeroplane changing
+  ok     and the re-save of build_v10_birdman_2026-09-18.json carries every row (996 of 996)
+  ok     vintage build_v10_c172_wipline2350_2026-09-20.json loads and lands on v10
+  ok     the fat build_v10_c172_wipline2350_2026-09-20.json re-saves without the aeroplane changing
+  ok     and the re-save of build_v10_c172_wipline2350_2026-09-20.json carries every row (1010 of 1010)
+  ok     vintage build_v10_cessnaMetal_2026-09-26.json loads and lands on v10
+  ok     the fat build_v10_cessnaMetal_2026-09-26.json re-saves without the aeroplane changing
+  ok     and the re-save of build_v10_cessnaMetal_2026-09-26.json carries every row (996 of 996)
+  ok     vintage build_v5_2026-08-30.json loads and lands on v10
+  ok     the fat build_v5_2026-08-30.json re-saves without the aeroplane changing
+  ok     and the re-save of build_v5_2026-08-30.json carries every row (809 of 809)
+  ok     vintage build_v5_swept_2026-09-01.json loads and lands on v10
+  ok     vintage build_v5_swept_2026-09-01.json: area + MAC survive the migration exactly
+  ok     vintage build_v5_swept_2026-09-01.json: mass within 1.5% (521.7 vs frozen 521.3)
+  ok     vintage build_v5_swept_2026-09-01.json: xAC inside the honesty window (1.1580 vs frozen 1.2861)
+  ok     the fat build_v5_swept_2026-09-01.json re-saves without the aeroplane changing
+  ok     and the re-save of build_v5_swept_2026-09-01.json carries every row (677 of 677)
+  ok     vintage build_v7_twin_2026-09-04.json loads and lands on v10
+  ok     the fat build_v7_twin_2026-09-04.json re-saves without the aeroplane changing
+  ok     and the re-save of build_v7_twin_2026-09-04.json carries every row (688 of 688)
+  ok     vintage build_v7_ultralight_2026-09-05.json loads and lands on v10
+  ok     the fat build_v7_ultralight_2026-09-05.json re-saves without the aeroplane changing
+  ok     and the re-save of build_v7_ultralight_2026-09-05.json carries every row (706 of 706)
+  ok     vintage build_v8_drawn-tail_2026-09-08.json loads and lands on v10
+  ok     vintage build_v8_drawn-tail_2026-09-08.json: area + MAC survive the migration exactly
+  ok     vintage build_v8_drawn-tail_2026-09-08.json: mass within 1.5% (497.2 vs frozen 497.6)
+  ok     vintage build_v8_drawn-tail_2026-09-08.json: xAC inside the honesty window (0.8677 vs frozen 0.8677)
+  ok     vintage build_v8_drawn-tail_2026-09-08.json: the drawn tail it carries flies as drawn (Sh 2.294, Sv 1.248, not auto)
+  ok     the fat build_v8_drawn-tail_2026-09-08.json re-saves without the aeroplane changing
+  ok     and the re-save of build_v8_drawn-tail_2026-09-08.json carries every row (671 of 671)
+  ok     vintage build_v8_pusher_2026-09-11.json loads and lands on v10
+  ok     the fat build_v8_pusher_2026-09-11.json re-saves without the aeroplane changing
+  ok     and the re-save of build_v8_pusher_2026-09-11.json carries every row (705 of 705)
+  ok     vintage build_v8_twin-boom_2026-09-11.json loads and lands on v10
+  ok     the fat build_v8_twin-boom_2026-09-11.json re-saves without the aeroplane changing
+  ok     and the re-save of build_v8_twin-boom_2026-09-11.json carries every row (697 of 697)
+  ok     vintage build_v9_stock_2026-09-15.json loads and lands on v10
+  ok     the fat build_v9_stock_2026-09-15.json re-saves without the aeroplane changing
+  ok     and the re-save of build_v9_stock_2026-09-15.json carries every row (991 of 991)
+  ok     the default aeroplane bakes to EVERY row it knows (672 keys) — a default that moves cannot move a saved design
+  ok     ...cage rows and layer rows at their values, the view keys out
+  ok     deviating one layer key changes that value and adds no key
+  ok     a slim (older) file still loads: what it names it fixes, what it predates takes the default
+  ok     the migrator table carries exactly v5->v6 (the wing stations), v6->v7 (the energy vessels), v7->v8 (the rod taper), v8->v9 (the boom loft) and v9->v10 (the construction tile)
+  ok     v9->v10: an absent tile on an alloy spec becomes the alloy tile
+  ok     v9->v10: a chosen tile is kept over the spec's material
+  ok     v9->v10: no material at all -> the steel tube tile (the default aeroplane)
+  ok     v9->v10: a save with no cage is left alone
+  ok     v7->v8: a rod save carries its taper into boomLen (2.99 -> 4.45)
+  ok     v7->v8: a lofted taper is left alone
+  ok     v7->v8: twin booms are left alone
+  ok     v7->v8: absent keys read as the cage defaults (4.584)
+  ok     v8->v9: a lofted twin boom's diameter and taper become its four sizes (0.2/0.3 -> 0.1/0.15)
+  ok     v8->v9: a rod twin boom stays round
+  ok     v8->v9: a save without the pair is left alone
+  ok     sense: a counter-rotating pair keeps both hands through resolveSpec
+  ok     sense: absent reads as +1
+  ok     sense: anything but -1 is +1
+  ok     a v3 spec walks 3 then 4, in order
+  ok     ...and lands stamped v10
+  ok     ...and a migrator saw the RAW old shape (its rename took)
+  ok     a current spec walks nothing
+  ok     an old vintage is stamped current even with an empty table
+  ok     a FUTURE spec keeps its claim — this build does not lie about understanding it
+  ok     the plaque setter stores the certificate
+  ok     the certificate rides in the envelope, beside the spec, sheets and all
+  ok     loading hands the certificate to the bench, exactly once
+  ok     ...and only AFTER the loaded spec was applied — the storm is over
+  ok     a build saved without a certificate loads with none
+  ok     G116/G213: naming the surface default out loud changes nothing
+  ok     G213: a saved "wood" wing reads as fabric over wood
+  ok     G116: a carbon wing moves the wing ledger
+  ok     G116: the fixed-geometry sections moved by an order less than the wing (the gauge follows the gross)
+  ok     G116: the engines did not move
+  ok     G116: the gear re-rig is an order smaller than the wing change
+  ok     G116: a carbon fin moves the tail ledger
+  ok     G116: ...and the wing's and the fuselage's by an order less (the gauge)
+  ok     G116: an unknown material falls back to the aeroplane's own
+  ok     G116: the price moves the way the material table says
+  ok     G117: the same members exist either way
+  ok     G117: fuselage members move only by the aeroplane-level rescale
+  ok     G117: the wing members split into structure (material) and bracing (aeroplane) and nothing else — 56/8/0
+  ok     G117: the wing k moves by exactly the material table's own ratio
+  ok     G117: the damping follows the same material
+  ok     G117: naming the global changes no member at all
+  ok     writing pax:0 explicitly is the same aeroplane as not writing it
+  ok     pax 9 in a two-seater loads exactly one passenger, not nine (80.8 kg)
+  ok     a passenger weighs 80 kg (80.8)
+  ok     a passenger does not move the CG — the seat rows are collapsing onto one frame again, which is what made a full cabin load like a solo one (moved 102 mm)
+  ok     side4: three passengers weigh 240 kg (242.1)
+  ok     side4: filling the cabin does not move the CG AFT — the back row is being billed onto the front frame
+  ok     tandem4: three passengers weigh 240 kg (238.5)
+  ok     tandem4: filling the cabin does not move the CG AFT — the back row is being billed onto the front frame
+  ok     measured seat stations change where people sit, not how much they weigh (-0.9 kg)
+  ok     billing the people at their seats instead of the cabin pillars moves the CG FORWARD by their lever: expected 74 mm, got 78 mm — a pillar is not a chair
+  ok     the seat lever is arithmetic the builder can check: expected +92 mm, got +98 mm
+  ok     a malformed seatsX is ignored — the pillar rule stands
+  ok     single still builds with 1 aboard (436.3 kg, cg 0.7135)
+  ok     tandem2 still builds with 2 aboard (539.8 kg, cg 0.8449)
+  ok     side2 still builds with 2 aboard (548.6 kg, cg 0.7340)
+  ok     cabin.seats 6 on a side2 resolves to six seats (6)
+  ok     two filled seats weigh 160 kg wherever they are (161.2 / 161.4)
+  ok     the same two passengers in different seats are a different balance: expected +95 mm, got +97 mm
+  ok     the loading numbers are read off the occupancy list (occupants 3, crew 1, pax 2)
+  ok     the pilot is aboard whatever the list says — a seat 0 in the first place is ignored
+  ok     a list longer than the seats is cut to the seats (6)
+  ok     a malformed occupancy list reads as "the first N seats", never as a jump
+  ok     pilots + pax without a list is the first N seats, exactly as before
+  ok     the logbook counts its flights (built 2026-10-05 · 2 flights · 0.25 h)
+  ok     and ACCRUES them: 294 + 600 s is 0.25 h (built 2026-10-05 · 2 flights · 0.25 h)
+  ok     the arrival's own clock is on its row
+  ok     the landing run rides the row
+  ok     a refused flight is still a row
+  ok     a row from before the clock is still a flight (built 2026-10-05 · 3 flights · 0.25 h)
+  ok     ...and does not poison the total to NaN (built 2026-10-05 · 3 flights · 0.25 h)
+  ok     the clock, the date and the run all ride the save envelope
+
+GATE BUILD: PASS
+=== JOIN ===
+ok     span passes verbatim
+  ok     chord tip -> taper
+  ok     camber 4 / thick 12 -> NACA 4412
+  ok     position + centre map by name
+  ok     tip maps by name
+  ok     tip seat passes; sweep never written (G140)
+  ok     crank fields null while the crank is off
+  ok     crank chord + seat pass when the crank is on
+  ok     bracing maps
+  ok     G185: the default cabane (N, stated) and a null cabane height off a high wing
+  ok     G185: parasol position + cabane height
+  ok     G185: cabane style rides with the parasol
+  ok     G185: ailerons off -> span 0
+  ok     G185: one plane and the truss rows at their defaults (stated) with w2On off
+  ok     G185: the second plane carries its own rows
+  ok     G185: the truss keys map (I strut at 0.55, flying wires only)
+  ok     fairing switch -> gear.fairing (G121.1)
+  ok     third-wheel switch -> gear.twFairing (G121.2)
+  ok     leg-fairing switches -> gear.legFair / twLegFair (G133)
+  ok     droplet sliders -> gear.fairTail / twFairTail (G133)
+  ok     fairing build row -> gear.fairMat (G133)
+  ok     drawn shock -> gear.suspension (G132)
+  ok     drawn blade -> prop D / blades / material (G132)
+  ok     pitch stays the design tile's alone — the join claims no twist
+  ok     prop material map total over the 8 finishes, every entry a real row
+  ok     every drawn shock kind is a real GEN_SUSPENSION row
+  ok     control surfaces pass
+  ok     preset -> registry key
+  ok     registry row exists
+  ok     registry row for "continental A-65"
+  ok     registry row for "continental O-200"
+  ok     registry row for "lycoming IO-360"
+  ok     registry row for "jabiru 2200"
+  ok     registry row for "VW 2180"
+  ok     registry row for "flat twin"
+  ok     registry row for "flat six"
+  ok     registry row for "rotax 912 (flat)"
+  ok     registry row for "rotax 277"
+  ok     registry row for "rotax 582"
+  ok     registry row for "Verner Scarlett 7U"
+  ok     registry row for "Rotec R3600"
+  ok     registry row for "P&W R-985"
+  ok     registry row for "P&W R-1830"
+  ok     registry row for "Walter Mikron III"
+  ok     registry row for "DH Gipsy Major"
+  ok     registry row for "Hirth HM 508D"
+  ok     registry row for "Argus As 10C"
+  ok     registry row for "lycoming O-320"
+  ok     registry row for "lycoming O-540"
+  ok     registry row for "continental IO-550"
+  ok     registry row for "lycoming IO-720"
+  ok     registry row for "rotax 915 iS"
+  ok     registry row for "Ranger L-440"
+  ok     registry row for "Continental W-670"
+  ok     registry row for "Jacobs R-755"
+  ok     registry row for "Vedeneyev M-14P"
+  ok     registry row for "P&W R-1340"
+  ok     registry row for "rotax 503"
+  ok     registry row for "EMRAX 268"
+  ok     registry row for "P&W PT6A-42"
+  ok     registry row for "P&W PT6A-60A"
+  ok     registry row for "RC 2212 outrunner"
+  ok     registry row for "RC 6374 outrunner"
+  ok     registry row for "e-PPG 12 kW"
+  ok     registry row for "FES sustainer"
+  ok     registry row for "EMRAX 228"
+  ok     registry row for "pipistrel E-811"
+  ok     registry row for "SP260D-class"
+  ok     registry row for "P&W PT6A-114A"
+  ok     registry row for "P&W PT6A-34"
+  ok     gear measurements pass (wheelR, not contactR)
+  ok     measured third wheel passes (G51)
+  ok     cabin envelope passes
+  ok     tail arm passes
+  ok     tail-end section passes (G49)
+  ok     cowl deck passes (G49)
+  ok     pillar proportions pass (G52)
+  ok     wing station passes (G52)
+  ok     mains station passes (G52)
+  ok     ride height passes (G53)
+  ok     shape family passes (G54)
+  ok     boom profile passes (G54.1)
+  ok     tail surfaces pass (G54.3)
+  ok     P1: the areas, the mean chords, the dorsal and the control chords pass
+  ok     P4: the measured tapers pass
+  ok     seating + pilots pass (sectioned)
+  ok     capacity + occupancy pass (G180: seats 4, occupied 1,1,0,0, pax 0)
+  ok     spec.cage rides along
+  ok     resolveSpec + genFrame -> finite CG, mass 563 kg
+  ok     engine survives normalisation
+  ok     RESOLVED cab halfW = measured 0.52, not auto
+  ok     RESOLVED cab h = measured 1.21, not auto
+  ok     RESOLVED tail arm = measured 5.1, not auto
+  ok     RESOLVED tail-end section = measured (tailY 0)
+  ok     RESOLVED cowl deck = measured 0.66, not auto
+  ok     RESOLVED pillar proportions = measured, len not auto
+  ok     RESOLVED fairing = spat, through the clamp
+  ok     RESOLVED third-wheel fairing = full, through the clamp
+  ok     RESOLVED fairing state 0 -> none
+  ok     RESOLVED fairing state 2 -> full
+  ok     RESOLVED fairing instruments = drawn, through the clamp
+  ok     RESOLVED out-of-range droplet clamps to 1.60, unknown layup -> glass
+  ok     RESOLVED suspension = drawn oleo, through the clamp
+  ok     RESOLVED suspension state 0 -> spring
+  ok     RESOLVED suspension state 1 -> bungee
+  ok     RESOLVED suspension from leg kind 0 -> spring
+  ok     RESOLVED suspension from leg kind 2 -> oleo
+  ok     RESOLVED prop = drawn 3-blade carbon 2.10 m
+  ok     RESOLVED prop name derived from the drawn blade: 3-blade carbon 2.10 m
+  ok     RESOLVED post gap = measured 0.42
+  ok     RESOLVED wing LE station = measured 0.55, not auto
+  ok     RESOLVED mains station = measured 0.82
+  ok     RESOLVED seating side2, crew 2
+  ok     RESOLVED capacity 4 off cabin.seats (not the table's 2), two aboard off the list (G180)
+  ok     RESOLVED gear track + wheelR = measured
+  ok     RESOLVED ride height = measured -0.31, not auto (G53)
+  ok     RESOLVED shape family = measured boom
+  ok     RESOLVED boom profile = measured rows, clamped envelope
+  ok     RESOLVED tail surfaces = measured, stations not auto
+  ok     P1 RESOLVED: Sh 2.1 / Sv 0.99 stand (not auto), mean chords, dorsal 0.12, control chords 0.38 / 0.31
+  ok     P1 FRAME: the stab strips sum to Sh 2.1 and the fin strip is Sv 0.99 (2.1000 / 0.9900)
+  ok     P1 FRAME: the measured (smaller) control chords reach the tau (0.489 < 0.500, 0.483 < 0.550)
+  ok     P4 FRAME: the tail has spar nodes (HF 6, HR 6, VF 3, VR 3) and one tip a side
+  ok     P4 FRAME: the tip nodes and the apex are made before their spars (the first-tagged rule)
+  ok     P4 FRAME: 156 tail-class members, none of the tail on the fuselage class
+  ok     P4 FRAME: every stab and fin strip names its four spar nodes
+  ok     P4 FRAME: the trusses stand on the measured tapers (0.6 / 0.7)
+  ok     P4 FRAME: the front spar carries through (HF0L–HF0R)
+  ok     P4: the strips keep their kind
+  ok     FRAME mid-boom floor follows the measured profile (0.280 vs 0.280)
+  ok     RESOLVED tailwheel station/height/radius = measured
+  ok     RESOLVED contactR derives from the measured wheelR
+  ok     measurement-less export still builds
+  ok     a P without skinOn writes no covering
+  ok     skinOn 1 -> fuselage.covering skin (stated)
+  ok     glazeOn 1 / 0 -> cabin.glazing glass / none (both stated)
+  ok     wgCons 0 / 1 -> wings[0].material null / carbon (both stated)
+  ok     finCons / stCons 0 -> the tail materials null (stated)
+  ok     skinOn 0 -> fuselage.covering open
+  ok     RESOLVED covering = open
+  ok     an open frame is lighter than the covered one (562.7 -> 549.8 kg)
+  ok     an open frame is draggier (fusCdA 0.510 -> 0.958 m2)
+  ok     a nonsense covering clamps to skin
+  ok     a P without the tile writes no material; with it, the tile's (undefined)
+  ok     intCons 0 -> fuselage.material carbon
+  ok     RESOLVED material = carbon
+  ok     intCons 1 -> fuselage.material tubeFabric
+  ok     RESOLVED material = tubeFabric
+  ok     intCons 2 -> fuselage.material wood
+  ok     RESOLVED material = wood
+  ok     intCons 3 -> fuselage.material alloy
+  ok     RESOLVED material = alloy
+  ok     intCons 4 -> fuselage.material aluTube
+  ok     RESOLVED material = aluTube
+  ok     an alloy fuselage is heavier than the tube one (45.7 -> 80.7 kg)
+  ok     an out-of-range tile clamps to the last row (aluTube since G466)
+  ok     default mount: nose, no station written
+  ok     engMount 1 -> pusher at the drawn station
+  ok     RESOLVED engAt = the drawn pusher station
+  ok     pusher frame: two mount nodes at x 3.1 (13.0/13.0 kg of blades), the engine (65.5 kg) on its CG node 0.23 m ahead of the flange
+  ok     a pusher is one engine
+  ok     engMount 3 -> a wing pair, |z| 2.1
+  ok     wing pair: nEngines 2, mirrored nacelle nodes at |z| 2.1
+  ok     engRotate 1 -> port +1, starboard -1 (tops inward)
+  ok     RESOLVED: the pair keeps its hands and stays mirrored in everything else
+  ok     engAt carries side (-1 port, +1 starboard) and sense
+  ok     engRotate 2 -> tops outward
+  ok     refs.engineOf: node 0 (port, z < 0) is engine 0, node 1 is engine 1
+  ok     params.engines carries side and sense to the viewer
+  ok     levers null: two equal engines, thrust their sum (3132 N)
+  ok     starboard lever at 50 %: half the port thrust (1566 / 783 N)
+  ok     a cut engine makes no thrust, the other still does
+  ok     port thrust alone is a real yaw moment (3289 N m)
+  ok     the nose swings on one engine (-171.7 deg in 3 s)
+  ok     levers null again: even again
+  ok     engMount 2 -> over the wing, pylon 0.4, station derived
+  ok     RESOLVED over-the-wing engine sits a pylon above the deck (1.71 m)
+  ok     over-the-wing frame: mount nodes above the cabin
+  ok     boomX -> tail.type twinBoom
+  ok     RESOLVED Sv = two measured fins (1.440)
+  ok     P1: a measured twin Sv (the join doubled the drawn fin) stands over the twin rule
+  ok     a twin-boom spec builds
+  ok     the frame has two booms: the stab nodes at ±boomX, a fin node a boom
+  ok     default glazing writes nothing
+  ok     glazeOn 0 -> cabin.glazing none
+  ok     an open cockpit is lighter (562.7 -> 556.1 kg)
+  ok     a nonsense glazing clamps to glass
+  ok     a flat stab writes no tail.type
+  ok     cant 35 -> tail.type v, vAngle 35
+  ok     RESOLVED type v, vG = 35 deg
+  ok     RESOLVED V-tail keeps the measured projection 2.4 (2.400)
+  ok     RESOLVED V panel area = (span / cos) x chord
+  ok     P1: a measured V Svt 2.2 stands and its mean chord is Svt over the uncanted span
+  ok     V-tail frame builds, and has no FIN node
+  ok     a 10 deg dihedral stab is not a V
+  ok     engineFacts land as engines[0].custom
+  ok     the preset key survives as the fallback row
+  ok     RESOLVED pplant flies the custom facts under the honest name
+  ok     an unpriced custom row takes the market curve
+  ok     a custom-engined spec builds to a finite CG
+  ok     no facts -> no custom row (the registry preset flies)
+  ok     G199.3: unmeasured post rows are not written (the save's own stand)
+  ok     G199.3: unmeasured tail surface rows are not written
+  ok     G199.5: the cage's boom construction reaches the spec (rod / loft / twin)
+  ok     G199.5: ...and survives resolveSpec
+  ok     G199.5: the rod boom builds the same lattice (nodes and members)
+  ok     G199.5: every boom member carries ONE rodBoomK (1.000, the rule says computed) on k and its root on c, nothing else moved (77 boom, 284 other)
+  ok     G199.5: the stiffening weighs nothing
+  ok     G199.5: a cage without a boomStyle row declares a loft
+  ok     G199.5: turned to 4, every boom member is 4x (the switch works)
+  ok     G209: the PORT aileron (the cage's "ailR", at +z) goes DOWN for da > 0 (roll right)
+  ok     G209: the starboard aileron goes UP for da > 0
+  ok     G209: both flaps go DOWN for flap > 0
+  ok     G209: the elevator goes UP for de > 0 (nose up), no second drive on a flat stab
+  ok     G209: the rudder swings to PORT (+z) for dr > 0 (nose left)
+  ok     G209: a raked post hinges along its rake; the twin-boom's second rudder reads as a rudder
+  ok     G209: a cranked panel's aileron hinges along its own root, within 1 deg, either side
+  ok     G209: ...and still antisymmetric: port down, starboard up for da > 0
+  ok     G209: past 20 deg of cant both panels answer the rudder too, hinged along the canted root
+  ok     G209: V-tail de > 0: both panels UP
+  ok     G209: V-tail dr > 0 (nose left): port panel DOWN, starboard UP, both trailing edges to port
+  ok     G209: 10 deg of stab dihedral is not a V-tail
+  ok     P1: the vertex heuristic puts a horn-balanced rudder's pivot in the HORN (x -0.125)
+  ok     P1: the declared plane puts it on the post (x 0.000), axis up the post, drive and sign unchanged
+  ok     P1: a declared plane that catches no vertex falls back to the heuristic, and says so
+  ok     P1: the real horn-cut rudder (448 verts) pivots ON the declared plane (0.0025 m off), axis along the pitched post
+  ok     P1: ...where the vertex heuristic had put it 0.321 m forward, in the horn
+  ok     G209: the measured cant makes the spec a V-tail
+  ok     G209: V-tail dr > 0 yaws nose LEFT (1482)
+  ok     G209: V-tail de > 0 pitches nose UP (2147)
+  ok     G300: a partOf tag names the part, whatever the mesh is called
+  ok     G300: ...and on a single boom it still names it (the join finds no such part and keeps it static)
+  ok     G300: a boom fitting names its boom
+  ok     G300: the tail light names the rudder
+  ok     G267.2: the fin skin is a part on twin booms only
+  ok     G300: the root fillet belongs to the fin on twin booms
+  ok     the surfaces, links and the castor match by name as before
+  ok     the wheels and the prop match by name as before
+  ok     the struts and the engine units carry their members
+  ok     an unknown name, an unnamed group and a stab skin on a single boom keep walking (static)
+  ok     G1283: the wing envelope has its one home (GEN_WING_ENVELOPE.xLE)
+  ok     G1283: the station-cut row speaks exactly where the resolver cuts xLE (10/10 probes)
+  ok     G1283: a wing drawn 0.35 m ahead of the firewall flies at the envelope's -0.2 m and says so
+  ok     G1283: a station inside the envelope flies as measured, in silence
+  ok     G1283: no core loaded, no claim
+GATE JOIN: PASS
+=== SIMWORKER ===
+1 THE BLOB (simHostSource in a worker-like global)
+  ok   the Blob imports sim_host.js and the built core by URL next to the page, versioned (src/viewer/sim_host.js?v=B1, tools/flight_core.js?v=c0re)
+  ok   the Blob's host flies 120 steps of the analytic world to the page's bits
+1b THE STALL (the Blob's host on a fake clock: a 60 Hz page, a 60 s freeze, the page back)
+  at the freeze: step 359, 3.602 m/s (60 s of that is 216 m); held after 15 steps, 0.904 m on; the page back: 58 steps in its first second (at most 1 a turn), stalls 1, 59.767 s let go
+  ok   a 60 s page freeze: the host HOLDS 250 ms past the last beat (15 steps), the aeroplane 0.904 m from where the page last drew it (< 3; 216 m unheld)
+  ok   the page back: the flight goes on from where it held at real time (58 steps in the first second, at most 1 a turn) - the 59.767 s lost not owed, no teleport
+the page's world (the whole boot): 7395 ms
+2 LOCKSTEP (600 steps a build, Jolene + premises, HOME's stand)
+  the host: init 6765 ms, the trimmed boot 79.0 MiB
+  ok   stock: the host's aeroplane is the page's (93:9e392758, 93 nodes, 70 substeps)
+  ok   stock: every step's FNV(p, v) equal, 0..600 (final f2b3de3f, page 4607 ms)
+  ok   stock: the view's p at the newest snapshot is the page's, bit for bit
+  ok   stock: cgPos / cgVel / totalM are the solver's (-138.761, 31.594, 683.507; 496.38 kg)
+  ok   stock: axes and bodyOrigin are the solver's
+  ok   stock: wheels (3) and the strain are the solver's
+  ok   stock: out is the solver's (V 3.480 m/s, thrust 36.284 N)
+  ok   stock: fuel, eng and the levers are the solver's (fuel 32.386 kg, engine running)
+  ok   stock: the pilot's snapshot is the pilot's (TAXI, t 9.500 s)
+  ok   stock: the world-version counter moved with the day (0 -> 1), no command late, step index 600
+  ok   the view interpolates at T less its delay (1.50 steps) in its ring of 5: alpha 0.500 halfway between the two newest, 0.750 between the 4th and 3rd newest 2.25 steps back, clamped to the ring's oldest and the newest snapshot
+  ok   cessnaMetal: the host's aeroplane is the page's (103:9a3abdb3, 103 nodes, 120 substeps)
+  ok   cessnaMetal: every step's FNV(p, v) equal, 0..600 (final 76487500, page 7786 ms)
+  ok   cessnaMetal: the view's p at the newest snapshot is the page's, bit for bit
+  ok   cessnaMetal: cgPos / cgVel / totalM are the solver's (-137.816, 31.700, 678.505; 883.37 kg)
+  ok   cessnaMetal: axes and bodyOrigin are the solver's
+  ok   cessnaMetal: wheels (3) and the strain are the solver's
+  ok   cessnaMetal: out is the solver's (V 3.777 m/s, thrust 0.000 N)
+  ok   cessnaMetal: fuel, eng and the levers are the solver's (fuel 20.119 kg, engine running)
+  ok   cessnaMetal: the pilot's snapshot is the pilot's (TAXI, t 9.500 s)
+  ok   cessnaMetal: the world-version counter moved with the day (1 -> 2), no command late, step index 600
+3 REAL TIME (3.5 s on the host's own clock, a 60 Hz render loop busy 8 ms a frame)
+  the page frozen 1.5 s: 14 steps while it was (held), 30 in the half second after; 1 stall, 1.277 s let go
+  ok   the worker thread holds through a 1.5 s page freeze (14 steps, <= 21) and goes on after it (30 steps in 0.5 s, 1.277 s let go)
+  transport: a 4.6 KB snapshot buffer there and back (transferred) p50 0.037 / p99 0.317 ms
+  a snapshot's one-way latency (published -> taken; the render loop is busy 8 ms of each frame) p50 4.544 / p90 9.061 / max 14.758 ms
+  the pose age at the render (now less when the host held the drawn state; interpolated at T - 1 step) p50 40.637 / p90 59.361 ms
+  the render thread's physics: take 0.117 / max 0.781 ms a snapshot, frame 0.110 / max 1.228 ms a frame
+  the host: 251 steps in 3.5 s + the freeze, step 8.461 ms (eased), dilation 0.998, dropped 0.050 s (1 turns), 246 snapshots, buffers allocated 0 (0 after the first second), 238 frames drawn
+  ok   the host's clock ran (251 steps, 246 snapshots)
+  ok   every action applied once and logged with its step (start@15, impulse@57, manual@87, hand@87, manual@135, setDay@165)
+  ok   the view: no stray step, the same aeroplane, not diverged
+  ok   the host's log replayed inline reproduces all 246 published snapshots to the bit
+4 THE BOOT
+  ok   the page's fetch path (the manifest, gzip through DecompressionStream) gives island_node's bytes, key for key (732 ms)
+  NB the page's own boot after its makeWorld: grid.ttype stamped in place (27_premises stampTtype) - never hand the host a boot a world was made on
+  ok   the trimmed boot: the height tree + cover / canopy / coast / lake / ttype, no albedo, tint, ori1, ndvi or far tree
+  decoded: trimmed 79.0 MiB of the whole boot's 180.9 MiB (ARCH §1.6 estimated 70-80 MB)
+5 THE BUILD
+  ok   tools/build.js MANIFEST.viewer.scripts carries sim_host.js and sim_view.js
+  ok   index.html publishes SIM_HOST (the starter, the Blob's source) and SIM_VIEW
+  ok   the host's thread raised nothing
+
+35 checks, 0 failed, 104.4 s
+GATE SIMWORKER: PASS
+
+──────── summary ────────
+UISMOKE   PASS   219.5 s
+TREECRASH PASS   914.9 s
+DMGSKIN   PASS   151.5 s
+DMGWALL   PASS  1884.8 s
+BUILD     PASS     2.1 s
+JOIN      PASS     7.1 s
+SIMWORKER PASS   104.8 s
+total           3284.7 s
+wall            3170.7 s  (jobs 3)
+
+BATTERY: PASS

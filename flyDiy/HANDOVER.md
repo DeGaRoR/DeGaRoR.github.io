@@ -77651,6 +77651,13 @@ UISMOKE, BUILD, JOIN, SIMWORKER also passed. Validated builds only; no archetype
 on a triangle is Ericson's, Real-Time Collision Detection 5.1.5; the offset frame and the fold distance are textbook). The generated
 outputs (index.html, dev.html, sw.js, version.json, tools/flight_core.js) are NOT committed.
 
+**AND ON TRAIN 36:** origin/master's train 36 (1ae2eebb) landed during this work and is merged in (only HANDOVER conflicted: both
+sides kept). On the merged tree, run_gates --only=DMGWALL,TREECRASH,DMGSKIN,UISMOKE,BUILD,JOIN,SIMWORKER --jobs=3: **all PASS -
+DMGWALL 58/58, TREECRASH 50/50, DMGSKIN 116/116, UISMOKE, BUILD, JOIN, SIMWORKER 35/35; BATTERY: PASS** (3171 s wall;
+reports/evidence/DMG-D4c/gates_train36.txt). DMGWALL's numbers are the pre-merge run's to the digit (the table above). The stills
+were taken on 01e6892f + this work, before train 36 (it touches the world, the blueprint library, the loop - nothing on the skin path).
+No commit of this branch touches src/core.
+
 ### Open questions (the coordinator / A0 / D4b)
 - **The leak left in the pictures is the covering's own:** the orphans of the AFTER rows are lining pixels where the covering over
   them is gone but the lining stayed because the vertex is not on the wall (no covering within 0.15 m: the firewall's middle, the
