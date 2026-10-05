@@ -72873,3 +72873,311 @@ branch with DMGMEMBERS, DMGCLUSTERS, DMGFPS, DMGINST on top:
   and its group line, armFrame's `clArm`) and step()'s substep loop (cutX before, clCuts / clApply after); substep() is the base's. The
   generator (61_gen_frame) adds a `dmg` record to each cluster and the rod / boom station (finCluster takes the fin's root ends); tools: GATE
   DMGCLUSTERS (new, registered core), dmg_clusters_evidence.js (new), _treecrash_lib's clearPeak clears the cluster peaks too.
+
+## G1830-G1834 DMG-D2a CERTIFICATE - EVERY MEMBER STAMPED FROM THE LOADS ITS AEROPLANE IS CERTIFIED FOR: THE CASES, THE ENVELOPE, THE STAMP, THE FREE TEST TO DESTRUCTION, GATE DMGCERT (2026-10-05, DMG-D2a for the DEFORM COORDINATOR, cloud, node only (plus one headless Chromium run of the bench worker); branch claude/dmg-d2a-certificate off claude/dmg-integration = b819b77, then 8125f22 (G1898.2) and a15c891 (DMG-D1b WRECK INTEGRITY + DMG-D3 CLUSTERS) merged in; G1834 unused)
+
+DEFORM-AND-BREAK §4.3 (c), ruling dm1 (certificate-anchored failure), dm6 (the test to destruction is free). **Damage stays OFF by default**
+(GEN_DAMAGE_DEFAULT untouched; the flip is DMG-D2b's): with the layer off nothing here runs, nothing is stamped, and every gate's bytes are the
+base's (the battery below). **DMG-DAMP was not merged**: claude/dmg-damp has no READY commit (its head at my finish, e458844, is G1888 work). When it lands,
+re-read the dynamic cases (the drop, the bow, the flown pull: they run the real sim) - see the open questions.
+
+### What changed, in one paragraph
+D1a judged a member on its PHYSICS (sigY x A, the seams, Euler): on the validated builds the worst member reached 0.17-0.36 of its yield at the
+3.8 g limit, so nothing a pilot could do bent the aeroplane. Now `src/core/66_gen_cert.js` runs the cases a FAR 23 normal-category certification
+runs, records each member's peak force at LIMIT (the envelope F_l, tension and compression apart), and `makeSim` stamps every member from it
+(30_solver.js `certStamp`) - never past its physics, never on the gear (D2b's). Result on all five validated builds: the bench holds the limit
+with no set, holds the ultimate, and **breaks at a fitting at 6.01-6.10 g** (the band [5.70, 5.99] plus the rig's ramp lag); the flown pull to the
+limit yields nothing (worst member 0.56-0.99 of its certified limit); a design built at half the section its certificate asks breaks on the bench
+at 1.45-3.54 g.
+
+### G1830 - THE LOAD CASES (66_gen_cert.js genCertify)
+All on the solver's own air: `sim.probe(vel, live)` (a new optional `live` flag: the aero pass includes the propeller's thrust and wash), the
+strips' span and chord distribution, the aerofoil's moment twisting the box, the control surfaces' loads on their strips. Each static case is an
+equilibrium of the lattice's own force law (a dense Cholesky on ~300-400 dof, Newton on the tangent, modified Newton with the tangent refreshed
+every 6 rounds, a 2 cm step cap and a Levenberg shift for slack wires), the shape-matched clusters as omega^2 M (I - P), and whatever the loads
+leave unbalanced taken by the rigid body's acceleration (inertia relief - nothing supports a flying aeroplane). The aeroplane flies in the flight
+box (G610); the bench case uses the true box, as the rig does.
+
+| case | what | FAR 23 (as recalled - A0 to open on the box) |
+|---|---|---|
+| pullA, pullD | +3.8 g trimmed (alpha and the elevator solved by secant) at V_A and V_D | 23.333 / .335 / .337 |
+| negC | -0.4 x 3.8 = -1.52 g at V_C, throttle 0 | 23.337(b) |
+| pullAq, pullDq | A and D plus the checked manoeuvre's pitch acceleration (39 n (n - 1.5) / V_kt) | 23.423(b) |
+| rollR, rollL | 2/3 of the limit, the aileron full | 23.349 |
+| elevUpD, elevDownD | the elevator hard over at V_D from 1 g, x dynCtl 2 (a step on an elastic tail) | 23.423 / 23.441 |
+| rudRA, rudLA | the rudder hard over at V_A from 1 g, x 2 | 23.441 |
+| crashFwd/Up/Down/SideR/SideL | the engine items (ENG/CGE/MNT) on a pinned airframe: 9 / 3 / 6 / 1.5 / 1.5 g ultimate, / 1.5 to limit | 23.561(b) |
+| impactNose | 9 g forward on every node, reacted at the thrust nodes (refs.engine on the centreline), relieved | 23.561 |
+| bench | the garage's own rig, statically: the fuselage on trestles, inverted about the boom's axis, the bags as the rig applies them (impulses: the dampers' share modelled), 3.8 g with the wing's weight - matches the rig to 0.05 % | (the garage's) |
+| drop | DYNAMIC: TREECRASH's own hardLanding at the 10 ft/s cap (settle 240 frames, lift 2 cm, v = -sink, 120 frames; floats on the sea lane) | 23.473 |
+| bow | DYNAMIC, floatplanes: TREECRASH's float nose-in (90 km/h, 5 m/s, 20 deg, 72 frames) | 23.527-.529 |
+| flown | DYNAMIC: the pull flown from 2.6 Vs at 400 m (PI on the load), read until the WING's load (aeroFy / W) reaches the limit | 23.307 |
+
+Speeds: V_A = Vs sqrt(n); V_C = max(1.3 Vs sqrt(n), 33 sqrt(W/S) kt); V_D = 1.4 V_C. The Cub: 31.8 / 41.4 / 57.9 m/s; the metal Cessna 43.7 /
+56.8 / 79.5; the floats 50.2 / 65.3 / 91.4.
+
+**Removed on the way** (each measured wrong): area-proportional flight loads (missed the tail's and the torsion's), a 3-2-1 support (excited a
+near-mechanism; inertia relief instead), the prestress geometric stiffness (broke rigid invariance), the ailerons at V_D and the rudder at V_D
+(over-certified the wing joints: the aileron dropped, the rudder at V_A), a damped quick-settle drop (under-read TREECRASH's drop badly: the drop
+is now TREECRASH's procedure exactly).
+
+**THE ENVELOPE** (reports/evidence/DMG-D2a/envelope.json, envelope.svg): the case that sets each member's tension limit, members per case -
+
+| build | the governing cases (tension) |
+|---|---|
+| the user's Cub | elevUpD 104, elevDownD 86, rudLA 44, drop 42, rudRA 34, impactNose 17, bench 14, negC / flown / rollL / rollR 7 each, crashFwd 6, pullDq 4 |
+| Jodel | drop 112, elevUpD 105, elevDownD 71, bench 52, rudRA 42, rudLA 31, flown 30, negC 12, impactNose 9, rolls 4 + 4, crashFwd 4, pullDq 1 |
+| metal Cessna | elevUpD 108, elevDownD 87, drop 47, rudRA 46, bench 44, rudLA 36, impactNose 23, negC 19, crashFwd 5, pullDq 4, pullA / pullAq / flown 2 |
+| Cessna floats | elevUpD 99, elevDownD 83, bow 81, bench 40, rudLA 37, drop 33, rudRA 27, pullAq 8, impactNose 7, negC 6, ... |
+| twin floatplane | bow 97, elevUpD 96, elevDownD 93, rudRA 39, rudLA 34, flown 23, drop 15, bench 8, impactNose 6, crashFwd 2 |
+
+The envelope's share of a member's physics yield, by class (median / largest): the wing 0.03-0.06 / 0.19-0.36, the fuselage 0.02-0.07 /
+0.15-0.41, the tail 0.04-0.23 / 0.47-1.79. **Where the envelope passes the physics** (the stamp keeps the physics there - see open questions):
+0-8 tail members a build in tension and 3-32 in compression at the ultimate, all from the elevator hard over at V_D x 2; 2-6 fuselage members in
+compression (impactNose; the Cub's elevator cases; the twin's bow).
+
+### G1831 - THE STAMP (30_solver.js certStamp; GEN_CERT in 66_gen_cert.js)
+`makeSim` keeps each member's D1a physics (fy0, fu, fc0, ty x A) in `PHY` (only with the layer on) and, when `def.cert` is present, stamps:
+- **ordinary members:** Fu = cap(1.5 F_l m x uMember x scatter), Fy = cap(F_l x yTol) (brittle: Fy = Fu), the plastic travel capped at
+  etu = 1 %; compression Fc = cap(1.5 F_l,c m x uMember) - at the ULTIMATE, never at the limit (a member perfectly plastic at its limit is a
+  mechanism one hair past it). cap(x) = min(max(x, kappa x physics), physics): the floor kappa x physics, and never past D1a's physics (the
+  material x section, the seams, Euler).
+- **joints** (any D1a seam: fitting, rivet, bond, opening): brittle at Fu = cap(1.5 F_l m x uFit).
+- **the gear** (cls 'gear': the legs, the floats' struts and hulls) is skipped - D2b's.
+- **the rules:** m = 1.05, uMember = 1.15, uFit = 1.0, yTol = 1.01, kappa = 0.1, etu = 0.01, dynCtl = 2. Spruce's ragged scatter is kept, upward
+  only (a member never certifies weaker than its card).
+- `sim.certStamp(C)` stamps a live sim **only before anything has bent** (it refuses once DMG.yields / breaks / dents is non-zero, or under PEAK);
+  `sim.cert()` reads it back. sim_link / sim_host forward it to the physics worker.
+
+**THE FITTING FACTOR - a deviation for the coordinator to rule on.** The brief reads "fittings' Fu = 1.15 x F_cert (FAR 23.625)". Taken literally,
+the fittings sit 15 % ABOVE the members, so the members break first and the fittings let go at ~6.9-7.2 g, past §7.4's over-g row; and the card
+would say "a member broke in its middle". I kept FAR 23.625's 15 % BETWEEN the two, on the side the lattice can show: **a joint breaks at 1.5 F_l m
+(uFit 1.0), every member between joints holds 1.15 x longer (uMember 1.15)** - so the part comes off as a part (§4.4) at the card's broke-at, at a
+joint, every time (GATE DMGCERT checks it). One line each in GEN_CERT to swap them.
+
+**kappa_floor's census** (reports/evidence/DMG-D2a/kappa.json, kappa.svg; the stamp redone at each kappa; members on the floor in tension / the
+certified total, and the bench's first joint, linear, from the stamped limits):
+
+| build | 0.05 | **0.1** | 0.15 | 0.2 | 0.3 |
+|---|---|---|---|---|---|
+| the user's Cub | 145/379, 5.98 g | **245/379, 5.98 g** | 309, 5.99 | 326, 6.03 | 348, **9.04** |
+| Jodel | 271/477, 5.99 | **368/477, 5.99** | 407, 5.99 | 432, 5.99 | 456, 5.99 |
+| metal Cessna | 115/427, 5.98 | **201/427, 5.99** | 281, 5.99 | 303, 5.99 | 357, 5.99 |
+| Cessna floats | 94/427, 5.99 | **171/427, 5.99** | 225, 5.99 | 277, 5.99 | 319, 5.99 |
+| twin floatplane | 142/413, 5.99 | **256/413, 5.99** | 308, 5.99 | 336, 6.02 | 366, **9.03** |
+
+Why 0.1: from 0.2 the floor starts to take the wing's joints off the certificate (the Cub and the twin's first joint drifts, then jumps to 9 g at
+0.3, the floor alone); 0.25 (tried first) swamped the certificate. Below 0.1 the card does not move (0.05 gives the same first joints), but every
+member no case loads gets weaker in a crash: the floor is what a trunk meets (at 0.1, before the 23.561 cases were added, the 3 m/s trunk taxi
+kinked the engine mount - the crash cases fixed that, not the floor; 0.05 was not re-run on the trunk rows). 0.1 is the largest kappa that leaves
+every build's first joint where the certificate puts it. The floor still governs 40-77 % of the members (those no certified case loads: the fuselage's diagonals, the tail's ribs) - they are paper only to the
+certificate, never to a crash: there the floor and Euler govern.
+
+**The stamp per build** (tension: on the certificate / on the floor; compression likewise; the gear apart):
+
+| build | certified | tension cert / floor | compression cert / floor | gear kept on D1a |
+|---|---|---|---|---|
+| the user's Cub | 379 | 134 / 245 | 189 / 186 | 15 |
+| Jodel | 477 | 109 / 368 | 186 / 287 | 15 |
+| metal Cessna | 427 | 226 / 201 | 229 / 194 | 15 |
+| Cessna floats | 427 | 256 / 171 | 263 / 160 | 106 |
+| twin floatplane | 413 | 157 / 256 | 216 / 193 | 106 |
+
+### THE COST, AND WHERE IT RUNS (a strict gate)
+- **Never in the garage's edit loop.** Nothing in the generator or the garage's drag path changed (genCertify is not called by buildGen). The
+  certificate is asked for when the aeroplane ROLLS OUT (app.js `certKick()` at the start of `rollOut()`, and again in `rollOutStand()`), only
+  when `curKey === 'gen'` and the layer is on. It is computed on the bench's thread (bench_worker.js `{kind:'cert'}`; the envelope's two
+  Float64Arrays come back transferred) and kept by the spec's hash (`genCertKey`: FNV of the rules, PHYSICS_V and the spec; 8 deep on the page and
+  in the core's GEN_CERT_CACHE).
+- **What the page does while it computes: nothing.** The roll-out shot and the stand run as before; the flight starts on D1a's physics limits
+  (which are never weaker than the certificate's - the stamp is capped at them) and the stamp lands on the live sim the moment the answer does
+  (`sim.certStamp`, refused if anything has bent by then: that flight stays on D1a's limits, the next one stamps from the cache at once). A
+  second flight of the same build stamps at roll-out in 0-1 ms. **So a NEW build's first 3-10 s (its roll-out, the parked engine start) run on
+  D1a's physics, not the stamp** - read the brief's "the flight must start with the stamped limits" against that; the alternative (computing it
+  while the user is still in the garage, at idle) is in the edit loop's thread budget and I did not do it.
+- No worker (file://): the page computes it in one `setTimeout` task after the roll-out (a 3-10 s stall there, file:// only).
+- **Measured** (node, `genCertify`, DMGCERT's own run, 4 gates in parallel): Cub 3.8 s, Jodel 5.9, metal Cessna 5.4, floats 8.7, twin 9.6 (alone,
+  earlier: 2.6-7.8 s). Of which the static flight cases 0.6-1.2 s, the bench 8-24 ms, the dynamic cases (drop, bow, flown) 2.5-7.0 s. Cached:
+  0-1 ms. **In a browser worker** (tools/dmg_cert_worker_shot.js, headless Chromium, the bench worker as the page starts it): see the table under
+  G1832: 2.6-9.3 s, its envelope bit-equal to node's.
+- `window.CERT_STATE()` on the page: `{ last: {key, how: 'worker'|'cache'|'page', stamped, ms, limit, ult}, pending, cached, stamped }`.
+
+### G1832 - THE TEST TO DESTRUCTION (free, ruling dm6)
+- 65_gen_loadtest.js `cfg.destroy`: the bags go on at the load test's own rate past the ultimate (to 3 x the ultimate); the run ends 0.3 s after
+  the first BREAK GROUP lets go, with `state.brokeAt` (the bags' g at that frame), `brokeKey`, `brokeSeam`, `yieldAt`, `breakAt`, and the verdict
+  "BROKE AT x g". Outside destroy mode a load test whose structure broke now reads 'BROKE UP' (the damage layer's breaks; a NaN is still 'SIM
+  DIVERGED' first) - GATE DMGINST's static check updated to that (its line 65 already expected it).
+- The bench (bench.js): with the layer on, after the wing loading the row and the award card wait for the destruction and print one line -
+  **"LIMIT 3.8 g · ULTIMATE 5.7 g · BROKE AT 6.01 g (the right wing's strut, a fitting, let go first) — the test to destruction, free"**
+  (`benchDestroyLine`, exported, pure). It rides on the load row (GATE BENCH wants exactly six test rows). The aeroplane on the stand and the wallet
+  are never touched: it runs in the bench worker (`{kind:'destroy'}`, unpaced) on its own sim with the roll-out's certificate handed in.
+- **Results** (GATE DMGCERT; reports/evidence/DMG-D2a/breakat.svg):
+
+  | build | BROKE AT | the first group | the first member | first set | the bench worker in Chromium: cert / destroy |
+  |---|---|---|---|---|---|
+  | the user's Cub | 6.01 g | the right strut | fitting S1BR-WF (tension) | (brittle) | 2.6 s / 2.2 s |
+  | Jodel | 6.10 g | the left wing root | bond WB-WF (a glue line) | (brittle) | 4.5 s / 6.0 s |
+  | metal Cessna | 6.06 g | the right strut | fitting S1BR-WB | 3.85 g | 3.4 s / 5.3 s |
+  | Cessna floats | 6.10 g | the right strut | fitting S1BR-WB | 3.85 g | 8.2 s / 6.1 s |
+  | twin floatplane | 6.01 g | the right strut | fitting S1BR-WF | (brittle) | 9.3 s / 4.2 s |
+
+  The worker's broke-at equals node's on all five; its envelope is bit-equal to node's (worker_shot.txt). The card shows the destruction
+  line 2-6 s after the wing loading's verdict.
+
+  The band is [1.5, 1.5 m] x limit = [5.70, 5.99] g; the rig READS 6.01-6.10 because the bags' g leads the structure's response on the ramp
+  (4 s to 5.7 g): the static first joint from the stamped limits is **5.98-5.99 g on every build** (the kappa census). The gate allows +2.5 % for the
+  lag and says so.
+
+### G1833 - GATE DMGCERT (tools/_dmg_cert_check.js; run_gates: core, weight 3, wall 240) - **70/70 PASS** (186 s, 5 builds)
+Per build:
+1. **The certificate:** every member has an envelope, none stamped past its physics; the gear keeps D1a's limits; with the layer off nothing is
+   stamped (the stamp refused, every limit infinite) and a garage build carries no certificate; computed once, then from the cache (0-1 ms).
+2. **The card on the bench:**
+   - the limit x 1.0: HELD, no set (all five);
+   - the limit x 1.2: **a set on the metal wings** (the metal Cessna 16 members, the largest 0.18 %; the floats 18) - the wood wings (the Cub, the
+     Jodel, the twin) cannot take a set (brittle spruce, joints) and the gate REPORTs that instead;
+   - the ultimate: HELD, nothing broken (the metal ones 32 / 36 set);
+   - the ultimate x 1.1: it breaks, the first member at a joint (the Cub 23 members, the Jodel 76, the metal 40, the floats 40, the twin 60).
+3. **To destruction:** within the band (+2.5 %), the first member a joint, and the page's bench thread (bench_worker.js `benchLoadRun`) gives the
+   same number and the card's line.
+4. **The flight:**
+   - the flown pull to the limit yields nothing: the worst member at 0.95 / 0.56 / 0.93 / 0.97 / 0.99 of its certified limit;
+   - parked 10 s and 10 s in the air (1.6 Vs, 0.75 throttle) on the certificate's limits: nothing yields, no frame armed once settled. **Normal
+     operations never yield.**
+5. **A bad design fails its bench:** the struts (or a cantilever's root) at half the section their certificate asks, certified as built,
+   BROKE UP at 2.94 / 3.54 / 1.64 / 1.45 / 2.97 g.
+6. **REPORTs:** D1a's open questions re-read (below).
+
+**TREECRASH now runs on the certificate** (`_treecrash_check.js`: FLYDIY_CERT=1 by default; `--physics` gives D1a's old run). Its load row is the
+certificate's: below 1 at the limit, plus a load test to 5.7 g HELD with nothing broken. Its pull uses the wing's load (toLimit 3.8). Its wall is
+900. **47/47 PASS**. The normal-ops margins (the worst member over its CERTIFIED yield):
+
+| | load to 3.8 g | flown pull | drop 7-8 ft/s | drop 10 ft/s | circuit |
+|---|---|---|---|---|---|
+| the user's Cub | 0.64 | 0.95 | 0.76 | 0.99 | 0.29 |
+| Jodel | 0.64 | 0.56 | 0.47 | 0.63 | 0.32 |
+| metal Cessna | 1.00 | 0.93 | 0.80 | 0.99 | 0.74 |
+| Cessna floats | 1.00 | 0.97 | 0.76 | 0.99 | 0.98 |
+| twin floatplane | 0.64 | 0.99 | 0.41 | 0.63 | 0.35 |
+
+The trunk runs:
+- the taxi at 3 m/s dents and does not crash (7-15 members set);
+- the wingtip brush sets 0-2 members;
+- the 30 m/s trunks CRASH;
+- **THE WATER CASE** (the twin's float nose-in at 90 km/h, 5 m/s, 20 deg): worst member 0.99, 0 set, 0 broken - green (the bow case certifies it);
+- the severe nose-in breaks up, as it must;
+- the Cub's water rows skip as before (GEAR-WATER 2's wet body is not in this core).
+
+**DMGMEMBERS 80/80 PASS** (its own D1a physics run, unchanged by this branch).
+
+**After merging D1b and D3** (a15c891; conflicts in run_gates.js - both rows kept - and DMGINST's section 1 - D1b's app.js check and my load-test
+check both kept):
+- The envelope is bit-identical (the Cub and the metal Cessna compared to the file the perf runs load).
+- DMGCERT 70/70 with the same numbers, but the pieces broken at the ultimate x 1.1 (the Cub 24 -> 23, the Jodel 74 -> 76).
+- TREECRASH 47/47: the normal-ops rows are unchanged, and the trunk crashes now end in D1b's "broke up: the fuselage parted".
+- DMGMEMBERS 80/80, DMGCLUSTERS, DMGINTEGRITY, DMGINST 33/33, DMGFPS PASS (reports/evidence/DMG-D2a/gate_damage_after_merge.txt).
+
+### THE ACCEPTANCE
+- **Off = the base's bytes.** TREE-CRASH's G1478 list (41 physics gates) + DMGINST, DMGFPS, DMGMEMBERS, UISMOKE, BUILD, JOIN, DMGCLUSTERS,
+  DMGINTEGRITY; `GATES_CORE=1 run_gates --only=... --verbose --jobs=4`, the base (claude/dmg-integration a15c891 = D1b + D3, built) against this
+  branch with a15c891 merged in, each gate's whole output:
+  - **32 byte for byte:** AERO BENCH BUILD DEFAULT DMGMEMBERS DRAG ENERGY FLAPS FLOATS GE GEAR HONEST HOTHIGH JOIN LINEUP LOAD MASS MOUNT NAV
+    OBSTACLE PACE PLAN SEAPLANE SITE SOAR STRESS STRUT SUBSTEP TAXICLEAR TREEHIT UISMOKE WEIGHT.
+  - **15 differ only in timings** (numbers masked, identical): BIPLANE DMGCLUSTERS DMGFPS DMGINTEGRITY FLEX FLIGHTREC GEN HITBOX HYDRODYN PILOT
+    PILOTACT SETTLE SIMWORKER STRIPSURF TAKEOFF. In SIMWORKER every step's FNV is equal (f2b3de3f / cbccf99f).
+  - **2 differ, both by design:** DMGINST, whose one static check was rewritten for G1832 (only that line's text differs); and TREECRASH, which
+    now runs on the certificate. Its `--physics` run (D1a's limits) is the base's output byte for byte apart from the header.
+  - Both batteries: **BATTERY PASS**. The same comparison against 8125f22, before D1b and D3, gave the same split: 32 / 13 / the same 2
+    (battery_diff_8125f22.txt). In that run DMGINST's old check failed, which is what led to the rewrite.
+  - GATE INSTANT and STAND PASS (INSTANT 1087 s, on the 8125f22 merge; nothing in the garage changed since).
+  - reports/evidence/DMG-D2a/battery_diff.txt.
+- **PERF** (`tools/treecrash_evidence.js --perf-only --perf-base <the base's core>`, the layer ON, the certificate handed in from a file
+  (FLYDIY_CERT_DIR), nothing touching, a far 4000-trunk set; the median of 5 processes' medians, 600 steps). Against 8125f22, on a quiet machine:
+
+  | case | run 1 base / now (ms) | run 2 base / now | all 10 base / now | |
+  |---|---|---|---|---|
+  | Cub, ground | 2.861 / 2.934 | 2.893 / 2.893 | 2.887 / 2.934 | +1.6 % |
+  | Cub, air | 2.899 / 2.847 | 2.731 / 2.826 | 2.800 / 2.838 | +1.3 % |
+  | metal Cessna, ground | 5.143 / 5.057 | 4.909 / 4.849 | 4.971 / 5.057 | +1.7 % |
+  | metal Cessna, air | 4.912 / 4.884 | 4.855 / 4.661 | 4.912 / 4.793 | -2.4 % |
+
+  After the merge of D1b and D3 (against a15c891) the machine got noisy: the base itself read 10-15 % slower, and two runs pooled to Cub ground
+  -4.8 %, Cub air +6.3 %, metal ground -0.6 %, metal air +2.1 %. The alternating pairs settle it (perf_pairs.txt):
+
+  | series | Cub ground | Cub air | metal air |
+  |---|---|---|---|
+  | vs 8125f22, 12 pairs | -2.1 % (pair median -0.3 %) | -0.3 % (-0.9 %) | - |
+  | vs a15c891, 12 pairs | - | +4.1 % (my core without a certificate +2.1 %) | -6.5 % (without -9.8 %) |
+  | vs a15c891, 16 pairs pinned to one CPU | -1.3 % (pair +0.8 %) | +2.1 % (pair +1.6 %; without a certificate -0.2 %) | - |
+  | my core alone, Cub air, 16 triples pinned: no certificate / a stamp onto the physics limits / the certificate | | 3.386 / 3.512 / 3.215 ms: **the certificate -5.0 %** | |
+
+  **No regression the noise can resolve.** The certified sim against the uncertified one changes sign from series to series (+1.0 to +3.6 %,
+  then -5.0 %). The stamp is build time: it writes existing fields, no new ones, and the step's code is unchanged. Arming adds 1-4 frames of
+  600 (the yield path armed by the lower limits), which cannot move a median. **Run the pinned pairs on the box**, where the cloud's noise is
+  absent, before reading a 2 % either way.
+  **The certificate must not be computed in the measuring process.** It makes later sims ~21 % slower there: the probe sims add fields to beam
+  objects and leave the hot loop's inline caches polymorphic. In the game it runs in the bench worker's isolate, never the physics thread's, so
+  the perf children load it precomputed.
+- **The garage's parameter-change response is unchanged:** the generator, the drag path and INSTANT's layers are untouched (no core file before
+  66 changed but 30_solver.js's stamp and probe flag, and 65's load-test verdicts); GATE INSTANT PASS, and UISMOKE, BUILD, JOIN, BENCH,
+  SIMWORKER, STAND PASS.
+- **Normal operations never yield** (DMGCERT 4, TREECRASH 2); **the WATER CASE is green**; **DMGMEMBERS and TREECRASH are green**.
+- Validated builds only; no archetype tuned; no Rigs of Rods / BeamNG code.
+
+### Evidence (flyDiy/reports/evidence/DMG-D2a/)
+- `envelope.json`, `envelope.svg`: the governing cases.
+- `breakat.svg`: to destruction, and the bad design.
+- `kappa.json`, `kappa.svg`: the census.
+- `runs.json`: every number above.
+- `gate_dmgcert.txt`, `gate_treecrash.txt`, `gate_treecrash_physics.txt`, `gate_dmgmembers.txt`, `gate_dmginst.txt`,
+  `gate_instant_stand.txt`.
+- `battery_mine.txt`, `battery_base.txt`, `battery_diff.txt`.
+- `perf.json`, `perf_pairs.txt`.
+- `worker_shot.txt`.
+
+Tools:
+- `tools/dmg_cert_evidence.js`: the plots and the census.
+- `tools/dmg_cert_worker_shot.js`: the bench worker's cert and destroy jobs in headless Chromium. Needs playwright (NODE_PATH=$(npm root -g)).
+- `tools/treecrash_evidence.js --out <dir>`.
+
+### THE COORDINATOR MUST EYEBALL ON THE BOX
+1. `dev.html?damage=1`, build or load a validated aeroplane, roll out: `window.CERT_STATE()` in the console a few seconds later must read
+   `stamped: true, how: 'worker'` (and `how: 'cache'` on the second flight of the same build). The roll-out and the first frames must not stutter.
+2. The bench's wing loading with the layer on: the row and the award card print the LIMIT / ULTIMATE / BROKE AT line (`.bDestroy`), a few seconds
+   after the wing loading's verdict; the card's close waits for it. Check the wording and that it fits the card at phone width.
+3. Fly a pull to ~3.8 g in the Cub: nothing bends. Past ~6 g (the over-g row) the strut lets go first.
+4. With the layer off (`dev.html` plain): no destruction line, no certificate job (CERT_STATE().last stays null).
+
+### Open questions
+- **The fitting factor's reading** (G1831 above): FAR 23.625's 15 % kept between joints and members, joints the weaker. Rule on it.
+- **The tail under its elevator case.** The elevator hard over at V_D x dynCtl 2 asks more of 0-8 tail members a build (tension: the Cub 1, the Jodel 0, the metal Cessna 5, the floats 8, the twin 6) than their
+  physics yield, and 3-32 more in compression at the ultimate. The stamp keeps the physics there, so the tail is the one place where the
+  certificate is above what the generator builds. Either dynCtl 2 is too harsh (1.0 if the elevator's step is taken as quasi-static), or the
+  generator's tail is light for its V_D: a generator question (D-TUNE / A0), not a stamp one.
+- **etu = 1 %** for a certified ductile member (D1a's coupon 8-10 %). At 10 % the metal wing redistributes past its first yield and the joint
+  breaks only at 6.9-7.3 g. 1 % puts it at 6.06-6.10. The first set is then just past the limit (3.85 g), as a real spar cap.
+- **dynCtl = 2** on the controls' cases, and the drop at the **10 ft/s cap** (TREECRASH's harsher drop, not 23.473's computed sink of
+  7.0-8.3 ft/s). Both are conservative readings.
+- **TREECRASH's pull now reads the WING's load (aeroFy / W), not sim.out.nz**: in a quick pull the CG's acceleration lags the aero load. The wing
+  carried 5.7 W when nz read 3.8 (the old reading over-loaded the airframe by 50 %). At the limit the CG reads 2.0-3.0 g.
+- **DMG-DAMP not merged.** When it lands, re-run DMGCERT and TREECRASH: the drop, the bow and the flown pull are real sims. Damping changes
+  their peaks, and with them the envelope (the drop governs 15-112 members a build).
+- **FAR numbers as recalled** (the table's sections): A0 to open them on the box before they become a gate (§1, §11.2 #7).
+- **No set on wood wings:** spruce and the joints are brittle, so "limit x 1.2 leaves a set" holds only on the metal wings. The gate REPORTs it
+  on the others.
+- **D1a's open questions, re-read:**
+  - **The Jodel now breaks at its wing ROOT FITTING first** (the group wing0L:root at 6.10 g). Its first MEMBER is a glue line (bond WB-WF, the
+    root rib's web): a joint, as it should be.
+  - **The lift struts' compression limits** (the metal Cessna): certified at 14.6-19.2 kN (the bench), they crush at 26.5-34.8 kN, against a
+    physics of 68.3 kN (Euler). The struts are now certified, not Euler-bound.
+  - **The twin's float nose-in** is covered by the bow case (it governs 97 of the twin's members).
+- **The flight's first seconds on D1a's physics** for a new build (COST above). That is the price of never computing in the edit loop.
+- **The JIT cost of computing a certificate where sims run.** In node, a process that has computed a certificate steps its later sims ~21 %
+  slower: the probe sims leave the beam loop's inline caches polymorphic. In the game the certificate runs in the bench worker, so the
+  flight's physics thread never sees it. Two places it does reach:
+  - **file://**, where there is no worker: the page computes the certificate itself, and the page's sim, if it runs there, would carry the
+    slowdown;
+  - **the bench worker's own later load tests:** paced to real time, they have the headroom, but this was not measured in a browser.
+  A fix, if the box shows either: give the probe sims a beam object of their own shape (66_gen_cert.js genCertProbeSim).
+- Housekeeping: a stray empty file `/p2.js` at the container's filesystem root (outside the repo), left by a mistyped heredoc; my sandbox would
+  not remove it. It is not in the repo and the container is ephemeral.

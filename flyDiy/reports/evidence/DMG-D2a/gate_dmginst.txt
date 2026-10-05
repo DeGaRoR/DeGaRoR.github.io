@@ -1,8 +1,9 @@
+=== DMGINST ===
 1. G1800: sim-diverged (the numbers) vs broke-up (the structure)
-  ok    the page's watchdog ends a NaN / guarded flight 'sim-diverged' (the message "SIM DIVERGED — RESET" stays); nothing ends one 'broke-up'
+  ok    the page's watchdog ends a NaN / guarded flight 'sim-diverged' (the message "SIM DIVERGED — RESET" stays); 'broke-up' only when the structure's refs part (DMG.brokeUp)
   ok    the load test's NaN verdict is 'SIM DIVERGED' (65_gen_loadtest.js); 'BROKE UP' only on the damage layer's breaks (1)
   ok    the crosswind probe's NaN ending is 'sim-diverged' (42_crosswind.js)
-  ok    no code writes 'broke-up' (it is reserved for the structure): none of the 12 readers / writers
+  ok    no code writes 'broke-up' but the structure's ending (DMG.brokeUp): none of the 12 readers / writers
   ok    the Cub's load test with a 1e300 kick in its ramp: 'SIM DIVERGED'
   ok    the bench card: SIM DIVERGED - "the simulation diverged before the ultimate load (a numerical fault, not a member)"
   ok    a BROKE UP (the structure, D1b / D2) still reads as a member that let go: "a member let go before the ultimate load"
@@ -24,17 +25,17 @@
         twin floatplane: a flown 3.8 g pull: the fastest node 8.37 m/s off the CG
         twin floatplane: a 10 ft/s drop: the fastest node 3.10 m/s off the CG
         the Cub: a circuit with the pilot: the fastest node 2.93 m/s off the CG
-        the Cub: 30 m/s into a trunk (crash): the fastest node 32.73 m/s off the CG
-        the metal Cessna: 30 m/s into a trunk (crash): the fastest node 34.72 m/s off the CG
-        the Cub: 30 m/s, the wing 2.5 m out (crash): the fastest node 21.84 m/s off the CG
-        the twin: SEVERE 150 km/h, 10 m/s, 60 deg float nose-in: the fastest node 76.90 m/s off the CG
-  ok    the census: 15 runs, never tripped; the worst 76.90 m/s (the twin: SEVERE 150 km/h, 10 m/s, 60 deg float nose-in), under 3/4 of the guard
+        the Cub: 30 m/s into a trunk (crash): the fastest node 31.07 m/s off the CG
+        the metal Cessna: 30 m/s into a trunk (crash): the fastest node 53.54 m/s off the CG
+        the Cub: 30 m/s, the wing 2.5 m out (crash): the fastest node 22.99 m/s off the CG
+        the twin: SEVERE 150 km/h, 10 m/s, 60 deg float nose-in: the fastest node 40.01 m/s off the CG
+  ok    the census: 15 runs, never tripped; the worst 53.54 m/s (the metal Cessna: 30 m/s into a trunk (crash)), under 3/4 of the guard
 3. G1802: the plastic work per beam
   ok    DMG.wB: a Float64Array, one per beam (394), on sim.damage()
-  ok    the Cub at 30 m/s into a trunk: the beams' work sums to the total (65587.527 J against 65587.527 J)
-  ok    102 beams carry work, every one of them yielded or bent; none negative
-        by section: fuselage 36.7 kJ, wings 12.1 kJ, engines 8.4 kJ, gear 4.1 kJ, vessel 3.7 kJ, tail 0.6 kJ
-  ok    the metal Cessna's: 109058.371 J against 109058.371 J
+  ok    the Cub at 30 m/s into a trunk: the beams' work sums to the total (51382.154 J against 51382.154 J)
+  ok    85 beams carry work, every one of them yielded or bent; none negative
+        by section: fuselage 21.4 kJ, wings 10.9 kJ, engines 8.4 kJ, vessel 8.0 kJ, tail 1.1 kJ, bracing 0.8 kJ, gear 0.8 kJ
+  ok    the metal Cessna's: 79352.481 J against 79352.481 J
   ok    reset() after a crash zeroes every beam's work
 4. G1803: every beam carries its ledger section
   ok    Cub: 394 beams, every one stamped (the def's and the solver's copy), every section a ledger row: fus > fuselage 109, fus > engines 13, wing > wings 52, wing > bracing 12, tail > tail 180, wire > tail 4, gear > gear 15, fus > vessel 9
@@ -47,7 +48,7 @@
   ok    stress: ramps to amber [1,0.78,0.12] at the limit, held past it; between the ends in between
   ok    set: from 0.01 % (orange stretched, cyan crushed), full at 3 %; under it no set
   ok    the precedence: broken > set > stress > calm
-  ok    the Cub's 30 m/s crash drawn: {"calm":271,"stress":0,"set":23,"broken":100} - every broken member red, every set member orange / cyan
+  ok    the Cub's 30 m/s crash drawn: {"calm":276,"stress":0,"set":32,"broken":86} - every broken member red, every set member orange / cyan
   ok    a member stretched to its yield reads 1.000000, crushed to its crush load 1.000000
   ok    the layer off (params.damage false): all 2380 members of the five builds calm
   ok    under the probe (sim.damagePeak()) the ratio is the member's peak, tension or compression

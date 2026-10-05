@@ -1,5 +1,5 @@
 === TREECRASH ===
-(548 s, 5 builds; the certificate's limits (DMG-D2a, 66_gen_cert.js))
+(640 s, 5 builds; the certificate's limits (DMG-D2a, 66_gen_cert.js))
 Cub:
 1. the table
   ok    394 members, every one with a section and a GEN_CRASH material (tubeFabric, wood)
@@ -13,8 +13,8 @@ Cub:
   ok    taxied at 3 m/s into a trunk: a dent (15 members set, 0 of the nose broken, 764 J), no crash; the prop struck, the engine stopped; back 1.10 m from where it stopped
   ok    a wingtip into a trunk at walking pace (1.4 m/s): touched (5152 contacts), 2 members set, no crash
 4. a flight into a trunk at 30 m/s
-  ok    the centreline: CRASHED (the airframe crushed (6.7 kJ of plastic work) at 1.32 s), 195 members broken (35 of the wing), 55.1 kJ of plastic work, 15.97 g; finite; the kinetic energy at most 100.0 % of the impact's
-  ok    the wing 2.5 m out: CRASHED (a wing member broke at 1.37 s), 130 members broken (41 of the wing), 12.9 kJ of plastic work, 9.81 g; finite; the kinetic energy at most 100.0 % of the impact's
+  ok    the centreline: CRASHED (broke up: the fuselage parted (TPB off the core) at 1.32 s), 183 members broken (39 of the wing), 27.6 kJ of plastic work, 24.08 g; finite; the kinetic energy at most 100.0 % of the impact's
+  ok    the wing 2.5 m out: CRASHED (a wing member broke at 1.37 s), 149 members broken (42 of the wing), 13.7 kJ of plastic work, 9.10 g; finite; the kinetic energy at most 100.0 % of the impact's
 5. reset heals
   ok    after a crash, reset() and the same taxi: the fresh sim's bits (d94ca1694a20 / d94ca1694a20)
 Jodel:
@@ -30,8 +30,8 @@ Jodel:
   ok    taxied at 3 m/s into a trunk: a dent (10 members set, 1 of the nose broken, 1137 J), no crash; the prop struck, the engine stopped; back 0.22 m from where it stopped
   ok    a wingtip into a trunk at walking pace (1.4 m/s): touched (6941 contacts), 0 members set, no crash
 4. a flight into a trunk at 30 m/s
-  ok    the centreline: CRASHED (a fus member broke at 1.30 s), 217 members broken (45 of the wing), 63.8 kJ of plastic work, 18.68 g; finite; the kinetic energy at most 100.0 % of the impact's
-  ok    the wing 2.5 m out: CRASHED (a wing member broke at 1.33 s), 204 members broken (96 of the wing), 6.1 kJ of plastic work, 7.62 g; finite; the kinetic energy at most 100.0 % of the impact's
+  ok    the centreline: CRASHED (broke up: the fuselage parted (TPB off the core) at 1.30 s), 206 members broken (32 of the wing), 35.2 kJ of plastic work, 26.11 g; finite; the kinetic energy at most 100.0 % of the impact's
+  ok    the wing 2.5 m out: CRASHED (a wing member broke at 1.33 s), 204 members broken (98 of the wing), 6.5 kJ of plastic work, 8.75 g; finite; the kinetic energy at most 100.0 % of the impact's
 5. reset heals
   ok    after a crash, reset() and the same taxi: the fresh sim's bits (ae5747e868e3 / ae5747e868e3)
 metal Cessna:
@@ -47,8 +47,8 @@ metal Cessna:
   ok    taxied at 3 m/s into a trunk: a dent (7 members set, 1 of the nose broken, 758 J), no crash; the prop struck, the engine stopped; back 1.43 m from where it stopped
   ok    a wingtip into a trunk at walking pace (1.4 m/s): touched (26185 contacts), 2 members set, no crash
 4. a flight into a trunk at 30 m/s
-  ok    the centreline: CRASHED (the airframe crushed (4.8 kJ of plastic work) at 1.30 s), 241 members broken (32 of the wing), 92.9 kJ of plastic work, 24.69 g; finite; the kinetic energy at most 100.0 % of the impact's
-  ok    the wing 2.5 m out: CRASHED (a wing member broke at 1.33 s), 132 members broken (44 of the wing), 11.3 kJ of plastic work, 7.81 g; finite; the kinetic energy at most 100.0 % of the impact's
+  ok    the centreline: CRASHED (broke up: the fuselage parted (S0BR off the core) at 1.30 s), 230 members broken (38 of the wing), 42.4 kJ of plastic work, 32.65 g; finite; the kinetic energy at most 100.0 % of the impact's
+  ok    the wing 2.5 m out: CRASHED (a wing member broke at 1.33 s), 140 members broken (47 of the wing), 12.7 kJ of plastic work, 7.66 g; finite; the kinetic energy at most 100.0 % of the impact's
 5. reset heals
   ok    after a crash, reset() and the same taxi: the fresh sim's bits (fe1296eaf583 / fe1296eaf583)
 Cessna floats:
@@ -77,6 +77,6 @@ twin floatplane:
   --    SEVERE: 180 km/h, 10 m/s, 60 deg nose-in: needs GEAR-WATER 2's wet body (32_hydro.js wetBuild), not in this core - skipped
 6. the water - twin floatplane
   ok    a float nose-in (90 km/h, 5 m/s, 20 deg): the worst member 0.99 (fus, tension); 0 set, 0 broken, 5.62 g, no damage; the damage follows the beams' own loads
-  ok    SEVERE: 150 km/h, 10 m/s, 60 deg nose-in: the worst member 13.96 (fus, compression); 211 set {"fus":114,"wing":36,"tail":61}, 213 broken, 8.91 g, CRASHED (a fus member broke) - must yield, break and crash; the damage follows the beams' own loads
+  ok    SEVERE: 150 km/h, 10 m/s, 60 deg nose-in: the worst member 13.96 (fus, compression); 211 set {"fus":82,"wing":33,"tail":96}, 201 broken, 8.91 g, CRASHED (broke up: the fuselage parted (TPB off the core)) - must yield, break and crash; the damage follows the beams' own loads
   47/47 checks
 GATE TREECRASH: PASS

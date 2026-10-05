@@ -1,4 +1,4 @@
-tools/flight_core.js (2021.8 KB), index.html (10659.5 KB), dev.html (82.2 KB) — syntax OK, 702 ms
+tools/flight_core.js (2060.2 KB), index.html (10698.1 KB), dev.html (82.2 KB) — syntax OK, 834 ms
 === SUBSTEP ===
 pietenpol                          79 -> 75 substeps, 1 dampers cut (zeta >= 3.59), network 2.75
   tigermoth                          the flight box: 200 -> 120 substeps, 162 wing springs softened (x0.35 at most), network 2.52
@@ -103,7 +103,7 @@ PASS   the frame-length distribution: <20 67 % · 20-40 28 % · 40-60 5.6 % · 6
 PASS   under the hand (the autopilot's phase ignored): boot 239, stand 120, taxi 120, take-off 120, climb 120, cruise 120, descent 120
 PASS   two reveals (a screen lifted by its timeout, then for good): scored from the first (2 reveals, 299 frames scored)
 PASS   the report prints (87 lines)
-PASS 6 the recorder's own time: 3.51 us a frame over 100000 frames of the loop's hook sequence (2 steps, 3 renders, 6 laps; budget 200 us, asserted < 20 us in node); its end() self-timed 0.80 us
+PASS 6 the recorder's own time: 3.18 us a frame over 100000 frames of the loop's hook sequence (2 steps, 3 renders, 6 laps; budget 200 us, asserted < 20 us in node); its end() self-timed 0.77 us
 PASS   its allocation: 0.11 bytes a frame over 20 000 frames (the whole hook sequence with its sampled self-timing, a clock that cannot box): the frame's path allocates nothing
 PASS 7 the build's MANIFEST loads flight_recorder.js (at 1) before render_world, gfx_settings and app
 PASS   app.js: begin after the frame clock says the frame is ours, end before PACE.end, end(false) on the boot's hold
@@ -137,7 +137,7 @@ GATE FLAPS: PASS
 GEN   full-deflection abuse: flap 3.0..3.4 deg  strain 0%  NaN=false  OK
 GATE STRESS: PASS
 === GEN ===
---- shard 0/4 (315.0 s) ---
+--- shard 0/4 (348.8 s) ---
 LATTICE: 91 nodes, 389 beams, 28 strips
 RIGIDITY: rank 267 / 267 required  (389 beams, 267 dof)
 SHAKEDOWN: 459 kg · S=15.5 m2 · w/l 29.7 kg/m2
@@ -297,7 +297,7 @@ QC: 75/75 checks
 GATE GEN: PASS
 [stderr]
 SHARD 0/4: 6 of 21 heavy jobs
---- shard 1/4 (277.5 s) ---
+--- shard 1/4 (311.0 s) ---
 LATTICE: 91 nodes, 389 beams, 28 strips
 RIGIDITY: rank 267 / 267 required  (389 beams, 267 dof)
 SHAKEDOWN: 459 kg · S=15.5 m2 · w/l 29.7 kg/m2
@@ -445,7 +445,7 @@ QC: 75/75 checks | the circuit (flown in another shard)
 GATE GEN: PASS
 [stderr]
 SHARD 1/4: 5 of 21 heavy jobs
---- shard 2/4 (413.3 s) ---
+--- shard 2/4 (452.2 s) ---
 LATTICE: 91 nodes, 389 beams, 28 strips
 RIGIDITY: rank 267 / 267 required  (389 beams, 267 dof)
 SHAKEDOWN: 459 kg · S=15.5 m2 · w/l 29.7 kg/m2
@@ -593,7 +593,7 @@ QC: 75/75 checks | the circuit (flown in another shard)
 GATE GEN: PASS
 [stderr]
 SHARD 2/4: 5 of 21 heavy jobs
---- shard 3/4 (327.0 s) ---
+--- shard 3/4 (368.0 s) ---
 LATTICE: 91 nodes, 389 beams, 28 strips
 RIGIDITY: rank 267 / 267 required  (389 beams, 267 dof)
 SHAKEDOWN: 459 kg · S=15.5 m2 · w/l 29.7 kg/m2
@@ -742,7 +742,7 @@ GATE GEN: PASS
 [stderr]
 SHARD 3/4: 5 of 21 heavy jobs
 === PILOT ===
---- shard 0/3 (275.9 s) ---
+--- shard 0/3 (308.3 s) ---
 -- HEAVY: 12 kW e-PPG + 400 kg cargo + 60 kg baggage --
    8s rejected-takeoff — not accelerating (0.00 m/s^2 at V=0.2) — thrust is going nowhere
   ok     heavy: no NaN
@@ -794,7 +794,7 @@ SHARD 3/4: 5 of 21 heavy jobs
 GATE PILOT: PASS
 [stderr]
 SHARD 0/3: 4 of 10 heavy jobs
---- shard 1/3 (257.0 s) ---
+--- shard 1/3 (280.3 s) ---
 -- HEAVY: 12 kW e-PPG + 400 kg cargo + 60 kg baggage --
    (flown in another shard)
 -- STANCE: a 6 cm tail-wheel leg, spawned the way the game spawns --
@@ -846,7 +846,7 @@ SHARD 0/3: 4 of 10 heavy jobs
 GATE PILOT: PASS
 [stderr]
 SHARD 1/3: 3 of 10 heavy jobs
---- shard 2/3 (260.8 s) ---
+--- shard 2/3 (289.5 s) ---
 -- HEAVY: 12 kW e-PPG + 400 kg cargo + 60 kg baggage --
    (flown in another shard)
 -- STANCE: a 6 cm tail-wheel leg, spawned the way the game spawns --
@@ -914,13 +914,13 @@ SHARD 2/3: 3 of 10 heavy jobs
   ok     units: degrees wrap and difference
 GATE NAV: PASS
 === STRIPSURF ===
-(11.3 s)
+(14.6 s)
 GATE STRIPSURF: PASS
 === TAKEOFF ===
-crosswind limit 4.5 m/s (band 12.5 m, roll 12.4 m at the limit; first failure 5 m/s, 12.84 m) in 28.2 s CPU, 29.1 s wall
+crosswind limit 4.5 m/s (band 12.5 m, roll 12.4 m at the limit; first failure 5 m/s, 12.84 m) in 29.5 s CPU, 30.4 s wall
 GATE TAKEOFF: PASS
 === PILOTACT ===
-PILOT MATRIX: 3 cells, 3 at a time (activity) on core_1791174514190.js
+PILOT MATRIX: 3 cells, 3 at a time (activity) on core_1791181181916.js
   ok stock:HOME:calm:stand       completed 380.5 s · sink 0.67 · 1.2 Vs · aim 49 · swing 0
   ok fixtures/build_v10_cessnaMetal_2026-09-26.json:HOME:calm:standcompleted 312.5 s · sink 1.11 · 1.15 Vs · aim 44 · swing 0.2
   ok c172:HOME:calm:stand        completed 376.8 s · sink 1.14 · 1.09 Vs · aim 37 · swing 0.4
@@ -931,7 +931,7 @@ cell                              outcome go-arounds  overshoot   roll rev    ct
   fixtures/build_v10_cessnaMetal_2026-09-26.json:HOME:calm:stand  completed          0       12 m    1.5/min  taxi 16.3      0.9 m   0.04 m/s   1.11 m/s       1.15       44 m        0 m    0.2 deg          0 312.5
 
 3 cells: 3 good, 0 warn, 0 bad
-wall 140 s
+wall 174 s
   stock:HOME:calm:stand                                taxi 1.5/14.6  takeoff 0/0  climb 0/0  legs 6/6  downwind 0.6/0  base 2/4  final 4.8/1  landing 0/0
   c172:HOME:calm:stand                                 taxi 0/16  takeoff 0/0  climb 0/0  legs 3.7/3.7  downwind 0/0  base 3.3/3.3  final 1.2/1.2  landing 0/0
   fixtures/build_v10_cessnaMetal_2026-09-26.json:HOME:calm:stand taxi 0/16.3  takeoff 0/0  climb 0/0  legs 8/4  downwind 0/0  base 3.4/3.4  final 3.8/1.3  landing 0/0
@@ -1157,8 +1157,8 @@ WEIGHTS: centre 1.234 · tip 0.262 of the strip circulation; sum(W dz) -75.89357
   ok   the weights are root-heavy and tip-light  (1.23 / 0.26)
   ok   the probe's circulation converges (residual < 2 %)  (9.46e-3)
   ok   every build flies the vortex model (the monoplane's constant retired, P5)
-PERF: buildGen stock 22 ms, biplane 46 ms
-  ok   a biplane builds in under 3x the stock (floored at 20 ms)  (2.11x)
+PERF: buildGen stock 30 ms, biplane 49 ms
+  ok   a biplane builds in under 3x the stock (floored at 20 ms)  (1.63x)
 GATE BIPLANE: PASS
 === MASS ===
 -- the door (B1/B3) --
@@ -1245,7 +1245,7 @@ GATE UISMOKE: PASS
   17/17 checks
 GATE TREEHIT: PASS
 === TREECRASH ===
-(487 s, 5 builds)
+(499 s, 5 builds)
 Cub:
 1. the table
   ok    394 members, every one with a section and a GEN_CRASH material (tubeFabric, wood)
@@ -1259,8 +1259,8 @@ Cub:
   ok    taxied at 3 m/s into a trunk: a dent (9 members set, 0 of the nose broken, 705 J), no crash; the prop struck, the engine stopped; back 1.27 m from where it stopped
   ok    a wingtip into a trunk at walking pace (1.4 m/s): touched (5156 contacts), 0 members set, no crash
 4. a flight into a trunk at 30 m/s
-  ok    the centreline: CRASHED (the airframe crushed (6.7 kJ of plastic work) at 1.32 s), 100 members broken (20 of the wing), 65.6 kJ of plastic work, 15.97 g; finite; the kinetic energy at most 100.0 % of the impact's
-  ok    the wing 2.5 m out: CRASHED (a wing member broke at 1.37 s), 25 members broken (10 of the wing), 13.6 kJ of plastic work, 18.13 g; finite; the kinetic energy at most 100.0 % of the impact's
+  ok    the centreline: CRASHED (the airframe crushed (6.7 kJ of plastic work) at 1.32 s), 86 members broken (16 of the wing), 51.4 kJ of plastic work, 43.48 g; finite; the kinetic energy at most 100.0 % of the impact's
+  ok    the wing 2.5 m out: CRASHED (a wing member broke at 1.37 s), 25 members broken (10 of the wing), 13.4 kJ of plastic work, 18.41 g; finite; the kinetic energy at most 100.0 % of the impact's
 5. reset heals
   ok    after a crash, reset() and the same taxi: the fresh sim's bits (f53aab5c1bda / f53aab5c1bda)
 Jodel:
@@ -1276,8 +1276,8 @@ Jodel:
   ok    taxied at 3 m/s into a trunk: a dent (9 members set, 1 of the nose broken, 1097 J), no crash; the prop struck, the engine stopped; back 0.20 m from where it stopped
   ok    a wingtip into a trunk at walking pace (1.4 m/s): touched (6941 contacts), 0 members set, no crash
 4. a flight into a trunk at 30 m/s
-  ok    the centreline: CRASHED (a fus member broke at 1.30 s), 89 members broken (30 of the wing), 77.2 kJ of plastic work, 18.67 g; finite; the kinetic energy at most 100.0 % of the impact's
-  ok    the wing 2.5 m out: CRASHED (a wing member broke at 1.33 s), 7 members broken (7 of the wing), 8.9 kJ of plastic work, 6.65 g; finite; the kinetic energy at most 100.0 % of the impact's
+  ok    the centreline: CRASHED (a fus member broke at 1.30 s), 105 members broken (30 of the wing), 17.7 kJ of plastic work, 40.06 g; finite; the kinetic energy at most 100.0 % of the impact's
+  ok    the wing 2.5 m out: CRASHED (a wing member broke at 1.33 s), 33 members broken (7 of the wing), 9.5 kJ of plastic work, 6.65 g; finite; the kinetic energy at most 100.0 % of the impact's
 5. reset heals
   ok    after a crash, reset() and the same taxi: the fresh sim's bits (96f816a9ee1a / 96f816a9ee1a)
 metal Cessna:
@@ -1293,8 +1293,8 @@ metal Cessna:
   ok    taxied at 3 m/s into a trunk: a dent (7 members set, 1 of the nose broken, 758 J), no crash; the prop struck, the engine stopped; back 1.43 m from where it stopped
   ok    a wingtip into a trunk at walking pace (1.4 m/s): touched (26221 contacts), 0 members set, no crash
 4. a flight into a trunk at 30 m/s
-  ok    the centreline: CRASHED (the airframe crushed (4.8 kJ of plastic work) at 1.30 s), 177 members broken (20 of the wing), 109.1 kJ of plastic work, 24.70 g; finite; the kinetic energy at most 100.0 % of the impact's
-  ok    the wing 2.5 m out: CRASHED (a wing member broke at 1.33 s), 20 members broken (20 of the wing), 19.6 kJ of plastic work, 6.94 g; finite; the kinetic energy at most 100.0 % of the impact's
+  ok    the centreline: CRASHED (the airframe crushed (4.8 kJ of plastic work) at 1.30 s), 110 members broken (30 of the wing), 79.4 kJ of plastic work, 47.70 g; finite; the kinetic energy at most 100.0 % of the impact's
+  ok    the wing 2.5 m out: CRASHED (a wing member broke at 1.33 s), 20 members broken (20 of the wing), 19.6 kJ of plastic work, 6.95 g; finite; the kinetic energy at most 100.0 % of the impact's
 5. reset heals
   ok    after a crash, reset() and the same taxi: the fresh sim's bits (fe1296eaf583 / fe1296eaf583)
 Cessna floats:
@@ -1323,11 +1323,11 @@ twin floatplane:
   --    SEVERE: 180 km/h, 10 m/s, 60 deg nose-in: needs GEAR-WATER 2's wet body (32_hydro.js wetBuild), not in this core - skipped
 6. the water - twin floatplane
   ok    a float nose-in (90 km/h, 5 m/s, 20 deg): the worst member 0.83 (fus, compression); 0 set, 0 broken, 5.62 g, no damage; the damage follows the beams' own loads
-  ok    SEVERE: 150 km/h, 10 m/s, 60 deg nose-in: the worst member 6.46 (fus, compression); 38 set {"fus":32,"tail":6}, 60 broken, 14.87 g, CRASHED (a tail member broke) - must yield, break and crash; the damage follows the beams' own loads
+  ok    SEVERE: 150 km/h, 10 m/s, 60 deg nose-in: the worst member 6.46 (fus, compression); 32 set {"fus":29,"wing":3}, 38 broken, 17.70 g, CRASHED (broke up: the fuselage parted (TPB off the core)) - must yield, break and crash; the damage follows the beams' own loads
   47/47 checks
 GATE TREECRASH: PASS
 === DMGMEMBERS ===
-(40 s, 5 builds)
+(48 s, 5 builds)
 the reference: 0.7 m of 1" x 0.035" 4130 buckles at 0.73 of its crush force
   ok    Euler on the reference tube: 0.73 (DEFORM-AND-BREAK §4.0: ~0.7)
 Cub:
@@ -1357,8 +1357,8 @@ Cub:
   ok    nothing yields, nothing breaks; once settled (2 s) no frame armed in 10 s
 8. the break order (G1816)
   ok    the bench to destruction: first yield at 23.18 g; the first member broken at 28.22 g: wing tubeFabric fitting (tension) S1BR-WF; the first GROUP at 28.22 g: wing0R:strut; 28 broken, groups wing0R:strut, wing0L:strut, wing0R:root
-  ok    the centreline at 30 m/s: the first member fus tubeFabric (no seam) (fold); the first group eng:mount; 100 broken, groups eng:mount, gearL:gear, gearR:gear, wing0R:root, wing0L:root
-  ok      6. the kink floor: 7 kinked members, their ends at least 1.00 of their crushed length apart at the end
+  ok    the centreline at 30 m/s: the first member fus tubeFabric (no seam) (fold); the first group eng:mount; 86 broken, groups eng:mount, stab:attach, wing0R:root
+  ok      6. the kink floor: 19 kinked members, their ends at least 1.00 of their crushed length apart at the end
   ok    the wing 2.5 m out at 30 m/s: the first member wing wood (no seam) (fold); the first group wing0L:strut; 25 broken, groups wing0L:strut, eng:mount
   ok      6. the kink floor: 6 kinked members, their ends at least 1.00 of their crushed length apart at the end
 Jodel:
@@ -1389,8 +1389,10 @@ Jodel:
 8. the break order (G1816)
   ok    the bench to destruction: first yield at 11.83 g; the first member broken at 18.05 g: wing wood (no seam) (ragged) WB-WB; the first GROUP at 18.33 g: wing0R:root; 36 broken, groups wing0R:root, wing0L:root
   REPORT  the bench's first member is not a fitting or a seam: wing wood (no seam) (ragged) WB-WB at z -0.53 / 0.53 (a pair's own link: the carry-through) - brittle; the lattice's spar has one section root to tip (DMG-D2's per-member envelope)
-  ok    the centreline at 30 m/s: the first member fus tubeFabric (no seam) (fold); the first group eng:mount; 89 broken, groups eng:mount, wing0R:root, wing0L:root, gearL:gear, gearR:gear
-  ok    the wing 2.5 m out at 30 m/s: the first member wing wood bond (tension); the first group none; 7 broken, groups -
+  ok    the centreline at 30 m/s: the first member fus tubeFabric (no seam) (fold); the first group eng:mount; 105 broken, groups eng:mount, wing0R:root, wing0L:root, fin:attach, stab:attach
+  ok      6. the kink floor: 1 kinked members, their ends at least 2.15 of their crushed length apart at the end
+  ok    the wing 2.5 m out at 30 m/s: the first member wing wood bond (tension); the first group fin:attach; 33 broken, groups fin:attach, eng:mount
+  ok      6. the kink floor: 1 kinked members, their ends at least 3.07 of their crushed length apart at the end
 metal Cessna:
 1. the seams (G1810)
   ok    442 members, each with its seam and group: 10 opening:fus, 32 rivet:fus, 10 fitting:fus, 28 fitting:wing, 44 fitting:tail, 4 fitting:wire, 14 fitting:gear
@@ -1417,8 +1419,8 @@ metal Cessna:
   ok    nothing yields, nothing breaks; once settled (2 s) no frame armed in 10 s
 8. the break order (G1816)
   ok    the bench to destruction: first yield at 14.25 g; the first member broken at 14.20 g: wing alloy fitting (tension) S1BR-WB; the first GROUP at 14.20 g: wing0R:strut; 12 broken, groups wing0R:strut, wing0L:strut
-  ok    the centreline at 30 m/s: the first member fus tubeFabric (no seam) (fold); the first group eng:mount; 177 broken, groups eng:mount, tw:gear, wing0R:root, wing0L:root, gearL:gear, gearR:gear, fin:attach, stab:attach
-  ok      6. the kink floor: 1 kinked members, their ends at least 13.04 of their crushed length apart at the end
+  ok    the centreline at 30 m/s: the first member fus tubeFabric (no seam) (fold); the first group eng:mount; 110 broken, groups eng:mount, wing0R:root, wing0L:root, fin:attach, stab:attach
+  ok      6. the kink floor: 3 kinked members, their ends at least 0.99 of their crushed length apart at the end
   ok    the wing 2.5 m out at 30 m/s: the first member wing alloy (no seam) (fold); the first group wing0L:strut; 20 broken, groups wing0L:strut
 Cessna floats:
 1. the seams (G1810)
@@ -1468,19 +1470,145 @@ twin floatplane:
   ok    the scatter is the build's own: a second sim of it stamps the same limits
 5. spruce (G1814)
   ok    28 spruce members: tension strength x 0.86-1.14, 14 break in 2 stages, 14 in 3
-  ok    on the bench to destruction 8 spruce members let go in 2/2/2/2/2/2/3/2 stages, crack to gone in 1.23-2.22 ms (median 1.60)
+  ok    on the bench to destruction 8 spruce members let go in 2/2/2/2/2/2/3/2 stages, crack to gone in 1.23-2.35 ms (median 1.60)
 7. parked 10 s (damage on)
   ok    nothing yields, nothing breaks; once settled (2 s) no frame armed in 10 s (43 armed while it settled onto the water: the water's own arm, G1479)
 8. the break order (G1816)
   ok    the bench to destruction: first yield at 13.01 g; the first member broken at 28.03 g: wing tubeFabric fitting (tension) S1BR-WF; the first GROUP at 28.03 g: wing0R:strut; 44 broken, groups wing0R:strut, wing0L:strut, engL:mount, engR:mount
-  78/78 checks
+  80/80 checks
 GATE DMGMEMBERS: PASS
+=== DMGCLUSTERS ===
+(545 s, 6 builds)
+Cub:
+1. the cuts (break limits: bending about the weak axis / the other / torque, kN.m; the first-yield share)
+  ok    1 clusters, each with its root cut: FIN root 6.70 / 20.32 / 11.73 (fin:attach)
+2. the measure is the statics (pinned, the part and what hangs on it at 5 g)
+  ok    FIN root: read 0.08 kN.m, the statics 0.08 (13 nodes)
+3. nothing parts in normal operations (the worst cut's peak load over its break limit; its first-yield share)
+  ok    load test 5.7 g, the wing: 0.000 (FIN root, bend; 0.00 of first yield)
+  ok    load test 5.7 g, the fin: 0.040 (FIN root, bend; 0.06 of first yield)
+  ok    load test 5.7 g, the stab: 0.009 (FIN root, bend; 0.01 of first yield)
+  ok    flown pull (TREECRASH's, from 42 m/s): 0.009 (FIN root, bend; 0.01 of first yield)
+  ok    drop at FAR 23.473 (7.0 ft/s): 0.011 (FIN root, bend; 0.02 of first yield)
+  ok    drop at 10 ft/s: 0.015 (FIN root, bend; 0.02 of first yield)
+  ok    a circuit with the pilot: 0.008 (FIN root, bend; 0.01 of first yield)
+  ok    parked 10 s, damage on: nothing parts, no frame armed once settled (worst cut 0.001)
+  ok    the two drops with damage on: no cluster parts
+4. the parts come off cleanly
+  ok    the FIN pulled sideways (n g on the fin, ramped): FIN root by bend at 2.47 s (6.70 kN.m bending, -8.55 torque; limits 6.70 / 20.32 / 11.73), 16 members broken (fin:attach, 0 others), the part rigid to 0.0 mm and 1.19 m off; clusters now FIN:13
+Jodel:
+1. the cuts (break limits: bending about the weak axis / the other / torque, kN.m; the first-yield share)
+  ok    1 clusters, each with its root cut: FIN root 0.76 / 3.02 / 1.74 (fin:attach)
+2. the measure is the statics (pinned, the part and what hangs on it at 5 g)
+  ok    FIN root: read 0.04 kN.m, the statics 0.04 (13 nodes)
+3. nothing parts in normal operations (the worst cut's peak load over its break limit; its first-yield share)
+  ok    load test 5.7 g, the wing: 0.000 (FIN root, bend; 0.00 of first yield)
+  ok    load test 5.7 g, the fin: 0.733 (FIN root, bend; 0.84 of first yield)
+  ok    load test 5.7 g, the stab: 0.000 (FIN root, bend; 0.00 of first yield)
+  ok    flown pull (TREECRASH's, from 49 m/s): 0.232 (FIN root, bend; 0.27 of first yield)
+  ok    drop at FAR 23.473 (7.1 ft/s): 0.144 (FIN root, bend; 0.17 of first yield)
+  ok    drop at 10 ft/s: 0.184 (FIN root, bend; 0.21 of first yield)
+  ok    a circuit with the pilot: 0.080 (FIN root, bend; 0.09 of first yield)
+  ok    parked 10 s, damage on: nothing parts, no frame armed once settled (worst cut 0.011)
+  ok    the two drops with damage on: no cluster parts
+4. the parts come off cleanly
+  ok    the FIN pulled sideways (n g on the fin, ramped): FIN root by bend at 1.63 s (0.76 kN.m bending, -0.10 torque; limits 0.76 / 3.02 / 1.74), 16 members broken (fin:attach, 0 others), the part rigid to 0.1 mm and 1.16 m off; clusters now FIN:13
+metal Cessna:
+1. the cuts (break limits: bending about the weak axis / the other / torque, kN.m; the first-yield share)
+  ok    1 clusters, each with its root cut: FIN root 6.54 / 24.15 / 13.94 (fin:attach)
+2. the measure is the statics (pinned, the part and what hangs on it at 5 g)
+  ok    FIN root: read 0.13 kN.m, the statics 0.13 (13 nodes)
+3. nothing parts in normal operations (the worst cut's peak load over its break limit; its first-yield share)
+  ok    load test 5.7 g, the wing: 0.000 (FIN root, bend; 0.00 of first yield)
+  ok    load test 5.7 g, the fin: 0.126 (FIN root, bend; 0.20 of first yield)
+  ok    load test 5.7 g, the stab: 0.001 (FIN root, bend; 0.00 of first yield)
+  ok    flown pull (TREECRASH's, from 58 m/s): 0.015 (FIN root, bend; 0.02 of first yield)
+  ok    drop at FAR 23.473 (7.8 ft/s): 0.006 (FIN root, bend; 0.01 of first yield)
+  ok    drop at 10 ft/s: 0.007 (FIN root, bend; 0.01 of first yield)
+  ok    a circuit with the pilot: 0.009 (FIN root, bend; 0.01 of first yield)
+  ok    parked 10 s, damage on: nothing parts, no frame armed once settled (worst cut 0.001)
+  ok    the two drops with damage on: no cluster parts
+4. the parts come off cleanly
+  ok    the FIN pulled sideways (n g on the fin, ramped): FIN root by bend at 2.38 s (6.55 kN.m bending, -7.87 torque; limits 6.54 / 24.15 / 13.94), 16 members broken (fin:attach, 0 others), the part rigid to 0.0 mm and 1.16 m off; clusters now FIN:13
+Cessna floats:
+1. the cuts (break limits: bending about the weak axis / the other / torque, kN.m; the first-yield share)
+  ok    3 clusters, each with its root cut: FIN root 6.54 / 24.15 / 13.94 (fin:attach); FLTL root 2640.63 / 2728.27 / 157.88 (floatL:strut); FLTR root 2640.63 / 2728.27 / 157.88 (floatR:strut)
+2. the measure is the statics (pinned, the part and what hangs on it at 5 g)
+  ok    FIN root: read 0.14 kN.m, the statics 0.14 (13 nodes)
+  ok    FLTL root: read 1.31 kN.m, the statics 1.29 (15 nodes)
+  ok    FLTR root: read 1.31 kN.m, the statics 1.29 (15 nodes)
+3. nothing parts in normal operations (the worst cut's peak load over its break limit; its first-yield share)
+  ok    load test 5.7 g, the wing: 0.000 (FIN root, bend; 0.00 of first yield)
+  ok    load test 5.7 g, the fin: 0.164 (FIN root, bend; 0.26 of first yield)
+  ok    load test 5.7 g, the stab: 0.001 (FIN root, bend; 0.00 of first yield)
+  ok    flown pull (TREECRASH's, from 67 m/s): 0.013 (FIN root, bend; 0.02 of first yield)
+  ok    drop at FAR 23.473 (8.3 ft/s), onto the water: 0.021 (FIN root, bend; 0.03 of first yield)
+  ok    drop at 10 ft/s, onto the water: 0.027 (FIN root, bend; 0.04 of first yield)
+  ok    the 5 m/s level pancake on the water: 0.082 (FIN root, bend; 0.13 of first yield)
+  ok    a circuit with the pilot (on the water): 0.021 (FLTL root, twist; 0.03 of first yield)
+  ok    parked 10 s, damage on: nothing parts, no frame armed once settled (worst cut 0.006)
+  ok    the two drops with damage on: no cluster parts
+4. the parts come off cleanly
+  ok    the FIN pulled sideways (n g on the fin, ramped): FIN root by bend at 2.40 s (6.55 kN.m bending, -7.93 torque; limits 6.54 / 24.15 / 13.94), 16 members broken (fin:attach, 0 others), the part rigid to 0.0 mm and 1.17 m off; clusters now FIN:13, FLTL:15, FLTR:15
+  ok    the FLTL dug in (its bow driven up and aft, ramped): FLTL root by member at 0.45 s (234.12 kN.m bending, -19.75 torque; limits 2640.63 / 2728.27 / 157.88), 12 members broken (floatL:strut, 0 others), the part rigid to 0.0 mm and 0.56 m off; clusters now FIN:17, FLTL:15, FLTR:15
+  ok    the FLTR dug in (its bow driven up and aft, ramped): FLTR root by member at 0.45 s (234.12 kN.m bending, 19.75 torque; limits 2640.63 / 2728.27 / 157.88), 12 members broken (floatR:strut, 0 others), the part rigid to 0.0 mm and 0.56 m off; clusters now FIN:17, FLTL:15, FLTR:15
+5. the water
+  ok    the float nose-in (90 km/h, 5 m/s, 20 deg): the worst cut 0.057 (FIN root, bend); the floats' roots FLTL 0.01 bend / 0.02 twist, FLTR 0.01 bend / 0.02 twist; damage on: no cluster parts; groups - - finite
+  REPORT  the float nose-in (90 km/h, 5 m/s, 20 deg): the float fittings held (§7.4)
+  ok    SEVERE: 150 km/h, 10 m/s, 60 deg nose-in: the worst cut 0.370 (FIN root, bend); the floats' roots FLTL 0.06 bend / 0.15 twist, FLTR 0.06 bend / 0.15 twist; damage on: FIN root by member at 0.53 s; groups eng:mount@0.161 stab:attach@0.204 fin:attach@0.532; CRASHED (a fus member broke) - finite
+  REPORT  SEVERE: 150 km/h, 10 m/s, 60 deg nose-in: the float fittings held (§7.4)
+twin floatplane:
+1. the cuts (break limits: bending about the weak axis / the other / torque, kN.m; the first-yield share)
+  ok    4 clusters, each with its root cut: ROD root 10.31 / 10.31 / 9.35 (its bay); ROD station 7.22 / 7.22 / 6.55 (its bay); FIN root 6.02 / 32.34 / 18.67 (fin:attach); FLTL root 633.27 / 664.94 / 45.51 (floatL:strut); FLTR root 633.27 / 664.94 / 45.51 (floatR:strut)
+  ok    ROD: its mid-span station at bay 2 (at 0.7 of the tube), the twist limits per bay 9.35 / 9.35 / 6.55 / 9.35
+2. the measure is the statics (pinned, the part and what hangs on it at 5 g)
+  ok    ROD root: read 3.99 kN.m, the statics 3.98 (61 nodes)
+  ok    ROD station: read 1.99 kN.m, the statics 2.00 (53 nodes)
+  ok    FIN root: read 0.08 kN.m, the statics 0.08 (17 nodes)
+  ok    FLTL root: read 0.25 kN.m, the statics 0.24 (15 nodes)
+  ok    FLTR root: read 0.25 kN.m, the statics 0.24 (15 nodes)
+3. nothing parts in normal operations (the worst cut's peak load over its break limit; its first-yield share)
+  ok    load test 5.7 g, the wing: 0.000 (ROD twist bay, twist)
+  ok    load test 5.7 g, the fin: 0.147 (FIN root, bend; 0.21 of first yield)
+  ok    load test 5.7 g, the stab: 0.000 (ROD station, bend; 0.00 of first yield)
+  ok    flown pull (TREECRASH's, from 43 m/s): 0.771 (ROD root, bend; 1.43 of first yield)
+  ok    drop at FAR 23.473 (7.0 ft/s), onto the water: 0.310 (ROD root, bend; 0.58 of first yield)
+  ok    drop at 10 ft/s, onto the water: 0.502 (ROD root, bend; 0.93 of first yield)
+  ok    the float nose-in (90 km/h, 5 m/s, 20 deg): 0.928 (ROD root, bend; 1.72 of first yield)
+  ok    a circuit with the pilot (on the water): 0.324 (ROD root, bend; 0.60 of first yield)
+  ok    parked 10 s, damage on: nothing parts, no frame armed once settled (worst cut 0.106)
+  ok    the two drops with damage on: no cluster parts
+4. the parts come off cleanly
+  ok    the FIN pulled sideways (n g on the fin, ramped): FIN root by bend at 1.80 s (6.02 kN.m bending, -0.68 torque; limits 6.02 / 32.34 / 18.67), 16 members broken (fin:attach, 0 others), the part rigid to 0.1 mm and 1.21 m off; clusters now ROD:22, FIN:17, FLTL:15, FLTR:15
+  ok    the ROD loaded down at its tail (n g on the tube and the tail, ramped): ROD root by bend at 1.45 s (10.31 kN.m bending, 0.63 torque; limits 10.31 / 10.31 / 9.35), 10 members broken (its bay, 0 others), the part rigid to 4.0 mm and 0.99 m off; clusters now ROD:18, FIN:21, FLTL:15, FLTR:15
+  ok    the ROD levered over an obstacle at its mid-span station (bay 2; the station pushed up, the tail down): ROD station by bend at 3.93 s (7.22 kN.m bending, 0.45 torque; limits 7.22 / 7.22 / 6.55), 10 members broken (its bay, 0 others), the part rigid to 1.4 mm and 1.03 m off; clusters now ROD:12, FIN:21, FLTL:15, FLTR:15, ROD/aft:10
+  ok    the ROD twisted (a torque on its last ring, ramped): ROD station by twist at 2.13 s (1.10 kN.m bending, -6.55 torque; limits 7.22 / 7.22 / 6.55), 10 members broken (its bay, 0 others), the part rigid to 1.7 mm and 1.07 m off; clusters now ROD:12, FIN:21, FLTL:15, FLTR:15, ROD/aft:10
+  ok    the FLTL dug in (its bow driven up and aft, ramped): FLTL root by member at 0.60 s (79.55 kN.m bending, -10.36 torque; limits 633.27 / 664.94 / 45.51), 12 members broken (floatL:strut, 0 others), the part rigid to 0.0 mm and 0.25 m off; clusters now ROD:22, FIN:21, FLTL:15, FLTR:15
+  ok    the FLTR dug in (its bow driven up and aft, ramped): FLTR root by member at 0.60 s (79.55 kN.m bending, 10.36 torque; limits 633.27 / 664.94 / 45.51), 12 members broken (floatR:strut, 0 others), the part rigid to 0.0 mm and 0.25 m off; clusters now ROD:22, FIN:21, FLTL:15, FLTR:15
+5. the water
+  ok    the float nose-in (90 km/h, 5 m/s, 20 deg): the worst cut 0.928 (ROD root, bend); the floats' roots FLTL 0.02 bend / 0.04 twist, FLTR 0.02 bend / 0.04 twist; damage on: no cluster parts; groups -
+  ok    SEVERE: 150 km/h, 10 m/s, 60 deg nose-in: the worst cut 10.825 (ROD root, bend); the floats' roots FLTL 0.16 bend / 0.29 twist, FLTR 0.15 bend / 0.27 twist; damage on: ROD root by bend at 0.07 s; groups engL:mount@0.142 engR:mount@0.142; CRASHED (broke up: the fuselage parted (TPB off the core)) - finite
+  REPORT  SEVERE: 150 km/h, 10 m/s, 60 deg nose-in: the float fittings held (§7.4)
+twin boom (FIXTURE, report only):
+1. the cuts (break limits: bending about the weak axis / the other / torque, kN.m; the first-yield share)
+  ok    4 clusters, each with its root cut: BML root 25.10 / 20.45 / 20.23 (boomL:attach); BML station 17.57 / 14.31 / 14.16 (its bay); BMR root 25.10 / 20.45 / 20.23 (boomR:attach); BMR station 17.57 / 14.31 / 14.16 (its bay); FINR root 4.87 / 36.00 / 20.79 (finR:attach); FINL root 4.87 / 36.00 / 20.79 (finL:attach)
+  ok    BML: its mid-span station at bay 1 (at 0.7 of the tube), the twist limits per bay 20.23 / 14.16
+  ok    BMR: its mid-span station at bay 1 (at 0.7 of the tube), the twist limits per bay 20.23 / 14.16
+4. the parts come off cleanly (the FIXTURE: reported)
+  REPORT  (clean) the FINR pulled sideways (n g on the fin, ramped): FINR root by bend at 1.60 s (4.88 kN.m bending, 1.06 torque; limits 4.87 / 36.00 / 20.79), 16 members broken (finR:attach, 0 others), the part rigid to 0.0 mm and 0.53 m off; clusters now BML:17, BMR:17, FINR:13, FINL:17
+  REPORT  (clean) the FINL pulled sideways (n g on the fin, ramped): FINL root by bend at 1.60 s (4.88 kN.m bending, 1.06 torque; limits 4.87 / 36.00 / 20.79), 16 members broken (finL:attach, 0 others), the part rigid to 0.0 mm and 0.53 m off; clusters now BML:17, BMR:17, FINR:17, FINL:13
+  REPORT  (clean) the BML loaded down at its tail (n g on the tube and the tail, ramped): BML root by bend at 4.13 s (24.94 kN.m bending, -0.04 torque; limits 25.10 / 20.45 / 20.23), 24 members broken (boomL:attach, 0 others), the part rigid to 0.1 mm and 0.24 m off; clusters now BML:9, BMR:17, FINR:17, FINL:17
+  REPORT  (clean) the BMR loaded down at its tail (n g on the tube and the tail, ramped): BMR root by bend at 4.13 s (24.94 kN.m bending, 0.04 torque; limits 25.10 / 20.45 / 20.23), 24 members broken (boomR:attach, 0 others), the part rigid to 0.1 mm and 0.24 m off; clusters now BML:17, BMR:9, FINR:17, FINL:17
+  REPORT  (clean) the BML levered over an obstacle at its mid-span station (bay 1; the station pushed up, the tail down): BML station by bend at 3.33 s (17.57 kN.m bending, 0.00 torque; limits 17.57 / 14.31 / 14.16), 6 members broken (its bay, 0 others), the part rigid to 0.1 mm and 0.34 m off; clusters now BML:14, BMR:17, FINR:17, FINL:16, BML/aft:3
+  REPORT  (clean) the BMR levered over an obstacle at its mid-span station (bay 1; the station pushed up, the tail down): BMR station by bend at 3.33 s (17.57 kN.m bending, -0.00 torque; limits 17.57 / 14.31 / 14.16), 6 members broken (its bay, 0 others), the part rigid to 0.1 mm and 0.34 m off; clusters now BML:17, BMR:14, FINR:16, FINL:17, BMR/aft:3
+  83/83 checks
+GATE DMGCLUSTERS: PASS
 === DMGINST ===
 1. G1800: sim-diverged (the numbers) vs broke-up (the structure)
-  ok    the page's watchdog ends a NaN / guarded flight 'sim-diverged' (the message "SIM DIVERGED — RESET" stays); nothing ends one 'broke-up'
+  ok    the page's watchdog ends a NaN / guarded flight 'sim-diverged' (the message "SIM DIVERGED — RESET" stays); 'broke-up' only when the structure's refs part (DMG.brokeUp)
   ok    the load test's NaN verdict is 'SIM DIVERGED' (65_gen_loadtest.js); it writes no 'BROKE UP'
   ok    the crosswind probe's NaN ending is 'sim-diverged' (42_crosswind.js)
-  ok    no code writes 'broke-up' (it is reserved for the structure): none of the 12 readers / writers
+  ok    no code writes 'broke-up' but the structure's ending (DMG.brokeUp): none of the 12 readers / writers
   ok    the Cub's load test with a 1e300 kick in its ramp: 'SIM DIVERGED'
   ok    the bench card: SIM DIVERGED - "the simulation diverged before the ultimate load (a numerical fault, not a member)"
   ok    a BROKE UP (the structure, D1b / D2) still reads as a member that let go: "a member let go before the ultimate load"
@@ -1502,17 +1630,17 @@ GATE DMGMEMBERS: PASS
         twin floatplane: a flown 3.8 g pull: the fastest node 8.37 m/s off the CG
         twin floatplane: a 10 ft/s drop: the fastest node 3.10 m/s off the CG
         the Cub: a circuit with the pilot: the fastest node 2.93 m/s off the CG
-        the Cub: 30 m/s into a trunk (crash): the fastest node 32.73 m/s off the CG
-        the metal Cessna: 30 m/s into a trunk (crash): the fastest node 34.72 m/s off the CG
-        the Cub: 30 m/s, the wing 2.5 m out (crash): the fastest node 21.84 m/s off the CG
-        the twin: SEVERE 150 km/h, 10 m/s, 60 deg float nose-in: the fastest node 76.90 m/s off the CG
-  ok    the census: 15 runs, never tripped; the worst 76.90 m/s (the twin: SEVERE 150 km/h, 10 m/s, 60 deg float nose-in), under 3/4 of the guard
+        the Cub: 30 m/s into a trunk (crash): the fastest node 31.07 m/s off the CG
+        the metal Cessna: 30 m/s into a trunk (crash): the fastest node 53.54 m/s off the CG
+        the Cub: 30 m/s, the wing 2.5 m out (crash): the fastest node 22.99 m/s off the CG
+        the twin: SEVERE 150 km/h, 10 m/s, 60 deg float nose-in: the fastest node 40.01 m/s off the CG
+  ok    the census: 15 runs, never tripped; the worst 53.54 m/s (the metal Cessna: 30 m/s into a trunk (crash)), under 3/4 of the guard
 3. G1802: the plastic work per beam
   ok    DMG.wB: a Float64Array, one per beam (394), on sim.damage()
-  ok    the Cub at 30 m/s into a trunk: the beams' work sums to the total (65587.527 J against 65587.527 J)
-  ok    102 beams carry work, every one of them yielded or bent; none negative
-        by section: fuselage 36.7 kJ, wings 12.1 kJ, engines 8.4 kJ, gear 4.1 kJ, vessel 3.7 kJ, tail 0.6 kJ
-  ok    the metal Cessna's: 109058.371 J against 109058.371 J
+  ok    the Cub at 30 m/s into a trunk: the beams' work sums to the total (51382.154 J against 51382.154 J)
+  ok    85 beams carry work, every one of them yielded or bent; none negative
+        by section: fuselage 21.4 kJ, wings 10.9 kJ, engines 8.4 kJ, vessel 8.0 kJ, tail 1.1 kJ, bracing 0.8 kJ, gear 0.8 kJ
+  ok    the metal Cessna's: 79352.481 J against 79352.481 J
   ok    reset() after a crash zeroes every beam's work
 4. G1803: every beam carries its ledger section
   ok    Cub: 394 beams, every one stamped (the def's and the solver's copy), every section a ledger row: fus > fuselage 109, fus > engines 13, wing > wings 52, wing > bracing 12, tail > tail 180, wire > tail 4, gear > gear 15, fus > vessel 9
@@ -1525,7 +1653,7 @@ GATE DMGMEMBERS: PASS
   ok    stress: ramps to amber [1,0.78,0.12] at the limit, held past it; between the ends in between
   ok    set: from 0.01 % (orange stretched, cyan crushed), full at 3 %; under it no set
   ok    the precedence: broken > set > stress > calm
-  ok    the Cub's 30 m/s crash drawn: {"calm":271,"stress":0,"set":23,"broken":100} - every broken member red, every set member orange / cyan
+  ok    the Cub's 30 m/s crash drawn: {"calm":276,"stress":0,"set":32,"broken":86} - every broken member red, every set member orange / cyan
   ok    a member stretched to its yield reads 1.000000, crushed to its crush load 1.000000
   ok    the layer off (params.damage false): all 2380 members of the five builds calm
   ok    under the probe (sim.damagePeak()) the ratio is the member's peak, tension or compression
@@ -1542,67 +1670,67 @@ GATE DMGMEMBERS: PASS
   33/33 checks
 GATE DMGINST: PASS
 === DMGFPS ===
-(139 s, 9 cases, damage on)
+(164 s, 9 cases, damage on)
   ok    the PACE block lifted out of app.js: page 30 fps, cap 30 2; page 30 fps, cap 30, 2x 4; page 10 fps, cap 30 4; page 10 fps, cap 30, 2x 8; page 5 fps, cap 30 4; page 5 fps, cap 30, 2x 8; page 2 fps, cap 30 2; page 2 fps, cap 30, 2x 4; page 30 fps, cap 60 2; page 30 fps, cap 60, 2x 4; page 10 fps, cap 60 4; page 10 fps, cap 60, 2x 8; page 5 fps, cap 60 4; page 5 fps, cap 60, 2x 8; page 2 fps, cap 60 1; page 2 fps, cap 60, 2x 2
 the Cub into a trunk at 30 m/s, the centreline:
-  the 60 fps run: 228 of 300 steps (over: the page ends it); CRASHED (the airframe crushed (6.7 kJ of plastic work) at 1.32 s), 102 members set, 100 broken, 65587.5 J; the fastest node 32.73 m/s off the CG (54 s)
-  ok    the setup is TREE-CRASH's case to the bit (the lib's atTrunk 9ee8416512df, here 9ee8416512df)
+  the 60 fps run: 161 of 300 steps (over: the page ends it); CRASHED (the airframe crushed (6.7 kJ of plastic work) at 1.32 s), 85 members set, 85 broken, 51320.9 J; the fastest node 31.07 m/s off the CG (56 s)
+  ok    the setup is TREE-CRASH's case to the bit (the lib's atTrunk 9028046283e6, here 9028046283e6)
   ok    at 60 fps it crashes and the flight is over
-  ok    the velocity guard never trips (the fastest node 32.73 m/s off the CG, the guard 150)
-  ok    nominal 2 fps (30 steps a read) [30 steps a frame]: ends at step 240 (its first read at or after 228); bitwise the 60 fps run there, the same verdict (65587.5 J, 100 broken, 9751 yields; past the 60 fps end +0.000 J, +0 broken)
-  ok    nominal 5 fps (12 steps a read) [12 steps a frame]: ends at step 228 (its first read at or after 228); bitwise the 60 fps run there, the same verdict (65587.5 J, 100 broken, 9751 yields; past the 60 fps end +0.000 J, +0 broken)
-  ok    nominal 10 fps (6 steps a read) [6 steps a frame]: ends at step 228 (its first read at or after 228); bitwise the 60 fps run there, the same verdict (65587.5 J, 100 broken, 9751 yields; past the 60 fps end +0.000 J, +0 broken)
-  ok    nominal 30 fps (2 steps a read) = page 30 fps, cap 30 = page 2 fps, cap 30 = page 30 fps, cap 60 = page 2 fps, cap 60, 2x [2 steps a frame]: ends at step 228 (its first read at or after 228); bitwise the 60 fps run there, the same verdict (65587.5 J, 100 broken, 9751 yields; past the 60 fps end +0.000 J, +0 broken)
-  ok    page 30 fps, cap 30, 2x = page 10 fps, cap 30 = page 5 fps, cap 30 = page 2 fps, cap 30, 2x = page 30 fps, cap 60, 2x = page 10 fps, cap 60 = page 5 fps, cap 60 [4 steps a frame]: ends at step 228 (its first read at or after 228); bitwise the 60 fps run there, the same verdict (65587.5 J, 100 broken, 9751 yields; past the 60 fps end +0.000 J, +0 broken)
-  ok    page 10 fps, cap 30, 2x = page 5 fps, cap 30, 2x = page 10 fps, cap 60, 2x = page 5 fps, cap 60, 2x [8 steps a frame]: ends at step 232 (its first read at or after 228); bitwise the 60 fps run there, the same verdict (65587.5 J, 100 broken, 9751 yields; past the 60 fps end +0.000 J, +0 broken)
-  ok    worker host, turns of 1, the page reading every 30: ends at step 240 (its first read at or after 228), the snapshot flagged at 228; bitwise the 60 fps run there, the same verdict (65587.5 J, 100 broken, 9751 yields; past the 60 fps end +0.000 J, +0 broken)
-  ok    worker host, turns of 1, the page reading every 12: ends at step 228 (its first read at or after 228), the snapshot flagged at 228; bitwise the 60 fps run there, the same verdict (65587.5 J, 100 broken, 9751 yields; past the 60 fps end +0.000 J, +0 broken)
-  ok    worker host, turns of 1, the page reading every 6: ends at step 228 (its first read at or after 228), the snapshot flagged at 228; bitwise the 60 fps run there, the same verdict (65587.5 J, 100 broken, 9751 yields; past the 60 fps end +0.000 J, +0 broken)
-  ok    worker host, turns of 1, the page reading every 2: ends at step 228 (its first read at or after 228), the snapshot flagged at 228; bitwise the 60 fps run there, the same verdict (65587.5 J, 100 broken, 9751 yields; past the 60 fps end +0.000 J, +0 broken)
-  ok    worker host, turns of 4, the page reading every 30: ends at step 240 (its first read at or after 228), the snapshot flagged at 228; bitwise the 60 fps run there, the same verdict (65587.5 J, 100 broken, 9751 yields; past the 60 fps end +0.000 J, +0 broken)
-  ok    worker host, turns of 4, the page reading every 12: ends at step 228 (its first read at or after 228), the snapshot flagged at 228; bitwise the 60 fps run there, the same verdict (65587.5 J, 100 broken, 9751 yields; past the 60 fps end +0.000 J, +0 broken)
-  ok    worker host, turns of 4, the page reading every 6: ends at step 228 (its first read at or after 228), the snapshot flagged at 228; bitwise the 60 fps run there, the same verdict (65587.5 J, 100 broken, 9751 yields; past the 60 fps end +0.000 J, +0 broken)
-  ok    worker host, turns of 4, the page reading every 2: ends at step 228 (its first read at or after 228), the snapshot flagged at 228; bitwise the 60 fps run there, the same verdict (65587.5 J, 100 broken, 9751 yields; past the 60 fps end +0.000 J, +0 broken)
+  ok    the velocity guard never trips (the fastest node 31.07 m/s off the CG, the guard 150)
+  ok    nominal 2 fps (30 steps a read) [30 steps a frame]: ends at step 180 (its first read at or after 161); bitwise the 60 fps run there, the same verdict (51377.1 J, 86 broken, 15640 yields; past the 60 fps end +56.225 J, +1 broken)
+  ok    nominal 5 fps (12 steps a read) [12 steps a frame]: ends at step 168 (its first read at or after 161); bitwise the 60 fps run there, the same verdict (51341.3 J, 86 broken, 14989 yields; past the 60 fps end +20.458 J, +1 broken)
+  ok    nominal 10 fps (6 steps a read) [6 steps a frame]: ends at step 162 (its first read at or after 161); bitwise the 60 fps run there, the same verdict (51335.4 J, 85 broken, 14851 yields; past the 60 fps end +14.505 J, +0 broken)
+  ok    nominal 30 fps (2 steps a read) = page 30 fps, cap 30 = page 2 fps, cap 30 = page 30 fps, cap 60 = page 2 fps, cap 60, 2x [2 steps a frame]: ends at step 162 (its first read at or after 161); bitwise the 60 fps run there, the same verdict (51335.4 J, 85 broken, 14851 yields; past the 60 fps end +14.505 J, +0 broken)
+  ok    page 30 fps, cap 30, 2x = page 10 fps, cap 30 = page 5 fps, cap 30 = page 2 fps, cap 30, 2x = page 30 fps, cap 60, 2x = page 10 fps, cap 60 = page 5 fps, cap 60 [4 steps a frame]: ends at step 164 (its first read at or after 161); bitwise the 60 fps run there, the same verdict (51338.6 J, 86 broken, 14868 yields; past the 60 fps end +17.697 J, +1 broken)
+  ok    page 10 fps, cap 30, 2x = page 5 fps, cap 30, 2x = page 10 fps, cap 60, 2x = page 5 fps, cap 60, 2x [8 steps a frame]: ends at step 168 (its first read at or after 161); bitwise the 60 fps run there, the same verdict (51341.3 J, 86 broken, 14989 yields; past the 60 fps end +20.458 J, +1 broken)
+  ok    worker host, turns of 1, the page reading every 30: ends at step 180 (its first read at or after 161), the snapshot flagged at 161; bitwise the 60 fps run there, the same verdict (51377.1 J, 86 broken, 15640 yields; past the 60 fps end +56.225 J, +1 broken)
+  ok    worker host, turns of 1, the page reading every 12: ends at step 168 (its first read at or after 161), the snapshot flagged at 161; bitwise the 60 fps run there, the same verdict (51341.3 J, 86 broken, 14989 yields; past the 60 fps end +20.458 J, +1 broken)
+  ok    worker host, turns of 1, the page reading every 6: ends at step 162 (its first read at or after 161), the snapshot flagged at 161; bitwise the 60 fps run there, the same verdict (51335.4 J, 85 broken, 14851 yields; past the 60 fps end +14.505 J, +0 broken)
+  ok    worker host, turns of 1, the page reading every 2: ends at step 162 (its first read at or after 161), the snapshot flagged at 161; bitwise the 60 fps run there, the same verdict (51335.4 J, 85 broken, 14851 yields; past the 60 fps end +14.505 J, +0 broken)
+  ok    worker host, turns of 4, the page reading every 30: ends at step 180 (its first read at or after 161), the snapshot flagged at 164; bitwise the 60 fps run there, the same verdict (51377.1 J, 86 broken, 15640 yields; past the 60 fps end +56.225 J, +1 broken)
+  ok    worker host, turns of 4, the page reading every 12: ends at step 168 (its first read at or after 161), the snapshot flagged at 164; bitwise the 60 fps run there, the same verdict (51341.3 J, 86 broken, 14989 yields; past the 60 fps end +20.458 J, +1 broken)
+  ok    worker host, turns of 4, the page reading every 6: ends at step 164 (its first read at or after 161), the snapshot flagged at 164; bitwise the 60 fps run there, the same verdict (51338.6 J, 86 broken, 14868 yields; past the 60 fps end +17.697 J, +1 broken)
+  ok    worker host, turns of 4, the page reading every 2: ends at step 164 (its first read at or after 161), the snapshot flagged at 164; bitwise the 60 fps run there, the same verdict (51338.6 J, 86 broken, 14868 yields; past the 60 fps end +17.697 J, +1 broken)
 the metal Cessna into a trunk at 30 m/s, the centreline:
-  the 60 fps run: 142 of 300 steps (over: the page ends it); CRASHED (the airframe crushed (4.8 kJ of plastic work) at 1.30 s), 147 members set, 177 broken, 109056.9 J; the fastest node 34.72 m/s off the CG (59 s)
-  ok    the setup is TREE-CRASH's case to the bit (the lib's atTrunk 2ae68de148ce, here 2ae68de148ce)
+  the 60 fps run: 181 of 300 steps (over: the page ends it); CRASHED (the airframe crushed (4.8 kJ of plastic work) at 1.30 s), 92 members set, 110 broken, 79352.5 J; the fastest node 53.54 m/s off the CG (77 s)
+  ok    the setup is TREE-CRASH's case to the bit (the lib's atTrunk 9c7608c8a813, here 9c7608c8a813)
   ok    at 60 fps it crashes and the flight is over
-  ok    the velocity guard never trips (the fastest node 34.72 m/s off the CG, the guard 150)
-  ok    nominal 2 fps (30 steps a read) [30 steps a frame]: ends at step 150 (its first read at or after 142); bitwise the 60 fps run there, the same verdict (109056.9 J, 177 broken, 26480 yields; past the 60 fps end +0.000 J, +0 broken)
-  ok    nominal 5 fps (12 steps a read) [12 steps a frame]: ends at step 144 (its first read at or after 142); bitwise the 60 fps run there, the same verdict (109056.9 J, 177 broken, 26480 yields; past the 60 fps end +0.000 J, +0 broken)
-  ok    nominal 10 fps (6 steps a read) [6 steps a frame]: ends at step 144 (its first read at or after 142); bitwise the 60 fps run there, the same verdict (109056.9 J, 177 broken, 26480 yields; past the 60 fps end +0.000 J, +0 broken)
-  ok    nominal 30 fps (2 steps a read) = page 30 fps, cap 30 = page 2 fps, cap 30 = page 30 fps, cap 60 = page 2 fps, cap 60, 2x [2 steps a frame]: ends at step 142 (its first read at or after 142); bitwise the 60 fps run there, the same verdict (109056.9 J, 177 broken, 26480 yields; past the 60 fps end +0.000 J, +0 broken)
-  ok    page 30 fps, cap 30, 2x = page 10 fps, cap 30 = page 5 fps, cap 30 = page 2 fps, cap 30, 2x = page 30 fps, cap 60, 2x = page 10 fps, cap 60 = page 5 fps, cap 60 [4 steps a frame]: ends at step 144 (its first read at or after 142); bitwise the 60 fps run there, the same verdict (109056.9 J, 177 broken, 26480 yields; past the 60 fps end +0.000 J, +0 broken)
-  ok    page 10 fps, cap 30, 2x = page 5 fps, cap 30, 2x = page 10 fps, cap 60, 2x = page 5 fps, cap 60, 2x [8 steps a frame]: ends at step 144 (its first read at or after 142); bitwise the 60 fps run there, the same verdict (109056.9 J, 177 broken, 26480 yields; past the 60 fps end +0.000 J, +0 broken)
-  ok    worker host, turns of 1, the page reading every 30: ends at step 150 (its first read at or after 142), the snapshot flagged at 142; bitwise the 60 fps run there, the same verdict (109056.9 J, 177 broken, 26480 yields; past the 60 fps end +0.000 J, +0 broken)
-  ok    worker host, turns of 1, the page reading every 12: ends at step 144 (its first read at or after 142), the snapshot flagged at 142; bitwise the 60 fps run there, the same verdict (109056.9 J, 177 broken, 26480 yields; past the 60 fps end +0.000 J, +0 broken)
-  ok    worker host, turns of 1, the page reading every 6: ends at step 144 (its first read at or after 142), the snapshot flagged at 142; bitwise the 60 fps run there, the same verdict (109056.9 J, 177 broken, 26480 yields; past the 60 fps end +0.000 J, +0 broken)
-  ok    worker host, turns of 1, the page reading every 2: ends at step 142 (its first read at or after 142), the snapshot flagged at 142; bitwise the 60 fps run there, the same verdict (109056.9 J, 177 broken, 26480 yields; past the 60 fps end +0.000 J, +0 broken)
-  ok    worker host, turns of 4, the page reading every 30: ends at step 152 (its first read at or after 142), the snapshot flagged at 144; bitwise the 60 fps run there, the same verdict (109056.9 J, 177 broken, 26480 yields; past the 60 fps end +0.000 J, +0 broken)
-  ok    worker host, turns of 4, the page reading every 12: ends at step 144 (its first read at or after 142), the snapshot flagged at 144; bitwise the 60 fps run there, the same verdict (109056.9 J, 177 broken, 26480 yields; past the 60 fps end +0.000 J, +0 broken)
-  ok    worker host, turns of 4, the page reading every 6: ends at step 144 (its first read at or after 142), the snapshot flagged at 144; bitwise the 60 fps run there, the same verdict (109056.9 J, 177 broken, 26480 yields; past the 60 fps end +0.000 J, +0 broken)
-  ok    worker host, turns of 4, the page reading every 2: ends at step 144 (its first read at or after 142), the snapshot flagged at 144; bitwise the 60 fps run there, the same verdict (109056.9 J, 177 broken, 26480 yields; past the 60 fps end +0.000 J, +0 broken)
+  ok    the velocity guard never trips (the fastest node 53.54 m/s off the CG, the guard 150)
+  ok    nominal 2 fps (30 steps a read) [30 steps a frame]: ends at step 210 (its first read at or after 181); bitwise the 60 fps run there, the same verdict (79352.5 J, 110 broken, 9176 yields; past the 60 fps end +0.000 J, +0 broken)
+  ok    nominal 5 fps (12 steps a read) [12 steps a frame]: ends at step 192 (its first read at or after 181); bitwise the 60 fps run there, the same verdict (79352.5 J, 110 broken, 9176 yields; past the 60 fps end +0.000 J, +0 broken)
+  ok    nominal 10 fps (6 steps a read) [6 steps a frame]: ends at step 186 (its first read at or after 181); bitwise the 60 fps run there, the same verdict (79352.5 J, 110 broken, 9176 yields; past the 60 fps end +0.000 J, +0 broken)
+  ok    nominal 30 fps (2 steps a read) = page 30 fps, cap 30 = page 2 fps, cap 30 = page 30 fps, cap 60 = page 2 fps, cap 60, 2x [2 steps a frame]: ends at step 182 (its first read at or after 181); bitwise the 60 fps run there, the same verdict (79352.5 J, 110 broken, 9176 yields; past the 60 fps end +0.000 J, +0 broken)
+  ok    page 30 fps, cap 30, 2x = page 10 fps, cap 30 = page 5 fps, cap 30 = page 2 fps, cap 30, 2x = page 30 fps, cap 60, 2x = page 10 fps, cap 60 = page 5 fps, cap 60 [4 steps a frame]: ends at step 184 (its first read at or after 181); bitwise the 60 fps run there, the same verdict (79352.5 J, 110 broken, 9176 yields; past the 60 fps end +0.000 J, +0 broken)
+  ok    page 10 fps, cap 30, 2x = page 5 fps, cap 30, 2x = page 10 fps, cap 60, 2x = page 5 fps, cap 60, 2x [8 steps a frame]: ends at step 184 (its first read at or after 181); bitwise the 60 fps run there, the same verdict (79352.5 J, 110 broken, 9176 yields; past the 60 fps end +0.000 J, +0 broken)
+  ok    worker host, turns of 1, the page reading every 30: ends at step 210 (its first read at or after 181), the snapshot flagged at 181; bitwise the 60 fps run there, the same verdict (79352.5 J, 110 broken, 9176 yields; past the 60 fps end +0.000 J, +0 broken)
+  ok    worker host, turns of 1, the page reading every 12: ends at step 192 (its first read at or after 181), the snapshot flagged at 181; bitwise the 60 fps run there, the same verdict (79352.5 J, 110 broken, 9176 yields; past the 60 fps end +0.000 J, +0 broken)
+  ok    worker host, turns of 1, the page reading every 6: ends at step 186 (its first read at or after 181), the snapshot flagged at 181; bitwise the 60 fps run there, the same verdict (79352.5 J, 110 broken, 9176 yields; past the 60 fps end +0.000 J, +0 broken)
+  ok    worker host, turns of 1, the page reading every 2: ends at step 182 (its first read at or after 181), the snapshot flagged at 181; bitwise the 60 fps run there, the same verdict (79352.5 J, 110 broken, 9176 yields; past the 60 fps end +0.000 J, +0 broken)
+  ok    worker host, turns of 4, the page reading every 30: ends at step 212 (its first read at or after 181), the snapshot flagged at 184; bitwise the 60 fps run there, the same verdict (79352.5 J, 110 broken, 9176 yields; past the 60 fps end +0.000 J, +0 broken)
+  ok    worker host, turns of 4, the page reading every 12: ends at step 192 (its first read at or after 181), the snapshot flagged at 184; bitwise the 60 fps run there, the same verdict (79352.5 J, 110 broken, 9176 yields; past the 60 fps end +0.000 J, +0 broken)
+  ok    worker host, turns of 4, the page reading every 6: ends at step 188 (its first read at or after 181), the snapshot flagged at 184; bitwise the 60 fps run there, the same verdict (79352.5 J, 110 broken, 9176 yields; past the 60 fps end +0.000 J, +0 broken)
+  ok    worker host, turns of 4, the page reading every 2: ends at step 184 (its first read at or after 181), the snapshot flagged at 184; bitwise the 60 fps run there, the same verdict (79352.5 J, 110 broken, 9176 yields; past the 60 fps end +0.000 J, +0 broken)
 the Cub into a trunk at 30 m/s, the wing 2.5 m out:
-  the 60 fps run: 323 of 360 steps (over: the page ends it); CRASHED (a wing member broke at 1.37 s), 29 members set, 25 broken, 13593.1 J; the fastest node 21.84 m/s off the CG (63 s)
-  ok    the setup is TREE-CRASH's case to the bit (the lib's atTrunk 38c98320c04a, here 38c98320c04a)
+  the 60 fps run: 323 of 360 steps (over: the page ends it); CRASHED (a wing member broke at 1.37 s), 29 members set, 25 broken, 13408.9 J; the fastest node 22.99 m/s off the CG (73 s)
+  ok    the setup is TREE-CRASH's case to the bit (the lib's atTrunk 67429fdf9e4c, here 67429fdf9e4c)
   ok    at 60 fps it crashes and the flight is over
-  ok    the velocity guard never trips (the fastest node 21.84 m/s off the CG, the guard 150)
-  ok    nominal 2 fps (30 steps a read) [30 steps a frame]: ends at step 330 (its first read at or after 323); bitwise the 60 fps run there, the same verdict (13593.1 J, 25 broken, 3774 yields; past the 60 fps end +0.000 J, +0 broken)
-  ok    nominal 5 fps (12 steps a read) [12 steps a frame]: ends at step 324 (its first read at or after 323); bitwise the 60 fps run there, the same verdict (13593.1 J, 25 broken, 3774 yields; past the 60 fps end +0.000 J, +0 broken)
-  ok    nominal 10 fps (6 steps a read) [6 steps a frame]: ends at step 324 (its first read at or after 323); bitwise the 60 fps run there, the same verdict (13593.1 J, 25 broken, 3774 yields; past the 60 fps end +0.000 J, +0 broken)
-  ok    nominal 30 fps (2 steps a read) = page 30 fps, cap 30 = page 2 fps, cap 30 = page 30 fps, cap 60 = page 2 fps, cap 60, 2x [2 steps a frame]: ends at step 324 (its first read at or after 323); bitwise the 60 fps run there, the same verdict (13593.1 J, 25 broken, 3774 yields; past the 60 fps end +0.000 J, +0 broken)
-  ok    page 30 fps, cap 30, 2x = page 10 fps, cap 30 = page 5 fps, cap 30 = page 2 fps, cap 30, 2x = page 30 fps, cap 60, 2x = page 10 fps, cap 60 = page 5 fps, cap 60 [4 steps a frame]: ends at step 324 (its first read at or after 323); bitwise the 60 fps run there, the same verdict (13593.1 J, 25 broken, 3774 yields; past the 60 fps end +0.000 J, +0 broken)
-  ok    page 10 fps, cap 30, 2x = page 5 fps, cap 30, 2x = page 10 fps, cap 60, 2x = page 5 fps, cap 60, 2x [8 steps a frame]: ends at step 328 (its first read at or after 323); bitwise the 60 fps run there, the same verdict (13593.1 J, 25 broken, 3774 yields; past the 60 fps end +0.000 J, +0 broken)
-  ok    worker host, turns of 1, the page reading every 30: ends at step 330 (its first read at or after 323), the snapshot flagged at 323; bitwise the 60 fps run there, the same verdict (13593.1 J, 25 broken, 3774 yields; past the 60 fps end +0.000 J, +0 broken)
-  ok    worker host, turns of 1, the page reading every 12: ends at step 324 (its first read at or after 323), the snapshot flagged at 323; bitwise the 60 fps run there, the same verdict (13593.1 J, 25 broken, 3774 yields; past the 60 fps end +0.000 J, +0 broken)
-  ok    worker host, turns of 1, the page reading every 6: ends at step 324 (its first read at or after 323), the snapshot flagged at 323; bitwise the 60 fps run there, the same verdict (13593.1 J, 25 broken, 3774 yields; past the 60 fps end +0.000 J, +0 broken)
-  ok    worker host, turns of 1, the page reading every 2: ends at step 324 (its first read at or after 323), the snapshot flagged at 323; bitwise the 60 fps run there, the same verdict (13593.1 J, 25 broken, 3774 yields; past the 60 fps end +0.000 J, +0 broken)
-  ok    worker host, turns of 4, the page reading every 30: ends at step 332 (its first read at or after 323), the snapshot flagged at 324; bitwise the 60 fps run there, the same verdict (13593.1 J, 25 broken, 3774 yields; past the 60 fps end +0.000 J, +0 broken)
-  ok    worker host, turns of 4, the page reading every 12: ends at step 324 (its first read at or after 323), the snapshot flagged at 324; bitwise the 60 fps run there, the same verdict (13593.1 J, 25 broken, 3774 yields; past the 60 fps end +0.000 J, +0 broken)
-  ok    worker host, turns of 4, the page reading every 6: ends at step 324 (its first read at or after 323), the snapshot flagged at 324; bitwise the 60 fps run there, the same verdict (13593.1 J, 25 broken, 3774 yields; past the 60 fps end +0.000 J, +0 broken)
-  ok    worker host, turns of 4, the page reading every 2: ends at step 324 (its first read at or after 323), the snapshot flagged at 324; bitwise the 60 fps run there, the same verdict (13593.1 J, 25 broken, 3774 yields; past the 60 fps end +0.000 J, +0 broken)
+  ok    the velocity guard never trips (the fastest node 22.99 m/s off the CG, the guard 150)
+  ok    nominal 2 fps (30 steps a read) [30 steps a frame]: ends at step 330 (its first read at or after 323); bitwise the 60 fps run there, the same verdict (13408.9 J, 25 broken, 3416 yields; past the 60 fps end +0.000 J, +0 broken)
+  ok    nominal 5 fps (12 steps a read) [12 steps a frame]: ends at step 324 (its first read at or after 323); bitwise the 60 fps run there, the same verdict (13408.9 J, 25 broken, 3416 yields; past the 60 fps end +0.000 J, +0 broken)
+  ok    nominal 10 fps (6 steps a read) [6 steps a frame]: ends at step 324 (its first read at or after 323); bitwise the 60 fps run there, the same verdict (13408.9 J, 25 broken, 3416 yields; past the 60 fps end +0.000 J, +0 broken)
+  ok    nominal 30 fps (2 steps a read) = page 30 fps, cap 30 = page 2 fps, cap 30 = page 30 fps, cap 60 = page 2 fps, cap 60, 2x [2 steps a frame]: ends at step 324 (its first read at or after 323); bitwise the 60 fps run there, the same verdict (13408.9 J, 25 broken, 3416 yields; past the 60 fps end +0.000 J, +0 broken)
+  ok    page 30 fps, cap 30, 2x = page 10 fps, cap 30 = page 5 fps, cap 30 = page 2 fps, cap 30, 2x = page 30 fps, cap 60, 2x = page 10 fps, cap 60 = page 5 fps, cap 60 [4 steps a frame]: ends at step 324 (its first read at or after 323); bitwise the 60 fps run there, the same verdict (13408.9 J, 25 broken, 3416 yields; past the 60 fps end +0.000 J, +0 broken)
+  ok    page 10 fps, cap 30, 2x = page 5 fps, cap 30, 2x = page 10 fps, cap 60, 2x = page 5 fps, cap 60, 2x [8 steps a frame]: ends at step 328 (its first read at or after 323); bitwise the 60 fps run there, the same verdict (13408.9 J, 25 broken, 3416 yields; past the 60 fps end +0.000 J, +0 broken)
+  ok    worker host, turns of 1, the page reading every 30: ends at step 330 (its first read at or after 323), the snapshot flagged at 323; bitwise the 60 fps run there, the same verdict (13408.9 J, 25 broken, 3416 yields; past the 60 fps end +0.000 J, +0 broken)
+  ok    worker host, turns of 1, the page reading every 12: ends at step 324 (its first read at or after 323), the snapshot flagged at 323; bitwise the 60 fps run there, the same verdict (13408.9 J, 25 broken, 3416 yields; past the 60 fps end +0.000 J, +0 broken)
+  ok    worker host, turns of 1, the page reading every 6: ends at step 324 (its first read at or after 323), the snapshot flagged at 323; bitwise the 60 fps run there, the same verdict (13408.9 J, 25 broken, 3416 yields; past the 60 fps end +0.000 J, +0 broken)
+  ok    worker host, turns of 1, the page reading every 2: ends at step 324 (its first read at or after 323), the snapshot flagged at 323; bitwise the 60 fps run there, the same verdict (13408.9 J, 25 broken, 3416 yields; past the 60 fps end +0.000 J, +0 broken)
+  ok    worker host, turns of 4, the page reading every 30: ends at step 332 (its first read at or after 323), the snapshot flagged at 324; bitwise the 60 fps run there, the same verdict (13493.0 J, 25 broken, 3594 yields; past the 60 fps end +84.156 J, +0 broken)
+  ok    worker host, turns of 4, the page reading every 12: ends at step 324 (its first read at or after 323), the snapshot flagged at 324; bitwise the 60 fps run there, the same verdict (13408.9 J, 25 broken, 3416 yields; past the 60 fps end +0.000 J, +0 broken)
+  ok    worker host, turns of 4, the page reading every 6: ends at step 324 (its first read at or after 323), the snapshot flagged at 324; bitwise the 60 fps run there, the same verdict (13408.9 J, 25 broken, 3416 yields; past the 60 fps end +0.000 J, +0 broken)
+  ok    worker host, turns of 4, the page reading every 2: ends at step 324 (its first read at or after 323), the snapshot flagged at 324; bitwise the 60 fps run there, the same verdict (13408.9 J, 25 broken, 3416 yields; past the 60 fps end +0.000 J, +0 broken)
 the Cub dropped at FAR 23.473's limit sink:
-  the 60 fps run: 120 of 120 steps; no crash, 0 members set, 0 broken, 0.0 J; the fastest node 2.93 m/s off the CG (44 s)
+  the 60 fps run: 120 of 120 steps; no crash, 0 members set, 0 broken, 0.0 J; the fastest node 2.93 m/s off the CG (51 s)
   ok    at 60 fps nothing yields (0 yields, 0 J, nothing broken, no crash)
   ok    the velocity guard never trips (the fastest node 2.93 m/s off the CG, the guard 150)
   ok    nominal 2 fps (30 steps a read) [30 steps a frame]: ends at step 120 (its first read at or after 120); bitwise the 60 fps run there, the same verdict (0.0 J, 0 broken, 0 yields; past the 60 fps end +0.000 J, +0 broken)
@@ -1620,7 +1748,7 @@ the Cub dropped at FAR 23.473's limit sink:
   ok    worker host, turns of 4, the page reading every 6: ends at step 120 (its first read at or after 120); bitwise the 60 fps run there, the same verdict (0.0 J, 0 broken, 0 yields; past the 60 fps end +0.000 J, +0 broken)
   ok    worker host, turns of 4, the page reading every 2: ends at step 120 (its first read at or after 120); bitwise the 60 fps run there, the same verdict (0.0 J, 0 broken, 0 yields; past the 60 fps end +0.000 J, +0 broken)
 the metal Cessna dropped at FAR 23.473's limit sink:
-  the 60 fps run: 120 of 120 steps; no crash, 0 members set, 0 broken, 0.0 J; the fastest node 0.78 m/s off the CG (55 s)
+  the 60 fps run: 120 of 120 steps; no crash, 0 members set, 0 broken, 0.0 J; the fastest node 0.78 m/s off the CG (62 s)
   ok    at 60 fps nothing yields (0 yields, 0 J, nothing broken, no crash)
   ok    the velocity guard never trips (the fastest node 0.78 m/s off the CG, the guard 150)
   ok    nominal 2 fps (30 steps a read) [30 steps a frame]: ends at step 120 (its first read at or after 120); bitwise the 60 fps run there, the same verdict (0.0 J, 0 broken, 0 yields; past the 60 fps end +0.000 J, +0 broken)
@@ -1638,7 +1766,7 @@ the metal Cessna dropped at FAR 23.473's limit sink:
   ok    worker host, turns of 4, the page reading every 6: ends at step 120 (its first read at or after 120); bitwise the 60 fps run there, the same verdict (0.0 J, 0 broken, 0 yields; past the 60 fps end +0.000 J, +0 broken)
   ok    worker host, turns of 4, the page reading every 2: ends at step 120 (its first read at or after 120); bitwise the 60 fps run there, the same verdict (0.0 J, 0 broken, 0 yields; past the 60 fps end +0.000 J, +0 broken)
 the Cessna on floats dropped onto the water at FAR 23.473's limit sink:
-  the 60 fps run: 120 of 120 steps; no crash, 0 members set, 0 broken, 0.0 J; the fastest node 2.86 m/s off the CG (82 s)
+  the 60 fps run: 120 of 120 steps; no crash, 0 members set, 0 broken, 0.0 J; the fastest node 2.86 m/s off the CG (94 s)
   ok    at 60 fps nothing yields (0 yields, 0 J, nothing broken, no crash)
   ok    the velocity guard never trips (the fastest node 2.86 m/s off the CG, the guard 150)
   ok    nominal 2 fps (30 steps a read) [30 steps a frame]: ends at step 120 (its first read at or after 120); bitwise the 60 fps run there, the same verdict (0.0 J, 0 broken, 0 yields; past the 60 fps end +0.000 J, +0 broken)
@@ -1658,7 +1786,7 @@ the Cessna on floats dropped onto the water at FAR 23.473's limit sink:
 the Cub's 5 m/s level pancake on the water:
   --    needs GEAR-WATER 2's wet body - skipped
 the Cessna on floats' 5 m/s level pancake on the water:
-  the 60 fps run: 240 of 240 steps; no crash, 0 members set, 0 broken, 0.0 J; the fastest node 3.98 m/s off the CG (64 s)
+  the 60 fps run: 240 of 240 steps; no crash, 0 members set, 0 broken, 0.0 J; the fastest node 3.98 m/s off the CG (72 s)
   ok    the velocity guard never trips (the fastest node 3.98 m/s off the CG, the guard 150)
   ok    nominal 2 fps (30 steps a read) [30 steps a frame]: ends at step 240 (its first read at or after 240); bitwise the 60 fps run there, the same verdict (0.0 J, 0 broken, 0 yields; past the 60 fps end +0.000 J, +0 broken)
   ok    nominal 5 fps (12 steps a read) [12 steps a frame]: ends at step 240 (its first read at or after 240); bitwise the 60 fps run there, the same verdict (0.0 J, 0 broken, 0 yields; past the 60 fps end +0.000 J, +0 broken)
@@ -1675,7 +1803,7 @@ the Cessna on floats' 5 m/s level pancake on the water:
   ok    worker host, turns of 4, the page reading every 6: ends at step 240 (its first read at or after 240); bitwise the 60 fps run there, the same verdict (0.0 J, 0 broken, 0 yields; past the 60 fps end +0.000 J, +0 broken)
   ok    worker host, turns of 4, the page reading every 2: ends at step 240 (its first read at or after 240); bitwise the 60 fps run there, the same verdict (0.0 J, 0 broken, 0 yields; past the 60 fps end +0.000 J, +0 broken)
 the twin's float nose-in (90 km/h, 5 m/s, 20 deg):
-  the 60 fps run: 240 of 240 steps; no crash, 0 members set, 0 broken, 0.0 J; the fastest node 15.79 m/s off the CG (75 s)
+  the 60 fps run: 240 of 240 steps; no crash, 0 members set, 0 broken, 0.0 J; the fastest node 15.79 m/s off the CG (87 s)
   ok    the velocity guard never trips (the fastest node 15.79 m/s off the CG, the guard 150)
   ok    nominal 2 fps (30 steps a read) [30 steps a frame]: ends at step 240 (its first read at or after 240); bitwise the 60 fps run there, the same verdict (0.0 J, 0 broken, 0 yields; past the 60 fps end +0.000 J, +0 broken)
   ok    nominal 5 fps (12 steps a read) [12 steps a frame]: ends at step 240 (its first read at or after 240); bitwise the 60 fps run there, the same verdict (0.0 J, 0 broken, 0 yields; past the 60 fps end +0.000 J, +0 broken)
@@ -1693,6 +1821,98 @@ the twin's float nose-in (90 km/h, 5 m/s, 20 deg):
   ok    worker host, turns of 4, the page reading every 2: ends at step 240 (its first read at or after 240); bitwise the 60 fps run there, the same verdict (0.0 J, 0 broken, 0 yields; past the 60 fps end +0.000 J, +0 broken)
   130/130 checks
 GATE DMGFPS: PASS
+=== DMGINTEGRITY ===
+(55 s, 5 builds + the V-tail Cub)
+Cub:
+1. the strip component test (G1820)
+  ok    intact: one piece, all 28 strips live, none on two pieces
+  ok    77 members a strip holds, each broken alone (no group): 162 of the 162 strips TREE-CRASH's any-break kill silenced fly on, 0 dropped (0 breaks parted their nodes); never a strip dead with its nodes whole, never one on two pieces
+  ok    each of the 10 groups broken alone: no strip on two pieces, no break-up (eng:mount 0/0, wing0R:root 0/1, wing0R:strut 0/0, wing0L:root 0/1, wing0L:strut 0/0, stab:attach 0/0, fin:attach 0/0, gearL:gear 0/0, gearR:gear 0/0, tw:gear 0/0 dropped / the old rule's)
+  ok    every group broken: no strip on two pieces; the parts off keep their own strips (27 / 27 live)
+  ok    a trunk at 30 m/s, the centreline: after each of the 12 frames with a new break, no live strip on two pieces; 86 broken, 0 strips dropped (the old rule: 6), 0 split; CRASHED (the airframe crushed (6.7 kJ of plastic work))
+  ok    a trunk at 30 m/s, the wing 2.5 m out: after each of the 7 frames with a new break, no live strip on two pieces; 25 broken, 2 strips dropped (the old rule: 2), 0 split; CRASHED (a wing member broke)
+  ok    a severe nose-in on the ground (180 km/h, 10 m/s, 60 deg): after each of the 7 frames with a new break, no live strip on two pieces; 23 broken, 0 strips dropped (the old rule: 0), 0 split; CRASHED (a fus member broke)
+2. the refs-core (G1821)
+  ok    the 6 ref nodes (S0BL S0BR S0TL S0TR TPB TPT) on the body; every group broken at once: the refs one piece, a core of 32 body nodes and nothing of a group's part
+  ok    the fuselage cut across behind ring 3 (10 members): BROKE UP (broke up: the fuselage parted (TPB off the core)), the flight over at once
+3. SUPPORT limiters (G1822)
+  ok    12 limiters (engine-firewall) with the layer on, none off; the build's own 394 members either way (the limiters are no members)
+  ok    slack in normal operations (the shortest over its closing length): the load test to 5.7 g 1.32 (HELD), a flown pull to 3.99 g 1.32, FAR 23.473's drop 1.32
+  ok    THE ENGINE THROUGH THE FIREWALL, a severe nose-in on the ground: without the limiters ENGR 0.09 m into bay 0 (off its mount), ENGL 0.09 m into bay 0 (off its mount); with them none (23 broken, CRASHED, finite)
+  REPORT  the probe elsewhere, with them (not a limiter's: a detached part or a folded panel, §8.2): stab:HF 0.06 m bay 5 @1.12; stab:HF 0.06 m bay 5 @1.90
+4. the cost
+  REPORT  a break event (10 members, the union-find over 394 beams / 93 nodes, 28 strips): 18.9 us
+Jodel:
+1. the strip component test (G1820)
+  ok    intact: one piece, all 28 strips live, none on two pieces
+  ok    77 members a strip holds, each broken alone (no group): 162 of the 162 strips TREE-CRASH's any-break kill silenced fly on, 0 dropped (0 breaks parted their nodes); never a strip dead with its nodes whole, never one on two pieces
+  ok    each of the 8 groups broken alone: no strip on two pieces, no break-up (eng:mount 0/0, wing0R:root 1/1, wing0L:root 1/1, stab:attach 0/0, fin:attach 0/0, gearL:gear 0/0, gearR:gear 0/0, tw:gear 0/0 dropped / the old rule's)
+  ok    every group broken: no strip on two pieces; the parts off keep their own strips (27 / 27 live)
+  ok    a trunk at 30 m/s, the centreline: after each of the 5 frames with a new break, no live strip on two pieces; 105 broken, 1 strips dropped (the old rule: 4), 0 split; CRASHED (a fus member broke)
+  ok    a trunk at 30 m/s, the wing 2.5 m out: after each of the 5 frames with a new break, no live strip on two pieces; 33 broken, 0 strips dropped (the old rule: 2), 0 split; CRASHED (a wing member broke)
+  ok    a severe nose-in on the ground (180 km/h, 10 m/s, 60 deg): after each of the 2 frames with a new break, no live strip on two pieces; 26 broken, 0 strips dropped (the old rule: 0), 0 split; CRASHED (a fus member broke)
+2. the refs-core (G1821)
+  ok    the 6 ref nodes (S0BL S0BR S0TL S0TR TPB TPT) on the body; every group broken at once: the refs one piece, a core of 32 body nodes and nothing of a group's part
+  ok    the fuselage cut across behind ring 3 (10 members): BROKE UP (broke up: the fuselage parted (TPB off the core)), the flight over at once
+3. SUPPORT limiters (G1822)
+  ok    12 limiters (engine-firewall) with the layer on, none off; the build's own 492 members either way (the limiters are no members)
+  ok    slack in normal operations (the shortest over its closing length): the load test to 5.7 g 1.40 (HELD), a flown pull to 4.69 g 1.40, FAR 23.473's drop 1.39
+  ok    THE ENGINE THROUGH THE FIREWALL, a severe nose-in on the ground: without the limiters ENGR 0.07 m into bay 0 (off its mount); with them none (26 broken, CRASHED, finite)
+4. the cost
+  REPORT  a break event (10 members, the union-find over 492 beams / 111 nodes, 28 strips): 23.7 us
+metal Cessna:
+1. the strip component test (G1820)
+  ok    intact: one piece, all 28 strips live, none on two pieces
+  ok    77 members a strip holds, each broken alone (no group): 162 of the 162 strips TREE-CRASH's any-break kill silenced fly on, 0 dropped (0 breaks parted their nodes); never a strip dead with its nodes whole, never one on two pieces
+  ok    each of the 10 groups broken alone: no strip on two pieces, no break-up (eng:mount 0/0, wing0R:root 0/1, wing0R:strut 0/0, wing0L:root 0/1, wing0L:strut 0/0, stab:attach 0/0, fin:attach 0/0, gearL:gear 0/0, gearR:gear 0/0, tw:gear 0/0 dropped / the old rule's)
+  ok    every group broken: no strip on two pieces; the parts off keep their own strips (27 / 27 live)
+  ok    a trunk at 30 m/s, the centreline: after each of the 7 frames with a new break, no live strip on two pieces; 110 broken, 5 strips dropped (the old rule: 6), 0 split; CRASHED (the airframe crushed (4.8 kJ of plastic work))
+  ok    a trunk at 30 m/s, the wing 2.5 m out: after each of the 3 frames with a new break, no live strip on two pieces; 20 broken, 4 strips dropped (the old rule: 4), 0 split; CRASHED (a wing member broke)
+  ok    a severe nose-in on the ground (180 km/h, 10 m/s, 60 deg): after each of the 6 frames with a new break, no live strip on two pieces; 64 broken, 0 strips dropped (the old rule: 0), 0 split; CRASHED (the airframe crushed (3.0 kJ of plastic work))
+2. the refs-core (G1821)
+  ok    the 6 ref nodes (S0BL S0BR S0TL S0TR TPB TPT) on the body; every group broken at once: the refs one piece, a core of 32 body nodes and nothing of a group's part
+  ok    the fuselage cut across behind ring 3 (10 members): BROKE UP (broke up: the fuselage parted (TPB off the core)), the flight over at once
+3. SUPPORT limiters (G1822)
+  ok    12 limiters (engine-firewall) with the layer on, none off; the build's own 442 members either way (the limiters are no members)
+  ok    slack in normal operations (the shortest over its closing length): the load test to 5.7 g 1.07 (HELD), a flown pull to 5.25 g 1.07, FAR 23.473's drop 1.07
+  ok    THE ENGINE THROUGH THE FIREWALL, a severe nose-in on the ground: without the limiters ENGL 0.44 m into bay 0, CGE 0.36 m into bay 2 (off its mount), ENGR 0.31 m into bay 0; with them none (64 broken, CRASHED, finite)
+  REPORT  the probe elsewhere, with them (not a limiter's: a detached part or a folded panel, §8.2): fin:VF 0.06 m bay 5 off @0.95
+4. the cost
+  REPORT  a break event (10 members, the union-find over 442 beams / 103 nodes, 28 strips): 20.9 us
+Cessna floats:
+1. the strip component test (G1820)
+  ok    intact: one piece, all 27 strips live, none on two pieces
+  ok    77 members a strip holds, each broken alone (no group): 160 of the 160 strips TREE-CRASH's any-break kill silenced fly on, 0 dropped (0 breaks parted their nodes); never a strip dead with its nodes whole, never one on two pieces
+  ok    each of the 9 groups broken alone: no strip on two pieces, no break-up (eng:mount 0/0, wing0R:root 0/0, wing0R:strut 0/0, wing0L:root 0/0, wing0L:strut 0/0, stab:attach 0/0, fin:attach 0/0, floatL:strut 0/0, floatR:strut 0/0 dropped / the old rule's)
+  ok    every group broken: no strip on two pieces; the parts off keep their own strips (27 / 27 live)
+  ok    a severe float nose-in (150 km/h, 10 m/s, 60 deg): after each of the 6 frames with a new break, no live strip on two pieces; 61 broken, 0 strips dropped (the old rule: 0), 0 split; CRASHED (a fus member broke)
+2. the refs-core (G1821)
+  ok    the 6 ref nodes (S0BL S0BR S0TL S0TR TPB TPT) on the body; every group broken at once: the refs one piece, a core of 32 body nodes and nothing of a group's part
+  ok    the fuselage cut across behind ring 3 (10 members): BROKE UP (broke up: the fuselage parted (TPB off the core)), the flight over at once
+3. SUPPORT limiters (G1822)
+  ok    12 limiters (engine-firewall) with the layer on, none off; the build's own 533 members either way (the limiters are no members)
+  ok    slack in normal operations (the shortest over its closing length): the load test to 5.7 g 1.07 (HELD), a flown pull to 5.23 g 1.07, FAR 23.473's drop 1.07
+4. the cost
+  REPORT  a break event (10 members, the union-find over 533 beams / 130 nodes, 27 strips): 23.7 us
+twin floatplane:
+1. the strip component test (G1820)
+  ok    intact: one piece, all 29 strips live, none on two pieces
+  ok    82 members a strip holds, each broken alone (no group): 168 of the 168 strips TREE-CRASH's any-break kill silenced fly on, 0 dropped (0 breaks parted their nodes); never a strip dead with its nodes whole, never one on two pieces
+  ok    each of the 10 groups broken alone: no strip on two pieces, no break-up (wing0R:root 0/1, wing0R:strut 0/0, wing0L:root 0/1, wing0L:strut 0/0, engL:mount 0/0, engR:mount 0/0, stab:attach 0/0, fin:attach 0/0, floatL:strut 0/0, floatR:strut 0/0 dropped / the old rule's)
+  ok    every group broken: no strip on two pieces; the parts off keep their own strips (28 / 28 live)
+  ok    a severe float nose-in (150 km/h, 10 m/s, 60 deg): after each of the 4 frames with a new break, no live strip on two pieces; 38 broken, 0 strips dropped (the old rule: 0), 0 split; CRASHED (broke up: the fuselage parted (TPB off the core))
+2. the refs-core (G1821)
+  ok    the 6 ref nodes (S0BL S0BR S0TL S0TR TPB TPT) on the body; every group broken at once: the refs one piece, a core of 32 body nodes and nothing of a group's part
+  ok    the fuselage cut across behind ring 3 (10 members): BROKE UP (broke up: the fuselage parted (TPB off the core)), the flight over at once
+3. SUPPORT limiters (G1822)
+  ok    0 limiters (none: no nose engine) with the layer on, none off; the build's own 519 members either way (the limiters are no members)
+4. the cost
+  REPORT  a break event (12 members, the union-find over 519 beams / 127 nodes, 29 strips): 20.2 us
+The V-tail Cub (its tail strips read the body axes: the SPLIT path):
+  ok    stab:attach + tw:gear broken: 2 tail strips split onto the core (they kept 75 %, 75 % of their weight; renormalised to 1.000, 1.000), 2 dropped (50 %, 50 % on the core: under 70 %); none on two pieces
+Broke up (the flight over at once): twin floatplane, a severe float nose-in (150 km/h, 10 m/s, 60 deg): at 0.14 s (TPB)
+  54/54 checks
+GATE DMGINTEGRITY: PASS
 === BUILD ===
 ok     the shelf published window.GARAGE_SPEC
   ok     the shelf has an update door
@@ -2262,11 +2482,11 @@ GATE BENCH: PASS
   at the freeze: step 359, 3.602 m/s (60 s of that is 216 m); held after 15 steps, 0.904 m on; the page back: 58 steps in its first second (at most 1 a turn), stalls 1, 59.767 s let go
   ok   a 60 s page freeze: the host HOLDS 250 ms past the last beat (15 steps), the aeroplane 0.904 m from where the page last drew it (< 3; 216 m unheld)
   ok   the page back: the flight goes on from where it held at real time (58 steps in the first second, at most 1 a turn) - the 59.767 s lost not owed, no teleport
-the page's world (the whole boot): 8167 ms
+the page's world (the whole boot): 7454 ms
 2 LOCKSTEP (600 steps a build, Jolene + premises, HOME's stand)
-  the host: init 6992 ms, the trimmed boot 79.0 MiB
+  the host: init 7124 ms, the trimmed boot 79.0 MiB
   ok   stock: the host's aeroplane is the page's (93:9e392758, 93 nodes, 70 substeps)
-  ok   stock: every step's FNV(p, v) equal, 0..600 (final f2b3de3f, page 4811 ms)
+  ok   stock: every step's FNV(p, v) equal, 0..600 (final f2b3de3f, page 5179 ms)
   ok   stock: the view's p at the newest snapshot is the page's, bit for bit
   ok   stock: cgPos / cgVel / totalM are the solver's (-138.761, 31.594, 683.507; 496.38 kg)
   ok   stock: axes and bodyOrigin are the solver's
@@ -2277,7 +2497,7 @@ the page's world (the whole boot): 8167 ms
   ok   stock: the world-version counter moved with the day (0 -> 1), no command late, step index 600
   ok   the view interpolates at T less its delay (1.50 steps) in its ring of 5: alpha 0.500 halfway between the two newest, 0.750 between the 4th and 3rd newest 2.25 steps back, clamped to the ring's oldest and the newest snapshot
   ok   cessnaMetal: the host's aeroplane is the page's (103:9a3abdb3, 103 nodes, 120 substeps)
-  ok   cessnaMetal: every step's FNV(p, v) equal, 0..600 (final cbccf99f, page 6924 ms)
+  ok   cessnaMetal: every step's FNV(p, v) equal, 0..600 (final cbccf99f, page 8806 ms)
   ok   cessnaMetal: the view's p at the newest snapshot is the page's, bit for bit
   ok   cessnaMetal: cgPos / cgVel / totalM are the solver's (-137.493, 31.700, 679.036; 883.37 kg)
   ok   cessnaMetal: axes and bodyOrigin are the solver's
@@ -2287,19 +2507,19 @@ the page's world (the whole boot): 8167 ms
   ok   cessnaMetal: the pilot's snapshot is the pilot's (TAXI, t 9.500 s)
   ok   cessnaMetal: the world-version counter moved with the day (1 -> 2), no command late, step index 600
 3 REAL TIME (3.5 s on the host's own clock, a 60 Hz render loop busy 8 ms a frame)
-  the page frozen 1.5 s: 14 steps while it was (held), 30 in the half second after; 1 stall, 1.264 s let go
-  ok   the worker thread holds through a 1.5 s page freeze (14 steps, <= 21) and goes on after it (30 steps in 0.5 s, 1.264 s let go)
-  transport: a 4.6 KB snapshot buffer there and back (transferred) p50 0.019 / p99 5.118 ms
-  a snapshot's one-way latency (published -> taken; the render loop is busy 8 ms of each frame) p50 1.514 / p90 8.703 / max 32.800 ms
-  the pose age at the render (now less when the host held the drawn state; interpolated at T - 1 step) p50 43.597 / p90 61.215 ms
-  the render thread's physics: take 0.041 / max 4.222 ms a snapshot, frame 0.052 / max 4.538 ms a frame
-  the host: 251 steps in 3.5 s + the freeze, step 4.833 ms (eased), dilation 0.992, dropped 0.050 s (1 turns), 243 snapshots, buffers allocated 1 (0 after the first second), 235 frames drawn
-  ok   the host's clock ran (251 steps, 243 snapshots)
-  ok   every action applied once and logged with its step (start@15, impulse@57, manual@87, hand@87, manual@135, setDay@165)
+  the page frozen 1.5 s: 14 steps while it was (held), 30 in the half second after; 1 stall, 1.269 s let go
+  ok   the worker thread holds through a 1.5 s page freeze (14 steps, <= 21) and goes on after it (30 steps in 0.5 s, 1.269 s let go)
+  transport: a 4.6 KB snapshot buffer there and back (transferred) p50 0.036 / p99 4.180 ms
+  a snapshot's one-way latency (published -> taken; the render loop is busy 8 ms of each frame) p50 2.026 / p90 8.998 / max 19.080 ms
+  the pose age at the render (now less when the host held the drawn state; interpolated at T - 1 step) p50 42.279 / p90 61.270 ms
+  the render thread's physics: take 0.050 / max 3.815 ms a snapshot, frame 0.059 / max 0.263 ms a frame
+  the host: 250 steps in 3.5 s + the freeze, step 6.050 ms (eased), dilation 0.991, dropped 0.067 s (2 turns), 243 snapshots, buffers allocated 0 (0 after the first second), 237 frames drawn
+  ok   the host's clock ran (250 steps, 243 snapshots)
+  ok   every action applied once and logged with its step (start@14, impulse@56, manual@86, hand@86, manual@134, setDay@164)
   ok   the view: no stray step, the same aeroplane, not diverged
   ok   the host's log replayed inline reproduces all 243 published snapshots to the bit
 4 THE BOOT
-  ok   the page's fetch path (the manifest, gzip through DecompressionStream) gives island_node's bytes, key for key (1636 ms)
+  ok   the page's fetch path (the manifest, gzip through DecompressionStream) gives island_node's bytes, key for key (922 ms)
   NB the page's own boot after its makeWorld: grid.ttype stamped in place (27_premises stampTtype) - never hand the host a boot a world was made on
   ok   the trimmed boot: the height tree + cover / canopy / coast / lake / ttype, no albedo, tint, ori1, ndvi or far tree
   decoded: trimmed 79.0 MiB of the whole boot's 180.9 MiB (ARCH §1.6 estimated 70-80 MB)
@@ -2308,7 +2528,7 @@ the page's world (the whole boot): 8167 ms
   ok   index.html publishes SIM_HOST (the starter, the Blob's source) and SIM_VIEW
   ok   the host's thread raised nothing
 
-35 checks, 0 failed, 77.6 s
+35 checks, 0 failed, 81.1 s
 GATE SIMWORKER: PASS
 === GEAR ===
 3 leg families, 10 declared bags, 37382 triangles measured
@@ -2363,36 +2583,36 @@ GATE OBSTACLE: PASS
   ok   a piece on the ground never pushes a node into it  (0.850,0.000,0.000)
   ok   the yaw carries the push into the world frame  (0.115,0.000,-0.097)
 2. every archetype from its spec
-  ok   cub stands a shape  (62 pieces, 90 ms)
-  ok   pietenpol stands a shape  (68 pieces, 82 ms)
-  ok   tigermoth stands a shape  (104 pieces, 158 ms)
-  ok   stearman stands a shape  (108 pieces, 158 ms)
-  ok   pittsAlike stands a shape  (87 pieces, 96 ms)
-  ok   sesqui stands a shape  (104 pieces, 166 ms)
-  ok   jodel stands a shape  (44 pieces, 25 ms)
-  ok   c172 stands a shape  (49 pieces, 39 ms)
-  ok   chinook stands a shape  (52 pieces, 31 ms)
-  ok   caravan stands a shape  (54 pieces, 35 ms)
-  ok   rv stands a shape  (47 pieces, 39 ms)
-  ok   savannah stands a shape  (48 pieces, 43 ms)
-  ok   ul1 stands a shape  (48 pieces, 20 ms)
+  ok   cub stands a shape  (62 pieces, 91 ms)
+  ok   pietenpol stands a shape  (68 pieces, 81 ms)
+  ok   tigermoth stands a shape  (104 pieces, 127 ms)
+  ok   stearman stands a shape  (108 pieces, 227 ms)
+  ok   pittsAlike stands a shape  (87 pieces, 104 ms)
+  ok   sesqui stands a shape  (104 pieces, 217 ms)
+  ok   jodel stands a shape  (44 pieces, 30 ms)
+  ok   c172 stands a shape  (49 pieces, 35 ms)
+  ok   chinook stands a shape  (52 pieces, 76 ms)
+  ok   caravan stands a shape  (54 pieces, 41 ms)
+  ok   rv stands a shape  (47 pieces, 53 ms)
+  ok   savannah stands a shape  (48 pieces, 57 ms)
+  ok   ul1 stands a shape  (48 pieces, 18 ms)
   --   floatplane: floats (no mains: the mesh raster stands it)
-  ok   pusherPod stands a shape  (61 pieces, 71 ms)
-  ok   motorglider stands a shape  (56 pieces, 66 ms)
-  ok   radial stands a shape  (56 pieces, 53 ms)
-  ok   etrainer stands a shape  (61 pieces, 134 ms)
-  ok   ttail stands a shape  (47 pieces, 35 ms)
-  ok   vtail stands a shape  (57 pieces, 53 ms)
+  ok   pusherPod stands a shape  (61 pieces, 58 ms)
+  ok   motorglider stands a shape  (56 pieces, 101 ms)
+  ok   radial stands a shape  (56 pieces, 56 ms)
+  ok   etrainer stands a shape  (61 pieces, 64 ms)
+  ok   ttail stands a shape  (47 pieces, 33 ms)
+  ok   vtail stands a shape  (57 pieces, 56 ms)
   ok   mw5 stands a shape  (49 pieces, 25 ms)
-  ok   archaeopteryx stands a shape  (63 pieces, 103 ms)
-  ok   da62 stands a shape  (52 pieces, 37 ms)
-  ok   twinBush stands a shape  (55 pieces, 22 ms)
-  ok   skymaster stands a shape  (48 pieces, 50 ms)
-  ok   p38 stands a shape  (60 pieces, 61 ms)
-  ok   beaver stands a shape  (49 pieces, 28 ms)
+  ok   archaeopteryx stands a shape  (63 pieces, 81 ms)
+  ok   da62 stands a shape  (52 pieces, 39 ms)
+  ok   twinBush stands a shape  (55 pieces, 29 ms)
+  ok   skymaster stands a shape  (48 pieces, 51 ms)
+  ok   p38 stands a shape  (60 pieces, 53 ms)
+  ok   beaver stands a shape  (49 pieces, 22 ms)
   ok   26 archetypes stand an analytic shape
   ok   the wing's reach is the spec's half-span on every one (to 2 mm: a bowed tip's last loft row stands at sin(0.965 x 90 deg) of its radius, as drawn)  (worst 1.3 mm, cub)
-  ok   each in a fraction of a second  (slowest 166 ms (first calls pay the JIT))
+  ok   each in a fraction of a second  (slowest 227 ms (first calls pay the JIT))
 3. the captures (the page in node)
   ok   arch:cub captured
   ok   arch:cub stands its spec shape  (63 pieces)
@@ -2408,7 +2628,7 @@ GATE OBSTACLE: PASS
   ok   arch:cub c: legs within 35.0 cm of the shape  (53100 vertices, worst 20.6 cm at 1.993,0.457,-0.198)
   ok   arch:cub c: struts within 45.0 cm of the shape  (20856 vertices, worst 42.2 cm at 1.887,0.878,-0.944)
   ok   arch:cub c: engine within 20.0 cm of the shape  (132780 vertices, worst 0.6 cm at 3.175,2.490,-0.001)
-  ok   arch:cub e: the spec shape costs less than the raster it replaces  (57 ms against 145 ms (walk + 0.5 m raster, 174618 tris); 25.4 KB against 5.4 KB)
+  ok   arch:cub e: the spec shape costs less than the raster it replaces  (73 ms against 344 ms (walk + 0.5 m raster, 174618 tris); 25.4 KB against 5.4 KB)
   ok   arch:c172 captured
   ok   arch:c172 stands its spec shape  (50 pieces)
   --   arch:c172: not cooked in this page (a stale or missing parked cook): the cooked shape is not checked
@@ -2423,7 +2643,7 @@ GATE OBSTACLE: PASS
   ok   arch:c172 c: legs within 35.0 cm of the shape  (42228 vertices, worst 25.3 cm at 0.705,0.191,1.270)
   ok   arch:c172 c: struts within 45.0 cm of the shape  (12912 vertices, worst 30.0 cm at 2.033,0.797,-0.783)
   ok   arch:c172 c: engine within 20.0 cm of the shape  (135756 vertices, worst 8.4 cm at 4.068,1.285,0.000)
-  ok   arch:c172 e: the spec shape costs less than the raster it replaces  (36 ms against 124 ms (walk + 0.5 m raster, 192792 tris); 22.0 KB against 7.2 KB)
+  ok   arch:c172 e: the spec shape costs less than the raster it replaces  (117 ms against 224 ms (walk + 0.5 m raster, 192792 tris); 22.0 KB against 7.2 KB)
   ok   arch:jodel captured
   ok   arch:jodel stands its spec shape  (45 pieces)
   --   arch:jodel: not cooked in this page (a stale or missing parked cook): the cooked shape is not checked
@@ -2437,7 +2657,7 @@ GATE OBSTACLE: PASS
   ok   arch:jodel c: wheels within 5.0 cm of the shape  (51324 vertices, worst 1.8 cm at 2.487,0.235,1.088)
   ok   arch:jodel c: legs within 35.0 cm of the shape  (28692 vertices, worst 15.9 cm at 2.560,0.640,0.888)
   ok   arch:jodel c: engine within 20.0 cm of the shape  (130440 vertices, worst 5.2 cm at 3.417,1.033,-0.079)
-  ok   arch:jodel e: the spec shape costs less than the raster it replaces  (49 ms against 133 ms (walk + 0.5 m raster, 154868 tris); 20.8 KB against 4.3 KB)
+  ok   arch:jodel e: the spec shape costs less than the raster it replaces  (40 ms against 169 ms (walk + 0.5 m raster, 154868 tris); 20.8 KB against 4.3 KB)
   ok   stock build d: its wingtip node rides at 2.125 m, in a parked wing's band  (arch:c172's drawn wing reaches 5.500 m out at that height)
   ok   stock build d: its wingtip's track 10 cm clear of arch:c172's drawn wing - NO contact  (0 node-steps in contact; the old raster: 100 (the user's bug))
   ok   stock build d: 1 cm into arch:c172's drawn wing - contact  (107 node-steps)
@@ -2552,8 +2772,8 @@ Savitsky buoyant term vs the transom fade (flat plate; ratio = model/Savitsky, A
    tau 2 lambda 3 Cv 4: CL_sav 0.0115 model 0.0107 (0.93)  bare Archimedes 0.0196 (1.71)
 
 THE COST (the 172 on Wipline 2350s, sim.step(1/60), best of 12 windows of 10 steps)
-   water 7.44 ms/step (hydro every 20 of 24 substeps)  dry 5.52 ms/step  ratio 1.35 x  L/W at rest 0.9987 (every substep: 0.9990)
-PASS the water costs 1.35 x the dry step (bound 2.5)
+   water 7.81 ms/step (hydro every 20 of 24 substeps)  dry 5.90 ms/step  ratio 1.32 x  L/W at rest 0.9987 (every substep: 0.9990)
+PASS the water costs 1.32 x the dry step (bound 2.5)
 PASS the sub-rated pass carries the weight as the full-rate one does (L/W 0.9987 vs 0.9990)
 
 6. THE LAKE'S SURFACE IS THE DATA'S (a stub island: a bowl with no outlet)
@@ -2635,7 +2855,7 @@ GATE ENERGY: PASS
 === SETTLE ===
 bridges: 4
 max road cross-height @4m: 3.13 m
-settle: 9 settlements | 16 road pieces (46.5 km) | 129 buildings | bake 398 ms | 14 checks, 0 failed
+settle: 9 settlements | 16 road pieces (46.5 km) | 129 buildings | bake 480 ms | 14 checks, 0 failed
 GATE SETTLE: PASS
 === AERO ===
 aerodromes: 13 total | 5 town fields | 3 backcountry
@@ -2723,7 +2943,7 @@ S3. the thermal
   ok   the netto vario reads the AIR to -0.32 m/s of the field itself on the mean of 169 samples (the instantaneous spread 0.98: a turn's load factor is not on a wings-level polar)
 GATE SOAR: PASS
 === FLEX ===
---- shard 0/3 (227.8 s) ---
+--- shard 0/3 (242.0 s) ---
 FLEX — deflection, torsion, softness and load margin.
 
 REALITY (handbook / static-test class figures, for comparison only):
@@ -2782,7 +3002,7 @@ GARAGE MATRIX — static structure across the configuration space.
 GATE FLEX: PASS
 [stderr]
 SHARD 0/3: 1 of 3 heavy jobs
---- shard 1/3 (174.1 s) ---
+--- shard 1/3 (187.9 s) ---
 FLEX — deflection, torsion, softness and load margin.
 
 REALITY (handbook / static-test class figures, for comparison only):
@@ -2841,7 +3061,7 @@ GARAGE MATRIX — static structure across the configuration space.
 GATE FLEX: PASS
 [stderr]
 SHARD 1/3: 1 of 3 heavy jobs
---- shard 2/3 (192.0 s) ---
+--- shard 2/3 (200.0 s) ---
 FLEX — deflection, torsion, softness and load margin.
 
 REALITY (handbook / static-test class figures, for comparison only):
@@ -3028,54 +3248,56 @@ against the firewall ring (the G179 origin). Bounds: sag < 15 mm, quiet by 3 s, 
 GATE MOUNT: PASS
 
 ──────── summary ────────
-SUBSTEP   PASS    32.2 s
-PACE      PASS     0.2 s
+SUBSTEP   PASS    39.1 s
+PACE      PASS     0.3 s
 FLIGHTREC PASS     1.6 s
-GE        PASS    69.3 s
-FLAPS     PASS     3.7 s
-STRESS    PASS    14.9 s
-GEN       PASS   413.3 s  [4 shards]
-PILOT     PASS   275.9 s  [3 shards]
+GE        PASS    77.7 s
+FLAPS     PASS     4.4 s
+STRESS    PASS    18.5 s
+GEN       PASS   452.2 s  [4 shards]
+PILOT     PASS   308.3 s  [3 shards]
 NAV       PASS     0.1 s
-STRIPSURF PASS    11.4 s
-TAKEOFF   PASS   155.2 s
-PILOTACT  PASS   140.0 s
-TAXICLEAR PASS    50.2 s
-PLAN      PASS   321.0 s
-LINEUP    PASS   172.6 s
-DEFAULT   PASS     3.5 s
-HONEST    PASS    28.7 s
-WEIGHT    PASS    40.2 s
-DRAG      PASS    25.5 s
-BIPLANE   PASS    90.0 s
-MASS      PASS     8.8 s
-UISMOKE   PASS   141.9 s
-TREEHIT   PASS    51.5 s
-TREECRASH PASS   487.3 s
-DMGMEMBERS PASS    39.7 s
-DMGINST   PASS   215.3 s
-DMGFPS    PASS   138.8 s
-BUILD     PASS     1.9 s
-JOIN      PASS     6.1 s
-BENCH     PASS    60.6 s
-SIMWORKER PASS    77.8 s
-GEAR      PASS     0.8 s
-STRUT     PASS     3.7 s
-SITE      PASS     4.3 s
-OBSTACLE  PASS    13.5 s
-HITBOX    PASS   350.0 s
-HYDRODYN  PASS    92.4 s
-FLOATS    PASS    54.9 s
-SEAPLANE  PASS   253.9 s
-ENERGY    PASS    45.2 s
-SETTLE    PASS     5.8 s
-AERO      PASS     5.9 s
-HOTHIGH   PASS   151.6 s
-SOAR      PASS   683.0 s
-FLEX      PASS   227.8 s  [3 shards]
-LOAD      PASS   267.6 s
-MOUNT     PASS    67.8 s
-total           5307.4 s
-wall            2278.5 s  (jobs 4)
+STRIPSURF PASS    14.8 s
+TAKEOFF   PASS   168.4 s
+PILOTACT  PASS   174.4 s
+TAXICLEAR PASS    55.3 s
+PLAN      PASS   374.2 s
+LINEUP    PASS   175.5 s
+DEFAULT   PASS     4.8 s
+HONEST    PASS    35.4 s
+WEIGHT    PASS    45.5 s
+DRAG      PASS    26.6 s
+BIPLANE   PASS    89.6 s
+MASS      PASS    12.6 s
+UISMOKE   PASS   149.9 s
+TREEHIT   PASS    57.5 s
+TREECRASH PASS   498.8 s
+DMGMEMBERS PASS    48.3 s
+DMGCLUSTERS PASS   544.8 s
+DMGINST   PASS   231.0 s
+DMGFPS    PASS   164.5 s
+DMGINTEGRITY PASS    55.3 s
+BUILD     PASS     2.4 s
+JOIN      PASS     8.3 s
+BENCH     PASS    69.2 s
+SIMWORKER PASS    81.4 s
+GEAR      PASS     0.9 s
+STRUT     PASS     4.7 s
+SITE      PASS     5.4 s
+OBSTACLE  PASS    16.5 s
+HITBOX    PASS   367.6 s
+HYDRODYN  PASS   104.0 s
+FLOATS    PASS    61.8 s
+SEAPLANE  PASS   226.0 s
+ENERGY    PASS    58.4 s
+SETTLE    PASS     7.0 s
+AERO      PASS     7.3 s
+HOTHIGH   PASS   161.7 s
+SOAR      PASS   691.1 s
+FLEX      PASS   242.0 s  [3 shards]
+LOAD      PASS   285.8 s
+MOUNT     PASS    72.4 s
+total           6303.3 s
+wall            2925.4 s  (jobs 4)
 
 BATTERY: PASS
