@@ -1995,7 +1995,7 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
       });
     } catch (e) {}
     // merge the build's meshes into groups by material look
-    const groups = {}, mats = {};
+    const groups = {}, mats = {}, debris = [];
     mount.updateMatrixWorld(true);
     const inv = new THREE.Matrix4().copy(mount.matrixWorld).invert();
     const tmp = new THREE.Matrix4(), nm = new THREE.Matrix3(),
@@ -2118,6 +2118,12 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
           a = a.parent;
         }
       }
+      // G1860 (DMG-D4b): WHICH STATIC VERTICES ARE THE COWL'S. A cowl is no member: in a crash it leaves as debris (app.js
+      // wreckFrame), so the flight must know which of the static merge's vertices it is - the cowl layer's, by ancestry,
+      // as [tag, bucket, v0, v1] ranges (the buckets are unwelded: a vertex range is a triangle range). Metadata only:
+      // nothing drawn moves
+      let dbrTag = null;
+      if (!part) for (let a = o; a && a !== mount; a = a.parent) if (a.name === 'cageLayer:cowl') { dbrTag = 'cowl'; break; }
       const ranges = (matList.length > 1 && geo.groups && geo.groups.length)
         ? geo.groups
         : [{ start: 0, count: idx ? idx.count : p.count, materialIndex: 0 }];
@@ -2333,7 +2339,9 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
                                                          m0.userData.panelSet ||
                                                          m0.userData.propMat))
                                                        ? [] : null });
+        const dv0 = G3.pos.length / 3;
         for (let i = r.start; i < end; i++) pushV(G3, idx ? idx.getX(i) : i);
+        if (dbrTag && !part) debris.push([dbrTag, key, dv0, G3.pos.length / 3]);
       }
     });
     // (THE RESTORE USED TO BE HERE, AND THAT WAS THE BUG WITH TEETH. It runs
@@ -2808,6 +2816,7 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
     return { cage: true, groups, mats, off, pitch: beta, parts,
              zRoot: 0, surfaces: null, cageM, people, lights, tailRef, mainsRef, footwell, holes,
              weather,
+             debris,                     // G1860: the static merge's non-member parts ([tag, bucket, v0, v1])
              // G357: the capture's map in the model's x-y plane (row-major
              // 2x2, the identity when no frame) — every rotation the flight
              // applies to a captured part is conjugated by it (app.js

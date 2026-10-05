@@ -219,6 +219,10 @@ const GATES = [
   // nothing broken), and the skin over a break - no live triangle on two pieces or across a broken member, none stretched
   // past 1.15 x its rest + 1 cm, on TREECRASH / DMGINTEGRITY's crash cases; damage off = the base's skin bit for bit. Three at once
   { id: 'DMGSKIN', file: '_dmg_skin_check.js', tier: 'core', weight: 3, wall: 240 },
+  // G1865 (DMG-D4b WRECK DRAWN): the wreck's non-member parts (src/viewer/wreck_debris.js) on the crash cases - which leave
+  // and why, every body at rest on the ground or the water, the prop strike's bend or break, the clip against the live
+  // cabin, the cockpit rule; damage off (and nothing broken) = no release, the crash's bits unread. Three at once
+  { id: 'DMGWRECK', file: '_dmg_wreck_check.js', tier: 'core', weight: 3, wall: 150 },
   // G286: the graphics settings menu - presets, the pref, the handles
   { id: 'GFX', file: '_gfx_check.js', tier: 'core' },
   // G584: the programs - the real three on a fake GL: the depth warm-up is the shadow pass's own set, two

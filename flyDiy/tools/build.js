@@ -484,6 +484,8 @@ const MANIFEST = {
               'dmg_overlay.js',
               // G1851 (DMG-D4a): the skin over a break (window.SKIN_BREAK, pure; app.js poseModel reads it)
               'skin_break.js',
+              // G1860-G1863 (DMG-D4b): the wreck's non-member parts - debris, the prop strike, the cockpit rule (window.WRECK_DEBRIS, pure)
+              'wreck_debris.js',
               'world_boot.js', 'app.js',
               'dev_panel.js'],   // (the WORLD rail, world_rail.js, rides the world pack above - G582)
   },
