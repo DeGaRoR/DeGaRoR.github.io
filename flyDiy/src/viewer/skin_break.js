@@ -347,7 +347,11 @@
 
   // ---- THE NODES' FRAMES (per frame, shared by every group): node i's rotation from its rest neighbourhood to its live
   // one. NF: { vB, off, nb (the neighbourhoods, rebuilt at each event), R (9 a node), q (4 a node: the last turn) }
-  function nodeFrames(NF, T, D, rest, live) {
+  // init (G1867.1, the page's world-frame riding): a node whose live set cannot say its turn (nodes in a line - a spar's) is
+  // held to its last one, which starts at the identity: right in the body's frame (the gate's), wrong by the aeroplane's
+  // whole attitude in the world's - the chord-wise skin swung about the spar line and tore (a 3 m/s taxi shredded both
+  // wings on the box). With init every node's turn starts at the aeroplane's own: one Horn fit of all its nodes
+  function nodeFrames(NF, T, D, rest, live, init) {
     const n = T.n, pc = D.pc;
     if (NF.vB !== D.vB) {
       NF.vB = D.vB;
@@ -361,10 +365,34 @@
         off.push(nb.length);
       }
       NF.off = Int32Array.from(off); NF.nb = Int32Array.from(nb);
-      if (!NF.R || NF.R.length !== n * 9) { NF.R = new Float64Array(n * 9); NF.q = new Float64Array(n * 4); for (let i = 0; i < n; i++) { NF.q[i * 4 + 3] = 1; NF.R[i * 9] = NF.R[i * 9 + 4] = NF.R[i * 9 + 8] = 1; } }
+      if (!NF.R || NF.R.length !== n * 9) { NF.R = new Float64Array(n * 9); NF.q = new Float64Array(n * 4); for (let i = 0; i < n; i++) { NF.q[i * 4 + 3] = 1; NF.R[i * 9] = NF.R[i * 9 + 4] = NF.R[i * 9 + 8] = 1; }
+        if (init) {
+          let rx = 0, ry = 0, rz = 0, lx = 0, ly = 0, lz = 0;
+          for (let i = 0; i < n; i++) { rx += rest[i * 3]; ry += rest[i * 3 + 1]; rz += rest[i * 3 + 2]; lx += live[i * 3]; ly += live[i * 3 + 1]; lz += live[i * 3 + 2]; }
+          rx /= n; ry /= n; rz /= n; lx /= n; ly /= n; lz /= n;
+          const G = new Float64Array(9);
+          for (let i = 0; i < n; i++) { const px = live[i * 3] - lx, py = live[i * 3 + 1] - ly, pz = live[i * 3 + 2] - lz, qx = rest[i * 3] - rx, qy = rest[i * 3 + 1] - ry, qz = rest[i * 3 + 2] - rz;
+            G[0] += px * qx; G[1] += px * qy; G[2] += px * qz; G[3] += py * qx; G[4] += py * qy; G[5] += py * qz; G[6] += pz * qx; G[7] += pz * qy; G[8] += pz * qz; }
+          const q0 = new Float64Array([0, 0, 0, 1]), R0 = new Float64Array(9);
+          polar(G, 0, q0, 0, R0, 0);
+          for (let i = 0; i < n; i++) { NF.q.set(q0, i * 4); NF.R.set(R0, i * 9); }
+        } }
       NF.A = new Float64Array(9);
     }
     const A = NF.A, Rn = NF.R;
+    // (init: the prior a node is held to where its set cannot say is its PIECE's rigid turn this frame - the aeroplane's
+    // own, or the part's that came off - not its last turn, which a tumbling wreck leaves behind)
+    let PR = null;
+    if (init) {
+      const nP = pc ? Math.max(1, D.nPc || 1) : 1, S = new Float64Array(nP * 6), cnt = new Int32Array(nP);
+      for (let i = 0; i < n; i++) { const k = pc ? pc[i] : 0; cnt[k]++; for (let j = 0; j < 3; j++) { S[k * 6 + j] += rest[i * 3 + j]; S[k * 6 + 3 + j] += live[i * 3 + j]; } }
+      const G = new Float64Array(nP * 9);
+      for (let i = 0; i < n; i++) { const k = pc ? pc[i] : 0, c = cnt[k], o = k * 6;
+        const px = live[i * 3] - S[o + 3] / c, py = live[i * 3 + 1] - S[o + 4] / c, pz = live[i * 3 + 2] - S[o + 5] / c, qx = rest[i * 3] - S[o] / c, qy = rest[i * 3 + 1] - S[o + 1] / c, qz = rest[i * 3 + 2] - S[o + 2] / c, g = k * 9;
+        G[g] += px * qx; G[g + 1] += px * qy; G[g + 2] += px * qz; G[g + 3] += py * qx; G[g + 4] += py * qy; G[g + 5] += py * qz; G[g + 6] += pz * qx; G[g + 7] += pz * qy; G[g + 8] += pz * qz; }
+      PR = NF.PR && NF.PR.length === nP * 9 ? NF.PR : (NF.PR = new Float64Array(nP * 9)); const PQ = NF.PQ && NF.PQ.length === nP * 4 ? NF.PQ : (NF.PQ = new Float64Array(nP * 4));
+      for (let k = 0; k < nP; k++) { if (cnt[k] >= 3) polar(G, k * 9, PQ, k * 4, PR, k * 9); else { PR.set(Rn.subarray(0, 9), k * 9); } }
+    }
     for (let i = 0; i < n; i++) {
       const a0 = NF.off[i], a1 = NF.off[i + 1], m = a1 - a0;
       if (m < 2) continue;                               // a node with no live member (debris): it keeps its last turn
@@ -377,8 +405,9 @@
         A[0] += px * qx; A[1] += px * qy; A[2] += px * qz; A[3] += py * qx; A[4] += py * qy; A[5] += py * qz; A[6] += pz * qx; A[7] += pz * qy; A[8] += pz * qz;
         spread += qx * qx + qy * qy + qz * qz; }
       // held to its last turn where the set cannot say (a line of nodes: the turn about it is free): + eps x the last R
-      const e = 1e-3 * spread, o9 = i * 9;
-      for (let k = 0; k < 9; k++) A[k] += e * Rn[o9 + k];
+      const e = 1e-3 * spread, o9 = i * 9, Pr = PR, p9 = PR ? (pc ? pc[i] : 0) * 9 : 0;
+      if (Pr) for (let k = 0; k < 9; k++) A[k] += e * Pr[p9 + k];
+      else for (let k = 0; k < 9; k++) A[k] += e * Rn[o9 + k];
       polar(A, 0, NF.q, i * 4, Rn, o9);
     }
     return NF;

@@ -11,10 +11,10 @@
 // the strike, the skin break), SKIN ONLY (window.FLYDIY_WRECK = false: D4a's drawing, no debris) and BEFORE (both off:
 // the drawing until G1851). Per shot:
 //   - THE COLOUR CENSUS (the user's test: the Cub is yellow, even crashed - grey or black on its outside is an inside
-//     layer leaking through): the aeroplane's own pixels (a frame with it against one without it, the debris counted as
-//     the aeroplane's) less the parts that are not yellow by design (the glazing, the struts, the wheels and legs, the
-//     prop and the engine: hidden for one frame each, their pixels taken out), classed by hue: yellow, dark yellow
-//     (yellow in shadow), and the rest - the 'other' share is the number to watch (the black stripe and the letters are
+//     layer leaking through): the aeroplane's own pixels by flat masks (the scene black, the aeroplane white over it, the
+//     depth kept: a tree in front hides it), less the parts that are not yellow by design (the glazing, the struts, the
+//     wheels and legs, the prop and the engine), classed by hue: yellow, dark yellow (yellow in shadow), and the rest - the
+//     'other' share is the number to watch (the black stripe, the letters and the cabin seen through the empty windows are
 //     in it intact: the baseline, shot from the same cameras where the aeroplane is placed, before the crash);
 //   - the frame's cost while the crash ran (the median and the worst, a frame's own ms: the first break's binding and
 //     the releases are in the worst), and the wreck's own stats (FLYDIY_WRECK_STATS, FLYDIY_SKINBREAK_STATS).
@@ -64,12 +64,19 @@ async function pageJpeg(png) {
 }
 // THE COLOUR CENSUS of the frame as it stands (see the header)
 function pageCensus() {
-  const P = FLIGHT_PROBE, m = P.model(), r = P.renderer(), cam = P.camera(), scene = P.craft().parent, B = m.wreckBuild;
+  // THE MASKS ARE FLAT RENDERS: the whole scene in black (its depth: a tree in front of the aeroplane hides it), then the
+  // aeroplane's parts in white over it (the depth kept). Hiding the aeroplane in a lit frame instead (the first cut) moved
+  // the craft's own shadow cascade and the masks caught half the frame
+  const P = FLIGHT_PROBE, m = P.model(), r = P.renderer(), cam = P.camera(), scene = P.craft().parent, craft = P.craft(), B = m.wreckBuild;
   const cv = document.createElement('canvas'); cv.width = r.domElement.width >> 1; cv.height = r.domElement.height >> 1;
   const g = cv.getContext('2d', { willReadFrequently: true });
-  const grab = () => { scene.updateMatrixWorld(true); r.render(scene, cam); g.drawImage(r.domElement, 0, 0, cv.width, cv.height); return g.getImageData(0, 0, cv.width, cv.height).data; };
+  const read = () => { g.drawImage(r.domElement, 0, 0, cv.width, cv.height); return g.getImageData(0, 0, cv.width, cv.height).data; };
   const debris = scene.children.filter(c => /^wreckDebris:/.test(c.name || ''));
-  // the parts that are not yellow by design: the glazing, the struts, the wheels / legs / castor, the prop, the engine
+  scene.updateMatrixWorld(true);
+  r.render(scene, cam);
+  const A = read();
+  // the parts that are not yellow by design: the struts, the wheels / legs / castor, the prop and the engine (bones in the
+  // fold: hidden by their matrix), the glazing (its own meshes), the debris of those kinds
   const parts = new Set();
   const parentOfAttr = new Map(); for (const [mesh, par] of B.parentOf) if (mesh.geometry && mesh.geometry.attributes.position) parentOfAttr.set(mesh.geometry.attributes.position, par);
   for (const s of m.strutRigs || []) { const p = parentOfAttr.get(s.posAttr); if (p && p !== m.grp) parts.add(p); }
@@ -77,37 +84,52 @@ function pageCensus() {
   if (m.castorRig) parts.add(m.castorRig.obj);
   for (const s of m.stretchRigs || []) if (s.mesh) { const p = B.parentOf.get(s.mesh); if (p) parts.add(p); }
   for (const e of m.engRigs || []) parts.add(e.obj);
-  const glass = []; for (const k in B.meshes0) { const mt = m.mats[k]; if (mt && mt.fin === 'glass') glass.push(B.meshes0[k]); }
+  const glass = []; for (const k in B.meshes0) { const mt = m.mats[k]; if (mt && mt.fin === 'glass' && B.meshes0[k].parent) glass.push(B.meshes0[k]); }
   const exDebris = debris.filter(d => /:(wheel|eng|blade|spinner|pane)$/.test(d.name));
-  const A = grab();
-  const keep = [...parts].map(o => ({ o, auto: o.matrixAutoUpdate, M: o.matrix.clone(), vis: o.visible }));
-  for (const k of keep) { k.o.matrixAutoUpdate = false; k.o.matrix.makeScale(1e-6, 1e-6, 1e-6); k.o.visible = false; }
-  const gv = glass.map(x => x.visible); glass.forEach(x => { x.visible = false; });
-  const dv = exDebris.map(x => x.visible); exDebris.forEach(x => { x.visible = false; });
-  const E = grab();
-  for (const k of keep) { k.o.matrixAutoUpdate = k.auto; k.o.matrix.copy(k.M); k.o.visible = k.vis; if (k.auto) k.o.updateMatrix(); }
-  glass.forEach((x, i) => { x.visible = gv[i]; }); exDebris.forEach((x, i) => { x.visible = dv[i]; });
-  const av = debris.map(x => x.visible); m.grp.visible = false; debris.forEach(x => { x.visible = false; });
-  const N = grab();
-  m.grp.visible = true; debris.forEach((x, i) => { x.visible = av[i]; });
-  grab();
-  let craft = 0, yellow = 0, dark = 0, other = 0, grey = 0, shadow = 0;
-  const diff = (X, Y, i) => Math.max(Math.abs(X[i] - Y[i]), Math.abs(X[i+1] - Y[i+1]), Math.abs(X[i+2] - Y[i+2]));
+  const black = new THREE.MeshBasicMaterial({ color: 0x000000 }), white = new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false, side: THREE.DoubleSide });
+  const bg = scene.background, fog = scene.fog, ov = scene.overrideMaterial, ac = r.autoClear;
+  // white over black: `only` says which of the aeroplane's draws are white this pass
+  const mask = only => {
+    scene.background = new THREE.Color(0); scene.fog = null; r.autoClear = false; r.clear();
+    scene.overrideMaterial = black; r.render(scene, cam);
+    const vis = scene.children.map(c => c.visible), kv = craft.children.map(c => c.visible);
+    scene.children.forEach(c => { c.visible = c === craft || debris.includes(c); });
+    craft.children.forEach(c => { c.visible = c === m.grp; });
+    const undo = only();
+    scene.overrideMaterial = white; r.render(scene, cam);
+    undo();
+    scene.children.forEach((c, i) => { c.visible = vis[i]; }); craft.children.forEach((c, i) => { c.visible = kv[i]; });
+    scene.background = bg; scene.fog = fog; scene.overrideMaterial = ov; r.autoClear = ac;
+    return read();
+  };
+  const hideParts = () => {
+    const keep = [...parts].map(o => ({ o, auto: o.matrixAutoUpdate, M: o.matrix.clone(), vis: o.visible }));
+    for (const k of keep) { k.o.matrixAutoUpdate = false; k.o.matrix.makeScale(1e-6, 1e-6, 1e-6); k.o.visible = false; }
+    const gv = glass.map(x => x.visible); glass.forEach(x => { x.visible = false; });
+    const dv = exDebris.map(x => x.visible); exDebris.forEach(x => { x.visible = false; });
+    scene.updateMatrixWorld(true);
+    return () => { for (const k of keep) { k.o.matrixAutoUpdate = k.auto; k.o.matrix.copy(k.M); k.o.visible = k.vis; if (k.auto) k.o.updateMatrix(); }
+      glass.forEach((x, i) => { x.visible = gv[i]; }); exDebris.forEach((x, i) => { x.visible = dv[i]; }); scene.updateMatrixWorld(true); };
+  };
+  const glassOnly = () => {
+    const kv = m.grp.children.map(c => c.visible); m.grp.children.forEach(c => { c.visible = glass.includes(c); });
+    const dv = debris.map(x => x.visible); debris.forEach(x => { x.visible = /:pane$/.test(x.name) && x.visible; });
+    return () => { m.grp.children.forEach((c, i) => { c.visible = kv[i]; }); debris.forEach((x, i) => { x.visible = dv[i]; }); };
+  };
+  const MA = mask(() => () => {}), MN = mask(hideParts), MG = mask(glassOnly);
+  r.render(scene, cam);
+  let craftPx = 0, yellow = 0, dark = 0, other = 0, grey = 0;
   for (let i = 0; i < A.length; i += 4) {
-    if (diff(A, N, i) <= 12 || diff(A, E, i) > 12) continue;
-    // the aeroplane's SHADOW is not the aeroplane: the same ground, darker (each channel the same share of the frame
-    // without the aeroplane)
-    const r0 = A[i] / Math.max(1, N[i]), r1 = A[i+1] / Math.max(1, N[i+1]), r2 = A[i+2] / Math.max(1, N[i+2]);
-    const rmx = Math.max(r0, r1, r2), rmn = Math.min(r0, r1, r2);
-    if (rmx < 0.97 && rmn > 0.12 && rmx - rmn < 0.12) { shadow++; continue; }
-    craft++;
+    if (MA[i] < 128 || MN[i] < 128 || MG[i] >= 128) continue;
+    craftPx++;
     const R = A[i] / 255, G = A[i+1] / 255, Bl = A[i+2] / 255, mx = Math.max(R, G, Bl), mn = Math.min(R, G, Bl), V = mx, S = mx > 0 ? (mx - mn) / mx : 0;
     let h = 0; if (mx > mn) { h = mx === R ? 60 * (((G - Bl) / (mx - mn)) % 6) : mx === G ? 60 * ((Bl - R) / (mx - mn) + 2) : 60 * ((R - G) / (mx - mn) + 4); if (h < 0) h += 360; }
     if (h >= 30 && h <= 68 && S > 0.35) { if (V > 0.32) yellow++; else dark++; }
     else { other++; if (S < 0.18) grey++; }
   }
-  const pc = x => craft ? +(100 * x / craft).toFixed(1) : 0;
-  return { px: craft, yellow: pc(yellow), darkYellow: pc(dark), other: pc(other), greyOrBlack: pc(grey), shadowPx: shadow, w: cv.width, h: cv.height };
+  black.dispose(); white.dispose();
+  const pc = x => craftPx ? +(100 * x / craftPx).toFixed(1) : 0;
+  return { px: craftPx, yellow: pc(yellow), darkYellow: pc(dark), other: pc(other), greyOrBlack: pc(grey), w: cv.width, h: cv.height };
 }
 // the case staged and stepped (the gates' set-up on the home strip), two steps a frame until the wreck and its debris rest
 async function pageStage(o) {
