@@ -77000,3 +77000,43 @@ on the box**. Now (skin_break.js nodeFrames `init`, the page's world path only) 
 PIECE's rigid turn this frame (a Horn fit a piece, a few pieces), and the nodes' frames start again at a heal. The same taxi now
 draws its wings whole (g1867_1_taxi_after.jpg; the 30 m/s trunk 2.5 m out: g1867_1_trunk25_after.jpg). GATE DMGSKIN identical to
 089b2a2a's with times masked (its records do not pass `init`).
+
+## TRAIN 35 - THE DMG TRAIN, HANDED TO A0 (2026-10-05, DEFORM COORDINATOR, local; claude/dmg-integration; damage OFF by default)
+
+**What it carries** (all behind the damage layer, `GEN_DAMAGE_DEFAULT = false`; `?damage=1` on the page turns it on):
+- DMG-D0 INSTRUMENTS (G1800-G1809): sim-diverged vs broke-up, the velocity guard, per-beam plastic work, the ledger
+  section on every beam, the damage view, GATE DMGFPS / DMGINST.
+- DMG-D1a MEMBERS (G1810-G1819): seams and closed break groups, Euler, the seam rules, spruce's ragged break, the kink floor.
+- DMG-D1b WRECK INTEGRITY (G1820-G1829): the strip component test, the refs-core ('broke-up'), the engine limiters.
+- DMG-D3 CLUSTERS (G1840-G1849): fin / rod / boom / float root limits, the boom's mid-span station.
+- DMG-D2a CERTIFICATE (G1830-G1834): limits from the FAR 23 cases, the free test to destruction (BROKE AT 6.01-6.09 g).
+- DMG-D2b GEAR, its damage-OFF commit (G1835-G1839): the gear bracket, every ordinary operation at most 2/3 of its
+  certified yield. **Its switch ON (c0d8b7b0) is held.**
+- DMG-D4a SKIN (G1850-G1859) + DMG-D4b's D4a fix (G1866-G1867, G1867.1): the skin tears with the frame, in the default
+  hybrid drawing too.
+- The coordinator's G1898.1-.10: the switch's default; per-beam work for spruce's pull-out; the guard needs damage ON;
+  'broke-up' as the structure's ending; perf (one postLive hook, the aero pass reads st.w); the wet body over a break
+  (.5), the kink floor plastic (.6), the test to destruction creeps past the ultimate (.7), TANKS-FLOAT's tanks over a
+  break (.8), the wet body tears like the skin and is never held once broken (.9), the damage-OFF path = master's (.10).
+- Trains 32-34 merged in (34's conflicts in the solver, 32_hydro, the node exports, app.js and HANDOVER resolved by hand).
+
+**The gates:** the wide battery on the train-34 merge 51/52 (DMGINST's census red: the water nose-in, fixed by .9); the
+re-gate after .9 21/21; the final gates on this SHA DMGINST, DMGFPS, DMGCLUSTERS, DMGINTEGRITY, DMGSKIN, TREECRASH,
+SIMWORKER, LOAD, BENCH, UISMOKE, BUILD, JOIN PASS.
+
+**Perf** (node sim.step(1/60), nothing touching, against master 55dd98b7, quiet box, the order rotated, 20 rounds,
+paired medians): **damage OFF** metal ground +0.4 %, air +0.5 %, Cub ground +0.8 %, air +0.2 %. Damage ON with a
+certificate (the train-36 state) +0.3..+1.2 %; **ON without a certificate** (a new build's first seconds) Cub ground +3.0 %.
+
+**Held, with what each waits for:**
+- The switch ON (D2b c0d8b7b0): DMG-CERTCOST (the certificate takes 14-47 s in node; measure in the browser worker,
+  throttled; cut; a per-build cache), the no-certificate window (+3.0 %), the full battery with damage ON, the box eyeball.
+- DMG-DAMP (READY 8a22a4f9): lands with DMG-TYRE (the Cub ground-loops in a crosswind roll-out without the hidden
+  damper) and DMG-HULL (the twin on floats water-loops at 2 m/s); its gain onto 39b_servos after train 34.
+- DMG-D4b (the debris, the prop strike, GATE CLIP, the cockpit rule; the user's G1868 - show the crash, a small card -
+  and G1869 - the FPS drop on impact) and DMG-D4c (the outer covering and the inner shell as one wall; the user's
+  yellow-Cub test: a 30 m/s wreck reads 46-59 % non-yellow today).
+
+**Rulings this train** (DEFORM-AND-BREAK §12): dm10-dm12 (the user's), dm13 the fitting factor, dm14 headroom, dm15 the
+gear is the fuse, dm16 the 23.473 sink is the gear's limit case. FAR sections for A0 to open: 23.233, 23.345, 23.427,
+23.473-.499, 23.521-.537.
