@@ -149,6 +149,7 @@ const GROUND_FIELDS = (() => {
       // noise of bankCell m (deg of slope, and a third of it in metres on the wet line), bankWetSea the sea's wet band (m of height
       // over the water - the lakes' is bankWet, in metres from the line)
       bankSoft: 4, bankJit: 20, bankCell: 3.5, bankWetSea: 0.9,
+      bankLip: 4,   // (G1959) the sea's step: the rock spills up to this many metres over its crest, ragged (0 = off)
       // THE POND FROM THE AIR (2026-09-23, the user at 400 m: "they look like speckles on a surface, not like
       // puddles"): pudFar widens the shore with distance (0 = the old hard rim; 6 = pudEdge x 7 by 500 m, so
       // 1.33 m of shore becomes 9.3 m and survives a pixel), pudRim is where the OPEN water starts in the mask

@@ -656,7 +656,8 @@
     range(K, 'reach', 0, 80, 1, kn('bankReach'), ss('bankReach'), v => v ? v + ' m' : 'off', D.bankReach);
     range(K, 'rock from', 0, 70, 0.5, kn('bankLo'), ss('bankLo'), v => v + '\u00b0', D.bankLo);
     range(K, 'full at', 0, 80, 0.5, kn('bankHi'), ss('bankHi'), v => v + '\u00b0', D.bankHi);
-    note(K, 'reach: how far from a lake\u2019s line or the coast a face can be bank (0 = off: the faces keep their type\u2019s ground). The rock comes in from the first slope and is full by the second.');
+    range(K, 'over the crest', 0, 12, 0.5, kn('bankLip'), ss('bankLip'), v => v ? v + ' m' : 'off', D.bankLip);
+    note(K, 'reach: how far from a lake\u2019s line or the coast a face can be bank (0 = off: the faces keep their type\u2019s ground). The rock comes in from the first slope and is full by the second. Over the crest: how far the rock spills over the top of the sea’s step, ragged.');
     const Bl = sec(body, 'the blend', true, 'how the rock meets the cover');
     range(Bl, 'softness', 0, 20, 0.5, kn('bankSoft'), ss('bankSoft'), v => '\u00b1' + v + '\u00b0', D.bankSoft);
     range(Bl, 'ragged edge', 0, 30, 0.5, kn('bankJit'), ss('bankJit'), v => v ? '\u00b1' + (v / 2).toFixed(1) + '\u00b0' : 'off', D.bankJit);

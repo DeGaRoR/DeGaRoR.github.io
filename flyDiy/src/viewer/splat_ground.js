@@ -99,6 +99,7 @@ const SPLAT_GROUND = (() => {
   float gSSlope = 0.0;     // the ground's slope in degrees at this fragment (sSplat, before the candidates): a puddle needs a level place
   uniform vec2 uSSeam, uSNrm, uSLakeE;
   uniform vec4 uSBank;   // SHORES G1500: the carved bank - x its reach (m), y/z the slope (deg) its rock takes over between, w the wet band (m)
+  uniform float uSBankLip;   // SHORES-2 G1959: the sea's step crest - how far (m) the bank's rock spills over it, ragged (0 = off)
   uniform vec4 uSBank2;  // SHORES-2 G1956: the bank's blend - x the ramp's widening each side (deg), y the noise's swing (deg), z its cell (m), w the sea's wet band (m of height)
   uniform float uSBeachRot;
   uniform int uSNCode, uSNCand;
@@ -337,7 +338,7 @@ const SPLAT_GROUND = (() => {
     return min(int(texture2D(uGPackB, (cellIx + 0.5) / gn).g * 255.0 + 0.5), 16);
   }
   // THE SPLAT: macro = the stack's colour (lit by the game's sun after)
-  vec3 sSplat(vec3 macro, vec3 nGeo, float canopy, vec2 uv, float sd, float lsd){
+  vec3 sSplat(vec3 macro, vec3 nGeo, vec3 nTri, float canopy, vec2 uv, float sd, float lsd){
     gSN = vec3(0.0); gSRough = 0.9;
     gSPixM = max(length(fwidth(vWPi.xz)), 1e-4);   // here, before any branch: the derivative is the whole quad's
     vec2 xz = vWPi.xz, p = xz;
@@ -409,6 +410,11 @@ const SPLAT_GROUND = (() => {
                          // written out code by code - cold_links_bench, SHORES G1505)
       float sj = slope + bn * uSBank2.y;
       gSBank = bankZ * smoothstep(uSBank.y - uSBank2.x, uSBank.z + uSBank2.x, sj);
+      // THE CREST OF THE SEA'S STEP (G1959): the land keeps its own height to the coastline and the shelf drops to -5 m just
+      // past it (28_island seaFloor), so the face's top is the first row of land vertices - a long line at one height. The
+      // rock spills over it by up to bankLip m, ragged, where the ground stands over the water (a real step, not a flat beach)
+      if (uSBankLip > 0.01) gSBank = max(gSBank, step(-8.0, sd) * (1.0 - smoothstep(uSBankLip * 0.35, uSBankLip, sd + bn * uSBankLip * 1.2))
+                                                 * smoothstep(0.3, 1.0, vWPi.y) * 0.95);
       gSBankM = bankZ * smoothstep(uSBank.y - 4.0 - uSBank2.x, uSBank.y + 4.0, sj);   // the macro gives way as the rock comes
       for (int i = 2; i < uSNCode; i++) if (i != 5 && i != 6 && i != 12 && i != 17) { w[17] += w[i] * gSBank; w[i] *= 1.0 - gSBank; }
     }
@@ -425,14 +431,16 @@ const SPLAT_GROUND = (() => {
     // down the face. Now the side is ONE weight, |n.xz| against n.y, shared between the two of the four fixed azimuths
     // (0, 45, 90, 135 deg) that bracket the slope's own - the plane a face is read through is never more than 22.5 deg off
     // it (1.08x), and fixed planes do not swim as the normal turns. Steep texels only: flat ground keeps its one fetch.
+    // THE PROJECTION READS THE FACE ITSELF (nTri, the facet's normal), the CODES the smooth slope (nGeo): a gully's vertex
+    // normal is flatter than its faces, and the top projection laid there stretched down the face (it3, sea_rocky)
     vec3 tw = vec3(0.0, 1.0, 0.0);
     if (uSDist2.z > 0.5) {
-      float hl = length(nGeo.xz);
-      float sec = mod(atan(nGeo.z, nGeo.x) + 6.28318531, 3.14159265) * 1.27323954;   // 0..4 quarter-turns (a plane's two faces are one)
+      float hl = length(nTri.xz);
+      float sec = mod(atan(nTri.z, nTri.x) + 6.28318531, 3.14159265) * 1.27323954;   // 0..4 quarter-turns (a plane's two faces are one)
       float k0 = floor(sec), f = smoothstep(0.25, 0.75, sec - k0);
       float a1 = k0 * 0.78539816, a2 = mod(k0 + 1.0, 4.0) * 0.78539816;   // (the fourth wraps to the first: the same plane, the same u)
       gSAx1 = vec2(cos(a1), sin(a1)); gSAx2 = vec2(cos(a2), sin(a2));
-      vec2 a = pow(vec2(hl, abs(nGeo.y)), vec2(uSDist2.z));
+      vec2 a = pow(vec2(hl, abs(nTri.y)), vec2(uSDist2.z));
       tw = vec3(a.x * (1.0 - f), a.y, a.x * f) / max(a.x + a.y, 1e-6);
     }
     vec4 C[8]; vec4 NN[8]; float Wt[8]; float Rl[8]; int n = 0; float ma = -10.0;
@@ -482,7 +490,7 @@ const SPLAT_GROUND = (() => {
     // brightness wearing that texture. macroNear (uSDist2.y) is still how much of the detail's own colour gives way.
     // (SHORES-2 G1957: AND ON ANY FACE - the macro is a 10 m image read from above: down a steep face it is one colour per
     // column, a vertical streak (it2, sea_rocky: green fingers down the rock wherever the bank's weight thinned))
-    if (uSDist2.y > 0.0) { float lc = gLuma(col); vec3 tinted = mac * mix(lc / max(gLuma(mac), 1e-3), rel, uSDist2.w); col = mix(col, tinted, uSDist2.y * (1.0 - max(gSBankM, smoothstep(30.0, 48.0, slope)))); }
+    if (uSDist2.y > 0.0) { float lc = gLuma(col); vec3 tinted = mac * mix(lc / max(gLuma(mac), 1e-3), rel, uSDist2.w); col = mix(col, tinted, uSDist2.y * (1.0 - 0.7 * max(gSBankM, smoothstep(30.0, 48.0, slope)))); }   // (a third kept: the face takes the land's hue, not a dark outline from the air)
     // THE WATERLINE IS WET (SHORES G1500): the bank's first metres over a lake - the shelf the carve leaves - darken toward a
     // wet margin (a submerged grain keeps ~0.55 of its albedo, water.js G799's number) and take a little gloss
     // (SHORES-2 G1956: its line broken by the noise; and THE SEA'S, by height over the water - the bank's foot, a ragged band)
@@ -490,8 +498,7 @@ const SPLAT_GROUND = (() => {
       float wsH = max(uSBank2.w, 1e-3);
       float wsea = step(1e-3, uSBank2.w) * (1.0 - smoothstep(0.6 * bR, bR, sd)) * step(-8.0, sd) * smoothstep(-0.8, -0.1, vWPi.y)
                  * (1.0 - smoothstep(wsH * 0.25, wsH, vWPi.y + bn * wsH * 0.9));
-      wet = max(wet, wsea);
-      col *= 1.0 - 0.45 * wet; gSRough = mix(gSRough, min(gSRough, 0.45), wet); }
+      col *= (1.0 - 0.45 * wet) * (1.0 - 0.3 * wsea); gSRough = mix(mix(gSRough, min(gSRough, 0.45), wet), min(gSRough, 0.65), wsea); }   // (the sea's lighter and duller: a gloss there caught the sun in white streaks, it3)
     return mix(col, mac, mw);
   }
 `;
@@ -500,7 +507,7 @@ const SPLAT_GROUND = (() => {
   // (SHORES-2 G1957: the slope the splat reads is the SMOOTH normal - the vertex normals, interpolated - not the facet's
   // gN: a code switched by slope followed the mesh's triangles; the lighting has always used this one)
   if (uSplatOn > 0.5) { vec3 gNs = inverseTransformDirection(normalize(vNormal), viewMatrix); gNs *= gNs.y < 0.0 ? -1.0 : 1.0;
-    t = sSplat(t, gNs, can, guv, (gA.b * 255.0 - 128.0) * 4.0, lsd); }
+    t = sSplat(t, gNs, gN, can, guv, (gA.b * 255.0 - 128.0) * 4.0, lsd); }
 `;
   // after normal_fragment_maps: the sets' relief bends the shading normal (view space)
   const glslNormal = () => `
@@ -712,7 +719,7 @@ const SPLAT_GROUND = (() => {
       uSSplit: { value: V4() }, uSSplit2: { value: V4() }, uSDist: { value: V4() }, uSDist2: { value: V4() }, uSHex: { value: V4() }, uSPud: { value: V4() }, uSPud2: { value: V4() }, uSVeg: { value: V4() },
       uSFarN: { value: 3 }, uSNearN: { value: 3 },   // the blend's depth (sMat): 3 = the recipe's, 1 = one set (the GRAPHICS 'ground' row)
       uSSeam: { value: new THREE.Vector2() }, uSNrm: { value: new THREE.Vector2() }, uSLakeE: { value: new THREE.Vector2(1, 1) },
-      uSBank: { value: V4() }, uSBank2: { value: V4() },
+      uSBank: { value: V4() }, uSBank2: { value: V4() }, uSBankLip: { value: 0 },
       uSBeachRot: { value: 0 }, uSNCode: { value: NCODE }, uSNCand: { value: 8 },
     };
     let ready = false;
@@ -777,6 +784,7 @@ const SPLAT_GROUND = (() => {
       U.uSLakeE.value.set(K.lakeEdge, 1);
       U.uSBank.value.set(K.bankReach === undefined ? 0 : K.bankReach, K.bankLo || 0, K.bankHi || 1, K.bankWet || 0);   // SHORES G1500
       U.uSBank2.value.set(K.bankSoft || 0, K.bankJit || 0, K.bankCell || 4, K.bankWetSea || 0);   // SHORES-2 G1956
+      U.uSBankLip.value = (K.bankReach || 0) > 0 ? (K.bankLip || 0) : 0;   // G1959 (off with the bank)
       U.uSBeachRot.value = K.beachRot * Math.PI / 180;
       U.uSplatOn.value = (ready && R.on) ? 1 : 0;
     };
