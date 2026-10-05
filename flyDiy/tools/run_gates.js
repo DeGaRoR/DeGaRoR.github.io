@@ -114,7 +114,7 @@ const GATES = [
   { id: 'PILOTACT', file: '_pilotact_check.js', tier: 'core', weight: 3, wall: 300 },
   // G710: the way out of every Jolene stand bent round the parked aeroplanes (planned, for the stock
   // build's and the aluminium C172's span, and flown off HOME's stand past the Cub); ~40 s
-  { id: 'TAXICLEAR', file: '_taxiclear_check.js', tier: 'core', wall: 60 },
+  { id: 'TAXICLEAR', file: '_taxiclear_check.js', tier: 'core', wall: 330 },   // MILL-TAXI G1925-G1929: + every stand and route against every solid thing (the cook's grids, props, cars, trunks), the procedural seeds, the mill flown
   // G710: the plan published (ap.intent) - the legs' planned heights over the ground, the live target
   // and the TECS limits the law used, the path; a stock HOME circuit and a Jolene circuit (~7 min)
   { id: 'PLAN', file: '_plan_check.js', tier: 'core', wall: 420 },

@@ -1,0 +1,2 @@
+aluminium C172 air false t 200 minWing -0.16 prop mn_s_mine/cottage4#person_charles1 at (7256.2, -15488.4) in TAXI, t 39 s contacts 21 item@7263,-15487 in TAXI trunks 0 crashed false phases TAXI>STOP>HOLD>DEPART>TAXI
+the user's Cub air false t 200 minWing -0.01 item mn_s_mine/mill at (7261.8, -15373.4) in TAXI, t 15 s contacts 5 item@7292,-15397 in TAXI trunks 0 crashed false phases TAXI>STOP>HOLD>DEPART>TAXI

@@ -77165,3 +77165,79 @@ cooked build.
    recipe (`C=$(git commit-tree "origin/master^{tree}" -p origin/master -m "Pages: re-trigger ...")`,
    `git push origin "$C:refs/heads/master"` alone), then `node tools/pages_check.js --sha=$C`. 1 = the run failed (its URL is
    printed). 2 = a run but the site did not change in 15 min: re-run with --once later; then re-trigger as for 3.
+## G1925-G1929 - MILL-TAXI: EVERY STAND AND TAXI ROUTE AGAINST EVERY SOLID THING; JUMBO MINE STREET'S WAYS ON ITS CENTRELINE, ITS STAND OFF THE AIR TAXI OFFICE; HOME'S TWO PARKED AEROPLANES 2.5 m WEST; NO PROCEDURAL STRIP ON A HOUSE (2026-10-05, MILL-TAXI for A0, cloud - node + headless Chromium, no GPU; branch claude/mill-taxi-g1925 off train 34 = 55dd98b7)
+
+THE USER (5 Oct): "In the old mill, the taxi circuit is too close from buildings, and an attempt to launch from there hits
+a building on the right. Can you modify this?" The old mill is JUMBO MINE STREET (`mn_strip`, the place picker's name; the
+Kennecott mill `mn_s_mine/mill` stands on its east side, G522). FLOWN before the fix (THE PILOT, node, the obstacles in the
+world): the user's Cub left the stand, took out[1] - the LANE 6.5 m east of the centreline up the 18 m street - and put its
+right wing into the mill 15 s in (5 node contacts), then looped TAXI > STOP > HOLD > DEPART for 200 s, never airborne; the
+C172 did the same into cottage 4 and the person beside it (21 contacts). The parked C172's right wingtip stood 0.35 m off
+the air taxi office.
+
+THE CAUSE. A route was held off the PARKED AEROPLANES only (G710 gpClearWay, GATE TAXICLEAR 1-5); nothing measured a route
+against a house. The street is 17-18 m between faces (the clinic and the school stood 0.5 m inside the strip's 9 m half
+width): only the centreline clears an 11 m span with 3 m to spare, and the authored pattern (G522's, frozen in
+runway.site.pattern) used the generic lane and U-turns: out[1] up the east lane (1.67 m from the mill's front), back[0]'s
+U-turn north along the west lane into the clinic (0.20 m), the stand 5.84 m from the air taxi office.
+
+G1925 THE CENSUS (tools/_taxiclear_lib.js, tools/taxi_census.js). What the game registers as solid (render_premises.js
+hitAdd), read off what SHIPS: the cooked places (premises_packs.json, media/world/<id>/premises p_*.bin) carry every house's,
+item's and outbuilding's OBSTACLE GRID - the page's own lo / hi columns (GATE PREMCOOK holds the cook to the page) - at `at`
+(yaw = the group's rotation.y); their props (people, yard props, lamps) as each prop's bb (PROP_REG, the props + pier packs)
+in the owner's frame; the dressing's cars / boats / lot cars; the objects (a prop's box, a parked aeroplane's
+GP_PARKED_FOOT box, a billboard); the premises' trees as trunks (trunkOf's radius); the analytic world's settlement boxes
+(the registry). 9 256 things on Jolene (town variant). Each stand x each validated build (the stock build 10.0 m, the
+aluminium C172 11.0 m - the widest -, the user's Cub builds/cub_2026-09-20_corrected.json 10.7 m), each on ITS pattern
+(HOME bends per span): the stand point, the PARKED BOX (the build's nodes at the stand, nose to the first taxi point),
+out[0], out[1], back[0], back[1] sampled as THE PILOT's path (patternPath, 1 m), each against half-span + 3 m (the box: 3 m);
+the roll (threshold to threshold) printed, not held. `node tools/taxi_census.js` prints it (violations first; --json;
+--svg <id> <out.svg> [--at x,z] a plan). BEFORE: 405 held rows, 24 VIOLATIONS (reports/evidence/MILL-TAXI/census_before.txt):
+  - mn_strip (x 3 builds): the stand 5.84 m (air taxi office), the parked box 0.35-0.83 m (office), out[0] 5.84, out[1] 1.67
+    (THE MILL), back[0] 0.20 (the clinic)
+  - HOME (x 3 builds): out[0] / out[1] 6.89-7.32 m from the parked Cub o1 (G710 bent to half + 1.5 m only)
+  - procedural seed 1: A1 (a village "main" field) - a settlement house ON the stand, out[0] and back[0]; seeds 6, 12 and 42
+    had one on the roll of a main field (seed 0, the game's world: clean)
+  - w2, w3, nv_strip, tw_ski: clean (tw_ski's nearest a prop at 8.96 m off out[1] for the C172)
+AFTER: 0 violations (census_after.txt); Jumbo Mine Street's tightest 8.82 m (the clinic) for an 8.50 m need.
+
+G1926 HOME: the parked Cub o1 and C172 o2 2.5 m WEST (o1 -150 -> -152.5, o2 -148 -> -150.5; jolene_author.py club_world lz
+40 -> 37.5, 42 -> 39.5). The authored ways out (G772) now clear them by 9.39-9.47 m for every span with NO bend (G710's
+k0 / j0 corners gone: the routes are the authored polylines). Considered and rejected: GP_CLEAR 1.5 -> 3 (one law for the
+planner and the census) - it crowded the C172's out[1] between o1 and o2 into a 3.4 m corner (a sitePatternIssues
+complaint); GP_CLEAR stays 1.5 (the planner's fallback for a parked aeroplane an author puts near a way), the census holds
+3 m. TAXICLEAR 4's calibration measures the pre-G772 way at half + 3 m (o1 moved; it still reads 2+ m inside).
+
+G1927 JUMBO MINE STREET (tools/jolene_parts/mn_mine.json and the fixture, the same edit - jolene_author.py needs the bench
+to regenerate, so both were written by one script; rev 23):
+  - the STAND 4.2 m WNW on its pad: (7281.85, -15319.76) -> (7278.0, -15318.0), heading -1.9484 (toward tx0, which stays); its
+    lane `mn_stand_lane` starts there (GATE CONTACT's rule). 10.02 m to the office, parked box 4.46 m (C172).
+  - out[1] (the way to the north end) on the CENTRELINE: stand > tx0 > c0 > c1 > l1a > l1b > l1c > d1 > hold1, c1 moved from
+    the east lane by the stand to the centreline 205 m up the strip (past the last house, where the north turning bay
+    opens); back[1] = c1 > l1a ... (a pose on the street reaches the U-turn along the centreline, not across the lane)
+  - back[0] (the south U-turn) a teardrop on the south turning bay: e0 (28 m in, centreline) > l0a (0, 9 m W) > l0b
+    (0, 13 m E) > l0c (20 m, 13 m E) > d0 (40 m, centreline) > hold0; rMin 8.0 m, sitePatternIssues empty
+  - the CLINIC and the SCHOOL 1 m west (site z -33 -> -34, -35 -> -36): both stood 0.5 m inside the strip's edge; the
+    street's centreline now keeps 8.82 m (was 8.38)
+  The look is kept: the same street, houses and pad; the stand and two houses moved by a metre or four.
+  NOTE for the editor: the pattern is AUTHORED (G522); moving or turning the strip drops it (the editor's rule) and the
+  derived pattern's lanes come back - on this street they hit the houses; re-run tools/taxi_census.js after an edit.
+
+G1928 THE PROCEDURAL WORLD (24_world_aero.js clean(), 20_world.js passes SET.buildings): a candidate strip whose runway
+rectangle comes within HOUSE_CLEAR 9.5 m (5.5 + 3 + 1) of a settlement house's circle is not clean - the next best by the
+score is taken, so a strip that was clear stands where it stood. Changed: seed 1 A1, seed 6 A2, seed 12 A0, seed 42 A2,
+seed 31415 A1 (its circle only); seeds 0, 2, 3, 7, 777, 999, 2718, 12345 bit-identical (aerodromes compared).
+
+G1929 GATE TAXICLEAR (core, ~5.5 min, wall 330): 6 the Jolene census (135 rows, every stand), 7 seeds 0 1 6 12 42 (the
+widest build; no roll within 8.5 m of a house), 8 CALIBRATION (the mill's old pattern replayed: out[1] < 2 m from the mill,
+back[0] < 2 m from the clinic, the old stand < 8.5 m from the office), 9 FLOWN from the mill with the obstacles in the
+world (intoWorld: the cooked grids through 29_obstacles rasterise, the props / cars as 0.5 m boxes, the trunks on
+treeHits): the C172 airborne at 84 s, the Cub at 103 s, 0 node contacts, 0 trunk hits, no crash, the wing >= 2.98 m off
+every footprint (min at the turn onto the centreline by the clinic). tools/soft_still.js --from <strip id> rolls out at
+that stand (flydiy.route).
+
+RE-COOKED (premises_cook.js --island jolene): only p_28_m60, p_28_m61 (the mill), r_28_m60 (the stand lane's raster),
+p_m1_2 (HOME's apron), the two tallies; premises_packs.json. No frame cost: data and a world-gen rule; nothing per frame.
+EVIDENCE reports/evidence/MILL-TAXI/: census_before/after (.txt, .json), plan_mill_before/after and plan_home_before/after
+(.svg, .png: footprints, the strip, every route with its 8.5 m band), flown_before/after (.json, .txt: the tracks),
+views_mill.json (shadowsky_shots views for the box), the stills (below).
