@@ -72234,3 +72234,129 @@ architecture notes. The small fixes landed on the branch (commits 8544302 and th
 nothing rebuilt here); the rest is the coordinator's, with the fix described per finding. Three gates were written:
 OBSTFRAME (registered, green), STRIPGROUND and GENPAIRS (not registered: red on master until A5 / B10 are fixed).
 
+
+## G1580-G1589 - GEN-PAIRS: THE FRAME OVER PAIRED CONFIGURATIONS - THE TWIN BOOM'S ZERO-LENGTH MEMBERS, THE GEAR ON THE AIRFRAME (B12 HELD); THE VIEWER'S FLEX PER PLANE, TURNED NORMALS, THE RUDDERVATOR'S TRAVEL; THE LOAD RIG SAYS WHY (2026-10-04, GEN-PAIRS for A0, cloud - node only; branch claude/gen-pairs-g1580 off train 31 bff4f64b + origin/ccr-4c7cf662-zcpqoe merged for tools/_genpairs_check.js)
+
+Brief: REVIEW 2026-10-04 (reports/INDEPENDENT-REVIEW-2026-10-04.md) B10, B11, B12 (HELD, the user's ruling), B20, B21,
+B22, D4, D5 (report), E7, H. The review branch is MERGED here whole (its HANDOVER conflict resolved by keeping both entries): it carries the
+round-1/round-2 small fixes, OBSTFRAME (registered) and the unregistered STRIPGROUND, all landing with train 32.
+Source only - the generated outputs (index.html, dev.html, tools/flight_core.js, sw.js, version.json) are NOT committed.
+
+**G1580 B10 - THE TWIN BOOM'S TWO ZERO-LENGTH MEMBERS** (61_gen_frame.js, the twin-boom stab). With `stabY` unset the
+stab sits on the boom's crown, and the tagged HTL/HTR node was built ON the boom chain's tail-station T node: two
+zero-length members, strain (L-0)/0 = Infinity on every twin-boom shakedown, NaN members the load rig skipped silently,
+and 2 "unmirrored" nodes (two nodes on one point). Now the tag goes on the T node itself when the stab point coincides
+with it (< 1 mm; the BM*T tags are read by nothing); its ties to I, O and the bay before are the boom's own members, so
+only its ties to the stab's boom station (HF/HR/HB) are built. `B()` refuses any member under 1e-6 m (or a == b) and
+counts it on `parts.degenerate` ([a, b, cls]). Twin boom: 119 -> 117 nodes, 518 -> 510 members, rank 351 -> 345 (full),
+substeps unchanged (80 stock twin, 102 twin + trike). GATE GENPAIRS REGISTERED (core, ~5 s), holding parts.degenerate
+at 0 as well as finite / mirrored / > 1 mm; negative-verified (the alias disabled: "2 members refused at zero length
+(HTL-BMLT HTR-BMRT), 2 unmirrored nodes", FAIL).
+
+**G1581 B11 - THE GEAR ON THE AIRFRAME** (61_gen_frame.js, the gear block). EL/ER are reassigned to the engine's own
+nodes on a pusher / over-wing pylon / wing nacelles (block 2b); the nosewheel's two upper links and, with the mains
+ahead of every frame, the mains' leg and cross wire then ran 2.3-2.75 m to an engine at the back of the cabin or out on
+the wing. Now: the engine mount only when the engine IS on the nose; otherwise the nosewheel's upper links go to the
+firewall's top corners (off the belly plane, rule 10) and the mains to the firewall ring with the drag brace one ring
+aft (not the leg's own member). Longest gear member: pusher+trike 2.31 (TW-ENGL) -> 1.76 m; wingTop+trike 2.60 -> 1.97;
+pusher+gear.x -0.3 2.51 (AXLE-ENGR) -> 1.63; wingTop+trike+gear.x -0.3 2.75 -> 1.90.
+THE RANK DOES NOT SEE B11 (the review thought it would): every pair, before and after, is rigid - a brace to the engine
+is a legal member. GATE GEN's new PAIRS block (test_gen.js, split over the shards, ~10 s) builds thirteen pairs
+(pusher / wingTop / wing twin / twin boom / V-tail / biplane x tricycle / floats / pusher / mains ahead of every frame),
+ranks them, stands them (a float build: resting on its keels, FL*) AND holds "no gear-class member on an engine node
+unless every engine is on the nose". On the base it is RED on six pairs (pusher, wingTop, wingTwin x tricycle and
+x gearFwd: 2 or 4 gear members on the engine); green after.
+
+**G1582 B12 - HELD (THE USER'S RULING, 2026-10-05): the wing class stays on the section's row, as the base.** The
+finding stands (the cantilever's lower box and carry-through are built under sec('bracing'), which puts MB on the
+FUSELAGE row; plane 2 of a biplane bills plane 0's row). Three fixes were built and measured on the targeted battery;
+each broke a gate or the step budget, so the brief's "no physics-step cost" and "never deliver red" could not both
+hold, and the user ruled to land the rest and leave B12 as its own chantier. THE NUMBERS FOR THAT CHANTIER (base =
+train 31 + the review merge; probe = genMigrateSpec -> buildGen -> genShakedown -> makeLoadTest 1 / 3.8 / 5.7 g):
+- V1, every 'wing' member on the wing row, per plane (box AND lift struts): RED TAKEOFF (the twin fixture's crosswind
+  limit 4.5 -> "> 10": the ladder is SATURATED on this aeroplane - every rung from 4 m/s rolls 11.5-12.8 m against the
+  12.5 m band, the heading weathervaning 28-76 deg, and the 6 m/s rung went 12.57 -> 12.45 m), FLOATS (the twin's
+  touch 0.54 -> 0.34 m/s, bound 0.35), MASS (the stock panel-tank build's reserve margin delta 0.0021 -> 0.0015, bar
+  0.002 - already marginal on the base), WEIGHT (Tiger Moth card 586 -> 680 kg, real 506, band 20 %). The user's
+  Jodel +40.6 kg (bracing ledger 25.84 -> 61.65), SM 4.24 -> 2.35 %, Vs 18.81 -> 19.61, wing tip 4.61 -> 7.00 % at
+  limit; the Cub -2.0 kg, struts x2 k, wing tip 0.371 -> 0.292 % at limit; the twin floats -2.2 kg; the Cessna
+  (alloy / alloy) unchanged. The strut on the FABRIC row is a WOODEN lift strut - GATE LOAD's own note says nobody
+  builds one.
+- V2, the lift strut and its fan kept on the fuselage row (opt.strut), the box on the wing row: the Cub, the Cessna
+  floats and the twin floats IDENTICAL to the base, MASS / TAKEOFF / FLOATS green; WEIGHT still red (the Tiger Moth's
+  +94 kg, the Jodel card 335 -> 375) - the fabric row is not coverGauged, so a box's webs bill at the spruce caps'
+  full density. Tube cantilevers 77 -> 83 substeps.
+- V3, V2 + the fabric row's box webs at GEN_RULES.boxWebK (its cover, 0.80 kg/m2, already bills the ply D-box -
+  60_gen_spec's own note): WEIGHT green, the Jodel's mass / CG / margin IDENTICAL to the base, its box at the fabric
+  row's k (wing tip 4.61 -> 6.94 % at limit, 57 -> 59 % of yield; substeps 120 on the flight box (185 true) -> 104
+  true); wood cantilever 120 -> 99. BUT tube-fuselage cantilevers 71-77 -> 120 substeps (the lower box caps, 0.9 kg
+  nodes at the fabric row's k, bind), the BIPLANE gate's fixture 690.7 -> 590.5 kg and 81 -> 120 (137 true), its
+  tail downwash 0.544 -> 0.575 against the 0.55 window (RED), the Stearman card 912 -> 776 kg (inside its 15 %).
+What the chantier has to rule: the lift strut's material (its own row or field - steel on most real aeroplanes), the
+fabric row's box webs (the D-box billed in the cover), and the integrator cost of a box on light cap nodes (a relump
+of the box's lower caps, as G457's tail, is the likely cure).
+
+**G1583 B20 - ONE SPAR-DELTA BUFFER PER STATION TABLE** (app.js). One buffer sized from rigs[0], filled from rigs[0]'s
+stations, read by every rig: a biplane's plane-2 skin AND its control surfaces (the surfParts read model.deltas too)
+took plane 1's deflections, or read past the buffer (NaN, the vanishing upper wing) when plane 2 had more stations.
+Now `deltaSets`: bindings keyed by their station table (zs + the P stations' node ids) share one buffer, sparDeltas runs
+once per table, each rig / surface reads its own (`.dl`). A monoplane: one table, as before.
+
+**G1584 B21 - DEFLECTED SURFACES TURN THEIR NORMALS** (app.js). `turnNormals(nAttr, baseN, M)`: the rest normals
+through the cofactor of the vertex map (det M . M^-T - exact for the capture's conjugated rotation, conjRot),
+renormalised, needsUpdate (the fold's views upload normals by version already). On the cage surfaces (surfParts) and
+the gen skin's moving groups; the skin flex still keeps rest normals (< ~5 deg, as noted).
+
+**G1585 B22 - THE RUDDERVATOR'S RUDDER TRAVEL** (_cage_join.js, app.js, _pose_headless.js). The join writes
+`k2 = genTravel('rudder')` (27 deg) when a panel's second drive is the rudder, and the ctlLink hinge record carries it;
+the surface and the link consumers read k2 (the surfParts path read none at all: 1 rad), and a payload joined before
+this falls back to the table's rudder travel, not 1 rad. The headless pose harness (_clip_check, _hinge_check) poses
+the rudder drive at k2 too. Full pedal: 57 deg -> 27 deg on every cage V-tail.
+
+**G1586 D4 - THE LOAD RIG REFUSES WHAT IT CANNOT LOAD, AND SAYS WHY** (65_gen_loadtest.js, test_load.js).
+`state.why`: no front/rear spar stations (the tag named), a front station with no rear node, or no strips of the
+surface's kind (a bagless rig would have read 0 % and passed). GATE LOAD prints the reason on a not-measurable row and
+asks the V-TAIL's stab and fin rigs: both must be refused naming HF / VF (a new result row), and the line
+"V-TAIL ... NOT MEASURABLE: ... - OWED (REVIEW D4: no spar truss)" prints on every run.
+THE V-TAIL TRUSS WAS NOT BUILT - not cheap: its strips are kind 'vtail' on the tip and the post (62_gen_aero) with a
+fixed cant normal; a truss the load rig can load needs the strips re-ridden on the bays (the pitch arm and the static
+margin move), the V-tail's mass and substeps move, and GATE GEN's V-tail rows (authority, cross-talk, the 45 deg
+circuit) re-anchor. Its own chantier.
+A FINDING ON THE WAY (not fixed): the stab rig's free set is tags HF/HR/HB/HT, and the conventional stab's tips are
+tagged HTL/HTR - not in it, and reachable from the fuselage through their ring members and wires - so THE TIPS ARE
+PINNED on the trestles: the stab is read as a beam held at both ends. GATE LOAD's stab numbers are stiffer than the
+surface; adding HTL/HTR to the free set is the fix, and it moves the "stab inside 10 %" bound's numbers.
+
+**G1587 - TWO REDS THE REVIEW MERGE BROUGHT** (red on the merge commit d5ed618 itself; the review's round 2 ran no
+battery, by its own note). aeroskin.js: the review's scratch Matrix4 pair for aeroSetCraft was built at MODULE scope
+from a global THREE the node gates that require the file do not have - SKINMAT, LIVERYREACH and WEATHER died on load;
+made on the first call from the THREE it is handed. _parts_check.js: the review's B19 wrote the envelope's image pages
+as one toDataURL pass and GATE PARTS' source regex knew only the old two-pass line; it accepts either form
+(negative-verified: the line removed, PARTS red).
+
+**D5 (report only)**. (1) kScale = (gross / GEN_MATERIALS[S.material].refMass)^0.85 is the FUSELAGE row's refMass and
+multiplies every class's k (wing, tail, gear springs and bracing) - so once B12 lands, a wing member will be the
+wing row's k scaled by the fuselage row's reference: a carbon wing on a tube fuselage and the same wing on a carbon
+fuselage differ by the two refMass ratios (B12's chantier should rule this with it). (2) relump runs while sec('tail') is open: the tail group's re-lumping stays in the tail
+section, but the FUSELAGE group's (S*, TP*, BM*) mass moves are recorded in the tail section's mx at its secClose -
+net zero mass, but the ledger's per-section centroid (mx / mass) of 'tail' carries the fuselage's migration and the
+fuselage row's does not show it. Also: after B10 a twin boom's tail-station T node is tagged HTL/HTR, so it relumps
+with the tail group (it was BM*: the fuselage group) - a few grams between the boom and the stab tips.
+
+GATES (this box: 4 cores, cloud; `node tools/run_gates.js`, the CORE battery on the final source + G1587's fixes
+measured gate by gate): 142 of 149 jobs green on the full run; the seven reds, each accounted for -
+- FRAMECOST (24 rows: draws / uniforms / gl.calls over its baseline on stand, taxi and the garage boot) - IDENTICAL red
+  on the base (d5ed618, the same 24 rows): not this branch's; the train's re-baseline.
+- SKINMAT, LIVERYREACH, WEATHER, PARTS - the review merge's (G1587), red on d5ed618, PASS after G1587.
+- SETTLE - its 700 ms bake budget read 745 ms under four parallel jobs; alone 322 / 333 ms, PASS.
+- INSTANT - the runner's 1800 s cap on this box; alone it PASSES in 41.7 min (the base d5ed618 alone: 41.2 min, PASS - the same wall; the cap is this box's, not this branch's).
+GENPAIRS (registered) PASS; GEN (the PAIRS block in every shard) PASS; LOAD (the V-tail refusal row) PASS; JOIN,
+HINGE, CLIP (the pose harness's k2), SKIN, BIPLANE, FLEX, MOUNT, MASS, WEIGHT, TAKEOFF, FLOATS, UISMOKE PASS.
+THE VALIDATED BUILDS (the Cub builds/cub_2026-09-20_corrected.json, the Jodel, the Cessna floats, the twin on floats):
+IDENTICAL to the base on every probed field - mass, the ledger rows, substeps, Vs, VCruise, L/D, the static margin,
+the CG, every strain and the cost (none is a twin boom, a pusher-trike or a cage V-tail; B12 held). The only measured
+mover outside the twin-boom / pusher-trike pairs: the stock twin boom 498.9 -> 498.2 kg (B10: its two zero-length members and the six that doubled the boom's own),
+substeps 80 the same. PHYSICS-STEP COST: none - no per-step work added (B20's deltas are per station table, once per
+pose; B21's normals turn only a deflected surface's own vertices, on the pose path), no substep count moved on any
+validated build.
+Generated outputs NOT committed - A0 builds.
