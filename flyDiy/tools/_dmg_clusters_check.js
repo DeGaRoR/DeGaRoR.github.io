@@ -60,7 +60,7 @@ function pinPull(k, o) {
     let lam = tEv !== null && !o.keep ? 0 : Math.min(o.cap || Infinity, o.rate * (sim.t - t0));
     for (let s = 0; s < sub; s++) {
       if (tEv === null && !o.keep && lam > 0 && sim.damage().cl.length) lam = 0;   // (off at the substep the part came off)
-      if (o.body) for (const i of free) { const m = sim.m[i] * 9.81 * lam * dt; sim.impulse(i, o.body[0] * m, o.body[1] * m, o.body[2] * m); }
+      if (o.body) for (const i of (o.bodyOn || free)) { const m = sim.m[i] * 9.81 * lam * dt; sim.impulse(i, o.body[0] * m, o.body[1] * m, o.body[2] * m); }
       if (o.loads) for (const [i, F] of o.loads) sim.impulse(i, F[0] * lam * dt, F[1] * lam * dt, F[2] * lam * dt);
       sim.step(dt, 1); clamp();
     }
@@ -167,20 +167,20 @@ if (MAIN && argv[0] === '--build') {
       const rc = [0, 1, 2].map(j => refN.reduce((a, i) => a + def.nodes[i].p[j], 0) / refN.length);
       const lev = i => Math.hypot(def.nodes[i].p[0] - rc[0], def.nodes[i].p[1] - rc[1], def.nodes[i].p[2] - rc[2]);
       let Mper = 0;
-      if (o.body) for (const i of o.free) Mper += sim.m[i] * 9.81 * lev(i);
+      if (o.body) for (const i of (o.bodyOn || o.free)) Mper += sim.m[i] * 9.81 * lev(i);
       if (o.loads) for (const [i, F] of o.loads) Mper += Math.hypot(...F) * lev(i);
       o.rate = o.lim / Math.max(1e-9, Mper) / 3;
     }
     const r = pinPull(k, Object.assign({ watch: [[tag, 'root'], [tag, 'station']].filter(w => findCut(sim, w[0], w[1])), part: o.part || ct.P }, o));
-    const ev = r.D.cl[0] || null, ctN = r.X.cuts.find(c => c.tag === tag && c.kind === kind);
+    const ev = r.D.cl[0] || null;
     // what broke at the event: its own group (or bay) only - every broken member in the cut's X or its group
     // (the cut that parted: the one the pull aimed at, or the tube's other - a torque parts the weaker station first)
     const cE = (ev && r.X.cuts.find(c => c.tag === ev.tag && c.kind === ev.cut)) || ct;
     const grp = cE.grp ? def.parts.dmg.groups.find(G => G.key === cE.grp) : null, own = new Set(cE.X.concat(grp ? grp.t0.concat(grp.t1) : []));
     const brokenAtEv = r.D.broken.slice(0, r.breaksAtEv), stray = brokenAtEv.filter(bi => !own.has(bi));
     pulls.push({ lab, tag, kind, expect, ev: ev && { tag: ev.tag, cut: ev.cut, why: ev.why, t: r.tEv, M: ev.Mb, T: ev.T, grp: ev.grp }, lam: r.lamEv,
-      lim: { Mu: ct.Mu, Mv: ct.Mv, T: ct.T }, broken: brokenAtEv.length, stray: stray.length, groups: r.D.groups.map(G => G.key), cl: r.D.cl.map(c => c.tag + '/' + c.cut + '/' + c.why),
-      rigid: r.rigid, finite: r.finite, clusters: r.X.clusters.map(c => c.tag + ':' + c.nodes.length + (c.off ? ' off' : '')), partedOk: !!(ctN && ctN.done),
+      lim: { Mu: cE.Mu, Mv: cE.Mv, T: cE.T }, broken: brokenAtEv.length, stray: stray.length, groups: r.D.groups.map(G => G.key), cl: r.D.cl.map(c => c.tag + '/' + c.cut + '/' + c.why),
+      rigid: r.rigid, finite: r.finite, clusters: r.X.clusters.map(c => c.tag + ':' + c.nodes.length + (c.off ? ' off' : '')), partedOk: !!(cE && cE.done),
       hist: argv.includes('--trace') ? r.hist : undefined });
   };
   const nd = i => def.nodes[i].p;
@@ -191,7 +191,7 @@ if (MAIN && argv[0] === '--build') {
   // (the flood stops at every root cut of the same kind: a twin boom's tail joins both booms, which stay on their wing)
   const sameCls = ct => X.cuts.filter(q => q.kind === 'root' && q.cls === ct.cls).flatMap(q => q.X);
   for (const c of X.cuts.filter(c => (c.cls === 'rod' || c.cls === 'boom') && c.kind === 'root'))
-    pull('the ' + c.tag + ' loaded down at its tail (n g on the tube and the tail, ramped)', c.tag, 'root', ct => ({ free: freeOf(def, ct, sameCls(ct)), body: [0, -1, 0], lim: ct.Mu, secs: 12 }), { cut: 'root', why: 'bend' });
+    pull('the ' + c.tag + ' loaded down at its tail (n g on the tube and the tail, ramped)', c.tag, 'root', ct => ({ free: freeOf(def, ct, sameCls(ct)), body: [0, -1, 0], bodyOn: ct.cls === 'boom' ? new Set(ct.P) : null, lim: ct.Mu, secs: 12 }), { cut: 'root', why: 'bend' });
   // a tube's station: the boom LEVERED over an obstacle at its station (its station ring pushed up, its tail end down,
   // 1.5 : 1) - the moment just aft of the station is the tail's load x its lever, the root's less by the obstacle's: the
   // case that loads mid-span (a shape-matched tube between two clamps carries no beam's mid-span peak: its load must be
