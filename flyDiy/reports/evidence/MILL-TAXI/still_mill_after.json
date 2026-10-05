@@ -1,0 +1,74 @@
+{
+ "page": "index.html",
+ "place": "stand",
+ "errors": [],
+ "warnings": [
+  "flyDiy: the loader fetched the town raster cells, the page composes default - those cells bake lazily",
+  "THREE.DataUtils.toHalfFloat(): Value out of range.",
+  "THREE.DataUtils.toHalfFloat(): Value out of range.",
+  "THREE.DataUtils.toHalfFloat(): Value out of range.",
+  "THREE.DataUtils.toHalfFloat(): Value out of range.",
+  "THREE.DataUtils.toHalfFloat(): Value out of range.",
+  "THREE.DataUtils.toHalfFloat(): Value out of range.",
+  "THREE.DataUtils.toHalfFloat(): Value out of range.",
+  "THREE.DataUtils.toHalfFloat(): Value out of range.",
+  "THREE.DataUtils.toHalfFloat(): Value out of range.",
+  "THREE.DataUtils.toHalfFloat(): Value out of range.",
+  "THREE.DataUtils.toHalfFloat(): Value out of range.",
+  "THREE.DataUtils.toHalfFloat(): Value out of range.",
+  "THREE.DataUtils.toHalfFloat(): Value out of range.",
+  "THREE.DataUtils.toHalfFloat(): Value out of range.",
+  "THREE.DataUtils.toHalfFloat(): Value out of range.",
+  "THREE.DataUtils.toHalfFloat(): Value out of range.",
+  "THREE.DataUtils.toHalfFloat(): Value out of range.",
+  "THREE.DataUtils.toHalfFloat(): Value out of range.",
+  "THREE.DataUtils.toHalfFloat(): Value out of range."
+ ],
+ "t": {
+  "garage": 435.9,
+  "stand": 490.4,
+  "view": 530,
+  "still": 595.3,
+  "total": 610.9
+ },
+ "bootDone": true,
+ "bootSteps": 24,
+ "hardTimeout": false,
+ "gpu": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+ "soft": {
+  "tier": "software",
+  "gpu": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+  "forced": false,
+  "preset": "potato"
+ },
+ "gfx": null,
+ "trip": {
+  "kind": "rollout",
+  "anim": "timeout",
+  "ms": 36038
+ },
+ "sceneCalls": 712,
+ "sceneTris": 4712376,
+ "info": {
+  "calls": 1,
+  "triangles": 2,
+  "programs": 327,
+  "textures": 396,
+  "geometries": 2199
+ },
+ "clear": [
+  0,
+  0,
+  0
+ ],
+ "picture": {
+  "w": 1280,
+  "h": 720,
+  "clearShare": 0.06176649305555556,
+  "topShare": 0.27435438368055554,
+  "colours": 2888,
+  "lowerMean": 22,
+  "lowerSd": 46
+ },
+ "out": "/home/user/DeGaRoR.github.io/flyDiy/reports/evidence/MILL-TAXI/still_mill_after.jpg"
+}

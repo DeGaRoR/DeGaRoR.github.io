@@ -75466,4 +75466,18 @@ RE-COOKED (premises_cook.js --island jolene): only p_28_m60, p_28_m61 (the mill)
 p_m1_2 (HOME's apron), the two tallies; premises_packs.json. No frame cost: data and a world-gen rule; nothing per frame.
 EVIDENCE reports/evidence/MILL-TAXI/: census_before/after (.txt, .json), plan_mill_before/after and plan_home_before/after
 (.svg, .png: footprints, the strip, every route with its 8.5 m band), flown_before/after (.json, .txt: the tracks),
-views_mill.json (shadowsky_shots views for the box), the stills (below).
+views_mill.json (shadowsky_shots views for the box: the stand, the street, from above - for a GPU pair), and
+still_mill_before / after .jpg (+ .json): SOFT-GPU's tools/soft_still.js --from mn_strip on SwiftShader, the Cub rolled out
+at the mill's stand, the page's own chase view - before, the air taxi office stands at the right wingtip; after, the stand
+4 m back and turned down the street (the software rung's dark ground in both).
+THE BATTERY (node tools/run_gates.js, core, 4 jobs on 4 cloud cores, 95 min wall): 148 PASS; TAXICLEAR, PREMISES,
+PREMCOOK, PREMRASTER, CONTACT, SITE, PARKED, STRIPGROUND, HITBOX, OBSTACLE PASS. Red, none of it this change's:
+  - FRAMECOST (24 rows: the stand / taxi draws.main 914 -> 1046, shadow 169.5 -> 259.5, uniforms x2) - THE STALE PARKED
+    COOK, the cloud's known red (HANDOVER G1910 / G1550): parked_cook.js --check reads STALE on any tree whose build id moved
+    (manifest c8f3b024a774, this tree's f254da091779), every parked aeroplane captured live; master as committed PASSES
+    in this box. **A0: `node tools/parked_cook.js` on the train's build, then FRAMECOST.**
+  - WORLD / HYDRO / SETTLE (perf and bake budgets under 4 jobs): PASS run alone (--only --jobs=1); BIOME's surface perf
+    < 5 us is this box's noise - master reads 4.6-5.0, this tree 4.5-5.3, the same checksum 295245
+  - ROUNDTRIP / INSTANT hit the runner's 30-minute wall under 4 jobs: ROUNDTRIP PASSES alone (1217 s); INSTANT (the
+    garage's slider drags - nothing of this change reaches it) hit the wall alone too, still green row by row (the Cub's 14
+    rows `same`, the C172 begun) - run without the runner's wall: see the line after this one
