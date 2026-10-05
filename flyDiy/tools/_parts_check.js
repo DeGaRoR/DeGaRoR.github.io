@@ -856,7 +856,8 @@ checkNoDeadEnds(PARTS);
     path.join(__dirname, '..', 'src', 'viewer', 'garage.js'), 'utf8');
   const sk = fs2.readFileSync(
     path.join(__dirname, '..', 'src', 'viewer', 'aeroskin.js'), 'utf8');
-  check(/imagesNow\(\) \? \{ images: imagesNow\(\) \}/.test(gar) &&
+  // (REVIEW 2026-10-04 B19 wrote it as one pass, `(im => im ? { images: im } : {})(imagesNow())`; G1587: either form)
+  check(/imagesNow\(\) \? \{ images: imagesNow\(\) \}|\(im => im \? \{ images: im \} : \{\}\)\(imagesNow\(\)\)/.test(gar) &&
         /images: \(o\.images && typeof o\.images === 'object'\)/.test(gar),
     'the save envelope carries the image pages, and unwrap hands them back');
   check(/function loadSpec\(s, name, pq, lg, im\)/.test(gar) &&
