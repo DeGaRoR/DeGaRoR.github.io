@@ -1751,15 +1751,20 @@
       const arr = {}; for (const k of at) arr[k] = new g0.attributes[k].array.constructor(nV * g0.attributes[k].itemSize);
       const idx = nV > 65535 ? new Uint32Array(nI) : new Uint16Array(nI);
       let vo = 0, io = 0;
+      const mir = [];
       for (const n of list) {
         const g = meshes[n].geometry, c = g.attributes.position.count;
         for (const k of at) arr[k].set(g.attributes[k].array.subarray(0, c * g.attributes[k].itemSize), vo * g.attributes[k].itemSize);
         const ix = g.index.array; for (let i = 0; i < g.index.count; i++) idx[io + i] = ix[i] + vo;
+        mir.push([g, { ix: idx, io, vo, n: g.index.count, attr: null }]);
         vo += c; io += g.index.count;
       }
       const geo = new THREE.BufferGeometry();
       for (const k of at) geo.setAttribute(k, new THREE.BufferAttribute(arr[k], g0.attributes[k].itemSize, g0.attributes[k].normalized));
       geo.setIndex(new THREE.BufferAttribute(idx, 1));
+      // G1866 (DMG-D4b, the D4a fix): each source's INDEX MIRROR - a triangle the wreck removes from a bucket's own index
+      // (skin_break's tear) reaches the merged copy through it (app.js idxMirror)
+      for (const [g, M] of mir) { M.attr = geo.index; (g.userData.ixMirror || (g.userData.ixMirror = [])).push(M); }
       geo.computeBoundingSphere();
       const mesh = new THREE.Mesh(geo, m0.material);
       mesh.name = 'craftStill';
@@ -3088,6 +3093,11 @@
     // mergeModel): the rigs keep writing their own attribute objects (now views into the fold), a part that moves as a
     // whole is a bone. Told which buffers a rig writes (they go first: one upload range) and which meshes are a wheel's
     // (G1005: they cast under the crumb line)
+    // G1866 (DMG-D4b, the D4a fix): EACH GEOMETRY BY ITS POSITION ATTRIBUTE, taken before the fold and the still merge
+    // take meshes out of the graph - what a rig writes is how skin_break's records find their geometry, folded or not
+    // (a map over objects that exist anyway; no frame reads it until a break)
+    const wreckBuild = { geoOf: new Map() };
+    grp.traverse(o => { if (o.isMesh && o.geometry && o.geometry.attributes.position) wreckBuild.geoOf.set(o.geometry.attributes.position, o.geometry); });
     let fold = null, foldIn = null, foldEye = null;
     if (FBK && !FBK.ab && window.FLOWN_BAKE.mergeModel) {
       const written = new Set();
@@ -3144,7 +3154,7 @@
     }
     // a merged bucket's rig moved nothing (the merge takes only those); the
     // first rig stays whatever it is - sparDeltas reads its station table
-    const m = Object.assign(entry, { grp, props, deltas, people, still,
+    const m = Object.assign(entry, { grp, props, deltas, people, still, wreckBuild,
                         fold: foldIn,                                  // C4b: the cabin's swap (view(cockpit))
                         foldExt: (fold && fold.fade) || foldEye || null,   // the hybrid: the exterior's band (G1124: two zones)
                         rigs: still ? rigs.filter((r, i) => i === 0 || !still.names.has(r.name)) : rigs,
@@ -3835,7 +3845,7 @@
         poseRigid(c.obj);                             // G357: in the true frame
       }
     }
-    brkCage(xA, yU, cg, [O[0] + oR[0], O[1] + oR[1], oR[2]], skinMode === 1 ? SKIN_GAINS[1] : SKIN_GAINS[0]);   // G1851
+    brkCage(xA, yU, cg, [O[0] + oR[0], O[1] + oR[1], oR[2]], skinMode === 1 ? SKIN_GAINS[1] : SKIN_GAINS[0], still);   // G1851
   }
   // G1851 / G1852 (DMG-D4a): THE SKIN OVER A BREAK (src/viewer/skin_break.js; DEFORM-AND-BREAK §2.5, §5.1, §8.4). Both
   // skins read the one damage state (dmgNow: the broken list and DMG-D1b's pieces, inline or from the worker on change).
@@ -3848,20 +3858,37 @@
   // and before another model poses (brkRestore)
   // ?skinbreak=0 (or window.FLYDIY_SKINBREAK = false at any time): the skin as it was drawn before G1851 - the A/B for the
   // box (D4b) and for the stills (tools/dmg_skin_stills.js: the same wreck, both ways)
-  const BRK = { model: null, recs: [] };
+  // (G1864: ms - each phase's worst frame and total, the box's own read of the cost: records = the first break's binding,
+  // event = the break events, frames = the nodes' frames, pose = the riding and the tear)
+  const BRK_BIND = 4000;                                  // G1864: the places a frame the full binding takes
+  const BRK = { model: null, recs: [], vB: -1, posed: false, ms: { records: 0, event: 0, frames: 0, pose: 0, recordsT: 0, eventT: 0, poseT: 0, frameMax: 0, n: 0 } };
   try { if (/[?&]skinbreak=0(&|$)/.test(location.search || '')) window.FLYDIY_SKINBREAK = false; } catch (e) {}
   // the rig's read-out (tools/dmg_skin_stills.js): the records live, the triangles removed / torn, the vertices riding
-  window.FLYDIY_SKINBREAK_STATS = () => ({ on: window.FLYDIY_SKINBREAK !== false, recs: BRK.recs.length,
+  window.FLYDIY_SKINBREAK_STATS = () => ({ on: window.FLYDIY_SKINBREAK !== false, recs: BRK.recs.length, ms: Object.assign({}, BRK.ms),
     removed: BRK.recs.reduce((a, R) => a + (R.removed || 0), 0), torn: BRK.recs.reduce((a, R) => a + (R.torn || 0), 0),
     tris: BRK.recs.reduce((a, R) => a + R.nt, 0), riding: BRK.recs.reduce((a, R) => a + (R.ride ? R.ride.reduce((x, y) => x + y, 0) : 0), 0) });
   function brkRestore() {
-    for (const R of BRK.recs) { if (R.idx0) { R.idx.set(R.idx0); brkIdx(R); } R.vB = -1; R.active = false; }
+    for (const R of BRK.recs) { if (R.idx0) { R.idx.set(R.idx0); brkIdx(R); } R.vB = -1; R.active = false; brkNrm(R); }
+    BRK.posed = false;
     if (BRK.model) { BRK.model._pose = null; BRK.model._poseNG = null; }   // re-posed from the rest on the next frame
     BRK.recs.length = 0; BRK.model = null;
   }
   // an index array changed: every geometry drawing it re-uploads it (the rig's mesh, and the flown bake's views on the
   // same payload group - their index attributes wrap the same array)
-  function brkIdx(R) { for (const g of R.geos || [R.geo]) if (g && g.index) g.index.needsUpdate = true; }
+  // (G1864: the normals a riding vertex turned, back as built)
+  function brkNrm(R) { if (R.nAttr && R.nRest) { R.nAttr.array.set(R.nRest); R.nAttr.needsUpdate = true; } }
+  function brkIdx(R) { for (const g of R.geos || [R.geo]) if (g && g.index) { g.index.needsUpdate = true; idxMirror(g); } }
+  // G1866 (DMG-D4b, the D4a fix): ...AND EVERY MERGED COPY OF IT. The flown bake's fold (flown_bake.js mergeModel) and the
+  // still merge (mergeStill) draw a bucket from their own copy of its index, offset - its positions they share (views),
+  // its index they do not: a triangle removed from the bucket's own index stayed drawn in the fold, which is the default
+  // game's exterior (the hybrid bake). Each copy registered itself on the source geometry (userData.ixMirror: { ix, io,
+  // vo, n, attr }); this carries the source's index into each. An event's cost, never a frame's
+  function idxMirror(g) {
+    const M = g && g.userData && g.userData.ixMirror;
+    if (!M || !g.index) return;
+    const a = g.index.array;
+    for (const m of M) { const ix = m.ix, io = m.io, vo = m.vo; for (let i = 0; i < m.n; i++) ix[io + i] = a[i] + vo; if (m.attr) m.attr.needsUpdate = true; }
+  }
   function brkState() {
     if (!window.SKIN_BREAK) return null;
     if (window.FLYDIY_SKINBREAK === false) { if (BRK.recs.length) brkRestore(); return null; }
@@ -3869,8 +3896,8 @@
     const D = dmgNow();
     if (!D || !D.br.length) {
       // a heal (a reset, a new flight): every record's index as built, the records let go (their bindings kept)
-      if (BRK.recs.length && model && model.brk) for (const R of BRK.recs) { if (SKIN_BREAK.event(R, model.brk.T, D || { br: [], vB: -2 })) brkIdx(R); R.vB = -1; }
-      BRK.recs.length = 0;
+      if (BRK.recs.length && model && model.brk) for (const R of BRK.recs) { if (SKIN_BREAK.event(R, model.brk.T, D || { br: [], vB: -2 })) brkIdx(R); R.vB = -1; brkNrm(R); }
+      BRK.recs.length = 0; BRK.posed = false;
       return null;
     }
     BRK.model = model;
@@ -3883,8 +3910,11 @@
   function brkRec(owner, g, geo, base, rest, fabric, cage) {
     if (owner.brkR) { if (BRK.recs.indexOf(owner.brkR) < 0) BRK.recs.push(owner.brkR); return owner.brkR; }
     if (!cage) Object.assign(g, SKIN_BREAK.bindNearest(base, g.nv, rest, def.nodes.length));
-    const R = SKIN_BREAK.make(g, SKIN_BREAK.NEAR_K, { fabric, cage, pos: base, rest });
-    R.geo = geo; R.geos = []; owner.brkR = R; BRK.recs.push(R);
+    // (G1867: the cage's records welded - its vertices bound, evented and posed once a place - and riding whole: see brkCage)
+    const R = SKIN_BREAK.make(g, SKIN_BREAK.NEAR_K, { fabric, cage, pos: base, rest, weld: !!cage, rideAll: !!cage });
+    // (G1866: the record's own geometry first - a folded member is out of the graph, and a walk alone left it out: its
+    // index edits then reached nothing, neither the member nor the fold's copy)
+    R.geo = geo; R.geos = [geo]; owner.brkR = R; BRK.recs.push(R);
     model.grp.traverse(m => { if (m.geometry && m.geometry.index && m.geometry.index.array === geo.index.array && R.geos.indexOf(m.geometry) < 0) R.geos.push(m.geometry); });
     return R;
   }
@@ -3906,32 +3936,42 @@
   }
   // THE FLOWN CAGE SNAPSHOT: after its own pose (the rigid body frame, the spar stations, the hinges, the struts'
   // two ends). Its frame is the visual's: a node at B^-1 (p - origin) - o (app.js nodeVis, G267.2), o = off + oRest
-  const brkCageOn = () => { if (BRK.recs.length) return true; const D = model && !model.gen ? dmgNow() : null; return !!(D && D.br.length); };
-  function brkCage(xA, yU, cg, o, gain) {
+  // (G1864: the cage is re-posed over a break when a node moved - poseModel's own test - or a new break event came: a
+  // wreck at rest stands still)
+  const brkCageOn = () => { const D = model && !model.gen ? dmgNow() : null; if (!(D && D.br.length)) return BRK.recs.length > 0; return !BRK.posed || BRK.vB !== D.vB; };
+  function brkCage(xA, yU, cg, o, gain, still) {
     const D = brkState();
     if (!D || model.gen) return;
+    // G1864 (DMG-D4b): a wreck at REST is drawn as it stands - no node moved past the pose's 0.3 mm (poseModel's own
+    // still test, which brkCageOn no longer forces off) and no new break event: nothing to re-pose (it was every frame,
+    // the whole snapshot riding: 62 ms frames on a broken-up Cub at rest, measured on the box)
+    if (still && BRK.posed && BRK.vB === D.vB && !BRK.recs.some(R => R.pending)) return;
     const K = model.brk, SB = SKIN_BREAK, N = def.nodes, n = N.length;
-    // the 3x3 inverse of the pose's oblique basis (columns xA, yU, xA x yU), as nodeVis takes it
+    // the 3x3 inverse of the pose's oblique basis (columns xA, yU, xA x yU), as nodeVis takes it; and the basis itself
     const inv3 = (X, Y) => { const Z = [X[1]*Y[2]-X[2]*Y[1], X[2]*Y[0]-X[0]*Y[2], X[0]*Y[1]-X[1]*Y[0]];
       const a = X[0], b = Y[0], c = Z[0], d = X[1], e = Y[1], f = Z[1], g = X[2], h = Y[2], k = Z[2];
       const det = a * (e * k - f * h) - b * (d * k - f * g) + c * (d * h - e * g) || 1e-9;
       return [(e * k - f * h) / det, (c * h - b * k) / det, (b * f - c * e) / det, (f * g - d * k) / det, (a * k - c * g) / det,
               (c * d - a * f) / det, (d * h - e * g) / det, (b * g - a * h) / det, (a * e - b * d) / det]; };
-    const into = (out, Mi, P, org) => { for (let i = 0; i < n; i++) { const x = P(i, 0) - org[0], y = P(i, 1) - org[1], z = P(i, 2) - org[2];
-      out[i*3] = Mi[0]*x + Mi[1]*y + Mi[2]*z - o[0]; out[i*3+1] = Mi[3]*x + Mi[4]*y + Mi[5]*z - o[1]; out[i*3+2] = Mi[6]*x + Mi[7]*y + Mi[8]*z - o[2]; } return out; };
+    const basis = (X, Y) => { const Z = [X[1]*Y[2]-X[2]*Y[1], X[2]*Y[0]-X[0]*Y[2], X[0]*Y[1]-X[1]*Y[0]]; return [X[0], Y[0], Z[0], X[1], Y[1], Z[1], X[2], Y[2], Z[2]]; };
+    // G1864: THE NODES IN THE WORLD. rest: the frame's own coordinates (the design's: metres, orthonormal), live: the
+    // sim's; a group's rest goes there through the REST basis (og + B0 (v + o)), its riding comes back through the live
+    // one. The visual frame is the body's OBLIQUE basis, and a broken-up wreck turns it to anything (165 degrees between
+    // xA and yU, measured): fitted there, every node's turn was a shear and the whole skin tore
     if (!K.rest) {
       const R2 = def.refs, avg = ids => { const q = [0, 0, 0]; for (const i of ids) for (let j = 0; j < 3; j++) q[j] += N[i].p[j] / ids.length; return q; };
       const nrm = a => { const L = Math.hypot(a[0], a[1], a[2]) || 1e-9; return [a[0] / L, a[1] / L, a[2] / L]; };
       const t1 = avg(R2.noseFrame), t2 = avg(R2.tailMid), u1 = avg(R2.upLo), u2 = avg(R2.upHi);
-      K.rest = into(new Float64Array(n * 3), inv3(nrm([t2[0]-t1[0], t2[1]-t1[1], t2[2]-t1[2]]), nrm([u2[0]-u1[0], u2[1]-u1[1], u2[2]-u1[2]])),
-                    (i, j) => N[i].p[j], avg(R2.origin || R2.noseFrame));
-      K.live = new Float64Array(n * 3);
-      // which geometry each rigged position buffer belongs to (the index each record edits)
-      K.geoOf = new Map(); model.grp.traverse(m => { if (m.isMesh && m.geometry && m.geometry.attributes.position) K.geoOf.set(m.geometry.attributes.position, m.geometry); });
+      const X0 = nrm([t2[0]-t1[0], t2[1]-t1[1], t2[2]-t1[2]]), Y0 = nrm([u2[0]-u1[0], u2[1]-u1[1], u2[2]-u1[2]]);
+      K.B0 = basis(X0, Y0); K.Mi0 = inv3(X0, Y0); K.og = avg(R2.origin || R2.noseFrame);
+      K.rest = new Float64Array(n * 3); for (let i = 0; i < n; i++) for (let j = 0; j < 3; j++) K.rest[i*3+j] = N[i].p[j];
+      // which geometry each rigged position buffer belongs to (the index each record edits) - G1864: the build's own map
+      // (model.wreckBuild.geoOf): the hybrid bake's fold takes its members out of the graph, and a walk of the graph found
+      // none of them - every folded group went without its record (no riding, no tear) in the default game
+      K.geoOf = (model.wreckBuild && model.wreckBuild.geoOf) || new Map();
+      if (!K.geoOf.size) model.grp.traverse(m => { if (m.isMesh && m.geometry && m.geometry.attributes.position) K.geoOf.set(m.geometry.attributes.position, m.geometry); });
     }
-    const Mi = inv3(xA, yU);
-    into(K.live, Mi, (i, j) => sim.p[i * 3 + j], cg);
-    K.down[0] = -Mi[1]; K.down[1] = -Mi[4]; K.down[2] = -Mi[7];
+    K.down[0] = 0; K.down[1] = -1; K.down[2] = 0;
     const fabW = brkFabricWing(), fabB = def.spec && def.spec.material === 'tubeFabric';
     // the groups: the snapshot's own (the covering, the wing band), the control surfaces (rebased about their pivot),
     // the struts and the tail's anchored parts (unrebased)
@@ -3939,25 +3979,55 @@
     for (const r of model.rigs) groups.push([r, r.g, r.posAttr, r.base, null, (r.bind && r.bind.bound.length) ? fabW : fabB]);
     for (const s2 of model.surfParts || []) groups.push([s2, null, s2.posAttr, s2.base, s2.pivot, fabW]);
     for (const s2 of (model.strutRigs || []).concat(model.anchorRigs || [])) groups.push([s2, null, s2.posAttr, s2.base, null, false]);
+    const tm = performance.now(); let tRec = 0, tEv = 0, bud = BRK_BIND;
     for (const [own, , pa, base, off, fab] of groups) {
       const geo = K.geoOf.get(pa);
       if (!geo || !geo.index) continue;
+      const t0 = performance.now();
       if (!own.brkR) {
-        const nv = pa.count, bM = off ? Float32Array.from(base, (x, i) => x + off[i % 3]) : base;
-        const R = brkRec(own, { nv, idx: geo.index.array }, geo, bM, K.rest, fab, true);
-        R.baseM = bM;
+        // its rest in the frame's coordinates, og + B0 (base + off + o), and its normals there (B0^-T n)
+        const nv = pa.count, bD = new Float64Array(nv * 3), B0 = K.B0, og = K.og, Mi0 = K.Mi0;
+        const fx = (off ? off[0] : 0) + o[0], fy = (off ? off[1] : 0) + o[1], fz = (off ? off[2] : 0) + o[2];
+        for (let v = 0; v < nv; v++) { const a = base[v*3] + fx, b = base[v*3+1] + fy, c = base[v*3+2] + fz;
+          bD[v*3] = og[0] + B0[0]*a + B0[1]*b + B0[2]*c; bD[v*3+1] = og[1] + B0[3]*a + B0[4]*b + B0[5]*c; bD[v*3+2] = og[2] + B0[6]*a + B0[7]*b + B0[8]*c; }
+        const R = brkRec(own, { nv, idx: geo.index.array }, geo, bD, K.rest, fab, true);
+        R.baseD = bD; R.w = new Float64Array(nv * 3);
+        const na = geo.attributes.normal;
+        if (na && na.count === nv) {
+          R.nAttr = na; R.nRest = Float32Array.from(na.array); const nB = R.nB = new Float32Array(nv * 3);
+          for (let v = 0; v < nv; v++) { const x = na.array[v*3], y = na.array[v*3+1], z = na.array[v*3+2];
+            const a = Mi0[0]*x + Mi0[3]*y + Mi0[6]*z, b = Mi0[1]*x + Mi0[4]*y + Mi0[7]*z, c = Mi0[2]*x + Mi0[5]*y + Mi0[8]*z, L = Math.hypot(a, b, c) || 1;
+            nB[v*3] = a / L; nB[v*3+1] = b / L; nB[v*3+2] = c / L; }
+        }
       } else if (BRK.recs.indexOf(own.brkR) < 0) BRK.recs.push(own.brkR);   // (a record let go at a heal or an A/B: held again)
-      const R = own.brkR;
-      if (SB.event(R, K.T, D, K.rest, R.baseM)) brkIdx(R);
+      const R = own.brkR, t1 = performance.now(); tRec += t1 - t0;
+      R.lastBound = 0;
+      if (SB.event(R, K.T, D, K.rest, R.baseD, Math.max(0, bud))) brkIdx(R);
+      bud -= R.lastBound || 0;                            // (an event binds within what is left of the frame's budget)
+      tEv += performance.now() - t1;
     }
-    SB.nodeFrames(K.NF, K.T, D, K.rest, K.live);
-    for (const [own, , pa, base, off] of groups) {
+    // G1864: THE BINDING SPREAD OVER FRAMES - the full binding (each place's 4 nodes, a small least squares) costs 1-2 us a
+    // place, ~85k places on the user's Cub (500k vertices welded): at the first break in one go it was a 0.2-0.5 s frame on
+    // the box. BRK_BIND places a frame instead (the break's own zone first); a place not bound yet rides its nearest node
+    let left = bud;
+    for (const R of BRK.recs) { if (left <= 0) break; if (R.pending) left -= SB.bindMore(R, K.T, left); }
+    const t2 = performance.now();
+    SB.nodeFrames(K.NF, K.T, D, K.rest, sim.p);
+    const t3 = performance.now();
+    const X = { Mi: inv3(xA, yU), B: basis(xA, yU), cg, o, w: null, n: null, nB: null };
+    for (const [own, , pa, , off] of groups) {
       const R = own.brkR; if (!R || !R.active) continue;
-      SB.poseCage(R, K.rest, K.live, R.baseM, pa.array, K.NF, K.down, off);
-      if (gain === 1 && SB.tear(R, base, pa.array)) brkIdx(R);
-      pa.needsUpdate = true;
+      X.w = R.w; X.n = R.nAttr ? R.nAttr.array : null; X.nB = R.nB || null;
+      SB.poseCage(R, K.rest, sim.p, R.baseD, pa.array, K.NF, K.down, off, X);
+      if (gain === 1 && SB.tear(R, R.baseD, R.w)) brkIdx(R);
+      pa.needsUpdate = true; if (R.nAttr) R.nAttr.needsUpdate = true;
     }
+    BRK.vB = D.vB; BRK.posed = true;
+    const t4 = performance.now(), M = BRK.ms;
+    M.records = Math.max(M.records, tRec); M.event = Math.max(M.event, tEv); M.frames = Math.max(M.frames, t3 - t2); M.pose = Math.max(M.pose, t4 - t3);
+    M.recordsT += tRec; M.eventT += tEv; M.poseT += t4 - t3; M.frameMax = Math.max(M.frameMax, t4 - tm); M.n++;
   }
+
   // G1002 (A6-GROUND, the playtest's "floaty" taxi): THE CONTACT SHADOWS. One instanced draw of soft dark blobs on
   // the ground straight under each tyre (and a faint one under the fuselage), fading with the tyre's height over
   // the ground it stands on - contact_shadow.js says why and how. In the world only: the hangar has its own floor.

@@ -75770,3 +75770,46 @@ break ON (after) and OFF (before: `window.FLYDIY_SKINBREAK = false`, the drawing
   should read "the cage snapshot (app.js poseModel) and the generated skin (poseSkinGen)".
 - The stills predate D2a's certificate (above); the coordinator may want them re-shot on the integration branch once D4b's
   look is settled (`node tools/dmg_skin_stills.js`, ~25 min on the soft GPU).
+
+## G1866-G1867 DMG-D4b: THE D4a FIX - THE SKIN BREAK REACHES THE DEFAULT GAME'S DRAWING (the hybrid bake), RIDES IN THE WORLD, WHOLE, AND COSTS NOTHING AT REST (2026-10-05, DMG-D4b for the DEFORM COORDINATOR, local GPU; branch claude/dmg-d4a-fix off claude/dmg-integration bd0b9d0b; the D4b work rides on top in claude/dmg-d4b-wreck)
+
+Found on the box with `?damage=1&simw=0`, the user's Cub at a trunk at 30 m/s: in the DEFAULT game (the flown bake's hybrid: the
+exterior folded far, drawn as views on the fold near) D4a's cage skin break did almost nothing, and once half-fixed it drew giant
+stretched triangles. D4a's stills were taken on SwiftShader, where the bake is off. Five causes, each fixed (app.js, flown_bake.js,
+skin_break.js; nothing in the solver; damage OFF and nothing broken: not one byte of the drawing moves):
+
+1. **brkCage found each group's geometry by walking model.grp** - the fold takes its members out of the graph, so every folded group
+   (the exterior: most of the aeroplane) got no record: no riding, no tear. Now a build-time map (`model.wreckBuild.geoOf`: each
+   geometry by its position attribute, taken before the fold and the still merge).
+2. **The fold draws from a merged COPY of each bucket's index** (flown_bake.js mergeModel `IX`; mergeStill likewise): the positions are
+   views (the rigs write what is drawn), the index is not, so a removed triangle stayed drawn. Each copy now registers an index mirror
+   on its source geometry (`userData.ixMirror: { ix, io, vo, n, attr }`), and `idxMirror(g)` carries the source's index into each at
+   every event / tear (brkIdx). Once (1) was fixed without (2), the riding reached the fold and the removals did not: the "giant
+   triangles" of the first box stills.
+3. **brkRec's `R.geos` started empty** (filled by a graph walk only): for an out-of-graph member brkIdx touched nothing. `R.geos = [geo]`.
+4. **The cage is posed through the body's OBLIQUE basis** (xA, yU, xA x yU: 85.6 deg apart on the Cub as built) and D4a fitted its
+   nodes' frames in that frame. A wreck turns it to anything: **165 deg between xA and yU on a broken-up Cub** (its refs on different
+   pieces) - every node's "rotation" a shear, and **110 k of the snapshot's 167 k triangles tore**. Now the riding is in the WORLD
+   (skin_break.js `poseCage(..., X)`): the nodes' frames from the design rest to the sim's positions, each record's rest in the
+   design frame (`R.baseD`, through the REST basis), each vertex's world place kept (`R.w`: the tear reads true lengths) and drawn
+   back through the live basis. Without X (GATE DMGSKIN's node records) poseCage is exactly as before.
+   - **Normals turned**: a riding vertex's normal turns with its blended rotation (drawn through the basis's transpose); at rest
+     normals had made the folded wings chrome-white mirrors under the sky. Restored at a heal.
+5. **Only vertices off the core or at a broken member's end rode**; a wing or a cabin bent round a trunk WITHOUT a member broken under
+   it kept the cage's rigid / spar-station pose and stretched into sheets metres long (the 3 m/s taxi still). The cage records now ride
+   WHOLE once anything is broken (`rideAll`: exact under a rigid motion, so an undamaged part looks as before), **welded**: the snapshot
+   is unwelded (three vertices a triangle, each place repeated ~6x), so the binding, the event and the riding are done once a PLACE
+   (`dupOf`, `rep[v]`) and copied (500 k vertices -> ~85 k places on the Cub).
+   - **The binding spread over frames**: the full binding (4 nodes a place, a small least squares, 1-2 us) is made `BRK_BIND` = 4000
+     places a frame (the break's own zone first; `bindMore`); a place not bound yet rides its nearest node. It was one 0.23-0.46 s
+     frame at the first break on the box.
+   - **At rest, nothing**: the cage is re-posed only when a node moved past poseModel's own 0.3 mm or a new break event came (it was
+     re-posed every frame: ~80 ms frames with a wreck standing still on the box).
+   - `FLYDIY_SKINBREAK_STATS().ms`: each phase's worst frame and total (records, event, frames, pose).
+
+**Gates** (reports/evidence/DMG-D4b/d4a-fix/): DMGSKIN 116/116, UISMOKE, BUILD, JOIN PASS; **each output identical to the base's
+(bd0b9d0b) with times and sizes masked** (gate_dmgskin.txt, gate_dmgskin_base.txt, gates_vs_base.txt). The welded / ride-all / budget
+paths are page-only (the gate's records keep D4a's semantics; its numbers do not move).
+**Open:** the tear still takes most of the fuselage covering in a 30 m/s trunk impact (the frame folds; fabric past 15 % tears) and
+leaves small torn islands riding loose nodes; a crumple instead of a tear in compression, and dropping islands under a size, are
+D4b's / D4c's to judge with the user (D4b's stills and the colour census).
