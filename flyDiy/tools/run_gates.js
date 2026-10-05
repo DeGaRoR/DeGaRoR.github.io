@@ -210,6 +210,10 @@ const GATES = [
   // SUPPORT limiters (only with damage on, slack in normal operations, the engine kept off the cabin in a severe
   // nose-in). Three builds at once
   { id: 'DMGINTEGRITY', file: '_dmg_integrity_check.js', tier: 'core', weight: 3, wall: 180 },
+  // G1850-G1853 (DMG-D4a SKIN): the broken list over the worker on change (inline = worker at every step; no byte with
+  // nothing broken), and the skin over a break - no live triangle on two pieces or across a broken member, none stretched
+  // past 1.15 x its rest + 1 cm, on TREECRASH / DMGINTEGRITY's crash cases; damage off = the base's skin bit for bit. Three at once
+  { id: 'DMGSKIN', file: '_dmg_skin_check.js', tier: 'core', weight: 3, wall: 240 },
   // G286: the graphics settings menu - presets, the pref, the handles
   { id: 'GFX', file: '_gfx_check.js', tier: 'core' },
   // G584: the programs - the real three on a fake GL: the depth warm-up is the shadow pass's own set, two

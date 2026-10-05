@@ -1338,7 +1338,11 @@ function genCapLoft(ids, mesh, flip) {
 //   pos = base + SUM w_i * (node_i_body - node_i_rest_body)
 // `hinged` verts already have their hinge-rotated position in `pos`, so the
 // delta is ADDED rather than written, same contract as the imported path.
-function poseSkinGen(g, rest, live, base, pos, gain, hinged) {
+// G1851 (DMG-D4a): `brk` - over a break, src/viewer/skin_break.js's record for this group poses it instead (its
+// vertices on their nodes' own frames, its weights kept on their own side of a broken member, the fabric's drape):
+// { R, NF, down, poseGen }. Absent, or nothing broken, this loop is the whole of it, as it always was.
+function poseSkinGen(g, rest, live, base, pos, gain, hinged, brk) {
+  if (brk && brk.R && brk.R.active) return brk.poseGen(brk.R, rest, live, base, pos, gain, hinged, brk.NF, brk.down);
   const { wi, ww, nv } = g;
   for (let v = 0; v < nv; v++) {
     let dx = 0, dy = 0, dz = 0;
