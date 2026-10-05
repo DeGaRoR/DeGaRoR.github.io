@@ -100,3 +100,12 @@ GATE WIPLINE's trim floor went from +0.5 to -1 deg (level or bow-up).
   rules - the user, or a session whose network reaches wipaire.com.
 - A build saved on a preset before G1930 keeps its rows (the starter applies once); re-picking the preset in the
   float page gives it these lines. Opened in the garage, any saved Wipline float takes the held plan on its next join.
+
+## Gates
+
+WIPLINE (with the new REFERENCE section), FLOATS, HYDRODYN, WATER, SEAPLANE: PASS. The core battery
+(`node tools/run_gates.js`, 148 gates): 143 PASS; the five red, each re-run alone on the idle box against master's
+worktree - BIOME, SETTLE (timing budgets under load) and ROUNDTRIP (a boot under load) PASS alone; INSTANT times out
+at 1800 s on master too; FRAMECOST is the stale parked cook (`tools/parked_cook.js --check`: STALE on any tree whose
+core moved; master PASSES) - A0's re-cook on the train's build clears it. No frame cost: the hulls keep their panels
+and triangle counts.
