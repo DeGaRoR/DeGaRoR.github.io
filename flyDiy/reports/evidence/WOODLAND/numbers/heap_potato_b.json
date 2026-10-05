@@ -1,0 +1,2333 @@
+{
+ "build": "cub",
+ "rows": [
+  [
+   14,
+   "page",
+   0.4,
+   0,
+   0
+  ],
+  [
+   221,
+   "reading the renderer",
+   2.4,
+   1.2,
+   0
+  ],
+  [
+   620,
+   "reading the island",
+   2.1,
+   192.2,
+   0
+  ],
+  [
+   857,
+   "reading the island",
+   3.4,
+   340.4,
+   0
+  ],
+  [
+   1091,
+   "reading the island",
+   2.8,
+   305,
+   0
+  ],
+  [
+   1472,
+   "reading the model",
+   17.3,
+   470.6,
+   0
+  ],
+  [
+   3026,
+   "reading the model",
+   69.6,
+   493.2,
+   0
+  ],
+  [
+   3546,
+   "building your aeroplane",
+   71.3,
+   499.5,
+   0
+  ],
+  [
+   4927,
+   "building your aeroplane",
+   43.6,
+   510,
+   0
+  ],
+  [
+   6189,
+   "your aeroplane on the stand",
+   132.5,
+   566.1,
+   0
+  ],
+  [
+   8183,
+   "laying out the world: light",
+   101,
+   551.7,
+   0
+  ],
+  [
+   8870,
+   "laying out the world: ground colour",
+   162,
+   680.5,
+   0
+  ],
+  [
+   9174,
+   "laying out the world: ground colour",
+   165.3,
+   716,
+   0
+  ],
+  [
+   9427,
+   "laying out the world: ring heights",
+   217.8,
+   742.5,
+   0
+  ],
+  [
+   9887,
+   "laying out the world: ring heights",
+   142.2,
+   655.3,
+   0
+  ],
+  [
+   10277,
+   "laying out the world: water",
+   151.9,
+   742.6,
+   0
+  ],
+  [
+   11122,
+   "laying out the world: settlements",
+   243.5,
+   793.9,
+   0
+  ],
+  [
+   11433,
+   "laying out the world: patch ground",
+   153.7,
+   738,
+   0
+  ],
+  [
+   11685,
+   "laying out the world: patch ground",
+   152,
+   772.2,
+   0
+  ],
+  [
+   11919,
+   "laying out the world: patch ground",
+   165.7,
+   798.6,
+   0
+  ],
+  [
+   12158,
+   "laying out the world: patch ground",
+   144.3,
+   812.6,
+   0
+  ],
+  [
+   12415,
+   "laying out the world: patch ground",
+   160.2,
+   837.6,
+   0
+  ],
+  [
+   12628,
+   "laying out the world: patch block",
+   152.6,
+   873.9,
+   0
+  ],
+  [
+   12834,
+   "laying out the world: patch block",
+   185.7,
+   920.4,
+   0
+  ],
+  [
+   13246,
+   "laying out the world: roads",
+   190.2,
+   958,
+   0
+  ],
+  [
+   13505,
+   "laying out the world: roads",
+   189.5,
+   1001,
+   0
+  ],
+  [
+   13883,
+   "laying out the world: ground under the premises",
+   197.6,
+   1063.1,
+   0
+  ],
+  [
+   14196,
+   "laying out the world: far terrain sink",
+   222.5,
+   1130.7,
+   0
+  ],
+  [
+   14874,
+   "laying out the world: meadows",
+   160.5,
+   918.8,
+   0
+  ],
+  [
+   15597,
+   "building the field 0 / 50",
+   168,
+   930.9,
+   0
+  ],
+  [
+   15826,
+   "building the field 48 / 50",
+   177.4,
+   951.2,
+   0
+  ],
+  [
+   16091,
+   "building the field 48 / 50",
+   210.7,
+   1001.3,
+   0
+  ],
+  [
+   16311,
+   "building the field 50 / 50",
+   219,
+   1052.2,
+   0
+  ],
+  [
+   16572,
+   "parking the other aeroplanes",
+   212.9,
+   1216.2,
+   0
+  ],
+  [
+   16800,
+   "growing the forest 5 / 149",
+   230.4,
+   1221.2,
+   0
+  ],
+  [
+   17026,
+   "growing the forest 9 / 148",
+   209.7,
+   1223.9,
+   0
+  ],
+  [
+   17284,
+   "growing the forest 14 / 148",
+   210.6,
+   1228.5,
+   0
+  ],
+  [
+   17856,
+   "the world settling round the stand · 0 to build",
+   237.9,
+   1243,
+   0
+  ],
+  [
+   18470,
+   "the world settling round the stand · 0 to build",
+   275.4,
+   1326.5,
+   0
+  ],
+  [
+   18727,
+   "the world settling round the stand · 0 to build",
+   190.3,
+   969.8,
+   0
+  ],
+  [
+   19031,
+   "the world settling round the stand · 0 to build",
+   182.9,
+   1003.8,
+   0
+  ],
+  [
+   19271,
+   "the world settling round the stand · 0 to build",
+   179.1,
+   1029.3,
+   0
+  ],
+  [
+   19494,
+   "the world settling round the stand · 0 to build",
+   180.4,
+   1040.5,
+   0
+  ],
+  [
+   19741,
+   "the world settling round the stand · 0 to build",
+   196.2,
+   1044.8,
+   0
+  ],
+  [
+   20002,
+   "the world settling round the stand · 0 to build",
+   207.7,
+   1051.6,
+   0
+  ],
+  [
+   20210,
+   "the world settling round the stand · 0 to build",
+   186.3,
+   1054.9,
+   0
+  ],
+  [
+   20459,
+   "the world settling round the stand · 0 to build",
+   195.8,
+   1063.3,
+   0
+  ],
+  [
+   20702,
+   "the world settling round the stand · 0 to build",
+   197.8,
+   1070.2,
+   0
+  ],
+  [
+   20937,
+   "the world settling round the stand · 0 to build",
+   185.7,
+   1075.2,
+   0
+  ],
+  [
+   21168,
+   "the world settling round the stand · 0 to build",
+   189.4,
+   1075.3,
+   0
+  ],
+  [
+   21395,
+   "the world settling round the stand · 0 to build",
+   186,
+   1077.2,
+   0
+  ],
+  [
+   21631,
+   "the world settling round the stand · 0 to build",
+   198,
+   1083.1,
+   0
+  ],
+  [
+   21856,
+   "the world settling round the stand · 0 to build",
+   191.7,
+   1085.5,
+   0
+  ],
+  [
+   22133,
+   "the world settling round the stand · 0 to build",
+   196.9,
+   1088.5,
+   0
+  ],
+  [
+   22416,
+   "the world settling round the stand · 0 to build",
+   207.3,
+   1096.5,
+   0
+  ],
+  [
+   22696,
+   "the world settling round the stand · 0 to build",
+   189.2,
+   1101.1,
+   0
+  ],
+  [
+   22930,
+   "the world settling round the stand · 0 to build",
+   201.6,
+   1105.8,
+   0
+  ],
+  [
+   23168,
+   "the world settling round the stand · 0 to build",
+   197.2,
+   1108.6,
+   0
+  ],
+  [
+   23398,
+   "the world settling round the stand · 0 to build",
+   191,
+   1111.4,
+   0
+  ],
+  [
+   23628,
+   "the world settling round the stand · 0 to build",
+   206.2,
+   1112.7,
+   0
+  ],
+  [
+   23864,
+   "the world settling round the stand · 0 to build",
+   198.7,
+   1114.7,
+   0
+  ],
+  [
+   24096,
+   "the world settling round the stand · 0 to build",
+   193,
+   1120.3,
+   0
+  ],
+  [
+   24342,
+   "the world settling round the stand · 0 to build",
+   210,
+   1127.7,
+   0
+  ],
+  [
+   24636,
+   "the world settling round the stand · 0 to build",
+   206.6,
+   1133.1,
+   0
+  ],
+  [
+   24908,
+   "the world settling round the stand · 0 to build",
+   216.2,
+   1133.6,
+   0
+  ],
+  [
+   25145,
+   "the world settling round the stand · 0 to build",
+   218.1,
+   1140.2,
+   0
+  ],
+  [
+   25384,
+   "the world settling round the stand · 0 to build",
+   197.6,
+   1143.1,
+   0
+  ],
+  [
+   25625,
+   "the world settling round the stand · 0 to build",
+   215.3,
+   1146.3,
+   0
+  ],
+  [
+   25862,
+   "the world settling round the stand · 0 to build",
+   200.5,
+   1152.9,
+   0
+  ],
+  [
+   26878,
+   "committing your build",
+   325.5,
+   1191.5,
+   0
+  ],
+  [
+   28690,
+   "baking your aeroplane: the charts (the outside)",
+   376.9,
+   1200.7,
+   0
+  ],
+  [
+   29024,
+   "baking your aeroplane: the charts (the outside)",
+   377,
+   1200.7,
+   0
+  ],
+  [
+   29386,
+   "baking your aeroplane: the programs (the outside)",
+   385.3,
+   1218.4,
+   0
+  ],
+  [
+   29632,
+   "baking your aeroplane: the programs (the outside)",
+   385.4,
+   1218.4,
+   0
+  ],
+  [
+   29840,
+   "baking your aeroplane: the programs (the outside)",
+   385.4,
+   1218.4,
+   0
+  ],
+  [
+   30056,
+   "baking your aeroplane: the programs (the outside)",
+   385.5,
+   1218.4,
+   0
+  ],
+  [
+   30266,
+   "baking your aeroplane: the programs (the outside)",
+   385.6,
+   1218.4,
+   0
+  ],
+  [
+   30480,
+   "baking your aeroplane: the programs (the outside)",
+   385.6,
+   1218.4,
+   0
+  ],
+  [
+   30946,
+   "baking your aeroplane: the programs (the outside)",
+   358.5,
+   1236.7,
+   0
+  ],
+  [
+   31157,
+   "baking your aeroplane: the gutters and the mips (the outside)",
+   359.4,
+   1220.7,
+   0
+  ],
+  [
+   31482,
+   "baking your aeroplane: the gutters and the mips (the outside)",
+   368.8,
+   1220.7,
+   0
+  ],
+  [
+   32315,
+   "baking your aeroplane: the cache (the cabin)",
+   338.4,
+   1339.6,
+   0
+  ],
+  [
+   32540,
+   "baking your aeroplane: the charts (the cabin)",
+   338.3,
+   1348.4,
+   0
+  ],
+  [
+   32748,
+   "baking your aeroplane: the programs (the cabin)",
+   348.3,
+   1357.3,
+   0
+  ],
+  [
+   32961,
+   "baking your aeroplane: the programs (the cabin)",
+   348.3,
+   1357.3,
+   0
+  ],
+  [
+   33177,
+   "baking your aeroplane: the programs (the cabin)",
+   348.4,
+   1357.3,
+   0
+  ],
+  [
+   33390,
+   "baking your aeroplane: the programs (the cabin)",
+   348.4,
+   1357.3,
+   0
+  ],
+  [
+   33603,
+   "baking your aeroplane: the programs (the cabin)",
+   348.4,
+   1357.3,
+   0
+  ],
+  [
+   33820,
+   "baking your aeroplane: the programs (the cabin)",
+   348.4,
+   1357.3,
+   0
+  ],
+  [
+   34277,
+   "baking your aeroplane: the programs (the cabin)",
+   367.3,
+   1374.4,
+   0
+  ],
+  [
+   34485,
+   "baking your aeroplane: the gutters and the mips (the cabin)",
+   367.9,
+   1358.4,
+   0
+  ],
+  [
+   34698,
+   "baking your aeroplane: the gutters and the mips (the cabin)",
+   368,
+   1358.4,
+   0
+  ],
+  [
+   37372,
+   "your aeroplane, built",
+   214.9,
+   1288.4,
+   0
+  ],
+  [
+   37786,
+   "uploading the textures 71 / 217",
+   246.9,
+   1313.4,
+   0
+  ],
+  [
+   38075,
+   "uploading the textures 133 / 217",
+   247,
+   1313.5,
+   0
+  ],
+  [
+   38353,
+   "uploading the textures 198 / 217",
+   247.1,
+   1313.5,
+   0
+  ],
+  [
+   38612,
+   "compiling the world",
+   201.2,
+   1313.5,
+   0
+  ],
+  [
+   38817,
+   "compiling the world",
+   201.3,
+   1313.5,
+   0
+  ],
+  [
+   39033,
+   "compiling the world",
+   201.4,
+   1313.5,
+   0
+  ],
+  [
+   39246,
+   "compiling the world",
+   201.4,
+   1313.5,
+   0
+  ],
+  [
+   39463,
+   "compiling the world",
+   201.5,
+   1313.5,
+   0
+  ],
+  [
+   39679,
+   "compiling the world",
+   201.5,
+   1313.5,
+   0
+  ],
+  [
+   39881,
+   "compiling the world",
+   201.6,
+   1313.5,
+   0
+  ],
+  [
+   40099,
+   "compiling the world",
+   212.1,
+   1313.5,
+   0
+  ],
+  [
+   40597,
+   "compiling the world",
+   210.3,
+   1313.5,
+   0
+  ],
+  [
+   40999,
+   "compiling the world",
+   210.4,
+   1313.5,
+   0
+  ],
+  [
+   41433,
+   "compiling the world",
+   210.5,
+   1313.5,
+   0
+  ],
+  [
+   41684,
+   "compiling the world",
+   210.7,
+   1313.5,
+   0
+  ],
+  [
+   41896,
+   "compiling the world",
+   210.8,
+   1313.5,
+   0
+  ],
+  [
+   42114,
+   "compiling the world",
+   210.9,
+   1313.5,
+   0
+  ],
+  [
+   42329,
+   "compiling the world",
+   211,
+   1313.5,
+   0
+  ],
+  [
+   42542,
+   "compiling the world",
+   211,
+   1313.5,
+   0
+  ],
+  [
+   42754,
+   "compiling the world",
+   211.1,
+   1313.5,
+   0
+  ],
+  [
+   42958,
+   "compiling the world",
+   211.1,
+   1313.5,
+   0
+  ],
+  [
+   43172,
+   "compiling the world",
+   211.2,
+   1313.5,
+   0
+  ],
+  [
+   43388,
+   "compiling the world",
+   211.2,
+   1313.5,
+   0
+  ],
+  [
+   43603,
+   "compiling the world",
+   211.2,
+   1313.5,
+   0
+  ],
+  [
+   43820,
+   "compiling the world",
+   211.3,
+   1313.5,
+   0
+  ],
+  [
+   44038,
+   "compiling the world",
+   211.3,
+   1313.5,
+   0
+  ],
+  [
+   44249,
+   "compiling the world",
+   213.7,
+   1313.5,
+   0
+  ],
+  [
+   44454,
+   "compiling the world",
+   213.8,
+   1313.5,
+   0
+  ],
+  [
+   44657,
+   "compiling the world",
+   213.8,
+   1313.5,
+   0
+  ],
+  [
+   44860,
+   "compiling the world",
+   213.8,
+   1313.5,
+   0
+  ],
+  [
+   45065,
+   "compiling the world",
+   213.9,
+   1313.5,
+   0
+  ],
+  [
+   45267,
+   "compiling the world",
+   213.9,
+   1313.5,
+   0
+  ],
+  [
+   45483,
+   "compiling the world",
+   213.9,
+   1313.5,
+   0
+  ],
+  [
+   45699,
+   "compiling the shaders",
+   225.6,
+   1313.6,
+   0
+  ],
+  [
+   45914,
+   "compiling the shaders",
+   225.7,
+   1313.6,
+   0
+  ],
+  [
+   46131,
+   "compiling the shaders",
+   225.7,
+   1313.6,
+   0
+  ],
+  [
+   46665,
+   "compiling the shaders",
+   218.4,
+   1314.1,
+   0
+  ],
+  [
+   47110,
+   "first light",
+   272,
+   1314.1,
+   0
+  ],
+  [
+   47386,
+   "first light",
+   227.1,
+   1314.1,
+   0
+  ],
+  [
+   47658,
+   "first light",
+   241.3,
+   1314.1,
+   0
+  ],
+  [
+   47926,
+   "first light",
+   215.9,
+   1314.1,
+   0
+  ],
+  [
+   48198,
+   "first light",
+   233.7,
+   1314.1,
+   0
+  ],
+  [
+   48464,
+   "first light",
+   225,
+   1314.1,
+   0
+  ],
+  [
+   48729,
+   "first light",
+   242.7,
+   1314.1,
+   0
+  ],
+  [
+   48950,
+   "first light",
+   226.4,
+   1314.1,
+   0
+  ],
+  [
+   49181,
+   "first light",
+   222.1,
+   1314.5,
+   0
+  ],
+  [
+   49812,
+   "first light 219 / 219",
+   229.7,
+   1314.4,
+   0
+  ],
+  [
+   50091,
+   "first light 219 / 219",
+   249.1,
+   1314.4,
+   0
+  ],
+  [
+   50350,
+   "your aeroplane's shaders",
+   230.3,
+   1314.4,
+   0
+  ],
+  [
+   50555,
+   "your aeroplane, as it settled",
+   246.1,
+   1314.4,
+   0
+  ],
+  [
+   50790,
+   "BOOT gone",
+   240.6,
+   1314.4,
+   0
+  ],
+  [
+   51053,
+   "BOOT gone",
+   247.9,
+   1315.4,
+   0
+  ],
+  [
+   51284,
+   "BOOT gone",
+   234.4,
+   1315.4,
+   0
+  ],
+  [
+   51522,
+   "BOOT gone",
+   250,
+   1315.4,
+   0
+  ],
+  [
+   51751,
+   "BOOT gone",
+   239.2,
+   1315.4,
+   0
+  ],
+  [
+   51985,
+   "BOOT gone",
+   254.7,
+   1315.4,
+   0
+  ],
+  [
+   52191,
+   "BOOT gone",
+   241.8,
+   1315.4,
+   0
+  ],
+  [
+   52416,
+   "BOOT gone",
+   231.2,
+   1315.4,
+   0
+  ],
+  [
+   52649,
+   "BOOT gone",
+   246.6,
+   1315.4,
+   0
+  ],
+  [
+   52857,
+   "BOOT gone",
+   233.8,
+   1315.4,
+   0
+  ],
+  [
+   53058,
+   "BOOT gone",
+   246.9,
+   1315.4,
+   0
+  ],
+  [
+   53288,
+   "BOOT gone",
+   236.3,
+   1315.4,
+   0
+  ],
+  [
+   53514,
+   "BOOT gone",
+   251.6,
+   1315.4,
+   0
+  ],
+  [
+   53724,
+   "BOOT gone",
+   238.9,
+   1315.4,
+   0
+  ],
+  [
+   53948,
+   "BOOT gone",
+   254.3,
+   1315.4,
+   0
+  ],
+  [
+   54157,
+   "BOOT gone",
+   241.4,
+   1315.4,
+   0
+  ],
+  [
+   54383,
+   "BOOT gone",
+   230.7,
+   1315.4,
+   0
+  ],
+  [
+   54587,
+   "BOOT gone",
+   243.9,
+   1315.4,
+   0
+  ],
+  [
+   54816,
+   "BOOT gone",
+   233.3,
+   1315.4,
+   0
+  ],
+  [
+   55019,
+   "BOOT gone",
+   246.5,
+   1315.4,
+   0
+  ],
+  [
+   55250,
+   "BOOT gone",
+   235.9,
+   1315.4,
+   0
+  ],
+  [
+   55454,
+   "BOOT gone",
+   249,
+   1315.4,
+   0
+  ],
+  [
+   55683,
+   "BOOT gone",
+   238.4,
+   1315.4,
+   0
+  ],
+  [
+   55886,
+   "BOOT gone",
+   251.5,
+   1315.4,
+   0
+  ],
+  [
+   56089,
+   "BOOT gone",
+   238.8,
+   1315.4,
+   0
+  ],
+  [
+   56317,
+   "BOOT gone",
+   254.1,
+   1315.4,
+   0
+  ],
+  [
+   56520,
+   "BOOT gone",
+   241.3,
+   1315.4,
+   0
+  ],
+  [
+   56749,
+   "BOOT gone",
+   256.6,
+   1315.4,
+   0
+  ],
+  [
+   56955,
+   "BOOT gone",
+   243.8,
+   1315.4,
+   0
+  ],
+  [
+   57157,
+   "BOOT gone",
+   257,
+   1315.4,
+   0
+  ],
+  [
+   57359,
+   "BOOT gone",
+   244.2,
+   1315.4,
+   0
+  ],
+  [
+   57583,
+   "BOOT gone",
+   259.5,
+   1315.4,
+   0
+  ],
+  [
+   57815,
+   "BOOT gone",
+   249,
+   1315.4,
+   0
+  ],
+  [
+   58025,
+   "BOOT gone",
+   236.1,
+   1315.4,
+   0
+  ],
+  [
+   58249,
+   "BOOT gone",
+   251.4,
+   1315.4,
+   0
+  ],
+  [
+   58486,
+   "BOOT gone",
+   240.9,
+   1315.4,
+   0
+  ],
+  [
+   58693,
+   "BOOT gone",
+   254.1,
+   1315.4,
+   0
+  ],
+  [
+   58917,
+   "BOOT gone",
+   243.5,
+   1315.4,
+   0
+  ],
+  [
+   59154,
+   "BOOT gone",
+   258.8,
+   1315.4,
+   0
+  ],
+  [
+   59385,
+   "BOOT gone",
+   248.2,
+   1315.4,
+   0
+  ],
+  [
+   59617,
+   "BOOT gone",
+   237.6,
+   1316.4,
+   0
+  ],
+  [
+   59850,
+   "BOOT gone",
+   252.9,
+   1316.4,
+   0
+  ],
+  [
+   60085,
+   "BOOT gone",
+   242.3,
+   1316.4,
+   0
+  ],
+  [
+   60316,
+   "BOOT gone",
+   257.6,
+   1316.4,
+   0
+  ],
+  [
+   60557,
+   "BOOT gone",
+   247.1,
+   1316.4,
+   0
+  ],
+  [
+   60792,
+   "BOOT gone",
+   236.6,
+   1316.4,
+   0
+  ],
+  [
+   60995,
+   "BOOT gone",
+   249.7,
+   1316.4,
+   0
+  ],
+  [
+   61216,
+   "BOOT gone",
+   239.1,
+   1316.4,
+   0
+  ],
+  [
+   61427,
+   "BOOT gone",
+   252.2,
+   1316.4,
+   0
+  ],
+  [
+   61655,
+   "BOOT gone",
+   241.7,
+   1316.5,
+   0
+  ],
+  [
+   61862,
+   "BOOT gone",
+   254.8,
+   1316.5,
+   0
+  ],
+  [
+   62084,
+   "BOOT gone",
+   244.1,
+   1316.4,
+   0
+  ],
+  [
+   62293,
+   "BOOT gone",
+   257.2,
+   1316.4,
+   0
+  ],
+  [
+   62524,
+   "BOOT gone",
+   246.6,
+   1316.4,
+   0
+  ],
+  [
+   62752,
+   "BOOT gone",
+   261.9,
+   1316.4,
+   0
+  ],
+  [
+   62961,
+   "BOOT gone",
+   249.2,
+   1316.4,
+   0
+  ],
+  [
+   63195,
+   "BOOT gone",
+   264.5,
+   1316.4,
+   0
+  ],
+  [
+   63419,
+   "BOOT gone",
+   253.9,
+   1316.4,
+   0
+  ],
+  [
+   63652,
+   "BOOT gone",
+   243.4,
+   1316.4,
+   0
+  ],
+  [
+   63860,
+   "BOOT gone",
+   256.5,
+   1316.4,
+   0
+  ],
+  [
+   64087,
+   "BOOT gone",
+   245.9,
+   1316.4,
+   0
+  ],
+  [
+   64295,
+   "BOOT gone",
+   259,
+   1316.4,
+   0
+  ],
+  [
+   64520,
+   "BOOT gone",
+   248.5,
+   1316.4,
+   0
+  ],
+  [
+   64752,
+   "BOOT gone",
+   263.7,
+   1316.4,
+   0
+  ],
+  [
+   64961,
+   "BOOT gone",
+   251,
+   1316.4,
+   0
+  ],
+  [
+   65186,
+   "BOOT gone",
+   240.5,
+   1316.4,
+   0
+  ],
+  [
+   65419,
+   "BOOT gone",
+   255.7,
+   1316.4,
+   0
+  ],
+  [
+   65653,
+   "BOOT gone",
+   245.1,
+   1316.4,
+   0
+  ]
+ ],
+ "steps": [
+  {
+   "step": "page",
+   "t": 14,
+   "end": 0.4,
+   "peak": 0.4,
+   "ab": 0,
+   "gcAB": null,
+   "gcHeap": null
+  },
+  {
+   "step": "reading the renderer",
+   "t": 221,
+   "end": 2.4,
+   "peak": 2.4,
+   "ab": 1.2,
+   "gcAB": null,
+   "gcHeap": null
+  },
+  {
+   "step": "reading the island",
+   "t": 620,
+   "end": 2.8,
+   "peak": 3.4,
+   "ab": 305,
+   "gcAB": null,
+   "gcHeap": null,
+   "peakAB": 340.4
+  },
+  {
+   "step": "reading the model",
+   "t": 1472,
+   "end": 69.6,
+   "peak": 69.6,
+   "ab": 493.2,
+   "gcAB": null,
+   "gcHeap": null,
+   "peakAB": 493.2
+  },
+  {
+   "step": "building your aeroplane",
+   "t": 3546,
+   "end": 43.6,
+   "peak": 71.3,
+   "ab": 510,
+   "gcAB": null,
+   "gcHeap": null,
+   "peakAB": 510
+  },
+  {
+   "step": "your aeroplane on the stand",
+   "t": 6189,
+   "end": 132.5,
+   "peak": 132.5,
+   "ab": 566.1,
+   "gcAB": null,
+   "gcHeap": null
+  },
+  {
+   "step": "laying out the world: light",
+   "t": 8183,
+   "end": 101,
+   "peak": 101,
+   "ab": 551.7,
+   "gcAB": null,
+   "gcHeap": null
+  },
+  {
+   "step": "laying out the world: ground colour",
+   "t": 8870,
+   "end": 165.3,
+   "peak": 165.3,
+   "ab": 716,
+   "gcAB": null,
+   "gcHeap": null,
+   "peakAB": 716
+  },
+  {
+   "step": "laying out the world: ring heights",
+   "t": 9427,
+   "end": 142.2,
+   "peak": 217.8,
+   "ab": 655.3,
+   "gcAB": null,
+   "gcHeap": null,
+   "peakAB": 655.3
+  },
+  {
+   "step": "laying out the world: water",
+   "t": 10277,
+   "end": 151.9,
+   "peak": 151.9,
+   "ab": 742.6,
+   "gcAB": null,
+   "gcHeap": null
+  },
+  {
+   "step": "laying out the world: settlements",
+   "t": 11122,
+   "end": 243.5,
+   "peak": 243.5,
+   "ab": 793.9,
+   "gcAB": null,
+   "gcHeap": null
+  },
+  {
+   "step": "laying out the world: patch ground",
+   "t": 11433,
+   "end": 160.2,
+   "peak": 165.7,
+   "ab": 837.6,
+   "gcAB": null,
+   "gcHeap": null,
+   "peakAB": 837.6
+  },
+  {
+   "step": "laying out the world: patch block",
+   "t": 12628,
+   "end": 185.7,
+   "peak": 185.7,
+   "ab": 920.4,
+   "gcAB": null,
+   "gcHeap": null,
+   "peakAB": 920.4
+  },
+  {
+   "step": "laying out the world: roads",
+   "t": 13246,
+   "end": 189.5,
+   "peak": 190.2,
+   "ab": 1001,
+   "gcAB": null,
+   "gcHeap": null,
+   "peakAB": 1001
+  },
+  {
+   "step": "laying out the world: ground under the premises",
+   "t": 13883,
+   "end": 197.6,
+   "peak": 197.6,
+   "ab": 1063.1,
+   "gcAB": null,
+   "gcHeap": null
+  },
+  {
+   "step": "laying out the world: far terrain sink",
+   "t": 14196,
+   "end": 222.5,
+   "peak": 222.5,
+   "ab": 1130.7,
+   "gcAB": null,
+   "gcHeap": null
+  },
+  {
+   "step": "laying out the world: meadows",
+   "t": 14874,
+   "end": 160.5,
+   "peak": 160.5,
+   "ab": 918.8,
+   "gcAB": null,
+   "gcHeap": null
+  },
+  {
+   "step": "building the field 0 / 50",
+   "t": 15597,
+   "end": 168,
+   "peak": 168,
+   "ab": 930.9,
+   "gcAB": null,
+   "gcHeap": null
+  },
+  {
+   "step": "building the field 48 / 50",
+   "t": 15826,
+   "end": 210.7,
+   "peak": 210.7,
+   "ab": 1001.3,
+   "gcAB": null,
+   "gcHeap": null,
+   "peakAB": 1001.3
+  },
+  {
+   "step": "building the field 50 / 50",
+   "t": 16311,
+   "end": 219,
+   "peak": 219,
+   "ab": 1052.2,
+   "gcAB": null,
+   "gcHeap": null
+  },
+  {
+   "step": "parking the other aeroplanes",
+   "t": 16572,
+   "end": 212.9,
+   "peak": 212.9,
+   "ab": 1216.2,
+   "gcAB": null,
+   "gcHeap": null
+  },
+  {
+   "step": "growing the forest 5 / 149",
+   "t": 16800,
+   "end": 230.4,
+   "peak": 230.4,
+   "ab": 1221.2,
+   "gcAB": null,
+   "gcHeap": null
+  },
+  {
+   "step": "growing the forest 9 / 148",
+   "t": 17026,
+   "end": 209.7,
+   "peak": 209.7,
+   "ab": 1223.9,
+   "gcAB": null,
+   "gcHeap": null
+  },
+  {
+   "step": "growing the forest 14 / 148",
+   "t": 17284,
+   "end": 210.6,
+   "peak": 210.6,
+   "ab": 1228.5,
+   "gcAB": null,
+   "gcHeap": null
+  },
+  {
+   "step": "the world settling round the stand · 0 to build",
+   "t": 17856,
+   "end": 200.5,
+   "peak": 275.4,
+   "ab": 1152.9,
+   "gcAB": null,
+   "gcHeap": null,
+   "peakAB": 1326.5
+  },
+  {
+   "step": "committing your build",
+   "t": 26878,
+   "end": 325.5,
+   "peak": 325.5,
+   "ab": 1191.5,
+   "gcAB": null,
+   "gcHeap": null
+  },
+  {
+   "step": "baking your aeroplane: the charts (the outside)",
+   "t": 28690,
+   "end": 377,
+   "peak": 377,
+   "ab": 1200.7,
+   "gcAB": null,
+   "gcHeap": null,
+   "peakAB": 1200.7
+  },
+  {
+   "step": "baking your aeroplane: the programs (the outside)",
+   "t": 29386,
+   "end": 358.5,
+   "peak": 385.6,
+   "ab": 1236.7,
+   "gcAB": null,
+   "gcHeap": null,
+   "peakAB": 1236.7
+  },
+  {
+   "step": "baking your aeroplane: the gutters and the mips (the outside)",
+   "t": 31157,
+   "end": 368.8,
+   "peak": 368.8,
+   "ab": 1220.7,
+   "gcAB": null,
+   "gcHeap": null,
+   "peakAB": 1220.7
+  },
+  {
+   "step": "baking your aeroplane: the cache (the cabin)",
+   "t": 32315,
+   "end": 338.4,
+   "peak": 338.4,
+   "ab": 1339.6,
+   "gcAB": null,
+   "gcHeap": null
+  },
+  {
+   "step": "baking your aeroplane: the charts (the cabin)",
+   "t": 32540,
+   "end": 338.3,
+   "peak": 338.3,
+   "ab": 1348.4,
+   "gcAB": null,
+   "gcHeap": null
+  },
+  {
+   "step": "baking your aeroplane: the programs (the cabin)",
+   "t": 32748,
+   "end": 367.3,
+   "peak": 367.3,
+   "ab": 1374.4,
+   "gcAB": null,
+   "gcHeap": null,
+   "peakAB": 1374.4
+  },
+  {
+   "step": "baking your aeroplane: the gutters and the mips (the cabin)",
+   "t": 34485,
+   "end": 368,
+   "peak": 368,
+   "ab": 1358.4,
+   "gcAB": null,
+   "gcHeap": null,
+   "peakAB": 1358.4
+  },
+  {
+   "step": "your aeroplane, built",
+   "t": 37372,
+   "end": 214.9,
+   "peak": 214.9,
+   "ab": 1288.4,
+   "gcAB": null,
+   "gcHeap": null
+  },
+  {
+   "step": "uploading the textures 71 / 217",
+   "t": 37786,
+   "end": 246.9,
+   "peak": 246.9,
+   "ab": 1313.4,
+   "gcAB": null,
+   "gcHeap": null
+  },
+  {
+   "step": "uploading the textures 133 / 217",
+   "t": 38075,
+   "end": 247,
+   "peak": 247,
+   "ab": 1313.5,
+   "gcAB": null,
+   "gcHeap": null
+  },
+  {
+   "step": "uploading the textures 198 / 217",
+   "t": 38353,
+   "end": 247.1,
+   "peak": 247.1,
+   "ab": 1313.5,
+   "gcAB": null,
+   "gcHeap": null
+  },
+  {
+   "step": "compiling the world",
+   "t": 38612,
+   "end": 213.9,
+   "peak": 213.9,
+   "ab": 1313.5,
+   "gcAB": null,
+   "gcHeap": null,
+   "peakAB": 1313.5
+  },
+  {
+   "step": "compiling the shaders",
+   "t": 45699,
+   "end": 218.4,
+   "peak": 225.7,
+   "ab": 1314.1,
+   "gcAB": null,
+   "gcHeap": null,
+   "peakAB": 1314.1
+  },
+  {
+   "step": "first light",
+   "t": 47110,
+   "end": 222.1,
+   "peak": 272,
+   "ab": 1314.5,
+   "gcAB": null,
+   "gcHeap": null,
+   "peakAB": 1314.5
+  },
+  {
+   "step": "first light 219 / 219",
+   "t": 49812,
+   "end": 249.1,
+   "peak": 249.1,
+   "ab": 1314.4,
+   "gcAB": null,
+   "gcHeap": null,
+   "peakAB": 1314.4
+  },
+  {
+   "step": "your aeroplane's shaders",
+   "t": 50350,
+   "end": 230.3,
+   "peak": 230.3,
+   "ab": 1314.4,
+   "gcAB": null,
+   "gcHeap": null
+  },
+  {
+   "step": "your aeroplane, as it settled",
+   "t": 50555,
+   "end": 246.1,
+   "peak": 246.1,
+   "ab": 1314.4,
+   "gcAB": null,
+   "gcHeap": null
+  },
+  {
+   "step": "BOOT gone",
+   "t": 50790,
+   "end": 245.1,
+   "peak": 264.5,
+   "ab": 1316.4,
+   "gcAB": null,
+   "gcHeap": null,
+   "peakAB": 1316.5
+  }
+ ],
+ "at": "2026-10-04T22:06:34.488Z",
+ "load": {
+  "state": "ready",
+  "sec": 50.6
+ },
+ "peak": 385.6,
+ "peakAB": 1374.4,
+ "settled": [
+  65653,
+  "BOOT gone",
+  245.1,
+  1316.4,
+  0
+ ],
+ "afterGC": {
+  "used": 205.7,
+  "ab": 1072.2
+ },
+ "typed": {
+  "liveMB": 548.6,
+  "n": 366,
+  "made": 1337,
+  "top": [
+   [
+    58.6,
+    47,
+    "Object.construct (<anonymous>:45 < propMerge (<anonymous>:228 < propDraws (<anonymous>:293 < propBuild (<anonymous>:190"
+   ],
+   [
+    55.9,
+    27,
+    "response <anonymous>:94"
+   ],
+   [
+    36,
+    9,
+    "Object.construct (<anonymous>:45 < parked.js:1462 < parked.js:1461 < parked.js:1497"
+   ],
+   [
+    16.1,
+    2,
+    "response gz (http://localhost:8773/flyDiy/index.html?gfx=potato:9544 < async Promise.all (index 9)"
+   ],
+   [
+    15.1,
+    2,
+    "response gz (http://localhost:8773/flyDiy/index.html?gfx=potato:9544 < async Promise.all (index 12)"
+   ],
+   [
+    15,
+    24,
+    "Object.construct (<anonymous>:45 < coverageMips (<anonymous>:186 < img.onload (<anonymous>:237"
+   ],
+   [
+    14.6,
+    2,
+    "response gz (http://localhost:8773/flyDiy/index.html?gfx=potato:9544 < async Promise.all (index 13)"
+   ],
+   [
+    14.3,
+    2,
+    "response gz (http://localhost:8773/flyDiy/index.html?gfx=potato:9544 < async Promise.all (index 15)"
+   ],
+   [
+    13.7,
+    6,
+    "Object.construct (<anonymous>:45 < flown_bake.js:982 < buildModel (<anonymous>:3092 < setAircraft (<anonymous>:4412"
+   ],
+   [
+    13.7,
+    6,
+    "Object.construct (<anonymous>:45 < flown_bake.js:1013 < buildModel (<anonymous>:3092 < setAircraft (<anonymous>:4412"
+   ],
+   [
+    13.5,
+    2,
+    "response gz (http://localhost:8773/flyDiy/index.html?gfx=potato:9544 < async Promise.all (index 14)"
+   ],
+   [
+    13.3,
+    2,
+    "response gz (http://localhost:8773/flyDiy/index.html?gfx=potato:9544 < async Promise.all (index 8)"
+   ],
+   [
+    12.1,
+    2,
+    "response gz (http://localhost:8773/flyDiy/index.html?gfx=potato:9544 < async Promise.all (index 7)"
+   ],
+   [
+    12,
+    2,
+    "Object.construct (<anonymous>:45 < bakeHydrology (<anonymous>:4091 < makeWorld (<anonymous>:3130 < window.FLYDIY_WORLD_COMPOSE (<anonymous>:91"
+   ],
+   [
+    9.7,
+    9,
+    "Object.construct (<anonymous>:45 < parked.js:1469 < parked.js:1467 < parked.js:1497"
+   ],
+   [
+    9,
+    2,
+    "Object.construct (<anonymous>:45 < make (<anonymous>:76 < <anonymous>:459 < <anonymous>:749"
+   ],
+   [
+    8,
+    3,
+    "Object.construct (<anonymous>:45 < buildWorldSceneSteps (<anonymous>:2007 < buildWorldSceneSteps.next (<anonymous>) < tick (<anonymous>:523"
+   ],
+   [
+    8,
+    1,
+    "Object.construct (<anonymous>:45 < bakeHydrology (<anonymous>:4076 < makeWorld (<anonymous>:3130 < window.FLYDIY_WORLD_COMPOSE (<anonymous>:91"
+   ],
+   [
+    8,
+    1,
+    "Object.construct (<anonymous>:45 < bakeHydrology (<anonymous>:4088 < makeWorld (<anonymous>:3130 < window.FLYDIY_WORLD_COMPOSE (<anonymous>:91"
+   ],
+   [
+    8,
+    1,
+    "Object.construct (<anonymous>:45 < bakeHydrology (<anonymous>:4166 < makeWorld (<anonymous>:3130 < window.FLYDIY_WORLD_COMPOSE (<anonymous>:91"
+   ],
+   [
+    8,
+    1,
+    "Object.construct (<anonymous>:45 < bakeHydrology (<anonymous>:4307 < makeWorld (<anonymous>:3130 < window.FLYDIY_WORLD_COMPOSE (<anonymous>:91"
+   ],
+   [
+    7.6,
+    17,
+    "Object.construct (<anonymous>:45 < decodePropPart (<anonymous>:20167 < <anonymous>:20179 < decodeProp (<anonymous>:20179"
+   ],
+   [
+    7.4,
+    1,
+    "response gz (http://localhost:8773/flyDiy/index.html?gfx=potato:9544 < async Promise.all (index 16)"
+   ],
+   [
+    7,
+    6,
+    "Object.construct (<anonymous>:45 < flown_bake.js:982 < buildModel (<anonymous>:3096 < setAircraft (<anonymous>:4412"
+   ],
+   [
+    6.6,
+    1,
+    "response gz (http://localhost:8773/flyDiy/index.html?gfx=potato:9544 < async Promise.all (index 20)"
+   ],
+   [
+    6.2,
+    1,
+    "response gz (http://localhost:8773/flyDiy/index.html?gfx=potato:9544 < async Promise.all (index 27)"
+   ],
+   [
+    6.1,
+    1,
+    "response gz (http://localhost:8773/flyDiy/index.html?gfx=potato:9544 < async Promise.all (index 21)"
+   ],
+   [
+    6.1,
+    3,
+    "Object.construct (<anonymous>:45 < parked.js:1399 < parked.js:1472 < parked.js:1467"
+   ],
+   [
+    6,
+    1,
+    "Object.construct (<anonymous>:45 < s.setIndex (http://localhost:8773/flyDiy/index.html?gfx=potato:5272 < buildWorldSceneSteps (<anonymous>:2007 < buildWorldSceneSteps.next (<anonymous>)"
+   ],
+   [
+    6,
+    1,
+    "response gz (http://localhost:8773/flyDiy/index.html?gfx=potato:9544 < async Promise.all (index 17)"
+   ],
+   [
+    4,
+    1,
+    "Object.construct (<anonymous>:45 < bakeHydrology (<anonymous>:4090 < makeWorld (<anonymous>:3130 < window.FLYDIY_WORLD_COMPOSE (<anonymous>:91"
+   ],
+   [
+    4,
+    1,
+    "Object.construct (<anonymous>:45 < render_premises.js:335 < buildWorldSceneSteps (<anonymous>:6137 < buildWorldSceneSteps.next (<anonymous>)"
+   ],
+   [
+    4,
+    1,
+    "response gz (http://localhost:8773/flyDiy/index.html?gfx=potato:9544 < async Promise.all (index 6)"
+   ],
+   [
+    3.8,
+    11,
+    "Object.construct (<anonymous>:45 < mergeParts (<anonymous>:44 < buildProto (<anonymous>:89 < ensure (<anonymous>:96"
+   ],
+   [
+    3.6,
+    4,
+    "Object.construct (<anonymous>:45 < Object.arrayTexture (<anonymous>:133 < mk (<anonymous>:558 < <anonymous>:559"
+   ],
+   [
+    3.4,
+    1,
+    "response gz (http://localhost:8773/flyDiy/index.html?gfx=potato:9544 < async Promise.all (index 10)"
+   ],
+   [
+    3.3,
+    13,
+    "worker 47e9604f-f113-4433-83ce-2d9c072994b3 transcode"
+   ],
+   [
+    2.9,
+    1,
+    "response gz (http://localhost:8773/flyDiy/index.html?gfx=potato:9544 < async Promise.all (index 26)"
+   ],
+   [
+    2.9,
+    1,
+    "response gz (http://localhost:8773/flyDiy/index.html?gfx=potato:9544 < async Promise.all (index 32)"
+   ],
+   [
+    2.4,
+    2,
+    "Object.construct (<anonymous>:45 < flown_bake.js:985 < buildModel (<anonymous>:3092 < setAircraft (<anonymous>:4412"
+   ]
+  ]
+ },
+ "typedBySteps": {
+  "liveMB": 548.6,
+  "n": 366,
+  "made": 1337,
+  "top": [
+   [
+    41.1,
+    3,
+    "parking the other aeroplanes | response <anonymous>:94"
+   ],
+   [
+    36,
+    9,
+    "parking the other aeroplanes | Object.construct (<anonymous>:45 < parked.js:1462 < parked.js:1461 < parked.js:1497"
+   ],
+   [
+    28.8,
+    8,
+    "the world settling round the stand · 0 to build | Object.construct (<anonymous>:45 < propMerge (<anonymous>:228 < propDraws (<anonymous>:293 < propBuild (<anonymous>:190"
+   ],
+   [
+    18.7,
+    17,
+    "building the field | Object.construct (<anonymous>:45 < propMerge (<anonymous>:228 < propDraws (<anonymous>:293 < propBuild (<anonymous>:190"
+   ],
+   [
+    16.1,
+    2,
+    "reading the island | response gz (http://localhost:8773/flyDiy/index.html?gfx=potato:9544 < async Promise.all (index 9)"
+   ],
+   [
+    15.1,
+    2,
+    "reading the island | response gz (http://localhost:8773/flyDiy/index.html?gfx=potato:9544 < async Promise.all (index 12)"
+   ],
+   [
+    14.6,
+    2,
+    "reading the island | response gz (http://localhost:8773/flyDiy/index.html?gfx=potato:9544 < async Promise.all (index 13)"
+   ],
+   [
+    14.3,
+    2,
+    "reading the island | response gz (http://localhost:8773/flyDiy/index.html?gfx=potato:9544 < async Promise.all (index 15)"
+   ],
+   [
+    13.7,
+    6,
+    "your aeroplane, built | Object.construct (<anonymous>:45 < flown_bake.js:982 < buildModel (<anonymous>:3092 < setAircraft (<anonymous>:4412"
+   ],
+   [
+    13.7,
+    6,
+    "your aeroplane, built | Object.construct (<anonymous>:45 < flown_bake.js:1013 < buildModel (<anonymous>:3092 < setAircraft (<anonymous>:4412"
+   ],
+   [
+    13.5,
+    2,
+    "reading the island | response gz (http://localhost:8773/flyDiy/index.html?gfx=potato:9544 < async Promise.all (index 14)"
+   ],
+   [
+    13.3,
+    2,
+    "reading the island | response gz (http://localhost:8773/flyDiy/index.html?gfx=potato:9544 < async Promise.all (index 8)"
+   ],
+   [
+    12.1,
+    2,
+    "reading the island | response gz (http://localhost:8773/flyDiy/index.html?gfx=potato:9544 < async Promise.all (index 7)"
+   ],
+   [
+    12,
+    2,
+    "reading the model | Object.construct (<anonymous>:45 < bakeHydrology (<anonymous>:4091 < makeWorld (<anonymous>:3130 < window.FLYDIY_WORLD_COMPOSE (<anonymous>:91"
+   ],
+   [
+    9.7,
+    9,
+    "parking the other aeroplanes | Object.construct (<anonymous>:45 < parked.js:1469 < parked.js:1467 < parked.js:1497"
+   ],
+   [
+    9,
+    2,
+    "reading the model | Object.construct (<anonymous>:45 < make (<anonymous>:76 < <anonymous>:459 < <anonymous>:749"
+   ],
+   [
+    8.8,
+    17,
+    "laying out the world: ground colour | Object.construct (<anonymous>:45 < propMerge (<anonymous>:228 < propDraws (<anonymous>:293 < propBuild (<anonymous>:190"
+   ],
+   [
+    8,
+    3,
+    "laying out the world: ring | Object.construct (<anonymous>:45 < buildWorldSceneSteps (<anonymous>:2007 < buildWorldSceneSteps.next (<anonymous>) < tick (<anonymous>:523"
+   ],
+   [
+    8,
+    1,
+    "reading the model | Object.construct (<anonymous>:45 < bakeHydrology (<anonymous>:4076 < makeWorld (<anonymous>:3130 < window.FLYDIY_WORLD_COMPOSE (<anonymous>:91"
+   ],
+   [
+    8,
+    1,
+    "reading the model | Object.construct (<anonymous>:45 < bakeHydrology (<anonymous>:4088 < makeWorld (<anonymous>:3130 < window.FLYDIY_WORLD_COMPOSE (<anonymous>:91"
+   ],
+   [
+    8,
+    1,
+    "reading the model | Object.construct (<anonymous>:45 < bakeHydrology (<anonymous>:4166 < makeWorld (<anonymous>:3130 < window.FLYDIY_WORLD_COMPOSE (<anonymous>:91"
+   ],
+   [
+    8,
+    1,
+    "reading the model | Object.construct (<anonymous>:45 < bakeHydrology (<anonymous>:4307 < makeWorld (<anonymous>:3130 < window.FLYDIY_WORLD_COMPOSE (<anonymous>:91"
+   ],
+   [
+    7.4,
+    1,
+    "reading the island | response gz (http://localhost:8773/flyDiy/index.html?gfx=potato:9544 < async Promise.all (index 16)"
+   ],
+   [
+    7,
+    6,
+    "your aeroplane, built | Object.construct (<anonymous>:45 < flown_bake.js:982 < buildModel (<anonymous>:3096 < setAircraft (<anonymous>:4412"
+   ],
+   [
+    6.6,
+    1,
+    "reading the island | response gz (http://localhost:8773/flyDiy/index.html?gfx=potato:9544 < async Promise.all (index 20)"
+   ],
+   [
+    6.3,
+    10,
+    "laying out the world: patch ground | Object.construct (<anonymous>:45 < coverageMips (<anonymous>:186 < img.onload (<anonymous>:237"
+   ],
+   [
+    6.2,
+    1,
+    "reading the island | response gz (http://localhost:8773/flyDiy/index.html?gfx=potato:9544 < async Promise.all (index 27)"
+   ],
+   [
+    6.1,
+    1,
+    "reading the island | response gz (http://localhost:8773/flyDiy/index.html?gfx=potato:9544 < async Promise.all (index 21)"
+   ],
+   [
+    6.1,
+    3,
+    "parking the other aeroplanes | Object.construct (<anonymous>:45 < parked.js:1399 < parked.js:1472 < parked.js:1467"
+   ],
+   [
+    6,
+    1,
+    "laying out the world: ring | Object.construct (<anonymous>:45 < s.setIndex (http://localhost:8773/flyDiy/index.html?gfx=potato:5272 < buildWorldSceneSteps (<anonymous>:2007 < buildWorldSceneSteps.next (<anonymous>)"
+   ],
+   [
+    6,
+    1,
+    "reading the island | response gz (http://localhost:8773/flyDiy/index.html?gfx=potato:9544 < async Promise.all (index 17)"
+   ],
+   [
+    5,
+    8,
+    "laying out the world: premises made | Object.construct (<anonymous>:45 < coverageMips (<anonymous>:186 < img.onload (<anonymous>:237"
+   ],
+   [
+    4,
+    1,
+    "reading the model | Object.construct (<anonymous>:45 < bakeHydrology (<anonymous>:4090 < makeWorld (<anonymous>:3130 < window.FLYDIY_WORLD_COMPOSE (<anonymous>:91"
+   ],
+   [
+    4,
+    1,
+    "laying out the world: settlements | Object.construct (<anonymous>:45 < render_premises.js:335 < buildWorldSceneSteps (<anonymous>:6137 < buildWorldSceneSteps.next (<anonymous>)"
+   ],
+   [
+    4,
+    1,
+    "reading the island | response gz (http://localhost:8773/flyDiy/index.html?gfx=potato:9544 < async Promise.all (index 6)"
+   ],
+   [
+    4,
+    2,
+    "laying out the world: ring | response <anonymous>:94"
+   ],
+   [
+    3.8,
+    11,
+    "the world settling round the stand · 0 to build | Object.construct (<anonymous>:45 < mergeParts (<anonymous>:44 < buildProto (<anonymous>:89 < ensure (<anonymous>:96"
+   ],
+   [
+    3.8,
+    6,
+    "the world settling round the stand · 0 to build | Object.construct (<anonymous>:45 < coverageMips (<anonymous>:186 < img.onload (<anonymous>:237"
+   ],
+   [
+    3.7,
+    10,
+    "the world settling round the stand · 0 to build | Object.construct (<anonymous>:45 < decodePropPart (<anonymous>:20167 < <anonymous>:20179 < decodeProp (<anonymous>:20179"
+   ],
+   [
+    3.6,
+    4,
+    "laying out the world: far terrain sink | Object.construct (<anonymous>:45 < Object.arrayTexture (<anonymous>:133 < mk (<anonymous>:558 < <anonymous>:559"
+   ]
+  ]
+ },
+ "exc": []
+}

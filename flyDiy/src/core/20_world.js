@@ -437,7 +437,9 @@ function makeWorld(seed, opts) {
     // the strips: a box test per aerodrome (fourteen at most; the bbox reject first)
     for (const a of aerodromes) {
       if (a.premises || a.kind === 'meadow' || a.kind === 'water') continue;
-      const dx = x - a.x, dz = z - a.z; if (Math.abs(dx) + Math.abs(dz) > a.len / 2 + a.wid / 2 + 40) continue;
+      // REVIEW 2026-10-04 (B16): the L1 reject |dx|+|dz| > len/2 + wid/2 + 40 dropped in-box points of a ROTATED strip
+      // (the outer ~29 % of each end at 45 deg: A2, A4 grew grass on their ends); the circumscribed circle bounds every heading
+      const dx = x - a.x, dz = z - a.z, rr = a.len / 2 + a.wid / 2 + 40; if (dx * dx + dz * dz > rr * rr) continue;
       const c = Math.cos(a.hdg), s = Math.sin(a.hdg), u = dx * c + dz * s, v = -dx * s + dz * c;
       const du = Math.abs(u) - a.len / 2, dv = Math.abs(v) - a.wid / 2;
       const out = Math.hypot(Math.max(du, 0), Math.max(dv, 0)) + Math.min(Math.max(du, dv), 0);
@@ -569,7 +571,7 @@ function makeWorld(seed, opts) {
   // read composed the uncooked town cells on the raw ground and skipped the bed (GATE LAKEBED: a ring over a lake there)
   function lakeCarve(x, z, h0, h, compose) {
     if (LAKE_BED) {
-      const b = LAKE_BED(x, z);
+      const b = LAKE_BED(x, z, h0);   // (SHORES G1500: the raw ground - the bank's cap: no deeper than LAKE-HOLES' bank + `cap`)
       if (b < h) {
         if (!PM || h === h0) h = b;
         else {
@@ -727,7 +729,10 @@ function makeWorld(seed, opts) {
     for (const b of SET.buildings) {
       const k = b.w.toFixed(1) + 'x' + b.l.toFixed(1) + 'x' + b.hgt.toFixed(1);
       let sh = shapes.get(k); if (!sh) { sh = OBSTACLES.box(b.l, b.w, b.hgt, 1.0); shapes.set(k, sh); }
-      obstacles.add({ x: b.x, z: b.z, yaw: b.rot, y0: terrainH(b.x, b.z), shape: sh, tag: 'settle' });
+      // REVIEW 2026-10-04 (A6): the renderer places the house with setFromAxisAngle(up, -b.rot) (render_world.js), and
+      // OBSTACLES' local->world frame turns the other way (29_obstacles.js penetration: local x -> (cos, -sin)), so the
+      // registered yaw is the NEGATED rotation; `yaw: b.rot` mirrored every house's box against its drawing
+      obstacles.add({ x: b.x, z: b.z, yaw: -b.rot, y0: terrainH(b.x, b.z), shape: sh, tag: 'settle' });
     }
   }
   function treesNear(x, z, out) {
@@ -1124,7 +1129,9 @@ function makeWorld(seed, opts) {
     else if (st1 > 0) climate.refresh();
     airNow();
     // the sea walks after the wind, on the same clock the wind moved on
-    seaRelax(Math.abs(day.utc - u0), simT, ax, az);
+    // REVIEW 2026-10-04 (B15): day.advance wraps utc at 86400, so the first tick across midnight read ~86380 s and the
+    // sea snapped to its target in one tick; the elapsed day-time is the wrapped difference
+    seaRelax(((day.utc - u0) % 86400 + 86400) % 86400, simT, ax, az);
   }
   // setWeather({ oatC, qnhPa, wind }) — the AIR + WIND subset, as it always was:
   // absent fields are CLEARED (the standard day, the zero wind), so the
@@ -1169,6 +1176,11 @@ function makeWorld(seed, opts) {
     get slopeMax() { return PM ? undefined : SLOPE_MAX; },   // the cone's bound (30_solver.js); none under a premises layer
     TILE, tile, aerodromes, settlements: SET.settlements,
     treesNear, canopyH,
+    // G1481 (WOODLAND): whether the solver tests the woodland's cylinders (world.trees). True in a world no viewer
+    // stands on (the gates, a replay); the game's viewer draws the fill in their place and turns them off - the
+    // page's world and the worker's (sim_link 'wsolid') - so nothing the aeroplane can hit goes undrawn
+    woodSolid: true,
+    setWoodSolid(on) { this.woodSolid = !!on; return this.woodSolid; },
     // THE OBSTACLES (G433): the registry of solid things the solver pushes out of (29_obstacles.js) -
     // the settlements' own buildings stand in it from the start as plain boxes; the viewer adds what
     // it stands (houses, props, cars, parked aeroplanes) and moves the traffic

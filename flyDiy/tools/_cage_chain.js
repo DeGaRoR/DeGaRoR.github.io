@@ -56,10 +56,19 @@
     'wing>gear': () => { const G = window.CAGE_GEAR; return !(G && G.onWing === 0); },
   };
   const ALWAYS = new Set(['panel', 'cowlAft', 'ext']);   // a stat line / an early return / the understudy pass
+  // G1451 (RELEASE-FAST): THE RELEASE'S OWN EDGES - what a WHOLE build reads that a preview may leave one build stale:
+  // the engine's propeller-clearance check (a microtask after the chain) reads the wing's and the aft skin's probes;
+  // a wing-mounted engine's faces (the cowl's engineFaces) stand on the wing; the tanks' clearance probes the engine's
+  // and the cowl's meshes (HIT_LAYERS). A layer that ran under a drag's defer returned early (G1303: hidden, its reads
+  // not taken) and is STALE until it runs whole.
+  const REL_FEEDS = { wing: ['eng', 'cowl'], gear: ['eng'], eng: ['energy'], cowl: ['energy'] };
+  const REL_WHEN = { 'wing>cowl': P => Math.round(+(P && P.engMount) || 0) >= 2 };
+  const DEFERS = new Set(['access', 'light', 'energy', 'hinge']);
+  let SEQ = 0;
   const L = [];
   const C = window.CAGE_CHAIN = {
     on: !/(^|[?&])garage=old(&|$)/.test((typeof location !== 'undefined' && location.search) || ''),
-    ok: true, why: '', layers: L, ORDER, FEEDS,
+    ok: true, why: '', layers: L, ORDER, FEEDS, REL_FEEDS, dirty: false,
     last: null,           // the last chain: [{name, ran, ms}]
   };
   const fileOf = () => {
@@ -84,21 +93,32 @@
   };
   // ---- the chain ---------------------------------------------------------------------------------------------
   const stubs = [];
-  const stub = n => stubs[n] || (stubs[n] = function (ctx) { if (n > 0) runLayer(n - 1, ctx); });
+  // G1451: the status line each layer's own body appends (ctx.stat: the text after the layers below it ran, to the
+  // text after its own body) - a release that keeps a layer keeps its words
+  const statTxt = ctx => (ctx && ctx.stat && typeof ctx.stat.textContent === 'string') ? ctx.stat.textContent : null;
+  // ...and the scene's top-level objects each layer's own body added (a release that keeps a layer puts the layers'
+  // groups back in the chain's order, as a whole build leaves them)
+  const kids = ctx => (ctx && ctx.scene && ctx.scene.children) ? new Set(ctx.scene.children) : null;
+  const stub = n => stubs[n] || (stubs[n] = function (ctx) { if (n > 0) runLayer(n - 1, ctx); if (n > 0 && L[n]) { L[n].stat0 = statTxt(ctx); L[n].kids0 = kids(ctx); } });
   let childAcc = 0;
   // the clock (a node rig puts the machine's under the page's virtual one as window.__realNow)
   const now = () => (window.__realNow ? window.__realNow() : performance.now());
   function runLayer(i, ctx) {
     const Ly = L[i], plan = ctx && ctx.__plan;
     if (plan && !plan.run[i]) { Ly.ran = false; Ly.ms = 0; if (i > 0) runLayer(i - 1, ctx); return; }
-    Ly.ran = true;
+    Ly.ran = true; Ly.seq = ++SEQ; Ly.stale = !!(ctx && ctx.defer && DEFERS.has(Ly.name)); Ly.mesh = ctx ? ctx.mesh : null;
     const rec = C.on && ctx && ctx.__rec;
     const prev = CUR;
     if (rec) { CUR = Ly; Ly.reads = new Map(); Ly.all = false; Ly.allSnap = null; } else CUR = null;
     const outer = childAcc; childAcc = 0;
     const t0 = now();
+    Ly.stat0 = statTxt(ctx); Ly.kids0 = kids(ctx);
     try { return Ly.f.call(PAGE, ctx); }
     finally {
+      const k0 = Ly.kids0; Ly.kids0 = null;
+      Ly.objs = k0 ? ctx.scene.children.filter(o => !k0.has(o)) : [];
+      const st = statTxt(ctx);
+      Ly.statApp = (st != null && Ly.stat0 != null && st.length >= Ly.stat0.length && st.slice(0, Ly.stat0.length) === Ly.stat0) ? st.slice(Ly.stat0.length) : '';
       const dt = now() - t0;
       Ly.ms = dt - childAcc; childAcc = outer + dt;
       if (rec && Ly.all) Ly.allSnap = snapV(rec.P);
@@ -125,12 +145,18 @@
     const hadUI = !!(UI && UI.P === P);
     ctx.P = view; ctx.__rec = { P }; if (plan) ctx.__plan = plan;
     if (hadUI) UI.P = view;
+    if (!plan) C.dirty = false;
     try { PAGE.post(ctx); }
+    catch (e) { C.dirty = true; throw e; }
     finally {
       if (hadUI) UI.P = P;
       C.last = L.map(l => ({ name: l.name, ran: l.ran, ms: +l.ms.toFixed(2) }));
     }
   };
+  // the layer whose own body is running (a section stamped now is that layer's), or null
+  C.cur = () => CUR;
+  // the run counter (each layer's `seq` is the counter at its last run)
+  C.seqNow = () => SEQ;
   // only(names): a plan that runs the named layers (and the always-run ones) and skips the rest
   C.only = names => {
     if (!C.on || !C.ok || L.length !== ORDER.length) return null;
@@ -138,19 +164,35 @@
     return { run: L.map(l => set.has(l.name) || ALWAYS.has(l.name)), why: L.map(l => set.has(l.name) ? 'only' : ALWAYS.has(l.name) ? 'always' : '') };
   };
   // plan(P): which layers a drag tick runs. null when no plan can be made (never on, a bad order, a layer never run)
-  C.plan = P => {
+  // G1451: plan(P, true, mesh) is a RELEASE's plan (mesh: the sheet the release's layers stand on) - the drag's plan, and every layer a preview left stale, and the release's
+  // own edges (REL_FEEDS, which may point at an EARLIER layer: the pass repeats until nothing more is added)
+  C.plan = (P, release, mesh) => {
     if (!C.on || !C.ok || !L.length || L.length !== ORDER.length) return null;
-    const run = L.map(() => false), why = L.map(() => '');
+    if (release && C.dirty) return null;                  // a chain that threw: no basis for a skip
+    let run, why;
     const fed = new Set();
-    for (let i = 0; i < L.length; i++) {
-      const Ly = L[i];
-      if (!Ly.reads) return null;                         // never recorded: no basis for a skip
-      let r = '';
-      if (ALWAYS.has(Ly.name)) r = 'always';
-      else if (fed.has(Ly.name)) r = 'fed';
-      else if (Ly.all && !same(snapV(P), Ly.allSnap)) r = 'all';
-      else for (const [k, v] of Ly.reads) if (!same(snapV(P[k]), v)) { r = k; break; }
-      if (r) { run[i] = true; why[i] = r; if (r !== 'always') for (const n of FEEDS[Ly.name] || []) { const w = WHEN[Ly.name + '>' + n]; if (!w || w()) fed.add(n); } }
+    for (let pass = 0; pass < 4; pass++) {
+      const n0 = fed.size;
+      run = L.map(() => false); why = L.map(() => '');
+      for (let i = 0; i < L.length; i++) {
+        const Ly = L[i];
+        if (!Ly.reads) return null;                       // never recorded: no basis for a skip
+        let r = '';
+        if (ALWAYS.has(Ly.name)) r = 'always';
+        else if (fed.has(Ly.name)) r = 'fed';
+        else if (release && Ly.stale) r = 'stale';
+        else if (release && Ly.mesh !== mesh) r = 'sheet';      // it last ran on another sheet (a detail row's tick)
+        else if (Ly.all && !same(snapV(P), Ly.allSnap)) r = 'all';
+        else for (const [k, v] of Ly.reads) if (!same(snapV(P[k]), v)) { r = k; break; }
+        if (r) {
+          run[i] = true; why[i] = r;
+          if (r !== 'always') {
+            for (const n of FEEDS[Ly.name] || []) { const w = WHEN[Ly.name + '>' + n]; if (!w || w()) fed.add(n); }
+            if (release) for (const n of REL_FEEDS[Ly.name] || []) { const w = REL_WHEN[Ly.name + '>' + n]; if (!w || w(P)) fed.add(n); }
+          }
+        }
+      }
+      if (!release || fed.size === n0) break;
     }
     return { run, why };
   };

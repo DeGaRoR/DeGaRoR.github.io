@@ -1588,6 +1588,89 @@ window.BLUEPRINT = {
     var r = desk.cv.getBoundingClientRect(), q = scr(p);
     return [q[0] + r.left, q[1] + r.top];
   },
+  // THE DESK'S ACTIONS AS CALLS (the console and the test rig). Each is one
+  // thing a person does at the desk, through the same code the pointer runs,
+  // and nothing a person could not do: points are in the coordinates the
+  // desk is showing — the SHEET for scale and views, the ORIENTED view for
+  // level, extent and ground — exactly where a click would land.
+  api: {
+    // pan and zoom the desk on a step (and a view), point `c` centred
+    look: function (step, id, c, zoom) {
+      return boot().then(function () {
+        if (!desk) buildDesk();
+        desk.el.hidden = false; document.body.classList.add('bpOpen');
+        if (id != null) BP.sel = id;
+        if (step && step !== BP.step) setStep(step); else { paintSide(); fit(); }
+        if (c && zoom) {
+          resize();
+          var W = desk.cv.width / desk.dpr, H = desk.cv.height / desk.dpr;
+          desk.zoom = zoom; desk.px = W / 2 - c[0] * zoom; desk.py = H / 2 - c[1] * zoom;
+          draw();
+        }
+        var r = desk.cv.getBoundingClientRect();
+        return { canvas: [r.left, r.top, r.width, r.height], zoom: desk.zoom,
+                 px: desk.px, py: desk.py };
+      });
+    },
+    close: function () { closeDesk(); },
+    // 1: two points on the sheet and the length between them
+    scale: function (a, b, len, unit) {
+      BP.scale = { a: a, b: b, len: len, unit: unit || 'm' };
+      save(); if (desk) { paintSide(); paintSteps(); draw(); }
+      return bpMpp(BP.scale);
+    },
+    // 2: a box (two corners) or a lasso (a polygon), named
+    cut: function (shape, pts, kind, label) {
+      var v = addView(shape === 'lasso' ? 'lasso' : 'box',
+                      shape === 'lasso' ? pts : boxPts(pts[0], pts[1]));
+      if (kind) { v.kind = kind; v.label = label || kind; }
+      save(); if (desk) { paintSide(); paintSteps(); draw(); }
+      return v.id;
+    },
+    // 3: rotation / mirror, LEVEL or PLUMB on two points of the view as shown,
+    // and the extent (four edges, or 'auto')
+    orient: function (id, o) {
+      var v = viewById(id);
+      if ('rot' in o) v.rot = bpNormDeg(o.rot);
+      if ('flipH' in o) v.flipH = !!o.flipH;
+      if ('flipV' in o) v.flipV = !!o.flipV;
+      reshaped(v); if (desk) { paintSide(); fit(); }
+      return v.rot;
+    },
+    level: function (id, p, q, axis) {
+      var v = viewById(id), d = bpDims(v);
+      v.rot = bpLevelRot(bpFromOriented(v, p, d), bpFromOriented(v, q, d), axis === 'v' ? 'v' : 'h');
+      reshaped(v); if (desk) { paintSide(); fit(); }
+      return v.rot;
+    },
+    extent: function (id, e) {
+      var v = viewById(id);
+      if (e === 'auto') { v.extAuto = true; autoExt(v); }
+      else { v.ext = e; v.extAuto = false; }
+      save(); if (desk) { paintSide(); draw(); }
+      return v.ext;
+    },
+    // 4: the ground line, two points of the view as shown
+    ground: function (id, a, b) {
+      var v = viewById(id), d = bpDims(v);
+      v.ground = a ? { a: bpFromOriented(v, a, d), b: bpFromOriented(v, b, d) } : null;
+      save(); if (desk) { paintSide(); paintSteps(); draw(); }
+      return bpLayout(BP).groundPitch;
+    },
+    // MEASURE: the distance between two points the desk shows, in metres
+    measure: function (p, q) {
+      var m = bpMpp(BP.scale);
+      return m ? Math.hypot(q[0] - p[0], q[1] - p[1]) * m : null;
+    },
+    // 5: up in the shed
+    place: function () { place3D(); if (desk && !desk.el.hidden) closeDesk(); return bpLayout(BP); },
+    snapNose: function () { snapNose(); return BP.rig.fore; },
+    // a panel row: the rig's or a view's own value, as its slider sets it
+    set: function (id, k, val) {
+      var o = id == null ? BP.rig : viewById(id);
+      o[k] = val; save(); sync3D(); repaintPanel();
+    },
+  },
 };
 
 })();

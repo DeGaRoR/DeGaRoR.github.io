@@ -615,7 +615,7 @@ function garageInit(api) {
     // session silently adopt it as its slot.
     name: name || null, spec: s,
     plaque: pq || null, log: lg || newLog(),
-    ...(imagesNow() ? { images: imagesNow() } : {}),
+    ...((im => im ? { images: im } : {})(imagesNow())),   // REVIEW 2026-10-04 (B19): one toDataURL pass, not two
   });
   // Accepts an envelope OR a bare spec, because a spec pasted out of a console
   // is a perfectly good thing to want to load.
@@ -772,7 +772,14 @@ function garageInit(api) {
   // be written with the literal string 'working', which meant a user who saved
   // a build actually called `working` had every later unnamed session silently
   // adopt it as its slot.
-  const writeWip = () => lsSet(WIP, envelope(slotName, spec, plaque, log));
+  let wipRefused = false;
+  const writeWip = () => {
+    const ok = lsSet(WIP, envelope(slotName, spec, plaque, log));
+    // REVIEW 2026-10-04 (B19): under the storage quota lsSet returns false and the autosave died silently from then on
+    if (!ok && !wipRefused) { wipRefused = true; console.warn('flyDiy: the working build could not be autosaved (storage full or blocked) - Save as a named build or free a slot'); }
+    if (ok) wipRefused = false;
+    return ok;
+  };
   function rebuild() {
     api.apply(spec);
     writeWip();
@@ -1264,7 +1271,11 @@ function garageInit(api) {
       // G190: the image pages the working build was restored with, for the
       // editor's boot seed (the autosave comes back before the editor exists)
       images: () => wipImages,
-      set: s => loadSpec(JSON.parse(JSON.stringify(s)), slotName, plaque, log),
+      // REVIEW 2026-10-04 (A4): `set` is the door every NEW aeroplane enters by (the birth flow, CAGE_RESET_BUILD) and it
+      // loaded under the CURRENT slot, plaque and logbook - a newborn Cub carried the saved Jodel's name, its "tested"
+      // plaque and its hours, and its first Save overwrote the Jodel's slot. A new aeroplane has no slot, no plaque and
+      // an empty log; `update` (the join's door) keeps them, as before
+      set: s => loadSpec(JSON.parse(JSON.stringify(s)), '', null, newLog()),
       // THE JOIN'S DOOR. Merges rather than replaces — see `merge` above.
       update: j => { spec = merge(spec, JSON.parse(JSON.stringify(j))); rebuild();
         // G334: every update is announced — the two registration inputs (the

@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Radio Jolene Voices</title>
+<style>
+  :root { --bg: #f6f4ef; --fg: #1d1f21; --mute: #5d6166; --card: #fff; --line: #ddd8cc; --accent: #2d6a8a; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --bg: #16181b; --fg: #e8e6e1; --mute: #a0a4a8; --card: #1f2226; --line: #33373c; --accent: #7fb6d4; } }
+  :root[data-theme="dark"] { --bg: #16181b; --fg: #e8e6e1; --mute: #a0a4a8; --card: #1f2226; --line: #33373c; --accent: #7fb6d4; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.5 system-ui, sans-serif; }
+  main { max-width: 860px; margin: 0 auto; padding: 24px 16px 48px; }
+  h1 { font-size: 1.4rem; margin: 0 0 4px; }
+  p { color: var(--mute); margin: 0 0 20px; }
+  .v { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; margin-bottom: 14px; }
+  .v h2 { font-size: 1.05rem; margin: 0 0 2px; }
+  .v .who { color: var(--mute); font-size: .9rem; margin-bottom: 10px; }
+  .v .ship { color: var(--accent); font-weight: 600; }
+  .row { display: grid; grid-template-columns: 9rem 1fr; gap: 8px; align-items: center; margin: 6px 0; }
+  audio { width: 100%; }
+  @media (max-width: 520px) { .row { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<main>
+  <h1>Radio Jolene — the voice shortlist</h1>
+  <p>Four Piper voices with clean licences (engine MIT; training data public domain or CC BY). Same three readings each:
+     the station ID, a bulletin, and the airfield weather assembled from recorded words. The full table is in README.md.</p>
+  <div id="list"></div>
+</main>
+<script>
+  const V = [
+    ['john', 'en_US-john-medium', 'male, US — LibriVox, public domain', true],
+    ['norman', 'en_US-norman-medium', 'male, US — LibriVox, public domain', false],
+    ['libritts', 'en_US-libritts-high, speaker 856', 'male, US — LibriTTS, CC BY 4.0', false],
+    ['cori', 'en_GB-cori-high', 'female, UK — LibriVox, public domain', false],
+  ];
+  const R = [['station_id', 'station ID'], ['bulletin', 'bulletin'], ['awos_gusty_low', 'AWOS (gusty, low)']];
+  document.getElementById('list').innerHTML = V.map(([k, id, who, ship]) =>
+    `<section class="v"><h2>${k}${ship ? ' <span class="ship">· shipped</span>' : ''}</h2><div class="who">${id} · ${who}</div>` +
+    R.map(([f, l]) => `<div class="row"><span>${l}</span><audio controls preload="none" src="${k}_${f}.mp3"></audio></div>`).join('') +
+    `</section>`).join('');
+</script>
+</body>
+</html>

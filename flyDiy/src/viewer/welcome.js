@@ -26,10 +26,11 @@
   const W = typeof window !== 'undefined' ? window : null;
   if (!W) return;
   const KEY = 'flydiy.welcome';
-  const ORDER = ['potato', 'retro', 'current', 'gamer', 'ultra'];   // GATE GFX holds it to Object.keys(GFX.PRESETS)
-  const LABEL = { potato: 'potato', retro: '5 years ago', current: 'current', gamer: 'gamer', ultra: 'ultra' };
+  const ORDER = ['laptop', 'potato', 'retro', 'current', 'gamer', 'ultra'];   // GATE GFX holds it to Object.keys(GFX.PRESETS)
+  const LABEL = { laptop: 'laptop', potato: 'potato', retro: '5 years ago', current: 'current', gamer: 'gamer', ultra: 'ultra' };
   const WHY = {
-    potato: 'an integrated or older card, a laptop: the lightest picture',
+    laptop: 'integrated graphics (Intel HD / UHD, AMD Radeon Graphics), a phone: the lightest picture',
+    potato: 'an older or entry-level card (GTX 600-900, GT / MX), Intel Iris Xe: the light picture',
     retro: 'a card that was good five years ago (GTX 1060 class)',
     current: 'a current mid-range card (RTX 3060 class)',
     gamer: 'a strong card (RTX 3080 class): the reference',
@@ -54,14 +55,21 @@
   };
   // -> { cls, why }. Ordered: the software renderers and the integrated parts first, then the families by number;
   // a name the table does not know is 'current' (the middle: never the dearest on a guess, never the poorest)
+  // G1460 (SOFT-GPU): a software renderer - no graphics card in use (SwiftShader: every cloud session's headless Chromium;
+  // llvmpipe / softpipe: Mesa's; Microsoft's Basic Render Driver). The game's 'software' rung keys on this answer
+  // (gfx_settings.js SOFT); on any other name it is false and nothing of the rung exists
+  const isSoftware = raw => /SwiftShader|llvmpipe|softpipe|Software|Basic Render/i.test(String(raw || ''));
   const gpuClass = raw => {
     const s = cleanGpu(raw);
     let m;
     if (!s) return { cls: 'current', why: 'the card did not say its name' };
-    if (/SwiftShader|llvmpipe|softpipe|Software|Basic Render/i.test(s)) return { cls: 'potato', why: 'a software renderer (no graphics card in use)' };
-    if (/Mali|Adreno|PowerVR|Apple A\d|Videocore/i.test(s)) return { cls: 'potato', why: 'a phone or tablet graphics part' };
-    if (/Intel/i.test(s) && /\b(HD|UHD|Iris)\b/i.test(s)) return { cls: 'potato', why: 'Intel integrated graphics' };
-    if (/Radeon\(TM\) Graphics|Radeon Graphics|Radeon Vega \d+ Graphics|Vega \d+ Graphics/i.test(s)) return { cls: 'potato', why: 'AMD integrated graphics' };
+    if (isSoftware(s)) return { cls: 'potato', why: 'a software renderer (no graphics card in use)' };
+    // G1524 (POTATO-DEEP): the integrated parts and the phones take the LAPTOP rung (the user's EliteBook: an Intel HD 620, ~1/3
+    // of the GTX 660 potato was cut for); Intel's Iris Xe (96 EU, about a GTX 660) stays potato
+    if (/Mali|Adreno|PowerVR|Apple A\d|Videocore/i.test(s)) return { cls: 'laptop', why: 'a phone or tablet graphics part' };
+    if (/Intel/i.test(s) && /\bIris\b/i.test(s) && /\bXe\b/i.test(s)) return { cls: 'potato', why: 'Intel Iris Xe graphics' };
+    if (/Intel/i.test(s) && /\b(HD|UHD|Iris)\b/i.test(s)) return { cls: 'laptop', why: 'Intel integrated graphics' };
+    if (/Radeon\(TM\) Graphics|Radeon Graphics|Radeon Vega \d+ Graphics|Vega \d+ Graphics/i.test(s)) return { cls: 'laptop', why: 'AMD integrated graphics' };
     if ((m = /RTX\s*(\d{2})(\d{2})/i.exec(s))) {
       const series = +m[1], tier = +m[2];
       if (series === 20) return { cls: 'current', why: 'an RTX 20 series card' };
@@ -188,6 +196,7 @@
   color:#1a1815; background:#e6a15a; border:1px solid #e6a15a; }
 #welcome .wlink { background:none; border:0; padding:0; color:#a59d8f; text-decoration:underline; cursor:pointer; font:inherit; font-size:13px; }
 #welcome .wnote { margin-top:12px; color:#7d766a; font-size:12px; }
+#welcome .wbuild { margin-top:10px; padding-top:8px; border-top:1px solid rgba(255,255,255,.08); color:#7d766a; font-size:11px; letter-spacing:.04em; }
 #welcome p { margin:8px 0; color:#d8d1c4; }
 #welcome button { transition:none; backdrop-filter:none; -webkit-backdrop-filter:none; }
 `;
@@ -213,6 +222,12 @@
     card.appendChild(el('div', 'wbrand', 'flyDiy'));
     (W.document.body || W.document.documentElement).appendChild(o);
     return { o, card };
+  };
+  // G1535 (UPDATE-NOW): the card's footer says which build this page is ('build 1a2b3c4d · 4 Oct 2026'), last
+  const stampFoot = card => {
+    const U = W.UPDATE_NOW;
+    const t = U && U.stamp ? U.stamp() : (W.FLYDIY_BUILD ? 'build ' + String(W.FLYDIY_BUILD).slice(0, 8) : '');
+    if (t) card.appendChild(el('div', 'wbuild', t));
   };
   const facts = (card, env, d) => {
     card.appendChild(el('div', 'wsec', 'Your computer'));
@@ -255,6 +270,7 @@
     foot.appendChild(play); foot.appendChild(other);
     card.appendChild(foot);
     card.appendChild(el('div', 'wnote', 'Asked once for this graphics card. Every option can be changed later in GRAPHICS, where "re-check my computer" asks again.'));
+    stampFoot(card);
     play.onclick = () => { o.remove(); res(pick); };
     paint();
     try { play.focus(); } catch (e) {}
@@ -273,6 +289,7 @@
     go.onclick = () => { W.document.getElementById('welcome').remove(); res('potato'); };
     foot.appendChild(go);
     card.appendChild(foot);
+    stampFoot(card);
   });
 
   // ---- THE LOST CONTEXT -----------------------------------------------------------------------------------------
@@ -296,8 +313,8 @@
   // ---- THE RUN ----------------------------------------------------------------------------------------------------
   const nav = W.navigator || {};
   const API = W.WELCOME = {
-    ORDER, LABEL, KEY, cleanGpu, gpuClass, memClass, mobileWhy, decide, isRig, probe,
-    RIG: isRig(nav), pick: null, decision: null, env: null,
+    ORDER, LABEL, KEY, cleanGpu, gpuClass, isSoftware, memClass, mobileWhy, decide, isRig, probe,
+    RIG: isRig(nav), SOFT: false, pick: null, decision: null, env: null,   // SOFT (G1460): the probe's card is a software renderer
     // the graphics menu's "re-check my computer": the welcome again, in place; resolves with the preset picked
     recheck: () => {
       const env = probe(), d = decide(env, { getItem: () => null }, '', {});
@@ -314,7 +331,7 @@
   }
   if (!W.document || !W.document.createElement) return;
   let d;
-  try { const env = probe(); API.env = env; d = API.decision = decide(env, W.localStorage, search(), nav, W.location && W.location.hostname); }
+  try { const env = probe(); API.env = env; API.SOFT = isSoftware(env.gpu); d = API.decision = decide(env, W.localStorage, search(), nav, W.location && W.location.hostname); }
   catch (e) { return; }   // a welcome that cannot decide is no welcome: the game loads as it did
   if (d.adopt) { let pr = 'menu'; try { pr = JSON.parse(W.localStorage.getItem('flydiy.gfx')).preset || pr; } catch (e) {} remember(W.localStorage, d, pr); }
   if (d.screen === 'none') return;

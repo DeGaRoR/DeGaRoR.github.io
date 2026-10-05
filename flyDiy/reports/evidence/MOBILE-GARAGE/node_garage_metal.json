@@ -1,0 +1,210 @@
+{
+ "date": "2026-10-04T16:40:31.037Z",
+ "mode": "garage",
+ "build": "metal",
+ "before": {
+  "heap": 5.3,
+  "ab": 0,
+  "ext": 1.4,
+  "rss": 46.7
+ },
+ "steps": [
+  {
+   "step": "aeroplane",
+   "ms": 3355,
+   "bytes": 0,
+   "heap": 78,
+   "ab": 32.8,
+   "ext": 34.2,
+   "rss": 201.2
+  },
+  {
+   "step": "aircraft",
+   "ms": 3890,
+   "bytes": 35492950,
+   "heap": 91.3,
+   "ab": 116.6,
+   "ext": 119.7,
+   "rss": 324.1
+  },
+  {
+   "step": "garage",
+   "ms": 512,
+   "bytes": 0,
+   "heap": 119.9,
+   "ab": 90.7,
+   "ext": 92.1,
+   "rss": 357.2
+  },
+  {
+   "step": "editor",
+   "ms": 4471,
+   "bytes": 4187152,
+   "heap": 274.5,
+   "ab": 151.6,
+   "ext": 171.4,
+   "rss": 611.3
+  },
+  {
+   "step": "seed",
+   "ms": 4243,
+   "bytes": 7025703,
+   "heap": 326.8,
+   "ab": 217.2,
+   "ext": 218.7,
+   "rss": 737.9
+  },
+  {
+   "step": "snapshot",
+   "ms": 3958,
+   "bytes": 0,
+   "heap": 205,
+   "ab": 259.6,
+   "ext": 326.6,
+   "rss": 714.8
+  },
+  {
+   "step": "spec",
+   "ms": 53,
+   "bytes": 0,
+   "heap": 201,
+   "ab": 259.7,
+   "ext": 326.7,
+   "rss": 714.9
+  },
+  {
+   "step": "restore",
+   "ms": 696,
+   "bytes": 0,
+   "heap": 204.9,
+   "ab": 265,
+   "ext": 332,
+   "rss": 719.9
+  },
+  {
+   "step": "compile",
+   "ms": 7076,
+   "bytes": 0,
+   "heap": 246,
+   "ab": 307.4,
+   "ext": 374.4,
+   "rss": 921.4
+  },
+  {
+   "step": "firstFrame",
+   "ms": 554,
+   "bytes": 0,
+   "heap": 259.9,
+   "ab": 307.4,
+   "ext": 374.4,
+   "rss": 933.6
+  },
+  {
+   "step": "BOOT landing",
+   "ms": 1733,
+   "bytes": 0,
+   "heap": 264.2,
+   "ab": 307.4,
+   "ext": 374.4,
+   "rss": 940
+  },
+  {
+   "step": "BOOT gone",
+   "ms": 0,
+   "bytes": 0,
+   "heap": 264.2,
+   "ab": 307.4,
+   "ext": 374.4,
+   "rss": 940
+  }
+ ],
+ "rows": [
+  {
+   "key": "wgSpan",
+   "tick": 127.7,
+   "release": 413.5,
+   "idle": 8.6,
+   "why": "{\"n\":3,\"whole\":0,\"last\":{\"ran\":[\"panel\",\"cowlAft\",\"access\",\"light\",\"energy\",\"hinge\",\"ext\"],\"why\":\"panel(always) cowlAft(always) access(stale) light(stale) energy(stale) hinge(stale) ext(always)\",\"floor\":\"cut again\",\"ms\":0.2}}"
+  },
+  {
+   "key": "wgChord",
+   "tick": 132,
+   "release": 426.3,
+   "idle": 9.8,
+   "why": "{\"n\":6,\"whole\":0,\"last\":{\"ran\":[\"panel\",\"cowlAft\",\"access\",\"light\",\"energy\",\"hinge\",\"ext\"],\"why\":\"panel(always) cowlAft(always) access(stale) light(stale) energy(stale) hinge(stale) ext(always)\",\"floor\":\"cut again\",\"ms\":0.2}}"
+  },
+  {
+   "key": "stSpan",
+   "tick": 19.2,
+   "release": 311.8,
+   "idle": 9.6,
+   "why": "{\"n\":9,\"whole\":0,\"last\":{\"ran\":[\"panel\",\"cowlAft\",\"access\",\"light\",\"hinge\",\"ext\"],\"why\":\"panel(always) cowlAft(always) access(stale) light(stale) hinge(stale) ext(always)\",\"floor\":\"cut again\",\"ms\":0.1}}"
+  },
+  {
+   "key": "s1X",
+   "tick": 111.7,
+   "release": 280.3,
+   "idle": 8.8,
+   "why": "{\"n\":12,\"whole\":0,\"last\":{\"ran\":[\"panel\",\"cowlAft\",\"access\",\"light\",\"hinge\",\"ext\"],\"why\":\"panel(always) cowlAft(always) access(stale) light(stale) hinge(stale) ext(always)\",\"floor\":\"cut again\",\"ms\":0.1}}"
+  },
+  {
+   "key": "paxLen",
+   "tick": 30.3,
+   "release": 2183.1,
+   "idle": 10.3,
+   "why": "{\"n\":12,\"whole\":3,\"last\":{\"whole\":\"a deformed drag\"}}"
+  },
+  {
+   "key": "halfW",
+   "tick": 36.7,
+   "release": 2198.9,
+   "idle": 9.8,
+   "why": "{\"n\":12,\"whole\":6,\"last\":{\"whole\":\"a deformed drag\"}}"
+  },
+  {
+   "key": "seatH",
+   "tick": 278.6,
+   "release": 1577.5,
+   "idle": 9.9,
+   "why": "{\"n\":12,\"whole\":9,\"last\":{\"whole\":\"the crew moved in the drag\"}}"
+  }
+ ],
+ "bootMs": 37098,
+ "afterGC": {
+  "heap": 240.8,
+  "ab": 292.4,
+  "ext": 359.4,
+  "rss": 827.4
+ },
+ "io": {
+  "fetches": 326,
+  "fetchBytes": 43660966,
+  "imgLoads": 41,
+  "imgBytes": 5723077,
+  "c2dDraw": 41,
+  "c2dRead": 7,
+  "c2dReadBytes": 15204352,
+  "c2dPut": 29,
+  "workerMsgs": 404
+ },
+ "fetchedN": 326,
+ "byKind": {
+  "world": 0,
+  "json": 0,
+  "geo": 11.7,
+  "tex": 29.4,
+  "script": 0.1,
+  "other": 0.5
+ },
+ "bytesTotal": 49384043,
+ "errors": [],
+ "errorsN": 0,
+ "worldBuilt": false,
+ "programs": 123,
+ "afterDrags": {
+  "heap": 279.7,
+  "ab": 312.3,
+  "ext": 379.2,
+  "rss": 1235.6
+ }
+}

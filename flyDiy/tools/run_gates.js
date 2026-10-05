@@ -75,7 +75,7 @@ const GATES = [
   // THE SOUND (G1604, SOUND-2026-10-04 §8): audio_params.js on six validated builds (firing, BPF, tip Mach off the
   // solver's rpm), AUDIO.update's budget (no heap, < 0.3 ms), nothing before a gesture, ?audio=0 builds nothing, the
   // silence, the settings, the sources, the wiring - and every check mutated red (--selftest alone); ~3 s
-  { id: 'AUDIO', file: 'audio/_audio_check.js', tier: 'core', wall: 45 },
+  { id: 'AUDIO', file: 'audio/_audio_check.js', tier: 'core', wall: 160 },
   // SKY S1/S2 (2026-09-14): the day object and the almanac, headless
   { id: 'DAY', file: 'test_day.js', tier: 'core' },
   // THE CLIMATE (K0, 2026-09-22): the one wind field - the G72 column bit-identical against a
@@ -201,6 +201,7 @@ const GATES = [
   // B10 G1035-G1039: the roll-out shot on the real three and every archetype - out past the door, the wheels at
   // distance / radius, no allocation a frame, the skip, the stand's first frame at the cut; ~40 s
   { id: 'ROLLANIM', file: '_rollanim_check.js', tier: 'core', wall: 45 },
+  { id: 'UPDATE', file: '_update_check.js', tier: 'core', wall: 5 },   // UPDATE-NOW G1535-G1539: the "Update" pill on a differing version.json, nothing on the same build or a failed fetch, the cache-busting URL (params kept, stripped after load), the autosave before the navigation, the media worker's sweep across an update
   { id: 'UILAYER', file: '_ui_layer_check.js', tier: 'core', wall: 10 },   // G1370: the in-world helpers on the UI layer; the verbs off for the roll-out shot
   { id: 'FADES', file: '_fades_check.js', tier: 'core' },   // A2-FADES G670-G673: the prop disc, the grass's grow / pre-grow / lead, the premises' rise
   { id: 'CONTACT', file: '_contact_check.js', tier: 'core' },   // A6-GROUND G1000-G1003: the pavement at terrainH where the wheels roll, the contact shadows, nothing loose on a pavement
@@ -267,7 +268,7 @@ const GATES = [
   { id: 'RAYINDEX', file: '_rayindex_check.js', tier: 'core' },
   // G1445 (GARAGE-INSTANT): a drag's previews end on the plain build's aeroplane (the page in node, the Cub and the
   // metal Cessna, twelve rows: a kept sheet's layer rows, the cage's deformed rows, the sheet's detail rows)
-  { id: 'INSTANT', file: '_instant_check.js', tier: 'core', wall: 420 },
+  { id: 'INSTANT', file: '_instant_check.js', tier: 'core', wall: 480 },
   // THE CONTROL HARDWARE (G241): every control surface's nose turns INSIDE
   // its cove instead of through the wing — measured off the emitted vertices,
   // station by station, which is the clearance at every deflection because a
@@ -331,6 +332,12 @@ const GATES = [
   // the fetch path and the Blob's glue; the transport, the pose age and the dilation printed; G1365: the page's freeze
   // HOLDS the flight (60 s on a fake clock, 1.5 s on the real thread) and it goes on from there; ~60 s
   { id: 'SIMWORKER', file: '_simworker_check.js', tier: 'core', wall: 70 },
+  // G1530 (POSE-BACK; the user at ~2 fps: "as soon as it took off ... it went a little backward over a frame"): the drawn
+  // pose through a take-off at a simulated 2 / 5 / 10 / 30 fps (steady, late, ragged pages, a CPU-starved worker) - the
+  // worker's view against sim_host's own clock on a fake wall clock, and the inline PACE + POSE_LERP lifted from app.js,
+  // both flying the real solver: monotonic along the motion, never a step ahead of the newest state, within a step of
+  // the solver's own CG; the old clock caught going back; even 60 / 30 fps the same bits with and without; ~95 s
+  { id: 'POSEBACK', file: '_poseback_check.js', tier: 'core', wall: 100, weight: 3 },
   // G816 (C1b): the PAGE flown through the worker - dev.html?simw=1 against dev.html in the page-in-node harness (its
   // Worker shim: node worker_threads, the same Blob source and messages), the Cub and the metal Cessna, the roll-out,
   // 40 s of the departure taxi at 2x: every step's p / v / CG / phase and every frame's page reads bit-identical, no
@@ -558,6 +565,11 @@ const GATES = [
   // against the sheet's polar, and a ridge beat that GAINS height where the same beat without the
   // terrain term is on the ground inside the run
   { id: 'SOAR', file: 'test_soar.js', tier: 'full', wall: 240 },
+  // G1460 (SOFT-GPU): THE GAME DRAWS ITS WORLD ON A SOFTWARE GPU - headless Chromium on SwiftShader (every cloud
+  // session's browser), the real page: the garage boot to its end, Roll out, the stand, one drawn frame with the ground
+  // and the aeroplane in it (not the clear colour; the aeroplane hidden changes it). Full tier: a software GL boots in
+  // ~15-20 min on a 4-core box; the whole machine's cores (weight 4). SKIP where there is no Playwright (the box)
+  { id: 'SOFTGPU', file: '_softgpu_check.js', tier: 'full', timeout: 2 * 3600_000, weight: 4, wall: 1800 },
   // structural realism instrument (appended: keeps the battery log prefix
   // diffable). Measures only — it asserts finiteness and determinism, not
   // bounds. See test_flex.js's header and HANDOVER's STRUCTURAL REALISM.
@@ -573,6 +585,12 @@ const GATES = [
   // NaN/clip/DC/subnormal, process() allocation-free, seeded, the life driven by the solver, the sound
   // row physics-inert; every assertion negative-verified. SND-CORE's _audio_check.js absorbs it; ~3 min
   { id: 'AUDIOENG', file: 'audio/_engine_check.js', tier: 'core', wall: 320 },
+  // REVIEW 2026-10-04 (A6): the settlement houses' hitboxes stand where the houses are drawn - the registry's frame
+  // against the renderer's, sampled inside and outside every footprint; ~2 s. Two sibling gates written by the same
+  // review are NOT registered because they are red on master until their finding is fixed: _stripground_check.js
+  // (A5: every generated strip on the ground its record says - A2 Pelham Field sits across a river) and
+  // _genpairs_check.js (B10: the lattice over paired configurations - the twin boom's two zero-length beams)
+  { id: 'OBSTFRAME', file: '_obstframe_check.js', tier: 'core', wall: 5 },
 ];
 
 const args = process.argv.slice(2);
@@ -597,6 +615,14 @@ let wallTab = {};
 try { wallTab = JSON.parse(fs.readFileSync(WALL_FILE, 'utf8')); } catch (e) {}
 
 const selected = GATES.filter(g => !(only && !only.includes(g.id)) && !(coreOnly && g.tier !== 'core'));
+// REVIEW 2026-10-04 (B26): an --only id that names no gate selected nothing and the summary printed BATTERY: PASS
+if (only) {
+  const unknown = only.filter(id => !GATES.some(g => g.id === id));
+  if (unknown.length || !selected.length) {
+    console.error(`run_gates: unknown gate id(s) in --only: ${unknown.join(', ') || '(none selected)'}`);
+    process.exit(2);
+  }
+}
 const skipped = GATES.filter(g => !(only && !only.includes(g.id)) && coreOnly && g.tier !== 'core').length;
 
 // one job per gate, or per shard when the pool can use them
@@ -677,14 +703,18 @@ async function runPool(list, slots, onStart, onDone) {
 const partOf = r => { const m = /^SHARD (\d+)\/(\d+): (\d+) of (\d+) heavy jobs$/m.exec(r.stderr || ''); return m ? { k: +m[3], K: +m[4] } : null; };
 
 function printGate(g, results) {
-  let pass = true;
+  let pass = true, skipped = false;
   console.log(`=== ${g.id} ===`);
   const parts = results.map(partOf);
   const partitionOk = results.length === 1 ||
     (parts.every(Boolean) && parts.every(p => p.K === parts[0].K) && parts.reduce((s, p) => s + p.k, 0) === parts[0].K);
   for (const r of results) {
     const stdout = r.stdout || '';
-    const ok = r.status === 0 && !r.error && new RegExp(`^GATE ${g.id}: PASS$`, 'm').test(stdout);
+    // train 31 (A0): `GATE <ID>: SKIP` with exit 0 is a gate that cannot run on this machine (SOFTGPU: no Playwright on
+    // the box) - shown as SKIP, never as a PASS and never as a FAIL
+    const skip = r.status === 0 && !r.error && new RegExp(`^GATE ${g.id}: SKIP$`, 'm').test(stdout);
+    if (skip) skipped = true;
+    const ok = skip || (r.status === 0 && !r.error && new RegExp(`^GATE ${g.id}: PASS$`, 'm').test(stdout));
     if (!ok) pass = false;
     if (r.job.shard) console.log(`--- shard ${r.job.shard.i}/${r.job.shard.n} (${r.secs} s) ---`);
     if (ok && !verbose && partitionOk) {
@@ -702,7 +732,7 @@ function printGate(g, results) {
     console.log(`(shard partition disagrees: ${parts.map(p => p ? `${p.k}/${p.K}` : 'none').join(' ')} — a heavy job was dropped or flown twice)`);
   }
   const secs = results.reduce((m, r) => Math.max(m, +r.secs), 0).toFixed(1);
-  return { pass, secs, shards: results.length };
+  return { pass, skipped, secs, shards: results.length };
 }
 
 (async () => {
@@ -743,7 +773,7 @@ function printGate(g, results) {
   console.log('\n──────── summary ────────');
   for (const g of selected) {
     const d = done.get(g.id);
-    console.log(`${g.id.padEnd(9)} ${d.pass ? 'PASS' : 'FAIL'}  ${d.secs.padStart(6)} s${d.shards > 1 ? `  [${d.shards} shards]` : ''}`);
+    console.log(`${g.id.padEnd(9)} ${d.skipped ? 'SKIP' : d.pass ? 'PASS' : 'FAIL'}  ${d.secs.padStart(6)} s${d.shards > 1 ? `  [${d.shards} shards]` : ''}`);
     if (!d.pass) anyFail = true;
   }
   const total = selected.reduce((s, g) => s + Number(done.get(g.id).secs), 0).toFixed(1);

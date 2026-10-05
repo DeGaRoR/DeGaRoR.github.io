@@ -150,6 +150,11 @@ const SIM_LINK = (() => {
       TH.drop = function (key) { const ok = drop.apply(this, arguments); if (ok && host) opsQ.push({ op: 'tdrop', key }); return ok; };
       TH.clear = function () { clr.apply(this, arguments); if (host) opsQ.push({ op: 'tclear' }); };
     }
+    // G1481 (WOODLAND): the woodland's cylinders on or off (render_world turns them off where the fill draws)
+    if (world && typeof world.setWoodSolid === 'function') {
+      const ws = world.setWoodSolid;
+      world.setWoodSolid = function (on) { const r = ws.apply(this, arguments); if (host) opsQ.push({ op: 'wsolid', on: !!on }); return r; };
+    }
     for (const fn of WORLD_FNS) {
       if (!world || typeof world[fn] !== 'function') continue;
       const f0 = world[fn];
@@ -202,6 +207,7 @@ const SIM_LINK = (() => {
       const out = [];
       if (R) for (const r of R.list()) if (!baseIds.has(r.id)) out.push({ op: 'add', id: r.id, x: r.x, z: r.z, yaw: r.yaw, y0: r.y0, shape: r.shape, tag: r.tag });
       if (world && world.treeHits) for (const key of world.treeHits.keys()) out.push({ op: 'tset', key, arr: world.treeHits.get(key) });   // G1330
+      if (world && world.woodSolid === false) out.push({ op: 'wsolid', on: false });   // G1481
       return out;
     }
 
@@ -343,7 +349,9 @@ const SIM_LINK = (() => {
       const sx = (() => { try { return !/[?&]starvex=0(&|$)/.test(location.search || ''); } catch (e) { return true; } })();
       // ?ringdelay=<ms> - a FIXED ring delay (a stress test: under the snapshots' lateness, the starved frames come often)
       const rd = (() => { try { const x = /[?&]ringdelay=([0-9.]+)/.exec(location.search || ''); return x ? +x[1] / 1000 : null; } catch (e) { return null; } })();
-      flight.view = SIM_VIEW.make(flight.def, Object.assign({ ready: m, post: (x, tr) => post(x, tr), starveEx: sx }, rd != null ? { delayS: rd } : {}));
+      // G1530: ?poseback=0 - the drawn clock as it was (a later frame may draw an earlier sim time), for an A/B
+      const mono = (() => { try { return !/[?&]poseback=0(&|$)/.test(location.search || ''); } catch (e) { return true; } })();
+      flight.view = SIM_VIEW.make(flight.def, Object.assign({ ready: m, post: (x, tr) => post(x, tr), starveEx: sx, monotonic: mono }, rd != null ? { delayS: rd } : {}));
       if (flight.view.mismatch) { dropFlight('the worker built another aeroplane (a stale core in a cache?)'); return; }
     }
     // step 0 against the page's placed aeroplane: to the bit, or this flight stays inline

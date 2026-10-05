@@ -1,0 +1,118 @@
+{
+ "obs": {
+  "timeZ": "1753",
+  "wind": {
+   "dirDeg": 268,
+   "kt": 15,
+   "gustKt": 26
+  },
+  "visSM": 2,
+  "wx": [
+   "light_rain",
+   "mist"
+  ],
+  "sky": [
+   {
+    "cover": "SCT",
+    "ft": 300
+   },
+   {
+    "cover": "BKN",
+    "ft": 600
+   },
+   {
+    "cover": "OVC",
+    "ft": 1400
+   }
+  ],
+  "tempC": -2,
+  "dewC": -4,
+  "altInHg": 29.92
+ },
+ "rows": [
+  {
+   "voice": "john",
+   "what": "station_id",
+   "file": "john_station_id.mp3",
+   "s": 7.13,
+   "lufs": -20.8
+  },
+  {
+   "voice": "john",
+   "what": "bulletin",
+   "file": "john_bulletin.mp3",
+   "s": 6.25,
+   "lufs": -22.1
+  },
+  {
+   "voice": "john",
+   "what": "awos_gusty_low",
+   "file": "john_awos_gusty_low.mp3",
+   "s": 30.71,
+   "lufs": -21.9
+  },
+  {
+   "voice": "norman",
+   "what": "station_id",
+   "file": "norman_station_id.mp3",
+   "s": 6.92,
+   "lufs": -21.4
+  },
+  {
+   "voice": "norman",
+   "what": "bulletin",
+   "file": "norman_bulletin.mp3",
+   "s": 5.39,
+   "lufs": -21.6
+  },
+  {
+   "voice": "norman",
+   "what": "awos_gusty_low",
+   "file": "norman_awos_gusty_low.mp3",
+   "s": 32.4,
+   "lufs": -22.5
+  },
+  {
+   "voice": "libritts",
+   "what": "station_id",
+   "file": "libritts_station_id.mp3",
+   "s": 6.49,
+   "lufs": -21
+  },
+  {
+   "voice": "libritts",
+   "what": "bulletin",
+   "file": "libritts_bulletin.mp3",
+   "s": 4.65,
+   "lufs": -21.3
+  },
+  {
+   "voice": "libritts",
+   "what": "awos_gusty_low",
+   "file": "libritts_awos_gusty_low.mp3",
+   "s": 28.39,
+   "lufs": -22.7
+  },
+  {
+   "voice": "cori",
+   "what": "station_id",
+   "file": "cori_station_id.mp3",
+   "s": 7.52,
+   "lufs": -20.8
+  },
+  {
+   "voice": "cori",
+   "what": "bulletin",
+   "file": "cori_bulletin.mp3",
+   "s": 5.39,
+   "lufs": -21.1
+  },
+  {
+   "voice": "cori",
+   "what": "awos_gusty_low",
+   "file": "cori_awos_gusty_low.mp3",
+   "s": 36.21,
+   "lufs": -22.2
+  }
+ ]
+}

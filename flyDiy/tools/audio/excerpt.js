@@ -79,7 +79,8 @@ async function run(kind, outDir) {
   const isMusic = kind === 'music';
   const ledgerFile = path.join(ROOT, 'assets', 'audio', isMusic ? 'music_ledger.json' : 'ledger.json');
   const L = JSON.parse(fs.readFileSync(ledgerFile, 'utf8'));
-  const rows = Object.values(isMusic ? L.tracks : L.sounds).filter(r => r.raw);
+  const only = process.env.EXCERPT_IDS ? new Set(process.env.EXCERPT_IDS.split(',')) : null;   // a subset board
+  const rows = Object.values(isMusic ? L.tracks : L.sounds).filter(r => r.raw && (!only || only.has(String(r.id))));
   fs.mkdirSync(outDir, { recursive: true });
   const index = [];
   for (const r of rows) {

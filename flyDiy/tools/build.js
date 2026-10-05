@@ -308,6 +308,10 @@ const MANIFEST = {
     // G1210 (WELCOME): the welcome screen and the device gate - its OWN inline block right after boot.js's (a plain
     // script in both pages): it decides before the vendor, and the island loader waits on its FLYDIY_WELCOME
     welcome: 'welcome.js',
+    // G1535 (UPDATE-NOW): the version check and its "Update" pill - its own inline block right after boot.js's,
+    // before welcome.js's, behind a one-line script that sets FLYDIY_BUILD / FLYDIY_BUILD_DATE (known on the welcome and
+    // loading screens, long before the CORE slot's line runs)
+    updateNow: 'update_now.js',
     shots: 'shots_pack.json',
     // the LAST entry fills the APP slot; everything before it fills RENDER
     // hangar.js before app.js: app.js asks whether the room can be built at all
@@ -461,9 +465,17 @@ const MANIFEST = {
               'audio/audio_params.js', 'audio/audio.js', 'audio/engine_config.js', 'audio/src_engine.js',
               // G1620 (SND-PROP): the prop's config and its source (after src_engine: it hooks the engine voices)
               'audio/prop_config.js', 'audio/src_prop.js',
-              'audio/music.js',
+              // G1675 (SND-RADIO): Radio Jolene's talk (the breaks from the game, the voice), before the player that speaks it
+              'audio/radio_talk.js', 'audio/music.js',
               // G1630-G1633 (SND-AIRFRAME): the airframe's numbers, the sample slots, the airframe source
               'audio/airframe_model.js', 'audio/samples.js', 'audio/src_airframe.js',
+              // G1640-G1646 (SND-SPACE): the space's numbers, then the space (the cabin, the panners, the shed's room)
+              'audio/space_config.js', 'audio/space.js',
+              // G1650-G1651 (SND-AMB-1): the ambience's numbers and the bed mixer (after samples.js: it loads through its 'amb' class)
+              'audio/ambience_model.js', 'audio/ambience.js',
+              // G1662 (SND-AMB-2): the emitters' numbers and the emitters (after the ambience: they read its features)
+              'audio/emitters_model.js', 'audio/emitters.js',
+              'audio/voice_model.js', 'audio/voice.js',   // G1627 (SND-VOICE): Radio Jolene's words and their player
               // G999: the world's composition, run by the promote in a task of its own ahead of app.js's evaluation
               'world_boot.js', 'app.js',
               'dev_panel.js'],   // (the WORLD rail, world_rail.js, rides the world pack above - G582)
@@ -588,6 +600,9 @@ const WORLD_PACK = (() => {
 // a <script> body needs (a top-level `import`/`export`/`await`/`return` is a
 // syntax error here where --check may re-read the file as CommonJS or ESM).
 function syntaxCheck(label, code) {
+  // REVIEW 2026-10-04: a `</script` inside an INLINED blob ends the page's script block at that byte (the inert-typing
+  // regex below rewrites `<script>` literals too); nothing carries one today, and now nothing can silently
+  if (/<\/script/i.test(code)) { console.error(`BUILD FAIL: ${label} contains '</script' - an inlined blob may not`); process.exit(1); }
   try { new vm.Script(code, { filename: label }); }
   catch (e) {
     console.error(`SYNTAX FAIL in ${label}:\n${(e.stack || String(e)).split('\n').slice(0, 5).join('\n')}`);
@@ -597,6 +612,13 @@ function syntaxCheck(label, code) {
 
 // Slot substitution. Replacer functions are MANDATORY: the core is full of `$`
 // sequences and String.replace treats $&, $', $` as magic patterns.
+// G1535: the BOOT slot's build line, swapped for BUILD_TAG once the build id is known (swapBuild: exactly once a page)
+const BUILD_MARK = '<!--__FLYDIY_BUILD_TAG__-->';
+function swapBuild(page, tag, name) {
+  const parts = page.split(BUILD_MARK);
+  if (parts.length !== 2) { console.error(`POST-BUILD ASSERTION FAILED: ${name} carries ${parts.length - 1} build tags (one expected)`); process.exit(1); }
+  return parts.join(tag);
+}
 function fill(tpl, slot, blob) {
   const marker = `<!--__${slot}_SLOT__-->`;
   if (!tpl.includes(marker)) {
@@ -667,9 +689,16 @@ function buildViewer(coreBody) {
   if (cardsJs) syntaxCheck(V.bootCards, cardsJs);
   const welcomeJs = V.welcome && fs.existsSync(path.join(VIEW_DIR, V.welcome)) ? read(path.join(VIEW_DIR, V.welcome)) : '';
   if (welcomeJs) syntaxCheck(V.welcome, welcomeJs);
-  const bodyArt = fill(bodyHtml, 'BOOT', `<script>\n${cardsJs}\n${bootJs}</script>` + (welcomeJs ? `\n<script>\n${welcomeJs}</script>` : ''));
-  const bodyDev = fill(bodyHtml, 'BOOT', (cardsJs ? `<script src="src/viewer/${V.bootCards}?v=${sha(cardsJs).slice(0, 8)}"></script>\n` : '')
+  const updateJs = V.updateNow && fs.existsSync(path.join(VIEW_DIR, V.updateNow)) ? read(path.join(VIEW_DIR, V.updateNow)) : '';
+  if (updateJs) syntaxCheck(V.updateNow, updateJs);
+  // G1535: the build's id and date ride ahead of the boot scripts; their values are known only once every script is
+  // read (BUILD_ID below), so the slot carries a marker that both pages swap for them (BUILD_MARK)
+  // (update_now.js ahead of welcome.js: the welcome card's footer reads UPDATE_NOW.stamp as it opens)
+  const bodyArt = fill(bodyHtml, 'BOOT', BUILD_MARK + `\n<script>\n${cardsJs}\n${bootJs}</script>`
+    + (updateJs ? `\n<script>\n${updateJs}</script>` : '') + (welcomeJs ? `\n<script>\n${welcomeJs}</script>` : ''));
+  const bodyDev = fill(bodyHtml, 'BOOT', BUILD_MARK + '\n' + (cardsJs ? `<script src="src/viewer/${V.bootCards}?v=${sha(cardsJs).slice(0, 8)}"></script>\n` : '')
     + `<script src="src/viewer/${V.boot}?v=${sha(bootJs).slice(0, 8)}"></script>`
+    + (updateJs ? `\n<script src="src/viewer/${V.updateNow}?v=${sha(updateJs).slice(0, 8)}"></script>` : '')
     + (welcomeJs ? `\n<script src="src/viewer/${V.welcome}?v=${sha(welcomeJs).slice(0, 8)}"></script>` : ''));
   const scripts = V.scripts.map(f => read(path.join(VIEW_DIR, f)));
   scripts.forEach((s, i) => syntaxCheck(V.scripts[i], s));
@@ -688,6 +717,10 @@ function buildViewer(coreBody) {
   const ANIMALS_DIR = path.join(ROOT, 'src', 'animals');
   const animals = MANIFEST.animals.map(f => read(path.join(ANIMALS_DIR, f)));
   animals.forEach((m, i) => syntaxCheck(MANIFEST.animals[i], m));
+  // REVIEW 2026-10-04: the world externals and the on-demand files are <script src> refs, not inlined, and were never
+  // syntax-checked - a broken render_premises.js built "syntax OK" and failed on the page
+  for (const [d, f] of [...MANIFEST.world, ...MANIFEST.lazy])
+    syntaxCheck(d + '/' + f, fs.readFileSync(path.join(ROOT, d, f), 'utf8'));
   const three = read(path.join(VENDOR_DIR, 'three.min.js'));
   // the lazy flag rides IN FRONT of the editor scripts, in both pages: with
   // it set, _cage_ui.js defines CAGE_UI_BOOT and returns instead of booting.
@@ -744,6 +777,10 @@ function buildViewer(coreBody) {
   var tq = new URLSearchParams(location.search).get('town'), townOn = true;
   if (tq !== null) townOn = tq === '1' || tq === 'all';
   else { try { var gp = JSON.parse(localStorage.getItem('flydiy.gfx') || 'null'); townOn = !(gp && gp.town === 'nearby' && gp.pv >= 7); } catch (e) {} }
+  // (G1526, POTATO-DEEP) potato and laptop never build Metlakatla (GFX.BUDGETS town 'nearby'): their page composes the default
+  // variant - a ?gfx= in the URL, else the saved preset's build budget (a custom mix keeps its last preset's: gp.build)
+  if (tq === null) { try { var gq = new URLSearchParams(location.search).get('gfx'), gs = JSON.parse(localStorage.getItem('flydiy.gfx') || 'null');
+    var gb = gq || (gs && (gs.build || gs.preset)); if (gb === 'potato' || gb === 'laptop') townOn = false; } catch (e) {} }
   window.FLYDIY_TOWN_VARIANT = townOn ? 'town' : 'default';
   // (G1091, POLISH-2) THE TREES BY THE RUNWAYS: ?rwytrees=today|map|mapx (or localStorage flydiy.rwytrees) - read by
   // the premises' composition (27_premises.js rwyTreesMode) for a data island; anything else is 'today', the default
@@ -945,7 +982,18 @@ window.FLYDIY_BOOT.then(function () {
   // viewer and editor script), written into both pages, into version.json beside
   // them (the server's copy, fetched with no-store) and into sw.js - the version
   // line in the GRAPHICS menu compares the first two
-  const BUILD_ID = sha(coreBody + scripts.join('\n') + editor.join('\n')).slice(0, 12);
+  // G1535 (UPDATE-NOW): ...and the page's own shell - the boot slot's scripts (the loading screen, the welcome, the
+  // update pill), the styles, the body and the shell. Before it, a change to any of them shipped a new page under the
+  // SAME build id, so nothing could tell the player a newer page was on the server.
+  const BUILD_ID = sha(coreBody + scripts.join('\n') + editor.join('\n')
+    + [shell, css, bodyHtml, cardsJs, bootJs, welcomeJs, updateJs].join('\n')).slice(0, 12);
+  // the build's DATE: when version.json first carried this id (a rebuild of the same sources keeps it, so the stamp
+  // says when the build was made, not when somebody last ran the battery - and version.json stops churning)
+  const BUILD_DATE = (() => {
+    try { const v = JSON.parse(read(path.join(ROOT, 'version.json'))); if (v && v.build === BUILD_ID && v.date) return v.date; } catch (e) {}
+    return new Date().toISOString();
+  })();
+  const BUILD_TAG = `<script>window.FLYDIY_BUILD='${BUILD_ID}';window.FLYDIY_BUILD_DATE='${BUILD_DATE}';</script>`;
   const AUDIO_SRC = {};   // G1600: the served audio modules, stem -> content-versioned url (MANIFEST.audio)
   for (const f of MANIFEST.audio.modules) AUDIO_SRC[f.replace(/\.js$/, '')] = 'src/viewer/audio/' + f + ver(path.join(VIEW_DIR, 'audio', f));
   // G1673: the music catalogue (a manifest, inlined - never fetched, so never stale under sw.js's cache-first media rule)
@@ -956,8 +1004,8 @@ window.FLYDIY_BOOT.then(function () {
   const SFX_CAT = path.join(VIEW_DIR, 'audio', 'sfx_catalogue.json');
   const SFX = {};
   if (fs.existsSync(SFX_CAT)) for (const r of JSON.parse(fs.readFileSync(SFX_CAT, 'utf8'))) (SFX[r.key] = SFX[r.key] || []).push(r.file);
-  const CORE_SHA = `<script>window.FLYDIY_CORE_SHA='${sha(coreBody).slice(0, 12)}';window.FLYDIY_BUILD='${BUILD_ID}';window.FLYDIY_AUDIO_SRC=${JSON.stringify(AUDIO_SRC)};window.FLYDIY_MUSIC=${MUSIC};window.FLYDIY_AUDIO_MEDIA=${JSON.stringify(SFX).replace(/</g, '\\u003c')}</script>`;
-  fs.writeFileSync(path.join(ROOT, 'version.json'), JSON.stringify({ build: BUILD_ID, date: new Date().toISOString() }) + '\n');
+  const CORE_SHA = `<script>window.FLYDIY_CORE_SHA='${sha(coreBody).slice(0, 12)}';window.FLYDIY_BUILD='${BUILD_ID}';window.FLYDIY_AUDIO_SRC=${JSON.stringify(AUDIO_SRC)};window.FLYDIY_MUSIC=${MUSIC};window.FLYDIY_AUDIO_MEDIA=${JSON.stringify(SFX).replace(/</g, '\\u003c')};window.FLYDIY_VOICE=${fs.existsSync(path.join(VIEW_DIR, 'audio', 'voice_catalogue.json')) ? JSON.stringify(JSON.parse(fs.readFileSync(path.join(VIEW_DIR, 'audio', 'voice_catalogue.json'), 'utf8'))).replace(/</g, '\\u003c') : '{"clips":{}}'}</script>`;   // G1627: Radio Jolene's voice catalogue, inlined like the music's
+  fs.writeFileSync(path.join(ROOT, 'version.json'), JSON.stringify({ build: BUILD_ID, date: BUILD_DATE }) + '\n');
   // THE MEDIA CACHE'S WORKER (LOADING S4): media/ only, cache-first - every file
   // there is named by its content hash, so a hit can never be stale; scripts,
   // pages and everything else are never touched. One cache for every
@@ -1150,6 +1198,7 @@ window.FLYDIY_BOOT.then(function () {
       console.error(`POST-BUILD ASSERTION FAILED: the on-demand ${f} is not in the loader's map, or it has a static tag (G909)`);
       process.exit(1);
     }
+  art = swapBuild(art, BUILD_TAG, 'index.html');
   const artFile = path.join(ROOT, 'index.html');
   fs.writeFileSync(artFile, art);
 
@@ -1170,6 +1219,7 @@ window.FLYDIY_BOOT.then(function () {
     .join('\n'));
   dev = fill(dev, 'APP', dref(VIEW_DIR, 'src/viewer', V.scripts[V.scripts.length - 1]) + '\n' + DEV_PROMOTE);
   dev = `<!-- GENERATED FILE - DO NOT EDIT. Built from src/ by tools/build.js. Regenerate when markup or MANIFEST changes; plain JS/CSS edits only need a refresh. -->\n` + dev;
+  dev = swapBuild(dev, BUILD_TAG, 'dev.html');
   const devFile = path.join(ROOT, 'dev.html');
   fs.writeFileSync(devFile, dev);
 

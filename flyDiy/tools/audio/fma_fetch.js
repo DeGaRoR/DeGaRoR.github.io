@@ -109,6 +109,11 @@ async function download(L, ids) {
     const lic = licenceOf(page);
     t.licence = lic;
     if (!accepted(lic)) { console.log('SKIP', id, t.title, 'licence', lic); t.licenceCheck = 'refused'; save(L); await sleep(PACE); continue; }
+    if (!t.file) {   // a genre page's track info carries no file: read it off the track's own page
+      const m = new RegExp(`data-track-info='([^']*"id":${t.id},[^']*)'`).exec(page);
+      if (m) t.file = JSON.parse(unesc(m[1])).fileUrl;
+      if (!t.file) { console.log('SKIP', id, t.title, 'no file url on its page'); save(L); continue; }
+    }
     const buf = await get(t.file, true);
     const safe = (t.artist + '_' + t.title).replace(/[^A-Za-z0-9]+/g, '_').slice(0, 80);
     const file = path.join(RAW, `${id}_${safe}.mp3`);

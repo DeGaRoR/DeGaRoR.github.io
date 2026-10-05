@@ -1,0 +1,201 @@
+{
+ "date": "2026-10-04T16:37:59.364Z",
+ "mode": "garage",
+ "build": "cub",
+ "before": {
+  "heap": 5.3,
+  "ab": 0,
+  "ext": 1.4,
+  "rss": 46.8
+ },
+ "steps": [
+  {
+   "step": "aeroplane",
+   "ms": 2027,
+   "bytes": 0,
+   "heap": 81.6,
+   "ab": 31.6,
+   "ext": 33,
+   "rss": 193
+  },
+  {
+   "step": "aircraft",
+   "ms": 3628,
+   "bytes": 35492950,
+   "heap": 87.1,
+   "ab": 117.3,
+   "ext": 120.3,
+   "rss": 307.4
+  },
+  {
+   "step": "garage",
+   "ms": 393,
+   "bytes": 0,
+   "heap": 126.7,
+   "ab": 117.3,
+   "ext": 118.7,
+   "rss": 341.2
+  },
+  {
+   "step": "editor",
+   "ms": 3438,
+   "bytes": 3000284,
+   "heap": 210.2,
+   "ab": 133.1,
+   "ext": 149.9,
+   "rss": 523
+  },
+  {
+   "step": "seed",
+   "ms": 3482,
+   "bytes": 4176004,
+   "heap": 259.8,
+   "ab": 184.8,
+   "ext": 186.3,
+   "rss": 661.9
+  },
+  {
+   "step": "snapshot",
+   "ms": 2960,
+   "bytes": 0,
+   "heap": 170.5,
+   "ab": 224.4,
+   "ext": 291.3,
+   "rss": 660.9
+  },
+  {
+   "step": "spec",
+   "ms": 730,
+   "bytes": 0,
+   "heap": 173,
+   "ab": 229.8,
+   "ext": 296.7,
+   "rss": 664.8
+  },
+  {
+   "step": "compile",
+   "ms": 6315,
+   "bytes": 0,
+   "heap": 205.3,
+   "ab": 270.5,
+   "ext": 337.4,
+   "rss": 772.8
+  },
+  {
+   "step": "firstFrame",
+   "ms": 436,
+   "bytes": 0,
+   "heap": 220.7,
+   "ab": 270.5,
+   "ext": 337.4,
+   "rss": 784.6
+  },
+  {
+   "step": "BOOT landing",
+   "ms": 3109,
+   "bytes": 0,
+   "heap": 234.9,
+   "ab": 291.1,
+   "ext": 358,
+   "rss": 800.8
+  },
+  {
+   "step": "BOOT gone",
+   "ms": 0,
+   "bytes": 0,
+   "heap": 234.9,
+   "ab": 291.1,
+   "ext": 358,
+   "rss": 800.8
+  }
+ ],
+ "rows": [
+  {
+   "key": "wgSpan",
+   "tick": 111.5,
+   "release": 353.6,
+   "idle": 8.2,
+   "why": "{\"n\":3,\"whole\":0,\"last\":{\"ran\":[\"panel\",\"cowlAft\",\"access\",\"light\",\"energy\",\"hinge\",\"ext\"],\"why\":\"panel(always) cowlAft(always) access(stale) light(stale) energy(stale) hinge(stale) ext(always)\",\"floor\":\"cut again\",\"ms\":0.2}}"
+  },
+  {
+   "key": "wgChord",
+   "tick": 112.6,
+   "release": 313.1,
+   "idle": 7.9,
+   "why": "{\"n\":6,\"whole\":0,\"last\":{\"ran\":[\"panel\",\"cowlAft\",\"access\",\"light\",\"energy\",\"hinge\",\"ext\"],\"why\":\"panel(always) cowlAft(always) access(stale) light(stale) energy(stale) hinge(stale) ext(always)\",\"floor\":\"cut again\",\"ms\":0.2}}"
+  },
+  {
+   "key": "stSpan",
+   "tick": 14.9,
+   "release": 276.9,
+   "idle": 8.1,
+   "why": "{\"n\":9,\"whole\":0,\"last\":{\"ran\":[\"panel\",\"cowlAft\",\"access\",\"light\",\"hinge\",\"ext\"],\"why\":\"panel(always) cowlAft(always) access(stale) light(stale) hinge(stale) ext(always)\",\"floor\":\"cut again\",\"ms\":0.1}}"
+  },
+  {
+   "key": "s1X",
+   "tick": 109.2,
+   "release": 282.9,
+   "idle": 7.6,
+   "why": "{\"n\":12,\"whole\":0,\"last\":{\"ran\":[\"panel\",\"cowlAft\",\"access\",\"light\",\"hinge\",\"ext\"],\"why\":\"panel(always) cowlAft(always) access(stale) light(stale) hinge(stale) ext(always)\",\"floor\":\"cut again\",\"ms\":0.1}}"
+  },
+  {
+   "key": "paxLen",
+   "tick": 36.3,
+   "release": 1555.5,
+   "idle": 8.6,
+   "why": "{\"n\":12,\"whole\":3,\"last\":{\"whole\":\"a deformed drag\"}}"
+  },
+  {
+   "key": "halfW",
+   "tick": 19.2,
+   "release": 1079.8,
+   "idle": 8,
+   "why": "{\"n\":12,\"whole\":6,\"last\":{\"whole\":\"a deformed drag\"}}"
+  },
+  {
+   "key": "seatH",
+   "tick": 190,
+   "release": 871.7,
+   "idle": 8.7,
+   "why": "{\"n\":12,\"whole\":9,\"last\":{\"whole\":\"the crew moved in the drag\"}}"
+  }
+ ],
+ "bootMs": 33150,
+ "afterGC": {
+  "heap": 208.7,
+  "ab": 266,
+  "ext": 332.9,
+  "rss": 839.6
+ },
+ "io": {
+  "fetches": 322,
+  "fetchBytes": 39624399,
+  "imgLoads": 41,
+  "imgBytes": 5723077,
+  "c2dDraw": 38,
+  "c2dRead": 7,
+  "c2dReadBytes": 15204352,
+  "c2dPut": 29,
+  "workerMsgs": 398
+ },
+ "fetchedN": 322,
+ "byKind": {
+  "world": 0,
+  "json": 0,
+  "geo": 10.6,
+  "tex": 26.7,
+  "script": 0.1,
+  "other": 0.5
+ },
+ "bytesTotal": 45347476,
+ "errors": [],
+ "errorsN": 0,
+ "worldBuilt": false,
+ "programs": 127,
+ "afterDrags": {
+  "heap": 226.5,
+  "ab": 278.5,
+  "ext": 345.5,
+  "rss": 997.6
+ }
+}

@@ -1,0 +1,232 @@
+{
+ "date": "2026-10-04T18:53:06.565Z",
+ "mode": "garage",
+ "build": "cub",
+ "before": {
+  "heap": 5.3,
+  "ab": 0,
+  "ext": 1.4,
+  "rss": 46.8
+ },
+ "steps": [
+  {
+   "step": "aeroplane",
+   "ms": 1725,
+   "bytes": 0,
+   "heap": 89.8,
+   "ab": 35.7,
+   "ext": 37.1,
+   "rss": 210.1
+  },
+  {
+   "step": "aircraft",
+   "ms": 3542,
+   "bytes": 35492950,
+   "heap": 88.8,
+   "ab": 118.9,
+   "ext": 120.3,
+   "rss": 312.2
+  },
+  {
+   "step": "garage",
+   "ms": 429,
+   "bytes": 0,
+   "heap": 121.8,
+   "ab": 90.7,
+   "ext": 92.1,
+   "rss": 344.9
+  },
+  {
+   "step": "editor",
+   "ms": 3225,
+   "bytes": 3000284,
+   "heap": 234.8,
+   "ab": 109.8,
+   "ext": 119.7,
+   "rss": 526.4
+  },
+  {
+   "step": "seed",
+   "ms": 2985,
+   "bytes": 4176004,
+   "heap": 403.6,
+   "ab": 169.7,
+   "ext": 171.2,
+   "rss": 733.2
+  },
+  {
+   "step": "snapshot",
+   "ms": 2631,
+   "bytes": 0,
+   "heap": 188,
+   "ab": 167.7,
+   "ext": 234.7,
+   "rss": 664.5
+  },
+  {
+   "step": "spec",
+   "ms": 668,
+   "bytes": 0,
+   "heap": 200.7,
+   "ab": 173.1,
+   "ext": 240.1,
+   "rss": 666.3
+  },
+  {
+   "step": "compile",
+   "ms": 6201,
+   "bytes": 0,
+   "heap": 345.3,
+   "ab": 216.4,
+   "ext": 283.5,
+   "rss": 773.8
+  },
+  {
+   "step": "firstFrame",
+   "ms": 558,
+   "bytes": 0,
+   "heap": 365.8,
+   "ab": 216.4,
+   "ext": 283.5,
+   "rss": 790.1
+  },
+  {
+   "step": "BOOT landing",
+   "ms": 3239,
+   "bytes": 0,
+   "heap": 381.2,
+   "ab": 232,
+   "ext": 299,
+   "rss": 820.3
+  },
+  {
+   "step": "BOOT gone",
+   "ms": 0,
+   "bytes": 0,
+   "heap": 381.2,
+   "ab": 232,
+   "ext": 299,
+   "rss": 820.3
+  }
+ ],
+ "rows": [],
+ "bootMs": 31214,
+ "frame": {
+  "draws": 7021,
+  "tris": 6126249,
+  "byPhase": {
+   "other": 7021
+  },
+  "scenes": [
+   {
+    "name": "(scene)",
+    "perFrame": 2,
+    "meshes": 1,
+    "tris": 2,
+    "kids": {
+     "Mesh#0": {
+      "meshes": 1,
+      "tris": 2,
+      "sub": {}
+     }
+    }
+   },
+   {
+    "name": "(scene)",
+    "perFrame": 1,
+    "meshes": 1423,
+    "tris": 1254945,
+    "kids": {
+     "Group#0": {
+      "meshes": 871,
+      "tris": 857511,
+      "sub": {
+       "Group": [
+        871,
+        857511
+       ]
+      }
+     },
+     "Group#1": {
+      "meshes": 551,
+      "tris": 397424,
+      "sub": {
+       "Group": [
+        551,
+        397424
+       ]
+      }
+     },
+     "Group#2": {
+      "meshes": 1,
+      "tris": 11,
+      "sub": {
+       "Group": [
+        1,
+        11
+       ]
+      }
+     }
+    }
+   },
+   {
+    "name": "(scene)",
+    "perFrame": 1,
+    "meshes": 1,
+    "tris": 2,
+    "kids": {
+     "Mesh#0": {
+      "meshes": 1,
+      "tris": 2,
+      "sub": {}
+     }
+    }
+   },
+   {
+    "name": "postfx",
+    "perFrame": 1,
+    "meshes": 1,
+    "tris": 2,
+    "kids": {
+     "Mesh#0": {
+      "meshes": 1,
+      "tris": 2,
+      "sub": {}
+     }
+    }
+   }
+  ]
+ },
+ "studioProxy": false,
+ "afterGC": {
+  "heap": 230.3,
+  "ab": 210.6,
+  "ext": 277.6,
+  "rss": 829.8
+ },
+ "io": {
+  "fetches": 322,
+  "fetchBytes": 39624399,
+  "imgLoads": 41,
+  "imgBytes": 5723077,
+  "c2dDraw": 38,
+  "c2dRead": 7,
+  "c2dReadBytes": 15204352,
+  "c2dPut": 29,
+  "workerMsgs": 398
+ },
+ "fetchedN": 322,
+ "byKind": {
+  "world": 0,
+  "json": 0,
+  "geo": 10.6,
+  "tex": 26.7,
+  "script": 0.1,
+  "other": 0.5
+ },
+ "bytesTotal": 45347476,
+ "errors": [],
+ "errorsN": 0,
+ "worldBuilt": false,
+ "programs": 127
+}

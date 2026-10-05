@@ -1,0 +1,24 @@
+[1.5s] full cub http://127.0.0.1:43235/flyDiy/dev.html
+[1.8s] scripts
+[4.3s] world
+[11.7s] aeroplane
+[16.7s] aircraft
+[22.4s] seed
+[26s] world
+[54.8s] town
+[61.5s] ring
+[71.3s] settle
+[133.3s] snapshot
+[135.8s] bake
+[214.9s] spec
+[217.3s] upload
+[225.4s] compile
+[285s] firstFrame
+[352.2s] frames
+[400.7s] craft
+[406.2s] BOOT landing
+[416.8s] BOOT gone
+[436.5s] boot 416.8 s; wire 214.7 MB in 1325 requests {"html":0.1,"other":0.8,"tex":103.7,"script":12.5,"world":54.5,"json":0.1,"geo":43.1}; heap peak 1529.8 MB, after GC 203.4 + 1015.6 MB; errors 0
+[536.7s] drag {"key":"wgSpan","tick":128.6,"release":578.2}
+[616.9s] drag {"key":"stSpan","tick":19.2,"release":248.8}
+-> ../../meas/swift_full_cub.json
