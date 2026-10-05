@@ -466,7 +466,7 @@ function makePilot(sim, def, world, opts) {
   let finalLevel = null;
   let flI = 0, flCap = 0, flTau = 3.2, flVsF = 0, tdThree = false, altG = 0;   // altG: GTRAM, the altiport's grade at the aim
   // G381.1: the power assist on the approach (see apply)
-  let pAsst = 0;
+  let pAsst = 0, flLeft = Infinity;
   // G1936: the forward slip on a short final (FINAL, below) - its amount 0..1, its side, said once
   let slipK = 0, slipSg = 1, slipSaid = false;
   // G1938: THE PIVOT (TAXI / LINEUP, below) - the tightest turn the wheels steer (39_ground_path groundRmin, at the
@@ -779,7 +779,11 @@ function makePilot(sim, def, world, opts) {
       // G1936 (PILOT-ONE, the user: "aim for touching down at the beginning of the strip"): the short aim is 10 m
       // in (6 % of a longer short strip) - the hold-off's float carries the wheels on from there; 30 m in left the
       // user's Cub 120 m of East Point's 150 for a 135 m landing run, and it touched 213 m in (below)
-      const aim = shortT ? sThr + Math.max(10, 0.06 * to.len)
+      // G1949 (PILOT-ONE-2): ...AND ROUND AGAIN AFTER A FLOAT IT AIMS EARLIER - by the float's shortfall measured at
+      // the go-around + 10 m (ap.aimBack, this strip's only), never more than 10 m before the threshold. The Cub at East
+      // Point floated with 122 m left for a 122 m stop; aimed 15 m earlier it touched 14 m in and stopped with 24 m left
+      const back = (shortT && ap.aimBack && ap.aimBack.to === to) ? ap.aimBack.m : 0;
+      const aim = shortT ? sThr + Math.max(Math.max(10, 0.06 * to.len) - back, -10)
                 : to.len < 700 ? sThr + Math.max(60, 0.12 * to.len)
                 : Math.max(A.xAim, sThr + 40);
       const FS0 = def.params.flaps;
@@ -1574,7 +1578,15 @@ function makePilot(sim, def, world, opts) {
         const fast = V > 1.35 * (A.VRot || 18);
         const cap = ap.phase === 'FLARE' ? (fast ? (A.apAssistFlareFast ?? 0.12) : slow ? (A.apAssistMax ?? 0.40) : (A.apAssistFlare ?? 0.30))
                   : (A.apAssistMax ?? 0.40);
-        pAsst = clamp(pAsst + (sat ? (A.apAssistRate ?? 0.50) : free ? -0.25 : 0) * dt, 0, cap);
+        // G1949 (PILOT-ONE-2): WHERE THE STRIP IS TIGHT THE POWER ARRESTS A HARD ARRIVAL, IT DOES NOT HOLD THE AEROPLANE
+        // OFF. Under 1.15 Vs0 the assist cushioned the Cub's hold-off at East Point (150 m) at 0.75 m/s of sink on 0.2-0.3
+        // of throttle from 1 m: it touched 55 m in and rolled 23 m past the end (no assist at all: 39 m in, 2 m left - but
+        // at Jumbo Mine's 8.5 deg slope the Cub then arrived at 2.9 m/s). So on a short field with less strip ahead than
+        // the short stop + 40 m (flLeft, FLARE) it winds up only while the sink is over 1 m/s and comes off at once (1/s)
+        // under 0.9: the landing is put on, firmly, not floated. With the room (Jumbo Mine: ~220 m ahead for ~130) the
+        // cushion is the one every landing has
+        const tight = ap.shortFld && flLeft < stopDistShort(V) + 40, sinkNow = -vcg[1];
+        pAsst = clamp(pAsst + (sat && !(tight && sinkNow < 1.0) ? (A.apAssistRate ?? 0.50) : (tight && sinkNow < 0.9) ? -1.0 : free ? -0.25 : 0) * dt, 0, cap);
         if (pAsst > 0) c.thr = clamp(c.thr + pAsst, 0, 1);
       } else pAsst = 0;
       AF.fd = { pitch: SV.thCA, bank: SV.phCA };
@@ -2731,12 +2743,15 @@ function makePilot(sim, def, world, opts) {
         flapTgt = fLDG;
         const to = ap.route.to;
         const left = (to.x + F.ux * to.len / 2 - cg[0]) * F.ux + (to.z + F.uz * to.len / 2 - cg[2]) * F.uz;
+        flLeft = left;   // G1949: the strip ahead, for the flare's power (apply)
         setStatus('flaring', [cond('wheels down', onG, 1, onG > 0, ''), cond('runway left', Math.round(left), 0, left > 0, 'm')]);
         if (phaseT > 20 && left < 2 * stopDist(V) + 100 && (ap.gaN || 0) < 2 && !committed) { SV.pitchK = SV.pitchDK = 1; SV.IthMaxT = 0.15; SV.IthGain = null; goAround('floating with ' + Math.round(left) + ' m left'); break; }
         // G1936: ON A SHORT FIELD THE FLOAT IS JUDGED AT ONCE - floating in ground effect (0.3-1.0 m) with less strip
         // ahead than the short-field stop from this speed, the landing will end in the trees: power, and round
         // again (twice, then committed). Judged from the flare's start it sent the C172 round from 11 m up
-        if (ap.shortFld && phaseT > 0.5 && aglG > 0.3 && aglG < 1.0 && left < stopDistShort(V) && (ap.gaN || 0) < 2 && !committed) { SV.pitchK = SV.pitchDK = 1; SV.IthMaxT = 0.15; SV.IthGain = null; goAround('floating on the short field with ' + Math.round(left) + ' m left, ' + Math.round(stopDistShort(V)) + ' m to stop'); break; }
+        if (ap.shortFld && phaseT > 0.5 && aglG > 0.3 && aglG < 1.0 && left < stopDistShort(V) && (ap.gaN || 0) < 2 && !committed) {
+          ap.aimBack = { to, m: (ap.aimBack && ap.aimBack.to === to ? ap.aimBack.m : 0) + Math.max(0, stopDistShort(V) - left) + 10 };   // G1949: the next aim, earlier (planArrival)
+          SV.pitchK = SV.pitchDK = 1; SV.IthMaxT = 0.15; SV.IthGain = null; goAround('floating on the short field with ' + Math.round(left) + ' m left, ' + Math.round(stopDistShort(V)) + ' m to stop'); break; }
         // B4: armed on the STRIP-FRAME crosswind (|windZ| + |windX| armed it on
         // a headwind straight down the strip too) — 39b_servos.js decrabArmed
         const decrab = SV.decrabArmed(agl, F);
