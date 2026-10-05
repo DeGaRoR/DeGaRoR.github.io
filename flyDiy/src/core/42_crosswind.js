@@ -12,10 +12,12 @@
 // right (+z, the side GATE TAKEOFF found the worse on the twin), in which
 // the test pilot keeps the take-off roll between the base strip's painted
 // edge lines (|cross-track| <= R.half - 2.5, the lines 25_airfield paints)
-// and gets airborne, without a rejected take-off. The heading as the wheels
-// leave is REPORTED beside it, not judged: a tail-up taildragger weathervanes
-// into wind on its scrubbing mains and a flying aeroplane crabs on purpose,
-// and neither is what the strip's edge cares about.
+// and gets airborne, without a rejected take-off, its heading within 30 deg of
+// the strip's as the wheels leave (G1845: until the tyre had a cornering
+// stiffness the heading was only reported - a tail-up taildragger "weathervaned
+// on its scrubbing mains", which was the Coulomb tyre's; with real tyres an
+// aeroplane past its limit swings across the strip INSIDE the band, and only
+// the heading says so. A crab at lift-off, atan(w / V_lo), stays well under it).
 // The band is the STRIP'S, so the number means "this aeroplane leaves this
 // field straight in this much wind" — the plaque's own runway, the way the
 // take-off run is judged against the strip's length. G193.1 recorded why no
@@ -36,9 +38,9 @@
 //
 // `makeCrosswindProbe(def, opts)` is the steppable form the page polls;
 // `genCrosswindLimit(def, opts)` runs it to the end for the gates. Both are
-// pure of THREE and of the page. opts: { world, band, step, res, cap, maxS,
-// memo }. `memo` (a Map) remembers each rung's flight by wind speed: a rung
-// is a function of the wind alone — the band, the step and the cap only
+// pure of THREE and of the page. opts: { world, band, heading, step, res, cap,
+// maxS, memo }. `memo` (a Map) remembers each rung's flight by wind speed: a rung
+// is a function of the wind alone — the band, the heading, the step and the cap only
 // JUDGE it — so a second ladder over the same aeroplane (GATE TAKEOFF asks
 // three, with three bands) re-reads the rungs it already flew
 // (2026-09-14, the gate rationalization).
@@ -56,14 +58,16 @@ function makeCrosswindProbe(def, opts) {
   const step = opts.step || 2;
   const res = opts.res || 0.5;
   const cap = opts.cap || 10;
+  // G1845 (DMG-TYRE): THE HEADING AS THE WHEELS LEAVE IS JUDGED TOO, against `heading` (rad, 30 deg). Read the
+  // note in stepOne.
+  const hdgMax = opts.heading != null ? opts.heading : 30 * Math.PI / 180;
   const runs = [];
   let cur = null, lo = 0, hi = null, calmTried = false, result = null;
 
   function start(w) {
     if (memo && memo.has(w)) {                                // a rung already flown: re-judge it by THIS band
       const m = memo.get(w);
-      const fin = m.why ? { ok: false, why: m.why }
-                        : { ok: m.roll <= band, why: m.roll <= band ? null : 'off the edge line' };
+      const fin = m.why ? { ok: false, why: m.why } : judge(m.roll, m.e);
       cur = { w, roll: m.roll, e: m.e, t: m.t, fin };
       return;
     }
@@ -97,18 +101,32 @@ function makeCrosswindProbe(def, opts) {
     }
     if ((c.ap.phase === 'LIFTOFF' || c.ap.phase === 'CLIMB') && (d.agl || 0) > hSafe) {
       c.e = c.eLift != null ? c.eLift : Math.abs(d.e || 0);
-      // THE BAND IS THE VERDICT; the heading is reported, not judged. As the
-      // wheels leave, a tail-up taildragger has weathervaned into wind on its
-      // scrubbing mains (the ultralight: 13 deg at 2 m/s, the swing G193.1
-      // recorded), and once flying the pilot crabs on purpose (the default
-      // aeroplane: 10 deg at 4 m/s). What the strip cares about is its edge.
-      const inBand = c.roll <= band;
-      c.fin = { ok: inBand, why: inBand ? null : 'off the edge line' };
+      // THE BAND AND THE HEADING ARE THE VERDICT. This read the band alone and
+      // reported the heading: as the wheels left, a tail-up taildragger had
+      // weathervaned into wind on its scrubbing mains (the ultralight: 13 deg
+      // at 2 m/s, the swing G193.1 recorded), and once flying the pilot crabs
+      // on purpose (the default aeroplane: 10 deg at 4 m/s). G1845 (DMG-TYRE):
+      // the "scrubbing mains" were the tyre law's - Coulomb friction at
+      // 0.02 m/s, which held any yaw on full mu N and dragged the aeroplane
+      // sideways off the edge line before it could swing far. With a tyre's
+      // cornering stiffness (G1844) the mains hold the track and nothing holds
+      // the heading once the tail is up but the rudder: the ultralight past
+      // its limit lifted off 58 / 87 / 99 deg off the strip at 6 / 10 / 12 m/s
+      // - across the strip, inside the band - and the band alone read a
+      // ground loop as a pass. A heading more than `heading` (30 deg) off the
+      // strip as the wheels leave is a loss of directional control, not a
+      // crab (a lift-off crab is atan(w / V_lo), 14 deg at 4 m/s across 16).
+      c.fin = judge(c.roll, c.e);
       return true;
     }
     if (c.ap.phase === 'STOPPED') { c.fin = { ok: false, why: 'stopped' }; return true; }
     if (c.t > maxS) { c.fin = { ok: false, why: 'never airborne' }; return true; }
     return false;
+  }
+  function judge(roll, e) {
+    if (roll > band) return { ok: false, why: 'off the edge line' };
+    if (e > hdgMax) return { ok: false, why: 'swung off the heading' };
+    return { ok: true, why: null };
   }
   // the next rung, or the verdict
   function plan() {
@@ -134,8 +152,9 @@ function makeCrosswindProbe(def, opts) {
   }
   function record() {
     const c = cur, f = c.fin;
-    // the flight, not the verdict: the band judged `off the edge line`, every other why is the flight's own
-    if (memo && !memo.has(c.w)) memo.set(c.w, { roll: c.roll, e: c.e, t: c.t, why: f.why === 'off the edge line' ? null : f.why });
+    // the flight, not the verdict: the band and the heading judged `off the edge line` / `swung off the heading`,
+    // every other why is the flight's own
+    if (memo && !memo.has(c.w)) memo.set(c.w, { roll: c.roll, e: c.e, t: c.t, why: f.why === 'off the edge line' || f.why === 'swung off the heading' ? null : f.why });
     runs.push({ w: c.w, ok: f.ok, roll: Math.round(c.roll * 100) / 100,
                 e: Math.round(c.e * 1000) / 1000, why: f.why });
     if (f.ok) lo = Math.max(lo, c.w);

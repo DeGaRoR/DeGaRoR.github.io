@@ -232,12 +232,15 @@ if (!SELF) {
     check(xw.runs.every(r => r.ok ? r.w <= xw.limit + 1e-9 : r.w > xw.limit - 1e-9),
           tag + 'every passed rung at or under the limit, every failed rung above it',
           xw.runs.map(r => r.w + (r.ok ? ' ok' : ' x')).join(', '));
-    check(xw.runs.every(r => r.ok === (r.roll <= xw.band)),
-          tag + 'a pass is exactly a roll inside the band (the heading is reported, not judged)');
+    // G1845 (DMG-TYRE): the heading as the wheels leave is judged too (30 deg, 42_crosswind.js): with the tyre's
+    // cornering stiffness the fixture past its limit swung 58-99 deg ACROSS the strip inside the band (6-12 m/s),
+    // and the band alone read that ground loop as a pass - the ladder ran past its 10 m/s cap
+    check(xw.runs.every(r => r.ok === (r.roll <= xw.band && r.e <= 30 * Math.PI / 180)),
+          tag + 'a pass is exactly a roll inside the band with the heading within 30 deg as the wheels leave');
     check(typeof xw.e === 'number' && xw.e >= 0, tag + 'the lift-off heading rides beside the limit', (xw.e * 57.3).toFixed(1) + ' deg');
     check(xw.roll != null && xw.roll <= xw.band, tag + 'the roll at the limit is inside the band', xw.roll + ' m');
-    check(xw.failWhy === 'off the edge line' || xw.failWhy == null,
-          tag + 'past the limit it is the edge line that goes, not a rejection', String(xw.failWhy));
+    check(xw.failWhy === 'off the edge line' || xw.failWhy === 'swung off the heading' || xw.failWhy == null,
+          tag + 'past the limit it is the edge line or the heading that goes, not a rejection', String(xw.failWhy));
     check(cpu < 60, tag + 'measured inside a minute of CPU time', cpu.toFixed(1) + ' s CPU, ' + wall.toFixed(1) + ' s wall');
     // declared knobs move it as declared: a 1 m band cannot be held even in
     // calm air; a 4 m/s cap with a 100 m band reports "> cap"
