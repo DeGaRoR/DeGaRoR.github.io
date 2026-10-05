@@ -75367,3 +75367,26 @@ FOR THE COORDINATOR: (1) NOT YET SEEN RENDERED - the screenshots and the visual 
   after a reload, and the lean need ears and a real Chromium. (2) SND-TUNE knobs: PAN_K / PAN_NEAR / PAN_FAR (music.js), the
   halo's colour and opacity, QUICK_HOLD_MS. (3) The panel has no keyboard focus trap (Esc closes it); say if it should take
   focus when it opens.
+
+## TRAIN 34 LANDED (2026-10-05, A0 the coordinator)
+
+Cargo (on train 33 = 0fd1fa34): the REVIEW sessions - SPEC-FIXPOINT G1550-G1559 (the spec a fixed point: offsets once,
+the join states its rows, clamps after derivation, null = default; the user's Cub: reserve sheet 443.9 -> 448.7 kg, flown
+numbers identical), WORLD-STRIPS G1560-G1569 (strips walked at 2 m - GATE STRIPGROUND registered; lake outlets traced -
+Jolene +40 creek reaches; the far sea at the level; seed 0 re-sited, AERO's field count >= 4), PILOT-FORKS G1570-G1579
+(the three pilots fly ONE servo module, 39b_servos.js; the classic/test pilots' B3-B7; the game's pilot identical but its
+fixes), GEN-PAIRS G1580-G1589 (twin boom's zero-length beams, pusher + tricycle, biplane flex per plane, deflected normals,
+the V-tail's throw; GATE GENPAIRS registered; B12 held by the user's ruling); STRUT-LIVERY G1910-G1914 (the struts back
+in the livery, live and baked; a saved Cub heals), RUNWAY-LIGHTS-2 G1545-G1549 (warmer 2500 K, shrouded to the approach,
+a red far row), TANKS-FLOAT G1385-G1389 (the wing slabs' air from the real tanks), GROUND-LATTICE G1540-G1544 (the
+tailwheel on the drawn ground; TW_DRAW_DROP 0), SOUND-34 + SND-BOOMBOX (the animals' voices, the boombox prop, the garage
+radio UI, G1705-G1714; the boombox's KTX2 twins).
+HELD: RELEASE-CHECKS G1590 (rewrote the build id on a base older than UPDATE-NOW's - rebase relayed), DMG-DAMP (with
+DMG-TYRE / DMG-HULL), the damage work (train 35).
+A0 IN THE TRAIN: GEN-PAIRS' deflected normals were rewritten EVERY frame (+~1 ms cockpit loop: a prefix bisect T0-T4 with
+cooked trees, then T2 / T2g / T3 cockpit A/Bs) - now only when the surface turned > ~0.1 deg (after: +0.3 ms, in noise);
+the boombox halo through MATLIB (ASSETS) + GATE BOOMBOX's sandbox; FRAMECOST admits the boombox in the shed (G1710).
+STRICT GATE (full): only the 30 cap's rows + the known hybrid band rows; the chase loop matched train 33 in the bisect
+(T0 = tip, 16.4 ms in that session); the mn_strip trip task gone. BATTERY: the full battery on the first build (3 boombox
+reds), the changed gates on the final build PASS (FRAMECOST, KTX2, ASSETS, BOOMBOX, GENPAIRS, UISMOKE, BUILD, MEDIA, PROPS,
+SKINMAT, PARTS, HANGAR). Parked re-cooked.
