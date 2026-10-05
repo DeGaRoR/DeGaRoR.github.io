@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: b51ad86b1284e75f
+// body-sha256: e0c94216616d5d17
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -3214,7 +3214,7 @@ function makeWorld(seed, opts) {
     ? { strips: [], grade: (x, z, h) => h, surfaceAt: () => -1, inBox: () => false, stats: { bakeMs: 0 } }
     : bakeAerodromes({
       terrain: tV2, water: HYD.water, carved: (x, z) => { tV2(x, z); return _cd; }, settlements: SET.settlements,
-      meadows, roadNear: SET.roadNear, SURFACE, salt: SALT });
+      meadows, roadNear: SET.roadNear, SURFACE, salt: SALT, buildings: SET.buildings });
   // the island takes no generated strips (maps first: its field is a premises record)
   if (!ISL) for (const st of AERO.strips) aerodromes.push(st);
 
@@ -5011,6 +5011,7 @@ function bakeAerodromes(D) {
   // D: { terrain(x,z), water(x,z), carved(x,z), settlements, meadows, roadNear, SURFACE, salt }
   const t0 = Date.now();
   const { terrain, water, carved, settlements, meadows, roadNear, SURFACE, salt } = D;
+  const houses = D.buildings || [];
   const smf01 = t => { t = Math.min(1, Math.max(0, t)); return t * t * (3 - 2 * t); };
   const hash2 = (ix, iz) => {
     let h = (ix * 786433 + iz * 393241 + 65213 + salt) | 0;
@@ -5069,8 +5070,19 @@ function bakeAerodromes(D) {
         if (h < 1.2 || water(x, z) > h) return false;
       }
     }
+    // A STRIP STANDS CLEAR OF THE TOWN'S HOUSES (MILL-TAXI, G1928): the settlements' houses are placed first (23_world_settle)
+    // and a main field's candidate ring (r0 = s.r + 160) let a 650 m strip reach back over the town - seeds 1, 6, 12 and 42
+    // each had a house ON a runway (tools/taxi_census.js: the roll, a way out, a U-turn through its box). A house's circle
+    // (half its diagonal) keeps HOUSE_CLEAR off the runway's rectangle, which holds every route the pattern draws (the
+    // lanes, the U-turns, the spawn): the widest validated span's half (5.5 m) + the census's 3 m, and a metre. The
+    // score's order is kept, so a strip that was clear stands where it stood (seed 0's nearest house is 297 m off).
+    for (const b of houses) {
+      const px = b.x - cx, pz = b.z - cz, al = Math.abs(px * dx + pz * dz) - len / 2, ac = Math.abs(-px * dz + pz * dx) - wid / 2;
+      if (Math.hypot(Math.max(al, 0), Math.max(ac, 0)) - Math.hypot(b.w, b.l) / 2 < HOUSE_CLEAR) return false;
+    }
     return true;
   }
+  const HOUSE_CLEAR = 9.5;
   const nearMeadow = (x, z, f) => meadows.some(m => Math.hypot(x - m.x, z - m.z) < m.r * f);
   const inHomeZone = (x, z) =>
     (x > -3400 && x < 400 && Math.abs(z) < 500) ||     // circuit band
@@ -5953,6 +5965,46 @@ function gpClearWay(nodes, ids, parked, need, pre) {   // pre (G772): the new co
   return { ok: !w, added, moved, need, worst: w ? { d: +w.d.toFixed(2), x: +w.x.toFixed(1), z: +w.z.toFixed(1), id: w.p.id || null } : null };
 }
 
+// ---- THE TURN PAD (ISLAND-TOUR, G1966) -----------------------------------------------------------------------------
+// The user (2026-10-05): "Land at each, U-turn, take off again ... You have the authority to modify the strips, their
+// approach paths, their U-turn zones ... You should just work with their length as-is". The derived U-turn above is a
+// long runway's: two corners `lane` either side of the centreline, `lane` = min(12, half - 2.5) - a 6.5 m radius on an
+// 18 m strip, 3.5 m on East Point's 12 m (no aeroplane turns round on that), 27 m in and its hold 110 m in (a short
+// strip's scaled to a quarter) - so a short strip gave a third of its length to the turn. A strip that DECLARES a pad
+// at an end (the runway record's `turn`: [{ r, side } | null, ...] per end, contract v1.32) turns round on it:
+//   the BULB, one side of the strip (`side` +1 along the record's n = (-sin hdg, cos hdg), -1 the other), its ground
+//   authored beside the strip as the editor draws an apron (a flatten or grade + a surface of the strip's class:
+//   tools/turn_pads.js writes both, GATE PREMISES holds the U-turn on them)
+//   the TEARDROP the pilot follows (patternPath, fillets of radius r): down the centreline toward the end (e), a 45 deg
+//   swing out to the bulb's lane 2r off the centreline (a), along it to 3 m from the end (b), across the end in a
+//   half circle of radius r (b -> c, c on the centreline), and out along the centreline - lined up - to the hold, r + 6
+//   m in. The run left from the hold is the strip less r + 9 m (25 m for r 8, the Cessna's tightest comfortable taxi
+//   turn; the generic hold was 37-110 m in).
+// Pure geometry on the aerodrome record; null when the end declares no pad.
+const TURN_S0 = 3;
+function turnOf(aero, T) {
+  const t = aero && Array.isArray(aero.turn) ? aero.turn[T] : null;
+  if (!t || !(+t.r > 0)) return null;
+  return { r: Math.max(5, Math.min(20, +t.r)), side: +t.side < 0 ? -1 : 1 };
+}
+function turnPadNodes(aero, T) {
+  const tp = turnOf(aero, T);
+  if (!tp) return null;
+  const R = siteRunway(aero), E = T === 0 ? R.end0 : R.end1;
+  const u = T === 0 ? [R.dx, R.dz] : [-R.dx, -R.dz], n = [R.nx * tp.side, R.nz * tp.side];
+  const r = tp.r, w = 2 * r, s0 = TURN_S0, sA = s0 + 1.414 * r + 1, sE = sA + w, sHold = s0 + r + 6;
+  const P = (sAl, lat) => [+(E.x + u[0] * sAl + n[0] * lat).toFixed(3), +(E.z + u[1] * sAl + n[1] * lat).toFixed(3)];
+  const node = (id, sAl, lat, kind, rr) => { const p = P(sAl, lat); return { id, x: p[0], z: p[1], kind, r: rr, s: sAl, l: lat }; };
+  return {
+    r, side: tp.side, s0, sA, sE, sHold, w,
+    nodes: [node('e' + T, sE, 0, 'taxi', r), node('l' + T + 'a', sA, w, 'taxi', r), node('l' + T + 'b', s0, w, 'taxi', r),
+            node('l' + T + 'c', s0, 0, 'taxi', r), node('hold' + T, sHold, 0, 'hold')],
+    // the ground the turn needs beside the strip (the wheels' track 1.5 m either side of the path, and 1.5 m more):
+    // from the end to past the swing, from the strip's edge out to the bulb's lane + 3 m - in the world, a polygon
+    ground: [P(0, R.wid / 2 - 1), P(0, w + 3), P(sE - r, w + 3), P(sE + 3, R.wid / 2 - 1)].map(q => [q[0], q[1]]),
+  };
+}
+
 // opts (G710): { half } - the taxiing aeroplane's half-span, for the way round the site's parked
 // aeroplanes (GP_HALF_DEFAULT when absent); a pattern of a site with none is the same whatever it says
 function sitePattern(aero, site, opts) {
@@ -5988,6 +6040,17 @@ function sitePattern(aero, site, opts) {
     const dir = T === 0 ? d : [-d[0], -d[1]];
     const E = [ends[T].x, ends[T].z];
     const hdg = Math.atan2(dir[1], dir[0]);
+    // THE TURN PAD (ISLAND-TOUR G1966): a strip that declares one at this end turns round ON it - the bulb's
+    // teardrop (turnPadNodes), the hold where the turn comes out lined up - instead of the lane-and-U-turn below
+    const TP = turnPadNodes(aero, T);
+    if (TP) {
+      const ids = [];
+      for (const q of TP.nodes) ids.push(add(q.id, [q.x, q.z], q.kind, q.kind === 'hold' ? { hdg } : { r: q.r }));
+      for (let i = 0; i + 1 < ids.length; i++) link(ids[i], ids[i + 1]);
+      holds.push(ids[ids.length - 1]);
+      routes.back[T] = ids;
+      continue;
+    }
     const hold = add('hold' + T, at(E[0], E[1], dir, GP_HOLD_IN * kIn), 'hold', { hdg });
     holds.push(hold);
     // the lane-and-U-turn back to this hold from anywhere on the strip
@@ -6043,7 +6106,12 @@ function sitePattern(aero, site, opts) {
     // entry nearer the threshold than that hold holds one fillet past the entry instead (the turn onto the
     // centreline needs its radius of straight); longer strips and later entries keep hold0 to the bit
     const inEntry = along + lenR / 2, inHold = GP_HOLD_IN * kIn;
-    if (lenR < 300 && inEntry + GP_FILLET < inHold) {
+    const tp0 = turnPadNodes(aero, 0);
+    if (tp0) {
+      // a turn pad at end0 (G1966): an entry short of the pad's hold rolls straight on to it; an entry past it goes
+      // down the strip and turns round on the pad, as a landing's backtrack does
+      routes.out[0] = [st].concat(ids, [c0]).concat(inEntry <= tp0.sHold - 8 ? [holds[0]] : routes.back[0]);
+    } else if (lenR < 300 && inEntry + GP_FILLET < inHold) {
       const hs = add('hold0s', at(ex, ez, d, GP_FILLET), 'hold', { hdg: Math.atan2(d[1], d[0]) });
       link(c0, hs);
       routes.out[0] = [st].concat(ids, [c0, hs]);
@@ -6077,7 +6145,7 @@ function sitePattern(aero, site, opts) {
         clearance = Object.assign({}, c1r, { added: c1r.added + (clearance ? clearance.added : 0), moved: c1r.moved + (clearance ? clearance.moved : 0) });
       else clearance = Object.assign({}, clearance, { added: clearance.added + c1r.added, moved: clearance.moved + c1r.moved });
     }
-    link(prev1, c1); link(c1, 'l1a');
+    link(prev1, c1); link(c1, routes.back[1][0]);
     routes.out[1] = [st].concat(ids1, [c1]).concat(routes.back[1]);
   } else if (aero.spawn) {
     // a generated strip: the spawn identity is 35 m in from end0
@@ -7978,7 +8046,7 @@ function roadLook(r) { const k = r.look && RUNWAY_LOOKS[r.look] ? r.look : (ROAD
 // the strip, join: 'downwind' | 'straight' } declares how the strip is flown — the pilot's side, the
 // least pattern height, whether a straight-in is allowed (43_pilot.js planArrival); null leaves the
 // pilot to the terrain and the wind. The editor's row is owed.
-const RUNWAY_DEF = { name: 'strip', len: 480, wid: 24, surface: SURFACE.GRASS, look: 'grass', slope: 0, crossfall: 0, disp: [0, 0], papi: [true, true], falloff: null, site: null, pattern: null, stand: null, taxiOut: null, taxiOut1: null, profile: null, approach: null, hangar: null, circuit: null, band: null, pav: null, altiport: false };
+const RUNWAY_DEF = { name: 'strip', len: 480, wid: 24, surface: SURFACE.GRASS, look: 'grass', slope: 0, crossfall: 0, disp: [0, 0], papi: [true, true], falloff: null, site: null, pattern: null, stand: null, taxiOut: null, taxiOut1: null, profile: null, approach: null, hangar: null, circuit: null, band: null, pav: null, altiport: false, turn: null };
 const HANGAR_DIMS = { HW: 15, HD: 12.5, EAVE: 7.0 };   // hangar.js's own defaults; the player's sliders override them at the roll-out (playerShedDims)
 function runwayIsWater(r) { return +r.surface === SURFACE.WATER; }
 
@@ -8131,6 +8199,10 @@ function runwayAerodrome(r, F, elev, flats, hAt, gradedRoads) {
            // (0|1); without it a one-way strip is left the way it is landed. East Point is landed over the sea and left
            // back out over it - the trees close in at the other end
            takeoffHdg: r.departure === 1 ? hdg : r.departure === 0 ? hdg + Math.PI : null,
+           // THE TURN PADS (ISLAND-TOUR G1966, contract v1.32): `turn` [end 0, end 1] of { r, side } or null - the U-turn
+           // the derived pattern draws on a pad beside the strip at that end (25_airfield.js turnPadNodes); the pad's
+           // ground is authored (a flatten / grade and a surface of the strip's class, tools/turn_pads.js)
+           turn: Array.isArray(r.turn) ? r.turn.map(t => (t && +t.r > 0 ? { r: +t.r, side: +t.side < 0 ? -1 : 1 } : null)) : null,
            slope: +r.slope || 0, disp: r.disp || [0, 0], papi: r.papi || [true, true], circuit: r.circuit || null };
 }
 
@@ -9520,6 +9592,17 @@ function issues(rec0) {
     else for (const i of profileIssues(Object.assign({}, RUNWAY_DEF, r))) out.push(i);
     if (r.look !== undefined && r.look !== null && !RUNWAY_LOOKS[r.look]) out.push('runway ' + r.id + ': unknown look ' + r.look);
     if (r.approach !== undefined && r.approach !== null && r.approach !== 0 && r.approach !== 1) out.push('runway ' + r.id + ': approach is 0, 1 or null');
+    if (r.departure !== undefined && r.departure !== null && r.departure !== 0 && r.departure !== 1) out.push('runway ' + r.id + ': departure is 0, 1 or null');
+    // G1966: the turn pads - [end 0, end 1], each null or { r: the U-turn's radius 5..20 m, side: +1 | -1 }
+    if (r.turn != null) {
+      if (!Array.isArray(r.turn) || r.turn.length !== 2) out.push('runway ' + r.id + ': turn is [end 0, end 1] of { r, side } or null');
+      else r.turn.forEach((t, k) => {
+        if (t == null) return;
+        if (typeof t !== 'object' || !(+t.r >= 5 && +t.r <= 20)) out.push('runway ' + r.id + ': turn[' + k + '].r is the U-turn radius, 5 to 20 m');
+        else if (t.side !== 1 && t.side !== -1) out.push('runway ' + r.id + ': turn[' + k + '].side is +1 or -1');
+        else if (2 * +t.r + 3 > (+r.len || 0) / 3) out.push('runway ' + r.id + ': turn[' + k + '] - a ' + t.r + ' m U-turn takes over a third of the strip');
+      });
+    }
     if (r.circuit != null) {
       const c = r.circuit;
       if (typeof c !== 'object') out.push('runway ' + r.id + ': circuit is an object { hand, height, join } or null');
@@ -19130,6 +19213,18 @@ function makePilot(sim, def, world, opts) {
       if (!ids) ids = PAT.routes.back[T];
       if (ids && ids.length) {
         const byId = {}; for (const n of PAT.nodes) byId[n.id] = n;
+        // THE TURN PAD (ISLAND-TOUR G1969): a landing on a short strip stops inside the pad's own swing (East Point's
+        // roll ends ~20 m from the end, the teardrop's entry is 35 m in) - the route's nodes the aeroplane has already
+        // passed on its way to that end are dropped (down to the half circle's two corners and the hold), so the
+        // follower is never handed a corner behind it
+        if (onStrip && ids === PAT.routes.back[T] && typeof turnPadNodes === 'function' && turnPadNodes(from, T)) {
+          ids = ids.slice();
+          while (ids.length > 3) {
+            const q = byId[ids[0]];
+            if (!q || ((q.x - cg[0]) * -t[0] + (q.z - cg[2]) * -t[1]) >= 8) break;
+            ids.shift();
+          }
+        }
         const n0 = byId[ids[0]];
         if (n0 && onStrip) {
           const vx = n0.x - cg[0], vz = n0.z - cg[2], vl = Math.hypot(vx, vz) || 1e-9;
@@ -35375,4 +35470,4 @@ function playerShedDims(doc, id, site) {
   return { HW: d.HW || h.HW, HD: d.HD || h.HD, EAVE: d.EAVE || h.EAVE };
 }
 if (typeof module !== 'undefined')
-  module.exports = { TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, TREE_HITS, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, RWY_LIGHTS, runwayLightStrips, runwayLightSite, runwayLightPoints, STRIP_SURFACES, stripSurface, stripGear, stripAllows, stripFallback, stripLandable, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, atmosWater, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, CLIMATE, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, decodeAnimal, decodeAnimalClips, registerAnimal, animalList, animalClips, animalClip, ANIMAL_REG, makeSim, HYDRO, makeBus, vortexKernel, makeAutopilot, makeTestPilot, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, seatOnGround, placeAtLineup, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, POLARS, PAR, RHO, hyp2, hyp3, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genPlanePair, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_CRASH, GEN_CRASH_TUBE_DT, genPhysKey, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, genTrueBox, genNetEig, genRigidFloatOf, GEN_BOX_N, GEN_BOX_KMIN, GEN_NET_MAX, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC, GP_PARKED_FOOT, GP_PARKED_DEFAULT, GP_CLEAR, GP_HALF_DEFAULT, parkedFoot, gpParkedDist, gpClearWay, GEN_WING_ENVELOPE, GEN_FIELDS, genFieldClamp, genNullToDefault, genSpecMerge, SERVO_GAINS, makeServos, SERVO_TUNE, servoWrapPi, servoCrossWind, servoRestHeight };
+  module.exports = { TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, TREE_HITS, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, RWY_LIGHTS, runwayLightStrips, runwayLightSite, runwayLightPoints, STRIP_SURFACES, stripSurface, stripGear, stripAllows, stripFallback, stripLandable, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, turnOf, turnPadNodes, TURN_S0, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, atmosWater, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, CLIMATE, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, decodeAnimal, decodeAnimalClips, registerAnimal, animalList, animalClips, animalClip, ANIMAL_REG, makeSim, HYDRO, makeBus, vortexKernel, makeAutopilot, makeTestPilot, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, seatOnGround, placeAtLineup, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, POLARS, PAR, RHO, hyp2, hyp3, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genPlanePair, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_CRASH, GEN_CRASH_TUBE_DT, genPhysKey, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, genTrueBox, genNetEig, genRigidFloatOf, GEN_BOX_N, GEN_BOX_KMIN, GEN_NET_MAX, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC, GP_PARKED_FOOT, GP_PARKED_DEFAULT, GP_CLEAR, GP_HALF_DEFAULT, parkedFoot, gpParkedDist, gpClearWay, GEN_WING_ENVELOPE, GEN_FIELDS, genFieldClamp, genNullToDefault, genSpecMerge, SERVO_GAINS, makeServos, SERVO_TUNE, servoWrapPi, servoCrossWind, servoRestHeight };

@@ -699,6 +699,46 @@ function gpClearWay(nodes, ids, parked, need, pre) {   // pre (G772): the new co
   return { ok: !w, added, moved, need, worst: w ? { d: +w.d.toFixed(2), x: +w.x.toFixed(1), z: +w.z.toFixed(1), id: w.p.id || null } : null };
 }
 
+// ---- THE TURN PAD (ISLAND-TOUR, G1966) -----------------------------------------------------------------------------
+// The user (2026-10-05): "Land at each, U-turn, take off again ... You have the authority to modify the strips, their
+// approach paths, their U-turn zones ... You should just work with their length as-is". The derived U-turn above is a
+// long runway's: two corners `lane` either side of the centreline, `lane` = min(12, half - 2.5) - a 6.5 m radius on an
+// 18 m strip, 3.5 m on East Point's 12 m (no aeroplane turns round on that), 27 m in and its hold 110 m in (a short
+// strip's scaled to a quarter) - so a short strip gave a third of its length to the turn. A strip that DECLARES a pad
+// at an end (the runway record's `turn`: [{ r, side } | null, ...] per end, contract v1.32) turns round on it:
+//   the BULB, one side of the strip (`side` +1 along the record's n = (-sin hdg, cos hdg), -1 the other), its ground
+//   authored beside the strip as the editor draws an apron (a flatten or grade + a surface of the strip's class:
+//   tools/turn_pads.js writes both, GATE PREMISES holds the U-turn on them)
+//   the TEARDROP the pilot follows (patternPath, fillets of radius r): down the centreline toward the end (e), a 45 deg
+//   swing out to the bulb's lane 2r off the centreline (a), along it to 3 m from the end (b), across the end in a
+//   half circle of radius r (b -> c, c on the centreline), and out along the centreline - lined up - to the hold, r + 6
+//   m in. The run left from the hold is the strip less r + 9 m (25 m for r 8, the Cessna's tightest comfortable taxi
+//   turn; the generic hold was 37-110 m in).
+// Pure geometry on the aerodrome record; null when the end declares no pad.
+const TURN_S0 = 3;
+function turnOf(aero, T) {
+  const t = aero && Array.isArray(aero.turn) ? aero.turn[T] : null;
+  if (!t || !(+t.r > 0)) return null;
+  return { r: Math.max(5, Math.min(20, +t.r)), side: +t.side < 0 ? -1 : 1 };
+}
+function turnPadNodes(aero, T) {
+  const tp = turnOf(aero, T);
+  if (!tp) return null;
+  const R = siteRunway(aero), E = T === 0 ? R.end0 : R.end1;
+  const u = T === 0 ? [R.dx, R.dz] : [-R.dx, -R.dz], n = [R.nx * tp.side, R.nz * tp.side];
+  const r = tp.r, w = 2 * r, s0 = TURN_S0, sA = s0 + 1.414 * r + 1, sE = sA + w, sHold = s0 + r + 6;
+  const P = (sAl, lat) => [+(E.x + u[0] * sAl + n[0] * lat).toFixed(3), +(E.z + u[1] * sAl + n[1] * lat).toFixed(3)];
+  const node = (id, sAl, lat, kind, rr) => { const p = P(sAl, lat); return { id, x: p[0], z: p[1], kind, r: rr, s: sAl, l: lat }; };
+  return {
+    r, side: tp.side, s0, sA, sE, sHold, w,
+    nodes: [node('e' + T, sE, 0, 'taxi', r), node('l' + T + 'a', sA, w, 'taxi', r), node('l' + T + 'b', s0, w, 'taxi', r),
+            node('l' + T + 'c', s0, 0, 'taxi', r), node('hold' + T, sHold, 0, 'hold')],
+    // the ground the turn needs beside the strip (the wheels' track 1.5 m either side of the path, and 1.5 m more):
+    // from the end to past the swing, from the strip's edge out to the bulb's lane + 3 m - in the world, a polygon
+    ground: [P(0, R.wid / 2 - 1), P(0, w + 3), P(sE - r, w + 3), P(sE + 3, R.wid / 2 - 1)].map(q => [q[0], q[1]]),
+  };
+}
+
 // opts (G710): { half } - the taxiing aeroplane's half-span, for the way round the site's parked
 // aeroplanes (GP_HALF_DEFAULT when absent); a pattern of a site with none is the same whatever it says
 function sitePattern(aero, site, opts) {
@@ -734,6 +774,17 @@ function sitePattern(aero, site, opts) {
     const dir = T === 0 ? d : [-d[0], -d[1]];
     const E = [ends[T].x, ends[T].z];
     const hdg = Math.atan2(dir[1], dir[0]);
+    // THE TURN PAD (ISLAND-TOUR G1966): a strip that declares one at this end turns round ON it - the bulb's
+    // teardrop (turnPadNodes), the hold where the turn comes out lined up - instead of the lane-and-U-turn below
+    const TP = turnPadNodes(aero, T);
+    if (TP) {
+      const ids = [];
+      for (const q of TP.nodes) ids.push(add(q.id, [q.x, q.z], q.kind, q.kind === 'hold' ? { hdg } : { r: q.r }));
+      for (let i = 0; i + 1 < ids.length; i++) link(ids[i], ids[i + 1]);
+      holds.push(ids[ids.length - 1]);
+      routes.back[T] = ids;
+      continue;
+    }
     const hold = add('hold' + T, at(E[0], E[1], dir, GP_HOLD_IN * kIn), 'hold', { hdg });
     holds.push(hold);
     // the lane-and-U-turn back to this hold from anywhere on the strip
@@ -789,7 +840,12 @@ function sitePattern(aero, site, opts) {
     // entry nearer the threshold than that hold holds one fillet past the entry instead (the turn onto the
     // centreline needs its radius of straight); longer strips and later entries keep hold0 to the bit
     const inEntry = along + lenR / 2, inHold = GP_HOLD_IN * kIn;
-    if (lenR < 300 && inEntry + GP_FILLET < inHold) {
+    const tp0 = turnPadNodes(aero, 0);
+    if (tp0) {
+      // a turn pad at end0 (G1966): an entry short of the pad's hold rolls straight on to it; an entry past it goes
+      // down the strip and turns round on the pad, as a landing's backtrack does
+      routes.out[0] = [st].concat(ids, [c0]).concat(inEntry <= tp0.sHold - 8 ? [holds[0]] : routes.back[0]);
+    } else if (lenR < 300 && inEntry + GP_FILLET < inHold) {
       const hs = add('hold0s', at(ex, ez, d, GP_FILLET), 'hold', { hdg: Math.atan2(d[1], d[0]) });
       link(c0, hs);
       routes.out[0] = [st].concat(ids, [c0, hs]);
@@ -823,7 +879,7 @@ function sitePattern(aero, site, opts) {
         clearance = Object.assign({}, c1r, { added: c1r.added + (clearance ? clearance.added : 0), moved: c1r.moved + (clearance ? clearance.moved : 0) });
       else clearance = Object.assign({}, clearance, { added: clearance.added + c1r.added, moved: clearance.moved + c1r.moved });
     }
-    link(prev1, c1); link(c1, 'l1a');
+    link(prev1, c1); link(c1, routes.back[1][0]);
     routes.out[1] = [st].concat(ids1, [c1]).concat(routes.back[1]);
   } else if (aero.spawn) {
     // a generated strip: the spawn identity is 35 m in from end0

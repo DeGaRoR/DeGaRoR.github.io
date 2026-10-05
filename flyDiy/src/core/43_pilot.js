@@ -939,6 +939,18 @@ function makePilot(sim, def, world, opts) {
       if (!ids) ids = PAT.routes.back[T];
       if (ids && ids.length) {
         const byId = {}; for (const n of PAT.nodes) byId[n.id] = n;
+        // THE TURN PAD (ISLAND-TOUR G1969): a landing on a short strip stops inside the pad's own swing (East Point's
+        // roll ends ~20 m from the end, the teardrop's entry is 35 m in) - the route's nodes the aeroplane has already
+        // passed on its way to that end are dropped (down to the half circle's two corners and the hold), so the
+        // follower is never handed a corner behind it
+        if (onStrip && ids === PAT.routes.back[T] && typeof turnPadNodes === 'function' && turnPadNodes(from, T)) {
+          ids = ids.slice();
+          while (ids.length > 3) {
+            const q = byId[ids[0]];
+            if (!q || ((q.x - cg[0]) * -t[0] + (q.z - cg[2]) * -t[1]) >= 8) break;
+            ids.shift();
+          }
+        }
         const n0 = byId[ids[0]];
         if (n0 && onStrip) {
           const vx = n0.x - cg[0], vz = n0.z - cg[2], vl = Math.hypot(vx, vz) || 1e-9;

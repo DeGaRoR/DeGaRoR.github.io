@@ -1,0 +1,176 @@
+#!/usr/bin/env node
+// GATE TOUR (ISLAND-TOUR, G1965-G1974) - THE ISLAND'S LOCATIONS IN ONE GO, AND THE STRIPS THAT MAKE IT POSSIBLE.
+//
+// The user (2026-10-05): "The ultimate test of PILOT-ONE should be to do a full tour of the island's locations in one
+// go. Land at each, U-turn, take off again, visit the next one. Success when it gets undamaged back to the mother
+// airport. You have the authority to modify the strips, their approach paths, their U-turn zones, etc. You should just
+// work with their length as-is. Note that the mine also needs a proper apron for its start/park area."
+//
+//   node tools/_tour_check.js               -> "GATE TOUR: PASS|FAIL" (full tier: ~20 min a shard)
+//   node tools/_tour_check.js --show        -> every line, passed ones too
+//   node tools/_tour_check.js --strips      -> the strips' block alone (~30 s)
+//
+// THE STRIPS (shard 0; tools/_approach_lib.js, 25_airfield.js turnPadNodes, tools/turn_pads.js):
+//   1 THE APPROACH CENSUS: every land strip of Jolene, every direction it is landed in and taken off in (a one-way
+//     strip its named one): no tree, no forest the fill plants and no solid thing through the obstacle clearance
+//     surface (1:20 on a strip of 600 m and more, 1:15 under, from an inner edge 60 m out, the strip's half-width
+//     + 15 m a side diverging 10 %); the ground at most 2.5 m through it (a sidehill by a threshold); the pilot's own
+//     5.7 % final at least 10 m over everything in the corridor
+//   2 CALIBRATION: the census can see the faults it guards - East Point's approach with the user's old fan (G527.3)
+//     has the forest through the surface; Tamgas Hill and Jumbo Mine left the way they are NOT (uphill, into the
+//     ridge) have the ground through it
+//   3 THE TURN PADS: every declared pad (the runway's `turn`): the U-turn's wheel track (the path the pilot follows, 1.5
+//     m either side) on the strip or on a surface of the strip's class, the ground under it within 0.3 m of the
+//     strip's own height there, the wing's sweep (the widest validated half-span + 3 m) clear of every solid thing and
+//     every tree, and the hold where the turn comes out lined up keeps the run the strip had (the hold <= r + 9 m in: 3 m from the end, the half circle, 6 m straight)
+//   4 THE MINE'S APRON: a gravel apron (apron: true) under the stand and the C172's parked box, 1.5 m off every
+//     footprint, on the street's level
+// THE TOURS (one heavy job each - shards: 3):
+//   5 the user's Cub (builds/cub_2026-09-20_corrected.json): HOME > Tamgas Hill > the altiport > Jumbo Mine > East Point
+//     > 02/20 > HOME; the aluminium C172: HOME > Tamgas Hill > the altiport > 02/20 > HOME (the two short strips refuse
+//     it - G531's reserve at their length); the float Cessna (bugReports/cessnaFloatsWOrks.json): Annette Dock >
+//     Metlakatla > Annette Dock. The damage ON. Each leg: stopped at its To, no member yielded or broken, no dent, no
+//     prop strike, no node inside an obstacle, no trunk hit, no ground loop (30 deg off the runway at > 5 m/s on the
+//     roll or the roll-out), no off-strip excursion (the CG off the strip's box at > 5 m/s), the final's lowest node
+//     >= 3 m over the ground and the forest under it; a one-way strip turned round on its pad (>= 150 deg on the
+//     ground before the roll) and the roll began within 40 m of the end; the fuel never short; the tour back at HOME
+'use strict';
+const fs = require('fs'), path = require('path');
+const T = __dirname;
+const PT = require(path.join(T, 'pilot_trace.js'));
+PT.loadPanel();
+const C = require(path.join(T, 'flight_core.js'));
+const IN = require(path.join(T, 'island_node.js'));
+const L = require(path.join(T, '_taxiclear_lib.js'));
+const A = require(path.join(T, '_approach_lib.js'));
+const TR = require(path.join(T, '_tour_lib.js'));
+const SHD = require(path.join(T, '_shard.js'));
+const SHOW = process.argv.includes('--show'), STRIPS = process.argv.includes('--strips');
+let bad = 0;
+const check = (ok, what, detail) => {
+  if (!ok) bad++;
+  if (!ok || SHOW) console.log((ok ? '  ok   ' : '  FAIL ') + what + (detail ? '  (' + detail + ')' : ''));
+  return ok;
+};
+const FX = path.join(T, 'fixtures', 'island_jolene.json');
+
+if (SHD.first) {
+  const txt = fs.readFileSync(FX, 'utf8'), REC = JSON.parse(txt);
+  const W = IN.islandWorld('jolene', { premises: txt });
+  const SH = L.islandObstacles(C, 'jolene', 'town').concat(L.treeTrunks(W));
+  const IX = L.index(SH);
+  const land = W.aerodromes.filter(a => !a.water && a.kind !== 'water');
+  check(['HOME', 'w2', 'w3', 'tw_ski', 'mn_strip', 'nv_strip'].every(id => land.some(a => a.id === id)), '1 Jolene\'s six land strips', land.map(a => a.id).join(' '));
+  // 1 the approach census
+  const rows = [];
+  for (const a of land) {
+    for (const k of A.landDirs(C, a)) rows.push(Object.assign({ what: a.id + ' approach k' + k }, A.censusDir(C, W, a, k, { obstacles: SH })));
+    for (const t of A.takeoffDirs(C, a)) rows.push(Object.assign({ what: a.id + ' climb-out T' + t }, A.censusClimb(C, W, a, t, { obstacles: SH })));
+  }
+  for (const r of rows) {
+    const w = r.worst, ground = w && w.what === 'ground';
+    check(!w || w.p <= 0 || (ground && w.p <= 2.5), '1 ' + r.what + ': nothing but the ground through the 1:' + (1 / r.slope).toFixed(0) + ' surface, the ground <= 2.5 m',
+      w ? (w.p > 0 ? '+' : '') + w.p + ' m, ' + w.what + ' ' + w.d + ' m out' : 'nothing');
+    check(r.pilot.c >= 10, '1 ' + r.what + ': the 5.7 % final clears everything by 10 m', r.pilot.c + ' m (' + r.pilot.what + ' ' + r.pilot.d + ' m out)');
+  }
+  check(rows.length >= 12, '1 the census covered every direction flown', rows.length + ' directions');
+  // 2 calibration
+  {
+    const old = JSON.parse(txt);
+    const fan = old.layers.exclude.find(e => e.id === 'nv_fan_s'), nv = old.layers.runways.find(r => r.id === 'nv_strip');
+    const d = [Math.cos(nv.hdg), Math.sin(nv.hdg)], n = [-d[1], d[0]];
+    fan.poly = [[75, -14], [135, -22], [205, -36], [305, -55], [305, 55], [205, 36], [135, 22], [75, 14]].map(q => [nv.c[0] + d[0] * q[0] + n[0] * q[1], nv.c[1] + d[1] * q[0] + n[1] * q[1]]);
+    const W0 = IN.islandWorld('jolene', { premises: JSON.stringify(old) }), a0 = W0.aerodromes.find(a => a.id === 'nv_strip');
+    const r0 = A.censusDir(C, W0, a0, A.landDirs(C, a0)[0], { obstacles: SH });
+    check(r0.worst && r0.worst.p > 5 && r0.worst.what === 'forest', '2 calibration: East Point with the old fan has the forest through its approach', r0.worst ? '+' + r0.worst.p + ' m ' + r0.worst.what + ' ' + r0.worst.d + ' m out' : '-');
+    const w3 = land.find(a => a.id === 'w3'), mn = land.find(a => a.id === 'mn_strip');
+    const up = A.censusClimb(C, W, w3, 1 - A.takeoffDirs(C, w3)[0], { obstacles: SH }), ridge = A.censusClimb(C, W, mn, 1 - A.takeoffDirs(C, mn)[0], { obstacles: SH });
+    check(up.worst && up.worst.p > 2.5, '2 calibration: Tamgas Hill left uphill has the hill through its climb-out', up.worst ? '+' + up.worst.p + ' m ' + up.worst.d + ' m out' : '-');
+    check(ridge.worst && ridge.worst.p > 50, '2 calibration: Jumbo Mine left south has the ridge through its climb-out', ridge.worst ? '+' + ridge.worst.p + ' m ' + ridge.worst.d + ' m out' : '-');
+  }
+  // 3 the turn pads
+  let nPads = 0;
+  for (const a of land) {
+    const s = C.siteOf(a.id), P = C.sitePattern(a, s, {}), R = C.siteRunway(a), O = W.premises.overlay;
+    const hS = q => W.terrainH(R.end0.x + R.dx * q, R.end0.z + R.dz * q);
+    for (const k of [0, 1]) {
+      const TP = C.turnPadNodes(a, k);
+      if (!TP) continue;
+      nPads++;
+      const pth = C.patternPath(P, P.routes.back[k], 1.0, null);
+      let off = 0, dh = 0, sweep = Infinity, swWhat = null, tree = Infinity;
+      const near = [];
+      for (let i = 1; i < pth.pts.length; i++) {
+        const q = pth.pts[i], q0 = pth.pts[i - 1], tx = q.x - q0.x, tz = q.z - q0.z, tl = Math.hypot(tx, tz) || 1;
+        for (const w of [-1.5, 0, 1.5]) {
+          const x = q.x - tz / tl * w, z = q.z + tx / tl * w;
+          const sa = (x - R.end0.x) * R.dx + (z - R.end0.z) * R.dz, ca = Math.abs((x - R.cx) * R.nx + (z - R.cz) * R.nz);
+          if (!(ca <= R.half || O.surfaceAt(x, z) === a.surface)) off++;
+          dh = Math.max(dh, Math.abs(W.terrainH(x, z) - hS(Math.max(0, Math.min(R.len, sa)))));
+        }
+        const nn = IX.nearest(q.x, q.z, 30); if (nn && nn.d < sweep) { sweep = nn.d; swWhat = L.fmtWhat(nn.s); }
+        W.treesNear(q.x, q.z, near);
+        for (const ti of near) { const t = W.trees[ti]; tree = Math.min(tree, Math.hypot(t.x - q.x, t.z - q.z)); }
+      }
+      const id = a.id + ' end ' + k + ' (r ' + TP.r + ', side ' + (TP.side > 0 ? '+' : '-') + ')';
+      check(off === 0, '3 ' + id + ': the U-turn\'s wheel track on the strip or its pad', off + ' samples off');
+      check(dh <= 0.3, '3 ' + id + ': the ground under the U-turn at the strip\'s height', dh.toFixed(2) + ' m');
+      check(sweep >= 5.5 + 3, '3 ' + id + ': the wing\'s sweep clear of every solid thing (5.5 + 3 m)', (isFinite(sweep) ? sweep.toFixed(1) + ' m to ' + swWhat : 'nothing within 30 m'));
+      check(tree >= 5.5 + 3, '3 ' + id + ': ... and of every tree', isFinite(tree) ? tree.toFixed(1) + ' m' : 'none near');
+      check(TP.sHold <= TP.r + TP.s0 + 6 + 1e-6 && P.nodes.some(q => q.id === 'hold' + k && Math.abs((q.x - (k ? R.end1.x : R.end0.x)) * (k ? -R.dx : R.dx) + (q.z - (k ? R.end1.z : R.end0.z)) * (k ? -R.dz : R.dz) - TP.sHold) < 0.01),
+        '3 ' + id + ': the turn comes out lined up ' + TP.sHold.toFixed(1) + ' m in (the pattern\'s hold)', 'run ahead ' + (R.len - TP.sHold).toFixed(0) + ' of ' + R.len + ' m');
+      const iss = C.sitePatternIssues(P, a, s, 0, C.patternPath);
+      check(!iss.length, '3 ' + a.id + ': the pattern is sound', iss.join(' | '));
+    }
+  }
+  check(nPads >= 6, '3 the pads: Tamgas Hill, the altiport and East Point, both ends', nPads + ' pads');
+  // 4 the mine's apron
+  {
+    const ap = REC.layers.surface.find(e => e.id === 'mn_y_apron'), m = REC.layers.material.find(e => e.id === 'mn_m_apron');
+    const mn = land.find(a => a.id === 'mn_strip'), st = C.siteOf('mn_strip').stand;
+    check(!!ap && ap.apron === true && ap.surface === 6 && !!m && m.look === 'gravel', '4 the mine\'s apron: a gravel apron surface with the gravel look', ap ? JSON.stringify({ surface: ap.surface, apron: ap.apron, look: m && m.look }) : 'missing');
+    if (ap) {
+      const inP = (x, z) => C.PREMISES_GEN.inPoly(ap.poly, x, z);
+      const c172 = TR.defOf(C, PT, TR.BUILDS.c172.key), D = L.buildDims(C, c172);
+      const P = C.sitePattern(mn, C.siteOf('mn_strip'), {}), f = P.nodes.find(q => q.id === P.routes.out[0][1]);
+      const h = Math.atan2(f.z - st.z, f.x - st.x), fx = Math.cos(h), fz = Math.sin(h);
+      const corners = [[D.fwd, -D.half], [D.fwd, D.half], [-D.aft, D.half], [-D.aft, -D.half]].map(q => [st.x + fx * q[0] - fz * q[1], st.z + fz * q[0] + fx * q[1]]);
+      check(inP(st.x, st.z) && corners.every(q => inP(q[0], q[1])), '4 the stand and the C172\'s parked box on the apron', corners.map(q => (inP(q[0], q[1]) ? 'in' : 'OUT')).join(' '));
+      let m1 = Infinity; const bb = C.PREMISES_GEN.polyBBox(ap.poly);
+      for (let x = bb.x0; x <= bb.x1; x += 1) for (let z = bb.z0; z <= bb.z1; z += 1) if (inP(x, z)) { const n = IX.nearest(x, z, 10); if (n) m1 = Math.min(m1, n.d); }
+      check(m1 >= 1.5, '4 the apron 1.5 m off every footprint', (isFinite(m1) ? m1.toFixed(2) : '>10') + ' m');
+      const lv = W.terrainH(st.x, st.z);
+      check(Math.abs(lv - 346.8) < 0.2, '4 the apron on the street\'s level (346.8 m)', lv.toFixed(2) + ' m at the stand');
+    }
+  }
+}
+
+// 5 the tours
+if (!STRIPS) {
+  const JOBS = [{ b: 'cub' }, { b: 'c172' }, { b: 'floats' }];
+  for (const J of JOBS) {
+    if (!SHD.take()) continue;
+    const B = TR.BUILDS[J.b], order = TR.ORDERS[B.tour].split(',');
+    const def = TR.defOf(C, PT, B.key);
+    const TW = TR.tourWorld(C, IN, fs);
+    const t0 = Date.now();
+    const R = TR.flyTour(C, TW.W, def, order, { log: SHOW ? (L2 => console.log(TR.fmtLeg(L2))) : null });
+    console.log('  ' + B.name + ': ' + order.join(' > ') + ' - ' + (R.done ? 'DONE' : 'NOT DONE') + ', ' + R.legs.length + ' legs, fuel left ' + R.fuel + ' L (' + ((Date.now() - t0) / 1000).toFixed(0) + ' s)');
+    check(def.params.damage === true, '5 ' + B.name + ': the damage is ON');
+    for (const L2 of R.legs) {
+      const id = '5 ' + B.name + ' ' + L2.from + ' > ' + L2.to;
+      check(L2.ok, id + ': stopped at its To with no fault', L2.faults.map(f => f.k + ': ' + f.note).join('; ') || L2.phases.slice(-6).join('>'));
+      const a = TW.W.aerodromes.find(q => q.id === L2.from);
+      const oneWay = typeof a.takeoffHdg === 'number' || a.altiport;
+      if (oneWay && L2.from !== order[0]) {
+        check(L2.dep.uturn, id + ': turned round on the ground before the roll (a one-way strip)', L2.dep.turned + ' deg');
+        check(L2.dep.rollFromEnd !== null && L2.dep.rollFromEnd <= 40, id + ': the roll began within 40 m of the end', L2.dep.rollFromEnd + ' m');
+      }
+      if (L2.arr.apprClear) check(L2.arr.apprClear.c >= 3, id + ': the final\'s lowest node 3 m over the ground and the forest', L2.arr.apprClear.c + ' m (' + L2.arr.apprClear.what + ', ' + L2.arr.apprClear.d + ' m out)');
+      check(L2.fuel && L2.fuel.litres > 0, id + ': fuel left', L2.fuel ? L2.fuel.litres + ' L' : '-');
+    }
+    check(R.done && R.legs.length === order.length - 1, '5 ' + B.name + ': the tour is complete, back at ' + order[order.length - 1], R.legs.length + ' of ' + (order.length - 1) + ' legs');
+  }
+}
+console.log('GATE TOUR' + SHD.tag + ': ' + (bad ? 'FAIL (' + bad + ')' : 'PASS'));
+process.exit(bad ? 1 : 0);
