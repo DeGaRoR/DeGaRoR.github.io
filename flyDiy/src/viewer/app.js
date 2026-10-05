@@ -4703,13 +4703,17 @@
     window.CAGE_UI.build();
     return true;
   };
+  // THE BOOMBOX (G1711, SND-BOOMBOX): the shed's radio answers a click like a light switch does - boombox.js casts the
+  // same ray at its box and takes the click only when it is NEARER than the aeroplane's hit; on pointer events only
+  // (a declaration, hoisted: loop() asks it too)
+  function bbProp() { return (inGarage && hangar && hangar.mobileProp) ? hangar.mobileProp('boombox') : null; }
   canvas.addEventListener('pointerup', e => {
     if (downAt && edSit.visible && !SHOT.on && e.button === 0 &&
         Math.hypot(e.clientX - downAt.x, e.clientY - downAt.y) < 4 &&
-        Date.now() - downAt.t < 500 &&
-        typeof window.EDITOR_PICK === 'function') {
+        Date.now() - downAt.t < 500) {
       const hit = pickAt(e.clientX, e.clientY);
-      if (!edSwitchClick(hit)) window.EDITOR_PICK(hit, false);
+      if (window.BOOMBOX && hit && window.BOOMBOX.click(bbProp(), pickRay.ray, hit, canvas)) { /* the radio's panel */ }
+      else if (typeof window.EDITOR_PICK === 'function' && !edSwitchClick(hit)) window.EDITOR_PICK(hit, false);
     }
     downAt = null;
     endTouch(e);
@@ -4736,7 +4740,10 @@
       const now = Date.now();
       if (now - hoverT > HOVER_MS) {
         hoverT = now;
-        window.EDITOR_PICK(pickAt(e.clientX, e.clientY), true);
+        const h = pickAt(e.clientX, e.clientY);
+        // G1711: over the radio (nearer than the aeroplane) the part under it is not lit - the radio's cue is
+        const onBox = !!(window.BOOMBOX && window.BOOMBOX.hover(h ? bbProp() : null, pickRay.ray, h, canvas));
+        window.EDITOR_PICK(onBox ? { miss: true, section: null, name: '', layer: '' } : h, true);
       }
     }
     if (!touches.has(e.pointerId)) return;
@@ -4758,6 +4765,7 @@
   // leaving the render clears the hover: a tint that outlives the pointer
   // reads as a selection, and there is already one of those
   canvas.addEventListener('pointerleave', () => {
+    if (window.BOOMBOX) window.BOOMBOX.hover(null, null, null, canvas);   // G1711
     if (edSit.visible && typeof window.EDITOR_PICK === 'function')
       window.EDITOR_PICK(null, true);
   });
@@ -11722,6 +11730,7 @@
     }
     POSE_LERP.back();                  // G1100: the newest step's positions back, bit for bit, before anything else reads them
     if (window.AUDIO) AUDIO.update(sim, camera, fdt, def, cam, inGarage, world);   // G1600: the sound's numbers off the newest step (audio.js; nothing before a gesture)
+    if (window.BOOMBOX) BOOMBOX.frame(camera, bbProp);   // G1711: the radio's panel follows the radio - nothing while it is closed
     if (FR) FR.end(true, cg);          // G620: the glare and the rest to `other`; the row written
     PACE.end(perfNow() - tLoop0, physMs, pc.steps, typeof ts === 'number' ? ts : perfNow(), simwRan >= 0 ? 0 : ran);   // (G820: the worker's steps are not the page's: their cost is not a page step's)   // G586: auto's reading (G612: and the guard's)
     BOOT.frame();     // the loading screen counts frames: it lifts three quiet ones after the last landing

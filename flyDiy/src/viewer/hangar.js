@@ -2360,6 +2360,11 @@ function mobileList() {
   }));
 }
 function mobileShow(on) { MOBILE.visible = on !== false; return MOBILE.visible; }
+// G1711 (SND-BOOMBOX): one of the kit's props by key - the boombox app.js's click asks for (null when the ring has none)
+function mobileProp(key) {
+  for (const o of MOBILE.children) if (o.name === 'prop:' + key) return o;
+  return null;
+}
 
 // THE COSY CORNER. The stove is a prop now; the flue is not, and cannot be —
 // scandinavian_masonry_heater is a DOMESTIC heater with a 2.4 m stub, and this
@@ -3734,7 +3739,7 @@ return {
   mats: M, shafts: shafts, faceShafts: faceShafts,
   // the kit that follows the aeroplane, and the equirect the caller may bake
   // an environment from instead of the room's own cube pass
-  placeMobile: placeMobile, mobile: mobileList, mobileShow: mobileShow,
+  placeMobile: placeMobile, mobile: mobileList, mobileShow: mobileShow, mobileProp: mobileProp,
   // the baked floor shadow: re-run after anything on the floor moves
   bakeGroundShadow: GS.bake, disposeGroundShadow: GS.dispose,
   bakeCraftShadow: CS.bake,
