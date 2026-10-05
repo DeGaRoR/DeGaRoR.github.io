@@ -651,8 +651,8 @@ function makeSim(def, world) {
   //   IN COMPRESSION the gear GIVES (a wheel's leg, its braces, the nose fork): no set to the limit - it yields where a
   //     section sized for the ultimate yields, 1.5 F_l,c x the steel's ty / tu (GEN_CERT.leg.yUlt: 1.18 for 4130), the
   //     gear on every aeroplane being steel, an oleo or a bungee's steel vee - then it crushes at that load over its
-  //     archetype's TRAVEL (GEN_CERT.leg: a spring-steel leg spreads a long way, an
-  //     oleo bottoms and bends, a bungee's lug hardly gives) and past it kinks - its group lets go, the gear is off;
+  //     archetype's TRAVEL (GEN_CERT.leg: a spring-steel leg spreads a long way, an oleo bottoms and bends, a bungee's
+  //     lug hardly gives) and past it kinks - its group lets go, the gear is off;
   //     a float's struts and spreaders are a truss with no spring: they crush at the ultimate (D2a's rule);
   //   IN TENSION it is the LUG: brittle at the joint's ultimate, 1.5 F_l,t m (dm13) - a side load past 23.485's (the
   //     ground loop), a float's bow digging in, pull a fitting apart;

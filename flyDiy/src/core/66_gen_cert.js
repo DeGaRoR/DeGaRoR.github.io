@@ -710,7 +710,8 @@ function genCertTaxi(def) {
 // G1836 (DMG-D2b, dm14): THE CONTROLS FLOWN (23.423 / 23.441's checked and maneuvering conditions, the static
 // hard-over cases above, flown): level at V_A at full power, then the elevator (or the rudder) full one way for
 // GEN_CERT.ctlFlown.hold s, full the other way as long, back to neutral, the throttle chopped as the input starts, the
-// real sim under the probe; the elevator again at V_F with the flaps down (23.345's configuration, the approach's). What the static cases cannot show: the airframe RINGING after a step - a short tie
+// real sim under the probe; the elevator again at V_F with the flaps down (23.345's configuration, the approach's).
+// What the static cases cannot show: the airframe RINGING after a step - a short tie
 // between two posts that no static load path crosses (the metal Cessna's stab root cross-tie, HR-HR, 18 cm between
 // its two root posts: 0.35 kN in every static case, 0.5 kN in a single frame as its final's throttle came off and its
 // elevator moved) carries what the frame's own modes put through it, and only a flown case puts them there
