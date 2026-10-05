@@ -130,7 +130,9 @@ function wireLaw(delta, tens) {
   const L = Math.hypot(B[0]-A[0], B[1]-A[1], B[2]-A[2]);
   const wire = { a, b, k: 1.0e6, c: 300, gear: false, cls: 'wire', ext: true,
                  vis: null, L, tens: !!tens, pre: 5e-4 };
-  const d2 = Object.assign({}, def, { beams: tens == null ? def.beams : def.beams.concat([wire]) });
+  // G1837 (DMG-D2b): the probe tests the ELASTIC law (a 2 cm jolt in one 1e-4 s step), so it says so: with the damage
+  // layer on by default the members round the jolted node yield under it (DEFORM §11.4: the gates say what they test)
+  const d2 = Object.assign({}, def, { beams: tens == null ? def.beams : def.beams.concat([wire]), params: Object.assign({}, def.params, { damage: false }) });
   const sim = makeSim(d2, null);
   sim.reset(0);
   const w = tens == null ? { L0: L } : sim.beams[sim.beams.length - 1];

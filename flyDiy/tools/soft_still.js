@@ -19,6 +19,9 @@
 //        [--gfx potato|retro|...]          a preset (default: none - the software rung picks itself)
 //        [--size 960x540] [--quality 80] [--secs 900] [--port 0 (auto)] [--json out.json] [--keep-hud]
 //        [--aero-check]                    also take the frame with the aeroplane hidden and report the difference
+//        [--stage <file.js>]               G1854 (DMG-D4a): a node module run at the stand, after the view and before the
+//                                          still: module.exports = async (page, { frames, shot, log }) => ({ skipMain }) -
+//                                          it stages a scene and may take its own stills (shot(out): a JPEG and its numbers)
 //   -> the JPEG, and one line `SOFT_STILL {json}`: the timings (boot, roll-out, reveal), the renderer string, the
 //      gfx tier the page chose, renderer.info at the still (draw calls, triangles), the picture's coverage (the
 //      share of pixels that are not the clear colour, the lower half's spread), and every page error.
@@ -174,6 +177,17 @@ async function still(o) {
     const frames = async n => { const f0 = await page.evaluate(() => window.__softFrames || 0); await until(n + ' frames', new Function('return (window.__softFrames || 0) >= ' + (f0 + n)), 500); };
     await frames(o.frames);
     R.t.view = T();
+    if (o.stage) {
+      // G1854: a staged scene and its own stills (tools/dmg_skin_stills.js)
+      const shotTo = async out => { const png0 = await page.screenshot({ type: 'png', timeout: o.secs * 1000 });
+        const clear = await page.evaluate(() => { try { const c = new THREE.Color(); window.FLYDIY_RENDERER.getClearColor(c); c.convertLinearToSRGB(); return [Math.round(c.r * 255), Math.round(c.g * 255), Math.round(c.b * 255)]; } catch (e) { return null; } });
+        const A0 = await analyse(browser, png0, o.quality, clear);
+        fs.mkdirSync(path.dirname(path.resolve(out)), { recursive: true }); fs.writeFileSync(out, Buffer.from(A0.jpeg, 'base64')); delete A0.jpeg;
+        log('still', out, JSON.stringify(A0)); return A0; };
+      R.stage = await require(path.resolve(o.stage))(page, { frames, shot: shotTo, log });
+      R.t.stage = T();
+      if (R.stage && R.stage.skipMain) { R.t.total = T(); return R; }
+    }
     // the whole frame's draw calls (every pass: the shadow maps, the scene, the resolve) - info resets per render() call,
     // so it is held for one frame
     Object.assign(R, await page.evaluate(() => new Promise(res => { const r = window.FLYDIY_RENDERER; if (!r) return res({});
@@ -216,7 +230,7 @@ function parse() {
     cam: opt('cam', null), orbit: orbit ? orbit.split(',').map(Number) : null, q: opt('q', ''), gfx: opt('gfx', null),
     size, quality: +opt('quality', 80), secs: +opt('secs', 3600), port: +opt('port', 0), frames: +opt('frames', 3),
     out: opt('out', path.join(REPO, 'flyDiy', 'reports', 'evidence', 'soft_still.jpg')), keepHud: flag('keep-hud'), aeroCheck: flag('aero-check'),
-    json: opt('json', null), quiet: flag('quiet'), from: opt('from', null),
+    json: opt('json', null), quiet: flag('quiet'), from: opt('from', null), stage: opt('stage', null),
   };
 }
 

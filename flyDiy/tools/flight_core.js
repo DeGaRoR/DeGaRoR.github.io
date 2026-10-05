@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 7c955ab45765da66
+// body-sha256: 572683e63ad89bee
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -11411,9 +11411,11 @@ function makeSim(def, world) {
     const s = (cx * ax + cy * ay + cz * az) / (lu * lv), c = (u[0]*v[0] + u[1]*v[1] + u[2]*v[2]) / (lu * lv);
     return { c0, c1, ax: [ax, ay, az], theta: Math.atan2(s, c), L, I0: inertia(r0, c0), I1: inertia(r1, c1) };
   }
-  function rotateRing(r, c, a, phi, dt) {
+  // (Cm: G1840's measured substep - the turn's force on a node of a cut's part, m e / dt^2, reported to the cut)
+  function rotateRing(r, c, a, phi, dt, Cm) {
     const cw = Math.cos(phi), sw = Math.sin(phi), t = 1 - cw;
     const [kx, ky, kz] = a;
+    const nm = Cm ? Cm.nm : null;
     for (const i of r) {
       const i3 = i*3, x = p[i3] - c[0], y = p[i3+1] - c[1], z = p[i3+2] - c[2];
       const nx = x*(cw + kx*kx*t) + y*(kx*ky*t - kz*sw) + z*(kx*kz*t + ky*sw);
@@ -11422,10 +11424,15 @@ function makeSim(def, world) {
       const ex = nx - x, ey = ny - y, ez = nz - z;
       p[i3] += ex; p[i3+1] += ey; p[i3+2] += ez;
       v[i3] += ex / dt; v[i3+1] += ey / dt; v[i3+2] += ez / dt;
+      if (nm !== null && nm[i]) { const s = m[i] / (dt * dt); clAcc(Cm, nm[i], i3, s * ex, s * ey, s * ez); }
     }
   }
   function twistHold(C, dt) {
     if (!C.twist) return;
+    // G1841 (DMG-D3): on a measured substep, each bay's torque (I_red phi / dt^2: the ring's angular impulse over the
+    // substep) against the tube's torque limit; past it the tube tears at that bay
+    const Cm = C.ms ? C : null, tw = Cm ? C.twL0 : null;
+    if (Cm) C.twR = 0;
     for (let k = 0; k + 1 < C.rings.length; k++) {
       const T = C.twist[k];
       if (!T) continue;
@@ -11439,8 +11446,17 @@ function makeSim(def, world) {
       if (Math.abs(phi) < 1e-9) continue;
       // split by inertia: the lighter ring turns more
       const s0 = g.I1 / Math.max(1e-9, g.I0 + g.I1), s1 = 1 - s0;
-      rotateRing(C.rings[k], g.c0, g.ax, phi * s0, dt);
-      rotateRing(C.rings[k + 1], g.c1, g.ax, -phi * s1, dt);
+      rotateRing(C.rings[k], g.c0, g.ax, phi * s0, dt, Cm);
+      rotateRing(C.rings[k + 1], g.c1, g.ax, -phi * s1, dt, Cm);
+      if (tw) {
+        const k0 = C.rk[k];
+        if (C.rk[k + 1] === k0 + 1 && tw[k0] > 0) {
+          const r = g.I0 * Math.abs(phi * s0) / (dt * dt) / tw[k0];
+          if (r > C.twR) C.twR = r;
+          if (r > C.twPk) C.twPk = r;
+          if (r >= 1 && !PEAK) { bayPart(clusters.indexOf(C), k0, r); return; }
+        }
+      }
     }
   }
   function clusterRest(C) {
@@ -11557,6 +11573,9 @@ function makeSim(def, world) {
     }
     const R = C.R = extractRotation(A, C.R, 4);
     const al = C.omega > 0 ? Math.min(1, (C.omega * dt) * (C.omega * dt)) : 1, inv = al / dt;
+    // G1840 (DMG-D3): on a measured substep, the projection's force on a node of a cut's part (m al e / dt^2) is that
+    // cut's reaction - reported to it (clAcc) by the same loop's twin below; the quiet loop is the base's, untouched
+    if (C.ms && C.nm) { shapeGoalReport(C, R, al, inv, dt, cx, cy, cz, qbx, qby, qbz); return; }
     for (let k = 0; k < n2; k++) {
       const i = C.idx[k], i3 = i*3;
       const qx = C.q[k*3] - qbx, qy = C.q[k*3+1] - qby, qz = C.q[k*3+2] - qbz;
@@ -11566,6 +11585,21 @@ function makeSim(def, world) {
       const ex = gx - p[i3], ey = gy - p[i3+1], ez = gz - p[i3+2];
       p[i3] += al * ex; p[i3+1] += al * ey; p[i3+2] += al * ez;
       v[i3] += inv * ex; v[i3+1] += inv * ey; v[i3+2] += inv * ez;
+    }
+  }
+  // (G1840: shapeMatch's goal loop, the same arithmetic, reporting each part node's correction to its cuts)
+  function shapeGoalReport(C, R, al, inv, dt, cx, cy, cz, qbx, qby, qbz) {
+    const nm = C.nm, n2 = C.idx.length;
+    for (let k = 0; k < n2; k++) {
+      const i = C.idx[k], i3 = i*3;
+      const qx = C.q[k*3] - qbx, qy = C.q[k*3+1] - qby, qz = C.q[k*3+2] - qbz;
+      const gx = R[0]*qx + R[1]*qy + R[2]*qz + cx;
+      const gy = R[3]*qx + R[4]*qy + R[5]*qz + cy;
+      const gz = R[6]*qx + R[7]*qy + R[8]*qz + cz;
+      const ex = gx - p[i3], ey = gy - p[i3+1], ez = gz - p[i3+2];
+      p[i3] += al * ex; p[i3+1] += al * ey; p[i3+2] += al * ez;
+      v[i3] += inv * ex; v[i3+1] += inv * ey; v[i3+2] += inv * ez;
+      if (nm[i]) { const s = m[i] * inv / dt; clAcc(C, nm[i], i3, s * ex, s * ey, s * ez); }
     }
   }
   // ---- THE MEMBERS YIELD AND BREAK (G1470, TREE-CRASH) ----
@@ -11588,7 +11622,16 @@ function makeSim(def, world) {
   const nb = beams.length;
   const DMG = { yields: 0, breaks: 0, work: 0, broken: [], firstBreak: null, firstYield: null,
                 crashed: false, reason: null, at: null, dented: false, propStrike: false, propAt: null,
-                gPeak: 0, setMax: 0, orphans: [], members: 0, dents: 0, primary: 0, firstPrimary: null, holed: 0 };
+                gPeak: 0, setMax: 0, orphans: [], members: 0, dents: 0, primary: 0, firstPrimary: null, holed: 0,
+                // DMG-D1a: the groups broken (in order, G1815), the kink floors (G1813), the spruce cracks and their log
+                // [member, stage, t] (G1814), the frames armed (the census GATE DMGMEMBERS reads parked)
+                groups: [], floors: 0, cracks: 0, rag: [], armedN: 0,
+                // DMG-D1b: the body frame's refs parted (G1821: when, which node), the strips split / dropped (G1820)
+                brokeUp: null, stripsSplit: 0, stripsDropped: 0 };
+  // G1802 (DMG-D0): THE PLASTIC WORK PER BEAM (J), beside the total: what the repair bill sums by the ledger's section
+  // (bm.sec, G1803; DEFORM §10). Written only where the total is (beamYield, beamKink: the armed path), zeroed by reset()
+  DMG.wB = new Float64Array(nb);
+  const dmgW = (bi, w) => { DMG.work += w; DMG.wB[bi] += w; };
   // per node: the members still holding it (an ORPHAN, every member broken, is debris: gravity and the ground
   // only, its aero dropped - a lone node carries a strip's lift on its own few kilos and would be flung)
   const nodeDeg = new Int32Array(n), nodeDeg0 = new Int32Array(n), orphan = new Uint8Array(n);
@@ -11599,16 +11642,159 @@ function makeSim(def, world) {
   // contiguous typed arrays, not fields on the beam objects - fields added after the beam was made sit out of line, a
   // pointer and a cache line more per beam per substep (measured: +5-8 % on the step with nothing touching)
   const FY = new Float64Array(nb), FC = new Float64Array(nb);
+  // DMG-D2a (G1831): the members' physics limits (yield, break, crush, sigY A) beside the caps, the certificate's floor
+  const PHY = DMG_ON ? new Float64Array(nb * 4).fill(Infinity) : null;
   // THE NOSE: a fuselage member with both ends ahead of the firewall (x < 0 in the def's frame) - the engine and its
   // bearer's front, the cowl's stand-ins. It crushes round a trunk at a taxi's pace (the prop strikes, the engine
   // stops) and that is a dent, not a crash; any other member broken is (dmgFrame)
-  // THE STRIPS A MEMBER HOLDS: every aero strip with both the member's ends among its nodes - torn with it
-  const stripDead = new Uint8Array(def.strips.length), beamStrips = [];
-  {
-    const sets = def.strips.map(st => { const S = new Set(st.w.map(w => w[0])); for (const k of ['fIn', 'fOut', 'rIn', 'rOut']) if (st[k] != null) S.add(st[k]); return S; });
-    for (let bi = 0; bi < nb; bi++) { const b = beams[bi], L = []; sets.forEach((S, si) => { if (S.has(b.a) && S.has(b.b)) L.push(si); }); beamStrips.push(L); }
+  // G1820 (DMG-D1b, §4.5): THE STRIP COMPONENT TEST, in place of TREE-CRASH's "a strip dies with any member between two
+  // of its nodes" (one broken diagonal silenced a bay still whole). On a break EVENT (the outermost beamBreak, its
+  // group included; never per substep) a union-find over the live members (and the clusters still holding) gives the
+  // pieces. A strip whose weight set now spans two of them is SPLIT - its weights renormalised onto the piece holding
+  // most of them - or, if no piece holds 70 %, DROPPED. A strip that reads its chord and normal off its own spar nodes
+  // (fIn..rOut: every wing, stab and fin bay of a generated build) is dropped if those part (its frame would be read
+  // across the gap); one that reads them off the body axes is dropped off the core's piece. A part that came off whole
+  // keeps its strips (a wing that came off tumbles under its own aero). `SW` is what the aero pass spreads with: the
+  // build's own st.w arrays until a split
+  const stripDead = new Uint8Array(def.strips.length), SW = def.strips.map(st => st.w);
+  const STRIP_KEEP = 0.7;
+  // G1821 (§4.5): THE REFS-CORE. bodyAxes() averages noseFrame / tailMid / upLo / upHi: every out.* the pilot, the
+  // HUD, the camera and the autopilot read comes from them. If a break puts them on two pieces the body frame would
+  // average a wreck: the flight ends there, BROKE UP (DMG.brokeUp, the reason 'broke up: ...'). (Not refs.origin, the
+  // drawing's datum: it is the wing roots', which a wing coming off takes along - DMG-D4's to re-pin)
+  const REFS = [...new Set([].concat(def.refs.noseFrame || [], def.refs.tailMid || [], def.refs.upLo || [], def.refs.upHi || []))].filter(i => i >= 0 && i < n);
+  const ufP = new Int32Array(n);
+  const ufFind = i => { while (ufP[i] !== i) { ufP[i] = ufP[ufP[i]]; i = ufP[i]; } return i; };
+  // the pieces now: live members (a kink floor pushes only, a SUPPORT limiter only touches: neither holds), clusters still on
+  function pieces() {
+    for (let i = 0; i < n; i++) ufP[i] = i;
+    for (let bi = 0; bi < nb; bi++) { const b = beams[bi]; if (b.broken) continue; const x = ufFind(b.a), y = ufFind(b.b); if (x !== y) ufP[x] = y; }
+    for (const C of clusters) if (!C.off) { const r0 = ufFind(C.idx[0]); for (const i of C.idx) { const x = ufFind(i); if (x !== r0) ufP[x] = r0; } }
+    return ufFind;
+  }
+  const _cr = new Int32Array(8), _cs = new Float64Array(8);
+  let brkDepth = 0;
+  function compEvent() {
+    const fd = pieces();
+    const core = REFS.length ? fd(REFS[0]) : -1;
+    if (REFS.length && !DMG.brokeUp) for (const i of REFS) if (fd(i) !== core) {
+      DMG.brokeUp = { t: simT, node: i, tag: def.nodes[i].tag || null };
+      if (!DMG.crashed) { DMG.crashed = true; DMG.at = simT; }
+      DMG.reason = 'broke up: the fuselage parted (' + (def.nodes[i].tag || 'node ' + i) + ' off the core)';
+      DMG.over = true;                               // the body frame does not average a wreck: the flight ends now
+      break;
+    }
+    for (let si = 0; si < def.strips.length; si++) {
+      if (stripDead[si]) continue;
+      const st = def.strips[si], W = st.w;
+      // the weight on each piece the strip's nodes sit on (a strip has a handful of nodes)
+      let nr = 0, tot = 0;
+      for (let q = 0; q < W.length; q++) {
+        const r = fd(W[q][0]), w = W[q][1]; tot += w; let h = 0;
+        while (h < nr && _cr[h] !== r) h++;
+        if (h === nr) { if (nr === 8) { h = 7; } else { _cr[nr] = r; _cs[nr++] = 0; } }
+        _cs[h] += w;
+      }
+      let keep = _cr[0], best = _cs[0];
+      for (let h = 1; h < nr; h++) if (_cs[h] > best) { best = _cs[h]; keep = _cr[h]; }
+      const whole = nr === 1;
+      const frameOff = st.fIn != null ? (fd(st.fIn) !== keep || fd(st.fOut) !== keep || fd(st.rIn) !== keep || fd(st.rOut) !== keep) : (core >= 0 && keep !== core);
+      if ((!whole && !(best >= STRIP_KEEP * tot)) || frameOff) { stripDead[si] = 1; SW[si] = W; DMG.stripsDropped++; continue; }
+      if (whole) continue;
+      if (SW[si] !== W && SW[si].every(x => fd(x[0]) === keep)) continue;   // split before, nothing new
+      SW[si] = W.filter(x => fd(x[0]) === keep).map(x => [x[0], x[1] / best]);
+      DMG.stripsSplit++;
+    }
+    aicHash = NaN;                                   // the induction's control points move with the weights
+    if (typeof WB !== 'undefined' && WB && HYDRO.wetCut) HYDRO.wetCut(WB, fd, orphan);   // G1898.5: the wet body over the break
   }
   const noseB = new Uint8Array(nb);
+  // ---- DMG-D1a MEMBERS (G1810-G1815): the members' own limits, stamped once here (nothing new per substep) ----
+  // THE BUILD'S SEED (G1811, G1814): the scatter of a glue line and of a spruce member is the build's own and never
+  // changes between runs: an FNV hash of the nodes as built and the member count, then one per member and purpose
+  let dmgSeed = 0x811c9dc5 ^ nb;
+  if (DMG_ON) for (const nd of def.nodes) for (let k = 0; k < 3; k++) { dmgSeed = Math.imul(dmgSeed ^ (Math.round(nd.p[k] * 1e6) | 0), 16777619) >>> 0; }
+  const dmgRnd = (bi, salt) => { let h = Math.imul(dmgSeed ^ Math.imul(bi + 1, 0x9e3779b1), 0x85ebca6b) ^ Math.imul(salt, 0xc2b2ae35);
+    h = Math.imul(h ^ (h >>> 16), 0x7feb352d); h = Math.imul(h ^ (h >>> 15), 0x846ca68b); return ((h ^ (h >>> 16)) >>> 0) / 4294967296; };
+  // G1812 (§4.1): A MEMBER IN COMPRESSION BUCKLES BEFORE IT CRUSHES once it is slender: Fc = min(cy A, pi^2 E I / L^2),
+  // pinned (K = 1), E the material's own (GEN_MATERIALS phys), I a thin tube's of the member's own A at D / wall =
+  // GEN_CRASH_TUBE_DT (the bend's section, G1471): A = pi D t, so I = pi D^3 t / 8 = A D^2 / 8 with D^2 = DT A / pi. A
+  // 0.7 m 1" x 0.035" 4130 tube buckles at ~0.75 of its crush force; the long ones far lower. ONLY WHERE THE MEMBER IS A
+  // TUBE: the welded / bolted truss of a tube row (4130, 6061: the lattice's fuselage members are its longerons,
+  // posts and diagonals), the engine bearer (4130 on every aeroplane), the cabane and interplane struts. Measured
+  // otherwise: the tail truss's root members (1.3-1.6 m stand-ins for the stab's attach), the strut fan's hidden
+  // members (to 5.8 m: the lumped stand-in for a spar box) and the monocoque's members (a skin-stringer panel, not a
+  // tube - §6.4) read 2-7x a thin tube's Euler load in a FAR 23.473 drop and at 5.7 g on the bench. NOT THE DRAWN
+  // LIFT STRUTS EITHER: in the lattice they work in COMPRESSION at positive g (the metal Cessna's 21-28 kN at 5.7 g on
+  // the bench, 15-21 kN in a flown 5.25 g pull; the Cub's front strut 1.2 kN at 4 g) - the boxed outer panel's upper
+  // caps push the crank's upper nodes inboard and the hidden lower chord is the tension member (G140: "the strut is
+  // the lower chord") - and a thin tube of their A (79-204 mm2, 2.6-4 m) buckles at 0.9-5 kN: the Cessna's struts
+  // kinked at 2.7 g in flight. A real strut's compression case (negative g, a jury strut, a streamline section) is the
+  // certificate's, DMG-D2. Not a wire (no compression), not the gear (its limits are the gear bracket's, DMG-D2b: a
+  // leg is a spring standing for a whole leg)
+  // G1811 (§7.2): THE SEAMS. A FITTING (a bolt or a lug in shear) is brittle: it breaks at its strength with no set,
+  // Fu = 1.15 x its member's physics Fu (FAR 23.625's fitting factor; DMG-D2 replaces it with the certificate's); in
+  // compression the member it ends is what buckles. A RIVET line's joint efficiency ~0.7 of the sheet's Fu, a short
+  // plastic travel (2 %); a BOND (a glue line, a composite skin joint) brittle at 0.6-0.8 of its member's Fu, the
+  // glue's quality a seeded scatter; an OPENING's frame takes a stress concentration Kt 1.5-2 on Fu (seeded), a short
+  // travel if its metal has any. (Summaries' ranges, not certified numbers: §1, §11.2 #7.)
+  // G1814 (§7.1 #6): SPRUCE IN TENSION does not snap clean: +-15 % seeded strength (grain, knots), then it breaks in
+  // 2 or 3 stages (seeded): it cracks to 60 % of its strength, pulls out at that over RAG_SLIP of its length, (to 30 %
+  // and pulls out again,) then lets go
+  const RAG_SLIP = 0.005;
+  function dmgMember(bi, b, R) {
+    const Lb = b.L > 0 ? b.L : 0, ph = typeof GEN_MATERIALS !== 'undefined' && GEN_MATERIALS[b.mat] ? GEN_MATERIALS[b.mat].phys : null;
+    const tube = b.cls === 'cabane' || b.cls === 'interplane' || (b.cls === 'fus' && (b.mat === 'tubeFabric' || b.mat === 'aluTube'));
+    if (tube && !b.tens && ph && ph.E > 0 && Lb > 0) {
+      const fe = Math.PI * Math.PI * ph.E * (b.A * (GEN_CRASH_TUBE_DT * b.A / Math.PI) / 8) / (Lb * Lb);
+      if (fe < b.fc0) b.fc0 = fe;
+    }
+    const fu = R.tu * b.A;
+    if (b.seam === 'fitting') { b.fy0 = b.fu = 1.15 * fu; b.etu = 0; }
+    else if (b.seam === 'rivet') { b.fu = 0.7 * fu; b.fy0 = Math.min(b.fy0, 0.9 * b.fu); b.etu = R.etu > 0 ? Math.min(R.etu, 0.02) : 0; if (!(b.etu > 0)) b.fy0 = b.fu; }
+    else if (b.seam === 'bond') { b.fy0 = b.fu = (0.6 + 0.2 * dmgRnd(bi, 1)) * fu; b.etu = 0; }
+    else if (b.seam === 'opening') { b.fu = fu / (1.5 + 0.5 * dmgRnd(bi, 2)); b.fy0 = Math.min(b.fy0, 0.9 * b.fu); b.etu = R.etu > 0 ? Math.min(R.etu, 0.02) : 0; if (!(b.etu > 0)) b.fy0 = b.fu; }
+    if (b.mat === 'wood' && b.seam !== 'fitting' && b.seam !== 'bond' && !(b.etu > 0)) {
+      b.fy0 *= 1 + 0.15 * (2 * dmgRnd(bi, 3) - 1); b.fu = b.fy0;
+      b.rgN = dmgRnd(bi, 4) < 0.5 ? 2 : 3;
+    }
+  }
+  // G1815 (§4.4): THE BREAK GROUPS (61_gen_frame's table): a member that breaks its group (type 0: bm.grp) takes every
+  // member of the group with it, the pair's own links (type 1) included, which break no group themselves
+  const DGR = DMG_ON && def.parts && def.parts.dmg ? def.parts.dmg.groups : [];
+  const grpOf = new Int32Array(nb).fill(-1), grpAll = DGR.map(G => G.t0.concat(G.t1)), grpDone = new Uint8Array(DGR.length);
+  if (DGR.length) for (let bi = 0; bi < nb; bi++) { const g = beams[bi].grp; if (g >= 0 && g < DGR.length) grpOf[bi] = g; }
+  // G1813 (§4.0): THE KINK FLOOR: a member that KINKED in compression (past ecu) is broken but keeps a compression-only
+  // floor at its crushed length (its old k and c, pushing only): the nodes it held apart cannot pass through each
+  // other (RoR never lets a crushed member go slack). In tension: nothing. The list is walked after the beam loop only
+  // while it is not empty
+  const FLR = new Int32Array(nb);
+  let nFlr = 0;
+  // G1898.4 (coordinator, perf): ONE hook in substep() for the floors (D1a) and the limiters (D1b) - set at the frame's
+  // start (after armFrame) and on a break, read once a substep; two checks there cost the metal Cessna ~1 %
+  let postLive = 0;
+  // G1822 (DMG-D1b, §4.6 / §8.1): THE SUPPORT LIMITERS (61_gen_frame's parts.dmg.supp: the nose engine held off the
+  // firewall, on the cabin's first ring), with the damage layer on. The mirror of a slack wire (G185): compression only,
+  // carrying nothing until its gap closes (L0 the gap short of the length as built, `pre` as a wire's rigging), then
+  // the stiffest member's k (and c) at either end - the cabin ring's, as a rule (the engine bearer's held only part of
+  // it: the metal Cessna's engine CG node, pinned by a trunk at 30 m/s with the whole cabin behind it, ended 0.28 m
+  // past the firewall on the bearer's k, 0.11 m on the ring's); pushing only, its damper never pulls. NOT MEMBERS:
+  // first written as members in the beam loop (`(b.supp && L >= b.L0) ? 0`, the doc's one line), they cost the stock
+  // step 5-7 % with nothing touching (12 more objects of another shape in the hottest loop; the compare itself nothing
+  // measurable). So they are walked in their own pass, as the kink floors, and only in a frame ARMED or after a break:
+  // a gap closes only once the engine's mount has yielded or broken (slack at 1.07-1.51 of their closing length in
+  // the load test to 5.7 g, a flown pull and FAR 23.473's drop - GATE DMGINTEGRITY). They hold nothing (the orphan count,
+  // the component test) and no trunk bends them
+  const SUP = [];
+  if (DMG_ON && def.parts && def.parts.dmg && def.parts.dmg.supp && def.parts.dmg.supp.length) {
+    const kN = new Float64Array(n), cN = new Float64Array(n);
+    for (const b of beams) for (const i of [b.a, b.b]) { if (b.k > kN[i]) kN[i] = b.k; if (b.c > cN[i]) cN[i] = b.c; }
+    for (const S of def.parts.dmg.supp) {
+      const A = def.nodes[S.a].p, B = def.nodes[S.b].p;
+      SUP.push({ a: S.a, b: S.b, k: Math.max(kN[S.a], kN[S.b]), c: Math.max(cN[S.a], cN[S.b]), L0: Math.hypot(B[0] - A[0], B[1] - A[1], B[2] - A[2]) * (1 - S.pre), path: S.path });
+    }
+  }
+  const nSup = SUP.length;
   for (let bi = 0; bi < nb; bi++) { const b = beams[bi]; if (b.cls === 'fus' && def.nodes[b.a].p[0] < -0.05 && def.nodes[b.b].p[0] < -0.05) noseB[bi] = 1; }
   {
     const nodeCl = new Int16Array(n).fill(-1);
@@ -11628,39 +11814,450 @@ function makeSim(def, world) {
       const Dt = R ? Math.sqrt(GEN_CRASH_TUBE_DT * b.A / Math.PI) : 0;
       b.mp = R && R.ty ? R.ty * b.A * Dt / Math.PI : Infinity;
       b.thf = R ? R.thf : 0;
+      b.rgN = 0; b.rgS = 0; b.rgD = 0; b.kink = false; b.Lf = 0; b.Ff = 0;
+      if (R) dmgMember(bi, b, R);                    // G1811-G1814 (DMG-D1a): Euler, the seams, wood's ragged break
+      if (PHY && R) { PHY[bi * 4] = b.fy0; PHY[bi * 4 + 1] = b.fu; PHY[bi * 4 + 2] = b.fc0; PHY[bi * 4 + 3] = R.ty * b.A; }
       b.fyM = b.fy0; FY[bi] = b.fy0; FC[bi] = b.fc0; b.ep = 0; b.ec = 0; b.Lr = 0; b.broken = false; b.kB = 0; b.cB = 0; b.yielded = false;
       b.dOn = false; b.dTx = 0; b.dTz = 0; b.dNx = 0; b.dNz = 0; b.dk = 0; b.ks = 0; b.kt = 0.25; b.kt1 = 0.5;
     }
   }
+  // ---- DMG-D2a THE CERTIFICATE (G1831; DEFORM §4.3 (c), 66_gen_cert.js): each member anchored to the loads the
+  // aeroplane is certified for, the physics (TREE-CRASH's material x section, D1a's seams and Euler) its floor and its
+  // ceiling. Stamped here when the def carries a certificate (genCertAttach) or later on a sim that has not yet bent
+  // (sim.certStamp: the page's certificate arrives from its worker after the flight has started). Per member (not the
+  // gear's: its limits are the gear bracket's, DMG-D2b), F_l its tension / compression envelope at the limit, m the
+  // card's margin, kappa the floor (GEN_CERT):
+  //   tension, ductile: yield at max(F_l x yTol, kappa x its physics yield), break at max(1.5 F_l m x uMember, kappa x
+  //     its physics break), hardening between over a short travel (GEN_CERT.etu: a built-up member, not a coupon);
+  //   tension, brittle (spruce, carbon): the break alone, no set (spruce's +-15 % scatter upward only: a certified spar
+  //     is at least its certificate), its ragged stages as before;
+  //   a JOINT (a seam: a fitting, a rivet line, a glue line, an opening's frame): brittle at max(1.5 F_l m x uFit, kappa
+  //     x its physics) - the part comes off as a part at the card's broke-at (GEN_CERT: the fitting factor's reading);
+  //   compression: crushes (perfectly plastic, to the kink) at max(1.5 F_l,c m x uMember, kappa x its physics), never
+  //     past its physics (Euler and the crush stay the hard ceiling: a slender tube still buckles);
+  //   and nothing past its physics either way (a member the certificate asks more of than its section can give is
+  //     the bad design the bench finds).
+  // Kept apart from the beam objects (no new fields on them: the beam loop's hidden class): the physics in PHY.
+  function certStamp(Cc) {
+    if (!PHY || !Cc || !Cc.Ft || Cc.Ft.length !== nb || DMG.yields || DMG.breaks || DMG.dents || peakOn) return false;
+    const K = typeof GEN_CERT !== 'undefined' ? GEN_CERT : null; if (!K) return false;
+    const m = K.m, kap = K.kappa, cap = (x, ph) => Math.min(Math.max(x, kap * ph), ph);
+    for (let bi = 0; bi < nb; bi++) {
+      const b = beams[bi], fyP = PHY[bi * 4], fuP = PHY[bi * 4 + 1], fcP = PHY[bi * 4 + 2];
+      if (!(fyP < Infinity) || CERT_ENG[bi]) continue;
+      if (b.cls === 'gear') { if (CERT_GEAR[bi] && K.leg) gearStamp(bi, b, Cc.Ft[bi], Cc.Fc[bi], m, K); continue; }
+      const Ft = Cc.Ft[bi], Fc = Cc.Fc[bi], fit = !!b.seam;   // a joint: a fitting, a rivet line, a glue line, an opening (§7.2)
+      const brittle = fit || !(b.etu > 0);
+      const scat = b.rgN && PHY[bi * 4 + 3] > 0 ? Math.max(1, fyP / PHY[bi * 4 + 3]) : 1;
+      b.fu = cap(1.5 * m * Ft * (fit ? K.uFit : K.uMember) * scat, fuP);
+      b.fy0 = brittle ? b.fu : Math.min(cap(Ft * K.yTol, fyP), b.fu);
+      if (!brittle && !(b.fu > b.fy0)) b.fu = b.fy0 * (1 + 1e-6);
+      if (!brittle && K.etu > 0 && b.etu > K.etu) b.etu = K.etu;
+      if (!b.tens) b.fc0 = cap(1.5 * m * Fc * K.uMember, fcP);
+      b.fyM = b.fy0; FY[bi] = b.fy0; FC[bi] = b.fc0;
+    }
+    CERT = Cc;
+    return true;
+  }
+  // G1835 (DMG-D2b): THE GEAR BRACKET (DEFORM §7.3). The gear is calibrated by the gear's own cases (66_gen_cert: the
+  // drop at the limit sink in the attitudes 23.479-23.483 ask for, the side, braked, tailwheel and nosewheel loads,
+  // the taxi over the roughest ground, the water loads), not by the flight's. Every gear member that is a JOINT (D1a's
+  // fittings: the members from the axle, the tailwheel, the nosewheel or a float to the body - in the lattice ALL of
+  // them carry the gear's load together: the near-vertical snap-blocker and the braces take a landing's push, the
+  // cross wires a side load; the member drawn as the spring carries no more than they do) and every pair's own link
+  // (the axle bar, the floats' spreaders) is stamped from its envelope F_l, both ways:
+  //   IN COMPRESSION the gear GIVES (a wheel's leg, its braces, the nose fork): no set to the limit - it yields where a
+  //     section sized for the ultimate yields, 1.5 F_l,c x the steel's ty / tu (GEN_CERT.leg.yUlt: 1.18 for 4130), the
+  //     gear on every aeroplane being steel, an oleo or a bungee's steel vee - then it crushes at that load over its
+  //     archetype's TRAVEL (GEN_CERT.leg: a spring-steel leg spreads a long way, an oleo bottoms and bends, a bungee's
+  //     lug hardly gives) and past it kinks - its group lets go, the gear is off;
+  //     a float's struts and spreaders are a truss with no spring: they crush at the ultimate (D2a's rule);
+  //   IN TENSION it is the LUG: brittle at the joint's ultimate, 1.5 F_l,t m (dm13) - a side load past 23.485's (the
+  //     ground loop), a float's bow digging in, pull a fitting apart;
+  //   the floor is a share of the aeroplane's weight (GEN_CERT.leg.floorW: every gear joint holds at least that at its
+  //     limit), NOT D1a's kappa x its physics: a gear member's billed tube (137-214 kN on the metal Cessna) is the
+  //     gear class's stand-in, ten times what its gear carries, and its floor kept the gear from ever giving.
+  // A float's own hull truss (inside its rigid cluster: the shell, D3's part) keeps D1a's physics.
+  // THE ENGINE'S OWN BODY (G1836, dm14): a member with both ends on one engine's nodes (ENG / CGE: the propeller's
+  // flange pair, the CG locators between the flange and the engine's centre of mass) is the crankcase, not the mount:
+  // no certified case loads it (the static cases never; the dynamic ones only as the engine rings on its mount), so
+  // its certified yield sat on that ringing - the Cessna on floats' circuit read 0.98 of it after its water
+  // touchdown. It keeps its physics; the MOUNT (the bearer and its bolts to the firewall, D1a's fittings) is what the
+  // certificate stamps and what lets go.
+  const CERT_GEAR = new Uint8Array(nb), CERT_ENG = new Uint8Array(nb), CERT_FLT = new Uint8Array(nb);
+  let CERT_NOSE = -1, CERT_ARCH = 'bungee', CERT_W = 0;
+  if (PHY) {
+    for (const G of DGR) for (const j of G.t1) CERT_GEAR[j] = 1;
+    const isEng = i => /^(ENG|CGE)/.test(def.nodes[i].tag || ''), isFlt = i => /^FL[KD]/.test(def.nodes[i].tag || '');
+    for (let bi = 0; bi < nb; bi++) { const b = beams[bi];
+      if (b.cls === 'gear' && b.seam) CERT_GEAR[bi] = 1;
+      if (b.cls !== 'gear') CERT_GEAR[bi] = 0;
+      if (CERT_GEAR[bi] && (isFlt(b.a) || isFlt(b.b))) CERT_FLT[bi] = 1;
+      if (isEng(b.a) && isEng(b.b)) CERT_ENG[bi] = 1; }
+    const R = def.refs || {}, tw = R.tw != null && R.tw >= 0 ? R.tw : -1, Mn = R.mains || [];
+    const xm = Mn.length ? Mn.reduce((a, i) => a + def.nodes[i].p[0], 0) / Mn.length : 0;
+    if (tw >= 0 && def.nodes[tw].p[0] < xm) CERT_NOSE = tw;
+    CERT_ARCH = (def.spec && def.spec.gear && def.spec.gear.suspension) || 'bungee';
+    for (const nd of def.nodes) CERT_W += nd.m * 9.81;
+  }
+  function gearStamp(bi, b, Ft, Fc, m, K) {
+    const G = K.leg, Fw = G.floorW * CERT_W, ft = Math.max(Ft, Fw), fc = Math.max(Fc, Fw);
+    const A = CERT_NOSE >= 0 && (b.a === CERT_NOSE || b.b === CERT_NOSE) ? G.nose : (G[CERT_ARCH] || G.bungee);
+    b.fu = 1.5 * m * ft * K.uFit; b.fy0 = b.fu; b.etu = 0;
+    if (!b.tens) {
+      if (CERT_FLT[bi]) b.fc0 = 1.5 * m * fc * K.uMember;
+      else { b.fc0 = fc * Math.max(G.yTol, G.yUlt); b.ecu = A.travel; }
+    }
+    b.fyM = b.fy0; FY[bi] = b.fy0; FC[bi] = b.fc0;
+  }
+  let CERT = null, peakOn = false;
+  if (PHY && def.cert) certStamp(def.cert);
   // THE PROBE (params.damageProbe, GATE TREECRASH and its evidence only): nothing yields; every member's peak force
   // over its yield, per substep, tension and compression (the limits read 0 so every beam takes the branch)
   const PEAK = P_.damageProbe ? { t: new Float64Array(nb), c: new Float64Array(nb) } : null;
   if (PEAK) beams.forEach((b, bi) => { b.fyP = b.fy0; b.fcP = b.fc0; b.fy0 = 0; b.fyM = 0; FY[bi] = 0; b.fc0 = 0; FC[bi] = 0; b.mp = Infinity; });
+  peakOn = !!PEAK;   // (G1831: a probed sim's limits are its readout; no later stamp)
   let clDirty = false;
+  DMG.cl = []; DMG.firstCl = null;   // G1840 (DMG-D3): the cluster cuts parted, in order
+  // ---- DMG-D3 CLUSTERS (G1840-G1842): A CLUSTER IS ONE BREAKABLE PART (DEFORM-AND-BREAK §4.7 (i)) ----
+  // A shape-matched cluster (the fin, the rod, a twin boom, a float) holds its shape by projection, so the members
+  // inside it carry almost nothing and no member limit can see what it carries. It is judged as what it stands for: a
+  // part with a ROOT SECTION, the same section whose EI / GJ set its omega and its twist (61_gen_frame `dmg`), and that
+  // part's root attachment is a FITTING GROUP (DMG-D1a's): it breaks as D1a breaks a fitting, at CL_FIT (1.15, FAR
+  // 23.625) x the section's ULTIMATE capacity at the material's own stresses (GEN_CRASH tu; shear tu / sqrt 3) - the
+  // section fully plastic where the material is ductile (a thin tube's Z_p = 4/pi x its I / c), its extreme fibre where
+  // it is brittle (spruce, carbon: tu = ty). Its first-yield moment (ty I / c) is reported beside it (clusterCuts' yb,
+  // yt) - the census's 'yield' (G1843: why not the break limit, HANDOVER):
+  //   'caps'  the fin: two caps of Acap, d apart (its EI) on its front and rear root posts, s apart. Bending about the
+  //           chord (a side load) f Acap d; in its own plane f Acap s; torque (the posts' shear couple) f/sqrt3 Acap s
+  //   'tube'  the rod: f EI / (E r) both ways (x 4/pi ductile), f/sqrt3 GJ / (G r), G = E / 2.6 (the twist's own G)
+  //   'oval'  a twin boom: its oval's EI each way over its semi-axis; f/sqrt3 GJ / (G r_mean)
+  //   'bolts' a rigid float (G790's: BeamNG's 'prop'): its attachment - the struts and spreader bars ending on it - read
+  //           as a bolt group of the members' own break forces (D1a's b.fu: a fitting's 1.15 tu A): about each axis the
+  //           group's polar sum(F rho^2) over the farthest member's rho
+  // THE ROOT LOAD is the reaction the rest of the aeroplane puts on the part across the cut, from the forces ACROSS it:
+  // the members joining the part to its root (their force this substep), plus - where the cluster spans the cut (the
+  // fin's cluster holds its post, the rod's its bulkhead ring) - the projection's own correction on the part's nodes
+  // (m al e / dt^2: the force that held it to the rest) and the twist constraint's turn of a ring across the cut. The
+  // moment about the root's centroid, split into the torque about the part's axis and the two bending components.
+  // Past either limit the part's ROOT ATTACHMENT GROUP breaks (DMG-D1a's group: the fin comes off, the float's struts
+  // let go, the boom off its wing bay; the rod has no group - its root bay's members break) and the part comes off as
+  // a RIGID BODY: its cluster is re-formed on the part's own nodes (the root's dropped), rest re-taken.
+  // G1842: a rod / boom tube also has its MID-SPAN STATION (61_gen_frame dmgStation): the same cut one bay aft of ring
+  // k, at the splice's efficiency (eta 0.7) - past it the tube splits into two rigid halves (the bay's members break).
+  // G1841: the TWIST CONSTRAINT's own torque per bay (G350: I_red phi / dt^2, which is GJ / L x the excess twist below
+  // the cap) against the tube's torque limit (the station's bay at eta): past it the tube tears there (BeamNG's
+  // torsionbar strength, N.m) - the cluster splits at that bay (the root bay of the rod is its root).
+  // THE COST: measured on the LAST substep of every frame (one pass over the cut members and the cluster's nodes: the
+  // quiet path's one per frame, as armFrame's beam pass) and every substep of a frame ARMED (armFrame; a cut past half
+  // its limit arms the next frame). Read-only: nothing it computes moves a node. Off (params.damage) it does not exist.
+  const CUTS = [], clQ = [], nCl0 = clusters.length, beamCl0 = beamCl.slice();
+  const cutOf = new Int32Array(nb);            // an in-cluster member of a root / station cut: the cut + 1
+  const CL_FIT = 1.15, SQ3 = Math.sqrt(3);
+  let clMs = false, clArm = false, clGuard = -1;
+  const nodeSet = a => { const S = new Uint8Array(n); for (const i of a) S[i] = 1; return S; };
+  // the members across a cut: one end in P, the other in R (R null: anywhere outside P); xs +1 when P holds end a
+  function cutMembers(inP, inR) {
+    const X = [], xs = [];
+    for (let bi = 0; bi < nb; bi++) {
+      const b = beams[bi], pa = inP[b.a], pb = inP[b.b];
+      if (pa === pb) continue;
+      const o = pa ? b.b : b.a;
+      if (inR && !inR[o]) continue;
+      X.push(bi); xs.push(pa ? 1 : -1);
+    }
+    return { X: Int32Array.from(X), xs: Int8Array.from(xs) };
+  }
+  // the nodes of a tube cluster aft of its bay k (ring k to k + 1): the rings after it and the cluster's other nodes
+  // past the bay's middle along the tube (the rod's tail post; a boom's wing-bay nodes stay forward)
+  function aftOf(C, S, k) {
+    const R0 = C.rings0, ax = def.nodes[S.ax[1]].p, a0 = def.nodes[S.ax[0]].p;
+    let ux = ax[0] - a0[0], uy = ax[1] - a0[1], uz = ax[2] - a0[2]; const ul = hyp3(ux, uy, uz) || 1; ux /= ul; uy /= ul; uz /= ul;
+    const cen = r => { let s = 0; for (const i of r) { const q = def.nodes[i].p; s += q[0] * ux + q[1] * uy + q[2] * uz; } return s / r.length; };
+    const sMid = 0.5 * (cen(R0[k]) + cen(R0[k + 1])), inRing = new Uint8Array(n), A = [];
+    for (const r of R0) for (const i of r) inRing[i] = 1;
+    for (let j = k + 1; j < R0.length; j++) for (const i of R0[j]) A.push(i);
+    for (const i of C.idx0) if (!inRing[i]) { const q = def.nodes[i].p; if (q[0] * ux + q[1] * uy + q[2] * uz > sMid) A.push(i); }
+    return A;
+  }
+  function addCut(ci, kind, P, inR, lim, ref, S, bay) {
+    const inP = nodeSet(P), { X, xs } = cutMembers(inP, inR), C = clusters[ci];
+    // the group the root attachment is (the most common among its members): its break takes the part off whole
+    let grp = -1;
+    if (kind === 'root') { const cnt = {}; for (const x of X) { const g = grpOf[x]; if (g >= 0) cnt[g] = (cnt[g] || 0) + 1; }
+      for (const g in cnt) if (grp < 0 || cnt[g] > cnt[grp]) grp = +g; }
+    let span = false; for (const i of C.idx0) if (!inP[i]) { span = true; break; }
+    const cut = { cl: ci, kind, P, inP, X, xs, grp, span, bay, ref: ref.nodes, refW: ref.w, ax: S.ax, lat: S.lat,
+                  Mu: lim.Mu, Mv: lim.Mv, T: lim.T, yb: lim.yb || 1, yt: lim.yt || 1, aF: new Float64Array(3), aM: new Float64Array(3),
+                  done: false, rb: 0, rt: 0, Mb: 0, Tq: 0, pk: 0, pkB: 0, pkT: 0 };
+    CUTS.push(cut);
+    const k = CUTS.length - 1;
+    if (kind !== 'bay') for (const x of X) if (beamCl[x] >= 0) cutOf[x] = k + 1;
+    C.cuts.push(k);
+    return k;
+  }
+  if (DMG_ON) clusters.forEach((C, ci) => {
+    const S = def.clusters[ci] && def.clusters[ci].dmg;
+    C.idx0 = C.idx; C.q0 = C.q; C.rings0 = C.rings; C.rk0 = C.rings.map((r, j) => j); C.rk = C.rk0;
+    C.cuts = []; C.nm = null; C.ms = false; C.twL0 = null; C.twPk = 0; C.twR = 0;
+    if (!S || !S.ax || !S.lat) return;
+    const Rw = S.mat ? GEN_CRASH[S.mat] : null, ty = Rw && Rw.ty, G = S.E / 2.6;
+    // the break stress (the fitting's factor on the ultimate) and the section's shape factor (plastic where ductile);
+    // yb / yt: the first-yield moment and torque over the break limits (reported)
+    const fu = Rw && Rw.tu ? CL_FIT * Rw.tu : 0, sh = Rw && Rw.etu > 0 ? 4 / Math.PI : 1;
+    let lim = null;
+    if (S.kind === 'caps' && fu) {
+      const s = hyp3(def.nodes[S.lat[1]].p[0] - def.nodes[S.lat[0]].p[0], def.nodes[S.lat[1]].p[1] - def.nodes[S.lat[0]].p[1], def.nodes[S.lat[1]].p[2] - def.nodes[S.lat[0]].p[2]);
+      lim = { Mu: fu * S.Acap * S.d, Mv: fu * S.Acap * s, T: fu / SQ3 * S.Acap * s, yb: ty / fu, yt: ty / fu };
+    } else if (S.kind === 'tube' && fu) {
+      const Mb = fu * sh * S.EI / (S.E * S.r);
+      lim = { Mu: Mb, Mv: Mb, T: fu / SQ3 * S.GJ / (G * S.r), yb: ty / (fu * sh), yt: ty / fu };
+    } else if (S.kind === 'oval' && fu) {
+      lim = { Mu: fu * sh * S.EIv / (S.E * S.cv), Mv: fu * sh * S.EIl / (S.E * S.cl), T: fu / SQ3 * S.GJ / (G * S.rT), yb: ty / (fu * sh), yt: ty / fu };
+    }
+    const inR = S.root ? nodeSet(S.root) : null;
+    if (S.kind === 'bolts') {
+      // the attachment as a bolt group: the members ending on the part, at their own A and yield, about the keel (a),
+      // the deck's beam (u) and the normal (v), round the group's centroid - the rest pose as built
+      const inP = nodeSet(S.part), { X, xs } = cutMembers(inP, null), pts = [];
+      X.forEach((x, j) => { const b = beams[x]; if (!(b.A > 0) || !(b.fu > 0) || !Number.isFinite(b.fu)) return;
+        pts.push({ i: xs[j] > 0 ? b.a : b.b, A: b.A, ty: b.fu / b.A, y: (PEAK ? b.fyP : b.fy0) / b.fu }); });
+      if (pts.length < 3) return;
+      const pn = i => def.nodes[i].p, A0 = pn(S.ax[0]), A1 = pn(S.ax[1]), L0 = pn(S.lat[0]), L1 = pn(S.lat[1]);
+      let a = [A1[0] - A0[0], A1[1] - A0[1], A1[2] - A0[2]], la = hyp3(a[0], a[1], a[2]); a = a.map(x => x / la);
+      let u = [L1[0] - L0[0], L1[1] - L0[1], L1[2] - L0[2]]; const du = u[0] * a[0] + u[1] * a[1] + u[2] * a[2];
+      u = [u[0] - du * a[0], u[1] - du * a[1], u[2] - du * a[2]]; const lu = hyp3(u[0], u[1], u[2]); u = u.map(x => x / lu);
+      const v = [a[1] * u[2] - a[2] * u[1], a[2] * u[0] - a[0] * u[2], a[0] * u[1] - a[1] * u[0]];
+      let W = 0; const c = [0, 0, 0];
+      for (const q of pts) { const P = pn(q.i); W += q.A; for (let j = 0; j < 3; j++) c[j] += q.A * P[j]; }
+      for (let j = 0; j < 3; j++) c[j] /= W;
+      const polar = (e, sh) => { let I = 0; const rho = pts.map(q => { const P = pn(q.i), d = [P[0] - c[0], P[1] - c[1], P[2] - c[2]], de = d[0] * e[0] + d[1] * e[1] + d[2] * e[2];
+          return hyp3(d[0] - de * e[0], d[1] - de * e[1], d[2] - de * e[2]); });
+        pts.forEach((q, j) => { I += q.A * rho[j] * rho[j]; });
+        let L = Infinity; pts.forEach((q, j) => { if (rho[j] > 1e-6) L = Math.min(L, q.ty * sh * I / rho[j]); }); return L; };
+      const yr = Math.min(...pts.map(q => q.y));
+      lim = { Mu: polar(u, 1), Mv: polar(v, 1), T: polar(a, 1 / SQ3), yb: yr, yt: yr };
+      addCut(ci, 'root', S.part, null, lim, { nodes: Int32Array.from(pts.map(q => q.i)), w: Float64Array.from(pts.map(q => q.A)) }, S, -1);
+      return;
+    }
+    if (!lim) return;
+    const refN = S.ref || S.root, ones = n0 => Float64Array.from(n0.map(() => 1));
+    // the root: the rod's root ring is its first ring (its bay 0 is the root's), a boom's root its wing bay
+    const r0 = C.rings0.length && S.root ? C.rings0[0].every(i => inR[i]) : false;
+    addCut(ci, 'root', S.part, inR, lim, { nodes: Int32Array.from(refN), w: ones(refN) }, S, r0 ? 0 : -1);
+    if (S.station >= 0 && S.station + 1 < C.rings0.length) {
+      const k = S.station, P = aftOf(C, S, k), inA = nodeSet(P), R2 = [];
+      for (const i of C.idx0) if (!inA[i]) R2.push(i);
+      addCut(ci, 'station', P, nodeSet(R2), { Mu: S.eta * lim.Mu, Mv: S.eta * lim.Mv, T: S.eta * lim.T, yb: lim.yb, yt: lim.yt },
+             { nodes: Int32Array.from(C.rings0[k]), w: ones(Array.from(C.rings0[k])) }, S, k);
+    }
+    // G1841: the twist constraint's torque limit per bay (the station's bay at the splice's eta)
+    if (C.rings0.length >= 2 && C.gj > 0) C.twL0 = C.rings0.slice(1).map((r, k) => (k === S.station ? S.eta : 1) * lim.T);
+    C.dmgS = S;
+  });
+  // the per-node mask of the cuts a cluster's projection reports to (bit j: its cut j's part, where the cluster spans it)
+  function clMask(C) {
+    C.nm = null;
+    for (let j = 0; j < C.cuts.length; j++) { const ct = CUTS[C.cuts[j]]; if (ct.done || !ct.span || ct.kind === 'bay') continue;
+      if (!C.nm) C.nm = new Uint8Array(n);
+      for (const i of C.idx) if (ct.inP[i]) C.nm[i] |= 1 << j; }
+  }
+  for (const C of clusters) if (C.cuts && C.cuts.length) clMask(C);
+  const nCut0 = CUTS.length;
+  // a root cut's group (a float's struts are outside its cluster: the group breaking member by member parts the cut too)
+  const grpCut = new Int32Array(DGR.length).fill(-1);
+  for (let k = 0; k < nCut0; k++) if (CUTS[k].kind === 'root' && CUTS[k].grp >= 0) grpCut[CUTS[k].grp] = k;
+  if (PEAK) { PEAK.cl = new Float64Array(nCut0 * 2); PEAK.tw = new Float64Array(nCl0); }
+  // a force on a node of a cut's part (the projection's, the twist's): to every cut of the cluster whose part holds it
+  function clAcc(C, bm, i3, fx, fy, fz) {
+    const x = p[i3], y = p[i3+1], z = p[i3+2];
+    for (let j = 0; bm; j++, bm >>= 1) if (bm & 1) {
+      const ct = CUTS[C.cuts[j]], F = ct.aF, M = ct.aM;
+      F[0] += fx; F[1] += fy; F[2] += fz;
+      M[0] += y * fz - z * fy; M[1] += z * fx - x * fz; M[2] += x * fy - y * fx;
+    }
+  }
+  // (before a measured substep: the state its beam loop reads) the members across each live cut: their force on the part
+  function cutX() {
+    for (const C of clusters) if (C.cuts) C.ms = !C.off && (C.nm !== null || C.twL0 !== null);
+    for (let k = 0; k < CUTS.length; k++) {
+      const ct = CUTS[k];
+      if (ct.done || ct.kind === 'bay' || clusters[ct.cl].off) continue;
+      const F = ct.aF, M = ct.aM;
+      F[0] = F[1] = F[2] = 0; M[0] = M[1] = M[2] = 0;
+      for (let j = 0; j < ct.X.length; j++) {
+        const b = beams[ct.X[j]], a3 = b.a*3, b3 = b.b*3;
+        let dx = p[b3]-p[a3], dy = p[b3+1]-p[a3+1], dz = p[b3+2]-p[a3+2];
+        const L = hyp3(dx, dy, dz) || 1e-9; dx /= L; dy /= L; dz /= L;
+        const vrel = (v[b3]-v[a3])*dx + (v[b3+1]-v[a3+1])*dy + (v[b3+2]-v[a3+2])*dz;
+        const Fb = (b.tens && L <= b.L0) ? 0 : b.k * (L - b.L0) + b.c * vrel;
+        const s = ct.xs[j] > 0 ? Fb : -Fb, i3 = ct.xs[j] > 0 ? a3 : b3;
+        const fx = s * dx, fy = s * dy, fz = s * dz, x = p[i3], y = p[i3+1], z = p[i3+2];
+        F[0] += fx; F[1] += fy; F[2] += fz;
+        M[0] += y * fz - z * fy; M[1] += z * fx - x * fz; M[2] += x * fy - y * fx;
+      }
+    }
+  }
+  // (after a measured substep: its projection has reported) every live cut's moment and torque against its limits
+  const _ca = [0, 0, 0], _cu = [0, 0, 0];
+  function clCuts() {
+    let arm = false;
+    for (let k = 0; k < CUTS.length; k++) {
+      const ct = CUTS[k];
+      if (ct.done || ct.kind === 'bay' || clusters[ct.cl].off) continue;
+      let W = 0, cx = 0, cy = 0, cz = 0;
+      for (let j = 0; j < ct.ref.length; j++) { const i3 = ct.ref[j] * 3, w = ct.refW[j]; cx += w * p[i3]; cy += w * p[i3+1]; cz += w * p[i3+2]; W += w; }
+      cx /= W; cy /= W; cz /= W;
+      const F = ct.aF, M = ct.aM;
+      const mx = M[0] - (cy * F[2] - cz * F[1]), my = M[1] - (cz * F[0] - cx * F[2]), mz = M[2] - (cx * F[1] - cy * F[0]);
+      const a0 = ct.ax[0] * 3, a1 = ct.ax[1] * 3, l0 = ct.lat[0] * 3, l1 = ct.lat[1] * 3;
+      let ax = p[a1] - p[a0], ay = p[a1+1] - p[a0+1], az = p[a1+2] - p[a0+2]; const al = hyp3(ax, ay, az) || 1; ax /= al; ay /= al; az /= al;
+      let ux = p[l1] - p[l0], uy = p[l1+1] - p[l0+1], uz = p[l1+2] - p[l0+2]; const du = ux * ax + uy * ay + uz * az;
+      ux -= du * ax; uy -= du * ay; uz -= du * az; const ul = hyp3(ux, uy, uz) || 1; ux /= ul; uy /= ul; uz /= ul;
+      const vx = ay * uz - az * uy, vy = az * ux - ax * uz, vz = ax * uy - ay * ux;
+      const Tq = mx * ax + my * ay + mz * az, Mu = mx * ux + my * uy + mz * uz, Mv = mx * vx + my * vy + mz * vz;
+      const rb = Math.hypot(Mu / ct.Mu, Mv / ct.Mv), rt = Math.abs(Tq) / ct.T;
+      ct.rb = rb; ct.rt = rt; ct.Mb = Math.hypot(Mu, Mv); ct.Tq = Tq;
+      if (rb > ct.pkB) ct.pkB = rb; if (rt > ct.pkT) ct.pkT = rt;
+      const r = rb > rt ? rb : rt;
+      if (r > ct.pk) ct.pk = r;
+      if (r > ARM_FRAC) arm = true;
+      if (PEAK) { if (k < nCut0) { if (rb > PEAK.cl[k*2]) PEAK.cl[k*2] = rb; if (rt > PEAK.cl[k*2+1]) PEAK.cl[k*2+1] = rt; } }
+      else if (r >= 1) cutPart(k, rb >= rt ? 'bend' : 'twist', r);
+    }
+    for (let ci = 0; ci < clusters.length; ci++) { const C = clusters[ci];
+      if (C.ms && C.twR > ARM_FRAC) arm = true;
+      if (PEAK && ci < nCl0 && C.twR > PEAK.tw[ci]) PEAK.tw[ci] = C.twR;
+      C.ms = false; }
+    clArm = arm;
+  }
+  // A CUT PARTS (its limit passed, a twist bay torn, or one of its members broken as a member): its group / its members
+  // break, and at the substep's end its cluster is re-formed (clApply)
+  function cutPart(k, why, r) {
+    const ct = CUTS[k];
+    if (ct.done) return;
+    ct.done = true;
+    const C = clusters[ct.cl];
+    DMG.cl.push({ tag: C.tag, cl: ct.cl, cut: ct.kind, why, ratio: r, Mb: ct.Mb, T: ct.Tq, t: simT, grp: ct.grp >= 0 ? DGR[ct.grp].key : null });
+    if (!DMG.firstCl) DMG.firstCl = DMG.cl[DMG.cl.length - 1];
+    clQ.push(k);
+    const how = ct.kind + '-' + why;
+    clGuard = ct.cl;
+    if (ct.grp >= 0) { if (!grpDone[ct.grp]) beamBreak(DGR[ct.grp].t0[0], how); }
+    for (let j = 0; j < ct.X.length; j++) if (ct.kind !== 'root' || ct.grp < 0) beamBreak(ct.X[j], how);
+    clGuard = -1;
+  }
+  // G1841: a twist bay of cluster ci past its torque: the bay's own cut (the rod's root, the station) or a new one
+  function bayPart(ci, k0, r) {
+    const C = clusters[ci];
+    if (C.cuts) for (const j of C.cuts) if (CUTS[j].bay === k0) { if (!CUTS[j].done) cutPart(j, 'twist', r); return; }
+    const S = C.dmgS; if (!S) return;
+    const inC = nodeSet(C.idx), P = aftOf(C, S, k0).filter(i => inC[i]), inP = nodeSet(P), R2 = [];
+    for (const i of C.idx) if (!inP[i]) R2.push(i);
+    if (!P.length || !R2.length) return;
+    const k = addCut(ci, 'bay', P, nodeSet(R2), { Mu: Infinity, Mv: Infinity, T: Infinity }, { nodes: new Int32Array(0), w: new Float64Array(0) }, S, k0);
+    cutPart(k, 'twist', r);
+  }
+  function setIdx(C, list) {
+    const S = nodeSet(list);
+    C.idx = Int32Array.from(list); C.q = new Float64Array(list.length * 3);
+    const rings = [], rk = [];
+    C.rings.forEach((r, j) => { if (Array.prototype.every.call(r, i => S[i])) { rings.push(r); rk.push(C.rk[j]); } });
+    C.rings = rings; C.rk = rk;
+  }
+  // the parts that came off this substep: a ROOT cut's part keeps its cluster on its own nodes (the root's dropped) - a
+  // rigid body that detaches; a STATION's (a bay's) splits the tube into two rigid clusters. A cluster still holding
+  // nodes on both sides (a twin boom's fin stands on the station's ring and the ring before) lets go of the fewer
+  function clApply() {
+    for (const k of clQ) {
+      const ct = CUTS[k], C = clusters[ct.cl];
+      if (C.off) continue;
+      const keep = [], other = [];
+      for (const i of C.idx) (ct.inP[i] ? keep : other).push(i);
+      if (ct.kind === 'root') {
+        for (const j of C.cuts) CUTS[j].done = true;
+        if (other.length) setIdx(C, keep);
+      } else {
+        setIdx(C, other);
+        if (keep.length >= 3) {
+          const C2 = { cls: C.cls, tag: C.tag + '/aft', idx: null, q: null, R: [1, 0, 0, 0, 1, 0, 0, 0, 1], omega: C.omega,
+                       rings: C.rings0, rk: C.rk0, gj: C.gj, twist: null, off: false, dirty: false, cuts: [], nm: null, ms: false,
+                       twL0: C.twL0, twPk: 0, twR: 0, dmgS: null };
+          setIdx(C2, keep);
+          clusters.push(C2); clusterRest(C2); twistRest(C2);
+        }
+      }
+      if (C.idx.length < 3) C.off = true;
+      const sideA = ct.inP, sideB = nodeSet(other);
+      for (const D of clusters) {
+        if (D === C || D.off || D.tag === C.tag + '/aft') continue;
+        let nA = 0, nB = 0; for (const i of D.idx) { if (sideA[i]) nA++; else if (sideB[i]) nB++; }
+        if (nA && nB) { const drop = nA < nB ? sideA : sideB; setIdx(D, Array.from(D.idx).filter(i => !drop[i])); if (D.idx.length < 3) D.off = true; else { clusterRest(D); twistRest(D); } }
+      }
+      if (!C.off) { clusterRest(C); twistRest(C); }
+    }
+    clQ.length = 0;
+    // which cluster each member is inside now (the rule makeSim's own)
+    const nodeCl = new Int16Array(n).fill(-1);
+    clusters.forEach((C, ci) => { for (const i of C.idx) nodeCl[i] = ci; });
+    for (let bi = 0; bi < nb; bi++) { const b = beams[bi]; beamCl[bi] = nodeCl[b.a] >= 0 && nodeCl[b.a] === nodeCl[b.b] ? nodeCl[b.a] : -1; }
+    for (const C of clusters) if (C.cuts && C.cuts.length) clMask(C);
+  }
+  // reset(): every cluster as built, every cut whole
+  function clReset() {
+    clusters.length = nCl0;
+    CUTS.length = nCut0;
+    for (const C of clusters) if (C.idx0) { C.idx = C.idx0; C.q = C.q0; C.rings = C.rings0; C.rk = C.rk0; C.cuts = C.cuts.filter(k => k < nCut0); C.twPk = 0; C.twR = 0; C.ms = false; }
+    for (const ct of CUTS) { ct.done = false; ct.rb = ct.rt = ct.Mb = ct.Tq = ct.pk = ct.pkB = ct.pkT = 0; }
+    beamCl.set(beamCl0);
+    for (const C of clusters) if (C.cuts && C.cuts.length) clMask(C);
+    clQ.length = 0; clArm = false; clGuard = -1; DMG.cl.length = 0; DMG.firstCl = null;
+  }
   function dmgReset() {
     for (let bi = 0; bi < nb; bi++) {
       const b = beams[bi];
       if (b.broken) { b.k = b.kB; b.c = b.cB; b.broken = false; }
       b.fyM = b.fy0; FY[bi] = b.fy0; FC[bi] = b.fc0; b.ep = 0; b.ec = 0; b.dOn = false; b.dk = 0; b.ks = 0;
+      b.rgS = 0; b.rgD = 0; b.kink = false; b.Lf = 0; b.Ff = 0;
     }
+    nFlr = 0; postLive = 0; grpDone.fill(0); DMG.groups.length = 0; DMG.floors = 0; DMG.cracks = 0; DMG.rag.length = 0; DMG.armedN = 0;
     for (let i = 0; i < n; i++) { nodeDeg[i] = nodeDeg0[i]; orphan[i] = 0; }
+    if (DMG_ON) clReset();          // G1840 (DMG-D3): every cluster as built, every cut whole
     for (const C of clusters) { C.off = false; C.dirty = false; }
-    clDirty = false; stripDead.fill(0);
+    clDirty = false; stripDead.fill(0); for (let si = 0; si < SW.length; si++) SW[si] = def.strips[si].w;
+    DMG.brokeUp = null; DMG.stripsSplit = 0; DMG.stripsDropped = 0;
     DMG.yields = 0; DMG.breaks = 0; DMG.work = 0; DMG.broken.length = 0; DMG.firstBreak = null; DMG.firstYield = null;
     DMG.crashed = false; DMG.over = false; DMG.reason = null; DMG.at = null; DMG.dented = false; DMG.propStrike = false; DMG.propAt = null;
     DMG.gPeak = 0; DMG.setMax = 0; DMG.orphans.length = 0; DMG.members = 0; DMG.dents = 0; DMG.primary = 0; DMG.firstPrimary = null; DMG.holed = 0; gF = 0; cIx = cIy = cIz = 0;
     for (const b of beams) b.yielded = false;
+    DMG.wB.fill(0);   // G1802
   }
-  function beamBreak(bi) {
+  // (G1816) why a member broke, for the break-order gate: 'fold' (bent round a trunk past its fold angle), 'kink'
+  // (crushed past ecu), 'ragged' (spruce's last stage), 'tension' (brittle at its strength, or ductile at etu), 'group'
+  function beamBreak(bi, how) {
     const b = beams[bi];
     if (b.broken) return;
     b.kB = b.k; b.cB = b.c; b.k = 0; b.c = 0; b.broken = true;
     DMG.breaks++; DMG.broken.push(bi);
-    if (!DMG.firstBreak) DMG.firstBreak = { beam: bi, cls: b.cls, t: simT };
+    if (!DMG.firstBreak) DMG.firstBreak = { beam: bi, cls: b.cls, t: simT, seam: b.seam || null, grp: grpOf[bi], how: how || 'tension' };
+    if (b.kink) { FLR[nFlr++] = bi; DMG.floors++; }  // G1813: the crushed member stays a floor
+    postLive = 1;                                     // G1898.4: a break may need the floors or the limiters
     if (!noseB[bi]) { DMG.primary++; if (!DMG.firstPrimary) DMG.firstPrimary = { beam: bi, cls: b.cls, t: simT }; }
-    if (beamCl[bi] >= 0) clusters[beamCl[bi]].off = true;
-    for (const si of beamStrips[bi]) stripDead[si] = 1;
+    // G1840 (DMG-D3): a member of a cluster's root or station cut parts that cut (the part comes off, the tube splits);
+    // any other member inside a cluster lets the cluster go (G1470)
+    // (a cut's member another cluster also holds - a twin boom's fin stands across its station - parts the cut too: the
+    // re-form makes that cluster let go of the fewer side)
+    if (beamCl[bi] >= 0) { const ck = cutOf[bi] - 1; if (ck >= 0) cutPart(ck, 'member', 0); else if (beamCl[bi] !== clGuard) clusters[beamCl[bi]].off = true; }
     for (const i of [b.a, b.b]) if (--nodeDeg[i] <= 0 && !orphan[i]) { orphan[i] = 1; DMG.orphans.push(i); }
+    // G1815: the member's group breaks whole (once)
+    const g = grpOf[bi];
+    brkDepth++;
+    if (g >= 0 && !grpDone[g]) {
+      grpDone[g] = 1; DMG.groups.push({ grp: g, key: DGR[g].key, seam: b.seam || null, by: bi, cls: b.cls, t: simT });
+      if (grpCut[g] >= 0) cutPart(grpCut[g], 'member', 0);   // G1840: a cluster's root group broken as members: its part is off
+      for (const j of grpAll[g]) beamBreak(j, 'group');
+    }
+    if (--brkDepth === 0) compEvent();               // G1820 / G1821: once per event, its group whole
   }
   // the return mapping: the member's force k (L - L0) is held at the yield surface by moving L0; returns nothing,
   // the caller re-reads b.L0 / b.k
@@ -11669,7 +12266,7 @@ function makeSim(def, world) {
   function kinkCaps(bi) { const b = beams[bi], fk = b.dk > 1e-6 ? b.mp / b.dk : Infinity; FY[bi] = b.fyM < fk ? b.fyM : fk; FC[bi] = b.fc0 < fk ? b.fc0 : fk; }
   function hingeCheck(bi) {
     const b = beams[bi], L = b.Lr;
-    if (Math.atan(b.dk / (b.kt1 * L)) + Math.atan(b.dk / ((1 - b.kt1) * L)) > b.thf) beamBreak(bi);
+    if (Math.atan(b.dk / (b.kt1 * L)) + Math.atan(b.dk / ((1 - b.kt1) * L)) > b.thf) beamBreak(bi, 'fold');
   }
   function noteSet(bi) {
     const b = beams[bi], set = Math.abs(b.L0 - b.Lr) / b.Lr;
@@ -11690,26 +12287,40 @@ function makeSim(def, world) {
       const fy = FY[bi];
       if (b.dk > 0 && fy < b.fyM) {                  // the bend pulls straight (no further than straight)
         dL = Math.min((Fs - fy) / b.k, b.ks);
-        DMG.work += fy * dL; b.L0 += dL; b.ks -= dL;
+        dmgW(bi, fy * dL); b.L0 += dL; b.ks -= dL;
         if (b.ks <= 1e-12) { b.ks = 0; b.dk = 0; } else b.dk = Math.sqrt(2 * b.Lr * b.kt * b.ks);
         kinkCaps(bi);
+      } else if (b.rgN) {                            // G1814: spruce cracks, pulls out, lets go
+        const crack = b.rgS === 0;
+        if (crack) { b.rgS = 1; b.rgD = 0; b.fyM = 0.6 * b.fy0; kinkCaps(bi); DMG.cracks++; if (DMG.rag.length < 4096) DMG.rag.push(bi, 1, simT); }
+        const cap = FY[bi];
+        if (Fs > cap) {
+          dL = (Fs - cap) / b.k; dmgW(bi, cap * dL); b.L0 += dL;   // G1898.1 (integration): the pull-out's work per beam too (D0 x D1a)
+          if (!crack) b.rgD += dL;                   // (the crack's own release is not pull-out)
+          if (b.rgD >= RAG_SLIP * b.Lr) {
+            b.rgS++; b.rgD = 0;
+            if (DMG.rag.length < 4096) DMG.rag.push(bi, b.rgS, simT);
+            if (b.rgS >= b.rgN) { beamBreak(bi, 'ragged'); return; }
+            b.fyM = 0.3 * b.fy0; kinkCaps(bi); DMG.cracks++;
+          }
+        }
       } else {
         if (!(b.etu > 0)) { beamBreak(bi); return; } // brittle: the yield IS the break
         const H = (b.fu - b.fy0) / (b.etu * b.Lr);   // N per metre of plastic travel (bilinear hardening)
         dL = (Fs - fy) / (b.k + H);
-        DMG.work += (fy + 0.5 * H * dL) * dL;
+        dmgW(bi, (fy + 0.5 * H * dL) * dL);
         b.L0 += dL; b.ep += dL / b.Lr; b.fyM = b.fy0 + H * b.ep * b.Lr; kinkCaps(bi);
         if (b.ep >= b.etu) beamBreak(bi);
       }
     } else {
       const fc = FC[bi];
       dL = (-Fs - fc) / b.k;
-      DMG.work += fc * dL; b.L0 -= dL;
+      dmgW(bi, fc * dL); b.L0 -= dL;
       if (b.dk > 0 && fc < b.fc0) {                // the bend folds further
         b.ks += dL; b.dk = Math.sqrt(2 * b.Lr * b.kt * b.ks); kinkCaps(bi); hingeCheck(bi);
       } else {
         b.ec += dL / b.Lr;
-        if (b.ec >= b.ecu) beamBreak(bi);
+        if (b.ec >= b.ecu) { b.kink = true; b.Lf = L; b.Ff = fc; beamBreak(bi, 'kink'); }   // G1813: kinked - a floor at its crushed length (G1898.6: its crush force kept)
       }
     }
     noteSet(bi);
@@ -11722,7 +12333,7 @@ function makeSim(def, world) {
   // or folds on (beamYield) at that force, and the frame round it moves as far as that lets it
   function beamKink(bi, dk, Pc) {
     const b = beams[bi];
-    DMG.work += Pc * (dk - b.dk); b.dk = dk;
+    dmgW(bi, Pc * (dk - b.dk)); b.dk = dk;
     b.ks = Math.max(b.ks, dk * dk / (2 * b.Lr * b.kt));
     kinkCaps(bi);
     DMG.dents++;
@@ -11762,11 +12373,11 @@ function makeSim(def, world) {
   function armFrame() {
     armed = false;
     if (!DMG_ON) return;
-    if (PEAK || _prN || _obstRecs.length || scrape || DMG.yields || DMG.dents || waterDynamic()) { armed = true; scrape = false; return; }
+    if (PEAK || _prN || _obstRecs.length || scrape || DMG.yields || DMG.dents || clArm || waterDynamic()) { armed = true; scrape = false; DMG.armedN++; return; }
     for (let bi = 0; bi < nb; bi++) {
       const b = beams[bi], a3 = b.a * 3, b3 = b.b * 3;
       const Fs = b.k * (hyp3(p[b3] - p[a3], p[b3+1] - p[a3+1], p[b3+2] - p[a3+2]) - b.L0);
-      if (Fs > ARM_FRAC * FY[bi] || -Fs > ARM_FRAC * FC[bi]) { armed = true; break; }
+      if (Fs > ARM_FRAC * FY[bi] || -Fs > ARM_FRAC * FC[bi]) { armed = true; DMG.armedN++; break; }
     }
   }
   // the nose ring and the engine's nodes: on the ground, the prop has been through it (a nose-over)
@@ -11780,6 +12391,12 @@ function makeSim(def, world) {
   // Under all three a set is a DENT (DMG.dented): the aeroplane taxies on, bent. A prop strike stops its engine and is
   // not a crash on its own (a nose-over on the ground is a crash only if it breaks something).
   const CRASH_G = 9, CRASH_J = 1500;
+  // G1835 (DMG-D2b): the AIRFRAME's plastic work - the gear's is its energy absorber doing its job (§7.3: a spring-steel
+  // leg spreads, an oleo bottoms; a gear joint's crush past its limit is its bracket), not the airframe crushing. Summed
+  // only once the total has passed CRASH_J (one pass over the beams, then the answer)
+  const gearB = new Uint8Array(nb);
+  for (let bi = 0; bi < nb; bi++) if (beams[bi].cls === 'gear') gearB[bi] = 1;
+  function airWork() { let w = 0; for (let bi = 0; bi < nb; bi++) if (!gearB[bi]) w += DMG.wB[bi]; return w; }
   function dmgFrame(dtFrame) {
     const gC = dtFrame > 0 ? Math.hypot(cIx, cIy, cIz) / (totalM * 9.81 * dtFrame) : 0;
     cIx = cIy = cIz = 0;
@@ -11793,7 +12410,7 @@ function makeSim(def, world) {
     if (DMG.crashed || !DMG_ON) return;
     const why = DMG.primary ? 'a ' + (DMG.firstPrimary.cls || 'member') + ' member broke'
       : gF > CRASH_G ? 'an impact of ' + gF.toFixed(0) + ' g'
-      : DMG.work > CRASH_J ? 'the airframe crushed (' + (DMG.work / 1000).toFixed(1) + ' kJ of plastic work)' : null;
+      : DMG.work > CRASH_J && airWork() > CRASH_J ? 'the airframe crushed (' + (airWork() / 1000).toFixed(1) + ' kJ of plastic work)' : null;
     if (why) { DMG.crashed = true; DMG.reason = why; DMG.at = simT; }
   }
   // ...and the flight is OVER once the wreck has come to rest (the CG under 1 m/s) or 4 s after the crash: the game
@@ -11977,7 +12594,7 @@ function makeSim(def, world) {
     let near = w1 > -1e8 && reach < w1;
     if (!near) { const w2 = world.waterH(cx, cz); near = w2 > -1e8 && Math.min(reach, cy - WB_REACH) < w2; }
     if (!near) { if (WB) { WB.tick = 0; WB.wet = 0; } return; }
-    if (!WB) WB = HYDRO.wetBuild(def, p, v, m, fuel);   // G1385: the tanks read the fuel the burn leaves
+    if (!WB) { WB = HYDRO.wetBuild(def, p, v, m, fuel); if (WB && DMG.breaks && HYDRO.wetCut) HYDRO.wetCut(WB, pieces(), orphan); }   // G1385: the tanks read the fuel the burn leaves; G1898.5: a wet body built on a broken airframe
     wetArm = !!WB;
   }
   let totalM = 0;
@@ -12024,6 +12641,26 @@ function makeSim(def, world) {
   // the load factor and the rates: finite differences over one frame,
   // filtered (a node-beam sim's raw acceleration is the truss ringing)
   let vPrev = null, hdgPrev = null;
+  // G1801 (DMG-D0): THE VELOCITY GUARD (DEFORM §5.4): a node faster than VGUARD m/s relative to the CG is a SIM FAULT, not a
+  // flight - caught here before it becomes NaN, and the flight ends 'sim-diverged' (app.js, sim_host.js through
+  // H.diverged, the rigs through stats().bad). Once a frame (readPanel, beside its CG pass), never a substep: n
+  // subtractions and a compare. A NaN velocity trips it too. Read-only: the physics' bits are untouched. The validated
+  // builds' worst in their gates is far under it (GATE DMGINST's census: a torn piece whips at ~70 m/s)
+  const VGUARD = 150, VGUARD2 = VGUARD * VGUARD;
+  const VG = { vMax: 0, node: -1, peak: 0, fault: null };   // this frame's fastest node (m/s rel. the CG), the peak since reset, the fault
+  function guardFrame(cv) {
+    let mx = 0, im = -1, nan = false;
+    for (let i = 0; i < n; i++) {
+      const i3 = i * 3, dx = v[i3] - cv[0], dy = v[i3+1] - cv[1], dz = v[i3+2] - cv[2], s2 = dx*dx + dy*dy + dz*dz;
+      if (s2 > mx) { mx = s2; im = i; } else if (s2 !== s2) { nan = true; im = i; }
+    }
+    VG.vMax = Math.sqrt(mx); VG.node = im;
+    if (VG.vMax > VG.peak) VG.peak = VG.vMax;
+    // G1898.2 (coordinator): the SPEED fault ends a flight only with the damage layer on - with it off an elastic wreck whips
+    // its nodes to ~1.8 x the impact speed off the CG (a 45 m/s trunk: 82 m/s), so an ~80 m/s impact would read 'sim-diverged'
+    // where master flies on; off = master's game (as G1898's crash verdict). A NaN is a fault either way. The peak is kept.
+    if (!VG.fault && (nan || (DMG_ON && mx > VGUARD2))) VG.fault = { why: nan ? 'nan' : 'speed', node: im, v: nan ? NaN : VG.vMax, t: simT };
+  }
   out.nz = 1; out.nzMax = 1; out.nzMin = 1; out.r = 0; out.beta = 0;
   out.pitch = 0; out.roll = 0; out.hdg = 0; out.rpm = []; out.rpmEng = [];
   function resetPanel() {
@@ -12035,6 +12672,7 @@ function makeSim(def, world) {
     for (const vs of fuel.vessels) vs.litres = vs.litres0;
     vPrev = null; hdgPrev = null;
     out.nz = 1; out.nzMax = 1; out.nzMin = 1; out.r = 0;
+    VG.vMax = 0; VG.node = -1; VG.peak = 0; VG.fault = null;   // G1801
   }
   // the key, the starter and the hand on the prop. `start: true` cranks
   // (1.5 s, the viewer's `starterOk` deciding whether the bus can), `swing:
@@ -12110,6 +12748,7 @@ function makeSim(def, world) {
   function readPanel(dtFrame) {
     bodyAxes();
     const cv = cgVel();
+    if (DMG_ON) guardFrame(cv);   // G1801; G1898.10: the layer off runs master's path (the page's NaN watchdog as before)
     if (vPrev && dtFrame > 0) {
       const ax = (cv[0] - vPrev[0]) / dtFrame, ay = (cv[1] - vPrev[1]) / dtFrame,
             az = (cv[2] - vPrev[2]) / dtFrame;
@@ -12215,9 +12854,9 @@ function makeSim(def, world) {
   const bHalf = new Float64Array(NPL);
   const ellF = u => { u = Math.max(-1, Math.min(1, u)); return 0.5 * (u * Math.sqrt(1 - u * u) + Math.asin(u)); };
   let aicHash = NaN, aicFresh = true;
-  const cpOf = (st, o) => {                 // a strip's control point: its attach-weighted c/4
+  const cpOf = (ti, o) => {                 // a strip's control point: its attach-weighted c/4 (G1820: a split strip's)
     o[0] = o[1] = o[2] = 0;
-    for (const [i, w] of st.w) { o[0] += p[i*3]*w; o[1] += p[i*3+1]*w; o[2] += p[i*3+2]*w; }
+    for (const [i, w] of (DMG.stripsSplit ? SW[ti] : def.strips[ti].w)) { o[0] += p[i*3]*w; o[1] += p[i*3+1]*w; o[2] += p[i*3+2]*w; }
     return o;
   };
   // the bound vortex of a wing strip: the quarter-chord line over the
@@ -12268,7 +12907,7 @@ function makeSim(def, world) {
       Ez[j] = LOADING === 'uniform' ? 1
             : (u1 - u0 > 1e-9 ? (ellF(u1) - ellF(u0)) / (u1 - u0) : Math.sqrt(Math.max(0, 1 - u0 * u0)));
     }
-    for (let ti = 0; ti < NST; ti++) { cpOf(def.strips[ti], _P); cpt[ti*3] = _P[0]; cpt[ti*3+1] = _P[1]; cpt[ti*3+2] = _P[2]; }
+    for (let ti = 0; ti < NST; ti++) { cpOf(ti, _P); cpt[ti*3] = _P[0]; cpt[ti*3+1] = _P[1]; cpt[ti*3+2] = _P[2]; }
     for (let q = 0; q < NP; q++) {
       const ti = pairs[q][0], sj = pairs[q][1];
       const rc = IND.core * def.strips[sj].chord;
@@ -12666,9 +13305,10 @@ function makeSim(def, world) {
     GamPrev.set(Gam);
 
     let stripIdx = -1;
+    const SWL = DMG.stripsSplit ? SW : null;   // G1898.4: a split strip's weights only once one exists (the lookup cost ~0.5 %)
     for (const st of def.strips) {
       stripIdx++;
-      // G1470: a strip a broken member ran through is no longer a wing (its nodes are two pieces): no lift, no drag
+      // G1470 / G1820: a strip whose nodes a break has parted is no longer a wing: no lift, no drag (the component test)
       if (stripDead[stripIdx]) { if (NP) Gam[stripIdx] = 0; continue; }
       // --- strip frame ---
       // a strip that names its four spar nodes (the wing's, and since TAIL
@@ -12714,7 +13354,7 @@ function makeSim(def, world) {
       }
       // --- local velocity + position via attach weights ---
       let vx=0, vy=0, vz=0, spx=0, spy=0, spz=0;
-      for (const [i, w] of st.w) {
+      for (const [i, w] of (SWL ? SWL[stripIdx] : st.w)) {   // G1820: a split strip's weights
         vx+=v[i*3]*w; vy+=v[i*3+1]*w; vz+=v[i*3+2]*w;
         spx+=p[i*3]*w; spy+=p[i*3+1]*w; spz+=p[i*3+2]*w;
       }
@@ -12805,7 +13445,7 @@ function makeSim(def, world) {
         if (out.dump) out.dump.push({ side: st.side, t: st.t, wash: st.wash,
           al: al*57.3, Fy, ch: st.chord }); }
       else if (st.kind === 'stab' || st.kind === 'vtail') out.stabFy += Fy;
-      for (const [i, w] of st.w) {
+      for (const [i, w] of (SWL ? SWL[stripIdx] : st.w)) {
         f[i*3] += Fx*w; f[i*3+1] += Fy*w; f[i*3+2] += Fz*w;
       }
       // wing pitching moment as front/rear spar couple (d = spar spacing 0.78 m)
@@ -12932,6 +13572,39 @@ function makeSim(def, world) {
       Mz += (p[i*3]-cgx)*(f[i*3+1]-G*m[i]) - (p[i*3+1]-cgy)*f[i*3];
     return -Mz;   // nose-up positive, gravity excluded
   }
+  // G1813: the kinked members' floors - push only, below the crushed length (out of substep's own body: measured, the
+  // loop inline cost the metal Cessna's step ~2 % in the air with no floor at all)
+  function floorPass() {
+    for (let q = 0; q < nFlr; q++) {
+      const b = beams[FLR[q]], a3 = b.a*3, b3 = b.b*3;
+      let dx = p[b3]-p[a3], dy = p[b3+1]-p[a3+1], dz = p[b3+2]-p[a3+2];
+      const L = hyp3(dx, dy, dz) || 1e-9;
+      if (L >= b.Lf) continue;
+      dx /= L; dy /= L; dz /= L;
+      let Fb = b.kB * (L - b.Lf) + b.cB * ((v[b3]-v[a3])*dx + (v[b3+1]-v[a3+1])*dy + (v[b3+2]-v[a3+2])*dz);
+      if (Fb >= 0) continue;
+      // G1898.6 (coordinator): THE FLOOR IS PLASTIC - a crushed tube pushes back at most its crush force and crushes further
+      // past it (its floor follows), never an elastic stop: the Cub's severe water nose-in drove its stab's 0.3 kg nodes
+      // half a metre into 474 kN/m floors and the stored ~60 kJ came back as 3 km/s. Stored energy now <= Ff^2 / 2k
+      if (b.Ff > 0 && -Fb > b.Ff) { Fb = -b.Ff; const Le = L + b.Ff / b.kB; if (Le < b.Lf) b.Lf = Le; }
+      f[a3]+=Fb*dx; f[a3+1]+=Fb*dy; f[a3+2]+=Fb*dz;
+      f[b3]-=Fb*dx; f[b3+1]-=Fb*dy; f[b3+2]-=Fb*dz;
+    }
+  }
+  // G1822: the SUPPORT limiters - push only, below their closing length (walked in a frame armed or after a break)
+  function suppPass() {
+    for (let q = 0; q < nSup; q++) {
+      const S = SUP[q], a3 = S.a*3, b3 = S.b*3;
+      let dx = p[b3]-p[a3], dy = p[b3+1]-p[a3+1], dz = p[b3+2]-p[a3+2];
+      const L = hyp3(dx, dy, dz) || 1e-9;
+      if (L >= S.L0) continue;
+      dx /= L; dy /= L; dz /= L;
+      const Fb = S.k * (L - S.L0) + S.c * ((v[b3]-v[a3])*dx + (v[b3+1]-v[a3+1])*dy + (v[b3+2]-v[a3+2])*dz);
+      if (Fb >= 0) continue;
+      f[a3]+=Fb*dx; f[a3+1]+=Fb*dy; f[a3+2]+=Fb*dz;
+      f[b3]-=Fb*dx; f[b3+1]-=Fb*dy; f[b3+2]-=Fb*dz;
+    }
+  }
   function substep(dt) {
     for (let i = 0; i < n; i++) { f[i*3]=0; f[i*3+1]=G*m[i]; f[i*3+2]=0; }
     aeroPass(false);
@@ -12953,6 +13626,10 @@ function makeSim(def, world) {
       const Fb = (b.tens && L <= b.L0) ? 0 : b.k * (L - b.L0) + b.c * vrel;
       f[a3]+=Fb*dx; f[a3+1]+=Fb*dy; f[a3+2]+=Fb*dz;
       f[b3]-=Fb*dx; f[b3+1]-=Fb*dy; f[b3+2]-=Fb*dz;
+    }
+    if (postLive) {                                  // G1898.4: one compare a substep for both (none: nothing to do)
+      if (nFlr) floorPass();                         // G1813: the kinked members' floors
+      if (nSup && (armed || DMG.breaks)) suppPass(); // G1822: the SUPPORT limiters
     }
     // ground: wheels roll, everything else scrapes. Terrain-aware.
     const gH = world ? world.terrainH : null;
@@ -13213,7 +13890,20 @@ function makeSim(def, world) {
     trunkFrame(dtFrame);
     wetArmFrame(dtFrame);                           // G1384: the water's pass only on a frame that can reach it
     armFrame();
-    for (let s = 0; s < sub; s++) { substep(dt); simT += dt; burn(dt); }
+    postLive = (nFlr > 0 || (nSup > 0 && (armed || DMG.breaks > 0))) ? 1 : 0;   // G1898.4
+    // G1840 (DMG-D3): the clusters' cuts are measured on every substep of an armed frame, and on the last of any other:
+    // the members across them read from the substep's own starting state (the beam loop's), the cuts judged once its
+    // projection has run, the parts that came off re-formed rigid - all out here, so substep() is the base's
+    // G1898.10: no cut (always so with the layer off) - master's own loop, no per-substep flag
+    if (nCut0 === 0) for (let s = 0; s < sub; s++) { substep(dt); simT += dt; burn(dt); }
+    else for (let s = 0; s < sub; s++) {
+      clMs = nCut0 > 0 && (armed || s === sub - 1);
+      if (clMs) cutX();
+      substep(dt);
+      if (clMs) clCuts();
+      if (clQ.length) clApply();
+      simT += dt; burn(dt);
+    }
     readPanel(dtFrame);
     dmgFrame(dtFrame);
     dmgOver();
@@ -13247,7 +13937,9 @@ function makeSim(def, world) {
   }
 
   // ---- wind tunnel: prescribe uniform velocity, measure aero force+moment ----
-  function probe(vel) {
+  // (G1830, DMG-D2a: `live` - the pass as the step makes it, the propeller's thrust and its wash over the tail and the
+  // inner wing included; the certificate's flight cases read the node forces it leaves in f. Absent: as ever)
+  function probe(vel, live) {
     for (let i = 0; i < n; i++) {
       f[i*3]=f[i*3+1]=f[i*3+2]=0;
       v[i*3]=vel[0]; v[i*3+1]=vel[1]; v[i*3+2]=vel[2];
@@ -13258,7 +13950,7 @@ function makeSim(def, world) {
     Gam.fill(0);
     for (let k = 0; k < K_PROBE; k++) {
       if (k) for (let i = 0; i < n; i++) f[i*3]=f[i*3+1]=f[i*3+2]=0;
-      aeroPass(true);
+      aeroPass(live ? (k === 0) : true);   // (live: the first pass builds the geometry as a probe does, the rest fly)
     }
     if (NP) { let d = 0, s = 0; for (const j of WS) { d += Math.abs(Gam[j] - GamPrev[j]); s += Math.abs(Gam[j]); }
               out.gamResid = s > 0 ? d / s : 0; } else out.gamResid = 0;
@@ -13280,7 +13972,7 @@ function makeSim(def, world) {
     let smax = 0, bad = false;
     for (const b of beams) smax = Math.max(smax, Math.abs(b.strain));
     for (let i = 0; i < n; i++) if (!isFinite(p[i*3+1])) bad = true;
-    return { smax, bad };
+    return { smax, bad: bad || !!VG.fault };   // G1801: a node past the velocity guard is a sim fault too
   }
   function impulse(i, ix, iy, iz) { v[i*3]+=ix/m[i]; v[i*3+1]+=iy/m[i]; v[i*3+2]+=iz/m[i]; }
   function wheelsOnGround() {
@@ -13349,6 +14041,24 @@ function makeSim(def, world) {
            // G1470: the damage - yields, breaks (beam indices), plastic work (J), the largest set (strain), the peak
            // filtered g, the prop strike, and the verdict: crashed (with why and when) / dented / neither
            damage: () => DMG, damagePeak: () => PEAK,
+           // G1831 (DMG-D2a): stamp the certificate on a sim that has not bent yet (the page's arrives from its
+           // worker); true if stamped. cert(): the certificate stamped, or null
+           certStamp: Cc => certStamp(Cc), cert: () => CERT,
+           // G1815: break one member as a crash would (GATE DMGMEMBERS' closed-set check: its group, and nothing more)
+           damageBreak: bi => { if (DMG_ON && bi >= 0 && bi < nb) beamBreak(bi, 'gate'); },
+           // G1840 (DMG-D3): the clusters' cuts - limits (N.m), the last measured ratios and loads, the peaks, parted -
+           // and each tube cluster's twist bays (the worst bay's torque over its limit); `clusters` live (their nodes)
+           clusterCuts: () => ({ cuts: CUTS.map((c, k) => ({ k, cl: c.cl, tag: clusters[c.cl] ? clusters[c.cl].tag : null, cls: clusters[c.cl] ? clusters[c.cl].cls : null, kind: c.kind,
+                                   Mu: c.Mu, Mv: c.Mv, T: c.T, yb: c.yb, yt: c.yt, rb: c.rb, rt: c.rt, Mb: c.Mb, Tq: c.Tq, pk: c.pk, pkB: c.pkB, pkT: c.pkT, done: c.done,
+                                   grp: c.grp >= 0 ? DGR[c.grp].key : null, P: Array.from(c.P), X: Array.from(c.X), bay: c.bay })),
+                                 twist: clusters.map((C, ci) => C.twL0 ? { cl: ci, tag: C.tag, lim: C.twL0.slice(), r: C.twR, pk: C.twPk } : null).filter(x => x),
+                                 clusters: clusters.map(C => ({ tag: C.tag, cls: C.cls, off: !!C.off, nodes: Array.from(C.idx) })) }),
+           // G1801: the velocity guard - { vMax, node, peak, fault: null | { why: 'speed' | 'nan', node, v, t } }
+           guard: () => VG, fault: () => VG.fault,
+           // G1820: the strips as the aero pass flies them (dead, and each one's weights: the build's or a split's)
+           damageStrips: () => ({ dead: stripDead, w: SW }),
+           // G1822: the SUPPORT limiters ({ a, b, k, c, L0, path }; closed while their nodes are nearer than L0)
+           damageSupp: () => SUP,
            reset, stance, step, trueBox, probe, stats, impulse, wheelsOnGround, wheelContacts, cgPos, cgVel, axes,
            // G197: the kernel's sources, readable (the gate asserts the weights' normalisation)
            induction: () => ({ WS: WS.slice(), plane: Array.from(PLANE), bHalf: Array.from(bHalf), Ez: Array.from(Ez), Dz: Array.from(Dz), Gam: Array.from(Gam), Wg: Array.from(Wg), zA: WS.map(j => sZA[j]), zB: WS.map(j => sZB[j]), A: WS.map(j => [sA[j*3], sA[j*3+1], sA[j*3+2]]), B: WS.map(j => [sB[j*3], sB[j*3+1], sB[j*3+2]]), d: sD.slice(), cpt: Array.from(cpt), pairs: pairs.length, loading: LOADING }),
@@ -15192,7 +15902,8 @@ function wetBuild(def, p, v, m, fuel) {
   const sub_ = (def.params && def.params.substeps) || 24;
   const every = Math.max(1, Math.round((def.params && def.params.hydroEvery) || (sub_ * 60 / HYDRO_HZ)));
   return { tris, slices, slabs, tanks, fuel: fuel || null, open, material: spec.material || null, wheels, nodes, p, v, m, R, axPair, axle: [0, 0, 1], rho: DEF.rho || 1000, every, tick: 0,
-           fh: new Float64Array(p.length), h: new Float64Array(p.length / 3), wet: 0, drag: 0, buoy: 0, flood: 0, slamPeak: 0 };
+           fh: new Float64Array(p.length), h: new Float64Array(p.length / 3), wet: 0, drag: 0, buoy: 0, flood: 0, slamPeak: 0,
+           def, torn: false, every0: every };   // G1898.9: the rest the tear reads; the hold restored at reset
 }
 // the fill toward the water outside: in over tau, out over WB_DRAIN (exact exponential steps, any interval)
 function flood(f, wetS, tau, dt) {
@@ -15200,11 +15911,49 @@ function flood(f, wetS, tau, dt) {
   return Math.min(1, Math.max(0, wetS + (f - wetS) * Math.exp(-dt / T)));
 }
 // a fresh aeroplane (the solver's reset): nothing flooded, nothing holed
+// G1898.5 (DEFORM coordinator, D1b x GEAR-WATER 2): THE WET BODY OVER A BREAK. A slice, slab or face whose nodes a break
+// has parted (two pieces, or a node left with no member: debris) is no longer a hull - its 'volume' would be read across
+// the gap and its buoyancy / slam flung onto a few kilos of debris (the Cub's severe nose-in went NaN the substep its
+// last members broke). Called by the solver's component test on a break event (fd: the pieces' find), and when a wet
+// body is first built on an airframe already broken. With nothing broken it is never called: the base's bits.
+function wetCut(WB, fd, orphan) {
+  if (!WB) return;
+  // G1898.9 (coordinator): ONCE BROKEN, THE WET BODY TEARS AS THE SKIN DOES AND IS NEVER HELD. Its faces and slabs past
+  // DMG-D4a's tear (an edge over 1.15 x its rest + 1 cm), its slices past 2 x their rest volume, drop: a face whose nodes
+  // fly apart is no longer a face (the Cub's severe nose-in put a 135 kN 'slam' on a 0.3 kg stab node, along its own
+  // motion, then held it 13 substeps: 10 km/s). And the force is recomputed every substep (`every` 1) while broken.
+  if (!WB.torn) {
+    WB.torn = true; WB.every = 1;
+    const R = WB.def.nodes, len = (a, b) => Math.hypot(R[a].p[0] - R[b].p[0], R[a].p[1] - R[b].p[1], R[a].p[2] - R[b].p[2]);
+    for (const t of WB.tris) t.L0 = [len(t.n[0], t.n[1]), len(t.n[1], t.n[2]), len(t.n[2], t.n[0])];
+    for (const q of WB.slabs) q.L0 = [0, 1, 2, 3].map(k => len(q.n[k], q.n[(k + 1) % 4]));
+    for (const S8 of WB.slices) S8.V0 = sliceVol0(WB.def, S8.n);
+  }
+  const cut = n => { const r = fd(n[0]); for (let k = 0; k < n.length; k++) if (orphan[n[k]] || fd(n[k]) !== r) return true; return false; };
+  for (const s of WB.slices) if (!s.dead && cut(s.n)) s.dead = true;
+  for (const s of WB.slabs) if (!s.dead && cut(s.n)) s.dead = true;
+  for (const t of WB.tris) if (!t.dead && cut(t.n)) t.dead = true;
+  for (const T of WB.tanks || []) if (!T.dead && cut(T.n)) T.dead = true;   // G1898.8: TANKS-FLOAT's tanks over a break too
+}
+const wetStretched = (p, n, L0) => { for (let k = 0; k < L0.length; k++) { const a = n[k] * 3, b = n[(k + 1) % L0.length] * 3;
+  if (Math.hypot(p[b] - p[a], p[b + 1] - p[a + 1], p[b + 2] - p[a + 2]) > 1.15 * L0[k] + 0.01) return true; } return false; };
+function wetSliceVol(p, n8) {
+  let vol = 0;
+  for (const Q of WB_Q) {
+    let ux = 0, uy = 0, uz = 0, vx = 0, vy = 0, vz = 0, wx = 0, wy = 0, wz = 0;
+    for (let c = 0; c < 8; c++) { const i3 = n8[c] * 3, X = p[i3], Y = p[i3 + 1], Z = p[i3 + 2];
+      ux += Q.dU[c] * X; uy += Q.dU[c] * Y; uz += Q.dU[c] * Z; vx += Q.dV[c] * X; vy += Q.dV[c] * Y; vz += Q.dV[c] * Z; wx += Q.dW[c] * X; wy += Q.dW[c] * Y; wz += Q.dW[c] * Z; }
+    vol += Math.abs(ux * (vy * wz - vz * wy) - uy * (vx * wz - vz * wx) + uz * (vx * wy - vy * wx)) / 27;
+  }
+  return vol;
+}
 function wetReset(WB) {
   if (!WB) return;
-  for (const s of WB.slices) { s.f = 0; s.br = false; s.wetS = 0; s.pk = 0; }
-  for (const s of WB.slabs) { s.f = 0; s.wetS = 0; }
-  for (const s of WB.tanks) { s.f = 0; s.br = false; s.wetS = 0; }
+  for (const s of WB.slices) { s.f = 0; s.br = false; s.wetS = 0; s.pk = 0; s.dead = false; }
+  for (const s of WB.slabs) { s.f = 0; s.wetS = 0; s.dead = false; }
+  for (const s of WB.tanks) { s.f = 0; s.br = false; s.wetS = 0; s.dead = false; }
+  for (const t of WB.tris) t.dead = false;   // G1898.5
+  WB.torn = false; WB.every = WB.every0;     // G1898.9
   WB.tick = 0; WB.wet = 0; WB.flood = 0; WB.slamPeak = 0;
 }
 function wetSolverPass(WB, world, f, simT, dt) {
@@ -15245,6 +15994,8 @@ function wetCompute(WB, fh, dtH) {
   // mass; a hull that floods to its waterline sinks lower, floods further, and goes down unless the wings hold it.
   let fl = 0, flN = 0;
   for (const S8 of WB.slices) {
+    if (S8.dead) continue;                                  // G1898.5: parted by a break
+    if (WB.torn && S8.V0 > 0 && wetSliceVol(p, S8.n) > 2 * S8.V0) { S8.dead = true; continue; }   // G1898.9
     const sl = S8.n;
     let anyWet = false;
     for (let c = 0; c < 8; c++) if (H[sl[c]] - p[sl[c] * 3 + 1] > -WB_DELTA) { anyWet = true; break; }
@@ -15275,6 +16026,8 @@ function wetCompute(WB, fh, dtH) {
   // G1384.4 THE WINGS: four samples a slab (the quad's bilinear quarter points), each a quarter of the volume, wet by a
   // ramp over the slab's thickness, its lift onto the four spar nodes by the same bilinear weights; flooding as above
   for (const SB of WB.slabs) {
+    if (SB.dead) continue;                                  // G1898.5
+    if (WB.torn && SB.L0 && wetStretched(p, SB.n, SB.L0)) { SB.dead = true; continue; }   // G1898.9
     const q = SB.n;
     let anyWet = false;
     for (let c = 0; c < 4; c++) if (H[q[c]] - p[q[c] * 3 + 1] > -SB.th) { anyWet = true; break; }
@@ -15304,6 +16057,7 @@ function wetCompute(WB, fh, dtH) {
   // (capacity - fuel now: the solver's fuel.vessels, drained by the burn) floods only once the tank is holed
   const FV = WB.fuel && WB.fuel.vessels;
   for (const T of WB.tanks) {
+    if (T.dead) continue;                                   // G1898.8: parted by a break
     const n = T.n, w = T.w;
     let y = 0, hS = 0;
     for (let c = 0; c < n.length; c++) { y += w[c] * p[n[c] * 3 + 1]; hS += w[c] * H[n[c]]; }
@@ -15320,6 +16074,8 @@ function wetCompute(WB, fh, dtH) {
   // THE FACES: the Newtonian pressure on a face advancing into the water (a hull face one-sided, a plate on whichever
   // side meets the flow) and the skin friction along it, over each triangle's wet polygon
   for (const t of WB.tris) {
+    if (t.dead) continue;                                   // G1898.5
+    if (WB.torn && t.L0 && wetStretched(p, t.n, t.L0)) { t.dead = true; continue; }   // G1898.9
     const tn = t.n;
     let any = false;
     for (let k = 0; k < 3; k++) { const i3 = tn[k] * 3, P = S.P[k]; P[0] = p[i3]; P[1] = p[i3 + 1]; P[2] = p[i3 + 2];
@@ -15413,7 +16169,7 @@ function wetCompute(WB, fh, dtH) {
 const API = { DEF, G, NU, makeFloat, sectionOf, makeBody, makeScratch, hydroForces, bodyStep, readState, levelVolume,
               stillWater, gerstner, submergedVolumeMC, expDrop, expTow, expLand, nodeSlam, stabilityReport, ENVELOPE,
               savitskyStatic, rotPitch, polyArea, hullTriangles,
-              hydroPanels, rigidCtx, tetraCtx, baryOf, hydroBuild, hydroSolverPass, wetBuild, wetSolverPass, wetReset, WB_MAT, WB_WING, floatParamsFor, FLOAT_DISP,
+              hydroPanels, rigidCtx, tetraCtx, baryOf, hydroBuild, hydroSolverPass, wetBuild, wetSolverPass, wetReset, wetCut, WB_MAT, WB_WING, floatParamsFor, FLOAT_DISP,
               FLOAT_PRESETS, FLOAT_PRESET_NAMES, FLOAT_METRIC, FLOAT_SPEC_KEYS, presetParams, fineParams, scaleParams, secPoly, secAreaTo, keelOf, deckAt,
               waterRudder, WR_AREA, WR_DEPTH, WR_TRAVEL, WR_UP_V, HYDRO_EVERY, floatAdvice };
 HYDRO = API;
@@ -17233,8 +17989,8 @@ function makeAutopilot(sim, def, world) {
 //
 // THE REPORT is the contract: ap.report = { verdicts: [{t, code, note}],
 // outcome, landing }. outcome is null in flight, then exactly one of
-// 'completed' | 'rejected-takeoff' | 'gave-up' (a runner may add 'broke-up'
-// when the sim itself diverges). 'completed' with verdicts in
+// 'completed' | 'rejected-takeoff' | 'gave-up' (a runner may add 'sim-diverged'
+// when the sim itself diverges - G1800; 'broke-up' is the structure's, 'crashed' TREE-CRASH's). 'completed' with verdicts in
 // the list is an EVENTFUL flight (go-arounds, an accepted ceiling) — the
 // distinction between clean and eventful is the report's whole point.
 // landing = { run, sink, V, offCentre, pastAim } once stopped off a real
@@ -18198,7 +18954,7 @@ function makeCrosswindProbe(def, opts) {
     // pilot crabs into it on purpose (11 deg at 4 m/s across a 20 m/s climb),
     // which is airmanship, not a swing
     if (c.ap.phase === 'LIFTOFF' && c.eLift == null) c.eLift = Math.abs(d.e || 0);
-    if (c.sim.stats && c.sim.stats().bad) { c.fin = { ok: false, why: 'broke-up' }; return true; }
+    if (c.sim.stats && c.sim.stats().bad) { c.fin = { ok: false, why: 'sim-diverged' }   /* G1800 */; return true; }
     const rep = c.ap.report;
     if (rep && (rep.outcome === 'rejected-takeoff' ||
         (rep.verdicts && rep.verdicts.length &&
@@ -18366,7 +19122,7 @@ function genCrosswindLimit(def, opts) {
 //
 // THE REPORT contract is the test pilot's, unchanged: ap.report =
 // { verdicts: [{t, code, note}], outcome, landing, card?, phases[], abort? }.
-// outcome ∈ completed | rejected-takeoff | gave-up (| broke-up by a runner).
+// outcome ∈ completed | rejected-takeoff | gave-up (| sim-diverged / broke-up / crashed by a runner, G1800).
 // Units are SI throughout; PILOT_UNITS converts for a panel that wants kt,
 // fpm and ft.
 // G381 (2026-09-13, the user: "the new autopilot flying the circuit is a
@@ -28346,7 +29102,8 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   const clusters = [];                              // G294: rigid node groups (the tube)
   // G327: a fin's cluster — its truss and the station it stands on — with
   // its stiffness declared as a K_tip for the end-of-lattice resolution
-  const finCluster = (tag, finNodes, rootNodes, hV, cRoot, mat) => {
+  // G1840 (DMG-D3): `ends` = the fin's front and rear root nodes and its apex - the section's chord and span axes
+  const finCluster = (tag, finNodes, rootNodes, hV, cRoot, mat, ends) => {
     if (R.finTube === 0 || R.finTube === false) return;
     const ph = mat && mat.phys;
     if (!ph || !(ph.E > 0) || !(hV > 0.2)) return;
@@ -28354,8 +29111,26 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     const EI = ph.E * 2 * Acap * (0.5 * d) * (0.5 * d);
     const kt = 3 * EI / Math.pow(hV, 3);
     const nodesC = finNodes.concat(rootNodes).filter((q, i, a) => q != null && a.indexOf(q) === i);
+    const part = finNodes.filter((q, i, a) => q != null && a.indexOf(q) === i && rootNodes.indexOf(q) < 0);
+    // G1840 (DMG-D3 CLUSTERS): THE FIN'S ROOT SECTION, for the damage layer's root limits (30_solver, behind
+    // params.damage): the same two caps (Acap each, d apart) whose EI sets its omega, on its front and rear root posts
     clusters.push({ cls: 'fin', tag, nodes: nodesC,
-                    omega: { k: kt, kRef: 29182, mRef: 61.6, wRef: 300 } });
+                    omega: { k: kt, kRef: 29182, mRef: 61.6, wRef: 300 },
+                    dmg: { kind: 'caps', mat: genPhysKey(ph), E: ph.E, Acap, d, part, root: rootNodes.filter(q => q != null),
+                           ax: ends ? [ends.front, ends.tip] : null, lat: ends ? [ends.front, ends.rear] : null } });
+  };
+  // G1842 (DMG-D3, DEFORM §7.1 #8): A TUBE'S MID-SPAN STATION - the bay of a rod / boom tube that holds its middle (the
+  // user's "booms crack, often in the middle": a long boom is spliced and carries its bracing's and its control runs'
+  // through-bolted brackets along its length; the reports' "just aft of the cabin" is the tube's ROOT here, and the
+  // monocoque's rivet line, DMG-D1a). The bay k (ring k to ring k+1) whose midpoint is nearest the tube's mid-length,
+  // never the root bay (that is the root's own cut); the splice's joint efficiency is DMG-D1a's riveted joint (0.7,
+  // the doc's range, not a certified number). -1: no station (a tube of fewer than three rings)
+  const dmgStation = (rings, xTip) => {
+    if (rings.length < 3) return -1;
+    const xr = rings.map(r => r.reduce((s, q) => s + P[q][0], 0) / r.length), mid = 0.5 * (xr[0] + xTip);
+    let k = -1, bd = Infinity;
+    for (let j = 1; j + 1 < rings.length; j++) { const dd = Math.abs(0.5 * (xr[j] + xr[j + 1]) - mid); if (dd < bd) { bd = dd; k = j; } }
+    return k;
   };
   const P = [];                                     // positions, for area math
   // G185: WHICH PLANE a node belongs to. Tags stay WF/WR/WB on every plane
@@ -28446,6 +29221,79 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     rodKv = GJl > 0 ? Math.max(1, Math.min(20, GJt / GJl)) : 1;
     return rodKv;
   };
+  // G1810 (DMG-D1a): WHERE A CRASH FINDS THE STRUCTURE - the joints (DEFORM-AND-BREAK §7.2). A crash tears an
+  // aeroplane along its fittings, rivet lines, glue lines and the frames round its openings, not through the middle
+  // of a spar. B() stamps every member with its `seam` (null, 'fitting', 'rivet', 'bond', 'opening') and every
+  // ATTACHMENT member with its break group (`grp`, §4.4: the group breaks whole), from what the generator already
+  // knows: the node tags say which PART a node is (the body, a wing half, the stab, the fin, a boom, an engine, a
+  // main gear leg, the third wheel, a float). A member joining two parts IS the joint (the lattice has no separate
+  // bolt), so it is a `fitting` and belongs to the group of the part that comes off ("the child": the gear off the
+  // body, the engine off its mount, the wing off the cabin). Read only by the damage layer (30_solver.js, behind
+  // params.damage); zero cost to anything else. dmgGroups (returned) is the group table.
+  const dmgGroups = [], dmgGrpKey = {}, dmgSib = [];
+  const dmgRootZ = [];                                   // per plane: the wing roots' |z| (a root node is a root fitting's)
+  const dmgCovered = !(S.fuselage && S.fuselage.covering === 'open');
+  const dmgGlazed = dmgCovered && !(S.cab && S.cab.glazing === 'none');
+  // the part a node belongs to, and the part's rank: the higher rank is the child of a joint (it comes off)
+  const dmgPart = i => {
+    const t = nodes[i].tag || '', z = P[i][2], sd = z < 0 ? 'L' : 'R';
+    if (t === 'WF' || t === 'WR' || t === 'WB' || t === 'WB2') return { p: 'wing' + (nodes[i].plane || 0) + sd, r: 1, base: 'wing' + (nodes[i].plane || 0), wing: true };
+    if (t.slice(0, 2) === 'BM') return { p: 'boom' + t[2], r: 2, base: 'boom' };
+    if (/^(HF|HR|HB|HT)/.test(t)) return { p: 'stab', r: 3, base: 'stab' };
+    if (/^(VF|VR|VX|FIN)/.test(t)) return Math.abs(z) > 0.2 ? { p: 'fin' + sd, r: 3, base: 'fin' } : { p: 'fin', r: 3, base: 'fin' };
+    if (/^(ENG|CGE|MNT)/.test(t)) return Math.abs(z) > (S.cab ? S.cab.halfW : 0.5) ? { p: 'eng' + sd, r: 3.5, base: 'eng' } : { p: 'eng', r: 3.5, base: 'eng' };
+    if (t.slice(0, 4) === 'AXLE') return { p: 'gear' + sd, r: 4, base: 'gear' };
+    if (t === 'TW') return { p: 'tw', r: 4, base: 'tw' };
+    if (t === 'FLK' || t === 'FLD') return { p: 'float' + sd, r: 4, base: 'float' };
+    return { p: 'body', r: 0, base: 'body' };          // the stations, the post, the nose tank's pair (VSN)
+  };
+  // which joint of its child part a member is: a wing's ROOT (its wing end on the root rib) or its STRUT (the fan,
+  // the strut, the boxed outer's lower chord), the INTERPLANE truss; an engine's MOUNT; a gear's attach; a float's struts
+  const dmgJoint = (C, cn, A) => C.wing ? (A.wing ? 'interplane' : (Math.abs(Math.abs(P[cn][2]) - (dmgRootZ[nodes[cn].plane || 0] ?? -1)) < 1e-6 ? 'root' : 'strut'))
+    : C.base === 'eng' ? 'mount' : C.base === 'float' ? 'strut' : (C.base === 'gear' || C.base === 'tw') ? 'gear' : 'attach';
+  const dmgGroup = (key, part, joint, anchor) => {
+    if (dmgGrpKey[key] != null) return dmgGrpKey[key];
+    dmgGroups.push({ id: dmgGroups.length, key, part, joint, anchor, t0: [], t1: [] });
+    return (dmgGrpKey[key] = dmgGroups.length - 1);
+  };
+  // the seam of a member inside one part: rivet lines and bond lines (§7.2), the frames round the openings
+  const dmgRing = i => { const m = /^S(\d+)([BT])([LR])$/.exec(nodes[i].tag || ''); return m ? { i: +m[1], tb: m[2], sd: m[3] } : null; };
+  const dmgSeamIn = (a, b, cls, mnt, opt, mat, pa) => {
+    if (cls === 'fus' && !mnt && pa.p === 'body') {
+      const ra = dmgRing(a), rb = dmgRing(b);
+      if (!ra || !rb) return null;
+      const lo = Math.min(ra.i, rb.i), hi = Math.max(ra.i, rb.i);
+      // OPENINGS (a covered cabin with its glazing): the windscreen's frame (ring 0 to ring 1, the top: the posts'
+      // tops and the header) and the cabin's sides (ring 1 to the cabin's rear: the door and the side windows, the
+      // posts at both ends). Kt 1.5-2 on Fu (the 172's forward doorpost cracking, NTSB "broken at the windscreen
+      // frame and cabin door posts")
+      if (dmgGlazed) {
+        const xA = ST[lo] ? ST[lo].x : 0, xB = ST[hi] ? ST[hi].x : 0, cab1 = S.cab ? S.cab.noseGap : 0;
+        const cab2 = S.cab ? S.cab.noseGap + S.cab.len : 0;
+        if (lo === 0 && hi === 1 && ra.tb === 'T' && rb.tb === 'T') return 'opening';            // the windscreen
+        if (hi === lo + 1 && xA >= cab1 - 1e-6 && xB <= cab2 + 1e-6 && ra.sd === rb.sd && ra.tb !== rb.tb) return 'opening';   // a side bay's diagonal
+        if (lo === hi && ra.sd === rb.sd && ra.tb !== rb.tb && (Math.abs(xA - cab1) < 1e-6 || Math.abs(xA - cab2) < 1e-6)) return 'opening';   // a doorpost
+      }
+      // THE CABIN-TO-TAILCONE JOINT (NASA's 172 test 3 "snapped the fuselage in half"; NTSB "tailcone separated just
+      // aft of the baggage compartment ... along the rivet lines"): the frame at the box's rear and the bay behind it
+      // (its longerons are the splices) - riveted on an alloy monocoque, bonded on a composite or a ply one; a welded
+      // or bolted truss (4130, 6061 tube) has neither
+      const iJ = ST.findIndex(s => Math.abs(s.x - boxRearJ) < 1e-6);
+      if (iJ > 0 && lo === iJ && (hi === iJ || hi === iJ + 1)) return (mat === 'alloy') ? 'rivet' : (mat === 'carbon' || mat === 'wood') ? 'bond' : null;
+      // ...and the monocoque's frame-to-skin lines aft of the joint: the tailcone's skin panels (the bay diagonals)
+      if (mat === 'alloy' && iJ > 0 && lo > iJ && hi === lo + 1 && !(ra.tb === rb.tb && ra.sd === rb.sd)) return 'rivet';
+      return null;
+    }
+    // GLUE LINES: a wood or composite surface's ribs (the members of one station: the rib gussets, the root rib) and
+    // its box webs (the ply or the laminate bonded to the spar caps - opt.web)
+    if ((mat === 'wood' || mat === 'carbon') && (cls === 'wing' || cls === 'tail')) {
+      if (opt && opt.web) return 'bond';
+      const k = pa.base === 'fin' ? 1 : 2;
+      if (Math.abs(P[a][k] - P[b][k]) < 1e-6) return 'bond';
+    }
+    return null;
+  };
+  const boxRearJ = S.fuse ? S.fuse.boxRear : -1;
   const B = (a, b, cls, ext, vis, mnt, opt) => {
     const L = Math.hypot(P[b][0]-P[a][0], P[b][1]-P[a][1], P[b][2]-P[a][2]);
     // A MEMBER BETWEEN TWO POINTS THAT ARE ONE POINT IS REFUSED (REVIEW
@@ -28562,6 +29410,10 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
                  vis: vis || null, L };
     if (opt && opt.tens) bm.tens = true;
     if (opt && opt.pre) bm.pre = opt.pre;
+    // G1803 (DMG-D0): THE LEDGER SECTION open as the member is built (sec(): 'fuselage', 'wings', 'bracing', 'tail', 'gear',
+    // 'engines', ...) - the one its mass and money are billed to below, so the repair bill (DEFORM §10) sums a beam's
+    // plastic work (DMG.wB) into the section that paid for it. Stamped here, no cost at run time
+    bm.sec = SEC;
     // G1470 (TREE-CRASH): THE MEMBER'S SECTION, for the damage model (30_solver.js): the area its mass is
     // billed at (lin / rho at its gauge, the aft taper and the box webs in - the same A the load test
     // judges a class by, per member) and the material it is made of (the GEN_MATERIALS key whose `phys`
@@ -28577,6 +29429,22 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
       // at the 3.8 g limit (a 172's wing holds it), the class's at 52 % - the load test's own figure.
       bm.A = lin > 0 && MM.phys ? Math.max(lin * aftG * webK * g1, lin) / MM.phys.rho : 0;
       bm.mat = genPhysKey(MM.phys);
+    }
+    // G1810 / G1815 (DMG-D1a): the seam and the break group (see dmgPart above). Every member carries both fields (one
+    // shape for the solver's beam loop); a member that is no joint reads null / -1
+    {
+      const pa = dmgPart(a), pb = dmgPart(b);
+      bm.seam = null; bm.grp = -1;
+      if (pa.p !== pb.p) {
+        if (pa.base === pb.base && pa.r === pb.r && pa.base !== 'stab') dmgSib.push([beams.length, pa.p, pb.p]);   // a pair's own link (G1815)
+        else {
+          const ch = pa.r > pb.r || (pa.r === pb.r && (pa.p > pb.p)) ? [pa, a, pb] : [pb, b, pa];
+          const joint = dmgJoint(ch[0], ch[1], ch[2]);
+          bm.seam = 'fitting';
+          bm.grp = dmgGroup(ch[0].p + ':' + joint, ch[0].p, joint, ch[2].p);
+          dmgGroups[bm.grp].t0.push(beams.length);
+        }
+      } else bm.seam = dmgSeamIn(a, b, cls, mnt, opt, bm.mat, pa);
     }
     beams.push(bm);
     // structural mass: linear density x length, half to each end (this is the
@@ -28897,8 +29765,19 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
       omega = { k: 3 * EIt / Math.pow(L, 3), kRef: 29182, mRef: 61.6, wRef: 300 };
       rodGJ = GJt;
     }
+    // G1840 / G1842 (DMG-D3): the tube's section (the EI and GJ above, its radius and wall) and its mid-span station;
+    // its root is the bulkhead ring at boxRear (the attachment, the cluster's first ring)
+    let rodDmg = null;
+    if (ph && ph.E > 0 && rodR > 0 && rodRings.length >= 2) {
+      const tW = R.rodWall == null ? 1.2e-3 : R.rodWall;
+      const ring0 = rodRings[0], last = rodRings[rodRings.length - 1];
+      rodDmg = { kind: 'tube', mat: genPhysKey(ph), E: ph.E, EI: ph.E * Math.PI * Math.pow(rodR, 3) * tW,
+                 GJ: (ph.E / 2.6) * 2 * Math.PI * Math.pow(rodR, 3) * tW, r: rodR,
+                 part: cl.filter(q => ring0.indexOf(q) < 0), root: ring0.slice(), ax: [ring0[0], last[0]], lat: [ring0[0], ring0[1]],
+                 station: dmgStation(rodRings, fu.postX), eta: 0.7 };
+    }
     if (cl.length >= 6) clusters.push({ cls: 'rod', tag: 'ROD', omega, nodes: cl,
-                                        rings: rodRings, gj: rodGJ });
+                                        rings: rodRings, gj: rodGJ, dmg: rodDmg });
   }
 
   // ---- 2. engine ------------------------------------------------------
@@ -29007,6 +29886,8 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   // G274: the centre section's own width when the builder set one (the
   // root pair moves with it; the panels start there), else the cabin's
   const zRoot = (w.centreW > 0 ? 0.5 * w.centreW : cab.halfW) + (cabane ? R.cabaneSplay : 0);
+  dmgRootZ[k] = zRoot;                                    // G1815: a node here is a root fitting's
+
   // CRANK: a second wing section. The break gets its own spar station, because
   // it is a real joint — the outer panel bolts to the centre section there —
   // and because the dihedral changes across it, so a node has to exist at the
@@ -29824,8 +30705,22 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
             const rm = 0.5 * (r0 + r1) * Math.sqrt(kv);          // the oval's mean radius
             gj = (ph.E / 2.6) * 2 * Math.PI * Math.pow(rm, 3) * tW;
           } }
+        // G1840 / G1842 (DMG-D3): the oval tube's section (its EI both ways and its GJ, the same oval and wall), its
+        // root (the wing bay's spar nodes it is bolted to: the cluster's `rib`) and its mid-span station
+        let boomDmg = null;
+        { const ph = M && M.phys;
+          if (ph && ph.E > 0) {
+            const tW = R.rodWall == null ? 1.2e-3 : R.rodWall, rm = 0.5 * (r0 + r1), a = kv * rm;
+            const rings = st.map(q => [q.T, q.I, q.O]), r0n = st[iRoot], lastN = st[st.length - 1];
+            boomDmg = { kind: 'oval', mat: genPhysKey(ph), E: ph.E,
+                        EIv: ph.E * Math.PI * tW * a * a * (a + 3 * rm) / 4, cv: a,         // vertical bending (the EI of omega)
+                        EIl: ph.E * Math.PI * tW * rm * rm * (rm + 3 * a) / 4, cl: rm,      // lateral bending
+                        GJ: gj, rT: rm * Math.sqrt(kv),
+                        part: st.flatMap(q => [q.T, q.I, q.O]), root: rib.slice(), ref: [r0n.T, r0n.I, r0n.O],
+                        ax: [r0n.T, lastN.T], lat: [r0n.I, r0n.O], station: dmgStation(rings, xTip), eta: 0.7 };
+          } }
         clusters.push({ cls: 'boom', tag: 'BM' + sd, omega, nodes: cl,
-                        rings: st.map(q => [q.T, q.I, q.O]), gj });
+                        rings: st.map(q => [q.T, q.I, q.O]), gj, dmg: boomDmg });
       }
     }
     const tl = chains.L[iTail], tr = chains.R[iTail];
@@ -29985,7 +30880,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
       fins.push({ VF, VR, VX, VX2, FIN: apex, side: sg, hV, chordV, nV });
       // G327: the fin as one cluster with the boom's tail station it stands on
       finCluster('FIN' + sd, [...VF, ...VR, ...VX, ...VX2, apex], [q.T, q.I, q.O, prev.T],
-                 hV, chordV(0), MB);
+                 hV, chordV(0), MB, { front: VF[0], rear: VR[0], tip: apex });
     }
     TAIL = { HF, HR, HB, zsH, semiH, zRootH, chordH, hV, chordV, nV,
              VF: fins[0].VF, VR: fins[0].VR, VX: fins[0].VX, VX2: fins[0].VX2, fins,
@@ -30155,7 +31050,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   B(FIN, VF[nV - 1], 'tail'); B(FIN, VR[nV - 1], 'tail');   // ...and out of its plane (the same mechanism)
   // G327: the fin as one cluster with the post and the last ring it stands on
   finCluster('FIN', [...VF, ...VR, ...VX, ...VX2, FIN], [TPT, TPB, last.TL, last.TR],
-             hV, chordV(0), MB);
+             hV, chordV(0), MB, { front: VF[0], rear: VR[0], tip: FIN });
   TAIL = { HF, HR, HB, VF, VR, VX, VX2, zsH, semiH, zRootH, chordH, hV, chordV, nV,
            fins: [{ VF, VR, VX, VX2, FIN, side: 1, hV, chordV, nV }],   // G268: one fin here, two on a twin boom
            sparFront: sparF, rearH: 1 - CT, rearV: 1 - CR };
@@ -30431,7 +31326,10 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
         B(DL[i], DR[i + 1], 'gear', false, 'inner', undefined, NM); B(DR[i], DL[i + 1], 'gear', false, 'inner', undefined, NM);
       }
       for (let i = 0; i < NS; i++) { B(K[i], DL[i], 'gear', false, 'inner', undefined, NM); B(K[i], DR[i], 'gear', false, 'inner', undefined, NM); B(DL[i], DR[i], 'gear', false, 'inner', undefined, NM); }
-      clusters.push({ cls: 'float', tag: 'FLT' + (sd < 0 ? 'L' : 'R'), nodes: all });
+      // G1840 (DMG-D3): a rigid float is BeamNG's 'prop' - its root is its attachment (the struts and the spreader
+      // bars that end on it: the solver reads them off the members), its axis the keel, its lateral the deck's beam
+      clusters.push({ cls: 'float', tag: 'FLT' + (sd < 0 ? 'L' : 'R'), nodes: all,
+                      dmg: { kind: 'bolts', part: all.slice(), root: null, ax: [K[0], K[NS - 1]], lat: [DL[2], DR[2]] } });
       const Din = sd < 0 ? DR : DL, Dout = sd < 0 ? DL : DR;
       const fB = sd < 0 ? fwdL : fwdR, aB = sd < 0 ? AA.BL : AA.BR, fT = sd < 0 ? F[iFwd].TL : F[iFwd].TR;
       // G396.2: A FLOAT INSTALLATION HAS NO SPRING (the user: "quite
@@ -30910,6 +31808,62 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     const o = C.omega;
     C.omega = o.wRef * Math.sqrt((o.k / o.kRef) * (o.mRef / Math.max(1, Mc)));
   }
+  // G1815 (DMG-D1a): A PAIR'S OWN LINK (the wing carry-through, the main gear's axle bar, the floats' spreader bars) is
+  // TYPE 1 in both sides' groups: either side's attachment letting go takes it (the half-wing does not hang on by the
+  // carry-through), and it breaks neither (BeamNG's breakGroupType 1). On a side with a root group, that one
+  for (const [bi, p1, p2] of dmgSib) for (const pp of [p1, p2]) {
+    const g = dmgGroups.find(G => G.part === pp && G.joint === 'root') || dmgGroups.find(G => G.part === pp);
+    if (g) g.t1.push(bi);
+  }
+  // ...AND EVERY GROUP IS A CLOSED SET (§4.4, BeamNG's leak warning: groups that chain drop the wrong parts) - a
+  // generator assertion, read by GATE DMGMEMBERS on the validated builds: a group has a member that breaks it; a
+  // member it takes along (type 1) breaks no other group, and sits in no more groups than its pair's two sides; each
+  // member that breaks it has an end on its own part; and every member that joins two parts is in a group, so any
+  // part can come off whole
+  const dmgIssues = [], inT1 = new Int32Array(beams.length);
+  for (const G of dmgGroups) {
+    if (!G.t0.length) dmgIssues.push(G.key + ': no member breaks it');
+    for (const bi of G.t1) { inT1[bi]++; if (beams[bi].grp >= 0) dmgIssues.push(G.key + ': takes member ' + bi + ', which breaks group ' + beams[bi].grp); }
+    for (const bi of G.t0) { const b = beams[bi]; if (dmgPart(b.a).p !== G.part && dmgPart(b.b).p !== G.part) dmgIssues.push(G.key + ': member ' + bi + ' has no end on ' + G.part); }
+  }
+  for (let bi = 0; bi < beams.length; bi++) {
+    const b = beams[bi];
+    if (inT1[bi] > 2) dmgIssues.push('member ' + bi + ' taken by ' + inT1[bi] + ' groups');
+    if (dmgPart(b.a).p !== dmgPart(b.b).p && b.grp < 0 && !inT1[bi]) dmgIssues.push('member ' + bi + ' (' + dmgPart(b.a).p + ' - ' + dmgPart(b.b).p + ') joins two parts in no group');
+  }
+  // G1822 (DMG-D1b, DEFORM-AND-BREAK §4.6 / §8.1): SUPPORT LIMITERS where a crash gate showed parts passing through
+  // each other (L9), and only there: THE NOSE ENGINE THROUGH THE FIREWALL. In GATE TREECRASH's 30 m/s trunk flights the
+  // engine's nodes, its mount gone, travelled 0.23-0.36 m into the cabin's bays (the Cub's through five of them), and the
+  // metal Cessna's still-mounted engine 0.31-0.44 m in a severe nose-in. Each engine node gets a compression-only limiter
+  // to each corner of the ring BEHIND the firewall (ring 1: a limiter to the firewall's own corners lies across a
+  // centred node's path - the Cessna's engine CG node, 0.18 m ahead of a 1.1 m ring, met them at under 2 % of its
+  // stand-off and went through - while one to ring 1 lies along it): slack while the engine is where it was built and
+  // while its mount crushes, it closes once the node has come within SUPP_GAP of its stand-off of the firewall (L0 =
+  // the distance it would have to that corner then, `pre` its rigging fraction) and pushes from there, on the cabin's
+  // frame. Data only: the solver makes them members with the
+  // damage layer on (30_solver.js), so a build flown without damage has the same members it always had. (Looked for in
+  // the same cases - the trunk flights, the nose-ins and pancakes on the ground and the water, the bench to
+  // destruction: the gear leg into the cabin floor and a crushed belly, never seen. A WING into the cabin, seen only
+  // after its attachment had gone - a strut-braced wing folding at its first station once the strut let go (0.10-0.14
+  // m, the Jodel and the Cessna hit 2.5 m out), the Cub's root end on its strut alone, the root fittings torn (0.18 m,
+  // the trunk centreline, once this limiter stops the cabin there): a free end sweeping the hull, §8.2's point-against-
+  // tube case. Limiters from its root nodes to the cabin's far corners were tried: the 0.18 m went, the other wing's
+  // root went in 0.11 m a second later, at 16-32 more members in the beam loop - not kept.)
+  const SUPP_GAP = 0.2, dmgSupp = [];
+  if (F[0]) for (let i = 0; i < nodes.length; i++) {
+    if (dmgPart(i).p !== 'eng') continue;                        // the nose engine (a wing engine is no firewall's)
+    const ax = P[i][0], stand = ST[0].x - ax;
+    if (!(stand > 0.05)) continue;
+    const x1 = ax + (1 - SUPP_GAP) * stand;                       // where the node is when the limiter closes
+    const R1 = F[1] || F[0];
+    for (const c of [R1.BL, R1.BR, R1.TL, R1.TR]) {
+      const d0 = Math.hypot(P[c][0] - ax, P[c][1] - P[i][1], P[c][2] - P[i][2]), d1 = Math.hypot(P[c][0] - x1, P[c][1] - P[i][1], P[c][2] - P[i][2]);
+      if (d0 > 1e-6) dmgSupp.push({ a: i, b: c, pre: 1 - d1 / d0, path: 'engine-firewall' });
+    }
+  }
+  parts.dmg = { groups: dmgGroups.map(G => ({ id: G.id, key: G.key, part: G.part, joint: G.joint, anchor: G.anchor, t0: G.t0, t1: G.t1 })), issues: dmgIssues,
+    // G1821 (DMG-D1b): every node's part (the body's 'body'), for the refs-core's gate (the body frame's refs on the body)
+    part: nodes.map((_, i) => dmgPart(i).p), supp: dmgSupp };
   return { nodes, beams, refs, parts, clusters };
 }
 
@@ -33835,7 +34789,11 @@ function genCapLoft(ids, mesh, flip) {
 //   pos = base + SUM w_i * (node_i_body - node_i_rest_body)
 // `hinged` verts already have their hinge-rotated position in `pos`, so the
 // delta is ADDED rather than written, same contract as the imported path.
-function poseSkinGen(g, rest, live, base, pos, gain, hinged) {
+// G1851 (DMG-D4a): `brk` - over a break, src/viewer/skin_break.js's record for this group poses it instead (its
+// vertices on their nodes' own frames, its weights kept on their own side of a broken member, the fabric's drape):
+// { R, NF, down, poseGen }. Absent, or nothing broken, this loop is the whole of it, as it always was.
+function poseSkinGen(g, rest, live, base, pos, gain, hinged, brk) {
+  if (brk && brk.R && brk.R.active) return brk.poseGen(brk.R, rest, live, base, pos, gain, hinged, brk.NF, brk.down);
   const { wi, ww, nv } = g;
   for (let v = 0; v < nv; v++) {
     let dx = 0, dy = 0, dz = 0;
@@ -35115,7 +36073,10 @@ function makeLoadTest(sim, def, cfg) {
   // wing as BUILT - the rig switches the sim it is handed to the true k and c and steps it at the
   // step the true box needs. The user: "I don't want to fake the test. Let the test test the actual
   // wing." A build that softened nothing is untouched (the same sim, the same step).
-  const SUB = (sim.trueBox ? sim.trueBox() : 0) || (def.params && (def.params.substepsTrue || def.params.substeps)) || 24;
+  // G1832 (DMG-D2a): `box: 'flight'` - the wing AS IT FLIES (the flight box, its own step): the test to destruction's
+  // broke-at is a flight number, and the flight box is where the certificate's flight cases load the members
+  const SUB = cfg.box === 'flight' ? ((def.params && def.params.substeps) || 24)
+    : (sim.trueBox ? sim.trueBox() : 0) || (def.params && (def.params.substepsTrue || def.params.substeps)) || 24;
   // THE WING IS JUDGED AS WHAT IT IS BUILT OF (G213). `cfg.wingMaterial` is a
   // GEN_SURF_MATERIALS key (or row): the wing class's allowable is that
   // row's section and yield, not the fuselage's. Measured before this: the
@@ -35184,7 +36145,7 @@ function makeLoadTest(sim, def, cfg) {
                   limitPct: null, ultPct: null, limitYield: null, ultYield: null,
                   verdict: null, done: false, W: W, ok: ok, why: why };
 
-  let t = 0, base = null, peak = {};
+  let t = 0, base = null, peak = {}, brokeT = 0;
 
   function clamp() {
     for (let k = 0; k < pin.length; k++) {
@@ -35301,7 +36262,14 @@ function makeLoadTest(sim, def, cfg) {
       return state;
     }
     // ramp to ultimate, recording the limit case on the way past
-    const n = state.phase === 'hold' ? ULT : Math.min(ULT, ULT * (t / RAMP));
+    // G1898.7 (DEFORM coordinator): THE TEST TO DESTRUCTION CREEPS PAST THE ULTIMATE - a third of the rate once the bags
+    // pass the card's ultimate (as a real test to destruction is loaded slowly near failure): at the full rate the bags'
+    // g led the structure's response and the Jodel read BROKE AT 6.17 g against its static first joint at 5.99 (a third
+    // of the rate: 6.06; the Cub 6.01, the metal Cessna 6.06). Every other load test keeps its expression, bit for bit
+    const tU = RAMP * GEN_LOAD_ULT / ULT;
+    const n = state.phase === 'hold' ? ULT
+      : (cfg.destroy && ULT > GEN_LOAD_ULT && t > tU) ? Math.min(ULT, GEN_LOAD_ULT + (ULT / RAMP / 3) * (t - tU))
+      : Math.min(ULT, ULT * (t / RAMP));
     state.n = n;
     // the bags press DOWN, because they are bags. The aeroplane being inverted
     // is what makes that the flight-load direction through the spar. The
@@ -35343,6 +36311,23 @@ function makeLoadTest(sim, def, cfg) {
       state.limitPct = state.tipPct;
       state.limitYield = state.worstPct;
     }
+    // G1832 (DMG-D2a): the damage layer on this rig's sim - the first member set, the first broken, the first GROUP
+    // let go (the part coming off as a part), each at the bags' load factor. Written only when it happens (a rig with
+    // the layer off never has one, and its state is the one it always was). TEST TO DESTRUCTION (`cfg.destroy`,
+    // ruling dm6: free - a bench sim, nothing of the aeroplane or the wallet): the ramp goes on past the ultimate and
+    // the test ends 0.3 s after the first group has let go: BROKE AT n g
+    if (sim.damage) {
+      const D = sim.damage();
+      if (D.yields && state.yieldAt == null) state.yieldAt = n;
+      if (D.breaks && state.breakAt == null) { state.breakAt = n; state.breakFirst = D.firstBreak ? { cls: D.firstBreak.cls, seam: D.firstBreak.seam, how: D.firstBreak.how } : null; }
+      if (D.groups && D.groups.length && state.brokeAt == null) { state.brokeAt = n; state.brokeKey = D.groups[0].key; state.brokeSeam = D.groups[0].seam; brokeT = t; }
+      if (cfg.destroy && state.brokeAt != null && t - brokeT >= 0.3 && !state.done) {
+        state.phase = 'done'; state.done = true;
+        state.verdict = 'BROKE AT ' + state.brokeAt.toFixed(2) + ' g';
+        if (sim.stats().bad) state.verdict = 'SIM DIVERGED';
+        return state;
+      }
+    }
     if (state.phase === 'ramp' && n >= ULT) { state.phase = 'hold'; t = 0; }
     else if (state.phase === 'hold' && t >= HOLD) {
       state.ultPct = state.tipPct;
@@ -35354,11 +36339,17 @@ function makeLoadTest(sim, def, cfg) {
       // is reported rather than failed on: `A = lin/rho` is one area for the
       // whole wing class and the worst member is usually the LIFT STRUT, which
       // a real aeroplane sizes on its own. See HANDOVER, GATE LOAD.
-      state.verdict = sim.stats().bad ? 'BROKE UP'
+      // G1800 (ruling dm4): a NaN or a node past the velocity guard is the SIM's fault, 'SIM DIVERGED'; 'BROKE UP' is
+      // kept for the structure letting go (the damage layer's breaks, DMG-D1b / D2)
+      state.verdict = sim.stats().bad ? 'SIM DIVERGED'
+        // G1832: a member the damage layer broke before the ultimate held its 1.5 s is the structure letting go
+        // (G458's BROKE UP, made real); to destruction, a ramp that ended unbroken says how far it went
+        : (sim.damage && sim.damage().breaks) ? 'BROKE UP'
+        : cfg.destroy ? 'HELD TO ' + ULT.toFixed(1) + ' g'
         : (state.ultYield !== null && state.ultYield >= 100 ? 'HELD — over yield'
                                                            : 'HELD');
     }
-    if (sim.stats().bad) { state.verdict = 'BROKE UP'; state.done = true; }
+    if (sim.stats().bad) { state.verdict = 'SIM DIVERGED'; state.done = true; }   // G1800
     return state;
   }
 
@@ -35370,6 +36361,969 @@ function makeLoadTest(sim, def, cfg) {
   return { step: step, state: state, stations: st, semi: semi, W: W,
            limit: LIM, ult: ULT, bags: bags, lift: GEN_LOAD_LIFT,
            carried: carried };
+}
+// ============================================================
+// THE CERTIFICATE (G1830-G1834, DMG-D2a; DEFORM-AND-BREAK §4.3 (c), ruling dm1).
+//
+// TREE-CRASH judged a member on its PHYSICS: it yields at sigY x A (GEN_CRASH, its billed section). That is calibration
+// (a) of §4.3 and it is crash-only: on the validated builds the worst member reaches 0.17-0.36 of its yield at the 3.8 g
+// limit on the bench, so nothing a pilot can do in the air ever bends the aeroplane. The certificate anchors each
+// member to the loads the aeroplane is CERTIFIED for, the way a real one is sized: the generator runs the cases a
+// certification runs, records every member's peak force at LIMIT load (the per-member envelope F_l, tension and
+// compression apart), and the solver stamps the member from it (30_solver.js certStamp, behind params.damage, only when
+// the def carries a certificate), never past its physics (TREE-CRASH's material x section, D1a's seams and Euler):
+//   - tension, ductile: the first set just past the limit, Fy = max(F_l x yTol, Fy_floor); the break at the certified
+//     ultimate times the card's margin and the member's own, Fu = max(1.5 F_l m x uMember, Fu_floor), over a short
+//     plastic travel (etu); brittle (spruce - its ragged stages kept, its scatter only upward -, carbon): Fy = Fu;
+//   - a JOINT (D1a's seams: the fitting - the wing root, the strut, the tail, the mount, the float struts -, the rivet
+//     line, the glue line, the opening's frame) is brittle at 1.5 F_l m x uFit: the part comes off as a part (§4.4) at
+//     the card's broke-at, every member between the joints holding 1.15 x longer (see uFit / uMember below: FAR
+//     23.625's 15 %, kept between the two, on the side the lattice can show);
+//   - compression: the member crushes (perfectly plastic, to its kink) at the certified ULTIMATE, never at the limit -
+//     a member perfectly plastic at its limit would be a mechanism one hair past it, the wing folding at 3.81 g -
+//     Fc = min(max(1.5 F_l,c m x uMember, Fc_floor), its physics), the physics being D1a's Euler on a tube member: a
+//     slender tube still buckles where the card would allow more (where a bad design shows);
+//   - the FLOORS (kappa x the member's D1a physics) keep a member no certified case loads from being paper; a crash
+//     into the ground or a trunk meets members past every certified case, and there the floors and Euler govern.
+// The gear's own members keep D1a's limits (the gear bracket, §7.3, is DMG-D2b's).
+//
+// THE CASES (FAR 23 normal category; the sections named are written from the regulation's text as recalled, not from
+// a search summary, and are A0's to open on the box before a number of theirs becomes a gate: §1, §11.2 #7):
+//   ON THE SOLVER'S OWN AIR (sim.probe live: the strips' span and chord distribution, the aerofoil's pitching moment
+//   twisting the box, the controls' loads on their strips, the propeller's thrust and wash), the aeroplane as it flies
+//   (the flight box, G610), each case a static equilibrium of the lattice's own force law with whatever the loads leave
+//   unbalanced taken by the rigid body's acceleration (inertia relief - nothing supports it):
+//     the V-n corners (23.333/23.335/23.337): A (V_A, +3.8 g, trimmed), D (V_D, +3.8 g, trimmed), the negative limit
+//     at V_C (-0.4 x 3.8 = -1.52 g); A and D again with the checked manoeuvre's pitching acceleration on top
+//     (23.423(b)); the rolling pull (23.349: 2/3 of the limit, the aileron full, both ways); the elevator hard over at
+//     V_D and the rudder hard over at V_A from 1 g, suddenly (x dynCtl: a stick snapped over is a step on an elastic
+//     tail);
+//   THE ENGINE ON ITS MOUNT (23.561(b): 9 g forward, 3 up, 6 down, 1.5 either way, ultimate) and THE AIRFRAME STOPPED
+//   AT ITS NOSE (23.561's 9 g forward, the reaction at the propeller: a trunk at a taxi's pace);
+//   THE BENCH (the garage's own rig, 65_gen_loadtest: the fuselage on trestles, inverted, the bags at 3.8 g with the
+//   wing's own weight, the true box) - the static answer the rig converges to (to 0.05 %), so a bench run to the limit
+//   leaves no set by construction;
+//   DYNAMIC, the real sim under the probe: THE DROP (23.473: GATE TREECRASH's own, at the 10 ft/s cap, no lift), a
+//   floatplane's BOW LANDING (23.527-23.529: TREECRASH's float nose-in), and THE FLIGHT TEST (23.307: the pull flown to
+//   the limit - the airframe's own dynamics, read up to the step the wing's load first reaches it).
+// Linear algebra: a dense Cholesky of ~300-400 degrees of freedom per stiffness, Newton on the tangent to the
+// equilibrium (a few rounds a case). The dynamic cases are most of the cost (2.6-9 s a build in node and in a browser
+// worker). THE COST IS NEVER IN THE GARAGE'S EDIT LOOP: the page asks for the certificate when the aeroplane rolls out,
+// on the bench's thread (bench_worker.js 'cert'), and stamps the live sim when it lands (app.js certKick); the bench's
+// test to destruction takes it from there; the gates call genCertify / genCertAttach (cached by the spec's hash).
+// ============================================================
+const GEN_CERT = {
+  limit: GEN_LOAD_LIMIT,     // 23.337(a), the normal category's +3.8 g
+  ult: GEN_LOAD_ULT,         // 23.303: 1.5 x limit
+  neg: 0.4,                  // 23.337(b): the negative limit at least 0.4 x the positive
+  roll: 2 / 3,               // 23.349: the rolling condition at 2/3 of the positive limit
+  m: 1.05,                   // the margin the card prints: a joint breaks at 1.5 F_l m (DEFORM §4.3: m ~ 1.0-1.1)
+  yTol: 1.01,                // the first set at 1.01 x the envelope (the rig's substep peaks round its static answer)
+  etu: 0.01,                 // a certified ductile member's plastic travel to its break: a built-up member (a spar cap, a
+                             // stringer panel) gives within a percent or two, not the coupon's 8-10 % (D1a's rivet line:
+                             // 2 %). Measured: at 10 % the metal Cessnas' box yields from 3.9 g and sheds its load, and the
+                             // strut lets go at 6.9-7.3 g, past the card; at 2 %, 6.1-6.2 g; at 1 %, 6.06-6.10 g
+  // THE FITTING FACTOR, READ AS THE LATTICE NEEDS IT (the coordinator's ruling asked for, HANDOVER G1831): the brief's
+  // literal stamp (a fitting at 1.15 x the member's certified break) puts every joint 15 % past the members it joins,
+  // so on every certified build the first thing to break is the middle of a member (§7.2 forbids it) and the joints
+  // hold to 1.15 x 1.5 m x the limit (6.9 g at m 1.05; 7.2 at 1.1) - past §7.4's over-g row (the ultimate x 1.1 breaks
+  // AT A FITTING, at the g on the card). In the lattice a joint member IS the bolt and the tube (D1a: no separate
+  // bolt), and §7.2's own reason - "joints and cutouts are where a crash finds the structure: load concentration and
+  // fasteners, not the certified strength" - is the concentration the 15 % is written for. So the 15 % stays between
+  // the joint and the members, on the side the lattice can show: the joint lets go at the card's broke-at (1.5 F_l m),
+  // every member between joints 1.15 x further. Both readings measured (GATE DMGCERT's evidence)
+  uMember: 1.15,             // an ordinary member breaks at 1.5 F_l m x uMember
+  uFit: 1,                   // a joint at 1.5 F_l m x uFit
+  kappa: 0.1,                // the floor: kappa x the member's physics (the census: HANDOVER G1831, kappa.json)
+  dynCtl: 2,                 // the controls' hard-over cases, suddenly applied: twice the static load
+  dropCap: true,             // the drop at 23.473(d)'s 10 ft/s cap rather than the build's own V (GATE TREECRASH drops there)
+  flapN: 2.0,                // G1836 (DMG-D2b): 23.345's positive limit with the flaps extended (as recalled)
+  ctlFlown: { hold: 0.3 },   // G1836: the controls flown at V_A - full one way, full the other, s each
+  tailAsymMax: 0.8,          // G1836: 23.427(b)'s other side, 100 - 10 (n - 1) %, at most 80 %
+  landK: 1.5,                // G1836: the airframe behind the gear at the gear's ultimate in the landing / ground / water cases
+  rough: { A: 0.04, lam: 3, V: 8, secs: 12 },
+  weave: { V: 0.6, hold: 0.5 },   // G1836: a floatplane's run-out, the rudder hard over and back (s each way, 3 cycles) at 0.6 V_S0  // G1836: 23.491's roughest ground (a stated field: bumps of A m, lam m apart), at V m/s
+  // G1835 (DMG-D2b): THE GEAR'S BRACKET (30_solver gearStamp; DEFORM §7.3): a wheel's gear gives in compression with no
+  // set to its limit - where a steel section sized for the ultimate yields (yUlt: 1.5 x 4130's ty / tu = 1.18), then crushes at that load over its own TRAVEL (the share of a member's length it gives
+  // before it kinks and its attach lets go), per archetype - a spring-steel leg is the energy absorber and spreads a
+  // long way, an oleo bottoms and its strut bends, a bungee's lug or bracket hardly gives; the nose fork its own. In
+  // tension every gear joint is its lug, brittle at the ultimate. floorW: every gear joint holds at least this share
+  // of the aeroplane's weight at its limit (the cross wires and snap-blockers no case loads much: with no floor they
+  // would be paper; at 0.25 W the metal Cessna's cross brace sits at 0.60 of its yield in a crosswind rollout)
+  leg: { yTol: 1.01, yUlt: 1.5 * GEN_CRASH.tubeFabric.ty / GEN_CRASH.tubeFabric.tu, floorW: 0.25, bungee: { travel: 0.04 }, spring: { travel: 0.15 }, oleo: { travel: 0.10 }, nose: { travel: 0.06 } },
+  // G1835 (DMG-D2b): THE GROUND AND WATER LOADS (genCertGroundLoads; FAR 23 as recalled, A0 to open them) and the gear's
+  // own landings (genCertDrop's attitudes)
+  gearDrop: { roll: 4, noseUp: 8, stepPitch: 0, xwind: 0.2 },   // the gear's landings: one wheel / float first (deg of
+                             // roll), a tricycle's tail-down (deg nose-up), a float's step attitude, the drift (x V_S0)
+  ground: { sideV: 1.33, sideIn: 0.5, sideOut: 0.33,        // 23.485
+            brakeV: 1.33, brakeMu: 0.8,                     // 23.493
+            nMin: 2.67,                                     // 23.473(g): the landing's limit inertia load factor at least
+            twSide: 1,                                      // 23.497(b)
+            noseK: 2.25, noseAft: 0.8, noseFwd: 0.4, noseSide: 0.7,   // 23.499
+            C1: 0.012, nwMin: 0, lift: 2 / 3, oneFloat: 0.75 },      // 23.527 / 23.529 / 23.535
+};
+// the landing, ground and water cases (genCertify's names): the airframe takes them at GEN_CERT.landK
+const GEN_CERT_LAND = /^(drop|bow|taxiRough|g[A-Z]|w[A-Z])/;
+// the controls flown (genCertFlownCtl): a member's larger peak certifies it both ways
+const GEN_CERT_RING = /^flown(Elev|Rud)/;
+const GEN_CERT_V = 2;        // the certificate's own version (a cached answer is only valid for the rules that made it);
+                             // 2: G1835-G1836 (DMG-D2b) - the gear's cases, the ground and water loads, the flaps
+
+// is the damage layer on for this def? (30_solver's own DMG_ON: params.damage, else the page's ?damage, else the
+// default) - the page asks before it spends a thread on a certificate
+function genDamageOn(def) {
+  const P = (def && def.params) || {};
+  return (P.damage ?? (typeof FLYDIY_DAMAGE === 'boolean' ? FLYDIY_DAMAGE
+          : typeof GEN_DAMAGE_DEFAULT !== 'undefined' && GEN_DAMAGE_DEFAULT)) === true && typeof GEN_CRASH !== 'undefined';
+}
+// ---- the build's key: the spec, else the frame's own numbers -----------------------------------------------------
+function genCertKey(def) {
+  let h = 0x811c9dc5;
+  const mix = s => { for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619) >>> 0; };
+  mix('cert' + GEN_CERT_V + JSON.stringify(GEN_CERT) + (typeof PHYSICS_V !== 'undefined' ? PHYSICS_V : ''));
+  if (def.spec) mix(JSON.stringify(def.spec));
+  else {
+    for (const nd of def.nodes) mix(nd.p.join(',') + ':' + nd.m);
+    for (const b of def.beams) mix(b.a + ',' + b.b + ',' + b.k + ',' + (b.kTrue || '') + ',' + (b.cls || ''));
+  }
+  mix(':' + def.nodes.length + ':' + def.beams.length);
+  return h.toString(16);
+}
+
+// ---- the static solver -------------------------------------------------------------------------------------------
+// K u = f on the lattice as the solver builds it: each beam an axial spring k e e^T (and a pre-tensioned wire's
+// geometric stiffness T / L (I - e e^T)), each shape-matched cluster the spring toward its rigid fit the projection
+// is (30_solver shapeMatch: the fraction (omega dt)^2 of the way each substep = omega^2 m per node off the rigid
+// fit; a rigid cluster's al = 1 is omega = 1 / dt), linearised about the def's own geometry. A tiny mass-weighted
+// regularisation (eps M) makes the free body solvable: self-equilibrated loads have no component along its rigid
+// modes, so it moves nothing they load. `pinned` (the bench's trestles) removes those nodes' degrees of freedom.
+function genCertSystem(def, opt) {
+  const n = def.nodes.length, P = opt.pos || null;
+  const nodes = P ? def.nodes.map((nd, i) => ({ p: [P[i * 3], P[i * 3 + 1], P[i * 3 + 2]], m: nd.m })) : def.nodes;
+  const pin = opt.pinned || null;
+  const dof = new Int32Array(n * 3).fill(-1);
+  let N = 0;
+  for (let i = 0; i < n; i++) if (!pin || !pin[i]) for (let j = 0; j < 3; j++) dof[i * 3 + j] = N++;
+  const K = new Float64Array(N * N), lin = [];
+  const X = new Float64Array(n * 3);
+  for (let i = 0; i < n; i++) for (let j = 0; j < 3; j++) X[i * 3 + j] = nodes[i].p[j];
+  const kOf = opt.kOf;
+  const B = def.beams, Lb = new Float64Array(B.length);
+  const add = (ia, ib, blk) => {
+    for (let r = 0; r < 3; r++) { const dr = dof[ia * 3 + r]; if (dr < 0) continue;
+      for (let c = 0; c < 3; c++) { const dc = dof[ib * 3 + c]; if (dc < 0) continue; K[dr * N + dc] += blk[r * 3 + c]; } }
+  };
+  const blk = new Float64Array(9), nblk = new Float64Array(9);
+  for (let bi = 0; bi < B.length; bi++) {
+    const b = B[bi], pa = nodes[b.a].p, pb = nodes[b.b].p;
+    let ex = pb[0] - pa[0], ey = pb[1] - pa[1], ez = pb[2] - pa[2];
+    const L = Math.hypot(ex, ey, ez) || 1e-9; ex /= L; ey /= L; ez /= L;
+    Lb[bi] = L;
+    const k = kOf(b);
+    if (!(k > 0)) continue;
+    // (the axial stiffness only: a rigging wire's pre-tension alone is not a self-equilibrated set, and its geometric
+    // stiffness would resist a rigid turn; the equilibrium (genCertForces) carries every member's force exactly, the
+    // pre-tension - 30_solver reset's L0 = L (1 - pre) - included)
+    const e = [ex, ey, ez];
+    for (let r = 0; r < 3; r++) for (let c = 0; c < 3; c++) { const v = k * e[r] * e[c]; blk[r * 3 + c] = v; nblk[r * 3 + c] = -v; }
+    add(b.a, b.a, blk); add(b.b, b.b, blk); add(b.a, b.b, nblk); add(b.b, b.a, nblk);
+  }
+  // the clusters: omega^2 (M - M R (R^T M R)^-1 R^T M) on their nodes
+  const dt = 1 / (60 * (opt.sub || 24));
+  for (const Cl of def.clusters || []) {
+    const idx = Cl.nodes || []; if (idx.length < 2) continue;
+    const w = Cl.omega > 0 ? Math.min(Cl.omega, 1 / dt) : 1 / dt, w2 = w * w;
+    const nc = idx.length;
+    let M = 0, cx = 0, cy = 0, cz = 0;
+    for (const i of idx) { const mi = nodes[i].m; M += mi; cx += mi * nodes[i].p[0]; cy += mi * nodes[i].p[1]; cz += mi * nodes[i].p[2]; }
+    cx /= M; cy /= M; cz /= M;
+    // R: 3 nc x 6 (translations, rotations theta x q); MR and G = R^T M R
+    const R = new Float64Array(nc * 3 * 6);
+    for (let k = 0; k < nc; k++) {
+      const p = nodes[idx[k]].p, qx = p[0] - cx, qy = p[1] - cy, qz = p[2] - cz;
+      for (let j = 0; j < 3; j++) R[(k * 3 + j) * 6 + j] = 1;
+      // theta x q: rot x -> (0, -qz, qy); rot y -> (qz, 0, -qx); rot z -> (-qy, qx, 0)
+      R[(k * 3 + 1) * 6 + 3] = -qz; R[(k * 3 + 2) * 6 + 3] = qy;
+      R[(k * 3) * 6 + 4] = qz; R[(k * 3 + 2) * 6 + 4] = -qx;
+      R[(k * 3) * 6 + 5] = -qy; R[(k * 3 + 1) * 6 + 5] = qx;
+    }
+    const MR = new Float64Array(nc * 3 * 6);
+    for (let r = 0; r < nc * 3; r++) { const mi = nodes[idx[(r / 3) | 0]].m; for (let c = 0; c < 6; c++) MR[r * 6 + c] = mi * R[r * 6 + c]; }
+    const G = new Float64Array(36);
+    for (let a = 0; a < 6; a++) for (let c = 0; c < 6; c++) { let s = 0; for (let r = 0; r < nc * 3; r++) s += R[r * 6 + a] * MR[r * 6 + c]; G[a * 6 + c] = s; }
+    const Gi = genCertInv(G, 6);
+    // H = MR Gi
+    const H = new Float64Array(nc * 3 * 6);
+    for (let r = 0; r < nc * 3; r++) for (let c = 0; c < 6; c++) { let s = 0; for (let a = 0; a < 6; a++) s += MR[r * 6 + a] * Gi[a * 6 + c]; H[r * 6 + c] = s; }
+    const m3 = nc * 3, Kc = new Float64Array(m3 * m3), ix = new Int32Array(m3);
+    for (let r = 0; r < m3; r++) ix[r] = idx[(r / 3) | 0] * 3 + (r % 3);
+    for (let r = 0; r < m3; r++) for (let c = 0; c < m3; c++) {
+      let s = 0; for (let a = 0; a < 6; a++) s += H[r * 6 + a] * MR[c * 6 + a];
+      Kc[r * m3 + c] = w2 * ((r === c ? nodes[idx[(r / 3) | 0]].m : 0) - s);
+    }
+    lin.push({ idx: ix, Kc });
+    for (let r = 0; r < m3; r++) { const dr = dof[ix[r]]; if (dr < 0) continue;
+      for (let c = 0; c < m3; c++) { const dc = dof[ix[c]]; if (dc < 0) continue; K[dr * N + dc] += Kc[r * m3 + c]; } }
+  }
+  // the regularisation: eps M, eps far under the lattice's own stiffest-to-lightest ratio
+  let kmax = 0;
+  for (let i = 0; i < n; i++) for (let j = 0; j < 3; j++) { const d = dof[i * 3 + j]; if (d >= 0) kmax = Math.max(kmax, K[d * N + d] / nodes[i].m); }
+  const eps = 1e-9 * kmax;
+  for (let i = 0; i < n; i++) for (let j = 0; j < 3; j++) { const d = dof[i * 3 + j]; if (d >= 0) K[d * N + d] += eps * nodes[i].m; }
+  if (!genCertChol(K, N)) return null;
+  return { N, dof, K, Lb, kOf, def, X, lin, eps, free: !!opt.free };
+}
+function genCertInv(A, n) {
+  const M = Float64Array.from(A), I = new Float64Array(n * n);
+  for (let i = 0; i < n; i++) I[i * n + i] = 1;
+  for (let c = 0; c < n; c++) {
+    let p = c; for (let r = c + 1; r < n; r++) if (Math.abs(M[r * n + c]) > Math.abs(M[p * n + c])) p = r;
+    if (p !== c) for (let k = 0; k < n; k++) { let t = M[c * n + k]; M[c * n + k] = M[p * n + k]; M[p * n + k] = t; t = I[c * n + k]; I[c * n + k] = I[p * n + k]; I[p * n + k] = t; }
+    const d = M[c * n + c] || 1e-30;
+    for (let k = 0; k < n; k++) { M[c * n + k] /= d; I[c * n + k] /= d; }
+    for (let r = 0; r < n; r++) if (r !== c) { const f = M[r * n + c]; if (f) for (let k = 0; k < n; k++) { M[r * n + k] -= f * M[c * n + k]; I[r * n + k] -= f * I[c * n + k]; } }
+  }
+  return I;
+}
+// in-place Cholesky (the lower triangle holds L); false if not positive definite
+function genCertChol(A, N) {
+  for (let j = 0; j < N; j++) {
+    const rj = j * N;
+    let d = A[rj + j];
+    for (let k = 0; k < j; k++) d -= A[rj + k] * A[rj + k];
+    if (!(d > 0)) return false;
+    d = Math.sqrt(d); A[rj + j] = d;
+    const inv = 1 / d;
+    for (let i = j + 1; i < N; i++) {
+      const ri = i * N;
+      let s = A[ri + j];
+      for (let k = 0; k < j; k++) s -= A[ri + k] * A[rj + k];
+      A[ri + j] = s * inv;
+    }
+  }
+  return true;
+}
+function genCertBack(S, f) {
+  const N = S.N, A = S.K, y = new Float64Array(N);
+  for (let i = 0; i < N; i++) { let s = f[i]; const ri = i * N; for (let k = 0; k < i; k++) s -= A[ri + k] * y[k]; y[i] = s / A[ri + i]; }
+  for (let i = N - 1; i >= 0; i--) { let s = y[i]; for (let k = i + 1; k < N; k++) s -= A[k * N + i] * y[k]; y[i] = s / A[i * N + i]; }
+  return y;
+}
+// the members' forces for nodal loads F (n * 3, the frame the system was built in): the EQUILIBRIUM of the lattice's
+// own force law, not the linear answer - the true box's members are so stiff (1.7e7 N/m on the metal Cessna's wing)
+// that a 7 cm bend's second-order stretch reads 30 kN in a linear field, and the load's P-delta moves a root member
+// by 3-4 %. Modified Newton on the one factorisation: u += K0^-1 r(u), r the loads plus every member's
+// k (|x_b - x_a| - L0) along its CURRENT direction (a wire slack carries nothing: 30_solver's law), the clusters' pull
+// toward their rigid fit (linear: they barely turn) and the regularisation; to a micrometre or 40 rounds
+function genCertForces(sysOf, F) {
+  const S = sysOf(null); if (!S) return null;
+  const def = S.def, n = F.length / 3, dof = S.dof, B = def.beams, P = S.X, N = S.N;
+  const u = new Float64Array(n * 3), x = new Float64Array(n * 3), r = new Float64Array(N);
+  const out = new Float64Array(B.length), E = new Float64Array(B.length * 4);
+  const resid = () => {
+    for (let i = 0; i < n * 3; i++) x[i] = P[i] + u[i];
+    r.fill(0);
+    for (let i = 0; i < n * 3; i++) if (dof[i] >= 0) r[dof[i]] = F[i];
+    for (let bi = 0; bi < B.length; bi++) {
+      const b = B[bi], k = S.kOf(b);
+      if (!(k > 0)) { out[bi] = 0; continue; }
+      const a3 = b.a * 3, b3 = b.b * 3;
+      let ex = x[b3] - x[a3], ey = x[b3 + 1] - x[a3 + 1], ez = x[b3 + 2] - x[a3 + 2];
+      const L = Math.hypot(ex, ey, ez) || 1e-9; ex /= L; ey /= L; ez /= L;
+      let Fb = k * (L - S.Lb[bi] * (1 - (b.pre || 0)));
+      if (b.tens && Fb < 0) Fb = 0;
+      out[bi] = Fb; E[bi * 4] = ex; E[bi * 4 + 1] = ey; E[bi * 4 + 2] = ez; E[bi * 4 + 3] = L;
+      const da = dof[a3], db = dof[b3];
+      if (da >= 0) { r[da] += Fb * ex; r[da + 1] += Fb * ey; r[da + 2] += Fb * ez; }
+      if (db >= 0) { r[db] -= Fb * ex; r[db + 1] -= Fb * ey; r[db + 2] -= Fb * ez; }
+    }
+    for (const T of S.lin) {
+      const { idx, Kc } = T, m3 = idx.length;
+      for (let p = 0; p < m3; p++) { const dp = dof[idx[p]]; if (dp < 0) continue; let s = 0; for (let q = 0; q < m3; q++) s += Kc[p * m3 + q] * u[idx[q]]; r[dp] -= s; }
+    }
+    for (let i = 0; i < n * 3; i++) if (dof[i] >= 0) r[dof[i]] -= S.eps * def.nodes[(i / 3) | 0].m * u[i];
+    // THE FREE BODY (the flight cases): the loads are fixed in direction while the frame bends under them, so the
+    // bent geometry leaves a small net force and moment; the body's own acceleration takes it (the inertia relief of
+    // genCertRelieve, on the residual, about the current CG), so nothing turns the solve into a rigid drift
+    if (S.free) {
+      let M = 0, cx = 0, cy = 0, cz = 0;
+      for (let i = 0; i < n; i++) { const m = def.nodes[i].m; M += m; cx += m * x[i * 3]; cy += m * x[i * 3 + 1]; cz += m * x[i * 3 + 2]; }
+      cx /= M; cy /= M; cz /= M;
+      let Fx = 0, Fy = 0, Fz = 0, Mx = 0, My = 0, Mz = 0;
+      const I = [0, 0, 0, 0, 0, 0, 0, 0, 0];
+      for (let i = 0; i < n; i++) {
+        const m = def.nodes[i].m, rx = x[i * 3] - cx, ry = x[i * 3 + 1] - cy, rz = x[i * 3 + 2] - cz;
+        const fx = r[dof[i * 3]], fy = r[dof[i * 3 + 1]], fz = r[dof[i * 3 + 2]];
+        Fx += fx; Fy += fy; Fz += fz; Mx += ry * fz - rz * fy; My += rz * fx - rx * fz; Mz += rx * fy - ry * fx;
+        const r2 = rx * rx + ry * ry + rz * rz;
+        I[0] += m * (r2 - rx * rx); I[4] += m * (r2 - ry * ry); I[8] += m * (r2 - rz * rz); I[1] -= m * rx * ry; I[2] -= m * rx * rz; I[5] -= m * ry * rz;
+      }
+      I[3] = I[1]; I[6] = I[2]; I[7] = I[5];
+      const Ii = genCertInv(I, 3), ax = Fx / M, ay = Fy / M, az = Fz / M;
+      const al = [Ii[0] * Mx + Ii[1] * My + Ii[2] * Mz, Ii[3] * Mx + Ii[4] * My + Ii[5] * Mz, Ii[6] * Mx + Ii[7] * My + Ii[8] * Mz];
+      for (let i = 0; i < n; i++) {
+        const m = def.nodes[i].m, rx = x[i * 3] - cx, ry = x[i * 3 + 1] - cy, rz = x[i * 3 + 2] - cz;
+        r[dof[i * 3]] -= m * (ax + al[1] * rz - al[2] * ry);
+        r[dof[i * 3 + 1]] -= m * (ay + al[2] * rx - al[0] * rz);
+        r[dof[i * 3 + 2]] -= m * (az + al[0] * ry - al[1] * rx);
+      }
+    }
+  };
+  // the tangent at u: each member's k e e^T + (F / L)(I - e e^T) along its current line (a slack wire: nothing)
+  const tangent = () => {
+    const K = new Float64Array(N * N), blk = new Float64Array(9);
+    for (let bi = 0; bi < B.length; bi++) {
+      const b = B[bi], k = S.kOf(b);
+      if (!(k > 0)) continue;
+      if (b.tens && out[bi] <= 0) continue;
+      const e = [E[bi * 4], E[bi * 4 + 1], E[bi * 4 + 2]], g = out[bi] / E[bi * 4 + 3];
+      for (let q = 0; q < 3; q++) for (let c = 0; c < 3; c++) blk[q * 3 + c] = k * e[q] * e[c] + g * ((q === c ? 1 : 0) - e[q] * e[c]);
+      for (const [ia, ib, sg] of [[b.a, b.a, 1], [b.b, b.b, 1], [b.a, b.b, -1], [b.b, b.a, -1]])
+        for (let q = 0; q < 3; q++) { const dr = dof[ia * 3 + q]; if (dr < 0) continue;
+          for (let c = 0; c < 3; c++) { const dc = dof[ib * 3 + c]; if (dc >= 0) K[dr * N + dc] += sg * blk[q * 3 + c]; } }
+    }
+    for (const T of S.lin) { const { idx, Kc } = T, m3 = idx.length;
+      for (let p = 0; p < m3; p++) { const dr = dof[idx[p]]; if (dr < 0) continue; for (let q = 0; q < m3; q++) { const dc = dof[idx[q]]; if (dc >= 0) K[dr * N + dc] += Kc[p * m3 + q]; } } }
+    // a slack wire can leave a mode with no stiffness of its own (a wire-braced stab at negative g): the shift grows
+    // until the tangent factors (Levenberg-Marquardt's damping; the residual, not the tangent, is the answer)
+    const K0 = K.slice();
+    for (let sh = S.eps; sh < 1e12 * (S.eps + 1); sh *= 100) {
+      for (let i = 0; i < n * 3; i++) if (dof[i] >= 0) K[dof[i] * N + dof[i]] += sh * def.nodes[(i / 3) | 0].m;
+      if (genCertChol(K, N)) return { N, K };
+      K.set(K0);
+    }
+    return null;
+  };
+  // Newton: the first step on the system's own factorisation (the linear answer), then the tangent's, to a micrometre
+  let it = 0, du = Infinity, T = S;
+  for (; it < 60 && du > 1e-6; it++) {
+    resid();
+    if (it === 1 || (it > 1 && it % 6 === 0)) T = tangent() || T;   // the tangent once, refreshed every 6 rounds
+    const y = genCertBack(T, r);
+    // a step capped at 2 cm a node (the frame's own deflections are centimetres; a larger step is the slack modes'
+    // linear guess, never the answer)
+    let ym = 0; for (let i = 0; i < N; i++) if (Math.abs(y[i]) > ym) ym = Math.abs(y[i]);
+    if (it > 0 && ym > 0.02) { const q = 0.02 / ym; for (let i = 0; i < N; i++) y[i] *= q; }
+    du = 0;
+    for (let i = 0; i < n * 3; i++) if (dof[i] >= 0) { const d = y[dof[i]]; u[i] += d; if (Math.abs(d) > du) du = Math.abs(d); }
+  }
+  resid();
+  out.U = i => u[i]; out.iters = it; out.conv = du;
+  return out;
+}
+
+// ---- the loads ---------------------------------------------------------------------------------------------------
+// the wing's lift (or the stab's) as unit node weights: each strip its area's share, then its own node weights
+function genCertDist(def, kinds, sideF) {
+  const w = new Float64Array(def.nodes.length);
+  let A = 0;
+  const S = def.strips.filter(s => kinds.indexOf(s.kind) >= 0);
+  for (const s of S) A += s.area;
+  if (!(A > 0)) return null;
+  for (const s of S) {
+    let z = 0, ws = 0; for (const q of s.w) { z += def.nodes[q[0]].p[2] * q[1]; ws += q[1]; }
+    const f = sideF ? sideF(z / (ws || 1), s) : 1;
+    for (const q of s.w) w[q[0]] += f * (s.area / A) * q[1];
+  }
+  return w;
+}
+function genCertMass(def) {
+  let M = 0, cx = 0, cy = 0, cz = 0;
+  for (const nd of def.nodes) { M += nd.m; cx += nd.m * nd.p[0]; cy += nd.m * nd.p[1]; cz += nd.m * nd.p[2]; }
+  return { M, c: [cx / M, cy / M, cz / M] };
+}
+// whatever the applied loads leave unbalanced is the rigid body's acceleration: -m (a + alpha x r) on every node
+function genCertRelieve(def, F) {
+  const n = def.nodes.length, { M, c } = genCertMass(def);
+  let Fx = 0, Fy = 0, Fz = 0, Mx = 0, My = 0, Mz = 0;
+  const I = [0, 0, 0, 0, 0, 0, 0, 0, 0];
+  for (let i = 0; i < n; i++) {
+    const p = def.nodes[i].p, m = def.nodes[i].m, rx = p[0] - c[0], ry = p[1] - c[1], rz = p[2] - c[2];
+    const fx = F[i * 3], fy = F[i * 3 + 1], fz = F[i * 3 + 2];
+    Fx += fx; Fy += fy; Fz += fz;
+    Mx += ry * fz - rz * fy; My += rz * fx - rx * fz; Mz += rx * fy - ry * fx;
+    const r2 = rx * rx + ry * ry + rz * rz;
+    I[0] += m * (r2 - rx * rx); I[4] += m * (r2 - ry * ry); I[8] += m * (r2 - rz * rz);
+    I[1] -= m * rx * ry; I[2] -= m * rx * rz; I[5] -= m * ry * rz;
+  }
+  I[3] = I[1]; I[6] = I[2]; I[7] = I[5];
+  const Ii = genCertInv(I, 3);
+  const ax = Fx / M, ay = Fy / M, az = Fz / M;
+  const al = [Ii[0] * Mx + Ii[1] * My + Ii[2] * Mz, Ii[3] * Mx + Ii[4] * My + Ii[5] * Mz, Ii[6] * Mx + Ii[7] * My + Ii[8] * Mz];
+  for (let i = 0; i < n; i++) {
+    const p = def.nodes[i].p, m = def.nodes[i].m, rx = p[0] - c[0], ry = p[1] - c[1], rz = p[2] - c[2];
+    F[i * 3]     -= m * (ax + al[1] * rz - al[2] * ry);
+    F[i * 3 + 1] -= m * (ay + al[2] * rx - al[0] * rz);
+    F[i * 3 + 2] -= m * (az + al[0] * ry - al[1] * rx);
+  }
+  return F;
+}
+// THE FLIGHT CASES ON THE SOLVER'S OWN AIR (G1830): the aeroplane at its level pose, a uniform airflow at angle of
+// attack alpha (sim.probe: the strip pass with the circulation iterated, the node forces left in sim.f - the span
+// and chord distribution the aeroplane flies with, the aerofoil's own pitching moment twisting the box, the
+// controls' loads on their strips), the propeller's thrust at full throttle and its wash (the probe's `live` pass),
+// the weight on every node, the rest the rigid body's acceleration. `o`:
+// { V, nz (the load factor the aero force normal to the path is solved for: alpha by secant), trim (the elevator
+// solved for no pitching moment about the CG), de / da / dr (a control held: full = +-1), thr }
+function genCertProbeSim(def) {
+  const sim = makeSim(Object.assign({}, def, { cert: null, params: Object.assign({}, def.params, { damage: false }) }), null);
+  sim.reset(0);
+  for (let i = 0; i < sim.n; i++) for (let j = 0; j < 3; j++) sim.p[i * 3 + j] = def.nodes[i].p[j];
+  return sim;
+}
+function genCertAeroLoads(def, sim, o) {
+  const n = def.nodes.length, { M, c } = genCertMass(def), W = M * 9.81, V = o.V;
+  const vel = a => [-V * Math.cos(a), -V * Math.sin(a), 0];
+  const thr = o.thr == null ? 1 : o.thr;
+  sim.ctl.de = o.de || 0; sim.ctl.da = o.da || 0; sim.ctl.dr = o.dr || 0; sim.ctl.flap = o.flap || 0; sim.ctl.thr = thr;
+  const pr = a => sim.probe(vel(a), true);
+  const Fn = (a) => { const r = pr(a); return -r.Fx * Math.sin(a) + r.Fy * Math.cos(a); };
+  // alpha for the load factor at this elevator (secant; the polar is smooth below the stall)
+  const solveA = (target) => {
+    let a0 = 0, a1 = 0.05, f0 = Fn(a0) - target, f1 = Fn(a1) - target;
+    for (let k = 0; k < 12 && Math.abs(f1) > 1e-4 * W; k++) {
+      const a2 = a1 - f1 * (a1 - a0) / ((f1 - f0) || 1e-9);
+      a0 = a1; f0 = f1; a1 = Math.max(-0.35, Math.min(0.35, a2)); f1 = Fn(a1) - target;
+    }
+    return a1;
+  };
+  let a = 0;
+  if (o.trim) {
+    const pm = de => { sim.ctl.de = de; a = solveA(o.nz * W); return pr(a).pitchUp; };
+    let d0 = 0, d1 = o.nz > 0 ? -0.2 : 0.2, m0 = pm(d0), m1 = pm(d1);
+    for (let k = 0; k < 10 && Math.abs(m1) > 1; k++) {
+      const d2 = d1 - m1 * (d1 - d0) / ((m1 - m0) || 1e-9);
+      d0 = d1; m0 = m1; d1 = Math.max(-1, Math.min(1, d2)); m1 = pm(d1);
+    }
+    sim.ctl.de = d1; a = solveA(o.nz * W);
+  } else a = o.alpha != null ? o.alpha : solveA(o.nz * W);
+  pr(a);
+  const F = Float64Array.from(sim.f);
+  const de = sim.ctl.de;
+  sim.ctl.de = 0; sim.ctl.da = 0; sim.ctl.dr = 0; sim.ctl.thr = 0; sim.ctl.flap = 0;
+  for (let i = 0; i < n; i++) F[i * 3 + 1] -= def.nodes[i].m * 9.81;
+  const raw = Float64Array.from(F);
+  return { F: genCertRelieve(def, F), alpha: a, de, raw };
+}
+// the design speeds (23.335): V_A = Vs sqrt(n) (the stall at the limit), V_C at least 33 sqrt(W/S) kt, V_D 1.4 x that
+function genCertSpeeds(def) {
+  const g = (def.params && def.params.gen) || {}, Vs = g.Vs || 25, L = GEN_CERT.limit;
+  const WSpsf = g.W && g.Sw ? (g.W / 4.4482) / (g.Sw * 10.7639) : 10;
+  const VC = Math.max(1.3 * Vs * Math.sqrt(L), 33 * Math.sqrt(WSpsf) * 0.5144);
+  return { VA: Vs * Math.sqrt(L), VC, VD: 1.4 * VC, VF: Math.max(1.4 * Vs, 1.8 * (g.VsFlap || Vs)) };
+}
+// ---- the cases ---------------------------------------------------------------------------------------------------
+function genCertSubs(def) { return (def.params && def.params.substeps) || 24; }
+function genCertSubsTrue(def) { return (def.params && (def.params.substepsTrue || def.params.substeps)) || 24; }
+// the bench (65_gen_loadtest's rig, static), in the rig's own pose: the aeroplane reset and turned over about its body
+// x (the boom's axis, sim.axes()[0] - a few degrees off the def's x, so the bags press a little aft in the body's
+// frame, as the rig's do) through its CG; the wing's nodes free, everything else on the trestles; the bags (the rig's
+// own: the weight over the wing strips by area, through their node weights) pressing world-down, the wing's own
+// weight with them, a wing-carried node's n m g against them; the true box
+function genCertBenchPose(def) {
+  const sim = makeSim(Object.assign({}, def, { cert: null, params: Object.assign({}, def.params, { damage: false }) }), null);
+  sim.reset(0);
+  const a = sim.axes()[0], n = sim.n, P = Float64Array.from(sim.p);
+  let cx = 0, cy = 0, cz = 0, M = 0;
+  for (let i = 0; i < n; i++) { const m = def.nodes[i].m; M += m; cx += m * P[i * 3]; cy += m * P[i * 3 + 1]; cz += m * P[i * 3 + 2]; }
+  cx /= M; cy /= M; cz /= M;
+  for (let i = 0; i < n; i++) {
+    const o = i * 3, dx = P[o] - cx, dy = P[o + 1] - cy, dz = P[o + 2] - cz, k = 2 * (a[0] * dx + a[1] * dy + a[2] * dz);
+    P[o] = cx + k * a[0] - dx; P[o + 1] = cy + k * a[1] - dy; P[o + 2] = cz + k * a[2] - dz;
+  }
+  return P;
+}
+function genCertBench(def, nz) {
+  const n = def.nodes.length, wingTag = {};
+  for (const t of GEN_LOAD_WINGTAGS) wingTag[t] = 1;
+  const carried = genLoadCarried(def, GEN_LOAD_WINGTAGS), car = new Uint8Array(n);
+  for (const i of carried) car[i] = 1;
+  const pinned = new Uint8Array(n);
+  def.nodes.forEach((nd, i) => { if (!wingTag[nd.tag] && !car[i]) pinned[i] = 1; });
+  const { M } = genCertMass(def), W = M * 9.81, wl = genCertDist(def, ['wing'], null);
+  const F = new Float64Array(n * 3);
+  if (!wl) return null;
+  // THE RIG'S BAGS ARE IMPULSES (65_gen_loadtest stepClamped: a velocity n F h / m on each bag node at every
+  // substep's start), so the dampers between a bagged node and its neighbours feel that velocity in the very substep
+  // and carry a share of the bag across (c e . (v_b - v_a)): the rig's settled answer includes it - 1-4 % of a root
+  // member's force, measured - and a certificate that left it out would let a bench run to limit set by that much.
+  // The impulsive part (the bags, a carried node's relief; not the weight, a force) is passed on through the
+  // dampers' matrix: F_eff = F + C h M^-1 F_imp, h the true box's substep. (The pinned nodes' bags count too: the
+  // trestle clamps them only after the substep.)
+  const pos = genCertBenchPose(def), I = new Float64Array(n * 3);
+  for (let i = 0; i < n; i++) {
+    const m = def.nodes[i].m;
+    I[i * 3 + 1] = -(nz * W * wl[i] - (car[i] ? nz * m * 9.81 : 0));
+    F[i * 3 + 1] = I[i * 3 + 1] - m * 9.81;
+  }
+  const h = 1 / (60 * genCertSubsTrue(def));
+  for (const b of def.beams) {
+    const c = b.cTrue != null ? b.cTrue : b.c;
+    if (!(c > 0)) continue;
+    let ex = pos[b.b * 3] - pos[b.a * 3], ey = pos[b.b * 3 + 1] - pos[b.a * 3 + 1], ez = pos[b.b * 3 + 2] - pos[b.a * 3 + 2];
+    const L = Math.hypot(ex, ey, ez) || 1e-9; ex /= L; ey /= L; ez /= L;
+    const ma = def.nodes[b.a].m, mb = def.nodes[b.b].m;
+    const dv = ((I[b.b * 3] / mb - I[b.a * 3] / ma) * ex + (I[b.b * 3 + 1] / mb - I[b.a * 3 + 1] / ma) * ey + (I[b.b * 3 + 2] / mb - I[b.a * 3 + 2] / ma) * ez) * h;
+    if (b.tens) { /* a wire's damper only while taut: the tail's wires sit on the trestles */ }
+    const D = c * dv;
+    F[b.a * 3] += D * ex; F[b.a * 3 + 1] += D * ey; F[b.a * 3 + 2] += D * ez;
+    F[b.b * 3] -= D * ex; F[b.b * 3 + 1] -= D * ey; F[b.b * 3 + 2] -= D * ez;
+  }
+  return { F, pinned, pos };
+}
+// THE DROP (23.473): the real sim under the probe (every member's peak force, per substep): settled on its wheels
+// 4 s (a floatplane on the analytic world's sea lane), lifted 2 cm and dropped at the sink rate, no lift, 2 s - the
+// procedure GATE TREECRASH's own drop flies (so the airframe starts the impact carrying its 1 g, as a real one does)
+function genCertDrop(def, sink, world, o) {
+  const d2 = Object.assign({}, def, { cert: null, params: Object.assign({}, def.params, { damage: true, damageProbe: true }) });
+  const floats = !!(def.parts && def.parts.floats), sea = floats && world && world.aerodromes ? world.aerodromes.find(a => a.id === 'SEA') : null;
+  const sim = makeSim(d2, sea ? world : null);
+  sim.reset(0);
+  if (sea) placeAtAerodrome(sim, sea);
+  if (sim.setEngine && sim.eng) for (let i = 0; i < sim.eng.length; i++) sim.setEngine(i, { key: 'off' });
+  for (let f = 0; f < 240; f++) sim.step(1 / 60);
+  const n = sim.n, P = sim.damagePeak();
+  for (let i = 0; i < n; i++) { sim.p[i * 3 + 1] += 0.02; sim.v[i * 3] = 0; sim.v[i * 3 + 1] = -sink; sim.v[i * 3 + 2] = 0; }
+  // G1835 (DMG-D2b): THE GEAR'S OWN LANDING ATTITUDES (23.479-23.483, as recalled): the settled aeroplane turned about
+  // its CG - `pitch` deg nose-up (a tricycle's tail-down landing, 23.481), `level` (a taildragger's level landing on
+  // its mains, 23.479: the three-point attitude taken out), `roll` deg (one wheel or one float first, 23.483) - set
+  // back down to touch where it touched, then dropped at the sink with `fwd` m/s along its heading and `lat` m/s
+  // across it (the spin-up and the spring-back of a wheel meeting the ground at speed, a drift)
+  if (o) {
+    const [xA, , zR] = sim.axes(), c0 = sim.cgPos();
+    let y0 = Infinity; for (let i = 0; i < n; i++) y0 = Math.min(y0, sim.p[i * 3 + 1] - def.nodes[i].r);
+    const turn = (k, th) => { const cs = Math.cos(th), sn = Math.sin(th);
+      for (let i = 0; i < n; i++) {
+        const d = [sim.p[i*3] - c0[0], sim.p[i*3+1] - c0[1], sim.p[i*3+2] - c0[2]], kd = k[0]*d[0] + k[1]*d[1] + k[2]*d[2];
+        const cr = [k[1]*d[2] - k[2]*d[1], k[2]*d[0] - k[0]*d[2], k[0]*d[1] - k[1]*d[0]];
+        for (let j = 0; j < 3; j++) sim.p[i*3+j] = c0[j] + d[j] * cs + cr[j] * sn + k[j] * kd * (1 - cs);
+      } };
+    // the deck: the body's x axis over the horizontal, nose-up positive (x is aft: a raised nose has xA[1] < 0); a turn
+    // about the body's right axis by a positive angle raises the nose (x aft, y up, z right is a left-handed frame)
+    const deck = Math.asin(Math.max(-1, Math.min(1, -xA[1])));
+    const th = (o.level ? -deck : 0) + (o.pitch || 0) * Math.PI / 180;
+    if (th) turn(zR, th);
+    if (o.roll) turn(xA, o.roll * Math.PI / 180);
+    let y1 = Infinity; for (let i = 0; i < n; i++) y1 = Math.min(y1, sim.p[i * 3 + 1] - def.nodes[i].r);
+    const hl = Math.hypot(xA[0], xA[2]) || 1, fwd = o.fwd || 0, lat = o.lat || 0, zl = Math.hypot(zR[0], zR[2]) || 1;
+    for (let i = 0; i < n; i++) { sim.p[i * 3 + 1] += y0 - y1;
+      sim.v[i * 3] = -fwd * xA[0] / hl + lat * zR[0] / zl; sim.v[i * 3 + 2] = -fwd * xA[2] / hl + lat * zR[2] / zl; }
+  }
+  P.t.fill(0); P.c.fill(0);
+  let nzMax = 0;
+  for (let f = 0; f < 120; f++) { sim.step(1 / 60); nzMax = Math.max(nzMax, sim.out.nz || 0); }
+  const nb = def.beams.length, t = new Float64Array(nb), c = new Float64Array(nb);
+  for (let bi = 0; bi < nb; bi++) {
+    const b = sim.beams[bi];
+    t[bi] = Number.isFinite(b.fyP) ? P.t[bi] * b.fyP : 0;
+    c[bi] = Number.isFinite(b.fcP) ? P.c[bi] * b.fcP : 0;
+  }
+  return { t, c, nz: nzMax };
+}
+// THE BOW LANDING (a floatplane, 23.527-23.529's bow condition; GATE TREECRASH's own float nose-in, A0's WATER CASE):
+// 90 km/h along its heading, 5 m/s down, pitched 20 deg nose-down about its CG, power off, 0.3 m over the sea lane;
+// the real sim under the probe for 1.2 s (the peak is in its first second)
+function genCertBow(def, world) {
+  if (!world || !world.aerodromes) return null;
+  const sea = world.aerodromes.find(a => a.id === 'SEA'); if (!sea) return null;
+  const d2 = Object.assign({}, def, { cert: null, params: Object.assign({}, def.params, { damage: true, damageProbe: true }) });
+  const sim = makeSim(d2, world); sim.reset(0); placeAtAerodrome(sim, sea);
+  const n = sim.n, p = sim.p, v = sim.v, ax = sim.axes(), xA = ax[0], k = ax[2], c0 = sim.cgPos();
+  const th = -20 * Math.PI / 180, cs = Math.cos(th), sn = Math.sin(th);
+  for (let i = 0; i < n; i++) {
+    const d = [p[i*3] - c0[0], p[i*3+1] - c0[1], p[i*3+2] - c0[2]], kd = k[0]*d[0] + k[1]*d[1] + k[2]*d[2];
+    const cr = [k[1]*d[2] - k[2]*d[1], k[2]*d[0] - k[0]*d[2], k[0]*d[1] - k[1]*d[0]];
+    for (let j = 0; j < 3; j++) p[i*3+j] = c0[j] + d[j] * cs + cr[j] * sn + k[j] * kd * (1 - cs);
+  }
+  const wh = world.waterH ? world.waterH(c0[0], c0[2]) : 0;
+  let yMin = Infinity; for (let i = 0; i < n; i++) yMin = Math.min(yMin, p[i*3+1] - def.nodes[i].r);
+  const hl = Math.hypot(xA[0], xA[2]) || 1, V = 90 / 3.6;
+  for (let i = 0; i < n; i++) { p[i*3+1] += wh + 0.3 - yMin; v[i*3] = -V * xA[0] / hl; v[i*3+1] = -5; v[i*3+2] = -V * xA[2] / hl; }
+  sim.ctl.thr = 0;
+  for (let f = 0; f < 72; f++) sim.step(1 / 60);
+  const P = sim.damagePeak(), nb = def.beams.length, t = new Float64Array(nb), c = new Float64Array(nb);
+  for (let bi = 0; bi < nb; bi++) { const b = sim.beams[bi];
+    t[bi] = Number.isFinite(b.fyP) ? P.t[bi] * b.fyP : 0; c[bi] = Number.isFinite(b.fcP) ? P.c[bi] * b.fcP : 0; }
+  return { t, c };
+}
+// THE FLIGHT TEST (23.307: a structure may be shown by test): the aeroplane flown through a pull to its limit, the real
+// sim (the flight box, the air, the propeller at full throttle and its wash, the airframe's own dynamics), every
+// member's peak read up to the step its applied load factor first reaches the limit: what a pull does to a flown
+// frame that a static case cannot (the onset's dynamics, the elevator still going as the limit arrives, the wash).
+// TREE-CRASH's own pull: level at 1.33 x the speed the limit stalls at (2.6 Vs), the elevator on a PI to the load
+// factor ramped over a second
+function genCertFlown(def) {
+  const d2 = Object.assign({}, def, { cert: null, params: Object.assign({}, def.params, { damage: true, damageProbe: true }) });
+  const sim = makeSim(d2, null); sim.reset(0);
+  if (sim.setAtmos) sim.setAtmos(null, 400);   // 400 m up, in its air (a sim with no world flies the declared height's)
+  const g = (def.params && def.params.gen) || {}, V = 2.6 * (g.Vs || 25), L = GEN_CERT.limit;
+  for (let i = 0; i < sim.n; i++) { sim.p[i * 3 + 1] += 400; sim.v[i * 3] = -V; sim.v[i * 3 + 1] = 0; sim.v[i * 3 + 2] = 0; }
+  sim.ctl.thr = 1;
+  for (let f = 0; f < 60; f++) sim.step(1 / 60);
+  const P = sim.damagePeak(); P.t.fill(0); P.c.fill(0);
+  // THE LOAD FACTOR IS THE AIR'S: the aero force over the weight (out.aeroFy), not the CG's acceleration (out.nz),
+  // which lags the wing's load through the frame's own springs in a quick pull - measured on the metal Cessna, the
+  // wing carrying 5.7 W when the CG read 3.8 g. The pilot flies the CG's (the instrument), the case stops on the air's
+  let I = 0, nzMax = 0, reached = false;
+  const W = sim.totalM * 9.81;
+  for (let f = 0; f < 60 * 6; f++) {
+    const tgt = Math.min(L, 1 + (L - 1) * (f / 60));
+    const e = tgt - sim.out.nz; I += e / 60;
+    sim.ctl.de = Math.max(-1, Math.min(1, 0.4 * e + 0.8 * I));
+    sim.step(1 / 60);
+    const na = sim.out.aeroFy / W;
+    nzMax = Math.max(nzMax, na);
+    if (na >= L) { reached = true; break; }
+  }
+  const nb = def.beams.length, t = new Float64Array(nb), c = new Float64Array(nb);
+  for (let bi = 0; bi < nb; bi++) { const b = sim.beams[bi];
+    t[bi] = Number.isFinite(b.fyP) ? P.t[bi] * b.fyP : 0; c[bi] = Number.isFinite(b.fcP) ? P.c[bi] * b.fcP : 0; }
+  return { t, c, nz: nzMax, reached };
+}
+// G1835 (DMG-D2b): THE GROUND AND WATER LOADS on the free aeroplane (the static cases' machinery: the reactions at
+// the wheels or on the floats, the weight on every node, the rest the rigid body's acceleration). Written from the
+// regulation's text AS RECALLED - A0 to open 23.479-23.499 and 23.521-23.537 on the box before a number of theirs
+// becomes a gate (§1, §11.2 #7). Each returns [name, nodal forces]; the reactions act at the axle (the wheel's node)
+// or, on a float, over its step station (keel and both chines), the def's level frame (x aft, y up, z right).
+function genCertGroundLoads(def, nTD) {
+  const n = def.nodes.length, { M, c } = genCertMass(def), W = M * 9.81, R = def.refs || {}, out = [];
+  const grav = () => { const F = new Float64Array(n * 3); for (let i = 0; i < n; i++) F[i * 3 + 1] = -def.nodes[i].m * 9.81; return F; };
+  const add = (F, i, fx, fy, fz) => { F[i * 3] += fx; F[i * 3 + 1] += fy; F[i * 3 + 2] += fz; };
+  const G = GEN_CERT.ground;
+  const FL = def.parts && def.parts.floats;
+  if (FL && FL.length === 2) {
+    // 23.527: the water reaction load factor n_w = C1 V_S0^2 / (tan^(2/3) beta W^(1/3)) (V_S0 kt, W lb, beta the
+    // deadrise at the step), with the wing's lift taken as 2/3 of the weight (as 23.473's); 23.529: the step landing
+    // (the reaction through the step, both floats alike), the unsymmetrical step landing (0.75 of it on each float
+    // with a side load of 0.25 tan beta of the upward load), and the landing on one float (23.535's one-float
+    // condition read for a twin-float installation: the step load on one float, the other clear)
+    const g = (def.params && def.params.gen) || {}, Vso = (g.VsFlap || g.Vs || 25) / 0.5144, Wlb = W / 4.4482;
+    const beta = ((FL[0].P && FL[0].P.beta) || 22) * Math.PI / 180, tb = Math.tan(beta);
+    const nw = Math.max(G.nwMin, G.C1 * Vso * Vso / (Math.pow(tb, 2 / 3) * Math.pow(Wlb, 1 / 3)));
+    const st = f => [f.K[2], f.DL[2], f.DR[2]];
+    const lift = F => { const wl = genCertDist(def, ['wing'], null); if (wl) for (let i = 0; i < n; i++) F[i * 3 + 1] += G.lift * W * wl[i]; };
+    const onFloat = (F, f, up, side) => { for (const i of st(f)) add(F, i, 0, up / 3, side / 3); };
+    { const F = grav(); lift(F); for (const f of FL) onFloat(F, f, 0.5 * (nw - G.lift) * W, 0); out.push(['wStep', F]); }
+    for (const sg of [1, -1]) { const F = grav(); lift(F); const up = 0.75 * 0.5 * (nw - G.lift) * W;
+      for (const f of FL) onFloat(F, f, up, sg * 0.25 * tb * up); out.push([sg > 0 ? 'wUnsymR' : 'wUnsymL', F]); }
+    for (const f of FL) { const F = grav(); lift(F); onFloat(F, f, (nw - G.lift) * W * G.oneFloat, 0); out.push([f.side > 0 ? 'wOneR' : 'wOneL', F]); }
+    out.nw = nw;
+    return out;
+  }
+  const Mn = (R.mains || []).filter(i => i >= 0);
+  if (Mn.length !== 2) return out;
+  const [iL, iR] = def.nodes[Mn[0]].p[2] < def.nodes[Mn[1]].p[2] ? Mn : [Mn[1], Mn[0]];
+  const tw = R.tw != null && R.tw >= 0 ? R.tw : -1;
+  const xm = 0.5 * (def.nodes[iL].p[0] + def.nodes[iR].p[0]);
+  const sT = tw >= 0 && Math.abs(def.nodes[tw].p[0] - xm) > 1e-3 ? Math.max(0, Math.min(1, (c[0] - xm) / (def.nodes[tw].p[0] - xm))) : 0;
+  const trike = tw >= 0 && def.nodes[tw].p[0] < xm;
+  const mainsStatic = F => { add(F, iL, 0, 0.5 * (1 - sT) * W, 0); add(F, iR, 0, 0.5 * (1 - sT) * W, 0); };
+  // 23.485 SIDE LOAD: the level attitude on the mains only, 1.33 W vertical shared equally, 0.83 W across - 0.5 W
+  // inboard on one wheel and 0.33 W outboard on the other (a skid: the ground pushes both the same way)
+  for (const sg of [1, -1]) {
+    const F = grav(); add(F, iL, 0, 0.5 * G.sideV * W, 0); add(F, iR, 0, 0.5 * G.sideV * W, 0);
+    add(F, sg > 0 ? iL : iR, 0, 0, sg * G.sideIn * W); add(F, sg > 0 ? iR : iL, 0, 0, sg * G.sideOut * W);
+    out.push([sg > 0 ? 'gSideR' : 'gSideL', F]);
+  }
+  // 23.493 BRAKED ROLL: 1.33 W on the mains, the drag 0.8 of it aft at the wheels (the nose-over moment the body's
+  // pitch takes)
+  { const F = grav(); for (const i of [iL, iR]) add(F, i, G.brakeMu * 0.5 * G.brakeV * W, 0.5 * G.brakeV * W, 0); out.push(['gBrake', F]); }
+  if (tw >= 0 && !trike) {
+    // 23.497 THE TAILWHEEL: (a) the tail-down landing's limit reaction (its static share x the drop's load factor)
+    // up and aft at 45 deg; (b) its static load up with an equal side load, either way
+    const Rt = sT * W * Math.max(nTD || 0, G.nMin);
+    { const F = grav(); mainsStatic(F); add(F, tw, Rt * Math.SQRT1_2, Rt * Math.SQRT1_2, 0); out.push(['gTailObs', F]); }
+    for (const sg of [1, -1]) { const F = grav(); mainsStatic(F); add(F, tw, 0, sT * W, sg * G.twSide * sT * W); out.push([sg > 0 ? 'gTailSideR' : 'gTailSideL', F]); }
+  } else if (trike) {
+    // 23.499 THE NOSEWHEEL: 2.25 x its static reaction up, with 0.8 of that aft, 0.4 of it forward, or 0.7 of it across
+    const Rn = G.noseK * sT * W;
+    for (const [nm, fx, fz] of [['gNoseAft', G.noseAft, 0], ['gNoseFwd', -G.noseFwd, 0], ['gNoseSideR', 0, G.noseSide], ['gNoseSideL', 0, -G.noseSide]]) {
+      const F = grav(); mainsStatic(F); add(F, tw, fx * Rn, Rn, fz * Rn); out.push([nm, F]);
+    }
+  }
+  return out;
+}
+// G1836 (DMG-D2b): THE ROUGHEST GROUND (23.491, as recalled: the structure and the gear "not less than the loads
+// obtained when the airplane is operating over the roughest ground that may reasonably be expected in normal
+// operation" - the regulation names no field, so the field is GEN_CERT.rough, a stated assumption): a taxi at
+// GEN_CERT.rough.V over two crossed trains of bumps, the throttle on the speed, the rudder on the heading, the real
+// sim under the probe. A world of its own (the ground, no water, no trees: makeWorld is seconds; this is nothing)
+function genCertTaxi(def) {
+  const R = GEN_CERT.rough, k1 = 2 * Math.PI / R.lam, k2 = 2 * Math.PI / (0.43 * R.lam);
+  const W = { terrainH: (x, z) => R.A * Math.sin(k1 * x + 0.7) * Math.cos(0.8 * k1 * z) + 0.5 * R.A * Math.sin(k2 * (0.6 * x + 0.8 * z)),
+              waterH: () => -1e9, trees: [], treesNear: (x, z, q) => { q.length = 0; return q; } };
+  const d2 = Object.assign({}, def, { cert: null, params: Object.assign({}, def.params, { damage: true, damageProbe: true }) });
+  const sim = makeSim(d2, W); sim.reset(0);
+  for (let f = 0; f < 120; f++) sim.step(1 / 60);
+  const x0 = sim.axes()[0], hl = Math.hypot(x0[0], x0[2]) || 1, fx = -x0[0] / hl, fz = -x0[2] / hl, h0 = Math.atan2(fz, fx);
+  for (let i = 0; i < sim.n; i++) { sim.v[i * 3] = R.V * fx; sim.v[i * 3 + 2] = R.V * fz; }
+  const P = sim.damagePeak(); P.t.fill(0); P.c.fill(0);
+  let I = 0;
+  for (let f = 0; f < R.secs * 60; f++) {
+    const v = sim.cgVel(), e = R.V - (v[0] * fx + v[2] * fz); I = Math.max(-2, Math.min(2, I + e / 60));
+    sim.ctl.thr = Math.max(0, Math.min(1, 0.25 + 0.15 * e + 0.1 * I));
+    const xA = sim.axes()[0]; let dh = Math.atan2(-xA[2], -xA[0]) - h0; while (dh > Math.PI) dh -= 2 * Math.PI; while (dh < -Math.PI) dh += 2 * Math.PI;
+    sim.ctl.dr = Math.max(-1, Math.min(1, 3 * dh));
+    sim.step(1 / 60);
+  }
+  const nb = def.beams.length, t = new Float64Array(nb), c = new Float64Array(nb);
+  for (let bi = 0; bi < nb; bi++) { const b = sim.beams[bi];
+    t[bi] = Number.isFinite(b.fyP) ? P.t[bi] * b.fyP : 0; c[bi] = Number.isFinite(b.fcP) ? P.c[bi] * b.fcP : 0; }
+  return { t, c };
+}
+// G1836 (DMG-D2b, dm14): THE CONTROLS FLOWN (23.423 / 23.441's checked and maneuvering conditions, the static
+// hard-over cases above, flown): level at V_A at full power, then the elevator (or the rudder) full one way for
+// GEN_CERT.ctlFlown.hold s, full the other way as long, back to neutral, the throttle chopped as the input starts, the
+// real sim under the probe; the elevator again at V_F with the flaps down (23.345's configuration, the approach's).
+// What the static cases cannot show: the airframe RINGING after a step - a short tie
+// between two posts that no static load path crosses (the metal Cessna's stab root cross-tie, HR-HR, 18 cm between
+// its two root posts: 0.35 kN in every static case, 0.5 kN in a single frame as its final's throttle came off and its
+// elevator moved) carries what the frame's own modes put through it, and only a flown case puts them there
+function genCertFlownCtl(def, k, flap) {
+  const d2 = Object.assign({}, def, { cert: null, params: Object.assign({}, def.params, { damage: true, damageProbe: true }) });
+  const sim = makeSim(d2, null); sim.reset(0);
+  if (sim.setAtmos) sim.setAtmos(null, 400);
+  const V = flap ? genCertSpeeds(def).VF : genCertSpeeds(def).VA, CF = GEN_CERT.ctlFlown;
+  sim.ctl.flap = flap || 0;
+  for (let i = 0; i < sim.n; i++) { sim.p[i * 3 + 1] += 400; sim.v[i * 3] = -V; sim.v[i * 3 + 1] = 0; sim.v[i * 3 + 2] = 0; }
+  sim.ctl.thr = 1;
+  for (let f = 0; f < 60; f++) sim.step(1 / 60);
+  const P = sim.damagePeak(); P.t.fill(0); P.c.fill(0);
+  const h = Math.round(CF.hold * 60);
+  for (let f = 0; f < 4 * h; f++) {
+    sim.ctl[k] = f < h ? 1 : f < 2 * h ? -1 : 0; sim.ctl.thr = 0;
+    sim.step(1 / 60);
+  }
+  const nb = def.beams.length, t = new Float64Array(nb), c = new Float64Array(nb);
+  for (let bi = 0; bi < nb; bi++) { const b = sim.beams[bi];
+    t[bi] = Number.isFinite(b.fyP) ? P.t[bi] * b.fyP : 0; c[bi] = Number.isFinite(b.fcP) ? P.c[bi] * b.fcP : 0; }
+  return { t, c };
+}
+// G1836 (DMG-D2b, dm14): A FLOATPLANE'S WATER HANDLING - the run-out after a landing, the rudder (the water rudders) hard
+// over one way then the other at the run-out's speed (GEN_CERT.weave: x V_S0), power off, on the sea lane, the real
+// sim under the probe. No FAR 23 case asks for it (23.529's side loads are a tenth of the step's), and the twin
+// floatplane's crosswind circuit rang a float strut to 1.7 x its water envelope as its pilot weaved the rudder at 12
+// m/s on the run-out: a float's lateral load through its struts is a case the water's own handling makes
+function genCertWaterWeave(def, world) {
+  if (!world || !world.aerodromes) return null;
+  const sea = world.aerodromes.find(a => a.id === 'SEA'); if (!sea) return null;
+  const d2 = Object.assign({}, def, { cert: null, params: Object.assign({}, def.params, { damage: true, damageProbe: true }) });
+  const sim = makeSim(d2, world); sim.reset(0); placeAtAerodrome(sim, sea);
+  for (let f = 0; f < 120; f++) sim.step(1 / 60);
+  const g = (def.params && def.params.gen) || {}, V = GEN_CERT.weave.V * (g.VsFlap || g.Vs || 25), xA = sim.axes()[0], hl = Math.hypot(xA[0], xA[2]) || 1;
+  for (let i = 0; i < sim.n; i++) { sim.v[i * 3] = -V * xA[0] / hl; sim.v[i * 3 + 2] = -V * xA[2] / hl; }
+  sim.ctl.thr = 0;
+  const P = sim.damagePeak(); P.t.fill(0); P.c.fill(0);
+  const h = Math.round(GEN_CERT.weave.hold * 60);
+  for (let f = 0; f < 6 * h; f++) { sim.ctl.dr = (Math.floor(f / h) % 2) ? -1 : 1; sim.step(1 / 60); }
+  sim.ctl.dr = 0;
+  const nb = def.beams.length, t = new Float64Array(nb), c = new Float64Array(nb);
+  for (let bi = 0; bi < nb; bi++) { const b = sim.beams[bi];
+    t[bi] = Number.isFinite(b.fyP) ? P.t[bi] * b.fyP : 0; c[bi] = Number.isFinite(b.fcP) ? P.c[bi] * b.fcP : 0; }
+  return { t, c };
+}
+// FAR 23.473(d): the limit descent velocity, m/s
+function genCertSink(def) {
+  const g = def.params && def.params.gen;
+  if (!g || !(g.W > 0) || !(g.Sw > 0)) return 3.05;
+  const WS = (g.W / 4.4482) / (g.Sw * 10.7639);
+  return Math.min(10, Math.max(7, 4.4 * Math.pow(WS, 0.25))) * 0.3048;
+}
+
+// genCertify(def, opt) -> the certificate: per member the tension and compression envelopes at limit (N), and per
+// case its own (the evidence and the gate read them). `opt.world`: the world a floatplane's drop lands on.
+function genCertify(def, opt) {
+  opt = opt || {};
+  const t0 = (typeof performance !== 'undefined' ? performance : Date).now();
+  const nb = def.beams.length, nN = def.nodes.length;
+  const kF = b => b.k, kT = b => (b.kTrue != null ? b.kTrue : b.k);
+  const sysCache = {};
+  const sysOf = (key, o) => () => sysCache[key] || (sysCache[key] = genCertSystem(def, o));
+  const flight = sysOf('flight', { kOf: kF, sub: genCertSubs(def), free: true });
+  const cases = {};
+  const put = (name, Fb) => { if (!Fb) return; const t = new Float64Array(nb), c = new Float64Array(nb);
+    for (let bi = 0; bi < nb; bi++) { if (Fb[bi] > 0) t[bi] = Fb[bi]; else c[bi] = -Fb[bi]; } cases[name] = { t, c }; };
+  const L = GEN_CERT.limit;
+  // the V-n corners and the controls (23.333, 23.337, 23.349, 23.423, 23.441), on the solver's own air
+  const VS = genCertSpeeds(def), PS = genCertProbeSim(def), aero = {};
+  // (a corner the probe's polar cannot reach - alpha at its 20 deg clamp - is flown 8 % faster until it can: the
+  // stall speed of the shakedown and the probe's own CLmax are not the same number on every build)
+  const A = (nm, o) => {
+    let r = genCertAeroLoads(def, PS, o), V = o.V;
+    for (let k = 0; k < 8 && o.nz != null && o.alpha == null && Math.abs(r.alpha) > 0.34; k++) { V *= 1.08; r = genCertAeroLoads(def, PS, Object.assign({}, o, { V })); }
+    aero[nm] = { alpha: r.alpha, de: r.de, V, nz: o.nz, dyn: o.dyn || 1 };
+    if (o.dyn) for (let i = 0; i < r.F.length; i++) r.F[i] *= o.dyn;
+    put(nm, genCertForces(flight, r.F));
+    return r;
+  };
+  A('pullA', { V: VS.VA, nz: L, trim: true });                         // A: the stall at the limit
+  A('pullD', { V: VS.VD, nz: L, trim: true });                         // D: the limit at the dive speed
+  A('negC', { V: VS.VC, nz: -GEN_CERT.neg * L, trim: true, thr: 0 });  // the negative limit at V_C
+  // the corners WITH the checked manoeuvre's pitching acceleration on top (23.423(b): nose up 39 n (n - 1.5) / V,
+  // rad/s2, V in knots - written from the regulation's text as recalled, A0 to open it): a flown pull reaches the limit
+  // with the elevator still going (the flown census: the fuselage's bottom member at the strut 1.4 x the trimmed
+  // corner at 3.8 g, the elevator full at 3.3 g), so the limit load and the pitch acceleration arrive together
+  {
+    let Iz = 0; const { c } = genCertMass(def);
+    for (const nd of def.nodes) { const dx = nd.p[0] - c[0], dy = nd.p[1] - c[1]; Iz += nd.m * (dx * dx + dy * dy); }
+    for (const [nm, base] of [['pullAq', 'pullA'], ['pullDq', 'pullD']]) {
+      const V = aero[base].V, a0 = aero[base].alpha, vel = [-V * Math.cos(a0), -V * Math.sin(a0), 0];
+      const Mreq = Iz * 39 * L * (L - 1.5) / (V / 0.5144);
+      const pm = de => { PS.ctl.de = de; PS.ctl.thr = 1; return PS.probe(vel, true).pitchUp - Mreq; };
+      let d0 = aero[base].de, d1 = Math.min(1, d0 + 0.2), m0 = pm(d0), m1 = pm(d1);
+      for (let k = 0; k < 10 && Math.abs(m1) > 1; k++) { const d2 = d1 - m1 * (d1 - d0) / ((m1 - m0) || 1e-9); d0 = d1; m0 = m1; d1 = Math.max(-1, Math.min(1, d2)); m1 = pm(d1); }
+      PS.ctl.de = 0; PS.ctl.thr = 0;
+      A(nm, { V, alpha: a0, de: d1 });
+    }
+  }
+  A('rollR', { V: VS.VA, nz: GEN_CERT.roll * L, trim: true, da: 1 });  // 2/3 of the limit, the aileron full
+  A('rollL', { V: VS.VA, nz: GEN_CERT.roll * L, trim: true, da: -1 });
+  // G1836 (DMG-D2b, dm14): THE FLAPS EXTENDED (23.345, as recalled - A0 to open it): the positive limit with the flaps
+  // fully down is 2.0 g, at the flap speed V_F (at least 1.4 Vs and 1.8 Vs with the flaps), trimmed. Without it no case
+  // flew the flaps, and the circuit's FINAL loaded the metal Cessna's stab rear spar (HR-HR, the trim's download with
+  // the flaps' nose-down moment) to 0.74 of a yield that sat on the floor (0.68 kN: the clean cases asked 0.29)
+  A('flapF', { V: VS.VF, nz: GEN_CERT.flapN, trim: true, flap: 1 });
+  // THE CONTROLS HARD OVER (beyond 23.423 / 23.441's checked and maneuvering cases, on purpose): from level 1 g, the
+  // elevator at the dive speed and the rudder at V_A each full either way, the alpha held (the onset, before the
+  // aeroplane answers). A game's stick is abrupt: a flown pull with a twitchy elevator loaded the stab 2-3.6 x the
+  // checked manoeuvre at under 4 g (the census, HANDOVER G1830). So the tail, the control surfaces and whatever carries
+  // their loads into the airframe are certified for what the controls can ask inside the envelope. And SUDDENLY: a
+  // stick snapped over is a step on an elastic tail, whose peak is twice the static answer (the dynamic factor of a
+  // suddenly applied load) - GEN_CERT.dynCtl. (The rudder at V_A, 23.441's speed: hard over at V_D its yaw
+  // acceleration loads the wing's struts through their mass past every g case - 36-51 kN on the Cessnas' struts
+  // against 18-25 kN at the limit pull - and a wing certified for that never breaks at its card. The ailerons are
+  // 23.349's rolling condition above, full at V_A with 2/3 of the limit, for the same reason.)
+  {
+    const tD = genCertAeroLoads(def, PS, { V: VS.VD, nz: 1, trim: true }), tA = genCertAeroLoads(def, PS, { V: VS.VA, nz: 1, trim: true });
+    for (const [nm, k, d, t1, V] of [['elevUpD', 'de', 1, tD, VS.VD], ['elevDownD', 'de', -1, tD, VS.VD], ['rudRA', 'dr', 1, tA, VS.VA], ['rudLA', 'dr', -1, tA, VS.VA]]) {
+      const o = { V, alpha: t1.alpha, de: t1.de, dyn: GEN_CERT.dynCtl }; o[k] = d; const r = A(nm, o);
+      // G1836 (DMG-D2b, dm14): THE UNSYMMETRICAL TAIL LOAD (23.427(b), as recalled - A0 to open it): 100 % of the
+      // symmetrical case's stab load on one side, 100 - 10 (n - 1) % (at most 80 %) on the other. Without it nothing
+      // loaded the stab's centre section (the rear spar across the fuselage, HR-HR): its yield sat on the floor and an
+      // elevator moving on the metal Cessna's final read 0.74 of it
+      if (k === 'de') {
+        const Sn = new Uint8Array(nN);
+        for (const st of def.strips) if (st.kind === 'stab') for (const q of st.w) Sn[q[0]] = 1;
+        const pct = Math.min(GEN_CERT.tailAsymMax, 1 - 0.1 * (L - 1));
+        for (const sd of [1, -1]) {
+          const F2 = Float64Array.from(r.raw);
+          for (let i = 0; i < nN; i++) if (Sn[i] && sd * def.nodes[i].p[2] > 0.01)
+            for (let j = 0; j < 3; j++) F2[i * 3 + j] -= (1 - pct) * (r.raw[i * 3 + j] + (j === 1 ? def.nodes[i].m * 9.81 : 0));
+          for (let i = 0; i < F2.length; i++) F2[i] *= GEN_CERT.dynCtl;
+          put(nm + (sd > 0 ? 'uL' : 'uR'), genCertForces(flight, genCertRelieve(def, F2)));
+        }
+      }
+    }
+  }
+  // THE EMERGENCY LANDING (23.561(b)): an item of mass that could injure an occupant is restrained under ultimate
+  // inertia of 9 g forward, 3 g up, 1.5 g sideways (either way) and 6 g down - for the engine on its mount (the ENG /
+  // CGE / MNT nodes, the mount's bearer members carrying it to an airframe held where it is). ULTIMATE loads: the
+  // envelope takes them at limit (/ 1.5). It is the case that keeps a trunk at a taxi's pace a dent: TREE-CRASH's 9 g
+  // (FAR 23.561's own forward ultimate) is where the crash begins. (The g as recalled from the regulation; A0 opens it.)
+  {
+    const n = def.nodes.length, item = new Uint8Array(n), pinned = new Uint8Array(n);
+    let any = false;
+    def.nodes.forEach((nd, i) => { if (/^(ENG|CGE|MNT)/.test(nd.tag || '')) { item[i] = 1; any = true; } else pinned[i] = 1; });
+    if (any) {
+      const sysE = sysOf('mount', { kOf: kF, sub: genCertSubs(def), pinned });
+      for (const [nm, ax, gx] of [['crashFwd', 0, -9], ['crashUp', 1, 3], ['crashDown', 1, -6], ['crashSideR', 2, 1.5], ['crashSideL', 2, -1.5]]) {
+        const F = new Float64Array(n * 3);
+        for (let i = 0; i < n; i++) if (item[i]) F[i * 3 + ax] = def.nodes[i].m * 9.81 * gx / GEN_CERT.ult * GEN_CERT.limit;
+        put(nm, genCertForces(sysE, F));
+      }
+      // ...AND THE AIRFRAME STOPPED AT ITS NOSE (23.561's 9 g forward on the whole aeroplane, a minor crash landing:
+      // the cabin and what holds it must keep the occupants): every node's inertia 9 g forward, the reaction where a
+      // trunk at a taxi's pace meets it - the propeller, through the engine's thrust nodes on the centreline (the
+      // firewall ring when the engines are on the wings) - a point, not a clamp: the free airframe pitches about it
+      // (inertia relief), so the mount carries the reaction's moment as the trunk loads it (its lower members in
+      // compression: measured on the Cub's taxi, 3.8 kN where a clamped engine read them in tension)
+      const eng = ((def.refs && def.refs.engine) || []).filter(i => Math.abs(def.nodes[i].p[2]) < 0.6);
+      const R = eng.length ? eng : ((def.refs && def.refs.noseFrame) || []);
+      if (R.length) {
+        const F = new Float64Array(n * 3), k9 = -9 / GEN_CERT.ult * GEN_CERT.limit * 9.81;
+        let Mt = 0; for (let i = 0; i < n; i++) { F[i * 3] = def.nodes[i].m * k9; Mt += def.nodes[i].m; }
+        for (const i of R) F[i * 3] -= Mt * k9 / R.length;
+        put('impactNose', genCertForces(flight, genCertRelieve(def, F)));
+      }
+    }
+  }
+  const tF = (typeof performance !== 'undefined' ? performance : Date).now();
+  const bc = genCertBench(def, L);
+  if (bc) put('bench', genCertForces(sysOf('bench', { kOf: kT, sub: genCertSubsTrue(def), pinned: bc.pinned, pos: bc.pos }), bc.F));
+  const tB = (typeof performance !== 'undefined' ? performance : Date).now();
+  const sink = GEN_CERT.dropCap ? 10 * 0.3048 : genCertSink(def);
+  let drop = null;
+  if (opt.drop !== false) { drop = genCertDrop(def, sink, opt.world); cases.drop = { t: drop.t, c: drop.c }; }
+  if (opt.drop !== false && def.parts && def.parts.floats) { const bw = genCertBow(def, opt.world); if (bw) cases.bow = bw; }
+  // G1835 (DMG-D2b): THE GEAR'S OWN CASES - the landings at the drop's sink in the attitudes 23.479-23.483 ask for, at
+  // the touchdown speed (the wheel's spin-up and spring-back, the float's step meeting the water at speed), and the
+  // ground and water loads (genCertGroundLoads) on the free aeroplane
+  let ground = null;
+  if (opt.drop !== false) {
+    const g = (def.params && def.params.gen) || {}, Vso = g.VsFlap || g.Vs || 25;
+    const tw = def.refs && def.refs.tw != null && def.refs.tw >= 0 ? def.refs.tw : -1, R = def.refs || {};
+    const xm = R.mains && R.mains.length ? R.mains.reduce((a, i) => a + def.nodes[i].p[0], 0) / R.mains.length : 0;
+    const trike = tw >= 0 && def.nodes[tw].p[0] < xm, FLt = !!(def.parts && def.parts.floats);
+    // (a floatplane's step landing again with the drift of the demonstrated crosswind component - 23.233's 0.2 V_S0, as
+    // recalled - either way: 23.529's unsymmetrical side load, 0.25 tan(beta) of the step's, is a tenth of the vertical,
+    // and an ordinary crosswind landing's drift and weathercocking put 1.5-1.8 x the struts' limit through them)
+    const xw = GEN_CERT.gearDrop.xwind * Vso;
+    const GD = FLt ? [['dropStep', { pitch: GEN_CERT.gearDrop.stepPitch, fwd: Vso }], ['dropOne', { roll: GEN_CERT.gearDrop.roll, fwd: Vso }],
+                      ['dropDriftR', { pitch: GEN_CERT.gearDrop.stepPitch, fwd: Vso, lat: xw }], ['dropDriftL', { pitch: GEN_CERT.gearDrop.stepPitch, fwd: Vso, lat: -xw }]]
+      : [[trike ? 'dropNoseUp' : 'dropLevel', trike ? { pitch: GEN_CERT.gearDrop.noseUp, fwd: Vso } : { level: true, fwd: Vso }], ['dropOne', { roll: GEN_CERT.gearDrop.roll, fwd: Vso }]];
+    // ...and the touchdown at the build's own limit sink (23.473's V, under the cap) at the touchdown speed: a frame's
+    // dynamic answer is not monotone in the sink (the Cessna on floats' wing spar took more at 2.54 m/s, level, than in
+    // the one-float landing at the cap's 3.05)
+    GD.push(['drop473', { fwd: Vso }]);
+    for (const [nm, o] of GD) { const r = genCertDrop(def, nm === 'drop473' ? genCertSink(def) : sink, opt.world, o); cases[nm] = { t: r.t, c: r.c }; }
+    if (!FLt) cases.taxiRough = genCertTaxi(def);
+    else { const ww = genCertWaterWeave(def, opt.world); if (ww) cases.wWeave = ww; }
+    ground = genCertGroundLoads(def, drop ? drop.nz : 0);
+    for (const [nm, F] of ground) put(nm, genCertForces(flight, genCertRelieve(def, F)));
+  }
+  let flown = null;
+  if (opt.drop !== false) { flown = genCertFlown(def); cases.flown = { t: flown.t, c: flown.c }; }
+  if (opt.drop !== false) { cases.flownElev = genCertFlownCtl(def, 'de'); cases.flownRud = genCertFlownCtl(def, 'dr'); cases.flownElevF = genCertFlownCtl(def, 'de', 1); }
+  const tD = (typeof performance !== 'undefined' ? performance : Date).now();
+  const Ft = new Float64Array(nb), Fc = new Float64Array(nb), byT = new Int8Array(nb).fill(-1), byC = new Int8Array(nb).fill(-1);
+  const names = Object.keys(cases);
+  // G1836 (DMG-D2b, dm14): THE GEAR IS THE FUSE. The landing, ground and water cases (the drops, the bow, the taxi over
+  // the roughest ground, the ground and water loads) certify the AIRFRAME at the gear's ultimate (GEN_CERT.landK):
+  // §7.3's bracket yields the gear just past its limit sink and breaks it past 1.2 V, so the members that carry the
+  // gear's loads into the airframe must hold, with no set, what the gear can deliver before it lets go - a landing
+  // that bends the gear does not bend the fuselage (§7.4's NASA 172 Test 1: the gear separates, the cabin intact).
+  // Read at its limit, the airframe behind the gear sat at its certified yield at the limit sink (the Cessna on
+  // floats' wing 1.00 at 23.473's 2.5 m/s, its engine bay 0.70 in the circuit's water touchdown). The gear's own
+  // members take these cases at their limit (gearStamp: their bracket)
+  // ...AND A FRAME RINGING RINGS BOTH WAYS (G1836): the controls flown (flownElev / flownRud / flownElevF) are steps, and
+  // what they put through a member that no static load path crosses is a RINGING about whatever it carried - the
+  // metal Cessna's stab root cross-tie rang to 0.49 kN in tension and 1.99 in compression after the elevator's step,
+  // and to 0.50 kN in tension on its final as the flaps ran out (its mean there in tension). So a flown control case's
+  // peak is an amplitude, not a sign: its larger peak certifies the member both ways
+  const landC = names.map(nm => GEN_CERT_LAND.test(nm)), ringC = names.map(nm => GEN_CERT_RING.test(nm));
+  names.forEach((nm, ci) => { const C = cases[nm], kL = landC[ci] ? GEN_CERT.landK : 1; for (let bi = 0; bi < nb; bi++) {
+    const k = def.beams[bi].cls === 'gear' ? 1 : kL, r = ringC[ci] ? Math.max(C.t[bi], C.c[bi]) : 0;
+    const t = Math.max(C.t[bi], r) * k, c = (def.beams[bi].tens ? C.c[bi] : Math.max(C.c[bi], r)) * k;
+    if (t > Ft[bi]) { Ft[bi] = t; byT[bi] = ci; } if (c > Fc[bi]) { Fc[bi] = c; byC[bi] = ci; } } });
+  return { v: GEN_CERT_V, key: genCertKey(def), nb, nN, limit: L, ult: GEN_CERT.ult, neg: -GEN_CERT.neg * L, m: GEN_CERT.m,
+           sink, dropNz: drop ? drop.nz : null, flownNz: flown ? flown.nz : null, flownReached: flown ? flown.reached : null,
+           Ft, Fc, byT, byC, names, cases, speeds: VS, aero, nw: ground && ground.nw != null ? ground.nw : null,
+           ms: { flight: tF - t0, bench: tB - tF, drop: tD - tB, total: tD - t0 } };
+}
+// THE CACHE: one certificate per build (its spec hash), a few builds deep
+const GEN_CERT_CACHE = new Map();
+function genCertAttach(def, opt) {
+  if (!def || !def.beams || !def.nodes) return null;
+  if (def.cert && def.cert.nb === def.beams.length) return def.cert;
+  const key = genCertKey(def);
+  let C = GEN_CERT_CACHE.get(key);
+  if (!C || C.nb !== def.beams.length) {
+    C = genCertify(def, opt);
+    GEN_CERT_CACHE.set(key, C);
+    while (GEN_CERT_CACHE.size > 8) GEN_CERT_CACHE.delete(GEN_CERT_CACHE.keys().next().value);
+  }
+  def.cert = C;
+  return C;
 }
 // ===========================================================================
 // THE PLAYER — the player's property as ONE document, one key, one version.
@@ -35491,4 +37445,4 @@ function playerShedDims(doc, id, site) {
   return { HW: d.HW || h.HW, HD: d.HD || h.HD, EAVE: d.EAVE || h.EAVE };
 }
 if (typeof module !== 'undefined')
-  module.exports = { TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, TREE_HITS, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, RWY_LIGHTS, runwayLightStrips, runwayLightSite, runwayLightPoints, STRIP_SURFACES, stripSurface, stripGear, stripAllows, stripFallback, stripLandable, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, turnOf, turnPadNodes, TURN_S0, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, atmosWater, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, CLIMATE, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, decodeAnimal, decodeAnimalClips, registerAnimal, animalList, animalClips, animalClip, ANIMAL_REG, makeSim, HYDRO, makeBus, vortexKernel, makeAutopilot, makeTestPilot, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, seatOnGround, placeAtLineup, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, POLARS, PAR, RHO, hyp2, hyp3, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genPlanePair, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_CRASH, GEN_CRASH_TUBE_DT, genPhysKey, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, genTrueBox, genNetEig, genRigidFloatOf, GEN_BOX_N, GEN_BOX_KMIN, GEN_NET_MAX, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC, GP_PARKED_FOOT, GP_PARKED_DEFAULT, GP_CLEAR, GP_HALF_DEFAULT, parkedFoot, gpParkedDist, gpClearWay, GEN_WING_ENVELOPE, GEN_FIELDS, genFieldClamp, genNullToDefault, genSpecMerge, SERVO_GAINS, makeServos, SERVO_TUNE, servoWrapPi, servoCrossWind, servoRestHeight };
+  module.exports = { TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, TREE_HITS, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, RWY_LIGHTS, runwayLightStrips, runwayLightSite, runwayLightPoints, STRIP_SURFACES, stripSurface, stripGear, stripAllows, stripFallback, stripLandable, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, turnOf, turnPadNodes, TURN_S0, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, atmosWater, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, CLIMATE, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, decodeAnimal, decodeAnimalClips, registerAnimal, animalList, animalClips, animalClip, ANIMAL_REG, makeSim, HYDRO, makeBus, vortexKernel, makeAutopilot, makeTestPilot, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, seatOnGround, placeAtLineup, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, POLARS, PAR, RHO, hyp2, hyp3, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genPlanePair, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_CRASH, GEN_CRASH_TUBE_DT, genPhysKey, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genMesh, genBeamInto, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, genTrueBox, genNetEig, genRigidFloatOf, GEN_BOX_N, GEN_BOX_KMIN, GEN_NET_MAX, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, GEN_CERT, GEN_CERT_V, genDamageOn, GEN_CERT_CACHE, genCertKey, genCertify, genCertAttach, genCertSystem, genCertForces, genCertBench, genCertBenchPose, genCertDrop, genCertBow, genCertFlown, genCertAeroLoads, genCertProbeSim, genCertSpeeds, genCertSink, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC, GP_PARKED_FOOT, GP_PARKED_DEFAULT, GP_CLEAR, GP_HALF_DEFAULT, parkedFoot, gpParkedDist, gpClearWay, GEN_WING_ENVELOPE, GEN_FIELDS, genFieldClamp, genNullToDefault, genSpecMerge, SERVO_GAINS, makeServos, SERVO_TUNE, servoWrapPi, servoCrossWind, servoRestHeight };

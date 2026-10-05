@@ -1017,7 +1017,7 @@
       const IX = nV > 65535 ? new Uint32Array(nI) : new Uint16Array(nI);
       const bones = [], boneOf = new Map();
       const SI = F.moves ? new Uint8Array(nV * 4) : null, SW = F.moves ? new Uint8Array(nV * 4) : null;
-      const views = [], members = [];
+      const views = [], members = [], mirs = [];
       let vo = 0, io = 0;
       for (const m of list) {
         const g = m.geometry, n = g.attributes.position.count, pa = g.attributes.position, na = g.attributes.normal;
@@ -1026,6 +1026,7 @@
         P.set(pa.array.subarray(0, n * 3), vo * 3); N.set(na.array.subarray(0, n * 3), vo * 3);
         U.set(g.attributes.uv1.array.subarray(0, n * 2), vo * 2);
         const ix = g.index.array; for (let i = 0; i < g.index.count; i++) IX[io + i] = ix[i] + vo;
+        mirs.push([g, { ix: IX, io, vo, n: g.index.count, attr: null }]);
         if (F.moves) {
           let b = boneOf.get(m.parent);
           if (b === undefined) { b = bones.length; boneOf.set(m.parent, b); bones.push(m.parent); }
@@ -1057,6 +1058,10 @@
       geo.setAttribute('uv1', new THREE.BufferAttribute(U, 2, true));
       if (F.moves) { geo.setAttribute('skinIndex', new THREE.BufferAttribute(SI, 4)); geo.setAttribute('skinWeight', new THREE.BufferAttribute(SW, 4, true)); }
       geo.setIndex(new THREE.BufferAttribute(IX, 1));
+      // G1864 (DMG-D4b): each member's INDEX MIRROR. The positions are views (the rigs write what is drawn); the index is
+      // a copy, so a triangle the wreck removes from a member's own index (skin_break's tear, a debris part leaving) is
+      // carried into the fold by app.js idxMirror through this - before it, the fold drew a torn skin whole
+      for (const [g, M] of mirs) { M.attr = geo.index; (g.userData.ixMirror || (g.userData.ixMirror = [])).push(M); }
       geo.computeBoundingSphere();
       const mesh = F.moves ? new THREE.SkinnedMesh(geo, mat) : new THREE.Mesh(geo, mat);
       const m0 = F.m0;

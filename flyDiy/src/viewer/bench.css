@@ -61,6 +61,8 @@
   margin-left:7px; border-radius:50%; border:1.5px solid var(--ed-faint); border-top-color:transparent;
   animation:bSpin .9s linear infinite; vertical-align:-1px; }
 @keyframes bSpin { to { transform:rotate(360deg); } }
+/* G1832 (DMG-D2a): the free test to destruction's one line - LIMIT / ULTIMATE / BROKE AT - read as text, not a header */
+.bDestroy > span { text-transform:none; letter-spacing:.02em; font:600 10.5px/1.45 'IBM Plex Sans'; color:var(--ed-ink); margin-bottom:0; }
 .bAdvice div { color:var(--ed-ink); }
 .bAdvice div:before { content:'▸ '; color:var(--ed-faint); }
 /* A9: on the flight screen (the flown card's award, the master's) the card

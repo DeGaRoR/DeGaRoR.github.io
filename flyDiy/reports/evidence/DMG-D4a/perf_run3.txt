@@ -1,0 +1,2 @@
+cub air base 3.493 now 3.571 ms; 2.3 %; the pairs' median 3.1 %, 5/16 negative
+PERFJSON {"cub:air":{"base":3.49263,"now":3.571323,"pooled":0.022531158467973933,"pairsMed":0.030595619426889487,"neg":5}}

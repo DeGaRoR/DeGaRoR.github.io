@@ -1,0 +1,42 @@
+SUBSTEP    same bytes (24 lines)
+PACE       same bytes (49 lines)
+FLIGHTREC  DIFFERS 1 lines
+GE         same bytes (15 lines)
+FLAPS      same bytes (3 lines)
+STRESS     same bytes (2 lines)
+GEN        same bytes (604 lines)
+PILOT      same bytes (147 lines)
+NAV        same bytes (23 lines)
+STRIPSURF  DIFFERS 1 lines
+TAKEOFF    DIFFERS 1 lines
+PILOTACT   DIFFERS 2 lines
+TAXICLEAR  same bytes (3 lines)
+PLAN       same bytes (3 lines)
+LINEUP     same bytes (1 lines)
+DEFAULT    same bytes (1 lines)
+HONEST     same bytes (34 lines)
+WEIGHT     same bytes (73 lines)
+DRAG       same bytes (27 lines)
+BIPLANE    DIFFERS 2 lines
+MASS       same bytes (31 lines)
+TREEHIT    same bytes (23 lines)
+TREECRASH  DIFFERS 26 lines
+BENCH      same bytes (118 lines)
+SIMWORKER  DIFFERS 16 lines
+GEAR       same bytes (2 lines)
+STRUT      same bytes (2 lines)
+SITE       same bytes (2 lines)
+OBSTACLE   same bytes (32 lines)
+HITBOX     DIFFERS 33 lines
+HYDRODYN   DIFFERS 2 lines
+FLOATS     same bytes (36 lines)
+SEAPLANE   same bytes (21 lines)
+ENERGY     same bytes (2 lines)
+SETTLE     DIFFERS 1 lines
+AERO       same bytes (3 lines)
+HOTHIGH    same bytes (57 lines)
+SOAR       same bytes (22 lines)
+FLEX       same bytes (175 lines)
+LOAD       same bytes (113 lines)
+MOUNT      same bytes (14 lines)
+DMGMEMBERS new in mine

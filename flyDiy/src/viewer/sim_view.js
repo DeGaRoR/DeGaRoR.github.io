@@ -49,6 +49,30 @@ function simViewDefSig(def) {
   return def.nodes.length + ':' + h.toString(16);
 }
 
+// G1850 (DMG-D4a): THE DAMAGE STATE THE PAGE HOLDS - what sim_host.js simDmgHop sends on change (a break, a cluster
+// cut; a set at most every 0.1 s), applied here. The same object inline (app.js runs the same hop on its own sim):
+//   v        bumps on every payload; vB only when the broken list / the pieces moved (the skin's event)
+//   br       the broken members, in order; broken[bi] 1 for each
+//   pc       each node's piece (0 = the core: the piece the body's refs are on), null while one piece
+//   set      each member's permanent set (dmg_overlay.js setOf), 0 where none
+function simViewDmgState(n, nb) {
+  return { v: 0, vB: 0, n, nb, br: [], broken: new Uint8Array(nb), pc: null, nPc: 1, set: new Float32Array(nb), sB: '0:0', sS: '0:0' };
+}
+function simViewDmgApply(D, P) {
+  if (!P) return D;
+  if (P.br) {
+    D.br = P.br.slice(); D.broken.fill(0);
+    for (const bi of D.br) if (bi >= 0 && bi < D.nb) D.broken[bi] = 1;
+    D.pc = P.pc ? Int32Array.from(P.pc) : null;
+    let k = 0; if (D.pc) for (let i = 0; i < D.pc.length; i++) if (D.pc[i] > k) k = D.pc[i];
+    D.nPc = k + 1; D.vB++; D.sB = P.sB;
+  }
+  if (P.st) { D.set.fill(0); for (let j = 0; j + 1 < P.st.length; j += 2) if (P.st[j] < D.nb) D.set[P.st[j]] = P.st[j + 1]; }
+  if (P.sS) D.sS = P.sS;
+  D.v++;
+  return D;
+}
+
 function makeSimView(def, opts) {
   const R = opts.ready, S = R.slots, n = def.nodes.length, N3 = n * 3;
   const post = opts.post || (() => false);
@@ -104,6 +128,7 @@ function makeSimView(def, opts) {
   let stamp = null, pending = [], ctlPatch = null, engSent = 'null';
   let strays = 0, takes = 0, mCur = null;
   const cv = [0, 0, 0];
+  const dmgS = simViewDmgState(n, def.beams.length);   // G1850
 
   // the levers: reads show the host's (the pilot writes them), a write queues a command
   const lever = {};
@@ -139,6 +164,7 @@ function makeSimView(def, opts) {
     get totalM() { return B ? B.f[S.TOTALM] : def.nodes.reduce((a, nd) => a + nd.m, 0); },
     get stepIndex() { return B ? B.f[S.STEP] : 0; },
     snapshot: () => B && B.f,
+    dmgState: () => dmgS,                  // G1850: the damage state (broken, pieces, sets) - the host's, on change
 
     // ---- the frame: the pose at T less the delay, between the two snapshots that hold that moment (the ring)
     frame(T) {
@@ -211,6 +237,7 @@ function makeSimView(def, opts) {
       if (M.out) { view.out = M.out; view.out.hydro = M.hydro || null; }
       if (M.eng) view.eng = M.eng;
       if ('dmg' in M) view.dmg = M.dmg;   // G1470: the crash's verdict (null until there is one)
+      if (M.dmgB) simViewDmgApply(dmgS, M.dmgB);   // G1850: the broken list, on change
       if (M.fuel) view.fuel = M.fuel;
       view.hydro = M.hydro || null;
       view.wheels = M.wheels || null;
@@ -283,5 +310,5 @@ function makeSimView(def, opts) {
   return view;
 }
 
-if (typeof window !== 'undefined') window.SIM_VIEW = { make: makeSimView, defSig: simViewDefSig };
-if (typeof module !== 'undefined' && module.exports) module.exports = { makeSimView, simViewDefSig, SIM_VIEW_LEVERS };
+if (typeof window !== 'undefined') window.SIM_VIEW = { make: makeSimView, defSig: simViewDefSig, dmgState: simViewDmgState, dmgApply: simViewDmgApply };
+if (typeof module !== 'undefined' && module.exports) module.exports = { makeSimView, simViewDefSig, SIM_VIEW_LEVERS, simViewDmgState, simViewDmgApply };
