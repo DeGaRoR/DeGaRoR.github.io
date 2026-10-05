@@ -836,7 +836,7 @@ function hullSide(F, ctx, water, t, out, apply) {
   zx /= zl; zz /= zl;
   // the forward speed through the water along the hull (forward is -x), at the step keel
   const eK = W[F.edge.K], wv = water.v(eK[0], eK[2], t);
-  ctx.velAt(eK, SIDE_V);
+  if (ctx.velV) ctx.velV(F.edge.K, SIDE_V); else ctx.velAt(eK, SIDE_V);
   const U = -((SIDE_V[0] - wv[0]) * xhat[0] + (SIDE_V[1] - wv[1]) * xhat[1] + (SIDE_V[2] - wv[2]) * xhat[2]);
   const aU = Math.abs(U);
   if (aU < 1e-4) return;
@@ -847,7 +847,7 @@ function hullSide(F, ctx, water, t, out, apply) {
   // each station's lateral velocity through the water
   for (let i = 0; i < ns; i++) {
     const k = W[sta[i].K], wk = water.v(k[0], k[2], t);
-    ctx.velAt(k, SIDE_W);
+    if (ctx.velV) ctx.velV(sta[i].K, SIDE_W); else ctx.velAt(k, SIDE_W);
     ws[i] = (SIDE_W[0] - wk[0]) * zx + (SIDE_W[2] - wk[2]) * zz;
   }
   // walk the keel the way the water does: bow to stern ahead, stern to bow backing
@@ -1317,6 +1317,8 @@ function tetraCtx(F, T, Q, p, v, slab) {
     if (t !== 0) land(S, i + 1, t, q, f, o);
   };
   ctx.velAt = (pt, o) => { ctx.bary(pt, l); o[0] = o[1] = o[2] = 0; for (let k = 0; k < 4; k++) { o[0] += l[k] * Vn[k][0]; o[1] += l[k] * Vn[k][1]; o[2] += l[k] * Vn[k][2]; } return o; };
+  // G1847: a hull VERTEX's velocity off its rest barycentrics (the same affine field fill() places it by; no solve)
+  ctx.velV = (i, o) => { o[0] = o[1] = o[2] = 0; for (let k = 0; k < 4; k++) { const a = lam[i * 4 + k]; o[0] += a * Vn[k][0]; o[1] += a * Vn[k][1]; o[2] += a * Vn[k][2]; } return o; };
   ctx.toLocal = (pt, o) => { ctx.bary(pt, l); o[0] = o[1] = o[2] = 0; for (let k = 0; k < 4; k++) { o[0] += l[k] * Q[k][0]; o[1] += l[k] * Q[k][1]; o[2] += l[k] * Q[k][2]; } return o; };
   return ctx;
 }
