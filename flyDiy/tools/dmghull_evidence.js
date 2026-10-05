@@ -50,7 +50,7 @@ function caseSim(core, key, mode, kSide0) {
   return sim;
 }
 if (argv[0] === '--perf-child') {
-  const sim = caseSim(argv[1], argv[2], argv[3]);
+  const sim = caseSim(argv[1], argv[2], argv[3], !!process.env.DMGHULL_K0);   // DMGHULL_K0: the term off on this core (its own cost, same code)
   for (let f = 0; f < 120; f++) sim.step(1 / 60);
   const ms = [];
   for (let f = 0; f < 600; f++) { const a = process.hrtime.bigint(); sim.step(1 / 60); ms.push(Number(process.hrtime.bigint() - a) / 1e6); }
@@ -74,7 +74,8 @@ if (argv.includes('--perf')) {
   const one = (core, k, mode) => { const r = spawnSync(process.execPath, [__filename, '--perf-child', core, k, mode], { encoding: 'utf8' }); const l = (r.stdout || '').split('\n').find(x => x.startsWith('PERF ')); return l ? JSON.parse(l.slice(5)) : null; };
   const P = {};
   const lines = [];
-  for (const [k, mode] of [['cub', 'ground'], ['cub', 'air'], ['metal', 'ground'], ['metal', 'air'], ['twin', 'taxi'], ['cessna', 'taxi']]) {
+  const CASES = opt('perf-cases', 'cub:ground,cub:air,metal:ground,metal:air,twin:taxi,cessna:taxi').split(',').map(c => c.split(':'));
+  for (const [k, mode] of CASES) {
     const rows = { base: [], mine: [] };
     for (let rep = 0; rep < reps; rep++) { rows.base.push(one(base, k, mode)); rows.mine.push(one(mine, k, mode)); }
     const med = a => { const v = a.filter(Boolean).map(x => x.med).sort((x, y) => x - y); return v.length ? v[v.length >> 1] : null; };
@@ -83,8 +84,9 @@ if (argv.includes('--perf')) {
     const line = `${k} ${mode}: base ${b.toFixed(4)} ms, now ${n.toFixed(4)} ms, ${((n / b - 1) * 100).toFixed(2)} % (the median of ${reps} processes' medians, 600 steps each, alternating)`;
     lines.push(line); console.log('perf ' + line);
   }
-  fs.writeFileSync(path.join(OUT, 'perf.json'), JSON.stringify(P, null, 1));
-  fs.writeFileSync(path.join(OUT, 'perf.txt'), lines.join('\n') + '\n');
+  const tag = opt('perf-tag', '');
+  fs.writeFileSync(path.join(OUT, 'perf' + tag + '.json'), JSON.stringify(P, null, 1));
+  fs.writeFileSync(path.join(OUT, 'perf' + tag + '.txt'), lines.join('\n') + '\n');
 }
 if (argv.includes('--bits')) {
   const base = opt('bits-base', null);
