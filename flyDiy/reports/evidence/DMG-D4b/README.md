@@ -17,9 +17,16 @@ camera on the same frame: **after** (all of it: debris, the prop strike, D4a's s
 ## The prop strike (G1861.1-G1861.2)
 - `prop_wood_cub_taxi.jpg` - the Cub's WOOD prop after the 3 m/s trunk strike: both blades snapped at 29-44 % of their radius, the stubs on the hub, an outer piece on the ground; the engine and prop ride the engine nodes' frame (down with the crushed nose).
 - `prop_wood_cub_trunk0.jpg` - the same build at 30 m/s: both blades snapped (167 kJ), the pieces thrown.
-- `prop_metal_cessna_taxi_nose.jpg` - the metal Cessna's ALUMINIUM prop, the 3 m/s trunk strike: no blade breaks (they bend aft and against the rotation, 0.40-0.45 rad); the cowl off as debris, the engine bared beside the trunk.
+- `prop_metal_cessna_taxi_nose.jpg` - the metal Cessna's ALUMINIUM prop, the 3 m/s trunk strike (the wind off; re-shot after G1860.1 + G1861.4): no blade breaks, they curl aft and against the rotation (0.40-0.46 rad); the cowl stays on (its distortion 1 mm: dented sheet keeps its fasteners), the engine inside it.
+- `prop_metal_cessna_bent_closeup.jpg` / `_skin.jpg` - the bent blades close, the other front quarter (camera `noseL`): after (the curl drawn) / D4a's skin alone (the prop straight).
 - `prop_metal_cessna_taxi.jpg` - the same strike, side view.
+- `engine_ride_bug_before_g1861_4.jpg` - THE BUG G1861.4 fixed (shot before it): with nothing broken the engine block stood turned out through the front of an intact cowl - a nose engine's rig has two nodes and a two-node fit has no turn, so the block was drawn in the frame's own axes. Now fitted on the engine nodes and everything still joined to them.
 - `props_wood.json`, `props_metal.json` - the strikes' numbers (material, energy, cut / curl per blade) and the bodies.
+
+## The page against node (the coordinator's D0 check; `tools/dmg_taxi_parity.js`)
+- `taxi_parity_metal.json`, `taxi_parity_cub.json` - the page's 3 m/s taxi into a trunk logged step by step (the certificate - stamped before the run in every case -, the controls, the wind, the ground, the CG and its velocity, the hits, the damage) four ways: as staged, the wind off, the wind off and the controls zeroed, as staged again; each with its start state.
+- THE WIND (a gust field read at sim.t) made the same staging another crash: the metal Cessna 2.43 vs 3.11 kJ, the Cub's whole engine mount broken (10-11 members) with it and nothing broken without it (0.78 kJ). The wind off, two runs are bit-identical.
+- THE DEFS DIFFER: the page's metal Cessna hangs its engine 65 cm further forward than node's buildGen of the same file (ENGL/ENGR x -1.162 vs -0.510: G445.1's join measures the drawn flange into spec.engines[0].x, which the v10 file lacks), 887.3 vs 883.4 kg; the page's Cub carries its nose tank's vessel nodes (VSNL/VSNR) at the bottom of the firewall, node's at the top, and is 13.9 kg lighter. One join path for node and page: A0's JOIN-PARITY (G1985-G1989).
 
 ## The census, the clip, the gates
 - `census.json` - THE YELLOW-CUB CENSUS (the user's leak test): the share of the aeroplane's own pixels (a white-minus-black flat render; the glazing, struts, wheels, prop and engine taken out) that is not yellow - intact / after / skin / before, per camera.

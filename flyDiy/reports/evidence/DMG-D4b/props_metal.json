@@ -1,8 +1,8 @@
 {
- "at": "2026-10-05T18:35:50.839Z",
+ "at": "2026-10-05T21:07:35.996Z",
  "cases": {
   "taxi": {
-   "label": "a taxi into a trunk at 3 m/s, the throttle shut (the prop strike: the blades curl)",
+   "label": "a taxi into a trunk at 3 m/s, the throttle shut (the prop strike: a wooden prop snaps, a metal one bends)",
    "shots": [
     {
      "cam": [
@@ -11,14 +11,14 @@
       4.5
      ],
      "tag": "after",
-     "file": "C:/Users/denis/AppData/Local/Temp/claude/D--Dev-DeGaRoR-github-io/b3479e2b-6a03-45d0-af42-4316285bb123/scratchpad/props_metal/taxi_1_after.jpg",
+     "file": "C:/Users/denis/AppData/Local/Temp/claude/D--Dev-DeGaRoR-github-io/b3479e2b-6a03-45d0-af42-4316285bb123/scratchpad/props_metal4/taxi_1_after.jpg",
      "census": {
-      "px": 115262,
-      "craftAll": 136944,
-      "yellow": 0,
+      "px": 114468,
+      "craftAll": 135587,
+      "yellow": 0.4,
       "darkYellow": 0,
-      "other": 99.9,
-      "greyOrBlack": 77.1,
+      "other": 99.6,
+      "greyOrBlack": 80.9,
       "w": 800,
       "h": 450
      }
@@ -30,71 +30,147 @@
       6
      ],
      "tag": "after",
-     "file": "C:/Users/denis/AppData/Local/Temp/claude/D--Dev-DeGaRoR-github-io/b3479e2b-6a03-45d0-af42-4316285bb123/scratchpad/props_metal/taxi_2_after.jpg",
+     "file": "C:/Users/denis/AppData/Local/Temp/claude/D--Dev-DeGaRoR-github-io/b3479e2b-6a03-45d0-af42-4316285bb123/scratchpad/props_metal4/taxi_2_after.jpg",
      "census": {
-      "px": 134776,
-      "craftAll": 142418,
+      "px": 139744,
+      "craftAll": 147780,
       "yellow": 0,
       "darkYellow": 0,
       "other": 100,
-      "greyOrBlack": 58.2,
+      "greyOrBlack": 68.1,
       "w": 800,
       "h": 450
      }
     },
     {
      "cam": [
-      150,
-      8,
-      4.5
+      "nose",
+      10,
+      4.2
      ],
-     "tag": "skin",
-     "file": "C:/Users/denis/AppData/Local/Temp/claude/D--Dev-DeGaRoR-github-io/b3479e2b-6a03-45d0-af42-4316285bb123/scratchpad/props_metal/taxi_1_skin.jpg",
+     "tag": "after",
+     "file": "C:/Users/denis/AppData/Local/Temp/claude/D--Dev-DeGaRoR-github-io/b3479e2b-6a03-45d0-af42-4316285bb123/scratchpad/props_metal4/taxi_3_after.jpg",
      "census": {
-      "px": 115261,
-      "craftAll": 136244,
-      "yellow": 0,
-      "darkYellow": 0,
-      "other": 100,
-      "greyOrBlack": 76.8,
-      "w": 800,
-      "h": 450
-     }
-    },
-    {
-     "cam": [
-      215,
-      14,
-      6
-     ],
-     "tag": "skin",
-     "file": "C:/Users/denis/AppData/Local/Temp/claude/D--Dev-DeGaRoR-github-io/b3479e2b-6a03-45d0-af42-4316285bb123/scratchpad/props_metal/taxi_2_skin.jpg",
-     "census": {
-      "px": 134776,
-      "craftAll": 142503,
-      "yellow": 0,
-      "darkYellow": 0,
-      "other": 100,
-      "greyOrBlack": 57.9,
-      "w": 800,
-      "h": 450
-     }
-    },
-    {
-     "cam": [
-      150,
-      8,
-      4.5
-     ],
-     "tag": "before",
-     "file": "C:/Users/denis/AppData/Local/Temp/claude/D--Dev-DeGaRoR-github-io/b3479e2b-6a03-45d0-af42-4316285bb123/scratchpad/props_metal/taxi_1_before.jpg",
-     "census": {
-      "px": 114238,
-      "craftAll": 136013,
-      "yellow": 0,
+      "px": 61516,
+      "craftAll": 84025,
+      "yellow": 0.1,
       "darkYellow": 0,
       "other": 99.9,
-      "greyOrBlack": 76.5,
+      "greyOrBlack": 56.9,
+      "w": 800,
+      "h": 450
+     }
+    },
+    {
+     "cam": [
+      "noseL",
+      6,
+      3
+     ],
+     "tag": "after",
+     "file": "C:/Users/denis/AppData/Local/Temp/claude/D--Dev-DeGaRoR-github-io/b3479e2b-6a03-45d0-af42-4316285bb123/scratchpad/props_metal4/taxi_4_after.jpg",
+     "census": {
+      "px": 151964,
+      "craftAll": 193491,
+      "yellow": 0,
+      "darkYellow": 0.3,
+      "other": 99.7,
+      "greyOrBlack": 56.2,
+      "w": 800,
+      "h": 450
+     }
+    },
+    {
+     "cam": [
+      150,
+      8,
+      4.5
+     ],
+     "tag": "skin",
+     "file": "C:/Users/denis/AppData/Local/Temp/claude/D--Dev-DeGaRoR-github-io/b3479e2b-6a03-45d0-af42-4316285bb123/scratchpad/props_metal4/taxi_1_skin.jpg",
+     "census": {
+      "px": 114467,
+      "craftAll": 135676,
+      "yellow": 0.3,
+      "darkYellow": 0,
+      "other": 99.7,
+      "greyOrBlack": 80.8,
+      "w": 800,
+      "h": 450
+     }
+    },
+    {
+     "cam": [
+      215,
+      14,
+      6
+     ],
+     "tag": "skin",
+     "file": "C:/Users/denis/AppData/Local/Temp/claude/D--Dev-DeGaRoR-github-io/b3479e2b-6a03-45d0-af42-4316285bb123/scratchpad/props_metal4/taxi_2_skin.jpg",
+     "census": {
+      "px": 139744,
+      "craftAll": 147780,
+      "yellow": 0,
+      "darkYellow": 0,
+      "other": 100,
+      "greyOrBlack": 66.8,
+      "w": 800,
+      "h": 450
+     }
+    },
+    {
+     "cam": [
+      "nose",
+      10,
+      4.2
+     ],
+     "tag": "skin",
+     "file": "C:/Users/denis/AppData/Local/Temp/claude/D--Dev-DeGaRoR-github-io/b3479e2b-6a03-45d0-af42-4316285bb123/scratchpad/props_metal4/taxi_3_skin.jpg",
+     "census": {
+      "px": 61519,
+      "craftAll": 84325,
+      "yellow": 0.3,
+      "darkYellow": 0,
+      "other": 99.7,
+      "greyOrBlack": 56.6,
+      "w": 800,
+      "h": 450
+     }
+    },
+    {
+     "cam": [
+      "noseL",
+      6,
+      3
+     ],
+     "tag": "skin",
+     "file": "C:/Users/denis/AppData/Local/Temp/claude/D--Dev-DeGaRoR-github-io/b3479e2b-6a03-45d0-af42-4316285bb123/scratchpad/props_metal4/taxi_4_skin.jpg",
+     "census": {
+      "px": 151964,
+      "craftAll": 193473,
+      "yellow": 0.1,
+      "darkYellow": 0.2,
+      "other": 99.7,
+      "greyOrBlack": 55.8,
+      "w": 800,
+      "h": 450
+     }
+    },
+    {
+     "cam": [
+      150,
+      8,
+      4.5
+     ],
+     "tag": "before",
+     "file": "C:/Users/denis/AppData/Local/Temp/claude/D--Dev-DeGaRoR-github-io/b3479e2b-6a03-45d0-af42-4316285bb123/scratchpad/props_metal4/taxi_1_before.jpg",
+     "census": {
+      "px": 113432,
+      "craftAll": 135434,
+      "yellow": 1.7,
+      "darkYellow": 0,
+      "other": 98.3,
+      "greyOrBlack": 83.6,
       "w": 800,
       "h": 450
      }
@@ -106,14 +182,52 @@
       6
      ],
      "tag": "before",
-     "file": "C:/Users/denis/AppData/Local/Temp/claude/D--Dev-DeGaRoR-github-io/b3479e2b-6a03-45d0-af42-4316285bb123/scratchpad/props_metal/taxi_2_before.jpg",
+     "file": "C:/Users/denis/AppData/Local/Temp/claude/D--Dev-DeGaRoR-github-io/b3479e2b-6a03-45d0-af42-4316285bb123/scratchpad/props_metal4/taxi_2_before.jpg",
      "census": {
-      "px": 138290,
-      "craftAll": 145903,
+      "px": 144676,
+      "craftAll": 152664,
       "yellow": 0,
       "darkYellow": 0,
       "other": 100,
-      "greyOrBlack": 60.2,
+      "greyOrBlack": 71,
+      "w": 800,
+      "h": 450
+     }
+    },
+    {
+     "cam": [
+      "nose",
+      10,
+      4.2
+     ],
+     "tag": "before",
+     "file": "C:/Users/denis/AppData/Local/Temp/claude/D--Dev-DeGaRoR-github-io/b3479e2b-6a03-45d0-af42-4316285bb123/scratchpad/props_metal4/taxi_3_before.jpg",
+     "census": {
+      "px": 61144,
+      "craftAll": 85126,
+      "yellow": 0.3,
+      "darkYellow": 0,
+      "other": 99.7,
+      "greyOrBlack": 57.4,
+      "w": 800,
+      "h": 450
+     }
+    },
+    {
+     "cam": [
+      "noseL",
+      6,
+      3
+     ],
+     "tag": "before",
+     "file": "C:/Users/denis/AppData/Local/Temp/claude/D--Dev-DeGaRoR-github-io/b3479e2b-6a03-45d0-af42-4316285bb123/scratchpad/props_metal4/taxi_4_before.jpg",
+     "census": {
+      "px": 151433,
+      "craftAll": 193418,
+      "yellow": 0,
+      "darkYellow": 0.2,
+      "other": 99.7,
+      "greyOrBlack": 56.1,
       "w": 800,
       "h": 450
      }
@@ -127,16 +241,16 @@
       4.5
      ],
      "census": {
-      "px": 139882,
-      "craftAll": 184228,
-      "yellow": 0,
+      "px": 139541,
+      "craftAll": 183845,
+      "yellow": 0.6,
       "darkYellow": 0,
-      "other": 100,
-      "greyOrBlack": 78.5,
+      "other": 99.4,
+      "greyOrBlack": 81.2,
       "w": 800,
       "h": 450
      },
-     "file": "C:/Users/denis/AppData/Local/Temp/claude/D--Dev-DeGaRoR-github-io/b3479e2b-6a03-45d0-af42-4316285bb123/scratchpad/props_metal/taxi_1_intact.jpg"
+     "file": "C:/Users/denis/AppData/Local/Temp/claude/D--Dev-DeGaRoR-github-io/b3479e2b-6a03-45d0-af42-4316285bb123/scratchpad/props_metal4/taxi_1_intact.jpg"
     },
     {
      "cam": [
@@ -145,12 +259,48 @@
       6
      ],
      "census": {
-      "px": 122171,
-      "craftAll": 134753,
+      "px": 125162,
+      "craftAll": 137858,
       "yellow": 0,
       "darkYellow": 0,
       "other": 100,
-      "greyOrBlack": 53.8,
+      "greyOrBlack": 70.4,
+      "w": 800,
+      "h": 450
+     },
+     "file": null
+    },
+    {
+     "cam": [
+      "nose",
+      10,
+      4.2
+     ],
+     "census": {
+      "px": 72543,
+      "craftAll": 161394,
+      "yellow": 0.2,
+      "darkYellow": 0,
+      "other": 99.8,
+      "greyOrBlack": 55.8,
+      "w": 800,
+      "h": 450
+     },
+     "file": null
+    },
+    {
+     "cam": [
+      "noseL",
+      6,
+      3
+     ],
+     "census": {
+      "px": 154555,
+      "craftAll": 229216,
+      "yellow": 0.1,
+      "darkYellow": 0.3,
+      "other": 99.7,
+      "greyOrBlack": 57.7,
       "w": 800,
       "h": 450
      },
@@ -164,9 +314,9 @@
     "reason": "a wing member broke",
     "broken": 1,
     "brokeUp": false,
-    "frameMed": 33.5,
-    "frameP95": 76.5,
-    "frameMax": 103.7,
+    "frameMed": 30.9,
+    "frameP95": 70,
+    "frameMax": 100.2,
     "wreck": {
      "on": true,
      "active": true,
@@ -248,22 +398,23 @@
      "strikes": [
       {
        "eng": 0,
+       "drive": null,
        "what": "trunk",
        "material": "alu",
        "metal": true,
-       "rpm": 753,
+       "rpm": 744,
        "V": 2.79,
-       "E": 11860,
+       "E": 11662,
        "breaks": false,
        "cut": [
         0,
         0
        ],
        "curl": [
-        0.45,
-        0.4
+        0.38,
+        0.42
        ],
-       "dent": 0.019,
+       "dent": 0.018,
        "nb": 2,
        "R": 1.033
       }
@@ -275,29 +426,29 @@
       "d0": 0.112
      },
      "ms": {
-      "plan": 6.5,
+      "plan": 6.200000047683716,
       "release": 0,
-      "frame": 0.2999999523162842
+      "frame": 0.3999999761581421
      }
     },
     "skin": {
      "on": true,
      "recs": 104,
      "ms": {
-      "records": 30.399999618530273,
-      "event": 16.40000021457672,
-      "frames": 1.5999999046325684,
-      "pose": 37.60000002384186,
-      "recordsT": 110.59999907016754,
-      "eventT": 45.8000009059906,
-      "poseT": 1461.3999999761581,
-      "frameMax": 64.39999997615814,
-      "n": 53,
-      "last": 37.300000071525574,
+      "records": 34.39999985694885,
+      "event": 15.099999785423279,
+      "frames": 0.8999999761581421,
+      "pose": 35.200000047683716,
+      "recordsT": 113.19999980926514,
+      "eventT": 42.10000002384186,
+      "poseT": 1490.5000007152557,
+      "frameMax": 67.69999992847443,
+      "n": 56,
+      "last": 19.100000023841858,
       "lastRec": 0,
       "lastEv": 0,
       "lastFrames": 0.10000002384185791,
-      "lastPose": 37.200000047683716,
+      "lastPose": 19,
       "lastT": 6.033333333327728
      },
      "removed": 121,
@@ -310,553 +461,12 @@
     "skinTris": 85101,
     "furnitureOutside": {
      "sampled": 45234,
-     "past3cm": 600,
-     "share": 0.0133,
-     "worst": 0.526
+     "past3cm": 323,
+     "share": 0.0071,
+     "worst": 0.306
     },
     "debrisInside": {
      "sampled": 0,
-     "past3cm": 0,
-     "share": 0,
-     "worst": 0
-    }
-   }
-  },
-  "trunk-0": {
-   "label": "a trunk at 30 m/s, the centreline",
-   "shots": [
-    {
-     "cam": [
-      200,
-      22,
-      14
-     ],
-     "tag": "after",
-     "file": "C:/Users/denis/AppData/Local/Temp/claude/D--Dev-DeGaRoR-github-io/b3479e2b-6a03-45d0-af42-4316285bb123/scratchpad/props_metal/trunk-0_1_after.jpg",
-     "census": {
-      "px": 4547,
-      "craftAll": 4992,
-      "yellow": 0,
-      "darkYellow": 1.6,
-      "other": 98.4,
-      "greyOrBlack": 32.6,
-      "w": 800,
-      "h": 450
-     }
-    },
-    {
-     "cam": [
-      300,
-      45,
-      20
-     ],
-     "tag": "after",
-     "file": "C:/Users/denis/AppData/Local/Temp/claude/D--Dev-DeGaRoR-github-io/b3479e2b-6a03-45d0-af42-4316285bb123/scratchpad/props_metal/trunk-0_2_after.jpg",
-     "census": {
-      "px": 5190,
-      "craftAll": 5918,
-      "yellow": 0,
-      "darkYellow": 0.1,
-      "other": 99.9,
-      "greyOrBlack": 30.8,
-      "w": 800,
-      "h": 450
-     }
-    },
-    {
-     "cam": [
-      120,
-      12,
-      10
-     ],
-     "tag": "after",
-     "file": "C:/Users/denis/AppData/Local/Temp/claude/D--Dev-DeGaRoR-github-io/b3479e2b-6a03-45d0-af42-4316285bb123/scratchpad/props_metal/trunk-0_3_after.jpg",
-     "census": {
-      "px": 9536,
-      "craftAll": 10752,
-      "yellow": 0.1,
-      "darkYellow": 0.6,
-      "other": 99.4,
-      "greyOrBlack": 32,
-      "w": 800,
-      "h": 450
-     }
-    },
-    {
-     "cam": [
-      200,
-      22,
-      14
-     ],
-     "tag": "skin",
-     "file": "C:/Users/denis/AppData/Local/Temp/claude/D--Dev-DeGaRoR-github-io/b3479e2b-6a03-45d0-af42-4316285bb123/scratchpad/props_metal/trunk-0_1_skin.jpg",
-     "census": {
-      "px": 4897,
-      "craftAll": 7515,
-      "yellow": 0,
-      "darkYellow": 1.4,
-      "other": 98.6,
-      "greyOrBlack": 31.9,
-      "w": 800,
-      "h": 450
-     }
-    },
-    {
-     "cam": [
-      300,
-      45,
-      20
-     ],
-     "tag": "skin",
-     "file": "C:/Users/denis/AppData/Local/Temp/claude/D--Dev-DeGaRoR-github-io/b3479e2b-6a03-45d0-af42-4316285bb123/scratchpad/props_metal/trunk-0_2_skin.jpg",
-     "census": {
-      "px": 5562,
-      "craftAll": 6898,
-      "yellow": 0,
-      "darkYellow": 0.1,
-      "other": 99.9,
-      "greyOrBlack": 29,
-      "w": 800,
-      "h": 450
-     }
-    },
-    {
-     "cam": [
-      120,
-      12,
-      10
-     ],
-     "tag": "skin",
-     "file": "C:/Users/denis/AppData/Local/Temp/claude/D--Dev-DeGaRoR-github-io/b3479e2b-6a03-45d0-af42-4316285bb123/scratchpad/props_metal/trunk-0_3_skin.jpg",
-     "census": {
-      "px": 9565,
-      "craftAll": 13582,
-      "yellow": 0.1,
-      "darkYellow": 0.6,
-      "other": 99.4,
-      "greyOrBlack": 30.6,
-      "w": 800,
-      "h": 450
-     }
-    },
-    {
-     "cam": [
-      200,
-      22,
-      14
-     ],
-     "tag": "before",
-     "file": "C:/Users/denis/AppData/Local/Temp/claude/D--Dev-DeGaRoR-github-io/b3479e2b-6a03-45d0-af42-4316285bb123/scratchpad/props_metal/trunk-0_1_before.jpg",
-     "census": {
-      "px": 108187,
-      "craftAll": 207387,
-      "yellow": 0,
-      "darkYellow": 0.2,
-      "other": 99.8,
-      "greyOrBlack": 78.9,
-      "w": 800,
-      "h": 450
-     }
-    },
-    {
-     "cam": [
-      300,
-      45,
-      20
-     ],
-     "tag": "before",
-     "file": "C:/Users/denis/AppData/Local/Temp/claude/D--Dev-DeGaRoR-github-io/b3479e2b-6a03-45d0-af42-4316285bb123/scratchpad/props_metal/trunk-0_2_before.jpg",
-     "census": {
-      "px": 109021,
-      "craftAll": 156258,
-      "yellow": 0,
-      "darkYellow": 0.7,
-      "other": 99.3,
-      "greyOrBlack": 84.2,
-      "w": 800,
-      "h": 450
-     }
-    },
-    {
-     "cam": [
-      120,
-      12,
-      10
-     ],
-     "tag": "before",
-     "file": "C:/Users/denis/AppData/Local/Temp/claude/D--Dev-DeGaRoR-github-io/b3479e2b-6a03-45d0-af42-4316285bb123/scratchpad/props_metal/trunk-0_3_before.jpg",
-     "census": {
-      "px": 42164,
-      "craftAll": 222119,
-      "yellow": 0,
-      "darkYellow": 0,
-      "other": 100,
-      "greyOrBlack": 86,
-      "w": 800,
-      "h": 450
-     }
-    }
-   ],
-   "intact": [
-    {
-     "cam": [
-      200,
-      22,
-      14
-     ],
-     "census": {
-      "px": 22526,
-      "craftAll": 24187,
-      "yellow": 0,
-      "darkYellow": 0.1,
-      "other": 99.9,
-      "greyOrBlack": 21,
-      "w": 800,
-      "h": 450
-     },
-     "file": "C:/Users/denis/AppData/Local/Temp/claude/D--Dev-DeGaRoR-github-io/b3479e2b-6a03-45d0-af42-4316285bb123/scratchpad/props_metal/trunk-0_1_intact.jpg"
-    },
-    {
-     "cam": [
-      300,
-      45,
-      20
-     ],
-     "census": {
-      "px": 14312,
-      "craftAll": 15451,
-      "yellow": 0,
-      "darkYellow": 0,
-      "other": 100,
-      "greyOrBlack": 74,
-      "w": 800,
-      "h": 450
-     },
-     "file": null
-    },
-    {
-     "cam": [
-      120,
-      12,
-      10
-     ],
-     "census": {
-      "px": 22282,
-      "craftAll": 26864,
-      "yellow": 0.1,
-      "darkYellow": 0.1,
-      "other": 99.8,
-      "greyOrBlack": 55.3,
-      "w": 800,
-      "h": 450
-     },
-     "file": null
-    }
-   ],
-   "stage": {
-    "steps": 1356,
-    "crashed": true,
-    "over": true,
-    "reason": "broke up: the fuselage parted (S0BR off the core)",
-    "broken": 170,
-    "brokeUp": true,
-    "frameMed": 57.3,
-    "frameP95": 79.6,
-    "frameMax": 170.4,
-    "wreck": {
-     "on": true,
-     "active": true,
-     "parts": [
-      {
-       "kind": "eng",
-       "gone": true,
-       "why": "loose",
-       "crush": null
-      },
-      {
-       "kind": "spinner",
-       "gone": true,
-       "why": "crushed",
-       "crush": 0.159
-      },
-      {
-       "kind": "cowl",
-       "gone": true,
-       "why": "crushed",
-       "crush": 0.236
-      },
-      {
-       "kind": "cowl",
-       "gone": true,
-       "why": "crushed",
-       "crush": 0.236
-      },
-      {
-       "kind": "wheel",
-       "gone": true,
-       "why": "off",
-       "crush": 0
-      },
-      {
-       "kind": "wheel",
-       "gone": true,
-       "why": "off",
-       "crush": 0
-      },
-      {
-       "kind": "wheel",
-       "gone": true,
-       "why": "off",
-       "crush": null
-      },
-      {
-       "kind": "pane",
-       "gone": true,
-       "why": "crushed",
-       "crush": 0.2
-      },
-      {
-       "kind": "pane",
-       "gone": true,
-       "why": "crushed",
-       "crush": 0.2
-      },
-      {
-       "kind": "pane",
-       "gone": true,
-       "why": "crushed",
-       "crush": 0.2
-      },
-      {
-       "kind": "pane",
-       "gone": true,
-       "why": "crushed",
-       "crush": 0.2
-      },
-      {
-       "kind": "pane",
-       "gone": true,
-       "why": "crushed",
-       "crush": 0.2
-      }
-     ],
-     "bodies": [
-      {
-       "kind": "eng",
-       "why": "loose",
-       "asleep": true,
-       "sunk": false,
-       "x": [
-        -469.2,
-        32.77,
-        79.56
-       ],
-       "tris": 59240
-      },
-      {
-       "kind": "spinner",
-       "why": "crushed",
-       "asleep": true,
-       "sunk": false,
-       "x": [
-        -139.89,
-        99.75,
-        422.56
-       ],
-       "tris": 1520
-      },
-      {
-       "kind": "cowl",
-       "why": "crushed",
-       "asleep": true,
-       "sunk": false,
-       "x": [
-        -487.34,
-        32.92,
-        57.89
-       ],
-       "tris": 5635
-      },
-      {
-       "kind": "cowl",
-       "why": "crushed",
-       "asleep": true,
-       "sunk": false,
-       "x": [
-        -488.31,
-        33.21,
-        57.82
-       ],
-       "tris": 7832
-      },
-      {
-       "kind": "wheel",
-       "why": "off",
-       "asleep": true,
-       "sunk": false,
-       "x": [
-        -487.54,
-        32.94,
-        52.09
-       ],
-       "tris": 13704
-      },
-      {
-       "kind": "wheel",
-       "why": "off",
-       "asleep": true,
-       "sunk": false,
-       "x": [
-        -490.22,
-        32.98,
-        56.95
-       ],
-       "tris": 12410
-      },
-      {
-       "kind": "wheel",
-       "why": "off",
-       "asleep": true,
-       "sunk": false,
-       "x": [
-        -482.49,
-        33.01,
-        61.5
-       ],
-       "tris": 12410
-      },
-      {
-       "kind": "pane",
-       "why": "crushed",
-       "asleep": true,
-       "sunk": false,
-       "x": [
-        -477.82,
-        32.78,
-        70.9
-       ],
-       "tris": 54
-      },
-      {
-       "kind": "pane",
-       "why": "crushed",
-       "asleep": true,
-       "sunk": false,
-       "x": [
-        -479.94,
-        32.72,
-        71.25
-       ],
-       "tris": 54
-      },
-      {
-       "kind": "pane",
-       "why": "crushed",
-       "asleep": true,
-       "sunk": false,
-       "x": [
-        -484.33,
-        32.76,
-        62.16
-       ],
-       "tris": 46
-      },
-      {
-       "kind": "pane",
-       "why": "crushed",
-       "asleep": true,
-       "sunk": false,
-       "x": [
-        -488.03,
-        32.74,
-        64.07
-       ],
-       "tris": 36
-      },
-      {
-       "kind": "pane",
-       "why": "crushed",
-       "asleep": true,
-       "sunk": false,
-       "x": [
-        -490.1,
-        32.99,
-        56.48
-       ],
-       "tris": 88
-      }
-     ],
-     "strikes": [
-      {
-       "eng": 0,
-       "what": "trunk",
-       "material": "alu",
-       "metal": true,
-       "rpm": 508,
-       "V": 29.9,
-       "E": 400551,
-       "breaks": false,
-       "cut": [
-        0,
-        0
-       ],
-       "curl": [
-        1.03,
-        1.04
-       ],
-       "dent": 0.06,
-       "nb": 2,
-       "R": 1.033
-      }
-     ],
-     "eyeCut": null,
-     "eye": null,
-     "cab": {
-      "bay": 0,
-      "d0": 0.112
-     },
-     "ms": {
-      "plan": 3.5,
-      "release": 26.399999976158142,
-      "frame": 0.3999999761581421
-     }
-    },
-    "skin": {
-     "on": true,
-     "recs": 104,
-     "ms": {
-      "records": 30.399999618530273,
-      "event": 30.49999988079071,
-      "frames": 1.5999999046325684,
-      "pose": 44.59999990463257,
-      "recordsT": 119.29999911785126,
-      "eventT": 435.0000002384186,
-      "poseT": 12576.5,
-      "frameMax": 64.39999997615814,
-      "n": 493,
-      "last": 34,
-      "lastRec": 0,
-      "lastEv": 0,
-      "lastFrames": 0.09999990463256836,
-      "lastPose": 33.90000009536743,
-      "lastT": 22.39999999995485
-     },
-     "removed": 34822,
-     "torn": 7517,
-     "tris": 216928,
-     "riding": 650784
-    }
-   },
-   "clip": {
-    "skinTris": 63508,
-    "furnitureOutside": {
-     "sampled": 33411,
-     "past3cm": 1118,
-     "share": 0.0335,
-     "worst": 0.546
-    },
-    "debrisInside": {
-     "sampled": 36032,
      "past3cm": 0,
      "share": 0,
      "worst": 0
@@ -868,8 +478,8 @@
   "skinTris": 85152,
   "furnitureOutside": {
    "sampled": 45234,
-   "past3cm": 401,
-   "share": 0.0089,
+   "past3cm": 375,
+   "share": 0.0083,
    "worst": 0.306
   },
   "debrisInside": {
