@@ -147,6 +147,8 @@ function surfHinges(S, objects) {
     const wRec = WGs.find(w => w.name === surf);
     hinges[surf] = { pivot: toCage(h.pivot), axis: V3.nrm(toCage(h.axis)), drive: h.drive, sgn: h.sgn,
                      drive2: h.drive2, sgn2: h.sgn2, k, hingeFrom: h.hingeFrom,
+                     // B22 (REVIEW 2026-10-04): the ruddervator's second drive at the RUDDER's travel, as the join writes it
+                     k2: h.drive2 === 'dr' && travel ? travel('rudder') : k,
                      slide: wRec && wRec.slide ? wRec.slide : null };
   }
   return hinges;
@@ -159,7 +161,7 @@ function surfDelta(o, H, u) {
   const h = H[o.surf];
   if (!h) return null;
   let ang = h.sgn * h.k * (u[h.drive] || 0);
-  if (h.drive2) ang += h.sgn2 * h.k * (u[h.drive2] || 0);
+  if (h.drive2) ang += h.sgn2 * (h.k2 == null ? h.k : h.k2) * (u[h.drive2] || 0);
   const sl = h.slide && u.flap > 0 ? V3.mul(h.slide, u.flap) : null;
   if (Math.abs(ang) < 1e-9 && !sl) return null;
   const out = new Float64Array(o.base.length);

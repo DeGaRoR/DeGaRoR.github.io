@@ -1,0 +1,101 @@
+GATE FRAMECOST, three runs on this cloud box (node census, tools/_framecost_check.js), 2026-10-04:
+  A train 30 (44b7a381) as is:                         GATE FRAMECOST: PASS
+  B train 30 + ONE COMMENT in render_world.js (control): GATE FRAMECOST: FAIL (24)  - the parked cook stale (parked_cook --check: STALE)
+  C this branch (G1545):                                 GATE FRAMECOST: FAIL (24)  - the same 24 reds as B
+
+B's reds:
+  FAIL cub stand/bytes.uniforms rose 205152 -> 421112 (tolerance 1 % / 2; admit with an ALLOW entry: reason + G-number)
+  FAIL cub stand/draws.main rose 914 -> 1047 (tolerance 1 % / 2; admit with an ALLOW entry: reason + G-number)
+  FAIL cub stand/draws.shadow rose 169.5 -> 260.5 (tolerance 1 % / 2; admit with an ALLOW entry: reason + G-number)
+  FAIL cub stand/gl.calls rose 7803.5 -> 11364 (tolerance 1 % / 2; admit with an ALLOW entry: reason + G-number)
+  FAIL cub stand/gl.uniform4f rose 6 -> 224 (tolerance 1 % / 2; admit with an ALLOW entry: reason + G-number)
+  FAIL cub stand/gl.uniform4fv rose 741 -> 2778 (tolerance 1 % / 2; admit with an ALLOW entry: reason + G-number)
+  FAIL cub stand/gl.uniformMatrix4fv rose 1454 -> 1602.5 (tolerance 1 % / 2; admit with an ALLOW entry: reason + G-number)
+  FAIL cub taxi/draws.main rose 844 -> 965 (tolerance 1 % / 2; admit with an ALLOW entry: reason + G-number)
+  FAIL cub taxi/draws.shadow rose 100.5 -> 135.5 (tolerance 1 % / 2; admit with an ALLOW entry: reason + G-number)
+  FAIL cub taxi/gl.uniform2f rose 45 -> 143 (tolerance 1 % / 2; admit with an ALLOW entry: reason + G-number)
+  FAIL cub taxi/tris.main rose 13043865 -> 13278137 (tolerance 1 % / 2; admit with an ALLOW entry: reason + G-number)
+  FAIL cub boot/garage:landing/bytes.bufferData rose 0 -> 768
+  FAIL cessna stand/bytes.uniforms rose 208782 -> 424636 (tolerance 1 % / 2; admit with an ALLOW entry: reason + G-number)
+  FAIL cessna stand/draws.main rose 925 -> 1058 (tolerance 1 % / 2; admit with an ALLOW entry: reason + G-number)
+  FAIL cessna stand/draws.shadow rose 176.5 -> 260.5 (tolerance 1 % / 2; admit with an ALLOW entry: reason + G-number)
+  FAIL cessna stand/gl.calls rose 7929 -> 11470 (tolerance 1 % / 2; admit with an ALLOW entry: reason + G-number)
+  FAIL cessna stand/gl.uniform4f rose 12 -> 230 (tolerance 1 % / 2; admit with an ALLOW entry: reason + G-number)
+  FAIL cessna stand/gl.uniform4fv rose 753 -> 2790 (tolerance 1 % / 2; admit with an ALLOW entry: reason + G-number)
+  FAIL cessna stand/gl.uniformMatrix4fv rose 1483 -> 1630.5 (tolerance 1 % / 2; admit with an ALLOW entry: reason + G-number)
+  FAIL cessna taxi/draws.main rose 854 -> 974 (tolerance 1 % / 2; admit with an ALLOW entry: reason + G-number)
+  FAIL cessna taxi/draws.shadow rose 106.5 -> 135.5 (tolerance 1 % / 2; admit with an ALLOW entry: reason + G-number)
+  FAIL cessna taxi/gl.uniform2f rose 51 -> 147 (tolerance 1 % / 2; admit with an ALLOW entry: reason + G-number)
+  FAIL cessna taxi/tris.main rose 13164382 -> 13396191 (tolerance 1 % / 2; admit with an ALLOW entry: reason + G-number)
+  FAIL cessna boot/garage:landing/bytes.bufferData rose 0 -> 768
+
+node tools/_framecost_check.js --compare B.json C.json  (every counter that moved between the control and this branch):
+  cub stand (a -> b, what moved)
+  cub taxi (a -> b, what moved)
+  cub boot (a -> b, what moved)
+  cessna stand (a -> b, what moved)
+  cessna taxi (a -> b, what moved)
+  cessna boot (a -> b, what moved)
+(no counter listed under any 'what moved' heading: the day frame and every boot step identical)
+
+node tools/_framecost_check.js --compare A.json C.json (train 30 as is vs this branch: the stale cook's live capture):
+  cub stand (a -> b, what moved)
+    stand/bytes.uniforms                             196280     421112  RED
+    stand/draws.main                                    908       1047  RED
+    stand/draws.shadow                                  106      260.5  RED
+    stand/draws.total                                  1029     1344.5  RED
+    stand/gl.bindTexture                                803      935.5  RED
+    stand/gl.bindVertexArray                          948.5     1264.5  RED
+    stand/gl.calls                                     7424      11364  RED
+    stand/gl.uniform1f                                  327        647  RED
+    stand/gl.uniform2f                                   49        168  RED
+    stand/gl.uniform3f                                   68        170  RED
+    stand/gl.uniform4f                                    6        224  RED
+    stand/gl.uniform4fv                                 732       2778  RED
+    stand/gl.uniformMatrix3fv                           353        369  RED
+    stand/gl.uniformMatrix4fv                        1377.5     1602.5  RED
+    stand/gl.useProgram                                 211      254.5  RED
+    stand/programs                                     95.5        102  RED
+    stand/three.frustumTests                           1289     1782.5  RED
+  cub taxi (a -> b, what moved)
+    taxi/bytes.uniforms                              180776     376810  RED
+    taxi/draws.main                                     838        965  RED
+    taxi/draws.shadow                                  74.5      135.5  RED
+    taxi/draws.total                                  928.5     1138.5  RED
+    taxi/gl.bindTexture                               765.5        895  RED
+    taxi/gl.bindVertexArray                           854.5     1064.5  RED
+    taxi/gl.calls                                    7140.5    10478.5  RED
+    taxi/gl.uniform1f                                   257        550  RED
+    taxi/gl.uniform2f                                    45        143  RED
+    taxi/gl.uniform3f                                    56        142  RED
+    taxi/gl.uniform4f                                     6        202  RED
+    taxi/gl.uniform4fv                                  617       2419  RED
+    taxi/gl.uniformMatrix4fv                         1367.5     1539.5  RED
+    taxi/gl.useProgram                                158.5        201  RED
+    taxi/programs                                        80         88  RED
+    taxi/three.frustumTests                          1274.5     1653.5  RED
+    taxi/tris.shadow                                1280696  1431863.5  RED
+  cub boot (a -> b, what moved)
+    boot/garage:frames/bytes.bufferData           296226869  363455460  RED
+    boot/garage:frames/bytes.uniforms                939140    2074080  RED
+    boot/garage:frames/draws.total                     4565       6230  RED
+    boot/garage:frames/gl.calls                       83820     112097  RED
+    boot/garage:frames/three.frustumTests              7954      10885  RED
+    boot/garage:landing/bytes.bufferData                  0        768  RED
+    boot/garage:landing/three.updateMatrixWorld        9933      10710  RED
+    boot/garage:parked/io.c2d.drawImage                   0         53  RED
+    boot/garage:parked/io.c2d.getImageData                0         16  RED
+    boot/garage:parked/io.c2d.putImageData                0         16  RED
+    boot/garage:parked/io.c2d.readBytes                   0   67108864  RED
+    boot/garage:parked/io.imgBytes                        0      22326  RED
+    boot/garage:parked/three.updateMatrixWorld            0      67684  RED
+    boot/garage:snapshot/bytes.bufferData              9504   97471344  RED
+    boot/garage:snapshot/bytes.uniforms                 440    2584380  RED
+    boot/garage:snapshot/draws.total                     21       1893  RED
+    boot/garage:snapshot/gl.calls                      1381      64570  RED
+    boot/garage:snapshot/gl.texImage2D                    3          6  RED
+    boot/garage:snapshot/links                           84        106  RED
+    boot/garage:snapshot/three.updateMatrixWorld      23325      25233  RED
+  cessna stand (a -> b, what moved)
+    stand/bytes.uniforms                             199804     424636  RED
+    stand/draws.main                                    919       1058  RED

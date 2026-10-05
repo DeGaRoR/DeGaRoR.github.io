@@ -345,7 +345,8 @@
       }
       I.list = Int32Array.from(list);
       // a vertex the wall posed that it no longer poses is back at its rest (G1851's own pose rewrites it if it rides)
-      for (let v = 0; v < nv; v++) if (was[v] && !on[v]) for (let k = 0; k < 3; k++) I.pos[v * 3 + k] = b[v * 3 + k] - (of ? of[k] : 0);
+      // (in the page's world contract G1851 rides every vertex again from its record's next event: nothing to put back)
+      if (!I.vis) for (let v = 0; v < nv; v++) if (was[v] && !on[v]) for (let k = 0; k < 3; k++) I.pos[v * 3 + k] = b[v * 3 + k] - (of ? of[k] : 0);
       // ...and the vertices it poses are the wall's alone: off G1851's per-frame ride and drape (its record's own event
       // set them a moment ago; the next event sets them again and this clears them again). Else poseCage would write
       // them back onto their own nodes on every frame the wall does not re-pose them
@@ -399,6 +400,19 @@
     return ch;
   }
 
+  // one welded position written: every copy in the group's array (`pos`, the frame the wall works in - the page's world,
+  // R.w) and, when the page hands this frame's basis (W.vis: { Mi, cg, o }) and the group its drawn array (I.vis: { arr,
+  // off }), the drawn copy too: Mi (x - cg) - o - off (skin_break.js poseCage's own map back)
+  function put(W, I, v, X, Y, Z, pin) {
+    const pos = I.pos, cp = I.cp, V = W.vis, D = I.vis;
+    let ax = 0, ay = 0, az = 0;
+    if (V && D) { const Mi = V.Mi, dx = X - V.cg[0], dy = Y - V.cg[1], dz = Z - V.cg[2], of = D.off;
+      ax = Mi[0] * dx + Mi[1] * dy + Mi[2] * dz - V.o[0] - (of ? of[0] : 0); ay = Mi[3] * dx + Mi[4] * dy + Mi[5] * dz - V.o[1] - (of ? of[1] : 0); az = Mi[6] * dx + Mi[7] * dy + Mi[8] * dz - V.o[2] - (of ? of[2] : 0); }
+    for (let k = I.cpOff[v]; k < I.cpOff[v + 1]; k++) { const u = cp[k];
+      pos[u * 3] = X; pos[u * 3 + 1] = Y; pos[u * 3 + 2] = Z;
+      if (V && D) { D.arr[u * 3] = ax; D.arr[u * 3 + 1] = ay; D.arr[u * 3 + 2] = az; }
+      if (pin != null) I.pinched[u] = pin; }
+  }
   // ---- PER FRAME (after the covering's own pose and tear): the inside vertices on the wall, and the triangles of
   // both layers again where the covering tore this frame. Returns the inside groups whose index changed ----
   function pose(W) {
@@ -464,8 +478,7 @@
             if (L > 1e-12 && (nx * _f[3] + ny * _f[4] + nz * _f[5]) > 0.5 * L) { nx /= L; ny /= L; nz /= L;   // (a face turned against its vertex normals is no guide)
               const df = sg * ((X - P[a * 3]) * nx + (Y - P[a * 3 + 1]) * ny + (Z - P[a * 3 + 2]) * nz);
               if (df < tgt - 1e-9) { const pu = sg * (tgt - df); X += nx * pu; Y += ny * pu; Z += nz * pu; pinched = 1; } } } }
-        X -= ox; Y -= oy; Z -= oz;
-        for (let k = cpOff[v]; k < cpOff[v + 1]; k++) { const u = cp[k]; pos[u * 3] = X; pos[u * 3 + 1] = Y; pos[u * 3 + 2] = Z; pin[u] = pinched; }
+        put(W, I, v, X - ox, Y - oy, Z - oz, pinched);
         // foreign covering within reach, or the covering crumpling: the pinch (below) asks the live covering round it
         if (fn < CRUMPLE * Math.min(W.F0[a], W.F0[b], W.F0[c]) || (I.fo && I.fo[v] === 1 && foreignMoved(W, I, v, X + ox, Y + oy, Z + oz))) pinchQ.push(I, v, 2);
       }
@@ -612,8 +625,7 @@
         }
         if (bo < 0) break;
         const push = PINCH_IN - dep;
-        const X = pos[v * 3] + s * nx * push, Y = pos[v * 3 + 1] + s * ny * push, Z = pos[v * 3 + 2] + s * nz * push;
-        for (let k = I.cpOff[v]; k < I.cpOff[v + 1]; k++) { const u = I.cp[k]; pos[u * 3] = X; pos[u * 3 + 1] = Y; pos[u * 3 + 2] = Z; I.pinched[u] = 1; }
+        put(W, I, v, pos[v * 3] + s * nx * push, pos[v * 3 + 1] + s * ny * push, pos[v * 3 + 2] + s * nz * push, 1);
         if (it === 0) n++;
       }
     }

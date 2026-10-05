@@ -1,0 +1,83 @@
+{
+ "sides": [
+  {
+   "meshes": 1,
+   "glows": 1,
+   "inst": 44,
+   "tris": 10560
+  },
+  {
+   "meshes": 1,
+   "glows": 1,
+   "inst": 44,
+   "tris": 10560
+  }
+ ],
+ "shots": {
+  "night_1km": {
+   "file": "reports/evidence/RUNWAY-LIGHTS-2/night_1km.jpg",
+   "kb": 20,
+   "q": 85
+  },
+  "night_300m": {
+   "file": "reports/evidence/RUNWAY-LIGHTS-2/night_300m.jpg",
+   "kb": 20,
+   "q": 85
+  },
+  "night_side": {
+   "file": "reports/evidence/RUNWAY-LIGHTS-2/night_side.jpg",
+   "kb": 19,
+   "q": 85
+  },
+  "night_behind": {
+   "file": "reports/evidence/RUNWAY-LIGHTS-2/night_behind.jpg",
+   "kb": 21,
+   "q": 85
+  },
+  "night_above": {
+   "file": "reports/evidence/RUNWAY-LIGHTS-2/night_above.jpg",
+   "kb": 20,
+   "q": 85
+  },
+  "night_downwind": {
+   "file": "reports/evidence/RUNWAY-LIGHTS-2/night_downwind.jpg",
+   "kb": 20,
+   "q": 85
+  },
+  "night_turn": {
+   "file": "reports/evidence/RUNWAY-LIGHTS-2/night_turn.jpg",
+   "kb": 20,
+   "q": 85
+  },
+  "night_colour": {
+   "file": "reports/evidence/RUNWAY-LIGHTS-2/night_colour.jpg",
+   "kb": 26,
+   "q": 85
+  },
+  "night_stand": {
+   "file": "reports/evidence/RUNWAY-LIGHTS-2/night_stand.jpg",
+   "kb": 19,
+   "q": 85
+  },
+  "night_taxi": {
+   "file": "reports/evidence/RUNWAY-LIGHTS-2/night_taxi.jpg",
+   "kb": 21,
+   "q": 85
+  },
+  "day_close": {
+   "file": "reports/evidence/RUNWAY-LIGHTS-2/day_close.jpg",
+   "kb": 30,
+   "q": 85
+  },
+  "day_taxiway": {
+   "file": "reports/evidence/RUNWAY-LIGHTS-2/day_taxiway.jpg",
+   "kb": 27,
+   "q": 85
+  },
+  "day_flush": {
+   "file": "reports/evidence/RUNWAY-LIGHTS-2/day_flush.jpg",
+   "kb": 26,
+   "q": 85
+  }
+ }
+}

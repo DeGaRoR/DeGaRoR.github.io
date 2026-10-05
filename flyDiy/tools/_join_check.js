@@ -105,8 +105,10 @@ ok(s.wings[0].crankChord === null && s.wings[0].crankX === null,
      'crank chord + seat pass when the crank is on');
 }
 ok(s.bracing.type === 'strut', 'bracing maps');
-ok(s.bracing.cabane === undefined && s.wings[0].cabaneH === null,
-   'G185: no cabane key and a null cabane height off a high wing');
+// SPEC-FIXPOINT (A3): the cabane row is STATED - its default 'N' off a high
+// wing (absent was kept for ever by the garage's merge once it had been 'V')
+ok(s.bracing.cabane === 'N' && s.wings[0].cabaneH === null,
+   'G185: the default cabane (N, stated) and a null cabane height off a high wing');
 {
   // G185: the parasol writes its position, its cabane height and the cabane
   // style; the aileron switch off writes a span of 0
@@ -118,8 +120,10 @@ ok(s.bracing.cabane === undefined && s.wings[0].cabaneH === null,
   ok(sp.controls.aileron.span === 0, 'G185: ailerons off -> span 0');
   // the second plane: two entries, its own fields, and the truss keys — and
   // NONE of them when the switch is off
-  ok(s.wings.length === 1 && s.bracing.interplane === undefined,
-     'G185: one plane and no truss keys with w2On off');
+  // SPEC-FIXPOINT (A3): the truss rows are STATED at their defaults
+  ok(s.wings.length === 1 && s.bracing.interplane === 'none' &&
+     s.bracing.interplaneAt === 0.62 && s.bracing.wires === 'both',
+     'G185: one plane and the truss rows at their defaults (stated) with w2On off');
   const Pb = Object.assign({}, P, { w2On: 1, w2Pos: 2, w2Stagger: 0.41, w2Span: 8.7, w2Chord: 1.31,
     w2ChordTip: 1.31, w2Camber: 2, w2Thick: 12, w2Panels: 3, w2Tip: T.TIP_KEYS.indexOf('rounded'),
     w2CrankAt: 0, w2Centre: 0, w2Dy: -0.05, w2AilOn: 0, w2AilSpan: 0.3, w2AilChord: 0.2,
@@ -391,7 +395,23 @@ try {
 // covered — and the covered build's own numbers are the ones it always had
 // (the delta rule, as the gear's).
 try {
-  ok(s.fuselage.covering === undefined, 'default skinOn writes no covering');
+  // SPEC-FIXPOINT (A3; the review: this line codified the bug): a P WITHOUT
+  // the key says nothing, and the row ON is stated as 'skin' - both states
+  // are values, so the garage's merge can bring an open frame home
+  ok(s.fuselage.covering === undefined, 'a P without skinOn writes no covering');
+  ok(cageJoinSpec(Object.assign({}, P, { skinOn: 1 }), M, T).fuselage.covering === 'skin',
+     'skinOn 1 -> fuselage.covering skin (stated)');
+  ok(cageJoinSpec(Object.assign({}, P, { glazeOn: 1 }), M, T).cabin.glazing === 'glass' &&
+     cageJoinSpec(Object.assign({}, P, { glazeOn: 0 }), M, T).cabin.glazing === 'none',
+     'glazeOn 1 / 0 -> cabin.glazing glass / none (both stated)');
+  {
+    const s0 = cageJoinSpec(Object.assign({}, P, { wgCons: 0, finCons: 0, stCons: 0 }), M, T);
+    const s1 = cageJoinSpec(Object.assign({}, P, { wgCons: 1, finCons: 2, stCons: 3 }), M, T);
+    ok(s0.wings[0].material === null && s1.wings[0].material === 'carbon',
+       'wgCons 0 / 1 -> wings[0].material null / carbon (both stated)');
+    ok(!s0.tail || (s0.tail.finMaterial === null && s0.tail.stabMaterial === null),
+       'finCons / stCons 0 -> the tail materials null (stated)');
+  }
   const sO = cageJoinSpec(Object.assign({}, P, { skinOn: 0 }), M, T);
   ok(sO.fuselage.covering === 'open', 'skinOn 0 -> fuselage.covering open');
   const RO = resolveSpec(JSON.parse(JSON.stringify(sO))).spec;

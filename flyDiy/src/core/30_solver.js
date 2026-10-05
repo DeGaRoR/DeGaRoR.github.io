@@ -626,7 +626,8 @@ function makeSim(def, world) {
     const m = K.m, kap = K.kappa, cap = (x, ph) => Math.min(Math.max(x, kap * ph), ph);
     for (let bi = 0; bi < nb; bi++) {
       const b = beams[bi], fyP = PHY[bi * 4], fuP = PHY[bi * 4 + 1], fcP = PHY[bi * 4 + 2];
-      if (!(fyP < Infinity) || b.cls === 'gear') continue;
+      if (!(fyP < Infinity) || CERT_ENG[bi]) continue;
+      if (b.cls === 'gear') { if (CERT_GEAR[bi] && K.leg) gearStamp(bi, b, Cc.Ft[bi], Cc.Fc[bi], m, K); continue; }
       const Ft = Cc.Ft[bi], Fc = Cc.Fc[bi], fit = !!b.seam;   // a joint: a fitting, a rivet line, a glue line, an opening (§7.2)
       const brittle = fit || !(b.etu > 0);
       const scat = b.rgN && PHY[bi * 4 + 3] > 0 ? Math.max(1, fyP / PHY[bi * 4 + 3]) : 1;
@@ -639,6 +640,57 @@ function makeSim(def, world) {
     }
     CERT = Cc;
     return true;
+  }
+  // G1835 (DMG-D2b): THE GEAR BRACKET (DEFORM §7.3). The gear is calibrated by the gear's own cases (66_gen_cert: the
+  // drop at the limit sink in the attitudes 23.479-23.483 ask for, the side, braked, tailwheel and nosewheel loads,
+  // the taxi over the roughest ground, the water loads), not by the flight's. Every gear member that is a JOINT (D1a's
+  // fittings: the members from the axle, the tailwheel, the nosewheel or a float to the body - in the lattice ALL of
+  // them carry the gear's load together: the near-vertical snap-blocker and the braces take a landing's push, the
+  // cross wires a side load; the member drawn as the spring carries no more than they do) and every pair's own link
+  // (the axle bar, the floats' spreaders) is stamped from its envelope F_l, both ways:
+  //   IN COMPRESSION the gear GIVES (a wheel's leg, its braces, the nose fork): no set to the limit - it yields where a
+  //     section sized for the ultimate yields, 1.5 F_l,c x the steel's ty / tu (GEN_CERT.leg.yUlt: 1.18 for 4130), the
+  //     gear on every aeroplane being steel, an oleo or a bungee's steel vee - then it crushes at that load over its
+  //     archetype's TRAVEL (GEN_CERT.leg: a spring-steel leg spreads a long way, an oleo bottoms and bends, a bungee's
+  //     lug hardly gives) and past it kinks - its group lets go, the gear is off;
+  //     a float's struts and spreaders are a truss with no spring: they crush at the ultimate (D2a's rule);
+  //   IN TENSION it is the LUG: brittle at the joint's ultimate, 1.5 F_l,t m (dm13) - a side load past 23.485's (the
+  //     ground loop), a float's bow digging in, pull a fitting apart;
+  //   the floor is a share of the aeroplane's weight (GEN_CERT.leg.floorW: every gear joint holds at least that at its
+  //     limit), NOT D1a's kappa x its physics: a gear member's billed tube (137-214 kN on the metal Cessna) is the
+  //     gear class's stand-in, ten times what its gear carries, and its floor kept the gear from ever giving.
+  // A float's own hull truss (inside its rigid cluster: the shell, D3's part) keeps D1a's physics.
+  // THE ENGINE'S OWN BODY (G1836, dm14): a member with both ends on one engine's nodes (ENG / CGE: the propeller's
+  // flange pair, the CG locators between the flange and the engine's centre of mass) is the crankcase, not the mount:
+  // no certified case loads it (the static cases never; the dynamic ones only as the engine rings on its mount), so
+  // its certified yield sat on that ringing - the Cessna on floats' circuit read 0.98 of it after its water
+  // touchdown. It keeps its physics; the MOUNT (the bearer and its bolts to the firewall, D1a's fittings) is what the
+  // certificate stamps and what lets go.
+  const CERT_GEAR = new Uint8Array(nb), CERT_ENG = new Uint8Array(nb), CERT_FLT = new Uint8Array(nb);
+  let CERT_NOSE = -1, CERT_ARCH = 'bungee', CERT_W = 0;
+  if (PHY) {
+    for (const G of DGR) for (const j of G.t1) CERT_GEAR[j] = 1;
+    const isEng = i => /^(ENG|CGE)/.test(def.nodes[i].tag || ''), isFlt = i => /^FL[KD]/.test(def.nodes[i].tag || '');
+    for (let bi = 0; bi < nb; bi++) { const b = beams[bi];
+      if (b.cls === 'gear' && b.seam) CERT_GEAR[bi] = 1;
+      if (b.cls !== 'gear') CERT_GEAR[bi] = 0;
+      if (CERT_GEAR[bi] && (isFlt(b.a) || isFlt(b.b))) CERT_FLT[bi] = 1;
+      if (isEng(b.a) && isEng(b.b)) CERT_ENG[bi] = 1; }
+    const R = def.refs || {}, tw = R.tw != null && R.tw >= 0 ? R.tw : -1, Mn = R.mains || [];
+    const xm = Mn.length ? Mn.reduce((a, i) => a + def.nodes[i].p[0], 0) / Mn.length : 0;
+    if (tw >= 0 && def.nodes[tw].p[0] < xm) CERT_NOSE = tw;
+    CERT_ARCH = (def.spec && def.spec.gear && def.spec.gear.suspension) || 'bungee';
+    for (const nd of def.nodes) CERT_W += nd.m * 9.81;
+  }
+  function gearStamp(bi, b, Ft, Fc, m, K) {
+    const G = K.leg, Fw = G.floorW * CERT_W, ft = Math.max(Ft, Fw), fc = Math.max(Fc, Fw);
+    const A = CERT_NOSE >= 0 && (b.a === CERT_NOSE || b.b === CERT_NOSE) ? G.nose : (G[CERT_ARCH] || G.bungee);
+    b.fu = 1.5 * m * ft * K.uFit; b.fy0 = b.fu; b.etu = 0;
+    if (!b.tens) {
+      if (CERT_FLT[bi]) b.fc0 = 1.5 * m * fc * K.uMember;
+      else { b.fc0 = fc * Math.max(G.yTol, G.yUlt); b.ecu = A.travel; }
+    }
+    b.fyM = b.fy0; FY[bi] = b.fy0; FC[bi] = b.fc0;
   }
   let CERT = null, peakOn = false;
   if (PHY && def.cert) certStamp(def.cert);
@@ -1121,6 +1173,12 @@ function makeSim(def, world) {
   // Under all three a set is a DENT (DMG.dented): the aeroplane taxies on, bent. A prop strike stops its engine and is
   // not a crash on its own (a nose-over on the ground is a crash only if it breaks something).
   const CRASH_G = 9, CRASH_J = 1500;
+  // G1835 (DMG-D2b): the AIRFRAME's plastic work - the gear's is its energy absorber doing its job (§7.3: a spring-steel
+  // leg spreads, an oleo bottoms; a gear joint's crush past its limit is its bracket), not the airframe crushing. Summed
+  // only once the total has passed CRASH_J (one pass over the beams, then the answer)
+  const gearB = new Uint8Array(nb);
+  for (let bi = 0; bi < nb; bi++) if (beams[bi].cls === 'gear') gearB[bi] = 1;
+  function airWork() { let w = 0; for (let bi = 0; bi < nb; bi++) if (!gearB[bi]) w += DMG.wB[bi]; return w; }
   function dmgFrame(dtFrame) {
     const gC = dtFrame > 0 ? Math.hypot(cIx, cIy, cIz) / (totalM * 9.81 * dtFrame) : 0;
     cIx = cIy = cIz = 0;
@@ -1134,7 +1192,7 @@ function makeSim(def, world) {
     if (DMG.crashed || !DMG_ON) return;
     const why = DMG.primary ? 'a ' + (DMG.firstPrimary.cls || 'member') + ' member broke'
       : gF > CRASH_G ? 'an impact of ' + gF.toFixed(0) + ' g'
-      : DMG.work > CRASH_J ? 'the airframe crushed (' + (DMG.work / 1000).toFixed(1) + ' kJ of plastic work)' : null;
+      : DMG.work > CRASH_J && airWork() > CRASH_J ? 'the airframe crushed (' + (airWork() / 1000).toFixed(1) + ' kJ of plastic work)' : null;
     if (why) { DMG.crashed = true; DMG.reason = why; DMG.at = simT; }
   }
   // ...and the flight is OVER once the wreck has come to rest (the CG under 1 m/s) or 4 s after the crash: the game
@@ -1318,7 +1376,7 @@ function makeSim(def, world) {
     let near = w1 > -1e8 && reach < w1;
     if (!near) { const w2 = world.waterH(cx, cz); near = w2 > -1e8 && Math.min(reach, cy - WB_REACH) < w2; }
     if (!near) { if (WB) { WB.tick = 0; WB.wet = 0; } return; }
-    if (!WB) { WB = HYDRO.wetBuild(def, p, v, m); if (WB && DMG.breaks && HYDRO.wetCut) HYDRO.wetCut(WB, pieces(), orphan); }   // G1898.5
+    if (!WB) { WB = HYDRO.wetBuild(def, p, v, m, fuel); if (WB && DMG.breaks && HYDRO.wetCut) HYDRO.wetCut(WB, pieces(), orphan); }   // G1385: the tanks read the fuel the burn leaves; G1898.5: a wet body built on a broken airframe
     wetArm = !!WB;
   }
   let totalM = 0;
@@ -1472,7 +1530,7 @@ function makeSim(def, world) {
   function readPanel(dtFrame) {
     bodyAxes();
     const cv = cgVel();
-    guardFrame(cv);   // G1801
+    if (DMG_ON) guardFrame(cv);   // G1801; G1898.10: the layer off runs master's path (the page's NaN watchdog as before)
     if (vPrev && dtFrame > 0) {
       const ax = (cv[0] - vPrev[0]) / dtFrame, ay = (cv[1] - vPrev[1]) / dtFrame,
             az = (cv[2] - vPrev[2]) / dtFrame;
@@ -2618,7 +2676,9 @@ function makeSim(def, world) {
     // G1840 (DMG-D3): the clusters' cuts are measured on every substep of an armed frame, and on the last of any other:
     // the members across them read from the substep's own starting state (the beam loop's), the cuts judged once its
     // projection has run, the parts that came off re-formed rigid - all out here, so substep() is the base's
-    for (let s = 0; s < sub; s++) {
+    // G1898.10: no cut (always so with the layer off) - master's own loop, no per-substep flag
+    if (nCut0 === 0) for (let s = 0; s < sub; s++) { substep(dt); simT += dt; burn(dt); }
+    else for (let s = 0; s < sub; s++) {
       clMs = nCut0 > 0 && (armed || s === sub - 1);
       if (clMs) cutX();
       substep(dt);

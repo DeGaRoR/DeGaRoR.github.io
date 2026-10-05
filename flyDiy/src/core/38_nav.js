@@ -92,6 +92,11 @@ function navMake(opts) {
   // one step of the navigator: sequence, then the readouts. `R` is the
   // aeroplane's turn radius for the anticipation (0 = sequence at the fix).
   N.update = (x, z, vx, vz, R) => {
+    // REVIEW C: a ONE-waypoint plan with no `from` had no leg at all (the
+    // first leg starts at the previous waypoint, and there is none): it is
+    // flown from where the aeroplane is the first time it is asked, as a
+    // direct-to would be
+    if (N.mode === 'FPL' && N.active === 0 && !N.origin && N.fpl.length) N.origin = { x, z };
     let L = N.leg();
     if (!L) { N.last = null; return null; }
     let g = navLegGeom(L.A, L.B, x, z);

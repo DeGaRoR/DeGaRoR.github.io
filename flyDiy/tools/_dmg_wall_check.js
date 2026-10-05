@@ -181,17 +181,29 @@ if (argv[0] === '--build') {
   if (!outerG.length || !wallG.length) { out.none = true; console.log('RESULT ' + JSON.stringify(out)); process.exit(0); }
   const fabB = d0.spec && d0.spec.material === 'tubeFabric';
   const T = SB.topo(d0.beams, n);
+  // THE PAGE'S FRAME (app.js brkCage, G1864): the nodes at their design positions (metres, orthonormal), each group's rest
+  // there as og + B0 (v + o) (R.baseD), live = sim.p, the riding in the world (R.w) and drawn back through the live basis
+  const basis = (X, Y) => { const Z = [X[1]*Y[2]-X[2]*Y[1], X[2]*Y[0]-X[0]*Y[2], X[0]*Y[1]-X[1]*Y[0]]; return [X[0], Y[0], Z[0], X[1], Y[1], Z[1], X[2], Y[2], Z[2]]; };
+  const RESTD = new Float64Array(n * 3); d0.nodes.forEach((nd, i) => { RESTD[i * 3] = nd.p[0]; RESTD[i * 3 + 1] = nd.p[1]; RESTD[i * 3 + 2] = nd.p[2]; });
+  const B0 = basis(S0.X, S0.Y), og = S0.org, oo = S0.o;
+  const baseDOf = g => { const bD = new Float64Array(g.nv * 3);
+    for (let v = 0; v < g.nv; v++) { const a = g.pos[v*3] + oo[0], b = g.pos[v*3+1] + oo[1], c = g.pos[v*3+2] + oo[2];
+      bD[v*3] = og[0] + B0[0]*a + B0[1]*b + B0[2]*c; bD[v*3+1] = og[1] + B0[3]*a + B0[4]*b + B0[5]*c; bD[v*3+2] = og[2] + B0[6]*a + B0[7]*b + B0[8]*c; }
+    return bD; };
+  const BD = new Map(); for (const g of S0.groups) if (SW.isOuter(g.sec, WL.AS) || SW.isWall(g.sec, WL.AS)) BD.set(g, baseDOf(g));
   // a record set (app.js brkRec for the cage: nearest node at the first break, the full binding where the breaks are)
   const mkSet = () => {
-    const mk = g => { const pos = g.pos.slice(), idx = g.idx.slice();
-      const R = SB.make({ nv: g.nv, idx }, SB.NEAR_K, { fabric: fabB, cage: true, pos: g.pos, rest: S0.rest }); R.baseM = g.pos;
-      return { g, R, pos }; };
+    const mk = g => { const pos = g.pos.slice(), idx = g.idx.slice(), base = BD.get(g);
+      const R = SB.make({ nv: g.nv, idx }, SB.NEAR_K, { fabric: fabB, cage: true, pos: base, rest: RESTD, weld: true, rideAll: true });
+      R.baseD = base; R.w = new Float64Array(g.nv * 3);
+      return { g, R, pos, base, w: R.w }; };
     return { outer: outerG.map(mk), wall: wallG.map(mk) };
   };
   // the full binding at rest, for the counts (which inside vertices are on the wall) and the 0.0 mm proof
   const rest = (() => {
     const set = mkSet();
-    const W = SW.make(set.outer.map(o => ({ R: o.R, base: o.g.pos, pos: o.pos, off: null })), set.wall.map(o => ({ R: o.R, base: o.g.pos, pos: o.pos, off: null })));
+    for (const o of set.outer.concat(set.wall)) o.w.set(o.base);
+    const W = SW.make(set.outer.map(o => ({ R: o.R, base: o.base, pos: o.w, off: null })), set.wall.map(o => ({ R: o.R, base: o.base, pos: o.w, off: null, vis: { arr: o.pos, off: null } })));
     const t0 = Date.now();
     for (const I of W.inners) for (let v = 0; v < I.wt.length; v++) SW.bindVertex(W, I, v);
     const bindMs = Date.now() - t0;
@@ -201,8 +213,11 @@ if (argv[0] === '--build') {
     // pose every bound vertex on the covering at rest (the wall's own per-frame code: all covering vertices "moving")
     W.vB = 0; W.aw = Int32Array.from({ length: W.nw }, (_, i) => i); W.act.fill(1);
     for (const I of W.inners) { const l = []; for (let v = 0; v < I.wt.length; v++) if (I.wt[v] >= 0 && I.rep[v] === v) l.push(v); I.list = Int32Array.from(l); I.tris = new Int32Array(0); }
+    // the rest frame handed as the page hands its live one (Mi0, og, o): the drawn copy must come back as the snapshot's own
+    W.vis = { Mi: WL.inv3(S0.X, S0.Y), cg: og, o: oo };
     SW.pose(W);
-    let maxOff = 0, bits = 0, posed = 0;
+    let maxOff = 0, bits = 0, posed = 0, maxVis = 0;
+    set.wall.forEach(o => { for (let v = 0; v < o.g.nv; v++) for (let q = 0; q < 3; q++) maxVis = Math.max(maxVis, Math.abs(o.pos[v * 3 + q] - o.g.pos[v * 3 + q])); });
     for (const I of W.inners) for (let v = 0; v < I.wt.length; v++) { if (I.wt[v] < 0) continue; posed++; let same = true;
       for (let q = 0; q < 3; q++) { const d = Math.abs(I.pos[v * 3 + q] - I.base[v * 3 + q]); if (d > maxOff) maxOff = d; if (I.pos[v * 3 + q] !== I.base[v * 3 + q]) same = false; }
       if (!same) bits++; }
@@ -212,7 +227,7 @@ if (argv[0] === '--build') {
       ds.sort((a, b) => a - b); const qq = f => ds.length ? +(Math.abs(ds[Math.floor(f * (ds.length - 1))]) * 1000).toFixed(1) : null;
       r.depthMm = [qq(0.5), qq(0.99), qq(1)]; });
     const reps = W.inners.reduce((a, I) => a + I.nRep, 0);
-    return { bindMs, maxOff, bits, posed, reps, bySec, sigma: W.sigma, nw: W.nw, nt: W.nt, W };
+    return { bindMs, maxOff, maxVis, bits, posed, reps, bySec, sigma: W.sigma, nw: W.nw, nt: W.nt, W };
   })();
   const Wref = rest.W; delete rest.W;
   const COMP = coverComps(Wref); rest.pieces = new Set(COMP).size;
@@ -242,39 +257,38 @@ if (argv[0] === '--build') {
       }
       if (!S.firstBreak) S.firstBreak = +sim.t.toFixed(3);
       S.frames++;
-      // the live nodes in the visual frame (app.js brkCage: into(K.live, inv3(xA, yU), sim.p, bodyOrigin) - o)
-      const [xA, yU] = sim.axes(), Mi = WL.inv3(xA, yU), org = sim.bodyOrigin(), o = S0.o;
-      for (let i = 0; i < n; i++) { const x = sim.p[i*3] - org[0], y = sim.p[i*3+1] - org[1], z = sim.p[i*3+2] - org[2];
-        live[i*3] = Mi[0]*x + Mi[1]*y + Mi[2]*z - o[0]; live[i*3+1] = Mi[3]*x + Mi[4]*y + Mi[5]*z - o[1]; live[i*3+2] = Mi[6]*x + Mi[7]*y + Mi[8]*z - o[2]; }
-      const down = [-Mi[1], -Mi[4], -Mi[7]];
-      // the events (every group's), the nodes' frames
-      for (const r of [...A.outer, ...A.wall, ...Bf.wall]) SB.event(r.R, T, D, S0.rest, r.g.pos);
-      if (!WW) WW = SW.make(A.outer.map(r => ({ R: r.R, base: r.g.pos, pos: r.pos, off: null })), A.wall.map(r => ({ R: r.R, base: r.g.pos, pos: r.pos, off: null })));
+      // the page's frame this frame (app.js brkCage): the live basis, the body origin
+      const [xA, yU] = sim.axes(), X = { Mi: WL.inv3(xA, yU), B: basis(xA, yU), cg: sim.bodyOrigin(), o: oo, w: null, n: null, nB: null };
+      const down = [0, -1, 0];
+      // the events (every group's; the binding whole - the page spreads it over frames), the nodes' frames in the world
+      for (const r of [...A.outer, ...A.wall, ...Bf.wall]) SB.event(r.R, T, D, RESTD, r.base, Infinity);
+      if (!WW) WW = SW.make(A.outer.map(r => ({ R: r.R, base: r.base, pos: r.w, off: null })), A.wall.map(r => ({ R: r.R, base: r.base, pos: r.w, off: null, vis: { arr: r.pos, off: null } })));
       { const t0 = process.hrtime.bigint(); const ch = SW.event(WW, D.vB); if (ch) { S.events++; S.eventMs += Number(process.hrtime.bigint() - t0) / 1e6; } }
-      SB.nodeFrames(NF, T, D, S0.rest, live);
+      SB.nodeFrames(NF, T, D, RESTD, sim.p, true);
+      const pose = r => { X.w = r.w; SB.poseCage(r.R, RESTD, sim.p, r.base, r.pos, NF, down, null, X); };
       // the covering: its pose and tear (shared by both); the inside: G1851's pose (both), the tear BEFORE on its own
       { const t0 = process.hrtime.bigint();
-        for (const r of A.outer) { SB.poseCage(r.R, S0.rest, live, r.g.pos, r.pos, NF, down, null); SB.tear(r.R, r.g.pos, r.pos); }
-        for (const r of A.wall) SB.poseCage(r.R, S0.rest, live, r.g.pos, r.pos, NF, down, null);
+        for (const r of A.outer) { pose(r); SB.tear(r.R, r.base, r.w); }
+        for (const r of A.wall) pose(r);
         S.d4aMs += Number(process.hrtime.bigint() - t0) / 1e6; }
-      for (const r of Bf.wall) { SB.poseCage(r.R, S0.rest, live, r.g.pos, r.pos, NF, down, null); SB.tear(r.R, r.g.pos, r.pos); }
+      for (const r of Bf.wall) { pose(r); SB.tear(r.R, r.base, r.w); }
       // AFTER: the wall's pose, then the inside's tear on it (app.js brkCage's order)
-      { const t0 = process.hrtime.bigint(); SW.pose(WW); S.poseMs += Number(process.hrtime.bigint() - t0) / 1e6; S.poses++; }
-      for (const r of A.wall) SB.tear(r.R, r.g.pos, r.pos);
-      S.posedMax = Math.max(S.posedMax, WW.posed); S.poseMaxMs = Math.max(S.poseMaxMs || 0, WW._lastPose || 0); S.pinchMax = Math.max(S.pinchMax || 0, WW.pinchedN || 0); S.pinchQMax = Math.max(S.pinchQMax || 0, WW.pinchQ || 0);
+      { const t0 = process.hrtime.bigint(); WW.vis = X; SW.pose(WW); S.poseMs += Number(process.hrtime.bigint() - t0) / 1e6; S.poses++; S.poseMaxMs = Math.max(S.poseMaxMs || 0, WW._lastPose || 0); }
+      for (const r of A.wall) SB.tear(r.R, r.base, r.w);
+      S.posedMax = Math.max(S.posedMax, WW.posed); S.pinchMax = Math.max(S.pinchMax || 0, WW.pinchedN || 0); S.pinchQMax = Math.max(S.pinchQMax || 0, WW.pinchQ || 0);
       // ---- the measure: the live covering, each moving inside vertex against it ----
       const P = new Float64Array(WW.nw * 3);
-      for (let w = 0; w < WW.nw; w++) { const r = A.outer[WW.rep[w * 2]], v = WW.rep[w * 2 + 1]; P[w * 3] = r.pos[v * 3]; P[w * 3 + 1] = r.pos[v * 3 + 1]; P[w * 3 + 2] = r.pos[v * 3 + 2]; }
+      for (let w = 0; w < WW.nw; w++) { const r = A.outer[WW.rep[w * 2]], v = WW.rep[w * 2 + 1]; P[w * 3] = r.w[v * 3]; P[w * 3 + 1] = r.w[v * 3 + 1]; P[w * 3 + 2] = r.w[v * 3 + 2]; }
       if (!restS) {
         // the rest standing of every inside vertex (the same measure on the covering at rest): on its OWN covering (the
         // welded piece of the covering its full binding's triangle is on) and on any
         const at = liveCover(WW, WW.P0);
         restS = A.wall.map((r, gi) => { const a = new Float32Array(r.g.nv).fill(NaN), b = new Float32Array(r.g.nv).fill(NaN), wt = Wref.inners[gi].wt;
-          for (let v = 0; v < r.g.nv; v++) { if (wt[v] < 0) continue; const x = r.g.pos[v * 3], y = r.g.pos[v * 3 + 1], z = r.g.pos[v * 3 + 2];
+          for (let v = 0; v < r.g.nv; v++) { if (wt[v] < 0) continue; const x = r.base[v * 3], y = r.base[v * 3 + 1], z = r.base[v * 3 + 2];
             const m = at(x, y, z, REACH, COMP, COMP[wt[v]]); if (m) a[v] = m.s; const m2 = at(x, y, z, REACH); if (m2) b[v] = m2.s; }
           return { own: a, any: b }; });
         restD = A.wall.map((r, gi) => { const d = new Float32Array(r.g.nv), wt = Wref.inners[gi].wt, P0 = WW.P0;
-          for (let v = 0; v < r.g.nv; v++) { const q = wt[v]; if (q < 0) continue; const a3 = WW.tw[q * 3] * 3, b3 = WW.tw[q * 3 + 1] * 3, c3 = WW.tw[q * 3 + 2] * 3, x = r.g.pos[v * 3], y = r.g.pos[v * 3 + 1], z = r.g.pos[v * 3 + 2];
+          for (let v = 0; v < r.g.nv; v++) { const q = wt[v]; if (q < 0) continue; const a3 = WW.tw[q * 3] * 3, b3 = WW.tw[q * 3 + 1] * 3, c3 = WW.tw[q * 3 + 2] * 3, x = r.base[v * 3], y = r.base[v * 3 + 1], z = r.base[v * 3 + 2];
             SW.closest(P0, a3, b3, c3, x, y, z, Bq); d[v] = Math.hypot(Bq[0] * P0[a3] + Bq[1] * P0[b3] + Bq[2] * P0[c3] - x, Bq[0] * P0[a3 + 1] + Bq[1] * P0[b3 + 1] + Bq[2] * P0[c3 + 1] - y, Bq[0] * P0[a3 + 2] + Bq[1] * P0[b3 + 2] + Bq[2] * P0[c3 + 2] - z); }
           return d; });
       }
@@ -290,7 +304,7 @@ if (argv[0] === '--build') {
           for (let v = 0; v < r.g.nv; v++) {
             if (!(onList[v] || (ride && ride[v])) || !drawn[v]) continue;     // the rest are at rest under a covering at rest
             const s0 = restS[gi].own[v]; if (!(s0 === s0)) continue;  // no covering within REACH at rest: not measured
-            const x = r.pos[v * 3], y = r.pos[v * 3 + 1], z = r.pos[v * 3 + 2];
+            const x = r.w[v * 3], y = r.w[v * 3 + 1], z = r.w[v * 3 + 2];
             if (!(Number.isFinite(x) && Number.isFinite(y) && Number.isFinite(z))) { S.finite = false; continue; }
             if (isA) S.meas++; else S.measB++;
             // ANY live covering (a neighbouring section across an unwelded seam included): reported
@@ -391,7 +405,7 @@ const yes = (ok, msg) => { checks++; if (!ok) fails++; console.log('  ' + (ok ? 
     console.log('  the full binding at rest: ' + rs.posed + ' inside vertices on the wall (' + rs.bindMs + ' ms, every vertex), the covering welded to ' + rs.nw + ' vertices / ' + rs.nt + ' triangles; inward = ' + (rs.sigma < 0 ? 'against' : 'along') + ' the covering\'s winding normals');
     for (const sec in rs.bySec) { const b = rs.bySec[sec];
       console.log('    ' + sec.padEnd(11) + ' ' + b.nv + ' vertices: ' + b.bound + ' on the wall, ' + b.unbound + ' with no covering within ' + SW.BOUND * 1000 + ' mm (G1851\'s node binding); the depth p50 / p99 / max ' + b.depthMm.join(' / ') + ' mm' + (b.out ? '; ' + b.out + ' stand OUTSIDE the covering at rest (the base\'s drawing)' : '')); }
-    yes(rs.maxOff < 1e-9, 'd. at rest the wall is the rest: ' + rs.posed + ' inside vertices (' + rs.reps + ' positions) posed on the covering at rest, the worst ' + (rs.maxOff * 1000).toFixed(1) + ' mm off (' + rs.maxOff.toExponential(1) + ' m: ' + rs.bits + ' differ from the float32 rest in the last bit, near a zero coordinate)');
+    yes(rs.maxOff < 1e-9 && rs.maxVis < 1e-6, 'd. at rest the wall is the rest: ' + rs.posed + ' inside vertices (' + rs.reps + ' positions) posed on the covering at rest, the worst ' + (rs.maxOff * 1000).toFixed(1) + ' mm off (' + rs.maxOff.toExponential(1) + ' m: ' + rs.bits + ' differ from the float64 rest in the last bit); drawn back through the rest frame, the snapshot\'s own positions to ' + (rs.maxVis * 1000).toFixed(4) + ' mm (float32)');
     for (const c of r.cases) {
       const S = c.S;
       console.log('  ' + c.label + ': ' + (S.crashed ? 'CRASHED (' + S.reason + ')' : 'no crash') + ', ' + S.nb + ' broken, the first break at ' + S.firstBreak + ' s, the wall checked on ' + S.frames + ' frames');

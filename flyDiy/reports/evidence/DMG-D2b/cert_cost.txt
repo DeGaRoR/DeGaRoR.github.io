@@ -1,0 +1,12 @@
+# the certificate's cost, alone in its process on the quiet cloud box (genCertify in node; the floats with the analytic world, as the
+# bench worker hands it); `node <scratch>/certtime.js <key>` - total ms, the static flight cases, the bench, the dynamic cases
+this branch (GEN_CERT_V 2, 38-40 cases):
+{"k":"cub","total":13753,"ms":{"flight":687,"bench":7,"drop":13050},"cases":38}
+{"k":"metal","total":22553,"ms":{"flight":708,"bench":12,"drop":21823},"cases":39}
+{"k":"twinFloats","total":47063,"ms":{"flight":1701,"bench":17,"drop":45334},"cases":40}
+the base (claude/dmg-integration 51a2fec, D2a's certificate, 20-21 cases):
+{"k":"cub","total":2923,"ms":{"flight":480,"bench":7,"drop":2428},"cases":20}
+{"k":"metal","total":4267,"ms":{"flight":547,"bench":11,"drop":3702},"cases":20}
+{"k":"twinFloats","total":10203,"ms":{"flight":1149,"bench":16,"drop":9026},"cases":21}
+(4.6-5.3 x; the dynamic cases: the drop and the gear's three or five landings, each settled 4 s from reset, the 12 s taxi over the
+roughest ground, the water weave, the three flown control cases. In GATE DMGCERT's own parallel run: 30-62 s.)
