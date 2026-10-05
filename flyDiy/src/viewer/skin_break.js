@@ -806,7 +806,7 @@
         if (u !== v) for (let k = 0; k < K; k++) { R.wi[v * K + k] = R.wi[u * K + k]; R.ww[v * K + k] = R.ww[u * K + k]; }
         R.g.bound[v] = 1; }
       if (R.pending) { const P2 = Array.from(R.pending).filter(v => !R.g.bound[v]); R.pending = P2.length ? Int32Array.from(P2) : null; }
-      R.dv = (R.dv || 0) + 1; }
+      R.dv = (R.dv || 0) + 1; R.dirtyPl = null; }
     st.done = true;
     return st;
   }
@@ -892,6 +892,7 @@
     R.sag = sag;
     if (sag && rp) for (let v = 0; v < R.nv; v++) { const u = rp[v]; if (u !== v) sag[v] = sag[u]; }
     if (rp) for (let v = 0; v < R.nv; v++) { const u = rp[v]; if (u === v || on[u * 2] < 0) continue; R.vp[v] = R.vp[u]; R.dom[v] = R.dom[u]; for (let k = 0; k < K; k++) w2[v * K + k] = w2[u * K + k]; }
+    R.dv = (R.dv || 0) + 1; R.dirtyPl = null;          // (DMG-SKINGPU re-packs a record's places on it)
   }
   // THE WALL GOES WITH ITS COVERING (G1856): a wall triangle with a place on a covering triangle that is gone (removed at
   // an event, torn, cut) goes too (dead 4, kept until a heal). E: a 'wall' entry of bindInherit (E.on), cov its covering
