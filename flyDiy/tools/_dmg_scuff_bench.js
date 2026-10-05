@@ -27,12 +27,25 @@
   function skins() {
     const out = [];
     UI.scene.traverse(o => {
-      if (!o.isMesh || !o.geometry || !o.geometry.attributes.position || !o.visible) return;
-      const m = Array.isArray(o.material) ? null : o.material;
-      if (!m || !m.userData || !(m.userData.aeroskin || m.userData.aeroFinish) || o.userData.aeroCompanion) return;
-      if (m.userData.aeroFinish === 'glassTint') return;
+      if (!o.isMesh || !o.geometry || !o.geometry.attributes.position || !o.visible || o.userData.aeroCompanion) return;
+      // (the editor draws the whole fuselage as ONE multi-material mesh - the covering, the panes, the frame - each
+      // group its own material: every AEROSKIN or glass one counts; the glass's multiply companion does not)
+      const ms = [].concat(o.material).filter(Boolean);
+      if (!ms.some(isAero)) return;
       out.push(o);
     });
+    return out;
+  }
+  const isAero = m => !!(m && m.userData && (m.userData.aeroskin || m.userData.aeroFinish) && m.userData.aeroFinish !== 'glassTint');
+  // each vertex's class, by the material of the group its triangles are in (one material: that one's)
+  function vclsOf(o) {
+    const g = o.geometry, n = g.attributes.position.count, out = new Uint8Array(n), ms = [].concat(o.material);
+    const clsM = m => (m && m.userData ? S.clsOf(m.userData.aeroFinish || '') : 3);
+    out.fill(clsM(ms[0]));
+    if (Array.isArray(o.material) && g.groups.length) {
+      const ix = g.index ? g.index.array : null;
+      for (const G of g.groups) { const c = clsM(ms[G.materialIndex]); for (let i = G.start; i < G.start + G.count; i++) out[ix ? ix[i] : i] = c; }
+    }
     return out;
   }
   // the craft frame (metres: x lateral, y aft, z up) of a mesh's vertices and normals, and back for a direction
@@ -51,20 +64,40 @@
     const L = box.max.y - box.min.y, span = box.max.x - box.min.x, xc = (box.max.x + box.min.x) / 2;
     const nose = new T.Vector3(xc, box.min.y + 0.12 * L, box.min.z + 0.45 * (box.max.z - box.min.z));
     const cut = xc - 0.31 * span;                          // a station across the left wing
-    // the front pane: the glass mesh whose centre is most forward
-    let front = null, fy = Infinity;
-    for (const o of all) if (o.material.userData.aeroFinish === 'glass') { const { M } = craftOf(o); o.geometry.computeBoundingSphere(); const c = o.geometry.boundingSphere.center.clone().applyMatrix4(M); if (c.y < fy) { fy = c.y; front = o; } }
-    return { box, L, span, nose, cut, front };
+    // the windscreen: the glass mesh that faces FORWARD the most (its area-weighted normal's -y, craft), not the most
+    // forward centre (that was the Cub's roof skylight)
+    // (by the most forward vertex that faces forward at all: the Cub's skylight faces forward more on average)
+    let front = null, fy = Infinity, best = -1;
+    for (const o of all) {
+      const vc = vclsOf(o); if (!vc.includes(S.CLS.glass)) continue;
+      const { M, N } = craftOf(o), pa = o.geometry.attributes.position, na = o.geometry.attributes.normal; if (!na) continue;
+      const q = new T.Vector3(), p = new T.Vector3();
+      for (let i = 0; i < na.count; i++) { if (vc[i] !== S.CLS.glass) continue; q.fromBufferAttribute(na, i).applyMatrix3(N).normalize(); if (-q.y <= 0.35) continue;
+        const y = p.fromBufferAttribute(pa, i).applyMatrix4(M).y; if (y < fy) { fy = y; front = o; best = i; } }
+    }
+    // the impact: the windscreen's middle - the forward-facing glass within 0.25 m of its most forward point, their mean
+    let paneObj = null, paneAt = null;
+    if (front) {
+      const vc = vclsOf(front), { M, N } = craftOf(front), pa = front.geometry.attributes.position, na = front.geometry.attributes.normal, n = pa.count, q = new T.Vector3(), p = new T.Vector3();
+      const c0 = new T.Vector3(); let k = 0; const ok = new Uint8Array(n);
+      for (let i = 0; i < n; i++) { if (vc[i] !== S.CLS.glass) continue; q.fromBufferAttribute(na, i).applyMatrix3(N).normalize(); if (-q.y <= 0.35) continue;
+        if (p.fromBufferAttribute(pa, i).applyMatrix4(M).y < fy + 0.25) { ok[i] = 1; c0.add(p.fromBufferAttribute(pa, i)); k++; } }
+      c0.multiplyScalar(1 / Math.max(1, k));
+      let bd = Infinity; for (let i = 0; i < n; i++) { if (!ok[i]) continue; const dd = p.fromBufferAttribute(pa, i).distanceTo(c0); if (dd < bd) { bd = dd; best = i; } }
+      paneObj = new T.Vector3().fromBufferAttribute(pa, best); front.updateMatrixWorld(true); paneAt = paneObj.clone().applyMatrix4(front.matrixWorld);
+    }
+    return { box, L, span, nose, cut, front, paneObj, paneAt };
   }
   function fill(o, P, full) {
     const g = o.geometry, pa = g.attributes.position, na = g.attributes.normal, n = pa.count;
-    const cls = S.clsOf(o.material.userData.aeroFinish || '');
+    const vc = vclsOf(o);
     const rec = new Uint8Array(n * 4), dir = new Int8Array(n * 4);
     const { M, Mi, N } = craftOf(o), p = new T.Vector3(), q = new T.Vector3(), d = new T.Vector3();
     const aft = new T.Vector3(0, 1, 0).transformDirection(Mi);   // the slide, aft, in the mesh's own frame
     for (let i = 0; i < n; i++) {
       p.fromBufferAttribute(pa, i).applyMatrix4(M);
       if (na) q.fromBufferAttribute(na, i).applyMatrix3(N).normalize(); else q.set(0, 0, 1);
+      const cls = vc[i];
       let c = 0, s = 0, t = 0, soil = 0;
       if (full) { c = 1; s = 1; t = 0.5; soil = p.x < (P.box.min.x + P.box.max.x) / 2 ? 1 : 0; }
       else if (cls !== S.CLS.glass) {
@@ -76,16 +109,12 @@
       d.copy(aft); if (na) { const nl = new T.Vector3().fromBufferAttribute(na, i); d.addScaledVector(nl, -d.dot(nl)); } d.normalize();
       dir[i * 4] = Math.round(127 * d.x); dir[i * 4 + 1] = Math.round(127 * d.y); dir[i * 4 + 2] = Math.round(127 * d.z); dir[i * 4 + 3] = cls;
     }
-    if (cls === S.CLS.glass) {
+    // the glass: the windscreen's pane cracked (its glass vertices within 0.9 m of the impact), slot 0; the rest clean
+    if (vc.includes(S.CLS.glass)) {
       const hit = o === P.front;
-      for (let i = 0; i < n; i++) { rec[i * 4] = hit ? 255 : 0; dir[i * 4 + 3] = S.CLS.glass + 0; }
-      if (hit) {
-        // the impact: the pane's vertex nearest its centre, a third of the way to its lower edge (in its own frame)
-        g.computeBoundingBox(); const bb = g.boundingBox, c0 = bb.getCenter(new T.Vector3());
-        c0.y = bb.min.y + 0.35 * (bb.max.y - bb.min.y);
-        let best = 0, bd = Infinity; for (let i = 0; i < n; i++) { const dd = p.fromBufferAttribute(pa, i).distanceTo(c0); if (dd < bd) { bd = dd; best = i; } }
-        p.fromBufferAttribute(pa, best); DS.U.uDmgPane.value[0].set(p.x, p.y, p.z, 1);
-      }
+      for (let i = 0; i < n; i++) { if (vc[i] !== S.CLS.glass) continue; const on = hit && p.fromBufferAttribute(pa, i).distanceTo(P.paneObj) < 0.9 / Math.max(1e-6, craftOf(o).sc);
+        rec[i * 4] = on || full ? 255 : 0; rec[i * 4 + 1] = rec[i * 4 + 2] = rec[i * 4 + 3] = 0; dir[i * 4 + 3] = S.CLS.glass; }
+      if (hit && P.paneObj) DS.U.uDmgPane.value[0].set(P.paneObj.x, P.paneObj.y, P.paneObj.z, 1);
     }
     const set = (k, arr) => { const a = g.attributes[k]; if (a && a.array.length === arr.length) { a.array.set(arr); a.needsUpdate = true; } else g.setAttribute(k, new T.BufferAttribute(arr, 4, true)); };
     set('aDmg', rec); set('aDmgD', dir);
@@ -93,10 +122,10 @@
   // THE ARMING: wrapped copies (as the game's buildModel makes them), the patterns, the programs compiled
   function arm() {
     if (!S) return { err: 'skin_scuff.js not loaded (?noscuff)' };
-    const all = skins(), P = pattern(all);
+    const all = skins(), P = DS.P = pattern(all);
     const l0 = CEN.links;
-    for (const o of all) {
-      const m = o.material;
+    const copyOf = m => {
+      if (!isAero(m)) return m;
       let c = DS.copies.get(m);
       if (!c) {
         const k = m.userData.aeroFinish === 'glass' ? 'glass' : 'live';
@@ -109,7 +138,11 @@
         c.needsUpdate = true;
         DS.copies.set(m, c); c.userData.scuffOrig = m;
       }
-      o.material = c;
+      return c;
+    };
+    for (const o of all) {
+      if (!o.userData.scuffOrig) o.userData.scuffOrig = o.material;
+      o.material = Array.isArray(o.material) ? o.material.map(copyOf) : copyOf(o.material);
       fill(o, P, false);
     }
     // the uniform's metres per object unit (the editor's meshes are in its own units)
@@ -121,7 +154,7 @@
     DS.links.arm = CEN.links - l0;
     return { meshes: all.length, links: DS.links.arm, front: !!P.front, uDmgM: DS.U.uDmgM.value };
   }
-  function disarm() { for (const o of DS.meshes) if (o.material.userData.scuffOrig) o.material = o.material.userData.scuffOrig; DS.armed = false; draw(); }
+  function disarm() { for (const o of DS.meshes) if (o.userData.scuffOrig) o.material = o.userData.scuffOrig; DS.armed = false; draw(); }
   function set(o) {
     const U = DS.U, K = U.uDmgK.value;
     if (o.crush != null) K.x = +o.crush; if (o.scrape != null) K.y = +o.scrape; if (o.torn != null) K.z = +o.torn; if (o.relief != null) K.w = +o.relief;
@@ -129,9 +162,19 @@
     draw();
   }
   // THE LAYERS, each on its own preset (the weathering bench's views)
-  const VIEW = { crush: 'cowl', scrape: 'belly', torn: 'top', glass: 'screen' };
+  const VIEW = { crush: 'nose', scrape: 'belly', torn: 'wing', glass: 'pane' };
   // the bench's own views beside the weathering's presets: the three-quarter overview from ahead and above, the underside
-  const OWN = { overview: () => [0.62, 0.32, 4.2, null], under: () => [0.9, -0.55, 2.6, null] };
+  // and each pattern's own close-up, centred on where the pattern is (craft -> the editor's scene through uCraftInv^-1)
+  const toScene = c => { const U = A.aeroSharedU(T), M = (U.uCraftInv ? U.uCraftInv.value : new T.Matrix4()).clone().invert(); const v = c.clone().applyMatrix4(M); return [v.x, v.y, v.z]; };
+  const pat = () => DS.P || (DS.P = pattern(skins()));
+  const OWN = {
+    overview: () => [0.62, 0.32, 0.55, null],
+    under: () => [0.9, -0.55, 0.9, null],
+    nose: () => [0.35, 0.12, 1.5, toScene(pat().nose)],
+    belly: () => { const P = pat(); return [0.75, -0.8, 1.2, toScene(new T.Vector3((P.box.min.x + P.box.max.x) / 2, P.box.min.y + 0.35 * P.L, P.box.min.z + 0.1))]; },
+    wing: () => { const P = pat(); return [0.5, 1.0, 1.5, toScene(new T.Vector3(P.cut, P.box.min.y + 0.3 * P.L, P.box.max.z - 0.15))]; },
+    pane: () => { const c = pat().paneAt; return c ? [0.35, 0.12, 2.6, [c.x, c.y, c.z]] : [0.3, 0.35, 1.5, null]; },
+  };
   function look(v) { if (OWN[v]) { const p = OWN[v](); UI.setView(p[0], p[1], p[2], p[3]); draw(); } else B.look(v); }
   function measure(layer, view) {
     const g = { crush: 0, scrape: 0, torn: 0, glass: 0, on: true };
