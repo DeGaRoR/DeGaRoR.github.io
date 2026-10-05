@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 362ea777df50219a
+// body-sha256: 8716fe9c0f6dd3e7
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -2126,6 +2126,7 @@ var CLIMATE = (function () {
       if (!st || st.key == null) return false;
       convNow();
       if (convKey !== st.key) return false;
+      if (!windSpec) return false;                       // the worker's wind not set yet (potato log 5 Oct: null.base) - it builds its own
       conv = st.c ? convBuild(env.day, st.c.zi, st.c.cover, st.c.sinEl, st.c.T, st.c.rho, windSpec.base) : null;
       return true;
     }
@@ -3214,7 +3215,7 @@ function makeWorld(seed, opts) {
     ? { strips: [], grade: (x, z, h) => h, surfaceAt: () => -1, inBox: () => false, stats: { bakeMs: 0 } }
     : bakeAerodromes({
       terrain: tV2, water: HYD.water, carved: (x, z) => { tV2(x, z); return _cd; }, settlements: SET.settlements,
-      meadows, roadNear: SET.roadNear, SURFACE, salt: SALT });
+      meadows, roadNear: SET.roadNear, SURFACE, salt: SALT, buildings: SET.buildings });
   // the island takes no generated strips (maps first: its field is a premises record)
   if (!ISL) for (const st of AERO.strips) aerodromes.push(st);
 
@@ -5008,9 +5009,10 @@ function bakeSettlements(D) {
 // Deterministic: fixed iteration orders, hash jitter only.
 // ============================================================
 function bakeAerodromes(D) {
-  // D: { terrain(x,z), water(x,z), carved(x,z), settlements, meadows, roadNear, SURFACE, salt }
+  // D: { terrain(x,z), water(x,z), carved(x,z), settlements, meadows, roadNear, SURFACE, salt, buildings (G1928) }
   const t0 = Date.now();
   const { terrain, water, carved, settlements, meadows, roadNear, SURFACE, salt } = D;
+  const houses = D.buildings || [];
   const smf01 = t => { t = Math.min(1, Math.max(0, t)); return t * t * (3 - 2 * t); };
   const hash2 = (ix, iz) => {
     let h = (ix * 786433 + iz * 393241 + 65213 + salt) | 0;
@@ -5069,8 +5071,19 @@ function bakeAerodromes(D) {
         if (h < 1.2 || water(x, z) > h) return false;
       }
     }
+    // A STRIP STANDS CLEAR OF THE TOWN'S HOUSES (MILL-TAXI, G1928): the settlements' houses are placed first (23_world_settle)
+    // and a main field's candidate ring (r0 = s.r + 160) let a 650 m strip reach back over the town - seeds 1, 6, 12 and 42
+    // each had a house ON a runway (tools/taxi_census.js: the roll, a way out, a U-turn through its box). A house's circle
+    // (half its diagonal) keeps HOUSE_CLEAR off the runway's rectangle, which holds every route the pattern draws (the
+    // lanes, the U-turns, the spawn): the widest validated span's half (5.5 m) + the census's 3 m, and a metre. The
+    // score's order is kept, so a strip that was clear stands where it stood (seed 0's nearest house is 297 m off).
+    for (const b of houses) {
+      const px = b.x - cx, pz = b.z - cz, al = Math.abs(px * dx + pz * dz) - len / 2, ac = Math.abs(-px * dz + pz * dx) - wid / 2;
+      if (Math.hypot(Math.max(al, 0), Math.max(ac, 0)) - Math.hypot(b.w, b.l) / 2 < HOUSE_CLEAR) return false;
+    }
     return true;
   }
+  const HOUSE_CLEAR = 9.5;
   const nearMeadow = (x, z, f) => meadows.some(m => Math.hypot(x - m.x, z - m.z) < m.r * f);
   const inHomeZone = (x, z) =>
     (x > -3400 && x < 400 && Math.abs(z) < 500) ||     // circuit band
