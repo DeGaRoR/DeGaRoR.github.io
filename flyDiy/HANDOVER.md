@@ -486,6 +486,12 @@ gate and the game fly one condition and not two.
    aeroplane stops flying. A cranked wing gets the box instead.
 
 ## AUTOPILOT RULES
+- **G1570: the servos are ONE module (`src/core/39b_servos.js`); a law is fixed THERE, once.** The three pilots
+  (40 classic, 41 test, 43 the game's) keep their phase machines and call one `makeServos` for the filters and every
+  inner loop (pitch / roll / yaw / speed / VS, the ground steer, the taxi, the decrab, the slew). Gains: `SERVO_GAINS`
+  (the base, every former literal a row) overlaid with the pilot's own `SERVO_TUNE` row; a `def.params.ap` key still
+  wins. A law only one pilot flies is a FEATURE flag (43: trimCalm, groundP1D, xwBank, water, deTop), never a copy.
+  The review found the copies had drifted for a month (B3: 40/41's decrab rudder had the pre-G381 sign).
 - **Gains scale with airframe timescale ~ span/V.** Cub 0.41, DC-3 0.41,
   C172 0.22, Jodel 0.17, drone 0.03. Wrong-scale D-gains create slew-rate
   limit cycles (drone pitch ±9° @2.3Hz; Jodel roll; C172-class chatter).
