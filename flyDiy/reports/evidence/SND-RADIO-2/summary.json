@@ -1,0 +1,318 @@
+{
+ "generated": "node tools/audio/radio_break_render.js",
+ "voice": "en_US-norman-medium",
+ "clipK": 1.9811,
+ "bedK": 0.16,
+ "weathers": [
+  {
+   "key": "breeze",
+   "title": "The game's day: a light breeze, 16:00 local (DAY_CLOCK GAME_DAY)",
+   "file": "breeze.opus",
+   "seconds": 126.8,
+   "numbers": {
+    "windKt": 8,
+    "windDirT": 250,
+    "gust": 0.15,
+    "visM": 60000,
+    "oatC": 15,
+    "dewC": 4.7,
+    "qnhPa": 101325,
+    "seaFt": 0.5,
+    "storm": null,
+    "declared": []
+   },
+   "breaks": [
+    {
+     "title": "Tuning in",
+     "at": 0,
+     "voiceS": 35.7,
+     "clips": 36,
+     "bed": "Peaceful Royalty Free Guitar - \"I'm Callin' Late\" — Matthew C. Wright",
+     "segments": [
+      {
+       "kind": "id",
+       "key": "id.main",
+       "text": "Good afternoon. Radio Jolene, ninety point seven, community radio for Jolene Island and the Sound. The time on the island, four o'clock.",
+       "clips": 5,
+       "resolved": true,
+       "missing": []
+      },
+      {
+       "kind": "awos",
+       "key": "awos",
+       "text": "Here is the field. Jolene field automated weather observation, zero zero zero zero zulu. Wind two five zero at eight. Visibility one zero. Sky condition few clouds at four thousand two hundred. Temperature one five, dew point five. Altimeter two niner niner two.",
+       "clips": 31,
+       "resolved": true,
+       "missing": []
+      }
+     ]
+    },
+    {
+     "title": "Break 2",
+     "at": 44.35,
+     "voiceS": 44.57,
+     "clips": 28,
+     "bed": "Ranchero — Mr Smith",
+     "segments": [
+      {
+       "kind": "back",
+       "key": "back",
+       "text": "That was The Best Of Times by Holizna, and before that, Faded in the Sunlight by Holizna.",
+       "clips": 5,
+       "resolved": true,
+       "missing": []
+      },
+      {
+       "kind": "id",
+       "key": "id.main",
+       "text": "Good afternoon. Radio Jolene, ninety point seven, community radio for Jolene Island and the Sound. The time on the island, four o'clock.",
+       "clips": 5,
+       "resolved": true,
+       "missing": []
+      },
+      {
+       "kind": "pilots",
+       "key": "pilots",
+       "text": "Notes for pilots. At Jolene field, runway two zero is favoured, wind two five zero at eight. Tamgas Hill Strip, gravel: it is one way, so land uphill and take off downhill. The seaplane lane at Annette Dock is active. Skiffs, keep clear of the buoys. And the eagles are back on runway one three this afternoon. Give them a low pass before you land.",
+       "clips": 18,
+       "resolved": true,
+       "missing": []
+      }
+     ]
+    },
+    {
+     "title": "Break 3",
+     "at": 97.58,
+     "voiceS": 20.56,
+     "clips": 13,
+     "bed": "Calming Royalty Free Guitar - \"A Cloudy Life\" — Matthew C. Wright",
+     "segments": [
+      {
+       "kind": "back",
+       "key": "back",
+       "text": "That was Peaceful Drift by Holizna, and before that, Ease into Night by Holizna.",
+       "clips": 5,
+       "resolved": true,
+       "missing": []
+      },
+      {
+       "kind": "marine",
+       "key": "marine",
+       "text": "And the marine forecast. Marine forecast for the inside waters, Jolene Sound and the passages. This afternoon, west wind ten knots. Seas one foot or less. Outlook, little change.",
+       "clips": 8,
+       "resolved": true,
+       "missing": []
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "key": "front",
+   "title": "A front an hour out (weather_ui \"a front\"), 06:10 local",
+   "file": "front.opus",
+   "seconds": 139.3,
+   "numbers": {
+    "windKt": 15.7,
+    "windDirT": 190,
+    "gust": 0.5833333333333333,
+    "visM": 17119,
+    "oatC": 17,
+    "dewC": 13,
+    "qnhPa": 100767,
+    "seaFt": 0.7,
+    "storm": "pre",
+    "declared": []
+   },
+   "breaks": [
+    {
+     "title": "Tuning in",
+     "at": 0,
+     "voiceS": 38.03,
+     "clips": 41,
+     "bed": "Ships — Mr Smith",
+     "segments": [
+      {
+       "kind": "id",
+       "key": "id.main",
+       "text": "Good morning. Radio Jolene, ninety point seven, community radio for Jolene Island and the Sound. The time on the island, six ten.",
+       "clips": 5,
+       "resolved": true,
+       "missing": []
+      },
+      {
+       "kind": "awos",
+       "key": "awos",
+       "text": "Here is the field. Jolene field automated weather observation, one four one zero zulu. Wind one niner zero at one six gusts two five. Visibility one zero. Sky condition scattered clouds at one thousand six hundred. Temperature one seven, dew point one three. Altimeter two niner seven six.",
+       "clips": 36,
+       "resolved": true,
+       "missing": []
+      }
+     ]
+    },
+    {
+     "title": "Break 2",
+     "at": 46.68,
+     "voiceS": 46.56,
+     "clips": 32,
+     "bed": "Quidi Vidi — Mr Smith",
+     "segments": [
+      {
+       "kind": "back",
+       "key": "back",
+       "text": "That was The Best Of Times by Holizna, and before that, Faded in the Sunlight by Holizna.",
+       "clips": 5,
+       "resolved": true,
+       "missing": []
+      },
+      {
+       "kind": "id",
+       "key": "id.main",
+       "text": "Good morning. Radio Jolene, ninety point seven, community radio for Jolene Island and the Sound. The time on the island, six ten.",
+       "clips": 5,
+       "resolved": true,
+       "missing": []
+      },
+      {
+       "kind": "pilots",
+       "key": "pilots",
+       "text": "Notes for pilots. At Jolene field, runway two zero is favoured, wind one niner zero at one six gusts two five. Tamgas Hill Strip, gravel: it is one way, so land uphill and take off downhill. The seaplane lane at Annette Dock is active. Skiffs, keep clear of the buoys. And the eagles are back on runway one three this morning. Give them a low pass before you land.",
+       "clips": 22,
+       "resolved": true,
+       "missing": []
+      }
+     ]
+    },
+    {
+     "title": "Break 3",
+     "at": 101.89,
+     "voiceS": 28.76,
+     "clips": 24,
+     "bed": "In the Mist — Mr Smith",
+     "segments": [
+      {
+       "kind": "back",
+       "key": "back",
+       "text": "That was Peaceful Drift by Holizna, and before that, Ease into Night by Holizna.",
+       "clips": 5,
+       "resolved": true,
+       "missing": []
+      },
+      {
+       "kind": "marine",
+       "key": "marine",
+       "text": "And the marine forecast. Marine forecast for the inside waters, Jolene Sound and the passages. This morning, south wind fifteen knots, gusts to twenty-five. Seas one foot or less. A front within the next few hours: southwest wind twenty-five knots, gusts to forty, seas building to two feet.",
+       "clips": 19,
+       "resolved": true,
+       "missing": []
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "key": "gale",
+   "title": "A gale (weather_ui \"gale\"), 07:45 local",
+   "file": "gale.opus",
+   "seconds": 133.8,
+   "numbers": {
+    "windKt": 35,
+    "windDirT": 245,
+    "gust": 0.5,
+    "visM": 5328,
+    "oatC": 9,
+    "dewC": 7,
+    "qnhPa": 99200,
+    "seaFt": 2.1,
+    "storm": null,
+    "declared": []
+   },
+   "breaks": [
+    {
+     "title": "Tuning in",
+     "at": 0,
+     "voiceS": 35.58,
+     "clips": 36,
+     "bed": "Whispers of the Glen — Maarten Schellekens",
+     "segments": [
+      {
+       "kind": "id",
+       "key": "id.main",
+       "text": "Good morning. Radio Jolene, ninety point seven, community radio for Jolene Island and the Sound. The time on the island, seven forty-five.",
+       "clips": 5,
+       "resolved": true,
+       "missing": []
+      },
+      {
+       "kind": "awos",
+       "key": "awos",
+       "text": "Here is the field. Jolene field automated weather observation, one five four five zulu. Wind two four zero at three five gusts five three. Visibility three. Sky condition few clouds at eight hundred. Temperature niner, dew point seven. Altimeter two niner two niner.",
+       "clips": 31,
+       "resolved": true,
+       "missing": []
+      }
+     ]
+    },
+    {
+     "title": "Break 2",
+     "at": 44.23,
+     "voiceS": 48.5,
+     "clips": 32,
+     "bed": "Peaceful Royalty Free Guitar - \"I'm Callin' Late\" — Matthew C. Wright",
+     "segments": [
+      {
+       "kind": "back",
+       "key": "back",
+       "text": "That was The Best Of Times by Holizna, and before that, Faded in the Sunlight by Holizna.",
+       "clips": 5,
+       "resolved": true,
+       "missing": []
+      },
+      {
+       "kind": "id",
+       "key": "id.main",
+       "text": "Good morning. Radio Jolene, ninety point seven, community radio for Jolene Island and the Sound. The time on the island, seven forty-five.",
+       "clips": 5,
+       "resolved": true,
+       "missing": []
+      },
+      {
+       "kind": "pilots",
+       "key": "pilots",
+       "text": "Notes for pilots. At Jolene field, runway two zero is favoured, wind two four zero at three five gusts five three. Tamgas Hill Strip, gravel, soft after the rain: it is one way, so land uphill and take off downhill. The seaplane lane at Annette Dock is active. Skiffs, keep clear of the buoys. And the eagles are back on runway one three this morning. Give them a low pass before you land.",
+       "clips": 22,
+       "resolved": true,
+       "missing": []
+      }
+     ]
+    },
+    {
+     "title": "Break 3",
+     "at": 101.39,
+     "voiceS": 23.72,
+     "clips": 17,
+     "bed": "Ranchero — Mr Smith",
+     "segments": [
+      {
+       "kind": "back",
+       "key": "back",
+       "text": "That was Peaceful Drift by Holizna, and before that, Ease into Night by Holizna.",
+       "clips": 5,
+       "resolved": true,
+       "missing": []
+      },
+      {
+       "kind": "marine",
+       "key": "marine",
+       "text": "And the marine forecast. Marine forecast for the inside waters, Jolene Sound and the passages, gale warning. This morning, southwest wind thirty-five knots, gusts to fifty-five. Seas two feet. Outlook, little change.",
+       "clips": 12,
+       "resolved": true,
+       "missing": []
+      }
+     ]
+    }
+   ]
+  }
+ ],
+ "unresolved": 0
+}
