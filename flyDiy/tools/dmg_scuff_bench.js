@@ -20,7 +20,7 @@ const OUT = path.resolve(ROOT, opt('out', 'reports/evidence/DMG-SCUFF/scuffbench
 const [W, H] = opt('size', '960x540').split('x').map(Number);
 const BUILDS = { cub: 'builds/cub_2026-09-20_corrected.json', metal: 'bugReports/cessnaMetal (1).json', jodel: 'builds/jodel_2026-09-20_corrected.json' };
 const which = opt('builds', 'cub,metal').split(',');
-const VIEWS = opt('views', 'overview,cowl,under,top,screen').split(',');
+const VIEWS = opt('views', 'overview,under,nose,belly,wing,pane').split(',');
 function findPlaywright() {
   for (const p of ['playwright', '/opt/node-tools/node_modules/playwright', '/opt/node22/lib/node_modules/playwright', 'playwright-core']) { try { return require(p); } catch (e) {} }
   throw new Error('no playwright');
@@ -68,7 +68,7 @@ const freePort = () => new Promise((res, rej) => { const s = net.createServer();
       // 3. the layers
       R.measure = await page.evaluate(() => ['crush', 'scrape', 'torn', 'glass'].map(l => DS.measure(l))); dump(); console.log('measure', JSON.stringify(R.measure).slice(0, 600));
       // 4. the cost
-      R.cost = await page.evaluate(() => DS.cost('cowl', 9)); dump(); console.log('cost', JSON.stringify(R.cost).slice(0, 600));
+      R.cost = await page.evaluate(() => DS.cost('nose', 9)); dump(); console.log('cost', JSON.stringify(R.cost).slice(0, 600));
       R.sourcesEnd = await page.evaluate(() => DS.sources());
       R.errors = errs;
       console.log(k, JSON.stringify({ same: R.sameAsNoscuff, arm: R.arm, crashLinks: R.crashLinks, measure: R.measure.map(m => m.layer + ' ' + m.pct.toFixed(2) + '% ' + m.view), cost: R.cost, errors: errs.length }));
