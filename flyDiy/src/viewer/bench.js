@@ -114,7 +114,7 @@ const BENCH_TESTS = [
     // up; fitting lift struts HALVED a jodel's deflection and RAISED its
     // yield figure, because the strut became the worst 'wing' member. So
     // the proxy is now a warning on the card, and the certificate fails on
-    // what the rig can actually see: a member that let go (BROKE UP) or a
+    // what the rig can actually see: a member that let go (BROKE UP; G1800: a NaN is SIM DIVERGED) or a
     // tip past LOAD_TIP_CAP at ultimate (GATE FLEX's reality figures: real
     // wings bend 2-4 % of the semispan at limit, 8 % at 1 g is 'folds in
     // bending'; a sixth of the span at ultimate is not a wing that held).
@@ -143,16 +143,19 @@ const BENCH_TESTS = [
         live: { g: st.n, tipPct: st.tipPct, phase: st.phase, nTarget: st.nTarget,
                 limit: st.limit, ult: st.ult, thread, rate: st.rate },
       };
-      const broke = st.verdict === 'BROKE UP';
+      // G1800: the rig's NaN / velocity-guard ending is 'SIM DIVERGED' (the numbers' fault, not a member); 'BROKE UP'
+      // stays the structure's, for the damage layer's test to destruction (DMG-D2a)
+      const diverged = st.verdict === 'SIM DIVERGED', broke = diverged || st.verdict === 'BROKE UP';
       const bent = st.ultPct != null && isFinite(st.ultPct) && st.ultPct > LOAD_TIP_CAP;
       const overYield = st.ultYield != null && isFinite(st.ultYield) && st.ultYield >= 100;
       const ok = !broke && !bent;
-      const why = broke ? 'a member let go before the ultimate load'
+      const why = diverged ? 'the simulation diverged before the ultimate load (a numerical fault, not a member)'
+                : broke ? 'a member let go before the ultimate load'
                 : bent ? 'the tip bent ' + benchNum(st.ultPct, 1) + ' % of the semispan at ultimate — past the '
                          + LOAD_TIP_CAP + ' % a wing can bend and still be called held' : '';
       return {
         done: true,
-        verdict: broke ? 'BROKE UP' : bent ? 'NOT HELD — bent ' + benchNum(st.ultPct, 1) + ' %' : 'HELD',
+        verdict: broke ? st.verdict : bent ? 'NOT HELD — bent ' + benchNum(st.ultPct, 1) + ' %' : 'HELD',
         ok,
         note: 'limit ' + benchNum(st.limitPct, 2) + ' % of semispan · ultimate '
           + benchNum(st.ultPct, 2) + ' %'
@@ -168,6 +171,8 @@ const BENCH_TESTS = [
            + 'construction (an aluminium or carbon wing), span.',
         // the advisor runs after a fail OR a warning
         advise: !ok || overYield,
+        // G1832 (DMG-D2a): and with the damage layer on, the free test to destruction: LIMIT / ULTIMATE / BROKE-AT
+        destroy: !diverged,
       };
     },
     stop(api) { api.endLoadTest(); },
@@ -366,7 +371,7 @@ const BENCH_TESTS = [
       };
       const A = r.adv, why = [], fix = [];
       const off = !!r.lift && !r.bad;
-      if (r.bad) why.push('the simulation broke up on the water');
+      if (r.bad) why.push('the simulation diverged on the water');   // G1800
       if (A && A.reserve < 1.8) { why.push('the floats are UNDERSIZED: the pair displaces ' + benchNum(A.reserve, 2) + ' x the weight (1.8 needed)'); fix.push('a bigger float — the catalogue puts ' + benchNum(A.grossKg, 0) + ' kg on the ' + A.recommend); }
       if (!off && r.hump.R >= 0.8 * r.TW) { why.push('the hump costs R/W ' + benchNum(r.hump.R, 2) + ' at ' + benchNum(r.hump.V * 3.6, 0) + ' km/h against ' + benchNum(r.TW, 2) + ' of thrust — no margin to climb it'); fix.push('more thrust or less weight over the hump: a coarser propeller, a bigger engine, fuel off'); }
       if (!off && A && A.narrow) { why.push('the floats are NARROW for the weight (' + A.line.replace(/^.*NARROW: /, '') + ')'); fix.push('the catalogue' + String.fromCharCode(39) + 's row for ' + benchNum(A.grossKg, 0) + ' kg is the ' + A.recommend); }
@@ -375,7 +380,7 @@ const BENCH_TESTS = [
       if (!off && !why.length) why.push('it reached ' + benchNum(r.Vmax * 3.6, 0) + ' km/h on the water and stayed there (' + String(r.phase).toLowerCase() + ')');
       return {
         done: true,
-        verdict: off ? 'LIFTS OFF THE WATER' : r.bad ? 'BROKE UP' : (r.ventMax < 0.5 || r.hump.R >= 0.8 * r.TW) ? 'STUCK AT THE HUMP' : 'STAYED ON THE WATER',
+        verdict: off ? 'LIFTS OFF THE WATER' : r.bad ? 'SIM DIVERGED' : (r.ventMax < 0.5 || r.hump.R >= 0.8 * r.TW) ? 'STUCK AT THE HUMP' : 'STAYED ON THE WATER',
         ok: off,
         note: 'hump R/W ' + benchNum(r.hump.R, 2) + ' at ' + benchNum(r.hump.V * 3.6, 0) + ' km/h · T/W ' + benchNum(r.TW, 2)
             + ' · step air ' + benchNum(r.ventMax, 2) + ' · trim ' + benchNum(r.trimMin, 0) + '…' + benchNum(r.trimMax, 0) + '°'
@@ -409,11 +414,26 @@ const benchWhyFix = label => {
 const LOAD_TIP_CAP = 15;
 // the advisor's line for one measured lever (bench_worker.js): "lift struts
 // (fixation): tip 4.1 %" — a control that exists, and the number it buys
+// G1832 (DMG-D2a): the free test to destruction's line on the wing loading's row and card (pure: GATE DMGCERT reads
+// it): LIMIT / ULTIMATE / BROKE AT, and the part that came off first (its break group: "wing0R:strut" -> the right
+// wing's strut)
+const benchDestroyLine = D => {
+  if (!D) return '';
+  if (!D.done) return 'the test to destruction (free): running past the ultimate…';
+  if (D.error) return 'the test to destruction did not run (' + D.error + ')';
+  const side = c => (c === 'L' ? 'left ' : c === 'R' ? 'right ' : '');
+  const part = D.key ? String(D.key).replace(/^wing(\d)([LR]?):/, (m, p, c) => 'the ' + side(c) + 'wing\'s ')
+    .replace(/^eng([LR]?):/, (m, c) => 'the ' + side(c) + 'engine\'s ').replace(/^([a-z]+)([LR]?):/, (m, w, c) => 'the ' + side(c) + w + '\'s ') : '';
+  return 'LIMIT ' + benchNum(D.limit, 1) + ' g · ULTIMATE ' + benchNum(D.ult, 1) + ' g · BROKE AT '
+    + (D.brokeAt != null ? benchNum(D.brokeAt, 2) + ' g' + (part ? ' (' + part + (D.seam ? ', a ' + D.seam : '') + ', let go first)' : '')
+                         : 'none (' + (D.verdict || 'held') + ')')
+    + ' — the test to destruction, free';
+};
 const benchLeverLine = v => {
   if (!v) return '';
   const tip = (v.ultPct != null && isFinite(v.ultPct)) ? 'tip ' + benchNum(v.ultPct, 1) + ' %' : (v.verdict || '—');
   const y = (v.ultYield != null && isFinite(v.ultYield)) ? ' · ' + benchNum(v.ultYield, 0) + ' % of yield' : '';
-  return v.label + ' (' + v.row + '): ' + (v.verdict === 'BROKE UP' ? 'BROKE UP' : tip + y);
+  return v.label + ' (' + v.row + '): ' + (v.verdict === 'BROKE UP' || v.verdict === 'SIM DIVERGED' ? v.verdict : tip + y);   // G1800
 };
 // the trim the hand flies is clicks of TRIM_STEP (input.js, 0.02 of full
 // elevator per click); the advisor speaks in the same units
@@ -840,6 +860,7 @@ function benchInit(api) {
     if (!anyStale()) withdrawnNote = '';
     note(t, r);
     if (r.advise) startAdvice(t, r);
+    if (r.destroy) startDestroy(t, r);
     persist();
     stickersChanged();
     render();
@@ -901,6 +922,26 @@ function benchInit(api) {
       });
     } catch (e) { r.advice = { lines: [], done: true, n: 0 }; }
   }
+  // G1832 (DMG-D2a): THE TEST TO DESTRUCTION (ruling dm6: free). With the damage layer on, after the wing loading the
+  // bench's thread takes the certified airframe past its ultimate until the first break group lets go, and the row
+  // and the card print the three numbers: LIMIT / ULTIMATE / BROKE-AT. The aeroplane on the stand is not touched.
+  function startDestroy(t, r) {
+    if (typeof api.loadDestroy !== 'function' || typeof api.damageOn !== 'function' || !api.damageOn()) { delete r.destroy; return; }
+    r.destroy = { done: false };
+    try {
+      api.loadDestroy(m => {
+        if (results[t.id] !== r) return;
+        r.destroy = m && !m.error ? { done: true, brokeAt: m.brokeAt, key: m.brokeKey || null, seam: m.brokeSeam || null,
+                                      yieldAt: m.yieldAt, limit: m.limit, ult: m.ult, verdict: m.verdict }
+                                  : { done: true, error: (m && m.error) || 'not run' };
+        persist(); render(); awardAdvice(r);
+      });
+    } catch (e) { r.destroy = { done: true, error: e.message }; }
+  }
+  const destroyHtml = r => {
+    const esc = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;');
+    return r && r.destroy ? '<div class="bAdvice bDestroy' + (r.destroy.done ? ' done' : '') + '"><span>' + esc(benchDestroyLine(r.destroy)) + '</span></div>' : '';
+  };
   const adviceHtml = r => {
     const A = r.advice;
     if (!A) return '';
@@ -1319,7 +1360,7 @@ function benchInit(api) {
       (!r.ok && (r.why || r.fix) ? '<div class="bAf">' +
         (r.why ? esc(r.why) + '<br>' : '') + (r.fix ? '→ ' + esc(r.fix) : '') + '</div>' : '') +
       (r.warn ? '<div class="bAw">' + esc(r.warn) + '</div>' : '') +
-      adviceHtml(r) +
+      adviceHtml(r) + destroyHtml(r) +
       '<div class="bAd">' + esc(r.when || today()) + (r.ok ? ' · the sticker is on the fuselage' : '') +
       ' · click to close</div>';
     U.aw.hidden = false;
@@ -1334,7 +1375,7 @@ function benchInit(api) {
     U.aw.onclick = done;
     // a card with the advisor on it waits for the measurements (awardAdvice
     // re-arms the close once they are in); a plain pass closes itself
-    awardT = (r.advice && !r.advice.done) ? null : setTimeout(done, r.ok ? 2800 : 9000);
+    awardT = ((r.advice && !r.advice.done) || (r.destroy && !r.destroy.done)) ? null : setTimeout(done, r.ok ? 2800 : 9000);
     awardCur = { r, done };
   }
   let awardCur = null;
@@ -1343,11 +1384,14 @@ function benchInit(api) {
   function awardAdvice(r) {
     const U = ui();
     if (!U || U.aw.hidden || !awardCur || awardCur.r !== r) return;
-    const old = U.aw.querySelector('.bAdvice');
+    const old = U.aw.querySelector('.bAdvice:not(.bDestroy)');
     const html = adviceHtml(r);
     if (old) old.outerHTML = html;
-    else { const d = U.aw.querySelector('.bAd'); if (d) d.insertAdjacentHTML('beforebegin', html); }
-    if (r.advice && r.advice.done && !awardT) awardT = setTimeout(awardCur.done, r.ok ? 7000 : 12000);
+    else if (html) { const d = U.aw.querySelector('.bAd'); if (d) d.insertAdjacentHTML('beforebegin', html); }
+    const oldD = U.aw.querySelector('.bDestroy'), htmlD = destroyHtml(r);   // G1832
+    if (oldD) oldD.outerHTML = htmlD;
+    else if (htmlD) { const d = U.aw.querySelector('.bAd'); if (d) d.insertAdjacentHTML('beforebegin', htmlD); }
+    if ((!r.advice || r.advice.done) && (!r.destroy || r.destroy.done) && !awardT) awardT = setTimeout(awardCur.done, r.ok ? 7000 : 12000);
   }
 
   // ---- the panel ---------------------------------------------------------
@@ -1445,7 +1489,7 @@ function benchInit(api) {
         (r && !r.ok && !r.stale && !r.running && (r.why || r.fix)
           ? '<div class="bWhy">' + (r.why ? r.why + ' — ' : '') + (r.fix || '') + '</div>' : '') +
         (r && r.warn && !r.stale && !r.running ? '<div class="bWarn">' + r.warn + '</div>' : '') +
-        (r && !r.stale && !r.running ? adviceHtml(r) : '') +
+        (r && !r.stale && !r.running ? adviceHtml(r) + destroyHtml(r) : '') +
         (adv ? '<div class="bAdv">' + adv + '</div>' : '') +
         '</div>');
     }
@@ -1476,5 +1520,5 @@ function benchInit(api) {
 
 if (typeof module !== 'undefined' && module.exports)
   module.exports = { BENCH_TESTS, BENCH_COSMETIC, BENCH_LOOK, BENCH_STATE_ROWS, BENCH_FP_SCHEME,
-                     benchStripCosmetic, benchCanon, benchSame, benchHash, LOAD_TIP_CAP, benchLeverLine,
+                     benchStripCosmetic, benchCanon, benchSame, benchHash, LOAD_TIP_CAP, benchLeverLine, benchDestroyLine,
                      benchFingerprint, benchFlightStep, benchTrimWords, benchNum };

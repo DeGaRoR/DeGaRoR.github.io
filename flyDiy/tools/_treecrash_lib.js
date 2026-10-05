@@ -33,6 +33,8 @@ const BUILDS = {
   twinFloats: { label: 'twin floatplane', build: 'tools/fixtures/build_v7_ultralight_2026-09-05.json', patch: j => { j.spec.gear.type = 'floats'; j.spec.cage = Object.assign({}, j.spec.cage, { gearFloats: 1 }); return j; } },
 };
 const _defs = {};
+// G1816 (DMG-D1a): the last sim each scenario flew (its rigs read the members after the run)
+const lastRun = { sim: null };
 function defOf(key, opts) {
   const C = core(), B = BUILDS[key];
   if (!_defs[key]) {
@@ -43,7 +45,29 @@ function defOf(key, opts) {
   }
   const d = _defs[key];
   // a shallow copy with its own params (the probe flag) - the beams are copied by makeSim
-  return Object.assign({}, d, { params: Object.assign({}, d.params, (opts && opts.probe) ? { damageProbe: true } : {}, { damage: !(opts && opts.elastic) }) });   // G1898: the damage gates say what they test (the default is off)
+  const o = Object.assign({}, d, { params: Object.assign({}, d.params, (opts && opts.probe) ? { damageProbe: true } : {}, { damage: !(opts && opts.elastic) }) });   // G1898: the damage gates say what they test (the default is off)
+  // G1831 (DMG-D2a): `cert` - the certificate stamped (66_gen_cert, computed once per build, the floats' drop on the
+  // analytic world's sea lane); without it the members are D1a's physics
+  if ((opts && opts.cert) || (process.env.FLYDIY_CERT === '1' && !(opts && opts.cert === false))) o.cert = certOf(key);
+  else o.cert = null;
+  return o;
+}
+const _certs = {};
+let _seaWorld = null;
+function certOf(key) {
+  if (_certs[key]) return _certs[key];
+  // (FLYDIY_CERT_DIR: the envelope precomputed in another process - <dir>/<key>.json, { nb, Ft, Fc } - as the game hands
+  // the flight a certificate its bench thread computed: a sim timed in this process then never shares its solver's
+  // code with the certificate's own probe sims, whose beams carry the probe's fields)
+  if (process.env.FLYDIY_CERT_DIR) {
+    const J = JSON.parse(fs.readFileSync(path.join(process.env.FLYDIY_CERT_DIR, key + '.json'), 'utf8'));
+    return (_certs[key] = { nb: J.nb, Ft: Float64Array.from(J.Ft), Fc: Float64Array.from(J.Fc) });
+  }
+  if (!_defs[key]) defOf(key);
+  const C = core(), d = _defs[key];
+  const hydro = !!(d.parts && d.parts.floats);
+  if (hydro && !_seaWorld) _seaWorld = C.makeWorld();
+  return (_certs[key] = C.genCertify(d, { world: hydro ? _seaWorld : null }));
 }
 
 // a flat world at `elev` with a trunk set of its own (the TREEHIT gate's world)
@@ -56,7 +80,7 @@ function flatWorld(elev) {
 const peakOf = sim => { const P = sim.damagePeak && sim.damagePeak(); if (!P) return null; let t = 0, c = 0, bt = -1, bc = -1;
   for (let i = 0; i < P.t.length; i++) { if (P.t[i] > t) { t = P.t[i]; bt = i; } if (P.c[i] > c) { c = P.c[i]; bc = i; } }
   return { t, c, bt, bc, clsT: bt >= 0 ? sim.beams[bt].cls : null, clsC: bc >= 0 ? sim.beams[bc].cls : null, max: Math.max(t, c) }; };
-const clearPeak = sim => { const P = sim.damagePeak && sim.damagePeak(); if (P) { P.t.fill(0); P.c.fill(0); } };
+const clearPeak = sim => { const P = sim.damagePeak && sim.damagePeak(); if (P) { P.t.fill(0); P.c.fill(0); if (P.cl) P.cl.fill(0); if (P.tw) P.tw.fill(0); } };   // (G1843: the clusters' cuts too)
 // (a core from before G1470 has no damage: read as an empty one, so the evidence can fly master's core too)
 const NODMG = { yields: 0, breaks: 0, work: 0, setMax: 0, crashed: false, reason: null, at: null, dented: false, propStrike: false, propAt: null, gPeak: 0, broken: [], members: 0, dents: 0, primary: 0, over: false };
 const dmgSim = sim => (sim.damage ? sim.damage() : NODMG);
@@ -70,7 +94,7 @@ const spread = sim => { const c = sim.cgPos(); let r = 0; for (let i = 0; i < si
 // THE LOAD TEST to `ult` (the garage's own rig), the peak recorded at the limit and at the ultimate
 function loadTest(key, o) {
   const C = core(), def = defOf(key, o), spec = def.spec;
-  const sim = C.makeSim(def, null); sim.reset(0);
+  const sim = C.makeSim(def, null); sim.reset(0); lastRun.sim = sim;
   const rig = C.makeLoadTest(sim, def, { material: spec.fuselage && spec.fuselage.material, wingMaterial: C.genSurfKey ? C.genSurfKey(spec, 'wing', 0) : undefined,
     surface: o.surface || 'wing', limit: o.limit || C.GEN_LOAD_LIMIT, ult: o.ult || C.GEN_LOAD_ULT });
   let atLim = null, ok = rig.state.ok;
@@ -84,13 +108,13 @@ function loadTest(key, o) {
 // A FLOWN PULL to nz (3.8 g): level at `V` m/s, 400 m up, the elevator on a PI to the load factor, held `hold` s
 function pull(key, o) {
   const C = core(), def = defOf(key, o), { W, strip } = flatWorld(0), nzT = o.nz || 3.8, V = o.V || 45;
-  const sim = C.makeSim(def, W); sim.reset(0);
+  const sim = C.makeSim(def, W); sim.reset(0); lastRun.sim = sim;
   C.placeAtAerodrome(sim, Object.assign({}, strip, { elev: 0, spawnElev: 400 }));
   const fx = Math.cos(strip.hdg), fz = Math.sin(strip.hdg);
   for (let i = 0; i < sim.n; i++) { sim.v[i*3] = V * fx; sim.v[i*3+2] = V * fz; }
   sim.ctl.thr = 1;
   // the elevator's sense: a nose-up input is the one that raises nz (found, not assumed)
-  let de = 0, I = 0, nzMax = 0, held = 0, sgn = o.sgn || -1;
+  let de = 0, I = 0, nzMax = 0, held = 0, sgn = o.sgn || -1, naMax = 0;
   for (let f = 0; f < 60 * 1; f++) { sim.step(1 / 60); }   // a second to settle in the air (the trim transient's own load)
   clearPeak(sim);
   const t0 = sim.t, hist = [];
@@ -100,12 +124,17 @@ function pull(key, o) {
     de = Math.max(-1, Math.min(1, sgn * (0.4 * e + 0.8 * I)));
     sim.ctl.de = de;
     sim.step(1 / 60);
+    if (o.onFrame) o.onFrame(sim, f);
     nzMax = Math.max(nzMax, sim.out.nz);
     if (sim.out.nz > nzT - 0.1) held += 1 / 60;
     if (f % 6 === 0) hist.push([sim.t - t0, sim.out.nz, sim.out.V]);
     if (held > (o.hold || 1.5)) break;
+    // G1833 (DMG-D2a): `toLimit` - the pull read up to the step its APPLIED load factor (the aero force over the
+    // weight - the CG's nz lags the wing's load in a quick pull: 3.8 read while the wing carried 5.7 W) first reaches
+    // the limit; past it is an over-g, where the certificate's set is the point
+    if (o.toLimit) { const na = sim.out.aeroFy / (sim.totalM * 9.81); naMax = Math.max(naMax, na); if (na >= o.toLimit) break; }
   }
-  return { nzMax, held, V: sim.out.V, peak: peakOf(sim), dmg: dmgOf(sim), finite: finite(sim), hist };
+  return { nzMax, naMax, held, V: sim.out.V, peak: peakOf(sim), dmg: dmgOf(sim), finite: finite(sim), hist };
 }
 
 // A HARD LANDING: the aeroplane settled on its wheels, lifted `gap` m and dropped onto them at `sink` m/s (no lift:
@@ -117,20 +146,22 @@ function hardLanding(key, o) {
   const probe = C.makeSim(def, null);
   if (probe.hydro) { W = C.makeWorld(); strip = W.aerodromes.find(a => a.id === 'SEA'); sim = C.makeSim(def, W); sim.reset(0); C.placeAtAerodrome(sim, strip); }
   else { ({ W, strip } = flatWorld(0)); sim = C.makeSim(def, W); sim.reset(0); C.placeAtAerodrome(sim, Object.assign({}, strip, { elev: 0, spawnElev: 0 })); }
+  lastRun.sim = sim;
   for (let f = 0; f < 240; f++) sim.step(1 / 60);
   const gap = o.gap == null ? 0.02 : o.gap, sink = o.sink;
   for (let i = 0; i < sim.n; i++) { sim.p[i*3+1] += gap; sim.v[i*3] = 0; sim.v[i*3+1] = -sink; sim.v[i*3+2] = 0; }
   if (o.fwd) { const fx = Math.cos(strip.hdg), fz = Math.sin(strip.hdg); for (let i = 0; i < sim.n; i++) { sim.v[i*3] = o.fwd * fx; sim.v[i*3+2] = o.fwd * fz; } }
   clearPeak(sim);
+  if (o.onStart) o.onStart(sim, def);
   let gMax = 0, yMin = Infinity;
-  for (let f = 0; f < 120; f++) { sim.step(1 / 60); gMax = Math.max(gMax, sim.out.nz); }
+  for (let f = 0; f < (o.frames || 120); f++) { sim.step(1 / 60); if (o.onFrame) o.onFrame(sim, f); gMax = Math.max(gMax, sim.out.nz); }
   return { gMax, peak: peakOf(sim), dmg: dmgOf(sim), finite: finite(sim) };
 }
 
 // A CIRCUIT: the pilot from the runway, round and down to a stop (or `maxS`) on the analytic world
 function circuit(key, o) {
   const C = core(), def = defOf(key, o), world = C.makeWorld();
-  const sim = C.makeSim(def, world); sim.reset(0);
+  const sim = C.makeSim(def, world); sim.reset(0); lastRun.sim = sim;
   const a = world.aerodromes.find(x => x.id === (sim.hydro ? 'SEA' : 'HOME')) || world.aerodromes[0];
   if (sim.hydro) C.placeAtAerodrome(sim, a);
   for (let i = 0; i < 600; i++) sim.step(1 / 60);
@@ -152,7 +183,7 @@ function circuit(key, o) {
 // top-down every `every` frames (for the pictures) and the damage over time.
 function atTrunk(key, o) {
   const C = core(), def = defOf(key, o), elev = 300, { W, TH, strip } = flatWorld(elev);
-  const sim = C.makeSim(def, W);
+  const sim = C.makeSim(def, W); lastRun.sim = sim;
   const r = flyRun(C, sim, def, TH, strip, elev, o);
   // `then`: the same sim reset and flown again (reset must make the aeroplane whole)
   if (o.then) { const crashedBefore = dmgSim(sim).crashed; TH.drop('fill:test'); const r2 = flyRun(C, sim, def, TH, strip, elev, o.then); r2.crashedBefore = crashedBefore; return r2; }
@@ -170,6 +201,7 @@ function flyRun(C, sim, def, TH, strip, elev, o) {
   if (!o.noTrunk) TH.set('fill:test', [tx, tz, elev - tk.sink, tk.r, elev - tk.sink + tk.h]);
   sim.ctl.thr = o.thr == null ? 0 : o.thr;
   clearPeak(sim);
+  if (o.onStart) o.onStart(sim, def);
   const loc = (x, z) => [(x - c0[0]) * fx + (z - c0[2]) * fz, -((x - c0[0]) * -fz + (z - c0[2]) * fx)];
   // the mechanical energy (kinetic + the weight's potential): with the throttle shut nothing may add to it
   const energy = () => { let e = 0; for (let i = 0; i < sim.n; i++) e += sim.m[i] * (0.5 * (sim.v[i*3] ** 2 + sim.v[i*3+1] ** 2 + sim.v[i*3+2] ** 2) + 9.81 * (sim.p[i*3+1] - elev)); return e; };
@@ -181,6 +213,7 @@ function flyRun(C, sim, def, TH, strip, elev, o) {
     if (o.walk && !walked) { if (sim.trunkHits() > 0) { walked = true; sim.ctl.thr = 0; } else { const v = sim.cgVel(), V = v[0] * fx + v[2] * fz; sim.ctl.thr = Math.max(0, Math.min(1, 0.12 + 0.3 * (o.walk - V))); } }
     if (o.rollThen != null) { const c = sim.cgPos(); if ((c[0] - c0[0]) * fx + (c[2] - c0[2]) * fz > 6) sim.ctl.thr = o.rollThen; }
     sim.step(1 / 60);
+    if (o.onFrame) o.onFrame(sim, f);                // G1823 (DMG-D1b): a gate's per-frame reader (the wreck's integrity)
     if (!finite(sim)) { bad = true; break; }
     const c = sim.cgPos(), along = (c[0] - c0[0]) * fx + (c[2] - c0[2]) * fz, v = sim.cgVel();
     reach = Math.max(reach, along); maxSpread = Math.max(maxSpread, spread(sim));
@@ -202,7 +235,7 @@ function flyRun(C, sim, def, TH, strip, elev, o) {
 // the water reaches the frame through its nodes (the floats' panels; the wet body's slam where 32_hydro has wetBuild)
 function waterCase(key, o) {
   const C = core(), def = defOf(key, o), world = C.makeWorld(), sea = world.aerodromes.find(a => a.id === 'SEA');
-  const sim = C.makeSim(def, world); sim.reset(0); C.placeAtAerodrome(sim, sea);
+  const sim = C.makeSim(def, world); sim.reset(0); C.placeAtAerodrome(sim, sea); lastRun.sim = sim;
   const n = sim.n, p = sim.p, v = sim.v, [xA, , zR] = sim.axes(), c0 = sim.cgPos();
   // pitch nose-down about the CG round the body's lateral axis (Rodrigues; nose at -xAft, so + about +z right lowers it)
   const th = -(o.pitch || 0) * Math.PI / 180, k = zR, cs = Math.cos(th), sn = Math.sin(th);
@@ -218,7 +251,8 @@ function waterCase(key, o) {
   sim.ctl.thr = 0;
   clearPeak(sim);
   let finite_ = true, sp = 0;
-  for (let s = 0; s < (o.secs || 4) * 60; s++) { sim.step(1 / 60); if (!finite(sim)) { finite_ = false; break; } sp = Math.max(sp, spread(sim)); }
+  if (o.onStart) o.onStart(sim, def);
+  for (let s = 0; s < (o.secs || 4) * 60; s++) { sim.step(1 / 60); if (o.onFrame) o.onFrame(sim, s); if (!finite(sim)) { finite_ = false; break; } sp = Math.max(sp, spread(sim)); }
   const WB = sim.wetBody || null;
   return { dmg: dmgOf(sim), peak: peakOf(sim), finite: finite_, spread: sp, wet: !!(WB || sim.hydro), wetBody: !!WB, holed: WB && WB.slices ? WB.slices.filter(x => x.br).length : 0,
     slamKPa: WB && WB.slamPeak ? WB.slamPeak / 1000 : null, members: dmgOf(sim).members, cls: (sim.damage().broken || []).map(i => sim.beams[i].cls),
@@ -230,4 +264,4 @@ function far473(key) {
   const g = defOf(key).params.gen, WS = (g.W / 4.4482) / (g.Sw * 10.7639);
   return Math.min(10, Math.max(7, 4.4 * Math.pow(WS, 0.25))) * 0.3048;
 }
-module.exports = { far473, waterCase, core, BUILDS, defOf, flatWorld, loadTest, pull, hardLanding, circuit, atTrunk, peakOf, dmgOf, finite };
+module.exports = { certOf, lastRun, far473, waterCase, core, BUILDS, defOf, flatWorld, loadTest, pull, hardLanding, circuit, atTrunk, peakOf, dmgOf, finite };

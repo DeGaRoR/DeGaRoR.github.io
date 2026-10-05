@@ -394,7 +394,7 @@ const SIM_LINK = (() => {
       const F = flight, sim = F.sim, V = F.view;
       const own = k => Object.getOwnPropertyDescriptor(sim, k);
       saved = {};
-      for (const k of ['t', 'totalM', 'cgPos', 'cgVel', 'wheelsOnGround', 'wheelContacts', 'stats', 'step', 'setEngine', 'impulse', 'reset', 'ctl']) saved[k] = own(k);
+      for (const k of ['t', 'totalM', 'cgPos', 'cgVel', 'wheelsOnGround', 'wheelContacts', 'stats', 'step', 'setEngine', 'impulse', 'reset', 'ctl', 'certStamp']) saved[k] = own(k);
       const realCtl = sim.ctl, orig = { setEngine: sim.setEngine, reset: sim.reset };
       F.realCtl = realCtl;
       ctlP = ctlProxy(realCtl);
@@ -413,6 +413,8 @@ const SIM_LINK = (() => {
         stamp(c); V.send(c);
       } });
       def('impulse', { writable: true, value: (i, ix, iy, iz) => { const c = { cmd: 'impulse', i, ix, iy, iz }; stamp(c); V.send(c); } });
+      // G1831 (DMG-D2a): the certificate that lands mid-flight is the worker's sim's to stamp (the page's mirror bends nothing)
+      def('certStamp', { writable: true, value: Cc => { if (!Cc || !Cc.Ft) return false; const c = { cmd: 'cert', Ft: Cc.Ft, Fc: Cc.Fc }; stamp(c); V.send(c); return true; } });
       // every re-placement starts with a reset: the mirror comes down first, the flight is the page's again
       def('reset', { writable: true, value: function () { dropFlight(null); flight = null; st.phase = 'idle'; return orig.reset.apply(sim, arguments); } });
       def('ctl', { writable: true, value: ctlP });
@@ -424,6 +426,8 @@ const SIM_LINK = (() => {
       for (const k of Object.keys(realCtl)) set[k] = k === 'eng' ? copyEng(realCtl.eng) : realCtl[k];
       V.send({ cmd: 'ctl', set, k: 0 });
       if (windFirst) V.send({ cmd: 'windq', q: [windFirst], k: 0 });   // the reference the inline solver's step 1 would find
+      // G1831: a certificate the page's sim already carries (it landed before the flight attached) goes with step 0
+      { const C0 = typeof sim.cert === 'function' ? sim.cert() : null; if (C0 && C0.Ft) V.send({ cmd: 'cert', Ft: C0.Ft, Fc: C0.Fc, k: 0 }); }
       // the convection the page's climate holds (its cache's exact inputs: the page's day met that key before the worker lived)
       if (world.climate && world.climate.convState) V.send({ cmd: 'conv', s: world.climate.convState(), k: 0 });
       windFrame = [];

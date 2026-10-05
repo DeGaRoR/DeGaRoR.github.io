@@ -1,0 +1,278 @@
+{
+ "cub": [
+  {
+   "case": "touchdown 1.0 m/s",
+   "before": 0.34560596313902964,
+   "beforeMember": "VSNL-S0BR",
+   "after": 0.3436258853213779,
+   "afterMember": "AXLEL-AXLER"
+  },
+  {
+   "case": "touchdown 1.5 m/s",
+   "before": 0.36224568584317557,
+   "beforeMember": "CGE-S0BL",
+   "after": 0.3826209987175343,
+   "afterMember": "AXLEL-AXLER"
+  },
+  {
+   "case": "touchdown at FAR 23.473 (airframe)",
+   "before": 0.49032645888839843,
+   "beforeMember": "S0TR-S1BR",
+   "after": 0.38514642111591124,
+   "afterMember": "S0BR-S0TR"
+  },
+  {
+   "case": "taxi on grass at 8 m/s",
+   "before": 0.2257136276295015,
+   "beforeMember": "S0TR-S1BR",
+   "after": 0.3194326223579277,
+   "afterMember": "AXLEL-AXLER"
+  },
+  {
+   "case": "taxi on a rough field at 8 m/s",
+   "before": 0.24011554007078242,
+   "beforeMember": "S2BR-S3BR",
+   "after": 0.3193185168398559,
+   "afterMember": "AXLEL-AXLER"
+  },
+  {
+   "case": "taxi on the rough field at 12 m/s",
+   "before": 0.22702202389165393,
+   "beforeMember": "S0TR-S1BR",
+   "after": 0.3193185168398559,
+   "afterMember": "AXLEL-AXLER"
+  },
+  {
+   "case": "circuit",
+   "before": 0.29279050687438657,
+   "beforeMember": "S1BL-S1BR (FINAL)",
+   "after": 0.3263211066635092,
+   "afterMember": "AXLEL-AXLER (ROLLOUT)"
+  },
+  {
+   "case": "crosswind circuit",
+   "before": 0.43834044186277205,
+   "beforeMember": "S0TR-S1TL (ROLLOUT)",
+   "after": 0.3293435828749834,
+   "afterMember": "AXLEL-S0BR (ROLLOUT)"
+  }
+ ],
+ "jodel": [
+  {
+   "case": "touchdown 1.0 m/s",
+   "before": 0.29017165662113265,
+   "beforeMember": "CGE-S0TL",
+   "after": 0.3381557338058926,
+   "afterMember": "TW-TPB"
+  },
+  {
+   "case": "touchdown 1.5 m/s",
+   "before": 0.3855783385056088,
+   "beforeMember": "CGE-S0TR",
+   "after": 0.46459042315315685,
+   "afterMember": "TW-TPB"
+  },
+  {
+   "case": "touchdown at FAR 23.473 (airframe)",
+   "before": 0.531154490577702,
+   "beforeMember": "CGE-S0TL",
+   "after": 0.3807994116011305,
+   "afterMember": "VSNL-VSNR"
+  },
+  {
+   "case": "taxi on grass at 8 m/s",
+   "before": 0.14546267340881308,
+   "beforeMember": "VSNL-VSNR",
+   "after": 0.14696615262837967,
+   "afterMember": "AXLEL-S0TL"
+  },
+  {
+   "case": "taxi on a rough field at 8 m/s",
+   "before": 0.7049533976507008,
+   "beforeMember": "WB-WF",
+   "after": 0.38941782008579745,
+   "afterMember": "AXLER-S0BL"
+  },
+  {
+   "case": "taxi on the rough field at 12 m/s",
+   "before": 0.8541872984479292,
+   "beforeMember": "WB-WF",
+   "after": 0.44383947651384015,
+   "afterMember": "AXLER-S0BL"
+  },
+  {
+   "case": "circuit",
+   "before": 0.32141302309760544,
+   "beforeMember": "CGE-S0TR (ROLLOUT)",
+   "after": 0.2850923038161038,
+   "afterMember": "AXLEL-S0BL (ROLLOUT)"
+  },
+  {
+   "case": "crosswind circuit",
+   "before": 0.209449948792285,
+   "beforeMember": "WR-S2BL (FINAL)",
+   "after": 0.1970552711394383,
+   "afterMember": "WR-S2BL (FINAL)"
+  }
+ ],
+ "metal": [
+  {
+   "case": "touchdown 1.0 m/s",
+   "before": 0.3308424063224544,
+   "beforeMember": "WF-WF",
+   "after": 0.35793849795406363,
+   "afterMember": "AXLEL-S2BL"
+  },
+  {
+   "case": "touchdown 1.5 m/s",
+   "before": 0.4523492280061964,
+   "beforeMember": "WF-WF",
+   "after": 0.4803643592898661,
+   "afterMember": "AXLEL-S2BL"
+  },
+  {
+   "case": "touchdown at FAR 23.473 (airframe)",
+   "before": 0.6743356090023505,
+   "beforeMember": "WF-WF",
+   "after": 0.5168311906698643,
+   "afterMember": "WR-WR"
+  },
+  {
+   "case": "taxi on grass at 8 m/s",
+   "before": 0.35260026433065034,
+   "beforeMember": "CGE-ENGR",
+   "after": 0.18186802990809664,
+   "afterMember": "ENGR-S0BR"
+  },
+  {
+   "case": "taxi on a rough field at 8 m/s",
+   "before": 0.4944560767255273,
+   "beforeMember": "ENGR-S0BR",
+   "after": 0.6270918537016462,
+   "afterMember": "TW-S0BR"
+  },
+  {
+   "case": "taxi on the rough field at 12 m/s",
+   "before": 0.4635714768843717,
+   "beforeMember": "WF-WF",
+   "after": 0.5504069802680795,
+   "afterMember": "TW-S0BR"
+  },
+  {
+   "case": "circuit",
+   "before": 0.7353256747804375,
+   "beforeMember": "HR-HR (FINAL)",
+   "after": 0.36164443775580946,
+   "afterMember": "S1BL-S1BR (FINAL)"
+  },
+  {
+   "case": "crosswind circuit",
+   "before": 0.772194396612342,
+   "beforeMember": "HR-HR (FINAL)",
+   "after": 0.6148513162962672,
+   "afterMember": "AXLER-S1BL (ROLLOUT)"
+  }
+ ],
+ "floats": [
+  {
+   "case": "touchdown 1.0 m/s",
+   "before": 0.7865455958076569,
+   "beforeMember": "CGE-ENGR",
+   "after": 0.37653244765728067,
+   "afterMember": "VSNL-VSNR"
+  },
+  {
+   "case": "touchdown 1.5 m/s",
+   "before": 0.875558798118908,
+   "beforeMember": "CGE-ENGR",
+   "after": 0.4304450902852441,
+   "afterMember": "VSNL-VSNR"
+  },
+  {
+   "case": "touchdown at FAR 23.473 (airframe)",
+   "before": 1.1914997779768242,
+   "beforeMember": "WF-WF",
+   "after": 0.6600622322509295,
+   "afterMember": "WF-WF"
+  },
+  {
+   "case": "taxi on the water at 4 m/s",
+   "before": 0.25273552632801816,
+   "beforeMember": "CGE-ENGR",
+   "after": 0.1023677920956535,
+   "afterMember": "ENGR-S0BR"
+  },
+  {
+   "case": "taxi on the water at 4 m/s in a light chop",
+   "before": 0.2951961917834221,
+   "beforeMember": "S1BL-S1TR",
+   "after": 0.18331043124485208,
+   "afterMember": "S1BL-S1TR"
+  },
+  {
+   "case": "circuit",
+   "before": 0.9780620899819489,
+   "beforeMember": "CGE-ENGL (ROLLOUT)",
+   "after": 0.37481301169231757,
+   "afterMember": "S0BL-S0TL (ROLLOUT)"
+  },
+  {
+   "case": "crosswind circuit",
+   "before": 0.5120224848589824,
+   "beforeMember": "HF-HR (ROLL)",
+   "after": 0.3602087758612996,
+   "afterMember": "FLD-FLD (ROLLOUT)"
+  }
+ ],
+ "twinFloats": [
+  {
+   "case": "touchdown 1.0 m/s",
+   "before": 0.5017474341281971,
+   "beforeMember": "S1TR-S2TR",
+   "after": 0.33449828941879806,
+   "afterMember": "S1TR-S2TR"
+  },
+  {
+   "case": "touchdown 1.5 m/s",
+   "before": 0.5673340944839111,
+   "beforeMember": "S1TR-S2TR",
+   "after": 0.38926200842116954,
+   "afterMember": "MNTL-WF"
+  },
+  {
+   "case": "touchdown at FAR 23.473 (airframe)",
+   "before": 0.6546600802972706,
+   "beforeMember": "S1TR-S2TR",
+   "after": 0.46187542821267247,
+   "afterMember": "MNTL-WF"
+  },
+  {
+   "case": "taxi on the water at 4 m/s",
+   "before": 0.2858988886080589,
+   "beforeMember": "CGE-ENGR",
+   "after": 0.1877361153105723,
+   "afterMember": "FLD-FLD"
+  },
+  {
+   "case": "taxi on the water at 4 m/s in a light chop",
+   "before": 0.2932435419364141,
+   "beforeMember": "CGE-ENGR",
+   "after": 0.1851996479551498,
+   "afterMember": "FLD-FLD"
+  },
+  {
+   "case": "circuit",
+   "before": 0.35466992682346626,
+   "beforeMember": "CGE-WF (ROLLOUT)",
+   "after": 0.2730367105412232,
+   "afterMember": "S1BL-S1BR (BASE)"
+  },
+  {
+   "case": "crosswind circuit",
+   "before": 1.2240786259723713,
+   "beforeMember": "S2BR-S2TL (ROLLOUT)",
+   "after": 0.40096059185336647,
+   "afterMember": "FLD-FLD (ROLLOUT)"
+  }
+ ]
+}

@@ -1,0 +1,64 @@
+# G1837: damage ON as the default (GEN_DAMAGE_DEFAULT = true, a worktree of 8ab6b58) against damage OFF (8ab6b58), the same gates, GATES_CORE=1 --verbose --jobs=2
+# gates: LOAD,BENCH,FLEX,SIMWORKER,SOAR,GEN,MASS,PILOT,HONEST,TAKEOFF,GEAR,STRUT,SEAPLANE,FLOATS,HYDRODYN,SETTLE,TREEHIT,OBSTACLE,BIPLANE,UISMOKE
+# (LOAD and SETTLE read 'differ' only because the OFF side is two runner logs concatenated: their sections swallow the runner's summary lines)
+# BIPLANE FAILED here on its wire-law probe (fixed in 2c92c28: the probe says damage:false); re-run with the fix, damage ON: PASS, its WIRE line equal to OFF's:
+WIRE: rigged strain 5.00e-4 · shortened: wire 9.107e+0 vs beam 9.566e+0 vs none 9.107e+0 · lengthened: -9.623e+0 vs -9.623e+0
+  ok   a slack wire pushes nothing (the ordinary member would)
+GATE BIPLANE: PASS
+
+OFF: BATTERY: PASS
+OFF: BATTERY: PASS
+ON: BATTERY: FAIL — never deliver red.
+same bytes (9): MASS BENCH SOAR HONEST UISMOKE GEAR STRUT FLOATS SEAPLANE
+numbers only (7): GEN SIMWORKER FLEX PILOT TAKEOFF OBSTACLE HYDRODYN
+differ (4): LOAD BIPLANE TREEHIT SETTLE
+--- LOAD: lines only in the first (2) / only in the second (14)
+  < BATTERY: PASS
+  < tools/flight_core.js (2173.0 KB), index.html (11150.7 KB), dev.html (105.6 KB) — syntax OK, 1127 ms
+  > PILOT     PASS   375.8 s  [3 shards]
+  > TAKEOFF   PASS   213.5 s
+  > HONEST    PASS    53.7 s
+  > BIPLANE   FAIL   126.5 s
+  > UISMOKE   PASS   429.3 s
+  > TREEHIT   PASS   104.0 s
+  > GEAR      PASS     1.3 s
+  > STRUT     PASS     5.7 s
+  > OBSTACLE  PASS    23.8 s
+  > HYDRODYN  PASS   165.1 s
+  > FLOATS    PASS    75.7 s
+  > SEAPLANE  PASS   287.6 s
+  > SETTLE    PASS     9.7 s
+  > BATTERY: FAIL — never deliver red.
+--- BIPLANE: lines only in the first (2) / only in the second (3)
+  <   ok   a slack wire pushes nothing (the ordinary member would)
+  < GATE BIPLANE: PASS
+  >   FAIL a slack wire pushes nothing (the ordinary member would)
+  > GATE BIPLANE: FAIL
+  > (exit code 1)
+--- TREEHIT: lines only in the first (2) / only in the second (2)
+  <   ok   the fill's rule, a 15 m fir: across the span, 0.7 m -> 60, 1.5 m -> 60, 2.5 m -> 61, 3.5 m -> 63, 4.5 m -> 64 m (the CG past the trunk's line by 5 m at most, or the wing broken on it)
+  <   ok   the fill's rule, a 15 m fir: flown at it (4 m AGL, 30 m/s): 4181 beam contacts, stopped by it (the CG to 39.0 m, the trunk at 40); with no trunk it flies on past at 32.1 m/s, nothing touched
+  >   ok   the fill's rule, a 15 m fir: across the span, 0.7 m -> 60, 1.5 m -> 68 (the wing broke on it: 9 members, a crash), 2.5 m -> 71 (the wing broke on it: 3 members, a crash), 3.5 m -> 63, 4.5 m -> 64 m (the CG past the trunk's line by 5 m at most, or the wing broken on it)
+  >   ok   the fill's rule, a 15 m fir: flown at it (4 m AGL, 30 m/s): 24954 beam contacts, stopped by it (the CG to 42.7 m, the trunk at 40; a crash: 97 members broken); with no trunk it flies on past at 32.1 m/s, nothing touched
+--- SETTLE: lines only in the first (20) / only in the second (0)
+  < 
+  < ──────── summary ────────
+  < PILOT     PASS   382.0 s  [3 shards]
+  < TAKEOFF   PASS   208.7 s
+  < HONEST    PASS    38.6 s
+  < BIPLANE   PASS   110.7 s
+  < UISMOKE   PASS   214.6 s
+  < TREEHIT   PASS    73.0 s
+  < GEAR      PASS     0.9 s
+  < STRUT     PASS     4.6 s
+  < OBSTACLE  PASS    22.0 s
+  < HYDRODYN  PASS   148.3 s
+  < FLOATS    PASS    71.3 s
+  < SEAPLANE  PASS   291.1 s
+  < SETTLE    PASS     7.3 s
+  < total           1573.1 s
+  < wall            1196.8 s  (jobs 2)
+  < 
+  < BATTERY: PASS
+  < 
+# BIPLANE re-run with the probe fix, damage ON, against OFF: the gate's own lines the same (masked numbers), only the single-gate runner's summary differs

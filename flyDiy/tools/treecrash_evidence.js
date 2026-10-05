@@ -11,7 +11,8 @@
 const fs = require('fs'), path = require('path');
 const argv = process.argv.slice(2);
 const opt = (k, d) => { const i = argv.indexOf('--' + k); return i >= 0 ? argv[i + 1] : d; };
-const OUT = path.join(__dirname, '..', 'reports', 'evidence', 'TREE-CRASH');
+// (G1833: --out <dir> - another session's evidence directory, so a re-measure does not overwrite TREE-CRASH's own)
+const OUT = (() => { const i = argv.indexOf('--out'); return i >= 0 ? path.resolve(argv[i + 1]) : path.join(__dirname, '..', 'reports', 'evidence', 'TREE-CRASH'); })();
 
 // ---- the perf child: sim.step(1/60) timed with nothing touching (the lib's loader on a given core) ----
 if (argv[0] === '--perf-child') {
@@ -31,7 +32,9 @@ if (argv[0] === '--perf-child') {
   const ms = [];
   for (let f = 0; f < 600; f++) { const a = process.hrtime.bigint(); sim.step(1 / 60); ms.push(Number(process.hrtime.bigint() - a) / 1e6); }
   ms.sort((a, b) => a - b);
-  console.log('PERF ' + JSON.stringify({ med: ms[300], p90: ms[540], mean: ms.reduce((a, b) => a + b, 0) / ms.length }));
+  // (G1833: the frames the damage layer was armed in the timed 600 - nothing touching, so none, certificate or not)
+  const D = sim.damage ? sim.damage() : null;
+  console.log('PERF ' + JSON.stringify({ med: ms[300], p90: ms[540], mean: ms.reduce((a, b) => a + b, 0) / ms.length, armed: D && D.armedN != null ? D.armedN : null, cert: !!(sim.cert && sim.cert()) }));
   process.exit(0);
 }
 

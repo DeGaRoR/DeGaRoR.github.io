@@ -1,0 +1,57 @@
+(1529 s, 5 builds; on the certificate, 66_gen_cert.js)
+Cub:
+2. the headroom (the worst member over its certified yield; ordinary operations at most 2/3)
+  ok    a touchdown at the normal sink, 1.0 m/s: 0.35 (fus VSNL-S0BR, compression)
+  ok    a touchdown at a firm one, 1.5 m/s: 0.36 (fus CGE-S0BL, compression)
+  ok    a touchdown at the build's FAR 23.473 limit sink, 2.13 m/s (the gear's own limit case): the airframe 0.49 (S0TR-S1BR), the gear 0.06 (AXLEL-S0TL)
+  ok    a taxi on grass at 8 m/s: 0.23 (fus S0TR-S1BR, tension)
+  ok    a taxi on a rough field (2 cm bumps, 3 m apart) at 8 m/s: 0.24 (fus S2BR-S3BR, tension)
+  ok    a taxi on the rough field at 12 m/s: 0.23 (fus S0TR-S1BR, tension)
+  ok    the circuit (completed, 335 s, touchdown 0.65 m/s): 0.29 (fus S1BL-S1BR, tension, FINAL)
+  ok    a crosswind circuit (3.26 m/s across, 0.2 V_S0) (null, 340 s): 0.44 (fus S0TR-S1TL, compression, ROLLOUT)
+Jodel:
+2. the headroom (the worst member over its certified yield; ordinary operations at most 2/3)
+  ok    a touchdown at the normal sink, 1.0 m/s: 0.29 (fus CGE-S0TL, tension)
+  ok    a touchdown at a firm one, 1.5 m/s: 0.39 (fus CGE-S0TR, tension)
+  ok    a touchdown at the build's FAR 23.473 limit sink, 2.17 m/s (the gear's own limit case): the airframe 0.53 (CGE-S0TL), the gear 0.04 (AXLEL-S0TL)
+  ok    a taxi on grass at 8 m/s: 0.15 (fus VSNL-VSNR, tension)
+  FAIL  a taxi on a rough field (2 cm bumps, 3 m apart) at 8 m/s: 0.70 (wing WB-WF, compression)
+  FAIL  a taxi on the rough field at 12 m/s: 0.85 (wing WB-WF, compression)
+  ok    the circuit (null, 340 s): 0.32 (fus CGE-S0TR, tension, ROLLOUT)
+  ok    a crosswind circuit (3.78 m/s across, 0.2 V_S0) (null, 340 s): 0.21 (wing WR-S2BL, compression, FINAL)
+metal Cessna:
+2. the headroom (the worst member over its certified yield; ordinary operations at most 2/3)
+  ok    a touchdown at the normal sink, 1.0 m/s: 0.33 (wing WF-WF, tension)
+  ok    a touchdown at a firm one, 1.5 m/s: 0.45 (wing WF-WF, tension)
+  FAIL  a touchdown at the build's FAR 23.473 limit sink, 2.38 m/s (the gear's own limit case): the airframe 0.67 (WF-WF), the gear 0.07 (AXLER-S1TR)
+  ok    a taxi on grass at 8 m/s: 0.35 (fus CGE-ENGR, tension)
+  ok    a taxi on a rough field (2 cm bumps, 3 m apart) at 8 m/s: 0.49 (fus ENGR-S0BR, tension)
+  ok    a taxi on the rough field at 12 m/s: 0.46 (wing WF-WF, tension)
+  FAIL  the circuit (completed, 271 s, touchdown 1.13 m/s): 0.74 (tail HR-HR, tension, FINAL)
+  FAIL  a crosswind circuit (3.78 m/s across, 0.2 V_S0) (completed, 279 s, touchdown 1.20 m/s): 0.77 (tail HR-HR, tension, FINAL)
+Cessna floats:
+2. the headroom (the worst member over its certified yield; ordinary operations at most 2/3)
+  FAIL  a touchdown at the normal sink, 1.0 m/s: 0.79 (fus CGE-ENGR, tension)
+  FAIL  a touchdown at a firm one, 1.5 m/s: 0.88 (fus CGE-ENGR, tension)
+  FAIL  a touchdown at the build's FAR 23.473 limit sink, 2.54 m/s (the gear's own limit case): the airframe 1.19 (WF-WF), the gear 0.20 (FLD-S2TL)
+  ok    a taxi on the water at 4 m/s: 0.25 (fus CGE-ENGR, tension)
+  ok    a taxi on the water at 4 m/s in a light chop (5 m/s of wind): 0.30 (fus S1BL-S1TR, tension)
+  FAIL  the circuit (null, 340 s): 0.98 (fus CGE-ENGL, tension, ROLLOUT)
+  ok    a crosswind circuit (4.23 m/s across, 0.2 V_S0) (null, 340 s): 0.51 (tail HF-HR, tension, ROLL)
+twin floatplane:
+2. the headroom (the worst member over its certified yield; ordinary operations at most 2/3)
+  ok    a touchdown at the normal sink, 1.0 m/s: 0.50 (fus S1TR-S2TR, tension)
+  ok    a touchdown at a firm one, 1.5 m/s: 0.57 (fus S1TR-S2TR, tension)
+  ok    a touchdown at the build's FAR 23.473 limit sink, 2.13 m/s (the gear's own limit case): the airframe 0.65 (S1TR-S2TR), the gear 0.18 (FLD-S2TR)
+  ok    a taxi on the water at 4 m/s: 0.29 (fus CGE-ENGR, tension)
+  ok    a taxi on the water at 4 m/s in a light chop (5 m/s of wind): 0.29 (fus CGE-ENGR, tension)
+  ok    the circuit (completed, 292 s, touchdown 1.63 m/s): 0.35 (fus CGE-WF, tension, ROLLOUT)
+  FAIL  a crosswind circuit (3.28 m/s across, 0.2 V_S0) (completed, 294 s, touchdown 1.35 m/s): 1.22 (fus S2BR-S2TL, compression, ROLLOUT)
+THE HEADROOM TABLE (the worst member over its certified yield; the 23.473 row: the airframe):
+  Cub             td 1.0 0.35 | td 1.5 0.36 | td 23.473 0.49 | taxi on grass at 8 m/s 0.23 | taxi on a rough field (2 cm bumps, 3 m apart) at 8 m/s 0.24 | taxi on the rough field at 12 m/s 0.23 | circuit 0.29 | crosswind circuit 0.44
+  Jodel           td 1.0 0.29 | td 1.5 0.39 | td 23.473 0.53 | taxi on grass at 8 m/s 0.15 | taxi on a rough field (2 cm bumps, 3 m apart) at 8 m/s 0.70 | taxi on the rough field at 12 m/s 0.85 | circuit 0.32 | crosswind circuit 0.21
+  metal Cessna    td 1.0 0.33 | td 1.5 0.45 | td 23.473 0.67 | taxi on grass at 8 m/s 0.35 | taxi on a rough field (2 cm bumps, 3 m apart) at 8 m/s 0.49 | taxi on the rough field at 12 m/s 0.46 | circuit 0.74 | crosswind circuit 0.77
+  Cessna floats   td 1.0 0.79 | td 1.5 0.88 | td 23.473 1.19 | taxi on the water at 4 m/s 0.25 | taxi on the water at 4 m/s in a light chop (5 m/s of wind) 0.30 | circuit 0.98 | crosswind circuit 0.51
+  twin floatplane td 1.0 0.50 | td 1.5 0.57 | td 23.473 0.65 | taxi on the water at 4 m/s 0.29 | taxi on the water at 4 m/s in a light chop (5 m/s of wind) 0.29 | circuit 0.35 | crosswind circuit 1.22
+  28/38 checks
+GATE DMGGEAR: FAIL

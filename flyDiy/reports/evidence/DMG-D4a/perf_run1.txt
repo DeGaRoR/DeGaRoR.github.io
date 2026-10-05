@@ -1,0 +1,5 @@
+cub ground base 3.860 now 3.738 ms; -3.2 %; the pairs' median -5.0 %, 8/12 negative
+cub air base 3.551 now 3.711 ms; 4.5 %; the pairs' median 5.5 %, 3/12 negative
+metal ground base 6.525 now 6.602 ms; 1.2 %; the pairs' median 0.3 %, 5/12 negative
+metal air base 6.266 now 6.386 ms; 1.9 %; the pairs' median 2.0 %, 5/12 negative
+PERFJSON {"cub:ground":{"base":3.860204,"now":3.73837,"pooled":-0.03156154441578729,"pairsMed":-0.05038852868915744,"neg":8},"cub:air":{"base":3.550845,"now":3.710563,"pooled":0.044980279341959584,"pairsMed":0.054576675112938844,"neg":3},"metal:ground":{"base":6.525461,"now":6.602067,"pooled":0.011739553726549001,"pairsMed":0.0034285165783807248,"neg":5},"metal:air":{"base":6.266062,"now":6.385918,"pooled":0.01912780307631823,"pairsMed":0.019707660069670396,"neg":5}}

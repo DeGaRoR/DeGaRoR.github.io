@@ -139,6 +139,9 @@ const MANIFEST = {
     '63_gen_wing.js',
     '64_gen_build.js',
     '65_gen_loadtest.js',
+    // THE CERTIFICATE (G1830, DMG-D2a): the load cases and the per-member envelope; needs 65_'s rig constants and
+    // 30_'s makeSim (the drop); called at a flight's start and by the bench, never in the garage's edit loop
+    '66_gen_cert.js',
     // THE PLAYER (HANGARS S1): the player's property as one document — its
     // own version and migrator walk beside the spec's (G105: state that is
     // not the aeroplane costs no spec version). References 26_'s default kit
@@ -484,6 +487,10 @@ const MANIFEST = {
               'audio/emitters_model.js', 'audio/emitters.js',
               'audio/voice_model.js', 'audio/voice.js',   // G1627 (SND-VOICE): Radio Jolene's words and their player
               // G999: the world's composition, run by the promote in a task of its own ahead of app.js's evaluation
+              // G1804 (DMG-D0): the damage view's colours (window.DMG_TINT, pure; app.js sync() reads it)
+              'dmg_overlay.js',
+              // G1851 (DMG-D4a): the skin over a break (window.SKIN_BREAK, pure; app.js poseModel reads it)
+              'skin_break.js',
               'world_boot.js', 'app.js',
               'dev_panel.js'],   // (the WORLD rail, world_rail.js, rides the world pack above - G582)
   },
