@@ -1879,6 +1879,43 @@ function buildPanel(parent, A, P, pilotX) {
 // so the veneer lies flat along the boards), a seam groove across ahead
 // of each seat row, screws round the edge every 12 cm.
 let FLOOR_BUILD = 0;                        // the build the deferred floor belongs to
+// G1451 (RELEASE-FAST): THE FLOOR WITHOUT THE CREW. The floor is cut round every other layer's meshes (sceneCuts), on
+// the late hook after the whole chain - so a release that keeps the crew (its inputs unmoved) but runs another layer
+// takes the floor out for the chain (a whole build's chain never sees this build's floor: the crew group is new and
+// floorless until the late hook) and cuts it again after, through the crew's own closure (the same group, anchors,
+// seats, sheet and controls the crew's last run held); nothing ran, the same floor goes back.
+let FLOOR_LAST = null;                      // { group, obj, run, detached } the crew's last floor
+if (typeof window !== 'undefined') window.CAGE_CREW_FLOOR = {
+  detach() { const F = FLOOR_LAST; if (!F || F.group !== group || !F.obj || F.obj.parent !== group) return false; group.remove(F.obj); F.detached = true; return true; },
+  reattach() { const F = FLOOR_LAST; if (F && F.detached && F.group === group && F.obj) { group.add(F.obj); F.detached = false; } },
+  rebuild() {
+    const F = FLOOR_LAST; if (!F || F.group !== group) return false;
+    if (F.obj) { F.obj.traverse(c => { if (c.geometry) c.geometry.dispose(); }); if (F.obj.parent) F.obj.parent.remove(F.obj); }
+    if (window.CAGE_CREW) delete window.CAGE_CREW.floorWhy;
+    F.run(); return true;
+  },
+  has() { return !!(FLOOR_LAST && FLOOR_LAST.group === group); },
+  // would a cut now differ? - a mesh that reached the band on the last cut has left the scene, or one of the given
+  // top-level groups (the layers a release re-ran) holds a mesh that reaches it. The crew group's frame is the one
+  // the last cut was measured in (the release runs only while the sit stands).
+  needs(tops) {
+    const B = FLOOR_BAND;
+    if (!B || !FLOOR_LAST || FLOOR_LAST.group !== group || B.crewGroup !== group) return true;
+    for (const o of B.hits) { let a = o; while (a && a.parent) a = a.parent; if (a !== B.scene) return true; }
+    const M = new THREE.Matrix4();
+    group.updateMatrixWorld(true);
+    const inv = new THREE.Matrix4().copy(group.matrixWorld).invert();
+    if (!inv.equals(B.inv)) return true;
+    for (const top of tops || []) {
+      if (!top || top === group || !/^cageLayer:/.test(top.name || '') || !top.visible || top.parent !== B.scene) continue;
+      top.updateMatrixWorld(true);
+      let hit = false;
+      top.traverse(o => { if (!hit && floorReaches(o, inv, M, B.yLo, B.yHi, B.zA, B.zB)) hit = true; });
+      if (hit) return true;
+    }
+    return false;
+  },
+};
 const FLOOR_T = 0.012;
 const FLOOR_MARGIN = 0.004;                 // the board's edge stands this far inside the wall (G354)
 let FLOOR_THRU = [];                        // [{x, z, r}] a control passing through, metres
@@ -2009,6 +2046,27 @@ function floorWalls(mesh, k, yAt, zF, zA) {
 // that only enters the underside is still a spar in the board); every cut
 // lands in the CREW group's own frame (the scene is the world's — the
 // layers' meshes come through their matrixWorld and back through ours)
+// G1451: the meshes that reached the board's band on the last cut, and the band - a release that re-ran other layers
+// asks whether any of them left or any new one reaches it (else the floor it would cut is the floor standing)
+let FLOOR_BAND = null;
+// THE MESHES THAT CAN CUT THE BOARD: a visible, opaque, unskinned mesh of a cageLayer:* group (not the crew's own)
+// whose box reaches the board's height band
+// ...and whose box reaches the board's RUN along z: a cut piece is kept only when its middle lies inside
+// [z0 + 1 cm, z1 - 1 cm] (buildFloor), and every piece of a mesh's cuts lies inside the mesh's z extent - a mesh wholly
+// fore or aft of the run (by a micrometre) cuts nothing the board keeps (zA, zB: the run, optional)
+function floorReaches(o, inv, M, yLo, yHi, zA, zB) {
+  if (!o.isMesh || !o.visible || o.isSkinnedMesh || !o.geometry || !o.geometry.attributes.position) return false;
+  const m0 = Array.isArray(o.material) ? o.material[0] : o.material;
+  if (!m0 || m0.visible === false || m0.transparent) return false;
+  const g = o.geometry;
+  M.multiplyMatrices(inv, o.matrixWorld);
+  // a cheap bound first: the mesh's box must reach into the board
+  if (!g.boundingBox) g.computeBoundingBox();
+  const bb = g.boundingBox.clone().applyMatrix4(M);
+  if (bb.min.y > yHi || bb.max.y < yLo) return false;
+  if (zA != null && (bb.max.z < zA - 1e-6 || bb.min.z > zB + 1e-6)) return false;
+  return true;
+}
 function sceneCuts(scene, yAt, offs, crewGroup, zLo, zHi) {
   const out = [], v = [new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3()];
   if (!scene || !crewGroup) return out;
@@ -2016,20 +2074,17 @@ function sceneCuts(scene, yAt, offs, crewGroup, zLo, zHi) {
   const inv = new THREE.Matrix4().copy(crewGroup.matrixWorld).invert(), M = new THREE.Matrix4();
   let yLo = Infinity, yHi = -Infinity;
   for (let z = zLo; z <= zHi + 1e-9; z += 0.05) { const y = yAt(z); yLo = Math.min(yLo, y + Math.min(...offs)); yHi = Math.max(yHi, y + Math.max(...offs)); }
+  const hits = [], zA = zLo + 0.01, zB = zHi - 0.01;
+  FLOOR_BAND = { scene, crewGroup, inv: inv.clone(), yLo, yHi, zA, zB, hits };
   for (const top of scene.children) {
     if (top === crewGroup || !/^cageLayer:/.test(top.name || '') || !top.visible) continue;
     top.updateMatrixWorld(true);
     top.traverse(o => {
-      if (!o.isMesh || !o.visible || o.isSkinnedMesh || !o.geometry || !o.geometry.attributes.position) return;
-      const m0 = Array.isArray(o.material) ? o.material[0] : o.material;
-      if (!m0 || m0.visible === false || m0.transparent) return;
+      // (traverse walks into hidden children as well: the visible test is the mesh's own, as it always was)
+      if (!floorReaches(o, inv, M, yLo, yHi, zA, zB)) return;
+      hits.push(o);
       const g = o.geometry, p = g.attributes.position, idx = g.index;
       const n = idx ? idx.count : p.count;
-      M.multiplyMatrices(inv, o.matrixWorld);
-      // a cheap bound first: the mesh's box must reach into the board
-      if (!g.boundingBox) g.computeBoundingBox();
-      const bb = g.boundingBox.clone().applyMatrix4(M);
-      if (bb.min.y > yHi || bb.max.y < yLo) return;
       const tri = [[0, 0, 0], [0, 0, 0], [0, 0, 0]];
       for (let i = 0; i + 2 < n; i += 3) {
         for (let e = 0; e < 3; e++) {
@@ -3306,16 +3361,23 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
   // ply, notched and holed round whatever breaks the plane.
   const floorN = +P.floorOn ? 1 : 0;
   FLOOR_THRU = [];
+  FLOOR_LAST = null;
   if (floorN) {
     const myGroup = group, token = ++FLOOR_BUILD;
     let done = false;
+    const floorRun = () => {
+      FLOOR_LAST = { group: myGroup, obj: null, run: floorRun, detached: false };
+      FLOOR_BAND = null;
+      try {
+        const fl = buildFloor(myGroup, A, P, mesh, places, scene);
+        FLOOR_LAST.obj = fl ? fl.obj : null;
+        if (window.CAGE_CREW) window.CAGE_CREW.floor = fl ? { holes: fl.holes, slots: fl.slots, notches: fl.notches, z: fl.z, cut: fl.cut } : null;
+      } catch (e) { console.warn('floor (G331):', e); }
+    };
     const late = () => {
       if (done || token !== FLOOR_BUILD || group !== myGroup) return;   // a newer build superseded this one
       done = true;
-      try {
-        const fl = buildFloor(myGroup, A, P, mesh, places, scene);
-        if (window.CAGE_CREW) window.CAGE_CREW.floor = fl ? { holes: fl.holes, slots: fl.slots, notches: fl.notches, z: fl.z, cut: fl.cut } : null;
-      } catch (e) { console.warn('floor (G331):', e); }
+      floorRun();
     };
     // PAGE.late: _cage_ui drains it right after the post chain, in the same
     // task — so a join that follows the build in one breath sees the floor;

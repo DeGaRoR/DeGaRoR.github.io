@@ -1,0 +1,22 @@
+  garage / metal: boot 37.1 s real; read 47.1 MB in 326 reads; after GC heap 240.8 MB + ArrayBuffers 292.4 MB (before the page: 5.3 + 0); errors 0
+     read by kind (MB, unique files): {"world":0,"json":0,"geo":11.7,"tex":29.4,"script":0.1,"other":0.5}
+     aeroplane                3355 ms       0 MB read  heap 78 ab 32.8
+     aircraft                 3890 ms    33.8 MB read  heap 91.3 ab 116.6
+     garage                    512 ms       0 MB read  heap 119.9 ab 90.7
+     editor                   4471 ms       4 MB read  heap 274.5 ab 151.6
+     seed                     4243 ms     6.7 MB read  heap 326.8 ab 217.2
+     snapshot                 3958 ms       0 MB read  heap 205 ab 259.6
+     spec                       53 ms       0 MB read  heap 201 ab 259.7
+     restore                   696 ms       0 MB read  heap 204.9 ab 265
+     compile                  7076 ms       0 MB read  heap 246 ab 307.4
+     firstFrame                554 ms       0 MB read  heap 259.9 ab 307.4
+     BOOT landing             1733 ms       0 MB read  heap 264.2 ab 307.4
+     BOOT gone                   0 ms       0 MB read  heap 264.2 ab 307.4
+  wgSpan       tick  127.7  release   413.5  idle     8.6  {"n":3,"whole":0,"last":{"ran":["panel","cowlAft","access","light","energy","hin
+  wgChord      tick    132  release   426.3  idle     9.8  {"n":6,"whole":0,"last":{"ran":["panel","cowlAft","access","light","energy","hin
+  stSpan       tick   19.2  release   311.8  idle     9.6  {"n":9,"whole":0,"last":{"ran":["panel","cowlAft","access","light","hinge","ext"
+  s1X          tick  111.7  release   280.3  idle     8.8  {"n":12,"whole":0,"last":{"ran":["panel","cowlAft","access","light","hinge","ext
+  paxLen       tick   30.3  release  2183.1  idle    10.3  {"n":12,"whole":3,"last":{"whole":"a deformed drag"}}
+  halfW        tick   36.7  release  2198.9  idle     9.8  {"n":12,"whole":6,"last":{"whole":"a deformed drag"}}
+  seatH        tick  278.6  release  1577.5  idle     9.9  {"n":12,"whole":9,"last":{"whole":"the crew moved in the drag"}}
+  after the drags, GC: heap 279.7 ab 312.3  -> ../../meas/garage3_metal.json

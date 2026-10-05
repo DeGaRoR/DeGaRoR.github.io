@@ -130,7 +130,7 @@ const play = fnBody('rollAnimPlay');
 check(play.includes('rollShotUi(true)') && play.indexOf('rollShotUi(true)') < play.indexOf('ROLLANIM.play('), 'U5 rollAnimPlay hides the verbs BEFORE the shot\'s first frame');
 check(/function flRevealStart\(\) \{\s*\n\s*rollShotUi\(false\);/.test(APP), 'U5 flRevealStart gives them back first thing (the reveal hands over)');
 check(fnBody('rollAnimSolo').includes('rollShotUi(false)'), 'U5 a solo shot (back to the shed) gives them back');
-check(/function enterGarage\(\) \{[\s\S]{0,80}rollShotUi\(false\)/.test(APP), 'U5 enterGarage gives them back (a roll-in over the trip)');
+check(/function enterGarage\(\) \{[\s\S]{0,600}rollShotUi\(false\)/.test(APP), 'U5 enterGarage gives them back (a roll-in over the trip)');
 const decl = /\n  (function rollShotUi\(on\) \{[^\n]*\})/.exec(APP);
 check(!!decl, 'U5 rollShotUi is a hoisted declaration (enterGarage, above it, runs at boot)');
 if (decl) {

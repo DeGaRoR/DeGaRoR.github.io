@@ -59,7 +59,14 @@ const CHANGES = [
   { name: 'tankCap',   id: null, pick: 'tank', release: true },        // a drag tick (input) and its release (change: the commit)
   { name: 'livery',    id: null, pick: 'colour' },
   { name: 'frame',     id: 'p_frCabTopW', alt: ['p_frCabWaistW'] },
-].filter(c => !ONLY || ONLY.has(c.name));
+  // RELEASE-FAST (G1450): the sheet's detail rows and a crew row - measured only when --only names them (the strict
+  // gate's default script is unchanged)
+  { name: 'rimW',      id: 'p_rimW', extra: true },                     // a rim: the sheet's rims stage on
+  { name: 'rimRivet',  id: 'p_rimRivet', extra: true },
+  { name: 'dashBack',  id: 'p_dashBack', extra: true },                 // the dash: the interior and the shoulder
+  { name: 'shoulderT', id: 'p_shoulderT', extra: true },                // the shoulder alone
+  { name: 'seatH',     id: 'p_seatH', extra: true },                    // a crew row (kept sheet: the crew + its floor)
+].filter(c => ONLY ? ONLY.has(c.name) : !c.extra);
 const PICK = {
   // the first colour input of the finish panel that is a section tint (the livery's own colours)
   colour: `(() => [...document.querySelectorAll('input[type=color]')].find(x => typeof x.oninput === 'function' && /^base colour/.test(((x.closest('.r') || x.parentElement || {}).textContent || '').trim())) || null)()`,

@@ -79,7 +79,7 @@
     { k: 'game', t: 'Views',
       x: 'C cycles the views: chase, orbit, cockpit, wing and tower. In the cockpit, L lets the mouse turn your head, and Escape gives the mouse back.' },
     { k: 'game', t: 'Five presets',
-      x: 'potato, 5 years ago, current, gamer, ultra - or your own mix. The frame rate row holds 60, holds 30, or runs free; auto picks for you.' },
+      x: 'laptop, potato, 5 years ago, current, gamer, ultra - or your own mix. The frame rate row holds 60, holds 30, or runs free; auto picks for you.' },
     { k: 'game', t: 'The pictures are kept',
       x: "After the first visit the browser keeps the textures and models. The graphics menu's storage row shows the build, the cache, and a refresh caches button." },
 

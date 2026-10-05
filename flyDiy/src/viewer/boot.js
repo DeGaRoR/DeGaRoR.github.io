@@ -437,7 +437,12 @@
     // a 9 s block is a normal step on a slow machine: the button is a safety
     // valve, not a verdict - it shows at 14 s of silence, the overlay gives up
     // at 30 s of silence or 2 min in all
-    const idle = B.opt.idle || 30000, hard = B.opt.hard || 120000, skipAt = B.opt.skipAt || 14000;
+    // G1460 (SOFT-GPU): ON A SOFTWARE RENDERER the clock is twenty times longer - SwiftShader compiles every program
+    // and draws every frame on the CPU (a garage boot ~6 min, one frame of the shed up to a minute): the 120 s hard
+    // timeout lifted the overlay a third of the way through the chain. Read at the check (welcome.js decides after
+    // this script); 1 on every graphics card
+    const k = (typeof window !== 'undefined' && window.GFX && window.GFX.soft && window.GFX.soft()) ? 20 : 1;
+    const idle = (B.opt.idle || 30000) * k, hard = (B.opt.hard || 120000) * k, skipAt = (B.opt.skipAt || 14000) * k;
     if (t - B.lastEvent >= skipAt || t - B.opt.t0 >= 45000) { const b = $('bootSkip'); if (b) b.hidden = false; }
     const compiling = B._shaderT && t - B._shaderT < idle;   // G567: a moving shader count is not a stuck boot
     if (t - B.lastEvent >= idle || (t - B.opt.t0 >= hard && !compiling)) { fail(t - B.opt.t0 >= hard ? 'hard timeout' : 'nothing landed for ' + Math.round(idle / 1000) + ' s'); return; }

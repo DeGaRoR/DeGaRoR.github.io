@@ -1,0 +1,331 @@
+{
+ "date": "2026-10-04T15:55:32.417Z",
+ "mode": "full",
+ "build": "cub",
+ "before": {
+  "heap": 5.3,
+  "ab": 0,
+  "ext": 1.4,
+  "rss": 46.8
+ },
+ "steps": [
+  {
+   "step": "aeroplane",
+   "ms": 78,
+   "bytes": 6978640,
+   "heap": 82.8,
+   "ab": 504.1,
+   "ext": 505.5,
+   "rss": 705.6
+  },
+  {
+   "step": "treeBins",
+   "ms": 1953,
+   "bytes": 0,
+   "heap": 91.7,
+   "ab": 483.7,
+   "ext": 485.1,
+   "rss": 711.3
+  },
+  {
+   "step": "aircraft",
+   "ms": 4151,
+   "bytes": 35492950,
+   "heap": 95,
+   "ab": 541.2,
+   "ext": 575.7,
+   "rss": 805
+  },
+  {
+   "step": "garage",
+   "ms": 421,
+   "bytes": 0,
+   "heap": 137.9,
+   "ab": 541.2,
+   "ext": 542.6,
+   "rss": 833.1
+  },
+  {
+   "step": "editor",
+   "ms": 3492,
+   "bytes": 3000284,
+   "heap": 223.1,
+   "ab": 592.9,
+   "ext": 594.4,
+   "rss": 990.8
+  },
+  {
+   "step": "seed",
+   "ms": 7244,
+   "bytes": 8538351,
+   "heap": 267.7,
+   "ab": 788.7,
+   "ext": 790.1,
+   "rss": 1292.2
+  },
+  {
+   "step": "world",
+   "ms": 35428,
+   "bytes": 44269560,
+   "heap": 324.2,
+   "ab": 1112,
+   "ext": 1179,
+   "rss": 1541.9
+  },
+  {
+   "step": "town",
+   "ms": 26458,
+   "bytes": 65081634,
+   "heap": 633.6,
+   "ab": 1353,
+   "ext": 1420,
+   "rss": 2242.1
+  },
+  {
+   "step": "parking",
+   "ms": 15988,
+   "bytes": 0,
+   "heap": 630.7,
+   "ab": 1434.3,
+   "ext": 1501.5,
+   "rss": 2353.8
+  },
+  {
+   "step": "ring",
+   "ms": 16347,
+   "bytes": 17041456,
+   "heap": 760,
+   "ab": 1578.2,
+   "ext": 1645.1,
+   "rss": 2580.9
+  },
+  {
+   "step": "settle",
+   "ms": 118636,
+   "bytes": 595014,
+   "heap": 888.8,
+   "ab": 2068.8,
+   "ext": 2135.7,
+   "rss": 3222.1
+  },
+  {
+   "step": "parked",
+   "ms": 2377,
+   "bytes": 0,
+   "heap": 798.8,
+   "ab": 2090.4,
+   "ext": 2157.3,
+   "rss": 3286.6
+  },
+  {
+   "step": "snapshot",
+   "ms": 17106,
+   "bytes": 0,
+   "heap": 930,
+   "ab": 2378.7,
+   "ext": 2445.6,
+   "rss": 3556.8
+  },
+  {
+   "step": "bake",
+   "ms": 27568,
+   "bytes": 0,
+   "heap": 794.6,
+   "ab": 2296.9,
+   "ext": 2363.8,
+   "rss": 3617.4
+  },
+  {
+   "step": "spec",
+   "ms": 2135,
+   "bytes": 0,
+   "heap": 843.9,
+   "ab": 2296.9,
+   "ext": 2363.8,
+   "rss": 3633.4
+  },
+  {
+   "step": "images",
+   "ms": 421,
+   "bytes": 0,
+   "heap": 845.5,
+   "ab": 2299.3,
+   "ext": 2366.2,
+   "rss": 3633.4
+  },
+  {
+   "step": "upload",
+   "ms": 526,
+   "bytes": 0,
+   "heap": 820.6,
+   "ab": 2107.1,
+   "ext": 2174,
+   "rss": 3585.3
+  },
+  {
+   "step": "worldCompile",
+   "ms": 664,
+   "bytes": 0,
+   "heap": 841.2,
+   "ab": 2107.1,
+   "ext": 2174.1,
+   "rss": 3585.4
+  },
+  {
+   "step": "compile",
+   "ms": 448,
+   "bytes": 0,
+   "heap": 839.6,
+   "ab": 2107.2,
+   "ext": 2174.1,
+   "rss": 3586
+  },
+  {
+   "step": "firstFrame",
+   "ms": 2280,
+   "bytes": 0,
+   "heap": 866.3,
+   "ab": 2107.3,
+   "ext": 2174.2,
+   "rss": 3587.3
+  },
+  {
+   "step": "frames",
+   "ms": 791,
+   "bytes": 0,
+   "heap": 885.9,
+   "ab": 2107.3,
+   "ext": 2174.2,
+   "rss": 3587.7
+  },
+  {
+   "step": "craft",
+   "ms": 274,
+   "bytes": 0,
+   "heap": 877.6,
+   "ab": 2107.3,
+   "ext": 2174.2,
+   "rss": 3587.8
+  },
+  {
+   "step": "BOOT landing",
+   "ms": 1705,
+   "bytes": 0,
+   "heap": 889.6,
+   "ab": 2107.3,
+   "ext": 2174.2,
+   "rss": 3597.8
+  },
+  {
+   "step": "BOOT gone",
+   "ms": 0,
+   "bytes": 0,
+   "heap": 889.6,
+   "ab": 2107.3,
+   "ext": 2174.2,
+   "rss": 3597.8
+  }
+ ],
+ "rows": [
+  {
+   "key": "wgSpan",
+   "tick": 136.6,
+   "release": 342.7,
+   "idle": 8.1,
+   "why": "{\"n\":2,\"whole\":1,\"last\":{\"ran\":[\"panel\",\"cowlAft\",\"access\",\"light\",\"energy\",\"hinge\",\"ext\"],\"why\":\"panel(always) cowlAft(always) access(stale) light(stale) energy(stale) hinge(stale) ext(always)\",\"floor\":\"cut again\",\"ms\":0.2}}"
+  },
+  {
+   "key": "wgChord",
+   "tick": 138.5,
+   "release": 348.5,
+   "idle": 8.5,
+   "why": "{\"n\":5,\"whole\":1,\"last\":{\"ran\":[\"panel\",\"cowlAft\",\"access\",\"light\",\"energy\",\"hinge\",\"ext\"],\"why\":\"panel(always) cowlAft(always) access(stale) light(stale) energy(stale) hinge(stale) ext(always)\",\"floor\":\"cut again\",\"ms\":0.2}}"
+  },
+  {
+   "key": "stSpan",
+   "tick": 15.9,
+   "release": 299.9,
+   "idle": 9.2,
+   "why": "{\"n\":8,\"whole\":1,\"last\":{\"ran\":[\"panel\",\"cowlAft\",\"access\",\"light\",\"hinge\",\"ext\"],\"why\":\"panel(always) cowlAft(always) access(stale) light(stale) hinge(stale) ext(always)\",\"floor\":\"cut again\",\"ms\":0.1}}"
+  },
+  {
+   "key": "s1X",
+   "tick": 126.7,
+   "release": 384.1,
+   "idle": 8.8,
+   "why": "{\"n\":11,\"whole\":1,\"last\":{\"ran\":[\"panel\",\"cowlAft\",\"access\",\"light\",\"hinge\",\"ext\"],\"why\":\"panel(always) cowlAft(always) access(stale) light(stale) hinge(stale) ext(always)\",\"floor\":\"cut again\",\"ms\":0.1}}"
+  },
+  {
+   "key": "paxLen",
+   "tick": 31.8,
+   "release": 1572.6,
+   "idle": 8.3,
+   "why": "{\"n\":11,\"whole\":4,\"last\":{\"whole\":\"a deformed drag\"}}"
+  },
+  {
+   "key": "halfW",
+   "tick": 24.3,
+   "release": 1465.3,
+   "idle": 11.5,
+   "why": "{\"n\":11,\"whole\":7,\"last\":{\"whole\":\"a deformed drag\"}}"
+  },
+  {
+   "key": "seatH",
+   "tick": 216.6,
+   "release": 1080.6,
+   "idle": 9.3,
+   "why": "{\"n\":11,\"whole\":10,\"last\":{\"whole\":\"the crew moved in the drag\"}}"
+  }
+ ],
+ "bootMs": 295102,
+ "afterGC": {
+  "heap": 827.5,
+  "ab": 2027.6,
+  "ext": 2094.5,
+  "rss": 3527.8
+ },
+ "io": {
+  "fetches": 1068,
+  "fetchBytes": 193311277,
+  "imgLoads": 228,
+  "imgBytes": 47489291,
+  "c2dDraw": 268,
+  "c2dRead": 209,
+  "c2dReadBytes": 265341696,
+  "c2dPut": 49,
+  "workerMsgs": 964
+ },
+ "fetchedN": 1068,
+ "bytesTotal": 240800568,
+ "errors": [
+  "impostor bake: cone sheet EMPTY (drawn 0.00 %, mean byte 0.0)",
+  "impostor bake: cone sheet EMPTY (drawn 0.00 %, mean byte 0.0)",
+  "impostor bake: cone sheet EMPTY (drawn 0.00 %, mean byte 0.0)",
+  "impostor bake: cone sheet EMPTY (drawn 0.00 %, mean byte 0.0)",
+  "impostor bake: cedar_tree.glb|Cedar_LOD0 rungs sheet EMPTY (drawn 0.00 %, mean byte 0.0)",
+  "impostor bake: cedar_tree.glb|Cedar_LOD0 stand sheet EMPTY (drawn 0.00 %, mean byte 0.0)",
+  "impostor bake: cedar_tree.glb|Cedar_LOD0 snag sheet EMPTY (drawn 0.00 %, mean byte 0.0)",
+  "impostor bake: fir_tree_georgeous.glb|Fir01_LOD0 rungs sheet EMPTY (drawn 0.00 %, mean byte 0.0)",
+  "impostor bake: fir_tree_georgeous.glb|Fir01_LOD0 stand sheet EMPTY (drawn 0.00 %, mean byte 0.0)",
+  "impostor bake: fir_tree_georgeous.glb|Fir01_LOD0 snag sheet EMPTY (drawn 0.00 %, mean byte 0.0)",
+  "impostor bake: larch_tree.glb|Larch_LOD0 rungs sheet EMPTY (drawn 0.00 %, mean byte 0.0)",
+  "impostor bake: larch_tree.glb|Larch_LOD0 stand sheet EMPTY (drawn 0.00 %, mean byte 0.0)",
+  "impostor bake: larch_tree.glb|Larch_LOD0 snag sheet EMPTY (drawn 0.00 %, mean byte 0.0)",
+  "impostor bake: realistic_fir_trees_pack_lods_gameready.glb|Christmas tree rungs sheet EMPTY (drawn 0.00 %, mean byte 0.0)",
+  "impostor bake: realistic_fir_trees_pack_lods_gameready.glb|Christmas tree stand sheet EMPTY (drawn 0.00 %, mean byte 0.0)",
+  "impostor bake: realistic_fir_trees_pack_lods_gameready.glb|Christmas tree snag sheet EMPTY (drawn 0.00 %, mean byte 0.0)",
+  "impostor bake: realistic_fir_trees_pack_lods_gameready.glb|Christmas tree_2 rungs sheet EMPTY (drawn 0.00 %, mean byte 0.0)",
+  "impostor bake: realistic_fir_trees_pack_lods_gameready.glb|Christmas tree_2 stand sheet EMPTY (drawn 0.00 %, mean byte 0.0)",
+  "impostor bake: realistic_fir_trees_pack_lods_gameready.glb|Christmas tree_2 snag sheet EMPTY (drawn 0.00 %, mean byte 0.0)",
+  "impostor bake: spruce_tree.glb|Spruce_LOD0 rungs sheet EMPTY (drawn 0.00 %, mean byte 0.0)"
+ ],
+ "errorsN": 53,
+ "worldBuilt": false,
+ "programs": 406,
+ "afterDrags": {
+  "heap": 843.6,
+  "ab": 2041.3,
+  "ext": 2108.2,
+  "rss": 3657.3
+ }
+}

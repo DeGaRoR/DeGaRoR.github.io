@@ -515,9 +515,10 @@ function placeAll(ctx, inv) {
             const half = { x: bf.W / 2 + 0.02, z: bf.L / 2 + 0.02 };
             const zMid = (zFw != null ? (zFw - mid / FS) * FS : 0);
             let crewTop = -Infinity;
-            for (const p of CREW_PTS)
-              if (Math.abs(p[0]) <= half.x && Math.abs(p[2] - zMid) <= half.z && p[1] > crewTop)
-                crewTop = p[1];
+            for (let i = 0, P3 = CREW_PTS.buf; i < CREW_PTS.n; i++) {
+              const x = P3[i * 3], y = P3[i * 3 + 1], z = P3[i * 3 + 2];
+              if (Math.abs(x) <= half.x && Math.abs(z - zMid) <= half.z && y > crewTop) crewTop = y;
+            }
             const lvB = bay.lv || [0, 1];
             const bandTop = ext.yLo + lvB[1] * (ext.yHi - ext.yLo);
             if (isFinite(crewTop)) {
@@ -597,24 +598,32 @@ function commitSoon() {
 // auto-fit asks the same question a hundred times
 let CREW_PTS = null;
 function crewPoints(scene, inv) {
-  if (!scene || !window.THREE) return [];
+  if (!scene || !window.THREE) return { buf: new Float64Array(0), n: 0 };
   let crew = null;
   for (const ch of scene.children)
     if ((ch.name || '') === 'cageLayer:crew') crew = ch;
-  if (!crew) return [];
+  if (!crew) return { buf: new Float64Array(0), n: 0 };
   crew.updateMatrixWorld(true);
-  const V = new THREE.Vector3(), out = [];
+  // G1455 (RELEASE-FAST): the points in one Float64Array, x y z each (the same doubles the little arrays held)
+  const V = new THREE.Vector3(), meshes = [];
+  let n = 0;
   crew.traverse(o => {
     if (!o.isMesh || !o.geometry) return;
     const pos = o.geometry.getAttribute('position');
     if (!pos) return;
+    meshes.push(o); n += pos.count;
+  });
+  const buf = new Float64Array(n * 3);
+  let k = 0;
+  for (const o of meshes) {
+    const pos = o.geometry.getAttribute('position');
     for (let i = 0; i < pos.count; i++) {
       V.set(pos.getX(i), pos.getY(i), pos.getZ(i))
         .applyMatrix4(o.matrixWorld).applyMatrix4(inv);
-      out.push([V.x, V.y, V.z]);
+      buf[k++] = V.x; buf[k++] = V.y; buf[k++] = V.z;
     }
-  });
-  return out;
+  }
+  return { buf, n };
 }
 function crewHits(scene, inv, results) {
   const G = VG();
@@ -622,8 +631,11 @@ function crewHits(scene, inv, results) {
   const bodies = results.filter(r => r.on === 'body' && r.c);
   if (!bodies.length) return;
   if (!CREW_PTS) CREW_PTS = crewPoints(scene, inv);
-  for (const p of CREW_PTS)
-    for (const r of bodies) if (G.pointInBox(p, r, 0.01)) r.crewHits++;
+  const q = [0, 0, 0], B3 = CREW_PTS.buf;
+  for (let i = 0; i < CREW_PTS.n; i++) {
+    q[0] = B3[i * 3]; q[1] = B3[i * 3 + 1]; q[2] = B3[i * 3 + 2];
+    for (const r of bodies) if (G.pointInBox(q, r, 0.01)) r.crewHits++;
+  }
   for (const r of bodies) if (r.crewHits) {
     r.ok = false;
     r.why.push('through the crew (' + r.crewHits + ' points)');
@@ -693,54 +705,85 @@ function drawnPts(r, sol, slots, pc) {
 // engine's and the cowl's meshes as flat triangles with their boxes; a query
 // is then a box filter - fitOf asks it hundreds of times in a search
 let SURF_ALL = null;
-function surfAll(ctx, scene, inv) {
-  if (SURF_ALL && SURF_ALL.mesh === (ctx && ctx.mesh) && SURF_ALL.inv === inv) return SURF_ALL.tris;
-  const tris = [];
-  const add = (ax, ay, az, bx, by, bz, cx, cy, cz) => {
-    tris.push([ax, ay, az, bx - ax, by - ay, bz - az, cx - ax, cy - ay, cz - az,
-               Math.min(ax, bx, cx), Math.min(ay, by, cy), Math.min(az, bz, cz),
-               Math.max(ax, bx, cx), Math.max(ay, by, cy), Math.max(az, bz, cz)]);
-  };
-  const M = ctx && ctx.mesh;
-  if (M && M.F && M.V) {
-    const FS = (window.CAGE2 && window.CAGE2.CAGE_UNIT || 1) * ((ctx.P && ctx.P.planeScale) || 1);
-    for (const f of M.F) {
-      const v = f.v; if (!v || v.length < 3) continue;
-      for (let i = 1; i + 1 < v.length; i++) {
-        const A = M.V[v[0]], B = M.V[v[i]], C = M.V[v[i + 1]];
-        add(A[0] * FS, A[1] * FS, A[2] * FS, B[0] * FS, B[1] * FS, B[2] * FS, C[0] * FS, C[1] * FS, C[2] * FS);
-      }
+// G1455 (RELEASE-FAST): the soup is ONE Float64Array, 15 numbers a triangle (the same doubles, in the same order, that
+// the per-triangle arrays held - a metal Cessna's 45 000 arrays were a quarter of a release's garbage), and the
+// sheet's part is kept with the sheet (a WeakMap on the mesh object, by the scale it was built at: a release keeps the
+// sheet, and its triangles are the same numbers)
+const SHEET_SOUP = new WeakMap();
+function soupAdd(buf, n, ax, ay, az, bx, by, bz, cx, cy, cz) {
+  const o = n * 15;
+  buf[o] = ax; buf[o + 1] = ay; buf[o + 2] = az;
+  buf[o + 3] = bx - ax; buf[o + 4] = by - ay; buf[o + 5] = bz - az;
+  buf[o + 6] = cx - ax; buf[o + 7] = cy - ay; buf[o + 8] = cz - az;
+  buf[o + 9] = Math.min(ax, bx, cx); buf[o + 10] = Math.min(ay, by, cy); buf[o + 11] = Math.min(az, bz, cz);
+  buf[o + 12] = Math.max(ax, bx, cx); buf[o + 13] = Math.max(ay, by, cy); buf[o + 14] = Math.max(az, bz, cz);
+}
+function sheetSoup(M, FS) {
+  const k = window.RELEASE_FAST_OFF ? null : SHEET_SOUP.get(M);
+  if (k && k.FS === FS) return k;
+  let nT = 0;
+  for (const f of M.F) { const v = f.v; if (v && v.length >= 3) nT += v.length - 2; }
+  const buf = new Float64Array(nT * 15);
+  let n = 0;
+  for (const f of M.F) {
+    const v = f.v; if (!v || v.length < 3) continue;
+    for (let i = 1; i + 1 < v.length; i++) {
+      const A = M.V[v[0]], B = M.V[v[i]], C = M.V[v[i + 1]];
+      soupAdd(buf, n++, A[0] * FS, A[1] * FS, A[2] * FS, B[0] * FS, B[1] * FS, B[2] * FS, C[0] * FS, C[1] * FS, C[2] * FS);
     }
   }
+  const out = { FS, buf, n };
+  SHEET_SOUP.set(M, out);
+  return out;
+}
+function surfAll(ctx, scene, inv) {
+  if (SURF_ALL && SURF_ALL.mesh === (ctx && ctx.mesh) && SURF_ALL.inv === inv) return SURF_ALL;
+  const M = ctx && ctx.mesh;
+  const sh = (M && M.F && M.V) ? sheetSoup(M, (window.CAGE2 && window.CAGE2.CAGE_UNIT || 1) * ((ctx.P && ctx.P.planeScale) || 1)) : null;
+  // the engine's and the cowl's meshes, counted first
+  const objs = [];
+  let nL = 0;
   if (scene && inv && window.THREE) {
-    const V = new THREE.Vector3(), Q = [[], [], []];
     for (const ch of scene.children) {
       if (!HIT_LAYERS.includes(ch.name || '') || ch.visible === false) continue;
       ch.traverse(o => {
         if (!o.isMesh || !o.geometry || o.visible === false) return;
         const pos = o.geometry.getAttribute('position'); if (!pos) return;
         const idx = o.geometry.index, nT = idx ? idx.count / 3 : pos.count / 3;
-        for (let t = 0; t < nT; t++) {
-          for (let k = 0; k < 3; k++) {
-            const vi = idx ? idx.getX(t * 3 + k) : t * 3 + k;
-            V.set(pos.getX(vi), pos.getY(vi), pos.getZ(vi)).applyMatrix4(o.matrixWorld).applyMatrix4(inv);
-            Q[k] = [V.x, V.y, V.z];
-          }
-          add(Q[0][0], Q[0][1], Q[0][2], Q[1][0], Q[1][1], Q[1][2], Q[2][0], Q[2][1], Q[2][2]);
-        }
+        objs.push(o); nL += Math.floor(nT) === nT ? nT : Math.ceil(nT);
       });
     }
   }
-  SURF_ALL = { mesh: ctx && ctx.mesh, inv, tris };
-  return tris;
+  const nS = sh ? sh.n : 0;
+  const buf = new Float64Array((nS + nL) * 15);
+  if (sh) buf.set(sh.buf.subarray(0, nS * 15));
+  let n = nS;
+  if (objs.length) {
+    const V = new THREE.Vector3(), Q = [[], [], []];
+    for (const o of objs) {
+      const pos = o.geometry.getAttribute('position');
+      const idx = o.geometry.index, nT = idx ? idx.count / 3 : pos.count / 3;
+      for (let t = 0; t < nT; t++) {
+        for (let k = 0; k < 3; k++) {
+          const vi = idx ? idx.getX(t * 3 + k) : t * 3 + k;
+          V.set(pos.getX(vi), pos.getY(vi), pos.getZ(vi)).applyMatrix4(o.matrixWorld).applyMatrix4(inv);
+          Q[k] = [V.x, V.y, V.z];
+        }
+        soupAdd(buf, n++, Q[0][0], Q[0][1], Q[0][2], Q[1][0], Q[1][1], Q[1][2], Q[2][0], Q[2][1], Q[2][2]);
+      }
+    }
+  }
+  SURF_ALL = { mesh: ctx && ctx.mesh, inv, buf, n };
+  return SURF_ALL;
 }
 // the surfaces a drawn tank must not cross, as triangles in this layer's
 // frame (the sheet: skin, glass, frame tubes, the dash; the engine; the
-// cowl) - only those whose box meets `bb`
+// cowl) - only those whose box meets `bb` (each a 15-number view on the soup)
 function surfTris(ctx, scene, inv, bb) {
   const out = [];
-  for (const t of surfAll(ctx, scene, inv))
-    if (!(t[12] < bb[0] || t[9] > bb[3] || t[13] < bb[1] || t[10] > bb[4] || t[14] < bb[2] || t[11] > bb[5])) out.push(t);
+  const S = surfAll(ctx, scene, inv), b = S.buf;
+  for (let i = 0, o = 0; i < S.n; i++, o += 15)
+    if (!(b[o + 12] < bb[0] || b[o + 9] > bb[3] || b[o + 13] < bb[1] || b[o + 10] > bb[4] || b[o + 14] < bb[2] || b[o + 11] > bb[5])) out.push(b.subarray(o, o + 15));
   return out;
 }
 // does the segment c -> q cross any of `tris` (Moller-Trumbore, t in (0, 1))?
@@ -756,6 +799,33 @@ function segCrosses(c, q, tris) {
     const w = (dx * qx + dy * qy + dz * qz) * iv; if (w < 0 || u + w > 1) continue;
     const tt = (t[6] * qx + t[7] * qy + t[8] * qz) * iv;
     if (tt > 1e-6 && tt < 1) return true;
+  }
+  return false;
+}
+// the layer-frame box of a mesh (its geometry's box corners through matrixWorld then inv, as each vertex goes) against
+// each body's box as pointInBox reads it (a box turned about y: its axis-aligned extent), both padded by a millimetre
+// and a millionth of their size - far over the rounding of either path - so a false 'far' cannot be
+function meshNearBodies(o, inv, bodies) {
+  const g = o.geometry;
+  if (!g.boundingBox) g.computeBoundingBox();
+  const bb = g.boundingBox;
+  if (!bb || !isFinite(bb.min.x) || !isFinite(bb.max.x)) return true;
+  const V = new THREE.Vector3(), lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity];
+  for (let k = 0; k < 8; k++) {
+    V.set(k & 1 ? bb.max.x : bb.min.x, k & 2 ? bb.max.y : bb.min.y, k & 4 ? bb.max.z : bb.min.z).applyMatrix4(o.matrixWorld).applyMatrix4(inv);
+    const q = [V.x, V.y, V.z];
+    for (let a = 0; a < 3; a++) { if (!isFinite(q[a])) return true; if (q[a] < lo[a]) lo[a] = q[a]; if (q[a] > hi[a]) hi[a] = q[a]; }
+  }
+  const pad = a => 1e-3 + 1e-6 * (Math.abs(lo[a]) + Math.abs(hi[a]));
+  for (const r of bodies) {
+    const c = r.c, e = r.e, cs = Math.abs(Math.cos(r.rot)), sn = Math.abs(Math.sin(r.rot));
+    const ex = [cs * e[0] + sn * e[2], e[1], sn * e[0] + cs * e[2]];
+    let hit = true;
+    for (let a = 0; a < 3 && hit; a++) {
+      const p = pad(a) + 1e-6 * Math.abs(c[a]) + 1e-6 * ex[a];
+      if (lo[a] > c[a] + ex[a] + p || hi[a] < c[a] - ex[a] - p) hit = false;
+    }
+    if (hit) return true;
   }
   return false;
 }
@@ -775,6 +845,9 @@ function layerHits(scene, inv, results, ctx) {
       if (!o.isMesh || !o.geometry || o.visible === false) return;
       const pos = o.geometry.getAttribute('position');
       if (!pos) return;
+      // G1455 (RELEASE-FAST): a mesh whose box (its geometry's, through the same two matrices, padded) misses every
+      // tank's box cannot put a vertex in one - pointInBox would refuse each; the count is the same without the walk
+      if (!meshNearBodies(o, inv, bodies)) return;
       for (let i = 0; i < pos.count; i++) {
         V.set(pos.getX(i), pos.getY(i), pos.getZ(i)).applyMatrix4(o.matrixWorld).applyMatrix4(inv);
         const p = [V.x, V.y, V.z];

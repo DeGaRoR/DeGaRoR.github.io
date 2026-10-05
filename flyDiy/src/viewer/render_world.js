@@ -750,7 +750,12 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     // Once per world, here, because this is where the world's own fields are already in hand.
     try { const f = ATMO.bakeField && ATMO.bakeField(renderer, world); if (f) console.log('mist field: ' + f.N + '^2 in ' + f.ms.toFixed(0) + ' ms, band ceiling ' + f.yHi.toFixed(0) + ' m'); } catch (e) { console.warn('mist field: ' + e.message); }
     if (typeof SKY_LIGHT !== 'undefined' && SKY_LIGHT.calibrate()) ATMO.U.scale.value = SKY_LIGHT.K().K_SUN * Math.PI;
-    probe = ATMO.makeProbe(renderer, { frameYaw: 0, cap: capOf, gb, onSwap: t => { envMap = t; scene.environment = t; },   // the cap: THE GROUND UNDER THE CRAFT (above)
+    // G1460 (SOFT-GPU) NO SKY PROBE ON A SOFTWARE RENDERER: on SwiftShader the probe's PMREM poisons every Standard
+    // material of the world - the ground, the trees, the sheds and the aeroplane drew BLACK at the stand (the Lambert far
+    // terrain and the sky right), and with scene.environment taken away the same frame drew whole. No probe (null, the
+    // path a world without ATMO takes for it), no cube bakes; the hemisphere and the sun light the world
+    const softEnv = typeof window !== 'undefined' && window.GFX && window.GFX.soft && window.GFX.soft();
+    probe = softEnv ? null : ATMO.makeProbe(renderer, { frameYaw: 0, cap: capOf, gb, onSwap: t => { envMap = t; scene.environment = t; },   // the cap: THE GROUND UNDER THE CRAFT (above)
       // CLOUDS C3: the layer over the dome in the probe's scene (the water and the skin reflect the clouds),
       // re-baked as the clouds drift past the eye
       decorate: typeof CLOUDS !== 'undefined' && CLOUDS.domeMesh ? es => { const m = CLOUDS.domeMesh(0, 20, 24); if (m) es.add(m); } : null,
@@ -763,7 +768,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     // material in the cabin took it as its ambient from below. The same sky over a NEUTRAL cap (the
     // cabin's own floor and walls, a dark warm grey) is the environment while the eye is in the cockpit
     // (app.js hands the view over through WORLD_RIG.interior); baked on the world probe's schedule.
-    probeIn = ATMO.makeProbe(renderer, { frameYaw: 0, capHex: 0x3f3c38, gb, onSwap: t => { envIn = t; if (interiorView) scene.environment = t; },
+    probeIn = softEnv ? null : ATMO.makeProbe(renderer, { frameYaw: 0, capHex: 0x3f3c38, gb, onSwap: t => { envIn = t; if (interiorView) scene.environment = t; },
       decorate: typeof CLOUDS !== 'undefined' && CLOUDS.domeMesh ? es => { const m = CLOUDS.domeMesh(0, 20, 24); if (m) es.add(m); } : null });
     if (probeIn) probeIn.bake(world.day);
   } else {
@@ -1762,7 +1767,10 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       // type from the library (src/viewer/splat_ground.js owns it): two
       // texture arrays on top of the island's five units - 10 / 14 / 15 of 16
       // on the near ring / outer ring / premises patch (tools/sampler_census.js)
-      SPL = (typeof SPLAT_GROUND !== 'undefined' && SPLAT_GROUND) ? SPLAT_GROUND.make(gU, ISLA) : null;
+      // G1521 (POTATO-DEEP): the GRAPHICS row's 'plain' ground at the build (potato) - the programs carry no splat and the
+      // sets are never fetched until a step asks for them (gfx_settings.js apply: sp.plain(false))
+      const GPLAIN0 = typeof window !== 'undefined' && window.GFX && window.GFX.get && window.GFX.get().ground === 'plain';
+      SPL = (typeof SPLAT_GROUND !== 'undefined' && SPLAT_GROUND) ? SPLAT_GROUND.make(gU, ISLA, { plain: GPLAIN0 }) : null;
       // THE FINE RING (TERRAIN FOLLOW-UP 2, 2026-09-22): `side` says what a material does at the disc
       // of fine tiles round the eye - the near ring (-1) DISCARDS its fragments inside the disc's
       // radius, a fine tile (+1) discards outside it and GEOMORPHS its rim to the ring's own surface
@@ -1781,14 +1789,19 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       // (':full') and the ground's materials (GROUND_FAMILY, the premises patch's clones included) re-key when F8 crosses
       // the line, once: every later edit inside the full program is a uniform again.
       const groundFull = () => (GROUND.mode | 0) !== 0 || (stackStart() === 0 && !!STACK[0].on) || !!(SPL && SPL.api.masking());   // (+ the splat's magenta mask)
-      groundSync = () => { const f = groundFull(); if (f === groundFullNow) return; groundFullNow = f; for (const m of GROUND_FAMILY) m.needsUpdate = true; };
+      // G1521: ...and the PLAIN ground (the 'ground' row's cheapest step): the splat's text out of every ground program
+      const groundPlain = () => !!(SPL && SPL.api.plain());
+      let groundPlainNow = groundPlain();
+      groundSync = () => { const f = groundFull(), p = groundPlain(); if (f === groundFullNow && p === groundPlainNow) return; groundFullNow = f; groundPlainNow = p; for (const m of GROUND_FAMILY) m.needsUpdate = true; };
       groundFullNow = groundFull();
       if (SPL) SPL.api.onInspect = () => groundSync();
-      groundKey = base => () => base + (groundFull() ? ':full' : '');
+      groundKey = base => () => base + (groundFull() ? ':full' : '') + (groundPlain() ? ':plain' : '');
       const islandGroundHookFor = (side, rock) => sh => {
         const full = groundFull();
+        // G1521: the splat in this program, or not (the plain ground: none of its text, its arrays or its uniforms)
+        const SP = SPL && !SPL.api.plain() ? SPL : null;
         if (typeof ATMO !== 'undefined') ATMO.inject(sh);   // S4: the aerial-perspective sampler (a hook of its own loses the prototype's)
-        Object.assign(sh.uniforms, gU, SPL ? SPL.uniforms : {});
+        Object.assign(sh.uniforms, gU, SP ? SP.uniforms : {});
         sh.vertexShader = sh.vertexShader
           .replace('#include <common>', '#include <common>\nvarying vec3 vWPi;\nuniform vec4 uFine;\n' +
             (side > 0 ? 'attribute float aCoarse; attribute vec3 aCoarseN;\nfloat fineK(){ return 1.0 - smoothstep(uFine.z - uFine.w, uFine.z, distance(position.xz, uFine.xy)); }\n' : ''))
@@ -1843,7 +1856,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
             'vec3 gClassCol(float c){ if (abs(c-10.0)<0.5) return vec3(0.06,0.20,0.06); if (abs(c-20.0)<0.5) return vec3(0.28,0.31,0.10);\n' +
             '  if (abs(c-30.0)<0.5) return vec3(0.36,0.41,0.12); if (abs(c-50.0)<0.5) return vec3(0.35,0.20,0.20); if (abs(c-60.0)<0.5) return vec3(0.28,0.25,0.22);\n' +
             '  if (abs(c-80.0)<0.5) return vec3(0.02,0.06,0.20); if (abs(c-90.0)<0.5) return vec3(0.16,0.28,0.16); if (abs(c-100.0)<0.5) return vec3(0.38,0.36,0.15); return vec3(0.2); }' : '') +
-            (SPL ? (full ? SPL.glslCommonFull : SPL.glslCommon) : ''))
+            (SP ? (full ? SP.glslCommonFull : SP.glslCommon) : ''))
           .replace('#include <map_fragment>', '#include <map_fragment>\n' +
             // the fine disc's edge: one of the two surfaces per pixel, decided before any of the ground's cost
             (side < 0 ? 'if (uFine.z > 0.0 && distance(vWPi.xz, uFine.xy) < uFine.z) discard;\n' : side > 0 ? 'if (distance(vWPi.xz, uFine.xy) > uFine.z) discard;\n' : '') +
@@ -1891,7 +1904,13 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
             '  }\n' +
             // THE SPLAT over the stack (the stack is the macro it fades to at distance); the
             // rocky shore band below yields to it (the splat's own shingle / sand / cliff)
-            (SPL ? '  if (!gDeep) {\n' + SPL.glslMap + '  }\n' : '') +
+            (SP ? '  if (!gDeep) {\n' + SP.glslMap + '  }\n' : '') +
+            // THE PLAIN GROUND'S GRAIN (G1521, POTATO-DEEP): no texture at all - two octaves of the hook's own value noise
+            // over the stack's colour, each faded out where its cell is under ~2 pixels (the footprint, so it never fizzes):
+            // the near ground reads as ground, not as the satellite's 30 m smear, for a handful of ALU and no sampler
+            (SPL && !SP ? '  if (!gDeep) { float gpx = length(fwidth(vWPi.xz));\n' +
+                          '    float ga = 1.0 - smoothstep(0.45, 1.1, gpx * 0.75), gb = 1.0 - smoothstep(0.45, 1.1, gpx * 0.16);\n' +
+                          '    if (gb > 0.0) t *= 1.0 + 0.20 * ga * (gVnoise(vWPi.xz * 0.75) - 0.5) + 0.24 * gb * (gVnoise(vWPi.xz * 0.16 + 17.0) - 0.5); }\n' : '') +
             // THE ROCK MAP (rock_map.js): the rocks' own image where the cover ring's meshes have thinned - the
             // ring's fade law (trees.js FADE_VS) at this fragment's distance says how many meshes stand here, the
             // map fills the rest; a soft edge at the map's rim; albedo, lit below like the ground's own
@@ -1912,7 +1931,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
             // the water's fade, and the blue bed had read as a cyan ring round every lake from the air)
             '  if (uGWaterMap > 0.5 && lsd > -1.0) t = mix(t, vec3(0.045, 0.055, 0.035), smoothstep(-1.0, 3.0, lsd));\n' +
             '  vec3 rock = vec3(0.27, 0.25, 0.20) * (0.75 + 0.5 * r1);\n' +
-            '  t = mix(t, rock, smoothstep(16.0, 0.0, sd) * 0.8 * uGShore' + (SPL ? ' * (1.0 - uSplatOn)' : '') + ');\n' +
+            '  t = mix(t, rock, smoothstep(16.0, 0.0, sd) * 0.8 * uGShore' + (SP ? ' * (1.0 - uSplatOn)' : '') + ');\n' +
             // below the waterline the ground IS water-coloured, so a polygon that
             // straddles the shore never shows a seabed above the water plane.
             // AND ONLY BELOW IT (G460.2, the user: "a lot of blue going onto the sea-side cliffs"): the far
@@ -1944,10 +1963,10 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
             '  else if (uGMode == 7) { float hh = clamp(vWPi.y / uGHMax, 0.0, 1.0); t = mix(mix(vec3(0.02,0.15,0.03), vec3(0.45,0.40,0.18), min(1.0, hh*1.6)), vec3(0.9), max(0.0, hh-0.6)*2.5); }\n' +
             '  else if (uGMode == 8) t = mix(vec3(0.05), vec3(0.9), snowA);\n' : '') +
             '  diffuseColor.rgb = t; }');
-        if (SPL) sh.fragmentShader = sh.fragmentShader
-          .replace('#include <normal_fragment_maps>', '#include <normal_fragment_maps>' + SPL.glslNormal)
+        if (SP) sh.fragmentShader = sh.fragmentShader
+          .replace('#include <normal_fragment_maps>', '#include <normal_fragment_maps>' + SP.glslNormal)
           // the sets' roughness (a Standard ring only: a Lambert has no roughnessmap_fragment and the line is a no-op)
-          .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>' + SPL.glslRough);
+          .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>' + SP.glslRough);
         // THE IBL'S DIFFUSE STAYS OUT (the near ring is a Standard, above): r186 hands scene.environment
         // to every lit material as irradiance AND radiance; the world's ambient is the hemisphere,
         // so the irradiance line is cut and the probe reaches the ground as its reflection only
@@ -2502,7 +2521,8 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
           // painted floor had shown over the plane as "a different tile")
           if (seaFloor) { const sd = world.island.coastAt(x, z); if (sd < 0) y = Math.min(y, seaFloor(sd)); }
           // ...and the carved lakebed (G1335): the asset is the raw DEM, its lakes flat at (or over) their level
-          if (lakeBed) { const b = lakeBed(x, z); if (b < y) y = b; }
+          // (SHORES G1500: with the ground - the bank's cap reads it, 28_island lakeBed)
+          if (lakeBed) { const b = lakeBed(x, z, y); if (b < y) y = b; }
           const din = Math.max(Math.abs(x), Math.abs(z));
           if (din < INNER) y -= 1.5 * Math.min(1, (INNER - din) / 200);
           // THE FAR TIER UNDER A PREMISES (G527; the Metlakatla session's sinkFar, G511 on its branch):
@@ -2980,28 +3000,21 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
   }
 
   yield 'woodland';
-  { // woodland: every physics tree seeds a clump of non-colliding neighbours
+  { // woodland: the hand-placed trees (TREE_PLACE) on the full ladder - the forest itself is the FILL's (G1481)
     const hsh = (a, b) => { let h = (a * 374761393 + b * 668265263 + 1013904223) | 0;
       h = Math.imul(h ^ (h >>> 13), 1274126177); return ((h ^ (h >>> 16)) >>> 0) / 4294967296; };
+    // THE WOODLAND'S SEEDS RETIRED (G1481, WOODLAND). Every physics tree (world.trees, the 64 m grid) used to seed a
+    // clump of 2-4 neighbours here, drawn on top of the forest fill. The fill plants the same ground (on an island the
+    // same tree map, effClass TREE; on the analytic world only within 90 m of a seed, nearTree), at ~6-10 m spacing
+    // against the seeds' 64 m. From the impostor merge (a3a1a7f6, 2026-09-23) to G1461 this planting threw on its
+    // first cell (H.imps[0] null) and drew nothing, while the seeds' core cylinders still stopped the aeroplane:
+    // Jolene's 24 662 unseen obstacles. Drawing them again (G1461) added ~100 000 trees over the fill (HANDOVER
+    // G1480-G1489 has the numbers). So the seeds stay PLACEMENT (the runway's obstacle cone, the fill's species and
+    // its analytic predicate read world.trees) and leave the draw AND the physics: the page's world - and the
+    // worker's, through sim_link's 'wsolid' - tests no woodland cylinder (setWoodSolid), and what the aeroplane can
+    // hit is exactly what is drawn: the fill's trunks, the placed trees' and the premises', all in world.treeHits.
     const P = [];
-    world.trees.forEach((T, i) => {
-      P.push({ x: T.x, z: T.z, h: T.h, s: T.s, sp: T.sp, r: hsh(i, 7), phys: true });   // phys: the core's own cylinder (G1330)
-      const n = 2 + (hsh(i, 3) * 3 | 0);
-      for (let k = 0; k < n; k++) {
-        const a = hsh(i, k * 13 + 1) * 6.283, d = 4 + hsh(i, k * 13 + 2) * 14;
-        const x = T.x + Math.cos(a) * d, z = T.z + Math.sin(a) * d;
-        if (Math.abs(z) < 90 && x < 200 && x > -3400) continue;  // corridor exclusion, matches world
-        const h = (world.terrainHBuild || world.terrainH)(x, z);   // (G1406: the build read)
-        if (h < 1.5 || h > 200) continue;
-        if ((world.waterHBuild || world.waterH)(x, z) > h) continue;   // no clutter trees standing in rivers/lakes
-        // ...nor on a road (2026-09-22): a legal tree 12 m from a road threw satellites 4-18 m in
-        // every direction, and half of them landed on the pavement
-        if (world.coverAt) { const cv = world.coverAt(x, z, 1); if (cv && cv.kill > 0) continue; }
-        // neighbours mostly share the stand's species, with strays
-        const sp = hsh(i, k * 13 + 5) < 0.85 ? T.sp : (hsh(i, k * 13 + 6) * 5) | 0;
-        P.push({ x, z, h, s: T.s * (0.55 + hsh(i, k * 13 + 3) * 0.7), sp, r: hsh(i, k * 13 + 4) });
-      }
-    });
+    if (typeof world.setWoodSolid === 'function') world.setWoodSolid(false);
 
     // ================= THE TRUNKS YOU HIT (G1330, TREE-HITBOX) ==============
     // The user (2026-10-03): "trees have no hitbox, only some of them. We should at least be able to hit the trunks."
@@ -3140,7 +3153,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     // Affordable because the atlas is baked ONCE per subject and series and
     // shared by both layers (below); at 4 MB a sheet, two sheets, 18 atlases
     // it is ~150 MB of VRAM, baked at boot.
-    const IMP_G = 8, IMP_TILE = 128;
+    const IMP_G = 8, IMP_TILE = BUD && BUD.impTile > 0 ? BUD.impTile : 128;   // G1523 (POTATO-DEEP): the budget's tile (potato 64: a 512 sheet)
     // THE ATLAS CACHE. The woodland and the fill bake the same subject's same
     // series from the same parts array (treeBuild hands the same one out),
     // and each disposed its own copy on replant. One bake per parts array,
@@ -4621,7 +4634,9 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
             for (const band of H.rec.rungs[si]) for (const m of band) m.setColorAt(j, c3);
           } else for (const m of H.meshes) { m.setMatrixAt(i, m4); m.setColorAt(i, c3); }
           // the side's one impostor mesh: every tree, its series' layer
-          const mi = H.imps[0]; mi.setMatrixAt(i, m4); mi.setColorAt(i, c3); mi.geometry.attributes.aLayer.array[i] = H.lay[si];
+          // (G1461, SOFT-GPU: the one mesh is the LAST entry - side() pushes a null per empty series before it, and with
+          // TREE_MIX.furnished 1 the stand series is never dealt, so imps[0] was null in EVERY side and the planting threw)
+          const mi = H.imps[H.imps.length - 1]; mi.setMatrixAt(i, m4); mi.setColorAt(i, c3); mi.geometry.attributes.aLayer.array[i] = H.lay[si];
         });
       };
       HS.forEach((H, gi) => fill(H, lists[gi]));
@@ -5183,6 +5198,12 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
           if (typeof ROCK_MAP !== 'undefined' && groundU && groundU.uRockMap && renderer && renderer.setRenderTarget) rockMap = ROCK_MAP.make(THREE, { renderer, world, cover: coverRing, camera, gU: groundU });
           // THE CLIFFS (cliffs.js, 2026-09-22): the photoscanned faces stood in the island's own steep ground, once at boot
           if (typeof CLIFFS !== 'undefined' && world.island) { try { cliffs = CLIFFS.make(THREE, { scene, world, treeBuild, treeList, LEAF: TREE_LEAF, pack: TREE_PACK }); cliffs.build(); } catch (e) { console.warn('cliffs: ' + (e && e.message)); } }
+          // G1460 (SOFT-GPU) THE MENU'S ROWS REACH THE RING. GFX.onWorld (app.js worldBuilt) ran before this block made
+          // the ring, and nothing applies the menu again: the cover row never reached it - potato's 'off' drew the full
+          // ring (reach 220, density 2: ~30 M triangles a frame, 3-9 MINUTES a frame on SwiftShader). The same is true on
+          // a graphics card (potato and retro draw the full cover there too); this re-apply is the software rung's only,
+          // so a card's picture stays as it was - dropping the soft() test fixes it for every machine (A0's / the user's call)
+          if (typeof window !== 'undefined' && window.GFX && window.GFX.reapply) window.GFX.reapply();   // train 31 (the user, 2026-10-04: "fix for all"): every machine; only the cover row (the ring's handle is new) - not the whole menu again (onWorld cost the warm settle +0.7 s)
         })).catch(e => { console.error('cover ring: ' + (e && e.message)); });
       // THE REACHABLE CATALOGUE, AGAIN (AS1, G908: trees.js treeReach). An F8 biome or mix edit (or a premises
       // re-stamp, then TREE_FILL.reach()) can name a species the map could not reach at boot and so never fetched:

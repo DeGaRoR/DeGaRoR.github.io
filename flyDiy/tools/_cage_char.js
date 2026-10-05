@@ -488,6 +488,28 @@ function fistAt(inst, side, out) {
 // the sole's contact patch, in the anchor's own axes. fitSoles() in the
 // crew layer moves the target by the difference to the ATD's mid-sole.
 const _sv = new THREE.Vector3();
+// G1455 (RELEASE-FAST): WHICH VERTICES ARE THE SOLE is a fact of the shared geometry (its skin indices and weights) and
+// the skeleton's bone names - kept per geometry, by the side and the names and the attributes' versions; the pose
+// (the bone transforms, the mesh's place) is applied on every call as before
+const SOLE_SEL = new WeakMap();
+function soleSel(g, bones, S, re) {
+  const p = g.attributes.position, si = g.attributes.skinIndex, sw = g.attributes.skinWeight;
+  const key = S + '|' + p.count + '|' + si.version + '|' + sw.version + '|' + bones.map(b => b.name).join(',');
+  let m = SOLE_SEL.get(g);
+  if (!m) SOLE_SEL.set(g, m = new Map());
+  let sel = (typeof window !== 'undefined' && window.RELEASE_FAST_OFF) ? null : m.get(key);
+  if (sel) return sel;
+  const on = bones.map(b => re.test(b.name));
+  const out = [];
+  for (let i = 0; i < p.count; i++) {
+    let w = 0;
+    for (let k = 0; k < 4; k++) if (on[si.getComponent(i, k)]) w += sw.getComponent(i, k);
+    if (w < 0.5) continue;
+    out.push(i);
+  }
+  m.set(key, sel = out);
+  return sel;
+}
 function soleAt(inst, side, frameInv, out) {
   const S = side === 'L' ? 'Left' : 'Right';
   const re = new RegExp(S + '(Foot|ToeBase)$');
@@ -498,11 +520,7 @@ function soleAt(inst, side, frameInv, out) {
           si = g.attributes.skinIndex, sw = g.attributes.skinWeight;
     if (!p || !si || !sw) continue;
     const bones = m.skeleton.bones;
-    const on = bones.map(b => re.test(b.name));
-    for (let i = 0; i < p.count; i++) {
-      let w = 0;
-      for (let k = 0; k < 4; k++) if (on[si.getComponent(i, k)]) w += sw.getComponent(i, k);
-      if (w < 0.5) continue;
+    for (const i of soleSel(g, bones, S, re)) {
       _sv.fromBufferAttribute(p, i);
       m.applyBoneTransform(i, _sv);
       m.localToWorld(_sv).applyMatrix4(frameInv);

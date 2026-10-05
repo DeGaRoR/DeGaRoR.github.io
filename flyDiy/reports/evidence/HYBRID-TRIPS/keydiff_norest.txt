@@ -1,0 +1,22 @@
+round trip 2: 14.26 s, 6 links, 5 slow
+
+dbf7d32a7ecda9fd  flown:baked:band|MeshPhysicalMaterial||  linked 457 ms (sync 457 ms), NEW
+  vs 6e810f7f79408a72 (linked at 43.1 s, 294 ms):
+    defines  +[]  -[]
+    lights   now ["directionalLights[ 1 ]","pointLights[ 3 ]","spotLights[ 6 ]","hemisphereLights[ 0 ]","directionalShadowMap[ 1 ]","directionalLightShadows[ 1 ]","spotShadowMap[ 5 ]","spotLightShadows[ 5 ]"]  was ["directionalLights[ 2 ]","pointLights[ 2 ]","spotLights[ 1 ]","hemisphereLights[ 1 ]","directionalShadowMap[ 2 ]","directionalLightShadows[ 2 ]","spotShadowMap[ 0 ]","spotLightShadows[ 0 ]"]
+
+b3a486a37ecda9fd  flown:baked:band|MeshPhysicalMaterial||skin  linked 458 ms (sync 457.4 ms), NEW
+  vs 4e247fec79408a72 (linked at 43.1 s, 292 ms):
+    defines  +[]  -[]
+    lights   now ["directionalLights[ 1 ]","pointLights[ 3 ]","spotLights[ 6 ]","hemisphereLights[ 0 ]","directionalShadowMap[ 1 ]","directionalLightShadows[ 1 ]","spotShadowMap[ 5 ]","spotLightShadows[ 5 ]"]  was ["directionalLights[ 2 ]","pointLights[ 2 ]","spotLights[ 1 ]","hemisphereLights[ 1 ]","directionalShadowMap[ 2 ]","directionalLightShadows[ 2 ]","spotShadowMap[ 0 ]","spotLightShadows[ 0 ]"]
+
+2fdac95b5c5f48b4  aeroskin:band|MeshPhysicalMaterial|0|  linked 1541 ms (sync 1540.5 ms), NEW
+  no program of this family linked before the trip
+
+7c02721301bb640a  aeroskin:band|MeshStandardMaterial|0|  linked 1296 ms (sync 1295.9 ms), NEW
+  no program of this family linked before the trip
+
+fb4d1db245f58ff5  aeroskin:band|MeshStandardMaterial|1|  linked 1521 ms (sync 1521.1 ms), NEW
+  vs 8bdac225aef75b3d (linked at 43.1 s, 403 ms):
+    defines  +[]  -[]
+    lights   now ["directionalLights[ 1 ]","pointLights[ 3 ]","spotLights[ 6 ]","hemisphereLights[ 0 ]","directionalShadowMap[ 1 ]","directionalLightShadows[ 1 ]","spotShadowMap[ 5 ]","spotLightShadows[ 5 ]"]  was ["directionalLights[ 2 ]","pointLights[ 2 ]","spotLights[ 1 ]","hemisphereLights[ 1 ]","directionalShadowMap[ 2 ]","directionalLightShadows[ 2 ]","spotShadowMap[ 0 ]","spotLightShadows[ 0 ]"]

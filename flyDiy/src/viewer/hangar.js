@@ -51,6 +51,9 @@ function genHangarSupported(THREE) {
 // these sheets is a constant, never a function of the dims, so two sheds of
 // different sizes can wear the same tile.
 const HANGAR_SHEETS = new Map();
+// G1522 (POTATO-DEEP): the build budget says the shed's window glass draws no transmission (the room drawn a second time into
+// a mipmapped target every frame - SOFT-GPU G1460 measured it as half the shed's frame): plain see-through panes instead
+const shedGlassOff = () => typeof window !== 'undefined' && !!window.GFX && typeof window.GFX.budget === 'function' && window.GFX.budget().shedGlass === false;
 const hangarSheetKey = (kind, w, h, extra, draw) => {
   let f = 2166136261;                                  // FNV-1a over the source
   const src = draw.toString();
@@ -772,7 +775,11 @@ const M = {
   glass: new THREE.MeshPhysicalMaterial({ color: 0xdce8f0, roughness: 0.06, metalness: 0,
     // `thickness` is r132+ and this build is r128: transmission alone, with
     // the opacity carrying what the refraction slab would have.
-    transmission: 0.90, transparent: true, opacity: 0.5,
+    // G1460 (SOFT-GPU): on the software rung the panes are plain see-through glass - three's transmission pass (the
+    // opaque room drawn again into a mipmapped target, every frame) was HALF the shed's frame on SwiftShader (8.9 -> 4.4 s)
+    // G1522 (POTATO-DEEP): and on a budget without the shed's glass (potato: GFX.BUDGETS shedGlass false) - the menu switches it
+    // live after the build (gfx_settings.js apply, FLYDIY_SHED)
+    transmission: ((typeof window !== 'undefined' && window.GFX && window.GFX.soft && window.GFX.soft()) || shedGlassOff()) ? 0 : 0.90, transparent: true, opacity: 0.5,
     envMapIntensity: 1.4, side: THREE.DoubleSide }),
   rubber: new THREE.MeshStandardMaterial({ color: 0x22242a, roughness: 0.95 }),
   // the filament itself: emissive, unlit by anything else, and scaled with the
@@ -2951,7 +2958,9 @@ for (const [ax, az] of LAMP_XZ) {
   // — three units under the ceiling. So G60's rule stands again unqualified:
   // every lamp in this shed casts a shadow. Cutting four fittings did not cost
   // shadows, it restored them.
-  const casts = true;
+  // G1523 (POTATO-DEEP): a build budget without the lamps' maps (potato, GFX.BUDGETS shedLamps false) - five 1024 spot maps were
+  // ~3 600 depth draws a frame, 74 % of the shed's draws; the key light's map (the aeroplane's shadow) stays
+  const casts = !(typeof window !== 'undefined' && window.GFX && typeof window.GFX.budget === 'function' && window.GFX.budget().shedLamps === false);
   const L = new THREE.SpotLight(LAMP.rgb.getHex(), 90, 26, LAMP.angle, 0.45, 2);
   L.castShadow = casts;
   if (casts) {
