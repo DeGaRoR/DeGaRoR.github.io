@@ -3578,7 +3578,10 @@
       still = !!P && P.nb.length === n3 && P.gain === gain && P.wr.length === wr.length && rows.every((a, i) => a === P.rows[i]) &&
               !brkCageOn();   // G1851: a wreck is re-posed every frame (its pieces move, its skin is redrawn over them)
       if (still) for (let i = 0; i < wr.length; i++) if (!(wr[i] === P.wr[i])) { still = false; break; }
-      if (still) for (let i = 0; i < n3; i++) if (Math.abs(nb[i] - P.nb[i]) > 3e-4) { still = false; break; }
+      // (G1869: a WRECK is re-posed past WRECK_STILL - a lying wreck's nodes jitter past 0.3 mm for ever, and every frame
+      // re-posed the whole snapshot riding: 25-29 ms a frame on the box; 3 mm is not seen at a wreck's distances)
+      const tolS = (BRK.recs.length && brkFast()) ? WRECK_STILL : 3e-4;
+      if (still) for (let i = 0; i < n3; i++) if (Math.abs(nb[i] - P.nb[i]) > tolS) { still = false; break; }
       if (still) for (const k in link) if (Math.abs((link[k] || 0) - (P.link[k] || 0)) > 1e-4) { still = false; break; }
       if (!still) model._poseNG = { nb, cur: P && P.nb.length === n3 ? P.nb : new Float64Array(n3), gain, rows, wr, link: Object.assign({}, link) }; }
     if (!still) {
@@ -3937,6 +3940,11 @@
   // (G1864: ms - each phase's worst frame and total, the box's own read of the cost: records = the first break's binding,
   // event = the break events, frames = the nodes' frames, pose = the riding and the tear)
   const BRK_BIND = 4000;                                  // G1864: the places a frame the full binding takes
+  // G1869 (the impact's frame rate): a wreck re-posed only past WRECK_STILL of node travel, the tear checked every
+  // TEAR_EVERY s, the records made REC_BUDGET vertices a frame. ?wreckfast=0 / window.FLYDIY_WRECK_FAST = false: as before
+  const WRECK_STILL = 3e-3, TEAR_EVERY = 0.05, REC_BUDGET = 120000;
+  try { if (/[?&]wreckfast=0(&|$)/.test(location.search || '')) window.FLYDIY_WRECK_FAST = false; } catch (e) {}
+  const brkFast = () => window.FLYDIY_WRECK_FAST !== false;
   const BRK_ISLAND = 40;                                  // G1864: a torn island under this many triangles goes with the tear
   const BRK = { model: null, recs: [], vB: -1, posed: false, ms: { records: 0, event: 0, frames: 0, pose: 0, recordsT: 0, eventT: 0, poseT: 0, frameMax: 0, n: 0 } };
   try { if (/[?&]skinbreak=0(&|$)/.test(location.search || '')) window.FLYDIY_SKINBREAK = false; } catch (e) {}
@@ -4015,14 +4023,14 @@
   // two ends). Its frame is the visual's: a node at B^-1 (p - origin) - o (app.js nodeVis, G267.2), o = off + oRest
   // (G1864: the cage is re-posed over a break when a node moved - poseModel's own test - or a new break event came: a
   // wreck at rest stands still)
-  const brkCageOn = () => { const D = model && !model.gen ? dmgNow() : null; if (!(D && D.br.length)) return BRK.recs.length > 0; return !BRK.posed || BRK.vB !== D.vB; };
+  const brkCageOn = () => { const D = model && !model.gen ? dmgNow() : null; if (!(D && D.br.length)) return BRK.recs.length > 0; return !BRK.posed || BRK.vB !== D.vB || BRK.recPending; };
   function brkCage(xA, yU, cg, o, gain, still) {
     const D = brkState();
     if (!D || model.gen) return;
     // G1864 (DMG-D4b): a wreck at REST is drawn as it stands - no node moved past the pose's 0.3 mm (poseModel's own
     // still test, which brkCageOn no longer forces off) and no new break event: nothing to re-pose (it was every frame,
     // the whole snapshot riding: 62 ms frames on a broken-up Cub at rest, measured on the box)
-    if (still && BRK.posed && BRK.vB === D.vB && !BRK.recs.some(R => R.pending)) return;
+    if (still && BRK.posed && BRK.vB === D.vB && !BRK.recPending && !BRK.recs.some(R => R.pending)) return;
     const K = model.brk, SB = SKIN_BREAK, N = def.nodes, n = N.length;
     // the 3x3 inverse of the pose's oblique basis (columns xA, yU, xA x yU), as nodeVis takes it; and the basis itself
     const inv3 = (X, Y) => { const Z = [X[1]*Y[2]-X[2]*Y[1], X[2]*Y[0]-X[0]*Y[2], X[0]*Y[1]-X[1]*Y[0]];
@@ -4056,12 +4064,17 @@
     for (const r of model.rigs) groups.push([r, r.g, r.posAttr, r.base, null, (r.bind && r.bind.bound.length) ? fabW : fabB]);
     for (const s2 of model.surfParts || []) groups.push([s2, null, s2.posAttr, s2.base, s2.pivot, fabW]);
     for (const s2 of (model.strutRigs || []).concat(model.anchorRigs || [])) groups.push([s2, null, s2.posAttr, s2.base, null, false]);
-    const tm = performance.now(); let tRec = 0, tEv = 0, bud = BRK_BIND;
+    const tm = performance.now(); let tRec = 0, tEv = 0, bud = BRK_BIND, recLeft = REC_BUDGET;
+    BRK.recPending = false;
     for (const [own, , pa, base, off, fab] of groups) {
       const geo = K.geoOf.get(pa);
       if (!geo || !geo.index) continue;
       const t0 = performance.now();
+      // (G1869: the records made REC_BUDGET vertices a frame - the weld and the nearest node over the whole snapshot at once
+      // was a 95 ms frame at the first break; a group without its record yet keeps the cage's own pose a frame or two)
+      if (!own.brkR && brkFast() && recLeft <= 0) { BRK.recPending = true; continue; }
       if (!own.brkR) {
+        recLeft -= pa.count;
         // its rest in the frame's coordinates, og + B0 (base + off + o), and its normals there (B0^-T n)
         const nv = pa.count, bD = new Float64Array(nv * 3), B0 = K.B0, og = K.og, Mi0 = K.Mi0;
         const fx = (off ? off[0] : 0) + o[0], fy = (off ? off[1] : 0) + o[1], fz = (off ? off[2] : 0) + o[2];
@@ -4096,7 +4109,9 @@
       const R = own.brkR; if (!R || !R.active) continue;
       X.w = R.w; X.n = R.nAttr ? R.nAttr.array : null; X.nB = R.nB || null;
       SB.poseCage(R, K.rest, sim.p, R.baseD, pa.array, K.NF, K.down, off, X);
-      if (gain === 1 && SB.tear(R, R.baseD, R.w)) { brkIdx(R); R.tornNew = true; }
+      // (G1869: the tear checked at most every TEAR_EVERY s of sim time - a check is every live triangle's three edges)
+      if (gain === 1 && !(brkFast() && sim.t - (R.tearT == null ? -1 : R.tearT) < TEAR_EVERY)) { R.tearT = sim.t;
+        if (SB.tear(R, R.baseD, R.w)) { brkIdx(R); R.tornNew = true; } }
       // G1864: the confetti the tear leaves (islands under BRK_ISLAND triangles that touch it), at most every 0.25 s
       if (R.tornNew && !(sim.t - (R.islT || -1) < 0.25)) { R.islT = sim.t; R.tornNew = false; if (SB.islands(R, BRK_ISLAND)) brkIdx(R); }
       pa.needsUpdate = true; if (R.nAttr) R.nAttr.needsUpdate = true;
