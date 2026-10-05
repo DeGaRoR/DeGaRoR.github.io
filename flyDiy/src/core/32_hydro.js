@@ -153,7 +153,13 @@ const DEF = {
   betaA: 18,       // afterbody deadrise, deg
   hs: 0.075,       // step depth, m (a 2350's is ~4 in; the step must VENTILATE with a 172's chine 12 cm deep at the hump)
   aftAngle: 6.5,   // the afterbody keel's rise aft, deg (the NACA float families: 5.5-8.5)
-  aftCurve: 0.02,  // the afterbody keel's added rise at the stern, as a fraction of its length (a 2350's transom keel sits ~0.45 m over the step keel)
+  aftCurve: 0.02,  // the afterbody keel's added rise at the stern, as a fraction of its length
+  // the afterbody's PLAN (G1930): it holds the step's beam over aftHold of its length, then closes to bStern as
+  // ((u - aftHold) / (1 - aftHold))^aftPow. THIS family (the H0 float, every aeroplane the frame sizes by its gross -
+  // the twin of GATE FLOATS / SEAPLANE) keeps the taper it was calibrated on, from the step itself (hold 0, power 1.15);
+  // the Wipline rows wear WIPLINE_AFT below
+  aftHold: 0,
+  aftPow: 1.15,
   flatK: 0.50,     // the keel flat ahead of the step, as a fraction of xs (the rocker lives in the forward half: with 0.32 the bow rode high and buried under a crosswind roll — the ultralight pitch-poled at 2.5 s)
   stemK: 0.16,     // the straight stem's height, as a fraction of H (a SHORT stem: the keel foot at 0.74 H — with 0.30 the bow went under at 0.4 m of draft and 6 deg nose-down and the ultralight pitch-poled in a crosswind; the old H0 bow's keel reached the deck)
   rake: 12,        // the stem's rake, deg from the vertical (top forward)
@@ -307,7 +313,15 @@ function sectionOf(P, x) {
   } else {
     body = 'A';
     const u = Math.min(1, x / LA);
-    b = bS * (1 - (1 - P.bStern) * Math.pow(u, 1.15));
+    // the plan holds the step's beam over aftHold of the afterbody, then
+    // closes to the stern as a power of the rest (G1930, FLOAT-SHAPE: the
+    // user, "the back part is really thin" - the Wipline rows hold 0.2 and
+    // close as the square, WIPLINE_AFT; the family's own is the old u^1.15
+    // from the step, and a record saved before G1930 has neither key and
+    // takes the family's: it is drawn and flown as it was)
+    const hA = P.aftHold != null ? P.aftHold : DEF.aftHold, pw = P.aftPow != null ? P.aftPow : DEF.aftPow;
+    const w = u <= hA ? 0 : (u - hA) / (1 - hA);
+    b = bS * (1 - (1 - P.bStern) * Math.pow(w, pw));
     beta = P.betaA;
     // the transom keeps a height: the afterbody's chine never climbs past
     // 0.88 H (a keel rising through the deck line leaked the physics loft:
@@ -1460,7 +1474,7 @@ const FLOAT_PRESET_NAMES = Object.keys(FLOAT_PRESETS);
 const FLOAT_SPEC_KEYS = ['L', 'xs', 'B', 'H', 'beta', 'betaBow', 'betaA', 'hs', 'aftAngle', 'aftCurve', 'flatK', 'stemK',
                          'rake', 'noseR', 'planK', 'bStern', 'flare', 'bevel', 'rChine', 'rGun', 'rLip', 'rTransom',
                          'railW', 'railT', 'keelW', 'keelH', 'skZ', 'skW', 'skH', 'wrArea', 'wrDepth', 'mFloat',
-                         'fineK', 'scale', 'xAft', 'sheerK'];
+                         'fineK', 'scale', 'xAft', 'sheerK', 'aftHold', 'aftPow'];
 // THE FINENESS. The catalogue's three dimensions and its flotation are
 // four facts; the family at the 2350's proportions fills its box to 49 %
 // and the 2350 needs 49 % — but the taller hulls (H/B 0.9 against the
@@ -1472,18 +1486,32 @@ const FLOAT_SPEC_KEYS = ['L', 'xs', 'B', 'H', 'beta', 'betaBow', 'betaA', 'hs', 
 // forward, more afterbody rise, a narrower transom, a longer rocker.
 // presetParams solves f so the hull's volume to the deck is the row's
 // `flot`; a hull the range cannot reach keeps f at its end and says so.
-// Two branches: FINER (f > 0) is mostly a deeper V; FULLER (f < 0) is
-// mostly a fuller plan, a wider transom and a longer keel flat, the V
-// shallowing only a little (6 deg per unit) — a shallow V at the step is a
-// chine that sits low, and a low chine is a step that cannot ventilate: at
-// 17 deg the 172 on 2350s sat at the hump (chine 14 cm under, hs 10 cm)
-// where at 21 deg it planes.
+// Two branches: FINER (f > 0) is a finer BOW PLAN, a longer rocker and a
+// deeper V (12 deg per unit); FULLER (f < 0) is mostly a fuller plan and a
+// longer keel flat, the V shallowing only a little (6 deg per unit) — a
+// shallow V at the step is a chine that sits low, and a low chine is a step
+// that cannot ventilate: at 17 deg the 172 on 2350s sat at the hump (chine
+// 14 cm under, hs 10 cm) where at 21 deg it planes.
+// G1930 (FLOAT-SHAPE): THE WIPLINE AFTERBODY. The user (2026-10-05): "the shape of the Cessna floats seems a little
+// off. The back part is really thin." Measured on the 2350 (tools/_float_gen.js REF, GATE WIPLINE REFERENCE): the
+// section half-way down the afterbody was 0.39 of the step's, the stern 0.22 of its depth, the afterbody 28 % of the
+// volume, the keel curving up to an 8.7 deg sternpost (9.5-10.3 on the big rows: the seaplane rule is 7-9). Every row
+// now wears: a STRAIGHT afterbody keel (aftCurve 0) on an 8.0 deg sternpost from the step's keel point (aftAngle 5.9
+// off the heel: tan 8 = tan 5.9 + hs / LA at the family's proportions), the plan HELD at the step's beam over the
+// first fifth (the aft spreader bar's station: a Wipline's deck is parallel there) and closing as the square to a
+// stern half the beam (bStern 0.5; the transom carries the water rudder's brackets). The 2350's afterbody: 0.49 of
+// the step section half-way, the stern 0.29 deep, a third of the volume.
+const WIPLINE_AFT = { aftAngle: 5.9, aftCurve: 0, aftHold: 0.20, aftPow: 2, bStern: 0.50 };
+// THE AFTERBODY IS OUT OF THE FIT (G1930): the fineness used to raise the afterbody keel, curve it and narrow the
+// transom (bStern - 0.2 f) - the volume the catalogue does not allow came off the stern. It now comes off the
+// FOREBODY, where the big Wiplines are finer: the bow's plan (planK 2.6 per unit), the rocker (flatK 0.3), less of the
+// V (12 deg per unit, was 20: the 8750 fits at 34 deg where it was 35, the 2350 at 23 where it was 21).
 function fineParams(P, f) {
   const n = f < 0;
   return Object.assign({}, P, {
-    beta: Math.max(8, P.beta + (n ? 6 : 20) * f), betaA: Math.max(8, P.betaA + (n ? 4 : 10) * f), betaBow: P.betaBow + 8 * f,
-    planK: P.planK - (n ? 4 : 1.5) * f, aftAngle: P.aftAngle + 0.5 * f, aftCurve: P.aftCurve + 0.01 * f,
-    bStern: Math.min(0.9, P.bStern - (n ? 0.45 : 0.20) * f), flatK: Math.min(0.85, P.flatK - (n ? 0.30 : 0.16) * f), stemK: Math.max(0.06, P.stemK - 0.08 * f), fineK: f });
+    beta: Math.max(8, P.beta + (n ? 6 : 12) * f), betaA: Math.max(8, P.betaA + (n ? 4 : 6) * f), betaBow: P.betaBow + 8 * f,
+    planK: Math.max(1.2, P.planK - (n ? 4 : 2.6) * f),
+    flatK: Math.max(0.2, Math.min(0.85, P.flatK - 0.30 * f)), stemK: Math.max(0.06, P.stemK - 0.08 * f), fineK: f });
 }
 // a preset's hull: the family scaled to the row's LENGTH (the details, the
 // step, the radii follow), the width and height set to the row's own, the
@@ -1498,7 +1526,7 @@ function presetParams(name, over) {
   // the catalogue's "height - hull" is the hull's OVERALL height — the bow,
   // where the sheer tops out — so the family's H (at the step) is that over
   // (1 + sheerK)
-  const P0 = scaleParams(DEF, k, { B: R.B, H: R.H / (1 + (DEF.sheerK || 0)), mFloat: 0.40 * R.mSys, preset: name, disp: R.disp });
+  const P0 = scaleParams(DEF, k, Object.assign({}, WIPLINE_AFT, { B: R.B, H: R.H / (1 + (DEF.sheerK || 0)), mFloat: 0.40 * R.mSys, preset: name, disp: R.disp }));
   const volOf = f => { const Q = fineParams(P0, f); delete Q._keel; return makeFloat(Q).volDeck * P0.rho; };
   // f runs from -0.7 (a FULLER hull than the family: a shallower V, a
   // wider transom — the small Wiplines, whose overall height leaves little
@@ -1966,7 +1994,7 @@ const API = { DEF, G, NU, makeFloat, sectionOf, makeBody, makeScratch, hydroForc
               stillWater, gerstner, submergedVolumeMC, expDrop, expTow, expLand, nodeSlam, stabilityReport, ENVELOPE,
               savitskyStatic, rotPitch, polyArea, hullTriangles,
               hydroPanels, rigidCtx, tetraCtx, baryOf, hydroBuild, hydroSolverPass, wetBuild, wetSolverPass, wetReset, WB_MAT, WB_WING, floatParamsFor, FLOAT_DISP,
-              FLOAT_PRESETS, FLOAT_PRESET_NAMES, FLOAT_METRIC, FLOAT_SPEC_KEYS, presetParams, fineParams, scaleParams, secPoly, secAreaTo, keelOf, deckAt,
+              FLOAT_PRESETS, FLOAT_PRESET_NAMES, FLOAT_METRIC, FLOAT_SPEC_KEYS, WIPLINE_AFT, presetParams, fineParams, scaleParams, secPoly, secAreaTo, keelOf, deckAt,
               waterRudder, WR_AREA, WR_DEPTH, WR_TRAVEL, WR_UP_V, HYDRO_EVERY, floatAdvice };
 HYDRO = API;
 if (typeof window !== 'undefined') window.HYDRO_GEN = API;

@@ -21,7 +21,11 @@
 //              the frame builds two floats from the spec's own Wipline
 //              record (preset, L, mass), settles on the sea carrying its
 //              weight (+-3 %) with the step keels 0.15-0.45 m under and
-//              0.5-10 deg nose-up, level in roll, finite.
+//              -1..10 deg of trim (level or nose-up; G1930), level in roll, finite.
+//   REFERENCE  (G1930, FLOAT-SHAPE) every row inside FLOAT_GEN.REF: the sternpost angle 7-9 deg on a straight
+//              afterbody keel, the step at 0.52-0.58 L, the stern >= 0.25 of the step's depth and 0.45-0.65 of the
+//              width, the deck held to the aft spreader bar, the mid-afterbody section >= 0.45 of the step's, the
+//              afterbody 30-45 % of the volume (design rules and inferred proportions, sources in _float_gen.js).
 'use strict';
 const fs = require('fs'), path = require('path');
 const T = __dirname;
@@ -88,6 +92,25 @@ console.log('\nDRAWN');
   verdict(padOk, `the paddle lies along the inboard flank of the forebody`);
 }
 
+// ---- REFERENCE (G1930, FLOAT-SHAPE) -------------------------------------------------
+// every row against FLOAT_GEN.REF: the sternpost angle and the straight afterbody keel (the design rules), the step's
+// station, and the afterbody's fullness (the stern's depth and width, the deck held to the aft spreader bar, the
+// mid-afterbody section, the afterbody's share of the volume - inferred from photographs and the parts manual's
+// rigging; see _float_gen.js REF for the sources). The user: "the back part is really thin" - before G1930 the 2350
+// held 0.39 of its step section half-way down the afterbody, the big rows sat on a 10 deg sternpost.
+console.log('\nREFERENCE (FLOAT_GEN.REF: RULE = design rule, INF = inferred; the catalogue rows above are CAT)');
+{
+  let ok = true;
+  for (const name of H.FLOAT_PRESET_NAMES) {
+    const m = FG.measure(H.presetParams(name), H), c = FG.check(m), bad = c.filter(r => !r.ok);
+    if (SHOW || bad.length) console.log(`   ${name.padEnd(14)} ` + c.map(r => `${r.ok ? '' : '!'}${r.key} ${f(r.value, 3)}`).join('  '));
+    if (bad.length) { ok = false; for (const r of bad) console.log(`      ${r.key} ${f(r.value, 3)} outside ${r.bound} (${r.src})`); }
+  }
+  const P = H.presetParams('Wipline 2350'), m = FG.measure(P, H);
+  console.log('   the 2350 afterbody, step -> stern (u = fraction of its length): ' + m.stations.map(s => `u ${f(s.u, 1)}: ${f(s.area, 3)} m2 (${f(s.areaRel, 2)}), ${f(s.deck - s.keel, 2)} m deep, ${f(s.width, 2)} m wide`).join('; '));
+  verdict(ok, `every row inside the reference: sternpost ${FG.REF.sternpost.join('-')} deg on a straight keel, stern >= ${FG.REF.sternDepth} of the step's depth and ${FG.REF.sternWidth.join('-')} of the width, the deck held to the aft bar, mid-afterbody >= ${FG.REF.midArea} of the step section, afterbody ${FG.REF.aftShare.join('-')} of the volume`);
+}
+
 // ---- FIXTURE ----------------------------------------------------------------------
 console.log('\nFIXTURE (the Cessna 172 on Wipline 2350s, joined)');
 {
@@ -123,7 +146,11 @@ console.log('\nFIXTURE (the Cessna 172 on Wipline 2350s, joined)');
   verdict(ok, `the settle stays finite`);
   verdict(Math.abs(Fy - 1) < 0.03, `the water carries the 172: L/W ${f(Fy)} (bound +-3 %)`);
   verdict(dr > 0.15 && dr < 0.45, `draft at the step ${f(dr)} m (bound 0.15-0.45)`);
-  verdict(tr > 0.5 && tr < 10, `trim ${f(tr, 2)} deg nose-up at rest (bound 0.5-10)`);
+  // G1930 (FLOAT-SHAPE): the floor is -1 deg, from 0.5. The afterbody holds a third of the hull's volume now (it held
+  // 28 %), so at the catalogue's flotation the centre of buoyancy sits 0.13 m further aft and the 172 rides with its
+  // decks LEVEL at rest (-0.1 deg; +0.8 on the thin afterbody) - a seaplane's rest attitude ("decks level or a little
+  // bow-up"); what the floor still refuses is a bow-down hull (past 1 deg the bow buries at the first throttle)
+  verdict(tr > -1 && tr < 10, `trim ${f(tr, 2)} deg at rest, level or nose-up (bound -1..10)`);
   verdict(rl < 1, `level in roll (${f(rl, 2)} deg)`);
 }
 
