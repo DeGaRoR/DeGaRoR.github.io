@@ -11883,6 +11883,11 @@
   if (SIMW) { window.FLYDIY_SIMW = SIMW; PACE.worker = () => SIMW.perf(); }
   let simwRan = -1;   // G820: the steps the worker's snapshot moved the picture on this frame (the recorder's wran)
   let frame = 0, wdFrame = 0, hudAcc = 0, shedT = 0;
+  // THE LOOP STARTS ONCE, WHATEVER STARTS IT (the laptop log, 5 Oct): 'first light' was its only start, and a garage
+  // load the watchdog lifted at 120 s, then a Fly press, superseded that step (G640: a newer run owns the chain) -
+  // no frame ever drawn. The boot's done() starts it too.
+  let loopOn = false;
+  function startLoop() { if (loopOn) return; loopOn = true; loop(); }
   function loop(ts) {
     requestAnimationFrame(loop);
     POSE_LERP.back();                  // G1100: a frame that threw between the swap and its restore leaves nothing drawn behind
@@ -12830,7 +12835,7 @@
   // the first frame renders UNDER the overlay: this is where the shaders
   // compile, and the frames after it are where the late landings re-bake
   bootStep('firstFrame', 'first light', 10, () => {
-    hud(); loop();
+    hud(); startLoop();
     // G441: the see-through programs, after the room is up. G1027 (B8B9 on train 14): UNDER THE SCREEN, a task after first
     // light, not on a 1.5 s timer - "no background loading in the garage" (B9), and the timer fired into the first
     // roll-out's shot when Roll out came quickly (22 links counted in roll-out 1 by the page in node)
@@ -12891,7 +12896,7 @@
   if (typeof window !== 'undefined') window.SCENERY = SCENERY;
   const bootOpts = { set: 'garage', landingLabel: 'the last pieces landing',
     done: () => { tripClose(bootTrip); if (PK_ASYNC() && window.PARKED.async) { window.PARKED.async = false; parkedFlush(); } setupClose(); if (SCENERY_Q) setTimeout(() => SCENERY.enter(), 0);
-      if (SIMW) SIMW.prewarm(); },   // G820 (C1c): the physics worker's world made on its own thread while the player is in the shed
+      if (SIMW) SIMW.prewarm(); startLoop(); },   // G820 (C1c): the physics worker's world made on its own thread while the player is in the shed
     require: ['sky', 'env', 'room', 'props', 'propTex', 'skin', 'crew', 'crewTex', 'crewBuild'],
     // the program count rides on every step's log entry: what each step compiled
     probe: () => ({ programs: renderer.info && renderer.info.programs ? renderer.info.programs.length : -1 }) };
