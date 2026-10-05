@@ -44,6 +44,8 @@ const CASES = {
   'nosein':    { label: 'a nose-in on the ground (180 km/h, 10 m/s, 60 deg; DMG-D4a\'s nose-in still)', o: { kind: 'ground', V: 50, sink: 10, pitch: 60, steps: 1500 }, cams: [[150, 20, 12], [235, 28, 14]] },
   // G1863: the cockpit rule - the severe nose-in watched from the pilot's eye; no stills, its verdict read
   'cockpit':   { label: 'the severe nose-in from the cockpit view (the camera rule)', o: { kind: 'ground', V: 50, sink: 10, pitch: 60, steps: 900 }, cams: [], cockpit: true },
+  // the nose-over (the user; DMG-WALL's census staging): the Cub rolling at 12 m/s into a 35 cm stump that takes the wheels
+  'noseover':  { label: 'a nose-over: 12 m/s on the ground into a 35 cm stump (the wheels stopped)', o: { kind: 'trunk', D: 12, agl: 0, V: 12, off: 0, top: 0.35, r: 0.25, steps: 1200, thr: 0 }, cams: [[200, 22, 9], [90, 15, 7], [300, 40, 10]] },
   'taxi':      { label: 'a taxi into a trunk at 3 m/s, the throttle shut (the prop strike: a wooden prop snaps, a metal one bends)', o: { kind: 'trunk', D: 6, agl: 0, V: 3, off: 0, steps: 700, thr: 0 }, cams: [[150, 8, 4.5], [215, 14, 6], ['nose', 10, 4.2], ['noseL', 6, 3.0]] },
 };
 
@@ -164,9 +166,11 @@ async function pageStage(o) {
     else for (let i = 0; i < n; i++) p[i*3+1] += ground - yMin + o.agl;
     for (let i = 0; i < n; i++) { v[i*3] = o.V * fx; v[i*3+2] = o.V * fz; if (o.agl) v[i*3+1] = 0; }
     const c = sim.cgPos(), tx = c[0] + fx * o.D - fz * o.off, tz = c[2] + fz * o.D + fx * o.off;
-    world.treeHits.set('fill:wreckstill', [tx, tz, ground, 0.3, ground + 10]);
-    const m = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.35, 10, 20), new THREE.MeshStandardMaterial({ color: 0x5b4632, roughness: 0.95 }));
-    m.position.set(tx, ground + 5, tz); m.castShadow = true; scene.add(m); window.__d4bTrunk = m;
+    // (o.r, o.top: a stump - the nose-over's, DMG-WALL's census staging: 0.25 m across, 0.35 m tall)
+    const TR = o.r || 0.3, TH = o.top || 10;
+    world.treeHits.set('fill:wreckstill', [tx, tz, ground, TR, ground + TH]);
+    const m = new THREE.Mesh(new THREE.CylinderGeometry(TR, TR * 1.17, TH, 20), new THREE.MeshStandardMaterial({ color: 0x5b4632, roughness: 0.95 }));
+    m.position.set(tx, ground + TH / 2, tz); m.castShadow = true; scene.add(m); window.__d4bTrunk = m;
   } else {
     const [xA, , zR] = sim.axes(), cg = sim.cgPos(), th = -o.pitch * Math.PI / 180, k = zR, cs = Math.cos(th), sn = Math.sin(th);
     for (let i = 0; i < n; i++) {
@@ -283,6 +287,9 @@ if (require.main === module) (async () => {
     if (C.cockpit) { out.camAfter = await post('/run', 'return FLIGHT_PROBE.camModeNow();'); out.eye = out.stage.wreck && { cut: out.stage.wreck.eyeCut, eye: out.stage.wreck.eye, cab: out.stage.wreck.cab };
       await post('/run', "FLIGHT_PROBE.camMode('chase'); return 1;"); }
     console.log(k, JSON.stringify(out.stage).slice(0, 600));
+    // (the user's review: does the cowl come off - each cowl panel and the spinner, its reason and its distortion)
+    if (out.stage && out.stage.wreck) console.log('  ' + k + ' cowl: ' + out.stage.wreck.parts.filter(p => p.kind === 'cowl' || p.kind === 'spinner' || p.kind === 'eng')
+      .map(p => p.kind + ' ' + (p.gone ? 'OFF (' + p.why + (p.crush != null ? ', ' + Math.round(p.crush * 100) + ' cm' : '') + ')' : 'on' + (p.crush != null ? ' (' + Math.round(p.crush * 100) + ' cm)' : ''))).join(', '));
     if (out.stage && out.stage.err) { R.cases[k] = out; continue; }
     // the wreck drawn first from every camera, then D4a's alone, then neither (a heal does not fly the debris again: it
     // would re-release them from the wreck at rest)
