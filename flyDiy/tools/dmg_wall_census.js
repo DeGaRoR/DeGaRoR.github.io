@@ -8,7 +8,9 @@
 //     nodes, or hanging over a hole whose covering went without it - a LEAK too (`orphan`);
 //   - the covering's INSIDE face (magenta): the cabin seen through a hole where the covering has gone, its far wall's
 //     liner in front of that wall's own covering - what a torn fuselage shows, NOT a leak (`hole`).
-// THE LEAK SHARE = (out + orphan) / (the covering's pixels + the other exterior skins' + the inside wall's): the share of
+// The bulkheads across the fuselage (the firewall, the fireproof sheet, a bulkhead: YELLOW in the census pass) are counted
+// apart - a face across an opening, seen from outside once the engine has gone - with their share out through the covering.
+// THE LEAK SHARE = (out + orphan) / (the covering's pixels + the other exterior skins' + the lining's): the share of
 // what the outside of the aeroplane shows that is the inside leaking. The stripe and the registration are painted on the
 // covering (green in the census pass), never a part of their own, so they never count. Also, on the picture: the share
 // of the covering-or-inside pixels that are not the covering's yellow (hue 35-65 deg, saturation over 0.35) - the user's
@@ -35,8 +37,8 @@ async function main() {
       const px = async (b64, t) => { const img = new Image(); img.src = 'data:image/' + t + ';base64,' + b64; await img.decode();
         const c = document.createElement('canvas'); c.width = img.width; c.height = img.height; const g = c.getContext('2d'); g.drawImage(img, 0, 0); return g.getImageData(0, 0, c.width, c.height).data; };
       const y = await px(B, 'png'), f = await px(F, 'png'), x = P ? await px(P, 'jpeg') : null, n = y.length / 4;
-      const K = { cover: [0, 255, 0], skin: [0, 255, 255], wall: [255, 0, 0], furn: [0, 0, 255], other: [255, 255, 255] };
-      const c = { cover: 0, skin: 0, wall: 0, furn: 0, other: 0, out: 0, orphan: 0, hole: 0, furnOut: 0, outerPix: 0, notYellow: 0 };
+      const K = { cover: [0, 255, 0], skin: [0, 255, 255], wall: [255, 0, 0], bulk: [255, 255, 0], furn: [0, 0, 255], other: [255, 255, 255] };
+      const c = { cover: 0, skin: 0, wall: 0, bulk: 0, furn: 0, other: 0, out: 0, orphan: 0, hole: 0, bulkOut: 0, bulkOpen: 0, furnOut: 0, outerPix: 0, notYellow: 0 };
       for (let i = 0; i < n; i++) {
         const r = y[4 * i], g = y[4 * i + 1], b = y[4 * i + 2];
         if (r + g + b < 30) continue;
@@ -48,6 +50,7 @@ async function main() {
         const front = fg > 160 && fr < 100 && fb < 100, back = fr > 160 && fb > 160 && fg < 100, none = fr + fg + fb < 30;
         if (best === 'wall') { if (front) c.out++; else if (back) c.hole++; else if (none) c.orphan++; else c.hole++; }
         if (best === 'furn' && front) c.furnOut++;
+        if (best === 'bulk') { if (front) c.bulkOut++; else c.bulkOpen++; }
         if (x && (best === 'cover' || best === 'skin' || best === 'wall')) {
           c.outerPix++;
           const R = x[4 * i] / 255, G = x[4 * i + 1] / 255, Bb = x[4 * i + 2] / 255, mx = Math.max(R, G, Bb), mn = Math.min(R, G, Bb), dl = mx - mn;
@@ -60,6 +63,7 @@ async function main() {
       c.leak = outer ? (c.out + c.orphan) / outer : 0;
       c.leakOut = outer ? c.out / outer : 0; c.leakOrphan = outer ? c.orphan / outer : 0; c.holeShare = outer ? c.hole / outer : 0;
       c.notYellowShare = c.outerPix ? c.notYellow / c.outerPix : 0;
+      c.bulkShare = (outer + c.bulk) ? c.bulk / (outer + c.bulk) : 0; c.bulkOutShare = (outer + c.bulk) ? c.bulkOut / (outer + c.bulk) : 0;
       return c;
     }, [pic, ids, face]);
     const m = /^(\w+)_(\d+)_(\w+)$/.exec(s) || [];
@@ -67,8 +71,8 @@ async function main() {
   }
   await browser.close();
   const pct = v => (v * 100).toFixed(2) + ' %';
-  const md = ['| shot | scene | camera | drawing | the covering px | the inside wall px | LEAK (out + orphan) | out through | orphan | the cabin through holes | not yellow (picture) |', '|---|---|---|---|---|---|---|---|---|---|---|']
-    .concat(rows.map(r => '| ' + r.shot + ' | ' + r.scene + ' | ' + r.cam + ' | ' + r.tag + ' | ' + (r.cover + r.skin) + ' | ' + r.wall + ' | **' + pct(r.leak) + '** | ' + pct(r.leakOut) + ' | ' + pct(r.leakOrphan) + ' | ' + pct(r.holeShare) + ' | ' + pct(r.notYellowShare) + ' |'));
+  const md = ['| shot | scene | camera | drawing | the covering px | the lining px | LEAK (out + orphan) | out through | orphan | the cabin through holes | bulkheads seen (out through) | not yellow (picture) |', '|---|---|---|---|---|---|---|---|---|---|---|---|']
+    .concat(rows.map(r => '| ' + r.shot + ' | ' + r.scene + ' | ' + r.cam + ' | ' + r.tag + ' | ' + (r.cover + r.skin) + ' | ' + r.wall + ' | **' + pct(r.leak) + '** | ' + pct(r.leakOut) + ' | ' + pct(r.leakOrphan) + ' | ' + pct(r.holeShare) + ' | ' + pct(r.bulkShare) + ' (' + pct(r.bulkOutShare) + ') | ' + pct(r.notYellowShare) + ' |'));
   console.log(md.join('\n'));
   if (opt('md')) fs.writeFileSync(opt('md'), md.join('\n') + '\n');
   if (opt('json')) fs.writeFileSync(opt('json'), JSON.stringify(rows, null, 1));

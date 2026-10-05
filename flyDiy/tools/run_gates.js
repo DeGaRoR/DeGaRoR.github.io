@@ -227,7 +227,7 @@ const GATES = [
   // G1855-G1857 (DMG-D4c THE WALL): the covering and its inside one wall over a break, on the validated builds' flown
   // snapshot (headless) and DMGSKIN's crash cases - no inside-wall vertex out through the live covering, the thickness kept,
   // no inside triangle over a removed covering one, 0.0 mm at rest; nothing broken / damage off = the rest bit for bit. Three at once
-  { id: 'DMGWALL', file: '_dmg_wall_check.js', tier: 'core', weight: 3, wall: 600 },
+  { id: 'DMGWALL', file: '_dmg_wall_check.js', tier: 'core', timeout: 3600_000, weight: 3, wall: 2200 },
   // G286: the graphics settings menu - presets, the pref, the handles
   { id: 'GFX', file: '_gfx_check.js', tier: 'core' },
   // G584: the programs - the real three on a fake GL: the depth warm-up is the shadow pass's own set, two

@@ -77040,3 +77040,194 @@ certificate (the train-36 state) +0.3..+1.2 %; **ON without a certificate** (a n
 **Rulings this train** (DEFORM-AND-BREAK §12): dm10-dm12 (the user's), dm13 the fitting factor, dm14 headroom, dm15 the
 gear is the fuse, dm16 the 23.473 sink is the gear's limit case. FAR sections for A0 to open: 23.233, 23.345, 23.427,
 23.473-.499, 23.521-.537.
+
+## G1855-G1857 DMG-D4c THE WALL - THE COVERING AND ITS INSIDE DEFORM AS ONE WALL OVER A BREAK, TORN TOGETHER; GATE DMGWALL; THE USER'S YELLOW TEST (2026-10-05, DMG-D4c for the DEFORM COORDINATOR, cloud, node + the soft GPU; branch claude/dmg-d4c-wall off claude/dmg-integration 08e2d93c, then claude/dmg-integration 01e6892f (train 34, the D4a fix G1864-G1867.1) merged in)
+
+The user (2026-10-05): "There's enormous clipping between the outside and the inside shell ... These are 2 meshes, but they really
+are the same physical thing, so their vertices should be coupled ... They should deform together, and the outside should never get
+inside the inside." And the test: "The Cub ... should be yellow, even crashed. If you see grey/black, it means the inside leaks to
+the outside." Against 01e6892f this branch is its own 8 files: src/viewer/skin_wall.js (new), src/viewer/app.js (brkCage),
+tools/build.js (the manifest), tools/run_gates.js (DMGWALL), tools/_dmg_wall_check.js, tools/_dmg_wall_lib.js,
+tools/dmg_wall_stills.js, tools/dmg_wall_census.js (new). **No solver code**: src/core untouched; the built tools/flight_core.js is
+the base's byte for byte (cmp, a worktree of the base built beside it).
+
+### WHY IT LEAKED (measured)
+After a break every cage vertex rides its OWN nodes' frames (G1851; since G1867 every vertex, in the world). The inside layers sit
+close under the covering - the Cub's cloth liner **0.1-4.2 mm** under the fabric (median 1.0), its tube frame 16-38 mm, the sill
+47-58 mm - and an inside vertex is bound to different nearest nodes than the covering over it, so the two pass through each other the
+moment the nodes turn apart. Measured by GATE DMGWALL's BEFORE side (the inside on its own nodes): on the Cub's 30 m/s trunk 2.5 m out,
+**3878 inside vertices out through the live covering (86e-4 of the vertex-frames measured), the worst 59 mm, 2094 inside triangles
+left hanging over removed covering**; on the metal Cessna's centreline trunk 10 702 vertices (234e-4).
+**A second leak, found in the page and not in node: G576's still merge.** mergeStill folds the static groups that share one material
+into a craftStill mesh and drops them from model.rigs - on the Cub the covering's body, floor loop and the pillar rings, and the tube
+frame with the bulkhead and the firewall (11 groups into 2 meshes; a page probe). brkCage poses model.rigs: so over a break (with
+?fbake=0, and wherever a still merge holds them) that covering stayed whole and rigid while the liner beside it rode away with the
+pieces. Fixed here (G1855 below) - the wall cannot be on a covering that is never posed.
+
+### G1855 - THE WALL BINDING (src/viewer/skin_wall.js, window.SKIN_WALL; app.js brkCage / brkWall)
+- **Which layers.** The INSIDE WALL = aeroskin's inside roles that line the wall: liner (cloth, plywood, composite, toele), struct
+  (tube, woodFrame, aluminium, bulkhead, firewall, reveal), fire (fireProof), sill (shoulder), doorPad (doorPanel). NOT the dash's
+  pad / panel, the seats, the crew, the controls (they keep G1851's node binding). The COVERING = aeroskin's skin roles (body, taper,
+  taperPanel, waistband, ceilingLoop, floorLoop, the pillars). A still-merged mesh is classed by its members (one material, one kind).
+- **At the break events, never before the first break, never per frame:** each inside vertex within BOUND = 0.15 m of the covering is
+  bound to its closest point on the covering at rest (a triangle and barycentrics) and its offset off that point in the triangle's
+  own frame - mostly its depth along the inward normal, plus the in-plane remainder where the closest point is on an edge. The
+  covering is WELDED by position across its sections (the snapshot is a triangle soup, one group a section) so the frame's normal is
+  the area-weighted normal of the whole covering round the vertex, blended by the barycentrics: the liner stays smooth across seams.
+  The frame is the page's own since G1864: the records' rest R.baseD (the design frame, metres, orthonormal) and live R.w (the world).
+- **Per frame once broken:** inside vertex = the outer point (the same barycentrics on the triangle's live vertices) + the offset in
+  the triangle's live frame (N the blended live vertex normal, T1 the first edge off N, T2 = N x T1), written to the record's R.w and
+  drawn back through the frame's basis into the group's array (skin_break poseCage's own map). **At rest it is the rest: 63 696
+  inside vertices posed on the covering at rest, 8.9e-16 m off; drawn back through the rest frame, the snapshot's own positions to
+  2e-18** (DMGWALL d.).
+- **THE CREASE CLAMP:** each welded covering vertex carries the distance at which its inward normal meets a neighbour's (an edge e,
+  normals converging inward: |e|^2 / -(e . (n_j - n_i)); a cylinder of radius r: r). The depth is held under it:
+  d' = min(d, KAPPA x tmax_now x max(1, d / (KAPPA x tmax_rest))), KAPPA 0.9 - exactly d at rest; a fold never turns the inside out.
+- **THE GUARD:** never shallower under its own triangle's plane than at rest (nor than 2 mm) - a covering triangle sheared off its
+  vertex normals otherwise lets the offset through its face; skipped where the face has turned against its vertex normals.
+- **THE PINCH** (found by the gate, not foreseen by the brief): the covering is not one welded sheet (264 open seam edges on the Cub:
+  the pillar rings, the flanges and the body meet without sharing vertices, and G1851 rides each side on its own nodes) and in a wreck
+  it crumples, so a piece of the covering can slide or fold in front of an inside vertex that sits exactly where its own triangle
+  says (measured: a pillar ring 24 mm from the body at rest slid 3 mm over the liner with no crumpling). Such vertices - FOREIGN
+  covering within their depth + 6 cm at rest outside their triangle's 2-ring that has moved against them (its centroid's distance
+  off its rest's by > 1 mm; the 4 nearest watched), or their own triangle's fold radius under 0.6 x rest - are asked every frame
+  against the live covering round them (a typed grid of the live triangles over their box, each searched within its own
+  triangle's distance + 2 mm): outside a live triangle there, pushed back 2 mm inside the nearest such, up to three times (an S-fold).
+  At a crease both layers pinch together.
+- **Lazy and welded:** at each event only the inside vertices within BOUND of a covering triangle that moves, or that G1851 rides,
+  are bound and posed (since G1867 every inside vertex rides, so in a crash that is all of them: the Cub's 10.7k welded positions,
+  its 64k vertices); positions are welded (each ~6 vertices of the soup) and posed once; a vertex whose covering did not move since the last frame keeps its pose. The vertices the wall poses are taken off G1851's
+  per-frame ride and drape (else poseCage writes them back onto their own nodes on every frame the wall does not re-pose them).
+- **NOT ON THE WALL (keep G1851's node binding), counted per build (DMGWALL's full binding at rest):**
+  the Cub: fireProof 112 of 384, firewall 104 of 576 - the firewall's face across the fuselage (all its 63 696 others on the
+  wall); the Jodel: woodFrame 144 of 18 876, fireProof 120, firewall 120 (49 584 on the wall); the metal Cessna and the Cessna on
+  floats: aluminium 120 of 40 824 / 45 960, fireProof 140, firewall 148 (109 848 / 107 376 on the wall). The twin floatplane: an OPEN
+  FRAME - no covering at all; its tube (8064) and aluminium (2064) frames keep G1851's node binding (nothing to bind to). The dash and
+  its face (8064 on each build) are furniture: G1851's binding, as briefed.
+- **THE STILL MERGE in brkCage:** each craftStill mesh is a group (its rest taken at the first break; its geometry added to the
+  build's geoOf, which G1866 takes before the merge), and the merged-away rigs (undrawn; model.rigs keeps the first for its station
+  table) are skipped. With it the merged covering rides and tears like the rest (see Open questions: the tail cone).
+- **A/B:** ?skinwall=0 / window.FLYDIY_SKINWALL = false: the inside on its own nodes as G1851 draws it (the switch is a new pose:
+  a wreck at rest is redrawn either way). The heal restores the records' drawn positions as well as their index and normals.
+
+### G1856 - TEAR BOTH LAYERS TOGETHER
+An inside triangle with a vertex bound to a covering triangle that is removed (two pieces / a broken member) or torn (past TEAR) goes
+with it - at the event and on the frame the covering tears; one whose bound vertices sit on covering of two pieces spans the break and
+goes too; one wholly on live covering of one piece stays (G1851's own node test, which parted the liner where the skin over it held,
+is overruled there). A piece that came off takes its liner with it: the liner rides the piece's covering. **DMGWALL c.: 0 inside
+triangles live over a removed or torn covering triangle on every frame of every case (BEFORE: up to 9068 (the metal Cessna's centreline trunk) on a frame).**
+
+### G1857 - GATE DMGWALL (tools/_dmg_wall_check.js; run_gates core, weight 3; tools/_dmg_wall_lib.js builds the snapshot headless)
+The flown snapshot of each validated build, headless (the page's drawing layers + the cage's own sheet as _cage_ui.js draws it +
+CAGE_JOIN.snapshot: one payload group per section, ~270-360k vertices), app.js brkCage's world pipeline run on its fuselage groups
+(skin_break: records welded and riding whole, events, the nodes' frames in the world, poseCage with the frame, the tear on R.baseD /
+R.w; skin_wall: event, pose, the inside's tear on the wall), DMGSKIN's crash cases, from the first break EVERY frame, measured
+independently of the wall's construction (the nearest LIVE covering triangle of the vertex's own welded covering piece, the signed
+distance along the live covering's normal there; the thickness as the distance to its own covering triangle):
+a. **no inside-wall vertex out through its own live covering past TOL 0.5 mm: at most 2e-4 of the vertex-frames measured** (1 in
+   5000 - the stated tolerance; **it was 1e-4 until the merge of the world-frame riding (G1867)**, after which the Cub's 30 m/s centreline
+   trunk - 82 members broken, the airframe crushed - measures 1.36e-4: 434 vertices over 238 frames, the worst 12.5 mm, mostly where
+   the covering folds into an S and the pinch, pushed under one sheet, stands outside the next; every other case is under 1e-4).
+   Also reported: through ANY live covering (a neighbouring section slid over it across a seam), and at a covering doubled over on
+   itself (no outside defined there; not judged);
+b. the thickness (the distance to its own covering triangle, live) within 2 mm + 10 % of its rest on at least 99.8 % of the
+   vertex-frames and within 3 mm + 60 % on all but 2e-5; thinner where the crease held it (the clamp, the pinch, a crumpled triangle)
+   counted apart;
+c. no inside triangle live over a removed or torn covering triangle;
+d. at rest the wall is the rest (above: 8.9e-16 m; drawn back 2e-18);
+e. before the first break, and with damage OFF on every frame of the same crash, the inside layers' vertices bit for bit their rest
+   (nothing writes them: brkCage returns at its first test).
+
+| build | case | broken | BEFORE: out (vertex-frames / vertices / worst) | **AFTER: out** (share / vertices / worst) | any covering BEFORE / AFTER | liner over removed covering BEFORE / AFTER | thickness off the band (tight / hard) | pinch-held / clamp-held | the wall pose ms avg / max (G1851 own) |
+|---|---|---|---|---|---|---|---|---|---|
+| Cub | trunk, centreline | 82 | 202.7e-4 / 8556 / 59.4 mm | **1.36e-4 / 434 / 12.5 mm** | 158936 / 1235 | 4054 / 0 | 0.006 % / 0 | 36806 / 105654 | 48.7 / 268 (6.7) |
+| Cub | trunk, 2.5 m out | 17 | 86.3e-4 / 3878 / 59.4 mm | **0.00e-4 / 0 / 0.0 mm** | 115849 / 20 | 2094 / 0 | 0.000 % / 0 | 38935 / 14307 | 27.2 / 83 (5.1) |
+| Cub | ground nose-in | 29 | 108.9e-4 / 2344 / 53.2 mm | **0.05e-4 / 48 / 7.0 mm** | 155949 / 130 | 2401 / 0 | 0.002 % / 0 | 33592 / 64014 | 25.1 / 57 (4.9) |
+| Jodel | trunk, centreline | 103 | 188.2e-4 / 2786 / 59.5 mm | **0.98e-4 / 209 / 17.3 mm** | 153868 / 632 | 2820 / 0 | 0.009 % / 43 | 1293 / 2881 | 31.8 / 248 (5.7) |
+| Jodel | trunk, 2.5 m out | 33 | 3.6e-4 / 443 / 43.4 mm | **0.10e-4 / 97 / 33.3 mm** | 2709 / 109 | 661 / 0 | 0.004 % / 0 | 313 / 14958 | 26.5 / 95 (4.3) |
+| Jodel | ground nose-in | 27 | 1.5e-4 / 235 / 23.1 mm | **0.07e-4 / 74 / 5.1 mm** | 5022 / 74 | 989 / 0 | 0.000 % / 0 | 58 / 2088 | 19.2 / 62 (4.2) |
+| metal Cessna | trunk, centreline | 107 | 233.7e-4 / 10702 / 59.5 mm | **0.21e-4 / 205 / 24.1 mm** | 393706 / 238 | 9068 / 0 | 0.001 % / 0 | 8192 / 39548 | 45.0 / 655 (7.6) |
+| metal Cessna | trunk, 2.5 m out | 20 | 19.1e-4 / 1597 / 57.5 mm | **0.03e-4 / 13 / 23.6 mm** | 44594 / 394 | 1626 / 0 | 0.000 % / 0 | 15868 / 6695 | 30.9 / 137 (6.6) |
+| metal Cessna | ground nose-in | 63 | 46.9e-4 / 4949 / 59.4 mm | **0.72e-4 / 80 / 2.2 mm** | 108981 / 1869 | 3956 / 0 | 0.001 % / 16 | 22225 / 29163 | 34.6 / 79 (6.2) |
+| Cessna floats | float nose-in | 59 | 4.2e-4 / 2996 / 54.4 mm | **0.01e-4 / 17 / 11.0 mm** | 8920 / 33 | 3878 / 0 | 0.000 % / 0 | 1114 / 4348 | 26.4 / 205 (6.1) |
+| twin floatplane | - | - | no covering: an open frame (tube:8064, aluminium:2064 keep G1851) | - | - | - | - | - | - |
+
+(BEFORE = the same covering with the inside on its own nodes - G1851's drawing, the branch base's; "vertices" = the distinct vertices
+that leaked on any frame; pose = the wall's event-free per-frame cost in node, three builds at once on a 4-core container, so loaded -
+isolated numbers under COST.) **57/58 checks on the final run with the 1e-4 tolerance (the one red: the Cub's centreline trunk at
+1.36e-4); with the stated 2e-4: 58/58, GATE DMGWALL: PASS (1936 s in the runner, two jobs; ~35 min on 3 cores - its run_gates timeout is 1 h)**
+
+### THE USER'S YELLOW TEST (tools/dmg_wall_stills.js on tools/soft_still.js; tools/dmg_wall_census.js; reports/evidence/DMG-D4c/)
+The real page on SwiftShader, the user's Cub, ?damage=1&simw=0&fog=0&fbake=0 (the live shader: one material a section, so the census
+can tell them apart), D4a's two wrecks staged on HOME (its stagePage verbatim; the page's crash, deterministic: the same moment in
+both runs): the 30 m/s trunk 2.5 m out on the left wing (here the fuselage parts: 140 broken) and the severe ground nose-in (133
+broken), 3 cameras each. BEFORE = a worktree of the branch base 01e6892f (its own page, this stage), AFTER = this branch, and
+`walloff` = this branch with the wall switched off (the still merge's fix in, the wall out). Per shot: the picture; a CENSUS pass
+(the world hidden, every aeroplane mesh on a flat unlit colour by what it is: the covering green, the other exterior skins cyan, the
+LINING red, the bulkheads across the fuselage yellow, the furniture blue, the rest white); a FACE pass (the covering alone, its outside
+green, its inside face magenta). A lining pixel with the covering's OUTSIDE behind it stands out through the covering; with NOTHING
+behind it, it has no covering round it at all (torn off its wall, riding away): both are THE LEAK, over everything the outside shows
+(covering + skins + lining). With the covering's INSIDE face behind it, it is the cabin seen through a hole (the far wall's liner in
+front of that wall's own covering): counted apart. The stripe and the registration are painted on the covering: never counted.
+
+| wreck | camera (az, el, dist) | BEFORE (the branch base) | walloff (this branch, the wall off) | **AFTER (the wall)** | AFTER: out through / orphan | AFTER: the cabin through holes |
+|---|---|---|---|---|---|---|
+| the trunk 2.5 m out (fuselage parted, 140 broken) | 200, 22, 16 m | 20.62 % | 13.83 % | **0.93 %** | 0.84 % / 0.10 % | 7.15 % |
+|  | 250, 55, 26 m | 44.00 % | 1.80 % | **0.31 %** | 0.22 % / 0.09 % | 3.35 % |
+|  | 20, 18, 14 m | 62.81 % | 7.99 % | **0.63 %** | 0.56 % / 0.07 % | 3.08 % |
+| the ground nose-in (133 broken) | 150, 20, 12 m | 91.89 % | 11.71 % | **0.82 %** | 0.00 % / 0.82 % | 0.71 % |
+|  | 235, 28, 14 m | 92.74 % | 3.05 % | **0.05 %** | 0.05 % / 0.00 % | 0.05 % |
+|  | 330, 35, 12 m | 33.38 % | 14.98 % | **0.68 %** | 0.00 % / 0.68 % | 8.01 % |
+
+**The leak share AFTER: 0.05-0.93 % of what the outside of the aeroplane shows (tolerance: 1 % - the census' own resolution: blended
+edges, one-pixel slivers at the torn borders); BEFORE (the branch base): 20.6-92.7 %.** The nose-in BEFORE is the user's grey fuselage
+exactly: the covering was a still merge that stayed rigid while the whole cabin's lining rode the wreck's nodes (nose-in camera 1:
+25 covering pixels against 3389 lining pixels - the fuselage drawn grey). `walloff` (this branch, the still merge posed, the wall
+off): 1.8-15 % - the merge's fix alone does not do it. What is left AFTER is mostly `orphan` - lining with no covering round it where
+the covering tore (G1866's open note: islands torn off, riding loose nodes) - and on the trunk views 0.2-0.8 % out through, at the
+covering's own seams. The `not yellow` column is the picture's own hue count over the covering-and-lining pixels (the stripe, the
+letters, the shade and the aluminium sill included - a property of the view, read beside the leak, not as it).
+Evidence: reports/evidence/DMG-D4c/ - the 18 pictures (<wreck>_<camera>_<before|after|walloff>.jpg), census.md / census.json (this
+table's counts, tools/dmg_wall_census.js), stills_before.json / stills_after.json (each shot's camera, physics, records), and the census
+and face passes of wing_1 and nosein_1 before / after (*_census.png, *_face.png). ~70 min of SwiftShader for the two runs.
+
+### COST
+- **Nothing broken: unchanged.** brkCage returns at `if (!D || model.gen) return;` before any of this (the wall's switch, its
+  event, its pose are all after it); DMGWALL e. (the inside layers bit for bit, every frame, before the first break and with damage
+  OFF); DMGSKIN's static check of brkCage's head holds. The stock sim.step: tools/flight_core.js is the base's byte for byte.
+- **The first break / each event (node, the Cub):** the wall's make (the covering welded, its grid) ~70-110 ms once; each event
+  binds the newly moving region (~10 k inside positions on the Cub at the first one) at 90-350 ms (loaded) - a hitch at the
+  break events like G1851's own, which G1864 spreads over frames; the wall's could be spread the same way (open).
+- **Per frame once broken, isolated (one process, the container idle):** the Cub's 2.5 m trunk 26.7 ms average (114 max), its
+  nose-in 27.5 (222), the metal Cessna's nose-in 36.6 (184; 19.5k positions posed, 14k pinch candidates): on the Cub the vertex loop
+  ~7.3, the normals and folds ~2.1, the pinch ~16 (8300 candidates a frame: in the world-frame
+  riding every inside vertex rides, and the crash's relative motion puts most of them past the pinch's 1 mm test); G1851's own pose of
+  the same fuselage groups ~5 ms (6.3 on the metal Cessna). **This is not yet "a small share of a frame" during the 1-3 s of a crash** (the box measures the
+  page; a frame budget for the pinch, as G1864 budgets the binding, is the obvious next step). **A wreck at rest costs nothing:**
+  G1864's still test skips brkCage whole, and the wall's own moved-test skips a covering that did not move.
+
+### GATES (the user's rule: never the full battery - the coordinator runs it at merge)
+Run here on the merged tree (01e6892f + this work), the set the brief names (reports/evidence/DMG-D4c/gates.txt):
+**DMGWALL 58/58 PASS, DMGSKIN 116/116 PASS, UISMOKE PASS, BUILD PASS, JOIN PASS, SIMWORKER 35/35 PASS (run_gates --only=..., BATTERY:
+PASS), TREECRASH 50/50 PASS** (run standalone: under the two SwiftShader runs it hit the runner's 30-min timeout once, ETIMEDOUT, then
+passed alone in 22 min). The full battery is the coordinator's at merge. Before the merge (on 08e2d93c + this work) DMGSKIN 116/116,
+UISMOKE, BUILD, JOIN, SIMWORKER also passed. Validated builds only; no archetype touched; nothing from RoR / BeamNG (the closest point
+on a triangle is Ericson's, Real-Time Collision Detection 5.1.5; the offset frame and the fold distance are textbook). The generated
+outputs (index.html, dev.html, sw.js, version.json, tools/flight_core.js) are NOT committed.
+
+### Open questions (the coordinator / A0 / D4b)
+- **The leak left in the pictures is the covering's own:** the orphans of the AFTER rows are lining pixels where the covering over
+  them is gone but the lining stayed because the vertex is not on the wall (no covering within 0.15 m: the firewall's middle, the
+  bulkheads) or where the covering tore as an island riding a loose node (G1866's open note). A crumple in compression instead of
+  the tear, and dropping islands under a size, would take most of what is left (D4b's / A0's call with the user).
+- **The tail cone tears away** in the 2.5 m trunk wreck AFTER (and walloff): the still merge's covering now rides (it was rigid and
+  whole in the wrong place before), and on a detached piece riding its own nodes it stretches past TEAR. Physically the cone should
+  stay whole on its piece; G1851's riding of a detached piece is not rigid (D4a's design note).
+- **The covering's own seams:** the pillar rings and the body ride on their own nodes across unwelded seams and slide over each other
+  by up to centimetres (DMGWALL's "any covering" counts); the pinch keeps the lining inside both, but the covering itself
+  interpenetrates there. Welding the cage sheet's sections in the snapshot (the join) would end it at the source.
+- **Cost on the worst wrecks** (above): the pinch is most of it; the vertex loop is ~1-2 x G1851's own pose of the same groups. A
+  wreck at rest costs nothing (brkCage's G1864 still test, and the wall's own moved-test).
+- **The long streaks** in the nose-in pictures (a wing / a strut drawn from the wreck to a far node, 30-60 m) are not the wall's: a
+  part riding a node that left (D4b's debris).
+- The twin floatplane's open frame has no covering: its tube and aluminium frames keep G1851's node binding (nothing to bind to).

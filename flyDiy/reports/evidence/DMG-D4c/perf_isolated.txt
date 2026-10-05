@@ -1,0 +1,3 @@
+cub trunk-2.5 {"leak":0,"frames":219,"poseAvg":26.72,"poseMax":114.2,"vertsLoop":7.23,"normalsFolds":2.14,"pinch":15.8,"d4aPose":5.15,"eventAvg":136,"events":8,"posedMax":10734,"pinchQMax":8303}
+cub nosein-ground {"leak":0.05,"frames":238,"poseAvg":27.46,"poseMax":222.1,"vertsLoop":7.49,"normalsFolds":2.07,"pinch":16.53,"d4aPose":4.96,"eventAvg":137.7,"events":8,"posedMax":10734,"pinchQMax":7843}
+metal nosein-ground {"leak":0.72,"frames":236,"poseAvg":36.55,"poseMax":183.7,"vertsLoop":11.76,"normalsFolds":2.39,"pinch":20.87,"d4aPose":6.34,"eventAvg":235.8,"events":6,"posedMax":19470,"pinchQMax":13991}

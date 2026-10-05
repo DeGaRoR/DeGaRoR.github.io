@@ -1,0 +1,1213 @@
+{
+ "page": "index.html",
+ "place": "stand",
+ "errors": [],
+ "warnings": [
+  "flyDiy: the loader fetched the town raster cells, the page composes default - those cells bake lazily",
+  "THREE.DataUtils.toHalfFloat(): Value out of range.",
+  "THREE.DataUtils.toHalfFloat(): Value out of range.",
+  "THREE.DataUtils.toHalfFloat(): Value out of range.",
+  "THREE.DataUtils.toHalfFloat(): Value out of range.",
+  "THREE.DataUtils.toHalfFloat(): Value out of range.",
+  "THREE.DataUtils.toHalfFloat(): Value out of range.",
+  "THREE.DataUtils.toHalfFloat(): Value out of range.",
+  "THREE.DataUtils.toHalfFloat(): Value out of range.",
+  "THREE.DataUtils.toHalfFloat(): Value out of range.",
+  "THREE.DataUtils.toHalfFloat(): Value out of range.",
+  "THREE.DataUtils.toHalfFloat(): Value out of range.",
+  "THREE.DataUtils.toHalfFloat(): Value out of range.",
+  "THREE.DataUtils.toHalfFloat(): Value out of range.",
+  "THREE.DataUtils.toHalfFloat(): Value out of range.",
+  "THREE.DataUtils.toHalfFloat(): Value out of range.",
+  "THREE.DataUtils.toHalfFloat(): Value out of range.",
+  "THREE.DataUtils.toHalfFloat(): Value out of range.",
+  "THREE.DataUtils.toHalfFloat(): Value out of range.",
+  "THREE.DataUtils.toHalfFloat(): Value out of range."
+ ],
+ "t": {
+  "garage": 449.8,
+  "stand": 490.6,
+  "view": 541.2,
+  "stage": 2800.5,
+  "total": 2800.5
+ },
+ "bootDone": true,
+ "bootSteps": 24,
+ "hardTimeout": false,
+ "gpu": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+ "soft": {
+  "tier": "software",
+  "gpu": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+  "forced": false,
+  "preset": "potato"
+ },
+ "gfx": null,
+ "trip": {
+  "kind": "rollout",
+  "anim": "timeout",
+  "ms": 38376
+ },
+ "stage": {
+  "shots": [
+   {
+    "scene": "wing",
+    "label": "the trunk 2.5 m out on the left wing (30 m/s, 4 m up)",
+    "cam": [
+     200,
+     22,
+     16
+    ],
+    "wall": true,
+    "tag": "after",
+    "file": "../../../../tmp/claude-0/-home-user-DeGaRoR-github-io/f5e1d1f1-b258-5268-90e8-cfe70cd516d2/scratchpad/st5/wing_1_after.jpg",
+    "census": {
+     "cover": 3842,
+     "skin": 0,
+     "wall": 338,
+     "furn": 233,
+     "other": 0,
+     "edge": 168591,
+     "aero": 173004,
+     "outerPix": 4180,
+     "notYellow": 1787,
+     "wallOut": 39,
+     "wallHole": 299,
+     "furnOut": 21,
+     "leak": 0.009330143540669857,
+     "hole": 0.0715311004784689,
+     "inside": 0.08086124401913876,
+     "furnLeak": 0.005023923444976076,
+     "notYellowShare": 0.42751196172248807
+    },
+    "classes": {
+     "other": 213,
+     "cover": 2,
+     "bulk": 2,
+     "wall": 2,
+     "furn": 22,
+     "skin": 5
+    },
+    "stats": {
+     "skin": {
+      "on": true,
+      "recs": 94,
+      "ms": {
+       "records": 842.6999999880791,
+       "event": 613.3000000044703,
+       "frames": 16.5,
+       "pose": 1341.300000000745,
+       "recordsT": 843.099999986589,
+       "eventT": 614.900000013411,
+       "poseT": 2997.9000000059605,
+       "frameMax": 2810.099999997765,
+       "n": 12
+      },
+      "removed": 19510,
+      "torn": 8326,
+      "tris": 176742,
+      "riding": 499754
+     },
+     "wall": {
+      "bound": 10734,
+      "unbound": 36,
+      "posed": 10734,
+      "events": 1
+     }
+    },
+    "picture": {
+     "w": 1280,
+     "h": 720,
+     "clearShare": 0.013229166666666667,
+     "topShare": 0.18308268229166666,
+     "colours": 2638,
+     "lowerMean": 102.2,
+     "lowerSd": 33.2
+    },
+    "physics": {
+     "ms": 2474,
+     "steps": 180,
+     "over": true,
+     "crashed": true,
+     "reason": "broke up: the fuselage parted (TPB off the core)",
+     "broken": 140,
+     "groups": [
+      "wing0L:strut",
+      "eng:mount",
+      "wing0L:root",
+      "stab:attach",
+      "wing0R:root",
+      "gearL:gear",
+      "wing0R:strut",
+      "gearR:gear"
+     ],
+     "brokeUp": true,
+     "cg": [
+      -50.82,
+      30.95,
+      805.41
+     ]
+    }
+   },
+   {
+    "scene": "wing",
+    "label": "the trunk 2.5 m out on the left wing (30 m/s, 4 m up)",
+    "cam": [
+     200,
+     22,
+     16
+    ],
+    "wall": false,
+    "tag": "walloff",
+    "file": "../../../../tmp/claude-0/-home-user-DeGaRoR-github-io/f5e1d1f1-b258-5268-90e8-cfe70cd516d2/scratchpad/st5/wing_1_walloff.jpg",
+    "census": {
+     "cover": 3301,
+     "skin": 0,
+     "wall": 871,
+     "furn": 147,
+     "other": 0,
+     "edge": 168803,
+     "aero": 173122,
+     "outerPix": 4172,
+     "notYellow": 2156,
+     "wallOut": 577,
+     "wallHole": 294,
+     "furnOut": 19,
+     "leak": 0.13830297219558965,
+     "hole": 0.07046979865771812,
+     "inside": 0.20877277085330775,
+     "furnLeak": 0.004554170661553212,
+     "notYellowShare": 0.5167785234899329
+    },
+    "classes": {
+     "other": 213,
+     "cover": 2,
+     "bulk": 2,
+     "wall": 2,
+     "furn": 22,
+     "skin": 5
+    },
+    "stats": {
+     "skin": {
+      "on": true,
+      "recs": 94,
+      "ms": {
+       "records": 842.6999999880791,
+       "event": 613.3000000044703,
+       "frames": 16.5,
+       "pose": 1341.300000000745,
+       "recordsT": 847.0999999940395,
+       "eventT": 641.3000000081956,
+       "poseT": 8795.400000017136,
+       "frameMax": 2810.099999997765,
+       "n": 54
+      },
+      "removed": 23431,
+      "torn": 16298,
+      "tris": 176742,
+      "riding": 530226
+     },
+     "wall": null
+    },
+    "picture": {
+     "w": 1280,
+     "h": 720,
+     "clearShare": 0.013193359375,
+     "topShare": 0.1844921875,
+     "colours": 2619,
+     "lowerMean": 101.9,
+     "lowerSd": 32.9
+    },
+    "physics": {
+     "ms": 2474,
+     "steps": 180,
+     "over": true,
+     "crashed": true,
+     "reason": "broke up: the fuselage parted (TPB off the core)",
+     "broken": 140,
+     "groups": [
+      "wing0L:strut",
+      "eng:mount",
+      "wing0L:root",
+      "stab:attach",
+      "wing0R:root",
+      "gearL:gear",
+      "wing0R:strut",
+      "gearR:gear"
+     ],
+     "brokeUp": true,
+     "cg": [
+      -50.82,
+      30.95,
+      805.41
+     ]
+    }
+   },
+   {
+    "scene": "wing",
+    "label": "the trunk 2.5 m out on the left wing (30 m/s, 4 m up)",
+    "cam": [
+     250,
+     55,
+     26
+    ],
+    "wall": true,
+    "tag": "after",
+    "file": "../../../../tmp/claude-0/-home-user-DeGaRoR-github-io/f5e1d1f1-b258-5268-90e8-cfe70cd516d2/scratchpad/st5/wing_2_after.jpg",
+    "census": {
+     "cover": 2156,
+     "skin": 0,
+     "wall": 82,
+     "furn": 90,
+     "other": 0,
+     "edge": 54065,
+     "aero": 56393,
+     "outerPix": 2238,
+     "notYellow": 1105,
+     "wallOut": 7,
+     "wallHole": 75,
+     "furnOut": 1,
+     "leak": 0.003127792672028597,
+     "hole": 0.03351206434316354,
+     "inside": 0.03663985701519214,
+     "furnLeak": 0.00044682752457551384,
+     "notYellowShare": 0.4937444146559428
+    },
+    "classes": {
+     "other": 213,
+     "cover": 2,
+     "bulk": 2,
+     "wall": 2,
+     "furn": 22,
+     "skin": 5
+    },
+    "stats": {
+     "skin": {
+      "on": true,
+      "recs": 94,
+      "ms": {
+       "records": 842.6999999880791,
+       "event": 613.3000000044703,
+       "frames": 16.5,
+       "pose": 1576.2999999970198,
+       "recordsT": 850.9000000096858,
+       "eventT": 643.7999999932945,
+       "poseT": 14634.000000018626,
+       "frameMax": 2810.099999997765,
+       "n": 88
+      },
+      "removed": 27730,
+      "torn": 16304,
+      "tris": 176742,
+      "riding": 466530
+     },
+     "wall": {
+      "bound": 10734,
+      "unbound": 36,
+      "posed": 10734,
+      "events": 1
+     }
+    },
+    "picture": {
+     "w": 1280,
+     "h": 720,
+     "clearShare": 0.0024207899305555554,
+     "topShare": 0.16721245659722223,
+     "colours": 2383,
+     "lowerMean": 93,
+     "lowerSd": 18.7
+    },
+    "physics": {
+     "ms": 2474,
+     "steps": 180,
+     "over": true,
+     "crashed": true,
+     "reason": "broke up: the fuselage parted (TPB off the core)",
+     "broken": 140,
+     "groups": [
+      "wing0L:strut",
+      "eng:mount",
+      "wing0L:root",
+      "stab:attach",
+      "wing0R:root",
+      "gearL:gear",
+      "wing0R:strut",
+      "gearR:gear"
+     ],
+     "brokeUp": true,
+     "cg": [
+      -50.82,
+      30.95,
+      805.41
+     ]
+    }
+   },
+   {
+    "scene": "wing",
+    "label": "the trunk 2.5 m out on the left wing (30 m/s, 4 m up)",
+    "cam": [
+     250,
+     55,
+     26
+    ],
+    "wall": false,
+    "tag": "walloff",
+    "file": "../../../../tmp/claude-0/-home-user-DeGaRoR-github-io/f5e1d1f1-b258-5268-90e8-cfe70cd516d2/scratchpad/st5/wing_2_walloff.jpg",
+    "census": {
+     "cover": 2212,
+     "skin": 0,
+     "wall": 115,
+     "furn": 88,
+     "other": 0,
+     "edge": 54020,
+     "aero": 56435,
+     "outerPix": 2327,
+     "notYellow": 1190,
+     "wallOut": 42,
+     "wallHole": 73,
+     "furnOut": 1,
+     "leak": 0.018048990116029222,
+     "hole": 0.03137086377309841,
+     "inside": 0.04941985388912763,
+     "furnLeak": 0.0004297378599054577,
+     "notYellowShare": 0.5113880532874946
+    },
+    "classes": {
+     "other": 213,
+     "cover": 2,
+     "bulk": 2,
+     "wall": 2,
+     "furn": 22,
+     "skin": 5
+    },
+    "stats": {
+     "skin": {
+      "on": true,
+      "recs": 94,
+      "ms": {
+       "records": 842.6999999880791,
+       "event": 613.3000000044703,
+       "frames": 16.5,
+       "pose": 1576.2999999970198,
+       "recordsT": 851.1000000052154,
+       "eventT": 667.4999999925494,
+       "poseT": 15027.600000023842,
+       "frameMax": 2810.099999997765,
+       "n": 91
+      },
+      "removed": 23437,
+      "torn": 16304,
+      "tris": 176742,
+      "riding": 530226
+     },
+     "wall": null
+    },
+    "picture": {
+     "w": 1280,
+     "h": 720,
+     "clearShare": 0.0023990885416666666,
+     "topShare": 0.16716145833333335,
+     "colours": 2387,
+     "lowerMean": 93,
+     "lowerSd": 18.7
+    },
+    "physics": {
+     "ms": 2474,
+     "steps": 180,
+     "over": true,
+     "crashed": true,
+     "reason": "broke up: the fuselage parted (TPB off the core)",
+     "broken": 140,
+     "groups": [
+      "wing0L:strut",
+      "eng:mount",
+      "wing0L:root",
+      "stab:attach",
+      "wing0R:root",
+      "gearL:gear",
+      "wing0R:strut",
+      "gearR:gear"
+     ],
+     "brokeUp": true,
+     "cg": [
+      -50.82,
+      30.95,
+      805.41
+     ]
+    }
+   },
+   {
+    "scene": "wing",
+    "label": "the trunk 2.5 m out on the left wing (30 m/s, 4 m up)",
+    "cam": [
+     20,
+     18,
+     14
+    ],
+    "wall": true,
+    "tag": "after",
+    "file": "../../../../tmp/claude-0/-home-user-DeGaRoR-github-io/f5e1d1f1-b258-5268-90e8-cfe70cd516d2/scratchpad/st5/wing_3_after.jpg",
+    "census": {
+     "cover": 5635,
+     "skin": 0,
+     "wall": 217,
+     "furn": 278,
+     "other": 0,
+     "edge": 143074,
+     "aero": 149204,
+     "outerPix": 5852,
+     "notYellow": 4921,
+     "wallOut": 37,
+     "wallHole": 180,
+     "furnOut": 74,
+     "leak": 0.0063226247436773755,
+     "hole": 0.030758714969241284,
+     "inside": 0.03708133971291866,
+     "furnLeak": 0.012645249487354751,
+     "notYellowShare": 0.8409090909090909
+    },
+    "classes": {
+     "other": 213,
+     "cover": 2,
+     "bulk": 2,
+     "wall": 2,
+     "furn": 22,
+     "skin": 5
+    },
+    "stats": {
+     "skin": {
+      "on": true,
+      "recs": 94,
+      "ms": {
+       "records": 842.6999999880791,
+       "event": 613.3000000044703,
+       "frames": 16.5,
+       "pose": 1698.199999999255,
+       "recordsT": 851.2000000029802,
+       "eventT": 667.6999999918044,
+       "poseT": 16725.800000023097,
+       "frameMax": 2810.099999997765,
+       "n": 92
+      },
+      "removed": 27730,
+      "torn": 16304,
+      "tris": 176742,
+      "riding": 466530
+     },
+     "wall": {
+      "bound": 10734,
+      "unbound": 36,
+      "posed": 10734,
+      "events": 1
+     }
+    },
+    "picture": {
+     "w": 1280,
+     "h": 720,
+     "clearShare": 0.0006814236111111112,
+     "topShare": 0.09521050347222222,
+     "colours": 2394,
+     "lowerMean": 90.3,
+     "lowerSd": 21.2
+    },
+    "physics": {
+     "ms": 2474,
+     "steps": 180,
+     "over": true,
+     "crashed": true,
+     "reason": "broke up: the fuselage parted (TPB off the core)",
+     "broken": 140,
+     "groups": [
+      "wing0L:strut",
+      "eng:mount",
+      "wing0L:root",
+      "stab:attach",
+      "wing0R:root",
+      "gearL:gear",
+      "wing0R:strut",
+      "gearR:gear"
+     ],
+     "brokeUp": true,
+     "cg": [
+      -50.82,
+      30.95,
+      805.41
+     ]
+    }
+   },
+   {
+    "scene": "wing",
+    "label": "the trunk 2.5 m out on the left wing (30 m/s, 4 m up)",
+    "cam": [
+     20,
+     18,
+     14
+    ],
+    "wall": false,
+    "tag": "walloff",
+    "file": "../../../../tmp/claude-0/-home-user-DeGaRoR-github-io/f5e1d1f1-b258-5268-90e8-cfe70cd516d2/scratchpad/st5/wing_3_walloff.jpg",
+    "census": {
+     "cover": 5568,
+     "skin": 0,
+     "wall": 765,
+     "furn": 239,
+     "other": 0,
+     "edge": 142983,
+     "aero": 149555,
+     "outerPix": 6333,
+     "notYellow": 5349,
+     "wallOut": 506,
+     "wallHole": 259,
+     "furnOut": 72,
+     "leak": 0.07989894204958156,
+     "hole": 0.040896889309963685,
+     "inside": 0.12079583135954523,
+     "furnLeak": 0.011369019422074847,
+     "notYellowShare": 0.8446234012316438
+    },
+    "classes": {
+     "other": 213,
+     "cover": 2,
+     "bulk": 2,
+     "wall": 2,
+     "furn": 22,
+     "skin": 5
+    },
+    "stats": {
+     "skin": {
+      "on": true,
+      "recs": 94,
+      "ms": {
+       "records": 842.6999999880791,
+       "event": 613.3000000044703,
+       "frames": 16.5,
+       "pose": 1698.199999999255,
+       "recordsT": 851.2000000029802,
+       "eventT": 682.9999999888241,
+       "poseT": 16836.400000024587,
+       "frameMax": 2810.099999997765,
+       "n": 93
+      },
+      "removed": 23437,
+      "torn": 16304,
+      "tris": 176742,
+      "riding": 530226
+     },
+     "wall": null
+    },
+    "picture": {
+     "w": 1280,
+     "h": 720,
+     "clearShare": 0.00068359375,
+     "topShare": 0.09517578125,
+     "colours": 2381,
+     "lowerMean": 90.3,
+     "lowerSd": 21.2
+    },
+    "physics": {
+     "ms": 2474,
+     "steps": 180,
+     "over": true,
+     "crashed": true,
+     "reason": "broke up: the fuselage parted (TPB off the core)",
+     "broken": 140,
+     "groups": [
+      "wing0L:strut",
+      "eng:mount",
+      "wing0L:root",
+      "stab:attach",
+      "wing0R:root",
+      "gearL:gear",
+      "wing0R:strut",
+      "gearR:gear"
+     ],
+     "brokeUp": true,
+     "cg": [
+      -50.82,
+      30.95,
+      805.41
+     ]
+    }
+   },
+   {
+    "scene": "nosein",
+    "label": "the severe nose-in on the ground (180 km/h, 10 m/s, 60 deg nose-down)",
+    "cam": [
+     150,
+     20,
+     12
+    ],
+    "wall": true,
+    "tag": "after",
+    "file": "../../../../tmp/claude-0/-home-user-DeGaRoR-github-io/f5e1d1f1-b258-5268-90e8-cfe70cd516d2/scratchpad/st5/nosein_1_after.jpg",
+    "census": {
+     "cover": 2650,
+     "skin": 0,
+     "wall": 41,
+     "furn": 384,
+     "other": 0,
+     "edge": 110775,
+     "aero": 113850,
+     "outerPix": 2691,
+     "notYellow": 455,
+     "wallOut": 22,
+     "wallHole": 19,
+     "furnOut": 0,
+     "leak": 0.008175399479747306,
+     "hole": 0.007060572277963582,
+     "inside": 0.015235971757710888,
+     "furnLeak": 0,
+     "notYellowShare": 0.16908212560386474
+    },
+    "classes": {
+     "other": 213,
+     "cover": 2,
+     "bulk": 2,
+     "wall": 2,
+     "furn": 22,
+     "skin": 5
+    },
+    "stats": {
+     "skin": {
+      "on": true,
+      "recs": 94,
+      "ms": {
+       "records": 842.6999999880791,
+       "event": 613.3000000044703,
+       "frames": 16.5,
+       "pose": 1698.199999999255,
+       "recordsT": 853.0000000149012,
+       "eventT": 859.2999999970198,
+       "poseT": 20045.50000002235,
+       "frameMax": 2810.099999997765,
+       "n": 106
+      },
+      "removed": 31365,
+      "torn": 21380,
+      "tris": 176742,
+      "riding": 466530
+     },
+     "wall": {
+      "bound": 10734,
+      "unbound": 36,
+      "posed": 10734,
+      "events": 2
+     }
+    },
+    "picture": {
+     "w": 1280,
+     "h": 720,
+     "clearShare": 0.0045258246527777775,
+     "topShare": 0.09986545138888889,
+     "colours": 2754,
+     "lowerMean": 107.3,
+     "lowerSd": 21.3
+    },
+    "physics": {
+     "ms": 1378,
+     "steps": 61,
+     "over": true,
+     "crashed": true,
+     "reason": "broke up: the fuselage parted (TPB off the core)",
+     "broken": 147,
+     "groups": [
+      "stab:attach",
+      "wing0L:strut",
+      "wing0R:strut",
+      "eng:mount",
+      "wing0L:root",
+      "wing0R:root",
+      "gearL:gear",
+      "gearR:gear"
+     ],
+     "brokeUp": true,
+     "cg": [
+      -87.31,
+      33.15,
+      770.52
+     ]
+    }
+   },
+   {
+    "scene": "nosein",
+    "label": "the severe nose-in on the ground (180 km/h, 10 m/s, 60 deg nose-down)",
+    "cam": [
+     150,
+     20,
+     12
+    ],
+    "wall": false,
+    "tag": "walloff",
+    "file": "../../../../tmp/claude-0/-home-user-DeGaRoR-github-io/f5e1d1f1-b258-5268-90e8-cfe70cd516d2/scratchpad/st5/nosein_1_walloff.jpg",
+    "census": {
+     "cover": 2317,
+     "skin": 0,
+     "wall": 552,
+     "furn": 232,
+     "other": 0,
+     "edge": 111089,
+     "aero": 114190,
+     "outerPix": 2869,
+     "notYellow": 881,
+     "wallOut": 336,
+     "wallHole": 216,
+     "furnOut": 0,
+     "leak": 0.1171139769954688,
+     "hole": 0.07528755663994423,
+     "inside": 0.19240153363541304,
+     "furnLeak": 0,
+     "notYellowShare": 0.3070756361101429
+    },
+    "classes": {
+     "other": 213,
+     "cover": 2,
+     "bulk": 2,
+     "wall": 2,
+     "furn": 22,
+     "skin": 5
+    },
+    "stats": {
+     "skin": {
+      "on": true,
+      "recs": 94,
+      "ms": {
+       "records": 842.6999999880791,
+       "event": 613.3000000044703,
+       "frames": 16.5,
+       "pose": 1698.199999999255,
+       "recordsT": 856.0000000223517,
+       "eventT": 885.1999999806285,
+       "poseT": 24424.20000000298,
+       "frameMax": 2810.099999997765,
+       "n": 146
+      },
+      "removed": 26852,
+      "torn": 21620,
+      "tris": 176742,
+      "riding": 530226
+     },
+     "wall": null
+    },
+    "picture": {
+     "w": 1280,
+     "h": 720,
+     "clearShare": 0.004493272569444444,
+     "topShare": 0.09986111111111111,
+     "colours": 2743,
+     "lowerMean": 107.3,
+     "lowerSd": 21.3
+    },
+    "physics": {
+     "ms": 1378,
+     "steps": 61,
+     "over": true,
+     "crashed": true,
+     "reason": "broke up: the fuselage parted (TPB off the core)",
+     "broken": 147,
+     "groups": [
+      "stab:attach",
+      "wing0L:strut",
+      "wing0R:strut",
+      "eng:mount",
+      "wing0L:root",
+      "wing0R:root",
+      "gearL:gear",
+      "gearR:gear"
+     ],
+     "brokeUp": true,
+     "cg": [
+      -87.31,
+      33.15,
+      770.52
+     ]
+    }
+   },
+   {
+    "scene": "nosein",
+    "label": "the severe nose-in on the ground (180 km/h, 10 m/s, 60 deg nose-down)",
+    "cam": [
+     235,
+     28,
+     14
+    ],
+    "wall": true,
+    "tag": "after",
+    "file": "../../../../tmp/claude-0/-home-user-DeGaRoR-github-io/f5e1d1f1-b258-5268-90e8-cfe70cd516d2/scratchpad/st5/nosein_2_after.jpg",
+    "census": {
+     "cover": 2049,
+     "skin": 0,
+     "wall": 2,
+     "furn": 187,
+     "other": 0,
+     "edge": 55446,
+     "aero": 57684,
+     "outerPix": 2051,
+     "notYellow": 109,
+     "wallOut": 1,
+     "wallHole": 1,
+     "furnOut": 0,
+     "leak": 0.00048756704046806434,
+     "hole": 0.00048756704046806434,
+     "inside": 0.0009751340809361287,
+     "furnLeak": 0,
+     "notYellowShare": 0.05314480741101901
+    },
+    "classes": {
+     "other": 213,
+     "cover": 2,
+     "bulk": 2,
+     "wall": 2,
+     "furn": 22,
+     "skin": 5
+    },
+    "stats": {
+     "skin": {
+      "on": true,
+      "recs": 94,
+      "ms": {
+       "records": 842.6999999880791,
+       "event": 613.3000000044703,
+       "frames": 16.5,
+       "pose": 1698.199999999255,
+       "recordsT": 858.7000000141561,
+       "eventT": 886.6999999806285,
+       "poseT": 29494.800000015646,
+       "frameMax": 2810.099999997765,
+       "n": 175
+      },
+      "removed": 31385,
+      "torn": 21620,
+      "tris": 176742,
+      "riding": 466530
+     },
+     "wall": {
+      "bound": 10734,
+      "unbound": 36,
+      "posed": 10734,
+      "events": 1
+     }
+    },
+    "picture": {
+     "w": 1280,
+     "h": 720,
+     "clearShare": 0.0074522569444444445,
+     "topShare": 0.13513237847222223,
+     "colours": 2306,
+     "lowerMean": 104.3,
+     "lowerSd": 13.6
+    },
+    "physics": {
+     "ms": 1378,
+     "steps": 61,
+     "over": true,
+     "crashed": true,
+     "reason": "broke up: the fuselage parted (TPB off the core)",
+     "broken": 147,
+     "groups": [
+      "stab:attach",
+      "wing0L:strut",
+      "wing0R:strut",
+      "eng:mount",
+      "wing0L:root",
+      "wing0R:root",
+      "gearL:gear",
+      "gearR:gear"
+     ],
+     "brokeUp": true,
+     "cg": [
+      -87.31,
+      33.15,
+      770.52
+     ]
+    }
+   },
+   {
+    "scene": "nosein",
+    "label": "the severe nose-in on the ground (180 km/h, 10 m/s, 60 deg nose-down)",
+    "cam": [
+     235,
+     28,
+     14
+    ],
+    "wall": false,
+    "tag": "walloff",
+    "file": "../../../../tmp/claude-0/-home-user-DeGaRoR-github-io/f5e1d1f1-b258-5268-90e8-cfe70cd516d2/scratchpad/st5/nosein_2_walloff.jpg",
+    "census": {
+     "cover": 1993,
+     "skin": 0,
+     "wall": 108,
+     "furn": 141,
+     "other": 0,
+     "edge": 55530,
+     "aero": 57772,
+     "outerPix": 2101,
+     "notYellow": 183,
+     "wallOut": 64,
+     "wallHole": 44,
+     "furnOut": 0,
+     "leak": 0.03046168491194669,
+     "hole": 0.020942408376963352,
+     "inside": 0.05140409328891004,
+     "furnLeak": 0,
+     "notYellowShare": 0.08710138029509758
+    },
+    "classes": {
+     "other": 213,
+     "cover": 2,
+     "bulk": 2,
+     "wall": 2,
+     "furn": 22,
+     "skin": 5
+    },
+    "stats": {
+     "skin": {
+      "on": true,
+      "recs": 94,
+      "ms": {
+       "records": 842.6999999880791,
+       "event": 613.3000000044703,
+       "frames": 16.5,
+       "pose": 1698.199999999255,
+       "recordsT": 858.8000000156462,
+       "eventT": 899.7999999821186,
+       "poseT": 29698.20000001788,
+       "frameMax": 2810.099999997765,
+       "n": 177
+      },
+      "removed": 26852,
+      "torn": 21620,
+      "tris": 176742,
+      "riding": 530226
+     },
+     "wall": null
+    },
+    "picture": {
+     "w": 1280,
+     "h": 720,
+     "clearShare": 0.007435980902777778,
+     "topShare": 0.13513129340277777,
+     "colours": 2302,
+     "lowerMean": 104.3,
+     "lowerSd": 13.7
+    },
+    "physics": {
+     "ms": 1378,
+     "steps": 61,
+     "over": true,
+     "crashed": true,
+     "reason": "broke up: the fuselage parted (TPB off the core)",
+     "broken": 147,
+     "groups": [
+      "stab:attach",
+      "wing0L:strut",
+      "wing0R:strut",
+      "eng:mount",
+      "wing0L:root",
+      "wing0R:root",
+      "gearL:gear",
+      "gearR:gear"
+     ],
+     "brokeUp": true,
+     "cg": [
+      -87.31,
+      33.15,
+      770.52
+     ]
+    }
+   },
+   {
+    "scene": "nosein",
+    "label": "the severe nose-in on the ground (180 km/h, 10 m/s, 60 deg nose-down)",
+    "cam": [
+     330,
+     35,
+     12
+    ],
+    "wall": true,
+    "tag": "after",
+    "file": "../../../../tmp/claude-0/-home-user-DeGaRoR-github-io/f5e1d1f1-b258-5268-90e8-cfe70cd516d2/scratchpad/st5/nosein_3_after.jpg",
+    "census": {
+     "cover": 2702,
+     "skin": 0,
+     "wall": 257,
+     "furn": 1105,
+     "other": 0,
+     "edge": 48561,
+     "aero": 52625,
+     "outerPix": 2959,
+     "notYellow": 980,
+     "wallOut": 20,
+     "wallHole": 237,
+     "furnOut": 0,
+     "leak": 0.006759040216289287,
+     "hole": 0.08009462656302806,
+     "inside": 0.08685366677931734,
+     "furnLeak": 0,
+     "notYellowShare": 0.33119297059817504
+    },
+    "classes": {
+     "other": 213,
+     "cover": 2,
+     "bulk": 2,
+     "wall": 2,
+     "furn": 22,
+     "skin": 5
+    },
+    "stats": {
+     "skin": {
+      "on": true,
+      "recs": 94,
+      "ms": {
+       "records": 842.6999999880791,
+       "event": 613.3000000044703,
+       "frames": 16.5,
+       "pose": 1698.199999999255,
+       "recordsT": 859.0000000149012,
+       "eventT": 899.7999999821186,
+       "poseT": 31053.20000001788,
+       "frameMax": 2810.099999997765,
+       "n": 178
+      },
+      "removed": 31385,
+      "torn": 21620,
+      "tris": 176742,
+      "riding": 466530
+     },
+     "wall": {
+      "bound": 10734,
+      "unbound": 36,
+      "posed": 10734,
+      "events": 1
+     }
+    },
+    "picture": {
+     "w": 1280,
+     "h": 720,
+     "clearShare": 0.002963324652777778,
+     "topShare": 0.15919813368055555,
+     "colours": 2789,
+     "lowerMean": 105.1,
+     "lowerSd": 16.6
+    },
+    "physics": {
+     "ms": 1378,
+     "steps": 61,
+     "over": true,
+     "crashed": true,
+     "reason": "broke up: the fuselage parted (TPB off the core)",
+     "broken": 147,
+     "groups": [
+      "stab:attach",
+      "wing0L:strut",
+      "wing0R:strut",
+      "eng:mount",
+      "wing0L:root",
+      "wing0R:root",
+      "gearL:gear",
+      "gearR:gear"
+     ],
+     "brokeUp": true,
+     "cg": [
+      -87.31,
+      33.15,
+      770.52
+     ]
+    }
+   },
+   {
+    "scene": "nosein",
+    "label": "the severe nose-in on the ground (180 km/h, 10 m/s, 60 deg nose-down)",
+    "cam": [
+     330,
+     35,
+     12
+    ],
+    "wall": false,
+    "tag": "walloff",
+    "file": "../../../../tmp/claude-0/-home-user-DeGaRoR-github-io/f5e1d1f1-b258-5268-90e8-cfe70cd516d2/scratchpad/st5/nosein_3_walloff.jpg",
+    "census": {
+     "cover": 2090,
+     "skin": 0,
+     "wall": 1434,
+     "furn": 853,
+     "other": 0,
+     "edge": 48989,
+     "aero": 53366,
+     "outerPix": 3524,
+     "notYellow": 1761,
+     "wallOut": 528,
+     "wallHole": 906,
+     "furnOut": 0,
+     "leak": 0.14982973893303064,
+     "hole": 0.25709421112372305,
+     "inside": 0.4069239500567537,
+     "furnLeak": 0,
+     "notYellowShare": 0.49971623155505107
+    },
+    "classes": {
+     "other": 213,
+     "cover": 2,
+     "bulk": 2,
+     "wall": 2,
+     "furn": 22,
+     "skin": 5
+    },
+    "stats": {
+     "skin": {
+      "on": true,
+      "recs": 94,
+      "ms": {
+       "records": 842.6999999880791,
+       "event": 613.3000000044703,
+       "frames": 16.5,
+       "pose": 1698.199999999255,
+       "recordsT": 859.3000000193715,
+       "eventT": 914.0999999828637,
+       "poseT": 31158.800000015646,
+       "frameMax": 2810.099999997765,
+       "n": 179
+      },
+      "removed": 26852,
+      "torn": 21620,
+      "tris": 176742,
+      "riding": 530226
+     },
+     "wall": null
+    },
+    "picture": {
+     "w": 1280,
+     "h": 720,
+     "clearShare": 0.0029654947916666666,
+     "topShare": 0.15921440972222223,
+     "colours": 2778,
+     "lowerMean": 105.1,
+     "lowerSd": 16.7
+    },
+    "physics": {
+     "ms": 1378,
+     "steps": 61,
+     "over": true,
+     "crashed": true,
+     "reason": "broke up: the fuselage parted (TPB off the core)",
+     "broken": 147,
+     "groups": [
+      "stab:attach",
+      "wing0L:strut",
+      "wing0R:strut",
+      "eng:mount",
+      "wing0L:root",
+      "wing0R:root",
+      "gearL:gear",
+      "gearR:gear"
+     ],
+     "brokeUp": true,
+     "cg": [
+      -87.31,
+      33.15,
+      770.52
+     ]
+    }
+   }
+  ],
+  "skipMain": true
+ }
+}

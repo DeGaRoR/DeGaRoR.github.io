@@ -1,0 +1,1329 @@
+{
+ "cub": {
+  "key": "cub",
+  "label": "Cub",
+  "snapMs": 8882,
+  "cases": [
+   {
+    "id": "trunk-0",
+    "label": "a trunk at 30 m/s, the centreline",
+    "S": {
+     "steps": 300,
+     "frames": 222,
+     "firstBreak": 1.317,
+     "bitsBefore": 468,
+     "bitsBad": 0,
+     "meas": 5549716,
+     "measB": 8023901,
+     "outA": 753,
+     "outB": 162614,
+     "worstA": 0.012456927237155555,
+     "worstB": 0.059359193749225686,
+     "worstAt": {
+      "t": 1.567,
+      "sec": "tube",
+      "v": 10268,
+      "s": -0.01296,
+      "s0": 0.01891
+     },
+     "outVertsB": 8556,
+     "outVertsA": 434,
+     "anyA": 1235,
+     "anyB": 158936,
+     "foldA": 410,
+     "foldB": 3483,
+     "pinchedBand": 36806,
+     "bandN": 5549714,
+     "hard": 0,
+     "d4aMs": 1477.3453699999998,
+     "band": 325,
+     "bandWorst": 0.0038871722666968707,
+     "clamped": 105654,
+     "overDeadA": 0,
+     "overDeadB": 4054,
+     "finite": true,
+     "poseMs": 10820.182579000006,
+     "poses": 222,
+     "eventMs": 2035.9462200000005,
+     "events": 9,
+     "posedMax": 10734,
+     "boundLazy": 10734,
+     "testedLazy": 10770,
+     "removedWall": 13518,
+     "removedB": 9671,
+     "tornWall": 1124,
+     "poseMaxMs": 268.0953339999978,
+     "pinchMax": 226,
+     "pinchQMax": 9752,
+     "bandAt": {
+      "t": 1.433,
+      "sec": "tube",
+      "v": 28198,
+      "d": 0.0169,
+      "d0": 0.02532
+     },
+     "msParts": {
+      "make": 194.06946700000117,
+      "bind": 0,
+      "event": 2029.805771999996,
+      "pose": 10778.790717000174,
+      "nf": 730.1313209999353,
+      "verts": 3681.4537239999045,
+      "pinch": 6620.50049399992
+     },
+     "unboundLazy": 36,
+     "outerRemoved": 2496,
+     "outerTorn": 2061,
+     "nb": 82,
+     "crashed": true,
+     "reason": "the airframe crushed (6.7 kJ of plastic work)"
+    },
+    "off": {
+     "frames": 1800,
+     "bad": 0,
+     "sends": 0,
+     "broken": 0
+    }
+   },
+   {
+    "id": "trunk-2.5",
+    "label": "a trunk at 30 m/s, the wing 2.5 m out",
+    "S": {
+     "steps": 300,
+     "frames": 219,
+     "firstBreak": 1.367,
+     "bitsBefore": 486,
+     "bitsBad": 0,
+     "meas": 12215227,
+     "measB": 13056471,
+     "outA": 0,
+     "outB": 112621,
+     "worstA": 0,
+     "worstB": 0.0594103501207964,
+     "worstAt": null,
+     "outVertsB": 3878,
+     "outVertsA": 0,
+     "anyA": 20,
+     "anyB": 115849,
+     "foldA": 4,
+     "foldB": 351,
+     "pinchedBand": 38935,
+     "bandN": 12212756,
+     "hard": 0,
+     "d4aMs": 1109.7189980000007,
+     "band": 45,
+     "bandWorst": 0.0005336079548918507,
+     "clamped": 14307,
+     "overDeadA": 0,
+     "overDeadB": 2094,
+     "finite": true,
+     "poseMs": 5946.5856969999995,
+     "poses": 219,
+     "eventMs": 861.0198919999999,
+     "events": 8,
+     "posedMax": 10734,
+     "boundLazy": 10734,
+     "testedLazy": 10770,
+     "removedWall": 4062,
+     "removedB": 2008,
+     "tornWall": 331,
+     "poseMaxMs": 82.51194599998416,
+     "pinchMax": 181,
+     "pinchQMax": 8303,
+     "bandAt": {
+      "t": 2.75,
+      "sec": "cloth",
+      "v": 4225,
+      "d": 0.00109,
+      "d0": 0.00403
+     },
+     "msParts": {
+      "make": 131.030568999995,
+      "bind": 0,
+      "event": 855.7073019999661,
+      "pose": 5938.626934000407,
+      "nf": 517.0530689998996,
+      "verts": 2109.2176900003105,
+      "pinch": 3516.0553259995067
+     },
+     "unboundLazy": 36,
+     "outerRemoved": 450,
+     "outerTorn": 387,
+     "nb": 17,
+     "crashed": true,
+     "reason": "a wing member broke"
+    },
+    "off": {
+     "frames": 1800,
+     "bad": 0,
+     "sends": 0,
+     "broken": 0
+    }
+   },
+   {
+    "id": "nosein-ground",
+    "label": "a severe nose-in on the ground (180 km/h, 10 m/s, 60 deg)",
+    "S": {
+     "steps": 240,
+     "frames": 238,
+     "firstBreak": 0.05,
+     "bitsBefore": 12,
+     "bitsBad": 0,
+     "meas": 11875702,
+     "measB": 13436172,
+     "outA": 57,
+     "outB": 146322,
+     "worstA": 0.006970264434251651,
+     "worstB": 0.05319912578881794,
+     "worstAt": {
+      "t": 0.217,
+      "sec": "tube",
+      "v": 13154,
+      "s": -0.00747,
+      "s0": 0.01106
+     },
+     "outVertsB": 2344,
+     "outVertsA": 48,
+     "anyA": 130,
+     "anyB": 155949,
+     "foldA": 80,
+     "foldB": 3367,
+     "pinchedBand": 33592,
+     "bandN": 11875702,
+     "hard": 0,
+     "d4aMs": 1166.0503990000007,
+     "band": 234,
+     "bandWorst": 0.004396537916195883,
+     "clamped": 64014,
+     "overDeadA": 0,
+     "overDeadB": 2401,
+     "finite": true,
+     "poseMs": 5973.429209999999,
+     "poses": 238,
+     "eventMs": 701.518936,
+     "events": 8,
+     "posedMax": 10734,
+     "boundLazy": 10734,
+     "testedLazy": 10770,
+     "removedWall": 4853,
+     "removedB": 2589,
+     "tornWall": 404,
+     "poseMaxMs": 57.35209100006614,
+     "pinchMax": 116,
+     "pinchQMax": 7843,
+     "bandAt": {
+      "t": 0.35,
+      "sec": "tube",
+      "v": 7334,
+      "d": 0.00734,
+      "d0": 0.01527
+     },
+     "msParts": {
+      "make": 85.05216900003143,
+      "bind": 0,
+      "event": 701.2694620002294,
+      "pose": 5965.649422000744,
+      "nf": 471.84833700046875,
+      "verts": 2102.0355779996607,
+      "pinch": 3589.2979980011005
+     },
+     "unboundLazy": 36,
+     "outerRemoved": 657,
+     "outerTorn": 506,
+     "nb": 29,
+     "crashed": true,
+     "reason": "a fus member broke"
+    },
+    "off": {
+     "frames": 1440,
+     "bad": 0,
+     "sends": 0,
+     "broken": 0
+    }
+   }
+  ],
+  "snap": {
+   "groups": 40,
+   "verts": 273408,
+   "outer": [
+    "ceilingLoop",
+    "body",
+    "waistband",
+    "floorLoop",
+    "pillarTail",
+    "pillarPassenger",
+    "pillarCabin",
+    "pillarWindow",
+    "pillarFront"
+   ],
+   "outerV": 14400,
+   "wall": [
+    "bulkhead:684",
+    "tube:29316",
+    "cloth:30384",
+    "fireProof:384",
+    "firewall:576",
+    "shoulder:2568"
+   ],
+   "wallV": 63912,
+   "furniture": [
+    "dash:7032",
+    "dashFace:1032"
+   ],
+   "furnV": 8064,
+   "nearNodeMean": 0.23892384926535043
+  },
+  "rest": {
+   "bindMs": 117,
+   "maxOff": 8.881784197001252e-16,
+   "maxVis": 2.2737873618054177e-18,
+   "bits": 32559,
+   "posed": 63696,
+   "reps": 10770,
+   "bySec": {
+    "bulkhead": {
+     "nv": 684,
+     "bound": 684,
+     "unbound": 0,
+     "depthMm": [
+      4.8,
+      5.4,
+      5.4
+     ],
+     "out": 0
+    },
+    "tube": {
+     "nv": 29316,
+     "bound": 29316,
+     "unbound": 0,
+     "depthMm": [
+      16.1,
+      32.9,
+      37.8
+     ],
+     "out": 319
+    },
+    "cloth": {
+     "nv": 30384,
+     "bound": 30384,
+     "unbound": 0,
+     "depthMm": [
+      1,
+      4.1,
+      4.1
+     ],
+     "out": 0
+    },
+    "fireProof": {
+     "nv": 384,
+     "bound": 272,
+     "unbound": 112,
+     "depthMm": [
+      53.4,
+      133,
+      133
+     ],
+     "out": 0
+    },
+    "firewall": {
+     "nv": 576,
+     "bound": 472,
+     "unbound": 104,
+     "depthMm": [
+      0.4,
+      133.7,
+      133.7
+     ],
+     "out": 170
+    },
+    "shoulder": {
+     "nv": 2568,
+     "bound": 2568,
+     "unbound": 0,
+     "depthMm": [
+      47.4,
+      57.9,
+      58.3
+     ],
+     "out": 0
+    }
+   },
+   "sigma": -1,
+   "nw": 2530,
+   "nt": 4800,
+   "pieces": 3
+  },
+  "ms": 1135616
+ },
+ "jodel": {
+  "key": "jodel",
+  "label": "Jodel",
+  "snapMs": 9431,
+  "cases": [
+   {
+    "id": "trunk-0",
+    "label": "a trunk at 30 m/s, the centreline",
+    "S": {
+     "steps": 300,
+     "frames": 223,
+     "firstBreak": 1.3,
+     "bitsBefore": 462,
+     "bitsBad": 0,
+     "meas": 6139192,
+     "measB": 7893242,
+     "outA": 602,
+     "outB": 148544,
+     "worstA": 0.017311145153447005,
+     "worstB": 0.05949394658327753,
+     "worstAt": {
+      "t": 2.017,
+      "sec": "woodFrame",
+      "v": 9812,
+      "s": -0.01781,
+      "s0": 0.04154
+     },
+     "outVertsB": 2786,
+     "outVertsA": 209,
+     "anyA": 632,
+     "anyB": 153868,
+     "foldA": 18,
+     "foldB": 503,
+     "pinchedBand": 1293,
+     "bandN": 6139192,
+     "hard": 43,
+     "d4aMs": 1264.6697170000002,
+     "band": 567,
+     "bandWorst": 0.007497076743406793,
+     "clamped": 2881,
+     "overDeadA": 0,
+     "overDeadB": 2820,
+     "finite": true,
+     "poseMs": 7085.416193000002,
+     "poses": 223,
+     "eventMs": 1768.829347,
+     "events": 5,
+     "posedMax": 8354,
+     "boundLazy": 8354,
+     "testedLazy": 8418,
+     "removedWall": 7058,
+     "removedB": 4226,
+     "tornWall": 600,
+     "poseMaxMs": 247.74356999999145,
+     "pinchMax": 118,
+     "pinchQMax": 7409,
+     "bandAt": {
+      "t": 1.783,
+      "sec": "woodFrame",
+      "v": 16844,
+      "d": 0.00048,
+      "d0": 0.01108
+     },
+     "msParts": {
+      "make": 96.1973450000005,
+      "bind": 0,
+      "event": 1767.9862150000008,
+      "pose": 7062.349756999927,
+      "nf": 683.6684090000344,
+      "verts": 2628.600594999618,
+      "pinch": 4167.81876800023
+     },
+     "unboundLazy": 64,
+     "outerRemoved": 1095,
+     "outerTorn": 468,
+     "nb": 103,
+     "crashed": true,
+     "reason": "a fus member broke"
+    },
+    "off": {
+     "frames": 1800,
+     "bad": 0,
+     "sends": 0,
+     "broken": 0
+    }
+   },
+   {
+    "id": "trunk-2.5",
+    "label": "a trunk at 30 m/s, the wing 2.5 m out",
+    "S": {
+     "steps": 300,
+     "frames": 221,
+     "firstBreak": 1.333,
+     "bitsBefore": 474,
+     "bitsBad": 0,
+     "meas": 9647475,
+     "measB": 10055141,
+     "outA": 97,
+     "outB": 3617,
+     "worstA": 0.03334563658738041,
+     "worstB": 0.04338978133648049,
+     "worstAt": {
+      "t": 1.5,
+      "sec": "woodFrame",
+      "v": 18410,
+      "s": -0.03385,
+      "s0": 0.04883
+     },
+     "outVertsB": 443,
+     "outVertsA": 97,
+     "anyA": 109,
+     "anyB": 2709,
+     "foldA": 12,
+     "foldB": 20,
+     "pinchedBand": 313,
+     "bandN": 9647475,
+     "hard": 0,
+     "d4aMs": 954.1101819999999,
+     "band": 423,
+     "bandWorst": 0.0015401779579041893,
+     "clamped": 14958,
+     "overDeadA": 0,
+     "overDeadB": 661,
+     "finite": true,
+     "poseMs": 5859.904348000001,
+     "poses": 221,
+     "eventMs": 677.7567439999999,
+     "events": 5,
+     "posedMax": 8354,
+     "boundLazy": 8354,
+     "testedLazy": 8418,
+     "removedWall": 1464,
+     "removedB": 726,
+     "tornWall": 260,
+     "poseMaxMs": 95.15605299995514,
+     "pinchMax": 36,
+     "pinchQMax": 5909,
+     "bandAt": {
+      "t": 4.9,
+      "sec": "woodFrame",
+      "v": 2852,
+      "d": 0.03401,
+      "d0": 0.04172
+     },
+     "msParts": {
+      "make": 123.32463200000348,
+      "bind": 0,
+      "event": 677.1761790000601,
+      "pose": 5851.345486999315,
+      "nf": 491.16636899940204,
+      "verts": 1804.15461300069,
+      "pinch": 3893.8879329990596
+     },
+     "unboundLazy": 64,
+     "outerRemoved": 197,
+     "outerTorn": 87,
+     "nb": 33,
+     "crashed": true,
+     "reason": "a wing member broke"
+    },
+    "off": {
+     "frames": 1800,
+     "bad": 0,
+     "sends": 0,
+     "broken": 0
+    }
+   },
+   {
+    "id": "nosein-ground",
+    "label": "a severe nose-in on the ground (180 km/h, 10 m/s, 60 deg)",
+    "S": {
+     "steps": 240,
+     "frames": 238,
+     "firstBreak": 0.05,
+     "bitsBefore": 12,
+     "bitsBad": 0,
+     "meas": 10036424,
+     "measB": 10751757,
+     "outA": 74,
+     "outB": 1637,
+     "worstA": 0.005111667448642334,
+     "worstB": 0.02305124217272181,
+     "worstAt": {
+      "t": 0.267,
+      "sec": "plywood",
+      "v": 293,
+      "s": -0.00561,
+      "s0": 0.00681
+     },
+     "outVertsB": 235,
+     "outVertsA": 74,
+     "anyA": 74,
+     "anyB": 5022,
+     "foldA": 0,
+     "foldB": 11,
+     "pinchedBand": 58,
+     "bandN": 10036424,
+     "hard": 0,
+     "d4aMs": 999.9082839999996,
+     "band": 0,
+     "bandWorst": 0,
+     "clamped": 2088,
+     "overDeadA": 0,
+     "overDeadB": 989,
+     "finite": true,
+     "poseMs": 4559.102485000001,
+     "poses": 238,
+     "eventMs": 744.5797680000001,
+     "events": 3,
+     "posedMax": 8354,
+     "boundLazy": 8354,
+     "testedLazy": 8418,
+     "removedWall": 1951,
+     "removedB": 812,
+     "tornWall": 320,
+     "poseMaxMs": 61.875794999999925,
+     "pinchMax": 58,
+     "pinchQMax": 7339,
+     "msParts": {
+      "make": 67.98174099996686,
+      "bind": 0,
+      "event": 744.5113419999834,
+      "pose": 4550.560310001019,
+      "nf": 509.13697399944067,
+      "verts": 1718.4848710000515,
+      "pinch": 2709.937572001014
+     },
+     "unboundLazy": 64,
+     "outerRemoved": 228,
+     "outerTorn": 118,
+     "nb": 27,
+     "crashed": true,
+     "reason": "a fus member broke"
+    },
+    "off": {
+     "frames": 1440,
+     "bad": 0,
+     "sends": 0,
+     "broken": 0
+    }
+   }
+  ],
+  "snap": {
+   "groups": 42,
+   "verts": 255762,
+   "outer": [
+    "ceilingLoop",
+    "body",
+    "waistband",
+    "floorLoop",
+    "pillarTail",
+    "pillarPassenger",
+    "pillarCabin",
+    "pillarWindow",
+    "pillarFront"
+   ],
+   "outerV": 12672,
+   "wall": [
+    "bulkhead:684",
+    "plywood:26880",
+    "woodFrame:18876",
+    "fireProof:384",
+    "firewall:576",
+    "shoulder:2568"
+   ],
+   "wallV": 49968,
+   "furniture": [
+    "dash:7032",
+    "dashFace:1032"
+   ],
+   "furnV": 8064,
+   "nearNodeMean": 0.25765610479277135
+  },
+  "rest": {
+   "bindMs": 195,
+   "maxOff": 8.881784197001252e-16,
+   "maxVis": 1.6861324052536046e-18,
+   "bits": 29975,
+   "posed": 49584,
+   "reps": 8418,
+   "bySec": {
+    "bulkhead": {
+     "nv": 684,
+     "bound": 684,
+     "unbound": 0,
+     "depthMm": [
+      31.1,
+      32,
+      32
+     ],
+     "out": 0
+    },
+    "plywood": {
+     "nv": 26880,
+     "bound": 26880,
+     "unbound": 0,
+     "depthMm": [
+      1.1,
+      10.4,
+      10.4
+     ],
+     "out": 0
+    },
+    "woodFrame": {
+     "nv": 18876,
+     "bound": 18732,
+     "unbound": 144,
+     "depthMm": [
+      21.2,
+      89.1,
+      89.4
+     ],
+     "out": 72
+    },
+    "fireProof": {
+     "nv": 384,
+     "bound": 264,
+     "unbound": 120,
+     "depthMm": [
+      49.8,
+      123.4,
+      123.4
+     ],
+     "out": 0
+    },
+    "firewall": {
+     "nv": 576,
+     "bound": 456,
+     "unbound": 120,
+     "depthMm": [
+      0.5,
+      123.2,
+      123.2
+     ],
+     "out": 170
+    },
+    "shoulder": {
+     "nv": 2568,
+     "bound": 2568,
+     "unbound": 0,
+     "depthMm": [
+      51.4,
+      58.5,
+      58.5
+     ],
+     "out": 0
+    }
+   },
+   "sigma": -1,
+   "nw": 2240,
+   "nt": 4224,
+   "pieces": 3
+  },
+  "ms": 1184374
+ },
+ "twinFloats": {
+  "key": "twinFloats",
+  "label": "twin floatplane",
+  "snapMs": 3447,
+  "cases": [],
+  "snap": {
+   "groups": 20,
+   "verts": 129336,
+   "outer": [],
+   "outerV": 0,
+   "wall": [
+    "tube:8064",
+    "aluminium:2064"
+   ],
+   "wallV": 10128,
+   "furniture": [],
+   "furnV": 0,
+   "nearNodeMean": null
+  },
+  "none": true
+ },
+ "floats": {
+  "key": "floats",
+  "label": "Cessna floats",
+  "snapMs": 5722,
+  "cases": [
+   {
+    "id": "nosein-water",
+    "label": "a severe float nose-in (150 km/h, 10 m/s, 60 deg)",
+    "S": {
+     "steps": 240,
+     "frames": 231,
+     "firstBreak": 0.167,
+     "bitsBefore": 63,
+     "bitsBad": 0,
+     "meas": 18749995,
+     "measB": 20734612,
+     "outA": 17,
+     "outB": 8780,
+     "worstA": 0.010986456246579467,
+     "worstB": 0.05442786607122735,
+     "worstAt": {
+      "t": 0.217,
+      "sec": "aluminium",
+      "v": 45932,
+      "s": -0.01149,
+      "s0": 0.02124
+     },
+     "outVertsB": 2996,
+     "outVertsA": 17,
+     "anyA": 33,
+     "anyB": 8920,
+     "foldA": 16,
+     "foldB": 1156,
+     "pinchedBand": 1114,
+     "bandN": 18749995,
+     "hard": 0,
+     "d4aMs": 1420.0874879999997,
+     "band": 0,
+     "bandWorst": 0,
+     "clamped": 4348,
+     "overDeadA": 0,
+     "overDeadB": 3878,
+     "finite": true,
+     "poseMs": 6091.868180999997,
+     "poses": 231,
+     "eventMs": 1359.4181580000002,
+     "events": 4,
+     "posedMax": 18960,
+     "boundLazy": 18960,
+     "testedLazy": 19028,
+     "removedWall": 8446,
+     "removedB": 4998,
+     "tornWall": 98,
+     "poseMaxMs": 204.81150499999967,
+     "pinchMax": 281,
+     "pinchQMax": 14450,
+     "msParts": {
+      "make": 129.47105100000044,
+      "bind": 0,
+      "event": 1358.5624890000054,
+      "pose": 6083.119070000104,
+      "nf": 495.4404899996007,
+      "verts": 3097.276024999912,
+      "pinch": 2674.6302509998204
+     },
+     "unboundLazy": 68,
+     "outerRemoved": 831,
+     "outerTorn": 595,
+     "nb": 59,
+     "crashed": true,
+     "reason": "a fus member broke"
+    },
+    "off": {
+     "frames": 1680,
+     "bad": 0,
+     "sends": 0,
+     "broken": 0
+    }
+   }
+  ],
+  "snap": {
+   "groups": 47,
+   "verts": 344832,
+   "outer": [
+    "ceilingLoop",
+    "body",
+    "waistband",
+    "floorLoop",
+    "pillarTail",
+    "pillarTaper",
+    "taper",
+    "pillarPassenger",
+    "pillarCabin",
+    "pillarWindow",
+    "pillarFront"
+   ],
+   "outerV": 15936,
+   "wall": [
+    "bulkhead:672",
+    "toele:33600",
+    "aluminium:45960",
+    "fireProof:384",
+    "firewall:576",
+    "shoulder:2568",
+    "doorPanel:24024"
+   ],
+   "wallV": 107784,
+   "furniture": [
+    "dash:7032",
+    "dashFace:1032"
+   ],
+   "furnV": 8064,
+   "nearNodeMean": 0.3240624417669087
+  },
+  "rest": {
+   "bindMs": 134,
+   "maxOff": 8.881784197001252e-16,
+   "maxVis": 1.3826182284143958e-18,
+   "bits": 63384,
+   "posed": 107376,
+   "reps": 19028,
+   "bySec": {
+    "bulkhead": {
+     "nv": 672,
+     "bound": 672,
+     "unbound": 0,
+     "depthMm": [
+      30.6,
+      32,
+      32
+     ],
+     "out": 0
+    },
+    "toele": {
+     "nv": 33600,
+     "bound": 33600,
+     "unbound": 0,
+     "depthMm": [
+      1.1,
+      11.2,
+      11.2
+     ],
+     "out": 0
+    },
+    "aluminium": {
+     "nv": 45960,
+     "bound": 45840,
+     "unbound": 120,
+     "depthMm": [
+      23.1,
+      42.4,
+      62.4
+     ],
+     "out": 60
+    },
+    "fireProof": {
+     "nv": 384,
+     "bound": 244,
+     "unbound": 140,
+     "depthMm": [
+      69.7,
+      147.6,
+      147.6
+     ],
+     "out": 0
+    },
+    "firewall": {
+     "nv": 576,
+     "bound": 428,
+     "unbound": 148,
+     "depthMm": [
+      0.1,
+      147.7,
+      147.7
+     ],
+     "out": 284
+    },
+    "shoulder": {
+     "nv": 2568,
+     "bound": 2568,
+     "unbound": 0,
+     "depthMm": [
+      51.7,
+      58.1,
+      58.6
+     ],
+     "out": 0
+    },
+    "doorPanel": {
+     "nv": 24024,
+     "bound": 24024,
+     "unbound": 0,
+     "depthMm": [
+      27.2,
+      66,
+      78.4
+     ],
+     "out": 0
+    }
+   },
+   "sigma": -1,
+   "nw": 2799,
+   "nt": 5312,
+   "pieces": 3
+  },
+  "ms": 628540
+ },
+ "metal": {
+  "key": "metal",
+  "label": "metal Cessna",
+  "snapMs": 10885,
+  "cases": [
+   {
+    "id": "trunk-0",
+    "label": "a trunk at 30 m/s, the centreline",
+    "S": {
+     "steps": 300,
+     "frames": 223,
+     "firstBreak": 1.3,
+     "bitsBefore": 616,
+     "bitsBad": 0,
+     "meas": 10835811,
+     "measB": 16196516,
+     "outA": 230,
+     "outB": 378462,
+     "worstA": 0.024078350254812007,
+     "worstB": 0.05947811380073683,
+     "worstAt": {
+      "t": 1.367,
+      "sec": "doorPanel",
+      "v": 6721,
+      "s": -0.02458,
+      "s0": 0.02757
+     },
+     "outVertsB": 10702,
+     "outVertsA": 205,
+     "anyA": 238,
+     "anyB": 393706,
+     "foldA": 123,
+     "foldB": 12139,
+     "pinchedBand": 8192,
+     "bandN": 10835769,
+     "hard": 0,
+     "d4aMs": 1703.789943000001,
+     "band": 143,
+     "bandWorst": 0.005949854679816015,
+     "clamped": 39548,
+     "overDeadA": 0,
+     "overDeadB": 9068,
+     "finite": true,
+     "poseMs": 10037.437823000002,
+     "poses": 223,
+     "eventMs": 2651.2646350000005,
+     "events": 8,
+     "posedMax": 19470,
+     "boundLazy": 19470,
+     "testedLazy": 19538,
+     "removedWall": 20743,
+     "removedB": 12468,
+     "tornWall": 1001,
+     "poseMaxMs": 654.7084959999993,
+     "pinchMax": 546,
+     "pinchQMax": 16209,
+     "bandAt": {
+      "t": 1.35,
+      "sec": "doorPanel",
+      "v": 13265,
+      "d": 0.01055,
+      "d0": 0.02056
+     },
+     "msParts": {
+      "make": 268.38088399999833,
+      "bind": 0,
+      "event": 2645.657247000032,
+      "pose": 10026.466257000491,
+      "nf": 660.2081939992495,
+      "verts": 4362.8053979993565,
+      "pinch": 5206.539594000205
+     },
+     "unboundLazy": 68,
+     "outerRemoved": 1972,
+     "outerTorn": 1284,
+     "nb": 107,
+     "crashed": true,
+     "reason": "the airframe crushed (3.4 kJ of plastic work)"
+    },
+    "off": {
+     "frames": 2400,
+     "bad": 0,
+     "sends": 0,
+     "broken": 0
+    }
+   },
+   {
+    "id": "trunk-2.5",
+    "label": "a trunk at 30 m/s, the wing 2.5 m out",
+    "S": {
+     "steps": 300,
+     "frames": 221,
+     "firstBreak": 1.333,
+     "bitsBefore": 632,
+     "bitsBad": 0,
+     "meas": 22446175,
+     "measB": 23220803,
+     "outA": 58,
+     "outB": 44372,
+     "worstA": 0.023637773786204262,
+     "worstB": 0.05752544560821317,
+     "worstAt": {
+      "t": 3.333,
+      "sec": "aluminium",
+      "v": 9914,
+      "s": -0.02414,
+      "s0": 0.03833
+     },
+     "outVertsB": 1597,
+     "outVertsA": 13,
+     "anyA": 394,
+     "anyB": 44594,
+     "foldA": 336,
+     "foldB": 222,
+     "pinchedBand": 15868,
+     "bandN": 22446020,
+     "hard": 0,
+     "d4aMs": 1461.0260170000004,
+     "band": 10,
+     "bandWorst": 0.009895647506410324,
+     "clamped": 6695,
+     "overDeadA": 0,
+     "overDeadB": 1626,
+     "finite": true,
+     "poseMs": 6819.17092,
+     "poses": 221,
+     "eventMs": 1139.144856,
+     "events": 3,
+     "posedMax": 19470,
+     "boundLazy": 19470,
+     "testedLazy": 19538,
+     "removedWall": 2692,
+     "removedB": 1245,
+     "tornWall": 217,
+     "poseMaxMs": 137.22228099999484,
+     "pinchMax": 249,
+     "pinchQMax": 8545,
+     "bandAt": {
+      "t": 1.717,
+      "sec": "aluminium",
+      "v": 10003,
+      "d": 0.02225,
+      "d0": 0.03794
+     },
+     "msParts": {
+      "make": 222.4890880000312,
+      "bind": 0,
+      "event": 1138.7717880001292,
+      "pose": 6813.708354999544,
+      "nf": 593.544855002081,
+      "verts": 3097.5775650015566,
+      "pinch": 3280.338156999089
+     },
+     "unboundLazy": 68,
+     "outerRemoved": 209,
+     "outerTorn": 209,
+     "nb": 20,
+     "crashed": true,
+     "reason": "a wing member broke"
+    },
+    "off": {
+     "frames": 2400,
+     "bad": 0,
+     "sends": 0,
+     "broken": 0
+    }
+   },
+   {
+    "id": "nosein-ground",
+    "label": "a severe nose-in on the ground (180 km/h, 10 m/s, 60 deg)",
+    "S": {
+     "steps": 240,
+     "frames": 236,
+     "firstBreak": 0.083,
+     "bitsBefore": 32,
+     "bitsBad": 0,
+     "meas": 20794775,
+     "measB": 22530858,
+     "outA": 1506,
+     "outB": 105650,
+     "worstA": 0.002227093463359938,
+     "worstB": 0.05935940553108338,
+     "worstAt": {
+      "t": 2.983,
+      "sec": "toele",
+      "v": 16152,
+      "s": -0.00273,
+      "s0": 0.01117
+     },
+     "outVertsB": 4949,
+     "outVertsA": 80,
+     "anyA": 1869,
+     "anyB": 108981,
+     "foldA": 363,
+     "foldB": 3999,
+     "pinchedBand": 22225,
+     "bandN": 20794775,
+     "hard": 16,
+     "d4aMs": 1466.6831080000009,
+     "band": 104,
+     "bandWorst": 0.007472429086408192,
+     "clamped": 29163,
+     "overDeadA": 0,
+     "overDeadB": 3956,
+     "finite": true,
+     "poseMs": 8158.735845999997,
+     "poses": 236,
+     "eventMs": 1109.422021,
+     "events": 6,
+     "posedMax": 19470,
+     "boundLazy": 19470,
+     "testedLazy": 19538,
+     "removedWall": 8837,
+     "removedB": 5242,
+     "tornWall": 444,
+     "poseMaxMs": 79.43998199980706,
+     "pinchMax": 372,
+     "pinchQMax": 13991,
+     "bandAt": {
+      "t": 2.783,
+      "sec": "toele",
+      "v": 18277,
+      "d": 0.00058,
+      "d0": 0.01117
+     },
+     "msParts": {
+      "make": 145.89097999990918,
+      "bind": 0,
+      "event": 1109.2929679995868,
+      "pose": 8152.73549599899,
+      "nf": 592.9002290023491,
+      "verts": 3332.98564499896,
+      "pinch": 4482.695640001912
+     },
+     "unboundLazy": 68,
+     "outerRemoved": 1131,
+     "outerTorn": 789,
+     "nb": 63,
+     "crashed": true,
+     "reason": "the airframe crushed (3.0 kJ of plastic work)"
+    },
+    "off": {
+     "frames": 1920,
+     "bad": 0,
+     "sends": 0,
+     "broken": 0
+    }
+   }
+  ],
+  "snap": {
+   "groups": 46,
+   "verts": 356292,
+   "outer": [
+    "ceilingLoop",
+    "body",
+    "waistband",
+    "floorLoop",
+    "pillarTail",
+    "pillarTaper",
+    "taper",
+    "pillarPassenger",
+    "pillarCabin",
+    "pillarWindow",
+    "pillarFront"
+   ],
+   "outerV": 17136,
+   "wall": [
+    "reveal:1416",
+    "bulkhead:600",
+    "toele:39864",
+    "aluminium:40824",
+    "fireProof:384",
+    "firewall:576",
+    "shoulder:2568",
+    "doorPanel:24024"
+   ],
+   "wallV": 110256,
+   "furniture": [
+    "dash:7032",
+    "dashFace:1032"
+   ],
+   "furnV": 8064,
+   "nearNodeMean": 0.3193445167003097
+  },
+  "rest": {
+   "bindMs": 321,
+   "maxOff": 8.881784197001252e-16,
+   "maxVis": 1.6854440875863839e-18,
+   "bits": 63920,
+   "posed": 109848,
+   "reps": 19538,
+   "bySec": {
+    "reveal": {
+     "nv": 1416,
+     "bound": 1416,
+     "unbound": 0,
+     "depthMm": [
+      0,
+      4.5,
+      4.5
+     ],
+     "out": 0
+    },
+    "bulkhead": {
+     "nv": 600,
+     "bound": 600,
+     "unbound": 0,
+     "depthMm": [
+      9.3,
+      32,
+      32
+     ],
+     "out": 0
+    },
+    "toele": {
+     "nv": 39864,
+     "bound": 39864,
+     "unbound": 0,
+     "depthMm": [
+      1.1,
+      11.2,
+      11.2
+     ],
+     "out": 2064
+    },
+    "aluminium": {
+     "nv": 40824,
+     "bound": 40704,
+     "unbound": 120,
+     "depthMm": [
+      22.9,
+      42,
+      62.4
+     ],
+     "out": 60
+    },
+    "fireProof": {
+     "nv": 384,
+     "bound": 244,
+     "unbound": 140,
+     "depthMm": [
+      69.7,
+      147.6,
+      147.6
+     ],
+     "out": 0
+    },
+    "firewall": {
+     "nv": 576,
+     "bound": 428,
+     "unbound": 148,
+     "depthMm": [
+      0.1,
+      147.7,
+      147.7
+     ],
+     "out": 284
+    },
+    "shoulder": {
+     "nv": 2568,
+     "bound": 2568,
+     "unbound": 0,
+     "depthMm": [
+      51.7,
+      58.1,
+      58.6
+     ],
+     "out": 0
+    },
+    "doorPanel": {
+     "nv": 24024,
+     "bound": 24024,
+     "unbound": 0,
+     "depthMm": [
+      27.2,
+      66,
+      78.4
+     ],
+     "out": 0
+    }
+   },
+   "sigma": -1,
+   "nw": 3090,
+   "nt": 5712,
+   "pieces": 3
+  },
+  "ms": 2123309
+ }
+}

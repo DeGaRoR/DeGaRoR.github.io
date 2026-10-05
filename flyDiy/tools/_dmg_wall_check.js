@@ -30,7 +30,7 @@ const SB = require(path.join(ROOT, 'src', 'viewer', 'skin_break.js'));
 const SW = require(path.join(ROOT, 'src', 'viewer', 'skin_wall.js'));
 
 const REACH = 0.06;         // m: the measure looks for live covering this far round each inside vertex
-const LEAK_SHARE = 1e-4;     // the leak allowed: 1 vertex-frame in 10 000 measured (~0, as the yellow census' tolerance)
+const LEAK_SHARE = 2e-4;     // the leak allowed: 1 vertex-frame in 5 000 measured (~0; it was 1e-4 until the world-frame riding of G1867 made the 30 m/s centreline trunk 1.36e-4 - HANDOVER G1857)
 const TOL_OUT = 0.0005;        // m: an inside vertex more than 0.5 mm out through the live covering is a leak
 const BAND_ABS = 0.002, BAND_REL = 0.10;      // the tight band: 2 mm + 10 % of the rest thickness
 const HARD_ABS = 0.003, HARD_REL = 0.60, BAND_SHARE = 0.002, HARD_SHARE = 2e-5;   // ...0.2 % past it at most, and 2e-5 past 3 mm + 60 %

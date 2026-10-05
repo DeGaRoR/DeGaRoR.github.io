@@ -96,7 +96,10 @@ function censusPass(on) {
     const A = window.AEROSKIN, WALL = new Set(['liner', 'struct', 'fire', 'sill', 'doorPad']), names = new Map();
     const SWL = { isOuter: sec => !!(A.aeroIsSkin && A.aeroIsSkin(sec)), isWall: sec => !!(A.aeroIsInside && A.aeroIsInside(sec) && WALL.has(A.AERO_ROLE[sec])) };
     for (const nm in md.meshes) { const m = md.meshes[nm]; if (!m) continue; if (!names.has(m)) names.set(m, []); names.get(m).push(nm); }
-    const COL = { cover: 0x00ff00, skin: 0x00ffff, wall: 0xff0000, furn: 0x0000ff, other: 0xffffff };
+    const COL = { cover: 0x00ff00, skin: 0x00ffff, wall: 0xff0000, bulk: 0xffff00, furn: 0x0000ff, other: 0xffffff };
+    // the bulkheads ACROSS the fuselage (the firewall, its fireproof sheet, a bulkhead): inside-wall layers by role, but a
+    // face across an opening (the nose once the engine has gone) - counted apart from the lining (YELLOW)
+    const BULK = new Set(['firewall', 'fireProof', 'bulkhead']);
     const mats = {}; for (const k in COL) mats[k] = new THREE.MeshBasicMaterial({ color: COL[k], side: THREE.DoubleSide, toneMapped: false, fog: false });
     const classOf = (o) => {
       const L = names.get(o) || (o.userData && o.userData.still) || null;
@@ -105,7 +108,7 @@ function censusPass(on) {
       if (rec.char || rec.panel || rec.lamp || rec.lampCup || rec.ves) return rec.char ? 'furn' : 'other';
       if (rec.sec) {
         if (SWL.isOuter(rec.sec, A)) return 'cover';
-        if (SWL.isWall(rec.sec, A)) return 'wall';
+        if (SWL.isWall(rec.sec, A)) return BULK.has(rec.sec) ? 'bulk' : 'wall';
         if (rec.inside) return 'furn';
         return 'other';
       }

@@ -4014,6 +4014,8 @@
     // G1864 (DMG-D4b): a wreck at REST is drawn as it stands - no node moved past the pose's 0.3 mm (poseModel's own
     // still test, which brkCageOn no longer forces off) and no new break event: nothing to re-pose (it was every frame,
     // the whole snapshot riding: 62 ms frames on a broken-up Cub at rest, measured on the box)
+    // (G1855: the wall switched on or off - the A/B - is a new pose too: the wreck at rest is drawn again, either way)
+    { const wOn = brkWallOn(); if (wOn !== BRK.wallSeen) { BRK.wallSeen = wOn; BRK.posed = false; } }
     if (still && BRK.posed && BRK.vB === D.vB && !BRK.recs.some(R => R.pending)) return;
     const K = model.brk, SB = SKIN_BREAK, N = def.nodes, n = N.length;
     // the 3x3 inverse of the pose's oblique basis (columns xA, yU, xA x yU), as nodeVis takes it; and the basis itself
