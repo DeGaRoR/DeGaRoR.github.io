@@ -72301,7 +72301,12 @@ and sound-coord's CPU battery running beside it. THE FAIR A/B (A0's slot, 23:09-
 a58ae418 in its own worktree, then this branch d649359b against it): 146 rows in slack, 3 BETTER (the Cub's chase compile
 5 631 -> 3 204 ms, cockpit 5 277 -> 2 424, fuseWidth busy 286 -> 90), 2 RED, both the metal Cessna's garage `busy` rows (the
 'frame' row 0 -> 469 ms, the summed busy 2 051 -> 2 696) - A0's train 30 note calls the garage busy rows noise; re-checked
-below. BOOT: PASS.
+below - THE RE-CHECK (garage only, ABBA train/31 -> branch -> branch -> train/31, 3 reps each, same profile, ~02:00): the
+metal 'frame busy 0 -> 469' RED REPRODUCES ON TRAIN 31 ITSELF (B1: 0 -> 467 ms; B4 and M2: 0) - the row is bimodal (0 or ~460
+ms), not this branch; the middle pair (M2, M3) read far larger busy rows (2-6 s) AND synchronous handler times 7-25x their
+baseline (cub fuseWidth sync 6 -> 156 ms, metal frame sync 9 -> 55/232 ms) - box contention during those two runs (at 03:47
+the box carried a GPU bench and three CPU batteries, 74 % load), not a GPU path: nothing of this branch runs in a gamer garage
+(GATE GFX §10, FRAMECOST's equal census). Train 32's --full on a quiet box is the verdict. BOOT: PASS.
 THE BATTERY (`run_gates --all` under the cpu lock, 23:40-00:52, jobs 4): 164 PASS, SOFTGPU SKIP (no Playwright on the box),
 4 FAIL -> FOG and CLOUD counted five presets, STAND scanned the shed glass's old condition: updated, PASS; FRAMECOST: the stale
 parked cook (above).
