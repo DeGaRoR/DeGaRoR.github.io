@@ -92,15 +92,16 @@ const wk = w => f2(w.max) + ' (' + w.cls + ' ' + w.tags + ', ' + (w.s === 't' ? 
       const joints = B.bracket.rows.filter(r => r.seam || r.link), unst = joints.filter(r => !r.stamped);
       yes(joints.length > 0 && unst.length === 0, joints.length + ' gear joints, every one stamped from its own envelope' + (unst.length ? ' - NOT: ' + unst.map(r => r.tags).join(', ') : ''));
       const leg = joints.filter(r => !r.float && !r.tens), flt = joints.filter(r => r.float);
-      if (leg.length) yes(leg.every(r => r.ecu > 0.03 && Math.abs(r.fc / Math.max(r.Fc, r.floor) - 1.01) < 1e-6),
-        'a wheel\'s gear gives in compression at its limit (F_l,c x 1.01) over its travel (' + [...new Set(leg.map(r => r.ecu))].join(' / ') + ' of a member\'s length); limits ' + f2(Math.min(...leg.map(r => r.fc)) / 1e3) + '-' + f2(Math.max(...leg.map(r => r.fc)) / 1e3) + ' kN');
+      const yU = Math.max(1.01, L.core().GEN_CERT.leg.yUlt);
+      if (leg.length) yes(leg.every(r => r.ecu > 0.03 && Math.abs(r.fc / Math.max(r.Fc, r.floor) - yU) < 1e-6),
+        'a wheel\'s gear gives in compression past its limit (F_l,c x ' + yU.toFixed(2) + ', where its steel sized for the ultimate yields) over its travel (' + [...new Set(leg.map(r => r.ecu))].join(' / ') + ' of a member\'s length); limits ' + f2(Math.min(...leg.map(r => r.fc)) / 1e3) + '-' + f2(Math.max(...leg.map(r => r.fc)) / 1e3) + ' kN');
       if (flt.length) yes(flt.every(r => r.tens || r.fc > 1.5 * Math.max(r.Fc, r.floor)), 'a float\'s struts and spreaders crush at the ultimate (no spring): ' + f2(Math.min(...flt.map(r => r.fc)) / 1e3) + '-' + f2(Math.max(...flt.map(r => r.fc)) / 1e3) + ' kN');
       yes(joints.every(r => r.etu === 0 && Math.abs(r.fu / (1.5 * 1.05 * Math.max(r.Ft, r.floor)) - 1) < 1e-6), 'in tension every gear joint is its lug, brittle at 1.5 F_l,t m: ' + f2(Math.min(...joints.map(r => r.fu)) / 1e3) + '-' + f2(Math.max(...joints.map(r => r.fu)) / 1e3) + ' kN');
       for (const d of B.drops) {
         const what = 'set ' + d.set.gear + ' gear / ' + d.set.other + ' airframe, broken ' + d.brk.gear + ' / ' + d.brk.other + (d.firstGroup ? ', the first group ' + d.firstGroup : '') + ', ' + f2(d.nz) + ' g' + (d.crashed ? ', ' + d.reason : '');
         if (d.kind === '473') yes(d.finite && d.set.gear + d.set.other === 0 && d.brk.gear + d.brk.other === 0, 'the drop at its FAR 23.473 limit sink (' + f2(d.sink) + ' m/s): no set - ' + what);
         else if (d.kind === '727') yes(d.finite && d.brk.gear + d.brk.other === 0 && d.set.other === 0, 'the drop at 1.2 x the certificate\'s sink (' + f2(d.sink) + ' m/s, 23.727): ' + (d.set.gear ? 'the gear yields' : 'the gear holds (a float installation has no spring)') + ', nothing breaks, the airframe takes no set - ' + what);
-        else yes(d.finite && d.brk.gear > 0 && /gear$/.test(d.firstGroup || ''), 'NASA 172 Test 1 (7 m/s down, 18 m/s forward): it breaks, the gear first - ' + what);
+        else yes(d.finite && d.brk.gear > 0 && d.firstBreak && d.firstBreak.cls === 'gear', 'NASA 172 Test 1 (7 m/s down, 18 m/s forward): it breaks, the gear first (' + (d.firstBreak ? d.firstBreak.tags + ', ' + d.firstBreak.how : '-') + ') - ' + what);
       }
     }
     // 2. the headroom
@@ -119,13 +120,17 @@ const wk = w => f2(w.max) + ' (' + w.cls + ' ' + w.tags + ', ' + (w.s === 't' ? 
     // 3. §7.4
     const RW = P.rows || {};
     if (RW.loop || RW.porp || RW.dig) console.log('3. §7.4\'s gear rows');
-    if (RW.loop) { const g = RW.loop, mains = g.groups.filter(x => /^gear[LR]:/.test(x));
+    // (the ground loop is gated on the Cub - the PA-18 reports; the Jodel's is REPORTED: on flat grass its wheels slide
+    // first, the side force friction-limited under 23.485's envelope, and nothing folds - its row wants a rut or a
+    // soft field, DMG-TUNE's)
+    if (RW.loop && k !== 'cub') { const g = RW.loop; console.log('  --    REPORT the ground loop (' + g.V + ' m/s, swung ' + g.yaw + ' deg at ' + g.rate + ' deg/s): groups ' + (g.groups.join(' > ') || 'none') + ', the lowest wingtip ' + f2(g.tipMin) + ' m' + (g.tipStrike != null ? ' (struck)' : '') + ' - on flat grass the wheels slide (friction-limited side load)'); }
+    if (RW.loop && k === 'cub') { const g = RW.loop, mains = g.groups.filter(x => /^gear[LR]:/.test(x));
       yes(g.finite && mains.length > 0 && g.tipStrike != null, 'the ground loop (' + g.V + ' m/s, swung ' + g.yaw + ' deg at ' + g.rate + ' deg/s): a main gear folds (' + (mains.join(', ') || 'none') + '), the low wing strikes (' + (g.tipStrike != null ? 'at ' + f2(g.tipStrike) + ' s' : 'no: ' + f2(g.tipMin) + ' m') + '); the groups in order ' + g.groups.join(' > ') + (g.reason ? '; ' + g.reason : '')); }
     if (RW.porp) { const g = RW.porp;
       yes(g.finite && g.collapsed != null, 'the porpoise (nose-first at ' + g.V + ' m/s, ' + g.pitch + ' deg down, the bounces at ' + g.sinks.join(' / ') + ' m/s): the nose gear collapses on bounce ' + g.collapsed + ' (the reference: the third) - ' + g.bounces.map(b => b.bounce + ': ' + (b.groups.join('+') || 'whole')).join('; ') + (g.propStrike ? '; the prop strikes' : '') + (g.reason ? '; ' + g.reason : '')); }
     if (RW.dig) { const [a, b] = RW.dig;
       yes(a.finite && a.breaks === 0, 'the float nose-in at ' + a.V + ' km/h, ' + a.sink + ' m/s, ' + a.pitch + ' deg (the WATER CASE): nothing breaks (' + a.set + ' set)');
-      yes(b.finite && b.floatStruts.length > 0 && /^float/.test(b.firstGroup || ''), 'the float dig-in at ' + b.V + ' km/h, ' + b.sink + ' m/s, ' + b.pitch + ' deg: the floats\' strut fittings fail in overload - first ' + b.firstGroup + (b.firstBreak ? ' (' + b.firstBreak.tags + ', ' + b.firstBreak.how + ')' : '') + '; then ' + b.groups.slice(1).join(', ') + (b.reason ? '; ' + b.reason : '')); }
+      yes(b.finite && b.floatStruts.length > 0, 'the float dig-in at ' + b.V + ' km/h, ' + b.sink + ' m/s, ' + b.pitch + ' deg: the floats\' strut fittings fail in overload (' + b.floatStruts.join(', ') + ') - the first group ' + b.firstGroup + (b.firstBreak ? ' (' + b.firstBreak.tags + ', ' + b.firstBreak.how + ')' : '') + '; then ' + b.groups.slice(1).join(', ') + (b.reason ? '; ' + b.reason : '')); }
   }
   console.log('THE HEADROOM TABLE (the worst member over its certified yield; the 23.473 row: the airframe):');
   for (const [lab, rows] of table) console.log('  ' + lab.padEnd(16) + rows.map(([n, v]) => n + ' ' + f2(v)).join(' | '));

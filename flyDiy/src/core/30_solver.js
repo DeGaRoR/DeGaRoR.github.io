@@ -647,8 +647,10 @@ function makeSim(def, world) {
   // them carry the gear's load together: the near-vertical snap-blocker and the braces take a landing's push, the
   // cross wires a side load; the member drawn as the spring carries no more than they do) and every pair's own link
   // (the axle bar, the floats' spreaders) is stamped from its envelope F_l, both ways:
-  //   IN COMPRESSION the gear GIVES (a wheel's leg, its braces, the nose fork): no set to the limit (F_l,c x yTol), then
-  //     it crushes at that load over its archetype's TRAVEL (GEN_CERT.leg: a spring-steel leg spreads a long way, an
+  //   IN COMPRESSION the gear GIVES (a wheel's leg, its braces, the nose fork): no set to the limit - it yields where a
+  //     section sized for the ultimate yields, 1.5 F_l,c x the steel's ty / tu (GEN_CERT.leg.yUlt: 1.18 for 4130), the
+  //     gear on every aeroplane being steel, an oleo or a bungee's steel vee - then it crushes at that load over its
+  //     archetype's TRAVEL (GEN_CERT.leg: a spring-steel leg spreads a long way, an
   //     oleo bottoms and bends, a bungee's lug hardly gives) and past it kinks - its group lets go, the gear is off;
   //     a float's struts and spreaders are a truss with no spring: they crush at the ultimate (D2a's rule);
   //   IN TENSION it is the LUG: brittle at the joint's ultimate, 1.5 F_l,t m (dm13) - a side load past 23.485's (the
@@ -685,7 +687,7 @@ function makeSim(def, world) {
     b.fu = 1.5 * m * ft * K.uFit; b.fy0 = b.fu; b.etu = 0;
     if (!b.tens) {
       if (CERT_FLT[bi]) b.fc0 = 1.5 * m * fc * K.uMember;
-      else { b.fc0 = fc * G.yTol; b.ecu = A.travel; }
+      else { b.fc0 = fc * Math.max(G.yTol, G.yUlt); b.ecu = A.travel; }
     }
     b.fyM = b.fy0; FY[bi] = b.fy0; FC[bi] = b.fc0;
   }

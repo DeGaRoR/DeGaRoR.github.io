@@ -77,18 +77,19 @@ const GEN_CERT = {
   ctlFlown: { hold: 0.3 },   // G1836: the controls flown at V_A - full one way, full the other, s each
   tailAsymMax: 0.8,          // G1836: 23.427(b)'s other side, 100 - 10 (n - 1) %, at most 80 %
   landK: 1.5,                // G1836: the airframe behind the gear at the gear's ultimate in the landing / ground / water cases
-  rough: { A: 0.04, lam: 3, V: 8, secs: 12 },  // G1836: 23.491's roughest ground (a stated field: bumps of A m, lam m apart), at V m/s
+  rough: { A: 0.04, lam: 3, V: 8, secs: 12 },
+  weave: { V: 0.6, hold: 0.5 },   // G1836: a floatplane's run-out, the rudder hard over and back (s each way, 3 cycles) at 0.6 V_S0  // G1836: 23.491's roughest ground (a stated field: bumps of A m, lam m apart), at V m/s
   // G1835 (DMG-D2b): THE GEAR'S BRACKET (30_solver gearStamp; DEFORM §7.3): a wheel's gear gives in compression with no
-  // set to its limit (yTol), then crushes at that load over its own TRAVEL (the share of a member's length it gives
+  // set to its limit - where a steel section sized for the ultimate yields (yUlt: 1.5 x 4130's ty / tu = 1.18), then crushes at that load over its own TRAVEL (the share of a member's length it gives
   // before it kinks and its attach lets go), per archetype - a spring-steel leg is the energy absorber and spreads a
   // long way, an oleo bottoms and its strut bends, a bungee's lug or bracket hardly gives; the nose fork its own. In
   // tension every gear joint is its lug, brittle at the ultimate. floorW: every gear joint holds at least this share
-  // of the aeroplane's weight at its limit (about its wheel's static share: a main carries 0.4-0.5 W standing; at
-  // 0.25 W the metal Cessna's cross brace sat at 0.70 of its limit in a crosswind rollout)
-  leg: { yTol: 1.01, floorW: 0.5, bungee: { travel: 0.04 }, spring: { travel: 0.15 }, oleo: { travel: 0.10 }, nose: { travel: 0.06 } },
+  // of the aeroplane's weight at its limit (the cross wires and snap-blockers no case loads much: with no floor they
+  // would be paper; at 0.25 W the metal Cessna's cross brace sits at 0.60 of its yield in a crosswind rollout)
+  leg: { yTol: 1.01, yUlt: 1.5 * GEN_CRASH.tubeFabric.ty / GEN_CRASH.tubeFabric.tu, floorW: 0.25, bungee: { travel: 0.04 }, spring: { travel: 0.15 }, oleo: { travel: 0.10 }, nose: { travel: 0.06 } },
   // G1835 (DMG-D2b): THE GROUND AND WATER LOADS (genCertGroundLoads; FAR 23 as recalled, A0 to open them) and the gear's
   // own landings (genCertDrop's attitudes)
-  gearDrop: { roll: 4, noseUp: 8, stepPitch: 4, xwind: 0.2 },   // the gear's landings: one wheel / float first (deg of
+  gearDrop: { roll: 4, noseUp: 8, stepPitch: 0, xwind: 0.2 },   // the gear's landings: one wheel / float first (deg of
                              // roll), a tricycle's tail-down (deg nose-up), a float's step attitude, the drift (x V_S0)
   ground: { sideV: 1.33, sideIn: 0.5, sideOut: 0.33,        // 23.485
             brakeV: 1.33, brakeMu: 0.8,                     // 23.493
@@ -733,6 +734,29 @@ function genCertFlownCtl(def, k, flap) {
     t[bi] = Number.isFinite(b.fyP) ? P.t[bi] * b.fyP : 0; c[bi] = Number.isFinite(b.fcP) ? P.c[bi] * b.fcP : 0; }
   return { t, c };
 }
+// G1836 (DMG-D2b, dm14): A FLOATPLANE'S WATER HANDLING - the run-out after a landing, the rudder (the water rudders) hard
+// over one way then the other at the run-out's speed (GEN_CERT.weave: x V_S0), power off, on the sea lane, the real
+// sim under the probe. No FAR 23 case asks for it (23.529's side loads are a tenth of the step's), and the twin
+// floatplane's crosswind circuit rang a float strut to 1.7 x its water envelope as its pilot weaved the rudder at 12
+// m/s on the run-out: a float's lateral load through its struts is a case the water's own handling makes
+function genCertWaterWeave(def, world) {
+  if (!world || !world.aerodromes) return null;
+  const sea = world.aerodromes.find(a => a.id === 'SEA'); if (!sea) return null;
+  const d2 = Object.assign({}, def, { cert: null, params: Object.assign({}, def.params, { damage: true, damageProbe: true }) });
+  const sim = makeSim(d2, world); sim.reset(0); placeAtAerodrome(sim, sea);
+  for (let f = 0; f < 120; f++) sim.step(1 / 60);
+  const g = (def.params && def.params.gen) || {}, V = GEN_CERT.weave.V * (g.VsFlap || g.Vs || 25), xA = sim.axes()[0], hl = Math.hypot(xA[0], xA[2]) || 1;
+  for (let i = 0; i < sim.n; i++) { sim.v[i * 3] = -V * xA[0] / hl; sim.v[i * 3 + 2] = -V * xA[2] / hl; }
+  sim.ctl.thr = 0;
+  const P = sim.damagePeak(); P.t.fill(0); P.c.fill(0);
+  const h = Math.round(GEN_CERT.weave.hold * 60);
+  for (let f = 0; f < 6 * h; f++) { sim.ctl.dr = (Math.floor(f / h) % 2) ? -1 : 1; sim.step(1 / 60); }
+  sim.ctl.dr = 0;
+  const nb = def.beams.length, t = new Float64Array(nb), c = new Float64Array(nb);
+  for (let bi = 0; bi < nb; bi++) { const b = sim.beams[bi];
+    t[bi] = Number.isFinite(b.fyP) ? P.t[bi] * b.fyP : 0; c[bi] = Number.isFinite(b.fcP) ? P.c[bi] * b.fcP : 0; }
+  return { t, c };
+}
 // FAR 23.473(d): the limit descent velocity, m/s
 function genCertSink(def) {
   const g = def.params && def.params.gen;
@@ -882,8 +906,13 @@ function genCertify(def, opt) {
     const GD = FLt ? [['dropStep', { pitch: GEN_CERT.gearDrop.stepPitch, fwd: Vso }], ['dropOne', { roll: GEN_CERT.gearDrop.roll, fwd: Vso }],
                       ['dropDriftR', { pitch: GEN_CERT.gearDrop.stepPitch, fwd: Vso, lat: xw }], ['dropDriftL', { pitch: GEN_CERT.gearDrop.stepPitch, fwd: Vso, lat: -xw }]]
       : [[trike ? 'dropNoseUp' : 'dropLevel', trike ? { pitch: GEN_CERT.gearDrop.noseUp, fwd: Vso } : { level: true, fwd: Vso }], ['dropOne', { roll: GEN_CERT.gearDrop.roll, fwd: Vso }]];
-    for (const [nm, o] of GD) { const r = genCertDrop(def, sink, opt.world, o); cases[nm] = { t: r.t, c: r.c }; }
+    // ...and the touchdown at the build's own limit sink (23.473's V, under the cap) at the touchdown speed: a frame's
+    // dynamic answer is not monotone in the sink (the Cessna on floats' wing spar took more at 2.54 m/s, level, than in
+    // the one-float landing at the cap's 3.05)
+    GD.push(['drop473', { fwd: Vso }]);
+    for (const [nm, o] of GD) { const r = genCertDrop(def, nm === 'drop473' ? genCertSink(def) : sink, opt.world, o); cases[nm] = { t: r.t, c: r.c }; }
     if (!FLt) cases.taxiRough = genCertTaxi(def);
+    else { const ww = genCertWaterWeave(def, opt.world); if (ww) cases.wWeave = ww; }
     ground = genCertGroundLoads(def, drop ? drop.nz : 0);
     for (const [nm, F] of ground) put(nm, genCertForces(flight, genCertRelieve(def, F)));
   }
