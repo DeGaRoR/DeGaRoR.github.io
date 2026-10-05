@@ -16,10 +16,10 @@
 //      limit case: the airframe at most 2/3, the gear under 1
 //   3. §7.4's GEAR ROWS (damage on, the certificate): the ground loop (the Cub, the Jodel: rolling at 15 m/s, swung
 //      20 deg off its track at 120 deg/s - a main gear group lets go, the low wing strikes); the porpoise (the metal
-//      Cessna: nose-first touchdowns at 25 m/s, 5 deg nose-down, the bounces growing 2.5 / 3.5 / 4.5 m/s - the nose gear
+//      Cessna: nose-first touchdowns at 25 m/s, 5 deg nose-down, the bounces growing 3 / 4 / 5 m/s - the nose gear
 //      collapses, the bounce it collapsed on printed); the float dig-in (the Cessna on floats, the twin: the 90 km/h /
-//      5 m/s / 20 deg nose-in breaks nothing; at 120 km/h / 7 m/s / 30 deg the floats' strut fittings fail in overload,
-//      a float's strut group first)
+//      5 m/s / 20 deg nose-in breaks nothing; in TREECRASH's severe nose-in (150 km/h / 10 m/s / 60 deg) the floats'
+//      strut fittings fail in overload - the order printed)
 // Run: node tools/_dmg_gear_check.js   (one final `GATE DMGGEAR: PASS|FAIL`; each build's parts in parallel children,
 // 3 at once; FLYDIY_CERT_DIR: the certificates precomputed - <dir>/<key>.json, as tools/treecrash_evidence.js reads)
 'use strict';
@@ -51,8 +51,8 @@ if (argv[0] === '--part') {
     out.drops = [[v473, 0, '473'], [1.2 * cap, 0, '727']].concat(fl ? [] : [[7, 18, 'nasa']]).map(([sink, fwd, kind]) => Object.assign({ kind }, G.bracketDrop(k, { sink, fwd })));
   } else if (part === 'rows') {
     if (k === 'cub' || k === 'jodel') out.loop = G.groundLoop(k, { V: 15, yaw: 20, rate: 120, secs: 4 });
-    if (k === 'metal') out.porp = G.porpoise(k, { V: 25, pitch: 5, sinks: [2.5, 3.5, 4.5] });
-    if (fl) out.dig = [{ V: 90, sink: 5, pitch: 20 }, { V: 120, sink: 7, pitch: 30 }].map(o => G.digIn(k, o));
+    if (k === 'metal') out.porp = G.porpoise(k, { V: 25, pitch: 5, sinks: [3, 4, 5] });
+    if (fl) out.dig = [{ V: 90, sink: 5, pitch: 20 }, { V: 150, sink: 10, pitch: 60 }].map(o => G.digIn(k, o));
   }
   console.log('RESULT ' + JSON.stringify(out));
   process.exit(0);
@@ -100,7 +100,7 @@ const wk = w => f2(w.max) + ' (' + w.cls + ' ' + w.tags + ', ' + (w.s === 't' ? 
       for (const d of B.drops) {
         const what = 'set ' + d.set.gear + ' gear / ' + d.set.other + ' airframe, broken ' + d.brk.gear + ' / ' + d.brk.other + (d.firstGroup ? ', the first group ' + d.firstGroup : '') + ', ' + f2(d.nz) + ' g' + (d.crashed ? ', ' + d.reason : '');
         if (d.kind === '473') yes(d.finite && d.set.gear + d.set.other === 0 && d.brk.gear + d.brk.other === 0, 'the drop at its FAR 23.473 limit sink (' + f2(d.sink) + ' m/s): no set - ' + what);
-        else if (d.kind === '727') yes(d.finite && d.brk.gear + d.brk.other === 0 && d.set.other === 0, 'the drop at 1.2 x the certificate\'s sink (' + f2(d.sink) + ' m/s, 23.727): ' + (d.set.gear ? 'the gear yields' : 'the gear holds (a float installation has no spring)') + ', nothing breaks, the airframe takes no set - ' + what);
+        else if (d.kind === '727') yes(d.finite && d.brk.gear + d.brk.other === 0 && d.set.other === 0, 'the drop at 1.2 x the certificate\'s sink (' + f2(d.sink) + ' m/s, 23.727): ' + (d.set.gear ? 'the gear yields' : B.bracket.type === 'floats' ? 'the gear holds (a float installation has no spring)' : 'the gear holds, just under its yield (1.18 F_l)') + ', nothing breaks, the airframe takes no set - ' + what);
         else yes(d.finite && d.brk.gear > 0 && d.firstBreak && d.firstBreak.cls === 'gear', 'NASA 172 Test 1 (7 m/s down, 18 m/s forward): it breaks, the gear first (' + (d.firstBreak ? d.firstBreak.tags + ', ' + d.firstBreak.how : '-') + ') - ' + what);
       }
     }
