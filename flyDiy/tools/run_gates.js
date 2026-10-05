@@ -229,6 +229,12 @@ const GATES = [
   // nothing broken), and the skin over a break - no live triangle on two pieces or across a broken member, none stretched
   // past 1.15 x its rest + 1 cm, on TREECRASH / DMGINTEGRITY's crash cases; damage off = the base's skin bit for bit. Three at once
   { id: 'DMGSKIN', file: '_dmg_skin_check.js', tier: 'core', weight: 3, wall: 240 },
+  // G1824-G1827 (DMG-DRIVE): the drivetrain against the real numbers (reports/evidence/DMG-DRIVE/real_numbers.json, every
+  // row's source printed with its 'as recalled - A0 to open' flag): Lycoming SB 369's overspeed bands in the dives (V_NE and
+  // 1.1 V_D at full throttle), the graded prop strike (SB 533: nose-overs, a brush, a trunk, the bow in the water, a tip lost
+  // at power and its imbalance tearing the mount), the 582's gearbox, FAR 23.361 / .363 / .371 on the mount's certificate,
+  // and the negatives (the circuit, a 3.8 g pull, the brakes: nothing). Three children at once
+  { id: 'DMGDRIVE', file: '_dmg_drive_check.js', tier: 'core', weight: 3, wall: 1500 },
   // G286: the graphics settings menu - presets, the pref, the handles
   { id: 'GFX', file: '_gfx_check.js', tier: 'core' },
   // G584: the programs - the real three on a fake GL: the depth warm-up is the shadow pass's own set, two

@@ -91,6 +91,10 @@ const MANIFEST = {
     // THE FLOAT IN WATER (H1, G382): the hull, its panels and their force
     // law; the frame builds a float from it and the solver runs it
     '32_hydro.js',
+    // THE DRIVETRAIN'S LIMITS AND HOW IT FAILS (G1826, DMG-DRIVE): the overspeed bands, the graded prop strike, the
+    // gearbox, the mount's torque and gyroscopic loads - pure; read by the solver (behind the damage layer) and the
+    // certificate (66_), at call time
+    '33_drive.js',
     // THE GROUND PATH (G193): a declared pattern graph sampled into a path the
     // pilots follow (fillets, curvature, a STOP); pure, read by 25_'s
     // sitePattern consumers, the two pilots, pattern_vis.js and the gates.

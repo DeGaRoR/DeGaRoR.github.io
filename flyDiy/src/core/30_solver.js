@@ -1211,7 +1211,7 @@ function makeSim(def, world) {
     const gC = dtFrame > 0 ? Math.hypot(cIx, cIy, cIz) / (totalM * 9.81 * dtFrame) : 0;
     cIx = cIy = cIz = 0;
     gF += (gC - gF) * Math.min(1, dtFrame / 0.05);
-    if (noseGnd) { noseGnd = false; for (let k = 0; k < eng.length; k++) propStrike(k, 'ground'); }
+    if (noseGnd) { noseGnd = false; for (let k = 0; k < eng.length; k++) propStrike(k, 'ground', PR.D / 2, 'soft'); }
     if (gF > DMG.gPeak) DMG.gPeak = gF;
     // a holed hull slice (GEAR-WATER 2's S8.br: the slam past its skin's breach pressure) is skin damage - a dent
     if (typeof WB !== 'undefined' && WB && WB.slices) { let h = 0; for (const S8 of WB.slices) if (S8.br) h++; DMG.holed = h; }
@@ -1307,7 +1307,7 @@ function makeSim(def, world) {
     let hx = -xAft[0], hz = -xAft[2]; const hl = Math.hypot(hx, hz) || 1; hx /= hl; hz /= hl;
     const Rp = PR.D / 2;
     for (let k = 0; k < eng.length; k++) {
-      if (eng[k].seized) continue;
+      if (eng[k].seized && !(DRV && DRV.st[k].strike !== 'separation')) continue;   // G1826: an engine stopped by an overspeed still strikes (a stopped prop in a trunk is a strike: the bill's teardown)
       let cx = 0, cy = 0, cz = 0, c = 0;
       for (let j = 0; j < ENG_N.length; j++) if ((ENG_K[j] | 0) === k) { const e = ENG_N[j] * 3; cx += p[e]; cy += p[e+1]; cz += p[e+2]; c++; }
       if (!c) continue;
@@ -1316,13 +1316,15 @@ function makeSim(def, world) {
         const o = t * 5, dx = _tk[o] - cx, dz = _tk[o+1] - cz, ax = dx * hx + dz * hz;
         if (ax < -0.2 - _tk[o+3] || ax > 1 + _tk[o+3]) continue;
         const lx = dx - ax * hx, lz = dz - ax * hz;
-        if (Math.hypot(lx, lz) > Rp + _tk[o+3] || cy - Rp > _tk[o+4] || cy + Rp < _tk[o+2]) continue;
-        propStrike(k, 'trunk');
+        const lat = Math.hypot(lx, lz);
+        if (lat > Rp + _tk[o+3] || cy - Rp > _tk[o+4] || cy + Rp < _tk[o+2]) continue;
+        propStrike(k, 'trunk', Rp + _tk[o+3] - lat, 'rigid');   // G1826: the bite, its circle's reach into the disc
         break;
       }
     }
   }
-  function propStrike(k, what) {
+  function propStrike(k, what, bite, surf) {
+    if (DRV) { driveStrike(k, what, bite, surf); return; }   // G1826 (DMG-DRIVE): graded on the bite and the tip speed
     const e = eng[k]; if (!e || e.seized) return;
     e.seized = true; e.running = false; e.crank = 0;
     DMG.propStrike = true; if (!DMG.propAt) DMG.propAt = { eng: k, what, t: simT };
@@ -1423,6 +1425,105 @@ function makeSim(def, world) {
   // same thing the cockpit key writes.
   const eng = [];
   for (let i = 0; i < nE0; i++) eng.push({ running: true, key: 'both', crank: 0, seized: false });   // seized: a prop strike (G1470)
+  // ---- G1826 (DMG-DRIVE, 33_drive.js): THE DRIVETRAIN'S STATE per engine, with the damage layer on (null off: nothing
+  // of it runs - the thrust's factor below stays 1, and x 1 is exact). sim.damage().drive[k] (the fields: 33_drive.js
+  // genDriveState; HANDOVER G1826 names them for D4b, D5 and the sound)
+  const DRV = DMG_ON && typeof genDriveSpec === 'function' ? { sp: genDriveSpec(def), st: [], imb: false, tI: 0, ph: new Float64Array(nE0) } : null;
+  const DK = new Float64Array(nE0).fill(1);         // each engine's thrust factor (a bent prop, a rough engine, a sheared drive)
+  if (DRV) { for (let i = 0; i < nE0; i++) DRV.st.push(genDriveState()); DMG.drive = DRV.st; }
+  function driveReset() {
+    for (let k = 0; k < nE0; k++) Object.assign(DRV.st[k], genDriveState());
+    DK.fill(1); DRV.imb = false; DRV.ph.fill(0); DRV.tI = 0;
+  }
+  // A STRIKE on engine k: `bite` m into the disc, on a surface 'soft' (the ground), 'water' or 'rigid' (a trunk); the tier
+  // only ever rises (genDriveStrikeTier: the bite over R, the tip speed now against the blade's)
+  function driveStrike(k, what, bite, surf) {
+    const e = eng[k], st = DRV.st[k], S = DRV.sp; if (!e || !st) return;
+    const tip = Math.PI * S.D * (out.rpm[k] || 0) / 60;
+    const tier = genDriveStrikeTier(bite, S.R, surf, tip, S.sepTip);
+    if (tier <= GEN_DRIVE_STRIKE.indexOf(st.strike)) return;
+    const first = !st.strike;
+    st.strike = GEN_DRIVE_STRIKE[tier]; st.teardown = true;
+    st.strikeAt = { t: simT, what, surf, bite, biteR: bite / S.R, tip, rpm: out.rpm[k] || 0 };
+    if (first) st.internal = dmgRnd(nb + k, 17) < GEN_DRIVE.internalP;   // the teardown's finding (seeded: the build's own)
+    DMG.propStrike = true; if (!DMG.propAt) DMG.propAt = { eng: k, what, t: simT };
+    const stopR = GEN_DRIVE.strike.stop[surf] != null ? GEN_DRIVE.strike.stop[surf] : GEN_DRIVE.strike.stop.soft;
+    const stops = tier === 3 || (tier === 4 && bite / S.R > stopR) || e.seized;
+    if (S.gear > 1 && tier >= 2 && st.gearbox !== 'failed') st.gearbox = 'damaged';
+    st.vib = Math.max(st.vib, GEN_DRIVE.strike.vib[st.strike]);
+    if (tier === 2) DK[k] = Math.min(DK[k], GEN_DRIVE.strike.bentK);
+    if (stops) {
+      st.imbN = 0;
+      if (S.gear > 1 && e.running && thrEffOf(k) > GEN_DRIVE.gear.stopPow) { st.gearbox = 'failed'; DK[k] = 0; }   // the drive shears: the engine runs on unloaded
+      else if (!e.seized) { e.seized = true; e.running = false; e.crank = 0; st.failed = true; st.why = st.strike; DK[k] = 0; }
+    } else if (tier === 4) { DK[k] = Math.min(DK[k], GEN_DRIVE.strike.bentK); DRV.imb = true; }
+    if (tier === 4) st.bladeLost = GEN_DRIVE.imb.frac;   // (a stopped prop's lost blade is debris: no imbalance - driveImb skips it)
+  }
+  // the shaft speeds the tacho reads once the drive is hurt: a seized engine turns nothing; a sheared drive lets the prop
+  // freewheel (it windmills) and the engine run unloaded (its rpm over the max: the runaway, on the root of its torque demand)
+  function driveRpm(i, V, sig, pk) {
+    const e = eng[i]; if (!e) return;
+    if (e.seized) { out.rpm[i] = 0; out.rpmEng[i] = 0; return; }
+    if (DRV.st[i].gearbox === 'failed') {
+      out.rpm[i] = genShaftRpm(EN, PR, 0, V, sig, pk, false);
+      out.rpmEng[i] = e.running ? DRV.sp.rpmMax * GEN_DRIVE.gear.runaway * Math.sqrt(thrEffOf(i)) : 0;
+    }
+  }
+  // A LOST BLADE'S IMBALANCE (every substep, in the aero pass): m e w^2 turning with the prop, on its engine's thrust nodes,
+  // in the disc's plane (the body's right and the right x aft)
+  function driveImb() {
+    const dtI = simT - DRV.tI; DRV.tI = simT;
+    const ax = xAft, r = zRt, ux = r[1]*ax[2] - r[2]*ax[1], uy = r[2]*ax[0] - r[0]*ax[2], uz = r[0]*ax[1] - r[1]*ax[0];
+    const S = DRV.sp, mL = GEN_DRIVE.imb.frac * S.mass / S.blades, eL = GEN_DRIVE.imb.at * S.R;
+    for (let k = 0; k < nE0; k++) {
+      const st = DRV.st[k];
+      if (!(st.bladeLost > 0) || eng[k].seized) { st.imbN = 0; continue; }
+      const w = 2 * Math.PI * (out.rpm[k] || 0) / 60;
+      DRV.ph[k] += w * dtI;
+      const F = mL * eL * w * w, c = Math.cos(DRV.ph[k]) * F, sn = Math.sin(DRV.ph[k]) * F;
+      st.imbN = F;
+      const fx = c * r[0] + sn * ux, fy = c * r[1] + sn * uy, fz = c * r[2] + sn * uz;
+      let cnt = 0; for (let j = 0; j < ENG_N.length; j++) if ((ENG_K[j] | 0) === k) cnt++;
+      if (!cnt) continue;
+      for (let j = 0; j < ENG_N.length; j++) if ((ENG_K[j] | 0) === k) { const q = ENG_N[j] * 3; f[q] += fx / cnt; f[q+1] += fy / cnt; f[q+2] += fz / cnt; }
+    }
+  }
+  // ONCE A FRAME: the disc against the ground and the water (a strike graded on its bite), the overspeed bands, the tip's
+  // Mach, the overhaul band's rough running and the gearbox it hurts
+  function driveFrame(dtFrame) {
+    const S = DRV.sp, Rp = S.R;
+    if (world && typeof world.terrainH === 'function') {
+      bodyAxes();
+      const ay = -xAft[1], dl = Math.max(0.2, Math.sqrt(Math.max(0, 1 - ay * ay)));
+      // the disc's lowest point: down, in the disc's plane
+      const dx = (-xAft[0]) * ay / dl, dy = (-1 + ay * ay) / dl, dz = (-xAft[2]) * ay / dl;
+      for (let k = 0; k < nE0; k++) {
+        const st = DRV.st[k]; if (st.strike === 'separation') continue;
+        let cx = 0, cy = 0, cz = 0, c = 0;
+        for (let j = 0; j < ENG_N.length; j++) if ((ENG_K[j] | 0) === k) { const q = ENG_N[j] * 3; cx += p[q]; cy += p[q+1]; cz += p[q+2]; c++; }
+        if (!c) continue;
+        cx /= c; cy /= c; cz /= c;
+        const lx = cx + Rp * dx, ly = cy + Rp * dy, lz = cz + Rp * dz, g = world.terrainH(lx, lz);
+        let pen = g - ly - GEN_DRIVE.strike.turf, surf = 'soft', gap = ly - g;
+        if (ly - g < 30 && typeof world.waterH === 'function') { const w = world.waterH(lx, lz); if (w > -1e8 && w > g) { gap = ly - w; if (w - ly > 0) { pen = w - ly; surf = 'water'; } } }
+        if (gap < st.gapMin) st.gapMin = gap;        // the disc's least clearance over the surface (the turf's top not counted)
+        if (pen > 0) propStrike(k, 'ground', pen / dl, surf);
+      }
+    }
+    const a = Math.sqrt(1.4 * 287.05 * ((out.oatC != null ? out.oatC : 15) + 273.15));
+    for (let k = 0; k < nE0; k++) {
+      const st = DRV.st[k], e = eng[k];
+      st.rpmMax = S.rpmMax;
+      st.tipMach = Math.hypot(Math.PI * S.D * (out.rpm[k] || 0) / 60, out.V || 0) / a;
+      if (e.seized) continue;
+      if (genDriveOverspeed(st, (out.rpmEng[k] || 0) / S.rpmMax, dtFrame)) {
+        e.seized = true; e.running = false; e.crank = 0; st.failed = true; st.why = 'overspeed'; DK[k] = 0; st.imbN = 0;
+      }
+      if (st.os === 'overhaul' && !st.failed) { DK[k] = Math.min(DK[k], GEN_DRIVE.os.ovhK); st.vib = Math.max(st.vib, GEN_DRIVE.os.ovhVib); }
+      if (S.gear > 1 && (st.os === 'overhaul' || st.os === 'failed') && !st.gearbox) st.gearbox = 'damaged';
+      st.thrustK = DK[k];
+    }
+  }
   // the burn: the thermo sheet's rated figure (kg/h of fuel, or kW of pack
   // draw), scaled by the effective throttle and the altitude power ratio
   const THERMO = (typeof genEngineThermo === 'function') ? genEngineThermo(EN) : null;
@@ -1475,6 +1576,7 @@ function makeSim(def, world) {
   out.pitch = 0; out.roll = 0; out.hdg = 0; out.rpm = []; out.rpmEng = [];
   function resetPanel() {
     for (const e of eng) { e.running = true; e.key = 'both'; e.crank = 0; e.seized = false; }
+    if (DRV) driveReset();          // G1826
     fuel.frac = 1; fuel.kg = fuel.kg0; fuel.litres = fuel.litres0; fuel.soc = 1;
     fuel.burnKgH = 0; fuel.drawKW = 0;
     fuel.starved = false; fuel.starvedAt = null; fuel.enduranceS = Infinity;
@@ -2040,13 +2142,14 @@ function makeSim(def, world) {
         // the panel arc: a stopped engine pulls nothing (every engine runs
         // unless the key or the tanks say otherwise — bit-identical before)
         const run = !eng[i] || eng[i].running;
-        Ti[i] = run ? ctl.thr * lev(i) * Tcap : 0; T += Ti[i];
+        Ti[i] = run ? ctl.thr * lev(i) * Tcap * DK[i] : 0; T += Ti[i];   // (DK: G1826's factor, 1 unless the drive is hurt)
         // and the shaft speed the tacho reads: prop rpm, then through the
         // reduction unit (00_registry.js genShaftRpm, the one law)
         if (typeof genShaftRpm === 'function') {
           const thrE = run ? Math.max(0, Math.min(1, ctl.thr * lev(i))) : 0;
           const rp = genShaftRpm(EN, PR, thrE, Vfwd, sig, PS.power, run);
           out.rpm[i] = rp; out.rpmEng[i] = genEngineRpm(EN, rp);
+          if (DRV) driveRpm(i, Vfwd, sig, PS.power);   // G1826: a seized engine, a sheared drive
         }
       }
       // propwash is ONE disc's — the tail flies in the wake of the prop ahead
@@ -2072,6 +2175,7 @@ function makeSim(def, world) {
           f[e*3+2] -= per * xAft[2];
         }
       }
+      if (DRV && DRV.imb) driveImb();               // G1826: a lost blade's imbalance
     }
     out.aeroFy = 0; out.wingFy = 0; out.stabFy = 0; out.dbgAl = 0; out.dbgN = 0;
     const planeFy = out.planeFy = [];                // G185: each plane's lift
@@ -2716,6 +2820,7 @@ function makeSim(def, world) {
     }
     readPanel(dtFrame);
     dmgFrame(dtFrame);
+    if (DRV) driveFrame(dtFrame);                   // G1826 (DMG-DRIVE)
     dmgOver();
   }
 
