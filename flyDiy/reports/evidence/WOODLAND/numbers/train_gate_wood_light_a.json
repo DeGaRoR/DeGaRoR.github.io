@@ -1,0 +1,2346 @@
+{
+ "meta": {
+  "date": "2026-10-05T03:05:44.126Z",
+  "commit": "a1ffcf5b",
+  "build": "781283188e18",
+  "mode": "light",
+  "parts": [
+   "bench",
+   "rollout",
+   "garage"
+  ],
+  "gpu": "ANGLE (NVIDIA, NVIDIA GeForce RTX 3080 (0x00002216) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+  "size": "2216x1023",
+  "label": "wood_light_a",
+  "remote": "mn_strip",
+  "m": {
+   "reps": 1,
+   "secs": 20,
+   "glReps": 2,
+   "cold": false,
+   "taxi": 10,
+   "water": 20,
+   "garage": 6
+  },
+  "minutes": 14.9,
+  "steps": [
+   {
+    "id": "master_bench",
+    "code": 0,
+    "sec": 285,
+    "part": "bench"
+   },
+   {
+    "id": "warm_metal",
+    "code": 0,
+    "sec": 70,
+    "part": "warmup"
+   },
+   {
+    "id": "rp_cub_chase_1",
+    "code": 0,
+    "sec": 85,
+    "part": "rollout"
+   },
+   {
+    "id": "rp_cub_cockpit_1",
+    "code": 0,
+    "sec": 82,
+    "part": "rollout"
+   },
+   {
+    "id": "rp_metal_chase_1",
+    "code": 0,
+    "sec": 82,
+    "part": "rollout"
+   },
+   {
+    "id": "rp_metal_cockpit_1",
+    "code": 0,
+    "sec": 82,
+    "part": "rollout"
+   },
+   {
+    "id": "garage_lag",
+    "code": 0,
+    "sec": 207,
+    "part": "garage"
+   }
+  ],
+  "reports": "tools/perf/tg_wood_light_a"
+ },
+ "rows": [
+  {
+   "id": "rollout|cub chase|fps",
+   "part": "rollout",
+   "what": "cub chase fps",
+   "value": 30,
+   "runs": 1,
+   "rule": {
+    "up": true,
+    "rel": 0.05,
+    "abs": 1,
+    "unit": "fps",
+    "info": false
+   }
+  },
+  {
+   "id": "rollout|cub chase|p99",
+   "part": "rollout",
+   "what": "cub chase p99",
+   "value": 33.5,
+   "runs": 1,
+   "rule": {
+    "up": false,
+    "rel": 0.1,
+    "abs": 17,
+    "unit": "ms",
+    "info": false
+   }
+  },
+  {
+   "id": "rollout|cub chase|p99all",
+   "part": "rollout",
+   "what": "cub chase p99all",
+   "value": 33.5,
+   "runs": 1,
+   "rule": {
+    "up": false,
+    "rel": 0.1,
+    "abs": 17,
+    "unit": "ms",
+    "info": false
+   }
+  },
+  {
+   "id": "rollout|cub chase|over15",
+   "part": "rollout",
+   "what": "cub chase over15",
+   "value": 0.0011,
+   "runs": 1,
+   "rule": {
+    "up": false,
+    "rel": 0.2,
+    "abs": 0.02,
+    "unit": "",
+    "info": false
+   }
+  },
+  {
+   "id": "rollout|cub chase|taxiOver15",
+   "part": "rollout",
+   "what": "cub chase taxiOver15",
+   "value": 0,
+   "runs": 1,
+   "rule": {
+    "up": false,
+    "rel": 0.2,
+    "abs": 0.02,
+    "unit": "",
+    "info": false
+   }
+  },
+  {
+   "id": "rollout|cub chase|uneven",
+   "part": "rollout",
+   "what": "cub chase uneven",
+   "value": 0,
+   "runs": 1,
+   "rule": {
+    "up": false,
+    "rel": 0,
+    "abs": 0.05,
+    "unit": "",
+    "info": true
+   }
+  },
+  {
+   "id": "rollout|cub chase|p999",
+   "part": "rollout",
+   "what": "cub chase p999",
+   "value": 50.1,
+   "runs": 1,
+   "rule": {
+    "up": false,
+    "rel": 0.25,
+    "abs": 10,
+    "unit": "ms",
+    "info": true
+   }
+  },
+  {
+   "id": "rollout|cub chase|over3x",
+   "part": "rollout",
+   "what": "cub chase over3x",
+   "value": 0,
+   "runs": 1,
+   "rule": {
+    "up": false,
+    "rel": 0.25,
+    "abs": 0.002,
+    "unit": "",
+    "info": true
+   }
+  },
+  {
+   "id": "rollout|cub chase|over1s",
+   "part": "rollout",
+   "what": "cub chase over1s",
+   "value": 0,
+   "runs": 1,
+   "rule": {
+    "up": false,
+    "rel": 0,
+    "abs": 0,
+    "unit": "",
+    "info": true
+   }
+  },
+  {
+   "id": "rollout|cub chase|loop",
+   "part": "rollout",
+   "what": "cub chase loop",
+   "value": 15,
+   "runs": 1,
+   "rule": {
+    "up": false,
+    "rel": 0.1,
+    "abs": 0.8,
+    "unit": "ms",
+    "info": false
+   }
+  },
+  {
+   "id": "rollout|cub chase|render",
+   "part": "rollout",
+   "what": "cub chase render",
+   "value": 11.1,
+   "runs": 1,
+   "rule": {
+    "up": false,
+    "rel": 0.1,
+    "abs": 0.6,
+    "unit": "ms",
+    "info": false
+   }
+  },
+  {
+   "id": "rollout|cub chase|solver",
+   "part": "rollout",
+   "what": "cub chase solver",
+   "value": 0.1,
+   "runs": 1,
+   "rule": {
+    "up": false,
+    "rel": 0.15,
+    "abs": 0.6,
+    "unit": "ms",
+    "info": false
+   }
+  },
+  {
+   "id": "rollout|cub chase|over100",
+   "part": "rollout",
+   "what": "cub chase over100",
+   "value": 0,
+   "runs": 1,
+   "rule": {
+    "up": false,
+    "rel": 0,
+    "abs": 1,
+    "unit": "",
+    "info": false
+   }
+  },
+  {
+   "id": "rollout|cub chase|tasks1s",
+   "part": "rollout",
+   "what": "cub chase tasks1s",
+   "value": 0,
+   "runs": 1,
+   "rule": {
+    "up": false,
+    "rel": 0,
+    "abs": 1,
+    "unit": "",
+    "info": false
+   }
+  },
+  {
+   "id": "rollout|cub chase|tasks200",
+   "part": "rollout",
+   "what": "cub chase tasks200",
+   "value": 22,
+   "runs": 1,
+   "rule": {
+    "up": false,
+    "rel": 0.25,
+    "abs": 3,
+    "unit": "",
+    "info": false
+   }
+  },
+  {
+   "id": "rollout|cub chase|taskWorst",
+   "part": "rollout",
+   "what": "cub chase taskWorst",
+   "value": 779,
+   "runs": 1,
+   "rule": {
+    "up": false,
+    "rel": 0.15,
+    "abs": 150,
+    "unit": "ms",
+    "info": false
+   }
+  },
+  {
+   "id": "rollout|cub chase|slice",
+   "part": "rollout",
+   "what": "cub chase slice",
+   "value": 465,
+   "runs": 1,
+   "rule": {
+    "up": false,
+    "rel": 0.15,
+    "abs": 150,
+    "unit": "ms",
+    "info": false
+   }
+  },
+  {
+   "id": "rollout|cub chase|garage",
+   "part": "rollout",
+   "what": "cub chase garage",
+   "value": 44.3,
+   "runs": 1,
+   "rule": {
+    "up": false,
+    "rel": 0.1,
+    "abs": 3,
+    "unit": "s",
+    "info": false
+   }
+  },
+  {
+   "id": "rollout|cub chase|rollout",
+   "part": "rollout",
+   "what": "cub chase rollout",
+   "value": 3.42,
+   "runs": 1,
+   "rule": {
+    "up": false,
+    "rel": 0.1,
+    "abs": 1,
+    "unit": "s",
+    "info": false
+   }
+  },
+  {
+   "id": "rollout|cub chase|flight",
+   "part": "rollout",
+   "what": "cub chase flight",
+   "value": 47.72,
+   "runs": 1,
+   "rule": {
+    "up": false,
+    "rel": 0.08,
+    "abs": 3,
+    "unit": "s",
+    "info": false
+   }
+  },
+  {
+   "id": "rollout|cub chase|compile",
+   "part": "rollout",
+   "what": "cub chase compile",
+   "value": 2729,
+   "runs": 1,
+   "rule": {
+    "up": false,
+    "rel": 0.15,
+    "abs": 2000,
+    "unit": "ms",
+    "info": false
+   }
+  },
+  {
+   "id": "rollout|cub cockpit|fps",
+   "part": "rollout",
+   "what": "cub cockpit fps",
+   "value": 30,
+   "runs": 1,
+   "rule": {
+    "up": true,
+    "rel": 0.05,
+    "abs": 1,
+    "unit": "fps",
+    "info": false
+   }
+  },
+  {
+   "id": "rollout|cub cockpit|p99",
+   "part": "rollout",
+   "what": "cub cockpit p99",
+   "value": 33.5,
+   "runs": 1,
+   "rule": {
+    "up": false,
+    "rel": 0.1,
+    "abs": 17,
+    "unit": "ms",
+    "info": false
+   }
+  },
+  {
+   "id": "rollout|cub cockpit|p99all",
+   "part": "rollout",
+   "what": "cub cockpit p99all",
+   "value": 33.5,
+   "runs": 1,
+   "rule": {
+    "up": false,
+    "rel": 0.1,
+    "abs": 17,
+    "unit": "ms",
+    "info": false
+   }
+  },
+  {
+   "id": "rollout|cub cockpit|over15",
+   "part": "rollout",
+   "what": "cub cockpit over15",
+   "value": 0,
+   "runs": 1,
+   "rule": {
+    "up": false,
+    "rel": 0.2,
+    "abs": 0.02,
+    "unit": "",
+    "info": false
+   }
+  },
+  {
+   "id": "rollout|cub cockpit|taxiOver15",
+   "part": "rollout",
+   "what": "cub cockpit taxiOver15",
+   "value": 0,
+   "runs": 1,
+   "rule": {
+    "up": false,
+    "rel": 0.2,
+    "abs": 0.02,
+    "unit": "",
+    "info": false
+   }
+  },
+  {
+   "id": "rollout|cub cockpit|uneven",
+   "part": "rollout",
+   "what": "cub cockpit uneven",
+   "value": 0,
+   "runs": 1,
+   "rule": {
+    "up": false,
+    "rel": 0,
+    "abs": 0.05,
+    "unit": "",
+    "info": true
+   }
+  },
+  {
+   "id": "rollout|cub cockpit|p999",
+   "part": "rollout",
+   "what": "cub cockpit p999",
+   "value": 50,
+   "runs": 1,
+   "rule": {
+    "up": false,
+    "rel": 0.25,
+    "abs": 10,
+    "unit": "ms",
+    "info": true
+   }
+  },
+  {
+   "id": "rollout|cub cockpit|over3x",
+   "part": "rollout",
+   "what": "cub cockpit over3x",
+   "value": 0,
+   "runs": 1,
+   "rule": {
+    "up": false,
+    "rel": 0.25,
+    "abs": 0.002,
+    "unit": "",
+    "info": true
+   }
+  },
+  {
+   "id": "rollout|cub cockpit|over1s",
+   "part": "rollout",
+   "what": "cub cockpit over1s",
+   "value": 0,
+   "runs": 1,
+   "rule": {
+    "up": false,
+    "rel": 0,
+    "abs": 0,
+    "unit": "",
+    "info": true
+   }
+  },
+  {
+   "id": "rollout|cub cockpit|loop",
+   "part": "rollout",
+   "what": "cub cockpit loop",
+   "value": 16.3,
+   "runs": 1,
+   "rule": {
+    "up": false,
+    "rel": 0.1,
+    "abs": 0.8,
+    "unit": "ms",
+    "info": false
+   }
+  },
+  {
+   "id": "rollout|cub cockpit|render",
+   "part": "rollout",
+   "what": "cub cockpit render",
+   "value": 12.2,
+   "runs": 1,
+   "rule": {
+    "up": false,
+    "rel": 0.1,
+    "abs": 0.6,
+    "unit": "ms",
+    "info": false
+   }
+  },
+  {
+   "id": "rollout|cub cockpit|solver",
+   "part": "rollout",
+   "what": "cub cockpit solver",
+   "value": 0.1,
+   "runs": 1,
+   "rule": {
+    "up": false,
+    "rel": 0.15,
+    "abs": 0.6,
+    "unit": "ms",
+    "info": false
+   }
+  },
+  {
+   "id": "rollout|cub cockpit|over100",
+   "part": "rollout",
+   "what": "cub cockpit over100",
+   "value": 0,
+   "runs": 1,
+   "rule": {
+    "up": false,
+    "rel": 0,
+    "abs": 1,
+    "unit": "",
+    "info": false
+   }
+  },
+  {
+   "id": "rollout|cub cockpit|tasks1s",
+   "part": "rollout",
+   "what": "cub cockpit tasks1s",
+   "value": 0,
+   "runs": 1,
+   "rule": {
+    "up": false,
+    "rel": 0,
+    "abs": 1,
+    "unit": "",
+    "info": false
+   }
+  },
+  {
+   "id": "rollout|cub cockpit|tasks200",
+   "part": "rollout",
+   "what": "cub cockpit tasks200",
+   "value": 20,
+   "runs": 1,
+   "rule": {
+    "up": false,
+    "rel": 0.25,
+    "abs": 3,
+    "unit": "",
+    "info": false
+   }
+  },
+  {
+   "id": "rollout|cub cockpit|taskWorst",
+   "part": "rollout",
+   "what": "cub cockpit taskWorst",
+   "value": 791,
+   "runs": 1,
+   "rule": {
+    "up": false,
+    "rel": 0.15,
+    "abs": 150,
+    "unit": "ms",
+    "info": false
+   }
+  },
+  {
+   "id": "rollout|cub cockpit|slice",
+   "part": "rollout",
+   "what": "cub cockpit slice",
+   "value": 469,
+   "runs": 1,
+   "rule": {
+    "up": false,
+    "rel": 0.15,
+    "abs": 150,
+    "unit": "ms",
+    "info": false
+   }
+  },
+  {
+   "id": "rollout|cub cockpit|garage",
+   "part": "rollout",
+   "what": "cub cockpit garage",
+   "value": 40.694,
+   "runs": 1,
+   "rule": {
+    "up": false,
+    "rel": 0.1,
+    "abs": 3,
+    "unit": "s",
+    "info": false
+   }
+  },
+  {
+   "id": "rollout|cub cockpit|rollout",
+   "part": "rollout",
+   "what": "cub cockpit rollout",
+   "value": 3.442,
+   "runs": 1,
+   "rule": {
+    "up": false,
+    "rel": 0.1,
+    "abs": 1,
+    "unit": "s",
+    "info": false
+   }
+  },
+  {
+   "id": "rollout|cub cockpit|flight",
+   "part": "rollout",
+   "what": "cub cockpit flight",
+   "value": 44.136,
+   "runs": 1,
+   "rule": {
+    "up": false,
+    "rel": 0.08,
+    "abs": 3,
+    "unit": "s",
+    "info": false
+   }
+  },
+  {
+   "id": "rollout|cub cockpit|compile",
+   "part": "rollout",
+   "what": "cub cockpit compile",
+   "value": 2994,
+   "runs": 1,
+   "rule": {
+    "up": false,
+    "rel": 0.15,
+    "abs": 2000,
+    "unit": "ms",
+    "info": false
+   }
+  },
+  {
+   "id": "rollout|metal chase|fps",
+   "part": "rollout",
+   "what": "metal chase fps",
+   "value": 30,
+   "runs": 1,
+   "rule": {
+    "up": true,
+    "rel": 0.05,
+    "abs": 1,
+    "unit": "fps",
+    "info": false
+   }
+  },
+  {
+   "id": "rollout|metal chase|p99",
+   "part": "rollout",
+   "what": "metal chase p99",
+   "value": 33.5,
+   "runs": 1,
+   "rule": {
+    "up": false,
+    "rel": 0.1,
+    "abs": 17,
+    "unit": "ms",
+    "info": false
+   }
+  },
+  {
+   "id": "rollout|metal chase|p99all",
+   "part": "rollout",
+   "what": "metal chase p99all",
+   "value": 33.5,
+   "runs": 1,
+   "rule": {
+    "up": false,
+    "rel": 0.1,
+    "abs": 17,
+    "unit": "ms",
+    "info": false
+   }
+  },
+  {
+   "id": "rollout|metal chase|over15",
+   "part": "rollout",
+   "what": "metal chase over15",
+   "value": 0.0011,
+   "runs": 1,
+   "rule": {
+    "up": false,
+    "rel": 0.2,
+    "abs": 0.02,
+    "unit": "",
+    "info": false
+   }
+  },
+  {
+   "id": "rollout|metal chase|taxiOver15",
+   "part": "rollout",
+   "what": "metal chase taxiOver15",
+   "value": 0,
+   "runs": 1,
+   "rule": {
+    "up": false,
+    "rel": 0.2,
+    "abs": 0.02,
+    "unit": "",
+    "info": false
+   }
+  },
+  {
+   "id": "rollout|metal chase|uneven",
+   "part": "rollout",
+   "what": "metal chase uneven",
+   "value": 0,
+   "runs": 1,
+   "rule": {
+    "up": false,
+    "rel": 0,
+    "abs": 0.05,
+    "unit": "",
+    "info": true
+   }
+  },
+  {
+   "id": "rollout|metal chase|p999",
+   "part": "rollout",
+   "what": "metal chase p999",
+   "value": 50.1,
+   "runs": 1,
+   "rule": {
+    "up": false,
+    "rel": 0.25,
+    "abs": 10,
+    "unit": "ms",
+    "info": true
+   }
+  },
+  {
+   "id": "rollout|metal chase|over3x",
+   "part": "rollout",
+   "what": "metal chase over3x",
+   "value": 0,
+   "runs": 1,
+   "rule": {
+    "up": false,
+    "rel": 0.25,
+    "abs": 0.002,
+    "unit": "",
+    "info": true
+   }
+  },
+  {
+   "id": "rollout|metal chase|over1s",
+   "part": "rollout",
+   "what": "metal chase over1s",
+   "value": 0,
+   "runs": 1,
+   "rule": {
+    "up": false,
+    "rel": 0,
+    "abs": 0,
+    "unit": "",
+    "info": true
+   }
+  },
+  {
+   "id": "rollout|metal chase|loop",
+   "part": "rollout",
+   "what": "metal chase loop",
+   "value": 15.1,
+   "runs": 1,
+   "rule": {
+    "up": false,
+    "rel": 0.1,
+    "abs": 0.8,
+    "unit": "ms",
+    "info": false
+   }
+  },
+  {
+   "id": "rollout|metal chase|render",
+   "part": "rollout",
+   "what": "metal chase render",
+   "value": 11.3,
+   "runs": 1,
+   "rule": {
+    "up": false,
+    "rel": 0.1,
+    "abs": 0.6,
+    "unit": "ms",
+    "info": false
+   }
+  },
+  {
+   "id": "rollout|metal chase|solver",
+   "part": "rollout",
+   "what": "metal chase solver",
+   "value": 0.1,
+   "runs": 1,
+   "rule": {
+    "up": false,
+    "rel": 0.15,
+    "abs": 0.6,
+    "unit": "ms",
+    "info": false
+   }
+  },
+  {
+   "id": "rollout|metal chase|over100",
+   "part": "rollout",
+   "what": "metal chase over100",
+   "value": 0,
+   "runs": 1,
+   "rule": {
+    "up": false,
+    "rel": 0,
+    "abs": 1,
+    "unit": "",
+    "info": false
+   }
+  },
+  {
+   "id": "rollout|metal chase|tasks1s",
+   "part": "rollout",
+   "what": "metal chase tasks1s",
+   "value": 0,
+   "runs": 1,
+   "rule": {
+    "up": false,
+    "rel": 0,
+    "abs": 1,
+    "unit": "",
+    "info": false
+   }
+  },
+  {
+   "id": "rollout|metal chase|tasks200",
+   "part": "rollout",
+   "what": "metal chase tasks200",
+   "value": 23,
+   "runs": 1,
+   "rule": {
+    "up": false,
+    "rel": 0.25,
+    "abs": 3,
+    "unit": "",
+    "info": false
+   }
+  },
+  {
+   "id": "rollout|metal chase|taskWorst",
+   "part": "rollout",
+   "what": "metal chase taskWorst",
+   "value": 761,
+   "runs": 1,
+   "rule": {
+    "up": false,
+    "rel": 0.15,
+    "abs": 150,
+    "unit": "ms",
+    "info": false
+   }
+  },
+  {
+   "id": "rollout|metal chase|slice",
+   "part": "rollout",
+   "what": "metal chase slice",
+   "value": 484,
+   "runs": 1,
+   "rule": {
+    "up": false,
+    "rel": 0.15,
+    "abs": 150,
+    "unit": "ms",
+    "info": false
+   }
+  },
+  {
+   "id": "rollout|metal chase|garage",
+   "part": "rollout",
+   "what": "metal chase garage",
+   "value": 41.063,
+   "runs": 1,
+   "rule": {
+    "up": false,
+    "rel": 0.1,
+    "abs": 3,
+    "unit": "s",
+    "info": false
+   }
+  },
+  {
+   "id": "rollout|metal chase|rollout",
+   "part": "rollout",
+   "what": "metal chase rollout",
+   "value": 3.436,
+   "runs": 1,
+   "rule": {
+    "up": false,
+    "rel": 0.1,
+    "abs": 1,
+    "unit": "s",
+    "info": false
+   }
+  },
+  {
+   "id": "rollout|metal chase|flight",
+   "part": "rollout",
+   "what": "metal chase flight",
+   "value": 44.499,
+   "runs": 1,
+   "rule": {
+    "up": false,
+    "rel": 0.08,
+    "abs": 3,
+    "unit": "s",
+    "info": false
+   }
+  },
+  {
+   "id": "rollout|metal chase|compile",
+   "part": "rollout",
+   "what": "metal chase compile",
+   "value": 2733,
+   "runs": 1,
+   "rule": {
+    "up": false,
+    "rel": 0.15,
+    "abs": 2000,
+    "unit": "ms",
+    "info": false
+   }
+  },
+  {
+   "id": "rollout|metal cockpit|fps",
+   "part": "rollout",
+   "what": "metal cockpit fps",
+   "value": 30,
+   "runs": 1,
+   "rule": {
+    "up": true,
+    "rel": 0.05,
+    "abs": 1,
+    "unit": "fps",
+    "info": false
+   }
+  },
+  {
+   "id": "rollout|metal cockpit|p99",
+   "part": "rollout",
+   "what": "metal cockpit p99",
+   "value": 33.5,
+   "runs": 1,
+   "rule": {
+    "up": false,
+    "rel": 0.1,
+    "abs": 17,
+    "unit": "ms",
+    "info": false
+   }
+  },
+  {
+   "id": "rollout|metal cockpit|p99all",
+   "part": "rollout",
+   "what": "metal cockpit p99all",
+   "value": 33.5,
+   "runs": 1,
+   "rule": {
+    "up": false,
+    "rel": 0.1,
+    "abs": 17,
+    "unit": "ms",
+    "info": false
+   }
+  },
+  {
+   "id": "rollout|metal cockpit|over15",
+   "part": "rollout",
+   "what": "metal cockpit over15",
+   "value": 0,
+   "runs": 1,
+   "rule": {
+    "up": false,
+    "rel": 0.2,
+    "abs": 0.02,
+    "unit": "",
+    "info": false
+   }
+  },
+  {
+   "id": "rollout|metal cockpit|taxiOver15",
+   "part": "rollout",
+   "what": "metal cockpit taxiOver15",
+   "value": 0,
+   "runs": 1,
+   "rule": {
+    "up": false,
+    "rel": 0.2,
+    "abs": 0.02,
+    "unit": "",
+    "info": false
+   }
+  },
+  {
+   "id": "rollout|metal cockpit|uneven",
+   "part": "rollout",
+   "what": "metal cockpit uneven",
+   "value": 0,
+   "runs": 1,
+   "rule": {
+    "up": false,
+    "rel": 0,
+    "abs": 0.05,
+    "unit": "",
+    "info": true
+   }
+  },
+  {
+   "id": "rollout|metal cockpit|p999",
+   "part": "rollout",
+   "what": "metal cockpit p999",
+   "value": 50,
+   "runs": 1,
+   "rule": {
+    "up": false,
+    "rel": 0.25,
+    "abs": 10,
+    "unit": "ms",
+    "info": true
+   }
+  },
+  {
+   "id": "rollout|metal cockpit|over3x",
+   "part": "rollout",
+   "what": "metal cockpit over3x",
+   "value": 0,
+   "runs": 1,
+   "rule": {
+    "up": false,
+    "rel": 0.25,
+    "abs": 0.002,
+    "unit": "",
+    "info": true
+   }
+  },
+  {
+   "id": "rollout|metal cockpit|over1s",
+   "part": "rollout",
+   "what": "metal cockpit over1s",
+   "value": 0,
+   "runs": 1,
+   "rule": {
+    "up": false,
+    "rel": 0,
+    "abs": 0,
+    "unit": "",
+    "info": true
+   }
+  },
+  {
+   "id": "rollout|metal cockpit|loop",
+   "part": "rollout",
+   "what": "metal cockpit loop",
+   "value": 16.7,
+   "runs": 1,
+   "rule": {
+    "up": false,
+    "rel": 0.1,
+    "abs": 0.8,
+    "unit": "ms",
+    "info": false
+   }
+  },
+  {
+   "id": "rollout|metal cockpit|render",
+   "part": "rollout",
+   "what": "metal cockpit render",
+   "value": 12.6,
+   "runs": 1,
+   "rule": {
+    "up": false,
+    "rel": 0.1,
+    "abs": 0.6,
+    "unit": "ms",
+    "info": false
+   }
+  },
+  {
+   "id": "rollout|metal cockpit|solver",
+   "part": "rollout",
+   "what": "metal cockpit solver",
+   "value": 0.1,
+   "runs": 1,
+   "rule": {
+    "up": false,
+    "rel": 0.15,
+    "abs": 0.6,
+    "unit": "ms",
+    "info": false
+   }
+  },
+  {
+   "id": "rollout|metal cockpit|over100",
+   "part": "rollout",
+   "what": "metal cockpit over100",
+   "value": 0,
+   "runs": 1,
+   "rule": {
+    "up": false,
+    "rel": 0,
+    "abs": 1,
+    "unit": "",
+    "info": false
+   }
+  },
+  {
+   "id": "rollout|metal cockpit|tasks1s",
+   "part": "rollout",
+   "what": "metal cockpit tasks1s",
+   "value": 0,
+   "runs": 1,
+   "rule": {
+    "up": false,
+    "rel": 0,
+    "abs": 1,
+    "unit": "",
+    "info": false
+   }
+  },
+  {
+   "id": "rollout|metal cockpit|tasks200",
+   "part": "rollout",
+   "what": "metal cockpit tasks200",
+   "value": 25,
+   "runs": 1,
+   "rule": {
+    "up": false,
+    "rel": 0.25,
+    "abs": 3,
+    "unit": "",
+    "info": false
+   }
+  },
+  {
+   "id": "rollout|metal cockpit|taskWorst",
+   "part": "rollout",
+   "what": "metal cockpit taskWorst",
+   "value": 794,
+   "runs": 1,
+   "rule": {
+    "up": false,
+    "rel": 0.15,
+    "abs": 150,
+    "unit": "ms",
+    "info": false
+   }
+  },
+  {
+   "id": "rollout|metal cockpit|slice",
+   "part": "rollout",
+   "what": "metal cockpit slice",
+   "value": 476,
+   "runs": 1,
+   "rule": {
+    "up": false,
+    "rel": 0.15,
+    "abs": 150,
+    "unit": "ms",
+    "info": false
+   }
+  },
+  {
+   "id": "rollout|metal cockpit|garage",
+   "part": "rollout",
+   "what": "metal cockpit garage",
+   "value": 40.467,
+   "runs": 1,
+   "rule": {
+    "up": false,
+    "rel": 0.1,
+    "abs": 3,
+    "unit": "s",
+    "info": false
+   }
+  },
+  {
+   "id": "rollout|metal cockpit|rollout",
+   "part": "rollout",
+   "what": "metal cockpit rollout",
+   "value": 3.454,
+   "runs": 1,
+   "rule": {
+    "up": false,
+    "rel": 0.1,
+    "abs": 1,
+    "unit": "s",
+    "info": false
+   }
+  },
+  {
+   "id": "rollout|metal cockpit|flight",
+   "part": "rollout",
+   "what": "metal cockpit flight",
+   "value": 43.921,
+   "runs": 1,
+   "rule": {
+    "up": false,
+    "rel": 0.08,
+    "abs": 3,
+    "unit": "s",
+    "info": false
+   }
+  },
+  {
+   "id": "rollout|metal cockpit|compile",
+   "part": "rollout",
+   "what": "metal cockpit compile",
+   "value": 2762,
+   "runs": 1,
+   "rule": {
+    "up": false,
+    "rel": 0.15,
+    "abs": 2000,
+    "unit": "ms",
+    "info": false
+   }
+  },
+  {
+   "id": "garage|cub fuseLen|sync",
+   "part": "garage",
+   "what": "cub fuseLen sync",
+   "value": 6.6,
+   "rule": {
+    "rel": 0.25,
+    "abs": 60,
+    "unit": "ms"
+   }
+  },
+  {
+   "id": "garage|cub fuseLen|busy",
+   "part": "garage",
+   "what": "cub fuseLen busy",
+   "value": 0,
+   "rule": {
+    "rel": 0.25,
+    "abs": 60,
+    "unit": "ms"
+   }
+  },
+  {
+   "id": "garage|cub fuseWidth|sync",
+   "part": "garage",
+   "what": "cub fuseWidth sync",
+   "value": 6.3,
+   "rule": {
+    "rel": 0.25,
+    "abs": 60,
+    "unit": "ms"
+   }
+  },
+  {
+   "id": "garage|cub fuseWidth|busy",
+   "part": "garage",
+   "what": "cub fuseWidth busy",
+   "value": 308,
+   "rule": {
+    "rel": 0.25,
+    "abs": 60,
+    "unit": "ms"
+   }
+  },
+  {
+   "id": "garage|cub wingSpan|sync",
+   "part": "garage",
+   "what": "cub wingSpan sync",
+   "value": 25.2,
+   "rule": {
+    "rel": 0.25,
+    "abs": 60,
+    "unit": "ms"
+   }
+  },
+  {
+   "id": "garage|cub wingSpan|busy",
+   "part": "garage",
+   "what": "cub wingSpan busy",
+   "value": 221,
+   "rule": {
+    "rel": 0.25,
+    "abs": 60,
+    "unit": "ms"
+   }
+  },
+  {
+   "id": "garage|cub wingChord|sync",
+   "part": "garage",
+   "what": "cub wingChord sync",
+   "value": 26.1,
+   "rule": {
+    "rel": 0.25,
+    "abs": 60,
+    "unit": "ms"
+   }
+  },
+  {
+   "id": "garage|cub wingChord|busy",
+   "part": "garage",
+   "what": "cub wingChord busy",
+   "value": 223,
+   "rule": {
+    "rel": 0.25,
+    "abs": 60,
+    "unit": "ms"
+   }
+  },
+  {
+   "id": "garage|cub tailSize|sync",
+   "part": "garage",
+   "what": "cub tailSize sync",
+   "value": 3.9,
+   "rule": {
+    "rel": 0.25,
+    "abs": 60,
+    "unit": "ms"
+   }
+  },
+  {
+   "id": "garage|cub tailSize|busy",
+   "part": "garage",
+   "what": "cub tailSize busy",
+   "value": 224,
+   "rule": {
+    "rel": 0.25,
+    "abs": 60,
+    "unit": "ms"
+   }
+  },
+  {
+   "id": "garage|cub gearTrack|sync",
+   "part": "garage",
+   "what": "cub gearTrack sync",
+   "value": 25.3,
+   "rule": {
+    "rel": 0.25,
+    "abs": 60,
+    "unit": "ms"
+   }
+  },
+  {
+   "id": "garage|cub gearTrack|busy",
+   "part": "garage",
+   "what": "cub gearTrack busy",
+   "value": 224,
+   "rule": {
+    "rel": 0.25,
+    "abs": 60,
+    "unit": "ms"
+   }
+  },
+  {
+   "id": "garage|cub engine|sync",
+   "part": "garage",
+   "what": "cub engine sync",
+   "value": 215.3,
+   "rule": {
+    "rel": 0.25,
+    "abs": 60,
+    "unit": "ms"
+   }
+  },
+  {
+   "id": "garage|cub engine|busy",
+   "part": "garage",
+   "what": "cub engine busy",
+   "value": 266,
+   "rule": {
+    "rel": 0.25,
+    "abs": 60,
+    "unit": "ms"
+   }
+  },
+  {
+   "id": "garage|cub tankCap|sync",
+   "part": "garage",
+   "what": "cub tankCap sync",
+   "value": 23.4,
+   "rule": {
+    "rel": 0.25,
+    "abs": 60,
+    "unit": "ms"
+   }
+  },
+  {
+   "id": "garage|cub tankCap|busy",
+   "part": "garage",
+   "what": "cub tankCap busy",
+   "value": 677,
+   "rule": {
+    "rel": 0.25,
+    "abs": 60,
+    "unit": "ms"
+   }
+  },
+  {
+   "id": "garage|cub livery|sync",
+   "part": "garage",
+   "what": "cub livery sync",
+   "value": 5.1,
+   "rule": {
+    "rel": 0.25,
+    "abs": 60,
+    "unit": "ms"
+   }
+  },
+  {
+   "id": "garage|cub livery|busy",
+   "part": "garage",
+   "what": "cub livery busy",
+   "value": 0,
+   "rule": {
+    "rel": 0.25,
+    "abs": 60,
+    "unit": "ms"
+   }
+  },
+  {
+   "id": "garage|cub frame|sync",
+   "part": "garage",
+   "what": "cub frame sync",
+   "value": 7.7,
+   "rule": {
+    "rel": 0.25,
+    "abs": 60,
+    "unit": "ms"
+   }
+  },
+  {
+   "id": "garage|cub frame|busy",
+   "part": "garage",
+   "what": "cub frame busy",
+   "value": 78,
+   "rule": {
+    "rel": 0.25,
+    "abs": 60,
+    "unit": "ms"
+   }
+  },
+  {
+   "id": "garage|metal fuseLen|sync",
+   "part": "garage",
+   "what": "metal fuseLen sync",
+   "value": 6.8,
+   "rule": {
+    "rel": 0.25,
+    "abs": 60,
+    "unit": "ms"
+   }
+  },
+  {
+   "id": "garage|metal fuseLen|busy",
+   "part": "garage",
+   "what": "metal fuseLen busy",
+   "value": 0,
+   "rule": {
+    "rel": 0.25,
+    "abs": 60,
+    "unit": "ms"
+   }
+  },
+  {
+   "id": "garage|metal fuseWidth|sync",
+   "part": "garage",
+   "what": "metal fuseWidth sync",
+   "value": 8.4,
+   "rule": {
+    "rel": 0.25,
+    "abs": 60,
+    "unit": "ms"
+   }
+  },
+  {
+   "id": "garage|metal fuseWidth|busy",
+   "part": "garage",
+   "what": "metal fuseWidth busy",
+   "value": 527,
+   "rule": {
+    "rel": 0.25,
+    "abs": 60,
+    "unit": "ms"
+   }
+  },
+  {
+   "id": "garage|metal wingSpan|sync",
+   "part": "garage",
+   "what": "metal wingSpan sync",
+   "value": 27.8,
+   "rule": {
+    "rel": 0.25,
+    "abs": 60,
+    "unit": "ms"
+   }
+  },
+  {
+   "id": "garage|metal wingSpan|busy",
+   "part": "garage",
+   "what": "metal wingSpan busy",
+   "value": 326,
+   "rule": {
+    "rel": 0.25,
+    "abs": 60,
+    "unit": "ms"
+   }
+  },
+  {
+   "id": "garage|metal wingChord|sync",
+   "part": "garage",
+   "what": "metal wingChord sync",
+   "value": 27.3,
+   "rule": {
+    "rel": 0.25,
+    "abs": 60,
+    "unit": "ms"
+   }
+  },
+  {
+   "id": "garage|metal wingChord|busy",
+   "part": "garage",
+   "what": "metal wingChord busy",
+   "value": 327,
+   "rule": {
+    "rel": 0.25,
+    "abs": 60,
+    "unit": "ms"
+   }
+  },
+  {
+   "id": "garage|metal tailSize|sync",
+   "part": "garage",
+   "what": "metal tailSize sync",
+   "value": 6.1,
+   "rule": {
+    "rel": 0.25,
+    "abs": 60,
+    "unit": "ms"
+   }
+  },
+  {
+   "id": "garage|metal tailSize|busy",
+   "part": "garage",
+   "what": "metal tailSize busy",
+   "value": 326,
+   "rule": {
+    "rel": 0.25,
+    "abs": 60,
+    "unit": "ms"
+   }
+  },
+  {
+   "id": "garage|metal gearTrack|sync",
+   "part": "garage",
+   "what": "metal gearTrack sync",
+   "value": 22.3,
+   "rule": {
+    "rel": 0.25,
+    "abs": 60,
+    "unit": "ms"
+   }
+  },
+  {
+   "id": "garage|metal gearTrack|busy",
+   "part": "garage",
+   "what": "metal gearTrack busy",
+   "value": 0,
+   "rule": {
+    "rel": 0.25,
+    "abs": 60,
+    "unit": "ms"
+   }
+  },
+  {
+   "id": "garage|metal engine|sync",
+   "part": "garage",
+   "what": "metal engine sync",
+   "value": 265.9,
+   "rule": {
+    "rel": 0.25,
+    "abs": 60,
+    "unit": "ms"
+   }
+  },
+  {
+   "id": "garage|metal engine|busy",
+   "part": "garage",
+   "what": "metal engine busy",
+   "value": 322,
+   "rule": {
+    "rel": 0.25,
+    "abs": 60,
+    "unit": "ms"
+   }
+  },
+  {
+   "id": "garage|metal tankCap|sync",
+   "part": "garage",
+   "what": "metal tankCap sync",
+   "value": 30.4,
+   "rule": {
+    "rel": 0.25,
+    "abs": 60,
+    "unit": "ms"
+   }
+  },
+  {
+   "id": "garage|metal tankCap|busy",
+   "part": "garage",
+   "what": "metal tankCap busy",
+   "value": 1018,
+   "rule": {
+    "rel": 0.25,
+    "abs": 60,
+    "unit": "ms"
+   }
+  },
+  {
+   "id": "garage|metal livery|sync",
+   "part": "garage",
+   "what": "metal livery sync",
+   "value": 5.7,
+   "rule": {
+    "rel": 0.25,
+    "abs": 60,
+    "unit": "ms"
+   }
+  },
+  {
+   "id": "garage|metal livery|busy",
+   "part": "garage",
+   "what": "metal livery busy",
+   "value": 0,
+   "rule": {
+    "rel": 0.25,
+    "abs": 60,
+    "unit": "ms"
+   }
+  },
+  {
+   "id": "garage|metal frame|sync",
+   "part": "garage",
+   "what": "metal frame sync",
+   "value": 7.8,
+   "rule": {
+    "rel": 0.25,
+    "abs": 60,
+    "unit": "ms"
+   }
+  },
+  {
+   "id": "garage|metal frame|busy",
+   "part": "garage",
+   "what": "metal frame busy",
+   "value": 0,
+   "rule": {
+    "rel": 0.25,
+    "abs": 60,
+    "unit": "ms"
+   }
+  },
+  {
+   "id": "garage|cub ALL|sync",
+   "part": "garage",
+   "what": "cub every change, sync summed",
+   "value": 344.9,
+   "rule": {
+    "rel": 0.06,
+    "abs": 60,
+    "unit": "ms"
+   }
+  },
+  {
+   "id": "garage|cub ALL|busy",
+   "part": "garage",
+   "what": "cub every change, busy summed",
+   "value": 2221,
+   "rule": {
+    "rel": 0.06,
+    "abs": 60,
+    "unit": "ms"
+   }
+  },
+  {
+   "id": "garage|metal ALL|sync",
+   "part": "garage",
+   "what": "metal every change, sync summed",
+   "value": 408.5,
+   "rule": {
+    "rel": 0.06,
+    "abs": 60,
+    "unit": "ms"
+   }
+  },
+  {
+   "id": "garage|metal ALL|busy",
+   "part": "garage",
+   "what": "metal every change, busy summed",
+   "value": 2846,
+   "rule": {
+    "rel": 0.06,
+    "abs": 60,
+    "unit": "ms"
+   }
+  },
+  {
+   "id": "bench|cub warm: navigation -> garage|sec",
+   "part": "bench",
+   "what": "cub warm: navigation -> garage",
+   "value": 47.6,
+   "rule": {
+    "rel": 0.1,
+    "abs": 4,
+    "unit": "s"
+   }
+  },
+  {
+   "id": "bench|cub warm: navigation -> garage|links5s",
+   "part": "bench",
+   "what": "cub warm: navigation -> garage links over 5 s (a cache miss)",
+   "value": 3,
+   "rule": {
+    "rel": 0,
+    "abs": 0,
+    "unit": "",
+    "info": true
+   }
+  },
+  {
+   "id": "bench|cub garage -> world (first) @HOME|sec",
+   "part": "bench",
+   "what": "cub garage -> world (first) @HOME",
+   "value": 9.15,
+   "rule": {
+    "rel": 0.15,
+    "abs": 1.5,
+    "unit": "s"
+   }
+  },
+  {
+   "id": "bench|cub garage -> world (first) @HOME|taskWorst",
+   "part": "bench",
+   "what": "cub garage -> world (first) @HOME worst task",
+   "value": 268,
+   "rule": {
+    "rel": 0.15,
+    "abs": 150,
+    "unit": "ms"
+   }
+  },
+  {
+   "id": "bench|cub warm: first flight|sec",
+   "part": "bench",
+   "what": "cub warm: first flight",
+   "value": 56.9,
+   "rule": {
+    "rel": 0.1,
+    "abs": 4,
+    "unit": "s"
+   }
+  },
+  {
+   "id": "bench|cub world -> garage @HOME|sec",
+   "part": "bench",
+   "what": "cub world -> garage @HOME",
+   "value": 0.24,
+   "rule": {
+    "rel": 0.15,
+    "abs": 1.5,
+    "unit": "s"
+   }
+  },
+  {
+   "id": "bench|cub world -> garage @HOME|taskWorst",
+   "part": "bench",
+   "what": "cub world -> garage @HOME worst task",
+   "value": 80,
+   "rule": {
+    "rel": 0.15,
+    "abs": 150,
+    "unit": "ms"
+   }
+  },
+  {
+   "id": "bench|cub round trip 2: garage -> world|sec",
+   "part": "bench",
+   "what": "cub round trip 2: garage -> world",
+   "value": 8.87,
+   "rule": {
+    "rel": 0.15,
+    "abs": 1.5,
+    "unit": "s"
+   }
+  },
+  {
+   "id": "bench|cub round trip 2: garage -> world|taskWorst",
+   "part": "bench",
+   "what": "cub round trip 2: garage -> world worst task",
+   "value": 0,
+   "rule": {
+    "rel": 0.15,
+    "abs": 150,
+    "unit": "ms"
+   }
+  },
+  {
+   "id": "bench|cub round trip 2: world -> garage|sec",
+   "part": "bench",
+   "what": "cub round trip 2: world -> garage",
+   "value": 0.17,
+   "rule": {
+    "rel": 0.15,
+    "abs": 1.5,
+    "unit": "s"
+   }
+  },
+  {
+   "id": "bench|cub garage -> world @mn_strip|sec",
+   "part": "bench",
+   "what": "cub garage -> world @mn_strip",
+   "value": 25.48,
+   "rule": {
+    "rel": 0.15,
+    "abs": 1.5,
+    "unit": "s"
+   }
+  },
+  {
+   "id": "bench|cub garage -> world @mn_strip|taskWorst",
+   "part": "bench",
+   "what": "cub garage -> world @mn_strip worst task",
+   "value": 243,
+   "rule": {
+    "rel": 0.15,
+    "abs": 150,
+    "unit": "ms"
+   }
+  },
+  {
+   "id": "bench|cub world -> garage @mn_strip|sec",
+   "part": "bench",
+   "what": "cub world -> garage @mn_strip",
+   "value": 0.23,
+   "rule": {
+    "rel": 0.15,
+    "abs": 1.5,
+    "unit": "s"
+   }
+  },
+  {
+   "id": "bench|floats warm: navigation -> garage|sec",
+   "part": "bench",
+   "what": "floats warm: navigation -> garage",
+   "value": 53.7,
+   "rule": {
+    "rel": 0.1,
+    "abs": 4,
+    "unit": "s"
+   }
+  },
+  {
+   "id": "bench|floats warm: navigation -> garage|links5s",
+   "part": "bench",
+   "what": "floats warm: navigation -> garage links over 5 s (a cache miss)",
+   "value": 3,
+   "rule": {
+    "rel": 0,
+    "abs": 0,
+    "unit": "",
+    "info": true
+   }
+  },
+  {
+   "id": "bench|floats garage -> world (the SEA lane)|sec",
+   "part": "bench",
+   "what": "floats garage -> world (the SEA lane)",
+   "value": 0.02,
+   "rule": {
+    "rel": 0.15,
+    "abs": 1.5,
+    "unit": "s"
+   }
+  },
+  {
+   "id": "bench|floats world -> garage|sec",
+   "part": "bench",
+   "what": "floats world -> garage",
+   "value": 0.27,
+   "rule": {
+    "rel": 0.15,
+    "abs": 1.5,
+    "unit": "s"
+   }
+  },
+  {
+   "id": "bench|floats world -> garage|taskWorst",
+   "part": "bench",
+   "what": "floats world -> garage worst task",
+   "value": 67,
+   "rule": {
+    "rel": 0.15,
+    "abs": 150,
+    "unit": "ms"
+   }
+  },
+  {
+   "id": "bench|cub garage|fps",
+   "part": "bench",
+   "what": "cub garage fps",
+   "value": 30,
+   "rule": {
+    "up": true,
+    "rel": 0.05,
+    "abs": 1,
+    "unit": "fps"
+   }
+  },
+  {
+   "id": "bench|cub garage|p99",
+   "part": "bench",
+   "what": "cub garage p99",
+   "value": 33.5,
+   "rule": {
+    "rel": 0.1,
+    "abs": 17,
+    "unit": "ms"
+   }
+  },
+  {
+   "id": "bench|cub garage|over15",
+   "part": "bench",
+   "what": "cub garage over15",
+   "value": 0,
+   "rule": {
+    "rel": 0.2,
+    "abs": 0.02,
+    "unit": ""
+   }
+  },
+  {
+   "id": "bench|cub garage|over100",
+   "part": "bench",
+   "what": "cub garage over100",
+   "value": 0,
+   "rule": {
+    "rel": 0,
+    "abs": 1,
+    "unit": ""
+   }
+  },
+  {
+   "id": "bench|cub garage|taskWorst",
+   "part": "bench",
+   "what": "cub garage taskWorst",
+   "value": 0,
+   "rule": {
+    "rel": 0.15,
+    "abs": 150,
+    "unit": "ms"
+   }
+  },
+  {
+   "id": "bench|cub garage|tasks1s",
+   "part": "bench",
+   "what": "cub garage tasks1s",
+   "value": 0,
+   "rule": {
+    "rel": 0,
+    "abs": 0,
+    "unit": ""
+   }
+  },
+  {
+   "id": "bench|cub garage|p999",
+   "part": "bench",
+   "what": "cub garage p999",
+   "value": 33.5,
+   "rule": {
+    "rel": 0.25,
+    "abs": 10,
+    "unit": "ms",
+    "info": true
+   }
+  },
+  {
+   "id": "bench|cub garage|over3x",
+   "part": "bench",
+   "what": "cub garage over3x",
+   "value": 0,
+   "rule": {
+    "rel": 0.25,
+    "abs": 0.002,
+    "unit": "",
+    "info": true
+   }
+  },
+  {
+   "id": "bench|cub garage|uneven",
+   "part": "bench",
+   "what": "cub garage uneven",
+   "value": 0,
+   "rule": {
+    "rel": 0,
+    "abs": 0.05,
+    "unit": "",
+    "info": true
+   }
+  },
+  {
+   "id": "bench|cub taxi chase @HOME|fps",
+   "part": "bench",
+   "what": "cub taxi chase @HOME fps",
+   "value": 30,
+   "rule": {
+    "up": true,
+    "rel": 0.05,
+    "abs": 1,
+    "unit": "fps"
+   }
+  },
+  {
+   "id": "bench|cub taxi chase @HOME|p99",
+   "part": "bench",
+   "what": "cub taxi chase @HOME p99",
+   "value": 33.5,
+   "rule": {
+    "rel": 0.1,
+    "abs": 17,
+    "unit": "ms"
+   }
+  },
+  {
+   "id": "bench|cub taxi chase @HOME|over15",
+   "part": "bench",
+   "what": "cub taxi chase @HOME over15",
+   "value": 0,
+   "rule": {
+    "rel": 0.2,
+    "abs": 0.02,
+    "unit": ""
+   }
+  },
+  {
+   "id": "bench|cub taxi chase @HOME|over100",
+   "part": "bench",
+   "what": "cub taxi chase @HOME over100",
+   "value": 0,
+   "rule": {
+    "rel": 0,
+    "abs": 1,
+    "unit": ""
+   }
+  },
+  {
+   "id": "bench|cub taxi chase @HOME|taskWorst",
+   "part": "bench",
+   "what": "cub taxi chase @HOME taskWorst",
+   "value": 0,
+   "rule": {
+    "rel": 0.15,
+    "abs": 150,
+    "unit": "ms"
+   }
+  },
+  {
+   "id": "bench|cub taxi chase @HOME|tasks1s",
+   "part": "bench",
+   "what": "cub taxi chase @HOME tasks1s",
+   "value": 0,
+   "rule": {
+    "rel": 0,
+    "abs": 0,
+    "unit": ""
+   }
+  },
+  {
+   "id": "bench|cub taxi chase @HOME|p999",
+   "part": "bench",
+   "what": "cub taxi chase @HOME p999",
+   "value": 33.6,
+   "rule": {
+    "rel": 0.25,
+    "abs": 10,
+    "unit": "ms",
+    "info": true
+   }
+  },
+  {
+   "id": "bench|cub taxi chase @HOME|over3x",
+   "part": "bench",
+   "what": "cub taxi chase @HOME over3x",
+   "value": 0,
+   "rule": {
+    "rel": 0.25,
+    "abs": 0.002,
+    "unit": "",
+    "info": true
+   }
+  },
+  {
+   "id": "bench|cub taxi chase @HOME|uneven",
+   "part": "bench",
+   "what": "cub taxi chase @HOME uneven",
+   "value": 0,
+   "rule": {
+    "rel": 0,
+    "abs": 0.05,
+    "unit": "",
+    "info": true
+   }
+  },
+  {
+   "id": "bench|cub taxi chase @mn_strip|fps",
+   "part": "bench",
+   "what": "cub taxi chase @mn_strip fps",
+   "value": 30,
+   "rule": {
+    "up": true,
+    "rel": 0.05,
+    "abs": 1,
+    "unit": "fps"
+   }
+  },
+  {
+   "id": "bench|cub taxi chase @mn_strip|p99",
+   "part": "bench",
+   "what": "cub taxi chase @mn_strip p99",
+   "value": 33.6,
+   "rule": {
+    "rel": 0.1,
+    "abs": 17,
+    "unit": "ms"
+   }
+  },
+  {
+   "id": "bench|cub taxi chase @mn_strip|over15",
+   "part": "bench",
+   "what": "cub taxi chase @mn_strip over15",
+   "value": 0,
+   "rule": {
+    "rel": 0.2,
+    "abs": 0.02,
+    "unit": ""
+   }
+  },
+  {
+   "id": "bench|cub taxi chase @mn_strip|over100",
+   "part": "bench",
+   "what": "cub taxi chase @mn_strip over100",
+   "value": 0,
+   "rule": {
+    "rel": 0,
+    "abs": 1,
+    "unit": ""
+   }
+  },
+  {
+   "id": "bench|cub taxi chase @mn_strip|taskWorst",
+   "part": "bench",
+   "what": "cub taxi chase @mn_strip taskWorst",
+   "value": 60,
+   "rule": {
+    "rel": 0.15,
+    "abs": 150,
+    "unit": "ms"
+   }
+  },
+  {
+   "id": "bench|cub taxi chase @mn_strip|tasks1s",
+   "part": "bench",
+   "what": "cub taxi chase @mn_strip tasks1s",
+   "value": 0,
+   "rule": {
+    "rel": 0,
+    "abs": 0,
+    "unit": ""
+   }
+  },
+  {
+   "id": "bench|cub taxi chase @mn_strip|p999",
+   "part": "bench",
+   "what": "cub taxi chase @mn_strip p999",
+   "value": 50,
+   "rule": {
+    "rel": 0.25,
+    "abs": 10,
+    "unit": "ms",
+    "info": true
+   }
+  },
+  {
+   "id": "bench|cub taxi chase @mn_strip|over3x",
+   "part": "bench",
+   "what": "cub taxi chase @mn_strip over3x",
+   "value": 0,
+   "rule": {
+    "rel": 0.25,
+    "abs": 0.002,
+    "unit": "",
+    "info": true
+   }
+  },
+  {
+   "id": "bench|cub taxi chase @mn_strip|uneven",
+   "part": "bench",
+   "what": "cub taxi chase @mn_strip uneven",
+   "value": 0.02,
+   "rule": {
+    "rel": 0,
+    "abs": 0.05,
+    "unit": "",
+    "info": true
+   }
+  },
+  {
+   "id": "bench|floats water taxi @SEA|fps",
+   "part": "bench",
+   "what": "floats water taxi @SEA fps",
+   "value": 29.9,
+   "rule": {
+    "up": true,
+    "rel": 0.05,
+    "abs": 1,
+    "unit": "fps"
+   }
+  },
+  {
+   "id": "bench|floats water taxi @SEA|p99",
+   "part": "bench",
+   "what": "floats water taxi @SEA p99",
+   "value": 33.5,
+   "rule": {
+    "rel": 0.1,
+    "abs": 17,
+    "unit": "ms"
+   }
+  },
+  {
+   "id": "bench|floats water taxi @SEA|over15",
+   "part": "bench",
+   "what": "floats water taxi @SEA over15",
+   "value": 0.005,
+   "rule": {
+    "rel": 0.2,
+    "abs": 0.02,
+    "unit": ""
+   }
+  },
+  {
+   "id": "bench|floats water taxi @SEA|over100",
+   "part": "bench",
+   "what": "floats water taxi @SEA over100",
+   "value": 0,
+   "rule": {
+    "rel": 0,
+    "abs": 1,
+    "unit": ""
+   }
+  },
+  {
+   "id": "bench|floats water taxi @SEA|taskWorst",
+   "part": "bench",
+   "what": "floats water taxi @SEA taskWorst",
+   "value": 80,
+   "rule": {
+    "rel": 0.15,
+    "abs": 150,
+    "unit": "ms"
+   }
+  },
+  {
+   "id": "bench|floats water taxi @SEA|tasks1s",
+   "part": "bench",
+   "what": "floats water taxi @SEA tasks1s",
+   "value": 0,
+   "rule": {
+    "rel": 0,
+    "abs": 0,
+    "unit": ""
+   }
+  },
+  {
+   "id": "bench|floats water taxi @SEA|p999",
+   "part": "bench",
+   "what": "floats water taxi @SEA p999",
+   "value": 66.7,
+   "rule": {
+    "rel": 0.25,
+    "abs": 10,
+    "unit": "ms",
+    "info": true
+   }
+  },
+  {
+   "id": "bench|floats water taxi @SEA|over3x",
+   "part": "bench",
+   "what": "floats water taxi @SEA over3x",
+   "value": 0,
+   "rule": {
+    "rel": 0.25,
+    "abs": 0.002,
+    "unit": "",
+    "info": true
+   }
+  },
+  {
+   "id": "bench|floats water taxi @SEA|uneven",
+   "part": "bench",
+   "what": "floats water taxi @SEA uneven",
+   "value": 0.017,
+   "rule": {
+    "rel": 0,
+    "abs": 0.05,
+    "unit": "",
+    "info": true
+   }
+  }
+ ]
+}
