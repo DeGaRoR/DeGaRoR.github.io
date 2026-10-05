@@ -193,6 +193,12 @@ const GATES = [
   // swept 0-5 m/s on the twin and the Cessna on floats, every failure classed (yaw loop / nose-over at the plough); a
   // 0.3 rad/s yaw kick at rest, the hump and the step against DMG-DAMP's before / after. 42 runs in its own children
   { id: 'DMGHULL', file: '_dmghull_check.js', tier: 'full', weight: 4, wall: 1800 },
+  // G1809 (DMG-PLOUGH): the plough - the plough wave (G1807, shipped OFF) on the bench forced on: zero at rest and dry,
+  // whole to Fn 0.5, gone by Fn 1 (on the step); the calm take-off's keel trim at the hump against the tank band (8-12
+  // deg: the Cessna on floats asserted, the twin OWED), the twin with its thrust at the nose frame (an INSTRUMENT: its
+  // floats trim it nose-up through the plough, so the nose-down is its thrust couple); GATE SEAPLANE's crosswind
+  // take-off swept 0-5 m/s on both floatplanes and on the instrumented twin, every failure classed. 37 runs in children
+  { id: 'DMGPLOUGH', file: '_dmgplough_check.js', tier: 'full', weight: 4, wall: 900 },
   // G286: the graphics settings menu - presets, the pref, the handles
   { id: 'GFX', file: '_gfx_check.js', tier: 'core' },
   // G584: the programs - the real three on a fake GL: the depth warm-up is the shadow pass's own set, two

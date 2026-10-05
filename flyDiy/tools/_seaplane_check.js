@@ -110,6 +110,10 @@ if (ONLY.includes('crosswind')) {
 // m/s, the pitch to -70..-89 deg, the heading reads 180 once the nose has gone through the vertical) - on the base and
 // with the hull's side force (G1847) alike, at 2, 4, 4.5 and 5 m/s; the side force cannot hold a pitch. GATE DMGHULL
 // sweeps 0-5 m/s and classes every failure; HANDOVER G1847-G1849, open question 1.
+// G1808 (DMG-PLOUGH): STILL NOT RESTORED. The plough's bow-up trim is already in the water law; the nose-over is the
+// twin's own thrust couple (two engines 0.57 m over the CG, the water drag 1.5 m under it) beating its floats' nose-down
+// restoring once the afterbody unwets - with the thrust put 0.17 m over the CG (an instrument) it is clean 0-5 m/s.
+// GATE DMGPLOUGH; HANDOVER G1807-G1809, open question 1 (the pilot's power at the plough, or the build).
 const XW = 0.2 * (def.params.gen.VsFlap || def.params.gen.Vs);
 console.log(`\nCROSSWIND TAKE-OFF (${f(XW, 1)} m/s across the lane = 0.2 V_SO, FAR 23.233)`);
   const R = fly({ wind: [XW, 0, 0], untilPhase: 'CLIMB', maxS: 120 });

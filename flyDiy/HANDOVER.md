@@ -74690,6 +74690,231 @@ final code), first_cut/ (the first cut's gate and perf runs)).
 The base: 4f1eec0, a merge of origin/master (train 33) into claude/dmg-damp 8a22a4f9. Only HANDOVER conflicted
 (both kept). That brings GEAR-WATER 2's wet body under DMG-DAMP, which DMG-DAMP's own entry said it owed.
 The generated files (flight_core.js, index.html, dev.html, sw.js, version.json) are NOT committed.
+## G1807-G1809 DMG-PLOUGH: THE PLOUGH'S BOW-UP TRIM IS ALREADY IN THE WATER LAW - THE TWIN NOSES OVER ON ITS OWN THRUST COUPLE; THE PLOUGH WAVE IS BUILT, MEASURED AND SHIPPED OFF; G1808'S ACCEPTANCE IS NOT MET (2026-10-05, DMG-PLOUGH for the DEFORM COORDINATOR, cloud, node only; branch claude/dmg-plough off claude/dmg-hull 412e0c19 + origin/master train 34 merged in, 6d9bdf7)
+
+**Read this first, coordinator: DMG-HULL's open question 1 had the diagnosis wrong, and the term the brief asked for
+does the opposite of what it hoped.**
+1. **The bow-up plough trim is IN the base's water law.** The twin's own float on the rigid bench, its load at the
+   aeroplane's CG and no thrust: zero-moment trim +5 deg up to 3 m/s, **+9.5 deg at 4 m/s (C_V 1.8)**, and GATE
+   HYDRODYN's free tow already peaks at 19.8 deg at its hump. The forebody's planing pressure (Savitsky) and the
+   ventilated step's wake make it; no wave system is needed for it.
+2. **What drives the twin nose-down is its own thrust couple.** Two Rotax 582s (2 x 1206 N static, T/W 0.52) sit
+   0.57 m over the CG, and the water drag acts 1.5 m under it: ~1.3 + 1.2 = **~2.5 kN m nose-down at 4 m/s**. Once
+   the afterbody unwets, the floats' nose-down restoring tops out at **~1.4 kN m per float** (-5 and -10 deg alike,
+   bench), and past ~-20 deg the CG (1.54 m over the step keel) passes ahead of the centre of buoyancy. Proof by
+   instrument (not a build change): **the twin with its thrust applied at the nose frame's upper nodes (0.17 m over
+   the CG) never trims nose-down (lowest keel trim +1.5 deg), and it does not nose over or water-loop at ANY crosswind
+   0-5 m/s** (worst swing 21 deg at 5 m/s). Same hydro, same pilot, same floats.
+3. **The plough wave (G1807) is built and SHIPPED OFF (kWave 0; the base to the bit).** On, it pitches the twin over in
+   CALM air: nose-down, its crest sits on the narrow bow and its first trough on the wide forebody just ahead of the
+   CG, so it takes restoring away. Nose-up, it adds 1-2 kN m per float: far more than the 1-2 deg of dynamic trim
+   that slender-ship theory and the tank series give a hull this slender at Fn 0.5. Nothing honest in the displacement
+   regime's wave system lifts a nose-down bow.
+4. **G1808's acceptance is NOT met**: the twin as built still noses over at 2, 4, 4.5 and 5 m/s across (and swings
+   30.7 deg at 3.5). GATE SEAPLANE stays at 0.2 V_SO. The Cessna on floats is unchanged to the bit and clean at every
+   wind. The way forward is the user's (open question 1): the pilot's power at the plough, or the build.
+
+### G1807 - THE LAW (32_hydro.js `ploughWave`, (0) in `hydroPanels`; DEF.kWave 0 = OFF, waveFn0 0.5, waveFn1 1.0)
+- **What it is:** the hull's own Kelvin transverse wave in the displacement regime, applied as a deformation of the free
+  surface the panels are clipped against (so the existing hydrostatic integration carries it; the linear free surface's
+  dynamic pressure at the waterline is rho g eta). For each float, each compute:
+  - **eta(x) = a cos(k (x - x_e))** aft of the keel's still-water wet entry x_e; the crest a ahead of it (up the stem).
+    **k = g / U^2**, U the speed through the water along the float.
+  - **a = kWave 2.2 (U^2/g) tan(alpha_E) / (1 + F_D) env(Fn).** Noblesse, Delhommeau, Guilbaud, Hendrix & Yang 2008
+    (J. Fluid Mech. 600, "Simple analytical relations for ship bow waves") give the bow wave's height as
+    z_b g/U^2 = 2.2 tan(alpha_E)/(1 + F_D), with F_D = U/sqrt(g D); its scatter is ~+-20 %. Both hull numbers are this
+    float's own at this instant: D is the deepest keel draft. alpha_E is the waterline entrance half-angle, read half a
+    beam aft of the entry as the keel's depth over tan(deadrise), capped at the chine (tan alpha_E <= 1). Recalled; A0
+    to open.
+  - **env(Fn), Fn = U / sqrt(g L_wl)** (L_wl the wetted keel): whole to Fn 0.5 (lambda/2 = 1.6 L_wl, the first trough
+    past the stern: a displacement hull's hump). A half-cosine fade to **nothing at Fn 1.0** (lambda = 2 pi L_wl,
+    C_V ~3 on these floats: the float's resistance hump, onto the step, where Savitsky's planing law and the
+    ventilated wake carry the hull). Behind the step the wave yields to the forebody's wake by (1 - vent) at every
+    speed: that wake IS the trough at planing speed.
+  - **Zero at rest** (a ~ U^2; U = 0 is bit-identical to off), **zero dry** (no keel station wet), none backing.
+  - **Floats only:** GEAR-WATER 2's wet body (a ditching wheeled fuselage) carries none. It is not a displacement hull
+    at speed, and a ditching is a second or two of deceleration through the plough.
+- **Measured on the bench, forced on** (GATE DMGPLOUGH LAW; `law.svg`; the keel 4 deg, the float's share of the
+  weight): the amplitude peaks at Fn 0.62 (twin, 0.62 m at 3.8 m/s) / 0.60 (Cessna, 0.74 m at 4.7 m/s). It is 0 m,
+  0 N and 0 N m at every Fn >= 1. Its pitching moment at that pose is nose-UP 2.4 kN m (twin) / 17 kN m (Cessna):
+  **out of all proportion to the 1-2 deg of dynamic trim a slender hull at Fn 0.5 gets from its wave system** (thin-ship
+  sinkage-and-trim theory, Tuck 1966; the Wigley and Series 60 tank data: ~0.5-2 deg; recalled, A0 to open). A
+  float's 8-12 deg at the hump is the planing forebody and the step, as the free tow shows, not this.
+- **What it does on the water** (kWave on; the calm take-off, THE PILOT, SEA):
+
+| build | kWave 0 (base) | 0.25 | 0.5 | 1 |
+|---|---|---|---|---|
+| twin: pitch on the water, min .. max (deg) | -7.7 .. 11.1 | -7.9 .. 12.0 | **-88.5 (NOSE-OVER)** .. 20.3 | **-88 (NOSE-OVER)** |
+| Cessna: max pitch on the water (deg) | 14.9 | - | 14.2 | 13.6 |
+
+  **SHIPPED OFF.** It cannot help the twin, and calibrated to the slender-ship magnitude it is inert. The code stays as the
+  measured instrument it is (kWave, like defDampMean and kSide 0): one constant turns it on, and GATE DMGPLOUGH keeps its
+  law asserted.
+
+### G1808 - THE ACCEPTANCE: NOT MET (and why)
+**THE HUMP TRIM** (the calm take-off; the KEEL trim = the forebody's flat keel against the level, what a towing tank
+measures; the hump = the floats' water resistance at its maximum over C_V <= 4, 0.5 s smoothed; the band 8-12 deg at
+the hump from free-to-trim tank tests of floats and flying-boat hulls - NACA TN 716, Parkinson, Olson & House 1939, and
+the Langley tank's hull series; recalled, A0 to open; a prismatic planing boat reads 4-7 deg, Savitsky 1964, Clement &
+Blount 1963):
+
+| build | hump (V, C_V, Fn_L, R/W) | keel trim at the hump | lowest keel trim on the run | highest, C_V 1.5-4 | lift-off |
+|---|---|---|---|---|---|
+| twin, as built (= before = after: the wave ships off) | 4.7 m/s, 2.15, 0.76, 0.318 | **-7.0 deg** | -7.4 deg at 4.3 m/s | 9.5 | 8.3 s |
+| twin, INSTRUMENT: thrust at the nose frame | 8.8 m/s, 3.99, 1.41, 0.052 | +5.3 | **+1.5** | 14.8 | 6.4 s |
+| twin, the wave ON | 4.6 m/s, 2.07, 0.73, 0.782 | -58 | -67 | - | NOSE-OVER |
+| Cessna, as built (= before = after) | 6.1 m/s, 2.34, 0.73, 0.081 | **8.2 deg** (in the band) | +2.3 | 15.1 (porpoising past C_V 3) | 30.5 s |
+| Cessna, the wave ON | 3.0 m/s, 1.14, 0.36, 0.109 | 3.1 | 2.2 | 14.1 | 31.7 s |
+
+- The Cessna sits in the band at its hump, with 0.2 deg of margin over the floor. It porpoises above the band on the
+  step (the 15 deg peaks), as it did before.
+- The twin, as built, ploughs nose-down at C_V 1.5-2.3 and its "hump" is that dive. Its own float, freed of the thrust
+  couple, trims as a float should: never nose-down, peaking 14.8 deg (above the band, as HYDRODYN's free tow does).
+- **The bench budget at the dip** (`dmgplough_bench.js twin`, one float, its share of the weight; nose-up moment about
+  the CG, N m):
+
+| V (m/s) | -10 deg | -5 | 0 | +5 | +10 |
+|---|---|---|---|---|---|
+| 1 | 1407 | 1405 | 867 | -23 | -124 |
+| 2 | 1354 | 1382 | 902 | -7 | -163 |
+| 3 | 1265 | 1418 | 1061 | 95 | -203 |
+| 4 | 1126 | 1420 | 1425 | 553 | -56 |
+
+  The zero-moment trim is the float's own: +5 deg, then ~+9.5 at 4 m/s. Nose-down, the restoring saturates at
+  ~1.4 kN m per float, 2.8 for the pair. The applied couple at 4 m/s is thrust ~2300 N x 0.57 m + water drag ~780 N
+  x 1.54 m = ~2.5 kN m: the twin settles at -7.6 deg in calm air, and any crosswind perturbation tips it past -20 deg,
+  where the water pitches it over (DMG-HULL's finding).
+- **A pilot's power at the plough** (an INSTRUMENT in `dmgplough_trace.js --thrCap`, the pilot unchanged): the throttle
+  held at 0.7-0.8 until 6 m/s keeps the twin's dip to -2..-6 deg, calm and 4 m/s across, with no nose-over. At 0.6 it
+  still noses over at 4 m/s across (slower through the hump, longer in the danger zone). So power management works
+  but is narrow. Not shipped: it is the pilot's law (43 / 39b), not water physics, and the user's call (open question 1).
+
+**THE SWEEP** (GATE SEAPLANE's crosswind take-off, THE PILOT, SEA; before = after for both builds as built, the wave
+shipping off; bit-identical cores):
+
+| across (m/s) | twin as built | twin, INSTRUMENT (thrust at the nose frame) | Cessna on floats |
+|---|---|---|---|
+| 0 | 8.3 s, 0.0 deg, pitch min -7.7 | 6.4 s, 0.0, 0.0 | 30.5 s, 0.0 |
+| 0.5 | 8.3, 1.8, -7.7 | 6.4, 1.9, 0.0 | 30.6, 0.3 |
+| 1.0 | 8.2, 2.9, -7.6 | 6.4, 2.1, 0.0 | 30.3, 1.0 |
+| 1.5 | 7.8, 5.1, -8.6 | 5.6, 2.8, -1.3 | 30.1, 0.9 |
+| 2.0 | **NOSE-OVER (-89)** | 5.8, 3.9, 0.0 | 28.7, 4.7 |
+| 2.5 | 8.4, 8.5, -8.7 | 6.4, 8.9, 0.0 | 31.3, 1.3 |
+| 3.0 | 7.8, 10.3, -8.3 | 5.5, 6.3, 0.0 | 30.2, 7.7 |
+| 3.5 | 7.0, **30.7 (yaw)**, -7.7 | 5.7, 6.5, -1.1 | 30.4, 9.4 |
+| 4.0 | **NOSE-OVER (-88)** | 6.1, 9.4, 0.0 | 29.6, 5.1 |
+| 4.5 | **NOSE-OVER (-80)** | 6.5, 16.1, -5.5 | 30.9, 12.0 |
+| 5.0 | **NOSE-OVER (-72)** | 4.7, 21.2, -4.4 | 33.2, 14.0 |
+
+- As built, the twin's row is DMG-HULL's to the digit: the train 34 merge (PILOT-FORKS' servo module carrying G1888's
+  waterStepK) moved nothing here.
+- **The instrumented twin is clean at every wind, nose-over and yaw alike.** The 3.5 m/s yaw swing goes too: it was
+  a skip-and-swing out of a nose-down run, so the thrust couple feeds DMG-HULL's open question 2 as well.
+- The Cessna is clean everywhere, unchanged (lane 7.7 m, swing 14.0 deg at worst).
+- **GATE SEAPLANE's crosswind bar stays at 0.2 V_SO (3.3 m/s).** 5 m/s is not restored: the twin noses over there.
+
+**THE SIDE FORCE'S CENTRE AT A REALISTIC HUMP TRIM** (DMG-HULL's open question 2(c); `dmgplough_side.js`; the rigid
+bench at DMG-HULL's hump speed and vertical load, the draft found for each trim, 3 deg of slip; + = aft of the CG):
+
+| trim (deg) | twin: side N / centre from step / from CG (m) | Cessna: side N / from step / from CG (m) |
+|---|---|---|
+| 4.6 | 287 / -0.93 / -0.71 | 849 / -1.15 / -0.48 |
+| 8 | 357 / -0.69 / -0.47 | 901 / -0.73 / -0.06 |
+| 10 | 365 / -0.57 / -0.35 | 790 / -0.56 / **+0.11** |
+| 12 | 391 / -0.50 / -0.28 | 610 / -0.42 / +0.25 |
+| 14 | 370 / -0.43 / -0.21 | 551 / -0.35 / +0.32 |
+
+- The centre DOES move aft with trim, but not for the reason open question 2(c) gave: **the afterbody stays dry at every
+  trim at these speeds** (the ventilated step's wake). The forebody's wetted keel shortens, and the slender delta's
+  2/3 point walks toward the step.
+- On the Cessna (CG 0.67 m ahead of the step) the centre passes behind the CG at ~8.5 deg, so its 10.5 deg hump is
+  yaw-stable, as DMG-HULL measured. **On the twin (CG 0.22 m ahead of the step) it stays 0.2-0.5 m ahead of the CG
+  even at 12-14 deg.** A realistic hump trim would NOT make the twin's hull yaw-stable on the water. Its stability
+  there is the water rudder's and the fin's.
+- **The yaw-kick table is unchanged** (GATE DMGHULL's KICK, re-run on this branch: every number DMG-HULL printed,
+  above). There is no new hump trim to re-read it at: the wave ships off and the cores are bit-identical.
+
+### G1809 - GATE DMGPLOUGH (tools/_dmgplough_check.js, tier full, weight 4, ~7 min on 4 cores; 37 runs in its own children)
+- **LAW** (the wave forced on, the bench, both floats): DEF.kWave 0 and the generator's float carries 0 (shipped off);
+  at rest the forces are bit-identical to off; a metre over the water 0 N; the amplitude peaks inside Fn 0.5-0.8 (0.62 /
+  0.60), is positive at every displacement speed, and is 0 m, 0 N, 0 N m at every Fn >= 1 (on the step).
+- **HUMP**: the Cessna's keel trim at the hump inside 8-12 deg (8.2) and never nose-down on the run (+2.3), asserted.
+  The instrumented twin never nose-down (+1.5) and nose-up at its hump, asserted: the attribution. The twin as built is
+  printed OWED, and the wave-on twin's calm nose-over NOTE.
+- **SWEEP**: 0-5 m/s in 0.5 steps on both floatplanes and the instrumented twin, every failure classed. Asserted: the
+  Cessna clean everywhere; the twin clean over 0-1.5 (DMG-HULL's band). The twin's nose-overs and its 3.5 m/s swing
+  are printed OWED on every run; the instrumented twin's row is printed.
+- Evidence: `reports/evidence/DMG-PLOUGH/` (dmgplough.json, trim.svg, law.svg, sweep.svg, gate_first_run.txt - the first
+  run's hump picker read a porpoise's drag spike on the step as the Cessna's hump (C_V 7.5) and FAILED it; the hump is
+  now looked for inside C_V <= 4, GATE HYDRODYN's tank band).
+
+### The gates (THIS branch vs the base = 6d9bdf7, the train-34 merge, built in a worktree)
+Run the brief's list on both sides (`run_gates.js --all --no-build --jobs=4 --only=...`; `gates_now.txt`, `gates_base.txt`;
+the diff with the progress lines dropped, `gates_diff.txt`):
+- **All PASS on both sides**: DMGPLOUGH (new), DMGHULL, DMGDAMP, SEAPLANE, FLOATS, HYDRODYN, WATER, WIPLINE, TREECRASH,
+  LOAD, BENCH, SOAR, SIMWORKER.
+- **Every physics line identical to the base.** What differs is wall-clock only: the run times, SIMWORKER's latencies
+  and freeze-step count, and HYDRODYN's cost line (water / dry 1.30 -> 1.36 x on a box with two batteries' worth of
+  history; the code it times is the base's to the bit). Nothing in any tank comparison moved, so nothing was re-anchored.
+- **Bitwise** (`bits.txt`, MD5 of p and v after 600 frames, base core vs this one): the Cub ground / air, the metal
+  Cessna ground / air, the Jodel ground, **the twin and the Cessna on floats at the water taxi: IDENTICAL.** With the
+  wave forced on: DIFFERENT, as they must be.
+- DMGHULL's KICK table is DMG-HULL's to the digit (twin rest 0.223 / 0.181 / 0.103; hump 0.255 / 0.540; step 0.427 /
+  0.429; Cessna rest 0.127 / 0.084 / 0.037; hump 0.103 / -0.027; step 0.106 / -0.014), and so is its sweep.
+
+### The perf
+`sim.step(1/60)` in node, base core (the worktree's) vs this one, alternating pairs (the order flipped every pair),
+600 steps a process; the median of the processes' medians, and every step of every process pooled
+(`tools/dmgplough_evidence.js --perf --perf-base <base core>`; `perf.txt`, `perf_2.txt`, `perf_pooled.txt`):
+
+| case | base (ms) | now (ms) | median of medians | pooled steps |
+|---|---|---|---|---|
+| the Cub, ground (dry: nothing new runs) | 3.200 | 3.192 | -0.24 % | -0.50 % |
+| the Cub, air | 3.119 | 3.112 | -0.24 % | +0.83 % |
+| the metal Cessna, ground | 5.582 | 5.632 | +0.90 % | +1.46 % |
+| the metal Cessna, air | 5.345 | 5.481 | +2.56 % | +0.58 % |
+| ...again, 15 pairs | 6.910 | 6.912 | +0.03 % | -1.15 % |
+| the twin on floats, the water taxi (idle, 3 m/s across) | 16.669 | 16.820 | +0.90 % | -0.71 % |
+| the Cessna on floats, the water taxi | 15.765 | 16.257 | +3.12 % | +1.55 % |
+| ...again, 15 pairs | 17.443 | 17.163 | -1.61 % | -1.22 % |
+
+- Dry, the hydro never runs: the land cores differ only in the 32_hydro text, so the metal Cessna's +2.56 % in air
+  is the box (the second pass reads +0.03 %). Wet with the wave off, the pass adds one branch per float per compute and
+  one compare per vertex; the Cessna's two passes read +3.12 % and -1.61 %, **-0.22 % over all 26 pairs**. Within 2 %.
+- The box's process-to-process noise is +-3 % (the second pass ran ~10 % slower on both cores). **A0 to re-read on
+  the box.**
+
+### Open questions (the user, through A0)
+1. **THE TWIN ON FLOATS NOSES OVER ON ITS OWN THRUST COUPLE.** This is not missing water physics. The floats trim it
+   nose-up without that couple, and the nose-over is gone at every wind (instrument above). Real seaplanes with high
+   thrust lines live with this: tank tests call it diving at the lower trim limit, and their pilots manage the power
+   at the plough. The choices:
+   (a) **the pilot's power at the plough** (43_pilot.js / 39b_servos.js water branch): hold ~0.7-0.8 throttle until on
+       the step (~6 m/s here; C_V ~2.7), then full. Measured as an instrument: no nose-over in calm air or 4 m/s across;
+       at 0.6 it still noses over. A pilot change (PILOT-FORKS' module), not mine.
+   (b) **the build**: the ultralight on floats' thrust line, or longer floats with more forebody / the step further aft
+       (floatParamsFor sizes on gross weight only, not on the thrust moment). Validated builds are never tuned here.
+   (c) **accept it** as the honest behaviour of this design at full power, and keep GATE SEAPLANE's bar at 0.2 V_SO.
+2. **The side force on the twin stays ahead of its CG at any realistic hump trim** (above): DMG-HULL's (c) does not
+   resolve its open question 2. The instrumented twin did not swing past 21 deg at any wind, so once the nose-over is
+   managed (1a/1b), kSide 1 may be livable as it stands. Re-sweep then.
+3. **The plough wave**: keep it as the measured instrument (kWave 0), or delete it. Turning it on is not recommended
+   (calm-air nose-over; out of proportion to slender-ship trim data).
+4. **The Cessna's hump trim (8.2 deg) sits 0.2 deg inside the band**, and it porpoises to ~15 deg on the step at
+   C_V 3-4. That was there before this work; a FLOATS / HYDRODYN item, not touched.
+
+### Files
+src/core/32_hydro.js (G1807: DEF.kWave 0 / waveFn0 / waveFn1, ploughWave, the scratch's wave readings, (0) in
+hydroPanels; zeroTerms clears it; H0 header note), src/core/39b_servos.js (the merge: G1888's waterStepK into the servo
+module - SERVO_GAINS waterStepK 1, 43's SERVO_TUNE row 0.6), src/core/43_pilot.js (the merge: master's side),
+tools/_dmgplough_check.js + run_gates.js row (G1809), tools/dmgplough_evidence.js (perf, bits, plots),
+tools/dmgplough_trace.js (the take-off trace, the thrust-at-nose and throttle-cap instruments), tools/dmgplough_bench.js
+(the pitch budget), tools/dmgplough_side.js (the side force's centre against trim), reports/evidence/DMG-PLOUGH/.
+The merge: origin/master (train 34) into claude/dmg-hull 412e0c19; HANDOVER union-merged. 43_pilot.js conflicted:
+PILOT-FORKS moved groundSteer into 39b_servos.js, and DMG-DAMP's one line (G1888 waterStepK) is carried there as the
+pilot's SERVO_TUNE row, water and tail-up only. The generated files (flight_core.js, index.html, dev.html, sw.js,
+version.json) are NOT committed.
+
 ## G1910-G1914 - STRUT-LIVERY: THE CUB'S GREY STRUTS WERE A PER-PART PIN PASTED INTO THE STOCK CUB ON 3 SEP, NOT A CODE CHANGE; THE PIN GONE (PRESETS + ON LOAD), AND A SECOND BUG THE GATE FOUND - A STRUT UNDER A STRUT TOOK TRIM'S GREY (2026-10-04/05, STRUT-LIVERY for A0, cloud - node + SwiftShader, no GPU; branch claude/strut-livery-g1910 off origin/master bff4f64b = train 31)
 
 The user (5 Oct): "the struts seem not to be colored like the rest of the airplane anymore. The cub has grey struts, and

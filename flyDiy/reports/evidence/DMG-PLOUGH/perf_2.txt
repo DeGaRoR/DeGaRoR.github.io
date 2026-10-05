@@ -1,0 +1,2 @@
+metal air: base 6.9101 ms, now 6.9124 ms, 0.03 % (the median of 15 processes' medians); pooled 6.8969 -> 6.8174 ms, -1.15 % (every step of every process); alternating pairs, 600 steps each
+cessna taxi: base 17.4432 ms, now 17.1631 ms, -1.61 % (the median of 15 processes' medians); pooled 17.2668 -> 17.0564 ms, -1.22 % (every step of every process); alternating pairs, 600 steps each

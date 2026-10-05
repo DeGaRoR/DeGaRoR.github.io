@@ -48,7 +48,8 @@
 //      where a planing hull's wave-type resistance comes from here. There is
 //      NO separate wave-making curve: what the tow sweep shows is what the
 //      geometry makes (a stated cut; the bow wave's radiated energy in the
-//      displacement regime is not modelled).
+//      displacement regime is not modelled). G1807 built the displacement
+//      regime's wave system ((0), ploughWave) and ships it OFF: see there.
 //   4. added mass / slam — von Karman / Wagner wedge entry: the wetted half-
 //      width c = kw d / tan(beta) grows with keel depth, m_a' = 1/4 rho pi c^2
 //      per side and unit length, F = (dm_a/dd) Vn^2 on entry only (the water
@@ -196,6 +197,9 @@ const DEF = {
   slamCap: 1,      // bound a panel's slam impulse by the node's own momentum
   CpBase: -0.15,   // the separated wake's base pressure behind an unventilated step / transom (INFERRED)
   kSide: 1,        // G1847: the hull's lift-type side force, x the slender-body flat plate on the keel's draft (see (5)); 0 = off
+  kWave: 0,        // G1807: the hull's own wave in the displacement regime, x Noblesse's bow-wave height (see (0)); 0 = off - SHIPPED OFF, measured (HANDOVER G1807)
+  waveFn0: 0.5,    // G1807: ...whole up to this length Froude number (lambda / 2 = 1.6 L: the stern in the first trough),
+  waveFn1: 1.0,    // ...and gone by this one (lambda = 2 pi L, C_V ~3: the float's resistance hump, onto the step)
 };
 
 // ---- small vectors ---------------------------------------------------------
@@ -546,6 +550,8 @@ function makeScratch(F) {
     // G1847: the side force's slices (force and point, world), filled by hullSide, landed by the solver's pass
     side: { n: 0, F: new Float64Array(F.sta.length * 3), P: new Float64Array(F.sta.length * 3), w: new Float64Array(F.sta.length), M: 0, xcp: 0 },
     LE: { F: [[Infinity, Infinity], [Infinity, Infinity]], A: [[Infinity, Infinity], [Infinity, Infinity]] },   // [side -1, side +1] x [keel, chine]
+    // G1807: the plough wave's readings (amplitude, the keel's wet entry, wavenumber, Fn, the envelope, tan of the entrance)
+    wave: { a: 0, xe: 0, k: 0, Fn: 0, env: 0, tanE: 0, U: 0, Lwl: 0, FD: 0, d0: new Float64Array(F.sta.length) },
     ql: v3(),
   };
 }
@@ -567,6 +573,90 @@ function rigidCtx(F, S) {
   ctx.velAt = (pt, o) => { const r = sub(pt, S.p); cross(S.w, r, o); return add(o, S.v, o); };
   ctx.toLocal = (pt, o) => { matTVec(S.R, sub(pt, S.p), o); return add(o, F.cg, o); };
   return ctx;
+}
+// (0) G1807 THE PLOUGH: THE HULL'S OWN WAVE IN THE DISPLACEMENT REGIME (DMG-PLOUGH, DMG-HULL's open question 1).
+// Below the step a float is a displacement hull, and a displacement hull at speed makes waves: the bow piles the
+// water up into a crest at its entry, and the transverse wave behind it, wavelength lambda = 2 pi U^2 / g, puts
+// its first trough lambda / 2 aft. At Fn = U / sqrt(g L_wl) ~ 0.4-0.6 that trough reaches the stern: the bow rides
+// its own crest and the stern squats into the trough, so the hull trims NOSE-UP and sinks - the "hump" of a
+// displacement hull, and the seaplane handbooks' plowing attitude (FAA-H-8083-23, the Seaplane, Skiplane and
+// Float/Ski Equipped Helicopter Operations Handbook, ch. 4: idling, PLOWING, on the step; recalled, no copy in the
+// repo). The H0 law had no wave system there (still water to the step; "NO separate wave-making curve"), so
+// nothing but the bow's buoyancy answered a thrust line high over the floats, and the user's ultralight on floats
+// (two Rotax 582s, T/W 0.5, the thrust 0.57 m over the CG) ploughed NOSE-DOWN at Fn 0.4-0.7 and, in a crosswind,
+// pitched over (HANDOVER G1847-G1849).
+// THE LAW, at the level the panel law carries: the free surface each panel is clipped against is the still level
+// plus the wave's elevation along the float,
+//     eta(x) = a cos(k (x - x_e)) aft of the keel's wet entry x_e, and the crest a ahead of it (up the stem),
+//     k = g / U^2,   a = kWave 2.2 (U^2 / g) tan(alpha_E) / (1 + F_D) env(Fn),
+// so the hydrostatic pressure the panels already integrate is rho g on the deformed surface - the linear free
+// surface's own statement that the dynamic pressure at the waterline is rho g eta (Newman, *Marine Hydrodynamics*
+// ch. 6; the decay e^{-k d} through the draft is ~0.6-0.8 at the hump's k d 0.2-0.5, inside the amplitude's
+// range: a stated cut). The amplitude is the BOW WAVE HEIGHT of Noblesse, Delhommeau, Guilbaud, Hendrix & Yang
+// (2008, J. Fluid Mech. 600, "Simple analytical relations for ship bow waves": z_b g / U^2 = 2.2 tan(alpha_E) /
+// (1 + F_D), F_D = U / sqrt(g D); recalled, A0 to open - the fit's scatter is ~+-20 %, its range a fine to a
+// full ship bow, alpha_E up to ~30-40 deg). Its two hull numbers are this hull's own at this instant: D the
+// keel's deepest still-water draft, and alpha_E the WATERLINE ENTRANCE half-angle, read off the V-bottom where
+// the keel enters the water: half a beam aft of the entry the waterline's half-width is the keel's depth there
+// over tan(deadrise), capped at the chine's half-beam. So a float trimmed nose-UP enters on its flat keel at a few
+// degrees (alpha_E ~5-15 deg, a small wave: the planing law's regime), and a float driven nose-DOWN enters on its
+// rocker or its buried stem (alpha_E toward 45 deg, capped there) and raises the large bow wave that pushes a
+// ploughing bow back up - the attitude, not a constant, sets how much.
+// THE ENVELOPE in Fn = U / sqrt(g L_wl) (L_wl the wetted keel, entry to the aft-most wet keel point): whole to
+// waveFn0 0.5 (the displacement hump: lambda / 2 = 1.6 L_wl puts the first trough just past the stern), faded
+// (a half cosine) to nothing at waveFn1 1.0 (lambda = 2 pi L_wl; for these floats C_V = U / sqrt(g B) ~ 3, the
+// float's resistance hump, on the step: from there the forebody is Savitsky's planing surface (2) and the
+// afterbody sits in the forebody's ventilated wake (3), which IS the trough at planing speed - the wave yields to
+// it behind the step by (1 - vent) at every speed). ZERO AT REST (a ~ U^2) and DRY (no keel station wet), and
+// backing (U <= 0: the slow astern taxi makes no plough). Floats only: GEAR-WATER 2's wet body is a ditching
+// fuselage, short-lived and not a displacement hull at speed; it carries none (measured: see HANDOVER G1807).
+// Sources for the attitude it buys (ranges, recalled, A0 to open): free-to-trim tank tests of seaplane floats and
+// hulls trim ~8-12 deg nose-up at the hump (NACA TN 716, Parkinson, Olson & House 1939, the float family of
+// varying deadrise; the flying-boat hull series of NACA's Langley tank, Parkinson's summaries), against ~4-7 deg
+// for a prismatic planing boat at its hump (Savitsky 1964, "Hydrodynamic design of planing hulls", Marine
+// Technology 1(1); Clement & Blount 1963, Series 62).
+// SHIPPED OFF (kWave 0: the base to the bit), MEASURED (HANDOVER G1807-G1809, GATE DMGPLOUGH): the plough's bow-up
+// trim is ALREADY in the H0 law - the forebody's planing pressure and the ventilated step's wake trim a free float
+// nose-up through the plough (the twin's own float, its load at the CG and no thrust: +5 deg to 3 m/s, +9.5 deg at
+// 4 m/s; the twin with its thrust put 0.17 m over the CG: never nose-down, no nose-over at 0-5 m/s across). What
+// drives the twin down is its thrust couple (two Rotax 582s 0.57 m over the CG) and the water drag 1.5 m under it,
+// ~2.5 kN m at 4 m/s, against floats whose nose-down restoring tops out at ~1.4 kN m each once the afterbody is dry.
+// And this wave does not answer it: nose-down, the crest sits on the narrow bow and the first trough on the wide
+// forebody just ahead of the CG, so it takes restoring away (the twin noses over in CALM air at kWave 0.5 and 1);
+// nose-up, it adds up to ~1-2 kN m per float - well past the 1-2 deg of dynamic trim slender-ship theory and the
+// tank series give a hull of this slenderness at Fn 0.5. The law stays as the measured instrument it is.
+function ploughWave(F, W, water, t, U, o) {
+  const P = F.P;
+  o.a = 0; o.U = U; o.env = 0; o.Fn = 0; o.tanE = 0;
+  if (!(P.kWave > 0) || !(U > 0.05)) return 0;
+  const sta = F.sta, ns = sta.length, d0 = o.d0;
+  let j = -1, il = -1, Dmax = 0;
+  for (let i = 0; i < ns; i++) {
+    const k = W[sta[i].K];
+    const d = d0[i] = water.h(k[0], k[2], t) - k[1];
+    if (d > 0) { if (j < 0) j = i; il = i; if (d > Dmax) Dmax = d; }
+  }
+  if (j < 0) return 0;
+  // the keel's wet entry and the wetted keel's aft end (interpolated to the zero crossing)
+  const xe = j === 0 ? sta[0].x : sta[j - 1].x + (sta[j].x - sta[j - 1].x) * (-d0[j - 1] / (d0[j] - d0[j - 1]));
+  const xa = il === ns - 1 ? sta[il].x : sta[il].x + (sta[il + 1].x - sta[il].x) * (d0[il] / (d0[il] - d0[il + 1]));
+  const Lwl = Math.max(0.1 * P.L, xa - xe);
+  const Fn = U / Math.sqrt(G * Lwl);
+  o.Fn = Fn; o.Lwl = Lwl; o.xe = xe;
+  const env = Fn <= P.waveFn0 ? 1 : Fn >= P.waveFn1 ? 0 : 0.5 * (1 + Math.cos(Math.PI * (Fn - P.waveFn0) / (P.waveFn1 - P.waveFn0)));
+  o.env = env;
+  if (env <= 0) return 0;
+  // the waterline entrance: half a beam aft of the entry, the waterline's half-width on the V-bottom
+  const ell = 0.5 * P.B, xl = xe + ell;
+  let i = Math.max(0, j - 1);
+  while (i + 2 < ns && sta[i + 1].x < xl) i++;
+  const s0 = sta[i], s1 = sta[i + 1], f = Math.max(0, Math.min(1, (xl - s0.x) / Math.max(1e-9, s1.x - s0.x)));
+  const dl = d0[i] + (d0[i + 1] - d0[i]) * f, bl = halfBeamAt(F, xl), btl = (s0.beta + (s1.beta - s0.beta) * f) * D2R;
+  const tanE = Math.min(1, Math.min(bl, Math.max(0, dl) / Math.tan(btl)) / ell);
+  const FD = U / Math.sqrt(G * Math.max(0.05, Dmax));
+  const a = P.kWave * 2.2 * (U * U / G) * tanE / (1 + FD) * env;
+  o.tanE = tanE; o.FD = FD; o.k = G / (U * U); o.a = a;
+  return a;
 }
 function hydroPanels(F, ctx, water, t, out, opt = {}) {
   const P = F.P, rho = P.rho, V = F.V;
@@ -620,6 +710,9 @@ function hydroPanels(F, ctx, water, t, out, opt = {}) {
   const ventStern = airStern * sepStern;
   out.sep = sep; out.air = air; out.sepStern = sepStern; out.airStern = airStern; out.ventStern = ventStern;
   out.vent = vent; out.Vflow = Vflow; out.dEdge = dEdge; out.lr = lr;
+  // (0) G1807: the hull's own wave (the plough), from the still-water keel and the speed through the water
+  const wvA = P.kWave > 0 ? ploughWave(F, W, water, t, -dot(vE, xhat) + dot(water.v(eK[0], eK[2], t), xhat), out.wave) : (out.wave.a = 0);
+  const wvX = out.wave.xe, wvK = out.wave.k, wvAft = 1 - vent;
   // the CG's horizontal velocity is the steady motion; what is left of a
   // panel's velocity after it is the UNSTEADY entry the slam is computed on
   const vH = ctx.vH;
@@ -627,6 +720,9 @@ function hydroPanels(F, ctx, water, t, out, opt = {}) {
   for (let i = 0; i < V.length; i++) {
     const x = V[i][0];
     let h = water.h(W[i][0], W[i][2], t);
+    // (0) the plough wave: its crest at the keel's wet entry (and up the stem ahead of it), cos(k s) aft; behind a
+    // ventilated step the forebody's wake (below) is the trough, so the wave yields to it there by (1 - vent)
+    if (wvA !== 0) h += wvA * (x <= wvX ? 1 : Math.cos(wvK * (x - wvX))) * (x > 0 ? wvAft : 1);
     if (x > 0 && vent > 0) {
       const dx = Math.max(0, x);
       const yW = eK[1] + dx * xhat[1] - 0.5 * G * (dx / Vflow) * (dx / Vflow);
@@ -1481,6 +1577,7 @@ function zeroTerms(out) {
   for (const k in out.terms) out.terms[k][0] = out.terms[k][1] = out.terms[k][2] = 0;
   out.wetF = out.wetA = out.wetOther = 0; out.vent = 0;
   if (out.side) out.side.n = 0;
+  if (out.wave) out.wave.a = 0;
   for (const o of out.per) o.wet = 0;
 }
 // the hull's METRIC keys: everything a preset scales with its size (the

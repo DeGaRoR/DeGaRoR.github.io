@@ -1,0 +1,6 @@
+twin kWave 0: pitch on the water: -7.65 .. 11.10 deg
+twin kWave 0.25: pitch on the water: -7.87 .. 11.96 deg
+twin kWave 0.5: pitch on the water: -88.53 .. 20.31 deg
+cessna kWave 0: pitch on the water: 0.00 .. 14.85 deg
+cessna kWave 0.5: pitch on the water: 0.00 .. 14.24 deg
+cessna kWave 1: pitch on the water: 0.00 .. 13.61 deg
