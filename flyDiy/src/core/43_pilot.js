@@ -1903,7 +1903,7 @@ function makePilot(sim, def, world, opts) {
           const L = pathLocate(ap.path, ap.pathI, cg[0], cg[2]);
           ap.pathI = L.i; taxiXT = L.ey; taxiSRem = L.sRem;
           // G1938: A HAIRPIN THE WHEELS CANNOT STEER is turned on the spot: a bend ahead tighter than 1 / (1.1 RgMin)
-          // turning more than 60 deg in all - stop at its entry, pivot to the heading the path leaves it on, carry on
+          // turning more than 150 deg in all (a U-turn) - stop at its entry, pivot to the heading the path leaves it on, carry on
           // from there (the lane beside is joined on the follower's own cross-track law)
           // ...AND ON A SHORT STRIP (under 300 m) EVERY AEROPLANE PIVOTS AT A HAIRPIN: the site's lane U-turn is a
           // 12 m arc 15 m from the end (G527), and the C172 (a nosewheel that turns on 4.4 m) swung it 7.7 m past
@@ -1923,7 +1923,10 @@ function makePilot(sim, def, world, opts) {
                   if (P[k2].s - P[b1].s >= 3.5 || k2 === P.length - 1) break;
                 }
               }
-              if (Math.abs(turn) > (shortHere && Rpiv > RgMin ? 2.6 : 1.05)) {   // a short strip's tricycle: the U-turn's 150 deg+ only
+              // A HAIRPIN IS A U-TURN (150 deg and more): a 90 deg taxi corner tighter than the wheels steer is steered
+              // round as it always was - pivoting there beat the stock's taxi rudder to 62 reversals a minute (GATE
+              // PILOTACT) and swung the Cub's wing within 5 m of Jolene's apron fence (GATE LINEUP)
+              if (Math.abs(turn) > 2.6) {
                 piv = { hdg: P[b1].hdg, j: b1, t0: ap.t, thr: 0, sg: turn >= 0 ? 1 : -1 }; pivN++;
                 if (!pivSaid) { pivSaid = true; say('pivot', 'a ' + Math.round(Math.abs(turn) * 57.3) + ' deg turn tighter than the wheels steer (' + RgMin.toFixed(1) + ' m) — turning on the spot'); }
                 pivotFly(piv.hdg);
