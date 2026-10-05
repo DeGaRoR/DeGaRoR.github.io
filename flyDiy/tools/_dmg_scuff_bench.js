@@ -15,7 +15,7 @@
 // grass - the soil stain -, its right half on hard ground), a torn band across the left wing, the front pane cracked.
 (function () {
   'use strict';
-  const S = window.SKIN_SCUFF, B = window.WX_BENCH, A = window.AEROSKIN, T = window.THREE;
+  const S = window.SKIN_SCUFF, SV = S || window.__SS_VIEW, B = window.WX_BENCH, A = window.AEROSKIN, T = window.THREE;   // (SV: the class table, also on ?noscuff)
   if (!B || !A) { console.error('dmg bench: the weathering bench or AEROSKIN missing'); return; }
   const UI = B.UI, CEN = window.__DS_CENSUS || { src: [], links: 0 };
   const DS = { armed: false, meshes: [], copies: new Map(), links: { arm: 0, crash: 0 }, U: S ? S.uniforms(T) : null };
@@ -40,7 +40,7 @@
   // each vertex's class, by the material of the group its triangles are in (one material: that one's)
   function vclsOf(o) {
     const g = o.geometry, n = g.attributes.position.count, out = new Uint8Array(n), ms = [].concat(o.material);
-    const clsM = m => (m && m.userData ? S.clsOf(m.userData.aeroFinish || '') : 3);
+    const clsM = m => (m && m.userData ? SV.clsOf(m.userData.aeroFinish || '') : 3);
     out.fill(clsM(ms[0]));
     if (Array.isArray(o.material) && g.groups.length) {
       const ix = g.index ? g.index.array : null;
@@ -70,7 +70,7 @@
     {
       const xs = new Set();
       for (const o of all) { const vc = vclsOf(o), { M } = craftOf(o), pa = o.geometry.attributes.position;
-        for (let i = 0; i < pa.count; i++) { if (vc[i] !== S.CLS.fabric) continue; v.fromBufferAttribute(pa, i).applyMatrix4(M);
+        for (let i = 0; i < pa.count; i++) { if (vc[i] !== SV.CLS.fabric) continue; v.fromBufferAttribute(pa, i).applyMatrix4(M);
           if (v.z > box.min.z + 0.6 * (box.max.z - box.min.z) && v.x < xc - 1.2) xs.add(Math.round(v.x * 100) / 100); } }
       const st = [...xs].sort((a, b) => a - b);
       if (st.length > 2) {
@@ -84,10 +84,10 @@
     // (by the most forward vertex that faces forward at all: the Cub's skylight faces forward more on average)
     let front = null, fy = Infinity, best = -1;
     for (const o of all) {
-      const vc = vclsOf(o); if (!vc.includes(S.CLS.glass)) continue;
+      const vc = vclsOf(o); if (!vc.includes(SV.CLS.glass)) continue;
       const { M, N } = craftOf(o), pa = o.geometry.attributes.position, na = o.geometry.attributes.normal; if (!na) continue;
       const q = new T.Vector3(), p = new T.Vector3();
-      for (let i = 0; i < na.count; i++) { if (vc[i] !== S.CLS.glass) continue; q.fromBufferAttribute(na, i).applyMatrix3(N).normalize(); if (-q.y <= 0.35) continue;
+      for (let i = 0; i < na.count; i++) { if (vc[i] !== SV.CLS.glass) continue; q.fromBufferAttribute(na, i).applyMatrix3(N).normalize(); if (-q.y <= 0.35) continue;
         const y = p.fromBufferAttribute(pa, i).applyMatrix4(M).y; if (y < fy) { fy = y; front = o; best = i; } }
     }
     // the impact: the windscreen's middle - the forward-facing glass within 0.25 m of its most forward point, their mean
@@ -95,7 +95,7 @@
     if (front) {
       const vc = vclsOf(front), { M, N } = craftOf(front), pa = front.geometry.attributes.position, na = front.geometry.attributes.normal, n = pa.count, q = new T.Vector3(), p = new T.Vector3();
       const c0 = new T.Vector3(); let k = 0; const ok = new Uint8Array(n);
-      for (let i = 0; i < n; i++) { if (vc[i] !== S.CLS.glass) continue; q.fromBufferAttribute(na, i).applyMatrix3(N).normalize(); if (-q.y <= 0.35) continue;
+      for (let i = 0; i < n; i++) { if (vc[i] !== SV.CLS.glass) continue; q.fromBufferAttribute(na, i).applyMatrix3(N).normalize(); if (-q.y <= 0.35) continue;
         if (p.fromBufferAttribute(pa, i).applyMatrix4(M).y < fy + 0.25) { ok[i] = 1; c0.add(p.fromBufferAttribute(pa, i)); k++; } }
       c0.multiplyScalar(1 / Math.max(1, k));
       let bd = Infinity; for (let i = 0; i < n; i++) { if (!ok[i]) continue; const dd = p.fromBufferAttribute(pa, i).distanceTo(c0); if (dd < bd) { bd = dd; best = i; } }

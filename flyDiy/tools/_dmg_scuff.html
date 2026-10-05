@@ -111,7 +111,7 @@ window.FLYDIY_ASSET_BASE = '../';
 <script src="../src/viewer/aeroweather.js"></script>
 <script src="../src/viewer/aeroskin.js"></script>
 <script src="../src/viewer/skin_scuff.js"></script>
-<script>if (/noscuff/.test(location.search)) delete window.SKIN_SCUFF;</script>
+<script>if (/noscuff/.test(location.search)) { window.__SS_VIEW = window.SKIN_SCUFF; delete window.SKIN_SCUFF; }   // (the views' class table only: nothing wrapped)</script>
 <script src="../src/core/52_char_codec.js"></script>
 <script src="../src/chars/ch42_char.js"></script>
 <script src="../src/chars/ch02_char.js"></script>
