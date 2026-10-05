@@ -795,6 +795,16 @@ function sitePattern(aero, site, opts) {
     link(la, lb); link(lb, lc); link(lc, dg); link(dg, hold);
     routes.back[T] = [la, lb, lc, dg, hold];
   }
+  // THE WAY ONTO A PAD FROM AN ENTRY (G1966): `dIn` m from end T on the centreline - short of the pad's hold, straight on
+  // to it; else the pad's teardrop less the nodes the entry's own corner would have to double back for (a node within
+  // 16 m - the entry's 12 m fillet and the node's - of the entry along the strip)
+  const padFrom = (T, dIn) => {
+    const TP = turnPadNodes(aero, T);
+    if (dIn <= TP.sHold - 8) return [holds[T]];
+    const ids = routes.back[T].slice();
+    while (ids.length > 3 && dIn - TP.nodes[TP.nodes.length - ids.length].s < 16) ids.shift();
+    return ids;
+  };
   if (site && site.stand && site.taxiway && site.apron) {
     // HOME: stand -> the apron row's west end -> the gate -> the strip's
     // edge -> a corner onto the centreline -> the hold, for direction 0; the
@@ -844,7 +854,7 @@ function sitePattern(aero, site, opts) {
     if (tp0) {
       // a turn pad at end0 (G1966): an entry short of the pad's hold rolls straight on to it; an entry past it goes
       // down the strip and turns round on the pad, as a landing's backtrack does
-      routes.out[0] = [st].concat(ids, [c0]).concat(inEntry <= tp0.sHold - 8 ? [holds[0]] : routes.back[0]);
+      routes.out[0] = [st].concat(ids, [c0]).concat(padFrom(0, inEntry));
     } else if (lenR < 300 && inEntry + GP_FILLET < inHold) {
       const hs = add('hold0s', at(ex, ez, d, GP_FILLET), 'hold', { hdg: Math.atan2(d[1], d[0]) });
       link(c0, hs);
@@ -864,7 +874,9 @@ function sitePattern(aero, site, opts) {
       const l1 = ty[ty.length - 1], al1 = (l1[0] - R.cx) * d[0] + (l1[1] - R.cz) * d[1];
       e1 = [R.cx + d[0] * al1, R.cz + d[1] * al1];
     }
-    const c1 = add('c1', at(e1[0], e1[1], n, laneSg * lane), 'taxi', { r: GP_FILLET });
+    // (G1966: toward a turn pad the way joins on the centreline - the pad's teardrop takes the lane's place)
+    const tp1 = turnPadNodes(aero, 1);
+    const c1 = add('c1', tp1 ? e1 : at(e1[0], e1[1], n, laneSg * lane), 'taxi', { r: GP_FILLET });
     // ...round the parked aeroplanes too (G710's bend, on this way: the stand and the lane point never move);
     // the pattern reports the worse of the two ways
     if (site.taxiOut1 && site.taxiOut1.length && site.parked && site.parked.length) {
@@ -879,8 +891,9 @@ function sitePattern(aero, site, opts) {
         clearance = Object.assign({}, c1r, { added: c1r.added + (clearance ? clearance.added : 0), moved: c1r.moved + (clearance ? clearance.moved : 0) });
       else clearance = Object.assign({}, clearance, { added: clearance.added + c1r.added, moved: clearance.moved + c1r.moved });
     }
-    link(prev1, c1); link(c1, routes.back[1][0]);
-    routes.out[1] = [st].concat(ids1, [c1]).concat(routes.back[1]);
+    const way1 = tp1 ? padFrom(1, lenR - ((e1[0] - R.end0.x) * d[0] + (e1[1] - R.end0.z) * d[1])) : routes.back[1];
+    link(prev1, c1); link(c1, way1[0]);
+    routes.out[1] = [st].concat(ids1, [c1]).concat(way1);
   } else if (aero.spawn) {
     // a generated strip: the spawn identity is 35 m in from end0
     const sp = add('spawn', [aero.spawn[0], aero.spawn[1]], 'stand',

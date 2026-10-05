@@ -115,7 +115,21 @@ for (const id of Object.keys(RUNWAYS)) {
     report.push(id + ' end ' + k + ': ' + cand.map(c => 'side ' + (c.side > 0 ? '+' : '-') + ' nearest ' + c.near.toFixed(1) + ' m (' + c.what + '), earthwork ' + c.cut.toFixed(1) + ' m').join(' | ') + ' -> side ' + (best.side > 0 ? '+' : '-'));
     turn[k] = { r: want.r, side: best.side };
     // ---- the ground: the strip's height continued over the pad
-    const TP = best.TP, poly = TP.ground.map(q => [r2(q[0]), r2(q[1])]);
+    const TP = best.TP;
+    // A STAND ON THE PAD (East Point's north end: the stand 16 m off the centreline, 4 m from the end): the pad's ground
+    // goes out past the parked aeroplane's tail (+ 10 m) - the turn's 21 m left its tail wheel in the flatten's feather,
+    // the drawn ground 4 cm off the true one there (GATE CONTACT's tyres at the stand)
+    let poly = TP.ground.map(q => [r2(q[0]), r2(q[1])]);
+    const stw = r.stand ? [r.stand.x, r.stand.z] : null;
+    if (stw) {
+      const E = k === 0 ? R.end0 : R.end1, u = k === 0 ? [R.dx, R.dz] : [-R.dx, -R.dz], nn = [R.nx * best.side, R.nz * best.side];
+      const sS = (stw[0] - E.x) * u[0] + (stw[1] - E.z) * u[1], lS = (stw[0] - E.x) * nn[0] + (stw[1] - E.z) * nn[1];
+      if (sS > -5 && sS < TP.sE + 5 && lS > 0) {
+        const out = Math.max(TP.w + 3, lS + 10), Pw = (q, l) => [r2(E.x + u[0] * q + nn[0] * l), r2(E.z + u[1] * q + nn[1] * l)];
+        poly = [Pw(0, R.wid / 2 - 1), Pw(0, out), Pw(TP.sE - TP.r, out), Pw(TP.sE + 3, R.wid / 2 - 1)];
+        report.push(id + ' end ' + k + ': the stand stands on the pad (' + sS.toFixed(1) + ' m in, ' + lS.toFixed(1) + ' m out) - the pad out to ' + out.toFixed(1) + ' m');
+      }
+    }
     const s0 = 0, s1 = TP.sE + 3;
     const sA = k === 0 ? s0 : R.len - s1, sB = k === 0 ? s1 : R.len - s0;
     const hA = hAt(sA), hB = hAt(sB), grad = (hB - hA) / (sB - sA);
