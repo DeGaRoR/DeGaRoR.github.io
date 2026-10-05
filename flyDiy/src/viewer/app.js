@@ -4170,12 +4170,45 @@
       B.obj.matrixWorldNeedsUpdate = true;
       if (B.sunk && B.obj.visible) B.obj.visible = false;
     }
+    wreckRide();
     wreckEye(D);
     // G1868: the orbit the cockpit rule cut to turns slowly round the wreck (WRECK_DRIFT rad/s) until the player takes it
     if (WK.drift) { if (cam.mode === 'orbit') azT += WRECK_DRIFT * frameDt(); else WK.drift = false; }
     WK.ms.frame = performance.now() - t0;
   }
   const wreckR = new Float64Array(9);
+  // G1861.1 (the user: "the propeller floats in the air near the nose, close to upright, after the engine piece has moved"):
+  // THE ENGINE UNIT RIDES ITS NODES' FRAME. poseModel carries the block and the prop by their nodes' MEAN only (a
+  // translation: right while the airframe is whole); once the wreck is drawn, each unit still on the aeroplane is placed
+  // by its engine nodes' rigid fit instead - world = fit(rest -> live) x the rest pose x its own local turn (the prop's spin,
+  // as poseRigid set it) - so a nose folded down or an engine torn round on its mount carries its block and its prop with
+  // it. A unit gone as debris is the body's. Restored at the heal (matrixAutoUpdate back)
+  const wreckM = new THREE.Matrix4(), wreckM2 = new THREE.Matrix4(), wreckG0 = new THREE.Matrix4(), wreckGi = new THREE.Matrix4();
+  function wreckRide() {
+    if (!model.engRigs || !WK.rest) return;
+    if (!WK.g0) { const B0 = (model.brk && model.brk.B0) || null, toDef = wreckToDef(), o0 = toDef([0, 0, 0]), ex = toDef([1, 0, 0]), ey = toDef([0, 1, 0]), ez = toDef([0, 0, 1]);
+      WK.g0 = new THREE.Matrix4().set(ex[0] - o0[0], ey[0] - o0[0], ez[0] - o0[0], o0[0], ex[1] - o0[1], ey[1] - o0[1], ez[1] - o0[1], o0[1], ex[2] - o0[2], ey[2] - o0[2], ez[2] - o0[2], o0[2], 0, 0, 0, 1); }
+    model.grp.updateMatrixWorld(true);
+    wreckGi.copy(model.grp.matrixWorld).invert();
+    for (const e of model.engRigs) {
+      const o = e.obj; if (!o || !o.matrix) continue;
+      const F = window.WRECK_DEBRIS.fit(e.idxs, WK.rest, sim.p), R = F.R;
+      // the fit as a 4x4: x -> R (x - cr) + cl
+      const tx = F.cl[0] - (R[0]*F.cr[0] + R[1]*F.cr[1] + R[2]*F.cr[2]), ty = F.cl[1] - (R[3]*F.cr[0] + R[4]*F.cr[1] + R[5]*F.cr[2]), tz = F.cl[2] - (R[6]*F.cr[0] + R[7]*F.cr[1] + R[8]*F.cr[2]);
+      wreckM.set(R[0], R[1], R[2], tx, R[3], R[4], R[5], ty, R[6], R[7], R[8], tz, 0, 0, 0, 1);
+      // its local turn (the prop's spin as poseRigid wrote it, else none) at its rest place (the pivot)
+      // (its local turn: what poseRigid wrote this frame - the prop's spin - or, where nothing rewrote the matrix since this
+      // wrote it (the block; a paused flight), the turn kept from before)
+      if (o.matrixAutoUpdate) { if (!WK.autoOf) WK.autoOf = new Set(); WK.autoOf.add(o); o.matrixAutoUpdate = false; o.matrix.identity(); }
+      const keep = WK.ride || (WK.ride = new Map()), k0 = keep.get(o);
+      if (!k0 || !o.matrix.equals(k0.out)) { const L = (k0 && k0.L) || new THREE.Matrix4(); L.copy(o.matrix); keep.set(o, { L, out: (k0 && k0.out) || new THREE.Matrix4() }); }
+      const K2 = keep.get(o);
+      wreckM2.copy(K2.L).setPosition(e.pivot[0], e.pivot[1], e.pivot[2]);
+      o.matrix.copy(wreckGi).multiply(wreckM).multiply(WK.g0).multiply(wreckM2);
+      K2.out.copy(o.matrix);
+      o.matrixWorldNeedsUpdate = true;
+    }
+  }
   const WRECK_DRIFT = 0.14;                                // G1868: ~8 degrees a second
   // the visual frame (the model group's) to the frame's own (design) coordinates, at rest: og + B (v + off + oRest)
   function wreckToDef() {
@@ -4379,9 +4412,14 @@
       const BF = WD.bladeFrame(cat, cat.length / 3, ax);
       if (!BF) continue;
       const rpm = (prop.userData.seizeRate || 0) * 60 / (2 * Math.PI);
-      const S = WD.strike({ rpm, V: Math.hypot(vx, vy, vz) / n, M: sim.totalM || 0, D: 2 * BF.R, nb: BF.nb, what: D && D.propAt ? D.propAt.what : 'ground', eng: k });
-      WK.strikes.push({ eng: k, what: S.what, rpm: Math.round(rpm), V: +(Math.hypot(vx, vy, vz) / n).toFixed(2), E: Math.round(S.E), pBreak: +S.pBreak.toFixed(2), breaks: S.breaks, lost: S.lost,
-                        curl: S.curl.map(c => +c.toFixed(2)), dent: +S.dent.toFixed(3), nb: BF.nb, R: +BF.R.toFixed(3) });
+      // (G1861.2: the build's material; a strike in the water - the hub over water deeper than the ground)
+      let hx = 0, hy = 0, hz = 0; for (const i of rig.idxs) { hx += sim.p[i*3] / n; hy += sim.p[i*3+1] / n; hz += sim.p[i*3+2] / n; }
+      const wh = WK.env.water ? WK.env.water(hx, hz) : null, wet = wh != null && hy < wh + 1.5;
+      const material = (def.spec && def.spec.prop && def.spec.prop.material) || 'wood';
+      const sense = ((def.params && def.params.engines || [])[k] || {}).sense || 1;
+      const S = WD.strike({ rpm, V: Math.hypot(vx, vy, vz) / n, M: sim.totalM || 0, D: 2 * BF.R, nb: BF.nb, what: wet ? 'water' : (D && D.propAt ? D.propAt.what : 'ground'), eng: k, material, wet });
+      WK.strikes.push({ eng: k, what: S.what, material, metal: S.metal, rpm: Math.round(rpm), V: +(Math.hypot(vx, vy, vz) / n).toFixed(2), E: Math.round(S.E), breaks: S.breaks,
+                        cut: S.cut.map(c => +c.toFixed(2)), curl: S.curl.map(c => +c.toFixed(2)), dent: +S.dent.toFixed(3), nb: BF.nb, R: +BF.R.toFixed(3) });
       // the spinner's radius (its farthest vertex from the shaft): the curl never reaches into the hub
       let hubR = 0.04;
       for (const m of cones) { const p = toT(m.geometry.attributes.position.array); for (let i = 0; i < p.length; i += 3) { const a = WD.azOf(p[i], p[i+1], p[i+2], ax, BF.u0); if (a.r > hubR) hubR = a.r; } }
@@ -4389,13 +4427,18 @@
       blades.forEach((m, bi) => {
         const pa = m.geometry.attributes.position, base = Float32Array.from(pa.array), t = tb[bi], out = new Float64Array(base.length);
         WK.pos.push({ pa, base });
-        WD.curlBlades(t, out, base.length / 3, ax, BF, S.curl, hubR);
+        WD.curlBlades(t, out, base.length / 3, ax, BF, S.curl, hubR, sense);
         pa.array.set(fromT(out)); pa.needsUpdate = true;
         if (S.breaks) {
-          const ix = m.geometry.index.array, nt = (m.geometry.index.count / 3) | 0, L2 = [];
-          for (let q = 0; q < nt; q++) { let on = true; for (let e = 0; e < 3 && on; e++) { const v = ix[q*3+e], a = WD.azOf(t[v*3], t[v*3+1], t[v*3+2], ax, BF.u0);
-            if (a.r <= hubR || WD.bladeOf(a.az, BF.nb) !== S.lost) on = false; } if (on) L2.push(q); }
-          if (L2.length) lostT.set(m, L2);
+          // (G1861.2: each blade's piece past its cut - by the triangle's centroid, so the break is one clean line)
+          const ix = m.geometry.index.array, nt = (m.geometry.index.count / 3) | 0;
+          for (let q = 0; q < nt; q++) {
+            let cx2 = 0, cy2 = 0, cz2 = 0; for (let e = 0; e < 3; e++) { const v = ix[q*3+e]; cx2 += t[v*3] / 3; cy2 += t[v*3+1] / 3; cz2 += t[v*3+2] / 3; }
+            const a = WD.azOf(cx2, cy2, cz2, ax, BF.u0), b2 = WD.bladeOf(a.az, BF.nb);
+            if (a.r <= Math.max(hubR, S.cut[b2] * BF.R)) continue;
+            let per = lostT.get(b2); if (!per) lostT.set(b2, per = new Map());
+            let L2 = per.get(m); if (!L2) per.set(m, L2 = []); L2.push(q);
+          }
         }
       });
       for (const m of cones) {
@@ -4404,14 +4447,16 @@
         WD.dentSpinner(toT(base), out, base.length / 3, ax, BF, S.dent, S.dentAz);
         pa.array.set(fromT(out)); pa.needsUpdate = true;
       }
-      if (lostT.size) {
-        // the lost blade: a body off the engine's nodes, its rest centre its own vertices (now) through the set's fit, inverted
+      // each broken blade's piece: a body off the engine's nodes, its rest centre its own vertices (now) through the set's
+      // fit, inverted
+      for (const [, per] of lostT) {
         model.grp.updateMatrixWorld(true);
         let cx = 0, cy = 0, cz = 0, cn = 0; const v3 = new THREE.Vector3();
-        for (const [m, L2] of lostT) { const Mw = wreckWorldOf(m), ix = m.geometry.index.array, pa = m.geometry.attributes.position.array;
+        for (const [m, L2] of per) { const Mw = wreckWorldOf(m), ix = m.geometry.index.array, pa = m.geometry.attributes.position.array;
           for (const q of L2) for (let e = 0; e < 3; e++) { const v = ix[q*3+e]; v3.set(pa[v*3], pa[v*3+1], pa[v*3+2]).applyMatrix4(Mw); cx += v3.x; cy += v3.y; cz += v3.z; cn++; } }
+        if (!cn) continue;
         const F = WD.fit(rig.idxs, WK.rest, sim.p), R = F.R, w = [cx / cn - F.cl[0], cy / cn - F.cl[1], cz / cn - F.cl[2]];
-        const c = { id: WK.P.parts.length, kind: 'blade', nodes: rig.idxs.slice(), why: 'strike', L0: [], mass: 3, floats: true, ranges: lostT,
+        const c = { id: WK.P.parts.length, kind: 'blade', nodes: rig.idxs.slice(), why: 'strike', L0: [], mass: 2, floats: true, ranges: per,
                     at: [F.cr[0] + R[0]*w[0] + R[3]*w[1] + R[6]*w[2], F.cr[1] + R[1]*w[0] + R[4]*w[1] + R[7]*w[2], F.cr[2] + R[2]*w[0] + R[5]*w[1] + R[8]*w[2]] };
         WK.P.parts.push(c);
         wreckRelease(c, vel);
@@ -4441,6 +4486,8 @@
     if (q0posed()) BRK.posed = false;
     for (let j = WK.pos.length - 1; j >= 0; j--) { const q = WK.pos[j]; q.pa.array.set(q.base); q.pa.needsUpdate = true; }
     if (mdl) for (const p of mdl.props || []) if (p.userData) p.userData.seizeRate = null;
+    if (WK.autoOf) { for (const o of WK.autoOf) { o.matrixAutoUpdate = true; o.updateMatrix(); } WK.autoOf = null; }
+    WK.g0 = null; WK.ride = null;
     WK.hid = []; WK.idx = []; WK.pos = []; WK.model = null; WK.P = null; WK.W = null; WK.t = null; WK.rigs = null; WK.cab = null;
   }
   // G1002 (A6-GROUND, the playtest's "floaty" taxi): THE CONTACT SHADOWS. One instanced draw of soft dark blobs on

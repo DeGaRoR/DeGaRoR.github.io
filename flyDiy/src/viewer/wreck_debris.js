@@ -312,17 +312,27 @@
 
   // ---- THE PROP STRIKE: what a seized engine's prop does. info { rpm (before the strike), V (the hub's speed, m/s),
   // M (the aeroplane's mass), D (the disc, m), nb (blades), what ('ground' | 'trunk'), eng (its index), t } ----
+  // G1861.2 (the user: "broken wood props and bent metal props, that adds a lot"): THE BUILD'S PROP MATERIAL decides.
+  // info.material (spec.prop.material): aluminium BENDS - every blade's tip curled aft and against the rotation, the more
+  // the harder the strike, none breaks; wood (and carbon, the boutique woods) BREAKS - every blade snaps at a seeded 25-45 %
+  // of its radius, the stub left at the hub, the outer piece thrown as debris. info.wet: a strike in the water - a metal
+  // blade bends less (x WET_K), a wooden one breaks only past E_BREAK (a slow one in the water just stops)
+  const WET_K = 0.4, CUT0 = 0.25, CUT1 = 0.2;
+  const isMetal = m => /alu|steel|metal|titan/i.test(m || '');
   function strike(info) {
     const R = info.D / 2, nb = Math.max(1, info.nb | 0), mB = 3.0 * Math.pow(info.D / 1.88, 2.5);   // ~3 kg a wooden blade of 1.88 m (genPropSynth's scale)
     const om = Math.max(0, info.rpm || 0) * 2 * Math.PI / 60, I = nb * mB * R * R / 3;
     const E = 0.5 * I * om * om + 0.5 * (info.M || 0) * (info.V || 0) * (info.V || 0);
     const r = rng(hash(E / 100, info.eng | 0, nb, info.what === 'trunk' ? 1 : 2));
-    const pB = Math.max(0, Math.min(1, (E - E_BEND) / (E_BREAK - E_BEND)));
-    const breaks = r() < pB;
-    const lost = breaks ? Math.floor(r() * nb) % nb : -1;
-    const k = Math.min(1, E / E_BREAK);
-    const curl = []; for (let b = 0; b < nb; b++) curl.push(b === lost ? 0 : (CURL0 + CURL1 * k) * (0.8 + 0.4 * r()));
-    return { E, Espin: 0.5 * I * om * om, Ehit: E - 0.5 * I * om * om, pBreak: pB, breaks, lost, curl, dent: DENT0 + DENT1 * k, dentAz: r() * 2 * Math.PI, what: info.what };
+    const metal = isMetal(info.material), wet = !!info.wet, k = Math.min(1, E / E_BREAK);
+    const snaps = !metal && (!wet || E > E_BREAK);
+    const curl = [], cut = [];
+    for (let b = 0; b < nb; b++) {
+      curl.push(metal ? (CURL0 + CURL1 * k) * (0.8 + 0.4 * r()) * (wet ? WET_K : 1) : 0);
+      cut.push(snaps ? CUT0 + CUT1 * r() : 0);
+    }
+    return { E, Espin: 0.5 * I * om * om, Ehit: E - 0.5 * I * om * om, material: info.material || null, metal, wet,
+             breaks: snaps, lost: snaps ? -2 : -1, cut, curl, dent: DENT0 + DENT1 * k, dentAz: r() * 2 * Math.PI, what: info.what };
   }
   // which blade a point of the prop is on: its azimuth about the shaft against the first blade's (az0); 'axis' unit
   // and 'u0' a unit vector across it (both in the prop's own frame, its hub the origin)
@@ -359,7 +369,11 @@
   // growing toward the tip - the angle at a length u past the curl's start is curl[b] (u / L)^2 (L the curled length), so
   // the blade's centre line is the integral of (cos, sin) of it: a bent blade keeps its length, as a bent metal blade
   // does (a table of 64 steps a blade). A point keeps its offset off the blade's line (the chord, the thickness). base -> pos
-  function curlBlades(base, pos, nv, axis, BF, curl, hubR) {
+  // (G1861.2: aft AND against the rotation - a blade struck while turning folds back from its spin; sense the engine's hand,
+  // TWIST of the aft travel goes round the shaft)
+  const TWIST = 0.6;
+  function curlBlades(base, pos, nv, axis, BF, curl, hubR, sense) {
+    const sg = -(sense || 1) * TWIST;
     const r0 = CURL_S0 * BF.R, L = BF.R - r0, NS = 64, tabs = curl.map(th => {
       const t = new Float64Array((NS + 1) * 2); let x = 0, y = 0;
       for (let i = 1; i <= NS; i++) { const u = (i - 0.5) / NS, a = th * u * u; x += Math.cos(a) * L / NS; y += Math.sin(a) * L / NS; t[i * 2] = x; t[i * 2 + 1] = y; }
@@ -376,8 +390,11 @@
       // the blade's radial direction at this point (its offset across the radial line is carried untouched)
       const rx = (x - a.d * axis[0]) / a.r, ry = (y - a.d * axis[1]) / a.r, rz = (z - a.d * axis[2]) / a.r;
       const along = r0 + lx + over * c, aft = ly + over * sn;          // where the straight blade had r along the radial
-      const dr = along - a.r, dd = -aft;
-      pos[v * 3] = x + dr * rx + dd * axis[0]; pos[v * 3 + 1] = y + dr * ry + dd * axis[1]; pos[v * 3 + 2] = z + dr * rz + dd * axis[2];
+      const dr = along - a.r;
+      // the bend's plane: the radial and the unit (-axis + sg x the turning direction) - one plane, so the length is kept
+      const tx = axis[1] * rz - axis[2] * ry, ty = axis[2] * rx - axis[0] * rz, tz = axis[0] * ry - axis[1] * rx, nn = Math.sqrt(1 + sg * sg);
+      const bx = (-axis[0] + sg * tx) / nn, by = (-axis[1] + sg * ty) / nn, bz = (-axis[2] + sg * tz) / nn;
+      pos[v * 3] = x + dr * rx + aft * bx; pos[v * 3 + 1] = y + dr * ry + aft * by; pos[v * 3 + 2] = z + dr * rz + aft * bz;
     }
   }
   // THE DENT: the spinner's points facing the strike (their radial direction within ~70 deg of dentAz) pushed in toward
@@ -458,6 +475,7 @@
   }
 
   const API = { G, DT, CRUSH, KICK, SPIN, MU, BOUNCE, REST_V, REST_W, REST_T, LIFE, E_BEND, E_BREAK, CURL0, CURL1, CURL_S0, DENT0, DENT1, EYE_CLEAR, EYE_VOL,
+    WET_K, CUT0, CUT1, TWIST, isMetal,
     rng, hash, carry, plan, watcher, watch, leaves, fit, release, step, rotOf, clearance, heal, strike, azOf, bladeFrame, bladeOf, curlBlades, dentSpinner,
     bays, depth, vol, cabin, crushed };
   if (typeof module !== 'undefined' && module.exports) module.exports = API;
