@@ -3942,7 +3942,9 @@
   const BRK_BIND = 4000;                                  // G1864: the places a frame the full binding takes
   // G1869 (the impact's frame rate): a wreck re-posed only past WRECK_STILL of node travel, the tear checked every
   // TEAR_EVERY s, the records made REC_BUDGET vertices a frame. ?wreckfast=0 / window.FLYDIY_WRECK_FAST = false: as before
-  const WRECK_STILL = 3e-3, TEAR_EVERY = 0.05, REC_BUDGET = 120000;
+  // (G1818: REC_BUDGET 120k -> 40k vertices a frame - the records' ~330 ns a vertex was a 40 ms first-break frame on the box;
+  // the groups at the break are made first, brkRecOrder)
+  const WRECK_STILL = 3e-3, TEAR_EVERY = 0.05, REC_BUDGET = 40000;
   try { if (/[?&]wreckfast=0(&|$)/.test(location.search || '')) window.FLYDIY_WRECK_FAST = false; } catch (e) {}
   const brkFast = () => window.FLYDIY_WRECK_FAST !== false;
   const BRK_ISLAND = 40;                                  // G1864: a torn island under this many triangles goes with the tear
@@ -4159,6 +4161,27 @@
     return out;
   };
   const brkCageOn = () => { const D = model && !model.gen ? dmgNow() : null; if (!(D && D.br.length)) return BRK.recs.length > 0; return !BRK.posed || BRK.vB !== D.vB || BRK.recPending || BRK.gpuOn !== (window.FLYDIY_SKINGPU !== false); };   // (G1818: a flip of the GPU switch re-poses: the A/B on one frame)
+  // G1818: THE RECORDS AT THE BREAK FIRST. While records are still to be made (REC_BUDGET a frame), the groups whose bounds
+  // (the geometry's sphere, taken to the frame's rest through the rest basis) hold an end of a broken member come first -
+  // the skin where the wreck is torn rides first; the rest keep the cage's own pose a few frames more (intact there)
+  function brkRecOrder(groups, D, K, o) {
+    if (groups.every(g => g[0].brkR)) return;
+    const N = def.nodes, ends = [];
+    for (const bi of D.br) { const b = def.beams[bi]; if (b) ends.push(b.a, b.b); }
+    const B0 = K.B0, og = K.og;
+    const near = g => {
+      if (g[0].brkR) return -1;
+      const geo = K.geoOf.get(g[2]); if (!geo) return 2;
+      if (!geo.boundingSphere) return 1;
+      const off = g[4], c = geo.boundingSphere.center, r = geo.boundingSphere.radius + 0.3;
+      const a = c.x + (off ? off[0] : 0) + o[0], b = c.y + (off ? off[1] : 0) + o[1], e = c.z + (off ? off[2] : 0) + o[2];
+      const x = og[0] + B0[0] * a + B0[1] * b + B0[2] * e, y = og[1] + B0[3] * a + B0[4] * b + B0[5] * e, z = og[2] + B0[6] * a + B0[7] * b + B0[8] * e;
+      for (const i of ends) { const p = N[i].p; if (Math.hypot(p[0] - x, p[1] - y, p[2] - z) < r) return 0; }
+      return 1;
+    };
+    const key = new Map(groups.map(g => [g, near(g)]));
+    groups.sort((p, q) => key.get(p) - key.get(q));
+  }
   function brkCage(xA, yU, cg, o, gain, still) {
     const D = brkState();
     if (!D || model.gen) return;
@@ -4199,6 +4222,7 @@
     for (const r of model.rigs) groups.push([r, r.g, r.posAttr, r.base, null, (r.bind && r.bind.bound.length) ? fabW : fabB]);
     for (const s2 of model.surfParts || []) groups.push([s2, null, s2.posAttr, s2.base, s2.pivot, fabW]);
     for (const s2 of (model.strutRigs || []).concat(model.anchorRigs || [])) groups.push([s2, null, s2.posAttr, s2.base, null, false]);
+    brkRecOrder(groups, D, K, o);
     const tm = performance.now(); let tRec = 0, tEv = 0, bud = BRK_BIND, recLeft = REC_BUDGET;
     BRK.recPending = false;
     for (const [own, , pa, base, off, fab] of groups) {
