@@ -60,10 +60,20 @@ const axisErr = (nose, hdg) => Math.min(Math.abs(wrap(nose - hdg)), Math.abs(wra
 function flyLeg(C, W, sim, def, a, b, opt) {
   const o = opt || {};
   const ap = C.makePilot(sim, def, W, { style: o.style || 'normal' });
-  const site = C.siteOf(a.id);
-  ap.setRoute(a, b);
-  ap.departFrom(a, b, site);
   const L = { from: a.id, to: b.id, phases: [], verdicts: null, t: 0, ok: false, faults: [] };
+  if (o.first) {
+    // the flight's first departure: off the stand, the site's way out (the page's applyRoute)
+    ap.setRoute(a, b);
+    ap.departFrom(a, b, C.siteOf(a.id));
+  } else {
+    // A CHAINED LEG, the page's own (DEST-TO G1945, app.js nextLeg): the To picked at STOPPED, the leg flightLeg derives -
+    // the From UNDER THE AEROPLANE, not the last leg's To - and a fresh pilot's departFrom(from, to), no site, no reset
+    const cg0 = sim.cgPos();
+    const FL = typeof C.flightLeg === 'function' ? C.flightLeg(W, C.stripGear(def), cg0[0], cg0[2], b.id, { legFrom: a }) : { from: a, to: b, depart: true };
+    L.where = FL.where ? { kind: FL.where.kind, at: FL.from && FL.from.id } : null;
+    if (!FL.depart || !FL.from || FL.from.id !== a.id) L.faults.push({ k: 'where', note: 'flightLeg put the From at ' + (FL.from && FL.from.id) + ' (' + (FL.where && FL.where.kind) + '), not ' + a.id, t: 0 });
+    ap.departFrom(FL.from || a, FL.to || b);
+  }
   const fault = (k, note) => { if (!L.faults.some(f => f.k === k)) L.faults.push({ k, note, t: r1(L.t) }); };
   const FA = stripFrame(a), FB = stripFrame(b);
   const D0 = sim.damage ? JSON.parse(JSON.stringify(sim.damage())) : null;
@@ -191,7 +201,7 @@ function flyTour(C, W, def, order, opt) {
     let n = 0;
     sim.step = (dt) => { step0(dt); if ((n++ % 120) === 0) tick(); };
     let L;
-    try { L = flyLeg(C, W, sim, def, a, b, o); } finally { sim.step = step0; }
+    try { L = flyLeg(C, W, sim, def, a, b, Object.assign({}, o, { first: i === 1 })); } finally { sim.step = step0; }
     L.trackI = [t0, track.length];
     legs.push(L);
     if (o.log) o.log(L);
