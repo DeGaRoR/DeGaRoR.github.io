@@ -591,8 +591,11 @@ const sha = s => crypto.createHash('sha256').update(s).digest('hex').slice(0, 16
 const BUILD_SLOT = '@@FLYDIY_BUILD_ID@@', DATE_SLOT = '@@FLYDIY_BUILD_DATE@@';
 const PATH_LIT = /['"`]((?:src|tools|vendor|media)\/[\w.\/-]+\.(?:js|mjs|json|wasm|css|html))(?:\?[^'"`\s]*)?['"`]/g;
 const SCAN_EXT = /\.(?:js|mjs|json|css|html)$/;
-// generated files are hashed through the pages (flight_core.js is the inlined core, byte for byte, behind its header)
-const GENERATED = new Set(['tools/flight_core.js', 'index.html', 'dev.html', 'sw.js', 'version.json']);
+// generated files are hashed through the pages (flight_core.js is the inlined core, byte for byte, behind its header);
+// and what is made FROM a build is never an input to its id: src/core/parked_packs.json is the parked cook's manifest,
+// written by tools/parked_cook.js AFTER the build and keyed on its id - hashed, every re-cook would move the id and
+// stale its own cook (the cooked bodies are media/parked/<content hash>, named by that manifest)
+const GENERATED = new Set(['tools/flight_core.js', 'index.html', 'dev.html', 'sw.js', 'version.json', 'src/core/parked_packs.json']);
 // paths built at run time ('tools/fixtures/island_' + id + '.json', the KTX2 transcoder's folder): [dir, file pattern]
 const DYNAMIC_INPUTS = [['tools/fixtures', /^(?:island_.+|premises_v1_.+)\.json$/], ['vendor/ktx2', /^basis_transcoder\./]];
 const LAST = { build: null, inputs: null };
@@ -1324,7 +1327,7 @@ function build(opts) {
 // the files every build writes, relative to flyDiy/ (GATE BUILT compares them; tools/pages_check.js reads version.json)
 const OUTPUTS = ['index.html', 'dev.html', 'sw.js', 'tools/flight_core.js', 'version.json'];
 
-module.exports = { build, MANIFEST, OUTPUTS };
+module.exports = { build, MANIFEST, OUTPUTS, GENERATED };
 // node tools/build.js [--out=DIR] [--inputs]   --out writes the five outputs under DIR (the inputs are this tree's);
 // --inputs lists the files the build id hashes beyond the pages (path and content sha)
 if (require.main === module) {
