@@ -72233,3 +72233,104 @@ architecture notes. The small fixes landed on the branch (commits 8544302 and th
 nothing rebuilt here); the rest is the coordinator's, with the fix described per finding. Three gates were written:
 OBSTFRAME (registered, green), STRIPGROUND and GENPAIRS (not registered: red on master until A5 / B10 are fixed).
 
+
+## G1550-G1559 - SPEC-FIXPOINT: THE RESOLVED SPEC IS A FIXED POINT, THE CG CORNERS ARE THE STAND'S AEROPLANE, AND THE JOIN STATES EVERY ROW IT OWNS (2026-10-04, SPEC-FIXPOINT for A0, a CLOUD session: node only; branch claude/spec-fixpoint-g1550 off master bff4f64b = train 31, with origin/ccr-4c7cf662-zcpqoe merged in for the review's rounds 1-2, which touch the same files)
+
+The review (reports/INDEPENDENT-REVIEW-2026-10-04.md) findings A2, A3, B8, B9, B13, the generator's clampSpec/tailY,
+E1, E2 and E3. Fixed in the construction, not patched per caller. Source only: nothing built is committed (A0 builds).
+
+**G1550 - THE REGISTRY (E3).** `GEN_FIELDS` in 60_gen_spec.js, beside GEN_TAIL_ENVELOPE: for every field the
+findings touch, its default (GATE SPECFIX checks it against GEN_DEFAULT), its clamp, its rule ('derive' - null = derived,
+cut to the clamp AS IT IS DERIVED; 'offset' - consumed once; 'frame' - genFrame's own nudge, kept by S._frame; 'pass' -
+applied where read, never written back; 'input') and whether the join OWNS it (`join.states`, `join.with` = the keys a
+state nulls). clampSpec and resolveSpec read the clamps from it (`genFieldClamp`; resolveSpec's `put` clamps through
+`GEN_FIELD_BY_AUTO`); the gate walks it. Exported: GEN_FIELDS, genFieldClamp, genNullToDefault, genSpecMerge.
+
+**G1551 - OFFSETS CONSUMED ONCE (A2, tailY).** `wings[k].place.dx` lands in xLE, `tail.place.dx` in hX / vX,
+`fuselage.tailY` in tailBot / tailTop (in clampSpec) - each then ZEROED on the resolved spec (and on the flat S.place
+alias) and its value recorded in `S._offsets` (a record, never read back). resolve(resolve(s)) == resolve(s), and
+clampSpec(clampSpec(s)) == clampSpec(s). The review's repro now holds: wing dx 0.5 / tail dx 0.4 resolves to xLE 0.88 /
+hX 6.31 on every pass (was 0.38 / 5.41 on the second). Engine and wing-dy nudges are 'pass' (applied in the frame every
+pass, never written back) and were already idempotent. GATE BUILD's "wing placement merges INSIDE the wing" line now
+reads the build (SHELF) and the record (the resolved spec carries 0).
+
+**G1552 - DERIVED VALUES CUT AS THEY ARE MADE (B8), THE AREAS CLAMPED (B9), NULL = DEFAULT (B13).** put() clamps
+through the registry, and the values a derivation moves after its put (xLE after the nudge and the engine's lever, hX /
+vX after the tail nudge, the twin boom's doubled Sv, a ruled V's span and area) are re-cut there. A cut wsAngle / dorsal
+angle drives its run / length (the next pass would). The declared exception: the tail arm's floor (boxRear + 0.9 chord)
+may stand past 6.5 m. Envelopes WIDENED where the generator's own derivation lived outside them (the old clamp then cut
+the stand's value on the second pass only, so the corners were another aeroplane): `gear.y` floor -0.90 -> -2.40 (the
+legDrop row's 1.20 m leg and a 4 m disc's clearance), and the cabin's floors reach THIS seating's table cabin
+(`seatFloor`: only the drone's 0.20 x 0.30 x 0.55 sits under 0.28 / 0.75 / 0.60 - a measured cabin is cut exactly as
+before; a first cut that widened the floors for everyone let the Jodel's and the twin's measured 0.55 m cabin fly
+un-clamped and was reverted). B9: tail.Sh [0.20, 12], Sv [0.10, 10], Svt [0.20, 14]. B13: `genNullToDefault` - an
+explicit null on a NUMBER whose GEN_DEFAULT is not null reads as that default (chord null flew 0.80, naca null 0209,
+aileron span null 0, baggage null 0); the derivable fields default to null and keep deriving; the save keeps its nulls.
+
+**G1553 - THE SAME AIRFRAME, RE-FED (A2 / E1).** The deeper half of A2: the corners re-feed the resolved spec ON
+PURPOSE (the geometry must not follow the loading), but buildGen wrote the frame's gear station back into gear.x, which
+is also genFrame's first-pass input - so a floatplane's corner was another lattice at the SAME fuel (1018.19 vs 1018.09
+kg on the validated Cessna floats) - and genFrame re-solved the structure's scale, the floats' gross and the gauge off
+the re-fed loading. Now buildGen records `S._frame` = { gx, tr, kScale, gross, gauge, W0, gearIn } and genFrame, given a
+spec that carries it, builds that airframe in one pass (no pass 1: the corners got cheaper); buildGen restores the gear
+INPUTS from gearIn before the frame and keeps the readout write-back GATE GEN asks for. `_auto` survives a rebuild
+(merged). To build a NEW airframe from a resolved spec, delete its `_frame`. And the tanks: genSpecAtFuel drained the
+vessel CAPACITY the shell, the fuel lines and the filler caps were sized off - the dry corner flew without its tanks
+(the metal Cessna's 4.3 kg of shells and 1.3 kg of lines). Each drained vessel now keeps `designCap` (fuel.designL's
+twin); the ledger bills the shell and its price off it, the plumbing and genAccessNeeds read fuel.designL.
+
+**G1554 - THE JOIN STATES EVERY ROW IT OWNS (A3 / E2).** tools/_cage_join.js: cabin.glazing 'glass' | 'none',
+fuselage.covering 'skin' | 'open', wings[i].material (both planes) and tail.finMaterial / stabMaterial (null = the
+aeroplane's own; clampSpec normalises null to absent, so the resolved spec is as before), bracing.cabane always,
+interplane / interplaneAt / wires at their defaults on a monoplane, and - when the join measured the tail
+(`M.tailJoined`) - tail.type 'conventional' | 'v' | 'twinBoom' with the other types' keys nulled (vAngle, Svt, the boom
+tube and stabY; a V nulls Sh / Sv). A P WITHOUT the key still says nothing (the intCons rule; the page's template carries
+every key). The garage's merge moved verbatim into the core as `genSpecMerge` (garage.js and _bake_joined.js call it;
+the vm stubs in GATE BUILD / GATE SAVE hand it in) so the gate drives the very merge the page runs. GATE JOIN's three
+lines that codified the bug ("default skinOn writes no covering", "no cabane key", "no truss keys") now assert the stated
+rows, plus both states of glazing and the materials.
+
+**G1555 - GATE SPECFIX** (tools/_specfix_check.js, core, ~70 s; `--no-join` ~15 s). Registry vs GEN_DEFAULT and
+clampSpec; clamp idempotent; resolve fixed point; every derived field inside its envelope; every offset consumed and
+landed exactly once; buildGen leaves its input unchanged and rebuilds def.spec into the same spec and lattice; the six CG
+corners (solo / full cabin x full / reserves / dry) the SAME aeroplane as the stand - node count, every rest position and
+radius, every beam (ends, rest length, class, TRUE stiffness: the flight box's softening is the integrator's cut at the
+loading it is given, not the airframe), every strip, gx / track / designGross and every non-payload ledger row; B9 and
+B13 cases - on the five validated builds (the user's Cub builds/cub_2026-09-20_corrected.json, the Jodel, the metal
+Cessna, the Cessna floats, the twin-582 on floats as master_bench flies it) and a 17-spec corpus (the A2 repro, each
+offset alone, all at once, tricycle / floats / biplane with offsets, the B8 18 m x 2.1 m wing, V, twin boom, pusher,
+drone, legDrop 1.2, a long low dorsal). JOIN: the page's own join headless (_bake_joined.js) - commit, switch a
+join-owned row ON and commit, switch it back and commit: the file and the resolved spec equal the never-on commit; every
+row on the Cub (and the gate fails on a registry join row without a case), all rows at once on the other four; each
+state's `with` keys stated null. NEGATIVE-VERIFIED: offsets not consumed + no `_frame` + tailY not zeroed -> 66 reds;
+the old glazing line -> the round trip red on four builds ("bubble" -> "none" kept); designCap / designL off -> the
+corners' empty ledger red on all five. It caught two things on its first run: a V's Svt kept after the cant came home
+(fixed in the join and the registry's `with`), and see LESSONS.
+
+WHAT MOVES ON THE VALIDATED BUILDS (old core = this branch's merge base 8de5efa, new = this branch; genShakedown full):
+the resolved specs are IDENTICAL on all five, every flown number (def.params: trim, the AP's speeds, the prop) is
+IDENTICAL, and the as-drawn plaque is IDENTICAL. Only the sheets that re-feed the spec move - they were building a
+different airframe (lighter tanks, lines and gauge; on the floats a different lattice):
+- Cub: reserve mass 443.86 -> 448.65 kg, Vs 15.43 -> 15.51 m/s, SM 13.95 -> 14.06 %, climb 3.29 -> 3.25 m/s;
+  aft corner (full cabin, reserves) 523.86 -> 528.65 kg, CG 37.65 -> 37.44 % MAC, SM 2.85 -> 3.04 % (= staticMarginAft).
+- Jodel: reserve 430.59 -> 435.42 kg, Vs 18.14 -> 18.24, SM 1.794 -> 1.791 %, climb 2.90 -> 2.85; aft corner (solo,
+  reserves) SM 1.794 -> 1.791 %; full cabin reserves 510.59 -> 515.42 kg, SM 1.88 -> 1.82 %.
+- metal Cessna: reserve 862.95 -> 866.27 kg, Vs 21.86 -> 21.90, SM 13.15 -> 13.21 %, climb 7.13 -> 7.11; aft corner
+  1022.9 -> 1026.3 kg, CG 36.26 -> 36.19 %, SM 6.73 -> 6.81 %.
+- Cessna floats: reserve 997.64 -> 1001.0 kg, Vs 24.92 -> 24.96, SM 16.45 -> 16.51 %, climb 6.48 -> 6.46; the FULL-fuel
+  corners move too (938.09 -> 938.19 kg solo, 1178.09 -> 1178.19 full cabin: the write-back lattice); aft corner
+  1157.6 -> 1161.0 kg, CG 39.42 -> 39.35 %, SM 11.95 -> 12.04 %.
+- twin-582 on floats: reserve 461.33 -> 464.62 kg, Vs 15.84 -> 15.89, SM 12.39 -> 13.03 %, climb 8.09 -> 8.02; full-fuel
+  corners 475.16 -> 475.42 kg, CG 31.10 -> 30.90 %, SM 14.45 -> 14.66 %; aft corner SM 12.39 -> 13.03 %.
+Archetypes (not validated) with offsets, out-of-envelope derived tails, a drone cabin or explicit nulls move at the stand
+too (by design: that is A2 / B8 / B13); GATE ARCHETYPES (full tier) was not run here.
+
+BATTERY: the CORE battery (node tools/run_gates.js --jobs=3, 4 cores, 149 jobs, 90 min wall): 132 PASS, 10 red, each explained. MASS (mine): its reserve check asked the margin to move > 0.002 with a wing-panel tank, a bar the DIFFERENT reserve airframe cleared (0.1898 -> 0.1877); the same airframe moves it 0.0006 (the CG walks 15 mm forward and the neutral point with it) - the check now asks the CG to walk > 5 mm and the margin to differ, selftest extended (both CAUGHT), green. INSTANT: the runner's 1800 s cap on this machine; alone it PASSES (26 rows 'same', Cub and metal). WORLD / BIOME / SETTLE: timing budgets under the parallel load (terrainH 2.55 vs 2.5 us, surface 5.2 vs 5 us, the settle bake) - all PASS alone, on this branch and on the base. FRAMECOST: red on the base (8de5efa) with IDENTICAL numbers (stand draws 914 -> 1047, uniforms 205152 -> 421112, 53 page errors in this cloud page) - this environment, not this arc. SKINMAT / LIVERYREACH / WEATHER (`THREE is not defined`: no node_modules/three in the cloud container) and PARTS (its regex on garage.js's save envelope) - red on the base too. SPECFIX, GEN, JOIN, BUILD, SAVE, ENERGY and ENERGYBASE among the green. The full tier (ARCHETYPES, PILOTMATRIX, SEAPLANE, HOTHIGH) was not run here: A0's --all; archetypes with offsets / out-of-envelope tails / a drone cabin / explicit nulls are EXPECTED to move.
+
+LESSONS / FOR A0: (1) the headless join (_bake_joined.js) carries history: the first join after ANOTHER build can read
+that build's engine layer (the twin's wing pair came out null, or at the Cessna's units, then its own on the second
+commit, stable after). The gate commits twice; whether the page does the same on a build switch (A4's family) is
+unverified - worth a look. (2) `shakeHash(JSON.stringify(def.spec))` in app.js now includes `_frame` / `_offsets`:
+deterministic, but every cached shakedown keyed on the old string misses once (re-cook the parked aeroplanes). (3) B10
+(the twin boom's zero-length beams) is untouched here; GATE SPECFIX asks finite, not length. (4) The container was
+OOM-killed once during a build run in parallel with GATE GEN; the battery was run with --jobs=3.
