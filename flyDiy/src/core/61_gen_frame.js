@@ -99,7 +99,8 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   const clusters = [];                              // G294: rigid node groups (the tube)
   // G327: a fin's cluster — its truss and the station it stands on — with
   // its stiffness declared as a K_tip for the end-of-lattice resolution
-  const finCluster = (tag, finNodes, rootNodes, hV, cRoot, mat) => {
+  // G1840 (DMG-D3): `ends` = the fin's front and rear root nodes and its apex - the section's chord and span axes
+  const finCluster = (tag, finNodes, rootNodes, hV, cRoot, mat, ends) => {
     if (R.finTube === 0 || R.finTube === false) return;
     const ph = mat && mat.phys;
     if (!ph || !(ph.E > 0) || !(hV > 0.2)) return;
@@ -107,8 +108,26 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     const EI = ph.E * 2 * Acap * (0.5 * d) * (0.5 * d);
     const kt = 3 * EI / Math.pow(hV, 3);
     const nodesC = finNodes.concat(rootNodes).filter((q, i, a) => q != null && a.indexOf(q) === i);
+    const part = finNodes.filter((q, i, a) => q != null && a.indexOf(q) === i && rootNodes.indexOf(q) < 0);
+    // G1840 (DMG-D3 CLUSTERS): THE FIN'S ROOT SECTION, for the damage layer's root limits (30_solver, behind
+    // params.damage): the same two caps (Acap each, d apart) whose EI sets its omega, on its front and rear root posts
     clusters.push({ cls: 'fin', tag, nodes: nodesC,
-                    omega: { k: kt, kRef: 29182, mRef: 61.6, wRef: 300 } });
+                    omega: { k: kt, kRef: 29182, mRef: 61.6, wRef: 300 },
+                    dmg: { kind: 'caps', mat: genPhysKey(ph), E: ph.E, Acap, d, part, root: rootNodes.filter(q => q != null),
+                           ax: ends ? [ends.front, ends.tip] : null, lat: ends ? [ends.front, ends.rear] : null } });
+  };
+  // G1842 (DMG-D3, DEFORM §7.1 #8): A TUBE'S MID-SPAN STATION - the bay of a rod / boom tube that holds its middle (the
+  // user's "booms crack, often in the middle": a long boom is spliced and carries its bracing's and its control runs'
+  // through-bolted brackets along its length; the reports' "just aft of the cabin" is the tube's ROOT here, and the
+  // monocoque's rivet line, DMG-D1a). The bay k (ring k to ring k+1) whose midpoint is nearest the tube's mid-length,
+  // never the root bay (that is the root's own cut); the splice's joint efficiency is DMG-D1a's riveted joint (0.7,
+  // the doc's range, not a certified number). -1: no station (a tube of fewer than three rings)
+  const dmgStation = (rings, xTip) => {
+    if (rings.length < 3) return -1;
+    const xr = rings.map(r => r.reduce((s, q) => s + P[q][0], 0) / r.length), mid = 0.5 * (xr[0] + xTip);
+    let k = -1, bd = Infinity;
+    for (let j = 1; j + 1 < rings.length; j++) { const dd = Math.abs(0.5 * (xr[j] + xr[j + 1]) - mid); if (dd < bd) { bd = dd; k = j; } }
+    return k;
   };
   const P = [];                                     // positions, for area math
   // G185: WHICH PLANE a node belongs to. Tags stay WF/WR/WB on every plane
@@ -736,8 +755,19 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
       omega = { k: 3 * EIt / Math.pow(L, 3), kRef: 29182, mRef: 61.6, wRef: 300 };
       rodGJ = GJt;
     }
+    // G1840 / G1842 (DMG-D3): the tube's section (the EI and GJ above, its radius and wall) and its mid-span station;
+    // its root is the bulkhead ring at boxRear (the attachment, the cluster's first ring)
+    let rodDmg = null;
+    if (ph && ph.E > 0 && rodR > 0 && rodRings.length >= 2) {
+      const tW = R.rodWall == null ? 1.2e-3 : R.rodWall;
+      const ring0 = rodRings[0], last = rodRings[rodRings.length - 1];
+      rodDmg = { kind: 'tube', mat: genPhysKey(ph), E: ph.E, EI: ph.E * Math.PI * Math.pow(rodR, 3) * tW,
+                 GJ: (ph.E / 2.6) * 2 * Math.PI * Math.pow(rodR, 3) * tW, r: rodR,
+                 part: cl.filter(q => ring0.indexOf(q) < 0), root: ring0.slice(), ax: [ring0[0], last[0]], lat: [ring0[0], ring0[1]],
+                 station: dmgStation(rodRings, fu.postX), eta: 0.7 };
+    }
     if (cl.length >= 6) clusters.push({ cls: 'rod', tag: 'ROD', omega, nodes: cl,
-                                        rings: rodRings, gj: rodGJ });
+                                        rings: rodRings, gj: rodGJ, dmg: rodDmg });
   }
 
   // ---- 2. engine ------------------------------------------------------
@@ -1665,8 +1695,22 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
             const rm = 0.5 * (r0 + r1) * Math.sqrt(kv);          // the oval's mean radius
             gj = (ph.E / 2.6) * 2 * Math.PI * Math.pow(rm, 3) * tW;
           } }
+        // G1840 / G1842 (DMG-D3): the oval tube's section (its EI both ways and its GJ, the same oval and wall), its
+        // root (the wing bay's spar nodes it is bolted to: the cluster's `rib`) and its mid-span station
+        let boomDmg = null;
+        { const ph = M && M.phys;
+          if (ph && ph.E > 0) {
+            const tW = R.rodWall == null ? 1.2e-3 : R.rodWall, rm = 0.5 * (r0 + r1), a = kv * rm;
+            const rings = st.map(q => [q.T, q.I, q.O]), r0n = st[iRoot], lastN = st[st.length - 1];
+            boomDmg = { kind: 'oval', mat: genPhysKey(ph), E: ph.E,
+                        EIv: ph.E * Math.PI * tW * a * a * (a + 3 * rm) / 4, cv: a,         // vertical bending (the EI of omega)
+                        EIl: ph.E * Math.PI * tW * rm * rm * (rm + 3 * a) / 4, cl: rm,      // lateral bending
+                        GJ: gj, rT: rm * Math.sqrt(kv),
+                        part: st.flatMap(q => [q.T, q.I, q.O]), root: rib.slice(), ref: [r0n.T, r0n.I, r0n.O],
+                        ax: [r0n.T, lastN.T], lat: [r0n.I, r0n.O], station: dmgStation(rings, xTip), eta: 0.7 };
+          } }
         clusters.push({ cls: 'boom', tag: 'BM' + sd, omega, nodes: cl,
-                        rings: st.map(q => [q.T, q.I, q.O]), gj });
+                        rings: st.map(q => [q.T, q.I, q.O]), gj, dmg: boomDmg });
       }
     }
     const tl = chains.L[iTail], tr = chains.R[iTail];
@@ -1813,7 +1857,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
       fins.push({ VF, VR, VX, VX2, FIN: apex, side: sg, hV, chordV, nV });
       // G327: the fin as one cluster with the boom's tail station it stands on
       finCluster('FIN' + sd, [...VF, ...VR, ...VX, ...VX2, apex], [q.T, q.I, q.O, prev.T],
-                 hV, chordV(0), MB);
+                 hV, chordV(0), MB, { front: VF[0], rear: VR[0], tip: apex });
     }
     TAIL = { HF, HR, HB, zsH, semiH, zRootH, chordH, hV, chordV, nV,
              VF: fins[0].VF, VR: fins[0].VR, VX: fins[0].VX, VX2: fins[0].VX2, fins,
@@ -1983,7 +2027,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   B(FIN, VF[nV - 1], 'tail'); B(FIN, VR[nV - 1], 'tail');   // ...and out of its plane (the same mechanism)
   // G327: the fin as one cluster with the post and the last ring it stands on
   finCluster('FIN', [...VF, ...VR, ...VX, ...VX2, FIN], [TPT, TPB, last.TL, last.TR],
-             hV, chordV(0), MB);
+             hV, chordV(0), MB, { front: VF[0], rear: VR[0], tip: FIN });
   TAIL = { HF, HR, HB, VF, VR, VX, VX2, zsH, semiH, zRootH, chordH, hV, chordV, nV,
            fins: [{ VF, VR, VX, VX2, FIN, side: 1, hV, chordV, nV }],   // G268: one fin here, two on a twin boom
            sparFront: sparF, rearH: 1 - CT, rearV: 1 - CR };
@@ -2248,7 +2292,10 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
         B(DL[i], DR[i + 1], 'gear', false, 'inner', undefined, NM); B(DR[i], DL[i + 1], 'gear', false, 'inner', undefined, NM);
       }
       for (let i = 0; i < NS; i++) { B(K[i], DL[i], 'gear', false, 'inner', undefined, NM); B(K[i], DR[i], 'gear', false, 'inner', undefined, NM); B(DL[i], DR[i], 'gear', false, 'inner', undefined, NM); }
-      clusters.push({ cls: 'float', tag: 'FLT' + (sd < 0 ? 'L' : 'R'), nodes: all });
+      // G1840 (DMG-D3): a rigid float is BeamNG's 'prop' - its root is its attachment (the struts and the spreader
+      // bars that end on it: the solver reads them off the members), its axis the keel, its lateral the deck's beam
+      clusters.push({ cls: 'float', tag: 'FLT' + (sd < 0 ? 'L' : 'R'), nodes: all,
+                      dmg: { kind: 'bolts', part: all.slice(), root: null, ax: [K[0], K[NS - 1]], lat: [DL[2], DR[2]] } });
       const Din = sd < 0 ? DR : DL, Dout = sd < 0 ? DL : DR;
       const fB = sd < 0 ? fwdL : fwdR, aB = sd < 0 ? AA.BL : AA.BR, fT = sd < 0 ? F[iFwd].TL : F[iFwd].TR;
       // G396.2: A FLOAT INSTALLATION HAS NO SPRING (the user: "quite

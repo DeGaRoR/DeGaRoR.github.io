@@ -183,6 +183,12 @@ const GATES = [
   // the tube members, the seam rules, spruce's ragged break, the kink floor, nothing armed parked, and the break order on
   // the bench to destruction and in the trunk flights (the first group to let go is a fitting's). Three builds at once
   { id: 'DMGMEMBERS', file: '_dmg_members_check.js', tier: 'core', weight: 3, wall: 120 },
+  // G1840-G1843 (DMG-D3 CLUSTERS): a shape-matched cluster is one breakable part - the fin, the twin's rod, the floats (and
+  // the twin-boom fixture, reported): its root load read off the cut equals the statics; nothing parts in normal
+  // operations (the load test, the pull, the drops, a circuit, parked, the ordinary water cases); a scripted pull takes
+  // each part off cleanly (its own group, rigid), the rod splits at its mid-span station, tears in twist; the water's
+  // nose-ins reported. Three builds at once
+  { id: 'DMGCLUSTERS', file: '_dmg_clusters_check.js', tier: 'core', weight: 3, wall: 900 },
   // G1800-G1804 (DMG-D0 INSTRUMENTS): the NaN ending is 'sim-diverged' ('broke-up' the structure's); the velocity guard (150 m/s
   // off the CG: a blown lattice that never goes NaN trips it, 200 m/s true does not; the census of what the validated builds
   // fly never near it); the per-beam plastic work sums to the total; every beam of the five builds carries its ledger
