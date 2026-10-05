@@ -422,14 +422,7 @@ const GEN_SURF_MATERIALS = {
                  gear: GEN_MATERIALS.wood.c.gear },
             cover: 0.80, price: 50, cd0: 0.0022, clmaxK: 1.00, shop: 'wood',
             // the Cub's wing corroborated the row at 550 kg; the cloth stays cloth
-            refGross: 550, coverGauged: false,
-            // G1582 (B12): the cover above bills the ply D-box, so a
-            // cantilever box's web and shear members are skin this row has
-            // already paid for - GEN_RULES.boxWebK, as the gauged rows'
-            // (61_gen_frame B()). Measured when the box moved onto this row:
-            // full-density webs put the Tiger Moth card at 680 kg (506 real,
-            // +34 %) and the user's Jodel +40 kg, all of it in the box webs.
-            boxWebInCover: true },
+            refGross: 550, coverGauged: false },
   steel:  { name: 'steel tube + fabric', phys: GEN_MATERIALS.tubeFabric.phys,
             lin: GEN_MATERIALS.tubeFabric.lin, k: GEN_MATERIALS.tubeFabric.k,
             c: GEN_MATERIALS.tubeFabric.c,
