@@ -3552,6 +3552,10 @@ function make(THREE, scene, world, rec0, opts) {
     animalRun: () => ANIM,
     traffic: () => Array.from(TRAFFIC, ([id, t]) => ({ road: id, cars: t.cars.map(c => ({ key: c.key, s: c.s, dir: c.dir, v: c.v, x: c.grp.position.x, y: c.grp.position.y, z: c.grp.position.z, hit: c.hit })) })),
     soundObjects,                                                  // G1663 (SND-AMB-2): the movers for the sound, read-only
+    // G1705 (SND-ANIMALS): the live animals for the sound, read-only and allocation-free (animal_run.js's reader: rows of
+    // ANIMAL_RUN.SOUND.ROW - species, head / blowhole, velocity, state, the clock of its last blow / call event, the herd)
+    animalSounds: out => (ANIM ? ANIM.sound(out) : 0),
+    animalClock: () => (ANIM ? ANIM.clock() : 0),
     obstacle: id => { const R = OBS(); return R ? R.get(id) : null; },   // (G844: one record, its shape - GATE HOUSEWORKER's digest)
     obstacles: () => { const R = OBS(); return R ? R.list().filter(r => OBST_IDS.has(r.id)).map(r => ({ id: r.id, tag: r.tag, x: r.x, z: r.z, yaw: r.yaw, y0: r.y0, top: r.shape.top, cells: r.shape.cells, cell: r.shape.cell })) : []; },
     setRecord: r => { rec = PG.normalise(r); composedFresh = false; },

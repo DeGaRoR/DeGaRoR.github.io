@@ -20,7 +20,16 @@
 //               nothing (the model) and the loops fade.
 //   THE OBJECTS the movers (tram cabins, traffic cars, moored boats) from render_premises' READ-ONLY soundObjects(out)
 //               (window.WORLD.premises), every frame (a few dozen rows; a 10 Hz reader would run cold and box every double
-//               it reads); the mill from the premises record (once per record).
+//               it reads); the mill from the premises record (once per record), its recorded stamp-mill loop (G1708) or,
+//               without the file, its procedural rumble.
+//   THE ANIMALS (G1705, SND-ANIMALS) the live animals from render_premises' READ-ONLY animalSounds(out, since) (animal_run.js's
+//               reader), every frame: the blows, the bugles, the growls, the bleats, the flocks' gulls - the model decides;
+//               a flock's call rides its bird (the doppler, as the pass). Variants never repeat at once (samples.js pick's
+//               `fresh`). Nothing of the animals' code knows the sound, nor the sound the animals': no layer, no rows.
+//   THE ROOM    a key refused by the class's budget frees what is resident and no longer wanted (not sounding), then asks
+//               again the next frame; an ANIMAL's key (a blow, a bugle: an event that does not come again) may also free
+//               the largest idle key of the nature species, which waits and comes back when there is room (G1705: on
+//               gamer's 8 MB a shore with loons, eagles, gulls and owls resident refused the orca's breath).
 //   THE FRAME   allocation-free (GATE AUDIO EMITALLOC): typed state, the AudioParams scheduled only when they moved; a
 //               call is an event (its buffer source is the one allocation). Nothing near: nothing scheduled, nothing
 //               loaded, nothing made.
@@ -39,7 +48,14 @@
   const CABIN = [Math.pow(10, -12 / 20), 900], OPEN = [Math.pow(10, -2 / 20), 9000], CLEAR = [1, 20000];
   const KEYS = []; for (let s = 0; s < NS; s++) if (SOUNDS[s][1]) KEYS.push(SOUNDS[s][1]);
   // the keys the emitters own in the 'emit' class (mech.creak stays the airframe's grain: shared, decoded once)
-  const OWN = { 'bird.crow': 1, 'bird.eagle': 1, 'bird.gull': 1, 'bird.owl': 1, 'bird.loon': 1, 'dog': 1, 'mech.door': 1, 'vehicle.pickup': 1, 'tram.bell': 1, 'tram.hum': 1, 'boat.idle': 1 };
+  const OWN = { 'bird.crow': 1, 'bird.eagle': 1, 'bird.gull': 1, 'bird.owl': 1, 'bird.loon': 1, 'dog': 1, 'mech.door': 1, 'vehicle.pickup': 1, 'tram.bell': 1, 'tram.hum': 1, 'boat.idle': 1,
+                // G1705 / G1708: the animals, the thrush, the stamp mill
+                'animal.whale.blow': 1, 'animal.orca.blow': 1, 'animal.elk': 1, 'animal.bear': 1, 'animal.deer': 1, 'bird.thrush': 1, 'mill.stamp': 1 };
+  // the sounds the model can make when their recording is absent or fails (the procedural ones: G1661)
+  const SYNTH = new Uint8Array(NS); for (let s = 0; s < NS; s++) SYNTH[s] = /^(tramhum|mill|boat|bell)$/.test(SOUNDS[s][0]) ? 1 : 0;
+  const isProc = new Uint8Array(NS), fb = new Uint8Array(NS);   // the buffer is procedural; the recording failed (fall back)
+  // the animals' sounds outrank the nature species' in the room (G1705)
+  const PRIO = new Uint8Array(NS); for (let s = 0; s < NS; s++) PRIO[s] = /^(whaleblow|orcablow|elk|bear|doe)$/.test(SOUNDS[s][0]) ? 1 : 0;
   let st = M.emittersState('full'), tierName = 'full';
   let own = null;                                   // an ambience state of our own when the bed mixer is not there
   let ctx = null, SM = null, emIn = null, emLP = null, emDuck = null, offCabin = null, gen = 0;
@@ -58,6 +74,10 @@
   const provider = {
     // the page's movers: render_premises' read-only accessor (the world editor's renderer; null when no premises)
     objects(out) { const WR = W.WORLD, R = WR ? WR.premises : null; return R && R.soundObjects ? R.soundObjects(out) : 0; },
+    // G1705: the live animals (animal_run.js's reader through render_premises), its clock and its species' names
+    animals(out) { const WR = W.WORLD, R = WR ? WR.premises : null; return R && R.animalSounds ? R.animalSounds(out) : 0; },
+    animalClock() { const WR = W.WORLD, R = WR ? WR.premises : null; return R && R.animalClock ? R.animalClock() : 0; },
+    animalSpecies() { const A = W.ANIMAL_RUN; return A && A.SOUND ? A.SOUND.SPECIES : null; },
   };
 
   function tierOf() { try { const G = W.GFX && W.GFX.get && W.GFX.get(); return (G && PRESET_TIER[G.preset]) || 'full'; } catch (e) { return 'full'; } }
@@ -98,7 +118,10 @@
   function begin(s) {
     const key = SOUNDS[s][1], g0 = gen;
     loading = s; res[s] = 1; resT[s] = st.clk[0];
-    if (!key) {   // procedural: made in an idle callback (a few ms once), never in a frame
+    // procedural: no recording declared, or none shipped, or it failed (G1708: the mill's rumble is the stamp loop's fallback)
+    if (!key || fb[s] || !SM.has(key)) {
+      if (!SYNTH[s]) { loading = -1; res[s] = 3; return; }   // nothing to make: the emitter waits for a recording
+      // made in an idle callback (a few ms once), never in a frame
       const run = () => {
         if (g0 !== gen) return;
         if (loading === s) loading = -1;
@@ -107,29 +130,47 @@
         if (!y) { res[s] = 3; return; }
         const b = ctx.createBuffer(1, y.length, ctx.sampleRate);
         if (b.copyToChannel) b.copyToChannel(y, 0); else b.getChannelData(0).set(y);
-        proc[s] = b; procB[0] += y.length * 4; res[s] = 2; st.ready[s] = 1; st.dur[s] = y.length / ctx.sampleRate;
+        proc[s] = b; isProc[s] = 1; procB[0] += y.length * 4; res[s] = 2; st.ready[s] = 1; st.dur[s] = y.length / ctx.sampleRate;
       };
       if (W.requestIdleCallback) W.requestIdleCallback(run, { timeout: 1000 }); else setTimeout(run, 0);
       return;
     }
-    if (!SM.has(key)) { loading = -1; res[s] = 3; return; }   // no recording (the loon): the emitter waits for one
     SM.load(key).then(buf => {
       if (g0 !== gen) return;
       if (loading === s) loading = -1;
       if (res[s] !== 1) return;
-      if (!buf) { res[s] = 3; resT[s] = st.clk[0]; return; }
+      if (!buf) {
+        // refused by the budget: make room (what is resident and unwanted goes) and ask again next frame, else wait;
+        // failed: a sound the model can make falls back to it (the mill), the others wait
+        if (SM.state(key) === 'budget') { res[s] = room(s) ? 0 : 3; if (res[s] === 0) SM.release(key); }
+        else if (SYNTH[s]) { fb[s] = 1; res[s] = 0; }
+        else res[s] = 3;
+        resT[s] = st.clk[0]; return;
+      }
       // the longest variant's seconds (the model frees a slot when its call has played)
       let d = 0; const n = (W.FLYDIY_AUDIO_MEDIA && W.FLYDIY_AUDIO_MEDIA[key] && W.FLYDIY_AUDIO_MEDIA[key].length) || 1;
       for (let k = 0; k < 4 * n; k++) { const b = SM.pick(key); if (b && b.duration > d) d = b.duration; }
       st.dur[s] = d > 0 ? d : st.dur[s];
       if (SOUNDS[s][2] === 1) proc[s] = buf;   // a recorded LOOP (G1667): samples.js's baked, crossfaded loop buffer plays in the loop slot
       res[s] = 2; st.ready[s] = 1;
-    }, () => { if (g0 !== gen) return; if (loading === s) loading = -1; res[s] = 3; resT[s] = st.clk[0]; });
+    }, () => { if (g0 !== gen) return; if (loading === s) loading = -1; if (SYNTH[s]) { fb[s] = 1; res[s] = 0; } else res[s] = 3; resT[s] = st.clk[0]; });
+  }
+  // room for sound s: every other resident key not wanted and not sounding is dropped; for an animal's sound, if that
+  // freed nothing, the largest idle key of a nature species too -> whether anything was freed
+  function room(s) {
+    let n = 0;
+    for (let k = 0; k < NS; k++) if (k !== s && res[k] === 2 && !st.want[k] && !playing(k) && SOUNDS[k][1] && !isProc[k] && OWN[SOUNDS[k][1]]) { drop(k); n++; }
+    if (!n && PRIO[s]) {
+      let big = -1, bb = -1;
+      for (let k = 0; k < NS; k++) if (k !== s && !PRIO[k] && res[k] === 2 && !playing(k) && SOUNDS[k][1] && !isProc[k] && OWN[SOUNDS[k][1]]) { const b = SM.size ? SM.size(SOUNDS[k][1]) : 1; if (b > bb) { bb = b; big = k; } }
+      if (big >= 0) { drop(big); res[big] = 3; resT[big] = st.clk[0]; n++; }   // (it waits its RETRY_S before asking again)
+    }
+    return n > 0;
   }
   function drop(s) {
     res[s] = 0; st.ready[s] = 0;
     const key = SOUNDS[s][1];
-    if (!key) { if (proc[s]) procB[0] -= proc[s].length * 4; proc[s] = null; return; }
+    if (!key || isProc[s]) { if (proc[s]) procB[0] -= proc[s].length * 4; proc[s] = null; isProc[s] = 0; return; }
     if (SOUNDS[s][2] === 1) proc[s] = null;   // a recorded loop's buffer goes back with its key (samples.js counts its bytes)
     if (OWN[key]) SM.release(key);   // (a shared key - the airframe's creak - stays its owner's)
   }
@@ -172,7 +213,7 @@
       const ch = V[i], o = i * 6, s = st.vS[i];
       if (st.vNew[i]) {
         st.vNew[i] = 0;
-        const buf = SOUNDS[s][1] ? SM.pick(SOUNDS[s][1]) : proc[s];
+        const buf = isProc[s] ? proc[s] : SM.pick(SOUNDS[s][1], true);   // a variant, never the last one again
         if (!buf) { st.vOn[i] = 0; continue; }
         if (vSrc[i]) { try { vSrc[i].stop(); } catch (e) {} }
         const src = ctx.createBufferSource();
@@ -247,7 +288,7 @@
     gen++;
     for (let i = 0; i < NV; i++) { if (vSrc[i]) { try { vSrc[i].stop(); } catch (e) {} } vSrc[i] = null; st.vOn[i] = 0; st.vNew[i] = 0; }
     for (let i = 0; i < NL; i++) { if (lSrc[i]) { try { lSrc[i].stop(); } catch (e) {} } lSrc[i] = null; lSnd[i] = -1; st.lOn[i] = 0; }
-    for (let s = 0; s < NS; s++) { if (res[s] === 2 || res[s] === 1) drop(s); res[s] = 0; st.ready[s] = 0; }
+    for (let s = 0; s < NS; s++) { if (res[s] === 2 || res[s] === 1) drop(s); res[s] = 0; st.ready[s] = 0; fb[s] = 0; }
     procB[0] = 0; loading = -1; mu.fill(-1);
     for (const n of [emIn, emLP, emDuck]) { if (n) { try { n.disconnect(); } catch (e) {} } }
     emIn = emLP = emDuck = null; V.fill(null); LP.fill(null);

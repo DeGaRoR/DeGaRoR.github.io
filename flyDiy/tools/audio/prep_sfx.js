@@ -2,7 +2,9 @@
 //
 //   node tools/audio/prep_sfx.js [--selection tools/audio/sfx_selection_v1.json] [--check]
 //
-// For every item of the selection: decode the raw CC0 file (assets/audio/raw/freesound/, local), mono, high-pass,
+// For every item of the selection: decode the raw file (assets/audio/raw/freesound/ or raw/nps/, local; CC0, CC BY or
+// public domain - LICENCE below; never SA / NC / ND, the user's ruling 2026-10-05), optionally cut to the item's
+// `cut: [t0, t1]` seconds (a long field recording: the call chosen by its loudness over the floor), mono, high-pass,
 // cut (a bed: the steadiest 32 s; a loop: the steadiest 10 s; a shot: its event, <= 6 s), level (beds and loops to
 // -23 LUFS, shots to a -3 dBFS peak capped at -16 LUFS), encode MP3 (beds/loops 96 kb/s, shots 128 kb/s, mono) and
 // write media/audio/sfx/<key>_<id>.<h8>.mp3 through _media_lib (content-versioned, owned dir, pruned). Then:
@@ -81,15 +83,24 @@ function level(x, sr, kind) {
   return x.map(v => v * g);
 }
 
+// the licences a shipped sound may carry, with how CREDITS names them; anything else (SA, NC, ND, unknown) is refused
+const LICENCE = {
+  'CC0-1.0': () => 'CC0 1.0',
+  'PD-US-NPS': () => 'public domain (a US National Park Service recording)',
+};
+const licenceName = l => LICENCE[l] ? LICENCE[l]() : /^CC-BY-[34]\.0$/.test(l) ? 'CC BY ' + l.slice(6) : null;
+const sourceName = (id, page) => String(id).startsWith('nps-') ? page : `freesound #${id}, ${page}`;
+
 async function prep(sel) {
   const L = JSON.parse(fs.readFileSync(path.join(ROOT, 'assets', 'audio', 'ledger.json'), 'utf8'));
   const emitted = [], cat = [], shipped = [];
   for (const it of sel.items) {
     const s = L.sounds[it.id];
     if (!s || !s.raw) throw new Error(`#${it.id} (${it.key}) is not downloaded - run fs_fetch.js --download --ids ${it.id}`);
-    if (s.licence !== 'CC0-1.0' || !s.licenceCheck || s.licenceCheck === 'failed') throw new Error(`#${it.id}: licence not re-checked as CC0`);
+    if (!licenceName(s.licence) || /NC|ND|SA/.test(s.licence) || !s.licenceCheck || s.licenceCheck === 'failed') throw new Error(`#${it.id}: licence ${s.licence} not shippable or not re-checked`);
     const { sr, ch } = await X.decode(path.join(ROOT, s.raw));
     let x = ch.length > 1 ? ch[0].map((v, i) => 0.5 * (v + ch[1][i])) : Float32Array.from(ch[0]);
+    if (it.cut) x = x.slice(Math.round(it.cut[0] * sr), Math.round(it.cut[1] * sr));
     x = highpass(x, sr, /needs cleaning/.test(it.note || '') ? 90 : 40);
     if (it.kind === 'bed') x = fade(Float32Array.from(steadiest(x, sr, 32)), sr, 0.02, 0.02);
     else if (it.kind === 'loop') x = fade(Float32Array.from(steadiest(x, sr, 10)), sr, 0.02, 0.02);
@@ -101,7 +112,7 @@ async function prep(sel) {
     emitted.push(rel);
     const row = {
       key: it.key, file: rel, kind: it.kind, durationS: +(x.length / sr).toFixed(2), lufs: +X.loudness([x], sr).toFixed(1),
-      id: it.id, title: s.title, author: s.author, licence: 'CC0-1.0', source: s.page, licenceChecked: s.licenceCheck,
+      id: it.id, title: s.title, author: s.author, licence: s.licence, source: s.page, licenceChecked: s.licenceCheck,
       pick: it.pick,
     };
     cat.push({ key: row.key, file: row.file, kind: row.kind, durationS: row.durationS, lufs: row.lufs });
@@ -114,7 +125,7 @@ async function prep(sel) {
 }
 
 function creditsBlock(shipped) {
-  const rows = shipped.map(r => `- \`${r.key}\` — *${r.title}* by **${r.author}** (freesound #${r.id}, ${r.source}), CC0 1.0` +
+  const rows = shipped.map(r => `- \`${r.key}\` — *${r.title}* by **${r.author}** (${sourceName(r.id, r.source)}), ${licenceName(r.licence || 'CC0-1.0')}` +
     (r.pick === 'coordinator' ? ' — coordinator\'s gap fill' : ''));
   return [BEGIN, rows.length ? rows.join('\n') : 'No recorded sound ships yet.', '', END].join('\n');
 }
