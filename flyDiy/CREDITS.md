@@ -1083,3 +1083,9 @@ layer cannot lose its credit quietly.
   neighbours drowned, resampled to 5/10 m on Alaska Albers, WorldCover's
   water overridden by the DEM's coast, the canopy decimated from 1 m, all
   layers used as masks and weights — never drawn as imagery.
+
+## Blueprint library (`media/blueprints/`, `src/viewer/blueprint_library.js`)
+
+- `chinook2s.cec14f3e.png` — a three-view of the Birdman Chinook 2S. **Source and licence unknown**: supplied by the
+  user to refine the shed's Chinook (G573.1). Marked `release: false` in the library; GATE BLUEPRINT lists it on every
+  run. **Delete the image, its library row and this line before a release.**

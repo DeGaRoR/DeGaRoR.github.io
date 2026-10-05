@@ -501,6 +501,45 @@ function pickFile() {
   i.click();
 }
 
+// ---- the library (G573.2, blueprint_library.js) -------------------------------
+// An entry is a sheet and the desk state that lines it up, so picking one is the
+// end of the five steps: the image is fetched, the state copied in, and the
+// views go up in the shed at once. The copy is the user's from then on — every
+// slider and the desk work on it as on a sheet they loaded themselves.
+function library() { return window.BLUEPRINT_LIBRARY || []; }
+function libEntry(key) {
+  var L = library();
+  for (var i = 0; i < L.length; i++) if (L[i].key === key) return L[i];
+  return null;
+}
+function loadLibrary(key) {
+  var e = libEntry(key);
+  if (!e) return Promise.resolve(false);
+  if (IMG && BP.views.length && BP.lib !== key &&
+      !confirm('Replace the blueprint pinned up with ' + e.name + '?')) return Promise.resolve(false);
+  return fetch(e.image).then(function (r) { return r.ok ? r.blob() : null; })
+    .then(function (blob) {
+      if (!blob) { note('The library sheet ' + e.name + ' could not be fetched.'); return false; }
+      return decodeBlob(blob).then(function (im) {
+        if (!im) return false;
+        var st = JSON.parse(JSON.stringify(e.state)), f = fresh();
+        BP = f;
+        BP.lib = key;
+        BP.sheet = { w: im.naturalWidth || im.width, h: im.naturalHeight || im.height, name: e.name };
+        BP.scale = st.scale;
+        BP.views = st.views || [];
+        for (var k in (st.rig || {})) BP.rig[k] = st.rig[k];
+        BP.nextId = BP.views.reduce(function (n, v) { return Math.max(n, v.id + 1); }, 1);
+        BP.sel = BP.views.length ? BP.views[0].id : null;
+        IMG = im;
+        dbPut('img', blob);
+        disposeTex();
+        place3D();
+        return true;
+      });
+    });
+}
+
 function clearAll() {
   if (!confirm('Take the blueprint down? The sheet, its scale and its views are deleted.'))
     return;
@@ -1458,9 +1497,19 @@ function fillPanel(host, U) {
     boot();
     return;
   }
+  // THE LIBRARY, first: a prepared sheet is one pick away, before any desk work
+  var lib = library();
+  if (lib.length) {
+    U.select(host, 'library', [['', IMG && !BP.lib ? '— your own sheet —' : '— pick a blueprint —']].concat(
+      lib.map(function (e) { return [e.key, e.name + (e.release === false ? ' · dev' : '')]; })),
+      function () { return (IMG && BP.lib) || ''; },
+      function (k) { if (k) loadLibrary(k).then(function () { repaintPanel(); }); },
+      'Prepared blueprints: scaled, cut, oriented and grounded already — they go up in the shed at once');
+  }
   if (!IMG) {
-    U.note(host, 'No blueprint pinned up. Load a three-view drawing and cut it into views: ' +
-      'scale, views, orientation, ground line — then it stands in 3D around your build.');
+    U.note(host, 'No blueprint pinned up. Pick one from the library, or load your own three-view ' +
+      'at the desk and cut it into views: scale, views, orientation, ground line — then it stands ' +
+      'in 3D around your build.');
     var b = U.pills(host);
     U.pill(b, 'open the blueprint desk', function () { openDesk('scale'); },
       'The 2D desk: load the sheet and prepare its views');
@@ -1583,6 +1632,8 @@ window.BLUEPRINT = {
   // for the screenshot rig and the console: load a File, and where a
   // document point is on screen (to drive the desk with pointer events)
   _load: loadFile,
+  library: library,
+  loadLibrary: loadLibrary,
   _toClient: function (p) {
     if (!desk) return null;
     var r = desk.cv.getBoundingClientRect(), q = scr(p);

@@ -59300,3 +59300,24 @@ LEARNED, for the desk: (1) a script-initiated click cannot open a file picker - 
 the button does; (2) an extent beyond the image is the right tool for a cropped sheet - say so in the orient step's
 help one day; (3) the editor's camera presets (CAGE_UI.setView) do not move the shed's camera; FLIGHT_PROBE.camSet does.
 - FILES: src/viewer/blueprint.js (BLUEPRINT.api). Built files not regenerated here: the coordinator builds on merge.
+
+## G573.2 - THE BLUEPRINT LIBRARY, and the Chinook 2S in it until release (2026-10-05)
+
+The user: "Start a blueprint library, like we have one for 3d planes, add this one and we'll delete it before release,
+but it will help refining the chinook".
+
+src/viewer/blueprint_library.js (window.BLUEPRINT_LIBRARY, node-loadable; in build.js before blueprint.js): a row is
+{ key, name, image, w, h, credit, release, state } - the SHEET under media/blueprints/<key>.<sha256 8>.<ext> (media/ is
+cache-first, so a sheet is content-hashed like everything else there) and the DESK STATE that lines it up (scale, the
+views with their cuts, rotation, extents and ground lines, rig.attitude) - what BLUEPRINT.state() holds after the five
+steps. The Blueprint panel opens with a `library` select; picking a row fetches the sheet, copies the state in and
+places it in the shed at once (blueprint.js loadLibrary; BP.lib remembers the row). The copy is the user's from then on.
+
+THE ONE ROW: `chinook2s`, G573.1's sheet and state, rebuilt in node from the exact desk calls through blueprint.js's own
+functions and checked to lay out as it did in the browser (5.334 m, 11.363 m, 6.88 deg). `release: false`: its source
+and licence are unknown. GATE BLUEPRINT now holds the library (each sheet on disk under its content hash, each state
+lays out, each view complete) and LISTS every release: false row on every run. BEFORE A RELEASE: delete the row,
+media/blueprints/chinook2s.cec14f3e.png and the CREDITS.md line.
+- FILES: src/viewer/blueprint_library.js (new), media/blueprints/chinook2s.cec14f3e.png (new, NOT FOR RELEASE),
+  src/viewer/blueprint.js (loadLibrary, the panel's library row), tools/build.js (manifest), tools/_blueprint_check.js,
+  CREDITS.md.

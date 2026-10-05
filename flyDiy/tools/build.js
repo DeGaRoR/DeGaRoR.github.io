@@ -369,7 +369,9 @@ const MANIFEST = {
     // blueprint.js after refplane.js (G573): the reference plane's second
     // source. It builds its half of the panel from REFPLANE.ui, lazily, and
     // stands its planes in app.js's REF_MOUNT.bpGroup.
-              'garage.js', 'workshop.js', 'plaque.js', 'stickers.js', 'bench_worker.js', 'bench.js', 'refplane.js', 'blueprint.js',
+    // blueprint_library.js before it (G573.2): the prepared sheets, a plain
+    // table (window.BLUEPRINT_LIBRARY) that blueprint.js reads lazily.
+              'garage.js', 'workshop.js', 'plaque.js', 'stickers.js', 'bench_worker.js', 'bench.js', 'refplane.js', 'blueprint_library.js', 'blueprint.js',
     // balance.js before editor.js (G101): the energy layer's panel draws the
     // weight-and-balance chart through window.BALANCE, and reads it lazily
     // like REFPLANE and DESIGN_FLOW; it needs the core (buildGen, genShakedown,
