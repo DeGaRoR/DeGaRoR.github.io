@@ -224,6 +224,10 @@ const GATES = [
   // nothing broken), and the skin over a break - no live triangle on two pieces or across a broken member, none stretched
   // past 1.15 x its rest + 1 cm, on TREECRASH / DMGINTEGRITY's crash cases; damage off = the base's skin bit for bit. Three at once
   { id: 'DMGSKIN', file: '_dmg_skin_check.js', tier: 'core', weight: 3, wall: 240 },
+  // G1855-G1859 (DMG-WALL): one wall, no stretch - the flown snapshot's lining / beads / glazing stay on their covering
+  // (out past 1 mm in at most 1 % of the place-frames), no compact part triangle past 1 %, on the validated builds' crashes
+  // with the binding inherited (the old binding beside it for the report). Three builds at once
+  { id: 'DMGWALL', file: '_dmg_wall_check.js', tier: 'core', weight: 3, wall: 900 },
   // G286: the graphics settings menu - presets, the pref, the handles
   { id: 'GFX', file: '_gfx_check.js', tier: 'core' },
   // G584: the programs - the real three on a fake GL: the depth warm-up is the shadow pass's own set, two
