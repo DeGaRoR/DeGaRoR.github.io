@@ -549,6 +549,9 @@ function makeSim(def, world) {
   // while it is not empty
   const FLR = new Int32Array(nb);
   let nFlr = 0;
+  // G1898.4 (coordinator, perf): ONE hook in substep() for the floors (D1a) and the limiters (D1b) - set at the frame's
+  // start (after armFrame) and on a break, read once a substep; two checks there cost the metal Cessna ~1 %
+  let postLive = 0;
   // G1822 (DMG-D1b, §4.6 / §8.1): THE SUPPORT LIMITERS (61_gen_frame's parts.dmg.supp: the nose engine held off the
   // firewall, on the cabin's first ring), with the damage layer on. The mirror of a slack wire (G185): compression only,
   // carrying nothing until its gap closes (L0 the gap short of the length as built, `pre` as a wire's rigging), then
@@ -903,7 +906,7 @@ function makeSim(def, world) {
       b.fyM = b.fy0; FY[bi] = b.fy0; FC[bi] = b.fc0; b.ep = 0; b.ec = 0; b.dOn = false; b.dk = 0; b.ks = 0;
       b.rgS = 0; b.rgD = 0; b.kink = false; b.Lf = 0;
     }
-    nFlr = 0; grpDone.fill(0); DMG.groups.length = 0; DMG.floors = 0; DMG.cracks = 0; DMG.rag.length = 0; DMG.armedN = 0;
+    nFlr = 0; postLive = 0; grpDone.fill(0); DMG.groups.length = 0; DMG.floors = 0; DMG.cracks = 0; DMG.rag.length = 0; DMG.armedN = 0;
     for (let i = 0; i < n; i++) { nodeDeg[i] = nodeDeg0[i]; orphan[i] = 0; }
     if (DMG_ON) clReset();          // G1840 (DMG-D3): every cluster as built, every cut whole
     for (const C of clusters) { C.off = false; C.dirty = false; }
@@ -924,6 +927,7 @@ function makeSim(def, world) {
     DMG.breaks++; DMG.broken.push(bi);
     if (!DMG.firstBreak) DMG.firstBreak = { beam: bi, cls: b.cls, t: simT, seam: b.seam || null, grp: grpOf[bi], how: how || 'tension' };
     if (b.kink) { FLR[nFlr++] = bi; DMG.floors++; }  // G1813: the crushed member stays a floor
+    postLive = 1;                                     // G1898.4: a break may need the floors or the limiters
     if (!noseB[bi]) { DMG.primary++; if (!DMG.firstPrimary) DMG.firstPrimary = { beam: bi, cls: b.cls, t: simT }; }
     // G1840 (DMG-D3): a member of a cluster's root or station cut parts that cut (the part comes off, the tube splits);
     // any other member inside a cluster lets the cluster go (G1470)
@@ -1495,7 +1499,7 @@ function makeSim(def, world) {
   let aicHash = NaN, aicFresh = true;
   const cpOf = (ti, o) => {                 // a strip's control point: its attach-weighted c/4 (G1820: a split strip's)
     o[0] = o[1] = o[2] = 0;
-    for (const [i, w] of SW[ti]) { o[0] += p[i*3]*w; o[1] += p[i*3+1]*w; o[2] += p[i*3+2]*w; }
+    for (const [i, w] of (DMG.stripsSplit ? SW[ti] : def.strips[ti].w)) { o[0] += p[i*3]*w; o[1] += p[i*3+1]*w; o[2] += p[i*3+2]*w; }
     return o;
   };
   // the bound vortex of a wing strip: the quarter-chord line over the
@@ -1943,6 +1947,7 @@ function makeSim(def, world) {
     GamPrev.set(Gam);
 
     let stripIdx = -1;
+    const SWL = DMG.stripsSplit ? SW : null;   // G1898.4: a split strip's weights only once one exists (the lookup cost ~0.5 %)
     for (const st of def.strips) {
       stripIdx++;
       // G1470 / G1820: a strip whose nodes a break has parted is no longer a wing: no lift, no drag (the component test)
@@ -1991,7 +1996,7 @@ function makeSim(def, world) {
       }
       // --- local velocity + position via attach weights ---
       let vx=0, vy=0, vz=0, spx=0, spy=0, spz=0;
-      for (const [i, w] of SW[stripIdx]) {           // G1820: a split strip's weights
+      for (const [i, w] of (SWL ? SWL[stripIdx] : st.w)) {   // G1820: a split strip's weights
         vx+=v[i*3]*w; vy+=v[i*3+1]*w; vz+=v[i*3+2]*w;
         spx+=p[i*3]*w; spy+=p[i*3+1]*w; spz+=p[i*3+2]*w;
       }
@@ -2082,7 +2087,7 @@ function makeSim(def, world) {
         if (out.dump) out.dump.push({ side: st.side, t: st.t, wash: st.wash,
           al: al*57.3, Fy, ch: st.chord }); }
       else if (st.kind === 'stab' || st.kind === 'vtail') out.stabFy += Fy;
-      for (const [i, w] of SW[stripIdx]) {
+      for (const [i, w] of (SWL ? SWL[stripIdx] : st.w)) {
         f[i*3] += Fx*w; f[i*3+1] += Fy*w; f[i*3+2] += Fz*w;
       }
       // wing pitching moment as front/rear spar couple (d = spar spacing 0.78 m)
@@ -2264,8 +2269,10 @@ function makeSim(def, world) {
       f[a3]+=Fb*dx; f[a3+1]+=Fb*dy; f[a3+2]+=Fb*dz;
       f[b3]-=Fb*dx; f[b3+1]-=Fb*dy; f[b3+2]-=Fb*dz;
     }
-    if (nFlr) floorPass();                           // G1813: the kinked members' floors (none: one compare)
-    if (nSup && (armed || DMG.breaks)) suppPass();   // G1822: the SUPPORT limiters (unarmed and whole: one compare)
+    if (postLive) {                                  // G1898.4: one compare a substep for both (none: nothing to do)
+      if (nFlr) floorPass();                         // G1813: the kinked members' floors
+      if (nSup && (armed || DMG.breaks)) suppPass(); // G1822: the SUPPORT limiters
+    }
     // ground: wheels roll, everything else scrapes. Terrain-aware.
     const gH = world ? world.terrainH : null;
     for (let i = 0; i < n; i++) {
@@ -2522,6 +2529,7 @@ function makeSim(def, world) {
     obstFrame();
     trunkFrame(dtFrame);
     armFrame();
+    postLive = (nFlr > 0 || (nSup > 0 && (armed || DMG.breaks > 0))) ? 1 : 0;   // G1898.4
     // G1840 (DMG-D3): the clusters' cuts are measured on every substep of an armed frame, and on the last of any other:
     // the members across them read from the substep's own starting state (the beam loop's), the cuts judged once its
     // projection has run, the parts that came off re-formed rigid - all out here, so substep() is the base's
