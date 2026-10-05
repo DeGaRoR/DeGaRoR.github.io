@@ -1530,7 +1530,7 @@ function makeSim(def, world) {
   function readPanel(dtFrame) {
     bodyAxes();
     const cv = cgVel();
-    guardFrame(cv);   // G1801
+    if (DMG_ON) guardFrame(cv);   // G1801; G1898.10: the layer off runs master's path (the page's NaN watchdog as before)
     if (vPrev && dtFrame > 0) {
       const ax = (cv[0] - vPrev[0]) / dtFrame, ay = (cv[1] - vPrev[1]) / dtFrame,
             az = (cv[2] - vPrev[2]) / dtFrame;
@@ -2676,7 +2676,9 @@ function makeSim(def, world) {
     // G1840 (DMG-D3): the clusters' cuts are measured on every substep of an armed frame, and on the last of any other:
     // the members across them read from the substep's own starting state (the beam loop's), the cuts judged once its
     // projection has run, the parts that came off re-formed rigid - all out here, so substep() is the base's
-    for (let s = 0; s < sub; s++) {
+    // G1898.10: no cut (always so with the layer off) - master's own loop, no per-substep flag
+    if (nCut0 === 0) for (let s = 0; s < sub; s++) { substep(dt); simT += dt; burn(dt); }
+    else for (let s = 0; s < sub; s++) {
       clMs = nCut0 > 0 && (armed || s === sub - 1);
       if (clMs) cutX();
       substep(dt);

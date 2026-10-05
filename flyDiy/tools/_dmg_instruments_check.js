@@ -100,7 +100,7 @@ console.log('2. G1801: the velocity guard (150 m/s off the CG)');
     C.placeAtAerodrome(sim, Object.assign({}, strip, { elev: 0, spawnElev: 300 })); sim.step(1 / 60);
     for (const b of sim.beams) b.k *= 5;
     for (let f = 0; f < 30; f++) sim.step(1 / 60);
-    yes(sim.fault() === null && sim.guard().peak > 150, 'damage OFF, every k x 5: no speed fault (the peak still read, ' + f2(sim.guard().peak) + ' m/s)');
+    yes(sim.fault() === null && sim.guard().peak === 0, 'damage OFF, every k x 5: no speed fault, the guard not run (G1898.10: the layer off is master's path)');
   }
   {
     const { sim } = air(); sim.step(1 / 60); sim.impulse(0, 0, 1e300, 0); sim.step(1 / 60);
