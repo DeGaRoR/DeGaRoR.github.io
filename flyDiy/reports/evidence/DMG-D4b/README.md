@@ -26,3 +26,7 @@ camera on the same frame: **after** (all of it: debris, the prop strike, D4a's s
 - `stills.json` - every shot's numbers: the census, the stage (frame times, the parts gone and why, the bodies, the strikes), the drawn clip (furniture through the skin, debris inside it).
 - `gate_dmgwreck.txt`, `dmgwreck.json` - GATE DMGWRECK; `gate_clip.txt` - GATE CLIP.
 - `d4a-fix/` - the D4a fix (G1866-G1867.1): DMGSKIN against the base, the stills that verified G1867.1.
+
+## The impact's frame rate (G1869)
+- `fps_trace.svg` - every frame through each crash (the trunk on the centreline, 2.5 m out, the severe nose-in), the G1869 cuts off (red) and on (green), and the cuts-on frame split into the physics, the skin break, the rest of the scene and the render. Worst frame 263 -> 104 / 145 -> 138 / 116 -> 96 ms; the impact second's mean 91 -> 58.5 / 55 -> 43.5 / 64.5 -> 51.6 ms; the wreck at rest 25.8 -> 22.9 / 52.7 -> 41.8 / 24.4 -> 21.4 ms (the box, 1600x900, inline).
+- `fps_trace.json` (the summaries), `fps_trace_frames.json` (every frame's split).
