@@ -298,7 +298,7 @@
     let removed = 0;
     for (let t = 0; t < nt; t++) {
       const a = i0[t * 3], b = i0[t * 3 + 1], c = i0[t * 3 + 2];
-      let gone = dead[t] === 2;                   // torn by stretch earlier: stays torn
+      let gone = dead[t] >= 2;                    // torn by stretch earlier (2), or a wreck's debris took it (5): stays gone
       if (!gone) {
         gone = vp[a] !== vp[b] || vp[b] !== vp[c] ||
                BP.has(dom[a], dom[b]) || BP.has(dom[b], dom[c]) || BP.has(dom[a], dom[c]);

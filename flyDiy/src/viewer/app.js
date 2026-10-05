@@ -4258,7 +4258,7 @@
       cands.push({ kind: 'eng', unit, nodes: u.idxs.slice(), rule: 'loose', at, objs: [u.eng && u.eng.obj, u.prop && u.prop.obj].filter(Boolean), mass: 90 });
       if (u.prop) {
         const sp = wreckMeshesOf(u.prop.obj).filter(m => { const k = B.keyOf.get(m); return k && model.mats[k] && model.mats[k].spin === 2; });
-        if (sp.length) cands.push({ kind: 'spinner', unit, nodes: u.idxs.slice(), rule: 'crush', at, meshes: sp, mass: 1, floats: true });
+        if (sp.length) cands.push({ kind: 'spinner', unit, nodes: u.idxs.slice(), rule: 'crush', crushAt: WD.TORN, at, meshes: sp, mass: 1, floats: true });
       }
     }
     // the cowl (the join's ranges of the static merge, G1860): two panels each unit - over and under its thrust line
@@ -4279,7 +4279,7 @@
       }
       for (const P2 of panels.values()) {
         const at = toDef([P2.c[0] / P2.n, P2.c[1] / P2.n, P2.c[2] / P2.n]);
-        cands.push({ kind: 'cowl', unit: P2.u ? EO[E.indexOf(P2.u.idxs[0])] | 0 : 0, at, ranges: P2.tris, mass: 4, floats: false });
+        cands.push({ kind: 'cowl', unit: P2.u ? EO[E.indexOf(P2.u.idxs[0])] | 0 : 0, at, ranges: P2.tris, crushAt: WD.TORN, mass: 4, floats: false });
       }
     }
     // the wheels: each on its axle node, with its leg (the stretch rigs on that node) and, for the tail wheel, its castor
@@ -4374,16 +4374,19 @@
     const ix = g.index.array, saved = new (ix.constructor)(T.length * 3);
     T.forEach((t, j) => { saved[j*3] = ix[t*3]; saved[j*3+1] = ix[t*3+1]; saved[j*3+2] = ix[t*3+2]; ix[t*3+1] = ix[t*3+2] = ix[t*3]; });
     const marks = [];
-    // a skin_break record on the same index keeps them gone through its next event (dead 2: gone for good) - the marks
+    // a skin_break record on the same index keeps them gone through its next event (dead 5: the debris took them; any
+    // dead >= 2 stays gone - DMG-WALL's convention) - the marks
     // kept, so a heal gives them back to it
-    for (const R of BRK.recs) if (R.idx === ix && R.dead && R.idx0) { const was = T.map(t => R.dead[t]); for (const t of T) R.dead[t] = 2; marks.push([R, was]); }
+    for (const R of BRK.recs) if (R.idx === ix && R.dead && R.idx0) { const was = T.map(t => R.dead[t]); for (const t of T) R.dead[t] = 5; marks.push([R, was]); }
     WK.idx.push({ g, T, saved, marks });
     g.index.needsUpdate = true; idxMirror(g);
   }
   function wreckHide(o) {
     if (WK.hid.some(h => h.o === o)) return;
     WK.hid.push({ o, auto: o.matrixAutoUpdate, vis: o.visible });
-    const out = a => a ? a.filter(r => r.obj !== o && !(r.mesh && model.wreckBuild.parentOf.get(r.mesh) === o)) : a;
+    const mine = r => r.obj === o || !!(r.mesh && model.wreckBuild.parentOf.get(r.mesh) === o);
+    for (const r of model.stretchRigs || []) if (mine(r)) r.wreckGone = true;   // DMG-WALL's binding skips a leg the debris took
+    const out = a => a ? a.filter(r => !mine(r)) : a;
     model.engRigs = out(model.engRigs); model.props = model.props.filter(p => p !== o); model.wheelParts = out(model.wheelParts);
     model.stretchRigs = out(model.stretchRigs);
     if (model.castorRig && model.castorRig.obj === o) model.castorRig = null;
@@ -4479,6 +4482,7 @@
     for (const h of WK.hid) { h.o.visible = h.vis; h.o.matrixAutoUpdate = h.auto; if (h.auto) h.o.updateMatrix(); h.o.matrixWorldNeedsUpdate = true; }
     const mdl = WK.model;
     if (mdl && WK.rigs) { mdl.engRigs = WK.rigs.engRigs; mdl.props = WK.rigs.props; mdl.wheelParts = WK.rigs.wheelParts; mdl.stretchRigs = WK.rigs.stretchRigs; mdl.castorRig = WK.rigs.castorRig;
+      for (const r of mdl.stretchRigs || []) r.wreckGone = false;
       mdl._poseNG = null; mdl._pose = null; }
     for (let j = WK.idx.length - 1; j >= 0; j--) { const q = WK.idx[j], ix = q.g.index.array;
       q.T.forEach((t, k) => { ix[t*3] = q.saved[k*3]; ix[t*3+1] = q.saved[k*3+1]; ix[t*3+2] = q.saved[k*3+2]; }); q.g.index.needsUpdate = true; idxMirror(q.g);

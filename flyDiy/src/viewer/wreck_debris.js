@@ -13,6 +13,9 @@
 //   - or CRUSHED past a bound: any two of its nodes CRUSH (6 cm) off their rest distance - a firewall ring folded under
 //     a cowl, a cabin frame bent round a windscreen. Elastic flex never reads it: the bound is ~30x a hard landing's
 //     (FAR 23.473 reads 0.13-0.21 of yield on the validated builds), and it is asked only once the damage state moves.
+//     A COWL PANEL and the SPINNER read TORN (25 cm) instead: dented sheet stays on its fasteners and rides its nodes
+//     dented (DMG-WALL's binding) - a 3 m/s taxi into a trunk dents the nose, it does not throw the cowl off and bare
+//     an engine whose mount is whole (G1860.1, the coordinator's "the drawing follows the physics"); glazing breaks.
 // A part that leaves is a DEBRIS BODY: a rigid body (no beams, no aero lift), its pose the rigid fit of its carrying
 // set (Horn, skin_break.js polar) and its velocity the set's own (the mean, and the turn), plus a small seeded kick
 // away from the frame (the latches letting go: the user's "the cowl opens and gets ejected") and tumble. Gravity,
@@ -36,6 +39,7 @@
   const G = 9.81;
   const DT = 1 / 240;          // the bodies' own step (s): independent of the frame rate
   const CRUSH = 0.06;          // a carrying set crushed: two of its nodes this far (m) off their rest distance
+  const TORN = 0.25;           // ...a cowl panel's or a spinner's (sheet dents on its fasteners): torn off only this far
   const KICK = 1.2;            // the release's kick away from the frame (m/s)
   const SPIN = 2.0;            // ...and its seeded tumble (rad/s, each axis up to)
   const W_CAP = 12, V_OVER = 6;    // the release's turn (rad/s) and its speed over its set's own (m/s), at most
@@ -124,7 +128,7 @@
       if (d > worst) worst = d;
     }
     c.crush = worst;
-    return worst > CRUSH ? 'crushed' : null;
+    return worst > (c.crushAt || CRUSH) ? 'crushed' : null;
   }
 
   // ---- THE RIGID FIT of a carrying set: R (row-major 3x3) and the centroids, rest -> live ----
@@ -474,7 +478,7 @@
     return { crushed: !!why, why, depth: d, d0: C.d0, vol: vr, eye: [x, y, z] };
   }
 
-  const API = { G, DT, CRUSH, KICK, SPIN, MU, BOUNCE, REST_V, REST_W, REST_T, LIFE, E_BEND, E_BREAK, CURL0, CURL1, CURL_S0, DENT0, DENT1, EYE_CLEAR, EYE_VOL,
+  const API = { G, DT, CRUSH, TORN, KICK, SPIN, MU, BOUNCE, REST_V, REST_W, REST_T, LIFE, E_BEND, E_BREAK, CURL0, CURL1, CURL_S0, DENT0, DENT1, EYE_CLEAR, EYE_VOL,
     WET_K, CUT0, CUT1, TWIST, isMetal,
     rng, hash, carry, plan, watcher, watch, leaves, fit, release, step, rotOf, clearance, heal, strike, azOf, bladeFrame, bladeOf, curlBlades, dentSpinner,
     bays, depth, vol, cabin, crushed };

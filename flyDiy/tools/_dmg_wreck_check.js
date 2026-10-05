@@ -96,10 +96,10 @@ function candidates(def) {
     // the cowl: about the engine, half the prop's disc across; a nose engine's runs back to the firewall ring
     const nose = Math.abs(at[2]) < 0.3;
     const cAt = nose ? cen(ids.concat(R.noseFrame)) : at;
-    out.push({ kind: 'cowl', unit: u, at: cAt, box: { lo: [-0.45, -0.32, -0.32], hi: [0.45, 0.32, 0.32] }, mass: 7, floats: false });
+    out.push({ kind: 'cowl', unit: u, at: cAt, crushAt: WD.TORN, box: { lo: [-0.45, -0.32, -0.32], hi: [0.45, 0.32, 0.32] }, mass: 7, floats: false });
     // the engine unit (block, prop and spinner on it): leaves only loose; the spinner alone only crushed
     out.push({ kind: 'eng', unit: u, at, nodes: ids.slice(), rule: 'loose', box: { lo: [-0.4, -0.3, -0.3], hi: [0.4, 0.3, 0.3] }, mass: 90, floats: false });
-    out.push({ kind: 'spinner', unit: u, at, rule: 'crush', box: { lo: [-0.14, -0.12, -0.12], hi: [0.14, 0.12, 0.12] }, mass: 1, floats: true });
+    out.push({ kind: 'spinner', unit: u, at, rule: 'crush', crushAt: WD.TORN, box: { lo: [-0.14, -0.12, -0.12], hi: [0.14, 0.12, 0.12] }, mass: 1, floats: true });
   }
   const axles = [].concat(R.mains || [], R.tw != null && R.tw >= 0 ? [R.tw] : []);
   if (!(def.parts && def.parts.floats && def.parts.floats.length))
@@ -288,6 +288,8 @@ const f2 = x => (x == null || !Number.isFinite(x)) ? String(x) : x.toFixed(2);
       // G1861.2: the build's prop material decides - wood (and carbon) snaps, aluminium bends
       for (const s of S.strikes) yes(s.metal ? (!s.breaks && s.curl.every(x => x > 0)) : (s.breaks || s.info.wet), 'the ' + s.info.material + ' prop ' + (s.metal ? 'bends, none breaks' : s.breaks ? 'snaps on every blade' : 'stops whole in the water') + ' (' + c.id + ')');
       if (c.id === 'taxi') yes(S.strikes.length > 0, 'the 3 m/s taxi into a trunk strikes the prop');
+      // G1860.1: dented sheet stays on its fasteners - a cowl panel or a spinner leaves crushed only past TORN
+      yes(S.rel.every(x => !((x.kind === 'cowl' || x.kind === 'spinner') && x.why === 'crushed') || x.crush > WD.TORN), 'a cowl / spinner leaves only loose, off or torn past ' + (WD.TORN * 100) + ' cm (' + c.id + ')');
       if (S.eye) console.log('    the cockpit (eye in bay ' + S.eyeBay + ', ' + (S.eyeD0 * 100).toFixed(0) + ' cm clear at rest): ' + (S.eye.crushed ? 'CRUSHED - ' + S.eye.why + ': the chase view' : 'clear (' + (S.eye.depth * 100).toFixed(0) + ' cm, the bay at ' + (S.eye.vol * 100).toFixed(0) + ' % of its volume)'));
       yes(c.off.rel.length === 0 && c.off.payloads === 0 && c.off.bodies.length === 0 && c.off.hash === c.offBare.hash, 'damage OFF: no payload, nothing released, no body (' + c.off.strikes.length + ' strikes the solver itself does not make), the same bits as without the layer');
     }
