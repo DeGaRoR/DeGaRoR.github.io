@@ -10,7 +10,7 @@
      "drop": [
       "mk_"
      ],
-     "record": "40943d46936ff9d6",
+     "record": "2a7c6753a2956631",
      "mods": 50,
      "places": {
       "things": 215,
@@ -19,17 +19,17 @@
       "failed": 0
      },
      "raster": {
-      "tiles": 8638,
+      "tiles": 8642,
       "cells": 92,
-      "nodes": 5715390,
-      "raw": 45931904,
+      "nodes": 5721282,
+      "raw": 45979136,
       "worstMm": 0.0331
      }
     },
     {
      "name": "town",
      "drop": [],
-     "record": "94417efc27b1abf8",
+     "record": "24693a999ffa9c46",
      "mods": 123,
      "places": {
       "things": 695,
@@ -38,10 +38,10 @@
       "failed": 0
      },
      "raster": {
-      "tiles": 13034,
+      "tiles": 13038,
       "cells": 134,
-      "nodes": 16417514,
-      "raw": 131655072,
+      "nodes": 16423406,
+      "raw": 131702304,
       "worstMm": 0.0331
      }
     }
@@ -64,19 +64,19 @@
      "town"
     ],
     "bytes": {
-     "raw": 133563088,
-     "ship": 19864690
+     "raw": 133610320,
+     "ship": 19866783
     },
     "fetched": {
      "default": {
       "cells": 92,
-      "raw": 45931904,
-      "ship": 5750117
+      "raw": 45979136,
+      "ship": 5752210
      },
      "town": {
       "cells": 134,
-      "raw": 131655072,
-      "ship": 19669424
+      "raw": 131702304,
+      "ship": 19671517
      }
     },
     "cells": [
@@ -1941,10 +1941,10 @@
        39,
        -46
       ],
-      "sig": "g1-e925119339a58a37",
-      "src": "media/world/jolene/premises/r_39_m46.4b2e9be6.bin",
-      "raw": 883504,
-      "tiles": 97,
+      "sig": "g1-988e98f4944e3ea4",
+      "src": "media/world/jolene/premises/r_39_m46.f2e6f7e6.bin",
+      "raw": 930736,
+      "tiles": 101,
       "in": [
        "default",
        "town"
