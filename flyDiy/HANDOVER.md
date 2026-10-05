@@ -72323,4 +72323,27 @@ premises edit (setPremises → terrainClear) leaves `relief` built off the old g
 ensureRelief() when env.groundVer() moved, but that is a ~raster-ms hitch on a live edit, so it is the climate
 owner's call.
 
-BATTERY: see the closing lines of this entry.
+**G1566-G1567 - THE BATTERY'S REDS, AND WHOSE THEY WERE.** The core battery (`node tools/run_gates.js --jobs=4`, this
+4-core box, 49 min wall) ran 142 gates: 133 PASS, 9 FAIL:
+- Mine, fixed: **WATER** asserted the stock tier's −0.4 (`WSH ? 0.0 : -0.4`). It now asserts the plane at the
+  level on every tier, plus the step under the wavy patch. **AERO** `counts` wanted ≥ 5 town fields; seed 0 has 4
+  now (see the cascade), so the bound is 4, with the reason in the gate.
+- The merged REVIEW round 2's own, red on its base 419a95b without this branch, ported here: **SKINMAT,
+  LIVERYREACH, WEATHER** threw `THREE is not defined`. aeroskin.js allocated its new scratch Matrix4s at module
+  scope, which breaks wherever it loads before three (every node gate that requires it); they are made on the first
+  aeroSetCraft call now. **PARTS** read garage.js's envelope by its old text; B19 made it one pass, and the regex
+  takes both forms.
+- Load, not code: **INSTANT** hit the runner's 30-minute wall with four jobs on four cores, and PASSES run alone.
+  **ROLLANIM** read 65.5 B/frame against a 64 bound under the same load, and PASSES run alone.
+- The cloud's known red: **FRAMECOST** (24 rows, Cub stand draws.main 914 → 1047, shadow 169.5 → 260.5). The
+  parked aeroplanes' cook is keyed on the build id (HANDOVER G1440's MEM-BUDGET note), so any rebuild captures them
+  live, and parked_cook.js refuses SwiftShader. Bisected here: master as committed PASSES (twice), and master plus
+  the review's round 1 alone fails with the same 24 rows, as does every subset of it down to the inert-on-Jolene
+  20_world.js lines. **A0: `node tools/parked_cook.js` on the box, then FRAMECOST.** On the way, B15's sea-relax
+  modulo was suspected and replaced with a ±half-day wrap taken absolute (G1567). That suspicion was wrong (the reds
+  stayed), but the wrap stays: it equals the modulo for every forward step under 12 h and does not read a backward
+  step as a whole day. GATE DAY is green.
+After the fixes: STRIPGROUND, WORLD, LAKEBED, HYDRODYN, SPLAT, PREMRASTER, PREMCOOK, OBSTFRAME, WATER, AERO, PARTS,
+SKINMAT, LIVERYREACH, WEATHER, DAY and ROLLANIM re-run on the final source: see the READY commit.
+NOT RUN (full tier): HOTHIGH (now on the highest fly-in strip), PILOTMATRIX (its seed-0 A0 / A3 / A5 cells fly moved
+strips), SEAPLANE, ARCHETYPES.
