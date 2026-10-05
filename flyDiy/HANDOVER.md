@@ -74275,6 +74275,16 @@ stand's default eye, strut_close = the close view above, strut_low = low under t
 `node tools/shadowsky_shots.js --views reports/evidence/STRUT-LIVERY/views.json --pages index_before.html,index.html`.
 The software still is a picture, not a measurement (SOFT-GPU's rule).
 
+**THE BATTERY** (`node tools/run_gates.js`, core, 4 jobs, 59 min wall on the 4-core cloud box): 143 PASS, 3 FAIL, none
+this branch's. BIOME (surface perf 8.2 us/call vs < 5) and SETTLE (bake budget) are wall-clock rows starved by the 4 jobs on 4
+cores: alone (`--only=BIOME,SETTLE --jobs=1`) both PASS (4.0 us/call, bake 356 ms). FRAMECOST (24 rises, the Cub's and the
+Cessna's stand and taxi rows alike: main draws 914 -> 1046, shadow 169.5 -> 259.5, uniforms x2) is THE STALE PARKED COOK:
+`parked_cook.js --check` says STALE on any tree whose build id moved (every key captured live). Proven by a control: master's
+sources with ONE COMMENT added to aeroskin.js give the same 24 rises (main draws 1047, shadow 260.5); master untouched PASSES
+(34 rises admitted by the ALLOW list). So the struts cost nothing a frame (this branch 1046 vs the control 1047), and A0's
+re-cook at landing clears FRAMECOST. GATE LIVERY (with section 5) PASS and its selftest PASS (seven probes, each red);
+LIVERYREACH PASS.
+
 **A0 AT LANDING.** Re-cook the parked aeroplanes (the stock Cub's spec changed; the signature goes stale anyway with the
 build). The flown bake re-keys by itself (FLYDIY_BUILD and the spec are in its key). The user's own saved Cub in their
 browser heals at its next load. Frame cost: none (a load-time filter over a dozen keys; the resolver one comparison more).
