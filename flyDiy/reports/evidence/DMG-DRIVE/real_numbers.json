@@ -1,0 +1,149 @@
+{
+  "_what": "G1825 (DMG-DRIVE): the real numbers the drivetrain's failure models and GATE DMGDRIVE are anchored to. EVERY value is written from memory of the named document, never from a search summary, and is flagged 'as recalled - A0 to open': A0 opens each source on the box before a number of it becomes a hard gate (DEFORM-AND-BREAK §1, §11.2 #7). 'confidence' is this session's own: high = the number is the document's headline and widely quoted; medium = the structure is right, a value may be off by a step; low = the source is named but its table is not recalled - the model uses a stated game choice in its place.",
+  "_flag": "as recalled - A0 to open",
+  "engines": [
+    {
+      "build": ["cub", "jodel"], "engine": "Continental A-65 (registry a65_sensenich74)", "cylinders": 4, "drive": "direct",
+      "rated_rpm": 2300, "max_rpm": 2300, "rated_power_hp": 65,
+      "source": "Continental A-65 Type Certificate Data Sheet (TCDS number not recalled); the J-3 Cub placard 'do not exceed 2300 rpm'",
+      "flag": "as recalled - A0 to open", "confidence": "high",
+      "note": "The tied-down static rpm with the 74CK cruise prop ~2150 (the registry's own anchor, GEN_SHAFT.staticK 0.92)."
+    },
+    {
+      "build": ["metal", "floats"], "engine": "Lycoming O-540-B2C5 (registry o540_hartzell)", "cylinders": 6, "drive": "direct",
+      "rated_rpm": 2575, "max_rpm": 2575, "rated_power_hp": 235,
+      "source": "Lycoming O-540 Type Certificate Data Sheet E-295 (the B-series' 235 hp at 2575 rpm)",
+      "flag": "as recalled - A0 to open", "confidence": "medium"
+    },
+    {
+      "build": ["twinFloats"], "engine": "Rotax 582 UL + C / E reduction gearbox 2.62 (registry rotax582_ivo)", "cylinders": 2, "drive": "geared 2.62",
+      "rated_rpm": 6500, "max_rpm": 6800, "max_rpm_time_s": 300, "max_continuous_rpm": 6500, "idle_rpm": 2000,
+      "source": "Rotax 582 UL Operator's Manual (the operating limits page: max 6800 rpm for 5 min, 6500 continuous)",
+      "flag": "as recalled - A0 to open", "confidence": "medium"
+    },
+    {
+      "build": [], "engine": "Rotax 912 UL (registry rotax912_warp; 915 iS likewise 5800)", "cylinders": 4, "drive": "geared 2.27 (2.43 on some)",
+      "rated_rpm": 5800, "max_rpm": 5800, "max_rpm_time_s": 300, "max_continuous_rpm": 5500, "idle_rpm": 1400,
+      "source": "Rotax 912 Operator's Manual (operating limits: take-off 5800 rpm max 5 min, max continuous 5500)",
+      "flag": "as recalled - A0 to open", "confidence": "high"
+    },
+    {
+      "build": [], "engine": "Lycoming IO-360 / O-320 (registry io360_mccauley, o320_mccauley)", "cylinders": 4, "drive": "direct",
+      "rated_rpm": 2700, "max_rpm": 2700, "source": "Lycoming TCDS E-286 (O-360/IO-360), E-274 (O-320)",
+      "flag": "as recalled - A0 to open", "confidence": "medium"
+    },
+    {
+      "build": [], "engine": "Continental O-200-A (registry o200_eprops)", "cylinders": 4, "drive": "direct",
+      "rated_rpm": 2750, "max_rpm": 2750, "source": "Continental O-200 TCDS E-252",
+      "flag": "as recalled - A0 to open", "confidence": "medium"
+    },
+    {
+      "build": [], "engine": "Rotax 503 / 277 (registry rotax503_wood, rotax277_pusher)", "cylinders": [2, 1], "drive": "geared 2.58",
+      "max_rpm": [6800, 6800], "source": "Rotax 503 / 277 Operator's Manuals (max 6800 rpm, as for the 582)",
+      "flag": "as recalled - A0 to open", "confidence": "low"
+    }
+  ],
+  "overspeed": [
+    {
+      "id": "lyc369", "source": "Lycoming Service Bulletin No. 369 family (engine inspection after overspeed; current letter not recalled)",
+      "applies": "direct-drive, normally aspirated Lycoming", "flag": "as recalled - A0 to open", "confidence": "medium",
+      "bands_pct_over_rated": [
+        { "upto": 10, "action": "no action beyond finding the cause and a logbook entry (a momentary excursion)" },
+        { "from": 10, "upto": 20, "action": "inspection: the propeller removed and the crankshaft flange's run-out checked, the rocker covers off and the valve train (springs, rockers) inspected, the oil filter / screen examined; return to service if clean" },
+        { "from": 20, "action": "the engine removed and overhauled (complete teardown)" }
+      ],
+      "geared_or_blown": "geared and supercharged Lycomings carry LOWER bands (recalled as about half: ~5 / ~10 %) - low confidence, A0 to open",
+      "time": "the bulletin's bands are by peak rpm, with a short-duration qualifier for the lowest band; the game adds a 1 s filter (a one-frame tick on a 60 Hz sim is not an overspeed)"
+    },
+    {
+      "id": "tcm_overspeed", "source": "Continental Motors' overspeed guidance (Standard Practice Maintenance Manual M-0 / a service bulletin - the number is not recalled)",
+      "applies": "Continental direct drive (the A-65)", "flag": "as recalled - A0 to open", "confidence": "low",
+      "note": "Recalled as the same shape as Lycoming's (a no-action band, an inspection band, a teardown band); the game applies SB 369's bands to every piston until A0 opens Continental's"
+    },
+    {
+      "id": "rotax_overspeed", "source": "Rotax 912 / 582 Maintenance Manual (Line / Heavy), 'exceeding the max. permissible engine speed'",
+      "applies": "Rotax", "flag": "as recalled - A0 to open", "confidence": "low",
+      "note": "Recalled: an exceedance of the 5-minute maximum is logged with its peak and duration and an inspection is owed past a small margin; the gearbox and the valve train are what is inspected. The table is not recalled: the game uses SB 369's bands on the MAX rpm (6800 / 5800), not on the rated"
+    },
+    {
+      "id": "valve_float", "source": "general engineering (no single document)", "flag": "as recalled - A0 to open", "confidence": "low",
+      "note": "Valve float / valve-to-piston contact and connecting-rod failure are what an unloaded or heavily oversped piston does somewhere past ~25-40 % over its rated speed; no manufacturer publishes a failure rpm (the bulletins stop at 'overhaul'). The game's FAILURE tier (a thrown rod / valve: the engine stops) is a GAME CHOICE placed past SB 369's overhaul band: an exceedance dose of 0.25 (rpm-ratio-over-1.25 x seconds)"
+    }
+  ],
+  "propeller": [
+    {
+      "id": "prop_rpm", "source": "the propeller's own TCDS / the aeroplane's TCDS installation note (Sensenich 74CK on the A-65; McCauley / Sensenich fixed-pitch alloy)",
+      "flag": "as recalled - A0 to open", "confidence": "medium",
+      "note": "A fixed-pitch prop is certified for the engine's maximum rpm on that installation: the engine's limit governs. Some alloy installations carry a continuous-operation restriction band (a vibration resonance) - not modelled"
+    },
+    {
+      "id": "tip_mach", "source": "propeller aerodynamics (McCormick / Hoerner; no regulation)", "flag": "as recalled - A0 to open", "confidence": "medium",
+      "value": "helical tip Mach ~0.85-0.90 is the practical ceiling of a conventional section (compressibility losses and noise climb steeply past it); light fixed-pitch props run ~0.6-0.8",
+      "game": "reported per dive (drive.tipMach); no failure is tied to it"
+    }
+  ],
+  "prop_strike": [
+    {
+      "id": "lyc533", "source": "Lycoming Service Bulletin No. 533 family (recommendations regarding accidental ground strike - propeller strike, sudden stoppage, loss of propeller blade or tip)",
+      "flag": "as recalled - A0 to open", "confidence": "high",
+      "definitions": {
+        "propeller_strike": "any incident, whether or not the engine is operating, that requires repair of the propeller beyond minor dressing of the blades; also any strike of the propeller on a foreign object at engine speed",
+        "sudden_stoppage": "the engine / propeller brought to a stop by impact (the bulletin's wording recalled as 'within one revolution' - low confidence on that phrase)",
+        "loss_of_blade_or_tip": "a blade or a tip lost in operation"
+      },
+      "action": "the engine removed and completely disassembled and inspected before further flight (crankshaft gear, dowel, gear bolt and lock plate, counterweights, crankshaft run-out), whatever the propeller's damage - no exceptions"
+    },
+    {
+      "id": "tcm_strike", "source": "Continental Motors mandatory service bulletin on propeller strike (SB96-11, superseded by the M14-12 family per the brief)",
+      "flag": "as recalled - A0 to open", "confidence": "medium",
+      "action": "any propeller strike or sudden stoppage (as Lycoming defines them) -> the engine disassembled and inspected (crankshaft, its counterweights, the gear / dowel, the crankcase)"
+    },
+    {
+      "id": "rotax_strike", "source": "Rotax 912 / 582 Maintenance Manual, 'after a propeller strike / sudden stoppage' (and the 912's optional overload clutch)",
+      "flag": "as recalled - A0 to open", "confidence": "medium",
+      "action": "the crankshaft's run-out checked and the GEARBOX inspected (the gears, the dog hub, the overload clutch where fitted); the propeller shaft checked; the overload clutch slips under a strike's torque and protects the crankshaft - not modelled (the game's gearbox takes the strike)"
+    },
+    {
+      "id": "aopa_internal", "source": "AOPA, 2007 (the DEFORM doc §10.2's line: only 10-20 % of the engines torn down after a strike show internal damage) - this one reached the doc as a SEARCH SUMMARY: a ratio to calibrate, never a gate",
+      "flag": "as recalled - A0 to open", "confidence": "low", "value_pct": [10, 20],
+      "game": "a seeded 15 % chance (the band's middle) that a teardown after a strike finds internal damage (drive.internal), per build and strike - the bill's overhaul line"
+    }
+  ],
+  "far23": [
+    {
+      "id": "23.361", "source": "14 CFR 23.361 Engine torque (pre-amendment 23-64 text)", "flag": "as recalled - A0 to open", "confidence": "high",
+      "text": "(a) each engine mount and its supporting structure designed for (1) the limit engine torque at TAKE-OFF power and propeller speed acting with 75 % of the limit loads of flight condition A (23.333(d)); (2) the limit torque at MAXIMUM CONTINUOUS power and propeller speed acting with the limit loads of condition A. (c) The limit torque = the MEAN torque x 1.25 for turbopropellers, 1.33 for engines of five or more cylinders, and 2, 3 or 4 for engines of four, three or two cylinders.",
+      "factor_by_cylinders": { "turboprop": 1.25, "5+": 1.33, "4": 2, "3": 3, "2": 4 }
+    },
+    {
+      "id": "23.363", "source": "14 CFR 23.363 Side load on engine mount", "flag": "as recalled - A0 to open", "confidence": "medium",
+      "text": "the mount designed for a limit LATERAL load factor of not less than 1.33 (or one third of the limit load factor of flight condition A), acting alone"
+    },
+    {
+      "id": "23.371", "source": "14 CFR 23.371 Gyroscopic and aerodynamic loads", "flag": "as recalled - A0 to open", "confidence": "high",
+      "text": "(a) each engine mount and its supporting structure designed for the gyroscopic, inertial and aerodynamic loads with the engine and propeller at MAXIMUM CONTINUOUS rpm under either (1) the conditions of 23.351 and 23.423, or (2) all combinations of: a YAW velocity of 2.5 rad/s, a PITCH velocity of 1.0 rad/s, a normal load factor of 2.5, maximum continuous thrust. (b) aerobatic aeroplanes: also the load factors of combined maximum yaw and pitch velocities.",
+      "yaw_rad_s": 2.5, "pitch_rad_s": 1.0, "nz": 2.5
+    },
+    {
+      "id": "23.561", "source": "14 CFR 23.561(b) emergency landing (already DMG-D2a's crashFwd / Up / Down / Side cases)", "flag": "as recalled - A0 to open", "confidence": "high",
+      "g_ultimate": { "fwd": 9, "up": 3, "down": 6, "side": 1.5 }
+    }
+  ],
+  "gearbox": [
+    {
+      "id": "rotax_gearbox", "source": "Rotax 582 (B / C / E gearbox) and 912 Maintenance Manuals: gearbox inspection after a propeller strike or an overspeed",
+      "flag": "as recalled - A0 to open", "confidence": "medium",
+      "game": "a strike past 'brush' or an overspeed in the overhaul band marks a geared engine's gearbox DAMAGED (a bill line); a SUDDEN STOPPAGE with the engine pulling past half its power shears the drive (gearbox FAILED: the prop disconnects and freewheels, the engine runs UNLOADED and over-revs to its failure tier unless the throttle is closed)"
+    }
+  ],
+  "game_thresholds_not_from_a_source": {
+    "_note": "the model's own numbers where no document gives one - stated so A0 can replace them",
+    "overspeed_filter_s": 1.0,
+    "overspeed_failure_dose": "0.25 s of (rpm ratio - 1.25) - e.g. 35 % over for 2.5 s, 50 % over for 1 s",
+    "overhaul_band_power": "rough running: 0.85 x thrust, vibration 0.3",
+    "strike_bite": "how far the obstruction reaches into the disc, over its radius: brush <= 0.04; a soft surface (ground) bends to 0.15, stops past it; a rigid one (a trunk) bends to 0.04, stops past it; water: brush <= 0.04, bent to 0.25, stops past it",
+    "blade_separation_tip_speed_m_s": { "wood": 120, "carbon": 120, "alu": 200 },
+    "bent_thrust": 0.6, "unloaded_runaway": 1.45,
+    "imbalance_fragment": "a separation takes a share of one blade (0.35 of its mass at 0.75 R); the rotating force m e w^2 on the engine's thrust nodes"
+  }
+}

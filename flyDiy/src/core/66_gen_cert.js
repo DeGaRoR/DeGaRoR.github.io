@@ -102,7 +102,8 @@ const GEN_CERT = {
 const GEN_CERT_LAND = /^(drop|bow|taxiRough|g[A-Z]|w[A-Z])/;
 // the controls flown (genCertFlownCtl): a member's larger peak certifies it both ways
 const GEN_CERT_RING = /^flown(Elev|Rud)/;
-const GEN_CERT_V = 2;        // the certificate's own version (a cached answer is only valid for the rules that made it);
+const GEN_CERT_V = 3;        // the certificate's own version (a cached answer is only valid for the rules that made it);
+                             // 3: G1826 (DMG-DRIVE) - the engine's torque, side and gyroscopic loads on its mount (23.361 / .363 / .371)
                              // 2: G1835-G1836 (DMG-D2b) - the gear's cases, the ground and water loads, the flaps
 
 // is the damage layer on for this def? (30_solver's own DMG_ON: params.damage, else the page's ?damage, else the
@@ -881,6 +882,9 @@ function genCertify(def, opt) {
         for (const i of R) F[i * 3] -= Mt * k9 / R.length;
         put('impactNose', genCertForces(flight, genCertRelieve(def, F)));
       }
+      // G1826 (DMG-DRIVE): THE ENGINE'S OWN LOADS ON ITS MOUNT - 23.361's torque, 23.363's side load, 23.371's
+      // gyroscopic couple (33_drive.js; FAR 23 as recalled, A0 to open it) - on the same pinned airframe
+      if (typeof genCertDrive === 'function') for (const [nm, F] of genCertDrive(def, item)) put(nm, genCertForces(sysE, F));
     }
   }
   const tF = (typeof performance !== 'undefined' ? performance : Date).now();
@@ -945,6 +949,62 @@ function genCertify(def, opt) {
            sink, dropNz: drop ? drop.nz : null, flownNz: flown ? flown.nz : null, flownReached: flown ? flown.reached : null,
            Ft, Fc, byT, byC, names, cases, speeds: VS, aero, nw: ground && ground.nw != null ? ground.nw : null,
            ms: { flight: tF - t0, bench: tB - tF, drop: tD - tB, total: tD - t0 } };
+}
+// G1826 (DMG-DRIVE): THE ENGINE'S OWN LOADS ON ITS MOUNT, at LIMIT (FAR 23 as recalled - 23.361, 23.363, 23.371; A0 to open
+// them), each engine's item nodes (`item`: ENG / CGE / MNT, each given to the engine whose thrust node is nearest) loaded
+// on the airframe held where it is (the crash cases' pinned system):
+//   torque361 - the LIMIT torque (the mean torque at rated power and rpm through the reduction unit, x 23.361(c)'s factor
+//     by cylinders: 2 for a four, 4 for a two, 1.33 from five) as the engine's reaction to its propeller (the sense the
+//     build's engine turns, spec.engines[].sense), acting with condition A's 3.8 g on the engine (23.361(a)(2): at the
+//     maximum continuous torque with 100 % of A; a piston's take-off and maximum continuous torques are one number here);
+//   side363R / L - 1.33 g sideways on the engine, alone;
+//   gyro371 a-d - the propeller's spin (I w, the blade-as-bar inertia of 33_drive) precessed by a yaw of 2.5 rad/s and
+//     a pitch of 1.0 rad/s, both signs of each (the moment Omega x H on the mount), with 2.5 g and the maximum
+//     continuous (static) thrust.
+// A couple on the item nodes is laid out as a rigid body's angular acceleration would load them (F_i = m_i alpha x r_i,
+// alpha = I_item^-1 M about the item's own centre of mass): a pure moment, no net force.
+function genCertDrive(def, item) {
+  const out = [], n = def.nodes.length, DS = typeof genDriveSpec === 'function' ? genDriveSpec(def) : null;
+  if (!DS || !(DS.Q > 0)) return out;
+  const G = GEN_DRIVE.far, E = (def.refs && def.refs.engine) || [], EO = (def.refs && def.refs.engineOf) || E.map(() => 0);
+  const nE = (def.params && def.params.nEngines) || 1, sense = k => { const S = def.spec && def.spec.engines; return S && S[k] && +S[k].sense === -1 ? -1 : 1; };
+  // each item node to the engine of its nearest thrust node
+  const own = new Int32Array(n).fill(-1);
+  for (let i = 0; i < n; i++) if (item[i]) { let best = Infinity;
+    E.forEach((t, j) => { const a = def.nodes[i].p, b = def.nodes[t].p, d = Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]); if (d < best) { best = d; own[i] = EO[j] | 0; } }); }
+  const couple = (F, k, M) => {
+    let m = 0, c = [0, 0, 0];
+    for (let i = 0; i < n; i++) if (own[i] === k) { const w = def.nodes[i].m; m += w; for (let j = 0; j < 3; j++) c[j] += w * def.nodes[i].p[j]; }
+    if (!(m > 0)) return;
+    c = c.map(x => x / m);
+    const I = [0, 0, 0, 0, 0, 0, 0, 0, 0];
+    for (let i = 0; i < n; i++) if (own[i] === k) { const w = def.nodes[i].m, r = [0, 1, 2].map(j => def.nodes[i].p[j] - c[j]), r2 = r[0] * r[0] + r[1] * r[1] + r[2] * r[2];
+      for (let a = 0; a < 3; a++) for (let b = 0; b < 3; b++) I[a * 3 + b] += w * ((a === b ? r2 : 0) - r[a] * r[b]); }
+    // (a set of nodes in a line has no inertia about it: the least eigen-direction is padded by a millimetre's worth)
+    for (let a = 0; a < 3; a++) I[a * 4] += 1e-6 * m;
+    const Ii = genCertInv(I, 3), al = [0, 1, 2].map(a => Ii[a * 3] * M[0] + Ii[a * 3 + 1] * M[1] + Ii[a * 3 + 2] * M[2]);
+    for (let i = 0; i < n; i++) if (own[i] === k) { const w = def.nodes[i].m, r = [0, 1, 2].map(j => def.nodes[i].p[j] - c[j]);
+      F[i * 3] += w * (al[1] * r[2] - al[2] * r[1]); F[i * 3 + 1] += w * (al[2] * r[0] - al[0] * r[2]); F[i * 3 + 2] += w * (al[0] * r[1] - al[1] * r[0]); }
+  };
+  const gload = (F, ax, gx) => { for (let i = 0; i < n; i++) if (own[i] >= 0) F[i * 3 + ax] += def.nodes[i].m * 9.81 * gx; };
+  // the engine's reaction to the prop it drives: about +x (aft) for a prop turning clockwise from behind (its spin is
+  // along -x, the body's x being aft); the limit torque at the prop shaft (the crank's through the reduction unit)
+  const Qlim = DS.tqK * DS.Qprop;
+  { const F = new Float64Array(n * 3); for (let k = 0; k < nE; k++) couple(F, k, [sense(k) * Qlim, 0, 0]); gload(F, 1, -GEN_CERT.limit); out.push(['torque361', F]); }
+  for (const [nm, sd] of [['side363R', 1], ['side363L', -1]]) { const F = new Float64Array(n * 3); gload(F, 2, sd * G.side); out.push([nm, F]); }
+  // the gyroscopic couple: H = I w along -x sense; the mount carries -(Omega x H) on the engine (the reaction to the
+  // precession it forces): with Omega = (0, q_yaw, q_pitch), Omega x H = (0, Omega_z H_x, -Omega_y H_x)
+  const Hx = -DS.I * DS.omegaR;
+  const T = def.params && def.params.prop ? def.params.prop.Tstatic : 0;
+  [['a', 1, 1], ['b', 1, -1], ['c', -1, 1], ['d', -1, -1]].forEach(([nm, sy, sz]) => {
+    const F = new Float64Array(n * 3), wy = sy * G.yaw, wz = sz * G.pitch;
+    for (let k = 0; k < nE; k++) { const h = sense(k) * Hx; couple(F, k, [0, -(wz * h), wy * h]); }
+    gload(F, 1, -G.gyroNz);
+    // the thrust (maximum continuous: the static thrust) at the thrust nodes, forward (-x)
+    if (T > 0) for (let k = 0; k < nE; k++) { const tn = E.filter((t, j) => (EO[j] | 0) === k); for (const t of tn) F[t * 3] -= T / tn.length; }
+    out.push(['gyro371' + nm, F]);
+  });
+  return out;
 }
 // THE CACHE: one certificate per build (its spec hash), a few builds deep
 const GEN_CERT_CACHE = new Map();

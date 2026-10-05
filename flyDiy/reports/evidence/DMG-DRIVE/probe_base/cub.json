@@ -1,0 +1,763 @@
+{
+ "key": "cub",
+ "label": "Cub",
+ "engine": {
+  "rated": 2300,
+  "gear": 1,
+  "name": "Continental A-65"
+ },
+ "speeds": {
+  "VNE": 52.108,
+  "VD": 57.897
+ },
+ "thrCruise": 0.652,
+ "dive": [
+  {
+   "case": "VNE full",
+   "V": 52.108,
+   "thr": 1,
+   "reached": true,
+   "rpmProp": 2580,
+   "rpmEng": 2580,
+   "ratio": 1.122,
+   "tipMach": 0.795,
+   "nz": [
+    0.972,
+    1.047
+   ],
+   "running": [
+    true
+   ],
+   "seized": [
+    false
+   ],
+   "drive": null,
+   "yields": 0,
+   "breaks": 0,
+   "crashed": false,
+   "finite": true
+  },
+  {
+   "case": "1.1 VD full",
+   "V": 63.687,
+   "thr": 1,
+   "reached": true,
+   "rpmProp": 2796,
+   "rpmEng": 2796,
+   "ratio": 1.216,
+   "tipMach": 0.863,
+   "nz": [
+    0.925,
+    1.008
+   ],
+   "running": [
+    true
+   ],
+   "seized": [
+    false
+   ],
+   "drive": null,
+   "yields": 0,
+   "breaks": 0,
+   "crashed": false,
+   "finite": true
+  },
+  {
+   "case": "VNE cruise",
+   "V": 52.108,
+   "thr": 0.652,
+   "reached": true,
+   "rpmProp": 2300,
+   "rpmEng": 2300,
+   "ratio": 1,
+   "tipMach": 0.712,
+   "nz": [
+    0.964,
+    1.036
+   ],
+   "running": [
+    true
+   ],
+   "seized": [
+    false
+   ],
+   "drive": null,
+   "yields": 0,
+   "breaks": 0,
+   "crashed": false,
+   "finite": true
+  },
+  {
+   "case": "VNE idle",
+   "V": 52.108,
+   "thr": 0,
+   "reached": true,
+   "rpmProp": 1653,
+   "rpmEng": 1653,
+   "ratio": 0.719,
+   "tipMach": 0.522,
+   "nz": [
+    0.942,
+    1.016
+   ],
+   "running": [
+    true
+   ],
+   "seized": [
+    false
+   ],
+   "drive": null,
+   "yields": 0,
+   "breaks": 0,
+   "crashed": false,
+   "finite": true
+  },
+  {
+   "case": "VNE off",
+   "V": 52.108,
+   "thr": 0,
+   "reached": true,
+   "rpmProp": 1526,
+   "rpmEng": 1526,
+   "ratio": 0.664,
+   "tipMach": 0.486,
+   "nz": [
+    0.942,
+    1.016
+   ],
+   "running": [
+    false
+   ],
+   "seized": [
+    false
+   ],
+   "drive": null,
+   "yields": 0,
+   "breaks": 0,
+   "crashed": false,
+   "finite": true
+  }
+ ],
+ "nose": [
+  {
+   "V": 2,
+   "first": "disc",
+   "pitch0": -15.2,
+   "strikeT": 0.55,
+   "discT": 0.017,
+   "bite": 0.703,
+   "R": 0.955,
+   "rpm0": [
+    644
+   ],
+   "rpm": [
+    0
+   ],
+   "running": [
+    false
+   ],
+   "seized": [
+    true
+   ],
+   "propStrike": true,
+   "propAt": {
+    "eng": 0,
+    "what": "ground",
+    "t": 4.549999999999923
+   },
+   "drive": null,
+   "yields": 0,
+   "breaks": 0,
+   "groups": [],
+   "crashed": false,
+   "reason": null,
+   "gPeak": 3.216,
+   "finite": true,
+   "tl": [
+    [
+     0.02,
+     -0.003,
+     1109,
+     1
+    ],
+    [
+     0.12,
+     -0.158,
+     1109,
+     1
+    ],
+    [
+     0.22,
+     -0.296,
+     1109,
+     1
+    ],
+    [
+     0.32,
+     -0.428,
+     1109,
+     1
+    ],
+    [
+     0.42,
+     -0.553,
+     1109,
+     1
+    ],
+    [
+     0.52,
+     -0.668,
+     1109,
+     1
+    ],
+    [
+     0.62,
+     -0.671,
+     0,
+     0
+    ],
+    [
+     0.72,
+     -0.571,
+     0,
+     0
+    ],
+    [
+     0.82,
+     -0.558,
+     18,
+     0
+    ],
+    [
+     0.92,
+     -0.583,
+     0,
+     0
+    ],
+    [
+     1.02,
+     -0.555,
+     0,
+     0
+    ],
+    [
+     1.12,
+     -0.581,
+     6,
+     0
+    ],
+    [
+     1.22,
+     -0.604,
+     0,
+     0
+    ],
+    [
+     1.32,
+     -0.643,
+     2,
+     0
+    ],
+    [
+     1.42,
+     -0.681,
+     0,
+     0
+    ],
+    [
+     1.52,
+     -0.693,
+     0,
+     0
+    ],
+    [
+     1.62,
+     -0.674,
+     0,
+     0
+    ],
+    [
+     1.72,
+     -0.637,
+     0,
+     0
+    ],
+    [
+     1.82,
+     -0.611,
+     0,
+     0
+    ],
+    [
+     1.92,
+     -0.62,
+     0,
+     0
+    ]
+   ]
+  },
+  {
+   "V": 4,
+   "first": "disc",
+   "pitch0": -15.2,
+   "strikeT": 0.283,
+   "discT": 0.017,
+   "bite": 0.686,
+   "R": 0.955,
+   "rpm0": [
+    644
+   ],
+   "rpm": [
+    0
+   ],
+   "running": [
+    false
+   ],
+   "seized": [
+    true
+   ],
+   "propStrike": true,
+   "propAt": {
+    "eng": 0,
+    "what": "ground",
+    "t": 4.283333333333641
+   },
+   "drive": null,
+   "yields": 963,
+   "breaks": 0,
+   "groups": [],
+   "crashed": false,
+   "reason": null,
+   "gPeak": 5.017,
+   "finite": true,
+   "tl": [
+    [
+     0.02,
+     -0.032,
+     1112,
+     1
+    ],
+    [
+     0.12,
+     -0.316,
+     1111,
+     1
+    ],
+    [
+     0.22,
+     -0.539,
+     1111,
+     1
+    ],
+    [
+     0.32,
+     -0.683,
+     20,
+     0
+    ],
+    [
+     0.42,
+     -0.493,
+     0,
+     0
+    ],
+    [
+     0.52,
+     -0.305,
+     0,
+     0
+    ],
+    [
+     0.62,
+     -0.206,
+     6,
+     0
+    ],
+    [
+     0.72,
+     -0.202,
+     31,
+     0
+    ],
+    [
+     0.82,
+     -0.291,
+     50,
+     0
+    ],
+    [
+     0.92,
+     -0.27,
+     0,
+     0
+    ],
+    [
+     1.02,
+     -0.163,
+     0,
+     0
+    ],
+    [
+     1.12,
+     -0.151,
+     18,
+     0
+    ],
+    [
+     1.22,
+     -0.198,
+     6,
+     0
+    ],
+    [
+     1.32,
+     -0.15,
+     0,
+     0
+    ],
+    [
+     1.42,
+     -0.145,
+     11,
+     0
+    ],
+    [
+     1.52,
+     -0.154,
+     0,
+     0
+    ],
+    [
+     1.62,
+     -0.141,
+     0,
+     0
+    ],
+    [
+     1.72,
+     -0.155,
+     2,
+     0
+    ],
+    [
+     1.82,
+     -0.161,
+     0,
+     0
+    ],
+    [
+     1.92,
+     -0.175,
+     2,
+     0
+    ]
+   ]
+  },
+  {
+   "V": 8,
+   "first": "disc",
+   "pitch0": -15.2,
+   "strikeT": 0.15,
+   "discT": 0.017,
+   "bite": 0.955,
+   "R": 0.955,
+   "rpm0": [
+    644
+   ],
+   "rpm": [
+    1
+   ],
+   "running": [
+    false
+   ],
+   "seized": [
+    true
+   ],
+   "propStrike": true,
+   "propAt": {
+    "eng": 0,
+    "what": "ground",
+    "t": 4.1500000000005
+   },
+   "drive": null,
+   "yields": 7129,
+   "breaks": 61,
+   "groups": [
+    "eng:mount",
+    "stab:attach"
+   ],
+   "crashed": true,
+   "reason": "a wing member broke",
+   "gPeak": 6.2,
+   "finite": true,
+   "tl": [
+    [
+     0.02,
+     -0.089,
+     1124,
+     1
+    ],
+    [
+     0.12,
+     -0.529,
+     1118,
+     1
+    ],
+    [
+     0.22,
+     -0.474,
+     0,
+     0
+    ],
+    [
+     0.32,
+     0.244,
+     0,
+     0
+    ],
+    [
+     0.42,
+     0.412,
+     0,
+     0
+    ],
+    [
+     0.52,
+     0.118,
+     0,
+     0
+    ],
+    [
+     0.62,
+     -0.245,
+     0,
+     0
+    ],
+    [
+     0.72,
+     -0.499,
+     0,
+     0
+    ],
+    [
+     0.82,
+     -0.696,
+     0,
+     0
+    ],
+    [
+     0.92,
+     -0.821,
+     0,
+     0
+    ],
+    [
+     1.02,
+     -0.875,
+     0,
+     0
+    ],
+    [
+     1.12,
+     -0.915,
+     0,
+     0
+    ],
+    [
+     1.22,
+     -0.95,
+     0,
+     0
+    ],
+    [
+     1.32,
+     -0.952,
+     0,
+     0
+    ],
+    [
+     1.42,
+     -0.954,
+     0,
+     0
+    ],
+    [
+     1.52,
+     -0.955,
+     0,
+     0
+    ],
+    [
+     1.62,
+     -0.954,
+     0,
+     0
+    ],
+    [
+     1.72,
+     -0.953,
+     8,
+     0
+    ],
+    [
+     1.82,
+     -0.952,
+     9,
+     0
+    ],
+    [
+     1.92,
+     -0.95,
+     4,
+     0
+    ]
+   ]
+  }
+ ],
+ "trunk": [
+  {
+   "V": 3,
+   "flown": false,
+   "propStrike": true,
+   "propAt": {
+    "eng": 0,
+    "what": "trunk",
+    "t": 2.3833333333331517
+   },
+   "running": [
+    false
+   ],
+   "seized": [
+    true
+   ],
+   "drive": null,
+   "groups": [],
+   "breaks": 0,
+   "crashed": false,
+   "reason": null,
+   "gPeak": 4.484,
+   "finite": true
+  },
+  {
+   "V": 10,
+   "flown": false,
+   "propStrike": true,
+   "propAt": {
+    "eng": 0,
+    "what": "trunk",
+    "t": 2.1166666666663367
+   },
+   "running": [
+    false
+   ],
+   "seized": [
+    true
+   ],
+   "drive": null,
+   "groups": [
+    "eng:mount",
+    "wing0R:root",
+    "wing0L:root",
+    "wing0L:strut",
+    "wing0R:strut"
+   ],
+   "breaks": 65,
+   "crashed": true,
+   "reason": "a fus member broke",
+   "gPeak": 6.165,
+   "finite": true
+  },
+  {
+   "V": 30,
+   "flown": true,
+   "propStrike": true,
+   "propAt": {
+    "eng": 0,
+    "what": "trunk",
+    "t": 0.18333333333333598
+   },
+   "running": [
+    false
+   ],
+   "seized": [
+    true
+   ],
+   "drive": null,
+   "groups": [
+    "eng:mount",
+    "wing0R:root",
+    "wing0L:root",
+    "wing0R:strut",
+    "wing0L:strut",
+    "gearL:gear",
+    "gearR:gear",
+    "stab:attach",
+    "tw:gear"
+   ],
+   "breaks": 175,
+   "crashed": true,
+   "reason": "broke up: the fuselage parted (TPB off the core)",
+   "gPeak": 25.145,
+   "finite": true
+  }
+ ],
+ "mount": {
+  "fullPower": {
+   "max": 0.106,
+   "at": {
+    "tag": "ENGR-S0TR",
+    "s": "t",
+    "grp": "eng:mount"
+   },
+   "body": 0.008
+  },
+  "pull": {
+   "max": 0.344,
+   "at": {
+    "tag": "CGE-S0TR",
+    "s": "t",
+    "grp": "eng:mount"
+   },
+   "body": 0.007,
+   "nz": 3.874
+  },
+  "snap": {
+   "max": 0.938,
+   "at": {
+    "tag": "CGE-S0TR",
+    "s": "c",
+    "grp": "eng:mount"
+   },
+   "body": 0.011,
+   "wMax": [
+    2.914,
+    0.951,
+    2.002
+   ],
+   "nzMax": 1.266
+  },
+  "land473": {
+   "max": 0.274,
+   "at": {
+    "tag": "CGE-S0TR",
+    "s": "t",
+    "grp": "eng:mount"
+   },
+   "body": 0.004,
+   "nz": 1.665,
+   "sink": 2.134
+  },
+  "land473x15": {
+   "max": 0.361,
+   "at": {
+    "tag": "CGE-S0TR",
+    "s": "t",
+    "grp": "eng:mount"
+   },
+   "body": 0.005,
+   "nz": 1.974,
+   "sink": 3.2
+  }
+ },
+ "ms": 87273
+}

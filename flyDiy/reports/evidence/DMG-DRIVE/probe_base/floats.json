@@ -1,0 +1,285 @@
+{
+ "key": "floats",
+ "label": "Cessna floats",
+ "engine": {
+  "rated": 2575,
+  "gear": 1,
+  "name": "Lycoming O-540-B2C5"
+ },
+ "speeds": {
+  "VNE": 82.303,
+  "VD": 91.447
+ },
+ "thrCruise": 0.624,
+ "dive": [
+  {
+   "case": "VNE full",
+   "V": 82.303,
+   "thr": 1,
+   "reached": true,
+   "rpmProp": 2985,
+   "rpmEng": 2985,
+   "ratio": 1.159,
+   "tipMach": 1.001,
+   "nz": [
+    0.914,
+    1.193
+   ],
+   "running": [
+    true
+   ],
+   "seized": [
+    false
+   ],
+   "drive": null,
+   "yields": 0,
+   "breaks": 0,
+   "crashed": false,
+   "finite": true
+  },
+  {
+   "case": "1.1 VD full",
+   "V": 100.592,
+   "thr": 1,
+   "reached": true,
+   "rpmProp": 3265,
+   "rpmEng": 3265,
+   "ratio": 1.268,
+   "tipMach": 1.097,
+   "nz": [
+    0.876,
+    1.147
+   ],
+   "running": [
+    true
+   ],
+   "seized": [
+    false
+   ],
+   "drive": null,
+   "yields": 0,
+   "breaks": 0,
+   "crashed": false,
+   "finite": true
+  },
+  {
+   "case": "VNE cruise",
+   "V": 82.303,
+   "thr": 0.624,
+   "reached": true,
+   "rpmProp": 2657,
+   "rpmEng": 2657,
+   "ratio": 1.032,
+   "tipMach": 0.897,
+   "nz": [
+    0.9,
+    1.195
+   ],
+   "running": [
+    true
+   ],
+   "seized": [
+    false
+   ],
+   "drive": null,
+   "yields": 0,
+   "breaks": 0,
+   "crashed": false,
+   "finite": true
+  },
+  {
+   "case": "VNE idle",
+   "V": 82.303,
+   "thr": 0,
+   "reached": true,
+   "rpmProp": 1994,
+   "rpmEng": 1994,
+   "ratio": 0.774,
+   "tipMach": 0.692,
+   "nz": [
+    0.869,
+    1.195
+   ],
+   "running": [
+    true
+   ],
+   "seized": [
+    false
+   ],
+   "drive": null,
+   "yields": 0,
+   "breaks": 0,
+   "crashed": false,
+   "finite": true
+  },
+  {
+   "case": "VNE off",
+   "V": 82.303,
+   "thr": 0,
+   "reached": true,
+   "rpmProp": 1863,
+   "rpmEng": 1863,
+   "ratio": 0.724,
+   "tipMach": 0.652,
+   "nz": [
+    0.869,
+    1.195
+   ],
+   "running": [
+    false
+   ],
+   "seized": [
+    false
+   ],
+   "drive": null,
+   "yields": 0,
+   "breaks": 0,
+   "crashed": false,
+   "finite": true
+  }
+ ],
+ "noseIn": [
+  {
+   "V": 20,
+   "sink": 1.5,
+   "pitch": 8,
+   "propStrike": false,
+   "propAt": null,
+   "running": [
+    true
+   ],
+   "seized": [
+    false
+   ],
+   "drive": null,
+   "groups": [],
+   "breaks": 0,
+   "crashed": false,
+   "reason": null,
+   "gPeak": 2.035,
+   "finite": true
+  },
+  {
+   "V": 25,
+   "sink": 5,
+   "pitch": 20,
+   "propStrike": false,
+   "propAt": null,
+   "running": [
+    true
+   ],
+   "seized": [
+    false
+   ],
+   "drive": null,
+   "groups": [],
+   "breaks": 0,
+   "crashed": false,
+   "reason": null,
+   "gPeak": 3.631,
+   "finite": true
+  }
+ ],
+ "trunk": [
+  {
+   "V": 3,
+   "na": "a floatplane on land"
+  },
+  {
+   "V": 10,
+   "na": "a floatplane on land"
+  },
+  {
+   "V": 30,
+   "flown": true,
+   "propStrike": true,
+   "propAt": {
+    "eng": 0,
+    "what": "trunk",
+    "t": 0.18333333333332832
+   },
+   "running": [
+    false
+   ],
+   "seized": [
+    true
+   ],
+   "drive": null,
+   "groups": [
+    "eng:mount",
+    "wing0R:root",
+    "wing0L:root",
+    "wing0R:strut",
+    "wing0L:strut",
+    "floatL:strut",
+    "floatR:strut",
+    "stab:attach",
+    "fin:attach"
+   ],
+   "breaks": 229,
+   "crashed": true,
+   "reason": "broke up: the fuselage parted (TPB off the core)",
+   "gPeak": 22.742,
+   "finite": true
+  }
+ ],
+ "mount": {
+  "fullPower": {
+   "max": 0.122,
+   "at": {
+    "tag": "ENGR-S0BR",
+    "s": "t",
+    "grp": "eng:mount"
+   },
+   "body": 0.04
+  },
+  "pull": {
+   "max": 0.149,
+   "at": {
+    "tag": "CGE-S0TL",
+    "s": "t",
+    "grp": "eng:mount"
+   },
+   "body": 0.054,
+   "nz": 5.108
+  },
+  "snap": {
+   "max": 0.314,
+   "at": {
+    "tag": "CGE-S0BR",
+    "s": "t",
+    "grp": "eng:mount"
+   },
+   "body": 0.065,
+   "wMax": [
+    2.761,
+    1.631,
+    1.909
+   ],
+   "nzMax": 0.918
+  },
+  "land473": {
+   "max": 0.131,
+   "at": {
+    "tag": "CGE-S0TL",
+    "s": "t",
+    "grp": "eng:mount"
+   },
+   "body": 0.038,
+   "nz": 1.659,
+   "sink": 2.538
+  },
+  "land473x15": {
+   "max": 0.223,
+   "at": {
+    "tag": "CGE-S0TL",
+    "s": "t",
+    "grp": "eng:mount"
+   },
+   "body": 0.072,
+   "nz": 1.86,
+   "sink": 3.807
+  }
+ },
+ "ms": 207784
+}
