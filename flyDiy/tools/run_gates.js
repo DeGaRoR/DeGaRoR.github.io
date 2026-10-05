@@ -76,6 +76,11 @@ const GATES = [
   // solver's rpm), AUDIO.update's budget (no heap, < 0.3 ms), nothing before a gesture, ?audio=0 builds nothing, the
   // silence, the settings, the sources, the wiring - and every check mutated red (--selftest alone); ~3 s
   { id: 'AUDIO', file: 'audio/_audio_check.js', tier: 'core', wall: 160 },
+  // THE BOOMBOX (G1713, SND-BOOMBOX): the shed's radio - the quick bar's `sound` and `radio` (AUDIO.enable, stepStation,
+  // music in the garage on), the boombox's hit (its own turned box, never over a nearer aeroplane part), the panel's
+  // controls on the page's DOM, MY MUSIC (blob: URLs made and revoked, the handle alone kept, nothing before a gesture)
+  // with the picker stubbed - and every check mutated red; < 1 s
+  { id: 'BOOMBOX', file: 'audio/_boombox_check.js', tier: 'core' },
   // SKY S1/S2 (2026-09-14): the day object and the almanac, headless
   { id: 'DAY', file: 'test_day.js', tier: 'core' },
   // THE CLIMATE (K0, 2026-09-22): the one wind field - the G72 column bit-identical against a
