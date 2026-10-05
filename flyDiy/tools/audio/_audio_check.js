@@ -2726,17 +2726,33 @@ const SPCFG_PAGE = S => spcOf(S);
 
 // the measurement itself (the child runs it): the aeroplane flies past the still eye at 60 m/s along its nose (typed
 // writes only: the test allocates nothing of its own), back to the start every 800 m (a teleport: the ring forgets it)
-function spBudgetMeasure(S) {
+function spBudgetMeasure(S, shot) {
   const pg = spacePage(S, { record: false });
   pg.place(0, 20, 60);
-  const p = pg.sim.p, p0 = Float64Array.from(p), fw = Float64Array.from(pg.fwd), X = new Float64Array(1);
-  const go = () => {
+  const p = pg.sim.p, p0 = Float64Array.from(p), fw = Float64Array.from(pg.fwd), X = new Float64Array(2);
+  // G1715 (SND-ROLLOUT) `shot`: THE ROLL-OUT SHOT - in the shed, the aeroplane where the solver stands it, the shot's pose
+  // (space.js shotPose) rolling it 30 m out through the door at walking pace, its door share falling (rollanim.js writes it)
+  const SP = shot ? pg.A.space.shotPose : null;
+  const go = shot ? () => {   // (to and fro, never a jump: the shot's aeroplane does not teleport)
+    X[1] += 0.05; if (X[1] >= 60) X[1] = 0; X[0] = X[1] < 30 ? -X[1] : X[1] - 60;
+    SP[0] = 1; SP[1] = fw[0] * X[0]; SP[2] = fw[1] * X[0]; SP[3] = fw[2] * X[0]; SP[4] = X[0] > -12 ? 1 : X[0] > -16 ? (X[0] + 16) / 4 : 0;
+    pg.frame(true);
+  } : () => {
     X[0] += 1; if (X[0] > 400) X[0] = -400;
     const dx = fw[0] * X[0], dy = fw[1] * X[0], dz = fw[2] * X[0];
     for (let j = 0; j < p.length; j += 3) { p[j] = p0[j] + dx; p[j + 1] = p0[j + 1] + dy; p[j + 2] = p0[j + 2] + dz; }
     pg.frame();
   };
-  X[0] = -400;
+  X[0] = shot ? 0 : -400;
+  // (the shot: first THE SHED'S OWN frame - the same frames, the pose off: the room mode - for its baseline, dB0)
+  let dB0 = null;
+  if (shot) {
+    for (let i = 0; i < 20000; i++) pg.frame(true);
+    global.gc(); global.gc();
+    const hb = process.memoryUsage().heapUsed;
+    for (let i = 0; i < 10000; i++) pg.frame(true);
+    dB0 = process.memoryUsage().heapUsed - hb;
+  }
   for (let i = 0; i < 20000; i++) go();
   let gcs = 0;
   const obs = new PerformanceObserver(list => { gcs += list.getEntries().length; });
@@ -2752,7 +2768,7 @@ function spBudgetMeasure(S) {
   for (let i = 0; i < 200; i++) pg.frame();
   const s1 = pg.C.sched;
   for (let i = 0; i < 2000; i++) pg.frame();
-  return { dB, gIn, ms, sch, steady: pg.C.sched - s1 };
+  return { dB, dB0, gIn, ms, sch, steady: pg.C.sched - s1 };
 }
 const SPB_KEYS = ['params', 'audio', 'engine', 'srcprop', 'model', 'samples', 'srcaf', 'spcfg', 'space', 'worklet', 'engw', 'propw'];
 let SPB_N = 0;
@@ -2764,9 +2780,10 @@ function checkSpBudget(S, report) {
   // G1680: each sample is taken TWICE - as node runs by default, and with TurboFan alone (--no-maglev: a Node without
   // Maglev, the coordinator's box). A frame that leans on the optimiser's inlining (a double handed to or returned by a
   // call) boxes it there: SPACE_CONFIG.dopplerFactor grew the heap 90 B a frame on that tier while the default read 0.59.
-  const sample = flags => {
+  const sample = (flags, shot) => {
     const tmp = path.join(os.tmpdir(), 'flydiy_spbudget_' + process.pid + '_' + (SPB_N++) + '.json');
     const sub = {}; for (const k of SPB_KEYS) sub[k] = S[k];
+    if (shot) sub.__shot = 1;
     fs.writeFileSync(tmp, JSON.stringify(sub));
     try {
       const out = execFileSync(process.execPath, ['--expose-gc', '--max-semi-space-size=64', ...(flags || []), __filename, '--spbudget-child=' + tmp], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
@@ -2775,15 +2792,19 @@ function checkSpBudget(S, report) {
     finally { try { fs.unlinkSync(tmp); } catch (e) {} }
   };
   const noisy = q => !q || q.err || q.gIn > 0 || !(q.ms < 0.3);
-  for (const [tier, flags] of [['', []], [' (TurboFan alone, --no-maglev)', ['--no-maglev']]]) {
-    let r = sample(flags), retried = false;
-    if (noisy(r)) { const r2 = sample(flags); retried = true; if (!noisy(r2) || (r.err && !r2.err) || (!r2.err && !r.err && r2.ms < r.ms)) r = r2; }
+  // G1715: and THE ROLL-OUT SHOT's frames (the shed, the shot's pose rolling the aeroplane out of the door), on the default tier
+  for (const [tier, flags, shot] of [['', []], [' (TurboFan alone, --no-maglev)', ['--no-maglev']], [' (THE ROLL-OUT SHOT: in the shed, rolling out of the door)', [], 1]]) {
+    let r = sample(flags, shot), retried = false;
+    if (noisy(r)) { const r2 = sample(flags, shot); retried = true; if (!noisy(r2) || (r.err && !r2.err) || (!r2.err && !r.err && r2.ms < r.ms)) r = r2; }
     if (r.err && flags.length && /bad option|unknown|not allowed/i.test(r.err)) { if (report) report.push('SP_BUDGET' + tier + ': this node has no such tier - not measured'); continue; }
     if (r.err) { F.push('the budget child' + tier + ' failed: ' + r.err); continue; }
     if (retried && report) report.push('SP_BUDGET' + tier + ': the first sample failed its timing / GC bound and was re-measured once');
-    if (report) report.push('update() with the three sources + space.js, the aeroplane passing the eye at 60 m/s (a fresh process' + tier + '): heap ' + (r.dB >= 0 ? '+' : '') + r.dB + ' B over 10 000 frames (' + (r.dB / 10000).toFixed(2) + ' B a frame), ' + r.gIn + ' GC, ' + (r.ms * 1000).toFixed(1) + ' us a frame (with the test\'s own node shift), ' + r.sch.toFixed(1) + ' params scheduled a frame');
+    if (report) report.push('update() with the three sources + space.js, ' + (shot ? 'the roll-out shot\'s aeroplane rolling to and fro by the door at walking pace' : 'the aeroplane passing the eye at 60 m/s') + ' (a fresh process' + tier + '): heap ' + (r.dB >= 0 ? '+' : '') + r.dB + ' B over 10 000 frames (' + (r.dB / 10000).toFixed(2) + ' B a frame' + (shot ? '; the shed\'s own room mode, the same process: ' + (r.dB0 / 10000).toFixed(2) + ' B a frame' : '') + '), ' + r.gIn + ' GC, ' + (r.ms * 1000).toFixed(1) + ' us a frame (with the test\'s own node shift), ' + r.sch.toFixed(1) + ' params scheduled a frame');
     if (r.gIn > 0) F.push('a GC ran inside the moving window' + tier + ' (' + r.gIn + '): the space allocates');
-    if (r.dB > 16384) F.push('the moving frames grew the heap ' + r.dB + ' B over 10 000 frames (' + (r.dB / 10000).toFixed(1) + ' B a frame)' + tier);
+    // G1715: the shed's audio frame grows the heap on its own (its once-a-second room poll, the airframe's shed path:
+    // 7.5 B a frame, before SND-ROLLOUT); the shot is held to that + one boxed double a frame (GATE ROLLANIM's unit)
+    if (shot) { if ((r.dB - r.dB0) > 160000) F.push('the roll-out shot\'s frames grew the heap ' + ((r.dB - r.dB0) / 10000).toFixed(1) + ' B a frame over the shed\'s own room mode (bound 16)' + tier); }
+    else if (r.dB > 16384) F.push('the moving frames grew the heap ' + r.dB + ' B over 10 000 frames (' + (r.dB / 10000).toFixed(1) + ' B a frame)' + tier);
     if (!(r.ms < 0.3)) F.push('update() with space.js costs ' + r.ms.toFixed(3) + ' ms a frame' + tier + ' (budget 0.3)');
     if (!(r.sch > 3)) F.push('the moving frames scheduled ' + r.sch.toFixed(2) + ' params a frame (the space is not following the aeroplane)');
     if (r.steady !== 0) F.push('a steady frame scheduled ' + r.steady + ' params over 2000 frames (want 0)');
@@ -4408,7 +4429,7 @@ const MUT = [
   ['a mono IR', 'spcfg', 'for (let ch = 0; ch < 2; ch++) {\n      const y = out[ch];', 'for (let ch = 0; ch < 2; ch++) {\n      const y = out[ch]; s = 0x2f6e2b1;', 'SP_IR'],
   ['the IR made on the frame', 'space', 'if (W.requestIdleCallback) W.requestIdleCallback(run, { timeout: 2000 }); else setTimeout(run, 0);', 'run();', 'SP_IR'],
   ['the IR never regenerated', 'space', 'if (key === G.irKey || key === G.irPending) return;', 'if (G.irKey || key === G.irPending) return;', 'SP_IR'],
-  ['the shed\'s room everywhere', 'space', 'const v = on && G.irKey ? WETS[k] : 0;', 'const v = G.irKey ? WETS[k] : 0;', 'SP_IR'],
+  ['the shed\'s room everywhere', 'space', 'const v = on && G.irKey ? (k === 0 ? WETS[k] * kA : WETS[k]) : 0;', 'const v = G.irKey ? (k === 0 ? WETS[k] * kA : WETS[k]) : 0;', 'SP_IR'],   // (G1715: the aircraft send x the shot's door share)
   ['the placeholder low-pass back', 'engine', "      if (sp) node.connect(sp, 0); else { node.connect(outExt, 0); node.connect(outInt, 0); }", "      if (sp) node.connect(sp, 0); else { node.connect(outExt, 0); node.connect(outInt, 0); }\n      { const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 1400; node.connect(lp, 0); }", 'SP_GRAPH'],
   ['the prop\'s parts not apart', 'srcprop', 'node.connect(sp, 1); sp.connect(sT, 0); sp.connect(sB, 1); splits.push(sp);', 'node.connect(sT, 0); splits.push(sp);', 'SP_GRAPH'],
   ['the interior layers through the cabin', 'srcaf', '        if (SPC) node.connect(int, 2);', '        if (SPC) node.connect(api.space.graph().cabIn, 2);', 'SP_GRAPH'],
@@ -4637,7 +4658,7 @@ async function runChecks(S, report) {
 
 if (SPB_CHILD) {
   const sub = JSON.parse(fs.readFileSync(SPB_CHILD, 'utf8'));
-  console.log(JSON.stringify(spBudgetMeasure(Object.assign({}, SRC0, sub))));
+  console.log(JSON.stringify(spBudgetMeasure(Object.assign({}, SRC0, sub), !!sub.__shot)));
   return;
 }
 let fails = 0, pristine = null;
