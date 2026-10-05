@@ -351,6 +351,14 @@ The village bench also carries the hangar's own panorama (`alps`, from
 `assets/hangar_sky/alps_field_8k.hdr`, credited under the hangar skies) baked
 the house way — env, backdrop, measured rig — since G293.
 
+## The bank's rock (`assets/splat/darkRock/`, baked and served from media/)
+
+**Poly Haven, CC0** (https://polyhaven.com/a/dark_rock_02) — `dark_rock_02` by Amal
+Kumar (2 m), the island's lake banks and coast faces (the splat's derived code 17,
+SHORES-2 G1955). The 1k diff / nor_gl / rough / disp fetched straight off Poly Haven's
+file list, resized to 512 (the displacement is the height), baked by
+`tools/ground_tex_prep.js` into `media/tex/ground/` with its KTX2 planes.
+
 ## Skin sheets (`assets/skin/`, baked and served from media/)
 
 The CC0 PBR sets the AEROSKIN material library wears that are not wood: the

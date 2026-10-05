@@ -61,15 +61,18 @@
   const ready = () => !!(WF() && G() && G().on && G().on());
 
   // ---- THE TERRAIN TYPES: names, colours (the ground's own palette, gTTCol) and the derivations ----
-  const NAMES = { 0: 'sea', 1: 'lake', 2: 'heath', 3: 'muskeg', 4: 'sand', 5: 'scree', 6: 'rock', 7: 'scrub', 8: 'forest', 9: 'snow', 10: 'built', 11: 'shingle', 12: 'cliff', 13: 'forest old', 14: 'scrub dense' };
+  const NAMES = { 0: 'sea', 1: 'lake', 2: 'heath', 3: 'muskeg', 4: 'sand', 5: 'scree', 6: 'rock', 7: 'scrub', 8: 'forest', 9: 'snow', 10: 'built', 11: 'shingle', 12: 'cliff', 13: 'forest old', 14: 'scrub dense', 17: 'bank' };
   const TTC = { 0: [5, 13, 77], 1: [13, 89, 242], 2: [191, 217, 64], 3: [89, 140, 38], 4: [242, 217, 140], 5: [140, 128, 115], 6: [77, 71, 71],
-                7: [153, 166, 13], 8: [5, 89, 13], 9: [250, 250, 255], 10: [242, 26, 26], 11: [168, 156, 132], 12: [120, 104, 98], 13: [3, 61, 8], 14: [111, 122, 10] };
+                7: [153, 166, 13], 8: [5, 89, 13], 9: [250, 250, 255], 10: [242, 26, 26], 11: [168, 156, 132], 12: [120, 104, 98], 13: [3, 61, 8], 14: [111, 122, 10], 17: [70, 62, 58] };
   const css = c => `rgb(${c[0]},${c[1]},${c[2]})`;
   const DERIVED = { 12: { from: 6, lo: 'cliffLo', hi: 'cliffHi', unit: '°', what: 'rock steeper than', max: 70 },
                     13: { from: 8, lo: 'oldLo', hi: 'oldHi', unit: ' m', what: 'forest under a canopy taller than', max: 35 },
                     14: { from: 7, lo: 'denseLo', hi: 'denseHi', unit: ' m', what: 'scrub under a canopy taller than', max: 6 } };
   const PARENT_OF = { 12: 6, 13: 8, 14: 7 };
-  const EDITABLE = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14];
+  // 17 THE BANK (SHORES-2 G1958): derived from EVERY type by the water (the steep faces within the bank's reach of a lake or
+  // the coast) - a ground and its blend, no biome (it plants nothing of its own: the planters keep their type's)
+  const BANK = 17;
+  const EDITABLE = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, BANK];
   // the catalogue's kinds, as the user's five categories (+ the cliffs, their own section)
   const CATS = [
     { k: 'trees', label: 'trees', kinds: ['tree', 'dead'] },
@@ -545,7 +548,7 @@
     for (const c of EDITABLE) {
       const b = $('button', 'wr-leg'); b.type = 'button';
       const sw = $('span', 'wr-sw'); sw.style.background = css(TTC[c]); b.appendChild(sw);
-      b.appendChild($('span', null, NAMES[c])); b.appendChild($('em', null, SH[c] ? (SH[c] * 100).toFixed(1) + '%' : (PARENT_OF[c] ? 'derived' : '-')));
+      b.appendChild($('span', null, NAMES[c])); b.appendChild($('em', null, SH[c] ? (SH[c] * 100).toFixed(1) + '%' : (PARENT_OF[c] || c === BANK ? 'derived' : '-')));
       b.onclick = () => { UI.code = c; open('types'); };
       lg.appendChild(b);
     }
@@ -624,7 +627,7 @@
     const hx = $('div'); hd.appendChild(hx);
     hx.appendChild($('div', 'wr-tname', NAMES[code]));
     const SH = shares();
-    hx.appendChild($('div', 'wr-tsub', PARENT_OF[code] ? 'derived from ' + NAMES[PARENT_OF[code]] + ' in the shader and the planters' : ((SH[code] ? (SH[code] * 100).toFixed(1) + '% of the land' : 'not on this map') + ' · biome ' + ((B && B.mixAt(code)) || 'none'))));
+    hx.appendChild($('div', 'wr-tsub', code === BANK ? 'derived from every type by the water: the steep faces of the lake banks and the coast' : PARENT_OF[code] ? 'derived from ' + NAMES[PARENT_OF[code]] + ' in the shader and the planters' : ((SH[code] ? (SH[code] * 100).toFixed(1) + '% of the land' : 'not on this map') + ' · biome ' + ((B && B.mixAt(code)) || 'none'))));
     const pk = button(hd, 'under the eye', () => { const cam = camNow(); const t = TF(); if (!cam || !t || !t.at) return; const a = t.at(cam.position.x, cam.position.z); if (a && a.code >= 2) { UI.code = a.code; open('types', true); } });
     pk.title = 'the terrain type under the camera (or alt+click the ground)';
     if (DERIVED[code] && sp) {
@@ -633,13 +636,36 @@
       range(K, 'full at', 0, D.max, 0.5, () => sp.knobs()[D.hi], v => sp.set({ [D.hi]: v }), v => v + D.unit);
       note(K, 'the ground blends across the split; the planters draw per point on the same curve');
     }
+    if (code === BANK && sp) bankPanel(body, sp);
     // where it is
     const Mp = sec(body, 'where it is', false);
     mapWidget(Mp, 300, code);
     // the tabs
     const tabs = $('div', 'wr-tabs'); body.appendChild(tabs);
-    for (const [k, l] of [['biome', 'biome'], ['ground', 'ground']]) { const b = $('button', 'wr-tab' + (UI.tab === k ? ' on' : ''), l); b.type = 'button'; b.onclick = () => { UI.tab = k; saveUI(); open('types', true); }; tabs.appendChild(b); }
-    if (UI.tab === 'ground') groundTab(body, code); else biomeTab(body, code);
+    for (const [k, l] of (code === BANK ? [['ground', 'ground']] : [['biome', 'biome'], ['ground', 'ground']])) { const b = $('button', 'wr-tab' + (UI.tab === k || code === BANK ? ' on' : ''), l); b.type = 'button'; b.onclick = () => { UI.tab = k; saveUI(); open('types', true); }; tabs.appendChild(b); }
+    if (UI.tab === 'ground' || code === BANK) groundTab(body, code); else biomeTab(body, code);
+  }
+  // THE BANK'S OWN ROWS (SHORES-2 G1958, the user: "these textures should be accessible through the world editor"): where the
+  // bank's rock comes (the reach, the slope it takes over between), how it blends (the ramp's softness, the noise that breaks
+  // its edge and that noise's size) and the wet band at the water's edge - the splat's knobs, saved with its state (the
+  // browser's copy and the world look's export, like every other ground setting); its sets are the ground tab's below
+  function bankPanel(body, sp) {
+    const kn = k => () => sp.knobs()[k], ss = k => v => sp.set({ [k]: v });
+    const D = (typeof GROUND_FIELDS !== 'undefined') ? GROUND_FIELDS.RECIPE.knobs : {};
+    const K = sec(body, 'where the bank is', true, 'steep faces by the water');
+    range(K, 'reach', 0, 80, 1, kn('bankReach'), ss('bankReach'), v => v ? v + ' m' : 'off', D.bankReach);
+    range(K, 'rock from', 0, 70, 0.5, kn('bankLo'), ss('bankLo'), v => v + '\u00b0', D.bankLo);
+    range(K, 'full at', 0, 80, 0.5, kn('bankHi'), ss('bankHi'), v => v + '\u00b0', D.bankHi);
+    note(K, 'reach: how far from a lake\u2019s line or the coast a face can be bank (0 = off: the faces keep their type\u2019s ground). The rock comes in from the first slope and is full by the second.');
+    const Bl = sec(body, 'the blend', true, 'how the rock meets the cover');
+    range(Bl, 'softness', 0, 20, 0.5, kn('bankSoft'), ss('bankSoft'), v => '\u00b1' + v + '\u00b0', D.bankSoft);
+    range(Bl, 'ragged edge', 0, 30, 0.5, kn('bankJit'), ss('bankJit'), v => v ? '\u00b1' + (v / 2).toFixed(1) + '\u00b0' : 'off', D.bankJit);
+    range(Bl, 'edge cell', 1, 20, 0.5, kn('bankCell'), ss('bankCell'), v => v + ' m', D.bankCell);
+    note(Bl, 'softness widens the slope ramp each side; the ragged edge swings it by a noise of that cell size, so the rock thins into the grass over metres along a broken line. Inside the ramp the taller texel wins (the height blend, FILTERING).');
+    const Wt = sec(body, 'the wet band', true, 'the water\u2019s edge');
+    range(Wt, 'lakes', 0, 8, 0.1, kn('bankWet'), ss('bankWet'), v => v ? v + ' m' : 'off', D.bankWet);
+    range(Wt, 'the sea', 0, 3, 0.05, kn('bankWetSea'), ss('bankWetSea'), v => v ? v + ' m up' : 'off', D.bankWetSea);
+    note(Wt, 'the ground darkened and glossed as wet: over a lake, the first metres from its line; by the sea, up to that height over the water - both edges broken by the same noise.');
   }
 
   function biomeTab(body, code) {

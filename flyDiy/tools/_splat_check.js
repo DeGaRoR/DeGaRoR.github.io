@@ -409,6 +409,7 @@ function checkMineral(quiet) {
   if (SP && SP.api && SP.api.layers) {
     const L = SP.api.layers(), lib = ctx.SPLAT_TEX_SETS.map(q => q.key), T = W.island.ttype, seen = new Set();
     for (let k = 0; k < T.length; k++) seen.add(T[k]);
+    if (seen.has(0) || seen.has(1)) seen.add(17);   // (SHORES-2 G1955: a lake or the sea - the bank, derived from every type by the water)
     if (seen.has(0)) seen.add(4); if (seen.has(1)) seen.add(3); seen.delete(0); seen.delete(1);
     for (const [a, d] of [[6, 12], [8, 13], [7, 14]]) if (seen.has(a)) seen.add(d);
     const need = new Set(); for (const c of seen) { const r = SP.api.code(c); if (r) for (const k of (r.tex || []).concat(r.far || [])) if (k) need.add(k); }
@@ -428,7 +429,7 @@ function checkMineral(quiet) {
   // forest colour is the canopy itself - normalising the floor to it paints the leaves on the
   // ground and then stands the drawn trees on top, counting the canopy twice. It ships brown
   // (0.126/0.083/0.026) and the gain made it green (0.019/0.030/0.009) and six times darker.
-  const ROCK_AS_SHIPPED = ['rocksA', 'rocksB', 'rocksG', 'rockyA', 'rockyB', 'cliff', 'pebble', 'forestAir'];
+  const ROCK_AS_SHIPPED = ['rocksA', 'rocksB', 'rocksG', 'rockyA', 'rockyB', 'cliff', 'pebble', 'forestAir', 'darkRock'];
   const MUST_KEEP_HUE = ['beach', 'coastA', 'coastSand', 'dirt', 'mud', 'snowAir'];
   const moved = [];
   for (const k of ROCK_AS_SHIPPED) {
