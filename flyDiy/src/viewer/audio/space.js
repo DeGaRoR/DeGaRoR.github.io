@@ -40,6 +40,14 @@ var AUDIO_SPACE = (function () {
   // the shed's wet sends (the IR has unit energy): modest - the room under the sound, not over it
   const WET_AIRCRAFT = 0.25, WET_AMBIENCE = 0.16, WET_MUSIC = 0.12, WET_TAU = 0.3;
   const RING_CAP = 1024;                      // 1024 frames: ~17 s at 60 Hz (a 5 km path is 14.6 s)
+  // G1715 (SND-ROLLOUT): A KINEMATIC MOVE OF THE FLOWN AEROPLANE IN THE SHED - the roll-out shot (rollanim.js, app.js hands
+  // it this array) writes it every frame it plays: [0] on, [1..3] every emitter's offset from where sim.p stands it (the
+  // roll; metres, the garage scene's frame), [4] the engines' share inside the shed (1 in, 0 out through the door). On, the
+  // shed is heard as the world is: each group WHERE IT STANDS, through the same propagation, directivity, absorption and
+  // panner as in flight (not the room mode's 8 m ahead), and the aircraft's wet send follows [4] down to WET_OUT of itself
+  // as the engines leave by the door (the room still rings through the opening behind them)
+  const shotPose = new Float64Array(5); shotPose[4] = 1;
+  const WET_OUT = 0.3;
 
   let G = null;                               // the graph on the current context
   let def = null, cab = null, refD = 12, sideDone = 0, exits = 0;
@@ -272,7 +280,8 @@ var AUDIO_SPACE = (function () {
     listener(api && api.camera, s, I, cut);
     const c = s[I.c] > 100 ? s[I.c] : SC.C0;
     const sim = api && api.sim, p = sim && sim.p;
-    const room = garage || !p || !noseN;
+    const shot = garage && shotPose[0] > 0 ? 1 : 0;   // (G1715: the roll-out shot moves the aeroplane: heard where it is)
+    const room = (garage && !shot) || !p || !noseN;
     // the aeroplane's nose (the directivity's axis): the nose frame less the tail post
     if (!room && tailN) {
       avgInto(p, noseN, PB); const nx = PB[1], ny = PB[2], nz = PB[3];
@@ -296,6 +305,7 @@ var AUDIO_SPACE = (function () {
         for (let k = 0; k < 4; k++) if (gr.dirs[k]) schedK(gr.dirs[k].gain, o + 3 + k);
       } else {
         avgInto(p, list, PB); PB[0] = clk;
+        if (shot) { PB[1] += shotPose[1]; PB[2] += shotPose[2]; PB[3] += shotPose[3]; }
         // the emitter's own teleport (a respawn, the line-up): forget its past
         const R = rings[gi], h = R.n[1] * SC.RW;
         if (R.n[0] > 0) { const ex = PB[1] - R.a[h + 1], ey = PB[2] - R.a[h + 2], ez = PB[3] - R.a[h + 3]; if (ex * ex + ey * ey + ez * ez > 200 * 200) SC.ringReset(R); }
@@ -333,7 +343,7 @@ var AUDIO_SPACE = (function () {
     T[1] = lag;
     if (A.lagS) A.lagS[0] = lag;
     // THE SHED: the wet sends while in it, the IR checked once a second (made off the frame)
-    wet(garage);
+    wet(garage, shot);
     if (garage) { T[2] -= d0; if (T[2] <= 0) { T[2] = 1; shedCheck(); } } else T[2] = 0;
     if (crafts.length) { T[6] = c; craftsFrame(); }   // (dt in T[5], c in T[6]: no double handed to a call)
   }
@@ -360,10 +370,12 @@ var AUDIO_SPACE = (function () {
 
   // ---- THE SHED'S ROOM ------------------------------------------------------------------------------------------
   const WETS = [WET_AIRCRAFT, WET_AMBIENCE, WET_MUSIC];
-  function wet(on) {
+  function wet(on, shot) {
     const ns = G.wetNodes || (G.wetNodes = [G.revA, G.revAmb, G.revMus]);   // (made once per graph: not an array a frame)
+    // G1715: under the roll-out shot the aircraft's send follows the engines out of the door (in 2 % steps: no schedule a frame)
+    const kA = shot ? Math.round((WET_OUT + (1 - WET_OUT) * shotPose[4]) * 50) / 50 : 1;
     for (let k = 0; k < 3; k++) {
-      const v = on && G.irKey ? WETS[k] : 0;
+      const v = on && G.irKey ? (k === 0 ? WETS[k] * kA : WETS[k]) : 0;
       if (G.wet[k] === v) continue;
       G.wet[k] = v;
       ns[k].gain.setTargetAtTime(v, G.ctx.currentTime, WET_TAU);
@@ -575,7 +587,7 @@ var AUDIO_SPACE = (function () {
                 cabin: () => cab, setExits(k) { exits = Math.max(0, Math.min(1, +k || 0)); applyCabin(); if (A.refreshGains) A.refreshGains(); },
                 graph: () => G, frame: OUT, LW, NG, GAF, lag: () => T[1], room: () => (G && G.room) || null,
                 // for the gate: the shed's IR now (synchronously), and the craft frame
-                shedNow, shedCheck };
+                shedNow, shedCheck, shotPose };
   A.space = api;
   A.onEvent('settings', () => applyHeadset());
   A.addSource('space', {
