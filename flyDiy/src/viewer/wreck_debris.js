@@ -36,6 +36,7 @@
   const G = 9.81;
   const DT = 1 / 240;          // the bodies' own step (s): independent of the frame rate
   const CRUSH = 0.06;          // a carrying set crushed: two of its nodes this far (m) off their rest distance
+  const ENG_MOUNT = 0.25;      // an engine's mount wrecked: its nodes and the frame's 25 cm off their rest distances
   const KICK = 1.2;            // the release's kick away from the frame (m/s)
   const SPIN = 2.0;            // ...and its seeded tumble (rad/s, each axis up to)
   const W_CAP = 12, V_OVER = 6;    // the release's turn (rad/s) and its speed over its set's own (m/s), at most
@@ -87,7 +88,12 @@
       const L0 = [];
       for (let a = 0; a < nodes.length; a++) for (let b = a + 1; b < nodes.length; b++) {
         const p = N[nodes[a]].p, q = N[nodes[b]].p; L0.push(Math.hypot(p[0] - q[0], p[1] - q[1], p[2] - q[2])); }
-      return Object.assign({}, c, { id, nodes, L0, gone: false, why: null });
+      // (an engine unit's MOUNT: its engine nodes and the frame nodes it is bolted to, their rest distances - G1861.3)
+      let mount = null;
+      if (c.mount) { const mn = c.mount.nodes || carry(def, 'cowl', c.at, c.unit), mL = [];
+        for (let a = 0; a < mn.length; a++) for (let b = a + 1; b < mn.length; b++) { const p = N[mn[a]].p, q = N[mn[b]].p; mL.push(Math.hypot(p[0] - q[0], p[1] - q[1], p[2] - q[2])); }
+        mount = { nodes: mn, L0: mL, at: c.mount.at || ENG_MOUNT }; }
+      return Object.assign({}, c, { id, nodes, L0, mount, gone: false, why: null });
     }) };
   }
 
@@ -116,7 +122,10 @@
     if (rule === 'piece' && D.pc) { let off = 0; for (const i of ns) if (D.pc[i] !== 0) off++; if (off * 2 > ns.length || (off && ns.length <= 2)) return 'off'; }
     if (rule !== 'crush' && adj && D.broken) { let loose = 0; for (const i of ns) { const A = adj[i]; if (A && A.length && A.every(bi => D.broken[bi])) loose++; }
       if (loose * 2 > ns.length || (loose && ns.length <= 2)) return 'loose'; }
-    if (rule === 'loose') return null;
+    // G1861.3 (the user: the engine "floats" at nose height beside the wreck, outside its cowl): an engine unit whose MOUNT
+    // is wrecked - its nodes ENG_MOUNT off the frame nodes it is bolted to - leaves too: the physics still holds its nodes
+    // up on bent tubes nobody sees (the cowl has gone), and drawn there it hangs in the air; as a body it falls
+    if (rule === 'loose') { if (c.mount && distort(c.mount.nodes, c.mount.L0, live) > c.mount.at) return 'mount'; return null; }
     let k = 0, worst = 0;
     for (let a = 0; a < ns.length; a++) for (let b = a + 1; b < ns.length; b++) {
       const i = ns[a] * 3, j = ns[b] * 3;
@@ -127,6 +136,16 @@
     return worst > CRUSH ? 'crushed' : null;
   }
 
+  // the worst change of distance between two of a set's nodes against their rest (m)
+  function distort(ns, L0, live) {
+    let k = 0, worst = 0;
+    for (let a = 0; a < ns.length; a++) for (let b = a + 1; b < ns.length; b++) {
+      const i = ns[a] * 3, j = ns[b] * 3;
+      const d = Math.abs(Math.hypot(live[i] - live[j], live[i + 1] - live[j + 1], live[i + 2] - live[j + 2]) - L0[k++]);
+      if (d > worst) worst = d;
+    }
+    return worst;
+  }
   // ---- THE RIGID FIT of a carrying set: R (row-major 3x3) and the centroids, rest -> live ----
   function fit(nodes, rest, live) {
     const m = nodes.length, A = new Float64Array(9);
@@ -476,6 +495,7 @@
 
   const API = { G, DT, CRUSH, KICK, SPIN, MU, BOUNCE, REST_V, REST_W, REST_T, LIFE, E_BEND, E_BREAK, CURL0, CURL1, CURL_S0, DENT0, DENT1, EYE_CLEAR, EYE_VOL,
     WET_K, CUT0, CUT1, TWIST, isMetal,
+    ENG_MOUNT, distort,
     rng, hash, carry, plan, watcher, watch, leaves, fit, release, step, rotOf, clearance, heal, strike, azOf, bladeFrame, bladeOf, curlBlades, dentSpinner,
     bays, depth, vol, cabin, crushed };
   if (typeof module !== 'undefined' && module.exports) module.exports = API;
