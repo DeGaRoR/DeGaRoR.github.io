@@ -74986,3 +74986,154 @@ substeps 80 the same. PHYSICS-STEP COST: none - no per-step work added (B20's de
 pose; B21's normals turn only a deflected surface's own vertices, on the pose path), no substep count moved on any
 validated build.
 Generated outputs NOT committed - A0 builds.
+## G1570-G1579 - PILOT-FORKS: THE THREE PILOTS FLY ONE SERVO MODULE; THE CLASSIC'S DECRAB TURNS THE RIGHT WAY; THE DATUMS ARE LATCHED ON THE GROUND (2026-10-05, PILOT-FORKS for A0, a CLOUD session: node only; branch claude/pilot-forks-g1570 off train 31 = bff4f64b)
+
+The brief: the independent review (`reports/INDEPENDENT-REVIEW-2026-10-04.md`, branch ccr-4c7cf662-zcpqoe) B3-B7, E4 and its
+C-pilots line. A0 mid-session: the Deform Coordinator's DMG-DAMP (G1885-G1889, review D1: the solver damps rigid
+rotation) lands FIRST in train 34 and re-tunes every pilot gain on this module - so NO gain was re-tuned here, every gain
+sits in one table per pilot, and every gate number the fixes move is listed below.
+
+**G1570 THE SERVOS ARE ONE MODULE** (`src/core/39b_servos.js`, new; MANIFEST after 39_ground_path; exported for the
+gates: SERVO_GAINS, SERVO_TUNE, makeServos, servoWrapPi, servoCrossWind, servoRestHeight). The three copies (40 classic,
+41 test - "forked VERBATIM", 43 the game's - "the test pilot's loops, verbatim") of the filters and the inner loops are
+one `makeServos(sim, def, { pilot, now, trike, rotateTD, TW, features })`:
+- `sense(dt, e, eA, tgtH, thRaw, phRaw, beta, V, Vg, vy, onG)` once a step: the attitude / rate filters (G381: started
+  FROM the attitude), the bumpless target (G630 + G780's sampled-turn rule), the WRAPPED heading-error rates (G630), the
+  slow ground roll rate (G630), vsSlow, accF; `relatch()` (W14) re-latches every servo memory on the next sense.
+- the laws: holdPitch (IthMax / IthGain / pitchK / pitchDK / deFloor are the module's state, set by 43's phases),
+  holdVS, rollTo, airLateral, speedThrottle (G352's anti-windup, G381's damping on the measured acceleration), decrab,
+  steerK / groundAil / groundSteer, taxi (the 2026-09-04 PI), taxiHeading (G630's 0.4 s look-ahead filter),
+  taxiRudder (G630: the steer schedule's P + the curvature feed-forward, no rate term), slew(ownV, ownL), endStep.
+- THE GAINS: `SERVO_GAINS` is the base table - every `A.x ?? default` and every bare literal of the three copies (the
+  0.85 rate factor, the 2 s washouts, the ground deadbands, the clamps) is a row - and `SERVO_TUNE.{classic, test,
+  pilot}` is ONE ROW PER PILOT overlaid on it (all three EMPTY today). A per-aeroplane key in def.params.ap still wins
+  (genTuneAP's rollP / pitchD / ...). DMG-DAMP re-tunes by writing a pilot's row (or the base row for all three).
+- FEATURES (43's own laws, not fixes; 40 / 41 run them off): trimCalm (the course trim in calm air, 2026-09-08),
+  groundP1D (the tail state from the tailwheel's contact, the tail-down rudder stop rising with speed, the sqrt-mass
+  gains), xwBank (the aileron into wind on the ground, 2026-09-08), water (H4's branch), deTop (G396.2 / G970: the
+  water's stick top through LIFTOFF). The long comments that explain each law moved with it, verbatim.
+- 43 IS BIT-IDENTICAL THROUGH THE MOVE: a per-step hash of every control (de, da, dr, thr, brake, flap) over whole
+  flights, base train 31 vs the module before the B fixes: stock (stand and runway), the user's Cub / Jodel / Cessna 172
+  (builds/*_corrected.json) and the aluminium C172 from the stand, stock and Cub in 3 m/s across - 8 of 8 SAME. After
+  the B fixes, 13 of 14 SAME (+ the Cessna on FLOATS on the SEA lane calm, 3 m/s across, 3 m/s along; the Jodel in 3
+  m/s across with 1 m/s gusts; the Cub in a quartering 2.5/2.5); the one that moves is B4's own case (below).
+- 40 and 41 now fly the G381 / G630 / G352 laws they never had: the filters from the attitude; wrapped rates and the
+  bumpless target; G352's anti-windup and G381's accF term on the speed hold; the tail-down steer gains easing as
+  (VTailUp/V)^2 (a trike's: VSteer, the quarter rate term, none under the brakes, the 3.5 rad/s cap); the ground's
+  aileron deadband (taxi, roll, rollout, STOP); the taxi on P + curvature feed-forward with the filtered look-ahead
+  (TAXI on a path / to a point, LINEUP, STOP). Their phases are untouched.
+- GATE TAKEOFF's source check ("a fix that lands in one pilot and not the other is the fork's known failure") read
+  `const tailUp = rotateTD` in each pilot; that line now lives once, so the check reads it in the module and requires
+  each pilot to call `makeServos` + `SV.groundSteer(thRest` and to carry no copy (stronger, not looser).
+
+**G1571 B3 - THE CLASSIC'S AND THE TEST PILOT'S DECRAB RUDDER** (40:948-953, 41:888-893): `-K x hdg` (the nose's angle
+from the runway) is `-K x e` now (e = the runway's angle from the nose: the ground steer's sign, 43's since G381), with
+G970's slow integral - one law, the module's `decrab`.
+
+**G1572 B4 - THE DECRAB ARMS ON THE STRIP'S CROSSWIND**: 40 / 41 armed on |windZ| > 0.5 (the world's z: only an x-aligned
+strip ever decrabbed), 43 on |windZ| + |windX| (a headwind straight down the strip armed it). All three: `SV.decrabArmed(agl,
+F)` = below decrabAgl and |the air's velocity across the runway frame| > 0.5 (`servoCrossWind`). At HOME (x-aligned) a z
+wind arms it exactly as before; 43's one moved case: the Cub in a pure 3 m/s headwind no longer decrabs in the flare
+(its controls differ, its landing is the same at printed precision: sink 0.86, on the centreline, +16 m, run 114 m).
+
+**G1573 B5 - THE DATUMS ARE LATCHED ON THE GROUND** (43:1046, 40:324, 41:258 + 43's gearH): on the wheels, the first
+update latches as always (bit-identical for every ground start); in the air restAlt / refAlt are the departure field's
+elevation + the design pose's CG rest height (`servoRestHeight(def)`: the mass-weighted CG over the lowest contact of
+the reset pose), and 43's gearH waits for the wheels (aglG and aimAlt use restH0 meanwhile). MEASURED (scratch b5: fly
+to cruise, hand the aeroplane to a FRESH pilot with reEngage): base classic latched restAlt 121.37 at 121 m, flared at
+125.5 m over the ground and never landed; now classic / test latch 1.31 and flare at 5.4 m (landed, 1.23 m/s), the
+game's pilot latches 1.31, flares at 6.7 m, lands at 0.67.
+
+**G1574 B6 - THE ACCEPTED CEILING IS THE CIRCUIT'S** (43 altMode): on 'ceiling-accepted' / 'wont-climb' every leg above
+the new hCruise comes down to it and planLegH re-publishes the legs' heights (G710's hPlan) - legAlt asked the old L.h
+the next step, dh > 40 put climbMode back on and it climbed for the height it had given up. MEASURED (scratch b6: the stock
+airframe on the FES 100 electric, a 1200 m card, the game's pilot): 'ceiling-accepted' at 196 s at 38 m on both trees;
+base kept every leg at 1200 m and the vertical target at 1200 (still climbing, 62 m by the end of the window), the
+branch's legs are 38.3 m and the target 50 m (legAlt's terrain floor: 2 hSafe, 40 m at least, over the ground ahead).
+(Left as it was: legAlt's terrain floor can still exceed an accepted ceiling over high ground - climbMode then returns
+and ceilingSaid keeps it from being said twice; a terrain-limited circuit is its own chantier.)
+
+**G1575 B7 - THE TEST PILOT'S ROLL IS JUDGED ON THE RUNWAY LEFT** (41 ROLL): 'out of runway' fired at `runUsed > len -
+80` from wherever the roll began (a hold 110 m in, a backtrack's turn-around: the strip was "all ahead"); now `left <
+80`, left = the centreline still ahead to the far end (43's runwayLeft), and 'will not make it' is 60 % of the run
+available where the roll began (43's rule). World-less (GATE MASS: HOMEISH has no x) the old arithmetic exactly.
+
+**G1576 REVIEW C-PILOTS**:
+- 39_ground_path: past GP_MAXPTS a path was TRUNCATED with len / sEnd / sStop still the whole route's (a 6+3+6 km
+  test route: 4000 points, len 14 828 m, the last point's s 3 999 m, ending at (3999, 0) - the stop it braked for was
+  nowhere on the path). Now it is sampled again, coarser, whole (3 673 points, len = the last s = 14 828, ending on the
+  hold); under the cap every path is drawn exactly as before; a graph still over the cap at 256 m is cut with its
+  len / sStop made the cut's.
+- 38_nav: a ONE-waypoint plan with no `from` had no leg (`leg()` needs a previous point) - flown from the aeroplane's
+  first position, as a direct-to (base: NULL; now dis 716 m, dtk 347.9).
+- 42_crosswind: the ladder never restored the injected wind (a caller's world came back blowing the last rung, base:
+  [0,0,2] after a ladder on a world set to [1,0,0.5] gust 0.3). The climate's DECLARED spec (`climate.declared`, a new
+  read-only getter in 09_climate.js beside `spec`) is kept and set again when the ladder ends; `probe.restore()` for
+  one abandoned.
+- 40 / 41 rate filters difference unwrapped heading error: the module's (wrapped, G630).
+- 43 departFrom kept rollN / gaN / committed: a new departure resets rollN, gaN, gaWhy, committed, committedTO.
+
+**THE NUMBERS THE FIXES MOVE** (the 39 gates that fly or read a pilot, `run_gates --only=... --verbose`, base = train 31
+untouched in a worktree vs this branch, same box, jobs 4; the printed lines diffed with timings filtered):
+```
+gate        line (base train 31 -> branch)                                     why
+GEN         circuit (40, stock calm): TOUCHDOWN sink 1.06 -> 1.22 m/s          G381's accF term on the speed hold (spdD
+            (bound 1.3), x -482 -> -509, stop -555 -> -587 (now STOPPED          0.25): the ramp flare is sensitive to the
+            at 297 s; base ended the 300 s in ROLLOUT)                           entry speed; with SERVO_TUNE.classic.spdD
+                                                                                 = 0 the same circuit lands at 0.90
+            pairs 'land sink': stock 1.06->1.22, tricycle 1.30->1.32, twin       (same cause; all under 1.6; no check on
+            boom 0.70->0.89, low cantilever 0.82->0.84, pusher 1.09->1.16,       them moved)
+            high cantilever 0.79->0.91, over the wing 1.33->1.30, mid wing
+            0.83->0.94, wing twin 1.54->1.52, low wing 0.79->0.86
+            CRUISE QUIET (3 m/s + gusts): bank p2p 0.98 -> 0.94 deg, aileron     (bound 3.0 / 2.0 / 3.0)
+            0.06 -> 0.06, elevator 0.26 -> 0.28 deg/s
+HOTHIGH     (40, hot day, wind): TOUCHDOWN sink 1.02 -> 1.30 m/s (bound 2.0),  the turnback now turns the other way
+            x -466 -> -511, z 0.8 -> -0.4, rolloutPitchMin 3.3 -> 1.9, gear     (INBOUND from z -654 instead of +418):
+            strain 15 -> 12 %, chatter 1.1 -> 1.0 deg/s                         TURNBACK steps the target 180 deg, e sits
+                                                                                 at +-pi and the side is decided by the
+                                                                                 rate chain, now wrapped and bumpless
+                                                                                 (G630) - likely, NOT isolated
+FLEX        (40, every build): peak loads down 2-4 % (stock fus 4.45->4.28     the same circuits flown by the module's
+            kN, wing 5.07->4.90, wire 2.46->1.95); the 6061 tube + Dacron 5 m   laws; the flexible wing's cruise flail
+            wing: cruise hold p2p 1.04 -> 0.17 % of semispan, wire 19.96 ->     (1.04 % p2p) is gone
+            5.73 kN (244 -> 70 % of yield), tail 1.89 -> 1.32 kN
+INPUT       classic/keys and test/keys re-engaged: bank at 20-25 s 1.3 ->      the module's laws (40 / 41)
+            1.7 deg (peak pitch / bank, alt loss, CRUISE OK unchanged)
+BENCH       (41) the landing run 303 -> 296 m                                  41's laws
+SEAPLANE    (43, floats) touch 244.7 -> 244.8 s (position, depth, stop the     B4 (the SEA lane's arming)
+            same)
+HITBOX      84 of 87 checks: the three cooked-shape checks SKIP (`not cooked   the parked cook is STALE (below) - not
+            in this page`)                                                       a failure; A0's train re-cook restores them
+FRAMECOST   FAIL (24): cub / cessna stand + taxi draws.main 914 -> 1047,       THE PARKED COOK IS STALE: the core's build
+            draws.shadow, uniforms, gl.calls; boot/garage:landing bufferData    id moved (parked_cook --check: manifest
+            0 -> 768                                                             39f9e360 vs this tree 562ecfe8, STALE) and
+                                                                                 the page captures the parked aeroplanes
+                                                                                 live - the gate's own HINT. Not re-cooked
+                                                                                 here (the cook refuses a software
+                                                                                 renderer, and it is cooked on the train's
+                                                                                 final build: A0)
+same at printed precision: PILOT, PILOTACT (ctl rev), PILOTMATRIX, TAKEOFF, PLAN, LINEUP, TAXICLEAR, NAV, SITE, SOAR,
+ARCHETYPES, STRIPSURF, MASS, STRESS, FLAPS, GE, BIPLANE, DEFAULT, CLIMATE, BUILD, UISMOKE, GFX, WORLDRENDER, UILAYER,
+PREMISES, HONESTY, TANKMOUNT, MOUNT (SIMWORKER's snapshot counts and RWYTREES' compose times are the page's clock)
+```
+the 40 / 41 flights off the runway (scratch ident, HOME calm unless said; base -> branch): 40 stock sink 1.07 -> 1.22, x
+-482 -> -509; 40 stock in 3 m/s across + 1.5 gust 1.38 -> 1.46, drift -0.40 -> +0.27 m/s, off centre -0.04 -> +0.19 m;
+41 stock 1.06 -> 1.21, past the aim 38 -> 11 m, run 321 -> 318; 41 the user's Cub in 3 m/s across 1.61 -> 1.46 m/s, off
+centre 0.6 -> 0.1 m (B3), run 273 -> 252; 41 the user's Jodel calm 1.05 -> 1.23, run 337 -> 314. (40 and 41 now fly
+the same stock calm circuit control for control - one hash.)
+
+- Gates: the 39-gate pilot set above on this branch: 47 of 49 jobs PASS; FRAMECOST red on the stale parked cook (above), WORLD red on its terrainH timing (red on base too). `node tools/run_gates.js` (the CORE battery, 140 gates / 147 jobs,
+  this branch, 76 min on 4 jobs): 135 PASS, 5 red - FRAMECOST (the stale cook), and four that are red on UNTOUCHED BASE
+  on this box (re-run there, `--only=INSTANT,WORLD,BIOME,SETTLE`): INSTANT (the runner's 1800 s cap), BIOME (`surface
+  perf<5us`), SETTLE (`bake budget`), WORLD (`perf terrainH<2.5us`: red in base's first run, green in its second - a
+  timing on a loaded 4-core cloud box). None of the five reads a pilot. The FULL tier's pilot gates (ARCHETYPES,
+  PILOTMATRIX, SEAPLANE, HOTHIGH, SOAR) are in the pilot set above, all PASS; the rest of the full tier (SIMWORKER-PAGE /
+  -EDGES / -PLACE, SOFTGPU - browser rigs that fly 43 on the page) was not run: 43 is bit-identical but for B4 / B5 /
+  B6, which those rigs do not reach. A0: re-cook the parked aeroplanes on the train's build (FRAMECOST + HITBOX's three
+  cooked-shape checks come back with it).
+- Not this session's (red on base too): WORLD (`perf terrainH<2.5us` - 2.86 us a call on this 4-core cloud box, a
+  machine-speed check); RWYTREES timed out at 1800 s on base under load and passed on the branch.
+- POSEBACK: no gate of that name exists in this tree (grep of tools/, run_gates.js, HANDOVER) - nothing run under it.
+- OWED (seen, not fixed - outside the brief): 40 has no G208.3 LIFTOFF exit (41 has it): the user's Cub and Jodel on
+  the CLASSIC pilot hold the lift-off attitude for ever (base and branch alike: ROLL > LIFTOFF for 300 s); the game
+  and the bench fly 43 / 41, the gates fly 40 only on the stock and the generator's pairs.
