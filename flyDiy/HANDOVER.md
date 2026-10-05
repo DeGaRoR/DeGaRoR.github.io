@@ -72687,3 +72687,116 @@ FOR THE COORDINATOR: (1) the user picks the guests by ear in voices/ (john / kri
   catalogue track: radio_gen.js (writes its spoken title) then prep_voice.js - VOICE_CAT is red until then, the talk speaks its
   credit meanwhile; (5) GATE AUDIO measured ~190 s here (run_gates' wall is 160 - SND-RADIO-2 measured the same overrun);
   SP_BUDGET's TurboFan mutation missed once under load in a full run and was caught alone (a contended sample, as before).
+
+## G1705-G1709 - SND-ANIMALS: THE ANIMALS HEARD - A READ-ONLY READER ON THE LIVE ANIMALS, ONE BLOW PER SURFACING AT THE BLOWHOLE, THE ELK'S BUGLE AT DUSK, THE BEAR ONLY NEAR (AND A RARE STARTLE), THE DOE, THE FLOCKS' GULLS RIDING THEIR BIRDS, THE VARIED THRUSH, THE RECORDED STAMP MILL; GATED, HEARD ON JOLENE (2026-10-05, SND-ANIMALS for the Sound Coordinator, cloud, node only; branch claude/snd-animals off origin/claude/animal-sounds 7e5aa337)
+
+The user (2026-10-05): "there are animals integrated in the game. Can you give them their sound, and associate that properly to
+the animal objects?" - and the recordings still missing must be used. The recordings are the Coordinator's (7e5aa337), unheard
+by the user. Design: SOUND-2026-10-04 §6.3 (the emitters), ANIMALS-2026-09-22 (the behaviours). No app.js, build.js, asset or
+CREDITS edit. The animal code knows nothing of the sound; the sound reads the animals only through the reader.
+G1705 THE READER - src/viewer/animal_run.js `sound(out)` -> rows of ANIMAL_RUN.SOUND.ROW (12) per individual into the caller's
+  Float64Array: [species (SOUND.SPECIES: bear elk doe orca whale bird; -1 unknown), x y z (a land animal's HEAD: 0.42 x length
+  ahead along its heading, 0.8 of its height; a sea animal's BLOWHOLE: 0.33 x length ahead of the pivot, at the surface + 0.2 m
+  while it is up; a bird itself), vx vy vz (the circuit's tangent x speed; the flock's track; land 0), state (0 idle, 1 walk,
+  2 surfaced, 3 submerged, 4 flying), event (the run's clock at its last EVENT: a sea animal's BLOW = the frame its back breaks
+  through and the plume is fired; a land animal's CALL opportunity = it enters idle / browse / walk anew, not lying down, not its
+  sowing; -1 none), herd (an integer per herd / pod / flock, placed or ambient), shown (stepped and drawn), length (x size)];
+  `clock()` the run's clock. A caller that keeps last frame's clock has this frame's events: event > it. THE CLOCK IS COMPARED
+  BY THE CALLER, never handed in: the first cut took `since` as an argument and boxed a double every frame (and a herd id passed
+  to a helper boxed another: ~27 B a frame). READ ONLY: two marks (blowT, callT) are written where the behaviour already acts,
+  no random is drawn, no joint touched; GATE ANIMALS byte-for-byte unchanged in what it measures (PASS). ALLOCATION-FREE:
+  HERDS.forEach with callbacks made once. COST: ~0.4 us a row in node (3 us for the island's 47 rows); the first cut was 10x
+  that - Math.sin through a vm's global; the heading is the animal's own `dir`. render_premises publishes `animalSounds: out =>`
+  and `animalClock`.
+G1706 THE NUMBERS - src/viewer/audio/emitters_model.js ANIMALS [species, sound, how, reach m, mean s, gap s, hour]:
+    whale  whaleblow  (animal.whale.blow, 0 dB, ref 40 m, +-0.6 st)    blow   1500 (x calm)              once per surfacing
+    orca   orcablow   (animal.orca.blow, -3 dB, ref 20, rate 0.82 +-0.5 st: the porpoise's breath lowered)  blow 600 (x calm)
+    elk    elk        (animal.elk, -2 dB, ref 40, +-0.8 st)             call   1500   40 / 40  twilight   the herd's clock
+    bear   bear       (animal.bear, -2 dB, ref 15, +-0.8 st)            call   150    240 / 60 near       + the STARTLE
+    doe    doe        (animal.deer, -8 dB, ref 8)                       call   150    120 / 45 day
+    bird   gull       (bird.gull, the species' own sound)               flock  450    16 / 6   gull       riding its bird
+  BLOW: one call per BLOW event while the row is surfaced (never submerged: the aeroplane does not hear under the water), at the
+  blowhole, static. The CALM: the blows' reach x (1 - 0.6 x (wind - 3) / 12), 0.4 at 15 m/s (the ambience's wind feature).
+  CALL: a herd's Poisson clock (after its gap, weight / mean a second) ARMS the herd and its next call opportunity calls; a call
+  out of reach is made, not heard (the herd's rhythm does not depend on the listener); never two of one herd at once. FLOCK:
+  the clock calls at once from a random member, the voice placed on that member's row EVERY frame (its velocity: the doppler).
+  HOURS: twilight 0.15 by day, 0.3 at night, 1 at dawn / dusk (max of the civil twilight and the sun at 4 +-12 deg); day 0.3 +
+  0.7 by day; gull from 4 deg below the horizon. THE BEAR: weight 1 + 3 x near^2 x low (near 1 - d / 150, low 1 - AGL / 40)
+  and THE STARTLE: the listener coming within 60 m under 40 m AGL (an entry; out again past 90 m) -> a growl at 40 %, at most
+  one a bear in 3 min. Reaches are 3-D, faded over their last 30 %. THE 150 m CEILING DOES NOT APPLY to the animals (their
+  reach is theirs); the garage and under water hear none. The herds are tracked in 48 slots (id, last seen frame, last call,
+  armed, first row, count, nearest, startle), freed 600 frames unseen. An animal's call STEALS the farthest sounding voice at
+  the cap when that one is farther (st.refused[2] counts). THE VARIED THRUSH (§6.2's): a SPECIES row, the forest by day,
+  strongest round sunrise / sunset (day x forest x (0.3 + 0.7 x (1 - |sun - 4| / 12))), in a tree 15-80 m, mean 30 / gap 12.
+  The crow / eagle / loon / owl / gull rows play their new variants as they are. PER SOUND: pitch jitter (default 1.5 st) and
+  a base rate, two optional SOUNDS columns.
+G1707 THE PLAYER - src/viewer/audio/emitters.js: the provider reads `animals(out)`, `animalClock()`, `animalSpecies()`
+  (window.ANIMAL_RUN.SOUND.SPECIES: the codes' meaning, mapped by name, rebuilt only when the list changes). VARIANTS NEVER
+  REPEAT AT ONCE (samples.js pick(key, fresh)), for every emitter. THE ROOM: a key refused by the class's budget frees the
+  resident keys no longer wanted and asks again the next frame; an ANIMAL's key (whaleblow, orcablow, elk, bear, doe) may also
+  free the largest idle nature key (it waits its 15 s). Found rendering the pod: on gamer's 8 MB, Annette's shore had the loon
+  (3.1 MB with its two new calls), the eagle (2 MB), the gulls, the owl resident and wanted, and the orca's breath was refused -
+  the pass was silent. samples.js: the animal / thrush keys declared one-shots, size(key).
+G1708 THE MILL - SOUNDS 'mill' -> 'mill.stamp' (a loop, -4 dB, ref 30 m) in the mill's loop slot, as G1667 did for tram.hum
+  and boat.idle. samples.js KEYS['mill.stamp'] = { kind: 'loop', cut: true }: bakeLoop(b, lim, cut) trims the codec's pads
+  and crossfades NOTHING (and caps nothing): the file is cut onset to onset, and the usual 1.5 s tail crossfade would shorten
+  the period to 4.9 s and break the time every loop. THE FALLBACK: a sound the model can synthesise (tramhum, mill, boat,
+  bell) whose file is absent, or fails to load, is made procedurally (the G1661 synth) - the mill's rumble when mill.stamp is
+  missing.
+G1709 THE GATE AND THE EVIDENCE - GATE AUDIO gains the ANI block (the REAL animals layer - tools/audio/animal_world.js: the
+  page's animals.js + animal_run.js on three and the shipped payload, GATE ANIMALS' own context - where the check is about what
+  the animals do; SYNTHETIC herds, rows written like the reader's with CALL events at the clip machine's measured rate (an elk
+  every 11.6 s), where it is a rate over hours):
+  ANIMAP   every shipped animal (animals_table.py) in the reader's vocabulary, its ANIMALS row's sound a catalogue key, a
+           declared one-shot and the emitters' own; the thrush a forest species; the reader published and read
+  ANIBLOW  five orcas and a whale circling off a floatplane on the water, 10 min: every surfacing within reach blew EXACTLY
+           once, at its blowhole (checked against the animal's own pivot and length, not the reader's row), in the frame
+           the plume fires; no blow not at a surfacing, none submerged; the pod 700-1100 m off: none; the whale at ~1.1 km
+           blows on calm water, not in 15 m/s
+  ANIELK   40 min at dusk 600 m off: 12-40 bugles, >= 40 s apart, mean gap >= 60 s; noon under half of dusk; 1300 m heard,
+           1700 m not; two herds both call; the REAL herd at dusk: every bugle in a call opportunity's frame at that elk
+  ANILAND  the bear at 100 m: heard, gaps >= 60 s; at 200 m never; 30 low passes (20 m AGL, over it) startle it 4-24 times
+           (the model's startle clock), 30 at 120 m none; the doe at 100 m (gaps >= 45 s), never at 200 m
+  ANIGULL  the REAL flock circling overhead, 10 min: 10-60 calls >= 6 s apart, each within 2 m of a bird every frame it sounds;
+           none at night; the ambient flocks call as they cross
+  ANIMILL  the page 150 m from the mill: the loop slot plays the RECORDED buffer, 6.2-6.45 s (uncut), no procedural buffer; the
+           manifest without mill.stamp: the procedural rumble
+  ANIPLAY  the page with a synthetic pod and flock through window.WORLD.premises.animalSounds: nothing fetched 3 km off; near,
+           the orca's breath at 0.82 x +-0.5 st placed at its blowhole in the camera's frame; 20 blows never repeat a variant at
+           once; a gull's call rides its bird (its panner moves) with the doppler on its rate
+  ANIALLOC the reader over the island's cast (47 rows), 30 000 reads against a loop doing nothing: 0.00 B a read, 0 GC; the
+           model's animals over 20 000 frames of recorded rows against its twin: 0.33 B a frame, 0 GC more; +13 us a frame
+           (vm-measured: the vm's global makes Math slow; the page's realm is faster)
+  28 mutations (the doe unmapped, forgotten by the reader, not the emitters' own, the reader unpublished; a blow every surfaced
+  frame, as it dives, at the pivot, beyond reach, deaf to the wind; the elk at every hour, not rare, heard at 2.5 km, a bugle
+  without an opportunity; the bear heard far, never startled, startled high; the doe heard far; the gulls left behind,
+  chattering, at night; the mill procedural, crossfaded, without its fallback; the orca at the porpoise's pitch, variants
+  repeating, fetched from afar; the reader and the model allocating) - each red on its check. EMITGESTURE's mutation retargeted
+  (no sound has a null key now: `want || SYNTH[s]`) and its file test widened to the new keys; EMITBUDGET now asserts 70 s with
+  nothing wanted releases everything (the room's releases would have hidden a dead RELEASE_S). GATE AUDIO PASS, 326 / 326
+  (325 in the full run + the wiring mutation alone after it), 3 m 52 s standalone (SND-RADIO-3 measured ~190 s; the ANI block
+  and its mutations ~75 s more - run_gates' wall 160 is a scheduling hint, now further under).
+  THE EVIDENCE - `node tools/audio/animals_render.js` -> reports/evidence/SND-ANIMALS/ (0.77 MB): JOLENE (media/world/jolene +
+  the premises fixture) with its eight hotspots run by the real animals layer, heard through the page's sound code on a
+  recording context (emitters_render.js's harness and mixdown, now exported), the emitters alone. orca.opus (a pass at 40 m,
+  timed from a scan of the pod's own dive cycle: blows at 4.6 s / 560 m, 26.3 s / 377 m, 28.5 s / 101 m), elk.opus (the
+  sanctuary herd from 250 m at 21:48: bugles at 61.3 and 126.6 s), bear.opus (three low passes 20 m beside it: the startle at
+  18.9 s, 59.7 m), gulls.opus (the dock's flock: 3 calls riding their birds; the ambient flocks 4; the shore's own gulls 4),
+  mill.opus (the recorded loop over the walk in; its seam keeps the file's own onset pattern, measured), timeline.png,
+  summary.json, README.md (what to listen for, when). `node tools/audio/animals_box.js` - THE BOX'S RIG, for the Coordinator,
+  UNRUN HERE (the cloud cannot render the world): Chrome on the game at Jolene, one real gesture, the aeroplane carried along the
+  same scenes by FLIGHT_PROBE.place every 100 ms (never paused: a paused game stops the animals and silences the audio), the
+  master bus recorded by MediaRecorder (the whole mix), the emitters' calls and an animal census written to box/.
+GATES: AUDIO PASS (above), ANIMALS PASS, MEDIA PASS (index.html +267 KB over HEAD of its 307 KB budget: the committed page is
+  stale, as before), BUILD PASS, UISMOKE PASS (173.5 s). The generated files (index.html, dev.html, sw.js, version.json)
+  restored after every build; none in this branch.
+FOR THE COORDINATOR: (1) integrate: nothing in app.js; the page's path is render_premises.animalSounds -> emitters.js's provider.
+  (2) SND-TUNE, by ear: every level, reach, mean, gap and the startle's 40 % are first guesses; the humpback blow stands in for
+  the BLUE whale (the model is a blue whale; the recording a humpback's trumpet); the orca's 0.82 rate on a porpoise's breath.
+  (3) Memory: the new variants made the emitters' class oversubscribed in places (the loon's key alone is 3.1 MB decoded at
+  48 kHz; potato's class is 3 MB): the room keeps the animals heard; a cheaper fix for the nature keys is fewer / shorter
+  variants on potato, or decoding one-shots at 24 kHz there. (4) The elk beyond 1.4 km do not step (animal_run's land REACH) and
+  so do not bugle, though the bugle's reach is 1.5 km. (5) Run animals_box.js on the box and listen against the README.
+NOT DONE: no sound for a land animal's footsteps or a whale's tail slap (no recording, not asked); the ambient flocks' gull
+  calls share bird.gull with the shore's species (one key, one budget entry); the loader's variant choice is Math.random, not
+  seeded (the evidence's calls and times are deterministic, its variants are not).

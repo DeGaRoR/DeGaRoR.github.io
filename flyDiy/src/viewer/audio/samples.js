@@ -30,7 +30,7 @@
 // API: AUDIO_SAMPLES.attach(ctx, opts?) (the source's connect), .load(key) ->
 //   Promise<AudioBuffer | null> (the first variant; all are loaded), .ready(key),
 //   .state(key) 'absent' | 'idle' (files, not asked) | 'loading' | 'ready' | 'failed' | 'budget',
-//   .pick(key) a random variant (sync, null until ready), .loop(key, dest),
+//   .pick(key, fresh?) a random variant (sync, null until ready; fresh: not the last one picked), .loop(key, dest),
 //   .oneShot(key, outs, gain, jitter?), .bytes, .detach(); AUDIO_SAMPLES.create(opts)
 //   makes an independent instance (GATE AUDIO's stubs).
 //
@@ -87,9 +87,15 @@ var AUDIO_SAMPLES = (function () {
     ['bird.crow', 'a crow (raven) calling once'], ['bird.eagle', 'a bald eagle\'s call'], ['bird.gull', 'gulls over the shore'],
     ['bird.owl', 'an owl at night'], ['bird.loon', 'a loon’s call on a lake'], ['tram.bell', 'the tram station’s bell'],
     ['dog', 'a dog barking, far off'], ['mech.door', 'a door shutting'], ['vehicle.pickup', 'a pickup passing on gravel'],
+    // G1705 (SND-ANIMALS): the rigged animals' voices and the varied thrush
+    ['animal.whale.blow', 'a humpback\'s blow at the surface'], ['animal.orca.blow', 'an orca\'s breath (a porpoise\'s, played lower)'],
+    ['animal.elk', 'an elk bugling'], ['animal.bear', 'a bear\'s growl or huff'], ['animal.deer', 'a doe\'s bleat'],
+    ['bird.thrush', 'a varied thrush\'s whistle in the forest'],
   ]) KEYS[k] = { kind: 'oneshot', layer: 'the positional emitters (emitters.js)', what };
   for (const [k, what] of [['tram.hum', 'a cable car’s rope and sheaves humming'], ['boat.idle', 'a small outboard at idle']])
     KEYS[k] = { kind: 'loop', layer: 'the positional emitters (emitters.js)', what };
+  // G1708: the stamp mill - a loop CUT onset to onset (seven pounds at 0.92 s): baked with no crossfade, so it keeps time
+  KEYS['mill.stamp'] = { kind: 'loop', cut: true, layer: 'the positional emitters (emitters.js)', what: 'a stamp mill / ore crusher pounding' };
   const DEF_BUDGET = 6 * 1024 * 1024;
   const W = typeof window !== 'undefined' ? window : (typeof globalThis !== 'undefined' ? globalThis : {});
 
@@ -117,7 +123,7 @@ var AUDIO_SAMPLES = (function () {
     const fetchBytes = url => (o.fetch ? o.fetch(url) : W.ASSET_FETCH ? W.ASSET_FETCH(url)
       : Promise.reject(new Error('audio samples: no ASSET_FETCH for ' + url)));
     const urls = key => { const m = manifest()[key]; return Array.isArray(m) ? m : typeof m === 'string' ? [m] : []; };
-    const rec = key => recs[key] || (recs[key] = { state: urls(key).length ? 'idle' : 'absent', bufs: null, loopBuf: null, promise: null, size: 0, gen: 0 });
+    const rec = key => recs[key] || (recs[key] = { state: urls(key).length ? 'idle' : 'absent', bufs: null, loopBuf: null, promise: null, size: 0, gen: 0, last: -1 });
 
     function decode(u8) {
       // decodeAudioData DETACHES its ArrayBuffer: hand it a copy of exactly the bytes
@@ -147,7 +153,7 @@ var AUDIO_SAMPLES = (function () {
         }
         bytes += add;
         r.bufs = bufs; r.state = 'ready';
-        if (KEYS[key] && KEYS[key].kind === 'loop') { r.loopBuf = bakeLoop(bufs[0]); bytes += sizeOf(r.loopBuf); }
+        if (KEYS[key] && KEYS[key].kind === 'loop') { r.loopBuf = bakeLoop(bufs[0], null, KEYS[key].cut); bytes += sizeOf(r.loopBuf); }
         return bufs[0];
       }, e => { r.state = 'failed'; console.warn('flyDiy audio: the sample ' + key + ' did not load; its layer stays procedural', e); return null; });
       return r.promise;
@@ -167,7 +173,7 @@ var AUDIO_SAMPLES = (function () {
         r.bufs = bufs; r.loopBuf = null; r.size = add; r.state = 'ready';
         return bufs[0];
       }
-      const lb = bakeLoop(bufs[0], C);
+      const lb = bakeLoop(bufs[0], C, KEYS[key] && KEYS[key].cut);
       const size = sizeOf(lb);
       if (C.bytes + size > C.budget) {
         r.state = 'budget';
@@ -205,7 +211,9 @@ var AUDIO_SAMPLES = (function () {
 
     // THE LOOP, baked once: the codec's pads trimmed, then the tail crossfaded (equal power) into the head.
     // lim (a class): { maxS: the loop's length cap in seconds, decim: 2 = half the rate }
-    function bakeLoop(b, lim) {
+    // cut (G1708: a key declared `cut`, the file already cut onset to onset - the stamp mill's seven pounds): the pads
+    // trimmed and NOTHING crossfaded or capped, so the loop's period is the file's and the rhythm holds across the seam
+    function bakeLoop(b, lim, cut) {
       const sr0 = b.sampleRate, ch = b.numberOfChannels, L = b.length;
       const padMax = Math.floor(0.05 * sr0);
       let a = 0, z = L;
@@ -215,8 +223,8 @@ var AUDIO_SAMPLES = (function () {
       const dec = lim && lim.decim > 1 ? lim.decim | 0 : 1, sr = sr0 / dec;
       let len = Math.floor((z - a) / dec);
       if (dec > 1) a = Math.floor(a / dec);
-      const X = Math.max(1, Math.min(Math.floor(1.5 * sr), Math.floor(len / 4)));
-      if (lim && lim.maxS > 0) len = Math.min(len, Math.floor(lim.maxS * sr) + X);
+      const X = cut ? 0 : Math.max(1, Math.min(Math.floor(1.5 * sr), Math.floor(len / 4)));
+      if (lim && lim.maxS > 0 && !cut) len = Math.min(len, Math.floor(lim.maxS * sr) + X);
       const M = len - X;
       if (M < 64) return b;   // too short to loop with a fade: as it is
       const out = ctx.createBuffer(ch, M, sr);
@@ -273,7 +281,18 @@ var AUDIO_SAMPLES = (function () {
       state: key => rec(key).state,
       ready: key => rec(key).state === 'ready',
       has: key => urls(key).length > 0,
-      pick(key) { const r = rec(key); return r.state === 'ready' && r.bufs.length ? r.bufs[Math.floor(rnd() * r.bufs.length)] : null; },
+      size: key => (recs[key] && recs[key].state === 'ready' ? recs[key].size || 0 : 0),   // a class key's decoded bytes (G1705)
+      // pick(key, fresh): a random variant; fresh (G1705) never the one picked last (no immediate repeat)
+      pick(key, fresh) {
+        const r = rec(key); if (r.state !== 'ready' || !r.bufs.length) return null;
+        const n = r.bufs.length;
+        const avoid = fresh && n > 1 && r.last >= 0 && r.last < n;
+        let j = Math.floor(rnd() * (avoid ? n - 1 : n));
+        if (avoid && j >= r.last) j++;
+        if (j >= n) j = n - 1;
+        r.last = j;
+        return r.bufs[j];
+      },
       loop, oneShot, bakeLoop: (b, lim) => bakeLoop(b, lim),
       get bytes() { return bytes; }, budget,
     };
