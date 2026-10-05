@@ -386,7 +386,8 @@ uniform vec4 uDmgPane[DMG_PANES];// the panes: xyz the impact (the geometry's fr
 uniform vec4 uDmgSub[4];         // the substrate a class shows (rgb, metal): metal, fabric, wood, other
 uniform vec4 uDmgSub2[4];        // ...its roughness (x)
 uniform vec4 uDmgCol[4];         // 0 primer, 1 soil, 2 grass stain, 3 the dark of a crease / a fray (rgb, roughness floor)
-uniform vec4 uDmgK;              // x crush gain  y scrape gain  z torn gain  w relief (m)
+uniform vec4 uDmgK;              // x crush gain  y scrape gain  z torn gain  w relief gain
+uniform float uDmgG;             // the panes' crack gain
 uniform sampler2D tDmgG;         // the weathering's grunge sheet (aeroweather.js aeroWxGrungeTex)
 varying vec4 vDmg;
 varying vec4 vDmgD;
@@ -547,7 +548,7 @@ vec3 dmgCell(vec3 x) {
     vec3 dP = DMG_P * uDmgM;
     vec3 dPx = dFdx(dP), dPy = dFdy(dP);
     float dFw = max(length(dPx) + length(dPy), 1e-5);
-    float sev = vDmg.x;
+    float sev = clamp(vDmg.x * uDmgG, 0.0, 1.0);
     if (sev > 0.004) {
       int slot = int(floor(vDmgD.w / 8.0 + 0.01));
       vec4 pn = uDmgPane[0];
@@ -652,7 +653,7 @@ vec3 dmgCell(vec3 x) {
                          new THREE.Vector4(soil[0], soil[1], soil[2], Math.max(0.9, soil[3])),  // the weathering's mud
                          new THREE.Vector4(0.045, 0.060, 0.022, 0.92),                          // grass's green-brown juice (linear)
                          new THREE.Vector4(grime[0] * 0.6, grime[1] * 0.6, grime[2] * 0.6, grime[3])] },   // the weathering's grime, deeper
-      uDmgK: { value: new THREE.Vector4(1, 1, 1, 1) },
+      uDmgK: { value: new THREE.Vector4(1, 1, 1, 1) }, uDmgG: { value: 1 },
       tDmgG: { value: WX && WX.aeroWxGrungeTex ? WX.aeroWxGrungeTex(THREE) : null },
     };
     return UNI;

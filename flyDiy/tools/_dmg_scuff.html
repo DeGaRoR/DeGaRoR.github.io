@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<!--
+  DMG-SCUFF BENCH (G2006) - the damage drawn, on the whole aeroplane: the weathering bench's page verbatim (the editor's
+  chain, aeroweather.js before aeroskin.js) with src/viewer/skin_scuff.js after aeroskin.js and its panel
+  (_dmg_scuff_bench.js, window.DS) over the weathering's (window.WX_BENCH: the presets, the shots, the diff).
+
+  THE PATTERNS HERE ARE TEST PATTERNS, labelled as such: the editor's meshes carry no solver binding, so the bench paints
+  each layer where a crash would put it (a crush round the nose, a scrape on the belly - its left half on grass, its
+  right on hard ground -, a torn band across the left wing, a cracked windscreen) to judge the LOOK, MEASURE each layer
+  (DS.measure(layer): the layer's gain at 0 then 1 on its preset, the changed pixels - under 0.5 % is a FAIL, the
+  weathering's rule) and the COST (DS.cost(): frames timed with the block off, on and intact, on and fully damaged). In
+  the game the records come from the physics (skin_scuff.js through skin_break's binding; GATE DMGSCUFF holds them).
+
+  ?noscuff: the page with skin_scuff.js removed before anything compiles - the reference for "damage off = the same
+  programs" (DS.sources(): every shader source compiled, hashed). Serve the repo root (tools/_serve.js); open
+  /flyDiy/tools/_dmg_scuff.html; tools/dmg_scuff_bench.js runs it headless and writes reports/evidence/DMG-SCUFF/bench/.
+-->
+<meta charset="utf-8">
+<title>flyDiy — the damage drawn</title>
+<style>
+  :root{--bg:#12151a;--fg:#dfe6ee;--dim:#7d8996;--acc:#5db3ff;--grid:#242a33}
+  *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--fg);
+    font:12px/1.4 ui-monospace,Menlo,Consolas,monospace;overflow:hidden}
+  header{padding:8px 12px;border-bottom:1px solid var(--grid);display:flex;
+    gap:14px;align-items:center;flex-wrap:wrap}
+  h1{font-size:13px;margin:0}
+  label{color:var(--dim);display:inline-flex;gap:5px;align-items:center}
+  select,button{background:#1a1f27;color:var(--fg);border:1px solid var(--grid);
+    padding:3px 8px;border-radius:4px;font:inherit}
+  main{display:flex;height:calc(100vh - 40px)}
+  #view{position:relative;flex:1;min-width:0}
+  canvas{display:block;width:100%;height:100%}
+  aside{border-left:1px solid var(--grid);overflow-y:auto;
+    overflow-x:hidden;padding:10px;width:340px;flex:none;
+    resize:horizontal;direction:rtl;min-width:240px;max-width:70vw}
+  aside>*{direction:ltr}
+  .r{display:flex;gap:6px;align-items:center;margin:5px 0;min-width:0}
+  .r.wrap{flex-wrap:wrap}
+  .r span.k{color:var(--dim);width:92px;flex:none;overflow:hidden;
+    text-overflow:ellipsis;white-space:nowrap}
+  .r select{min-width:60px;flex:1}
+  .r button{flex:none}
+  input[type=range]{flex:1;min-width:30px;accent-color:var(--acc)}
+  .v{width:46px;flex:none;text-align:right;color:var(--acc)}
+  .leg{display:flex;gap:5px;align-items:center;margin:3px 0}
+  .sw{width:13px;height:13px;border-radius:3px;flex:none}
+  #stat{position:absolute;left:10px;top:8px;color:var(--dim);z-index:2}
+  h2{font-size:11px;color:var(--dim);margin:14px 0 4px;text-transform:uppercase}
+  details{margin:8px 0;border:1px solid var(--grid);border-radius:5px;
+    padding:2px 8px}
+  details details{margin:6px 0;border-color:#1b2029}
+  summary{cursor:pointer;color:var(--dim);font-size:11px;
+    text-transform:uppercase;padding:4px 0}
+  /* THE WEATHERING PANEL, over the view's left edge */
+  #wx{position:absolute;left:10px;top:34px;bottom:10px;width:330px;z-index:3;
+    overflow-y:auto;background:rgba(18,21,26,0.92);border:1px solid var(--grid);
+    border-radius:6px;padding:8px 10px}
+  #wx .r span.k{width:118px}
+  #wx .d{width:40px;flex:none;text-align:right;color:var(--dim)}
+  #wx .macro input[type=range]{accent-color:#ffb454}
+  #wx .ok{color:#6fd08c} #wx .bad{color:#ff6b5a}
+  #wx textarea{width:100%;height:90px;background:#0e1115;color:var(--fg);
+    border:1px solid var(--grid);font:10px/1.3 ui-monospace,monospace}
+  #wx table{border-collapse:collapse;width:100%;font-size:10px}
+  #wx td{padding:1px 3px;border-bottom:1px solid #1b2029}
+</style>
+
+<header>
+  <h1>the damage drawn (DMG-SCUFF)</h1>
+  <label>subsurf <select id="lvl">
+    <option>0</option><option>1</option><option selected>2</option><option>3</option>
+  </select></label>
+  <label><input type="checkbox" id="cage"> cage</label>
+  <label><input type="checkbox" id="wire"> wireframe</label>
+  <label><input type="checkbox" id="color"> sections</label>
+  <button id="resetBtn">reset</button>
+  <button id="objBtn">export OBJ</button>
+</header>
+
+<main>
+  <div id="view"><span id="stat"></span><canvas id="c"></canvas><div id="wx"></div></div>
+  <aside id="ui"></aside>
+</main>
+
+<script>
+window.FLYDIY_ASSET_BASE = '../';
+</script>
+<script>
+// the census: every shader source compiled (hashed) and every program linked, from the first context on
+(function () {
+  const C = window.__DS_CENSUS = { src: [], links: 0, linksAt: [] };
+  const P = WebGL2RenderingContext.prototype, ss = P.shaderSource, lp = P.linkProgram;
+  P.shaderSource = function (sh, s) { C.src.push(s); return ss.call(this, sh, s); };
+  P.linkProgram = function (p) { C.links++; return lp.call(this, p); };
+})();
+</script>
+<script src="../vendor/three.min.js"></script>
+<script src="../src/core/00_registry.js"></script>
+<script src="../src/core/60_gen_spec.js"></script>
+<script src="../src/core/60b_gen_loft.js"></script>
+<script src="../src/core/60c_gen_energy.js"></script>
+<script src="../src/core/61_gen_frame.js"></script>
+<script src="../src/core/62_gen_aero.js"></script>
+<script src="../src/core/63_gen_wing.js"></script>
+<script src="../src/viewer/wood_tex.js"></script>
+<script src="../src/viewer/skin_tex.js"></script>
+<script src="../src/viewer/vessel_tex.js"></script>
+<!-- THE WEATHERING before AEROSKIN, as build.js orders them (G345);
+     ?nowx loads the page WITHOUT it, for a reference shot -->
+<script>if (/nowx/.test(location.search)) window.AEROWX_OFF = 1;</script>
+<script src="../src/viewer/aeroweather.js"></script>
+<script src="../src/viewer/aeroskin.js"></script>
+<script src="../src/viewer/skin_scuff.js"></script>
+<script>if (/noscuff/.test(location.search)) delete window.SKIN_SCUFF;</script>
+<script src="../src/core/52_char_codec.js"></script>
+<script src="../src/chars/ch42_char.js"></script>
+<script src="../src/chars/ch02_char.js"></script>
+<script src="../src/chars/remy_char.js"></script>
+<script src="../src/chars/ch22_char.js"></script>
+<script src="../src/chars/ch01_char.js"></script>
+<script src="../src/chars/ch20_char.js"></script>
+<script src="../src/chars/sitidle_anim.js"></script>
+<script src="../src/chars/piloting_anim.js"></script>
+<script src="_cage_page5.js"></script>
+<script src="_knife_gen.js"></script>
+<script src="_cage_gen.js"></script>
+<script src="_cage_char.js"></script>
+<script src="_cage_crew.js"></script>
+<script src="_panel_gen.js"></script>
+<script src="_cage_panel.js"></script>
+<script src="_gear_kit.js"></script>
+<script src="_gear_gen.js"></script>
+<script src="_gear_page.js"></script>
+<script src="_cage_gear.js"></script>
+<script src="_fit_site.js"></script>
+<script src="_fit_gen.js"></script>
+<script src="_hinge_gen.js"></script>
+<script src="_rod_fit.js"></script>
+<script src="_eng_gen.js"></script>
+<script src="_eng_mesh.js"></script>
+<script src="_eng_page.js"></script>
+<script src="_cowl_gen.js"></script>
+<script src="_cowl_rows.js"></script>
+<script src="_cage_cowl.js"></script>
+<script src="_cage_eng.js"></script>
+<script src="_strut_gen.js"></script>
+<script src="_cage_wing.js"></script>
+<script src="_cage_brace.js"></script>
+<script src="_fin_gen.js"></script>
+<script src="_cage_fin.js"></script>
+<script src="_cage_stab.js"></script>
+<script src="_cage_access.js"></script>
+<script src="_cage_light.js"></script>
+<script src="_bay_site.js"></script>
+<script src="_vessel_gen.js"></script>
+<script src="_vessel_mesh.js"></script>
+<script src="_cage_energy.js"></script>
+<script src="_cage_hinge.js"></script>
+<script src="_cage_ui.js"></script>
+<script>CAGE_PAGE_SETUP();</script>
+<script src="_weather_bench.js"></script>
+<script src="_dmg_scuff_bench.js"></script>
