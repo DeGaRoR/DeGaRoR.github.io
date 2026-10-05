@@ -525,10 +525,16 @@ vec3 dmgCell(vec3 x) {
       if (tb > 0.0) {
         vec4 nT = dmgVN(dP * 90.0);
         float jag = tb + 0.25 * (nT.x - 0.5);
-        // fabric: frayed - the doped skin darkened and roughened back from the edge, loose threads at it
+        // fabric: FRAYED - back from the edge the dope has cracked (its own network, dark lines on the colour, the sheen
+        // gone); at the edge the raw weave shows, pale, torn into threads along the cell borders
         float fray = smoothstep(0.35, 0.85, jag);
-        float thr = smoothstep(0.75, 0.95, jag) * step(0.6, dmgH3(floor(dP * 220.0)));
-        col = mix(col, uDmgCol[3].rgb, dFab * (0.75 * fray + 0.25 * thr));
+        vec3 fc = dmgCell(dP * 70.0);
+        float dope = (1.0 - smoothstep(0.0, 0.06 + 70.0 * dFw, fc.y - fc.x)) * fray;
+        float edgeF = smoothstep(0.78, 0.92, jag);
+        float thr = edgeF * (1.0 - smoothstep(0.0, 0.12 + 70.0 * dFw, fc.y - fc.x));
+        col = mix(col, col * 0.4, dFab * dope * 0.8);
+        col = mix(col, vec3(0.50, 0.45, 0.34), dFab * max(edgeF * 0.7, thr));
+        col = mix(col, col * 0.75, dFab * fray * 0.3);
         rgh = mix(rgh, 1.0, dFab * fray);
         // metal: a ragged BRIGHT edge (the sheet's own alloy where it tore), the paint cracked behind it
         float edge = smoothstep(0.80, 0.92, jag);
@@ -539,7 +545,7 @@ vec3 dmgCell(vec3 x) {
         // wood: splinters at the edge
         col = mix(col, dSub * 1.3, dWood * edge);
         dGrad += (dFab + dWood) * tb * nT.yzw * 90.0 * 0.0008;
-        dmgCov = max(dmgCov, max(fray * dFab, edge));
+        dmgCov = max(dmgCov, max(fray * dFab, edge));   // (the varnish gone where the dope cracked)
       }
       diffuseColor.rgb = col;
       roughnessFactor = clamp(rgh, 0.02, 1.0);
