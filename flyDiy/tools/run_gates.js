@@ -183,6 +183,11 @@ const GATES = [
   // about roll, pitch and yaw keep L about the CG (<= 1e-3 over 10 s, the damper's own share <= 1e-5), the pre-G1885
   // damper as the control reproduces exp(-0.5 t), and a plucked wingtip still rings down as before; ~3.5 min
   { id: 'DMGDAMP', file: '_dmgdamp_check.js', tier: 'core', wall: 220 },
+  // G1849 (DMG-HULL): the hull's side force (G1847, slender body on the keel's draft): zero at rest and dry, linear in
+  // U x v, the closed form on the step, Jones' sin b cos b into the base's cross-flow; GATE SEAPLANE's crosswind take-off
+  // swept 0-5 m/s on the twin and the Cessna on floats, every failure classed (yaw loop / nose-over at the plough); a
+  // 0.3 rad/s yaw kick at rest, the hump and the step against DMG-DAMP's before / after. 42 runs in its own children
+  { id: 'DMGHULL', file: '_dmghull_check.js', tier: 'full', weight: 4, wall: 1800 },
   // G286: the graphics settings menu - presets, the pref, the handles
   { id: 'GFX', file: '_gfx_check.js', tier: 'core' },
   // G584: the programs - the real three on a fake GL: the depth warm-up is the shadow pass's own set, two

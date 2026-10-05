@@ -195,6 +195,7 @@ const DEF = {
   kRad: 0.02,      // wave radiation damping, see (3c) (INFERRED)
   slamCap: 1,      // bound a panel's slam impulse by the node's own momentum
   CpBase: -0.15,   // the separated wake's base pressure behind an unventilated step / transom (INFERRED)
+  kSide: 1,        // G1847: the hull's lift-type side force, x the slender-body flat plate on the keel's draft (see (5)); 0 = off
 };
 
 // ---- small vectors ---------------------------------------------------------
@@ -541,7 +542,9 @@ function makeScratch(F) {
     per: F.panels.map(() => ({ wet: 0, A: 0, c: v3(), cp: v3(), n: v3(), AN: v3(), pN: v3(), d: 0, p: 0,
                                Fs: v3(), Fp: v3(), Ff: v3(), Fx: v3(), Fm: v3(), Fr: v3(), Fk: v3(), poly: [], depth: [] })),
     F: v3(), tau: v3(),
-    terms: { static: v3(), plan: v3(), fric: v3(), cross: v3(), slam: v3(), rad: v3(), suck: v3() },
+    terms: { static: v3(), plan: v3(), fric: v3(), cross: v3(), slam: v3(), rad: v3(), suck: v3(), side: v3() },
+    // G1847: the side force's slices (force and point, world), filled by hullSide, landed by the solver's pass
+    side: { n: 0, F: new Float64Array(F.sta.length * 3), P: new Float64Array(F.sta.length * 3), w: new Float64Array(F.sta.length), M: 0, xcp: 0 },
     LE: { F: [[Infinity, Infinity], [Infinity, Infinity]], A: [[Infinity, Infinity], [Infinity, Infinity]] },   // [side -1, side +1] x [keel, chine]
     ql: v3(),
   };
@@ -791,7 +794,97 @@ function hydroPanels(F, ctx, water, t, out, opt = {}) {
     }
   }
   out.cEffMax = cEffMax; out.slamMax = slamMax;
+  // (5) G1847: the hull as a low-aspect lifting surface in yaw
+  hullSide(F, ctx, water, t, out, apply);
   return out;
+}
+// (5) G1847 THE HULL'S SIDE FORCE (DMG-HULL, DMG-DAMP's open question 2). A hull moving ahead at U with a side-slip
+// velocity w is a lifting surface of very low aspect ratio: span the keel's draft T (the free surface its mirror),
+// chord the wetted length. Slender-body theory (Munk, Jones; for ships Newman, *Marine Hydrodynamics* ch. 7) gives its
+// force from the cross-flow plane: each section's lateral added mass m(x) = (pi/2) rho T(x)^2 (a flat plate of span 2T
+// with its image, half of it in the water - the manoeuvring, low-frequency limit) carries the impulse m w, and the water
+// passing aft at U changes it, so per unit length  dY/dx = -U d(m w)/dx.  Integrated over a hull that GROWS from the bow
+// to its trailing edge: Y = -U m(TE) w(TE), linear in U x v - for a ship the leading term of Clarke, Gedling & Hine's
+// regression (1983, Y'_v = -pi (T/L)^2 (1 + 0.40 C_B B/T): the slender plate is its B -> 0 limit, the beam term 1.2-2 x
+// on top for B/T 1-5; kSide 1 takes the plate alone, the lower bound). Where a section SHRINKS - the step's drop to the
+// afterbody keel, the afterbody keel rising aft, the stem rising out of the water - the flow separates and the impulse
+// stays in the shed wake (the Kutta condition of a low-aspect wing: the running maximum of m); where the hull leaves
+// the water (a ventilated step's dry afterbody) the piece ends there and a re-wetted stern starts its own. So the
+// centre of pressure is where the draft grows: a planing forebody whose draft rises linearly from the spray root to
+// the step carries it at 2/3 of its wetted keel length (the slender delta's), a third of lambda ahead of the step; at
+// rest the whole keel is in it. A yaw rate enters through w(x) = the section's own lateral velocity, so the term damps
+// yaw on both sides of the CG (N_r ~ -U sum dm (x - x_cg)^2), and the afterbody behind an unventilated step (the
+// retained m, w changing with r) adds to it. The planing literature (Brown 1971 and Lewandowski 1997 on prismatic
+// planing hulls in yaw; recalled, no copy in the repo - A0 to check): the side force is linear in the yaw angle to
+// ~5-10 deg and of the slender-body order on the transom draft, a factor ~0.5-1.5 across deadrise and trim.
+// LARGE SLIP: U w = V^2 sin(beta) cos(beta) is Jones' low-aspect lift in its own form - it peaks at 45 deg and dies at
+// 90, where the side panels' quadratic cross-flow (1/2 rho Cd Vn|Vn|, (3) above) carries the force: Hoerner's
+// low-aspect wing, linear + cross-flow, and no separate saturation to fit. ZERO AT REST (U = 0) and ZERO DRY (T = 0;
+// a dry float is not computed at all); backing, the stern leads and the pass runs the other way. Horizontal, on the
+// float's own lateral axis; at mid-draft on the keel of each slice (its roll arm). The added-mass INERTIA term m dw/dt
+// stays an H0 cut, as the heave's does.
+const SIDE_V = v3(), SIDE_W = v3(), SIDE_U = v3();
+function hullSide(F, ctx, water, t, out, apply) {
+  const P = F.P, S = out.side, acc = out.terms.side;
+  S.n = 0; S.M = 0; S.xcp = 0; S.Fy = 0;
+  if (!(P.kSide > 0)) return;
+  const sta = F.sta, ns = sta.length, W = out.W, D = out.d, Ff = S.F, Pp = S.P, ws = S.w;
+  const xhat = ctx.xhat;
+  // the float's lateral axis in the horizontal (right = up x aft, as the water rudder's)
+  let zx = xhat[2], zz = -xhat[0]; const zl = Math.hypot(zx, zz);
+  if (zl < 1e-6) return;
+  zx /= zl; zz /= zl;
+  // the forward speed through the water along the hull (forward is -x), at the step keel
+  const eK = W[F.edge.K], wv = water.v(eK[0], eK[2], t);
+  ctx.velAt(eK, SIDE_V);
+  const U = -((SIDE_V[0] - wv[0]) * xhat[0] + (SIDE_V[1] - wv[1]) * xhat[1] + (SIDE_V[2] - wv[2]) * xhat[2]);
+  const aU = Math.abs(U);
+  if (aU < 1e-4) return;
+  const kM = P.kSide * 0.5 * Math.PI * P.rho;
+  let anyWet = false;
+  for (let i = 0; i < ns; i++) if (D[sta[i].K] > 0) { anyWet = true; break; }
+  if (!anyWet) return;
+  // each station's lateral velocity through the water
+  for (let i = 0; i < ns; i++) {
+    const k = W[sta[i].K], wk = water.v(k[0], k[2], t);
+    ctx.velAt(k, SIDE_W);
+    ws[i] = (SIDE_W[0] - wk[0]) * zx + (SIDE_W[2] - wk[2]) * zz;
+  }
+  // walk the keel the way the water does: bow to stern ahead, stern to bow backing
+  const i0 = U > 0 ? 0 : ns - 1, di = U > 0 ? 1 : -1;
+  let Mrun = 0, Mm = 0, Mx = 0, Fs = 0;
+  for (let j = 0; j + 1 < ns; j++) {
+    const a = i0 + j * di, b = a + di, sa = sta[a], sb = sta[b];
+    const Da = D[sa.K], Db = D[sb.K];
+    if (Da <= 0 && Db <= 0) { Mrun = 0; continue; }
+    const Ta = Math.min(Math.max(0, Da), sa.yd - sa.yk), Tb = Math.min(Math.max(0, Db), sb.yd - sb.yk);
+    let dI;
+    if (Db > 0) {
+      // the section b in the water: its impulse is the running maximum's (a shrinking section sheds, keeps it)
+      const Mb = Math.max(Mrun, kM * Tb * Tb);
+      dI = Mb * ws[b] - Mrun * (Da > 0 ? ws[a] : 0);
+      Mrun = Mb;
+    } else {
+      // the hull leaves the water inside this slice: the piece's impulse is shed with its last wet section's w
+      const ph = Da / (Da - Db), wE = ws[a] + ph * (ws[b] - ws[a]);
+      dI = Mrun * (wE - ws[a]);
+      Mrun = 0;
+    }
+    if (dI === 0) continue;
+    const Fy = -aU * dI;
+    const ka = W[sa.K], kb = W[sb.K], n3 = S.n * 3, hm = 0.25 * (Ta + Tb);
+    Pp[n3] = 0.5 * (ka[0] + kb[0]); Pp[n3 + 1] = 0.5 * (ka[1] + kb[1]) + hm; Pp[n3 + 2] = 0.5 * (ka[2] + kb[2]);
+    Ff[n3] = Fy * zx; Ff[n3 + 1] = 0; Ff[n3 + 2] = Fy * zz;
+    SIDE_U[0] = Ff[n3]; SIDE_U[1] = 0; SIDE_U[2] = Ff[n3 + 2];
+    SIDE_W[0] = Pp[n3]; SIDE_W[1] = Pp[n3 + 1]; SIDE_W[2] = Pp[n3 + 2];
+    apply(SIDE_U, SIDE_W, acc);
+    S.n++;
+    if (Mrun > Mm) Mm = Mrun;
+    Mx += Fy * 0.5 * (sa.x + sb.x); Fs += Fy;
+  }
+  // (readings: the largest impulse-carrying section's m, the side force and its centre along the keel, float frame)
+  S.M = Mm; S.Fy = Fs;
+  S.xcp = Fs !== 0 ? Mx / Fs : 0;
 }
 function halfBeamAt(F, x) {
   const T = F.bTab;
@@ -1369,14 +1462,23 @@ function hydroSolverCompute(HY, world, f, simT, dt, ctl) {
       ZERO3b[2] = o.Fp[2] + o.Ff[2] + o.Fx[2] + o.Fm[2] + o.Fr[2] + o.Fk[2];
       if (ZERO3b[0] || ZERO3b[1] || ZERO3b[2]) ctx.distribute(o.c, f, ZERO3b);
     }
+    // G1847: the side force, slice by slice at its own point
+    const sd = out.side;
+    for (let i = 0; i < sd.n; i++) {
+      const i3 = i * 3;
+      SIDE_PT[0] = sd.P[i3]; SIDE_PT[1] = sd.P[i3 + 1]; SIDE_PT[2] = sd.P[i3 + 2];
+      SIDE_F[0] = sd.F[i3]; SIDE_F[1] = 0; SIDE_F[2] = sd.F[i3 + 2];
+      ctx.distribute(SIDE_PT, f, SIDE_F);
+    }
   }
   return wetAny;
 }
-const ZERO3 = [0, 0, 0], ZERO3b = [0, 0, 0];
+const ZERO3 = [0, 0, 0], ZERO3b = [0, 0, 0], SIDE_PT = [0, 0, 0], SIDE_F = [0, 0, 0];
 function zeroTerms(out) {
   out.F[0] = out.F[1] = out.F[2] = 0; out.tau[0] = out.tau[1] = out.tau[2] = 0;
   for (const k in out.terms) out.terms[k][0] = out.terms[k][1] = out.terms[k][2] = 0;
   out.wetF = out.wetA = out.wetOther = 0; out.vent = 0;
+  if (out.side) out.side.n = 0;
   for (const o of out.per) o.wet = 0;
 }
 // the hull's METRIC keys: everything a preset scales with its size (the
