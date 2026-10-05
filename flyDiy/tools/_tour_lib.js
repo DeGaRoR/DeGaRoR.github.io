@@ -80,6 +80,14 @@ function flyLeg(C, W, sim, def, a, b, opt) {
     ap.update(dt); sim.step(dt); L.t += dt;
     const ph = ap.phase;
     if (ph !== lastPhase) { L.phases.push(ph); lastPhase = ph; }
+    if (o.debug && L.t < o.debug && (k % 15) === 0 && o.debugLeg === L.from) {
+      const cc = sim.ctl || {};
+      console.log('    dbg2 t ' + L.t.toFixed(2) + ' pitch ' + (sim.out.pitch * 57.3).toFixed(1) + ' wheels ' + (sim.wheelsOnGround ? sim.wheelsOnGround() : '?') + ' obst ' + sim.out.obst + ' ctl ' + JSON.stringify(Object.fromEntries(Object.entries(cc).filter(e => typeof e[1] === 'number').map(e => [e[0], +e[1].toFixed(3)]))) + ' g ' + (sim.damage ? sim.damage().gPeak.toFixed(2) : ''));
+    }
+    if (o.debug && L.t < o.debug && (k % 30) === 0 && !o.debugLeg) {
+      const v0 = sim.cgVel ? sim.cgVel() : [0, 0, 0], E = sim.eng && sim.eng[0];
+      console.log('    dbg t ' + L.t.toFixed(1) + ' ' + ph + ' V ' + Math.hypot(v0[0], v0[2]).toFixed(2) + ' rpm ' + JSON.stringify(sim.out && sim.out.rpm) + ' ctl ' + JSON.stringify(sim.ctl ? { thr: sim.ctl.thr, brake: sim.ctl.brake, eng: sim.ctl.eng } : null).slice(0, 200) + ' eng ' + (E ? JSON.stringify({ running: E.running, seized: E.seized }) : '-') + ' fuel ' + (sim.fuel ? sim.fuel.litres.toFixed(1) + (sim.fuel.starved ? ' STARVED' : '') : ''));
+    }
     const cg = sim.cgPos();
     if (!isFinite(cg[0]) || !isFinite(cg[1])) { nan = true; fault('nan', 'the solver went NaN'); break; }
     if (sim.out && sim.out.obst > 0) { obstSteps++; obstMax = Math.max(obstMax, sim.out.obst); }
@@ -124,8 +132,9 @@ function flyLeg(C, W, sim, def, a, b, opt) {
     const Dm = sim.damage ? sim.damage() : null;
     if (Dm && Dm.over) { fault('crash', 'the damage ended the flight: ' + (Dm.reason || '?')); break; }
     if (ph === 'STOPPED' && ap.route && ap.route.to === b && L.t > 20) { stopAt = [cg[0], cg[2]]; break; }
+    if (ph === 'STOPPED' && ap.route && ap.route.to !== b && L.t > 60 && onG) { fault('diverted', 'stopped at ' + (ap.route.to && ap.route.to.id) + ', not ' + b.id); break; }
     if (ph === 'ABORT') { fault('abort', 'the take-off was rejected'); break; }
-    if (ap.report.outcome === 'gave-up') { fault('gave-up', 'the pilot gave up (budget)'); break; }
+    // 'gave-up' is the pilot's verdict on its own patience (the budget), not an end: it keeps flying and lands - a warning
   }
   if (k >= tMax / dt) fault('timeout', 'the leg took over ' + tMax + ' s');
   // the ground loop on the roll-out, judged on the pilot's own number: the heading error the roll-out held
@@ -140,6 +149,7 @@ function flyLeg(C, W, sim, def, a, b, opt) {
   if (obstSteps > 0) fault('obstacle', 'a node inside an obstacle on ' + obstSteps + ' steps (max ' + obstMax + ' nodes)');
   const LD = ap.report.landing || null;
   L.verdicts = ap.report.verdicts.map(v => v.code + (v.note ? ': ' + v.note : ''));
+  L.warnings = ap.report.verdicts.filter(v => /gave-up|divert|lineup-timeout|go-around|goaround|balk/i.test(v.code)).map(v => v.code + ' at ' + v.t + ' s');
   L.outcome = ap.report.outcome || null;
   L.dep = {
     turned: r1(maxTurned * 57.3), uturn: maxTurned > 150 / 57.3, latMax: r1(latMax),
@@ -221,7 +231,7 @@ function fmtLeg(L) {
     ' | dep: turned ' + dp.turned + ' deg' + (dp.uturn ? ' (U-turn)' : '') + ', roll ' + (dp.rollFromEnd !== null ? dp.rollFromEnd + ' m in' : '-') + ', lift-off ' + (dp.toDist !== null ? dp.toDist + ' m' : '-') +
     ' | final ' + (ar.final ? ar.final.d + ' m / ' + ar.final.h + ' m' : '-') + ', clear ' + (ar.apprClear ? ar.apprClear.c + ' m (' + ar.apprClear.what + ')' : '-') +
     ' | td ' + (ld ? 'sink ' + ld.sink + ' m/s, ' + ld.V + ' m/s, run ' + ld.run + ' m, off ' + ld.offCentre + ' m' : '-') +
-    ' | fuel ' + (L.fuel ? L.fuel.litres + ' L' : '-') + (L.faults.length ? ' | FAULTS ' + L.faults.map(f => f.k + ' (' + f.note + ')').join('; ') : '') +
+    ' | fuel ' + (L.fuel ? L.fuel.litres + ' L' : '-') + (L.warnings && L.warnings.length ? ' | warnings ' + L.warnings.join('; ') : '') + (L.faults.length ? ' | FAULTS ' + L.faults.map(f => f.k + ' (' + f.note + ')').join('; ') : '') +
     (L.ok ? '' : ' | phases ' + L.phases.join('>'));
 }
 // the per-leg table (the evidence report's): one row a leg

@@ -22,7 +22,7 @@ let x0 = Infinity, x1 = -Infinity, z0 = Infinity, z1 = -Infinity;
 const grow = (x, z) => { x0 = Math.min(x0, x); x1 = Math.max(x1, x); z0 = Math.min(z0, z); z1 = Math.max(z1, z); };
 for (const a of W.aerodromes) grow(a.x, a.z);
 for (const t of tours) for (const p of t.track) grow(p[0], p[1]);
-x0 -= 1500; x1 += 1500; z0 -= 1500; z1 += 1500;
+x0 -= 1500; x1 += 2600; z0 -= 1500; z1 += 1500;   // (the labels run east of their strip)
 const nx = Math.ceil((x1 - x0) / PX), nz = Math.ceil((z1 - z0) / PX);
 // the raster: sea blue, land by height (green to brown to grey), the woods darker
 const ISL = W.island;
@@ -68,11 +68,11 @@ tours.forEach((t, ti) => {
   t.legs.forEach((L, li) => {
     const pts = t.track.slice(L.trackI[0], L.trackI[1] + 1);
     if (pts.length < 2) return;
-    S.push('<polyline points="' + pts.map(p => p[0] + ',' + p[1]).join(' ') + '" fill="none" stroke="' + COL[(li + ti * 3) % COL.length] + '" stroke-width="' + 2.2 / scale + '"' + (ti ? ' stroke-dasharray="' + 6 / scale + ' ' + 3 / scale + '"' : '') + ' stroke-linejoin="round"/>');
+    S.push('<polyline points="' + pts.map(p => p[0] + ',' + p[1]).join(' ') + '" fill="none" stroke="' + COL[(li + ti * 3) % COL.length] + '" stroke-width="' + 2.2 / scale + '"' + (ti ? ' stroke-dasharray="' + (ti === 1 ? 7 / scale + ' ' + 3 / scale : 2 / scale + ' ' + 3 / scale) + '"' : '') + ' stroke-linejoin="round"/>');
     const e = pts[pts.length - 1];
     S.push('<circle cx="' + e[0] + '" cy="' + e[1] + '" r="' + 4 / scale + '" fill="' + (L.ok ? COL[(li + ti * 3) % COL.length] : '#000') + '"/>');
   });
-  S.push('<text x="' + (x0 + 10 / scale) + '" y="' + ty + '" font-size="' + fs1 + '" font-family="sans-serif">' + (ti ? '- - ' : '—— ') + t.build + ': ' + t.order.join(' > ') + ' - ' + (t.done ? 'DONE' : 'NOT DONE') + ', fuel left ' + t.fuel + ' L</text>');
+  S.push('<text x="' + (x0 + 10 / scale) + '" y="' + ty + '" font-size="' + fs1 + '" font-family="sans-serif">' + (['—— ', '- - ', '··· '][ti] || '') + t.build + ': ' + t.order.join(' > ') + ' - ' + (t.done ? 'DONE' : 'NOT DONE') + ', fuel left ' + t.fuel + ' L</text>');
   ty += 18 / scale;
 });
 S.push('</svg>');
