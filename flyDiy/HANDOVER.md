@@ -77040,3 +77040,186 @@ certificate (the train-36 state) +0.3..+1.2 %; **ON without a certificate** (a n
 **Rulings this train** (DEFORM-AND-BREAK §12): dm10-dm12 (the user's), dm13 the fitting factor, dm14 headroom, dm15 the
 gear is the fuse, dm16 the 23.473 sink is the gear's limit case. FAR sections for A0 to open: 23.233, 23.345, 23.427,
 23.473-.499, 23.521-.537.
+
+## G1824-G1829 DMG-DRIVE - WHEN THE DRIVETRAIN BREAKS: OVERSPEED BANDS (SB 369), A GRADED PROP STRIKE ON THE DISC ITSELF (SB 533), THE GEARBOX, A LOST BLADE'S IMBALANCE, FAR 23.361 / .363 / .371 ON THE MOUNT'S CERTIFICATE; GATE DMGDRIVE AGAINST THE REAL NUMBERS (2026-10-05, DMG-DRIVE for the DEFORM COORDINATOR, cloud, node only; branch claude/dmg-drive off claude/dmg-integration 27caf6e0 (train 35 + §11.1's DMG-DRIVE line), 01e6892f (§11.1, doc only) merged in; G1828-G1829 unused)
+
+The user (2026-10-05): "I will want some tests on the drivetrains to see when they break / fail, and we'll have to compare this
+to real numbers." Damage OFF changes nothing (below: the same bytes); everything here is behind `params.damage`.
+
+### G1824 - WHAT THE DRIVETRAIN DID BEFORE (tools/dmg_drive_probe.js on the base's core, damage ON, the certificate stamped; reports/evidence/DMG-DRIVE/probe_base.md + .json)
+- **No overspeed limit existed.** `genShaftRpm` (the one law) let a fixed-pitch prop over-rev in a dive with nothing happening:
+  at V_NE (0.9 V_D) at FULL THROTTLE the Cub turns 2580 rpm against its 2300 (+12.2 %), the Jodel +12.4 %, the metal
+  Cessna +10.5 % (tip Mach 0.95), the Cessna on floats +16.3 % (tip Mach 1.00), the twin's 582 7327 rpm (+7.8 % over its 6800 max);
+  at 1.1 V_D: +21.6 / +26.1 / +19.3 / +27.0 % and +16.9 % (the floats' tip at Mach 1.10). At the cruise throttle at V_NE: +0.0 / +0.2
+  / -8.8 / +3.6 / -7.4 %; idle 22-31 % under; windmilling (the key off) 27-37 % under.
+  Real fixed-pitch aeroplanes do this (the pilot throttles back in a dive); nothing read the number.
+- **The prop strike was binary and late.** It fired only when a NOSE-RING or ENGINE NODE reached the ground (or a trunk was in
+  the disc), and then seized the engine for good. The propeller's own DISC never met the ground: in a nose-over the disc had been
+  0.6-0.9 m into the soil before the strike registered (the Cub 0.55 s after the disc's first touch at 2 m/s, the Jodel 0.47 s);
+  **the metal Cessna's 2 and 4 m/s nose-overs bit 0.14 / 0.26 m into the ground and registered NO strike at all** (the engine ran
+  on). Nothing graded it: a brushed tip, a bent blade and a sudden stoppage were the same event.
+- **The water never struck a prop** (the floats' bow digging in: the disc into the sea, nothing).
+- **No load the engine makes reached its mount** in the flown sim: no reaction torque, no gyroscopic couple, no imbalance - the
+  mount saw the engine's weight and thrust only. On the certificate the mount had 23.561's crash cases and no 23.361 / .371.
+  Measured under the probe (the worst mount member over its certified yield): full power tied down 0.10-0.20; a 3.8 g pull at
+  full power 0.15-0.35; FAR 23.473's sink 0.13-0.32, 1.5 x it 0.22-0.45; **a snap-roll entry (the controls full at V_A) 0.31-0.94
+  - the Cub's mount at 0.94 with the gyroscopic couple ABSENT** (its rates 0.95 rad/s yaw, 2.0 pitch: 2 x 23.371's pitch).
+- **What failed, at what:** a trunk in the disc (any speed) and the nose's nodes on the ground seized the engine. Nothing else.
+- **What did not:** overspeed (no limit), the disc on the ground or the water, a lost blade, the gearbox (no state), torque and gyro
+  on the mount, the teardown the bulletins owe after any strike, internal damage.
+
+### G1825 - THE REAL NUMBERS (reports/evidence/DMG-DRIVE/real_numbers.json; EVERY VALUE AS RECALLED - A0 TO OPEN; none from a search summary but AOPA's, which the doc already carried as one)
+| what | value | source (as recalled) | conf. |
+|---|---|---|---|
+| A-65 (Cub, Jodel) | 65 hp, rated = max 2300 rpm, 4 cyl, direct | Continental A-65 TCDS (number not recalled); the J-3's 2300 placard | high |
+| O-540-B2C5 (metal Cessna, Cessna floats) | 235 hp, rated = max 2575 rpm, 6 cyl | Lycoming TCDS E-295 | medium |
+| Rotax 582 (twin) | rated 6500, MAX 6800 rpm (5 min), 2 cyl, gear 2.62 | Rotax 582 UL Operator's Manual | medium |
+| Rotax 912 | max 5800 (5 min), continuous 5500, gear 2.27 | Rotax 912 Operator's Manual | high |
+| OVERSPEED (Lycoming SB 369 family) | <= +10 %: no action (log, find the cause); +10..20 %: inspection (prop off, flange run-out, valve train, filter); > +20 %: overhaul | Lycoming SB 369 (letter not recalled) | medium |
+| ... geared / blown Lycomings | lower bands (~5 / ~10 %) | SB 369 | low |
+| Continental overspeed | same shape assumed (no-action / inspect / teardown) | Continental M-0 / an SB (number not recalled) | low |
+| Rotax overspeed | logged with peak and time; inspection past a margin; gearbox + valve train | Rotax 912 / 582 Maintenance Manual | low |
+| a FAILURE rpm | none published (the bulletins stop at "overhaul"); valve float / rods ~25-40 % over | general engineering | low -> GAME |
+| prop rpm limit | the engine's, on a fixed-pitch installation (the prop's TCDS lists it per installation) | prop / aeroplane TCDS | medium |
+| tip Mach | ~0.85-0.90 practical ceiling; light fixed-pitch run ~0.6-0.8 | McCormick / Hoerner | medium |
+| PROP STRIKE (Lycoming SB 533 family) | any incident, engine running or not, needing prop repair beyond minor dressing; a sudden stoppage; a lost blade / tip -> complete teardown, no exceptions | Lycoming SB 533 | high |
+| ... Continental | the same -> teardown | Continental SB96-11 / M14-12 family | medium |
+| ... Rotax | crankshaft run-out + GEARBOX inspection after a strike (912's optional overload clutch) | Rotax 912 / 582 MM | medium |
+| internal damage found | 10-20 % of strike teardowns | AOPA 2007 (DEFORM §10.2's SEARCH SUMMARY - a ratio, never a gate) | low |
+| FAR 23.361 | limit torque = mean x 1.25 turboprop / 1.33 (5+ cyl) / 2 (4) / 3 (3) / 4 (2); with condition A (75 % at take-off torque, 100 % at max continuous) | 14 CFR 23.361 (pre-23-64) | high |
+| FAR 23.363 | 1.33 g lateral on the mount, alone | 14 CFR 23.363 | medium |
+| FAR 23.371 | gyroscopic + inertial at max continuous rpm: yaw 2.5 rad/s, pitch 1.0 rad/s, n 2.5, max continuous thrust (all combinations) | 14 CFR 23.371(a)(2) | high |
+| FAR 23.561(b) | 9 fwd / 3 up / 6 down / 1.5 side g ultimate (D2a's crash cases) | 14 CFR 23.561 | high |
+| gearbox | inspected after a strike or an overspeed | Rotax MMs | medium |
+
+**GAME numbers (no source; A0 replaces them when one is opened):** the 1 s band filter; the failure dose 0.25 (s x (ratio - 1.25));
+the overhaul band's rough running (0.85 x thrust, vibration 0.3); the strike bites (brush <= 4 % of R; ground bends to 15 %, water to
+25 %, a trunk to 4 %, then the prop stops); the separation tip speeds (wood / carbon 120 m/s, alloy 200); a bent prop 0.6 x thrust;
+the unloaded runaway 1.45 x max; a lost blade = 0.35 of one blade at 0.75 R; the turf 5 cm; the prop's I = 0.25 m R^2.
+
+### G1826 - THE MODELS (src/core/33_drive.js, new, pure; 30_solver.js driveFrame / driveStrike / driveRpm / driveImb; 66_gen_cert.js genCertDrive)
+All behind DMG_ON (`DRV` is null with the layer off: nothing below runs; the thrust's per-engine factor `DK` stays 1 and x 1 is exact).
+- **OVERSPEED** (once a frame, the engine's rpm over its MAXIMUM - the registry's rated, the 582's 6800): the bands of SB 369 -
+  `logged` (to +10 %), `inspect` (+10..20 %), `overhaul` (past +20 %: rough running, 0.85 x thrust, vibration 0.3, the teardown
+  owed), `failed` (GAME: a dose of (ratio - 1.25) x s past 0.25 - a thrown rod or valve, the engine stops); each band entered after
+  1 s above it. Counted windmilling too (the shaft does not care who turns it).
+- **THE GRADED PROP STRIKE on the DISC** (once a frame: each engine's disc's lowest point - the thrust nodes' hub, the disc normal to
+  the body's x - against the terrain and the water; a trunk's circle in the disc as before; the nose's nodes on the ground = a bite
+  of R): graded on the BITE (how far into the disc, over R) and the TIP SPEED at contact (pi D n): `brush` (<= 4 % of R: the engine
+  runs, the teardown still owed), `bent` (the ground to 15 %, the water to 25 %, a trunk to 4 %: 0.6 x thrust, vibration 0.6),
+  `stoppage` (past those: the engine stops, as TREE-CRASH's seize), `separation` (a bite past a brush - or a rigid brush - with the
+  tip faster than the blade takes: wood / carbon 120 m/s, alloy 200, x 1.6 in the water: if the shaft was stopped, debris; if not, a
+  blade short - see the imbalance). The tier only rises. The soft ground allows 5 cm of TURF (a disc mowing the grass is no strike:
+  the metal Cessna's disc sits 1.1 cm INTO the ground settled on its nosewheel, see the open questions). A seeded 15 % of struck
+  engines' teardowns find internal damage (`internal`, AOPA's 10-20 %: the bill's overhaul line).
+- **A LOST BLADE'S IMBALANCE** (every substep, only after a separation with the shaft turning): 0.35 of one blade's mass at 0.75 R,
+  m e w^2 turning with the prop in the disc's plane, on the engine's thrust nodes. At full power it is 24-88 kN against mount
+  fittings certified for a few: **the mount lets go in 0.02 s and the engine leaves** (D4b's debris); at idle the same graze is a brush.
+- **THE GEARBOX** (a geared engine): a strike past brush, or the overhaul band, marks it `damaged`; a SUDDEN STOPPAGE with the engine
+  over half its power shears the drive: `failed` - the prop freewheels (windmills, no thrust), the engine runs UNLOADED at 1.45 x its
+  max x the root of its torque demand and throws a rod on its overspeed dose unless the throttle is closed (the twin: 9860 rpm,
+  failed 1.27 s later).
+- **THE MOUNT ON THE CERTIFICATE** (genCertDrive, on D2a's pinned-airframe system, at limit): `torque361` (the limit torque =
+  23.361(c)'s factor x the mean torque at rated through the reduction unit, the reaction in the build's own `sense`, with condition
+  A's 3.8 g on the engine), `side363R / L` (1.33 g sideways), `gyro371a-d` (I w x yaw +-2.5 and pitch +-1.0 rad/s, with 2.5 g and the
+  static thrust; I = 0.25 m_prop R^2 from the spec's prop mass). A couple is laid on the engine's nodes as an angular acceleration of
+  them (no net force). GEN_CERT_V 2 -> 3. **The drive cases now govern 4 of the Cub's, 4 of the Jodel's and 5 of the twin's mount
+  members' limits** (the metal Cessna's and the floats' stay governed by 23.561 / impactNose).
+- **The tacho** reads 0 on a seized engine (it read the windmill), and the sheared drive's two speeds.
+- **The worker** (sim_host.js, viewer code): `meta.drv` once any engine has a state (nothing before: the layer off, or a drivetrain
+  untouched, costs one loop over the engines).
+
+### THE SHARED FIELDS - `sim.damage().drive[k]` (inline) / `meta.drv[k]` (under the worker), per engine
+For **D4b** (the look), **D5** (the bill), **the Sound Coordinator** (the crash / failing-engine voices):
+| field | values | D4b | D5 | sound |
+|---|---|---|---|---|
+| `strike` | null, 'brush', 'bent', 'stoppage', 'separation' | the blade drawn: tips scuffed / curled back / stopped / one blade gone | the prop line (dress / replace) | the strike's crunch, by tier |
+| `strikeAt` | { t, what 'ground' / 'trunk', surf 'soft' / 'water' / 'rigid', bite (m), biteR, tip (m/s), rpm } | the curl's amount (biteR), its direction | - | the event's time, its energy (tip) |
+| `bladeLost` | 0, or the share of ONE blade gone (0.35) | the debris piece and the stub | the prop | - |
+| `os`, `osPeak`, `osSec`, `osExc`, `osDose` | null / 'logged' / 'inspect' / 'overhaul' / 'failed'; peak rpm / max; s over max; s over +10 %; the failure dose | - | logbook / inspection / overhaul line | the over-rev scream (osPeak live), the bang on 'failed' |
+| `gearbox` | null, 'damaged', 'failed' (sheared: the prop freewheels) | - | gearbox inspection / overhaul | the runaway's whine |
+| `failed`, `why` | the engine stopped for good: 'stoppage', 'separation', 'overspeed' | - | - | the silence (and the bang) |
+| `teardown` | the SB teardown owed (any strike; the overhaul band) | - | the teardown line | - |
+| `internal` | the teardown finds internal damage (seeded 15 %) | - | the overhaul line | - |
+| `thrustK`, `vib`, `tipMach`, `imbN` | the thrust factor now; vibration 0-1; the helical tip Mach; the imbalance force (N) | the engine shaking (vib, imbN) | - | roughness (vib), the prop's buzz (tipMach) |
+| `gapMin`, `rpmMax` | the disc's least clearance (m); the engine's max rpm | - | - | - |
+`sim.damage().propStrike / propAt` are kept (now set on any tier); the mount's own failure is D1a's break group (`eng:mount`,
+`engL:mount` / `engR:mount` on the twin) in `sim.damage().groups`.
+
+### G1827 - GATE DMGDRIVE (tools/_dmg_drive_check.js, registered core, weight 3; 712 s on 3 children, 4 cloud cores; 133 checks; every row prints its source and `[as recalled - A0 to open]` or `[GAME - no source]`)
+1. The laws: SB 369's bands (8 % for 30 s logged; 15 % for 2 s inspect; 15 % for 0.5 s nothing; 25 % for 1.5 s overhaul; 35 % for
+   2 s overhaul, for 3 s failed; 50 % for 1 s failed); 23.361(c)'s factors (4 cyl 2, 3 cyl 3, 2 cyl 4, 6 / 9 cyl 1.33, turboprop
+   1.25); the strike's tiers (9 rows).
+2. The dives (the sim, held 8 s, 2500 m up): **at V_NE full throttle the Cub, the Jodel, the metal Cessna and the floats reach 'inspect' (+10.5..16.3 %), the twin
+   'logged' (+7.8 % of its 6800); at 1.1 V_D the Cub, the Jodel and the floats 'overhaul' (+21.6..27.0 %: rough, 0.85 x thrust, the
+   teardown owed), the metal Cessna (+19.3 %) and the twin (+16.9 %) 'inspect'; no failure (a dive does not reach the dose)**; at V_NE at the cruise throttle, at idle and windmilling: no
+   exceedance on any build (the Cub, the Jodel and the floats LOG a few seconds inside SB 369's no-action band at cruise power).
+3. The strikes: **a nose-over at 2 / 4 / 8 m/s** - the disc's touch IS the strike now (0.02-0.05 s in): the Cub and the Jodel a
+   SUDDEN STOPPAGE at all three (bite 0.15-0.17 R at 106-112 m/s), the metal Cessna BENT at 2 m/s (0.04 R; the engine runs) and a
+   stoppage at 4 / 8; a teardown owed every time. A brush (2 cm of soil past the turf) - the engine runs on, the teardown still owed.
+   A trunk in the disc at 3 m/s: the wood props SEPARATE (tip 122-128 m/s), the Cessna's alloy one stops (154 m/s). The bow digging in:
+   the ordinary 90 km/h / 5 m/s / 20 deg clears the water on the Cessna on floats (0.27 m) and takes the twin's discs 0.33 R into it (both a stoppage, nothing broken); TREECRASH's
+   severe 150 km/h / 10 m/s / 60 deg strikes the WATER on both (the engine stops). A trunk grazing the tips (3 cm) at full power: a
+   blade breaks off, 24-88 kN of imbalance, the mount lets go 0.02 s later; at idle the same graze is a brush and the mount holds.
+4. The gearbox (the twin's 582): a stoppage at full power shears the drive - 9860 rpm unloaded (145 %), the rod thrown 1.27 s later;
+   at idle the engine stops and the gearbox is marked damaged.
+5. The mount (stamped members against the certificate's drive cases): every case held with no set (worst 0.12-0.60 of its yield)
+   and let go past its ultimate (1.67-11.6 x the case); the snap-roll entry's mount 0.31-0.94 of its certified yield.
+6. The negatives: the circuit on every build (take-off at full power to the roll-out: engine peak 2284 / 2285 / 2503 / 2654 / 6428
+   rpm, no strike, no exceedance; the discs' least clearance 0.11 / 0.24 / **-0.04** (inside the turf) / 0.17 / 0.76 m); a 3.9-5.1 g
+   pull at full power; half brakes from 12 m/s - nothing. (Full brakes from 12 m/s stand the Cub and the Jodel on their noses: a
+   stoppage, a teardown - the classic, gated as a positive.)
+
+### THE GATES (the user's rule: no full battery)
+All on this branch's last source, damage ON where the gate turns it on, with the base (27caf6e0's core, a worktree) run the same way:
+- **GATE DMGDRIVE 133/133 PASS** (dmg_gates.log).
+- **TREECRASH 72/72, DMGCERT 50/50, DMGGEAR 70/70, DMGINST, DMGFPS 33/33: PASS** (dmg_gates.log; the base's dmg_gates_base.log). What
+  moved against the base (the drive's thrust factor, the graded strike, the 7 new certificate cases): TREECRASH's 3 m/s taxi 929 ->
+  926 J, its wing-2.5-m-out crash 90 -> 99 members broken (36 -> 44 of the wing), 10.0 -> 9.5 kJ, the severe float nose-in 205 -> 204
+  set; DMGCERT's broke-at and limits unchanged (38-40 -> 45-47 cases); DMGGEAR's metal Cessna: the NASA Test 1 airframe set 41 -> 36,
+  the grass taxi's worst 0.18 (a mount fitting) -> 0.17 (a wing member), the rough field 0.63 -> 0.60 / 0.55 -> 0.53, the porpoise's
+  third bounce no longer takes gearL; DMGFPS's past-the-end work 22.844 -> 22.840 J. Every verdict the same.
+- **Damage OFF = the base's bytes** (§11.2 #1; GATES_CORE=1, --verbose, the whole output diffed, timings masked): **LOAD, BENCH, FLEX,
+  SIMWORKER, SOAR, UISMOKE, BUILD, JOIN all PASS on both and byte-identical** but SIMWORKER's wall-clock transport lines (the steps and
+  snapshots a real-time second holds: 252 / 248 vs 250 / 244 - its own inline replay reproduces every snapshot to the bit on both).
+  (off_base.log / off_mine.log.) The registry (00_) is untouched, so PILOT / TAKEOFF / HONEST / ENERGY were not owed.
+
+### PERF (tools/dmg_drive_perf.js: TREE-CRASH's perf child - the flat world, a far trunk set, 600 steps - the base's core against this one in alternating processes, paired, pooled; cloud box, the coordinator re-measures on the box)
+| damage | build | mode | base ms | now ms | paired |
+|---|---|---|---|---|---|
+| OFF | Cub | ground | 2.741 | 2.707 | -1.26 % |
+| OFF | Cub | air | 2.675 | 2.634 | -1.81 % |
+| OFF | metal | ground | 4.862 | 4.844 | -0.67 % |
+| OFF | metal | air | 4.557 | 4.514 | -1.64 % |
+| ON (cert) | Cub | ground | 2.789 | 2.757 | -0.61 % |
+| ON (cert) | Cub | air | 2.711 | 2.709 | +0.36 % |
+| ON (cert) | metal | ground | 4.765 | 4.675 | -1.35 % |
+| ON (cert) | metal | air | 4.679 | 4.624 | -1.22 % |
+Pooled: **OFF -1.45 %, ON -0.91 %** (12 alternating pairs a row; the negative is the cloud box's noise / code layout, not a gain).
+OFF runs the base's path (DRV null: four `if (DRV)` per frame / per engine per substep and the thrust's x DK[i] = x 1, exact). ON with
+nothing touching: once a frame per engine one terrainH (and a waterH within 30 m of the surface), the bands' few compares.
+
+### EVIDENCE (flyDiy/reports/evidence/DMG-DRIVE/)
+real_numbers.json (G1825); probe_base.md / probe_base/*.json (before) and probe_after.md / probe_after/*.json (after) - the dives,
+the nose-overs, the nose-ins, the trunks, the mount; dmg_gates.log (DMGDRIVE and the DMG gates, this branch) and dmg_gates_base.log
+(the base); off_base.log / off_mine.log (damage OFF, the 8 gates); perf.json / perf.log.
+
+### OPEN QUESTIONS (A0 / the coordinator / the user)
+1. **Open the sources** (each row of real_numbers.json): SB 369's bands and its geared / blown variant, Continental's and Rotax's
+   overspeed tables, SB 533's wording, Continental's M14-12, Rotax's after-strike gearbox inspection, 23.361 / .363 / .371's text, the
+   A-65 / O-540 TCDS rpm. The GAME numbers (the dose, the bites, the separation tip speeds, the turf, the imbalance's fragment) want
+   a reference or a ruling.
+2. **The metal Cessna's prop does not clear the ground**: settled on its nosewheel the disc is 1.1 cm INTO it (4.2 cm in the spawn's
+   settle; -0.04 m in its circuit). The generator clears the MAINS' axle by 23.925's 7 in in the level frame (60_gen_spec gear.y
+   'prop clearance'), but the nose leg's stance pitches the aeroplane 0.9 deg nose-down. The 5 cm turf allowance keeps it from
+   striking on grass; **on a paved strip it would brush its prop on every taxi**. A generator fix (clear the disc in the STANCE
+   attitude), not a drivetrain one - the builds' owner's call.
+3. **The flown sim has no engine torque, no gyroscopic couple and no P-factor.** The mount is certified for 23.361 / .371 now, but a
+   snap roll flies without the couple (the Cub's mount at 0.94 of its yield without it; the gyro at its rates, 2 x 23.371's pitch,
+   would add ~0.3-0.5 of a yield). Adding them is a flight-dynamics change (handling, the pilots' gains): A0's to schedule.
+4. **The sheared drive's runaway** (1.45 x max at full throttle) and the failure dose are game numbers: an unloaded two-stroke does
+   run away; the rpm it reaches before it lets go is not published.
+5. **Obstacles** (walls, houses) do not strike the disc (TREE-CRASH's trunks and the ground / water do). A prop-vs-obstacle test is
+   cheap if wanted (the obstacles' column grid, once a frame).
+6. **D4b**: the strike's look reads `strike` / `strikeAt.biteR` / `bladeLost`; the engine leaving is D1a's mount group. **D5**: the bill
+   reads `teardown`, `internal`, `os`, `gearbox`, `strike`. **Sound**: `vib`, `tipMach`, `osPeak`, `failed` / `why`, `strikeAt.t`.

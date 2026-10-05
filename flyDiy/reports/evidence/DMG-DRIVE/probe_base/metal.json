@@ -17,13 +17,13 @@
    "V": 71.51,
    "thr": 1,
    "reached": true,
-   "rpmProp": 2836,
-   "rpmEng": 2836,
-   "ratio": 1.101,
-   "tipMach": 0.948,
+   "rpmProp": 2845,
+   "rpmEng": 2845,
+   "ratio": 1.105,
+   "tipMach": 0.952,
    "nz": [
-    0.953,
-    1.157
+    0.665,
+    1.403
    ],
    "running": [
     true
@@ -42,13 +42,13 @@
    "V": 87.402,
    "thr": 1,
    "reached": true,
-   "rpmProp": 3060,
-   "rpmEng": 3060,
-   "ratio": 1.188,
-   "tipMach": 1.026,
+   "rpmProp": 3072,
+   "rpmEng": 3072,
+   "ratio": 1.193,
+   "tipMach": 1.031,
    "nz": [
-    0.941,
-    1.137
+    0.352,
+    1.839
    ],
    "running": [
     true
@@ -67,13 +67,13 @@
    "V": 71.51,
    "thr": 0.472,
    "reached": true,
-   "rpmProp": 2335,
-   "rpmEng": 2335,
-   "ratio": 0.907,
-   "tipMach": 0.789,
+   "rpmProp": 2348,
+   "rpmEng": 2348,
+   "ratio": 0.912,
+   "tipMach": 0.794,
    "nz": [
-    0.935,
-    1.157
+    0.59,
+    1.457
    ],
    "running": [
     true
@@ -92,13 +92,13 @@
    "V": 71.51,
    "thr": 0,
    "reached": true,
-   "rpmProp": 1767,
-   "rpmEng": 1767,
-   "ratio": 0.686,
-   "tipMach": 0.612,
+   "rpmProp": 1788,
+   "rpmEng": 1788,
+   "ratio": 0.694,
+   "tipMach": 0.62,
    "nz": [
-    0.91,
-    1.153
+    0.5,
+    1.509
    ],
    "running": [
     true
@@ -117,13 +117,13 @@
    "V": 71.51,
    "thr": 0,
    "reached": true,
-   "rpmProp": 1618,
-   "rpmEng": 1618,
-   "ratio": 0.628,
-   "tipMach": 0.567,
+   "rpmProp": 1640,
+   "rpmEng": 1640,
+   "ratio": 0.637,
+   "tipMach": 0.575,
    "nz": [
-    0.91,
-    1.153
+    0.5,
+    1.509
    ],
    "running": [
     false
@@ -758,5 +758,5 @@
    "sink": 3.563
   }
  },
- "ms": 171951
+ "ms": 148806
 }

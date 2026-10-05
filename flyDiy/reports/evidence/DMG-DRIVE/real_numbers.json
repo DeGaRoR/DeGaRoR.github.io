@@ -143,6 +143,7 @@
     "overhaul_band_power": "rough running: 0.85 x thrust, vibration 0.3",
     "strike_bite": "how far the obstruction reaches into the disc, over its radius: brush <= 0.04; a soft surface (ground) bends to 0.15, stops past it; a rigid one (a trunk) bends to 0.04, stops past it; water: brush <= 0.04, bent to 0.25, stops past it",
     "blade_separation_tip_speed_m_s": { "wood": 120, "carbon": 120, "alu": 200 },
+    "blade_separation_water_factor": 1.6,
     "bent_thrust": 0.6, "unloaded_runaway": 1.45,
     "imbalance_fragment": "a separation takes a share of one blade (0.35 of its mass at 0.75 R); the rotating force m e w^2 on the engine's thrust nodes"
   }

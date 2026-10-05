@@ -17,13 +17,13 @@
    "V": 60.351,
    "thr": 1,
    "reached": true,
-   "rpmProp": 2597,
-   "rpmEng": 2597,
-   "ratio": 1.129,
-   "tipMach": 0.773,
+   "rpmProp": 2585,
+   "rpmEng": 2585,
+   "ratio": 1.124,
+   "tipMach": 0.77,
    "nz": [
-    -0.91,
-    1.491
+    0.659,
+    1.709
    ],
    "running": [
     true
@@ -32,8 +32,8 @@
     false
    ],
    "drive": null,
-   "yields": 12594,
-   "breaks": 162,
+   "yields": 7,
+   "breaks": 16,
    "crashed": true,
    "finite": true
   },
@@ -42,23 +42,23 @@
    "V": 73.762,
    "thr": 1,
    "reached": true,
-   "rpmProp": 2173,
-   "rpmEng": 2173,
-   "ratio": 0.945,
-   "tipMach": 0.655,
+   "rpmProp": 2900,
+   "rpmEng": 2900,
+   "ratio": 1.261,
+   "tipMach": 0.862,
    "nz": [
-    0.807,
-    14.905
+    0.684,
+    1.242
    ],
    "running": [
-    false
-   ],
-   "seized": [
     true
    ],
+   "seized": [
+    false
+   ],
    "drive": null,
-   "yields": 20334,
-   "breaks": 239,
+   "yields": 17942,
+   "breaks": 241,
    "crashed": true,
    "finite": true
   },
@@ -67,13 +67,13 @@
    "V": 60.351,
    "thr": 0.651,
    "reached": true,
-   "rpmProp": 2455,
-   "rpmEng": 2455,
-   "ratio": 1.067,
-   "tipMach": 0.74,
+   "rpmProp": 2304,
+   "rpmEng": 2304,
+   "ratio": 1.002,
+   "tipMach": 0.691,
    "nz": [
-    -4.366,
-    1.238
+    0.646,
+    1.625
    ],
    "running": [
     true
@@ -82,8 +82,8 @@
     false
    ],
    "drive": null,
-   "yields": 9955,
-   "breaks": 190,
+   "yields": 7,
+   "breaks": 16,
    "crashed": true,
    "finite": true
   },
@@ -92,13 +92,13 @@
    "V": 60.351,
    "thr": 0,
    "reached": true,
-   "rpmProp": 1694,
-   "rpmEng": 1694,
-   "ratio": 0.737,
-   "tipMach": 0.522,
+   "rpmProp": 1667,
+   "rpmEng": 1667,
+   "ratio": 0.725,
+   "tipMach": 0.515,
    "nz": [
-    -1.399,
-    0.832
+    0.593,
+    1.681
    ],
    "running": [
     true
@@ -107,8 +107,8 @@
     false
    ],
    "drive": null,
-   "yields": 15737,
-   "breaks": 170,
+   "yields": 8,
+   "breaks": 16,
    "crashed": true,
    "finite": true
   },
@@ -117,13 +117,13 @@
    "V": 60.351,
    "thr": 0,
    "reached": true,
-   "rpmProp": 1641,
-   "rpmEng": 1641,
-   "ratio": 0.714,
-   "tipMach": 0.516,
+   "rpmProp": 1543,
+   "rpmEng": 1543,
+   "ratio": 0.671,
+   "tipMach": 0.482,
    "nz": [
-    -1.289,
-    1.053
+    0.589,
+    1.686
    ],
    "running": [
     false
@@ -132,8 +132,8 @@
     false
    ],
    "drive": null,
-   "yields": 17534,
-   "breaks": 177,
+   "yields": 8,
+   "breaks": 16,
    "crashed": true,
    "finite": true
   }
@@ -760,5 +760,5 @@
    "sink": 3.257
   }
  },
- "ms": 174541
+ "ms": 148575
 }

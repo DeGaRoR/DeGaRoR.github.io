@@ -1,11 +1,11 @@
 ### Dives (engine rpm over its rated; helical tip Mach)
 | build | engine (rated) | V_NE / V_D m/s | VNE full | 1.1 VD full | VNE cruise (thr) | VNE idle | VNE key off | drive state after |
 |---|---|---|---|---|---|---|---|---|
-| Cub | Continental A-65 (2300) | 52.108 / 57.897 | 2580 (12.2 %), M 0.795 | 2796 (21.6 %), M 0.863 | 2300 (0.0 %), M 0.712 (0.652) | 1653 (-28.1 %), M 0.522 | 1526 (-33.6 %), M 0.486 | VNE full: n/a; 1.1 VD full: n/a; VNE cruise: n/a; VNE idle: n/a; VNE off: n/a |
-| Jodel | Continental A-65 (2300) | 60.351 / 67.056 | 2597 (12.9 %), M 0.773 | 2173 (-5.5 %), M 0.655 | 2455 (6.7 %), M 0.74 (0.651) | 1694 (-26.3 %), M 0.522 | 1641 (-28.6 %), M 0.516 | VNE full: n/a; 1.1 VD full: n/a; VNE cruise: n/a; VNE idle: n/a; VNE off: n/a |
-| metal Cessna | Lycoming O-540-B2C5 (2575) | 71.51 / 79.456 | 2836 (10.1 %), M 0.948 | 3060 (18.8 %), M 1.026 | 2335 (-9.3 %), M 0.789 (0.472) | 1767 (-31.4 %), M 0.612 | 1618 (-37.2 %), M 0.567 | VNE full: n/a; 1.1 VD full: n/a; VNE cruise: n/a; VNE idle: n/a; VNE off: n/a |
-| Cessna floats | Lycoming O-540-B2C5 (2575) | 82.303 / 91.447 | 2985 (15.9 %), M 1.001 | 3265 (26.8 %), M 1.097 | 2657 (3.2 %), M 0.897 (0.624) | 1994 (-22.6 %), M 0.692 | 1863 (-27.6 %), M 0.652 | VNE full: n/a; 1.1 VD full: n/a; VNE cruise: n/a; VNE idle: n/a; VNE off: n/a |
-| twin floatplane | Rotax 582 + 2.62 red. (6500, gear 2.62) | 52.292 / 58.102 | 7328 (12.7 %), M 0.859 | 7974 (22.7 %), M 0.937 | 6295 (-3.2 %), M 0.741 (0.55) | 4729 (-27.2 %), M 0.566 | 4377 (-32.7 %), M 0.527 | VNE full: n/a; 1.1 VD full: n/a; VNE cruise: n/a; VNE idle: n/a; VNE off: n/a |
+| Cub | Continental A-65 (2300) | 52.108 / 57.897 | 2580 (12.2 %), M 0.795 | 2796 (21.6 %), M 0.863 | 2300 (0.0 %), M 0.712 (0.652) | 1653 (-28.2 %), M 0.522 | 1526 (-33.6 %), M 0.486 | VNE full: n/a; 1.1 VD full: n/a; VNE cruise: n/a; VNE idle: n/a; VNE off: n/a |
+| Jodel | Continental A-65 (2300) | 60.351 / 67.056 | 2585 (12.4 %), M 0.77 | 2900 (26.1 %), M 0.862 | 2304 (0.2 %), M 0.691 (0.651) | 1667 (-27.5 %), M 0.515 | 1543 (-32.9 %), M 0.482 | VNE full: n/a; 1.1 VD full: n/a; VNE cruise: n/a; VNE idle: n/a; VNE off: n/a |
+| metal Cessna | Lycoming O-540-B2C5 (2575) | 71.51 / 79.456 | 2845 (10.5 %), M 0.952 | 3072 (19.3 %), M 1.031 | 2348 (-8.8 %), M 0.794 (0.472) | 1788 (-30.6 %), M 0.62 | 1640 (-36.3 %), M 0.575 | VNE full: n/a; 1.1 VD full: n/a; VNE cruise: n/a; VNE idle: n/a; VNE off: n/a |
+| Cessna floats | Lycoming O-540-B2C5 (2575) | 82.303 / 91.447 | 2994 (16.3 %), M 1.005 | 3270 (27.0 %), M 1.102 | 2668 (3.6 %), M 0.901 (0.624) | 2010 (-21.9 %), M 0.698 | 1880 (-27.0 %), M 0.658 | VNE full: n/a; 1.1 VD full: n/a; VNE cruise: n/a; VNE idle: n/a; VNE off: n/a |
+| twin floatplane | Rotax 582 + 2.62 red. (6500, gear 2.62) | 52.292 / 58.102 | 7327 (12.7 %), M 0.859 | 7946 (22.2 %), M 0.934 | 6294 (-3.2 %), M 0.741 (0.55) | 4728 (-27.3 %), M 0.566 | 4375 (-32.7 %), M 0.527 | VNE full: n/a; 1.1 VD full: n/a; VNE cruise: n/a; VNE idle: n/a; VNE off: n/a |
 
 ### Nose-overs (the nose falling at V; engine at 0.2)
 | build | V | first contact | disc touches at s | strike registered at s | deepest bite into the disc (m, of R) | engine after | drive | broke (groups) | crashed |

@@ -4,7 +4,7 @@
 //
 // Until this file the drivetrain could fail one way: TREE-CRASH's prop strike (30_solver propStrike), binary - the nose
 // ring or an engine node on the ground, or a trunk in the disc, SEIZED the engine for good. Nothing limited the shaft
-// speed (a full-throttle dive turned the Cub's A-65 at 2745 rpm against its 2300 redline and nothing happened), the
+// speed (a full-throttle dive to 1.1 V_D turned the Cub's A-65 at 2796 rpm against its 2300 redline and nothing happened), the
 // propeller's own disc never met the ground (only the nose's nodes did - the tips had been 0.4-0.9 m into it by then),
 // nothing told a brushed tip from a sudden stoppage, a floatplane's disc never met the water, and no load the engine
 // itself makes (its torque, the propeller's gyroscopic couple, a lost blade's imbalance) reached its mount.
@@ -29,7 +29,7 @@
 //       'stoppage'   past those: the prop stopped by the impact - the engine stops (seized, as TREE-CRASH's)
 //       'separation' a blade (or its outer part) broken off: the strike's bite past 'bent' while the tip moved faster
 //                    than the material takes (wood / carbon 120 m/s, alloy 200 m/s - GAME numbers): if the shaft was
-//                    stopped, debris only; if not (a brittle tip lost to a brush at power), the prop turns on with a
+//                    stopped, debris only (in the water past 1.6 x that); if not (a brittle tip lost to a brush at power), the prop turns on with a
 //                    blade short - a rotating force m e w^2 on the engine's thrust nodes, every substep, which can tear
 //                    the mount (and the engine leaves: D4b's debris)
 //     the teardown finds INTERNAL damage on a seeded 15 % of strikes (AOPA 2007's 10-20 %, a summary's ratio: the bill's
@@ -65,6 +65,8 @@ const GEN_DRIVE = {
   // (turf: a disc on soft ground mows the grass's top `turf` m before its tips meet the soil - not a strike; the metal
   // Cessna's disc sits 1.1 cm into the ground settled on its nosewheel, 4.2 cm in the spawn's settle, HANDOVER G1824)
   strike: { turf: 0.05, brush: 0.04, stop: { soft: 0.15, water: 0.25, rigid: 0.04 }, sep: { wood: 120, maple: 120, walnut: 120, carbon: 120, alu: 200 },
+            sepWater: 1.6,   // the water gives more than the soil: a blade breaks there only past 1.6 x its tip speed (an
+                             // ordinary bow-in at 0.2 throttle dipped the twin's carbon tips 4.6 % of R at 128 m/s)
             bentK: 0.6, vib: { brush: 0.1, bent: 0.6, stoppage: 0, separation: 1 } },
   // a lost blade: the share of one blade's mass gone and where its centre was (x R): the rotating force m e w^2
   imb: { frac: 0.35, at: 0.75 },
@@ -135,6 +137,6 @@ function genDriveStrikeTier(bite, R, surf, tip, sepTip) {
   if (!(r > 0)) return 0;
   if (r <= S.brush) return tip > sepTip && surf === 'rigid' ? 4 : 1;
   const stop = S.stop[surf] != null ? S.stop[surf] : S.stop.soft;
-  if (tip > sepTip) return 4;
+  if (tip > sepTip * (surf === 'water' ? S.sepWater : 1)) return 4;
   return r > stop ? 3 : 2;
 }

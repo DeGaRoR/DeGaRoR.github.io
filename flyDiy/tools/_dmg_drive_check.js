@@ -133,7 +133,7 @@ const rep = msg => console.log('  --    ' + msg);
     yes(C.genDriveTorqueFactor(cyl, fam) === want, '23.361(c): ' + (fam === 'turbine' ? 'a turboprop' : cyl + ' cylinders') + ' -> limit torque = mean x ' + want + ' ' + FLAG);
   for (const [bite, surf, tip, sep, want, why] of [[0.02, 'soft', 200, 120, 1, 'tips dressed on the ground (no separation on a soft brush)'], [0.10, 'soft', 80, 120, 2, 'a bite of 10 % into the ground at idle: bent'],
     [0.30, 'soft', 80, 120, 3, '30 %: the prop stopped (SB 533\'s sudden stoppage)'], [0.10, 'rigid', 80, 120, 3, 'a trunk 10 % into the disc stops it'], [0.20, 'water', 80, 120, 2, 'the water gives: bent at 20 %'],
-    [0.03, 'rigid', 211, 120, 4, 'a wood tip grazing a trunk at full power breaks off'], [0.03, 'rigid', 150, 200, 1, 'an alloy tip at 150 m/s only dents'], [0.10, 'soft', 211, 120, 4, 'wood into the ground at full power: a blade breaks']])
+    [0.03, 'rigid', 211, 120, 4, 'a wood tip grazing a trunk at full power breaks off'], [0.03, 'rigid', 150, 200, 1, 'an alloy tip at 150 m/s only dents'], [0.10, 'soft', 211, 120, 4, 'wood into the ground at full power: a blade breaks'], [0.05, 'water', 150, 120, 2, 'carbon into the water at 150 m/s bends (the water gives: 1.6 x the tip speed)']])
     yes(C.genDriveStrikeTier(bite, 1, surf, tip, sep) === want, 'a strike ' + (bite * 100).toFixed(0) + ' % into the disc (' + surf + ', tip ' + tip + ' m/s, the blade\'s ' + sep + '): ' + C.GEN_DRIVE_STRIKE[want] + ' - ' + why + ' ' + GAME);
 
   // ---- the children ----
