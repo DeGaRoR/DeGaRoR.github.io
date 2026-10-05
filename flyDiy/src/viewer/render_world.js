@@ -2999,28 +2999,21 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
   }
 
   yield 'woodland';
-  { // woodland: every physics tree seeds a clump of non-colliding neighbours
+  { // woodland: the hand-placed trees (TREE_PLACE) on the full ladder - the forest itself is the FILL's (G1481)
     const hsh = (a, b) => { let h = (a * 374761393 + b * 668265263 + 1013904223) | 0;
       h = Math.imul(h ^ (h >>> 13), 1274126177); return ((h ^ (h >>> 16)) >>> 0) / 4294967296; };
+    // THE WOODLAND'S SEEDS RETIRED (G1481, WOODLAND). Every physics tree (world.trees, the 64 m grid) used to seed a
+    // clump of 2-4 neighbours here, drawn on top of the forest fill. The fill plants the same ground (on an island the
+    // same tree map, effClass TREE; on the analytic world only within 90 m of a seed, nearTree), at ~6-10 m spacing
+    // against the seeds' 64 m. From the impostor merge (a3a1a7f6, 2026-09-23) to G1461 this planting threw on its
+    // first cell (H.imps[0] null) and drew nothing, while the seeds' core cylinders still stopped the aeroplane:
+    // Jolene's 24 662 unseen obstacles. Drawing them again (G1461) added ~100 000 trees over the fill (HANDOVER
+    // G1480-G1489 has the numbers). So the seeds stay PLACEMENT (the runway's obstacle cone, the fill's species and
+    // its analytic predicate read world.trees) and leave the draw AND the physics: the page's world - and the
+    // worker's, through sim_link's 'wsolid' - tests no woodland cylinder (setWoodSolid), and what the aeroplane can
+    // hit is exactly what is drawn: the fill's trunks, the placed trees' and the premises', all in world.treeHits.
     const P = [];
-    world.trees.forEach((T, i) => {
-      P.push({ x: T.x, z: T.z, h: T.h, s: T.s, sp: T.sp, r: hsh(i, 7), phys: true });   // phys: the core's own cylinder (G1330)
-      const n = 2 + (hsh(i, 3) * 3 | 0);
-      for (let k = 0; k < n; k++) {
-        const a = hsh(i, k * 13 + 1) * 6.283, d = 4 + hsh(i, k * 13 + 2) * 14;
-        const x = T.x + Math.cos(a) * d, z = T.z + Math.sin(a) * d;
-        if (Math.abs(z) < 90 && x < 200 && x > -3400) continue;  // corridor exclusion, matches world
-        const h = (world.terrainHBuild || world.terrainH)(x, z);   // (G1406: the build read)
-        if (h < 1.5 || h > 200) continue;
-        if ((world.waterHBuild || world.waterH)(x, z) > h) continue;   // no clutter trees standing in rivers/lakes
-        // ...nor on a road (2026-09-22): a legal tree 12 m from a road threw satellites 4-18 m in
-        // every direction, and half of them landed on the pavement
-        if (world.coverAt) { const cv = world.coverAt(x, z, 1); if (cv && cv.kill > 0) continue; }
-        // neighbours mostly share the stand's species, with strays
-        const sp = hsh(i, k * 13 + 5) < 0.85 ? T.sp : (hsh(i, k * 13 + 6) * 5) | 0;
-        P.push({ x, z, h, s: T.s * (0.55 + hsh(i, k * 13 + 3) * 0.7), sp, r: hsh(i, k * 13 + 4) });
-      }
-    });
+    if (typeof world.setWoodSolid === 'function') world.setWoodSolid(false);
 
     // ================= THE TRUNKS YOU HIT (G1330, TREE-HITBOX) ==============
     // The user (2026-10-03): "trees have no hitbox, only some of them. We should at least be able to hit the trunks."
@@ -4640,9 +4633,9 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
             for (const band of H.rec.rungs[si]) for (const m of band) m.setColorAt(j, c3);
           } else for (const m of H.meshes) { m.setMatrixAt(i, m4); m.setColorAt(i, c3); }
           // the side's one impostor mesh: every tree, its series' layer
-          // (G1461 HELD by A0 for WOODLAND G1480: the fix (the side's LAST entry, imps[0] is null when series 0 is empty)
-          // draws the woodland - ~100 000 more trees on Jolene - so it waits for WOODLAND's measured decision)
-          const mi = H.imps[0]; mi.setMatrixAt(i, m4); mi.setColorAt(i, c3); mi.geometry.attributes.aLayer.array[i] = H.lay[si];
+          // (G1461, SOFT-GPU: the one mesh is the LAST entry - side() pushes a null per empty series before it, and with
+          // TREE_MIX.furnished 1 the stand series is never dealt, so imps[0] was null in EVERY side and the planting threw)
+          const mi = H.imps[H.imps.length - 1]; mi.setMatrixAt(i, m4); mi.setColorAt(i, c3); mi.geometry.attributes.aLayer.array[i] = H.lay[si];
         });
       };
       HS.forEach((H, gi) => fill(H, lists[gi]));
