@@ -484,6 +484,8 @@ const MANIFEST = {
               'dmg_overlay.js',
               // G1851 (DMG-D4a): the skin over a break (window.SKIN_BREAK, pure; app.js poseModel reads it)
               'skin_break.js',
+              // G1855 (DMG-D4c): the covering and its inside one wall over a break (window.SKIN_WALL, pure; brkCage reads it)
+              'skin_wall.js',
               'world_boot.js', 'app.js',
               'dev_panel.js'],   // (the WORLD rail, world_rail.js, rides the world pack above - G582)
   },

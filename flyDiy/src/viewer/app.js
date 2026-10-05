@@ -3857,6 +3857,7 @@
   function brkRestore() {
     for (const R of BRK.recs) { if (R.idx0) { R.idx.set(R.idx0); brkIdx(R); } R.vB = -1; R.active = false; }
     if (BRK.model) { BRK.model._pose = null; BRK.model._poseNG = null; }   // re-posed from the rest on the next frame
+    if (BRK.model && BRK.model.brk && BRK.model.brk.wall) brkWallOff(BRK.model.brk);   // G1855
     BRK.recs.length = 0; BRK.model = null;
   }
   // an index array changed: every geometry drawing it re-uploads it (the rig's mesh, and the flown bake's views on the
@@ -3870,6 +3871,7 @@
     if (!D || !D.br.length) {
       // a heal (a reset, a new flight): every record's index as built, the records let go (their bindings kept)
       if (BRK.recs.length && model && model.brk) for (const R of BRK.recs) { if (SKIN_BREAK.event(R, model.brk.T, D || { br: [], vB: -2 })) brkIdx(R); R.vB = -1; }
+      if (model && model.brk && model.brk.wall) brkWallOff(model.brk);   // G1855: the wall's inside back at its rest
       BRK.recs.length = 0;
       return null;
     }
@@ -3951,12 +3953,58 @@
       if (SB.event(R, K.T, D, K.rest, R.baseM)) brkIdx(R);
     }
     SB.nodeFrames(K.NF, K.T, D, K.rest, K.live);
+    const WL = brkWallOn() ? brkWall(groups) : null;
     for (const [own, , pa, base, off] of groups) {
       const R = own.brkR; if (!R || !R.active) continue;
       SB.poseCage(R, K.rest, K.live, R.baseM, pa.array, K.NF, K.down, off);
-      if (gain === 1 && SB.tear(R, base, pa.array)) brkIdx(R);
+      if (!(WL && own.wallIn) && gain === 1 && SB.tear(R, base, pa.array)) brkIdx(R);   // (the wall's inside: torn below, on the wall)
       pa.needsUpdate = true;
     }
+    if (WL) {
+      // G1855 / G1856: the inside layers on the covering's live pose, both layers' triangles together, then their tear
+      for (const I of SKIN_WALL.pose(WL) || []) brkIdx(I.R);
+      for (const I of WL.inners) if (I.R.active && gain === 1 && SB.tear(I.R, I.base0, I.pos)) brkIdx(I.R);
+    }
+  }
+  // G1855 / G1856 (DMG-D4c THE WALL, src/viewer/skin_wall.js): THE COVERING AND ITS INSIDE ARE ONE WALL over a break. The
+  // inside-wall layers (the liners, the frames on the wall, the sills, the door pads, the firewall's rim: aeroskin's
+  // inside roles less the dash's pad / panel) are bound to the covering (aeroskin's skin roles) at the break events, each
+  // vertex at its point and depth on the covering, and posed on the covering's live pose; an inside triangle goes where
+  // the covering under it went. Made at the first break, on the cage's own groups (model.rigs: one per section, the
+  // section from the payload's mats); nothing of it runs while nothing is broken. ?skinwall=0 (or
+  // window.FLYDIY_SKINWALL = false at any time): the inside on its own nodes as G1851 drew it - the A/B for the stills
+  // (tools/dmg_wall_stills.js) and the box
+  try { if (/[?&]skinwall=0(&|$)/.test(location.search || '')) window.FLYDIY_SKINWALL = false; } catch (e) {}
+  const brkWallOn = () => { const on = !!window.SKIN_WALL && window.FLYDIY_SKINWALL !== false && typeof AEROSKIN !== 'undefined';
+    if (!on && model && model.brk && model.brk.wall) brkWallOff(model.brk); return on; };
+  function brkWall(groups) {
+    const K = model.brk, D = dmgNow();
+    if (!K.wall) {
+      const outers = [], inners = [];
+      for (const [own, , pa, , off] of groups) {
+        const R = own.brkR, sec = own.name && model.mats && model.mats[own.name] ? model.mats[own.name].sec : null;
+        if (!R || !sec) continue;
+        if (SKIN_WALL.isOuter(sec, AEROSKIN)) outers.push({ R, base: R.baseM, pos: pa.array, off, own });
+        else if (SKIN_WALL.isWall(sec, AEROSKIN)) { inners.push({ R, base: R.baseM, base0: own.base || R.baseM, pos: pa.array, off, own }); own.wallIn = true; }
+      }
+      if (!outers.length || !inners.length) { K.wall = { none: true }; return null; }
+      K.wall = SKIN_WALL.make(outers, inners);
+    }
+    if (K.wall.none) return null;
+    for (const I of SKIN_WALL.event(K.wall, D.vB) || []) brkIdx(I.R);
+    return K.wall;
+  }
+  // the wall let go (switched off, a heal, another model): the inside it posed back at its rest, its records' events
+  // re-run on G1851's own rule
+  function brkWallOff(K) {
+    const W = K.wall; K.wall = null;
+    if (!W || W.none) return;
+    for (const I of W.inners) {
+      I.own.wallIn = false;
+      if (I.on) { const of = I.off; for (let v = 0; v < I.on.length; v++) if (I.on[v]) for (let k = 0; k < 3; k++) I.pos[v * 3 + k] = I.base[v * 3 + k] - (of ? of[k] : 0); }
+      I.R.vB = -1;
+    }
+    if (K.geoOf) for (const g of K.geoOf.values()) if (g.attributes.position) g.attributes.position.needsUpdate = true;
   }
   // G1002 (A6-GROUND, the playtest's "floaty" taxi): THE CONTACT SHADOWS. One instanced draw of soft dark blobs on
   // the ground straight under each tyre (and a faint one under the fuselage), fading with the tyre's height over
