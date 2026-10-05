@@ -1,0 +1,9 @@
+[{"name":"lake_shore","at":[-300,-470,2],"cam":[0,0.12,45],"hour":"noon","settle":240},
+ {"name":"lake_shore_back","at":[-300,-470,2],"cam":[3.14,0.12,45],"hour":"noon","settle":240},
+ {"name":"lake_air","at":[-280,-540,150],"cam":[-2.2,0.6,350],"hour":"noon","settle":300},
+ {"name":"airport_edge","at":[-228,-499,30],"cam":[0.3,0.5,110],"hour":"noon","settle":240},
+ {"name":"sea_beach","at":[1834,-1294,1],"cam":[0.38,0.08,70],"hour":"noon","settle":300},
+ {"name":"sea_shingle","at":[-493,-2531,1],"cam":[0.0,0.08,70],"hour":"noon","settle":300},
+ {"name":"sea_rocky","at":[1624,1733,1],"cam":[-0.54,0.08,70],"hour":"noon","settle":300},
+ {"name":"sea_forest","at":[1590,-1767,1],"cam":[-1.19,0.08,70],"hour":"noon","settle":300},
+ {"name":"sea_air","at":[1834,-1294,150],"cam":[0.9,0.55,380],"hour":"noon","settle":300}]

@@ -135,8 +135,8 @@ const GROUND_FIELDS = (() => {
       sheen: 1,   // the GAME's lever on the sets' roughness (the near ring is a Standard material, 2026-09-21): 1 = the sets' own, 0 = matte (specK is the bench's Blinn strength)
       pudCell: 0, pudCover: 0.32, pudEdge: 0.01, pudSlope: 3, lakeEdge: 1,
       // THE CARVED BANK (SHORES G1500): within bankReach m of a lake's line the carve's steep faces (bankLo..bankHi deg) wear
-      // the cliff's rock with no macro on them, and the first bankWet m over the water are a wet margin (splat_ground sSplat)
-      bankReach: 30, bankLo: 24, bankHi: 34, bankWet: 2.5,
+      // the rocky shore (11) with no macro on them (it gives way from bankLo - 10 deg), and the first bankWet m over the water are a wet margin (splat_ground sSplat)
+      bankReach: 30, bankLo: 30, bankHi: 42, bankWet: 2.5,
       // THE POND FROM THE AIR (2026-09-23, the user at 400 m: "they look like speckles on a surface, not like
       // puddles"): pudFar widens the shore with distance (0 = the old hard rim; 6 = pudEdge x 7 by 500 m, so
       // 1.33 m of shore becomes 9.3 m and survives a pixel), pudRim is where the OPEN water starts in the mask
