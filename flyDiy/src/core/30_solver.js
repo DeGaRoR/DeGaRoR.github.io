@@ -424,6 +424,8 @@ function makeSim(def, world) {
   // contiguous typed arrays, not fields on the beam objects - fields added after the beam was made sit out of line, a
   // pointer and a cache line more per beam per substep (measured: +5-8 % on the step with nothing touching)
   const FY = new Float64Array(nb), FC = new Float64Array(nb);
+  // DMG-D2a (G1831): the members' physics limits (yield, break, crush, sigY A) beside the caps, the certificate's floor
+  const PHY = DMG_ON ? new Float64Array(nb * 4).fill(Infinity) : null;
   // THE NOSE: a fuselage member with both ends ahead of the firewall (x < 0 in the def's frame) - the engine and its
   // bearer's front, the cowl's stand-ins. It crushes round a trunk at a taxi's pace (the prop strikes, the engine
   // stops) and that is a dent, not a crash; any other member broken is (dmgFrame)
@@ -486,6 +488,7 @@ function makeSim(def, world) {
       DMG.stripsSplit++;
     }
     aicHash = NaN;                                   // the induction's control points move with the weights
+    if (typeof WB !== 'undefined' && WB && HYDRO.wetCut) HYDRO.wetCut(WB, fd, orphan);   // G1898.5: the wet body over the break
   }
   const noseB = new Uint8Array(nb);
   // ---- DMG-D1a MEMBERS (G1810-G1815): the members' own limits, stamped once here (nothing new per substep) ----
@@ -593,16 +596,57 @@ function makeSim(def, world) {
       const Dt = R ? Math.sqrt(GEN_CRASH_TUBE_DT * b.A / Math.PI) : 0;
       b.mp = R && R.ty ? R.ty * b.A * Dt / Math.PI : Infinity;
       b.thf = R ? R.thf : 0;
-      b.rgN = 0; b.rgS = 0; b.rgD = 0; b.kink = false; b.Lf = 0;
+      b.rgN = 0; b.rgS = 0; b.rgD = 0; b.kink = false; b.Lf = 0; b.Ff = 0;
       if (R) dmgMember(bi, b, R);                    // G1811-G1814 (DMG-D1a): Euler, the seams, wood's ragged break
+      if (PHY && R) { PHY[bi * 4] = b.fy0; PHY[bi * 4 + 1] = b.fu; PHY[bi * 4 + 2] = b.fc0; PHY[bi * 4 + 3] = R.ty * b.A; }
       b.fyM = b.fy0; FY[bi] = b.fy0; FC[bi] = b.fc0; b.ep = 0; b.ec = 0; b.Lr = 0; b.broken = false; b.kB = 0; b.cB = 0; b.yielded = false;
       b.dOn = false; b.dTx = 0; b.dTz = 0; b.dNx = 0; b.dNz = 0; b.dk = 0; b.ks = 0; b.kt = 0.25; b.kt1 = 0.5;
     }
   }
+  // ---- DMG-D2a THE CERTIFICATE (G1831; DEFORM §4.3 (c), 66_gen_cert.js): each member anchored to the loads the
+  // aeroplane is certified for, the physics (TREE-CRASH's material x section, D1a's seams and Euler) its floor and its
+  // ceiling. Stamped here when the def carries a certificate (genCertAttach) or later on a sim that has not yet bent
+  // (sim.certStamp: the page's certificate arrives from its worker after the flight has started). Per member (not the
+  // gear's: its limits are the gear bracket's, DMG-D2b), F_l its tension / compression envelope at the limit, m the
+  // card's margin, kappa the floor (GEN_CERT):
+  //   tension, ductile: yield at max(F_l x yTol, kappa x its physics yield), break at max(1.5 F_l m x uMember, kappa x
+  //     its physics break), hardening between over a short travel (GEN_CERT.etu: a built-up member, not a coupon);
+  //   tension, brittle (spruce, carbon): the break alone, no set (spruce's +-15 % scatter upward only: a certified spar
+  //     is at least its certificate), its ragged stages as before;
+  //   a JOINT (a seam: a fitting, a rivet line, a glue line, an opening's frame): brittle at max(1.5 F_l m x uFit, kappa
+  //     x its physics) - the part comes off as a part at the card's broke-at (GEN_CERT: the fitting factor's reading);
+  //   compression: crushes (perfectly plastic, to the kink) at max(1.5 F_l,c m x uMember, kappa x its physics), never
+  //     past its physics (Euler and the crush stay the hard ceiling: a slender tube still buckles);
+  //   and nothing past its physics either way (a member the certificate asks more of than its section can give is
+  //     the bad design the bench finds).
+  // Kept apart from the beam objects (no new fields on them: the beam loop's hidden class): the physics in PHY.
+  function certStamp(Cc) {
+    if (!PHY || !Cc || !Cc.Ft || Cc.Ft.length !== nb || DMG.yields || DMG.breaks || DMG.dents || peakOn) return false;
+    const K = typeof GEN_CERT !== 'undefined' ? GEN_CERT : null; if (!K) return false;
+    const m = K.m, kap = K.kappa, cap = (x, ph) => Math.min(Math.max(x, kap * ph), ph);
+    for (let bi = 0; bi < nb; bi++) {
+      const b = beams[bi], fyP = PHY[bi * 4], fuP = PHY[bi * 4 + 1], fcP = PHY[bi * 4 + 2];
+      if (!(fyP < Infinity) || b.cls === 'gear') continue;
+      const Ft = Cc.Ft[bi], Fc = Cc.Fc[bi], fit = !!b.seam;   // a joint: a fitting, a rivet line, a glue line, an opening (§7.2)
+      const brittle = fit || !(b.etu > 0);
+      const scat = b.rgN && PHY[bi * 4 + 3] > 0 ? Math.max(1, fyP / PHY[bi * 4 + 3]) : 1;
+      b.fu = cap(1.5 * m * Ft * (fit ? K.uFit : K.uMember) * scat, fuP);
+      b.fy0 = brittle ? b.fu : Math.min(cap(Ft * K.yTol, fyP), b.fu);
+      if (!brittle && !(b.fu > b.fy0)) b.fu = b.fy0 * (1 + 1e-6);
+      if (!brittle && K.etu > 0 && b.etu > K.etu) b.etu = K.etu;
+      if (!b.tens) b.fc0 = cap(1.5 * m * Fc * K.uMember, fcP);
+      b.fyM = b.fy0; FY[bi] = b.fy0; FC[bi] = b.fc0;
+    }
+    CERT = Cc;
+    return true;
+  }
+  let CERT = null, peakOn = false;
+  if (PHY && def.cert) certStamp(def.cert);
   // THE PROBE (params.damageProbe, GATE TREECRASH and its evidence only): nothing yields; every member's peak force
   // over its yield, per substep, tension and compression (the limits read 0 so every beam takes the branch)
   const PEAK = P_.damageProbe ? { t: new Float64Array(nb), c: new Float64Array(nb) } : null;
   if (PEAK) beams.forEach((b, bi) => { b.fyP = b.fy0; b.fcP = b.fc0; b.fy0 = 0; b.fyM = 0; FY[bi] = 0; b.fc0 = 0; FC[bi] = 0; b.mp = Infinity; });
+  peakOn = !!PEAK;   // (G1831: a probed sim's limits are its readout; no later stamp)
   let clDirty = false;
   DMG.cl = []; DMG.firstCl = null;   // G1840 (DMG-D3): the cluster cuts parted, in order
   // ---- DMG-D3 CLUSTERS (G1840-G1842): A CLUSTER IS ONE BREAKABLE PART (DEFORM-AND-BREAK §4.7 (i)) ----
@@ -904,7 +948,7 @@ function makeSim(def, world) {
       const b = beams[bi];
       if (b.broken) { b.k = b.kB; b.c = b.cB; b.broken = false; }
       b.fyM = b.fy0; FY[bi] = b.fy0; FC[bi] = b.fc0; b.ep = 0; b.ec = 0; b.dOn = false; b.dk = 0; b.ks = 0;
-      b.rgS = 0; b.rgD = 0; b.kink = false; b.Lf = 0;
+      b.rgS = 0; b.rgD = 0; b.kink = false; b.Lf = 0; b.Ff = 0;
     }
     nFlr = 0; postLive = 0; grpDone.fill(0); DMG.groups.length = 0; DMG.floors = 0; DMG.cracks = 0; DMG.rag.length = 0; DMG.armedN = 0;
     for (let i = 0; i < n; i++) { nodeDeg[i] = nodeDeg0[i]; orphan[i] = 0; }
@@ -1006,7 +1050,7 @@ function makeSim(def, world) {
         b.ks += dL; b.dk = Math.sqrt(2 * b.Lr * b.kt * b.ks); kinkCaps(bi); hingeCheck(bi);
       } else {
         b.ec += dL / b.Lr;
-        if (b.ec >= b.ecu) { b.kink = true; b.Lf = L; beamBreak(bi, 'kink'); }   // G1813: kinked - a floor at its crushed length
+        if (b.ec >= b.ecu) { b.kink = true; b.Lf = L; b.Ff = fc; beamBreak(bi, 'kink'); }   // G1813: kinked - a floor at its crushed length (G1898.6: its crush force kept)
       }
     }
     noteSet(bi);
@@ -1274,7 +1318,7 @@ function makeSim(def, world) {
     let near = w1 > -1e8 && reach < w1;
     if (!near) { const w2 = world.waterH(cx, cz); near = w2 > -1e8 && Math.min(reach, cy - WB_REACH) < w2; }
     if (!near) { if (WB) { WB.tick = 0; WB.wet = 0; } return; }
-    if (!WB) WB = HYDRO.wetBuild(def, p, v, m);
+    if (!WB) { WB = HYDRO.wetBuild(def, p, v, m); if (WB && DMG.breaks && HYDRO.wetCut) HYDRO.wetCut(WB, pieces(), orphan); }   // G1898.5
     wetArm = !!WB;
   }
   let totalM = 0;
@@ -2261,8 +2305,12 @@ function makeSim(def, world) {
       const L = hyp3(dx, dy, dz) || 1e-9;
       if (L >= b.Lf) continue;
       dx /= L; dy /= L; dz /= L;
-      const Fb = b.kB * (L - b.Lf) + b.cB * ((v[b3]-v[a3])*dx + (v[b3+1]-v[a3+1])*dy + (v[b3+2]-v[a3+2])*dz);
+      let Fb = b.kB * (L - b.Lf) + b.cB * ((v[b3]-v[a3])*dx + (v[b3+1]-v[a3+1])*dy + (v[b3+2]-v[a3+2])*dz);
       if (Fb >= 0) continue;
+      // G1898.6 (coordinator): THE FLOOR IS PLASTIC - a crushed tube pushes back at most its crush force and crushes further
+      // past it (its floor follows), never an elastic stop: the Cub's severe water nose-in drove its stab's 0.3 kg nodes
+      // half a metre into 474 kN/m floors and the stored ~60 kJ came back as 3 km/s. Stored energy now <= Ff^2 / 2k
+      if (b.Ff > 0 && -Fb > b.Ff) { Fb = -b.Ff; const Le = L + b.Ff / b.kB; if (Le < b.Lf) b.Lf = Le; }
       f[a3]+=Fb*dx; f[a3+1]+=Fb*dy; f[a3+2]+=Fb*dz;
       f[b3]-=Fb*dx; f[b3+1]-=Fb*dy; f[b3+2]-=Fb*dz;
     }
@@ -2393,7 +2441,8 @@ function makeSim(def, world) {
       // HEIGHT OVER THE GROUND, NOT ALTITUDE (G1112, TREES-NEAR): `p[1] < 24` was the analytic world's, whose field
       // is at y = 0. Jolene's HOME stands at 31.7 m, so no tree was ever tested there - and of the island's collidable
       // woodland only the 23 % rooted under 24 m could be reached at all, and only from under 24 m of altitude
-      if (p[1] - world.terrainH(cgx, cgz) < 24) {
+      // (G1481: not where the viewer drew the forest fill in the woodland's place - world.woodSolid false)
+      if (world.woodSolid !== false && p[1] - world.terrainH(cgx, cgz) < 24) {
         const near = world.treesNear(cgx, cgz, _treeScratch);
         if (near.length) for (let i = 0; i < n; i++) {
           const i3 = i*3;
@@ -2610,7 +2659,9 @@ function makeSim(def, world) {
   }
 
   // ---- wind tunnel: prescribe uniform velocity, measure aero force+moment ----
-  function probe(vel) {
+  // (G1830, DMG-D2a: `live` - the pass as the step makes it, the propeller's thrust and its wash over the tail and the
+  // inner wing included; the certificate's flight cases read the node forces it leaves in f. Absent: as ever)
+  function probe(vel, live) {
     for (let i = 0; i < n; i++) {
       f[i*3]=f[i*3+1]=f[i*3+2]=0;
       v[i*3]=vel[0]; v[i*3+1]=vel[1]; v[i*3+2]=vel[2];
@@ -2621,7 +2672,7 @@ function makeSim(def, world) {
     Gam.fill(0);
     for (let k = 0; k < K_PROBE; k++) {
       if (k) for (let i = 0; i < n; i++) f[i*3]=f[i*3+1]=f[i*3+2]=0;
-      aeroPass(true);
+      aeroPass(live ? (k === 0) : true);   // (live: the first pass builds the geometry as a probe does, the rest fly)
     }
     if (NP) { let d = 0, s = 0; for (const j of WS) { d += Math.abs(Gam[j] - GamPrev[j]); s += Math.abs(Gam[j]); }
               out.gamResid = s > 0 ? d / s : 0; } else out.gamResid = 0;
@@ -2712,6 +2763,9 @@ function makeSim(def, world) {
            // G1470: the damage - yields, breaks (beam indices), plastic work (J), the largest set (strain), the peak
            // filtered g, the prop strike, and the verdict: crashed (with why and when) / dented / neither
            damage: () => DMG, damagePeak: () => PEAK,
+           // G1831 (DMG-D2a): stamp the certificate on a sim that has not bent yet (the page's arrives from its
+           // worker); true if stamped. cert(): the certificate stamped, or null
+           certStamp: Cc => certStamp(Cc), cert: () => CERT,
            // G1815: break one member as a crash would (GATE DMGMEMBERS' closed-set check: its group, and nothing more)
            damageBreak: bi => { if (DMG_ON && bi >= 0 && bi < nb) beamBreak(bi, 'gate'); },
            // G1840 (DMG-D3): the clusters' cuts - limits (N.m), the last measured ratios and loads, the peaks, parted -

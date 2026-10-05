@@ -1,0 +1,176 @@
+{
+ "runs": [
+  {
+   "issued": 4,
+   "renderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 3080 (0x00002216) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+   "rows": [
+    {
+     "name": "island-ring",
+     "ms": 12888,
+     "ok": true,
+     "log": "",
+     "vsOk": true,
+     "fsOk": true,
+     "fsLog": "",
+     "hlslFs": 164667,
+     "hlslVs": 10718
+    },
+    {
+     "name": "island-outer",
+     "ms": 10069,
+     "ok": true,
+     "log": "",
+     "vsOk": true,
+     "fsOk": true,
+     "fsLog": "",
+     "hlslFs": 143160,
+     "hlslVs": 11135
+    },
+    {
+     "name": "water",
+     "ms": 646,
+     "ok": true,
+     "log": "(784,1): warning X4000: use of potentially uninitialized variable (f_wDepth_int)\n\n\n",
+     "vsOk": true,
+     "fsOk": true,
+     "fsLog": "",
+     "hlslFs": 132585,
+     "hlslVs": 15020
+    },
+    {
+     "name": "water#1",
+     "ms": 698,
+     "ok": true,
+     "log": "(784,1): warning X4000: use of potentially uninitialized variable (f_wDepth_int)\n\n\n",
+     "vsOk": true,
+     "fsOk": true,
+     "fsLog": "",
+     "hlslFs": 132585,
+     "hlslVs": 14912
+    },
+    {
+     "name": "premises-patch-materials-s1|island-twin",
+     "ms": 8994,
+     "ok": true,
+     "log": "",
+     "vsOk": true,
+     "fsOk": true,
+     "fsLog": "",
+     "hlslFs": 136263,
+     "hlslVs": 10887
+    },
+    {
+     "name": "pavement:T747",
+     "ms": 11142,
+     "ok": true,
+     "log": "(916,1): warning X4000: use of potentially uninitialized variable (f_pvTile_int)\n\n\n",
+     "vsOk": true,
+     "fsOk": true,
+     "fsLog": "",
+     "hlslFs": 214286,
+     "hlslVs": 11820
+    },
+    {
+     "name": "island-fine",
+     "ms": 13522,
+     "ok": true,
+     "log": "",
+     "vsOk": true,
+     "fsOk": true,
+     "fsLog": "",
+     "hlslFs": 164549,
+     "hlslVs": 11588
+    }
+   ],
+   "file": "C:/Users/denis/AppData/Local/Temp/claude/D--Dev-DeGaRoR-github-io--claude-worktrees-competent-meitner-bc0229/f3e5ecf5-2017-4874-a538-261055ebd85f/scratchpad/progs_A.json",
+   "wallS": 13.6,
+   "udd": "D:\\shcl0440AV1_0"
+  },
+  {
+   "issued": 4,
+   "renderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 3080 (0x00002216) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+   "rows": [
+    {
+     "name": "island-ring",
+     "ms": 13637,
+     "ok": true,
+     "log": "",
+     "vsOk": true,
+     "fsOk": true,
+     "fsLog": "",
+     "hlslFs": 168903,
+     "hlslVs": 10718
+    },
+    {
+     "name": "island-outer",
+     "ms": 10558,
+     "ok": true,
+     "log": "",
+     "vsOk": true,
+     "fsOk": true,
+     "fsLog": "",
+     "hlslFs": 147396,
+     "hlslVs": 11135
+    },
+    {
+     "name": "water",
+     "ms": 722,
+     "ok": true,
+     "log": "(784,1): warning X4000: use of potentially uninitialized variable (f_wDepth_int)\n\n\n",
+     "vsOk": true,
+     "fsOk": true,
+     "fsLog": "",
+     "hlslFs": 132585,
+     "hlslVs": 15020
+    },
+    {
+     "name": "water#1",
+     "ms": 620,
+     "ok": true,
+     "log": "(784,1): warning X4000: use of potentially uninitialized variable (f_wDepth_int)\n\n\n",
+     "vsOk": true,
+     "fsOk": true,
+     "fsLog": "",
+     "hlslFs": 132585,
+     "hlslVs": 14912
+    },
+    {
+     "name": "premises-patch-materials-s1|island-twin",
+     "ms": 10199,
+     "ok": true,
+     "log": "",
+     "vsOk": true,
+     "fsOk": true,
+     "fsLog": "",
+     "hlslFs": 140499,
+     "hlslVs": 10887
+    },
+    {
+     "name": "pavement:T747",
+     "ms": 11173,
+     "ok": true,
+     "log": "(916,1): warning X4000: use of potentially uninitialized variable (f_pvTile_int)\n\n\n",
+     "vsOk": true,
+     "fsOk": true,
+     "fsLog": "",
+     "hlslFs": 214286,
+     "hlslVs": 11820
+    },
+    {
+     "name": "island-fine",
+     "ms": 13556,
+     "ok": true,
+     "log": "",
+     "vsOk": true,
+     "fsOk": true,
+     "fsLog": "",
+     "hlslFs": 168785,
+     "hlslVs": 11588
+    }
+   ],
+   "file": "C:/Users/denis/AppData/Local/Temp/claude/D--Dev-DeGaRoR-github-io--claude-worktrees-competent-meitner-bc0229/f3e5ecf5-2017-4874-a538-261055ebd85f/scratchpad/progs_V1.json",
+   "wallS": 13.7,
+   "udd": "D:\\shcl0440AV1_1"
+  }
+ ]
+}

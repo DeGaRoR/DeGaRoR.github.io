@@ -1057,6 +1057,12 @@ D4a can start on D1b. A0 may move the train slots; the table moves with them.
   entry** (what changed, the gates with their numbers, perf, the open questions); evidence (plots, top-downs,
   stills) under `flyDiy/reports/evidence/DMG-<NAME>/`.
 - Cloud sessions cannot message the coordinator: the coordinator reads their HANDOVER diffs on their branches.
+- **The gates a worker runs (the user, 2026-10-05: no full battery per session - it took hours a step).** A worker
+  runs ONLY: its own new gate; the DMG set (`DMGINST, DMGFPS, DMGMEMBERS, DMGINTEGRITY, DMGCLUSTERS, DMGCERT` - those
+  on its base) and `TREECRASH`; and, for §11.2 #1 (off = the base's bytes), the gates its files can reach - a solver
+  change: `LOAD, BENCH, FLEX, SIMWORKER, SOAR`; water code: `+ FLOATS, SEAPLANE, HYDRODYN`; viewer code: `+ UISMOKE,
+  BUILD, JOIN`; generator code: `+ GEN, MASS`. Its perf A/B as §11.2 #2. **The full 41-gate battery is the
+  coordinator's**, once per merge on `claude/dmg-integration`, and A0's per train.
 
 ### 11.4 The switch's default — one constant
 
@@ -1121,6 +1127,18 @@ clearing it (Repair) is the only thing Repair does besides charging.
   sections on the box when a number becomes a gate.
 - **(dm8) Fire** (§9): conditions plus a seeded roll, base-rate checked, always a write-off. Crash-resistant tanks
   are garage options. Visuals owed to POST-FX.
+
+**Taken by the coordinator** (2026-10-05; A0 may overturn):
+- **(dm13) The fitting factor's reading (DMG-D2a G1831).** FAR 23.625's 15 % is kept BETWEEN joints and members, joints
+  the weaker: a joint breaks at 1.5 F_l m, every member between joints holds 1.15 x past it. Read literally ("fittings
+  1.15 x stronger") the members broke first, mid-span, at ~6.9-7.2 g, against §7.2's break order and §7.4's over-g row.
+  This way a part comes off as a part, at a joint, at the card's broke-at (6.01-6.10 g on the five builds).
+- **(dm14) Normal operations need real headroom before damage turns ON (train 35).** On D2a's certificate the worst
+  member reaches 0.98 of its certified yield in an ordinary circuit on the Cessna floats (0.74 on the metal Cessna);
+  the certificate's own cases sit at ~0.99 by construction. Under dm10 a slightly harder landing would ground the
+  aeroplane. DMG-D2b owns the fix: ordinary operations (the circuit, taxi on grass and water, touchdowns at the
+  normal sink, chop, a crosswind within the demonstrated component) at most 2/3 of the certified yield on every
+  validated build; only the certificate's limit cases, deliberately flown, may approach 1.
 
 ---
 

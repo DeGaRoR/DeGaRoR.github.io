@@ -59,11 +59,20 @@ function benchLoadCfg(CORE, spec, cfg) {
 // hold 0.9-1 — the phases the rig itself walks, in its own cfg's seconds.
 function benchLoadRun(CORE, job) {
   const spec = job.spec;
-  const def = CORE.buildGen(spec);
+  let def = CORE.buildGen(spec);
+  // G1832 (DMG-D2a): THE TEST TO DESTRUCTION is the rig on the CERTIFIED airframe with the damage layer on, whatever
+  // the page's switch (ruling dm6: free - its own sim, nothing carried); the certificate computed here (or handed in)
+  if (job.cfg && job.cfg.destroy && typeof CORE.genCertAttach === 'function') {
+    def = Object.assign({}, def, { params: Object.assign({}, def.params, { damage: true }) });
+    if (job.cert && job.cert.Ft && job.cert.nb === def.beams.length) def.cert = job.cert;
+    else CORE.genCertAttach(def, { world: def.parts && def.parts.floats && typeof CORE.makeWorld === 'function' ? CORE.makeWorld() : null });
+  }
   const sim = CORE.makeSim(def, null);
   sim.reset(0);
   if (job.p0 && job.p0.length === sim.p.length) sim.p.set(job.p0);
   const cfg = benchLoadCfg(CORE, spec, job.cfg);
+  // (G1832: to destruction the bags go on at the load test's own rate - its 5.7 g in 4 s - to three times the ultimate)
+  if (cfg.destroy) { const U = GEN_LOAD_ULT_OF(CORE); if (cfg.ult == null) cfg.ult = 3 * U; if (cfg.rampS == null) cfg.rampS = 4 * cfg.ult / U; }
   const rig = CORE.makeLoadTest(sim, def, cfg);
   const settleS = cfg.settleS != null ? cfg.settleS : 2.0;
   const rampS = cfg.rampS != null ? cfg.rampS : 4.0;
@@ -172,6 +181,20 @@ function benchXwindRun(CORE, job) {
   };
 }
 
+// the card's ultimate (the rig's own constant when the core has it)
+function GEN_LOAD_ULT_OF(CORE) { return (CORE && CORE.GEN_LOAD_ULT) || (typeof GEN_LOAD_ULT !== 'undefined' ? GEN_LOAD_ULT : 5.7); }
+// THE CERTIFICATE (G1831, DMG-D2a; 66_gen_cert.js): the load cases and the per-member envelope of a spec's build,
+// off the page. A floatplane's drop lands on the analytic world's sea lane (a world of its own, made here). What
+// crosses back is the envelope (two Float64Arrays, transferred) and the card's numbers, not the cases.
+function benchCertRun(CORE, job) {
+  const def = CORE.buildGen(job.spec);
+  const floats = !!(def.parts && def.parts.floats);
+  const world = floats && typeof CORE.makeWorld === 'function' ? CORE.makeWorld() : null;
+  const C = CORE.genCertify(def, { world });
+  return { kind: 'cert', seq: job.seq, key: C.key, nb: C.nb, Ft: C.Ft, Fc: C.Fc, limit: C.limit, ult: C.ult, neg: C.neg,
+           m: C.m, sink: C.sink, ms: C.ms };
+}
+
 // ---- the worker's side -----------------------------------------------------
 // Stringified into the Blob (so it may close over nothing but its two
 // arguments): `CORE` the imported bundle, `BW` this module's exports.
@@ -238,6 +261,18 @@ function benchWorkerBody(CORE, BW) {
         post({ kind: 'loadfix', seq: job.seq, variants, start: true });
         cur = { kind: 'loadfix', seq: job.seq, spec: job.spec, cfg: job.cfg, variants, i: 0 };
         loop();
+      } else if (job.kind === 'destroy') {
+        // G1832: the bench to destruction, unpaced (nobody watches it: the card waits for the one number)
+        const run = BW.benchLoadRun(CORE, Object.assign({}, job, { cfg: Object.assign({}, job.cfg, { destroy: true }) }));
+        let k = 0;
+        while (run.ok && !run.done && k < 60 * 120) { run.pump(60); k += 60; }
+        const st = run.rig.state;
+        post({ kind: 'destroy', seq: job.seq, ok: run.ok, verdict: st.verdict, brokeAt: st.brokeAt, brokeKey: st.brokeKey, brokeSeam: st.brokeSeam,
+               yieldAt: st.yieldAt, breakAt: st.breakAt, breakFirst: st.breakFirst, limit: run.rig.limit, ult: BW.GEN_LOAD_ULT_OF(CORE) });
+      } else if (job.kind === 'cert') {
+        // G1831: one computation, no pacing - the answer and done
+        const r = BW.benchCertRun(CORE, job);
+        post(r, [r.Ft.buffer, r.Fc.buffer]);
       } else if (job.kind === 'xwind') {
         cur = { kind: 'xwind', run: BW.benchXwindRun(CORE, job), seq: job.seq };
         loop();
@@ -256,7 +291,7 @@ function benchWorkerSource(base) {
     'importScripts(' + JSON.stringify(base + 'src/viewer/bench_worker.js') + ');\n' +
     'const BW = self.module.exports; self.module = { exports: {} };\n' +
     'importScripts(' + JSON.stringify(base + 'tools/flight_core.js') + ');\n' +
-    'const CORE = { buildGen, makeSim, makeLoadTest, makeCrosswindProbe, makeWorld, genSurfKey };\n' +
+    'const CORE = { buildGen, makeSim, makeLoadTest, makeCrosswindProbe, makeWorld, genSurfKey, genCertify, genCertAttach, GEN_LOAD_ULT };\n' +
     '(' + benchWorkerBody.toString() + ')(CORE, BW);\n';
 }
 
@@ -281,10 +316,10 @@ function benchWorkerStart(onMessage, onError) {
 }
 
 if (typeof window !== 'undefined') {
-  window.BENCH_WORKER = { start: benchWorkerStart, loadRun: benchLoadRun, loadVariants: benchLoadVariants,
+  window.BENCH_WORKER = { start: benchWorkerStart, loadRun: benchLoadRun, loadVariants: benchLoadVariants, certRun: benchCertRun,
                           loadVariant: benchLoadVariant, xwindRun: benchXwindRun, loadCfg: benchLoadCfg,
                           LEVERS: BENCH_LOAD_LEVERS };
 }
 if (typeof module !== 'undefined' && module.exports)
-  module.exports = { benchLoadCfg, benchLoadRun, benchLoadVariants, benchLoadVariant, benchXwindRun,
+  module.exports = { benchLoadCfg, benchLoadRun, benchLoadVariants, benchLoadVariant, benchXwindRun, benchCertRun, GEN_LOAD_ULT_OF,
                      benchWorkerBody, benchWorkerSource, benchWorkerStart, BENCH_LOAD_LEVERS };

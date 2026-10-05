@@ -1,0 +1,520 @@
+{
+ "meta": {
+  "date": "2026-10-05T04:23:41.543Z",
+  "commit": "a1ffcf5b",
+  "build": "f5cd36beab5d",
+  "mode": "light",
+  "parts": [
+   "garage"
+  ],
+  "gpu": null,
+  "size": null,
+  "label": "wood_gar4_base",
+  "remote": "mn_strip",
+  "m": {
+   "reps": 1,
+   "secs": 20,
+   "glReps": 2,
+   "cold": false,
+   "taxi": 10,
+   "water": 20,
+   "garage": 6
+  },
+  "minutes": 4.8,
+  "steps": [
+   {
+    "id": "garage_lag",
+    "code": 0,
+    "sec": 287,
+    "part": "garage"
+   }
+  ],
+  "reports": "tools/perf/tg_wood_gar4_base"
+ },
+ "rows": [
+  {
+   "id": "garage|cub fuseLen|sync",
+   "part": "garage",
+   "what": "cub fuseLen sync",
+   "value": 8.1,
+   "rule": {
+    "rel": 0.25,
+    "abs": 60,
+    "unit": "ms"
+   }
+  },
+  {
+   "id": "garage|cub fuseLen|busy",
+   "part": "garage",
+   "what": "cub fuseLen busy",
+   "value": 472,
+   "rule": {
+    "rel": 0.25,
+    "abs": 60,
+    "unit": "ms"
+   }
+  },
+  {
+   "id": "garage|cub fuseWidth|sync",
+   "part": "garage",
+   "what": "cub fuseWidth sync",
+   "value": 5,
+   "rule": {
+    "rel": 0.25,
+    "abs": 60,
+    "unit": "ms"
+   }
+  },
+  {
+   "id": "garage|cub fuseWidth|busy",
+   "part": "garage",
+   "what": "cub fuseWidth busy",
+   "value": 367,
+   "rule": {
+    "rel": 0.25,
+    "abs": 60,
+    "unit": "ms"
+   }
+  },
+  {
+   "id": "garage|cub wingSpan|sync",
+   "part": "garage",
+   "what": "cub wingSpan sync",
+   "value": 29.9,
+   "rule": {
+    "rel": 0.25,
+    "abs": 60,
+    "unit": "ms"
+   }
+  },
+  {
+   "id": "garage|cub wingSpan|busy",
+   "part": "garage",
+   "what": "cub wingSpan busy",
+   "value": 356,
+   "rule": {
+    "rel": 0.25,
+    "abs": 60,
+    "unit": "ms"
+   }
+  },
+  {
+   "id": "garage|cub wingChord|sync",
+   "part": "garage",
+   "what": "cub wingChord sync",
+   "value": 29.7,
+   "rule": {
+    "rel": 0.25,
+    "abs": 60,
+    "unit": "ms"
+   }
+  },
+  {
+   "id": "garage|cub wingChord|busy",
+   "part": "garage",
+   "what": "cub wingChord busy",
+   "value": 0,
+   "rule": {
+    "rel": 0.25,
+    "abs": 60,
+    "unit": "ms"
+   }
+  },
+  {
+   "id": "garage|cub tailSize|sync",
+   "part": "garage",
+   "what": "cub tailSize sync",
+   "value": 4,
+   "rule": {
+    "rel": 0.25,
+    "abs": 60,
+    "unit": "ms"
+   }
+  },
+  {
+   "id": "garage|cub tailSize|busy",
+   "part": "garage",
+   "what": "cub tailSize busy",
+   "value": 287,
+   "rule": {
+    "rel": 0.25,
+    "abs": 60,
+    "unit": "ms"
+   }
+  },
+  {
+   "id": "garage|cub gearTrack|sync",
+   "part": "garage",
+   "what": "cub gearTrack sync",
+   "value": 27.3,
+   "rule": {
+    "rel": 0.25,
+    "abs": 60,
+    "unit": "ms"
+   }
+  },
+  {
+   "id": "garage|cub gearTrack|busy",
+   "part": "garage",
+   "what": "cub gearTrack busy",
+   "value": 237,
+   "rule": {
+    "rel": 0.25,
+    "abs": 60,
+    "unit": "ms"
+   }
+  },
+  {
+   "id": "garage|cub engine|sync",
+   "part": "garage",
+   "what": "cub engine sync",
+   "value": 241.7,
+   "rule": {
+    "rel": 0.25,
+    "abs": 60,
+    "unit": "ms"
+   }
+  },
+  {
+   "id": "garage|cub engine|busy",
+   "part": "garage",
+   "what": "cub engine busy",
+   "value": 316,
+   "rule": {
+    "rel": 0.25,
+    "abs": 60,
+    "unit": "ms"
+   }
+  },
+  {
+   "id": "garage|cub tankCap|sync",
+   "part": "garage",
+   "what": "cub tankCap sync",
+   "value": 27.9,
+   "rule": {
+    "rel": 0.25,
+    "abs": 60,
+    "unit": "ms"
+   }
+  },
+  {
+   "id": "garage|cub tankCap|busy",
+   "part": "garage",
+   "what": "cub tankCap busy",
+   "value": 722,
+   "rule": {
+    "rel": 0.25,
+    "abs": 60,
+    "unit": "ms"
+   }
+  },
+  {
+   "id": "garage|cub livery|sync",
+   "part": "garage",
+   "what": "cub livery sync",
+   "value": 6,
+   "rule": {
+    "rel": 0.25,
+    "abs": 60,
+    "unit": "ms"
+   }
+  },
+  {
+   "id": "garage|cub livery|busy",
+   "part": "garage",
+   "what": "cub livery busy",
+   "value": 0,
+   "rule": {
+    "rel": 0.25,
+    "abs": 60,
+    "unit": "ms"
+   }
+  },
+  {
+   "id": "garage|cub frame|sync",
+   "part": "garage",
+   "what": "cub frame sync",
+   "value": 8.7,
+   "rule": {
+    "rel": 0.25,
+    "abs": 60,
+    "unit": "ms"
+   }
+  },
+  {
+   "id": "garage|cub frame|busy",
+   "part": "garage",
+   "what": "cub frame busy",
+   "value": 0,
+   "rule": {
+    "rel": 0.25,
+    "abs": 60,
+    "unit": "ms"
+   }
+  },
+  {
+   "id": "garage|metal fuseLen|sync",
+   "part": "garage",
+   "what": "metal fuseLen sync",
+   "value": 7.5,
+   "rule": {
+    "rel": 0.25,
+    "abs": 60,
+    "unit": "ms"
+   }
+  },
+  {
+   "id": "garage|metal fuseLen|busy",
+   "part": "garage",
+   "what": "metal fuseLen busy",
+   "value": 0,
+   "rule": {
+    "rel": 0.25,
+    "abs": 60,
+    "unit": "ms"
+   }
+  },
+  {
+   "id": "garage|metal fuseWidth|sync",
+   "part": "garage",
+   "what": "metal fuseWidth sync",
+   "value": 7.6,
+   "rule": {
+    "rel": 0.25,
+    "abs": 60,
+    "unit": "ms"
+   }
+  },
+  {
+   "id": "garage|metal fuseWidth|busy",
+   "part": "garage",
+   "what": "metal fuseWidth busy",
+   "value": 505,
+   "rule": {
+    "rel": 0.25,
+    "abs": 60,
+    "unit": "ms"
+   }
+  },
+  {
+   "id": "garage|metal wingSpan|sync",
+   "part": "garage",
+   "what": "metal wingSpan sync",
+   "value": 27.7,
+   "rule": {
+    "rel": 0.25,
+    "abs": 60,
+    "unit": "ms"
+   }
+  },
+  {
+   "id": "garage|metal wingSpan|busy",
+   "part": "garage",
+   "what": "metal wingSpan busy",
+   "value": 411,
+   "rule": {
+    "rel": 0.25,
+    "abs": 60,
+    "unit": "ms"
+   }
+  },
+  {
+   "id": "garage|metal wingChord|sync",
+   "part": "garage",
+   "what": "metal wingChord sync",
+   "value": 24.6,
+   "rule": {
+    "rel": 0.25,
+    "abs": 60,
+    "unit": "ms"
+   }
+  },
+  {
+   "id": "garage|metal wingChord|busy",
+   "part": "garage",
+   "what": "metal wingChord busy",
+   "value": 320,
+   "rule": {
+    "rel": 0.25,
+    "abs": 60,
+    "unit": "ms"
+   }
+  },
+  {
+   "id": "garage|metal tailSize|sync",
+   "part": "garage",
+   "what": "metal tailSize sync",
+   "value": 4.4,
+   "rule": {
+    "rel": 0.25,
+    "abs": 60,
+    "unit": "ms"
+   }
+  },
+  {
+   "id": "garage|metal tailSize|busy",
+   "part": "garage",
+   "what": "metal tailSize busy",
+   "value": 0,
+   "rule": {
+    "rel": 0.25,
+    "abs": 60,
+    "unit": "ms"
+   }
+  },
+  {
+   "id": "garage|metal gearTrack|sync",
+   "part": "garage",
+   "what": "metal gearTrack sync",
+   "value": 23.1,
+   "rule": {
+    "rel": 0.25,
+    "abs": 60,
+    "unit": "ms"
+   }
+  },
+  {
+   "id": "garage|metal gearTrack|busy",
+   "part": "garage",
+   "what": "metal gearTrack busy",
+   "value": 0,
+   "rule": {
+    "rel": 0.25,
+    "abs": 60,
+    "unit": "ms"
+   }
+  },
+  {
+   "id": "garage|metal engine|sync",
+   "part": "garage",
+   "what": "metal engine sync",
+   "value": 282.7,
+   "rule": {
+    "rel": 0.25,
+    "abs": 60,
+    "unit": "ms"
+   }
+  },
+  {
+   "id": "garage|metal engine|busy",
+   "part": "garage",
+   "what": "metal engine busy",
+   "value": 341,
+   "rule": {
+    "rel": 0.25,
+    "abs": 60,
+    "unit": "ms"
+   }
+  },
+  {
+   "id": "garage|metal tankCap|sync",
+   "part": "garage",
+   "what": "metal tankCap sync",
+   "value": 39.4,
+   "rule": {
+    "rel": 0.25,
+    "abs": 60,
+    "unit": "ms"
+   }
+  },
+  {
+   "id": "garage|metal tankCap|busy",
+   "part": "garage",
+   "what": "metal tankCap busy",
+   "value": 0,
+   "rule": {
+    "rel": 0.25,
+    "abs": 60,
+    "unit": "ms"
+   }
+  },
+  {
+   "id": "garage|metal livery|sync",
+   "part": "garage",
+   "what": "metal livery sync",
+   "value": 11.4,
+   "rule": {
+    "rel": 0.25,
+    "abs": 60,
+    "unit": "ms"
+   }
+  },
+  {
+   "id": "garage|metal livery|busy",
+   "part": "garage",
+   "what": "metal livery busy",
+   "value": 218,
+   "rule": {
+    "rel": 0.25,
+    "abs": 60,
+    "unit": "ms"
+   }
+  },
+  {
+   "id": "garage|metal frame|sync",
+   "part": "garage",
+   "what": "metal frame sync",
+   "value": 8.3,
+   "rule": {
+    "rel": 0.25,
+    "abs": 60,
+    "unit": "ms"
+   }
+  },
+  {
+   "id": "garage|metal frame|busy",
+   "part": "garage",
+   "what": "metal frame busy",
+   "value": 554,
+   "rule": {
+    "rel": 0.25,
+    "abs": 60,
+    "unit": "ms"
+   }
+  },
+  {
+   "id": "garage|cub ALL|sync",
+   "part": "garage",
+   "what": "cub every change, sync summed",
+   "value": 388.3,
+   "rule": {
+    "rel": 0.06,
+    "abs": 60,
+    "unit": "ms"
+   }
+  },
+  {
+   "id": "garage|cub ALL|busy",
+   "part": "garage",
+   "what": "cub every change, busy summed",
+   "value": 2757,
+   "rule": {
+    "rel": 0.06,
+    "abs": 60,
+    "unit": "ms"
+   }
+  },
+  {
+   "id": "garage|metal ALL|sync",
+   "part": "garage",
+   "what": "metal every change, sync summed",
+   "value": 436.7,
+   "rule": {
+    "rel": 0.06,
+    "abs": 60,
+    "unit": "ms"
+   }
+  },
+  {
+   "id": "garage|metal ALL|busy",
+   "part": "garage",
+   "what": "metal every change, busy summed",
+   "value": 2349,
+   "rule": {
+    "rel": 0.06,
+    "abs": 60,
+    "unit": "ms"
+   }
+  }
+ ]
+}
