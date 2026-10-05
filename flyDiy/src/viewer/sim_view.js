@@ -55,8 +55,12 @@ function simViewDefSig(def) {
 //   br       the broken members, in order; broken[bi] 1 for each
 //   pc       each node's piece (0 = the core: the piece the body's refs are on), null while one piece
 //   set      each member's permanent set (dmg_overlay.js setOf), 0 where none
+//   vS       G2001 (DMG-SCUFF): bumps when the plastic work or the slide work moved (the scuff's event)
+//   wB       each member's plastic work (J); sW / sD / sN / sG each node's slide work (J), its direction and the side it
+//            was pushed from (unit, body frame: aft, up, right) and its share on soft ground - skin_scuff.js reads them
 function simViewDmgState(n, nb) {
-  return { v: 0, vB: 0, n, nb, br: [], broken: new Uint8Array(nb), pc: null, nPc: 1, set: new Float32Array(nb), sB: '0:0', sS: '0:0' };
+  return { v: 0, vB: 0, n, nb, br: [], broken: new Uint8Array(nb), pc: null, nPc: 1, set: new Float32Array(nb), sB: '0:0', sS: '0:0',
+           vS: 0, wB: new Float32Array(nb), sW: new Float32Array(n), sD: new Float32Array(n * 3), sN: new Float32Array(n * 3), sG: new Float32Array(n) };
 }
 function simViewDmgApply(D, P) {
   if (!P) return D;
@@ -69,6 +73,14 @@ function simViewDmgApply(D, P) {
   }
   if (P.st) { D.set.fill(0); for (let j = 0; j + 1 < P.st.length; j += 2) if (P.st[j] < D.nb) D.set[P.st[j]] = P.st[j + 1]; }
   if (P.sS) D.sS = P.sS;
+  // G2001: the scuff's inputs, whole each time they come (a payload of the base's kind carries neither key)
+  if (P.wb || P.sc || (P.st && D.vS)) {
+    D.wB.fill(0); D.sW.fill(0); D.sD.fill(0); D.sN.fill(0); D.sG.fill(0);
+    if (P.wb) for (let j = 0; j + 1 < P.wb.length; j += 2) if (P.wb[j] < D.nb) D.wB[P.wb[j]] = P.wb[j + 1];
+    if (P.sc) for (let j = 0; j + 8 < P.sc.length; j += 9) { const i = P.sc[j]; if (!(i < D.n)) continue;
+      D.sW[i] = P.sc[j + 1]; for (let k = 0; k < 3; k++) { D.sD[i*3+k] = P.sc[j + 2 + k]; D.sN[i*3+k] = P.sc[j + 5 + k]; } D.sG[i] = P.sc[j + 8]; }
+    D.vS++;
+  }
   D.v++;
   return D;
 }

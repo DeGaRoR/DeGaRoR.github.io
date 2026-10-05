@@ -1374,7 +1374,7 @@ void main() {
 // EXPORTS
 // ---------------------------------------------------------------------------
 const AEROWX_API = {
-  AERO_WX_MACRO, AERO_WX_LAYERS, AERO_WX_COL, AERO_WX_KNOB, AERO_WX_SUB,
+  AERO_WX_MACRO, AERO_WX_LAYERS, AERO_WX_COL, AERO_WX_KNOB, AERO_WX_SUB, aeroWxSubOf,
   AERO_WX_DEF, AERO_WX_GLOSS_OK, AERO_WX_NL, AERO_WX_NE, AERO_WX_NW, AERO_WX,
   aeroWxResolve, aeroWxMacroFromSpec, aeroWxMacroToSpec,
   aeroWxGrunge, aeroWxGrungeTex, AERO_WX_GRUNGE_PX, aeroWxCavity, aeroWxBakeCavity,

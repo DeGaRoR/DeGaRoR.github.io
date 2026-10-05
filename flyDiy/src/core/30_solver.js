@@ -414,6 +414,34 @@ function makeSim(def, world) {
   // (bm.sec, G1803; DEFORM §10). Written only where the total is (beamYield, beamKink: the armed path), zeroed by reset()
   DMG.wB = new Float64Array(nb);
   const dmgW = (bi, w) => { DMG.work += w; DMG.wB[bi] += w; };
+  // G2001 (DMG-SCUFF): THE SLIDE WORK PER NODE (J) - what the drawing paints as scrapes (skin_scuff.js), recorded only
+  // with the layer on and never read back by the physics (no force, no state the step uses): the ground's friction work
+  // on a node that is not a wheel (Fn's own Coulomb term, kf |v|^2 dt), and a node's rub along a trunk (the trunk's push
+  // has no friction in the solver: rubbed at a nominal mu 0.5 of its push, bark on a skin, for the picture only). Beside
+  // each node's work, in the BODY frame at that substep (aft, up, right: xAft / yUp / zRt): the slide's direction and the
+  // side it was pushed from (into the surface) weighted by the work, and the work done on SOFT ground (grass, forest
+  // floor, sand: the stain). `scN` counts the substeps that slid (the hop's signature). Zeroed by reset()
+  DMG.sW = new Float64Array(DMG_ON ? n : 0); DMG.sD = new Float64Array(DMG_ON ? n * 3 : 0);
+  DMG.sN = new Float64Array(DMG_ON ? n * 3 : 0); DMG.sG = new Float64Array(DMG_ON ? n : 0); DMG.scN = 0; DMG.scW = 0;
+  const SCUFF_SOFT = [1, 0, 0, 1, 0, 0, 0, 1];      // GROUND_SURF's classes: 0 grass, 3 forest floor, 7 sand
+  function scuffAdd(i, w, dx, dy, dz, ix, iy, iz, soft) {
+    const i3 = i * 3;
+    DMG.sW[i] += w; DMG.scW += w; DMG.scN++;
+    DMG.sD[i3] += w * (dx * xAft[0] + dy * xAft[1] + dz * xAft[2]);
+    DMG.sD[i3+1] += w * (dx * yUp[0] + dy * yUp[1] + dz * yUp[2]);
+    DMG.sD[i3+2] += w * (dx * zRt[0] + dy * zRt[1] + dz * zRt[2]);
+    DMG.sN[i3] += w * (ix * xAft[0] + iy * xAft[1] + iz * xAft[2]);
+    DMG.sN[i3+1] += w * (ix * yUp[0] + iy * yUp[1] + iz * yUp[2]);
+    DMG.sN[i3+2] += w * (ix * zRt[0] + iy * zRt[1] + iz * zRt[2]);
+    if (soft) DMG.sG[i] += w;
+  }
+  // a node pushed off a trunk (normal nx, nz, horizontal) by F: its velocity ALONG the bark (the normal part taken off)
+  function scuffTrunk(i, F, nx, nz, dt) {
+    if (!(F > 0)) return;
+    const i3 = i * 3, vn = v[i3] * nx + v[i3+2] * nz, tx = v[i3] - vn * nx, ty = v[i3+1], tz = v[i3+2] - vn * nz;
+    const st = Math.sqrt(tx * tx + ty * ty + tz * tz);
+    if (st > 0.05) scuffAdd(i, 0.5 * F * st * dt, tx / st, ty / st, tz / st, -nx, 0, -nz, false);
+  }
   // per node: the members still holding it (an ORPHAN, every member broken, is debris: gravity and the ground
   // only, its aero dropped - a lone node carries a strip's lift on its own few kilos and would be flung)
   const nodeDeg = new Int32Array(n), nodeDeg0 = new Int32Array(n), orphan = new Uint8Array(n);
@@ -1013,6 +1041,7 @@ function makeSim(def, world) {
     DMG.gPeak = 0; DMG.setMax = 0; DMG.orphans.length = 0; DMG.members = 0; DMG.dents = 0; DMG.primary = 0; DMG.firstPrimary = null; DMG.holed = 0; gF = 0; cIx = cIy = cIz = 0;
     for (const b of beams) b.yielded = false;
     DMG.wB.fill(0);   // G1802
+    if (DMG_ON) { DMG.sW.fill(0); DMG.sD.fill(0); DMG.sN.fill(0); DMG.sG.fill(0); DMG.scN = 0; DMG.scW = 0; }   // G2001
   }
   // (G1816) why a member broke, for the break-order gate: 'fold' (bent round a trunk past its fold angle), 'kink'
   // (crushed past ecu), 'ragged' (spruce's last stage), 'tension' (brittle at its strength, or ductile at etu), 'group'
@@ -2485,6 +2514,8 @@ function makeSim(def, world) {
           const kf = Math.min(0.8 * Fn / sp, m[i]/dt);
           f[i3] -= kf*vx; f[i3+2] -= kf*vz;
           cIx -= kf * vx * dt; cIz -= kf * vz * dt;
+          if (DMG_ON && sp > 0.05) scuffAdd(i, kf * sp * sp * dt, vx / sp, 0, vz / sp, 0, -1, 0,   // G2001: the slide's work
+            SCUFF_SOFT[world && world.surface ? world.surface(p[i3], p[i3+2]) : 0] === 1);
         }
       }
     }
@@ -2574,6 +2605,7 @@ function makeSim(def, world) {
         f[ia] += fa * nx; f[ia+2] += fa * nz; f[ib] += fb * nx; f[ib+2] += fb * nz;
         cIx += (fa + fb) * nx * dt; cIz += (fa + fb) * nz * dt;
         _tkHits++;
+        if (DMG_ON) scuffTrunk(b.a, fa, nx, nz, dt), scuffTrunk(b.b, fb, nx, nz, dt);   // G2001: the rub along the bark
       }
     }
     // G1470: DEBRIS (a node every member of which broke - an engine torn off its mount) meets the trunks as a point:

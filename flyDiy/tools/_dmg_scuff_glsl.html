@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<!-- DMG-SCUFF (G2006): the damage block compiled and linked in the three programs a flown exterior draws with - the live
+     AEROSKIN, the glass (AEROGLASS) and a baked-style physical material (normal / roughness / clear-coat maps on uv1, as
+     flown_bake.js materialOf makes) - each with and without the wrapper; window.__GLSL = { ok, errors, programs }.
+     Serve the repo root (tools/_serve.js) and open /flyDiy/tools/_dmg_scuff_glsl.html; tools/dmg_scuff_bench.js drives it. -->
+<meta charset="utf-8"><title>dmg scuff glsl</title>
+<canvas id="c" width="256" height="256"></canvas>
+<script src="../vendor/three.min.js"></script>
+<script src="../src/core/00_registry.js"></script>
+<script src="../src/core/60_gen_spec.js"></script>
+<script src="../src/viewer/skin_tex.js"></script>
+<script src="../src/viewer/aeroweather.js"></script>
+<script src="../src/viewer/aeroskin.js"></script>
+<script src="../src/viewer/skin_scuff.js"></script>
+<script>
+(async function () {
+  const out = window.__GLSL = { ok: false, errors: [], programs: [], links: 0 };
+  try {
+    const cv = document.getElementById('c');
+    const gl = cv.getContext('webgl2');
+    const lp = gl.linkProgram.bind(gl); gl.linkProgram = p => { out.links++; return lp(p); };
+    const R = new THREE.WebGLRenderer({ canvas: cv, context: gl });
+    R.debug.checkShaderErrors = true;
+    R.debug.onShaderError = (g, prog, vs, fs) => { out.errors.push({ vs: g.getShaderInfoLog(vs), fs: g.getShaderInfoLog(fs), prog: g.getProgramInfoLog(prog) }); };
+    const A = AEROSKIN, S = SKIN_SCUFF, U = S.uniforms(THREE);
+    U.uDmgOn.value = 1;
+    const scene = new THREE.Scene(), cam = new THREE.PerspectiveCamera(40, 1, 0.05, 50);
+    cam.position.set(1.2, 0.8, 1.6); cam.lookAt(0, 0, 0);
+    const L = new THREE.DirectionalLight(0xffffff, 3); L.position.set(2, 3, 1); scene.add(L, new THREE.AmbientLight(0xffffff, 0.4));
+    const geo = () => {
+      const g = new THREE.SphereGeometry(0.5, 48, 32), n = g.attributes.position.count;
+      const a = new Uint8Array(n * 4), d = new Int8Array(n * 4);
+      for (let v = 0; v < n; v++) { a[v * 4] = 200; a[v * 4 + 1] = 180; a[v * 4 + 2] = 120; a[v * 4 + 3] = 100; d[v * 4] = 127; d[v * 4 + 3] = (v % 3); }
+      g.setAttribute('aDmg', new THREE.BufferAttribute(a, 4, true)); g.setAttribute('aDmgD', new THREE.BufferAttribute(d, 4, true));
+      g.setAttribute('aStruct', new THREE.BufferAttribute(new Float32Array(n * 4), 4));
+      g.setAttribute('aCav', new THREE.BufferAttribute(new Float32Array(n), 1));
+      g.setAttribute('uv1', new THREE.BufferAttribute(new Float32Array(n * 2), 2));
+      return g;
+    };
+    const mats = [];
+    const live = A.aeroMaterial(THREE, { finish: 'alclad', tintLin: 0xd02020, side: THREE.DoubleSide });
+    const glass = A.aeroGlass(THREE, { tintLin: 0x88aaaa, opacity: 0.2 });
+    const tex = new THREE.DataTexture(new Uint8Array([128, 128, 255, 255]), 1, 1); tex.channel = 1; tex.needsUpdate = true;
+    const baked = new THREE.MeshPhysicalMaterial({ map: tex, normalMap: tex, roughnessMap: tex, metalnessMap: tex, clearcoat: 1, clearcoatMap: tex, side: THREE.DoubleSide });
+    const cp = (m, k) => { const c = new m.constructor(); c.copy(m); if (m.defines) c.defines = Object.assign({}, m.defines); c.userData = Object.assign({}, m.userData); c.onBeforeCompile = S.wrap(m.onBeforeCompile || null, k, U); c.needsUpdate = true; return c; };
+    for (const [m, k] of [[live, 'live'], [glass, 'glass'], [baked, 'baked']]) { mats.push([m, k + ':plain']); mats.push([cp(m, k), k + ':dmg']); }
+    let x = -1.5;
+    for (const [m, k] of mats) { const me = new THREE.Mesh(geo(), m); me.position.x = x; x += 0.6; me.name = k; scene.add(me); }
+    R.compile(scene, cam);
+    R.render(scene, cam);
+    for (const p of R.info.programs) out.programs.push({ name: p.name, key: p.cacheKey.slice(0, 60), usedTimes: p.usedTimes });
+    out.ok = out.errors.length === 0;
+    const px = new Uint8Array(4); gl.readPixels(128, 128, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px); out.px = Array.from(px);
+  } catch (e) { out.errors.push(String(e && e.stack || e)); }
+  out.done = true;
+})();
+</script>

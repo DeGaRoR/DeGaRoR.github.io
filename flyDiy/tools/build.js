@@ -491,6 +491,7 @@ const MANIFEST = {
               'dmg_overlay.js',
               // G1851 (DMG-D4a): the skin over a break (window.SKIN_BREAK, pure; app.js poseModel reads it)
               'skin_break.js',
+              'skin_scuff.js',          // G2000 (DMG-SCUFF): the damage drawn - after skin_break.js, before app.js
               'world_boot.js', 'app.js',
               'dev_panel.js'],   // (the WORLD rail, world_rail.js, rides the world pack above - G582)
   },

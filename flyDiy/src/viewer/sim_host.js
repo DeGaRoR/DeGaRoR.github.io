@@ -235,7 +235,27 @@ const SIM_DMG_SET_MIN = 1e-4;
 function simDmgSigs(sim) {
   const D = sim.damage && sim.damage();
   if (!D) return null;
-  return [D.breaks + ':' + (D.cl ? D.cl.length : 0), D.yields + ':' + D.dents];
+  // G2001 (DMG-SCUFF): the slide work joins the set's signature in coarse steps (each ~19 % more work, from 1 J), and
+  // only once there is some - with nothing slid (and always with the layer off) the signature is the base's string
+  const q = D.scW >= 1 ? Math.floor(4 * Math.log2(D.scW)) + 1 : 0;
+  return [D.breaks + ':' + (D.cl ? D.cl.length : 0), D.yields + ':' + D.dents + (q ? ':' + q : '')];
+}
+// G2001 (DMG-SCUFF): WHAT THE SKIN'S DAMAGE RECORDS READ, beside the sets - each member's plastic work (D0's DMG.wB, J)
+// and each node's slide work with its direction, the side it was pushed from (both in the body frame) and its share on
+// soft ground (30_solver.js scuffAdd). Sparse, rounded; absent (no key) when there is none, so a payload of the base's
+// kind is the base's bytes
+function simDmgScuff(sim, out) {
+  const D = sim.damage(), wb = [], sc = [];
+  if (D.wB) for (let bi = 0; bi < D.wB.length; bi++) if (D.wB[bi] >= 0.05) wb.push(bi, Math.round(D.wB[bi] * 10) / 10);
+  if (D.sW) for (let i = 0; i < D.sW.length; i++) {
+    const w = D.sW[i];
+    if (!(w >= 0.05)) continue;
+    const r = x => Math.round(x / w * 1000) / 1000;
+    sc.push(i, Math.round(w * 10) / 10, r(D.sD[i*3]), r(D.sD[i*3+1]), r(D.sD[i*3+2]), r(D.sN[i*3]), r(D.sN[i*3+1]), r(D.sN[i*3+2]), r(D.sG[i]));
+  }
+  if (wb.length) out.wb = wb;
+  if (sc.length) out.sc = sc;
+  return out;
 }
 // the pieces: DMG-D1b's own rule (30_solver.js pieces()), off the sim's public state - a payload's time, never a step's
 function simDmgPieces(sim, coreNode) {
@@ -267,10 +287,10 @@ function simDmgHop(sim, hop, coreNode, win) {
   if (sg[0] !== hop.sB) {
     hop.sB = sg[0]; hop.sS = sg[1]; hop.t = sim.t;
     const D = sim.damage(), pc = D.breaks ? simDmgPieces(sim, coreNode) : null;
-    out = { sB: sg[0], sS: sg[1], br: D.broken.slice(), pc: pc ? Array.from(pc) : null, st: simDmgSets(sim) };
+    out = simDmgScuff(sim, { sB: sg[0], sS: sg[1], br: D.broken.slice(), pc: pc ? Array.from(pc) : null, st: simDmgSets(sim) });
   } else if (sg[1] !== hop.sS && !(sim.t - hop.t < (win == null ? SIM_DMG_SET_S : win))) {
     hop.sS = sg[1]; hop.t = sim.t;
-    out = { sS: sg[1], st: simDmgSets(sim) };
+    out = simDmgScuff(sim, { sS: sg[1], st: simDmgSets(sim) });
   } else return null;
   hop.ms = clk.now() - t0;          // the payload's build (the union-find, the sets): GATE DMGSKIN reads it
   return out;
@@ -931,4 +951,4 @@ if (typeof window !== 'undefined') {
 if (typeof module !== 'undefined' && module.exports)
   module.exports = { SIM_HOST_KEYS, SIM_HOST_CORE, SIM_HOST_DT, SIM_HOST_CATCH, SIM_HOST_STALL_MS, SIM_SNAP, simHostTrimBoot, simHostBootBytes, simHostWorldOp, simHostIsWorldOp, simHostMakeWorld, simHostProbe, simHostPlace,
                      simHostFetchBoot, simHostPlain, makeSimHost, simHostDefSig, simHostBody, simHostSource, simHostStart,
-                     simDmgHop, simDmgHop0, simDmgPieces, simDmgSets, SIM_DMG_SET_S };
+                     simDmgHop, simDmgHop0, simDmgPieces, simDmgSets, simDmgScuff, SIM_DMG_SET_S };
