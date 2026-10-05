@@ -356,9 +356,10 @@ const GEN_MATERIALS = {
 //        Handbook ch. 5, work to maximum load): 0.12 rad. Carbon: 0.05.
 const GEN_CRASH_TUBE_DT = 30;
 // G1898 (DEFORM COORDINATOR): THE DAMAGE LAYER'S DEFAULT - ONE CONSTANT. A build's params.damage (true / false) wins;
-// else the page's ?damage=1|0 (FLYDIY_DAMAGE, the worker's from its init); else this. Off until DMG-D2 anchors the
-// limits on the certificate (DEFORM-AND-BREAK §11.4: train 35 flips it); params.damage === false stays master's bits.
-const GEN_DAMAGE_DEFAULT = false;
+// else the page's ?damage=1|0 (FLYDIY_DAMAGE, the worker's from its init); else this. ON since G1837 (DMG-D2b; DEFORM-AND-BREAK
+// §11.4, train 35): the limits are anchored on the certificate (DMG-D2a) with the gear's own bracket and every ordinary operation
+// at most 2/3 of its certified yield (DMG-D2b, dm14); params.damage === false (or ?damage=0) stays master's bits.
+const GEN_DAMAGE_DEFAULT = true;
 const GEN_CRASH = {
   tubeFabric: { ty: 460e6, tu: 460e6 * 95 / 75, etu: 0.08, cy: 460e6, ecu: 0.03, thf: 1.2 },
   wood:       { ty: 70e6,  tu: 70e6,            etu: 0,    cy: 39e6,  ecu: 0.03, thf: 0.12 },
