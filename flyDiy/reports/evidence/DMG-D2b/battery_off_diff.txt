@@ -1,0 +1,7 @@
+# GATES_CORE=1 run_gates --only=LOAD,BENCH,FLEX,SIMWORKER,SOAR,GEN,MASS --verbose --jobs=2; base = claude/dmg-integration 51a2fec (built), this = claude/dmg-d2b-gear 8ab6b58; damage OFF (the default)
+base: BATTERY: PASS
+this: BATTERY: PASS
+same bytes (3): MASS BENCH SOAR
+numbers only (4): GEN SIMWORKER FLEX LOAD
+differ (0): 
+

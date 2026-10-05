@@ -74229,6 +74229,281 @@ Tools:
 - Housekeeping: a stray empty file `/p2.js` at the container's filesystem root (outside the repo), left by a mistyped heredoc; my sandbox would
   not remove it. It is not in the repo and the container is ephemeral.
 
+## G1835-G1839 DMG-D2b GEAR - THE GEAR'S OWN CALIBRATION (THE BRACKET), HEADROOM IN NORMAL OPERATIONS (dm14: EVERY ORDINARY OPERATION AT MOST 2/3 OF ITS CERTIFIED YIELD ON ALL FIVE BUILDS), THE SWITCH ON, GATE DMGGEAR (2026-10-05, DMG-D2b for the DEFORM COORDINATOR, cloud, node only; branch claude/dmg-d2b-gear off claude/dmg-integration = 2e5edc2 (D2a + train 32), then 51a2fec (train 33, G1898.5-.7, §11.1 / §11.3's updates) merged in; G1839 unused)
+
+DEFORM-AND-BREAK §4.3, §7.3, §7.4, §11.1-§11.4, §12 dm10 / dm13 / dm14. **DMG-DAMP was not merged**: it is READY (8a22a4f) but the
+coordinator's §11.1 (51a2fec, newer than my brief) lands it with DMG-TYRE / DMG-HULL, not in train 35. **origin/master's train 33** came in
+through dmg-integration (51a2fec). Per §11.3's newer rule (the user: no full battery per session) I ran my gate, the DMG set,
+TREECRASH, the off-bytes gates my files reach (a solver and a certificate change: LOAD BENCH FLEX SIMWORKER SOAR GEN MASS) and,
+for the switch, those plus the flight gates most exposed to it - not the 41-gate battery, which is the coordinator's.
+
+**THE TWO SHAs (A0 takes or holds the switch at train 35):**
+- **DAMAGE STILL OFF: `@@SHA_OFF@@`** - everything below (the bracket, the headroom, GATE DMGGEAR, BIPLANE's probe), GEN_DAMAGE_DEFAULT false.
+- **DAMAGE ON: `@@SHA_ON@@`** - that one commit flips GEN_DAMAGE_DEFAULT (60_gen_spec.js) to true and nothing else; the READY commit
+  after it only fills this entry's SHAs.
+
+### What changed, in one paragraph
+On D2a's certificate an ordinary circuit on the Cessna floats reached 0.98 of a member's certified yield and the metal Cessna's
+0.74, and the gear kept D1a's physics (a fitting at 1.15 x the gear class's billed tube - 137-214 kN on the metal Cessna, ten
+times what its gear carries: no landing could bend it). Now the certificate (66_gen_cert.js, GEN_CERT_V 2) flies the gear's own
+cases - the FAR 23 landing attitudes at the touchdown speed, the ground loads, the roughest ground, the water loads, a float's
+drifting step landing and its water handling - and the solver stamps every gear joint from them (30_solver.js gearStamp): the
+wheel's gear gives in compression where a steel section sized for the ultimate yields and crushes over its archetype's travel,
+every gear joint in tension is its lug, brittle at the ultimate. Every place the headroom was missing was a case missing or a
+member on the certificate that should not be (the engine's own body), each fixed there; no global factor, kappa untouched. Result:
+the bracket holds the limit sink with no set, yields the gear past it, breaks the gear first at NASA 172 Test 1's point; every
+ordinary operation on the five builds reads 0.10-0.66 of its certified yield (the table below); §7.4's ground loop (the Cub),
+porpoise (the metal Cessna, the nose collapses on the third bounce) and float dig-in (both floatplanes' strut fittings) happen.
+**G1837**: the one constant flipped in its own commit (the two SHAs above); with the layer ON as the default, of the 20 gates run
+both ways 17 read the same bytes or only their clocks, TREEHIT and OBSTACLE move as §11.4 predicts (a wing breaks on a trunk; the nose
+dents against an obstacle) and pass, and BIPLANE's wire-law probe failed until it said what it tests (damage off) - nothing yields
+in any ordinary flight gate.
+
+### THE MEMBERS THAT SAT AT 0.98 AND 0.74, AND WHY (G1836; the circuit traced phase by phase, then frame by frame)
+- **The Cessna on floats, 0.98: CGE-ENGL / CGE-ENGR, the engine's CG locators** (the members from the engine's centre of mass to
+  the propeller's flange), in tension in the ROLLOUT, 0.1 s after the pilot's water touchdown at 2.7 m/s sink (pitch -1.3 deg,
+  91 km/h - at the build's own FAR 23.473 limit sink, 2.54 m/s). The engine (199 kg on CGE) RINGS on its mount at ~20 Hz:
+  0 -> 0.98 -> 0 -> 0.69 every three frames, decaying in 0.8 s. A static case never loads these members (a 1 g engine load
+  puts 0.00 kN through them down, 1.02 kN per g fore and aft - in COMPRESSION forward); their certified yield (4.70 kN) was
+  the BOW case's ringing. They are the crankcase, not the mount: **the engine's own body is off the certificate** (both ends on
+  one engine's ENG / CGE nodes: the flange pair and the CG locators keep their physics, 34 kN); the MOUNT (the bearer and its
+  bolts, D1a's fittings) is what the certificate stamps and what lets go. The same circuit then read 0.70 on the firewall's posts
+  (S0BL-S0TL, impactNose) and 0.61 on the wing (WR-WR, bow): the landing loads at the gear's ultimate (below) took those.
+- **The metal Cessna, 0.74: HR-HR, the stab's root cross-tie** - 18 cm between the stab's two root posts, each braced to the
+  fuselage, so no load path crosses it: 0.29-0.35 kN in every static case, its yield on the FLOOR (0.68 kN = kappa x 6.83 kN).
+  The circuit reads 0.005-0.03 of it all the way round but for 9 s of the FINAL: the flaps running out at 34 m/s (with the flaps
+  locked up the run reads 0.03; with the throttle held, 0.84) put a quasi-static 0.18 kN through it and a one-frame ring took it
+  to 0.50. Tried and measured, NOT the cause: 23.345's flaps-extended case (0.14 kN through it), 23.427's unsymmetrical tail
+  (it loads the stab's centre members HB-HR, not this one), a flown elevator doublet at V_F with the flaps down (0.25 kN
+  tension). The flown elevator doublet at V_A put **1.99 kN through it in COMPRESSION** and 0.49 in tension: a ringing member
+  rings both ways about whatever it carried, so **a flown control case's larger peak certifies a member both ways**
+  (GEN_CERT_RING) - its yield 2.0 kN; the circuit's worst member is now 0.36 (S1BL-S1BR, in the FINAL).
+
+### G1835 - THE GEAR BRACKET (66_gen_cert.js the cases; 30_solver.js gearStamp; DEFORM §7.3)
+**The gear's own cases** (FAR 23 as recalled - **A0 to open 23.473-.499 and 23.521-.537 on the box** before any number becomes a
+gate; the regulation's numbers are written from its text as recalled, never from a search summary):
+
+| case | what | FAR 23 (as recalled) |
+|---|---|---|
+| drop (D2a's) | the settled aeroplane dropped at the 10 ft/s cap, no lift | 23.473 / .725 |
+| dropLevel (taildragger) | the three-point attitude taken out: a wheel landing on the mains, at V_S0 forward (spin-up, spring-back) | 23.479 |
+| dropNoseUp (tricycle) | 8 deg nose-up, the mains first, at V_S0 forward | 23.481 |
+| dropOne | rolled 4 deg, one wheel (one float) first, at V_S0 forward | 23.483 |
+| drop473 | the touchdown at the build's own limit sink (under the cap), level, at V_S0: the frame's dynamic answer is not monotone in the sink (the floats' wing spar took more at 2.54 m/s than in the one-float landing at 3.05) | 23.473 |
+| gSideL / gSideR | the mains only, 1.33 W vertical shared, 0.5 W inboard on one wheel and 0.33 W outboard on the other | 23.485 |
+| gBrake | 1.33 W on the mains with 0.8 of it aft | 23.493 |
+| gTailObs, gTailSideL / R | the tail-down landing's tail reaction up and aft at 45 deg; the static load with an equal side load | 23.497 |
+| gNoseAft / Fwd / SideL / SideR | 2.25 x the nose's static reaction with 0.8 aft / 0.4 forward / 0.7 across | 23.499 |
+| taxiRough | 12 s at 8 m/s over the roughest ground reasonably expected: bumps of 4 cm, 3 m apart (a STATED field - the regulation names none) | 23.491 |
+| wStep, wUnsymL / R, wOneL / R | the water reaction n_w = C1 V_S0^2 / (tan^(2/3) beta W^(1/3)), C1 0.012 (2.30 the Cessna on floats, 2.19 the twin), the wing's lift 2/3 W: through both steps; 0.75 of it on each with 0.25 tan beta across; 0.75 of it on one float | 23.527 / .529 / .535 |
+| dropStep, dropDriftL / R | the water drop at the cap at V_S0, level; again drifting 0.2 V_S0 either way (the demonstrated crosswind component): 23.529's side load is a tenth of the vertical, and the ordinary crosswind landings rang the struts to 1.5-1.8 x their limit | 23.529, 23.233 |
+| wWeave | the run-out at 0.6 V_S0, the water rudder hard over and back, 3 cycles: the twin's crosswind circuit rang a float strut to 1.72 x its envelope as its pilot weaved on the run-out | (no FAR case) |
+
+**The stamp (gearStamp)** - every gear member that is a JOINT (D1a's fittings: in the lattice all five members from an axle to the
+body carry the gear's load together - the near-vertical snap-blocker and the braces a landing's push, the cross wires a side load;
+the member drawn as the spring carries no more than they do) or a pair's own link (the axle bar, the floats' spreaders):
+- **compression, a wheel's gear GIVES**: no set to its limit; it yields where a steel section sized for the ultimate yields,
+  1.5 F_l,c x 4130's ty / tu = **1.18 F_l,c**, and crushes at that over its archetype's **travel** (a share of the member's length,
+  then it kinks and its group lets go): **spring steel 0.15, oleo 0.10, bungee 0.04 (the lug, hardly), the nose fork 0.06**;
+- **compression, a float's struts and spreaders**: a truss with no spring - they crush at the ultimate (D2a's rule);
+- **tension, every gear joint is its LUG**: brittle at 1.5 F_l,t m (dm13: the joint the weaker);
+- **the floor: 0.25 W** at the limit (the cross wires no case loads much) - NOT D1a's kappa x physics (the gear class's billed
+  tube is a stand-in, ten times what the gear carries; with it the gear never gave);
+- **not capped at its physics** (§4.1: a leg is a spring standing for a whole leg);
+- a float's own hull truss (inside its rigid cluster, D3's part) keeps D1a's physics.
+- **The gear's plastic work is not the airframe crushing**: dmgFrame's CRASH_J (1.5 kJ) now counts the airframe's work only
+  (airWork, summed only once the total passes it) - a spread gear after a hard landing is a dent (grounded, dm10), not a crash.
+  A gear member BREAKING is still a crash (TREE-CRASH's primary-member rule).
+
+**The bracket per build** (GATE DMGGEAR §1; damage on, the certificate):
+
+| build | gear | joints | compression: gives at (F_l,c x 1.18 / floats: crush at the ultimate) | tension: the lug | travel | drop at its 23.473 sink | at 1.2 x the cap (3.66 m/s) | NASA 172 Test 1 (7 m/s down, 18 m/s fwd) |
+|---|---|---|---|---|---|---|---|---|
+| the user's Cub | taildragger, bungee | 15 | 1.38-7.42 kN | 1.84-4.52 kN | 0.04 | 2.13 m/s: no set | the gear yields (1 member), nothing breaks | breaks: the tailwheel first (TW-TPT kinked), 15 gear + 72 airframe members |
+| Jodel | taildragger, oleo | 15 | 1.34-9.11 kN | 1.79-8.22 kN | 0.10 | 2.17 m/s: no set | holds, just under its yield | the mains spread (8 set), the spruce axle bar breaks (ragged) - no gear group off |
+| metal Cessna | tricycle, spring | 15 | 2.57-19.77 kN | 3.41-11.26 kN | 0.15, the nose 0.06 | 2.38 m/s: no set | holds, just under its yield | breaks: the NOSE gear first (TW-ENGR kinked), 15 gear + 16 airframe |
+| Cessna floats | floats | 20 | 5.92-103.77 kN | 13.94-79.49 kN | - | 2.54 m/s: no set | holds (no spring) | (its row is the dig-in) |
+| twin floatplane | floats | 20 | 2.11-32.41 kN | 2.48-15.22 kN | - | 2.13 m/s: no set | holds (no spring) | (its row is the dig-in) |
+
+§7.3's "yields between V and 1.2 V" holds on the Cub (the bungee's vee); the oleo and the spring gear give just past 1.2 V (their
+yield is 1.18 F_l, and the drop's force grows a little under linearly with the sink). The 23.727 row checks the other half: nothing
+breaks, and the airframe takes no set.
+
+- **NASA 172 Test 1's expected outcome** (nose gear off, mains spread, cabin intact): the metal Cessna's nose gear lets go first;
+  then its engine mount and wing attachments (the drop has no lift: 7 m/s with the wing's whole weight on its roots) - the cabin
+  is not intact. DMG-TUNE's row (§7.4), REPORTED.
+
+### G1836 - THE HEADROOM (GATE DMGGEAR §2; the worst member over its certified yield, under the probe)
+Ordinary operations, all five builds: the circuit, a crosswind circuit at the demonstrated component (23.233's 0.2 V_S0, as
+recalled: 3.3-4.2 m/s across), a taxi on grass at 8 m/s, on a rough field (2 cm bumps 3 m apart - the certificate's 23.491 field
+is 4 cm) at 8 and 12 m/s, or on the water at 4 m/s and in a light chop (5 m/s of wind), touchdowns at the normal sink (1.0 m/s)
+and a firm one (1.5 m/s) at V_S0; and the build's own FAR 23.473 limit sink, READ AS the gear's own limit case (the brief's
+"up to the gear's demonstrated limit" - see the open questions): the airframe at most 2/3, the gear under 1.
+
+| build | td 1.0 | td 1.5 | td 23.473 (airframe) | taxi grass | rough 8 m/s | rough 12 m/s | water 4 m/s | chop | circuit | crosswind circuit |
+|---|---|---|---|---|---|---|---|---|---|---|
+| the user's Cub | 0.35 -> **0.34** | 0.36 -> **0.38** | 0.49 -> **0.39** | 0.23 -> **0.32** | 0.24 -> **0.32** | 0.23 -> **0.32** | - | - | 0.29 -> **0.33** | 0.44 -> **0.33** |
+| Jodel | 0.29 -> **0.34** | 0.39 -> **0.46** | 0.53 -> **0.38** | 0.15 -> **0.15** | 0.70 -> **0.39** | 0.85 -> **0.44** | - | - | 0.32 -> **0.29** | 0.21 -> **0.20** |
+| metal Cessna | 0.33 -> **0.36** | 0.45 -> **0.48** | 0.67 -> **0.52** | 0.35 -> **0.18** | 0.49 -> **0.63** | 0.46 -> **0.55** | - | - | 0.74 -> **0.36** | 0.77 -> **0.61** |
+| Cessna floats | 0.79 -> **0.38** | 0.88 -> **0.43** | 1.19 -> **0.66** | - | - | - | 0.25 -> **0.10** | 0.30 -> **0.18** | 0.98 -> **0.37** | 0.51 -> **0.36** |
+| twin floatplane | 0.50 -> **0.33** | 0.57 -> **0.39** | 0.65 -> **0.46** | - | - | - | 0.29 -> **0.19** | 0.29 -> **0.19** | 0.35 -> **0.27** | 1.22 -> **0.40** |
+
+Before = DMG-D2a's certificate on the base's own core (51a2fec, the same gate's parts: `DMGGEAR_PARTS=ops,circ,xw`); after = this
+branch. **Before: 10 of 38 rows over 2/3, the worst 1.22 (the twin's crosswind circuit: a float strut on the run-out) and 1.19 (the
+floats' touchdown at its own limit sink). After: all 38 at most 0.66.** Some rows rise (the Cub's taxis 0.23 -> 0.32, the metal
+Cessna's rough field 0.49 -> 0.63): those are the GEAR now reading against its own bracket instead of D1a's tube - before, a gear
+member was ten times stronger than its gear. The circuit's worst member is now the gear (the roll-out) on most builds. The Cub's,
+the Jodel's and the Cessna on floats' circuits end at the 340 s bound (outcome null), as in TREECRASH's own circuit.
+
+**The causes, each fixed where it was** (in the cases and the envelope; no factor on the limits themselves - kappa, yTol, m, uMember,
+uFit untouched; landK below is a reading per case class, see the open questions):
+1. **The engine's own body on the certificate** (above): off it.
+2. **No case flew the flaps**: 23.345's flaps-extended case (2.0 g at V_F, trimmed).
+3. **No case loaded the stab's centre section**: 23.427(b)'s unsymmetrical tail (100 % / 100 - 10 (n - 1) % of the elevator cases).
+4. **No case rang the airframe after a step**: the controls flown (elevator and rudder doublets at V_A with the throttle chopped,
+   the elevator again at V_F with the flaps down) - and a flown control case's peak certifies a member both ways.
+5. **The airframe behind the gear was certified at the gear's LIMIT** - so a landing at the limit sink sat at the airframe's
+   certified yield (the floats' wing 1.00 at 23.473's 2.5 m/s, its engine bay 0.70 in the circuit's touchdown). **The gear is the
+   fuse**: §7.3's bracket yields the gear past its limit and breaks it past 1.2 V, so what carries its loads into the airframe must
+   hold, with no set, what the gear can deliver before it lets go - the landing, ground and water cases certify the AIRFRAME at the
+   gear's ultimate, **GEN_CERT.landK = 1.5** (the gear's own members take them at 1). §7.4's NASA Test 1: the gear separates, the
+   cabin intact. The bench's first joint is unchanged on all five builds (the static first break 5.98-5.99 g, as D2a's).
+6. **No case was the roughest ground** (23.491): on the way the rough taxi read 0.69-0.79 on a 4 cm field and the Jodel's gear 0.96
+   on 3 cm: taxiRough (4 cm), the ordinary rough field 2 cm.
+7. **The float's side loads**: the drifting step landing and the water weave (above): the crosswind circuits 0.73 -> 0.36 (floats),
+   0.95 -> 0.40 (twin).
+8. **The gear's own floor was its physics** (D1a): see the stamp.
+9. **The landing at the cap only**: drop473.
+
+### G1838 - GATE DMGGEAR (tools/_dmg_gear_check.js + _dmg_gear_lib.js; run_gates core, weight 3, wall 1800) - **72/72 PASS**
+Per build: 1. the bracket (every gear joint stamped from its envelope; the compression yield 1.18 F_l,c and the travel; the lugs;
+the drops at the 23.473 sink - no set -, at 1.2 x the cap - nothing breaks, no airframe set -, and NASA 172 Test 1 - the gear first);
+2. the headroom (the table above); 3. §7.4's rows:
+- **the ground loop** (the Cub; 15 m/s, swung 20 deg at 120 deg/s): both main gear groups let go and the low wing strikes (0.67 s
+  in) - but the STAB's attach breaks first (the tail swinging round on the tailwheel). The Jodel's is REPORTED: on flat grass its
+  wheels slide (the side force friction-limited at 0.8 of each wheel's load, under 23.485's envelope) and nothing folds even at 20 m/s and
+  180 deg/s (the lowest tip 0.25 m) - its row wants a rut or a soft field (DMG-TUNE's; DMG-TYRE's cornering stiffness may change it);
+- **the porpoise** (the metal Cessna; nose-first at 25 m/s, 5 deg down, the bounces growing 3 / 4 / 5 m/s): the nose gear collapses
+  on the THIRD bounce, the prop strikes - and in the same bounce the engine mount, a main and both wings' attachments go (5 m/s
+  nose-first, no lift). At 2.5 / 3.5 / 4.5 m/s it holds; at 10 deg nose-down it goes on the second;
+- **the float dig-in** (TREECRASH's severe nose-in, 150 km/h, 10 m/s, 60 deg): both floatplanes' strut fittings fail in overload -
+  first on the Cessna on floats (floatR:strut, FLD-S2TR in tension), after both engine mounts on the twin; the ordinary 90 km/h /
+  5 m/s / 20 deg nose-in (the WATER CASE) breaks nothing on either. At 120 km/h / 7 m/s / 30 deg the Cessna's engine mount goes first
+  and its floats hold. **D3's finding (the float fittings held even in the severe nose-in) is answered**: they now carry the water
+  cases' envelope, not the gear class's billed tube.
+- 1191 s in the battery's conditions (3 children at a time); the circuits are most of it.
+- `DMGGEAR_PARTS=ops,circ,xw` flies the headroom alone (the evidence ran it on the base's core for the 'before' column);
+  `--json <file>` keeps every row; FLYDIY_CERT_DIR hands it precomputed certificates.
+
+### G1837 - THE SWITCH ON
+**The commit** (`@@SHA_ON@@`): `const GEN_DAMAGE_DEFAULT = true;` (60_gen_spec.js) and its comment - nothing else. A build's
+`params.damage` still wins, then the page's `?damage=1|0` (FLYDIY_DAMAGE), then this; `params.damage === false` stays master's bits.
+
+**Before it, the battery with damage ON as the default** (a worktree of 8ab6b58 with the constant flipped, against 8ab6b58 off; the
+same 20 gates, `GATES_CORE=1 --verbose`; per §11.3 the user's rule - no full battery per session - so the gates the switch reaches
+most: the off-bytes set LOAD BENCH FLEX SIMWORKER SOAR GEN MASS and the flight gates PILOT HONEST TAKEOFF GEAR STRUT SEAPLANE FLOATS
+HYDRODYN SETTLE TREEHIT OBSTACLE BIPLANE UISMOKE; **the full 41-gate battery with the switch is the coordinator's run**):
+- **the same bytes (9):** MASS BENCH SOAR HONEST UISMOKE GEAR STRUT FLOATS SEAPLANE;
+- **only clock readings (6):** GEN SIMWORKER (every step's FNV equal: f2b3de3f / cbccf99f) FLEX PILOT TAKEOFF HYDRODYN (its
+  ms-per-step ratio); LOAD and SETTLE read as different only because the OFF side is two runner logs joined (the runner's summary);
+- **moved, PASS, explained (2):** TREEHIT - the 15 m fir across the span at 1.5 and 2.5 m: "the wing broke on it: 9 / 3 members, a
+  crash" (the CG 68 / 71 m against 60 / 61), flown at at 30 m/s: 97 members broken, the CG to 42.7 m (39.0); OBSTACLE - against the
+  obstacle under a third of throttle the aeroplane comes to rest at 0.90 m/s (0.30): the nose dents (§11.4: these two move only
+  through yielding, with a trunk or an obstacle - not an ordinary flight);
+- **FAILED, fixed (1): BIPLANE**, "a slack wire pushes nothing": its WIRE probe jolts a node 2 cm in one 1e-4 s step to measure the
+  ELASTIC law; with the layer on the members round it yield under the jolt (wire 6.070 vs none 6.097). The probe now says what it
+  tests (`params.damage: false`, 2c92c28; DEFORM §11.4: the gates say what they test): re-run with damage ON, PASS, its lines the
+  OFF run's (WIRE 9.107 / 9.566 / 9.107).
+- **Nothing yields in any ordinary flight gate**: every flying gate but the two that fly into a trunk or an obstacle reads the OFF run's
+  output (a yield would move its trajectory).
+- The flight gates fly without a certificate (no gate computes one but DMGCERT, TREECRASH, DMGGEAR): with the layer on they fly
+  D1a's physics limits, never weaker than the certificate's (the stamp is capped at them). The page asks for the certificate at
+  roll-out (D2a's certKick, now always: the layer is on) and stamps it 14-47 s later (the cost below).
+- reports/evidence/DMG-D2b/battery_on_diff.txt.
+
+### THE ACCEPTANCE (§11.2)
+- **Off = the base's bytes (§11.2 #1; before the switch):** `GATES_CORE=1 run_gates --only=LOAD,BENCH,FLEX,SIMWORKER,SOAR,GEN,MASS
+  --verbose` (§11.3's set for a solver and a certificate change), the base (claude/dmg-integration 51a2fec, built) against 8ab6b58:
+  **MASS BENCH SOAR byte for byte; GEN SIMWORKER FLEX LOAD clock readings only** (GEN / FLEX: the shards' seconds; SIMWORKER: every
+  step's FNV equal, f2b3de3f / cbccf99f, the page's ms and the frozen-page step counts; LOAD: the runner's times). Both BATTERY PASS.
+  (A BIPLANE run off - in the ON comparison above - is that gate's own bytes either way; 2c92c28 changes only its probe's damage flag,
+  which is the default's value off.) reports/evidence/DMG-D2b/battery_off_diff.txt.
+- **PERF (§11.2 #2):** `tools/treecrash_evidence.js --perf-only --perf-base <the base's core>` (the layer on, nothing touching, a far
+  4000-trunk set, FLYDIY_CERT=1 with the certificate from FLYDIY_CERT_DIR - computed in other processes), two runs pooled (10 processes
+  a side, the median of their medians):
+
+  | case | run 1 base / now (ms) | run 2 base / now | pooled | alternating pairs, pinned to one CPU |
+  |---|---|---|---|---|
+  | the Cub, ground | 3.587 / 3.581 | 3.690 / 3.826 | +5.6 % | **16 pairs: -4.4 % (pair median -5.8 %, slower in 5 of 16)** |
+  | the Cub, air | 3.453 / 3.441 | 3.513 / 3.560 | +0.2 % | |
+  | the metal Cessna, ground | 6.370 / 6.357 | 6.342 / 6.571 | +2.5 % | **12 pairs: +1.6 % (pair median -1.5 %, slower in 5 of 12)** |
+  | the metal Cessna, air | 6.284 / 6.253 | 6.242 / 6.383 | +1.1 % | |
+
+  **No regression the noise can resolve** (the box's process noise here is +-4-6 %: the Cub's ground medians are bimodal, 3.53-3.58 /
+  3.82-3.87 ms on both cores). The step's code is the base's but for one compare in dmgFrame (CRASH_J reads the airframe's work only
+  once the total passes it); the stamp is build time. Armed frames in the 600 timed: the Cub on the ground **6 (the base 3)** - its
+  gear standing at 30 % throttle passes half its new yield in 3 more frames (an armed frame's compare is ~5 % of one frame: 0.03 % of
+  the run); every other case 0. **The coordinator should re-measure on the box.** reports/evidence/DMG-D2b/perf.json, perf_pairs.txt.
+- **The certificate's cost** (alone in its process, node): the Cub **13.8 s (D2a 2.9)**, the metal Cessna **22.6 s (4.3)**, the twin
+  floatplane **47.1 s (10.2)** - 4.6-5.3 x, all in the dynamic cases (cert_cost.txt). It never runs in the garage's edit loop or on the
+  physics thread: the bench worker computes it at roll-out (D2a's mechanism, unchanged) and a NEW build's first flight runs on D1a's
+  physics limits (never weaker) until it lands - now 14-47 s in node, more in a browser worker. Not measured in Chromium (D2a's
+  dmg_cert_worker_shot.js would). See the open questions for the cheap cuts.
+- **The garage's parameter-change response:** untouched - no generator, garage or viewer file changed (66_gen_cert's functions are
+  not called by buildGen; 30_solver's stamp runs only with the layer on and a certificate); GATE INSTANT not re-run (§11.3: no viewer
+  code), UISMOKE the same bytes both ways.
+- **THE WATER CASE (§11.2 #4; TREECRASH §6):** green. The twin's float nose-in (90 km/h, 5 m/s, 20 deg): nothing set, nothing broken,
+  the worst member **0.83** (the base 0.99). The Cub's wet-body cases now run on this base (train 32): its 5 m/s level pancake and its
+  100 km/h / 4 m/s / 10 deg ditch **CRASH on the base too** (pancake 44 set / 13 broken, a fus member; here 35 / 13, a fus member;
+  the ditch 73 / 50, a fus member; here 41 / 49, a gear member) - a land Cub ditched breaks up; the gate checks that the damage follows
+  the loads and passes. Its severe nose-in crashes, as it must.
+- **The gates:** DMGGEAR **72/72**; TREECRASH **50/50** (the margins: the drops at the cap read 0.84 on the gear's compression, the
+  circuit 0.27-0.37); DMGCERT PASS (BROKE AT 6.01 / 6.02 / 6.06 / 6.08 / 6.01 g, a fitting first on all five - unchanged; its gear row
+  now reads the bracket); DMGMEMBERS, DMGCLUSTERS, DMGINTEGRITY, DMGINST, DMGFPS PASS (gate_dmg_set_treecrash.txt).
+- Validated builds only (the user's Cub, the Jodel, the metal Cessna, the Cessna on floats, the twin on floats); no archetype tuned; FAR
+  numbers as recalled, marked for A0; no Rigs of Rods / BeamNG code.
+
+### Evidence (flyDiy/reports/evidence/DMG-D2b/)
+- `headroom.svg` / `headroom.json`: every validated build x every ordinary case, the worst member over its certified yield, before
+  (D2a's certificate, the base's core) and after, the 2/3 line.
+- `bracket.json`: every gear joint per build (its envelope both ways, the case that set it, its limits, travel, the physics it no
+  longer carries) and the bracket's drops; `rows.json`: §7.4's rows.
+- `gate_dmggear.txt` (72/72), `gate_dmggear_headroom_base.txt` (the before), `dmggear_after.json` / `dmggear_before_base.json` (every
+  row, the circuits phase by phase).
+- `battery_off_diff.txt`, `battery_on_diff.txt`, `gate_dmg_set_treecrash.txt`, `gate_treecrash_base.txt`.
+- `perf.json`, `perf_pairs.txt`, `cert_cost.txt`.
+- Tools: `tools/_dmg_gear_check.js` (GATE DMGGEAR; `--part <key> <ops|circ|xw|bracket|rows>` one child, `--json`, DMGGEAR_PARTS,
+  DMGGEAR_JOBS), `tools/_dmg_gear_lib.js` (the scenarios), `tools/dmg_gear_evidence.js --before <json> --after <json>`.
+
+### Open questions (A0, the user, the coordinator)
+- **"Touchdowns up to the gear's demonstrated limit" - read here as the build's own FAR 23.473 sink being the gear's own LIMIT case**:
+  the airframe at most 2/3 there (0.39-0.66), the gear under 1 (0.40-0.70). If the user means a touchdown at that sink is ordinary for
+  the gear too, the bracket's "no set up to V, yields to 1.2 V" (§7.3) and "2/3 at V" cannot both hold. A0 / the user to rule.
+- **landK = 1.5 (the gear is the fuse)** is a per-case-class factor on the airframe (the landing, ground and water cases), argued from
+  §7.3 / NASA Test 1, not a regulation's number. The coordinator may read it as a knock-up; it is what keeps a landing that bends the
+  gear from bending the fuselage. The bench's card is untouched by it (the first joint 5.98-5.99 g static on all five).
+- **The fields and factors that are mine, stated, not sourced**: 23.491's roughest ground (4 cm bumps, 3 m apart, 8 m/s, 12 s) and the
+  ordinary rough field (2 cm); the water weave (0.6 V_S0, the rudder 0.5 s each way); the drift (0.2 V_S0, 23.233's demonstrated
+  crosswind as recalled); the travels (spring 0.15, oleo 0.10, bungee 0.04, the nose fork 0.06); the gear floor 0.25 W; the flown
+  control cases' 0.3 s; yUlt = 1.5 x 4130's ty / tu. A0 to open 23.345, 23.427, 23.473-.499, 23.521-.537, 23.233 on the box.
+- **The certificate costs 4.6-5.3 x D2a's** (14-47 s in node). Cheap cuts not taken (each would need the gates re-run): settle once and
+  start every landing from that state (the 4 s settle is repeated 4-6 times), 1.2 s after a gear drop's impact instead of 2 s, the
+  rough taxi 8 s instead of 12. Measure it in the browser worker (dmg_cert_worker_shot.js) before train 35.
+- **NASA 172 Test 1's outcome is not matched**: the nose gear goes first (as the test), but with no lift in the drop the wings'
+  attachments follow (the test: cabin intact, wings on). The porpoise's third bounce at 5 m/s takes the wings too. DMG-TUNE's rows
+  (§7.4), with lift in the scenario.
+- **The Jodel's ground loop does not fold a gear** on flat grass (friction-limited side load); the Cub's folds both mains but its stab
+  attach goes first. DMG-TYRE (a cornering stiffness) changes the side loads: re-run GATE DMGGEAR's rows after it.
+- **DMG-DAMP not merged** (READY 8a22a4f; the coordinator's §11.1 lands it with DMG-TYRE / DMG-HULL): the certificate's dynamic cases
+  (now most of it: the drops, the taxi, the weave, the flown controls) and the headroom table move with it - re-run DMGGEAR,
+  DMGCERT and TREECRASH then.
+- **The engine's own body off the certificate**: the CG locators and the flange pair keep D1a's physics (34 kN); in a crash they still
+  break at that. If DMG-D4b's debris wants the engine's case to break, it is a member of its own (not the mount).
+- **The Cub's wet-body pancake and ditch crash on the base and here** - a separate question for whoever owns GEAR-WATER 2 / DMG-HULL:
+  a 5 m/s level pancake of a land Cub is a hard ditching, so perhaps right.
+- **The circuits that end at 340 s** (the Cub's crosswind, the Jodel's two, the Cessna on floats' two): the probe covers what they
+  fly; TREECRASH's own bound.
+
 ## G1490-G1494 - HYBRID-TRIPS: THE HYBRID IS A FLIGHT STATE - THE WAY BACK PUTS THE FLOWN MODEL AT REST ON ITS BAKE; G1325'S BAND (1.0-1.25 px A TEXEL) BACK WITH 0 COST ON THE TRIPS; THE LIVE SHADER'S DECALS ON THE CONTROL SURFACES FIXED (2026-10-04, HYBRID-TRIPS for A0, local GPU; branch claude/hybrid-trips-g1490 on train 30 a1ffcf5b)
 
 THE PROBLEM (A0's bisect, train 28): with HYBRID-FARTHER's band the Cub's world -> garage after a taxi went 0.3 -> 2.8 s

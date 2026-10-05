@@ -3,7 +3,8 @@
 // (DEFORM-AND-BREAK §4.3 (c), ruling dm1; 66_gen_cert.js, 30_solver.js certStamp), on the user's validated builds,
 // damage ON:
 //   1. THE CERTIFICATE: the load cases computed (their cost), every member that has physics limits has an envelope,
-//      the stamp on the sim; the gear's members keep D1a's limits (the gear bracket is DMG-D2b's); with the layer off
+//      the stamp on the sim; the gear's joints stamped by the gear bracket (G1835, DMG-D2b; GATE DMGGEAR), its other members
+//      (a float's hull) on D1a's limits; with the layer off
 //      nothing is stamped (every limit infinite); the garage's build never carries one (genCertAttach is asked for by
 //      the flight and the bench, cached by the spec)
 //   2. THE CARD ON THE BENCH (the garage's own sandbag rig, the certified airframe): a pull to the limit x 1.0 leaves no
@@ -50,11 +51,13 @@ if (argv[0] === '--build') {
   const phys = C.makeSim(L.defOf(k, { cert: false }), null); phys.reset(0);
   // 1. the certificate
   const nb = def.beams.length, B = sim.beams, P = phys.beams;
-  let withPhys = 0, noEnv = 0, gearSame = true, gearN = 0, govT = 0, floorT = 0, govC = 0, floorC = 0, overPhys = 0;
+  let withPhys = 0, noEnv = 0, gearSame = true, gearN = 0, gearJ = 0, govT = 0, floorT = 0, govC = 0, floorC = 0, overPhys = 0;
   for (let i = 0; i < nb; i++) {
     const b = B[i], p = P[i];
     if (!(p.fy0 < Infinity)) continue;
-    if (b.cls === 'gear') { gearN++; if (b.fy0 !== p.fy0 || b.fu !== p.fu || b.fc0 !== p.fc0) gearSame = false; continue; }
+    // G1835 (DMG-D2b): the gear's joints are the gear bracket's now (30_solver gearStamp): stamped from their own envelope,
+    // and not past nothing - its lug at the ultimate in tension; everything else of the gear (a float's hull) keeps D1a's
+    if (b.cls === 'gear') { gearN++; if (b.seam || b.fu !== p.fu) { if (!(b.fu > 0 && b.fu < Infinity && b.fc0 > 0)) gearSame = false; gearJ++; } else if (b.fy0 !== p.fy0 || b.fc0 !== p.fc0) gearSame = false; continue; }
     withPhys++;
     if (!(Number.isFinite(cert.Ft[i]) && Number.isFinite(cert.Fc[i]))) noEnv++;
     if (b.fy0 > p.fy0 * (1 + 1e-9) || b.fu > p.fu * (1 + 1e-9) || b.fc0 > p.fc0 * (1 + 1e-9)) overPhys++;
@@ -67,7 +70,7 @@ if (argv[0] === '--build') {
   const fresh = C.buildGen(C.genMigrateSpec ? C.genMigrateSpec(def.spec) : def.spec);
   C.genCertAttach(Object.assign({}, fresh), { world: fresh.parts && fresh.parts.floats ? C.makeWorld() : null });   // the first: computed
   const t1 = Date.now(), again = C.genCertAttach(Object.assign({}, fresh), {}), tCache = Date.now() - t1;           // the second: the cache
-  out.cert = { ms: tCert, msParts: cert.ms, cases: cert.names, withPhys, noEnv, gearN, gearSame, govT, floorT, govC, floorC, overPhys, stamped: !!sim.cert(), offInf,
+  out.cert = { ms: tCert, msParts: cert.ms, cases: cert.names, withPhys, noEnv, gearN, gearJ, gearSame, govT, floorT, govC, floorC, overPhys, stamped: !!sim.cert(), offInf,
     buildNone: fresh.cert == null, cacheMs: tCache, cacheSame: again === C.GEN_CERT_CACHE.get(C.genCertKey(fresh)), limit: cert.limit, ult: cert.ult, m: cert.m,
     flownNz: cert.flownNz, sink: cert.sink, speeds: cert.speeds };
   // 2. the card on the bench
@@ -166,7 +169,7 @@ const f2 = x => (x == null ? '-' : (+x).toFixed(2));
     const c = r.cert, lim = c.limit, ult = c.ult, bandHi = 1.5 * c.m * lim * 1.025;
     console.log('1. the certificate (' + c.cases.length + ' cases: ' + c.cases.join(', ') + ')');
     yes(c.noEnv === 0 && c.stamped && c.overPhys === 0, c.withPhys + ' members certified (the gear\'s ' + c.gearN + ' apart), every one with an envelope, none past its physics; tension: ' + c.govT + ' on the certificate, ' + c.floorT + ' on the floor; compression: ' + c.govC + ' / ' + c.floorC);
-    yes(c.gearSame, 'the gear\'s ' + c.gearN + ' members keep D1a\'s limits (the gear bracket is DMG-D2b\'s)');
+    yes(c.gearSame && c.gearJ > 0, 'the gear\'s ' + c.gearN + ' members: its ' + c.gearJ + ' joints stamped by the gear bracket (DMG-D2b, GATE DMGGEAR), the rest (a float\'s hull) on D1a\'s limits');
     yes(c.offInf && c.buildNone, 'with the layer off nothing is stamped (every limit infinite, the stamp refused); a garage build carries no certificate');
     yes(c.cacheSame && c.cacheMs < 50, 'computed once per build (' + c.ms + ' ms in node: flight cases ' + f2(c.msParts.flight) + ', bench ' + f2(c.msParts.bench) + ', the dynamic ones ' + f2(c.msParts.drop) + '); a second build of the same spec takes it from the cache in ' + c.cacheMs + ' ms');
     console.log('2. the card on the bench (LIMIT ' + f2(lim) + ' g / ULTIMATE ' + f2(ult) + ' g)');

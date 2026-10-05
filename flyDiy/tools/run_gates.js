@@ -190,6 +190,11 @@ const GATES = [
   // ultimate held, to ultimate x 1.1 broken at a joint; to destruction BROKE AT within [1.5, 1.5 m] x limit, a joint first;
   // the flown pull to the limit clean; a bad design (struts / root at half the section asked) BROKE UP. Three builds at once
   { id: 'DMGCERT', file: '_dmg_cert_check.js', tier: 'core', weight: 3, wall: 240 },
+  // G1835-G1838 (DMG-D2b GEAR): the gear's own calibration (the bracket: no set at the 23.473 sink, the gear yields and
+  // nothing breaks at 1.2 x, NASA 172 Test 1 breaks it, the gear first), the headroom of normal operations (the circuit,
+  // a crosswind circuit, taxis on grass / a rough field / the water / a chop, touchdowns at 1.0 and 1.5 m/s: at most
+  // 2/3 of the certified yield) and §7.4's gear rows (the ground loop, the porpoise, the float dig-in). Three at once
+  { id: 'DMGGEAR', file: '_dmg_gear_check.js', tier: 'core', weight: 3, wall: 1800 },
   // G1840-G1843 (DMG-D3 CLUSTERS): a shape-matched cluster is one breakable part - the fin, the twin's rod, the floats (and
   // the twin-boom fixture, reported): its root load read off the cut equals the statics; nothing parts in normal
   // operations (the load test, the pull, the drops, a circuit, parked, the ordinary water cases); a scripted pull takes
