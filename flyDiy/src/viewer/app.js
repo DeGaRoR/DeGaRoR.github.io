@@ -3951,7 +3951,7 @@
   // same payload group - their index attributes wrap the same array)
   // (G1864: the normals a riding vertex turned, back as built)
   function brkNrm(R) { if (R.nAttr && R.nRest) { R.nAttr.array.set(R.nRest); R.nAttr.needsUpdate = true; }
-    if (R.base0 && R.geo && R.geo.attributes.position) { R.geo.attributes.position.array.set(R.base0); brkPosMirror(R, R.base0, R.nRest || null); } }
+    if (R.base0 && R.paRef && R.paRef.array && R.paRef.array.length === R.base0.length) { R.paRef.array.set(R.base0); R.paRef.needsUpdate = true; brkPosMirror(R, R.base0, R.nRest || null); } }
   // G1859 (DMG-WALL): a still-merged bucket's riding (or its rest, at a heal) copied into the merged copy that draws it
   function brkPosMirror(R, P, N) {
     const M = R.geo && R.geo.userData && R.geo.userData.ixMirror; if (!M) return;
@@ -3977,7 +3977,8 @@
     const D = dmgNow();
     if (!D || !D.br.length) {
       // a heal (a reset, a new flight): every record's index as built, the records let go (their bindings kept)
-      if (BRK.recs.length && model && model.brk) for (const R of BRK.recs) { if (SKIN_BREAK.event(R, model.brk.T, D || { br: [], vB: -2 })) brkIdx(R); R.vB = -1; brkNrm(R); }
+      if (BRK.recs.length && model && model.brk) { for (const R of BRK.recs) { if (SKIN_BREAK.event(R, model.brk.T, D || { br: [], vB: -2 })) brkIdx(R); R.vB = -1; brkNrm(R); }
+        model._pose = null; model._poseNG = null; }   // (G1858.1: a real heal only - re-posed from the rest, the rigs a pose writes)
       BRK.recs.length = 0; BRK.posed = false; if (model && model.brk) model.brk.NF = {};
       return null;
     }
@@ -4052,7 +4053,7 @@
       K.geoOf = (model.wreckBuild && model.wreckBuild.geoOf) || new Map();
       if (!K.geoOf.size) model.grp.traverse(m => { if (m.isMesh && m.geometry && m.geometry.attributes.position) K.geoOf.set(m.geometry.attributes.position, m.geometry); });
     }
-    K.down[0] = 0; K.down[1] = -1; K.down[2] = 0;
+    K.down[0] = 0; K.down[1] = -1; K.down[2] = 0; K.oLast = o;
     const fabW = brkFabricWing(), fabB = def.spec && def.spec.material === 'tubeFabric';
     // the groups: the snapshot's own (the covering, the wing band), the control surfaces (rebased about their pivot),
     // the struts and the tail's anchored parts (unrebased)
@@ -4065,6 +4066,10 @@
     // their axle node: the user's impossible gear vee) - one rigid binding each, half its root node and half its axle's
     const inhOn = brkInhWant();
     if (inhOn) for (const s2 of model.stretchRigs || []) groups.push([s2, null, s2.posAttr, s2.base, null, false, 'leg']);
+    // (G1859.1: ...and the control links - the pushrods and cables, a line from a pin on the airframe to a horn on its
+    // surface, posed in the body frame: in a wreck the surface went with its piece and the link was drawn metres long
+    // across the runway. Each rides its pin's node as one rigid body)
+    if (inhOn) for (const s2 of model.linkRigs || []) if (s2.pin) groups.push([s2, null, s2.posAttr, s2.base, null, false, 'link']);
     for (let i = groups.length - 1; i >= 0; i--) if (groups[i][0].wreckGone) groups.splice(i, 1);   // (a part gone loose: DMG-D4b's debris)
     if (K.inhOn != null && K.inhOn !== inhOn) brkInhReset(groups);   // (?wallbind flipped: every record made again)
     K.inhOn = inhOn;
@@ -4081,7 +4086,11 @@
           bD[v*3] = og[0] + B0[0]*a + B0[1]*b + B0[2]*c; bD[v*3+1] = og[1] + B0[3]*a + B0[4]*b + B0[5]*c; bD[v*3+2] = og[2] + B0[6]*a + B0[7]*b + B0[8]*c; }
         const R = brkRec(own, { nv, idx: geo.index.array }, geo, bD, K.rest, fab, true, inhOn ? SB.INH_K : SB.NEAR_K);
         R.baseD = bD; R.w = new Float64Array(nv * 3);
-        if (geo.userData && geo.userData.ixMirror && geo.userData.ixMirror.some(m => m.pos)) R.base0 = Float32Array.from(base);
+        // (G1858.1: its as-built positions - the rig's own rest array, the drawn attribute's content before any pose - and
+        // that attribute: a heal puts them back. The cage's pose never rewrites a STATIC bucket (it rides the group matrix),
+        // so a wreck's riding stayed in it after a reset: the next flight drew the last wreck's covering - the user's
+        // 'intact' shots full of giant sheets)
+        R.base0 = base; R.paRef = pa;
         const na = geo.attributes.normal;
         if (na && na.count === nv) {
           R.nAttr = na; R.nRest = Float32Array.from(na.array); const nB = R.nB = new Float32Array(nv * 3);
@@ -4163,6 +4172,13 @@
           let rn = 0, bd = Infinity; const P = R.g.pos, Rs = K.rest;
           for (let i = 0; i < Rs.length / 3; i++) { const d = (Rs[i*3] - P[vr*3]) ** 2 + (Rs[i*3+1] - P[vr*3+1]) ** 2 + (Rs[i*3+2] - P[vr*3+2]) ** 2; if (d < bd) { bd = d; rn = i; } }
           E.fixed = rn === own.idx ? [[rn, 1]] : [[rn, 0.5], [own.idx, 0.5]]; cv.fill(SB.INH.rigid);
+        } else if (kind === 'link') {
+          // its pin (the airframe end) in the nodes' frame, on its nearest node
+          const B0 = K.B0, og = K.og, o0 = K.oLast || [0, 0, 0], a = own.pin[0] + o0[0], b = own.pin[1] + o0[1], c = own.pin[2] + o0[2];
+          const px = og[0] + B0[0]*a + B0[1]*b + B0[2]*c, py = og[1] + B0[3]*a + B0[4]*b + B0[5]*c, pz = og[2] + B0[6]*a + B0[7]*b + B0[8]*c;
+          let rn = 0, bd = Infinity; const Rs = K.rest;
+          for (let i = 0; i < Rs.length / 3; i++) { const d = (Rs[i*3] - px) ** 2 + (Rs[i*3+1] - py) ** 2 + (Rs[i*3+2] - pz) ** 2; if (d < bd) { bd = d; rn = i; } }
+          E.fixed = [[rn, 1]]; cv.fill(SB.INH.rigid);
         } else if (surf.has(own)) cv.fill(SB.INH.cover);
         else if (strut.has(own)) cv.fill(SB.INH.tube);
         else if (own.name) {

@@ -5,6 +5,9 @@
 #   bash tools/dmg_wall_gates.sh <base-dir (holds flyDiy/)> <out-dir>
 BASE=$1; OUT=$2; ROOT=D:/Dev/dmgwall/flyDiy; LK=D:/Dev/DeGaRoR.github.io/flyDiy/tools/perf/boxlock.sh
 mkdir -p $OUT
+# (take cpu does not wait for another owner's CPU lock: wait by hand for no CPU_BATTERY_* lock and no GPU lock but mine)
+P=D:/Dev/DeGaRoR.github.io/flyDiy/tools/perf
+until ! ls $P/CPU_BATTERY_*.lock >/dev/null 2>&1 && { [ ! -e $P/GPU_BENCH.lock ] || grep -q "^DMG-WALL " $P/GPU_BENCH.lock; }; do sleep 20; done
 bash $LK take cpu DMG-WALL "gates DMGWALL DMGSKIN UISMOKE BUILD JOIN, branch + base (~15 min)" || exit 1
 trap 'bash $LK drop cpu DMG-WALL' EXIT
 ( cd $BASE/flyDiy && node tools/build.js > $OUT/build_base.log 2>&1 )

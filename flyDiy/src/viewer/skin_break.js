@@ -750,8 +750,9 @@
         const x = P[v * 3], y = P[v * 3 + 1], z = P[v * 3 + 2];
         if (++_n >= every) { _n = 0; yield st.places; } _acc.clear(); st.places++;
         if (c === INH.tube) { const m = nearSegs(Sall, x, y, z, 1);
-          if (m && _md[0] < TUBE_R * TUBE_R) { const g = Sall[_mi[0]]; _acc.add(g.a, 1 - _mt[0]); _acc.add(g.b, _mt[0]); st.tube++; }
-          else { coverInto(_acc, S, x, y, z); st.tubeFar++; } }
+          // (always its nearest member, however far: a drawn tube off the physics line - a lift strut drawn beside its member -
+          // blended over the covering's frame was stretched metres when its piece went; counted past TUBE_R)
+          if (m) { const g = Sall[_mi[0]]; _acc.add(g.a, 1 - _mt[0]); _acc.add(g.b, _mt[0]); if (_md[0] < TUBE_R * TUBE_R) st.tube++; else st.tubeFar++; } }
         else { coverInto(_acc, S, x, y, z); st.cover++; }
         if (_acc.n && _acc.put(R.wi, R.ww, v * K, K)) st.over8++;
       }

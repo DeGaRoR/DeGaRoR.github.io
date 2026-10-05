@@ -100,7 +100,7 @@ function run(P, caseId) {
   const C = L.core(), c = CASES[caseId], G = go(P.k, c), sim = G.sim, n = sim.n;
   const core = P.def.refs.noseFrame[0], hop = SH.simDmgHop0(), D = SV.simViewDmgState(n, P.def.beams.length);
   const schemes = (opt('schemes', 'base,g1858,inh')).split(',').map(name => ({ name, recs: null, NF: {}, E: null, inhSt: null, wallKey: null,
-    m: { frames: 0, nonFinite: 0, tnsBy: {}, tornNoStrain: 0, overStretched: 0, leak1cm: 0, leak5cm: 0, leakPiece: 0, leakBy: {}, leak: 0, tested: 0, worstLeak: 0, rigidTris: 0, rigidBad: 0, rigidWorst: 0, bayTorn: 0, removed: 0, torn: 0, cut: 0, followed: 0 } }));
+    m: { frames: 0, tubeTris: 0, tubeBad: 0, tubeWorst: 0, nonFinite: 0, tnsBy: {}, tornNoStrain: 0, overStretched: 0, leak1cm: 0, leak5cm: 0, leakPiece: 0, leakBy: {}, leak: 0, tested: 0, worstLeak: 0, rigidTris: 0, rigidBad: 0, rigidWorst: 0, bayTorn: 0, removed: 0, torn: 0, cut: 0, followed: 0 } }));
   const X = (R) => ({ Mi: [1, 0, 0, 0, 1, 0, 0, 0, 1], B: [1, 0, 0, 0, 1, 0, 0, 0, 1], cg: [0, 0, 0], o: [0, 0, 0], w: R.w, n: null, nB: null });
   const scratch = new Map();
   // the measure's own map, scheme-free: each wall place's closest covering triangle at rest (the inheritance's search)
@@ -197,6 +197,11 @@ function run(P, caseId) {
     P.groups.forEach((g, i) => { const R = sc.recs[i], ix = R.idx0 || R.idx, A = g.bD, W = R.w;
       for (let t = 0; t < R.nt; t++) { if (R.dead && R.dead[t]) continue;
         const a = ix[t*3], b = ix[t*3+1], c = ix[t*3+2];
+        // (a drawn tube: no edge past its rest by more than the solver's whole members allow (15 %) + 5 %)
+        if (g.cv[a] === SB.INH.tube && g.cv[b] === SB.INH.tube && g.cv[c] === SB.INH.tube) { let w = 0;
+          for (const [p, q] of [[a, b], [b, c], [a, c]]) { const r0 = Math.hypot(A[p*3] - A[q*3], A[p*3+1] - A[q*3+1], A[p*3+2] - A[q*3+2]); if (r0 < 0.004) continue;
+            const l = Math.hypot(W[p*3] - W[q*3], W[p*3+1] - W[q*3+1], W[p*3+2] - W[q*3+2]); w = Math.max(w, l / r0); }
+          m.tubeTris++; if (w > 1.2) m.tubeBad++; if (w > m.tubeWorst) m.tubeWorst = w; }
         if (g.rigidOk[a] && g.rigidOk[b] && g.rigidOk[c] && g.obj[a] === g.obj[b] && g.obj[b] === g.obj[c]) {
           let worst = 0;
           for (const [p, q] of [[a, b], [b, c], [a, c]]) { const r0 = Math.hypot(A[p*3] - A[q*3], A[p*3+1] - A[q*3+1], A[p*3+2] - A[q*3+2]); if (r0 < 0.004) continue;

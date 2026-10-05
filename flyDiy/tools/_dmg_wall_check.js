@@ -53,6 +53,7 @@ const one = k => new Promise(res => {
       yes(s.tested ? s.leak5cm / s.tested <= LEAK5_SHARE : true, k + ' ' + c.case + ': past 5 cm ' + s.leak5cm + ' of ' + s.tested);
       yes(s.rigidBad === 0, k + ' ' + c.case + ': no compact part triangle past 1 % (' + s.rigidTris + ' triangle-frames)');
       yes(s.nonFinite === 0, k + ' ' + c.case + ': every drawn position finite');
+      yes(s.tubeBad === 0, k + ' ' + c.case + ': no drawn tube triangle past 1.2 x its rest (the members end at 15 %; worst ' + (+s.tubeWorst || 0).toFixed(3) + ', ' + s.tubeTris + ' triangle-frames)');
       yes(s.inh.over8 <= OVER8_SHARE * s.inh.places, k + ' ' + c.case + ': places past 8 slots ' + s.inh.over8 + ' <= 2 %');
     }
   }

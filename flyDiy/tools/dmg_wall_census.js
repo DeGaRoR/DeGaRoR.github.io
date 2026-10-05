@@ -237,6 +237,30 @@ async function pageReplay() {
   for (let f = 0; f < 60; f++) await raf();                       // (the binding's budget finishes; the pose settles)
   return { frames: rec.length, skin: window.FLYDIY_SKINBREAK_STATS(), wall: window.FLYDIY_SKINWALL_STATS ? window.FLYDIY_SKINWALL_STATS() : null };
 }
+// THE HEAL CHECK (G1858.1, the coordinator: the 'intact' shots drew the last wreck): every craft geometry's index, and the
+// positions of the buckets nothing poses (the static ones: no wing binding, no hinge), hashed - at boot (a fresh load)
+// and after each reset; equal = the drawing healed to the as-built pose. And THE STRETCH LIST: every drawn mesh's extent
+// in its own frame against the same mesh fresh (a link, a strut, a wire drawn metres long shows here)
+function pageHeal(mode) {
+  const m = FLIGHT_PROBE.model(), B = m.wreckBuild, rigs = (B.rigsAll || m.rigs);
+  const statics = new Set(); for (const r of rigs) if (!r.hb && !(r.bind && r.bind.bound.length)) statics.add(r.posAttr);
+  const fnv = (a) => { let h = 2166136261 >>> 0; const u = new Uint8Array(a.buffer, a.byteOffset, a.byteLength); for (let i = 0; i < u.length; i++) { h ^= u[i]; h = Math.imul(h, 16777619) >>> 0; } return h; };
+  const ext = a => { let x0 = Infinity, y0 = Infinity, z0 = Infinity, x1 = -Infinity, y1 = -Infinity, z1 = -Infinity;
+    for (let i = 0; i < a.length; i += 3) { const x = a[i], y = a[i+1], z = a[i+2]; if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; if (z < z0) z0 = z; if (z > z1) z1 = z; }
+    return Math.hypot(x1 - x0, y1 - y0, z1 - z0); };
+  const keyOf = new Map(); for (const k in B.meshes0) keyOf.set(B.meshes0[k], k);
+  const H = {}; let i = 0;
+  for (const [mesh, par] of B.parentOf) { const g = mesh.geometry, pa = g && g.attributes.position; if (!pa) continue;
+    const name = keyOf.get(mesh) || ((par && par.name) || 'part') + '#' + (i++);
+    H[name] = { idx: g.index ? fnv(g.index.array) : 0, pos: statics.has(pa) ? fnv(pa.array) : 0, ext: ext(pa.array) }; }
+  if (mode === 'fresh') { window.__dwFresh = H; return { n: Object.keys(H).length }; }
+  const F = window.__dwFresh || {}, bad = [], grown = [];
+  for (const k in H) { const f = F[k]; if (!f) continue;
+    if (f.idx !== H[k].idx || f.pos !== H[k].pos) bad.push(k + (f.idx !== H[k].idx ? ' idx' : '') + (f.pos !== H[k].pos ? ' pos' : ''));
+    if (f.ext > 0.02 && H[k].ext > 1.3 * f.ext) grown.push([k, +(H[k].ext / f.ext).toFixed(2), +f.ext.toFixed(2)]); }
+  grown.sort((a, b) => b[1] - a[1]);
+  return { n: Object.keys(H).length, healed: bad.length === 0, bad: bad.slice(0, 20), nBad: bad.length, grown: grown.slice(0, 12), nGrown: grown.length };
+}
 // THE BOOT: the page up, the build kept, rolled out, the roll-out screen gone
 async function pageBootStep(k) {
   if (k === 'ready') return await Promise.race([(window.BOOT && BOOT.whenReady) ? BOOT.whenReady().then(() => 'ready') : new Promise(r => setTimeout(() => r('no BOOT'), 18500)), new Promise(r => setTimeout(() => r('boot timeout'), 240000))]);
@@ -259,6 +283,7 @@ function pageProbe() {
 module.exports = { run, post, get, CASES, pageStage, pageView, pageCensus, pageProbe };
 if (require.main === module) (async () => {
   fs.mkdirSync(OUT, { recursive: true });
+  const R0 = {};
   if (has('boot')) {
     console.log('boot ' + await run(pageBootStep, 'ready')); await sleep(800);
     let flying = false;
@@ -267,9 +292,11 @@ if (require.main === module) (async () => {
     let bs = ''; for (let i = 0; i < 300; i++) { bs = await run(pageBootStep, 'state'); if (bs === 'gone' || bs === 'none') break; await sleep(1000); }
     console.log('rolled out: ' + flying + ', boot ' + bs); await sleep(2000);
   }
+  R0.fresh = await run(pageHeal, 'fresh');
+  console.log('fresh ' + JSON.stringify(R0.fresh));
   if (has('probe')) { const pr = await run(pageProbe); fs.writeFileSync(path.join(OUT, 'probe.json'), JSON.stringify(pr, null, 1)); console.log(JSON.stringify(pr).slice(0, 3000)); if (!opt('cases', null)) return; }
   const names = opt('cases', Object.keys(CASES).join(',')).split(','), modes = opt('modes', 'after').split(',');
-  const R = { at: new Date().toISOString(), modes, cases: {} };
+  const R = Object.assign(R0, { at: new Date().toISOString(), modes, cases: {} });
   const shoot = async file => { const tmp = file + '.png'; await get('/shot?f=' + encodeURIComponent(tmp)); const png = fs.readFileSync(tmp).toString('base64'); fs.unlinkSync(tmp);
     const jpg = await run(pageJpeg, png); fs.writeFileSync(file, Buffer.from(jpg, 'base64')); return path.basename(file); };
   const censusTo = async file => { const c = await run(pageCensus); if (c && c.clsJpg) { fs.writeFileSync(file.replace(/\.jpg$/, '_cls.jpg'), Buffer.from(c.clsJpg, 'base64')); delete c.clsJpg; } return c; };
@@ -279,6 +306,8 @@ if (require.main === module) (async () => {
     if (Date.now() > deadline()) { console.log('past the DEADLINE: ' + k + ' and the rest not run'); break; }
     const C = CASES[k], out = { label: C.label, intact: [], shots: [] };
     await run(pageStage, Object.assign({}, C.o, { placeOnly: true }));
+    out.heal = await run(pageHeal, 'check');
+    console.log(k + ' heal ' + JSON.stringify(out.heal));
     for (const [ci, c] of C.cams.entries()) { await run(pageView, c); const f = path.join(OUT, k + '_' + (ci + 1) + '_intact.jpg'); out.intact.push({ cam: c, census: await censusTo(f), file: await shoot(f) }); }
     out.stage = {};
     // ONE crash (flown under the inherited binding), then each mode REPLAYS its recorded node path: the same wreck
@@ -290,6 +319,7 @@ if (require.main === module) (async () => {
       // before: the old binding, no cut (the drawing until G1858); g1858: the old binding and the lining cut; after: inherited
       await post('/run', 'window.FLYDIY_WALLBIND = ' + (mode === 'after') + '; window.FLYDIY_SKINWALL = ' + (mode !== 'before') + '; return 1;');
       const st = out.stage[mode] = await run(pageReplay);
+      st.stretch = await run(pageHeal, 'check');
       console.log(k + ' ' + mode, JSON.stringify(st).slice(0, 900));
       await sleep(1500);
       for (const [ci, c] of C.cams.entries()) {
