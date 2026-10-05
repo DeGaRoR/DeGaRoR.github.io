@@ -78,6 +78,25 @@
     return { P, ends, n: T.n, has: (x, y) => x !== y && P.has(Math.min(x, y) * T.n + Math.max(x, y)) };
   }
 
+  // ---- G1864 (DMG-D4b): THE SNAPSHOT'S OWN VERTICES. The cage snapshot is unwelded - three vertices a triangle, each
+  // place repeated by every triangle meeting there (about six on a smooth skin) - so the wreck's work a vertex (the
+  // binding, the event, the riding) is done once a PLACE and copied: rep[v] the first vertex at v's place (v itself if
+  // it is the first; always <= v). Exact equality: the copies are the same numbers through the same arithmetic
+  function dupOf(pos, nv) {
+    const rep = new Int32Array(nv), cap = 1 << Math.ceil(Math.log2(nv * 2 + 2)), tab = new Int32Array(cap).fill(-1), m = cap - 1;
+    for (let v = 0; v < nv; v++) {
+      const x = pos[v * 3], y = pos[v * 3 + 1], z = pos[v * 3 + 2];
+      let h = (Math.imul(Math.round(x * 1e5) | 0, 73856093) ^ Math.imul(Math.round(y * 1e5) | 0, 19349663) ^ Math.imul(Math.round(z * 1e5) | 0, 83492791)) & m;
+      for (;;) {
+        const u = tab[h];
+        if (u < 0) { tab[h] = v; rep[v] = v; break; }
+        if (pos[u * 3] === x && pos[u * 3 + 1] === y && pos[u * 3 + 2] === z) { rep[v] = u; break; }
+        h = (h + 1) & m;
+      }
+    }
+    return rep;
+  }
+
   // ---- THE CONVEX-ISH BINDING, both skins' after a break: each vertex's K nearest nodes at rest (pos and nodeRest in
   // one frame), weighted so their blend lands ON the vertex as nearly as the nodes allow - min |sum w (r_k - x)|^2 +
   // mu |w - w_idw|^2 with sum w = 1 (w_idw: inverse-square; mu = BIND_MU x the nodes' mean square distance: a node set in
@@ -88,8 +107,14 @@
   const BIND_MU = 0.05;
   // the node grid: about a node a cell (its side from the nodes' box), the search walks out a ring of cells at a time
   // (mask: only those vertices; into: { wi, ww } to fill instead of new arrays)
-  function bindNearest(pos, nv, nodeRest, nNode, K, mask, into) {
+  function bindNearest(pos, nv, nodeRest, nNode, K, mask, into, rep) {
     K = K || NEAR_K;
+    // (G1864: rep - each place bound once, its copies after: the masked vertices' first vertices are the ones solved)
+    if (rep) { const m2 = new Uint8Array(nv); for (let v = 0; v < nv; v++) if (!mask || mask[v]) m2[rep[v]] = 1;
+      const r = bindNearest(pos, nv, nodeRest, nNode, K, m2, into, null);
+      for (let v = 0; v < nv; v++) { const u = rep[v]; if (u === v || (mask && !mask[v])) continue;
+        for (let k = 0; k < K; k++) { r.wi[v * K + k] = r.wi[u * K + k]; r.ww[v * K + k] = r.ww[u * K + k]; } }
+      return r; }
     const wi = into ? into.wi : new Int32Array(nv * K), ww = into ? into.ww : new Float32Array(nv * K);
     const bd = new Float64Array(K), bi = new Int32Array(K), M = new Float64Array(K * (K + 1)), w0 = new Float64Array(K), xa = new Float64Array(K), xb = new Float64Array(K);
     // the nodes on a grid
@@ -159,18 +184,81 @@
   // from one) - the cost follows the damage, not the skin's size (a cage snapshot carries ~200k vertices)
   function make(g, K, o) {
     if (o && o.cage && o.pos && o.rest && !g.wi) {
-      const near = bindNearest(o.pos, g.nv, o.rest, o.rest.length / 3, 1).wi;
+      g.rep = o.weld ? dupOf(o.pos, g.nv) : null;
+      const near = bindNearest(o.pos, g.nv, o.rest, o.rest.length / 3, 1, null, null, g.rep).wi;
       g.wi = new Int32Array(g.nv * K); g.ww = new Float32Array(g.nv * K);
       for (let v = 0; v < g.nv; v++) { for (let k = 0; k < K; k++) g.wi[v * K + k] = near[v]; g.ww[v * K] = 1; }
       g.near = near; g.bound = new Uint8Array(g.nv); g.pos = o.pos; g.rest = o.rest;
     }
     return { g, nv: g.nv, K, wi: g.wi, ww: g.ww, idx: g.idx, idx0: null, nt: (g.idx.length / 3) | 0,
              vB: -1, vp: null, dom: null, w2: null, ride: null, dead: null, watch: null, sag: null, torn: 0, removed: 0,
-             fabric: !!(o && o.fabric), cage: !!(o && o.cage), active: false };
+             fabric: !!(o && o.fabric), cage: !!(o && o.cage), active: false,
+             // G1864 (the page's wreck): rideAll - every vertex rides its nodes' frames once anything is broken (in the
+             // world frame, exact under a rigid motion: a part bent without a member broken no longer keeps the cage's
+             // rigid pose and stretches); its full binding made `budget` places a frame (pending: those still on their
+             // nearest node, riding it meanwhile)
+             rideAll: !!(o && o.rideAll), rep: g.rep || null, pending: null, BP: null, pc: null };
   }
   const slotOf = (wi, o, K, d) => { for (let k = 0; k < K; k++) if (wi[o + k] === d) return k; return 0; };
+  // one vertex at an event (or once its binding came, G1864): its piece, its dominant node, its kept weights, whether it
+  // rides - a copy (rep) takes its first vertex's
+  let _pw = new Float64Array(8);
+  function prepV(R, v, BP, pc) {
+    const K = R.K, wi = R.wi, ww = R.ww, vp = R.vp, dom = R.dom, w2 = R.w2, ride = R.ride, o = v * K;
+    const u = R.rep ? R.rep[v] : v;
+    if (u !== v) { vp[v] = vp[u]; dom[v] = dom[u]; ride[v] = ride[u]; for (let k = 0; k < K; k++) w2[o + k] = w2[u * K + k]; return; }
+    // 1. the piece holding most of its weight
+    let P = 0;
+    if (pc) { let nP = 1; for (let k = 0; k < K; k++) { const q = pc[wi[o + k]] + 1; if (q > nP) nP = q; }
+      if (_pw.length < nP) _pw = new Float64Array(nP * 2);
+      for (let q = 0; q < nP; q++) _pw[q] = 0;
+      for (let k = 0; k < K; k++) { const w = ww[o + k]; if (w !== 0) _pw[pc[wi[o + k]]] += w; }
+      let best = -Infinity; for (let q = 0; q < nP; q++) if (_pw[q] > best) { best = _pw[q]; P = q; } }
+    vp[v] = P;
+    // its dominant node on that piece
+    let d = wi[o], dw = -Infinity;
+    for (let k = 0; k < K; k++) { const w = ww[o + k], i = wi[o + k]; if (w !== 0 && w > dw && (!pc || pc[i] === P)) { dw = w; d = i; } }
+    dom[v] = d;
+    // 2. kept: on its piece, not across a broken member from its dominant node
+    let s = 0, drop = false;
+    for (let k = 0; k < K; k++) {
+      const w = ww[o + k], i = wi[o + k];
+      const keep = w !== 0 && (!pc || pc[i] === P) && !BP.has(d, i);
+      if (w !== 0 && !keep) drop = true;
+      w2[o + k] = keep ? w : 0; s += keep ? w : 0;
+    }
+    if (drop) {
+      if (s > 0.05) for (let k = 0; k < K; k++) w2[o + k] /= s;
+      else { const j = slotOf(wi, o, K, d); for (let k = 0; k < K; k++) w2[o + k] = k === j ? 1 : 0; }
+    }
+    // does it ride its nodes' frames (the cage: a vertex on a detached piece, or at a broken member's end - or, rideAll,
+    // every one; the rest keep the cage's own pose)
+    let end = false; for (let k = 0; k < K && !end; k++) if (ww[o + k] !== 0 && BP.ends[wi[o + k]]) end = true;
+    ride[v] = !R.cage || R.rideAll || P !== 0 || end ? 1 : 0;
+  }
+  // the full binding for these places (first vertices), and their copies (G1864)
+  function bindSome(R, T, list) {
+    if (!list.length) return;
+    const nv = R.nv, mask = new Uint8Array(nv);
+    for (const v of list) mask[v] = 1;
+    bindNearest(R.g.pos, nv, R.g.rest, T.n, R.K, mask, R.g, null);
+    for (const v of list) R.g.bound[v] = 1;
+    if (R.rep) { const rp = R.rep, K = R.K; for (let v = 0; v < nv; v++) { const u = rp[v]; if (u !== v && mask[u]) {
+      R.g.bound[v] = 1; for (let k = 0; k < K; k++) { R.wi[v * K + k] = R.wi[u * K + k]; R.ww[v * K + k] = R.ww[u * K + k]; } } } }
+  }
+  // MORE OF THE BINDING, between events (G1864): up to `budget` places from `pending`, then their prep at the last event's
+  // pieces. Returns the places bound
+  function bindMore(R, T, budget) {
+    if (!R.pending || !(budget > 0) || !R.BP) return 0;
+    const take = Math.min(budget, R.pending.length), now = R.pending.subarray(0, take);
+    bindSome(R, T, now);
+    const nv = R.nv, rp = R.rep, done = new Uint8Array(nv); for (const v of now) done[v] = 1;
+    for (let v = 0; v < nv; v++) if (done[rp ? rp[v] : v]) prepV(R, v, R.BP, R.pc);
+    R.pending = take < R.pending.length ? R.pending.slice(take) : null;
+    return take;
+  }
   // THE EVENT: the damage state moved (D.vB). Returns true when the index changed
-  function event(R, T, D, rest, base) {
+  function event(R, T, D, rest, base, budget) {
     if (R.vB === D.vB) return false;
     R.vB = D.vB;
     const { nv, K, wi, ww } = R, idx = R.idx;
@@ -188,40 +276,22 @@
       for (const bi of D.br) { const b = T.beams[bi]; if (!b) continue;
         for (const i of [b.a, b.b]) { zone[i] = 1; for (const bj of T.adj[i]) { const c = T.beams[bj]; zone[c.a] = zone[c.b] = 1; } } }
       const mask = new Uint8Array(nv); let any = false;
-      for (let v = 0; v < nv; v++) { const i = R.g.near[v]; if (!R.g.bound[v] && (zone[i] || (pc && pc[i] !== 0))) { mask[v] = 1; R.g.bound[v] = 1; any = true; } }
-      if (any) bindNearest(R.g.pos, nv, R.g.rest, T.n, K, mask, R.g);
+      for (let v = 0; v < nv; v++) { const i = R.g.near[v]; if (!R.g.bound[v] && (zone[i] || (pc && pc[i] !== 0))) { mask[v] = 1; any = true; } }
+      // (G1864: a budget of places a frame - the break's zone first; the rest wait in `pending`, riding their nearest
+      // node meanwhile; rideAll: every place is owed its binding)
+      if (R.rideAll) for (let v = 0; v < nv; v++) if (!R.g.bound[v] && !mask[v]) mask[v] = 2;
+      if (any || R.rideAll) {
+        const rp = R.rep, first = [], rest2 = [];
+        for (let v = 0; v < nv; v++) if (mask[v] && (!rp || rp[v] === v)) (mask[v] === 1 ? first : rest2).push(v);
+        const order = first.concat(rest2), take = budget == null ? order.length : Math.min(order.length, Math.max(0, budget));
+        R.pending = take < order.length ? Int32Array.from(order.slice(take)) : null;
+        bindSome(R, T, Int32Array.from(order.slice(0, take))); R.lastBound = take;
+      }
     }
     const vp = R.vp || (R.vp = new Int32Array(nv)), dom = R.dom || (R.dom = new Int32Array(nv));
     const w2 = R.w2 || (R.w2 = new Float32Array(nv * K)), ride = R.ride || (R.ride = new Uint8Array(nv));
-    const pw = new Float64Array(Math.max(1, D.nPc));
-    const onEnd = v => { const o = v * K; for (let k = 0; k < K; k++) if (ww[o + k] !== 0 && BP.ends[wi[o + k]]) return true; return false; };
-    for (let v = 0; v < nv; v++) {
-      const o = v * K;
-      // 1. the piece holding most of its weight
-      let P = 0;
-      if (pc) { pw.fill(0); for (let k = 0; k < K; k++) { const w = ww[o + k]; if (w !== 0) pw[pc[wi[o + k]]] += w; }
-        let best = -Infinity; for (let q = 0; q < pw.length; q++) if (pw[q] > best) { best = pw[q]; P = q; } }
-      vp[v] = P;
-      // its dominant node on that piece
-      let d = wi[o], dw = -Infinity;
-      for (let k = 0; k < K; k++) { const w = ww[o + k], i = wi[o + k]; if (w !== 0 && w > dw && (!pc || pc[i] === P)) { dw = w; d = i; } }
-      dom[v] = d;
-      // 2. kept: on its piece, not across a broken member from its dominant node
-      let s = 0, drop = false;
-      for (let k = 0; k < K; k++) {
-        const w = ww[o + k], i = wi[o + k];
-        const keep = w !== 0 && (!pc || pc[i] === P) && !BP.has(d, i);
-        if (w !== 0 && !keep) drop = true;
-        w2[o + k] = keep ? w : 0; s += keep ? w : 0;
-      }
-      if (drop) {
-        if (s > 0.05) for (let k = 0; k < K; k++) w2[o + k] /= s;
-        else { const j = slotOf(wi, o, K, d); for (let k = 0; k < K; k++) w2[o + k] = k === j ? 1 : 0; }
-      }
-      // does it ride its nodes' frames (the cage: a vertex on a detached piece, or at a broken member's end; the rest
-      // keep the cage's own pose)
-      ride[v] = !R.cage || P !== 0 || onEnd(v) ? 1 : 0;
-    }
+    R.BP = BP; R.pc = pc;
+    for (let v = 0; v < nv; v++) prepV(R, v, BP, pc);
     // 3. the triangles: on one piece, and not across a broken member
     const i0 = R.idx0, nt = R.nt, dead = R.dead || (R.dead = new Uint8Array(nt));
     const watch = [];
@@ -249,7 +319,9 @@
         for (const i of [b.a, b.b]) { const L = at.get(i); if (L) L.push(bi); else at.set(i, [bi]); } }
       const sag = new Float32Array(nv);
       let any = false;
+      const rp = R.rep;
       for (let v = 0; v < nv; v++) {
+        if (rp && rp[v] !== v) { sag[v] = sag[rp[v]]; continue; }
         const o = v * K;
         for (let k = 0; k < K; k++) {
           const A = wi[o + k], wa = ww[o + k];
@@ -365,7 +437,7 @@
   // place. The turn acts on the vertex's offset from its nodes' blend (the skin's thickness off the frame), not on its
   // lever to each node: a blend of per-node rotations over a half-bay lever (linear-blend skinning) tore wherever two
   // neighbouring nodes' fits differed by a few degrees - more tears than the cells
-  const _o = [0, 0, 0];
+  const _o = [0, 0, 0], _q = [0, 0, 0, 1];   // (_q: the vertex's own blended turn, for its normal - G1864)
   function onNodes(R, v, NF, rest, live, x, y, z) {
     const K = R.K, wi = R.wi, w2 = R.w2, Q = NF.q, o = v * K;
     let lx = 0, ly = 0, lz = 0, rx = 0, ry = 0, rz = 0, qx = 0, qy = 0, qz = 0, qw = 0, d = -1, dw = -Infinity;
@@ -376,6 +448,7 @@
       const sg = (Q[i4] * dx0 + Q[i4 + 1] * dy0 + Q[i4 + 2] * dz0 + Q[i4 + 3] * dw0) < 0 ? -w : w;
       qx += sg * Q[i4]; qy += sg * Q[i4 + 1]; qz += sg * Q[i4 + 2]; qw += sg * Q[i4 + 3]; }
     const L = Math.hypot(qx, qy, qz, qw) || 1; qx /= L; qy /= L; qz /= L; qw /= L;
+    _q[0] = qx; _q[1] = qy; _q[2] = qz; _q[3] = qw;
     // v' = v + 2 qw (q x v) + 2 q x (q x v)
     const vx = x - rx, vy = y - ry, vz = z - rz;
     const tx = 2 * (qy * vz - qz * vy), ty = 2 * (qz * vx - qx * vz), tz = 2 * (qx * vy - qy * vx);
@@ -402,16 +475,68 @@
   // break moved - a vertex off the core or at a broken member's end (its nodes' frames), and the drape. base: the
   // group's rest in the model frame; pos: what the page posed this frame, at model - off (a group rebased about its
   // pivot - a control surface - is drawn at its pivot)
-  function poseCage(R, rest, live, base, pos, NF, down, off) {
+  // X (G1864, DMG-D4b - the page's): THE RIDING IN THE WORLD. The cage is drawn through the body's OBLIQUE basis
+  // (xA, yU, xA x yU: 85.6 degrees apart on the user's Cub as built), and a wreck can turn it to anything - 165 degrees
+  // measured on a broken-up Cub at a trunk, where the body's refs lie on different pieces: fitted in that frame, each
+  // node's "rotation" was a shear and every riding triangle tore (110k of 167k removed). With X the nodes' frames are
+  // the world's (rest: the frame's own coordinates, live: the sim's), base is the group's rest in the frame's
+  // coordinates (R.baseD), and each vertex's world place goes to X.w (the tear reads true lengths there) and its drawn
+  // place to Mi (world - cg) - o - off; X.n / X.nB (the normals, drawn and as built in the frame's coordinates): a riding
+  // vertex's normal turns with it (a wing folded 90 degrees no longer shines like a mirror under its rest normals);
+  // X.B the basis (columns xA, yU, zL) for the vertices that keep the cage's own pose. Without X: as before (the gate's)
+  // a normal (frame coordinates) turned by q and drawn through the basis's transpose
+  function turnN(q, nx, ny, nz, B, N, o3) {
+    const qx = q[0], qy = q[1], qz = q[2], qw = q[3];
+    const tx = 2 * (qy * nz - qz * ny), ty = 2 * (qz * nx - qx * nz), tz = 2 * (qx * ny - qy * nx);
+    const ax = nx + qw * tx + (qy * tz - qz * ty), ay = ny + qw * ty + (qz * tx - qx * tz), az = nz + qw * tz + (qx * ty - qy * tx);
+    const bx = B[0] * ax + B[3] * ay + B[6] * az, by = B[1] * ax + B[4] * ay + B[7] * az, bz = B[2] * ax + B[5] * ay + B[8] * az, bl = Math.hypot(bx, by, bz) || 1;
+    N[o3] = bx / bl; N[o3 + 1] = by / bl; N[o3 + 2] = bz / bl;
+  }
+  let _qv = new Float64Array(0);                         // (each first vertex's turn, this pose: its copies' normals)
+  function poseCage(R, rest, live, base, pos, NF, down, off, X) {
     const { nv } = R, ride = R.ride, sag = R.sag;
     const ox = off ? off[0] : 0, oy = off ? off[1] : 0, oz = off ? off[2] : 0;
+    if (!X) {
+      for (let v = 0; v < nv; v++) {
+        const o3 = v * 3;
+        if (ride[v]) {
+          const q = onNodes(R, v, NF, rest, live, base[o3], base[o3 + 1], base[o3 + 2]);
+          pos[o3] = q[0] - ox; pos[o3 + 1] = q[1] - oy; pos[o3 + 2] = q[2] - oz;
+        }
+        if (sag && sag[v]) { pos[o3] += sag[v] * down[0]; pos[o3 + 1] += sag[v] * down[1]; pos[o3 + 2] += sag[v] * down[2]; }
+      }
+      return;
+    }
+    const Mi = X.Mi, B = X.B, cg = X.cg, o = X.o, W = X.w, N = X.n, NB = X.nB, rp = R.rep;
+    if (rp && N && NB && _qv.length < nv * 4) _qv = new Float64Array(nv * 4);
+    const QV = rp && N && NB ? _qv : null;
+    const px = o[0] + ox, py = o[1] + oy, pz = o[2] + oz;
     for (let v = 0; v < nv; v++) {
       const o3 = v * 3;
+      if (rp && ride[v]) { const u = rp[v]; if (u !== v) { const u3 = u * 3;   // (a copy of a place already posed)
+        pos[o3] = pos[u3]; pos[o3 + 1] = pos[u3 + 1]; pos[o3 + 2] = pos[u3 + 2]; W[o3] = W[u3]; W[o3 + 1] = W[u3 + 1]; W[o3 + 2] = W[u3 + 2];
+        if (N && NB) { const a = NB[o3], b = NB[o3 + 1], c = NB[o3 + 2];
+          if (a === NB[u3] && b === NB[u3 + 1] && c === NB[u3 + 2]) { N[o3] = N[u3]; N[o3 + 1] = N[u3 + 1]; N[o3 + 2] = N[u3 + 2]; }
+          else if (QV) turnN(QV.subarray(u * 4, u * 4 + 4), a, b, c, B, N, o3); }
+        continue; } }
+      let wx, wy, wz;
       if (ride[v]) {
         const q = onNodes(R, v, NF, rest, live, base[o3], base[o3 + 1], base[o3 + 2]);
-        pos[o3] = q[0] - ox; pos[o3 + 1] = q[1] - oy; pos[o3 + 2] = q[2] - oz;
+        wx = q[0]; wy = q[1]; wz = q[2];
+        if (N && NB) {                                   // the normal turned by the vertex's own turn, drawn: B^T n
+          turnN(_q, NB[o3], NB[o3 + 1], NB[o3 + 2], B, N, o3);
+          if (QV) { QV[v * 4] = _q[0]; QV[v * 4 + 1] = _q[1]; QV[v * 4 + 2] = _q[2]; QV[v * 4 + 3] = _q[3]; }
+        }
+      } else {                                           // the cage's own pose, into the world
+        const a = pos[o3] + px, b = pos[o3 + 1] + py, c = pos[o3 + 2] + pz;
+        wx = cg[0] + B[0] * a + B[1] * b + B[2] * c; wy = cg[1] + B[3] * a + B[4] * b + B[5] * c; wz = cg[2] + B[6] * a + B[7] * b + B[8] * c;
       }
-      if (sag && sag[v]) { pos[o3] += sag[v] * down[0]; pos[o3 + 1] += sag[v] * down[1]; pos[o3 + 2] += sag[v] * down[2]; }
+      if (sag && sag[v]) { wx += sag[v] * down[0]; wy += sag[v] * down[1]; wz += sag[v] * down[2]; }
+      W[o3] = wx; W[o3 + 1] = wy; W[o3 + 2] = wz;
+      if (ride[v] || (sag && sag[v])) {
+        const dx = wx - cg[0], dy = wy - cg[1], dz = wz - cg[2];
+        pos[o3] = Mi[0] * dx + Mi[1] * dy + Mi[2] * dz - px; pos[o3 + 1] = Mi[3] * dx + Mi[4] * dy + Mi[5] * dz - py; pos[o3 + 2] = Mi[6] * dx + Mi[7] * dy + Mi[8] * dz - pz;
+      }
     }
   }
   // ---- THE TEAR: a watched triangle past TEAR over its rest edge is torn for good. Returns the triangles torn now ----
@@ -452,7 +577,7 @@
     }
     return { ex, m, t: at };
   }
-  const API = { TEAR, TEAR_ABS, DRAPE_K, WRINKLE_L, WRINKLE_A, NEAR_K, topo, brokenPairs, bindNearest, make, event, nodeFrames, polar, poseGen, poseCage, tear, worstStretch };
+  const API = { TEAR, TEAR_ABS, DRAPE_K, WRINKLE_L, WRINKLE_A, NEAR_K, topo, brokenPairs, bindNearest, dupOf, make, event, bindMore, nodeFrames, polar, poseGen, poseCage, tear, worstStretch };
   if (typeof module !== 'undefined' && module.exports) module.exports = API;
   if (typeof window !== 'undefined') window.SKIN_BREAK = API;
 })();
