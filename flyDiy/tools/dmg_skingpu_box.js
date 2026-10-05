@@ -5,6 +5,9 @@
 // user's Cub rolled out, ?damage=1 (add simw=0 for the inline solver; without it the worker steps it):
 //   SPORT=8581 DPORT=9481 UDD=C:/skgpu Q='damage=1&simw=0' node tools/live_driver.js <root> builds/cub_2026-09-20_corrected.json dev.html 8582
 //   node tools/dmg_skingpu_box.js [--cmd 8582] [--boot] [--cases trunk-0,trunk-2.5,taxi,nosein] [--modes cpu,gpu] [--out file.json] [--check 15]
+//        [--stills [--shots dir]] [--lose] [--flown [--secs 12]]
+//   --stills: the GPU / CPU still pair of each case at rest; --lose: the context lost 20 frames into the crash, restored 30
+//   later (the CPU's riding must carry on); --flown: under the worker (start the driver without simw=0), the page's own loop
 // Each case staged as tools/dmg_wreck_stills.js stages it (the trunk the physics' own; the page's own solver stepped two
 // steps a frame), every frame timed (the page's own rAF to rAF) and split by the flight recorder's slots and the skin
 // break's own read-out; under the GPU every `check`-th frame from the first break the readback (FLYDIY_SKINGPU_CHECK: a
@@ -43,6 +46,11 @@ async function pageRunGpu(o) {
     skip = false;
     // the readback, under the GPU, every `check`-th frame from the first break (its stall lands in the next frame: untimed)
     if (first >= 0) since++;
+    // (--lose: the WebGL context lost on purpose mid-crash, WEBGL_lose_context; restored `o.lose` frames later - the GPU's
+    // riding must end and the CPU's carry on, with no exception)
+    if (o.lose && since === 20) { const X = window.FLYDIY_RENDERER.getContext().getExtension('WEBGL_lose_context'); window.__lose = { at: sim.t, ext: !!X, gpuBefore: Object.assign({}, window.FLYDIY_SKINBREAK_STATS().gpu) }; if (X) X.loseContext(); }
+    if (o.lose && since === 20 + o.lose && window.__lose) { const X = window.FLYDIY_RENDERER.getContext().getExtension('WEBGL_lose_context'); window.__lose.gpuLost = Object.assign({}, window.FLYDIY_SKINBREAK_STATS().gpu);
+      window.__lose.cpuPoseFrames = trace.slice(-o.lose + 2).filter(r => r.brkPose > 0).length; if (X) X.restoreContext(); }
     if (o.check && first >= 0 && since % o.check === 1 && window.FLYDIY_SKINGPU !== false && window.FLYDIY_SKINGPU_CHECK) {
       await raf();                                     // (the page's own frame posed this step: its rAF may follow the rig's)
       const c = window.FLYDIY_SKINGPU_CHECK();
@@ -55,7 +63,8 @@ async function pageRunGpu(o) {
     if ((D.over || (!D.crashed && s > 400)) && Wk.bodies.every(b => b.asleep)) { if (++settled > 40) break; }
   }
   const D = sim.damage();
-  return { steps: s, crashed: D.crashed, over: !!D.over, reason: D.reason, broken: D.broken.length, brokeUp: !!D.brokeUp, first, trace, check: chk,
+  if (window.__lose) { window.__lose.lostNow = window.FLYDIY_RENDERER.getContext().isContextLost(); window.__lose.gpuEnd = Object.assign({}, window.FLYDIY_SKINBREAK_STATS().gpu); }
+  return { steps: s, crashed: D.crashed, over: !!D.over, reason: D.reason, broken: D.broken.length, brokeUp: !!D.brokeUp, first, trace, check: chk, lose: window.__lose || null,
     progs: [progs0, R3 && R3.info && R3.info.programs ? R3.info.programs.length : null], skin: window.FLYDIY_SKINBREAK_STATS ? window.FLYDIY_SKINBREAK_STATS() : null };
 }
 // UNDER THE WORKER (--flown; a page without simw=0): the page's own loop flies the crash (tools/dmg_crash_flown.js's
@@ -111,7 +120,10 @@ const summary = st => {
   const T = st.trace || [], i0 = st.first >= 0 ? st.first : T.length, t0 = i0 < T.length ? T[i0].t : 0;
   const win = T.filter(r => r.t >= t0 && r.t < t0 + 1 && i0 < T.length), q = a => { const b = a.slice().sort((x, y) => x - y); return b.length ? { med: b[b.length >> 1], p95: b[Math.floor(b.length * 0.95)], max: b[b.length - 1] } : null; };
   const sum = k => +win.reduce((a, r) => a + (r[k] || 0), 0).toFixed(1);
+  const ev = T.slice(i0).filter(r => r.brkEv > 1), fb = i0 < T.length ? T[i0] : null;
   return { reason: st.reason, broken: st.broken, frames: T.length, crash: q(T.slice(i0).map(r => r.ms)), worst: T.reduce((a, r) => (r.ms > a.ms ? r : a), { ms: 0 }),
+    impactQ: q(win.map(r => r.ms)), firstBreak: fb && { ms: fb.ms, brk: fb.brk, rec: fb.brkRec, ev: fb.brkEv, pose: fb.brkPose, scene: fb.scene },
+    events: { n: ev.length, ev: q(ev.map(r => r.brkEv)), frame: q(ev.map(r => r.ms)) }, lose: st.lose,
     impactMean: win.length ? +(win.reduce((a, r) => a + r.ms, 0) / win.length).toFixed(1) : null, impactFrames: win.length,
     impactSum: { ms: sum('ms'), phys: sum('phys'), scene: sum('scene'), brk: sum('brk'), brkRec: sum('brkRec'), brkEv: sum('brkEv'), brkPose: sum('brkPose'), gpu: sum('gpu'), render: sum('render'), shader: sum('shader') },
     calm: q(T.slice(0, i0).map(r => r.ms)), rest: q(T.slice(-60).map(r => r.ms)), check: st.check, progs: st.progs,
@@ -154,7 +166,7 @@ const summary = st => {
     const o = Object.assign({}, W.CASES[k].o);
     await W.run(W.pageStage, Object.assign({}, o, { placeOnly: true }));
     await W.post('/run', 'await new Promise(r => setTimeout(r, 800)); return 1;');
-    const st = await W.run(pageRunGpu, Object.assign({}, o, { check: mode === 'gpu' ? check : 0 }));
+    const st = await W.run(pageRunGpu, Object.assign({}, o, { check: mode === 'gpu' ? check : 0, lose: mode === 'gpu' && argv.includes('--lose') ? 30 : 0 }));
     if (!st || !st.trace) { console.log(k + ':' + mode + ' FAILED ' + JSON.stringify(st).slice(0, 500)); continue; }
     const S = summary(st);
     out.cases[k + ':' + mode] = Object.assign(S, { trace: st.trace });
@@ -172,7 +184,7 @@ const summary = st => {
       }
       await W.post('/run', "document.getElementById('d4bHide') && document.getElementById('d4bHide').remove(); FLIGHT_PROBE.camMode('chase'); return 1;");
     }
-    console.log(k + ':' + mode + ' ' + JSON.stringify({ reason: S.reason, broken: S.broken, impactMean: S.impactMean, impactFrames: S.impactFrames, crash: S.crash, worst: S.worst, calm: S.calm, rest: S.rest,
+    console.log(k + ':' + mode + ' ' + JSON.stringify({ reason: S.reason, broken: S.broken, impactMean: S.impactMean, impactFrames: S.impactFrames, impactQ: S.impactQ, firstBreak: S.firstBreak, events: S.events, lose: S.lose, crash: S.crash, worst: S.worst, calm: S.calm, rest: S.rest,
       impactSum: S.impactSum, check: S.check, progs: S.progs, gpu: S.gpu && { ok: S.gpu.ok, linkMs: S.gpu.linkMs, drawers: S.gpu.drawers, recs: S.gpu.recs, err: S.gpu.err, stats: S.gpu.stats } }));
     const f = opt('out', null); if (f) { fs.mkdirSync(path.dirname(f), { recursive: true }); fs.writeFileSync(f, JSON.stringify(out, null, 1)); }
   }

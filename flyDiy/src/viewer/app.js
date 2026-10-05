@@ -4041,7 +4041,7 @@
   function brkGpuFree() {
     const GS = BRK.gpu;
     if (!GS) return;
-    BRK.gpu = null;
+    BRK.gpu = null; BRK.posed = false;   // (the CPU poses the next frame: its arrays were not the drawn ones)
     for (const D of GS.drawers.values()) try { SKIN_GPU.release(D, renderer); } catch (e) { console.warn('SKIN_GPU release', e); }
   }
   function brkGpu(K) {
@@ -4057,11 +4057,12 @@
       model.grp.traverse(take);
       const FBF = window.FLOWN_BAKE && FLOWN_BAKE.folds ? FLOWN_BAKE.folds() : [];
       for (const F of FBF) for (const m of [].concat(F.meshes || [], F.kept || [], F.live || [])) take(m);
+      const drawn = new Set(meshes);       // (what can be drawn: the graph and the folds' own - not a member merged away)
       if (model.wreckBuild) for (const m of model.wreckBuild.parentOf.keys()) take(m);
       for (const m of meshes) { const fm = m.userData && m.userData.flownMerge; if (!fm || !fm.views) continue;
         const g = m.geometry, F = FBF.find(f => f.meshes && f.meshes.indexOf(m) >= 0) || null;
         for (const v of fm.views) map.set(v.pa, { A: g.attributes.position, AN: g.attributes.normal, views: fm.views, o: v.o, F }); }
-      GS = BRK.gpu = { model, map, meshes, drawers: new Map(), ents: new Map() };
+      GS = BRK.gpu = { model, map, meshes, drawn, drawers: new Map(), ents: new Map() };
     }
     return {
       // the record's entry on its drawer (made, and the drawer laid out again, when it first rides); null: the CPU rides it
@@ -4072,7 +4073,10 @@
           const at = GS.map.get(pa), geo = K.geoOf ? K.geoOf.get(pa) : null;
           if (R.rep && R.baseD && R.nB && R.rideAll) {
             const A = at ? at.A : pa, AN = at ? at.AN : (geo && geo.attributes.normal);
-            if (A && AN && AN.count === A.count) {
+            // (a bucket drawn through a COPY of its arrays - the still merge's craftStill - has no drawer here: nothing draws
+            // its own attribute; the CPU rides it, as before)
+            let seen = !!at; if (!seen) for (const m of GS.drawn) if (m.geometry && m.geometry.attributes.position === A) { seen = true; break; }
+            if (A && AN && AN.count === A.count && seen) {
               let Dr = GS.drawers.get(A);
               if (!Dr) {
                 const geos = new Set(); for (const m of GS.meshes) if (m.geometry && m.geometry.attributes.position === A) geos.add(m.geometry);

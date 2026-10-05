@@ -278,22 +278,27 @@
     const BP = brokenPairs(T, D), pc = D.pc;
     // a cage record: the full binding for the vertices at the break (their nearest node an end of a broken member, or one
     // live member from one) or off the core, the ones not bound before
-    if (R.g.near) {
+    // (G1818: walked once a place - a copy is bound with its place, and only places are bound or listed - and not at all
+    // once every place is bound: R.boundAll)
+    if (R.g.near && !R.boundAll) {
       const zone = new Uint8Array(T.n);
       for (const bi of D.br) { const b = T.beams[bi]; if (!b) continue;
         for (const i of [b.a, b.b]) { zone[i] = 1; for (const bj of T.adj[i]) { const c = T.beams[bj]; zone[c.a] = zone[c.b] = 1; } } }
-      const mask = new Uint8Array(nv); let any = false;
-      for (let v = 0; v < nv; v++) { const i = R.g.near[v]; if (!R.g.bound[v] && (zone[i] || (pc && pc[i] !== 0))) { mask[v] = 1; any = true; } }
-      // (G1864: a budget of places a frame - the break's zone first; the rest wait in `pending`, riding their nearest
-      // node meanwhile; rideAll: every place is owed its binding)
-      if (R.rideAll) for (let v = 0; v < nv; v++) if (!R.g.bound[v] && !mask[v]) mask[v] = 2;
+      const near = R.g.near, bound = R.g.bound, rp = R.rep, pl = rp ? placesOf(R).pl : null, np = pl ? pl.length : nv;
+      let any = false, open = 0;
+      const first = [], rest2 = [];
+      for (let j = 0; j < np; j++) { const v = pl ? pl[j] : j; if (bound[v]) continue; open++;
+        const i = near[v];
+        if (zone[i] || (pc && pc[i] !== 0)) { first.push(v); any = true; }
+        // (G1864: a budget of places a frame - the break's zone first; the rest wait in `pending`, riding their nearest
+        // node meanwhile; rideAll: every place is owed its binding)
+        else if (R.rideAll) rest2.push(v); }
       if (any || R.rideAll) {
-        const rp = R.rep, first = [], rest2 = [];
-        for (let v = 0; v < nv; v++) if (mask[v] && (!rp || rp[v] === v)) (mask[v] === 1 ? first : rest2).push(v);
         const order = first.concat(rest2), take = budget == null ? order.length : Math.min(order.length, Math.max(0, budget));
         R.pending = take < order.length ? Int32Array.from(order.slice(take)) : null;
         bindSome(R, T, Int32Array.from(order.slice(0, take))); R.lastBound = take;
       }
+      if (!open && R.rideAll) R.boundAll = true;
     }
     const vp = R.vp || (R.vp = new Int32Array(nv)), dom = R.dom || (R.dom = new Int32Array(nv));
     const w2 = R.w2 || (R.w2 = new Float32Array(nv * K)), ride = R.ride || (R.ride = new Uint8Array(nv));

@@ -252,18 +252,25 @@
       for (let k = 0; k < TXK.length; k++) { gl.activeTexture(gl.TEXTURE1 + k); gl.bindTexture(gl.TEXTURE_2D, D.tex[k]); }
       gl.bindVertexArray(D.vao);
       gl.bindTransformFeedback(gl.TRANSFORM_FEEDBACK, G.tf);
-      for (const r of D.recs) {
-        if (!r.R.active || r.cpu) continue;
-        const px = F.pxOf(r), nv = r.R.nv;
+      // the riding ranges, one draw a RUN: records side by side in the drawer and in the inputs, with the same offset (the
+      // fold's members a rig writes lie together: ~100 records, a handful of draws - a feedback draw's fixed cost is the CPU's)
+      const draw = (vo, ci, n, px) => {
         gl.uniform3f(L.px, px[0], px[1], px[2]);
-        gl.bindBufferRange(gl.TRANSFORM_FEEDBACK_BUFFER, 0, D.posBuf, r.vo * 12, nv * 12);
-        gl.bindBufferRange(gl.TRANSFORM_FEEDBACK_BUFFER, 1, D.nrmBuf, r.vo * 12, nv * 12);
-        gl.beginTransformFeedback(gl.POINTS);
-        gl.drawArrays(gl.POINTS, r.ci, nv);
-        gl.endTransformFeedback();
+        gl.bindBufferRange(gl.TRANSFORM_FEEDBACK_BUFFER, 0, D.posBuf, vo * 12, n * 12);
+        gl.bindBufferRange(gl.TRANSFORM_FEEDBACK_BUFFER, 1, D.nrmBuf, vo * 12, n * 12);
+        gl.beginTransformFeedback(gl.POINTS); gl.drawArrays(gl.POINTS, ci, n); gl.endTransformFeedback();
         draws++;
-        if (chk) chk('draw vo ' + r.vo + ' n ' + nv + ' of ' + D.nV);
+        if (chk) chk('draw vo ' + vo + ' n ' + n + ' of ' + D.nV);
+      };
+      let run = null;
+      for (const r of D.recs) {
+        if (!r.R.active || r.cpu) { if (run) { draw(run.vo, run.ci, run.n, run.px); run = null; } continue; }
+        const px = F.pxOf(r), nv = r.R.nv;
+        if (run && r.vo === run.vo + run.n && r.ci === run.ci + run.n && px[0] === run.px[0] && px[1] === run.px[1] && px[2] === run.px[2]) { run.n += nv; continue; }
+        if (run) draw(run.vo, run.ci, run.n, run.px);
+        run = { vo: r.vo, ci: r.ci, n: nv, px };
       }
+      if (run) draw(run.vo, run.ci, run.n, run.px);
       // THE PLACES MODE, asked by the tear (D.wantW) with none in flight: every place's world position into wBuf, fenced -
       // read when the fence has passed (poll), never waited on
       let wPass = false;
