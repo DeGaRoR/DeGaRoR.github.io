@@ -1142,6 +1142,15 @@ clearing it (Repair) is the only thing Repair does besides charging.
   aeroplane. DMG-D2b owns the fix: ordinary operations (the circuit, taxi on grass and water, touchdowns at the
   normal sink, chop, a crosswind within the demonstrated component) at most 2/3 of the certified yield on every
   validated build; only the certificate's limit cases, deliberately flown, may approach 1.
+- **(dm15) The gear is the fuse (DMG-D2b's landK = 1.5).** The landing, ground and water cases certify the AIRFRAME at the
+  gear's ultimate, so a landing that bends the gear does not bend the fuselage (§7.3, NASA 172 Test 1). A per-case-class
+  reading, not a global knock-up; the bench's first joint is unchanged (5.98-5.99 g static).
+- **(dm16) The build's own FAR 23.473 sink is the gear's limit case**: there the airframe is at most 2/3 of its certified
+  yield and the gear under 1 (no set); past it the gear yields, past 1.2 V it breaks (§7.3).
+- **The switch ON (D2b's c0d8b7b0) waits for**: the certificate's cost measured in the bench worker in Chromium on the box
+  (14-47 s in node, 4-5 x D2a's - at roll-out of every new build once damage is on by default; on a 2-core machine it
+  competes with the page for about a minute), cut if it shows (D2b's cheap cuts, a cache kept per build); the coordinator's
+  full battery with damage ON; the box eyeball. dm14's headroom is met (every ordinary operation 0.10-0.66).
 
 ---
 
