@@ -1,0 +1,162 @@
+{
+ "cub": [
+  {
+   "kappa": 0.05,
+   "floor": 145,
+   "n": 379,
+   "firstJoint": 5.984999999999999
+  },
+  {
+   "kappa": 0.1,
+   "floor": 245,
+   "n": 379,
+   "firstJoint": 5.984999999999999
+  },
+  {
+   "kappa": 0.15,
+   "floor": 309,
+   "n": 379,
+   "firstJoint": 5.985
+  },
+  {
+   "kappa": 0.2,
+   "floor": 326,
+   "n": 379,
+   "firstJoint": 6.028113607407138
+  },
+  {
+   "kappa": 0.3,
+   "floor": 348,
+   "n": 379,
+   "firstJoint": 9.042170411110705
+  }
+ ],
+ "jodel": [
+  {
+   "kappa": 0.05,
+   "floor": 271,
+   "n": 477,
+   "firstJoint": 5.985
+  },
+  {
+   "kappa": 0.1,
+   "floor": 368,
+   "n": 477,
+   "firstJoint": 5.985
+  },
+  {
+   "kappa": 0.15,
+   "floor": 407,
+   "n": 477,
+   "firstJoint": 5.985000000000001
+  },
+  {
+   "kappa": 0.2,
+   "floor": 432,
+   "n": 477,
+   "firstJoint": 5.985000000000001
+  },
+  {
+   "kappa": 0.3,
+   "floor": 456,
+   "n": 477,
+   "firstJoint": 5.985000000000001
+  }
+ ],
+ "metal": [
+  {
+   "kappa": 0.05,
+   "floor": 115,
+   "n": 427,
+   "firstJoint": 5.984999999999999
+  },
+  {
+   "kappa": 0.1,
+   "floor": 201,
+   "n": 427,
+   "firstJoint": 5.985
+  },
+  {
+   "kappa": 0.15,
+   "floor": 281,
+   "n": 427,
+   "firstJoint": 5.985
+  },
+  {
+   "kappa": 0.2,
+   "floor": 303,
+   "n": 427,
+   "firstJoint": 5.985
+  },
+  {
+   "kappa": 0.3,
+   "floor": 357,
+   "n": 427,
+   "firstJoint": 5.985
+  }
+ ],
+ "floats": [
+  {
+   "kappa": 0.05,
+   "floor": 94,
+   "n": 427,
+   "firstJoint": 5.985
+  },
+  {
+   "kappa": 0.1,
+   "floor": 171,
+   "n": 427,
+   "firstJoint": 5.985
+  },
+  {
+   "kappa": 0.15,
+   "floor": 225,
+   "n": 427,
+   "firstJoint": 5.985
+  },
+  {
+   "kappa": 0.2,
+   "floor": 277,
+   "n": 427,
+   "firstJoint": 5.985
+  },
+  {
+   "kappa": 0.3,
+   "floor": 319,
+   "n": 427,
+   "firstJoint": 5.985
+  }
+ ],
+ "twinFloats": [
+  {
+   "kappa": 0.05,
+   "floor": 142,
+   "n": 413,
+   "firstJoint": 5.985
+  },
+  {
+   "kappa": 0.1,
+   "floor": 256,
+   "n": 413,
+   "firstJoint": 5.985
+  },
+  {
+   "kappa": 0.15,
+   "floor": 308,
+   "n": 413,
+   "firstJoint": 5.985
+  },
+  {
+   "kappa": 0.2,
+   "floor": 336,
+   "n": 413,
+   "firstJoint": 6.020368047881174
+  },
+  {
+   "kappa": 0.3,
+   "floor": 366,
+   "n": 413,
+   "firstJoint": 9.03055207182176
+  }
+ ]
+}

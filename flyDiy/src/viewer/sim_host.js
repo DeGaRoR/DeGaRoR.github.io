@@ -468,6 +468,7 @@ function makeSimHost(CORE, init, keptWorld) {
         break;
       }
       case 'impulse': sim.impulse(c.i, c.ix || 0, c.iy || 0, c.iz || 0); break;
+      case 'cert': if (typeof sim.certStamp === 'function') sim.certStamp({ Ft: c.Ft, Fc: c.Fc }); break;   // G1831 (DMG-D2a)
       case 'setCard': if (ap.setCard) ap.setCard(c.card || {}); break;
       case 'setDay': world.setDay(c.day || {}); world.__simV = (world.__simV || 0) + 1; break;
       case 'obst': case 'world': case 'premises': simHostWorldOp(world, c); break;

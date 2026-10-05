@@ -136,6 +136,9 @@ const MANIFEST = {
     '63_gen_wing.js',
     '64_gen_build.js',
     '65_gen_loadtest.js',
+    // THE CERTIFICATE (G1830, DMG-D2a): the load cases and the per-member envelope; needs 65_'s rig constants and
+    // 30_'s makeSim (the drop); called at a flight's start and by the bench, never in the garage's edit loop
+    '66_gen_cert.js',
     // THE PLAYER (HANGARS S1): the player's property as one document — its
     // own version and migrator walk beside the spec's (G105: state that is
     // not the aeroplane costs no spec version). References 26_'s default kit
