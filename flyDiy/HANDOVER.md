@@ -77477,3 +77477,119 @@ chase flight, garage->world worst task) were a peer's node work (DMG-WALL 21:41-
 Battery: PASS but for PILOT-ONE's reds; targeted re-run on the landed tree: INPUT GEN PILOT PILOTACT TAXICLEAR LINEUP RWYTREES
 AA UISMOKE DMGINST GFX ROLLANIM MEDIA BUILT PASS. Metlakatla-on measured (train 35, A,B,B,A): warm +7 s load, first visit
 +26 s and a 47 % uneven taxi -> stays OFF. boxlock.sh: CPU locks now exclusive (in the main checkout; committed next train).
+## G1715-G1717 - SND-ROLLOUT: THE ROLL-OUT SHOT STARTS ITS ENGINES THE WAY THE AEROPLANE DOES - THE KEY, THE STARTER, THE CATCH, IDLE THROUGH THE CHECK, A LITTLE THROTTLE TO BREAK AWAY; THE SHED HEARS IT WHERE IT ROLLS; THE SHOT LENGTHENED BY ITS START; GATED (2026-10-05, SND-ROLLOUT for the Sound Coordinator, cloud, node only; branch claude/snd-rollout off origin/master 55dd98b7 = train 34; G1718-G1719 unused)
+
+The user, 2026-10-05: "There's an animation of the plane starting and rolling out of the hangar. This one needs sound too, using
+the same methods as the real aircraft would", and "I suspect the rollout animation does not leave enough time for a proper starting
+sound. If that's the case, you have the authority to adjust it to fit." It did not: the shot only wrote sim.out.rpm (the prop's
+spin), so the engine voice (audio_params: rpmEng, eng[i].running / crank / key) heard nothing. There was no start, and the
+spool was a 0.6 s curve.
+
+**G1715 THE START (rollanim.js).** A phase before the check (h.phase 'start' > 'check' > 'roll'; plan.start, plan.Ttotal = start
++ check + roll). Every engine is stopped at the first frame (the solver's own writer, setEngine key 'off'). The master and the key
+go on at 0.2 s (setEngine key 'both'), then silence until 0.6 s. Then each engine in turn:
+- **'starter'**: setEngine start with sim.starterOk lent as "the build has a starter". The crank is the solver's own 1.5 s,
+  counted down by burn()'s two lines (crank -= dt; at 0 it runs).
+- **'swing'**: genSystemsResolve(spec).starter false, a minimal-systems build; setEngine swing, the cockpit's hand on the prop. It
+  catches at once.
+- **'power'**: an electric motor; the cockpit's pack key, swing.
+- **A turboprop** cranks; its voice spools on its own.
+- **No engine**: no start (plan.start.n 0, nothing written; the shot as before).
+
+The next engine cranks 1.0 s after a catch; the check starts 0.8 s after the last one (an electric: 0.6 s after each power-on).
+sim.out.rpm / rpmEng / thrustPer come from the solver's laws at rest (genShaftRpm at V 0, sea level, as n^2 = nIdle^2 +
+(nFull^2 - nIdle^2) thr: exact, two calls at play, none a frame; Ti = thr x lever x Tstatic). They are 0 while it cranks, as
+the solver writes them. sim.ctl.thr is 0 through the start and the check. On the roll it rises to 0.14 over 0.3 s from the
+roll's start, before the aeroplane moves (hold0 0.35 s): +350 rpm on the A-65, 644 -> 992. It holds to 35 % of the roll and
+is back to 0 by 85 %. It moves in 0.02 steps with the linkage snapped on each, because a moving control re-poses and re-uploads
+the aeroplane every frame (poseModel: any link key > 1e-4; thr rides the linkage). That is ~14 re-poses in the roll, not ~170.
+THE DRAWN PROP turns at the rpm the engine's VOICE makes, not the solver's 0 while it cranks:
+- props' spinRate is written each frame (what poseModel spins them by; its 1.5 s ease toward out.rpm moves it ~1 % a frame);
+- for a piston, engine_worklet.js's own law, mirrored: the starter's envelope, the crank at cfg.crankRpm through each compression
+  (+-32 %: the stutter), the catch's surge 0.45 idle over 0.25-1.25 s, its taus, the run-down's friction;
+- for a turboprop or a motor, prop_worklet.js's Np / motor laws;
+- the numbers come from engine_config.js (ENGINE_SOUND: in the bundle with or without ?audio=0, so ?audio=0 changes nothing
+  visual).
+
+GATE ROLLSND holds the mirror against the worklet run offline on the shot's own timeline: within 6 % of idle (worst: Cub 31 rpm,
+Cessna 38, Rotax 126 of 1820). Allocation: the start's frame 1.5 B, the roll 17.8 B (was ~16), the fixed roll 33.5 B (was 32; a
+call into the pose write had cost +32 B, so the pose is written out in the roll tick and written once at play for the rest),
+the check unchanged.
+
+**WHAT THE WORLD EXPECTS AT THE CUT: THE STAND STARTS WITH THE ENGINE RUNNING.** fullReset -> sim.reset -> resetPanel puts every
+engine running / key both / crank 0; the first step writes the idle. So the shot hands over: `o.handover` (app.js's roll-out
+only). At the end or a skip, the engine fields are put back (equal to the stand's) and sim.out is left at the stand's idle
+(rpm / rpmEng at the law's idle, thrust 0). The voice idles across the cut: no gap, no second catch. A skip mid-crank lands on the
+stand with the engine running, so the voice hears one catch, at the cut. Without the handover (the solo shot `?rollanim=solo`
+and `FLYDIY_ROLLANIM`, which go back to the shed), and on EVERY cancel, every field the shot wrote is put back exactly as found:
+sim.eng key / crank / running, sim.out.rpm / rpmEng / thrustPer (a stale flight's included), sim.ctl.thr. There is no stuck
+starter, and the engine winds down to the shed's own state.
+
+**G1716 THE SPACE (space.js shotPose, app.js).** `AUDIO.space.shotPose` (Float64Array(5): on, the offset dx / dy / dz, the
+engines' share inside the shed) is handed to the shot by app.js (rollAnimPlay: `audioPose`, null with ?audio=0). The shot writes
+it at play (at rest) and every roll frame (the roll's own s and heave); it goes off at the end. While it is on, the shed is heard
+AS THE WORLD IS, not in the room mode (the group 8 m ahead): each engine group where it stands + the offset, through the same
+retarded solve, directivity, absorption, panner and lag as in flight, from the shot's camera (the listener; exterior). The
+aircraft's wet send into the shed's IR follows the share: 0.25 x (0.3 + 0.7 inside), in 2 % steps. The share falls from 1 to 0
+over 4 m across the door plane, at the engines' nodes, so the room thins as the engines leave by the opening. Ambience and
+music sends are unchanged.
+
+**G1717 GATES AND EVIDENCE.**
+- **GATE ROLLSND** (tools/_rollsnd_check.js, registered core, ~100 s):
+  - ORDER, on the Cub, the Jodel, the Cessna, the twin-582 and a PT6: stopped at the first frame; the key before the crank and
+    >= 0.4 s of silence; the crank for the solver's own time (setEngine measured on makeSim) ending in its catch; one catch per
+    engine; sim.out on the solver's laws every frame; the check at idle; the throttle 0.10-0.20 leading the roll and back to 0.
+  - TURN: a twin's engine 1 cranks after engine 0 caught, never two at once.
+  - KINDS: the electric never cranks, the swing never cranks, no engine writes nothing.
+  - VISUAL: the drawn crank within 25 % of the voice's, a flare >= 1.2 idle, idle by the check's end, and the worklet comparison.
+  - RESTORE: 7 endings x handover x a stale flight rpm.
+  - SPACE: space.js on a stub graph, the distance exact at three poses, the wet send, the room mode back.
+  - WIRING. 20 mutations, all red.
+- **GATE ROLLANIM** updated: the start rows, the props at idle once started, and a START allocation row (1.5 B / frame); its
+  allocation runs pass an audioPose as the page does.
+- **GATE AUDIO SP_BUDGET** gains the shot's sample (a fresh process, the shed, the pose rolling the aeroplane by the door): 17.6 B
+  a frame against the shed's own room mode in the same process (7.3 B, before this work: the shed's 1 Hz IR poll and the
+  airframe's shed path), 0 GC, 31 us. It is held to the shed's + 16 B a frame. The SP_IR mutation's anchor follows wet().
+- **Evidence**: reports/evidence/SND-ROLLOUT/: four renders (.ogg + spectrogram) by tools/audio/rollout_render.js (the shot
+  played in node, its fields per frame into the real engine + prop worklets, the space from the shot's camera, the club shed's
+  IR), summary.json (the marks), and the README (what to listen for, second by second; the red flags).
+- **Box script**: tools/perf/rollout_sound_evidence.js records THE REAL PAGE. Real clicks; AUDIO.bus('master') tapped into a
+  MediaRecorder; Roll out pressed; the shot, the cut and 4 s of the stand recorded; the shot's fields logged every frame.
+  --solo plays the shot alone.
+
+**THE SHOT'S NEW LENGTH (A0's strict gate: its roll-out rows time the shot; this is length, not load).** The start and the check
+are fixed. The roll is G1115's front shot, unchanged (it depends on the room and the framing; below: the club shed, the garage's
+own framing, GATE ROLLSND's rig):
+
+| build | start | check | roll | total (was) |
+|---|---|---|---|---|
+| the user's Cub (A-65) | 2.90 s | 3.30 s | 5.59 s | **11.79 s** (8.89) |
+| the Jodel D112 (A-65) | 2.90 s | 3.30 s | 5.43 s | **11.63 s** (8.73) |
+| the Cessna 172 (flat four 5.9 L) | 2.90 s | 3.30 s | 5.71 s | **11.91 s** (9.01) |
+| the twin-582 (two Rotax 582) | 5.40 s | 3.30 s | 5.59 s | **14.29 s** (8.89) |
+
+The other kinds: an electric 1.2 s of start (0.6 lead + 0.6 per motor), a turboprop 2.9 s, no engine 0 s.
+FRAMECOST's `boot/rollout:click/` row spans the shot (a waiver row): ~175 more shed frames on a single, ~325 on a twin. They are
+the start's frames: the aeroplane at rest, no surface moving, no re-pose. The app's 30 s timeout still covers a twin with the
+longest roll (5.4 + 3.3 + 5.85 = 14.6 s).
+
+**GATES** (this branch's head): ROLLANIM PASS, ROLLSND PASS (20/20), AUDIO PASS (alone, 6 min; in a 4-job battery EMITALLOC went
+red once on a starved sample: emitters.js, untouched here; it is green alone), AUDIOENG PASS, UISMOKE PASS, BUILD PASS. The
+runner's rebuilt built files are restored: none is in this branch. Physics untouched (no src/core file).
+
+**HOT FILES for A0's trains:** src/viewer/rollanim.js (the start, the engines, the restore, the pose), src/viewer/app.js
+(rollAnimPlay: `handover`, `audioPose`; rollAnim's call: `, true`: 4 lines), src/viewer/audio/space.js (shotPose: 9 lines),
+tools/_rollanim_check.js, tools/audio/_audio_check.js (SP_BUDGET's shot sample, one anchor), tools/run_gates.js (ROLLSND).
+New: tools/_rollsnd_check.js, tools/audio/rollout_render.js, tools/perf/rollout_sound_evidence.js, reports/evidence/SND-ROLLOUT/.
+
+**FOR THE COORDINATOR:**
+1. NOT YET HEARD ON THE REAL PAGE: run the box script, listen with headphones, and read the README's list.
+2. A pre-existing issue, found on the way (not fixed: not this brief): sim.reset() does not clear sim.out.rpm / rpmEng. After a
+   flight the shed keeps the flight's last rpm with every engine "running" (resetPanel), so in the shed the engine voice would go
+   on at that rpm, and poseModel spins the prop at it (both `running` in the garage). Shown in node: Cub 644 rpm left after
+   reset. The shot handles it (the start stops everything first; a cancel puts it back as found). The shed's own state wants a
+   ruling: clear sim.out's rpm on enterGarage, or have audio_params read the shed's engines as stopped.
+3. SND-TUNE knobs: S.startLead / crankS (the solver's, 1.5 s) / catchNext / catchCheck / rollThr (0.14) / thrHold / thrDown, and
+   space.js WET_OUT (0.3).
+4. No tyre or floor sound on the roll: the airframe voice reads the solver's V (0 in a kinematic shot). A ground-roll layer for
+   the shot would be SND-AIRFRAME's.
