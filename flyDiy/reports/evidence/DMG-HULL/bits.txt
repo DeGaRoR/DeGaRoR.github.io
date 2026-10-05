@@ -1,0 +1,9 @@
+cub ground: base 5eea039f5307f34e942bed77e9dc1bfb now 5eea039f5307f34e942bed77e9dc1bfb IDENTICAL
+cub air: base 1e88e4360e410282a0916a77e9317952 now 1e88e4360e410282a0916a77e9317952 IDENTICAL
+metal ground: base 5e7b6e617c5a77527504690afd6820cc now 5e7b6e617c5a77527504690afd6820cc IDENTICAL
+metal air: base 9f592bb1f2b930c4759eff0de492b6b6 now 9f592bb1f2b930c4759eff0de492b6b6 IDENTICAL
+jodel ground: base fdf448fa77cb722311138295f32aff5c now fdf448fa77cb722311138295f32aff5c IDENTICAL
+twin taxi (kSide 0): base bc4a70af03e11a81e8cdf57ed5971783 now bc4a70af03e11a81e8cdf57ed5971783 IDENTICAL
+cessna taxi (kSide 0): base 0bea8b96e5294b539de03ed4f2e7a5cf now 0bea8b96e5294b539de03ed4f2e7a5cf IDENTICAL
+twin taxi: base bc4a70af03e11a81e8cdf57ed5971783 now 4e5ee20a355e63372c62d61c336a481e DIFFERENT
+cessna taxi: base 0bea8b96e5294b539de03ed4f2e7a5cf now 47fd36b4a5bd8e03e3e967e6dc7dec6b DIFFERENT

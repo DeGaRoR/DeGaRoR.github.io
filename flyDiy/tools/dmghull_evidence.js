@@ -126,7 +126,7 @@ if (PLOTS >= 0) {
       const A = axes(x0 + i * 300, 50, 240, 240, [0, 90], [0, ymax], 'slip angle (deg)', i === 0 ? 'lateral force on one float (N)' : '', [0, 15, 30, 45, 60, 75, 90], ticks(0, ymax, 4));
       body += A.b + poly(P.c.map(x => [x[0], x[1]]), A.X, A.Y, COL.a) + poly(P.c.map(x => [x[0], Math.min(x[2], ymax)]), A.X, A.Y, COL.b, true) + poly(P.c.map(x => [x[0], Math.min(x[1] + x[2], ymax)]), A.X, A.Y, COL.c);
       const ps = P.r[P.where];
-      body += `<text x="${x0 + i * 300}" y="44" fill="${COL.ink}">${P.r.key === 'twin' ? 'twin' : 'Cessna'} float, ${P.where}: V ${ps.U.toFixed(1)} m/s, keel ${ps.draft.toFixed(2)} m, trim ${ps.trim.toFixed(1)} deg</text>`;
+      body += `<text x="${x0 + i * 300}" y="44" fill="${COL.ink}">${P.r.key === 'twin' ? 'twin' : 'Cessna'}, ${P.where}: ${ps.U.toFixed(1)} m/s, keel ${ps.draft.toFixed(2)} m, ${ps.trim.toFixed(1)} deg</text>`;
     });
     body += `<text x="80" y="${H - 14}" fill="${COL.a}">G1847 side force (pi/2 rho T^2 U v per station; Jones' sin b cos b)</text><text x="460" y="${H - 14}" fill="${COL.b}">the base's panels (cross-flow, planing bottom) - dashed, clipped</text><text x="900" y="${H - 14}" fill="${COL.c}">sum</text>`;
     fs.writeFileSync(path.join(OUT, 'side_force.svg'), svg(W, H, body, 'DMG-HULL G1847: the float\'s lateral force against the slip angle at a fixed speed (rigid bench, as GATE DMGHULL measures it)'));
@@ -144,6 +144,6 @@ if (PLOTS >= 0) {
     body += poly(cut(n.tr).map(x => [x[0], x[1]]), A.X, A.Y, COL.a) + poly(cut(n.tr).map(x => [x[0], Math.max(-90, x[2])]), Bp.X, Bp.Y, COL.a);
     const cls = r => r.ok ? `lift-off ${r.lift.toFixed(1)} s, swing ${r.swing.toFixed(1)} deg` : r.noseOver ? `NOSE-OVER (pitch ${r.pitchMin.toFixed(0)} deg)` : r.yawLoop ? 'YAW LOOP' : 'fail';
     body += `<text x="80" y="535" fill="${COL.a}">now (G1847): ${cls(n)}</text>` + (b ? `<text x="420" y="535" fill="${COL.b}">base (DMG-DAMP, no side force): ${cls(b)}</text>` : '');
-    fs.writeFileSync(path.join(OUT, `heading_${w}.svg`), svg(760, 550, body, `DMG-HULL: the twin on floats' crosswind take-off, ${w} m/s across (GATE SEAPLANE's run): heading from the roll's own, and pitch`));
+    fs.writeFileSync(path.join(OUT, `heading_${w}.svg`), svg(760, 550, body, `DMG-HULL: the twin on floats, ${w} m/s across - heading swing and pitch`));
   }
 }
