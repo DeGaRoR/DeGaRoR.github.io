@@ -72474,3 +72474,16 @@ breaks anything. Three hooks (30_solver.js, standalone on this branch: the wet b
   - HYDRODYN, WATER, FLOATS, SEAPLANE, SOAR: PASS on this branch alone, and PASS on the local merge.
   - On this branch, FLOATS, SEAPLANE and SOAR are byte for byte the outputs from before the water hooks. HYDRODYN differs in its ms line only (the water
     / dry step ratio 1.29 against 1.34).
+
+### G1479.1 - REBASED ONTO TRAIN 31 (2026-10-05, the check-in A0 asked for)
+- **Rebased onto master bff4f64** (train 31 landed + its Pages re-trigger): 18 commits, no conflict. Train 31 touched app.js, run_gates.js and
+  parked_packs.json beside this work. HANDOVER: this section after "TRAIN 31 LANDED", byte for byte as before.
+- **GEAR-WATER 2 (claude/gear-water-buoy) is NOT on master** (A0 lands it in train 32). So GATE TREECRASH's three wheeled water cases still print `--`.
+  When it lands, the merge is the three one-line conflicts G1479 names in 30_solver.js:
+  - reset(): dmgReset() then wetReset;
+  - step(): wetArmFrame before armFrame;
+  - the sim's return: the wetBody getter and the damage line.
+  Merged that way locally (on train 30) the gate read 50/50.
+- **On the rebased tree** (node, cloud): GATE TREECRASH PASS 47/47; TREEHIT, LOAD, SIMWORKER, UISMOKE, HYDRODYN, WATER, FLOATS, SEAPLANE, SOAR PASS.
+- `parked_cook.js --check`: STALE (manifest 39f9e360 against this tree 75606054), as on any source change: the train re-cooks, and FRAMECOST reads
+  after that.
