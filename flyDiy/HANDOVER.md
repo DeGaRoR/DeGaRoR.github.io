@@ -72329,3 +72329,34 @@ at the stand on potato (scenery 'low' already) - a cheaper far house tier would 
 atlas + map (~50 MB) could be 1024 on potato (its 256 px slots need a re-pack); the potato frame's MSAA (4x in the target) is
 kept - its cost needs the card; dynamic resolution was NOT added (EVEN-30: a moving scale is uneven; potato keeps 0.67 fixed,
 laptop 0.5); no GTX 660 / HD 620 numbers exist yet - the user's next log is the measurement.
+
+## G1527 POTATO-DEEP: THE USER'S GTX 660 LOG ON TRAIN 34 - THE PAGING IS GONE, THE TAXI IS TRIANGLES; THE PREMISES PATCH AT 3 px ON POTATO / LAPTOP (2026-10-05, POTATO-DEEP for A0, node only - the box's GPU busy)
+
+The user's run ("very successful"): C:/Users/denis/Downloads/flydiy-flightlog-20261005T190342-616j.json - build c8f3b024
+(train 34), GTX 660, potato (plain ground, terrain 6, pv 8), 1920 x 911 at 0.67. Cruise 795 s at an even 30 (92 % of frames
+20-40 ms, GPU 29.4 ms, 2.28 M tris); shed 30 (GPU 26.9, 1 967 draws); stand 30 (GPU 32.0, 2.45 M); TAXI the weak phase: 180 s,
+p50 33.6 but 43 % of frames 40-60 ms, GPU 40.8 ms a frame at 4.18 M tris / 733 draws (6.1 M / 930 in its first seconds);
+take-off 38.5 / 3.28 M, approach 39.7 / 3.72 M. Cold garage load 69.7 s (was 141 s on train 27; world 11.6, settle 10.6,
+worldCompile 11.0, upload 9.3, bake 1 ms). One uncaught error (convSeed null.base, 09_climate.js:482) - A0 fixed it on train 36.
+THE CARD'S COST MODEL, off the phases (GPU ms vs triangles: cruise 29.4 @ 2.28 M, stand 32.0 @ 2.45, landing 35.0 @ 3.26,
+take-off 38.5 @ 3.28, taxi 40.8 @ 4.18): **~16 ms fixed + ~6 ms per million triangles**. The world's GPU time FOLLOWS the
+triangles now - the paging signature (flat 440-580 ms at any count) is gone. An even 30 at the taxi wants ~2.8 M (-1.4 M).
+WHAT THE POTATO TAXI DRAWS (FRAMECOST's census, the Cub, potato, the taxi pin; new: FRAMECOST_WHAT tallies the main pass's
+triangles by the drawn object's named path - tools/_framecost_check.js drawnDetail `tris`, stderr / JSON detail only, never
+in the verdict): the PREMISES GROUND PATCH 780 k (it was cut at gamer's 1 px error), the far terrain 768 k (already 6 px), the
+Standard meshes 535 k (the fine disc's tiles, the sheds, the props), the impostor cards 381 k, the roads 210 k, the tram 143 k,
+the pavement 88 k, the ring 64 k, the crew 55 k.
+**SHIPPED: GFX.BUDGETS potato / laptop `patchTolPx: 3`** (render_premises PL.tolPx, read at the build; desktop rows untouched -
+GATE GFX §10): the patch 780 k -> 431 k at the taxi, 827 k -> 424 k at the stand; the frame 4.13 -> 3.78 M (-8.4 %), ~-2 ms on
+the 660 by the model. Measured 2 px (-141 k) and 6 px (-555 k) too. NOT 6: the ground under a pavement is sunk 0.8 m (G660,
+"twice the worst LOD error" at 1 px); at 6 px a level's error can reach 0.8 m from ~155 m out (3 px: ~310 m, and the graded
+strips are flat) - the coarse patch could show through a far runway. GATE PREMISES PASS.
+THE NEXT POTATO LEVERS FOR THE TAXI, ranked by triangles (each wants a GPU still before it ships):
+1. the patch at 6 px WITH the sink scaled to it (PAVEMENT.SINK x tolPx under the opaque interior only - the wheels read
+   terrainH, not the mesh): -207 k more; look at the runways from 300 m-2 km before landing it.
+2. the far terrain (768 k at 6 px): a potato draw-distance cap (WORLD.vis's far plane at ~12-15 km on potato) - the ridges
+   past it are a few pixels at 1286 x 610; estimate -300..-500 k.
+3. the impostor cards (381 k): forestK 0.65 -> 0.5 (the laptop's) - the cards go as the reach's square: ~-150 k.
+4. the tram (143 k) and the roads' merged mesh (210 k): the tram hidden on potato, the roads' far batches decimated.
+Together ~-0.8..-1.0 M: the taxi near 33 ms on the 660 by the model. The animals switch (53 MB) and the town's house
+textures stay owed (memory, not the taxi's GPU).

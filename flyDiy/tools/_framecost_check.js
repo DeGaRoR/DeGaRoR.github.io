@@ -595,7 +595,18 @@ function drawnDetail(C) {
   if (process.env.FRAMECOST_WHAT) { names = {}; for (const o of C.lastDrawn || []) { let n = o; while (n && !n.name) n = n.parent; const m = [].concat(o.material)[0];
     const k = (o.isInstancedMesh ? 'I:' : o.isBatchedMesh ? 'B:' : o.isSkinnedMesh ? 'S:' : '') + (n ? n.name : '-') + ' | ' + (m ? (m.name || m.type) + (m.map ? ' map' : '') : '-'); names[k] = (names[k] || 0) + 1; }
     names = Object.fromEntries(Object.entries(names).sort((a, b) => b[1] - a[1]).slice(0, 80)); }
-  return { main: count(C.lastDrawn), shadow: count(C.lastShadow), mats: matTally(C.lastDrawn || []), names, shadowPasses: C.lastPasses || undefined };
+  // (G1527, POTATO-DEEP) FRAMECOST_WHAT also tallies the main pass's TRIANGLES by the drawn object's named path from the scene
+  // (its first three named ancestors): which owner a weak card's taxi pays for - stderr only, never in the verdict
+  let tris = null;
+  if (process.env.FRAMECOST_WHAT) { tris = {}; const seen = new Set();
+    for (const o of C.lastDrawn || []) { if (seen.has(o)) continue; seen.add(o); const g = o.geometry; if (!g || !o.isMesh) continue;
+      let n = g.index ? g.index.count : (g.attributes.position ? g.attributes.position.count : 0);
+      if (g.drawRange && g.drawRange.count !== Infinity) n = Math.min(n, g.drawRange.count);
+      const inst = o.isInstancedMesh ? o.count : (g.isInstancedBufferGeometry && g.instanceCount !== Infinity ? g.instanceCount : 1);
+      const path = []; for (let p = o; p && p.parent; p = p.parent) if (p.name) path.unshift(p.name);
+      const k = path.slice(0, 3).join('/') || (o.type + ':' + ([].concat(o.material)[0] || {}).type); tris[k] = (tris[k] || 0) + n / 3 * inst; }
+    tris = Object.fromEntries(Object.entries(tris).sort((a, b) => b[1] - a[1]).slice(0, 60).map(([k, v]) => [k, Math.round(v)])); }
+  return { main: count(C.lastDrawn), shadow: count(C.lastShadow), mats: matTally(C.lastDrawn || []), names, tris, shadowPasses: C.lastPasses || undefined };
 }
 // FRAMECOST_SHADOW_PASSES=1 (G1125, NEAR-LAYER; a debugging aid, never in the verdict): the last measured frame's shadow
 // draws BY PASS (each pass as the last measured frame that drew it had it: the far map draws every 2nd frame) - the light and the viewport three asked getCamera for ('sun:0' the world's far map, 'sunNear:0' the
