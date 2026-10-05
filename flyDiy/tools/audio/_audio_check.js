@@ -1046,7 +1046,9 @@ function musicPage(S, o) {
   o = o || {};
   const st = { made: 0, plays: 0, srcs: [], els: [], durOf: u => (o.durs || SYN_DUR)[u] || 60 };
   const store = o.store || {};
-  if (!o.factory && !('flydiy.audio.musicGarage' in store)) store['flydiy.audio.musicGarage'] = '1';   // the shipped default is OFF (2026-10-04): the music checks turn it on
+  if (!o.factory && !('flydiy.audio.musicGarage' in store)) store['flydiy.audio.musicGarage'] = '1';
+  // ...and they were written on lo-fi (the shipped start is Radio Jolene since 2026-10-05: o.factory checks it)
+  if (!o.factory && !('flydiy.audio.station' in store)) store['flydiy.audio.station'] = 'lofi';   // the shipped default is OFF (2026-10-04): the music checks turn it on
   const pg = makePage(S, { quiet: true, store, dom: () => fakeDom(st), clock: o.clock, badStorage: o.badStorage, ctx: o.ctxHook,
     before: win => { win.FLYDIY_MUSIC = o.cat || SYN; if (o.base != null) win.FLYDIY_ASSET_BASE = o.base; if (o.boot) win.BOOT = o.boot;
       if (o.beforeWin) o.beforeWin(win);   // G1683: the recorded voice's catalogue and fetch
@@ -1054,7 +1056,7 @@ function musicPage(S, o) {
       if (o.credit) { const c = win.document.createElement('p'); c.id = 'credit'; win.document.body.appendChild(c); } },   // (body.html's about line is there before the scripts)
     after: [[S.radio, 'radio_talk.js'], [S.music, 'music.js']].concat(o.extra || []) });   // (the build's order; G1683: voice_model.js, voice.js after)
   const M = pg.win.AUDIO_MUSIC;
-  M.seed(o.seed || 7);
+  if (!o.factory) { M.seed(o.seed || 7); M.setJoin(false); }   // the replay: one deal, from the top of each track
   if (o.beforeGesture) o.beforeGesture(pg, M);
   if (!o.noGesture) pg.gesture('pointerdown');
   const b = FLOWN[0], wc = { mains: [true, true], tw: true, water: false };
@@ -1391,6 +1393,19 @@ function checkMusicWiring(S) {
   if (!row || row[1] !== 0 || row[2] !== 'bool') F.push('the settings have no "music in the garage" (off by default: the user, 2026-10-04)');
   { const fb = { state: 'landing' }, fp = musicPage(S, { factory: true, boot: fb }); fp.F.run(2); fb.state = 'gone'; fp.F.garage = true; fp.F.run(4);
     if (fp.M.context !== 'none' || fp.F.streaming() !== 0 || fp.F.starts.length) F.push('a fresh player hears music (' + fp.M.context + ', ' + fp.F.starts.length + ' starts): the shipped default is music OFF'); }
+  // THE SHIPPED START (the user, 2026-10-05): Radio Jolene, a new deal each launch, joined partway into the track
+  { const firsts = new Set();
+    for (let i = 0; i < 8; i++) {
+      const jb = { state: 'gone' }, jp = musicPage(S, { factory: true, boot: jb, store: { 'flydiy.audio.musicGarage': '1' }, cat: SYN.map(t => Object.assign({}, t, { station: 'roots' })) });
+      if (jp.M.station !== 'roots') { F.push('a new player\'s station is ' + jp.M.station + ' (want roots, Radio Jolene)'); break; }
+      jp.F.garage = true; jp.F.run(0.5);
+      const el = jp.st.els.find(e => e._s && !e.paused), np = jp.M.nowPlaying(), [a, b] = jp.M.joinRange;
+      if (!np || !el) { F.push('a new player in the shed hears nothing'); break; }
+      firsts.add(np.id);
+      const d = np.durationS, at = el.currentTime;
+      if (!(at >= a * d - 1 && at <= b * d + 1)) F.push('a new player joined ' + np.id + ' at ' + at.toFixed(1) + ' s of ' + d + ' (want ' + (a * d).toFixed(0) + '..' + (b * d).toFixed(0) + ': partway in, like a live radio)');
+    }
+    if (firsts.size < 2) F.push('eight launches all opened on ' + [...firsts].join() + ' (want a new deal each launch)'); }
   if (typeof pg.A.addRows !== 'function') F.push('AUDIO.addRows is missing (the skip track row)');
   // the menu: the skip row and the credits row are drawn under the settings
   const st = { made: 0, plays: 0, srcs: [], els: [], durOf: () => 60 };
@@ -3902,6 +3917,8 @@ const MUT = [
   ['sw.js cuts no range', 'build', 'if (range) { e.respondWith(ranged(req, range)); return; }', '', 'MUSIC_WIRING'],
   ['the engine emits no start', 'engine', "if (vals3) A.emit('engine', 'start'); ", '', 'MUSIC_WIRING'],
   ['no garage setting', 'audio', "    ['musicGarage', 0, 'bool',", "    ['musicGarageX', 0, 'bool',", 'MUSIC_WIRING'],
+  ['the shipped start back on lo-fi', 'music', "const ST_START = ST_TALK;", "const ST_START = ST_DEFAULT;", 'MUSIC_WIRING'],
+  ['no join: every launch from the top', 'music', "if (JOIN && JOIN_ON && !(pos > 0)", "if (false && JOIN_ON && !(pos > 0)", 'MUSIC_WIRING'],
   ['the skip row gone', 'music', "btn('skip track', 'skip', () => skip());", '', 'MUSIC_WIRING'],
   // SND-SPACE (G1640-G1646)
   ['the metal cabin as fabric', 'spcfg', "alloy: 'metal'", "alloy: 'fabric'", 'SP_CABIN'],
