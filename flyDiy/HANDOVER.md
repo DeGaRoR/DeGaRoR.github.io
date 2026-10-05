@@ -74238,8 +74238,8 @@ TREECRASH, the off-bytes gates my files reach (a solver and a certificate change
 for the switch, those plus the flight gates most exposed to it - not the 41-gate battery, which is the coordinator's.
 
 **THE TWO SHAs (A0 takes or holds the switch at train 35):**
-- **DAMAGE STILL OFF: `@@SHA_OFF@@`** - everything below (the bracket, the headroom, GATE DMGGEAR, BIPLANE's probe), GEN_DAMAGE_DEFAULT false.
-- **DAMAGE ON: `@@SHA_ON@@`** - that one commit flips GEN_DAMAGE_DEFAULT (60_gen_spec.js) to true and nothing else; the READY commit
+- **DAMAGE STILL OFF: `65732b0d1c7c7f2485ccec517c1116403d9b2b78`** - everything below (the bracket, the headroom, GATE DMGGEAR, BIPLANE's probe), GEN_DAMAGE_DEFAULT false.
+- **DAMAGE ON: `c0d8b7b05cdceec77917c15390f5fc66548805a7`** - that one commit flips GEN_DAMAGE_DEFAULT (60_gen_spec.js) to true and nothing else; the READY commit
   after it only fills this entry's SHAs.
 
 ### What changed, in one paragraph
@@ -74396,7 +74396,7 @@ the drops at the 23.473 sink - no set -, at 1.2 x the cap - nothing breaks, no a
   `--json <file>` keeps every row; FLYDIY_CERT_DIR hands it precomputed certificates.
 
 ### G1837 - THE SWITCH ON
-**The commit** (`@@SHA_ON@@`): `const GEN_DAMAGE_DEFAULT = true;` (60_gen_spec.js) and its comment - nothing else. A build's
+**The commit** (`c0d8b7b05cdceec77917c15390f5fc66548805a7`): `const GEN_DAMAGE_DEFAULT = true;` (60_gen_spec.js) and its comment - nothing else. A build's
 `params.damage` still wins, then the page's `?damage=1|0` (FLYDIY_DAMAGE), then this; `params.damage === false` stays master's bits.
 
 **Before it, the battery with damage ON as the default** (a worktree of 8ab6b58 with the constant flipped, against 8ab6b58 off; the
@@ -74420,6 +74420,8 @@ HYDRODYN SETTLE TREEHIT OBSTACLE BIPLANE UISMOKE; **the full 41-gate battery wit
   D1a's physics limits, never weaker than the certificate's (the stamp is capped at them). The page asks for the certificate at
   roll-out (D2a's certKick, now always: the layer is on) and stamps it 14-47 s later (the cost below).
 - reports/evidence/DMG-D2b/battery_on_diff.txt.
+- **On the switch commit itself** (built): a plain sim (no params.damage) flies with the layer on, `params.damage: false` turns it
+  off; GEAR STRUT BIPLANE MASS PASS.
 
 ### THE ACCEPTANCE (§11.2)
 - **Off = the base's bytes (§11.2 #1; before the switch):** `GATES_CORE=1 run_gates --only=LOAD,BENCH,FLEX,SIMWORKER,SOAR,GEN,MASS
