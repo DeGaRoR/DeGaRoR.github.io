@@ -114,7 +114,7 @@ const GATES = [
   { id: 'PILOTACT', file: '_pilotact_check.js', tier: 'core', weight: 3, wall: 300 },
   // G710: the way out of every Jolene stand bent round the parked aeroplanes (planned, for the stock
   // build's and the aluminium C172's span, and flown off HOME's stand past the Cub); ~40 s
-  { id: 'TAXICLEAR', file: '_taxiclear_check.js', tier: 'core', wall: 60 },
+  { id: 'TAXICLEAR', file: '_taxiclear_check.js', tier: 'core', wall: 330 },   // MILL-TAXI G1925-G1929: + every stand and route against every solid thing (the cook's grids, props, cars, trunks), the procedural seeds, the mill flown
   // G710: the plan published (ap.intent) - the legs' planned heights over the ground, the live target
   // and the TECS limits the law used, the path; a stock HOME circuit and a Jolene circuit (~7 min)
   { id: 'PLAN', file: '_plan_check.js', tier: 'core', wall: 420 },
@@ -651,6 +651,10 @@ const GATES = [
   // mass positive, every member over 1 mm and none refused by B() (parts.degenerate), the lattice mirrored; ~5 s.
   // Red before G1580 on every twin-boom combination. GATE GEN's PAIRS block holds the same pairs' rank and stance.
   { id: 'GENPAIRS', file: '_genpairs_check.js', tier: 'core', wall: 10 },
+  // RELEASE-CHECKS G1591 (review B27): the committed index.html / dev.html / sw.js / flight_core.js / version.json are
+  // a build of the sources - rebuilt into a temp dir and compared; a stale "(built)" commit is red, a source commit's
+  // lag is named (BUILT_STRICT=1: red too - A0's landing runs it so on the (built) commit). ~2 s.
+  { id: 'BUILT', file: '_built_check.js', tier: 'core', wall: 5 },
 ];
 
 const args = process.argv.slice(2);

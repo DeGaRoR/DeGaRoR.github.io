@@ -690,14 +690,15 @@ def main():
             # into the island's own grid - the town's lush verges and its wood belt
             'ttype': [],
             'objects': [
-                # the parked aeroplanes on the club's apron (GATE PARKED rule 7 reads them)
-                {'id': 'o1', 'kind': 'aircraft', 'key': 'arch:cub', 'x': R(club_world(20, 40)[0]), 'z': R(club_world(20, 40)[1]), 'yaw': R(-math.pi / 2, 4)},
-                {'id': 'o2', 'kind': 'aircraft', 'key': 'arch:c172', 'x': R(club_world(36, 42)[0]), 'z': R(club_world(36, 42)[1]), 'yaw': R(-math.pi / 2 + 0.2, 4)},
+                # the parked aeroplanes on the club's apron (GATE PARKED rule 7 reads them); o1 and o2 stand 2.5 m
+                # further west since MILL-TAXI (G1926): the authored ways out keep half the C172's span + 3 m off them
+                {'id': 'o1', 'kind': 'aircraft', 'key': 'arch:cub', 'x': R(club_world(20, 37.5)[0]), 'z': R(club_world(20, 37.5)[1]), 'yaw': R(-math.pi / 2, 4)},
+                {'id': 'o2', 'kind': 'aircraft', 'key': 'arch:c172', 'x': R(club_world(36, 39.5)[0]), 'z': R(club_world(36, 39.5)[1]), 'yaw': R(-math.pi / 2 + 0.2, 4)},
                 {'id': 'o3', 'kind': 'aircraft', 'key': 'arch:jodel', 'x': R(club_world(-48, 44)[0]), 'z': R(club_world(-48, 44)[1]), 'yaw': R(math.pi / 2 - 0.3, 4)},
             ] + ANIMALS,
         },
         'budget': {'tris': 400000, 'lights': 24, 'smoke': 6, 'people': 40},
-        'rev': 22,         # 8 the airfield's life, the parking apron, the fence off the taxiways; 9 JUMBO MINE (jolene_parts/mn_mine.json); 10 the Skyline tramway + altiport (jolene_parts/tramway.json); 11 the East Point native grounds (jolene_parts/native.json); 12 Jumbo Mine moved to the wooded knoll; 13 the mine's school, clinic and chapel on posts; 14 East Point quiet (no mast, cars, rubbish); 15 the tramway's top on the plateau + its square; 16 East Point's trees cut back to the user's lines; 17 East Point's footpaths lie on the ground; 18 the altiport's head one platform, the tram's terminal on it; 19 METLAKATLA, the island's one real town (jolene_parts/metlakatla.py); 21 the tramway road a smooth T off Walden Point Road (2026-09-23); 20 the puddles retired from the pavement, so `puddleCover` leaves the record (2026-09-23); 22 HOME's way out by the paint: the apron gap, the NE arm for 13 and the E arm for 31 (taxiOut1, G772, 2026-09-27)
+        'rev': 23,         # 8 the airfield's life, the parking apron, the fence off the taxiways; 9 JUMBO MINE (jolene_parts/mn_mine.json); 10 the Skyline tramway + altiport (jolene_parts/tramway.json); 11 the East Point native grounds (jolene_parts/native.json); 12 Jumbo Mine moved to the wooded knoll; 13 the mine's school, clinic and chapel on posts; 14 East Point quiet (no mast, cars, rubbish); 15 the tramway's top on the plateau + its square; 16 East Point's trees cut back to the user's lines; 17 East Point's footpaths lie on the ground; 18 the altiport's head one platform, the tram's terminal on it; 19 METLAKATLA, the island's one real town (jolene_parts/metlakatla.py); 21 the tramway road a smooth T off Walden Point Road (2026-09-23); 20 the puddles retired from the pavement, so `puddleCover` leaves the record (2026-09-23); 22 HOME's way out by the paint: the apron gap, the NE arm for 13 and the E arm for 31 (taxiOut1, G772, 2026-09-27); 23 MILL-TAXI (G1925-G1929, 2026-10-05): o1 / o2 2.5 m west off HOME's ways out, Jumbo Mine Street's stand, U-turns and ways on its centreline, its clinic and school 1 m off the strip (jolene_parts/mn_mine.json)
     }
     if '--absorb' in sys.argv:
         k = sys.argv.index('--absorb')
