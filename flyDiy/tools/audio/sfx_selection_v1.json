@@ -316,6 +316,266 @@
    "kind": "shot",
    "pick": "coordinator",
    "note": "SND-AMB-2 asked: more gull variants; unheard"
+  },
+  {
+   "key": "animal.bear",
+   "id": "nps-grizzly-vocal",
+   "kind": "shot",
+   "pick": "coordinator",
+   "note": "coordinator gap fill 2026-10-05, unheard (cut chosen by loudness over the floor)",
+   "cut": [
+    83.5,
+    87.5
+   ]
+  },
+  {
+   "key": "animal.bear",
+   "id": "nps-grizzly-vocal",
+   "kind": "shot",
+   "pick": "coordinator",
+   "note": "coordinator gap fill 2026-10-05, unheard (cut chosen by loudness over the floor)",
+   "cut": [
+    66,
+    70
+   ]
+  },
+  {
+   "key": "animal.bear",
+   "id": "nps-grizzly-roar",
+   "kind": "shot",
+   "pick": "coordinator",
+   "note": "coordinator gap fill 2026-10-05, unheard (cut chosen by loudness over the floor)",
+   "cut": [
+    11.2,
+    15.5
+   ]
+  },
+  {
+   "key": "animal.elk",
+   "id": "nps-elk-bugle-1",
+   "kind": "shot",
+   "pick": "coordinator",
+   "note": "coordinator gap fill 2026-10-05, unheard (cut chosen by loudness over the floor)",
+   "cut": [
+    3.5,
+    9.5
+   ]
+  },
+  {
+   "key": "animal.elk",
+   "id": "nps-elk-bugle-2",
+   "kind": "shot",
+   "pick": "coordinator",
+   "note": "coordinator gap fill 2026-10-05, unheard (cut chosen by loudness over the floor)",
+   "cut": [
+    2,
+    8
+   ]
+  },
+  {
+   "key": "animal.elk",
+   "id": "nps-elk-bugle-2",
+   "kind": "shot",
+   "pick": "coordinator",
+   "note": "coordinator gap fill 2026-10-05, unheard (cut chosen by loudness over the floor)",
+   "cut": [
+    12,
+    18
+   ]
+  },
+  {
+   "key": "animal.deer",
+   "id": 351113,
+   "kind": "shot",
+   "pick": "coordinator",
+   "note": "a deer bleat for the doe; coordinator gap fill 2026-10-05, unheard (cut chosen by loudness over the floor)",
+   "cut": [
+    4.9,
+    7.6
+   ]
+  },
+  {
+   "key": "animal.deer",
+   "id": 351113,
+   "kind": "shot",
+   "pick": "coordinator",
+   "note": "a deer bleat for the doe; coordinator gap fill 2026-10-05, unheard (cut chosen by loudness over the floor)",
+   "cut": [
+    10.5,
+    13.2
+   ]
+  },
+  {
+   "key": "animal.whale.blow",
+   "id": "nps-humpback-trumpet",
+   "kind": "shot",
+   "pick": "coordinator",
+   "note": "coordinator gap fill 2026-10-05, unheard (cut chosen by loudness over the floor)",
+   "cut": [
+    2,
+    6
+   ]
+  },
+  {
+   "key": "animal.whale.blow",
+   "id": "nps-humpback-trumpet",
+   "kind": "shot",
+   "pick": "coordinator",
+   "note": "coordinator gap fill 2026-10-05, unheard (cut chosen by loudness over the floor)",
+   "cut": [
+    10.9,
+    14.6
+   ]
+  },
+  {
+   "key": "animal.whale.blow",
+   "id": "nps-humpback-trumpet",
+   "kind": "shot",
+   "pick": "coordinator",
+   "note": "coordinator gap fill 2026-10-05, unheard (cut chosen by loudness over the floor)",
+   "cut": [
+    24.9,
+    28.6
+   ]
+  },
+  {
+   "key": "animal.orca.blow",
+   "id": "nps-porpoise",
+   "kind": "shot",
+   "pick": "coordinator",
+   "note": "harbour porpoise breaths (Glacier Bay), played lower for an orca; coordinator gap fill 2026-10-05, unheard (cut chosen by loudness over the floor)",
+   "cut": [
+    16.4,
+    18.6
+   ]
+  },
+  {
+   "key": "animal.orca.blow",
+   "id": "nps-porpoise",
+   "kind": "shot",
+   "pick": "coordinator",
+   "note": "harbour porpoise breaths (Glacier Bay), played lower for an orca; coordinator gap fill 2026-10-05, unheard (cut chosen by loudness over the floor)",
+   "cut": [
+    10.6,
+    12.8
+   ]
+  },
+  {
+   "key": "animal.orca.blow",
+   "id": "nps-porpoise",
+   "kind": "shot",
+   "pick": "coordinator",
+   "note": "harbour porpoise breaths (Glacier Bay), played lower for an orca; coordinator gap fill 2026-10-05, unheard (cut chosen by loudness over the floor)",
+   "cut": [
+    0.9,
+    3.1
+   ]
+  },
+  {
+   "key": "bird.thrush",
+   "id": "nps-varied-thrush",
+   "kind": "shot",
+   "pick": "coordinator",
+   "note": "coordinator gap fill 2026-10-05, unheard (cut chosen by loudness over the floor)",
+   "cut": [
+    0.9,
+    4
+   ]
+  },
+  {
+   "key": "bird.thrush",
+   "id": "nps-varied-thrush",
+   "kind": "shot",
+   "pick": "coordinator",
+   "note": "coordinator gap fill 2026-10-05, unheard (cut chosen by loudness over the floor)",
+   "cut": [
+    6.1,
+    9.2
+   ]
+  },
+  {
+   "key": "bird.thrush",
+   "id": "nps-varied-thrush",
+   "kind": "shot",
+   "pick": "coordinator",
+   "note": "coordinator gap fill 2026-10-05, unheard (cut chosen by loudness over the floor)",
+   "cut": [
+    15.3,
+    17
+   ]
+  },
+  {
+   "key": "bird.crow",
+   "id": "nps-raven",
+   "kind": "shot",
+   "pick": "coordinator",
+   "note": "coordinator gap fill 2026-10-05, unheard (cut chosen by loudness over the floor)",
+   "cut": [
+    8.1,
+    10.8
+   ]
+  },
+  {
+   "key": "bird.eagle",
+   "id": "nps-golden-eagle",
+   "kind": "shot",
+   "pick": "coordinator",
+   "note": "coordinator gap fill 2026-10-05, unheard (cut chosen by loudness over the floor)",
+   "cut": [
+    83.2,
+    86.6
+   ]
+  },
+  {
+   "key": "bird.loon",
+   "id": "nps-loon",
+   "kind": "shot",
+   "pick": "coordinator",
+   "note": "coordinator gap fill 2026-10-05, unheard (cut chosen by loudness over the floor)",
+   "cut": [
+    95.9,
+    100.9
+   ]
+  },
+  {
+   "key": "bird.loon",
+   "id": "nps-loon",
+   "kind": "shot",
+   "pick": "coordinator",
+   "note": "coordinator gap fill 2026-10-05, unheard (cut chosen by loudness over the floor)",
+   "cut": [
+    64.4,
+    69.4
+   ]
+  },
+  {
+   "key": "bird.owl",
+   "id": 479588,
+   "kind": "shot",
+   "pick": "coordinator",
+   "note": "coordinator gap fill 2026-10-05, unheard (cut chosen by loudness over the floor)",
+   "cut": [
+    2.5,
+    5.5
+   ]
+  },
+  {
+   "key": "bird.owl",
+   "id": 558396,
+   "kind": "shot",
+   "pick": "coordinator",
+   "note": "coordinator gap fill 2026-10-05, unheard (cut chosen by loudness over the floor)"
+  },
+  {
+   "key": "mill.stamp",
+   "id": 322871,
+   "kind": "loop",
+   "pick": "coordinator",
+   "note": "the stamp mill SND-AMB-2 asked for: a quarry crusher pounding every 0.92 s (YleArkisto, CC BY 4.0), seven pounds onset to onset so the loop keeps time; coordinator gap fill 2026-10-05, unheard (cut chosen by loudness over the floor)",
+   "cut": [
+    128.455,
+    134.855
+   ]
   }
  ],
  "rejected_guidance": {
@@ -324,5 +584,6 @@
   "busy beds": "user rejected busy / urban / church / car-park beds and sharp high-pitched tree wind",
   "tyre squeal and crash": "rejected"
  },
- "note2": "2026-10-04: three gap fills for SND-AMB-1 (rain outside, open-ground birds, a louder lake shore); crickets alone = amb.forest.night (333221, a crickets-only recording); open sea = amb.sea.open (460061, a sailboat underway)"
+ "note2": "2026-10-04: three gap fills for SND-AMB-1 (rain outside, open-ground birds, a louder lake shore); crickets alone = amb.forest.night (333221, a crickets-only recording); open sea = amb.sea.open (460061, a sailboat underway)",
+ "note3": "2026-10-05: the animals (G498 bear, elk, doe, whale, orca) and the missing assets (stamp mill, owl, thrush, raven, eagle, loon variants); public-domain US National Park Service recordings (Yellowstone, Glacier Bay, Denali) via tools/audio/nps_fetch.js, CC BY allowed (the user: anything that asks at most a credit; never SA / NC / ND)"
 }

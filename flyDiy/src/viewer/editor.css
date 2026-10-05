@@ -1354,6 +1354,36 @@ body.shot #c { margin-left:0 !important; width:100% !important; cursor:grab; }
   padding:0 !important; background:none !important; border:0 !important;
   font:400 10.5px/1.6 'IBM Plex Sans' !important; color:var(--ed-dim); }
 
+/* G1711 THE RADIO'S PANEL (SND-BOOMBOX, boombox.js): the card a click on the boombox opens beside it - the rail
+   flyout's plate, head and rows, smaller. Absolutely placed in #edView (so its tokens, toggles and pills are this
+   screen's); boombox.js writes `left` / `top` from the radio's projected top while it is open. */
+#bbPanel { position:absolute; left:0; top:0; width:252px; max-height:calc(100% - 24px); overflow-y:auto;
+  padding:10px 12px 12px; background:var(--ed-plate); border:1px solid var(--ed-border); border-radius:9px;
+  box-shadow:0 10px 28px rgba(0,0,0,.35); }
+#bbPanel .bbH { display:flex; align-items:center; justify-content:space-between;
+  font:600 10px/1 'IBM Plex Sans'; letter-spacing:.2em; text-transform:uppercase; color:var(--ed-faint);
+  padding-bottom:8px; margin-bottom:6px; border-bottom:1px solid var(--ed-hair); }
+#bbPanel .bbX { border:0; background:transparent; color:var(--ed-faint); font:400 16px/1 'IBM Plex Sans';
+  padding:0 2px; cursor:pointer; }
+#bbPanel .bbX:hover { color:var(--ed-ink); }
+#bbPanel .bbNow { margin:2px 0 8px; min-height:30px; }
+#bbPanel .bbTitle { font:500 12.5px/1.35 'IBM Plex Sans'; color:var(--ed-ink);
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+#bbPanel .bbArtist, #bbPanel .bbLine { font:400 10.5px/1.45 'IBM Plex Sans'; color:var(--ed-faint); }
+#bbPanel .bbSt, #bbPanel .bbBtns { display:flex; flex-wrap:wrap; gap:4px; margin:6px 0; }
+#bbPanel .bbSt .pill { padding:6px 8px; letter-spacing:.04em; }
+#bbPanel .r { display:flex; gap:10px; align-items:center; margin:6px 0; min-width:0;
+  font:400 11.5px/1.3 'IBM Plex Sans'; color:var(--ed-dim); }
+#bbPanel .r > span.k { width:96px; flex:none; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+#bbPanel .r.tog > span.k { flex:1; width:auto; }
+#bbPanel .r > .v { width:38px; flex:none; text-align:right; }
+#bbPanel .bbSec { margin-top:8px; padding-top:7px; border-top:1px solid var(--ed-hair); }
+#bbPanel .bbHead { font:600 9.5px/1 'IBM Plex Sans'; letter-spacing:.18em; text-transform:uppercase;
+  color:var(--ed-faint); margin-bottom:5px; }
+#bbPanel .note { font:400 10.5px/1.6 'IBM Plex Sans'; color:var(--ed-faint); }
+#bbPanel .bbFoot { margin:8px 0 0; padding-top:7px; border-top:1px solid var(--ed-hair); }
+#bbPanel .bbCredits { font:400 10.5px/1.4 'IBM Plex Sans'; color:var(--ed-acc); }
+
 .edCam { display:flex; flex-wrap:wrap; gap:6px; margin:2px 0 4px; }
 /* G255: the legend's rows — a swatch, a heading, plain words */
 .edLegend { display:grid; grid-template-columns:14px 1fr; gap:4px 8px;

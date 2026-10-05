@@ -200,8 +200,9 @@ function cageJoinPlane2(P, T) {
       flap: { type: flap, span: P.w2FlapSpan, chord: P.w2FlapChord },
       aileron: { span: +P.w2AilOn ? P.w2AilSpan : 0, chord: P.w2AilChord },
     },
-    ...(Math.round(P.w2Cons) > 0
-      ? { material: ['carbon', 'steel', 'fabric', 'alloy', 'aluFabric'][Math.round(P.w2Cons) - 1] } : {}),
+    // SPEC-FIXPOINT (A3): the row is STATED - null is "the aeroplane's own"
+    ...(P.w2Cons != null ? { material: Math.round(P.w2Cons) > 0
+      ? ['carbon', 'steel', 'fabric', 'alloy', 'aluFabric'][Math.round(P.w2Cons) - 1] : null } : {}),
   };
 }
 
@@ -243,20 +244,28 @@ function cageJoinSpec(P, M, T) {
       // field existed already meant. 1..4 in intCons's display order.
       // G213: the wing's own vocabulary (GEN_SURF_MATERIALS), in the row's
       // order — 'wood' and 'tubeFabric' never reach a wing again
-      ...(Math.round(P.wgCons) > 0
-        ? { material: ['carbon', 'steel', 'fabric',
-                       'alloy', 'aluFabric'][Math.round(P.wgCons) - 1] } : {}),   // G466: the fifth stop
+      // SPEC-FIXPOINT (A3, GEN_FIELDS 'wings[].material'): STATED in both
+      // states - null when the row is back at 0. Written only when off its
+      // default, the garage's per-key merge kept a carbon wing for ever after
+      // the row came home. A P without the key (a headless caller) says nothing.
+      ...(P.wgCons != null ? { material: Math.round(P.wgCons) > 0
+        ? ['carbon', 'steel', 'fabric',
+           'alloy', 'aluFabric'][Math.round(P.wgCons) - 1] : null } : {}),   // G466: the fifth stop
     }, ...(+P.w2On ? [cageJoinPlane2(P, T)] : [])],
     bracing: { type: Math.round(P.wgBrace) ? 'cantilever' : 'strut',
                struts: Math.round(+P.wgStruts) === 1 ? 1 : 2,          // T2.3 (83)
-               // G185: the cabane's drawing style rides only when there is one
-               ...(Math.round(P.wgPos) === 3 || +P.w2On
-                   ? { cabane: Math.round(P.bpCabane || 0) ? 'V' : 'N' } : {}),
-               // ...and the truss only on a biplane (absent = the defaults)
+               // G185: the cabane's drawing style where there is one, and the
+               // truss on a biplane. SPEC-FIXPOINT (A3): STATED in every state
+               // - the defaults (GEN_FIELDS 'bracing.*') where the aeroplane
+               // has no cabane / no second plane. "Absent = the defaults" was
+               // true of a fresh spec and false through the garage's merge: a
+               // biplane switched back to one plane kept its N struts and its
+               // wires in the file.
+               cabane: (Math.round(P.wgPos) === 3 || +P.w2On) && Math.round(P.bpCabane || 0) ? 'V' : 'N',
                ...(+P.w2On ? { interplane: ['N', 'I', 'none'][Math.round(P.bpInter || 0)] || 'N',
                                interplaneAt: +P.bpInterAt || 0.62,
                                wires: ['none', 'both', 'flying'][Math.round(P.bpWires == null ? 1 : P.bpWires)] || 'both' }
-                           : {}) },
+                           : { interplane: 'none', interplaneAt: 0.62, wires: 'both' }) },
     controls: {
       flap: { type: flap, span: P.wgFlapSpan, chord: P.wgFlapChord },
       // G185: the aileron switch — off is a span of 0, which the clamp admits
@@ -421,8 +430,11 @@ function cageJoinSpec(P, M, T) {
       ['spring', 'bungee', 'oleo'][Math.round(P.s1_shockKind)] || 'bungee';
   }
   const cabin = {};
-  // JOINED (2026-09-04): glazing off is an open cockpit — no glass billed
-  if (P.glazeOn != null && !+P.glazeOn) cabin.glazing = 'none';
+  // JOINED (2026-09-04): glazing off is an open cockpit — no glass billed.
+  // SPEC-FIXPOINT (A3): STATED in both states ('glass' | 'none', GEN_FIELDS
+  // 'cabin.glazing') - written only when off, an open cockpit stayed open in
+  // the file through the garage's merge after the row came back on
+  if (P.glazeOn != null) cabin.glazing = +P.glazeOn ? 'glass' : 'none';
   // T2.2: the glazing MATERIAL (the cage's one row) and the glazed AREA the
   // editor measured off its built sheet (CAGE_UI.glazedM2, m2 after the scale)
   if (P.glazeMat != null)
@@ -491,8 +503,9 @@ function cageJoinSpec(P, M, T) {
   // culled the fuselage skin and every liner from the drawn (and so the
   // flown) mesh since G26.4 while the physics went on billing the cloth and
   // pricing a faired pod — a naked aeroplane that flew covered. The G121.1
-  // rule: the drawn state IS the declaration. Absent = 'skin', the default.
-  if (!(P.skinOn == null || +P.skinOn)) fus.covering = 'open';
+  // rule: the drawn state IS the declaration. SPEC-FIXPOINT (A3): STATED in
+  // both states ('skin' | 'open'); a P without the key says nothing.
+  if (P.skinOn != null) fus.covering = +P.skinOn ? 'skin' : 'open';
   // PERF STUDY chantier 0 (2026-09-15, the user's ruling): THE CONSTRUCTION
   // TILE REACHES THE PHYSICS. `intCons` had drawn the interior since G104
   // (consOf: carbon / tube / wood / metal) while spec.fuselage.material -
@@ -565,9 +578,24 @@ function cageJoinSpec(P, M, T) {
     if (M.rudChord > 0) ct.rudder = { chord: M.rudChord };
   }
   // the V (2026-09-04): the cant the stab layer built, clampSpec's own
-  // envelope (20-55) bounds it; absent = 'conventional', the default
+  // envelope (20-55) bounds it. SPEC-FIXPOINT (A3): when the join measured
+  // the tail it OWNS the type and states it - 'conventional' included, with
+  // the other types' keys nulled (GEN_FIELDS 'tail.type' `with`): "absent =
+  // 'conventional'" was true of a fresh spec only, and a cant set to 30 and
+  // back flew a V-tail at the old angle under a conventional drawing.
+  if (M.tailJoined) {
+    tl.type = 'conventional'; tl.vAngle = null;
+    for (const k of ['boomX', 'boomLen', 'boomR', 'boomX0', 'boomTaper', 'boomOval',
+                     'boomIncl', 'boomDy', 'stabY']) tl[k] = null;
+    // a V's panel area is a V's alone (GATE SPECFIX caught it kept after the
+    // cant came home)
+    if (!(M.Svt > 0)) tl.Svt = null;
+  }
   if (typeof M.tailCant === 'number' && M.tailCant >= 20) {
     tl.type = 'v'; tl.vAngle = M.tailCant;
+    // ...and a conventional tail's areas are not a V's (the V measures Svt;
+    // left stated, a V the join could not size would fly the old tailplane)
+    if (M.tailJoined) { tl.Sh = null; tl.Sv = null; }
   }
   // T2.3 (140): the stab's incidence — the frame pitches its spars by it
   if (typeof M.hInc === 'number' && isFinite(M.hInc)) tl.hInc = M.hInc;
@@ -575,6 +603,7 @@ function cageJoinSpec(P, M, T) {
   // two fins are one Sv (the spec doubles the measured fin)
   if (M.boomX > 0) {
     tl.type = 'twinBoom'; tl.boomX = M.boomX; tl.boomLen = M.boomLen;
+    if (M.tailJoined) tl.vAngle = null;
     if (M.boomR > 0) tl.boomR = M.boomR;
     // G266: the drawn tube, whole (null = the frame derives it)
     for (const k of ['boomX0', 'boomTaper', 'boomOval', 'boomIncl', 'boomDy'])
@@ -591,10 +620,11 @@ function cageJoinSpec(P, M, T) {
   // 0 says nothing, absent means the aeroplane's own material
   {
     const CONS4 = ['carbon', 'steel', 'fabric', 'alloy', 'aluFabric'];   // G213; G466 the fifth stop
-    if (Math.round(P.finCons) > 0)
-      tl.finMaterial = CONS4[Math.round(P.finCons) - 1];
-    if (Math.round(P.stCons) > 0)
-      tl.stabMaterial = CONS4[Math.round(P.stCons) - 1];
+    // SPEC-FIXPOINT (A3): STATED in both states, null = the aeroplane's own
+    if (P.finCons != null)
+      tl.finMaterial = Math.round(P.finCons) > 0 ? CONS4[Math.round(P.finCons) - 1] : null;
+    if (P.stCons != null)
+      tl.stabMaterial = Math.round(P.stCons) > 0 ? CONS4[Math.round(P.stCons) - 1] : null;
   }
   if (Object.keys(tl).length) spec.tail = tl;
   // the SHAPE rides along (GEN_SPEC_V5 round-trips spec.cage) so the
@@ -1403,6 +1433,7 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
         const tailDatum = (zPost != null || M.rodTailDatum) &&
           typeof M.tailTop === 'number' && typeof M.tailBot === 'number';
         if (fwOk && (finM || stabM)) {
+          M.tailJoined = true;            // SPEC-FIXPOINT: the join owns tail.type
           const zAftB = zCabA != null ? zCabA - 0.8
                       : zPost != null ? zPost + 1.5 : AF.z0 + 2.0;
           const TB = tailSurfBounds(zAftB, M.tailW || 0.2,
@@ -2579,6 +2610,11 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
           const ft = spec && spec.controls && spec.controls.flap
                      && spec.controls.flap.type;
           out2.k = genTravel(which, ft);
+          // REVIEW 2026-10-04 B22: THE RUDDERVATOR'S SECOND DRIVE IS THE
+          // RUDDER'S, AT THE RUDDER'S TRAVEL. It carried no k2, and every
+          // consumer read the missing factor as 1 rad: full pedal turned the
+          // V-tail's panels 57 deg against the declared 27.
+          if (out2.drive2 === 'dr') out2.k2 = genTravel('rudder');
         }
       }
       if (pt.kind === 'castorT') {
@@ -2660,7 +2696,7 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
         const h = bySurf[q.linkSurf];
         if (!h) continue;
         q.hinge = { p: h.pivot, ax: h.axis, drive: h.drive, sgn: h.sgn,
-                    k: h.k || 1, drive2: h.drive2 || null, sgn2: h.sgn2 || 0,
+                    k: h.k || 1, drive2: h.drive2 || null, sgn2: h.sgn2 || 0, k2: h.k2 || null,
                     slide: h.slide || null };
       }
     }

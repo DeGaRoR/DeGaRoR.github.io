@@ -1721,6 +1721,10 @@ function editorInit(api) {
     // a cabin section: the arch of the shell standing on its floor
     shell: 'M3.1 12.7V9.2a5.9 5.9 0 0 1 11.8 0v3.5z',
     seat: 'M7.3 11.9V8.4h1.2M7.3 11.9h3.4',
+    // G1710: the rail's own speaker (RAIL 'audio'), its waves, and the boombox: a case, two cones, the handle
+    spk: 'M2.8 7h2.8l4-3.4v10.8l-4-3.4H2.8Z',
+    waves: 'M12.4 6.4a3.6 3.6 0 0 1 0 5.2M14.4 4.4a6.4 6.4 0 0 1 0 9.2',
+    box: 'M3.2 6.6h11.6a1.4 1.4 0 0 1 1.4 1.4v5.2a1.4 1.4 0 0 1-1.4 1.4H3.2a1.4 1.4 0 0 1-1.4-1.4V8a1.4 1.4 0 0 1 1.4-1.4ZM5.4 6.6V4.3h7.2v2.3',
   };
   const QUICK = [
     // ---- inside / outside -------------------------------------------------
@@ -1793,6 +1797,57 @@ function editorInit(api) {
         const R = window.REFPLANE;
         if (R && R.cycleCut) R.cycleCut();
       } },
+    // ---- the sound (G1710, SND-BOOMBOX; the user 2026-10-05: "a toggle button next to the existing toggles ... sound
+    // on/off, and another one cycling the radios") ------------------------
+    // No `row`: the rail's `sound` item is AUDIO.mount's own panel, not borrowed rows, so there is no row to name. The
+    // bar presses AUDIO.enable - the one door the panel's own `sound` switch goes through - and reads AUDIO back.
+    { k: 'sound', state: 'AUDIO.enable (flydiy.audio)',
+      why: 'the game\'s sound on or off: audio.js\'s own switch, the same AUDIO.enable the sound panel\'s first row calls; it ' +
+           'draws nothing, so no capture sees it',
+      view: () => {
+        const A = window.AUDIO, B = window.BOOMBOX;
+        const q0 = /[?&]audio=0(&|$)/.test(location.search || '');
+        const on = !!(B ? B.radio.soundOn() : (A && A.enabled && A.state !== 'off'));
+        const next = !on && !!(B && B.radio.soundNext());
+        return { on, off: !A || q0,
+          title: !A ? 'This build has no sound'
+            : q0 ? 'Sound is off for this page (?audio=0)'
+            : on ? 'Sound on — click to silence the game'
+            : next ? 'Sound on from the next page load — click to keep it off'
+            : 'Sound off — click to switch it on',
+          // the speaker with its waves; silenced, the same speaker struck through
+          icon: on || next ? '<path d="' + QI.spk + '"/><path d="' + QI.waves + '"/>'
+                           : '<path d="' + QI.spk + '"/><path d="M2.4 2.6l13.2 12.8"/>' };
+      },
+      act: () => {
+        const A = window.AUDIO, B = window.BOOMBOX;
+        if (!A) return;
+        const on = B ? B.radio.soundOn() || B.radio.soundNext() : A.state !== 'off';
+        if (B) B.radio.setSound(!on); else A.enable(!on);
+      } },
+    // ---- the radio --------------------------------------------------------
+    // No `row` either: the station is music.js's own state (flydiy.audio.station), the sound panel's `station` select
+    // is AUDIO_MUSIC's row, not a rail row. A click: music if there was none (the sound on, music in the garage on -
+    // OFF by default, so asking for music is what turns it on), else the next station (stepStation: [ / ]'s door).
+    // A right-click or a long press: the radio off.
+    { k: 'radio', state: 'AUDIO_MUSIC.station (flydiy.audio.station)',
+      why: 'the radio\'s station: music.js\'s own state, stepped by the same stepStation the [ and ] keys call; music in ' +
+           'the garage is a sound setting, and nothing the camera or the capture sees',
+      view: () => {
+        const M = window.AUDIO_MUSIC, B = window.BOOMBOX;
+        if (!M || !B) return { on: false, off: true, title: 'This build has no radio', icon: '<path d="' + QI.box + '"/>' };
+        const on = B.radio.playing();
+        const st = M.station, name = B.radio.label(st === 'off' ? M.lastStation : st);
+        return { on, off: false,
+          title: on ? 'Radio: ' + name + ' — click for the next station; right-click or hold to switch the radio off'
+            : 'Radio off — click to play ' + name,
+          // the boombox; playing, its two cones are sounding (solid), off they are dashed
+          icon: '<path d="' + QI.box + '"/>' +
+                '<circle cx="5.9" cy="10.6" r="2"' + (on ? '' : ' stroke-dasharray="1.6 1.4"') + '/>' +
+                '<circle cx="12.1" cy="10.6" r="2"' + (on ? '' : ' stroke-dasharray="1.6 1.4"') + '/>' };
+      },
+      act: () => { const B = window.BOOMBOX; if (B) B.radio.next(); },
+      alt: () => { const B = window.BOOMBOX; if (B) B.radio.off(); } },
     // ---- the light --------------------------------------------------------
     // 2026-09-20: it presses the CLOCK now (the next preset on the day's own almanac), not the
     // tree's mood select - the mood follows the clock each frame (hangar.moodFor), and the
@@ -1857,6 +1912,7 @@ function editorInit(api) {
       } },
   ];
 
+  const QUICK_HOLD_MS = 600;
   function buildQuick() {
     const bar = $('edQuick');
     if (!bar || bar.children.length) return;
@@ -1865,9 +1921,20 @@ function editorInit(api) {
       b.className = 'edQuickBtn';
       b.type = 'button';
       b.dataset.q = q.k;
-      b.onclick = () => { if (!b.disabled) { q.act(); syncQuick(); } };
+      b.onclick = () => { if (b.dataset.held) { delete b.dataset.held; return; } if (!b.disabled) { q.act(); syncQuick(); } };
+      // G1710: an entry's second action (the radio off): a right-click, or a press held QUICK_HOLD_MS (touch)
+      if (q.alt) {
+        let held = 0;
+        const alt = () => { if (!b.disabled) { q.alt(); syncQuick(); } };
+        b.oncontextmenu = e => { e.preventDefault(); alt(); };
+        b.onpointerdown = e => { if (e.button) return; clearTimeout(held); held = setTimeout(() => { b.dataset.held = '1'; alt(); }, QUICK_HOLD_MS); };
+        b.onpointerup = b.onpointerleave = b.onpointercancel = () => clearTimeout(held);
+      }
       bar.appendChild(b);
     }
+    // G1710: the sound and the radio change from elsewhere too (the sound panel, the [ ] keys, the boombox)
+    const A = window.AUDIO;
+    if (A && A.onEvent) for (const ev of ['settings', 'station', 'ready', 'music']) A.onEvent(ev, syncQuick);
     // the reference panel says when its aeroplane changes — without it the
     // button would stay greyed until something else repainted the bar
     window.REF_ON_CHANGE = syncQuick;

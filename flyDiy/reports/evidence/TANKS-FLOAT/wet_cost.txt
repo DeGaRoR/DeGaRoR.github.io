@@ -1,0 +1,3 @@
+# node tools/tanks_float_cost.js <core>: base claude/gear-water-buoy 5ecabad, then this branch
+wet pass 17567 ns a compute; 112 faces, 7 slices, 13 slabs, wet 1.636
+wet pass 16866 ns a compute; without its 2 tanks 21439 ns (the tanks -4573 ns); 112 faces, 7 slices, 13 slabs, wet 1.556

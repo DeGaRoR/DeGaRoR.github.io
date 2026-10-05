@@ -66,24 +66,9 @@ function loadPanel() {
   return PANEL;
 }
 
-// the garage's merge (src/viewer/garage.js `merge`, verbatim in its rules):
-// objects deep; `wings` element-wise (the join writes nearly every wing key
-// but not `place`); every other array, the finish and the cage replace as
-// a whole (each is one measurement of one thing, written as deviations)
-const isPlain = o => o && typeof o === 'object' && !Array.isArray(o);
-function merge(base, over) {
-  if (!isPlain(over)) return over;
-  const out = isPlain(base) ? Object.assign({}, base) : {};
-  for (const k in over) {
-    if (Array.isArray(over[k]))
-      out[k] = (k === 'wings' && Array.isArray(base && base[k]))
-        ? over[k].map((w, i) => merge(base[k][i], w)) : over[k];
-    else if (k === 'finish' || k === 'cage') out[k] = over[k];
-    else if (isPlain(over[k])) out[k] = merge(base && base[k], over[k]);
-    else out[k] = over[k];
-  }
-  return out;
-}
+// the garage's merge: the core's own (genSpecMerge, 60_gen_spec.js - moved
+// there from garage.js by SPEC-FIXPOINT, so this file no longer keeps a copy)
+const merge = (base, over) => require(path.join(T, 'flight_core.js')).genSpecMerge(base, over);
 
 let JOIN_IN = null;         // the scene context the join was loaded into
 function joinIn(W) {

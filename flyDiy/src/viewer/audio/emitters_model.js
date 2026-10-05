@@ -23,6 +23,20 @@
 //             PROVIDER read every frame (prov.objects(out) - render_premises' read-only soundObjects in the page, a
 //             simulation in node);
 //             the static anchors (the mill) from the premises record, once per record.
+//   ANIMALS   (G1705, SND-ANIMALS) the rigged animals of G498, live: the provider's read-only reader (prov.animals(out) -
+//             render_premises' animalSounds, i.e. animal_run.js's sound(): per individual its species, its head or
+//             blowhole, its velocity, its state, the run's clock at its last BLOW / CALL event, its herd; the events of
+//             this frame are those after the clock read the frame before - prov.animalClock()). ANIMALS below:
+//             a humpback / orca blows ONCE per surfacing, at its blowhole, at the plume's frame (never submerged: the
+//             aeroplane does not hear under the water), out to ~1.5 km / 600 m on calm water (less in wind); the elk bugle
+//             (a herd's Poisson clock: the gap, then weight / mean, most at dawn and dusk; the herd's next CALL
+//             opportunity - an elk changing what it does - is the call; never two of one herd at once); the bear's growl
+//             or huff only near (150 m), rarer still unless the listener is near and low, and a rare startle when it comes
+//             in close and low; the doe's bleat (150 m); the gulls' flocks (placed and ambient) call from a member of the
+//             flock, riding it (the doppler), at a rate per flock. Variants without immediate repeats (samples.js), a
+//             little pitch jitter per sound (the orca's breath at 0.82: a porpoise's recording lowered). Distance,
+//             absorption, doppler, the cockpit's muffle: emitters.js's chain, as every emitter. The 150 m CEILING does not
+//             apply to the animals (their reach is their own, measured in 3-D); the garage and under water hear none.
 //   THE CEILING  everything fades from 60 m AGL and is silent above 150 m (the beds' rule: ground level and low flight).
 //   THE CAP   at most `cap` one-shots sounding at once (gamer 6, potato 3: TIERS), `loops` local loops (3 / 2).
 //   NOTHING NEAR, NOTHING DONE  no habitat and no object within reach -> no voice, no load, no buffer, no param.
@@ -52,18 +66,26 @@ var EMITTERS_MODEL = (function () {
   };
   const NV = 6, NL = 3;                    // the slots (the tier's cap and loops are at most these)
 
-  // THE SOUNDS: [name, sample key (null: procedural), kind (0 one-shot, 1 loop), level dB, ref distance m, seconds]
+  // THE SOUNDS: [name, sample key (null: procedural), kind (0 one-shot, 1 loop), level dB, ref distance m, seconds,
+  // (optional) pitch jitter in semitones (default 1.5), base playback rate (default 1)]
   // (the seconds: the catalogue's longest variant - a node harness's stand-in; the source uses the buffer's own)
   const SOUNDS = [
     ['crow', 'bird.crow', 0, -6, 12, 0.39], ['eagle', 'bird.eagle', 0, -4, 25, 4.91], ['gull', 'bird.gull', 0, -6, 15, 6.01],
     ['owl', 'bird.owl', 0, -8, 15, 4.39], ['loon', 'bird.loon', 0, -10, 40, 4],
     ['dog', 'dog', 0, -2, 20, 6.01], ['door', 'mech.door', 0, -8, 8, 0.46],
     ['pickup', 'vehicle.pickup', 0, -3, 10, 6.01], ['creak', 'mech.creak', 0, -12, 6, 3.14], ['bell', 'tram.bell', 0, -10, 20, 1.54],
-    // the tram's hum and the idling boat take the coordinator's recordings (G1667, CC0, unheard); the mill stays procedural
-    ['tramhum', 'tram.hum', 1, -12, 18, 0], ['mill', null, 1, -6, 30, 0], ['boat', 'boat.idle', 1, -10, 12, 0],
+    // the tram's hum and the idling boat take the coordinator's recordings (G1667, CC0, unheard); the mill its stamp-mill
+    // loop (G1708: mill.stamp, seven pounds onset to onset - the procedural rumble is its fallback when the file is absent)
+    ['tramhum', 'tram.hum', 1, -12, 18, 0], ['mill', 'mill.stamp', 1, -4, 30, 0], ['boat', 'boat.idle', 1, -10, 12, 0],
+    // THE ANIMALS (G1705): the blows, the bugle, the growl, the bleat; the varied thrush (§6.2's, a forest species)
+    ['whaleblow', 'animal.whale.blow', 0, 0, 40, 4, 0.6, 1], ['orcablow', 'animal.orca.blow', 0, -3, 20, 2.2, 0.5, 0.82],
+    ['elk', 'animal.elk', 0, -2, 40, 5.41, 0.8, 1], ['bear', 'animal.bear', 0, -2, 15, 4, 0.8, 1], ['doe', 'animal.deer', 0, -8, 8, 2.7, 1, 1],
+    ['thrush', 'bird.thrush', 0, -8, 10, 1.59, 1, 1],
   ];
   const NS = SOUNDS.length;
   const S = {}; SOUNDS.forEach((s, i) => { S[s[0]] = i; });
+  const JIT = new Float64Array(NS), RATE0 = new Float64Array(NS);
+  SOUNDS.forEach((s, i) => { JIT[i] = s[6] != null ? s[6] : 1.5; RATE0[i] = s[7] > 0 ? s[7] : 1; });
 
   // THE SPECIES and the village's sounds (the random ones): [sound, mean s, the gap s (never the same sooner), place,
   // dMin, dMax, series (calls in a burst: a crow's caws), habitat]. Once the gap has passed a call comes at weight /
@@ -83,9 +105,11 @@ var EMITTERS_MODEL = (function () {
     // THE DOG: the user's "here and there" - a call at most every 150 s, ~one in 7.5 minutes inside a village by day
     [S.dog, 300, 150, 'yard', 30, 120, 1, 'village'],
     [S.door, 200, 90, 'yard', 12, 60, 1, 'village'],
+    // THE VARIED THRUSH (G1705; §6.2's forest bird, no file until now): the mossy forest by day, strongest at dawn and dusk
+    [S.thrush, 30, 12, 'tree', 15, 80, 1, 'thrush'],
   ];
   const NSP = SPECIES.length;
-  const HAB = { woods: 0, coast: 1, shore: 2, night: 3, lake: 4, village: 5 };
+  const HAB = { woods: 0, coast: 1, shore: 2, night: 3, lake: 4, village: 5, thrush: 6 };
   const PLACE = { tree: 0, treeOr: 1, soar: 2, sea: 3, lake: 4, yard: 5 };
   const SPT = new Float64Array(NSP * 8);
   SPECIES.forEach((r, i) => { const o = i * 8; SPT[o] = r[0]; SPT[o + 1] = r[1]; SPT[o + 2] = r[2]; SPT[o + 3] = PLACE[r[3]]; SPT[o + 4] = r[4]; SPT[o + 5] = r[5]; SPT[o + 6] = r[6]; SPT[o + 7] = HAB[r[7]]; });
@@ -106,6 +130,30 @@ var EMITTERS_MODEL = (function () {
     { gen: 'HOUSE_GEN', trait: 'pier.boats', sound: 'boat', what: 'a house pier\'s boats (each with its outboard): an outboard idling now and then' },
   ];
   const KIND_TRAM = 1, KIND_CAR = 2, KIND_BOAT = 3;
+
+  // THE ANIMALS (G1705, SND-ANIMALS): [species (animal_run.js's ANIMAL_RUN.SOUND.SPECIES name), sound, how, reach m, mean s,
+  // gap s, hour]. how: 'blow' one call per BLOW event while surfaced; 'call' a herd's Poisson clock (the gap, then weight /
+  // mean per second) arms it and its next CALL opportunity calls; 'flock' the clock calls at once from a member of the flock.
+  // hour: 'any' 1; 'twilight' 0.15 by day, 0.3 at night, 1 at dawn and dusk (the elk's bugle); 'day' 0.3 + 0.7 by day (the
+  // doe); 'gull' the gulls' (from 4 deg below the horizon). The reach is 3-D, faded over its last 30 %; a blow's reach
+  // shrinks with the wind (calm water: x1; 15 m/s: x0.4). Every reach, mean and gap is a first guess (SND-TUNE).
+  const ANIMALS = [
+    ['whale', 'whaleblow', 'blow', 1500, 0, 0, 'any'],
+    ['orca', 'orcablow', 'blow', 600, 0, 0, 'any'],
+    ['elk', 'elk', 'call', 1500, 40, 40, 'twilight'],
+    ['bear', 'bear', 'call', 150, 240, 60, 'near'],
+    ['doe', 'doe', 'call', 150, 120, 45, 'day'],
+    ['bird', 'gull', 'flock', 450, 16, 6, 'gull'],
+  ];
+  const NAN_ = ANIMALS.length;
+  const AHOW = { blow: 0, call: 1, flock: 2 }, AHOUR = { any: 0, twilight: 1, day: 2, gull: 3, near: 4 };
+  const ANT = new Float64Array(NAN_ * 6);   // per row: sound, how, reach, mean, gap, hour
+  ANIMALS.forEach((r, i) => { const o = i * 6; ANT[o] = S[r[1]]; ANT[o + 1] = AHOW[r[2]]; ANT[o + 2] = r[3]; ANT[o + 3] = r[4]; ANT[o + 4] = r[5]; ANT[o + 5] = AHOUR[r[6]]; });
+  // THE BEAR'S STARTLE: the listener comes within 60 m and under 40 m AGL -> a growl at 40 %, at most one per bear in 3 min.
+  // 'near' (the bear's own clock): weight 1 + 3 x near^2 x low (near = 1 - d / 150, low = 1 - AGL / 40)
+  const STARTLE = { d: 60, agl: 40, p: 0.4, gap: 180 };
+  const AROW = 12, MAXANI = 192, MAXH = 48;  // the reader's row (animal_run.js SOUND.ROW), its rows, the herds tracked
+  const AV = { SURFACED: 2 };                 // the reader's state at the surface (ANIMAL_RUN.SOUND.STATE.surfaced)
 
   const sat = x => (x < 0 ? 0 : x > 1 ? 1 : x);
 
@@ -136,7 +184,15 @@ var EMITTERS_MODEL = (function () {
       // the listener: position, smoothed velocity
       L: new Float64Array(8),
       tmp: new Float64Array(8), pos: new Float64Array(4),
-      n: new Float64Array(NS), refused: new Float64Array(2), queries: new Float64Array(1),
+      n: new Float64Array(NS), refused: new Float64Array(3), queries: new Float64Array(1),
+      // THE ANIMALS (G1705): the reader's rows; the clock last read (the events' `since`), the frame, the animal factor, the
+      // calm, the hours' weights; the species' code -> ANIMALS row; the herds (id, last seen frame, last call, armed, first
+      // row, rows, ANIMALS row, nearest d, last startle, inside the startle ring); a voice's herd and its flock member
+      ani: new Float64Array(MAXANI * AROW), nAni: new Int32Array(1), ac: new Float64Array(10), aniMap: new Int16Array(32).fill(-1), aniSp: null,
+      hId: new Float64Array(MAXH), hSeen: new Float64Array(MAXH).fill(-1e9), hLast: new Float64Array(MAXH).fill(-1e9), hArm: new Uint8Array(MAXH),
+      hRow0: new Int32Array(MAXH), hCnt: new Int32Array(MAXH), hA: new Int16Array(MAXH).fill(-1), hD: new Float64Array(MAXH),
+      hStart: new Float64Array(MAXH).fill(-1e9), hNear: new Uint8Array(MAXH),
+      vH: new Float64Array(NV).fill(-1), vAF: new Int16Array(NV),
       log: null,
     };
     SOUNDS.forEach((s, i) => { st.dur[i] = s[5] > 0 ? s[5] : 2; });
@@ -219,6 +275,14 @@ var EMITTERS_MODEL = (function () {
     q = (sun - 1) / 5;
     const vd = (q < 0 ? 0 : q > 1 ? 1 : q) * (vil > 0.8 * built ? vil : 0.8 * built) * ak;
     w[5] = vd; w[6] = vd;
+    // the varied thrush (G1705): the forest by day, strongest round sunrise and sunset (the sun 4 deg up, +-12)
+    q = 1 - Math.abs(sun - 4) / 12; const tw2 = q < 0 ? 0 : q;
+    w[7] = day * forest * (0.3 + 0.7 * tw2) * ak;
+    // the animals' hours (G1705): ac[4] the elk's twilight, ac[5] the doe's day, ac[6] the gulls'
+    const aw = st.ac, twe = twi > tw2 ? twi : tw2;
+    aw[4] = 0.15 + 0.15 * night + 0.7 * twe; if (aw[4] > 1) aw[4] = 1;
+    aw[5] = 0.3 + 0.7 * day;
+    q = (sun + 4) / 6; aw[6] = q < 0 ? 0 : q > 1 ? 1 : q;
   }
 
   // ---- PLACING A CALL (an event: allocation is allowed, the world's samplers are asked) -------------------------------
@@ -306,18 +370,28 @@ var EMITTERS_MODEL = (function () {
 
   // ---- THE SLOTS -------------------------------------------------------------------------------------------------------
   function voicesOn(st) { let n = 0; for (let i = 0; i < NV; i++) n += st.vOn[i]; return n; }
-  // a one-shot of sound s at st.pos (follow: a mover's row, or -1) -> its slot, or -1 (the cap, the gap, not ready)
-  function fire(st, s, follow, gain) {
+  // a one-shot of sound s at st.pos (follow: a mover's row, or -1) -> its slot, or -1 (the cap, the gap, not ready).
+  // steal (an animal's blow or call: an event that will not come again) takes the slot of the FARTHEST sounding call when
+  // the cap is reached and that call is farther than this one (st.refused[2] counts them; the cap holds)
+  function fire(st, s, follow, gain, steal) {
     const t = st.clk[0];
     if (!st.ready[s]) return -1;
     let slot = -1, n = 0;
     for (let i = 0; i < NV; i++) { if (st.vOn[i]) n++; else if (slot < 0) slot = i; }
-    if (n >= st.cap || slot < 0) { st.refused[0]++; return -1; }
+    if (n >= st.cap || slot < 0) {
+      if (steal) {
+        const ex = st.pos[0] - st.L[0], ey = st.pos[1] - st.L[1], ez = st.pos[2] - st.L[2], dn = Math.sqrt(ex * ex + ey * ey + ez * ez);
+        let far = -1, fd = dn;
+        for (let i = 0; i < NV; i++) if (st.vOn[i] && st.vD[i] > fd) { fd = st.vD[i]; far = i; }
+        if (far >= 0 && n <= st.cap) { slot = far; n--; st.refused[2]++; }
+      }
+      if (n >= st.cap || slot < 0) { st.refused[0]++; return -1; }
+    }
     const p = st.pos, i = slot;
-    st.vOn[i] = 1; st.vNew[i] = 1; st.vS[i] = s; st.vF[i] = follow;
+    st.vOn[i] = 1; st.vNew[i] = 1; st.vS[i] = s; st.vF[i] = follow; st.vH[i] = -1; st.vAF[i] = 0;
     st.vX[i] = p[0]; st.vY[i] = p[1]; st.vZ[i] = p[2]; st.vVx[i] = 0; st.vVy[i] = 0; st.vVz[i] = 0;
-    // the jitter (SOUND §6.3): +-1.5 semitones, +-2 dB
-    st.vR[i] = Math.pow(2, (2 * rnd(st) - 1) * 1.5 / 12);
+    // the jitter (SOUND §6.3): +-1.5 semitones (a sound's own: an animal's less), +-2 dB; the sound's base rate
+    st.vR[i] = RATE0[s] * Math.pow(2, (2 * rnd(st) - 1) * JIT[s] / 12);
     st.vG[i] = gain * Math.pow(10, (SOUNDS[s][3] + (2 * rnd(st) - 1) * 2) / 20);
     st.vT0[i] = t; st.vT1[i] = t + st.dur[s] / st.vR[i] + 0.05;
     const dx = p[0] - st.L[0], dy = p[1] - st.L[1], dz = p[2] - st.L[2];
@@ -392,6 +466,7 @@ var EMITTERS_MODEL = (function () {
     clk[3] = d;
     movers(st, prov);
     anchors(st);
+    animals(st, P, f, prov);
     // the loops' slots: off when their gain has faded and nothing wants them
     for (let i = 0; i < NL; i++) if (st.lOn[i] && t > st.lT1[i]) { st.lOn[i] = 0; st.lS[i] = -1; st.lF[i] = -1; }
     let nn = 0; for (let i = 0; i < NV; i++) nn += st.vNew[i];
@@ -520,6 +595,141 @@ var EMITTERS_MODEL = (function () {
     }
   }
 
+  // ---- THE ANIMALS (G1705, SND-ANIMALS) ---------------------------------------------------------------------------------
+  // the provider's reader: prov.animals(out) -> rows (AROW each: species, x, y, z, vx, vy, vz, state, the clock of its last
+  // event, herd, shown, length), prov.animalClock() -> the run's clock (this frame's events: after last frame's clock; ac[9]
+  // keeps that clock for a harness), prov.animalSpecies() -> the species' names (the codes' meaning).
+  // Every frame (a few dozen rows), allocation-free; a new species list (a new page layer) rebuilds the code map once.
+  function aniMapOf(st, names) {
+    st.aniSp = names; st.aniMap.fill(-1);
+    if (names) for (let c = 0; c < names.length && c < st.aniMap.length; c++)
+      for (let r = 0; r < NAN_; r++) if (ANIMALS[r][0] === names[c]) st.aniMap[c] = r;
+  }
+  // the herd slot of herd id h (seen at frame fr), the last one found tried first (a herd's rows are contiguous)
+  function herdSlot(st, h, fr, hint) {
+    if (hint >= 0 && st.hId[hint] === h) return hint;
+    let free = -1, old = -1, oldF = 1e300;
+    for (let k = 0; k < MAXH; k++) {
+      if (st.hId[k] === h && st.hSeen[k] > -1e9) return k;
+      if (st.hSeen[k] < fr - 600) { if (free < 0) free = k; }
+      else if (st.hSeen[k] < oldF) { oldF = st.hSeen[k]; old = k; }
+    }
+    const k = free >= 0 ? free : old;
+    st.hId[k] = h; st.hSeen[k] = -1; st.hLast[k] = -1e9; st.hArm[k] = 0; st.hStart[k] = -1e9; st.hNear[k] = 0; st.hCnt[k] = 0;
+    return k;
+  }
+  function animals(st, P, f, prov) {
+    const ac = st.ac, A = st.ani, L = st.L, t = st.clk[0], dt = st.clk[3];
+    const fr = ++ac[3];
+    // the garage and under water hear no animal; the 150 m ceiling is not theirs (their reach is)
+    const aa = P.s[P.I.inGarage] > 0 || f[F.under] > 0 ? 0 : 1;
+    let q = (f[F.wind] - 3) / 12; ac[1] = 1 - 0.6 * (q < 0 ? 0 : q > 1 ? 1 : q);   // the calm (the blows' reach)
+    ac[0] = aa;
+    let n = 0;
+    if (prov && prov.animals) {
+      const sp = prov.animalSpecies ? prov.animalSpecies() : null;
+      if (sp !== st.aniSp) aniMapOf(st, sp);
+      const c = prov.animalClock ? +prov.animalClock() : 0;
+      if (c < ac[2]) ac[2] = 0;                       // a new run (its clock restarted): every event after 0 is new
+      n = prov.animals(A) | 0; if (n > MAXANI) n = MAXANI;
+      ac[9] = ac[2]; ac[2] = c;                       // ac[9]: this frame's events are the rows' event clocks after it
+    }
+    st.nAni[0] = n;
+    for (let r = 0; r < NAN_; r++) { const sd = ANT[r * 6]; if (t - st.wantT[sd] > 0.5) st.want[sd] = 0; }
+    if (!n) return;
+    // THE HERDS: their slots, first rows, counts, nearest distance
+    let hint = -1;
+    const fi = fr | 0;                                // (integers into herdSlot: a double handed to a call is a heap box)
+    for (let r = 0; r < n; r++) {
+      const o = r * AROW, code = A[o];
+      const ar = code >= 0 && code < 32 ? st.aniMap[code] : -1;
+      if (ar < 0) continue;
+      const k = herdSlot(st, A[o + 9] | 0, fi, hint); hint = k;
+      const dx = A[o + 1] - L[0], dy = A[o + 2] - L[1], dz = A[o + 3] - L[2], d = Math.sqrt(dx * dx + dy * dy + dz * dz);
+      if (st.hSeen[k] !== fr) { st.hSeen[k] = fr; st.hRow0[k] = r; st.hCnt[k] = 0; st.hA[k] = ar; st.hD[k] = d; }
+      st.hCnt[k]++;
+      if (d < st.hD[k]) st.hD[k] = d;
+    }
+    // THE CLOCKS: wanted keys, the herds' Poisson clocks (armed), the flocks' calls, the bear's startle
+    const rg = st.rng, agl = f[F.agl];
+    for (let k = 0; k < MAXH; k++) {
+      if (st.hSeen[k] !== fr) continue;
+      const ar = st.hA[k], o6 = ar * 6, sd = ANT[o6], how = ANT[o6 + 1], reach = ANT[o6 + 2], hr = ANT[o6 + 5], d = st.hD[k];
+      const rch = how === 0 ? reach * ac[1] : reach;
+      if (d < rch * 1.15 && aa > 0) { st.want[sd] = 1; st.wantT[sd] = t; }
+      if (how === 0) continue;
+      let w = hr === 1 ? ac[4] : hr === 2 ? ac[5] : hr === 3 ? ac[6] : 1;
+      if (hr === 4) {
+        q = 1 - d / reach; const nr = q < 0 ? 0 : q; q = 1 - agl / STARTLE.agl; const lo = q < 0 ? 0 : q > 1 ? 1 : q;
+        w = 1 + 3 * nr * nr * lo;
+        // the startle: coming in close and low (an entry into the ring; out again past 1.5 x)
+        if (d < STARTLE.d && agl < STARTLE.agl) {
+          if (!st.hNear[k]) {
+            st.hNear[k] = 1;
+            if (aa > 0 && t - st.hStart[k] > STARTLE.gap && rnd(st) < STARTLE.p) {
+              const ro = st.hRow0[k] * AROW;
+              st.pos[0] = A[ro + 1]; st.pos[1] = A[ro + 2]; st.pos[2] = A[ro + 3];
+              const v = fire(st, sd, -1, 1, 1);
+              if (v >= 0) { st.vH[v] = st.hId[k]; st.hStart[k] = t; st.hLast[k] = t; st.hArm[k] = 0; }
+            }
+          }
+        } else if (d > STARTLE.d * 1.5) st.hNear[k] = 0;
+      }
+      if (st.hArm[k] || t - st.hLast[k] < ANT[o6 + 4] || w <= 0) continue;
+      // (the random inline: a double returned by a call V8 does not inline is a fresh heap box, every frame)
+      const ra = (rg[0] + 0x6D2B79F5) >>> 0; rg[0] = ra;
+      let xr = Math.imul(ra ^ (ra >>> 15), ra | 1); xr ^= xr + Math.imul(xr ^ (xr >>> 7), xr | 61);
+      if (((xr ^ (xr >>> 14)) >>> 0) / 4294967296 >= w * dt / ANT[o6 + 3]) continue;
+      if (how === 1) { st.hArm[k] = 1; continue; }   // a herd: armed, its next call opportunity calls
+      // a flock: a member calls now (out of reach the call is not heard, and not made: the clock goes on)
+      st.hLast[k] = t;
+      const m = Math.floor(rnd(st) * st.hCnt[k]), ro = (st.hRow0[k] + m) * AROW;
+      const ex = A[ro + 1] - L[0], ey = A[ro + 2] - L[1], ez = A[ro + 3] - L[2], dm = Math.sqrt(ex * ex + ey * ey + ez * ez);
+      if (aa <= 0 || dm > reach) continue;
+      st.pos[0] = A[ro + 1]; st.pos[1] = A[ro + 2]; st.pos[2] = A[ro + 3];
+      const v = fire(st, sd, 0x4000 + m, dm < 0.7 * reach ? 1 : (reach - dm) / (0.3 * reach), 1);
+      if (v >= 0) { st.vH[v] = st.hId[k]; st.vAF[v] = m + 1; st.vVx[v] = A[ro + 4]; st.vVy[v] = A[ro + 5]; st.vVz[v] = A[ro + 6]; }
+    }
+    // THE EVENTS: a blow (surfaced: once per surfacing, at the blowhole), a call opportunity of an armed herd
+    const since = ac[9];
+    for (let r = 0; r < n; r++) {
+      const o = r * AROW;
+      if (!(A[o + 8] > since)) continue;             // no event of this individual since the last frame's read
+      const code = A[o], ar = code >= 0 && code < 32 ? st.aniMap[code] : -1;
+      if (ar < 0) continue;
+      const o6 = ar * 6, sd = ANT[o6], how = ANT[o6 + 1], reach = ANT[o6 + 2];
+      const dx = A[o + 1] - L[0], dy = A[o + 2] - L[1], dz = A[o + 3] - L[2], d = Math.sqrt(dx * dx + dy * dy + dz * dz);
+      if (how === 0) {
+        if (A[o + 7] !== AV.SURFACED || aa <= 0) continue;   // a blow is at the surface: never submerged
+        const rch = reach * ac[1];
+        if (d > rch) continue;
+        st.pos[0] = A[o + 1]; st.pos[1] = A[o + 2]; st.pos[2] = A[o + 3];
+        fire(st, sd, -1, d < 0.7 * rch ? 1 : (rch - d) / (0.3 * rch), 1);
+      } else if (how === 1) {
+        const k = herdSlot(st, A[o + 9] | 0, fi, -1);
+        if (!st.hArm[k]) continue;
+        // never two of one herd at once: a sounding call of this herd keeps it armed
+        let busy = 0; for (let i = 0; i < NV; i++) if (st.vOn[i] && st.vH[i] === st.hId[k] && st.vS[i] === sd) busy = 1;
+        if (busy) continue;
+        st.hArm[k] = 0; st.hLast[k] = t;
+        if (aa <= 0 || d > reach) continue;           // a call out of reach is made, not heard
+        st.pos[0] = A[o + 1]; st.pos[1] = A[o + 2]; st.pos[2] = A[o + 3];
+        const v = fire(st, sd, -1, d < 0.7 * reach ? 1 : (reach - d) / (0.3 * reach), 1);
+        if (v >= 0) st.vH[v] = st.hId[k];
+      }
+    }
+    // THE FLOCKS' CALLS RIDE THEIR BIRD: placed on the member's row every frame (its velocity for the doppler)
+    for (let i = 0; i < NV; i++) {
+      if (!st.vOn[i] || st.vAF[i] <= 0) continue;
+      for (let k = 0; k < MAXH; k++) {
+        if (st.hSeen[k] !== fr || st.hId[k] !== st.vH[i]) continue;
+        const m = st.vAF[i] - 1;
+        if (m < st.hCnt[k]) { const ro = (st.hRow0[k] + m) * AROW; st.vX[i] = A[ro + 1]; st.vY[i] = A[ro + 2]; st.vZ[i] = A[ro + 3]; st.vVx[i] = A[ro + 4]; st.vVy[i] = A[ro + 5]; st.vVz[i] = A[ro + 6]; }
+        break;
+      }
+    }
+  }
+
   // ---- THE PROCEDURAL SOUNDS (no recording ships for these): mono Float32Array at sr, seconds s -----------------------
   // seeded noise; loops are made seamless by an equal-power crossfade of the tail into the head (samples.js's rule)
   function noise(seed0) { let x = seed0 >>> 0 || 1; return () => { x ^= x << 13; x >>>= 0; x ^= x >>> 17; x ^= x << 5; x >>>= 0; return x / 2147483648 - 1; }; }
@@ -589,7 +799,8 @@ var EMITTERS_MODEL = (function () {
 
   return { emittersState, emittersStep, weights, place, fire, seed, rnd, synth, prepAnchors,
            SOUNDS, NS, S, SPECIES, NSP, HAB, PLACE, TIERS, NV, NL, CEIL, CEIL_LO, PASS, TRAM, MILL, BOAT, DECLARED,
-           KIND_TRAM, KIND_CAR, KIND_BOAT, MOVER_DT, MAXOBJ };
+           KIND_TRAM, KIND_CAR, KIND_BOAT, MOVER_DT, MAXOBJ,
+           ANIMALS, STARTLE, AROW, MAXANI, MAXH, JIT, RATE0 };
 })();
 if (typeof window !== 'undefined') window.EMITTERS_MODEL = EMITTERS_MODEL;
 if (typeof module !== 'undefined' && module.exports) module.exports = EMITTERS_MODEL;
