@@ -30,7 +30,7 @@
 // (setEngine key 'off'), the master and the key, a brief silence, then each engine in turn - the starter cranking the
 // solver's own 1.5 s (setEngine start; burn's countdown) to the catch, a hand swing without a starter, an electric motor
 // powered - and the check starts as the catch's flare settles. The SAME FIELDS a start in flight moves: sim.eng[i].key /
-// crank / running, sim.out.rpm / rpmEng off the solver's shaft law (0 while it cranks), sim.ctl.thr - so audio_params and
+// crank / running, sim.out.rpm / rpmEng / thrustPer off the solver's laws (0 while it cranks), sim.ctl.thr - so audio_params and
 // the voices hear a start, its catch and its idle exactly as in flight. The drawn prop turns at the rpm the engine's VOICE
 // makes (the crank at crankRpm through each compression, the catch's surge, the settle), not at the solver's 0. Then the
 // check at idle, and the roll with a little throttle to break away, back to idle as it rolls. Every field put back at the
@@ -738,8 +738,11 @@ const ROLLANIM = (() => {
     const SP = P.start, NE = SP.n, sim = o.sim, simCtl = sim && sim.ctl;
     const Eng = NE ? sim.eng : null, out = NE ? sim.out : null;
     const engSaved = NE ? Eng.map(e => [e.running, e.key, e.crank]) : null;
-    const hadRpm = NE && Array.isArray(out.rpm), hadRpmE = NE && Array.isArray(out.rpmEng);
-    const rpmSaved = hadRpm ? out.rpm.slice() : null, rpmESaved = hadRpmE ? out.rpmEng.slice() : null;
+    const hadRpm = NE && Array.isArray(out.rpm), hadRpmE = NE && Array.isArray(out.rpmEng), hadTp = NE && Array.isArray(out.thrustPer);
+    const rpmSaved = hadRpm ? out.rpm.slice() : null, rpmESaved = hadRpmE ? out.rpmEng.slice() : null, tpSaved = hadTp ? out.thrustPer.slice() : null;
+    // the thrust a running engine pulls at rest (the solver's Ti = thr x lever x Tcap, Tcap = Tstatic at V = 0, sea level):
+    // the prop voice's loading (src_prop.js: P.thrustPer)
+    const Tcap = SP.PR && SP.PR.Tstatic > 0 ? SP.PR.Tstatic : 0;
     const thrSaved = simCtl ? simCtl.thr : 0;
     // the per-engine constants, flat; ES the state (stride ESW): [0] the voice's engine rpm, [1] the starter's envelope,
     // [2] the catch's clock, [3] catching, [4] running last frame, [5] / [6] the solver's prop / engine rpm, [7] the crank's
@@ -775,7 +778,8 @@ const ROLLANIM = (() => {
     if (NE) {
       if (!hadRpm) out.rpm = [];
       if (!hadRpmE) out.rpmEng = [];
-      for (let k = 0; k < NE; k++) { engSet(k, P_OFF); out.rpm[k] = 0; out.rpmEng[k] = 0; }
+      if (!hadTp) out.thrustPer = [];
+      for (let k = 0; k < NE; k++) { engSet(k, P_OFF); out.rpm[k] = 0; out.rpmEng[k] = 0; out.thrustPer[k] = 0; }
       if (ctl) neutral();                                // (the surfaces still through the start: snapped once, held at 0)
     }
     // THE ENGINES, a frame: the start's events at its clock tS (< 0: the start is over), the solver's crank countdown (burn's
@@ -800,7 +804,7 @@ const ROLLANIM = (() => {
         te = te < 0 ? 0 : te > 1 ? 1 : te;
         const n = run ? Math.sqrt(eI2[k] + eD2[k] * te) : 0, gear = eGear[k];
         ES[o9 + 5] = n; ES[o9 + 6] = n * gear;
-        out.rpm[k] = n; out.rpmEng[k] = n * gear;
+        out.rpm[k] = n; out.rpmEng[k] = n * gear; out.thrustPer[k] = te * Tcap;
         let v = ES[o9], vis;
         const kd = eKind[k];
         if (kd === 0) {
@@ -856,9 +860,10 @@ const ROLLANIM = (() => {
       for (let k = 0; k < NE; k++) { const e = Eng[k], s0 = engSaved[k]; e.running = s0[0]; e.key = s0[1]; e.crank = s0[2]; }
       if (simCtl) simCtl.thr = thrSaved;
       if (o.handover && how !== 'cancel') {
-        for (let k = 0; k < NE; k++) { const g = SP.engines[k]; out.rpm[k] = g.nIdle; out.rpmEng[k] = g.nIdle * g.gear; }
+        for (let k = 0; k < NE; k++) { const g = SP.engines[k]; out.rpm[k] = g.nIdle; out.rpmEng[k] = g.nIdle * g.gear; out.thrustPer[k] = 0; }
         return;
       }
+      if (hadTp) { out.thrustPer.length = 0; for (let i = 0; i < tpSaved.length; i++) out.thrustPer[i] = tpSaved[i]; } else delete out.thrustPer;
       if (hadRpm) { out.rpm.length = 0; for (let i = 0; i < rpmSaved.length; i++) out.rpm[i] = rpmSaved[i]; } else delete out.rpm;
       if (hadRpmE) { out.rpmEng.length = 0; for (let i = 0; i < rpmESaved.length; i++) out.rpmEng[i] = rpmESaved[i]; } else delete out.rpmEng;
     }
@@ -882,7 +887,7 @@ const ROLLANIM = (() => {
     const h = {
       done: false, skipped: null, plan: P, spun: wSpun, hidden,
       get t() { return st[0]; }, get rolled() { return st[1]; },
-      get tCheck() { return st[9]; }, get tStart() { return st[10]; }, get thr() { return st[11]; },
+      get tCheck() { return st[9]; }, get tStart() { return st[10]; }, get thr() { return st[11]; }, eng: ES,   // (G1715: ES, stride ESW - for the gate)
       get phase() { return h.done ? 'done' : st[10] < SP.T ? 'start' : st[9] < CK.T ? 'check' : 'roll'; },
       tick, cancel, skip, _cam: applyCam,
     };
