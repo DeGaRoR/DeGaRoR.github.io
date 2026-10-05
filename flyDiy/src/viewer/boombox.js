@@ -126,7 +126,7 @@ var BOOMBOX = (function () {
     }
     const tex = new THREE.DataTexture(px, N, N, THREE.RGBAFormat);
     tex.needsUpdate = true;
-    const mat = new THREE.MeshBasicMaterial({ color: 0xffd9a0, map: tex, transparent: true, opacity: 0.42, depthWrite: false,
+    const mat = MATLIB.make(THREE, 'basic', { color: 0xffd9a0, map: tex, transparent: true, opacity: 0.42, depthWrite: false,
       blending: THREE.AdditiveBlending, toneMapped: false });
     halo = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), mat);
     halo.name = 'boomboxHalo';
