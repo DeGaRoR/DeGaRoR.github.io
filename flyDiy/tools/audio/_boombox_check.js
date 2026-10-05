@@ -102,6 +102,7 @@ function bbPage(S, o) {
     ctx.__D = D;
   }
   ctx.AUDIO = o.A; ctx.AUDIO_MUSIC = o.M; ctx.AUDIO_MYMUSIC = o.MY;
+  ctx.MATLIB = require(path.join(ROOT, 'src', 'viewer', 'matlib.js'));   // train 34: the halo's material is made through MATLIB (GATE ASSETS)
   if (o.reg) ctx.PROP_REG = o.reg;
   vm.createContext(ctx);
   vm.runInContext(S.boombox, ctx, { filename: 'boombox.js' });

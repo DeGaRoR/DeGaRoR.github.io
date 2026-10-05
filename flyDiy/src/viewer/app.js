@@ -3311,6 +3311,13 @@
   // rotation and for the capture's conjugated one (conjRot), renormalised.
   function turnNormals(nAttr, baseN, M) {
     if (!nAttr || !nAttr.array || !baseN) return;
+    // train 34 (A0): only when the turn changed (> ~0.1 deg in any term) - every vertex re-normalised and the attribute
+    // re-uploaded EVERY frame cost the cockpit ~1 ms of frame loop (GEN-PAIRS B21, measured T2 vs T2g vs T3)
+    const L0 = nAttr._turnM || (nAttr._turnM = new Float32Array(9).fill(NaN));
+    let moved = false;
+    for (let j = 0; j < 9; j++) if (!(Math.abs(M[j] - L0[j]) < 0.002)) { moved = true; break; }
+    if (!moved) return;
+    for (let j = 0; j < 9; j++) L0[j] = M[j];
     const c00 = M[4] * M[8] - M[5] * M[7], c01 = M[5] * M[6] - M[3] * M[8], c02 = M[3] * M[7] - M[4] * M[6],
           c10 = M[2] * M[7] - M[1] * M[8], c11 = M[0] * M[8] - M[2] * M[6], c12 = M[1] * M[6] - M[0] * M[7],
           c20 = M[1] * M[5] - M[2] * M[4], c21 = M[2] * M[3] - M[0] * M[5], c22 = M[0] * M[4] - M[1] * M[3];
