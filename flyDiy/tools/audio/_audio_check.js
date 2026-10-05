@@ -2935,8 +2935,9 @@ const AMB_PLACES = [
   ['lake shore', AMB_LAKE[0] + AMB_LAKE[2] + 5, AMB_LAKE[1], 1.7, {}, [['amb.lake.lap', '>=', 0.8], ['amb.lake.shore', '>=', 0.6], ['amb.lake.near', '>=', 0.2], ['amb.stream', '<=', 0.01]]],
   ['60 m from the lake', AMB_LAKE[0] + AMB_LAKE[2] + 60, AMB_LAKE[1], 1.7, {}, [['amb.lake.near', '<=', 0.02], ['amb.lake.shore', '<=', 0.02], ['amb.lake.lap', '>=', 0.02]]],
   ['500 m AGL', 0, 500, 500, {}].concat([AMB_GROUND.map(k => [k, '<=', 0.005]).concat([['winds', '>=', 0.3]])]),
-  ['the garage, dry', 0, 500, 1.7, { garage: 1 }, [['amb.hangar', '>=', 0.99], ['amb.rain.roof', '<=', 0.001], ['amb.forest.day', '<=', 0.25], ['amb.meadow', '<=', 0.25], ['amb.shore.surf', '<=', 0.001], ['amb.village', '<=', 0.001], ['amb.airfield', '<=', 0.001]]],
-  ['the garage, raining', 0, 500, 1.7, { garage: 1, rain: 1 }, [['amb.hangar', '>=', 0.99], ['amb.rain.roof', '>=', 0.99]]],
+  // the shed is FAINT (the user, 2026-10-05): every bed at GARAGE_K (-12 dB, 0.251) at most
+  ['the garage, dry', 0, 500, 1.7, { garage: 1 }, [['amb.hangar', '>=', 0.24], ['amb.hangar', '<=', 0.26], ['amb.rain.roof', '<=', 0.001], ['amb.forest.day', '<=', 0.06], ['amb.meadow', '<=', 0.04], ['amb.shore.surf', '<=', 0.001], ['amb.village', '<=', 0.001], ['amb.airfield', '<=', 0.001]]],
+  ['the garage, raining', 0, 500, 1.7, { garage: 1, rain: 1 }, [['amb.hangar', '>=', 0.24], ['amb.hangar', '<=', 0.26], ['amb.rain.roof', '>=', 0.24], ['amb.rain.roof', '<=', 0.26]]],
   ['out of the garage', 0, 500, 1.7, { rain: 1 }, [['amb.hangar', '<=', 0.001], ['amb.rain.roof', '<=', 0.001]]],
   ['the strip', 300, 900, 1.7, {}, [['amb.airfield', '>=', 0.9]]],
   ['the water lane (no fence)', 1200, 0, 1.7, {}, [['amb.airfield', '<=', 0.01]]],
@@ -2988,7 +2989,7 @@ function checkAmbJolene(S) {
     'lake shore': [['amb.lake.lap', '>=', 0.8], ['amb.lake.shore', '>=', 0.3]],
     'stand at Jolene AFB': [['amb.airfield', '>=', 0.9], ['amb.village', '<=', 0.05]],
     '500 m AGL': AMB_GROUND.map(k => [k, '<=', 0.005]).concat([['winds', '>=', 0.3]]),
-    'garage': [['amb.hangar', '>=', 0.99], ['amb.airfield', '<=', 0.001]],
+    'garage': [['amb.hangar', '>=', 0.24], ['amb.hangar', '<=', 0.26], ['amb.airfield', '<=', 0.001]],   // faint (GARAGE_K)
   };
   let F = [];
   for (const [name, x, z, h, garage] of P) {
@@ -4343,6 +4344,7 @@ const MUT = [
   ['the approach is a cruise', 'music', 'const approach = flap > CRUISE.flapMax || (vs < CRUISE.approachVs && agl < CRUISE.approachAgl);', 'const approach = flap > CRUISE.flapMax;', 'MUSIC_CTX'],
   ['the garage setting ignored', 'music', 'if (garage) return musicGarage ? C_GARAGE : C_NONE;', 'if (garage) return C_GARAGE;', 'MUSIC_CTX'],
   ['the loading button never shown', 'music', 'b.hidden = false;   // shown: the sound is built', 'b.hidden = true;   // shown: the sound is built', 'MUSIC_WIRING'],
+  ['the shed back to full', 'ambmodel', 'const GARAGE_K = Math.pow(10, -12 / 20);', 'const GARAGE_K = 1;', 'AMBPLACES'],
   ['the loading setting ignored', 'music', 'if (welcome) return musicLoading ? C_WELCOME : C_NONE;', 'if (welcome) return C_WELCOME;', 'MUSIC_WIRING'],
   ['the loading screens back to the welcome-tagged few', 'music', '(c === C_WELCOME ? ix.slice() : ix.filter(', '(c === -9 ? ix.slice() : ix.filter(', 'MUSIC_SHUFFLE'],
   ['only the first boot is a loading screen', 'audio', "welcome = B && (B.state === 'loading' || B.state === 'landing' || B.state === 'waiting') ? 1 : 0;", "welcome = welcome && B && B.state !== 'gone' ? 1 : 0;", 'MUSIC_CTX'],
@@ -4431,8 +4433,8 @@ const MUT = [
   ['the ground beds never fade with height', 'ambmodel', 'const g = 1 - rv[R.g];', 'const g = 1;', 'AMBAGL'],
   ['a weight jumps', 'ambmodel', 'if (step > lim) step = lim; else if (step < -lim) step = -lim;', '', 'AMBSMOOTH'],
   ['the world read every frame', 'ambmodel', 'if (clk[1] < AM_PHASES || clk[0] < AM_ROUND_S) return 0;', 'if (clk[1] < AM_PHASES) return 0;', 'AMBSMOOTH'],
-  ['the garage without its hangar', 'ambmodel', 'T[B.hangar] = 1;', 'T[B.hangar] = 0;', 'AMBPLACES'],
-  ['the door wide open', 'ambmodel', 'T[B.forestDay] = 0.22 * day;', 'T[B.forestDay] = 0.9 * day;', 'AMBPLACES'],
+  ['the garage without its hangar', 'ambmodel', 'T[B.hangar] = GARAGE_K;', 'T[B.hangar] = 0;', 'AMBPLACES'],
+  ['the door wide open', 'ambmodel', 'T[B.forestDay] = GARAGE_K * 0.22 * day;', 'T[B.forestDay] = 0.9 * day;', 'AMBPLACES'],
   ['the forest the same at night', 'ambmodel', 'T[B.forestDay] = g * day * forest * rustle;', 'T[B.forestDay] = g * forest * rustle;', 'AMBPLACES'],
   ['the lake edge heard far inland', 'ambmodel', '1 - rv[R.nearOut]', '1 - 0.2 * rv[R.nearOut]', 'AMBPLACES'],
   ['the village zones unread', 'ambmodel', 'if (zk[i] === 1) { if (v > vil) vil = v; }', 'if (zk[i] === 1) { }', 'AMBPLACES'],
