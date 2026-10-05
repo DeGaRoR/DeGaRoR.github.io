@@ -611,7 +611,7 @@ function drawnDetail(C) {
       if (g.drawRange && g.drawRange.count !== Infinity) n = Math.min(n, g.drawRange.count);
       const inst = o.isInstancedMesh ? o.count : (g.isInstancedBufferGeometry && g.instanceCount !== Infinity ? g.instanceCount : 1);
       const path = []; for (let p = o; p && p.parent; p = p.parent) if (p.name) path.unshift(p.name);
-      const k = path.slice(0, 3).join('/') || (o.type + ':' + ([].concat(o.material)[0] || {}).type); tris[k] = (tris[k] || 0) + n / 3 * inst; }
+      const k = path.slice(0, +(process.env.FRAMECOST_TRIS_DEPTH || 3)).join('/') || (o.type + ':' + ([].concat(o.material)[0] || {}).type); tris[k] = (tris[k] || 0) + n / 3 * inst; }
     tris = Object.fromEntries(Object.entries(tris).sort((a, b) => b[1] - a[1]).slice(0, 60).map(([k, v]) => [k, Math.round(v)])); }
   return { main: count(C.lastDrawn), shadow: count(C.lastShadow), mats: matTally(C.lastDrawn || []), names, tris, shadowPasses: C.lastPasses || undefined };
 }

@@ -1302,6 +1302,14 @@ function make(THREE, scene, world, rec0, opts) {
   // only when the solved line changes; the cabins are the cabin pack's when it is here, else the rope
   // curves alone. The group carries the frame's transform, so the run works in premises coordinates.
   const TRAMS = new Map();
+  // G1529 (POTATO-DEEP): THE CABINS' DISTANCE CUT on a lighter build budget (GFX.BUDGETS cabinFar: potato 600 m, laptop 400 m) -
+  // the two cabins and their carriages were 136 k of the potato taxi's triangles (the line itself 7 k) and a 4 m cabin at 600 m
+  // is ~7 px; past it they are not drawn (the pylons, the ropes and the docks stay, and the cabins' hit volumes are the run's,
+  // untouched). 0 (every desktop budget): never cut
+  const CABIN_FAR = (typeof window !== 'undefined' && window.GFX && typeof window.GFX.budget === 'function' && window.GFX.budget().cabinFar > 0) ? window.GFX.budget().cabinFar : 0;
+  const _cabW = new THREE.Vector3();
+  const cabinCut = cabs => { const e = o.eye && o.eye(); if (!e) return;
+    for (const c of cabs) { if (!c) continue; c.getWorldPosition(_cabW); c.visible = _cabW.distanceTo(e) <= CABIN_FAR; } };
   const tramKey = L => JSON.stringify([L.geom.docks.map(d => [d.p, d.yaw]), L.geom.ropes.map(r => [r.a, r.b, r.kind, r.line])]);
   function syncTrams() {
     const TR = window.TRAM_RUN, CB = window.CABIN, F = O.frame;
@@ -1326,8 +1334,9 @@ function make(THREE, scene, world, rec0, opts) {
       // own PointLights (a count that changes recompiles every lit material); their ceiling lights and markers join the lamp pool
       // as MOVING lamps, re-read off the cabin every frame while they are among the nearest
       const onLights = (lights, c) => { for (const Lc of lights || []) LAMPS.pub.push({ grp: c, p: [Lc.x, Lc.y, Lc.z], col: Lc.col || [1, 0.92, 0.74], k: Lc.k == null ? 1 : Lc.k, range: Lc.range || 8, kind: 'cabin', move: true }); LAMPS.near = null; };
-      if (CB) { try { const objs = [0, 1].map(i => { const c = CB.build(THREE, { livery: i ? 'admiralty' : 'chatham', lit: 1, points: false, onLights }); grp.add(c); return c; }); run.attach(objs); } catch (e) { console.warn('premises tram cabins', id, e && e.message); } }
-      G.tram.add(grp); TRAMS.set(id, { key: tramKey(L), grp, run });
+      let cabObjs = null;   // G1529: the cabins, for the budget's distance cut (tick)
+      if (CB) { try { const objs = [0, 1].map(i => { const c = CB.build(THREE, { livery: i ? 'admiralty' : 'chatham', lit: 1, points: false, onLights }); grp.add(c); return c; }); run.attach(objs); cabObjs = objs; } catch (e) { console.warn('premises tram cabins', id, e && e.message); } }
+      G.tram.add(grp); TRAMS.set(id, { key: tramKey(L), grp, run, cabs: cabObjs });
     }
     stats.trams = TRAMS.size;
   }
@@ -2307,7 +2316,7 @@ function make(THREE, scene, world, rec0, opts) {
       if (on2 !== D.on2) { D.on2 = on2; for (const m of D.list2) if (!m.userData.merged) m.visible = on2; }
     }
   }
-  function tick(dt) { if (RISE.list.length) riseTick(); if (++freezeTick % 60 === 0) freezeStatic(true); detailTick(); if (LIFE) LIFE.tick(); hitPendingStep(); for (const [, t] of TRAMS) t.run.tick(dt).apply(); if (TRAFFIC.size) { const e = o.eye && o.eye(); for (const [, t] of TRAFFIC) moveTraffic(t, dt, e); } if (ANIM) stats.animalsShown = ANIM.tick(dt); return TRAMS.size + TRAFFIC.size + (ANIM ? ANIM.stats.animals : 0); }
+  function tick(dt) { if (RISE.list.length) riseTick(); if (++freezeTick % 60 === 0) freezeStatic(true); detailTick(); if (LIFE) LIFE.tick(); hitPendingStep(); for (const [, t] of TRAMS) { t.run.tick(dt).apply(); if (CABIN_FAR > 0 && t.cabs) cabinCut(t.cabs); } if (TRAFFIC.size) { const e = o.eye && o.eye(); for (const [, t] of TRAFFIC) moveTraffic(t, dt, e); } if (ANIM) stats.animalsShown = ANIM.tick(dt); return TRAMS.size + TRAFFIC.size + (ANIM ? ANIM.stats.animals : 0); }
 
   // ---- the handles ----------------------------------------------------------------
   const discGeo = new THREE.CircleGeometry(1, 20); discGeo.rotateX(-Math.PI / 2);
