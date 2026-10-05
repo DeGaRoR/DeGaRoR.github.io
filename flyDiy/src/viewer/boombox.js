@@ -414,7 +414,20 @@ var BOOMBOX = (function () {
     if (Math.abs(Tp - lastT) >= 1) { lastT = Tp; panel.style.top = Math.round(Tp) + 'px'; }
   }
 
-  return { radio, pick, hitBox, hover, click, open, close, frame, refresh, get isOpen() { return isOpen(); },
+  // G1714: the kit was placed (app.js, after hangar.placeMobile): the radio's centre to music.js, which leans the garage's
+  // music toward it when the camera is near (null: no radio in this room)
+  function placed(o) {
+    const M = MU(), S = scratch();
+    if (!M || !M.setSourcePos) return false;
+    if (!o || !S) { M.setSourcePos(null); return false; }
+    if (o.updateWorldMatrix) o.updateWorldMatrix(true, false);
+    const b = localBox(o, S.box);
+    S.q.set((b.min.x + b.max.x) / 2, (b.min.y + b.max.y) / 2, (b.min.z + b.max.z) / 2).applyMatrix4(o.matrixWorld);
+    M.setSourcePos(S.q.x, S.q.y, S.q.z);
+    return true;
+  }
+
+  return { radio, pick, hitBox, hover, click, open, close, frame, refresh, placed, get isOpen() { return isOpen(); },
     get hovered() { return hovered; }, KEY, _localBox: localBox, _halo: () => halo };
 })();
 if (typeof window !== 'undefined') window.BOOMBOX = BOOMBOX;

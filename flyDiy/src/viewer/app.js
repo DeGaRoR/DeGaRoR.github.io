@@ -1060,6 +1060,8 @@
       if (isFinite(bb.min.x) && bb.max.x > bb.min.x)
         hangar.placeMobile({ x0: bb.min.x, x1: bb.max.x,
                              z0: bb.min.z, z1: bb.max.z });
+      // G1714: where the radio stands now - the garage's music leans toward it (boombox.js -> music.js)
+      if (window.BOOMBOX && hangar.mobileProp) window.BOOMBOX.placed(hangar.mobileProp('boombox'));
       // the kit moved, so its print on the floor moves with it
       if (hangar.bakeGroundShadow) hangar.bakeGroundShadow(renderer, hangarScene);
       // and the aeroplane's own print follows the aeroplane — every slider

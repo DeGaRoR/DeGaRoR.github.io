@@ -88,6 +88,11 @@
 // (talkDue is Radio Jolene's alone), never in the mix, the credits or the [ / ] cycle until a folder is there. A track's
 // length is unknown until its metadata (USER_DUR_S stands in until durationchange). The station is persisted like any
 // other; a page that loads on 'mine' plays the start station until the folder is back (wantMine), then returns to it.
+// THE BOOMBOX AS THE SOURCE (G1714, SND-BOOMBOX's stretch): in the garage the music leans a little toward the radio when
+// the camera is near it - a StereoPanner between the duck and the music bus (space.js's room send follows it). The radio's
+// place is handed in when the kit is placed (setSourcePos; boombox.js placed()); every PAN_EVERY_S the camera's right axis
+// against the direction to it gives the side, scaled by PAN_K and by how near (full within PAN_NEAR m, nothing past
+// PAN_FAR m); off the garage, or with no radio, the centre. A move under PAN_STEP schedules nothing; nothing allocates.
 // THE CATALOGUE (src/viewer/audio/music_catalogue.json, written by the coordinator's prep tool from the user's
 // picks; the build inlines it as window.FLYDIY_MUSIC - a manifest, not a media file: under media/ an unhashed
 // JSON would be held forever by sw.js's cache-first rule, and GATE MEDIA would call it an orphan):
@@ -132,6 +137,9 @@ var AUDIO_MUSIC = (function () {
   // its metadata says, the file names it keeps
   const ST_MINE = 'mine', MINE_LABEL = 'My music', USER_DUR_S = 3600;
   const MINE_RE = /\.(mp3|ogg|oga|opus|m4a|aac|wav|flac)$/i;
+  // G1714 the lean toward the radio (above)
+  const PAN_K = 0.35, PAN_NEAR = 2, PAN_FAR = 9, PAN_EVERY_S = 0.25, PAN_STEP = 0.02, PAN_TAU = 0.3;
+  const SRC = new Float64Array(5);   // the radio's x, y, z, whether there is one, the pan last scheduled
   const BED_K = 0.16, BED_IN_S = 1.5, BED_UP_S = 1.5, VOICE_K = 1 / 0.8, TALK_SLACK_S = 8;
   // G1703 THE TALK-UP (SND-RADIO-3): a break owed starts TALK_UP_S before the track's end - Norman talks over its fading
   // outro (the track fades out over what is left of it, equal-power) and the next track's intro comes in under him at the
@@ -267,7 +275,7 @@ var AUDIO_MUSIC = (function () {
   // radio's: the bed (1, or BED_K under a talk), the talk's watchdog (s left; 0 = no talk), tracks since the last
   // break, a tune-in break owed
   const PS = new Float64Array(12);
-  const S_CUR = 0, S_GAP = 1, S_DUCK = 2, S_NOW = 3, S_RETRY = 4, S_ACT = 5, S_PHOTO = 6, S_BED = 7, S_TALK = 8, S_COUNT = 9, S_TUNE = 10;
+  const S_CUR = 0, S_GAP = 1, S_DUCK = 2, S_NOW = 3, S_RETRY = 4, S_ACT = 5, S_PHOTO = 6, S_BED = 7, S_TALK = 8, S_COUNT = 9, S_TUNE = 10, S_PANT = 11;
   const REC = new Int16Array(2).fill(-1);   // the last two tracks started (the back-announce)
   PS[S_BED] = 1;
   const CRUISE_ST = new Float64Array(2);
@@ -293,7 +301,7 @@ var AUDIO_MUSIC = (function () {
   const clipK = () => { const v = G.FLYDIY_VOICE && G.FLYDIY_VOICE.voice, l = v && v.render && typeof v.render.lufs === 'number' ? v.render.lufs : VOICE_LUFS;
     return VOICE_K * Math.pow(10, (LUFS_TARGET - l) / 20); };
   let CUR = { v: '', k: 0, n: 0, h: {} };   // G1702: the broadcast's cursor (RADIO_TALK.cursor: persisted, a new session continues)
-  let ctx = null, A = null, decks = [], duck = null, offs = [];
+  let ctx = null, A = null, decks = [], duck = null, offs = [], panner = null;
   const C = { elements: 0, starts: 0, xfades: 0, ducks: 0, talks: 0, talkCuts: 0, blobs: 0, revoked: 0 };   // counters (the gate reads them)
   PS[S_CUR] = C_NONE; PS[S_GAP] = -1; PS[S_ACT] = -1;
   for (let k = 0; k < 2; k++) DK[k * K_N + K_STOP] = -1;
@@ -593,6 +601,7 @@ var AUDIO_MUSIC = (function () {
     const cruise = garage ? (CRUISE_ST[0] = 0, CRUISE_ST[1] = 0, 0) : cruiseStep(CRUISE_ST, s[I.onGround], s[I.agl], s[I.V], s[I.vs], s[I.flap], dt);
     const want = station === 'off' ? C_NONE : contextOf(au.welcome, PS[S_PHOTO] > 0, garage, au.get('musicGarage'), au.get('musicFlight'), cruise);
     if (want !== PS[S_CUR]) switchTo(want);
+    if (panner) { PS[S_PANT] -= dt; if (PS[S_PANT] <= 0) { PS[S_PANT] = PAN_EVERY_S; lean(au); } }   // G1714 (4 Hz)
     if (au.state === 'suspended') return;   // the timers wait with the sound
     for (let k = 0; k < 2; k++) {
       const o = k * K_N;
@@ -620,6 +629,27 @@ var AUDIO_MUSIC = (function () {
     const lead = up > xf ? up : xf;
     if (rem <= lead + LEAD_S) preloadNext(c);
     if (rem <= lead) { C.xfades++; const d = rem > xf ? rem : xf; fadeOut(a, d); if (!nextWithTalk(c)) startNext(c, d); }
+  }
+
+  // G1714: the side the radio is on, from the listener (the camera's right axis, its world matrix: no allocation)
+  function lean(au) {
+    let x = 0;
+    const cam = au.camera, m = cam && cam.matrixWorld && cam.matrixWorld.elements;
+    if (SRC[3] > 0 && au.inGarage && m) {
+      const dx = SRC[0] - m[12], dy = SRC[1] - m[13], dz = SRC[2] - m[14], d = Math.sqrt(dx * dx + dy * dy + dz * dz);
+      if (d > 1e-3) {
+        const near = Math.max(0, Math.min(1, (PAN_FAR - d) / (PAN_FAR - PAN_NEAR)));
+        x = PAN_K * near * (m[0] * dx + m[1] * dy + m[2] * dz) / d;
+      }
+    }
+    if (Math.abs(x - SRC[4]) < PAN_STEP && !(x === 0 && SRC[4] !== 0)) return;
+    SRC[4] = x;
+    const p = panner.pan;
+    if (p.setTargetAtTime) p.setTargetAtTime(x, ctx.currentTime, PAN_TAU); else p.value = x;
+  }
+  function setSourcePos(x, y, z) {
+    if (x == null) { SRC[3] = 0; return; }
+    SRC[0] = +x || 0; SRC[1] = +y || 0; SRC[2] = +z || 0; SRC[3] = 1;
   }
 
   // skip: the next track now (a crossfade; in a garage gap, the wait ends)
@@ -722,7 +752,10 @@ var AUDIO_MUSIC = (function () {
     ctx = c; A = au;
     const D = G.document;
     duck = c.createGain(); duck.gain.value = 1;
-    duck.connect(au.bus('music'));
+    // G1714: duck -> the lean -> the bus (a context with no StereoPanner: straight on, as before)
+    panner = typeof c.createStereoPanner === 'function' ? c.createStereoPanner() : null;
+    if (panner) { panner.pan.value = 0; duck.connect(panner); panner.connect(au.bus('music')); } else duck.connect(au.bus('music'));
+    SRC[4] = 0; PS[S_PANT] = 0;
     decks = [];
     if (!D || !D.createElement || !c.createMediaElementSource) { ctx = null; return; }   // no media elements here
     for (let k = 0; k < 2; k++) {
@@ -770,6 +803,8 @@ var AUDIO_MUSIC = (function () {
     }
     decks = [];
     try { if (duck) duck.disconnect(); } catch (e) {}
+    try { if (panner) panner.disconnect(); } catch (e) {}
+    panner = null;
     duck = null; ctx = null; A = null;
     PS[S_CUR] = C_NONE; PS[S_ACT] = -1;
     hideNow();
@@ -815,7 +850,7 @@ var AUDIO_MUSIC = (function () {
     validate, contextLists, creditRows, creditLine, cruiseStep, contextOf, makeBag, bagNext, trimOf,
     STATIONS, STATION_KEYS, ST_MIX, BED_K, BED_IN_S, BED_UP_S, VOICE_K, TALK_EVERY, TALK_UP_S, stationLists, stationOf, stationLine,
     setStation, stepStation, get station() { return station; },
-    ST_MINE, MINE_RE, setUserTracks, titleOf, get hasMine() { return hasMine(); }, get mineCount() { return cat.length - baseN; }, get mineName() { return mineName; }, labelOf,
+    setSourcePos, get pan() { return SRC[4]; }, PAN_K, PAN_NEAR, PAN_FAR, ST_MINE, MINE_RE, setUserTracks, titleOf, get hasMine() { return hasMine(); }, get mineCount() { return cat.length - baseN; }, get mineName() { return mineName; }, labelOf,
     // the station a radio turned back on plays: the last one that was on (the folder's only while it is there)
     get lastStation() { return lastOn === ST_MINE && !hasMine() ? (prevStation !== 'off' ? prevStation : ST_START) : (STATION_KEYS.indexOf(lastOn) >= 0 || lastOn === ST_MINE ? lastOn : ST_START); }, get stationFell() { return fell.slice(); },
     get talk() { return talkOn; }, setTalk(on) { talkOn = !!on; prefPut('radioTalk', talkOn ? 1 : 0); if (!talkOn) cancelTalk(); },

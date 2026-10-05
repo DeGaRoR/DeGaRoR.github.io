@@ -234,6 +234,16 @@ function checkHit(S) {
   if (!halo || !halo.visible || halo.parent !== o) F.push('hover over the radio: no halo under it');
   B.hover(o, ray, { point: at(d * 0.5) }, canvas);
   if (canvas.style.cursor !== '' || (halo && halo.visible)) F.push('hover over a part in front of the radio: the radio\'s cue stays');
+  // G1714: the kit placed - the radio's centre handed to the music
+  {
+    const got = [], M2 = Object.assign(fakeMusic(), { setSourcePos: (...a) => got.push(a) });
+    const pg2 = bbPage(S, { A: fakeAudio({}, {}), M: M2, reg: { props: { boombox: P } } });
+    pg2.B.placed(o); pg2.B.placed(null);
+    const g = got[0] || [];
+    if (got.length !== 2 || Math.hypot(g[0] - c.x, g[1] - c.y, g[2] - c.z) > 1e-6 || got[1][0] !== null) F.push('placed() does not hand the radio\'s centre to the music (' + JSON.stringify(got) + ')');
+  }
+  if (!/hangar\.placeMobile\(\{[^}]*\}\);\n\s*\/\/ G1714[^\n]*\n\s*if \(window\.BOOMBOX && hangar\.mobileProp\) window\.BOOMBOX\.placed\(hangar\.mobileProp\('boombox'\)\);/.test(S.app))
+    F.push('app.js: the radio\'s place is not handed on after placeMobile');
   // the frame: nothing while closed (no lookup, no projection)
   let asked = 0;
   B.frame(cam, () => { asked++; return o; });
@@ -404,6 +414,10 @@ function minePage(S, o) {
     createMediaElementSource() { return node(); }
     resume() { return Promise.resolve(); } suspend() { return Promise.resolve(); } close() { return Promise.resolve(); }
   }
+  if (o.panner) AC.prototype.createStereoPanner = function () {
+    const p = param(0), st = p.setTargetAtTime;
+    p.setTargetAtTime = function (x, t, tau) { C.panSched = (C.panSched || 0) + 1; return st.call(this, x, t, tau); };
+    C.panNode = Object.assign(node(), { pan: p }); return C.panNode; };
   const els = [];
   const audioEl = () => {
     const h = {};
@@ -458,7 +472,9 @@ function minePage(S, o) {
   for (const k of ['params', 'audio', 'music', 'mymusic']) vm.runInContext(S[k], ctx, { filename: FILES[k] });
   const A = ctx.AUDIO, M = ctx.AUDIO_MUSIC, MY = ctx.AUDIO_MYMUSIC;
   M.seed(3); M.setJoin(false);
-  const camera = { position: { x: 0, y: 1, z: 0 } }, cam = { mode: 'chase' }, world = { surface: () => 0, terrainH: () => 0 };
+  // the listener at (0, 1, 0), unturned: its right axis is +x (a world matrix, as THREE's camera carries)
+  const camera = { position: { x: 0, y: 1, z: 0 }, matrixWorld: { elements: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 1, 0, 1] } }, cam = { mode: 'chase' }, world = { surface: () => 0, terrainH: () => 0 };
+  let garage = true;
   const P = {
     gesture() { for (const f of (listeners.pointerdown || []).slice()) f({ type: 'pointerdown' }); },
     step(dt, n) {
@@ -468,10 +484,11 @@ function minePage(S, o) {
           el.currentTime += dt; el.fire('timeupdate');
           if (el.duration > 0 && el.currentTime >= el.duration) { el.paused = true; el.fire('ended'); }
         }
-        A.update(null, camera, dt, null, cam, true, world);
+        A.update(null, camera, dt, null, cam, garage, world);
       }
     },
     run(sec) { P.step(0.1, Math.round(sec / 0.1)); },
+    setGarage(on) { garage = !!on; },
     playing: () => els.filter(e => !e.paused && e._src),
   };
   return Object.assign(P, { A, M, MY, C, els, store, idbData, ctx, body });
@@ -576,7 +593,30 @@ async function checkMine(S) {
   return F;
 }
 
-const CHECKS = { BB_QUICK: checkQuick, BB_HIT: checkHit, BB_PANEL: checkPanel, BB_MINE: checkMine };
+// ---- BB_PAN (G1714) ---------------------------------------------------------------------------------------------------
+function checkPan(S) {
+  const F = [];
+  const pg = minePage(S, { handle: null, panner: true }), { M, C } = pg;
+  pg.gesture(); pg.run(1);
+  if (!C.panNode) return ['the music has no StereoPanner between the duck and the bus'];
+  const at = (x, y, z, sec) => { M.setSourcePos(x, y, z); pg.run(sec || 0.6); return M.pan; };
+  const r = at(2, 1, 0), l = at(-2, 1, 0), f = at(0, 1, -2), far = at(30, 1, 0);
+  if (!(r > 0.25 && r <= M.PAN_K + 1e-9)) F.push('the radio 2 m to the right: the music leans ' + r.toFixed(3) + ' (want a little right, at most ' + M.PAN_K + ')');
+  if (!(l < -0.25)) F.push('the radio 2 m to the left: the music leans ' + l.toFixed(3));
+  if (Math.abs(f) > 0.02) F.push('the radio straight ahead: the music leans ' + f.toFixed(3));
+  if (Math.abs(far) > 0.02) F.push('the radio 30 m off: the music still leans ' + far.toFixed(3));
+  at(2, 1, 0);
+  const n0 = C.panSched; pg.run(3);
+  if (C.panSched !== n0) F.push('a steady garage schedules the pan (' + (C.panSched - n0) + ' times in 3 s)');
+  pg.setGarage(false); pg.run(0.6);
+  if (Math.abs(M.pan) > 1e-9) F.push('out of the garage the music still leans ' + M.pan.toFixed(3));
+  pg.setGarage(true); M.setSourcePos(null); pg.run(0.6);
+  if (Math.abs(M.pan) > 1e-9) F.push('no radio in the room, the music still leans');
+  if (C.panSched > 12) F.push('the pan scheduled ' + C.panSched + ' times over the run (a few moves)');
+  return F;
+}
+
+const CHECKS = { BB_QUICK: checkQuick, BB_HIT: checkHit, BB_PANEL: checkPanel, BB_MINE: checkMine, BB_PAN: checkPan };
 const MUT = [
   ['sound pressed keeps its state', 'editor', 'if (B) B.radio.setSound(!on); else A.enable(!on);', 'if (B) B.radio.setSound(on); else A.enable(on);', 'BB_QUICK'],
   ['the sound icon not struck', 'editor', ": '<path d=\"' + QI.spk + '\"/><path d=\"M2.4 2.6l13.2 12.8\"/>' };", ": '<path d=\"' + QI.spk + '\"/>' };", 'BB_QUICK'],
@@ -611,6 +651,12 @@ const MUT = [
   ['IndexedDB at load', 'mymusic', '  return { pick, pickInput, restore,', '  restore();\n  return { pick, pickInput, restore,', 'BB_MINE'],
   ['permission asked on restore', 'mymusic', "    if (p === 'granted') await fromHandle(h);", "    if (p === 'granted' || await h.requestPermission({ mode: 'read' })) await fromHandle(h);", 'BB_MINE'],
   ['the folder never comes back', 'music', '    } else if (wantMine && list.length) setStation(ST_MINE);', '    }', 'BB_MINE'],
+  ['no lean', 'music', '    if (panner) { PS[S_PANT] -= dt;', '    if (false) { PS[S_PANT] -= dt;', 'BB_PAN'],
+  ['the lean the wrong way', 'music', 'x = PAN_K * near * (m[0] * dx', 'x = -PAN_K * near * (m[0] * dx', 'BB_PAN'],
+  ['the lean in flight', 'music', 'if (SRC[3] > 0 && au.inGarage && m) {', 'if (SRC[3] > 0 && m) {', 'BB_PAN'],
+  ['the far radio pulls', 'music', 'const near = Math.max(0, Math.min(1, (PAN_FAR - d) / (PAN_FAR - PAN_NEAR)));', 'const near = 1;', 'BB_PAN'],
+  ['the lean schedules every tick', 'music', '    if (Math.abs(x - SRC[4]) < PAN_STEP && !(x === 0 && SRC[4] !== 0)) return;\n', '', 'BB_PAN'],
+  ['the radio\'s place unsaid', 'app', "      if (window.BOOMBOX && hangar.mobileProp) window.BOOMBOX.placed(hangar.mobileProp('boombox'));\n", '', 'BB_HIT'],
   ['the release keeps the URL', 'music', '    unblob(k);   // G1712: the player\'s file\'s object URL goes with it\n', '', 'BB_MINE'],
 ];
 
