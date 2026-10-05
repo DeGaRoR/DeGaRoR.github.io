@@ -206,7 +206,8 @@
   function prepV(R, v, BP, pc) {
     const K = R.K, wi = R.wi, ww = R.ww, vp = R.vp, dom = R.dom, w2 = R.w2, ride = R.ride, o = v * K;
     const u = R.rep ? R.rep[v] : v;
-    if (u !== v) { vp[v] = vp[u]; dom[v] = dom[u]; ride[v] = ride[u]; for (let k = 0; k < K; k++) w2[o + k] = w2[u * K + k]; return; }
+    // (G1818: a copy's kept weights are never read - its place's are: it is posed, torn and sent as its first vertex)
+    if (u !== v) { vp[v] = vp[u]; dom[v] = dom[u]; ride[v] = ride[u]; return; }
     // 1. the piece holding most of its weight
     let P = 0;
     if (pc) { let nP = 1; for (let k = 0; k < K; k++) { const q = pc[wi[o + k]] + 1; if (q > nP) nP = q; }
@@ -252,8 +253,13 @@
     if (!R.pending || !(budget > 0) || !R.BP) return 0;
     const take = Math.min(budget, R.pending.length), now = R.pending.subarray(0, take);
     bindSome(R, T, now);
+    // (G1818: these places are stale on the GPU - listed, unless the whole record already is)
+    if (R.pl && R.dv === R.dvUp) { const L = R.dirtyPl || (R.dirtyPl = []); for (const v of now) L.push(R.plOf[v]); }
     const nv = R.nv, rp = R.rep, done = new Uint8Array(nv); for (const v of now) done[v] = 1;
-    for (let v = 0; v < nv; v++) if (done[rp ? rp[v] : v]) prepV(R, v, R.BP, R.pc);
+    if (rp) { const vp = R.vp, dom = R.dom, ride = R.ride;          // (G1818: once a place, its copies' bytes after)
+      for (const v of now) prepV(R, v, R.BP, R.pc);
+      for (let v = 0; v < nv; v++) { const u = rp[v]; if (u !== v && done[u]) { vp[v] = vp[u]; dom[v] = dom[u]; ride[v] = ride[u]; } } }
+    else for (let v = 0; v < nv; v++) if (done[v]) prepV(R, v, R.BP, R.pc);
     R.pending = take < R.pending.length ? R.pending.slice(take) : null;
     return take;
   }
@@ -261,6 +267,7 @@
   function event(R, T, D, rest, base, budget) {
     if (R.vB === D.vB) return false;
     R.vB = D.vB;
+    R.dv = (R.dv | 0) + 1; R.dirtyPl = null;         // (G1818: the GPU's copy of the record is stale, whole)
     const { nv, K, wi, ww } = R, idx = R.idx;
     if (!D.br.length) {                        // healed (a reset): the index as built, nothing held
       if (R.idx0) idx.set(R.idx0);
@@ -291,26 +298,33 @@
     const vp = R.vp || (R.vp = new Int32Array(nv)), dom = R.dom || (R.dom = new Int32Array(nv));
     const w2 = R.w2 || (R.w2 = new Float32Array(nv * K)), ride = R.ride || (R.ride = new Uint8Array(nv));
     R.BP = BP; R.pc = pc;
-    for (let v = 0; v < nv; v++) prepV(R, v, BP, pc);
+    // (G1818: a welded record is prepared once a place, its copies given their place's piece, dominant node and ride -
+    // the same bytes prepV's copy branch wrote, without a call a vertex: ~500k vertices, ~85k places on the user's Cub)
+    if (R.rep) { placesOf(R); const pl = R.pl, rp = R.rep;
+      for (let j = 0; j < pl.length; j++) prepV(R, pl[j], BP, pc);
+      for (let v = 0; v < nv; v++) { const u = rp[v]; if (u !== v) { vp[v] = vp[u]; dom[v] = dom[u]; ride[v] = ride[u]; } } }
+    else for (let v = 0; v < nv; v++) prepV(R, v, BP, pc);
     // 3. the triangles: on one piece, and not across a broken member
     const i0 = R.idx0, nt = R.nt, dead = R.dead || (R.dead = new Uint8Array(nt));
-    const watch = [];
-    let removed = 0;
+    const watch = R._watchBuf && R._watchBuf.length === nt ? R._watchBuf : (R._watchBuf = new Int32Array(nt));
+    let removed = 0, nw = 0;
+    // (G1818: a pair is broken only between two ends of broken members - BP.ends, a byte - so the set is asked only then)
+    const E = BP.ends, brk = (x, y) => E[x] === 1 && E[y] === 1 && BP.has(x, y);
     for (let t = 0; t < nt; t++) {
       const a = i0[t * 3], b = i0[t * 3 + 1], c = i0[t * 3 + 2];
-      let gone = dead[t] === 2;                   // torn by stretch earlier: stays torn
+      let gone = dead[t] >= 2;                    // torn by stretch earlier (or cut off the wall): stays gone
       if (!gone) {
-        gone = vp[a] !== vp[b] || vp[b] !== vp[c] ||
-               BP.has(dom[a], dom[b]) || BP.has(dom[b], dom[c]) || BP.has(dom[a], dom[c]);
+        const da = dom[a], db = dom[b], dc = dom[c];
+        gone = vp[a] !== vp[b] || vp[b] !== vp[c] || brk(da, db) || brk(db, dc) || brk(da, dc);
         dead[t] = gone ? 1 : 0;
       }
       if (gone) { idx[t * 3] = idx[t * 3 + 1] = idx[t * 3 + 2] = a; removed++; continue; }
       idx[t * 3] = a; idx[t * 3 + 1] = b; idx[t * 3 + 2] = c;
       // watched for the tear: a triangle with a vertex that rides its nodes (every one of the generated skin's; the
       // cage's off the core or at the break - the rest is rigid on the body)
-      if (ride[a] || ride[b] || ride[c]) watch.push(t);
+      if (ride[a] || ride[b] || ride[c]) watch[nw++] = t;
     }
-    R.watch = Int32Array.from(watch); R.removed = removed; R.active = true;
+    R.watch = watch.slice(0, nw); R.removed = removed; R.active = true;
     // G1852: the drape - a fabric skin's vertices the broken members carried
     R.sag = null;
     if (R.fabric && rest && base) {
@@ -613,6 +627,127 @@
     R.removed += n; R.torn += n;
     return n;
   }
+  // ---- G1818 (DMG-SKINGPU): THE RIDING ON THE GPU - the data, the shader's mirror, the tear without the CPU riding ----
+  // The page rides a broken aeroplane's cage on the GPU (skin_gpu.js: a transform feedback over the buffers the folds
+  // draw). A vertex is drawn from its PLACE (the weld's first vertex, rep): packed at an event or a binding step, never
+  // per frame, into five RGBA float texels a place - A: its offset off its kept nodes' blend in the frame's rest,
+  // e = base - sum w' r, and its drape's sag; W0 / W1: its kept weights in GPU_K = 8 slots, the DOMINANT node's first
+  // (onNodes' sign reference); I0 / I1: those slots' nodes. A binding wider than 8 (DMG-WALL's inherited ones may be)
+  // keeps the dominant and the next 7 by weight, renormalised (with e made from those): exact at K <= 8, which the
+  // page's bindings are (NEAR_K = 4). Per frame only the nodes go up (each its live place less the frame's origin, and
+  // its turn NF.q). rideMirror is RIDE_VS (skin_gpu.js) line for line, in JS: what GATE DMGSKINGPU holds against
+  // onNodes / poseCage, and what the box's readback holds the GPU's own against.
+  const GPU_W = 2048;                                    // the place textures' width (WebGL2 guarantees 2048)
+  const GPU_K = 8;                                       // the GPU's slots a place (the coordinator's cap, with DMG-WALL)
+  // a record's places: pl (each place's first vertex), plOf (each vertex's place)
+  function placesOf(R) {
+    if (R.pl) return R;
+    const nv = R.nv, rp = R.rep, plOf = new Int32Array(nv); let n = 0;
+    for (let v = 0; v < nv; v++) { const u = rp ? rp[v] : v; plOf[v] = u === v ? n++ : plOf[u]; }
+    const pl = new Int32Array(n); for (let v = 0; v < nv; v++) if (!rp || rp[v] === v) pl[plOf[v]] = v;
+    R.pl = pl; R.plOf = plOf;
+    return R;
+  }
+  // the place textures' CPU side for `rows` rows: { PA, PW0, PW1, PI0, PI1 } (4 floats a texel)
+  const placeArrays = rows => { const n = rows * GPU_W * 4; return { PA: new Float32Array(n), PW0: new Float32Array(n), PW1: new Float32Array(n), PI0: new Float32Array(n), PI1: new Float32Array(n) }; };
+  // places [from, to) of R into the arrays at p0 + j. base: the record's rest in the frame of `rest`. Returns the places
+  // whose binding was wider than GPU_K (pruned)
+  const _sl = new Int32Array(64), _sw = new Float64Array(64);
+  function packPlaces(R, rest, base, TX, p0, from, to) {
+    placesOf(R);
+    const K = R.K, wi = R.wi, w2 = R.w2, pl = R.pl, sag = R.sag, PA = TX.PA, W0 = TX.PW0, W1 = TX.PW1, I0 = TX.PI0, I1 = TX.PI1;
+    if (from == null) from = 0; if (to == null) to = pl.length;
+    let pruned = 0;
+    for (let j = from; j < to; j++) {
+      const v = pl[j], o = v * K, t = (p0 + j) * 4;
+      let d = -1, dw = -Infinity;                        // onNodes' dominant: the first strict maximum among the kept
+      for (let k = 0; k < K; k++) { const w = w2[o + k]; if (w !== 0 && w > dw) { dw = w; d = k; } }
+      if (d < 0) d = 0;
+      // the slots: the dominant, then the others in their order - or, past GPU_K, the heaviest of them
+      let m = 1; _sl[0] = d; _sw[0] = w2[o + d];
+      for (let k = 0; k < K; k++) if (k !== d && w2[o + k] !== 0) { _sl[m] = k; _sw[m] = w2[o + k]; m++; }
+      let s = 1;
+      if (m > GPU_K) {
+        pruned++;
+        for (let a = 1; a < GPU_K; a++) { let b = a; for (let c = a + 1; c < m; c++) if (_sw[c] > _sw[b]) b = c;
+          const tl = _sl[a]; _sl[a] = _sl[b]; _sl[b] = tl; const tw = _sw[a]; _sw[a] = _sw[b]; _sw[b] = tw; }
+        let sk = 0; for (let a = 0; a < GPU_K; a++) sk += _sw[a];
+        s = sk !== 0 ? 1 / sk : 1; m = GPU_K;
+      }
+      let ex = base[v * 3], ey = base[v * 3 + 1], ez = base[v * 3 + 2];
+      for (let a = 0; a < m; a++) { const w = s === 1 ? _sw[a] : _sw[a] * s, i3 = wi[o + _sl[a]] * 3; _sw[a] = w;
+        ex -= w * rest[i3]; ey -= w * rest[i3 + 1]; ez -= w * rest[i3 + 2]; }
+      PA[t] = ex; PA[t + 1] = ey; PA[t + 2] = ez; PA[t + 3] = sag ? sag[v] : 0;
+      const n0 = wi[o + d];
+      for (let a = 0; a < GPU_K; a++) { const Wt = a < 4 ? W0 : W1, It = a < 4 ? I0 : I1, q = t + (a & 3);
+        Wt[q] = a < m ? _sw[a] : 0; It[q] = a < m ? wi[o + _sl[a]] : n0; }
+    }
+    R.pruned = (R.pruned || 0) + pruned;
+    return pruned;
+  }
+  // the nodes' texels: 2 a node - (live - origin, 0), (its turn); ND a Float32Array(n * 8)
+  function packNodes(NF, live, n, cg, ND) {
+    for (let i = 0; i < n; i++) { const o = i * 8;
+      ND[o] = live[i * 3] - cg[0]; ND[o + 1] = live[i * 3 + 1] - cg[1]; ND[o + 2] = live[i * 3 + 2] - cg[2]; ND[o + 3] = 0;
+      ND[o + 4] = NF.q[i * 4]; ND[o + 5] = NF.q[i * 4 + 1]; ND[o + 6] = NF.q[i * 4 + 2]; ND[o + 7] = NF.q[i * 4 + 3]; }
+  }
+  // RIDE_VS in JS. TX: the place arrays; p: the place's texel; n0: the vertex's rest normal (the frame's rest coordinates);
+  // U: { Mi, B (both row-major, as app.js makes them), px, down, world (the places mode: P = the world position less the
+  // origin, N untouched) }; out: P / N at o3. F: Math.fround to round as float32 does (or none)
+  const ID = x => x;
+  function rideMirror(TX, ND, p, n0x, n0y, n0z, U, P, N, o3, F) {
+    F = F || ID;
+    const t = p * 4, PA = TX.PA;
+    const wt = a => (a < 4 ? TX.PW0 : TX.PW1)[t + (a & 3)], ix = a => (a < 4 ? TX.PI0 : TX.PI1)[t + (a & 3)] | 0;
+    const i0 = ix(0) * 8, q0 = [ND[i0 + 4], ND[i0 + 5], ND[i0 + 6], ND[i0 + 7]];
+    const q = [0, 0, 0, 0], l = [0, 0, 0];
+    for (let a = 0; a < GPU_K; a++) {                   // the slots in order: q += (+-w) q_i on q_0's side, l += w l_i
+      const i = ix(a) * 8, w = wt(a), qi = [ND[i + 4], ND[i + 5], ND[i + 6], ND[i + 7]];
+      const dt = F(F(F(F(qi[0] * q0[0]) + F(qi[1] * q0[1])) + F(qi[2] * q0[2])) + F(qi[3] * q0[3]));
+      const sw = dt < 0 ? -w : w;
+      for (let k = 0; k < 4; k++) q[k] = F(q[k] + F(sw * qi[k]));
+      for (let k = 0; k < 3; k++) l[k] = F(l[k] + F(w * ND[i + k]));
+    }
+    const L = F(Math.hypot(q[0], q[1], q[2], q[3]));
+    if (L > 0) for (let k = 0; k < 4; k++) q[k] = F(q[k] / L);
+    const rot = (x, y, z) => {                          // qrot: v + q.w t + q x t, t = 2 q x v
+      const tx = F(2 * F(F(q[1] * z) - F(q[2] * y))), ty = F(2 * F(F(q[2] * x) - F(q[0] * z))), tz = F(2 * F(F(q[0] * y) - F(q[1] * x)));
+      return [F(F(x + F(q[3] * tx)) + F(F(q[1] * tz) - F(q[2] * ty))), F(F(y + F(q[3] * ty)) + F(F(q[2] * tx) - F(q[0] * tz))), F(F(z + F(q[3] * tz)) + F(F(q[0] * ty) - F(q[1] * tx)))];
+    };
+    const e = rot(PA[t], PA[t + 1], PA[t + 2]), aw = PA[t + 3], D = U.down;
+    const w = [F(F(l[0] + e[0]) + F(aw * D[0])), F(F(l[1] + e[1]) + F(aw * D[1])), F(F(l[2] + e[2]) + F(aw * D[2]))];
+    if (U.world) { P[o3] = w[0]; P[o3 + 1] = w[1]; P[o3 + 2] = w[2]; return; }
+    const M = U.Mi, B = U.B, px = U.px;
+    P[o3] = F(F(F(F(M[0] * w[0]) + F(M[1] * w[1])) + F(M[2] * w[2])) - px[0]);
+    P[o3 + 1] = F(F(F(F(M[3] * w[0]) + F(M[4] * w[1])) + F(M[5] * w[2])) - px[1]);
+    P[o3 + 2] = F(F(F(F(M[6] * w[0]) + F(M[7] * w[1])) + F(M[8] * w[2])) - px[2]);
+    const a = rot(n0x, n0y, n0z);                       // the normal: B^T (q n0), normalised
+    const bx = F(F(F(B[0] * a[0]) + F(B[3] * a[1])) + F(B[6] * a[2])), by = F(F(F(B[1] * a[0]) + F(B[4] * a[1])) + F(B[7] * a[2])), bz = F(F(F(B[2] * a[0]) + F(B[5] * a[1])) + F(B[8] * a[2]));
+    const bl = F(Math.hypot(bx, by, bz));
+    if (bl > 0) { N[o3] = F(bx / bl); N[o3 + 1] = F(by / bl); N[o3 + 2] = F(bz / bl); } else { N[o3] = bx; N[o3 + 1] = by; N[o3 + 2] = bz; }
+  }
+  // THE TEAR WITHOUT THE CPU RIDING (the GPU draws the skin; the CPU never poses it): every watched triangle against its
+  // rest (1.15 x + 1 cm, as tear()), on its places' world positions as the GPU made them (skin_gpu.js: the same shader in
+  // its places mode, read back behind a fence - a frame old). Wp: the drawer's places (3 floats each, less a common
+  // origin: only differences are read), p0 the record's first place there; base: the record's rest, read at each place's
+  // first vertex (the copies are the same place)
+  function tearPlaces(R, Wp, p0, base) {
+    if (!R.watch) return 0;
+    placesOf(R);
+    const pl = R.pl, plOf = R.plOf, i0 = R.idx0, idx = R.idx, dead = R.dead, Wt = R.watch, k1 = 1 + TEAR;
+    const ok = (a, b) => { const A = (p0 + a) * 3, B = (p0 + b) * 3, va = pl[a] * 3, vb = pl[b] * 3;
+      const l = Math.hypot(Wp[A] - Wp[B], Wp[A + 1] - Wp[B + 1], Wp[A + 2] - Wp[B + 2]);
+      const r = Math.hypot(base[va] - base[vb], base[va + 1] - base[vb + 1], base[va + 2] - base[vb + 2]);
+      return l <= k1 * r + TEAR_ABS; };                 // (a NaN edge is torn too)
+    let n = 0;
+    for (let j = 0; j < Wt.length; j++) {
+      const t = Wt[j]; if (dead[t]) continue;
+      const a = plOf[i0[t * 3]], b = plOf[i0[t * 3 + 1]], c = plOf[i0[t * 3 + 2]];
+      if (!(ok(a, b) && ok(b, c) && ok(a, c))) { dead[t] = 2; idx[t * 3] = idx[t * 3 + 1] = idx[t * 3 + 2] = i0[t * 3]; n++; }
+    }
+    R.torn += n; R.removed += n;
+    return n;
+  }
   function over(pos, base, a, b) {
     const l = Math.hypot(pos[a] - pos[b], pos[a + 1] - pos[b + 1], pos[a + 2] - pos[b + 2]);
     const r = Math.hypot(base[a] - base[b], base[a + 1] - base[b + 1], base[a + 2] - base[b + 2]);
@@ -636,7 +771,8 @@
     }
     return { ex, m, t: at };
   }
-  const API = { TEAR, TEAR_ABS, DRAPE_K, WRINKLE_L, WRINKLE_A, NEAR_K, topo, brokenPairs, bindNearest, dupOf, make, event, bindMore, nodeFrames, polar, poseGen, poseCage, tear, islands, worstStretch };
+  const API = { TEAR, TEAR_ABS, DRAPE_K, WRINKLE_L, WRINKLE_A, NEAR_K, topo, brokenPairs, bindNearest, dupOf, make, event, bindMore, nodeFrames, polar, poseGen, poseCage, tear, islands, worstStretch,
+                GPU_W, GPU_K, placesOf, placeArrays, packPlaces, packNodes, rideMirror, tearPlaces, onNodes };
   if (typeof module !== 'undefined' && module.exports) module.exports = API;
   if (typeof window !== 'undefined') window.SKIN_BREAK = API;
 })();

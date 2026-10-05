@@ -3951,8 +3951,13 @@
   // the rig's read-out (tools/dmg_skin_stills.js): the records live, the triangles removed / torn, the vertices riding
   window.FLYDIY_SKINBREAK_STATS = () => ({ on: window.FLYDIY_SKINBREAK !== false, recs: BRK.recs.length, ms: Object.assign({}, BRK.ms),
     removed: BRK.recs.reduce((a, R) => a + (R.removed || 0), 0), torn: BRK.recs.reduce((a, R) => a + (R.torn || 0), 0),
-    tris: BRK.recs.reduce((a, R) => a + R.nt, 0), riding: BRK.recs.reduce((a, R) => a + (R.ride ? R.ride.reduce((x, y) => x + y, 0) : 0), 0) });
+    tris: BRK.recs.reduce((a, R) => a + R.nt, 0), riding: BRK.recs.reduce((a, R) => a + (R.ride ? R.ride.reduce((x, y) => x + y, 0) : 0), 0),
+    // G1818: the GPU's riding - linked (and in how long), the drawers, the records it rides, its frames' cost, what went up
+    gpu: window.SKIN_GPU ? { on: window.FLYDIY_SKINGPU !== false, ok: SKIN_GPU.G.ok, linkMs: SKIN_GPU.G.linkMs, err: SKIN_GPU.G.err,
+      drawers: BRK.gpu ? BRK.gpu.drawers.size : 0, recs: BRK.gpu ? [...BRK.gpu.ents.values()].filter(e => e && !e.cpu).length : 0,
+      stats: Object.assign({}, SKIN_GPU.G.stats), tearChecked: BRK.recs.reduce((a, R) => a + (R.tearChecked || 0), 0) } : null });
   function brkRestore() {
+    brkGpuFree();
     for (const R of BRK.recs) { if (R.idx0) { R.idx.set(R.idx0); brkIdx(R); } R.vB = -1; R.active = false; brkNrm(R); }
     BRK.posed = false; if (BRK.model && BRK.model.brk) BRK.model.brk.NF = {};   // (G1867.1: the nodes' turns start again)
     if (BRK.model) { BRK.model._pose = null; BRK.model._poseNG = null; }   // re-posed from the rest on the next frame
@@ -3981,6 +3986,7 @@
     const D = dmgNow();
     if (!D || !D.br.length) {
       // a heal (a reset, a new flight): every record's index as built, the records let go (their bindings kept)
+      brkGpuFree();
       if (BRK.recs.length && model && model.brk) for (const R of BRK.recs) { if (SKIN_BREAK.event(R, model.brk.T, D || { br: [], vB: -2 })) brkIdx(R); R.vB = -1; brkNrm(R); }
       BRK.recs.length = 0; BRK.posed = false; if (model && model.brk) model.brk.NF = {};
       return null;
@@ -4023,7 +4029,132 @@
   // two ends). Its frame is the visual's: a node at B^-1 (p - origin) - o (app.js nodeVis, G267.2), o = off + oRest
   // (G1864: the cage is re-posed over a break when a node moved - poseModel's own test - or a new break event came: a
   // wreck at rest stands still)
-  const brkCageOn = () => { const D = model && !model.gen ? dmgNow() : null; if (!(D && D.br.length)) return BRK.recs.length > 0; return !BRK.posed || BRK.vB !== D.vB || BRK.recPending; };
+  // ---- G1818 (DMG-SKINGPU): THE RIDING ON THE GPU (src/viewer/skin_gpu.js says why a transform feedback) ----
+  // A record rides on the GPU once the program is linked (at the first break, off the main thread) and its DRAWER is
+  // made: the position attribute it is drawn from - the fold's (flown_bake.js mergeModel: the member's arrays are views
+  // in the fold's; userData.flownMerge.views says where) or, unfolded, the bucket's own. Every geometry drawing that
+  // attribute (the fold, its near views; the bucket) draws the drawer's buffers until the heal. A record goes on the CPU
+  // (as before) while its fold's live members are drawn as themselves (a keep fold without views: the cabin's in the
+  // cockpit), or with no normals. (A binding wider than the GPU's 8 slots keeps its 8 heaviest: skin_break.js packPlaces.)
+  // ?skingpu=0 / window.FLYDIY_SKINGPU = false: the CPU rides every record (the A/B; the heal puts the drawers back)
+  try { if (/[?&]skingpu=0(&|$)/.test(location.search || '')) window.FLYDIY_SKINGPU = false; } catch (e) {}
+  function brkGpuFree() {
+    const GS = BRK.gpu;
+    if (!GS) return;
+    BRK.gpu = null;
+    for (const D of GS.drawers.values()) try { SKIN_GPU.release(D, renderer); } catch (e) { console.warn('SKIN_GPU release', e); }
+  }
+  function brkGpu(K) {
+    if (window.FLYDIY_SKINGPU === false || !window.SKIN_GPU || typeof renderer === 'undefined' || !renderer) { if (BRK.gpu) brkGpuFree(); return null; }
+    SKIN_GPU.prepare(renderer);
+    if (!SKIN_GPU.ready()) { if (BRK.gpu && SKIN_GPU.G.ok === false) brkGpuFree(); return null; }   // (not linked yet; or the context lost: the CPU rides)
+    let GS = BRK.gpu;
+    if (GS && GS.model !== model) { brkGpuFree(); GS = null; }
+    if (!GS) {
+      // where each member's arrays live: the folds' views, found on the fold meshes (in the graph, or parked by the hybrid)
+      const map = new Map(), seen = new Set(), meshes = [];
+      const take = m => { if (m && m.isMesh && !seen.has(m)) { seen.add(m); meshes.push(m); } };
+      model.grp.traverse(take);
+      const FBF = window.FLOWN_BAKE && FLOWN_BAKE.folds ? FLOWN_BAKE.folds() : [];
+      for (const F of FBF) for (const m of [].concat(F.meshes || [], F.kept || [], F.live || [])) take(m);
+      if (model.wreckBuild) for (const m of model.wreckBuild.parentOf.keys()) take(m);
+      for (const m of meshes) { const fm = m.userData && m.userData.flownMerge; if (!fm || !fm.views) continue;
+        const g = m.geometry, F = FBF.find(f => f.meshes && f.meshes.indexOf(m) >= 0) || null;
+        for (const v of fm.views) map.set(v.pa, { A: g.attributes.position, AN: g.attributes.normal, views: fm.views, o: v.o, F }); }
+      GS = BRK.gpu = { model, map, meshes, drawers: new Map(), ents: new Map() };
+    }
+    return {
+      // the record's entry on its drawer (made, and the drawer laid out again, when it first rides); null: the CPU rides it
+      of(R, pa, off, o) {
+        let e = GS.ents.get(R);
+        if (e === undefined) {
+          e = null;
+          const at = GS.map.get(pa), geo = K.geoOf ? K.geoOf.get(pa) : null;
+          if (R.rep && R.baseD && R.nB && R.rideAll) {
+            const A = at ? at.A : pa, AN = at ? at.AN : (geo && geo.attributes.normal);
+            if (A && AN && AN.count === A.count) {
+              let Dr = GS.drawers.get(A);
+              if (!Dr) {
+                const geos = new Set(); for (const m of GS.meshes) if (m.geometry && m.geometry.attributes.position === A) geos.add(m.geometry);
+                if (geo && geo.attributes.position === A) geos.add(geo);
+                Dr = SKIN_GPU.drawer({ THREE, A, AN, views: at ? at.views : null, geos: [...geos] });
+                Dr.F = at ? at.F : null; GS.drawers.set(A, Dr);
+              }
+              SKIN_BREAK.placesOf(R);
+              e = { R, pa, vo: at ? at.o / 3 : 0, nB: R.nB, D: Dr, px: [0, 0, 0], cpu: false };
+              (Dr.join || (Dr.join = [])).push(e);   // (laid out with the frame's others: once a drawer a frame - frame())
+            }
+          }
+          GS.ents.set(R, e);
+        }
+        if (!e) return null;
+        e.px[0] = o[0] + (off ? off[0] : 0); e.px[1] = o[1] + (off ? off[1] : 0); e.px[2] = o[2] + (off ? off[2] : 0);
+        // (a keep fold without views draws its members as themselves while its live side is on: the CPU poses them then)
+        e.cpu = !!(e.D.F && !e.D.F.viewMode && e.D.F.viewsOn);
+        return e;
+      },
+      // the tear's world positions: fresh ones (read back since this record last tore) or null - and then asked for
+      places(e) { const Dr = e.D; if (Dr.wSeq && Dr.wSeq !== e.wUsed) { e.wUsed = Dr.wSeq; return Dr; } Dr.wantW = true; return null; },
+      ask(e) { const Dr = e.D; if (!(Dr.wSeq && Dr.wSeq !== e.wUsed)) Dr.wantW = true; },
+      poll() { for (const Dr of GS.drawers.values()) SKIN_GPU.poll(Dr); },
+      frame(X) {
+        for (const Dr of GS.drawers.values()) if (Dr.join) { SKIN_GPU.layout(Dr, Dr.recs.concat(Dr.join)); Dr.join = null; }
+        return SKIN_GPU.frame({ SB: SKIN_BREAK, rest: K.rest, n: def.nodes.length, NF: K.NF, live: sim.p, cg: X.cg, Mi: X.Mi, B: X.B, down: K.down,
+          drawers: [...GS.drawers.values()], pxOf: e => e.px, base: e => e.R.baseD, renderer });
+      },
+    };
+  }
+  // the CPU's riding of the records the GPU rides whose geometry is in `geos` (all, without), into the arrays they share
+  // (positions, normals): what the debris' release reads as drawn (wreckRelease: only the buckets it takes triangles
+  // from - the whole skin's CPU riding there was a 25 ms frame at every release). An event's cost, never a frame's
+  function brkGpuSync(geos) {
+    const GS = BRK.gpu, K = model && model.brk;
+    if (!GS || !K || !BRK.X) return 0;
+    let n = 0;
+    for (const e of GS.ents.values()) { if (!e || !e.R.active || e.cpu || (geos && !geos.has(e.R.geo))) continue;
+      const R = e.R, X = BRK.X;
+      X.w = R.w; X.n = R.nAttr ? R.nAttr.array : null; X.nB = R.nB || null;
+      SKIN_BREAK.poseCage(R, K.rest, sim.p, R.baseD, e.pa.array, K.NF, K.down, [e.px[0] - X.o[0], e.px[1] - X.o[1], e.px[2] - X.o[2]], X); n++; }
+    return n;
+  }
+  // THE BOX'S CHECK (tools/dmg_skingpu_box.js): the GPU's drawn positions and normals read back against the CPU's riding of
+  // the same frame (exact, in double), every riding vertex - a synchronous readback: a rig's call, never the game's. Read
+  // in the WORLD (the group's matrix maps a drawn difference back by B, a drawn normal by Mi^T: the drawn frame is the
+  // body's oblique basis, near-singular on a broken-up wreck); `over`: past both 0.1 mm and 8 float32 steps of the drawn
+  // coordinate (where the CPU's own storage is that coarse); `ambiguous`: two kept turns 180 degrees apart (either blend)
+  window.FLYDIY_SKINGPU_CHECK = () => {
+    const GS = BRK.gpu, K = model && model.brk;
+    if (!GS || !K || !BRK.X) return { err: 'nothing rides on the GPU' };
+    const out = { recs: 0, verts: 0, dP: 0, dN: 0, over: 0, ambiguous: 0, nanG: 0, at: null }, Q = K.NF.q;
+    const Bm = BRK.X.B, Mm = BRK.X.Mi, toW = (x, y, z) => Math.hypot(Bm[0] * x + Bm[1] * y + Bm[2] * z, Bm[3] * x + Bm[4] * y + Bm[5] * z, Bm[6] * x + Bm[7] * y + Bm[8] * z);
+    const wn = (N0, o) => [Mm[0] * N0[o] + Mm[3] * N0[o + 1] + Mm[6] * N0[o + 2], Mm[1] * N0[o] + Mm[4] * N0[o + 1] + Mm[7] * N0[o + 2], Mm[2] * N0[o] + Mm[5] * N0[o + 1] + Mm[8] * N0[o + 2]];
+    for (const e of GS.ents.values()) { if (!e || !e.R.active || e.cpu) continue;
+      const R = e.R, nv = R.nv, Kk = R.K, X = Object.assign({}, BRK.X), P = new Float64Array(nv * 3), N = new Float32Array(nv * 3);
+      X.w = new Float64Array(nv * 3); X.n = N; X.nB = R.nB;
+      SKIN_BREAK.poseCage(R, K.rest, sim.p, R.baseD, P, K.NF, K.down, [e.px[0] - X.o[0], e.px[1] - X.o[1], e.px[2] - X.o[2]], X);
+      const G2 = SKIN_GPU.readBack(e.D, e.vo, nv);
+      for (let i = 0; i < nv; i++) { const i3 = i * 3;
+        if (!Number.isFinite(G2.P[i3])) { out.nanG++; continue; }
+        out.verts++;
+        { const u = R.rep ? R.rep[i] : i, o = u * Kk; let d = -1, dw = -Infinity, amb = false;
+          for (let k = 0; k < Kk; k++) { const w = R.w2[o + k]; if (w !== 0 && w > dw) { dw = w; d = R.wi[o + k]; } }
+          for (let k = 0; k < Kk && d >= 0; k++) { const w = R.w2[o + k], j = R.wi[o + k]; if (w === 0 || j === d) continue;
+            if (Math.abs(Q[j * 4] * Q[d * 4] + Q[j * 4 + 1] * Q[d * 4 + 1] + Q[j * 4 + 2] * Q[d * 4 + 2] + Q[j * 4 + 3] * Q[d * 4 + 3]) < 1e-5) amb = true; }
+          if (amb) { out.ambiguous++; continue; } }
+        const d = toW(G2.P[i3] - P[i3], G2.P[i3 + 1] - P[i3 + 1], G2.P[i3 + 2] - P[i3 + 2]);
+        const mx = Math.max(Math.abs(P[i3]), Math.abs(P[i3 + 1]), Math.abs(P[i3 + 2])), ulp = mx > 0 ? Math.pow(2, Math.floor(Math.log2(mx)) - 23) : 0;
+        if (d > 1e-4 && d > 8 * ulp) out.over++;
+        if (d > out.dP) { out.dP = d; out.at = { rec: out.recs, v: i, drawn: +mx.toFixed(1), gpu: Array.from(G2.P.subarray(i3, i3 + 3)), cpu: Array.from(P.subarray(i3, i3 + 3)) };
+          // (the shader's mirror on the data as it went up: which side of the GPU / CPU gap the data are on)
+          const Mp = new Float64Array(3), Mn = new Float64Array(3), pl = e.p0 + R.plOf[i];
+          SKIN_BREAK.rideMirror(e.D.cpu, SKIN_GPU.G.ndA, pl, R.nB[i3], R.nB[i3 + 1], R.nB[i3 + 2], { Mi: BRK.X.Mi, B: BRK.X.B, px: e.px, down: K.down }, Mp, Mn, 0, null);
+          out.at.mirror = Array.from(Mp); out.at.px = e.px.slice(); out.at.vo = e.vo; out.at.ci = e.ci; out.at.p0 = e.p0; out.at.pl = pl; out.at.nv = nv; }
+        const a = wn(G2.N, i3), b = wn(N, i3), la = Math.hypot(a[0], a[1], a[2]), lb = Math.hypot(b[0], b[1], b[2]);
+        if (la > 1e-6 && lb > 1e-6) out.dN = Math.max(out.dN, Math.acos(Math.max(-1, Math.min(1, (a[0] * b[0] + a[1] * b[1] + a[2] * b[2]) / (la * lb)))) * 180 / Math.PI); }
+      out.recs++; }
+    return out;
+  };
+  const brkCageOn = () => { const D = model && !model.gen ? dmgNow() : null; if (!(D && D.br.length)) return BRK.recs.length > 0; return !BRK.posed || BRK.vB !== D.vB || BRK.recPending || BRK.gpuOn !== (window.FLYDIY_SKINGPU !== false); };   // (G1818: a flip of the GPU switch re-poses: the A/B on one frame)
   function brkCage(xA, yU, cg, o, gain, still) {
     const D = brkState();
     if (!D || model.gen) return;
@@ -4105,18 +4236,32 @@
     SB.nodeFrames(K.NF, K.T, D, K.rest, sim.p, true);
     const t3 = performance.now();
     const X = { Mi: inv3(xA, yU), B: basis(xA, yU), cg, o, w: null, n: null, nB: null };
+    BRK.X = X;
+    // G1818 (DMG-SKINGPU): the records the GPU rides (brkGpu: their drawers made, the program linked) are not posed here
+    const GP = brkGpu(K);
+    if (GP) GP.poll();
     for (const [own, , pa, , off] of groups) {
       const R = own.brkR; if (!R || !R.active) continue;
-      X.w = R.w; X.n = R.nAttr ? R.nAttr.array : null; X.nB = R.nB || null;
-      SB.poseCage(R, K.rest, sim.p, R.baseD, pa.array, K.NF, K.down, off, X);
-      // (G1869: the tear checked at most every TEAR_EVERY s of sim time - a check is every live triangle's three edges)
-      if (gain === 1 && !(brkFast() && sim.t - (R.tearT == null ? -1 : R.tearT) < TEAR_EVERY)) { R.tearT = sim.t;
-        if (SB.tear(R, R.baseD, R.w)) { brkIdx(R); R.tornNew = true; } }
+      const ge = GP ? GP.of(R, pa, off, o) : null, onGpu = !!ge && !ge.cpu;
+      if (!onGpu) {
+        X.w = R.w; X.n = R.nAttr ? R.nAttr.array : null; X.nB = R.nB || null;
+        SB.poseCage(R, K.rest, sim.p, R.baseD, pa.array, K.NF, K.down, off, X);
+      }
+      // (G1869: the tear checked at most every TEAR_EVERY s of sim time - a check is every live triangle's three edges;
+      // G1818: on the GPU's riding, on its places' world positions read back a frame later - skin_break.js tearPlaces)
+      // (the places pass is asked from half the interval on, so its read - a frame later - is there when the tear is due)
+      const sinceT = sim.t - (R.tearT == null ? -1 : R.tearT);
+      if (onGpu && gain === 1 && sinceT >= 0.5 * TEAR_EVERY) GP.ask(ge);
+      if (gain === 1 && !(brkFast() && sinceT < TEAR_EVERY)) {
+        const Wd = onGpu ? GP.places(ge) : null;
+        if (!onGpu || Wd) { R.tearT = sim.t;
+          if (onGpu ? SB.tearPlaces(R, Wd.Wp, ge.p0, R.baseD) : SB.tear(R, R.baseD, R.w)) { brkIdx(R); R.tornNew = true; } } }
       // G1864: the confetti the tear leaves (islands under BRK_ISLAND triangles that touch it), at most every 0.25 s
       if (R.tornNew && !(sim.t - (R.islT || -1) < 0.25)) { R.islT = sim.t; R.tornNew = false; if (SB.islands(R, BRK_ISLAND)) brkIdx(R); }
-      pa.needsUpdate = true; if (R.nAttr) R.nAttr.needsUpdate = true;
+      if (!onGpu) { pa.needsUpdate = true; if (R.nAttr) R.nAttr.needsUpdate = true; }
     }
-    BRK.vB = D.vB; BRK.posed = true;
+    if (GP) BRK.ms.gpu = Math.max(BRK.ms.gpu || 0, BRK.ms.lastGpu = GP.frame(X));
+    BRK.vB = D.vB; BRK.posed = true; BRK.gpuOn = window.FLYDIY_SKINGPU !== false;
     const t4 = performance.now(), M = BRK.ms;
     M.records = Math.max(M.records, tRec); M.event = Math.max(M.event, tEv); M.frames = Math.max(M.frames, t3 - t2); M.pose = Math.max(M.pose, t4 - t3);
     M.recordsT += tRec; M.eventT += tEv; M.poseT += t4 - t3; M.frameMax = Math.max(M.frameMax, t4 - tm); M.n++;
@@ -4282,6 +4427,12 @@
   // THE RELEASE: the part's triangles as drawn now, into a body's own frame; the part hidden where it is drawn
   function wreckRelease(c, vel) {
     const WD = window.WRECK_DEBRIS, t0 = performance.now(), B0 = model.wreckBuild;
+    // G1818: a part the GPU rides, as drawn, into the CPU's arrays first (the buckets this part takes triangles from)
+    if (BRK.gpu) { const gs = new Set();
+      if (c.ranges) for (const [key] of c.ranges) { const m = key && key.isMesh ? key : B0.meshes0[key]; if (m && m.geometry) gs.add(m.geometry); }
+      for (const m of c.meshes || []) if (m.geometry) gs.add(m.geometry);
+      for (const o of c.objs || []) for (const m of wreckMeshesOf(o)) if (m.geometry) gs.add(m.geometry);
+      brkGpuSync(gs); }
     model.grp.updateMatrixWorld(true);
     const F = WD.fit(c.nodes, WK.rest, sim.p), R = F.R, a = c.at, d = [a[0] - F.cr[0], a[1] - F.cr[1], a[2] - F.cr[2]];
     const x = [F.cl[0] + R[0]*d[0] + R[1]*d[1] + R[2]*d[2], F.cl[1] + R[3]*d[0] + R[4]*d[1] + R[5]*d[2], F.cl[2] + R[6]*d[0] + R[7]*d[1] + R[8]*d[2]];

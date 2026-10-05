@@ -224,6 +224,10 @@ const GATES = [
   // nothing broken), and the skin over a break - no live triangle on two pieces or across a broken member, none stretched
   // past 1.15 x its rest + 1 cm, on TREECRASH / DMGINTEGRITY's crash cases; damage off = the base's skin bit for bit. Three at once
   { id: 'DMGSKIN', file: '_dmg_skin_check.js', tier: 'core', weight: 3, wall: 240 },
+  // G1818-G1819 (DMG-SKINGPU): the wreck's skin ridden on the GPU - the shader's JS mirror on the packed data against the
+  // CPU's riding (0.1 mm in the world, 1 deg) on the crash cases, the tear on read-back places against the full tear, and
+  // the page's code: the GPU path only past the damage guard, no material or program touched. Three at once
+  { id: 'DMGSKINGPU', file: '_dmg_skingpu_check.js', tier: 'core', weight: 3, wall: 240 },
   // G1865 (DMG-D4b WRECK DRAWN): the wreck's non-member parts (src/viewer/wreck_debris.js) on the crash cases - which leave
   // and why, every body at rest on the ground or the water, the prop strike's bend or break, the clip against the live
   // cabin, the cockpit rule; damage off (and nothing broken) = no release, the crash's bits unread. Three at once
