@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Desktop garage tree and rail</title>
+<link rel="stylesheet" href="mock.css">
+</head><body>
+<div class="stage">
+<div>
+  <p class="cap">8 · desktop: the tree is the aeroplane; the reference plane and the hangar live on the rail</p>
+  <div class="dk">
+    <div class="dtop">flyDiy · garage · <b style="color:var(--ed-ink)">My Cub</b> <span style="flex:1"></span> design · <b style="color:var(--ed-ink)">shape</b> · finish <span style="flex:1"></span> <span class="pill acc" style="display:inline-flex;align-items:center">ROLL OUT &amp; FLY</span></div>
+    <div class="spine"></div>
+    <div class="dv" id="dv">
+      <div class="drail">
+        <button>camera</button><button>display</button><button>night</button><button>explode</button>
+        <div class="rs"></div>
+        <button class="scene on">reference</button><button class="scene">hangar</button>
+        <div class="rs"></div>
+        <button>controls</button><button>graphics</button><button>sound</button>
+      </div>
+      <div class="fly">
+        <h4>Reference plane <span style="color:var(--ed-faint);font-weight:400;font-size:11px">· display only, not part of your build</span></h4>
+        <div class="seg"><span class="on">3D model</span><span>Blueprint</span></div>
+        <div class="fr"><span>model</span><span style="color:var(--ed-ink)">Piper PA-18 ▾</span><span></span></div>
+        <div class="fr"><span>shown</span><span style="color:var(--ed-ink)">ghost ▾</span><span></span></div>
+        <div class="fr"><span>opacity</span><i></i><span>0.40</span></div>
+        <div class="fr"><span>offset aft</span><i></i><span>0.00</span></div>
+        <div class="fr"><span>scale</span><i></i><span>1.00</span></div>
+      </div>
+    </div>
+    <div class="props" id="props"></div>
+    <div class="tree">
+      <div class="th">My Cub<small>your aeroplane: every part</small></div>
+      <div class="ta">Design &amp; construction</div>
+      <div class="ta">Fuselage</div>
+      <div class="ta on">Wings</div><div class="tp">Wing</div><div class="tp">Ailerons</div><div class="tp">Flaps</div><div class="tp">Struts</div>
+      <div class="ta">Tail</div>
+      <div class="ta">Control hardware</div>
+      <div class="ta">Powerplant</div>
+      <div class="ta">Running gear</div>
+      <div class="ta">Build</div>
+      <div class="gone">Reference plane › 3D model, Blueprint</div>
+      <div class="gone">The shed</div>
+    </div>
+  </div>
+</div>
+<div class="notes">
+  <h3>The ruling (the user, 2026-10-04)</h3>
+  <p>The parts tree drops its two non-aeroplane roots: the reference plane and the hangar (the shed). They move to the rail, or to the top.</p>
+  <ul>
+    <li><b>The tree is the aeroplane.</b> Its heading is the build's name, and selecting the heading shows every row, as the "My Plane" root does today. Its rows are the 8 assemblies and their parts. The two crossed-out rows are what leaves.</li>
+    <li><b>The reference plane</b> becomes a rail entry with its own flyout. It keeps G573's two sources, 3D model and Blueprint, as a segmented switch. It is display state and never in the spec, so it belongs with "how you look", which is what the rail is for (G78).</li>
+    <li><b>The hangar</b> becomes a rail entry too. It holds the shed's size, its parts and the mood. The <i>night</i> flyout keeps borrowing its light rows, as today.</li>
+    <li><b>Phone:</b> the same two entries sit on the view's own rail (REF, ⌂ in the portrait mock-up), each opening a bottom sheet.</li>
+    <li><b>The mechanism:</b> <code>CAGE_TREE_ROOTS</code> gains <code>place: 'tree' | 'rail' | 'top'</code>, and each root says where it lives. A stored selection of <code>ref</code> or <code>shed</code> (<code>flydiy.edPart</code>) migrates to <code>craft</code>.</li>
+  </ul>
+</div>
+</div>
+<script src="rowkit.js"></script><script src="mock_rows.js"></script>
+<script>
+document.getElementById('dv').insertAdjacentHTML('afterbegin', MOCK_PLANE(844, 676, 'wing'));
+const P = Object.assign({}, MOCK_P), host = document.getElementById('props'); host.classList.add('desk'); host.style.cssText = 'width:auto;border:0;border-radius:0';
+ROWKIT.render(host, MOCK_ROWS, { mode: 'desk', P, tier: 'more', more: false });
+</script>
+</body></html>

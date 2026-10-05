@@ -486,6 +486,12 @@ gate and the game fly one condition and not two.
    aeroplane stops flying. A cranked wing gets the box instead.
 
 ## AUTOPILOT RULES
+- **G1570: the servos are ONE module (`src/core/39b_servos.js`); a law is fixed THERE, once.** The three pilots
+  (40 classic, 41 test, 43 the game's) keep their phase machines and call one `makeServos` for the filters and every
+  inner loop (pitch / roll / yaw / speed / VS, the ground steer, the taxi, the decrab, the slew). Gains: `SERVO_GAINS`
+  (the base, every former literal a row) overlaid with the pilot's own `SERVO_TUNE` row; a `def.params.ap` key still
+  wins. A law only one pilot flies is a FEATURE flag (43: trimCalm, groundP1D, xwBank, water, deTop), never a copy.
+  The review found the copies had drifted for a month (B3: 40/41's decrab rudder had the pre-G381 sign).
 - **Gains scale with airframe timescale ~ span/V.** Cub 0.41, DC-3 0.41,
   C172 0.22, Jodel 0.17, drone 0.03. Wrong-scale D-gains create slew-rate
   limit cycles (drone pitch ±9° @2.3Hz; Jodel roll; C172-class chatter).
@@ -69242,7 +69248,7 @@ once and the collidable woodland at the next load; the cover ring plants a 32 m 
 inside a cell follows the cell (as every biome edge does); a veg-only polygon writes no `cover` class, so over BUILT/CROP
 ground (a town) the fill still refuses to plant - give it a code and `cover` (v1.30) for that.
 
-## G1380-G1383 - GEAR-WATER: THE TAILWHEEL'S "3-5 cm" IS THE DRAWN GROUND'S 5 m LATTICE, NOT THE WHEEL; A WHEELED AEROPLANE MEETS THE WATER (2026-10-03, GEAR-WATER for A0, cloud, node only; block G1380-G1384, G1384 unused)
+## G1380-G1384 - GEAR-WATER: THE TAILWHEEL'S "3-5 cm" IS THE DRAWN GROUND'S 5 m LATTICE, NOT THE WHEEL; A WHEELED AEROPLANE MEETS THE WATER (2026-10-03/04, GEAR-WATER for A0, cloud, node only; block G1380-G1384)
 
 The user (3 Oct): "the cub still has about 3-5 cm below its tail wheel not touching the ground. I think it's an issue of
 the physical model either not being well centered on the wheel or not having the correct diameter"; "the cub attempted a
@@ -69423,6 +69429,37 @@ mirrors it; GATE CONTACT --drawn expects it).
   pavement, where the drawn surface is terrainH within 4 mm.
 - GATES after G1383 (--only=CONTACT,GEAR,STAND,BUILD,UISMOKE): all PASS, BATTERY: PASS, exit 0 (wall 180 s); and
   node tools/_contact_check.js --drawn: PASS (stock tail -24.7 mm against the 20 mm expected, 8 mm tolerance).
+
+G1384 OUT OF TRAIN 27 FOR GATE SOAR - FIXED (rebased onto master a1ffcf5b, train 30).
+- A0: "the wet-body pass changes the glide in DRY air: mean sink -0.33 -> -0.24 m/s, the glider ends 33 m over the
+  face". MEASURED: not dry air. SOAR S2's negative control (the ridge beat with the terrain term off) comes down at
+  t ~63 s ONTO A LAKE of the analytic world: at (8707, -6212) waterH is 118.6 m over a 87.7 m bed. Before G1381 it
+  sank through 31 m of lake to the bed, which is what "down at 95 m, on the face's own 86" measured. With G1381 it
+  stops on the surface: 119 m, and mean vs -0.24 (it floats for the last 200 s).
+- The A/B, S1 + S2 alone with the pass on and off (HYDRO.wetBuild nulled): S1 and the ridge run BYTE-IDENTICAL; only the
+  control differs. The pass was "wet" on 1 714 320 of 5 176 500 substep calls, all after t 62.95 s of the control.
+- THE GATE (tools/test_soar.js S2): "down" is now measured against the SURFACE under the control's last fix:
+  max(the face's ground, terrainH there, waterH there). The energy bound (-60 m) is unchanged.
+- AND A0's ASK, DONE ANYWAY - NOTHING IN DRY AIR (30_solver.js wetArmFrame): the wet body is built at the first FRAME
+  that can reach the water, and the pass runs only on armed frames.
+  - The arm, once a frame (never a substep): the lowest node and the mass centre each ask waterH. It arms when the lowest
+    node, less 2 x its fastest descent over the frame, 1 m and 3 x the sea's amplitude, is under that level (or the
+    mass centre less the build's reach: the farthest node + radius from the CG as built, x 1.25 + 0.5 m).
+  - Dry: nothing built (sim.wetBody is a getter, null until then), no `out` key written (hydroWet / wetDrag / wetBuoy
+    appear only once wet), no force, no state.
+  - Disarming drops the held forces (tick and wet reset).
+- PROVED:
+  - GATE HYDRODYN's dry check, rewritten: the stock build 5 s on its strip - the body never built, `out` without the
+    pass's keys, 0 node coordinates differ from a sim with the pass removed.
+  - Dry-air step, node, master a1ffcf5b vs this branch, separate processes, 3 interleaved runs of 900 frame-steps
+    (us per step, medians), the analytic world:
+    - the user's Cub (builds/cub_2026-09-20_corrected.json), on HOME 3739 -> 3655, 400 m up 3593 -> 3524;
+    - the metal Cessna (bugReports/cessnaMetal (1).json), on HOME 6356 -> 6469, up 6313 -> 6066 (within the runs'
+      own spread, 3400-4040 and 6020-6540).
+    - The final positions' SHA-1 identical to master's in all four cases.
+  - The ditching unchanged: Cub at 80 km/h under 10 km/h in 0.93 s, peak 9.0 g; GATE HYDRODYN's stock ditch 0.88 s,
+    90 deg nose-down.
+- G1383 (the drawn tail gear 2 cm down) as it was.
 
 ## G1365-G1369 - SIM-STALL: A FROZEN PAGE HOLDS THE FLIGHT; IT GOES ON FROM WHERE IT HELD (2026-10-03, SIM-STALL for A0, cloud - no GPU, no boxlock; branch claude/sim-stall-g1365 off origin/master 5502f45)
 
@@ -69785,6 +69822,252 @@ DUSK A/B (the 8 always-on lamp lights at night, the Cub, ABAB): taxi equal, stan
 53.8 / 51.4) - accepted. BATTERY: CLOUD + ANIMALS (stale text checks: lampsOn(day), the surface word) fixed; ASSETS +
 FRAMECOST (LIGHT-SMOOTH's fix) and SOAR (GEAR-WATER out) green; the changed gates re-run green on the final build; the
 parked aeroplanes re-cooked on it.
+
+## G1640-G1646 - SND-SPACE: THE TWO PERSPECTIVES AND THE SPACE - THE CABIN FROM THE BUILD, THE HEADSET, THE 150 ms VIEWPOINT, THE PANNERS, THE AIR, THE DOPPLER ON THE VOICES, THE LAG, OTHER AIRCRAFT'S BAKED LOOPS, THE SHED'S GENERATED ROOM (2026-10-04, SND-SPACE for the Sound Coordinator, cloud, node only; branch claude/snd-space-k4ci8w off origin/claude/sound-next d313481b; G1647-G1649 unused)
+
+Design: futureDesigns/SOUND-2026-10-04.md §1.3 / §4 / §5 / §9, rulings s5 (the insulation from the build) and s7 (the headset,
+default off). Physics untouched (no src/core, no join, no app.js edit). Every placeholder the wave-2 sessions left is gone.
+G1640 THE NUMBERS - `src/viewer/audio/space_config.js` -> SPACE_CONFIG (pure, node + page). cabinTransfer(spec, {exits}): the
+  fuselage material (spec.material, else spec.fuselage.material) and the glazing (cabin.glazing 'none' or cabin.doorOff =
+  open) -> a CLASS (declared table: tubeFabric/steel fabric, wood/fabric-over-wood wood, aluTube ultralight, alloy metal,
+  carbon composite) -> insulation (the mean of the 250/500/1k/2k octaves) + the shape: a cabin BOOM (peaking at the first
+  transverse mode c/2W, W = 2 cabin.halfW, clamped 80-150 Hz; stiff shells only), a high-shelf, a low-pass corner, the
+  broadband gain SOLVED so the realised octave mean is exactly -insulation; exits 0..1 blends to the open cockpit (MSFS's
+  exits open/closed: AUDIO.space.setExits). The validated builds: the Cub fabric 8 dB (4 kHz vs 500 Hz -4.4 dB, no boom),
+  the Jodel wood 11 dB (boom 150 Hz +2), the three Cessnas metal 20 dB (-17 dB HF, boom 150 / 145 Hz +6), the twin-582 open
+  2 dB. The ambience duck inside by class (1 / 4 / 6 / 9 / 14 / 18 dB). headsetCurve: passive = -13 dB + a -10 dB high-shelf
+  at 1.5 kHz (-13 @80 Hz, -23 @4 kHz, mean 15.4 dB), ANR = + a -7 dB low-shelf at 300 Hz (-20 @80 Hz, mean 16.8). biquadDb /
+  chainDb: the Web Audio spec's own BiquadFilterNode formulas (lowpass Q in dB: -3.01 = Butterworth). dopplerFactor(c, vs,
+  vl) = (c - vl)/(c - vs). airAbsorptionHz(d) = sqrt(3/(k d)), k from ISO 9613-1's 29 dB/km at 4 kHz: 12.9 kHz @10 m, 4.1 kHz
+  @100 m, 1.29 kHz @1 km, 575 Hz @5 km. directivity: exhaust 0.55 + 0.45 (1 - cos)/2 (aft, MSFS's combustion cone 180), prop
+  TONAL sin^2 (1 - 0.6 cos) normalised (peak 104 deg = 14 deg behind the disc, floor 0.03 = nil on the axis), BROADBAND 0.5 +
+  0.5 sin^2, airframe omni. THE PROPAGATION: a ring per emitter (t, x, y, z, smoothed v; 1024 frames ~17 s), retardedSolve =
+  the fixed point t - te = |x(te) - L|/c (binary search, no closure: allocation-free) -> the position and velocity THEN.
+  xfadeCurve (equal power). hangarAcoustics(dims, shell): genHangarBuild's half-dims and RIDGE, hangar.js's door (open, alpha
+  1), the shell's materials (club steel sheet, works brick, field timber; steel roof; the portal's north glazing band),
+  floor contents, the air's 4mV -> Sabine per octave (club 30x25x7 3.1-3.2 s mid, field 14x18x3.6 2.2-2.3 s, works 4.7-5.0 s);
+  hangarIR: octave noise bands under exp(-6.91 t/RT60_b), independent L/R, unit energy, pre-delay, seeded (club ~35 ms in
+  node); measureRT60 (Schroeder T20). craftTiers (<= 500 m full, <= 5 km engine only, beyond silent; 2 full + 8 baked,
+  nearest first; allocation-free), bakePoints, loopBlend, makeLoop (equal-power seam).
+G1641 THE DOPPLER ON THE VOICES (small, additive): a k-rate `pitch` (0.5..2, default 1) on 'flydiy-engine' (the crank's phase,
+  the starter's and the blower's x pitch; the life model and the control output stay physical), 'flydiy-prop' (the three
+  phases, the sections' Strouhal bands; tip Mach / loading / Bessel levels the prop's own), 'flydiy-turbine', 'flydiy-electric'
+  (their phase increments, the roar's band) and 'flydiy-airframe' (the exterior bands and the brake squeal; NOT in
+  AF_PARAM_NAMES - the model's list is unchanged). Rendered: pitch 1.212 / 0.85 moves the engine's and the prop's peaks
+  x1.2120 / x0.8500 (GATE AUDIO SP_DOPPLER).
+G1642 THE AIRFRAME'S THIRD OUTPUT (backward compatible: two outputs behave exactly as before): made with 3 outputs [1, 2, 1],
+  output 0 = the exterior (as before), output 1 = STEREO structure-borne + the cabin's own wind, NO placeholder low-pass and
+  no airborne part (that is output 0 through the cabin now), the event voices panned by their wheel (a 0 left -0.6, 1 right
+  +0.6), output 2 = the interior-only layers (stall warning, creaks/rattles, flap motor, lever) - they bypass the cabin. An
+  event's `d` = the propagation lag (the voice waits).
+G1643 CORE (audio.js, small): the viewpoint cross-fade is now MSFS's 150 ms at EQUAL POWER (setValueCurveAtTime of cos/sin,
+  endpoints exact; a reversal mid-fade starts from the share it reached, over the remaining fraction of 150 ms); the headset:
+  when AUDIO.space exists its curve is on the interior chain (the flat -15 dB stays the fallback without space.js); the
+  ambience inside = environment x AUDIO.space.ambienceK(interior) (the build's duck x the headset's mean); settings
+  `headsetAnr` ("headset: noise cancelling", off) and `hrtf` ("3D on headphones", off); AUDIO.lagS (Float64Array(1)),
+  AUDIO.space, AUDIO.camera / AUDIO.sim (references set in update - the space reads the camera's matrixWorld and the solver's
+  nodes; nothing allocated), AUDIO.refreshGains().
+G1644 THE SPACE - `src/viewer/audio/space.js` -> AUDIO.space = window.AUDIO_SPACE (+ AUDIO.addSource('space')). The graph is made
+  lazily on the context (whichever of the sources and space.js connects first). PER SOURCE GROUP (one per engine, one for the
+  airframe): input(kind, i) - 'engine' | 'propT' | 'propB' | 'airframe' - -> directivity gain -> group sum -> AIR ABSORPTION
+  low-pass -> PannerNode (equal-power, or HRTF with the setting; inverse, ref = the aeroplane's viewDist clamped 6-20 m, so
+  the chase view keeps today's level) -> aircraft.ext; and input -> the group's side (StereoPanner: a twin's engines +-) ->
+  THE CABIN (boom -> shelf -> low-pass -> gain, cabinTransfer's numbers) -> interior() -> THE HEADSET (high-shelf, low-shelf,
+  gain; 0 dB off) -> aircraft.int. THE LISTENER = the camera: the panners are placed in the CAMERA'S FRAME (its matrixWorld
+  columns; the AudioListener never moves - one set of params per emitter, no listener API differences). PER FRAME per group:
+  the group's position from the solver's nodes (refs.engine/engineOf per engine, refs.origin for the airframe; the nose =
+  noseFrame - tailMid), the ring, the retarded solve, the panner, the directivity, the absorption, the DOPPLER (c - vL.n)/(c -
+  vS.n) -> AUDIO.voices.engine[i] / prop[i] / driver[i] / airframe `pitch` (tau 40 ms), and THE LAG: the main group's delay
+  -> AUDIO.lagS[0]; the sources add it to every schedule time (the throttle is heard when its sound arrives; an airframe
+  event carries it). The lag rises freely, falls at most 0.5 s/s (a real pass falls at v/c < 0.3); a CUT (perspective, the
+  shed, the eye jumping > 25 m) snaps it and emits 'space-cut' - each source then cancels what it had scheduled ahead and
+  re-schedules. Interior and the shed: lag 0. THE SHED (its scene is not the world's): the room mode - the sound 8 m ahead,
+  no space; the aircraft / ambience / music buses -> wet sends (0.25 / 0.16 / 0.12, only while inGarage, only once an IR
+  exists) -> ConvolverNode (normalize off) -> master; the shed's dims and shell read from window.GARAGE_ENV.dims()/.shell()
+  (app.js's own, no edit) once a second in the shed; a new key -> the IR generated in a requestIdleCallback (setTimeout 0 on
+  Safari), never in update(). OTHER AIRCRAFT: addCraft(id, specLike | {engineCfg, propCfg}, {points, sr}) -> a handle whose
+  `st` Float64Array [x, y, z, fx, fy, fz, engine rpm, thr, on] the caller writes; at add the craft's engine + prop voice is
+  BAKED at 5 rpm points (idle..rated, denser at the top) - in a page by an OfflineAudioContext running the same two worklets
+  (engine -> prop, ch0 engine + tonal, ch1 broadband), in node by setBaker(fn) - into seamless loops; per frame the tiers
+  (craftTiers), a voice made / dropped on a tier change only (full = engine + broadband layers, engine tier = the engine
+  layer), each point a looping buffer source, the two around the rpm blended at equal power, playbackRate = rpm/point x the
+  doppler, the craft's own ring / retarded solve / directivity / absorption / panner -> the world bus (outside and through
+  the cabin). Piston crafts only (a turbine / electric craft reports state 'failed'). removeCraft, crafts(). THE SOURCES
+  (small, additive): src_engine / src_prop / src_airframe enter AUDIO.space.input(...) / interior() when space.js is there
+  (the engine's output 0 -> 'engine'; the prop's output 1 -> a splitter -> 'propT' / 'propB', its mono output 0 left
+  unwired; a turbine / electric driver -> 'engine'; the airframe in 3-output mode: 0 -> its group, 1 and 2 -> the interior;
+  the recorded loops: outside ones into the group, inside ones to the interior; a touchdown's / chirp's recorded one-shot
+  leans to its wheel), else the buses directly (no placeholder); the three placeholder low-passes (1.4 kHz x 2, the
+  worklet's 900 / 380 Hz airborne one in 3-output mode) are gone; AUDIO.voices.prop / .driver / .airframe published;
+  'space-cut' handled. tools/build.js (MANIFEST only): viewer.scripts += 'audio/space_config.js', 'audio/space.js' after
+  src_airframe.js. No new worklet module.
+G1645 THE EVIDENCE - `tools/audio/space_render.js` (the worklets under render.js's shim, render_prop's chains, space_config's
+  numbers, the Web Audio spec's node formulas written out: biquads, the equal-power panner, an FFT convolver). reports/
+  evidence/SND-SPACE/ (1.4 MB: 9 stereo Opus + 9 spectrograms + README + summary.json): the Cub and the Cessna's run-up inside
+  vs outside (inside - dry at full power: the Cub -8.2 dB overall, -15 dB above 2 kHz; the Cessna -12.4 dB overall, -36 dB
+  above 2 kHz - the engine's energy is under 250 Hz where the metal cabin insulates least and booms) + the Cessna with the
+  passive headset; the 60 m/s fly-bys 40 m off a fixed listener (the firing measured 103.80 -> 72.92 Hz on the Cub = the
+  prediction x1.212 / x0.851; delay 4.24 s at the start, 0.117 s at the pass; absorption 1.07 kHz far, 6.4 kHz close); the
+  Cub's run-up in the club and field sheds' generated IRs (RT60 1 kHz measured 3.12 / 2.28 s against Sabine 3.22 / 2.31).
+G1646 THE GATE - GATE AUDIO (tools/audio/_audio_check.js) gains SP_CABIN, SP_DOPPLER, SP_ABSORB, SP_XFADE, SP_IR, SP_GRAPH,
+  SP_BUDGET, SP_CRAFT (each described at its block's head) and 42 mutations, each red on its check: 146 / 146 caught, sources
+  byte-identical after, ~40 s (was ~34; run_gates' `wall: 45` hint still holds). SP_GRAPH runs the REAL audio.js + the three
+  sources + space.js on a stub Web Audio (evaluated INSIDE the page's realm) on the Cub. SP_BUDGET's measurement runs in a CHILD
+  process: the aeroplane passing the eye at 60 m/s -> 0.59 B a frame (noise), 0 GC, ~23 us a frame in node with the test's own
+  node shift, 7.9 params scheduled a frame; a steady frame schedules nothing. Mutation anchors moved with the lines they guard
+  (the horn outside, the NaN guard, the headset in the open, the event message); AFVOICE compares the worklet's names less
+  `pitch`.
+FOUND ON THE WAY, for anyone gating a per-frame path in node: (1) a stub AudioParam whose methods live in ANOTHER vm realm
+  boxes every double handed to it (a call across native contexts is never inlined) - the same space.js measured 196 B a frame
+  against a gate-realm stub and 0.4 B against a stub evaluated in the page's realm; (2) a process that already ran other pages
+  measures ~1 KB a frame even WITHOUT the code under test (megamorphic call sites from many realms: SND-AIRFRAME's finding) -
+  measure in a fresh process; (3) a closure built per call inside a binary search (ringAt's first form) was 384 B a frame.
+GATES: AUDIO PASS (146 / 146, 40 s), AUDIOENG PASS (184 s: the worklets' new param is inert at its default), BUILD PASS, UISMOKE
+  PASS (run_gates --only; the generated index.html / dev.html / sw.js / version.json restored - none is in this branch; the
+  built pages carry SPACE_CONFIG / AUDIO_SPACE and the content-versioned refs). Not run: a browser (cloud).
+FOR THE COORDINATOR TO WIRE: (1) nothing in app.js - the listener's orientation comes from AUDIO.update's own camera argument
+  (matrixWorld, fresh after the render), the shed from GARAGE_ENV; (2) A0's train is the first real hearing: Chrome's panner
+  position automation, the convolver's load on entering the shed (the IR is made in an idle callback, ~35 ms once per shell -
+  chunk it if a hitch shows), Firefox's PannerNode without positionX falls back to setPosition; (3) a door-open state, when
+  the game has one -> AUDIO.space.setExits(0..1); (4) the fleet / observatory: AUDIO.space.addCraft + write `st` (the bake needs
+  OfflineAudioContext + AudioWorklet: Chrome, Firefox, Safari 14.1+); (5) DECIDE the HRTF default: SOUND §5 says "HRTF option
+  on gamer" but 'gamer' is the DEFAULT graphics preset (gfx_settings.js), so it would turn HRTF on for nearly everyone,
+  speaker users included - left as an opt-in setting; (6) SND-AIRFRAME / SND-TUNE: the airframe's exterior wind is the wind
+  the CAMERA hears - right for a chase view that moves with the aeroplane, wrong for the tower or a fixed observer (it rides
+  the airframe group); gate windL by the camera mode in airframe_model / src_airframe; (7) the recorded one-shots and loops
+  (samples.js) are spatialised but carry no doppler and no lag (their playbackRate / start time are not driven); (8)
+  SND-TUNE: every number in CABIN_CLASSES, the headset curve, the directivity shapes, the wet sends and the materials'
+  alpha is a first guess against the literature, none matched to a recording; the inside levels are relative to the chase
+  view (the exterior chain is unity at the view distance).
+
+## G1650-G1654 - SND-AMB-1: THE AMBIENCE BED MIXER - THE WORLD AROUND THE LISTENER, 19 BEDS WEIGHTED, SMOOTHED, LOADED BY PROXIMITY UNDER THE BUDGET, HEARD ON JOLENE, GATED (2026-10-04, SND-AMB-1 for the Sound Coordinator, cloud, node only; branch claude/snd-amb1-ambience off claude/sound-next d313481b; G1655-G1659 unused)
+
+Design: futureDesigns/SOUND-2026-10-04.md §6 / §2.4 / §9. No audio file added (the 19 beds are G1636's). No app.js edit.
+G1650 THE NUMBERS - `src/viewer/audio/ambience_model.js` -> AMBIENCE_MODEL (pure, node). ambienceStep(st, P, world, dt) reads
+  the world around the LISTENER (P.s listenerX/Y/Z = the camera) ONE ITEM A FRAME, a round of 24 items every ~0.5 s at any
+  frame rate: (0) the terrain and the water under the listener -> AGL, under water; (1-16) WorldCover in two rings (35 + 0.4 AGL
+  m and 110 + 0.6 AGL m, 8 points each, the listener's cell x4 / inner x2 / outer x1) read straight off island.cover/canopy
+  (tree cover under 2.5 m of canopy = shrub, 28_island.js's reclass); the analytic world falls back to world.surface rows;
+  (17) the coast's signed field (island.coast, + inland, bilinear) and its gradient -> the shore point; (18) THE SHORE'S KIND:
+  its GROUND_SURF row 8 m inland (rock / scree -> rocks, sand -> surf), else bare cover -> 0.8, else its slope over 35 m
+  (0.12..0.4 -> 0..1); (19) the lake's signed field (island.lake, + inside) and the rivers (world.hydro.distW, counted only
+  when neither a lake nor the sea is nearer - distW counts both); (20) the premises zones in world coordinates through the
+  record's frame (residential / commercial / park / industrial -> village, harbour -> harbour; distance to the polygon,
+  fading over 120 / 180 m; re-read when world.premises.rec changes) and the analytic world's settlements (discs); (21) the
+  aerodromes' fences, standing in: the runway's box + 200 m along + max(120 m, 12 % of its length) across (HOME's stand is
+  274 m off its centreline), fading over 200 m; water lanes have none; (22) the climate wind AT the listener,
+  world.climate.sample (never world.wind: its linearised cache is the inline solver's); (23) the sun (world.day.sunEl - DAY_CLOCK
+  walks it), the day's front (day.storm.I), the rain (the hook: AMBIENCE.rain(v), else world.day.precip when CLIMATE adds it).
+  THE RULES (ambienceTargets, one target 0..1 a bed, every smoothstep from ONE ramp table):
+    height     g = 1 - smooth(15, 150, AGL) on every ground bed (silent above ~150 m); the surf 30..220 m, the village and
+               harbour 25..200 m, the loons 40..320 m, the lake's edge 4..25 m. The winds never fade.
+    day        day = smooth(-7, 3, sun deg); twilight = 1 - |sun + 3| / 9 (dawn and dusk).
+    winds      on the SHELTERED wind (x (1 - 0.65 forest) below 25 m, back to the open wind by 60 m: under a canopy the trees take
+               it - they rustle instead): light below ~3.5-7.5 m/s, clear 3..6 up and 11..15 down, mountain = smooth(2, 5) x
+               alpine (terrain 250..600 m or AGL 150..400 m) or 0.6 x the night's open ground (its crickets), storm = smooth(11,
+               17) or the day's front; alpine cuts light / clear by half / 0.6.
+    cover      forest.day = g x day x forest (1.6 x tree share) x rustle (0.75 + 0.5 x wind/12); forest.night the same at night;
+               meadow = g x (day + 0.2 night) x open (grass + 0.6 shrub + 0.5 wetland + 0.25 bare) x (1 - 0.6 forest).
+    shore      within 30..250 m of the waterline inland, 60..300 m out to sea; surf x (1 - rocky), rocks x rocky, x (0.7 + 0.3 wind/10).
+    water      lake.lap on the lake and within 10..70 m of it (and the open sea past 100..300 m, x 0.8); lake.near ONLY at the
+               edge (4..25 m inland, 10..30 m out: the user's "only very close"); stream 12..110 m from a river.
+    places     village = the zone, or 0.8 x built cover x (1 - airfield) (a runway's pavement is built too); harbour = its zone;
+               airfield = inside the fence.
+    night      frogs = night x (still water within 20..250 m, wetland, a stream); loons = max(twilight, 0.3 night) on and within
+               30..450 m of a lake, at -17 dB (the user's "really background").
+    garage     hangar 1, rain.roof = the rain, and the door: forest 0.22 day / 0.2 night, meadow 0.15 day, light wind 0.15.
+    under water  only shore.rocks (the user's "also fine as the underwater bed"), muffled by the source.
+  SMOOTHING once a round: w += (t - w)(1 - e^(-dt/2 s)), the step clamped to 0.35 a second. LEVELS: the bed's mix dB + its
+  catalogue trim to -23 LUFS (BEDS mirrors sfx_catalogue.json's lufs; GATE AUDIO AMBLUFS holds them equal).
+  ALLOCATION: the probe and the targets run EVERY frame (a few dozen operations), the helpers take whole metres and answer
+  into typed slots, the smoothsteps are one loop over a table: a function called twice a second runs in V8's lower tiers,
+  and twenty-odd helper calls passed TurboFan's inlining budget - each call it did not inline boxed its doubles (measured:
+  ~270 B a frame before, 0.45 B after on a stub world). On the REAL Jolene the world's own samplers box ~27 B a frame
+  (terrainH / waterH / distW / climate.sample, once a round) - the world's, as G1672 found for the AGL.
+G1651 THE SOURCE - `src/viewer/audio/ambience.js`: AUDIO.addSource('ambience'). outside beds -> outIn -> lowpass -> duck ->
+  AUDIO.bus('ambience'); room beds (hangar, roof rain) -> roomIn -> the bus. THE MUFFLE: a closed cockpit -12 dB / 900 Hz,
+  an open cockpit (P.s open) -2 dB / 9 kHz, the garage's door -6 dB / 2.5 kHz, under water -3 dB / 350 Hz; SND-SPACE's
+  insulation outranks the cockpit fallback when it publishes one: AUDIO.cabin = { outDb, outLpHz } at connect, or
+  AUDIO.emit('cabin', { outDb, outLpHz }) (null hands it back). LOADING BY PROXIMITY, every frame (cheap, and hot): the beds
+  ranked by target gain (a resident one x1.5: no thrash); the top N above the floor (gain 0.012) are wanted; ONE fetch /
+  decode at a time (the transient decode stays one bed's); a wanted bed with no free slot takes the slot of the lowest
+  resident outside the top N, which fades out over ~0.4 s and is released 1.2 s later; a resident silent for 12 s is
+  released anyway; a refusal (budget / failed fetch) waits 10 s. THE TIERS from GFX.get().preset at connect (potato ->
+  light, retro -> mid, the rest -> full; AMBIENCE.setTier): full 24 MB / N 6 / 20 s loops, mid 12 MB / 4 / 15 s, light 8
+  MB / 3 / 20 s at HALF RATE; the loop's length is also cut so N loops fit at the context's rate (a 96 kHz device). Gains:
+  setTargetAtTime (tau 0.3 s) only when a quantised gain moved - a frame between rounds schedules nothing.
+  window.AMBIENCE = { model, state, beds, tier(), setTier(name), rain(v), resident(b), gain(b), loading }.
+  audio.js: ONE line - AUDIO.world = the world update() was handed (the sources get only P; the ambience samples the world).
+G1652 THE LOADER'S CLASSES - samples.js (REUSED, not a second loader): a key's class is its prefix; a declared class
+  ('amb': ambience.js sets it) has ITS OWN budget and counter (the airframe's grains keep their 6 MB, untouched), bakes its
+  loop to its own shape (maxS seconds + the crossfade, decim 2 = a 15-tap half-band to half rate) and keeps ONLY the baked
+  loop (the decoded source dropped: half the bytes). New: release(key) (frees a ready key's bytes; a refused class key back
+  to 'idle'; a load in flight is dropped when it lands), setClass(cls, cfg), classBytes(cls), classOf(key); the 19 amb.*
+  keys declared as loops. Nothing changed for the grains' path.
+G1653 THE EVIDENCE - `tools/audio/ambience_render.js` -> reports/evidence/SND-AMB-1/ (1.2 MB): a straight path across
+  JOLENE (the shipped media/world/jolene + the premises fixture: the real world module) from the stand at Jolene AFB over the
+  heath, the forest (inside z_village), a village street, the shore, the harbour's water, then a climb to 300 m over the bay
+  (200 s, the game's day 2026-06-21 16:00, 8 kt from 250). THE PAGE'S CODE PLAYS IT: ambience.js + ambience_model.js +
+  samples.js in a vm on a RECORDING AudioContext, the shipped MP3s fetched off the disk (120 ms latency simulated) and
+  decoded by ffmpeg, baked by the loader's own bakeLoop; the mix is rendered from what the source scheduled.
+  flight_day.opus + flight_day.png (one lane a bed, the height, the beds decoded), flight_night.png (23:45, weights),
+  places.png (seven canned places on Jolene), summary.json, README.md ("what you should hear when"). Measured: at most 6 beds
+  decoded at once, peak 21.3 MB of 24, 28 fetches in 200 s; the ground beds gone by 150 m on the climb (the surf last); at
+  night frogs at the stand's pond, forest.night, the mountain wind's crickets on the heath.
+G1654 THE GATE - GATE AUDIO extended: AMBPLACES (a synthetic island in the island's shape - sea + sandy beach, forest, lake,
+  a village zone, a strip, a water lane, a meadow: 21 canned places - forest interior, beach, village street, lake shore and
+  60 m from it, 500 m AGL, the garage dry / raining / out of it, the strip, the water lane, under the sea, the forest and the
+  lake shore at night, the lake by day and at dusk, calm / 7 / 16 m/s, the night's open ground, the sheltered forest floor),
+  AMBJOLENE (the evidence's seven places on the real Jolene), AMBSMOOTH (600 s of random walk with teleports: no weight moves
+  > 0.35/s, nothing moves between rounds, ~2 rounds a second; a forest -> beach teleport cross-fades over seconds), AMBAGL
+  (monotone, silent at 150 / 300 m, the winds stay), AMBLUFS (every catalogue amb.* file a bed with its LUFS, the levels, the
+  loons <= -15 dB), AMBGESTURE (the real audio.js: nothing fetched before the gesture nor before the first frame, nothing
+  without a context, ?audio=0 builds no ambience), AMBBUDGET (3 min of random walk on gamer and potato: <= 24 / 8 MB and <= 6
+  / 3 beds every frame - peaks 21.3 / 5.5 MB, 6 / 3 beds - loads and releases, the potato's loops at 24 kHz; then 40 s at 500
+  m: the silent ground beds released), AMBALLOC (90 000 frames warmed, 10 000 moving frames: 2.8 B a frame, 0 GC - the boxed
+  arguments of the ~880 setTargetAtTime calls, allowed at 48 B each; standing still schedules 0 params), AMBMUFFLE (the six
+  muffle states), AMBSAMPLES (the class budget apart from the grains, maxS, decim with an 18 kHz tone killed and 1 kHz kept,
+  release, retry after a refusal, a release during a load), AMBWIRING (the build order, AUDIO.world). 34 SND-AMB-1 mutations,
+  each red on its check: 138 / 138 caught with the earlier 104, the sources byte-identical after. makePage gained an
+  `opt.ctx` hook (more of the context) and an `info` in its quiet console.
+GATES: AUDIO PASS (138 / 138), BUILD PASS, UISMOKE PASS, BOOT PASS, MEDIA PASS (UISMOKE, BOOT and MEDIA on a freshly built
+  tree: the checkout's generated pages were stale and UISMOKE failed on the untouched base for that reason alone; the
+  generated files restored, none in this branch).
+FOR THE COORDINATOR: (1) run_gates.js: GATE AUDIO is now 100 s with its self-test (measured on the merged tree; AMBBUDGET's
+  walks and AMBJOLENE's compose are most of it) - its `wall: 45` wants ~150; I did not touch run_gates.js. (2) Nothing in app.js; MANIFEST lists
+  'audio/ambience_model.js', 'audio/ambience.js' after samples.js. (3) SND-SPACE: publish AUDIO.cabin / emit 'cabin' with
+  { outDb, outLpHz } for the outside heard from the cabin; the ambience takes it. (4) CLIMATE: rain -> AMBIENCE.rain(0..1) or
+  world.day.precip; today only the garage's roof plays it. (5) SND-DEVICES: "audio: light" can call AMBIENCE.setTier('light').
+  (6) SND-AMB-2's emitters can read AMBIENCE.state.f (the features: forest share, coast distance, lake distance, zones, wind,
+  sun) instead of sampling the world again.
+MISSING ASSETS (asked of the coordinator, no file added here): an OUTSIDE rain bed (rain on leaves / on water - only the
+  roof's exists, so outside rain has no voice); a dawn chorus / day birds over the open (the meadow bed carries the open by
+  day, the forest bed the woods); an open-sea bed far from any shore (amb.lake.lap stands in at 0.8); a quieter, longer
+  amb.lake.near (its file is -34.4 LUFS: trimmed +11.4 dB, then -10 dB in the mix); crickets alone (amb.wind.mountain
+  carries them at night, with its wind).
+SND-TUNE's LIST: every bed's mix level (BEDS) - first guesses, none heard; the 150 m fade; the 0.35/s rate and the 2 s tau;
+  the fence's margins; the shore's slope thresholds (Jolene's coast has no SAND row: the slope decides everywhere); the
+  muffle fallbacks (-12 dB / 900 Hz); the loons at -17 dB.
+NOT DONE: positional emitters (SND-AMB-2); rain outside (no bed, no precipitation); the sea state beyond the wind (world.sea
+  not read); the garage's hint is a fixed mix, not the world outside the shed's door.
+
+## G1655 - THE THREE BEDS SND-AMB-1 ASKED FOR, AND THE RELEASE TEST THAT HAD STOPPED TESTING (2026-10-04, Sound Coordinator, integration on claude/sound-next)
+
+Assets (prep_sfx.js, CC0, the coordinator's picks, unheard by the user): `amb.rain.outside` (freesound 523391, temperate
+forest light rain), `amb.birds.open` (456766, early-morning field birds), `amb.lake.shore` (352356, small waves on a shore,
+louder than the user's quiet `amb.lake.near`). Crickets alone = `amb.forest.night` (333221 is a crickets-only recording).
+An open-sea bed is still missing (every CC0 candidate had a shore or a ferry engine). 37 files, 8.8 MB in media/audio/sfx.
+Wiring (ambience_model.js): `rainOutside = g x rain` (the same rain feature as the roof), `birdsOpen = 0.7 g x day x open x
+(1 - 0.6 forest)` beside the meadow, `lakeShore` takes the "very close to the water" rule and `lakeNear` stays under it at
+0.4 as texture; samples.js declares the three keys (loops, the 'amb' class).
+GATE AUDIO: AMBPLACES / AMBJOLENE expect the shore bed where they expected `lake.near`. THE FINDING: AMBBUDGET's release
+check ("40 s at 500 m, no ground bed left") had stopped testing the RELEASE_S timer - the jump from the lake to 500 m is
+a cut, and a cut fades every bed out (state 4 -> 0), so the timer never acted; with three more beds the mutation "a silent
+bed never released" went green. Now: a CLIMB from the shore to 500 m at 25 m/s (no teleport) and 30 s held there, plus a
+direct observation over the whole walk - a playing bed going straight 2 -> 0 can only be the timer's release (the eviction
+goes through 4) - "no bed was released by the RELEASE_S timer" fails otherwise. Verified both ways: green on the sources,
+red with the release line removed. GATE AUDIO PASS, 180 / 180 mutations caught (run under the CPU lock, A0's box rule).
+
 ## G1310-G1314 - COLD-LINKS: THE COLD FIRST VISIT 75.6 -> 57.9 s TO THE GARAGE; THE GROUND'S LINKS 40-52 s -> 13-17 s (THE SAME PICTURE BY CONSTRUCTION); ONE SOURCE LINKED ONCE (2026-10-04, COLD-LINKS for A0, local GPU; branch claude/cold-links-g1310 off train/27 98a01aff)
 
 THE PROBLEM (CESSNA-LINKS G1221): a cold first visit waits ~75 s for the garage. Seven world links of 13-52 s each, all
@@ -69867,6 +70150,7 @@ programs change text: a parked cook / census re-take is A0's), SPLAT (WRONG as f
 Budget: 9 loads (3 + 3 + 3), 3 link benches, ~17 min of GPU under the lock (window 02:09-02:25 reserved by A0; a
 1-minute bench at 00:52 ran during A0's CPU battery - classifier refused withdrawing the queued take; within-run A/B
 only). The built outputs are NOT committed (pinned build id): rebuild at landing.
+
 ## G1357 - THE FRAME CATCHER: A FRAME APART FROM BOTH NEIGHBOURS IS SAVED INTO THE USER'S OWN FLIGHT LOG (2026-10-03, LIGHT-SMOOTH for A0, node only - no GPU)
 
 The user's full-screen white / pale-blue single frames ("a frame that misses rendering") were not reproduced on the
@@ -69974,6 +70258,7 @@ GATE FRAMECOST (after a parked re-cook): uniformMatrix4fv did NOT rise (taxi 142
 with the catcher v2's two small draws a frame - bindFramebuffer 24 -> 27.5, tris.other 28 -> 32 - admitted (ALLOW, rise
 4, G1357). EVIDENCE: 7_wing_bands_inflight_before_after.jpg (the bands, before / after - a USER DECISION was "keep self-
 shadow everywhere": this is it working), 8_stand_lowsun_before_after.jpg (the stand at a low sun, before / after).
+
 ## G1295-G1299 - EVEN-30: A HARD 30 BY DEFAULT (ULTRA KEEPS AUTO); THE USER'S CHOPPY TAXI WAS THE FOREST FILL BUILDING A CHUNK IN ONE FRAME; THE LOW PASS WAS THE EYE'S READBACK (2026-10-04, EVEN-30 for A0, local GPU; branch claude/even-30-g1295 on master e40628b0)
 
 THE USER'S TARGET: an even 30, 1-5 % unevenness, evenness before fps; "framerate is bad at start, stays choppy till the Cub
@@ -71556,6 +71841,7 @@ HYBRID-FARTHER (4, accepted), garage busy (2, accepted) and the world <-> garage
 0.2-0.3 s on every tree: the trips red was the box, not a session. FRAMECOST PASS (65 counters down, the hybrid's rises
 on the ALLOW list); the final build (with the fix): HOUSEWORKER 137/137, PREMCOOK, PREMISES, MEDIA, ASSETS, BUILD, TARR,
 FRAMECOST PASS; trips 9.1 / 0.2 s, warm first flight 52.3 s (54.3 before the fix); the parked aeroplanes re-cooked on it.
+
 ## G1230-G1236 - MEM-BUDGET: A BUILD BUDGET PER PRESET (GFX.BUDGETS) AND UPLOAD AS YOU BUILD; POTATO'S LOAD PEAK HALVED (2265 -> 1141 MB), THE 700 MB GOAL NOT MET (2026-10-03, MEM-BUDGET for A0, CLOUD: headless Chrome + SwiftShader; branch claude/mem-budget-g1230 off train 26 = b2f1ffdc)
 
 THE PROBLEM (futureDesigns/FRIENDLY-WELCOME-BUDGETS.md): the S20 FE loaded potato along gamer's curve (heap ~1.9 GB, killed in
@@ -71642,6 +71928,7 @@ packed A/B derive, the far terrain's first cut before the sink, coverage getImag
 in small stores (not attributed: HT_MIN=4096 on a box run); (3) the prop library's merges (59); (4) the island's grids at half
 resolution for a phone (core: 28_island's readers); (5) a gate measuring each preset against BUDGETS.heapMB (heap_steps under
 ?gfx=); (6) lighter = live for the rest (unbuild the far houses, re-transcode at the new skip).
+
 ## G1430-G1434 - TOWN-COOK: METLAKATLA'S RASTER COOKED (+14.11 MB, 43 FILES) AND FETCHED BY A TOWN-ON PAGE ONLY; 0 BAKES ONCE THE TOWN COMPOSES AND 0 OVER THE TOWN; THE 47 mm GAP GONE; THE TOWN-OFF PAGE THE SAME FILES AND BITS (2026-10-04, TOWN-COOK for A0, cloud - no GPU)
 
 **VERDICT.** With the town on, the town's composition takes all 134 of its cooked cells and bakes nothing: 0 bakes from any
@@ -71835,6 +72122,7 @@ cockpit / taxi render and the floats' water taxi in slack. BATTERY: FRAMECOST (a
 triangles - admitted) and ROUNDTRIP (fixed) were the reds; all green on the final build; the parked aeroplanes re-cooked.
 LOOK (A0's real-GPU stills, reports/evidence/LAKE-HOLES/a0_gpu_train29_vs_30.jpg): the white gaps at the shore are gone;
 the carved banks now read as steep, texture-stretched slopes where a lake sits under a bank - a follow-up for the look.
+
 ## G1460-G1469 - SOFT-GPU: THE CLOUD SESSIONS' SOFTWARE GPU AS A TEST CASE - A 'SOFTWARE' RUNG UNDER POTATO, GATE SOFTGPU, AND A STILL ANY CLOUD SESSION CAN TAKE (2026-10-04, SOFT-GPU for A0, cloud, no GPU)
 
 The user (2026-10-04): "Can we use the cloud sessions' software GPU as a test case too? Right now it can't load the game."
@@ -72197,6 +72485,2113 @@ the node rigs and gates need a built dev.html to load _cage_chain.js at all), th
 Rigs: garage_release.js (new: node, the release per row, `--prof`), garage_lag.js (+ opt-in detail rows),
 garage_drag_strip.js (unchanged), _instant_check.js (the release path). Cloud session, ~3.6 h, node only.
 
+## TRAIN 31 LANDED (2026-10-04/05, A0 the coordinator)
+
+Cargo (on train 30 = a1ffcf5b): RELEASE-FAST G1450-G1455 (a slider's release runs what the drag reached; every release exact
+on the validated builds), SOFT-GPU G1460-G1466 (the world draws on SwiftShader: a 'software' rung under potato, GATE SOFTGPU
+(cloud only - SKIP on the box), tools/soft_still.js; its G1461 woodland fix HELD for WOODLAND G1480), the COVER FIX for every
+machine (the user: "fix for all" - potato / retro's 'cover off' never reached the cover ring on any card, ~30 M triangles a
+frame on the GTX 660; the ring takes its own row through GFX.reapply, not the whole menu again: onWorld's full re-apply cost
+the warm settle +0.7 s), music OFF by default (the Sound Coordinator, 9008fba8; a stored choice kept).
+A0 IN THE TRAIN: the battery shows a gate's SKIP as SKIP (run_gates.js); GATE GFX counts render_world's one rung site; GATE
+STAND reads SOFT-GPU's software-rung glass; the evening status in futureDesigns/FRIENDLY-WELCOME-PLAN-2026-10-03.md.
+STRICT GATE (full, three runs): only the 30 cap's fps rows stay red; the metal load (chase flight), the Cub chase compile and
+the metal cockpit load reds each appeared once and passed on the next run (noise). ONE STEADY COST, ALLOWED BY THE USER BY
+NAME (4 Oct 23:15, "land now, fix in 32"): the warm garage load +1.5 s on both aircraft (train 30 37.8-38.2 s, train 31
+39.3-40.3 s, inside the 3.4-3.9 s slack). A prefix bisect (_ab/R0-R2) was confounded: its trees were not parked-cooked, and
+a stale cook alone adds ~3.5 s (the parked aeroplanes captured live). Train 32 re-bisects with cooked trees.
+BATTERY: the full battery on the first build (GFX, STAND, SOFTGPU red - fixed), the changed gates on the final build PASS
+(GFX, STAND, WORLDRENDER, BOOT, FRAMECOST, ROUNDTRIP, UISMOKE, PROGRAMS, BUILD, ASSETS, INSTANT, AUDIO, AUDIOENG; SOFTGPU SKIP).
+The parked aeroplanes re-cooked on the final build.
+LESSONS: a killed script leaves its boxlock files (its trap never runs) - train 31's re-pass waited 40 min on A0's own stale
+CPU lock; boxlock's `take` once wrote its lock and then waited on itself (the noclobber write's status lost) - A0's scripts
+now accept a lock already in their own name.
+
+## REVIEW 2026-10-04 — INDEPENDENT REVIEW (architecture + bug hunt), on branch ccr-4c7cf662-zcpqoe
+
+An outside read of the engine, the editor, the loop and the release, written up in
+`reports/INDEPENDENT-REVIEW-2026-10-04.md`: eight HIGH findings (the Pages workflow folder is `.github/workflow/`,
+singular, so the project's deploy has never run; genShakedown re-resolves the RESOLVED spec so every CG-corner sheet of
+a spec with an offset is a different aeroplane; the join's `tail.type` / `covering` / `glazing` / materials are written
+only in the non-default state and the merge keeps them for ever; a newborn build inherited the old slot, plaque and log;
+A2 Pelham Field is sited across a river; every settlement house's hitbox was mirrored; the cage build's GPU buffers were
+never disposed; the chase camera stayed NaN after Fly again), the MEDIUM and LOW lists by system, one physics ruling
+(DEFDAMP damps rigid rotation: exp(-0.5 t) measured in vacuum, a 2 s angular damper under every aeroplane) and the
+architecture notes. The small fixes landed on the branch (commits 8544302 and the one carrying this entry; source only,
+nothing rebuilt here); the rest is the coordinator's, with the fix described per finding. Three gates were written:
+OBSTFRAME (registered, green), STRIPGROUND and GENPAIRS (not registered: red on master until A5 / B10 are fixed).
+
+
+## G1384.1-G1384.4 - GEAR-WATER 2: THE WATER AS A DAMAGE MODEL'S INPUT - THE SLAM, THE AIR A BUILD HOLDS, GRADUAL FLOODING, THE WINGS' BUOYANCY; AND THE SESSIONS TO A GOOD WATER MODEL (2026-10-04, GEAR-WATER for A0 and the user, cloud, node only; branch claude/gear-water-buoy on claude/gear-water-g1380's G1384)
+
+The user, on G1381-G1384:
+- "I wanna know if the water impacts can deform the physical node and beam model. That's what I call crash. Check
+  planes with floats too";
+- "your 30% ... should be function of the construction material, the actual volume and the 'no skin' option. What
+  would it take to have simple gradual flooding? And wings buoyancy? I want a good looking water interaction without
+  impacting physics cost too much";
+- then: "A better damage model is getting studied, the only question is whether water will provide the right inputs,
+  like the ground will";
+- and: "do a recommendation about the sessions for reaching a good model, but nothing too highly complex ... then start
+  the implementation".
+
+WHAT THE WATER FEEDS A DAMAGE MODEL (measured before this entry; peak member force / sigY*A per beam class - the load
+rig's yield proxy, 65_gen_loadtest.js - sampled once a frame, elastic: the solver has NO yield or rupture yet, see
+RUPTURE AND PERMANENT SET):
+- Water reaches the frame the way the ground does: forces on NODES (the fuselage frame's own nodes by the wet patch's
+  barycentrics, the strips' spar nodes, the axles), which the beams carry. A beam-load damage model reads both alike.
+- The held 360 Hz rate is not a distortion: hydroEvery 1 moves the Cub's 100 km/h ditch by at most 2 points (fus 70 ->
+  71 %, wires 117 -> 115 %).
+- slamCap is not either: with it removed every peak is identical (it binds after the impact, nodes slowed).
+- THE ONE GAP (fixed below, G1384.1): no slam on the wet body. A 5 m/s level pancake loaded the Cub's fuselage 11 % on
+  water against 22 % on the ground.
+- Crashes already reach yield, floats included: Cub ditch 100 km/h / 4 m/s / 10 deg nose-down - fus 70 %, wires 117 %;
+  the float ultralight 90 km/h / 5 m/s / 20 deg nose-in - wires 112 %, wing 60 %. Ordinary float touchdowns stay
+  8-24 %; a 3 m/s ground landing 20 %.
+
+G1384.1 THE SLAM (32_hydro.js wetCompute, the face loop). The floats' entry term (Wagner's wedge) on the wet body:
+- A hull face facing down, still being wetted (wet share under 98 %) and moving down into the water takes an average
+  pressure (pi^2 / (2 tan beta)) x 1/2 rho Vd^2 over its wet area.
+- beta is its deadrise, floored at WB_BETA_MIN = 10 deg: a flat box bottom is cushioned by air and skin flex - inferred.
+- Vd is the vertical speed only: the forward speed over an inclined bottom is the planing pressure already there, the
+  floats' own rule.
+- After: the 5 m/s pancake loads the fuselage 39 % (ground 22 %, before 11 %), wing 27 %, wires 111 %; peak 523-555
+  kPa. The Cub's 80 km/h ditch: 1.03 s to 10 km/h, 8.3 g (was 0.93 s / 9.0 g).
+
+G1384.2 THE AIR A BUILD HOLDS (WB_MAT, WB_WING; replaces the flat WB_BUOY 0.35):
+- Per fuselage material (spec.material):
+  - `air`: the covered hull's air share as it meets the water - 0.85 fabric / wood, 0.9 alloy / carbon;
+  - `tau`: the flooding time - tubeFabric 40 s, aluTube 40 s, wood 150 s, alloy 300 s, carbon 900 s;
+  - `breach`: the slam pressure that holes a slice - 60 / 60 / 120 / 200 / 250 kPa.
+- The hull's volume is the frame's own (the stations' box, 27 samples a slice).
+- `covering: 'open'` (no skin): no hull faces and no hull air at all.
+- ALL INFERRED, not measured, and stated so in the code.
+
+G1384.3 GRADUAL FLOODING:
+- Each hull slice and wing slab has a fill f, the water share inside. It rises toward wetS (the submerged share outside)
+  over tau, ten times faster once holed, and falls back over WB_DRAIN 30 s when the slice rises. Exact exponential
+  steps (any interval).
+- Only the submerged air lifts: air x (wetS - f) / wetS.
+- Water inside a submerged hull is neutral: no mass added, so nothing touches setNodeMass or the fuel.
+- reset() clears it (HYDRO.wetReset); out.wetFlood carries the mean fill.
+- Measured, the Cub archetype at 80 km/h:
+
+  | Build | 10 s | 60 s | 150 s | 300 s |
+  |---|---|---|---|---|
+  | fabric | flood 5 %, CG 0.47 m under | 19 %, 0.65 m | 45 %, 0.89 m | 89 %, on the seabed |
+  | covering 'open' | 0.74 m under | | on the seabed | |
+  | alloy | | | | flood 3 %, CG 0.31 m under, afloat |
+  | C172 | | | | flood 14 %, CG 0.62 m under, afloat |
+
+G1384.4 THE WINGS' BUOYANCY:
+- Each wing strip is a slab: area x 0.12 chord (WB_WING_TC; the def carries no per-strip thickness) x 0.68.
+- Its air is the wing surface material's (genSurfKey): 0.5 on fabric (the tanks and the closed bays, not the cloth;
+  tau 60 s), 0.9 alloy / carbon (600 / 900 s).
+- Four bilinear samples a slab, onto the four spar nodes; floods as above.
+- OWED: the tanks' real empty volume (capacity - fuel) instead of the 0.5.
+
+COST: all of it runs only on frames that can reach the water (G1384's arm). Dry: nothing built, nothing computed, master's
+trajectory to the bit (HYDRODYN's dry check). In the water: 27 samples a hull slice (as before) + 4 a wing slab + one
+exp() each, per compute (360 Hz).
+
+THE NET (GATE HYDRODYN, new section; trimmed to 20 / 10 / 3 s flights, ~1 min of the gate):
+- the stock fabric build: hull slices holding air 0.85, 13 wing slabs;
+- it floods as it sits (5.9 -> 8.4 % at 10 / 20 s);
+- the bare frame holds no hull air and floats lower (CG 0.83 m under against 0.47);
+- alloy floods slower than fabric (0.4 against 8.4 % at 20 s);
+- a 5 m/s pancake slams (555 kPa) and holes slices.
+
+THE SESSIONS TO A GOOD WATER MODEL (recommendation; each one session, none complex):
+1. WATER-INPUTS - THIS ENTRY: the slam, the construction's air, flooding, the wings. A0: review the inferred tables
+   (WB_MAT / WB_WING) once against the user's eye.
+2. DAMAGE (being studied): consume beam loads as the ground does. It needs nothing more from the water. Its acceptance
+   should include a WATER CASE beside the ground ones: the 5 m/s pancake and the 100 km/h nose-in ditch (tools of this
+   entry: the yield proxy per class), and the float nose-in (wires 112 %). A holed slice (S8.br) could also be read as
+   skin damage.
+3. WATER-LOOK (local GPU): spray and wake from the wet body like the floats' (buildWaterFx) - per contact: the tyres,
+   the hull's wet faces, the wing tips. WB.drag / out.wetDrag, the slam peak and the wet centroids are the inputs.
+   Plus a sinking aeroplane's bubbles off the flooding slices (out.wetFlood rising).
+4. TANKS-FLOAT (small): the wing slab's air from the real tanks (GEN_TANKS: capacity - fuel), so a ditched Cub floats on
+   its empty wing tanks as the real ones do.
+5. GROUND-LATTICE (G1380's owed fix): the tailwheel's real ground, then TW_DRAW_DROP back to 0.
+
+GATES on this branch: HYDRODYN PASS (above); SOAR PASS (its control comes down on the lake at 119 m, "the surface under it 119 m
+(water)"). The rest of the battery runs on claude/gear-water-g1380's READY commit
+(this branch adds only 32_hydro.js, two lines of 30_solver.js and HYDRODYN's section); the water gates to re-run when A0
+picks it: HYDRODYN, WATER, FLOATS, SEAPLANE, SOAR.
+
+## G1530-G1534 - POSE-BACK: THE AEROPLANE DRAWN BACKWARD AT 2 FPS WAS THE WORKER'S DRAWN CLOCK RE-ANCHORED UNDER IT; THE DRAWN CLOCK NEVER RUNS BACK NOW (2026-10-04, POSE-BACK for A0, cloud - no GPU; branch claude/pose-back-g1530 off train 30 = 44b7a381; block G1530-G1534)
+
+THE USER (4 Oct, a GTX 660 at ~2 fps - frames of 450-600 ms, the frame clock on auto): "Sometimes, the plane went
+backwards. As soon as it took off, it happened that it went a little backward over a frame, strange."
+
+**THE CAUSE (the physics worker's view, sim_view.js frame(T) - the default path).** The view draws the sim time
+`tau = tB + (T - DUE(B)) x rate - delay` (G1101: T the frame's rAF timestamp, DUE the moment the newest snapshot B was due
+on the host's clock, the delay 1-4 steps). That mapping JUMPS BACK whenever the host lets wall time go:
+- SIM-STALL (G1365): the host's clock steps no further than 250 ms past the page's last beat, and the next beat
+  re-anchors it (wall0 = now). At ~2 fps EVERY frame is past 250 ms: the host flies 250 ms, holds, re-anchors on the
+  next frame's beat (the sim at ~50 % of real time - by design).
+- On the held frames the newest snapshot is late: the frame is STARVED and extrapolates on from B by at most a step
+  (G1166b's bound) - it draws B + 1 step.
+- A frame that comes SOON after a re-anchor (33-67 ms after a 467-567 ms one: a 2 fps page is not even) finds new
+  snapshots whose DUE is fresh: its tau is B_new less the delay (up to 4 steps: the ring's lateness window filled with the
+  held frames' lags), i.e. 2-4 steps BEHIND the B + 1 step it drew a frame earlier. The aeroplane is drawn backward by
+  2-4 steps' travel: ~0.4 m on the roll, ~1.2 m just after the wheels leave (the take-off is where it is fastest - the
+  user's "as soon as it took off").
+- MEASURED (GATE POSEBACK's trace, the real solver and the real host clock, 2 fps 'ragged': frames 425-575 ms with one
+  in six quick): 5 backward frames in 11 s of page time - 582, 416, 804 mm on the roll, 835 and 1211 mm after lift-off;
+  each one a quick frame (33-67 ms) after a slow one (467-567 ms). Steady 2 fps frames (never quick) draw none.
+- NOT the cause: the inline path (?simw=0) - PACE's alpha + POSE_LERP draw step k-1+alpha with alpha in [0, 1) and every
+  frame that steps closes a new pair at least one step later (the STALL branch owes the cap's steps, alpha 0.25), so it
+  is monotonic by construction (GATE POSEBACK: 0 backward frames in every inline run). The worker's catch-up cap
+  (SIM_HOST_CATCH dropping the excess, a CPU-starved worker: the 'slowworker' profile, a step at 25 ms) moves in 4-step
+  bursts and holds between them but never back. The take-off's own step (the ground contact ending) is not a jump in
+  the CG: the solver's trajectory is smooth through it (the gate's "within a step of the solver" holds at 0.00 steps).
+
+**G1530 THE DRAWN CLOCK NEVER RUNS BACK (sim_view.js frame, MON).** A later frame (T past the last frame's) of the same
+flight (epoch) draws no earlier sim time than the last frame drew: tau = max(tau, the last drawn time). The ring's pair
+is then chosen for that time (a real state between two snapshots, or the starved extrapolation from the newest - still a
+step at most past it); the pose HOLDS until the mapping catches up instead of stepping back. The memory is the time
+actually DRAWN (tShown: a starved frame's extrapolated time, an early frame's ring-oldest), reset by frame(Infinity) (the
+first snapshot, lockstep) and by a new epoch; a re-query of an earlier T (GATE SIMWORKER's interpolation probes) is not a
+frame of the clock and is neither clamped nor remembered. `?poseback=0` is the old mapping (sim_link.js, beside
+?starvex=0), for an A/B; view.delay().monoHeld counts the frames held. A pause's resume (the host re-anchors on 'run')
+had the same snap back by the delay - it holds now too; and a PAUSE right after a starved frame (drawn a step past the
+newest) snapped back to the newest - the paused frame holds the drawn time now (the extrapolation from the newest
+snapshot of an EARLIER time: a pause's / a placement's snapshot repeats the newest state's time, which had left the
+extrapolation no motion to carry - the unit below caught it).
+At NORMAL FRAME RATES IT IS THE SAME BITS: tau is already monotonic where the host's clock never jumps (the delay slews
+down at 2 % of the frame's time; DUE is on the host's schedule), so the clamp never engages - GATE POSEBACK: even 60 and
+30 fps, the drawn pose with and without the clock FNV-identical frame for frame, 0 frames held. POSE-SMOOTH's judder
+numbers (G1100-G1101) stand as measured.
+
+**G1531 THE INLINE PAIR IS NEVER DRAWN BACK (app.js POSE_LERP).** Already monotonic (above); made explicit: a pair's
+generation (took) and the alpha last drawn on it - a draw on the SAME pair (a frame that owed no step) at a lower alpha
+holds the last one (state().held). Reachable only should PACE's accumulator be let go under a held pair (PACE.hold while
+the inline flight runs - nothing does that today). The sea (WATER.setTime) reads the alpha drawn. GATE POSEBACK's unit:
+0.8 then 0.3 on one pair -> 0.8; a new pair at 0.3 -> its own; the inline runs: 0 held at every rate.
+
+**G1532 GATE POSEBACK (tools/_poseback_check.js, core, ~95 s on 3 threads).** The REAL solver (tools/flight_core.js, the
+stock build, the analytic world, the auto pilot from HOME's runway, take-off ~15.6 s): 12 s in lockstep, then the page's
+frames to 19.5 s of sim at a simulated 2, 5, 10, 30 fps on a 60 Hz vsync, four page profiles (steady: the step block 1-3 ms
+after the rAF timestamp; late: up to 40 % of the frame first; ragged: one frame in six 1-4 vsyncs; slowworker: the
+worker's step costs 25 ms on the fake clock - worker only).
+- WORKER: src/viewer/sim_host.js's OWN body (pump / beat / the stall hold / the catch-up cap) in a vm whose performance
+  and setTimeout are a fake timeline (GATE SIMWORKER 1b's way), messages 0.3 ms each way, a page taking snapshots only
+  between frames, the real sim_view.js (the ring, the delay, the extrapolation) - so the 2 fps page is simulated, not
+  waited for. INLINE: PACE + POSE_LERP lifted from app.js as written (GATE PACE's way) on a lockstep host.
+- PER FRAME: the drawn CG (the solver's mass-weighted sum on the drawn positions), the newest state's, and the solver's
+  own CG at the drawn time (every step logged on the host). PASS: (a) the drawn CG's move along the motion (the newest's
+  horizontal velocity) >= -0.5 mm and the drawn clock never back; (b) never more than one step's travel past the newest
+  state; (c) within one step's travel of the solver's own CG at the drawn time; (d) the run flies through the take-off.
+- THE VIEW ON HAND-MADE SNAPSHOTS (every node at 10 m/s): in the ring, starved, [a pause], two frames after the host
+  re-anchored - drawn x 517 833 833 (833) 950 mm with G1530; the old clock 517 833 780 950 and 517 833 667 780 950 (back
+  at the re-anchor; back at the pause).
+- AND: the old clock (monotonic off) at 2 fps ragged MUST go back (the instrument sees the bug: 5 frames, 1211 mm); even
+  60 / 30 fps worker FNV-identical with and without, inline 0 pairs held; the inline pair unit.
+- `--view=<file> --app=<file>` run another sim_view.js / app.js (the base's, `git show`); `--trace=<dir>` writes every
+  run's frames as CSV; `--fps / --profiles / --paths / --jobs / --seed`.
+- RESULT (this branch): 32 grid runs, 0 backward frames, 0 past a step ahead, 0.00 steps off the solver; on the base's
+  files (`--view= --app=` train 30's sim_view.js and app.js) worker 2 fps ragged FAILS (5 frames, 1211 mm) and the inline
+  pair unit FAILS (0.3 drawn after 0.8: no hold there); every other run passes (28 runs, 115 s on 2 threads).
+
+**G1533 THE EVIDENCE.** reports/evidence/POSE-BACK/: poseback_2fps_takeoff.svg / .png (tools/poseback_plot.js; panel A
+the drawn CG's move along the motion frame by frame - the old clock's five dips below zero, 0.42-1.21 m, against the
+fix's none; panel B a zoom on the worst: the old clock draws 1.21 m back on the quick frame, the fix holds, both meet on
+the next frame), trace/*.csv (the gate's traces: the 2 fps ragged worker with the fix and with the old clock, the inline).
+THE REAL PAGE (tools/poseback_page.js: headless Chromium on SwiftShader, the SOFT-GPU tree (claude/soft-gpu-g1460) with
+this branch's sim_view.js / sim_link.js; roll out, Skip to line-up, Fly the circuit, the drawn CG at every world render
+through a render() hook, eye_judder.js's way) - NOT FLOWN TO THE TAKE-OFF HERE, and could not have shown it:
+- a HEADLESS page is a RIG: PACE's old clock (one step a frame, alpha 1) and the worker in LOCKSTEP - neither drawn-pose
+  path runs (the probe now always adds ?pace=1, PACE's FORCE, untested past this point);
+- SwiftShader at 480x270 drew ~8 s a frame (boot 255 s, the stand 295 s, lined up 325-360 s): steady frames, the
+  'steady' profile, which never draws backward even on the old clock (it takes a QUICK frame after a slow one); the
+  take-off was ~60 frames (worker) to ~450 (inline: 2 steps a stalled frame) away.
+- OPEN (for A0, untriaged): on that run (the rig clock, lockstep) Skip to line-up made the link take the flight INLINE -
+  FLYDIY_SIMW.state().reason "the worker placed another aeroplane: p[0] -153.78 vs 493.62" (sim_link.js placeCheck: the
+  worker's lineup() placement vs the page's placeLinedUp). No gate flies the skip through the worker (SIMWORKER-PLACE
+  does not); whether the real-time page does the same on a real GPU is not known from here.
+
+**ALSO SEEN (not changed, A0's call):** at ~2 fps the INLINE loop flies 2 steps a frame (every frame is a G1365 stall:
+dt = the cap's 2/60) - the sim at ~7 % of real time; the worker holds 250 ms a frame - ~50 %. Both by design (a freeze
+must not teleport the aeroplane), but at a steady 2 fps the two paths fly at very different speeds.
+
+**G1534 GATES** (`node tools/run_gates.js`, the core battery, this branch at 52e4d6a, 4-core cloud box, 148 jobs): 138
+PASS, 3 FAIL - none this branch's:
+- FRAMECOST FAIL (24): THE STALE PARKED COOK (the app.js edit moves FLYDIY_BUILD: manifest f5cd36beab5d, this tree
+  9aa91344ab06 - the trap at G1135-G1136). PROVEN: train 30 untouched + a one-line COMMENT at app.js's top, rebuilt ->
+  FRAMECOST FAIL (24), the 24 FAIL lines IDENTICAL to this branch's. The re-cook needs the box's GPU (parked_cook.js):
+  the train's final build re-cooks.
+- BIPLANE FAIL: "a biplane builds in under 3x the stock" read 3.33x under the battery's load; alone, three pairs this
+  branch / train 30: 0.80 / 2.12, 0.99 / 3.00, 4.02 / 0.76x - a timing ratio's noise (the core is unchanged here).
+- BIOME FAIL: "surface perf < 5 us" read 6.8 us - the CI container's timing check (red there, green on the box: G939.1).
+POSEBACK PASS (86.5 s in the battery), PACE, SIMWORKER, WATER, FLIGHTREC, UISMOKE, BUILD, BOOT PASS. The full tier
+(SIMWORKER-PAGE / -EDGES / -PLACE) was not run here (the brief's battery is the core tier). The generated files the
+battery rebuilt (index.html, dev.html, sw.js, version.json) are not committed - A0's built commit.
+
+FILES: src/viewer/sim_view.js (G1530: MON, the earlier-time extrapolation), src/viewer/sim_link.js (?poseback=0),
+src/viewer/app.js (G1531: POSE_LERP's pair hold - inside the PACE / POSE_LERP blocks the gates lift), tools/
+_poseback_check.js (GATE POSEBACK, core, run_gates weight 3), tools/poseback_plot.js, tools/poseback_page.js,
+reports/evidence/POSE-BACK/.
+
+## G1535-G1539 - UPDATE-NOW: "A NEW VERSION IS AVAILABLE - UPDATE" - THE PAGE KNOWS ITS BUILD FROM THE FIRST 100 ms, ASKS version.json AT BOOT / ON RETURN / EVERY 5 MIN, AND UPDATES PAST EVERY CACHE ON ONE PRESS, THE WORK SAVED FIRST (2026-10-04, UPDATE-NOW for A0, cloud - SwiftShader; branch claude/update-now-g1535 off origin/master 44b7a381 = train 30)
+
+**THE ASK** (the user, 4 Oct): "How to ensure the latest version of the game is served? We used to have dedicated refresh
+buttons for other service worker-based apps." Pages had started no deploy for trains 28-30, the live site served train 27
+for ~14 h and it was tested unknowingly. And a plain reload is not the answer: Pages serves the page with max-age=600.
+
+**G1535 THE BUILD IS KNOWN AT ONCE** (tools/build.js). Before this, FLYDIY_BUILD was set in the CORE slot, which
+index.html makes inert until the welcome and the island's ~35 MB are behind it - so the welcome and the loading screens
+could not know which build they were. Now the BOOT slot opens with `<script>window.FLYDIY_BUILD=...;
+window.FLYDIY_BUILD_DATE=...</script>` (a marker the build swaps once the id is known - swapBuild asserts exactly one per
+page), in both pages. Two changes to the id itself:
+- **the id hashes the page's shell too** (shell.html, the styles, body.html, boot_cards / boot / welcome / update_now):
+  a CSS- or welcome-only change used to ship a new page under the SAME id, i.e. invisible to any version check. Cost:
+  the parked cook (keyed on FLYDIY_BUILD) goes stale on those edits too - it already did on every viewer edit; the train
+  re-cooks on its final build as before.
+- **the date is the build's**: version.json keeps its date while the id is unchanged (a rebuild of the same sources is
+  byte-identical now - index.html, dev.html, sw.js, version.json; version.json no longer churns on every battery run).
+
+**G1536 THE CHECK AND THE PILL** (new src/viewer/update_now.js, an inline BOOT-slot script after boot.js, before
+welcome.js; a src ref in dev.html). version.json fetched `cache:'no-store'` with `?t=<now>` (the browser's cache AND the
+CDN's), compared with FLYDIY_BUILD. When: at boot; when the tab comes back (visibilitychange / focus, at most once every
+30 s); every 5 min while the tab is visible (one re-armed setTimeout - nothing in the render loop, no other request).
+Differ -> the pill "A new version is available `old -> new` UPDATE ×" (phones: "New version"), z 95 over everything
+(welcome 90, loading 70). WHERE: bottom centre on the welcome / loading screens (the loading panel and card step up 56 px
+while it is there, html.updNowUp); in the garage over the 3D view's centre (editor.css --ws-left / --ws-right), above
+the route / roll-out bar; in flight the right column above the verbs (the PFD holds the top centre, the trace panel the
+bottom-left two thirds); a phone in flight: right-aligned over the verbs' two rows (the plates and the PFD stack down
+to mid-screen there - the first try, the right edge's middle, sat on the PFD; the trace panel, when opened, is what it
+can overlap); the world editor: its view's bottom centre; a photo (body.shot): never. 44 px targets under pointer:coarse. × = not for this tab's session and this server build
+(sessionStorage); a NEWER build shows it again. A failed fetch (offline, 404, not JSON, no build) shows nothing and
+takes a shown pill down. RIGS: navigator.webdriver / HeadlessChrome never fetch, never show (the shared tree is rebuilt
+under running rigs all day); ?update=1 forces it, ?update=0 turns it off.
+
+**G1537 UPDATE** never runs by itself (in flight the pill waits). The press: (1) UPDATE_NOW.saveAll -
+GARAGE_SPEC.commit() (garage.js: the editor's export merged and written to flydiy.wip - the same door SAVE / EXPORT
+take, so a slider still inside the 400 ms touch debounce is saved) and every UPDATE_NOW.onBeforeUpdate flush
+(premises_ui.js registers its 1 s autosave's pending write); a thrown flush does not stop the update; pagehide does the
+rest as it always did (day clock, flight recorder). (2) location.assign(the same URL + `v=<server build>`, every other
+parameter and the hash kept, an old v replaced). The new page strips `v` at eval with history.replaceState (state kept),
+before any script reads its URL. dev.html the same (its scripts are ?v=content-hashed already).
+THE STAMP: 'build 1a2b3c4d · 4 Oct 2026' - under the brand on the loading screen (every load), in the welcome card's
+footer (welcome.js stampFoot: the welcome and the device gate), and in GRAPHICS' storage row and the shed's #edVersion
+(storage.js: the PAGE's date now - it printed the server's, exactly the one that differs on a stale page). storage.js's
+checkServer asks UPDATE_NOW (one fetch path); its menu line says "press Update".
+
+**G1538 THE MEDIA CACHE ACROSS AN UPDATE** - unchanged and confirmed: sw.js carries the build id, so the new page's
+registration installs a new worker (skipWaiting, clients.claim) whose activate sweeps media/world + media/geo entries
+outside its keep list; textures / audio stay (content-hashed). The worker answers media/ only: index.html?v=...,
+version.json?t=..., the scripts and sw.js always reach the network. GATE UPDATE P10 runs the BUILT sw.js over a fake
+Cache Storage.
+
+**G1539 GATE UPDATE** (tools/_update_check.js, core, ~0.5 s; `--selftest` = 8 sabotaged copies of update_now.js, each red).
+P1 differing builds -> the pill (both ids, the buttons, 44 px coarse, z 95, the places) + the page's stamp; P2 the same
+build -> nothing; P3 a failed version.json (rejected / 404 / not JSON / no build / empty) -> nothing, and a shown pill
+goes; P4 the URL (?v=server, params + hash kept, an old v replaced) and the strip at eval (state kept, before the first
+check; none without v); P5 commit + flushes BEFORE location.assign, once, without a garage too, premises_ui's flush
+registered; P6 no navigation without the press over 4 timed checks, × per session + build, a newer build shows again;
+P7 the schedule (one check + one 5-min timer, hidden tab skipped, regain throttled to 30 s, no rAF / setInterval, one
+URL); P8 rigs / ?update=1 / ?update=0; P9 the built pages (the tag before update_now before welcome before the island
+loader, live not inert, the same build + date in index.html, dev.html, version.json and the CORE line; dev.html's ref;
+welcome / storage wiring); P10 sw.js across an update.
+
+**EVIDENCE** reports/evidence/UPDATE-NOW/ (tools/update_shot.js: the real index.html in headless Chromium on SwiftShader,
+version.json answered by route interception with a newer build, ?update=1&welcome=1): desktop 1600x900 - welcome,
+loading, garage, flight, the GRAPHICS menu; phone 390x844 (touch, 2x) - the device gate, loading, garage, flight.
+shots.json has each pill's box (the welcome / loading pictures as JPEG - their photo backdrops; the rest PNG). SwiftShader draws no world in flight (sky only) - the HUD is what is pictured.
+dev.html checked end to end in the same browser: ?v= stripped at load, the pill, both stamps, Update navigates and the
+new page comes back clean.
+
+**BATTERY** (`node tools/run_gates.js`, core, 148 jobs, jobs 4 on this 4-core cloud box, wall 77 min): 143 PASS, 5 RED,
+none of them this change's:
+- WORLD (terrainH 3.25 us/call vs 2.5), BIOME (surface 8.5 us vs 5), SETTLE (bake 1126 ms) and INSTANT (the 1800 s cap):
+  time budgets under 4 gates on 4 cores. Re-run alone (`--only=WORLD,BIOME,SETTLE,INSTANT --jobs=1`): all PASS - 1.42 us,
+  4.3 us, 410 ms, INSTANT 1765 s - with the same checksums (30165946.716, 293998). No core file is touched here.
+- FRAMECOST (24 rows: the cub's stand / taxi / garage-boot draws and uniforms) = THE STALE PARKED COOK (any build-id
+  change; the gate's own HINT). Proved by an A/B on a master worktree (44b7a381): as is -> PASS; + one comment line in
+  src/viewer/storage.js -> FAIL (24), THE SAME 24 ROWS. The train re-cooks on its final build (parked_cook.js, a GPU tool).
+- GATE UPDATE: PASS (67 checks; --selftest PASS, 8/8 sabotages red).
+
+**KNOWN, NOT FIXED.** (1) After an update the address bar's PLAIN URL may still be in the browser's HTTP cache (max-age
+600) holding the old page: a later bookmark / typed visit inside those 10 minutes can open it - the pill then shows again
+and one more press fixes it (refreshing that entry would cost a second request; the rule was version.json only).
+(2) The phone garage is MOBILE-GARAGE's: the pill sits 128 px up, centred, over whatever that layout puts there.
+(3) Pages not deploying at all (the trigger of this ask) is not fixable from the page: version.json then equals the
+stale page and nothing shows - the stamp is how to see it (compare with the train's build in its commit message).
+
+## G1510-G1519 - MOBILE-GARAGE: BUILD IT ON THE PHONE, FLY IT AT HOME - A STUDY: A GARAGE-ONLY MODE, ONE ROW MODEL FOR THE SLIDER REVAMP, THE BUILD AS A LINK (2026-10-04, MOBILE-GARAGE for A0, cloud - node + headless SwiftShader, no GPU; branch claude/mobile-garage-g1510 off train 30 = a1ffcf5b; G1515-G1519 unused)
+
+THE DOC: `futureDesigns/MOBILE-GARAGE-2026-10-04.md`. Mock-ups: `futureDesigns/mobile-garage/` (index.html; rowkit.js = the
+prototype renderer). Evidence: `reports/evidence/MOBILE-GARAGE/`. NOTHING SHIPPED CHANGED: four rigs under tools/perf/
+(`mobile_share_size.js`, `mobile_garage_node.js`, `mobile_garage_swift.js`, `mobile_phone_cdp.js`), the rest under
+futureDesigns/ and reports/.
+
+**THE RECOMMENDATION.**
+1. **`?mode=garage`, the same page.** It boots the garage's 10 steps and none of the world's 14 (+ no island fetch, no
+   sim worker, and the boot's `recheck` re-planning nothing: left in, it ran the flown bake). Measured with a rig-only
+   source transform:
+   - node: boot ~300 s → 33-37 s, 230 → 43-47 MB read, heap + ArrayBuffers after GC 2.86-2.91 GB → 0.48-0.53 GB,
+     0 errors, the drags identical;
+   - SwiftShader at 412 × 915: 215 → 58 MB on the wire, JS heap peak 1,530 → 365 MB (the S20 FE's budget is 700).
+2. **No garage on a phone: a BLACK STUDIO** (the user's ruling, M2). The aeroplane in a pool of light on black,
+   key / fill / rim without shadow maps, a procedural studio PMREM, nothing else.
+   - Node, a crude proxy (the shed's assets 404, the shell kept): media 42.6 → 3.2 MB, memory 441 → 323 MB.
+   - One frame is 7,021 draws / 6.13 M triangles today: 1,423 meshes drawn ~5× by the shed's shadow lamps and glass
+     pass. A studio is ≈ the aeroplane's ~545 draws.
+   - The studio is also offered on the desktop as a mood, so it is tested every release.
+3. **One row model, two renderers** (decide INSIDE the slider revamp, now). Today's tuple gains `unit`, `group`,
+   `tier`, `fine`, `detents`, `help`. Two renderers, desk and touch, emit the same tick / release GARAGE-INSTANT keys
+   on. Undo, one entry per gesture.
+   THE USER'S RULINGS (4 Oct; the studio and the one trunk are under 2. and ONE TRUNK below):
+   - on touch **only the knob moves a slider**; the scale scrolls the list (R4-R5, checked on the prototype with CDP
+     touch);
+   - **the parts tree holds only the aeroplane**; the reference plane and the hangar move to the rail (R24).
+   The doc §2.9 lists the nine decisions the revamp must take so mobile is not a rewrite.
+4. **Phone → computer with no backend** (the user: "sending yourself a json through mail or WhatsApp or Messenger").
+   - The **build file** (today's export envelope, 7-21 KB) goes through the share sheet (Web Share level 2), as
+     `.json`, or as `.txt` if Chrome's permitted types refuse JSON. Import must then accept `.txt`: today `#gFile`
+     takes `.json` only. The phone rig's probe answers it on the S20 FE.
+   - A `#build=` **link** is the second button: a patch over a frozen base, 20 rows = 401 chars, a v13 QR.
+   - Builds are **kept on the phone** (today's localStorage slots + `persist()`, marked sent / unsent).
+   - **Make it a PWA (M7)**: one manifest, the same page, `sw.js` gains a page cache. It installs full screen, works
+     offline in the studio, keeps its storage (iOS spares home-screen apps from the 7-day eviction), receives builds
+     from the share sheet (`share_target`), and on the desktop a double-click opens a build file (`file_handlers`).
+   - The computer opens it on an arrival card (checked, built, bench, the flown bake at roll-out) as a new slot.
+5. **The phone does not fly.** The bench check (the shakedown needs no world) is shown, and the plaque reads "not yet
+   flown".
+
+**ONE TRUNK** (the user's ruling, a warning to maintenance: "the mobile experience has to derive entirely from the
+desktop trunk, automatically at each release"; doc §6).
+- The same index.html, build and deploy; no mobile page, bundle or branch.
+- The phone is a subtract-only PROFILE (a table beside GFX.PRESETS) over the same rows, part table, design tiles and
+  editor pipeline.
+- No device branches outside welcome.js.
+- **GATE MOBILE** (node) in the release battery checks:
+  - the phone profile boots the five validated builds with 0 errors and no world;
+  - the same resolved-spec hash as the desktop;
+  - every desktop row is reachable in the touch renderer;
+  - GATE INSTANT is exact through the touch renderer;
+  - the share link round-trips;
+  - the studio's heap, bytes and frame are ratcheted;
+  - no UA / width tests outside welcome.js and the profile table.
+
+**THE PLAN** (G-blocks suggested, A0 assigns): M3 ROW-MODEL inside the revamp (first) → M1 GARAGE-MODE (+ the
+PROFILES table and GATE MOBILE's skeleton) → M5 SHARE → M2 PHONE-STUDIO → M4 TOUCH-UI → M7 PWA → M6 PHONE-SOAK (+ an iPhone).
+
+**FOR A0 ON THE BOX:** `node tools/perf/mobile_phone_cdp.js --url "http://localhost:8700/flyDiy/index.html?gfx=potato"
+--build cub` (after `adb reverse tcp:8700 tcp:8700`). It measures boot (the heap per step, Chrome's PSS, a kill caught
+with its step), drag (handler and drawn), frames (rest, orbit) and a 10-min soak (fps, battery / HAL temperatures).
+Smoke-tested on desktop headless Chromium only; every phone number is the box's. Today's game will likely die in the
+world on the phone: that row is M1's baseline.
+
+**FOUND ON THE WAY:**
+- Today's editor at 412 px shows its columns and no 3D view at all (`swift_today_editor_at_412px.jpg`).
+- The cage rows' releases (paxLen, halfW) are still whole builds at 1.1-2.7 s in node: the phone's worst feel, and
+  RELEASE-FAST's next target.
+
+## DEFORM-AND-BREAK - THE DESIGN FOR DEFORMATION, FAILURE, CRASHES, FIRE AND THE REPAIR BILL IS ON PAPER (2026-10-04, DESIGN session for A0, cloud, doc only; branch ccr-435c971f-h3rnbe off train 30 = 44b7a38)
+
+FOR A0. Nothing in `src/` changed: one new file, `futureDesigns/DEFORM-AND-BREAK-2026-10-04.md` (commits 902d3a6, 5978f88),
+plus this entry. It is the "design doc first" that ROADMAP deferred item 5 (Deform and break) and DEBT-REGISTER §7
+asked for, and the P5g "structural failure" step of GAME-LAYER-2026-09-14.
+- WHAT IT IS: what BeamNG / Rigs of Rods learnt (RoR source, BeamNG's public Lua and JBeam docs, release history),
+  checked against 30_solver.js; the user's own crash study checked against NTSB/AAIB/BEA/ATSB/TSB reports, CFR Part 23
+  and NASA's 2015 Cessna 172 crash tests; the reference aircraft are the Cub, the 172, Robin/Jodel and the Beaver.
+  Built on HANDOVER's STRUCTURAL REALISM §C/§D and the costed rupture design (2026-08-10/11) and on TREE-HITBOX's open
+  "a crash is not modelled" call.
+- THE PLAN (§11): D0 instruments (1 session) -> D1 the beam loop (2) -> D2 certificate + gear calibration (2) ->
+  D3 clusters (1) -> D4 the visible wreck: skin breaking, debris, prop strike, clipping gate (2-3) -> D5 endings,
+  repair bill, fire (1-2) -> tuning the classics against the reports (~2). About 11-13 sessions, 2-3 trains; a thin
+  slice is 5-6. Every step is behind `params.damage` and additive (an unstamped beam behaves exactly as today); the
+  gates per step are in the table.
+- ASKED OF A0: (1) reserve a G-block (suggested: the next free hundred after SOUND's G1600-G1699; sessions DMG-*);
+  (2) place D0-D5 in the train order; (3) D1's perf gate is against G1332's 2.30 ms stock step.
+- RULINGS (§12): (bh) TAKEN by the user - damage is NOT carried between flights; a repair bill is computed from the
+  ledger's sections. Recommended: certificate-anchored failure (dm1), failure before deformation (dm2), a trunk at
+  speed is a crash fired from the structure (dm3), NaN renamed sim-diverged (dm4), prop strike first (dm5), the NASA
+  172 tests + §7.4 scenarios as the acceptance suite (dm7), fire by conditions (dm8). OWED to the user: whether the
+  bench's test to destruction costs the airframe (dm6), whether the repair bill is charged to the wallet (dm9).
+- CAVEATS: the proxy blocked BeamNG's sites and every NTSB/NASA/CFR PDF - all external figures are search summaries,
+  tagged in the doc; open the named NASA TMs and CFR sections on the box before a number becomes a gate. Copyright
+  (§13): no code was copied; never paste RoR (GPLv3) or BeamNG Lua (bCDDL) into `src/`; BEA reports are non-commercial
+  only. The repository has no LICENSE file (the user's call).
+
+## DEFORM-AND-BREAK x TREE-CRASH - THE DESIGN RE-BASED, G1800-G1899, THE USER'S RULINGS ON THE BENCH AND THE BILL (2026-10-04, DESIGN session for A0, doc only; branch ccr-435c971f-h3rnbe)
+
+FOR A0, answering A0's two messages. `futureDesigns/DEFORM-AND-BREAK-2026-10-04.md`:
+- **§4.0 (new): TREE-CRASH is the base.** A table of what G1470-G1479 already lands against what each DMG step adds:
+  - landed: materials, return mapping with hardening, kink, breaks, trunk bending, prop seize, `crashed`, armed
+    compare, `damageProbe` census;
+  - DMG adds: Euler `Fc`; a kink floor (a kinked member keeps compression-only so nodes cannot pass through); seams,
+    fittings and bonds; break groups; the strip component test in place of the any-break kill; refs-core; SUPPORT
+    beams; per-beam work.
+  - §4.1-§4.2 are now read as deltas. The first draft's per-substep rate limit is dropped: the return mapping's
+    hardening and the etu / ecu travel caps do that job.
+- **§11 in A0's order:** train 32 TREE-CRASH (damage off) -> D0 -> D1 reconcile and extend -> D2 calibration, damage ON
+  (train 35) -> D3 -> D4 -> D5. G-blocks G1800-G1899, sliced per step. About 10-12 sessions after TREE-CRASH; the thin
+  slice is 3-4.
+- **§12 rulings written in:**
+  - (dm6) the bench's test to destruction is FREE;
+  - (dm9) the repair bill is charged only on an explicit garage Repair; until then the aeroplane is DAMAGED in the
+    garage. This is a garage state, not per-beam damage, so (bh) holds.
+- **ASKED OF A0 (dm10): grounded until repaired (a, recommended) or pay at launch (b)?**
+  - (a) reads closer to the user's "explicitly repairs", keeps the wreck visible with its bill, fits the fleet game,
+    and gives a write-off a home (Scrap / Sell only).
+  - If (a): may a damaged aeroplane be edited (proposed: yes, and a rebuilt section is billed at build price instead
+    of its repair line)? What does the garage draw (proposed: the pristine model, a DAMAGED tag and the bill, and the
+    wreck's last frame as a logbook still)?
+
+## DEFORM COORDINATOR - THE DAMAGE MODEL'S INTEGRATION BRANCH, THE PLAN AS SESSIONS, THE USER'S FINAL RULINGS (2026-10-04, local, branch claude/dmg-integration)
+
+A sub-coordinator under A0, as the Sound Coordinator is for sound. Scope: deformation, structural failure, crashes,
+fire, the repair bill (`futureDesigns/DEFORM-AND-BREAK-2026-10-04.md`).
+- **The branch:** `claude/dmg-integration` off master (train 30), carrying the design session's four doc commits
+  (902d3a6, 5978f88, 18bc13d, 354925e; doc + HANDOVER only) and this fourth pass. Every `claude/dmg-*` worker
+  branch merges here; A0 gets one frozen, rebased SHA per train.
+- **§12, the user's rulings, final:** dm10 a damaged aeroplane is GROUNDED UNTIL REPAIRED (a write-off: Scrap / Sell,
+  no Repair); dm11 it may be edited, a rebuilt section billed at its build price instead of its repair line; dm12 the
+  garage draws the pristine model + DAMAGED tag + the bill + the wreck's last frame as a logbook still (no per-beam
+  state stored). With bh, dm6, dm9.
+- **§11.1, the sessions:** D0 INSTRUMENTS G1800-G1809 and D1a MEMBERS G1810-G1819 now, in parallel, cloud, off
+  TREE-CRASH; D1b WRECK INTEGRITY G1820-G1829 (train 34 = D0 + D1a + D1b); D2a CERTIFICATE G1830-G1834, D2b GEAR
+  G1835-G1839, D3 CLUSTERS G1840-G1849 (train 35, damage ON); D4a SKIN G1850-G1859 (cloud) and D4b WRECK DRAWN
+  G1860-G1869 [LOCAL-GPU] (train 36); D5 ENDINGS / BILL / FIRE G1870-G1889 and TUNE G1890-G1897 (train 37);
+  G1898-G1899 the coordinator's own.
+- **§11.2, every step's acceptance:** damage off = master's bytes; the stock step within 2 % of G1332's 2.30 ms with
+  nothing touching (checks only inside `armFrame`'s armed path); normal operations never yield (TREECRASH's margins);
+  **the WATER CASE** (pancake, 100 km/h ditch, float nose-in - GEAR-WATER 2 needs nothing more); **GATE DMGFPS**
+  (the physics dt is fixed at 1/60, so 2 / 5 / 10 / 30 fps change the batching only: verdict, broken list and work
+  equal the 60 fps run); validated builds only (the user's Cub file, not 'default'; the Beaver rows run on the
+  Cessna on floats and the Cub / Jodel).
+- **§11.4, the switch:** proposed to A0 for train 32 - one constant `GEN_DAMAGE_DEFAULT = false` beside `GEN_CRASH`,
+  `DMG_ON = (P_.damage ?? GEN_DAMAGE_DEFAULT) === true && ...`, the damage gates set `damage: true` explicitly,
+  `?damage=1|0` on the page; train 35 flips the one constant.
+
+## G1470-G1479 - TREE-CRASH: THE AIRFRAME YIELDS, BENDS ROUND A TRUNK AND BREAKS; THE CRASH ENDS THE FLIGHT (2026-10-04, TREE-CRASH for A0, cloud, node only; branch claude/tree-crash-g1470 off train 30 = a1ffcf5b; G1479 unused)
+
+The user (2026-10-04): "The crash should be as realistic as possible. No soft body for trunks now, but I hope the nodes and
+beam mesh from the plane can deform." Before this, every beam was a pure spring. A trunk stopped the aeroplane and the elastic airframe
+sprang it back: at 30 m/s it went 10.6-11.2 m back (the Cub, the metal Cessna; reports/evidence/TREE-CRASH/trajectories.svg, blue).
+
+### G1470 - THE MATERIALS (60_gen_spec.js GEN_CRASH, 61_gen_frame.js bm.A / bm.mat)
+- **Judged on FORCE, not on the spring's strain.** A beam's k is a calibrated lattice spring: the tube row's fuselage is ~50x under the E A / L
+  of the tube it names. So the sim's elastic strain is not the metal's. Its FORCE is: the load test already used this proxy ("failure is a force threshold").
+  - A member yields at sigY x A. A is its billed section (lin / rho at its gauge, the aft taper and the box webs included).
+  - **But never under its CLASS's section** (lin / rho, the load test's own allowable). Measured: on the metal Cessna, a member's own billed area put a
+    wing member at 133 % of yield at 3.8 g. Its skin carries the rest, and the lattice bills the skin under `cover`, not `lin`.
+- After yield, what happens is GEOMETRY, and that is real metres. So the ultimate is an ELONGATION:
+  - tension hardens linearly from ty to tu over the uniform elongation etu, and breaks there;
+  - compression is perfectly plastic at cy until the member has kinked (ecu 3 %), and breaks there.
+- Sources (handbook class values, as GEN_MATERIALS.phys):
+
+  | row | ty / tu (MPa) | etu | cy (MPa) | ecu | fold (rad) | source |
+  |---|---|---|---|---|---|---|
+  | 4130 tube (tubeFabric) | 460 / 583 | 8 % | 460 | 3 % | 1.2 | MIL-HDBK-5J 2.3.1.0(b): Ftu 95 / Fty 75 ksi, e 10-12 % |
+  | spruce (wood; the Cub's and Jodel's wing spars) | 70 / 70 (brittle) | 0 | 39 | 3 % | 0.12 | USDA Wood Handbook FPL-GTR-190 Table 5-3a (MOR 70, crush 38.7 MPa) |
+  | 2024-T3 (alloy) | 345 / 470 | 10 % | 345 | 3 % | 0.8 | MIL-HDBK-5J 3.2.3.0(b): Ftu 64 / Fty 47 ksi, e 15 % |
+  | 6061-T6 (aluTube) | 276 / 331 | 6 % | 276 | 3 % | 0.8 | MIL-HDBK-5J 3.6.2.0(b): 42 / 35 ksi, e 10 % |
+  | carbon UD | 1500, brittle | 0 | 1500 | 0 | 0.05 | GEN_MATERIALS.carbon (no yield) |
+  | fabric covering | 80 lb/in, ~15-20 % | | | | | AC 43.13-1B Table 2-1. NOT A MEMBER (cover is mass), reported only |
+
+### G1471 - THE SOLVER (30_solver.js)
+- **AXIAL.** In a frame ARMED (armFrame, G1477), per beam per substep: `Fs = k (L - L0)`, then `if (Fs > FY[bi] || -Fs > FC[bi]) beamYield(...)` (the caps in
+  typed arrays). Past its yield the member moves its rest length (a return mapping, bilinear hardening), so the set stays and its work is spent.
+- **BENT SIDEWAYS (the trunk).** A lattice beam is an axial spring, and a trunk pushes it at a POINT along it, which it could not feel. All of a low-speed impact
+  went into the elastic lattice. Measured with only the axial yield: an 8 m/s taxi into a trunk rolled back 16 m; nothing yielded.
+  - The contact's push is now capped at the member's plastic collapse load P_c = M_p / (L t (1 - t)), with t held to 0.1..0.9 so a node-on hit loads the
+    members round the node.
+    - M_p = ty x Z_p of a thin tube of its own A with D / wall = 30 (GEN_CRASH_TUBE_DT). A 0.7 m 4130 fuselage tube hit mid-span gives 1.6 kN; a
+      Cub spruce spar member 13 kN.
+  - Past P_c the member bends round the trunk. The bend's depth dk is permanent, and the work P_c x the depth is gone. Its chord then carries no more than
+    M_p / dk: it pulls straight or folds on at that force.
+  - It tears at the material's fold angle (the two arms' rotations).
+  - A bent member keeps the side it was hit from. It wraps the trunk; it is not pushed out the far side.
+- **A BREAK:** k and c go to 0 (reset() restores them). Also:
+  - an aero strip that member ran through stops flying (a torn wing piece was whipped to 70 m/s by its own lift);
+  - a shape-matched cluster it was inside lets go (a set inside one re-takes the cluster's rest);
+  - a node with every member broken is DEBRIS: gravity and the ground only, and it still meets the trunks as a point. The torn-off engine stays at the tree.
+- **A PROP STRIKE:** a trunk inside the disc (D about each engine's thrust nodes, -0.2..+1 m along the thrust line), or the nose ring / engine nodes on the
+  ground, stops that engine for good (eng.seized; setEngine cannot restart it; reset() clears it).
+- **THE CRASH** (sim.damage().crashed, with `reason` and `at`):
+  - a member other than the NOSE's breaks (the nose is a fuselage member with both ends ahead of the firewall; it crushing round a trunk at taxi speed
+    is a dent);
+  - or the contacts' push (ground, trunks, obstacles: their impulse over the weight, filtered over 50 ms) passes 9 g (FAR 23.561's forward ultimate);
+  - or 1.5 kJ of plastic work.
+  - Under all three a set is a DENT (`dented`). `over` comes once the wreck is at rest (CG under 1 m/s) or 4 s after.
+  - The contact g, not the CG's change of speed: a velocity set from outside (a placement, an air start) is no impact.
+- **`params.damage === false`** turns all of it off. Then a trunk run flies master's bits exactly (hashed: Cub flown and metal taxied, 0f02a8ab / f4a3572c,
+  both cores). A hand fiche (no bm.A) has no limits.
+- `sim.damage()`: yields, members set, dents, breaks + `broken` (beam indices), plastic work (J), the largest set, peak g, the prop strike, crashed / over / reason.
+- `params.damageProbe` (the gate's and the evidence's): nothing yields; every member's peak force over its yield, per substep (`sim.damagePeak()`).
+
+### G1472 - THE LOAD TEST'S BAGS PRESS EVERY SUBSTEP (65_gen_loadtest.js)
+- The bags were one impulse a FRAME, then SUB substeps free. The true metal box's kilohertz modes rang at 2x the static force between frames: the metal
+  Cessna's lift strut read 106 % of its yield at the substep peak and 52 % at the frame's end, the static answer. The Cub's read 3x.
+- Harmless while nothing read a substep's force; the damage model does. The same impulse a frame is now spread over its substeps.
+- **And it was not only the substep peak: the SETTLED answer was wrong too.** The kick a frame, half bled by the rig's per-frame `relax`, carried a
+  load that depended on how stiff and light the surface was. Checked against an independent static solve (the same pins and bags as a constant force
+  every substep, heavy damping instead of the bleed, 20 s; the generic stock build's stab):
+
+  | stab at 5.7 g (% of semispan) | the old rig | the new rig | the static solve |
+  |---|---|---|---|
+  | carbon | 0.525 | 1.925 | 1.925 |
+  | tube + fabric | 5.35 | 6.06 | 6.065 |
+  | alloy | 3.67 | 3.14 | 3.135 |
+
+  - The new rig is the static answer, and independent of the ramp (3 s or 12 s, the same to 3 decimals).
+  - The stock strut wing's stations also read monotonic now: 0 / 0.15 / 0.47 / 0.68 % at 3.8 g. The old 0 / -0.27 / 0.33 / 0.63 had an inner station
+    BELOW the root.
+- **G1472.1: a SLACK wire carries nothing** (the solver's own rule) and the rig read it as k x its slack. The wired biplane's "wire at 200 % of yield" was a
+  loose wire. It now reads 121 %: that wire really yields at 5.7 g on the generic biplane (4 wires set 0.7 %; a generic row, not a validated build).
+
+### G1473 - THE GAME: the crash ends the flight (app.js, sim_host / sim_link / sim_view)
+- Next to the divergence check: when `sim.damage().over` (inline) or the worker's new snapshot flag F_CRASHED = 32, the flight calls `endFlight('crashed')`.
+  `phName` reads "CRASHED: <why> - RESET".
+- The card shows the tag "crashed"; the logbook gets its row. The worker's meta carries `dmg` (the reason), read by `FLIGHT_PROBE.damage()`.
+- No other new UI.
+
+### G1474 - THE DRAWING
+- **The gen skin already deforms with the nodes.** poseSkinGen: pos = base + sum w (live node - rest node), up to 8 nodes a vertex, posed every frame for
+  the live model, the flown bake and the hybrid alike (their positions are views on one buffer, G1170). So a bent wing, a crushed nose and a folded leg draw
+  as the nodes lie. Nothing new was built.
+- **A BROKEN-OFF PART is not hidden.** A vertex weighted to nodes on both sides of a break stretches between the pieces.
+  - Hiding needs the broken members on the page (only the reason crosses the worker today), plus a per-vertex test in poseSkinGen: collapse a vertex whose
+    influence nodes have parted.
+  - That is a change to the per-frame skin path for every vertex. It was NOT built (the brief: no new skinning without A0). A0's call; ~a session.
+
+### G1475 - GATE TREECRASH (tools/_treecrash_check.js, run_gates core, weight 3, ~8 min on 4 cores)
+The five validated builds: the user's Cub (builds/cub_2026-09-20_corrected.json), the Jodel, the metal Cessna, the Cessna on floats, the twin on floats.
+Nothing yields in what each was built for. The margin is the worst member's peak force over its yield, under the probe (per substep: a peak under 1 is a
+run in which nothing would have yielded):
+
+| build | load test 3.8 g / 5.7 g | flown pull (to) | drop FAR 23.473 / 10 ft/s | a circuit |
+|---|---|---|---|---|
+| the user's Cub | 0.19 / 0.28 (wing) | 0.41 (3.99 g) | 0.13 / 0.18 | 0.12 (completed, 335 s) |
+| Jodel | 0.34 / 0.50 (wing) | 0.38 (4.69 g) | 0.16 / 0.21 | 0.10 (the 340 s cap reached, the circuit unfinished) |
+| metal Cessna | 0.45 / 0.66 (wing) | 0.49 (5.25 g) | 0.15 / 0.19 | 0.18 (completed, 271 s) |
+| Cessna floats | 0.56 / 0.82 (wing) | 0.73 (5.23 g) | 0.16 / 0.21 | 0.19 (the 340 s cap reached, the circuit unfinished) |
+| twin floats | 0.19 / 0.28 (wing) | 0.52 (4.95 g) | 0.14 / 0.21 | 0.18 (completed, 292 s) |
+
+Against a trunk (the land builds):
+- **Taxied at 3 m/s, the throttle shut, on the centreline:** a dent (Cub 9 members set, 705 J; Jodel 9, 1097 J; Cessna 7, 758 J), no crash. The prop struck and
+  the engine stopped. Back 1.27 / 0.20 / 1.43 m from where it stopped (it sprang back 2.89 / - / 3.61 m before).
+- **A wingtip at walking pace (1.4 m/s, the throttle shut at the touch):** touched, nothing set, no crash. The aeroplane pivots round the trunk.
+  - The spar's collapse load (13 kN on the Cub) is not reached. The leading-edge skin that would really dent is mass in the model, not a member.
+- **Flown at 30 m/s, 4 m AGL, the centreline:** CRASHED in 1.30-1.32 s.
+  - Cub 84 members broken, 8 of the wing, 105 kJ, 16 g.
+  - Jodel 63, 14 of the wing, 118 kJ, 20 g.
+  - Cessna 112, 8 of the wing, 109 kJ, 25 g.
+- **The wing 2.5 m out:** CRASHED, "a wing member broke".
+  - Cub 8 of the wing, Jodel 7, Cessna 22. The outer wing tears off and the aeroplane goes on past the tree (topdown_wing30.svg).
+- **Every number finite.** The mechanical energy never rose above the impact's (100.0 %). Torn pieces whip, but nothing gains energy.
+- **reset() heals:** after a crash, the same taxi flies the fresh sim's bits.
+
+### G1476 - THE EVIDENCE (reports/evidence/TREE-CRASH/, `node tools/treecrash_evidence.js`)
+- `trajectories.svg`: the CG along the track, before (damage false = master's bits) and now. The springback is the line falling after its peak:
+
+  | case | Cub before / now (m back) | metal Cessna before / now |
+  |---|---|---|
+  | 3 m/s taxi, the throttle shut | 2.89 / 1.27 | 3.61 / 1.43 |
+  | GATE TREEHIT's taxi (full power, then a third) | 4.76 / 1.05 | 6.50 / 3.98 |
+  | 30 m/s, the centreline | 10.55 / 0.06 | 11.22 / 0.19 |
+
+- `damage_time.svg`: the members set and broken against time, the 30 m/s flights.
+- `topdown_<case>.svg`: the beams from above. Before and now at impact + 0.6 s, and now at the end, centred on the wreck. Bent members yellow, broken red.
+- `runs.json`: every run's numbers. `gate_treecrash.txt`: the gate's output.
+- `tools/tree_crash_shots.js`: **FOR A0's BOX (UNTESTED here: no GPU)**. It boots Jolene, rolls out, puts a trunk on world.treeHits ahead of the aeroplane
+  (fly / wing / taxi), places the aeroplane through FLIGHT_PROBE.place, runs to the crash card, and shoots the wreck at four azimuths.
+  - `node tools/_serve.js 8125 & node tools/tree_crash_shots.js --url http://localhost:8125/flyDiy/dev.html?world=jolene --gl gpu`
+
+### G1477 - PERFORMANCE (node, sim.step(1/60), nothing touching; a 4000-trunk set registered far away)
+| case | master (ms) | now (ms) | |
+|---|---|---|---|
+| the Cub, ground | 3.479 | 3.588 | +3.1 % |
+| the Cub, air | 3.434 | 3.360 | -2.2 % |
+| the metal Cessna, ground | 6.249 | 6.208 | -0.7 % |
+| the metal Cessna, air | 5.822 | 5.847 | +0.4 % |
+- The median of 5 processes' medians, 600 steps each (`tools/treecrash_evidence.js --perf-only --perf-base <master's core>`).
+- **First cut: +4-8 %** (the yield's compare every substep). Bisected: the compare alone. Now ARMED A FRAME AT A TIME (armFrame): measured never armed on
+  the ground or in the air with nothing near (600 frames each, the Cub and the Cessna).
+- The rest is the machine's noise. The paired Cub-ground series reads +2.5 % mean (3 of 8 pairs negative); the stock bench x6 reads master 3.69 / now 3.51.
+- The cost left with nothing touching: one pass over the beams a frame (~3 us, 0.1 %).
+- In contact: the compare every substep (as measured before arming, +4-8 % while armed), the pair loop's collapse cap, and the debris points (bounded:
+  512 trunks, 8192 pairs, as G1332).
+
+### G1478 - THE BATTERY
+**The physics gates, byte for byte against master** (node, each gate's whole output, master's worktree a1ffcf5b against this branch, GATES_CORE=1):
+- **The same bytes (27):** SOAR, PILOT, GEN, HONEST, AERO, HOTHIGH, FLEX, FLAPS, GE, STRESS, NAV, TAXICLEAR, LINEUP, PLAN, DEFAULT, WEIGHT, DRAG,
+  MASS, GEAR, STRUT, SITE, FLOATS, SEAPLANE, ENERGY, MOUNT, SUBSTEP, PACE.
+- **Only timings / a temp file's name differ:** FLIGHTREC, PILOTACT, STRIPSURF, TAKEOFF, SETTLE, HYDRODYN (the water's ms ratio).
+- **SIMWORKER:** every step's FNV(p, v) equal (the stock f2b3de3f, the Cessna cbccf99f, as master); the real-time half (steps in the freeze, snapshots
+  taken) differs by the clock, and the host's log replays all of its snapshots to the bit, as master.
+- **HITBOX:** its three "cooked stands the same shape" checks print `--` (84/84 against 87/87). The parked cook's signature carries the build id, so ANY
+  source change leaves it stale and the page captures live, as on every branch. **A0's train re-cooks the parked aeroplanes (GPU), as every train.**
+- **Explained:**
+  - **LOAD:** the bags press every substep and a slack wire reads zero (G1472, G1472.1). Every row's deflection moves to the static answer:
+    - mostly under 10 %; the carbon stab 0.53 -> 1.92 %, verified;
+    - "% of yield" at 5.7 g moves: the tube strut 56 -> 37 %, the alloy strut 93 -> 29 %, the wood cantilever 100 -> 99 %, the aluTube cantilever
+      127 -> 106 %, the tube biplane's wire 200 -> 121 % (it yields there);
+    - every case linear, GATE LOAD PASS.
+    - The generic rows the rig already called "over yield" at 5.7 g (above the 3.8 g limit, which FAR 23 allows) may now take a set in the rig; no
+      validated build does (GATE TREECRASH).
+  - **BENCH:** the worker's rig = the rig, same verdict (HELD); the tip 0.952 -> 1.022 % (the same bags, pressed every substep).
+  - **BIPLANE's wire probe:** it shortens a wire on purpose, and the wire now yields: 9.11 -> 4.86 N; PASS.
+  - **OBSTACLE:** a wall at ~8 m/s yields 11 members; the bent nose settles onto the ground (a prop strike) and it still rocks at 0.87 m/s when the gate
+    reads it (0.30 before; the bound is 1.5); PASS. The 5 m bounce off a wall is master's too: walls do not bend members (only trunks do).
+  - **TREEHIT:** across the span the trunk now holds the aeroplane OR breaks the wing on it (the 2.5 m case: 3 wing members, a crash, the CG to 71 m). The
+    check is re-stated (G1477); 17/17.
+
+**THE FULL CORE BATTERY** (`node tools/run_gates.js`, cloud, 4 jobs, 70 min wall): **137 PASS, 4 FAIL - none of them this work's; A0's train clears them:**
+- **FRAMECOST (24 rows red at the stand / taxi: draws, uniforms):** the STALE PARKED COOK, the gate's own HINT.
+  - `parked_cook.js --check`: the manifest's build f5cd36be against this tree's a1fa71f3, so every parked key (arch:c172 / cub / jodel) is captured live.
+  - Any source change does it; train 30 met the same.
+  - **The train re-cooks the parked aeroplanes on its final build (GPU); FRAMECOST to re-read after that.**
+- **WORLD, BIOME, SETTLE:** their wall-clock budgets (terrainH 2.98 us against 2.5, the surface 8.4 us against 5, the settlements' bake) ran under
+  TANKMOUNT / HYDRODYN / FRAMECOST in the same minute.
+  - Alone, at once after: WORLD PASS (1.36 us), BIOME PASS (4.0 us), SETTLE PASS (331 ms).
+  - Nothing here touches the terrain, the biomes or the settlements.
+- In the battery: TREECRASH PASS (516 s), TREEHIT PASS, LOAD PASS, FLEX PASS, GEN PASS, PILOT PASS, SIMWORKER PASS, BIPLANE PASS, OBSTACLE PASS, BENCH PASS, HITBOX PASS.
+- After the battery, G1472.1 (the slack wire, the last source change): LOAD PASS, BENCH PASS, FLEX PASS (its output byte for byte master's).
+- **The generated outputs (flight_core.js, index.html, dev.html, sw.js, version.json) are NOT committed** (SHARED-TREE-PRACTICES 5): the train's build makes them.
+
+### Open questions (A0 / the user)
+- **TREEHIT's numbers moved** (explained above): a trunk now crushes and stops the aeroplane closer, and a prop strike stops the engine.
+- **A broken-off part stays drawn**, stretched between the pieces (G1474): a skinning follow-up.
+- **Only trunks bend members sideways.** The ground, houses and obstacles push nodes as before. A crash INTO THE GROUND yields only through the axial members
+  and is judged by the contact g (9 g) and the breaks. A belly-slide's skin is not crushed.
+- **Strength is per member, not per joint:** the welded / riveted clusters, the prop, the spinner and the cowl skin are not members. The nose's
+  first-contact crush stands in for them (its members ARE crushable and do not count as a crash).
+- **The thresholds (9 g, 1.5 kJ, the 3 % kink, D / wall 30) are physical anchors, not fitted.** A 5 m/s (10 kt) taxi into a trunk is a crash (1.5-2 kJ).
+  If that reads harsh in play, CRASH_J is the knob.
+- **The floats' water landings and a crash ON the water** are not part of this: hydro forces do not count in the contact g.
+
+## G1810-G1819 DMG-D1a MEMBERS - THE MEMBERS' OWN LIMITS ON TREE-CRASH'S LOOP: SEAMS, BREAK GROUPS, EULER, THE KINK FLOOR, SPRUCE'S RAGGED BREAK, THE BREAK ORDER (2026-10-04, DMG-D1a for the DEFORM COORDINATOR, cloud, node only; branch claude/dmg-d1a-members off claude/dmg-switch-g1898 = 4ca0678c; G1818-G1819 unused)
+
+DEFORM-AND-BREAK §4.0 / §4.1 / §4.4 / §7.1 / §7.2 / §11.1 (DMG-D1a). TREE-CRASH's loop extended, not rebuilt: everything is stamped once (the generator's
+`B()`, then `makeSim`'s per-member caps beside TREE-CRASH's), everything per substep is inside TREE-CRASH's armed path, and **all of it is behind
+`params.damage`** (off by default, G1898): with the layer off no limit is stamped and the bytes are the base's (the battery below).
+
+### G1810 - THE SEAMS (61_gen_frame.js, B())
+- Every member carries `bm.seam` (null / `fitting` / `rivet` / `bond` / `opening`) and `bm.grp` (its break group, -1 none): one shape for every beam.
+- **The part of a node is read off its tag** (the generator's own vocabulary): the body (`S<i>[BT][LR]`, TPB/TPT, the nose tank's VSN), a wing half
+  (WF/WR/WB, per plane and side), a boom (BM*), the stab (HF/HR/HB/HT*), the fin (VF/VR/VX/FIN*), an engine (ENG/CGE/MNT; a wing pair per side), a main
+  gear leg (AXLE L/R), the third wheel (TW), a float (FLK/FLD).
+- **A member joining two parts IS the joint** (the lattice has no separate bolt): a `fitting`, in the group of the part that comes off (the child: the
+  higher rank of body < wing < boom < stab/fin < engine < gear/float). The wing's joint is its ROOT (the wing end on the root rib) or its STRUT (the
+  strut, the fan, the boxed outer's lower chord); a biplane's planes join at the INTERPLANE truss. So: wing root pins, strut pins (both ends: the strut
+  member is both), tail attach (stab and fin root members, the stab's wires), gear attach (legs, braces, the snap-blockers), engine mount (the
+  bearer's members to the firewall or the wing; the engine's CG locators), float struts.
+- **Rivet lines** (an alloy monocoque): the cabin-to-tailcone joint (the frame at the box's rear and the bay behind it - its longerons are the
+  splices) and the tailcone's skin panels (the bay diagonals aft of it). A carbon or ply fuselage's joint is a `bond`; a welded / bolted truss (4130,
+  6061 tube) has neither.
+- **Glue lines** (`bond`): a wood or composite surface's ribs (the members of one station: rib gussets, the root rib) and its box webs (`opt.web`:
+  the ply or laminate on the spar caps); the tail's sections likewise.
+- **Openings** (a covered cabin with glazing): the windscreen frame (ring 0 to 1, the top), the cabin's side bays' diagonals (the door, the
+  windows) and the doorposts (the posts at the cabin's front and rear rings).
+- On the validated builds:
+
+  | build | fitting | rivet | bond | opening | groups |
+  |---|---|---|---|---|---|
+  | the user's Cub | 100 | - | 8 (wing ribs) | 10 | 10: mount, wing root L/R, strut L/R, stab, fin, main gear L/R, tailwheel |
+  | Jodel | 92 | - | 165 (108 wing, 43 tail, 14 the cabin-tailcone joint) | 10 | 8 (cantilever: no strut groups) |
+  | metal Cessna | 100 | 32 | - | 10 | 10 |
+  | Cessna floats | 102 | 32 | - | 10 | 9 (floats L/R in place of the gear) |
+  | twin floatplane | 116 | - | 8 | - (open frame, no glazing) | 10 (two engine mounts on the wings) |
+
+### G1815 - THE BREAK GROUPS (61_gen_frame.js parts.dmg, 30_solver.js)
+- `parts.dmg.groups`: per group its key (`<part>:<joint>`), the members that break it (type 0: `bm.grp`) and the members it takes along (type 1).
+- **A pair's own link is type 1 in both sides' groups**: the wing carry-through (the half-wing does not hang on by it once its root has gone),
+  the main gear's axle bar, the floats' spreader bars. It breaks no group itself.
+- In the solver (`beamBreak`): a member breaking breaks its group once, whole (`DMG.groups`: key, seam, the member, t).
+- **THE CLOSED-SET ASSERTION** (the generator's, `parts.dmg.issues`; BeamNG's leak warning, §4.4): every group has a member that breaks it; a member it
+  takes along breaks no other group and sits in at most its pair's two groups; every member that breaks it has an end on its part; every member
+  joining two parts is in a group. **Clean on every build and fixture in the repo** (the 9 builds/, the 12 tools/fixtures/build_*, both bugReports
+  Cessnas, the twin boom, the pusher) and on GATE BIPLANE's biplane, sesquiplane, I-strut and parasol.
+- **And in the solver** (GATE DMGMEMBERS): one member of each group broken breaks exactly its group (its type 1 links included) and nothing else;
+  a link broken alone breaks nothing else. 47 groups, 37 links on the five builds.
+
+### G1812 - EULER (30_solver.js, the caps)
+- `Fc = min(cy A, pi^2 E I / L^2)`, pinned, E the material's (GEN_MATERIALS phys), I a thin tube's of the member's own A at D / wall = 30
+  (GEN_CRASH_TUBE_DT: I = A D^2 / 8, D^2 = 30 A / pi). The reference 0.7 m 1" x 0.035" 4130 tube: **0.73** of its crush force (§4.0 "~0.7").
+- **Only on the members that are tubes:** the welded / bolted truss of a tube row (tubeFabric, aluTube: the lattice's fuselage members are its
+  longerons, posts and diagonals), the engine bearer (4130 on every aeroplane), cabane and interplane struts. **Measured, and not stamped, elsewhere:**
+
+  | members | what a thin tube of their A reads, under Euler | why not |
+  |---|---|---|
+  | the tail truss's root members (1.3-1.6 m) | 1.8-7 x Euler in a FAR 23.473 drop (Cub, Cessnas, twin) | stand-ins for the stab's attach, not 1.4 m tubes |
+  | the strut fan's hidden members (to 5.8 m) | 1.8-2.7 x in the drops | the lumped stand-in for a spar box (G140) |
+  | the monocoque's members (alloy, ply) | - | a skin-stringer panel, not a tube; crumpling is §6.4's "can wait years" |
+  | **the drawn lift struts** (2.6-4 m, 79-204 mm2) | the Cessnas' 5.6-6.8 x at +5.7 g on the bench; **kinked at 2.7 g in a flown pull**; the twin 1.54 x in the 10 ft/s drop | see below |
+  | the gear | - | its limits are the gear bracket's (DMG-D2b): a leg is a spring standing for a whole leg |
+
+- **The drawn lift struts work in COMPRESSION at positive g in the lattice.** The metal Cessna's two drawn members: -21 / -28 kN at +5.7 g on the bench
+  (linear with the bags), -15 / -21 kN in a flown 5.25 g pull; the Cub's front strut 1.2 kN at 4 g. The boxed outer panel's upper caps push the crank's
+  upper nodes inboard and the hidden lower chord (`strutRoot -> WB`) carries the tension (G140: "the strut is the lower chord"). A real strut is in
+  tension there. Its compression case (negative g, the jury strut, a streamline section's I) is the certificate's, DMG-D2.
+- The table (Fc / (cy A): the smallest, the median; members capped):
+
+  | build | class (tube) | n | L (m) | smallest (its L) | median | capped |
+  |---|---|---|---|---|---|---|
+  | the user's Cub | fus tubeFabric (truss + bearer) | 131 | 0.10-1.72 | 0.13 (1.72) | 0.65 | 103 |
+  | Jodel | fus tubeFabric (the bearer) | 22 | 0.32-1.31 | 0.22 (1.31) | 0.38 | 17 |
+  | metal Cessna | fus tubeFabric (the bearer) | 22 | 0.15-1.57 | 0.16 (1.57) | 0.59 | 18 |
+  | Cessna floats | fus tubeFabric (the bearer) | 22 | 0.15-1.57 | 0.16 (1.57) | 0.59 | 18 |
+  | twin floatplane | fus tubeFabric (truss + bearers) | 146 | 0.07-1.72 | 0.13 (1.72) | 0.62 | 106 |
+
+  Every other class reads 1.00 (uncapped): the wing (wood, alloy, the steel struts), the tail, the gear, an alloy or ply fuselage.
+
+### G1811 - THE SEAM RULES (30_solver.js dmgMember, over the member's physics Fu = tu A)
+| seam | tension | compression | on the builds |
+|---|---|---|---|
+| fitting | brittle at **1.15 x Fu** (FAR 23.625's factor; DMG-D2's certificate replaces it): no set | the member's (Euler / crush, the 3 % kink) | 1.15 |
+| rivet | **0.7 x Fu**, yield at 0.9 of that (or the member's, lower), plastic travel **2 %** | the member's | 0.70, travel 2.0 % |
+| bond | brittle at **0.6-0.8 x Fu**, seeded per member (the glue's quality) | the member's | 0.60-0.80 |
+| opening | **Fu / Kt, Kt 1.5-2** seeded; yield at 0.9 of that, travel 2 % (a ductile metal; a brittle one breaks there) | the member's | 0.50-0.66 (spruce 0.48-0.74: its +-15 % on top) |
+
+- **The scatter is the build's own:** an FNV hash of the nodes as built and the member count, one draw per member and purpose; never Math.random
+  (two sims of a build stamp the same limits: GATE DMGMEMBERS).
+- Ranges from search summaries stay ranges (§1, §11.2 #7): the 0.7 joint efficiency, the 0.6-0.8 glue line, Kt 1.5-2 and the 2 % travel are the
+  doc's ranges, not certified numbers.
+
+### G1814 - SPRUCE'S RAGGED BREAK (30_solver.js beamYield)
+- A spruce member (wood, not a fitting or a glue line) in tension: its strength **+-15 %** (seeded: grain, knots), then **2 or 3 stages** (seeded,
+  about half each): it CRACKS to 60 % of its strength (the crack's own release is not pull-out), pulls out at that over RAG_SLIP = 0.5 % of its length,
+  (drops to 30 % and pulls out again,) then lets go. The work at each cap is spent.
+- Measured on the bench to destruction (per substep): **crack to gone 0.8-2.2 ms** (Cub 1.33-1.78, Jodel 0.81-1.89, twin 1.23-2.22); every member
+  that let go passed its 2 or 3 stages. `ragged.svg`: the Cub's member 162 (78.3 kN) - crack at its strength, 60 %, 30 %, gone in 1.78 ms.
+- On the builds: the Cub 28 spruce members (11 in 2 stages, 17 in 3), the Jodel 213 (94 / 119), the twin 28 (14 / 14); strength x 0.85-1.15.
+
+### G1813 - THE KINK FLOOR (30_solver.js)
+- A member that KINKED in compression (past ecu, `how: 'kink'`) breaks as before (k, c to 0, its group, its strips) but keeps a **compression-only floor
+  at its crushed length**: its old k and c, pushing only, below that length. In tension: nothing.
+- The list is walked after the beam loop and only while it has a member (one compare a substep otherwise). `reset()` clears it.
+- Measured: the 30 m/s trunk flights - the Cub 7 floors (centreline) and 6 (the wing 2.5 m out), the metal Cessna 1: at the end of the run every kinked
+  member's ends are at least 1.00 x its crushed length apart (the floor held; nothing passed through).
+
+### G1816 - THE BREAK ORDER (GATE DMGMEMBERS; reports/evidence/DMG-D1a/)
+**The bench to destruction** (the garage's rig, 65_gen_loadtest, damage on, the bags ramped at twice its own rate to 60 g):
+
+| build | first yield | the first member broken | the first GROUP | then |
+|---|---|---|---|---|
+| the user's Cub | 23.2 g | 28.2 g: the drawn front strut (fitting, tension) | wing0R:strut, 28.2 g | both struts' groups, the right root: 28 broken |
+| Jodel | 11.8 g (a glue line crushing) | **18.0 g: the carry-through's lower cap (spruce, no seam, ragged; a type-1 link of both root groups)** | wing0R:root, 18.3 g | both roots: 36 broken |
+| metal Cessna | 14.3 g | 14.2 g: the strut's lower chord (fitting, tension) | wing0R:strut, 14.2 g | both struts: 12 broken |
+| Cessna floats | 11.4 g | 11.3 g: the strut's lower chord (fitting, tension) | wing0R:strut, 11.3 g | both struts: 12 broken |
+| twin floatplane | 13.0 g (a bearer fitting crushing) | 28.0 g: the drawn front strut (fitting, tension) | wing0R:strut, 28.0 g | both struts, both engine mounts: 44 broken |
+
+- **The first GROUP is a fitting's on every build** (the strut on the strut-braced wings, the root on the Jodel's cantilever). **No ductile member
+  broke first under load anywhere.**
+- **REPORTED, NOT RETUNED (the Jodel):** its first member is the spruce carry-through's lower cap at 18.0 g, 0.3 g before its root fittings - not a
+  fitting or a glue line, as §7.2 asks of a cantilever wood wing. The lattice's spar caps carry ONE section root to tip (bm.A = the class's
+  lin / rho), so the member at the largest moment (the centreline) goes first; a real spar is sized for its root moment. The gate says which (the
+  REPORT line); DMG-D2's per-member envelope (§4.3 c) is what moves it.
+- **TREECRASH's trunk flights at 30 m/s:** the first group is a fitting's in every case that breaks one (the centreline: the engine mount on all three
+  land builds; the wing 2.5 m out: its strut group on the Cub and the Cessna; the Jodel's wing 2.5 m out breaks 7 wing members, the first a glue line,
+  and no group). The first MEMBER is the one the trunk folded (a fuselage tube at the nose; on the wing, the spar member the trunk hits) - the trunk's
+  own local mechanism, not a member broken by the airframe's load.
+
+### G1817 - GATE DMGMEMBERS (tools/_dmg_members_check.js; run_gates core, weight 3; ~70 s on 3 cores)
+78/78 checks on the five builds: the seams and groups; the closed sets (the generator's and the solver's); Euler (the reference tube, the table, tubes
+only); the seam rules; the scatter seeded; spruce (scatter, stages, the ms); **parked 10 s, damage on: nothing yields, nothing breaks, no frame
+armed once settled** (the floatplanes arm 39-43 frames while they settle onto the water - TREE-CRASH's own water arm, G1479); the break order (above);
+the kink floor. `sim.damageBreak(i)` (a gate's hook: break one member as a crash would) and `DMG.armedN` (the frames armed) are its instruments.
+
+### PERFORMANCE (§11.2 #2: node, sim.step(1/60), the layer ON, nothing touching, a 4000-trunk set far away)
+`node tools/treecrash_evidence.js --perf-only --perf-base <the base's core>` (the median of 5 processes' medians, 600 steps; the base = claude/dmg-switch-g1898
+4ca0678c built in a worktree, its own _treecrash_lib.js beside it). Two runs pooled (10 processes a side, their median):
+
+| case | base (ms) | now (ms) | |
+|---|---|---|---|
+| the Cub, ground | 2.714 | 2.710 | -0.1 % |
+| the Cub, air | 2.650 | 2.649 | -0.0 % |
+| the metal Cessna, ground | 4.648 | 4.716 | +1.4 % |
+| the metal Cessna, air | 4.528 | 4.605 | +1.7 % |
+
+- **The two runs alone read -0.8 / -0.1 / +3.2 / -1.9 % and +0.7 / 0.0 / -2.3 / +4.1 %**: this cloud box's process-to-process noise is +-4 %, larger than the
+  gate. Pooled, all four are inside 2 %. The metal Cessna in the air, 12 alternating base / now pairs: 4.596 / 4.551 ms, **-1.0 %**.
+- **Found and fixed on the way (G1813's last commit):** the floor loop written INSIDE substep (an empty `for` with no floor) cost the metal Cessna's
+  step ~2 % in the air (12 pairs: +2.4 %; base + only the two new beam fields: -0.4 %, so not the fields). Moved to its own function behind `if (nFlr)`.
+- **Never armed** with nothing touching: the Cub, the Jodel and both Cessnas, ground and air, 600 frames after 120 to settle - 0 frames armed
+  (DMG.armedN). So every per-substep check of this work (Euler's cap, the seams' caps, the ragged stages, the groups) runs only in TREE-CRASH's
+  armed path; what is left unarmed is the floor's one compare a substep.
+- In contact (armed): the caps are the same compare TREE-CRASH makes; a crack, a group or a floor is an event, not a per-substep cost.
+
+### NORMAL OPERATIONS NEVER YIELD (§11.2 #3: GATE TREECRASH's margins re-printed; base = 4ca0678c's own TREECRASH in the same battery)
+The worst member's peak force over its (now seam- and Euler-stamped) yield, per substep under the probe. **All under 1; the seam knockdowns pushed
+none towards it** (a glue line or an opening is never the worst member in normal operations; the fittings' 1.15 x Fu lowered the wing's margins).
+What moved them up is **Euler on the tube truss** (compression), reported here, not retuned:
+
+| build | bench 3.8 / 5.7 g | flown pull | drop FAR 23.473 / 10 ft/s | circuit |
+|---|---|---|---|---|
+| the user's Cub | 0.19 / 0.28 -> **0.17 / 0.25** | 0.41 -> **0.51** (fus, compression) | 0.13 / 0.18 -> **0.22 / 0.30** | 0.12 -> **0.17** |
+| Jodel | 0.34 / 0.50 -> **0.34 / 0.50** | 0.38 -> **0.38** | 0.16 / 0.21 -> **0.24 / 0.32** (the bearer) | 0.10 -> **0.15** |
+| metal Cessna | 0.45 / 0.66 -> **0.29 / 0.42** | 0.49 -> **0.36** | 0.15 / 0.19 -> **0.15 / 0.19** | 0.18 -> **0.18** |
+| Cessna floats | 0.56 / 0.82 -> **0.36 / 0.52** | 0.73 -> **0.48** | 0.16 / 0.21 -> **0.16 / 0.21** | 0.19 -> **0.21** |
+| twin floatplane | 0.19 / 0.28 -> **0.27 / 0.42** | 0.52 -> **0.61** (fus, compression) | 0.14 / 0.21 -> **0.18 / 0.26** | 0.18 -> **0.18** |
+
+- The largest: **the twin's flown pull, 0.61** (an engine bearer member in compression, Euler-capped) and its **float nose-in, 0.47 -> 0.83** (a
+  fuselage tube in compression) - the closest anything comes to 1. Both are the tube truss's Euler, which §4.1 asks for; if D2 finds 0.83 too close
+  for a 90 km/h float nose-in, the lever is the truss's own D / wall (30), not the seams.
+- The trunk flights moved too (more members broken in the 30 m/s flights: a group takes its whole attachment - the Cub's centreline 84 -> 100, the
+  metal Cessna's 112 -> 177; plastic work down where a fitting now lets go instead of a member yielding to its etu). Every TREECRASH check holds:
+  **GATE TREECRASH PASS 47/47** (the base: 47/47).
+
+### THE WATER CASE (§11.2 #4: GATE TREECRASH section 6)
+- **The twin's float nose-in (90 km/h, 5 m/s, 20 deg): nothing set, nothing broken, 5.62 g, no damage** (its worst member 0.83, above). Its severe
+  nose-in (150 km/h, 10 m/s, 60 deg): 38 members set ({fus 32, tail 6}), 60 broken, 14.87 g, CRASHED (a tail member broke) - as it must (the base: 71
+  set, 32 broken, 14.81 g, the same reason). The damage follows the beams' own loads (the probe's peak passes 1 exactly when something yields).
+- **The Cub's three wet-body cases (the 5 m/s pancake, the 100 km/h ditch, the severe nose-in) are SKIPPED in this core, as in the base**: they need
+  GEAR-WATER 2's wet body (32_hydro.js wetBuild), which is not on claude/dmg-switch-g1898. The coordinator's integration branch should re-read
+  them once both are in.
+
+### THE BATTERY (§11.2 #1: off = the base's bytes; node, GATES_CORE=1, --verbose, each gate's whole output diffed, TREE-CRASH G1478's method)
+The base's battery (claude/dmg-switch-g1898 4ca0678c built in a worktree) against this branch's, the same 41 gates
+(`--only=SOAR,PILOT,GEN,HONEST,AERO,HOTHIGH,FLEX,FLAPS,GE,STRESS,NAV,TAXICLEAR,LINEUP,PLAN,DEFAULT,WEIGHT,DRAG,MASS,GEAR,STRUT,SITE,FLOATS,SEAPLANE,ENERGY,MOUNT,SUBSTEP,PACE,FLIGHTREC,PILOTACT,STRIPSURF,TAKEOFF,SETTLE,HYDRODYN,SIMWORKER,HITBOX,LOAD,BENCH,BIPLANE,OBSTACLE,TREEHIT,TREECRASH`) plus DMGMEMBERS:
+- **This branch: BATTERY PASS, 42/42** (2340 s wall, 3 jobs). The base: 40/41 - **HITBOX FAIL on the base** ("each in a fraction of a second": rv 716 ms
+  under the battery's load, a wall-clock check; here 84/84, slowest 120 ms).
+- **The same bytes (31):** SUBSTEP, PACE, GE, FLAPS, STRESS, GEN, PILOT, NAV, TAXICLEAR, PLAN, LINEUP, DEFAULT, HONEST, WEIGHT, DRAG, MASS, TREEHIT, BENCH,
+  GEAR, STRUT, SITE, OBSTACLE, FLOATS, SEAPLANE, ENERGY, AERO, HOTHIGH, SOAR, FLEX, LOAD, MOUNT. (So the asked-for LOAD, BENCH, FLEX, TREEHIT, OBSTACLE: byte
+  for byte the base's - the layer is off in them.)
+- **Only clock readings differ (with every number stripped, the same bytes):** FLIGHTREC, STRIPSURF, TAKEOFF, PILOTACT (a temp core's name), BIPLANE
+  (its buildGen ms), SETTLE (the bake ms), HYDRODYN (the water's ms ratio), HITBOX (its ms), **SIMWORKER** (every step's FNV(p, v) equal: the stock
+  f2b3de3f, the Cessna cbccf99f, as the base; the real-time half differs by the clock, and the host's log replays all its snapshots to the bit).
+- **TREECRASH** (damage ON): the margins and the trunk flights above; PASS 47/47 as the base.
+- `reports/evidence/DMG-D1a/battery_vs_base.txt` (the per-gate verdict), `battery_summary.txt`, `gate_treecrash.txt`, `gate_dmgmembers.txt`.
+- The generated outputs (flight_core.js, index.html, dev.html, sw.js, version.json) are NOT committed.
+
+### EVIDENCE (reports/evidence/DMG-D1a/, `node tools/dmg_members_evidence.js`, ~70 s)
+- `breakorder.svg`: the bench to destruction, the five builds: the members broken against the bags' g, each by its seam; the first member and group.
+- `front_<build>.svg`: the wing from ahead on the bench, the frame its first group let go (both strut groups on the Cessnas; both roots on the Jodel).
+- `ragged.svg`: the Cub's spruce member 162 per substep: crack at its 78.3 kN, 60 %, 30 %, gone in 1.78 ms.
+- `topdown_wing30_<build>.svg`: the wing 2.5 m out into a trunk at 30 m/s, 0.6 s after the first break: the broken members by seam, the kinked ones ringed.
+- `runs.json` (every run's numbers), the perf runs (`perf_run4/5.txt`, `perf_metal_air_pairs*.txt`), the gate outputs.
+
+### Open questions (the coordinator / DMG-D2)
+- **The Jodel's first break on the bench is its spruce carry-through's lower cap (18.0 g), not a fitting or a glue line** (§7.2's ask for a cantilever
+  wood wing); its root fittings go 0.3 g later. The lattice's spar has one section root to tip: D2's per-member envelope moves it. GATE DMGMEMBERS
+  prints it as a REPORT line (its criterion - the first GROUP a fitting's, never a ductile member broken by load - holds).
+- **Euler is stamped on the tube members only** (the truss of a tube row, the bearer, cabane / interplane). The drawn lift struts carry compression at
+  positive g in this lattice (G140's lower chord takes the tension) and a thin tube of their A buckles the Cessna's at 2.7 g in flight: their
+  compression limit (jury strut, streamline section) is D2's. The tail truss's root members, the strut fan and the monocoque are stand-ins, not tubes.
+- **The closest normal-ops margin is the twin's float nose-in at 0.83** (0.47 before; a fuselage tube under Euler). Under 1; D2 may want headroom.
+- **The engine mount is all fitting** (the bearer's members ARE its bolts in the lattice): brittle at 1.15 Fu in tension, Euler / crush in compression.
+  §7.1 #3's "the bearer bends first, then the bolts" needs a member between them (a mount node) - a generator change, D2's or D4's.
+- **A gear leg and its braces are fittings** (the gear's attach; no Euler): the gear bracket (§7.3, DMG-D2b) replaces their limits.
+- **The rivet lines are the cabin-to-tailcone joint and the tailcone's skin panels; the openings the windscreen, the cabin's side bays and the
+  doorposts** - a choice of which lattice members stand for them, made here; D2 / TUNE can move it (61_gen_frame `dmgSeamIn`).
+- **The Cub's three wet-body water cases skip in this core** (as in the base): GEAR-WATER 2's wetBuild is not on the base. Re-read after integration.
+- **Not done here (DMG-D1b, as briefed):** the strip component test, refs-core, SUPPORT beams. Not touched (DMG-D0): per-beam work, `bm.sec`,
+  sim-diverged, DMGFPS. Solver edits are localized to TREE-CRASH's DMG block, `beamYield`, `beamBreak`, `armFrame` (a counter) and one
+  `if (nFlr)` line in `substep`.
+- **New instruments:** `sim.damageBreak(i)` (a gate's hook), `DMG.groups / floors / cracks / rag / armedN`, `firstBreak.seam / grp / how`, and
+  `_treecrash_lib.lastRun.sim` (the last sim a scenario flew).
+
+## G1800-G1809 DMG-D0 INSTRUMENTS - SIM-DIVERGED vs BROKE-UP, THE VELOCITY GUARD, PER-BEAM PLASTIC WORK, THE LEDGER SECTION ON EVERY BEAM, THE DAMAGE VIEW, GATE DMGFPS (2026-10-04, DMG-D0 for the DEFORM COORDINATOR, cloud, node only; branch claude/dmg-d0-instruments off claude/dmg-switch-g1898 = 4ca0678 (TREE-CRASH + G1898); G1807-G1809 unused)
+
+DEFORM-AND-BREAK §4.0, §5.2, §5.4, §10.1, §11.1-§11.4. Additive: with the damage layer off every physics gate prints the base's bytes (below), and
+nothing here moves a physics bit with it on either (GATE DMGFPS, TREECRASH unchanged). (There is no flyDiy/CLAUDE.md on this base; I read
+docs/SHARED-TREE-PRACTICES.md.)
+
+### G1800 - 'sim-diverged' is the numbers', 'broke-up' the structure's (ruling dm4)
+- The NaN ending is now `endFlight('sim-diverged')` (app.js watchdog; the message "SIM DIVERGED — RESET" stays). The load test's NaN verdict is
+  `'SIM DIVERGED'` (65_gen_loadtest.js); the bench card says "the simulation diverged before the ultimate load (a numerical fault, not a
+  member)" - it said "a member let go". The water bench, 42_crosswind's `why`, 41/43's outcome comments, and the readers in tools
+  (_bench_check, test_load, pilot_trace, arch_fly, _simworker_edges_check: its 'diverged' event now expects 'sim-diverged') follow.
+- **Nothing writes 'broke-up' now** (GATE DMGINST greps the 12 writers / readers). It is reserved for DMG-D1b (the refs split, a primary group
+  broken). bench.js still reads a `'BROKE UP'` verdict as "a member let go" for when D1b / D2 fire it. The logbook / card render any outcome
+  generically (`replace(/-/g, ' ')`), so a new flight's row reads "sim diverged"; old saved rows keep "broke up".
+
+### G1801 - THE VELOCITY GUARD (30_solver.js, §5.4)
+- `guardFrame(cv)` in `readPanel`, right after its CG pass, once per `sim.step` (never per substep): every node's speed off the CG. Over
+  **150 m/s**, or a NaN velocity, latches `VG.fault = { why: 'speed' | 'nan', node, v, t }`. It is read-only (the physics bits are untouched),
+  cleared by `reset()` (resetPanel). Exposed as `sim.guard()` (this frame's fastest node, its peak since reset, the fault) and `sim.fault()`.
+- Readers: `stats().bad` (so the load test, the crosswind probe, the bench rigs see it), `H.diverged()` (the worker: its loop stops and the
+  snapshot's F_DIVERGED goes up, the page's `sw.diverged`), and the page's watchdog inline (every frame - the NaN check stays every 30th).
+- **What it catches that the old watchdog never did:** every k x 5 in flight (a lattice past its integrator's limit) rings at **990 m/s and
+  stays FINITE for 600 frames** - the NaN check flies it on forever; the guard trips on frame 0. A 1e300 kick trips it the first frame ('nan').
+  The whole Cub at 195 m/s (200 m/s true at 20 km) does not: the fastest node 4.4 m/s off the CG. (At sea level 200 m/s shakes the Cub apart:
+  151 m/s off the CG - over the guard, rightly.)
+- **The census (GATE DMGINST), damage on - the fastest node off the CG:** a flown 3.8 g pull 7.8 / 13.3 / 10.3 / 9.2 / 8.4 m/s (Cub, Jodel,
+  metal Cessna, Cessna floats, twin floats); a 10 ft/s drop 1.1-3.5; the Cub's circuit 2.9; the 30 m/s trunk crashes 41.1 (Cub), 51.8
+  (Cessna), 39.7 (Cub, the wing 2.5 m out); the twin's SEVERE 150 km/h / 10 m/s / 60 deg float nose-in **91.0** (the worst: 0.61 of the
+  guard). Never tripped. The DMGFPS cases: 0.8-15.8 m/s in the drops and on the water.
+- The cost: one loop over the nodes a frame (~400 nodes, a few flops each): inside the perf noise (below).
+
+### G1802 - THE PLASTIC WORK PER BEAM (30_solver.js)
+- `DMG.wB = new Float64Array(nb)`; the four `DMG.work += x` in `beamYield` / `beamKink` became `dmgW(bi, x)` (`DMG.work += x; DMG.wB[bi] += x`:
+  the total's bits are the old ones). Zeroed in `dmgReset` (reset()). On `sim.damage()`. Only the armed, yielding path runs it.
+- The Cub at 30 m/s into a trunk: 120 beams carry work, every one yielded or bent, none negative; they sum to 105175.872 J against
+  DMG.work 105175.872 J (the metal Cessna 108684.516 / 108684.516). **By section** (the bill's input): fuselage 61.8 kJ, wings 24.9,
+  engines 9.4, gear 4.7, vessel 3.6, tail 0.8.
+
+### G1803 - EVERY BEAM CARRIES ITS LEDGER SECTION (61_gen_frame.js B())
+- `bm.sec = SEC` - the section `sec()` has open as the member is built, the one its mass and money are billed to a few lines on. Build time,
+  no run-time cost (the solver's `{ ...b }` copy carries it).
+- GATE DMGINST: every beam of the five validated builds is stamped, in the def and in the solver's copy, and every stamp is a row of that
+  build's ledger. The class x section table:
+
+  | build | beams | fus > fuselage / engines / vessel | wing > wings / bracing | tail > tail, wire > tail | gear > gear |
+  |---|---|---|---|---|---|
+  | the user's Cub | 394 | 109 / 13 / 9 | 52 / 12 | 180, 4 | 15 |
+  | Jodel | 492 | 109 / 13 / 9 | 68 / **118** | 156, 4 | 15 |
+  | metal Cessna | 442 | 109 / 13 / 9 | 62 / **74** | 156, 4 | 15 |
+  | Cessna floats | 533 | 109 / 13 / 9 | 62 / 74 | 156, 4 | 106 (the float truss) |
+  | twin floats | 519 | 109 / 28 / 9 | 52 / 12 | 199, 4 | 106 |
+
+  **'bracing' holds the wing's torsion box** (the ledger opens `sec('bracing')` before the box's webs, 61_gen_frame ~978) - on the Jodel and
+  the Cessnas most of the wing. That is the ledger's own convention, stamped as it is; D5's bill decides whether 'bracing' reads as the wing.
+
+### G1804 - THE DAMAGE VIEW (src/viewer/dmg_overlay.js, app.js sync())
+- A DEBUG view on the line frame (Frame mode's lines; on a generated build the lines show in **Overlay** mode, Frame shows the real tubes):
+  `?dmgview=1`, or the `overlays` flyout's new row "the frame's colours: strain / damage". Off (the default), `sync()` colours by strain exactly
+  as before and nothing of the module runs.
+- One colour a member, by precedence (`window.DMG_TINT`, pure, node-tested):
+
+  | kind | when | colour |
+  |---|---|---|
+  | calm | \|F\| / limit <= 0.25 | #577db0 (the frame's own neutral) |
+  | stress | \|F\| / limit 0.25 -> 1, ramping (0.625: #aba267) | #ffc71f amber at the limit and past it |
+  | set, stretched | (L0 - ks - Lr) / Lr from 0.01 % (#bc8e6b) | #ff993d at 3 % (the strain's tension orange) |
+  | set, crushed | from -0.01 % (#52b4d2); a trunk's bend (ks) counts | #4fd9e8 at 3 % (the strain's cyan) |
+  | broken | k = 0 | #e32e2b |
+
+  - |F| / limit is the solver's own comparison: tension against the hardened yield (or a bend's cap M_p / dk), compression against the crush
+    (a slack wire 0). Under the probe it is `sim.damagePeak()`'s peak. A member stretched to its yield reads 1.000000.
+  - With the layer off all 2380 members of the five builds read calm. The Cub's 30 m/s crash: 288 calm, 22 set, 84 broken.
+- **Not drawn here: the cloud cannot render the game. COORDINATOR: eyeball it on the box** (`dev.html?damage=1&dmgview=1`, fly into a trunk,
+  Overlay mode). reports/evidence/DMG-D0/overlay_colours.svg is the same function drawing the Cub's crash from above, in node.
+- Inline sim only: under the physics worker (`?simw=1`) the page's beams carry no damage state (the broken list crosses on change in D4a),
+  so the view stays the strain's there. "Broken, dashed" (§5.2) is red without dashes: the line frame is one LineSegments with vertex colours.
+
+### G1805 - GATE DMGFPS (tools/_dmgfps_check.js, run_gates core, weight 4; 130/130, ~6.5 min on 4 loaded cores)
+- **No damage code reads a page / frame dt** (checked, no fix needed): `dmgFrame`'s 50 ms filter and `armFrame` run on `sim.step`'s own
+  `dtFrame`, which the page always passes as 1/60 (app.js loop), the worker as SIM_HOST_DT, and the load rig as its fixed 1/60/SUB.
+- **The page's real batching is not the brief's.** The PACE block (lifted out of app.js, GATE PACE's way) at 30 / 10 / 5 / 2 fps flies 2 / 4 /
+  4 / 2 steps a frame capped at 30 (2 / 4 / 4 / 1 capped at 60), x2 at 2x: its 4-step ceiling and its 250 ms stall rule DILATE the sim
+  (10 fps = 40 % real time, 2 fps = 7 %) rather than batch 6, 12 or 30 steps. The gate flies both: the brief's 30 / 12 / 6 / 2 and the page's
+  16 schedules (6 distinct batchings in all), and through **makeSimHost** (its H.step and snapshot flags; turns of 1 and 4 steps, the page
+  reading every 2 / 6 / 12 / 30 steps): 14 schedules a case.
+- Cases, damage on, TREE-CRASH's own (the trunk setups hash-equal the lib's atTrunk): the Cub and the metal Cessna at 30 m/s into a trunk on the
+  centreline, the Cub's wing 2.5 m out; the FAR 23.473 drop on the Cub, the metal Cessna, the Cessna on floats (onto the water); the
+  Cessna on floats' 5 m/s level pancake; the twin's float nose-in (90 km/h, 5 m/s, 20 deg). (The Cub's pancake needs GEAR-WATER 2's wet body,
+  absent from this core - skipped, as TREECRASH skips it.)
+- **Every schedule ends at its first read at or after the 60 fps end, and is there BITWISE the 60 fps run at that step** (p and v md5, the
+  work, DMG.wB md5, the broken list, the yields), with the same verdict / reason / time. The page's reads between frames (damage, fault,
+  cgPos, cgVel, axes, wheelsOnGround, stats) move nothing.
+
+  | case | the 60 fps run | the page ends it | past the 60 fps end |
+  |---|---|---|---|
+  | Cub, trunk, centreline | CRASHED (crushed) at 1.32 s, over at step 163; 84 broken, 105.04 kJ | 1-17 steps later | +49 to +95 J, +0 broken |
+  | metal Cessna, trunk | CRASHED (crushed) at 1.30 s, over at 108; 109 broken, 108.52 kJ | 0-12 steps later | +0 J |
+  | Cub, wing 2.5 m out | CRASHED (a wing member) at 1.37 s, over at 323; 8 broken, 10.64 kJ | 1-9 steps later | +0 J |
+  | the three drops, the pancake, the nose-in | 0 yields, 0 J, nothing broken | the run's end | 0 at every rate |
+
+- Plot: reports/evidence/DMG-D0/dmgfps.svg (every batched end sits on the 60 fps work line).
+
+### G1806 - fix: DMGFPS's wing case flown 6 s (its flight is over 4 s after the 1.37 s break), --out makes its directory
+
+### THE ACCEPTANCE (§11.2)
+- **Off = the base's bytes.** TREE-CRASH's G1478 list (41 physics gates), `GATES_CORE=1 run_gates --only=... --verbose --jobs=4`, base
+  4ca0678 against this branch, each gate's whole output: **27 byte for byte** (AERO BENCH DEFAULT DRAG ENERGY FLAPS FLOATS GE GEAR HONEST
+  HOTHIGH LINEUP LOAD MASS NAV OBSTACLE PACE PLAN SEAPLANE SITE SOAR STRESS STRUT SUBSTEP TAXICLEAR TREEHIT WEIGHT); **14 differ only in
+  timings** (numbers masked, identical: BIPLANE FLEX FLIGHTREC GEN HITBOX HYDRODYN PILOT PILOTACT SETTLE SIMWORKER - its every step's FNV
+  equal, f2b3de3f / cbccf99f as before - STRIPSURF TAKEOFF TREECRASH, and MOUNT's block, which closes the log with the battery's table).
+  Both batteries: BATTERY PASS. reports/evidence/DMG-D0/battery_diff.txt, gate_battery_mine.txt.
+- **GATE TREECRASH unchanged** (its output = the base's but its wall time); LOAD, BENCH, FLEX, TREEHIT, OBSTACLE, SIMWORKER green and their
+  bytes the base's; **DMGFPS 130/130 PASS, DMGINST 32/32 PASS**; UISMOKE, BUILD, JOIN PASS (app.js / build.js touched).
+- **PERF** (`tools/treecrash_evidence.js --perf-only --perf-base <base core>`, the layer ON, nothing touching, a far 4000-trunk set; the median
+  of 5 processes' medians, 600 steps; run twice on a quiet machine, and all 10):
+
+  | case | run 1 base / now (ms) | run 2 base / now | all 10 base / now | |
+  |---|---|---|---|---|
+  | Cub, ground | 3.513 / 3.561 | 3.752 / 3.626 | 3.547 / 3.595 | +1.4 % |
+  | Cub, air | 3.474 / 3.352 | 3.473 / 3.394 | 3.473 / 3.362 | -3.2 % |
+  | metal Cessna, ground | 6.224 / 6.226 | 6.367 / 6.299 | 6.292 / 6.262 | -0.5 % |
+  | metal Cessna, air | 6.077 / 5.935 | 5.973 / 6.097 | 6.042 / 5.968 | -1.2 % |
+
+  Within 2 % everywhere (the run-to-run spread is +-3 %). The new run-time work: the guard's node pass a frame (always), the per-beam add
+  inside the yield (armed only). `bm.sec` is build time. reports/evidence/DMG-D0/perf.json.
+- Validated builds only; no archetype touched; nothing from RoR / BeamNG. Generated files not committed.
+
+### Evidence (reports/evidence/DMG-D0/, `node tools/dmg_d0_evidence.js`)
+gate_dmgfps.txt, gate_dmginst.txt, dmgfps.json / dmginst.json, dmgfps.svg (the DMGFPS comparison), overlay_colours.svg (the colour table and
+the crash drawn with it), perf.json, battery_diff.txt, gate_battery_mine.txt.
+
+### Open questions (coordinator / A0)
+- **The guard is not behind params.damage.** It is a sim-fault detector and changes no bit, so damage-off gates are byte-identical; but in the
+  game a flight with a node past 150 m/s off the CG now ends 'sim-diverged' where it flew on (finite) before - e.g. a lattice out of its
+  integrator's limit (k x 5 above). Kept on by design; one line to gate it on DMG_ON if A0 prefers.
+- **The guard's margin in a wreck:** the worst seen is 91 m/s (the twin's severe nose-in). A far faster impact (a dive into the ground near
+  Vne) could whip pieces past 150 off the CG and end 'sim-diverged' instead of 'crashed'. DMG-TUNE's scenarios should re-read
+  `sim.guard().peak`; if needed, a debris node (`DMG.orphans`) can be left out of the guard.
+- **The page at low fps runs slow, not batched** (PACE: 4 steps a frame at most, 1-2 past a 250 ms frame) - correct for the damage layer
+  (proven), but at 10 fps the game runs at 40 % real time; that is G612 / G1365's design, noted for the record.
+- **'bracing' = the wing's torsion box** in the ledger (G1803 table): D5 decides how the bill names it.
+- The view under the worker (D4a's broken-list hop), and the dashes for broken (a second LineDashedMaterial pass) - left out.
+- **The coordinator must eyeball the damage view on the box** (G1804 above).
+
+## G1820-G1829 DMG-D1b WRECK INTEGRITY - THE STRIP COMPONENT TEST, THE REFS-CORE, SUPPORT LIMITERS ON THE ONE PATH A CRASH SHOWED (THE NOSE ENGINE THROUGH THE FIREWALL) (2026-10-05, DMG-D1b for the DEFORM COORDINATOR, cloud, node only; branch claude/dmg-d1b-integrity off claude/dmg-integration = 8b074564; G1824-G1829 unused)
+
+DEFORM-AND-BREAK §4.5 / §4.6 / §8.1 / §11.1 (DMG-D1b). Base: origin/claude/dmg-integration (TREE-CRASH + G1898 + D1a). origin/master carries no
+train 32 commit, so nothing was merged from it (GEAR-WATER 2's wet body is not on this base: the Cub's three wet-body cases skip, as in D1a).
+DMG-D0 is not on the base either: the break-up verdict is raised in `sim.damage()` (below); the app's `broke-up` string is the coordinator's
+merge with D0's rename. **All of it is behind `params.damage`**: with the layer off nothing here runs and the bytes are the base's (the battery below).
+
+### G1820 - THE STRIP COMPONENT TEST (30_solver.js; TREE-CRASH's `beamStrips` / any-break kill removed)
+- **On a break EVENT only** - the outermost `beamBreak`, after its group has broken whole (a depth counter), never per substep - a union-find over
+  the live members (and the shape-matched clusters still on) gives the pieces. Then, per live strip:
+  - its weights (`st.w`) on one piece: it flies on, whatever broke between its nodes (one broken diagonal no longer silences its bay);
+  - on two or more: **SPLIT** - the weights renormalised onto the piece holding most of them (`SW[si]`, what the aero pass, the induction's control
+    point and the force spread read; the build's own `st.w` array until then) - or **DROPPED** if no piece holds 70 %;
+  - **a strip that reads its chord and normal off its own four spar nodes (`fIn..rOut`) is dropped when those part** (its frame would be read
+    across the gap). On a generated build that is every wing, stab and fin strip, and their weights ARE those four nodes - so on the five
+    validated builds a parted strip is always dropped, never split. **The split path serves strips that read the body axes** (a V-tail's, a
+    hand fiche's tail): those are dropped when the piece they keep is not the core's. A deliberate reading of §4.5 - the coordinator's call.
+  - A part that came off whole keeps its strips (a wing off tumbles under its own aero). Debris nodes are TREE-CRASH's (aero dropped, gravity and ground).
+- `sim.damageStrips()` = `{ dead, w }` (what the aero pass flies); `DMG.stripsSplit / stripsDropped`. `reset()` restores the build's weights.
+- **Cost of a break event** (the group's breaks + the union-find + the strips; the mean of 1000 after 300 to warm the JIT): **15-26 us** on the
+  five builds (394-533 members). A crash run in the gate has 1-12 frames with a new break.
+
+### G1821 - THE REFS-CORE (30_solver.js compEvent)
+- The body frame's refs (`noseFrame`, `tailMid`, `upLo`, `upHi`: the firewall ring and the tail post) checked at every break event: on two pieces,
+  **the flight ends at once as BROKE UP** - `DMG.brokeUp = { t, node, tag }`, `crashed` (its time kept if it had crashed already), `over = true`
+  (the body frame does not average a wreck), `reason = 'broke up: the fuselage parted (<tag> off the core)'` (it replaces an earlier crash reason).
+  Not `refs.origin` (the drawing's datum is the wing roots': a wing coming off takes it along - D4's to re-pin).
+- On every validated build the refs are 6 body nodes; with EVERY group broken at once they stay one piece, a core of 32 body nodes holding no node
+  of any group's part (`parts.dmg.part`, a new per-node part list from the generator's `dmgPart`): one group-free core. No group alone breaks it up.
+- A fuselage cut across behind ring 3 (10 members): BROKE UP on all five. **None of the gate's crash runs breaks up now** (the Cub's 30 m/s
+  centreline did - its firewall corner S0BR torn off - before the limiters below held the engine off the cabin).
+
+### G1822 - SUPPORT LIMITERS, ONLY WHERE A CRASH SHOWED A PASS-THROUGH (61_gen_frame.js parts.dmg.supp; 30_solver.js suppPass)
+**Looked for** with a pass-through probe (`tools/_dmg_integrity_lib.js` makeProbe: a node of another part inside a fuselage bay's hull - rings i,
+i+1 - deeper than it was built by more than 5 cm, while the bay is still a bay), in TREECRASH's trunk flights (30 m/s centreline and 2.5 m out, the
+3 m/s taxi), nose-ins and pancakes on the ground (100 km/h / 4 m/s / 10 deg; 180 / 10 / 60; level 5 and 10 m/s), the float nose-ins and a 5 m/s
+water pancake on the floatplanes, and the bench to destruction:
+
+| path (§4.6 / §8.1) | seen | where |
+|---|---|---|
+| **the nose engine through the firewall** | **yes** | severe ground nose-in: the metal Cessna's ENGL 0.44 m / ENGR 0.31 m into bay 0 still on its mount, its CG node 0.42 m into bay 2 off it; the Cub's 0.09, the Jodel's 0.07 (off). Trunk centreline: the engine CG node off its mount 0.36 m into bay 0 and on through bays 1-4 (the Cub), 0.33 m through bays 0-2 (the Jodel), 0.23 m through bays 0-1 (the Cessna) |
+| the gear leg top through the cabin floor | no | not in any case, the 10 m/s pancake included |
+| a crushed belly into the cockpit | no | no bay's height under 0.96 of built |
+| a wing into the cabin | only after its attachment went | see below - not a limiter's case |
+
+**The limiters (the engine path only):** each nose-engine node (the `eng` part: ENGL, ENGR, CGE) gets one to each corner of RING 1 (the ring behind the
+firewall), 12 a build (0 on the twin: its engines are on the wings).
+- **To ring 1, not the firewall's own corners**: a limiter to the firewall's corners lies across a centred node's path - the Cessna's engine CG node
+  sits 0.18 m ahead of a 1.1 m ring and met them at under 2 % of its stand-off, and went through - while one to ring 1 lies along it.
+- **Slack** until the node has come within `SUPP_GAP` = 20 % of its stand-off of the firewall (L0 = the distance to that corner then); slack at
+  **1.07-1.51 of their closing length** at the load test to 5.7 g, a flown pull (3.99-5.25 g) and FAR 23.473's drop (GATE DMGINTEGRITY).
+- **Stiffness**: the stiffest member's k and c at either end (the cabin ring's, as a rule). On the engine bearer's k the Cessna's engine CG node,
+  pinned by the trunk with the whole cabin behind it, still ended 0.28 m past the firewall; on the ring's 0.11 m. Finite, the energy never above the
+  impact's (TREECRASH's check), the node's own members gone by then. Engaging at 40 % instead of 20 % took it to 0.08 m - kept at 20 %.
+- **NOT MEMBERS (the doc's one line in the beam loop was measured and dropped):** written as members (`(b.supp && L >= b.L0) ? 0 : ...`, appended to
+  `beams`), they cost the stock step **+5-7 % with nothing touching** (12 alternating pairs a case, 1 negative in 48; `perf_members_in_loop.txt`). Bisected:
+  the limiters alone (without them -0.7 / +0.7 %); 12 more objects of another shape in the hottest loop, not the compare. So they are walked in
+  their own pass (`suppPass`, beside D1a's `floorPass`), **only in a frame armed or after a break** (`if (nSup && (armed || DMG.breaks))`: a gap
+  closes only once the mount has yielded or broken), pushing only (their damper never pulls). The beam loop is the base's, byte for byte.
+  `sim.damageSupp()` lists them (`{ a, b, k, c, L0, path }`). They hold nothing (not members: the orphan count, the component test, the trunk pairs
+  never see them). With the layer off, none.
+- **The pass-through gone** (`passthru_metal_ground.svg`, `passthru_cub_trunk.svg`):
+
+  | case | without | with |
+  |---|---|---|
+  | metal Cessna, severe ground nose-in | ENGL 0.44 / CGE 0.42 / ENGR 0.31 m | none |
+  | Cub, severe ground nose-in | ENGL, ENGR 0.09 m (off) | none |
+  | Jodel, severe ground nose-in | ENGR 0.07 m (off) | none |
+  | Cub, trunk 30 m/s centreline | CGE 0.36 m, through bays 0-4 | none |
+  | Jodel, trunk centreline | CGE 0.33 m, bays 0-2 | none |
+  | metal Cessna, trunk centreline | CGE 0.23 m, bays 0-1 | CGE 0.11 m, bay 0 (the trunk holds the engine, the whole cabin's momentum on the limiters) |
+
+- **What the trunk centreline was** (before): the engine stayed pinned at the tree and the fuselage went on THROUGH the trunk (the Cub's firewall
+  ring 9 m past the trunk at 2 s, still at 12 m/s) - members folding round it and tearing, the trunk passing between nodes. With the engine held off
+  the cabin, the cabin now stops at the engine against the trunk: **the 30 m/s centreline's numbers move** (TREECRASH below): fewer members broken
+  (the Cub 100 -> 86, the Jodel 89 -> 73, the Cessna 177 -> 110), less plastic work, and **the contact g up** (16 -> 43 g, 19 -> 40, 25 -> 48).
+- **What the probe still sees, not fixed (the coordinator's / §8.2):**
+  - **a wing into the cabin once its attachment has gone**: a strut-braced wing hit 2.5 m out folds at its first station after the strut lets go
+    and that station's nodes pass 0.10 m (the Cessna, 3 s after the hit, the wreck at rest) / 0.14 m (the Jodel, its low wing under the floor) into a
+    cabin bay; on the Cub's trunk centreline, now that the cabin stops, the right wing's root fittings tear and its root end, still on the strut,
+    drops 0.18 m into the windscreen bay. A free end sweeping the hull: §8.2's point-against-tube collision. **Root limiters were tried** (each
+    root node to the far corners - the floor's under a high wing, the roof's over a low one - of the two rings either side, closing after 5 cm,
+    16-32 more): the 0.18 m went, the other wing's rear root went in 0.11 m a second later. Not kept.
+  - **a detached part through the wreck**: the Cessna's stab or fin off its attach, lying across a folded tailcone (0.06-0.70 m, `off`).
+  - **the trunk through the cabin** where the engine is not in front of it (a trunk is not a member: TREE-CRASH bends what it meets).
+  - the tail's roots 5-13 cm into the tailcone's last bays as the tail crumples forward (attached; marginal).
+
+### G1823 - GATE DMGINTEGRITY (tools/_dmg_integrity_check.js; run_gates core, weight 3, ~90 s on 3 cores) - 54/54
+Per build (the five), damage ON:
+1. **The component test:** intact, one piece and every strip live. **Every member a strip's nodes hold, broken alone (no group): 77-82 members a
+   build; of the 160-168 strip-kills TREE-CRASH's rule made, all fly on now (0 dropped, no single break parted the nodes)**. Each group broken alone,
+   then all: no live strip on two pieces; the parts off keep their own strips (27/27, the twin 28/28). In the crash runs - the trunk flights (land builds), the
+   severe ground nose-in, the severe float nose-in (floatplanes) - **after EVERY frame with a new break (1-12 of them), no live strip on two pieces**
+   (the gate's own union-find against the solver's).
+2. **The refs-core:** on the body; one group-free core of 32 body nodes; the cut across BREAKS UP, over at once.
+3. **SUPPORT:** 12 limiters with the layer on (0 on the twin), none off, the build's own members either way; slack in normal operations; the engine
+   through the firewall without them and not with them (the table above); finite.
+4. **The cost** (REPORT): the break event, 15-26 us.
+- **The V-tail Cub** (its tail strips read the body axes - the split path): stab + tailwheel groups broken (a V-tail's tailwheel spring ends on
+  the H node: the stab comes off only with the tailwheel - D1a's, reported): 2 tail strips split onto the core (75 % of their weight kept,
+  renormalised to 1.000), 2 dropped (50 %).
+
+### THE EVIDENCE (reports/evidence/DMG-D1b/, `node tools/dmg_integrity_evidence.js --base <the base's flyDiy, built>`)
+- `component_cub_diagonal.svg`: the Cub from above, ONE diagonal of a wing's second bay broken: before (the base) the bay's 2 strips go silent; after, 28/28 fly.
+- `component_jodel_wing.svg`: the Jodel's wing into a trunk 2.5 m out, 0.6 s after the first break, the base's core and this one flown: before 2 strips
+  of a wing still whole dropped, after 0 (7 members broken in both).
+- `passthru_metal_ground.svg`, `passthru_cub_trunk.svg`: the engine (ringed) without the limiters and with them (green, solid while closed).
+- `runs.json`; `perf_*.txt`; `gate_dmgintegrity.txt`, `battery_vs_base.txt`.
+
+### PERFORMANCE (§11.2 #2: node, sim.step(1/60), the layer ON, nothing touching, a 4000-trunk set far away)
+Alternating base / now child processes (`treecrash_evidence.js --perf-child`, 600 steps after 120), 12 pairs a case, two runs; the base =
+claude/dmg-integration 8b074564 built in a worktree:
+
+| case | base (ms) | now (ms) | run 1 | run 2 | pooled |
+|---|---|---|---|---|---|
+| the Cub, ground | 3.531 / 3.500 | 3.496 / 3.519 | -1.0 % | +0.6 % | **-0.2 %** |
+| the Cub, air | 3.371 / 3.377 | 3.377 / 3.385 | +0.2 % | +0.2 % | **+0.2 %** |
+| the metal Cessna, ground | 6.128 / 6.126 | 6.193 / 6.221 | +1.1 % | +1.6 % | **+1.3 %** |
+| the metal Cessna, air | 5.843 / 5.826 | 5.875 / 5.859 | +0.6 % | +0.6 % | **+0.6 %** |
+
+- Each run: the median over 12 processes of each process's median (600 steps), base and now alternating (the first of a pair swapped each time);
+  the pairs' own median -0.4 / +0.7 / +0.9 / -0.0 % (run 1) and +0.7 / +0.2 / +1.0 / +0.1 % (run 2), 4-7 of 12 negative in every case.
+  `perf_run1.txt`, `perf_run2.txt`.
+- **The first cut, the limiters as members in the beam loop: +5.1 / +6.9 / +6.6 / +6.8 %, 1 pair negative in 48** (`perf_members_in_loop.txt`).
+  Bisected on side cores: without the limiters -0.7 / +0.7 % (the Cub / the Cessna, air); the strips' `SW[stripIdx]` reads reverted to `st.w`
+  and the limiters kept: +5.7 / +6.7 %. So the limiters, all of it; moved out (G1822 above).
+- What runs with nothing touching: one `if (nSup && (armed || DMG.breaks))` a substep (D1a measured 0 frames armed, nothing touching, on every
+  validated build); the strips' weights read through `SW[stripIdx]` (the same arrays); the union-find only on a break.
+
+### NORMAL OPERATIONS NEVER YIELD (§11.2 #3: GATE TREECRASH's margins re-printed) - byte for byte the base's
+The worst member's peak force over its yield (per substep, under the probe) - **every line of section 2 identical to the base's TREECRASH**:
+
+| build | bench 3.8 / 5.7 g | flown pull | drop FAR 23.473 / 10 ft/s | circuit |
+|---|---|---|---|---|
+| the user's Cub | 0.17 / 0.25 | 0.51 (3.99 g) | 0.22 / 0.30 | 0.17 |
+| Jodel | 0.34 / 0.50 | 0.38 (4.69 g) | 0.24 / 0.32 | 0.15 |
+| metal Cessna | 0.29 / 0.42 | 0.36 (5.25 g) | 0.15 / 0.19 | 0.18 |
+| Cessna floats | 0.36 / 0.52 | 0.48 (5.23 g) | 0.16 / 0.21 | 0.21 |
+| twin floatplane | 0.27 / 0.42 | 0.61 (4.95 g) | 0.18 / 0.26 | 0.18 |
+
+### THE WATER CASE (§11.2 #4: TREECRASH section 6) - the base's
+- The twin's float nose-in (90 km/h, 5 m/s, 20 deg): worst member 0.83, nothing set, nothing broken, 5.62 g, no damage. Its severe nose-in (150 / 10 / 60):
+  38 set, 60 broken, 14.87 g, CRASHED (a tail member broke) - as the base. The floatplanes' severe nose-ins in DMGINTEGRITY: no strip on two pieces.
+- **The Cub's three wet-body cases SKIP** (GEAR-WATER 2's wetBuild is not on this base; master carries no train 32). The coordinator's integration
+  re-reads them once both are in.
+
+### THE BATTERY (§11.2 #1: off = the base's bytes; node, GATES_CORE=1, --verbose, each gate's whole output diffed, TREE-CRASH G1478's method)
+The base's battery (claude/dmg-integration 8b074564, built in a worktree, 2 jobs) against this branch's on its final code (3 jobs), the same 41 gates
+(`--only=SOAR,PILOT,GEN,HONEST,AERO,HOTHIGH,FLEX,FLAPS,GE,STRESS,NAV,TAXICLEAR,LINEUP,PLAN,DEFAULT,WEIGHT,DRAG,MASS,GEAR,STRUT,SITE,FLOATS,SEAPLANE,ENERGY,MOUNT,SUBSTEP,PACE,FLIGHTREC,PILOTACT,STRIPSURF,TAKEOFF,SETTLE,HYDRODYN,SIMWORKER,HITBOX,LOAD,BENCH,BIPLANE,OBSTACLE,TREEHIT,TREECRASH,DMGMEMBERS`) plus DMGINTEGRITY:
+- **The base: BATTERY PASS 42/42. This branch: 42 of 43 PASS in the battery; HITBOX FAIL on a wall-clock line** ("arch:c172 e: the spec shape
+  costs less than the raster it replaces", 155 ms against 144 ms with 3 jobs running; the base read 71 against 362) - **HITBOX alone on the same
+  core: PASS** (368 s). The same kind of clock check failed on the base in D1a's battery. (The first battery, on the limiters-as-members commit,
+  2 jobs: 43/43 PASS, the same verdicts below.)
+- **The same bytes (28):** AERO, BENCH, DEFAULT, DRAG, ENERGY, FLAPS, FLOATS, GE, GEAR, HONEST, HOTHIGH, LINEUP, LOAD, MASS, MOUNT, NAV, OBSTACLE,
+  PACE, PLAN, SEAPLANE, SITE, SOAR, STRESS, STRUT, SUBSTEP, TAXICLEAR, TREEHIT, WEIGHT (LOAD, BENCH, TREEHIT, OBSTACLE: the layer is off in them).
+- **Only clock readings differ (every number stripped, the same bytes):** BIPLANE (buildGen ms), FLEX / GEN / PILOT (the shards' seconds only),
+  FLIGHTREC, HYDRODYN (the water's ms ratio), PILOTACT (a temp core's name), SETTLE (the bake ms), STRIPSURF, TAKEOFF, HITBOX (its ms and the line
+  above), **SIMWORKER** (every step's FNV(p, v) equal: the stock f2b3de3f, the Cessna cbccf99f, as the base; the real-time half's action steps move
+  with the clock).
+- **Damage ON, moved as expected:** TREECRASH 47/47 (the base 47/47): **only the 30 m/s trunk flights' lines move** - the centreline, the cabin now
+  stopped at the engine against the trunk: the Cub 100 -> 86 broken, 65.6 -> 51.4 kJ, 16.0 -> 43.5 g; the Jodel 89 -> 73, 77.2 -> 18.1 kJ, 18.7 -> 40.1 g;
+  the Cessna 177 -> 110, 109.1 -> 79.3 kJ, 24.7 -> 47.7 g; the wing 2.5 m out within 0.3 g and 0.2 kJ (the strips that fly on). Every check holds
+  (crashed, a wing member broken, finite, the energy never above the impact's 100.0 %). **Sections 2 and 6 (normal operations, the water) are
+  byte for byte the base's.** DMGMEMBERS 79/79 (the base 78/78): the same trunk centrelines, the Jodel's kink-floor line now printed (5 kinked, ends
+  1.05 of their crushed length apart), the twin's spruce crack-to-gone 2.22 -> 2.35 ms (strips the old rule silenced on the bench fly on: tiny aero
+  forces, a later stage). DMGINTEGRITY 54/54.
+- `reports/evidence/DMG-D1b/battery_vs_base.txt` (the per-gate verdict and both summaries), `gate_dmgintegrity.txt`, `gate_treecrash.txt`.
+- The generated outputs (flight_core.js, index.html, dev.html, sw.js, version.json) are NOT committed.
+
+### Open questions (the coordinator / A0)
+- **The split path never fires on a generated build** (every strip reads its frame off its own spar nodes, which are its weights): a parted strip is
+  dropped. §4.5 asks split-or-drop on the weights; dropping a strip whose frame has parted is this session's reading. A frame substitute (a
+  parallelogram from three corners) would make the split real for the wing bays - a hot-path change, not done.
+- **The engine is held off the cabin, so the 30 m/s trunk centreline now stops the cabin at the trunk**: contact g 40-48 (was 16-25), fewer members
+  broken. Realistic (the engine against the tree, the cabin behind it) but TREECRASH's numbers moved; the 9 g verdict fires either way.
+- **A wing into the cabin after its attachment has gone, a detached part through the wreck, a trunk through the cabin**: §8.2's selective
+  point-against-tube collision (switched on at the first yield), not limiters (root limiters tried: whack-a-mole, 16-32 more).
+- **A V-tail's tailwheel spring ends on the stab's H node**, so its stab comes off only with the tailwheel group (the closed sets hold: it is a
+  fitting of `tw:gear`). D1a's generator; not a validated build.
+- **`refs.origin` (the drawing's datum) is the wing roots'**: a wing coming off takes the drawing's pin along. D4.
+- **The break-up verdict is `sim.damage()`'s** (`crashed`, `over` at once, `reason 'broke up: ...'`, `brokeUp`); the app's ending string waits for
+  DMG-D0's `sim-diverged` / `broke-up` split at the merge.
+- Merge notes: solver edits are the strip block (stripDead / SW / compEvent, replacing `beamStrips`), `beamBreak`'s depth counter, `dmgReset`'s
+  two lines, the aero pass's two `SW[stripIdx]` reads and `cpOf(ti)`, the limiters beside D1a's floors (SUP / suppPass / one line in `substep`),
+  and two `sim` accessors. The beam loop, `armFrame` and `beamYield` are untouched. The generator: `parts.dmg.part` and `parts.dmg.supp`.
+  `_treecrash_lib.js` gained `onStart` / `onFrame` hooks (flyRun, pull, hardLanding, waterCase).
+- The generated outputs (flight_core.js, index.html, dev.html, sw.js, version.json) are NOT committed.
+
+## G1840-G1849 DMG-D3 CLUSTERS - A CLUSTER IS ONE BREAKABLE PART: ROOT MOMENT AND TORQUE LIMITS ON THE FIN, THE ROD, THE BOOMS AND THE FLOATS; THE TUBE'S MID-SPAN STATION; THE TWIST'S TORQUE LIMIT; A PART COMES OFF RIGID (2026-10-05, DMG-D3 for the DEFORM COORDINATOR, cloud, node only; branch claude/dmg-d3-clusters off claude/dmg-integration = b819b779 (TREE-CRASH + G1898 + D1a + D0); master carries no train 32 yet, so nothing merged; G1844-G1849 unused)
+
+DEFORM-AND-BREAK §4.0 (the clusters row), §4.4, §4.7 option (i), §7.1 #8, §7.4 (float dig-in), §11.1-§11.4. A shape-matched cluster holds its
+shape by projection, so the members inside it carry almost nothing and no member limit can see what it carries. It is now judged as what it
+stands for: a part with a ROOT SECTION. Everything is behind `params.damage` (off by default, G1898): with the layer off no cut exists, nothing
+is measured, and the bytes are the base's (the battery below). There is no flyDiy/CLAUDE.md on this base (read docs/SHARED-TREE-PRACTICES.md).
+
+### WHICH VALIDATED BUILD HAS WHICH CLUSTER
+| build | clusters (and their root's D1a group) |
+|---|---|
+| the user's Cub, the Jodel, the metal Cessna | the FIN (fin:attach) |
+| the Cessna on floats | the FIN; the two rigid FLOATS (floatL:strut, floatR:strut) |
+| the twin floatplane | the ROD (its tail boom: a tube cluster with G350's twist and a mid-span station; no group - its root bay's 10 members); the FIN; the two FLOATS |
+| (no validated build) | a TWIN BOOM: flown on the FIXTURE tools/fixtures/build_v8_twin-boom_2026-09-11.json, REPORTED, tuned on nothing |
+
+### G1840 - THE ROOT LIMITS (61_gen_frame `dmg` on every cluster; 30_solver's DMG-D3 block)
+- **The section (the generator, beside the cluster):** the fin's two caps (Acap = 1 cm2 each, d = 8 % of the root chord apart: the EI its omega is
+  built from) on its front and rear root posts (s apart); the rod's drawn tube (EI = E pi r^3 t, GJ as G350's, r and the wall rodWall); a twin
+  boom's oval (EI both ways, GJ); a float's attachment (the struts and spreader bars that end on it: read in the solver as a BOLT GROUP of the
+  members' own break forces).
+- **The limit: D1a's FITTING RULE on that section.** A cluster's root attachment IS a fitting group (D1a's fin:attach, floatX:strut, boomX:attach;
+  the rod's root bay), so it breaks as D1a breaks a fitting: 1.15 (FAR 23.625) x the section's ULTIMATE capacity at the material's own GEN_CRASH
+  tu (shear tu / sqrt 3) - fully plastic where the material is ductile (a thin tube's Z_p = 4/pi x I / c), its extreme fibre where it is brittle
+  (spruce, carbon: tu = ty). Bending is judged on both axes (hypot of each over its limit), the torque about the part's axis on its own.
+- **WHY NOT THE BRIEF'S FIRST YIELD (sigma_y I / c) - the coordinator's call.** At first yield the twin's rod (its drawn tube, 113 x 1.2 mm 4130,
+  first yield 5.56 kN.m) is passed in TREECRASH's own flown pull (1.43 x first yield at 4.95 g from 43 m/s, mostly the stab's load) and in the
+  90 km/h / 20 deg float nose-in (1.72 x): the tail would come off in both. The lattice's own rod members (the aft fuselage truss, rings 1.3 x 0.6 m
+  at the root) are 15-28 x stronger than that tube; the cluster's stiffness is the tube's. First yield is REPORTED beside every load (the gate's
+  "of first yield", clusterCuts' yb / yt) so the census still says where a section first yields. One line (`CL_FIT`, `fu`, `sh` in 30_solver)
+  turns it back to first yield.
+- **THE ROOT LOAD is the reaction across the cut, from the forces across it** (validated against the statics, below): the members joining the part
+  to its root (their force this substep), plus - where the cluster spans the cut (the fin's cluster holds its post, the rod's its bulkhead ring) -
+  the projection's own correction on the part's nodes (m al e / dt^2: the force that held it to the rest) and the twist constraint's turn of a ring
+  across the cut. The moment about the root's centroid, split into the torque about the part's axis and the two bending components.
+- **Past either limit the part's root group breaks** (D1a's; the rod's root bay), and the part comes off as a RIGID BODY (BeamNG's 'prop'): its
+  cluster is re-formed on the part's own nodes (the root's dropped, the rest re-taken). A root group broken MEMBER BY MEMBER (D1a's axial check;
+  a float's struts are outside its cluster) parts the cut the same way (DMG.cl's `why: 'member'`). Any other member broken inside a cluster still
+  releases it (G1470's C.off). reset() restores every cluster and cut.
+- **The cost:** measured on the LAST substep of every frame (one pass over the cut members and the cluster's nodes: the quiet path's one per
+  frame, like armFrame's beam pass) and every substep of a frame ARMED (armFrame; a cut past half its limit arms the next frame, `clArm`). Read-only:
+  nothing it computes moves a node.
+- **New instruments:** `sim.clusterCuts()` (every cut's limits, last loads and ratios, peaks, parted; the twist bays; the live clusters),
+  `DMG.cl` / `DMG.firstCl` (the cuts parted, in order: tag, cut, why = bend / twist / member, ratio, t, group), the probe's `PEAK.cl` / `PEAK.tw`
+  (`_treecrash_lib.clearPeak` clears them too).
+
+**The limits (break, kN.m: bending about the weak axis / the other / torque; first yield at the share yb of the break):**
+| build | cut | limits | first yield | group |
+|---|---|---|---|---|
+| the user's Cub | FIN root | 6.70 / 20.32 / 11.73 | 0.69 | fin:attach |
+| Jodel (spruce: brittle) | FIN root | 0.76 / 3.02 / 1.74 | 0.87 | fin:attach |
+| metal Cessna, Cessna floats | FIN root | 6.54 / 24.15 / 13.94 | 0.64 | fin:attach |
+| Cessna floats | FLTL / FLTR root (bolt group) | 2641 / 2728 / 158 | 0.73 | floatX:strut |
+| twin floatplane | ROD root | 10.31 / 10.31 / 9.35 | 0.54 | its bay (10 members) |
+| | ROD station (bay 2) | 7.22 / 7.22 / 6.55 | 0.54 | its bay (10) |
+| | FIN root | 6.02 / 32.34 / 18.67 | 0.69 | fin:attach |
+| | FLTL / FLTR root | 633 / 665 / 45.5 | 0.79 | floatX:strut |
+| twin-boom FIXTURE | BML / BMR root | 25.10 / 20.45 / 20.23 | 0.54 | boomX:attach |
+| | BML / BMR station (bay 1) | 17.57 / 14.31 / 14.16 | 0.54 | its bay (6) |
+| | FINL / FINR root | 4.87 / 36.00 / 20.79 | 0.69 | finX:attach |
+
+### G1841 - THE TWIST CONSTRAINT'S TORQUE LIMIT (BeamNG's torsionbar strength, N.m)
+- On a measured substep each bay's torque - the ring's angular impulse over the substep, I_red phi / dt^2 (= GJ / L x the excess twist below the
+  cap) - against the tube's torque limit (above; the station's bay at the splice's 0.7). Past it the tube TEARS there: the cluster splits at that
+  bay (the rod's bay 0 is its root, the station's bay its station; any other bay gets a cut of its own). Rod: 9.35 / 9.35 / 6.55 / 9.35 kN.m per
+  bay; the fixture's booms 20.23 / 14.16.
+- A torque on the rod's last ring (the gate's twist pull) tears it at the STATION by twist at 6.55 kN.m (the cut's own torque reaches it with the
+  bay's), the root untouched, 10 members broken (its bay), both halves rigid to 1.7 mm.
+
+### G1842 - THE TUBE'S MID-SPAN STATION (61_gen_frame dmgStation)
+- **Where:** the bay (ring k to k + 1) whose midpoint is nearest the tube's mid-length, never the root bay: the user's "booms crack, often in the
+  middle" (§7.1 #8). A long boom is spliced and carries its bracing's and control runs' through-bolted brackets along its length; the reports'
+  "just aft of the cabin" is the tube's ROOT cut here (and the monocoque's rivet line, D1a). The rod: bay 2 (rings at x 3.04 / 3.79 of a tube from
+  1.55 to the post at ~5.0); the fixture's booms: bay 1. Its limits are the tube's x 0.7 (D1a's riveted-joint efficiency, the doc's range).
+- **Past it the tube splits into two rigid clusters** (`ROD` and `ROD/aft`); its bay's members break. A cluster still holding nodes on both sides
+  (the twin boom's fin stands on the station's ring and the ring before) lets go of the fewer.
+- **Which case loads mid-span:** a shape-matched tube between two clamps carries no beam's mid-span peak (its stiffness is one spring to the rigid
+  fit, not a beam's), so its moment is a beam's only where the load is statically determinate: the gate LEVERS the tube over an obstacle at its
+  station (the station ring pushed up 1.5, the tail down 1): the station parts first (rod 7.22 kN.m at 3.93 s, the fixture 17.57 at 3.33 s), the
+  root never. In the twin's 90 km/h nose-in the station carries 0.82 of the root's moment (0.76 against its own limit).
+
+### G1843 - GATE DMGCLUSTERS (tools/_dmg_clusters_check.js; run_gates core, weight 3; ~8 min on 3 cores)
+**83/83 PASS** (482 s in the battery, 4 jobs; three builds' children at once). REPORT lines: the floats' fittings hold in both nose-ins (§7.4, below); the fixture's six pulls, all clean.
+1. **The cuts:** every cluster of every build has its root cut, limits finite (table above); the rod and the booms their station and their twist
+   limits.
+2. **The measure is the statics** (the airframe pinned, the part and what hangs on it at 5 g of its own weight; read / sum(m g x lever)): the
+   Cub's fin 0.08 / 0.08 kN.m; the Jodel's 0.04 / 0.04; the metal Cessna's 0.13 / 0.13; the floats' fin 0.14 / 0.14, its floats 1.31 / 1.29; the
+   twin's rod root 3.99 / 3.98, its station 1.99 / 2.00, its fin 0.08 / 0.08, its floats 0.25 / 0.24 - all within 2 %.
+3. **Nothing parts in normal operations** (the probe: the worst cut's peak load over its break limit per substep; in brackets its first-yield
+   share):
+
+   | build | bench wing / fin / stab 5.7 g | flown pull | drop FAR 23.473 / 10 ft/s | circuit | the water |
+   |---|---|---|---|---|---|
+   | the user's Cub | 0.000 / 0.040 / 0.009 | 0.009 | 0.011 / 0.015 | 0.008 | - |
+   | Jodel | 0.000 / **0.733 (0.84)** / 0.000 | 0.232 | 0.144 / 0.184 | 0.080 | - |
+   | metal Cessna | 0.000 / 0.126 / 0.001 | 0.015 | 0.006 / 0.007 | 0.009 | - |
+   | Cessna floats | 0.000 / 0.164 / 0.001 | 0.013 | 0.021 / 0.027 (on the water) | 0.021 (on the water) | the 5 m/s pancake 0.082 |
+   | twin floatplane | 0.000 / 0.147 / 0.000 | **0.771 (1.43)** rod root | 0.310 / 0.502 (0.93) rod root | 0.324 rod root | the 90 km/h nose-in **0.928 (1.72)** rod root |
+
+   Parked 10 s, damage on: nothing parts, no frame armed once settled (worst cut 0.0005-0.106); the two drops with damage on: nothing parts.
+   GEAR-WATER 2's "ordinary float touchdowns" are the drops onto the water and the water circuit here: the floats' roots 0.02-0.04.
+4. **The parts come off cleanly** (damage on; the airframe pinned, a load ramped on the part until its root gives; the load off once it has):
+
+   | build | pull | parts | at | broken | the part |
+   |---|---|---|---|---|---|
+   | Cub / Jodel / metal / floats / twin | the fin, n g sideways | FIN root by bend at its limit (6.70 / 0.76 / 6.55 / 6.55 / 6.02 kN.m) | 1.6-2.5 s | 16 (fin:attach), 0 others | rigid to 0.0-0.1 mm, falls clear |
+   | twin | the rod, n g down on the tube and the tail | ROD root by bend, 10.31 kN.m | 1.45 s | 10 (its bay) | rigid to 4.0 mm (the rod's cluster is compliant: omega 337 rad/s), 1.0 m off |
+   | twin | the rod levered at its station | ROD station by bend, 7.22 kN.m | 3.93 s | 10 (its bay) | two rigid halves, 1.4 mm |
+   | twin | a torque on the rod's last ring | ROD station by twist, 6.55 kN.m | 2.13 s | 10 (its bay) | 1.7 mm |
+   | twin / Cessna floats | a float's bow driven up and aft (a dig-in) | FLTx root by MEMBER (a strut fitting, 1.15 Fu, before the group's moment: 79.5 / 233.7 kN.m, 0.13 / 0.09 of it) | 0.60 / 0.45 s | 12 (floatX:strut) | rigid to 0.0 mm (the prop), falls clear |
+   | FIXTURE | each fin; each boom loaded down (n g on its own boom); each boom levered at its station | FINx root bend 4.88; BMx root bend 24.94; BMx station bend 17.57 | 1.60; 4.13; 3.33 s | 16; 24 (boomX:attach); 6 | rigid to 0.0-0.1 mm, clean (REPORT) |
+
+5. **The water** (§11.2 #4, §7.4): see THE WATER CASE below.
+6. **The fixture** is REPORT lines only.
+
+### THE WATER CASE (§11.2 #4; GATE TREECRASH §6 and DMGCLUSTERS §5)
+- **The twin's float nose-in (90 km/h, 5 m/s, 20 deg): nothing parts, nothing breaks** (TREECRASH: the worst member 0.83, 0 set, 5.62 g, no
+  damage, as the base). Its rod root carries 0.928 of its break limit (1.72 x first yield): the closest any cluster comes in a case that must not
+  break - the tail's inertia (~40 kg on the lattice behind the rod's root) as the floats dig and the aeroplane pitches; the station 0.76; the
+  floats' roots 0.02 bend / 0.04 twist. reports/evidence/DMG-D3/loads_water.svg.
+- **The twin's SEVERE nose-in (150 km/h, 10 m/s, 60 deg):** the rod comes off at its root at 0.067 s (10.8 x its limit by the probe), then both
+  engine mounts (0.142 s); CRASHED (a fus member broke); TREECRASH 32 set, 38 broken, 17.7 g (the base 38 set, 60 broken - the rod's going first
+  spares the tail truss). The floats' roots 0.16 / 0.29 (bend / twist): **THE FLOAT FITTINGS HOLD.**
+- **The Cessna on floats:** ordinary nose-in nothing (floats 0.01 / 0.02); severe: the engine mount, the stab, then the fin off (by member, 0.53 s);
+  the floats' roots 0.06 / 0.15: **they hold.** Its 5 m/s level pancake 0.082 (the fin).
+- **So §7.4's "float-strut fittings fail in overload" does not happen in the severe case:** the struts as billed (the gear class's section: 134
+  mm2 4130 on the twin, 414 mm2 2024 on the Cessna, 90-224 kN each) are 3.4-6.7 x stronger than what the severe nose-in puts through them, and the
+  airframe gives first. A real float fitting is the deck fitting bolted into the float's bulkhead, not the strut tube; its strength is the
+  certificate's (FAR 23.527-.537 water loads x 1.5 x 1.15) - DMG-D2a's per-member envelope, not a section. Reported, not tuned.
+- The Cub's three wet-body cases still skip in this core (GEAR-WATER 2's wetBuild is not on dmg-integration): re-read when train 32 is in.
+
+### TREECRASH AND DMGMEMBERS (damage on)
+- **GATE TREECRASH 47/47 PASS** (the base 47/47). The trunk flights: the Cub's centreline 100 broken / 65.6 kJ, the wing 2.5 m out 25 / 13.6 kJ;
+  the Jodel 89 / 77.2, 23 / 9.2; the metal Cessna 177 / 109.1, 20 / 19.6 - a fin whose group breaks now comes off rigid instead of going limp.
+- **GATE DMGMEMBERS 78/78 PASS** (the Jodel's carry-through REPORT unchanged).
+- **DMGFPS / DMGINST:** GATE DMGFPS 130/130 PASS, GATE DMGINST 32/32 PASS (in the battery below).
+
+### PERFORMANCE (§11.2 #2: node, sim.step(1/60), the layer ON, nothing touching, a far 4000-trunk set)
+`node tools/treecrash_evidence.js --perf-only --perf-base <the base's core>` (the median of 5 processes' medians, 600 steps; the base =
+claude/dmg-integration b819b779 built in a worktree, its own _treecrash_lib.js beside it), run twice, pooled (10 processes a side, their median):
+
+| case | base (ms) | now (ms) | |
+|---|---|---|---|
+| the Cub, ground | 2.685 | 2.693 | +0.3 % |
+| the Cub, air | 2.564 | 2.592 | +1.1 % |
+| the metal Cessna, ground | 4.552 | 4.571 | +0.4 % |
+| the metal Cessna, air | 4.456 | 4.535 | +1.8 % |
+
+- **The metal Cessna in the air, alternating base / now pairs:** 12 pairs +2.0 % (mean) / +1.8 % (median); 20 pairs **+0.8 % / +0.6 %**
+  (11 of 20 slower). The cloud box's process noise is +-2-4 % (D1a's note); the code's own share, profiled over 1200 steps in-process: cutX 0.08 %,
+  clCuts 0.04 %, the projection's reporting twin 0.02 % of the step - **0.14 %**.
+- **Found and fixed on the way:** the first cut called the measurement from INSIDE substep() (`if (clMs) cutX()` after the beam loop, `if (clMs)
+  clCuts()` after the projection) and cost the Cub in the air **+3.7 %** pooled, +1.9 % in 12-20 pairs - the calls' cost, not the work (a variant with
+  the work stubbed out kept +1.6 %; with the flag constant-false, -0.1 %). The members across a cut are now read in step()'s loop from the state
+  the substep's beam loop reads (the same bits), the cuts judged after it returns: **substep() is the base's**. Then the Cub in the air read
+  -0.4 % in 20 pairs.
+- **Never armed** with nothing touching (the Cub, the metal Cessna, ground and air, 600 frames after 120: 0 frames armed, the worst cut 0.0005-0.0009
+  of its limit). Unarmed, one substep a frame is measured (the frame's last); armed, every substep (the in-contact cost: a cut's members and a
+  cluster's nodes, reported, not gated).
+- perf.json, perf_pairs_metal_air.txt.
+
+### THE BATTERY (§11.2 #1: off = the base's bytes; node, GATES_CORE=1, --verbose, each gate's whole output diffed, TREE-CRASH G1478's method)
+The base's battery (claude/dmg-integration b819b779 in a worktree) against this branch's, the same 41 gates (TREE-CRASH G1478's list:
+`--only=SOAR,PILOT,GEN,HONEST,AERO,HOTHIGH,FLEX,FLAPS,GE,STRESS,NAV,TAXICLEAR,LINEUP,PLAN,DEFAULT,WEIGHT,DRAG,MASS,GEAR,STRUT,SITE,FLOATS,SEAPLANE,
+ENERGY,MOUNT,SUBSTEP,PACE,FLIGHTREC,PILOTACT,STRIPSURF,TAKEOFF,SETTLE,HYDRODYN,SIMWORKER,HITBOX,LOAD,BENCH,BIPLANE,OBSTACLE,TREEHIT,TREECRASH`), this
+branch with DMGMEMBERS, DMGCLUSTERS, DMGFPS, DMGINST on top:
+- **Both: BATTERY PASS** (the base 41/41 in 1789 s wall; this branch 45/45 in 2346 s, 4 jobs).
+- **The same bytes (28):** SUBSTEP PACE GE FLAPS STRESS NAV TAXICLEAR PLAN LINEUP DEFAULT HONEST WEIGHT DRAG MASS TREEHIT BENCH GEAR STRUT SITE
+  OBSTACLE FLOATS SEAPLANE ENERGY AERO HOTHIGH SOAR LOAD MOUNT (the asked-for LOAD, BENCH, FLEX's verdicts, TREEHIT, OBSTACLE: the layer is off in them).
+- **Only clock readings differ (12; every number masked, the same bytes):** FLIGHTREC GEN PILOT STRIPSURF TAKEOFF PILOTACT (a temp core's name)
+  BIPLANE (its buildGen ms) SIMWORKER (every step's FNV(p, v) equal: the stock f2b3de3f, the Cessna cbccf99f, as the base) HITBOX HYDRODYN SETTLE
+  FLEX (its shards' seconds).
+- **TREECRASH** (damage ON) differs where the clusters act, PASS 47/47 as the base: the Jodel's wing 2.5 m out breaks 23 members (the base 7; its
+  fin comes off too, 16, the aeroplane slewing round the trunk) for 9.2 kJ (8.9); the twin's severe nose-in 32 set / 38 broken, 17.70 g, CRASHED (a
+  fus member broke) (the base 38 / 60, 14.87 g, a tail member) - the rod comes off at 0.067 s and spares the tail truss.
+- battery_diff.txt (the per-gate verdict and every differing line), battery_summary.txt, gate_*.txt.
+- The generated outputs (flight_core.js, index.html, dev.html, sw.js, version.json) are NOT committed.
+
+### EVIDENCE (reports/evidence/DMG-D3/, `node tools/dmg_clusters_evidence.js`, ~3 min)
+- `loads_pulls.svg`: each scripted pull - the cut's bending and torque over its break limit against time, to the moment the part comes off.
+- `loads_water.svg`: the twin's two nose-ins per frame (the probe) - the rod's root and station, the left float's root, over their limits.
+- `view_fin_cub.svg`, `view_fin_jodel.svg` (from behind), `view_rod_root.svg`, `view_rod_station.svg`, `view_rod_twist.svg`, `view_float.svg`,
+  `view_boom_station.svg` (from the left): the beams 0.5 s after the part came off - the part's own members, the broken ones, the rest.
+- `runs.json`; `gate_dmgclusters.txt`, `gate_treecrash.txt`, `gate_dmgmembers.txt`; `perf.json`; `battery_diff.txt`.
+
+### Open questions (the coordinator / DMG-D2)
+- **The break limit is D1a's fitting rule on the section, not first yield** (above). At first yield the twin's rod comes off in TREECRASH's flown
+  pull and in the 90 km/h nose-in. If first yield is wanted, the twin's drawn rod (rodWall 1.2 mm, a GEN_RULES default) is under-strength for its
+  tail - that is a generator / archetype question, not tuned here.
+- **The twin's 90 km/h nose-in reads 0.93 of the rod root's break limit** - under 1, but the thinnest margin of any normal case. D2 may want
+  headroom (as D1a's 0.83 there on a truss member).
+- **The Jodel's fin at 0.73 (0.84 of first yield) on the fin's own 5.7 g bench:** its spruce caps (1 cm2 each, the EI's stand-in) are what the
+  wooden fin's omega was built on. Under 1.
+- **The floats' fittings do not fail in the severe nose-in** (above): the certificate's fitting limits (D2a) are what would make them.
+- **A float's attachment is never judged by its moment first:** its own struts' fittings (D1a, 1.15 Fu each, axial) let go at 0.09-0.13 of the
+  bolt group's moment - the moment check is consistent with them but never the first to trip. The fin, the rod and the booms are judged by the
+  moment (their members inside the cluster carry nothing).
+- **Plastic clusters (§4.7 ii) are not built:** a cluster takes no set; it holds or its part comes off.
+- **A part that came off has no aero** (its strips died with the members across them, G1470's rule; D1b's component test may restore them) and is
+  not drawn detached (D4a's mesh breaking).
+- **After a root cut parts, that part's other cuts are spent** (a torn-off rod does not split again at its station); after a station split, the
+  fore half keeps its root cut.
+- **No validated build has a twin boom;** the fixture's numbers are reported and nothing was tuned on it.
+- Not touched: per-beam work, bm.sec, sim-diverged, DMGFPS (D0); the strip component test, refs-core, SUPPORT beams (D1b); certificate limits
+  (D2a); the deformation damper (DAMP). Solver edits are localized to the cluster code (shapeMatch's one branch to its reporting twin
+  shapeGoalReport, twistHold / rotateRing's report and torque limit), TREE-CRASH's DMG block (the D3 block, dmgReset, beamBreak's cluster line
+  and its group line, armFrame's `clArm`) and step()'s substep loop (cutX before, clCuts / clApply after); substep() is the base's. The
+  generator (61_gen_frame) adds a `dmg` record to each cluster and the rod / boom station (finCluster takes the fin's root ends); tools: GATE
+  DMGCLUSTERS (new, registered core), dmg_clusters_evidence.js (new), _treecrash_lib's clearPeak clears the cluster peaks too.
+
+## G1830-G1834 DMG-D2a CERTIFICATE - EVERY MEMBER STAMPED FROM THE LOADS ITS AEROPLANE IS CERTIFIED FOR: THE CASES, THE ENVELOPE, THE STAMP, THE FREE TEST TO DESTRUCTION, GATE DMGCERT (2026-10-05, DMG-D2a for the DEFORM COORDINATOR, cloud, node only (plus one headless Chromium run of the bench worker); branch claude/dmg-d2a-certificate off claude/dmg-integration = b819b77, then 8125f22 (G1898.2) and a15c891 (DMG-D1b WRECK INTEGRITY + DMG-D3 CLUSTERS) merged in; G1834 unused)
+
+DEFORM-AND-BREAK §4.3 (c), ruling dm1 (certificate-anchored failure), dm6 (the test to destruction is free). **Damage stays OFF by default**
+(GEN_DAMAGE_DEFAULT untouched; the flip is DMG-D2b's): with the layer off nothing here runs, nothing is stamped, and every gate's bytes are the
+base's (the battery below). **DMG-DAMP was not merged**: claude/dmg-damp has no READY commit (its head at my finish, e458844, is G1888 work). When it lands,
+re-read the dynamic cases (the drop, the bow, the flown pull: they run the real sim) - see the open questions.
+
+### What changed, in one paragraph
+D1a judged a member on its PHYSICS (sigY x A, the seams, Euler): on the validated builds the worst member reached 0.17-0.36 of its yield at the
+3.8 g limit, so nothing a pilot could do bent the aeroplane. Now `src/core/66_gen_cert.js` runs the cases a FAR 23 normal-category certification
+runs, records each member's peak force at LIMIT (the envelope F_l, tension and compression apart), and `makeSim` stamps every member from it
+(30_solver.js `certStamp`) - never past its physics, never on the gear (D2b's). Result on all five validated builds: the bench holds the limit
+with no set, holds the ultimate, and **breaks at a fitting at 6.01-6.10 g** (the band [5.70, 5.99] plus the rig's ramp lag); the flown pull to the
+limit yields nothing (worst member 0.56-0.99 of its certified limit); a design built at half the section its certificate asks breaks on the bench
+at 1.45-3.54 g.
+
+### G1830 - THE LOAD CASES (66_gen_cert.js genCertify)
+All on the solver's own air: `sim.probe(vel, live)` (a new optional `live` flag: the aero pass includes the propeller's thrust and wash), the
+strips' span and chord distribution, the aerofoil's moment twisting the box, the control surfaces' loads on their strips. Each static case is an
+equilibrium of the lattice's own force law (a dense Cholesky on ~300-400 dof, Newton on the tangent, modified Newton with the tangent refreshed
+every 6 rounds, a 2 cm step cap and a Levenberg shift for slack wires), the shape-matched clusters as omega^2 M (I - P), and whatever the loads
+leave unbalanced taken by the rigid body's acceleration (inertia relief - nothing supports a flying aeroplane). The aeroplane flies in the flight
+box (G610); the bench case uses the true box, as the rig does.
+
+| case | what | FAR 23 (as recalled - A0 to open on the box) |
+|---|---|---|
+| pullA, pullD | +3.8 g trimmed (alpha and the elevator solved by secant) at V_A and V_D | 23.333 / .335 / .337 |
+| negC | -0.4 x 3.8 = -1.52 g at V_C, throttle 0 | 23.337(b) |
+| pullAq, pullDq | A and D plus the checked manoeuvre's pitch acceleration (39 n (n - 1.5) / V_kt) | 23.423(b) |
+| rollR, rollL | 2/3 of the limit, the aileron full | 23.349 |
+| elevUpD, elevDownD | the elevator hard over at V_D from 1 g, x dynCtl 2 (a step on an elastic tail) | 23.423 / 23.441 |
+| rudRA, rudLA | the rudder hard over at V_A from 1 g, x 2 | 23.441 |
+| crashFwd/Up/Down/SideR/SideL | the engine items (ENG/CGE/MNT) on a pinned airframe: 9 / 3 / 6 / 1.5 / 1.5 g ultimate, / 1.5 to limit | 23.561(b) |
+| impactNose | 9 g forward on every node, reacted at the thrust nodes (refs.engine on the centreline), relieved | 23.561 |
+| bench | the garage's own rig, statically: the fuselage on trestles, inverted about the boom's axis, the bags as the rig applies them (impulses: the dampers' share modelled), 3.8 g with the wing's weight - matches the rig to 0.05 % | (the garage's) |
+| drop | DYNAMIC: TREECRASH's own hardLanding at the 10 ft/s cap (settle 240 frames, lift 2 cm, v = -sink, 120 frames; floats on the sea lane) | 23.473 |
+| bow | DYNAMIC, floatplanes: TREECRASH's float nose-in (90 km/h, 5 m/s, 20 deg, 72 frames) | 23.527-.529 |
+| flown | DYNAMIC: the pull flown from 2.6 Vs at 400 m (PI on the load), read until the WING's load (aeroFy / W) reaches the limit | 23.307 |
+
+Speeds: V_A = Vs sqrt(n); V_C = max(1.3 Vs sqrt(n), 33 sqrt(W/S) kt); V_D = 1.4 V_C. The Cub: 31.8 / 41.4 / 57.9 m/s; the metal Cessna 43.7 /
+56.8 / 79.5; the floats 50.2 / 65.3 / 91.4.
+
+**Removed on the way** (each measured wrong): area-proportional flight loads (missed the tail's and the torsion's), a 3-2-1 support (excited a
+near-mechanism; inertia relief instead), the prestress geometric stiffness (broke rigid invariance), the ailerons at V_D and the rudder at V_D
+(over-certified the wing joints: the aileron dropped, the rudder at V_A), a damped quick-settle drop (under-read TREECRASH's drop badly: the drop
+is now TREECRASH's procedure exactly).
+
+**THE ENVELOPE** (reports/evidence/DMG-D2a/envelope.json, envelope.svg): the case that sets each member's tension limit, members per case -
+
+| build | the governing cases (tension) |
+|---|---|
+| the user's Cub | elevUpD 104, elevDownD 86, rudLA 44, drop 42, rudRA 34, impactNose 17, bench 14, negC / flown / rollL / rollR 7 each, crashFwd 6, pullDq 4 |
+| Jodel | drop 112, elevUpD 105, elevDownD 71, bench 52, rudRA 42, rudLA 31, flown 30, negC 12, impactNose 9, rolls 4 + 4, crashFwd 4, pullDq 1 |
+| metal Cessna | elevUpD 108, elevDownD 87, drop 47, rudRA 46, bench 44, rudLA 36, impactNose 23, negC 19, crashFwd 5, pullDq 4, pullA / pullAq / flown 2 |
+| Cessna floats | elevUpD 99, elevDownD 83, bow 81, bench 40, rudLA 37, drop 33, rudRA 27, pullAq 8, impactNose 7, negC 6, ... |
+| twin floatplane | bow 97, elevUpD 96, elevDownD 93, rudRA 39, rudLA 34, flown 23, drop 15, bench 8, impactNose 6, crashFwd 2 |
+
+The envelope's share of a member's physics yield, by class (median / largest): the wing 0.03-0.06 / 0.19-0.36, the fuselage 0.02-0.07 /
+0.15-0.41, the tail 0.04-0.23 / 0.47-1.79. **Where the envelope passes the physics** (the stamp keeps the physics there - see open questions):
+0-8 tail members a build in tension and 3-32 in compression at the ultimate, all from the elevator hard over at V_D x 2; 2-6 fuselage members in
+compression (impactNose; the Cub's elevator cases; the twin's bow).
+
+### G1831 - THE STAMP (30_solver.js certStamp; GEN_CERT in 66_gen_cert.js)
+`makeSim` keeps each member's D1a physics (fy0, fu, fc0, ty x A) in `PHY` (only with the layer on) and, when `def.cert` is present, stamps:
+- **ordinary members:** Fu = cap(1.5 F_l m x uMember x scatter), Fy = cap(F_l x yTol) (brittle: Fy = Fu), the plastic travel capped at
+  etu = 1 %; compression Fc = cap(1.5 F_l,c m x uMember) - at the ULTIMATE, never at the limit (a member perfectly plastic at its limit is a
+  mechanism one hair past it). cap(x) = min(max(x, kappa x physics), physics): the floor kappa x physics, and never past D1a's physics (the
+  material x section, the seams, Euler).
+- **joints** (any D1a seam: fitting, rivet, bond, opening): brittle at Fu = cap(1.5 F_l m x uFit).
+- **the gear** (cls 'gear': the legs, the floats' struts and hulls) is skipped - D2b's.
+- **the rules:** m = 1.05, uMember = 1.15, uFit = 1.0, yTol = 1.01, kappa = 0.1, etu = 0.01, dynCtl = 2. Spruce's ragged scatter is kept, upward
+  only (a member never certifies weaker than its card).
+- `sim.certStamp(C)` stamps a live sim **only before anything has bent** (it refuses once DMG.yields / breaks / dents is non-zero, or under PEAK);
+  `sim.cert()` reads it back. sim_link / sim_host forward it to the physics worker.
+
+**THE FITTING FACTOR - a deviation for the coordinator to rule on.** The brief reads "fittings' Fu = 1.15 x F_cert (FAR 23.625)". Taken literally,
+the fittings sit 15 % ABOVE the members, so the members break first and the fittings let go at ~6.9-7.2 g, past §7.4's over-g row; and the card
+would say "a member broke in its middle". I kept FAR 23.625's 15 % BETWEEN the two, on the side the lattice can show: **a joint breaks at 1.5 F_l m
+(uFit 1.0), every member between joints holds 1.15 x longer (uMember 1.15)** - so the part comes off as a part (§4.4) at the card's broke-at, at a
+joint, every time (GATE DMGCERT checks it). One line each in GEN_CERT to swap them.
+
+**kappa_floor's census** (reports/evidence/DMG-D2a/kappa.json, kappa.svg; the stamp redone at each kappa; members on the floor in tension / the
+certified total, and the bench's first joint, linear, from the stamped limits):
+
+| build | 0.05 | **0.1** | 0.15 | 0.2 | 0.3 |
+|---|---|---|---|---|---|
+| the user's Cub | 145/379, 5.98 g | **245/379, 5.98 g** | 309, 5.99 | 326, 6.03 | 348, **9.04** |
+| Jodel | 271/477, 5.99 | **368/477, 5.99** | 407, 5.99 | 432, 5.99 | 456, 5.99 |
+| metal Cessna | 115/427, 5.98 | **201/427, 5.99** | 281, 5.99 | 303, 5.99 | 357, 5.99 |
+| Cessna floats | 94/427, 5.99 | **171/427, 5.99** | 225, 5.99 | 277, 5.99 | 319, 5.99 |
+| twin floatplane | 142/413, 5.99 | **256/413, 5.99** | 308, 5.99 | 336, 6.02 | 366, **9.03** |
+
+Why 0.1: from 0.2 the floor starts to take the wing's joints off the certificate (the Cub and the twin's first joint drifts, then jumps to 9 g at
+0.3, the floor alone); 0.25 (tried first) swamped the certificate. Below 0.1 the card does not move (0.05 gives the same first joints), but every
+member no case loads gets weaker in a crash: the floor is what a trunk meets (at 0.1, before the 23.561 cases were added, the 3 m/s trunk taxi
+kinked the engine mount - the crash cases fixed that, not the floor; 0.05 was not re-run on the trunk rows). 0.1 is the largest kappa that leaves
+every build's first joint where the certificate puts it. The floor still governs 40-77 % of the members (those no certified case loads: the fuselage's diagonals, the tail's ribs) - they are paper only to the
+certificate, never to a crash: there the floor and Euler govern.
+
+**The stamp per build** (tension: on the certificate / on the floor; compression likewise; the gear apart):
+
+| build | certified | tension cert / floor | compression cert / floor | gear kept on D1a |
+|---|---|---|---|---|
+| the user's Cub | 379 | 134 / 245 | 189 / 186 | 15 |
+| Jodel | 477 | 109 / 368 | 186 / 287 | 15 |
+| metal Cessna | 427 | 226 / 201 | 229 / 194 | 15 |
+| Cessna floats | 427 | 256 / 171 | 263 / 160 | 106 |
+| twin floatplane | 413 | 157 / 256 | 216 / 193 | 106 |
+
+### THE COST, AND WHERE IT RUNS (a strict gate)
+- **Never in the garage's edit loop.** Nothing in the generator or the garage's drag path changed (genCertify is not called by buildGen). The
+  certificate is asked for when the aeroplane ROLLS OUT (app.js `certKick()` at the start of `rollOut()`, and again in `rollOutStand()`), only
+  when `curKey === 'gen'` and the layer is on. It is computed on the bench's thread (bench_worker.js `{kind:'cert'}`; the envelope's two
+  Float64Arrays come back transferred) and kept by the spec's hash (`genCertKey`: FNV of the rules, PHYSICS_V and the spec; 8 deep on the page and
+  in the core's GEN_CERT_CACHE).
+- **What the page does while it computes: nothing.** The roll-out shot and the stand run as before; the flight starts on D1a's physics limits
+  (which are never weaker than the certificate's - the stamp is capped at them) and the stamp lands on the live sim the moment the answer does
+  (`sim.certStamp`, refused if anything has bent by then: that flight stays on D1a's limits, the next one stamps from the cache at once). A
+  second flight of the same build stamps at roll-out in 0-1 ms. **So a NEW build's first 3-10 s (its roll-out, the parked engine start) run on
+  D1a's physics, not the stamp** - read the brief's "the flight must start with the stamped limits" against that; the alternative (computing it
+  while the user is still in the garage, at idle) is in the edit loop's thread budget and I did not do it.
+- No worker (file://): the page computes it in one `setTimeout` task after the roll-out (a 3-10 s stall there, file:// only).
+- **Measured** (node, `genCertify`, DMGCERT's own run, 4 gates in parallel): Cub 3.8 s, Jodel 5.9, metal Cessna 5.4, floats 8.7, twin 9.6 (alone,
+  earlier: 2.6-7.8 s). Of which the static flight cases 0.6-1.2 s, the bench 8-24 ms, the dynamic cases (drop, bow, flown) 2.5-7.0 s. Cached:
+  0-1 ms. **In a browser worker** (tools/dmg_cert_worker_shot.js, headless Chromium, the bench worker as the page starts it): see the table under
+  G1832: 2.6-9.3 s, its envelope bit-equal to node's.
+- `window.CERT_STATE()` on the page: `{ last: {key, how: 'worker'|'cache'|'page', stamped, ms, limit, ult}, pending, cached, stamped }`.
+
+### G1832 - THE TEST TO DESTRUCTION (free, ruling dm6)
+- 65_gen_loadtest.js `cfg.destroy`: the bags go on at the load test's own rate past the ultimate (to 3 x the ultimate); the run ends 0.3 s after
+  the first BREAK GROUP lets go, with `state.brokeAt` (the bags' g at that frame), `brokeKey`, `brokeSeam`, `yieldAt`, `breakAt`, and the verdict
+  "BROKE AT x g". Outside destroy mode a load test whose structure broke now reads 'BROKE UP' (the damage layer's breaks; a NaN is still 'SIM
+  DIVERGED' first) - GATE DMGINST's static check updated to that (its line 65 already expected it).
+- The bench (bench.js): with the layer on, after the wing loading the row and the award card wait for the destruction and print one line -
+  **"LIMIT 3.8 g · ULTIMATE 5.7 g · BROKE AT 6.01 g (the right wing's strut, a fitting, let go first) — the test to destruction, free"**
+  (`benchDestroyLine`, exported, pure). It rides on the load row (GATE BENCH wants exactly six test rows). The aeroplane on the stand and the wallet
+  are never touched: it runs in the bench worker (`{kind:'destroy'}`, unpaced) on its own sim with the roll-out's certificate handed in.
+- **Results** (GATE DMGCERT; reports/evidence/DMG-D2a/breakat.svg):
+
+  | build | BROKE AT | the first group | the first member | first set | the bench worker in Chromium: cert / destroy |
+  |---|---|---|---|---|---|
+  | the user's Cub | 6.01 g | the right strut | fitting S1BR-WF (tension) | (brittle) | 2.6 s / 2.2 s |
+  | Jodel | 6.10 g | the left wing root | bond WB-WF (a glue line) | (brittle) | 4.5 s / 6.0 s |
+  | metal Cessna | 6.06 g | the right strut | fitting S1BR-WB | 3.85 g | 3.4 s / 5.3 s |
+  | Cessna floats | 6.10 g | the right strut | fitting S1BR-WB | 3.85 g | 8.2 s / 6.1 s |
+  | twin floatplane | 6.01 g | the right strut | fitting S1BR-WF | (brittle) | 9.3 s / 4.2 s |
+
+  The worker's broke-at equals node's on all five; its envelope is bit-equal to node's (worker_shot.txt). The card shows the destruction
+  line 2-6 s after the wing loading's verdict.
+
+  The band is [1.5, 1.5 m] x limit = [5.70, 5.99] g; the rig READS 6.01-6.10 because the bags' g leads the structure's response on the ramp
+  (4 s to 5.7 g): the static first joint from the stamped limits is **5.98-5.99 g on every build** (the kappa census). The gate allows +2.5 % for the
+  lag and says so.
+
+### G1833 - GATE DMGCERT (tools/_dmg_cert_check.js; run_gates: core, weight 3, wall 240) - **70/70 PASS** (186 s, 5 builds)
+Per build:
+1. **The certificate:** every member has an envelope, none stamped past its physics; the gear keeps D1a's limits; with the layer off nothing is
+   stamped (the stamp refused, every limit infinite) and a garage build carries no certificate; computed once, then from the cache (0-1 ms).
+2. **The card on the bench:**
+   - the limit x 1.0: HELD, no set (all five);
+   - the limit x 1.2: **a set on the metal wings** (the metal Cessna 16 members, the largest 0.18 %; the floats 18) - the wood wings (the Cub, the
+     Jodel, the twin) cannot take a set (brittle spruce, joints) and the gate REPORTs that instead;
+   - the ultimate: HELD, nothing broken (the metal ones 32 / 36 set);
+   - the ultimate x 1.1: it breaks, the first member at a joint (the Cub 23 members, the Jodel 76, the metal 40, the floats 40, the twin 60).
+3. **To destruction:** within the band (+2.5 %), the first member a joint, and the page's bench thread (bench_worker.js `benchLoadRun`) gives the
+   same number and the card's line.
+4. **The flight:**
+   - the flown pull to the limit yields nothing: the worst member at 0.95 / 0.56 / 0.93 / 0.97 / 0.99 of its certified limit;
+   - parked 10 s and 10 s in the air (1.6 Vs, 0.75 throttle) on the certificate's limits: nothing yields, no frame armed once settled. **Normal
+     operations never yield.**
+5. **A bad design fails its bench:** the struts (or a cantilever's root) at half the section their certificate asks, certified as built,
+   BROKE UP at 2.94 / 3.54 / 1.64 / 1.45 / 2.97 g.
+6. **REPORTs:** D1a's open questions re-read (below).
+
+**TREECRASH now runs on the certificate** (`_treecrash_check.js`: FLYDIY_CERT=1 by default; `--physics` gives D1a's old run). Its load row is the
+certificate's: below 1 at the limit, plus a load test to 5.7 g HELD with nothing broken. Its pull uses the wing's load (toLimit 3.8). Its wall is
+900. **47/47 PASS**. The normal-ops margins (the worst member over its CERTIFIED yield):
+
+| | load to 3.8 g | flown pull | drop 7-8 ft/s | drop 10 ft/s | circuit |
+|---|---|---|---|---|---|
+| the user's Cub | 0.64 | 0.95 | 0.76 | 0.99 | 0.29 |
+| Jodel | 0.64 | 0.56 | 0.47 | 0.63 | 0.32 |
+| metal Cessna | 1.00 | 0.93 | 0.80 | 0.99 | 0.74 |
+| Cessna floats | 1.00 | 0.97 | 0.76 | 0.99 | 0.98 |
+| twin floatplane | 0.64 | 0.99 | 0.41 | 0.63 | 0.35 |
+
+The trunk runs:
+- the taxi at 3 m/s dents and does not crash (7-15 members set);
+- the wingtip brush sets 0-2 members;
+- the 30 m/s trunks CRASH;
+- **THE WATER CASE** (the twin's float nose-in at 90 km/h, 5 m/s, 20 deg): worst member 0.99, 0 set, 0 broken - green (the bow case certifies it);
+- the severe nose-in breaks up, as it must;
+- the Cub's water rows skip as before (GEAR-WATER 2's wet body is not in this core).
+
+**DMGMEMBERS 80/80 PASS** (its own D1a physics run, unchanged by this branch).
+
+**After merging D1b and D3** (a15c891; conflicts in run_gates.js - both rows kept - and DMGINST's section 1 - D1b's app.js check and my load-test
+check both kept):
+- The envelope is bit-identical (the Cub and the metal Cessna compared to the file the perf runs load).
+- DMGCERT 70/70 with the same numbers, but the pieces broken at the ultimate x 1.1 (the Cub 24 -> 23, the Jodel 74 -> 76).
+- TREECRASH 47/47: the normal-ops rows are unchanged, and the trunk crashes now end in D1b's "broke up: the fuselage parted".
+- DMGMEMBERS 80/80, DMGCLUSTERS, DMGINTEGRITY, DMGINST 33/33, DMGFPS PASS (reports/evidence/DMG-D2a/gate_damage_after_merge.txt).
+
+### THE ACCEPTANCE
+- **Off = the base's bytes.** TREE-CRASH's G1478 list (41 physics gates) + DMGINST, DMGFPS, DMGMEMBERS, UISMOKE, BUILD, JOIN, DMGCLUSTERS,
+  DMGINTEGRITY; `GATES_CORE=1 run_gates --only=... --verbose --jobs=4`, the base (claude/dmg-integration a15c891 = D1b + D3, built) against this
+  branch with a15c891 merged in, each gate's whole output:
+  - **32 byte for byte:** AERO BENCH BUILD DEFAULT DMGMEMBERS DRAG ENERGY FLAPS FLOATS GE GEAR HONEST HOTHIGH JOIN LINEUP LOAD MASS MOUNT NAV
+    OBSTACLE PACE PLAN SEAPLANE SITE SOAR STRESS STRUT SUBSTEP TAXICLEAR TREEHIT UISMOKE WEIGHT.
+  - **15 differ only in timings** (numbers masked, identical): BIPLANE DMGCLUSTERS DMGFPS DMGINTEGRITY FLEX FLIGHTREC GEN HITBOX HYDRODYN PILOT
+    PILOTACT SETTLE SIMWORKER STRIPSURF TAKEOFF. In SIMWORKER every step's FNV is equal (f2b3de3f / cbccf99f).
+  - **2 differ, both by design:** DMGINST, whose one static check was rewritten for G1832 (only that line's text differs); and TREECRASH, which
+    now runs on the certificate. Its `--physics` run (D1a's limits) is the base's output byte for byte apart from the header.
+  - Both batteries: **BATTERY PASS**. The same comparison against 8125f22, before D1b and D3, gave the same split: 32 / 13 / the same 2
+    (battery_diff_8125f22.txt). In that run DMGINST's old check failed, which is what led to the rewrite.
+  - GATE INSTANT and STAND PASS (INSTANT 1087 s, on the 8125f22 merge; nothing in the garage changed since).
+  - reports/evidence/DMG-D2a/battery_diff.txt.
+- **PERF** (`tools/treecrash_evidence.js --perf-only --perf-base <the base's core>`, the layer ON, the certificate handed in from a file
+  (FLYDIY_CERT_DIR), nothing touching, a far 4000-trunk set; the median of 5 processes' medians, 600 steps). Against 8125f22, on a quiet machine:
+
+  | case | run 1 base / now (ms) | run 2 base / now | all 10 base / now | |
+  |---|---|---|---|---|
+  | Cub, ground | 2.861 / 2.934 | 2.893 / 2.893 | 2.887 / 2.934 | +1.6 % |
+  | Cub, air | 2.899 / 2.847 | 2.731 / 2.826 | 2.800 / 2.838 | +1.3 % |
+  | metal Cessna, ground | 5.143 / 5.057 | 4.909 / 4.849 | 4.971 / 5.057 | +1.7 % |
+  | metal Cessna, air | 4.912 / 4.884 | 4.855 / 4.661 | 4.912 / 4.793 | -2.4 % |
+
+  After the merge of D1b and D3 (against a15c891) the machine got noisy: the base itself read 10-15 % slower, and two runs pooled to Cub ground
+  -4.8 %, Cub air +6.3 %, metal ground -0.6 %, metal air +2.1 %. The alternating pairs settle it (perf_pairs.txt):
+
+  | series | Cub ground | Cub air | metal air |
+  |---|---|---|---|
+  | vs 8125f22, 12 pairs | -2.1 % (pair median -0.3 %) | -0.3 % (-0.9 %) | - |
+  | vs a15c891, 12 pairs | - | +4.1 % (my core without a certificate +2.1 %) | -6.5 % (without -9.8 %) |
+  | vs a15c891, 16 pairs pinned to one CPU | -1.3 % (pair +0.8 %) | +2.1 % (pair +1.6 %; without a certificate -0.2 %) | - |
+  | my core alone, Cub air, 16 triples pinned: no certificate / a stamp onto the physics limits / the certificate | | 3.386 / 3.512 / 3.215 ms: **the certificate -5.0 %** | |
+
+  **No regression the noise can resolve.** The certified sim against the uncertified one changes sign from series to series (+1.0 to +3.6 %,
+  then -5.0 %). The stamp is build time: it writes existing fields, no new ones, and the step's code is unchanged. Arming adds 1-4 frames of
+  600 (the yield path armed by the lower limits), which cannot move a median. **Run the pinned pairs on the box**, where the cloud's noise is
+  absent, before reading a 2 % either way.
+  **The certificate must not be computed in the measuring process.** It makes later sims ~21 % slower there: the probe sims add fields to beam
+  objects and leave the hot loop's inline caches polymorphic. In the game it runs in the bench worker's isolate, never the physics thread's, so
+  the perf children load it precomputed.
+- **The garage's parameter-change response is unchanged:** the generator, the drag path and INSTANT's layers are untouched (no core file before
+  66 changed but 30_solver.js's stamp and probe flag, and 65's load-test verdicts); GATE INSTANT PASS, and UISMOKE, BUILD, JOIN, BENCH,
+  SIMWORKER, STAND PASS.
+- **Normal operations never yield** (DMGCERT 4, TREECRASH 2); **the WATER CASE is green**; **DMGMEMBERS and TREECRASH are green**.
+- Validated builds only; no archetype tuned; no Rigs of Rods / BeamNG code.
+
+### Evidence (flyDiy/reports/evidence/DMG-D2a/)
+- `envelope.json`, `envelope.svg`: the governing cases.
+- `breakat.svg`: to destruction, and the bad design.
+- `kappa.json`, `kappa.svg`: the census.
+- `runs.json`: every number above.
+- `gate_dmgcert.txt`, `gate_treecrash.txt`, `gate_treecrash_physics.txt`, `gate_dmgmembers.txt`, `gate_dmginst.txt`,
+  `gate_instant_stand.txt`.
+- `battery_mine.txt`, `battery_base.txt`, `battery_diff.txt`.
+- `perf.json`, `perf_pairs.txt`.
+- `worker_shot.txt`.
+
+Tools:
+- `tools/dmg_cert_evidence.js`: the plots and the census.
+- `tools/dmg_cert_worker_shot.js`: the bench worker's cert and destroy jobs in headless Chromium. Needs playwright (NODE_PATH=$(npm root -g)).
+- `tools/treecrash_evidence.js --out <dir>`.
+
+### THE COORDINATOR MUST EYEBALL ON THE BOX
+1. `dev.html?damage=1`, build or load a validated aeroplane, roll out: `window.CERT_STATE()` in the console a few seconds later must read
+   `stamped: true, how: 'worker'` (and `how: 'cache'` on the second flight of the same build). The roll-out and the first frames must not stutter.
+2. The bench's wing loading with the layer on: the row and the award card print the LIMIT / ULTIMATE / BROKE AT line (`.bDestroy`), a few seconds
+   after the wing loading's verdict; the card's close waits for it. Check the wording and that it fits the card at phone width.
+3. Fly a pull to ~3.8 g in the Cub: nothing bends. Past ~6 g (the over-g row) the strut lets go first.
+4. With the layer off (`dev.html` plain): no destruction line, no certificate job (CERT_STATE().last stays null).
+
+### Open questions
+- **The fitting factor's reading** (G1831 above): FAR 23.625's 15 % kept between joints and members, joints the weaker. Rule on it.
+- **The tail under its elevator case.** The elevator hard over at V_D x dynCtl 2 asks more of 0-8 tail members a build (tension: the Cub 1, the Jodel 0, the metal Cessna 5, the floats 8, the twin 6) than their
+  physics yield, and 3-32 more in compression at the ultimate. The stamp keeps the physics there, so the tail is the one place where the
+  certificate is above what the generator builds. Either dynCtl 2 is too harsh (1.0 if the elevator's step is taken as quasi-static), or the
+  generator's tail is light for its V_D: a generator question (D-TUNE / A0), not a stamp one.
+- **etu = 1 %** for a certified ductile member (D1a's coupon 8-10 %). At 10 % the metal wing redistributes past its first yield and the joint
+  breaks only at 6.9-7.3 g. 1 % puts it at 6.06-6.10. The first set is then just past the limit (3.85 g), as a real spar cap.
+- **dynCtl = 2** on the controls' cases, and the drop at the **10 ft/s cap** (TREECRASH's harsher drop, not 23.473's computed sink of
+  7.0-8.3 ft/s). Both are conservative readings.
+- **TREECRASH's pull now reads the WING's load (aeroFy / W), not sim.out.nz**: in a quick pull the CG's acceleration lags the aero load. The wing
+  carried 5.7 W when nz read 3.8 (the old reading over-loaded the airframe by 50 %). At the limit the CG reads 2.0-3.0 g.
+- **DMG-DAMP not merged.** When it lands, re-run DMGCERT and TREECRASH: the drop, the bow and the flown pull are real sims. Damping changes
+  their peaks, and with them the envelope (the drop governs 15-112 members a build).
+- **FAR numbers as recalled** (the table's sections): A0 to open them on the box before they become a gate (§1, §11.2 #7).
+- **No set on wood wings:** spruce and the joints are brittle, so "limit x 1.2 leaves a set" holds only on the metal wings. The gate REPORTs it
+  on the others.
+- **D1a's open questions, re-read:**
+  - **The Jodel now breaks at its wing ROOT FITTING first** (the group wing0L:root at 6.10 g). Its first MEMBER is a glue line (bond WB-WF, the
+    root rib's web): a joint, as it should be.
+  - **The lift struts' compression limits** (the metal Cessna): certified at 14.6-19.2 kN (the bench), they crush at 26.5-34.8 kN, against a
+    physics of 68.3 kN (Euler). The struts are now certified, not Euler-bound.
+  - **The twin's float nose-in** is covered by the bow case (it governs 97 of the twin's members).
+- **The flight's first seconds on D1a's physics** for a new build (COST above). That is the price of never computing in the edit loop.
+- **The JIT cost of computing a certificate where sims run.** In node, a process that has computed a certificate steps its later sims ~21 %
+  slower: the probe sims leave the beam loop's inline caches polymorphic. In the game the certificate runs in the bench worker, so the
+  flight's physics thread never sees it. Two places it does reach:
+  - **file://**, where there is no worker: the page computes the certificate itself, and the page's sim, if it runs there, would carry the
+    slowdown;
+  - **the bench worker's own later load tests:** paced to real time, they have the headroom, but this was not measured in a browser.
+  A fix, if the box shows either: give the probe sims a beam object of their own shape (66_gen_cert.js genCertProbeSim).
+- Housekeeping: a stray empty file `/p2.js` at the container's filesystem root (outside the repo), left by a mistyped heredoc; my sandbox would
+  not remove it. It is not in the repo and the container is ephemeral.
+
+## G1835-G1839 DMG-D2b GEAR - THE GEAR'S OWN CALIBRATION (THE BRACKET), HEADROOM IN NORMAL OPERATIONS (dm14: EVERY ORDINARY OPERATION AT MOST 2/3 OF ITS CERTIFIED YIELD ON ALL FIVE BUILDS), THE SWITCH ON, GATE DMGGEAR (2026-10-05, DMG-D2b for the DEFORM COORDINATOR, cloud, node only; branch claude/dmg-d2b-gear off claude/dmg-integration = 2e5edc2 (D2a + train 32), then 51a2fec (train 33, G1898.5-.7, §11.1 / §11.3's updates) merged in; G1839 unused)
+
+DEFORM-AND-BREAK §4.3, §7.3, §7.4, §11.1-§11.4, §12 dm10 / dm13 / dm14. **DMG-DAMP was not merged**: it is READY (8a22a4f) but the
+coordinator's §11.1 (51a2fec, newer than my brief) lands it with DMG-TYRE / DMG-HULL, not in train 35. **origin/master's train 33** came in
+through dmg-integration (51a2fec). Per §11.3's newer rule (the user: no full battery per session) I ran my gate, the DMG set,
+TREECRASH, the off-bytes gates my files reach (a solver and a certificate change: LOAD BENCH FLEX SIMWORKER SOAR GEN MASS) and,
+for the switch, those plus the flight gates most exposed to it - not the 41-gate battery, which is the coordinator's.
+
+**THE TWO SHAs (A0 takes or holds the switch at train 35):**
+- **DAMAGE STILL OFF: `@@SHA_OFF@@`** - everything below (the bracket, the headroom, GATE DMGGEAR, BIPLANE's probe), GEN_DAMAGE_DEFAULT false.
+- **DAMAGE ON: `@@SHA_ON@@`** - that one commit flips GEN_DAMAGE_DEFAULT (60_gen_spec.js) to true and nothing else; the READY commit
+  after it only fills this entry's SHAs.
+
+### What changed, in one paragraph
+On D2a's certificate an ordinary circuit on the Cessna floats reached 0.98 of a member's certified yield and the metal Cessna's
+0.74, and the gear kept D1a's physics (a fitting at 1.15 x the gear class's billed tube - 137-214 kN on the metal Cessna, ten
+times what its gear carries: no landing could bend it). Now the certificate (66_gen_cert.js, GEN_CERT_V 2) flies the gear's own
+cases - the FAR 23 landing attitudes at the touchdown speed, the ground loads, the roughest ground, the water loads, a float's
+drifting step landing and its water handling - and the solver stamps every gear joint from them (30_solver.js gearStamp): the
+wheel's gear gives in compression where a steel section sized for the ultimate yields and crushes over its archetype's travel,
+every gear joint in tension is its lug, brittle at the ultimate. Every place the headroom was missing was a case missing or a
+member on the certificate that should not be (the engine's own body), each fixed there; no global factor, kappa untouched. Result:
+the bracket holds the limit sink with no set, yields the gear past it, breaks the gear first at NASA 172 Test 1's point; every
+ordinary operation on the five builds reads 0.10-0.66 of its certified yield (the table below); §7.4's ground loop (the Cub),
+porpoise (the metal Cessna, the nose collapses on the third bounce) and float dig-in (both floatplanes' strut fittings) happen.
+**G1837**: the one constant flipped in its own commit (the two SHAs above); with the layer ON as the default, of the 20 gates run
+both ways 17 read the same bytes or only their clocks, TREEHIT and OBSTACLE move as §11.4 predicts (a wing breaks on a trunk; the nose
+dents against an obstacle) and pass, and BIPLANE's wire-law probe failed until it said what it tests (damage off) - nothing yields
+in any ordinary flight gate.
+
+### THE MEMBERS THAT SAT AT 0.98 AND 0.74, AND WHY (G1836; the circuit traced phase by phase, then frame by frame)
+- **The Cessna on floats, 0.98: CGE-ENGL / CGE-ENGR, the engine's CG locators** (the members from the engine's centre of mass to
+  the propeller's flange), in tension in the ROLLOUT, 0.1 s after the pilot's water touchdown at 2.7 m/s sink (pitch -1.3 deg,
+  91 km/h - at the build's own FAR 23.473 limit sink, 2.54 m/s). The engine (199 kg on CGE) RINGS on its mount at ~20 Hz:
+  0 -> 0.98 -> 0 -> 0.69 every three frames, decaying in 0.8 s. A static case never loads these members (a 1 g engine load
+  puts 0.00 kN through them down, 1.02 kN per g fore and aft - in COMPRESSION forward); their certified yield (4.70 kN) was
+  the BOW case's ringing. They are the crankcase, not the mount: **the engine's own body is off the certificate** (both ends on
+  one engine's ENG / CGE nodes: the flange pair and the CG locators keep their physics, 34 kN); the MOUNT (the bearer and its
+  bolts, D1a's fittings) is what the certificate stamps and what lets go. The same circuit then read 0.70 on the firewall's posts
+  (S0BL-S0TL, impactNose) and 0.61 on the wing (WR-WR, bow): the landing loads at the gear's ultimate (below) took those.
+- **The metal Cessna, 0.74: HR-HR, the stab's root cross-tie** - 18 cm between the stab's two root posts, each braced to the
+  fuselage, so no load path crosses it: 0.29-0.35 kN in every static case, its yield on the FLOOR (0.68 kN = kappa x 6.83 kN).
+  The circuit reads 0.005-0.03 of it all the way round but for 9 s of the FINAL: the flaps running out at 34 m/s (with the flaps
+  locked up the run reads 0.03; with the throttle held, 0.84) put a quasi-static 0.18 kN through it and a one-frame ring took it
+  to 0.50. Tried and measured, NOT the cause: 23.345's flaps-extended case (0.14 kN through it), 23.427's unsymmetrical tail
+  (it loads the stab's centre members HB-HR, not this one), a flown elevator doublet at V_F with the flaps down (0.25 kN
+  tension). The flown elevator doublet at V_A put **1.99 kN through it in COMPRESSION** and 0.49 in tension: a ringing member
+  rings both ways about whatever it carried, so **a flown control case's larger peak certifies a member both ways**
+  (GEN_CERT_RING) - its yield 2.0 kN; the circuit's worst member is now 0.36 (S1BL-S1BR, in the FINAL).
+
+### G1835 - THE GEAR BRACKET (66_gen_cert.js the cases; 30_solver.js gearStamp; DEFORM §7.3)
+**The gear's own cases** (FAR 23 as recalled - **A0 to open 23.473-.499 and 23.521-.537 on the box** before any number becomes a
+gate; the regulation's numbers are written from its text as recalled, never from a search summary):
+
+| case | what | FAR 23 (as recalled) |
+|---|---|---|
+| drop (D2a's) | the settled aeroplane dropped at the 10 ft/s cap, no lift | 23.473 / .725 |
+| dropLevel (taildragger) | the three-point attitude taken out: a wheel landing on the mains, at V_S0 forward (spin-up, spring-back) | 23.479 |
+| dropNoseUp (tricycle) | 8 deg nose-up, the mains first, at V_S0 forward | 23.481 |
+| dropOne | rolled 4 deg, one wheel (one float) first, at V_S0 forward | 23.483 |
+| drop473 | the touchdown at the build's own limit sink (under the cap), level, at V_S0: the frame's dynamic answer is not monotone in the sink (the floats' wing spar took more at 2.54 m/s than in the one-float landing at 3.05) | 23.473 |
+| gSideL / gSideR | the mains only, 1.33 W vertical shared, 0.5 W inboard on one wheel and 0.33 W outboard on the other | 23.485 |
+| gBrake | 1.33 W on the mains with 0.8 of it aft | 23.493 |
+| gTailObs, gTailSideL / R | the tail-down landing's tail reaction up and aft at 45 deg; the static load with an equal side load | 23.497 |
+| gNoseAft / Fwd / SideL / SideR | 2.25 x the nose's static reaction with 0.8 aft / 0.4 forward / 0.7 across | 23.499 |
+| taxiRough | 12 s at 8 m/s over the roughest ground reasonably expected: bumps of 4 cm, 3 m apart (a STATED field - the regulation names none) | 23.491 |
+| wStep, wUnsymL / R, wOneL / R | the water reaction n_w = C1 V_S0^2 / (tan^(2/3) beta W^(1/3)), C1 0.012 (2.30 the Cessna on floats, 2.19 the twin), the wing's lift 2/3 W: through both steps; 0.75 of it on each with 0.25 tan beta across; 0.75 of it on one float | 23.527 / .529 / .535 |
+| dropStep, dropDriftL / R | the water drop at the cap at V_S0, level; again drifting 0.2 V_S0 either way (the demonstrated crosswind component): 23.529's side load is a tenth of the vertical, and the ordinary crosswind landings rang the struts to 1.5-1.8 x their limit | 23.529, 23.233 |
+| wWeave | the run-out at 0.6 V_S0, the water rudder hard over and back, 3 cycles: the twin's crosswind circuit rang a float strut to 1.72 x its envelope as its pilot weaved on the run-out | (no FAR case) |
+
+**The stamp (gearStamp)** - every gear member that is a JOINT (D1a's fittings: in the lattice all five members from an axle to the
+body carry the gear's load together - the near-vertical snap-blocker and the braces a landing's push, the cross wires a side load;
+the member drawn as the spring carries no more than they do) or a pair's own link (the axle bar, the floats' spreaders):
+- **compression, a wheel's gear GIVES**: no set to its limit; it yields where a steel section sized for the ultimate yields,
+  1.5 F_l,c x 4130's ty / tu = **1.18 F_l,c**, and crushes at that over its archetype's **travel** (a share of the member's length,
+  then it kinks and its group lets go): **spring steel 0.15, oleo 0.10, bungee 0.04 (the lug, hardly), the nose fork 0.06**;
+- **compression, a float's struts and spreaders**: a truss with no spring - they crush at the ultimate (D2a's rule);
+- **tension, every gear joint is its LUG**: brittle at 1.5 F_l,t m (dm13: the joint the weaker);
+- **the floor: 0.25 W** at the limit (the cross wires no case loads much) - NOT D1a's kappa x physics (the gear class's billed
+  tube is a stand-in, ten times what the gear carries; with it the gear never gave);
+- **not capped at its physics** (§4.1: a leg is a spring standing for a whole leg);
+- a float's own hull truss (inside its rigid cluster, D3's part) keeps D1a's physics.
+- **The gear's plastic work is not the airframe crushing**: dmgFrame's CRASH_J (1.5 kJ) now counts the airframe's work only
+  (airWork, summed only once the total passes it) - a spread gear after a hard landing is a dent (grounded, dm10), not a crash.
+  A gear member BREAKING is still a crash (TREE-CRASH's primary-member rule).
+
+**The bracket per build** (GATE DMGGEAR §1; damage on, the certificate):
+
+| build | gear | joints | compression: gives at (F_l,c x 1.18 / floats: crush at the ultimate) | tension: the lug | travel | drop at its 23.473 sink | at 1.2 x the cap (3.66 m/s) | NASA 172 Test 1 (7 m/s down, 18 m/s fwd) |
+|---|---|---|---|---|---|---|---|---|
+| the user's Cub | taildragger, bungee | 15 | 1.38-7.42 kN | 1.84-4.52 kN | 0.04 | 2.13 m/s: no set | the gear yields (1 member), nothing breaks | breaks: the tailwheel first (TW-TPT kinked), 15 gear + 72 airframe members |
+| Jodel | taildragger, oleo | 15 | 1.34-9.11 kN | 1.79-8.22 kN | 0.10 | 2.17 m/s: no set | holds, just under its yield | the mains spread (8 set), the spruce axle bar breaks (ragged) - no gear group off |
+| metal Cessna | tricycle, spring | 15 | 2.57-19.77 kN | 3.41-11.26 kN | 0.15, the nose 0.06 | 2.38 m/s: no set | holds, just under its yield | breaks: the NOSE gear first (TW-ENGR kinked), 15 gear + 16 airframe |
+| Cessna floats | floats | 20 | 5.92-103.77 kN | 13.94-79.49 kN | - | 2.54 m/s: no set | holds (no spring) | (its row is the dig-in) |
+| twin floatplane | floats | 20 | 2.11-32.41 kN | 2.48-15.22 kN | - | 2.13 m/s: no set | holds (no spring) | (its row is the dig-in) |
+
+§7.3's "yields between V and 1.2 V" holds on the Cub (the bungee's vee); the oleo and the spring gear give just past 1.2 V (their
+yield is 1.18 F_l, and the drop's force grows a little under linearly with the sink). The 23.727 row checks the other half: nothing
+breaks, and the airframe takes no set.
+
+- **NASA 172 Test 1's expected outcome** (nose gear off, mains spread, cabin intact): the metal Cessna's nose gear lets go first;
+  then its engine mount and wing attachments (the drop has no lift: 7 m/s with the wing's whole weight on its roots) - the cabin
+  is not intact. DMG-TUNE's row (§7.4), REPORTED.
+
+### G1836 - THE HEADROOM (GATE DMGGEAR §2; the worst member over its certified yield, under the probe)
+Ordinary operations, all five builds: the circuit, a crosswind circuit at the demonstrated component (23.233's 0.2 V_S0, as
+recalled: 3.3-4.2 m/s across), a taxi on grass at 8 m/s, on a rough field (2 cm bumps 3 m apart - the certificate's 23.491 field
+is 4 cm) at 8 and 12 m/s, or on the water at 4 m/s and in a light chop (5 m/s of wind), touchdowns at the normal sink (1.0 m/s)
+and a firm one (1.5 m/s) at V_S0; and the build's own FAR 23.473 limit sink, READ AS the gear's own limit case (the brief's
+"up to the gear's demonstrated limit" - see the open questions): the airframe at most 2/3, the gear under 1.
+
+| build | td 1.0 | td 1.5 | td 23.473 (airframe) | taxi grass | rough 8 m/s | rough 12 m/s | water 4 m/s | chop | circuit | crosswind circuit |
+|---|---|---|---|---|---|---|---|---|---|---|
+| the user's Cub | 0.35 -> **0.34** | 0.36 -> **0.38** | 0.49 -> **0.39** | 0.23 -> **0.32** | 0.24 -> **0.32** | 0.23 -> **0.32** | - | - | 0.29 -> **0.33** | 0.44 -> **0.33** |
+| Jodel | 0.29 -> **0.34** | 0.39 -> **0.46** | 0.53 -> **0.38** | 0.15 -> **0.15** | 0.70 -> **0.39** | 0.85 -> **0.44** | - | - | 0.32 -> **0.29** | 0.21 -> **0.20** |
+| metal Cessna | 0.33 -> **0.36** | 0.45 -> **0.48** | 0.67 -> **0.52** | 0.35 -> **0.18** | 0.49 -> **0.63** | 0.46 -> **0.55** | - | - | 0.74 -> **0.36** | 0.77 -> **0.61** |
+| Cessna floats | 0.79 -> **0.38** | 0.88 -> **0.43** | 1.19 -> **0.66** | - | - | - | 0.25 -> **0.10** | 0.30 -> **0.18** | 0.98 -> **0.37** | 0.51 -> **0.36** |
+| twin floatplane | 0.50 -> **0.33** | 0.57 -> **0.39** | 0.65 -> **0.46** | - | - | - | 0.29 -> **0.19** | 0.29 -> **0.19** | 0.35 -> **0.27** | 1.22 -> **0.40** |
+
+Before = DMG-D2a's certificate on the base's own core (51a2fec, the same gate's parts: `DMGGEAR_PARTS=ops,circ,xw`); after = this
+branch. **Before: 10 of 38 rows over 2/3, the worst 1.22 (the twin's crosswind circuit: a float strut on the run-out) and 1.19 (the
+floats' touchdown at its own limit sink). After: all 38 at most 0.66.** Some rows rise (the Cub's taxis 0.23 -> 0.32, the metal
+Cessna's rough field 0.49 -> 0.63): those are the GEAR now reading against its own bracket instead of D1a's tube - before, a gear
+member was ten times stronger than its gear. The circuit's worst member is now the gear (the roll-out) on most builds. The Cub's,
+the Jodel's and the Cessna on floats' circuits end at the 340 s bound (outcome null), as in TREECRASH's own circuit.
+
+**The causes, each fixed where it was** (in the cases and the envelope; no factor on the limits themselves - kappa, yTol, m, uMember,
+uFit untouched; landK below is a reading per case class, see the open questions):
+1. **The engine's own body on the certificate** (above): off it.
+2. **No case flew the flaps**: 23.345's flaps-extended case (2.0 g at V_F, trimmed).
+3. **No case loaded the stab's centre section**: 23.427(b)'s unsymmetrical tail (100 % / 100 - 10 (n - 1) % of the elevator cases).
+4. **No case rang the airframe after a step**: the controls flown (elevator and rudder doublets at V_A with the throttle chopped,
+   the elevator again at V_F with the flaps down) - and a flown control case's peak certifies a member both ways.
+5. **The airframe behind the gear was certified at the gear's LIMIT** - so a landing at the limit sink sat at the airframe's
+   certified yield (the floats' wing 1.00 at 23.473's 2.5 m/s, its engine bay 0.70 in the circuit's touchdown). **The gear is the
+   fuse**: §7.3's bracket yields the gear past its limit and breaks it past 1.2 V, so what carries its loads into the airframe must
+   hold, with no set, what the gear can deliver before it lets go - the landing, ground and water cases certify the AIRFRAME at the
+   gear's ultimate, **GEN_CERT.landK = 1.5** (the gear's own members take them at 1). §7.4's NASA Test 1: the gear separates, the
+   cabin intact. The bench's first joint is unchanged on all five builds (the static first break 5.98-5.99 g, as D2a's).
+6. **No case was the roughest ground** (23.491): on the way the rough taxi read 0.69-0.79 on a 4 cm field and the Jodel's gear 0.96
+   on 3 cm: taxiRough (4 cm), the ordinary rough field 2 cm.
+7. **The float's side loads**: the drifting step landing and the water weave (above): the crosswind circuits 0.73 -> 0.36 (floats),
+   0.95 -> 0.40 (twin).
+8. **The gear's own floor was its physics** (D1a): see the stamp.
+9. **The landing at the cap only**: drop473.
+
+### G1838 - GATE DMGGEAR (tools/_dmg_gear_check.js + _dmg_gear_lib.js; run_gates core, weight 3, wall 1800) - **72/72 PASS**
+Per build: 1. the bracket (every gear joint stamped from its envelope; the compression yield 1.18 F_l,c and the travel; the lugs;
+the drops at the 23.473 sink - no set -, at 1.2 x the cap - nothing breaks, no airframe set -, and NASA 172 Test 1 - the gear first);
+2. the headroom (the table above); 3. §7.4's rows:
+- **the ground loop** (the Cub; 15 m/s, swung 20 deg at 120 deg/s): both main gear groups let go and the low wing strikes (0.67 s
+  in) - but the STAB's attach breaks first (the tail swinging round on the tailwheel). The Jodel's is REPORTED: on flat grass its
+  wheels slide (the side force friction-limited at 0.8 of each wheel's load, under 23.485's envelope) and nothing folds even at 20 m/s and
+  180 deg/s (the lowest tip 0.25 m) - its row wants a rut or a soft field (DMG-TUNE's; DMG-TYRE's cornering stiffness may change it);
+- **the porpoise** (the metal Cessna; nose-first at 25 m/s, 5 deg down, the bounces growing 3 / 4 / 5 m/s): the nose gear collapses
+  on the THIRD bounce, the prop strikes - and in the same bounce the engine mount, a main and both wings' attachments go (5 m/s
+  nose-first, no lift). At 2.5 / 3.5 / 4.5 m/s it holds; at 10 deg nose-down it goes on the second;
+- **the float dig-in** (TREECRASH's severe nose-in, 150 km/h, 10 m/s, 60 deg): both floatplanes' strut fittings fail in overload -
+  first on the Cessna on floats (floatR:strut, FLD-S2TR in tension), after both engine mounts on the twin; the ordinary 90 km/h /
+  5 m/s / 20 deg nose-in (the WATER CASE) breaks nothing on either. At 120 km/h / 7 m/s / 30 deg the Cessna's engine mount goes first
+  and its floats hold. **D3's finding (the float fittings held even in the severe nose-in) is answered**: they now carry the water
+  cases' envelope, not the gear class's billed tube.
+- 1191 s in the battery's conditions (3 children at a time); the circuits are most of it.
+- `DMGGEAR_PARTS=ops,circ,xw` flies the headroom alone (the evidence ran it on the base's core for the 'before' column);
+  `--json <file>` keeps every row; FLYDIY_CERT_DIR hands it precomputed certificates.
+
+### G1837 - THE SWITCH ON
+**The commit** (`@@SHA_ON@@`): `const GEN_DAMAGE_DEFAULT = true;` (60_gen_spec.js) and its comment - nothing else. A build's
+`params.damage` still wins, then the page's `?damage=1|0` (FLYDIY_DAMAGE), then this; `params.damage === false` stays master's bits.
+
+**Before it, the battery with damage ON as the default** (a worktree of 8ab6b58 with the constant flipped, against 8ab6b58 off; the
+same 20 gates, `GATES_CORE=1 --verbose`; per §11.3 the user's rule - no full battery per session - so the gates the switch reaches
+most: the off-bytes set LOAD BENCH FLEX SIMWORKER SOAR GEN MASS and the flight gates PILOT HONEST TAKEOFF GEAR STRUT SEAPLANE FLOATS
+HYDRODYN SETTLE TREEHIT OBSTACLE BIPLANE UISMOKE; **the full 41-gate battery with the switch is the coordinator's run**):
+- **the same bytes (9):** MASS BENCH SOAR HONEST UISMOKE GEAR STRUT FLOATS SEAPLANE;
+- **only clock readings (6):** GEN SIMWORKER (every step's FNV equal: f2b3de3f / cbccf99f) FLEX PILOT TAKEOFF HYDRODYN (its
+  ms-per-step ratio); LOAD and SETTLE read as different only because the OFF side is two runner logs joined (the runner's summary);
+- **moved, PASS, explained (2):** TREEHIT - the 15 m fir across the span at 1.5 and 2.5 m: "the wing broke on it: 9 / 3 members, a
+  crash" (the CG 68 / 71 m against 60 / 61), flown at at 30 m/s: 97 members broken, the CG to 42.7 m (39.0); OBSTACLE - against the
+  obstacle under a third of throttle the aeroplane comes to rest at 0.90 m/s (0.30): the nose dents (§11.4: these two move only
+  through yielding, with a trunk or an obstacle - not an ordinary flight);
+- **FAILED, fixed (1): BIPLANE**, "a slack wire pushes nothing": its WIRE probe jolts a node 2 cm in one 1e-4 s step to measure the
+  ELASTIC law; with the layer on the members round it yield under the jolt (wire 6.070 vs none 6.097). The probe now says what it
+  tests (`params.damage: false`, 2c92c28; DEFORM §11.4: the gates say what they test): re-run with damage ON, PASS, its lines the
+  OFF run's (WIRE 9.107 / 9.566 / 9.107).
+- **Nothing yields in any ordinary flight gate**: every flying gate but the two that fly into a trunk or an obstacle reads the OFF run's
+  output (a yield would move its trajectory).
+- The flight gates fly without a certificate (no gate computes one but DMGCERT, TREECRASH, DMGGEAR): with the layer on they fly
+  D1a's physics limits, never weaker than the certificate's (the stamp is capped at them). The page asks for the certificate at
+  roll-out (D2a's certKick, now always: the layer is on) and stamps it 14-47 s later (the cost below).
+- reports/evidence/DMG-D2b/battery_on_diff.txt.
+
+### THE ACCEPTANCE (§11.2)
+- **Off = the base's bytes (§11.2 #1; before the switch):** `GATES_CORE=1 run_gates --only=LOAD,BENCH,FLEX,SIMWORKER,SOAR,GEN,MASS
+  --verbose` (§11.3's set for a solver and a certificate change), the base (claude/dmg-integration 51a2fec, built) against 8ab6b58:
+  **MASS BENCH SOAR byte for byte; GEN SIMWORKER FLEX LOAD clock readings only** (GEN / FLEX: the shards' seconds; SIMWORKER: every
+  step's FNV equal, f2b3de3f / cbccf99f, the page's ms and the frozen-page step counts; LOAD: the runner's times). Both BATTERY PASS.
+  (A BIPLANE run off - in the ON comparison above - is that gate's own bytes either way; 2c92c28 changes only its probe's damage flag,
+  which is the default's value off.) reports/evidence/DMG-D2b/battery_off_diff.txt.
+- **PERF (§11.2 #2):** `tools/treecrash_evidence.js --perf-only --perf-base <the base's core>` (the layer on, nothing touching, a far
+  4000-trunk set, FLYDIY_CERT=1 with the certificate from FLYDIY_CERT_DIR - computed in other processes), two runs pooled (10 processes
+  a side, the median of their medians):
+
+  | case | run 1 base / now (ms) | run 2 base / now | pooled | alternating pairs, pinned to one CPU |
+  |---|---|---|---|---|
+  | the Cub, ground | 3.587 / 3.581 | 3.690 / 3.826 | +5.6 % | **16 pairs: -4.4 % (pair median -5.8 %, slower in 5 of 16)** |
+  | the Cub, air | 3.453 / 3.441 | 3.513 / 3.560 | +0.2 % | |
+  | the metal Cessna, ground | 6.370 / 6.357 | 6.342 / 6.571 | +2.5 % | **12 pairs: +1.6 % (pair median -1.5 %, slower in 5 of 12)** |
+  | the metal Cessna, air | 6.284 / 6.253 | 6.242 / 6.383 | +1.1 % | |
+
+  **No regression the noise can resolve** (the box's process noise here is +-4-6 %: the Cub's ground medians are bimodal, 3.53-3.58 /
+  3.82-3.87 ms on both cores). The step's code is the base's but for one compare in dmgFrame (CRASH_J reads the airframe's work only
+  once the total passes it); the stamp is build time. Armed frames in the 600 timed: the Cub on the ground **6 (the base 3)** - its
+  gear standing at 30 % throttle passes half its new yield in 3 more frames (an armed frame's compare is ~5 % of one frame: 0.03 % of
+  the run); every other case 0. **The coordinator should re-measure on the box.** reports/evidence/DMG-D2b/perf.json, perf_pairs.txt.
+- **The certificate's cost** (alone in its process, node): the Cub **13.8 s (D2a 2.9)**, the metal Cessna **22.6 s (4.3)**, the twin
+  floatplane **47.1 s (10.2)** - 4.6-5.3 x, all in the dynamic cases (cert_cost.txt). It never runs in the garage's edit loop or on the
+  physics thread: the bench worker computes it at roll-out (D2a's mechanism, unchanged) and a NEW build's first flight runs on D1a's
+  physics limits (never weaker) until it lands - now 14-47 s in node, more in a browser worker. Not measured in Chromium (D2a's
+  dmg_cert_worker_shot.js would). See the open questions for the cheap cuts.
+- **The garage's parameter-change response:** untouched - no generator, garage or viewer file changed (66_gen_cert's functions are
+  not called by buildGen; 30_solver's stamp runs only with the layer on and a certificate); GATE INSTANT not re-run (§11.3: no viewer
+  code), UISMOKE the same bytes both ways.
+- **THE WATER CASE (§11.2 #4; TREECRASH §6):** green. The twin's float nose-in (90 km/h, 5 m/s, 20 deg): nothing set, nothing broken,
+  the worst member **0.83** (the base 0.99). The Cub's wet-body cases now run on this base (train 32): its 5 m/s level pancake and its
+  100 km/h / 4 m/s / 10 deg ditch **CRASH on the base too** (pancake 44 set / 13 broken, a fus member; here 35 / 13, a fus member;
+  the ditch 73 / 50, a fus member; here 41 / 49, a gear member) - a land Cub ditched breaks up; the gate checks that the damage follows
+  the loads and passes. Its severe nose-in crashes, as it must.
+- **The gates:** DMGGEAR **72/72**; TREECRASH **50/50** (the margins: the drops at the cap read 0.84 on the gear's compression, the
+  circuit 0.27-0.37); DMGCERT PASS (BROKE AT 6.01 / 6.02 / 6.06 / 6.08 / 6.01 g, a fitting first on all five - unchanged; its gear row
+  now reads the bracket); DMGMEMBERS, DMGCLUSTERS, DMGINTEGRITY, DMGINST, DMGFPS PASS (gate_dmg_set_treecrash.txt).
+- Validated builds only (the user's Cub, the Jodel, the metal Cessna, the Cessna on floats, the twin on floats); no archetype tuned; FAR
+  numbers as recalled, marked for A0; no Rigs of Rods / BeamNG code.
+
+### Evidence (flyDiy/reports/evidence/DMG-D2b/)
+- `headroom.svg` / `headroom.json`: every validated build x every ordinary case, the worst member over its certified yield, before
+  (D2a's certificate, the base's core) and after, the 2/3 line.
+- `bracket.json`: every gear joint per build (its envelope both ways, the case that set it, its limits, travel, the physics it no
+  longer carries) and the bracket's drops; `rows.json`: §7.4's rows.
+- `gate_dmggear.txt` (72/72), `gate_dmggear_headroom_base.txt` (the before), `dmggear_after.json` / `dmggear_before_base.json` (every
+  row, the circuits phase by phase).
+- `battery_off_diff.txt`, `battery_on_diff.txt`, `gate_dmg_set_treecrash.txt`, `gate_treecrash_base.txt`.
+- `perf.json`, `perf_pairs.txt`, `cert_cost.txt`.
+- Tools: `tools/_dmg_gear_check.js` (GATE DMGGEAR; `--part <key> <ops|circ|xw|bracket|rows>` one child, `--json`, DMGGEAR_PARTS,
+  DMGGEAR_JOBS), `tools/_dmg_gear_lib.js` (the scenarios), `tools/dmg_gear_evidence.js --before <json> --after <json>`.
+
+### Open questions (A0, the user, the coordinator)
+- **"Touchdowns up to the gear's demonstrated limit" - read here as the build's own FAR 23.473 sink being the gear's own LIMIT case**:
+  the airframe at most 2/3 there (0.39-0.66), the gear under 1 (0.40-0.70). If the user means a touchdown at that sink is ordinary for
+  the gear too, the bracket's "no set up to V, yields to 1.2 V" (§7.3) and "2/3 at V" cannot both hold. A0 / the user to rule.
+- **landK = 1.5 (the gear is the fuse)** is a per-case-class factor on the airframe (the landing, ground and water cases), argued from
+  §7.3 / NASA Test 1, not a regulation's number. The coordinator may read it as a knock-up; it is what keeps a landing that bends the
+  gear from bending the fuselage. The bench's card is untouched by it (the first joint 5.98-5.99 g static on all five).
+- **The fields and factors that are mine, stated, not sourced**: 23.491's roughest ground (4 cm bumps, 3 m apart, 8 m/s, 12 s) and the
+  ordinary rough field (2 cm); the water weave (0.6 V_S0, the rudder 0.5 s each way); the drift (0.2 V_S0, 23.233's demonstrated
+  crosswind as recalled); the travels (spring 0.15, oleo 0.10, bungee 0.04, the nose fork 0.06); the gear floor 0.25 W; the flown
+  control cases' 0.3 s; yUlt = 1.5 x 4130's ty / tu. A0 to open 23.345, 23.427, 23.473-.499, 23.521-.537, 23.233 on the box.
+- **The certificate costs 4.6-5.3 x D2a's** (14-47 s in node). Cheap cuts not taken (each would need the gates re-run): settle once and
+  start every landing from that state (the 4 s settle is repeated 4-6 times), 1.2 s after a gear drop's impact instead of 2 s, the
+  rough taxi 8 s instead of 12. Measure it in the browser worker (dmg_cert_worker_shot.js) before train 35.
+- **NASA 172 Test 1's outcome is not matched**: the nose gear goes first (as the test), but with no lift in the drop the wings'
+  attachments follow (the test: cabin intact, wings on). The porpoise's third bounce at 5 m/s takes the wings too. DMG-TUNE's rows
+  (§7.4), with lift in the scenario.
+- **The Jodel's ground loop does not fold a gear** on flat grass (friction-limited side load); the Cub's folds both mains but its stab
+  attach goes first. DMG-TYRE (a cornering stiffness) changes the side loads: re-run GATE DMGGEAR's rows after it.
+- **DMG-DAMP not merged** (READY 8a22a4f; the coordinator's §11.1 lands it with DMG-TYRE / DMG-HULL): the certificate's dynamic cases
+  (now most of it: the drops, the taxi, the weave, the flown controls) and the headroom table move with it - re-run DMGGEAR,
+  DMGCERT and TREECRASH then.
+- **The engine's own body off the certificate**: the CG locators and the flange pair keep D1a's physics (34 kN); in a crash they still
+  break at that. If DMG-D4b's debris wants the engine's case to break, it is a member of its own (not the mount).
+- **The Cub's wet-body pancake and ditch crash on the base and here** - a separate question for whoever owns GEAR-WATER 2 / DMG-HULL:
+  a 5 m/s level pancake of a land Cub is a hard ditching, so perhaps right.
+- **The circuits that end at 340 s** (the Cub's crosswind, the Jodel's two, the Cessna on floats' two): the probe covers what they
+  fly; TREECRASH's own bound.
+
+## G1490-G1494 - HYBRID-TRIPS: THE HYBRID IS A FLIGHT STATE - THE WAY BACK PUTS THE FLOWN MODEL AT REST ON ITS BAKE; G1325'S BAND (1.0-1.25 px A TEXEL) BACK WITH 0 COST ON THE TRIPS; THE LIVE SHADER'S DECALS ON THE CONTROL SURFACES FIXED (2026-10-04, HYBRID-TRIPS for A0, local GPU; branch claude/hybrid-trips-g1490 on train 30 a1ffcf5b)
+
+THE PROBLEM (A0's bisect, train 28): with HYBRID-FARTHER's band the Cub's world -> garage after a taxi went 0.3 -> 2.8 s
+and the next garage -> world 8.9 -> 14.1 s with one 5.2 s task; train 29 put the band back to 1.6-2.0.
+**G1490 WHAT IT WAS (tools/perf/hybrid_trips.js: every linkProgram hashed with its caller and its sync wait, three's
+programs per phase, a CPU profile of the way back).** Nothing ever put the hybrid's t back: only the flight's loop sets it
+(app.js flCamera returns early in the shed). The chase taxi stands at 1.05-1.12 px a texel - INSIDE the 1.0-1.25 band
+(t 0.33-0.48): every flown mesh on its BAND TWIN, the live views in the graph. The craft went into the shed like that:
+- **world -> garage +2.5 s:** applyEnv's Box3.setFromObject(craft) (enterGarage) walked every unparked SKINNED live view
+  (its boundingBox null) - all the fold's vertices through the bones (expandByObject 2.45 s, applyBoneTransform 1.2 s self).
+- **round trip 2's 5.2 s task = FIVE synchronous links** (flown:baked:band x2, aeroskin:band x3, 0.46-1.54 s each, every one
+  a NEW source; issued by renderBufferDirect, waited in getProgramInfoLog): the roll-out SHOT (ROLLANIM.play in hangarScene)
+  drew the band twins in the HANGAR's lights. THE KEY DIFF (reports/evidence/HYBRID-TRIPS/keydiff_norest.txt; the two
+  sources beside it): the defines identical; the lights dir 2 / point 2 / spot 1 / hemi 1 / 2 dir shadow maps (the world,
+  as the craft step warmed them) -> dir 1 / point 3 / spot 6 / hemi 0 / 5 spot shadow maps (the shed's five lamps + the
+  craft's own). No compile ever keyed the twins in the shed (compileCraftShed walks the graph, where they are parked at the
+  build). Nothing was disposed - the KEY was new. Train 29's band leaves the taxi at t 0 (the folds' own baked material,
+  compiled for the shed): none of it.
+**G1491 THE FIX - FLOWN_BAKE.rest() (flown_bake.js), the first thing enterGarage does (app.js):** t 0, the folds on their own
+baked material, the live meshes parked, FB_FADE 0 - the model the shed's compiles and the shot are keyed for. The next
+flight frame sets t again on the programs the craft step warmed in the world (the taxi links 0). It covers the cockpit's
+way back too (its eye zone is live with ANY band). `?fbake=norest` the A/B.
+**G1492 THE BAND BACK: FB.hyA / hyB 1.0 / 1.25** (`?fbake=hy1.6-2.0` the old band).
+
+THE TRIPS (the Cub at HOME after a 15 s taxi chase - the strict gate's own sequence; one tree, a fresh profile each;
+master_bench MB_Q=<query> gives a same-tree A/B):
+| master_bench --builds cub --only loads,taxi --places HOME --taxi 15 | world -> garage | round trip 2 | its worst task |
+| A0, train 28 (with G1325) | 2.8 s | 14.1 s | 5.2 s |
+| ?fbake=norest (band 1.0-1.25, the bug) | 2.7 s | 14.2 s | 5367 ms |
+| **band 1.0-1.25 + rest()** | **0.3 s** | **8.9 s** | **0 ms** |
+| ?fbake=hy1.6-2.0 (train 29's band) | 0.3 s | 8.9 s | 0 ms |
+| the floats (water taxi, then world -> garage): norest / fixed | 2.7 s / 0.3 s | | |
+hybrid_trips.js: norest 2.83 / 14.26 s (5 new links, 5.27 s sync) -> fixed 0.29 / 8.85 s (no slow link).
+
+**G1493 THE DECALS ON THE FLAPS (A0 relaying the user, the metal Cessna at chase distance with the farther band).** The LIVE
+shader was wrong, the bake right: AERO_MAIN_VS takes vCraftPos (the decal and marking boxes) at begin_vertex, BEFORE
+skinning; C4b's moving folds and the hybrid's views on them (G1170) are SkinnedMeshes whose parts ride a bone (positions
+part-local about the pivot) - a flap, an aileron, the rudder, a spat read their boxes pivot-shifted, near the fuselage:
+chunks of the cheat line painted on them. The bake places a part at its pivot, and FB_HOOK reads after skinning. The bug
+predates G1325 (the live views showed only inside ~5 m and in the cockpit). aeroskin.js aeroSkinnedCraft: a SKINNED
+AEROSKIN / AEROGLASS program re-takes vCraftPos after skinning_vertex (AERO_CABIN_HOOK's G272 rule); vCraftNrm was already
+skinned; a plain program's text is byte for byte the same (no program-cache miss).
+reports/evidence/HYBRID-TRIPS/decals_metal_before_after.jpg / decals_cub_before_after.jpg (tools/perf/decal_stills.js: the
+same held frame - the bake | live before | live after).
+**G1494 `?fbake=hyease[=s]` (OFF by default): THE BAND AS A DISSOLVE IN TIME.** The live shader wanted from hyA (back under
+hyA x 0.9), t walks there over 0.5 s; a steady distance draws ONE surface (in the band both draw, each on a discarding twin).
+
+THE TAXI'S OWN COST (rollout_perf, the Cub, HOME, 25 s, medians; a peer's CPU battery beside both sets - the ABBA order is
+what makes them comparable; reports/evidence/HYBRID-TRIPS/taxi_cost_abba.json, taxi_cost_rollout_perf.json):
+| chase taxi, ABBA (rule old ease ease old rule) | render ms | loop JS ms |
+| band 1.0-1.25, the rule (t ~0.47: both surfaces) | 13.0 / 12.7 = 12.85 | 17.1 |
+| train 29's band 1.6-2.0 (t 0: the bake) | 10.5 / 10.9 = 10.7 | 14.75 |
+| band 1.0-1.25 + ?fbake=hyease (t walks to 1: live alone) | 11.9 / 12.3 = 12.1 | 16.25 |
+| (the first set, unordered: forced bake hy=0 / forced live hy=1) | 11.6 / 13.1 | 16.1 / 17.4 |
+| cockpit ABBA (new old old new): new / old | 12.45 / 13.55 | 16.75 / 18.25 |
+**The farther band costs +2.15 ms render (+2.35 loop) at the chase taxi** (G1325 admitted +1.5): ~1.4 ms is the live
+aeroplane itself (its per-material draws on the procedural shader), ~0.75 ms the band (two surfaces on discarding twins, no
+early-Z). **G1494 (`?fbake=hyease`) takes the band's part off: +1.4 ms**, and the still dither on the skin goes. The cockpit
+is unaffected (equal within noise). All at the 30 cap: 30 fps delivered, 0 % uneven - no frame-rate cost on this box.
+hyease on the trips (hybrid_trips.js): the taxi's t 0.21 -> 1 (mean 0.98), 0 links; world -> garage 0.37 s, round trip 2
+8.84 s. **FOR A0 / THE USER: G1494 is OFF by default** (a look change: the band becomes a 0.5 s dissolve at 1 px a texel
+instead of a range of distances) - one line to ship it (FB.hyEase 0.5 in flown_bake.js's FB).
+STRICT GATE (train_gate --full vs train 26's baseline, twice, a peer's CPU battery beside both): besides train 30's known
+reds (the 30 cap's 7 fps rows, the Cub's "frame busy"): chase render Cub 9.55 -> 11.45 / 11.65, metal 9.65 -> 11.85 / 11.45
+ms and chase loop +2.0-2.3 ms = the band's cost above (the user's "keep, admit the cost", G1325); taskWorst / fuseLen busy /
+mn_strip worst task / Cub cockpit render red in ONE run only (contention). The trips' rows (run 1): every one in slack. Run 2's
+bench was killed at the gate's time limit in the warm load (the same build's loads ran clean in hybrid_trips.js minutes
+before) - its rows MISSING, not measured; A0's train 32 pass re-runs them.
+LOOK: reports/evidence/HYBRID-TRIPS/stills_bake_live.jpg (tools/perf/hybrid_trips_stills.js: where 1.6 px, the taxi's
+~1.05 px and 1.0 px a texel fall - 5.8 / 8.5 / 9.3 m): at 1.6 and at the taxi the bake's letters and cheat line stair-step,
+the live shader is clean - what G1325 buys.
+GATES: FLOWNBAKE PASS (82: +rest(), +the enterGarage call, +the band, +G1493's skinned craft position); LIVERY,
+LIVERYREACH, ATMO, WEATHER, PARTS PASS. NOT RUN BY ME: FRAMECOST and the full battery (the box was A0's train 32 pass -
+a CPU battery would have sat beside its timed gate; that pass runs them).
+TRAPS: (1) the hybrid's state outlives the flight unless something puts it back - a new door out of the world goes through
+enterGarage or calls FLOWN_BAKE.rest(). (2) A SkinnedMesh view with no boundingBox makes any Box3.setFromObject over the
+craft walk every vertex through its bones (G1170.2 set the sphere, not the box). (3) A program key counts the scene's
+lights: a material compiled only in the world links fresh the first time the shed draws it. (4) app.js / aeroskin.js are
+in FLYDIY_BUILD: the parked cook goes stale - A0 re-cooks on the final build (I cooked locally for my runs, not committed).
+(5) Node writes from Git Bash: '/c/...' paths are D:\c\... to Windows node - pass 'C:/...'.
+
 ## G1520-G1529 POTATO-DEEP: POTATO HELD 2.23 GB ON A 2 GB CARD - THE GTX 660'S WORLD WAS PAGING; 1.43 GB NOW, THE PLAIN GROUND, THE SHED'S LAMP MAPS OFF, A LAPTOP RUNG UNDER POTATO (2026-10-04, POTATO-DEEP for A0, local GPU; branch claude/potato-deep-g1520 on train/31 e2e89417)
 
 The user's test (4 Oct, GTX 660 2 GB, i7-8700, Chrome 154, 1920 x 911, potato; build b2a2b545 = TRAIN 27): shed 18 fps / GPU
@@ -72329,6 +74724,2336 @@ at the stand on potato (scenery 'low' already) - a cheaper far house tier would 
 atlas + map (~50 MB) could be 1024 on potato (its 256 px slots need a re-pack); the potato frame's MSAA (4x in the target) is
 kept - its cost needs the card; dynamic resolution was NOT added (EVEN-30: a moving scale is uneven; potato keeps 0.67 fixed,
 laptop 0.5); no GTX 660 / HD 620 numbers exist yet - the user's next log is the measurement.
+
+## G1675-G1679 - SND-RADIO: THE SIX STATIONS AND RADIO JOLENE'S TALK - A STATION PER PLAYER, ITS OWN BAGS, THE LO-FI FALLBACK, THE PICKER AND THE KEYS; THE BREAKS WRITTEN FROM THE GAME (AWOS, MARINE, PILOTS, BULLETINS), READ BY speechSynthesis OVER A 16 % BED; GATED (2026-10-04, SND-RADIO for the Sound Coordinator, cloud, node only; branch claude/snd-radio-stations off origin/claude/sound-next 11822e3c, merged with 771d31f0 (rulings s10-s13))
+
+Design: futureDesigns/SOUND-2026-10-04.md §7, rulings s6 / s10 / s12; HANDOVER G1670-G1674 (the player); tools/audio/
+music_selection_v1.json (the six stations); the approved Radio Jolene bench (its behaviour reproduced; its source is the
+coordinator's, not seen here - the behaviour is from the brief: talk every 2 tracks, George en-GB, rate / pitch 0.95, music 0.8,
+the next track under the talk at ~16 % rising over 1.5 s).
+G1675 THE STATIONS - src/viewer/audio/music.js (+202 / -32). STATIONS = jazz, lofi, dubambient, roots ("Radio Jolene (local
+  roots)"), blues, classical - the selection file's keys in its order (GATE AUDIO holds it). Each catalogue track's optional
+  `station` (absent = lofi; validate() refuses an unknown one). ONE current station per player: localStorage
+  flydiy.audio.station (default lofi; 'off' = THE RADIO OFF: contextOf's answer is replaced by none, the playing track fades as
+  any context change). The contexts still decide WHEN (welcome / garage / cruise only with music in flight - s6 - / photo);
+  the station decides WHAT: stationLists(cat, st) (pure) = the station's own tracks per context with FALLBACK's borrowing
+  inside the station, else LO-FI's for that context (fell[c]); a station with no track at all = lo-fi everywhere, and the
+  picker says "Blues - no tracks yet, plays Lo-fi / Hip-hop". BAGS PER STATION (bagsBy, made on first use, kept across
+  switches): a station's round is never broken by a visit elsewhere (no repeat within a station). setStation(s) persists,
+  cancels a talk, crossfades (4 s) into the new station's next track (a garage silence ends), shows "♪ <station>" on the
+  now-playing line; stepStation(+-1) wraps the six ('off' only from the picker). KEYS ] / [ (next / previous station): free
+  in input.js's ACTIONS (checked by the gate), a keydown listener music.js adds on connect and removes on disconnect, never
+  with a modifier, in a text field, or when the input profile (FLYDIY_INPUT.profile().bindings) binds the code - no input.js
+  touch. THE CATALOGUE: Kodama's station 'jazzblues' -> 'jazz' (1 line: the selection file already says jazz; the old
+  combined station predates the six - prep_music.js copies the selection, so a re-run writes the same).
+G1676 THE PICKER - AUDIO.addRows (both rails, no UI file touched): 'station' (a select: the six + radio off, each with its
+  fallback line), 'Radio Jolene talk' (toggle, on by default; flydiy.audio.radioTalk), 'talk every' (range 1-6 tracks,
+  default 2; flydiy.audio.radioEvery), 'voice' (automatic = Microsoft George when present, then the system's English voices;
+  flydiy.audio.radioVoice; a stored voice absent from this machine is listed "(not on this system)"). Every storage access in
+  try/catch (a throwing localStorage is gated).
+G1677 RADIO JOLENE'S TALK - src/viewer/audio/radio_talk.js (new, 376 lines, ~27 KB) -> window.RADIO_TALK. PURE (node):
+  readGame(world, {sim}) reads AUDIO.world (no new hook: G1651's) and returns the numbers + `.declared`:
+    THE GAME'S NUMBERS (all present on Jolene - the evidence's three days declare NOTHING):
+      wind      world.climate.surfaceWind().base (the 10 m wind, grid x east / z south) -> FROM, TRUE, by day.geo.convergenceDeg
+                (09_climate bearingToBase inverted: Jolene's 19.32 deg - the 250 deg breeze reads back 250); gust factor
+                climate.spec.gust (a front's gustK in it)
+      visibility world.climate.haze().surfaceVisM (Koschmieder, column + ground layer: the number a pilot is told)
+      sky       day.cloudCoverEff over day.cloudBase (the LCL, read as height above the field) + day.cloudUpper decks that
+                name a base
+      temp/dew  day.oatC / day.dewC          QNH  day.qnhEff (a front's dQnh in it)
+      time      day.utc (zulu), day.localSeconds (part of day, the time check)
+      sea       world.seaTarget.A (the wind sea the world raises; seas = 2A)
+      front     day.storm (phase, inS, windK now) + day.stormSpec (windK, veerDeg)
+      places    world.aerodromes: HOME 'Jolene AFB 13/31' = "Jolene field" (designator dropped, AFB said "field"), the
+                field's designators (13/31, 02/20), the one-way strips (landHdg set: Tamgas Hill Strip, Jumbo Mine Street,
+                East Point Clearing, Skyline Altiport) with their look, the sea lanes (Annette Dock, Metlakatla Seaplane Base)
+    DECLARED (used only when the game has none, each named in `.declared`): no climate -> the solver's out.windX/Z (gusts
+      unknown), else calm; visibility -> day.visibilityKm, else 16 km; cloud base 1500 m; 15 / 5 C; QNH 1013.25; no
+      seaTarget -> the world's law 0.018 x wind; a front's windK 2.2 / veer 55 (07_day STORM_D's defaults); no HOME -> "Jolene
+      field". RULES declared: gusts reported when peaks (kt(1+g)) and lulls (kt(1-g)) differ by >= 10 kt (METAR); calm < 1 kt;
+      AWOS sees to 12 000 ft; oktas few < 2.5/8 < scattered < 4.5/8 < broken < 7.5/8 < overcast; heights to 100 ft under
+      5 000, 500 to 10 000, 1 000 above, never under 100; small craft advisory >= 23 kt, gale >= 34 kt; the strip soft at
+      rh >= 0.85 or a front passing; the favoured runway compares designator x 10 with the TRUE wind (no magnetic variation
+      carried).
+  THE SEGMENTS ({ kind, key, text } - the text is data; LINES are the static ones by key, so a recorded clip can replace the
+    voice per key - s12's rendered clips): stationId (greeting by part of day + "Radio Jolene, ninety point seven, community
+    radio for Jolene Island and the Sound." + a time check every other one), back ("That was T by A, and before that, T2 by
+    A2." - HoliznaCC0 said "Holizna"), awos ("Jolene field automated weather observation, one seven three four zulu. Wind two
+    seven zero at two zero gusts two six. Visibility two. Sky condition ceiling eight hundred overcast. Temperature minus
+    three, dew point minus eight. Altimeter two niner niner two." - every digit one by one, 9 "niner", "visibility one zero"
+    at 10 SM and above, fractions, "less than one quarter", "clear below one two thousand"), marine (the inside waters, compass
+    words, 5 kt steps, seas, advisory / gale, fog, the front's outlook: "A front within the next few hours: southwest wind
+    twenty-five knots, gusts to forty, seas building to two feet" - the rise still to come, kNow divided out), pilots (the
+    favoured runway, "Tamgas Hill Strip, gravel, soft after the rain: it is one way, so land uphill and take off downhill",
+    "The seaplane lane at Annette Dock is active", "the eagles are back on runway one three this morning"), bulletin (mill,
+    tram, ferry, fuel dock, potluck, coho run, library), swap (four). breakScript(state, wx, tracks, {tuneIn}): tuning in =
+    ID + weather; else the back-announce, the ID every other break, one feature of the rotation awos / bulletin / pilots /
+    marine / awos / swap. THE VOICE makeSpeaker(window): speechSynthesis, one utterance per segment, done() once (last onend,
+    or cancel), a cancelled break's late onend ignored (generation counter); voice by name, else George, else en-GB, else en.
+G1678 THE BREAK IN THE PLAYER (music.js): on the roots station with the talk on, a break is OWED after `talk every` tracks
+  started on the station, and on tuning in (setStation('roots'), or the page's first music on roots). At the next transition
+  (a crossfade's end in welcome / cruise / photo; a track's END in the garage - THE BREAK TAKES THE SILENCE'S PLACE; a context
+  entry) nextWithTalk speaks it and starts the next track UNDER it: PS[S_BED] = BED_K 0.16, the deck faded in over 1.5 s to
+  0.16 x its trim; when the voice ends, endTalk fades the deck to its trim over BED_UP_S 1.5 s (equal-power, from wherever it
+  stands; 1.3 % overshoot at 81 % of the rise). THE BED IS THE DECK'S GAIN: the voice is not Web Audio and cannot be ducked by
+  it. NEVER: before the gesture (the speaker is made in connect; gated with frames run and stations switched before one); while
+  a duck holds (engine start / catch, the stall warning: the transition takes its silence, the break stays owed); during one
+  (onDuck cancels it); in a suspend (hidden / paused / unfocused: AUDIO 'suspend' cancels it); with the voice at 0. THE VOICE'S
+  LEVEL: min(1, master x music x VOICE_K 1.25) (the bench: music at 0.8 of the voice). A WATCHDOG (PS[S_TALK]: the break's
+  estimated length at 14 chars/s / rate + 0.6 s a segment + 8 s) ends a voice whose onend never comes (Chrome's long-utterance
+  bug). The frame: typed slots only (the watchdog's countdown), nothing allocated (100 000 frames under a talk: +4 KB = noise,
+  0 GC); the breaks' strings are made at transitions, events, not frames.
+G1679 GATE AUDIO extended (tools/audio/_audio_check.js +452 / -6; FILES += radio_talk.js, music_selection_v1.json, input.js
+  (read-only: the free keys)). musicPage loads radio_talk.js before music.js (the build's order), takes a speech stub, a game
+  world, a station, noGesture / badStorage. SIX CHECKS: RADIO_STATIONS (the keys = the ruling's; the shipped stations = the
+  selection's; validate; stationLists jazz / blues / off; sixteen visits roots <-> lofi / jazz: roots' starts are whole rounds;
+  a switch crossfades - 2 elements a second in, 1 after; blues plays lo-fi; off streams nothing; persisted and read back; a
+  throwing localStorage), RADIO_PICKER (the rows; seven choices; the fallback line; choosing; talk every / talk / voice
+  persisted; the English voices only; ] [ wrap; ctrl, a text field, a profile binding yield; input.js binds no bracket),
+  RADIO_SCRIPTS (the AWOS edge cases - calm, gusts by spread, 360, a gale, 10 / 37 / 1.6 / 0.2 / 2.9 / 9.2 / 0.5 SM, clear,
+  800 ft broken, 1200 ft overcast, two decks, above 12 000, a deck on the ground, -3 / -12 / -0.4 / 19 C, 29.92 / 29.29 /
+  30.42, zulu past midnight - the whole cold observation off a game-shaped world with Jolene's convergence, nothing declared;
+  an empty world declares wind / visibility / temperature / QNH; marine gale / advisory / variable / fog / front / quiet;
+  pilots favoured 20 / calm 13, uphill, soft only when wet, the lane, the eagles; the ID's words; the back-announce; twelve
+  breaks: every feature, the ID every other, every static key a LINE), RADIO_TALK (a stub speechSynthesis counting
+  utterances: 0 before the gesture; the tune-in = ID + weather in George at 0.95 / 0.95, volume 0.6; the track at 16 % +-2 %
+  under it for 6 s, rising, at 100 % 1.6 s after the voice, the rise 1.5 s; three hours in the garage at talk every 2 then 3:
+  exactly N tracks between breaks; the break's track starts WITH it (no silence); none with the talk off, on lo-fi, on jazz;
+  an engine start cancels a talk and restores the level; a stall at a track's end: no break, the silence; a hidden tab
+  cancels; the watchdog ends a voice that never ends; a stored voice used), RADIO_BUDGET (under a talk: nothing scheduled,
+  0 GC, no growth over 100 000 frames), RADIO_WIRING (radio_talk.js before music.js; the catalogue's stations the ruling's;
+  radio_talk.js touches no Web Audio). Two old mutations re-anchored (the level untrimmed; the build loses music.js).
+  SELFTEST 219 mutations (180 + 39 new), each red on its own check with its reason - two of mine first stayed green and the
+  TESTS were wrong or the mutation equivalent: one bag per visit passed seven visits by luck of the seed (now sixteen, red);
+  "every station talks" was equivalent (the track counter is gated to roots too: the mutation now opens both).
+  GATE AUDIO: PASS, 98.6 s wall (limit 160), sources byte-identical.
+EVIDENCE reports/evidence/SND-RADIO/README.md + summary.json, written by tools/audio/radio_scripts.js (node, ~11 s): JOLENE AS
+  THE GAME SHIPS IT (tools/island_node.js + the premises fixture: the real world module) under three of the weather panel's
+  days - the game's day (the 8 kt breeze, 16:00), "a front" an hour out at 06:10, "gale" at 07:45 - the numbers read (none
+  declared), the tune-in and six breaks each, verbatim; the source table; the edge cases. (The back-announces name the shipped
+  catalogue's tracks; the roots station has no track yet, so today Radio Jolene plays lo-fi under its talk - by the fallback.)
+HOT FILES (for A0): tools/build.js +2 / -1 (MANIFEST.viewer.scripts += 'audio/radio_talk.js' before 'audio/music.js', one
+  comment line). NO app.js / editor.js / body.html / input.js / css edit: the rows go through AUDIO.addRows, the keys are
+  music.js's own listener, the station line reuses #musicNow. +~27 KB (radio_talk.js) +~9 KB (music.js) in index.html.
+  src/viewer/audio/music_catalogue.json 1 line (jazzblues -> jazz).
+GATES: AUDIO PASS (98.6 s); MEDIA, BUILD, VIEW, UISMOKE PASS (run_gates --only; the generated index.html / dev.html / sw.js /
+  version.json restored, not committed). Not run: a browser - the real speechSynthesis (voices loading late: the voice row is
+  rebuilt each time the menu opens; Chrome's onend; Safari), the bed by ear, the picker's look.
+FINAL REPORT
+  Branch   claude/snd-radio-stations (pushed); off claude/sound-next 11822e3c, merged 771d31f0.
+  Files    NEW src/viewer/audio/radio_talk.js, tools/audio/radio_scripts.js, reports/evidence/SND-RADIO/{README.md,summary.json};
+           CHANGED src/viewer/audio/music.js, src/viewer/audio/music_catalogue.json (1 line), tools/audio/_audio_check.js,
+           tools/build.js (MANIFEST, 1 entry).
+  API      AUDIO_MUSIC: STATIONS, STATION_KEYS, stationLists(cat, st), stationOf(t), stationLine(s), setStation(s, quiet),
+           stepStation(d), station, stationFell, talk / setTalk(on), talkEvery / setTalkEvery(n), voice / setVoice(name),
+           talking, cancelTalk(), BED_K, BED_IN_S, BED_UP_S, VOICE_K, TALK_EVERY. RADIO_TALK: readGame(world, {sim}),
+           breakScript(state, wx, tracks, {tuneIn}), awos / marine / pilots / stationId / backAnnounce / windAwos / skyAwos /
+           altimeter / zulu / visWords / heightWords / digits / signed / whenWords, LINES / BULLETINS / SWAPS / FEATURES / DECL,
+           estSeconds, makeSpeaker(env) -> { speak(segs, {voice, rate, pitch, volume}, done), cancel(silent), voices(),
+           pickVoice(name), available(), speaking }. Prefs: flydiy.audio.station / radioTalk / radioEvery / radioVoice.
+  Weather  game: climate surfaceWind (+ convergence) and spec.gust, haze().surfaceVisM, day cloudCoverEff / cloudBase /
+           cloudUpper, oatC, dewC, qnhEff, utc, localSeconds, rh, storm / stormSpec, world.seaTarget.A, world.aerodromes.
+           declared (fallbacks only, listed in .declared; none used on Jolene): the solver's wind, the day's column
+           visibility / 16 km, base 1500 m, 15 / 5 C, 1013.25, the sea law, STORM_D's 2.2 / 55, "Jolene field"; the rules above.
+  Gates    GATE AUDIO RADIO_STATIONS / RADIO_PICKER / RADIO_SCRIPTS / RADIO_TALK / RADIO_BUDGET / RADIO_WIRING, 39 mutations.
+  Evidence reports/evidence/SND-RADIO/README.md (three game weathers, verbatim scripts).
+FOR THE COORDINATOR: (1) add the jazz / dubambient / roots / blues / classical tracks with their `station` as the user approves
+  them - the picker's "no tracks yet" lines disappear by themselves; (2) s12's rendered voice: the segments carry keys - LINES
+  by key, and the AWOS / marine sentences are built from a small closed vocabulary (the digits, niner, thousand, hundred, wind,
+  at, gusts, visibility, the fractions, sky condition, few / scattered / ceiling / broken / overcast, clouds at, clear below,
+  temperature, dew point, minus, altimeter, zulu, automated weather observation) - a clip player behind makeSpeaker's speak()
+  can assemble them the way real stations do; (3) SND-TUNE: BED_K 0.16, the 1.5 s rise, VOICE_K, talk every 2, the rotation
+  and the bulletins' words are constants / data at the heads of music.js and radio_talk.js; (4) the user may want the station
+  on the cockpit radio one day (a dash action in input.js would replace the ] / [ listener).
+
+## G1660-G1666 - SND-AMB-2: THE POSITIONAL EMITTERS - BIRDS IN THE TREES, GULLS OVER THE SHORE, AN OWL AT NIGHT, A DOG HERE AND THERE, A PICKUP'S PASS ON ITS CAR, THE TRAM'S HUM AND BELL, THE MILL; EACH GENERATOR'S SOUND DECLARED; HEARD ON JOLENE, GATED (2026-10-04, SND-AMB-2 for the Sound Coordinator, cloud, node only; branch claude/snd-amb2-emitters off origin/claude/sound-next 11822e3c, merged with f1fe4db6; G1667-G1669 unused)
+
+Design: futureDesigns/SOUND-2026-10-04.md §6.3 / §5 / §2.4. No audio file added. No app.js edit.
+G1660 THE NUMBERS - `src/viewer/audio/emitters_model.js` -> EMITTERS_MODEL (pure, node). It reads the bed mixer's features (AMBIENCE.state:
+  the cover shares, the coast's signed distance and its shore point, the lake, the zones, the sun, the AGL) instead of
+  sampling the world again (AMB-1's item 6); without the bed mixer the source steps its own AMBIENCE_MODEL state.
+  THE SPECIES (Poisson calls once the gap has passed, so at weight 1 the mean interval is gap + mean; jitter
+  +-1.5 st, +-2 dB):
+    sound   key             habitat x hour                                  place                           mean/gap s  level
+    crow    bird.crow       day x (forest | village, 0.15 open)             a tree 20-90 m (canopy >= 4 m), 28 / 9    -6 dB
+                                                                            else a roof or pole IN the village
+                                                                            or on built cover; 1-3 caws
+    eagle   bird.eagle      day x within ~1 km of the sea                   a tree or the sky 40-80 m up    110 / 55    -4
+    gull    bird.gull       sun > -4 x (shore <= 300 m | harbour zone)      over the water seaward of the   18 / 8      -6
+                                                                            shore point, 6-24 m up
+    owl     bird.owl        night (sun < -5) x forest                       a tree 35-150 m (never a field) 55 / 35     -8
+    loon    bird.loon       dawn / dusk (0.3 at night) x <= 400 m of a lake on the lake                     45 / 30     -10 (NO RECORDING: waits)
+    dog     dog             sun > 1 x village zone or built cover           a yard IN the village zone      300 / 150   -2  (one in 7.5 min, at most one per 150 s)
+    door    mech.door       the same                                        the same                        200 / 90    -8
+  THE OBJECTS (DECLARED: each generator's own `window.<GEN>.SOUND` table wins when it has one; none does yet, so the table
+  in the model stands in, keyed by what the GENERATOR says, never by an asset the record names):
+    the proto traffic (render_premises / SCENERY_LIFE.trafficOf) -> pickup (vehicle.pickup): when a car's closest approach is
+      2.4-3.6 s ahead and within 40 m, its pass starts ON the car (it rides it, with the doppler on its velocity); one at a
+      time, 10 s apart
+    the cable link (tram_run.js) -> tramhum (procedural rope + sheave loop) per cabin within 320 m, gain 0.12 docked .. 1 at
+      6 m/s; bell (procedural, two strikes) when a cabin leaves or docks within 600 m; creak (mech.creak, the airframe's shared
+      grain) while running within 160 m, mean 9 s
+    HOUSE_GEN's P.mill (the Kennecott mill) -> mill (procedural stamp-mill rumble loop) within 380 m, sun > -6 deg
+    HOUSE_GEN's pier.boats (each with its outboard) -> boat (procedural idling outboard loop) at the nearest boat within 160 m,
+      by day, an episode of 12-32 s, mean 160 s, gap 90 s
+  THE CEILING: everything fades from 60 m AGL and is silent from 150 m. The garage and under water call nothing; their loops
+  fade. THE CAP: one-shots gamer 6 / mid 4 / potato 3; loops 3 / 2 / 2. NOTHING NEAR: no voice, load, buffer or param.
+  THE RANDOM: mulberry32 inline. xorshift32 was tried first: its small values come in clumps, and a rare per-frame Poisson
+  test on it went 3.5 minutes without an owl and then gave several.
+  THE MOVERS are read EVERY frame (a few dozen rows). A 10 Hz reader runs cold in V8 and boxes every double it reads:
+  measured ~100 B a frame for three rows, and the real accessor at 10 Hz would have cost ~1 KB a frame.
+G1661 THE SOUNDS NO RECORDING HAS - EMITTERS_MODEL.synth(name, sr): tramhum (two Chamberlin resonators at 112 / 226 Hz on
+  noise, a 4.3 Hz sheave tick, 4 s), mill (low rumble + stamps at 1.6 Hz + a belt whine, 5 s), boat (a two-stroke at 14 Hz
+  through a 180 Hz resonance, gurgle, 3 s), bell (inharmonic partials 1 / 2 / 2.4 / 3 / 4.2 x 880 Hz, struck twice). Loops
+  are seamless by an equal-power tail crossfade. Made when wanted, in an idle callback (setTimeout 0 without one), never
+  in a frame: 1.35 MB for the hum, the bell and the mill.
+G1662 THE SOURCE - `src/viewer/audio/emitters.js`: AUDIO.addSource('emitters') on the AMBIENCE bus. 6 one-shot and 3 loop slots,
+  each gain -> air-absorption low-pass -> PannerNode -> emIn -> muffle (lowpass, duck) -> bus('ambience'), made at connect.
+  Only the AudioBufferSourceNode is made per call. SND-SPACE's PATTERN: the panners sit in the camera's frame
+  (matrixWorld columns), equal-power (HRTF with '3D on headphones'), inverse distance from each sound's reference
+  distance. The absorption is SPACE_CONFIG.airAbsorptionHz's law and the doppler (c - vL.n)/(c - vS.n) is dopplerFactor's,
+  both written out in the frame (a helper call with a double argument boxes it). The muffle is the ambience's rule:
+  -12 dB / 900 Hz in a closed cockpit, -2 dB / 9 kHz in an open one, AUDIO.cabin / 'cabin' when SND-SPACE publishes it.
+  THE LOADER'S ONE-SHOT CLASS (samples.js, small and additive): a class key declared 'oneshot' in KEYS keeps its decoded
+  variants (no loop baked); assign(key, cls) puts 'dog' (no prefix) and mech.door into class 'emit'. mech.creak stays
+  the airframe's (shared, decoded once). The emitter keys are now declared one-shots; bird.loon is declared with no file.
+  The budget is per tier from GFX: 8 / 5 / 3 MB. One load at a time; a key unwanted for 60 s is released; a refusal waits 15 s.
+  window.EMITTERS = { model, state, tier(), setTier(name), objects (the provider), resident(s), procBytes(), loading }.
+G1663 THE HOOK - src/viewer/render_premises.js, READ-ONLY and allocation-free: `R.soundObjects(out)` writes rows of 6
+  [kind, x, y, z, a, b] into a Float64Array: 1 a tram cabin (its origin, run.v, moving 1 / docked 0), 2 a traffic car
+  (its pose's position, c.v, its length), 3 a house pier's boat (grp transform x st.pier.boats). Map.forEach with callbacks
+  made once; nothing is written to the renderer. emitters.js reads it through window.WORLD.premises (render_world's getter).
+G1664 THE WIRING - tools/build.js (MANIFEST only): 'audio/emitters_model.js', 'audio/emitters.js' after the ambience.
+G1665 THE EVIDENCE - `tools/audio/emitters_render.js` -> reports/evidence/SND-AMB-2/ (0.95 MB): JOLENE (the shipped world + the
+  premises fixture, the real world module; NOT the analytic world). The page's code runs in a vm on a recording context with
+  the shipped MP3s decoded by ffmpeg. The movers are simulated by their own laws from the record: the proto traffic
+  (36 roads, 40 cars, moveTraffic's law) and the cable link tw_l_tram (TRAM_RUN.make, 6 m/s, 12 s dwell); the mill comes
+  from the record's site items whose HOUSE_GEN preset says mill: 1 (read off tools/_house_gen.js). 610 s, eight places
+  joined by cuts:
+    Metlakatla street (gulls, a crow, a pickup's pass at 44 m), the harbour shore (passes, crows, gulls), the tram valley
+    station (the hum at the dock, the bell at 27 m as the cabin leaves, the hum rising as it climbs, a creak at 28 m), a
+    forest walk (crows, an eagle at 204 m), the walk to the Kennecott mill (its loop), Jolene AFB (a crow while taxiing,
+    nothing from the 60 m low pass on, silent at 300 m), the forest at night (an owl at 105 m), a lake at dusk (nothing: no
+    loon recording).
+  At most 4 one-shots at once; 4.79 MB peak decoded. Each place has its own seed (one draw, stated); GATE AUDIO measures
+  the rates. Files: timeline.png (a lane per sound), places.png (a 400 m panel per place: where each call was placed),
+  walk.opus (the emitters ALONE, stereo, panned and absorbed as scheduled), summary.json (every call: t, sound, x, y, z,
+  d), README.md (what to listen for, when).
+G1666 THE GATE - GATE AUDIO gains ten checks:
+  EMITHABITAT  10 canned places x hours on AMB's synthetic island: who calls where, and that every crow / owl is in a tree
+               (a crow may be on a roof IN the village), a gull over water, a loon on the lake, the dog and the door inside
+               the village zone; 300 dog placings 40 m inside the zone's edge, all inside
+  EMITRATE     a 2 h random walk (gamer) and 40 min (potato): every species' gap held, the cap never passed, the dog
+               <= one per 150 s of village by day and present; a forced 10 calls -> exactly 6 / 3 sound; the jitter in range
+               and spread
+  EMITAGL      150 / 220 / 400 m over the forest, beach and village, by day and night, with a car, a tram and a boat near:
+               no call, no loop; the fade at 100 m
+  EMITOBJECTS  a pass bound to the car that passes 15 m away and started 2.4-3.6 s before the closest approach, none at
+               90 m; the tram's bell on departure, its hum 0.12 docked / > 0.8 running, the creak, all gone out of reach;
+               the mill by its generator's P.mill (not the record's key), on by day, absent at night and far; the boats'
+               episodes by day only, near only
+  EMITGESTURE  nothing fetched / decoded / made before the first frame, nothing at 500 m, the crow fetched in the forest;
+               no context before the gesture; ?audio=0 builds no emitters
+  EMITPLAY     the page plays the model: the pass's doppler (> 1.01 approaching, < 0.99 leaving), the tram's loop on its
+               procedural buffer, a call 50 m ahead placed at (0, 0, -50) in the camera's frame, the cockpit's -12 dB
+  EMITBUDGET   7.5 min of walk on gamer and potato: the class's bytes <= 8 / 3 MB (decoded at the catalogue's lengths),
+               released when unwanted (peaks 3.65 / 2.55 MB)
+  EMITALLOC    the page with the emitters against its TWIN without them, same walk past a running tram and a passing car:
+               4-5 B a frame over the twin, within the 48 B per param and 4 KB per call allowance (their own 0.1-0.5
+               B a frame), 0 GC; a still listener near a mill with calls sounding schedules only at a call's start;
+               nothing near schedules nothing
+  EMITWIRING   the build order, the ambience bus, render_premises publishing soundObjects, every emitter key a declared
+               one-shot with a file (the loon excepted)
+  EMITSAMPLES  the one-shot class: decoded as is, counted, refused over its budget, released; the airframe's creak not in it
+  31 mutations, each red on its check (211 / 211 with the earlier 180 on the pre-merge tree). The sources are byte-identical
+  after. GATE AUDIO takes ~115 s standalone (EMIT ~49 s of it); it measured 151 s under run_gates' 4 jobs before the trim.
+FOUND ON THE WAY: (1) a reader called 10 times a second is a cold function: every double it touches is boxed. Read the
+  movers every frame. (2) A heap-delta gate in a process that ran other pages measures their realms too. EMITALLOC subtracts
+  a twin page's frame (the ambience and the stubs measured ~30 B a frame alone). (3) In a vm page whose global is not
+  `window`, a module's globalThis misses window.* (the model looks on window first). (4) MUSIC_BUDGET went red once
+  (71 KB over 100 000 frames, bar 16 KB) in a full run and passed in five reruns (4-6 KB). It runs before any emitter
+  code: a flake, the music's check's own.
+GATES (merged tree): AUDIO - every check of mine PASS, but AMBLUFS and AMBSAMPLES are RED. They are equally red on
+  origin/claude/sound-next f1fe4db6 without my changes: the coordinator's three new beds (amb.rain.outside, amb.birds.open,
+  amb.lake.shore) are in the catalogue but not in AMBIENCE_MODEL.BEDS nor samples.js's amb loop list. That is AMB-1's
+  wiring, left to the coordinator. On the pre-merge tree: AUDIO PASS (211 / 211), UISMOKE PASS, BOOT PASS, BUILD PASS,
+  PREMISES PASS, HITBOX PASS, LIFE PASS (run_gates --only, on a freshly built tree; the generated files restored, none in
+  this branch). MEDIA FAIL: "index.html grew 0.30 MiB over HEAD". The checkout's committed index.html is stale: a fresh
+  build of the base 11822e3c is already 0.25 MiB over it, and the two emitter files add 0.054 MiB. It clears when the
+  coordinator commits a rebuilt page. Not run: a browser (cloud).
+FOR THE COORDINATOR: (1) nothing in app.js. The emitters read AUDIO.world, AUDIO.camera and window.WORLD.premises.
+  (2) run_gates: GATE AUDIO's `wall: 160` holds standalone (~115 s); under 4 parallel jobs it measured 151 s before the trim.
+  (3) Wire the three new beds into AMB-1's BEDS / samples.js (AMBLUFS, AMBSAMPLES). (4) The generators could carry their
+  own SOUND tables (window.HOUSE_GEN.SOUND = { 'kennecott mill': 'mill' }, a TRAM / MARINE equivalent); the model reads
+  them first, and DECLARED stands in until they do. (5) SND-TUNE: every level, mean, gap and reach in the SPECIES /
+  SOUNDS / PASS / TRAM / BOAT tables is a first guess, none heard; the procedural hum / mill / outboard / bell are
+  placeholders for recordings. (6) A0's train is the first hearing of the panners in Chrome, the pass's doppler on
+  playbackRate, and soundObjects' cost with the town on (~100 rows a frame).
+MISSING ASSETS (asked of the coordinator; no file added): a LOON call one-shot (bird.loon: the emitter is declared and waits;
+  the bed amb.loons plays meanwhile); a tram station BELL, a cable car's rope / sheave HUM and a cabin creak recorded (the
+  procedural ones stand in; the creak borrows the airframe's mech.creak); a STAMP MILL / ore crusher; a small OUTBOARD at
+  idle; more variants of the crow / raven (one 0.39 s caw, pitch-jittered), the owl (one) and the gull (one); a varied
+  thrush (§6.2) has no file.
+MISSING HOOKS / WORLD FEATURES (said, not invented): no MOVING boat exists (the house piers' boats are moored props; MARINE_GEN's
+  floats draw none, `boats: 0`), so the outboard idles at a moored boat; the house piers' boats are HOUSE_GEN's build output
+  and are not in the record, so the node evidence has none (the gate drives them on a synthetic provider); the rigged ANIMALS
+  (G498: R.animals() / ANIM) are not wired, since the brief's list stops before them; no AI air traffic (SND-SPACE's
+  addCraft waits); the life's parked cars do not move (no sound); the record's traffic and the life's trafficOf both reach
+  soundObjects (render_premises' TRAFFIC holds both), but the node evidence simulates only the record's 36 roads.
+NOT DONE: the emitters carry no propagation lag (AUDIO.lagS); their calls are near and short. The doppler is on the bound
+  pass only. Rain, wind gusts and the sea state do not drive the emitters. Animals.
+
+## G1626-G1629 - SND-VOICE: RADIO JOLENE'S VOICE - A CLEAN NEURAL VOICE RENDERED OFFLINE, THE STATION'S LINES, THE AWOS AND THE MARINE FORECAST ASSEMBLED FROM RECORDED WORDS, PLAYED GAP-FREE, GATED (2026-10-04, SND-VOICE for the Sound Coordinator, cloud, node + python tools; branch claude/snd-voice-g1626 off origin/claude/sound-next 771d31f0; SND-PROP's unused tail)
+
+Ruling s12 (SOUND-2026-10-04 §11): the voice stays AI, but better, identical on every machine, offline. No app.js edit.
+SND-RADIO's branch was not on origin yet: its segments reach these clips by KEY (the catalogue) or by TEXT (AUDIO_VOICE.keyOf).
+G1626 THE VOICE - Piper 1.2.0 (rhasspy/piper, MIT) + piper-phonemize 1.1.0 (MIT), PINNED: piper-tts >= 1.3 on PyPI is
+  OHF-Voice/piper1-gpl, GPL-3.0 (a tool either way; nothing of it ships; espeak-ng (GPL) only makes phonemes - output is not
+  covered). Hugging Face is DENIED by this container's network policy: the voices came from the sherpa-onnx GitHub release
+  mirror (same onnx + the voice's json + its MODEL_CARD); `prep_voice.js --fetch` does the same into assets/audio/voices/
+  (gitignored). THE FINDING: most Piper English voices are FINE-TUNED FROM en_US-lessac (Blizzard 2013, CSTR research-only
+  licence) - alan, alba, aru, vctk, jenny, joe (CC0 data!), libritts_r, sam, reza, amy, arctic, kusal, northern_english_male,
+  semaine, hfc_male; ryan (and kathleen / danny / southern_english_female, fine-tuned from ryan-low) is CC BY-NC-SA; bryce
+  descends from an unreleased voice. Clean lineage = trained from scratch on clean data. No clean UK MALE voice exists.
+  | voice | who | engine | model | dataset - licence - URL | lineage | quality |
+  | **en_US-john-medium** (SHIPPED) | male US | MIT | MIT | LibriVox ~12.5 h - public domain - librivox.org | fine-tuned from kristin (from scratch, LibriVox PD) | medium |
+  | en_US-norman-medium | male US | MIT | MIT | LibriVox ~15.5 h - public domain | from scratch | medium |
+  | en_US-libritts-high spk 856 | male US | MIT | MIT | LibriTTS clean-360 - CC BY 4.0 (credit Zen et al.) - openslr.org/60 | from scratch | high |
+  | en_GB-cori-high | FEMALE UK | MIT | MIT | LibriVox ~24 h - public domain | from scratch | high |
+  (kristin and ljspeech are clean too, not shortlisted.) CHOICE: john - the calmest pace (1.95 words/s vs norman 2.37),
+  ~113 Hz, best male intelligibility in an offline ASR round trip (Whisper base.en via sherpa-onnx, tools only): AWOS words
+  55/80 (norman 51, libritts 56, cori 58), lines WER 19.9 % (20.9 / 20.3 / 16.5; inflated by numerals). The user picks by ear:
+  `node tools/audio/prep_voice.js --voice norman` re-renders everything (catalogue + CREDITS rewritten).
+G1627 THE WORDS AND THE PLAYER - `src/viewer/audio/voice_model.js` (VOICE_MODEL, pure): VOCAB (119 words: digits with a
+  CONTINUING take "seven," and a FINAL take "seven.", thousand/hundred likewise, the AWOS words, present weather, remarks, the
+  marine words + numbers, compass, the back-announce frames); awosClips(obs) - US AWOS order: station, HHMM zulu, wind (calm
+  < 3 kt, dir to 10 deg with 360 for north, variable, gusts when >= mean + 3), visibility (>= 10 "one zero", quarters, "less
+  than one quarter"), weather, sky (the first BKN/OVC is the ceiling; 800 "eight hundred", 1400 "one thousand four hundred",
+  >= 12 000 or none "sky clear below one two thousand"), temperature / dew point (minus, -0 reads zero), altimeter (inHg or
+  qnhPa, rounded: 29.92 "two niner niner two"), remarks; each group ends on its final take; rests 50 / 280 / 550 ms. obs:
+  { timeZ ('1753' | minutes), wind {dirDeg|null, kt, gustKt}, visSM, wx[], sky [{cover, ft}], tempC, dewC, altInHg|qnhPa,
+  rmk[] } - the game's weather_ui day (wind.kts, dirDeg, gust fraction, oatC, dewC, qnhPa) maps straight in; marineClips(fc)
+  { dirDeg, kt [lo,hi], seasFt, sky, when, trend, advisory }; backAnnounce(track, frame) ('ba.<id>' = the whole sentence "That
+  was T, by A." in one take; other frames: frame + title + by + artist); timeline(seq, durOf).
+  `src/viewer/audio/voice.js` (AUDIO_VOICE): lazy (nothing fetched without AUDIO.ctx, i.e. before the gesture), ASSET_FETCH ->
+  decodeAudioData, the codec pad skipped (first sample > 1e-3 minus 5 ms: lamejs writes no LAME tag), each clip start()ed
+  sample-exact at the previous end + the rest, for the catalogue's dur; a failed clip closes up; LRU budget 6 MB decoded;
+  dest = opts.dest || AUDIO.bus('radio') || AUDIO.bus('ui'). API: has, dur, text, keyOf(text), missing(seq), preload(seq),
+  play(seq, {dest, when, gain}) -> {start, end, stop()} | null, say(key), stopAll(), state(key), bytes, voice.
+  build.js: ONE list line (voice_model.js, voice.js after the ambience) + window.FLYDIY_VOICE inlined on the CORE_SHA line
+  (the catalogue, like the music's). _media_check.js: voice_catalogue.json in the sound list. NOTE for the coordinator: a fresh
+  build is +296.5 KB over the committed index.html (budget 307.2) - the whole of sound-next unbuilt; this block's share ~41 KB
+  (catalogue 18.9 KB, voice_model 14.1, voice 8.3).
+G1628 THE RENDER - `tools/audio/prep_voice.js` (+ `voice_render.py`, `voice_script.json`): the script lines (3 IDs, the
+  bulletins, pilot notes, swap corner, intros/outros - 24), the VOCAB, per music track ba / title / artist (a new track ->
+  re-run; VOICE_CAT is red until then). TWO PATCHES TO THE ONNX GRAPH, in memory: SEEDED (RandomNormalLike gets a seed: a
+  re-run is byte-identical - verified, no file changed) and ALIGNED (the '/Ceil' durations exposed: words of one or two are
+  rendered in a CARRIER "zero, seven, zero." and cut at the comma pauses - a lone word from a sentence-trained VITS mumbles:
+  norman 20/80 recognised alone, 51/80 carried). Chain: hp 60 Hz, trim (-45 dB, 20 ms / 60 ms), fades, -20 LUFS (K-weighted,
+  100 ms gated blocks), <= -1 dBFS, MP3 mono 22.05 kHz 48 kb/s, _media_lib (owned media/audio/voice, pruned). Respellings
+  for the voice only (Jolene -> Jo-leen, HoliznaCC0 -> Holizna). `--check`, `--demo`, `--fetch`.
+  pip install "piper-tts==1.2.0" onnx (+ sherpa-onnx only for the ASR evidence, not needed to render).
+G1629 THE GATE AND THE EVIDENCE - GATE AUDIO + VOICE_CAT (licence record whole and clean - PD / CC0 / CC BY with credit,
+  never NC/ND/SA, MIT engine, a from-scratch lineage; every clip a hashed file that exists; every VOCAB word, script line and
+  catalogue track's ba/title/artist has a clip; no orphan; CREDITS names the voice), VOICE_AWOS (5 edge readings word for word:
+  calm, gusts and a too-small gust, variable, north = 360, 10 SM exactly, 12 SM, quarters, ceilings 300/600/900 ft, 12 000 ft =
+  clear, -2 / -12 / -0.3, 29.92 in inHg AND 101325 Pa, 1014.1 hPa rounds to 2995, time from minutes; final takes; 400 fuzzed
+  obs), VOICE_MARINE (4 readings + fuzz), VOICE_PLAY (stub context: no fetch before a context, sample-exact gap-free starts
+  from the pad offset, a failed clip closes up, stop() all, back under budget after the end, keyOf), VOICE_WIRING. 24 new
+  mutations, each caught. GATE AUDIO: PASS, 204/204 mutations, wall 117 s (< 160). GATE MEDIA: PASS (2622 = 2622;
+  negative-verified by hand: a bad path and an orphan both red).
+  Evidence: reports/evidence/SND-VOICE/ - README (the table, the rejected list with reasons, the ASR comparison, how the
+  concatenation is made natural), index.html (the listening page), 12 demos (station ID, the ferry bulletin, the gusty
+  low-ceiling AWOS 1753Z 268/15G26 2 SM -RA BR SCT003 BKN006 OVC014 M02/M04 A2992, per voice; 1.43 MB), cards/ (the 4 shortlisted
+  + 26 rejected MODEL_CARDs).
+FILES (bytes): media/audio/voice/ 169 clips 1 572 484 (251 s; target < 6 MB); src/viewer/audio/voice_catalogue.json 18 869,
+  voice_model.js 14 059, voice.js 8 320; tools/audio/prep_voice.js 21 385, voice_render.py 6 081, voice_script.json 2 301;
+  _audio_check.js +184 lines; build.js +1 line +1 edited; _media_check.js 1 edited; CREDITS.md one VOICE block (one row).
+NOT DONE / FOR THE USER: the ear - pick john / norman / libritts / cori on the listening page (a UK male does not exist with a
+  clean lineage); SND-RADIO wires play() into its schedule and the weather into awosClips (the radio bus, if it adds one, is
+  picked up by name); the dataset pages (librivox, openslr, keithito) and Hugging Face were unreachable from the container -
+  the licences are the model cards' own, which is what s12 asks; a re-check from the box costs one look each.
+
+## G1667 - THE EMITTERS' RECORDINGS: THE LOON, THE TRAM'S BELL AND HUM, THE IDLING BOAT, MORE CROWS AND GULLS (2026-10-04, Sound Coordinator, integration on claude/sound-next; SND-AMB-2's unused G1667)
+
+SND-AMB-2 asked for recordings (its HANDOVER, MISSING ASSETS). Coordinator's CC0 picks, unheard by the user (the user asked to
+stop reviewing near-duplicates): `bird.loon` (cut from the user's kept loon recording 39339 - no separate CC0 loon call
+exists on freesound), `tram.bell` (497561), `tram.hum` (442493, a funicular cable car, a 10 s loop), `boat.idle` (637743, a
+small outboard idling, a 10 s loop), two more crows (361470, 75162) and two more gulls (263786, 73497) as variants. No stamp
+mill / ore crusher exists in CC0: the mill stays procedural. 46 files, 9.56 MB in media/audio/sfx; CREDITS regenerated.
+Wiring: emitters_model.js SOUNDS - bell -> 'tram.bell' (one-shot), tramhum -> 'tram.hum', boat -> 'boat.idle' (loops); the
+mill keeps `null` (procedural). emitters.js: a recorded LOOP plays from the slot like a procedural one (begin() hands
+samples.js's baked crossfaded loop buffer to proc[s]; drop() returns it with its key); OWN gains the three keys. samples.js:
+tram.bell one-shot, tram.hum / boat.idle loops (the emitters' layer); the loon no longer "not shipped". GATE AUDIO: EMITPLAY
+expects the tram's hum resident as a recording (not a procedural buffer), EMITWIRING a sound's kind to match its declared
+kind (a loop sound a declared loop) and every keyed sound a catalogue file (the loon exception gone). The EMIT checks all
+pass, 31 / 31 of their mutations caught. Still red on sound-next, SND-RADIO-2's: RADIO_STATIONS (the mix station),
+VOICE_CAT (norman's re-render with the newer tracks' back-announces), and SP_BUDGET's 90 B/frame seen once.
+
+## G1680-G1684 - SND-RADIO-2: THE RADIO FINISHED - NORMAN'S VOICE (THE USER'S PICK), THE MIX STATION ("Random"), THE SPACE FRAME'S BOXED DOPPLER REMOVED, THE RECORDED VOICE IN RADIO JOLENE'S TALK (CLIPS PER SEGMENT, speechSynthesis THE FALLBACK), THE RENDER MADE ORDER-FREE; GATED (2026-10-04, SND-RADIO-2 for the Sound Coordinator, cloud, node + python tools; branch claude/snd-radio2-norman-mix off origin/claude/sound-next 43451aca; SND-TUNE moves to G1685+)
+
+Design: futureDesigns/SOUND-2026-10-04.md §7, rulings s10 / s12; HANDOVER G1626-G1629 (the voice), G1675-G1679 (the stations, the
+talk). GATE AUDIO was red on 43451aca for three causes (VOICE_CAT 72, RADIO_STATIONS, SP_BUDGET on the coordinator's box): all three
+cleared. No app.js edit; no build.js edit (nothing new to list: voice_model.js / voice.js / radio_talk.js are already in MANIFEST).
+G1680 THE ALLOCATOR (SP_BUDGET "90.6 B a frame") - NOT an emitters / music / voice source: SP_BUDGET's child loads none of them.
+  It is space.js's MOVING path: update() called SPACE_CONFIG.dopplerFactor(c, vs, vl) - three doubles in, one out. When TurboFan
+  does not inline that call, every argument and the return are BOXED (a fresh HeapNumber each). Reproduced here: node 22 by
+  default 0.59 B a frame, with --no-maglev (TurboFan alone = a Node without Maglev, the coordinator's box presumably) 154.6 B a
+  frame; the sampling heap profiler names update (space.js:259) and dopplerFactor (space_config.js:159) as the difference.
+  The merge did not touch either file: SND-AMB-2's samples.js one-shot branch in admit() (never called by the frame) shifted
+  TurboFan's inlining of space.js's update - with that branch removed the frame is 0.59 again; with the old clsOf restored it is
+  exactly the coordinator's 905 600 B. A frame that leans on the inliner is one compile decision from allocating.
+  FIX (space_config.js + space.js): the laws in SLOT FORMS - dopplerAt(F, i), absorbAt(F, i), dirAt(kind, F, i), ringAtSlot(R, out)
+  (te in out[0], used by retardedSolve), loopBlendSlot(points, out) - read their arguments from a Float64Array and write the
+  answer into the next slot; the scalar forms (dopplerFactor, airAbsorptionHz, directivity, ringAt, loopBlend) are those same
+  laws through a scratch array, for the tools and the gate (one law, never two). space.js's frame and craftsFrame use the slot
+  forms (SD / CD scratch, dt and c in T[5] / T[6]: craftsFrame() takes no double); wet() no longer builds its node array a frame
+  (G.wetNodes, once per graph). Now 0.59 B a frame by default AND with --no-maglev.
+  THE GATE: SP_BUDGET takes its child sample twice - by default and with --no-maglev (a node without the flag is said, not failed);
+  new mutation "the frame boxes the doppler" (a scalar call back in the frame) is red only through the TurboFan sample.
+G1681 THE MIX (music.js): STATIONS += ['mix', 'Random'], seventh, after classical (the selection file's key order: RADIO_STATIONS
+  holds it). VIRTUAL: validate refuses a track tagged mix (REAL_KEYS = the six); stationLists(cat, 'mix') = per context the UNION of
+  the six stations' lists (each with its own fallbacks), catalogue order, each track once - so its bag (one per context, made on
+  first use and kept like every station's) is every track any station would play there, shuffled, no repeat inside a round. On
+  the shipped catalogue the mix's garage bag is all 42 tracks. Persisted (flydiy.audio.station = 'mix'), in the picker ("Random"),
+  [ / ] cycle through it (jazz <- mix <- classical). THE TALK STAYS ON ROOTS: the mix is music only (decided: Radio Jolene is a
+  station with a voice; a random music station that suddenly announces Radio Jolene would be the station speaking on a
+  channel it is not - and the user can tune to roots for the talk).
+G1682 NORMAN AND THE CLIPS THE TALK NEEDS (tools/audio/prep_voice.js, voice_script.json, radio_talk.js, voice_model.js):
+  CHOSEN = 'norman' (the user: "norman voice is the best"); `node tools/audio/prep_voice.js --voice norman` re-rendered everything,
+  catalogue + CREDITS rewritten (CREDITS.md's VOICE row: en_US-norman-medium, LibriVox public domain, trained from scratch).
+  THE CLIP LIST = radio_talk.js clipLines(places) (NEW: the station's own lines EXACTLY as its talk says them - LINES whole, the
+  greetings by part of day, "The time on the island," + 12 hours + 60 minutes ("o'clock", "oh five", "twenty-one"), the pilots'
+  phrases ("At Jolene field, runway," / "is favoured," / the eagles / "Give them a low pass ..."), one line per one-way strip
+  (plain and "soft after the rain") and per sea lane, the marine forecast's head (plain / small craft advisory / gale warning),
+  parts, "variable winds five knots or less.", "gusts to,", the front's 13 "A front <when>:" phrases, easing / little change)
+  + VOICE_MODEL.VOCAB (+ marine numbers 55-80 for a gale's gusts) + per catalogue track ba / title / artist. voice_script.json:
+  SND-VOICE's placeholder lines (id.1, bul.*, pil.*, swap.*, out.* - wordings the talk never said) removed; "places" declares
+  Jolene's one-way strips with their look and its sea lanes (read off the shipped world: Tamgas Hill Strip, Jumbo Mine Street,
+  East Point Clearing (gravel), Skyline Altiport (grass); Annette Dock, Metlakatla Seaplane Base). 364 clips, 628.6 s,
+  3.63 MB (was 169 / 1.57 MB); catalogue 44 KB.
+  THE RENDER WAS NOT ORDER-FREE (found): onnxruntime's seeded RandomNormalLike keeps ONE generator per session, so a clip's noise
+  was the n-th stretch of it - adding six words re-hashed the 104 clips after them; SND-VOICE's "byte-identical" held only for
+  an identical list. voice_render.py now replaces each RandomNormalLike with Slice(noise bank, 0, Shape(like)), the banks drawn
+  per item from numpy PCG64 seeded with the job's seed: a clip is a function of its own text. Verified: three items rendered in
+  both orders - identical WAVs; the whole set rendered twice - catalogue and 364 files byte-identical.
+G1683 THE RECORDED VOICE IN THE TALK: each breakScript segment now carries `clips` (radio_talk.js): the ID = greet.<part>, id.main,
+  [time.intro, clk.h.N, clk.m.M]; the back-announce = VOICE_MODEL.backAnnounce(track) ('ba.<id>', one take) + "Before that," +
+  title + by + artist (music.js's trackRow now carries the id); the AWOS = intro.awos + VOICE_MODEL.awosClips(obsOf(wx)) - the
+  game's observation (obsOf: the same wind / gust / calm / sky / visibility / temperature / QNH readGame read); the marine
+  forecast and the pilots' notes assembled from the lines above, digits and numbers from VOCAB; bulletin / swap = intro + line.
+  A field other than Jolene field or a track with no id -> no clip form; a number or place without a clip -> a key the
+  catalogue lacks. THE TALKER (RADIO_TALK.makeTalker(env, getVoice), the speaker's face: speak / cancel / available / speaking /
+  voices / pickVoice, + plan / seconds / last): a segment plays its clips when EVERY key resolves (AUDIO_VOICE.missing), else its
+  text through makeSpeaker (speechSynthesis), else it is skipped; consecutive clip segments are ONE AUDIO_VOICE.play sequence
+  (gap-free, SEG_REST 0.7 s between), consecutive spoken ones queued together; groups run in order (voice.js play() gained
+  `onend`); a cancelled break's late ends are ignored; a play that returns null (no context, every clip failed) falls back to
+  speech. music.js: connect makes radioIn (gain clipK = VOICE_K x 10^((-16 - -20)/20) = 1.98: the clips' -20 LUFS to the tracks'
+  -16, then the voice 1.25 over the music) -> the music's DUCK -> the music bus, and passes it as the clips' dest - so the
+  music volume, the duck and the context's suspend reach them; onDuck / 'suspend' / a station switch cancel the talk (the
+  sources stopped). The bed is unchanged (the deck's gain: 16 % under, 1.5 s rise after the last clip's end); the watchdog is
+  armed for the clips' own length (talker.seconds) + 8 s. The 'voice' row still chooses the speechSynthesis fallback's voice.
+  The frame is unchanged: nothing of the talk runs in update() (100 000 frames under a clip talk: +4.3 KB, 0 GC).
+G1684 GATE AUDIO (tools/audio/_audio_check.js): RADIO_STATIONS + the mix (last, "Random"; validate refuses mix; the union per
+  context on the radio and the shipped catalogue, no track twice; the shipped garage bag = all garage tracks and every
+  station's; the player on the mix: two whole rounds, no repeat inside a round, lo-fi / roots / jazz heard, no talk);
+  RADIO_PICKER (seven + off, "Random", [ / ] through the mix, persisted); RADIO_TALK (none on the mix); NEW RADIO_CLIPS (the page
+  with voice_model.js + voice.js, a stub catalogue / fetch / decode / buffer sources: every clip present -> no utterance, one
+  clip group id+awos, one source per key, gap-free, the bed at 16 % and the 1.5 s rise after the last clip's end, the watchdog
+  on the clips' length; a regular break's back-announce in clips by the track's id; every segment of 13 breaks names only
+  rendered keys; no station line shares a VOCAB key; PER SEGMENT: without w.zulu -> the ID's clips then the AWOS spoken only
+  after them; without id.main -> the ID spoken, then the AWOS's clips; THE ROUTE: the reading's gain -> radioIn (x1.98) -> the
+  duck -> the music bus; an engine start stops every source and ducks that bus; a hidden tab stops them; nothing before the
+  gesture; the frame under a clip talk allocates nothing); VOICE_CAT + the user's pick (norman's name and id; CREDITS names
+  it) + every clipLines key rendered with EXACTLY its line's text; SP_BUDGET twice (above). 19 new mutations (the mix x5, the
+  picker, the talk on the mix, the clips x8, norman / CREDITS / a line the clip does not say, the boxed doppler), 3 old ones
+  re-anchored (REAL_KEYS, id.main, CREDITS' voice: the old "names another voice" folded into the new one), 1 replaced ("a
+  place never rendered"). Each new check negative-verified: every new mutation red on its own check (292 / 292).
+  AUDIO_TRACE=1 prints each mutation as it runs (a "no mix station" mutation once looped forever: an empty mix's round loop).
+EVIDENCE reports/evidence/SND-RADIO-2/ (2.3 MB): README.md + summary.json + breeze.opus / front.opus / gale.opus, written by
+  tools/audio/radio_break_render.js (node + ffmpeg): Jolene as shipped (island_node + the premises fixture) under radio_scripts.js's
+  three weather-panel days; per day the tune-in, the pilots' break and the marine break; each break's clips laid end to end as
+  AUDIO_VOICE.play schedules them (catalogue dur from voice.js's pad onset, the rests, SEG_REST) over a roots track at 16 %
+  rising over 1.5 s after the voice, the voice at clipK; -16 LUFS, Opus 48 kb/s. 21 / 21 segments resolve to clips (the gale's
+  "gusts to fifty-five" did not until the 55-80 numbers - the fallback working as designed). Per segment: kind, clip count, words.
+GATES: AUDIO PASS (292 / 292 mutations, sources byte-identical; 241 s wall on this 4-core box - the base 43451aca measures 231 s
+  here, so ~+10 s is this block's; both are over run_gates' `wall: 160`, which the coordinator's box met at ~117 s - re-check
+  there). BUILD, UISMOKE, MEDIA, BOOT PASS (run_gates --only; the generated index.html / dev.html / sw.js / version.json
+  restored, not committed). MEDIA: index.html +301.0 KB over HEAD of its 307.2 KB budget (the voice catalogue doubled to 44 KB;
+  the committed page is stale - a rebuilt one clears it). EMITALLOC went red once (6.2 B a frame, 2 KB over its allowance) while
+  the evidence render ran beside it; green alone and in the full run - a contended sample, not this block's.
+  Not run: a browser - the clips through a real AudioContext (the first break's fetch + decode latency, ~36 small files; LRU 6 MB),
+  the level by ear (clipK 1.98: peaks reach the limiter at full music volume?), Chrome's speechSynthesis for the fallback.
+FINAL REPORT
+  Branch    claude/snd-radio2-norman-mix (pushed), off origin/claude/sound-next 43451aca.
+  Allocator space.js's frame -> SPACE_CONFIG.dopplerFactor (and the other scalar laws): doubles boxed through a call TurboFan did not
+            inline (Node without Maglev), +90-155 B a frame; the laws now in slot forms, wet()'s array made once; SP_BUDGET
+            also samples --no-maglev.
+  Mix       'mix' / "Random", seventh: per context the union of the six stations' lists, its own bag, no repeat inside a round;
+            no tracks of its own; persisted, picker, [ / ]; Radio Jolene's talk stays on roots.
+  Clips     every segment carries a clip sequence; the talker plays it when all keys resolve, else speechSynthesis for THAT
+            segment; clips gap-free per run, routed radioIn -> duck -> music bus (ducks, volume, suspend); bed and watchdog kept.
+  Voice     norman, 364 clips / 3.63 MB, the render order-free and byte-reproducible (noise banks per item).
+  Gates     AUDIO PASS 292/292; BUILD, UISMOKE, MEDIA, BOOT PASS.
+  Evidence  reports/evidence/SND-RADIO-2/ (three game weathers, Opus, 21/21 segments in clips).
+  Files     CHANGED src/viewer/audio/{music.js, radio_talk.js, space.js, space_config.js, voice.js, voice_model.js,
+            voice_catalogue.json}, tools/audio/{_audio_check.js, prep_voice.js, voice_render.py, voice_script.json}, CREDITS.md
+            (the VOICE row), media/audio/voice/ (364 files); NEW tools/audio/radio_break_render.js, reports/evidence/SND-RADIO-2/.
+FOR THE COORDINATOR: (1) GATE AUDIO's wall: 241 s here vs 160 - measure on the box (AMBBUDGET 40 s, SP_BUDGET 19 s now that it
+  samples twice, EMITRATE 19 s lead); (2) MEDIA's page budget has ~6 KB left: the next train's rebuilt index.html resets it;
+  (3) a new music track or strip / lane -> re-run prep_voice.js (VOICE_CAT red until then; the talk speaks it meanwhile); (4)
+  SND-TUNE: clipK, SEG_REST, the rests, the 'voice' row now only picking the fallback's voice (relabel?), the mix's label;
+  (5) SND-VOICE's own evidence (reports/evidence/SND-VOICE/) still holds its john-era demos: `prep_voice.js --demo` regenerates them.
+
+## G1700-G1704 - SND-RADIO-3: THE LIVING RADIO - NORMAN AND THE ISLAND (A BIBLE, A CAST, THREADS THAT MOVE, ADS FROM A GRAMMAR), THE WEATHER IN WORDS FROM THE GAME, WHOLE TAKES IN FOUR CLEAN VOICES (CALLERS ON THE PHONE LINE), A PERSISTED BROADCAST CURSOR, THE TALK-UP OVER THE FADING OUTRO; THE AWOS RETIRED; GATED (2026-10-04, SND-RADIO-3 for the Sound Coordinator, cloud, node + python tools; branch claude/snd-radio3-living-radio off origin/claude/sound-next b380604e, merged with origin/claude/jolene-22 13e6c1ab)
+
+The user's verdict (2026-10-04, Radio Jolene in norman's voice): the automated weather was "a series of numbers, badly linked",
+the stitched text "really messes up punctuation, giving it a real robotic feeling" - make it LIVE: a rugged, warm host, a remote
+rural community at the scale of a few dozen people, threads that progress, two hours before anything repeats, fades and spoken
+credits, other voices. The Coordinator's architecture kept: PROCEDURAL OFFLINE, WHOLE TAKES AT RUNTIME.
+G1700 THE BIBLE AND THE GENERATOR - tools/audio/radio_bible.md (Norman: mid fifties, ex-fisherman, chairs the hall committee,
+  organises the work parties, warm dry humour, never a caricature; the writing-for-the-ear rules; the respect rules: Jolene and
+  everyone on it invented, no real Metlakatla person / organisation / business named or imitated, no cultural specifics; 34
+  named residents, 10 businesses, the places Norman names). tools/audio/radio_gen.js (node, seeded mulberry32, deterministic;
+  --check, --print) holds the same as data and writes tools/audio/radio_script.json: 352 items in 63 segments - 14 STORY THREADS
+  told in order (Biscuit the dog lost / sighted by a caller / home; the fall fair announced / pie bakers / the chief's interview /
+  the reminder / the thanks; the boardwalk work party called / Frank's cedar / the report with names; the barge late / due / in;
+  Carl's skiff (his call-in) / spotted from the air / back; Pickles the cat; the fiddle night; the school play; the visiting
+  doctor; the book sale (Marjorie's call); the burn ban (the officer's recorded message) / lifted; the new fire volunteer; the
+  red boots (Wendell's call); Ada's ninetieth (her call)), 15 standalone notices (bingo, harbour, fuel dock, berries, the fire
+  hall, the clinic, story hour, lost and found, thank-yous, two officer messages, two call-ins), 10 ADS from a grammar (business
+  x what they sell x a local gimmick x a closing line, three hand-polished: POLISH), the pools: 24 station IDs (8 generic + 4 per
+  part of the day), 138 weather sentences, 101 back-announces. THE PROGRAM: 34 breaks (~2.3 h at 'talk every 2' on the 22
+  tracks), two segments a break, the threads at least two breaks apart and in order, an ad most breaks (never the same business
+  running), calls and the officer spread, a station ID every third break, the weather every sixth; no two breaks the same shape.
+  THE WRITING RULES (the generator refuses a line, RADIO_LINT holds them again): no digit, no capitalised acronym, no colon /
+  semicolon / dash / bracket / quote, no instrument word, never two digit words in a row, sentences 4-22 words, a closing stop;
+  no phone numbers ("leave a note at the store"). THE BACK-ANNOUNCES: every Radio Jolene track at least three phrasings (more on
+  a station of few tracks: enough for two hours), 18 frames ("That was Matthew C. Wright, This Here House. A lovely one, that.");
+  every other station's track one short take ("That was Beach, by Loyalty Freak Music.") for the fallback; the titles SAID as a
+  person would: voice_script.json 'titles' / 'artists' (the spoken-title map: the store-listing words dropped, "NFLD" ->
+  Newfoundland, "Pt 2" -> part two, the Goldberg variations as "Variation thirteen of the Goldberg Variations"; the generator
+  derives a missing one and writes it back; hand-editable); 'say' respells for the voice only (Jo-leen, Matthew See Wright, Kiddy
+  Viddy, Mister Smith ...). voice_script.json's 'places' and 'lines' are gone with the AWOS.
+G1701 THE VOICES AND THE RENDER - tools/audio/voice_render.py: WHOLE TAKES (one Piper take per sentence, joined with a breath;
+  SND-VOICE's carrier / ALIGNED cut retired with the word clips), PROSODY per voice in one table (norman length_scale 1.06,
+  noise_scale 0.62, noise_w 0.90, 0.34 s between sentences; a question +0.08 s; every gap nudged up to +-0.05 s seeded per item
+  so no two are alike), the noise banks seeded per SENTENCE from its own text (a take is a function of its words). The trim is
+  unchanged (the user: the endings are fine). tools/audio/prep_voice.js: renders radio_script.json's items, a CACHE
+  (assets/audio/voice_cache/, by voice + speaker + words + the render script's hash: a re-run renders only what changed), the
+  CALLERS through the PHONE LINE at render time (two Butterworth sections a side: 300-3400 Hz, then tanh saturation at drive
+  2.2; measured on a caller: -11 dB under 250 Hz, -16 dB over 4 kHz), -20 LUFS, MP3 mono 48 kb/s (SND-RADIO-2's), _media_lib.
+  352 takes, 34.8 min, 12.15 MB (the aim 12: the 15 new tracks' 45 back-announces put it over; the program was tightened
+  twice to get here). THE VOICES - only clean lineages, each read off its model card (the tarball's, = rhasspy/piper-voices'):
+    norman  en_US-norman-medium  the host (the user's pick)        LibriVox, public domain  trained from scratch
+    john    en_US-john-medium    Chief Walt Brennan (interview)    LibriVox, public domain  fine-tuned from kristin (from scratch, PD)
+    kristin en_US-kristin-medium Officer Dana Hale (messages)      LibriVox, public domain  trained from scratch
+    libritts en_US-libritts-high the 7 residents who phone in      LibriTTS clean-360, CC BY 4.0 (credit Zen et al.)  from scratch
+  The callers: LibriTTS speakers 189 (Carl), 576 (Bobby), 27 (Wendell), 567 (Ada), 315 (Marjorie), 585 (Bev), 162 (Ruth Ann),
+  chosen from 100 speakers by median pitch, pitch movement and noise floor (three men, four women, all distinct). The dataset pages
+  (openslr.org, librivox.org, keithito.com, brycebeattie.com) and Hugging Face are blocked by this container's egress policy
+  (WebFetch too): the licences are the model cards' own, as SND-VOICE's were; LJ Speech's public domain corroborated via
+  lhotse / keithito's tacotron README on GitHub. THE SHIPPED SCRIPT: media/audio/voice/radio_script.<h8>.json (every item with its
+  file and dur), FETCHED LAZILY by radio_talk.js; src/viewer/audio/voice_catalogue.json (inlined as FLYDIY_VOICE) shrinks from
+  44 KB to ~5 KB: the voices' licence records + the script's file and totals. CREDITS.md's VOICE block credits all four.
+  tools/_media_check.js: REF_RE += json, and the script the catalogue names is read as a manifest (its takes are not orphans).
+G1702 THE RUNTIME CHOOSES - src/viewer/audio/radio_talk.js rewritten (the AWOS, the marine forecast, the pilots' notes, clipLines and
+  every number word retired): readGame (kept: the climate's wind and gust, the surface visibility, the day's decks, temperature,
+  humidity, the front) -> conditions(wx) QUANTISED, never quoted: part of the day; sky clear / fair / cloudy / grey / low (a
+  broken+ deck under 300 m) / mist (< 5 km) / fog (< 1 km) / rain (a front passing); wind calm < 4 kt / light < 11 / breezy < 18 /
+  windy < 34 / gale; gusty (a 10 kt spread); hazards fog (pilots, boaters), a strong wind (boats, pilots), soft gravel strips (a
+  front, or wet under cloud), frost (<= 1 C), eagles (a calm day); trend front (< 18 h) / easing; feel cold (<= 3 C) / mild
+  (>= 16 C). A WEATHER SEGMENT = the sky's lead (a lead tagged for another part of the day never chosen) + the least recently
+  drawn of wind / gusts / eagles / outlook / feel + on a real hazard its advice: two or three whole sentences. load(env) fetches
+  the script through ASSET_FETCH once (after the gesture, only on Radio Jolene) and hands its items to AUDIO_VOICE.setClips
+  (voice.js: + setClips). THE CURSOR { v, k, n, h }: the program's next break, the breaks heard, when each pooled take was last
+  heard - PERSISTED in localStorage flydiy.audio.radioCursor (try/catch): a new session continues; a new script starts at its top.
+  The pools pick the least recently heard take that fits (the IDs interleave generic and the part of the day's; the weather's
+  extras rotate by when each pool was last drawn from). breakScript(cursor, wx, tracks, {tuneIn}): the tune-in = an ID and the
+  weather (the program does not move), else the program's next break with '@id' / '@ba' (the track just played) / '@wx' filled.
+  A track the broadcast was not written for is back-announced by speechSynthesis (spoken text; no take). makeTalker /
+  makeSpeaker unchanged (speechSynthesis only the fallback for a missing take). voice_model.js shrinks to timeline().
+G1703 THE FADES AND THE TALK-UP (music.js) - on Radio Jolene with its talk on the garage FADES song to song (gapped(c): no
+  silences - a station does not go quiet; the talk off keeps them); a break owed starts TALK_UP_S = 6 s before the track's end:
+  the outgoing track fades out equal-power over what is left of it, Norman talks over the outro, the next track comes in under
+  him at the 16 % bed (1.5 s) and rises over 1.5 s after the last take (the XFADE equal-power curve kept; talkDue is asked only
+  in a track's last 9 s - no frame cost). The script loads on tuning in (loadScript: connect / setStation); no break before it is
+  in; a LATE TUNE-IN (the script arriving after the first track started) talks over that track if it is under 10 s in, bringing
+  it down to the bed. The cursor is read at connect and saved after every break. The shuffle bag unchanged: 22 tracks, no repeat
+  inside a round. AUDIO.update unchanged in cost (the radio's frame under a talk of takes: +4.3 KB over 100 000 frames, 0 GC).
+G1704 GATE AUDIO AND THE EVIDENCE - tools/audio/_audio_check.js: FILES += radioscript (the written) and shipscript (the media file
+  the catalogue names, so a mutation reaches what the game plays). NEW: RADIO_LINT (every shipped and written take: the rules;
+  the rendered = the written; the spoken titles clean), RADIO_HORIZON (two hours simulated on the shipped 22 Radio Jolene tracks
+  under four game weathers x three seeds: no take twice, every thread in order, no two breaks of one shape, the cursor persisted
+  - a fresh page continues with the next break and repeats none of the first session's takes - a throwing storage survived;
+  reports the horizon and the six-hour repeat rate), RADIO_WX (eleven game days: the sky, the band, the advice heard, never
+  eagles in a gale or fog advice on a clear day, no lead from another part of the day, 2-3 sentences, no digit), VOICE_LICENCE
+  (every voice the broadcast uses: a whole record, public domain / CC0 / CC BY 4.0, never NC / ND / SA, the CC BY credit, MIT
+  engine and model, a from-scratch lineage, CREDITS names each; the host norman), RADIO_XFADE (song to song on Radio Jolene in
+  the garage: no silence, equal-power halfway; the talk-up: the voice over the outro at > 50 %, the outro fading over ~6 s
+  equal-power, the next track at the 16 % bed; the talk off keeps the silences). REWRITTEN: VOICE_CAT (the script's takes exist,
+  no orphan, the totals true, every track of every station back-announced - Radio Jolene's three times, each take crediting the
+  spoken title and artist - the callers and only they on the phone line, the voice <= 14 MB, reported), RADIO_CLIPS (the lazy
+  fetch once on tuning in, none on lo-fi, the late tune-in over the young track at the bed, the regular break in takes, the
+  per-segment fallback on the weather's and the IDs' takes, the route, the ducks, the suspend, nothing before the gesture, the
+  frame). RADIO_TALK: the tune-in is an ID and the weather in words; the duck test before the talk-up window. RETIRED with the
+  code they tested: RADIO_SCRIPTS, VOICE_AWOS, VOICE_MARINE (and tools/audio/radio_scripts.js, radio_break_render.js). 35 new
+  mutations (lint x7, horizon x5, wx x8, licence x5, cat x3 with the phone line, xfade x4, the lazy script x3), 29 retired with
+  their checks or the code they anchored on (292 -> 298). Each new check negative-verified: every new mutation red on its own check.
+  EVIDENCE reports/evidence/SND-RADIO-3/ (tools/audio/radio_broadcast.js; prep_voice.js --demo for voices/): README.md (what to
+  listen for), montage_20min.mp3 (9.2 MB: a player tuning in again at the program's break 11 on Jolene's own day - the tune-in,
+  six breaks with a call-in, the chief's interview, ads, the weather - mixed as music.js mixes it, -17 LUFS) + montage_20min.md,
+  transcript_2h.md (the first two hours, word for word, with the tracks), ad_cafe_1 / ad_engine_1 / ad_air_1.mp3, interview.mp3,
+  call_in.mp3, voices/ (the guest candidates, the same line dry and through the phone, + the model cards), summary.json.
+GATES: AUDIO PASS (298 / 298 mutations, sources byte-identical, ~190 s wall on this 4-core box); BUILD, UISMOKE, MEDIA, BOOT
+  PASS (run_gates --only; the generated index.html / dev.html / sw.js / version.json restored, not committed; MEDIA: a fresh page
+  +245.7 KB over the stale committed one, budget 307.2 - the inlined voice catalogue is ~39 KB SMALLER than SND-RADIO-2's).
+  Not run: a browser (the lazy fetch through the real ASSET_FETCH and sw.js, the talk-up by ear, Chrome's speechSynthesis fallback).
+FINAL REPORT
+  Branch    claude/snd-radio3-living-radio (pushed), off origin/claude/sound-next b380604e, merged origin/claude/jolene-22 13e6c1ab.
+  Horizon   two hours repeat-free on the 22 tracks (the worst of 12 runs 2.20 h; 30 breaks in two hours at talk every 2, the
+            program 34); the repeat rate over six hours 55 % (the program loops after ~2.3 h; the pools keep choosing the least
+            recently heard). 'talk every 1' halves the horizon.
+  Voice     352 takes, 34.8 min, 12.15 MB (aim 12); four voices, all clean; the callers on the phone line.
+  Files     NEW tools/audio/{radio_bible.md, radio_gen.js, radio_script.json, radio_broadcast.js}, reports/evidence/SND-RADIO-3/;
+            CHANGED src/viewer/audio/{radio_talk.js, music.js, voice.js, voice_model.js, voice_catalogue.json},
+            tools/audio/{prep_voice.js, voice_render.py, voice_script.json, _audio_check.js}, tools/_media_check.js (REF_RE + json,
+            the script read as a manifest), CREDITS.md (the VOICE block), media/audio/voice/ (352 takes + the script);
+            REMOVED tools/audio/{radio_scripts.js, radio_break_render.js}. No app.js / build.js / index edit.
+FOR THE COORDINATOR: (1) the user picks the guests by ear in voices/ (john / kristin / the seven LibriTTS speakers): a role moves
+  to another voice in radio_gen.js VOICES, then prep_voice.js; (2) SND-TUNE: PROSODY in voice_render.py, TALK_UP_S, the bed, the
+  phone drive; (3) more broadcast = a longer program and more pools (radio_gen.js), at about 6 KB a second of speech; (4) a new
+  catalogue track: radio_gen.js (writes its spoken title) then prep_voice.js - VOICE_CAT is red until then, the talk speaks its
+  credit meanwhile; (5) GATE AUDIO measured ~190 s here (run_gates' wall is 160 - SND-RADIO-2 measured the same overrun);
+  SP_BUDGET's TurboFan mutation missed once under load in a full run and was caught alone (a contended sample, as before).
+
+## G1705-G1709 - SND-ANIMALS: THE ANIMALS HEARD - A READ-ONLY READER ON THE LIVE ANIMALS, ONE BLOW PER SURFACING AT THE BLOWHOLE, THE ELK'S BUGLE AT DUSK, THE BEAR ONLY NEAR (AND A RARE STARTLE), THE DOE, THE FLOCKS' GULLS RIDING THEIR BIRDS, THE VARIED THRUSH, THE RECORDED STAMP MILL; GATED, HEARD ON JOLENE (2026-10-05, SND-ANIMALS for the Sound Coordinator, cloud, node only; branch claude/snd-animals off origin/claude/animal-sounds 7e5aa337)
+
+The user (2026-10-05): "there are animals integrated in the game. Can you give them their sound, and associate that properly to
+the animal objects?" - and the recordings still missing must be used. The recordings are the Coordinator's (7e5aa337), unheard
+by the user. Design: SOUND-2026-10-04 §6.3 (the emitters), ANIMALS-2026-09-22 (the behaviours). No app.js, build.js, asset or
+CREDITS edit. The animal code knows nothing of the sound; the sound reads the animals only through the reader.
+G1705 THE READER - src/viewer/animal_run.js `sound(out)` -> rows of ANIMAL_RUN.SOUND.ROW (12) per individual into the caller's
+  Float64Array: [species (SOUND.SPECIES: bear elk doe orca whale bird; -1 unknown), x y z (a land animal's HEAD: 0.42 x length
+  ahead along its heading, 0.8 of its height; a sea animal's BLOWHOLE: 0.33 x length ahead of the pivot, at the surface + 0.2 m
+  while it is up; a bird itself), vx vy vz (the circuit's tangent x speed; the flock's track; land 0), state (0 idle, 1 walk,
+  2 surfaced, 3 submerged, 4 flying), event (the run's clock at its last EVENT: a sea animal's BLOW = the frame its back breaks
+  through and the plume is fired; a land animal's CALL opportunity = it enters idle / browse / walk anew, not lying down, not its
+  sowing; -1 none), herd (an integer per herd / pod / flock, placed or ambient), shown (stepped and drawn), length (x size)];
+  `clock()` the run's clock. A caller that keeps last frame's clock has this frame's events: event > it. THE CLOCK IS COMPARED
+  BY THE CALLER, never handed in: the first cut took `since` as an argument and boxed a double every frame (and a herd id passed
+  to a helper boxed another: ~27 B a frame). READ ONLY: two marks (blowT, callT) are written where the behaviour already acts,
+  no random is drawn, no joint touched; GATE ANIMALS byte-for-byte unchanged in what it measures (PASS). ALLOCATION-FREE:
+  HERDS.forEach with callbacks made once. COST: ~0.4 us a row in node (3 us for the island's 47 rows); the first cut was 10x
+  that - Math.sin through a vm's global; the heading is the animal's own `dir`. render_premises publishes `animalSounds: out =>`
+  and `animalClock`.
+G1706 THE NUMBERS - src/viewer/audio/emitters_model.js ANIMALS [species, sound, how, reach m, mean s, gap s, hour]:
+    whale  whaleblow  (animal.whale.blow, 0 dB, ref 40 m, +-0.6 st)    blow   1500 (x calm)              once per surfacing
+    orca   orcablow   (animal.orca.blow, -3 dB, ref 20, rate 0.82 +-0.5 st: the porpoise's breath lowered)  blow 600 (x calm)
+    elk    elk        (animal.elk, -2 dB, ref 40, +-0.8 st)             call   1500   40 / 40  twilight   the herd's clock
+    bear   bear       (animal.bear, -2 dB, ref 15, +-0.8 st)            call   150    240 / 60 near       + the STARTLE
+    doe    doe        (animal.deer, -8 dB, ref 8)                       call   150    120 / 45 day
+    bird   gull       (bird.gull, the species' own sound)               flock  450    16 / 6   gull       riding its bird
+  BLOW: one call per BLOW event while the row is surfaced (never submerged: the aeroplane does not hear under the water), at the
+  blowhole, static. The CALM: the blows' reach x (1 - 0.6 x (wind - 3) / 12), 0.4 at 15 m/s (the ambience's wind feature).
+  CALL: a herd's Poisson clock (after its gap, weight / mean a second) ARMS the herd and its next call opportunity calls; a call
+  out of reach is made, not heard (the herd's rhythm does not depend on the listener); never two of one herd at once. FLOCK:
+  the clock calls at once from a random member, the voice placed on that member's row EVERY frame (its velocity: the doppler).
+  HOURS: twilight 0.15 by day, 0.3 at night, 1 at dawn / dusk (max of the civil twilight and the sun at 4 +-12 deg); day 0.3 +
+  0.7 by day; gull from 4 deg below the horizon. THE BEAR: weight 1 + 3 x near^2 x low (near 1 - d / 150, low 1 - AGL / 40)
+  and THE STARTLE: the listener coming within 60 m under 40 m AGL (an entry; out again past 90 m) -> a growl at 40 %, at most
+  one a bear in 3 min. Reaches are 3-D, faded over their last 30 %. THE 150 m CEILING DOES NOT APPLY to the animals (their
+  reach is theirs); the garage and under water hear none. The herds are tracked in 48 slots (id, last seen frame, last call,
+  armed, first row, count, nearest, startle), freed 600 frames unseen. An animal's call STEALS the farthest sounding voice at
+  the cap when that one is farther (st.refused[2] counts). THE VARIED THRUSH (§6.2's): a SPECIES row, the forest by day,
+  strongest round sunrise / sunset (day x forest x (0.3 + 0.7 x (1 - |sun - 4| / 12))), in a tree 15-80 m, mean 30 / gap 12.
+  The crow / eagle / loon / owl / gull rows play their new variants as they are. PER SOUND: pitch jitter (default 1.5 st) and
+  a base rate, two optional SOUNDS columns.
+G1707 THE PLAYER - src/viewer/audio/emitters.js: the provider reads `animals(out)`, `animalClock()`, `animalSpecies()`
+  (window.ANIMAL_RUN.SOUND.SPECIES: the codes' meaning, mapped by name, rebuilt only when the list changes). VARIANTS NEVER
+  REPEAT AT ONCE (samples.js pick(key, fresh)), for every emitter. THE ROOM: a key refused by the class's budget frees the
+  resident keys no longer wanted and asks again the next frame; an ANIMAL's key (whaleblow, orcablow, elk, bear, doe) may also
+  free the largest idle nature key (it waits its 15 s). Found rendering the pod: on gamer's 8 MB, Annette's shore had the loon
+  (3.1 MB with its two new calls), the eagle (2 MB), the gulls, the owl resident and wanted, and the orca's breath was refused -
+  the pass was silent. samples.js: the animal / thrush keys declared one-shots, size(key).
+G1708 THE MILL - SOUNDS 'mill' -> 'mill.stamp' (a loop, -4 dB, ref 30 m) in the mill's loop slot, as G1667 did for tram.hum
+  and boat.idle. samples.js KEYS['mill.stamp'] = { kind: 'loop', cut: true }: bakeLoop(b, lim, cut) trims the codec's pads
+  and crossfades NOTHING (and caps nothing): the file is cut onset to onset, and the usual 1.5 s tail crossfade would shorten
+  the period to 4.9 s and break the time every loop. THE FALLBACK: a sound the model can synthesise (tramhum, mill, boat,
+  bell) whose file is absent, or fails to load, is made procedurally (the G1661 synth) - the mill's rumble when mill.stamp is
+  missing.
+G1709 THE GATE AND THE EVIDENCE - GATE AUDIO gains the ANI block (the REAL animals layer - tools/audio/animal_world.js: the
+  page's animals.js + animal_run.js on three and the shipped payload, GATE ANIMALS' own context - where the check is about what
+  the animals do; SYNTHETIC herds, rows written like the reader's with CALL events at the clip machine's measured rate (an elk
+  every 11.6 s), where it is a rate over hours):
+  ANIMAP   every shipped animal (animals_table.py) in the reader's vocabulary, its ANIMALS row's sound a catalogue key, a
+           declared one-shot and the emitters' own; the thrush a forest species; the reader published and read
+  ANIBLOW  five orcas and a whale circling off a floatplane on the water, 10 min: every surfacing within reach blew EXACTLY
+           once, at its blowhole (checked against the animal's own pivot and length, not the reader's row), in the frame
+           the plume fires; no blow not at a surfacing, none submerged; the pod 700-1100 m off: none; the whale at ~1.1 km
+           blows on calm water, not in 15 m/s
+  ANIELK   40 min at dusk 600 m off: 12-40 bugles, >= 40 s apart, mean gap >= 60 s; noon under half of dusk; 1300 m heard,
+           1700 m not; two herds both call; the REAL herd at dusk: every bugle in a call opportunity's frame at that elk
+  ANILAND  the bear at 100 m: heard, gaps >= 60 s; at 200 m never; 30 low passes (20 m AGL, over it) startle it 4-24 times
+           (the model's startle clock), 30 at 120 m none; the doe at 100 m (gaps >= 45 s), never at 200 m
+  ANIGULL  the REAL flock circling overhead, 10 min: 10-60 calls >= 6 s apart, each within 2 m of a bird every frame it sounds;
+           none at night; the ambient flocks call as they cross
+  ANIMILL  the page 150 m from the mill: the loop slot plays the RECORDED buffer, 6.2-6.45 s (uncut), no procedural buffer; the
+           manifest without mill.stamp: the procedural rumble
+  ANIPLAY  the page with a synthetic pod and flock through window.WORLD.premises.animalSounds: nothing fetched 3 km off; near,
+           the orca's breath at 0.82 x +-0.5 st placed at its blowhole in the camera's frame; 20 blows never repeat a variant at
+           once; a gull's call rides its bird (its panner moves) with the doppler on its rate
+  ANIALLOC the reader over the island's cast (47 rows), 30 000 reads against a loop doing nothing: 0.00 B a read, 0 GC; the
+           model's animals over 20 000 frames of recorded rows against its twin: 0.33 B a frame, 0 GC more; +13 us a frame
+           (vm-measured: the vm's global makes Math slow; the page's realm is faster)
+  28 mutations (the doe unmapped, forgotten by the reader, not the emitters' own, the reader unpublished; a blow every surfaced
+  frame, as it dives, at the pivot, beyond reach, deaf to the wind; the elk at every hour, not rare, heard at 2.5 km, a bugle
+  without an opportunity; the bear heard far, never startled, startled high; the doe heard far; the gulls left behind,
+  chattering, at night; the mill procedural, crossfaded, without its fallback; the orca at the porpoise's pitch, variants
+  repeating, fetched from afar; the reader and the model allocating) - each red on its check. EMITGESTURE's mutation retargeted
+  (no sound has a null key now: `want || SYNTH[s]`) and its file test widened to the new keys; EMITBUDGET now asserts 70 s with
+  nothing wanted releases everything (the room's releases would have hidden a dead RELEASE_S). GATE AUDIO PASS, 326 / 326
+  (325 in the full run + the wiring mutation alone after it), 3 m 52 s standalone (SND-RADIO-3 measured ~190 s; the ANI block
+  and its mutations ~75 s more - run_gates' wall 160 is a scheduling hint, now further under).
+  THE EVIDENCE - `node tools/audio/animals_render.js` -> reports/evidence/SND-ANIMALS/ (0.77 MB): JOLENE (media/world/jolene +
+  the premises fixture) with its eight hotspots run by the real animals layer, heard through the page's sound code on a
+  recording context (emitters_render.js's harness and mixdown, now exported), the emitters alone. orca.opus (a pass at 40 m,
+  timed from a scan of the pod's own dive cycle: blows at 4.6 s / 560 m, 26.3 s / 377 m, 28.5 s / 101 m), elk.opus (the
+  sanctuary herd from 250 m at 21:48: bugles at 61.3 and 126.6 s), bear.opus (three low passes 20 m beside it: the startle at
+  18.9 s, 59.7 m), gulls.opus (the dock's flock: 3 calls riding their birds; the ambient flocks 4; the shore's own gulls 4),
+  mill.opus (the recorded loop over the walk in; its seam keeps the file's own onset pattern, measured), timeline.png,
+  summary.json, README.md (what to listen for, when). `node tools/audio/animals_box.js` - THE BOX'S RIG, for the Coordinator,
+  UNRUN HERE (the cloud cannot render the world): Chrome on the game at Jolene, one real gesture, the aeroplane carried along the
+  same scenes by FLIGHT_PROBE.place every 100 ms (never paused: a paused game stops the animals and silences the audio), the
+  master bus recorded by MediaRecorder (the whole mix), the emitters' calls and an animal census written to box/.
+GATES: AUDIO PASS (above), ANIMALS PASS, MEDIA PASS (index.html +267 KB over HEAD of its 307 KB budget: the committed page is
+  stale, as before), BUILD PASS, UISMOKE PASS (173.5 s). The generated files (index.html, dev.html, sw.js, version.json)
+  restored after every build; none in this branch.
+FOR THE COORDINATOR: (1) integrate: nothing in app.js; the page's path is render_premises.animalSounds -> emitters.js's provider.
+  (2) SND-TUNE, by ear: every level, reach, mean, gap and the startle's 40 % are first guesses; the humpback blow stands in for
+  the BLUE whale (the model is a blue whale; the recording a humpback's trumpet); the orca's 0.82 rate on a porpoise's breath.
+  (3) Memory: the new variants made the emitters' class oversubscribed in places (the loon's key alone is 3.1 MB decoded at
+  48 kHz; potato's class is 3 MB): the room keeps the animals heard; a cheaper fix for the nature keys is fewer / shorter
+  variants on potato, or decoding one-shots at 24 kHz there. (4) The elk beyond 1.4 km do not step (animal_run's land REACH) and
+  so do not bugle, though the bugle's reach is 1.5 km. (5) Run animals_box.js on the box and listen against the README.
+NOT DONE: no sound for a land animal's footsteps or a whale's tail slap (no recording, not asked); the ambient flocks' gull
+  calls share bird.gull with the shore's species (one key, one budget entry); the loader's variant choice is Math.random, not
+  seeded (the evidence's calls and times are deterministic, its variants are not).
+
+## G1920 (was G573.1 on its branch; G573 is another session's) - THE BLUEPRINT, TRIED ON A REAL SHEET: the Birdman Chinook three-view against the shed's Chinook (2026-10-05)
+
+The user: "Let's do a test with this one. It has a couple of difficult things; the ground line is drawn, but faded, and
+it is not straight, and the top view is also not straight ... load it in your new tool ... and also load the chinook
+from the game against it" - and then: "use the methods that the tool has, so you don't do something the user couldn't,
+but you don't have to go through the interface".
+
+THE TOOL'S METHODS, CALLABLE: `BLUEPRINT.api` - one call per desk action, through the same code the pointer runs, in the
+coordinates the desk shows (the SHEET for scale and cuts, the ORIENTED view for level/plumb, extent and ground): look
+(pan/zoom the desk on a step, a view, a point), scale, cut (box | lasso), orient, level ('h' | 'v' = plumb), extent
+(edges | 'auto'), ground, measure, place, snapNose, set (a panel row). Points were found by zooming the desk on each
+feature (look at x5-x6) and reading the picture, as a user would; no pixel analysis outside the tool.
+
+THE SHEET (1075 x 585, the user's image, not committed - its licence is unknown): no scale bar; front view top left,
+side view below it, top view at about 50 degrees on the right. Done at the desk:
+- SCALE on the top view's span, tip to tip (795 px), at 37 ft: the sheet's span/length is 2.14, which is the 37 ft
+  Chinook 2S (futureDesigns/CHINOOK-STUDY: the 2S has 2 ft more span), not the 32 ft Plus 2 the shed's Chinook is
+  (1.81). 14.2 mm a pixel.
+- CUTS: front and side boxed; the TOP LASSOED - a box round a view drawn at 50 degrees takes the side view's tail and
+  the front view's tip with it.
+- TOP VIEW: PLUMB on two points of the wing's leading edge (the longest straight line on the view) -> -49.5 deg, nose
+  left. Its auto extent started 15 px ahead of the nose: the drawing's dash-dot centreline runs out past the pod. Edge
+  dragged onto the pod's nose.
+- FRONT VIEW: THE IMAGE IS CROPPED - the left wing tip is cut off at the sheet's edge, so the auto extent (and with it
+  the centreline registration) was 37 px off. Fix with the tool: the extent's left edge mirrored about the drawn
+  centreline (x 341.5) across the right tip (746) -> -63, OUTSIDE the image; the extent is allowed to be. Its ground
+  line on the faint drawn one under both tyres.
+- SIDE VIEW: the faint, sloping ground line read as two tyre contacts (main 104.0, 163.3; tail 358.5, 132.6, oriented
+  px) -> 6.9 deg nose-up parked.
+AGAINST THE SHED'S CHINOOK (stock 'chinook', C-ICHK): length 5.33 m drawn vs 5.36 built (3 cm); span 11.36 vs 9.76
+(the 2S vs the Plus 2, by design); the front view's pod, gear legs, wheels and prop disc sit on the build's. Pictures in
+the session (quarter with the Blueprint panel, front, sides, top with `over the build`).
+
+LEARNED, for the desk: (1) a script-initiated click cannot open a file picker - the api loads through the same loadFile
+the button does; (2) an extent beyond the image is the right tool for a cropped sheet - say so in the orient step's
+help one day; (3) the editor's camera presets (CAGE_UI.setView) do not move the shed's camera; FLIGHT_PROBE.camSet does.
+- FILES: src/viewer/blueprint.js (BLUEPRINT.api). Built files not regenerated here: the coordinator builds on merge.
+
+## TRAIN 32 LANDED (2026-10-05, A0 the coordinator)
+
+Cargo (on train 31 = bff4f64b): the INDEPENDENT REVIEW's round 1+2 fixes (ccr-4c7cf662-zcpqoe: A4 the newborn build's
+fresh slot, A6 settlement hitboxes, A7 cage buffers disposed, A8 the camera after Fly again, B15-B19/B23/B24/B26, build.js
+checks, GATE OBSTFRAME; its report reports/INDEPENDENT-REVIEW-2026-10-04.md), GEAR-WATER + GEAR-WATER 2 (G1380-G1384.4:
+SOAR's control on a lake, the wet pass armed per frame - nothing in dry air; the slam, flooding, wing buoyancy), POSE-BACK
+G1530-G1534, UPDATE-NOW G1535-G1539, MOBILE-GARAGE G1510 (study), TREE-CRASH G1470-G1479 + the DMG switch G1898 (damage OFF
+by default, ?damage=1), the DEFORM-AND-BREAK doc (claude/dmg-integration), HYBRID-TRIPS G1490-G1493 (the trips after a taxi
+0.3 / 8.9 s with the farther band; the live aeroplane's decals), POTATO-DEEP G1520-G1529 (potato's GPU memory 2.2 -> 1.4 GB,
+the shed's lamp shadows, a real plain ground, a laptop rung, never Metlakatla on potato / laptop / software), the dead
+.github/workflow removed (REVIEW A1: Pages stays on the legacy branch builder, the user's call).
+HELD OUT: G1408 (Metlakatla ON by default, the user's 4 Oct call) - the first full gate (40 reds) showed town-on costs: warm
+loads +7 s, chase/cockpit render +3-4 ms, two 1.4 s tasks at the roll-out, the water taxi's p99 33 -> 83 ms, and GATE
+SIMWORKER-EDGES' worker world differing after an edit. Measured separately for the user's call. Kept from it: a saved free
+row (town) reads back (S seeds the free rows before the copy).
+A0 IN THE TRAIN: TREE-CRASH merged beside GEAR-WATER 2's armed wet pass (both resets, both frame arms); the review's scratch
+matrices made on first use (node harnesses load aeroskin.js before THREE); gates reading train 32's code: STAND, FOG,
+CLOUD (six presets), UILAYER, PARTS, GFX.
+STRICT GATE (full, vs train 26's baseline): 98 in slack, 47 better, 12 RED = the 30 cap's fps rows (intended), the chase
+render / loop +1.85-1.9 ms (HYBRID-FARTHER's band, admitted by the user; train 33's dissolve brings it to ~+1.4) and one
+garage -> world @mn_strip worst task 107 -> 270 ms (one row, slack 150; watched in train 33). BATTERY: the full battery
+PASS on the final build (SOFTGPU SKIP: no Playwright on the box). The parked aeroplanes re-cooked on it.
+
+## G1480-G1489 - WOODLAND: THE WOODLAND HAD DRAWN NOTHING SINCE 2026-09-23 WHILE ITS 24 651 CYLINDERS STILL STOPPED THE AEROPLANE; THE FILL ALREADY PLANTS ITS GROUND, SO ITS SEEDS LEAVE THE DRAW AND THE PHYSICS (CANDIDATE b) (2026-10-04/05, WOODLAND for A0, local GPU; branch claude/woodland-g1480 off master a1ffcf5b = train 30; G1483-G1489 unused)
+
+The brief (TREE-HITBOX's G1330 census): on Jolene plantWoodland drew nothing - its fill() read H.imps[0], null - while world.trees, the woodland's physics cylinders, stayed solid. The rule: what is drawn collides, what collides is drawn. SOFT-GPU's G1461 (the one-token fix, held out of train 31 by A0) is candidate (a).
+
+### G1480 - the failure, on the box
+- **Seen on the RTX box** (tools/perf/woodland_shots.js, master a1ffcf5b, index.html, the user's Cub, gamer): the boot logs `world: after the build TypeError: Cannot read properties of null (reading 'setMatrixAt')` (render_world afterBuild's catch; index.html:4625, `fill`'s forEach), and `TREE_PLACE.replant()` called in the page throws the same. 0 woodland instances in the partition; 93 woodland cylinders within 1 km of HOME's stand, solid and unseen.
+- **Broader than G1330 said: imps[0] is null in EVERY side, on every map.** side() pushes a null per EMPTY series before the side's one merged impostor mesh, and with TREE_MIX.furnished = 1 the stand series (1) is never dealt. So the first cell threw whatever its trees. It broke with the impostor merge (a3a1a7f6, PERF wip 2, 2026-09-23); before it each series had its own impostor mesh and fill() read imps[si].
+- **So every perf baseline since 2026-09-23 was measured without the woodland**, and fixing it is new cost, not a restoration.
+- **Was the woodland meant to draw beside the fill?** It predates it: W13's fill was "render-only canopies ... the collidable set is a 64 m stage-2 grid, so stands render sparse even with the clump layer". The woodland (a physics tree + 2-4 clump neighbours) was the forest; the fill came to densify it (W17: 9.1 m grid, the impostor rungs; TREES-NEAR G1110: the partition; G1114.1: the 64 m partition records). On an island the fill stands on the same tree map the seeds do (effClass TREE, 20_world.js), on the analytic world only within 90 m of a seed (nearTree). Since W17 the woodland was ~2 % of the trees on its ground (below).
+
+### G1480 - the numbers (master a1ffcf5b vs (a) = + G1461's token vs (b) = this branch; each tree its own worktree, its own build, its own parked cook)
+**Where the woodland stands** (tools/perf/woodland_census.js, the page in node on (a), island-wide; the fill's walk TREE_FILL.plants, full density):
+
+| | n | fill tree within 3 m | 6.4 m | 10 m | 20 m | past 40 m | fill trees within 20 m (mean) |
+|---|---|---|---|---|---|---|---|
+| seeds (world.trees) | 24 651 | 30.8 % | 84.3 % | 98.5 % | 99.96 % | 0 | 15.4 |
+| every woodland tree (seeds + neighbours) | 86 028 | 30.8 % | 83.6 % | 97.9 % | 99.96 % | 0 | 15.4 |
+
+Within 1 km of HOME: 345 woodland trees (317 within 10 m of a fill tree) against 15 821 fill trees drawn. **The woodland adds ~2 % trees, all inside the fill's own forest.** Jolene places no tree by hand (TREE_PLACE: 0).
+
+**FRAMECOST** (node, per frame, cub; the cessna moves alike):
+
+| scene | counter | master | (a) | (b) |
+|---|---|---|---|---|
+| stand | draws main / shadow / total | 908 / 106 / 1029 | 1215 / 144.5 / 1374.5 (+34 %) | = master |
+| stand | GL calls | 7424 | 8283 (+12 %) | = |
+| stand | frustum tests / updateMatrixWorld | 1289 / 8358 | 2018 / 9624 | = |
+| stand | tris shadow | 2.119 M | 2.154 M | = |
+| taxi | draws main / shadow / total | 838 / 74.5 / 928.5 | 1111 / 108 / 1235 (+33 %) | = master |
+| taxi | GL calls | 7141 | 7818 (+9 %) | = |
+| boot | world grHeight reads | 3.856 M | | 3.782 M (-74 k: no clump neighbours sampled) |
+| node heap after the roll-out | heapUsed | 797 MB | | 783 MB |
+
+(a) is RED on FRAMECOST (draws, GL calls, updateMatrixWorld, tris at the stand and the taxi). (b) passes; no stand/taxi count moves against master's own census. (Two boot-step counts, parking/bake updateMatrixWorld, flip between two values run to run on master itself: noise, not the woodland.) Master's own census is below the stored baseline (stand shadow 169.5 -> 106): a ratchet-down for A0 (`--update`).
+
+**Memory, potato** (tools/perf/heap_steps.js `--page 'index.html?gfx=potato'`, one load each, MB):
+
+| | load s | heap peak | array buffers peak | after a full GC: heap / array buffers |
+|---|---|---|---|---|
+| master | 47.8 | 428.1 | 1522.2 | 218.1 / 1078.8 |
+| (a) | 53.3 | 464.9 | 1565.7 | 233.7 / 1114.7 (+15.6 / +35.9) |
+| (b) | 50.6 | 385.6 | 1374.4 | 205.7 / 1072.2 (-12.4 / -6.6) |
+
+(peaks are single loads and GC-timing dependent; the after-GC floor is the retained cost: (a) holds ~50 MB more on potato, (b) ~19 MB less - the ~86 000 seed records and the first cell's meshes master built and threw away.)
+
+**The strict gate, timed** (tools/perf/train_gate.js on each tree, quiet box, 2026-10-05 04:36-05:20 light x3 in the order master, (a), (b); 06:14-06:51 the garage interleaved and the cold bench; compared tree against tree with `--compare <x> --baseline <master's run>`; reports tg_wood_*):
+
+| row (light: one run a group, 20 s recorded) | master | (a) | (b) |
+|---|---|---|---|
+| cub chase: fps / loop / render ms | 30 / 13.7 / 9.8 | 30 / 15.0 / 11.1 **RED** | 30 / 13.3 / 9.7 |
+| cub cockpit: fps / loop / render | 30 / 15.1 / 11.2 | 30 / 16.3 / 12.2 | 30 / 15.3 / 11.4 |
+| metal chase: fps / loop / render | 30 / 13.8 / 10.1 | 30 / 15.1 / 11.3 **RED** | 30 / 14.0 / 10.2 |
+| metal cockpit: fps / loop / render | 30 / 15.5 / 11.6 | 30 / 16.7 / 12.6 | 30 / 15.7 / 11.8 |
+| taxi HOME / mn_strip / SEA: fps, p99 ms | 30 / 30 / 29.9, 33.5 | the same | the same |
+| warm: navigation -> garage (cub / floats) s | 45.4 / 55.2 | 47.6 / 53.7 | 46.4 / 52.2 |
+| garage -> world first @HOME / round trip 2 / @mn_strip s | 9.1 / 8.9 / 25.2 | 9.2 / 8.9 / 25.5 | 9.2 / 8.9 / 25.1 |
+| world -> garage after the taxi @HOME / @mn_strip s | 0.2 / 0.3 | 0.2 / 0.2 | 0.3 / 0.2 |
+| cold: navigation -> garage / first flight s (full mode, one run) | 61.6 / 70.9 | - | 57.6 / 66.7 (PASS) |
+| garage, ten changes, sync summed ms (cub / metal) | 369, 388, 357 / 434, 437, 408 | | 343, 357 / 417, 416 |
+| garage, busy summed ms (cub / metal) | 2220, 2757, 2377 / 2835, 3284, 2349, 4019 | | 2438, 2338, 2453 / 3388, 3181, 3818 |
+
+- (a): RED on the chase render (cub +1.3, metal +1.2 ms) and +1.2 ms of loop in all four groups - the woodland's +33 % draws.
+- (b): within slack on every rollout and bench row. Its light run showed garage "busy" reds (single changes 0 -> 219..547 ms); master's own runs swing 2349..4019 ms summed and (a)'s run listed the same rows both RED and BETTER. The interleaved b, master, b re-run put (b) at or under master (metal 3181 / 4019 / 3818); the handler (sync) time is equal. No garage regression.
+- All three trees are RED against the stored light baseline (garage fps 34.2 -> 30, the mn_strip taxi 32.1 -> 30, the sea taxi 56.1 -> 29.9): the baseline predates EVEN-30's hard 30 - A0's to re-take.
+
+**Stills** (reports/evidence/WOODLAND/, master | (a) | (b) side by side, the user's Cub, gamer, RTX box): `stand_master_a_b.jpg`, `look_master_a_b.jpg` (from the stand at the nearest woodland, 1.4 km), `taxi_master_a_b.jpg` (250 m along), `low_master_a_b.jpg` (60 m AGL over the densest woodland near HOME), `low_eye_master_a_b.jpg` (120 m over it). (a) shows a few taller spires over the fill canopy and darker silhouettes on the far horizon (its impostors reach 9 km); near the aeroplane the three are alike. Each caption carries the 1 km counts: woodland drawn, fill drawn, woodland cylinders and whether they are solid.
+
+### G1481 - THE DECISION: (b), the seeds leave the draw AND the physics
+- (a) costs +33 % draws at the stand and the taxi and ~50 MB on potato for ~2 % more trees standing among the fill's own. A budgeted (a) (thinned where the fill covers) would thin to nothing: 97.9 % stand within 10 m of a fill tree.
+- **render_world.js:** G1461's token kept (the hand-placed trees still go through the planter: the analytic aerodrome's windbreak, TREE_PLACE.add). The seeds and their neighbours are no longer planted. world.trees stays placement: the runway's obstacle cone (canopyH), the fill's species seed and its analytic predicate (nearTree) read it.
+- **20_world.js:** `world.woodSolid` (true) / `setWoodSolid(on)`. **30_solver.js:** the woodland cylinder test runs only while it is true. A world no viewer stands on (every gate, a replay) keeps its cylinders: the battery's physics is byte for byte the same.
+- **The page:** render_world turns it off at the woodland step. **sim_link.js** forwards it to the worker as an obstacle op `wsolid` (and replays it in liveOps for a worker world made later); **sim_host.js** applies it.
+- **What the aeroplane can hit now is exactly what is drawn:** the fill's trunks (world.treeHits, within 1.2 km), the placed trees' ('wood' set) and the premises'.
+- **The analytic world** gets the same: its fill stands within 90 m of every seed.
+
+### G1482 - gates
+- GATE TREEHIT (19 core + the page census): the same tree with the cylinders off is not met (82.7 m, rolled through); the worker world takes wsolid; a headless world keeps woodSolid true; the census (--page) asserts "no woodland cylinder collides unseen" (the G1330 NOTE is gone). The census' "collidable now" honours woodSolid.
+- **GATE WORLDRENDER plants by hand now.** It checked the woodland planter's machinery (chunk-local instances inside their cull spheres, a trunk per tree, the shadow pass' depth-material cull, the impostor tier's parity, the LOD switch at the origin) on the analytic world's seeds, drawn as cones in node. With the seeds retired the planter was empty there and four checks went red (no trunk, 19 impostor chunks, no shadow-casting chunk, no near chunk on at the origin). The harness' window now keeps the one name `TREE_PLACE`, and the gate plants a stand by hand (a 300 m grid over 12 km, 1600 trees). Every check runs again on it: 1600 trunks, 0 of 87 462 instances escaped, 3D 8/122 chunks on to 1448 m, impostors 57/61 to 5971 m.
+- **The battery** (`node tools/run_gates.js`, core tier, under the cpu lock, with (b)'s parked cook in the tree): 146 PASS, WORLDRENDER FAIL (above); WORLDRENDER PASS after the fix. FRAMECOST PASS on (b)'s cook (a stale cook would read the parked aeroplanes live: re-cook on the train's build). TREEHIT (`--all`, the page census): PASS 29/29 - fill 15 846 drawn / 15 846 collidable, woodland 0 / 0, premises 0 / 0; 92 physics seeds within 1 km, woodSolid false: no woodland cylinder collides unseen; the page's own fill trunk stops the taxi and the 4 m pass.
+- **Not committed:** the generated outputs and (b)'s parked cook (media/parked, parked_packs.json): the train's build and cook make them.
+
+### The numbers' files (reports/evidence/WOODLAND/numbers/)
+- `train_gate_wood_light_{base,a,b}.json` (the timed light gate), `train_gate_wood_gar{1,4,6}_base.json` / `gar{5,7}_b.json` (the garage interleaved), `train_gate_wood_cold_{base,b}.json` (the bench in full mode, the cold load); compare with `node tools/perf/train_gate.js --compare <x> --baseline <master's>`.
+- `framecost_{base,a,b}.json` (`node tools/_framecost_check.js --compare a.json b.json`), `heap_potato_{base,a,b}.json`, `woodland_census_a.json`, `shots_{before,a,b}.json` (the stills' counts and the boot's warnings).
+
+### Traps
+- **The lock queue is the schedule.** This brief's GPU work waited ~6 h for its first slot (A0's train 31, HYBRID-TRIPS, SHORES, POTATO-DEEP): chain the slots in one background script and keep every slot short.
+- **Pixel diffs between two loads are not a tree count.** Master against (b), which draw the same trees, differ on 5-15 % of the pixels (the clouds drift, the sway, the chase camera's settle). Count the partition (TREE_LOD.drawn) instead.
+- **three's renderer.info after the frame is the last pass** (the post chain's quad: 1 call, 2 triangles): per-frame draws come from FRAMECOST, not from a GPU still.
+- **A rig's ports are P, P+1, P+2.** train_gate gives P to the rollout, P+1 to the garage rig, P+2 to the bench: a static server of my own on P+1 made the garage rig refuse ("port 8741 is taken"). It refused, so nothing measured the wrong tree; keep ten ports between your own servers and a gate's P.
+- **A grep for `$'\r'` through the Bash tool counts the letter r** (the escape arrives literally): read endings with `git ls-files --eol`.
+
+## G1500-G1509 - SHORES: THE LAKE BANK SHELVES INTO THE WATER (A LIP, A SHELF, A 33 DEG FACE, CAPPED 6 M UNDER LAKE-HOLES' CUT); ITS STEEP FACES AND THE COAST'S WEAR THE ROCKY SHORE; THE SEA'S SAND FRINGE WAS THE SPLAT'S SEA VOTE (2026-10-04/05, SHORES for A0, local GPU; branch claude/shores-g1500 off train 30 a1ffcf5b, train 31 merged)
+
+The user (4 Oct): (1) the banks LAKE-HOLES carved "read as steep, stretched slopes"; (2) the island's banks against the sea
+"blend with an unknown texture/color reminding the sand, but without material. Messy, everything needs to have a proper
+ground cover". Evidence: reports/evidence/SHORES/ (lakes_before_after.jpg, sea_before_after.jpg - train 30 vs this branch,
+noon, tools/shadowsky_shots.js with views.json; more_views_first_candidate.jpg - the first dressing, pulled, see G1502).
+
+- G1500 THE CENSUS (node, Jolene + premises). LAKE-HOLES' bank was s + s^2/16 over the line: 45 deg at the water, 63 deg
+  8 m out. Of the carved bank points outside a line (5 m lattice), 10 400 of 13 700 stood steeper than 45 deg - many where
+  the DEM itself was 30-45. At the user's lake (-289, -526), level 25.81, the north bank: the DEM 4.2 m over the water at
+  the line, the carve 25.3 / 29.1 / 34.3 m at 0 / 2 / 4 m out - a 4 m wall in 2 m. THE STRETCH: the splat is triplanar
+  (triK 8), but the macro (the 10 m tint and the radar overlay, half of the near colour: macroNear 0.5) is read from above
+  by xz - down a face it is a smear.
+- G1501 THE BANK LAW (28_island.js LAKE_BED). A slope profile `prof` integrated (`rise`): 1:1 for 0.4 m (the lip: the
+  ground just over the water, as before), easing to 1:5.5 from 1.2 to 4.5 m out (THE SHELF: ~1 m over the water at 4.5 m),
+  then 0.65 (33 deg, THE FACE). THE CAP: given the ground (lakeBed(x, z, g) - 20_world lakeCarve passes the raw h0, the far
+  patches their DEM sample), the bank never cuts more than `cap` 6 m under the old law's carved ground (`riseOld`), the
+  cap fading to 0 over the reach's last 45 % - so `bank` stays 30 m (the same masks, the same memory) and the ground meets
+  the old law at the reach. Without it the gentle law cut 35.7 m into a cliff lake at (11359, -5398) and stepped 14 m at a
+  40 m reach. Now: worst extra cut 6.0 m; carved bank points over 45 deg ~18 % (of more points: the shelf and face are
+  wider); the user's lake 25.3 / 26.5 / 28.3 / 29.4 / 32.9 / 37.4 at 0 / 2 / 4 / 6 / 10 / 15 m. Physics on the same
+  surface (terrainH); inside the line nothing changed (the bed, levelAt, waterAt).
+- G1502 THE BANK'S DRESS (splat_ground.js sSplat, knobs bankReach / bankLo / bankHi / bankWet in 28b RECIPE: 30 / 30 / 42 /
+  2.5). Within the reach of a lake line (and, G1503, of the coast) the steep faces (bankLo..bankHi) hand every non-mineral
+  code's weight to 11, the ROCKY SHORE (coastA + rocksG + coastSand: the island's own shore); the macro gives way from
+  bankLo - 10 deg (nothing laid from above on a face); the first bankWet m over a lake darken x0.55 and take gloss (the
+  wet margin, water.js G799's number). FIRST CANDIDATE PULLED: 12 (the cliff's rocksB) from 24 deg on a 37 deg face read as
+  a white quarry ring round the lake (more_views_first_candidate.jpg). ALU only: no sampler, no program variant, no layer
+  (11 is reached on Jolene; reachKeys adds it with a lake or the sea).
+- G1503 THE SEA'S SAND (the user's "texture reminding the sand, but without material"). NAMED: splat_ground sSplat's
+  `w[4] += w[0]` - a SEA cell of the terrain-type grid voted as the BEACH (4), and the 5 x 5 kernel (splatBlend 3 cells)
+  carried that rippled pale sand ~30 m up EVERY coast: under the forest, over rock, on the coast's rise where it
+  stretched (sea_forest / sea_air BEFORE). Not the tint (the coast's Landsat is DARKER at the line: a mixed water pixel,
+  measured), not the water's fade. Now over the waterline the sea's share goes to the land's own codes round the pixel
+  (shingle stays shingle, rock rock, the forest floor runs to the water, a real beach is the beach code's own); under it
+  the bed is the sand it was (G460.5's shallows). A LOOK CALL (A0 -> the user): what it EXPOSES is the coast's geometry -
+  the land ends in a 1-2 m step at the waterline, because 28_island seaFloor is -5 m AT the line (G402's far-mesh guard):
+  sea_beach / sea_forest AFTER show it as an eroded orange-brown bank. Proposed, not built: shelve the seabed from the
+  land's own height at the line to -5 m over ~25 m (touches the sea physics - FLOATS, SEAPLANE - and G402's far mesh).
+- G1504 THE AIRPORT "GRADE" (-228, -499) (COLD-LINKS G1314.2's note): NOT r_airport's grade - in node the premises compose
+  nothing there (composer = raw DEM; r_airport runs 400 m+ away). The 5.6 m was the lake's bank carving a 30 m hill beside
+  the lake at (-289, -526); the cap keeps it within 6 m of that (25.1 there both before and after). airport_edge rows.
+- GATE LAKEBED 4 (new): the cap (no point more than `cap` under the old law; 0 over), the reach continuous (0 steps over a
+  0.25 m walk), the shelf (2-4 m out under a bank 1.5 m+ over the water, the ground within 1.5 m of it: 1170 of 1170).
+  Train 30's tree: FAIL (no profile). GATES PASS: LAKEBED, HYDRODYN, PREMRASTER, PREMCOOK, SPLAT, WATER, FLOATS, PROGRAMS.
+- FRAMECOST (node, both sides FRAMECOST_QUERY=parkcook=0, train 31 vs this branch): every row equal but taxi tris.main
+  13 278 136 -> 13 278 018 (trees on the reshaped banks); the cooked gate's reds on this branch are the stale parked cook
+  (the build id) - A0's train cook.
+- G1505 PERF (the box, RTX 3080, train 31 bff4f64b vs this branch on it; reports/evidence/SHORES/perf/). THE TRAP FIRST: the
+  branch's first A/B read 5 REDs (taskWorst 0.8 -> 3.5 s in all four rollout groups, the Cub chase compile +2.4 s, the cold
+  load +7 s, 400 -> 413 links) - the STALE PARKED COOK, not the ground: the branch's page baked the parked aeroplanes live
+  (`atmo.inject+parked.bake` + 12 cabin programs where master reads `parked:baked`; train 31's "a stale cook alone adds
+  ~3.5 s"). Cooked on the branch's build (tools/parked_cook.js, NOT committed - A0's train cook), the same gates:
+  * train_gate --light --only rollout,bench, the branch against master run minutes before on the same box: PASS, 0 RED,
+    107 rows in slack (info only: p99.9 33.7 -> 50 ms in three groups - one capped frame; floats warm links over 5 s 1 -> 2);
+  * master_bench --only loads,taxi --taxi 450 --places HOME (the Cub): cold navigation -> garage 56.9 -> 58.1 s (worst
+    link 14.4 -> 15.4 s), cold first flight 66.1 -> 67.3, warm navigation -> garage 44.8 -> 45.4, warm first flight 54.0
+    -> 54.6; the 450 s taxi 30 fps / p99 33.5 / uneven 1 % both; the trips after it 9.1 / 0.3 / 8.9 / 0.2 s both.
+  * THE ONE COST: the ground's programs link ~1 s longer cold (tools/perf/cold_links_bench.js, three runs, base vs three
+    forms of the same code: island-ring 11.7 -> 12.2-13.1 s, island-fine 11.9 -> 11.9-12.9; the run-to-run noise
+    +-0.5-1 s). A loop-free rewrite (V2: the handover code by code) was no cheaper than the uniform-bound loop under a
+    branch (V1/V3); the shipped form is V3 (the sea vote folded into the normaliser, the bank's loop under `bankZ > 0`).
+    The first cold visit only; warm loads +0.6 s (within the run's noise; the strict gate's slack is 3.4-3.9 s).
+  * FRAMECOST (node, parkcook=0 both sides): equal but taxi tris -118. PROGRAMS: the same 22 warmed, no new variant.
+    SAMPLERS: none added. MEMORY: the lake masks unchanged (bank 30 m), LAKE_BED.prof a few numbers; no texture layer.
+  (The rollout/bench numbers were taken on V2's build; V3 differs only in that block's text - its link, above.)
+TOOLS: the stills rig is tools/shadowsky_shots.js (views.json in the evidence); the node censuses were scratch scripts
+(bank slopes by carve depth, the coast's tint by distance - their numbers are above). OPEN FOR THE USER (A0 relays): (1) the
+bank faces' rocky-shore dress vs their own cover with only the stretch removed; (2) the sea: keep / tone the waterline step /
+shelve the seabed geometry (G1503).
+- BATTERY (run_gates --all under the cpu lock, this branch on train 31): 147 PASS, SOFTGPU SKIP (no basisu encoder on this
+  box), FRAMECOST FAIL (24) = the stale parked cook's rows (the aeroplanes captured live: draws +133, uniform4fv +2 000) -
+  with the parked aeroplanes cooked on this build (tools/parked_cook.js, local, NOT committed) GATE FRAMECOST: PASS.
+  FOR A0: generated files not committed (node tools/build.js); the parked aeroplanes need the train's cook.
+
+## TRAIN 33 LANDED (2026-10-05, A0 the coordinator)
+
+Cargo (on train 32 = d3e1e43a): SOUND-NEXT (the Sound Coordinator's b0fe1bae: six stations + the mix, Radio Jolene's
+recorded voices, the beds and emitters, Radio Jolene by default with a seeded shuffle; music 127 MB + voice 13 MB, lazy),
+the hybrid band's 0.5 s DISSOLVE on by default (the user: +1.4 ms at the taxi chase instead of +2.15; ?fbake=hyease=0 the
+hard band), WOODLAND G1480-G1482 (b: the woodland's seeds retired from the draw AND the physics - what the aeroplane can hit
+is what is drawn; G1461's token in it; equal perf, potato -12 MB heap; (a) drawing it would cost +1.2 ms and +34 % draws),
+SHORES G1500-G1509 (the user's calls: rocky bank faces kept, the sea shore as built - no beach-code band, the land's own
+cover to the waterline), POTATO-DEEP's final commits (gate updates, the how-to-test; potato skips the flown bake),
+the BLUEPRINT API (G1920, was "G573.1" on claude/clever-heisenberg-xmijol: G573 is another session's), HYBRID-TRIPS'
+evidence.
+STRICT GATE (full): 98 in slack, 47 better, 12 RED = the 30 cap's fps rows, the chase render / loop +1.65-1.8 ms (the
+hybrid band, admitted; the dissolve's +1.4 expected), and garage -> world @mn_strip worst task 107 -> 335 ms (270 in train
+32: arrived with train 32, investigated separately). BATTERY: the full battery PASS (SOFTGPU SKIP). Parked re-cooked.
+
+
+## G1850-G1859 DMG-D4a SKIN - THE BROKEN LIST OVER THE WORKER ON CHANGE, THE SKIN OVER A BREAK (BOTH SKINS), THE FABRIC'S DRAPE, GATE DMGSKIN (2026-10-05, DMG-D4a for the DEFORM COORDINATOR, cloud, node + the soft GPU; branch claude/dmg-d4a-skin off claude/dmg-integration 41e7f7e + train 32, then claude/dmg-integration be22b905 (D2a, G1898.5-.7, train 33) merged in; G1855-G1859 unused)
+
+DEFORM-AND-BREAK §2.5 / §4.0 ("skin over a break", G1474's owed row) / §5.1 / §5.2 / §8.4 / §11.1-§11.4. Base: origin/claude/dmg-integration
+(TREE-CRASH + G1898 + D0 + D1a + D1b + D3) with origin/master's train 32 merged in first (one HANDOVER conflict - both sides appended;
+the three DEFORM entries both had, kept once). At the end claude/dmg-integration had moved on (D2a's certificate, G1898.5-.7, train
+33) and was merged in (be22b905; two mechanical conflicts: the node-export list - theirs plus genMesh / genBeamInto - and HANDOVER,
+mine empty at both hunks). Against be22b905 this branch's diff is its own 11 files, nothing else. The numbers below are re-run on
+the merged branch unless marked.
+**Nothing here touches the solver**: 30_solver.js is the base's byte for byte; the built core differs from the base's only in
+poseSkinGen (an optional last argument) and two node exports (genMesh, genBeamInto, for the gate). (There is no flyDiy/CLAUDE.md on
+this base; I read docs/SHARED-TREE-PRACTICES.md.)
+
+### FIRST, WHAT THE GAME DRAWS (the brief's premise, checked)
+**The flown aeroplane is not drawn by poseSkinGen.** Every garage build - the five validated ones included - flies the CAGE SNAPSHOT
+(`window.CAGE_VISUAL`, app.js buildModel: "THE CAGE VISUAL (G46) ... down the same path as the PA-18's imported skin: rigid body-frame
+pose + makeSkinBinding wing flex"): the static merge rigid in the body frame, the wing band on the spar STATIONS (makeSkinBinding /
+applySkinDeform: translations per |z| station, the root pinned), the struts on their two ends, the surfaces on their hinges, the
+wheels / engines / floats on their nodes. poseSkinGen poses only a `data.generated` payload, which G67.1 left with no flown use
+(genWing builds the editor's wing; the snapshot carries its vertices, not their weights). G1474's "the gen skin already deforms with
+the nodes" is true of that path only. So G1851 is done ON BOTH: poseSkinGen (as briefed, and what the gate measures exactly) and the
+flown cage path (what the stills and the box see).
+
+### G1850 - THE BROKEN LIST OVER THE WORKER, ON CHANGE (sim_host.js, sim_view.js, app.js)
+- ONE STATE, inline and under the worker (sim_view.js `simViewDmgState`): `br` the broken members in order (+ a flag per member), `pc`
+  each node's PIECE (DMG-D1b's union-find: the live members and the shape-matched clusters still on; 0 = the core, the piece holding
+  the body's refs; null while one piece), `set` each member's permanent set (dmg_overlay.js setOf), `vB` bumped when the broken list /
+  the pieces move (the skin's event), `v` on every payload.
+- THE HOP (sim_host.js `simDmgHop`, called in the host's `H.meta()` per snapshot): two counters compared - `breaks:cluster cuts` and
+  `yields:dents`. A break sends the whole state at once (`meta.dmgB = { sB, sS, br, pc, st }`); a set alone at most every 0.1 s of sim
+  time (`SIM_DMG_SET_S`), the last one always (it goes once the window has passed, changing or not); nothing broken or set: **no key in
+  the meta at all**. A new view (`resend`) starts it over (forgetRare). The page applies it (`simViewDmgApply`) and the view answers
+  `sim.dmgState()`. app.js `dmgNow()` runs the same hop on the inline sim with no window - so the damage view and the skin read the
+  same object either way.
+- THE DAMAGE VIEW UNDER THE WORKER (G1804's "inline only"): dmgSync reads the state when the page's beams are the def's - broken red,
+  set orange / cyan; no live force crosses (the stress tint stays inline, stated in the code).
+- **ITS COST (GATE DMGSKIN, the host's own meta, a snapshot a step - the strictest):** in the crash runs 3-32 payloads over 240-300
+  snapshots, **1.7-36.1 kB a crash** (354-1152 B a payload; the Cub's 30 m/s centreline the most: 82 broken, 9 frames with a new
+  break), **0.5-10 ms building them in all** (the union-find and the sets loop, on a payload only). **Nothing broken (a FAR 23.473
+  drop through the host, 0 yields): 0 payloads, 0 bytes, no `dmgB` key in 120 metas; the check 0.33-0.74 us a snapshot.** Damage OFF:
+  0 payloads in every crash case.
+- **Inline = worker:** the same crash flown inline and through makeSimHost (H.step, H.meta, a structured clone into the view's state):
+  the broken list and the pieces equal **at every step** of every case (11 cases, 240-300 steps each); the sets equal whenever the
+  host sends them and at the end past its window; the pieces are DMG-D1b's (the gate's own union-find) on every frame.
+
+### G1851 - THE SKIN OVER A BREAK (src/viewer/skin_break.js; poseSkinGen; app.js brkGen / brkCage)
+One pure module (window.SKIN_BREAK / module.exports), two callers. Nothing of it runs, and no skin bit moves, while nothing is broken.
+- **THE BINDING, at the first break:** each vertex's K = 4 nearest nodes at rest, weighted so their blend lands ON the vertex as nearly
+  as the nodes allow (least squares to the vertex, regularised toward inverse-square, summing to 1) - so the vertex's lever off its
+  nodes' blend is the skin's own offset off the frame. The cage snapshot has no weights; **the generator's own are not geometric** (a
+  leading-edge vertex 1.54 on the rear spar's tip node and -0.54 on the front one: a small flex's interpolation) and tore clean wing
+  tips once a wreck folded them 23 degrees (measured), so both skins take this binding after a break. On the cage it is made in two
+  tiers: every vertex its nearest node at the first break (its piece, its dominant node), the full binding only for the vertices at a
+  break (nearest node an end of a broken member or one live member from one) or off the core - the cost follows the damage, not the
+  skin's ~200k vertices (the full binding on a 150-200k-vertex cloud: 0.19-0.25 s, measured, so it is not done whole; the nearest-node tier: 55-195 ms
+  for 115-155k vertices, the box loaded - bind_cost.txt).
+- **AT EACH BREAK EVENT (the state's vB; never per frame):** (1) each vertex goes with the PIECE holding most of its weight, its weights
+  on other pieces dropped; (2) of its nodes, those joined to its dominant node only by broken members are dropped (a lift strut snapped
+  in the middle is two halves, each on its own end); (3) a triangle whose vertices sit on two pieces, or whose vertices' dominant nodes
+  are joined only by broken members, is REMOVED - its three indices collapsed onto one vertex in the geometry's own index array, so
+  every view on that array (the flown bake's buckets) loses it too; restored at a heal (a reset) or before another model poses. The
+  torn edge is left open. A part that came off whole keeps all its own triangles.
+- **PER FRAME, once broken - THE VERTEX RIDES ITS NODES' FRAMES** (RoR / BeamNG flexbodies): pos = sum w l + q_v (base - sum w r), q_v
+  the weighted blend of its nodes' turns, each node's from its rest neighbourhood (itself and the other ends of its live members on its
+  piece; the second ring if under 4) to its live one, by Horn's closed-form quaternion (held to its last turn where the set cannot say:
+  a line of nodes). With no turn it is poseSkinGen's own blend; under a rigid motion it is that motion exactly (75 deg about a skew
+  axis: 0.000 mm off on the Cub's wing). Measured and dropped on the way: the plain blend (a wing folded back round a trunk dragged a
+  vertex a third of a metre off its neighbour: 65 % stretch with nothing broken there), one rotation per cell (tore at the cells'
+  borders), linear-blend skinning (each node's turn on the vertex's half-bay lever), an iterative polar decomposition (crawled on the
+  wing bays' planar node sets: 1e-3 off after 80 iterations), the generator's weights clipped to positive, inverse-square weights alone
+  (their lever: up to 0.3 m), one rigid fit per detached piece (the broken-up twin's rear fuselage 0.85 m off its own nodes).
+  - THE GENERATED SKIN (poseSkinGen's optional `brk` = { R, NF, down, poseGen }): every vertex rides its nodes' frames.
+  - THE FLOWN CAGE (app.js brkCage, after the cage's own pose, in the visual frame: a node at B^-1 (p - origin) - off - oRest, G267.2's
+    nodeVis): the static merge and the wing band, the control surfaces (rebased about their pivots), the struts and the tail's anchored
+    parts keep their own pose except the vertices off the core or at a broken member's end, which ride their nodes' frames. While a
+    wreck is drawn the cage is re-posed every frame (its G731 `still` skip is off).
+- **THE TEAR:** a live triangle near the break (a vertex riding its nodes) whose edge stretched past **1.15 x its rest length + 1 cm** is
+  torn for good. 15 %: the skin's elongation at break - doped fabric 15-20 % (AC 43.13-1B Table 2-1; GEN_CRASH.fabric.etu = 0.15),
+  2024-T3 sheet 15 % (MIL-HDBK-5J 3.2.3.0(b)), the lower taken. + 1 cm: the generator's sliver triangles (1-2 mm edges at the leading
+  edge) read 17-40 % on 0.4-8 mm of float noise and node jitter - not a tear anyone sees. Not in the exaggerated flex view (x4).
+- **What tears that is not broken:** the 30 m/s trunk runs stretch bays ELASTICALLY for a few frames (the Cub's outer wing bay, every
+  member intact: a diagonal at +19 %, the other at -15 % at t = 2.5 s) - the skin follows the nodes and tears there, as fabric would.
+
+### G1852 - THE FABRIC'S DRAPE (skin_break.js, the event)
+A FABRIC panel (the wing's when its surface row is fabric / steel / aluFabric; the cage's covering when the fuselage is tube + fabric)
+over a broken member goes slack: each vertex the member carried - its weight shared between the member's two ends, s = 4 w_a w_b /
+(w_a + w_b): 1 on the member's line, 0 at a node or away from it - hangs DRAPE_K = 0.06 x the member's length lower along gravity in
+the skin's frame, rippled along the member (a wrinkle of 12 cm pitch, +-35 % of the sag) so a slack panel does not read as a stretched
+one (§8.4). Why this: it is a fixed field per vertex made at the event (no per-frame physics, no new node), one multiply-add along
+`down` per frame; it is where the loss of tension is (on the member's line, not at its ends); and it never pulls a vertex apart from
+its neighbours by more than the sag's own gradient. Metal and ply skins do not drape (they dent: D4b's to judge). Measured deepest
+sag: 5.2-17.9 cm on the fabric builds' crashes (the Cub, the Jodel, the twin), 0 on the metal ones.
+
+### G1853 - GATE DMGSKIN (tools/_dmg_skin_check.js; run_gates core, weight 3; 116/116 on the merged branch, ~135-300 s on 3 cores)
+The skin measured: genWing's groups (the covering, the surfaces, the struts) and every member drawn as its tube (genBeamInto), on each
+validated build (11.4-13.1k vertices, 21-24k triangles), bound both ways (the generated path's and the cage's two-tier binding with its
+rigid core). Cases: TREECRASH / DMGINTEGRITY's - the 30 m/s trunk on the centreline and 2.5 m out, the severe ground nose-in (land
+builds); the severe float nose-in (floatplanes). Damage ON. From the first break, EVERY frame (not only the 2-12 frames with a new
+break), both bindings:
+- no live triangle spans two pieces (each vertex's kept nodes against the gate's own union-find): **0** everywhere;
+- no live triangle spans a broken member: **0**;
+- **no live edge past 1.15 x its rest + 1 cm: the worst -0.00 to -0.09 mm from the bound** (the tear holds it; the worst stretch of an
+  edge of 2 cm or more 1.39-1.65 - the +1 cm on 2-5 cm edges); every position finite;
+- before the first break, poseSkinGen with an idle record passed = the base's loop (frozen in the gate) **bit for bit**, every frame;
+- damage OFF: no payload, and poseSkinGen = the base's loop bit for bit on every frame of the same crash (1920-2700 group poses a case);
+- app.js: the break path only through brkGen / brkCage, each returning at once unless the state holds a broken member (static).
+
+| build | case | broken | frames w/ a new break | pieces | hop: payloads / bytes / ms | cage: removed (torn) | generated: removed (torn) | cage vertices on detached pieces | sag (cm) |
+|---|---|---|---|---|---|---|---|---|---|
+| the user's Cub | trunk, centreline | 82 | 9 | 4 | 32 / 36064 / 10.1 | 7202 (5586) | 5703 (4071) | 144 | 12.5 |
+| the user's Cub | trunk, the wing 2.5 m out | 17 | 8 | 2 | 17 / 6568 / 1.2 | 1613 (1077) | 1229 (693) | 1072 | 17.9 |
+| the user's Cub | severe ground nose-in | 29 | 8 | 3 | 13 / 8907 / 1.0 | 1656 (1196) | 1693 (1229) | 144 | 5.2 |
+| Jodel | trunk, centreline | 103 | 5 | 7 | 10 / 6735 / 1.4 | 4249 (2227) | 3419 (1205) | 7140 | 6.3 |
+| Jodel | trunk, the wing 2.5 m out | 33 | 5 | 3 | 9 / 3471 / 6.6 | 1672 (1113) | 953 (390) | 1170 | 9.5 |
+| Jodel | severe ground nose-in | 27 | 3 | 3 | 6 / 2121 / 0.9 | 1034 (602) | 489 (57) | 1170 | 0 |
+| metal Cessna | trunk, centreline | 107 | 8 | 7 | 15 / 17285 / 2.4 | 5533 (4029) | 3798 (1910) | 2834 | 0 |
+| metal Cessna | trunk, the wing 2.5 m out | 20 | 3 | 3 | 3 / 1654 / 0.5 | 1254 (561) | 1196 (503) | 1927 | 0 |
+| metal Cessna | severe ground nose-in | 63 | 6 | 4 | 11 / 4973 / 1.0 | 4884 (4022) | 4278 (3206) | 2538 | 0 |
+| Cessna floats | severe float nose-in | 59 | 4 | 4 | 11 / 4435 / 3.8 | 2109 (1247) | 1310 (302) | 2628 | 0 |
+| twin floatplane | severe float nose-in (BROKE UP) | 38 | 4 | 6 | 7 / 3717 / 2.8 | 5456 (4622) | 5137 (4317) | 5284 | 8.9 |
+
+(The measured skin is 11.4-13.1k vertices / 21-24k triangles a build; the removed counts are of that, both bindings separately.)
+
+Costs in node (the box loaded by a second gate run): a break event 1.0-6.6 ms (both records of every group: the piece / member tests
+over every vertex and triangle, the drape); the nodes' frames 0.20-0.51 ms a frame (93-130 nodes, a Horn fit each); the first break's
+binding (the generated skin, whole) 9-34 ms warm (to 322 ms on the JIT's first call), the cage's nearest-node tier 4-46 ms for ~12k
+vertices.
+
+### THE ACCEPTANCE (§11.2)
+- **Off = the base's bytes** (§11.3's worker set for viewer + generator + host files - the DMG set, TREECRASH, SIMWORKER, UISMOKE,
+  BUILD, JOIN, GEN, MASS; GATES_CORE=1 --verbose, the new base be22b905 built in a worktree against the merged branch, each gate's
+  section diffed): **both BATTERY PASS** (13/13, and 14/14 with DMGSKIN). **The same bytes: BUILD, DMGINST, JOIN, MASS, UISMOKE.**
+  **Only clock readings differ** (identical with every number masked): DMGCERT (its compute ms), DMGCLUSTERS, DMGMEMBERS, TREECRASH,
+  GEN (wall seconds), DMGFPS (each case's wall seconds), DMGINTEGRITY (the break event's us REPORT), **SIMWORKER** (every step's FNV(p,
+  v) equal - stock f2b3de3f, the metal Cessna cbccf99f - as the base; its real-time half's step counts and ms move with the clock; its
+  one text line is the runner's closing table listing DMGSKIN). gates_vs_base.txt. (A full 49-gate battery against the pre-merge base
+  was started and stopped a third of the way when the base moved - §11.3 now leaves the full battery to the coordinator.)
+- **PERF, the stock step:** the built core's step code is the base's byte for byte - against ebc6899 and again against be22b905
+  (`diff` of the two tools/flight_core.js: the body hash, poseSkinGen's signature and first line, the export list - nothing sim.step
+  runs). Measured anyway, before the merge (treecrash_evidence.js
+  --perf-child, the layer ON, nothing touching, a far 4000-trunk set, the median of each process's 600 steps; alternating pairs, the
+  base = ebc6899 built in a worktree):
+
+  | case | run 1 base / now (ms) | run 2 base / now | pooled |
+  |---|---|---|---|
+  | the Cub, ground | 3.860 / 3.738 (-3.2 %) | 3.710 / 3.756 (+1.2 %) | -1.0 % |
+  | the Cub, air | 3.551 / 3.711 (+4.5 %) | 3.521 / 3.554 (+0.9 %) | +2.7 % |
+  | the metal Cessna, ground | 6.525 / 6.602 (+1.2 %) | 6.354 / 6.434 (+1.2 %) | +1.2 % |
+  | the metal Cessna, air | 6.266 / 6.386 (+1.9 %) | 6.103 / 6.212 (+1.8 %) | +1.8 % |
+
+  The Cub in the air over 2 % pooled, with identical code: a third run +2.3 % (16 pairs), and **the control - the same two cores in
+  two copies of the same tools directory side by side - -3.5 % (10 of 16 pairs faster)**: the base worktree's location, not the code.
+  perf_run1.txt / perf_run2.txt / perf_run3.txt / perf_control.txt.
+- **PERF, the page's skin pose with nothing broken:** poseSkinGen (this branch, an idle record passed, as app.js hands it) against the
+  base's loop (frozen in GATE DMGSKIN) on the Cub's and the metal Cessna's generated groups, a flown frame's nodes, 15 x 200 frames:
+  0.1261 vs 0.1337 ms and 0.1125 vs 0.1263 ms (-6 / -11 %: the JIT's noise on a copied function; a first run read -0.2 / -16 %) - no
+  cost; the damage state's check a frame (app.js dmgNow, what brkGen / brkCage ask before returning) 0.22-0.33 us. The cage path adds
+  two such checks and nothing else; nothing broken, no skin bit moves (DMGSKIN's bitwise checks). pose_cost.txt.
+- **GATES (the merged branch):** DMGSKIN 116/116; TREECRASH, DMGINTEGRITY, SIMWORKER (as asked) and DMGINST, DMGFPS, DMGMEMBERS,
+  DMGCLUSTERS, DMGCERT, UISMOKE, BUILD, JOIN, GEN, MASS - all PASS (gate_dmgskin.txt, gates_vs_base.txt).
+- Validated builds only (the user's Cub builds/cub_2026-09-20_corrected.json, the Jodel, the metal Cessna, the Cessna on floats, the
+  twin on floats); no archetype touched; nothing from RoR / BeamNG (the flexbody idea is §2.5's description; Horn 1987 and the
+  regularised least squares are textbook). The generated outputs are NOT committed.
+
+### G1854 - THE STILLS (tools/dmg_skin_stills.js on tools/soft_still.js's new `--stage` hook; reports/evidence/DMG-D4a/)
+**Taken before the final merge** (on ebc6899 + this work: no D2a certificate, so the member limits - and so which members break in
+these two crashes - are TREE-CRASH / D1's; the skin code is the same). Not re-taken (~30 min on the soft GPU). The real page on SwiftShader (soft_still.js, one boot of ~12 min, the stage ~13 min), the user's Cub, `?damage=1&simw=0` (the crash
+stepped in the page - the solver the worker runs; the hop's equality is the gate's), the GATE cases staged on the home strip: the sim
+stepped until the flight is over, then frozen (the page's loop would carry it on between two shots), each camera shot with the skin
+break ON (after) and OFF (before: `window.FLYDIY_SKINBREAK = false`, the drawing until G1851) - one moment each pair:
+- `wing_1_after.jpg` / `wing_1_before.jpg`, `wing_2_*` (from above): 30 m/s, 4 m up, the trunk (drawn as a grey cylinder; the
+  physics' own) 2.5 m out on the left wing - CRASHED (a wing member broke), 32 broken, the groups wing0L:strut, eng:mount, gearL:gear.
+  After: the left wing's covering split where it tore, the strut in two halves, the engine piece lying off on its own; before: the wing
+  drawn whole and a thin yellow ribbon of skin stretched out to the separated engine piece. 3201 of the snapshot's 162198 triangles
+  removed (2168 of them by the tear), 92 groups held.
+- `nosein_1_*` / `nosein_2_*` (from above): 180 km/h, 10 m/s, 60 deg nose-down - CRASHED (a fus member broke), 26 broken (eng:mount),
+  the Cub on its back. **Before: the covering stretched as a 3-4 m band from the tail to the separated piece - the chewing gum of
+  §2.5; after: no band, the piece drawn on its own, the fuselage covering open along the break.** 10650 triangles removed (8006 torn):
+  the crushed wing loses strips of its bays to the tear (nosein_2_after, from above) - for D4b to judge on the box.
+- stills.json: every shot's numbers (the picture's coverage, the records, removed / torn, the physics' verdict).
+- Measured here and fixed: the first run's stats read 0 records after an off / on (a cage record re-used was not held again, so a
+  later heal would not have restored its index - holes on a healed aeroplane); brkCage now re-holds it.
+
+### FOR D4b AND THE COORDINATOR (the box, the GPU) - what to eyeball, and the hooks left
+- **Eyeball (D4b and the coordinator, on the box):** `index.html?damage=1` (worker) and `?damage=1&simw=0` (inline), the user's Cub: a trunk 2.5 m out at 30 m/s, a nose-in;
+  `?skinbreak=0` (or `window.FLYDIY_SKINBREAK = false` live) is the old drawing for the A/B. Look for: the torn edges (open, uncapped),
+  the drape's look on fabric, holes where the tear took slivers, the first break's binding hitch (node: tens of ms on ~12k vertices;
+  the real snapshot is ~200k - only the nearest-node tier runs whole), the flown bake's buckets losing the same triangles as the live
+  meshes (they share the index arrays; brkIdx flags every geometry on them), the damage view under the worker (`?dmgview=1`, Overlay).
+- **Not done here (D4b's):** debris for the non-member parts (cowl, spinner, blades, fairings, glazing, wheels) - they ride their nodes
+  as before (an engine unit translates with its node mean; a wheel with its axle); the prop strike's visual; GATE CLIP on the wreck;
+  the cockpit camera rule; fleet-model part detach.
+- **Hooks:** `window.FLYDIY_DMG_STATE()` (the one state: `pc` which piece each node is on - 0 the core -, `br`, `set`, `vB` to key on);
+  `window.FLYDIY_SKINBREAK_STATS()` (records, triangles removed / torn, vertices riding); each rig's `brkR` record (`vp` per vertex: its
+  piece; `ride`; `dead` per triangle: 1 removed, 2 torn); skin_break.js `nodeFrames` (each node's live turn, `NF.q`) - a part that
+  rides a node (an engine unit, a wheel, a prop) can take its node's turn from there; `TEAR`, `DRAPE_K` are the module's constants.
+
+### Open questions (the coordinator / A0)
+- **The first break's binding on the real snapshot:** the cage's nearest-node tier runs over every vertex at the first break (0.4-1.7 us
+  a vertex in node, loaded; the Cub's snapshot has ~162k triangles) - a one-off hitch of ~0.1-0.3 s at the impact. Spreading it over
+  frames is easy if the box says so.
+- **The fuselage covering does not crumple without a break:** the cage's static merge is rigid in the body frame (as before); only
+  vertices at a break or off the core ride their nodes. A nose crushed with no member broken still draws pristine (D4b / GATE CLIP).
+- **The tear takes much skin in the 30 m/s centreline runs** (5-37 % of the measured triangles): real stretch (elastic and plastic) in
+  a wrecked front end; the bound is stated, D4b judges the look.
+- **Off-core vertices ride their nodes, so a detached part's skin flexes with it** - right for a folding wing, and a free piece's nodes
+  have no aero any more (D1b) so it tumbles as debris does.
+- **G1474's note in the doc (§4.0 "skin over a break: no") is closed by this entry;** §5.1's "Generated wings and cage (poseSkinGen)"
+  should read "the cage snapshot (app.js poseModel) and the generated skin (poseSkinGen)".
+- The stills predate D2a's certificate (above); the coordinator may want them re-shot on the integration branch once D4b's
+  look is settled (`node tools/dmg_skin_stills.js`, ~25 min on the soft GPU).
+
+## G1910-G1914 - STRUT-LIVERY: THE CUB'S GREY STRUTS WERE A PER-PART PIN PASTED INTO THE STOCK CUB ON 3 SEP, NOT A CODE CHANGE; THE PIN GONE (PRESETS + ON LOAD), AND A SECOND BUG THE GATE FOUND - A STRUT UNDER A STRUT TOOK TRIM'S GREY (2026-10-04/05, STRUT-LIVERY for A0, cloud - node + SwiftShader, no GPU; branch claude/strut-livery-g1910 off origin/master bff4f64b = train 31)
+
+The user (5 Oct): "the struts seem not to be colored like the rest of the airplane anymore. The cub has grey struts, and
+also the baked planes outside."
+
+**G1910 THE BISECT.** `reports/evidence/STRUT-LIVERY/bisect_resolver.txt`: for each of the 94 first-parent master commits
+since 30 Aug that touch `aeroskin.js` or `_cage_page5.js`, that commit's `aeroSecResolve` over that commit's stock builds
+(Cub, Jodel, Cessna) and the user's `builds/cub_2026-09-20_corrected.json`, for every strut-class section (strut, cabane,
+interplane, wingLongeron). **The answer never changed**: the Cub's `strut` is `castAlu #ffffff` (metalness 0.75) at every
+commit since the row exists. The construction (the `strut` row: parent `body`, pinned painted `trim`, `wears: 'parent'`) and
+the mesh path (`_cage_wing.js` `bags.strut` -> `CAGE_SECMAT('strut')`, unchanged since c7a065cc, 31 Aug; the flown aeroplane
+and the parked cook capture those very meshes, `flown_bake.js` bakes what they wear) never moved either; nor did
+`AERO_FINISH.castAlu`. **The grey is DATA**: d244cabf (G158-G160, 3 Sep) imported My_finished_Cub.json verbatim as the stock
+`'piper cub'` build carrying `finish.sections.strut = { fin: 'castAlu', tint: 0xffffff }`; G445.4 (37621d9f, 20 Sep) kept it
+and gave the Jodel the same pin (tint = its cream); the user's builds of 20 Sep (`builds/cub_2026-09-20*.json`,
+`jodel_2026-09-20.json`) inherited it. A pinned finish walks its own name only (G207), so the struts, and the cabane /
+interplane / carry-through that follow the strut's colour, wore bare cast alloy under a white tint whatever the fuselage
+wore. Before d244cabf the stock Cub had no finish block and its struts wore the fuselage - the "anymore". The Cessna never
+had the pin (its struts wear its alclad body).
+
+**G1911 THE PIN GONE.** (1) `_cage_page5.js`: the `strut` row deleted from the stock Cub and Jodel builds (a comment marks
+the place). (2) `aeroskin.js aeroFinishLegacy(sections)` (pure; window + module exports), called by `_cage_ui.js
+finishFromSpec` - the one door every load takes, live, and so into the flown bake and the parked cook: it drops exactly that
+pin (`strut` = castAlu with only a white or the body's own tint beside it) from a saved build, so the user's Cub heals on
+load and the next save (finishToSpec) writes it out clean. A builder's own repaint from the panel (a finish alone, or with a
+colour of their own, or any dial) is kept. NOT a spec version: GEN_SPEC_V is in the bench certificate's fingerprint, and a
+bump would withdraw every certificate for a colour.
+**Which section a strut belongs to - unchanged, by the rules.** The lift struts keep their own section `strut` (their part,
+"Lift struts", claims it in `_cage_parts.js`), parent `body`, painted `trim`, `wears: 'parent'`: G207's ruling ("a strut, a
+spat and a cowl are painted with the fuselage on a light aeroplane"), and the strut's foot is on the fuselage. The cabane and
+interplane struts (and the carry-through, bare alclad by T2.3, coloured with them) stay under `strut`, so repainting the
+struts once repaints the whole truss and each can still differ. Not under `wingSkin`: a wing painted its own colour (the
+Cessna's tips, a two-tone) must not drag the truss with it.
+
+**G1912 A STRUT UNDER A STRUT (found by the new gate).** `wears: 'parent'` took the parent's FINISH BASE. For `strut` (under
+the cage's `body`) that is right; for `cabane` / `interplane` / `wingLongeron` (under `strut`, itself wearing its parent)
+it was trim's own #d8dde4 whenever the body has no tint override - the Cessna (bare alclad, #d2d6da): its lift struts wore
+the body, its cabane and interplane struts trim's grey. The resolver now takes the colour the parent WEARS (its resolved tint
+when it has one, else its finish's base), which is what G207 says. Nothing moves where the body is tinted (the walk found the
+tint already); GATE LIVERYREACH unchanged PASS.
+
+**G1913 THE GATE: GATE LIVERY section 5** (`tools/_livery_check.js`, core). Every build in `builds/*.json` (not
+`.edits.json`) and every stock build, each loaded in its own page through the editor's own `finishFromSpec` (the slice the
+gate already cuts out of `_cage_ui.js`) and app.js's seed: `strut`, `cabane` and `interplane` resolve to their painted pin
+(`trim`, never castAlu / bareAlu / steelTube / chrome / alclad / bronze / copper / exhaust), in the colour their parent wears,
+and `secMat` hands the layer exactly that material (finish and colour against a reference `aeroMaterial`) - the material
+the flown bake and the parked cook capture; and no stock build may pin a strut to bare metal. 36 sections over 12 builds.
+NEGATIVE-VERIFIED (`--selftest`, three new probes, each RED): the load read removed (the user's Cub: castAlu), the stock
+Cub's pin put back (d244cabf's line), the wears-parent walk on the parent's base again (the Cessna's cabane #d8dde4).
+The carry-through (bare by the user's ruling) and the bracing wires (steel) are not struts and are not asked.
+
+**G1914 THE STILLS** (`reports/evidence/STRUT-LIVERY/`, SOFT-GPU's `tools/soft_still.js` on SwiftShader, noon, one at a
+time, ~18 min each). BEFORE = the committed train-31 `index.html`; AFTER = `dev.html` (the loose sources, this branch).
+`before_cub_stand.jpg` / `after_cub_stand.jpg`: the fresh profile's stock Cub on the stand, the default view - the struts
+white-grey bare alloy, then yellow; `struts_before_after_zoom.jpg` the pair cropped and enlarged on the struts.
+`before_usercub_close.jpg` / `after_usercub_close.jpg` (+ `usercub_close_before_after.jpg`): the USER'S build
+`builds/cub_2026-09-20_corrected.json` (its file still carries the pin) at `--orbit -108,6,7` - silver struts, then
+yellow: the on-load drop at work. `views.json` is for A0's real-GPU pairs on the box (`cam` in radians: strut_stand = the
+stand's default eye, strut_close = the close view above, strut_low = low under the wing, afternoon):
+`node tools/shadowsky_shots.js --views reports/evidence/STRUT-LIVERY/views.json --pages index_before.html,index.html`.
+The software still is a picture, not a measurement (SOFT-GPU's rule).
+
+**THE BATTERY** (`node tools/run_gates.js`, core, 4 jobs, 59 min wall on the 4-core cloud box): 143 PASS, 3 FAIL, none
+this branch's. BIOME (surface perf 8.2 us/call vs < 5) and SETTLE (bake budget) are wall-clock rows starved by the 4 jobs on 4
+cores: alone (`--only=BIOME,SETTLE --jobs=1`) both PASS (4.0 us/call, bake 356 ms). FRAMECOST (24 rises, the Cub's and the
+Cessna's stand and taxi rows alike: main draws 914 -> 1046, shadow 169.5 -> 259.5, uniforms x2) is THE STALE PARKED COOK:
+`parked_cook.js --check` says STALE on any tree whose build id moved (every key captured live). Proven by a control: master's
+sources with ONE COMMENT added to aeroskin.js give the same 24 rises (main draws 1047, shadow 260.5); master untouched PASSES
+(34 rises admitted by the ALLOW list). So the struts cost nothing a frame (this branch 1046 vs the control 1047), and A0's
+re-cook at landing clears FRAMECOST. GATE LIVERY (with section 5) PASS and its selftest PASS (seven probes, each red);
+LIVERYREACH PASS.
+
+**A0 AT LANDING.** Re-cook the parked aeroplanes (the stock Cub's spec changed; the signature goes stale anyway with the
+build). The flown bake re-keys by itself (FLYDIY_BUILD and the spec are in its key). The user's own saved Cub in their
+browser heals at its next load. Frame cost: none (a load-time filter over a dozen keys; the resolver one comparison more).
+
+## G1545-G1549 - RUNWAY-LIGHTS-2: THE LAMP WARMER (2500 K), THE FLAREPATH SHROUDED TO THE APPROACH, AND A RED END ROW (2026-10-04, a cloud session for A0; branch claude/runway-lights-2-g1545 off train 30 = 44b7a381)
+
+THE ASK (the user, 4 Oct, after G1415): "The new runway lights do look better." (1) warmer than 2800 K; (2) SHROUDED like the
+period's flarepath - seen only from the approach, not shining all round; (3) a red end row only if easy.
+
+**G1545 THE COLOUR: 2500 K (was 2800).** The Drem flarepath's 15 W "pygmy" lamp was a small VACUUM lamp - those run at
+~2400-2600 K (a gas-filled lamp ~2800-3000 K) - and Drem's lights were run dimmed besides. 2500 K is the middle of that band;
+a paraffin flare (~1900-2000 K) would be warmer still but the fittings modelled are electric. Planck x the CIE 1931 observer
+(the Wyman 2013 fit, the same recipe as G1415) -> linear sRGB 1 : 0.381 : 0.068 (2800 K was 1 : 0.445 : 0.117), luminance 1:
+RWY_KIND.edge.light = [2.040, 0.778, 0.138]. The THRESHOLD green recomputed through the same lamp: G1415's filter
+reproduces as a Gaussian pass at 505 nm, sigma 31 nm (0 : 1 : 0.257, 25.7 % at 2800 K); at 2500 K it is 0 : 1 : 0.206, 23.6 %
+- RWY_KIND.thr.light = [0, 1.370, 0.282], 9 cd kept (the brightness the user liked; not re-derived from the lamp).
+THE STILL: reports/evidence/RUNWAY-LIGHTS-2/colour_ramp_zoom.jpg - 2800 / 2500 / 2400 K, bench crops x3.5 (the near edge
+light at 20 m, the row to the far end); k2800_vs_2500_*.jpg and k2400_vs_2500_*.jpg side by side. Through ACES the near
+core clips to white at any of the three; the colour is in the halo and in the far lights (orange-amber at 2500 K). 2400 K is
+one line (RWY_KIND.edge.light = [2.113, 0.759, 0.113]) if the user wants it warmer still.
+
+**G1546 THE SHROUD (the cone, from period practice).** What the period sources say (search abstracts; the pages themselves
+are behind this container's egress, as for G1415): Drem's flarepath lights were "so mounted as to be only visible to aircraft
+on the approach", "on poles and specially angled to be seen only at the correct position" - the pilot flew the circuit round
+the outer circle (2,000 yards out) until the flarepath came into view; the Glim lamp had a bakelite disc on top "that
+prevented direct light shining into the sky" and was "effectively invisible above some 1,500 feet"; a Drem Q-site's flarepath
+had at each end "a bar of hooded red lights, only visible at low level". No period beam angle was found, so the cone is
+DERIVED, and is one constant (render_world.js RWY_CONE = [10, 35, 7, 14]):
+- AZIMUTH: full within +-10 deg of the runway axis, gone at +-35 deg (smoothstep in the cosine). Final and the end of the
+  final turn see the flarepath; the circuit abeam (90 deg) never does. 20 deg off the near threshold reads ~0.93 of the
+  intensity, 34 deg ~0.36 (the far lights are nearer the axis).
+- ELEVATION: full up to 7 deg (a 3 deg approach; a modern edge light's beam is aimed 3.5 deg up), gone at 14 deg = the
+  Glim's 1,500 ft over Drem's 2,000-yard circuit radius (atan(457 / 1829)).
+- WHICH WAY: an EDGE fitting is open both ways along the strip (the game lands either way and keeps no duty runway; a
+  one-way flarepath would leave half the approaches dark); a THRESHOLD fitting's green faces OUT along its own approach only
+  - gone from behind.
+- THE LAW: the shroud's share f of the lamp's intensity enters G1415's Stevens law as sqrt(f) (brightness ~ sqrt(I) / d); a
+  light with f = 0 is clipped in the vertex shader (gl_Position off the clip box: no fragments).
+
+**G1547 THE RED END ROW: done, no core change.** Each threshold light now has a SECOND LOBE in the same glow layer: red, facing
+IN down the strip - the combined threshold / end fitting. Landing toward end A the pilot sees A's green row at his feet and
+B's RED row at the far end; lined up on the runway, the row behind is red too (night_behind.jpg: that is the end of the strip
+behind him, not its green). The red is a long-pass filter half at 610 nm (CIE x 0.697, y 0.303 - inside the aviation red),
+21 % of the 2500 K lamp -> 8 cd (the green's 9 cd x 0.211 / 0.236): RWY_KIND.end = { light: [4.442, 0, 0], cd: 8 }. The places
+are G1066's untouched (25_airfield.js not touched): the end row IS the threshold row, as on a real field. By day the fitting
+keeps its green glass (the instance colour; no new geometry): the day look unchanged.
+
+**HOW (render_world.js only):** the glow layer carries one more attribute, rwyAx (the lobe's axis x, z - toward where the light
+is seen from - and 1 for a two-way edge lobe); standRunwayLights writes one vertex an edge light and two a threshold light
+(green out, red in; the end it marks from the light's side of the strip's centre). RWY_GLOW_VS: the eye's vector from the
+light (cameraPosition - modelMatrix x transformed), its horizontal cosine to the axis (abs for two-way), its sine of
+elevation, two smoothsteps, the brightness x sqrt(f), clipped at f = 0. Still ONE glow material and program (no define, no
+cache key: the shader text is constant), still ONE points draw a strip, ONE fixture draw.
+
+**COST - GATE FRAMECOST: ZERO, BUT THE GATE IS RED ON THIS BRANCH FOR A REASON NOT ITS OWN (the stale parked cook).** Three
+runs on this box (reports/evidence/RUNWAY-LIGHTS-2/framecost_control.txt): (A) train 30 as is - PASS; (B) train 30 + ONE
+COMMENT in render_world.js - FAIL (24): any source change moves the build id, the shipped parked-aeroplane cook (G805,
+parked_packs.json) goes STALE (`parked_cook.js --check`), the page captures the parked aeroplanes LIVE and the stand / taxi
+draws rise (Cub stand 914 -> 1047 main, 169.5 -> 260.5 shadow; garage:parked 0 -> 67,684 matrix updates); (C) this branch -
+the SAME 24 reds, and `_framecost_check.js --compare B.json C.json` lists NO counter that moved: the day frames and every
+boot step (programs linked included) identical to the control. A0: the train's re-cook (parked_cook.js on the built tree,
+as train 30 did) clears it; no ALLOW entry is wanted for this branch.
+At night: the same two draws a strip; the vertex count +12 a strip (the second lobe of each threshold light: Jolene ~+72
+vertices); per vertex ~12 more ALU ops in a shader that runs once a light; the shrouded-out lights (most of them, from most
+places) now draw NO fragments where they drew a 9-64 px sprite each - the fill goes down. Nothing per frame on the CPU.
+
+**G1548 GATES AND BENCH:** RWYLIGHTS PASS - new section 3 (105 checks): the stub strip at an odd heading through the LIFTED standRunwayLights
+(the real MATLIB): one lobe an edge light, two a threshold light; every edge lobe two-way along the strip, every green out,
+every red in; the colours (2500 K, the recomputed green, the red at luminance sqrt(8) / 3); the shader text carries the
+shroud and the cone in it IS RWY_CONE; the law evaluated (a JS transcription held to the text): on the approach every edge
+light full, the near green, the far RED, the rest dark; the other way mirrored; from the side, from above (300 m over, 26 deg
+out on the axis) dark; behind a threshold its green dark; the final turn fading in; taxiing, the lights abeam dark, the ones
+down the strip lit. CLOUD PASS (its G443 law regex admits the x sqrt(rwF)).
+THE BATTERY (node tools/run_gates.js, core, --jobs=4, this box, 53 min wall): 138 PASS, 2 FAIL - FRAMECOST (the stale parked
+cook, above: the control fails identically, nothing moved) and BIOME (one TIMING check, "surface perf < 5 us": 7.2 us under
+the 4-job load; re-run alone 3.4 us, PASS, the same checksum 293998 - the core's biome code, not touched here). RWYLIGHTS,
+ASSETS, MATLIB, WORLDRENDER, PROGRAMS, CLOUD, BUILD PASS.
+
+**EVIDENCE - reports/evidence/RUNWAY-LIGHTS-2/**, the G1415 bench (tools/rwylights_bench.html, BEFORE = train 30's
+render_world.js, AFTER = this branch; three r186, ACES, exposure 1, no bloom, no aerial perspective, SwiftShader):
+- night_1km / night_300m - the approach: the same rows; the far threshold's bar now RED.
+- night_colour - just outside the threshold, zoomed down the edge row: green bar at the feet, warm row, red far end.
+- night_side - 400 m abeam, eye 2.4 m: before, the whole row; after, NOTHING (the side).
+- night_behind - lined up 70 m in, looking back: before the green bar; after the RED end bar (the green faces away).
+- night_above - 300 m over the near end: before, every light; after, dark (above).
+- night_downwind - 1,000 ft up, 1 km abeam: dark.
+- night_turn - the final turn, 25 deg off, 80 m up: the flarepath already lit (fading), the far end red.
+- night_stand / night_taxi - the stand and the taxi beside the row: the lights abeam gone, the ones down the strip lit.
+- day_close / day_taxiway / day_flush - the day: identical pixels outside the labels (max JPEG difference 12-14 in the
+  label strip only).
+- colour_ramp_zoom.jpg, k2800_vs_2500_*, k2400_vs_2500_* - the colour (above).
+`node tools/rwylights_shots.js <before render_world.js> [outDir] [--after f] [--labels 'L|R'] [--prefix p_]` re-shoots
+(--after / --labels / --prefix new: any two texts side by side). The bench now loads matlib.js: it was broken on master since
+train 28 made the light materials through MATLIB (MATLIB undefined in the lift).
+NO IN-GAME STILL: tools/soft_still.js (SOFT-GPU) is not on master at 44b7a381. A0, please look on the GPU box at night on
+Jolene: final into HOME (green at the feet, red far end), the downwind leg (dark), the stand (the row down the strip only).
+
+DECISIONS FOR THE USER:
+1. 2500 K proposed; 2400 K is one line if warmer is wanted (the ramp still).
+2. The cone (+-10 / 35 deg, 7 / 14 deg) is derived, not a period figure. Narrower (+-5 / 20) is the constant; the stand and
+   the taxi then see even less of the row.
+3. The edge rows are TWO-WAY. A one-way flarepath (the duty direction only) needs a duty runway the game does not keep.
+4. The node (WebGPU) path still ignores onBeforeCompile (G1415's note): there no shroud, no red lobe.
+
+FILES: src/viewer/render_world.js (RWY_KIND, RWY_CONE, the glow's vertex shader, standRunwayLights' lobes);
+tools/_rwylights_check.js (section 3, the 2500 K check), tools/_cloud_check.js (one regex), tools/rwylights_bench.html
+(matlib.js; five night views), tools/rwylights_shots.js (--after / --labels / --prefix); reports/evidence/RUNWAY-LIGHTS-2/.
+G1549 unused.
+## G1385-G1389 - TANKS-FLOAT: THE REAL TANKS FLOAT - SEALED, WHERE THE FRAME BILLED THEIR KILOS, THE FUEL IN THEM DISPLACING TOO (2026-10-04, TANKS-FLOAT for A0, cloud, node only; branch claude/tanks-float-g1385 on claude/gear-water-buoy)
+
+The ask (GEAR-WATER 2's session list, item 4): "the wing slab's air from the real tanks (GEN_TANKS: capacity - fuel), so a
+ditched Cub floats on its empty wing tanks as the real ones do"; the wing and fuselage slabs' trapped air to include each
+tank's empty volume where the tank is; a tank not flooding like fabric (sealed until a breach, the slam's rule); fuel burnt
+raising the buoyancy; nothing in dry air.
+
+FIRST, WHAT THE VALIDATED BUILDS CARRY (measured, tools/tanks_float.js's builds): the user's Cub, the Jodel and the metal
+Cessna each have ONE NOSE TANK (45 / 45 / 28 L, bay 'nose', lv 0.9 / 0.9 / 0.61) - ahead of the firewall, where no hull
+slice is (the nose bay is "collated to the firewall, on the engine side", G99). None of the three has wing tanks. The
+wing-tank path is therefore proven on the user's Cub with its 45 L moved to the wing roots (bay 'wingRoot', along 0.28 - a
+PA-18's layout; nothing else changed), named `cubWing` in the rigs. The floatplanes carry no wet body at all (wetBuild
+returns null on floats) and are untouched.
+
+G1385 THE TANKS (32_hydro.js wetTanks, called by wetBuild):
+- Each fuel vessel of spec.energy.vessels is a buoyant volume at the nodes the frame billed its kilos to (`_pair`, 61_gen_frame.js),
+  SPLIT BY SIDE (z > 5 cm / < -5 cm / between): a wing tank is two tanks, a nose tank's two side nodes two halves, each wet on
+  its own (a rolled aeroplane's low tank lifts, the high one does not). Its lift lands on those nodes by the frame's own shares.
+- Volume: the design capacity (genSpecAtFuel scales `capacity` to the litres carried and keeps the design's in fuel.designL;
+  the TANK is the design's: capacity x designL / litres; a build built empty splits designL over its vessels). Batteries:
+  none (a pack is not a tank).
+- Wet share: a smooth ramp over the tank's height at its kilos' weighted place - a wing tank its slab's thickness, a body
+  tank cbrt(V) clamped 0.1-0.6 m.
+- THE FUEL DISPLACES TOO (the one departure from the ask's wording, on purpose): the trapped AIR is capacity - fuel, as asked,
+  but a sealed tank displaces its WHOLE volume - avgas (0.72 kg/L) floats. The fuel's kilos ride the nodes the burn drains
+  (setNodeMass), so a burnt litre raises the NET lift by its 0.72 kg (the burn's own door, nothing new), and the air it leaves
+  is what a holed tank can lose. Counting the fuel as non-buoyant (lift = air only) would have sunk a full tank's 45 L x 1 kg
+  below what Archimedes gives - GATE HYDRODYN checks the fully-submerged tank lifts exactly rho g 45 L.
+- CARVED FROM ITS HOST: a wing tank's volume comes out of its slab's flooding air (the slabs holding most of its nodes - a node
+  on a rib is two strips' - carved alike), a body tank's out of its hull slice's (by its kilos' rest x between the stations).
+  At the moment of entry the build holds exactly the air it held before (HYDRODYN: the wing-tank Cub fully under lifts
+  34241.2 N with tanks and without); the tank's share just no longer floods. A tank AHEAD OF THE FIREWALL has no host: its
+  volume is new buoyancy (that nose bay had none) - the three validated builds' case.
+- SEALED: no flooding until holed. HOLED by the slam's rule: its host slice's peak slam pressure (new: slice.pk, the face loop
+  records it) past the vessel's breach (WB_TANK_BREACH: alu 400, bladder 300, moulded 300, wet 400 kPa - INFERRED: the tank
+  sits behind the skin, so it outlasts the skin's 60-250); then it floods its AIR toward its submerged share at its host
+  slice's holed rate (tau / WB_BREACH_K), drains on WB_DRAIN out of the water. A wing tank's slab takes no slam (the plates
+  are two-sided): never holed - a stated cut, as is the vent's slow leak and a holed tank's fuel spill (the fuel stays in,
+  floating on the water that came in). A nose tank has no host slice: never holed.
+- The live fuel: wetBuild takes the solver's `fuel` (30_solver.js: HYDRO.wetBuild(def, p, v, m, fuel)); each compute reads
+  fuel.vessels[k].litres (the burn's, per vessel). reset() clears the tanks (holed, fill) with the rest (wetReset).
+
+COST: unchanged dry - the tanks are built and computed only on armed frames (G1384's wetArmFrame), and wetBuild runs once.
+Wet: per compute, per side tank, a weighted mean over 2-4 nodes, one smoothstep, one exp() once holed - 2 to 4 tanks a build.
+Measured (tools/tanks_float_cost.js, reports/evidence/TANKS-FLOAT/wet_cost.txt): the wet pass on one frozen state (the user's
+Cub 10 s afloat), best of 7 x 20 000 computes - 17.6 us a compute on the base, 16.9 us here: below the box's noise. The
+step's wall in the water moves with the FLOATING STATE, not the pass (interleaved, the Cub afloat: base 2.17-2.67 ms a
+frame, this 2.15-2.75, this with its tanks stripped 2.28-2.49).
+
+DRY AIR, MASTER'S TO THE BIT (tools/tanks_float_dry.js, run on master 44b7a38's core, the base's and this branch's;
+reports/evidence/TANKS-FLOAT/dry_hashes.txt): the Cub, the metal Cessna and the Jodel 5 s on HOME's stand, 15 s at 600 m
+over HOME and 15 s at 600 m over the SEA lane; the Cessna on floats 20 s on the SEA lane at throttle 0.3 and 15 s over HOME
+- every sha1 of every node's float64 position identical across the three cores (e.g. Cub strip ef1b7a0702c4b333, metal sea
+90b9397c88caefe1, floats water d4727036ea829114), the wet body never built, sim.step's mean wall the same within the
+machine's noise (Cub air 2.79 / 2.85 / 2.75 ms).
+
+THE PROOF ON THE WATER (tools/tanks_float.js -> reports/evidence/TANKS-FLOAT/: runs/*.json, one SVG per build x entry -
+freeboard at the wing roots, pitch, roll, the airframe's highest point over the water, full / half / empty and G1384's
+before dashed - summary.md). Entries: SETTLE (set down still, the lowest node 5 cm over) and DITCH (GEAR-WATER's 80 km/h,
+sinking 1 m/s); magnetos off (nothing burns afloat); 600 s; "sunk" = the highest node under the surface.
+
+| build | entry | full | half | empty | before (G1384), full |
+|---|---|---|---|---|---|
+| the user's Cub (476 / 460 / 444 kg) | settle | sunk 219.5 s | 231.5 s | 242.5 s | 189.5 s |
+| | ditch | 301 s | 317 s | 332 s | 267.5 s |
+| Cub, 45 L in the wing roots | settle | 209.5 s | 220.5 s | 232 s | 189 s |
+| | ditch | 290.5 s | 305.5 s | 317.5 s | 268.5 s |
+| metal Cessna (883 / 873 / 863 kg) | settle | afloat at 600 s (roots under 359.5 s) | afloat (382 s) | afloat (425 s) | afloat |
+| | ditch | afloat (358.5 s) | afloat (388 s) | afloat (424 s) | afloat |
+| Jodel (463 / 447 / 431 kg) | settle | 421.5 s | 450.5 s | 474 s | 356.5 s |
+| | ditch | afloat at 600 s | afloat | afloat | 536 s |
+
+- THE CUB'S FLOATING ATTITUDE: nose down 36 deg at 10 s settling to 25-28 deg at 60 s, level in roll, its high wing on the
+  water - the roots 9-22 cm under (a high wing's root is the cabin roof: the fuselage under, the wing awash, as ditched Cubs
+  are photographed). Empty floats a little higher (60 s: -0.16 m against -0.19 full) and less nose-down (25 against 27 deg).
+- It STILL SINKS, and it should: 45 L of sealed tank is 45 kg of lift under a 444-476 kg aeroplane. What holds it is the
+  fabric wing's trapped air (G1384.4's 0.5 x the slab, flooding over 60 s); the tank adds 30-65 s (sunk 189.5 -> 219.5 s
+  full, 242.5 s empty). The tank's place matters: in the wing roots the same 45 L is CARVED from the wing's own air (which
+  it already held), so it buys less (209.5 s) than in the nose (new volume ahead of the firewall).
+- "Floats on its empty wing tanks" is a PA-18 with 2 x 68 L; the user's J-3 layout has one nose tank. A 136 L wing-tank
+  Cub (not run: not a validated build) would carry ~136 kg of sealed lift - still under its weight once the cloth floods.
+- The metal Cessna floats at 600 s in every state (as before - the alloy hull floods over 300 s); its roots go under later
+  the emptier it is (359.5 / 382 / 425 s). The Jodel ditched now stays afloat at 600 s (before: sunk at 536 s) hanging nose
+  down on its tank, the tail up; set down still it sinks 65-118 s later than before.
+
+THE NET (GATE HYDRODYN, new section G1385, ~20 s of the gate):
+- the user's Cub: its 45 L nose tank is two tanks, each at its own kilos, ahead of the firewall;
+- ARCHIMEDES fully under: the tank adds exactly rho g 45 L (441.45 N) - its fuel displaces as its air does;
+- the wing-tank Cub: tanks in their slabs, the build's whole lift fully under the same with or without them (the carve);
+- the burn raises the net lift: set down 20 s, empty floats higher than full;
+- sealed: after 20 s wet the tanks hold all their air while the fabric wing floods;
+- the breach: the stock build's tank in the aft-cabin bay (the cabin bay's slice sits over the gear and takes no slam), a
+  5 m/s pancake slams its slice past the tank's 400 kPa: holed, flooding.
+G1384's own lines move as they must (the stock build's nose tank is behind its firewall, in slice 0: that slice's air 0.85
+-> 0.71 by the carve; floods 5.5 -> 7.5 % at 10 / 20 s, was 5.9 -> 8.4; CG 0.51 m under, was 0.47; the bare frame 0.80, was
+0.83 - it floats on its tank now).
+
+OWED / FOR A0: the breach pressures (WB_TANK_BREACH) and the "fuel displaces" choice against the user's eye; a slam on the wing
+slabs (a wing tank holed by a cartwheel) belongs to DAMAGE; WATER-LOOK can bubble a holed tank's air off its nodes
+(sim.wetBody.tanks[k].f rising).
+
+GATES on this branch (cloud, 4 cores):
+- HYDRODYN PASS (with the G1385 section above); WATER, FLOATS, SEAPLANE, SOAR PASS (`--only=`, SOAR 550 s wall under the
+  battery's peers).
+- THE CORE BATTERY (`node tools/run_gates.js`, jobs 4, 46 min wall): 137 of 140 gates PASS (147 jobs with the shards); three red, none this branch's:
+  - SETTLE (bake budget, 712 ms) and AUDIOENG (heap window 284 kB of 256) - LOAD: re-run alone, quiet, both PASS.
+  - FRAMECOST (24 counters: stand/taxi draws, uniforms, the landing's 768 bytes) - RED ON THE BASE TOO, the same 24 to the
+    unit (claude/gear-water-buoy 5ecabad, run the same way). The gate's own hint: the parked cook is STALE (manifest
+    f5cd36beab5d, this tree 6d541c54e369), so every parked aeroplane is captured live. The cook refuses a software
+    renderer by design ("cook on the GPU" - this box has SwiftShader only). A0: re-cook on the box, then FRAMECOST,
+    as the train does on its final build.
+## G1540-G1544 - GROUND-LATTICE: UNDER THE WHEELS THE DRAWN GROUND WAS THE PREMISES' PATCH 2 cm UNDER terrainH (NOT THE 5 m LATTICE), AND A PIT PAST A DEAD-END ROAD; THE PATCH AT terrainH WHERE THE WHEELS ROLL, THE PIT GONE, TW_DRAW_DROP 0 (2026-10-04, GROUND-LATTICE for A0, cloud, node only; branch claude/ground-lattice-g1540 off claude/gear-water-buoy 5ecabad)
+
+The brief (A0): G1380's owed fix - name exactly where the drawn ground and the physics ground disagree under the wheels
+(grass strips, pavement, the stand, slopes; how many cm, by lattice position), fix it in the construction (the contact
+reads the surface as drawn, or the drawn ground follows terrainH under the aerodromes - whichever is cheaper and keeps
+physics = drawing), then TW_DRAW_DROP = 0. No physics cost, no change to flight.
+
+THE CHOICE: THE DRAWING FOLLOWS. Under an aerodrome the wheels never meet the 5 m fine tiles G1380 measured: they meet the
+PAVEMENT (drawn at terrainH since G1001) or the PREMISES' GROUND PATCH (render_premises buildPatchSteps: a 2 m world grid
+over every 64 m chunk the record touches - every runway + shoulder + 30 m, every stand, road and site). The patch stood
+2 cm under terrainH everywhere (G434.2, for the lot lawns). The contact reading the drawn surface would have needed the
+solver to know which of a dozen meshes is on top (render-side state), cost terrainH samples and moved every ground
+trajectory; moving the patch costs nothing at run time and leaves the solver's bits alone.
+
+G1540 WHERE THE TWO GROUNDS DISAGREE (tools/ground_drawn.js, new; tools/_patch_law.js, new). The rig stacks what the page
+draws: the pavement (pavement.js builders with render_premises' / render_world's own arguments, opaque from aPav dE 0.3 m),
+the patch (its chunks, border tuck, drop and the pavement's sink LIFTED from render_premises.js - _patch_law.js, shared
+with ground_surface.js, which kept its own copy of the law until now), the fine tiles (FINE.step lifted, terrainH -
+ringSink) - the higher opaque ground is the one seen. Under each wheel: the drawn tyre's least height over that ground
+(ground_gap.js poseWheels: the editor's own wheel meshes posed by poseModel's arithmetic, TW_DRAW_DROP read off app.js).
+Jolene, FLYDIY_GROUND_RASTER=1 (the page's default), base 5ecabad vs this branch, the same rig (copied into a worktree of
+the base). Drawn ground on top - terrainH, every aerodrome's runway box + 120 m on a jittered 1 m grid (mm):
+
+| surface on top | base: p5 / p50 / p95 | after |
+|---|---|---|
+| pavement interior (aprons, roads, strips; past the 1.5 m rim) | -2.6..+4.0 aprons, -1.8..+1.3 roads, 0.0 concrete strips, -2.3..+0.3 the grass strip | unchanged |
+| pavement RIM (dE 0.3-1.5 m: G1001's side lift falling to 0 over liftIn) | +2..+10 / +25..+35 / +53..+66 | unchanged (named below) |
+| the patch, open grass (3 m+ off any pavement, outside the lots' zones, past the border tuck; 1.44 M points) | -27.2 / -20.0 / -14.6 | -7.3 / 0.0 / +5.4 |
+| ...at its vertices | -22.3 / -20.0 / -18.3 | -2.3 / 0.0 / +1.7 |
+| ...on its edges | -25.1 / -20.0 / -16.5 | -5.2 / 0.0 / +3.4 |
+| ...on the diagonal (i+1, j)-(i, j+1) | -29.4 / -20.0 / -12.3 | -9.5 / 0.0 / +7.6 |
+| ...inside the triangles | -28.6 / -20.0 / -13.6 | -8.7 / 0.0 / +6.3 |
+| the fine tiles (5 m; only past the premises - never under a stand or a taxi) | -155 / -6.1 / +15.5 (the boxes reach banks and lakes) | unchanged |
+
+- THE PAVEMENT is the solver's surface (G1001), but for its RIM: inside the outer 1.5 m the side's 7 cm lift is still
+  falling, so a tyre crossing an edge sinks up to 5-6 cm into the drawn rim for that metre and a half (taxi samples: "rim"
+  rows, -13..-50 mm). G1001's design (the side must stand over the ground it fades onto); not changed.
+- THE PATCH (every aerodrome's grass, w3's stand, the grass a pilot cuts across): 20 mm under, then its 2 m chords - on a
+  slope or a grade's feather the diagonal and the triangles' insides stray most (the "by position" rows).
+- THE STAND AT HOME is a concrete apron (34 m inside its edge) drawn at terrainH to 0.1 mm. G1383's TW_DRAW_DROP sank
+  the Cub's tail 19.9 mm INTO it (the Jodel's 12.2). The float G1383 papered over was the patch's 2 cm on grass: at w3's
+  stand the mains of all three aeroplanes stood +19..+21 mm over the drawn ground (the tail compensated by the drop).
+- A DEAD-END ROAD: pavedAt's dEdge for a road is w/2 less the distance to the polyline - a round cap past each end -
+  while the ribbon ends square (roadGeometry: s 0..L). The patch is sunk by pavedAt (up to 0.8 m), so past every dead end
+  a half disc of patch was sunk under nothing: under mn_strip's stand (the START of mn_stand_lane) the parked mains of
+  the Cub, the Jodel and the Cessna stood 230-590 mm over the drawn ground. Also at w3 (the Jodel's taxi: p95 +231 mm).
+- THE GRASS APRON / GRASS ROAD (nv_meadow at nv_strip's stand, r_strip - the only two on Jolene): a translucent overlay at
+  terrainH (the tyres on it within -1..+6 mm), the patch seen THROUGH it 93 mm under (its 2 cm + SINK.pre's 7). Not
+  changed: owed (the overlay would need a depth offset instead of a gap; a GPU look).
+- THE BUILD READ: where the premises raster is not cooked the patch's vertices read the analytic composer (terrainHBuild,
+  G1406) and the wheels the lazily baked raster - within GR_TOL (1 cm): the vertex rows' +-2 mm. Not changed.
+
+G1541 THE PATCH AT terrainH WHERE THE WHEELS ROLL (render_premises.js patchDrop, PATCH_TUCK.drop / lotR0 / lotR1 / sideR0
+/ sideR1; 27_premises.js pavedAt(x, z, reach)). The 2 cm is the margin a TRANSLUCENT layer is drawn over the ground with,
+so it is kept only where one lies over the patch:
+- a pavement's interior and its side: the full 2 cm from sideR0 (1.2 m) outside the edge in, 0 by sideR1 (3 m) out
+  (pavedAt's new `reach`: a pavement whose edge lies within it outside the point). A first cut put the whole patch at
+  terrainH and GATE CONTACT's pavement-over-ground ratchet went red: apron edge 17 -> 35 (limit 30), road band 79 -> 100
+  (limit 90), every pavement's side fade 2 cm nearer the ground. With the side kept: 17, 79 + (G1542) 7, sides +2 / +27.
+- a lot: within lotR0 (8 m) of a zone 27_premises sows plots in (residential, commercial, industrial, harbour, park),
+  0 by lotR1 (12 m) - a lot patch runs 5 m past its plot. The lots also carry their own 2 cm (lotGround T.h + 0.02, a
+  polygon offset): with the patch at terrainH under them, 3.1 % of the zones' 1.37 m sample points have a 2 m chord over
+  the lawn (1.2 % today) - so the villages keep the old 4 cm. Per 64 m chunk the zones that can reach it are found once.
+- everywhere else (the open grass: the stands on grass, between and beside the pavements past 3 m) the patch IS the
+  ground the eye sees under a tyre, at terrainH. The nearest lot zone to a Jolene stand is 1 km off (w3); nv_clearing
+  and tw_z_clear are 'clear' zones (no plots).
+G1542 THE DEAD END (27_premises.js pavedAt: roadDeadEnds, roadEndIn, PAVE_END_IN; pavement.js sinkAt(dE, d0, dPre);
+render_premises sinkOf and _patch_law pass q.dPre). For the patch's sink a road's DEAD end (nothing else paved within
+0.5 m of its end point - a junction or a lane onto an apron keeps its round cap, covered by the other pavement) is an edge
+like its sides: past it nothing is paved, not even a side; the deep sink (0.8 m) is held PAVE_END_IN (the patch's 2 m
+cell) inside it so no deeply sunk vertex lies within a cell of the end; the last 2 m take the edge's 7 cm (dPre, G1001's
+pre-sink law) and the 2 cm (G1541's side). pavedNear / coverAt keep the round cap (the stones, the trees, the life). The
+ratchet's road band 79 -> 86 (limit 90): the last 2 m of seven Metlakatla street ends and r_airport's, where the road
+now stands 2 + 7 cm over the patch instead of 0.8 m; mk_r_airport's north end runs into a 1.4 m step of the DEM (the
+road's own 3 m rows can't follow it either). The mains parked just past mn_stand_lane's start keep 10-17 mm: the 2 m cell
+carries the last 2 m's 9 cm a little way out (from 230-590).
+G1543 TW_DRAW_DROP = 0 (app.js; the dial and its code stay, a nonzero value is the old rig for an A/B). ground_gap.js
+reads it off app.js (it hard-coded 0.02); GATE CONTACT --drawn expects every stock wheel on the ground at rest.
+G1544 THE PROOF AND THE NET.
+THE STANDS (the drawn tyre's least height over the drawn ground, mm, settled 10 s; base -> after; + afloat, - into it):
+
+| stand (surface) | Cub mains / tail | Jodel mains / tail | Cessna mains / nose |
+|---|---|---|---|
+| HOME (concrete apron) | +0.1 +0.1 / -19.9 -> +0.1 +0.1 / -0.3 | +0.2 +0.2 / -12.2 -> +0.2 +0.2 / +7.3 | -0.0 -0.0 / +1.3 -> same |
+| w3 (the patch) | +18.7 +19.3 / -0.0 -> -1.3 -0.7 / -0.4 | +19.0 +19.3 / +8.0 -> -1.0 -0.7 / +7.5 | +20.0 +20.7 / +19.5 -> +0.0 +0.7 / -0.5 |
+| mn_strip (past a dead end) | +576 +490 / +0.1 -> +13.6 +9.6 / -0.3 | +577 +488 / +7.8 -> +16.7 +10.4 / +7.3 | +229 +352 / +1.3 -> -0.0 -0.0 / +1.3 |
+| nv_strip (the grass apron) | +2.6 -1.4 / -16.8 -> +2.6 -1.4 / +2.7 | +4.8 -0.2 / -6.9 -> +4.8 -0.2 / +12.3 | +5.8 -0.1 / +11.1 -> same |
+| tw_ski (concrete apron) | +0.0 +0.2 / -20.0 -> +0.0 +0.2 / -0.4 | +0.1 +0.1 / -12.5 -> +0.1 +0.1 / +7.0 | +0.0 +0.3 / +0.9 -> same |
+
+THE JODEL'S TAIL +7.3 mm is its own drawn axle 9.5 mm over its node (ground_gap: axle drawn - node 2.2 / 9.5 / 0 mm; the
+join measures twY off the gear page's contact, the castor draws its hub off twLegDrop/rake) - G1380's owed "Jodel 10 mm
+tail-axle residual", seen now that the drop is gone. Not this chantier (the gear's construction, not the ground).
+THE TAXI (THE PILOT out of the stand to the roll, 90 s, 10 Hz; per wheel by the surface on top; p50 [p5..p95] mm):
+- HOME, Cub tail: apron -20.8 [-21.9..-20.5] -> -1.1 [-2.2..-0.8]; road -21.9 -> -2.3 [-5.6..-0.2]; strip -22.8 -> -3.1.
+  Jodel tail: apron -14.9 -> +4.6, road -19.1 -> +0.4 [-6.5..+5.4], strip -20.7 -> -1.2. Mains and the Cessna unchanged
+  (+1..+6: the tyre spring unloading at taxi, G1000).
+- w3: Cub mains on the patch +20.0 [+16.0..+24.2] -> 0.0 [-4.0..+4.6] (L), +20.2 -> +0.2 [-2.7..+3.6] (R); tail on the
+  road / strip -21.2 / -20.8 -> -1.6 / -1.2. Cessna on the patch: mains +17.4 / +17.2 -> -2.6 / -2.8, nose +21.7 -> +1.7.
+  Jodel mains on the patch +23.5 [+20.4..+231] -> +14.3 [+0.4..+27.8] (its few samples on the patch are within 3 m of a
+  pavement's edge, where G1541 keeps the 2 cm; the 231 was the dead end).
+THE NET (GATE CONTACT, new section 5, core): TW_DRAW_DROP 0 in app.js; render_premises drops by patchDrop; the
+drop 0 on the open grass round every Jolene aerodrome (591 points, 0 dropped) and 2 cm under the pavements (252, their
+side included); 2 cm inside a residential zone; mn_strip's stand is mn_stand_lane's start, 1.5 m past it nothing paved,
+nothing sunk, the drawn patch within 2 cm of the ground (0.0 mm; it was a 0.4-0.6 m pit), 1 m inside the edge's pre-sink
+(5.2 cm), 6 m inside the deep sink; the stock build's tyres on the drawn ground at every Jolene stand (|tyre - drawn|, |drawn - terrainH|
+< 15 mm: HOME 0.6/0.0, w3 -1.0/1.4, mn_strip 13.1/-12.5, nv_strip 6.4/-4.3, tw_ski 0.4/0.1). Section 1's ratchet (the
+pavement within 5 mm of the patch) on _patch_law: apron edge 17, apron side 101, road band 86, road edge 213, road side
+2648 (base 17 / 99 / 79 / 212 / 2621; the old copy of the law and the lifted one read the base identically).
+NO PHYSICS COST, NO CHANGE TO FLIGHT: 30_solver.js, terrainH and the contact are untouched; pavedAt is read by the patch
+alone. Node, the island world with its premises and the raster on, final positions after 900 frame-steps, SHA-1 of p,
+base 5ecabad vs this branch - IDENTICAL for the user's Cub and the metal Cessna, THE PILOT taxiing out of HOME and 400 m
+up (b094a118 / 0f8e5f7e, f02dc2cf / f74a3a0e). Step time, 3 interleaved runs each (us per step, medians, the box idle):
+Cub taxi 4082 -> 4155, Cub 400 m up 4064 -> 3994, metal Cessna taxi 7239 -> 7311, up 7126 -> 7226 - inside the runs' own
+spread (3831-4182, 7054-7445); the solver's code is the base's.
+STILLS: the cloud has no GPU and SOFT-GPU's tools/soft_still.js is not on this base: A0 shoots
+tools/perf/ground_lattice_views.json with tools/shadowsky_shots.js (pages: the base's index.html built as
+index_before.html, and this branch's) - HOME's stand at wheel height (the tail, both sides, a quarter), w3's stand on the
+patch and mn_strip's dead end ("at" [x, z, agl]: the user's Cub's resting CG height 1.095 m - the stock build 1.208, the
+Jodel 1.016, the Cessna 1.100); the views' az is the orbit's, A0 keeps the frames that show the tyres.
+GATES (cloud, 4 cores, no GPU; this branch's sources, generated files rebuilt by the runner and not committed):
+- `node tools/run_gates.js --all --jobs=4` (158 jobs, wall 9 700 s): 155 PASS, 3 FAIL - none this branch's:
+  - WORLD "perf terrainH<2.5us" (2.53 under the pool's load) and SETTLE "bake budget" (909 ms): timing rows of the
+    analytic world, untouched. Re-run alone on the same tree (`--no-build --only=WORLD,SETTLE --jobs=1`): WORLD PASS
+    (1.21 us/call, the same checksum 30165946.716), SETTLE PASS (bake 332 ms) - BATTERY: PASS.
+  - FRAMECOST (24 rows: the stand's draws 914 -> 1047, uniforms x2, the taxi's tris +1.8 %, garage landing bufferData
+    0 -> 768) is RED ON THE BASE TOO: `--only=FRAMECOST` on a worktree of 5ecabad gives the same 24 rows to the digit (a
+    diff of the two FAIL lists: identical) - the base against its committed baseline on this box, A0's on the train. The
+    patch's vertex heights are all this branch changes in the drawing: no draw, triangle or uniform count can move.
+  - Every gate the brief names PASSES: STAND, TAXICLEAR, TAKEOFF, PILOT (x3), LINEUP, CONTACT (+ --drawn), HYDRODYN,
+    SOAR, LAKEBED, PREMRASTER, PREMCOOK, LOOKS, PAVEMENT, UISMOKE, ARCHETYPES, PILOTMATRIX, SEAPLANE, HOTHIGH.
+- A first --all run was cut at 155/158 by a worker restart (no FAIL in what it had printed); the numbers above are the
+  second, complete run.
+OWED (A0's call): the Jodel's tail axle (9.5 mm over its node; now the one tyre off the ground at rest: +7.3 mm); the
+grass overlays' 93 mm (nv_meadow, r_strip: a depth offset in place of the gap, a GPU look); the pavement rim's 1.5 m of
+side lift under a crossing tyre (G1001's law); the fine tiles' 5 m lattice OFF the aerodromes (G1380's island numbers:
+a forced landing in a meadow still reads +-5 cm - a 1 m tier under the aeroplane, G1380's option (b)); the analytic
+world's Home Strip keeps its constant 5 cm lift (no sinkD0, render_world 5516). The stills: A0's box (views JSON above).
+
+## G1560-G1569 - WORLD-STRIPS: A STRIP STANDS ON ITS OWN GROUND, EVERY LAKE SPILLS A RIVER, THE SEA IS WHAT REACHES THE SEA, THE STOCK TIER'S SEA AT THE LEVEL; GATE STRIPGROUND REGISTERED (2026-10-04, WORLD-STRIPS for A0, a CLOUD session: node only, no GPU; branch claude/world-strips-g1560 off master bff4f64b = train 31, with origin/ccr-4c7cf662-zcpqoe merged for tools/_stripground_check.js and its B16 coverAt fix)
+
+The REVIEW 2026-10-04 findings A5, B14, B25 and D8, and C-world's grade box. Source only, as the review's commits
+were; the train's "(built)" commit rebuilds. Everything that moved is listed per world in
+`reports/WORLD-STRIPS-2026-10-04.md`, with node-rendered top-down before / after / diff maps in
+`reports/evidence/WORLD-STRIPS/`. Two new tools re-make them against any pair of cores: `tools/world_moves.js`
+(the lists) and `tools/world_topmap.js` (the PNGs).
+
+**JOLENE (the default map) - what moved: 40 river reaches added (B14), nothing else.** All 8 aerodromes are
+byte-identical in ground and water over each strip and 300 m past its ends. The 206 lakes and the sea mask are
+identical. 0.031 % of the island's ground is lowered (≤ 1.16 m) by the eight lakes' new outlet creeks, and ≈ 13 ha
+are newly wet; nothing dried. terrainH / waterH cost is unchanged within noise. A5 and the grade box cannot reach an
+island (it takes no generated strips). D8 is NOT applied there: the island's sea is its data's (28_island's coast
+field). The bake's five "landlocked" pockets at −5 m are that field's own shelf behind sub-cell channels.
+
+**G1560 - A5, the strip probe (24_world_aero.js).** probe() still scores a candidate on its eleven centreline
+points, so every score and every pick that was clean is what it was. The candidate that WINS is now walked by
+clean(): every 4 m down the centreline and down both edges of the graded flat (wid/2 + 6), refused on a carve
+(tV2's carve depth, passed in as `carved`), on water, or under 1.2 m. A refused candidate gives way to the next in
+the score's own order (main fields: all admitted candidates sorted by cost then search order; backcountry: a site
+re-enters the list at its next heading's flatness). A town with NO clean candidate gets a nudge pass: each
+admitted candidate is slid ±80/160 m along and ±60..240 m across its axis, re-scored and walked, so the field moves
+instead of vanishing and later ids hold. Seed 0's Pelham Field was the case: every candidate crossed a 45 m
+river's bank, and with A5 alone it moved 168 m on the same heading. Only winners are walked: the aero bake went
+87-114 → 95-111 ms at seed 0 (noise-level), and 0 on Jolene. Before this, EVERY seed walked had a broken field
+(seed 0 Pelham 5.59 m / 17 wet samples, seeds 1, 2, 3, 7, 12345 one or two each, up to 7.02 m / 69). Now none does.
+**G1564 - the grade's box** holds the whole feather: grade() flattens wid/2 + 6 across, and the box stopped at
+wid/2 + feather, a C0 step 6 m short of the feather's end along both long sides. The box is now
+|dz|·len/2 + |dx|·(wid/2 + 6) + feather. inBox / surfaceAt only read the box as an early reject, so their
+answers are unchanged.
+
+**G1561 - B14, the lakes' outlets (21_world_hydro.js).** A lake fed by nothing river-sized spills a river-sized
+outlet, and the head test vetoed that cell: its upstream neighbour is a lake cell with acc > A0. No traced reach
+entered the lake, so none carried on out of it. Seed 0: 105 of 233 lakes with a river-sized outlet had no river
+leaving them; Jolene: 8 of 52. A second pass after the first traces from every river-sized land cell still
+unclaimed that no unclaimed river-sized LAND cell flows into. Those cells lie below such lakes. Every reach the
+first pass traced stays byte for byte, and the trace itself is the same function. scan() gained a bank-inflated
+box reject per segment: bit-identical over 400 k probes, and it pays back part of the third more segments B14 adds
+at seed 0 (912 → 1349). The code costs nothing on its own (a B14-off build of this core reads as fast as master).
+Seed 0's domain-random terrainH is +3-6 % on a ±5 % noisy box, all of it from the added river data.
+
+**G1562 - D8, the sea by connectivity (21_world_hydro.js, 20_world.js waterAt).** With cfg.seaConnected (the
+analytic world only), the sea is the below-0 ground 8-connected to the domain's edge, where the flood drains. A
+basin under 0 that does not reach the edge is land to the flood, which fills it to its spill: a LAKE. waterAt's
+sea rule also asks HYD.seaAt (false where a landlocked cell is one of the point's four bilinear cells). Seed 0: 49
+components (4 561 cells) left the sea, none joined, and the ocean's coast did not move. Many deep northern ones
+were holes INSIDE lakes the flood already had at 78-200 m (the lake's water at its level all round, "sea" at 0 in
+the middle); those lakes are whole now. The biggest, 3 020 cells (6.6 km2, 120 m deep, (−5799, −10162)), holds
+1.49 m. A landlocked cell shallower than lakeMin (1.5 m) is wet at the spill but its BED IS NOT CARVED (lakeAt's
+`bed` read skips it). Without that, the 2 m lake carve dug ponds into five centimetre-deep dips in the home
+lowlands: (−874, −816), (−2002, −778), (−2930, 211), (−2930, 352) and (−2789, 375). Their ground is as it was, and
+their water is 0.27 / 0.08 m instead of the sea's 0. The settlement bake reads sea||lake the same, so the flip itself
+moves no town.
+
+**G1563 - B25 (render_world.js).** The stock tier (no water shader) drew its far sea at −0.4 m while the floats
+ride waterH = 0. seaPlaneY is 0 on every tier. The stock tier then takes the shader tier's rule for the near patch:
+shown only when it is displaced (a sea state), because flat it fights the coplanar plane. While the wavy patch is up,
+the far plane steps down by the felt trains' summed amplitude + 5 cm (the stock tier cannot cut the plane out under
+the patch as uWNear does), and it goes back to the level the moment the patch goes. One y assignment a frame, no
+draw added. NOT seen on a GPU here: A0's eye on the stock tier (?water=0) owes the shore seam that the −0.4 hid
+(G396.2).
+
+**SEED 0 - THE CASCADE (the coordinator's to weigh).** Stage 3 scores town sites on the rivers (the near-water
+bonus, the confluence bonus, the dryness block), so B14's new rivers and D8's lakes re-sited the towns, and stage
+4's strips followed. Holtorham, Holwick and Vimfield are gone; Vimdorf, Alwick (−3352, −914, beside the circuit band)
+and Dalford are new. Morford Airfield (A0) moved 1.47 km to (−4699, −118) hdg 112.5. Pelham Field is A1, 0.53 km
+from where it stood. A2 = Lunford Field and A3 = Berton Field (480 m, ~11 km out) are new fields. Tyl Strip (A4 now)
+did not move. Ulv (A5) and a new Stein (A6) are the backcountry strips; Brekk is gone. 8 generated strips → 7.
+Meadows, the sea lane, HOME and the four golden anchors held. In the home box (x −6300..600, z −3300..2600) the
+ground moved at 5 % of 10 m samples: the new outlet rivers from the mountain lakes to the sea (one crosses the
+circuit band at x ≈ −2800, 2 km west of HOME's threshold), Alwick's roads, and Morford's grade
+(reports/evidence/WORLD-STRIPS/seed0_home_box.png). GATE WORLD's GRID + TREES goldens are re-captured
+(GRID d7f99085, TREES a84580cb, 24 686 trees). Two invariants are added to it: the sea is exactly the edge-connected
+below-0 ground and every landlocked cell is a lake (D8); every river-sized lake outlet heads a reach (B14). Each
+was checked red on a core without its fix.
+**GATES THAT NAME SEED-0 STRIPS:** test_hothigh.js (HOTHIGH, full tier) flew 'Brekk Strip' (113 m). It now takes
+the highest fly-in strip by role (Tyl, 103 m, unmoved). NOT RUN here (full tier). pilot_matrix.js (PILOTMATRIX, full
+tier) flies 'A0', 'A3', 'A5' by id: A0 is still Morford's 900 m paved field but moved; A3 is still "a 480 m grass
+strip, ~10 km out" but Berton, not Pelwick; A5 is still a 340 m gravel fly-in strip but Ulv, not Tyl. The ratchet's
+seed-0 destination cells will read new numbers. Its baseline is A0's to re-take. NOT RUN here.
+
+**G1565 - GATE STRIPGROUND, registered (core, ~6 s).** Every generated strip of seeds 0-3 walked at 2 m on its
+centreline AND both edges: |elev − terrainH| < 0.5 m and no water. Red on master (5 strips on 4 seeds), green here.
+
+**NOT DONE (C-world, read but not in the brief):** the climate relief raster is never rebuilt on groundVer. A
+premises edit (setPremises → terrainClear) leaves `relief` built off the old ground. The fix is to rebuild in
+ensureRelief() when env.groundVer() moved, but that is a ~raster-ms hitch on a live edit, so it is the climate
+owner's call.
+
+**G1566-G1567 - THE BATTERY'S REDS, AND WHOSE THEY WERE.** The core battery (`node tools/run_gates.js --jobs=4`, this
+4-core box, 49 min wall) ran 142 gates: 133 PASS, 9 FAIL:
+- Mine, fixed: **WATER** asserted the stock tier's −0.4 (`WSH ? 0.0 : -0.4`). It now asserts the plane at the
+  level on every tier, plus the step under the wavy patch. **AERO** `counts` wanted ≥ 5 town fields; seed 0 has 4
+  now (see the cascade), so the bound is 4, with the reason in the gate.
+- The merged REVIEW round 2's own, red on its base 419a95b without this branch, ported here: **SKINMAT,
+  LIVERYREACH, WEATHER** threw `THREE is not defined`. aeroskin.js allocated its new scratch Matrix4s at module
+  scope, which breaks wherever it loads before three (every node gate that requires it); they are made on the first
+  aeroSetCraft call now. **PARTS** read garage.js's envelope by its old text; B19 made it one pass, and the regex
+  takes both forms.
+- Load, not code: **INSTANT** hit the runner's 30-minute wall with four jobs on four cores, and PASSES run alone.
+  **ROLLANIM** read 65.5 B/frame against a 64 bound under the same load, and PASSES run alone.
+- The cloud's known red: **FRAMECOST** (24 rows, Cub stand draws.main 914 → 1047, shadow 169.5 → 260.5). The
+  parked aeroplanes' cook is keyed on the build id (HANDOVER G1440's MEM-BUDGET note), so any rebuild captures them
+  live, and parked_cook.js refuses SwiftShader. Bisected here: master as committed PASSES (twice), and master plus
+  the review's round 1 alone fails with the same 24 rows, as does every subset of it down to the inert-on-Jolene
+  20_world.js lines. **A0: `node tools/parked_cook.js` on the box, then FRAMECOST.** On the way, B15's sea-relax
+  modulo was suspected and replaced with a ±half-day wrap taken absolute (G1567). That suspicion was wrong (the reds
+  stayed), but the wrap stays: it equals the modulo for every forward step under 12 h and does not read a backward
+  step as a whole day. GATE DAY is green.
+After the fixes: STRIPGROUND, WORLD, LAKEBED, HYDRODYN, SPLAT, PREMRASTER, PREMCOOK, OBSTFRAME, WATER, AERO, PARTS,
+SKINMAT, LIVERYREACH, WEATHER, DAY and ROLLANIM re-run on the final source: 16 / 16 PASS (225 s wall, 4 jobs).
+NOT RUN (full tier): HOTHIGH (now on the highest fly-in strip), PILOTMATRIX (its seed-0 A0 / A3 / A5 cells fly moved
+strips), SEAPLANE, ARCHETYPES.
+## G1550-G1559 - SPEC-FIXPOINT: THE RESOLVED SPEC IS A FIXED POINT, THE CG CORNERS ARE THE STAND'S AEROPLANE, AND THE JOIN STATES EVERY ROW IT OWNS (2026-10-04, SPEC-FIXPOINT for A0, a CLOUD session: node only; branch claude/spec-fixpoint-g1550 off master bff4f64b = train 31, with origin/ccr-4c7cf662-zcpqoe merged in for the review's rounds 1-2, which touch the same files)
+
+The review (reports/INDEPENDENT-REVIEW-2026-10-04.md) findings A2, A3, B8, B9, B13, the generator's clampSpec/tailY,
+E1, E2 and E3. Fixed in the construction, not patched per caller. Source only: nothing built is committed (A0 builds).
+
+**G1550 - THE REGISTRY (E3).** `GEN_FIELDS` in 60_gen_spec.js, beside GEN_TAIL_ENVELOPE: for every field the
+findings touch, its default (GATE SPECFIX checks it against GEN_DEFAULT), its clamp, its rule ('derive' - null = derived,
+cut to the clamp AS IT IS DERIVED; 'offset' - consumed once; 'frame' - genFrame's own nudge, kept by S._frame; 'pass' -
+applied where read, never written back; 'input') and whether the join OWNS it (`join.states`, `join.with` = the keys a
+state nulls). clampSpec and resolveSpec read the clamps from it (`genFieldClamp`; resolveSpec's `put` clamps through
+`GEN_FIELD_BY_AUTO`); the gate walks it. Exported: GEN_FIELDS, genFieldClamp, genNullToDefault, genSpecMerge.
+
+**G1551 - OFFSETS CONSUMED ONCE (A2, tailY).** `wings[k].place.dx` lands in xLE, `tail.place.dx` in hX / vX,
+`fuselage.tailY` in tailBot / tailTop (in clampSpec) - each then ZEROED on the resolved spec (and on the flat S.place
+alias) and its value recorded in `S._offsets` (a record, never read back). resolve(resolve(s)) == resolve(s), and
+clampSpec(clampSpec(s)) == clampSpec(s). The review's repro now holds: wing dx 0.5 / tail dx 0.4 resolves to xLE 0.88 /
+hX 6.31 on every pass (was 0.38 / 5.41 on the second). Engine and wing-dy nudges are 'pass' (applied in the frame every
+pass, never written back) and were already idempotent. GATE BUILD's "wing placement merges INSIDE the wing" line now
+reads the build (SHELF) and the record (the resolved spec carries 0).
+
+**G1552 - DERIVED VALUES CUT AS THEY ARE MADE (B8), THE AREAS CLAMPED (B9), NULL = DEFAULT (B13).** put() clamps
+through the registry, and the values a derivation moves after its put (xLE after the nudge and the engine's lever, hX /
+vX after the tail nudge, the twin boom's doubled Sv, a ruled V's span and area) are re-cut there. A cut wsAngle / dorsal
+angle drives its run / length (the next pass would). The declared exception: the tail arm's floor (boxRear + 0.9 chord)
+may stand past 6.5 m. Envelopes WIDENED where the generator's own derivation lived outside them (the old clamp then cut
+the stand's value on the second pass only, so the corners were another aeroplane): `gear.y` floor -0.90 -> -2.40 (the
+legDrop row's 1.20 m leg and a 4 m disc's clearance), and the cabin's floors reach THIS seating's table cabin
+(`seatFloor`: only the drone's 0.20 x 0.30 x 0.55 sits under 0.28 / 0.75 / 0.60 - a measured cabin is cut exactly as
+before; a first cut that widened the floors for everyone let the Jodel's and the twin's measured 0.55 m cabin fly
+un-clamped and was reverted). B9: tail.Sh [0.20, 12], Sv [0.10, 10], Svt [0.20, 14]. B13: `genNullToDefault` - an
+explicit null on a NUMBER whose GEN_DEFAULT is not null reads as that default (chord null flew 0.80, naca null 0209,
+aileron span null 0, baggage null 0); the derivable fields default to null and keep deriving; the save keeps its nulls.
+
+**G1553 - THE SAME AIRFRAME, RE-FED (A2 / E1).** The deeper half of A2: the corners re-feed the resolved spec ON
+PURPOSE (the geometry must not follow the loading), but buildGen wrote the frame's gear station back into gear.x, which
+is also genFrame's first-pass input - so a floatplane's corner was another lattice at the SAME fuel (1018.19 vs 1018.09
+kg on the validated Cessna floats) - and genFrame re-solved the structure's scale, the floats' gross and the gauge off
+the re-fed loading. Now buildGen records `S._frame` = { gx, tr, kScale, gross, gauge, W0, gearIn } and genFrame, given a
+spec that carries it, builds that airframe in one pass (no pass 1: the corners got cheaper); buildGen restores the gear
+INPUTS from gearIn before the frame and keeps the readout write-back GATE GEN asks for. `_auto` survives a rebuild
+(merged). To build a NEW airframe from a resolved spec, delete its `_frame`. And the tanks: genSpecAtFuel drained the
+vessel CAPACITY the shell, the fuel lines and the filler caps were sized off - the dry corner flew without its tanks
+(the metal Cessna's 4.3 kg of shells and 1.3 kg of lines). Each drained vessel now keeps `designCap` (fuel.designL's
+twin); the ledger bills the shell and its price off it, the plumbing and genAccessNeeds read fuel.designL.
+
+**G1554 - THE JOIN STATES EVERY ROW IT OWNS (A3 / E2).** tools/_cage_join.js: cabin.glazing 'glass' | 'none',
+fuselage.covering 'skin' | 'open', wings[i].material (both planes) and tail.finMaterial / stabMaterial (null = the
+aeroplane's own; clampSpec normalises null to absent, so the resolved spec is as before), bracing.cabane always,
+interplane / interplaneAt / wires at their defaults on a monoplane, and - when the join measured the tail
+(`M.tailJoined`) - tail.type 'conventional' | 'v' | 'twinBoom' with the other types' keys nulled (vAngle, Svt, the boom
+tube and stabY; a V nulls Sh / Sv). A P WITHOUT the key still says nothing (the intCons rule; the page's template carries
+every key). The garage's merge moved verbatim into the core as `genSpecMerge` (garage.js and _bake_joined.js call it;
+the vm stubs in GATE BUILD / GATE SAVE hand it in) so the gate drives the very merge the page runs. GATE JOIN's three
+lines that codified the bug ("default skinOn writes no covering", "no cabane key", "no truss keys") now assert the stated
+rows, plus both states of glazing and the materials.
+
+**G1555 - GATE SPECFIX** (tools/_specfix_check.js, core, ~70 s; `--no-join` ~15 s). Registry vs GEN_DEFAULT and
+clampSpec; clamp idempotent; resolve fixed point; every derived field inside its envelope; every offset consumed and
+landed exactly once; buildGen leaves its input unchanged and rebuilds def.spec into the same spec and lattice; the six CG
+corners (solo / full cabin x full / reserves / dry) the SAME aeroplane as the stand - node count, every rest position and
+radius, every beam (ends, rest length, class, TRUE stiffness: the flight box's softening is the integrator's cut at the
+loading it is given, not the airframe), every strip, gx / track / designGross and every non-payload ledger row; B9 and
+B13 cases - on the five validated builds (the user's Cub builds/cub_2026-09-20_corrected.json, the Jodel, the metal
+Cessna, the Cessna floats, the twin-582 on floats as master_bench flies it) and a 17-spec corpus (the A2 repro, each
+offset alone, all at once, tricycle / floats / biplane with offsets, the B8 18 m x 2.1 m wing, V, twin boom, pusher,
+drone, legDrop 1.2, a long low dorsal). JOIN: the page's own join headless (_bake_joined.js) - commit, switch a
+join-owned row ON and commit, switch it back and commit: the file and the resolved spec equal the never-on commit; every
+row on the Cub (and the gate fails on a registry join row without a case), all rows at once on the other four; each
+state's `with` keys stated null. NEGATIVE-VERIFIED: offsets not consumed + no `_frame` + tailY not zeroed -> 66 reds;
+the old glazing line -> the round trip red on four builds ("bubble" -> "none" kept); designCap / designL off -> the
+corners' empty ledger red on all five. It caught two things on its first run: a V's Svt kept after the cant came home
+(fixed in the join and the registry's `with`), and see LESSONS.
+
+WHAT MOVES ON THE VALIDATED BUILDS (old core = this branch's merge base 8de5efa, new = this branch; genShakedown full):
+the resolved specs are IDENTICAL on all five, every flown number (def.params: trim, the AP's speeds, the prop) is
+IDENTICAL, and the as-drawn plaque is IDENTICAL. Only the sheets that re-feed the spec move - they were building a
+different airframe (lighter tanks, lines and gauge; on the floats a different lattice):
+- Cub: reserve mass 443.86 -> 448.65 kg, Vs 15.43 -> 15.51 m/s, SM 13.95 -> 14.06 %, climb 3.29 -> 3.25 m/s;
+  aft corner (full cabin, reserves) 523.86 -> 528.65 kg, CG 37.65 -> 37.44 % MAC, SM 2.85 -> 3.04 % (= staticMarginAft).
+- Jodel: reserve 430.59 -> 435.42 kg, Vs 18.14 -> 18.24, SM 1.794 -> 1.791 %, climb 2.90 -> 2.85; aft corner (solo,
+  reserves) SM 1.794 -> 1.791 %; full cabin reserves 510.59 -> 515.42 kg, SM 1.88 -> 1.82 %.
+- metal Cessna: reserve 862.95 -> 866.27 kg, Vs 21.86 -> 21.90, SM 13.15 -> 13.21 %, climb 7.13 -> 7.11; aft corner
+  1022.9 -> 1026.3 kg, CG 36.26 -> 36.19 %, SM 6.73 -> 6.81 %.
+- Cessna floats: reserve 997.64 -> 1001.0 kg, Vs 24.92 -> 24.96, SM 16.45 -> 16.51 %, climb 6.48 -> 6.46; the FULL-fuel
+  corners move too (938.09 -> 938.19 kg solo, 1178.09 -> 1178.19 full cabin: the write-back lattice); aft corner
+  1157.6 -> 1161.0 kg, CG 39.42 -> 39.35 %, SM 11.95 -> 12.04 %.
+- twin-582 on floats: reserve 461.33 -> 464.62 kg, Vs 15.84 -> 15.89, SM 12.39 -> 13.03 %, climb 8.09 -> 8.02; full-fuel
+  corners 475.16 -> 475.42 kg, CG 31.10 -> 30.90 %, SM 14.45 -> 14.66 %; aft corner SM 12.39 -> 13.03 %.
+Archetypes (not validated) with offsets, out-of-envelope derived tails, a drone cabin or explicit nulls move at the stand
+too (by design: that is A2 / B8 / B13); GATE ARCHETYPES (full tier) was not run here.
+
+BATTERY: the CORE battery (node tools/run_gates.js --jobs=3, 4 cores, 149 jobs, 90 min wall): 132 PASS, 10 red, each explained. MASS (mine): its reserve check asked the margin to move > 0.002 with a wing-panel tank, a bar the DIFFERENT reserve airframe cleared (0.1898 -> 0.1877); the same airframe moves it 0.0006 (the CG walks 15 mm forward and the neutral point with it) - the check now asks the CG to walk > 5 mm and the margin to differ, selftest extended (both CAUGHT), green. INSTANT: the runner's 1800 s cap on this machine; alone it PASSES (26 rows 'same', Cub and metal). WORLD / BIOME / SETTLE: timing budgets under the parallel load (terrainH 2.55 vs 2.5 us, surface 5.2 vs 5 us, the settle bake) - all PASS alone, on this branch and on the base. FRAMECOST: red on the base (8de5efa) with IDENTICAL numbers (stand draws 914 -> 1047, uniforms 205152 -> 421112, 53 page errors in this cloud page) - this environment, not this arc. SKINMAT / LIVERYREACH / WEATHER (`THREE is not defined`: no node_modules/three in the cloud container) and PARTS (its regex on garage.js's save envelope) - red on the base too. SPECFIX, GEN, JOIN, BUILD, SAVE, ENERGY and ENERGYBASE among the green. The full tier (ARCHETYPES, PILOTMATRIX, SEAPLANE, HOTHIGH) was not run here: A0's --all; archetypes with offsets / out-of-envelope tails / a drone cabin / explicit nulls are EXPECTED to move.
+
+LESSONS / FOR A0: (1) the headless join (_bake_joined.js) carries history: the first join after ANOTHER build can read
+that build's engine layer (the twin's wing pair came out null, or at the Cessna's units, then its own on the second
+commit, stable after). The gate commits twice; whether the page does the same on a build switch (A4's family) is
+unverified - worth a look. (2) `shakeHash(JSON.stringify(def.spec))` in app.js now includes `_frame` / `_offsets`:
+deterministic, but every cached shakedown keyed on the old string misses once (re-cook the parked aeroplanes). (3) B10
+(the twin boom's zero-length beams) is untouched here; GATE SPECFIX asks finite, not length. (4) The container was
+OOM-killed once during a build run in parallel with GATE GEN; the battery was run with --jobs=3.
+## G1580-G1589 - GEN-PAIRS: THE FRAME OVER PAIRED CONFIGURATIONS - THE TWIN BOOM'S ZERO-LENGTH MEMBERS, THE GEAR ON THE AIRFRAME (B12 HELD); THE VIEWER'S FLEX PER PLANE, TURNED NORMALS, THE RUDDERVATOR'S TRAVEL; THE LOAD RIG SAYS WHY (2026-10-04, GEN-PAIRS for A0, cloud - node only; branch claude/gen-pairs-g1580 off train 31 bff4f64b + origin/ccr-4c7cf662-zcpqoe merged for tools/_genpairs_check.js)
+
+Brief: REVIEW 2026-10-04 (reports/INDEPENDENT-REVIEW-2026-10-04.md) B10, B11, B12 (HELD, the user's ruling), B20, B21,
+B22, D4, D5 (report), E7, H. The review branch is MERGED here whole (its HANDOVER conflict resolved by keeping both entries): it carries the
+round-1/round-2 small fixes, OBSTFRAME (registered) and the unregistered STRIPGROUND, all landing with train 32.
+Source only - the generated outputs (index.html, dev.html, tools/flight_core.js, sw.js, version.json) are NOT committed.
+
+**G1580 B10 - THE TWIN BOOM'S TWO ZERO-LENGTH MEMBERS** (61_gen_frame.js, the twin-boom stab). With `stabY` unset the
+stab sits on the boom's crown, and the tagged HTL/HTR node was built ON the boom chain's tail-station T node: two
+zero-length members, strain (L-0)/0 = Infinity on every twin-boom shakedown, NaN members the load rig skipped silently,
+and 2 "unmirrored" nodes (two nodes on one point). Now the tag goes on the T node itself when the stab point coincides
+with it (< 1 mm; the BM*T tags are read by nothing); its ties to I, O and the bay before are the boom's own members, so
+only its ties to the stab's boom station (HF/HR/HB) are built. `B()` refuses any member under 1e-6 m (or a == b) and
+counts it on `parts.degenerate` ([a, b, cls]). Twin boom: 119 -> 117 nodes, 518 -> 510 members, rank 351 -> 345 (full),
+substeps unchanged (80 stock twin, 102 twin + trike). GATE GENPAIRS REGISTERED (core, ~5 s), holding parts.degenerate
+at 0 as well as finite / mirrored / > 1 mm; negative-verified (the alias disabled: "2 members refused at zero length
+(HTL-BMLT HTR-BMRT), 2 unmirrored nodes", FAIL).
+
+**G1581 B11 - THE GEAR ON THE AIRFRAME** (61_gen_frame.js, the gear block). EL/ER are reassigned to the engine's own
+nodes on a pusher / over-wing pylon / wing nacelles (block 2b); the nosewheel's two upper links and, with the mains
+ahead of every frame, the mains' leg and cross wire then ran 2.3-2.75 m to an engine at the back of the cabin or out on
+the wing. Now: the engine mount only when the engine IS on the nose; otherwise the nosewheel's upper links go to the
+firewall's top corners (off the belly plane, rule 10) and the mains to the firewall ring with the drag brace one ring
+aft (not the leg's own member). Longest gear member: pusher+trike 2.31 (TW-ENGL) -> 1.76 m; wingTop+trike 2.60 -> 1.97;
+pusher+gear.x -0.3 2.51 (AXLE-ENGR) -> 1.63; wingTop+trike+gear.x -0.3 2.75 -> 1.90.
+THE RANK DOES NOT SEE B11 (the review thought it would): every pair, before and after, is rigid - a brace to the engine
+is a legal member. GATE GEN's new PAIRS block (test_gen.js, split over the shards, ~10 s) builds thirteen pairs
+(pusher / wingTop / wing twin / twin boom / V-tail / biplane x tricycle / floats / pusher / mains ahead of every frame),
+ranks them, stands them (a float build: resting on its keels, FL*) AND holds "no gear-class member on an engine node
+unless every engine is on the nose". On the base it is RED on six pairs (pusher, wingTop, wingTwin x tricycle and
+x gearFwd: 2 or 4 gear members on the engine); green after.
+
+**G1582 B12 - HELD (THE USER'S RULING, 2026-10-05): the wing class stays on the section's row, as the base.** The
+finding stands (the cantilever's lower box and carry-through are built under sec('bracing'), which puts MB on the
+FUSELAGE row; plane 2 of a biplane bills plane 0's row). Three fixes were built and measured on the targeted battery;
+each broke a gate or the step budget, so the brief's "no physics-step cost" and "never deliver red" could not both
+hold, and the user ruled to land the rest and leave B12 as its own chantier. THE NUMBERS FOR THAT CHANTIER (base =
+train 31 + the review merge; probe = genMigrateSpec -> buildGen -> genShakedown -> makeLoadTest 1 / 3.8 / 5.7 g):
+- V1, every 'wing' member on the wing row, per plane (box AND lift struts): RED TAKEOFF (the twin fixture's crosswind
+  limit 4.5 -> "> 10": the ladder is SATURATED on this aeroplane - every rung from 4 m/s rolls 11.5-12.8 m against the
+  12.5 m band, the heading weathervaning 28-76 deg, and the 6 m/s rung went 12.57 -> 12.45 m), FLOATS (the twin's
+  touch 0.54 -> 0.34 m/s, bound 0.35), MASS (the stock panel-tank build's reserve margin delta 0.0021 -> 0.0015, bar
+  0.002 - already marginal on the base), WEIGHT (Tiger Moth card 586 -> 680 kg, real 506, band 20 %). The user's
+  Jodel +40.6 kg (bracing ledger 25.84 -> 61.65), SM 4.24 -> 2.35 %, Vs 18.81 -> 19.61, wing tip 4.61 -> 7.00 % at
+  limit; the Cub -2.0 kg, struts x2 k, wing tip 0.371 -> 0.292 % at limit; the twin floats -2.2 kg; the Cessna
+  (alloy / alloy) unchanged. The strut on the FABRIC row is a WOODEN lift strut - GATE LOAD's own note says nobody
+  builds one.
+- V2, the lift strut and its fan kept on the fuselage row (opt.strut), the box on the wing row: the Cub, the Cessna
+  floats and the twin floats IDENTICAL to the base, MASS / TAKEOFF / FLOATS green; WEIGHT still red (the Tiger Moth's
+  +94 kg, the Jodel card 335 -> 375) - the fabric row is not coverGauged, so a box's webs bill at the spruce caps'
+  full density. Tube cantilevers 77 -> 83 substeps.
+- V3, V2 + the fabric row's box webs at GEN_RULES.boxWebK (its cover, 0.80 kg/m2, already bills the ply D-box -
+  60_gen_spec's own note): WEIGHT green, the Jodel's mass / CG / margin IDENTICAL to the base, its box at the fabric
+  row's k (wing tip 4.61 -> 6.94 % at limit, 57 -> 59 % of yield; substeps 120 on the flight box (185 true) -> 104
+  true); wood cantilever 120 -> 99. BUT tube-fuselage cantilevers 71-77 -> 120 substeps (the lower box caps, 0.9 kg
+  nodes at the fabric row's k, bind), the BIPLANE gate's fixture 690.7 -> 590.5 kg and 81 -> 120 (137 true), its
+  tail downwash 0.544 -> 0.575 against the 0.55 window (RED), the Stearman card 912 -> 776 kg (inside its 15 %).
+What the chantier has to rule: the lift strut's material (its own row or field - steel on most real aeroplanes), the
+fabric row's box webs (the D-box billed in the cover), and the integrator cost of a box on light cap nodes (a relump
+of the box's lower caps, as G457's tail, is the likely cure).
+
+**G1583 B20 - ONE SPAR-DELTA BUFFER PER STATION TABLE** (app.js). One buffer sized from rigs[0], filled from rigs[0]'s
+stations, read by every rig: a biplane's plane-2 skin AND its control surfaces (the surfParts read model.deltas too)
+took plane 1's deflections, or read past the buffer (NaN, the vanishing upper wing) when plane 2 had more stations.
+Now `deltaSets`: bindings keyed by their station table (zs + the P stations' node ids) share one buffer, sparDeltas runs
+once per table, each rig / surface reads its own (`.dl`). A monoplane: one table, as before.
+
+**G1584 B21 - DEFLECTED SURFACES TURN THEIR NORMALS** (app.js). `turnNormals(nAttr, baseN, M)`: the rest normals
+through the cofactor of the vertex map (det M . M^-T - exact for the capture's conjugated rotation, conjRot),
+renormalised, needsUpdate (the fold's views upload normals by version already). On the cage surfaces (surfParts) and
+the gen skin's moving groups; the skin flex still keeps rest normals (< ~5 deg, as noted).
+
+**G1585 B22 - THE RUDDERVATOR'S RUDDER TRAVEL** (_cage_join.js, app.js, _pose_headless.js). The join writes
+`k2 = genTravel('rudder')` (27 deg) when a panel's second drive is the rudder, and the ctlLink hinge record carries it;
+the surface and the link consumers read k2 (the surfParts path read none at all: 1 rad), and a payload joined before
+this falls back to the table's rudder travel, not 1 rad. The headless pose harness (_clip_check, _hinge_check) poses
+the rudder drive at k2 too. Full pedal: 57 deg -> 27 deg on every cage V-tail.
+
+**G1586 D4 - THE LOAD RIG REFUSES WHAT IT CANNOT LOAD, AND SAYS WHY** (65_gen_loadtest.js, test_load.js).
+`state.why`: no front/rear spar stations (the tag named), a front station with no rear node, or no strips of the
+surface's kind (a bagless rig would have read 0 % and passed). GATE LOAD prints the reason on a not-measurable row and
+asks the V-TAIL's stab and fin rigs: both must be refused naming HF / VF (a new result row), and the line
+"V-TAIL ... NOT MEASURABLE: ... - OWED (REVIEW D4: no spar truss)" prints on every run.
+THE V-TAIL TRUSS WAS NOT BUILT - not cheap: its strips are kind 'vtail' on the tip and the post (62_gen_aero) with a
+fixed cant normal; a truss the load rig can load needs the strips re-ridden on the bays (the pitch arm and the static
+margin move), the V-tail's mass and substeps move, and GATE GEN's V-tail rows (authority, cross-talk, the 45 deg
+circuit) re-anchor. Its own chantier.
+A FINDING ON THE WAY (not fixed): the stab rig's free set is tags HF/HR/HB/HT, and the conventional stab's tips are
+tagged HTL/HTR - not in it, and reachable from the fuselage through their ring members and wires - so THE TIPS ARE
+PINNED on the trestles: the stab is read as a beam held at both ends. GATE LOAD's stab numbers are stiffer than the
+surface; adding HTL/HTR to the free set is the fix, and it moves the "stab inside 10 %" bound's numbers.
+
+**G1587 - TWO REDS THE REVIEW MERGE BROUGHT** (red on the merge commit d5ed618 itself; the review's round 2 ran no
+battery, by its own note). aeroskin.js: the review's scratch Matrix4 pair for aeroSetCraft was built at MODULE scope
+from a global THREE the node gates that require the file do not have - SKINMAT, LIVERYREACH and WEATHER died on load;
+made on the first call from the THREE it is handed. _parts_check.js: the review's B19 wrote the envelope's image pages
+as one toDataURL pass and GATE PARTS' source regex knew only the old two-pass line; it accepts either form
+(negative-verified: the line removed, PARTS red).
+
+**D5 (report only)**. (1) kScale = (gross / GEN_MATERIALS[S.material].refMass)^0.85 is the FUSELAGE row's refMass and
+multiplies every class's k (wing, tail, gear springs and bracing) - so once B12 lands, a wing member will be the
+wing row's k scaled by the fuselage row's reference: a carbon wing on a tube fuselage and the same wing on a carbon
+fuselage differ by the two refMass ratios (B12's chantier should rule this with it). (2) relump runs while sec('tail') is open: the tail group's re-lumping stays in the tail
+section, but the FUSELAGE group's (S*, TP*, BM*) mass moves are recorded in the tail section's mx at its secClose -
+net zero mass, but the ledger's per-section centroid (mx / mass) of 'tail' carries the fuselage's migration and the
+fuselage row's does not show it. Also: after B10 a twin boom's tail-station T node is tagged HTL/HTR, so it relumps
+with the tail group (it was BM*: the fuselage group) - a few grams between the boom and the stab tips.
+
+GATES (this box: 4 cores, cloud; `node tools/run_gates.js`, the CORE battery on the final source + G1587's fixes
+measured gate by gate): 142 of 149 jobs green on the full run; the seven reds, each accounted for -
+- FRAMECOST (24 rows: draws / uniforms / gl.calls over its baseline on stand, taxi and the garage boot) - IDENTICAL red
+  on the base (d5ed618, the same 24 rows): not this branch's; the train's re-baseline.
+- SKINMAT, LIVERYREACH, WEATHER, PARTS - the review merge's (G1587), red on d5ed618, PASS after G1587.
+- SETTLE - its 700 ms bake budget read 745 ms under four parallel jobs; alone 322 / 333 ms, PASS.
+- INSTANT - the runner's 1800 s cap on this box; alone it PASSES in 41.7 min (the base d5ed618 alone: 41.2 min, PASS - the same wall; the cap is this box's, not this branch's).
+GENPAIRS (registered) PASS; GEN (the PAIRS block in every shard) PASS; LOAD (the V-tail refusal row) PASS; JOIN,
+HINGE, CLIP (the pose harness's k2), SKIN, BIPLANE, FLEX, MOUNT, MASS, WEIGHT, TAKEOFF, FLOATS, UISMOKE PASS.
+THE VALIDATED BUILDS (the Cub builds/cub_2026-09-20_corrected.json, the Jodel, the Cessna floats, the twin on floats):
+IDENTICAL to the base on every probed field - mass, the ledger rows, substeps, Vs, VCruise, L/D, the static margin,
+the CG, every strain and the cost (none is a twin boom, a pusher-trike or a cage V-tail; B12 held). The only measured
+mover outside the twin-boom / pusher-trike pairs: the stock twin boom 498.9 -> 498.2 kg (B10: its two zero-length members and the six that doubled the boom's own),
+substeps 80 the same. PHYSICS-STEP COST: none - no per-step work added (B20's deltas are per station table, once per
+pose; B21's normals turn only a deflected surface's own vertices, on the pose path), no substep count moved on any
+validated build.
+Generated outputs NOT committed - A0 builds.
+## G1570-G1579 - PILOT-FORKS: THE THREE PILOTS FLY ONE SERVO MODULE; THE CLASSIC'S DECRAB TURNS THE RIGHT WAY; THE DATUMS ARE LATCHED ON THE GROUND (2026-10-05, PILOT-FORKS for A0, a CLOUD session: node only; branch claude/pilot-forks-g1570 off train 31 = bff4f64b)
+
+The brief: the independent review (`reports/INDEPENDENT-REVIEW-2026-10-04.md`, branch ccr-4c7cf662-zcpqoe) B3-B7, E4 and its
+C-pilots line. A0 mid-session: the Deform Coordinator's DMG-DAMP (G1885-G1889, review D1: the solver damps rigid
+rotation) lands FIRST in train 34 and re-tunes every pilot gain on this module - so NO gain was re-tuned here, every gain
+sits in one table per pilot, and every gate number the fixes move is listed below.
+
+**G1570 THE SERVOS ARE ONE MODULE** (`src/core/39b_servos.js`, new; MANIFEST after 39_ground_path; exported for the
+gates: SERVO_GAINS, SERVO_TUNE, makeServos, servoWrapPi, servoCrossWind, servoRestHeight). The three copies (40 classic,
+41 test - "forked VERBATIM", 43 the game's - "the test pilot's loops, verbatim") of the filters and the inner loops are
+one `makeServos(sim, def, { pilot, now, trike, rotateTD, TW, features })`:
+- `sense(dt, e, eA, tgtH, thRaw, phRaw, beta, V, Vg, vy, onG)` once a step: the attitude / rate filters (G381: started
+  FROM the attitude), the bumpless target (G630 + G780's sampled-turn rule), the WRAPPED heading-error rates (G630), the
+  slow ground roll rate (G630), vsSlow, accF; `relatch()` (W14) re-latches every servo memory on the next sense.
+- the laws: holdPitch (IthMax / IthGain / pitchK / pitchDK / deFloor are the module's state, set by 43's phases),
+  holdVS, rollTo, airLateral, speedThrottle (G352's anti-windup, G381's damping on the measured acceleration), decrab,
+  steerK / groundAil / groundSteer, taxi (the 2026-09-04 PI), taxiHeading (G630's 0.4 s look-ahead filter),
+  taxiRudder (G630: the steer schedule's P + the curvature feed-forward, no rate term), slew(ownV, ownL), endStep.
+- THE GAINS: `SERVO_GAINS` is the base table - every `A.x ?? default` and every bare literal of the three copies (the
+  0.85 rate factor, the 2 s washouts, the ground deadbands, the clamps) is a row - and `SERVO_TUNE.{classic, test,
+  pilot}` is ONE ROW PER PILOT overlaid on it (all three EMPTY today). A per-aeroplane key in def.params.ap still wins
+  (genTuneAP's rollP / pitchD / ...). DMG-DAMP re-tunes by writing a pilot's row (or the base row for all three).
+- FEATURES (43's own laws, not fixes; 40 / 41 run them off): trimCalm (the course trim in calm air, 2026-09-08),
+  groundP1D (the tail state from the tailwheel's contact, the tail-down rudder stop rising with speed, the sqrt-mass
+  gains), xwBank (the aileron into wind on the ground, 2026-09-08), water (H4's branch), deTop (G396.2 / G970: the
+  water's stick top through LIFTOFF). The long comments that explain each law moved with it, verbatim.
+- 43 IS BIT-IDENTICAL THROUGH THE MOVE: a per-step hash of every control (de, da, dr, thr, brake, flap) over whole
+  flights, base train 31 vs the module before the B fixes: stock (stand and runway), the user's Cub / Jodel / Cessna 172
+  (builds/*_corrected.json) and the aluminium C172 from the stand, stock and Cub in 3 m/s across - 8 of 8 SAME. After
+  the B fixes, 13 of 14 SAME (+ the Cessna on FLOATS on the SEA lane calm, 3 m/s across, 3 m/s along; the Jodel in 3
+  m/s across with 1 m/s gusts; the Cub in a quartering 2.5/2.5); the one that moves is B4's own case (below).
+- 40 and 41 now fly the G381 / G630 / G352 laws they never had: the filters from the attitude; wrapped rates and the
+  bumpless target; G352's anti-windup and G381's accF term on the speed hold; the tail-down steer gains easing as
+  (VTailUp/V)^2 (a trike's: VSteer, the quarter rate term, none under the brakes, the 3.5 rad/s cap); the ground's
+  aileron deadband (taxi, roll, rollout, STOP); the taxi on P + curvature feed-forward with the filtered look-ahead
+  (TAXI on a path / to a point, LINEUP, STOP). Their phases are untouched.
+- GATE TAKEOFF's source check ("a fix that lands in one pilot and not the other is the fork's known failure") read
+  `const tailUp = rotateTD` in each pilot; that line now lives once, so the check reads it in the module and requires
+  each pilot to call `makeServos` + `SV.groundSteer(thRest` and to carry no copy (stronger, not looser).
+
+**G1571 B3 - THE CLASSIC'S AND THE TEST PILOT'S DECRAB RUDDER** (40:948-953, 41:888-893): `-K x hdg` (the nose's angle
+from the runway) is `-K x e` now (e = the runway's angle from the nose: the ground steer's sign, 43's since G381), with
+G970's slow integral - one law, the module's `decrab`.
+
+**G1572 B4 - THE DECRAB ARMS ON THE STRIP'S CROSSWIND**: 40 / 41 armed on |windZ| > 0.5 (the world's z: only an x-aligned
+strip ever decrabbed), 43 on |windZ| + |windX| (a headwind straight down the strip armed it). All three: `SV.decrabArmed(agl,
+F)` = below decrabAgl and |the air's velocity across the runway frame| > 0.5 (`servoCrossWind`). At HOME (x-aligned) a z
+wind arms it exactly as before; 43's one moved case: the Cub in a pure 3 m/s headwind no longer decrabs in the flare
+(its controls differ, its landing is the same at printed precision: sink 0.86, on the centreline, +16 m, run 114 m).
+
+**G1573 B5 - THE DATUMS ARE LATCHED ON THE GROUND** (43:1046, 40:324, 41:258 + 43's gearH): on the wheels, the first
+update latches as always (bit-identical for every ground start); in the air restAlt / refAlt are the departure field's
+elevation + the design pose's CG rest height (`servoRestHeight(def)`: the mass-weighted CG over the lowest contact of
+the reset pose), and 43's gearH waits for the wheels (aglG and aimAlt use restH0 meanwhile). MEASURED (scratch b5: fly
+to cruise, hand the aeroplane to a FRESH pilot with reEngage): base classic latched restAlt 121.37 at 121 m, flared at
+125.5 m over the ground and never landed; now classic / test latch 1.31 and flare at 5.4 m (landed, 1.23 m/s), the
+game's pilot latches 1.31, flares at 6.7 m, lands at 0.67.
+
+**G1574 B6 - THE ACCEPTED CEILING IS THE CIRCUIT'S** (43 altMode): on 'ceiling-accepted' / 'wont-climb' every leg above
+the new hCruise comes down to it and planLegH re-publishes the legs' heights (G710's hPlan) - legAlt asked the old L.h
+the next step, dh > 40 put climbMode back on and it climbed for the height it had given up. MEASURED (scratch b6: the stock
+airframe on the FES 100 electric, a 1200 m card, the game's pilot): 'ceiling-accepted' at 196 s at 38 m on both trees;
+base kept every leg at 1200 m and the vertical target at 1200 (still climbing, 62 m by the end of the window), the
+branch's legs are 38.3 m and the target 50 m (legAlt's terrain floor: 2 hSafe, 40 m at least, over the ground ahead).
+(Left as it was: legAlt's terrain floor can still exceed an accepted ceiling over high ground - climbMode then returns
+and ceilingSaid keeps it from being said twice; a terrain-limited circuit is its own chantier.)
+
+**G1575 B7 - THE TEST PILOT'S ROLL IS JUDGED ON THE RUNWAY LEFT** (41 ROLL): 'out of runway' fired at `runUsed > len -
+80` from wherever the roll began (a hold 110 m in, a backtrack's turn-around: the strip was "all ahead"); now `left <
+80`, left = the centreline still ahead to the far end (43's runwayLeft), and 'will not make it' is 60 % of the run
+available where the roll began (43's rule). World-less (GATE MASS: HOMEISH has no x) the old arithmetic exactly.
+
+**G1576 REVIEW C-PILOTS**:
+- 39_ground_path: past GP_MAXPTS a path was TRUNCATED with len / sEnd / sStop still the whole route's (a 6+3+6 km
+  test route: 4000 points, len 14 828 m, the last point's s 3 999 m, ending at (3999, 0) - the stop it braked for was
+  nowhere on the path). Now it is sampled again, coarser, whole (3 673 points, len = the last s = 14 828, ending on the
+  hold); under the cap every path is drawn exactly as before; a graph still over the cap at 256 m is cut with its
+  len / sStop made the cut's.
+- 38_nav: a ONE-waypoint plan with no `from` had no leg (`leg()` needs a previous point) - flown from the aeroplane's
+  first position, as a direct-to (base: NULL; now dis 716 m, dtk 347.9).
+- 42_crosswind: the ladder never restored the injected wind (a caller's world came back blowing the last rung, base:
+  [0,0,2] after a ladder on a world set to [1,0,0.5] gust 0.3). The climate's DECLARED spec (`climate.declared`, a new
+  read-only getter in 09_climate.js beside `spec`) is kept and set again when the ladder ends; `probe.restore()` for
+  one abandoned.
+- 40 / 41 rate filters difference unwrapped heading error: the module's (wrapped, G630).
+- 43 departFrom kept rollN / gaN / committed: a new departure resets rollN, gaN, gaWhy, committed, committedTO.
+
+**THE NUMBERS THE FIXES MOVE** (the 39 gates that fly or read a pilot, `run_gates --only=... --verbose`, base = train 31
+untouched in a worktree vs this branch, same box, jobs 4; the printed lines diffed with timings filtered):
+```
+gate        line (base train 31 -> branch)                                     why
+GEN         circuit (40, stock calm): TOUCHDOWN sink 1.06 -> 1.22 m/s          G381's accF term on the speed hold (spdD
+            (bound 1.3), x -482 -> -509, stop -555 -> -587 (now STOPPED          0.25): the ramp flare is sensitive to the
+            at 297 s; base ended the 300 s in ROLLOUT)                           entry speed; with SERVO_TUNE.classic.spdD
+                                                                                 = 0 the same circuit lands at 0.90
+            pairs 'land sink': stock 1.06->1.22, tricycle 1.30->1.32, twin       (same cause; all under 1.6; no check on
+            boom 0.70->0.89, low cantilever 0.82->0.84, pusher 1.09->1.16,       them moved)
+            high cantilever 0.79->0.91, over the wing 1.33->1.30, mid wing
+            0.83->0.94, wing twin 1.54->1.52, low wing 0.79->0.86
+            CRUISE QUIET (3 m/s + gusts): bank p2p 0.98 -> 0.94 deg, aileron     (bound 3.0 / 2.0 / 3.0)
+            0.06 -> 0.06, elevator 0.26 -> 0.28 deg/s
+HOTHIGH     (40, hot day, wind): TOUCHDOWN sink 1.02 -> 1.30 m/s (bound 2.0),  the turnback now turns the other way
+            x -466 -> -511, z 0.8 -> -0.4, rolloutPitchMin 3.3 -> 1.9, gear     (INBOUND from z -654 instead of +418):
+            strain 15 -> 12 %, chatter 1.1 -> 1.0 deg/s                         TURNBACK steps the target 180 deg, e sits
+                                                                                 at +-pi and the side is decided by the
+                                                                                 rate chain, now wrapped and bumpless
+                                                                                 (G630) - likely, NOT isolated
+FLEX        (40, every build): peak loads down 2-4 % (stock fus 4.45->4.28     the same circuits flown by the module's
+            kN, wing 5.07->4.90, wire 2.46->1.95); the 6061 tube + Dacron 5 m   laws; the flexible wing's cruise flail
+            wing: cruise hold p2p 1.04 -> 0.17 % of semispan, wire 19.96 ->     (1.04 % p2p) is gone
+            5.73 kN (244 -> 70 % of yield), tail 1.89 -> 1.32 kN
+INPUT       classic/keys and test/keys re-engaged: bank at 20-25 s 1.3 ->      the module's laws (40 / 41)
+            1.7 deg (peak pitch / bank, alt loss, CRUISE OK unchanged)
+BENCH       (41) the landing run 303 -> 296 m                                  41's laws
+SEAPLANE    (43, floats) touch 244.7 -> 244.8 s (position, depth, stop the     B4 (the SEA lane's arming)
+            same)
+HITBOX      84 of 87 checks: the three cooked-shape checks SKIP (`not cooked   the parked cook is STALE (below) - not
+            in this page`)                                                       a failure; A0's train re-cook restores them
+FRAMECOST   FAIL (24): cub / cessna stand + taxi draws.main 914 -> 1047,       THE PARKED COOK IS STALE: the core's build
+            draws.shadow, uniforms, gl.calls; boot/garage:landing bufferData    id moved (parked_cook --check: manifest
+            0 -> 768                                                             39f9e360 vs this tree 562ecfe8, STALE) and
+                                                                                 the page captures the parked aeroplanes
+                                                                                 live - the gate's own HINT. Not re-cooked
+                                                                                 here (the cook refuses a software
+                                                                                 renderer, and it is cooked on the train's
+                                                                                 final build: A0)
+same at printed precision: PILOT, PILOTACT (ctl rev), PILOTMATRIX, TAKEOFF, PLAN, LINEUP, TAXICLEAR, NAV, SITE, SOAR,
+ARCHETYPES, STRIPSURF, MASS, STRESS, FLAPS, GE, BIPLANE, DEFAULT, CLIMATE, BUILD, UISMOKE, GFX, WORLDRENDER, UILAYER,
+PREMISES, HONESTY, TANKMOUNT, MOUNT (SIMWORKER's snapshot counts and RWYTREES' compose times are the page's clock)
+```
+the 40 / 41 flights off the runway (scratch ident, HOME calm unless said; base -> branch): 40 stock sink 1.07 -> 1.22, x
+-482 -> -509; 40 stock in 3 m/s across + 1.5 gust 1.38 -> 1.46, drift -0.40 -> +0.27 m/s, off centre -0.04 -> +0.19 m;
+41 stock 1.06 -> 1.21, past the aim 38 -> 11 m, run 321 -> 318; 41 the user's Cub in 3 m/s across 1.61 -> 1.46 m/s, off
+centre 0.6 -> 0.1 m (B3), run 273 -> 252; 41 the user's Jodel calm 1.05 -> 1.23, run 337 -> 314. (40 and 41 now fly
+the same stock calm circuit control for control - one hash.)
+
+- Gates: the 39-gate pilot set above on this branch: 47 of 49 jobs PASS; FRAMECOST red on the stale parked cook (above), WORLD red on its terrainH timing (red on base too). `node tools/run_gates.js` (the CORE battery, 140 gates / 147 jobs,
+  this branch, 76 min on 4 jobs): 135 PASS, 5 red - FRAMECOST (the stale cook), and four that are red on UNTOUCHED BASE
+  on this box (re-run there, `--only=INSTANT,WORLD,BIOME,SETTLE`): INSTANT (the runner's 1800 s cap), BIOME (`surface
+  perf<5us`), SETTLE (`bake budget`), WORLD (`perf terrainH<2.5us`: red in base's first run, green in its second - a
+  timing on a loaded 4-core cloud box). None of the five reads a pilot. The FULL tier's pilot gates (ARCHETYPES,
+  PILOTMATRIX, SEAPLANE, HOTHIGH, SOAR) are in the pilot set above, all PASS; the rest of the full tier (SIMWORKER-PAGE /
+  -EDGES / -PLACE, SOFTGPU - browser rigs that fly 43 on the page) was not run: 43 is bit-identical but for B4 / B5 /
+  B6, which those rigs do not reach. A0: re-cook the parked aeroplanes on the train's build (FRAMECOST + HITBOX's three
+  cooked-shape checks come back with it).
+- Not this session's (red on base too): WORLD (`perf terrainH<2.5us` - 2.86 us a call on this 4-core cloud box, a
+  machine-speed check); RWYTREES timed out at 1800 s on base under load and passed on the branch.
+- POSEBACK: no gate of that name exists in this tree (grep of tools/, run_gates.js, HANDOVER) - nothing run under it.
+- OWED (seen, not fixed - outside the brief): 40 has no G208.3 LIFTOFF exit (41 has it): the user's Cub and Jodel on
+  the CLASSIC pilot hold the lift-off attitude for ever (base and branch alike: ROLL > LIFTOFF for 300 s); the game
+  and the bench fly 43 / 41, the gates fly 40 only on the stock and the generator's pairs.
+
+## G1710-G1714 - SND-BOOMBOX: THE SHED'S RADIO - A SOUND AND A RADIO BUTTON ON THE QUICK BAR, THE BOOMBOX CLICKABLE WITH ITS OWN LITTLE PANEL, MY MUSIC (A LOCAL FOLDER AS A STATION), THE GARAGE MUSIC LEANING TOWARD THE RADIO; GATED (2026-10-05, SND-BOOMBOX for the Sound Coordinator, cloud; branch claude/snd-boombox off origin/claude/boombox 9f3a52bf, merged with origin/claude/sound-next b0fe1bae)
+
+The user (2026-10-05): "you'll add UI elements too. In the garage 2 ways; a toggle button next to the existing toggles (like the
+reference plane view), sound on/off, and another one cycling the radios. On top of that, you'll place the boombox close to the
+plane, and make it clickable. It will spawn a little menu like the plane elements and will present the radio controls, volume
+and channels, and if possible and easy, the ability to point to a local music folder." The prop and its place by the aeroplane
+were already on claude/boombox (9f3a52bf); this session is the UI, the folder, the gate and the evidence.
+G1710 THE QUICK BAR - editor.js QUICK += 'sound' and 'radio' (between `ref` and `time`). Both declare state + why (the rail's
+  `sound` item is AUDIO.mount's own panel, so there is no row to name; GATE VIEW passes). `sound`: AUDIO.enable, both ways. Its
+  icon is the rail's speaker with its waves, struck through when off. ?audio=0 shows it greyed with the reason. Under the stub
+  (sound switched off at load) a press switches it on for the next load, and the title says so. `radio`: a press gives music if
+  there was none: the sound first, then 'music in the garage' on (it is OFF by default, the 2026-10-04 ruling, so asking for
+  music is what turns it on), then the station, or the last one after 'off'. With music already playing, a press steps the
+  station (stepStation(1), the [ ] keys' door). A right-click or a 600 ms hold switches the radio off (setStation('off');
+  buildQuick binds a QUICK entry's new optional `alt`). The icon is a boombox, its cones dashed while silent; the title names
+  the station. The bar repaints on AUDIO 'settings' / 'station' / 'ready' / 'music'. music.js now emits 'station' from
+  setStation (and from setUserTracks).
+G1711 THE BOOMBOX - src/viewer/boombox.js (NEW, window.BOOMBOX).
+  THE RADIO: BOOMBOX.radio holds the actions both surfaces share: soundOn / soundNext / playing / setSound / listen(st) / next /
+  off. It reads AUDIO and AUDIO_MUSIC back and keeps no state of its own.
+  THE HIT: pick(obj, ray, hit) puts the ray in the prop's own frame against PROP_REG's bb (an oriented box, no triangles). It
+  takes the click only when the box is NEARER than the aeroplane's hit (pickAt's point), so a part in front of the radio keeps its
+  click. A hidden kit is not struck. hangar.js gains mobileProp(key), which finds the 'prop:<key>' group in MOBILE.
+  app.js (HOT FILE):
+  - function bbProp() (in the garage: hangar.mobileProp('boombox'));
+  - the pointerup: BOOMBOX.click first, then the switches and EDITOR_PICK (the click path no longer needs EDITOR_PICK to exist
+    for the radio);
+  - the throttled hover asks BOOMBOX.hover, and over the radio hands EDITOR_PICK a miss, so the part under it is not tinted;
+  - pointerleave clears it;
+  - BOOMBOX.frame(camera, bbProp) once, right after AUDIO.update;
+  - BOOMBOX.placed(...) after hangar.placeMobile (G1714).
+  The rays run on pointer events only. frame() returns at once while the panel is closed: no lookup, no projection.
+  THE CUE: the pointer cursor, and a faint warm pool on the floor under the radio. It is one additive quad, a child of the prop
+  group, marked edHi. The prop's materials are shared per record by MATLIB, so they are never touched.
+  THE PANEL: a small card in #edView (editor.css #bbPanel, HOT FILE: the rail flyout's plate, head, rows, toggles and pills). It
+  holds:
+  - now playing (title, artist · licence);
+  - the station pills: the six, Random, My music once a folder is there, and off. A station pill also turns on the sound and
+    'music in the garage';
+  - the music and master sliders;
+  - skip;
+  - toggles for Radio Jolene's talk, music in the garage and music in flight;
+  - MY MUSIC;
+  - music credits.
+  It is anchored beside the radio's projected top: while open, one projection and at most two style writes per frame, and its
+  rects are re-measured on resize. It closes on Esc, on a press outside (a press ON the radio leaves it to the click, which
+  toggles it shut), when the radio goes behind the eye or off the view, or when the shed is left. It repaints on 'music',
+  'station', 'settings' and 'ready' (build / paint / refresh: a rebuild only when its shape changes, never recursive).
+  ?audio=0, the stub, or the sound off: a line and the "turn the sound on" switch, greyed where it can't act (?audio=0, or
+  already on for the next load). Nothing else is built.
+G1712 MY MUSIC - src/viewer/audio/my_music.js (NEW, window.AUDIO_MYMUSIC) + music.js's virtual station 'mine'.
+  THE PICK: showDirectoryPicker (Chromium), else a one-off <input type=file webkitdirectory multiple>. It walks at most 4
+  folders down and keeps at most 4 000 files. It keeps mp3 / ogg / oga / opus / m4a / aac / wav / flac. Titles come from the
+  file names (no extension, no leading track number, "_" as spaces).
+  KEPT: only the DirectoryHandle, in IndexedDB (flydiy-mymusic / h / dir), every access in try/catch. The panel's opening (a
+  click) calls restore():
+  - a handle whose permission is still 'granted' is walked at once;
+  - a 'prompt' one waits for "reconnect <folder>" (requestPermission, from that click);
+  - with the fallback input the browser forgets, and the panel says so.
+  "forget" drops the handle and the station. Nothing is uploaded, fetched or decoded, and nothing runs before a click.
+  music.js setUserTracks(files, name):
+  - the files are appended past the shipped catalogue (baseN), so shipped indices, bags and resume points never move;
+  - a deck makes the track's blob: object URL at its load and REVOKES it at its release, so at most two exist at once, and a
+    dropped folder or the sound switched off leaves none;
+  - USER_DUR_S stands in until durationchange (a track is never cut for an unknown length), and the file's length is kept once
+    known;
+  - no silences between tracks (gap(c) wraps gapped(c): GATE AUDIO's anchor untouched), no talk (talkDue is Radio Jolene's),
+    not in the mix or the credits.
+  STATION_KEYS is unchanged; 'mine' joins the [ ] cycle and the sound menu's select once a folder is there. The station is
+  persisted. A page that loads on 'mine' plays the start station until the folder is back, then returns to it (wantMine).
+  `lastStation` is the station a radio switched back on plays.
+G1713 GATE BOOMBOX - tools/audio/_boombox_check.js (run_gates BOOMBOX, core, < 1 s), node only:
+  - BB_QUICK runs editor.js's QI + QUICK in a vm over recording AUDIO / AUDIO_MUSIC and the real boombox.js.
+  - BB_HIT uses vendor THREE: the turned box, a nearer part keeps the click, a part behind does not, a hidden kit, a vertical ray
+    inside the AABB but outside the turned box. It also checks mobileProp, propPlace's 'prop:' name, app.js's order and its
+    single frame call, frame() idle while closed, the cue, and placed().
+  - BB_PANEL runs on tools/_page_dom.js: every control calls its API; Esc, a press inside / outside, behind the eye, off the
+    side, the shed left; the click toggles; ?audio=0; the sound off then switched on.
+  - BB_MINE runs the real audio.js + music.js + my_music.js with the picker, IndexedDB and URL stubbed: nothing before a
+    gesture; 3 of 5 files kept, with titles; the handle alone stored; blob: URLs only, at most two live, every one revoked;
+    unknown length not cut; forget; restore granted / prompt + reconnect; the webkitdirectory fallback; a page loaded on 'mine'.
+  - BB_PAN (G1714).
+  38 / 38 mutations caught; the sources byte-identical after.
+G1714 THE BOOMBOX AS THE SOURCE (the stretch) - music.js:
+  - a StereoPanner between the duck and the music bus; a context with none keeps the old straight path, and space.js's room
+    send follows the bus untouched;
+  - 4 times a second, in the garage: the camera's right axis (its matrixWorld, read in place) against the direction to the radio,
+    times PAN_K 0.35, full within 2 m and nothing past 9 m;
+  - centred in flight or with no radio; a move under 0.02 schedules nothing; nothing allocates;
+  - setSourcePos is fed by BOOMBOX.placed after placeMobile.
+  THE EVIDENCE: tools/perf/boombox_evidence.js (CDP, real mouse and key events: it finds the radio by sweeping the hover) and
+  reports/evidence/SND-BOOMBOX/README.md ("what to check": eight shots, summary.json, and the checks by ear).
+  Gates  BOOMBOX, VIEW, UISMOKE, AUDIO, HANGAR, PROPS, BUILD, MEDIA PASS. GATE AUDIO passes alone. In the 8-gate parallel battery
+         its load-sensitive heap / allocation samples went red once each: RADIO_BUDGET (+76 KB once, a page with no
+         StereoPanner, where none of this runs; alone +6 KB, 0 GC) and SP_BUDGET's doppler-boxing mutation (space.js untouched).
+  Budget AUDIO.update unchanged in shape (GATE AUDIO's budgets green); the music frame adds one typed-slot countdown and, at
+         4 Hz in the garage, a dot product. The boombox costs nothing per frame while its panel is closed.
+  HOT FILES TOUCHED (for A0's trains): src/viewer/app.js (+19 lines: the pointerup, the hover, the leave, the frame call, the
+         placed call), src/viewer/editor.js (+69: QI glyphs, two QUICK entries, buildQuick's alt + AUDIO listeners),
+         src/viewer/editor.css (+30: #bbPanel). NOT body.html: the panel is made by boombox.js. Also src/viewer/hangar.js (+7,
+         mobileProp), src/viewer/audio/music.js, tools/build.js (+audio/my_music.js, boombox.js after music.js, before app.js),
+         tools/run_gates.js (+BOOMBOX). NEW: src/viewer/boombox.js, src/viewer/audio/my_music.js, tools/audio/_boombox_check.js,
+         tools/perf/boombox_evidence.js, reports/evidence/SND-BOOMBOX/. Generated files (index.html, dev.html, sw.js,
+         version.json, flight_core.js) not committed: the train builds them.
+FOR THE COORDINATOR: (1) NOT YET SEEN RENDERED - the screenshots and the visual check are yours, on the box's GPU (the user,
+  2026-10-05: "screenshots will be done by the coordinator"). Run tools/perf/boombox_evidence.js and read the README's table;
+  it dismisses a fresh profile's archetype picker ("keep the current build") before it sweeps. A cloud try under SwiftShader
+  (--swgl) drew the quick bar with both new buttons but left the render blank, so no picture was kept. The folder, the reconnect
+  after a reload, and the lean need ears and a real Chromium. (2) SND-TUNE knobs: PAN_K / PAN_NEAR / PAN_FAR (music.js), the
+  halo's colour and opacity, QUICK_HOLD_MS. (3) The panel has no keyboard focus trap (Esc closes it); say if it should take
+  focus when it opens.
+
+## TRAIN 34 LANDED (2026-10-05, A0 the coordinator)
+
+Cargo (on train 33 = 0fd1fa34): the REVIEW sessions - SPEC-FIXPOINT G1550-G1559 (the spec a fixed point: offsets once,
+the join states its rows, clamps after derivation, null = default; the user's Cub: reserve sheet 443.9 -> 448.7 kg, flown
+numbers identical), WORLD-STRIPS G1560-G1569 (strips walked at 2 m - GATE STRIPGROUND registered; lake outlets traced -
+Jolene +40 creek reaches; the far sea at the level; seed 0 re-sited, AERO's field count >= 4), PILOT-FORKS G1570-G1579
+(the three pilots fly ONE servo module, 39b_servos.js; the classic/test pilots' B3-B7; the game's pilot identical but its
+fixes), GEN-PAIRS G1580-G1589 (twin boom's zero-length beams, pusher + tricycle, biplane flex per plane, deflected normals,
+the V-tail's throw; GATE GENPAIRS registered; B12 held by the user's ruling); STRUT-LIVERY G1910-G1914 (the struts back
+in the livery, live and baked; a saved Cub heals), RUNWAY-LIGHTS-2 G1545-G1549 (warmer 2500 K, shrouded to the approach,
+a red far row), TANKS-FLOAT G1385-G1389 (the wing slabs' air from the real tanks), GROUND-LATTICE G1540-G1544 (the
+tailwheel on the drawn ground; TW_DRAW_DROP 0), SOUND-34 + SND-BOOMBOX (the animals' voices, the boombox prop, the garage
+radio UI, G1705-G1714; the boombox's KTX2 twins).
+HELD: RELEASE-CHECKS G1590 (rewrote the build id on a base older than UPDATE-NOW's - rebase relayed), DMG-DAMP (with
+DMG-TYRE / DMG-HULL), the damage work (train 35).
+A0 IN THE TRAIN: GEN-PAIRS' deflected normals were rewritten EVERY frame (+~1 ms cockpit loop: a prefix bisect T0-T4 with
+cooked trees, then T2 / T2g / T3 cockpit A/Bs) - now only when the surface turned > ~0.1 deg (after: +0.3 ms, in noise);
+the boombox halo through MATLIB (ASSETS) + GATE BOOMBOX's sandbox; FRAMECOST admits the boombox in the shed (G1710).
+STRICT GATE (full): only the 30 cap's rows + the known hybrid band rows; the chase loop matched train 33 in the bisect
+(T0 = tip, 16.4 ms in that session); the mn_strip trip task gone. BATTERY: the full battery on the first build (3 boombox
+reds), the changed gates on the final build PASS (FRAMECOST, KTX2, ASSETS, BOOMBOX, GENPAIRS, UISMOKE, BUILD, MEDIA, PROPS,
+SKINMAT, PARTS, HANGAR). Parked re-cooked.
+
+## G1866-G1867 DMG-D4b: THE D4a FIX - THE SKIN BREAK REACHES THE DEFAULT GAME'S DRAWING (the hybrid bake), RIDES IN THE WORLD, WHOLE, AND COSTS NOTHING AT REST (2026-10-05, DMG-D4b for the DEFORM COORDINATOR, local GPU; branch claude/dmg-d4a-fix off claude/dmg-integration bd0b9d0b; the D4b work rides on top in claude/dmg-d4b-wreck)
+
+Found on the box with `?damage=1&simw=0`, the user's Cub at a trunk at 30 m/s: in the DEFAULT game (the flown bake's hybrid: the
+exterior folded far, drawn as views on the fold near) D4a's cage skin break did almost nothing, and once half-fixed it drew giant
+stretched triangles. D4a's stills were taken on SwiftShader, where the bake is off. Five causes, each fixed (app.js, flown_bake.js,
+skin_break.js; nothing in the solver; damage OFF and nothing broken: not one byte of the drawing moves):
+
+1. **brkCage found each group's geometry by walking model.grp** - the fold takes its members out of the graph, so every folded group
+   (the exterior: most of the aeroplane) got no record: no riding, no tear. Now a build-time map (`model.wreckBuild.geoOf`: each
+   geometry by its position attribute, taken before the fold and the still merge).
+2. **The fold draws from a merged COPY of each bucket's index** (flown_bake.js mergeModel `IX`; mergeStill likewise): the positions are
+   views (the rigs write what is drawn), the index is not, so a removed triangle stayed drawn. Each copy now registers an index mirror
+   on its source geometry (`userData.ixMirror: { ix, io, vo, n, attr }`), and `idxMirror(g)` carries the source's index into each at
+   every event / tear (brkIdx). Once (1) was fixed without (2), the riding reached the fold and the removals did not: the "giant
+   triangles" of the first box stills.
+3. **brkRec's `R.geos` started empty** (filled by a graph walk only): for an out-of-graph member brkIdx touched nothing. `R.geos = [geo]`.
+4. **The cage is posed through the body's OBLIQUE basis** (xA, yU, xA x yU: 85.6 deg apart on the Cub as built) and D4a fitted its
+   nodes' frames in that frame. A wreck turns it to anything: **165 deg between xA and yU on a broken-up Cub** (its refs on different
+   pieces) - every node's "rotation" a shear, and **110 k of the snapshot's 167 k triangles tore**. Now the riding is in the WORLD
+   (skin_break.js `poseCage(..., X)`): the nodes' frames from the design rest to the sim's positions, each record's rest in the
+   design frame (`R.baseD`, through the REST basis), each vertex's world place kept (`R.w`: the tear reads true lengths) and drawn
+   back through the live basis. Without X (GATE DMGSKIN's node records) poseCage is exactly as before.
+   - **Normals turned**: a riding vertex's normal turns with its blended rotation (drawn through the basis's transpose); at rest
+     normals had made the folded wings chrome-white mirrors under the sky. Restored at a heal.
+5. **Only vertices off the core or at a broken member's end rode**; a wing or a cabin bent round a trunk WITHOUT a member broken under
+   it kept the cage's rigid / spar-station pose and stretched into sheets metres long (the 3 m/s taxi still). The cage records now ride
+   WHOLE once anything is broken (`rideAll`: exact under a rigid motion, so an undamaged part looks as before), **welded**: the snapshot
+   is unwelded (three vertices a triangle, each place repeated ~6x), so the binding, the event and the riding are done once a PLACE
+   (`dupOf`, `rep[v]`) and copied (500 k vertices -> ~85 k places on the Cub).
+   - **The binding spread over frames**: the full binding (4 nodes a place, a small least squares, 1-2 us) is made `BRK_BIND` = 4000
+     places a frame (the break's own zone first; `bindMore`); a place not bound yet rides its nearest node. It was one 0.23-0.46 s
+     frame at the first break on the box.
+   - **At rest, nothing**: the cage is re-posed only when a node moved past poseModel's own 0.3 mm or a new break event came (it was
+     re-posed every frame: ~80 ms frames with a wreck standing still on the box).
+   - `FLYDIY_SKINBREAK_STATS().ms`: each phase's worst frame and total (records, event, frames, pose).
+
+**Gates** (reports/evidence/DMG-D4b/d4a-fix/): DMGSKIN 116/116, UISMOKE, BUILD, JOIN PASS; **each output identical to the base's
+(bd0b9d0b) with times and sizes masked** (gate_dmgskin.txt, gate_dmgskin_base.txt, gates_vs_base.txt). The welded / ride-all / budget
+paths are page-only (the gate's records keep D4a's semantics; its numbers do not move).
+**Open:** the tear still takes most of the fuselage covering in a 30 m/s trunk impact (the frame folds; fabric past 15 % tears) and
+leaves small torn islands riding loose nodes; a crumple instead of a tear in compression, and dropping islands under a size, are
+D4b's / D4c's to judge with the user (D4b's stills and the colour census).
+
+### G1867.1 - THE WORLD-FRAME RIDING'S PRIOR (DMG-D4b, the D4a fix's follow-up; box-verified)
+A node whose live neighbourhood cannot say its turn (nodes in a line - a spar's) is held to a prior. It was its last turn, starting
+at the identity: right in the body frame (the gate's records), wrong by the aeroplane's whole attitude in the world (G1867's riding) -
+the chord-wise skin swung about the spar line and tore: **a 3 m/s taxi into a trunk (10 fuselage members broken) shredded both wings
+on the box**. Now (skin_break.js nodeFrames `init`, the page's world path only) every node's turn starts at, and is held to, its
+PIECE's rigid turn this frame (a Horn fit a piece, a few pieces), and the nodes' frames start again at a heal. The same taxi now
+draws its wings whole (g1867_1_taxi_after.jpg; the 30 m/s trunk 2.5 m out: g1867_1_trunk25_after.jpg). GATE DMGSKIN identical to
+089b2a2a's with times masked (its records do not pass `init`).
+
+## TRAIN 35 - THE DMG TRAIN, HANDED TO A0 (2026-10-05, DEFORM COORDINATOR, local; claude/dmg-integration; damage OFF by default)
+
+**What it carries** (all behind the damage layer, `GEN_DAMAGE_DEFAULT = false`; `?damage=1` on the page turns it on):
+- DMG-D0 INSTRUMENTS (G1800-G1809): sim-diverged vs broke-up, the velocity guard, per-beam plastic work, the ledger
+  section on every beam, the damage view, GATE DMGFPS / DMGINST.
+- DMG-D1a MEMBERS (G1810-G1819): seams and closed break groups, Euler, the seam rules, spruce's ragged break, the kink floor.
+- DMG-D1b WRECK INTEGRITY (G1820-G1829): the strip component test, the refs-core ('broke-up'), the engine limiters.
+- DMG-D3 CLUSTERS (G1840-G1849): fin / rod / boom / float root limits, the boom's mid-span station.
+- DMG-D2a CERTIFICATE (G1830-G1834): limits from the FAR 23 cases, the free test to destruction (BROKE AT 6.01-6.09 g).
+- DMG-D2b GEAR, its damage-OFF commit (G1835-G1839): the gear bracket, every ordinary operation at most 2/3 of its
+  certified yield. **Its switch ON (c0d8b7b0) is held.**
+- DMG-D4a SKIN (G1850-G1859) + DMG-D4b's D4a fix (G1866-G1867, G1867.1): the skin tears with the frame, in the default
+  hybrid drawing too.
+- The coordinator's G1898.1-.10: the switch's default; per-beam work for spruce's pull-out; the guard needs damage ON;
+  'broke-up' as the structure's ending; perf (one postLive hook, the aero pass reads st.w); the wet body over a break
+  (.5), the kink floor plastic (.6), the test to destruction creeps past the ultimate (.7), TANKS-FLOAT's tanks over a
+  break (.8), the wet body tears like the skin and is never held once broken (.9), the damage-OFF path = master's (.10).
+- Trains 32-34 merged in (34's conflicts in the solver, 32_hydro, the node exports, app.js and HANDOVER resolved by hand).
+
+**The gates:** the wide battery on the train-34 merge 51/52 (DMGINST's census red: the water nose-in, fixed by .9); the
+re-gate after .9 21/21; the final gates on this SHA DMGINST, DMGFPS, DMGCLUSTERS, DMGINTEGRITY, DMGSKIN, TREECRASH,
+SIMWORKER, LOAD, BENCH, UISMOKE, BUILD, JOIN PASS.
+
+**Perf** (node sim.step(1/60), nothing touching, against master 55dd98b7, quiet box, the order rotated, 20 rounds,
+paired medians): **damage OFF** metal ground +0.4 %, air +0.5 %, Cub ground +0.8 %, air +0.2 %. Damage ON with a
+certificate (the train-36 state) +0.3..+1.2 %; **ON without a certificate** (a new build's first seconds) Cub ground +3.0 %.
+
+**Held, with what each waits for:**
+- The switch ON (D2b c0d8b7b0): DMG-CERTCOST (the certificate takes 14-47 s in node; measure in the browser worker,
+  throttled; cut; a per-build cache), the no-certificate window (+3.0 %), the full battery with damage ON, the box eyeball.
+- DMG-DAMP (READY 8a22a4f9): lands with DMG-TYRE (the Cub ground-loops in a crosswind roll-out without the hidden
+  damper) and DMG-HULL (the twin on floats water-loops at 2 m/s); its gain onto 39b_servos after train 34.
+- DMG-D4b (the debris, the prop strike, GATE CLIP, the cockpit rule; the user's G1868 - show the crash, a small card -
+  and G1869 - the FPS drop on impact) and DMG-D4c (the outer covering and the inner shell as one wall; the user's
+  yellow-Cub test: a 30 m/s wreck reads 46-59 % non-yellow today).
+
+**Rulings this train** (DEFORM-AND-BREAK §12): dm10-dm12 (the user's), dm13 the fitting factor, dm14 headroom, dm15 the
+gear is the fuse, dm16 the 23.473 sink is the gear's limit case. FAR sections for A0 to open: 23.233, 23.345, 23.427,
+23.473-.499, 23.521-.537.
+
+## TRAIN 35 LANDED (2026-10-05, A0 the coordinator) - THE DAMAGE TRAIN
+
+Cargo: the Deform Coordinator's frozen SHA a7ad3fdf (claude/dmg-integration, on train 34 55dd98b7): DMG-D0 (instruments),
+D1a (members: Euler buckling, the plastic kink floor, seams, break groups), D1b (wreck integrity), D3 (clusters), D2a (the
+certificate), D2b's damage-OFF commit (the gear is the fuse; headroom 0.10-0.66 of yield), D4a (the skin breaks) with D4b's
+fixes (G1866-G1867.1), the coordinator's G1898.1-.10 (the water nose-in NaNs, the wet body over a break, the tanks over a
+break, the off path = master's). DAMAGE IS OFF BY DEFAULT (GEN_DAMAGE_DEFAULT false; ?damage=1 shows it). Details in the
+entry "TRAIN 35 - THE DMG TRAIN" above. HELD: the switch ON (the certificate's time per new build, CERTCOST), DMG-DAMP +
+TYRE + HULL + PLOUGH (after PILOT-ONE), D4b's crash-FPS cuts and the end card, D4c.
+PERF (the coordinator's quiet A/B, damage OFF vs train 34, 20 rotated rounds): +0.2..+0.8 % of the node step (noise ~0.5 %).
+STRICT GATE (full): 95 in slack, 50 better, 12 RED = the 30 cap's rows + the known hybrid-band rows; chase / cockpit loop
+15.25 / 15.35 / 16.2 ms (train 34's gate: 16.2 / 16.15 / 16.35) - no damage cost. BATTERY: the full battery PASS but AUDIO,
+which passed alone (145 s; its wall-clock read under the 6-job battery and D4b's untimed page boot). Parked re-cooked.
 
 ## G1527 POTATO-DEEP: THE USER'S GTX 660 LOG ON TRAIN 34 - THE PAGING IS GONE, THE TAXI IS TRIANGLES; THE PREMISES PATCH AT 3 px ON POTATO / LAPTOP (2026-10-05, POTATO-DEEP for A0, node only - the box's GPU busy)
 

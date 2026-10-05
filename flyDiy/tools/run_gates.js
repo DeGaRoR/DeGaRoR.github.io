@@ -75,7 +75,12 @@ const GATES = [
   // THE SOUND (G1604, SOUND-2026-10-04 §8): audio_params.js on six validated builds (firing, BPF, tip Mach off the
   // solver's rpm), AUDIO.update's budget (no heap, < 0.3 ms), nothing before a gesture, ?audio=0 builds nothing, the
   // silence, the settings, the sources, the wiring - and every check mutated red (--selftest alone); ~3 s
-  { id: 'AUDIO', file: 'audio/_audio_check.js', tier: 'core', wall: 45 },
+  { id: 'AUDIO', file: 'audio/_audio_check.js', tier: 'core', wall: 160 },
+  // THE BOOMBOX (G1713, SND-BOOMBOX): the shed's radio - the quick bar's `sound` and `radio` (AUDIO.enable, stepStation,
+  // music in the garage on), the boombox's hit (its own turned box, never over a nearer aeroplane part), the panel's
+  // controls on the page's DOM, MY MUSIC (blob: URLs made and revoked, the handle alone kept, nothing before a gesture)
+  // with the picker stubbed - and every check mutated red; < 1 s
+  { id: 'BOOMBOX', file: 'audio/_boombox_check.js', tier: 'core' },
   // SKY S1/S2 (2026-09-14): the day object and the almanac, headless
   { id: 'DAY', file: 'test_day.js', tier: 'core' },
   // THE CLIMATE (K0, 2026-09-22): the one wind field - the G72 column bit-identical against a
@@ -175,6 +180,50 @@ const GATES = [
   // G1112 (TREES-NEAR): the collidable woodland on the island (no analytic treeline, the tree map's TREE class) and the
   // solver meeting a trunk at any elevation (it tested trees under y = 24 m only: never at Jolene's 31.7 m HOME)
   { id: 'TREEHIT', file: '_treehit_check.js', tier: 'core' },
+  // G1470 (TREE-CRASH): the airframe yields, breaks and crashes against a trunk and never in what it was built for - the
+  // load test to 5.7 g, a flown 3.8 g pull, a drop at FAR 23.473's sink and its cap, a circuit (no yield on the five validated
+  // builds); a taxi into a trunk dents, a 30 m/s flight into one crashes with a wing broken; reset heals. Three builds at once.
+  // G1833 (DMG-D2a): flown on THE CERTIFICATE's limits (the game's, with the layer on): the load test clean to its limit and
+  // held at its ultimate, the pull read to the limit; `--physics` flies D1a's physics limits as before
+  { id: 'TREECRASH', file: '_treecrash_check.js', tier: 'core', weight: 3, wall: 900 },
+  // G1810-G1817 (DMG-D1a MEMBERS): the seams and the break groups (closed sets, in the generator and in the solver), Euler on
+  // the tube members, the seam rules, spruce's ragged break, the kink floor, nothing armed parked, and the break order on
+  // the bench to destruction and in the trunk flights (the first group to let go is a fitting's). Three builds at once
+  { id: 'DMGMEMBERS', file: '_dmg_members_check.js', tier: 'core', weight: 3, wall: 120 },
+  // G1830-G1834 (DMG-D2a CERTIFICATE): the members anchored to the loads the aeroplane is certified for (66_gen_cert.js): the
+  // cases, the stamp (the gear kept, off = nothing); on the bench to limit x 1.0 no set, x 1.2 a set (a ductile wing), to
+  // ultimate held, to ultimate x 1.1 broken at a joint; to destruction BROKE AT within [1.5, 1.5 m] x limit, a joint first;
+  // the flown pull to the limit clean; a bad design (struts / root at half the section asked) BROKE UP. Three builds at once
+  { id: 'DMGCERT', file: '_dmg_cert_check.js', tier: 'core', weight: 3, wall: 240 },
+  // G1835-G1838 (DMG-D2b GEAR): the gear's own calibration (the bracket: no set at the 23.473 sink, the gear yields and
+  // nothing breaks at 1.2 x, NASA 172 Test 1 breaks it, the gear first), the headroom of normal operations (the circuit,
+  // a crosswind circuit, taxis on grass / a rough field / the water / a chop, touchdowns at 1.0 and 1.5 m/s: at most
+  // 2/3 of the certified yield) and §7.4's gear rows (the ground loop, the porpoise, the float dig-in). Three at once
+  { id: 'DMGGEAR', file: '_dmg_gear_check.js', tier: 'core', weight: 3, wall: 1800 },
+  // G1840-G1843 (DMG-D3 CLUSTERS): a shape-matched cluster is one breakable part - the fin, the twin's rod, the floats (and
+  // the twin-boom fixture, reported): its root load read off the cut equals the statics; nothing parts in normal
+  // operations (the load test, the pull, the drops, a circuit, parked, the ordinary water cases); a scripted pull takes
+  // each part off cleanly (its own group, rigid), the rod splits at its mid-span station, tears in twist; the water's
+  // nose-ins reported. Three builds at once
+  { id: 'DMGCLUSTERS', file: '_dmg_clusters_check.js', tier: 'core', weight: 3, wall: 900 },
+  // G1800-G1804 (DMG-D0 INSTRUMENTS): the NaN ending is 'sim-diverged' ('broke-up' the structure's); the velocity guard (150 m/s
+  // off the CG: a blown lattice that never goes NaN trips it, 200 m/s true does not; the census of what the validated builds
+  // fly never near it); the per-beam plastic work sums to the total; every beam of the five builds carries its ledger
+  // section; the damage view's colours (dmg_overlay.js, pure) and its switch
+  { id: 'DMGINST', file: '_dmg_instruments_check.js', tier: 'core', wall: 240 },
+  // G1805 (DMG-D0): A LOW FRAME RATE NEVER FAKES A YIELD OR A CRASH - TREE-CRASH's trunk crashes, three legal hard landings and
+  // two water cases batched as the page batches them at 2 / 5 / 10 / 30 fps (the brief's 30 / 12 / 6 / 2 steps, and the PACE
+  // block lifted out of app.js at caps 30 / 60, 1x / 2x) and through the worker host: bitwise the 60 fps run. Four at once
+  { id: 'DMGFPS', file: '_dmgfps_check.js', tier: 'core', weight: 4, wall: 400 },
+  // G1820-G1823 (DMG-D1b WRECK INTEGRITY): the strip component test (no live strip on two pieces after any break; one
+  // broken diagonal no longer silences a bay), the refs-core (one group-free core; a fuselage cut across breaks up), the
+  // SUPPORT limiters (only with damage on, slack in normal operations, the engine kept off the cabin in a severe
+  // nose-in). Three builds at once
+  { id: 'DMGINTEGRITY', file: '_dmg_integrity_check.js', tier: 'core', weight: 3, wall: 180 },
+  // G1850-G1853 (DMG-D4a SKIN): the broken list over the worker on change (inline = worker at every step; no byte with
+  // nothing broken), and the skin over a break - no live triangle on two pieces or across a broken member, none stretched
+  // past 1.15 x its rest + 1 cm, on TREECRASH / DMGINTEGRITY's crash cases; damage off = the base's skin bit for bit. Three at once
+  { id: 'DMGSKIN', file: '_dmg_skin_check.js', tier: 'core', weight: 3, wall: 240 },
   // G286: the graphics settings menu - presets, the pref, the handles
   { id: 'GFX', file: '_gfx_check.js', tier: 'core' },
   // G584: the programs - the real three on a fake GL: the depth warm-up is the shadow pass's own set, two
@@ -193,6 +242,7 @@ const GATES = [
   // B10 G1035-G1039: the roll-out shot on the real three and every archetype - out past the door, the wheels at
   // distance / radius, no allocation a frame, the skip, the stand's first frame at the cut; ~40 s
   { id: 'ROLLANIM', file: '_rollanim_check.js', tier: 'core', wall: 45 },
+  { id: 'UPDATE', file: '_update_check.js', tier: 'core', wall: 5 },   // UPDATE-NOW G1535-G1539: the "Update" pill on a differing version.json, nothing on the same build or a failed fetch, the cache-busting URL (params kept, stripped after load), the autosave before the navigation, the media worker's sweep across an update
   { id: 'UILAYER', file: '_ui_layer_check.js', tier: 'core', wall: 10 },   // G1370: the in-world helpers on the UI layer; the verbs off for the roll-out shot
   { id: 'FADES', file: '_fades_check.js', tier: 'core' },   // A2-FADES G670-G673: the prop disc, the grass's grow / pre-grow / lead, the premises' rise
   { id: 'CONTACT', file: '_contact_check.js', tier: 'core' },   // A6-GROUND G1000-G1003: the pavement at terrainH where the wheels roll, the contact shadows, nothing loose on a pavement
@@ -300,6 +350,12 @@ const GATES = [
   { id: 'COWL', file: '_cowl_check.js', tier: 'core' },       // the cowl, and the engine inside it
   { id: 'ENGMESH', file: '_eng_mesh_check.js', tier: 'core' },// the engine's own health + ledger
   { id: 'JOIN', file: '_join_check.js', tier: 'core' },       // editor -> spec -> a buildable aeroplane
+  // THE RESOLVED SPEC IS A FIXED POINT AND THE CORNERS ARE THE STAND (SPEC-FIXPOINT G1550, the 2026-10-04
+  // review's A2 / A3 / B8 / B9 / B13 / E1-E3): GEN_FIELDS against GEN_DEFAULT and clampSpec; clamp idempotent;
+  // resolve(resolve(s)) == resolve(s); buildGen leaves its input alone and rebuilds def.spec; the six CG corners
+  // the same lattice as the stand - on the five validated builds and an offset / envelope / null corpus; and the
+  // page's join headless, on -> off -> commit through the garage's merge, back to never-on. ~70 s (the joins).
+  { id: 'SPECFIX', file: '_specfix_check.js', tier: 'core', wall: 75 },
   // G134: the custom engine — thermo laws over the registry, the clamp
   // door, and the row reaching the frame; ENGID is the identity ruling
   // (untouched preset = the certified row; deviated = modified/custom)
@@ -323,6 +379,12 @@ const GATES = [
   // the fetch path and the Blob's glue; the transport, the pose age and the dilation printed; G1365: the page's freeze
   // HOLDS the flight (60 s on a fake clock, 1.5 s on the real thread) and it goes on from there; ~60 s
   { id: 'SIMWORKER', file: '_simworker_check.js', tier: 'core', wall: 70 },
+  // G1530 (POSE-BACK; the user at ~2 fps: "as soon as it took off ... it went a little backward over a frame"): the drawn
+  // pose through a take-off at a simulated 2 / 5 / 10 / 30 fps (steady, late, ragged pages, a CPU-starved worker) - the
+  // worker's view against sim_host's own clock on a fake wall clock, and the inline PACE + POSE_LERP lifted from app.js,
+  // both flying the real solver: monotonic along the motion, never a step ahead of the newest state, within a step of
+  // the solver's own CG; the old clock caught going back; even 60 / 30 fps the same bits with and without; ~95 s
+  { id: 'POSEBACK', file: '_poseback_check.js', tier: 'core', wall: 100, weight: 3 },
   // G816 (C1b): the PAGE flown through the worker - dev.html?simw=1 against dev.html in the page-in-node harness (its
   // Worker shim: node worker_threads, the same Blob source and messages), the Cub and the metal Cessna, the roll-out,
   // 40 s of the departure taxi at 2x: every step's p / v / CG / phase and every frame's page reads bit-identical, no
@@ -570,6 +632,20 @@ const GATES = [
   // NaN/clip/DC/subnormal, process() allocation-free, seeded, the life driven by the solver, the sound
   // row physics-inert; every assertion negative-verified. SND-CORE's _audio_check.js absorbs it; ~3 min
   { id: 'AUDIOENG', file: 'audio/_engine_check.js', tier: 'core', wall: 320 },
+  // REVIEW 2026-10-04 (A6): the settlement houses' hitboxes stand where the houses are drawn - the registry's frame
+  // against the renderer's, sampled inside and outside every footprint; ~2 s. A sibling gate written by the same
+  // review is NOT registered because it is red on master until its finding is fixed: _genpairs_check.js (B10: the
+  // lattice over paired configurations - the twin boom's two zero-length beams)
+  { id: 'OBSTFRAME', file: '_obstframe_check.js', tier: 'core', wall: 5 },
+  // REVIEW 2026-10-04 (A5), registered with G1560 WORLD-STRIPS: every generated strip on the ground its record says -
+  // walked at 2 m down its centreline and both edges, |elev - terrainH| < 0.5 m and no water, seeds 0-3 (seed 0's
+  // A2 Pelham Field sat across a river); ~6 s
+  { id: 'STRIPGROUND', file: '_stripground_check.js', tier: 'core', wall: 8 },
+  // GEN-PAIRS G1580 (REVIEW 2026-10-04 B10 / E7): the lattice over seventeen single and paired configurations
+  // (tricycle, pusher, wingTop, twin boom, V-tail, biplane, floats and their pairs) - every node finite, every
+  // mass positive, every member over 1 mm and none refused by B() (parts.degenerate), the lattice mirrored; ~5 s.
+  // Red before G1580 on every twin-boom combination. GATE GEN's PAIRS block holds the same pairs' rank and stance.
+  { id: 'GENPAIRS', file: '_genpairs_check.js', tier: 'core', wall: 10 },
 ];
 
 const args = process.argv.slice(2);
@@ -594,6 +670,14 @@ let wallTab = {};
 try { wallTab = JSON.parse(fs.readFileSync(WALL_FILE, 'utf8')); } catch (e) {}
 
 const selected = GATES.filter(g => !(only && !only.includes(g.id)) && !(coreOnly && g.tier !== 'core'));
+// REVIEW 2026-10-04 (B26): an --only id that names no gate selected nothing and the summary printed BATTERY: PASS
+if (only) {
+  const unknown = only.filter(id => !GATES.some(g => g.id === id));
+  if (unknown.length || !selected.length) {
+    console.error(`run_gates: unknown gate id(s) in --only: ${unknown.join(', ') || '(none selected)'}`);
+    process.exit(2);
+  }
+}
 const skipped = GATES.filter(g => !(only && !only.includes(g.id)) && coreOnly && g.tier !== 'core').length;
 
 // one job per gate, or per shard when the pool can use them

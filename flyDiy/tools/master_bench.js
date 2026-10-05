@@ -304,8 +304,8 @@ async function sweep() {
   const srv = serve(PORT, FALLBACK); await sleep(800);
   const root = await serveRoot(PORT);
   if (!root || path.resolve(root) !== path.resolve(REPO)) { console.error('master_bench: the server on ' + PORT + ' serves ' + root + ', not this tree'); try { srv.kill(); } catch (e) {} process.exit(4); }
-  const BASE = 'http://localhost:' + PORT + '/flyDiy/index.html';
-  const R = { meta: { date: new Date().toISOString(), commit: (() => { try { return execSync('git rev-parse --short HEAD', { cwd: REPO }).toString().trim(); } catch (e) { return '?'; } })(),
+  const BASE = 'http://localhost:' + PORT + '/flyDiy/index.html' + (process.env.MB_Q ? '?' + process.env.MB_Q : '');   // G1490: MB_Q, a query for a same-tree A/B (fbake=hy1.6-2.0)
+  const R = { meta: { q: process.env.MB_Q || null, date: new Date().toISOString(), commit: (() => { try { return execSync('git rev-parse --short HEAD', { cwd: REPO }).toString().trim(); } catch (e) { return '?'; } })(),
     build: (() => { try { return JSON.parse(fs.readFileSync(path.join(ROOT, 'version.json'), 'utf8')).build; } catch (e) { return '?'; } })(), size: SIZE, secs: SECS, builds: WANT },
     loads: [], scenes: [], notes: [], exceptions: [], profile: { udd: null, fresh: null, cache: [] } };
   const log = s => console.log('  ' + s);

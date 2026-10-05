@@ -71,6 +71,10 @@ const TOL = { rel: 0.01, abs: 2 };
 //      { key: 'boot/rollout:compile/', build: '*', why: 'the contact-shadow pass links its programs under the screen', g: 'G1101' }
 // An entry admits a rise until the next --update takes it into the baseline; then it is dead and should go.
 const ALLOW = [
+  // G1710 (SND-BOOMBOX, train 34 2026-10-05): the garage radio - the boombox prop and its halo in the shed - drawn at the
+  // editor step: +56 GL calls, +328 B of uniforms (Cub and Cessna alike)
+  { key: 'boot/garage:editor/gl.calls', build: '*', rise: 60, why: 'the boombox prop and its halo in the shed', g: 'G1710' },
+  { key: 'boot/garage:editor/bytes.uniforms', build: '*', rise: 400, why: 'the boombox prop and its halo in the shed', g: 'G1710' },
   // G1335 (LAKE-HOLES, train 30 2026-10-04): THE LAKEBEDS CARVED, THE GROUND DRAWN WHOLE - no hole cut at the shore, the
   // carved bed and its skirts drawn as ground: taxi main triangles +185.8 k (+1.4 %, Cub and Cessna, the cook fresh); the
   // strict gate's taxi render / loop rows in slack

@@ -49,6 +49,30 @@ function simViewDefSig(def) {
   return def.nodes.length + ':' + h.toString(16);
 }
 
+// G1850 (DMG-D4a): THE DAMAGE STATE THE PAGE HOLDS - what sim_host.js simDmgHop sends on change (a break, a cluster
+// cut; a set at most every 0.1 s), applied here. The same object inline (app.js runs the same hop on its own sim):
+//   v        bumps on every payload; vB only when the broken list / the pieces moved (the skin's event)
+//   br       the broken members, in order; broken[bi] 1 for each
+//   pc       each node's piece (0 = the core: the piece the body's refs are on), null while one piece
+//   set      each member's permanent set (dmg_overlay.js setOf), 0 where none
+function simViewDmgState(n, nb) {
+  return { v: 0, vB: 0, n, nb, br: [], broken: new Uint8Array(nb), pc: null, nPc: 1, set: new Float32Array(nb), sB: '0:0', sS: '0:0' };
+}
+function simViewDmgApply(D, P) {
+  if (!P) return D;
+  if (P.br) {
+    D.br = P.br.slice(); D.broken.fill(0);
+    for (const bi of D.br) if (bi >= 0 && bi < D.nb) D.broken[bi] = 1;
+    D.pc = P.pc ? Int32Array.from(P.pc) : null;
+    let k = 0; if (D.pc) for (let i = 0; i < D.pc.length; i++) if (D.pc[i] > k) k = D.pc[i];
+    D.nPc = k + 1; D.vB++; D.sB = P.sB;
+  }
+  if (P.st) { D.set.fill(0); for (let j = 0; j + 1 < P.st.length; j += 2) if (P.st[j] < D.nb) D.set[P.st[j]] = P.st[j + 1]; }
+  if (P.sS) D.sS = P.sS;
+  D.v++;
+  return D;
+}
+
 function makeSimView(def, opts) {
   const R = opts.ready, S = R.slots, n = def.nodes.length, N3 = n * 3;
   const post = opts.post || (() => false);
@@ -70,6 +94,17 @@ function makeSimView(def, opts) {
   // delay dipped). Now it carries the two newest snapshots' motion on for the time missing, a step at most: the pose
   // where the aeroplane is going, not where it last was. opts.starveEx false (?starvex=0) is the old jump.
   const STARVE_EX = opts.starveEx !== false;
+  // G1530 (POSE-BACK; the user at ~2 fps: "as soon as it took off ... it went a little backward over a frame"): THE DRAWN
+  // CLOCK NEVER RUNS BACK. T maps to sim time through the newest snapshot's DUE, and that mapping JUMPS BACK whenever the
+  // host lets wall time go: its clock held 250 ms past the page's last beat (G1365 - every frame of a 2 fps page) and
+  // re-anchored on the next beat, or its catch-up cap dropping the excess. A starved frame meanwhile drew the newest + a
+  // step (G1166b's bound); a frame coming soon after the re-anchor mapped to the new snapshot's time LESS the delay - up
+  // to 3-4 steps behind what was drawn (GATE POSEBACK, 2 fps with a quick frame now and then: 1.21 m back at the
+  // take-off). Now a LATER frame of the same flight draws no earlier sim time than the last one drew (MON): it holds there
+  // until the mapping catches up. Still never more than a step past the newest snapshot (the bound above); a re-query of
+  // an earlier T (a gate's probe) and frame(Infinity) are not frames of the clock. ?poseback=0 is the old mapping (an A/B)
+  const MONO = opts.monotonic !== false;
+  const MON = { T: -Infinity, t: -Infinity, ep: NaN, held: 0 };
   let delayS = fixedDelay ? opts.delayS : 1.5 * R.dt;
   const Q = [];                            // the ring, oldest first (B = its newest, A = the one before)
   const DS = { frames: 0, starved: 0, early: 0, lagMax: 0, lags: new Float64Array(60), li: 0, lastT: 0 };
@@ -93,6 +128,7 @@ function makeSimView(def, opts) {
   let stamp = null, pending = [], ctlPatch = null, engSent = 'null';
   let strays = 0, takes = 0, mCur = null;
   const cv = [0, 0, 0];
+  const dmgS = simViewDmgState(n, def.beams.length);   // G1850
 
   // the levers: reads show the host's (the pilot writes them), a write queues a command
   const lever = {};
@@ -128,6 +164,7 @@ function makeSimView(def, opts) {
     get totalM() { return B ? B.f[S.TOTALM] : def.nodes.reduce((a, nd) => a + nd.m, 0); },
     get stepIndex() { return B ? B.f[S.STEP] : 0; },
     snapshot: () => B && B.f,
+    dmgState: () => dmgS,                  // G1850: the damage state (broken, pieces, sets) - the host's, on change
 
     // ---- the frame: the pose at T less the delay, between the two snapshots that hold that moment (the ring)
     frame(T) {
@@ -138,22 +175,28 @@ function makeSimView(def, opts) {
       if (T !== Infinity) post({ cmd: 'beat' });
       const fB = B.f, ep = fB[S.EPOCH];
       let X = B, Y = B, alpha = 1;
+      // G1530: a frame after the last one, of the same flight - its drawn time no earlier than the last frame's
+      const fwd = MONO && T !== Infinity && T > MON.T && MON.ep === ep;
       if (T !== Infinity && Q.length > 1) {
         // the sim time T maps to: B's, plus the wall time since B was DUE on the host's clock, at the host's rate - less
         // the delay (fixed, or the ring's own: adapt)
         const lag = (T - dueOf(fB)) / 1000 * (fB[S.RATE] || 1);
         if (!fixedDelay) adapt(lag, T, !!(fB[S.FLAGS] & S.F_RUNNING));
-        const tau = fB[S.T] + lag - delayS;
+        let tau = fB[S.T] + lag - delayS;
+        if (fwd && tau < MON.t) { tau = MON.t; MON.held++; }   // G1530: held where the last frame drew, not back
         if (tau < fB[S.T]) {
           let j = Q.length - 1;                   // the oldest of this flight's snapshots at or after tau
           while (j > 0 && Q[j - 1].f[S.EPOCH] === ep && Q[j - 1].f[S.T] >= tau) j--;
           if (j > 0 && Q[j - 1].f[S.EPOCH] === ep) { X = Q[j - 1]; Y = Q[j]; alpha = (tau - X.f[S.T]) / (Y.f[S.T] - X.f[S.T]); }
           else { X = Y = Q[j]; alpha = 0; DS.early++; }   // before the ring: its oldest
-        } else if (fB[S.FLAGS] & S.F_RUNNING) {   // the snapshot for this moment has not come
-          DS.starved++;
+        } else if ((fB[S.FLAGS] & S.F_RUNNING) || (fwd && MON.t > fB[S.T])) {   // the snapshot for this moment has not come
+          // (G1530: or a pause after a frame drawn past the newest - held there, not snapped back to it)
+          if (fB[S.FLAGS] & S.F_RUNNING) DS.starved++; else tau = MON.t;
           // G1166b: on from the newest by the two newest's own motion (alpha past 1 extrapolates below), a step at most
-          const P = Q.length > 1 ? Q[Q.length - 2] : null;
-          if (STARVE_EX && P && P.f[S.EPOCH] === ep && fB[S.T] > P.f[S.T]) {
+          // (G1530: the newest of an EARLIER time - a pause's or a placement's snapshot repeats the newest state's)
+          let P = null;
+          for (let i = Q.length - 2; i >= 0 && !P; i--) if (Q[i].f[S.EPOCH] === ep && Q[i].f[S.T] < fB[S.T]) P = Q[i];
+          if (STARVE_EX && P) {
             X = P; Y = B; alpha = 1 + Math.min(tau - fB[S.T], R.dt) / (fB[S.T] - P.f[S.T]);
           }
         }
@@ -169,11 +212,15 @@ function makeSimView(def, opts) {
       const wShown = X === Y ? fY[S.WALL] : fX[S.WALL] + (fY[S.WALL] - fX[S.WALL]) * alpha;
       // G1100: the drawn pose's own sim time (the sea is drawn at it: app.js WATER.setTime)
       const tShown = X === Y ? fY[S.T] : fX[S.T] + (fY[S.T] - fX[S.T]) * alpha;
+      // G1530: the clock's memory - a frame's (forward, or the first of a flight), never a re-query's; frame(Infinity) is none
+      if (T === Infinity) { MON.T = MON.t = -Infinity; MON.ep = NaN; }
+      else if (fwd || MON.ep !== ep) { MON.T = T; MON.t = tShown; MON.ep = ep; }
       return { alpha, ageMs: T - wShown, t: tShown };
     },
     // G1100: the ring's reading - the delay (s), the frames drawn, those the newest snapshot had to stand for (starved:
     // its successor late) and those before the ring's oldest (early), the snapshots held
-    delay: () => ({ delayS, fixed: fixedDelay, frames: DS.frames, starved: DS.starved, early: DS.early, held: Q.length, lagMaxS: DS.lagMax }),
+    // (G1530: monoHeld - the frames held at the last drawn time rather than drawn back)
+    delay: () => ({ delayS, fixed: fixedDelay, frames: DS.frames, starved: DS.starved, early: DS.early, held: Q.length, lagMaxS: DS.lagMax, monoHeld: MON.held }),
     ring: () => Q.map(s => s.f),
 
     // ---- a message from the host; true when it was a snapshot
@@ -189,6 +236,8 @@ function makeSimView(def, opts) {
       if (M.ctl) view.snapCtl = M.ctl;       // G815: the host's ctl as published (sim_link.js mirrors it whole)
       if (M.out) { view.out = M.out; view.out.hydro = M.hydro || null; }
       if (M.eng) view.eng = M.eng;
+      if ('dmg' in M) view.dmg = M.dmg;   // G1470: the crash's verdict (null until there is one)
+      if (M.dmgB) simViewDmgApply(dmgS, M.dmgB);   // G1850: the broken list, on change
       if (M.fuel) view.fuel = M.fuel;
       view.hydro = M.hydro || null;
       view.wheels = M.wheels || null;
@@ -261,5 +310,5 @@ function makeSimView(def, opts) {
   return view;
 }
 
-if (typeof window !== 'undefined') window.SIM_VIEW = { make: makeSimView, defSig: simViewDefSig };
-if (typeof module !== 'undefined' && module.exports) module.exports = { makeSimView, simViewDefSig, SIM_VIEW_LEVERS };
+if (typeof window !== 'undefined') window.SIM_VIEW = { make: makeSimView, defSig: simViewDefSig, dmgState: simViewDmgState, dmgApply: simViewDmgApply };
+if (typeof module !== 'undefined' && module.exports) module.exports = { makeSimView, simViewDefSig, SIM_VIEW_LEVERS, simViewDmgState, simViewDmgApply };

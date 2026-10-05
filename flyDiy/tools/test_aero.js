@@ -17,7 +17,10 @@ const checks = {};
 const fields = strips.filter(a => a.kind === 'main');
 const back = strips.filter(a => a.kind === 'strip');
 console.log(`aerodromes: ${W.aerodromes.length} total | ${fields.length} town fields | ${back.length} backcountry`);
-checks['counts'] = fields.length >= 5 && back.length >= 1;
+// (G1560 WORLD-STRIPS: 5 -> 4. B14's outlet rivers and D8's lakes re-sited seed 0's towns; three of the seven over
+// pop 250 find no admitted candidate on their rings now (two did before), and A5 refuses a field over a bed or water.
+// Seed 0 has HOME + Morford 900 m paved + Pelham, Lunford 650 m + Berton 480 m; reports/WORLD-STRIPS-2026-10-04.md)
+checks['counts'] = fields.length >= 4 && back.length >= 1;
 checks['size mix'] = fields.some(a => a.surface === S.PAVED) && fields.some(a => a.surface === S.GRASS);
 
 {

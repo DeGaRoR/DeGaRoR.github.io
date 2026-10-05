@@ -1,0 +1,15 @@
+cert (cub): 2581 ms in the worker, 394 members (Float64Array), the envelope equal to node's
+destroy (cub): 2168 ms in the worker: BROKE AT 6.01 g - LIMIT 3.8 g / ULTIMATE 5.7 g / BROKE AT 6.01 g (wing0R:strut)
+WORKER: PASS
+cert (jodel): 4455 ms in the worker, 492 members (Float64Array), the envelope equal to node's
+destroy (jodel): 6046 ms in the worker: BROKE AT 6.10 g - LIMIT 3.8 g / ULTIMATE 5.7 g / BROKE AT 6.10 g (wing0L:root)
+WORKER: PASS
+cert (metal): 3431 ms in the worker, 442 members (Float64Array), the envelope equal to node's
+destroy (metal): 5344 ms in the worker: BROKE AT 6.06 g - LIMIT 3.8 g / ULTIMATE 5.7 g / BROKE AT 6.06 g (wing0R:strut)
+WORKER: PASS
+cert (floats): 8215 ms in the worker, 533 members (Float64Array), the envelope equal to node's
+destroy (floats): 6083 ms in the worker: BROKE AT 6.10 g - LIMIT 3.8 g / ULTIMATE 5.7 g / BROKE AT 6.10 g (wing0R:strut)
+WORKER: PASS
+cert (twinFloats): 9313 ms in the worker, 519 members (Float64Array), the envelope equal to node's
+destroy (twinFloats): 4164 ms in the worker: BROKE AT 6.01 g - LIMIT 3.8 g / ULTIMATE 5.7 g / BROKE AT 6.01 g (wing0R:strut)
+WORKER: PASS

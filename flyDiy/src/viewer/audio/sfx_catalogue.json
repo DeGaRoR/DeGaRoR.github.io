@@ -236,5 +236,257 @@
   "kind": "shot",
   "durationS": 6.01,
   "lufs": -20.7
+ },
+ {
+  "key": "amb.rain.outside",
+  "file": "media/audio/sfx/amb_rain_outside_523391.da71d15a.mp3",
+  "kind": "bed",
+  "durationS": 32,
+  "lufs": -23
+ },
+ {
+  "key": "amb.birds.open",
+  "file": "media/audio/sfx/amb_birds_open_456766.c24bacac.mp3",
+  "kind": "bed",
+  "durationS": 32,
+  "lufs": -23
+ },
+ {
+  "key": "amb.lake.shore",
+  "file": "media/audio/sfx/amb_lake_shore_352356.21fc75ef.mp3",
+  "kind": "bed",
+  "durationS": 32,
+  "lufs": -29.7
+ },
+ {
+  "key": "amb.sea.open",
+  "file": "media/audio/sfx/amb_sea_open_460061.6c0c2f0e.mp3",
+  "kind": "bed",
+  "durationS": 32,
+  "lufs": -23
+ },
+ {
+  "key": "bird.loon",
+  "file": "media/audio/sfx/bird_loon_39339.3c306d67.mp3",
+  "kind": "shot",
+  "durationS": 6.01,
+  "lufs": -26.4
+ },
+ {
+  "key": "tram.bell",
+  "file": "media/audio/sfx/tram_bell_497561.9e7279e8.mp3",
+  "kind": "shot",
+  "durationS": 1.54,
+  "lufs": -16
+ },
+ {
+  "key": "tram.hum",
+  "file": "media/audio/sfx/tram_hum_442493.2b3fe7d3.mp3",
+  "kind": "loop",
+  "durationS": 10,
+  "lufs": -23
+ },
+ {
+  "key": "boat.idle",
+  "file": "media/audio/sfx/boat_idle_637743.0d3d93e0.mp3",
+  "kind": "loop",
+  "durationS": 10,
+  "lufs": -23
+ },
+ {
+  "key": "bird.crow",
+  "file": "media/audio/sfx/bird_crow_361470.92582da1.mp3",
+  "kind": "shot",
+  "durationS": 0.36,
+  "lufs": -16
+ },
+ {
+  "key": "bird.crow",
+  "file": "media/audio/sfx/bird_crow_75162.543a2c22.mp3",
+  "kind": "shot",
+  "durationS": 0.86,
+  "lufs": -16
+ },
+ {
+  "key": "bird.gull",
+  "file": "media/audio/sfx/bird_gull_263786.51e3ecb8.mp3",
+  "kind": "shot",
+  "durationS": 0.37,
+  "lufs": -16
+ },
+ {
+  "key": "bird.gull",
+  "file": "media/audio/sfx/bird_gull_73497.919ce49c.mp3",
+  "kind": "shot",
+  "durationS": 3.67,
+  "lufs": -16.9
+ },
+ {
+  "key": "animal.bear",
+  "file": "media/audio/sfx/animal_bear_nps-grizzly-vocal.def683e6.mp3",
+  "kind": "shot",
+  "durationS": 4,
+  "lufs": -21.5
+ },
+ {
+  "key": "animal.bear",
+  "file": "media/audio/sfx/animal_bear_nps-grizzly-vocal.98163160.mp3",
+  "kind": "shot",
+  "durationS": 3.78,
+  "lufs": -18
+ },
+ {
+  "key": "animal.bear",
+  "file": "media/audio/sfx/animal_bear_nps-grizzly-roar.02f72aba.mp3",
+  "kind": "shot",
+  "durationS": 3.3,
+  "lufs": -16
+ },
+ {
+  "key": "animal.elk",
+  "file": "media/audio/sfx/animal_elk_nps-elk-bugle-1.10ba252d.mp3",
+  "kind": "shot",
+  "durationS": 2.42,
+  "lufs": -17.1
+ },
+ {
+  "key": "animal.elk",
+  "file": "media/audio/sfx/animal_elk_nps-elk-bugle-2.d2390a80.mp3",
+  "kind": "shot",
+  "durationS": 4.44,
+  "lufs": -17.4
+ },
+ {
+  "key": "animal.elk",
+  "file": "media/audio/sfx/animal_elk_nps-elk-bugle-2.c7320d85.mp3",
+  "kind": "shot",
+  "durationS": 5.41,
+  "lufs": -16
+ },
+ {
+  "key": "animal.deer",
+  "file": "media/audio/sfx/animal_deer_351113.97a7d90b.mp3",
+  "kind": "shot",
+  "durationS": 2.7,
+  "lufs": -20.7
+ },
+ {
+  "key": "animal.deer",
+  "file": "media/audio/sfx/animal_deer_351113.5b6da753.mp3",
+  "kind": "shot",
+  "durationS": 2.7,
+  "lufs": -19
+ },
+ {
+  "key": "animal.whale.blow",
+  "file": "media/audio/sfx/animal_whale_blow_nps-humpback-trumpet.58dfd4e5.mp3",
+  "kind": "shot",
+  "durationS": 4,
+  "lufs": -20.8
+ },
+ {
+  "key": "animal.whale.blow",
+  "file": "media/audio/sfx/animal_whale_blow_nps-humpback-trumpet.d2504229.mp3",
+  "kind": "shot",
+  "durationS": 3.7,
+  "lufs": -18.7
+ },
+ {
+  "key": "animal.whale.blow",
+  "file": "media/audio/sfx/animal_whale_blow_nps-humpback-trumpet.7663f71d.mp3",
+  "kind": "shot",
+  "durationS": 3.7,
+  "lufs": -17.2
+ },
+ {
+  "key": "animal.orca.blow",
+  "file": "media/audio/sfx/animal_orca_blow_nps-porpoise.b8a0c8fc.mp3",
+  "kind": "shot",
+  "durationS": 2.11,
+  "lufs": -22
+ },
+ {
+  "key": "animal.orca.blow",
+  "file": "media/audio/sfx/animal_orca_blow_nps-porpoise.5d0de2ec.mp3",
+  "kind": "shot",
+  "durationS": 2.2,
+  "lufs": -23.1
+ },
+ {
+  "key": "animal.orca.blow",
+  "file": "media/audio/sfx/animal_orca_blow_nps-porpoise.45872e4e.mp3",
+  "kind": "shot",
+  "durationS": 2.2,
+  "lufs": -20.6
+ },
+ {
+  "key": "bird.thrush",
+  "file": "media/audio/sfx/bird_thrush_nps-varied-thrush.603dc854.mp3",
+  "kind": "shot",
+  "durationS": 1.44,
+  "lufs": -16
+ },
+ {
+  "key": "bird.thrush",
+  "file": "media/audio/sfx/bird_thrush_nps-varied-thrush.dc4d4664.mp3",
+  "kind": "shot",
+  "durationS": 1.43,
+  "lufs": -16
+ },
+ {
+  "key": "bird.thrush",
+  "file": "media/audio/sfx/bird_thrush_nps-varied-thrush.dba365b7.mp3",
+  "kind": "shot",
+  "durationS": 1.59,
+  "lufs": -16
+ },
+ {
+  "key": "bird.crow",
+  "file": "media/audio/sfx/bird_crow_nps-raven.8c13e1ca.mp3",
+  "kind": "shot",
+  "durationS": 2.7,
+  "lufs": -26.1
+ },
+ {
+  "key": "bird.eagle",
+  "file": "media/audio/sfx/bird_eagle_nps-golden-eagle.ca760fa8.mp3",
+  "kind": "shot",
+  "durationS": 3.4,
+  "lufs": -22
+ },
+ {
+  "key": "bird.loon",
+  "file": "media/audio/sfx/bird_loon_nps-loon.ebce31d5.mp3",
+  "kind": "shot",
+  "durationS": 5,
+  "lufs": -16
+ },
+ {
+  "key": "bird.loon",
+  "file": "media/audio/sfx/bird_loon_nps-loon.c47baae3.mp3",
+  "kind": "shot",
+  "durationS": 5,
+  "lufs": -17.3
+ },
+ {
+  "key": "bird.owl",
+  "file": "media/audio/sfx/bird_owl_479588.817cca9b.mp3",
+  "kind": "shot",
+  "durationS": 3,
+  "lufs": -16
+ },
+ {
+  "key": "bird.owl",
+  "file": "media/audio/sfx/bird_owl_558396.fc398755.mp3",
+  "kind": "shot",
+  "durationS": 2.59,
+  "lufs": -16
+ },
+ {
+  "key": "mill.stamp",
+  "file": "media/audio/sfx/mill_stamp_322871.33f9ef7a.mp3",
+  "kind": "loop",
+  "durationS": 6.4,
+  "lufs": -23
  }
 ]

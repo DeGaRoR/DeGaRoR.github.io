@@ -105,7 +105,7 @@ console.log('GATE FOG');
   yes(/k: 'drawDist'/.test(gfx), 'GRAPHICS carries the draw-distance row');
   const PRESETS = (() => { const w = { localStorage: { getItem: () => null, setItem() {}, removeItem() {} }, requestAnimationFrame: () => 1 }; w.window = w;
   require('vm').runInNewContext(gfx, Object.assign({ window: w, setInterval: () => 0, clearInterval() {} }, w)); return w.GFX ? w.GFX.PRESETS : {}; })();   // the evaluated presets (the five tiers, PERF 2026-09-23)
-  yes(Object.keys(PRESETS).length === 6 && Object.values(PRESETS).every(p => p.drawDist === 'vis' || p.drawDist === 'full'), 'every preset names it');   // (G1524: six tiers, the laptop rung)
+  yes(Object.keys(PRESETS).length === 6 && Object.values(PRESETS).every(p => p.drawDist === 'vis' || p.drawDist === 'full'), 'every preset names it');
   yes(/drawDist: 'live'/.test(gfx), 'it is live - no restart');
 }
 

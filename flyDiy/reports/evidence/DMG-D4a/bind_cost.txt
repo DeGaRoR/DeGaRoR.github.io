@@ -1,0 +1,2 @@
+cub 114752 vertices, the nearest-node tier: 195 / 124 / 55 ms (cold, warm, warm)
+floats 154784 vertices, the nearest-node tier: 132 / 95 / 65 ms (cold, warm, warm)

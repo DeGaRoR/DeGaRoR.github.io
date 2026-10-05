@@ -1,0 +1,1 @@
+{"start":"1.60 m","tapOnScale":"1.60 m","horizontalDragOnScale":"1.60 m","verticalSwipeOnScale":{"value":"1.60 m","scroll":[300,394]},"verticalSwipeOnKnob":{"value":"1.60 m","scroll":[300,300]},"horizontalDragFromKnob":"1.85 m","undoEnabled":true}

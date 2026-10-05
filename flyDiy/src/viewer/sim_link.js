@@ -150,6 +150,11 @@ const SIM_LINK = (() => {
       TH.drop = function (key) { const ok = drop.apply(this, arguments); if (ok && host) opsQ.push({ op: 'tdrop', key }); return ok; };
       TH.clear = function () { clr.apply(this, arguments); if (host) opsQ.push({ op: 'tclear' }); };
     }
+    // G1481 (WOODLAND): the woodland's cylinders on or off (render_world turns them off where the fill draws)
+    if (world && typeof world.setWoodSolid === 'function') {
+      const ws = world.setWoodSolid;
+      world.setWoodSolid = function (on) { const r = ws.apply(this, arguments); if (host) opsQ.push({ op: 'wsolid', on: !!on }); return r; };
+    }
     for (const fn of WORLD_FNS) {
       if (!world || typeof world[fn] !== 'function') continue;
       const f0 = world[fn];
@@ -202,6 +207,7 @@ const SIM_LINK = (() => {
       const out = [];
       if (R) for (const r of R.list()) if (!baseIds.has(r.id)) out.push({ op: 'add', id: r.id, x: r.x, z: r.z, yaw: r.yaw, y0: r.y0, shape: r.shape, tag: r.tag });
       if (world && world.treeHits) for (const key of world.treeHits.keys()) out.push({ op: 'tset', key, arr: world.treeHits.get(key) });   // G1330
+      if (world && world.woodSolid === false) out.push({ op: 'wsolid', on: false });   // G1481
       return out;
     }
 
@@ -309,7 +315,8 @@ const SIM_LINK = (() => {
       let shake = null;
       try { shake = S.shake ? S.shake() : null; } catch (e) { shake = null; }
       const m = { cmd: 'init', spec: S.genSpec ? JSON.parse(JSON.stringify(S.genSpec)) : null, place,
-                  pilot: { kind: S.pilotChoice || 'auto', shakedown: shake, nav: true }, withV: true, day: world.day ? world.day.spec() : null };
+                  pilot: { kind: S.pilotChoice || 'auto', shakedown: shake, nav: true }, withV: true, day: world.day ? world.day.spec() : null,
+                  damage: typeof FLYDIY_DAMAGE === 'boolean' ? FLYDIY_DAMAGE : null };   // G1898: the page's ?damage
       if (cardNext && cardNext.ap === S.ap) m.pilot.card = cardNext.card;
       cardNext = null;
       // G820 (C1c): ONE SIM PER BUILD, as the page's: the worker keeps the sim it flew last when the page flies the same
@@ -342,7 +349,9 @@ const SIM_LINK = (() => {
       const sx = (() => { try { return !/[?&]starvex=0(&|$)/.test(location.search || ''); } catch (e) { return true; } })();
       // ?ringdelay=<ms> - a FIXED ring delay (a stress test: under the snapshots' lateness, the starved frames come often)
       const rd = (() => { try { const x = /[?&]ringdelay=([0-9.]+)/.exec(location.search || ''); return x ? +x[1] / 1000 : null; } catch (e) { return null; } })();
-      flight.view = SIM_VIEW.make(flight.def, Object.assign({ ready: m, post: (x, tr) => post(x, tr), starveEx: sx }, rd != null ? { delayS: rd } : {}));
+      // G1530: ?poseback=0 - the drawn clock as it was (a later frame may draw an earlier sim time), for an A/B
+      const mono = (() => { try { return !/[?&]poseback=0(&|$)/.test(location.search || ''); } catch (e) { return true; } })();
+      flight.view = SIM_VIEW.make(flight.def, Object.assign({ ready: m, post: (x, tr) => post(x, tr), starveEx: sx, monotonic: mono }, rd != null ? { delayS: rd } : {}));
       if (flight.view.mismatch) { dropFlight('the worker built another aeroplane (a stale core in a cache?)'); return; }
     }
     // step 0 against the page's placed aeroplane: to the bit, or this flight stays inline
@@ -385,7 +394,7 @@ const SIM_LINK = (() => {
       const F = flight, sim = F.sim, V = F.view;
       const own = k => Object.getOwnPropertyDescriptor(sim, k);
       saved = {};
-      for (const k of ['t', 'totalM', 'cgPos', 'cgVel', 'wheelsOnGround', 'wheelContacts', 'stats', 'step', 'setEngine', 'impulse', 'reset', 'ctl']) saved[k] = own(k);
+      for (const k of ['t', 'totalM', 'cgPos', 'cgVel', 'wheelsOnGround', 'wheelContacts', 'stats', 'step', 'setEngine', 'impulse', 'reset', 'ctl', 'certStamp']) saved[k] = own(k);
       const realCtl = sim.ctl, orig = { setEngine: sim.setEngine, reset: sim.reset };
       F.realCtl = realCtl;
       ctlP = ctlProxy(realCtl);
@@ -404,17 +413,21 @@ const SIM_LINK = (() => {
         stamp(c); V.send(c);
       } });
       def('impulse', { writable: true, value: (i, ix, iy, iz) => { const c = { cmd: 'impulse', i, ix, iy, iz }; stamp(c); V.send(c); } });
+      // G1831 (DMG-D2a): the certificate that lands mid-flight is the worker's sim's to stamp (the page's mirror bends nothing)
+      def('certStamp', { writable: true, value: Cc => { if (!Cc || !Cc.Ft) return false; const c = { cmd: 'cert', Ft: Cc.Ft, Fc: Cc.Fc }; stamp(c); V.send(c); return true; } });
       // every re-placement starts with a reset: the mirror comes down first, the flight is the page's again
       def('reset', { writable: true, value: function () { dropFlight(null); flight = null; st.phase = 'idle'; return orig.reset.apply(sim, arguments); } });
       def('ctl', { writable: true, value: ctlP });
       patch.set = null; patch.eng = [];
-      F.live = true; F.shown = F.lastStep = 0; st.diverged = false;
+      F.live = true; F.shown = F.lastStep = 0; st.diverged = false; st.crashed = false; st.dmg = null;
       st.phase = 'live';
       // step 0: the page's levers as they stand (the cockpit wrote under the hold), then who is flying
       const set = {};
       for (const k of Object.keys(realCtl)) set[k] = k === 'eng' ? copyEng(realCtl.eng) : realCtl[k];
       V.send({ cmd: 'ctl', set, k: 0 });
       if (windFirst) V.send({ cmd: 'windq', q: [windFirst], k: 0 });   // the reference the inline solver's step 1 would find
+      // G1831: a certificate the page's sim already carries (it landed before the flight attached) goes with step 0
+      { const C0 = typeof sim.cert === 'function' ? sim.cert() : null; if (C0 && C0.Ft) V.send({ cmd: 'cert', Ft: C0.Ft, Fc: C0.Fc, k: 0 }); }
       // the convection the page's climate holds (its cache's exact inputs: the page's day met that key before the worker lived)
       if (world.climate && world.climate.convState) V.send({ cmd: 'conv', s: world.climate.convState(), k: 0 });
       windFrame = [];
@@ -464,6 +477,8 @@ const SIM_LINK = (() => {
       const step = f[S.STEP];
       F.lastStep = step; st.lastStep = step;
       if (f[S.FLAGS] & S.F_DIVERGED) st.diverged = true;
+      if (S.F_CRASHED && (f[S.FLAGS] & S.F_CRASHED)) st.crashed = true;   // G1470
+      st.dmg = V.dmg || null;
       return step;
     }
 
@@ -521,11 +536,11 @@ const SIM_LINK = (() => {
       // loop ticks what it stepped, in the same batches - the page's day then stands where the worker's does at every
       // frame's end, and the next flight's init hands the worker that day (G820: the second flight of a page, after a
       // reset, the skip or the shed, was a frame's day behind); real time ticks what the picture moved on
-      out.ran = ran; out.simDt = (st.mode === 'lockstep' ? nStep : ran) / 60; out.hold = false; out.diverged = st.diverged;
+      out.ran = ran; out.simDt = (st.mode === 'lockstep' ? nStep : ran) / 60; out.hold = false; out.diverged = st.diverged; out.crashed = !!st.crashed; out.dmg = st.dmg || null;
       out.drawnT = F.drawnT != null ? F.drawnT : null;   // G1100: the drawn positions' sim time (app.js draws the sea at it)
       return out;
     }
-    const out = { ran: 0, simDt: 0, hold: false, diverged: false, drawnT: null };
+    const out = { ran: 0, simDt: 0, hold: false, diverged: false, crashed: false, dmg: null, drawnT: null };
     // a frame that flies nothing (the shed, the roll-out screen, a pause, the card): the worker's clock stops
     function idle() {
       if (dead) return;

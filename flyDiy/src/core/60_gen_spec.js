@@ -307,6 +307,73 @@ const GEN_MATERIALS = {
 };
 
 // ===========================================================================
+// GEN_CRASH (G1470, TREE-CRASH) — WHERE A MEMBER STOPS SPRINGING BACK, AND WHERE IT BREAKS
+// ===========================================================================
+// The user (2026-10-04): "The crash should be as realistic as possible ... I hope the nodes and beam mesh
+// from the plane can deform." The solver's beams were purely elastic: a trunk stopped the aeroplane and the
+// airframe sprang it back 5-10 m. Each member now YIELDS (its rest length moves - the bend stays, and the
+// work done moving it is gone from the rebound) and past its ultimate it BREAKS (30_solver.js).
+//
+// JUDGED ON FORCE, NOT ON THE SPRING'S STRAIN. A beam's k is a calibrated lattice spring (the tube row's
+// fuselage is ~50x under the E*A/L of the tube it names; see GEN_MATERIALS.tubeFabric), so the sim's elastic
+// strain is not the metal's. Its FORCE is (the load test's own proxy, 65_gen_loadtest: "failure is a force
+// threshold"): a member yields at sigY x A, A its billed section (61_gen_frame bm.A = lin / rho at its gauge).
+// What happens AFTER yield is geometry, and the lattice's geometry is the aeroplane's own metres: a member
+// whose rest length has moved 8 % has stretched 8 %. So the ultimate is an ELONGATION, the material's.
+//   ty   tensile yield, Pa (phys.sigY, the row's own number: the load test's allowable)
+//   tu   tensile ultimate, Pa: the force climbs linearly from ty*A to tu*A over the plastic strain etu
+//        (bilinear hardening), and the member breaks there
+//   etu  plastic strain at the tensile break: the UNIFORM elongation (before necking), not the 2-inch gauge
+//        figure, because a lattice member is 0.5-1.5 m long and a neck is a few millimetres of it
+//   cy   compressive yield, Pa: the row's governing compression allowable (sigY is defined that way)
+//   ecu  plastic shortening at which a member in compression has KINKED (a tube buckled flat, a spruce spar
+//        crushed through): it carries nothing past it. A truss tube kinks long before the metal runs out.
+// Sources (handbook class values, as GEN_MATERIALS.phys):
+//   4130 normalized tube   MIL-HDBK-5J Table 2.3.1.0(b): Ftu 95 / Fty 75 ksi (x1.27 on sigY), elongation
+//                          10-12 % (S-basis), uniform ~8 %. Kink: AC 43.13-1B 4-46 treats a dented / bent
+//                          tube as unairworthy past a few % of its diameter; 3 % of length is folded.
+//   Sitka spruce           USDA FPL-GTR-190 Wood Handbook (2010) Table 5-3a, 12 % MC: compression parallel
+//                          38.7 MPa (the row's sigY), MOR 70 MPa; ANC-18: tension parallel ~ the MOR.
+//                          Tension is BRITTLE (it breaks at ~0.6 % strain with no plastic range: ty = tu);
+//                          compression crushes and keeps crushing (Bodig & Jayne, Mechanics of Wood: a
+//                          plateau to ~2-3 % before the fibres kink through).
+//   2024-T3 sheet          MIL-HDBK-5J Table 3.2.3.0(b): Ftu 64 / Fty 47 ksi (x1.36), elongation 15 %,
+//                          uniform ~10 %. A riveted skin-stringer field folds in compression early: 3 %.
+//   6061-T6 tube           MIL-HDBK-5J Table 3.6.2.0(b): Ftu 42 / Fty 35 ksi (x1.20), elongation 10 %,
+//                          uniform ~6 %.
+//   carbon / epoxy UD      no yield (GEN_MATERIALS.carbon): linear to failure, ~1.1 % strain; ty = tu, 0.
+//   fabric covering        NOT A MEMBER (cover is mass only, 60_gen_spec), so nothing reads this row: AC
+//                          43.13-1B Table 2-1, grade A cotton 80 lb/in new (14 kN/m), a polyester system
+//                          (Ceconite, Poly-Fiber STCs) at or over it, ~15-20 % elongation. A fabric wing's
+//                          MEMBERS are its spruce spars (GEN_SURF_MATERIALS.fabric.phys = the wood row).
+//   thf  the FOLD ANGLE (rad) at which a member BENT SIDEWAYS (a trunk at a point along it) has torn through: the
+//        sum of the two arms' rotations at the bend. Its plastic moment is ty x Z_p, Z_p a thin tube's A D / pi with
+//        D / wall = GEN_CRASH_TUBE_DT (1" x 0.035" 4130 is 29; a lattice member of any material is read as that tube
+//        of its own area - the spruce spar's 0.11 m equivalent tube carries 3.2 kN m, a real 3/4 x 5 1/2" spar 0.9
+//        about its weak axis and 6.5 about its strong one). A welded or riveted tube folds flat and still hangs on
+//        (Jones, Structural Impact, ch. 3: a tube's hinge runs to large rotations before it tears): 1.2 rad steel,
+//        0.8 the aluminiums (lower elongation). Spruce breaks in bending at about span / 25 of deflection (Wood
+//        Handbook ch. 5, work to maximum load): 0.12 rad. Carbon: 0.05.
+const GEN_CRASH_TUBE_DT = 30;
+// G1898 (DEFORM COORDINATOR): THE DAMAGE LAYER'S DEFAULT - ONE CONSTANT. A build's params.damage (true / false) wins;
+// else the page's ?damage=1|0 (FLYDIY_DAMAGE, the worker's from its init); else this. Off until DMG-D2 anchors the
+// limits on the certificate (DEFORM-AND-BREAK §11.4: train 35 flips it); params.damage === false stays master's bits.
+const GEN_DAMAGE_DEFAULT = false;
+const GEN_CRASH = {
+  tubeFabric: { ty: 460e6, tu: 460e6 * 95 / 75, etu: 0.08, cy: 460e6, ecu: 0.03, thf: 1.2 },
+  wood:       { ty: 70e6,  tu: 70e6,            etu: 0,    cy: 39e6,  ecu: 0.03, thf: 0.12 },
+  alloy:      { ty: 345e6, tu: 345e6 * 64 / 47, etu: 0.10, cy: 345e6, ecu: 0.03, thf: 0.8 },
+  aluTube:    { ty: 276e6, tu: 276e6 * 42 / 35, etu: 0.06, cy: 276e6, ecu: 0.03, thf: 0.8 },
+  carbon:     { ty: 1500e6, tu: 1500e6,         etu: 0,    cy: 1500e6, ecu: 0,   thf: 0.05 },
+  fabric:     { cover: true, tuN_m: 14e3, etu: 0.15 },   // reported only (above)
+};
+// the GEN_MATERIALS key a phys row is (surface rows share their structure's phys object)
+function genPhysKey(ph) {
+  for (const k in GEN_MATERIALS) if (GEN_MATERIALS[k].phys === ph) return k;
+  return null;
+}
+
+// ===========================================================================
 // GEN_SURF_MATERIALS (G213) — WHAT A WING OR A TAIL IS BUILT OF
 // ===========================================================================
 // The user, 2026-09-07: "In a plywood plane, the wing is wooden structure,
@@ -1106,8 +1173,10 @@ function genAccessNeeds(S) {
   const need = (v, d) => { if (v == null) { derived++; return d; } return v; };
   const cabH = need(c.h, 1.15);
   return {
-    tank:      (S.fuel && S.fuel.litres > 0) ? (S.fuel.tank || 'nose') : null,
-    fuelL:     (S.fuel && S.fuel.litres) || 0,
+    // the DESIGN litres when the spec is a fuel state (genSpecAtFuel; SPEC-
+    // FIXPOINT): a drained tank keeps its filler cap and its vent
+    tank:      (S.fuel && (S.fuel.designL > 0 || S.fuel.litres > 0)) ? (S.fuel.tank || 'nose') : null,
+    fuelL:     (S.fuel && (S.fuel.designL > 0 ? S.fuel.designL : S.fuel.litres)) || 0,
     systems:   (S.systems && S.systems.fit) || 'basic',
     // the panel arc, session 2: which radios the fit actually carries — the
     // aerials' `need`s read these, so a custom fit with a COM grows its blade
@@ -2960,8 +3029,8 @@ const GEN_DEFAULT = {
     // THE GLAZING (2026-09-04, the user: "we need to be able to deactivate
     // the glazing too"): 'glass' bills the windscreen and the side windows
     // as always; 'none' is an open cockpit — no glass mass. The cage's
-    // `glazeOn` row is the one writer (tools/_cage_join.js).
-    glazing: 'glass',
+    // `glazeOn` row is the one writer (tools/_cage_join.js). (REVIEW 2026-10-04: the key was declared twice in this
+    // literal, 'glass' here and 'bubble' below; the last wins in JS, so the dead first one is gone - no value moved.)
     // T2.2: WHAT the glazing is made of (one material for the whole aeroplane,
     // the cage's `glazeMat` row), and the glazed AREA the join MEASURES off
     // the built skin — windscreen, side windows, skylight, every drawn pane
@@ -3602,6 +3671,50 @@ function genAlias(S) {
   return S;
 }
 
+// THE GARAGE'S MERGE (moved here from src/viewer/garage.js verbatim, SPEC-
+// FIXPOINT G1550, so GATE SPECFIX drives the merge the page runs). The join's
+// output is an UPDATE to the build: merged per KEY, wings element-wise, every
+// other array and the `finish` / `cage` sections replaced whole. A key the
+// join does not write keeps its previous value - which is why the join STATES
+// every row it owns (GEN_FIELDS `join`; the review's A3 / E2).
+const genIsPlain = o => o && typeof o === 'object' && !Array.isArray(o);
+function genSpecMerge(base, over) {
+  if (!genIsPlain(over)) return over;
+  const out = genIsPlain(base) ? Object.assign({}, base) : {};
+  for (const k in over) {
+    if (Array.isArray(over[k])) {
+      // WINGS merge element-wise: the join writes nearly every wing key but
+      // not `place`, and a wholesale replace loses it. Every other array —
+      // the boom profile, the engine list — is a measurement of a whole
+      // thing and replaces as a whole.
+      out[k] = (k === 'wings' && Array.isArray(base && base[k]))
+        ? over[k].map((w, i) => genSpecMerge(base[k][i], w))
+        : over[k];
+    } else if (k === 'finish' || k === 'cage') {
+      // THE FINISH AND THE CAGE REPLACE AS A WHOLE (G105; the cage joined it
+      // 2026-09-03), like the arrays above and for the same reason: each is
+      // one measurement of one thing, and each is written as DEVIATIONS — so
+      // "this row is back at its default" is said by the KEY'S ABSENCE.
+      // Deep-merged, a deviation could be put on and never taken off again.
+      //
+      // THE CAGE HAD EXACTLY THE FINISH'S BUG and nobody noticed, because it
+      // only bites on the way BACK. Move a row off its default and the
+      // fragment carries it; move it back and the fragment stops mentioning
+      // it — and the merge then kept the old value for ever. The user built
+      // a side-by-side jodel with a central cowl opening, and the file said
+      // tandem with a pair of intakes, because both rows had been off their
+      // defaults once (an archetype's seating, the cub's cowl) and coming
+      // home was unsayable. Their build carried the tell: `cage.seatLayout`
+      // 2 beside `cabin.seating` 'side2' — the same join run writing both,
+      // one of them merged and stale, the other a plain value and current.
+      // (The user: "the tandem configuration was never in my build.")
+      out[k] = over[k];
+    } else if (genIsPlain(over[k])) out[k] = genSpecMerge(base && base[k], over[k]);
+    else out[k] = over[k];
+  }
+  return out;
+}
+
 // ---- helpers ------------------------------------------------------------
 function genClone(o) {
   if (Array.isArray(o)) return o.map(genClone);
@@ -3722,7 +3835,7 @@ function clampWing(w, S, k) {
   // default. The envelope spans a wing rooted on the firewall to one rooted
   // well down the cabin; static margin is the honest consequence either way,
   // and the shakedown posts it.
-  w.xLE = genClampN(w.xLE, ...E.xLE);
+  w.xLE = genFieldClamp('wings[].xLE', w.xLE);
   w.yRoot = genClampN(w.yRoot, -1.0, 3.0);                  // G266.1
   if (!GEN_TIPS[w.tip]) w.tip = 'rounded';
   // CRANK: a second wing section, and only a second. `crankAt` is the break
@@ -3732,7 +3845,7 @@ function clampWing(w, S, k) {
   // is where the outer panel bolts to the centre section.
   w.crankAt = genClamp(w.crankAt || 0, 0, 0.85);
   if (w.crankAt > 0 && w.crankAt < 0.15) w.crankAt = 0;
-  w.dihedralOut = genClampN(w.dihedralOut, 0, 20);
+  w.dihedralOut = genFieldClamp('wings[].dihedralOut', w.dihedralOut);
   // G140: the three stations. Chord at the crank inside the chord clamp;
   // the offsets inside the sweep clamp's own reach (tan 30 deg of the
   // exposed semispan — the same envelope the angle always had). Null stays
@@ -3777,8 +3890,8 @@ function clampWing(w, S, k) {
   if (w.beam !== 'off') w.beam = 'on';                              // T2.3 (48)
   // placement: generous bounds, because the point is to allow bad aeroplanes.
   // These stop the geometry going degenerate, nothing more.
-  w.place.dx = genClamp(w.place.dx, ...E.placeDx);
-  w.place.dy = genClamp(w.place.dy, ...E.placeDy);
+  w.place.dx = genFieldClamp('wings[].place.dx', w.place.dx);
+  w.place.dy = genFieldClamp('wings[].place.dy', w.place.dy);
 
 }
 
@@ -3799,8 +3912,154 @@ const GEN_TAIL_ENVELOPE = {
   hTaper: [0.35, 1.0], vTaper: [0.35, 1.0],
 };
 
+// THE FIELD REGISTRY (SPEC-FIXPOINT G1550-G1559, the 2026-10-04 review's E3).
+// A field's default, its clamp, the way resolveSpec treats it and whether the
+// editor's join states it were kept by hand in four places (GEN_DEFAULT,
+// clampSpec, resolveSpec, tools/_cage_join.js), and the review's A2, A3, B8,
+// B9 and the tailY finding were drift between them. Declared once here, for
+// every field those findings touch; clampSpec and resolveSpec read the clamp
+// from it, GATE SPECFIX walks it (the default against GEN_DEFAULT, the clamp
+// idempotent, every offset consumed exactly once, every join row stated in
+// both states and surviving the garage's merge on -> off -> commit).
+//   def    GEN_DEFAULT's value (null = derived)
+//   clamp  [lo, hi] - bounds an override AND the derivation (see `rule`)
+//   rule   'derive'  null = resolveSpec derives it (`auto` is its key in
+//                     R.auto); put() cuts the derived value to `clamp` too, so
+//                     a resolved spec re-fed to resolveSpec is a fixed point
+//                     (B8: a derived tail arm of 8.99 m flew past the 6.5 m
+//                     envelope that the next pass then cut - the CG corners
+//                     of that build were a shorter aeroplane)
+//          'offset'  a nudge CONSUMED ONCE into `into` and zeroed on the
+//                     resolved spec (recorded in S._offsets) - A2: applied
+//                     additively on every pass, so re-resolving a resolved
+//                     spec moved the wing / the tail / the tail-end section
+//                     again
+//          'frame'   a nudge genFrame applies to its own choice (gear.x /
+//                     track); the choice is kept in S._frame by buildGen, so
+//                     a re-fed resolved spec rebuilds the same placement
+//          'pass'    applied where it is read, every pass, never written
+//                     back (idempotent by construction)
+//          'input'   a plain input, clamped
+//   join   the editor's join OWNS the row: it states it in every state (the
+//          default included) - A3: a row written only when off its default
+//          was kept for ever by the garage's per-key merge. `states` lists
+//          what it writes; `with` names the keys a state nulls.
+const GEN_FIELDS = {
+  // ---- derived, clamped at derivation (B8) ----
+  // The cabin's floor reaches THIS seating's own derived cabin (`seatFloor`:
+  // the drone's 0.20 x 0.30 x 0.55 sits under the 0.28 / 0.75 / 0.60 floors,
+  // which cut its DERIVED cabin on the second pass only); every other
+  // seating's table cabin is inside the floors, so a measured cabin is cut
+  // exactly as before.
+  'cabin.halfW':   { def: null, clamp: [0.28, 0.75], seatFloor: 'halfW', rule: 'derive', auto: 'cab.halfW' },
+  'cabin.h':       { def: null, clamp: [0.75, 1.45], seatFloor: 'h', rule: 'derive', auto: 'cab.h' },
+  'cabin.len':     { def: null, clamp: [0.60, 2.60], seatFloor: 'len', rule: 'derive', auto: 'cab.len' },
+  'cabin.canopy.reach':   { def: null, clamp: [0, 1], rule: 'derive', auto: 'cabin.canopy.reach' },
+  'cabin.canopy.x1':      { def: null, clamp: [0, 9], rule: 'derive', auto: 'cabin.canopy.x1' },
+  'cabin.canopy.wsAngle': { def: null, clamp: [22, 80], rule: 'derive', auto: 'cabin.canopy.wsAngle' },
+  'fuselage.cowlDeck':    { def: null, clamp: [0.50, 1.00], rule: 'derive', auto: 'fuse.cowlDeck' },
+  'wings[].xLE':          { def: null, clamp: GEN_WING_ENVELOPE.xLE, rule: 'derive', auto: 'wing.xLE' },
+  'wings[].dihedralOut':  { def: null, clamp: [0, 20], rule: 'derive', auto: 'wing.dihedralOut' },
+  'fuselage.tailArm':     { def: null, clamp: [2.00, 6.50], rule: 'derive', auto: 'fuse.tailArm' },
+  'tail.hX':       { def: null, clamp: [2.00, 9.00], rule: 'derive', auto: 'tail.hX' },
+  'tail.vX':       { def: null, clamp: [2.00, 9.00], rule: 'derive', auto: 'tail.vX' },
+  // B9: the AREAS had no clamp at all - a 0 or a negative from a hand spec
+  // or the console reached the lattice as a NaN chord. The bounds are a
+  // non-degenerate tail, not a taste: the envelope's own spans x chords
+  // (4.5 x 1.6 = 7.2 m2 a tailplane, twice 2.2 x 1.8 a pair of boom fins)
+  // with headroom for the volume rule on the largest wing.
+  'tail.Sh':       { def: null, clamp: [0.20, 12.0], rule: 'derive', auto: 'tail.Sh', join: 'measure' },
+  'tail.Sv':       { def: null, clamp: [0.10, 10.0], rule: 'derive', auto: 'tail.Sv', join: 'measure' },
+  'tail.Svt':      { def: null, clamp: [0.20, 14.0], rule: 'derive', auto: 'tail.Svt', join: 'measure' },
+  'tail.hSpan':    { def: null, clamp: GEN_TAIL_ENVELOPE.hSpan, rule: 'derive', auto: 'tail.hSpan', join: 'measure' },
+  'tail.hChord':   { def: null, clamp: GEN_TAIL_ENVELOPE.hChord, rule: 'derive', auto: 'tail.hChord', join: 'measure' },
+  'tail.vHeight':  { def: null, clamp: GEN_TAIL_ENVELOPE.vHeight, rule: 'derive', auto: 'tail.vHeight', join: 'measure' },
+  'tail.vChord':   { def: null, clamp: GEN_TAIL_ENVELOPE.vChord, rule: 'derive', auto: 'tail.vChord', join: 'measure' },
+  'tail.vSweep':   { def: null, clamp: [-20, 60], rule: 'derive', auto: 'tail.vSweep' },
+  'tail.dorsal.angle': { def: null, clamp: [8, 80], rule: 'derive', auto: 'tail.dorsal.angle' },
+  'prop.D':        { def: null, clamp: [0.20, 4.00], rule: 'derive', auto: 'prop.D' },
+  'cowl.halfW':    { def: null, clamp: [0.05, 1.10], rule: 'derive', auto: 'cowl.halfW' },
+  'cowl.top':      { def: null, clamp: [0.03, 1.10], rule: 'derive', auto: 'cowl.top' },
+  'cowl.bot':      { def: null, clamp: [0.03, 1.10], rule: 'derive', auto: 'cowl.bot' },
+  'gear.legDrop':  { def: null, clamp: [0.15, 1.20], rule: 'derive', auto: 'gear.legDrop' },
+  // The ride height's floor reaches what its own derivation produces: the
+  // legDrop row's 1.20 m leg (-0.02 - 1.20) and a 4 m disc's clearance. The
+  // old -0.90 cut a derived stance on the second pass only, so the corners of
+  // a long-legged build stood 30 cm lower than its stand.
+  'gear.y':        { def: null, clamp: [-2.40, 0.90], rule: 'derive', auto: 'gear.y' },
+  // ---- offsets ----
+  'wings[].place.dx': { def: 0, clamp: GEN_WING_ENVELOPE.placeDx, rule: 'offset', into: ['wings[].xLE'] },
+  'tail.place.dx':    { def: 0, clamp: [-1.5, 1.5], rule: 'offset', into: ['tail.hX', 'tail.vX'] },
+  'fuselage.tailY':   { def: 0, clamp: [-0.60, 0.80], rule: 'offset', into: ['fuselage.tailBot', 'fuselage.tailTop'] },
+  'gear.place.dx':    { def: 0, clamp: [-0.80, 1.20], rule: 'frame', into: ['gear.x'] },
+  'gear.place.dtrack': { def: 0, clamp: [-0.80, 1.50], rule: 'frame', into: ['gear.track'] },
+  'wings[].place.dy': { def: 0, clamp: GEN_WING_ENVELOPE.placeDy, rule: 'pass' },
+  'engines[].place.dx': { def: 0, clamp: [-0.60, 0.45], rule: 'pass' },
+  'engines[].place.dy': { def: 0, clamp: [-0.30, 0.40], rule: 'pass' },
+  // ---- the rows the join owns (A3 / E2) ----
+  'cabin.glazing':     { def: 'bubble', rule: 'input', join: { states: ['glass', 'none'] } },
+  'fuselage.covering': { def: 'skin', rule: 'input', join: { states: ['skin', 'open'] } },
+  'tail.type':         { def: 'conventional', rule: 'input',
+                         join: { states: ['conventional', 'v', 'twinBoom'],
+                                 with: { conventional: ['tail.vAngle', 'tail.Svt', 'tail.boomX', 'tail.boomLen', 'tail.boomR', 'tail.boomX0',
+                                                        'tail.boomTaper', 'tail.boomOval', 'tail.boomIncl', 'tail.boomDy', 'tail.stabY'],
+                                         v: ['tail.Sh', 'tail.Sv', 'tail.boomX', 'tail.boomLen', 'tail.boomR', 'tail.boomX0',
+                                             'tail.boomTaper', 'tail.boomOval', 'tail.boomIncl', 'tail.boomDy', 'tail.stabY'],
+                                         twinBoom: ['tail.vAngle', 'tail.Svt'] } } },
+  'wings[].material':  { def: undefined, rule: 'input', join: { states: [null, 'carbon', 'steel', 'fabric', 'alloy', 'aluFabric'] } },
+  'tail.finMaterial':  { def: undefined, rule: 'input', join: { states: [null, 'carbon', 'steel', 'fabric', 'alloy', 'aluFabric'] } },
+  'tail.stabMaterial': { def: undefined, rule: 'input', join: { states: [null, 'carbon', 'steel', 'fabric', 'alloy', 'aluFabric'] } },
+  'bracing.cabane':       { def: 'N', rule: 'input', join: { states: ['N', 'V'] } },
+  'bracing.interplane':   { def: 'none', rule: 'input', join: { states: ['none', 'N', 'I'] } },
+  'bracing.interplaneAt': { def: 0.62, clamp: [0.30, 0.95], rule: 'input', join: { states: [0.62] } },
+  'bracing.wires':        { def: 'both', rule: 'input', join: { states: ['none', 'both', 'flying'] } },
+};
+// put()'s key -> the registry path ('wing.xLE1' is plane 1's: the digit goes)
+const GEN_FIELD_BY_AUTO = (() => {
+  const m = {};
+  for (const p in GEN_FIELDS) if (GEN_FIELDS[p].auto) m[GEN_FIELDS[p].auto] = p;
+  return m;
+})();
+// a value cut to its registry clamp; null (= derive) and an unclamped field
+// pass through. `S` (the spec being clamped) is read for a seating floor.
+function genFieldClamp(path, v, S) {
+  const F = GEN_FIELDS[path];
+  if (!F || !F.clamp || v == null) return v;
+  let lo = F.clamp[0];
+  if (F.seatFloor && S && S.cabin && GEN_SEATING[S.cabin.seating])
+    lo = Math.min(lo, GEN_SEATING[S.cabin.seating][F.seatFloor]);
+  return genClamp(v, lo, F.clamp[1]);
+}
+const genFieldClampAuto = (autoKey, v, S) =>
+  genFieldClamp(GEN_FIELD_BY_AUTO[String(autoKey).replace(/\d+$/, '')], v, S);
+
+// B13: AN EXPLICIT NULL ON A FIELD THAT IS NEVER DERIVED IS THE DEFAULT. The
+// header's rule is "null = derive it"; on a field with nothing to derive from
+// (a wing chord, its section, the post gap) the clamp below used to read the
+// null as 0 and hand back the FLOOR - `chord: null` flew a 0.80 m chord,
+// `naca: null` a 0209. Every NUMBER whose GEN_DEFAULT value is not null takes
+// that value instead (the derivable fields all default to null and are left
+// alone; strings and switches already fall back through their enum checks).
+// On the clone, at clamp time: a save keeps its nulls (GATE BUILD's rule).
+function genNullToDefault(t, d) {
+  if (!t || typeof t !== 'object' || !d || typeof d !== 'object') return;
+  for (const k in d) {
+    const dv = d[k];
+    if (Array.isArray(dv)) {
+      if (Array.isArray(t[k]) && dv.length && dv[0] && typeof dv[0] === 'object')
+        for (const e of t[k]) genNullToDefault(e, dv[0]);
+    } else if (dv && typeof dv === 'object') genNullToDefault(t[k], dv);
+    else if (typeof dv === 'number' && t[k] === null) t[k] = dv;
+  }
+}
+
 function clampSpec(spec) {
   const S = genNormaliseSpec(spec);
+  genNullToDefault(S, GEN_DEFAULT);                  // B13 (above)
+  // THE OFFSETS CONSUMED SO FAR (SPEC-FIXPOINT): a resolved spec carries the
+  // nudges it has already applied, zeroed, here - a record for the editor and
+  // the gate, never an input (nothing reads it back into a value)
+  S._offsets = Object.assign({}, S._offsets && typeof S._offsets === 'object' ? S._offsets : null);
   const fu = S.fuselage, cb = S.cabin;
   if (!GEN_MATERIALS[fu.material]) fu.material = 'tubeFabric';
   if (!GEN_SHAPES[fu.shape]) fu.shape = 'straight';
@@ -3816,15 +4075,18 @@ function clampSpec(spec) {
   // falls back to absent, and every plane of a biplane is checked
   const surf = v => v == null ? null
     : (GEN_SURF_MATERIALS[v] ? v : (GEN_SURF_LEGACY[v] || null));
+  // SPEC-FIXPOINT (A3): the join now STATES the row, null when the part is
+  // the aeroplane's own material - null and absent are the same answer, and
+  // the resolved spec carries it as absent, exactly as before
   if (S.wings) for (const w of S.wings) if (w && w.material != null) {
     const m = surf(w.material);
     if (m) w.material = m; else delete w.material;
-  }
+  } else if (w && 'material' in w) delete w.material;
   if (S.tail) for (const f of ['finMaterial', 'stabMaterial'])
     if (S.tail[f] != null) {
       const m = surf(S.tail[f]);
       if (m) S.tail[f] = m; else delete S.tail[f];
-    }
+    } else if (f in S.tail) delete S.tail[f];
   // The cage rides through verbatim — its generator owns its own ranges, and
   // clamping a copy of them here would be the second home the field's own note
   // forbids. The one thing this level can enforce is the SWITCH'S TYPE, so a
@@ -3898,10 +4160,10 @@ function clampSpec(spec) {
   cn.facet = !!cn.facet;
   cn.sides = !!cn.sides;
   // nullable = "derive it", and they ride the panel's AUTO path
-  cn.wsAngle = genClampN(cn.wsAngle, 22, 80);
+  cn.wsAngle = genFieldClamp('cabin.canopy.wsAngle', cn.wsAngle);
   cn.x0      = genClampN(cn.x0, 0, 8);
-  cn.x1      = genClampN(cn.x1, 0, 9);
-  cn.reach   = genClampN(cn.reach, 0, 1);
+  cn.x1      = genFieldClamp('cabin.canopy.x1', cn.x1);
+  cn.reach   = genFieldClamp('cabin.canopy.reach', cn.reach);
   // a windscreen-only cut is covered flush — zero stand-off is the definition of
   // the case, and it is what makes it the control for the edge-loop machinery
   if (cb.glazing === 'windshield') cn.height = 0;
@@ -3966,11 +4228,17 @@ function clampSpec(spec) {
 
   // TAIL-END SECTION HEIGHT. Applied here, on the clone, by moving the two
   // dimensions 61_gen_frame.js actually reads. clampSpec runs on a fresh
-  // normalised clone every time, so this cannot accumulate across calls the way
-  // gear.track once did.
-  fu.tailY = genClamp(fu.tailY == null ? 0 : fu.tailY, -0.60, 0.80);
+  // normalised clone every time - but a clone OF A CLAMPED SPEC is a second
+  // pass, and the old note's "cannot accumulate" was wrong there: the review's
+  // tailY finding (clampSpec(clampSpec(s)) raised the section twice, and every
+  // CG corner re-fed the resolved spec). SPEC-FIXPOINT: CONSUMED ONCE - the
+  // offset lands in the two dimensions and is zeroed, its value recorded in
+  // S._offsets (GEN_FIELDS 'fuselage.tailY', rule 'offset').
+  fu.tailY = genFieldClamp('fuselage.tailY', fu.tailY == null ? 0 : fu.tailY);
   fu.tailBot += fu.tailY;
   fu.tailTop += fu.tailY;
+  if (fu.tailY) S._offsets['fuselage.tailY'] = (S._offsets['fuselage.tailY'] || 0) + fu.tailY;
+  fu.tailY = 0;
 
   for (const e of S.engines) {
     e.sense = (+e.sense === -1) ? -1 : 1;             // G194: +1 or -1, never else
@@ -3984,8 +4252,8 @@ function clampSpec(spec) {
     if (typeof POWERPLANTS !== 'undefined' && !POWERPLANTS[e.type])
       e.type = 'a65_sensenich74';
     if (!['nose', 'pusher', 'wingTop', 'wing'].includes(e.mount)) e.mount = 'nose';
-    e.place.dx = genClamp(e.place.dx, -0.60, 0.45);
-    e.place.dy = genClamp(e.place.dy, -0.30, 0.40);
+    e.place.dx = genFieldClamp('engines[].place.dx', e.place.dx);
+    e.place.dy = genFieldClamp('engines[].place.dy', e.place.dy);
     // the mount station (2026-09-04): an envelope, null kept for derivation.
     // -1.0 -> -3.0 (G457): since G445.1 a NOSE mount's x is the drawn
     // flange, and a 172's sits 1.10 m ahead of the windscreen base (a
@@ -4105,6 +4373,8 @@ function clampSpec(spec) {
       v.capacity = genClamp(v.capacity || 0, 0,
                             E.kind === 'battery' ? 400 : 1000);
       v.along = v.along == null ? null : genClamp(v.along, -1, 12);
+      // a fuel state's design capacity (genSpecAtFuel; the shell is sized off it)
+      if (v.designCap != null) v.designCap = genClamp(+v.designCap || 0, 0, E.kind === 'battery' ? 400 : 1000);
       v.lv = v.lv == null ? null : genClamp(v.lv, 0, 1);
       v.rot = genClamp(v.rot || 0, -90, 90);
       // ROUND OR SQUARED (2026-09-04). Geometry, and therefore capacity: a
@@ -4181,11 +4451,11 @@ function clampSpec(spec) {
   if (!GEN_TIPS[S.tail.tip]) S.tail.tip = 'rounded';
   // null is legal on the two overrides and means 'use tail.tip'
   S.tail.stabH = genClamp(S.tail.stabH == null ? 0 : S.tail.stabH, 0, 1);
-  S.tail.vSweep = genClampN(S.tail.vSweep, -20, 60);
+  S.tail.vSweep = genFieldClamp('tail.vSweep', S.tail.vSweep);
   const dr = S.tail.dorsal || (S.tail.dorsal = {});
   dr.height = genClamp(dr.height == null ? 0.16 : dr.height, 0, 0.90);
   dr.width  = genClamp(dr.width  == null ? 0.55 : dr.width,  0.15, 1.60);
-  dr.angle  = genClampN(dr.angle, 8, 80);
+  dr.angle  = genFieldClamp('tail.dorsal.angle', dr.angle);
   dr.len    = genClamp(dr.len    == null ? 0.34 : dr.len,    0, 2.00);
   if (S.tail.tipV != null && !GEN_TIPS[S.tail.tipV]) S.tail.tipV = null;
   if (S.tail.tipH != null && !GEN_TIPS[S.tail.tipH]) S.tail.tipH = null;
@@ -4298,21 +4568,21 @@ function clampSpec(spec) {
   fu.tailW = genClamp(fu.tailW, 0.06, 0.45);
   fu.tailBot = genClamp(fu.tailBot, 0, 0.80);
   fu.tailTop = genClamp(fu.tailTop, 0.10, 1.20);
-  fu.cowlDeck = genClampN(fu.cowlDeck, 0.50, 1.00);
+  fu.cowlDeck = genFieldClamp('fuselage.cowlDeck', fu.cowlDeck);
   fu.windRun = genClamp(fu.windRun, 0.10, 0.60);
   S.cowl.fillet = genClamp(S.cowl.fillet, 0.02, 0.22);
   S.cowl.taper = genClamp(S.cowl.taper, 0.70, 1.0);
   // The cowl's own nose section. Generous, because a slim cowl on a fat engine
   // and a fat cowl on a slim one are both aeroplanes somebody builds — the
   // shakedown says which you have, it does not refuse to build it.
-  S.cowl.halfW = genClampN(S.cowl.halfW, 0.05, 1.10);
-  S.cowl.top = genClampN(S.cowl.top, 0.03, 1.10);
-  S.cowl.bot = genClampN(S.cowl.bot, 0.03, 1.10);
+  S.cowl.halfW = genFieldClamp('cowl.halfW', S.cowl.halfW);
+  S.cowl.top = genFieldClamp('cowl.top', S.cowl.top);
+  S.cowl.bot = genFieldClamp('cowl.bot', S.cowl.bot);
   if (!GEN_INTAKES[S.cowl.intake]) S.cowl.intake = 'chin';
   // THE PROPELLER. Diameter is bounded by what a nose can carry rather than by
   // what flies: prop clearance is a GEN_RULES constraint and it will lengthen the
   // undercarriage to hold it, so a 4 m disc on a Cub is a legal, stilted mistake.
-  S.prop.D = genClampN(S.prop.D, 0.20, 4.00);
+  S.prop.D = genFieldClamp('prop.D', S.prop.D);
   S.prop.blades = genClamp(Math.round(S.prop.blades) || 2, 2, 6);
   if (!GEN_PROP_MATS[S.prop.material]) S.prop.material = 'wood';
   // 'auto' is a legal pitch and is NOT a class: it means "choose one for me",
@@ -4332,9 +4602,9 @@ function clampSpec(spec) {
   sn.dia = genClamp(sn.dia == null ? 0.17 : sn.dia, 0.08, 0.32);
   cb.noseGap = genClamp(cb.noseGap, 0.40, 1.10);
   S.gear.stiffness = genClamp(S.gear.stiffness == null ? 1 : S.gear.stiffness, 0.35, 3.0);
-  S.gear.place.dx = genClamp(S.gear.place.dx, -0.80, 1.20);
-  S.gear.place.dtrack = genClamp(S.gear.place.dtrack, -0.80, 1.50);
-  S.tail.place.dx = genClamp(S.tail.place.dx, -1.5, 1.5);
+  S.gear.place.dx = genFieldClamp('gear.place.dx', S.gear.place.dx);
+  S.gear.place.dtrack = genFieldClamp('gear.place.dtrack', S.gear.place.dtrack);
+  S.tail.place.dx = genFieldClamp('tail.place.dx', S.tail.place.dx);
   // fields the generator normally derives, but which the editor now exposes.
   // Bounded so an override cannot go degenerate; still nullable, so leaving
   // them alone keeps the derivation.
@@ -4356,28 +4626,34 @@ function clampSpec(spec) {
     }
     fu.profile = P2.length >= 2 ? P2 : null;
   } else fu.profile = null;
-  cb.halfW = genClampN(cb.halfW, 0.28, 0.75);
-  cb.h = genClampN(cb.h, 0.75, 1.45);
-  cb.len = genClampN(cb.len, 0.60, 2.60);
-  fu.tailArm = genClampN(fu.tailArm, 2.00, 6.50);
+  cb.halfW = genFieldClamp('cabin.halfW', cb.halfW, S);
+  cb.h = genFieldClamp('cabin.h', cb.h, S);
+  cb.len = genFieldClamp('cabin.len', cb.len, S);
+  fu.tailArm = genFieldClamp('fuselage.tailArm', fu.tailArm);
   // the tail's flown envelope has ONE home (GEN_TAIL_ENVELOPE, above): the
   // join reads the same numbers to SAY when a drawn value is cut here
-  S.tail.hSpan = genClampN(S.tail.hSpan, ...GEN_TAIL_ENVELOPE.hSpan);
-  S.tail.hChord = genClampN(S.tail.hChord, ...GEN_TAIL_ENVELOPE.hChord);
-  S.tail.vHeight = genClampN(S.tail.vHeight, ...GEN_TAIL_ENVELOPE.vHeight);
-  S.tail.vChord = genClampN(S.tail.vChord, ...GEN_TAIL_ENVELOPE.vChord);
+  // (through GEN_FIELDS, which resolveSpec's put() reads as well - B8)
+  S.tail.hSpan = genFieldClamp('tail.hSpan', S.tail.hSpan);
+  S.tail.hChord = genFieldClamp('tail.hChord', S.tail.hChord);
+  S.tail.vHeight = genFieldClamp('tail.vHeight', S.tail.vHeight);
+  S.tail.vChord = genFieldClamp('tail.vChord', S.tail.vChord);
+  // B9: the AREAS - never clamped before, so a 0 or a negative reached the
+  // lattice as a NaN chord (GEN_FIELDS 'tail.Sh' says why these bounds)
+  S.tail.Sh = genFieldClamp('tail.Sh', S.tail.Sh);
+  S.tail.Sv = genFieldClamp('tail.Sv', S.tail.Sv);
+  S.tail.Svt = genFieldClamp('tail.Svt', S.tail.Svt);
   // the tail surfaces' STATIONS, measured by the join since G54.3 — bounded
   // like the other measured stations; nullable keeps the volume-coefficient
   // derivation for everything that does not measure them.
-  S.tail.hX = genClampN(S.tail.hX, 2.00, 9.00);
-  S.tail.vX = genClampN(S.tail.vX, 2.00, 9.00);
+  S.tail.hX = genFieldClamp('tail.hX', S.tail.hX);
+  S.tail.vX = genFieldClamp('tail.vX', S.tail.vX);
   S.gear.track = genClampN(S.gear.track, 0.90, 3.50);
   S.gear.wheelR = genClamp(S.gear.wheelR, 0.10, 0.40);
   S.gear.twR = genClamp(S.gear.twR, 0.05, 0.25);
   // Leg lengths: generous, because a stilt-legged bush aeroplane and a squatting
   // racer are both aeroplanes somebody builds. The floor is rule 5 (a leg this
   // short has no vertical stiffness whatever its k) and the shakedown says so.
-  S.gear.legDrop = genClampN(S.gear.legDrop, 0.15, 1.20);
+  S.gear.legDrop = genFieldClamp('gear.legDrop', S.gear.legDrop);
   S.gear.twLeg = genClampN(S.gear.twLeg, 0.06, 1.40);
   // The THIRD WHEEL the join measures off the built cage (G51). They were
   // nullable expose-the-derivation fields with no bounds because nothing ever
@@ -4395,7 +4671,7 @@ function clampSpec(spec) {
   // a measured shallow stance stands. Prop clearance is no longer guaranteed
   // by derivation — the shakedown's propClear row posts what the built stance
   // actually leaves under the registry prop.
-  S.gear.y = genClampN(S.gear.y, -0.90, 0.90);
+  S.gear.y = genFieldClamp('gear.y', S.gear.y);   // SPEC-FIXPOINT: the floor reaches the derivation's own (GEN_FIELDS)
   // The mains STATION, measured by the join since G52. Setting it bypasses
   // the CG/rake placement rule — deliberately: the wheels go where the built
   // aeroplane's wheels are, and the shakedown's noseOver row posts the
@@ -4412,10 +4688,29 @@ function clampSpec(spec) {
 // so the editor can mark a field "auto" and show the proposal it overrode.
 // Order matters: this IS the design flow (cabin -> fuselage -> engine ->
 // wing -> tail -> gear), each step reading only what precedes it.
+//
+// A FIXED POINT (SPEC-FIXPOINT G1550, the review's A2 / B8 / E1): the
+// resolved spec, re-fed, resolves to itself - the reserve sheet, the CG
+// corners and the editor's fuel slider all re-feed it (genSpecAtFuel). Three
+// rules hold that: a derived value is cut to its envelope AS IT IS DERIVED
+// (put() reads GEN_FIELDS - the next pass's clamp then has nothing to cut); an
+// offset is CONSUMED ONCE (applied, zeroed, recorded in S._offsets - a second
+// pass adds nothing); and nothing here writes a derived number into a field
+// the derivation itself reads. GATE SPECFIX proves it on the validated builds.
 function resolveSpec(spec) {
   const S = clampSpec(spec);
   const auto = {};
-  const put = (o, k, v, path) => { if (o[k] === null || o[k] === undefined) { o[k] = v; auto[path] = true; } };
+  const put = (o, k, v, path) => {
+    if (o[k] === null || o[k] === undefined) { o[k] = genFieldClampAuto(path, v, S); auto[path] = true; }
+  };
+  // an offset consumed: zeroed on its section and on the flat alias, its value
+  // recorded (summed, so a record survives the passes it was made in)
+  const consume = (o, k, path, alias) => {
+    const v = o[k] || 0;
+    if (v) S._offsets[path] = (S._offsets[path] || 0) + v;
+    o[k] = 0;
+    if (alias) S.place[alias] = 0;
+  };
 
   // 1. cabin — the payload box everything else is built around
   const seat = GEN_SEATING[S.seating];
@@ -4453,10 +4748,13 @@ function resolveSpec(spec) {
   {
     const rise = Math.max(0.02, S.cab.h * (1 - S.fuse.cowlDeck));
     const cn = S.cab.canopy;
-    if (cn.wsAngle == null)
-      put(cn, 'wsAngle', Math.atan2(rise, S.fuse.windRun) * 180 / Math.PI,
-          'cabin.canopy.wsAngle');
-    else
+    if (cn.wsAngle == null) {
+      const a = Math.atan2(rise, S.fuse.windRun) * 180 / Math.PI;
+      put(cn, 'wsAngle', a, 'cabin.canopy.wsAngle');
+      // the envelope cut the derived angle (SPEC-FIXPOINT): the angle is now
+      // the control, so the run follows it - as the next pass would make it
+      if (cn.wsAngle !== a) S.fuse.windRun = rise / Math.tan(cn.wsAngle * Math.PI / 180);
+    } else
       S.fuse.windRun = rise / Math.tan(cn.wsAngle * Math.PI / 180);
   }
   // THE CAPACITY IS WHAT WAS DRAWN (G180): the join writes `cabin.seats` off
@@ -4500,6 +4798,7 @@ function resolveSpec(spec) {
   // takes the empennage with it and the aeroplane stays a coherent shape. Move
   // the tail relative to that with place.tailDx.
   w.xLE += pl.wingDx;
+  consume(w.place, 'dx', 'wings.0.place.dx', 'wingDx');   // SPEC-FIXPOINT (A2)
   // THE WING FOLLOWS THE ENGINE (2026-09-04, the mounts). The station above
   // sizes the wing to the CABIN, which is where every nose-engined aeroplane
   // balances; an engine moved to the aft bulkhead (a pusher) or over the wing
@@ -4522,6 +4821,9 @@ function resolveSpec(spec) {
     const mRef = ((GEN_MATERIALS[S.material] || {}).refMass || 390) + (n - 1) * mE;
     w.xLE += n * mE * (xE - engX0) / mRef;
   }
+  // the nudge and the engine's lever can carry the station past its
+  // envelope: cut here, where it is made, not by the next pass (B8)
+  w.xLE = genFieldClamp('wings[].xLE', w.xLE);
   // G185: THE PLANFORM OF ONE PLANE. The block below is the old one verbatim
   // as a function of the plane, so a biplane's second plane gets the same
   // law, MAC, aerodynamic centre, tip bow and reference area as the first.
@@ -4531,7 +4833,8 @@ function resolveSpec(spec) {
   // explicit xLE wins, like every nullable), then its own nudge
   if (k > 0) {
     put(w, 'xLE', S.wings[0].xLE + (w.stagger || 0), 'wing.xLE' + k);
-    w.xLE += (w.place && w.place.dx) || 0;
+    w.xLE = genFieldClamp('wings[].xLE', w.xLE + ((w.place && w.place.dx) || 0));
+    if (w.place) consume(w.place, 'dx', 'wings.' + k + '.place.dx');   // SPEC-FIXPOINT (A2)
   }
   // an uncranked wing's outer dihedral IS its dihedral, so the field can be
   // left alone and the aeroplane stays a single straight panel
@@ -4670,7 +4973,9 @@ function resolveSpec(spec) {
   const t = S.tail;
   put(t, 'hX', S.fuse.tailArm + 0.70 * S.fuse.postGap, 'tail.hX');
   put(t, 'vX', S.fuse.tailArm + 0.90 * S.fuse.postGap, 'tail.vX');
-  t.hX += pl.tailDx; t.vX += pl.tailDx;
+  t.hX = genFieldClamp('tail.hX', t.hX + pl.tailDx);
+  t.vX = genFieldClamp('tail.vX', t.vX + pl.tailDx);
+  consume(t.place, 'dx', 'tail.place.dx', 'tailDx');      // SPEC-FIXPOINT (A2)
   const lh = Math.max(1.0, t.hX - xAC), lv = Math.max(1.0, t.vX - xAC);
   // G115: the tail AREAS are derivable, not imposed — `put`, not assignment.
   // The volume rule fills them when the builder says nothing (identical to
@@ -4682,7 +4987,7 @@ function resolveSpec(spec) {
   // arms stay computed — they are geometry readouts, not choices.
   // twin booms: a MEASURED fin is one of two, so the vertical area is twice it
   if (t.type === 'twinBoom' && t.Sv == null && t.vHeight != null && t.vChord != null)
-    t.Sv = 2 * t.vHeight * t.vChord;
+    t.Sv = genFieldClamp('tail.Sv', 2 * t.vHeight * t.vChord);
   put(t, 'Sh', GEN_RULES.Vh * S.geom.Sw * cBar / lh, 'tail.Sh');
   // G185: the vertical volume divides by the aeroplane's span (a biplane's
   // longer plane; a monoplane's own, exactly)
@@ -4707,9 +5012,13 @@ function resolveSpec(spec) {
     const d = t.dorsal;
     if (d.angle != null && d.height > 0)
       d.len = Math.max(0, d.height / Math.tan(d.angle * Math.PI / 180));
-    else
-      put(d, 'angle', Math.atan2(d.height, Math.max(1e-6, d.len)) * 180 / Math.PI,
-          'tail.dorsal.angle');
+    else {
+      const a = Math.atan2(d.height, Math.max(1e-6, d.len)) * 180 / Math.PI;
+      put(d, 'angle', a, 'tail.dorsal.angle');
+      // cut by its envelope, the angle drives the length (the next pass would)
+      if (d.angle !== a && d.height > 0)
+        d.len = Math.max(0, d.height / Math.tan(d.angle * Math.PI / 180));
+    }
   }
   // ---- V-TAIL: one pair of panels doing both jobs ----
   // A panel canted at G contributes cos^2 G of its area to pitch and sin^2 G to
@@ -4728,15 +5037,24 @@ function resolveSpec(spec) {
     // results. Left null, the volume-coefficient sizing below stands.
     const built = t.hSpan != null && !auto['tail.hSpan']
                && t.hChord != null && !auto['tail.hChord'];
-    const bVt = built ? t.hSpan / cG
+    let bVt = built ? t.hSpan / cG
               : Math.sqrt(Math.max(Sh / (cG * cG), Sv / (sG * sG)) * GEN_RULES.hAR);
+    // B8 / SPEC-FIXPOINT: a RULED span is cut to the tailplane envelope here
+    // (its projection is what lands in hSpan, which the next pass reads as
+    // built); the area stays the rule's, so the chord takes up the cut
+    if (!built) bVt = genFieldClamp('tail.hSpan', bVt * cG) / cG;
     // P1: a MEASURED panel area (the join's Svt, off the drawn sheets) is
     // the area; its mean chord is that over the uncanted span. Left null,
     // the chord is the measured (or ruled) one and the area their product.
-    const cVt = (built && t.Svt > 0) ? t.Svt / bVt
+    let cVt = (built && t.Svt > 0) ? t.Svt / bVt
               : built ? t.hChord
               : Math.max(Sh / (cG * cG), Sv / (sG * sG)) / bVt;
-    const Svt = (built && t.Svt > 0) ? t.Svt : bVt * cVt;
+    let Svt = (built && t.Svt > 0) ? t.Svt : bVt * cVt;
+    if (!(built && t.Svt > 0)) {
+      auto['tail.Svt'] = true;
+      const SvtC = genFieldClamp('tail.Svt', Svt);
+      if (SvtC !== Svt) { Svt = SvtC; cVt = Svt / bVt; }
+    }
     S.tail.Svt = Svt; S.tail.vG = G;
     S.tail.hSpan = bVt * cG;                          // horizontal projection
     S.tail.hChord = cVt;

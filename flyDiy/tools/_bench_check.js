@@ -352,7 +352,7 @@ console.log('THE FLIGHT');
       if (ap.phase !== last) { phases.push(ap.phase); last = ap.phase;
         if (ap.phase === 'LIFTOFF' && tLift == null) tLift = t;
         if (ap.phase === 'CLIMB' && tClimb == null) tClimb = t; }
-      if (sim.stats().bad) { fin = 'broke-up'; break; }
+      if (sim.stats().bad) { fin = 'sim-diverged'; break; }
       if (ap.phase === 'STOPPED' && ap.t > 5) { fin = 'stopped'; break; }
     }
     const rep = ap.report || {};

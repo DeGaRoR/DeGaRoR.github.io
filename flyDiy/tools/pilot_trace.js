@@ -275,7 +275,7 @@ function runTrace(o) {
     key: o.key, name: S.name, from: from.id, to: to.id, style: o.style || 'normal', tail: S.tail, slope: o.slope || 0, surface: o.surface ?? null,
     weather: Object.keys(weather).length ? weather : null,
     day: world0.day ? world0.day.local : null,                       // SKY chantier: the world's date-time the fixture flew in
-    outcome: nan ? 'broke-up' : (rep.outcome || 'gave-up'), phase: ap.phase, t: r1(tEnd),
+    outcome: nan ? 'sim-diverged' : (rep.outcome || 'gave-up'), phase: ap.phase, t: r1(tEnd),
     phases: phases.map(p => p.ph + '@' + p.t),
     goArounds: ap.gaN || 0,
     verdicts: rep.verdicts.map(x => x.t + 's ' + x.code + ': ' + x.note),

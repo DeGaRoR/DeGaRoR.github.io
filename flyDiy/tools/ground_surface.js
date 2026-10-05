@@ -105,17 +105,11 @@ function meshAt(M, x, z) {
     indexMesh('strip:' + a.id, 'strip:' + RS.cls, 1.99, g, PAV.opaqueDepth(RS.cls, a.wid / 2, RS.recipe));
   }
 }
-// the premises' ground patch, level 0 (2 m grid, the diagonal (i+1, j)-(i, j+1)), sunk under the pavement (G660)
-const pavR = PAV.resolve(null, O.rec, null).recipe;
-const sinkOf = (x, z) => { const q = O.pavedAt(x, z); return q ? PAV.sinkAt(q.d, PAV.opaqueDepth(q.cls, q.halfW, pavR)) : 0; };
-const patchV = (x, z) => hAt(x, z) - 0.02 - sinkOf(x, z);
-function patchAt(x, z) {
-  const R = 2, i = Math.floor(x / R), j = Math.floor(z / R), fu = x / R - i, fv = z / R - j;
-  const x0 = i * R, z0 = j * R;
-  // triangles (a, cc, b2) and (b2, cc, dd): a (i, j), b2 (i+1, j), cc (i, j+1), dd (i+1, j+1)
-  if (fu + fv <= 1) return patchV(x0, z0) * (1 - fu - fv) + patchV(x0 + R, z0) * fu + patchV(x0, z0 + R) * fv;
-  return patchV(x0 + R, z0 + R) * (fu + fv - 1) + patchV(x0 + R, z0) * (1 - fv) + patchV(x0, z0 + R) * (1 - fu);
-}
+// the premises' ground patch, level 0 (2 m grid, the diagonal (i+1, j)-(i, j+1)), sunk under the pavement (G660) - its
+// law LIFTED from render_premises.js (G1541, tools/_patch_law.js: the drop where a lot can be, the border's tuck, the
+// pavement's sink with pavedAt's kind as the page passes it; this rig kept its own copy until then: a flat 2 cm drop)
+const PL = require(path.join(T, '_patch_law.js'))(O, PG, hAt);
+const patchAt = PL.at;
 // what the eye sees at (x, z): the pavement on top where it is opaque (inside its edge), else the patch
 function drawnAt(x, z) {
   let best = null;
@@ -142,6 +136,7 @@ if (argv.includes('--sep')) {
     const zone = q.dE < 0 ? 'side' : q.dE < M.d0 ? 'edge' : q.dE < M.d0 + 8 ? 'band' : 'interior';
     const k = M.kind.replace(/^strip:/, '') + ' ' + zone;
     (Z[k] = Z[k] || []).push(1000 * (q.y - patchAt(px, pz)));
+    if (process.env.GS_DUMP === k && 1000 * (q.y - patchAt(px, pz)) < 5) console.log('  dump ' + M.name + ' ' + px.toFixed(1) + ' ' + pz.toFixed(1) + ' ' + (1000 * (q.y - patchAt(px, pz))).toFixed(1) + ' dE ' + q.dE.toFixed(2));
   }
   console.log('DRAWN PAVEMENT - DRAWN PATCH (mm), 0.5 m grid, where the pavement is seen');
   for (const k of Object.keys(Z).sort()) { const a = Z[k], s = stat(a), neg = a.filter(v => v < 5).length;

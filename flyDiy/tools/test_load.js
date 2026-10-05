@@ -36,6 +36,10 @@ const { buildGen, makeSim,
 
 const say = s => console.log(s);
 const results = {};
+// D4 (REVIEW 2026-10-04): a rig that cannot load its surface says why, and
+// the row prints it — "not measurable" alone was the silence
+const whyNot = new WeakMap();
+const nm = (...ds) => { for (const d of ds) if (whyNot.has(d)) return 'NOT MEASURABLE: ' + whyNot.get(d); return 'NOT MEASURABLE'; };
 const G = 9.81;
 const LIMIT = 3.8, ULT = 5.7;          // FAR 23 normal category, and 1.5x it
 
@@ -110,13 +114,13 @@ function loadTest(def, n, matKey, surface) {
                                        // on their own spar nodes (default: the wing)
                                        surface: surface || 'wing',
                                        rampS: 3.0, holdS: 2.0, settleS: 4.0 });
-  if (!rig.state.ok) return null;
+  if (!rig.state.ok) { whyNot.set(def, rig.state.why || 'no reason given'); return null; }
   const dt = 1 / 60;
   for (let s = 0; s < 60 * 30 && !rig.state.done; s++) rig.step(dt);
   const S = rig.state;
   return { st: rig.stations, semi: rig.semi, defl: S.defl, tip: S.tipPct,
            worst: S.worstPct === null ? null : { cls: S.worstCls, pct: S.worstPct },
-           bad: S.verdict === 'BROKE UP', W: rig.W, n: n };
+           bad: S.verdict === 'SIM DIVERGED' || S.verdict === 'BROKE UP', W: rig.W, n: n };   // G1800: the NaN's verdict renamed
 }
 
 // a wing seen from the front, bending up. 24 columns root -> tip.
@@ -176,10 +180,11 @@ say('airframe                     1.0 g    3.8 g LIMIT   5.7 g ULT    worst memb
 for (const [lbl, build, mat] of CASES) {
   let def;
   try { def = build(); } catch (e) { say(`  ${lbl.padEnd(26)} BUILD FAILED: ${e.message}`); continue; }
+  const dL = build(), dU = build();
   const r1 = loadTest(def, 1.0, mat);
-  const rl = loadTest(build(), LIMIT, mat);
-  const ru = loadTest(build(), ULT, mat);
-  if (!r1 || !rl || !ru) { say(`  ${lbl.padEnd(26)} not measurable`); continue; }
+  const rl = loadTest(dL, LIMIT, mat);
+  const ru = loadTest(dU, ULT, mat);
+  if (!r1 || !rl || !ru) { say(`  ${lbl.padEnd(26)} *** ${nm(def, dL, dU)}`); continue; }
   const yieldPct = ru.worst ? ru.worst.pct : null;
   // The rig held and the structure integrated. The yield column is REPORTED,
   // not gated — see the note under the table for why.
@@ -255,8 +260,9 @@ const tailRows = [];
 for (const m of Object.keys(GEN_MATERIALS)) {
   const build = () => { const sp = JSON.parse(JSON.stringify(GEN_DEFAULT)); sp.fuselage.material = m; return buildGen(sp); };
   for (const surf of ['stab', 'fin']) {
-    const r1 = loadTest(build(), 1.0, m, surf), rl = loadTest(build(), LIMIT, m, surf), ru = loadTest(build(), ULT, m, surf);
-    if (!r1 || !rl || !ru) { say(`  GEN ${m.padEnd(22)} ${surf.padEnd(6)} not measurable`); tailRows.push({ ok: false }); continue; }
+    const d1 = build(), dL = build(), dU = build();
+    const r1 = loadTest(d1, 1.0, m, surf), rl = loadTest(dL, LIMIT, m, surf), ru = loadTest(dU, ULT, m, surf);
+    if (!r1 || !rl || !ru) { say(`  GEN ${m.padEnd(22)} ${surf.padEnd(6)} *** ${nm(d1, dL, dU)}`); tailRows.push({ ok: false, lbl: `${m} ${surf}` }); continue; }
     const ok = !r1.bad && !rl.bad && !ru.bad;
     const yp = ru.worst ? ru.worst.pct : null;
     tailRows.push({ ok, lbl: `${m} ${surf}`, ult: ru.tip });
@@ -276,8 +282,9 @@ for (const m of Object.keys(GEN_MATERIALS)) {
     sp.tail.type = 'twinBoom'; sp.tail.boomX = 1.25; sp.tail.boomLen = 3.5; return buildGen(sp); };
   for (const surf of ['stab', 'fin']) {
     const m = 'tubeFabric';
-    const r1 = loadTest(build(), 1.0, m, surf), rl = loadTest(build(), LIMIT, m, surf), ru = loadTest(build(), ULT, m, surf);
-    if (!r1 || !rl || !ru) { say(`  TWIN BOOM ${m.padEnd(16)} ${surf.padEnd(6)} not measurable`); tailRows.push({ ok: false, lbl: 'twin ' + surf }); continue; }
+    const d1 = build(), dL = build(), dU = build();
+    const r1 = loadTest(d1, 1.0, m, surf), rl = loadTest(dL, LIMIT, m, surf), ru = loadTest(dU, ULT, m, surf);
+    if (!r1 || !rl || !ru) { say(`  TWIN BOOM ${m.padEnd(16)} ${surf.padEnd(6)} *** ${nm(d1, dL, dU)}`); tailRows.push({ ok: false, lbl: 'twin ' + surf }); continue; }
     const ok = !r1.bad && !rl.bad && !ru.bad;
     const yp = ru.worst ? ru.worst.pct : null;
     tailRows.push({ ok, lbl: `twin ${surf}`, ult: ru.tip });
@@ -286,6 +293,26 @@ for (const m of Object.keys(GEN_MATERIALS)) {
         (yp === null ? '        n/a' : `${yp.toFixed(0).padStart(4)}% of yield (${ru.worst.cls})`) +
         `   ${!ok ? '*** DID NOT SURVIVE' : 'ok'}`);
   }
+}
+// D4 (REVIEW 2026-10-04): THE V-TAIL HAS NO SPAR TRUSS. Its two panels are
+// a tip node each on four fuselage members (61_gen_frame: "a truss for it is
+// its own chantier"), its strips are kind 'vtail' on the tip and the post —
+// there is nothing for the stab or fin rig to load, and it used to answer a
+// bare ok:false that no row ever asked for. It is asked now, and it must be
+// REFUSED WITH ITS REASON (a rig that loaded nothing would read 0 % and
+// pass); the line below is printed on every run until the truss is built.
+{
+  const sp = JSON.parse(JSON.stringify(GEN_DEFAULT)); sp.tail.type = 'v'; sp.tail.vAngle = 35;
+  const why = [];
+  for (const surf of ['stab', 'fin']) {
+    const d = buildGen(sp);
+    const sim = makeSim(d, null); sim.reset(0);
+    const rig = makeLoadTest(sim, d, { limit: LIMIT, ult: ULT, material: 'tubeFabric', surface: surf });
+    why.push({ surf, ok: rig.state.ok, why: rig.state.why });
+    say(`  V-TAIL ${'tubeFabric'.padEnd(19)} ${surf.padEnd(6)} *** ${rig.state.ok ? 'MEASURED?' : 'NOT MEASURABLE: ' + rig.state.why} — OWED (REVIEW D4: no spar truss)`);
+  }
+  results['D4: the rig refuses the V-tail\'s stab and fin, naming the missing tag'] =
+    why.every(w => !w.ok && typeof w.why === 'string' && /\b(HF|VF)\b/.test(w.why));
 }
 results['P4: every tail surface survived its ultimate case'] = tailRows.every(r => r.ok);
 // THE STAB'S DEFLECTION IS GATED, THE FIN'S IS REPORTED — and the reason is

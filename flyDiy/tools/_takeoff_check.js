@@ -206,10 +206,16 @@ if (!SELF) {
   const s40 = fs.readFileSync(path.join(__dirname, '..', 'src', 'core', '40_autopilot.js'), 'utf8');
   const s41 = fs.readFileSync(path.join(__dirname, '..', 'src', 'core', '41_test_pilot.js'), 'utf8');
   const s43 = fs.readFileSync(path.join(__dirname, '..', 'src', 'core', '43_pilot.js'), 'utf8');   // G202: the third pilot
+  // G1570: the servos are ONE module now (39b_servos.js): the tail-state
+  // schedule is written once there, and every pilot must fly that module's
+  // ground steer rather than a copy of it
+  const sSV = fs.readFileSync(path.join(__dirname, '..', 'src', 'core', '39b_servos.js'), 'utf8');
+  check(/tailUp = rotateTD/.test(sSV), 'the servo module schedules the ground steer on the tail state');
   for (const s of [s40, s41, s43]) {
     check(/case 'STOP':/.test(s) && /case 'HOLD':/.test(s), 'both pilots carry STOP and HOLD');
     check(/pathLocate\(ap\.path/.test(s) && /pathSpeed\(ap\.path/.test(s), 'both pilots follow the path');
-    check(/const tailUp = rotateTD/.test(s), 'both pilots schedule the ground steer on the tail state');
+    check(/makeServos\(sim, def/.test(s) && /SV\.groundSteer\(thRest/.test(s) && !/const tailUp = rotateTD/.test(s),
+          'every pilot flies the servo module\'s ground steer, and none carries its own copy');
   }
   // ---- THE CROSSWIND LIMIT on the plaque (G193.2) -----------------------------
   {

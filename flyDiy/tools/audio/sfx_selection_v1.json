@@ -8,45 +8,582 @@
   "shot": "a one-shot, trimmed to its event (<= 6 s mono)"
  },
  "items": [
-  { "key": "amb.forest.day",   "id": 288899, "kind": "bed",  "pick": "user", "note": "wind and birds" },
-  { "key": "amb.forest.night", "id": 333221, "kind": "bed",  "pick": "user", "note": "night crickets" },
-  { "key": "amb.wind.light",   "id": 160469, "kind": "bed",  "pick": "user", "note": "user: good background" },
-  { "key": "amb.wind.clear",   "id": 156414, "kind": "bed",  "pick": "user", "note": "user: clear (135193 dropped: same place, same author)" },
-  { "key": "amb.wind.mountain","id": 165526, "kind": "bed",  "pick": "user", "note": "wind singing, some night crickets" },
-  { "key": "amb.wind.storm",   "id": 157280, "kind": "bed",  "pick": "user", "note": "user: eerie, for night and heavy weather" },
-  { "key": "amb.shore.surf",   "id": 155641, "kind": "bed",  "pick": "user" },
-  { "key": "amb.shore.rocks",  "id": 155895, "kind": "bed",  "pick": "user", "note": "user: ok for underwater too" },
-  { "key": "amb.lake.near",    "id": 135046, "kind": "bed",  "pick": "user", "note": "user: very close to water only" },
-  { "key": "amb.lake.lap",     "id": 428088, "kind": "bed",  "pick": "user" },
-  { "key": "amb.stream",       "id": 264180, "kind": "bed",  "pick": "user" },
-  { "key": "amb.harbour",      "id": 339440, "kind": "bed",  "pick": "user", "note": "rusty old boat" },
-  { "key": "amb.village",      "id": 435819, "kind": "bed",  "pick": "user", "note": "quiet seaside town, light rain" },
-  { "key": "amb.airfield",     "id": 319102, "kind": "bed",  "pick": "user" },
-  { "key": "amb.hangar",       "id": 427861, "kind": "bed",  "pick": "user", "note": "warehouse room tone, fans, vents" },
-  { "key": "amb.rain.roof",    "id": 329578, "kind": "bed",  "pick": "user", "note": "snow melt dribbling from a roof" },
-  { "key": "amb.frogs.night",  "id": 135561, "kind": "bed",  "pick": "user" },
-  { "key": "amb.loons",        "id": 39339,  "kind": "bed",  "pick": "user", "note": "user: not too loud, really background" },
-  { "key": "amb.meadow",       "id": 639459, "kind": "bed",  "pick": "coordinator", "note": "gap fill: open grass round the strips; unheard" },
-  { "key": "bird.eagle",       "id": 381200, "kind": "shot", "pick": "user" },
-  { "key": "bird.eagle",       "id": 392212, "kind": "shot", "pick": "user" },
-  { "key": "bird.gull",        "id": 166710, "kind": "shot", "pick": "user" },
-  { "key": "bird.crow",        "id": 182090, "kind": "shot", "pick": "user", "note": "the two raven recordings were rejected" },
-  { "key": "bird.owl",         "id": 465697, "kind": "shot", "pick": "coordinator", "note": "gap fill: night; unheard" },
-  { "key": "dog",              "id": 160366, "kind": "shot", "pick": "user", "note": "user: don't abuse this, here and there" },
-  { "key": "gnd.gravel",       "id": 251661, "kind": "loop", "pick": "user", "note": "user: could be good for rolling noise, needs cleaning" },
-  { "key": "mech.creak",       "id": 119468, "kind": "shot", "pick": "user" },
-  { "key": "mech.creak",       "id": 238289, "kind": "shot", "pick": "user" },
-  { "key": "mech.door",        "id": 345066, "kind": "shot", "pick": "user" },
-  { "key": "mech.switch",      "id": 361371, "kind": "shot", "pick": "user", "note": "user: ok for switches" },
-  { "key": "mech.switch",      "id": 423957, "kind": "shot", "pick": "user" },
-  { "key": "water.drip",       "id": 166986, "kind": "shot", "pick": "user" },
-  { "key": "ui.click",         "id": 528561, "kind": "shot", "pick": "coordinator", "note": "gap fill: the one interface click; unheard" },
-  { "key": "vehicle.pickup",   "id": 450227, "kind": "shot", "pick": "user", "note": "user: if you need a car passing (gravel, crunchy snow)" }
+  {
+   "key": "amb.forest.day",
+   "id": 288899,
+   "kind": "bed",
+   "pick": "user",
+   "note": "wind and birds"
+  },
+  {
+   "key": "amb.forest.night",
+   "id": 333221,
+   "kind": "bed",
+   "pick": "user",
+   "note": "night crickets"
+  },
+  {
+   "key": "amb.wind.light",
+   "id": 160469,
+   "kind": "bed",
+   "pick": "user",
+   "note": "user: good background"
+  },
+  {
+   "key": "amb.wind.clear",
+   "id": 156414,
+   "kind": "bed",
+   "pick": "user",
+   "note": "user: clear (135193 dropped: same place, same author)"
+  },
+  {
+   "key": "amb.wind.mountain",
+   "id": 165526,
+   "kind": "bed",
+   "pick": "user",
+   "note": "wind singing, some night crickets"
+  },
+  {
+   "key": "amb.wind.storm",
+   "id": 157280,
+   "kind": "bed",
+   "pick": "user",
+   "note": "user: eerie, for night and heavy weather"
+  },
+  {
+   "key": "amb.shore.surf",
+   "id": 155641,
+   "kind": "bed",
+   "pick": "user"
+  },
+  {
+   "key": "amb.shore.rocks",
+   "id": 155895,
+   "kind": "bed",
+   "pick": "user",
+   "note": "user: ok for underwater too"
+  },
+  {
+   "key": "amb.lake.near",
+   "id": 135046,
+   "kind": "bed",
+   "pick": "user",
+   "note": "user: very close to water only"
+  },
+  {
+   "key": "amb.lake.lap",
+   "id": 428088,
+   "kind": "bed",
+   "pick": "user"
+  },
+  {
+   "key": "amb.stream",
+   "id": 264180,
+   "kind": "bed",
+   "pick": "user"
+  },
+  {
+   "key": "amb.harbour",
+   "id": 339440,
+   "kind": "bed",
+   "pick": "user",
+   "note": "rusty old boat"
+  },
+  {
+   "key": "amb.village",
+   "id": 435819,
+   "kind": "bed",
+   "pick": "user",
+   "note": "quiet seaside town, light rain"
+  },
+  {
+   "key": "amb.airfield",
+   "id": 319102,
+   "kind": "bed",
+   "pick": "user"
+  },
+  {
+   "key": "amb.hangar",
+   "id": 427861,
+   "kind": "bed",
+   "pick": "user",
+   "note": "warehouse room tone, fans, vents"
+  },
+  {
+   "key": "amb.rain.roof",
+   "id": 329578,
+   "kind": "bed",
+   "pick": "user",
+   "note": "snow melt dribbling from a roof"
+  },
+  {
+   "key": "amb.frogs.night",
+   "id": 135561,
+   "kind": "bed",
+   "pick": "user"
+  },
+  {
+   "key": "amb.loons",
+   "id": 39339,
+   "kind": "bed",
+   "pick": "user",
+   "note": "user: not too loud, really background"
+  },
+  {
+   "key": "amb.meadow",
+   "id": 639459,
+   "kind": "bed",
+   "pick": "coordinator",
+   "note": "gap fill: open grass round the strips; unheard"
+  },
+  {
+   "key": "bird.eagle",
+   "id": 381200,
+   "kind": "shot",
+   "pick": "user"
+  },
+  {
+   "key": "bird.eagle",
+   "id": 392212,
+   "kind": "shot",
+   "pick": "user"
+  },
+  {
+   "key": "bird.gull",
+   "id": 166710,
+   "kind": "shot",
+   "pick": "user"
+  },
+  {
+   "key": "bird.crow",
+   "id": 182090,
+   "kind": "shot",
+   "pick": "user",
+   "note": "the two raven recordings were rejected"
+  },
+  {
+   "key": "bird.owl",
+   "id": 465697,
+   "kind": "shot",
+   "pick": "coordinator",
+   "note": "gap fill: night; unheard"
+  },
+  {
+   "key": "dog",
+   "id": 160366,
+   "kind": "shot",
+   "pick": "user",
+   "note": "user: don't abuse this, here and there"
+  },
+  {
+   "key": "gnd.gravel",
+   "id": 251661,
+   "kind": "loop",
+   "pick": "user",
+   "note": "user: could be good for rolling noise, needs cleaning"
+  },
+  {
+   "key": "mech.creak",
+   "id": 119468,
+   "kind": "shot",
+   "pick": "user"
+  },
+  {
+   "key": "mech.creak",
+   "id": 238289,
+   "kind": "shot",
+   "pick": "user"
+  },
+  {
+   "key": "mech.door",
+   "id": 345066,
+   "kind": "shot",
+   "pick": "user"
+  },
+  {
+   "key": "mech.switch",
+   "id": 361371,
+   "kind": "shot",
+   "pick": "user",
+   "note": "user: ok for switches"
+  },
+  {
+   "key": "mech.switch",
+   "id": 423957,
+   "kind": "shot",
+   "pick": "user"
+  },
+  {
+   "key": "water.drip",
+   "id": 166986,
+   "kind": "shot",
+   "pick": "user"
+  },
+  {
+   "key": "ui.click",
+   "id": 528561,
+   "kind": "shot",
+   "pick": "coordinator",
+   "note": "gap fill: the one interface click; unheard"
+  },
+  {
+   "key": "vehicle.pickup",
+   "id": 450227,
+   "kind": "shot",
+   "pick": "user",
+   "note": "user: if you need a car passing (gravel, crunchy snow)"
+  },
+  {
+   "key": "amb.rain.outside",
+   "id": 523391,
+   "kind": "bed",
+   "pick": "coordinator",
+   "note": "SND-AMB-1 asked: rain outside (only the roof bed existed); temperate forest, unheard"
+  },
+  {
+   "key": "amb.birds.open",
+   "id": 456766,
+   "kind": "bed",
+   "pick": "coordinator",
+   "note": "SND-AMB-1 asked: day birds over open ground; unheard"
+  },
+  {
+   "key": "amb.lake.shore",
+   "id": 352356,
+   "kind": "bed",
+   "pick": "coordinator",
+   "note": "SND-AMB-1 asked: a louder lake-shore bed than amb.lake.near (+11.4 dB); unheard"
+  },
+  {
+   "key": "amb.sea.open",
+   "id": 460061,
+   "kind": "bed",
+   "pick": "coordinator",
+   "note": "the user: keep looking for an open sea option - water along a hull underway, no shore, no engine; unheard"
+  },
+  {
+   "key": "bird.loon",
+   "id": 39339,
+   "kind": "shot",
+   "pick": "coordinator",
+   "note": "SND-AMB-2 asked: a loon call one-shot - cut from the user's kept loon recording (no separate CC0 call found)"
+  },
+  {
+   "key": "tram.bell",
+   "id": 497561,
+   "kind": "shot",
+   "pick": "coordinator",
+   "note": "SND-AMB-2 asked: a tram station bell; unheard"
+  },
+  {
+   "key": "tram.hum",
+   "id": 442493,
+   "kind": "loop",
+   "pick": "coordinator",
+   "note": "SND-AMB-2 asked: a cable car's rope / sheave hum (a funicular cable car); unheard"
+  },
+  {
+   "key": "boat.idle",
+   "id": 637743,
+   "kind": "loop",
+   "pick": "coordinator",
+   "note": "SND-AMB-2 asked: a small outboard at idle; unheard"
+  },
+  {
+   "key": "bird.crow",
+   "id": 361470,
+   "kind": "shot",
+   "pick": "coordinator",
+   "note": "SND-AMB-2 asked: more crow variants; unheard"
+  },
+  {
+   "key": "bird.crow",
+   "id": 75162,
+   "kind": "shot",
+   "pick": "coordinator",
+   "note": "SND-AMB-2 asked: more crow variants; unheard"
+  },
+  {
+   "key": "bird.gull",
+   "id": 263786,
+   "kind": "shot",
+   "pick": "coordinator",
+   "note": "SND-AMB-2 asked: more gull variants; unheard"
+  },
+  {
+   "key": "bird.gull",
+   "id": 73497,
+   "kind": "shot",
+   "pick": "coordinator",
+   "note": "SND-AMB-2 asked: more gull variants; unheard"
+  },
+  {
+   "key": "animal.bear",
+   "id": "nps-grizzly-vocal",
+   "kind": "shot",
+   "pick": "coordinator",
+   "note": "coordinator gap fill 2026-10-05, unheard (cut chosen by loudness over the floor)",
+   "cut": [
+    83.5,
+    87.5
+   ]
+  },
+  {
+   "key": "animal.bear",
+   "id": "nps-grizzly-vocal",
+   "kind": "shot",
+   "pick": "coordinator",
+   "note": "coordinator gap fill 2026-10-05, unheard (cut chosen by loudness over the floor)",
+   "cut": [
+    66,
+    70
+   ]
+  },
+  {
+   "key": "animal.bear",
+   "id": "nps-grizzly-roar",
+   "kind": "shot",
+   "pick": "coordinator",
+   "note": "coordinator gap fill 2026-10-05, unheard (cut chosen by loudness over the floor)",
+   "cut": [
+    11.2,
+    15.5
+   ]
+  },
+  {
+   "key": "animal.elk",
+   "id": "nps-elk-bugle-1",
+   "kind": "shot",
+   "pick": "coordinator",
+   "note": "coordinator gap fill 2026-10-05, unheard (cut chosen by loudness over the floor)",
+   "cut": [
+    3.5,
+    9.5
+   ]
+  },
+  {
+   "key": "animal.elk",
+   "id": "nps-elk-bugle-2",
+   "kind": "shot",
+   "pick": "coordinator",
+   "note": "coordinator gap fill 2026-10-05, unheard (cut chosen by loudness over the floor)",
+   "cut": [
+    2,
+    8
+   ]
+  },
+  {
+   "key": "animal.elk",
+   "id": "nps-elk-bugle-2",
+   "kind": "shot",
+   "pick": "coordinator",
+   "note": "coordinator gap fill 2026-10-05, unheard (cut chosen by loudness over the floor)",
+   "cut": [
+    12,
+    18
+   ]
+  },
+  {
+   "key": "animal.deer",
+   "id": 351113,
+   "kind": "shot",
+   "pick": "coordinator",
+   "note": "a deer bleat for the doe; coordinator gap fill 2026-10-05, unheard (cut chosen by loudness over the floor)",
+   "cut": [
+    4.9,
+    7.6
+   ]
+  },
+  {
+   "key": "animal.deer",
+   "id": 351113,
+   "kind": "shot",
+   "pick": "coordinator",
+   "note": "a deer bleat for the doe; coordinator gap fill 2026-10-05, unheard (cut chosen by loudness over the floor)",
+   "cut": [
+    10.5,
+    13.2
+   ]
+  },
+  {
+   "key": "animal.whale.blow",
+   "id": "nps-humpback-trumpet",
+   "kind": "shot",
+   "pick": "coordinator",
+   "note": "coordinator gap fill 2026-10-05, unheard (cut chosen by loudness over the floor)",
+   "cut": [
+    2,
+    6
+   ]
+  },
+  {
+   "key": "animal.whale.blow",
+   "id": "nps-humpback-trumpet",
+   "kind": "shot",
+   "pick": "coordinator",
+   "note": "coordinator gap fill 2026-10-05, unheard (cut chosen by loudness over the floor)",
+   "cut": [
+    10.9,
+    14.6
+   ]
+  },
+  {
+   "key": "animal.whale.blow",
+   "id": "nps-humpback-trumpet",
+   "kind": "shot",
+   "pick": "coordinator",
+   "note": "coordinator gap fill 2026-10-05, unheard (cut chosen by loudness over the floor)",
+   "cut": [
+    24.9,
+    28.6
+   ]
+  },
+  {
+   "key": "animal.orca.blow",
+   "id": "nps-porpoise",
+   "kind": "shot",
+   "pick": "coordinator",
+   "note": "harbour porpoise breaths (Glacier Bay), played lower for an orca; coordinator gap fill 2026-10-05, unheard (cut chosen by loudness over the floor)",
+   "cut": [
+    16.4,
+    18.6
+   ]
+  },
+  {
+   "key": "animal.orca.blow",
+   "id": "nps-porpoise",
+   "kind": "shot",
+   "pick": "coordinator",
+   "note": "harbour porpoise breaths (Glacier Bay), played lower for an orca; coordinator gap fill 2026-10-05, unheard (cut chosen by loudness over the floor)",
+   "cut": [
+    10.6,
+    12.8
+   ]
+  },
+  {
+   "key": "animal.orca.blow",
+   "id": "nps-porpoise",
+   "kind": "shot",
+   "pick": "coordinator",
+   "note": "harbour porpoise breaths (Glacier Bay), played lower for an orca; coordinator gap fill 2026-10-05, unheard (cut chosen by loudness over the floor)",
+   "cut": [
+    0.9,
+    3.1
+   ]
+  },
+  {
+   "key": "bird.thrush",
+   "id": "nps-varied-thrush",
+   "kind": "shot",
+   "pick": "coordinator",
+   "note": "coordinator gap fill 2026-10-05, unheard (cut chosen by loudness over the floor)",
+   "cut": [
+    0.9,
+    4
+   ]
+  },
+  {
+   "key": "bird.thrush",
+   "id": "nps-varied-thrush",
+   "kind": "shot",
+   "pick": "coordinator",
+   "note": "coordinator gap fill 2026-10-05, unheard (cut chosen by loudness over the floor)",
+   "cut": [
+    6.1,
+    9.2
+   ]
+  },
+  {
+   "key": "bird.thrush",
+   "id": "nps-varied-thrush",
+   "kind": "shot",
+   "pick": "coordinator",
+   "note": "coordinator gap fill 2026-10-05, unheard (cut chosen by loudness over the floor)",
+   "cut": [
+    15.3,
+    17
+   ]
+  },
+  {
+   "key": "bird.crow",
+   "id": "nps-raven",
+   "kind": "shot",
+   "pick": "coordinator",
+   "note": "coordinator gap fill 2026-10-05, unheard (cut chosen by loudness over the floor)",
+   "cut": [
+    8.1,
+    10.8
+   ]
+  },
+  {
+   "key": "bird.eagle",
+   "id": "nps-golden-eagle",
+   "kind": "shot",
+   "pick": "coordinator",
+   "note": "coordinator gap fill 2026-10-05, unheard (cut chosen by loudness over the floor)",
+   "cut": [
+    83.2,
+    86.6
+   ]
+  },
+  {
+   "key": "bird.loon",
+   "id": "nps-loon",
+   "kind": "shot",
+   "pick": "coordinator",
+   "note": "coordinator gap fill 2026-10-05, unheard (cut chosen by loudness over the floor)",
+   "cut": [
+    95.9,
+    100.9
+   ]
+  },
+  {
+   "key": "bird.loon",
+   "id": "nps-loon",
+   "kind": "shot",
+   "pick": "coordinator",
+   "note": "coordinator gap fill 2026-10-05, unheard (cut chosen by loudness over the floor)",
+   "cut": [
+    64.4,
+    69.4
+   ]
+  },
+  {
+   "key": "bird.owl",
+   "id": 479588,
+   "kind": "shot",
+   "pick": "coordinator",
+   "note": "coordinator gap fill 2026-10-05, unheard (cut chosen by loudness over the floor)",
+   "cut": [
+    2.5,
+    5.5
+   ]
+  },
+  {
+   "key": "bird.owl",
+   "id": 558396,
+   "kind": "shot",
+   "pick": "coordinator",
+   "note": "coordinator gap fill 2026-10-05, unheard (cut chosen by loudness over the floor)"
+  },
+  {
+   "key": "mill.stamp",
+   "id": 322871,
+   "kind": "loop",
+   "pick": "coordinator",
+   "note": "the stamp mill SND-AMB-2 asked for: a quarry crusher pounding every 0.92 s (YleArkisto, CC BY 4.0), seven pounds onset to onset so the loop keeps time; coordinator gap fill 2026-10-05, unheard (cut chosen by loudness over the floor)",
+   "cut": [
+    128.455,
+    134.855
+   ]
+  }
  ],
  "rejected_guidance": {
   "starter samples": "user: not wanted (the starter stays procedural, SND-ENGINE-2)",
   "ticking": "the clock recordings are wrong for cooling ticks; ticks stay procedural",
   "busy beds": "user rejected busy / urban / church / car-park beds and sharp high-pitched tree wind",
   "tyre squeal and crash": "rejected"
- }
+ },
+ "note2": "2026-10-04: three gap fills for SND-AMB-1 (rain outside, open-ground birds, a louder lake shore); crickets alone = amb.forest.night (333221, a crickets-only recording); open sea = amb.sea.open (460061, a sailboat underway)",
+ "note3": "2026-10-05: the animals (G498 bear, elk, doe, whale, orca) and the missing assets (stamp mill, owl, thrush, raven, eagle, loon variants); public-domain US National Park Service recordings (Yellowstone, Glacier Bay, Denali) via tools/audio/nps_fetch.js, CC BY allowed (the user: anything that asks at most a credit; never SA / NC / ND)"
 }

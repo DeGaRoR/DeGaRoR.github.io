@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Phone to computer</title>
+<link rel="stylesheet" href="mock.css">
+</head><body>
+<div class="stage">
+<div>
+  <p class="cap">3 · the phone: "Send to computer"</p>
+  <div class="phone portrait">
+    <div class="top"><button class="ib">☰</button><div class="name">My Cub<small>from the stock Cub · 20 rows changed</small></div><button class="pill acc">Send to computer</button></div>
+    <div class="view studio" style="height:330px" id="view"></div>
+    <div class="scrim"></div>
+    <div class="bsheet">
+      <div class="grab"></div>
+      <h2>Send “My Cub” to your computer</h2>
+      <p>No account, no upload to us: the build goes through your own mail or messages, as a small file (21 KB) or a link.</p>
+      <button class="act primary"><span class="ic">⤴</span><span><b>Send the file…</b><small>the share sheet: Gmail, WhatsApp, Messenger, Drive, Nearby… (My Cub.flydiy.json)</small></span></button>
+      <button class="act"><span class="ic">🔗</span><span><b>Send a link…</b><small>the same build inside a link (401 characters): tap it at home</small></span></button>
+      <button class="act"><span class="ic">▦</span><span><b>Show QR code</b><small>scan it with the computer's webcam (or from another phone)</small></span></button>
+      <button class="act"><span class="ic">⬇</span><span><b>Save to this phone's files</b><small>a copy in Downloads, for a cable or a cloud drive</small></span></button>
+    </div>
+  </div>
+</div>
+<div>
+  <p class="cap">4 · the QR (a real one: a 20-row patch, 401 chars, version 13)</p>
+  <div class="phone portrait">
+    <div class="top"><button class="ib">‹</button><div class="name">Scan on your computer<small>flyDiy → File → Open from phone…</small></div></div>
+    <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px">
+      <img class="qr" src="qr_patch20.svg" width="300" height="300" alt="QR of a build link">
+      <p style="color:var(--ed-dim);font-size:13.5px;text-align:center;max-width:320px">Changed many rows? A build that is not close to a stock one makes a link too long for a QR (the whole Cub is 9.6 k characters). The phone then offers only Share and File.</p>
+    </div>
+  </div>
+</div>
+<div>
+  <p class="cap">5 · what the phone garage says instead of flying</p>
+  <div class="phone portrait">
+    <div class="top"><button class="ib">☰</button><div class="name">My Cub<small>the bench · garage only</small></div></div>
+    <div style="flex:1;overflow:auto;padding:12px 16px">
+      <div class="plaque">
+        <div><small>empty mass</small><b>352 kg</b></div>
+        <div><small>stall</small><b>61 km/h</b></div>
+        <div><small>take-off run</small><b>142 m</b></div>
+        <div><small>best L/D</small><b>8.9</b></div>
+        <div><small>climb</small><b>3.1 m/s</b></div>
+        <div><small>static margin</small><b>11 %</b></div>
+      </div>
+      <p style="color:var(--ed-faint);font-size:12px;margin:2px 0 10px">The bench check (the shakedown) runs on the phone: pure physics, no world. The numbers are illustrative.</p>
+      <div class="lock"><span class="ic">✈</span><span><b>Test flight, taxi and the circuit: on your computer.</b><br>They need the island and the flight model running live. Send the build, then press <i>Roll out &amp; fly</i> at home.</span></div>
+      <div class="lock"><span class="ic">⚖</span><span><b>Sandbag rig and crosswind: on your computer.</b><br>The plaque is earned there. The phone shows the bench check only, marked "not yet flown".</span></div>
+      <div class="lock" style="background:rgba(156,192,138,.08);border-color:rgba(156,192,138,.35)"><span class="ic">✓</span><span><b>Flyable circuit: likely.</b> The bench check found a stable trim, a take-off under 300 m and a positive climb.</span></div>
+    </div>
+    <div class="bar"><div class="tabs"><button class="tab">design</button><button class="tab">shape</button><button class="tab on">bench</button></div></div>
+  </div>
+</div>
+<div>
+  <p class="cap">7 · your aeroplanes, kept on this phone (and the install)</p>
+  <div class="phone portrait">
+    <div class="top"><button class="ib">‹</button><div class="name">Your aeroplanes<small>kept on this phone · 3 builds · 64 KB</small></div><button class="ib">＋</button></div>
+    <div style="flex:1;overflow:auto;padding:10px 14px">
+      <div class="lock" style="background:rgba(230,219,201,.06);border-color:var(--ed-border)"><span class="ic">⇩</span><span><b>Install flyDiy on this phone</b><br>Opens full screen from the home screen, works offline on the train, keeps your builds safe from clean-ups, and appears in the share sheet to receive builds. <span class="pill acc" style="display:inline-flex;align-items:center;margin-top:8px">Install</span></span></div>
+      <button class="act"><span class="ic">✈</span><span><b>My Cub</b><small>edited 18:40 · <span style="color:var(--ed-warn)">changed since sent</span></small></span></button>
+      <button class="act"><span class="ic">✈</span><span><b>Bush Jodel</b><small>edited yesterday · sent 21:05 ✓</small></span></button>
+      <button class="act"><span class="ic">✈</span><span><b>Float twin</b><small>edited Monday · never sent</small></span></button>
+      <p style="color:var(--ed-faint);font-size:12px">Every change is saved on the phone as you go (the autosave). A build you have not sent is marked: the phone may be lost, and the computer is where it flies.</p>
+    </div>
+  </div>
+</div>
+<div style="flex-basis:100%"></div>
+<div>
+  <p class="cap">6 · the computer opens the link</p>
+  <div class="desktop">
+    <div class="dtop">flyDiy · garage · <span style="color:var(--ed-faint)">degaror.github.io/flyDiy/#build=1.…</span></div>
+    <div class="dview"></div>
+    <div class="card">
+      <h2>A build from your phone: “My Cub”</h2>
+      <p>The stock Cub (20 Sept) with 20 changes, sent today at 18:42. It will open as a <b>new build</b>, and nothing you have is overwritten.</p>
+      <ul class="steps">
+        <li class="ok">✓ read and checked (format v10, base Cub found, 20 rows in range)</li>
+        <li class="ok">✓ built in the garage (the editor's own build)</li>
+        <li class="run">◐ bench check (the shakedown, ~0.5 s)</li>
+        <li class="todo">○ at roll-out: the full-HD flown bake (2048² atlas, ~2 s) and the world</li>
+      </ul>
+      <p style="color:var(--ed-faint);font-size:12.5px">Made on a newer flyDiy than this one? You are told, and it still opens (unknown rows keep their defaults).</p>
+      <div class="row2"><button class="pill">Keep the old one open</button><button class="pill acc">Open “My Cub”</button></div>
+    </div>
+  </div>
+</div>
+<div class="notes">
+  <h3>The flow</h3>
+  <ul>
+    <li><b>Phone</b>: Send → <b>the file through the share sheet</b> (Web Share API level 2, <code>navigator.share({files: [build]})</code>): mail it to yourself, WhatsApp it, Messenger, Drive. No backend: the user's own channels carry it. Chrome's share sheet takes a permitted list of file types. If <code>canShare</code> refuses <code>.json</code>, the same bytes go as <code>My Cub.flydiy.txt</code>. The link, the QR and a plain download are the other buttons.</li>
+    <li><b>Receiving</b>: the computer opens the mail or WhatsApp Web attachment, or drops it on the garage. Import accepts <code>.json</code> and <code>.txt</code>. With the PWA installed, a desktop double-click on the file opens flyDiy (<code>file_handlers</code>), and on a phone flyDiy appears in the share sheet (<code>share_target</code>).</li>
+    <li><b>The link</b>: <code>#build=1.&lt;base64url(deflate-raw(JSON))&gt;</code>. The fragment never reaches the server, so GitHub Pages stays static. <code>1.</code> is a patch over a frozen base, <code>0.</code> is a whole spec.</li>
+    <li><b>Computer</b>: the page sees <code>#build=</code> before the welcome screen. After the boot it shows this card. Open = today's import path (<code>GARAGE_SPEC</code> load: normalise, migrate, clamp), saved as a new slot. The hash is then cleared, so a reload does not import twice.</li>
+    <li>What the phone could not do happens on the computer: the bench, the flown bake, the world.</li>
+  </ul>
+</div>
+</div>
+<script src="mock_rows.js"></script>
+<script>document.getElementById('view').insertAdjacentHTML('afterbegin', MOCK_PLANE(412, 330, null, true));</script>
+</body></html>

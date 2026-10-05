@@ -1,0 +1,236 @@
+{
+ "meta": {
+  "q": "fbake=norest",
+  "date": "2026-10-04T16:28:37.207Z",
+  "commit": "a1ffcf5b",
+  "build": "239328e5d9b4",
+  "size": [
+   2216,
+   1023
+  ],
+  "secs": {
+   "garage": 6,
+   "taxi": 15,
+   "cockpit": 0,
+   "pass": 15,
+   "water": 25
+  },
+  "builds": [],
+  "places": [
+   {
+    "id": "w2",
+    "name": "Jolene AFB 02/20",
+    "kind": "strip",
+    "x": 584,
+    "z": -94,
+    "hdg": 1.9897,
+    "len": 1835,
+    "elev": 28.2
+   },
+   {
+    "id": "HOME",
+    "name": "Jolene AFB 13/31",
+    "kind": "strip",
+    "x": -301,
+    "z": 221,
+    "hdg": 0.7156,
+    "len": 2325,
+    "elev": 30.6
+   },
+   {
+    "id": "w3",
+    "name": "Tamgas Hill Strip",
+    "kind": "strip",
+    "x": -800,
+    "z": -2400,
+    "hdg": 2.8798,
+    "len": 520,
+    "elev": 19.4
+   },
+   {
+    "id": "SEA",
+    "name": "Annette Dock",
+    "kind": "water",
+    "x": 360.5,
+    "z": -3661,
+    "hdg": -2.3737,
+    "len": 1500,
+    "elev": 0
+   },
+   {
+    "id": "mn_strip",
+    "name": "Jumbo Mine Street",
+    "kind": "strip",
+    "x": 7249.7,
+    "z": -15429.4,
+    "hdg": -1.6581,
+    "len": 250,
+    "elev": 346.8
+   },
+   {
+    "id": "nv_strip",
+    "name": "East Point Clearing",
+    "kind": "strip",
+    "x": 10030,
+    "z": -11660,
+    "hdg": 1.8326,
+    "len": 150,
+    "elev": 20.4
+   },
+   {
+    "id": "tw_ski",
+    "name": "Skyline Altiport",
+    "kind": "strip",
+    "x": 257,
+    "z": -7707.5,
+    "hdg": -1.0472,
+    "len": 380,
+    "elev": 708.6
+   }
+  ]
+ },
+ "loads": [
+  {
+   "build": "floats",
+   "load": "warm: navigation -> garage",
+   "sec": 62.2,
+   "state": "ready",
+   "links": {
+    "n": 411,
+    "pending": 4,
+    "sumS": 251.7,
+    "worstS": 9.5,
+    "over5s": 1
+   },
+   "cache": {
+    "gpuCache": 12.6,
+    "grShader": 4.9
+   },
+   "cacheVerdict": "MISS suspected (1 links > 5 s)"
+  },
+  {
+   "build": "floats",
+   "load": "garage -> world (the SEA lane)",
+   "kind": "rollout",
+   "pressed": "bGo",
+   "tripMs": 22,
+   "wallSec": 0.2,
+   "ran": [],
+   "anim": "refused: no wheels to roll on (floats)",
+   "frames": null,
+   "links": {
+    "n": 3,
+    "pending": 0,
+    "sumS": 0.1,
+    "worstS": 0.1,
+    "over5s": 0
+   }
+  },
+  {
+   "build": "floats",
+   "load": "world -> garage",
+   "kind": "rollin",
+   "pressed": "ok",
+   "tripMs": 2679,
+   "wallSec": 2.8,
+   "ran": [
+    "shed",
+    "board",
+    "frames"
+   ],
+   "anim": null,
+   "frames": null,
+   "links": {
+    "n": 7,
+    "pending": 1,
+    "sumS": 0.4,
+    "worstS": 0.1,
+    "over5s": 0
+   }
+  }
+ ],
+ "scenes": [
+  {
+   "build": "floats",
+   "scene": "water taxi @SEA",
+   "sec": 25,
+   "t0": 65238,
+   "t1": 90254,
+   "frames": 745,
+   "p90": 33.4,
+   "p999": 83.5,
+   "over15": 0.0054,
+   "over3x": 0,
+   "over1s": 0,
+   "dist": {
+    "buckets": [
+     [
+      "<20",
+      2
+     ],
+     [
+      "20-40",
+      737
+     ],
+     [
+      "40-60",
+      2
+     ],
+     [
+      "60-100",
+      4
+     ],
+     [
+      "100-250",
+      0
+     ],
+     [
+      "250-1000",
+      0
+     ],
+     [
+      ">1000",
+      0
+     ]
+    ],
+    "over15n": 4,
+    "over3xn": 0
+   },
+   "fps": 29.8,
+   "uneven": 0.019,
+   "p50": 33.3,
+   "p99": 33.5,
+   "worst": 83.5,
+   "over100": 0,
+   "cap30": 1,
+   "tasks200": 0,
+   "tasks1s": 0,
+   "taskWorst": 89,
+   "onGround": 0.63,
+   "screenS": 0
+  }
+ ],
+ "notes": [],
+ "exceptions": [],
+ "profile": {
+  "udd": "D:\\mbwn1810",
+  "fresh": true,
+  "cache": [
+   {
+    "at": "after the warm-up",
+    "cache": {
+     "gpuCache": 10.5,
+     "grShader": 4.9
+    }
+   },
+   {
+    "at": "floats warm: navigation -> garage",
+    "cache": {
+     "gpuCache": 12.6,
+     "grShader": 4.9
+    }
+   }
+  ]
+ },
+ "compare": []
+}

@@ -1,0 +1,54 @@
+# merged branch (claude/dmg-d4a-skin on claude/dmg-integration be22b905) against be22b905, GATES_CORE=1 --verbose --jobs=2, each gate's section diffed (the runner's progress lines stripped; 'numbers only' = identical with every number masked: wall seconds, the cost REPORTs, SIMWORKER's real-time half)
+BUILD: the same bytes
+DMGCERT: numbers only: 6 lines
+DMGCLUSTERS: numbers only: 1 lines
+DMGFPS: numbers only: 10 lines
+DMGINST: the same bytes
+DMGINTEGRITY: numbers only: 6 lines
+DMGMEMBERS: numbers only: 1 lines
+GEN: numbers only: 4 lines
+JOIN: the same bytes
+MASS: the same bytes
+SIMWORKER: TEXT DIFFERS
+TREECRASH: numbers only: 1 lines
+UISMOKE: the same bytes
+SIMWORKER: the text difference is the runner's closing table (DMGSKIN listed on the branch); every step's FNV(p, v) equal - stock f2b3de3f, cessnaMetal cbccf99f - as the base
+
+BASE:
+GATE GEN: PASS
+GATE GEN: PASS
+GATE GEN: PASS
+GATE GEN: PASS
+GATE MASS: PASS
+GATE UISMOKE: PASS
+GATE TREECRASH: PASS
+GATE DMGMEMBERS: PASS
+GATE DMGCERT: PASS
+GATE DMGCLUSTERS: PASS
+GATE DMGINST: PASS
+GATE DMGFPS: PASS
+GATE DMGINTEGRITY: PASS
+GATE BUILD: PASS
+GATE JOIN: PASS
+GATE SIMWORKER: PASS
+BATTERY: PASS
+
+BRANCH:
+GATE GEN: PASS
+GATE GEN: PASS
+GATE GEN: PASS
+GATE GEN: PASS
+GATE MASS: PASS
+GATE UISMOKE: PASS
+GATE TREECRASH: PASS
+GATE DMGMEMBERS: PASS
+GATE DMGCERT: PASS
+GATE DMGCLUSTERS: PASS
+GATE DMGINST: PASS
+GATE DMGFPS: PASS
+GATE DMGINTEGRITY: PASS
+GATE DMGSKIN: PASS
+GATE BUILD: PASS
+GATE JOIN: PASS
+GATE SIMWORKER: PASS
+BATTERY: PASS

@@ -3,6 +3,7 @@
 // (tools/rwylights_bench.html: both versions' light code lifted out of render_world.js texts, side by side).
 //
 //   node tools/rwylights_shots.js <before render_world.js> [outDir] [--views a,b] [--port 8561] [--gpu]
+//        [--after <render_world.js>] [--labels 'LEFT|RIGHT'] [--prefix p_]   (G1545: any two texts, e.g. two colours)
 //
 // Serves the repo (tools/_serve.js) unless something already answers on the port, opens the bench in Playwright's
 // Chromium (SwiftShader unless --gpu), hands it the BEFORE text (e.g. `git show origin/master:flyDiy/src/viewer/
@@ -28,7 +29,8 @@ const up = () => new Promise(r => http.get('http://127.0.0.1:' + PORT + '/flyDiy
   p.on('console', m => { if (m.type() === 'error' || m.type() === 'warning') console.log('[console]', m.text().slice(0, 400)); });
   await p.goto('http://127.0.0.1:' + PORT + '/flyDiy/tools/rwylights_bench.html');
   await p.waitForFunction(() => !!window.BENCH);
-  const before = fs.readFileSync(BEFORE, 'utf8'), after = fs.readFileSync(path.join(__dirname, '..', 'src', 'viewer', 'render_world.js'), 'utf8');
+  const before = fs.readFileSync(BEFORE, 'utf8'), after = fs.readFileSync(opt('after', path.join(__dirname, '..', 'src', 'viewer', 'render_world.js')), 'utf8');
+  const labs = opt('labels', null); if (labs) await p.evaluate(l => { const [x, y] = l.split('|'); document.getElementById('lb').textContent = x; document.getElementById('la').textContent = y; }, labs);
   const info = await p.evaluate(([a, c]) => BENCH.build(a, c), [before, after]);
   console.log('bench: before', JSON.stringify(info[0]), '| after', JSON.stringify(info[1]));
   const views = (opt('views', null) || '').split(',').filter(Boolean);
@@ -36,12 +38,12 @@ const up = () => new Promise(r => http.get('http://127.0.0.1:' + PORT + '/flyDiy
   const out = { sides: info, shots: {} };
   for (const n of names) {
     await p.evaluate(v => BENCH.view(v), n);
-    const f = path.join(OUT, n + '.jpg');
+    const f = path.join(OUT, opt('prefix', '') + n + '.jpg');
     let q = 85;
     for (;;) { await p.screenshot({ path: f, type: 'jpeg', quality: q }); if (fs.statSync(f).size <= 250 * 1024 || q <= 40) break; q -= 8; }
     out.shots[n] = { file: path.relative(path.join(__dirname, '..'), f), kb: Math.round(fs.statSync(f).size / 1024), q };
     console.log(n, '->', out.shots[n].file, out.shots[n].kb + ' KB', 'q' + q);
   }
-  fs.writeFileSync(path.join(OUT, 'bench.json'), JSON.stringify(out, null, 1));
+  fs.writeFileSync(path.join(OUT, opt('prefix', '') + 'bench.json'), JSON.stringify(out, null, 1));
   await b.close(); if (srv) srv.kill();
 })().catch(e => { console.error('rwylights_shots: ' + (e && e.stack || e)); process.exit(1); });

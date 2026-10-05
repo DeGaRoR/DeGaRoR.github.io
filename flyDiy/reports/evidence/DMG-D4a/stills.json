@@ -1,0 +1,424 @@
+{
+ "page": "index.html",
+ "place": "stand",
+ "errors": [],
+ "warnings": [
+  "flyDiy: the loader fetched the town raster cells, the page composes default - those cells bake lazily",
+  "world: after the build TypeError: Cannot read properties of null (reading 'setMatrixAt')\n    at <anonymous>:4646:36\n    at Array.forEach (<anonymous>)\n    at fill (<anonymous>:4612:14)\n    at <anonymous>:4649:29\n    at Array.forEach (<anonymous>)\n    at plantWoodland (<anonymous>:4649:10)\n    at nex",
+  "THREE.DataUtils.toHalfFloat(): Value out of range.",
+  "THREE.DataUtils.toHalfFloat(): Value out of range.",
+  "THREE.DataUtils.toHalfFloat(): Value out of range.",
+  "THREE.DataUtils.toHalfFloat(): Value out of range.",
+  "THREE.DataUtils.toHalfFloat(): Value out of range.",
+  "THREE.DataUtils.toHalfFloat(): Value out of range.",
+  "THREE.DataUtils.toHalfFloat(): Value out of range.",
+  "THREE.DataUtils.toHalfFloat(): Value out of range.",
+  "THREE.DataUtils.toHalfFloat(): Value out of range.",
+  "THREE.DataUtils.toHalfFloat(): Value out of range.",
+  "THREE.DataUtils.toHalfFloat(): Value out of range.",
+  "THREE.DataUtils.toHalfFloat(): Value out of range.",
+  "THREE.DataUtils.toHalfFloat(): Value out of range.",
+  "THREE.DataUtils.toHalfFloat(): Value out of range.",
+  "THREE.DataUtils.toHalfFloat(): Value out of range.",
+  "THREE.DataUtils.toHalfFloat(): Value out of range.",
+  "THREE.DataUtils.toHalfFloat(): Value out of range.",
+  "THREE.DataUtils.toHalfFloat(): Value out of range.",
+  "THREE.DataUtils.toHalfFloat(): Value out of range."
+ ],
+ "t": {
+  "garage": 690.4,
+  "stand": 743.5,
+  "view": 788.6,
+  "stage": 1591.6,
+  "total": 1591.6
+ },
+ "bootDone": true,
+ "bootSteps": 24,
+ "hardTimeout": false,
+ "gpu": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+ "soft": {
+  "tier": "software",
+  "gpu": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+  "forced": false,
+  "preset": "potato"
+ },
+ "gfx": null,
+ "trip": {
+  "kind": "rollout",
+  "anim": "timeout",
+  "ms": 36488
+ },
+ "stage": {
+  "shots": [
+   {
+    "scene": "wing",
+    "label": "a wing torn off at a trunk (30 m/s, 4 m up, the trunk 2.5 m out on the left wing)",
+    "cam": [
+     200,
+     22,
+     16
+    ],
+    "skinBreak": true,
+    "file": "reports/evidence/DMG-D4a/wing_1_after.jpg",
+    "stats": {
+     "on": true,
+     "recs": 92,
+     "removed": 3201,
+     "torn": 2168,
+     "tris": 162198,
+     "riding": 351689
+    },
+    "picture": {
+     "w": 1280,
+     "h": 720,
+     "clearShare": 0.014512803819444444,
+     "topShare": 0.24850151909722223,
+     "colours": 2305,
+     "lowerMean": 89.3,
+     "lowerSd": 24.2
+    },
+    "physics": {
+     "ms": 6779,
+     "steps": 313,
+     "over": true,
+     "crashed": true,
+     "reason": "a wing member broke",
+     "broken": 32,
+     "groups": [
+      "wing0L:strut",
+      "eng:mount",
+      "gearL:gear"
+     ],
+     "brokeUp": false,
+     "cg": [
+      -50.78,
+      31.28,
+      810.21
+     ]
+    }
+   },
+   {
+    "scene": "wing",
+    "label": "a wing torn off at a trunk (30 m/s, 4 m up, the trunk 2.5 m out on the left wing)",
+    "cam": [
+     200,
+     22,
+     16
+    ],
+    "skinBreak": false,
+    "file": "reports/evidence/DMG-D4a/wing_1_before.jpg",
+    "stats": {
+     "on": false,
+     "recs": 0,
+     "removed": 0,
+     "torn": 0,
+     "tris": 0,
+     "riding": 0
+    },
+    "picture": {
+     "w": 1280,
+     "h": 720,
+     "clearShare": 0.01423828125,
+     "topShare": 0.24790147569444446,
+     "colours": 2213,
+     "lowerMean": 90.1,
+     "lowerSd": 26.4
+    },
+    "physics": {
+     "ms": 6779,
+     "steps": 313,
+     "over": true,
+     "crashed": true,
+     "reason": "a wing member broke",
+     "broken": 32,
+     "groups": [
+      "wing0L:strut",
+      "eng:mount",
+      "gearL:gear"
+     ],
+     "brokeUp": false,
+     "cg": [
+      -50.78,
+      31.28,
+      810.21
+     ]
+    }
+   },
+   {
+    "scene": "wing",
+    "label": "a wing torn off at a trunk (30 m/s, 4 m up, the trunk 2.5 m out on the left wing)",
+    "cam": [
+     250,
+     55,
+     26
+    ],
+    "skinBreak": true,
+    "file": "reports/evidence/DMG-D4a/wing_2_after.jpg",
+    "stats": {
+     "on": true,
+     "recs": 92,
+     "removed": 3201,
+     "torn": 2168,
+     "tris": 162198,
+     "riding": 351689
+    },
+    "picture": {
+     "w": 1280,
+     "h": 720,
+     "clearShare": 0.001967230902777778,
+     "topShare": 0.1596506076388889,
+     "colours": 2267,
+     "lowerMean": 89.8,
+     "lowerSd": 17.2
+    },
+    "physics": {
+     "ms": 6779,
+     "steps": 313,
+     "over": true,
+     "crashed": true,
+     "reason": "a wing member broke",
+     "broken": 32,
+     "groups": [
+      "wing0L:strut",
+      "eng:mount",
+      "gearL:gear"
+     ],
+     "brokeUp": false,
+     "cg": [
+      -50.78,
+      31.28,
+      810.21
+     ]
+    }
+   },
+   {
+    "scene": "wing",
+    "label": "a wing torn off at a trunk (30 m/s, 4 m up, the trunk 2.5 m out on the left wing)",
+    "cam": [
+     250,
+     55,
+     26
+    ],
+    "skinBreak": false,
+    "file": "reports/evidence/DMG-D4a/wing_2_before.jpg",
+    "stats": {
+     "on": false,
+     "recs": 0,
+     "removed": 0,
+     "torn": 0,
+     "tris": 0,
+     "riding": 0
+    },
+    "picture": {
+     "w": 1280,
+     "h": 720,
+     "clearShare": 0.0018934461805555556,
+     "topShare": 0.1595724826388889,
+     "colours": 2249,
+     "lowerMean": 89.3,
+     "lowerSd": 16.4
+    },
+    "physics": {
+     "ms": 6779,
+     "steps": 313,
+     "over": true,
+     "crashed": true,
+     "reason": "a wing member broke",
+     "broken": 32,
+     "groups": [
+      "wing0L:strut",
+      "eng:mount",
+      "gearL:gear"
+     ],
+     "brokeUp": false,
+     "cg": [
+      -50.78,
+      31.28,
+      810.21
+     ]
+    }
+   },
+   {
+    "scene": "nosein",
+    "label": "a nose-in wreck (180 km/h, 10 m/s, 60 deg nose-down, on the ground)",
+    "cam": [
+     150,
+     20,
+     12
+    ],
+    "skinBreak": true,
+    "file": "reports/evidence/DMG-D4a/nosein_1_after.jpg",
+    "stats": {
+     "on": true,
+     "recs": 92,
+     "removed": 10650,
+     "torn": 8006,
+     "tris": 162198,
+     "riding": 325385
+    },
+    "picture": {
+     "w": 1280,
+     "h": 720,
+     "clearShare": 0.00361328125,
+     "topShare": 0.24138129340277778,
+     "colours": 3006,
+     "lowerMean": 106.1,
+     "lowerSd": 21.2
+    },
+    "physics": {
+     "ms": 1839,
+     "steps": 143,
+     "over": true,
+     "crashed": true,
+     "reason": "a fus member broke",
+     "broken": 26,
+     "groups": [
+      "eng:mount"
+     ],
+     "brokeUp": false,
+     "cg": [
+      -89.23,
+      31.14,
+      769.26
+     ]
+    }
+   },
+   {
+    "scene": "nosein",
+    "label": "a nose-in wreck (180 km/h, 10 m/s, 60 deg nose-down, on the ground)",
+    "cam": [
+     150,
+     20,
+     12
+    ],
+    "skinBreak": false,
+    "file": "reports/evidence/DMG-D4a/nosein_1_before.jpg",
+    "stats": {
+     "on": false,
+     "recs": 0,
+     "removed": 0,
+     "torn": 0,
+     "tris": 0,
+     "riding": 0
+    },
+    "picture": {
+     "w": 1280,
+     "h": 720,
+     "clearShare": 0.003525390625,
+     "topShare": 0.2364865451388889,
+     "colours": 2926,
+     "lowerMean": 106.3,
+     "lowerSd": 21.9
+    },
+    "physics": {
+     "ms": 1839,
+     "steps": 143,
+     "over": true,
+     "crashed": true,
+     "reason": "a fus member broke",
+     "broken": 26,
+     "groups": [
+      "eng:mount"
+     ],
+     "brokeUp": false,
+     "cg": [
+      -89.23,
+      31.14,
+      769.26
+     ]
+    }
+   },
+   {
+    "scene": "nosein",
+    "label": "a nose-in wreck (180 km/h, 10 m/s, 60 deg nose-down, on the ground)",
+    "cam": [
+     235,
+     28,
+     14
+    ],
+    "skinBreak": true,
+    "file": "reports/evidence/DMG-D4a/nosein_2_after.jpg",
+    "stats": {
+     "on": true,
+     "recs": 92,
+     "removed": 10650,
+     "torn": 8006,
+     "tris": 162198,
+     "riding": 325385
+    },
+    "picture": {
+     "w": 1280,
+     "h": 720,
+     "clearShare": 0.006407335069444444,
+     "topShare": 0.10925564236111111,
+     "colours": 2833,
+     "lowerMean": 120.3,
+     "lowerSd": 34.1
+    },
+    "physics": {
+     "ms": 1839,
+     "steps": 143,
+     "over": true,
+     "crashed": true,
+     "reason": "a fus member broke",
+     "broken": 26,
+     "groups": [
+      "eng:mount"
+     ],
+     "brokeUp": false,
+     "cg": [
+      -89.23,
+      31.14,
+      769.26
+     ]
+    }
+   },
+   {
+    "scene": "nosein",
+    "label": "a nose-in wreck (180 km/h, 10 m/s, 60 deg nose-down, on the ground)",
+    "cam": [
+     235,
+     28,
+     14
+    ],
+    "skinBreak": false,
+    "file": "reports/evidence/DMG-D4a/nosein_2_before.jpg",
+    "stats": {
+     "on": false,
+     "recs": 0,
+     "removed": 0,
+     "torn": 0,
+     "tris": 0,
+     "riding": 0
+    },
+    "picture": {
+     "w": 1280,
+     "h": 720,
+     "clearShare": 0.0062554253472222225,
+     "topShare": 0.10798177083333334,
+     "colours": 2890,
+     "lowerMean": 120.3,
+     "lowerSd": 34.2
+    },
+    "physics": {
+     "ms": 1839,
+     "steps": 143,
+     "over": true,
+     "crashed": true,
+     "reason": "a fus member broke",
+     "broken": 26,
+     "groups": [
+      "eng:mount"
+     ],
+     "brokeUp": false,
+     "cg": [
+      -89.23,
+      31.14,
+      769.26
+     ]
+    }
+   }
+  ],
+  "skipMain": true
+ }
+}

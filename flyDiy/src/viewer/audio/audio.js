@@ -46,6 +46,7 @@
 //                        (interior <-> exterior), and any a source declares
 //   AUDIO.get(k) / AUDIO.set(k, v)   the settings (SETTINGS below)
 //   AUDIO.params         the block (audio_params.js); AUDIO.stats the cost
+//   AUDIO.world          the world update() was last handed (G1651: the ambience samples it around the listener)
 // ============================================================
 var AUDIO = (function () {
   'use strict';
@@ -67,6 +68,9 @@ var AUDIO = (function () {
     ['headset', 0, 'bool', 'headset', 'in the cockpit, the way a pilot hears it: ~15 dB quieter'],
     ['musicFlight', 0, 'bool', 'music in flight', 'the music plays in the shed; in the air only with this on'],
     ['musicGarage', 0, 'bool', 'music in the garage', 'the shed\'s playlist, with silences between the tracks'],   // G1672 (music.js); OFF by default (the user, 2026-10-04: test sessions)
+    // G1643 (SND-SPACE, space.js): the headset's kind, and the outside sounds placed for headphones
+    ['headsetAnr', 0, 'bool', 'headset: noise cancelling', 'with the headset on: the active kind - the engine\'s drone goes first'],
+    ['hrtf', 0, 'bool', '3D on headphones', 'the outside sounds placed for headphones (HRTF): heavier on the processor'],
   ];
   const DEF = {}; for (const r of SETTINGS) DEF[r[0]] = r[1];
   const readSetting = k => {
@@ -102,7 +106,7 @@ var AUDIO = (function () {
   if (OFF) {
     const stub = { enabled: false, state: 'off', ctx: null, params: null, stats: null,
       update() {}, bus() { return null; }, addSource() { return null; }, onEvent() {}, emit() {},
-      module() { return Promise.resolve(false); }, get: k => readSetting(k), set() {},
+      module() { return Promise.resolve(false); }, get: k => readSetting(k), set() {}, lagS: null, space: null,
       stateLine: () => 'off', unlock() {}, addRows() {}, inGarage: false, welcome: false,
       enable(on) { if (on && query !== '0') prefSet(PREF, '1'); },
       mount(body, kit) { mountRows(stub, body, kit, true); } };
@@ -112,7 +116,12 @@ var AUDIO = (function () {
   const AP = W.AUDIO_PARAMS || (typeof AUDIO_PARAMS !== 'undefined' ? AUDIO_PARAMS : null);
   const now = () => (W.performance && W.performance.now ? W.performance.now() : Date.now());
   const HEADSET_K = Math.pow(10, -15 / 20);   // §4: a passive headset, ~15 dB
-  const FADE_S = 0.2, XFADE_TAU = 0.05, GAIN_TAU = 0.03;
+  const FADE_S = 0.2, GAIN_TAU = 0.03;
+  // THE VIEWPOINT (G1643, SND-SPACE; MSFS's VIEWPOINT state): interior <-> exterior cross-fades over 150 ms at EQUAL
+  // POWER (ext cos, int sin of the same ramp: ext^2 + int^2 = 1 all along), from wherever a fade in progress stands.
+  // XF: [the target 0|1, the fade's start time, its start share, its duration]; the curves are filled per switch
+  const XFADE_S = 0.15, XF = new Float64Array([-1, 0, 0, 0]);
+  const XC_E = new Float32Array(32), XC_I = new Float32Array(32);
   const BUSES = ['master', 'aircraft', 'aircraft.ext', 'aircraft.int', 'ambience', 'music', 'ui'];
 
   const set = {}; for (const r of SETTINGS) set[r[0]] = readSetting(r[0]);
@@ -141,6 +150,12 @@ var AUDIO = (function () {
 
   const api = {
     enabled: true, state: 'armed', ctx: null, params: null, stats, SETTINGS,
+    // G1643 (SND-SPACE): the propagation lag the sources add to their schedule times (space.js writes it; s), the space
+    // module (space.js sets it: the cabin, the headset, the ambience's duck), and the frame's camera and sim (space.js
+    // reads the listener's orientation and the aeroplane's nodes off them - references, nothing allocated)
+    lagS: new Float64Array(1), space: null, camera: null, sim: null,
+    refreshGains() { applyGains(); },
+    world: null,   // G1651: the world update() was last handed (the ambience reads the cover, the coast, the zones off it)
     rowHooks: [], addRows(fn) { api.rowHooks.push(fn); },   // G1672: fn(body, kit, toggle) adds rows under the settings
     get inGarage() { return garage === 1; }, get welcome() { return welcome === 1; },   // G1672: what update() last saw
     bus: name => N[name] || null,
@@ -245,7 +260,7 @@ var AUDIO = (function () {
     N.aircraft.connect(N.master);
     N['aircraft.ext'].connect(N.aircraft); N['aircraft.int'].connect(N.aircraft);
     N.ambience.connect(N.master); N.music.connect(N.master); N.ui.connect(N.master);
-    tgt.fill(-1);
+    tgt.fill(-1); XF[0] = -1;
   }
   function close() {
     clearSuspend();
@@ -268,14 +283,34 @@ var AUDIO = (function () {
     const p = node.gain;
     if (p.setTargetAtTime) p.setTargetAtTime(v, ctx.currentTime, tau); else p.value = v;
   }
+  // the viewpoint's equal-power cross-fade (above): toward `to` (1 interior) from the share the last fade has reached
+  function xfade(to) {
+    if (XF[0] === to) return;
+    const pe = N['aircraft.ext'].gain, pi = N['aircraft.int'].gain, t = ctx.currentTime;
+    let x = to;
+    if (XF[0] >= 0) { const u = XF[3] > 0 ? Math.min(1, Math.max(0, (t - XF[1]) / XF[3])) : 1; x = XF[2] + (XF[0] - XF[2]) * u; }
+    XF[0] = to; XF[1] = t; XF[2] = x; XF[3] = XFADE_S * Math.abs(to - x);
+    if (pe.cancelScheduledValues) { pe.cancelScheduledValues(t); pi.cancelScheduledValues(t); }
+    if (XF[3] < 1e-3 || !pe.setValueCurveAtTime) {   // the first frame (nothing to fade from), or no curves: set
+      if (pe.setValueAtTime) { pe.setValueAtTime(to ? 0 : 1, t); pi.setValueAtTime(to ? 1 : 0, t); } else { pe.value = to ? 0 : 1; pi.value = to ? 1 : 0; }
+      return;
+    }
+    const n = XC_E.length;
+    for (let i = 0; i < n; i++) { const a = Math.PI / 2 * (x + (to - x) * i / (n - 1)); XC_E[i] = Math.cos(a); XC_I[i] = Math.sin(a); }
+    XC_E[n - 1] = to ? 0 : 1; XC_I[n - 1] = to ? 1 : 0;   // the endpoints exact (cos pi/2 is 6e-17, not 0)
+    pe.setValueCurveAtTime(XC_E, t, XF[3]); pi.setValueCurveAtTime(XC_I, t, XF[3]);
+  }
   function applyGains() {
     if (!ctx) return;
-    const hs = interior && set.headset ? HEADSET_K : 1;
+    // the headset: the space module's curve on the cabin's own chain when it is there (space.js: a passive or an ANR
+    // headset's filters), else the flat -15 dB on the aircraft in the cockpit (the fallback)
+    const sp = api.space;
+    const hs = interior && set.headset && !sp ? HEADSET_K : 1;
     ramp(0, N.master, set.master, GAIN_TAU);
     ramp(1, N.aircraft, set.aircraft * hs, GAIN_TAU);
-    ramp(2, N['aircraft.ext'], interior ? 0 : 1, XFADE_TAU);   // the viewpoint's cross-fade, ~150 ms
-    ramp(3, N['aircraft.int'], interior ? 1 : 0, XFADE_TAU);
-    ramp(4, N.ambience, set.environment * hs, GAIN_TAU);
+    xfade(interior);
+    // the ambience inside the cabin: ducked by the build's insulation and the headset (space.js), else the flat headset
+    ramp(4, N.ambience, set.environment * (sp && sp.ambienceK ? sp.ambienceK(interior) : hs), GAIN_TAU);
     ramp(5, N.music, set.music * (flying && !set.musicFlight ? 0 : 1), GAIN_TAU);
     ramp(6, N.ui, set.interface, GAIN_TAU);
   }
@@ -323,12 +358,14 @@ var AUDIO = (function () {
     if (cp) { CAM.p[0] = cp.x; CAM.p[1] = cp.y; CAM.p[2] = cp.z; }
     if (P && sim && def) AP.audioParams(sim, CAM, def, P, world, dt);
     garage = inGarage ? 1 : 0;
+    api.world = world || null;
     const wl = welcomeNow(), inn = !inGarage && CAM.mode === 'cockpit' ? 1 : 0, fl = inGarage || wl ? 0 : 1;
     if (inn !== interior || fl !== flying) {
       const was = interior; interior = inn; flying = fl; applyGains();
       if (was !== inn) emit('perspective', inn);
     }
     if (CAM.held !== held) { held = CAM.held; silence(); }
+    api.camera = camera || null; api.sim = sim || null;   // G1643: the space module's listener and emitters (references)
     if (P) for (let i = 0; i < srcs.length; i++) {
       const r = srcs[i];
       if (!r.live || !r.src.update) continue;

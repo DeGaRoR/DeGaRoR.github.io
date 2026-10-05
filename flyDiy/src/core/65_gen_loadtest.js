@@ -152,7 +152,10 @@ function makeLoadTest(sim, def, cfg) {
   // wing as BUILT - the rig switches the sim it is handed to the true k and c and steps it at the
   // step the true box needs. The user: "I don't want to fake the test. Let the test test the actual
   // wing." A build that softened nothing is untouched (the same sim, the same step).
-  const SUB = (sim.trueBox ? sim.trueBox() : 0) || (def.params && (def.params.substepsTrue || def.params.substeps)) || 24;
+  // G1832 (DMG-D2a): `box: 'flight'` - the wing AS IT FLIES (the flight box, its own step): the test to destruction's
+  // broke-at is a flight number, and the flight box is where the certificate's flight cases load the members
+  const SUB = cfg.box === 'flight' ? ((def.params && def.params.substeps) || 24)
+    : (sim.trueBox ? sim.trueBox() : 0) || (def.params && (def.params.substepsTrue || def.params.substeps)) || 24;
   // THE WING IS JUDGED AS WHAT IT IS BUILT OF (G213). `cfg.wingMaterial` is a
   // GEN_SURF_MATERIALS key (or row): the wing class's allowable is that
   // row's section and yield, not the fuselage's. Measured before this: the
@@ -167,7 +170,15 @@ function makeLoadTest(sim, def, cfg) {
   const SURF = GEN_LOAD_SURFACES[cfg.surface || 'wing'] || GEN_LOAD_SURFACES.wing;
   const AX = SURF.axis, SK = SURF.station;
   const st = genLoadStations(def, 0, cfg.surface);
-  const ok = st.length >= 2;
+  // A SURFACE THE RIG CANNOT LOAD IS REFUSED, AND SAYS WHY (REVIEW 2026-10-04
+  // D4). The V-tail has no spar truss: its stab and fin rigs found no tagged
+  // stations and no strips of their kind, and the caller read a bare
+  // ok:false (or, with stations and no strips, a bagless rig would have read
+  // 0 % and passed). `why` names the missing tag or strip kind.
+  let ok = st.length >= 2;
+  let why = ok ? null
+    : `no ${SURF.front}/${SURF.rear} spar stations (the ${cfg.surface || 'wing'} has no tagged truss on this airframe)`;
+  if (ok && st.some(s => s.r < 0)) { ok = false; why = `no ${SURF.rear} node to pair with the ${SURF.front} stations`; }
   const root = ok ? st[0] : null, tip = ok ? st[st.length - 1] : null;
   const semi = ok ? def.nodes[tip.f].p[SK] - (SK === 1 ? def.nodes[root.f].p[SK] : 0) : 1;
 
@@ -193,6 +204,7 @@ function makeLoadTest(sim, def, cfg) {
   }
   const bags = [];
   perG.forEach((f, i) => bags.push([i, f]));
+  if (ok && !bags.length) { ok = false; why = `no ${SURF.strips.join('/')} strips to lay the bags on`; }
 
   // the trestles: everything that is not the surface is pinned where it starts
   const wingTag = {};
@@ -210,9 +222,9 @@ function makeLoadTest(sim, def, cfg) {
                   defl: st.map(function () { return 0; }), z: st.map(s => s.z),
                   semi: semi, worstPct: null, worstCls: null, worstBeam: -1,
                   limitPct: null, ultPct: null, limitYield: null, ultYield: null,
-                  verdict: null, done: false, W: W, ok: ok };
+                  verdict: null, done: false, W: W, ok: ok, why: why };
 
-  let t = 0, base = null, peak = {};
+  let t = 0, base = null, peak = {}, brokeT = 0;
 
   function clamp() {
     for (let k = 0; k < pin.length; k++) {
@@ -300,8 +312,19 @@ function makeLoadTest(sim, def, cfg) {
   // strains 0.11-0.20 at 1 g, tips -13 % to +35 %, tubeFabric alone sane)
   // made it a defect. A trestle does not let go between substeps: the
   // clamp now runs inside the frame, after every substep.
+  // G1470 (TREE-CRASH): ...AND THE BAGS PRESS EVERY SUBSTEP. They were one impulse a FRAME (n W dt on the bag nodes,
+  // then SUB substeps free): the true metal box's kilohertz modes rang at 2x the bags' static force between frames
+  // (measured on the metal Cessna's lift strut at 3.8 g: 106 % of its yield at the substep peak, 52 % sampled at the
+  // frame's end, the static answer). Harmless while nothing read a substep's force; the damage model does (a member
+  // yields at its force), and a sandbag does not hit the wing 60 times a second. The same impulse a frame, spread over
+  // its substeps: the settled shape, the deflections and the frame-end forces are the same load.
+  const _imp = [];   // [node, ix, iy, iz] per bag / carried node, this frame's whole impulse
   function stepClamped(dt) {
-    for (let k = 0; k < SUB; k++) { sim.step(dt / SUB, 1); clamp(); }
+    for (let k = 0; k < SUB; k++) {
+      for (let q = 0; q < _imp.length; q++) { const I = _imp[q]; sim.impulse(I[0], I[1] / SUB, I[2] / SUB, I[3] / SUB); }
+      sim.step(dt / SUB, 1); clamp();
+    }
+    _imp.length = 0;
   }
   function step(dt) {
     if (state.done || !ok) return state;
@@ -318,21 +341,28 @@ function makeLoadTest(sim, def, cfg) {
       return state;
     }
     // ramp to ultimate, recording the limit case on the way past
-    const n = state.phase === 'hold' ? ULT : Math.min(ULT, ULT * (t / RAMP));
+    // G1898.7 (DEFORM coordinator): THE TEST TO DESTRUCTION CREEPS PAST THE ULTIMATE - a third of the rate once the bags
+    // pass the card's ultimate (as a real test to destruction is loaded slowly near failure): at the full rate the bags'
+    // g led the structure's response and the Jodel read BROKE AT 6.17 g against its static first joint at 5.99 (a third
+    // of the rate: 6.06; the Cub 6.01, the metal Cessna 6.06). Every other load test keeps its expression, bit for bit
+    const tU = RAMP * GEN_LOAD_ULT / ULT;
+    const n = state.phase === 'hold' ? ULT
+      : (cfg.destroy && ULT > GEN_LOAD_ULT && t > tU) ? Math.min(ULT, GEN_LOAD_ULT + (ULT / RAMP / 3) * (t - tU))
+      : Math.min(ULT, ULT * (t / RAMP));
     state.n = n;
     // the bags press DOWN, because they are bags. The aeroplane being inverted
     // is what makes that the flight-load direction through the spar. The
     // fin's case (P4) presses SIDEWAYS along the body's own right axis.
     if (AX === 1) {
       for (let k = 0; k < bags.length; k++)
-        sim.impulse(bags[k][0], 0, -n * bags[k][1] * dt, 0);
+        _imp.push([bags[k][0], 0, -n * bags[k][1] * dt, 0]);
       // ...and what the wing carries pulls the other way (G179, see `carried`)
       for (let k = 0; k < carried.length; k++)
-        sim.impulse(carried[k], 0, n * def.nodes[carried[k]].m * 9.81 * dt, 0);
+        _imp.push([carried[k], 0, n * def.nodes[carried[k]].m * 9.81 * dt, 0]);
     } else {
       const zB = sim.axes()[2];
       for (let k = 0; k < bags.length; k++)
-        sim.impulse(bags[k][0], -n * bags[k][1] * dt * zB[0], -n * bags[k][1] * dt * zB[1], -n * bags[k][1] * dt * zB[2]);
+        _imp.push([bags[k][0], -n * bags[k][1] * dt * zB[0], -n * bags[k][1] * dt * zB[1], -n * bags[k][1] * dt * zB[2]]);
     }
     stepClamped(dt); relax();
 
@@ -343,7 +373,9 @@ function makeLoadTest(sim, def, cfg) {
     for (let bi = 0; bi < sim.beams.length; bi++) {
       const bm = sim.beams[bi];
       const cls = bm.cls || (bm.gear ? 'gear' : 'chassis');
-      const F = Math.abs(bm.k * bm.strain * bm.L0);
+      // (G1470: a SLACK wire carries nothing - the solver's own rule, G185 - and was read as a compression of k x its
+      // slack: the wired biplane's 'wire at 200 % of yield' was a wire hanging loose. Read as zero.)
+      const F = (bm.tens && bm.strain < 0) ? 0 : Math.abs(bm.k * bm.strain * bm.L0);
       const g = peak[cls] || (peak[cls] = { F: 0, bi: -1 });
       if (F > g.F) { g.F = F; g.bi = bi; }
     }
@@ -358,6 +390,23 @@ function makeLoadTest(sim, def, cfg) {
       state.limitPct = state.tipPct;
       state.limitYield = state.worstPct;
     }
+    // G1832 (DMG-D2a): the damage layer on this rig's sim - the first member set, the first broken, the first GROUP
+    // let go (the part coming off as a part), each at the bags' load factor. Written only when it happens (a rig with
+    // the layer off never has one, and its state is the one it always was). TEST TO DESTRUCTION (`cfg.destroy`,
+    // ruling dm6: free - a bench sim, nothing of the aeroplane or the wallet): the ramp goes on past the ultimate and
+    // the test ends 0.3 s after the first group has let go: BROKE AT n g
+    if (sim.damage) {
+      const D = sim.damage();
+      if (D.yields && state.yieldAt == null) state.yieldAt = n;
+      if (D.breaks && state.breakAt == null) { state.breakAt = n; state.breakFirst = D.firstBreak ? { cls: D.firstBreak.cls, seam: D.firstBreak.seam, how: D.firstBreak.how } : null; }
+      if (D.groups && D.groups.length && state.brokeAt == null) { state.brokeAt = n; state.brokeKey = D.groups[0].key; state.brokeSeam = D.groups[0].seam; brokeT = t; }
+      if (cfg.destroy && state.brokeAt != null && t - brokeT >= 0.3 && !state.done) {
+        state.phase = 'done'; state.done = true;
+        state.verdict = 'BROKE AT ' + state.brokeAt.toFixed(2) + ' g';
+        if (sim.stats().bad) state.verdict = 'SIM DIVERGED';
+        return state;
+      }
+    }
     if (state.phase === 'ramp' && n >= ULT) { state.phase = 'hold'; t = 0; }
     else if (state.phase === 'hold' && t >= HOLD) {
       state.ultPct = state.tipPct;
@@ -369,11 +418,17 @@ function makeLoadTest(sim, def, cfg) {
       // is reported rather than failed on: `A = lin/rho` is one area for the
       // whole wing class and the worst member is usually the LIFT STRUT, which
       // a real aeroplane sizes on its own. See HANDOVER, GATE LOAD.
-      state.verdict = sim.stats().bad ? 'BROKE UP'
+      // G1800 (ruling dm4): a NaN or a node past the velocity guard is the SIM's fault, 'SIM DIVERGED'; 'BROKE UP' is
+      // kept for the structure letting go (the damage layer's breaks, DMG-D1b / D2)
+      state.verdict = sim.stats().bad ? 'SIM DIVERGED'
+        // G1832: a member the damage layer broke before the ultimate held its 1.5 s is the structure letting go
+        // (G458's BROKE UP, made real); to destruction, a ramp that ended unbroken says how far it went
+        : (sim.damage && sim.damage().breaks) ? 'BROKE UP'
+        : cfg.destroy ? 'HELD TO ' + ULT.toFixed(1) + ' g'
         : (state.ultYield !== null && state.ultYield >= 100 ? 'HELD — over yield'
                                                            : 'HELD');
     }
-    if (sim.stats().bad) { state.verdict = 'BROKE UP'; state.done = true; }
+    if (sim.stats().bad) { state.verdict = 'SIM DIVERGED'; state.done = true; }   // G1800
     return state;
   }
 

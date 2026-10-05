@@ -556,7 +556,49 @@ function make(THREE, scene, world, rec0, opts) {
   // 40 m and a ring vertex sunk 4 m wherever its chunk was built), a few decimetres after. Every feature that paints the
   // patch lies >= 12 m inside it (activeChunks' margins: a road's falloff + 6, a runway's shoulder + 30, a zone's 40),
   // where the ring is already a metre or more under - the G434.1 rule (no ring chord through a road or a pad) holds.
-  const PATCH_TUCK = { tuck: 0.8, tuckW: 12, ring0: 4, ring1: 28, sink: 4 };   // (GATE LOOKS walks every phase of the ring's grid: worst dip 0.51 m, the old laws 3.85; the ring 1.04 m under a road 12 m in)
+  const PATCH_TUCK = { tuck: 0.8, tuckW: 12, ring0: 4, ring1: 28, sink: 4, drop: 0.02, lotR0: 8, lotR1: 12, sideR0: 1.2, sideR1: 3 };   // (GATE LOOKS walks every phase of the ring's grid: worst dip 0.51 m, the old laws 3.85; the ring 1.04 m under a road 12 m in)
+  // THE PATCH IS AT terrainH WHERE THE WHEELS ROLL (G1541, GROUND-LATTICE). G434.2 sank the whole patch 2 cm under the
+  // ground so the LOT lawns, drawn at the ground then, showed over it - and every tyre parked or taxiing on the patch's
+  // grass read 2 cm afloat (G1001's LEFT "lots' offset"; tools/ground_drawn.js at w3's stand: the Cub's mains +19 mm,
+  // the Cessna's three +20). The 2 cm is the margin a TRANSLUCENT layer is drawn over the ground with, so it is kept
+  // only where one lies over the patch:
+  //   - a pavement's interior and its side: `drop` from sideR0 m outside the edge in (the side's fade is drawn over the
+  //     ground there, lifted 7 cm), 0 by sideR1 m out. Inside, the wheels see the pavement (at terrainH since G1001) and
+  //     the patch is sunk under it besides. Without this the patch rose 2 cm under every pavement's edge and side and
+  //     came within 5 mm of it at 18 more points on the aprons' edges and 21 on the roads' bands (GATE CONTACT's ratchet);
+  //   - a lot: inside the zones 27_premises sows plots in (stage 5), `drop` within lotR0 m of such a zone (a lot runs
+  //     5 m past its plot), 0 by lotR1 m. The lots carry their own 2 cm too (_village_gen.js lotGround: T.h + 0.02, with
+  //     a polygon offset); the villages draw exactly as before (the lawn 4 cm over the patch).
+  // Everywhere else - the grass between and beside the pavements, a stand on grass - the patch IS the ground the eye
+  // sees under a tyre, and it is drawn at terrainH. 0..drop, per point.
+  const PATCH_LOT_KINDS = ['residential', 'commercial', 'industrial', 'harbour', 'park'];
+  let lotZones = null;
+  const lotChunks = new Map();
+  function patchDrop(x, z) {
+    const P = PATCH_TUCK;
+    let k = 0;
+    const q = O.pavedAt ? O.pavedAt(x, z, P.sideR1) : null;
+    if (q) { const d = q.dPre !== undefined ? q.dPre : q.d; if (d >= -P.sideR0) return P.drop; const t = (d + P.sideR1) / (P.sideR1 - P.sideR0); k = t * t * (3 - 2 * t); }
+    if (!lotZones) {
+      lotZones = [];
+      for (const zn of (O.rec && O.rec.layers && O.rec.layers.zones) || []) if (zn.poly && zn.poly.length >= 3 && PATCH_LOT_KINDS.indexOf(zn.kind) >= 0) lotZones.push(zn.poly);
+    }
+    if (!lotZones.length) return P.drop * k;
+    // per 64 m chunk, once: the zones that can reach it (none: 0 over the whole chunk, the common case)
+    const ci = Math.floor(x / 64), cj = Math.floor(z / 64), ck = ci * 131072 + cj;
+    let near = lotChunks.get(ck);
+    if (near === undefined) {
+      const c = O.frame.toLocal((ci + 0.5) * 64, (cj + 0.5) * 64);
+      near = lotZones.filter(poly => PG.sdPoly(poly, c[0], c[1]) < 64 * 0.7072 + P.lotR1);
+      lotChunks.set(ck, near);
+    }
+    if (!near.length) return P.drop * k;
+    const L = O.frame.toLocal(x, z);
+    let d = Infinity; for (const poly of near) d = Math.min(d, PG.sdPoly(poly, L[0], L[1]));
+    if (d <= P.lotR0) return P.drop;
+    if (d < P.lotR1) { const t = (P.lotR1 - d) / (P.lotR1 - P.lotR0); k = Math.max(k, t * t * (3 - 2 * t)); }
+    return P.drop * k;
+  }
   const ringSink = (x, z) => { const d = patchDepth(x, z), P = PATCH_TUCK; if (d <= P.ring0) return 0; const t = Math.min(1, (d - P.ring0) / (P.ring1 - P.ring0)); return P.sink * t * t * (3 - 2 * t); };
   let patchB = null;
   function patchDepth(x, z) {
@@ -587,6 +629,7 @@ function make(THREE, scene, world, rec0, opts) {
     const RES = PL.res[0], n = PCH / RES, per = (n + 1) * (n + 1);
     if (patch) { G.ground.remove(patch); patch.traverse(m => { if (m.geometry) m.geometry.dispose(); }); patch = null; }
     patchAct = A; patchB = b;   // the world's rings read it (patchCovers, patchDepth): the ring sinks under the patch (G434.1)
+    lotZones = null; lotChunks.clear();   // G1541: the lots' zones as the record has them now (an edit may move one)
     // the patch's material: the ring's own (its baked map, its grain), CLONED so the material polygons can
     // be mixed in on top of it; its own program key (a different onBeforeCompile must not share a program)
     const matOwn = k => {
@@ -622,7 +665,7 @@ function make(THREE, scene, world, rec0, opts) {
     // ground as it was: the LOD errors and the normals are measured on it (the sink is never seen)
     const PAVs = (typeof PAVEMENT !== 'undefined') ? PAVEMENT : null;
     const pavR = PAVs && O.pavedAt ? PAVs.resolve(null, O.rec, null).recipe : null;
-    const sinkOf = pavR ? (x, z) => { const q = O.pavedAt(x, z); return q ? PAVs.sinkAt(q.d, PAVs.opaqueDepth(q.cls, q.halfW, pavR, q.kind)) : 0; } : null;
+    const sinkOf = pavR ? (x, z) => { const q = O.pavedAt(x, z); return q ? PAVs.sinkAt(q.d, PAVs.opaqueDepth(q.cls, q.halfW, pavR, q.kind), q.dPre) : 0; } : null;
     let sunk = 0;
     let Y = new Float32Array(list.length * per), Y0 = sinkOf ? new Float32Array(list.length * per) : Y, UV = new Float32Array(list.length * per * 2), KIND = new Uint8Array(list.length);
     for (let c = 0; c < list.length; c++) {
@@ -632,9 +675,10 @@ function make(THREE, scene, world, rec0, opts) {
         const v = c * per + j * (n + 1) + i, x = cx0 + i * RES, z = cz0 + j * RES;
         // the fade: the extent's edge, and the nearest unbuilt neighbour chunk's edge (patchDepth, G752)
         const r = Math.min(1, patchDepth(x, z) / PATCH_TUCK.tuckW);
-        // 2 cm UNDER the ground (G434.2): the lot patches sit at the ground and the 4 cm lift had buried them; the
-        // ring sinks 4 m under the patch now, so no fight there (G434: the border tucks under the ring - G752's PATCH_TUCK)
-        Y0[v] = groundB(x, z) - 0.02 * r - PATCH_TUCK.tuck * (1 - r) * (1 - r);   // (G1406: the build read)
+        // AT the ground (G1541), 2 cm under it only where a lot can be (patchDrop; G434.2 had the whole patch 2 cm under:
+        // the lot patches sat at the ground and the 4 cm lift had buried them); the ring sinks 4 m under the patch, so no
+        // fight there (G434: the border tucks under the ring - G752's PATCH_TUCK)
+        Y0[v] = groundB(x, z) - patchDrop(x, z) * r - PATCH_TUCK.tuck * (1 - r) * (1 - r);   // (G1406: the build read)
         if (sinkOf) { const sk = sinkOf(x, z); Y[v] = Y0[v] - sk; if (sk > 0) sunk++; }
         if (uvOf) { const q = uvOf(x, z); UV[v * 2] = q[0]; UV[v * 2 + 1] = q[1]; }
       }
@@ -1328,6 +1372,25 @@ function make(THREE, scene, world, rec0, opts) {
       tiltToGround(c.grp, heightAt, w[0], w[1], ry);
       if (c.hit) { const R = OBS(); if (R) R.move(c.hit, w[0], w[1], ry, gy); }
     }
+  }
+  // G1663 (SND-AMB-2) WHAT MOVES AND WHAT FLOATS, FOR THE SOUND - READ-ONLY and allocation-free (audio/emitters.js asks
+  // every frame: hot, so optimised - a reader asked ten times a second runs cold and boxes every double it reads): rows of 6 into `out` (a Float64Array) - [kind, x, y, z, a, b] in the world: kind 1 a tram cabin
+  // (a its speed m/s, b 1 running / 0 docked), 2 a traffic car (a its speed, b its length m), 3 a house pier's boat (a 0,
+  // b 1) - answering the rows written (at most out.length / 6). Nothing here is written to; the callbacks are made once.
+  const SO = { out: null, n: 0, max: 0 };
+  const soRow = (k, x, y, z, a, b) => { if (SO.n >= SO.max) return; const o = SO.out, q = SO.n * 6; o[q] = k; o[q + 1] = x; o[q + 2] = y; o[q + 3] = z; o[q + 4] = a; o[q + 5] = b; SO.n++; };
+  const soTram = t => { const R = t.run, ob = R && R.objs; if (!ob) return; for (let i = 0; i < 2; i++) { const c = ob[i]; if (c) soRow(1, c.position.x, c.position.y, c.position.z, R.v || 0, R.phase === 'move' ? 1 : 0); } };
+  const soRoad = t => { const cs = t.cars; for (let i = 0; i < cs.length; i++) { const c = cs[i], p = c.grp.position; soRow(2, p.x, p.y, p.z, c.v, c.K ? c.K.L : 4.5); } };
+  const soHouse = h => {
+    const st = h.built && h.built.stats, pr = st && st.pier, bs = pr && pr.boats; if (!bs || !h.grp) return;
+    const g = h.grp, cy = Math.cos(g.rotation.y), sy = Math.sin(g.rotation.y);
+    for (let i = 0; i < bs.length; i++) { const b = bs[i]; soRow(3, g.position.x + b.x * cy + b.z * sy, g.position.y + (b.y || 0), g.position.z - b.x * sy + b.z * cy, 0, 1); }
+  };
+  function soundObjects(out) {
+    SO.out = out; SO.n = 0; SO.max = Math.floor(out.length / 6);
+    TRAMS.forEach(soTram); TRAFFIC.forEach(soRoad); HOUSES.forEach(soHouse);
+    SO.out = null;
+    return SO.n;
   }
   // the clock: the host's dt in seconds; the cabins and the traffic move
   // A DISTANT HOUSE DRAWS ITS WALLS AND ROOF (PERF 2026-09-23). A house is ~11 bag meshes, each its own finish
@@ -3491,6 +3554,11 @@ function make(THREE, scene, world, rec0, opts) {
     animals: () => (ANIM ? ANIM.list() : []),
     animalRun: () => ANIM,
     traffic: () => Array.from(TRAFFIC, ([id, t]) => ({ road: id, cars: t.cars.map(c => ({ key: c.key, s: c.s, dir: c.dir, v: c.v, x: c.grp.position.x, y: c.grp.position.y, z: c.grp.position.z, hit: c.hit })) })),
+    soundObjects,                                                  // G1663 (SND-AMB-2): the movers for the sound, read-only
+    // G1705 (SND-ANIMALS): the live animals for the sound, read-only and allocation-free (animal_run.js's reader: rows of
+    // ANIMAL_RUN.SOUND.ROW - species, head / blowhole, velocity, state, the clock of its last blow / call event, the herd)
+    animalSounds: out => (ANIM ? ANIM.sound(out) : 0),
+    animalClock: () => (ANIM ? ANIM.clock() : 0),
     obstacle: id => { const R = OBS(); return R ? R.get(id) : null; },   // (G844: one record, its shape - GATE HOUSEWORKER's digest)
     obstacles: () => { const R = OBS(); return R ? R.list().filter(r => OBST_IDS.has(r.id)).map(r => ({ id: r.id, tag: r.tag, x: r.x, z: r.z, yaw: r.yaw, y0: r.y0, top: r.shape.top, cells: r.shape.cells, cell: r.shape.cell })) : []; },
     setRecord: r => { rec = PG.normalise(r); composedFresh = false; },

@@ -24,11 +24,35 @@ function bakeHydrology(sample, cfg) {
   // ---- heights + sea mask (sea level = 0) ----
   const H = new Float64Array(M);
   for (let iz = 0, k = 0; iz < N; iz++) for (let ix = 0; ix < N; ix++, k++) H[k] = sample(px(ix), pz(iz));
-  const sea = new Uint8Array(M);
-  for (let k = 0; k < M; k++) if (H[k] < 0) sea[k] = 1;
-
   const NBX = [1, -1, 0, 0, 1, 1, -1, -1];
   const NBZ = [0, 0, 1, -1, 1, -1, 1, -1];
+  const sea = new Uint8Array(M);
+  // THE SEA IS WHAT REACHES THE OPEN WATER (G1562, REVIEW 2026-10-04 D8). It was a sign test, H < 0, and every basin
+  // the relief dips under 0 inland was "sea" at level 0 with no water connecting it: 49 such components at seed 0, one
+  // of them 3 020 cells (6.6 km2, 120 m deep) in the north. With cfg.seaConnected the sea is the below-0 ground
+  // CONNECTED (8 ways, the flood's own neighbourhood) to the domain's edge - the open water beyond it, where the
+  // flood below drains too; a basin below 0 that does not reach the edge is LAND to the flood, which fills it to its
+  // spill like any sink, and a LAKE (below: `low`). The island does not ask: its sea is the data's (the coast field
+  // puts the terrain on the -5 m shelf where the prep's waterline says sea, and a lagoon behind a channel narrower
+  // than a bake cell is still the sea - Jolene's five such pockets are).
+  const low = new Uint8Array(M);   // 1: below 0, landlocked (a lake whatever its depth)
+  if (cfg.seaConnected) {
+    const st = [];
+    for (let k = 0; k < M; k++) {
+      const ix = k % N, iz = (k / N) | 0;
+      if ((ix === 0 || iz === 0 || ix === N - 1 || iz === N - 1) && H[k] < 0) { sea[k] = 1; st.push(k); }
+    }
+    while (st.length) {
+      const c = st.pop(), cix = c % N, ciz = (c / N) | 0;
+      for (let d = 0; d < 8; d++) {
+        const nix = cix + NBX[d], niz = ciz + NBZ[d];
+        if (nix < 0 || niz < 0 || nix >= N || niz >= N) continue;
+        const n = niz * N + nix;
+        if (!sea[n] && H[n] < 0) { sea[n] = 1; st.push(n); }
+      }
+    }
+    for (let k = 0; k < M; k++) if (H[k] < 0 && !sea[k]) low[k] = 1;
+  } else for (let k = 0; k < M; k++) if (H[k] < 0) sea[k] = 1;
   const DIST = NBX.map((v, i) => Math.hypot(v * dx, NBZ[i] * dz));
 
   // ---- priority flood: fill depressions to spill from the boundary ----
@@ -123,7 +147,12 @@ function bakeHydrology(sample, cfg) {
   // ---- lakes: fill difference above threshold; per-cell water = filled ----
   const lake = new Uint8Array(M);
   let lakeCells = 0;
-  for (let k = 0; k < M; k++) if (!sea[k] && filled[k] - H[k] > cfg.lakeMin) { lake[k] = 1; lakeCells++; }
+  for (let k = 0; k < M; k++) if (!sea[k] && (filled[k] - H[k] > cfg.lakeMin || low[k])) { lake[k] = 1; lakeCells++; }
+  // a landlocked cell shallower than lakeMin is a lake for its WATER (the ground under 0 is drawn under the sea's
+  // plane, so it must be wet to agree with the picture) but not for the CARVE: no 2 m bed is dug where the world had
+  // a few centimetres of dip - seed 0's home lowlands have five such (G1562); their ground stays as it was
+  const shallow = new Uint8Array(M);
+  for (let k = 0; k < M; k++) if (low[k] && !(filled[k] - H[k] > cfg.lakeMin)) shallow[k] = 1;
   // LAKES HANDED IN (G413, the blend): the map's lakes (a signed field, > 0
   // inside) are the bake's lakes too - a reach ends where it enters one and
   // a new reach starts where the water leaves, instead of a ribbon traced
@@ -233,6 +262,29 @@ function bakeHydrology(sample, cfg) {
       if (flow[n] === k && acc[n] > A0 && !sea[n]) { head = false; break; }
     }
     if (!head) continue;
+    trace(k);
+  }
+  // THE LAKES' OUTLETS (G1561, REVIEW 2026-10-04 B14). A lake fed by nothing river-sized - its inflows each under A0,
+  // their sum over it - spills a river from its outlet cell, and the head test above vetoed that cell: its upstream
+  // neighbour IS river-sized (a lake cell, acc > A0), so the outlet was not a head, and no traced reach ever entered
+  // the lake to carry on out of it. Seed 0: 105 of the 233 lakes with a river-sized outlet had no river leaving them.
+  // After the pass above every cell it reached is claimed, so a river-sized cell still unclaimed lies below such a
+  // lake; it heads a reach when no unclaimed river-sized land cell flows into it (a lake cell does not count - the
+  // reach starts where the water leaves, as the pass above splits its reaches at a lake). A second pass, so every
+  // reach the first one traced stays byte for byte; the new ones end at a junction with it, a lake, the sea or the edge.
+  for (let k = 0; k < M; k++) {
+    if (!(acc[k] > A0) || sea[k] || lake[k] || claimed[k]) continue;
+    let head = true;
+    const cix = k % N, ciz = (k / N) | 0;
+    for (let d = 0; d < 8; d++) {
+      const nix = cix + NBX[d], niz = ciz + NBZ[d];
+      if (nix < 0 || niz < 0 || nix >= N || niz >= N) continue;
+      const n = niz * N + nix;
+      if (flow[n] === k && acc[n] > A0 && !sea[n] && !lake[n] && !claimed[n]) { head = false; break; }
+    }
+    if (head) trace(k);
+  }
+  function trace(k) {
     let cur = k, rp = [], rw = [], accEnd = acc[k];
     const flush = term => { if (rp.length >= 2) rivers.push(mkReach(rp, rw, accEnd, term)); rp = []; rw = []; };
     while (cur >= 0) {
@@ -300,6 +352,10 @@ function bakeHydrology(sample, cfg) {
       const s = {
         ax: r.pts[i][0], az: r.pts[i][1], bx: r.pts[i + 1][0], bz: r.pts[i + 1][1],
         w: r.w, d: r.d, wsA: r.ws[i], wsB: r.ws[i + 1], bank,
+        // the bank-inflated box (G1561): a point outside it is farther than `bank` from the segment, so scan() skips
+        // the projection - the same answers, cheaper (B14's outlet reaches added a third more segments to scan)
+        x0: Math.min(r.pts[i][0], r.pts[i + 1][0]) - bank, x1: Math.max(r.pts[i][0], r.pts[i + 1][0]) + bank,
+        z0: Math.min(r.pts[i][1], r.pts[i + 1][1]) - bank, z1: Math.max(r.pts[i][1], r.pts[i + 1][1]) + bank,
       };
       segCount++;
       const qx0 = Math.floor((Math.min(s.ax, s.bx) - bank) / QC), qx1 = Math.floor((Math.max(s.ax, s.bx) + bank) / QC);
@@ -320,6 +376,7 @@ function bakeHydrology(sample, cfg) {
     if (!arr) return;
     for (let i = 0; i < arr.length; i++) {
       const s = arr[i];
+      if (x < s.x0 || x > s.x1 || z < s.z0 || z > s.z1) continue;
       const vx = s.bx - s.ax, vz = s.bz - s.az;
       const wx = x - s.ax, wz = z - s.az;
       const L2 = vx * vx + vz * vz || 1;
@@ -335,7 +392,7 @@ function bakeHydrology(sample, cfg) {
   }
   // bilinear lake sampling in cell-center space: weight + water level
   let _lw = 0, _lws = 0;
-  function lakeAt(x, z) {
+  function lakeAt(x, z, bed) {
     _lw = 0; _lws = 0;
     const gx = (x - x0) / dx - 0.5, gz = (z - z0) / dz - 0.5;
     const ix = Math.floor(gx), iz = Math.floor(gz);
@@ -345,7 +402,7 @@ function bakeHydrology(sample, cfg) {
       const jx = ix + a, jz = iz + b;
       if (jx < 0 || jz < 0 || jx >= N || jz >= N) continue;
       const k = jz * N + jx;
-      if (!lake[k]) continue;
+      if (!lake[k] || (bed && shallow[k])) continue;   // (the bed's read skips the shallow landlocked cells, G1562)
       const w = (a ? tx : 1 - tx) * (b ? tz : 1 - tz);
       wsum += w; lsum += w * filled[k];
     }
@@ -354,7 +411,7 @@ function bakeHydrology(sample, cfg) {
   function carve(x, z, h) {
     scan(x, z);
     let out = h - _depth;
-    lakeAt(x, z);
+    lakeAt(x, z, true);
     if (_lw > 0) out += smf01(_lw) * Math.min(0, (_lws - cfg.dLake) - out);
     return out;
   }
@@ -374,13 +431,29 @@ function bakeHydrology(sample, cfg) {
   // cfg.lakeOf, whose level is data. The island asks for this one instead and
   // answers its own lakes from its records (20_world.js waterAt).
   function riverWater(x, z) { scan(x, z); return _ws; }
+  // THE SEA AT A POINT (G1562): false where a landlocked basin's cell is one of the four the point's bilinear reads
+  // touch - the point is in (or on the rim of) a basin the flood made a lake, not the sea; true everywhere else, and
+  // everywhere on a world that does not ask for connectivity. The caller keeps its own sign test (the ground under 0).
+  let anyLow = false;
+  for (let k = 0; k < M && !anyLow; k++) if (low[k]) anyLow = true;
+  function seaAt(x, z) {
+    if (!anyLow) return true;
+    const gx = (x - x0) / dx - 0.5, gz = (z - z0) / dz - 0.5;
+    const ix = Math.floor(gx), iz = Math.floor(gz);
+    for (let a = 0; a <= 1; a++) for (let b = 0; b <= 1; b++) {
+      const jx = ix + a, jz = iz + b;
+      if (jx < 0 || jz < 0 || jx >= N || jz >= N) continue;
+      if (low[jz * N + jx]) return false;
+    }
+    return true;
+  }
 
   return {
     rivers, lakeCount, lakeCells, riverCells, segCount, lakeSurf,
-    carve, water, riverWater, distW,
+    carve, water, riverWater, seaAt, distW,
     // stage-1 grids for downstream stages (settlement scoring, roads):
     // row-major N×N over [x0,x1]×[z0,z1], cell centres at (i+0.5)·dx
-    grids: { N, x0, z0, dx, dz, H, filled, sea, wet, lake, acc, claimed },
+    grids: { N, x0, z0, dx, dz, H, filled, sea, low, wet, lake, acc, claimed, flow },
     stats: { bakeMs: Date.now() - t0, N, maxAcc, cellW: dx },
   };
 }

@@ -148,9 +148,19 @@ function patternPath(pattern, ids, ds, from) {
     }
     cur = P2;
   }
-  if (pts.length > GP_MAXPTS) pts.length = GP_MAXPTS;
+  // REVIEW C: A PATH IS NEVER CUT SHORT. Past GP_MAXPTS samples the path was
+  // truncated with `len` / `sEnd` / `sStop` still those of the whole route —
+  // the follower's distance to go, the stop it brakes for and the hold it
+  // stops on were all somewhere the sampled path did not reach (a long air
+  // path at 5 m: 20 km). Sampled again, coarser, it is whole and consistent;
+  // every path under the cap is drawn exactly as before.
+  if (pts.length > GP_MAXPTS && ds < 256) return patternPath(pattern, ids, ds * Math.ceil(pts.length / GP_MAXPTS + 1e-9) * 1.01, from);
   const last = nodes[nodes.length - 1];
-  return { pts, len: s, sEnd: s, sStop: last.kind === 'hold' ? s : null,
+  // (a graph of thousands of corners still over the cap at 256 m: cut, and
+  // the path says where it ends — no stop it does not reach)
+  const cut = pts.length > GP_MAXPTS;
+  if (cut) { pts.length = GP_MAXPTS; s = pts[pts.length - 1].s; }
+  return { pts, len: s, sEnd: s, sStop: !cut && last.kind === 'hold' ? s : null,
            rMin, ids: nodes.map(n => n.id), holdHdg: last.hdg };
 }
 
