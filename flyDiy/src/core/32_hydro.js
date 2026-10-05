@@ -1744,7 +1744,8 @@ function wetBuild(def, p, v, m, fuel) {
   const sub_ = (def.params && def.params.substeps) || 24;
   const every = Math.max(1, Math.round((def.params && def.params.hydroEvery) || (sub_ * 60 / HYDRO_HZ)));
   return { tris, slices, slabs, tanks, fuel: fuel || null, open, material: spec.material || null, wheels, nodes, p, v, m, R, axPair, axle: [0, 0, 1], rho: DEF.rho || 1000, every, tick: 0,
-           fh: new Float64Array(p.length), h: new Float64Array(p.length / 3), wet: 0, drag: 0, buoy: 0, flood: 0, slamPeak: 0 };
+           fh: new Float64Array(p.length), h: new Float64Array(p.length / 3), wet: 0, drag: 0, buoy: 0, flood: 0, slamPeak: 0,
+           def, torn: false, every0: every };   // G1898.9: the rest the tear reads; the hold restored at reset
 }
 // the fill toward the water outside: in over tau, out over WB_DRAIN (exact exponential steps, any interval)
 function flood(f, wetS, tau, dt) {
@@ -1759,11 +1760,34 @@ function flood(f, wetS, tau, dt) {
 // body is first built on an airframe already broken. With nothing broken it is never called: the base's bits.
 function wetCut(WB, fd, orphan) {
   if (!WB) return;
+  // G1898.9 (coordinator): ONCE BROKEN, THE WET BODY TEARS AS THE SKIN DOES AND IS NEVER HELD. Its faces and slabs past
+  // DMG-D4a's tear (an edge over 1.15 x its rest + 1 cm), its slices past 2 x their rest volume, drop: a face whose nodes
+  // fly apart is no longer a face (the Cub's severe nose-in put a 135 kN 'slam' on a 0.3 kg stab node, along its own
+  // motion, then held it 13 substeps: 10 km/s). And the force is recomputed every substep (`every` 1) while broken.
+  if (!WB.torn) {
+    WB.torn = true; WB.every = 1;
+    const R = WB.def.nodes, len = (a, b) => Math.hypot(R[a].p[0] - R[b].p[0], R[a].p[1] - R[b].p[1], R[a].p[2] - R[b].p[2]);
+    for (const t of WB.tris) t.L0 = [len(t.n[0], t.n[1]), len(t.n[1], t.n[2]), len(t.n[2], t.n[0])];
+    for (const q of WB.slabs) q.L0 = [0, 1, 2, 3].map(k => len(q.n[k], q.n[(k + 1) % 4]));
+    for (const S8 of WB.slices) S8.V0 = sliceVol0(WB.def, S8.n);
+  }
   const cut = n => { const r = fd(n[0]); for (let k = 0; k < n.length; k++) if (orphan[n[k]] || fd(n[k]) !== r) return true; return false; };
   for (const s of WB.slices) if (!s.dead && cut(s.n)) s.dead = true;
   for (const s of WB.slabs) if (!s.dead && cut(s.n)) s.dead = true;
   for (const t of WB.tris) if (!t.dead && cut(t.n)) t.dead = true;
   for (const T of WB.tanks || []) if (!T.dead && cut(T.n)) T.dead = true;   // G1898.8: TANKS-FLOAT's tanks over a break too
+}
+const wetStretched = (p, n, L0) => { for (let k = 0; k < L0.length; k++) { const a = n[k] * 3, b = n[(k + 1) % L0.length] * 3;
+  if (Math.hypot(p[b] - p[a], p[b + 1] - p[a + 1], p[b + 2] - p[a + 2]) > 1.15 * L0[k] + 0.01) return true; } return false; };
+function wetSliceVol(p, n8) {
+  let vol = 0;
+  for (const Q of WB_Q) {
+    let ux = 0, uy = 0, uz = 0, vx = 0, vy = 0, vz = 0, wx = 0, wy = 0, wz = 0;
+    for (let c = 0; c < 8; c++) { const i3 = n8[c] * 3, X = p[i3], Y = p[i3 + 1], Z = p[i3 + 2];
+      ux += Q.dU[c] * X; uy += Q.dU[c] * Y; uz += Q.dU[c] * Z; vx += Q.dV[c] * X; vy += Q.dV[c] * Y; vz += Q.dV[c] * Z; wx += Q.dW[c] * X; wy += Q.dW[c] * Y; wz += Q.dW[c] * Z; }
+    vol += Math.abs(ux * (vy * wz - vz * wy) - uy * (vx * wz - vz * wx) + uz * (vx * wy - vy * wx)) / 27;
+  }
+  return vol;
 }
 function wetReset(WB) {
   if (!WB) return;
@@ -1771,6 +1795,7 @@ function wetReset(WB) {
   for (const s of WB.slabs) { s.f = 0; s.wetS = 0; s.dead = false; }
   for (const s of WB.tanks) { s.f = 0; s.br = false; s.wetS = 0; s.dead = false; }
   for (const t of WB.tris) t.dead = false;   // G1898.5
+  WB.torn = false; WB.every = WB.every0;     // G1898.9
   WB.tick = 0; WB.wet = 0; WB.flood = 0; WB.slamPeak = 0;
 }
 function wetSolverPass(WB, world, f, simT, dt) {
@@ -1812,6 +1837,7 @@ function wetCompute(WB, fh, dtH) {
   let fl = 0, flN = 0;
   for (const S8 of WB.slices) {
     if (S8.dead) continue;                                  // G1898.5: parted by a break
+    if (WB.torn && S8.V0 > 0 && wetSliceVol(p, S8.n) > 2 * S8.V0) { S8.dead = true; continue; }   // G1898.9
     const sl = S8.n;
     let anyWet = false;
     for (let c = 0; c < 8; c++) if (H[sl[c]] - p[sl[c] * 3 + 1] > -WB_DELTA) { anyWet = true; break; }
@@ -1843,6 +1869,7 @@ function wetCompute(WB, fh, dtH) {
   // ramp over the slab's thickness, its lift onto the four spar nodes by the same bilinear weights; flooding as above
   for (const SB of WB.slabs) {
     if (SB.dead) continue;                                  // G1898.5
+    if (WB.torn && SB.L0 && wetStretched(p, SB.n, SB.L0)) { SB.dead = true; continue; }   // G1898.9
     const q = SB.n;
     let anyWet = false;
     for (let c = 0; c < 4; c++) if (H[q[c]] - p[q[c] * 3 + 1] > -SB.th) { anyWet = true; break; }
@@ -1890,6 +1917,7 @@ function wetCompute(WB, fh, dtH) {
   // side meets the flow) and the skin friction along it, over each triangle's wet polygon
   for (const t of WB.tris) {
     if (t.dead) continue;                                   // G1898.5
+    if (WB.torn && t.L0 && wetStretched(p, t.n, t.L0)) { t.dead = true; continue; }   // G1898.9
     const tn = t.n;
     let any = false;
     for (let k = 0; k < 3; k++) { const i3 = tn[k] * 3, P = S.P[k]; P[0] = p[i3]; P[1] = p[i3 + 1]; P[2] = p[i3 + 2];
