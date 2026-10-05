@@ -1011,8 +1011,8 @@ if (SELFTEST) {
       // G1408 (METLA-LOAD): THE TOWN IS ON BY DEFAULT - only the row's 'nearby' or ?town=0 drops it; the row's default (a
       // free row's first step) is 'all', and a pref saved before pv 7 with the old default takes the new one
       const GS = fs.readFileSync(path.join(TOOLS, '..', 'src', 'viewer', 'gfx_settings.js'), 'utf8');
-      check(/T\.all = q !== null \? \(q === '1' \|\| q === 'all'\) : \(window\.GFX && window\.GFX\.townAll \? window\.GFX\.townAll\(\) : !!\(g && g\.town === 'all'\)\)/.test(AP) && /k: 'town', label: 'towns', free: true, reload: true, steps: \[\s*\{ v: 'all'/.test(GS)
-            && /if \(v && !\(v\.pv >= 9\)\) \{ if \(v\.town === 'nearby'\) delete v\.town; v\.pv = 9; \}/.test(GS),   // train 32: G1408 after POTATO-DEEP's pv 8; the row through GFX.townAll (G1526: potato / laptop / software capped)
+      check(/T\.all = q !== null \? \(q === '1' \|\| q === 'all'\) : !\(g && g\.town === 'nearby'\)/.test(AP) && /k: 'town', label: 'towns', free: true, reload: true, steps: \[\s*\{ v: 'all'/.test(GS)
+            && /if \(v && !\(v\.pv >= 7\)\) \{ if \(v\.town === 'nearby'\) delete v\.town; v\.pv = 7; \}/.test(GS),
             '14q the town is ON by default (G1408): the row\'s first step is \'all\', only \'nearby\' or ?town=0 drops it, an old pref\'s \'nearby\' migrates');
     }
 

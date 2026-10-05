@@ -367,7 +367,7 @@ console.log('GATE GFX');
   // the pref's pv 8: a player ON potato (saved before this session: the lean ground) reads potato as it is now, not custom
   const old = { preset: 'potato', pv: 7, fps: 30, ground: 'lean', scale: 0.67, cover: 'off', scenery: 'low', terrain: 3 };
   const wp = boot({ 'flydiy.gfx': JSON.stringify(old) });
-  ok(wp.GFX.get().preset === 'potato' && wp.GFX.get().ground === 'plain' && wp.GFX.get().pv >= 8, 'a potato saved at pv 7 reads potato, the plain ground (pv 8+; train 32: G1408 is pv 9)');
+  ok(wp.GFX.get().preset === 'potato' && wp.GFX.get().ground === 'plain' && wp.GFX.get().pv === 8, 'a potato saved at pv 7 reads potato, the plain ground (pv 8)');
   const wg = boot({ 'flydiy.gfx': JSON.stringify(Object.assign({}, FROZEN.gamer, { preset: 'gamer', pv: 7, fps: 30 })) });
   ok(wg.GFX.get().preset === 'gamer' && Object.keys(FROZEN.gamer).every(k => wg.GFX.get()[k] === FROZEN.gamer[k]), '...a gamer saved at pv 7 reads gamer, every row the same');
   const wc = boot({ 'flydiy.gfx': JSON.stringify(Object.assign({}, FROZEN.gamer, { preset: 'custom', pv: 7, fps: 30, shadows: 'off' })) });
