@@ -74032,3 +74032,95 @@ STRICT GATE (full, vs train 26's baseline): 98 in slack, 47 better, 12 RED = the
 render / loop +1.85-1.9 ms (HYBRID-FARTHER's band, admitted by the user; train 33's dissolve brings it to ~+1.4) and one
 garage -> world @mn_strip worst task 107 -> 270 ms (one row, slack 150; watched in train 33). BATTERY: the full battery
 PASS on the final build (SOFTGPU SKIP: no Playwright on the box). The parked aeroplanes re-cooked on it.
+
+## G1480-G1489 - WOODLAND: THE WOODLAND HAD DRAWN NOTHING SINCE 2026-09-23 WHILE ITS 24 651 CYLINDERS STILL STOPPED THE AEROPLANE; THE FILL ALREADY PLANTS ITS GROUND, SO ITS SEEDS LEAVE THE DRAW AND THE PHYSICS (CANDIDATE b) (2026-10-04/05, WOODLAND for A0, local GPU; branch claude/woodland-g1480 off master a1ffcf5b = train 30; G1483-G1489 unused)
+
+The brief (TREE-HITBOX's G1330 census): on Jolene plantWoodland drew nothing - its fill() read H.imps[0], null - while world.trees, the woodland's physics cylinders, stayed solid. The rule: what is drawn collides, what collides is drawn. SOFT-GPU's G1461 (the one-token fix, held out of train 31 by A0) is candidate (a).
+
+### G1480 - the failure, on the box
+- **Seen on the RTX box** (tools/perf/woodland_shots.js, master a1ffcf5b, index.html, the user's Cub, gamer): the boot logs `world: after the build TypeError: Cannot read properties of null (reading 'setMatrixAt')` (render_world afterBuild's catch; index.html:4625, `fill`'s forEach), and `TREE_PLACE.replant()` called in the page throws the same. 0 woodland instances in the partition; 93 woodland cylinders within 1 km of HOME's stand, solid and unseen.
+- **Broader than G1330 said: imps[0] is null in EVERY side, on every map.** side() pushes a null per EMPTY series before the side's one merged impostor mesh, and with TREE_MIX.furnished = 1 the stand series (1) is never dealt. So the first cell threw whatever its trees. It broke with the impostor merge (a3a1a7f6, PERF wip 2, 2026-09-23); before it each series had its own impostor mesh and fill() read imps[si].
+- **So every perf baseline since 2026-09-23 was measured without the woodland**, and fixing it is new cost, not a restoration.
+- **Was the woodland meant to draw beside the fill?** It predates it: W13's fill was "render-only canopies ... the collidable set is a 64 m stage-2 grid, so stands render sparse even with the clump layer". The woodland (a physics tree + 2-4 clump neighbours) was the forest; the fill came to densify it (W17: 9.1 m grid, the impostor rungs; TREES-NEAR G1110: the partition; G1114.1: the 64 m partition records). On an island the fill stands on the same tree map the seeds do (effClass TREE, 20_world.js), on the analytic world only within 90 m of a seed (nearTree). Since W17 the woodland was ~2 % of the trees on its ground (below).
+
+### G1480 - the numbers (master a1ffcf5b vs (a) = + G1461's token vs (b) = this branch; each tree its own worktree, its own build, its own parked cook)
+**Where the woodland stands** (tools/perf/woodland_census.js, the page in node on (a), island-wide; the fill's walk TREE_FILL.plants, full density):
+
+| | n | fill tree within 3 m | 6.4 m | 10 m | 20 m | past 40 m | fill trees within 20 m (mean) |
+|---|---|---|---|---|---|---|---|
+| seeds (world.trees) | 24 651 | 30.8 % | 84.3 % | 98.5 % | 99.96 % | 0 | 15.4 |
+| every woodland tree (seeds + neighbours) | 86 028 | 30.8 % | 83.6 % | 97.9 % | 99.96 % | 0 | 15.4 |
+
+Within 1 km of HOME: 345 woodland trees (317 within 10 m of a fill tree) against 15 821 fill trees drawn. **The woodland adds ~2 % trees, all inside the fill's own forest.** Jolene places no tree by hand (TREE_PLACE: 0).
+
+**FRAMECOST** (node, per frame, cub; the cessna moves alike):
+
+| scene | counter | master | (a) | (b) |
+|---|---|---|---|---|
+| stand | draws main / shadow / total | 908 / 106 / 1029 | 1215 / 144.5 / 1374.5 (+34 %) | = master |
+| stand | GL calls | 7424 | 8283 (+12 %) | = |
+| stand | frustum tests / updateMatrixWorld | 1289 / 8358 | 2018 / 9624 | = |
+| stand | tris shadow | 2.119 M | 2.154 M | = |
+| taxi | draws main / shadow / total | 838 / 74.5 / 928.5 | 1111 / 108 / 1235 (+33 %) | = master |
+| taxi | GL calls | 7141 | 7818 (+9 %) | = |
+| boot | world grHeight reads | 3.856 M | | 3.782 M (-74 k: no clump neighbours sampled) |
+| node heap after the roll-out | heapUsed | 797 MB | | 783 MB |
+
+(a) is RED on FRAMECOST (draws, GL calls, updateMatrixWorld, tris at the stand and the taxi). (b) passes; no stand/taxi count moves against master's own census. (Two boot-step counts, parking/bake updateMatrixWorld, flip between two values run to run on master itself: noise, not the woodland.) Master's own census is below the stored baseline (stand shadow 169.5 -> 106): a ratchet-down for A0 (`--update`).
+
+**Memory, potato** (tools/perf/heap_steps.js `--page 'index.html?gfx=potato'`, one load each, MB):
+
+| | load s | heap peak | array buffers peak | after a full GC: heap / array buffers |
+|---|---|---|---|---|
+| master | 47.8 | 428.1 | 1522.2 | 218.1 / 1078.8 |
+| (a) | 53.3 | 464.9 | 1565.7 | 233.7 / 1114.7 (+15.6 / +35.9) |
+| (b) | 50.6 | 385.6 | 1374.4 | 205.7 / 1072.2 (-12.4 / -6.6) |
+
+(peaks are single loads and GC-timing dependent; the after-GC floor is the retained cost: (a) holds ~50 MB more on potato, (b) ~19 MB less - the ~86 000 seed records and the first cell's meshes master built and threw away.)
+
+**The strict gate, timed** (tools/perf/train_gate.js on each tree, quiet box, 2026-10-05 04:36-05:20 light x3 in the order master, (a), (b); 06:14-06:51 the garage interleaved and the cold bench; compared tree against tree with `--compare <x> --baseline <master's run>`; reports tg_wood_*):
+
+| row (light: one run a group, 20 s recorded) | master | (a) | (b) |
+|---|---|---|---|
+| cub chase: fps / loop / render ms | 30 / 13.7 / 9.8 | 30 / 15.0 / 11.1 **RED** | 30 / 13.3 / 9.7 |
+| cub cockpit: fps / loop / render | 30 / 15.1 / 11.2 | 30 / 16.3 / 12.2 | 30 / 15.3 / 11.4 |
+| metal chase: fps / loop / render | 30 / 13.8 / 10.1 | 30 / 15.1 / 11.3 **RED** | 30 / 14.0 / 10.2 |
+| metal cockpit: fps / loop / render | 30 / 15.5 / 11.6 | 30 / 16.7 / 12.6 | 30 / 15.7 / 11.8 |
+| taxi HOME / mn_strip / SEA: fps, p99 ms | 30 / 30 / 29.9, 33.5 | the same | the same |
+| warm: navigation -> garage (cub / floats) s | 45.4 / 55.2 | 47.6 / 53.7 | 46.4 / 52.2 |
+| garage -> world first @HOME / round trip 2 / @mn_strip s | 9.1 / 8.9 / 25.2 | 9.2 / 8.9 / 25.5 | 9.2 / 8.9 / 25.1 |
+| world -> garage after the taxi @HOME / @mn_strip s | 0.2 / 0.3 | 0.2 / 0.2 | 0.3 / 0.2 |
+| cold: navigation -> garage / first flight s (full mode, one run) | 61.6 / 70.9 | - | 57.6 / 66.7 (PASS) |
+| garage, ten changes, sync summed ms (cub / metal) | 369, 388, 357 / 434, 437, 408 | | 343, 357 / 417, 416 |
+| garage, busy summed ms (cub / metal) | 2220, 2757, 2377 / 2835, 3284, 2349, 4019 | | 2438, 2338, 2453 / 3388, 3181, 3818 |
+
+- (a): RED on the chase render (cub +1.3, metal +1.2 ms) and +1.2 ms of loop in all four groups - the woodland's +33 % draws.
+- (b): within slack on every rollout and bench row. Its light run showed garage "busy" reds (single changes 0 -> 219..547 ms); master's own runs swing 2349..4019 ms summed and (a)'s run listed the same rows both RED and BETTER. The interleaved b, master, b re-run put (b) at or under master (metal 3181 / 4019 / 3818); the handler (sync) time is equal. No garage regression.
+- All three trees are RED against the stored light baseline (garage fps 34.2 -> 30, the mn_strip taxi 32.1 -> 30, the sea taxi 56.1 -> 29.9): the baseline predates EVEN-30's hard 30 - A0's to re-take.
+
+**Stills** (reports/evidence/WOODLAND/, master | (a) | (b) side by side, the user's Cub, gamer, RTX box): `stand_master_a_b.jpg`, `look_master_a_b.jpg` (from the stand at the nearest woodland, 1.4 km), `taxi_master_a_b.jpg` (250 m along), `low_master_a_b.jpg` (60 m AGL over the densest woodland near HOME), `low_eye_master_a_b.jpg` (120 m over it). (a) shows a few taller spires over the fill canopy and darker silhouettes on the far horizon (its impostors reach 9 km); near the aeroplane the three are alike. Each caption carries the 1 km counts: woodland drawn, fill drawn, woodland cylinders and whether they are solid.
+
+### G1481 - THE DECISION: (b), the seeds leave the draw AND the physics
+- (a) costs +33 % draws at the stand and the taxi and ~50 MB on potato for ~2 % more trees standing among the fill's own. A budgeted (a) (thinned where the fill covers) would thin to nothing: 97.9 % stand within 10 m of a fill tree.
+- **render_world.js:** G1461's token kept (the hand-placed trees still go through the planter: the analytic aerodrome's windbreak, TREE_PLACE.add). The seeds and their neighbours are no longer planted. world.trees stays placement: the runway's obstacle cone (canopyH), the fill's species seed and its analytic predicate (nearTree) read it.
+- **20_world.js:** `world.woodSolid` (true) / `setWoodSolid(on)`. **30_solver.js:** the woodland cylinder test runs only while it is true. A world no viewer stands on (every gate, a replay) keeps its cylinders: the battery's physics is byte for byte the same.
+- **The page:** render_world turns it off at the woodland step. **sim_link.js** forwards it to the worker as an obstacle op `wsolid` (and replays it in liveOps for a worker world made later); **sim_host.js** applies it.
+- **What the aeroplane can hit now is exactly what is drawn:** the fill's trunks (world.treeHits, within 1.2 km), the placed trees' ('wood' set) and the premises'.
+- **The analytic world** gets the same: its fill stands within 90 m of every seed.
+
+### G1482 - gates
+- GATE TREEHIT (19 core + the page census): the same tree with the cylinders off is not met (82.7 m, rolled through); the worker world takes wsolid; a headless world keeps woodSolid true; the census (--page) asserts "no woodland cylinder collides unseen" (the G1330 NOTE is gone). The census' "collidable now" honours woodSolid.
+- **GATE WORLDRENDER plants by hand now.** It checked the woodland planter's machinery (chunk-local instances inside their cull spheres, a trunk per tree, the shadow pass' depth-material cull, the impostor tier's parity, the LOD switch at the origin) on the analytic world's seeds, drawn as cones in node. With the seeds retired the planter was empty there and four checks went red (no trunk, 19 impostor chunks, no shadow-casting chunk, no near chunk on at the origin). The harness' window now keeps the one name `TREE_PLACE`, and the gate plants a stand by hand (a 300 m grid over 12 km, 1600 trees). Every check runs again on it: 1600 trunks, 0 of 87 462 instances escaped, 3D 8/122 chunks on to 1448 m, impostors 57/61 to 5971 m.
+- **The battery** (`node tools/run_gates.js`, core tier, under the cpu lock, with (b)'s parked cook in the tree): 146 PASS, WORLDRENDER FAIL (above); WORLDRENDER PASS after the fix. FRAMECOST PASS on (b)'s cook (a stale cook would read the parked aeroplanes live: re-cook on the train's build). TREEHIT (`--all`, the page census): PASS 29/29 - fill 15 846 drawn / 15 846 collidable, woodland 0 / 0, premises 0 / 0; 92 physics seeds within 1 km, woodSolid false: no woodland cylinder collides unseen; the page's own fill trunk stops the taxi and the 4 m pass.
+- **Not committed:** the generated outputs and (b)'s parked cook (media/parked, parked_packs.json): the train's build and cook make them.
+
+### The numbers' files (reports/evidence/WOODLAND/numbers/)
+- `train_gate_wood_light_{base,a,b}.json` (the timed light gate), `train_gate_wood_gar{1,4,6}_base.json` / `gar{5,7}_b.json` (the garage interleaved), `train_gate_wood_cold_{base,b}.json` (the bench in full mode, the cold load); compare with `node tools/perf/train_gate.js --compare <x> --baseline <master's>`.
+- `framecost_{base,a,b}.json` (`node tools/_framecost_check.js --compare a.json b.json`), `heap_potato_{base,a,b}.json`, `woodland_census_a.json`, `shots_{before,a,b}.json` (the stills' counts and the boot's warnings).
+
+### Traps
+- **The lock queue is the schedule.** This brief's GPU work waited ~6 h for its first slot (A0's train 31, HYBRID-TRIPS, SHORES, POTATO-DEEP): chain the slots in one background script and keep every slot short.
+- **Pixel diffs between two loads are not a tree count.** Master against (b), which draw the same trees, differ on 5-15 % of the pixels (the clouds drift, the sway, the chase camera's settle). Count the partition (TREE_LOD.drawn) instead.
+- **three's renderer.info after the frame is the last pass** (the post chain's quad: 1 call, 2 triangles): per-frame draws come from FRAMECOST, not from a GPU still.
+- **A rig's ports are P, P+1, P+2.** train_gate gives P to the rollout, P+1 to the garage rig, P+2 to the bench: a static server of my own on P+1 made the garage rig refuse ("port 8741 is taken"). It refused, so nothing measured the wrong tree; keep ten ports between your own servers and a gate's P.
+- **A grep for `$'\r'` through the Bash tool counts the letter r** (the escape arrives literally): read endings with `git ls-files --eol`.

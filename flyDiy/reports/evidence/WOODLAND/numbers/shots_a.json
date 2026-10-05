@@ -1,0 +1,237 @@
+{
+ "tag": "a",
+ "url": "http://localhost:8742/flyDiy/index.html",
+ "build": "cub_2026-09-20_corrected.json",
+ "gfx": "{\"preset\":\"gamer\",\"build\":\"gamer\",\"pv\":7,\"fps\":30,\"fpsOwn\":false,\"ground\":\"far1\",\"scale\":1,\"cover\":\"full\",\"scenery\":\"full\",\"drawDist\":\"vis\",\"terrain\":1,\"aa\":\"msaa\",\"density\":128,\"bands\":\"mid\",\"shadows\":\"full\",\"canopy\":\"on\",\"rails\":\"on\",\"poles\":\"on\",\"glare\":\"on\",\"sway\":\"on\",\"mist\":\"land\",\"clouds\":\"half\",\"water\":\"simple\",\"mirror\":\"off\",\"lighting\":\"sunset\",\"tone\":\"cineon\",\"exposure\":1,\"colour\":\"managed\",\"bloom\":\"soft\",\"look\":\"off\",\"lens\":\"off\",\"rays\":\"off\",\"ao\":\"off\",\"eye\":\"off\",\"compositing\":\"linear\",\"town\":\"nearby\"}",
+ "flyBuild": "781283188e18",
+ "views": {
+  "stand": {
+   "eye": [
+    -146,
+    703
+   ],
+   "r": 1000,
+   "woodDrawn": 348,
+   "fillDrawn": 15821,
+   "physTrees": 91,
+   "trunkSets": 21,
+   "trunks": 145587,
+   "wood": true,
+   "census": {
+    "inst": [
+     17,
+     83,
+     0
+    ],
+    "tris": [
+     73892,
+     480137,
+     0
+    ],
+    "draws": [
+     10,
+     30,
+     0
+    ],
+    "bands": [
+     50,
+     120,
+     120
+    ],
+    "fade": 12
+   },
+   "info": {
+    "calls": 1,
+    "triangles": 2
+   },
+   "worldTrees": 24651,
+   "solidTrees": "n/a"
+  },
+  "look": {
+   "eye": [
+    -142,
+    695
+   ],
+   "r": 1000,
+   "woodDrawn": 350,
+   "fillDrawn": 15834,
+   "physTrees": 94,
+   "trunkSets": 21,
+   "trunks": 145587,
+   "wood": true,
+   "census": {
+    "inst": [
+     13,
+     76,
+     0
+    ],
+    "tris": [
+     59880,
+     432563,
+     0
+    ],
+    "draws": [
+     9,
+     28,
+     0
+    ],
+    "bands": [
+     50,
+     120,
+     120
+    ],
+    "fade": 12
+   },
+   "info": {
+    "calls": 1,
+    "triangles": 2
+   },
+   "worldTrees": 24651,
+   "solidTrees": "n/a",
+   "at": [
+    1074,
+    1370
+   ],
+   "dist": 1390,
+   "physWithin150": 11
+  },
+  "taxi": {
+   "eye": [
+    99,
+    668
+   ],
+   "r": 1000,
+   "woodDrawn": 365,
+   "fillDrawn": 15206,
+   "physTrees": 96,
+   "trunkSets": 25,
+   "trunks": 161083,
+   "wood": true,
+   "census": {
+    "inst": [
+     26,
+     42,
+     0
+    ],
+    "tris": [
+     170300,
+     268420,
+     0
+    ],
+    "draws": [
+     17,
+     30,
+     0
+    ],
+    "bands": [
+     50,
+     120,
+     120
+    ],
+    "fade": 12
+   },
+   "info": {
+    "calls": 1,
+    "triangles": 2
+   },
+   "worldTrees": 24651,
+   "solidTrees": "n/a",
+   "moved": 252,
+   "secs": 53
+  },
+  "low": {
+   "eye": [
+    335,
+    2802
+   ],
+   "r": 1000,
+   "woodDrawn": 736,
+   "fillDrawn": 17388,
+   "physTrees": 186,
+   "trunkSets": 23,
+   "trunks": 143520,
+   "wood": true,
+   "census": {
+    "inst": [
+     55,
+     553,
+     0
+    ],
+    "tris": [
+     273343,
+     3766936,
+     0
+    ],
+    "draws": [
+     17,
+     34,
+     0
+    ],
+    "bands": [
+     50,
+     120,
+     120
+    ],
+    "fade": 12
+   },
+   "info": {
+    "calls": 1,
+    "triangles": 2
+   },
+   "worldTrees": 24651,
+   "solidTrees": "n/a",
+   "at": [
+    344,
+    2803
+   ],
+   "agl": 60,
+   "physWithin150": 22
+  },
+  "low_eye": {
+   "eye": [
+    84,
+    2623
+   ],
+   "r": 1000,
+   "woodDrawn": 809,
+   "fillDrawn": 20524,
+   "physTrees": 202,
+   "trunkSets": 27,
+   "trunks": 158425,
+   "wood": true,
+   "census": {
+    "inst": [
+     28,
+     41,
+     0
+    ],
+    "tris": [
+     86813,
+     205688,
+     0
+    ],
+    "draws": [
+     9,
+     22,
+     0
+    ],
+    "bands": [
+     50,
+     120,
+     120
+    ],
+    "fade": 12
+   },
+   "info": {
+    "calls": 1,
+    "triangles": 2
+   },
+   "worldTrees": 24651,
+   "solidTrees": "n/a"
+  }
+ },
+ "bootWarnings": [],
+ "bootExceptions": [],
+ "replant": "replant ok, placed 0",
+ "exceptions": []
+}
