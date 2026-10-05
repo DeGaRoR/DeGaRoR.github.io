@@ -334,6 +334,21 @@ if (require.main === module) (async () => {
     R.cases[k] = out;
     fs.writeFileSync(path.join(OUT, 'census.json'), JSON.stringify(R, null, 1));
   }
+  // THE OTHER WAY BACK TO A FRESH AEROPLANE (G1858.1): the last case's wreck stands; the garage and a new roll-out (the
+  // hangar button, then Roll out) - the drawing checked against the fresh load's as after each reset
+  if (has('paths')) {
+    R.paths = {};
+    await post('/eval', "(() => { const b = document.getElementById('bHangar2'); if (!b) return 'no button'; b.click(); return 'ok'; })()");
+    await sleep(8000);
+    for (let a = 0; a < 6; a++) { await run(pageBootStep, 'go'); await sleep(6000); if (await run(pageBootStep, 'flying')) break; }
+    for (let i = 0; i < 20; i++) { const n = await run(pageBootStep, 'keep'); await sleep(500); if (!n && i > 4) break; }
+    for (let i = 0; i < 120; i++) { const bs = await run(pageBootStep, 'state'); if (bs === 'gone' || bs === 'none') break; await sleep(1000); }
+    await sleep(3000);
+    R.paths.garage = await run(pageHeal, 'check');
+    console.log('paths garage -> roll-out: ' + JSON.stringify(R.paths.garage));
+    await run(pageView, [200, 22, 12]);
+    await shoot(path.join(OUT, 'paths_garage_rollout.jpg'));
+  }
   fs.writeFileSync(path.join(OUT, 'census.json'), JSON.stringify(R, null, 1));
   // the README: a line a picture (the evidence board reads it)
   const cap = c => 'not yellow ' + c.other + ' % of the Cub\'s pixels' + (c.otherBy ? ' (by layer: ' + Object.entries(c.otherBy).map(([k, v]) => k + ' ' + v).join(', ') + ')' : '');

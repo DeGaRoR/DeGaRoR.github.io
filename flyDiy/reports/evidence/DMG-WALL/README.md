@@ -15,3 +15,8 @@ The user's Cub (`builds/cub_2026-09-20_corrected.json`), `dev.html?damage=1&simw
   bulkheads CYAN, fireproof ORANGE, sill / door pads PURPLE, dash / cabin BLUE, beads / glazing GREEN, parts GREY.
 - `study_cub.txt` / `.json` - the node study (tools/_dmg_wall_study.js, headless snapshot, the certificate on): every
   wall place against its covering's live plane, and every compact part's triangles, frame by frame.
+- `census3/` - run 3 (00:41, 32e770cb): ONE crash a case flown with the wind off, then its recorded node path REPLAYED under
+  each binding - the same wreck for BEFORE and AFTER (`census3_table.md`). The heal checks: after every wreck a reset (and
+  the garage -> roll-out path) gives every craft geometry's index + static positions bit-identical to the fresh load.
+- `gates/` - the worker gate set on 32e770cb: DMGSKIN, UISMOKE, BUILD, JOIN identical to the base 01e6892f (numbers
+  masked, `gates_vs_base.txt`); GATE DMGWALL FAIL on the drawn-tube row and on three builds' severe nose-in (not READY).

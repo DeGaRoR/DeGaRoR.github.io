@@ -3,7 +3,7 @@
 # for "damage off = the base's bytes" DMGSKIN, UISMOKE, BUILD, JOIN on this branch AND on the base (a `git archive` of it),
 # each output diffed with every number masked.
 #   bash tools/dmg_wall_gates.sh <base-dir (holds flyDiy/)> <out-dir>
-BASE=$1; OUT=$2; ROOT=D:/Dev/dmgwall/flyDiy; LK=D:/Dev/DeGaRoR.github.io/flyDiy/tools/perf/boxlock.sh
+BASE=$1; OUT=$(cd "$2" 2>/dev/null && pwd || (mkdir -p "$2" && cd "$2" && pwd)); ROOT=D:/Dev/dmgwall/flyDiy; LK=D:/Dev/DeGaRoR.github.io/flyDiy/tools/perf/boxlock.sh
 mkdir -p $OUT
 # (take cpu does not wait for another owner's CPU lock: wait by hand for no CPU_BATTERY_* lock and no GPU lock but mine)
 P=D:/Dev/DeGaRoR.github.io/flyDiy/tools/perf
