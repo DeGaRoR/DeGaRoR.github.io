@@ -29,7 +29,7 @@ function panel(x0, y0, w, h, title, series, tEv, yMax) {
   const step = ym > 6 ? 2 : ym > 3 ? 1 : 0.25;
   for (let v = 0; v <= ym; v += step) b += `<line x1="${X(0)}" x2="${X(tMax)}" y1="${Y(v)}" y2="${Y(v)}" stroke="${COL.grid}"/>` + txt(X(0) - 4, Y(v) + 4, v.toFixed(step < 1 ? 2 : 0), { anchor: 'end', size: 10 });
   for (let t = 0; t <= tMax + 1e-9; t += tMax > 3 ? 1 : 0.5) b += txt(X(t), y0 + h - 8, t.toFixed(tMax > 3 ? 0 : 1) + ' s', { anchor: 'middle', size: 10 });
-  b += `<line x1="${X(0)}" x2="${X(tMax)}" y1="${Y(1)}" y2="${Y(1)}" stroke="${COL.ink}" stroke-dasharray="5 3"/>` + txt(X(tMax) + 4, Y(1) + 4, 'break limit', { size: 10, fill: COL.ink });
+  b += `<line x1="${X(0)}" x2="${X(tMax)}" y1="${Y(1)}" y2="${Y(1)}" stroke="${COL.ink}" stroke-dasharray="5 3"/>` + txt(X(0) + 4, Y(1) - 4, 'break limit', { size: 10, fill: COL.ink });
   if (tEv != null) b += `<line x1="${X(tEv)}" x2="${X(tEv)}" y1="${Y(0)}" y2="${Y(ym)}" stroke="${COL.broken}" stroke-dasharray="2 3"/>` + txt(X(tEv) - 3, y0 + 30, 'off', { anchor: 'end', size: 10, fill: COL.ink });
   for (const s of series) {
     if (!s.pts.length) continue;

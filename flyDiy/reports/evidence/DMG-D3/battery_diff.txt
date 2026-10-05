@@ -1,0 +1,80 @@
+SAME BYTES (28): SUBSTEP PACE GE FLAPS STRESS NAV TAXICLEAR PLAN LINEUP DEFAULT HONEST WEIGHT DRAG MASS TREEHIT BENCH GEAR STRUT SITE OBSTACLE FLOATS SEAPLANE ENERGY AERO HOTHIGH SOAR LOAD MOUNT
+ONLY NUMBERS DIFFER (12): FLIGHTREC GEN PILOT STRIPSURF TAKEOFF PILOTACT BIPLANE SIMWORKER HITBOX HYDRODYN SETTLE FLEX
+DIFFER (1): TREECRASH
+--- FLIGHTREC (2 lines)
+  - PASS 6 the recorder's own time: 2.05 us a frame over 100000 frames of the loop's hook sequence (2 steps, 3 renders, 6 laps; budget 200 us, asserted < 20 us in node); its end() self-timed 0.41 us
+  + PASS 6 the recorder's own time: 2.47 us a frame over 100000 frames of the loop's hook sequence (2 steps, 3 renders, 6 laps; budget 200 us, asserted < 20 us in node); its end() self-timed 0.58 us
+  - PASS   its allocation: 0.12 bytes a frame over 20 000 frames (the whole hook sequence with its sampled self-timing, a clock that cannot box): the frame's path allocates nothing
+  + PASS   its allocation: 0.11 bytes a frame over 20 000 frames (the whole hook sequence with its sampled self-timing, a clock that cannot box): the frame's path allocates nothing
+--- GEN (4 lines)
+  - --- shard 0/4 (283.4 s) ---
+  + --- shard 0/4 (285.3 s) ---
+  - --- shard 1/4 (250.9 s) ---
+  + --- shard 1/4 (241.8 s) ---
+  - --- shard 2/4 (370.5 s) ---
+  + --- shard 2/4 (365.6 s) ---
+  - --- shard 3/4 (294.7 s) ---
+  + --- shard 3/4 (288.4 s) ---
+--- PILOT (3 lines)
+  - --- shard 0/3 (248.4 s) ---
+  + --- shard 0/3 (236.7 s) ---
+  - --- shard 1/3 (231.8 s) ---
+  + --- shard 1/3 (221.5 s) ---
+  - --- shard 2/3 (238.2 s) ---
+  + --- shard 2/3 (224.8 s) ---
+--- STRIPSURF (1 lines)
+  - (12.8 s)
+  + (11.2 s)
+--- TAKEOFF (1 lines)
+  - crosswind limit 4.5 m/s (band 12.5 m, roll 12.4 m at the limit; first failure 5 m/s, 12.84 m) in 25.2 s CPU, 25.6 s wall
+  + crosswind limit 4.5 m/s (band 12.5 m, roll 12.4 m at the limit; first failure 5 m/s, 12.84 m) in 25.8 s CPU, 26.9 s wall
+--- PILOTACT (2 lines)
+  - PILOT MATRIX: 3 cells, 3 at a time (activity) on core_1791165335445.js
+  + PILOT MATRIX: 3 cells, 3 at a time (activity) on core_1791172182624.js
+  - wall 135 s
+  + wall 131 s
+--- BIPLANE (2 lines)
+  - PERF: buildGen stock 21 ms, biplane 47 ms
+  + PERF: buildGen stock 48 ms, biplane 81 ms
+  -   ok   a biplane builds in under 3x the stock (floored at 20 ms)  (2.25x)
+  +   ok   a biplane builds in under 3x the stock (floored at 20 ms)  (1.68x)
+--- SIMWORKER (16 lines)
+  - the page's world (the whole boot): 8332 ms
+  + the page's world (the whole boot): 7066 ms
+  -   the host: init 7085 ms, the trimmed boot 79.0 MiB
+  +   the host: init 6321 ms, the trimmed boot 79.0 MiB
+  -   ok   stock: every step's FNV(p, v) equal, 0..600 (final f2b3de3f, page 4729 ms)
+  +   ok   stock: every step's FNV(p, v) equal, 0..600 (final f2b3de3f, page 4423 ms)
+  -   ok   cessnaMetal: every step's FNV(p, v) equal, 0..600 (final cbccf99f, page 7905 ms)
+  +   ok   cessnaMetal: every step's FNV(p, v) equal, 0..600 (final cbccf99f, page 7107 ms)
+--- HITBOX (30 lines)
+  -   ok   cub stands a shape  (62 pieces, 77 ms)
+  +   ok   cub stands a shape  (62 pieces, 86 ms)
+  -   ok   pietenpol stands a shape  (68 pieces, 88 ms)
+  +   ok   pietenpol stands a shape  (68 pieces, 48 ms)
+  -   ok   tigermoth stands a shape  (104 pieces, 104 ms)
+  +   ok   tigermoth stands a shape  (104 pieces, 107 ms)
+  -   ok   stearman stands a shape  (108 pieces, 197 ms)
+  +   ok   stearman stands a shape  (108 pieces, 108 ms)
+--- HYDRODYN (2 lines)
+  -    water 7.40 ms/step (hydro every 20 of 24 substeps)  dry 5.35 ms/step  ratio 1.38 x  L/W at rest 0.9987 (every substep: 0.9990)
+  +    water 7.14 ms/step (hydro every 20 of 24 substeps)  dry 5.25 ms/step  ratio 1.36 x  L/W at rest 0.9987 (every substep: 0.9990)
+  - PASS the water costs 1.38 x the dry step (bound 2.5)
+  + PASS the water costs 1.36 x the dry step (bound 2.5)
+--- SETTLE (1 lines)
+  - settle: 9 settlements | 16 road pieces (46.5 km) | 129 buildings | bake 440 ms | 14 checks, 0 failed
+  + settle: 9 settlements | 16 road pieces (46.5 km) | 129 buildings | bake 385 ms | 14 checks, 0 failed
+--- FLEX (3 lines)
+  - --- shard 0/3 (201.3 s) ---
+  + --- shard 0/3 (195.0 s) ---
+  - --- shard 1/3 (153.4 s) ---
+  + --- shard 1/3 (152.1 s) ---
+  - --- shard 2/3 (163.5 s) ---
+  + --- shard 2/3 (162.2 s) ---
+--- TREECRASH (3 lines)
+  - (405 s, 5 builds)
+  + (430 s, 5 builds)
+  -   ok    the wing 2.5 m out: CRASHED (a wing member broke at 1.33 s), 7 members broken (7 of the wing), 8.9 kJ of plastic work, 6.65 g; finite; the kinetic energy at most 100.0 % of the impact's
+  +   ok    the wing 2.5 m out: CRASHED (a wing member broke at 1.33 s), 23 members broken (7 of the wing), 9.2 kJ of plastic work, 6.65 g; finite; the kinetic energy at most 100.0 % of the impact's
+  -   ok    SEVERE: 150 km/h, 10 m/s, 60 deg nose-in: the worst member 6.46 (fus, compression); 38 set {"fus":32,"tail":6}, 60 broken, 14.87 g, CRASHED (a tail member broke) - must yield, break and crash; the damage follows the beams' own loads
+  +   ok    SEVERE: 150 km/h, 10 m/s, 60 deg nose-in: the worst member 6.46 (fus, compression); 32 set {"fus":29,"wing":3}, 38 broken, 17.70 g, CRASHED (a fus member broke) - must yield, break and crash; the damage follows the beams' own loads
