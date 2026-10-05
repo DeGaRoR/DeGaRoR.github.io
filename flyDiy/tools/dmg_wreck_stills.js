@@ -180,18 +180,27 @@ async function pageStage(o) {
 async function pageRunOn(o) {
   const P = FLIGHT_PROBE, sim = P.sim(), step = window.__d4bStep;
   const raf = () => new Promise(r => requestAnimationFrame(() => r()));
-  const ms = [];
+  const ms = [], trace = [];
+  const FRr = window.FLIGHT_REC && window.FLIGHT_REC.rec, C = FRr ? FRr.COLS : null, col = k => C ? C.indexOf(k) : -1;
   let s = 0, settled = 0, t1 = performance.now();
   for (; s < (o.steps || 1200); s += 2) {
-    step(1 / 60); step(1 / 60);
+    const p0 = performance.now(); step(1 / 60); step(1 / 60); const phys = performance.now() - p0;
     await raf();
     const t2 = performance.now(); ms.push(t2 - t1); t1 = t2;
+    // G1869: THE FRAME'S OWN SPLIT - the physics (stepped here, two steps), the recorder's slots for the frame the page drew
+    // (the pose and the skin break and the debris are its `scene`, the submit `render`, the links `shader`), the skin
+    // break's and the debris' own part of the scene, the damage state's events
+    const f = FRr ? FRr.frame - 1 : -1, v = k => (f >= 0 && col(k) >= 0 ? +FRr.val(f, col(k)).toFixed(2) : null);
+    const SB2 = window.FLYDIY_SKINBREAK_STATS ? window.FLYDIY_SKINBREAK_STATS().ms : {}, WM = window.FLYDIY_WRECK_STATS ? window.FLYDIY_WRECK_STATS().ms : {};
+    trace.push({ t: +sim.t.toFixed(3), ms: +ms[ms.length - 1].toFixed(1), phys: +phys.toFixed(2), work: v('work'), scene: v('scene'), render: v('render'), shader: v('shader'), shadow: v('shadow'),
+      brk: SB2.lastT === sim.t ? +(SB2.last || 0).toFixed(2) : 0, brkRec: SB2.lastT === sim.t ? +(SB2.lastRec || 0).toFixed(2) : 0, brkEv: SB2.lastT === sim.t ? +(SB2.lastEv || 0).toFixed(2) : 0,
+      brkPose: SB2.lastT === sim.t ? +(SB2.lastPose || 0).toFixed(2) : 0, wreck: +(WM.frame || 0).toFixed(2), broken: sim.damage().broken.length });
     const W = window.FLYDIY_WRECK_STATS(), D = sim.damage();
     if ((D.over || (!D.crashed && s > 400)) && W.bodies.every(b => b.asleep)) { if (++settled > 40) break; }
   }
   const D = sim.damage(), q = ms.slice().sort((a, b) => a - b);
   return { steps: s, crashed: D.crashed, over: !!D.over, reason: D.reason, broken: D.broken.length, brokeUp: !!D.brokeUp,
-    frameMed: +q[q.length >> 1].toFixed(1), frameP95: +q[Math.floor(q.length * 0.95)].toFixed(1), frameMax: +q[q.length - 1].toFixed(1),
+    frameMed: +q[q.length >> 1].toFixed(1), frameP95: +q[Math.floor(q.length * 0.95)].toFixed(1), frameMax: +q[q.length - 1].toFixed(1), trace: o.trace ? trace : undefined,
     wreck: window.FLYDIY_WRECK_STATS(), skin: window.FLYDIY_SKINBREAK_STATS() };
 }
 // THE DRAWN CLIP's dump: every drawn triangle of the aeroplane in the world, by class (base64 Float32 x 9 a triangle)
@@ -246,7 +255,8 @@ function clipOf(dump) {
   return { skinTris: skin.length / 9, furnitureOutside: stat(dump.furniture, true, 1), debrisInside: stat(dump.debris, false, 3) };
 }
 
-(async () => {
+module.exports = { run, post, get, CASES, pageStage, pageView, pageCensus };
+if (require.main === module) (async () => {
   fs.mkdirSync(OUT, { recursive: true });
   const names = opt('cases', Object.keys(CASES).join(',')).split(',');
   const R = { at: new Date().toISOString(), cases: {} };

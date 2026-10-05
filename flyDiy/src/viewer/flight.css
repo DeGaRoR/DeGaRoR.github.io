@@ -703,6 +703,19 @@ body.rollShot #flActs { display:none !important; }
 
 #arrCard[hidden] { display:none; }
 
+/* G1868 (DMG-D4b; the user: "I want to SEE the crash"): A CRASH'S CARD is small and in the lower-left corner, not over the
+   wreck; its title folds it to the one line (the reason stays on the top bar). */
+#arrCard.wreck { left:16px; top:auto; bottom:96px; transform:none; width:300px; padding:12px 14px 10px;
+  box-shadow:0 10px 30px rgba(0,0,0,.45); }
+#arrCard.wreck #arrHead { cursor:pointer; padding-bottom:8px; }
+#arrCard.wreck #arrTitle { font-size:13px; }
+#arrCard.wreck #arrRows { grid-template-columns:1fr; }
+#arrCard.wreck #arrRows div { padding:3px 0; }
+#arrCard.wreck #arrBtns { margin-top:9px; }
+#ui #arrCard.wreck #arrBtns button { padding:8px 0; font-size:10.5px; }
+#arrCard.wreck.min #arrRows, #arrCard.wreck.min #arrNotes, #arrCard.wreck.min #arrBtns { display:none; }
+#arrCard.wreck.min #arrHead { border-bottom:0; padding-bottom:0; }
+
 #arrHead { display:flex; align-items:baseline; gap:12px; padding-bottom:13px;
   border-bottom:1px solid var(--ed-hair); }
 

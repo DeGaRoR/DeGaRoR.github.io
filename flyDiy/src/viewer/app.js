@@ -4105,6 +4105,7 @@
     const t4 = performance.now(), M = BRK.ms;
     M.records = Math.max(M.records, tRec); M.event = Math.max(M.event, tEv); M.frames = Math.max(M.frames, t3 - t2); M.pose = Math.max(M.pose, t4 - t3);
     M.recordsT += tRec; M.eventT += tEv; M.poseT += t4 - t3; M.frameMax = Math.max(M.frameMax, t4 - tm); M.n++;
+    M.last = t4 - tm; M.lastRec = tRec; M.lastEv = tEv; M.lastFrames = t3 - t2; M.lastPose = t4 - t3; M.lastT = sim.t;   // (G1869: this frame's)
   }
 
   // ---- G1860-G1863 (DMG-D4b WRECK DRAWN): THE WRECK'S NON-MEMBER PARTS (src/viewer/wreck_debris.js says why and how) ----
@@ -4155,9 +4156,12 @@
       if (B.sunk && B.obj.visible) B.obj.visible = false;
     }
     wreckEye(D);
+    // G1868: the orbit the cockpit rule cut to turns slowly round the wreck (WRECK_DRIFT rad/s) until the player takes it
+    if (WK.drift) { if (cam.mode === 'orbit') azT += WRECK_DRIFT * frameDt(); else WK.drift = false; }
     WK.ms.frame = performance.now() - t0;
   }
   const wreckR = new Float64Array(9);
+  const WRECK_DRIFT = 0.14;                                // G1868: ~8 degrees a second
   // the visual frame (the model group's) to the frame's own (design) coordinates, at rest: og + B (v + off + oRest)
   function wreckToDef() {
     const N2 = def.nodes, R2 = def.refs, avg = ids => { const o = [0, 0, 0]; for (const i of ids) for (let j = 0; j < 3; j++) o[j] += N2[i].p[j] / ids.length; return o; };
@@ -4406,7 +4410,8 @@
     WK.eyeT = sim.t;
     const r = window.WRECK_DEBRIS.crushed(WK.cab, sim.p, D.pc);
     WK.eye = { depth: +r.depth.toFixed(3), vol: +r.vol.toFixed(3), why: r.why };
-    if (r.crushed) { WK.eyeCut = r.why; flCamMode('chase'); }
+    // (G1868: a slow orbit round the wreck - the chase sits behind a CG that has stopped, looking at the crush's back)
+    if (r.crushed) { WK.eyeCut = r.why; flCamMode('orbit'); WK.drift = true; }
   }
   // A HEAL: the bodies gone, every part as built (its rigs, its matrix, its triangles, its prop's shape)
   function wreckHeal() {
@@ -5862,6 +5867,9 @@
   // hopeless build keep trying; Restart and the hangar door stay the real
   // exits. fullReset clears the latch.
   let flightOver = false;
+  // G1868: the crash watched (its sim time at the solver's 'over', then at the debris' rest); the card waits for it
+  let crashWatch = null;
+  const WATCH_REST = 6, WATCH_HOLD = 3;          // s of sim time: the debris' longest wait, then the wreck held still
   let flDmg = null;           // G1470 (TREE-CRASH): sim.damage() - the worker's verdict under the physics worker
   let flNextLeg = null;   // G700: the selects' block publishes nextLeg here - `Fly on` chains the next leg in place
   let userPaused = false;     // G650: set by the Pause button alone; the world's clocks hold on it (FLYDIY_HELD)
@@ -6052,6 +6060,10 @@
     $('arrTag').textContent = good ? (td ? 'landed' : 'stopped')
       : String(outcome).replace(/-/g, ' ');
     el.classList.toggle('bad', !good);
+    // G1868: A CRASH'S CARD IS SMALL AND OUT OF THE WAY - the corner, not the middle of the wreck; its title folds it to one
+    // line (the player keeps looking), the screen's verbs (Fly on / The shed) as ever
+    const wreckEnd = outcome === 'crashed' || outcome === 'broke-up';
+    el.classList.toggle('wreck', wreckEnd); el.classList.remove('min');
     // THE PLAQUE'S OWN TWO-COLUMN GRAMMAR, so the flight's numbers and the
     // bench's numbers read as the same kind of thing.
     const rows = [];
@@ -6103,6 +6115,8 @@
     el.hidden = false;
   }
   let arrWhy = false, arrVerd = [];
+  // G1868: a crash's card folds on its title (and unfolds)
+  { const h = $('arrHead'); if (h && h.addEventListener) h.addEventListener('click', () => { const el = $('arrCard'); if (el && el.classList.contains('wreck')) el.classList.toggle('min'); }); }
   function drawArrNotes() {
     const n = $('arrNotes');
     if (!n) return;
@@ -8551,7 +8565,7 @@
     testFlightOff();                                       // A9: a reset is not an arrival
     $('bPause').textContent = 'Pause'; $('bPause').classList.remove('on');
     telClear(); telLast = null; telHover = -1;
-    lastPhase = 'ROLL'; telBase = 0; flightLogged = false; flightOver = false;
+    lastPhase = 'ROLL'; telBase = 0; flightLogged = false; flightOver = false; crashWatch = null;
     $('arrCard').hidden = true; arrivalShown = false;
     // THE TRACE IS A SUMMONED PANEL NOW, and a summoned panel is the player's:
     // fullReset used to close it, which is why the one number a flight
@@ -12323,9 +12337,19 @@
         // G1470 (TREE-CRASH): a member broke, the impact passed 9 g or the airframe crushed - the wreck at rest, the
         // flight is over with its own row in the logbook; the card says why
         // G1898.3 (coordinator, D0 x D1b): the body frame's refs parted (DMG.brokeUp, G1821) is the STRUCTURE's ending, 'broke-up'
+        // G1868 (DMG-D4b; the user: "I want to SEE the crash"): THE CRASH IS WATCHED BEFORE THE CARD. The solver calls the
+        // wreck over when it is at rest (or 4 s after the impact); the flight now runs on until the debris have come to rest
+        // too (WATCH_REST at most), holds the wreck WATCH_HOLD more, and only then ends - the card small and in a corner
         const D = flDmg, up = !!(D && D.brokeUp);
-        endFlight(up ? 'broke-up' : 'crashed');
-        $('phName').textContent = (up ? 'BROKE UP' : 'CRASHED') + (D && D.reason ? ': ' + D.reason : '') + ' — RESET';
+        if (!crashWatch) { crashWatch = { t: sim.t, rest: null };
+          $('phName').textContent = (up ? 'BROKE UP' : 'CRASHED') + (D && D.reason ? ': ' + D.reason : ''); }
+        const W2 = window.FLYDIY_WRECK_STATS ? window.FLYDIY_WRECK_STATS() : null;
+        const settled = !W2 || !W2.bodies.some(b => !b.asleep && !b.sunk);
+        if (crashWatch.rest == null && (settled || sim.t - crashWatch.t > WATCH_REST)) crashWatch.rest = sim.t;
+        if (crashWatch.rest != null && sim.t - crashWatch.rest >= WATCH_HOLD) {
+          endFlight(up ? 'broke-up' : 'crashed');
+          $('phName').textContent = (up ? 'BROKE UP' : 'CRASHED') + (D && D.reason ? ': ' + D.reason : '') + ' — RESET';
+        }
       }
     } else if (SIMW) SIMW.idle();       // G815: nothing flies this frame (a pause, the card) - the worker's clock stops
     if (FR) FR.lap(FR.S.other);        // G620: the hand, the shed, the day, the director, the panel
