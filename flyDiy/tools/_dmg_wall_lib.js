@@ -65,11 +65,10 @@ function snapshotOf(file, opts) {
   for (const ch of r.scene.children.slice()) inner.add(ch);
   outer.add(inner); r.scene.add(outer); r.scene.updateMatrixWorld(true);
   W.CAGE_UI = { P };
-  BJ.joinIn ? BJ.joinIn(W) : null;
   if (!W.CAGE_JOIN) { W.CAGE_UI_LAZY = true; require('vm').runInContext(fs.readFileSync(path.join(T, '_cage_join.js'), 'utf8'), W, { filename: '_cage_join.js' }); }
   const J = W.CAGE_JOIN.export();
   const spec = BJ.merge(spec0, JSON.parse(JSON.stringify(J)));
-  const snap = W.CAGE_JOIN.snapshot(spec);
+  const snap = W.CAGE_JOIN.snapshot(spec);   // (one payload group per section: the page's mergeStill folds some by material - app.js brkCage poses those merged meshes alike)
   // the physics' def: the saved build's (as GATE TREECRASH / DMGSKIN fly it)
   const def = C.buildGen(C.genMigrateSpec ? C.genMigrateSpec(spec0) : spec0);
   // the nodes in the flown visual's frame (app.js brkCage K.rest: B^-1 (p - origin) - o, o = off + oRest)

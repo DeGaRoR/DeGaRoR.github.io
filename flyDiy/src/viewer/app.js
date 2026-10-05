@@ -3854,8 +3854,11 @@
   window.FLYDIY_SKINBREAK_STATS = () => ({ on: window.FLYDIY_SKINBREAK !== false, recs: BRK.recs.length,
     removed: BRK.recs.reduce((a, R) => a + (R.removed || 0), 0), torn: BRK.recs.reduce((a, R) => a + (R.torn || 0), 0),
     tris: BRK.recs.reduce((a, R) => a + R.nt, 0), riding: BRK.recs.reduce((a, R) => a + (R.ride ? R.ride.reduce((x, y) => x + y, 0) : 0), 0) });
+  // a cage record's positions back at its drawn rest (G1855): G1851's ride writes a static group's vertices, and nothing
+  // else ever writes them back - a healed or switched-off wreck kept them where the wreck left them
+  function brkRest(R) { if (R.pa && R.base0 && R.pa.array.length === R.base0.length) { R.pa.array.set(R.base0); R.pa.needsUpdate = true; } }
   function brkRestore() {
-    for (const R of BRK.recs) { if (R.idx0) { R.idx.set(R.idx0); brkIdx(R); } R.vB = -1; R.active = false; }
+    for (const R of BRK.recs) { if (R.idx0) { R.idx.set(R.idx0); brkIdx(R); } R.vB = -1; R.active = false; brkRest(R); }
     if (BRK.model) { BRK.model._pose = null; BRK.model._poseNG = null; }   // re-posed from the rest on the next frame
     if (BRK.model && BRK.model.brk && BRK.model.brk.wall) brkWallOff(BRK.model.brk);   // G1855
     BRK.recs.length = 0; BRK.model = null;
@@ -3870,7 +3873,8 @@
     const D = dmgNow();
     if (!D || !D.br.length) {
       // a heal (a reset, a new flight): every record's index as built, the records let go (their bindings kept)
-      if (BRK.recs.length && model && model.brk) for (const R of BRK.recs) { if (SKIN_BREAK.event(R, model.brk.T, D || { br: [], vB: -2 })) brkIdx(R); R.vB = -1; }
+      if (BRK.recs.length && model && model.brk) for (const R of BRK.recs) { if (SKIN_BREAK.event(R, model.brk.T, D || { br: [], vB: -2 })) brkIdx(R); R.vB = -1; brkRest(R); }
+      if (BRK.recs.length && model) model._poseNG = null;   // (the rows re-posed from the rest on the next frame)
       if (model && model.brk && model.brk.wall) brkWallOff(model.brk);   // G1855: the wall's inside back at its rest
       BRK.recs.length = 0;
       return null;
@@ -3938,7 +3942,20 @@
     // the groups: the snapshot's own (the covering, the wing band), the control surfaces (rebased about their pivot),
     // the struts and the tail's anchored parts (unrebased)
     const groups = [];
-    for (const r of model.rigs) groups.push([r, r.g, r.posAttr, r.base, null, (r.bind && r.bind.bound.length) ? fabW : fabB]);
+    // G1855 (DMG-D4c): a rig whose group G576's still merge folded into a craftStill mesh is not drawn any more (model.rigs
+    // keeps the first rig for its station table): its merged mesh is posed instead, below
+    const merged = model.still && model.still.names;
+    for (const r of model.rigs) if (!(merged && merged.has(r.name))) groups.push([r, r.g, r.posAttr, r.base, null, (r.bind && r.bind.bound.length) ? fabW : fabB]);
+    // ...THE STILL MERGE ITSELF (G576 mergeStill: the static groups sharing one material, one draw - on the Cub the
+    // covering's body, floor loop and pillar rings, and the tube frame with the bulkhead and the firewall). It was
+    // absent here, so over a break that covering stayed whole and rigid while the liner beside it rode its nodes. Each
+    // craftStill mesh is a group like any other (its rest taken at the first break: a still mesh is never written before)
+    if (merged && !model.brkStill) {
+      model.brkStill = [];
+      model.grp.traverse(m => { if (m.isMesh && m.userData && Array.isArray(m.userData.still) && m.geometry && m.geometry.index && m.geometry.attributes.position) {
+        const pa = m.geometry.attributes.position; model.brkStill.push({ name: m.userData.still[0], still: m.userData.still.slice(), posAttr: pa, base: pa.array.slice() }); } });
+    }
+    for (const s2 of model.brkStill || []) groups.push([s2, null, s2.posAttr, s2.base, null, fabB]);
     for (const s2 of model.surfParts || []) groups.push([s2, null, s2.posAttr, s2.base, s2.pivot, fabW]);
     for (const s2 of (model.strutRigs || []).concat(model.anchorRigs || [])) groups.push([s2, null, s2.posAttr, s2.base, null, false]);
     for (const [own, , pa, base, off, fab] of groups) {
@@ -3947,7 +3964,7 @@
       if (!own.brkR) {
         const nv = pa.count, bM = off ? Float32Array.from(base, (x, i) => x + off[i % 3]) : base;
         const R = brkRec(own, { nv, idx: geo.index.array }, geo, bM, K.rest, fab, true);
-        R.baseM = bM;
+        R.baseM = bM; R.pa = pa; R.base0 = base;   // (G1855: its drawn rest, put back at a heal)
       } else if (BRK.recs.indexOf(own.brkR) < 0) BRK.recs.push(own.brkR);   // (a record let go at a heal or an A/B: held again)
       const R = own.brkR;
       if (SB.event(R, K.T, D, K.rest, R.baseM)) brkIdx(R);
@@ -3982,10 +3999,12 @@
     if (!K.wall) {
       const outers = [], inners = [];
       for (const [own, , pa, , off] of groups) {
-        const R = own.brkR, sec = own.name && model.mats && model.mats[own.name] ? model.mats[own.name].sec : null;
-        if (!R || !sec) continue;
-        if (SKIN_WALL.isOuter(sec, AEROSKIN)) outers.push({ R, base: R.baseM, pos: pa.array, off, own });
-        else if (SKIN_WALL.isWall(sec, AEROSKIN)) { inners.push({ R, base: R.baseM, base0: own.base || R.baseM, pos: pa.array, off, own }); own.wallIn = true; }
+        // the group's sections (a still merge's: its members', one material so one kind - asked all the same)
+        const R = own.brkR;
+        const secs = (own.still || (own.name ? [own.name] : [])).map(n => model.mats && model.mats[n] ? model.mats[n].sec : null);
+        if (!R || !secs.length || secs.some(x => !x)) continue;
+        if (secs.every(x => SKIN_WALL.isOuter(x, AEROSKIN))) outers.push({ R, base: R.baseM, pos: pa.array, off, own });
+        else if (secs.every(x => SKIN_WALL.isWall(x, AEROSKIN))) { inners.push({ R, base: R.baseM, base0: own.base || R.baseM, pos: pa.array, off, own }); own.wallIn = true; }
       }
       if (!outers.length || !inners.length) { K.wall = { none: true }; return null; }
       K.wall = SKIN_WALL.make(outers, inners);

@@ -17,9 +17,11 @@
 //     they never count;
 //   - the FACE PASS: the covering alone (everything else hidden), coloured by the face the camera sees - its OUTSIDE
 //     green, its inside face magenta. A red pixel of the census with the covering's OUTSIDE behind it is the inside
-//     standing out through the covering: THE LEAK (red-over-outside / (green + cyan + red)). A red pixel with the
-//     covering's inside face behind it, or none, is the cabin seen through a hole where the covering has gone (a torn
-//     fuselage shows its inside, as a real one does): counted apart, as `hole`.
+//     standing out through the covering; one with NOTHING behind it is the inside with no covering round it at all
+//     (torn away from its wall): both are THE LEAK, over (green + cyan + red). A red pixel with the covering's inside
+//     face behind it is the cabin seen through a hole where the covering has gone (the far wall's liner before that
+//     wall's own covering - a torn fuselage shows its inside, as a real one does): counted apart, as `hole`.
+//   tools/dmg_wall_census.js recounts a directory of these passes into the evidence table (the same rule).
 //   Also, on the picture: the share of the covering-or-inside pixels (by the census) that are not the covering's yellow
 //   (hue 35-65 deg, saturation over 0.35) - the user's own eye, stripe and letters included (a constant per view).
 //   node tools/dmg_wall_stills.js [--out reports/evidence/DMG-D4c] [--size 1280x720]   (tens of minutes: SwiftShader)
@@ -28,7 +30,10 @@
 const path = require('path'), fs = require('fs');
 const argv = process.argv.slice(2);
 const opt = (k, d) => { const i = argv.indexOf('--' + k); return i >= 0 && argv[i + 1] != null ? argv[i + 1] : d; };
-const OUT = path.resolve(opt('out', path.join(__dirname, '..', 'reports', 'evidence', 'DMG-D4c')));
+const OUT = path.resolve(process.env.WALL_STILLS_OUT || opt('out', path.join(__dirname, '..', 'reports', 'evidence', 'DMG-D4c')));
+// BEFORE is the branch base's page (soft_still.js of a worktree of the base, this file as its --stage, WALL_STILLS_MODE=before):
+// one shot a camera; AFTER is this branch's: the wall on, and off (window.FLYDIY_SKINWALL = false) as a third row
+const MODE = process.env.WALL_STILLS_MODE || 'after';
 
 // ---- in the page: a wreck staged and stepped (inline sim) - tools/dmg_skin_stills.js stagePage, verbatim ----
 function stagePage(o) {
@@ -87,7 +92,9 @@ function censusPass(on) {
     return true;
   }
   if (on) {
-    const A = window.AEROSKIN, SWL = window.SKIN_WALL, names = new Map();
+    // (aeroskin's own roles, as skin_wall.js reads them - so the pass runs on the branch base too, which has no SKIN_WALL)
+    const A = window.AEROSKIN, WALL = new Set(['liner', 'struct', 'fire', 'sill', 'doorPad']), names = new Map();
+    const SWL = { isOuter: sec => !!(A.aeroIsSkin && A.aeroIsSkin(sec)), isWall: sec => !!(A.aeroIsInside && A.aeroIsInside(sec) && WALL.has(A.AERO_ROLE[sec])) };
     for (const nm in md.meshes) { const m = md.meshes[nm]; if (!m) continue; if (!names.has(m)) names.set(m, []); names.get(m).push(nm); }
     const COL = { cover: 0x00ff00, skin: 0x00ffff, wall: 0xff0000, furn: 0x0000ff, other: 0xffffff };
     const mats = {}; for (const k in COL) mats[k] = new THREE.MeshBasicMaterial({ color: COL[k], side: THREE.DoubleSide, toneMapped: false, fog: false });
@@ -104,7 +111,7 @@ function censusPass(on) {
       }
       if (rec.inside) return 'furn';
       if (rec.fin === 'glass' || rec.opacity < 1 || rec.spin || rec.propMat) return 'other';
-      if (rec.fin && /^(fabric|ply|alclad|composite)$/.test(rec.fin)) return 'skin';
+      if (rec.wing || (rec.fin && /^(fabric|ply|alclad|composite)$/.test(rec.fin))) return 'skin';   // the wing's and the tail's skins (their surface class)
       return 'other';
     };
     const S = window.__census = { mats: [], vis: [], bg: scene.background, fog: scene.fog, clr: new THREE.Color(), alpha: r.getClearAlpha(), n: {}, cls: new Map(), hid: [] };
@@ -144,8 +151,8 @@ async function count(page, pic, ids, face) {
         // behind an inside pixel: the covering's OUTSIDE face (the inside stands out through the covering: a LEAK), or
         // its inside face / nothing (the interior seen through a hole where the covering is gone)
         if (best === 'wall' || best === 'furn') {
-          const fr = f[4 * i], fg = f[4 * i + 1], fb = f[4 * i + 2], front = fg > 160 && fr < 100 && fb < 100;
-          if (best === 'wall') { if (front) c.wallOut++; else c.wallHole++; } else if (front) c.furnOut++;
+          const fr = f[4 * i], fg = f[4 * i + 1], fb = f[4 * i + 2], front = fg > 160 && fr < 100 && fb < 100, none = fr + fg + fb < 30;
+          if (best === 'wall') { if (front || none) c.wallOut++; else c.wallHole++; } else if (front) c.furnOut++;
         }
         if (best === 'cover' || best === 'skin' || best === 'wall') {
           // the picture's own colour there: the covering's yellow? (hue 35-65 deg, saturation > 0.35, value > 0.2)
@@ -158,7 +165,7 @@ async function count(page, pic, ids, face) {
         }
       }
       const outer = c.cover + c.skin + c.wall;
-      c.leak = outer ? c.wallOut / outer : 0;             // THE LEAK: the inside wall standing out through the covering, over what the outside shows
+      c.leak = outer ? c.wallOut / outer : 0;             // THE LEAK: the inside wall out through the covering, or with no covering round it (tools/dmg_wall_census.js recounts)
       c.hole = outer ? c.wallHole / outer : 0;            // the interior seen through holes (the covering gone there)
       c.inside = outer ? c.wall / outer : 0;              // every inside-wall pixel, either way
       c.furnLeak = outer ? c.furnOut / outer : 0;         // the furniture out through the covering (D4b's GATE CLIP)
@@ -185,12 +192,13 @@ async function stage(page, { frames, shot, log }) {
     for (let ci = 0; ci < sc.cams.length; ci++) {
       const [az, el, dist] = sc.cams[ci];
       await page.evaluate(([a, e, d]) => FLIGHT_PROBE.camSet(a * Math.PI / 180, e * Math.PI / 180, d), [az, el, dist]);
-      for (const on of [true, false]) {
-        await page.evaluate(x => { window.FLYDIY_SKINWALL = x; }, on);
+      for (const on of MODE === 'before' ? [null] : [true, false]) {
+        await page.evaluate(x => { window.FLYDIY_SKINWALL = x !== false; }, on);
         await frames(3);
         const stats = await page.evaluate(() => ({ skin: window.FLYDIY_SKINBREAK_STATS ? FLYDIY_SKINBREAK_STATS() : null,
           wall: (() => { const m = FLIGHT_PROBE.model(), W = m && m.brk && m.brk.wall; return W && !W.none ? { bound: W.bound, unbound: W.unbound, posed: W.posed, events: W.events || 0 } : null; })() }));
-        const base = sc.id + '_' + (ci + 1) + '_' + (on ? 'after' : 'before');
+        const tag = on === null ? 'before' : on ? 'after' : 'walloff';
+        const base = sc.id + '_' + (ci + 1) + '_' + tag;
         const A = await shot(path.join(OUT, base + '.jpg'));
         const pic = await page.screenshot({ type: 'png' });
         const cls = await page.evaluate(censusPass, true);
@@ -204,7 +212,7 @@ async function stage(page, { frames, shot, log }) {
         await page.evaluate(censusPass, false);
         const C = await count(page, pic, ids, face);
         log('census', base, JSON.stringify(C));
-        R.shots.push({ scene: sc.id, label: sc.label, cam: [az, el, dist], wall: on, file: path.relative(path.join(__dirname, '..'), path.join(OUT, base + '.jpg')),
+        R.shots.push({ scene: sc.id, label: sc.label, cam: [az, el, dist], wall: on, tag, file: path.relative(path.join(__dirname, '..'), path.join(OUT, base + '.jpg')),
                        census: C, classes: cls, stats, picture: A, physics: st });
       }
     }
@@ -214,16 +222,17 @@ async function stage(page, { frames, shot, log }) {
   return R;
 }
 module.exports = stage;
+module.exports.__stagePage = stagePage;   // (for a probe stage)
 
 if (require.main === module) {
-  const S = require('./soft_still.js');
+  const S = require(process.env.WALL_STILLS_SOFT || './soft_still.js');   // (BEFORE: the base worktree's tools/soft_still.js - it serves its own tree)
   const size = opt('size', '1280x720').split('x').map(Number);
   const o = Object.assign(S.parse(), { build: path.join(__dirname, '..', 'builds', 'cub_2026-09-20_corrected.json'), q: 'damage=1&simw=0&fog=0&fbake=0', size,
-    stage: __filename, out: path.join(OUT, 'stand.jpg'), secs: +opt('secs', 7200), day: 'noon', page: opt('page', 'index.html') });
+    stage: __filename, out: path.join(OUT, 'stand_' + MODE + '.jpg'), secs: +opt('secs', 7200), day: 'noon', page: opt('page', 'index.html') });
   fs.mkdirSync(OUT, { recursive: true });
   S.still(o).then(R => {
-    fs.writeFileSync(path.join(OUT, 'stills.json'), JSON.stringify(R, null, 1));
-    const rows = (R.stage && R.stage.shots || []).map(s => [s.scene, s.cam.join(','), s.wall ? 'after' : 'before', s.census && +(s.census.leak * 100).toFixed(3), s.census && +(s.census.hole * 100).toFixed(2), s.census && +(s.census.notYellowShare * 100).toFixed(2)]);
+    fs.writeFileSync(path.join(OUT, 'stills_' + MODE + '.json'), JSON.stringify(R, null, 1));
+    const rows = (R.stage && R.stage.shots || []).map(s => [s.scene, s.cam.join(','), s.tag, s.census && +(s.census.leak * 100).toFixed(3), s.census && +(s.census.hole * 100).toFixed(2), s.census && +(s.census.notYellowShare * 100).toFixed(2)]);
     console.log('WALL_STILLS ' + JSON.stringify({ rows, errors: R.errors, err: R.stage && R.stage.err, t: R.t }));
     process.exit(R.stage && !R.stage.err ? 0 : 1);
   }, e => { console.log('WALL_STILLS_FAIL ' + (e && e.stack || e)); process.exit(1); });

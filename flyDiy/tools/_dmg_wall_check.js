@@ -319,7 +319,7 @@ if (argv[0] === '--build') {
                 else {
                   const cn = Math.abs(I.wc[v * 3 + 2]), fr = Math.min(WW.F0[WW.tw[q * 3]], WW.F0[WW.tw[q * 3 + 1]], WW.F0[WW.tw[q * 3 + 2]]);
                   const fn = Math.min(WW.F[WW.tw[q * 3]], WW.F[WW.tw[q * 3 + 1]], WW.F[WW.tw[q * 3 + 2]]), lim2 = SW.KAPPA * fn * Math.max(1, fr < Infinity ? cn / (SW.KAPPA * fr) : 1);
-                  if (dv < 0 && cn > lim2 + 1e-9) S.clamped++;
+                  if (dv < 0 && (cn > lim2 + 1e-9 || fn < SW.CRUMPLE * fr)) S.clamped++;   // (the clamp, or the covering crumpled there: the crease)
                   else { S.band++; if (Math.abs(dv) > HARD_ABS + HARD_REL * d0) S.hard++; if (Math.abs(dv) - band > S.bandWorst) { S.bandWorst = Math.abs(dv) - band; S.bandAt = { t: +sim.t.toFixed(3), sec: r.g.sec, v, d: +dn.toFixed(5), d0: +d0.toFixed(5) }; } }
                 }
               }

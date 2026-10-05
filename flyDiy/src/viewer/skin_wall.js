@@ -28,7 +28,7 @@
 //     already deeper than its rest fold keeps that ratio), and a fold never turns the inside out through the outside;
 //   - BOUND: an inside vertex with no covering within BOUND (0.15 m) is not on the wall - the bulkhead's middle, the
 //     firewall's face, an open cockpit's frames - and keeps D4a's node binding (counted per build by GATE DMGWALL).
-//   - THE GUARD: never shallower under its own triangle's plane than at rest (nor than PINCH_IN, 1 mm): a covering
+//   - THE GUARD: never shallower under its own triangle's plane than at rest (nor than PINCH_IN, 2 mm): a covering
 //     triangle sheared off its vertex normals would otherwise let the offset through its face. At rest: no move;
 //   - THE PINCH: the covering itself is not one welded sheet everywhere (the pillar rings, the flanges and the body
 //     meet without sharing vertices, and G1851 rides each side on its own nodes), and in a wreck it crumples - so a
@@ -36,8 +36,9 @@
 //     says. Such vertices (a covering triangle within its depth + PINCH_NB at rest that is not in its own triangle's
 //     2-ring - "foreign" covering; or its own triangle's fold radius under CRUMPLE of the rest's) are asked every frame
 //     against the LIVE covering round them (a grid of the live triangles over their box, each searched within its own
-//     triangle's distance): found outside the nearest live triangle, the vertex is pushed back PINCH_IN inside it. At a
-//     crease both layers pinch together.
+//     triangle's distance + 2 mm): found outside a live triangle there, it is pushed back PINCH_IN (2 mm) inside the nearest
+//     such - up to three times (an S-fold: pushed in under one sheet, it can stand outside the next). At a crease both
+//     layers pinch together.
 // It is LAZY: at each event only the inside vertices within BOUND of a covering triangle that moves (one of its
 // vertices rides its nodes or drapes) or that D4a made ride are bound and posed - the cost follows the damage. The
 // rest of the inside is rigid on the body under a rigid covering, exactly as before. The snapshot is a triangle soup
@@ -58,7 +59,7 @@
   const KAPPA = 0.9;           // the crease: the depth held under 0.9 x the distance where the inward normals meet
   const WELD = 2e4;            // the covering's vertices welded on a 0.05 mm lattice
   const CRUMPLE = 0.6;         // a covering vertex whose fold radius fell under 0.6 x its rest's is crumpling: the pinch looks there
-  const PINCH_IN = 0.001;      // ...and holds an inside vertex at least 1 mm inside the live covering it found itself outside of
+  const PINCH_IN = 0.002;      // ...and holds an inside vertex at least 2 mm inside the live covering it found itself outside of
   const CELL = 0.04;           // the covering's triangles on a 4 cm grid (the search walks out a ring at a time)
   // the layers that line the wall (aeroskin's inside roles less the dash's pad and panel: furniture)
   const WALL_ROLES = new Set(['liner', 'struct', 'fire', 'sill', 'doorPad']);
@@ -345,6 +346,10 @@
       I.list = Int32Array.from(list);
       // a vertex the wall posed that it no longer poses is back at its rest (G1851's own pose rewrites it if it rides)
       for (let v = 0; v < nv; v++) if (was[v] && !on[v]) for (let k = 0; k < 3; k++) I.pos[v * 3 + k] = b[v * 3 + k] - (of ? of[k] : 0);
+      // ...and the vertices it poses are the wall's alone: off G1851's per-frame ride and drape (its record's own event
+      // set them a moment ago; the next event sets them again and this clears them again). Else poseCage would write
+      // them back onto their own nodes on every frame the wall does not re-pose them
+      if (R.ride) for (let v = 0; v < nv; v++) if (on[v]) { R.ride[v] = 0; if (R.sag) R.sag[v] = 0; }
       // the triangles with a vertex on the wall's posed list (both layers' rule, at the event and per frame)
       const ix0 = R.idx0 || R.idx, ntI = ix0.length / 3, mark = on, tris = [];
       for (let t = 0; t < ntI; t++) if (mark[ix0[t * 3]] || mark[ix0[t * 3 + 1]] || mark[ix0[t * 3 + 2]]) tris.push(t);
@@ -433,8 +438,8 @@
         const v = list[j], q = wt[v];
         if (!dirty[tw[q * 3]] && !dirty[tw[q * 3 + 1]] && !dirty[tw[q * 3 + 2]]) {
           // its triangle is clean: its pose stands - unless foreign covering round it moved (the pinch's own test)
-          if (I.fo && I.fo[v] === 1) { const L = I.nbF.get(v); let d = false;
-            for (let m = 0; m < L.length && !d; m++) { const t = L[m]; d = dirty[tw[t * 3]] || dirty[tw[t * 3 + 1]] || dirty[tw[t * 3 + 2]]; }
+          if (I.fo && I.fo[v] === 1) { let d = false;
+            for (let m = 0; m < FOREIGN_K && !d; m++) { const t = I.fF[v * FOREIGN_K + m]; if (t < 0) break; d = dirty[tw[t * 3]] || dirty[tw[t * 3 + 1]] || dirty[tw[t * 3 + 2]]; }
             if (d && foreignMoved(W, I, v, pos[v * 3] + ox, pos[v * 3 + 1] + oy, pos[v * 3 + 2] + oz)) pinchQ.push(I, v, 2); }
           continue;
         }
@@ -456,7 +461,7 @@
         { const f0 = sg * wf[v], tgt = Math.min(PINCH_IN, f0);
           if (f0 > 0) { const ux = P[b * 3] - P[a * 3], uy = P[b * 3 + 1] - P[a * 3 + 1], uz = P[b * 3 + 2] - P[a * 3 + 2], vx = P[c * 3] - P[a * 3], vy = P[c * 3 + 1] - P[a * 3 + 1], vz = P[c * 3 + 2] - P[a * 3 + 2];
             let nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx; const L = Math.sqrt(nx * nx + ny * ny + nz * nz);
-            if (L > 1e-12) { nx /= L; ny /= L; nz /= L;
+            if (L > 1e-12 && (nx * _f[3] + ny * _f[4] + nz * _f[5]) > 0.5 * L) { nx /= L; ny /= L; nz /= L;   // (a face turned against its vertex normals is no guide)
               const df = sg * ((X - P[a * 3]) * nx + (Y - P[a * 3 + 1]) * ny + (Z - P[a * 3 + 2]) * nz);
               if (df < tgt - 1e-9) { const pu = sg * (tgt - df); X += nx * pu; Y += ny * pu; Z += nz * pu; pinched = 1; } } } }
         X -= ox; Y -= oy; Z -= oz;
@@ -520,9 +525,9 @@
     I.fo[v] = F.length ? 1 : 2;
     if (F.length) {
       // ...and each one's rest distance from the vertex (to its centroid): the pinch asks only when one has changed
-      if (!I.nbF) { I.nbF = new Map(); I.nbFd = new Map(); }
-      const P0 = W.P0, of = I.off, b = I.base, px = b[v * 3] + (of ? of[0] : 0), py = b[v * 3 + 1] + (of ? of[1] : 0), pz = b[v * 3 + 2] + (of ? of[2] : 0);
-      I.nbF.set(v, Int32Array.from(F)); I.nbFd.set(v, Float64Array.from(F, q => centDist(W, P0, q, px, py, pz)));
+      if (!I.fF) { I.fF = new Int32Array(I.wt.length * FOREIGN_K).fill(-1); I.fD = new Float32Array(I.wt.length * FOREIGN_K * 2); }
+      for (let m = 0; m < F.length; m++) { const d = centDist(W, W.P0, F[m], qx, qy, qz);
+        I.fF[v * FOREIGN_K + m] = F[m]; I.fD[(v * FOREIGN_K + m) * 2] = Math.max(0, d - 0.001) ** 2; I.fD[(v * FOREIGN_K + m) * 2 + 1] = (d + 0.001) ** 2; }
     }
     return F.length > 0;
   }
@@ -533,8 +538,11 @@
   }
   // has foreign covering round v moved against it since rest (a centroid's distance off its rest's by over 1 mm)?
   function foreignMoved(W, I, v, px, py, pz) {
-    const L = I.nbF.get(v), D = I.nbFd.get(v), P = W.P;
-    for (let m = 0; m < L.length; m++) if (Math.abs(centDist(W, P, L[m], px, py, pz) - D[m]) > 0.001) return true;
+    const fF = I.fF, fD = I.fD, P = W.P, tw = W.tw;
+    for (let m = 0; m < FOREIGN_K; m++) { const q = fF[v * FOREIGN_K + m]; if (q < 0) break;
+      const a = tw[q * 3] * 3, b = tw[q * 3 + 1] * 3, c = tw[q * 3 + 2] * 3;
+      const x = (P[a] + P[b] + P[c]) / 3 - px, y = (P[a + 1] + P[b + 1] + P[c + 1]) / 3 - py, z = (P[a + 2] + P[b + 2] + P[c + 2]) / 3 - pz, d2 = x * x + y * y + z * z;
+      if (d2 < fD[(v * FOREIGN_K + m) * 2] || d2 > fD[(v * FOREIGN_K + m) * 2 + 1]) return true; }
     return false;
   }
   function pinch(W, Q) {
@@ -573,33 +581,36 @@
     for (let jq = 0; jq < Q.length; jq += 3) {
       const I = Q[jq], v = Q[jq + 1], of = I.off, pos = I.pos, q0 = I.wt[v];
       if (!aliveT(W, q0)) continue;                     // its covering went: so do its triangles (G1856)
-      for (let it = 0; it < 2; it++) {
+      for (let it = 0; it < 3; it++) {
         const px = pos[v * 3] + (of ? of[0] : 0), py = pos[v * 3 + 1] + (of ? of[1] : 0), pz = pos[v * 3 + 2] + (of ? of[2] : 0);
-        // its own triangle first: nothing farther than that can be the nearest
-        let best = -1, bd = Infinity, b0 = 0, b1 = 0, b2 = 0;
-        const test = q => { const a = tw[q * 3] * 3, b = tw[q * 3 + 1] * 3, c = tw[q * 3 + 2] * 3;
-          // (its sphere - the centroid, 1.2 x its rest radius: the tear takes an edge past 1.15 x - beyond the best: skip)
-          const cx = (P[a] + P[b] + P[c]) / 3 - px, cy = (P[a + 1] + P[b + 1] + P[c + 1]) / 3 - py, cz = (P[a + 2] + P[b + 2] + P[c + 2]) / 3 - pz;
-          const rr = Math.sqrt(cx * cx + cy * cy + cz * cz) - 1.2 * W.rad[q]; if (rr > 0 && rr * rr >= bd) return;
-          closest(P, a, b, c, px, py, pz, _Bp);
-          const x = _Bp[0] * P[a] + _Bp[1] * P[b] + _Bp[2] * P[c] - px, y = _Bp[0] * P[a + 1] + _Bp[1] * P[b + 1] + _Bp[2] * P[c + 1] - py, z = _Bp[0] * P[a + 2] + _Bp[1] * P[b + 2] + _Bp[2] * P[c + 2] - pz;
-          const d = x * x + y * y + z * z; if (d < bd) { bd = d; best = q; b0 = _Bp[0]; b1 = _Bp[1]; b2 = _Bp[2]; } };
-        test(q0);
-        const id = W.pinId = (W.pinId || 0) + 1; stamp[q0] = id;
-        const rad = Math.min(BOUND + 0.01, Math.sqrt(bd)), ci = Math.floor((px - x0) / h), cj = Math.floor((py - y0) / h), ck = Math.floor((pz - z0) / h);
-        const i0 = Math.max(0, Math.floor((px - rad - x0) / h)), i1 = Math.min(gx - 1, Math.floor((px + rad - x0) / h)), j0 = Math.max(0, Math.floor((py - rad - y0) / h)),
-              j1 = Math.min(gy - 1, Math.floor((py + rad - y0) / h)), k0 = Math.max(0, Math.floor((pz - rad - z0) / h)), k1 = Math.min(gz - 1, Math.floor((pz + rad - z0) / h));
-        void ci; void cj; void ck;
-        for (let i = i0; i <= i1; i++) for (let j = j0; j <= j1; j++) for (let k = k0; k <= k1; k++) {
-          const cc = (i * gy + j) * gz + k;
-          for (let e = cnt[cc]; e < cnt[cc + 1]; e++) { const q = ent[e]; if (stamp[q] === id) continue; stamp[q] = id; test(q); } }
-        if (best < 0) break;
-        const a = tw[best * 3] * 3, b = tw[best * 3 + 1] * 3, c = tw[best * 3 + 2] * 3;
-        let nx = b0 * N[a] + b1 * N[b] + b2 * N[c], ny = b0 * N[a + 1] + b1 * N[b + 1] + b2 * N[c + 1], nz = b0 * N[a + 2] + b1 * N[b + 2] + b2 * N[c + 2];
-        const Ln = Math.sqrt(nx * nx + ny * ny + nz * nz) || 1; nx /= Ln; ny /= Ln; nz /= Ln;
-        const qx = px - (b0 * P[a] + b1 * P[b] + b2 * P[c]), qy = py - (b0 * P[a + 1] + b1 * P[b + 1] + b2 * P[c + 1]), qz = pz - (b0 * P[a + 2] + b1 * P[b + 2] + b2 * P[c + 2]);
-        const dep = s * (qx * nx + qy * ny + qz * nz);
-        if (dep >= 0) break;
+        // within its own triangle's distance (+ 2 mm), the NEAREST LIVE TRIANGLE IT IS OUTSIDE OF (an S-fold of the
+        // covering: pushed in under one sheet, it can stand outside the next - so up to three pushes)
+        let R2 = Infinity, bo = -1, bod = Infinity, nx = 0, ny = 0, nz = 0, dep = 0;
+        const id = W.pinId = (W.pinId || 0) + 1;
+        for (let pass = 0; pass < 2; pass++) {
+          let i0 = 0, i1 = -1, j0 = 0, j1 = -1, k0 = 0, k1 = -1;
+          if (pass === 1) { const rad = Math.min(BOUND + 0.01, Math.sqrt(R2));
+            i0 = Math.max(0, Math.floor((px - rad - x0) / h)); i1 = Math.min(gx - 1, Math.floor((px + rad - x0) / h)); j0 = Math.max(0, Math.floor((py - rad - y0) / h));
+            j1 = Math.min(gy - 1, Math.floor((py + rad - y0) / h)); k0 = Math.max(0, Math.floor((pz - rad - z0) / h)); k1 = Math.min(gz - 1, Math.floor((pz + rad - z0) / h)); }
+          for (let i = pass ? i0 : 0; pass ? i <= i1 : i < 1; i++) for (let j = pass ? j0 : 0; pass ? j <= j1 : j < 1; j++) for (let k = pass ? k0 : 0; pass ? k <= k1 : k < 1; k++) {
+            const cc = pass ? (i * gy + j) * gz + k : 0, e0 = pass ? cnt[cc] : 0, e1 = pass ? cnt[cc + 1] : 1;
+            for (let e = e0; e < e1; e++) {
+              const q = pass ? ent[e] : q0; if (stamp[q] === id) continue; stamp[q] = id;
+              const a = tw[q * 3] * 3, b = tw[q * 3 + 1] * 3, c = tw[q * 3 + 2] * 3;
+              // (its sphere - the centroid, 1.2 x its rest radius: the tear takes an edge past 1.15 x - beyond the reach: skip)
+              if (pass) { const cx = (P[a] + P[b] + P[c]) / 3 - px, cy = (P[a + 1] + P[b + 1] + P[c + 1]) / 3 - py, cz = (P[a + 2] + P[b + 2] + P[c + 2]) / 3 - pz;
+                const rr = Math.sqrt(cx * cx + cy * cy + cz * cz) - 1.2 * W.rad[q]; if (rr > 0 && rr * rr >= Math.min(R2, bod)) continue; }
+              closest(P, a, b, c, px, py, pz, _Bp);
+              const qx0 = _Bp[0] * P[a] + _Bp[1] * P[b] + _Bp[2] * P[c], qy0 = _Bp[0] * P[a + 1] + _Bp[1] * P[b + 1] + _Bp[2] * P[c + 1], qz0 = _Bp[0] * P[a + 2] + _Bp[1] * P[b + 2] + _Bp[2] * P[c + 2];
+              const x = qx0 - px, y = qy0 - py, z = qz0 - pz, d = x * x + y * y + z * z;
+              if (!pass) { const r = Math.sqrt(d) + 0.002; R2 = r * r; }
+              if (d > R2 || d >= bod) continue;
+              let mx = _Bp[0] * N[a] + _Bp[1] * N[b] + _Bp[2] * N[c], my = _Bp[0] * N[a + 1] + _Bp[1] * N[b + 1] + _Bp[2] * N[c + 1], mz = _Bp[0] * N[a + 2] + _Bp[1] * N[b + 2] + _Bp[2] * N[c + 2];
+              const Lm = Math.sqrt(mx * mx + my * my + mz * mz) || 1; mx /= Lm; my /= Lm; mz /= Lm;
+              const dp = s * ((px - qx0) * mx + (py - qy0) * my + (pz - qz0) * mz);
+              if (dp < 0) { bo = q; bod = d; nx = mx; ny = my; nz = mz; dep = dp; } } }
+        }
+        if (bo < 0) break;
         const push = PINCH_IN - dep;
         const X = pos[v * 3] + s * nx * push, Y = pos[v * 3 + 1] + s * ny * push, Z = pos[v * 3 + 2] + s * nz * push;
         for (let k = I.cpOff[v]; k < I.cpOff[v + 1]; k++) { const u = I.cp[k]; pos[u * 3] = X; pos[u * 3 + 1] = Y; pos[u * 3 + 2] = Z; I.pinched[u] = 1; }
