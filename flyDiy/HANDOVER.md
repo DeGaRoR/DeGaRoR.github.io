@@ -72033,3 +72033,173 @@ Against a trunk (the land builds):
 - **The thresholds (9 g, 1.5 kJ, the 3 % kink, D / wall 30) are physical anchors, not fitted.** A 5 m/s (10 kt) taxi into a trunk is a crash (1.5-2 kJ).
   If that reads harsh in play, CRASH_J is the knob.
 - **The floats' water landings and a crash ON the water** are not part of this: hydro forces do not count in the contact g.
+
+## G1885-G1889 DMG-DAMP: THE DEFORMATION DAMPER TAKES DEFORMATION, NOT ROTATION (2026-10-05, DMG-DAMP for the DEFORM COORDINATOR, cloud, node only; branch claude/dmg-damp off claude/dmg-switch-g1898 4ca0678c - train 32 had not landed on master when this started: REBASE ON MASTER ONCE IT LANDS; G1889 unused)
+
+The user's ruling (2026-10-04, the independent review's D1): "The deformation damper damps rigid rotation." Fixed as honest
+physics, no replacement angular damping anywhere. What it moved is below, gate by gate, and **three things it uncovered need
+the user** (open questions at the end: the Cub's crosswind roll-out, the floatplane's crosswind take-off, the spiral).
+
+### G1885 - THE FIX (src/core/30_solver.js `integrate`, G1885.1/.2)
+- **Before:** each substep `v_i = v_mean + (v_i + f_i dt/m_i - v_mean)(1 - DEFDAMP dt)`, DEFDAMP 0.5 /s. A rigid rotation is not
+  in the mean, so roll, pitch and yaw decayed as exp(-0.5 t) in vacuum (reproduced: L/L0 0.607 / 0.368 / 0.135 at 1 / 2 / 4 s on
+  every validated build and axis). The mean's form also scaled the net force by (1 - DEFDAMP dt) (~1e-4).
+- **Now:** the forces go in first (`v* = v + f dt/m`), the rigid-body field of v* is taken out,
+  `v_r(x) = v_cm + w x (x - x_cm)`, `w = I^-1 L` about the CG, and only `v* - v_r` is damped. v_r is the mass-weighted
+  least-squares rigid fit, so the damped remainder carries no momentum and no angular momentum. DEFDAMP keeps its value (0.5).
+- **The sums ride the loop that adds the forces** (positions off node 0: an aeroplane km from the origin keeps its digits).
+  P, the CG and L every substep; the second moments on a frame's first substep, carried rigidly through the frame's other
+  substeps with the last w (`dS/dt = W S + S W^T`, O(1)) - the frame turns the aeroplane by w/60 rad, the deformation moves
+  them ~1e-4. The rigid field off absolute positions through one constant. The integration in its own function
+  (`integrate`), so `substep` stays the size it was.
+- **The control:** `params.defDampMean` brings back the pre-G1885 formula (an instrument, like `defDamp`; no build sets it).
+  It is the base core to the bit (MD5 of p and v after 600 frames: the Cub, the metal Cessna, the Cessna on floats, air and
+  ground, base core vs this core with the flag).
+- **The load test** (65_gen_loadtest.js, its own `relax()` off the mean): the comment corrected; the code unchanged - the
+  aeroplane is bolted to the trestles every substep, it has no rigid motion to lose. GATE LOAD byte for byte the base; BENCH
+  one landing run 303 -> 302 m, the bench's settled answers the same.
+
+### G1886 - GATE DMGDAMP (tools/_dmgdamp_check.js, core tier, ~4 min)
+Vacuum (the air at 1e-9 through setAtmos, no world, 3 km up, the solver's uniform gravity: no torque about the CG), the five
+validated builds (the user's Cub corrected, the Jodel, the metal Cessna, the Cessna on floats, the twin on floats), spun at
+1 rad/s about roll, pitch and yaw for 10 s:
+
+| bound | why | measured (worst) |
+|---|---|---|
+| \|L - L0\| / L0 <= 1e-3 over 10 s | exact in the continuum; the solver's other parts (the shape-matched rigid float clusters, symplectic Euler, the 1e-9 air) drift up to ~2e-4 WITH THE DAMPER OFF; 5x margin, and 1/1000 of what the old damper took (99.3 %) | 1.85e-4 (twin on floats, pitch) - identical with defDamp 0 |
+| the damper's own share \|L_on - L_off\| / L0 <= 1e-5 | the damper may take energy, never L | 2.5e-6 (twin on floats) |
+| CONTROL: the old formula = exp(-0.5 t) within 1 % at 1, 2, 4 s | the review's measurement, reproduced | 0.01 % |
+| a plucked wingtip (1 m/s flick): last 0.5 s window <= 2 % of the first, <= 0.5 x damper-off, within 10 % of the old damper every window | the deformation is still damped, as before | 1.2e-4..2.1e-3; 0.1 x off; 0.43 % |
+
+Evidence: `reports/evidence/DMG-DAMP/L_<build>.svg` (L(t)/L0 before / after, three axes each).
+
+### G1887 - THE CENSUS (before = base 4ca0678c, after = this branch; every gate's whole output diffed)
+**The flown modes** (tools/dmgdamp_evidence.js; the stick FIXED at a trim the probe finds at 1.6 Vs, 1000 m; each signal the
+kicked flight minus an unkicked one from the same trim; `modes.json`):
+
+| build | V trim (m/s) | dutch roll T (s) | dutch roll zeta | dutch t1/2 (s) | roll-rate tau (s) | yaw-rate t1/2 (s) | pitch-rate t1/2 (s) | spiral |
+|---|---|---|---|---|---|---|---|---|
+| Cub (corrected) | 26.1 | 3.30 -> 3.20 | 0.358 -> 0.241 | 0.95 -> 1.42 | 0.091 -> 0.095 | 0.33 -> 0.42 | 0.17 -> 0.18 | T2 10.3 s -> T2 8.8 s |
+| Jodel | 30.2 | 2.60 -> 2.50 | 0.271 -> 0.179 | 1.02 -> 1.52 | 0.119 -> 0.126 | 0.32 -> 0.37 | 0.18 -> 0.22 | T1/2 10.0 s -> T1/2 54.2 s |
+| metal Cessna | 35.8 | 2.60 -> 2.53 | 0.293 -> 0.198 | 0.94 -> 1.39 | 0.125 -> 0.133 | 0.28 -> 1.23 | 0.17 -> 0.18 | T2 20.9 s -> T2 14.4 s |
+| Cessna on floats | 41.2 | 2.57 -> 2.53 | 0.274 -> 0.180 | 0.99 -> 1.53 | 0.123 -> 0.131 | 0.30 -> 1.30 | 0.20 -> 0.22 | T2 23.0 s -> T2 15.6 s |
+| twin on floats | 26.2 | 3.20 -> 3.10 | 0.369 -> 0.256 | 0.89 -> 1.29 | 0.114 -> 0.121 | 0.33 -> 0.40 | 0.13 -> 0.15 | T2 10.0 s -> T2 8.5 s |
+
+(Flown on the per-substep solver; re-flown on the final one (G1885.2) for the Cub, the Jodel, the metal Cessna and the
+Cessna on floats before a container restart: every printed number the same.)
+
+- **Dutch roll: damping ratio down ~0.1 on every build, period ~3 % shorter.** The real reference (Nelson, *Flight Stability
+  and Automatic Control*, the Navion: zeta 0.20, omega_n 2.4 rad/s, T 2.7 s; MIL-F-8785C Level 1 class I: zeta >= 0.08 - both cited from the session's own knowledge, no copy in the repo: A0 to
+  check the figures):
+  the before values (0.27-0.37) were over-damped by the hidden 0.5 /s; the after values (0.18-0.26) sit on the reference.
+- **Roll-rate decay +5-7 %** (aero roll damping dominates, ~10 /s against the hidden 0.5). **Pitch-rate** barely moves.
+- **Yaw-rate half time:** the metal Cessna and the floats 0.3 -> 1.2-1.3 s - the lower dutch-roll damping takes more cycles
+  to halve the envelope; the others +0.05-0.1 s.
+- **Spiral: less stable on every build** (the hidden damper was ~25-50 % of N_r): the Cub T2 10.3 -> 8.8 s, the twin 10.0 ->
+  8.5, the metal Cessna 20.9 -> 14.4, the floats 23.0 -> 15.6; the Jodel stays stable (T1/2 10 -> 54 s). MIL-F-8785C asks
+  T2 >= 12 s (Level 1, cat A/C), 20 s (cat B); the Cub and the twin are now Level 2 (they were already at 10 s before). The
+  aerodynamics' own spiral (dihedral against yaw damping) - a design property of the builds, not tuned here: open question 3.
+
+**The gates** (every flying gate, base vs after, 146 gates both sides; SIMWORKER-PAGE / -EDGES / -PLACE not run - the
+page-in-node worker-vs-inline bit equalities, hours on this box, that hold whatever the damper does):
+- **Byte for byte the base (or timings only):** LOAD, PLAN, LINEUP, WATER, WIPLINE, ARCHETYPES (its printed lines), DRAG,
+  WEIGHT, MASS, GEAR, STRUT, ENERGY, SUBSTEP, PACE, HONEST, DEFAULT, AERO, FLAPS, STRESS, and every non-flying gate.
+- **The final solver (G1885.2: the second moments carried through a frame)** re-run on 44 flying gates: the same numbers
+  as the per-substep version to the printed digit or +-0.01..1 % (FLEX loads, TREECRASH's plastic work, GEN's nose-over
+  resting on the other engine); all PASS but PILOTMATRIX (open question 1) and RWYTREES (the runner's 1800 s cap, twice, under load and alone: its three whole-page children take most of it - every check it
+  reached passed, and run directly (`node tools/_rwytrees_check.js`, no cap) it is GATE RWYTREES: PASS in 31 min 20 s; the
+  after run passed inside the cap at 1578 s. A0: a `timeout` on its row, or the cap, before the train).
+- **Moved, PASS, toward the reference or explained:**
+
+| gate | number | before -> after | reading |
+|---|---|---|---|
+| GEN | landing sink (archetypes' shakedown) | 0.70-1.54 -> 0.69-1.56 m/s | +-0.04 |
+| GEN | gust cruise bank p2p (3 m/s + gusts) | 0.98 -> 0.93 deg | |
+| GEN | nose-over test rests on | ENGL -> AXLER | the tipped aeroplane lands on its axle, not its engine |
+| PILOT | trike crosswind pursuit | 9.2 -> 9.7 deg (bound 12) | |
+| PILOT | NAV box xtk / landing aim | 11 -> 10 m / 49 -> 45 m | |
+| PILOTACT | touchdown sink (stock / C172 / metal) | 0.67 / 1.14 / 1.11 -> 0.66 / 1.10 / 1.18 m/s | |
+| SOAR | thermal climb / gain in 200 s | 0.85 -> 1.09 m/s / 113 -> 163 m | the circle no longer fights a yaw damper |
+| HOTHIGH | touchdown sink | 1.02 -> 0.55 m/s | softer |
+| TAKEOFF | the twin's wheeled crosswind limit (measured, not asserted) | 4.5 -> 3 m/s | the first failure 3.5 m/s by 2 cm (12.52 m roll, band 12.5); FAR 23.233 asks 0.2 V_SO = 3.3 m/s |
+| TAXICLEAR | nearest wing to a parked footprint | 2.14 / 1.74 -> 2.14 / 1.75 m | taxi wobble: nothing |
+| INPUT | hand back (keys): peak bank / bank at 20-25 s / alt loss | 30 / 1.3 / 0 -> 33 deg / 0.2 / 3 m | |
+| SIMWORKER | freeze drift | 0.904 -> 0.913 m | every step's FNV still equal worker = inline |
+| TREECRASH | pulls / drops / circuits / trunk / water cases | all PASS; e.g. the twin's 67 m/s pull 5.23 -> 4.06 g, the worst member 0.73 -> 0.65 | damage:true; the water's severe nose-in still yields, breaks, crashes |
+| FLEX, MOUNT, BIPLANE, GE, TREEHIT | | +-0.01..0.1 | |
+| HYDRODYN | water/dry cost ratio | 1.46 -> 1.24 x | timing |
+| FLOATS (Cessna...) landing | touchdown sink | 0.54 -> 0.38 m/s (bound 0.35-1.6) | near its floor - the trimmed approach is the gate's own bisection, not tuned |
+| SEAPLANE taxi | water-rudder heading at idle, 5 m/s across | 10.3 -> 15.3 deg (bound 20) | the water taxi |
+
+- **Red on the base too (not this work):** INSTANT (both), WORLD / BIOME (wall-clock perf budgets), HYDRO / SETTLE (bake
+  budget), FRAMECOST (the stale parked cook - A0's train re-cooks), all under the battery's own load, as TREE-CRASH saw.
+- **HITBOX** red on the after run only on a wall-clock line (the spec shape 292 ms against a 260 ms raster, under load); the
+  shapes all stand; PASS on the final run.
+
+### G1888 - THE RE-ANCHORS (and the gain changed)
+1. **GATE FLOATS (the twin on floats, the hull in the real solver): THE PILOT HOLDS THE PLANING ATTITUDE ON THE STEP.** The
+   scripted fixed stick (0.45, eased to 0.2 past 14 m/s) rode the step only while the hidden damper damped the hull's pitch:
+   the porpoise grew (-4.1..12.7 deg), the twin left the water at 14.6 m/s (0.9 Vs) on the full back stick BEFORE the easing
+   and slammed back (R/W 0.53 > 0.35). A seaplane pilot answers a porpoise by holding the step attitude; 6 deg is in a planing
+   hull's least-resistance trim band (Savitsky 4-6 deg, the law 32_hydro flies). Now from 9 m/s:
+   de = 0.2 + 0.04 (6 - trim) - 0.01 trim-rate. **Robust:** targets 5/6/7/8 deg and starts at 9-11 m/s all PASS (R/W on the
+   step 0.29-0.34); the base flies the same hold at 0.19. (Easing the fixed stick at 12 m/s also passed at R/W 0.347/0.35 -
+   a knife-edge, not taken.) Now: hump 0.275, the step 0.308, trim -0.1..7.5, airborne 8.9 s at 26 m/s.
+2. **GATE SEAPLANE crosswind take-off: 0.2 V_SO (FAR 23.233), 3.3 m/s, not 5.** The 5 m/s had no reference and the base held
+   it by 2 deg (28 against 30) - the hidden damper was the margin. Swept: the base held to 4.5 m/s and looped at 5.5; this
+   solver loops at 2 m/s and from 4 m/s (open question 2). Now: 11.1 deg, 4.1 m off, lift-off 7.0 s.
+3. **The pilot's step heading gain x0.6 (43_pilot.js groundSteer, `A.waterStepK`, water + tail-up only; a wheeled roll is
+   bit-identical).** On the step the air rudder alone holds the run and the loop weaved stop-to-stop (-5 -> +18 -> -35 deg,
+   4.5 s period, 3.5 m/s across); 0.6: 11.5 deg; the rate term x1.5-x2 did not damp it.
+   **GAINS CHANGED PER PILOT: 43_pilot.js (THE PILOT) only - groundSteer's kP x `A.waterStepK ?? 0.6` when on the water with
+   the tail up. 40_autopilot.js and 41_test_pilot.js have no water branch: unchanged.** PILOT-FORKS (G1570-G1579, the
+   unified servo module, the review's E4): no branch existed when this work ran; it carries this one line when it unifies
+   groundSteer. Either may land first; the conflict is that one line.
+4. **NOT re-anchored: PILOTMATRIX cub:HOME:x4 (the Cub's crosswind roll-out). The gate is RED** - open question 1.
+
+### The perf (the hard rule: within 2 % of the base, nothing touching)
+The stock build's sim.step(1/60) in node, the Cub and the metal Cessna, ground and air, the median of 15 processes' medians
+(600 steps each), alternating; `reports/evidence/DMG-DAMP/perf.txt`; three columns - the base core, THIS core with the old
+formula (the base's trajectory, this core's code), this core:
+
+| case | base core (ms) | this core, old formula (ms) | this core (ms) | this core vs base | the damper's own cost (vs the old formula, same core) |
+|---|---|---|---|---|---|
+| the Cub, ground | 3.907 | 3.991 (+2.13 %) | 3.934 | **+0.70 %** | -1.41 % |
+| the Cub, air | 3.686 | 3.736 (+1.37 %) | 3.649 | **-1.00 %** | -2.34 % |
+| the metal Cessna, ground | 6.575 | 6.587 (+0.17 %) | 6.611 | **+0.54 %** | +0.37 % |
+| the metal Cessna, air | 6.351 | 6.366 (+0.24 %) | 6.478 | **+1.99 %** | +1.75 % |
+
+- **This box's process-to-process noise is +-2-4 %** (the same core and formula read 3.85 and 3.48 ms on two runs). Earlier
+  5- and 7-process runs of the first cut read up to +3-5 % in the air; the same-core comparison (the damper's own cost,
+  trajectory included) is the honest instrument and reads -2.3..+1.8 %. **A0 to re-read on a quiet machine** (the
+  coordinator's own `--perf-only` method; `tools/dmgdamp_evidence.js --perf-only --perf-base <base core>` does it with the
+  stock build, damage off).
+- Low frame rate: the physics dt is fixed at 1/60 and nothing here reads the frame rate; GATE DMGFPS is not on this base
+  (DMG-D0 brings it).
+
+### Open questions (the user, through A0)
+1. **THE CUB GROUND-LOOPS ON A CROSSWIND ROLL-OUT (PILOTMATRIX cub:HOME:x4 RED).** The user's corrected Cub (the matrix's
+   'cub' flies the same numbers) in 3.5-4.5 m/s across (+ gusts): roll-out heading swing 9-17 deg before, **106-140 deg now**
+   (a ground loop at 14 m/s, the tailwheel down, the rudder on its stop). Measured, none holds it: the tail-down steer gains
+   (kD x1.5-x2, kP x0.7), a faster rudder slew on the ground (x2: 88 deg, x3: 79). The hidden damper was the ground's only
+   yaw damping: **the tyres' side force is Coulomb friction regularised at 0.02 m/s (30_solver, `kL`), no cornering
+   stiffness**, so a yawing aeroplane rolling straight meets almost no rate-proportional resistance - a real tyre's
+   slip-angle force is that damping. Recommendation: a GEAR follow-up (a cornering-stiffness tyre - physics owed, not a
+   fudge), then re-read this cell. Until then PILOTMATRIX's baseline is NOT moved: moving it would bless a ground loop.
+2. **THE FLOATPLANE WATER-LOOPS IN SOME CROSSWINDS.** The twin on floats' crosswind take-off: 0.5-1.5 m/s 1-5 deg, 2.5-3.75
+   8-16 deg, **a water loop at 2 m/s and from 4 m/s** - at the hump, the water rudder raised (7.2 m/s at full power), full air
+   rudder, the yaw rate 0.3 -> 3 rad/s in a quarter second. No pilot gain holds those (x2-x4 displacement gains, x1.5-x2 rate,
+   the water rudder raised at 9.6 or 12 m/s: measured). At rest the water's own yaw damping is the quadratic cross-flow only
+   (a 0.3 rad/s kick: 0.30 -> 0.12 rad/s in 6 s, against 0.01 with the hidden damper); at 5 m/s it is strong (gone in 1 s).
+   A GEAR-WATER question: the hull's lift-type side force at the hump (slender-body, linear in U v), which 32_hydro does
+   not carry. GATE SEAPLANE is re-anchored to FAR 23.233's 0.2 V_SO meanwhile (above).
+3. **THE SPIRAL** is the builds' own now (T2 8.5-15.6 s on four of five). Real light aeroplanes: mildly unstable, T2 20-100 s
+   typical. Dihedral / fin are the builds' design (never tuned here; validated builds only).
+4. **The water landing's sink** in GATE FLOATS (0.38 m/s against its 0.35 floor) is near its bound: the trimmed approach is
+   the gate's bisection; not touched.
+
+### Files
+src/core/30_solver.js (G1885 integrate), src/core/65_gen_loadtest.js (comment), src/core/43_pilot.js (G1888 waterStepK),
+tools/_dmgdamp_check.js + run_gates.js row (G1886), tools/dmgdamp_evidence.js (G1887), tools/_floats_check.js /
+tools/_seaplane_check.js (G1888), reports/evidence/DMG-DAMP/ (L_*.svg, modes.json, README.md, perf.txt).
+The generated files (flight_core.js, index.html, dev.html, sw.js, version.json) are NOT committed.
