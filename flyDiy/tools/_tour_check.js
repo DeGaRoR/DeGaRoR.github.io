@@ -88,6 +88,22 @@ if (SHD.first) {
     check(up.worst && up.worst.p > 2.5, '2 calibration: Tamgas Hill left uphill has the hill through its climb-out', up.worst ? '+' + up.worst.p + ' m ' + up.worst.d + ' m out' : '-');
     check(ridge.worst && ridge.worst.p > 50, '2 calibration: Jumbo Mine left south has the ridge through its climb-out', ridge.worst ? '+' + ridge.worst.p + ' m ' + ridge.worst.d + ' m out' : '-');
   }
+  // 3a NO WATER ON A STRIP (G1971): every land strip's box (1 m along, 1.5 m across, the edges included) and every pad's
+  // and apron's polygon is dry - the cover grid's water class floated 0.30 m of water over 13 patches of 02/20's old
+  // concrete and one of 13/31's, and the C172 rolling across one at 16 m/s nosed in and rejected its take-off
+  {
+    let wet = 0, where = null;
+    const dryAt = (x, z, what) => { if (W.waterH(x, z) - W.terrainH(x, z) > 0.01) { wet++; if (!where) where = what + ' (' + x.toFixed(1) + ', ' + z.toFixed(1) + ')'; } };
+    for (const a of land) {
+      const R = C.siteRunway(a);
+      for (let q = -a.len / 2; q <= a.len / 2; q += 1) for (let off = -R.half; off <= R.half + 1e-6; off += 1.5) dryAt(a.x + R.dx * q + R.nx * off, a.z + R.dz * q + R.nz * off, a.id);
+    }
+    for (const e of REC.layers.surface) if (/^tp_y_|^mn_y_apron$/.test(e.id)) {
+      const bb = C.PREMISES_GEN.polyBBox(e.poly);
+      for (let x = bb.x0; x <= bb.x1; x += 1) for (let z = bb.z0; z <= bb.z1; z += 1) if (C.PREMISES_GEN.inPoly(e.poly, x, z)) dryAt(x, z, e.id);
+    }
+    check(wet === 0, '3a no water on a land strip, a turn pad or the mine\'s apron', wet + ' wet samples' + (where ? ', first ' + where : ''));
+  }
   // 3 the turn pads
   let nPads = 0;
   for (const a of land) {

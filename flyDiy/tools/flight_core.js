@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: e0c94216616d5d17
+// body-sha256: 09390727ca9e212d
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -3606,7 +3606,15 @@ function makeWorld(seed, opts) {
       // floated 30 cm of water over ground the record itself says is dry land.
       // Measured on Jolene: 78 of 285 lakes had every one of the renderer's five
       // sample points on such a cell (2026-09-23).
-      if (!onBank && ISL.classAt(x, z) === ISL.WC.WATER) return t + 0.3;
+      // ...and NOT on ground the premises declare dry (ISLAND-TOUR G1971): a strip, a pad, an apron, a road - a land
+      // surface of the record. The cover grid calls 13 patches of 02/20's old concrete and one of 13/31's WATER (a 10 m
+      // cell over a wet, dark slab), and 0.30 m of water stood on the runway: the C172 rolling across it at 16 m/s
+      // nosed into it and rejected the take-off (GEAR-WATER's wheel in the water). Only a cover-water cell asks.
+      if (!onBank && ISL.classAt(x, z) === ISL.WC.WATER) {
+        // (a pavement's edge and its first 10 m too - the strip's shoulder, where a wheel that runs off the edge rolls)
+        if (PM) { const ps = PM.surfaceAt(x, z); if ((ps >= 0 && ps !== SURFACE.WATER) || (PM.pavedAt && PM.pavedAt(x, z, 10))) return -Infinity; }
+        return t + 0.3;
+      }
       return -Infinity;
     }
     const ws = HYD.water(x, z);
