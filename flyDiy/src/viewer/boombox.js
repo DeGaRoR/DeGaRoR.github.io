@@ -163,7 +163,7 @@ var BOOMBOX = (function () {
 
   // ---- THE PANEL -------------------------------------------------------------------------------------------------------
   let panel = null, body = null, obj = null, offs = [], vw = 0, vh = 0, vx = 0, vy = 0, cx = 0, cy = 0, cw = 0, ch = 0;
-  let pw = 0, ph = 0, lastL = -1e9, lastT = -1e9, closedAt = 0, canvasEl = null;
+  let pw = 0, ph = 0, lastL = -1e9, lastT = -1e9, canvasEl = null;
   const refs = {};   // the live bits a refresh repaints (no rebuild under a dragged slider)
   const isOpen = () => !!panel;
   const D = () => G.document || null;
@@ -201,7 +201,14 @@ var BOOMBOX = (function () {
     return { i, v, get };
   }
 
+  // build the body for the state the sound is in, then paint it; a build never asks for another (no recursion: refresh
+  // decides whether one is due, paint only writes)
   function build() {
+    building = true;
+    try { buildBody(); } finally { building = false; }
+    if (panel && !refs.offLine) paint();
+  }
+  function buildBody() {
     for (const k in refs) delete refs[k];
     while (body.firstChild) body.removeChild(body.firstChild);
     const A = AU(), M = MU();
@@ -212,9 +219,11 @@ var BOOMBOX = (function () {
         : off0 ? 'Sound is off for this page (?audio=0).'
         : radio.soundNext() ? 'Sound is on from the next page load.'
         : 'Sound is off.', 'first');
-      if (A && !off0 && !radio.soundNext()) {
+      if (A) {
         const w = el('div', 'bbBtns');
-        pill(w, 'turn the sound on', () => { radio.setSound(true); build(); measure(); }, 'Switch the game’s sound on');
+        const b = pill(w, 'turn the sound on', () => { radio.setSound(true); build(); measure(); }, 'Switch the game’s sound on');
+        // (greyed where it cannot act in this page: the address says ?audio=0, or it is already on for the next load)
+        if (off0 || radio.soundNext()) { b.disabled = true; b.title = off0 ? 'The page’s address turns the sound off (?audio=0): load it without' : 'On from the next page load'; }
         body.appendChild(w);
       }
       return;
@@ -247,8 +256,6 @@ var BOOMBOX = (function () {
       sec.appendChild(el('div', 'bbHead', 'my music'));
       refs.myLine = el('div', 'bbLine'); sec.appendChild(refs.myLine);
       refs.myBtns = el('div', 'bbBtns'); sec.appendChild(refs.myBtns);
-      // a kept folder comes back on this click (its permission asked only if still granted; else 'reconnect')
-      if (my.restore) my.restore().then(() => { if (panel) refresh(); });
     }
     const foot = el('div', 'bbBtns bbFoot');
     const cr = el('a', 'bbCredits', 'music credits');
@@ -256,7 +263,6 @@ var BOOMBOX = (function () {
     cr.onclick = e => { if (e && e.preventDefault) e.preventDefault(); M.openCredits(); };
     foot.appendChild(cr);
     body.appendChild(foot);
-    refresh();
   }
   // the folder's buttons: rebuilt (they are few and never under a drag)
   function myButtons() {
@@ -285,12 +291,19 @@ var BOOMBOX = (function () {
     else t = s.line || ('Your own files, played on this computer only' + (my.canDir() ? '.' : ' - this browser asks for the folder again each visit.'));
     refs.myLine.textContent = t;
   }
-  // repaint what can change under the panel (a track starts, a station, a setting from elsewhere)
+  // something changed under the panel (a track starts, a station, a setting from elsewhere): a rebuild when the panel's
+  // shape is no longer the state's (the sound switched, the folder came or went), else a repaint
+  let building = false;   // (an event the build itself caused waits for it)
   function refresh() {
-    if (!panel) return;
+    if (!panel || building) return;
+    const A = AU(), M = MU(), off = !A || !M || !radio.soundOn();
+    if (off !== !!refs.offLine || (!off && !!M.hasMine !== !!(refs.st || []).some(b => b.dataset.st === M.ST_MINE))) { build(); measure(); return; }
+    if (!off) paint();
+  }
+  // the repaint: text, the lit station, the values - never a rebuild
+  function paint() {
     const A = AU(), M = MU();
-    if (!A || !M || !radio.soundOn()) { if (!refs.offLine) { build(); measure(); } return; }
-    if (refs.offLine) { build(); measure(); return; }
+    if (!panel || !A || !M) return;
     const np = M.nowPlaying && M.nowPlaying();
     if (refs.now) {
       while (refs.now.firstChild) refs.now.removeChild(refs.now.firstChild);
@@ -304,8 +317,6 @@ var BOOMBOX = (function () {
     }
     const playing = radio.playing();
     for (const b of refs.st || []) b.classList.toggle('on', b.dataset.st === M.station && (playing || M.station === 'off'));
-    // a key the list did not have when it was built (the folder came in): rebuild
-    if (M.hasMine !== !!(refs.st || []).some(b => b.dataset.st === M.ST_MINE)) { build(); measure(); return; }
     for (const r of [refs.music, refs.master]) if (r && D().activeElement !== r.i) { r.i.value = Math.round(r.get() * 100); r.v.textContent = r.i.value + ' %'; }
     if (refs.talk) refs.talk.checked = !!M.talk;
     if (refs.garage) refs.garage.checked = !!A.get('musicGarage');
@@ -329,15 +340,14 @@ var BOOMBOX = (function () {
     const t = e && e.target;
     if (panel && t && panel.contains && panel.contains(t)) return;
     if (t && t.closest && t.closest('#musicCredits')) return;   // the credits screen opened from here
-    close(true);
+    // a press ON the radio leaves it to the click that follows (which toggles the panel shut)
+    if (t && t === canvasEl && hovered) return;
+    close();
   }
   // open beside the radio o; canvas: the render's (the anchor's pixels)
   function open(o, canvas) {
     const Dc = D();
     if (!Dc || !Dc.createElement) return false;
-    // a press outside closes before the click that made it lands: a click on the radio itself, just closed by its own
-    // press, toggles it shut rather than opening it again
-    if (!panel && Date.now() - closedAt < 600 && obj === o) return false;
     obj = o; canvasEl = canvas || canvasEl;
     if (!panel) {
       panel = el('div'); panel.id = 'bbPanel';
@@ -359,11 +369,14 @@ var BOOMBOX = (function () {
     build();
     measure();
     cue(o, true);
+    // a kept folder comes back on this click (walked only if its permission still holds; else 'reconnect' waits) - once
+    // per opening, never from a rebuild
+    const my = MY();
+    if (my && my.restore && radio.soundOn()) my.restore().then(() => { if (panel) refresh(); }, () => {});
     return true;
   }
-  function close(byPress) {
+  function close() {
     if (!panel) return;
-    closedAt = byPress ? Date.now() : 0;
     const Dc = D();
     Dc.removeEventListener('keydown', onKey, true);
     Dc.removeEventListener('pointerdown', onDown, true);
@@ -391,9 +404,8 @@ var BOOMBOX = (function () {
     if (o !== obj) { obj = o; cue(o, true); }
     const b = localBox(o, S.box);
     S.q.set((b.min.x + b.max.x) / 2, b.max.y, (b.min.z + b.max.z) / 2).applyMatrix4(o.matrixWorld).project(camera);
-    if (!(S.q.z < 1) || S.q.x < -1.02 || S.q.x > 1.02 || S.q.y < -1.02 || S.q.y > 1.02) { close(); return; }
     const ax = cx + (S.q.x + 1) / 2 * cw - vx, ay = cy + (1 - S.q.y) / 2 * ch - vy;
-    if (ax < 0 || ay < 0 || ax > vw || ay > vh) { close(); return; }
+    if (!(S.q.z < 1) || ax < 0 || ay < 0 || ax > vw || ay > vh) { close(); return; }   // behind the eye, or off the view
     let L = ax + 26;
     if (L + pw > vw - 12) L = ax - 26 - pw;
     L = Math.max(12, Math.min(vw - pw - 12, L));
