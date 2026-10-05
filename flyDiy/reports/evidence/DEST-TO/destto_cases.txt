@@ -1,0 +1,41 @@
+# GATE DESTTO, the final gate code, run as its three shards with --show --evidence (node tools/_destto_check.js --shard=i/3 --show --evidence), this branch
+## shard 0/3
+  model: base HOME; stand stand; wheels CIRCUIT w2 HOME w3 mn_strip nv_strip tw_ski; floats CIRCUIT SEA mk_sea; the stand's taxi stand,ty0,ty1,ty2,ty3,ty4,c1,l1a,l1b,l1c,d1,hold1
+  ltd:cub: leg 1 HOLD>ROLL>LIFTOFF>CLIMB>CROSSWIND>DOWNWIND>BASE>FINAL>FLARE>ROLLOUT>STOPPED in 336 s, stopped runway HOME (34, 512)
+  ltd:cub: leg 2 STOP>HOLD>ROLL>LIFTOFF>CLIMB>ENROUTE>DOWNWIND>BASE>FINAL>FLARE>ROLLOUT>STOPPED in 378 s, 0 m on the ground before the roll, stopped runway w3; fuel 31.668229341201684 -> 30.831251979268956 kg; members broken 0
+  ltd:cub: ok (354 s) [shard 0/3]
+  air:cub: HOLD>ROLL>LIFTOFF>CLIMB>ENROUTE>DOWNWIND>BASE>FINAL>FLARE>ROLLOUT>STOPPED in 389 s; the change at t=91, path 0.0 m from the aeroplane, bank 23.4 deg, rate 0.93 x the law; stopped runway w2
+  air:cub: ok (155 s) [shard 0/3]
+  air:metal: HOLD>ROLL>LIFTOFF>CLIMB>ENROUTE>DOWNWIND>BASE>FINAL>FLARE>ROLLOUT>STOPPED in 326 s; the change at t=53, path 0.0 m from the aeroplane, bank 23.6 deg, rate 1.10 x the law; stopped runway w2
+  air:metal: ok (211 s) [shard 0/3]
+DESTTO: 0 failure(s), 734 s [shard 0/3]
+GATE DESTTO: PASS
+SHARD 0/3: 3 of 7 heavy jobs
+## shard 1/3
+  ltd:metal: leg 1 HOLD>ROLL>LIFTOFF>CLIMB>ENROUTE>DOWNWIND>BASE>FINAL>FLARE>ROLLOUT>STOPPED in 274 s, stopped runway w3 (-935, -2364)
+  ltd:metal: leg 2 TAXI>STOP>HOLD>ROLL>LIFTOFF>CLIMB>ENROUTE>DOWNWIND>BASE>FINAL>FLARE>ROLLOUT>STOPPED in 402 s, 522 m on the ground before the roll, stopped runway w2; fuel 18.466950564320232 -> 16.058849368876782 kg; members broken 0
+  ltd:metal: ok (626 s) [shard 1/3]
+  ltd:jodel: leg 1 HOLD>ROLL>LIFTOFF>CLIMB>CROSSWIND>DOWNWIND>BASE>FINAL>FLARE>ROLLOUT>STOPPED in 362 s, stopped runway HOME (-24, 461)
+  ltd:jodel: leg 2 STOP>HOLD>ROLL>LIFTOFF>CLIMB>ENROUTE>DOWNWIND>BASE>FINAL>FLARE>ROLLOUT>STOPPED in 331 s, 0 m on the ground before the roll, stopped runway w3; fuel 31.51933208137478 -> 30.712823998326744 kg; members broken 0
+  ltd:jodel: ok (531 s) [shard 1/3]
+DESTTO: 0 failure(s), 1157 s [shard 1/3]
+GATE DESTTO: PASS
+SHARD 1/3: 2 of 7 heavy jobs
+## shard 2/3
+  ltd:floats: leg 1 ROLL>LIFTOFF>CLIMB>CROSSWIND>DOWNWIND>BASE>FINAL>FLARE>ROLLOUT>STOPPED in 373 s, stopped water SEA (554, -3474)
+  ltd:floats: leg 2 TAXI>STOP>HOLD>ROLL>LIFTOFF>CLIMB>ENROUTE>DOWNWIND>BASE>FINAL>FLARE>ROLLOUT>STOPPED in 661 s, 1132 m on the ground before the roll, stopped water mk_sea; fuel 17.412958476500222 -> 11.966194575912585 kg; members broken 0
+  ltd:floats: ok (856 s) [shard 2/3]
+  ltd:twinFloats: leg 1 ROLL>LIFTOFF>CLIMB>CROSSWIND>DOWNWIND>BASE>FINAL>FLARE>ROLLOUT>STOPPED in 290 s, stopped water SEA (590, -3439)
+  ltd:twinFloats: leg 2 STOP>HOLD>ROLL>LIFTOFF>CLIMB>ENROUTE>DOWNWIND>BASE>FINAL>FLARE>ROLLOUT>STOPPED in 453 s, 6 m on the ground before the roll, stopped water mk_sea; fuel 12.166913421976775 -> 9.485100152848156 kg; members broken 0
+  ltd:twinFloats: ok (588 s) [shard 2/3]
+DESTTO: 0 failure(s), 1444 s [shard 2/3]
+GATE DESTTO: PASS
+SHARD 2/3: 2 of 7 heavy jobs
+
+## --selftest (the doctored chain and re-plan)
+  ltd:metal: leg 1 HOLD>ROLL>LIFTOFF>CLIMB>ENROUTE>DOWNWIND>BASE>FINAL>FLARE>ROLLOUT>STOPPED in 274 s, stopped runway w3 (-935, -2364)
+  ltd:metal: 1 failed (196 s)
+  air:cub: HOLD>ROLL>LIFTOFF>CLIMB>ENROUTE>FINAL>FLARE>ROLLOUT>STOPPED in 397 s; the change at t=91, path 846.0 m from the aeroplane, bank 21.1 deg, rate 0.78 x the law; stopped runway w3
+  air:cub: 3 failed (170 s)
+selftest: 4 failures under the doctored chain / re-plan; caught: the From is DERIVED, re-plans from here, the new path starts at the aeroplane
+GATE DESTTO: PASS (selftest)
