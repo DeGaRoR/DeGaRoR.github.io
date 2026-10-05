@@ -77054,3 +77054,114 @@ PERF (the coordinator's quiet A/B, damage OFF vs train 34, 20 rotated rounds): +
 STRICT GATE (full): 95 in slack, 50 better, 12 RED = the 30 cap's rows + the known hybrid-band rows; chase / cockpit loop
 15.25 / 15.35 / 16.2 ms (train 34's gate: 16.2 / 16.15 / 16.35) - no damage cost. BATTERY: the full battery PASS but AUDIO,
 which passed alone (145 s; its wall-clock read under the 6-job battery and D4b's untimed page boot). Parked re-cooked.
+## G1590-G1599 - RELEASE-CHECKS: THE BUILD ID HASHES EVERY SHIPPED INPUT, GATE BUILT, THE POST-PUSH PAGES CHECK, THE BUILD'S OWN CHECKS (2026-10-04/05, RELEASE-CHECKS for A0, cloud - node only; branch claude/release-checks-g1590, REBASED (A0, 5 Oct) onto master 0fd1fa34 = train 33, which carries the review and UPDATE-NOW G1535; rides train 36)
+
+The review's release findings (reports/INDEPENDENT-REVIEW-2026-10-04.md): B27 (nothing verifies the committed outputs against
+a rebuild), B28 (the build id hashed core + viewer + editor only), E8 (no post-push check), the C-release line (sw.js and the
+worklets never parsed; the inert-typing regex rewrote `<script>` inside inlined blobs). B26 landed with the review.
+CONTEXT: Pages is the LEGACY "deploy from branch" builder (the user, 4 Oct: keep it while it works); it started no run for
+trains 28-31 - every push that moved master together with claude/batch-a-base in ONE `git push` started nothing, single-ref
+pushes did. The dead `.github/workflow/static.yml` is A0's (not touched here).
+
+**G1590 - THE BUILD ID (B28).** tools/build.js computed `BUILD_ID = sha(core + viewer scripts + editor scripts)`; UPDATE-NOW
+(G1535, train 33) added the shell, the styles, the body and the boot slot's scripts. A train that changed only the vendor, a
+world / lazy pack, a payload, a worklet, a fetched manifest or a generator the house worker imports still shipped under the OLD
+id: the update pill stayed quiet, the GRAPHICS line said "up to date" and the workers (sim_host, house_worker: importScripts
+`?v=FLYDIY_BUILD`, the house cache keyed on it) took their stale copies. It is now computed LAST:
+`sha(index.html + dev.html + sw.js as finished, with slots where the id and the date go, + every NAMED INPUT's path and content
+sha)`; then the slots are filled. RECONCILED WITH UPDATE-NOW: its BUILD_TAG (`FLYDIY_BUILD` + `FLYDIY_BUILD_DATE`, swapped into
+the boot slot by swapBuild, exactly once a page) carries @@FLYDIY_BUILD_ID@@ and @@FLYDIY_BUILD_DATE@@; the DATE IS NOT HASHED
+(it is the id's); BUILD_DATE keeps UPDATE-NOW's rule - version.json's date while its build is this id, else now - decided
+once the id is known. Asserted: the id's slot twice in each page (the tag, the core's sha line) and once in sw.js, the date's
+once in each page - no source may carry a slot string. GATE UPDATE (P9: the tag, the same build and date in both pages and
+version.json) PASS; a rebuild keeps the date.
+- The pages carry everything inlined (core, viewer, editor, boot, CSS + fonts, vendor, the music / sfx catalogues, the
+  island loader's world-pack header) and the `?v=` content hash of everything they reference (models, props, chars, world,
+  lazy, worklets, dev.html's per-file refs); sw.js carries the world / geometry keep lists.
+- The NAMED INPUTS (`shippedInputs`): the closure of repo paths written in string literals ('src/..', 'tools/..',
+  'vendor/..', 'media/..' ending .js/.mjs/.json/.wasm/.css/.html) from the pages outward through every named script,
+  stylesheet and manifest, plus DYNAMIC_INPUTS - the paths built at run time (tools/fixtures/island_*.json and
+  premises_v1_*.json, vendor/ktx2/basis_transcoder.*) and the manifests the build itself inlines (G1597: the music / sfx /
+  voice catalogues, shots_pack.json - their content was in the page already; named, a manifest that stops being inlined
+  stays an input). 301 files on train 33: `node tools/build.js --inputs` lists them (sha, path).
+  Excluded: the generated files (flight_core.js is the inlined core) and src/core/parked_packs.json - the parked COOK's
+  manifest is keyed ON the build id (parked_cook.js writes it after the build), so hashing it would make every re-cook
+  move the id and stale its own cook. Media is named by content hash, through the manifests in the closure.
+- Verified on train 33: with the id and the date masked, the new index.html / dev.html / sw.js are byte-identical to the
+  committed train 33 pages except the one line G1594 fixes. A style.css or boot.js edit now moves the id (it did not before; GATE BUILT's negative
+  test below shows version.json in the diff).
+- CONSEQUENCE FOR THE TRAIN: the id moves more often (any shipped file) and the formula changed, so the landing train's id is
+  new whatever else lands: the parked aeroplanes re-cook on the final build as always (FRAMECOST's STALE-cook hint applies to a
+  CSS / world-pack edit now too). parked.js's comments "the world pack is not in FLYDIY_BUILD" are now conservative: it is
+  (its ?v= is on the page); the cook's selfHash is harmless and stays.
+- `build({ out })` / `--out=DIR` writes the five outputs under DIR (the inputs are this tree's; version.json's kept date is
+  read from the tree's own copy). The summary line names the build id and the input count.
+
+**G1591 - GATE BUILT (B27; core, ~2 s; tools/_built_check.js).** Rebuilds into a temp dir and compares index.html, dev.html,
+sw.js, tools/flight_core.js and version.json (its build id; the date is not compared) with (1) the working tree's copies and
+(2) HEAD's committed copies (git show). (2) is judged against L, the last commit that touched an output:
+- no build input (src/, vendor/, media/geo, tools/build.js, every tools/ file the closure names) changed in L..HEAD nor in the
+  working tree: L's outputs are stale against their own sources - a STALE "(built)" COMMIT: FAIL, naming the files (and a
+  CRLF note when the worktree is CRLF - the landing build is LF);
+- inputs moved since L (a source commit after the last build - every worker branch, by convention source only): PASS with
+  the lagging files and the moved inputs named; BUILT_STRICT=1 (or --strict) makes it FAIL - A0's landing runs it so.
+Negative tests (a throwaway branch): a fresh (built) commit strict PASS; a boot.js commit after it lenient PASS / strict FAIL
+(index.html, dev.html, sw.js, version.json); a (built) commit made from a style.css edit that was then reverted FAIL "stale
+(built) commit". No git (a tarball): (1) only.
+
+**G1592 - tools/pages_check.js (E8).** After a push: polls the public API's "pages build and deployment" run for the pushed
+SHA (`/actions/runs?head_sha=`, If-None-Match so a 304 is free, slower under 10 requests left, a 403/429 rate limit waits for
+the reset or gives the API up and keeps watching the site) and the live https://degaror.github.io/flyDiy/version.json
+(cache-busted) until its build id is the one committed at the SHA. Exit 0 LIVE, 1 the run FAILED, 2 TIMEOUT (default 900 s),
+3 NO RUN for the SHA within --start-timeout (default 180 s: prints the re-trigger recipe), 4 ERROR. Flags: --sha (default
+origin/master), --build, --timeout, --start-timeout, --interval, --once, --repo, --url. No credentials.
+Tested from the cloud: the API leg (bff4f64b -> run #473 completed/success; 6863851b, which never got a run -> exit 3 and the
+recipe); the live leg against a local server (exit 0 on a match, exit 2 with --once on a mismatch). github.io itself is
+blocked by the cloud sandbox's proxy, so the first real live run is A0's. (Behind a proxy Node's fetch needs
+NODE_USE_ENV_PROXY=1 + NODE_EXTRA_CA_CERTS; a desktop needs nothing.)
+
+**G1594 - THE INERT TAIL BY CONSTRUCTION (C-release).** index.html's scripts after the island loader were made inert by a
+regex over the ASSEMBLED tail, which also rewrote `<script>` / `<script src=` inside inlined blobs (one today: a comment in
+tools/_bay_site.js read "a <script type="text/x-flydiy">"). Every tail tag is now written inert where it is made (INERT for
+blobs; inert() only over the builder's own snippets - refs, flags, the lazy loader, the sha line, whose JSON escapes '<'),
+and the build fails if shell.html ever carries a tag of its own after the vendor slot. The `</script` refusal (review)
+stands for inlined blobs.
+**G1595 - THE PARSE (C-release).** sw.js (as emitted, the id in place) and the AudioWorklet modules (MANIFEST.audio, parsed
+strict: a worklet is a module) are syntax-checked; served-by-URL files (world, lazy, worklets, sw.js) skip the `</script`
+refusal, which only inlined blobs need.
+
+**G1596 - THE PARKED COOK'S MANIFEST IS NOT AN INPUT.** src/core/parked_packs.json is named by parked.js, so the closure
+reached it - but parked_cook.js writes it AFTER the build, keyed ON the id: hashed, every re-cook would move the id and stale
+its own cook. Excluded (GENERATED in build.js, and from GATE BUILT's input pathspec); a manifest edit leaves the id unchanged.
+(The review merge's own reds this branch fixed before the rebase - aeroskin's module-level THREE, PARTS' envelope check -
+are on master in A0's form; dropped here.)
+
+**THE SOUND BRANCHES (A0's ask).** origin/claude/sound-35 (21c4f4ac: SND-BOOMBOX's MANIFEST lines `audio/my_music.js`,
+`boombox.js`, GATE BOOMBOX) merged on a scratch branch over this one: build.js auto-merges, the closure names
+src/viewer/audio/my_music.js, src/viewer/boombox.js, media/audio/voice/radio_script.<h8>.json and the three catalogues
+(303 inputs); BUILD, BUILT, UPDATE, AUDIO, BOOMBOX PASS there.
+
+BATTERY (cloud, 4 cores, --jobs=4) on the rebased branch, build 3d8e5a3c94db (301 inputs): the full core tier 141 of 145
+green. FRAMECOST red 24 rows = the STALE parked cook (cooked on train 33's 250cd76286f3; the new formula gives every train a
+new id - A0 re-cooks on the final build, as always); INSTANT killed at the runner's 1800 s cap (every row it reached SAME;
+alone, uncapped: PASS, cub + metal, "every drag ended on the plain build's aeroplane"); BIOME `surface perf<5us` at 5.7 us
+under the four-job load (alone: 4.9 us, PASS); AUDIO's RADIO_BUDGET once ("the frame under a talk grew the heap 70880 B
+over 100 000 frames", under the same load - its self-test then reports the pristine sources red) - alone, twice: PASS,
+RADIO_BUDGET ok (and PASS in the two --only runs: on this branch, and with sound-35 merged). A heap-growth budget measured
+beside three busy gates is the box's noise, not this branch's (it touches no audio file); worth A0's eye if it recurs on the box.
+Targeted on the final build: BUILD, BUILT, UPDATE, AUDIO PASS (and BOOMBOX with sound-35). Not run here: --all, FRAMECOST on a
+cooked build.
+
+### THE LANDING RECIPE (A0, from the train that lands this)
+1. Merge the train in a clean LF worktree; `node tools/build.js`; the battery `node tools/run_gates.js` (GATE BUILT is green
+   there: a source state names its lagging outputs).
+2. `node tools/parked_cook.js` on the final build; commit "train N: the parked aeroplanes re-cooked ...". (parked_packs.json
+   is outside the id: the re-cook does not move it.)
+3. `node tools/build.js` (the same id: nothing moved) and commit the five outputs: "train N (built): ... built from <sha>".
+4. `BUILT_STRICT=1 node tools/run_gates.js --only=BUILT --no-build` - must PASS on the (built) commit. A FAIL names the files.
+5. Push master ALONE: `git push origin <train>:master` - one ref in the push. Any other branch (claude/batch-a-base) in its
+   own `git push` after.
+6. `node tools/pages_check.js` (defaults: origin/master, its version.json). 0 = live. 3 = no run started: run the printed
+   recipe (`C=$(git commit-tree "origin/master^{tree}" -p origin/master -m "Pages: re-trigger ...")`,
+   `git push origin "$C:refs/heads/master"` alone), then `node tools/pages_check.js --sha=$C`. 1 = the run failed (its URL is
+   printed). 2 = a run but the site did not change in 15 min: re-run with --once later; then re-trigger as for 3.
