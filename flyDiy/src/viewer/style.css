@@ -119,6 +119,10 @@
     transform-origin:0 50%; transform:scaleX(0); will-change:transform; }
   #bootPct { font-size:11px; letter-spacing:.04em; color:#c0b8ac; font-variant-numeric:tabular-nums;
     min-width:3.2em; }
+  #bootMusic { margin-top:10px; max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; cursor:pointer;
+    font:500 10px/1 'IBM Plex Sans'; letter-spacing:.08em; padding:6px 10px; border-radius:11px;
+    color:#d8d1c4; background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.14); }
+  #bootMusic.on { color:#1a1815; background:#e6a15a; border-color:#e6a15a; }
   #bootWhy { font-size:12px; line-height:1.45; color:#c0b8ac; min-height:1.45em; max-width:440px; }
   /* until boot.js speaks (the first ~100 ms, and a page whose scripts never
      ran): the old indeterminate slide */

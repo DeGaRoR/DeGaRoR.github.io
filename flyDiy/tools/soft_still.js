@@ -230,7 +230,7 @@ function parse() {
     cam: opt('cam', null), orbit: orbit ? orbit.split(',').map(Number) : null, q: opt('q', ''), gfx: opt('gfx', null),
     size, quality: +opt('quality', 80), secs: +opt('secs', 3600), port: +opt('port', 0), frames: +opt('frames', 3),
     out: opt('out', path.join(REPO, 'flyDiy', 'reports', 'evidence', 'soft_still.jpg')), keepHud: flag('keep-hud'), aeroCheck: flag('aero-check'),
-    json: opt('json', null), quiet: flag('quiet'), from: opt('from', null), stage: opt('stage', null),
+    json: opt('json', null), quiet: flag('quiet'), stage: opt('stage', null), from: opt('from', null),
   };
 }
 

@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 2996425343c903eb
+// body-sha256: 5fa11bb77c97024f
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -2126,6 +2126,7 @@ var CLIMATE = (function () {
       if (!st || st.key == null) return false;
       convNow();
       if (convKey !== st.key) return false;
+      if (!windSpec) return false;                       // the worker's wind not set yet (potato log 5 Oct: null.base) - it builds its own
       conv = st.c ? convBuild(env.day, st.c.zi, st.c.cover, st.c.sinEl, st.c.T, st.c.rho, windSpec.base) : null;
       return true;
     }
@@ -5016,7 +5017,7 @@ function bakeSettlements(D) {
 // Deterministic: fixed iteration orders, hash jitter only.
 // ============================================================
 function bakeAerodromes(D) {
-  // D: { terrain(x,z), water(x,z), carved(x,z), settlements, meadows, roadNear, SURFACE, salt }
+  // D: { terrain(x,z), water(x,z), carved(x,z), settlements, meadows, roadNear, SURFACE, salt, buildings (G1928) }
   const t0 = Date.now();
   const { terrain, water, carved, settlements, meadows, roadNear, SURFACE, salt } = D;
   const houses = D.buildings || [];

@@ -657,6 +657,10 @@ const GATES = [
   // mass positive, every member over 1 mm and none refused by B() (parts.degenerate), the lattice mirrored; ~5 s.
   // Red before G1580 on every twin-boom combination. GATE GEN's PAIRS block holds the same pairs' rank and stance.
   { id: 'GENPAIRS', file: '_genpairs_check.js', tier: 'core', wall: 10 },
+  // RELEASE-CHECKS G1591 (review B27): the committed index.html / dev.html / sw.js / flight_core.js / version.json are
+  // a build of the sources - rebuilt into a temp dir and compared; a stale "(built)" commit is red, a source commit's
+  // lag is named (BUILT_STRICT=1: red too - A0's landing runs it so on the (built) commit). ~2 s.
+  { id: 'BUILT', file: '_built_check.js', tier: 'core', wall: 5 },
 ];
 
 const args = process.argv.slice(2);
