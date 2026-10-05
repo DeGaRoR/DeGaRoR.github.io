@@ -7192,7 +7192,9 @@
     return typeof ROLLANIM !== 'undefined' && inGarage && !raBusy && !!model && !rig && !rigLift && garageIsHangar() && !!hangar;
   }
   // the shed dressed for the shot (the mesh, not the editor's cage; no editor, no plaque), then the shot
-  function rollAnimPlay(done) {
+  // G1715 (SND-ROLLOUT): `handover` - the stand follows (the roll-out: its reset runs the engines, so the shot leaves them
+  // idling in sim.out across the cut); the solo shot goes back to the shed and puts every engine field back
+  function rollAnimPlay(done, handover) {
     raBusy = true;
     // a fresh profile's aeroplane chooser (design_flow.js) has nothing to say to the shot (SCENERY's rule)
     for (const x of document.querySelectorAll('.dfClose')) { try { x.click(); } catch (e) {} }
@@ -7204,6 +7206,7 @@
     try {
       h = ROLLANIM.play({ craft, scene: hangarScene, camera, hangar, model, def, sim,
         camMode: cam.mode, fov: cam.fov, follow: RA_Q === 'follow', front: RA_Q === 'back' ? null : garageFraming(),
+        handover: !!handover, audioPose: window.AUDIO && AUDIO.space ? AUDIO.space.shotPose : null,   // G1715: the start, the space
         onDone: hh => { raBusy = false; placeIndicators(); done(cage, hh); } });   // (hh: the handle - a skip calls this before play returns)
       placeIndicators();                 // (G1115: the CG marks off for the shot - placeIndicators reads ROLLANIM.busy)
     } catch (e) { console.warn('rollanim:', e && e.message); raBusy = false; done(cage, null); }
@@ -7344,7 +7347,7 @@
       if (hh && hh.skipped === 'skipped by the player') rollAnimSwallow = perfNow() + 500;
       if (hh && !hh.skipped && !over) trip.dissolveMs = +raDissolve().toFixed(1);   // (G1115: played to its end - the fade)
       fin(!hh ? 'threw' : hh.skipped ? (hh.plan ? 'skipped' : 'refused: ' + hh.skipped) : 'played');
-    });
+    }, true);
   }
   window.addEventListener('keydown', e => { if (rollAnimSkip && e.key === 'Escape') { rollAnimSkip(); e.preventDefault(); } });
   function rollOutStand() {
