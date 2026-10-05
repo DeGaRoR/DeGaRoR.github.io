@@ -44,7 +44,7 @@
 //   the limit - the airframe's own dynamics, read up to the step the wing's load first reaches it).
 // Linear algebra: a dense Cholesky of ~300-400 degrees of freedom per stiffness, Newton on the tangent to the
 // equilibrium (a few rounds a case). The dynamic cases are most of the cost: with DMG-D2b's gear cases 13-46 s a build
-// in node, 8-28 s since G1891 (the settle shared, a wheel landing's window 1.2 s - the same envelope to the bit; GATE
+// in node, 8-24 s since G1891 (the settle shared, a wheel landing's window 1.2 s - the same envelope to the bit; GATE
 // DMGCERTCOST). THE COST IS NEVER IN THE GARAGE'S EDIT LOOP: the page asks for the certificate when the aeroplane rolls
 // out, on the bench's thread (bench_worker.js 'cert'), and stamps the live sim when it lands (app.js certKick); the
 // bench's test to destruction takes it from there; the gates call genCertify / genCertAttach (cached by the spec's

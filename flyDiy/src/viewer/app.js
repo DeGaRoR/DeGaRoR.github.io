@@ -7238,7 +7238,7 @@
   // A page without the screen machinery (the harness) syncs and rolls out inline, as before.
   // G1831 (DMG-D2a): THE CERTIFICATE (66_gen_cert.js), only while the damage layer is on. Never in the garage's edit
   // loop: asked for when the aeroplane ROLLS OUT (the roll-out shot and the stand give its thread the seconds it
-  // takes - 8-28 s in node on the validated builds since G1891, the landings, the rough taxi and the floats' water cases
+  // takes - 8-24 s in node on the validated builds since G1891, the landings, the rough taxi and the floats' water cases
   // most of it), on the bench's thread
   // (bench_worker.js 'cert'), kept by the build's spec hash (a second flight of the same build stamps at once). The
   // page does nothing while it computes: the flight rolls out and starts on D1a's physics limits, and the stamp lands
