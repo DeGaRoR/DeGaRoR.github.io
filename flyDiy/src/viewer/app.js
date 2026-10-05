@@ -3874,6 +3874,7 @@
   // (G1864: ms - each phase's worst frame and total, the box's own read of the cost: records = the first break's binding,
   // event = the break events, frames = the nodes' frames, pose = the riding and the tear)
   const BRK_BIND = 4000;                                  // G1864: the places a frame the full binding takes
+  const BRK_ISLAND = 40;                                  // G1864: a torn island under this many triangles goes with the tear
   const BRK = { model: null, recs: [], vB: -1, posed: false, ms: { records: 0, event: 0, frames: 0, pose: 0, recordsT: 0, eventT: 0, poseT: 0, frameMax: 0, n: 0 } };
   try { if (/[?&]skinbreak=0(&|$)/.test(location.search || '')) window.FLYDIY_SKINBREAK = false; } catch (e) {}
   // the rig's read-out (tools/dmg_skin_stills.js): the records live, the triangles removed / torn, the vertices riding
@@ -4032,7 +4033,9 @@
       const R = own.brkR; if (!R || !R.active) continue;
       X.w = R.w; X.n = R.nAttr ? R.nAttr.array : null; X.nB = R.nB || null;
       SB.poseCage(R, K.rest, sim.p, R.baseD, pa.array, K.NF, K.down, off, X);
-      if (gain === 1 && SB.tear(R, R.baseD, R.w)) brkIdx(R);
+      if (gain === 1 && SB.tear(R, R.baseD, R.w)) { brkIdx(R); R.tornNew = true; }
+      // G1864: the confetti the tear leaves (islands under BRK_ISLAND triangles that touch it), at most every 0.25 s
+      if (R.tornNew && !(sim.t - (R.islT || -1) < 0.25)) { R.islT = sim.t; R.tornNew = false; if (SB.islands(R, BRK_ISLAND)) brkIdx(R); }
       pa.needsUpdate = true; if (R.nAttr) R.nAttr.needsUpdate = true;
     }
     BRK.vB = D.vB; BRK.posed = true;

@@ -42,6 +42,8 @@ const CASES = {
   'trunk-0':   { label: 'a trunk at 30 m/s, the centreline', o: { kind: 'trunk', D: 40, agl: 4, V: 30, off: 0, steps: 1500 }, cams: [[200, 22, 14], [300, 45, 20], [120, 12, 10]] },
   'trunk-2.5': { label: 'a trunk at 30 m/s, the wing 2.5 m out (DMG-D4a\'s wing still)', o: { kind: 'trunk', D: 40, agl: 4, V: 30, off: 2.5, steps: 1500 }, cams: [[200, 22, 16], [250, 55, 26]] },
   'nosein':    { label: 'a nose-in on the ground (180 km/h, 10 m/s, 60 deg; DMG-D4a\'s nose-in still)', o: { kind: 'ground', V: 50, sink: 10, pitch: 60, steps: 1500 }, cams: [[150, 20, 12], [235, 28, 14]] },
+  // G1863: the cockpit rule - the severe nose-in watched from the pilot's eye; no stills, its verdict read
+  'cockpit':   { label: 'the severe nose-in from the cockpit view (the camera rule)', o: { kind: 'ground', V: 50, sink: 10, pitch: 60, steps: 900 }, cams: [], cockpit: true },
   'taxi':      { label: 'a taxi into a trunk at 3 m/s, the throttle shut (the prop strike: the blades curl)', o: { kind: 'trunk', D: 6, agl: 0, V: 3, off: 0, steps: 700, thr: 0 }, cams: [[150, 8, 4.5], [215, 14, 6]] },
 };
 
@@ -234,7 +236,10 @@ function clipOf(dump) {
     await run(pageStage, Object.assign({}, C.o, { placeOnly: true }));
     out.intact = [];
     for (const [ci, c] of C.cams.entries()) { await run(pageView, c); out.intact.push({ cam: c, census: await run(pageCensus), file: ci === 0 ? await shoot(path.join(OUT, k + '_' + (ci + 1) + '_intact.jpg')) : null }); }
+    if (C.cockpit) await post('/run', "FLIGHT_PROBE.camMode('cockpit'); await new Promise(r => setTimeout(r, 1500)); return FLIGHT_PROBE.camModeNow();");
     out.stage = await run(pageStage, Object.assign({}, C.o, { run: true }));
+    if (C.cockpit) { out.camAfter = await post('/run', 'return FLIGHT_PROBE.camModeNow();'); out.eye = out.stage.wreck && { cut: out.stage.wreck.eyeCut, eye: out.stage.wreck.eye, cab: out.stage.wreck.cab };
+      await post('/run', "FLIGHT_PROBE.camMode('chase'); return 1;"); }
     console.log(k, JSON.stringify(out.stage).slice(0, 600));
     if (out.stage && out.stage.err) { R.cases[k] = out; continue; }
     // the wreck drawn first from every camera, then D4a's alone, then neither (a heal does not fly the debris again: it
