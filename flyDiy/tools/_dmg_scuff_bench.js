@@ -129,10 +129,13 @@
     draw();
   }
   // THE LAYERS, each on its own preset (the weathering bench's views)
-  const VIEW = { crush: 'nose', scrape: 'belly', torn: 'top', glass: 'screen' };
+  const VIEW = { crush: 'cowl', scrape: 'belly', torn: 'top', glass: 'screen' };
+  // the bench's own views beside the weathering's presets: the three-quarter overview from ahead and above, the underside
+  const OWN = { overview: () => [0.62, 0.32, 4.2, null], under: () => [0.9, -0.55, 2.6, null] };
+  function look(v) { if (OWN[v]) { const p = OWN[v](); UI.setView(p[0], p[1], p[2], p[3]); draw(); } else B.look(v); }
   function measure(layer, view) {
     const g = { crush: 0, scrape: 0, torn: 0, glass: 0, on: true };
-    B.look(view || VIEW[layer]);
+    look(view || VIEW[layer]);
     set(g); const a = B.shoot();
     g[layer] = 1; set(g); const b = B.shoot();
     set({ crush: 1, scrape: 1, torn: 1, glass: 1 });
@@ -147,7 +150,7 @@
   }
   function cost(view, N) {
     N = N || 9;
-    B.look(view || 'flank');
+    look(view || 'flank');
     const l0 = CEN.links, out = {};
     disarm(); timeFrames(2); out.plain = timeFrames(N);
     arm(); set({ crush: 1, scrape: 1, torn: 1, glass: 1, on: false }); timeFrames(2); out.armedOff = timeFrames(N);
@@ -190,6 +193,6 @@
     let h = 0x811c9dc5; for (const s of CEN.src) for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; }
     return { n: CEN.src.length, hash: h.toString(16), links: CEN.links };
   }
-  Object.assign(DS, { load, arm, disarm, set, measure, cost, crashWindow, still, sources, skins, VIEW });
+  Object.assign(DS, { load, arm, disarm, set, measure, cost, crashWindow, still, sources, skins, VIEW, look });
   window.DS = DS;
 })();
