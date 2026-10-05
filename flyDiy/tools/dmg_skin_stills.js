@@ -21,6 +21,9 @@ const OUT = path.resolve(opt('out', path.join(__dirname, '..', 'reports', 'evide
 function stagePage(o) {
   const P = window.FLIGHT_PROBE, sim = P.sim(), world = P.world();
   if (sim.dmgState) return { err: 'the physics is in the worker: open with ?simw=0' };
+  // the page's loop steps this sim too: thawed for the staging, frozen after it (both stills of a pair are one moment)
+  if (window.__skinStep) sim.step = window.__skinStep; else window.__skinStep = sim.step;
+  const step = window.__skinStep;
   const strip = world.aerodromes.find(a => a.id === 'HOME') || world.aerodromes[0];
   sim.reset(0);
   placeAtAerodrome(sim, strip);
@@ -54,18 +57,20 @@ function stagePage(o) {
   }
   sim.ctl.thr = 0;
   const t0 = performance.now();
-  for (let s = 0; s < o.steps; s++) sim.step(1 / 60);
+  let s = 0;
+  for (; s < o.steps; s++) { step(1 / 60); if (sim.damage().over && s > 60) break; }
+  sim.step = () => {};
   const D = sim.damage();
-  return { ms: Math.round(performance.now() - t0), steps: o.steps, crashed: D.crashed, reason: D.reason, broken: D.broken.length,
+  return { ms: Math.round(performance.now() - t0), steps: s, over: !!D.over, crashed: D.crashed, reason: D.reason, broken: D.broken.length,
            groups: (D.groups || []).map(g => g.key), brokeUp: !!D.brokeUp, cg: sim.cgPos().map(x => +x.toFixed(2)) };
 }
 
 async function stage(page, { frames, shot, log }) {
   const R = { shots: [] };
   const scenes = [
-    { id: 'wing', label: 'a wing torn off at a trunk (30 m/s, 4 m up, the trunk 2.5 m out on the left wing)', o: { kind: 'trunk', D: 40, agl: 4, V: 30, off: 2.5, r: 0.3, h: 10, steps: 150 },
-      cams: [[200, 22, 16], [250, 35, 22]] },
-    { id: 'nosein', label: 'a nose-in wreck (180 km/h, 10 m/s, 60 deg nose-down, on the ground)', o: { kind: 'ground', V: 50, sink: 10, pitch: 60, steps: 150 },
+    { id: 'wing', label: 'a wing torn off at a trunk (30 m/s, 4 m up, the trunk 2.5 m out on the left wing)', o: { kind: 'trunk', D: 40, agl: 4, V: 30, off: 2.5, r: 0.3, h: 10, steps: 420 },
+      cams: [[200, 22, 16], [250, 55, 26]] },
+    { id: 'nosein', label: 'a nose-in wreck (180 km/h, 10 m/s, 60 deg nose-down, on the ground)', o: { kind: 'ground', V: 50, sink: 10, pitch: 60, steps: 360 },
       cams: [[150, 20, 12], [235, 28, 14]] },
   ];
   for (const sc of scenes) {

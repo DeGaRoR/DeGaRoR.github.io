@@ -3946,7 +3946,7 @@
         const nv = pa.count, bM = off ? Float32Array.from(base, (x, i) => x + off[i % 3]) : base;
         const R = brkRec(own, { nv, idx: geo.index.array }, geo, bM, K.rest, fab, true);
         R.baseM = bM;
-      }
+      } else if (BRK.recs.indexOf(own.brkR) < 0) BRK.recs.push(own.brkR);   // (a record let go at a heal or an A/B: held again)
       const R = own.brkR;
       if (SB.event(R, K.T, D, K.rest, R.baseM)) brkIdx(R);
     }
