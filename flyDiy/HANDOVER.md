@@ -72270,11 +72270,16 @@ NEGATIVE-VERIFIED (`--selftest`, three new probes, each RED): the load read remo
 Cub's pin put back (d244cabf's line), the wears-parent walk on the parent's base again (the Cessna's cabane #d8dde4).
 The carry-through (bare by the user's ruling) and the bracing wires (steel) are not struts and are not asked.
 
-**G1914 THE STILLS.** `reports/evidence/STRUT-LIVERY/`: `before_*.jpg` on the built `index.html` (train 31, the pin), and
-`after_*.jpg` on `dev.html` (the loose sources, this branch), SOFT-GPU's `tools/soft_still.js` on SwiftShader, the fresh
-profile's Cub on the stand. `views.json` is for A0's real-GPU pair on the box:
-`node tools/shadowsky_shots.js --views reports/evidence/STRUT-LIVERY/views.json --pages index_before.html,index.html`
-(strut_stand = the stand's three-quarter view, strut_close = a low side view at 6.5 m, strut_under = under the wing).
+**G1914 THE STILLS** (`reports/evidence/STRUT-LIVERY/`, SOFT-GPU's `tools/soft_still.js` on SwiftShader, noon, one at a
+time, ~18 min each). BEFORE = the committed train-31 `index.html`; AFTER = `dev.html` (the loose sources, this branch).
+`before_cub_stand.jpg` / `after_cub_stand.jpg`: the fresh profile's stock Cub on the stand, the default view - the struts
+white-grey bare alloy, then yellow; `struts_before_after_zoom.jpg` the pair cropped and enlarged on the struts.
+`before_usercub_close.jpg` / `after_usercub_close.jpg` (+ `usercub_close_before_after.jpg`): the USER'S build
+`builds/cub_2026-09-20_corrected.json` (its file still carries the pin) at `--orbit -108,6,7` - silver struts, then
+yellow: the on-load drop at work. `views.json` is for A0's real-GPU pairs on the box (`cam` in radians: strut_stand = the
+stand's default eye, strut_close = the close view above, strut_low = low under the wing, afternoon):
+`node tools/shadowsky_shots.js --views reports/evidence/STRUT-LIVERY/views.json --pages index_before.html,index.html`.
+The software still is a picture, not a measurement (SOFT-GPU's rule).
 
 **A0 AT LANDING.** Re-cook the parked aeroplanes (the stock Cub's spec changed; the signature goes stale anyway with the
 build). The flown bake re-keys by itself (FLYDIY_BUILD and the spec are in its key). The user's own saved Cub in their

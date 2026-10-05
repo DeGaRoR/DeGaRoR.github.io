@@ -1,5 +1,5 @@
 [
   { "name": "strut_stand", "at": "stand", "cam": [-2.5, 0.22, 14], "hour": "noon", "settle": 30 },
-  { "name": "strut_close", "at": "stand", "cam": [-1.75, 0.04, 6.5], "hour": "noon", "settle": 30 },
-  { "name": "strut_under", "at": "stand", "cam": [-2.2, -0.02, 5.5], "hour": "afternoon", "settle": 30 }
+  { "name": "strut_close", "at": "stand", "cam": [-1.885, 0.105, 7], "hour": "noon", "settle": 30 },
+  { "name": "strut_low", "at": "stand", "cam": [-2.2, 0.03, 6], "hour": "afternoon", "settle": 30 }
 ]
