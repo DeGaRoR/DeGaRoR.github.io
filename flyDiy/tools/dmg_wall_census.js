@@ -254,7 +254,10 @@ if (require.main === module) (async () => {
   const shoot = async file => { const tmp = file + '.png'; await get('/shot?f=' + encodeURIComponent(tmp)); const png = fs.readFileSync(tmp).toString('base64'); fs.unlinkSync(tmp);
     const jpg = await run(pageJpeg, png); fs.writeFileSync(file, Buffer.from(jpg, 'base64')); return path.basename(file); };
   const censusTo = async file => { const c = await run(pageCensus); if (c && c.clsJpg) { fs.writeFileSync(file.replace(/\.jpg$/, '_cls.jpg'), Buffer.from(c.clsJpg, 'base64')); delete c.clsJpg; } return c; };
+  // (a box window's end: no case is started past the time in <out>/../DEADLINE, "HH:MM" local)
+  const deadline = () => { try { const t = fs.readFileSync(path.join(OUT, '..', 'DEADLINE'), 'utf8').trim().split(':').map(Number), d = new Date(); d.setHours(t[0], t[1], 0, 0); return d.getTime(); } catch (e) { return Infinity; } };
   for (const k of names) {
+    if (Date.now() > deadline()) { console.log('past the DEADLINE: ' + k + ' and the rest not run'); break; }
     const C = CASES[k], out = { label: C.label, intact: [], shots: [] };
     await run(pageStage, Object.assign({}, C.o, { placeOnly: true }));
     for (const [ci, c] of C.cams.entries()) { await run(pageView, c); const f = path.join(OUT, k + '_' + (ci + 1) + '_intact.jpg'); out.intact.push({ cam: c, census: await censusTo(f), file: await shoot(f) }); }
@@ -280,5 +283,17 @@ if (require.main === module) (async () => {
     fs.writeFileSync(path.join(OUT, 'census.json'), JSON.stringify(R, null, 1));
   }
   fs.writeFileSync(path.join(OUT, 'census.json'), JSON.stringify(R, null, 1));
+  // the README: a line a picture (the evidence board reads it)
+  const cap = c => 'not yellow ' + c.other + ' % of the Cub\'s pixels' + (c.otherBy ? ' (by layer: ' + Object.entries(c.otherBy).map(([k, v]) => k + ' ' + v).join(', ') + ')' : '');
+  const lines = ['# DMG-WALL census - ' + path.basename(OUT), '', 'The user\'s Cub, `?damage=1&simw=0`, tools/dmg_wall_census.js. Modes: **before** = the drawing until G1858 (each place on its own nearest nodes), ' +
+    '**g1858** = + the lining cut at the damage, **after** = the binding inherited (G1855-G1859). Each `_cls.jpg` is the same frame drawn by layer: covering white, its back face RED, ' +
+    'lining MAGENTA, frame tubes / bulkheads CYAN, fireproof ORANGE, sill / door pads PURPLE, dash / cabin BLUE, beads / glazing GREEN, parts GREY.', ''];
+  for (const [k, c] of Object.entries(R.cases)) {
+    lines.push('## ' + k + ' - ' + c.label, '');
+    for (const s of c.intact || []) lines.push('- `' + s.file + '` - intact, camera ' + JSON.stringify(s.cam) + ': ' + cap(s.census));
+    for (const s of c.shots || []) lines.push('- `' + s.file + '` (+ `' + s.file.replace(/\.jpg$/, '_cls.jpg') + '`) - ' + s.mode + ', camera ' + JSON.stringify(s.cam) + ': ' + cap(s.census));
+    lines.push('');
+  }
+  fs.writeFileSync(path.join(OUT, 'README.md'), lines.join('\n'));
   console.log('WALL_CENSUS done ' + OUT);
 })().catch(e => { console.log('WALL_CENSUS_FAIL ' + (e && e.stack || e)); process.exit(1); });
