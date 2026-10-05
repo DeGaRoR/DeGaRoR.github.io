@@ -349,17 +349,19 @@ const SPLAT_GROUND = (() => {
       float k = (1.0 - d) * (1.0 - d);
       w[sCodeAt(b + o)] += k; wsum += k;
     }
-    for (int i = 0; i < uSNCode; i++) w[i] /= max(wsum, 1e-4);
+    // (SHORES G1503, below: the sea's dry share is taken out of the normaliser - no loop of its own)
+    float w0r = w[0], landF = (wsum - w0r) / max(wsum, 1e-4);
+    float dry = smoothstep(-0.8, 0.3, vWPi.y) * smoothstep(0.02, 0.3, landF);
+    float wnrm = max(wsum - w0r * dry, 1e-4);
+    for (int i = 0; i < uSNCode; i++) w[i] /= wnrm;
     // THE SEA VOTES AS SAND UNDER THE WATER ONLY (SHORES G1503, the user 2026-10-04: the island's banks against the sea "blend
     // with an unknown texture/color reminding the sand, but without material. Messy, everything needs to have a proper ground
     // cover"). A sea cell voted as the beach (4) everywhere: the 5 x 5 kernel carried that sand up to ~30 m onto EVERY coast -
     // under the forest, over the rock, on the coast's steep rise, where its pale rippled set stretched. Over the waterline the
     // sea's share now goes to the land's own codes round the pixel (shingle stays shingle, rock rock, the forest floor runs
     // down to the water, a beach is the beach code's own); under it the bed is the sand it was (G460.5: the shallows show it)
-    { float w0 = w[0], land = 1.0 - w0; w[0] = 0.0;
-      float dry = smoothstep(-0.8, 0.3, vWPi.y) * smoothstep(0.02, 0.3, land);
-      if (dry > 0.0) { float k = 1.0 + w0 * dry / max(land, 1e-3); for (int i = 1; i < uSNCode; i++) w[i] *= k; }
-      w[4] += w0 * (1.0 - dry); }
+    // (the land's codes were normalised over wsum less the sea's dry share above: they carry it; the rest is the bed's sand)
+    w[4] += w[0] * (1.0 - dry); w[0] = 0.0;
     float lakeM = 0.0;
     if (uSLakeE.y > 0.5) lakeM = smoothstep(-uSLakeE.x * 0.5, uSLakeE.x * 0.5, lsd);
     // a LAKE cell votes as its shore (muskeg, a muddy margin): the ground under and round the water is ground;
@@ -382,9 +384,11 @@ const SPLAT_GROUND = (() => {
     // (SHORES G1503: and the sea's own rise - the DEM climbs off a coast the shelf meets at -5 m; its steep first metres wore
     // the sea's sand, then the forest floor laid from above)
     float gSBank = 0.0, gSBankM = 0.0;
-    float bankZ = max(lsd < 1.0 && lsd > -uSBank.x ? 1.0 - smoothstep(0.6 * uSBank.x, uSBank.x, -lsd) : 0.0,
-                      sd > -8.0 && sd < uSBank.x ? 1.0 - smoothstep(0.6 * uSBank.x, uSBank.x, sd) : 0.0);
-    if (uSBank.x > 0.0 && bankZ > 0.0) {
+    float bR = max(uSBank.x, 1.0);
+    float bankZ = step(0.5, uSBank.x) * max((1.0 - smoothstep(0.6 * bR, bR, -lsd)) * (1.0 - step(1.0, lsd)),
+                                            (1.0 - smoothstep(0.6 * bR, bR, sd)) * step(-8.0, sd));
+    if (bankZ > 0.0) {   // (a uniform-bound loop under a branch most pixels skip: it linked faster than the same handover
+                         // written out code by code - cold_links_bench, SHORES G1505)
       gSBank = bankZ * smoothstep(uSBank.y, uSBank.z, slope);
       gSBankM = bankZ * smoothstep(uSBank.y - 10.0, uSBank.y + 2.0, slope);   // the macro gives way before the rock comes
       for (int i = 2; i < uSNCode; i++) if (i != 4 && i != 5 && i != 6 && i != 11 && i != 12) { w[11] += w[i] * gSBank; w[i] *= 1.0 - gSBank; }
@@ -446,7 +450,8 @@ const SPLAT_GROUND = (() => {
     if (uSDist2.y > 0.0) { float lc = gLuma(col); vec3 tinted = mac * mix(lc / max(gLuma(mac), 1e-3), rel, uSDist2.w); col = mix(col, tinted, uSDist2.y * (1.0 - gSBankM)); }
     // THE WATERLINE IS WET (SHORES G1500): the bank's first metres over a lake - the shelf the carve leaves - darken toward a
     // wet margin (a submerged grain keeps ~0.55 of its albedo, water.js G799's number) and take a little gloss
-    if (uSBank.w > 0.0 && lsd < 1.0 && lsd > -uSBank.w) { float wet = 1.0 - smoothstep(0.0, uSBank.w, -lsd); col *= 1.0 - 0.45 * wet; gSRough = mix(gSRough, min(gSRough, 0.45), wet); }
+    { float wet = step(1e-3, uSBank.w) * (1.0 - step(1.0, lsd)) * (1.0 - smoothstep(0.0, max(uSBank.w, 1e-3), -lsd));
+      col *= 1.0 - 0.45 * wet; gSRough = mix(gSRough, min(gSRough, 0.45), wet); }
     return mix(col, mac, mw);
   }
 `;

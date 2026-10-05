@@ -72218,3 +72218,74 @@ The parked aeroplanes re-cooked on the final build.
 LESSONS: a killed script leaves its boxlock files (its trap never runs) - train 31's re-pass waited 40 min on A0's own stale
 CPU lock; boxlock's `take` once wrote its lock and then waited on itself (the noclobber write's status lost) - A0's scripts
 now accept a lock already in their own name.
+
+## G1500-G1509 - SHORES: THE LAKE BANK SHELVES INTO THE WATER (A LIP, A SHELF, A 33 DEG FACE, CAPPED 6 M UNDER LAKE-HOLES' CUT); ITS STEEP FACES AND THE COAST'S WEAR THE ROCKY SHORE; THE SEA'S SAND FRINGE WAS THE SPLAT'S SEA VOTE (2026-10-04/05, SHORES for A0, local GPU; branch claude/shores-g1500 off train 30 a1ffcf5b, train 31 merged)
+
+The user (4 Oct): (1) the banks LAKE-HOLES carved "read as steep, stretched slopes"; (2) the island's banks against the sea
+"blend with an unknown texture/color reminding the sand, but without material. Messy, everything needs to have a proper
+ground cover". Evidence: reports/evidence/SHORES/ (lakes_before_after.jpg, sea_before_after.jpg - train 30 vs this branch,
+noon, tools/shadowsky_shots.js with views.json; more_views_first_candidate.jpg - the first dressing, pulled, see G1502).
+
+- G1500 THE CENSUS (node, Jolene + premises). LAKE-HOLES' bank was s + s^2/16 over the line: 45 deg at the water, 63 deg
+  8 m out. Of the carved bank points outside a line (5 m lattice), 10 400 of 13 700 stood steeper than 45 deg - many where
+  the DEM itself was 30-45. At the user's lake (-289, -526), level 25.81, the north bank: the DEM 4.2 m over the water at
+  the line, the carve 25.3 / 29.1 / 34.3 m at 0 / 2 / 4 m out - a 4 m wall in 2 m. THE STRETCH: the splat is triplanar
+  (triK 8), but the macro (the 10 m tint and the radar overlay, half of the near colour: macroNear 0.5) is read from above
+  by xz - down a face it is a smear.
+- G1501 THE BANK LAW (28_island.js LAKE_BED). A slope profile `prof` integrated (`rise`): 1:1 for 0.4 m (the lip: the
+  ground just over the water, as before), easing to 1:5.5 from 1.2 to 4.5 m out (THE SHELF: ~1 m over the water at 4.5 m),
+  then 0.65 (33 deg, THE FACE). THE CAP: given the ground (lakeBed(x, z, g) - 20_world lakeCarve passes the raw h0, the far
+  patches their DEM sample), the bank never cuts more than `cap` 6 m under the old law's carved ground (`riseOld`), the
+  cap fading to 0 over the reach's last 45 % - so `bank` stays 30 m (the same masks, the same memory) and the ground meets
+  the old law at the reach. Without it the gentle law cut 35.7 m into a cliff lake at (11359, -5398) and stepped 14 m at a
+  40 m reach. Now: worst extra cut 6.0 m; carved bank points over 45 deg ~18 % (of more points: the shelf and face are
+  wider); the user's lake 25.3 / 26.5 / 28.3 / 29.4 / 32.9 / 37.4 at 0 / 2 / 4 / 6 / 10 / 15 m. Physics on the same
+  surface (terrainH); inside the line nothing changed (the bed, levelAt, waterAt).
+- G1502 THE BANK'S DRESS (splat_ground.js sSplat, knobs bankReach / bankLo / bankHi / bankWet in 28b RECIPE: 30 / 30 / 42 /
+  2.5). Within the reach of a lake line (and, G1503, of the coast) the steep faces (bankLo..bankHi) hand every non-mineral
+  code's weight to 11, the ROCKY SHORE (coastA + rocksG + coastSand: the island's own shore); the macro gives way from
+  bankLo - 10 deg (nothing laid from above on a face); the first bankWet m over a lake darken x0.55 and take gloss (the
+  wet margin, water.js G799's number). FIRST CANDIDATE PULLED: 12 (the cliff's rocksB) from 24 deg on a 37 deg face read as
+  a white quarry ring round the lake (more_views_first_candidate.jpg). ALU only: no sampler, no program variant, no layer
+  (11 is reached on Jolene; reachKeys adds it with a lake or the sea).
+- G1503 THE SEA'S SAND (the user's "texture reminding the sand, but without material"). NAMED: splat_ground sSplat's
+  `w[4] += w[0]` - a SEA cell of the terrain-type grid voted as the BEACH (4), and the 5 x 5 kernel (splatBlend 3 cells)
+  carried that rippled pale sand ~30 m up EVERY coast: under the forest, over rock, on the coast's rise where it
+  stretched (sea_forest / sea_air BEFORE). Not the tint (the coast's Landsat is DARKER at the line: a mixed water pixel,
+  measured), not the water's fade. Now over the waterline the sea's share goes to the land's own codes round the pixel
+  (shingle stays shingle, rock rock, the forest floor runs to the water, a real beach is the beach code's own); under it
+  the bed is the sand it was (G460.5's shallows). A LOOK CALL (A0 -> the user): what it EXPOSES is the coast's geometry -
+  the land ends in a 1-2 m step at the waterline, because 28_island seaFloor is -5 m AT the line (G402's far-mesh guard):
+  sea_beach / sea_forest AFTER show it as an eroded orange-brown bank. Proposed, not built: shelve the seabed from the
+  land's own height at the line to -5 m over ~25 m (touches the sea physics - FLOATS, SEAPLANE - and G402's far mesh).
+- G1504 THE AIRPORT "GRADE" (-228, -499) (COLD-LINKS G1314.2's note): NOT r_airport's grade - in node the premises compose
+  nothing there (composer = raw DEM; r_airport runs 400 m+ away). The 5.6 m was the lake's bank carving a 30 m hill beside
+  the lake at (-289, -526); the cap keeps it within 6 m of that (25.1 there both before and after). airport_edge rows.
+- GATE LAKEBED 4 (new): the cap (no point more than `cap` under the old law; 0 over), the reach continuous (0 steps over a
+  0.25 m walk), the shelf (2-4 m out under a bank 1.5 m+ over the water, the ground within 1.5 m of it: 1170 of 1170).
+  Train 30's tree: FAIL (no profile). GATES PASS: LAKEBED, HYDRODYN, PREMRASTER, PREMCOOK, SPLAT, WATER, FLOATS, PROGRAMS.
+- FRAMECOST (node, both sides FRAMECOST_QUERY=parkcook=0, train 31 vs this branch): every row equal but taxi tris.main
+  13 278 136 -> 13 278 018 (trees on the reshaped banks); the cooked gate's reds on this branch are the stale parked cook
+  (the build id) - A0's train cook.
+- G1505 PERF (the box, RTX 3080, train 31 bff4f64b vs this branch on it; reports/evidence/SHORES/perf/). THE TRAP FIRST: the
+  branch's first A/B read 5 REDs (taskWorst 0.8 -> 3.5 s in all four rollout groups, the Cub chase compile +2.4 s, the cold
+  load +7 s, 400 -> 413 links) - the STALE PARKED COOK, not the ground: the branch's page baked the parked aeroplanes live
+  (`atmo.inject+parked.bake` + 12 cabin programs where master reads `parked:baked`; train 31's "a stale cook alone adds
+  ~3.5 s"). Cooked on the branch's build (tools/parked_cook.js, NOT committed - A0's train cook), the same gates:
+  * train_gate --light --only rollout,bench, the branch against master run minutes before on the same box: PASS, 0 RED,
+    107 rows in slack (info only: p99.9 33.7 -> 50 ms in three groups - one capped frame; floats warm links over 5 s 1 -> 2);
+  * master_bench --only loads,taxi --taxi 450 --places HOME (the Cub): cold navigation -> garage 56.9 -> 58.1 s (worst
+    link 14.4 -> 15.4 s), cold first flight 66.1 -> 67.3, warm navigation -> garage 44.8 -> 45.4, warm first flight 54.0
+    -> 54.6; the 450 s taxi 30 fps / p99 33.5 / uneven 1 % both; the trips after it 9.1 / 0.3 / 8.9 / 0.2 s both.
+  * THE ONE COST: the ground's programs link ~1 s longer cold (tools/perf/cold_links_bench.js, three runs, base vs three
+    forms of the same code: island-ring 11.7 -> 12.2-13.1 s, island-fine 11.9 -> 11.9-12.9; the run-to-run noise
+    +-0.5-1 s). A loop-free rewrite (V2: the handover code by code) was no cheaper than the uniform-bound loop under a
+    branch (V1/V3); the shipped form is V3 (the sea vote folded into the normaliser, the bank's loop under `bankZ > 0`).
+    The first cold visit only; warm loads +0.6 s (within the run's noise; the strict gate's slack is 3.4-3.9 s).
+  * FRAMECOST (node, parkcook=0 both sides): equal but taxi tris -118. PROGRAMS: the same 22 warmed, no new variant.
+    SAMPLERS: none added. MEMORY: the lake masks unchanged (bank 30 m), LAKE_BED.prof a few numbers; no texture layer.
+  (The rollout/bench numbers were taken on V2's build; V3 differs only in that block's text - its link, above.)
+TOOLS: the stills rig is tools/shadowsky_shots.js (views.json in the evidence); the node censuses were scratch scripts
+(bank slopes by carve depth, the coast's tint by distance - their numbers are above). OPEN FOR THE USER (A0 relays): (1) the
+bank faces' rocky-shore dress vs their own cover with only the stretch removed; (2) the sea: keep / tone the waterline step /
+shelve the seabed geometry (G1503).
