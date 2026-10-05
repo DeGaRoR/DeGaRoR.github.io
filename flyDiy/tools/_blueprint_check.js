@@ -181,6 +181,37 @@ checkInk();
 checkLayout(FIX);
 checkOneRoot();
 
+// ---- THE LIBRARY (G573.2) -----------------------------------------------------
+// Every entry's sheet is on disk under its content hash (the media cache serves
+// media/ cache-first, so a re-saved image under the same name would never reach
+// a browser that had the old one), its stored desk state lays out, and its views
+// carry everything the layout reads. An entry marked release: false is LISTED on
+// every run - it is the one line that must not be forgotten before a release.
+const crypto = require('crypto');
+const LIB = require(path.join(__dirname, '..', 'src', 'viewer', 'blueprint_library.js')).BLUEPRINT_LIBRARY;
+const notForRelease = [];
+const libLines = [];
+const keys = new Set();
+for (const e of LIB) {
+  check(e.key && !keys.has(e.key), `library: a missing or duplicate key (${e.key})`);
+  keys.add(e.key);
+  const f = path.join(__dirname, '..', ...String(e.image || '').split('/'));
+  if (!check(fs.existsSync(f), `library ${e.key}: ${e.image} is not on disk`)) continue;
+  const hash = crypto.createHash('sha256').update(fs.readFileSync(f)).digest('hex').slice(0, 8);
+  check(new RegExp('^' + e.key + '\\.' + hash + '\\.(png|jpe?g|webp)$').test(path.basename(f)),
+    `library ${e.key}: the sheet is not named <key>.<sha256 8>.<ext> (${path.basename(f)}, hash ${hash})`);
+  const st = Object.assign({ rig: {} }, clone(e.state));
+  const L = B.bpLayout(st);
+  check(L.ok && L.views.length === st.views.length && isFinite(L.len) && L.len > 0,
+    `library ${e.key}: the stored desk state does not lay out`);
+  for (const v of st.views)
+    check(v.pts && v.pts.length >= 3 && B.KINDS.indexOf(v.kind) >= 0 && typeof v.id === 'number',
+      `library ${e.key}: view ${v.id} is missing its cut, its kind or its id`);
+  if (e.release === false) notForRelease.push(e.key);
+  libLines.push(`${e.key} ${L.len.toFixed(2)} m long · ${(L.span || 0).toFixed(2)} m span · ` +
+    `${L.groundPitch.toFixed(1)} deg${e.release === false ? ' · NOT FOR RELEASE' : ''}`);
+}
+
 if (process.argv.includes('--selftest')) {
   console.log('  --selftest: breaking each rule in turn');
   // a throw is a catch too: the layout refusing a broken state IS the check
@@ -220,6 +251,10 @@ const { L } = layoutFacts(FIX);
 console.log(`  frames: worst round-trip ${worst.toExponential(1)} px · fixture: ` +
   `${(L.mpp * 1000).toFixed(2)} mm/px · length ${L.len.toFixed(3)} m · span ${L.span.toFixed(3)} m · ` +
   `ground ${L.groundPitch.toFixed(2)} deg nose-up · ${L.views.length} views`);
+for (const l of libLines) console.log('  library: ' + l);
+if (notForRelease.length)
+  console.log(`  library: ${notForRelease.length} entr${notForRelease.length === 1 ? 'y' : 'ies'} marked release: false ` +
+              `(${notForRelease.join(', ')}) - delete the row, its image and its CREDITS line before a release`);
 if (fail.length) {
   for (const f of fail) console.log('  FAIL ' + f);
   console.log('GATE BLUEPRINT: FAIL');

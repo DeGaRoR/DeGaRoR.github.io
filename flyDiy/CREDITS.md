@@ -1316,3 +1316,8 @@ Radio Jolene's talk (`media/audio/voice/`, 352 takes, 35 minutes), rendered offl
 
 <!-- VOICE:END -->
 
+## Blueprint library (`media/blueprints/`, `src/viewer/blueprint_library.js`)
+
+- `chinook2s.cec14f3e.png` — a three-view of the Birdman Chinook 2S. **Source and licence unknown**: supplied by the
+  user to refine the shed's Chinook (G573.1). Marked `release: false` in the library; GATE BLUEPRINT lists it on every
+  run. **Delete the image, its library row and this line before a release.**

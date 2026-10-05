@@ -1,0 +1,5 @@
+[
+ {"name": "mill_stand", "at": [7278.0, -15318.0, 1.2], "cam": [2.6, 0.30, 34], "hour": "afternoon", "settle": 60},
+ {"name": "mill_street", "at": [7255.8, -15359.6, 1.2], "cam": [-1.66, 0.22, 40], "hour": "afternoon", "settle": 60},
+ {"name": "mill_from_above", "at": [7262.0, -15380.0, 1.2], "cam": [2.0, 1.15, 160], "hour": "noon", "settle": 90}
+]

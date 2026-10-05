@@ -67,6 +67,7 @@ var AUDIO = (function () {
     ['muteUnfocused', 1, 'bool', 'mute when unfocused', 'silent while another window has the focus'],
     ['headset', 0, 'bool', 'headset', 'in the cockpit, the way a pilot hears it: ~15 dB quieter'],
     ['musicFlight', 0, 'bool', 'music in flight', 'the music plays in the shed; in the air only with this on'],
+    ['musicLoading', 0, 'bool', 'music while loading', 'a random song on every loading screen'],   // the user, 2026-10-05: off by default while the game is developed
     ['musicGarage', 0, 'bool', 'music in the garage', 'the shed\'s playlist, with silences between the tracks'],   // G1672 (music.js); OFF by default (the user, 2026-10-04: test sessions)
     // G1643 (SND-SPACE, space.js): the headset's kind, and the outside sounds placed for headphones
     ['headsetAnr', 0, 'bool', 'headset: noise cancelling', 'with the headset on: the active kind - the engine\'s drone goes first'],
@@ -130,13 +131,14 @@ var AUDIO = (function () {
   let ctx = null, P = null;
   let suspendTimer = 0, silent = false, hidden = false, focused = true, held = false;
   let interior = 0, flying = 0;
-  // G1672 THE WELCOME: the first boot's loading screen (BOOT, boot.js) is not the air - nothing flies under it, and
-  // the welcome music plays there. Latched off for good once that overlay is gone (a later roll-out screen is not it).
+  // G1672 THE WELCOME: a LOADING SCREEN (BOOT, boot.js) is not the air - nothing flies under it, and the loading music
+  // plays there. Every loading screen, not only the first boot's (the user, 2026-10-05: "random songs for the
+  // loadings"): the first boot, the roll-out, a change of place - whenever BOOT's overlay is up (loading / landing /
+  // waiting; 'ready' and 'gone' are the overlay down).
   let welcome = 1, garage = 0;
   const welcomeNow = () => {
-    if (!welcome) return 0;
     const B = W.BOOT;
-    if (!B || B.state === 'gone') welcome = 0;
+    welcome = B && (B.state === 'loading' || B.state === 'landing' || B.state === 'waiting') ? 1 : 0;
     return welcome;
   };
   // the listener, handed to audioParams; its position in a typed slot (a double written into an object field is a fresh

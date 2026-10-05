@@ -77041,6 +77041,442 @@ certificate (the train-36 state) +0.3..+1.2 %; **ON without a certificate** (a n
 gear is the fuse, dm16 the 23.473 sink is the gear's limit case. FAR sections for A0 to open: 23.233, 23.345, 23.427,
 23.473-.499, 23.521-.537.
 
+## TRAIN 35 LANDED (2026-10-05, A0 the coordinator) - THE DAMAGE TRAIN
+
+Cargo: the Deform Coordinator's frozen SHA a7ad3fdf (claude/dmg-integration, on train 34 55dd98b7): DMG-D0 (instruments),
+D1a (members: Euler buckling, the plastic kink floor, seams, break groups), D1b (wreck integrity), D3 (clusters), D2a (the
+certificate), D2b's damage-OFF commit (the gear is the fuse; headroom 0.10-0.66 of yield), D4a (the skin breaks) with D4b's
+fixes (G1866-G1867.1), the coordinator's G1898.1-.10 (the water nose-in NaNs, the wet body over a break, the tanks over a
+break, the off path = master's). DAMAGE IS OFF BY DEFAULT (GEN_DAMAGE_DEFAULT false; ?damage=1 shows it). Details in the
+entry "TRAIN 35 - THE DMG TRAIN" above. HELD: the switch ON (the certificate's time per new build, CERTCOST), DMG-DAMP +
+TYRE + HULL + PLOUGH (after PILOT-ONE), D4b's crash-FPS cuts and the end card, D4c.
+PERF (the coordinator's quiet A/B, damage OFF vs train 34, 20 rotated rounds): +0.2..+0.8 % of the node step (noise ~0.5 %).
+STRICT GATE (full): 95 in slack, 50 better, 12 RED = the 30 cap's rows + the known hybrid-band rows; chase / cockpit loop
+15.25 / 15.35 / 16.2 ms (train 34's gate: 16.2 / 16.15 / 16.35) - no damage cost. BATTERY: the full battery PASS but AUDIO,
+which passed alone (145 s; its wall-clock read under the 6-job battery and D4b's untimed page boot). Parked re-cooked.
+## G1590-G1599 - RELEASE-CHECKS: THE BUILD ID HASHES EVERY SHIPPED INPUT, GATE BUILT, THE POST-PUSH PAGES CHECK, THE BUILD'S OWN CHECKS (2026-10-04/05, RELEASE-CHECKS for A0, cloud - node only; branch claude/release-checks-g1590, REBASED (A0, 5 Oct) onto master 0fd1fa34 = train 33, which carries the review and UPDATE-NOW G1535; rides train 36)
+
+The review's release findings (reports/INDEPENDENT-REVIEW-2026-10-04.md): B27 (nothing verifies the committed outputs against
+a rebuild), B28 (the build id hashed core + viewer + editor only), E8 (no post-push check), the C-release line (sw.js and the
+worklets never parsed; the inert-typing regex rewrote `<script>` inside inlined blobs). B26 landed with the review.
+CONTEXT: Pages is the LEGACY "deploy from branch" builder (the user, 4 Oct: keep it while it works); it started no run for
+trains 28-31 - every push that moved master together with claude/batch-a-base in ONE `git push` started nothing, single-ref
+pushes did. The dead `.github/workflow/static.yml` is A0's (not touched here).
+
+**G1590 - THE BUILD ID (B28).** tools/build.js computed `BUILD_ID = sha(core + viewer scripts + editor scripts)`; UPDATE-NOW
+(G1535, train 33) added the shell, the styles, the body and the boot slot's scripts. A train that changed only the vendor, a
+world / lazy pack, a payload, a worklet, a fetched manifest or a generator the house worker imports still shipped under the OLD
+id: the update pill stayed quiet, the GRAPHICS line said "up to date" and the workers (sim_host, house_worker: importScripts
+`?v=FLYDIY_BUILD`, the house cache keyed on it) took their stale copies. It is now computed LAST:
+`sha(index.html + dev.html + sw.js as finished, with slots where the id and the date go, + every NAMED INPUT's path and content
+sha)`; then the slots are filled. RECONCILED WITH UPDATE-NOW: its BUILD_TAG (`FLYDIY_BUILD` + `FLYDIY_BUILD_DATE`, swapped into
+the boot slot by swapBuild, exactly once a page) carries @@FLYDIY_BUILD_ID@@ and @@FLYDIY_BUILD_DATE@@; the DATE IS NOT HASHED
+(it is the id's); BUILD_DATE keeps UPDATE-NOW's rule - version.json's date while its build is this id, else now - decided
+once the id is known. Asserted: the id's slot twice in each page (the tag, the core's sha line) and once in sw.js, the date's
+once in each page - no source may carry a slot string. GATE UPDATE (P9: the tag, the same build and date in both pages and
+version.json) PASS; a rebuild keeps the date.
+- The pages carry everything inlined (core, viewer, editor, boot, CSS + fonts, vendor, the music / sfx catalogues, the
+  island loader's world-pack header) and the `?v=` content hash of everything they reference (models, props, chars, world,
+  lazy, worklets, dev.html's per-file refs); sw.js carries the world / geometry keep lists.
+- The NAMED INPUTS (`shippedInputs`): the closure of repo paths written in string literals ('src/..', 'tools/..',
+  'vendor/..', 'media/..' ending .js/.mjs/.json/.wasm/.css/.html) from the pages outward through every named script,
+  stylesheet and manifest, plus DYNAMIC_INPUTS - the paths built at run time (tools/fixtures/island_*.json and
+  premises_v1_*.json, vendor/ktx2/basis_transcoder.*) and the manifests the build itself inlines (G1597: the music / sfx /
+  voice catalogues, shots_pack.json - their content was in the page already; named, a manifest that stops being inlined
+  stays an input). 301 files on train 33: `node tools/build.js --inputs` lists them (sha, path).
+  Excluded: the generated files (flight_core.js is the inlined core) and src/core/parked_packs.json - the parked COOK's
+  manifest is keyed ON the build id (parked_cook.js writes it after the build), so hashing it would make every re-cook
+  move the id and stale its own cook. Media is named by content hash, through the manifests in the closure.
+- Verified on train 33: with the id and the date masked, the new index.html / dev.html / sw.js are byte-identical to the
+  committed train 33 pages except the one line G1594 fixes. A style.css or boot.js edit now moves the id (it did not before; GATE BUILT's negative
+  test below shows version.json in the diff).
+- CONSEQUENCE FOR THE TRAIN: the id moves more often (any shipped file) and the formula changed, so the landing train's id is
+  new whatever else lands: the parked aeroplanes re-cook on the final build as always (FRAMECOST's STALE-cook hint applies to a
+  CSS / world-pack edit now too). parked.js's comments "the world pack is not in FLYDIY_BUILD" are now conservative: it is
+  (its ?v= is on the page); the cook's selfHash is harmless and stays.
+- `build({ out })` / `--out=DIR` writes the five outputs under DIR (the inputs are this tree's; version.json's kept date is
+  read from the tree's own copy). The summary line names the build id and the input count.
+
+**G1591 - GATE BUILT (B27; core, ~2 s; tools/_built_check.js).** Rebuilds into a temp dir and compares index.html, dev.html,
+sw.js, tools/flight_core.js and version.json (its build id; the date is not compared) with (1) the working tree's copies and
+(2) HEAD's committed copies (git show). (2) is judged against L, the last commit that touched an output:
+- no build input (src/, vendor/, media/geo, tools/build.js, every tools/ file the closure names) changed in L..HEAD nor in the
+  working tree: L's outputs are stale against their own sources - a STALE "(built)" COMMIT: FAIL, naming the files (and a
+  CRLF note when the worktree is CRLF - the landing build is LF);
+- inputs moved since L (a source commit after the last build - every worker branch, by convention source only): PASS with
+  the lagging files and the moved inputs named; BUILT_STRICT=1 (or --strict) makes it FAIL - A0's landing runs it so.
+Negative tests (a throwaway branch): a fresh (built) commit strict PASS; a boot.js commit after it lenient PASS / strict FAIL
+(index.html, dev.html, sw.js, version.json); a (built) commit made from a style.css edit that was then reverted FAIL "stale
+(built) commit". No git (a tarball): (1) only.
+
+**G1592 - tools/pages_check.js (E8).** After a push: polls the public API's "pages build and deployment" run for the pushed
+SHA (`/actions/runs?head_sha=`, If-None-Match so a 304 is free, slower under 10 requests left, a 403/429 rate limit waits for
+the reset or gives the API up and keeps watching the site) and the live https://degaror.github.io/flyDiy/version.json
+(cache-busted) until its build id is the one committed at the SHA. Exit 0 LIVE, 1 the run FAILED, 2 TIMEOUT (default 900 s),
+3 NO RUN for the SHA within --start-timeout (default 180 s: prints the re-trigger recipe), 4 ERROR. Flags: --sha (default
+origin/master), --build, --timeout, --start-timeout, --interval, --once, --repo, --url. No credentials.
+Tested from the cloud: the API leg (bff4f64b -> run #473 completed/success; 6863851b, which never got a run -> exit 3 and the
+recipe); the live leg against a local server (exit 0 on a match, exit 2 with --once on a mismatch). github.io itself is
+blocked by the cloud sandbox's proxy, so the first real live run is A0's. (Behind a proxy Node's fetch needs
+NODE_USE_ENV_PROXY=1 + NODE_EXTRA_CA_CERTS; a desktop needs nothing.)
+
+**G1594 - THE INERT TAIL BY CONSTRUCTION (C-release).** index.html's scripts after the island loader were made inert by a
+regex over the ASSEMBLED tail, which also rewrote `<script>` / `<script src=` inside inlined blobs (one today: a comment in
+tools/_bay_site.js read "a <script type="text/x-flydiy">"). Every tail tag is now written inert where it is made (INERT for
+blobs; inert() only over the builder's own snippets - refs, flags, the lazy loader, the sha line, whose JSON escapes '<'),
+and the build fails if shell.html ever carries a tag of its own after the vendor slot. The `</script` refusal (review)
+stands for inlined blobs.
+**G1595 - THE PARSE (C-release).** sw.js (as emitted, the id in place) and the AudioWorklet modules (MANIFEST.audio, parsed
+strict: a worklet is a module) are syntax-checked; served-by-URL files (world, lazy, worklets, sw.js) skip the `</script`
+refusal, which only inlined blobs need.
+
+**G1596 - THE PARKED COOK'S MANIFEST IS NOT AN INPUT.** src/core/parked_packs.json is named by parked.js, so the closure
+reached it - but parked_cook.js writes it AFTER the build, keyed ON the id: hashed, every re-cook would move the id and stale
+its own cook. Excluded (GENERATED in build.js, and from GATE BUILT's input pathspec); a manifest edit leaves the id unchanged.
+(The review merge's own reds this branch fixed before the rebase - aeroskin's module-level THREE, PARTS' envelope check -
+are on master in A0's form; dropped here.)
+
+**THE SOUND BRANCHES (A0's ask).** origin/claude/sound-35 (21c4f4ac: SND-BOOMBOX's MANIFEST lines `audio/my_music.js`,
+`boombox.js`, GATE BOOMBOX) merged on a scratch branch over this one: build.js auto-merges, the closure names
+src/viewer/audio/my_music.js, src/viewer/boombox.js, media/audio/voice/radio_script.<h8>.json and the three catalogues
+(303 inputs); BUILD, BUILT, UPDATE, AUDIO, BOOMBOX PASS there.
+
+BATTERY (cloud, 4 cores, --jobs=4) on the rebased branch, build 3d8e5a3c94db (301 inputs): the full core tier 141 of 145
+green. FRAMECOST red 24 rows = the STALE parked cook (cooked on train 33's 250cd76286f3; the new formula gives every train a
+new id - A0 re-cooks on the final build, as always); INSTANT killed at the runner's 1800 s cap (every row it reached SAME;
+alone, uncapped: PASS, cub + metal, "every drag ended on the plain build's aeroplane"); BIOME `surface perf<5us` at 5.7 us
+under the four-job load (alone: 4.9 us, PASS); AUDIO's RADIO_BUDGET once ("the frame under a talk grew the heap 70880 B
+over 100 000 frames", under the same load - its self-test then reports the pristine sources red) - alone, twice: PASS,
+RADIO_BUDGET ok (and PASS in the two --only runs: on this branch, and with sound-35 merged). A heap-growth budget measured
+beside three busy gates is the box's noise, not this branch's (it touches no audio file); worth A0's eye if it recurs on the box.
+Targeted on the final build: BUILD, BUILT, UPDATE, AUDIO PASS (and BOOMBOX with sound-35). Not run here: --all, FRAMECOST on a
+cooked build.
+
+### THE LANDING RECIPE (A0, from the train that lands this)
+1. Merge the train in a clean LF worktree; `node tools/build.js`; the battery `node tools/run_gates.js` (GATE BUILT is green
+   there: a source state names its lagging outputs).
+2. `node tools/parked_cook.js` on the final build; commit "train N: the parked aeroplanes re-cooked ...". (parked_packs.json
+   is outside the id: the re-cook does not move it.)
+3. `node tools/build.js` (the same id: nothing moved) and commit the five outputs: "train N (built): ... built from <sha>".
+4. `BUILT_STRICT=1 node tools/run_gates.js --only=BUILT --no-build` - must PASS on the (built) commit. A FAIL names the files.
+5. Push master ALONE: `git push origin <train>:master` - one ref in the push. Any other branch (claude/batch-a-base) in its
+   own `git push` after.
+6. `node tools/pages_check.js` (defaults: origin/master, its version.json). 0 = live. 3 = no run started: run the printed
+   recipe (`C=$(git commit-tree "origin/master^{tree}" -p origin/master -m "Pages: re-trigger ...")`,
+   `git push origin "$C:refs/heads/master"` alone), then `node tools/pages_check.js --sha=$C`. 1 = the run failed (its URL is
+   printed). 2 = a run but the site did not change in 15 min: re-run with --once later; then re-trigger as for 3.
+## G1925-G1929 - MILL-TAXI: EVERY STAND AND TAXI ROUTE AGAINST EVERY SOLID THING; JUMBO MINE STREET'S WAYS ON ITS CENTRELINE, ITS STAND OFF THE AIR TAXI OFFICE; HOME'S TWO PARKED AEROPLANES 2.5 m WEST; NO PROCEDURAL STRIP ON A HOUSE (2026-10-05, MILL-TAXI for A0, cloud - node + headless Chromium, no GPU; branch claude/mill-taxi-g1925 off train 34 = 55dd98b7)
+
+THE USER (5 Oct): "In the old mill, the taxi circuit is too close from buildings, and an attempt to launch from there hits
+a building on the right. Can you modify this?" The old mill is JUMBO MINE STREET (`mn_strip`, the place picker's name; the
+Kennecott mill `mn_s_mine/mill` stands on its east side, G522). FLOWN before the fix (THE PILOT, node, the obstacles in the
+world): the user's Cub left the stand, took out[1] - the LANE 6.5 m east of the centreline up the 18 m street - and put its
+right wing into the mill 15 s in (5 node contacts), then looped TAXI > STOP > HOLD > DEPART for 200 s, never airborne; the
+C172 did the same into cottage 4 and the person beside it (21 contacts). The parked C172's right wingtip stood 0.35 m off
+the air taxi office.
+
+THE CAUSE. A route was held off the PARKED AEROPLANES only (G710 gpClearWay, GATE TAXICLEAR 1-5); nothing measured a route
+against a house. The street is 17-18 m between faces (the clinic and the school stood 0.5 m inside the strip's 9 m half
+width): only the centreline clears an 11 m span with 3 m to spare, and the authored pattern (G522's, frozen in
+runway.site.pattern) used the generic lane and U-turns: out[1] up the east lane (1.67 m from the mill's front), back[0]'s
+U-turn north along the west lane into the clinic (0.20 m), the stand 5.84 m from the air taxi office.
+
+G1925 THE CENSUS (tools/_taxiclear_lib.js, tools/taxi_census.js). What the game registers as solid (render_premises.js
+hitAdd), read off what SHIPS: the cooked places (premises_packs.json, media/world/<id>/premises p_*.bin) carry every house's,
+item's and outbuilding's OBSTACLE GRID - the page's own lo / hi columns (GATE PREMCOOK holds the cook to the page) - at `at`
+(yaw = the group's rotation.y); their props (people, yard props, lamps) as each prop's bb (PROP_REG, the props + pier packs)
+in the owner's frame; the dressing's cars / boats / lot cars; the objects (a prop's box, a parked aeroplane's
+GP_PARKED_FOOT box, a billboard); the premises' trees as trunks (trunkOf's radius); the analytic world's settlement boxes
+(the registry). 9 256 things on Jolene (town variant). Each stand x each validated build (the stock build 10.0 m, the
+aluminium C172 11.0 m - the widest -, the user's Cub builds/cub_2026-09-20_corrected.json 10.7 m), each on ITS pattern
+(HOME bends per span): the stand point, the PARKED BOX (the build's nodes at the stand, nose to the first taxi point),
+out[0], out[1], back[0], back[1] sampled as THE PILOT's path (patternPath, 1 m), each against half-span + 3 m (the box: 3 m);
+the roll (threshold to threshold) printed, not held. `node tools/taxi_census.js` prints it (violations first; --json;
+--svg <id> <out.svg> [--at x,z] a plan). BEFORE: 405 held rows, 24 VIOLATIONS (reports/evidence/MILL-TAXI/census_before.txt):
+  - mn_strip (x 3 builds): the stand 5.84 m (air taxi office), the parked box 0.35-0.83 m (office), out[0] 5.84, out[1] 1.67
+    (THE MILL), back[0] 0.20 (the clinic)
+  - HOME (x 3 builds): out[0] / out[1] 6.89-7.32 m from the parked Cub o1 (G710 bent to half + 1.5 m only)
+  - procedural seed 1: A1 (a village "main" field) - a settlement house ON the stand, out[0] and back[0]; seeds 6, 12 and 42
+    had one on the roll of a main field (seed 0, the game's world: clean)
+  - w2, w3, nv_strip, tw_ski: clean (tw_ski's nearest a prop at 8.96 m off out[1] for the C172)
+AFTER: 0 violations (census_after.txt); Jumbo Mine Street's tightest 8.82 m (the clinic) for an 8.50 m need.
+
+G1926 HOME: the parked Cub o1 and C172 o2 2.5 m WEST (o1 -150 -> -152.5, o2 -148 -> -150.5; jolene_author.py club_world lz
+40 -> 37.5, 42 -> 39.5). The authored ways out (G772) now clear them by 9.39-9.47 m for every span with NO bend (G710's
+k0 / j0 corners gone: the routes are the authored polylines). Considered and rejected: GP_CLEAR 1.5 -> 3 (one law for the
+planner and the census) - it crowded the C172's out[1] between o1 and o2 into a 3.4 m corner (a sitePatternIssues
+complaint); GP_CLEAR stays 1.5 (the planner's fallback for a parked aeroplane an author puts near a way), the census holds
+3 m. TAXICLEAR 4's calibration measures the pre-G772 way at half + 3 m (o1 moved; it still reads 2+ m inside).
+
+G1927 JUMBO MINE STREET (tools/jolene_parts/mn_mine.json and the fixture, the same edit - jolene_author.py needs the bench
+to regenerate, so both were written by one script; rev 23):
+  - the STAND 4.2 m WNW on its pad: (7281.85, -15319.76) -> (7278.0, -15318.0), heading -1.9484 (toward tx0, which stays); its
+    lane `mn_stand_lane` starts there (GATE CONTACT's rule). 10.02 m to the office, parked box 4.46 m (C172).
+  - out[1] (the way to the north end) on the CENTRELINE: stand > tx0 > c0 > c1 > l1a > l1b > l1c > d1 > hold1, c1 moved from
+    the east lane by the stand to the centreline 205 m up the strip (past the last house, where the north turning bay
+    opens); back[1] = c1 > l1a ... (a pose on the street reaches the U-turn along the centreline, not across the lane)
+  - back[0] (the south U-turn) a teardrop on the south turning bay: e0 (28 m in, centreline) > l0a (0, 9 m W) > l0b
+    (0, 13 m E) > l0c (20 m, 13 m E) > d0 (40 m, centreline) > hold0; rMin 8.0 m, sitePatternIssues empty
+  - the CLINIC and the SCHOOL 1 m west (site z -33 -> -34, -35 -> -36): both stood 0.5 m inside the strip's edge; the
+    street's centreline now keeps 8.82 m (was 8.38)
+  The look is kept: the same street, houses and pad; the stand and two houses moved by a metre or four.
+  NOTE for the editor: the pattern is AUTHORED (G522); moving or turning the strip drops it (the editor's rule) and the
+  derived pattern's lanes come back - on this street they hit the houses; re-run tools/taxi_census.js after an edit.
+
+G1928 THE PROCEDURAL WORLD (24_world_aero.js clean(), 20_world.js passes SET.buildings): a candidate strip whose runway
+rectangle comes within HOUSE_CLEAR 9.5 m (5.5 + 3 + 1) of a settlement house's circle is not clean - the next best by the
+score is taken, so a strip that was clear stands where it stood. Changed: seed 1 A1, seed 6 A2, seed 12 A0, seed 42 A2,
+seed 31415 A1 (its circle only); seeds 0, 2, 3, 7, 777, 999, 2718, 12345 bit-identical (aerodromes compared).
+
+G1929 GATE TAXICLEAR (core, ~5.5 min, wall 330): 6 the Jolene census (135 rows, every stand), 7 seeds 0 1 6 12 42 (the
+widest build; no roll within 8.5 m of a house), 8 CALIBRATION (the mill's old pattern replayed: out[1] < 2 m from the mill,
+back[0] < 2 m from the clinic, the old stand < 8.5 m from the office), 9 FLOWN from the mill with the obstacles in the
+world (intoWorld: the cooked grids through 29_obstacles rasterise, the props / cars as 0.5 m boxes, the trunks on
+treeHits): the C172 airborne at 84 s, the Cub at 103 s, 0 node contacts, 0 trunk hits, no crash, the wing >= 2.98 m off
+every footprint (min at the turn onto the centreline by the clinic). tools/soft_still.js --from <strip id> rolls out at
+that stand (flydiy.route).
+
+RE-COOKED (premises_cook.js --island jolene): only p_28_m60, p_28_m61 (the mill), r_28_m60 (the stand lane's raster),
+p_m1_2 (HOME's apron), the two tallies; premises_packs.json. No frame cost: data and a world-gen rule; nothing per frame.
+EVIDENCE reports/evidence/MILL-TAXI/: census_before/after (.txt, .json), plan_mill_before/after and plan_home_before/after
+(.svg, .png: footprints, the strip, every route with its 8.5 m band), flown_before/after (.json, .txt: the tracks),
+views_mill.json (shadowsky_shots views for the box), the stills (below).
+## G1935-G1944 - PILOT-ONE: ONE PILOT (43), THE WATER TAKE-OFF, THE SHORT STRIP AND THE TURN ON THE SPOT, PERSONALITY HOOKS (2026-10-05, PILOT-ONE for A0, a CLOUD session: node only; branch claude/pilot-one-g1935 off origin/master 55dd98b7 = train 34)
+
+THE BRIEF (the user, 5 Oct): (1) "the autopilot technique for taking off is really poor ... hops before taking off" -
+NARROWED by the user mid-session: "the remark only applies to floatplanes and water take off. The normal take off is
+OK. The technique for small strips is bad though, I have seen no autopilot succeeding in landing on the short 150 m
+runway, where they should start from farther away, use the full flaps, and aim for touching down at the beginning of the
+strip. No autopilot manages to turn sharp for a 180 degrees. Most planes should allow for almost static turn ... [that
+is] manoeuvring on the ground, turning at the end of a 1 way strip". (2) "We still have the legacy autopilot and the test
+autopilot. Are these now fully redundant? ... If the two others are now redundant, we should retire them." (3) the pilot
+personalities (design + hooks). A0's order: this lands BEFORE the Deform Coordinator's DMG-DAMP bundle.
+
+### G1935 THE AUDIT - WHAT 40 AND 41 DO THAT 43 DOES NOT (the first commit; read-only, probes in node)
+
+VERDICT: **40 (the classic) and 41 (the test pilot) are redundant.** Since G1570 the three fly one servo module; what
+is left in 40 / 41 is their PHASE MACHINES (40: an out-and-back - CRUISE, TURNBACK, INBOUND, APPROACH; 41 the same + ABORT,
+PUTDOWN, the report and the card), and 43 has every capability either has: the report contract (verdicts, outcome,
+landing, card, trimDe from the settled DOWNWIND), setCard, taxiFF, the G208.3 LIFTOFF exit and PUTDOWN, departFrom,
+reEngage, tdInfo, dbg. 43 flies WITHOUT A WORLD (probe: `makePilot(sim, def)` and `(sim, def, null)` on the stock build,
+no world: ROLL > LIFTOFF 15 s > CLIMB 24 > CROSSWIND 41 > DOWNWIND 64 > BASE 167 > FINAL 189 > FLARE 314 > ROLLOUT 321 >
+STOPPED 341, 'completed', run 223 m, sink 0.73 - the HOMEISH fallback, every world read guarded). 41 has NO water law
+(0 mentions of hydro; 43 has the hump, the step, the stick top) - the page's hydroplane test flew the seaplane's
+certificate on a pilot that did not know it was on the water.
+
+WHAT 40 / 41 HAVE THAT 43 DOES NOT:
+- the PHASE NAMES CRUISE / TURNBACK / APPROACH (43: CROSSWIND, DOWNWIND, BASE, FINAL, GLIDE; PILOT_PHASES maps them for the
+  rail). Every caller that waits for 'CRUISE' or pins 'APPROACH' must be re-pointed (an unknown phase in 43 falls to
+  ROLLOUT on the ground, CLIMB in the air - FLAPS pinned on 'APPROACH' leaves the flap at 0.000; on 'FINAL' it deploys).
+- 40's OUT-AND-BACK geometry (a downwind landing in a +z wind; the stop x and the CRUISE chatter of GEN's circuit were
+  calibrated on it); 43 lands into wind on a rectangular circuit.
+- NOTHING ELSE: 40 has no report, no budget, no card, no taxiFF; 41's card field `deFlown` is never written or read.
+
+WHAT LIVES IN 40 BUT IS NOT A PILOT (it must MOVE, not die): `placeAtAerodrome`, `placeAtStand`, `seatOnGround`,
+`placeAtLineup` (40:23-109) - the placement helpers ~31 / 21 / 6 / 8 files call.
+
+WHAT READS 40 / 41 AS TEXT: build.js (MANIFEST 100/103; the core-block marker 'function makeAutopilot' at 1163/1168),
+test_ui_smoke.js 20/45 and _gfx_check.js 295 (the same marker), 90_node_exports (the two names), GATE BENCH
+(_bench_check.js:55 reads 41's source; :202 collects phases by `ap.phase = '...'`, 43 writes `go('X')`), GATE TAKEOFF
+(206-219 loops its source checks over 40, 41, 43), sim_host.js SIM_HOST_CORE (typeof-guarded; POSEBACK iterates it).
+
+EVERY CALLER (gate = tools/run_gates.js id):
+```
+caller                              gate        pilot  what it reads / asserts that moves with the pilot
+src/viewer/app.js:4204 mkPilot      (game)      40,41  the selPilot menu: 'classic' -> 40, 'test' -> 41 (body.html:95-101); 41 the fallback
+src/viewer/app.js:5886 htStart      (game)      41     THE HYDROPLANE TEST (the seaplane's certificate): CLIMB/LIFTOFF/ABORT/STOPPED - all in 43
+src/viewer/sim_host.js:304          (worker)    40,41  mirrors mkPilot
+tools/test_stress.js:11             STRESS      40     no world; waits for CRUISE (120 s), then the abuse sequence's flap / strain bounds
+tools/test_ground_effect.js:117     GE          40     a deterministic driver: > 60 airborne frames in 40 s, A == B trajectory
+tools/test_flaps.js:62              FLAPS       40     pins phase 'APPROACH' every frame: flap at 1 s ~ rate +-20 %, full by 1/rate + 2 s
+tools/test_gen.js:44 flyLeg         GEN         40     STOPPED or CRUISE: materials (CRUISE in 60 s), shapes (CRUISE REQUIRED in 90 s), 4 x STOPPED in 600 s
+tools/test_gen.js:992               GEN         41     the extreme sweep: an outcome, verdicts on a non-'completed' one (43: same contract)
+tools/test_gen.js:1358 ap3          GEN         40     tdInfo: sink < 2.0, |z| < 6 within 480 s
+tools/test_gen.js:1484 CRUISE QUIET GEN         40     CRUISE within 200 s, then 24 s: bank p2p < 3, aileron < 2, elevator < 3 deg/s in 3 m/s +z
+tools/circuit_harness.js:54         GEN,HOTHIGH 40     the circuit: sink < 1.3 (WIDENED for 40's flare; 43 lands ~0.7), |tdZ| < 6, stopX < 40,
+                                                       chassis < 6 %, gear < 40 %, rolloutPitchMin > -4, flap -2..12 deg, chatter (CRUISE) < 8
+tools/test_hothigh.js:115           HOTHIGH     40     the run / EAS / TAS RATIOS hot vs standard (relative); 40 ran 357 m on Tyl, 43 278 m
+tools/test_input.js:325             INPUT       40,41  CRUISE in 150 s, a 6 s hand-flown bank, reEngage({phase:'CRUISE'}) (43: CLIMB - re-point)
+tools/_surface_check.js:84          STRIPSURF   40,41  routing only (the wrong-surface verdict skipped for 'classic')
+tools/_bench_check.js:348           BENCH       41     LIFTOFF -> CLIMB in 40 s, 'completed', landing run 0..600 m (all in 43)
+tools/test_massproof.js:231         MASS        41     taxiFF() falls when the tanks drain (43: the same function)
+tools/test_flex.js:265              FLEX        40     no world; CRUISE in 200 s, then 330 frames of AP cruise as the 1 g reference
+tools/gen_ap_probe.js:98            (instrument) 40    phase lists CRUISE/TURNBACK/APPROACH; asserts nothing
+src/core/42_crosswind.js            TAKEOFF     43     already 43 (its header's "test pilot" is stale)
+src/core/64_gen_build.js:888        -           -      a comment only
+tools/test_pilot.js                 PILOT       43     already 43
+```
+WHAT 43 LACKS TO REPLACE THEM: nothing in capability; the callers need (a) the phase re-mapping (CRUISE -> DOWNWIND - or
+CROSSWIND where 60-90 s is tight: 43 reaches DOWNWIND at ~64 s on the stock build, CROSSWIND at ~41; APPROACH -> FINAL),
+(b) the placement helpers moved out of 40, (c) the text-readers re-pointed, (d) the bounds 40 set re-read honestly on
+43 (the GEN circuit's sink bound 1.3 was WIDENED for 40; nothing is loosened here).
+
+RECOMMENDATION (taken, G1940-G1941 below): retire both. The placement helpers move out (to their own module,
+src/core/39c_placement.js, as it turned out - 25_airfield stays untouched); every caller moves to makePilot; the menu keeps the three STYLES of THE PILOT (auto / cautious / brisk)
+and loses "Test pilot (G107)" and "Autopilot" (a stored choice of either falls back to 'auto'); a downgrade is a
+PERSONALITY on the one pilot (G1943), never a fork.
+
+### G1936-G1938 THE TECHNIQUES (43_pilot.js; 30_solver.js for the brake)
+
+**G1937 THE WATER TAKE-OFF** (the user narrowed the take-off complaint to "floatplanes and water take off"; the land
+take-off is unchanged - pilot_one_trace on the Cub / Jodel / C172 is identical base -> branch to the digit). MEASURED
+first (tools/pilot_one_trace.js, the SEA lane, calm; evidence/PILOT-ONE/takeoff/):
+```
+build (floats)                 base (train 34)                                  branch
+v7 twin (two 582s, user's)     bow dug in at throttle-up: trim -66 deg, q -91     ONE lift-off at 28.1 m/s (1.53 Vs), trim +1.4..+13.7,
+                               deg/s, then on the step at 17 m/s for ever:      q 8.1 deg/s, run 180 m
+                               never airborne in 150 s, 2.3 km down a 1.5 km lane
+v7 ultralight (floats)         porpoise -2.9..+12.9 deg, q 14.6 deg/s, lift-off   trim +0.1..+12.6, q 10.4, lift-off 20.9 (one), run 86 m
+                               20.9 (one)
+C172 on Wipline 2350s          27.7 m/s, one lift-off, 344 m                     the same (27.7, one, 346 m)
+user's C172, floats for wheels hump at 5.73 m/s, 0.00 m/s^2, for the whole run   REJECTED at 45 s: 'stuck on the hump at V=5.7 ... the thrust
+(1135 kg on 2198 N, T/W 0.20)  - no decision                                     cannot push the hull onto the step'
+```
+What changed: (1) THE POWER COMES IN OVER 4 s on the water (`A.waterThrRampS`; the throttle went 0 -> 1 in a step at
+0.5 s, and against a thrust line over the CG on undersized floats that buried the bow); back stick through the hump
+was tried and changed nothing (G396.4's neutral stays). (2) 'STUCK ON THE HUMP' is a rejection: 20 s at the hump with
+< 0.03 m/s^2, past the first 20 s (G396.4 / G790's waiting stays for a hull that is accelerating at all). (3) THE STEP-
+ATTITUDE HOLD is a technique the gates can call (39b `servoStepHold`, DAMP's GATE FLOATS law: de = 0.2 + 0.04 (6 -
+trim) - 0.01 trim-rate from 9 m/s; gains in SERVO_GAINS stepDe0 / stepK / stepD / stepTrim / stepV) - MEASURED NOT
+BETTER with today's solver (scratch water_exp 'hold': twin 28.2 vs 28.1, ultralight 21.2 vs 20.9 later, the Wipline
+C172 SKIPPED once with a 26.7 deg/s pitch rate), so the pilot flies it only under `A.stepHold` or a profile's
+`stepHold`; DMG-DAMP (the rigid-rotation damper removed) may need it - one switch. (4) `waterStepK` (39b groundSteer:
+kP x waterStepK on the water with the hull on the step) is in the table at 1: DAMP sets 0.6 there and nowhere else.
+The rotation on the water is unchanged (neutral to the step, the pull at 1.12 Vr): every build lifts off once, with
+no contact after, at <= 10.4 deg/s. OWED: the v7 twin lifts off late (1.53 Vs) - undersized floats (floatAdvice:
+UNDERSIZED, reserve 1.78 < 1.8); the C172-on-floats-for-wheels is a build that cannot fly off water, said as such.
+
+**G1936 THE SHORT FIELD** (the user: "no autopilot succeeding in landing on the short 150 m runway, where they should
+start from farther away, use the full flaps, and aim for touching down at the beginning of the strip"). On Jolene:
+East Point Clearing (150 x 12 m gravel, one-way, trees: the obstacle cone asks 6.5 deg) and Jumbo Mine Street (250 x
+18 m, the cone asks 15 deg - the pilot caps it at gsMax 8.5). Technique 'short' (strip < 450 m or < 1.6 x the sheet's
+landing run), each step measured on the user's Cub (no landing flap: genTrim's `ldg: 0`) and C172 (full flap):
+- the aim 10 m in (6 % of the strip; was max(30, 8 %)); a FINAL of 900 m / 30 s at Vref before the slope (was 400 m
+  or 10 s at VTurn); the BASE at 1.25 Vref with half the landing flap; the full landing flap on final (G975's elevator
+  cap still rules);
+- TECS holds the SPEED on a short final at idle (`spdPri`: the speed weight 2 where it gave the speed half away), and
+  the FORWARD SLIP takes the energy the flap would have: the rudder (0.8) mixed over the lateral law, whose bank
+  then holds the track, armed on the slope at idle with > 2 m of energy over the plan, off below the flare height;
+- a stabilized-approach go-around (5 m/s over Vref under 20 m); the float judged IN GROUND EFFECT (0.3-1.0 m) against
+  the MEASURED short-field stop (full brake = 0.84 x the 0.3-brake stop: the Cub three-point from 19 m/s on HOME's
+  grass ran 152 m at 0.3, 133 at 0.6, 128 at 1.0, never pitching under +2.1 deg - the wing still carries the weight,
+  the friction law said 0.5 x);
+- the roll-out brakes to the limit (`A.brakeShort`, 1) with a tail-rise guard (a taildragger's tailwheel off: the
+  brake off at once; a tricycle's nose 3 deg under its rest);
+- TWICE ROUND A SHORT FIELD IS A DIVERSION: the nearest strip this gear may use with 1.6 x the landing run (450 m at
+  least), said ('divert') and flown as a cross-country (the cap of two go-arounds then a COMMITTED third took the Cub
+  into East Point's trees);
+- the landing is said ON or OFF the strip: `report.landing.onStrip / tdIn / stopLeft`, verdict 'off-the-strip' (the
+  base wrote 'completed' for a Cub that stopped 63 m past East Point's end).
+MEASURED (pilot_trace, Jolene, calm; evidence/PILOT-ONE/shortfield/):
+```
+flight                          base (train 34)                                    branch
+C172 Tamgas -> Jumbo Mine 250 m  aim 30 m in; touched 56 m in, 1.14 m/s, run 238 m:  touched 16 m in (1 m past the aim), 0.96 m/s, 1.11 Vs,
+  (full flap)                     stopped ~44 m PAST the end - 'completed'             on the centreline, stopped after 154 m: 80 m to spare
+Cub East Point circuit 150 m     final 4 m over the slope at idle and 2.5 m/s fast,  on the slope (1.2 m rms), slip, flare from 5.9 m; floats
+  (no flap)                      flare at 25.4 m/s (1.56 Vs), touched 213 m in,       in ground effect with 97 m left for a 134 m stop: round
+                                 'completed' 63 m past the end                       twice, then 'divert' to Tamgas Hill (520 m, 14.3 km):
+                                                                                    landed there, 1.18 Vs, 0.4 m/s, run 158 m, 'completed'
+Cub Jumbo Mine circuit 250 m     SHORTFIELD_CUB_MN_BASE                              the 15 deg cone: 50 m over the slope at idle with the slip;
+  (no flap)                                                                         round twice ('past the aim'), divert
+```
+THE LIMITS FOUND (not the pilot's; for their owners): (a) THE SLIP IS WEAK IN THE SOLVER: 22 deg of sideslip at full
+rudder costs the Cub ~12 % of its L/D (9.7 -> 8.6), where a real Cub's full slip about doubles the sink - the body's
+cross-flow drag (review D7's Cub-calibrated blobs) - so a flapless aeroplane cannot fly a steep short-field slope at
+Vref; a physics session. (b) THE USER'S CUB'S ELEVATOR cannot hold 1.2 Vs0 at idle on final ('vref-raised' to 20.7
+m/s), and its three-point deck angle touches at 1.13-1.19 Vs: a 143-152 m roll, more than East Point has after any
+float. The pilot flies the technique, goes round, diverts and says why; landing this build there is the builder's
+(flaps, the CG / tail) or the solver's (the slip).
+
+**G1938 THE TURN ON THE SPOT** (the user: "No autopilot manages to turn sharp for a 180 degrees. Most planes should
+allow for almost static turn ... turning at the end of a 1 way strip"). The solver had ONE brake for both mains: the
+tightest turn was the tailwheel's steering (groundRmin: the Cub 9.4 m, the Jodel 7.6 m, the C172's nosewheel 4.4 m)
+- 19 m across for the Cub on East Point's 12 m. THE USER'S RULING (asked mid-session): add the differential brake.
+- 30_solver: `ctl.brakeD` (-1..1): a main's brake is clamp(brake + side x brakeD, 0, 1), the side its +z / -z in the
+  built pose; brakeD 0 is the old line to the bit (`ctl.brakeD ? ... : ctl.brake`). It yaws the aeroplane the way a
+  positive rudder does. MEASURED (scratch pivot, the Cub on HOME, stopped): stick neutral, full rudder + inside brake
+  at 0.7 throttle: 180 deg in 8.6 s, the CG moving 2.6 m; stick back pins the tail (16 deg in 30 s) - as the real one.
+  **FOR DMG-TYRE: this is the one line of the wheel-friction block it rewrites (`muR = su[0] + bkI x su[1]`); carry
+  `bkI` (the per-main brake) into the slip-angle tyre's longitudinal force.**
+- 43 `pivotFly(hdg)`: stopped (brakes on above 1.2 m/s), full rudder and the inside brake toward the turn, the stick
+  neutral (a tricycle's taxi elevator), the throttle walked up until the nose turns ~20 deg/s (0.35 -> 0.75), off
+  while it swings in the last 25 deg (proportional there: bang-bang hunted +-4 deg for 60 s), the way round CHOSEN
+  ONCE (a target 180 deg behind the nose is left or right by a degree of wobble), done within ~9 deg - the taxi's own
+  steering takes the rest. THE SIGN: e > 0 is turned by NEGATIVE rudder (groundSteer's -kP x e) - the first cut had
+  it backwards and overshot 35 deg.
+- where: a taxi path's hairpin tighter than 1/(1.1 Rmin) turning > 60 deg (on a strip under 300 m: any U-turn over
+  150 deg for every aeroplane, the site's lane U-turn being a 12 m arc 15 m from the end); a taxi point behind the
+  aeroplane; LINEUP facing > 100 deg away on a strip narrower than the turn; and on a strip under 300 m with 3/4 of it
+  ahead, the departure turns WHERE THE AEROPLANE STOPPED (planDeparture -> LINEUP) instead of the lane U-turn to the
+  hold a quarter in (which left the Cub 113 m of East Point's 150 and a rightly rejected roll).
+MEASURED (tools/pilot_one_turnaround.js: stopped 20 m from the closed end, nose to it, departFrom; the strip's own
+SURFACE is the judge - a site may lay its lane beside the strip on the same surface, G710):
+```
+                       base (train 34)                                       branch
+Cub, East Point        never rolled in 200 s: 26 m off the centreline, 151 m  pivot; rolling at 21.5 s, 2.7 m off the centreline, never off
+                       past an end, 128 s off the strip                      the strip; airborne
+Jodel, East Point      16.7 m off, 11.3 s off the strip, rejected roll         pivot; 2.8 m, 0 s off; the roll rightly rejected (needs ~180 m)
+C172, East Point       9.1 m, 0 s off, rejected roll                          the same (a nosewheel turns there; the roll rejected: 219 m needed)
+Cub, Jumbo Mine        17.8 m off, 14.3 m past the end, 19.2 s off            pivot at the far end; 0 s off the strip; airborne
+Jodel, Jumbo Mine      13.7 m off, 12.1 m past the end, 15.8 s off            pivot; 2.5 s off, 0.1 m past the end; roll rejected
+C172, Jumbo Mine       7.7 m past the end, 10.7 s off                         pivot; 1.3 m past the end, 5.7 s off (PARTIAL: a tricycle's
+                                                                             pivot still swings wide of the lane)
+```
+
+### G1940-G1942 ONE PILOT (the retirement)
+
+40 and 41 deleted; `39c_placement.js` (the four helpers, verbatim); every caller on makePilot (the table in G1935).
+The phase mapping: the classic's CRUISE = 43's circuit legs (flyLeg) / its settled DOWNWIND (STRESS, FLEX, INPUT, CRUISE
+QUIET, circuit_harness's chatter); APPROACH = FINAL (FLAPS). The page's menu: auto / cautious / brisk. The bench strip
+knows 43's phases. GATE TAKEOFF's fork check became "one pilot".
+
+### G1943 THE PERSONALITY - see futureDesigns/PILOT-PERSONALITY-2026-10-05.md
+
+`makePilot(.., { profile })`: PILOT_PROFILES expert (today's pilot, every hook bypassed - bit-identical) / club /
+student / bush / hamfist; hooks live today: reaction delay, smoothness (SV.slewK), ham-fisted inputs (seeded), over-
+rotation, late flare, bank / comfort-g limits, the field technique, the slip, the step hold. GATE INPUT's second slot
+flies 'club'. The menu row is owed (the design's §5).
+## G573.2 - THE BLUEPRINT LIBRARY, and the Chinook 2S in it until release (2026-10-05)
+
+The user: "Start a blueprint library, like we have one for 3d planes, add this one and we'll delete it before release,
+but it will help refining the chinook".
+
+src/viewer/blueprint_library.js (window.BLUEPRINT_LIBRARY, node-loadable; in build.js before blueprint.js): a row is
+{ key, name, image, w, h, credit, release, state } - the SHEET under media/blueprints/<key>.<sha256 8>.<ext> (media/ is
+cache-first, so a sheet is content-hashed like everything else there) and the DESK STATE that lines it up (scale, the
+views with their cuts, rotation, extents and ground lines, rig.attitude) - what BLUEPRINT.state() holds after the five
+steps. The Blueprint panel opens with a `library` select; picking a row fetches the sheet, copies the state in and
+places it in the shed at once (blueprint.js loadLibrary; BP.lib remembers the row). The copy is the user's from then on.
+
+THE ONE ROW: `chinook2s`, G573.1's sheet and state, rebuilt in node from the exact desk calls through blueprint.js's own
+functions and checked to lay out as it did in the browser (5.334 m, 11.363 m, 6.88 deg). `release: false`: its source
+and licence are unknown. GATE BLUEPRINT now holds the library (each sheet on disk under its content hash, each state
+lays out, each view complete) and LISTS every release: false row on every run. BEFORE A RELEASE: delete the row,
+media/blueprints/chinook2s.cec14f3e.png and the CREDITS.md line.
+- FILES: src/viewer/blueprint_library.js (new), media/blueprints/chinook2s.cec14f3e.png (new, NOT FOR RELEASE),
+  src/viewer/blueprint.js (loadLibrary, the panel's library row), tools/build.js (manifest), tools/_blueprint_check.js,
+  CREDITS.md.
+
+## TRAIN 36 LANDED (2026-10-06, A0 the coordinator)
+Cargo: RELEASE-CHECKS G1590-G1599 (rebased; the build id hashes every shipped input, GATE BUILT, tools/pages_check.js); the
+BLUEPRINT LIBRARY G573.2 (claude/clever-heisenberg-xmijol; GATE MEDIA now reads src/viewer/blueprint_library.js as a
+manifest - its sheet was an 'orphan'); LOAD-MUSIC (7183fe1e: a random song on every loading screen, OFF by default; the
+garage beds -12 dB); MILL-TAXI G1925-G1929 (every stand and taxi route on Jolene against every solid thing, GATE TAXICLEAR 6-9).
+A0's fixes from the user's hardware logs (5 Oct): (1) THE GAMING LAPTOP drew no frame at all (i5-9300H / GTX 1660 Ti,
+retro): a 120 s garage load lifted by the watchdog, then Fly, superseded 'first light' (G640: a newer run owns the chain) -
+the game loop's ONLY start; app.js startLoop() now also runs from the boot's done(). (2) THE POTATO SUN's black ring: the
+render-scale upsample (aa_resolve.js AA_FS_UP, Catmull-Rom) rang on the raw sun (1e4 x the sky) under linear compositing;
+clamped to the 2x2 round it (AA_LINEAR only; scale-1 presets bit-identical). (3) 09_climate.js convSeed waits for the
+worker's windSpec (null.base in the GTX 660 log).
+HELD OUT: PILOT-ONE G1935-G1944 - the full battery went red with it (INPUT: ReferenceError c in 43_pilot humanise; GEN cruise
+quiet in wind; PILOT box phase; PILOTACT taxi rudder 62/min; TAXICLEAR the mill C172 loops TAXI>STOP>HOLD>DEPART; LINEUP
+HOME; RWYTREES East Point never lands) - all six pass without it. Re-issued as [CLOUD] PILOT-ONE-2 (G1949) for train 38.
+Strict gate (re-measured on a quiet box, rollout + bench): only the known 30-fps-cap rows (chase/cockpit fps, loop, render
+~+1.5-1.8 ms the hybrid band; garage / mn_strip / water taxi fps at the cap). The first gate's 3 extra rows (chase compile,
+chase flight, garage->world worst task) were a peer's node work (DMG-WALL 21:41-21:53) - gone on the re-measure.
+Battery: PASS but for PILOT-ONE's reds; targeted re-run on the landed tree: INPUT GEN PILOT PILOTACT TAXICLEAR LINEUP RWYTREES
+AA UISMOKE DMGINST GFX ROLLANIM MEDIA BUILT PASS. Metlakatla-on measured (train 35, A,B,B,A): warm +7 s load, first visit
++26 s and a 47 % uneven taxi -> stays OFF. boxlock.sh: CPU locks now exclusive (in the main checkout; committed next train).
 ## G1855-G1857 DMG-D4c THE WALL - THE COVERING AND ITS INSIDE DEFORM AS ONE WALL OVER A BREAK, TORN TOGETHER; GATE DMGWALL; THE USER'S YELLOW TEST (2026-10-05, DMG-D4c for the DEFORM COORDINATOR, cloud, node + the soft GPU; branch claude/dmg-d4c-wall off claude/dmg-integration 08e2d93c, then claude/dmg-integration 01e6892f (train 34, the D4a fix G1864-G1867.1) merged in)
 
 The user (2026-10-05): "There's enormous clipping between the outside and the inside shell ... These are 2 meshes, but they really
