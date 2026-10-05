@@ -495,17 +495,24 @@ vec3 dmgCell(vec3 x) {
         vec2 sGx = vec2(dot(dPx, dAc) / 0.006, dot(dPx, dD) / 0.9), sGy = vec2(dot(dPy, dAc) / 0.006, dot(dPy, dD) / 0.9);
         float g1 = textureGrad(tDmgG, sUV * 0.05 + vec2(0.13, 0.57), sGx * 0.05, sGy * 0.05).b;
         float g2 = textureGrad(tDmgG, sUV * vec2(0.013, 0.02) + vec2(0.71, 0.29), sGx * vec2(0.013, 0.02), sGy * vec2(0.013, 0.02)).r;
-        float st = smoothstep(0.62 - 0.35 * sc, 0.70 - 0.35 * sc, g1) * smoothstep(0.15, 0.55, sc + 0.4 * g2 - 0.2);
+        // (at full scrape about a third of the surface is streaked through - the rest abraded, dull)
+        float sth = 0.72 - 0.16 * sc;
+        float st = smoothstep(sth, sth + 0.05, g1) * smoothstep(0.15, 0.55, sc + 0.4 * g2 - 0.2);
+        float stDeep = smoothstep(sth + 0.10, sth + 0.14, g1) * st;
         float soil = dR.w;
         // the broad abrasion first: dull, paler, the varnish gone
         float ab = smoothstep(0.1, 0.6, sc);
         col = mix(col, mix(col, vec3(dot(col, vec3(0.2126, 0.7152, 0.0722))), 0.35) * 1.05, ab * 0.4);
         rgh = mix(rgh, max(rgh, 0.78), ab);
-        // the streaks: ground through to what is under the paint
-        vec3 bare = mix(dSub, dSub * 0.75, dFab);           // fabric: the weave, darker with the dope gone
+        // the streaks: ground through to what is under the paint - on metal the bare alloy (the primer at the streak's
+        // edge); on doped fabric the SILVER coat first (the aluminium-pigmented dope under every colour coat), the raw
+        // weave only in a streak's core; on wood the raw grain
+        vec3 bare = mix(dSub, vec3(0.42, 0.43, 0.44), dFab);
         col = mix(col, bare, st);
-        met = mix(met, dSubM * (1.0 - soil), st);
-        rgh = mix(rgh, mix(dSubR * 0.8, 0.95, dFab + soil), st);
+        col = mix(col, vec3(0.50, 0.45, 0.34), dFab * stDeep);
+        met = mix(met, mix(dSubM, 0.35, dFab) * (1.0 - soil), st);
+        rgh = mix(rgh, mix(dSubR * 0.8, 0.5, dFab), st);
+        rgh = mix(rgh, 0.95, max(dFab * stDeep, soil * st));
         // ...and the ground in them: soil on soft ground, a green-brown stain from grass, dust on hard ground
         float stain = soil * smoothstep(0.2, 0.7, sc) * (0.45 + 0.55 * g2);
         col = mix(col, mix(uDmgCol[1].rgb, uDmgCol[2].rgb, 0.45 + 0.4 * g2), stain * (0.15 + 0.45 * st));

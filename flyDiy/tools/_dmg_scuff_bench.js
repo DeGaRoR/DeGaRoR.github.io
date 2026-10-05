@@ -63,7 +63,22 @@
     for (const o of all) { const { M } = craftOf(o), p = o.geometry.attributes.position; for (let i = 0; i < p.count; i += 7) { v.fromBufferAttribute(p, i).applyMatrix4(M); box.expandByPoint(v); } }
     const L = box.max.y - box.min.y, span = box.max.x - box.min.x, xc = (box.max.x + box.min.x) / 2;
     const nose = new T.Vector3(xc - 0.3, box.min.y + 0.08 * L, box.min.z + 0.42 * (box.max.z - box.min.z));
-    const cut = xc - 0.31 * span;                          // a station across the left wing
+    // a station across the left wing - SNAPPED to one the covering has vertices on (the editor's wing covering has
+    // spanwise vertices only at its stations, metres apart): the band reaches one bay either side of it, as a tear's
+    // edge sits on the mesh's own vertices in the game
+    let cut = xc - 0.31 * span, cutW = 0.3;
+    {
+      const xs = new Set();
+      for (const o of all) { const vc = vclsOf(o), { M } = craftOf(o), pa = o.geometry.attributes.position;
+        for (let i = 0; i < pa.count; i++) { if (vc[i] !== S.CLS.fabric) continue; v.fromBufferAttribute(pa, i).applyMatrix4(M);
+          if (v.z > box.min.z + 0.6 * (box.max.z - box.min.z) && v.x < xc - 1.2) xs.add(Math.round(v.x * 100) / 100); } }
+      const st = [...xs].sort((a, b) => a - b);
+      if (st.length > 2) {
+        let k = 0; for (let i = 1; i < st.length; i++) if (Math.abs(st[i] - cut) < Math.abs(st[k] - cut)) k = i;
+        cut = st[k]; const gap = Math.min(k > 0 ? st[k] - st[k - 1] : 9, k < st.length - 1 ? st[k + 1] - st[k] : 9);
+        cutW = Math.max(0.05, Math.min(0.9, 0.95 * gap));
+      }
+    }
     // the windscreen: the glass mesh that faces FORWARD the most (its area-weighted normal's -y, craft), not the most
     // forward centre (that was the Cub's roof skylight)
     // (by the most forward vertex that faces forward at all: the Cub's skylight faces forward more on average)
@@ -86,7 +101,7 @@
       let bd = Infinity; for (let i = 0; i < n; i++) { if (!ok[i]) continue; const dd = p.fromBufferAttribute(pa, i).distanceTo(c0); if (dd < bd) { bd = dd; best = i; } }
       paneObj = new T.Vector3().fromBufferAttribute(pa, best); front.updateMatrixWorld(true); paneAt = paneObj.clone().applyMatrix4(front.matrixWorld);
     }
-    return { box, L, span, nose, cut, front, paneObj, paneAt };
+    return { box, L, span, nose, cut, cutW, front, paneObj, paneAt };
   }
   function fill(o, P, full) {
     const g = o.geometry, pa = g.attributes.position, na = g.attributes.normal, n = pa.count;
@@ -108,7 +123,7 @@
         const dn = p.distanceTo(P.nose); c = Math.max(0, Math.min(1, (0.8 - dn) / 0.5));
         const xc = (P.box.min.x + P.box.max.x) / 2;
         if (q.z < -0.2 && Math.abs(p.x - xc) < 0.45 && p.y < P.box.min.y + 0.65 * P.L) { s = Math.min(1, (-q.z - 0.2) / 0.5); soil = p.x < xc ? 1 : 0; }
-        if (p.x < P.cut + 0.3 && p.x > P.cut - 0.3 && Math.abs(p.z - P.box.min.z) > 0.2) t = 1 - Math.abs(p.x - P.cut) / 0.3;
+        if (Math.abs(p.x - P.cut) < P.cutW && p.z > P.box.min.z + 0.6 * (P.box.max.z - P.box.min.z)) t = 1 - Math.abs(p.x - P.cut) / P.cutW;
       }
       rec[i * 4] = Math.round(255 * c); rec[i * 4 + 1] = Math.round(255 * s); rec[i * 4 + 2] = Math.round(255 * t); rec[i * 4 + 3] = Math.round(255 * soil);
       d.copy(aft); if (na) { const nl = new T.Vector3().fromBufferAttribute(na, i); d.addScaledVector(nl, -d.dot(nl)); } d.normalize();
