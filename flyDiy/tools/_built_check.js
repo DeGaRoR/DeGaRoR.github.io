@@ -53,7 +53,9 @@ try {
     else {
       // the build's inputs as pathspecs: all of src/ and vendor/, the geometry store (sw.js lists it), build.js, and
       // every tools/ file the shipped code names (the editor, the generators, the fixtures)
-      const spec = [...new Set(['src', 'vendor', 'media/geo', 'tools/build.js'].concat(r.inputs.map(i => i.rel).filter(p => p.startsWith('tools/'))))];
+      // (minus what is made FROM a build: the parked cook's manifest)
+      const spec = [...new Set(['src', 'vendor', 'media/geo', 'tools/build.js'].concat(r.inputs.map(i => i.rel).filter(p => p.startsWith('tools/'))))]
+        .concat([...B.GENERATED].filter(p => p.startsWith('src/')).map(p => ':(exclude)' + p));
       const L = git(['log', '-1', '--format=%h', 'HEAD', '--', ...B.OUTPUTS]).trim();
       const Ls = L ? git(['log', '-1', '--format=%s', L]).trim() : '';
       const moved = L ? git(['diff', '--name-only', L, 'HEAD', '--', ...spec]).split('\n').filter(Boolean) : ['(no commit carries the outputs)'];
