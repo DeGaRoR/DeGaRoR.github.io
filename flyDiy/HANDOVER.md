@@ -74198,3 +74198,18 @@ shelve the seabed geometry (G1503).
   box), FRAMECOST FAIL (24) = the stale parked cook's rows (the aeroplanes captured live: draws +133, uniform4fv +2 000) -
   with the parked aeroplanes cooked on this build (tools/parked_cook.js, local, NOT committed) GATE FRAMECOST: PASS.
   FOR A0: generated files not committed (node tools/build.js); the parked aeroplanes need the train's cook.
+
+## TRAIN 33 LANDED (2026-10-05, A0 the coordinator)
+
+Cargo (on train 32 = d3e1e43a): SOUND-NEXT (the Sound Coordinator's b0fe1bae: six stations + the mix, Radio Jolene's
+recorded voices, the beds and emitters, Radio Jolene by default with a seeded shuffle; music 127 MB + voice 13 MB, lazy),
+the hybrid band's 0.5 s DISSOLVE on by default (the user: +1.4 ms at the taxi chase instead of +2.15; ?fbake=hyease=0 the
+hard band), WOODLAND G1480-G1482 (b: the woodland's seeds retired from the draw AND the physics - what the aeroplane can hit
+is what is drawn; G1461's token in it; equal perf, potato -12 MB heap; (a) drawing it would cost +1.2 ms and +34 % draws),
+SHORES G1500-G1509 (the user's calls: rocky bank faces kept, the sea shore as built - no beach-code band, the land's own
+cover to the waterline), POTATO-DEEP's final commits (gate updates, the how-to-test; potato skips the flown bake),
+the BLUEPRINT API (G1920, was "G573.1" on claude/clever-heisenberg-xmijol: G573 is another session's), HYBRID-TRIPS'
+evidence.
+STRICT GATE (full): 98 in slack, 47 better, 12 RED = the 30 cap's fps rows, the chase render / loop +1.65-1.8 ms (the
+hybrid band, admitted; the dissolve's +1.4 expected), and garage -> world @mn_strip worst task 107 -> 335 ms (270 in train
+32: arrived with train 32, investigated separately). BATTERY: the full battery PASS (SOFTGPU SKIP). Parked re-cooked.
