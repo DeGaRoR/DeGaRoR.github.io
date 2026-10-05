@@ -58,6 +58,15 @@ function makeCrosswindProbe(def, opts) {
   const cap = opts.cap || 10;
   const runs = [];
   let cur = null, lo = 0, hi = null, calmTried = false, result = null;
+  // REVIEW C: THE WORLD'S WIND IS PUT BACK. Each rung sets the world's wind
+  // and nothing restored it, so a caller's world (the bench's, GATE TAKEOFF's
+  // xwWorld) came back from the ladder blowing the last rung across the strip.
+  // The declared spec (the climate's own, before a front's hand) is kept and
+  // set again when the ladder ends — or by restore() for a ladder abandoned.
+  const C0 = world.climate;
+  const wind0 = C0 && 'declared' in C0 ? C0.declared : undefined;
+  let windSet = false;
+  const restore = () => { if (windSet && wind0 !== undefined && world.setWind) world.setWind(wind0); windSet = false; };
 
   function start(w) {
     if (memo && memo.has(w)) {                                // a rung already flown: re-judge it by THIS band
@@ -67,7 +76,7 @@ function makeCrosswindProbe(def, opts) {
       cur = { w, roll: m.roll, e: m.e, t: m.t, fin };
       return;
     }
-    if (world.setWind) world.setWind({ base: [0, 0, w], gust: 0 });
+    if (world.setWind) { world.setWind({ base: [0, 0, w], gust: 0 }); windSet = true; }
     const sim = makeSim(def, world);
     sim.reset(0);
     for (let i = 0; i < 600; i++) sim.step(1 / 60);       // parked settle
@@ -130,6 +139,7 @@ function makeCrosswindProbe(def, opts) {
                failRoll: first ? first.roll : null,
                runs: runs.map(r => ({ w: r.w, ok: r.ok, roll: r.roll, e: r.e, why: r.why })),
                side: '+z' };
+    restore();
     return null;
   }
   function record() {
@@ -172,7 +182,7 @@ function makeCrosswindProbe(def, opts) {
   }
   // A9: the rungs as they land (read-only), so a card can print each
   // departure while the ladder is still climbing
-  return { poll, get result() { return result; }, get runs() { return runs; }, band, cap };
+  return { poll, restore, get result() { return result; }, get runs() { return runs; }, band, cap };
 }
 
 // the whole measurement at once (the gates)

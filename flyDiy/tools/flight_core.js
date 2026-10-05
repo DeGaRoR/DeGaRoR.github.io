@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: c892337232ea29ab
+// body-sha256: b51ad86b1284e75f
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -2528,7 +2528,7 @@ var CLIMATE = (function () {
       setWind, wind, sample, reliefAt, ensureRelief, surfaceWind,
       profile, mixTop, haze, refresh, thermals, get water() { return waterNow(); },
       get conv() { return convNow(); }, convState, convSeed,
-      get mode() { return mode; }, get spec() { return windSpec; }, get rich() { return rich; },
+      get mode() { return mode; }, get spec() { return windSpec; }, get declared() { return spec0; }, get rich() { return rich; },
       get relief() { return relief; }, get version() { return version; }, stats,
     };
   }
@@ -3150,7 +3150,10 @@ function makeWorld(seed, opts) {
       A0m2: !ISL || ISL.hydro === 'proc' ? 274650 : ISL.hydro === 'blend' ? 1.2e6 : 1e12,
       kW: (ISL && ISL.hydro === 'blend') ? 0.22 : 0.35, kD: ISL ? 0.12 : 0.4, maxW: (ISL && ISL.hydro === 'blend') ? 28 : 45, dLake: 2,
       lakeOf: (ISL && ISL.hydro === 'blend') ? ISL.lakeAt : null, lakeSurf: !(ISL && ISL.hydro !== 'proc'),
-      dpEps: 25, bankFrac: 1.4, qCell: 96, wsAdjust: domes });
+      dpEps: 25, bankFrac: 1.4, qCell: 96, wsAdjust: domes,
+      // G1562 (REVIEW D8): the analytic world's sea is the below-0 ground that reaches the domain's edge; a basin under
+      // 0 inland is a lake. The island's sea is its data's (28_island's coast field), as it was.
+      seaConnected: !ISL });
   // stage 0+1 terrain: carved + meadow-blended, PRE-road (the settle bake
   // scores sites and derives grading targets on this)
   function tV1(x, z) {
@@ -3210,7 +3213,7 @@ function makeWorld(seed, opts) {
   const AERO = ISL
     ? { strips: [], grade: (x, z, h) => h, surfaceAt: () => -1, inBox: () => false, stats: { bakeMs: 0 } }
     : bakeAerodromes({
-      terrain: tV2, water: HYD.water, settlements: SET.settlements,
+      terrain: tV2, water: HYD.water, carved: (x, z) => { tV2(x, z); return _cd; }, settlements: SET.settlements,
       meadows, roadNear: SET.roadNear, SURFACE, salt: SALT });
   // the island takes no generated strips (maps first: its field is a premises record)
   if (!ISL) for (const st of AERO.strips) aerodromes.push(st);
@@ -3608,7 +3611,9 @@ function makeWorld(seed, opts) {
     }
     const ws = HYD.water(x, z);
     if (ws > t) return ws;
-    if (t < 0 && blendM(x, z, h0(x, z)) < 0) return 0;
+    // (G1562, REVIEW D8: the sea is the below-0 ground that REACHES the open water - a landlocked basin under 0 is the
+    // bake's lake, answered above, and dry on its rim, not sea-level water with nothing joining it to the sea)
+    if (t < 0 && blendM(x, z, h0(x, z)) < 0 && HYD.seaAt(x, z)) return 0;
     return -Infinity;
   }
   // (G1406) waterH's build read (the two-argument call, on terrainHBuild)
@@ -3963,7 +3968,11 @@ function makeWorld(seed, opts) {
     // the sea walks after the wind, on the same clock the wind moved on
     // REVIEW 2026-10-04 (B15): day.advance wraps utc at 86400, so the first tick across midnight read ~86380 s and the
     // sea snapped to its target in one tick; the elapsed day-time is the wrapped difference
-    seaRelax(((day.utc - u0) % 86400 + 86400) % 86400, simT, ax, az);
+    // (G1567: wrapped into +-half a day and taken absolute - the positive modulo would read a BACKWARD step of the day
+    // (-20 s) as ~86 380 s and snap the sea; forward steps under 12 h read the same either way. NOT the cause of the
+    // FRAMECOST reds it was first suspected of: those are the parked cook's build-id key, see HANDOVER G1560-G1569)
+    let dU = day.utc - u0; dU -= 86400 * Math.round(dU / 86400);
+    seaRelax(Math.abs(dU), simT, ax, az);
   }
   // setWeather({ oatC, qnhPa, wind }) — the AIR + WIND subset, as it always was:
   // absent fields are CLEARED (the standard day, the zero wind), so the
@@ -4026,7 +4035,7 @@ function makeWorld(seed, opts) {
     roadNet: { roads: SET.roads, buildings: SET.buildings, roadNear: SET.roadNear, inCore: SET.inCore, settlements: SET.settlements, bakeMs: SET.stats.bakeMs },
     // informative stage-1 block (not contract surface): gates/debug read
     // reach records and bake stats here without walking every tile.
-    hydro: { rivers: HYD.rivers, lakeCount: HYD.lakeCount, lakeCells: HYD.lakeCells, bakeMs: HYD.stats.bakeMs, water: HYD.water, lakeSurf: HYD.lakeSurf, cellW: HYD.stats.cellW, distW: HYD.distW },
+    hydro: { grids: HYD.grids, rivers: HYD.rivers, lakeCount: HYD.lakeCount, lakeCells: HYD.lakeCells, bakeMs: HYD.stats.bakeMs, water: HYD.water, lakeSurf: HYD.lakeSurf, cellW: HYD.stats.cellW, distW: HYD.distW },
     // ---- the day (G72): the air is a getter so it is read LIVE ----
     get atmos() { return airNow(); },
     get weather() { return weather; },
@@ -4083,11 +4092,35 @@ function bakeHydrology(sample, cfg) {
   // ---- heights + sea mask (sea level = 0) ----
   const H = new Float64Array(M);
   for (let iz = 0, k = 0; iz < N; iz++) for (let ix = 0; ix < N; ix++, k++) H[k] = sample(px(ix), pz(iz));
-  const sea = new Uint8Array(M);
-  for (let k = 0; k < M; k++) if (H[k] < 0) sea[k] = 1;
-
   const NBX = [1, -1, 0, 0, 1, 1, -1, -1];
   const NBZ = [0, 0, 1, -1, 1, -1, 1, -1];
+  const sea = new Uint8Array(M);
+  // THE SEA IS WHAT REACHES THE OPEN WATER (G1562, REVIEW 2026-10-04 D8). It was a sign test, H < 0, and every basin
+  // the relief dips under 0 inland was "sea" at level 0 with no water connecting it: 49 such components at seed 0, one
+  // of them 3 020 cells (6.6 km2, 120 m deep) in the north. With cfg.seaConnected the sea is the below-0 ground
+  // CONNECTED (8 ways, the flood's own neighbourhood) to the domain's edge - the open water beyond it, where the
+  // flood below drains too; a basin below 0 that does not reach the edge is LAND to the flood, which fills it to its
+  // spill like any sink, and a LAKE (below: `low`). The island does not ask: its sea is the data's (the coast field
+  // puts the terrain on the -5 m shelf where the prep's waterline says sea, and a lagoon behind a channel narrower
+  // than a bake cell is still the sea - Jolene's five such pockets are).
+  const low = new Uint8Array(M);   // 1: below 0, landlocked (a lake whatever its depth)
+  if (cfg.seaConnected) {
+    const st = [];
+    for (let k = 0; k < M; k++) {
+      const ix = k % N, iz = (k / N) | 0;
+      if ((ix === 0 || iz === 0 || ix === N - 1 || iz === N - 1) && H[k] < 0) { sea[k] = 1; st.push(k); }
+    }
+    while (st.length) {
+      const c = st.pop(), cix = c % N, ciz = (c / N) | 0;
+      for (let d = 0; d < 8; d++) {
+        const nix = cix + NBX[d], niz = ciz + NBZ[d];
+        if (nix < 0 || niz < 0 || nix >= N || niz >= N) continue;
+        const n = niz * N + nix;
+        if (!sea[n] && H[n] < 0) { sea[n] = 1; st.push(n); }
+      }
+    }
+    for (let k = 0; k < M; k++) if (H[k] < 0 && !sea[k]) low[k] = 1;
+  } else for (let k = 0; k < M; k++) if (H[k] < 0) sea[k] = 1;
   const DIST = NBX.map((v, i) => Math.hypot(v * dx, NBZ[i] * dz));
 
   // ---- priority flood: fill depressions to spill from the boundary ----
@@ -4182,7 +4215,12 @@ function bakeHydrology(sample, cfg) {
   // ---- lakes: fill difference above threshold; per-cell water = filled ----
   const lake = new Uint8Array(M);
   let lakeCells = 0;
-  for (let k = 0; k < M; k++) if (!sea[k] && filled[k] - H[k] > cfg.lakeMin) { lake[k] = 1; lakeCells++; }
+  for (let k = 0; k < M; k++) if (!sea[k] && (filled[k] - H[k] > cfg.lakeMin || low[k])) { lake[k] = 1; lakeCells++; }
+  // a landlocked cell shallower than lakeMin is a lake for its WATER (the ground under 0 is drawn under the sea's
+  // plane, so it must be wet to agree with the picture) but not for the CARVE: no 2 m bed is dug where the world had
+  // a few centimetres of dip - seed 0's home lowlands have five such (G1562); their ground stays as it was
+  const shallow = new Uint8Array(M);
+  for (let k = 0; k < M; k++) if (low[k] && !(filled[k] - H[k] > cfg.lakeMin)) shallow[k] = 1;
   // LAKES HANDED IN (G413, the blend): the map's lakes (a signed field, > 0
   // inside) are the bake's lakes too - a reach ends where it enters one and
   // a new reach starts where the water leaves, instead of a ribbon traced
@@ -4292,6 +4330,29 @@ function bakeHydrology(sample, cfg) {
       if (flow[n] === k && acc[n] > A0 && !sea[n]) { head = false; break; }
     }
     if (!head) continue;
+    trace(k);
+  }
+  // THE LAKES' OUTLETS (G1561, REVIEW 2026-10-04 B14). A lake fed by nothing river-sized - its inflows each under A0,
+  // their sum over it - spills a river from its outlet cell, and the head test above vetoed that cell: its upstream
+  // neighbour IS river-sized (a lake cell, acc > A0), so the outlet was not a head, and no traced reach ever entered
+  // the lake to carry on out of it. Seed 0: 105 of the 233 lakes with a river-sized outlet had no river leaving them.
+  // After the pass above every cell it reached is claimed, so a river-sized cell still unclaimed lies below such a
+  // lake; it heads a reach when no unclaimed river-sized land cell flows into it (a lake cell does not count - the
+  // reach starts where the water leaves, as the pass above splits its reaches at a lake). A second pass, so every
+  // reach the first one traced stays byte for byte; the new ones end at a junction with it, a lake, the sea or the edge.
+  for (let k = 0; k < M; k++) {
+    if (!(acc[k] > A0) || sea[k] || lake[k] || claimed[k]) continue;
+    let head = true;
+    const cix = k % N, ciz = (k / N) | 0;
+    for (let d = 0; d < 8; d++) {
+      const nix = cix + NBX[d], niz = ciz + NBZ[d];
+      if (nix < 0 || niz < 0 || nix >= N || niz >= N) continue;
+      const n = niz * N + nix;
+      if (flow[n] === k && acc[n] > A0 && !sea[n] && !lake[n] && !claimed[n]) { head = false; break; }
+    }
+    if (head) trace(k);
+  }
+  function trace(k) {
     let cur = k, rp = [], rw = [], accEnd = acc[k];
     const flush = term => { if (rp.length >= 2) rivers.push(mkReach(rp, rw, accEnd, term)); rp = []; rw = []; };
     while (cur >= 0) {
@@ -4359,6 +4420,10 @@ function bakeHydrology(sample, cfg) {
       const s = {
         ax: r.pts[i][0], az: r.pts[i][1], bx: r.pts[i + 1][0], bz: r.pts[i + 1][1],
         w: r.w, d: r.d, wsA: r.ws[i], wsB: r.ws[i + 1], bank,
+        // the bank-inflated box (G1561): a point outside it is farther than `bank` from the segment, so scan() skips
+        // the projection - the same answers, cheaper (B14's outlet reaches added a third more segments to scan)
+        x0: Math.min(r.pts[i][0], r.pts[i + 1][0]) - bank, x1: Math.max(r.pts[i][0], r.pts[i + 1][0]) + bank,
+        z0: Math.min(r.pts[i][1], r.pts[i + 1][1]) - bank, z1: Math.max(r.pts[i][1], r.pts[i + 1][1]) + bank,
       };
       segCount++;
       const qx0 = Math.floor((Math.min(s.ax, s.bx) - bank) / QC), qx1 = Math.floor((Math.max(s.ax, s.bx) + bank) / QC);
@@ -4379,6 +4444,7 @@ function bakeHydrology(sample, cfg) {
     if (!arr) return;
     for (let i = 0; i < arr.length; i++) {
       const s = arr[i];
+      if (x < s.x0 || x > s.x1 || z < s.z0 || z > s.z1) continue;
       const vx = s.bx - s.ax, vz = s.bz - s.az;
       const wx = x - s.ax, wz = z - s.az;
       const L2 = vx * vx + vz * vz || 1;
@@ -4394,7 +4460,7 @@ function bakeHydrology(sample, cfg) {
   }
   // bilinear lake sampling in cell-center space: weight + water level
   let _lw = 0, _lws = 0;
-  function lakeAt(x, z) {
+  function lakeAt(x, z, bed) {
     _lw = 0; _lws = 0;
     const gx = (x - x0) / dx - 0.5, gz = (z - z0) / dz - 0.5;
     const ix = Math.floor(gx), iz = Math.floor(gz);
@@ -4404,7 +4470,7 @@ function bakeHydrology(sample, cfg) {
       const jx = ix + a, jz = iz + b;
       if (jx < 0 || jz < 0 || jx >= N || jz >= N) continue;
       const k = jz * N + jx;
-      if (!lake[k]) continue;
+      if (!lake[k] || (bed && shallow[k])) continue;   // (the bed's read skips the shallow landlocked cells, G1562)
       const w = (a ? tx : 1 - tx) * (b ? tz : 1 - tz);
       wsum += w; lsum += w * filled[k];
     }
@@ -4413,7 +4479,7 @@ function bakeHydrology(sample, cfg) {
   function carve(x, z, h) {
     scan(x, z);
     let out = h - _depth;
-    lakeAt(x, z);
+    lakeAt(x, z, true);
     if (_lw > 0) out += smf01(_lw) * Math.min(0, (_lws - cfg.dLake) - out);
     return out;
   }
@@ -4433,13 +4499,29 @@ function bakeHydrology(sample, cfg) {
   // cfg.lakeOf, whose level is data. The island asks for this one instead and
   // answers its own lakes from its records (20_world.js waterAt).
   function riverWater(x, z) { scan(x, z); return _ws; }
+  // THE SEA AT A POINT (G1562): false where a landlocked basin's cell is one of the four the point's bilinear reads
+  // touch - the point is in (or on the rim of) a basin the flood made a lake, not the sea; true everywhere else, and
+  // everywhere on a world that does not ask for connectivity. The caller keeps its own sign test (the ground under 0).
+  let anyLow = false;
+  for (let k = 0; k < M && !anyLow; k++) if (low[k]) anyLow = true;
+  function seaAt(x, z) {
+    if (!anyLow) return true;
+    const gx = (x - x0) / dx - 0.5, gz = (z - z0) / dz - 0.5;
+    const ix = Math.floor(gx), iz = Math.floor(gz);
+    for (let a = 0; a <= 1; a++) for (let b = 0; b <= 1; b++) {
+      const jx = ix + a, jz = iz + b;
+      if (jx < 0 || jz < 0 || jx >= N || jz >= N) continue;
+      if (low[jz * N + jx]) return false;
+    }
+    return true;
+  }
 
   return {
     rivers, lakeCount, lakeCells, riverCells, segCount, lakeSurf,
-    carve, water, riverWater, distW,
+    carve, water, riverWater, seaAt, distW,
     // stage-1 grids for downstream stages (settlement scoring, roads):
     // row-major N×N over [x0,x1]×[z0,z1], cell centres at (i+0.5)·dx
-    grids: { N, x0, z0, dx, dz, H, filled, sea, wet, lake, acc, claimed },
+    grids: { N, x0, z0, dx, dz, H, filled, sea, low, wet, lake, acc, claimed, flow },
     stats: { bakeMs: Date.now() - t0, N, maxAcc, cellW: dx },
   };
 }
@@ -4926,9 +5008,9 @@ function bakeSettlements(D) {
 // Deterministic: fixed iteration orders, hash jitter only.
 // ============================================================
 function bakeAerodromes(D) {
-  // D: { terrain(x,z), water(x,z), settlements, meadows, roadNear, SURFACE, salt }
+  // D: { terrain(x,z), water(x,z), carved(x,z), settlements, meadows, roadNear, SURFACE, salt }
   const t0 = Date.now();
-  const { terrain, water, settlements, meadows, roadNear, SURFACE, salt } = D;
+  const { terrain, water, carved, settlements, meadows, roadNear, SURFACE, salt } = D;
   const smf01 = t => { t = Math.min(1, Math.max(0, t)); return t * t * (3 - 2 * t); };
   const hash2 = (ix, iz) => {
     let h = (ix * 786433 + iz * 393241 + 65213 + salt) | 0;
@@ -4963,6 +5045,32 @@ function bakeAerodromes(D) {
     }
     return { flat, slopeMax, elev, wet };
   }
+  // THE STRIP STANDS ON ITS OWN GROUND (G1560, REVIEW 2026-10-04 A5). probe() above scores a candidate on eleven
+  // centreline points - 65 m apart on a 650 m field, and a river fits between two of them: seed 0's A2 "Pelham Field"
+  // was sited across one (5.43 m of trench and water under a record that said elev 24.4), and the grading below cannot
+  // fill it - baseH (20_world.js) fades the grade out by the carve depth, by design, so a bed stays a bed. So a
+  // candidate that WINS on the score is walked before it is taken: every STEP metres down the centreline and down both
+  // edges of the graded flat (wid/2 + 6, the grade's own shoulder), no carve under it (a river's bank, a lake's bed:
+  // `carved` is tV2's carve depth) and no water over it. A candidate that fails it gives way to the next best - the
+  // score's own order, so a strip that was clean stands where it stood, on the elev it had. Only winners are walked
+  // (a few per town, a few backcountry benches): the bake's cost does not move.
+  const STEP = 4;
+  const NUDGE = [];
+  for (const dv of [0, -60, 60, -120, 120, -180, 180, -240, 240]) for (const du of [0, -80, 80, -160, 160]) if (du || dv) NUDGE.push([du, dv]);
+  function clean(cx, cz, hdg, len, wid) {
+    const dx = Math.cos(hdg), dz = Math.sin(hdg), hw = wid / 2 + 6;
+    const n = Math.ceil(len / STEP);
+    for (let i = 0; i <= n; i++) {
+      const t = (i / n - 0.5) * len;
+      for (const v of [-hw, 0, hw]) {
+        const x = cx + dx * t - dz * v, z = cz + dz * t + dx * v;
+        if (carved(x, z) > 1e-3) return false;
+        const h = terrain(x, z);
+        if (h < 1.2 || water(x, z) > h) return false;
+      }
+    }
+    return true;
+  }
   const nearMeadow = (x, z, f) => meadows.some(m => Math.hypot(x - m.x, z - m.z) < m.r * f);
   const inHomeZone = (x, z) =>
     (x > -3400 && x < 400 && Math.abs(z) < 500) ||     // circuit band
@@ -4972,8 +5080,11 @@ function bakeAerodromes(D) {
   function push(cx, cz, hdg, len, wid, surf, elev, name, kind, flyIn) {
     const dx = Math.cos(hdg), dz = Math.sin(hdg);
     const feather = 90 + len * 0.1;
-    const ex = Math.abs(dx) * len / 2 + Math.abs(dz) * wid / 2 + feather;
-    const ez = Math.abs(dz) * len / 2 + Math.abs(dx) * wid / 2 + feather;
+    // the box holds the WHOLE feather (G1560, REVIEW C-world): grade() flattens wid/2 + 6 across and feathers past
+    // that, and the box stopped at wid/2 + feather - the grade was cut off 6 m short of its end on the long sides,
+    // a C0 step in the ground along the box's edge
+    const ex = Math.abs(dx) * len / 2 + Math.abs(dz) * (wid / 2 + 6) + feather;
+    const ez = Math.abs(dz) * len / 2 + Math.abs(dx) * (wid / 2 + 6) + feather;
     // tdz on the APPROACH side: threshold + 20% (G381; was 25%) (landing dir = -takeoffDir,
     // so the threshold is the +takeoffDir end). The W9 formula had it on
     // the rollout end — frame math was self-consistent so landings "worked",
@@ -4997,7 +5108,9 @@ function bakeAerodromes(D) {
     const len = s.pop >= 800 ? 900 : s.pop >= 450 ? 650 : 480;
     const wid = len >= 900 ? 30 : 22;
     const surf = len >= 900 ? SURFACE.PAVED : SURFACE.GRASS;
-    let best = null;
+    // every candidate the score admits, in the search's order; the cheapest CLEAN one is taken (ties: the earliest,
+    // as the old strict `<` kept them) - the old pick whenever it was clean
+    const cands = [];
     const r0 = Math.max(320, s.r + 160);
     for (let ri = 0; ri < 3; ri++) for (let ai = 0; ai < 12; ai++) {
       const ang = (ai / 12) * 2 * Math.PI + hash2(si * 37 + ri, ai) * 0.2;
@@ -5010,8 +5123,32 @@ function bakeAerodromes(D) {
         const p = probe(cx, cz, hdg, len, wid);
         if (p.wet || p.flat > 6 || p.slopeMax > 0.06) continue;
         const cost = p.flat + p.slopeMax * 60 + Math.min(2, roadNear(cx, cz) / 600);
-        if (!best || cost < best.cost) best = { cx, cz, hdg, cost, elev: p.elev };
+        cands.push({ cx, cz, hdg, cost, elev: p.elev, i: cands.length });
       }
+    }
+    cands.sort((a, b) => (a.cost - b.cost) || (a.i - b.i));
+    let best = null;
+    for (const c of cands) if (clean(c.cx, c.cz, c.hdg, len, wid)) { best = c; break; }
+    // NONE CLEAN: THE FIELD MOVES, it is not dropped (a river town - seed 0's Pelham, its every candidate across a
+    // 45 m river's bank). Each admitted candidate is slid along and across its own axis (NUDGE, metres) and the
+    // slid sites are scored and walked the same way; the town keeps its field and every later strip its id
+    // (PILOTMATRIX flies A3 and A5 by id). Only a town with no clean candidate pays for this.
+    if (!best && cands.length) {
+      const more = [];
+      for (const c of cands) {
+        const ux = Math.cos(c.hdg), uz = Math.sin(c.hdg);
+        for (const [du, dv] of NUDGE) {
+          const cx = c.cx + ux * du - uz * dv, cz = c.cz + uz * du + ux * dv;
+          if (inHomeZone(cx, cz) || nearMeadow(cx, cz, 1.8) || !farFromStrips(cx, cz, 1500)) continue;
+          if (roadNear(cx, cz) > 1100) continue;
+          const p = probe(cx, cz, c.hdg, len, wid);
+          if (p.wet || p.flat > 6 || p.slopeMax > 0.06) continue;
+          const cost = p.flat + p.slopeMax * 60 + Math.min(2, roadNear(cx, cz) / 600);
+          more.push({ cx, cz, hdg: c.hdg, cost, elev: p.elev, i: more.length });
+        }
+      }
+      more.sort((a, b) => (a.cost - b.cost) || (a.i - b.i));
+      for (const c of more) if (clean(c.cx, c.cz, c.hdg, len, wid)) { best = c; break; }
     }
     if (best)
       push(best.cx, best.cz, best.hdg, len, wid, surf, best.elev,
@@ -5029,21 +5166,35 @@ function bakeAerodromes(D) {
         if (h < 90 || h > 420) continue;
         if (inHomeZone(cx, cz) || nearMeadow(cx, cz, 1.8)) continue;
         if (settlements.some(s => Math.hypot(cx - s.x, cz - s.z) < 1800)) continue;
-        let bestH = null;
+        // the headings the score admits, flattest first (ties: the earliest heading, as the old strict `<` kept them);
+        // the site stands in the list at its flattest, and is walked (clean) only when the list reaches it
+        const hs = [];
         for (let hi = 0; hi < 8; hi++) {
           const hdg = hi * Math.PI / 8;
           const p = probe(cx, cz, hdg, 340, 18);
           if (p.wet || p.flat > 5 || p.slopeMax > 0.05) continue;
-          if (!bestH || p.flat < bestH.flat) bestH = { hdg, flat: p.flat, elev: p.elev };
+          hs.push({ hdg, flat: p.flat, elev: p.elev, hi });
         }
-        if (bestH) cand.push({ cx, cz, ...bestH });
+        hs.sort((a, b) => (a.flat - b.flat) || (a.hi - b.hi));
+        if (hs.length) cand.push({ cx, cz, hdg: hs[0].hdg, flat: hs[0].flat, elev: hs[0].elev, hs, k: 0 });
       }
     }
-    cand.sort((a, b) => (a.flat - b.flat) || (a.cx - b.cx) || (a.cz - b.cz));
+    const cOrd = (a, b) => (a.flat - b.flat) || (a.cx - b.cx) || (a.cz - b.cz);
+    cand.sort(cOrd);
     const SYL = ['Kar', 'Tyl', 'Ulv', 'Brekk', 'Stein', 'Vass'];
-    for (const c of cand) {
+    while (cand.length) {
+      const c = cand.shift();
       if (strips.filter(st => st.kind === 'strip').length >= 3) break;
       if (!farFromStrips(c.cx, c.cz, 3000)) continue;
+      if (!clean(c.cx, c.cz, c.hdg, 340, 18)) {
+        // its flattest heading crosses a bed or water: the site goes back in the list at its next heading's flatness
+        if (++c.k < c.hs.length) {
+          const h = c.hs[c.k]; c.hdg = h.hdg; c.flat = h.flat; c.elev = h.elev;
+          let at = 0; while (at < cand.length && cOrd(cand[at], c) <= 0) at++;
+          cand.splice(at, 0, c);
+        }
+        continue;
+      }
       let nm = '';
       for (let v = 0; v < SYL.length; v++) {   // rotate on collision
         nm = SYL[(((hash2(Math.round(c.cx), Math.round(c.cz)) * SYL.length) | 0) + v) % SYL.length] + ' Strip';
@@ -6450,7 +6601,7 @@ const HANGAR_KITS = {
   office: {
     name: 'Office corner', grants: ['avionics', 'paperwork'],
     props: ['desk_metal', 'radio_bench', 'instrument_panel', 'lamp_desk',
-            'plan_wall'],
+            'plan_wall', 'boombox'],
     sites: [
       { prop: 'desk_metal', at: 'build', along: HF_A(2.6), out: 0.90, dry: 0 },
       { prop: 'lamp_desk', at: 'build', along: HF_A(3.35), out: 1.15,
@@ -6479,7 +6630,12 @@ const HANGAR_KITS = {
       { recipe: 'planTable', at: 'floor', fx: HF_PF(-9.2, 13), fz: HF_PF(8.4, 18),
         dry: 0.4, foot: [0.8, 0.55], props: [] },
     ],
-    ring: [],
+    ring: [
+      // THE GARAGE RADIO (SND-BOOMBOX, the user 2026-10-05: "place the boombox
+      // close to the plane, and make it clickable"): on the floor abeam to
+      // starboard, a metre forward of the tool chest, angled to the bay
+      { prop: 'boombox', station: 'abeamS', dx: -0.6, dz: 0.1, dry: Math.PI + 0.45 },
+    ],
   },
 
   comfort: {
@@ -8912,10 +9068,10 @@ function compose(rec0, world, opts) {
     // One index cell per 64 m; O(1) a point. The pavement's own laws (the band, the fade) live here
     // and in pavement.js's recipe; GATE PAVEMENT holds the band table equal.
     coverAt: (x, z, pave) => coverAt(x, z, pave),
-    // pavedAt(x, z) -> null | { d, cls, halfW, kind }: the pavement whose surface the point lies deepest
+    // pavedAt(x, z, reach) -> null | { d, cls, halfW, kind, dPre }: the pavement whose surface the point lies deepest
     // inside (d = metres in from its edge, > 0). The viewer sinks its ground patch under the pavement's
     // opaque interior by it (G660, PAVEMENT.sinkAt); the same index as coverAt, the same dEdge
-    pavedAt: (x, z) => pavedAt(x, z),
+    pavedAt: (x, z, reach) => pavedAt(x, z, reach),
     // pavedNear(x, z, margin, skip) -> null | { d, id, kind, cls }: any pavement here or within `margin`, other than
     // `skip` - what a loose thing (a stone, litter, a parked car) asks before it is put down (G1003)
     pavedNear: (x, z, margin, skip) => pavedNear(x, z, margin, skip),
@@ -9074,13 +9230,59 @@ function compose(rec0, world, opts) {
     return { kill, boost: Math.min(1, boost * (1 - kill)), kind, cls, grass };
   }
 
-  function pavedAt(x, z) {
-    const L = F.toLocal(x, z), lx = L[0], lz = L[1];
+  // G1542 (GROUND-LATTICE): A ROAD'S RIBBON ENDS SQUARE (pavement.js roadGeometry: s from 0 to the length, the rows
+  // across at each), while its dEdge is w/2 less the distance to the polyline - a round cap past each end. The patch
+  // sinks by pavedAt (render_premises sinkOf, up to 0.8 m), so past every dead end a half disc of the patch was sunk
+  // under NOTHING: a pit as wide as the road. tools/ground_drawn.js found it under mn_strip's stand, at the start of
+  // mn_stand_lane: the drawn ground 0.23-0.59 m under the wheels of a Cub, a Jodel and a Cessna parked there. So for
+  // the patch a road's DEAD end is an EDGE too: past it nothing is paved, and the DEEP sink (0.8 m) is held PAVE_END_IN
+  // (the patch's 2 m cell) inside it, so no deeply sunk vertex lies within a cell of the end and no triangle carries that
+  // sink past it. The last 2 m take the edge's own 7 cm (`dPre`: the depth sinkAt's pre-sink reads, G1001's law), so the
+  // road still stands over the patch there by what it does at every edge. A closed road has no end. (pavedNear /
+  // coverAt keep the round cap: the stones, the trees, the life.)
+  // Only a DEAD end: an end that opens onto another pavement (a junction, a stand lane onto an apron) is covered by it,
+  // and keeps the round cap there (the other pavement draws over it; GATE CONTACT's ratchet counted 33 more points of
+  // a road's band within 5 mm of the patch when every end was held back).
+  const PAVE_END_IN = 2;
+  function roadDeadEnds(it) {                     // [start, end]: true where nothing else is paved at the end (cached)
+    if (it.deadEnds) return it.deadEnds;
+    const pts = it.road.pts, dead = p => { const cell = CIDX.query(p[0], p[1]); if (cell) for (const o2 of cell) if (o2 !== it && dEdgeOf(o2, p[0], p[1]) > -0.5) return false; return true; };
+    return (it.deadEnds = [dead(pts[0]), dead(pts[pts.length - 1])]);
+  }
+  function roadEndIn(it, x, z) {                  // metres inside the nearer DEAD end, along the road (Infinity: not near one)
+    const pts = it.road && it.road.pts, n = pts ? pts.length : 0;
+    if (n < 2 || (pts[0][0] === pts[n - 1][0] && pts[0][1] === pts[n - 1][1])) return Infinity;
+    const DE = roadDeadEnds(it);
+    if (!DE[0] && !DE[1]) return Infinity;
+    let best = Infinity, bi = 1, bt = 0;
+    for (let i = 1; i < n; i++) {
+      const a = pts[i - 1], b = pts[i], dx = b[0] - a[0], dz = b[1] - a[1], l2 = dx * dx + dz * dz;
+      const t = l2 > 1e-12 ? ((x - a[0]) * dx + (z - a[1]) * dz) / l2 : 0, tc = Math.max(0, Math.min(1, t));
+      const d = HYP2(x - (a[0] + dx * tc), z - (a[1] + dz * tc));
+      if (d < best) { best = d; bi = i; bt = t; }
+    }
+    const len = i => HYP2(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]);
+    let e = Infinity;
+    if (bi === 1 && DE[0]) e = bt * len(1);
+    if (bi === n - 1 && DE[1]) e = Math.min(e, (1 - bt) * len(n - 1));
+    return e;
+  }
+  // `reach` (G1541, m, default 0): also a pavement whose edge lies within `reach` OUTSIDE the point (d > -reach) - the
+  // patch keeps its 2 cm under a pavement's side, the translucent fade drawn over the ground past the edge
+  function pavedAt(x, z, reach) {
+    const L = F.toLocal(x, z), lx = L[0], lz = L[1], r0 = reach > 0 ? -reach : 0;
     const cell = CIDX.query(lx, lz);
     let best = null;
     if (cell) for (const it of cell) {
-      const d = dEdgeOf(it, lx, lz);
-      if (d > 0 && (!best || d > best.d)) best = { d, cls: it.cls, halfW: it.halfW || 1e3, kind: it.kind };
+      let d = dEdgeOf(it, lx, lz), dPre = d;
+      if (it.kind === 'road' && d > r0) {           // past the square end nothing is drawn, not even a side
+        const e = roadEndIn(it, lx, lz);
+        if (e < 0) continue;
+        dPre = Math.min(d, e); d = Math.min(d, e - PAVE_END_IN);
+      }
+      if (dPre <= r0) continue;
+      if (!best || d > best.d) best = { d, cls: it.cls, halfW: it.halfW || 1e3, kind: it.kind, dPre: Math.max(dPre, best ? best.dPre : -Infinity) };
+      else if (dPre > best.dPre) best.dPre = dPre;   // (the deepest pavement for the deep sink; the deepest paved extent for the rest)
     }
     return best;
   }
@@ -11671,7 +11873,7 @@ function makeSim(def, world) {
     let near = w1 > -1e8 && reach < w1;
     if (!near) { const w2 = world.waterH(cx, cz); near = w2 > -1e8 && Math.min(reach, cy - WB_REACH) < w2; }
     if (!near) { if (WB) { WB.tick = 0; WB.wet = 0; } return; }
-    if (!WB) WB = HYDRO.wetBuild(def, p, v, m);
+    if (!WB) WB = HYDRO.wetBuild(def, p, v, m, fuel);   // G1385: the tanks read the fuel the burn leaves
     wetArm = !!WB;
   }
   let totalM = 0;
@@ -14727,6 +14929,18 @@ const WB_DRAIN = 30;            // s: a slice out of the water drains (its flood
 const WB_BREACH_K = 10;         // a holed slice floods this much faster
 const WB_BETA_MIN = 10 * D2R;   // the slam's floor on a face's deadrise: a flat bottom is cushioned (air, skin flex)
 const WB_WING_TC = 0.12;        // the wing slab's thickness over chord (no per-strip thickness in the def)
+// G1385 TANKS-FLOAT: THE REAL TANKS. Each fuel vessel (spec.energy.vessels, GEN_TANKS' stations) is its own buoyant
+// volume where the frame billed its kilos (the vessel's `_pair`, split by side: a wing tank is two tanks), its design
+// capacity in litres. SEALED: the trapped air (capacity - the fuel in it now) does not flood like the cloth; only a
+// holed tank floods, the slam's rule - its host hull slice slammed past the vessel's own breach pressure (a wing tank's
+// slab takes no slam: never holed, a stated cut), then at that slice's holed rate. THE FUEL IS NOT DEAD WEIGHT IN THE
+// WATER: a sealed tank displaces its whole volume, the fuel's share too (avgas 0.72 kg/L floats), while the fuel's
+// kilos ride the nodes the burn drains (setNodeMass) - so a burnt litre raises the NET lift by its 0.72 kg, and the
+// air it leaves is what a holed tank can lose. The tank's volume is carved out of its host's flooding air (a wing slab,
+// a hull slice; a tank ahead of the firewall has none), so at the moment of entry the build holds the air it held
+// before - the tank's share just no longer floods. Breach pressures INFERRED (a welded tank behind the skin outlasts
+// the skin; a bladder or a moulded tank less so). The vent's slow leak is not modelled (a stated cut).
+const WB_TANK_BREACH = { alu: 400e3, bladder: 300e3, moulded: 300e3, wet: 400e3 };
 // the 27 sample points of a slice (the cell midpoints of a 3 x 3 x 3 grid on the unit cube) and their trilinear weights
 const WB_Q = (() => { const q = []; for (let k = 0; k < 3; k++) for (let j = 0; j < 3; j++) for (let i = 0; i < 3; i++) {
   const u = (i + 0.5) / 3, v = (j + 0.5) / 3, w = (k + 0.5) / 3;
@@ -14735,7 +14949,70 @@ const WB_Q = (() => { const q = []; for (let k = 0; k < 3; k++) for (let j = 0; 
     const fu = ci ? u : 1 - u, fv = cj ? v : 1 - v, fw = ck ? w : 1 - w, su = ci ? 1 : -1, sv = cj ? 1 : -1, sw = ck ? 1 : -1;
     N[c] = fu * fv * fw; dU[c] = su * fv * fw; dV[c] = fu * sv * fw; dW[c] = fu * fv * sw; }
   q.push({ N, dU, dV, dW }); } return q; })();
-function wetBuild(def, p, v, m) {
+// a hull slice's volume as built (its 27 samples' Jacobians on the rest positions)
+function sliceVol0(def, n8) {
+  let vol = 0;
+  for (const Q of WB_Q) {
+    let ux = 0, uy = 0, uz = 0, vx = 0, vy = 0, vz = 0, wx = 0, wy = 0, wz = 0;
+    for (let c = 0; c < 8; c++) { const P = def.nodes[n8[c]].p;
+      ux += Q.dU[c] * P[0]; uy += Q.dU[c] * P[1]; uz += Q.dU[c] * P[2];
+      vx += Q.dV[c] * P[0]; vy += Q.dV[c] * P[1]; vz += Q.dV[c] * P[2];
+      wx += Q.dW[c] * P[0]; wy += Q.dW[c] * P[1]; wz += Q.dW[c] * P[2]; }
+    vol += Math.abs(ux * (vy * wz - vz * wy) - uy * (vx * wz - vz * wx) + uz * (vx * wy - vy * wx)) / 27;
+  }
+  return vol;
+}
+// G1385: the tanks, per side, each with its host (a slab or a slice) carved; see WB_TANK_BREACH
+function wetTanks(def, spec, F, slices, slabs, MAT) {
+  const tanks = [], E = spec.energy;
+  if (!E || E.kind === 'battery' || !Array.isArray(E.vessels) || !E.vessels.length) return tanks;
+  const fu = spec.fuel || {};
+  // genSpecAtFuel scales the vessels' capacity to the litres carried and keeps the design's in fuel.designL: the TANK
+  // is the design's
+  const k0 = fu.designL > 0 && fu.litres > 0 ? fu.designL / fu.litres : 1;
+  const breach = WB_TANK_BREACH[E.vessel || 'alu'] || WB_TANK_BREACH.alu;
+  const X = Array.isArray(F) && F.length >= 2 && slices.length
+    ? F.map(s => (def.nodes[s.BL].p[0] + def.nodes[s.BR].p[0] + def.nodes[s.TL].p[0] + def.nodes[s.TR].p[0]) / 4) : null;
+  E.vessels.forEach((ves, k) => {
+    const pair = ves && ves._pair;
+    if (!Array.isArray(pair) || !pair.length) return;
+    let capL = (+ves.capacity || 0) * k0;
+    if (!(capL > 0) && fu.designL > 0 && !(fu.litres > 0)) capL = fu.designL / E.vessels.length;   // built empty
+    if (!(capL > 0)) return;
+    const fuelL = +ves.capacity || 0;             // as built: the vessel's billed litres (the solver's fuel.vessels[k])
+    const sides = new Map();
+    let wT = 0;
+    for (const [i, w] of pair) { if (!(w > 0) || !def.nodes[i]) continue;
+      const z = def.nodes[i].p[2], s = z > 0.05 ? 1 : z < -0.05 ? -1 : 0;
+      if (!sides.has(s)) sides.set(s, []); sides.get(s).push([i, w]); wT += w; }
+    for (const g of sides.values()) {
+      const ws = g.reduce((a, x) => a + x[1], 0), share = ws / wT, vol = capL / 1000 * share;
+      const n = g.map(x => x[0]), w = g.map(x => x[1] / ws);
+      const T = { n, w, k, share, vol, fuel0: fuelL / 1000 * share, th: Math.max(0.1, Math.min(0.6, Math.cbrt(capL / 1000))),
+                  breach: Infinity, tau: MAT.tau / WB_BREACH_K, host: -1, slab: false, f: 0, br: false, wetS: 0 };
+      // a wing tank: the slabs that hold most of its nodes (a node on a rib is two strips'), carved alike
+      let best = 0, hs = [];
+      slabs.forEach((SB, j) => { const c = n.filter(i => SB.n.includes(i)).length;
+        if (c > best) { best = c; hs = [j]; } else if (c && c === best) hs.push(j); });
+      if (hs.length) {
+        T.slab = true; T.th = hs.reduce((a, j) => a + slabs[j].th, 0) / hs.length;
+        for (const j of hs) slabs[j].air = Math.max(0, slabs[j].air - vol / hs.length / slabs[j].vol);
+      } else if (X) {
+        // a body tank: the hull slice its kilos sit in (by the frame's rest x), slammed past the vessel's breach -> holed
+        let x = 0; for (let c = 0; c < n.length; c++) x += w[c] * def.nodes[n[c]].p[0];
+        for (let j = 0; j + 1 < X.length && j < slices.length; j++) if (x >= X[j] && x < X[j + 1]) { T.host = j; break; }
+        if (T.host >= 0) {
+          const S8 = slices[T.host], v0 = sliceVol0(def, S8.n);
+          if (v0 > 1e-6) S8.air = Math.max(0, S8.air - vol / v0);
+          T.breach = breach; T.tau = S8.tau / WB_BREACH_K;
+        }
+      }
+      tanks.push(T);
+    }
+  });
+  return tanks;
+}
+function wetBuild(def, p, v, m, fuel) {
   if (def.parts && def.parts.floats && def.parts.floats.length) return null;
   const F = def.parts && def.parts.F;
   const refs = def.refs || {};
@@ -14751,7 +15028,7 @@ function wetBuild(def, p, v, m) {
   // (a hull face) the slice it closes - the slam's breach floods that slice
   let curSl = -1;
   const T = (a, b, c, two, kA) => tris.push({ n: [a, b, c], two: !!two, kA: kA || 1, sl: two ? -1 : curSl });
-  const SL = n8 => slices.push({ n: n8, air: open ? 0 : MAT.air, tau: MAT.tau, breach: MAT.breach, f: 0, br: false, wetS: 0 });
+  const SL = n8 => slices.push({ n: n8, air: open ? 0 : MAT.air, air0: open ? 0 : MAT.air, tau: MAT.tau, breach: MAT.breach, f: 0, br: false, wetS: 0, pk: 0 });
   if (!open && Array.isArray(F) && F.length >= 2 && F.every(s => s && [s.BL, s.BR, s.TL, s.TR].every(i => i != null && def.nodes[i]))) {
     const h0 = tris.length;
     for (let k = 0; k + 1 < F.length; k++) {
@@ -14798,18 +15075,19 @@ function wetBuild(def, p, v, m) {
       let wk = 'fabric';
       try { if (typeof genSurfKey === 'function') wk = genSurfKey(spec, 'wing', st.plane || 0); } catch (e) {}
       const WM = WB_WING[wk] || WB_WING.fabric, th = WB_WING_TC * st.chord;
-      slabs.push({ n: q, vol: 0.68 * st.area * th, th, air: WM.air, tau: WM.tau, f: 0, wetS: 0 });
+      slabs.push({ n: q, vol: 0.68 * st.area * th, th, air: WM.air, air0: WM.air, tau: WM.tau, f: 0, wetS: 0 });
     }
   }
+  const tanks = wetTanks(def, spec, F, slices, slabs, MAT);
   if (!tris.length && !wheels.length) return null;
-  const nodes = [...new Set([].concat(...tris.map(t => t.n), ...slices.map(s => s.n), ...slabs.map(s => s.n), wheels))];
+  const nodes = [...new Set([].concat(...tris.map(t => t.n), ...slices.map(s => s.n), ...slabs.map(s => s.n), ...tanks.map(s => s.n), wheels))];
   const R = new Float64Array(p.length / 3); for (const i of wheels) R[i] = def.nodes[i].r;
   // the axle's direction: the mains' pair, else the firewall's bottom edge (left -> right)
   const M = refs.mains || [];
   const axPair = M.length >= 2 ? [M[0], M[M.length - 1]] : (Array.isArray(F) && F.length ? [F[0].BL, F[0].BR] : null);
   const sub_ = (def.params && def.params.substeps) || 24;
   const every = Math.max(1, Math.round((def.params && def.params.hydroEvery) || (sub_ * 60 / HYDRO_HZ)));
-  return { tris, slices, slabs, open, material: spec.material || null, wheels, nodes, p, v, m, R, axPair, axle: [0, 0, 1], rho: DEF.rho || 1000, every, tick: 0,
+  return { tris, slices, slabs, tanks, fuel: fuel || null, open, material: spec.material || null, wheels, nodes, p, v, m, R, axPair, axle: [0, 0, 1], rho: DEF.rho || 1000, every, tick: 0,
            fh: new Float64Array(p.length), h: new Float64Array(p.length / 3), wet: 0, drag: 0, buoy: 0, flood: 0, slamPeak: 0 };
 }
 // the fill toward the water outside: in over tau, out over WB_DRAIN (exact exponential steps, any interval)
@@ -14820,8 +15098,9 @@ function flood(f, wetS, tau, dt) {
 // a fresh aeroplane (the solver's reset): nothing flooded, nothing holed
 function wetReset(WB) {
   if (!WB) return;
-  for (const s of WB.slices) { s.f = 0; s.br = false; s.wetS = 0; }
+  for (const s of WB.slices) { s.f = 0; s.br = false; s.wetS = 0; s.pk = 0; }
   for (const s of WB.slabs) { s.f = 0; s.wetS = 0; }
+  for (const s of WB.tanks) { s.f = 0; s.br = false; s.wetS = 0; }
   WB.tick = 0; WB.wet = 0; WB.flood = 0; WB.slamPeak = 0;
 }
 function wetSolverPass(WB, world, f, simT, dt) {
@@ -14916,6 +15195,24 @@ function wetCompute(WB, fh, dtH) {
     fl += SB.f; flN++;
   }
   WB.flood = flN ? fl / flN : 0;
+  // G1385 THE TANKS: each side's tank wet by a ramp over its height (a wing tank: its slab's thickness) at its kilos'
+  // own place, its lift onto those nodes by the frame's own shares. The fuel in it displaces as the air does; the air
+  // (capacity - fuel now: the solver's fuel.vessels, drained by the burn) floods only once the tank is holed
+  const FV = WB.fuel && WB.fuel.vessels;
+  for (const T of WB.tanks) {
+    const n = T.n, w = T.w;
+    let y = 0, hS = 0;
+    for (let c = 0; c < n.length; c++) { y += w[c] * p[n[c] * 3 + 1]; hS += w[c] * H[n[c]]; }
+    const wS = smooth01((hS - y) / T.th + 0.5);
+    if (!T.br && T.host >= 0 && WB.slices[T.host].pk > T.breach) T.br = true;
+    if (T.br) T.f = flood(T.f, wS, T.tau, dtH);
+    T.wetS = wS;
+    if (!wS) continue;
+    const vf = Math.min(T.vol, FV && FV[T.k] ? Math.max(0, FV[T.k].litres) / 1000 * T.share : T.fuel0);
+    const Fb = rho * G * (vf * wS + (T.vol - vf) * Math.max(0, wS - T.f));
+    for (let c = 0; c < n.length; c++) fh[n[c] * 3 + 1] += w[c] * Fb;
+    buoy += Fb; wet += T.vol * wS;
+  }
   // THE FACES: the Newtonian pressure on a face advancing into the water (a hull face one-sided, a plate on whichever
   // side meets the flow) and the skin friction along it, over each triangle's wet polygon
   for (const t of WB.tris) {
@@ -14965,7 +15262,7 @@ function wetCompute(WB, fh, dtH) {
         const beta = Math.max(WB_BETA_MIN, Math.acos(Math.min(1, -n[1])));
         const ps = 0.5 * rho * (Math.PI * Math.PI / (2 * Math.tan(beta))) * u[1] * u[1];
         pn += ps;
-        if (t.sl >= 0) { const S8 = WB.slices[t.sl]; if (S8 && ps > S8.breach) S8.br = true; }
+        if (t.sl >= 0) { const S8 = WB.slices[t.sl]; if (S8) { if (ps > S8.breach) S8.br = true; if (ps > S8.pk) S8.pk = ps; } }
         if (ps > WB.slamPeak) WB.slamPeak = ps;
       }
     }
@@ -15112,6 +15409,11 @@ function navMake(opts) {
   // one step of the navigator: sequence, then the readouts. `R` is the
   // aeroplane's turn radius for the anticipation (0 = sequence at the fix).
   N.update = (x, z, vx, vz, R) => {
+    // REVIEW C: a ONE-waypoint plan with no `from` had no leg at all (the
+    // first leg starts at the previous waypoint, and there is none): it is
+    // flown from where the aeroplane is the first time it is asked, as a
+    // direct-to would be
+    if (N.mode === 'FPL' && N.active === 0 && !N.origin && N.fpl.length) N.origin = { x, z };
     let L = N.leg();
     if (!L) { N.last = null; return null; }
     let g = navLegGeom(L.A, L.B, x, z);
@@ -15298,9 +15600,19 @@ function patternPath(pattern, ids, ds, from) {
     }
     cur = P2;
   }
-  if (pts.length > GP_MAXPTS) pts.length = GP_MAXPTS;
+  // REVIEW C: A PATH IS NEVER CUT SHORT. Past GP_MAXPTS samples the path was
+  // truncated with `len` / `sEnd` / `sStop` still those of the whole route —
+  // the follower's distance to go, the stop it brakes for and the hold it
+  // stops on were all somewhere the sampled path did not reach (a long air
+  // path at 5 m: 20 km). Sampled again, coarser, it is whole and consistent;
+  // every path under the cap is drawn exactly as before.
+  if (pts.length > GP_MAXPTS && ds < 256) return patternPath(pattern, ids, ds * Math.ceil(pts.length / GP_MAXPTS + 1e-9) * 1.01, from);
   const last = nodes[nodes.length - 1];
-  return { pts, len: s, sEnd: s, sStop: last.kind === 'hold' ? s : null,
+  // (a graph of thousands of corners still over the cap at 256 m: cut, and
+  // the path says where it ends — no stop it does not reach)
+  const cut = pts.length > GP_MAXPTS;
+  if (cut) { pts.length = GP_MAXPTS; s = pts[pts.length - 1].s; }
+  return { pts, len: s, sEnd: s, sStop: !cut && last.kind === 'hold' ? s : null,
            rMin, ids: nodes.map(n => n.id), holdHdg: last.hdg };
 }
 
@@ -15367,6 +15679,494 @@ if (typeof module !== 'undefined') {
                      GP_DS };
 }
 // ============================================================
+// THE SERVOS (G1570, the independent review E4 / B3 / B4) — ONE inner-loop
+// module under all three pilots.
+//
+// 40_autopilot (the classic), 41_test_pilot (forked from it, G107) and
+// 43_pilot (the test pilot's loops under a decision layer, G202) each carried
+// their own copy of the same ~600 lines: the attitude and rate filters, the
+// pitch / roll / yaw / speed / vertical-speed servos, the ground steer, the
+// taxi governor, the crosswind decrab and the servo slew. The fixes landed in
+// 43 only — G381 (the decrab's sign, the tail-down steer gains easing with
+// speed, the speed hold's damping, the filters starting from the attitude),
+// G630 (wrapped rates, a target that steps is not a rate, the ground's
+// aileron deadband, the taxi on P + curvature with no rate term, the trike's
+// rate term a quarter and none under the brakes) and G352 (the speed hold's
+// integrator held at its stop) — so the classic pilot every structural gate
+// flies, and the test pilot the bench flies, still had the pre-fix laws: the
+// decrab rudder of 40/41 kicked the crab off the wrong way (B3).
+//
+// Now there is one copy. Each pilot keeps its own phase machine and calls
+// these laws; the fixes live here once. Where 43 flies a law the other two
+// never had and that is NOT one of those fixes, a FEATURE flag keeps it 43's
+// (`makeServos(.., { features })`): the course trim in calm air (2026-09-08),
+// the P1.D ground steer (the tail state from the tailwheel's contact, the
+// tail-down rudder stop rising with speed, the gains scaled by the mass), the
+// aileron into the wind on the ground (2026-09-08), the water branch (H4) and
+// the water's elevator top (G396.2). 40 and 41 run with them off.
+//
+// THE GAINS ARE ONE TABLE (SERVO_GAINS). A per-aeroplane key in
+// def.params.ap (genTuneAP writes rollP, pitchD, ...) wins over the table, as
+// the `A.x ?? default` reads always did; everything that was a bare literal in
+// the three copies (the rate filter's 0.85, the 2 s washouts, the ground's
+// deadbands, the clamps) is a row too, so a solver change that moves the
+// aeroplane's own damping (review D1: the deformation damper on rigid
+// rotation) re-tunes here, in one place, for all three pilots.
+//
+// Conventions (as in 40): de > 0 nose-up, da > 0 roll right, dr > 0 nose
+// left, e > 0 = the target left of the nose.
+// ============================================================
+const SERVO_GAINS = {
+  // sensing
+  attFilt: 1.0,          // attitude low-pass (1 = none)
+  rateFilt: 0.12,        // the pitch / roll rate filter, per step
+  eRateK: 0.85,          // the heading-error rate filter = rateFilt x this
+  washS: 2.0,            // the yaw damper's washout and vsSlow, s
+  accS: 2.0,             // the airspeed-rate filter (accF), s
+  pGroundS: 0.3,         // G630: the slow roll rate the ground reads, s
+  tgtJump: 0.05,         // G630: a target step past this (rad) is not a rate...
+  tgtTurnRate: 1.0,      // G780: ...unless an aeroplane could have turned it (rad/s)
+  tgtTurnWin: 0.5,       //        over at most this long since it last moved (s)
+  // pitch
+  pitchCmdSlew: 99, pitchP: 1.2, pitchD: 1.8, pitchI: 0.05,
+  IthMax0: 0.15,         // the pitch integrator's cap in the air
+  IthMaxRate: 0.10,      // the cap moves to its target at this rate (/s)
+  deMin: -0.30, deMax: 0.35, deWater: 0.70,
+  // roll / yaw in the air
+  hdgP: 0.7, hdgD: 0.9, bankLim: 0.30, bankSlew: 0.18,
+  rollP: 2.0, rollD: 2.0, daMax: 0.30,
+  betaK: 0.3, yawDampK: 0.6, ariK: 0.35, drAirMax: 0.25,
+  trimK: 0.15, trimMax: 0.10, trimWin: 0.2, trimBleed: 0.8,
+  windArm: 0.5,          // |wind| that arms the classic's in-wind course trim
+  // speed (throttle)
+  spdP: 0.05, spdI: 0.010, spdIMax: 0.30, spdD: 0.25, thrFloor: 0.12,
+  // vertical speed (pitch command)
+  vsFilt: 1.0, vsFloor: -0.08, vsI: 0.015, vsP: 0.010,
+  // ground steer
+  steerP: 3.2, steerD: 1.2,
+  steerTailUpK: 1.4, steerTailUpD: 3.0, steerTailUpMin: 0.6, steerTailUpMax: 2.0,
+  VTailUp: 12, VSteer: 12, steerMin: 0.30, steerBW: 3.5, trikeSteerD: 0.25,
+  steerMassRef: 500, steerMassMin: 200,
+  drTailDown: 0.45, drTailUp: 0.95, drWater: 0.9,
+  gAilP: 2.0, gAilD: 1.0, gBankDb: 0.010, gRateDb: 0.02, gAilTaxi: 0.25, gAilRoll: 0.30,
+  xwBank: 0.06, xwBankGround: 0.035,
+  // taxi
+  taxiDe: 0.30, taxiThrMax: 0.85, taxiP: 0.18, taxiIK: 0.10, taxiForgetS: 2,
+  taxiBrakeDb: 0.8, taxiBrakeK: 0.3, taxiBrakeMax: 0.6, taxiHdgTau: 0.4, taxiHdgForgetS: 0.5,
+  // the crosswind decrab
+  decrabAgl: 3.5, decrabK: 2.2, decrabD: 0.6, decrabI: 1.0, decrabIMax: 0.2, decrabMax: 0.35,
+  decrabBank: 0.12, xwArm: 0.5,
+};
+
+// ONE TABLE PER PILOT (A0, 2026-10-04: the Deform Coordinator's DMG-DAMP fixes the
+// solver's rigid-rotation damping, review D1, and re-tunes after this lands): a
+// pilot's gains are SERVO_GAINS overlaid with its own row here. Every row is
+// EMPTY today — G1570 unified the laws and fixed B3-B7 without re-tuning a gain;
+// a re-tune writes the keys it moves into the pilot's row (40 = classic, 41 =
+// test, 43 = pilot), and a per-aeroplane key in def.params.ap still wins.
+const SERVO_TUNE = {
+  classic: {},     // 40_autopilot.js — every structural gate's circuit (GEN, FLEX, STRESS, FLAPS, GE, HOTHIGH)
+  test: {},        // 41_test_pilot.js — the bench's test flight, GATE MASS
+  pilot: {},       // 43_pilot.js — the game's pilot, PILOT / TAKEOFF / PILOTACT / SOAR / PILOTMATRIX / ARCHETYPES
+};
+
+function servoWrapPi(a) { return a - 2 * Math.PI * Math.round(a / (2 * Math.PI)); }
+
+// the crosswind component in a runway frame F {ux, uz} (the axis either way):
+// the air's velocity across the strip, + toward the frame's left. B4: the
+// decrab arms on THIS, not on the world's z (only an x-aligned strip saw it)
+function servoCrossWind(out, F) {
+  return -((out && out.windX) || 0) * F.uz + ((out && out.windZ) || 0) * F.ux;
+}
+
+// makeServos(sim, def, opts) — opts:
+//   pilot        'classic' | 'test' | 'pilot': the SERVO_TUNE row overlaid on SERVO_GAINS
+//   now()        the pilot's clock (ap.t; a pilot may move it mid-update)
+//   trike        the nosewheel steers (the G630 trike schedule)
+//   rotateTD     a taildragger that lifts its tail (the tail-up steer arms)
+//   TW           { Lwb, steer } the follower's geometry (the trike's bandwidth cap)
+//   features     { trimCalm, groundP1D, xwBank, water, deTop } — 43's own laws
+function makeServos(sim, def, opts) {
+  opts = opts || {};
+  const A = (def && def.params && def.params.ap) || {};
+  const G = Object.assign({}, SERVO_GAINS, SERVO_TUNE[opts.pilot] || {});
+  const g = n => (A[n] ?? G[n]);
+  const FT = opts.features || {};
+  const now = opts.now || (() => S.t);
+  const trike = !!opts.trike, rotateTD = !!opts.rotateTD;
+  const TW = opts.TW || { Lwb: 4.0, steer: 0.5 };
+  const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
+  const db = (x, w) => x - clamp(x, -w, w);
+  const c = sim.ctl;
+
+  const S = {
+    t: 0, dt: 1 / 60,
+    // the readings of the last sense()
+    th: 0, ph: 0, q: 0, p: 0, pG: 0, e: 0, eA: 0, eR: 0, eRslow: 0, eAR: 0, eARslow: 0,
+    beta: 0, V: 0, Vg: 0, vy: 0, onG: 0, accF: 0, vsSlow: 0, out: null,
+    // the servos' memory a phase may set
+    thCA: 0, phCA: 0, vsF: 0, thcI: 0.06, Ith: 0, It: 0, thrC: 0.6,
+    IthMax: G.IthMax0, IthMaxT: G.IthMax0, IthGain: null, pitchK: 1, pitchDK: 1, deFloor: 0,
+    eTrim: 0, aDe: 0, aDa: 0, aDr: 0, tailUp: false,
+    dcI: 0, dcT: -1, taxiI: 0, taxiLastT: -1e9, taxiHdgF: null, taxiHdgT: -1e9,
+  };
+  let init = false, thF = 0, phF = 0, thP = 0, phP = 0, eP = 0, eAP = 0;
+  let tgtHP = null, tgtMovedT = -1e9, vPrev = null, pend = false;
+  let holdActive = false, holdWas = false;
+
+  // W14: every integrator, filter and servo memory re-latches from the live
+  // state on the next sense() (a re-engage after manual flight)
+  S.relatch = () => { pend = true; };
+
+  // one step of sensing. e: the target's angle from the nose (+ left);
+  // eA: from the ground track; tgtH: the target heading (atan2) for the
+  // bumpless check; the raw attitudes; beta; V (EAS), Vg; vy; onG
+  S.sense = (dt, e, eA, tgtH, thRaw, phRaw, beta, V, Vg, vy, onG) => {
+    S.dt = dt; S.t += dt;
+    const t = now();
+    S.out = sim.out;
+    // G381: THE FILTERS START FROM THE ATTITUDE, not from zero — ROLL read its
+    // rest attitude (thRest) off the first filtered frame at attFilt x the
+    // truth (a cub's 9.2 deg three-point carried as 6.5 for the flight)
+    if (!init) { init = true; thF = thP = thRaw; phF = phP = phRaw; }
+    // G630: A TARGET THAT JUMPS IS NOT A RATE — a step past tgtJump is carried
+    // into the rate filters' memory (bumpless); G780: unless an aeroplane
+    // could have turned it since the target last moved (a sampled turn)
+    if (tgtH != null) {
+      if (tgtHP != null) {
+        const dT = servoWrapPi(tgtH - tgtHP);
+        if (Math.abs(dT) > Math.max(G.tgtJump, G.tgtTurnRate * Math.min(G.tgtTurnWin, t - tgtMovedT))) { eP = servoWrapPi(eP + dT); eAP = servoWrapPi(eAP + dT); }
+        if (dT !== 0) tgtMovedT = t;
+      } else tgtMovedT = t;
+      tgtHP = tgtH;
+    }
+    if (pend) {
+      pend = false;
+      thF = thRaw; phF = phRaw; thP = thRaw; phP = phRaw; S.q = S.p = 0;
+      eP = e; S.eR = S.eRslow = 0; eAP = eA; S.eAR = S.eARslow = 0; S.pG = 0;
+      S.vsF = vy; S.thCA = thRaw; S.phCA = 0;
+      S.aDe = c.de; S.aDa = c.da; S.aDr = c.dr;
+      S.Ith = 0; S.It = 0; S.thcI = 0.06; S.thrC = A.thrCruise ?? 0.6;
+      S.IthMax = S.IthMaxT = G.IthMax0; S.IthGain = null;
+      S.eTrim = 0; holdWas = holdActive = false;
+    }
+    const AF = g('attFilt');
+    thF += AF * (thRaw - thF); phF += AF * (phRaw - phF);
+    const th = thF, ph = phF;
+    const RF = g('rateFilt');
+    S.q += RF * ((th - thP) / dt - S.q); thP = th;
+    S.p += RF * ((ph - phP) / dt - S.p); phP = ph;
+    // G630: an angle's rate is the rate of a WRAPPED difference
+    S.eR += RF * G.eRateK * (servoWrapPi(e - eP) / dt - S.eR); eP = e;
+    S.eRslow += dt / G.washS * (S.eR - S.eRslow);
+    S.eAR += RF * G.eRateK * (servoWrapPi(eA - eAP) / dt - S.eAR); eAP = eA;
+    S.eARslow += dt / G.washS * (S.eAR - S.eARslow);
+    S.pG += dt / G.pGroundS * (S.p - S.pG);
+    S.vsSlow += dt / G.washS * (vy - S.vsSlow);
+    if (vPrev !== null) S.accF += dt / G.accS * ((V - vPrev) / dt - S.accF);
+    vPrev = V;
+    S.th = th; S.ph = ph; S.e = e; S.eA = eA; S.beta = beta; S.V = V; S.Vg = Vg; S.vy = vy; S.onG = onG;
+    S.deFloor = 0;
+  };
+
+  // ---- pitch ----------------------------------------------------------------
+  S.holdPitch = (thC) => {
+    const dt = S.dt, th = S.th;
+    if (!holdWas) S.thCA = th;                // (re-)engage from the current attitude
+    holdActive = true;
+    const sl = g('pitchCmdSlew') * dt;
+    S.thCA += clamp(thC - S.thCA, -sl, sl);
+    S.IthMax += clamp(S.IthMaxT - S.IthMax, -G.IthMaxRate * dt, G.IthMaxRate * dt);
+    S.Ith = clamp(S.Ith + (S.IthGain ?? g('pitchI')) * (S.thCA - th) * dt, -S.IthMax, S.IthMax);
+    // G396.2 / G970 (43): on the water the stick comes all the way back
+    // G396.2: ON THE STEP THE STICK COMES ALL THE WAY BACK. The 0.35 stop
+    // is a wheel's rotation (the ground never pins the tail); a planing
+    // float rides nose-low against the thrust line and the servo sat on
+    // its stop from 20 m/s to a 145 km/h lift-off (Vs 66) — a seaplane
+    // pilot holds full back stick until the hull lets go, then eases.
+    // Measured on the card: 0.7 lifts at 102 km/h, the fixture at 86.
+    // G970: ...AND UNTIL CLIMB. The float ULM's thrust line sits 0.55 m over
+    // its CG; the moment the floats let go the top fell back to 0.35 and at
+    // full power the nose went to -15 deg with the stick on it, into the
+    // water again (a second skip). G396.2's own reading: this lift-off asks
+    // ~0.5 of stick. The water's top holds through LIFTOFF
+    const deTop = FT.deTop ? FT.deTop(S.onG) : G.deMax;
+    c.de = clamp(g('pitchP') * S.pitchK * (S.thCA - th) - g('pitchD') * S.pitchDK * S.q + S.Ith, G.deMin, deTop);
+    if (S.deFloor > 0 && S.deFloor > c.de) c.de = S.deFloor;
+  };
+  S.holdVS = (VSc, thMax = 0.16) => {
+    S.vsF += g('vsFilt') * (S.vy - S.vsF);
+    const fl = g('vsFloor');
+    S.thcI = clamp(S.thcI + g('vsI') * (VSc - S.vsF) * S.dt, fl, thMax);
+    S.holdPitch(clamp(S.thcI + g('vsP') * (VSc - S.vsF), fl, thMax));
+  };
+
+  // ---- roll / yaw -------------------------------------------------------------
+  // the roll servo alone: a bank command in, the aileron and the yaw damper out
+  S.rollTo = (phC) => {
+    const bs = g('bankSlew') * S.dt;
+    S.phCA += clamp(phC - S.phCA, -bs, bs);
+    c.da = clamp(g('rollP') * (S.phCA - S.ph) - g('rollD') * S.p, -G.daMax, G.daMax);
+    c.dr = clamp(-g('betaK') * S.beta - g('yawDampK') * (S.eAR - S.eARslow)
+                 - g('ariK') * c.da, -G.drAirMax, G.drAirMax);
+  };
+  // course over ground: the standing course trim (a slipping aeroplane needs a
+  // standing bank), integrated only while the error is small. The classic
+  // arms it in wind; 43 (trimCalm, 2026-09-08: propwash swirl needs it too)
+  // always
+  // (43, verbatim:)
+  // THE COURSE TRIM IS NOT ABOUT THE WIND (2026-09-08). It was gated on
+  // there BEING a wind, so in calm air a steady course error could not
+  // be trimmed out at all — and a steady course error does not need a
+  // wind: PROPWASH SWIRL yaws the aeroplane all the way down the
+  // approach, the beta damper below only damps it, and the aeroplane
+  // flies a heading that closes the centreline while TRACKING parallel
+  // to it. Measured on the V-tail card's own approach: 17 m off,
+  // holding, 1 deg of bank, two go-arounds and a give-up — in dead calm.
+  // The integrator is the same one, with the same bounds and the same
+  // wash-out through a turn; it simply runs whenever the error is small
+  // and steady, which is when a pilot would be holding a boot of rudder.
+  // An aeroplane that already tracks true keeps eTrim at 0 and is
+  // unchanged, wind or no wind.
+  S.airLateral = (bl) => {
+    if (bl == null) bl = g('bankLim');
+    const eA = S.eA, dt = S.dt, o = S.out || {};
+    if (FT.trimCalm || Math.abs(o.windX || 0) + Math.abs(o.windZ || 0) > G.windArm) {
+      if (Math.abs(eA) < G.trimWin) S.eTrim = clamp(S.eTrim + G.trimK * eA * dt, -G.trimMax, G.trimMax);
+      else S.eTrim -= G.trimBleed * S.eTrim * dt;
+    }
+    const phC = clamp(g('hdgP') * eA + g('hdgD') * S.eAR + S.eTrim, -bl, bl);
+    S.rollTo(phC);
+  };
+  // the crosswind decrab: wings near level (the bank keeps killing the drift),
+  // the rudder flies the nose onto the runway. B3 / G381: on -K x e, the
+  // ground steer's own sign (e = the runway's angle from the nose); the
+  // classic and the test pilot carried -K x (the nose's angle from the
+  // runway), the opposite sign. G970: with a slow integral (P alone left a
+  // standing crab), reset whenever the decrab was not flown a step ago
+  S.decrab = (bl) => {
+    S.airLateral(bl ?? G.decrabBank);
+    const t = now(), e = S.e;
+    if (t - S.dcT > 0.1) S.dcI = 0;
+    S.dcT = t;
+    S.dcI = clamp(S.dcI + g('decrabI') * e * S.dt, -G.decrabIMax, G.decrabIMax);
+    c.dr = clamp(-g('decrabK') * e - G.decrabD * S.eR - S.dcI, -G.decrabMax, G.decrabMax);
+  };
+  // B4: armed on the STRIP-FRAME cross component
+  S.crossWind = (F) => servoCrossWind(S.out || sim.out, F);
+  S.decrabArmed = (agl, F) => agl < g('decrabAgl') && Math.abs(S.crossWind(F)) > G.xwArm;
+
+  // ---- throttle -----------------------------------------------------------------
+  S.speedThrottle = (Vtgt) => {
+    const V = S.V;
+    S.It = clamp(S.It + G.spdI * (Vtgt - V) * S.dt, -G.spdIMax, G.spdIMax);
+    // G381: a term on the measured acceleration damps the approach's speed hunt
+    const base = S.thrC + G.spdP * (Vtgt - V) - g('spdD') * S.accF, lo = g('thrFloor');
+    // G352: anti-windup — on a stop, the integrator holds the stop's value
+    if (base + S.It < lo) S.It = lo - base;
+    else if (base + S.It > 1) S.It = 1 - base;
+    c.thr = clamp(base + S.It, lo, 1);
+  };
+
+  // ---- the ground -----------------------------------------------------------------
+  // the steer gains [kP, kD]. G381: the tail-down gains ease as (VTailUp/V)^2
+  // like the tail-up ones (a trike: (VSteer/V)^2, 2026-09-11); G630: a trike's
+  // rate term a quarter, none under the brakes, its P capped at a kinematic
+  // bandwidth. P1.D (43, groundP1D): P falls and D rises with sqrt(mass)
+  // (43, verbatim:)
+  //=====
+  // THE STEER GAINS (groundSteer's, factored out G630 so the taxi flies
+  // them too — the taxi ran the fixed 3.2 / 1.2 at any mass, the fault
+  // G250 fixed for the take-off roll; a taildragger bit-identical)
+  // P1.D: the heading gain falls and the damping rises with the square
+  // root of the mass — the yaw inertia grows with it, the tailwheel's
+  // moment does not, and a loop tuned on a 480 kg cub rang a 2 t beaver
+  // at 10-19 m/s (+-35 deg at a 4 s period in 4 m/s gusting across)
+  // G630: A TRICYCLE'S RATE TERM IS A QUARTER, AND NONE UNDER THE BRAKES.
+  // The nosewheel turns the heading kinematically (yaw rate = V steer
+  // dr / wheelbase: no inertia to damp at taxi speed), and the full rate
+  // term fed the tyres' and springs' own 2.5 Hz yaw mode instead: the
+  // rudder rang +-0.05..0.1 down every take-off roll and rollout of the
+  // C172s (freeze test: rudder held at 0, the heading stays within 0.16
+  // deg — the ring was ALL the loop's). Measured on the aluminium C172:
+  // a quarter is quiet on the roll (169 -> 0 reversals/min) and still
+  // GREW under the rollout's brakes (the loaded nosewheel); none is
+  // quiet everywhere but gave back the crosswind damping (x2 rollout
+  // swing 1.6 -> 5.6 deg on the C172); a quarter off the brakes, none on
+  // them: 2.9 deg, 0 reversals. `trikeSteerD` is the fraction.
+  // ...AND ITS P IS CAPPED AT A FIXED KINEMATIC BANDWIDTH: the loop's
+  // crossover is kP V steer / Lwb and it GROWS with the ground speed
+  // until the (VSteer/V)^2 schedule starts — ~7 rad/s at VSteer on the
+  // C172 archetype, where it rang 1.7 Hz +-0.7 deg under the brakes on
+  // P alone (frozen rudder: calm). `steerBW` rad/s.
+  S.steerK = (tailUp) => {
+    const V = S.V, Vg = S.Vg;
+    const kS = trike ? clamp((g('VSteer') / Math.max(V, 5)) ** 2, g('steerMin'), 1.0)
+             : clamp((g('VTailUp') / Math.max(V, 5)) ** 2, g('steerMin'), 1.0);
+    const kM = FT.groundP1D ? Math.sqrt(Math.max(G.steerMassMin, sim.totalM || G.steerMassRef) / G.steerMassRef) : 1;
+    const kP = (tailUp
+      ? G.steerP * G.steerTailUpK * clamp((g('VTailUp') / Math.max(V, 5)) ** 2, G.steerTailUpMin, G.steerTailUpMax)
+      : G.steerP * kS) / kM;
+    const kD = (tailUp ? G.steerTailUpD : G.steerD * (trike ? Math.sqrt(kS) : kS)) * kM;
+    if (tailUp || !trike) return [kP, kD];
+    const kPb = Math.min(kP, g('steerBW') * TW.Lwb / (Math.max(Vg, 3) * TW.steer));
+    return [kPb, kD * g('trikeSteerD') * (1 - clamp((c.brake || 0) / 0.1, 0, 1))];
+  };
+  // G630: THE WINGS-LEVEL LOOP ON THE WHEELS: the bank error with a deadband,
+  // the slow roll rate with its own; off the wheels, the air's law
+  // (43, verbatim:)
+  // G630: THE WINGS-LEVEL LOOP ON THE WHEELS. -2 ph - p differentiated the
+  // contact springs' bank jitter (a tenth of a degree at 1-2 Hz) into
+  // aileron chatter the trace's aileron lane showed the whole taxi and
+  // roll; on the ground the bank error has a 0.6 deg deadband and the
+  // rate is the slow one (0.3 s) with its own 0.02 rad/s deadband. Off
+  // the wheels it is the air's law, unchanged.
+  S.groundAil = (phT, lim) => S.onG > 0
+    ? clamp(-G.gAilP * db(S.ph - phT, G.gBankDb) - G.gAilD * db(S.pG, G.gRateDb), -lim, lim)
+    : clamp(-G.gAilP * (S.ph - phT) - G.gAilD * S.p, -lim, lim);
+  // the take-off roll / rollout steer. thRest: the latched three-point pitch;
+  // F: the runway frame (the into-wind aileron, xwBank)
+  // (43, verbatim:)
+  // H4 (G393): ON THE WATER the split is displacement / on the step
+  // (wheelsOnGround reads 3 / 2 for exactly that), the water rudder is
+  // up on the step and the air rudder alone holds the run, and there is
+  // no castor to over-control: the pedals go to the stop either way.
+  // Measured on the ultralight in a 5 m/s crosswind: with the
+  // taildragger's 0.45 clamp it weathervaned 40 deg on the step and left
+  // the lane 186 m off; with this, see the H4 entry.
+  // P1.D: the tail is up when the TAILWHEEL is off the ground
+  // (sim.wheelContacts), not when the pitch says so — banked 8 deg on
+  // one main at a three-point attitude the cub read "tail down", the
+  // rudder was clamped to the tailwheel's 0.45 and the nose swung 32 deg
+  // before the tail touched
+  // (GATE TAKEOFF reads this line by regex: the tail-state schedule first)
+  // P1.D: the tail-down rudder stop is the TAILWHEEL's (0.45 keeps a
+  // swerve out of the taxi), and it climbs with the speed to the full
+  // pedal by VTailUp — at 19 m/s three-point in 4 m/s gusting across
+  // the beaver weathervaned 31 deg each way on 0.45 of rudder that the
+  // fin alone could have held
+  // A TRICYCLE'S STEER GAINS EASE WITH SPEED (2026-09-11). The taildragger
+  // branch below already schedules on (VTailUp/V)^2 once the tail is up;
+  // the trike ran the fixed 3.2 / 1.2 down the whole strip, and with the
+  // rudder's authority growing as V^2 (in the propwash on a pusher) on
+  // top of the nosewheel's, the loop crossed the rate estimate's lag at
+  // ~12 m/s: a 1.25 Hz weave, rudder on its stop, on the user's pusher.
+  // Same form, the trike's own reference speed (genAP VSteer, 0.6 VRot),
+  // and a floor measured on that build. Taildraggers: bit-identical.
+  // G381: ...AND A TAILDRAGGER'S TAIL-DOWN GAINS EASE THE SAME WAY. The
+  // tail-up branch schedules on (VTailUp/V)^2; the tail-down branch ran
+  // the fixed 3.2 / 1.2 at any speed, which is fine below VTailUp (the
+  // roll it was tuned on) and unstable above it: a wheel landing at
+  // 26 m/s drops its tail at 17-19, the rudder's authority is 1.5x what
+  // the gains were sized for, and the weave grew 2 -> 7 -> 12 -> 52 deg
+  // with the rudder on its stop (stearman and cub archetypes, measured).
+  // The floor 0.3 = VTailUp x 1.8, the fastest a tail-down roll gets.
+  // AILERON INTO THE WIND (2026-09-08) — the other half of a crosswind
+  // ground roll, and the pilot had only the first. This held the wings
+  // LEVEL, which is right in calm air and exactly wrong across the
+  // wind: a level wing lets the upwind main unload, the aeroplane
+  // drifts, and on a taildragger the drift becomes the weathercock the
+  // rudder then fights at its stop. TRACED on the ultralight fixture at
+  // 2 m/s across (TAIL CHANTIER 2 P5): the tail lightens at 17 m/s, the
+  // tailwheel's steering goes with it (30_solver: only it steers), the
+  // nose swings 34 deg with the rudder saturated for three seconds, and
+  // the aeroplane leaves the centreline by 18 m. A pilot holds aileron
+  // INTO the wind — most at low speed, easing as the ailerons bite — so
+  // the upwind wheel keeps its load. The command is a BANK BIAS, so the
+  // level-wing loop still flies it and nothing else changes; in calm
+  // air `wX` is 0 and this is the old law to the bit.
+  // `out.wind*` is the AIR'S VELOCITY, not the direction it comes from:
+  // air moving toward +z blows FROM the starboard side, so into-wind is
+  // the starboard wing DOWN, and the bias carries the same sign as the
+  // cross component. (Measured both ways on the fixture: with the sign
+  // reversed the wander grew to 29 m; with this one it is 2.6 m.)
+  // On a tricycle the reference is VSteer, not VTailUp (99, which pinned
+  // the clamp at 1.6 and asked 8 deg of bank at 2 m/s — the aeroplane ran
+  // on one main from 15 m/s and left the strip 10 m off in the game's
+  S.groundSteer = (thRest, F) => {
+    const V = S.V, th = S.th, onG = S.onG, e = S.e, o = S.out || {};
+    const onWater = !!(FT.water && sim.hydro);
+    let tailUp, drMax;
+    if (FT.groundP1D) {
+      const WC = typeof sim.wheelContacts === 'function' ? sim.wheelContacts() : null;
+      tailUp = rotateTD && !onWater && (WC ? (!WC.tw && onG >= 1) : (onG <= 2 && thRest !== null && (thRest - th) > 0.04))
+            || (onWater && onG <= 2 && V > 6);
+      drMax = tailUp ? G.drTailUp : (onWater ? G.drWater : clamp(G.drTailDown + 0.5 * V / g('VTailUp'), G.drTailDown, G.drTailUp));
+    } else {
+      tailUp = rotateTD && onG <= 2 && thRest !== null && (thRest - th) > 0.04;
+      drMax = tailUp ? G.drTailUp : G.drTailDown;
+    }
+    const [kP, kD] = S.steerK(tailUp);
+    c.dr = clamp(-kP * e - kD * S.eR, -drMax, drMax);
+    if (FT.xwBank && F) {
+      // AILERON INTO THE WIND (2026-09-08, 43): a bank bias the level-wing
+      // loop flies; P1.D: on the wheels within xwBankGround
+      const wX = -(o.windX || 0) * F.uz + (o.windZ || 0) * F.ux;
+      const vRef = trike ? g('VSteer') : g('VTailUp');
+      let phW = g('xwBank') * wX * clamp(vRef / Math.max(V, 6), 0.4, 1.6);
+      if (!onWater && onG >= (trike ? 3 : 1)) phW = clamp(phW, -g('xwBankGround'), g('xwBankGround'));
+      c.da = S.groundAil(phW, G.gAilRoll);
+    } else c.da = S.groundAil(0, G.gAilTaxi);
+    S.tailUp = tailUp;
+    return tailUp;
+  };
+  // THE TAXI GOVERNOR: a PI on the ground speed over the rolling-resistance
+  // feed-forward `ff`, saturated at `cap`, the integrator forgotten after
+  // taxiForgetS without a call; the brake takes the overspeed in proportion
+  S.taxi = (Vtgt, ff, cap) => {
+    const t = now(), Vg = S.Vg;
+    c.de = g('taxiDe');
+    if (t - S.taxiLastT > G.taxiForgetS) S.taxiI = 0;
+    S.taxiLastT = t;
+    const err = Vtgt - Vg;
+    const u0 = ff + G.taxiP * err + S.taxiI;
+    if ((err > 0 && u0 < cap) || (err < 0 && u0 > 0))
+      S.taxiI = clamp(S.taxiI + G.taxiIK * err * S.dt, -ff, cap);
+    c.thr = clamp(ff + G.taxiP * err + S.taxiI, 0, cap);
+    c.brake = Vg > Vtgt + G.taxiBrakeDb ? clamp(G.taxiBrakeK * (Vg - Vtgt - G.taxiBrakeDb), 0, G.taxiBrakeMax) : 0;
+    c.da = S.groundAil(0, G.gAilTaxi);
+  };
+  // G630: the taxi's look-ahead target heading, filtered (it STEPS as the
+  // index passes each sample of a bend); returns the heading to steer to
+  S.taxiHeading = (hT) => {
+    const t = now();
+    if (S.taxiHdgF == null || t - S.taxiHdgT > G.taxiHdgForgetS) S.taxiHdgF = hT;
+    else S.taxiHdgF = servoWrapPi(S.taxiHdgF + servoWrapPi(hT - S.taxiHdgF) * Math.min(1, S.dt / G.taxiHdgTau));
+    S.taxiHdgT = t;
+    return S.taxiHdgF;
+  };
+  // G630: the taxi rudder — the steer schedule's P, the curvature feed-forward,
+  // NO rate term (at taxi speed the wheel steers the heading kinematically)
+  S.taxiRudder = (ff, lim) => { const u = -S.steerK(false)[0] * S.e; return clamp(ff ? u + ff : u, -lim, lim); };
+
+  // ---- the servo slew, on the axes the pilot owns ----------------------------------
+  S.slew = (ownV = true, ownL = true) => {
+    const sl = A.slew * S.dt;
+    if (ownV) { S.aDe += clamp(c.de - S.aDe, -sl, sl); c.de = S.aDe; } else S.aDe = c.de;
+    if (ownL) {
+      S.aDa += clamp(c.da - S.aDa, -sl, sl); c.da = S.aDa;
+      S.aDr += clamp(c.dr - S.aDr, -sl, sl); c.dr = S.aDr;
+    } else { S.aDa = c.da; S.aDr = c.dr; }
+  };
+  // end of the pilot's update: holdPitch re-latches when the previous step did not call it
+  S.endStep = () => { holdWas = holdActive; holdActive = false; };
+  return S;
+}
+
+// the CG's rest height over the ground in the design pose (sim.reset seats the
+// lowest contact on the floor): B5's height datum for a pilot first engaged in
+// the air, where no rest can be measured
+function servoRestHeight(def) {
+  if (!def || !def.nodes || !def.nodes.length) return 0;
+  let y = 0, M = 0, lo = Infinity;
+  for (const n of def.nodes) { y += n.p[1] * n.m; M += n.m; lo = Math.min(lo, n.p[1] - (n.r || 0)); }
+  return M > 0 && isFinite(lo) ? y / M - lo : 0;
+}
+
+if (typeof module !== 'undefined') {
+  module.exports = { SERVO_GAINS, SERVO_TUNE, makeServos, servoWrapPi, servoCrossWind, servoRestHeight };
+}
+// ============================================================
 // M3 — autopilot: full circuit. takeoff, climb, outbound cruise,
 // 180 turnback, inbound track, glideslope, flare, rollout, stop.
 // W10 cross-country: all along/cross geometry runs in a RUNWAY FRAME
@@ -15380,6 +16180,8 @@ if (typeof module !== 'undefined') {
 // cruise altitude), then reuse INBOUND..STOPPED untouched.
 // Conventions: de>0 nose-up, da>0 roll-right, dr>0 nose-left,
 // e>0 = nose left of target.
+// G1570 (review E4): the servos — the filters and every inner loop — are
+// 39b_servos.js, one module under all three pilots; this file keeps its phases.
 // ============================================================
 // W10 spawn-at-aerodrome: after sim.reset(0), rotate the def geometry
 // from its built-in -x nose heading onto the strip's takeoff heading
@@ -15532,6 +16334,15 @@ function makeAutopilot(sim, def, world) {
     const T0 = Math.max(1, PR.Tstatic * (def.params.nEngines || 1));
     return () => Math.min(0.5, CRR * sim.totalM * 9.81 / T0);
   })();
+  // G1570: THE SERVOS ARE ONE MODULE (39b_servos.js), shared with 41 and 43:
+  // the G381 / G630 / G352 fixes are flown here too (they had landed in 43
+  // only); 43's own laws (the calm-air trim, P1.D's ground steer, the aileron
+  // into wind, the water) stay off. The trike is 43's reading of the gear.
+  const trike = A.rolloutMode === 'trike' || (def.params.twSteer || 0.5) < 0;
+  const SV = makeServos(sim, def, { pilot: 'classic', now: () => ap.t, trike, rotateTD, TW });
+  // B5: the CG's rest height in the design pose — the height datum of a pilot
+  // first engaged in the air (no rest to measure)
+  const restH0 = servoRestHeight(def);
   const snap = v => Math.abs(v) < 1e-9 ? 0 : v;
   // u = frame axis (landing direction); origin places tdz at s = -450
   const mkFrame = (a, sx, sz) => {
@@ -15653,20 +16464,13 @@ function makeAutopilot(sim, def, world) {
     ap.altRef = to.elev;
     ap.refAlt = ap.restAlt + (to.elev - from.elev);
   };
-  let thP = 0, phP = 0, eP = 0, q = 0, p = 0, eR = 0, eRslow = 0, thF = 0, phF = 0, thCA = 0, vsF = 0;
-  // W19: a 2 s climb-rate filter kept OUTSIDE holdVS's vsF, which only updates
-  // on frames that call holdVS and would change the fleet's VS loop if shared.
-  // Read by the CLIMB acceptance below; written every frame, used nowhere else.
-  let vsSlow = 0, gaT = 0;
-  let aDe = 0, aDa = 0, aDr = 0, phCA = 0;
-  let Ith = 0, thcI = 0.06, It = 0, thrC = 0.6;
-  let phaseT = 0, headingCapT = 0, thFlare0 = 0, thLift0 = 0, brakeRamp = 0, holdActive = false, holdWas = false;
-  // THE TAXI GOVERNOR'S INTEGRATOR (2026-09-04). See taxi() below.
-  let taxiI = 0, taxiLastT = -1e9;
+  // the servos' state lives in SV (39b_servos.js, G1570). W19's 2 s climb-rate
+  // filter (vsSlow, read by the CLIMB acceptance) is the module's SV.vsSlow,
+  // kept outside holdVS's vsF as before.
+  let gaT = 0;
+  let phaseT = 0, headingCapT = 0, thFlare0 = 0, thLift0 = 0, brakeRamp = 0;
   // G193: the path follower's and the three-point run's state
   let holdN = 0, thRest = null, thrRoll = 0, taxiXT = 0, taxiSRem = 0, tailUpNow = false;
-  let eAP = 0, eAR = 0, eARslow = 0;   // course-over-ground error chain (air guidance)
-  let eTrim = 0;                        // wind-only course trim (standing bank for slip)
   let pendReEng = false;                // W14: full state re-latch on next update
   const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
   // W14 manual-controls prep: call when the AP resumes after a stretch of
@@ -15689,7 +16493,16 @@ function makeAutopilot(sim, def, world) {
     ap.t += dt; phaseT += dt;
     const [xA, yU, zR] = sim.axes();
     const cg = sim.cgPos(), vcg = sim.cgVel();
-    if (ap.restAlt === null) { ap.restAlt = cg[1]; ap.refAlt = cg[1]; }
+    const c = sim.ctl, onG = sim.wheelsOnGround();
+    // B5: THE DATUM IS LATCHED ON THE GROUND. The first update used to latch
+    // whatever height the CG had — a pilot first engaged at 300 m took 300 m
+    // as the field and flared there. On the wheels: the CG's rest height (as
+    // always, bit-identical for every ground start); in the air: the departure
+    // field's elevation + the design pose's rest height (restH0)
+    if (ap.restAlt === null) {
+      const r0 = onG > 0 ? cg[1] : ap.route.from.elev + restH0;
+      ap.restAlt = r0; ap.refAlt = r0;
+    }
     const agl = cg[1] - ap.refAlt;
     // runway-frame coordinates: sAl along the frame axis (was cg[0]),
     // sCr cross-track (was cg[2]); HOME frame is exactly s=x, cross=z
@@ -15741,133 +16554,36 @@ function makeAutopilot(sim, def, world) {
       eA = Math.atan2(tz * tkx - tx * tkz, tx * tkx + tz * tkz);
     }
 
-    const AF = A.attFilt ?? 1.0;
     const thRaw = Math.asin(clamp(-xA[1], -1, 1));
     const phRaw = Math.atan2(-zR[1], yU[1]);
+    const beta = (vcg[0]*zR[0] + vcg[1]*zR[1] + vcg[2]*zR[2]) / Math.max(Vt, 5);
     if (pendReEng) {                    // W14: re-latch everything live
       pendReEng = false;
-      thF = thRaw; phF = phRaw; thP = thRaw; phP = phRaw; q = p = 0;
-      eP = e; eR = eRslow = 0; eAP = eA; eAR = eARslow = 0;
-      vsF = vcg[1]; thCA = thRaw; phCA = 0;
-      aDe = sim.ctl.de; aDa = sim.ctl.da; aDr = sim.ctl.dr;
-      Ith = 0; It = 0; thcI = 0.06; thrC = A.thrCruise ?? 0.6;
-      eTrim = 0; brakeRamp = 0; holdWas = holdActive = false;
+      SV.relatch(); brakeRamp = 0;
     }
-    thF += AF * (thRaw - thF); phF += AF * (phRaw - phF);
-    const th = thF, ph = phF;
-    const RF = A.rateFilt ?? 0.12;
-    q += RF * ((th - thP) / dt - q); thP = th;
-    p += RF * ((ph - phP) / dt - p); phP = ph;
-    eR += RF * 0.85 * ((e - eP) / dt - eR); eP = e;
-    eRslow += dt / 2.0 * (eR - eRslow);
-    eAR += RF * 0.85 * ((eA - eAP) / dt - eAR); eAP = eA;
-    eARslow += dt / 2.0 * (eAR - eARslow);
-    vsSlow += dt / 2.0 * (vcg[1] - vsSlow);
-    const beta = (vcg[0]*zR[0] + vcg[1]*zR[1] + vcg[2]*zR[2]) / Math.max(Vt, 5);
+    // THE SENSING (39b_servos.js): the attitude and rate filters (from the
+    // attitude on the first step, G381), the bumpless target and the wrapped
+    // rates (G630), the slow climb and acceleration filters
+    SV.sense(dt, e, eA, Math.atan2(tz, tx), thRaw, phRaw, beta, V, Vg, vcg[1], onG);
+    const th = SV.th, ph = SV.ph, q = SV.q, p = SV.p, eR = SV.eR, vsSlow = SV.vsSlow;
 
-    const c = sim.ctl, onG = sim.wheelsOnGround();
     if (onG > 0 && agl < A.aglGuard && V < A.VRot * 0.9
         && ['LIFTOFF','CLIMB'].includes(ap.phase)) {
       ap.phase = 'ROLL'; phaseT = 0;      // genuinely settled back (slow): retry
     }
 
-    const holdPitch = (thC) => {
-      // W14 fix of the documented holdWas bug: resync whenever the
-      // PREVIOUS update did not call holdPitch (bookkeeping at the end of
-      // ap.update). Continuous phase chains behave identically — the
-      // resync now also fires after ROLL retries and manual-flight gaps
-      // instead of only on the very first call of the AP's life.
-      if (!holdWas) thCA = th;                // (re-)engage from current attitude
-      holdActive = true;
-      const sl = (A.pitchCmdSlew ?? 99) * dt;
-      thCA += clamp(thC - thCA, -sl, sl);
-      Ith = clamp(Ith + (A.pitchI ?? 0.05) * (thCA - th) * dt, -0.15, 0.15);
-      c.de = clamp((A.pitchP ?? 1.2) * (thCA - th) - (A.pitchD ?? 1.8) * q + Ith, -0.30, 0.35);
-    };
-    const airLateral = (bankLim = A.bankLim ?? 0.30) => {
-      // standing-disturbance trim: a slipping aircraft (dihedral, ariK=0)
-      // needs a standing bank to hold a crosswind course; P-only leaves a
-      // residual course error and a ~L*residual cross-track hang (Jodel 20 m,
-      // DC-3 11 m measured). Integrate ONLY in the trim regime (|eA| small):
-      // integrating during the capture is the windup failure documented in
-      // HANDOVER. Exact zero in calm air.
-      if (Math.abs(o_.windX || 0) + Math.abs(o_.windZ || 0) > 0.5) {
-        if (Math.abs(eA) < 0.2) eTrim = clamp(eTrim + 0.15 * eA * dt, -0.10, 0.10);
-        else eTrim -= 0.8 * eTrim * dt;
-      }
-      const phC = clamp((A.hdgP ?? 0.7) * eA + (A.hdgD ?? 0.9) * eAR + eTrim, -bankLim, bankLim);
-      phCA += clamp(phC - phCA, -(A.bankSlew ?? 0.18) * dt, (A.bankSlew ?? 0.18) * dt);
-      c.da = clamp((A.rollP ?? 2.0) * (phCA - ph) - (A.rollD ?? 2.0) * p, -0.30, 0.30);
-      c.dr = clamp(-(A.betaK ?? 0.3) * beta - (A.yawDampK ?? 0.6) * (eAR - eARslow)
-                   - (A.ariK ?? 0.35) * c.da, -0.25, 0.25);
-    };
-    const speedThrottle = (Vt) => {
-      It = clamp(It + 0.010 * (Vt - V) * dt, -0.30, 0.30);
-      c.thr = clamp(thrC + 0.05 * (Vt - V) + It, A.thrFloor ?? 0.12, 1);
-    };
-    const holdVS = (VSc, thMax = 0.16) => {
-      vsF += (A.vsFilt ?? 1.0) * (vcg[1] - vsF);
-      const fl = A.vsFloor ?? -0.08;
-      thcI = clamp(thcI + (A.vsI ?? 0.015) * (VSc - vsF) * dt, fl, thMax);
-      holdPitch(clamp(thcI + (A.vsP ?? 0.010) * (VSc - vsF), fl, thMax));
-    };
-    const groundSteer = () => {
-      // G193: THE PLANT CHANGES WHEN THE TAIL LIFTS. Only the tailwheel
-      // steers on the ground (30_solver.js), and its branch stops the frame
-      // the wheel unloads: authority drops from a first-order steer to the
-      // aero rudder alone — an inertial plant at low q — while these gains
-      // were tuned on the first. Measured on the user's ultralight: the
-      // heading it had at tail-up was the heading it kept, into the grass.
-      // The tail state is read solver-free (both mains down, pitch under the
-      // latched three-point stance), and only a three-point build takes the
-      // branch — the fleet's calm numbers do not move.
-      const tailUp = rotateTD && onG <= 2 && thRest !== null && (thRest - th) > 0.04;
-      // (measured on the crosswind trace: the full travel with the 1.4x gain
-      // swings the nose +-10 deg once but holds the excursion to 7 m at 2 m/s
-      // across; a softer 0.70 / 1.0x let it drift to 15 m)
-      const drMax = tailUp ? 0.95 : 0.45;
-      const kP = tailUp
-        ? 3.2 * 1.4 * clamp(((A.VTailUp ?? 12) / Math.max(V, 5)) ** 2, 0.6, 2.0)
-        : 3.2;
-      const kD = tailUp ? 3.0 : 1.2;
-      c.dr = clamp(-kP * e - kD * eR, -drMax, drMax);
-      c.da = clamp(-2.0 * ph - 1.0 * p, -0.25, 0.25);
-      tailUpNow = tailUp;
-    };
+    // ---- THE SERVOS: one module, 39b_servos.js (G1570) ----------------------------
+    // holdPitch (the W14 resync when the previous step did not call it),
+    // airLateral (the in-wind course trim), speedThrottle (G352's anti-windup,
+    // G381's damping on the measured acceleration), holdVS, groundSteer (the
+    // G193 tail-up schedule; G381: the tail-down gains ease with speed; G630:
+    // the ground's aileron deadband, the trike's rate term) and the taxi
+    // governor (the 2026-09-04 PI on the ground speed) are the module's.
+    const holdPitch = SV.holdPitch, holdVS = SV.holdVS, speedThrottle = SV.speedThrottle;
+    const airLateral = (bl) => SV.airLateral(bl);
+    const groundSteer = () => { tailUpNow = SV.groundSteer(thRest, F); };
+    const taxi = (Vt) => SV.taxi(Vt, taxiFF(), Math.min(A.taxiThrMax ?? 0.85, GP.cap));   // G179: the cap
 
-    // W14 taxi governor: slow ground speed hold, slower through tight turns
-    // THE TAXI GOVERNOR FEEDS BACK ON GROUND SPEED (2026-09-04, the user:
-    // "still too slow on taxi, much too slow ... you might have a constant
-    // throttle, but it really needs to feedback on ground speed"). The G4.9
-    // law was taxiFF — break-even against rolling resistance, which assumes
-    // thrust LINEAR in throttle, and it is not — plus 0.06 per m/s of error
-    // under a cap 0.27 above the feedforward. Measured on the ultralight: it
-    // asked 0.34 and got 1.5 m/s for thirty seconds; on the default build
-    // 1.2 m/s for thirty-five. This is a PI on Vg: the proportional term
-    // answers at once, the integrator finds whatever throttle THIS aeroplane
-    // on THIS surface actually needs, and the command saturates at
-    // A.taxiThrMax (0.85 — a taxi is not a take-off). Anti-windup: the
-    // integrator only moves while the command is not pinned in the direction
-    // it would push. The feedforward stays as the starting guess, so the
-    // first frame asks what it always asked. Overspeed is the brake's, in
-    // proportion, not a 0.45 slam at +1.2. The integrator forgets itself
-    // after two seconds without a taxi call, so a landing's backtrack does
-    // not open the throttle with the departure's memory.
-    const taxi = (Vt) => {
-      const Vtgt = Vt;
-      c.de = A.taxiDe ?? 0.30;
-      const ff = taxiFF();
-      const cap = Math.min(A.taxiThrMax ?? 0.85, GP.cap);   // G179
-      if (ap.t - taxiLastT > 2) taxiI = 0;
-      taxiLastT = ap.t;
-      const err = Vtgt - Vg;
-      const u0 = ff + 0.18 * err + taxiI;
-      if ((err > 0 && u0 < cap) || (err < 0 && u0 > 0))
-        taxiI = clamp(taxiI + 0.10 * err * dt, -ff, cap);
-      c.thr = clamp(ff + 0.18 * err + taxiI, 0, cap);
-      c.brake = Vg > Vtgt + 0.8 ? clamp(0.3 * (Vg - Vtgt - 0.8), 0, 0.6) : 0;
-      c.da = clamp(-2.0 * ph - 1.0 * p, -0.25, 0.25);
-    };
 
     // W19 MISSED APPROACH. Everything from APPROACH onwards used to be one-way:
     // once committed the autopilot arrived whatever happened, because the only
@@ -15878,7 +16594,7 @@ function makeAutopilot(sim, def, world) {
     const goAround = why => {
       ap.gaN = (ap.gaN || 0) + 1; ap.gaWhy = why;
       ap.phase = 'GOAROUND'; phaseT = 0; gaT = 0;
-      thrC = A.thrCruise;
+      SV.thrC = A.thrCruise;
     };
     // W19 GROUND FLOOR on the cruise legs. Measured: a build flew the last
     // 1.5 km of INBOUND at 1 m agl and nothing in the autopilot objected.
@@ -15986,11 +16702,15 @@ function makeAutopilot(sim, def, world) {
           ap.pathI = L.i; taxiXT = L.ey; taxiSRem = L.sRem;
           const K = pathLook(ap.path, L.i, Vg);
           const eXT = clamp(Math.atan2(0.9 * L.ey, Vg + 1.0), -0.6, 0.6);
-          const hT = K.hdgL - eXT;
+          // G630: the look-ahead target filtered (it steps as the index
+          // passes each sample of a bend), and the rudder on the steer
+          // schedule's P + the curvature feed-forward, NO rate term (it only
+          // differentiated the contact's yaw jitter)
+          const hT = SV.taxiHeading(K.hdgL - eXT);
           ap.targetDir = [Math.cos(hT), 0, Math.sin(hT)];
           const drFF = -Math.atan(TW.Lwb * K.kapL) / Math.max(0.05, TW.steer);
           const drMaxG = 0.85 - 0.40 * clamp((Vg - 6) / 4, 0, 1);
-          c.dr = clamp(-3.2 * e - 1.2 * eR + drFF, -drMaxG, drMaxG);
+          c.dr = SV.taxiRudder(drFF, drMaxG);
           taxi(pathSpeed(ap.path, L.i, Vg, A.taxiV ?? 5.0, L.sRem));
           const tMax = 40 + 1.6 * ap.path.len / (A.taxiV ?? 5.0);
           if (L.sRem < 2.0 || (L.sRem < 6 && Vg < 0.6)) { ap.phase = 'STOP'; phaseT = 0; }
@@ -16000,7 +16720,7 @@ function makeAutopilot(sim, def, world) {
         const ddx = ap.taxiTgt[0] - cg[0], ddz = ap.taxiTgt[1] - cg[2];
         const dist = Math.hypot(ddx, ddz) || 1e-9;
         ap.targetDir = [ddx / dist, 0, ddz / dist];
-        c.dr = clamp(-3.2 * e - 1.2 * eR, -0.45, 0.45);
+        c.dr = SV.taxiRudder(0, 0.45);                     // G630
         taxi(Math.abs(e) > 0.6 ? 2.2 : 4.5);
         // G151: a declared route is a LIST of points, and only the LAST one
         // hands over to LINEUP. Intermediate points are held to a tighter
@@ -16017,7 +16737,7 @@ function makeAutopilot(sim, def, world) {
 
       case 'LINEUP': {
         ap.trackHold = true;                 // centreline pursuit, dirX = -1
-        c.dr = clamp(-3.2 * e - 1.2 * eR, -0.45, 0.45);
+        c.dr = SV.taxiRudder(0, 0.45);                     // G630
         const alig = -(nose[0] * F.ux + nose[1] * F.uz);  // dot(nose, takeoff dir)
         taxi(alig > 0.5 ? 4.5 : 2.4);
         if (alig > 0.988 && Math.abs(sCr) < 8 && Math.abs(eR) < 0.15) {
@@ -16040,10 +16760,11 @@ function makeAutopilot(sim, def, world) {
           const L = pathLocate(ap.path, ap.pathI, cg[0], cg[2]);
           ap.pathI = L.i; taxiXT = L.ey; taxiSRem = L.sRem;
           const K = pathLook(ap.path, L.i, Vg);
-          ap.targetDir = [Math.cos(K.hdgL), 0, Math.sin(K.hdgL)];
-          c.dr = clamp(-3.2 * e - 1.2 * eR, -0.85, 0.85);
+          const hT = SV.taxiHeading(K.hdgL);              // G630
+          ap.targetDir = [Math.cos(hT), 0, Math.sin(hT)];
+          c.dr = SV.taxiRudder(0, 0.85);
         } else c.dr = 0;
-        c.da = clamp(-2.0 * ph - 1.0 * p, -0.25, 0.25);
+        c.da = SV.groundAil(0, 0.25);
         if (Vg < 0.3 || phaseT > 30) { ap.phase = 'HOLD'; phaseT = 0; }
         break;
       }
@@ -16124,7 +16845,7 @@ function makeAutopilot(sim, def, world) {
             ap.holdDir = [ap.frame.ux * ap.dirX, 0, ap.frame.uz * ap.dirX];
             ap.phase = 'ENROUTE'; enterArrival(); ap.trackHold = false;
           } else ap.phase = 'CRUISE';
-          phaseT = 0; thrC = A.thrCruise; thcI = 0.04;
+          phaseT = 0; SV.thrC = A.thrCruise; SV.thcI = 0.04;
         }
         break;
       }
@@ -16236,7 +16957,7 @@ function makeAutopilot(sim, def, world) {
         // the <40 bound keeps a high cross-country arrival in INBOUND (still
         // descending) instead of engaging APPROACH far above the slope;
         // standard circuits switch from BELOW (cg-hGS ~ -2), unaffected
-        if (d > 0 && hGS <= cg[1] + 2 && cg[1] - hGS < 40) { ap.phase = 'APPROACH'; phaseT = 0; thrC = A.thrAppr; }
+        if (d > 0 && hGS <= cg[1] + 2 && cg[1] - hGS < 40) { ap.phase = 'APPROACH'; phaseT = 0; SV.thrC = A.thrAppr; }
         // PAST THE AIM AND STILL AIRBORNE (W19). hGS collapses to refAlt here
         // (the Math.max above), hTgt becomes refAlt+15, and the handoff is
         // gated on d > 0 — so this state could never leave INBOUND. The
@@ -16245,7 +16966,7 @@ function makeAutopilot(sim, def, world) {
         // 800-4200 m before the aim.
         else if (d <= 0) {
           if (agl < A.flareAgl * 3 || (ap.gaN || 0) >= 2) {
-            ap.phase = 'APPROACH'; phaseT = 0; thrC = A.thrAppr;   // low: just land it
+            ap.phase = 'APPROACH'; phaseT = 0; SV.thrC = A.thrAppr;   // low: just land it
           } else goAround('past-aim');
         }
         break;
@@ -16293,7 +17014,7 @@ function makeAutopilot(sim, def, world) {
         if (cg[1] > ap.altRef + ap.hCruise - 8 || (phaseT > 60 && vsSlow < 0.15)) {
           ap.phase = 'CRUISE'; phaseT = 0;
           ap.dirX = -1; ap.trackHold = true;
-          thrC = A.thrCruise; thcI = 0.04;
+          SV.thrC = A.thrCruise; SV.thcI = 0.04;
         }
         break;
 
@@ -16313,13 +17034,14 @@ function makeAutopilot(sim, def, world) {
         // crosswind decrab: below decrabAgl, the rudder aligns the nose with
         // the runway while airLateral keeps killing drift with bank (slip).
         // Inactive in calm air (windZ gate) — zero-wind identity preserved.
-        if (agl < (A.decrabAgl ?? 3.5) && Math.abs(o_.windZ || 0) > 0.5) {
-          airLateral(0.12);
-          const nS = nose[0] * F.ux + nose[1] * F.uz;      // frame-relative nose
-          const nC = -nose[0] * F.uz + nose[1] * F.ux;
-          const hdg = Math.atan2(nC, nS * ap.dirX) * ap.dirX;
-          c.dr = clamp(-(A.decrabK ?? 2.2) * hdg - 0.6 * eR, -0.35, 0.35);
-        } else airLateral(0.10);
+        // B3: THE RUDDER WENT THE WRONG WAY — -K x (the nose's angle from the
+        // runway) where the ground steer, and 43 since G381, fly -K x e (e =
+        // the runway's angle from the nose): a crab became a swing in the
+        // hold-off. B4: armed on the STRIP-FRAME crosswind (it read the
+        // world's z, so only an x-aligned strip ever decrabbed). The law is
+        // the module's (39b_servos.js decrab: G381's sign, G970's integral)
+        if (SV.decrabArmed(agl, F)) SV.decrab(0.12);
+        else airLateral(0.10);
         if (onG > 0) {
           ap.phase = 'ROLLOUT'; phaseT = 0;
           ap.tdInfo = { sink: -vcg[1], z: sCr, x: sAl, V,
@@ -16370,10 +17092,8 @@ function makeAutopilot(sim, def, world) {
       c.flap = clamp(c.flap + clamp(tgt - c.flap, -rr, rr), 0, 1);
     }
     // servo slew limits
-    aDe += clamp(c.de - aDe, -A.slew * dt, A.slew * dt); c.de = aDe;
-    aDa += clamp(c.da - aDa, -A.slew * dt, A.slew * dt); c.da = aDa;
-    aDr += clamp(c.dr - aDr, -A.slew * dt, A.slew * dt); c.dr = aDr;
-    holdWas = holdActive; holdActive = false;   // W14: per-frame resync bookkeeping
+    SV.slew();
+    SV.endStep();   // W14: per-frame resync bookkeeping
     ap.dbg = { e, th, ph, q, beta, V, alt: cg[1], z: sCr, s: sAl, agl,
                xt: taxiXT, sRem: taxiSRem, tailUp: tailUpNow };   // G193
   };
@@ -16397,7 +17117,9 @@ function makeAutopilot(sim, def, world) {
 //
 // THE FORK RULE: every deliberate divergence from 40_autopilot.js is marked
 // `TP:`. Anything unmarked is the fork being faithful, and a fix to the donor
-// should be considered for a matching `TP:`-audited pass here. The donor's own
+// should be considered for a matching `TP:`-audited pass here. (G1570, review
+// E4: the INNER LOOPS are not forked any more — the servos are 39b_servos.js,
+// shared by 40, 41 and 43; this rule is about the phase machine.) The donor's own
 // W19 work (climb acceptance, missed approach, ground floor) is kept whole —
 // this file extends it to the failures W19 left unbounded: ROLL had no exit at
 // all (an aeroplane that never reaches Vr rolls to the fence, for ever), the
@@ -16459,6 +17181,15 @@ function makeTestPilot(sim, def, world) {
     const T0 = Math.max(1, PR.Tstatic * (def.params.nEngines || 1));
     return () => Math.min(0.5, CRR * sim.totalM * 9.81 / T0);
   })();
+  // G1570: THE SERVOS ARE ONE MODULE (39b_servos.js), shared with 40 and 43:
+  // the G381 / G630 / G352 fixes are flown here too (they had landed in 43
+  // only); 43's own laws (the calm-air trim, P1.D's ground steer, the aileron
+  // into wind, the water) stay off. The trike is 43's reading of the gear.
+  const trike = A.rolloutMode === 'trike' || (def.params.twSteer || 0.5) < 0;
+  const SV = makeServos(sim, def, { pilot: 'test', now: () => ap.t, trike, rotateTD, TW });
+  // B5: the CG's rest height in the design pose — the height datum of a pilot
+  // first engaged in the air (no rest to measure)
+  const restH0 = servoRestHeight(def);
   const snap = v => Math.abs(v) < 1e-9 ? 0 : v;
   const mkFrame = (a, sx, sz) => {
     let ux = snap(Math.cos(a.hdg)), uz = snap(Math.sin(a.hdg));
@@ -16567,21 +17298,15 @@ function makeTestPilot(sim, def, world) {
     ap.altRef = to.elev;
     ap.refAlt = ap.restAlt + (to.elev - from.elev);
   };
-  let thP = 0, phP = 0, eP = 0, q = 0, p = 0, eR = 0, eRslow = 0, thF = 0, phF = 0, thCA = 0, vsF = 0;
-  let vsSlow = 0, gaT = 0;
-  let aDe = 0, aDa = 0, aDr = 0, phCA = 0;
-  let Ith = 0, thcI = 0.06, It = 0, thrC = 0.6;
-  let phaseT = 0, headingCapT = 0, thFlare0 = 0, thLift0 = 0, brakeRamp = 0, holdActive = false, holdWas = false;
-  // THE TAXI GOVERNOR'S INTEGRATOR (2026-09-04). See taxi() below.
-  let taxiI = 0, taxiLastT = -1e9;
+  // the servos' state lives in SV (39b_servos.js, G1570)
+  let gaT = 0;
+  let phaseT = 0, headingCapT = 0, thFlare0 = 0, thLift0 = 0, brakeRamp = 0;
   // G193: the path follower's and the three-point run's state
   let holdN = 0, thRest = null, thrRoll = 0, taxiXT = 0, taxiSRem = 0, tailUpNow = false;
-  let eAP = 0, eAR = 0, eARslow = 0;
-  let eTrim = 0;
   let pendReEng = false;
-  // TP: the takeoff instrument — where the roll started, how many times it has
-  // been attempted, and a 2 s acceleration filter for the stagnation call.
-  let rollS0 = null, rollN = 0, accF = 0, vPrev = null;
+  // TP: the takeoff instrument — where the roll started and how many times it
+  // has been attempted (the 2 s acceleration filter is the servos': SV.accF)
+  let rollS0 = null, rollN = 0;
   const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
   ap.reEngage = (o) => {
     pendReEng = true;
@@ -16652,7 +17377,16 @@ function makeTestPilot(sim, def, world) {
     ap.t += dt; phaseT += dt;
     const [xA, yU, zR] = sim.axes();
     const cg = sim.cgPos(), vcg = sim.cgVel();
-    if (ap.restAlt === null) { ap.restAlt = cg[1]; ap.refAlt = cg[1]; }
+    const c = sim.ctl, onG = sim.wheelsOnGround();
+    // B5: THE DATUM IS LATCHED ON THE GROUND. The first update used to latch
+    // whatever height the CG had — a pilot first engaged at 300 m took 300 m
+    // as the field and flared there. On the wheels: the CG's rest height (as
+    // always, bit-identical for every ground start); in the air: the departure
+    // field's elevation + the design pose's rest height (restH0)
+    if (ap.restAlt === null) {
+      const r0 = onG > 0 ? cg[1] : ap.route.from.elev + restH0;
+      ap.restAlt = r0; ap.refAlt = r0;
+    }
     const agl = cg[1] - ap.refAlt;
     const F = ap.frame;
     const rxF = cg[0] - F.ox, rzF = cg[2] - F.oz;
@@ -16676,6 +17410,11 @@ function makeTestPilot(sim, def, world) {
       const l = Math.hypot(tx, tz); tx /= l; tz /= l;
     }
     const e = Math.atan2(tz * nose[0] - tx * nose[1], tx * nose[0] + tz * nose[1]);
+    // air guidance steers COURSE OVER GROUND, not the nose: a crabbing /
+    // slipping aircraft with nose-referenced pursuit parks at a standing
+    // cross-track offset ~ L*(crab - slip) with e exactly zero (measured:
+    // C172 frozen at z=+21..26 in a 3 m/s crosswind). Velocity-referenced
+    // pursuit makes the crab implicit. Ground steering keeps the nose error.
     let eA = e;
     const tl2 = Math.hypot(vcg[0], vcg[2]);
     if (tl2 > 5) {
@@ -16683,34 +17422,19 @@ function makeTestPilot(sim, def, world) {
       eA = Math.atan2(tz * tkx - tx * tkz, tx * tkx + tz * tkz);
     }
 
-    const AF = A.attFilt ?? 1.0;
     const thRaw = Math.asin(clamp(-xA[1], -1, 1));
     const phRaw = Math.atan2(-zR[1], yU[1]);
-    if (pendReEng) {
-      pendReEng = false;
-      thF = thRaw; phF = phRaw; thP = thRaw; phP = phRaw; q = p = 0;
-      eP = e; eR = eRslow = 0; eAP = eA; eAR = eARslow = 0;
-      vsF = vcg[1]; thCA = thRaw; phCA = 0;
-      aDe = sim.ctl.de; aDa = sim.ctl.da; aDr = sim.ctl.dr;
-      Ith = 0; It = 0; thcI = 0.06; thrC = A.thrCruise ?? 0.6;
-      eTrim = 0; brakeRamp = 0; holdWas = holdActive = false;
-    }
-    thF += AF * (thRaw - thF); phF += AF * (phRaw - phF);
-    const th = thF, ph = phF;
-    const RF = A.rateFilt ?? 0.12;
-    q += RF * ((th - thP) / dt - q); thP = th;
-    p += RF * ((ph - phP) / dt - p); phP = ph;
-    eR += RF * 0.85 * ((e - eP) / dt - eR); eP = e;
-    eRslow += dt / 2.0 * (eR - eRslow);
-    eAR += RF * 0.85 * ((eA - eAP) / dt - eAR); eAP = eA;
-    eARslow += dt / 2.0 * (eAR - eARslow);
-    vsSlow += dt / 2.0 * (vcg[1] - vsSlow);
     const beta = (vcg[0]*zR[0] + vcg[1]*zR[1] + vcg[2]*zR[2]) / Math.max(Vt, 5);
-    // TP: acceleration filter for the stagnation call — same 2 s form as vsSlow
-    if (vPrev !== null) accF += dt / 2.0 * ((V - vPrev) / dt - accF);
-    vPrev = V;
+    if (pendReEng) {                    // W14: re-latch everything live
+      pendReEng = false;
+      SV.relatch(); brakeRamp = 0;
+    }
+    // THE SENSING (39b_servos.js): the attitude and rate filters (from the
+    // attitude on the first step, G381), the bumpless target and the wrapped
+    // rates (G630), the slow climb and acceleration filters
+    SV.sense(dt, e, eA, Math.atan2(tz, tx), thRaw, phRaw, beta, V, Vg, vcg[1], onG);
+    const th = SV.th, ph = SV.ph, q = SV.q, p = SV.p, eR = SV.eR, vsSlow = SV.vsSlow, accF = SV.accF;
 
-    const c = sim.ctl, onG = sim.wheelsOnGround();
     if (onG > 0 && agl < A.aglGuard && V < A.VRot * 0.9
         && ['LIFTOFF','CLIMB'].includes(ap.phase)) {
       // TP: the balked-takeoff retry is BOUNDED. The donor loops here for
@@ -16737,96 +17461,23 @@ function makeTestPilot(sim, def, world) {
           ' s — out of patience, not out of sky');
     }
 
-    const holdPitch = (thC) => {
-      if (!holdWas) thCA = th;
-      holdActive = true;
-      const sl = (A.pitchCmdSlew ?? 99) * dt;
-      thCA += clamp(thC - thCA, -sl, sl);
-      Ith = clamp(Ith + (A.pitchI ?? 0.05) * (thCA - th) * dt, -0.15, 0.15);
-      c.de = clamp((A.pitchP ?? 1.2) * (thCA - th) - (A.pitchD ?? 1.8) * q + Ith, -0.30, 0.35);
-    };
-    const airLateral = (bankLim = A.bankLim ?? 0.30) => {
-      if (Math.abs(o_.windX || 0) + Math.abs(o_.windZ || 0) > 0.5) {
-        if (Math.abs(eA) < 0.2) eTrim = clamp(eTrim + 0.15 * eA * dt, -0.10, 0.10);
-        else eTrim -= 0.8 * eTrim * dt;
-      }
-      const phC = clamp((A.hdgP ?? 0.7) * eA + (A.hdgD ?? 0.9) * eAR + eTrim, -bankLim, bankLim);
-      phCA += clamp(phC - phCA, -(A.bankSlew ?? 0.18) * dt, (A.bankSlew ?? 0.18) * dt);
-      c.da = clamp((A.rollP ?? 2.0) * (phCA - ph) - (A.rollD ?? 2.0) * p, -0.30, 0.30);
-      c.dr = clamp(-(A.betaK ?? 0.3) * beta - (A.yawDampK ?? 0.6) * (eAR - eARslow)
-                   - (A.ariK ?? 0.35) * c.da, -0.25, 0.25);
-    };
-    const speedThrottle = (Vtgt) => {
-      It = clamp(It + 0.010 * (Vtgt - V) * dt, -0.30, 0.30);
-      c.thr = clamp(thrC + 0.05 * (Vtgt - V) + It, A.thrFloor ?? 0.12, 1);
-    };
-    const holdVS = (VSc, thMax = 0.16) => {
-      vsF += (A.vsFilt ?? 1.0) * (vcg[1] - vsF);
-      const fl = A.vsFloor ?? -0.08;
-      thcI = clamp(thcI + (A.vsI ?? 0.015) * (VSc - vsF) * dt, fl, thMax);
-      holdPitch(clamp(thcI + (A.vsP ?? 0.010) * (VSc - vsF), fl, thMax));
-    };
-    const groundSteer = () => {
-      // G193: THE PLANT CHANGES WHEN THE TAIL LIFTS. Only the tailwheel
-      // steers on the ground (30_solver.js), and its branch stops the frame
-      // the wheel unloads: authority drops from a first-order steer to the
-      // aero rudder alone — an inertial plant at low q — while these gains
-      // were tuned on the first. Measured on the user's ultralight: the
-      // heading it had at tail-up was the heading it kept, into the grass.
-      // The tail state is read solver-free (both mains down, pitch under the
-      // latched three-point stance), and only a three-point build takes the
-      // branch — the fleet's calm numbers do not move.
-      const tailUp = rotateTD && onG <= 2 && thRest !== null && (thRest - th) > 0.04;
-      // (measured on the crosswind trace: the full travel with the 1.4x gain
-      // swings the nose +-10 deg once but holds the excursion to 7 m at 2 m/s
-      // across; a softer 0.70 / 1.0x let it drift to 15 m)
-      const drMax = tailUp ? 0.95 : 0.45;
-      const kP = tailUp
-        ? 3.2 * 1.4 * clamp(((A.VTailUp ?? 12) / Math.max(V, 5)) ** 2, 0.6, 2.0)
-        : 3.2;
-      const kD = tailUp ? 3.0 : 1.2;
-      c.dr = clamp(-kP * e - kD * eR, -drMax, drMax);
-      c.da = clamp(-2.0 * ph - 1.0 * p, -0.25, 0.25);
-      tailUpNow = tailUp;
-    };
-
-    // THE TAXI GOVERNOR FEEDS BACK ON GROUND SPEED (2026-09-04, the user:
-    // "still too slow on taxi, much too slow ... you might have a constant
-    // throttle, but it really needs to feedback on ground speed"). The G4.9
-    // law was taxiFF — break-even against rolling resistance, which assumes
-    // thrust LINEAR in throttle, and it is not — plus 0.06 per m/s of error
-    // under a cap 0.27 above the feedforward. Measured on the ultralight: it
-    // asked 0.34 and got 1.5 m/s for thirty seconds; on the default build
-    // 1.2 m/s for thirty-five. This is a PI on Vg: the proportional term
-    // answers at once, the integrator finds whatever throttle THIS aeroplane
-    // on THIS surface actually needs, and the command saturates at
-    // A.taxiThrMax (0.85 — a taxi is not a take-off). Anti-windup: the
-    // integrator only moves while the command is not pinned in the direction
-    // it would push. The feedforward stays as the starting guess, so the
-    // first frame asks what it always asked. Overspeed is the brake's, in
-    // proportion, not a 0.45 slam at +1.2. The integrator forgets itself
-    // after two seconds without a taxi call, so a landing's backtrack does
-    // not open the throttle with the departure's memory.
-    const taxi = (Vtgt) => {
-      c.de = A.taxiDe ?? 0.30;
-      const ff = taxiFF();
-      const cap = Math.min(A.taxiThrMax ?? 0.85, GP.cap);   // G179
-      if (ap.t - taxiLastT > 2) taxiI = 0;
-      taxiLastT = ap.t;
-      const err = Vtgt - Vg;
-      const u0 = ff + 0.18 * err + taxiI;
-      if ((err > 0 && u0 < cap) || (err < 0 && u0 > 0))
-        taxiI = clamp(taxiI + 0.10 * err * dt, -ff, cap);
-      c.thr = clamp(ff + 0.18 * err + taxiI, 0, cap);
-      c.brake = Vg > Vtgt + 0.8 ? clamp(0.3 * (Vg - Vtgt - 0.8), 0, 0.6) : 0;
-      c.da = clamp(-2.0 * ph - 1.0 * p, -0.25, 0.25);
-    };
+    // ---- THE SERVOS: one module, 39b_servos.js (G1570) ----------------------------
+    // holdPitch (the W14 resync when the previous step did not call it),
+    // airLateral (the in-wind course trim), speedThrottle (G352's anti-windup,
+    // G381's damping on the measured acceleration), holdVS, groundSteer (the
+    // G193 tail-up schedule; G381: the tail-down gains ease with speed; G630:
+    // the ground's aileron deadband, the trike's rate term) and the taxi
+    // governor (the 2026-09-04 PI on the ground speed) are the module's.
+    const holdPitch = SV.holdPitch, holdVS = SV.holdVS, speedThrottle = SV.speedThrottle;
+    const airLateral = (bl) => SV.airLateral(bl);
+    const groundSteer = () => { tailUpNow = SV.groundSteer(thRest, F); };
+    const taxi = (Vt) => SV.taxi(Vt, taxiFF(), Math.min(A.taxiThrMax ?? 0.85, GP.cap));   // G179: the cap
 
     const goAround = why => {
       ap.gaN = (ap.gaN || 0) + 1; ap.gaWhy = why;
       say('go-around', why + ' (attempt ' + ap.gaN + ')');   // TP: recorded
       ap.phase = 'GOAROUND'; phaseT = 0; gaT = 0;
-      thrC = A.thrCruise;
+      SV.thrC = A.thrCruise;
     };
     const vsAgl = v => agl < A.hSafe ? Math.max(v, 1.0) : v;
 
@@ -16911,11 +17562,15 @@ function makeTestPilot(sim, def, world) {
           ap.pathI = L.i; taxiXT = L.ey; taxiSRem = L.sRem;
           const K = pathLook(ap.path, L.i, Vg);
           const eXT = clamp(Math.atan2(0.9 * L.ey, Vg + 1.0), -0.6, 0.6);
-          const hT = K.hdgL - eXT;
+          // G630: the look-ahead target filtered (it steps as the index
+          // passes each sample of a bend), and the rudder on the steer
+          // schedule's P + the curvature feed-forward, NO rate term (it only
+          // differentiated the contact's yaw jitter)
+          const hT = SV.taxiHeading(K.hdgL - eXT);
           ap.targetDir = [Math.cos(hT), 0, Math.sin(hT)];
           const drFF = -Math.atan(TW.Lwb * K.kapL) / Math.max(0.05, TW.steer);
           const drMaxG = 0.85 - 0.40 * clamp((Vg - 6) / 4, 0, 1);
-          c.dr = clamp(-3.2 * e - 1.2 * eR + drFF, -drMaxG, drMaxG);
+          c.dr = SV.taxiRudder(drFF, drMaxG);
           taxi(pathSpeed(ap.path, L.i, Vg, A.taxiV ?? 5.0, L.sRem));
           const tMax = 40 + 1.6 * ap.path.len / (A.taxiV ?? 5.0);
           if (L.sRem < 2.0 || (L.sRem < 6 && Vg < 0.6)) { ap.phase = 'STOP'; phaseT = 0; }
@@ -16925,7 +17580,7 @@ function makeTestPilot(sim, def, world) {
         const ddx = ap.taxiTgt[0] - cg[0], ddz = ap.taxiTgt[1] - cg[2];
         const dist = Math.hypot(ddx, ddz) || 1e-9;
         ap.targetDir = [ddx / dist, 0, ddz / dist];
-        c.dr = clamp(-3.2 * e - 1.2 * eR, -0.45, 0.45);
+        c.dr = SV.taxiRudder(0, 0.45);                     // G630
         taxi(Math.abs(e) > 0.6 ? 2.5 : 5.0);
         // G151, carried: only the LAST point hands over to LINEUP, and the
         // intermediate ones hold a tighter radius so a corner-cut cannot clip
@@ -16940,7 +17595,7 @@ function makeTestPilot(sim, def, world) {
 
       case 'LINEUP': {
         ap.trackHold = true;
-        c.dr = clamp(-3.2 * e - 1.2 * eR, -0.45, 0.45);
+        c.dr = SV.taxiRudder(0, 0.45);                     // G630
         const alig = -(nose[0] * F.ux + nose[1] * F.uz);
         taxi(alig > 0.5 ? 4.5 : 2.4);
         if (alig > 0.988 && Math.abs(sCr) < 8 && Math.abs(eR) < 0.15) {
@@ -16964,10 +17619,11 @@ function makeTestPilot(sim, def, world) {
           const L = pathLocate(ap.path, ap.pathI, cg[0], cg[2]);
           ap.pathI = L.i; taxiXT = L.ey; taxiSRem = L.sRem;
           const K = pathLook(ap.path, L.i, Vg);
-          ap.targetDir = [Math.cos(K.hdgL), 0, Math.sin(K.hdgL)];
-          c.dr = clamp(-3.2 * e - 1.2 * eR, -0.85, 0.85);
+          const hT = SV.taxiHeading(K.hdgL);              // G630
+          ap.targetDir = [Math.cos(hT), 0, Math.sin(hT)];
+          c.dr = SV.taxiRudder(0, 0.85);
         } else c.dr = 0;
-        c.da = clamp(-2.0 * ph - 1.0 * p, -0.25, 0.25);
+        c.da = SV.groundAil(0, 0.25);
         if (Vg < 0.3 || phaseT > 30) { ap.phase = 'HOLD'; phaseT = 0; }
         break;
       }
@@ -17011,15 +17667,26 @@ function makeTestPilot(sim, def, world) {
         //   out of runway   — 80 m from the end, still below Vr
         //   won't make it   — 60% of the strip used, still under 80% of Vr
         //   going nowhere   — 8 s at full power, accel under 0.08 m/s^2
+        // B7: JUDGED ON THE RUNWAY THAT IS LEFT, not on the strip's length
+        // from wherever the roll began — a roll from a hold 110 m in, or a
+        // backtrack's turn-around, was told it had the whole strip ahead and
+        // ran out of it before 'out of runway' could fire. `left` is the
+        // centreline still ahead to the far end (43's runwayLeft); 'will not
+        // make it' is 60 % of the run AVAILABLE where the roll began (43's
+        // ST.rejectFrac rule), which is the strip's length from its threshold.
         if (rollS0 === null) rollS0 = sAl;
-        const avail = (ap.route.from.len || 1100);
+        const from = ap.route.from;
+        const tdx = F.ux * ap.dirX, tdz = F.uz * ap.dirX;      // the take-off direction
+        const left = from.x != null
+          ? (from.x + tdx * (from.len || 1100) / 2 - cg[0]) * tdx + (from.z + tdz * (from.len || 1100) / 2 - cg[2]) * tdz
+          : (from.len || 1100) - Math.abs(sAl - rollS0);       // world-less: the strip from the roll start
         const runUsed = Math.abs(sAl - rollS0);
         const vr = A.VRot || 18;
         let reject = null;
-        if (runUsed > avail - 80 && V < vr)
-          reject = 'out of runway: ' + Math.round(runUsed) + ' m used, V=' +
-                   V.toFixed(1) + ' of ' + vr.toFixed(1) + ' needed';
-        else if (runUsed > 0.6 * avail && V < 0.8 * vr)
+        if (left < 80 && V < vr)
+          reject = 'out of runway: ' + Math.round(runUsed) + ' m used, ' + Math.round(Math.max(0, left)) +
+                   ' m left, V=' + V.toFixed(1) + ' of ' + vr.toFixed(1) + ' needed';
+        else if (runUsed > 0.6 * (runUsed + left) && V < 0.8 * vr)
           reject = Math.round(runUsed) + ' m used for V=' + V.toFixed(1) +
                    ' — will not reach Vr=' + vr.toFixed(1) + ' in what is left';
         else if (phaseT > 8 && accF < 0.08 && V < 0.8 * vr)
@@ -17134,7 +17801,7 @@ function makeTestPilot(sim, def, world) {
             ap.holdDir = [ap.frame.ux * ap.dirX, 0, ap.frame.uz * ap.dirX];
             ap.phase = 'ENROUTE'; enterArrival(); ap.trackHold = false;
           } else ap.phase = 'CRUISE';
-          phaseT = 0; thrC = A.thrCruise; thcI = 0.04;
+          phaseT = 0; SV.thrC = A.thrCruise; SV.thcI = 0.04;
         }
         break;
       }
@@ -17150,7 +17817,7 @@ function makeTestPilot(sim, def, world) {
         if (phaseT > 8) {
           // G208: the elevator held on the settled leg (the slewed command,
           // which is what a hand would hold), published as `report.trimDe`
-          trimAcc.n += dt; trimAcc.de += aDe * dt;
+          trimAcc.n += dt; trimAcc.de += SV.aDe * dt;
           ap.report.trimDe = Math.round(trimAcc.de / trimAcc.n * 1000) / 1000;
         }
         if (cardAcc && phaseT > 8) {
@@ -17213,14 +17880,14 @@ function makeTestPilot(sim, def, world) {
         const hTgt = Math.min(ap.altRef + ap.hCruise, hGS + 15);
         holdVS(vsAgl(clamp((A.altVSGain ?? 0.08) * (hTgt - cg[1]), -3.5, 2.2)));
         airLateral();
-        if (d > 0 && hGS <= cg[1] + 2 && cg[1] - hGS < 40) { ap.phase = 'APPROACH'; phaseT = 0; thrC = A.thrAppr; }
+        if (d > 0 && hGS <= cg[1] + 2 && cg[1] - hGS < 40) { ap.phase = 'APPROACH'; phaseT = 0; SV.thrC = A.thrAppr; }
         else if (d <= 0) {
           if (agl < A.flareAgl * 3 || (ap.gaN || 0) >= 2) {
             // TP: the donor lands here silently; the pilot says it is out of
             // tidy options and committing.
             say('committed-landing', 'past the aim at ' + Math.round(agl) +
                 ' m agl — landing it');
-            ap.phase = 'APPROACH'; phaseT = 0; thrC = A.thrAppr;
+            ap.phase = 'APPROACH'; phaseT = 0; SV.thrC = A.thrAppr;
           } else goAround('past-aim');
         }
         break;
@@ -17255,7 +17922,7 @@ function makeTestPilot(sim, def, world) {
         if (cg[1] > ap.altRef + ap.hCruise - 8 || (phaseT > 60 && vsSlow < 0.15)) {
           ap.phase = 'CRUISE'; phaseT = 0;
           ap.dirX = -1; ap.trackHold = true;
-          thrC = A.thrCruise; thcI = 0.04;
+          SV.thrC = A.thrCruise; SV.thcI = 0.04;
         }
         break;
 
@@ -17267,13 +17934,14 @@ function makeTestPilot(sim, def, world) {
         } else {
           holdPitch(Math.min(thFlare0 + A.flareRate * phaseT, A.flareThMax ?? A.thMax));
         }
-        if (agl < (A.decrabAgl ?? 3.5) && Math.abs(o_.windZ || 0) > 0.5) {
-          airLateral(0.12);
-          const nS = nose[0] * F.ux + nose[1] * F.uz;
-          const nC = -nose[0] * F.uz + nose[1] * F.ux;
-          const hdg = Math.atan2(nC, nS * ap.dirX) * ap.dirX;
-          c.dr = clamp(-(A.decrabK ?? 2.2) * hdg - 0.6 * eR, -0.35, 0.35);
-        } else airLateral(0.10);
+        // B3: THE RUDDER WENT THE WRONG WAY — -K x (the nose's angle from the
+        // runway) where the ground steer, and 43 since G381, fly -K x e (e =
+        // the runway's angle from the nose): a crab became a swing in the
+        // hold-off. B4: armed on the STRIP-FRAME crosswind (it read the
+        // world's z, so only an x-aligned strip ever decrabbed). The law is
+        // the module's (39b_servos.js decrab: G381's sign, G970's integral)
+        if (SV.decrabArmed(agl, F)) SV.decrab(0.12);
+        else airLateral(0.10);
         if (onG > 0) {
           ap.phase = 'ROLLOUT'; phaseT = 0;
           ap.tdInfo = { sink: -vcg[1], z: sCr, x: sAl, V,
@@ -17320,10 +17988,8 @@ function makeTestPilot(sim, def, world) {
       const rr = (FS.rate ?? 0.15) * dt;
       c.flap = clamp(c.flap + clamp(tgt - c.flap, -rr, rr), 0, 1);
     }
-    aDe += clamp(c.de - aDe, -A.slew * dt, A.slew * dt); c.de = aDe;
-    aDa += clamp(c.da - aDa, -A.slew * dt, A.slew * dt); c.da = aDa;
-    aDr += clamp(c.dr - aDr, -A.slew * dt, A.slew * dt); c.dr = aDr;
-    holdWas = holdActive; holdActive = false;
+    SV.slew();
+    SV.endStep();
     ap.dbg = { e, th, ph, q, beta, V, alt: cg[1], z: sCr, s: sAl, agl,
                xt: taxiXT, sRem: taxiSRem, tailUp: tailUpNow };   // G193
   };
@@ -17389,6 +18055,15 @@ function makeCrosswindProbe(def, opts) {
   const cap = opts.cap || 10;
   const runs = [];
   let cur = null, lo = 0, hi = null, calmTried = false, result = null;
+  // REVIEW C: THE WORLD'S WIND IS PUT BACK. Each rung sets the world's wind
+  // and nothing restored it, so a caller's world (the bench's, GATE TAKEOFF's
+  // xwWorld) came back from the ladder blowing the last rung across the strip.
+  // The declared spec (the climate's own, before a front's hand) is kept and
+  // set again when the ladder ends — or by restore() for a ladder abandoned.
+  const C0 = world.climate;
+  const wind0 = C0 && 'declared' in C0 ? C0.declared : undefined;
+  let windSet = false;
+  const restore = () => { if (windSet && wind0 !== undefined && world.setWind) world.setWind(wind0); windSet = false; };
 
   function start(w) {
     if (memo && memo.has(w)) {                                // a rung already flown: re-judge it by THIS band
@@ -17398,7 +18073,7 @@ function makeCrosswindProbe(def, opts) {
       cur = { w, roll: m.roll, e: m.e, t: m.t, fin };
       return;
     }
-    if (world.setWind) world.setWind({ base: [0, 0, w], gust: 0 });
+    if (world.setWind) { world.setWind({ base: [0, 0, w], gust: 0 }); windSet = true; }
     const sim = makeSim(def, world);
     sim.reset(0);
     for (let i = 0; i < 600; i++) sim.step(1 / 60);       // parked settle
@@ -17461,6 +18136,7 @@ function makeCrosswindProbe(def, opts) {
                failRoll: first ? first.roll : null,
                runs: runs.map(r => ({ w: r.w, ok: r.ok, roll: r.roll, e: r.e, why: r.why })),
                side: '+z' };
+    restore();
     return null;
   }
   function record() {
@@ -17503,7 +18179,7 @@ function makeCrosswindProbe(def, opts) {
   }
   // A9: the rungs as they land (read-only), so a card can print each
   // departure while the ladder is still climbing
-  return { poll, get result() { return result; }, get runs() { return runs; }, band, cap };
+  return { poll, restore, get result() { return result; }, get runs() { return runs; }, band, cap };
 }
 
 // the whole measurement at once (the gates)
@@ -17722,6 +18398,14 @@ function makePilot(sim, def, world, opts) {
   const threePoint = !trike && (GP.cap < 1 || highThrust);
   // every taildragger rotates at Vr (G193); every TRICYCLE rotates too (G202)
   const rotateTD = !trike && (A.rotate != null ? !!A.rotate : true);
+  // G1570: THE SERVOS ARE ONE MODULE (39b_servos.js), shared with 40 and 41;
+  // this pilot flies it with its own laws on (the calm-air course trim, P1.D's
+  // ground steer, the aileron into wind, the water's branch and stick top)
+  const restH0 = servoRestHeight(def);      // B5: the design pose's CG rest height over the ground
+  const SV = makeServos(sim, def, { pilot: 'pilot', now: () => ap.t, trike, rotateTD, TW, features: {
+    trimCalm: true, groundP1D: true, xwBank: true, water: true,
+    // G396.2 / G970: on the step the stick comes all the way back, through LIFTOFF
+    deTop: (onG) => (sim.hydro && (onG > 0 || ap.phase === 'LIFTOFF')) ? (A.deWater ?? 0.70) : 0.35 } });
   const taxiFF = (() => {
     const PP = POWERPLANTS[def.params.powerplant];
     const PR = def.params.prop || PP.prop;
@@ -17883,22 +18567,23 @@ function makePilot(sim, def, world, opts) {
     ap.shortFld = false;
     ap.trackHold = false;
     ap.legs = null; ap.legI = 0; ap.plan = null;
+    // REVIEW C: A NEW DEPARTURE IS A NEW FLIGHT — the balk count, the go-around
+    // count and the committed flags of the last leg were carried into it (a
+    // multi-hop's second take-off began two balks from ABORT, a second
+    // arrival with no go-around left and 'committed' already said)
+    rollN = 0; ap.gaN = 0; ap.gaWhy = null; committed = false; committedTO = false;
     ap.budget = Math.max(ap.budget, ap.t + routeBudget(from, to));
     go('DEPART');
   };
 
-  // ---- the servos' state (41_test_pilot.js, verbatim) ------------------------
-  let thP = 0, phP = 0, eP = 0, q = 0, p = 0, eR = 0, eRslow = 0, thF = 0, phF = 0, thCA = 0, vsF = 0;
-  let vsSlow = 0, gaT = 0;
-  let aDe = 0, aDa = 0, aDr = 0, phCA = 0;
+  // ---- the servos' state lives in SV (39b_servos.js, G1570) -------------------
+  let gaT = 0;
   // A9: THE TRIM THE PILOT HELD (41_test_pilot.js, verbatim in intent): the
   // slewed elevator on the settled downwind, time-weighted, published as
   // `report.trimDe` for the bench's trim advisor — the test flight is a real
   // flight on THIS pilot now, so the reading has to come from here
   let trimAcc = { n: 0, de: 0 };
-  let Ith = 0, thcI = 0.06, It = 0, thrC = 0.6;
-  let dcI = 0, dcT = -1;   // G970: the decrab's integral and the last time it was flown
-  let thFlare0 = 0, thLift0 = 0, brakeRamp = 0, holdActive = false, holdWas = false;
+  let thFlare0 = 0, thLift0 = 0, brakeRamp = 0;
   // ROTATION AUTHORITY (2026-09-11). holdPitch's integrator is capped at
   // 0.15 for the air; on the ground a high thrust line (a pusher pod 0.6 m
   // above the CG) holds the nose down harder than P + 0.15 can lift it — the
@@ -17909,28 +18594,19 @@ function makePilot(sim, def, world, opts) {
   // ...and the integrator WINDS FASTER there (`rotateI`): pitchI is 0.05,
   // 0.0075 rad/s at a 0.15 rad error — a pilot on the ground past Vr pulls
   // until the nose comes up, and unwinds as it does. Off the ground both go
-  // back to the air's numbers.
-  let IthMax = 0.15, IthMaxT = 0.15, IthGain = null;
+  // back to the air's numbers. (SV.IthMax / SV.IthMaxT / SV.IthGain)
   // G381: the flare's own inner-loop gains (P up, rate damping down) — the
-  // cruise loop moved 1 deg in 3 s at idle, which is no flare at all
-  let pitchK = 1, pitchDK = 1;
-  let taxiI = 0, taxiLastT = -1e9;
+  // cruise loop moved 1 deg in 3 s at idle, which is no flare at all (SV.pitchK / SV.pitchDK)
   let thRest = null, thrRoll = 0, taxiXT = 0, taxiSRem = 0, tailUpNow = false;
-  let eAP = 0, eAR = 0, eARslow = 0;
   // G630: AN ANGLE'S RATE IS THE RATE OF A WRAPPED DIFFERENCE. The heading
   // errors live in (-pi, pi]; differenced raw, an error that crosses +-pi
   // (the nose 180 deg from a target nobody refreshed) steps 2 pi in one
   // 1/60 s step, a 377 rad/s spike the 2 s washout then holds for seconds
-  // — the downwind's rudder square wave on its +-0.25 stop, measured
-  let tgtHP = null;                          // G630: the target heading one step ago
-  let tgtMovedT = -1e9;                      // G780: when the target heading last moved
+  // — the downwind's rudder square wave on its +-0.25 stop, measured (now in SV.sense)
   let flatRoll = null;                       // G630.1: the level stretch of a sloped strip the rollout rolls on to
-  let taxiHdgF = null, taxiHdgT = -1e9;      // G630: the taxi target heading, filtered, and when it was last flown
-  let pG = 0;                                // G630: the ground roll rate, slow (the contact springs' jitter filtered out)
-  const wrapPi = a => a - 2 * Math.PI * Math.round(a / (2 * Math.PI));
-  let eTrim = 0;
+  const wrapPi = servoWrapPi;
   let pendReEng = false;
-  let rollS0 = null, rollN = 0, accF = 0, vPrev = null;
+  let rollS0 = null, rollN = 0;
   let humpR = 0, humpPk = 0, humpPast = false;   // G790: the hull's resistance / weight on the water run, filtered; its peak; past it
   let climbMode = true, ceilT = 0, ceilingSaid = false;
   let slopeCaptured = false, finalT0 = 0, committed = false, cardAcc = null;
@@ -18143,7 +18819,7 @@ function makePilot(sim, def, world, opts) {
   const aimAlt = () => {
     if (!world || typeof world.terrainH !== 'function' || !ap.frame) return ap.refAlt;
     const P0 = wp(ap.frame, ap.xAim, 0);
-    return groundH(P0[0], P0[1]) + (gearH || 0);
+    return groundH(P0[0], P0[1]) + (gearH ?? restH0);
   };
   const leftOf = (F, cg) => (cg[0] - F.ox) * F.uz - (cg[2] - F.oz) * F.ux;
   const alongOf = (F, cg) => (cg[0] - F.ox) * F.ux + (cg[2] - F.oz) * F.uz;
@@ -18558,14 +19234,18 @@ function makePilot(sim, def, world, opts) {
     let pubH = null, pubN = null, pubX = null, pubZ = null;   // G710: the height asked and the point flown to, this step (ap.intent)
     const [xA, yU, zR] = sim.axes();
     const cg = sim.cgPos(), vcg = sim.cgVel();
+    const c = sim.ctl, onG = sim.wheelsOnGround();
+    // B5: THE DATUMS ARE LATCHED ON THE GROUND. restAlt / refAlt (and gearH
+    // below) were latched on the FIRST update, wherever the aeroplane was: a
+    // flight begun by hand and handed to the pilot at 300 m took 300 m as the
+    // field and the CG's height over the terrain as its gear, and flared 300 m
+    // up. On the wheels nothing changes (bit-identical for a ground start); in
+    // the air the datum is the departure field's elevation + the design pose's
+    // rest height (restH0), and gearH waits for the wheels.
+    // (G381: the attitude filters start FROM the attitude — SV.sense's first step)
     if (ap.restAlt === null) {
-      ap.restAlt = cg[1]; ap.refAlt = cg[1];
-      // G381: the attitude filters start FROM the attitude, not from zero —
-      // ROLL read its rest attitude (thRest) off the first filtered frame,
-      // which was 0.7 x the truth (attFilt), so a cub's three-point
-      // attitude was carried as 6.5 deg instead of 9.2 for the whole flight
-      const th0 = Math.asin(clamp(-xA[1], -1, 1)), ph0 = Math.atan2(-zR[1], yU[1]);
-      thF = thP = th0; phF = phP = ph0;
+      const r0 = onG > 0 ? cg[1] : ((ap.route && ap.route.from && ap.route.from.elev) || 0) + restH0;
+      ap.restAlt = r0; ap.refAlt = r0;
     }
     const agl = cg[1] - ap.refAlt;
     const F = ap.frame;
@@ -18587,8 +19267,8 @@ function makePilot(sim, def, world, opts) {
     // (G399.1's fixture). aglG subtracts the CG's rest height above the
     // terrain (gearH, measured once at rest) from aglT; without a world it
     // is agl. The flare, the screen height, the balk and the hold-off read it.
-    if (gearH == null && world && typeof world.terrainH === 'function') gearH = cg[1] - terrainNow;
-    const aglG = (world && typeof world.terrainH === 'function') ? aglT - (gearH || 0) : agl;
+    if (gearH == null && onG > 0 && world && typeof world.terrainH === 'function') gearH = cg[1] - terrainNow;   // B5: on the wheels only
+    const aglG = (world && typeof world.terrainH === 'function') ? aglT - (gearH ?? restH0) : agl;
     // the surface class and the gradient along the nose, read on the ground
     if (world && typeof world.surface === 'function' && typeof GROUND_SURF === 'object') {
       const sc = world.surface(cg[0], cg[2]); gSurf = GROUND_SURF[sc] || null;
@@ -18623,14 +19303,8 @@ function makePilot(sim, def, world, opts) {
     // since the target last moved (1 rad/s, over 0.5 s at most): a target
     // that moved one step ago (PATH's tangent, the look-ahead, the CROSSWIND
     // entry's -pi and its 0.3 rad/step sweep, FINAL's one-step 0.6 rad
-    // glitch) is judged on 0.05 rad exactly as G630 wrote it
+    // glitch) is judged on 0.05 rad exactly as G630 wrote it (SV.sense)
     const tgtH = Math.atan2(tz, tx);
-    if (tgtHP != null) {
-      const dT = wrapPi(tgtH - tgtHP);
-      if (Math.abs(dT) > Math.max(0.05, 1.0 * Math.min(0.5, ap.t - tgtMovedT))) { eP = wrapPi(eP + dT); eAP = wrapPi(eAP + dT); }
-      if (dT !== 0) tgtMovedT = ap.t;
-    } else tgtMovedT = ap.t;                   // the first target is new: the next step off it is judged as G630's
-    tgtHP = tgtH;
     let eA = e;
     const tl2 = Math.hypot(vcg[0], vcg[2]);
     if (tl2 > 5) {
@@ -18638,36 +19312,20 @@ function makePilot(sim, def, world, opts) {
       eA = Math.atan2(tz * tkx - tx * tkz, tx * tkx + tz * tkz);
     }
 
-    const AFt = A.attFilt ?? 1.0;
     const thRaw = Math.asin(clamp(-xA[1], -1, 1));
     const phRaw = Math.atan2(-zR[1], yU[1]);
+    const beta = (vcg[0]*zR[0] + vcg[1]*zR[1] + vcg[2]*zR[2]) / Math.max(Vt, 5);
     if (pendReEng) {
       pendReEng = false;
-      thF = thRaw; phF = phRaw; thP = thRaw; phP = phRaw; q = p = 0;
-      eP = e; eR = eRslow = 0; eAP = eA; eAR = eARslow = 0; pG = 0;
-      vsF = vcg[1]; thCA = thRaw; phCA = 0;
-      aDe = sim.ctl.de; aDa = sim.ctl.da; aDr = sim.ctl.dr;
-      Ith = 0; It = 0; thcI = 0.06; thrC = A.thrCruise ?? 0.6; IthMax = IthMaxT = 0.15; IthGain = null;
-      eTrim = 0; brakeRamp = 0; holdWas = holdActive = false;
+      SV.relatch();                           // every servo memory, from the live state (SV.sense)
+      brakeRamp = 0;
       ap.budget = Math.max(ap.budget, ap.t + 400);
     }
-    thF += AFt * (thRaw - thF); phF += AFt * (phRaw - phF);
-    const th = thF, ph = phF;
-    const RF = A.rateFilt ?? 0.12;
-    q += RF * ((th - thP) / dt - q); thP = th;
-    p += RF * ((ph - phP) / dt - p); phP = ph;
-    eR += RF * 0.85 * (wrapPi(e - eP) / dt - eR); eP = e;
-    eRslow += dt / 2.0 * (eR - eRslow);
-    eAR += RF * 0.85 * (wrapPi(eA - eAP) / dt - eAR); eAP = eA;
-    eARslow += dt / 2.0 * (eAR - eARslow);
-    pG += dt / 0.3 * (p - pG);
-    vsSlow += dt / 2.0 * (vcg[1] - vsSlow);
-    const beta = (vcg[0]*zR[0] + vcg[1]*zR[1] + vcg[2]*zR[2]) / Math.max(Vt, 5);
-    if (vPrev !== null) accF += dt / 2.0 * ((V - vPrev) / dt - accF);
-    vPrev = V;
+    // THE SENSING (39b_servos.js): the attitude and rate filters, the bumpless
+    // target, the wrapped rates, the slow roll / climb / acceleration filters
+    SV.sense(dt, e, eA, tgtH, thRaw, phRaw, beta, V, Vg, vcg[1], onG);
+    const th = SV.th, ph = SV.ph, q = SV.q, p = SV.p, eR = SV.eR, accF = SV.accF, vsSlow = SV.vsSlow;
 
-    const c = sim.ctl, onG = sim.wheelsOnGround();
-    let deFloor = 0;                          // G396.2: the water roll's back-stick floor, read by the servo
     // P0.8: A BUMP IS NOT A TOUCHDOWN — the balk detector wants the wheels
     // on the ground for 0.3 s (a rough strip's contact flickers)
     onGT = onG > 0 ? onGT + dt : 0;
@@ -18688,36 +19346,8 @@ function makePilot(sim, def, world, opts) {
       say('gave-up', 'still in ' + ap.phase + ' at t=' + Math.round(ap.t) + ' s — out of patience, not out of sky');
     }
 
-    // ---- THE SERVOS (41_test_pilot.js, verbatim) ----------------------------------
-    const holdPitch = (thC) => {
-      if (!holdWas) thCA = th;
-      holdActive = true;
-      const sl = (A.pitchCmdSlew ?? 99) * dt;
-      thCA += clamp(thC - thCA, -sl, sl);
-      IthMax += clamp(IthMaxT - IthMax, -0.10 * dt, 0.10 * dt);
-      Ith = clamp(Ith + (IthGain ?? (A.pitchI ?? 0.05)) * (thCA - th) * dt, -IthMax, IthMax);
-      // G396.2: ON THE STEP THE STICK COMES ALL THE WAY BACK. The 0.35 stop
-      // is a wheel's rotation (the ground never pins the tail); a planing
-      // float rides nose-low against the thrust line and the servo sat on
-      // its stop from 20 m/s to a 145 km/h lift-off (Vs 66) — a seaplane
-      // pilot holds full back stick until the hull lets go, then eases.
-      // Measured on the card: 0.7 lifts at 102 km/h, the fixture at 86.
-      // G970: ...AND UNTIL CLIMB. The float ULM's thrust line sits 0.55 m over
-      // its CG; the moment the floats let go the top fell back to 0.35 and at
-      // full power the nose went to -15 deg with the stick on it, into the
-      // water again (a second skip). G396.2's own reading: this lift-off asks
-      // ~0.5 of stick. The water's top holds through LIFTOFF
-      const deTop = (sim.hydro && (onG > 0 || ap.phase === 'LIFTOFF')) ? (A.deWater ?? 0.70) : 0.35;
-      c.de = clamp((A.pitchP ?? 1.2) * pitchK * (thCA - th) - (A.pitchD ?? 1.8) * pitchDK * q + Ith, -0.30, deTop);
-      if (deFloor > 0 && deFloor > c.de) c.de = deFloor;   // (a zero floor is no floor: it clamped every nose-down command on every aeroplane for one build)
-    };
-    // the roll servo alone: a bank command in, the aileron and the yaw damper out
-    const rollTo = (phC) => {
-      phCA += clamp(phC - phCA, -(A.bankSlew ?? 0.18) * dt, (A.bankSlew ?? 0.18) * dt);
-      c.da = clamp((A.rollP ?? 2.0) * (phCA - ph) - (A.rollD ?? 2.0) * p, -0.30, 0.30);
-      c.dr = clamp(-(A.betaK ?? 0.3) * beta - (A.yawDampK ?? 0.6) * (eAR - eARslow)
-                   - (A.ariK ?? 0.35) * c.da, -0.25, 0.25);
-    };
+    // ---- THE SERVOS: one module, 39b_servos.js (G1570) ---------------------------
+    const holdPitch = SV.holdPitch, rollTo = SV.rollTo;
     // ---- L1 OVER THE PATH (P0.6, PILOT-ROADMAP §6.1) --------------------------
     // Park, Deyst and How's nonlinear guidance (AIAA GNC 2004), the law
     // ArduPilot flies: a reference point on the path L1 ahead of the nearest
@@ -18777,42 +19407,8 @@ function makePilot(sim, def, world, opts) {
       pathDbg = { i: L.i, ey: L.ey, sRem: L.sRem, eta, kap: P[L.i].kap, phC };
       return true;
     };
-    const airLateral = (bl = bankLim) => {
-      // THE COURSE TRIM IS NOT ABOUT THE WIND (2026-09-08). It was gated on
-      // there BEING a wind, so in calm air a steady course error could not
-      // be trimmed out at all — and a steady course error does not need a
-      // wind: PROPWASH SWIRL yaws the aeroplane all the way down the
-      // approach, the beta damper below only damps it, and the aeroplane
-      // flies a heading that closes the centreline while TRACKING parallel
-      // to it. Measured on the V-tail card's own approach: 17 m off,
-      // holding, 1 deg of bank, two go-arounds and a give-up — in dead calm.
-      // The integrator is the same one, with the same bounds and the same
-      // wash-out through a turn; it simply runs whenever the error is small
-      // and steady, which is when a pilot would be holding a boot of rudder.
-      // An aeroplane that already tracks true keeps eTrim at 0 and is
-      // unchanged, wind or no wind.
-      if (Math.abs(eA) < 0.2) eTrim = clamp(eTrim + 0.15 * eA * dt, -0.10, 0.10);
-      else eTrim -= 0.8 * eTrim * dt;
-      const phC = clamp((A.hdgP ?? 0.7) * eA + (A.hdgD ?? 0.9) * eAR + eTrim, -bl, bl);
-      rollTo(phC);
-    };
-    const speedThrottle = (Vtgt) => {
-      It = clamp(It + 0.010 * (Vtgt - V) * dt, -0.30, 0.30);
-      // G381: a term on the measured acceleration (accF, the 2 s filter)
-      // damps the 40 s speed hunt the approach flew (+/-2 m/s, throttle
-      // 0.15..0.63 on the cub); 0 keeps the G352 law to the bit
-      const base = thrC + 0.05 * (Vtgt - V) - (A.spdD ?? 0.25) * accF, lo = A.thrFloor ?? 0.12;
-      // G352: anti-windup — on a stop, the integrator holds the stop's value
-      if (base + It < lo) It = lo - base;
-      else if (base + It > 1) It = 1 - base;
-      c.thr = clamp(base + It, lo, 1);
-    };
-    const holdVS = (VSc, thMax = 0.16) => {
-      vsF += (A.vsFilt ?? 1.0) * (vcg[1] - vsF);
-      const fl = A.vsFloor ?? -0.08;
-      thcI = clamp(thcI + (A.vsI ?? 0.015) * (VSc - vsF) * dt, fl, thMax);
-      holdPitch(clamp(thcI + (A.vsP ?? 0.010) * (VSc - vsF), fl, thMax));
-    };
+    const airLateral = (bl = bankLim) => SV.airLateral(bl);
+    const speedThrottle = SV.speedThrottle, holdVS = SV.holdVS;
     // ---- TECS (P0.5, PILOT-ROADMAP §6.1) — ONE LONGITUDINAL LAW ------------
     // Lambregts' Total Energy Control System (AIAA 1983), the form ArduPilot
     // and PX4 fly: the THROTTLE commands the rate of the aeroplane's total
@@ -18872,14 +19468,14 @@ function makePilot(sim, def, world, opts) {
       // approach the MACHINE can fly, said once on the record. The planner
       // will read this off the sheet (elevIdle) when the bench measures it.
       // G970: THE SERVO'S LIMIT IS THE ELEVATOR'S TOO. holdPitch's authority
-      // is P + an integrator clamped at IthMax: with 5 deg of attitude to go
+      // is P + an integrator clamped at SV.IthMax: with 5 deg of attitude to go
       // it tops out near 0.26 and never reaches the 0.30 this read. The
       // Caravan-alike (drawn tail, half tanks) flew a 5 km final 12 m under
       // the slope, 2 m/s fast, thC on thMax (11.2 deg) and the nose at 6.1 on
       // 0.24 of elevator, the throttle on its floor - and went around twice
       // for the terrain. The integrator on its clamp with the attitude short
       // of the command is the same "cannot hold this speed"
-      const eSat = (aDe > 0.30 || (Ith >= IthMax - 1e-3 && thCA - th > 0.03)) && V > (o.ias || A.VAppr) + 0.5;
+      const eSat = (SV.aDe > 0.30 || (SV.Ith >= SV.IthMax - 1e-3 && SV.thCA - th > 0.03)) && V > (o.ias || A.VAppr) + 0.5;
       tDeSatT = eSat ? tDeSatT + dt : Math.max(0, tDeSatT - dt);
       if (tDeSatT > 1.5) tVAdapt = Math.min(tVAdapt + 0.5 * dt, 0.25 * (o.ias || A.VAppr));
       if (tVAdapt > 0.5 && !tVAdaptSaid) { tVAdaptSaid = true; say('vref-raised', 'the elevator cannot hold ' + (o.ias || A.VAppr).toFixed(1) + ' m/s at this power — flying the approach faster'); }
@@ -18940,150 +19536,9 @@ function makePilot(sim, def, world, opts) {
       holdPitch(thC);
       tecsDbg = { hdotC, Vc, STEr, STErC, ff, thr: c.thr, wK: tWk, thC, eB, vsUp, vsDn };
     };
-    // THE STEER GAINS (groundSteer's, factored out G630 so the taxi flies
-    // them too — the taxi ran the fixed 3.2 / 1.2 at any mass, the fault
-    // G250 fixed for the take-off roll; a taildragger bit-identical)
-    const steerK = (tailUp) => {
-      const kS = trike ? clamp(((A.VSteer ?? 12) / Math.max(V, 5)) ** 2, A.steerMin ?? 0.30, 1.0)
-               : clamp(((A.VTailUp ?? 12) / Math.max(V, 5)) ** 2, A.steerMin ?? 0.30, 1.0);
-      const kM = Math.sqrt(Math.max(200, sim.totalM || 500) / 500);
-      const kP = (tailUp
-        ? 3.2 * 1.4 * clamp(((A.VTailUp ?? 12) / Math.max(V, 5)) ** 2, 0.6, 2.0)
-        : 3.2 * kS) / kM;
-      // P1.D: the heading gain falls and the damping rises with the square
-      // root of the mass — the yaw inertia grows with it, the tailwheel's
-      // moment does not, and a loop tuned on a 480 kg cub rang a 2 t beaver
-      // at 10-19 m/s (+-35 deg at a 4 s period in 4 m/s gusting across)
-      const kD = (tailUp ? 3.0 : 1.2 * (trike ? Math.sqrt(kS) : kS)) * kM;
-      // G630: A TRICYCLE'S RATE TERM IS A QUARTER, AND NONE UNDER THE BRAKES.
-      // The nosewheel turns the heading kinematically (yaw rate = V steer
-      // dr / wheelbase: no inertia to damp at taxi speed), and the full rate
-      // term fed the tyres' and springs' own 2.5 Hz yaw mode instead: the
-      // rudder rang +-0.05..0.1 down every take-off roll and rollout of the
-      // C172s (freeze test: rudder held at 0, the heading stays within 0.16
-      // deg — the ring was ALL the loop's). Measured on the aluminium C172:
-      // a quarter is quiet on the roll (169 -> 0 reversals/min) and still
-      // GREW under the rollout's brakes (the loaded nosewheel); none is
-      // quiet everywhere but gave back the crosswind damping (x2 rollout
-      // swing 1.6 -> 5.6 deg on the C172); a quarter off the brakes, none on
-      // them: 2.9 deg, 0 reversals. `trikeSteerD` is the fraction.
-      // ...AND ITS P IS CAPPED AT A FIXED KINEMATIC BANDWIDTH: the loop's
-      // crossover is kP V steer / Lwb and it GROWS with the ground speed
-      // until the (VSteer/V)^2 schedule starts — ~7 rad/s at VSteer on the
-      // C172 archetype, where it rang 1.7 Hz +-0.7 deg under the brakes on
-      // P alone (frozen rudder: calm). `steerBW` rad/s.
-      if (tailUp || !trike) return [kP, kD];
-      const kPb = Math.min(kP, (A.steerBW ?? 3.5) * TW.Lwb / (Math.max(Vg, 3) * TW.steer));
-      return [kPb, kD * (A.trikeSteerD ?? 0.25) * (1 - clamp((c.brake || 0) / 0.1, 0, 1))];
-    };
-    // G630: THE WINGS-LEVEL LOOP ON THE WHEELS. -2 ph - p differentiated the
-    // contact springs' bank jitter (a tenth of a degree at 1-2 Hz) into
-    // aileron chatter the trace's aileron lane showed the whole taxi and
-    // roll; on the ground the bank error has a 0.6 deg deadband and the
-    // rate is the slow one (0.3 s) with its own 0.02 rad/s deadband. Off
-    // the wheels it is the air's law, unchanged.
-    const db = (x, w) => x - clamp(x, -w, w);
-    const groundAil = (phT, lim) => onG > 0
-      ? clamp(-2.0 * db(ph - phT, 0.010) - 1.0 * db(pG, 0.02), -lim, lim)
-      : clamp(-2.0 * (ph - phT) - 1.0 * p, -lim, lim);
-    const groundSteer = () => {
-      // H4 (G393): ON THE WATER the split is displacement / on the step
-      // (wheelsOnGround reads 3 / 2 for exactly that), the water rudder is
-      // up on the step and the air rudder alone holds the run, and there is
-      // no castor to over-control: the pedals go to the stop either way.
-      // Measured on the ultralight in a 5 m/s crosswind: with the
-      // taildragger's 0.45 clamp it weathervaned 40 deg on the step and left
-      // the lane 186 m off; with this, see the H4 entry.
-      const onWater = !!(sim.hydro);
-      // P1.D: the tail is up when the TAILWHEEL is off the ground
-      // (sim.wheelContacts), not when the pitch says so — banked 8 deg on
-      // one main at a three-point attitude the cub read "tail down", the
-      // rudder was clamped to the tailwheel's 0.45 and the nose swung 32 deg
-      // before the tail touched
-      const WC = typeof sim.wheelContacts === 'function' ? sim.wheelContacts() : null;
-      // (GATE TAKEOFF reads this line by regex: the tail-state schedule first)
-      const tailUp = rotateTD && !onWater && (WC ? (!WC.tw && onG >= 1) : (onG <= 2 && thRest !== null && (thRest - th) > 0.04))
-                  || (onWater && onG <= 2 && V > 6);
-      // P1.D: the tail-down rudder stop is the TAILWHEEL's (0.45 keeps a
-      // swerve out of the taxi), and it climbs with the speed to the full
-      // pedal by VTailUp — at 19 m/s three-point in 4 m/s gusting across
-      // the beaver weathervaned 31 deg each way on 0.45 of rudder that the
-      // fin alone could have held
-      const vTU = A.VTailUp ?? 12;
-      const drMax = tailUp ? 0.95 : (onWater ? 0.9 : clamp(0.45 + 0.5 * V / vTU, 0.45, 0.95));
-      // A TRICYCLE'S STEER GAINS EASE WITH SPEED (2026-09-11). The taildragger
-      // branch below already schedules on (VTailUp/V)^2 once the tail is up;
-      // the trike ran the fixed 3.2 / 1.2 down the whole strip, and with the
-      // rudder's authority growing as V^2 (in the propwash on a pusher) on
-      // top of the nosewheel's, the loop crossed the rate estimate's lag at
-      // ~12 m/s: a 1.25 Hz weave, rudder on its stop, on the user's pusher.
-      // Same form, the trike's own reference speed (genAP VSteer, 0.6 VRot),
-      // and a floor measured on that build. Taildraggers: bit-identical.
-      // G381: ...AND A TAILDRAGGER'S TAIL-DOWN GAINS EASE THE SAME WAY. The
-      // tail-up branch schedules on (VTailUp/V)^2; the tail-down branch ran
-      // the fixed 3.2 / 1.2 at any speed, which is fine below VTailUp (the
-      // roll it was tuned on) and unstable above it: a wheel landing at
-      // 26 m/s drops its tail at 17-19, the rudder's authority is 1.5x what
-      // the gains were sized for, and the weave grew 2 -> 7 -> 12 -> 52 deg
-      // with the rudder on its stop (stearman and cub archetypes, measured).
-      // The floor 0.3 = VTailUp x 1.8, the fastest a tail-down roll gets.
-      const [kP, kD] = steerK(tailUp);
-      c.dr = clamp(-kP * e - kD * eR, -drMax, drMax);
-      // AILERON INTO THE WIND (2026-09-08) — the other half of a crosswind
-      // ground roll, and the pilot had only the first. This held the wings
-      // LEVEL, which is right in calm air and exactly wrong across the
-      // wind: a level wing lets the upwind main unload, the aeroplane
-      // drifts, and on a taildragger the drift becomes the weathercock the
-      // rudder then fights at its stop. TRACED on the ultralight fixture at
-      // 2 m/s across (TAIL CHANTIER 2 P5): the tail lightens at 17 m/s, the
-      // tailwheel's steering goes with it (30_solver: only it steers), the
-      // nose swings 34 deg with the rudder saturated for three seconds, and
-      // the aeroplane leaves the centreline by 18 m. A pilot holds aileron
-      // INTO the wind — most at low speed, easing as the ailerons bite — so
-      // the upwind wheel keeps its load. The command is a BANK BIAS, so the
-      // level-wing loop still flies it and nothing else changes; in calm
-      // air `wX` is 0 and this is the old law to the bit.
-      // `out.wind*` is the AIR'S VELOCITY, not the direction it comes from:
-      // air moving toward +z blows FROM the starboard side, so into-wind is
-      // the starboard wing DOWN, and the bias carries the same sign as the
-      // cross component. (Measured both ways on the fixture: with the sign
-      // reversed the wander grew to 29 m; with this one it is 2.6 m.)
-      const wX = -(o_.windX || 0) * F.uz + (o_.windZ || 0) * F.ux;
-      // On a tricycle the reference is VSteer, not VTailUp (99, which pinned
-      // the clamp at 1.6 and asked 8 deg of bank at 2 m/s — the aeroplane ran
-      // on one main from 15 m/s and left the strip 10 m off in the game's
-      // "wind 4 + gusts"). And on three wheels the bias is a token: a trike
-      // takes off wings-level and crabbed, the tyres hold it; the full
-      // wing-low bias belongs after the nosewheel is off.
-      const vRef = trike ? (A.VSteer ?? 12) : (A.VTailUp ?? 12);
-      let phW = (A.xwBank ?? 0.06) * wX * clamp(vRef / Math.max(V, 6), 0.4, 1.6);
-      // P1.D: ON THE WHEELS THE BANK COMES OFF — every type. The wing-low
-      // target (xwBank x the crosswind, 8-11 deg in 4 m/s across) is the
-      // decrab's, for the air; held on the ground it lifted the downwind
-      // main and the cub ground-looped 96 deg on one wheel, the beaver 150
-      // (the G431 wing at 3 deg on a three-point roll runs light). With
-      // both mains down the target is the ground's own bank within 2 deg
-      // into wind; the roll loop on the measured bank keeps the upwind
-      // wing down against the crosswind's own rolling moment; from the FIRST
-      // main down on a taildragger (the wing-low touchdown lands one wheel)
-      if (!onWater && onG >= (trike ? 3 : 1)) phW = clamp(phW, -(A.xwBankGround ?? 0.035), A.xwBankGround ?? 0.035);
-      c.da = groundAil(phW, 0.30);
-      tailUpNow = tailUp;
-    };
-    const taxi = (Vtgt) => {
-      c.de = A.taxiDe ?? 0.30;
-      const ff = taxiFF();
-      const cap = Math.min(A.taxiThrMax ?? 0.85, GP.cap);
-      if (ap.t - taxiLastT > 2) taxiI = 0;
-      taxiLastT = ap.t;
-      const err = Vtgt - Vg;
-      const u0 = ff + 0.18 * err + taxiI;
-      if ((err > 0 && u0 < cap) || (err < 0 && u0 > 0))
-        taxiI = clamp(taxiI + 0.10 * err * dt, -ff, cap);
-      c.thr = clamp(ff + 0.18 * err + taxiI, 0, cap);
-      c.brake = Vg > Vtgt + 0.8 ? clamp(0.3 * (Vg - Vtgt - 0.8), 0, 0.6) : 0;
-      c.da = groundAil(0, 0.25);
-    };
+    const steerK = SV.steerK, groundAil = SV.groundAil;
+    const groundSteer = () => { tailUpNow = SV.groundSteer(thRest, F); };
+    const taxi = (Vtgt) => SV.taxi(Vtgt, taxiFF(), Math.min(A.taxiThrMax ?? 0.85, GP.cap));
     const vsAgl = v => aglG < A.hSafe ? Math.max(v, 1.0) : v;
     const taxiV = (A.taxiV ?? 5.0) * ST.taxiK;
 
@@ -19161,28 +19616,10 @@ function makePilot(sim, def, world, opts) {
         case 'NAV': ap.targetDir = SEL.navDir || ap.targetDir; airLateral(SEL.bank ?? bankLim); break;
         case 'PATH': if (!pathFollow(SEL.bank ?? bankLim)) { ap.targetDir = SEL.navDir || ap.targetDir; airLateral(SEL.bank ?? bankLim); } break;   // P0.6
         case 'LOC': airLateral(SEL.bank ?? bankLim); break;
-        case 'DECRAB': {
-          airLateral(0.12);
-          // G381: THE RUDDER WENT THE WRONG WAY. This kicked the crab off with
-          // -K x (the nose's angle FROM the runway), while groundSteer, the
-          // proven loop, steers with -K x e, and e is the runway's angle from
-          // the nose — the opposite sign. Measured on the cub in a 2 m/s
-          // crosswind: a 7 deg crab became a 16 deg swing in the hold-off
-          // and the rollout opened with the rudder on its stop. The same
-          // law as the ground's now, on the same error (which also carries
-          // the centreline correction trackHold folds into e).
-          // G970: ...AND IT IS FLOWN TO ZERO. P alone left the weathercock a
-          // standing crab: the Cub-alike touched in 2 m/s across with the nose
-          // 2.1 deg off the runway and the roll-out swing grew from there (6.6
-          // deg); with a slow integral (1/s, reset whenever the decrab is not
-          // flown) it touches aligned - cub x2 swing 5.9, x4 12.7 -> 10.4, the
-          // Stearman-alike x2 5.3 -> 3.7 deg and 1.11 -> 0.95 m/s
-          if (ap.t - dcT > 0.1) dcI = 0;
-          dcT = ap.t;
-          dcI = clamp(dcI + (A.decrabI ?? 1.0) * e * dt, -0.2, 0.2);
-          c.dr = clamp(-(A.decrabK ?? 2.2) * e - 0.6 * eR - dcI, -0.35, 0.35);
+        case 'DECRAB':
+          // G381 (the sign: -K x e, the ground's own) + G970 (the slow integral): 39b_servos.js
+          SV.decrab(0.12);
           break;
-        }
         case 'RWY': groundSteer(); break;
         case 'TAXI': c.dr = SEL.dr; break;   // the follower's rudder (da from the governor)
         case 'NONE': c.dr = 0; c.da = 0; break;
@@ -19217,7 +19654,7 @@ function makePilot(sim, def, world, opts) {
       // trickle cap and the unwind are unchanged
       if (ap.phase === 'FLARE' && AF.thr === 'IDLE') {   // G399.7: FINAL's half retired — TECS carries its own saturation (the raised Vref)
         const slow = V < (A.flareFloorK ?? 1.15) * (sheetOf() && sheetOf().Vs0 ? sheetOf().Vs0 : (A.VRot || 18) / 0.99);
-        const sat = aDe > 0.30 || (slow && aDe > 0), free = aDe < 0.22 && !slow;
+        const sat = SV.aDe > 0.30 || (slow && SV.aDe > 0), free = SV.aDe < 0.22 && !slow;
         // in the flare the assist depends on the SPEED: a slow arrival (the
         // C172-alike at 1.13 VRot, full flap) needs the power to finish its
         // hold-off (1.9 -> 1.0 m/s); a fast one (the Caravan-alike at 1.6
@@ -19229,7 +19666,7 @@ function makePilot(sim, def, world, opts) {
         pAsst = clamp(pAsst + (sat ? (A.apAssistRate ?? 0.50) : free ? -0.25 : 0) * dt, 0, cap);
         if (pAsst > 0) c.thr = clamp(c.thr + pAsst, 0, 1);
       } else pAsst = 0;
-      AF.fd = { pitch: thCA, bank: phCA };
+      AF.fd = { pitch: SV.thCA, bank: SV.phCA };
     };
 
     // ---- the pilot's own helpers ---------------------------------------------------
@@ -19251,6 +19688,16 @@ function makePilot(sim, def, world, opts) {
               (stalled ? ' m/s) — accepting ' : ' m/s — flying the circuit at ') + Math.round(cg[1] - ap.altRef) + ' m');
           ap.hCruise = Math.max(A.hSafe + 10, cg[1] - ap.altRef);
           if (ap.plan) ap.plan.hC = ap.hCruise;
+          // B6: THE ACCEPTED CEILING IS THE CIRCUIT'S. Only hCruise came down;
+          // every leg kept its planned L.h, legAlt asked it again the next step,
+          // dh > 40 put climbMode back on and the aeroplane went on climbing for
+          // the height it had just given up — the verdict was a word. The legs
+          // above the ceiling come down to it, and their published heights
+          // (hPlan, G710) are planned again.
+          if (ap.legs) {
+            for (const L of ap.legs) if (L.h != null && L.h > ap.hCruise) L.h = ap.hCruise;
+            planLegH(ap.legs);
+          }
           climbMode = false;
         }
       } else ceilT = 0;
@@ -19265,8 +19712,8 @@ function makePilot(sim, def, world, opts) {
     const goAround = why => {
       ap.gaN = (ap.gaN || 0) + 1; ap.gaWhy = why;
       say('go-around', why + ' (attempt ' + ap.gaN + ')');
-      go('GOAROUND'); gaT = 0; IthMaxT = 0.15; finalLevel = null; tVAdapt = 0; tDeSatT = 0;
-      thrC = A.thrCruise; thLift0 = th;
+      go('GOAROUND'); gaT = 0; SV.IthMaxT = 0.15; finalLevel = null; tVAdapt = 0; tDeSatT = 0;
+      SV.thrC = A.thrCruise; thLift0 = th;
     };
     // the arrival at the destination, planned from where the aeroplane is now
     const planFromHere = () => {
@@ -19484,10 +19931,8 @@ function makePilot(sim, def, world, opts) {
           // heading a look-ahead away, and it STEPS as the index passes each
           // sample of a bend (and as the look-ahead shrinks with the speed):
           // the rudder differentiated every step into a kick
-          if (taxiHdgF == null || ap.t - taxiHdgT > 0.5) taxiHdgF = hT;
-          else taxiHdgF = wrapPi(taxiHdgF + wrapPi(hT - taxiHdgF) * Math.min(1, dt / 0.4));
-          taxiHdgT = ap.t;
-          ap.targetDir = [Math.cos(taxiHdgF), 0, Math.sin(taxiHdgF)];
+          const hF = SV.taxiHeading(hT);
+          ap.targetDir = [Math.cos(hF), 0, Math.sin(hF)];
           { const pe = ap.path.pts[ap.path.pts.length - 1]; if (pe) { pubN = 'HOLD'; pubX = pe.x; pubZ = pe.z; } }
           const drFF = -Math.atan(TW.Lwb * K.kapL) / Math.max(0.05, TW.steer);
           const drMaxG = 0.85 - 0.40 * clamp((Vg - 6) / 4, 0, 1);
@@ -19499,8 +19944,7 @@ function makePilot(sim, def, world, opts) {
           // either gear, and the rate term only differentiated the contact's
           // yaw jitter (the rudder lane's 2.5-4 Hz chatter, 76-290 reversals
           // a minute on the stock, the C172 and the aluminium C172)
-          const [kPt] = steerK(false);
-          engage('TAXI', 'DE', 'TAXI', { dr: clamp(-kPt * e + drFF, -drMaxG, drMaxG),
+          engage('TAXI', 'DE', 'TAXI', { dr: SV.taxiRudder(drFF, drMaxG),
                                           de: A.taxiDe ?? 0.30, gsp: pathSpeed(ap.path, L.i, Vg, vMax, L.sRem) });
           const tMax = 40 + 1.6 * ap.path.len / taxiV;
           setStatus('following the taxi route to the hold', [
@@ -19514,8 +19958,7 @@ function makePilot(sim, def, world, opts) {
         const dist = Math.hypot(ddx, ddz) || 1e-9;
         pubN = 'TAXI POINT'; pubX = ap.taxiTgt[0]; pubZ = ap.taxiTgt[1];
         ap.targetDir = [ddx / dist, 0, ddz / dist];
-        const [kPt] = steerK(false);
-        engage('TAXI', 'DE', 'TAXI', { dr: clamp(-kPt * e, -0.45, 0.45), de: A.taxiDe ?? 0.30,
+        engage('TAXI', 'DE', 'TAXI', { dr: SV.taxiRudder(0, 0.45), de: A.taxiDe ?? 0.30,
                                         gsp: Math.abs(e) > 0.6 ? 2.5 : taxiV });
         const lastLeg = !(ap.taxiPath && ap.taxiPath.length);
         setStatus('taxiing to the next point', [cond('to the point', Math.round(dist), lastLeg ? 22 : 10, false, 'm')]);
@@ -19528,8 +19971,7 @@ function makePilot(sim, def, world, opts) {
 
       case 'LINEUP': {
         const alig = -(nose[0] * F.ux + nose[1] * F.uz);
-        const [kPt] = steerK(false);
-        engage('TAXI', 'DE', 'TAXI', { dr: clamp(-kPt * e, -0.45, 0.45), de: A.taxiDe ?? 0.30,
+        engage('TAXI', 'DE', 'TAXI', { dr: SV.taxiRudder(0, 0.45), de: A.taxiDe ?? 0.30,
                                         gsp: alig > 0.5 ? 4.5 : 2.4 });
         ap.trackHold = true;
         setStatus('lining up on the centreline', [
@@ -19549,12 +19991,9 @@ function makePilot(sim, def, world, opts) {
           ap.pathI = L.i; taxiXT = L.ey; taxiSRem = L.sRem;
           const K = pathLook(ap.path, L.i, Vg);
           const hT = K.hdgL;
-          if (taxiHdgF == null || ap.t - taxiHdgT > 0.5) taxiHdgF = hT;
-          else taxiHdgF = wrapPi(taxiHdgF + wrapPi(hT - taxiHdgF) * Math.min(1, dt / 0.4));
-          taxiHdgT = ap.t;
-          ap.targetDir = [Math.cos(taxiHdgF), 0, Math.sin(taxiHdgF)];
-          const [kPt] = steerK(false);
-          dr = clamp(-kPt * e, -0.85, 0.85);
+          const hF = SV.taxiHeading(hT);
+          ap.targetDir = [Math.cos(hF), 0, Math.sin(hF)];
+          dr = SV.taxiRudder(0, 0.85);
         }
         engage('TAXI', 'DE', 'SET', { dr, de: A.taxiDe ?? 0.30, thr: 0 });
         c.brake = 0.7; c.da = groundAil(0, 0.25);
@@ -19781,8 +20220,8 @@ function makePilot(sim, def, world, opts) {
         // deg - G426's 27.7, the last good
         if (sim.hydro && vert === 'PITCH' && V <= vrT) pitch = 0.02;
         const rotating = vert === 'PITCH' && V > vrT && onG > 0;
-        IthMaxT = rotating ? (A.rotateIMax ?? 0.30) : 0.15;
-        IthGain = rotating ? (A.rotateI ?? 0.8) : null;
+        SV.IthMaxT = rotating ? (A.rotateIMax ?? 0.30) : 0.15;
+        SV.IthGain = rotating ? (A.rotateI ?? 0.8) : null;
         engage('RWY', vert, 'SET', { pitch, de: deRoll, thr: ap.t > 0.5 ? thrRoll : 0 });
         // P1.C short: the brakes hold the aeroplane until the power is up
         if (shortTO && V < 1.5 && thrRoll < Math.min(0.98, (V < (A.VTailUp ?? 0) ? GP.cap : 1) - 0.02)) c.brake = A.brakeMax;
@@ -19805,14 +20244,14 @@ function makePilot(sim, def, world, opts) {
         // 15 m/s in a 5 m/s crosswind, ballooned it, dropped it back crabbed
         // at 12.5 m/s and water-looped it 140 deg. Pulled at 1.12 Vr it
         // touches once and climbs away (max swing 21 deg).
-        if (sim.hydro && onG > 0) deFloor = V > (A.vWaterStick ?? 1.12) * vr ? (A.deWater ?? 0.70) : 0.02;
+        if (sim.hydro && onG > 0) SV.deFloor = V > (A.vWaterStick ?? 1.12) * vr ? (A.deWater ?? 0.70) : 0.02;
         c.brake = 0;
-        if (onG === 0 && V > vr) { go('LIFTOFF'); thLift0 = th; IthMaxT = 0.15; IthGain = null; }
+        if (onG === 0 && V > vr) { go('LIFTOFF'); thLift0 = th; SV.IthMaxT = 0.15; SV.IthGain = null; }
         break;
       }
 
       case 'ABORT': {
-        IthMaxT = 0.15; IthGain = null;
+        SV.IthMaxT = 0.15; SV.IthGain = null;
         engage('RWY', 'DE', 'SET', { thr: 0, de: trike ? 0.15 : (V > (A.VTailDown ?? A.VTailUp) ? -0.05 : 0.35) });
         brakeRamp = Math.min(brakeRamp + A.brakeRampRate * dt, A.brakeMax);
         c.brake = brakeRamp * Math.min(1, Math.max(0, (Vg - A.VBrakeRelease) / 2.0));
@@ -19848,13 +20287,13 @@ function makePilot(sim, def, world, opts) {
         // 135 km/h). The sea is the flat datum `agl` was built on.
         const aglL = sim.hydro ? agl : aglG;
         // G435: ...and a HIGH THRUST LINE on land asks the same stick (THRUST_ARM above)
-        if ((sim.hydro || highThrust) && aglL < 2 * A.hSafe) { IthMaxT = A.liftoffIWater ?? 0.35; IthGain = A.rotateI ?? 0.8; }
+        if ((sim.hydro || highThrust) && aglL < 2 * A.hSafe) { SV.IthMaxT = A.liftoffIWater ?? 0.35; SV.IthGain = A.rotateI ?? 0.8; }
         // G396.4: THE HOLD-OFF ON THE WATER. LIFTOFF eased the stick to the
         // servo's 0.22 the moment the hull let go, the floats touched again
         // and the card skimmed the step 2 s to 115 km/h where full stick
         // unsticks it at 96: the stick stays back while a float is still
         // wet, and the servo takes over once the aeroplane is clear.
-        if (sim.hydro && onG > 0) deFloor = A.deWater ?? 0.70;
+        if (sim.hydro && onG > 0) SV.deFloor = A.deWater ?? 0.70;
         if (aglL > A.hSafe || (ap.dep && ap.dep.technique === 'soft'))   // P1.C soft: the attitude for speed from the first metre — level in ground effect until Vy
           thT = Math.min(thT, clamp(A.climbThBase + A.climbThGain * (V - ap.VClimb), 0.02, A.thMax));
         engage('LOC', 'PITCH', 'FULL', { pitch: thT, bank: 0.15 });
@@ -19892,7 +20331,7 @@ function makePilot(sim, def, world, opts) {
           // ONLY: a tricycle's rotation integrator (G250) rides into CLIMB
           // and its approach is tuned with it — reset there, the trike went
           // around "high on the slope" and never landed (GATE PILOT).
-          if (sim.hydro || highThrust) { IthMaxT = 0.15; IthGain = null; }
+          if (sim.hydro || highThrust) { SV.IthMaxT = 0.15; SV.IthGain = null; }
         }
         break;
       }
@@ -19954,7 +20393,7 @@ function makePilot(sim, def, world, opts) {
         if (agl >= hTurn || stalled || marginal || terrainTurn) {
           const first = planFromHere();
           go(first); climbMode = !(stalled || marginal); ceilT = 0;
-          if (!climbMode) { thrC = A.thrCruise; thcI = 0.04; }
+          if (!climbMode) { SV.thrC = A.thrCruise; SV.thcI = 0.04; }
         }
         break;
       }
@@ -20072,7 +20511,7 @@ function makePilot(sim, def, world, opts) {
           const N = ap.legs[ap.legI];
           if (!N || N.name === 'FINAL') {
             ap.trackHold = true; ap.dirX = 1;
-            slopeCaptured = false; finalT0 = ap.t; thrC = A.thrAppr; deF = aDe;
+            slopeCaptured = false; finalT0 = ap.t; SV.thrC = A.thrAppr; deF = SV.aDe;
             finalLevel = null;                    // G381: latched on entry
             go('FINAL');
           } else go(N.name);
@@ -20135,9 +20574,9 @@ function makePilot(sim, def, world, opts) {
         // filter) is past the trim budget the build was sized to, and it comes back a stage (0.25,
         // never below the take-off setting) when the elevator sits on its stop; the cap holds for
         // the flight (the flare, the next circuit). No flap, or an elevator inside its budget: as before
-        deF += (aDe - deF) * Math.min(1, dt / 0.5);
+        deF += (SV.aDe - deF) * Math.min(1, dt / 0.5);
         if (FS && c.flap < fLDG - 0.01 && c.flap > fTO && deF > 0.18) { fLandCap = c.flap; flapTgt = c.flap; say('flap-limited', 'the elevator holds flap ' + c.flap.toFixed(2) + ' at its trim budget — no more'); }
-        if (FS && c.flap > fTO + 0.01 && aDe > 0.30) {
+        if (FS && c.flap > fTO + 0.01 && SV.aDe > 0.30) {
           fCapT += dt;
           if (fCapT > 0.3) { fLandCap = Math.max(fTO, c.flap - 0.25); fCapT = 0; flapTgt = Math.min(flapTgt, fLandCap); say('flap-limited', 'the elevator cannot hold flap ' + c.flap.toFixed(2) + ' — landing on ' + fLandCap.toFixed(2)); }
         } else fCapT = 0;
@@ -20148,7 +20587,7 @@ function makePilot(sim, def, world, opts) {
         // and the aeroplane rode 13 m under the slope to the terrain go-around (the Beaver-alike: 7 m/s
         // over, 14 m under). On final the cap opens to the rotation's authority (rotateIMax, as the
         // flare's does); a go-around closes it again. An aeroplane that trims inside 0.15 flies as before
-        IthMaxT = A.rotateIMax ?? 0.30;
+        SV.IthMaxT = A.rotateIMax ?? 0.30;
         const canGA = (ap.gaN || 0) < 2 && !committed;
         setStatus(slopeCaptured ? 'down the slope to the aim point' : 'level, waiting for the slope', [
           cond('to the aim', Math.round(d), 0, d <= 0, 'm'),
@@ -20218,8 +20657,10 @@ function makePilot(sim, def, world, opts) {
         const to = ap.route.to;
         const left = (to.x + F.ux * to.len / 2 - cg[0]) * F.ux + (to.z + F.uz * to.len / 2 - cg[2]) * F.uz;
         setStatus('flaring', [cond('wheels down', onG, 1, onG > 0, ''), cond('runway left', Math.round(left), 0, left > 0, 'm')]);
-        if (phaseT > 20 && left < 2 * stopDist(V) + 100 && (ap.gaN || 0) < 2 && !committed) { pitchK = pitchDK = 1; IthMaxT = 0.15; IthGain = null; goAround('floating with ' + Math.round(left) + ' m left'); break; }
-        const decrab = agl < (A.decrabAgl ?? 3.5) && Math.abs(o_.windZ || 0) + Math.abs(o_.windX || 0) > 0.5;
+        if (phaseT > 20 && left < 2 * stopDist(V) + 100 && (ap.gaN || 0) < 2 && !committed) { SV.pitchK = SV.pitchDK = 1; SV.IthMaxT = 0.15; SV.IthGain = null; goAround('floating with ' + Math.round(left) + ' m left'); break; }
+        // B4: armed on the STRIP-FRAME crosswind (|windZ| + |windX| armed it on
+        // a headwind straight down the strip too) — 39b_servos.js decrabArmed
+        const decrab = SV.decrabArmed(agl, F);
         if (A.flareMode === 'vs')
           engage(decrab ? 'DECRAB' : 'LOC', 'VS', 'IDLE', { vs: -(0.15 + 0.28 * Math.max(0, agl)), thMax: A.flareThMax ?? A.thMax, bank: 0.10, idle: A.flareThr ?? 0 });
         else if (A.flareMode === 'ramp')
@@ -20253,18 +20694,18 @@ function makePilot(sim, def, world, opts) {
           const vsC = -Math.max(sinkF, Math.max(0, hFl) / flTau) + altG * Math.hypot(vcg[0], vcg[2]);
           const ev = vsC - flVsF;
           // the elevator has no more to give: stop winding the demand up
-          const deSat = aDe > 0.30;
+          const deSat = SV.aDe > 0.30;
           flI = clamp(flI + (deSat ? -0.15 : (A.flareI ?? 0.30) * ev) * dt, 0, Math.max(0, flCap - thFlare0));
           const thC = clamp(thFlare0 + (A.flareP ?? 0.20) * ev + flI, thFlare0 - 0.02, flCap);
           // the pull: a firmer inner loop and the rotation's integrator authority
-          pitchK = A.flarePK ?? 2.0; pitchDK = A.flareDK ?? 1.0;
-          IthMaxT = A.rotateIMax ?? 0.30; IthGain = A.flareIth ?? 0.4;
+          SV.pitchK = A.flarePK ?? 2.0; SV.pitchDK = A.flareDK ?? 1.0;
+          SV.IthMaxT = A.rotateIMax ?? 0.30; SV.IthGain = A.flareIth ?? 0.4;
           if (altG > 0) engage(decrab ? 'DECRAB' : 'LOC', 'PITCH', 'SPD', { pitch: thC, bank: 0.10, ias: 0.95 * ap.VAppr });   // GTRAM: the round-out onto the slope is flown on power
           else engage(decrab ? 'DECRAB' : 'LOC', 'PITCH', 'IDLE', { pitch: thC, bank: 0.10, idle: A.flareThr ?? 0 });
         }
         if (onG > 0) {
           go('ROLLOUT');
-          pitchK = pitchDK = 1; IthMaxT = 0.15; IthGain = null;
+          SV.pitchK = SV.pitchDK = 1; SV.IthMaxT = 0.15; SV.IthGain = null;
           // G381: a three-point arrival (the attitude at or above the rest
           // attitude, less 3 deg) is pinned from the first frame
           tdThree = !trike && th > (thRest != null ? thRest : A.liftoffTh) - 0.05;
@@ -20372,16 +20813,12 @@ function makePilot(sim, def, world, opts) {
     // with that mode released) passes through and the servo tracks it, so
     // nothing jumps when the box takes the axis
     const ownV = !BX.on || AF.vert !== 'OFF', ownL = !BX.on || AF.lat !== 'OFF';
-    if (ownV) { aDe += clamp(c.de - aDe, -A.slew * dt, A.slew * dt); c.de = aDe; } else aDe = c.de;
+    SV.slew(ownV, ownL);
     if (ap.phase === 'DOWNWIND' && phaseT > 8 && onG === 0 && ap.report) {
-      trimAcc.n += dt; trimAcc.de += aDe * dt;
+      trimAcc.n += dt; trimAcc.de += SV.aDe * dt;
       ap.report.trimDe = Math.round(trimAcc.de / trimAcc.n * 1000) / 1000;
     }
-    if (ownL) {
-      aDa += clamp(c.da - aDa, -A.slew * dt, A.slew * dt); c.da = aDa;
-      aDr += clamp(c.dr - aDr, -A.slew * dt, A.slew * dt); c.dr = aDr;
-    } else { aDa = c.da; aDr = c.dr; }
-    holdWas = holdActive; holdActive = false;
+    SV.endStep();
     ap.dbg = { e, th, ph, q, beta, V, alt: cg[1], z: sCr, s: sAl, agl, aglG, grade: gGrade, thRest, flCap, tecs: AF.vert === 'TECS' ? tecsDbg : null,
                xt: taxiXT, sRem: taxiSRem, tailUp: tailUpNow,
                kap: AF.lat === 'PATH' && pathDbg ? pathDbg.kap : 0 };   // P1.F: the path's curvature under the aeroplane (a fillet is not a wander — the matrix reads it)
@@ -22734,8 +23171,10 @@ function genAccessNeeds(S) {
   const need = (v, d) => { if (v == null) { derived++; return d; } return v; };
   const cabH = need(c.h, 1.15);
   return {
-    tank:      (S.fuel && S.fuel.litres > 0) ? (S.fuel.tank || 'nose') : null,
-    fuelL:     (S.fuel && S.fuel.litres) || 0,
+    // the DESIGN litres when the spec is a fuel state (genSpecAtFuel; SPEC-
+    // FIXPOINT): a drained tank keeps its filler cap and its vent
+    tank:      (S.fuel && (S.fuel.designL > 0 || S.fuel.litres > 0)) ? (S.fuel.tank || 'nose') : null,
+    fuelL:     (S.fuel && (S.fuel.designL > 0 ? S.fuel.designL : S.fuel.litres)) || 0,
     systems:   (S.systems && S.systems.fit) || 'basic',
     // the panel arc, session 2: which radios the fit actually carries — the
     // aerials' `need`s read these, so a custom fit with a COM grows its blade
@@ -25230,6 +25669,50 @@ function genAlias(S) {
   return S;
 }
 
+// THE GARAGE'S MERGE (moved here from src/viewer/garage.js verbatim, SPEC-
+// FIXPOINT G1550, so GATE SPECFIX drives the merge the page runs). The join's
+// output is an UPDATE to the build: merged per KEY, wings element-wise, every
+// other array and the `finish` / `cage` sections replaced whole. A key the
+// join does not write keeps its previous value - which is why the join STATES
+// every row it owns (GEN_FIELDS `join`; the review's A3 / E2).
+const genIsPlain = o => o && typeof o === 'object' && !Array.isArray(o);
+function genSpecMerge(base, over) {
+  if (!genIsPlain(over)) return over;
+  const out = genIsPlain(base) ? Object.assign({}, base) : {};
+  for (const k in over) {
+    if (Array.isArray(over[k])) {
+      // WINGS merge element-wise: the join writes nearly every wing key but
+      // not `place`, and a wholesale replace loses it. Every other array —
+      // the boom profile, the engine list — is a measurement of a whole
+      // thing and replaces as a whole.
+      out[k] = (k === 'wings' && Array.isArray(base && base[k]))
+        ? over[k].map((w, i) => genSpecMerge(base[k][i], w))
+        : over[k];
+    } else if (k === 'finish' || k === 'cage') {
+      // THE FINISH AND THE CAGE REPLACE AS A WHOLE (G105; the cage joined it
+      // 2026-09-03), like the arrays above and for the same reason: each is
+      // one measurement of one thing, and each is written as DEVIATIONS — so
+      // "this row is back at its default" is said by the KEY'S ABSENCE.
+      // Deep-merged, a deviation could be put on and never taken off again.
+      //
+      // THE CAGE HAD EXACTLY THE FINISH'S BUG and nobody noticed, because it
+      // only bites on the way BACK. Move a row off its default and the
+      // fragment carries it; move it back and the fragment stops mentioning
+      // it — and the merge then kept the old value for ever. The user built
+      // a side-by-side jodel with a central cowl opening, and the file said
+      // tandem with a pair of intakes, because both rows had been off their
+      // defaults once (an archetype's seating, the cub's cowl) and coming
+      // home was unsayable. Their build carried the tell: `cage.seatLayout`
+      // 2 beside `cabin.seating` 'side2' — the same join run writing both,
+      // one of them merged and stale, the other a plain value and current.
+      // (The user: "the tandem configuration was never in my build.")
+      out[k] = over[k];
+    } else if (genIsPlain(over[k])) out[k] = genSpecMerge(base && base[k], over[k]);
+    else out[k] = over[k];
+  }
+  return out;
+}
+
 // ---- helpers ------------------------------------------------------------
 function genClone(o) {
   if (Array.isArray(o)) return o.map(genClone);
@@ -25350,7 +25833,7 @@ function clampWing(w, S, k) {
   // default. The envelope spans a wing rooted on the firewall to one rooted
   // well down the cabin; static margin is the honest consequence either way,
   // and the shakedown posts it.
-  w.xLE = genClampN(w.xLE, ...E.xLE);
+  w.xLE = genFieldClamp('wings[].xLE', w.xLE);
   w.yRoot = genClampN(w.yRoot, -1.0, 3.0);                  // G266.1
   if (!GEN_TIPS[w.tip]) w.tip = 'rounded';
   // CRANK: a second wing section, and only a second. `crankAt` is the break
@@ -25360,7 +25843,7 @@ function clampWing(w, S, k) {
   // is where the outer panel bolts to the centre section.
   w.crankAt = genClamp(w.crankAt || 0, 0, 0.85);
   if (w.crankAt > 0 && w.crankAt < 0.15) w.crankAt = 0;
-  w.dihedralOut = genClampN(w.dihedralOut, 0, 20);
+  w.dihedralOut = genFieldClamp('wings[].dihedralOut', w.dihedralOut);
   // G140: the three stations. Chord at the crank inside the chord clamp;
   // the offsets inside the sweep clamp's own reach (tan 30 deg of the
   // exposed semispan — the same envelope the angle always had). Null stays
@@ -25405,8 +25888,8 @@ function clampWing(w, S, k) {
   if (w.beam !== 'off') w.beam = 'on';                              // T2.3 (48)
   // placement: generous bounds, because the point is to allow bad aeroplanes.
   // These stop the geometry going degenerate, nothing more.
-  w.place.dx = genClamp(w.place.dx, ...E.placeDx);
-  w.place.dy = genClamp(w.place.dy, ...E.placeDy);
+  w.place.dx = genFieldClamp('wings[].place.dx', w.place.dx);
+  w.place.dy = genFieldClamp('wings[].place.dy', w.place.dy);
 
 }
 
@@ -25427,8 +25910,154 @@ const GEN_TAIL_ENVELOPE = {
   hTaper: [0.35, 1.0], vTaper: [0.35, 1.0],
 };
 
+// THE FIELD REGISTRY (SPEC-FIXPOINT G1550-G1559, the 2026-10-04 review's E3).
+// A field's default, its clamp, the way resolveSpec treats it and whether the
+// editor's join states it were kept by hand in four places (GEN_DEFAULT,
+// clampSpec, resolveSpec, tools/_cage_join.js), and the review's A2, A3, B8,
+// B9 and the tailY finding were drift between them. Declared once here, for
+// every field those findings touch; clampSpec and resolveSpec read the clamp
+// from it, GATE SPECFIX walks it (the default against GEN_DEFAULT, the clamp
+// idempotent, every offset consumed exactly once, every join row stated in
+// both states and surviving the garage's merge on -> off -> commit).
+//   def    GEN_DEFAULT's value (null = derived)
+//   clamp  [lo, hi] - bounds an override AND the derivation (see `rule`)
+//   rule   'derive'  null = resolveSpec derives it (`auto` is its key in
+//                     R.auto); put() cuts the derived value to `clamp` too, so
+//                     a resolved spec re-fed to resolveSpec is a fixed point
+//                     (B8: a derived tail arm of 8.99 m flew past the 6.5 m
+//                     envelope that the next pass then cut - the CG corners
+//                     of that build were a shorter aeroplane)
+//          'offset'  a nudge CONSUMED ONCE into `into` and zeroed on the
+//                     resolved spec (recorded in S._offsets) - A2: applied
+//                     additively on every pass, so re-resolving a resolved
+//                     spec moved the wing / the tail / the tail-end section
+//                     again
+//          'frame'   a nudge genFrame applies to its own choice (gear.x /
+//                     track); the choice is kept in S._frame by buildGen, so
+//                     a re-fed resolved spec rebuilds the same placement
+//          'pass'    applied where it is read, every pass, never written
+//                     back (idempotent by construction)
+//          'input'   a plain input, clamped
+//   join   the editor's join OWNS the row: it states it in every state (the
+//          default included) - A3: a row written only when off its default
+//          was kept for ever by the garage's per-key merge. `states` lists
+//          what it writes; `with` names the keys a state nulls.
+const GEN_FIELDS = {
+  // ---- derived, clamped at derivation (B8) ----
+  // The cabin's floor reaches THIS seating's own derived cabin (`seatFloor`:
+  // the drone's 0.20 x 0.30 x 0.55 sits under the 0.28 / 0.75 / 0.60 floors,
+  // which cut its DERIVED cabin on the second pass only); every other
+  // seating's table cabin is inside the floors, so a measured cabin is cut
+  // exactly as before.
+  'cabin.halfW':   { def: null, clamp: [0.28, 0.75], seatFloor: 'halfW', rule: 'derive', auto: 'cab.halfW' },
+  'cabin.h':       { def: null, clamp: [0.75, 1.45], seatFloor: 'h', rule: 'derive', auto: 'cab.h' },
+  'cabin.len':     { def: null, clamp: [0.60, 2.60], seatFloor: 'len', rule: 'derive', auto: 'cab.len' },
+  'cabin.canopy.reach':   { def: null, clamp: [0, 1], rule: 'derive', auto: 'cabin.canopy.reach' },
+  'cabin.canopy.x1':      { def: null, clamp: [0, 9], rule: 'derive', auto: 'cabin.canopy.x1' },
+  'cabin.canopy.wsAngle': { def: null, clamp: [22, 80], rule: 'derive', auto: 'cabin.canopy.wsAngle' },
+  'fuselage.cowlDeck':    { def: null, clamp: [0.50, 1.00], rule: 'derive', auto: 'fuse.cowlDeck' },
+  'wings[].xLE':          { def: null, clamp: GEN_WING_ENVELOPE.xLE, rule: 'derive', auto: 'wing.xLE' },
+  'wings[].dihedralOut':  { def: null, clamp: [0, 20], rule: 'derive', auto: 'wing.dihedralOut' },
+  'fuselage.tailArm':     { def: null, clamp: [2.00, 6.50], rule: 'derive', auto: 'fuse.tailArm' },
+  'tail.hX':       { def: null, clamp: [2.00, 9.00], rule: 'derive', auto: 'tail.hX' },
+  'tail.vX':       { def: null, clamp: [2.00, 9.00], rule: 'derive', auto: 'tail.vX' },
+  // B9: the AREAS had no clamp at all - a 0 or a negative from a hand spec
+  // or the console reached the lattice as a NaN chord. The bounds are a
+  // non-degenerate tail, not a taste: the envelope's own spans x chords
+  // (4.5 x 1.6 = 7.2 m2 a tailplane, twice 2.2 x 1.8 a pair of boom fins)
+  // with headroom for the volume rule on the largest wing.
+  'tail.Sh':       { def: null, clamp: [0.20, 12.0], rule: 'derive', auto: 'tail.Sh', join: 'measure' },
+  'tail.Sv':       { def: null, clamp: [0.10, 10.0], rule: 'derive', auto: 'tail.Sv', join: 'measure' },
+  'tail.Svt':      { def: null, clamp: [0.20, 14.0], rule: 'derive', auto: 'tail.Svt', join: 'measure' },
+  'tail.hSpan':    { def: null, clamp: GEN_TAIL_ENVELOPE.hSpan, rule: 'derive', auto: 'tail.hSpan', join: 'measure' },
+  'tail.hChord':   { def: null, clamp: GEN_TAIL_ENVELOPE.hChord, rule: 'derive', auto: 'tail.hChord', join: 'measure' },
+  'tail.vHeight':  { def: null, clamp: GEN_TAIL_ENVELOPE.vHeight, rule: 'derive', auto: 'tail.vHeight', join: 'measure' },
+  'tail.vChord':   { def: null, clamp: GEN_TAIL_ENVELOPE.vChord, rule: 'derive', auto: 'tail.vChord', join: 'measure' },
+  'tail.vSweep':   { def: null, clamp: [-20, 60], rule: 'derive', auto: 'tail.vSweep' },
+  'tail.dorsal.angle': { def: null, clamp: [8, 80], rule: 'derive', auto: 'tail.dorsal.angle' },
+  'prop.D':        { def: null, clamp: [0.20, 4.00], rule: 'derive', auto: 'prop.D' },
+  'cowl.halfW':    { def: null, clamp: [0.05, 1.10], rule: 'derive', auto: 'cowl.halfW' },
+  'cowl.top':      { def: null, clamp: [0.03, 1.10], rule: 'derive', auto: 'cowl.top' },
+  'cowl.bot':      { def: null, clamp: [0.03, 1.10], rule: 'derive', auto: 'cowl.bot' },
+  'gear.legDrop':  { def: null, clamp: [0.15, 1.20], rule: 'derive', auto: 'gear.legDrop' },
+  // The ride height's floor reaches what its own derivation produces: the
+  // legDrop row's 1.20 m leg (-0.02 - 1.20) and a 4 m disc's clearance. The
+  // old -0.90 cut a derived stance on the second pass only, so the corners of
+  // a long-legged build stood 30 cm lower than its stand.
+  'gear.y':        { def: null, clamp: [-2.40, 0.90], rule: 'derive', auto: 'gear.y' },
+  // ---- offsets ----
+  'wings[].place.dx': { def: 0, clamp: GEN_WING_ENVELOPE.placeDx, rule: 'offset', into: ['wings[].xLE'] },
+  'tail.place.dx':    { def: 0, clamp: [-1.5, 1.5], rule: 'offset', into: ['tail.hX', 'tail.vX'] },
+  'fuselage.tailY':   { def: 0, clamp: [-0.60, 0.80], rule: 'offset', into: ['fuselage.tailBot', 'fuselage.tailTop'] },
+  'gear.place.dx':    { def: 0, clamp: [-0.80, 1.20], rule: 'frame', into: ['gear.x'] },
+  'gear.place.dtrack': { def: 0, clamp: [-0.80, 1.50], rule: 'frame', into: ['gear.track'] },
+  'wings[].place.dy': { def: 0, clamp: GEN_WING_ENVELOPE.placeDy, rule: 'pass' },
+  'engines[].place.dx': { def: 0, clamp: [-0.60, 0.45], rule: 'pass' },
+  'engines[].place.dy': { def: 0, clamp: [-0.30, 0.40], rule: 'pass' },
+  // ---- the rows the join owns (A3 / E2) ----
+  'cabin.glazing':     { def: 'bubble', rule: 'input', join: { states: ['glass', 'none'] } },
+  'fuselage.covering': { def: 'skin', rule: 'input', join: { states: ['skin', 'open'] } },
+  'tail.type':         { def: 'conventional', rule: 'input',
+                         join: { states: ['conventional', 'v', 'twinBoom'],
+                                 with: { conventional: ['tail.vAngle', 'tail.Svt', 'tail.boomX', 'tail.boomLen', 'tail.boomR', 'tail.boomX0',
+                                                        'tail.boomTaper', 'tail.boomOval', 'tail.boomIncl', 'tail.boomDy', 'tail.stabY'],
+                                         v: ['tail.Sh', 'tail.Sv', 'tail.boomX', 'tail.boomLen', 'tail.boomR', 'tail.boomX0',
+                                             'tail.boomTaper', 'tail.boomOval', 'tail.boomIncl', 'tail.boomDy', 'tail.stabY'],
+                                         twinBoom: ['tail.vAngle', 'tail.Svt'] } } },
+  'wings[].material':  { def: undefined, rule: 'input', join: { states: [null, 'carbon', 'steel', 'fabric', 'alloy', 'aluFabric'] } },
+  'tail.finMaterial':  { def: undefined, rule: 'input', join: { states: [null, 'carbon', 'steel', 'fabric', 'alloy', 'aluFabric'] } },
+  'tail.stabMaterial': { def: undefined, rule: 'input', join: { states: [null, 'carbon', 'steel', 'fabric', 'alloy', 'aluFabric'] } },
+  'bracing.cabane':       { def: 'N', rule: 'input', join: { states: ['N', 'V'] } },
+  'bracing.interplane':   { def: 'none', rule: 'input', join: { states: ['none', 'N', 'I'] } },
+  'bracing.interplaneAt': { def: 0.62, clamp: [0.30, 0.95], rule: 'input', join: { states: [0.62] } },
+  'bracing.wires':        { def: 'both', rule: 'input', join: { states: ['none', 'both', 'flying'] } },
+};
+// put()'s key -> the registry path ('wing.xLE1' is plane 1's: the digit goes)
+const GEN_FIELD_BY_AUTO = (() => {
+  const m = {};
+  for (const p in GEN_FIELDS) if (GEN_FIELDS[p].auto) m[GEN_FIELDS[p].auto] = p;
+  return m;
+})();
+// a value cut to its registry clamp; null (= derive) and an unclamped field
+// pass through. `S` (the spec being clamped) is read for a seating floor.
+function genFieldClamp(path, v, S) {
+  const F = GEN_FIELDS[path];
+  if (!F || !F.clamp || v == null) return v;
+  let lo = F.clamp[0];
+  if (F.seatFloor && S && S.cabin && GEN_SEATING[S.cabin.seating])
+    lo = Math.min(lo, GEN_SEATING[S.cabin.seating][F.seatFloor]);
+  return genClamp(v, lo, F.clamp[1]);
+}
+const genFieldClampAuto = (autoKey, v, S) =>
+  genFieldClamp(GEN_FIELD_BY_AUTO[String(autoKey).replace(/\d+$/, '')], v, S);
+
+// B13: AN EXPLICIT NULL ON A FIELD THAT IS NEVER DERIVED IS THE DEFAULT. The
+// header's rule is "null = derive it"; on a field with nothing to derive from
+// (a wing chord, its section, the post gap) the clamp below used to read the
+// null as 0 and hand back the FLOOR - `chord: null` flew a 0.80 m chord,
+// `naca: null` a 0209. Every NUMBER whose GEN_DEFAULT value is not null takes
+// that value instead (the derivable fields all default to null and are left
+// alone; strings and switches already fall back through their enum checks).
+// On the clone, at clamp time: a save keeps its nulls (GATE BUILD's rule).
+function genNullToDefault(t, d) {
+  if (!t || typeof t !== 'object' || !d || typeof d !== 'object') return;
+  for (const k in d) {
+    const dv = d[k];
+    if (Array.isArray(dv)) {
+      if (Array.isArray(t[k]) && dv.length && dv[0] && typeof dv[0] === 'object')
+        for (const e of t[k]) genNullToDefault(e, dv[0]);
+    } else if (dv && typeof dv === 'object') genNullToDefault(t[k], dv);
+    else if (typeof dv === 'number' && t[k] === null) t[k] = dv;
+  }
+}
+
 function clampSpec(spec) {
   const S = genNormaliseSpec(spec);
+  genNullToDefault(S, GEN_DEFAULT);                  // B13 (above)
+  // THE OFFSETS CONSUMED SO FAR (SPEC-FIXPOINT): a resolved spec carries the
+  // nudges it has already applied, zeroed, here - a record for the editor and
+  // the gate, never an input (nothing reads it back into a value)
+  S._offsets = Object.assign({}, S._offsets && typeof S._offsets === 'object' ? S._offsets : null);
   const fu = S.fuselage, cb = S.cabin;
   if (!GEN_MATERIALS[fu.material]) fu.material = 'tubeFabric';
   if (!GEN_SHAPES[fu.shape]) fu.shape = 'straight';
@@ -25444,15 +26073,18 @@ function clampSpec(spec) {
   // falls back to absent, and every plane of a biplane is checked
   const surf = v => v == null ? null
     : (GEN_SURF_MATERIALS[v] ? v : (GEN_SURF_LEGACY[v] || null));
+  // SPEC-FIXPOINT (A3): the join now STATES the row, null when the part is
+  // the aeroplane's own material - null and absent are the same answer, and
+  // the resolved spec carries it as absent, exactly as before
   if (S.wings) for (const w of S.wings) if (w && w.material != null) {
     const m = surf(w.material);
     if (m) w.material = m; else delete w.material;
-  }
+  } else if (w && 'material' in w) delete w.material;
   if (S.tail) for (const f of ['finMaterial', 'stabMaterial'])
     if (S.tail[f] != null) {
       const m = surf(S.tail[f]);
       if (m) S.tail[f] = m; else delete S.tail[f];
-    }
+    } else if (f in S.tail) delete S.tail[f];
   // The cage rides through verbatim — its generator owns its own ranges, and
   // clamping a copy of them here would be the second home the field's own note
   // forbids. The one thing this level can enforce is the SWITCH'S TYPE, so a
@@ -25526,10 +26158,10 @@ function clampSpec(spec) {
   cn.facet = !!cn.facet;
   cn.sides = !!cn.sides;
   // nullable = "derive it", and they ride the panel's AUTO path
-  cn.wsAngle = genClampN(cn.wsAngle, 22, 80);
+  cn.wsAngle = genFieldClamp('cabin.canopy.wsAngle', cn.wsAngle);
   cn.x0      = genClampN(cn.x0, 0, 8);
-  cn.x1      = genClampN(cn.x1, 0, 9);
-  cn.reach   = genClampN(cn.reach, 0, 1);
+  cn.x1      = genFieldClamp('cabin.canopy.x1', cn.x1);
+  cn.reach   = genFieldClamp('cabin.canopy.reach', cn.reach);
   // a windscreen-only cut is covered flush — zero stand-off is the definition of
   // the case, and it is what makes it the control for the edge-loop machinery
   if (cb.glazing === 'windshield') cn.height = 0;
@@ -25594,11 +26226,17 @@ function clampSpec(spec) {
 
   // TAIL-END SECTION HEIGHT. Applied here, on the clone, by moving the two
   // dimensions 61_gen_frame.js actually reads. clampSpec runs on a fresh
-  // normalised clone every time, so this cannot accumulate across calls the way
-  // gear.track once did.
-  fu.tailY = genClamp(fu.tailY == null ? 0 : fu.tailY, -0.60, 0.80);
+  // normalised clone every time - but a clone OF A CLAMPED SPEC is a second
+  // pass, and the old note's "cannot accumulate" was wrong there: the review's
+  // tailY finding (clampSpec(clampSpec(s)) raised the section twice, and every
+  // CG corner re-fed the resolved spec). SPEC-FIXPOINT: CONSUMED ONCE - the
+  // offset lands in the two dimensions and is zeroed, its value recorded in
+  // S._offsets (GEN_FIELDS 'fuselage.tailY', rule 'offset').
+  fu.tailY = genFieldClamp('fuselage.tailY', fu.tailY == null ? 0 : fu.tailY);
   fu.tailBot += fu.tailY;
   fu.tailTop += fu.tailY;
+  if (fu.tailY) S._offsets['fuselage.tailY'] = (S._offsets['fuselage.tailY'] || 0) + fu.tailY;
+  fu.tailY = 0;
 
   for (const e of S.engines) {
     e.sense = (+e.sense === -1) ? -1 : 1;             // G194: +1 or -1, never else
@@ -25612,8 +26250,8 @@ function clampSpec(spec) {
     if (typeof POWERPLANTS !== 'undefined' && !POWERPLANTS[e.type])
       e.type = 'a65_sensenich74';
     if (!['nose', 'pusher', 'wingTop', 'wing'].includes(e.mount)) e.mount = 'nose';
-    e.place.dx = genClamp(e.place.dx, -0.60, 0.45);
-    e.place.dy = genClamp(e.place.dy, -0.30, 0.40);
+    e.place.dx = genFieldClamp('engines[].place.dx', e.place.dx);
+    e.place.dy = genFieldClamp('engines[].place.dy', e.place.dy);
     // the mount station (2026-09-04): an envelope, null kept for derivation.
     // -1.0 -> -3.0 (G457): since G445.1 a NOSE mount's x is the drawn
     // flange, and a 172's sits 1.10 m ahead of the windscreen base (a
@@ -25733,6 +26371,8 @@ function clampSpec(spec) {
       v.capacity = genClamp(v.capacity || 0, 0,
                             E.kind === 'battery' ? 400 : 1000);
       v.along = v.along == null ? null : genClamp(v.along, -1, 12);
+      // a fuel state's design capacity (genSpecAtFuel; the shell is sized off it)
+      if (v.designCap != null) v.designCap = genClamp(+v.designCap || 0, 0, E.kind === 'battery' ? 400 : 1000);
       v.lv = v.lv == null ? null : genClamp(v.lv, 0, 1);
       v.rot = genClamp(v.rot || 0, -90, 90);
       // ROUND OR SQUARED (2026-09-04). Geometry, and therefore capacity: a
@@ -25809,11 +26449,11 @@ function clampSpec(spec) {
   if (!GEN_TIPS[S.tail.tip]) S.tail.tip = 'rounded';
   // null is legal on the two overrides and means 'use tail.tip'
   S.tail.stabH = genClamp(S.tail.stabH == null ? 0 : S.tail.stabH, 0, 1);
-  S.tail.vSweep = genClampN(S.tail.vSweep, -20, 60);
+  S.tail.vSweep = genFieldClamp('tail.vSweep', S.tail.vSweep);
   const dr = S.tail.dorsal || (S.tail.dorsal = {});
   dr.height = genClamp(dr.height == null ? 0.16 : dr.height, 0, 0.90);
   dr.width  = genClamp(dr.width  == null ? 0.55 : dr.width,  0.15, 1.60);
-  dr.angle  = genClampN(dr.angle, 8, 80);
+  dr.angle  = genFieldClamp('tail.dorsal.angle', dr.angle);
   dr.len    = genClamp(dr.len    == null ? 0.34 : dr.len,    0, 2.00);
   if (S.tail.tipV != null && !GEN_TIPS[S.tail.tipV]) S.tail.tipV = null;
   if (S.tail.tipH != null && !GEN_TIPS[S.tail.tipH]) S.tail.tipH = null;
@@ -25926,21 +26566,21 @@ function clampSpec(spec) {
   fu.tailW = genClamp(fu.tailW, 0.06, 0.45);
   fu.tailBot = genClamp(fu.tailBot, 0, 0.80);
   fu.tailTop = genClamp(fu.tailTop, 0.10, 1.20);
-  fu.cowlDeck = genClampN(fu.cowlDeck, 0.50, 1.00);
+  fu.cowlDeck = genFieldClamp('fuselage.cowlDeck', fu.cowlDeck);
   fu.windRun = genClamp(fu.windRun, 0.10, 0.60);
   S.cowl.fillet = genClamp(S.cowl.fillet, 0.02, 0.22);
   S.cowl.taper = genClamp(S.cowl.taper, 0.70, 1.0);
   // The cowl's own nose section. Generous, because a slim cowl on a fat engine
   // and a fat cowl on a slim one are both aeroplanes somebody builds — the
   // shakedown says which you have, it does not refuse to build it.
-  S.cowl.halfW = genClampN(S.cowl.halfW, 0.05, 1.10);
-  S.cowl.top = genClampN(S.cowl.top, 0.03, 1.10);
-  S.cowl.bot = genClampN(S.cowl.bot, 0.03, 1.10);
+  S.cowl.halfW = genFieldClamp('cowl.halfW', S.cowl.halfW);
+  S.cowl.top = genFieldClamp('cowl.top', S.cowl.top);
+  S.cowl.bot = genFieldClamp('cowl.bot', S.cowl.bot);
   if (!GEN_INTAKES[S.cowl.intake]) S.cowl.intake = 'chin';
   // THE PROPELLER. Diameter is bounded by what a nose can carry rather than by
   // what flies: prop clearance is a GEN_RULES constraint and it will lengthen the
   // undercarriage to hold it, so a 4 m disc on a Cub is a legal, stilted mistake.
-  S.prop.D = genClampN(S.prop.D, 0.20, 4.00);
+  S.prop.D = genFieldClamp('prop.D', S.prop.D);
   S.prop.blades = genClamp(Math.round(S.prop.blades) || 2, 2, 6);
   if (!GEN_PROP_MATS[S.prop.material]) S.prop.material = 'wood';
   // 'auto' is a legal pitch and is NOT a class: it means "choose one for me",
@@ -25960,9 +26600,9 @@ function clampSpec(spec) {
   sn.dia = genClamp(sn.dia == null ? 0.17 : sn.dia, 0.08, 0.32);
   cb.noseGap = genClamp(cb.noseGap, 0.40, 1.10);
   S.gear.stiffness = genClamp(S.gear.stiffness == null ? 1 : S.gear.stiffness, 0.35, 3.0);
-  S.gear.place.dx = genClamp(S.gear.place.dx, -0.80, 1.20);
-  S.gear.place.dtrack = genClamp(S.gear.place.dtrack, -0.80, 1.50);
-  S.tail.place.dx = genClamp(S.tail.place.dx, -1.5, 1.5);
+  S.gear.place.dx = genFieldClamp('gear.place.dx', S.gear.place.dx);
+  S.gear.place.dtrack = genFieldClamp('gear.place.dtrack', S.gear.place.dtrack);
+  S.tail.place.dx = genFieldClamp('tail.place.dx', S.tail.place.dx);
   // fields the generator normally derives, but which the editor now exposes.
   // Bounded so an override cannot go degenerate; still nullable, so leaving
   // them alone keeps the derivation.
@@ -25984,28 +26624,34 @@ function clampSpec(spec) {
     }
     fu.profile = P2.length >= 2 ? P2 : null;
   } else fu.profile = null;
-  cb.halfW = genClampN(cb.halfW, 0.28, 0.75);
-  cb.h = genClampN(cb.h, 0.75, 1.45);
-  cb.len = genClampN(cb.len, 0.60, 2.60);
-  fu.tailArm = genClampN(fu.tailArm, 2.00, 6.50);
+  cb.halfW = genFieldClamp('cabin.halfW', cb.halfW, S);
+  cb.h = genFieldClamp('cabin.h', cb.h, S);
+  cb.len = genFieldClamp('cabin.len', cb.len, S);
+  fu.tailArm = genFieldClamp('fuselage.tailArm', fu.tailArm);
   // the tail's flown envelope has ONE home (GEN_TAIL_ENVELOPE, above): the
   // join reads the same numbers to SAY when a drawn value is cut here
-  S.tail.hSpan = genClampN(S.tail.hSpan, ...GEN_TAIL_ENVELOPE.hSpan);
-  S.tail.hChord = genClampN(S.tail.hChord, ...GEN_TAIL_ENVELOPE.hChord);
-  S.tail.vHeight = genClampN(S.tail.vHeight, ...GEN_TAIL_ENVELOPE.vHeight);
-  S.tail.vChord = genClampN(S.tail.vChord, ...GEN_TAIL_ENVELOPE.vChord);
+  // (through GEN_FIELDS, which resolveSpec's put() reads as well - B8)
+  S.tail.hSpan = genFieldClamp('tail.hSpan', S.tail.hSpan);
+  S.tail.hChord = genFieldClamp('tail.hChord', S.tail.hChord);
+  S.tail.vHeight = genFieldClamp('tail.vHeight', S.tail.vHeight);
+  S.tail.vChord = genFieldClamp('tail.vChord', S.tail.vChord);
+  // B9: the AREAS - never clamped before, so a 0 or a negative reached the
+  // lattice as a NaN chord (GEN_FIELDS 'tail.Sh' says why these bounds)
+  S.tail.Sh = genFieldClamp('tail.Sh', S.tail.Sh);
+  S.tail.Sv = genFieldClamp('tail.Sv', S.tail.Sv);
+  S.tail.Svt = genFieldClamp('tail.Svt', S.tail.Svt);
   // the tail surfaces' STATIONS, measured by the join since G54.3 — bounded
   // like the other measured stations; nullable keeps the volume-coefficient
   // derivation for everything that does not measure them.
-  S.tail.hX = genClampN(S.tail.hX, 2.00, 9.00);
-  S.tail.vX = genClampN(S.tail.vX, 2.00, 9.00);
+  S.tail.hX = genFieldClamp('tail.hX', S.tail.hX);
+  S.tail.vX = genFieldClamp('tail.vX', S.tail.vX);
   S.gear.track = genClampN(S.gear.track, 0.90, 3.50);
   S.gear.wheelR = genClamp(S.gear.wheelR, 0.10, 0.40);
   S.gear.twR = genClamp(S.gear.twR, 0.05, 0.25);
   // Leg lengths: generous, because a stilt-legged bush aeroplane and a squatting
   // racer are both aeroplanes somebody builds. The floor is rule 5 (a leg this
   // short has no vertical stiffness whatever its k) and the shakedown says so.
-  S.gear.legDrop = genClampN(S.gear.legDrop, 0.15, 1.20);
+  S.gear.legDrop = genFieldClamp('gear.legDrop', S.gear.legDrop);
   S.gear.twLeg = genClampN(S.gear.twLeg, 0.06, 1.40);
   // The THIRD WHEEL the join measures off the built cage (G51). They were
   // nullable expose-the-derivation fields with no bounds because nothing ever
@@ -26023,7 +26669,7 @@ function clampSpec(spec) {
   // a measured shallow stance stands. Prop clearance is no longer guaranteed
   // by derivation — the shakedown's propClear row posts what the built stance
   // actually leaves under the registry prop.
-  S.gear.y = genClampN(S.gear.y, -0.90, 0.90);
+  S.gear.y = genFieldClamp('gear.y', S.gear.y);   // SPEC-FIXPOINT: the floor reaches the derivation's own (GEN_FIELDS)
   // The mains STATION, measured by the join since G52. Setting it bypasses
   // the CG/rake placement rule — deliberately: the wheels go where the built
   // aeroplane's wheels are, and the shakedown's noseOver row posts the
@@ -26040,10 +26686,29 @@ function clampSpec(spec) {
 // so the editor can mark a field "auto" and show the proposal it overrode.
 // Order matters: this IS the design flow (cabin -> fuselage -> engine ->
 // wing -> tail -> gear), each step reading only what precedes it.
+//
+// A FIXED POINT (SPEC-FIXPOINT G1550, the review's A2 / B8 / E1): the
+// resolved spec, re-fed, resolves to itself - the reserve sheet, the CG
+// corners and the editor's fuel slider all re-feed it (genSpecAtFuel). Three
+// rules hold that: a derived value is cut to its envelope AS IT IS DERIVED
+// (put() reads GEN_FIELDS - the next pass's clamp then has nothing to cut); an
+// offset is CONSUMED ONCE (applied, zeroed, recorded in S._offsets - a second
+// pass adds nothing); and nothing here writes a derived number into a field
+// the derivation itself reads. GATE SPECFIX proves it on the validated builds.
 function resolveSpec(spec) {
   const S = clampSpec(spec);
   const auto = {};
-  const put = (o, k, v, path) => { if (o[k] === null || o[k] === undefined) { o[k] = v; auto[path] = true; } };
+  const put = (o, k, v, path) => {
+    if (o[k] === null || o[k] === undefined) { o[k] = genFieldClampAuto(path, v, S); auto[path] = true; }
+  };
+  // an offset consumed: zeroed on its section and on the flat alias, its value
+  // recorded (summed, so a record survives the passes it was made in)
+  const consume = (o, k, path, alias) => {
+    const v = o[k] || 0;
+    if (v) S._offsets[path] = (S._offsets[path] || 0) + v;
+    o[k] = 0;
+    if (alias) S.place[alias] = 0;
+  };
 
   // 1. cabin — the payload box everything else is built around
   const seat = GEN_SEATING[S.seating];
@@ -26081,10 +26746,13 @@ function resolveSpec(spec) {
   {
     const rise = Math.max(0.02, S.cab.h * (1 - S.fuse.cowlDeck));
     const cn = S.cab.canopy;
-    if (cn.wsAngle == null)
-      put(cn, 'wsAngle', Math.atan2(rise, S.fuse.windRun) * 180 / Math.PI,
-          'cabin.canopy.wsAngle');
-    else
+    if (cn.wsAngle == null) {
+      const a = Math.atan2(rise, S.fuse.windRun) * 180 / Math.PI;
+      put(cn, 'wsAngle', a, 'cabin.canopy.wsAngle');
+      // the envelope cut the derived angle (SPEC-FIXPOINT): the angle is now
+      // the control, so the run follows it - as the next pass would make it
+      if (cn.wsAngle !== a) S.fuse.windRun = rise / Math.tan(cn.wsAngle * Math.PI / 180);
+    } else
       S.fuse.windRun = rise / Math.tan(cn.wsAngle * Math.PI / 180);
   }
   // THE CAPACITY IS WHAT WAS DRAWN (G180): the join writes `cabin.seats` off
@@ -26128,6 +26796,7 @@ function resolveSpec(spec) {
   // takes the empennage with it and the aeroplane stays a coherent shape. Move
   // the tail relative to that with place.tailDx.
   w.xLE += pl.wingDx;
+  consume(w.place, 'dx', 'wings.0.place.dx', 'wingDx');   // SPEC-FIXPOINT (A2)
   // THE WING FOLLOWS THE ENGINE (2026-09-04, the mounts). The station above
   // sizes the wing to the CABIN, which is where every nose-engined aeroplane
   // balances; an engine moved to the aft bulkhead (a pusher) or over the wing
@@ -26150,6 +26819,9 @@ function resolveSpec(spec) {
     const mRef = ((GEN_MATERIALS[S.material] || {}).refMass || 390) + (n - 1) * mE;
     w.xLE += n * mE * (xE - engX0) / mRef;
   }
+  // the nudge and the engine's lever can carry the station past its
+  // envelope: cut here, where it is made, not by the next pass (B8)
+  w.xLE = genFieldClamp('wings[].xLE', w.xLE);
   // G185: THE PLANFORM OF ONE PLANE. The block below is the old one verbatim
   // as a function of the plane, so a biplane's second plane gets the same
   // law, MAC, aerodynamic centre, tip bow and reference area as the first.
@@ -26159,7 +26831,8 @@ function resolveSpec(spec) {
   // explicit xLE wins, like every nullable), then its own nudge
   if (k > 0) {
     put(w, 'xLE', S.wings[0].xLE + (w.stagger || 0), 'wing.xLE' + k);
-    w.xLE += (w.place && w.place.dx) || 0;
+    w.xLE = genFieldClamp('wings[].xLE', w.xLE + ((w.place && w.place.dx) || 0));
+    if (w.place) consume(w.place, 'dx', 'wings.' + k + '.place.dx');   // SPEC-FIXPOINT (A2)
   }
   // an uncranked wing's outer dihedral IS its dihedral, so the field can be
   // left alone and the aeroplane stays a single straight panel
@@ -26298,7 +26971,9 @@ function resolveSpec(spec) {
   const t = S.tail;
   put(t, 'hX', S.fuse.tailArm + 0.70 * S.fuse.postGap, 'tail.hX');
   put(t, 'vX', S.fuse.tailArm + 0.90 * S.fuse.postGap, 'tail.vX');
-  t.hX += pl.tailDx; t.vX += pl.tailDx;
+  t.hX = genFieldClamp('tail.hX', t.hX + pl.tailDx);
+  t.vX = genFieldClamp('tail.vX', t.vX + pl.tailDx);
+  consume(t.place, 'dx', 'tail.place.dx', 'tailDx');      // SPEC-FIXPOINT (A2)
   const lh = Math.max(1.0, t.hX - xAC), lv = Math.max(1.0, t.vX - xAC);
   // G115: the tail AREAS are derivable, not imposed — `put`, not assignment.
   // The volume rule fills them when the builder says nothing (identical to
@@ -26310,7 +26985,7 @@ function resolveSpec(spec) {
   // arms stay computed — they are geometry readouts, not choices.
   // twin booms: a MEASURED fin is one of two, so the vertical area is twice it
   if (t.type === 'twinBoom' && t.Sv == null && t.vHeight != null && t.vChord != null)
-    t.Sv = 2 * t.vHeight * t.vChord;
+    t.Sv = genFieldClamp('tail.Sv', 2 * t.vHeight * t.vChord);
   put(t, 'Sh', GEN_RULES.Vh * S.geom.Sw * cBar / lh, 'tail.Sh');
   // G185: the vertical volume divides by the aeroplane's span (a biplane's
   // longer plane; a monoplane's own, exactly)
@@ -26335,9 +27010,13 @@ function resolveSpec(spec) {
     const d = t.dorsal;
     if (d.angle != null && d.height > 0)
       d.len = Math.max(0, d.height / Math.tan(d.angle * Math.PI / 180));
-    else
-      put(d, 'angle', Math.atan2(d.height, Math.max(1e-6, d.len)) * 180 / Math.PI,
-          'tail.dorsal.angle');
+    else {
+      const a = Math.atan2(d.height, Math.max(1e-6, d.len)) * 180 / Math.PI;
+      put(d, 'angle', a, 'tail.dorsal.angle');
+      // cut by its envelope, the angle drives the length (the next pass would)
+      if (d.angle !== a && d.height > 0)
+        d.len = Math.max(0, d.height / Math.tan(d.angle * Math.PI / 180));
+    }
   }
   // ---- V-TAIL: one pair of panels doing both jobs ----
   // A panel canted at G contributes cos^2 G of its area to pitch and sin^2 G to
@@ -26356,15 +27035,24 @@ function resolveSpec(spec) {
     // results. Left null, the volume-coefficient sizing below stands.
     const built = t.hSpan != null && !auto['tail.hSpan']
                && t.hChord != null && !auto['tail.hChord'];
-    const bVt = built ? t.hSpan / cG
+    let bVt = built ? t.hSpan / cG
               : Math.sqrt(Math.max(Sh / (cG * cG), Sv / (sG * sG)) * GEN_RULES.hAR);
+    // B8 / SPEC-FIXPOINT: a RULED span is cut to the tailplane envelope here
+    // (its projection is what lands in hSpan, which the next pass reads as
+    // built); the area stays the rule's, so the chord takes up the cut
+    if (!built) bVt = genFieldClamp('tail.hSpan', bVt * cG) / cG;
     // P1: a MEASURED panel area (the join's Svt, off the drawn sheets) is
     // the area; its mean chord is that over the uncanted span. Left null,
     // the chord is the measured (or ruled) one and the area their product.
-    const cVt = (built && t.Svt > 0) ? t.Svt / bVt
+    let cVt = (built && t.Svt > 0) ? t.Svt / bVt
               : built ? t.hChord
               : Math.max(Sh / (cG * cG), Sv / (sG * sG)) / bVt;
-    const Svt = (built && t.Svt > 0) ? t.Svt : bVt * cVt;
+    let Svt = (built && t.Svt > 0) ? t.Svt : bVt * cVt;
+    if (!(built && t.Svt > 0)) {
+      auto['tail.Svt'] = true;
+      const SvtC = genFieldClamp('tail.Svt', Svt);
+      if (SvtC !== Svt) { Svt = SvtC; cVt = Svt / bVt; }
+    }
     S.tail.Svt = Svt; S.tail.vG = G;
     S.tail.hSpan = bVt * cG;                          // horizontal projection
     S.tail.hChord = cVt;
@@ -27538,6 +28226,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   const R = GEN_RULES;
   const D = Math.PI / 180;
   const nodes = [], beams = [];
+  const degenerate = [];                            // B10: the members B() refused (zero length)
   const clusters = [];                              // G294: rigid node groups (the tube)
   // G327: a fin's cluster — its truss and the station it stands on — with
   // its stiffness declared as a K_tip for the end-of-lattice resolution
@@ -27643,6 +28332,13 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   };
   const B = (a, b, cls, ext, vis, mnt, opt) => {
     const L = Math.hypot(P[b][0]-P[a][0], P[b][1]-P[a][1], P[b][2]-P[a][2]);
+    // A MEMBER BETWEEN TWO POINTS THAT ARE ONE POINT IS REFUSED (REVIEW
+    // 2026-10-04 B10): its strain is (L - 0) / 0 = Infinity on every
+    // shakedown and the load rig's force on it is NaN, which the rig then
+    // skipped without a word. Not built, and COUNTED on parts.degenerate,
+    // so GATE GENPAIRS sees a call site that asked for one; a node that
+    // coincides with another is the call site's to alias.
+    if (!(L >= 1e-6) || a === b) { degenerate.push([a, b, cls]); return; }
     const isG = cls === 'gear';
     // GEN_RULES.wingK: the wing class is x19 softer than the cap its own mass
     // already buys. See the constant for the measurements and the substep
@@ -29067,7 +29763,19 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     // keys off): the stab's own point on each boom, mid-chord at the drawn
     // stab station — what the tail-arm rig loads, the gauge reads and the
     // game's tail assembly anchors on
-    HTL = N(xStab, yStab, -bx, 'HTL'); HTR = N(xStab, yStab, bx, 'HTR');
+    // ...AND WHERE THE STAB SITS ON THE BOOM'S CROWN (stabY unset: yStab is
+    // the crown at xStab, which is the tail station's x) that point IS the
+    // tail triangle's top: the tag goes on that node (REVIEW 2026-10-04
+    // B10 — a second node on top of it was two zero-length members, strain
+    // Infinity on every twin-boom shakedown). The aliased node's ties to I,
+    // O and the bay before are the boom's own members already.
+    const onCrown = sd => {
+      const q = chains[sd][iTail].T;
+      return Math.hypot(P[q][0] - xStab, P[q][1] - yStab, Math.abs(P[q][2]) - bx) < 1e-3 ? q : -1;
+    };
+    const aL = onCrown('L'), aR = onCrown('R');
+    if (aL >= 0) { HTL = aL; nodes[aL].tag = 'HTL'; } else HTL = N(xStab, yStab, -bx, 'HTL');
+    if (aR >= 0) { HTR = aR; nodes[aR].tag = 'HTR'; } else HTR = N(xStab, yStab, bx, 'HTR');
     // T2.3 (140): the incidence on the twin boom's stab too (LE up +)
     const tanI = Math.tan(((t.hInc || 0) * Math.PI) / 180);
     const yR = z => yStab - (xRH(z) - xFH(z)) * tanI;
@@ -29084,6 +29792,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
       const q = chains[sd][iTail], prev = chains[sd][iTail - 1];
       const H = sd === 'L' ? HTL : HTR;
       for (const nd of [HF[sd][iBoom], HR[sd][iBoom], HB[sd][iBoom], H]) {
+        if (nd === q.T) continue;                                // B10: aliased, its ties are the boom's
         B(nd, q.T, 'tail'); B(nd, q.I, 'tail'); B(nd, q.O, 'tail'); B(nd, prev.T, 'tail');
       }
       B(H, HF[sd][iBoom], 'tail'); B(H, HR[sd][iBoom], 'tail'); B(H, HB[sd][iBoom], 'tail');
@@ -29416,8 +30125,15 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   // is what a real aeroplane does when the gear lives that far forward — and
   // which keeps rule 7's "into HEAVY nodes" satisfied.
   const aheadOfAll = ST[0].x > gx + 0.10;
-  const fwdL = aheadOfAll ? EL : F[iFwd].BL, fwdR = aheadOfAll ? ER : F[iFwd].BR;
-  const AA = F[Math.max(iAft, aheadOfAll ? 0 : Math.min(iFwd + 1, F.length - 1))];
+  // ...ONLY A NOSE ENGINE'S MOUNT (REVIEW 2026-10-04 B11). EL / ER are
+  // reassigned to the engine's own nodes on a pusher, an over-wing pylon or
+  // the wing nacelles (block 2b), and the mains then hung 2.3 m gear-class
+  // braces off an engine at the back of the cabin or out on the wing. With no
+  // mount ahead of the firewall the firewall ring is the forward anchor, and
+  // the drag brace goes one ring aft so it is not the leg's own member.
+  const engFwd = aheadOfAll && noseEng;
+  const fwdL = engFwd ? EL : F[iFwd].BL, fwdR = engFwd ? ER : F[iFwd].BR;
+  const AA = F[Math.max(iAft, engFwd ? 0 : Math.min(iFwd + 1, F.length - 1))];
   const trike = S.gear.type === 'tricycle';
   let GAL, GAR, TW, twX, twY, FLOATS = null;
   if (S.gear.type !== 'floats') {
@@ -29480,7 +30196,11 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     // A real nose gear is one strut and a drag link, so the firewall pair is
     // the leg and the other four are links.
     B(TW, F[0].BL, 'gear', false, 'leg'); B(TW, F[0].BR, 'gear', false, 'leg');
-    B(TW, EL, 'gear', false, 'wire'); B(TW, ER, 'gear', false, 'wire');
+    // B11: the engine mount only when the engine IS on the nose; a pusher's
+    // or a nacelle's EL / ER are 2.3 m away — the firewall's top corners are
+    // the airframe above the leg there (off the belly plane, rule 10)
+    const twUpL = noseEng ? EL : F[0].TL, twUpR = noseEng ? ER : F[0].TR;
+    B(TW, twUpL, 'gear', false, 'wire'); B(TW, twUpR, 'gear', false, 'wire');
     B(TW, F[Math.min(1, F.length-1)].BL, 'gear', false, 'wire');
     B(TW, F[Math.min(1, F.length-1)].BR, 'gear', false, 'wire');
     pt(TW, R.wheelTwKg(S.gear.twR) + mFairTw);        // the nosewheel with its fork, by size
@@ -29778,6 +30498,15 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
       S.energy.kind === 'battery' ? 'battery' : 'fuel',
       v.capacity, S.energy.vessel || (S.energy.kind === 'battery' ? 'packCase' : 'alu'),
       S.energy.kind === 'battery' ? S.energy.cell : S.energy.fuel);
+    // THE TANK IS THE AIRFRAME'S, ITS CONTENTS ARE THE LOADING (SPEC-FIXPOINT
+    // G1550). genSpecAtFuel drains a vessel by its capacity, and the shell was
+    // sized off that same number - so the dry corner flew without its tanks
+    // (the metal Cessna's 4.3 kg of shells billed 0) and the reserve sheet with
+    // smaller ones. A drained vessel carries its design capacity (`designCap`,
+    // fuel.designL's twin); the shell and its price are that vessel's.
+    const rD = (S.energy.kind !== 'battery' && v.designCap > v.capacity)
+      ? genVesselResolve('fuel', v.designCap, S.energy.vessel || 'alu', S.energy.fuel) : r;
+    if (rD !== r) { r.vesselKg = rD.vesselKg; r.emptyKg = rD.emptyKg; r.price = rD.price; }
     let pair;
     if (BAY.on === 'strut') {
       // G477: A POD ON EACH FRONT LIFT STRUT — the vessel's litres shared
@@ -29915,8 +30644,11 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     const exhM = electric ? 0 : O.exhaustKgKW * kW;
     // THE FUEL PLUMBING, from the litres. A pack's cabling is the energy
     // module's, not this row's, so an electric aeroplane pays nothing here.
-    const plumbM = (electric || S.fuelL <= 0) ? 0
-                 : O.fuelKgFixed + O.fuelKgL * S.fuelL;
+    // (SPEC-FIXPOINT: off the DESIGN litres when the spec is a fuel state -
+    // the plumbing is the airframe's, a dry corner keeps its lines)
+    const plumbL = (S.fuel && S.fuel.designL > 0) ? S.fuel.designL : S.fuelL;
+    const plumbM = (electric || plumbL <= 0) ? 0
+                 : O.fuelKgFixed + O.fuelKgL * plumbL;
     // THE CONTROLS, from the reach: out to the tips and back to the tail.
     // Dual controls are a second stick and a second set of pedals.
     const reach = S.geom.semi + S.fuse.tailArm;
@@ -30052,6 +30784,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     // PERF STUDY chantier 1: what the pass measured for the gauge (pass 1)
     // and the gauge it was billed at (pass 2)
     gauged, gaugeRef, gauge: GG,
+    degenerate,                 // B10: [a, b, cls] of every member B() refused at zero length
   };
   // G314: a cluster that declared a stiffness and its calibration pair gets
   // its omega now, on the final masses (omega scales as sqrt(K / M))
@@ -30131,6 +30864,26 @@ function genDesignGross(S, a, cg) {
 function genFrame(S) {
   const R = GEN_RULES, D = Math.PI / 180;
   const M = GEN_MATERIALS[S.material];
+  // THE SAME AIRFRAME, RE-FED (SPEC-FIXPOINT G1550, the review's A2). A
+  // resolved spec carries what this function chose for it (S._frame, written
+  // by buildGen): the mains' station and track, the structure's scale, the
+  // gross the floats are sized from and the gauge. The reserve sheet, the CG
+  // corners and the editor's fuel slider re-feed the resolved spec at another
+  // loading, and every one of those numbers used to be solved again - off a
+  // first pass that read the WRITTEN-BACK gear station (so a floatplane's
+  // corners were a different lattice even at the same fuel: 1018.19 vs
+  // 1018.09 kg on the validated Cessna floats) and off the loaded mass (so the
+  // floats, the stiffness and the gear walked with the fuel). A spec that
+  // carries the record builds the airframe it describes, once, at its loading.
+  const FK = S._frame;
+  if (FK && typeof FK === 'object' && isFinite(FK.gx) && isFinite(FK.tr) &&
+      isFinite(FK.kScale) && FK.gauge && typeof FK.gauge === 'object') {
+    const outK = genLattice(S, FK.gx, FK.tr, FK.kScale, FK.gross, FK.gauge);
+    outK.cg0 = genLatticeCG(outK.nodes);
+    outK.parts.designGross = FK.W0;
+    outK.frameKeep = FK;
+    return outK;
+  }
   const a = genLattice(S, S.gear.x, S.gear.track);
   const cg1 = genLatticeCG(a.nodes);
   // THE GAUGE (PERF STUDY chantier 1): the design gross solved on the first
@@ -30196,6 +30949,8 @@ function genFrame(S) {
   const out = genLattice(S, gx, tr, kScale, cg[3], DG.gauge);   // H1: the gross mass sizes the floats
   out.cg0 = genLatticeCG(out.nodes);
   out.parts.designGross = DG.W0;                    // the plaque's and GATE WEIGHT's
+  // what a re-fed resolved spec rebuilds from (above; buildGen keeps it)
+  out.frameKeep = { gx, tr, kScale, gross: cg[3], gauge: DG.gauge, W0: DG.W0 };
   return out;
 }
 // ============================================================
@@ -33856,6 +34611,15 @@ function genShakedown(def, opts) {
 // corners, and the editor's fuel-aboard slider (the user: "we need to see how
 // the CG is changing with the amount of fuel (through a slider)"). A pack does
 // not drain, and this leaves it alone: only a liquid-fuel list is scaled.
+//
+// THE SAME AIRFRAME (SPEC-FIXPOINT G1550, the review's A2 / E1): the copy is
+// of a RESOLVED spec, and buildGen re-resolves it - so the resolved spec is a
+// fixed point of resolveSpec (offsets consumed once, derived values cut to
+// their envelope as they are made), it carries the frame's own choices
+// (S._frame: the gear, the structure's scale, the floats' gross, the gauge),
+// and the tanks, the lines and the caps keep their design size (designCap,
+// designL). What changes is the loading, and only the loading. To build a NEW
+// airframe from a resolved spec, delete its `_frame` (GATE SPECFIX).
 // ---------------------------------------------------------------------------
 function genSpecAtFuel(S, litres) {
   const cs = JSON.parse(JSON.stringify(S));
@@ -33863,8 +34627,14 @@ function genSpecAtFuel(S, litres) {
   const keepF = cs.fuel.litres;
   const L = Math.max(0, litres || 0);
   const k = keepF > 0 ? L / keepF : 0;
+  // SPEC-FIXPOINT (G1550): each vessel keeps its DESIGN capacity beside the
+  // drained one, idempotently, as fuel.designL does below - the shell, the
+  // plumbing and the filler caps are the airframe's and are sized off it
   if (cs.energy && cs.energy.kind !== 'battery' && Array.isArray(cs.energy.vessels))
-    for (const v of cs.energy.vessels) v.capacity = v.capacity * k;
+    for (const v of cs.energy.vessels) {
+      if (!(v.designCap > 0)) v.designCap = v.capacity;
+      v.capacity = v.capacity * k;
+    }
   cs.fuel.litres = L;
   // PERF STUDY chantier 1: the DESIGN capacity rides along, idempotently —
   // the frame's gauge is sized for full tanks (genDesignGross), and a spec
@@ -33882,9 +34652,24 @@ function genSpecAtFuel(S, litres) {
 function buildGen(specIn) {
   const R = resolveSpec(specIn || GEN_DEFAULT);
   const S = R.spec;
-  // which fields the player left to the generator, so the editor can say so
-  S._auto = R.auto;
+  // which fields the player left to the generator, so the editor can say so.
+  // A re-fed resolved spec (the corners, the slider) derives nothing new - its
+  // fields are all set - so the record it arrived with is kept beside this
+  // pass's (SPEC-FIXPOINT: the rebuilt spec is the spec it was built from).
+  S._auto = Object.assign({}, S._auto && typeof S._auto === 'object' ? S._auto : null, R.auto);
+  // SPEC-FIXPOINT (A2 / E1): the gear's INPUTS as the stand had them. The
+  // write-back below puts the frame's choices into gear.x / track / twX /
+  // twY, which are also genFrame's inputs; a re-fed spec restores the
+  // originals, so its frame reads what the stand's frame read.
+  const FK0 = S._frame && typeof S._frame === 'object' ? S._frame : null;
+  if (FK0 && FK0.gearIn && typeof FK0.gearIn === 'object')
+    for (const k of ['x', 'track', 'twX', 'twY'])
+      if (k in FK0.gearIn) S.gear[k] = FK0.gearIn[k];
+  const gearIn = { x: S.gear.x, track: S.gear.track, twX: S.gear.twX, twY: S.gear.twY };
   const fr = genFrame(S);
+  // what the frame chose, kept: a re-fed resolved spec rebuilds this airframe
+  // (genFrame's own note), not a new one solved at the re-fed loading
+  S._frame = Object.assign({}, fr.frameKeep, { gearIn });
   // gear placement needs the CG, so genFrame owns it — hand the numbers it
   // chose back on the resolved spec, or the editor has nothing to report
   for (const [k, v] of [['track', fr.parts.tr], ['x', fr.parts.gx],
@@ -34229,7 +35014,15 @@ function makeLoadTest(sim, def, cfg) {
   const SURF = GEN_LOAD_SURFACES[cfg.surface || 'wing'] || GEN_LOAD_SURFACES.wing;
   const AX = SURF.axis, SK = SURF.station;
   const st = genLoadStations(def, 0, cfg.surface);
-  const ok = st.length >= 2;
+  // A SURFACE THE RIG CANNOT LOAD IS REFUSED, AND SAYS WHY (REVIEW 2026-10-04
+  // D4). The V-tail has no spar truss: its stab and fin rigs found no tagged
+  // stations and no strips of their kind, and the caller read a bare
+  // ok:false (or, with stations and no strips, a bagless rig would have read
+  // 0 % and passed). `why` names the missing tag or strip kind.
+  let ok = st.length >= 2;
+  let why = ok ? null
+    : `no ${SURF.front}/${SURF.rear} spar stations (the ${cfg.surface || 'wing'} has no tagged truss on this airframe)`;
+  if (ok && st.some(s => s.r < 0)) { ok = false; why = `no ${SURF.rear} node to pair with the ${SURF.front} stations`; }
   const root = ok ? st[0] : null, tip = ok ? st[st.length - 1] : null;
   const semi = ok ? def.nodes[tip.f].p[SK] - (SK === 1 ? def.nodes[root.f].p[SK] : 0) : 1;
 
@@ -34255,6 +35048,7 @@ function makeLoadTest(sim, def, cfg) {
   }
   const bags = [];
   perG.forEach((f, i) => bags.push([i, f]));
+  if (ok && !bags.length) { ok = false; why = `no ${SURF.strips.join('/')} strips to lay the bags on`; }
 
   // the trestles: everything that is not the surface is pinned where it starts
   const wingTag = {};
@@ -34272,7 +35066,7 @@ function makeLoadTest(sim, def, cfg) {
                   defl: st.map(function () { return 0; }), z: st.map(s => s.z),
                   semi: semi, worstPct: null, worstCls: null, worstBeam: -1,
                   limitPct: null, ultPct: null, limitYield: null, ultYield: null,
-                  verdict: null, done: false, W: W, ok: ok };
+                  verdict: null, done: false, W: W, ok: ok, why: why };
 
   let t = 0, base = null, peak = {};
 
@@ -34581,4 +35375,4 @@ function playerShedDims(doc, id, site) {
   return { HW: d.HW || h.HW, HD: d.HD || h.HD, EAVE: d.EAVE || h.EAVE };
 }
 if (typeof module !== 'undefined')
-  module.exports = { TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, TREE_HITS, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, RWY_LIGHTS, runwayLightStrips, runwayLightSite, runwayLightPoints, STRIP_SURFACES, stripSurface, stripGear, stripAllows, stripFallback, stripLandable, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, atmosWater, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, CLIMATE, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, decodeAnimal, decodeAnimalClips, registerAnimal, animalList, animalClips, animalClip, ANIMAL_REG, makeSim, HYDRO, makeBus, vortexKernel, makeAutopilot, makeTestPilot, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, seatOnGround, placeAtLineup, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, POLARS, PAR, RHO, hyp2, hyp3, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genPlanePair, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_CRASH, GEN_CRASH_TUBE_DT, genPhysKey, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, genTrueBox, genNetEig, genRigidFloatOf, GEN_BOX_N, GEN_BOX_KMIN, GEN_NET_MAX, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC, GP_PARKED_FOOT, GP_PARKED_DEFAULT, GP_CLEAR, GP_HALF_DEFAULT, parkedFoot, gpParkedDist, gpClearWay, GEN_WING_ENVELOPE };
+  module.exports = { TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, TREE_HITS, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, RWY_LIGHTS, runwayLightStrips, runwayLightSite, runwayLightPoints, STRIP_SURFACES, stripSurface, stripGear, stripAllows, stripFallback, stripLandable, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, atmosWater, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, CLIMATE, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, decodeAnimal, decodeAnimalClips, registerAnimal, animalList, animalClips, animalClip, ANIMAL_REG, makeSim, HYDRO, makeBus, vortexKernel, makeAutopilot, makeTestPilot, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, seatOnGround, placeAtLineup, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, POLARS, PAR, RHO, hyp2, hyp3, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genPlanePair, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_CRASH, GEN_CRASH_TUBE_DT, genPhysKey, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, genTrueBox, genNetEig, genRigidFloatOf, GEN_BOX_N, GEN_BOX_KMIN, GEN_NET_MAX, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC, GP_PARKED_FOOT, GP_PARKED_DEFAULT, GP_CLEAR, GP_HALF_DEFAULT, parkedFoot, gpParkedDist, gpClearWay, GEN_WING_ENVELOPE, GEN_FIELDS, genFieldClamp, genNullToDefault, genSpecMerge, SERVO_GAINS, makeServos, SERVO_TUNE, servoWrapPi, servoCrossWind, servoRestHeight };

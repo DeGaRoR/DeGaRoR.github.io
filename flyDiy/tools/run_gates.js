@@ -76,6 +76,11 @@ const GATES = [
   // solver's rpm), AUDIO.update's budget (no heap, < 0.3 ms), nothing before a gesture, ?audio=0 builds nothing, the
   // silence, the settings, the sources, the wiring - and every check mutated red (--selftest alone); ~3 s
   { id: 'AUDIO', file: 'audio/_audio_check.js', tier: 'core', wall: 160 },
+  // THE BOOMBOX (G1713, SND-BOOMBOX): the shed's radio - the quick bar's `sound` and `radio` (AUDIO.enable, stepStation,
+  // music in the garage on), the boombox's hit (its own turned box, never over a nearer aeroplane part), the panel's
+  // controls on the page's DOM, MY MUSIC (blob: URLs made and revoked, the handle alone kept, nothing before a gesture)
+  // with the picker stubbed - and every check mutated red; < 1 s
+  { id: 'BOOMBOX', file: 'audio/_boombox_check.js', tier: 'core' },
   // SKY S1/S2 (2026-09-14): the day object and the almanac, headless
   { id: 'DAY', file: 'test_day.js', tier: 'core' },
   // THE CLIMATE (K0, 2026-09-22): the one wind field - the G72 column bit-identical against a
@@ -314,6 +319,12 @@ const GATES = [
   { id: 'COWL', file: '_cowl_check.js', tier: 'core' },       // the cowl, and the engine inside it
   { id: 'ENGMESH', file: '_eng_mesh_check.js', tier: 'core' },// the engine's own health + ledger
   { id: 'JOIN', file: '_join_check.js', tier: 'core' },       // editor -> spec -> a buildable aeroplane
+  // THE RESOLVED SPEC IS A FIXED POINT AND THE CORNERS ARE THE STAND (SPEC-FIXPOINT G1550, the 2026-10-04
+  // review's A2 / A3 / B8 / B9 / B13 / E1-E3): GEN_FIELDS against GEN_DEFAULT and clampSpec; clamp idempotent;
+  // resolve(resolve(s)) == resolve(s); buildGen leaves its input alone and rebuilds def.spec; the six CG corners
+  // the same lattice as the stand - on the five validated builds and an offset / envelope / null corpus; and the
+  // page's join headless, on -> off -> commit through the garage's merge, back to never-on. ~70 s (the joins).
+  { id: 'SPECFIX', file: '_specfix_check.js', tier: 'core', wall: 75 },
   // G134: the custom engine — thermo laws over the registry, the clamp
   // door, and the row reaching the frame; ENGID is the identity ruling
   // (untouched preset = the certified row; deviated = modified/custom)
@@ -591,11 +602,19 @@ const GATES = [
   // row physics-inert; every assertion negative-verified. SND-CORE's _audio_check.js absorbs it; ~3 min
   { id: 'AUDIOENG', file: 'audio/_engine_check.js', tier: 'core', wall: 320 },
   // REVIEW 2026-10-04 (A6): the settlement houses' hitboxes stand where the houses are drawn - the registry's frame
-  // against the renderer's, sampled inside and outside every footprint; ~2 s. Two sibling gates written by the same
-  // review are NOT registered because they are red on master until their finding is fixed: _stripground_check.js
-  // (A5: every generated strip on the ground its record says - A2 Pelham Field sits across a river) and
-  // _genpairs_check.js (B10: the lattice over paired configurations - the twin boom's two zero-length beams)
+  // against the renderer's, sampled inside and outside every footprint; ~2 s. A sibling gate written by the same
+  // review is NOT registered because it is red on master until its finding is fixed: _genpairs_check.js (B10: the
+  // lattice over paired configurations - the twin boom's two zero-length beams)
   { id: 'OBSTFRAME', file: '_obstframe_check.js', tier: 'core', wall: 5 },
+  // REVIEW 2026-10-04 (A5), registered with G1560 WORLD-STRIPS: every generated strip on the ground its record says -
+  // walked at 2 m down its centreline and both edges, |elev - terrainH| < 0.5 m and no water, seeds 0-3 (seed 0's
+  // A2 Pelham Field sat across a river); ~6 s
+  { id: 'STRIPGROUND', file: '_stripground_check.js', tier: 'core', wall: 8 },
+  // GEN-PAIRS G1580 (REVIEW 2026-10-04 B10 / E7): the lattice over seventeen single and paired configurations
+  // (tricycle, pusher, wingTop, twin boom, V-tail, biplane, floats and their pairs) - every node finite, every
+  // mass positive, every member over 1 mm and none refused by B() (parts.degenerate), the lattice mirrored; ~5 s.
+  // Red before G1580 on every twin-boom combination. GATE GEN's PAIRS block holds the same pairs' rank and stance.
+  { id: 'GENPAIRS', file: '_genpairs_check.js', tier: 'core', wall: 10 },
 ];
 
 const args = process.argv.slice(2);

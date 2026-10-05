@@ -180,7 +180,9 @@ function runA() {
   for (const bb of [{ x0: -3.4, x1: 3.6, z0: -4.4, z1: 4.4 },
                     { x0: -8, x1: 8, z0: -14.5, z1: 14.5 }]) {
     const rows = CORE.hangarFitRing(dims, ORDER, bb);
-    ok(rows.length === 4, 'the full fit-out walks four things over (' +
+    // five since the garage radio (SND-BOOMBOX 2026-10-05): the chest, the
+    // jerrycan, the ladder, the sack truck and the boombox
+    ok(rows.length === 5, 'the full fit-out walks five things over (' +
        rows.length + ')');
     for (const r of rows) {
       ok(Math.abs(r.x) <= dims.HD - 1.0 && Math.abs(r.z) <= dims.HW - 1.0,

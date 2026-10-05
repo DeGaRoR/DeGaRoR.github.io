@@ -19,6 +19,11 @@
 //      the flip work; the colours (2800 K behind clear glass, the threshold's green filter); and off the source: one
 //      fixture mesh and one glow layer a strip, both culled, the glow's size and fall-off law, the haze transmitting it,
 //      the switchboard's mute, nothing per light per frame.
+//   3. THE SHROUD AND THE END ROW (G1545-G1549, RUNWAY-LIGHTS-2): the lamp at 2500 K; the strip's glow layer built by the
+//      lifted standRunwayLights on a stub world (a strip at an odd heading, one end flush): one two-way lobe an edge light
+//      along the strip, two a threshold light - green facing OUT along its approach, red facing IN (the end row); the
+//      shroud's law read off the shader text and evaluated here (a JS transcription held to the text): full on the
+//      approach, gone from the side, from above and - for a one-way lobe - from behind; still ONE glow program.
 //
 //   node tools/_rwylights_check.js [--verbose]   -> "GATE RWYLIGHTS: PASS|FAIL"
 'use strict';
@@ -169,7 +174,7 @@ if (check(!!J, 'Jolene composes in node (island_node + its premises fixture)')) 
     const lum = c3 => 0.2126 * c3[0] + 0.7152 * c3[1] + 0.0722 * c3[2];
     const E = F.RWY_KIND.edge, T = F.RWY_KIND.thr;
     check(Math.abs(lum(E.light) - 1) < 0.01 && Math.abs(lum(T.light) - 1) < 0.01, 'the two lights\' colours at luminance 1 x sqrt(cd) / 3 (both 9 cd)', [lum(E.light), lum(T.light)].join(' '));
-    check(Math.abs(E.light[1] / E.light[0] - 0.445) < 0.01 && Math.abs(E.light[2] / E.light[0] - 0.117) < 0.01, 'the edge light is a 2800 K bulb behind clear glass (1 : 0.445 : 0.117)');
+    check(Math.abs(E.light[1] / E.light[0] - 0.381) < 0.01 && Math.abs(E.light[2] / E.light[0] - 0.068) < 0.01, 'the edge light is a 2500 K vacuum lamp behind clear glass (1 : 0.381 : 0.068; G1545, was 2800 K)');
     check(T.light[0] === 0 && T.light[1] > T.light[2] && T.glass[1] > T.glass[0] && E.glass.join() === '1,1,1', 'the threshold\'s colour is its glass: a green filter (and green glass by day); the edge glass clear');
   }
   const src = RW.slice(RW.indexOf('function standRunwayLights'), RW.indexOf('let fillUpdate'));
@@ -177,11 +182,90 @@ if (check(!!J, 'Jolene composes in node (island_node + its premises fixture)')) 
   check(/pv\.set\(x, fl \? y - RWY_DEEP : y, z\); sv\.set\(1, fl \? -1 : 1, 1\);/.test(src) && /im\.setColorAt\(i, tint\.setRGB\(K\.glass\[0\], K\.glass\[1\], K\.glass\[2\]\)\);/.test(src), 'a flush light is the fixture flipped and lifted; the glass\'s colour the instance\'s');
   check(/const L = runwayLightPoints\(a, world\.aerodromes, PO && PO\.pavedNear \? PO\.pavedNear : null\);/.test(src), 'standRunwayLights stands the core\'s places (the list this gate holds)');
   check(/sizeAttenuation: false, vertexColors: true, transparent: true, depthWrite: false/.test(RW) && /blending: THREE\.CustomBlending, blendSrc: THREE\.OneFactor, blendDst: THREE\.OneFactor/.test(RW), 'the glow: three\'s points program, additive (one + one), no depth write');
-  check(/float rwB = uRwyL \* 1000\.0 \/ max\(rwD, 1\.0\);/.test(RW) && /float rwMin = max\(1\.5, uRwyPx \/ 360\.0\);/.test(RW) && /rwW = max\(rwW, 2\.0 \* \$\{RWY_LENS_R\} \/ max\(rwD, 0\.1\) \* rwPx\);/.test(RW), 'the core: never under 1.5 px, never narrower than the lens; its brightness ~ 1 / d (Stevens, a point source)');
+  check(/float rwB = uRwyL \* 1000\.0 \/ max\(rwD, 1\.0\) \* sqrt\(rwF\);/.test(RW) && /float rwMin = max\(1\.5, uRwyPx \/ 360\.0\);/.test(RW) && /rwW = max\(rwW, 2\.0 \* \$\{RWY_LENS_R\} \/ max\(rwD, 0\.1\) \* rwPx\);/.test(RW), 'the core: never under 1.5 px, never narrower than the lens; its brightness ~ 1 / d (Stevens, a point source)');
   check(/gl_FragColor\.rgb \*= atmoAP\(\)\.a;/.test(RW) && /mistApply\(vec3\(1\.0\), rwV, rwL, cameraPosition\.y\) - mistApply\(vec3\(0\.0\)/.test(RW), 'the haze transmits the light and adds nothing to the sprite');
   check(/\.declare\('runway', 'runway lights', 'emissive', \(\) => \{ RWY\.U\.lvl\.value = 0; RWY\.shown = false; for \(const g of RWY\.glows\) g\.visible = false; \}\)/.test(RW), 'the NIGHT strip still mutes them (the switchboard\'s `runway`)');
   const ap = RW.slice(RW.indexOf('  function runwayLightsApply('), RW.indexOf('  function applyWorldLights()'));
   check(!/for \(let i/.test(ap) && /if \(RWY\.shown !== show\) \{ RWY\.shown = show; for \(const g of RWY\.glows\) g\.visible = show; \}/.test(ap), 'nothing per light per frame: one uniform; the strips\' layers hidden by day (a loop over the strips, only when the state turns)');
+}
+
+// ---- 3. THE SHROUD AND THE END ROW (G1545-G1549, RUNWAY-LIGHTS-2) ---------------------------------------------------
+{
+  const RW = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'render_world.js'), 'utf8');
+  const i0 = RW.indexOf('  const RWY = { meshes'), i1 = RW.indexOf('  let fillUpdate');
+  let R = null;
+  const scene = { add() {} }, a = { id: 'X', x: 120, z: -40, hdg: 0.7, len: 600, wid: 30 };
+  const pts = { edge: [], thr: [], inset: [], cut: [] }, ca = Math.cos(a.hdg), sa = Math.sin(a.hdg);
+  const at = (s, w, fl) => { const p = [a.x + s * ca - w * sa, a.z + s * sa + w * ca]; if (fl) p.push(1); return p; };
+  for (let k = 0; k <= 10; k++) for (const w of [-16.5, 16.5]) pts.edge.push(at(-300 + 60 * k, w));
+  for (const s of [-302, 302]) for (let k = 0; k < 6; k++) pts.thr.push(at(s, -15 + 5 * (k + 0.5), s > 0));
+  try {
+    R = new Function('THREE', 'C', 'world', 'scene', 'runwayLightPoints', 'worldSwitch', 'MATLIB', RW.slice(i0, i1) + '\nreturn { RWY, RWY_KIND, RWY_CONE, standRunwayLights, rwyGlowMat };')(
+      THREE, h => new THREE.Color(h).convertSRGBToLinear(), { premises: null, aerodromes: [a], terrainH: () => 5 }, scene, () => pts, null,
+      require(path.join(ROOT, 'src', 'viewer', 'matlib.js')));
+    R.standRunwayLights(a, o => o);
+  } catch (e) { check(false, 'standRunwayLights lifts out of render_world.js and stands a stub strip', e.stack); R = null; }
+  if (R && check(R.RWY.glows.length === 1 && R.RWY.meshes.length === 1, 'the stub strip: one fixture mesh, one glow layer')) {
+    const g = R.RWY.glows[0].geometry, P = g.attributes.position, Cc = g.attributes.color, A = g.attributes.rwyAx;
+    const nE = pts.edge.length, nT = pts.thr.length;
+    check(!!A && A.itemSize === 3 && P.count === nE + 2 * nT && R.RWY.meshes[0].count === nE + nT,
+      'the layer: one lobe an edge light, two a threshold light (' + P.count + ' = ' + nE + ' + 2 x ' + nT + '); the fixtures still one a light (' + R.RWY.meshes[0].count + ')', P.count);
+    const K = R.RWY_KIND, same = (i, c) => Math.abs(Cc.getX(i) - c[0]) < 1e-5 && Math.abs(Cc.getY(i) - c[1]) < 1e-5 && Math.abs(Cc.getZ(i) - c[2]) < 1e-5;
+    let edgeOk = 0, grnOut = 0, redIn = 0, bad = [];
+    for (let i = 0; i < P.count; i++) {
+      const ax = A.getX(i), az = A.getY(i), two = A.getZ(i), s = (P.getX(i) - a.x) * ca + (P.getZ(i) - a.z) * sa, al = ax * ca + az * sa;
+      if (Math.abs(Math.hypot(ax, az) - 1) > 1e-5) { bad.push(i + ' not unit'); continue; }
+      if (same(i, K.edge.light)) { if (two === 1 && Math.abs(Math.abs(al) - 1) < 1e-5) edgeOk++; else bad.push(i + ' edge'); }
+      else if (same(i, K.thr.light)) { if (two === 0 && Math.abs(al - Math.sign(s)) < 1e-5) grnOut++; else bad.push(i + ' green'); }
+      else if (same(i, K.end.light)) { if (two === 0 && Math.abs(al + Math.sign(s)) < 1e-5) redIn++; else bad.push(i + ' red'); }
+      else bad.push(i + ' colour');
+    }
+    check(edgeOk === nE && grnOut === nT && redIn === nT && !bad.length, 'every edge lobe two-way along the strip (' + edgeOk + '); every threshold\'s green faces OUT along its approach (' + grnOut + '), its red IN down the strip - the far end\'s red row (' + redIn + ')', bad.slice(0, 6).join(', '));
+    const lum = c3 => 0.2126 * c3[0] + 0.7152 * c3[1] + 0.0722 * c3[2];
+    check(K.end.light[1] === 0 && K.end.light[2] === 0 && Math.abs(lum(K.end.light) - Math.sqrt(K.end.cd) / 3) < 0.01 && K.end.cd < K.thr.cd,
+      'the end lobe red (a long-pass filter: luminance sqrt(' + K.end.cd + ' cd) / 3), a little dimmer than the green', lum(K.end.light));
+    check(Math.abs(K.thr.light[2] / K.thr.light[1] - 0.206) < 0.01 && Math.abs(lum(K.thr.light) - 1) < 0.01, 'the green filter recomputed through the 2500 K lamp (0 : 1 : 0.206)', K.thr.light.join());
+    // the shroud's law: the shader text, then its JS transcription evaluated
+    let vs = '';
+    { const m = R.rwyGlowMat(), sh = { uniforms: {}, vertexShader: THREE.ShaderLib.points.vertexShader, fragmentShader: THREE.ShaderLib.points.fragmentShader };
+      m.onBeforeCompile(sh); vs = sh.vertexShader;
+      check(/attribute vec3 rwyAx;/.test(vs) && /float rwC = dot\(rwE\.xz, rwA\) \/ max\(length\(rwE\.xz\), 1e-3\);/.test(vs) && /if \(rwyAx\.z > 0\.5\) rwC = abs\(rwC\);/.test(vs)
+        && /float rwB = uRwyL \* 1000\.0 \/ max\(rwD, 1\.0\) \* sqrt\(rwF\);/.test(vs) && /if \(rwF <= 0\.0\) gl_Position = vec4\(2\.0, 2\.0, 0\.0, 1\.0\);/.test(vs) && /gl_PointSize = size;/.test(THREE.ShaderLib.points.vertexShader) && !/gl_PointSize = size;/.test(vs),
+        'the glow\'s vertex shader carries the shroud (the lobe attribute, the axis test, two-way for an edge, the brightness x sqrt of its share, a shrouded light clipped)');
+      check(m === R.rwyGlowMat() && m.customProgramCacheKey === THREE.Material.prototype.customProgramCacheKey && !m.defines, 'still ONE glow material and program for every strip (no new variant, no defines)'); }
+    const cone = (vs.match(/float rwF = smoothstep\(([\d.]+), ([\d.]+), rwC\)\s*\* \(1\.0 - smoothstep\(([\d.]+), ([\d.]+), rwE\.y/) || []).slice(1).map(Number);
+    const deg = [Math.acos(cone[0]), Math.acos(cone[1]), Math.asin(cone[2]), Math.asin(cone[3])].map(r => Math.round(r * 180 / Math.PI * 100) / 100);
+    if (check(cone.length === 4 && [deg[1], deg[0], deg[2], deg[3]].join() === R.RWY_CONE.join(), 'the cone in the shader is RWY_CONE: full within ' + deg[1] + ' deg of the axis, gone at ' + deg[0] + '; full up to ' + deg[2] + ' deg of elevation, gone at ' + deg[3], deg.join())) {
+      const ss = (e0, e1, x) => { const t = Math.max(0, Math.min(1, (x - e0) / (e1 - e0))); return t * t * (3 - 2 * t); };
+      const F = (eye, i) => { const ex = eye[0] - P.getX(i), ey = eye[1] - P.getY(i), ez = eye[2] - P.getZ(i), h = Math.hypot(ex, ez);
+        let c = (ex * A.getX(i) + ez * A.getY(i)) / Math.max(h, 1e-3); if (A.getZ(i) > 0.5) c = Math.abs(c);
+        return ss(cone[0], cone[1], c) * (1 - ss(cone[2], cone[3], ey / Math.max(Math.hypot(ex, ey, ez), 1e-3))); };
+      // the eyes, in the strip's frame (s along, w across, h up) from the strip's centre
+      const eyeAt = (s, w, h) => [a.x + s * ca - w * sa, 5 + h, a.z + s * sa + w * ca];
+      const kind = i => same(i, K.edge.light) ? 'edge' : same(i, K.thr.light) ? (((P.getX(i) - a.x) * ca + (P.getZ(i) - a.z) * sa) < 0 ? 'g0' : 'g1') : (((P.getX(i) - a.x) * ca + (P.getZ(i) - a.z) * sa) < 0 ? 'r0' : 'r1');
+      const tally = eye => { const o = {}; for (let i = 0; i < P.count; i++) { const k = kind(i), f = F(eye, i); (o[k] = o[k] || []).push(f); } return o; };
+      const mean = v => v.reduce((x, y) => x + y, 0) / v.length;
+      // the approach to end 0 (the -s end), 1 km out on 3 deg
+      const ap = tally(eyeAt(-302 - 1000, 0, 1000 * Math.tan(3 * Math.PI / 180)));
+      check(Math.min(...ap.edge) > 0.99 && Math.min(...ap.g0) > 0.99 && Math.min(...ap.r1) > 0.99 && Math.max(...ap.g1) === 0 && Math.max(...ap.r0) === 0,
+        'on the approach (1 km, 3 deg): every edge light full, the near threshold green, the far end RED; the far threshold\'s green and the near end\'s red are dark (behind)');
+      const ap2 = tally(eyeAt(302 + 1000, 0, 52));
+      check(Math.min(...ap2.edge) > 0.99 && Math.min(...ap2.g1) > 0.99 && Math.min(...ap2.r0) > 0.99 && Math.max(...ap2.g0) === 0 && Math.max(...ap2.r1) === 0, 'the other way: the same, mirrored (the edge rows are two-way)');
+      const side = tally(eyeAt(0, -400, 2));
+      check(Math.max(...side.edge) < 0.5 && mean(side.edge) < 0.15 && Math.max(...side.g0, ...side.g1, ...side.r0, ...side.r1) === 0,
+        'from the side (400 m abeam, eye 2 m): the thresholds dark, the edge rows nearly so (the near ones 90 deg off the axis: gone; mean ' + mean(side.edge).toFixed(3) + ')', mean(side.edge));
+      const over = tally(eyeAt(0, 0, 300)), over2 = tally(eyeAt(-302 - 800, 0, 400));
+      check(Math.max(...[].concat(...Object.values(over))) === 0 && Math.max(...[].concat(...Object.values(over2))) === 0, 'from above (300 m over the strip; 400 m up 800 m out on the axis, 26 deg): all dark');
+      const behind = tally(eyeAt(-302 - 600, 0, 2)), behindIn = tally(eyeAt(-200, 0, 2));
+      check(Math.max(...behind.r0) === 0 && Math.min(...behind.g0) > 0.99 && Math.min(...behindIn.r1) > 0.99 && Math.max(...behindIn.g0) === 0 && Math.min(...behindIn.r0) > 0.99,
+        'behind a threshold: its green dark from the runway side (lined up 100 m in: both end rows red), its red dark from the approach');
+      const m20 = mean(tally(eyeAt(-302 - 1000, -1000 * Math.tan(20 * Math.PI / 180), 52)).edge), m28 = mean(tally(eyeAt(-302 - 1000, -1000 * Math.tan(34 * Math.PI / 180), 52)).edge);
+      check(m20 > 0.8 && m28 > 0.02 && m28 < 0.5, 'off the axis, the final turn: the flarepath fades in as the turn ends (its mean share ' + m28.toFixed(2) + ' at 34 deg off the near threshold, ' + m20.toFixed(2) + ' at 20)', [m28, m20].join());
+      const tx = eyeAt(-180, -24, 2.4), near = [], far = [];
+      for (let i = 0; i < P.count; i++) if (kind(i) === 'edge') { const ds = Math.abs((P.getX(i) - a.x) * ca + (P.getZ(i) - a.z) * sa + 180); (ds < 1 ? near : ds > 150 ? far : []).push(F(tx, i)); }
+      check(near.length === 2 && Math.max(...near) === 0 && Math.min(...far) > 0.5, 'taxiing beside the row (8 m off it): the two lights abeam dark, the ones 150 m and more down the strip lit', near.join() + ' / ' + Math.min(...far));
+    }
+  }
 }
 
 if (fails) { console.log('GATE RWYLIGHTS: FAIL (' + fails + ' of ' + (fails + nOk) + ')'); process.exit(1); }

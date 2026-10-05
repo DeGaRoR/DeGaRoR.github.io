@@ -3766,7 +3766,9 @@ function finishFromSpec(f) {
   WEAR.age = WEAR.flight = WEAR.bush = WEAR.rain = 0;
   const o = (f && typeof f === 'object' && !Array.isArray(f)) ? f : null;
   if (o) {
-    const S = (o.sections && typeof o.sections === 'object') ? o.sections : {};
+    let S = (o.sections && typeof o.sections === 'object') ? o.sections : {};
+    // G1911: the stock Cub's bare-alloy strut pin, inherited by saved builds, dropped on load (AEROSKIN says which)
+    { const A = AK(); if (A && A.aeroFinishLegacy) S = A.aeroFinishLegacy(S).sections; }
     for (const nm in S) {
       const r = S[nm] || {};
       if (r.fin) secFin[nm] = r.fin;

@@ -45,7 +45,7 @@
 const fs = require('fs'), vm = require('vm'), path = require('path');
 const C = require('./flight_core.js');
 const CAGE2 = require('./_cage_gen.js');
-const { GEN_DEFAULT, GEN_SPEC_V, genNormaliseSpec } = C;
+const { GEN_DEFAULT, GEN_SPEC_V, genNormaliseSpec, genSpecMerge } = C;
 
 const GARAGE_SRC = fs.readFileSync(
   path.join(__dirname, '..', 'src', 'viewer', 'garage.js'), 'utf8');
@@ -198,7 +198,7 @@ function mkShelf(src) {
     URL: { createObjectURL: () => '', revokeObjectURL() {} },
     setTimeout: fn => { if (typeof fn === 'function') fn(); return 0; },
     clearTimeout: () => {},
-    GEN_SPEC_V, genNormaliseSpec,
+    GEN_SPEC_V, genNormaliseSpec, genSpecMerge,
   };
   gbox.window = { localStorage: store, CAGE2, CAGE_PAGE, CAGE_UI, CAGE_JOIN };
   vm.createContext(gbox);

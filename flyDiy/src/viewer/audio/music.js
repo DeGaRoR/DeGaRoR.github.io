@@ -79,6 +79,20 @@
 // THE MIX (G1681): the seventh station, 'Random' - every track the six would play in a context, one bag, no repeat
 // inside a round. Radio Jolene's talk stays on its own station (roots): the mix is music only.
 //
+// MY MUSIC (G1712, SND-BOOMBOX; the user 2026-10-05: "the ability to point to a local music folder"): an eighth, VIRTUAL
+// station, 'mine' - the player's own files (my_music.js picks the folder; setUserTracks hands them here). Its tracks are
+// appended to the catalogue as { user: 1, blob } entries past the shipped ones (baseN): the shipped indices, their bags
+// and their resume points never move. They play through the same two decks, the same crossfade, ducks and suspend; a
+// track's blob: object URL is made when a deck loads it and REVOKED when that deck lets it go (release), so at most two
+// exist at a time and a dropped folder leaves none. No silences between them (a station does not go quiet), no talk
+// (talkDue is Radio Jolene's alone), never in the mix, the credits or the [ / ] cycle until a folder is there. A track's
+// length is unknown until its metadata (USER_DUR_S stands in until durationchange). The station is persisted like any
+// other; a page that loads on 'mine' plays the start station until the folder is back (wantMine), then returns to it.
+// THE BOOMBOX AS THE SOURCE (G1714, SND-BOOMBOX's stretch): in the garage the music leans a little toward the radio when
+// the camera is near it - a StereoPanner between the duck and the music bus (space.js's room send follows it). The radio's
+// place is handed in when the kit is placed (setSourcePos; boombox.js placed()); every PAN_EVERY_S the camera's right axis
+// against the direction to it gives the side, scaled by PAN_K and by how near (full within PAN_NEAR m, nothing past
+// PAN_FAR m); off the garage, or with no radio, the centre. A move under PAN_STEP schedules nothing; nothing allocates.
 // THE CATALOGUE (src/viewer/audio/music_catalogue.json, written by the coordinator's prep tool from the user's
 // picks; the build inlines it as window.FLYDIY_MUSIC - a manifest, not a media file: under media/ an unhashed
 // JSON would be held forever by sw.js's cache-first rule, and GATE MEDIA would call it an orphan):
@@ -119,6 +133,13 @@ var AUDIO_MUSIC = (function () {
   // fallbacks), so its bag is every track any station would play there, shuffled, no repeat inside a round
   const ST_MIX = 'mix', STATION_KEYS = STATIONS.map(s => s[0]), ST_DEFAULT = 'lofi', ST_TALK = 'roots';
   const REAL_KEYS = STATION_KEYS.filter(k => k !== ST_MIX);
+  // G1712 MY MUSIC: the virtual station of the player's own files (above); its label, the length a track is given until
+  // its metadata says, the file names it keeps
+  const ST_MINE = 'mine', MINE_LABEL = 'My music', USER_DUR_S = 3600;
+  const MINE_RE = /\.(mp3|ogg|oga|opus|m4a|aac|wav|flac)$/i;
+  // G1714 the lean toward the radio (above)
+  const PAN_K = 0.35, PAN_NEAR = 2, PAN_FAR = 9, PAN_EVERY_S = 0.25, PAN_STEP = 0.02, PAN_TAU = 0.3;
+  const SRC = new Float64Array(5);   // the radio's x, y, z, whether there is one, the pan last scheduled
   const BED_K = 0.16, BED_IN_S = 1.5, BED_UP_S = 1.5, VOICE_K = 1 / 0.8, TALK_SLACK_S = 8;
   // G1703 THE TALK-UP (SND-RADIO-3): a break owed starts TALK_UP_S before the track's end - Norman talks over its fading
   // outro (the track fades out over what is left of it, equal-power) and the next track's intro comes in under him at the
@@ -181,6 +202,10 @@ var AUDIO_MUSIC = (function () {
   const stationOf = t => (t && t.station) || ST_DEFAULT;
   // a station's lists: its own tracks per context, else lo-fi's for that context (fell[c] = 1); empty = it has none at all
   function stationLists(cat, st) {
+    if (st === ST_MINE) {   // G1712: every one of the player's files, in every context
+      const m = []; for (let i = 0; i < cat.length; i++) if (cat[i] && cat[i].user) m.push(i);
+      return { lists: CTX_NAMES.map(() => m.slice()), fell: [0, 0, 0, 0], empty: !m.length };
+    }
     if (STATION_KEYS.indexOf(st) < 0) return { lists: CTX_NAMES.map(() => []), fell: [0, 0, 0, 0], empty: true };
     if (st === ST_MIX) {   // the union of the six, in catalogue order, each track once
       const u = CTX_NAMES.map(() => new Uint8Array(cat.length));
@@ -250,7 +275,7 @@ var AUDIO_MUSIC = (function () {
   // radio's: the bed (1, or BED_K under a talk), the talk's watchdog (s left; 0 = no talk), tracks since the last
   // break, a tune-in break owed
   const PS = new Float64Array(12);
-  const S_CUR = 0, S_GAP = 1, S_DUCK = 2, S_NOW = 3, S_RETRY = 4, S_ACT = 5, S_PHOTO = 6, S_BED = 7, S_TALK = 8, S_COUNT = 9, S_TUNE = 10;
+  const S_CUR = 0, S_GAP = 1, S_DUCK = 2, S_NOW = 3, S_RETRY = 4, S_ACT = 5, S_PHOTO = 6, S_BED = 7, S_TALK = 8, S_COUNT = 9, S_TUNE = 10, S_PANT = 11;
   const REC = new Int16Array(2).fill(-1);   // the last two tracks started (the back-announce)
   PS[S_BED] = 1;
   const CRUISE_ST = new Float64Array(2);
@@ -261,6 +286,8 @@ var AUDIO_MUSIC = (function () {
   // station with no tracks and of a track with no station
   const ST_START = ST_TALK;
   let station = prefGet('station', ST_START), fell = [0, 0, 0, 0], bagsBy = {};
+  // G1712: a page that loads on 'mine' has no folder yet - it plays the start station and goes back once one is handed in
+  let wantMine = station === ST_MINE, baseN = 0, mineName = '', prevStation = ST_START, lastOn = station !== 'off' ? station : ST_START;
   if (station !== 'off' && STATION_KEYS.indexOf(station) < 0) station = ST_START;
   // JOINING A BROADCAST (the user: "starting at a different point each time, like you take it in flight"): the first
   // track after a launch or a station switch starts JOIN_MIN..JOIN_MAX of its way in, like tuning a live radio; Norman's
@@ -274,8 +301,8 @@ var AUDIO_MUSIC = (function () {
   const clipK = () => { const v = G.FLYDIY_VOICE && G.FLYDIY_VOICE.voice, l = v && v.render && typeof v.render.lufs === 'number' ? v.render.lufs : VOICE_LUFS;
     return VOICE_K * Math.pow(10, (LUFS_TARGET - l) / 20); };
   let CUR = { v: '', k: 0, n: 0, h: {} };   // G1702: the broadcast's cursor (RADIO_TALK.cursor: persisted, a new session continues)
-  let ctx = null, A = null, decks = [], duck = null, offs = [];
-  const C = { elements: 0, starts: 0, xfades: 0, ducks: 0, talks: 0, talkCuts: 0 };   // counters (the gate reads them)
+  let ctx = null, A = null, decks = [], duck = null, offs = [], panner = null;
+  const C = { elements: 0, starts: 0, xfades: 0, ducks: 0, talks: 0, talkCuts: 0, blobs: 0, revoked: 0 };   // counters (the gate reads them)
   PS[S_CUR] = C_NONE; PS[S_GAP] = -1; PS[S_ACT] = -1;
   for (let k = 0; k < 2; k++) DK[k * K_N + K_STOP] = -1;
 
@@ -289,6 +316,7 @@ var AUDIO_MUSIC = (function () {
     rebuildLists();
     bad = new Uint8Array(cat.length);
     RESUME_T.fill(-1);
+    baseN = cat.length; mineName = '';   // G1712: a new catalogue drops the player's files (the folder is handed in again)
   }
   // the station's lists and its bags (kept per station: a station's round survives a visit to another)
   function rebuildLists() {
@@ -299,6 +327,7 @@ var AUDIO_MUSIC = (function () {
   const eligible = (t, c) => c >= 0 && t >= 0 && lists[c].indexOf(t) >= 0;   // (a context switch, not a frame)
   // G1703: the garage's silences, except on Radio Jolene with its talk on - a radio station fades song to song
   const gapped = c => GAPPED[c] === 1 && !(station === ST_TALK && talkOn);
+  const gap = c => gapped(c) && station !== ST_MINE;   // G1712: the player's own music does not go quiet either
 
   // the gain a deck's fade has at audio time t: FA x cos + FB x sin of the same phase (a level: FD = 0 -> FB)
   function lvlAt(k, t) {
@@ -325,14 +354,31 @@ var AUDIO_MUSIC = (function () {
     if (!el) return;
     try { el.pause(); el.removeAttribute('src'); el.load(); } catch (e) {}
     el.preload = 'none';
+    unblob(k);   // G1712: the player's file's object URL goes with it
+  }
+  // G1712: a deck's blob: URL for one of the player's files - made at its load, revoked at its release
+  function unblob(k) {
+    const d = decks[k];
+    if (!d || !d.blobUrl) return;
+    try { G.URL.revokeObjectURL(d.blobUrl); } catch (e) {}
+    d.blobUrl = '';
+    C.revoked++;
+  }
+  function srcOf(k, t) {
+    if (urls[t]) return urls[t];
+    const U = G.URL, b = cat[t] && cat[t].blob;
+    if (!b || !U || typeof U.createObjectURL !== 'function') return '';
+    unblob(k);
+    try { decks[k].blobUrl = U.createObjectURL(b); C.blobs++; } catch (e) { decks[k].blobUrl = ''; }
+    return decks[k].blobUrl;
   }
   function load(k, t, pos) {
     const o = k * K_N, el = decks[k].el;
     release(k);
-    DK[o + K_STATE] = ST_LOADED; DK[o + K_TRACK] = t; DK[o + K_POS] = pos || 0; DK[o + K_DUR] = cat[t].durationS;
+    DK[o + K_STATE] = ST_LOADED; DK[o + K_TRACK] = t; DK[o + K_POS] = pos || 0; DK[o + K_DUR] = cat[t].durationS || USER_DUR_S;
     DK[o + K_FD] = 0; DK[o + K_FB] = 0;
     el.preload = 'auto';
-    el.src = urls[t];
+    el.src = srcOf(k, t);
     if (pos > 0) { try { el.currentTime = pos; } catch (e) {} }
   }
   // start deck k (loading track t when it is not already loaded with it); fade: the seconds of its fade-in (0 = full)
@@ -402,7 +448,7 @@ var AUDIO_MUSIC = (function () {
       fadeOut(a, XFADE_S);
     }
     hideNow();
-    if (c >= 0 && !nextWithTalk(c)) startNext(c, a >= 0 ? XFADE_S : (gapped(c) ? 0 : XFADE_S));
+    if (c >= 0 && !nextWithTalk(c)) startNext(c, a >= 0 ? XFADE_S : (gap(c) ? 0 : XFADE_S));
   }
 
   // ---- THE RADIO: the station, the talk ---------------------------------------------------------------------------
@@ -460,9 +506,13 @@ var AUDIO_MUSIC = (function () {
   }
   // the station: persisted; a switch crossfades into the new station's next track (roots: tuned in with a break)
   function setStation(s, quiet) {
-    if (s !== 'off' && STATION_KEYS.indexOf(s) < 0) return false;
+    if (s !== 'off' && STATION_KEYS.indexOf(s) < 0 && !(s === ST_MINE && hasMine())) return false;
     if (s === station) return true;
+    if (station !== ST_MINE) prevStation = station;
+    if (s !== 'off') lastOn = s;
+    wantMine = false;
     station = s; prefPut('station', s); JOIN = 1;
+    tell();   // G1712: the bar and the boombox repaint
     cancelTalk();
     rebuildLists();
     RESUME_T.fill(-1);
@@ -480,9 +530,13 @@ var AUDIO_MUSIC = (function () {
   }
   function stepStation(d) {
     const n = STATION_KEYS.length, i = STATION_KEYS.indexOf(station);
+    if (hasMine()) {   // G1712: the player's folder joins the cycle, after the mix
+      const K = STATION_KEYS.concat([ST_MINE]), j = K.indexOf(station);
+      return setStation(K[j < 0 ? K.indexOf(ST_DEFAULT) : (j + d + K.length) % K.length]);
+    }
     return setStation(STATION_KEYS[i < 0 ? STATION_KEYS.indexOf(ST_DEFAULT) : (i + d + n) % n]);
   }
-  const labelOf = s => (s === 'off' ? 'radio off' : (STATIONS.find(r => r[0] === s) || [s, s])[1]);
+  const labelOf = s => (s === 'off' ? 'radio off' : s === ST_MINE ? MINE_LABEL + (mineName ? ' (' + mineName + ')' : '') : (STATIONS.find(r => r[0] === s) || [s, s])[1]);
   // the picker's words for a station: its label, and the fallback when it has no track yet
   const stationLine = s => labelOf(s) + (s !== 'off' && stationLists(cat, s).empty && s !== ST_DEFAULT ? ' — no tracks yet, plays ' + labelOf(ST_DEFAULT) : '');
   // the keys [ and ]: free in input.js's ACTIONS; yielded to a profile that binds them, to a modifier, to a text field
@@ -504,14 +558,14 @@ var AUDIO_MUSIC = (function () {
 
   // the element events (made once per element, on connect): the clocks into typed slots, the end, a failure
   function onTime(k) { const el = decks[k].el, v = +el.currentTime; if (v === v) DK[k * K_N + K_POS] = v; }
-  function onDur(k) { const el = decks[k].el, v = +el.duration; if (v > 0 && v < 1e6) DK[k * K_N + K_DUR] = v; }
+  function onDur(k) { const el = decks[k].el, v = +el.duration; if (v > 0 && v < 1e6) { DK[k * K_N + K_DUR] = v; const t = DK[k * K_N + K_TRACK]; if (t >= baseN && cat[t]) cat[t].durationS = v; } }
   function onEnded(k) {
     const st = DK[k * K_N + K_STATE], was = PS[S_ACT] === k;
     release(k);
     if (st !== ST_PLAYING || !was) return;
     const c = PS[S_CUR];
     if (c < 0) return;
-    if (gapped(c)) { if (!nextWithTalk(c)) PS[S_GAP] = GAP_MIN_S + rand() * (GAP_MAX_S - GAP_MIN_S); }   // (a break takes the silence's place)
+    if (gap(c)) { if (!nextWithTalk(c)) PS[S_GAP] = GAP_MIN_S + rand() * (GAP_MAX_S - GAP_MIN_S); }   // (a break takes the silence's place)
     else startNext(c, 0);   // (a track whose length was wrong: no crossfade came)
   }
   function onError(k) {
@@ -547,6 +601,7 @@ var AUDIO_MUSIC = (function () {
     const cruise = garage ? (CRUISE_ST[0] = 0, CRUISE_ST[1] = 0, 0) : cruiseStep(CRUISE_ST, s[I.onGround], s[I.agl], s[I.V], s[I.vs], s[I.flap], dt);
     const want = station === 'off' ? C_NONE : contextOf(au.welcome, PS[S_PHOTO] > 0, garage, au.get('musicGarage'), au.get('musicFlight'), cruise);
     if (want !== PS[S_CUR]) switchTo(want);
+    if (panner) { PS[S_PANT] -= dt; if (PS[S_PANT] <= 0) { PS[S_PANT] = PAN_EVERY_S; lean(au); } }   // G1714 (4 Hz)
     if (au.state === 'suspended') return;   // the timers wait with the sound
     for (let k = 0; k < 2; k++) {
       const o = k * K_N;
@@ -559,7 +614,7 @@ var AUDIO_MUSIC = (function () {
     if (c < 0) return;
     if (PS[S_RETRY] > 0) { PS[S_RETRY] -= dt; if (PS[S_RETRY] <= 0) { PS[S_RETRY] = 0; startNext(c, 0); } return; }
     const a = PS[S_ACT];
-    if (gapped(c)) {
+    if (gap(c)) {
       if (PS[S_GAP] >= 0) {
         PS[S_GAP] -= dt;
         if (PS[S_GAP] <= LEAD_S) preloadNext(c);
@@ -574,6 +629,27 @@ var AUDIO_MUSIC = (function () {
     const lead = up > xf ? up : xf;
     if (rem <= lead + LEAD_S) preloadNext(c);
     if (rem <= lead) { C.xfades++; const d = rem > xf ? rem : xf; fadeOut(a, d); if (!nextWithTalk(c)) startNext(c, d); }
+  }
+
+  // G1714: the side the radio is on, from the listener (the camera's right axis, its world matrix: no allocation)
+  function lean(au) {
+    let x = 0;
+    const cam = au.camera, m = cam && cam.matrixWorld && cam.matrixWorld.elements;
+    if (SRC[3] > 0 && au.inGarage && m) {
+      const dx = SRC[0] - m[12], dy = SRC[1] - m[13], dz = SRC[2] - m[14], d = Math.sqrt(dx * dx + dy * dy + dz * dz);
+      if (d > 1e-3) {
+        const near = Math.max(0, Math.min(1, (PAN_FAR - d) / (PAN_FAR - PAN_NEAR)));
+        x = PAN_K * near * (m[0] * dx + m[1] * dy + m[2] * dz) / d;
+      }
+    }
+    if (Math.abs(x - SRC[4]) < PAN_STEP && !(x === 0 && SRC[4] !== 0)) return;
+    SRC[4] = x;
+    const p = panner.pan;
+    if (p.setTargetAtTime) p.setTargetAtTime(x, ctx.currentTime, PAN_TAU); else p.value = x;
+  }
+  function setSourcePos(x, y, z) {
+    if (x == null) { SRC[3] = 0; return; }
+    SRC[0] = +x || 0; SRC[1] = +y || 0; SRC[2] = +z || 0; SRC[3] = 1;
   }
 
   // skip: the next track now (a crossfade; in a garage gap, the wait ends)
@@ -626,7 +702,7 @@ var AUDIO_MUSIC = (function () {
     const el = (tag, txt, css) => { const e = D.createElement(tag); if (txt != null) e.textContent = txt; if (css) e.style.cssText = css; return e; };
     card.appendChild(el('h2', 'Music & sound', 'margin:0 0 12px;font-size:16px;font-weight:600'));
     card.appendChild(el('h3', 'Music', 'margin:10px 0 6px;font-size:13px;opacity:.75'));
-    const rows = creditRows(cat);
+    const rows = creditRows(cat.slice(0, baseN));   // (G1712: the player's own files are not ours to credit)
     if (!rows.length) card.appendChild(el('p', 'No music ships yet.', 'margin:0;opacity:.7'));
     const ul = el('ul', null, 'margin:0;padding-left:18px');
     for (const r of rows) {
@@ -676,7 +752,10 @@ var AUDIO_MUSIC = (function () {
     ctx = c; A = au;
     const D = G.document;
     duck = c.createGain(); duck.gain.value = 1;
-    duck.connect(au.bus('music'));
+    // G1714: duck -> the lean -> the bus (a context with no StereoPanner: straight on, as before)
+    panner = typeof c.createStereoPanner === 'function' ? c.createStereoPanner() : null;
+    if (panner) { panner.pan.value = 0; duck.connect(panner); panner.connect(au.bus('music')); } else duck.connect(au.bus('music'));
+    SRC[4] = 0; PS[S_PANT] = 0;
     decks = [];
     if (!D || !D.createElement || !c.createMediaElementSource) { ctx = null; return; }   // no media elements here
     for (let k = 0; k < 2; k++) {
@@ -724,18 +803,56 @@ var AUDIO_MUSIC = (function () {
     }
     decks = [];
     try { if (duck) duck.disconnect(); } catch (e) {}
+    try { if (panner) panner.disconnect(); } catch (e) {}
+    panner = null;
     duck = null; ctx = null; A = null;
     PS[S_CUR] = C_NONE; PS[S_ACT] = -1;
     hideNow();
   }
   function setPhoto(on) { PS[S_PHOTO] = on ? 1 : 0; }
 
+  // ---- G1712 MY MUSIC: the player's files in, the station's lists, the decks that held the old ones let go ----------
+  const hasMine = () => cat.length > baseN;
+  // the 'station' event (AUDIO's bus of events: the quick bar and the boombox repaint); before the gesture AUDIO keeps the
+  // handlers all the same
+  function tell() { const AU = G.AUDIO; if (AU && AU.emit) AU.emit('station', station); }
+  // a title from a file name: no extension, no leading track number, separators as spaces
+  const titleOf = n => String(n).replace(/^.*[\\/]/, '').replace(/\.[^.]+$/, '').replace(/^\s*\d{1,3}\s*[-._)]\s*/, '').replace(/[_]+/g, ' ').trim() || String(n);
+  // files: File / Blob-likes with a name (my_music.js's list); name: the folder's. Returns how many it kept.
+  function setUserTracks(files, name) {
+    const list = Array.prototype.slice.call(files || []).filter(f => f && typeof f.name === 'string' && MINE_RE.test(f.name));
+    for (let k = 0; k < decks.length; k++) if (DK[k * K_N + K_TRACK] >= baseN) release(k);   // (their URLs revoked)
+    for (let c = 0; c < 4; c++) if (RESUME_T[c] >= baseN) RESUME_T[c] = -1;
+    for (let i = 0; i < 2; i++) if (REC[i] >= baseN) REC[i] = -1;
+    const old = bad;
+    cat = cat.slice(0, baseN).concat(list.map((f, i) => ({ id: 'mine' + i, file: '', title: titleOf(f.name), artist: name || MINE_LABEL,
+      album: '', licence: 'your own file', source: '', station: ST_MINE, contexts: CTX_NAMES.slice(), durationS: 0, user: 1, blob: f })));
+    urls = urls.slice(0, baseN).concat(list.map(() => ''));
+    const tr = new Float64Array(cat.length); tr.set(trims.subarray(0, baseN)); tr.fill(1, baseN); trims = tr;
+    nows = nows.slice(0, baseN).concat(cat.slice(baseN).map(nowLine));
+    bad = new Uint8Array(cat.length); bad.set(old.subarray(0, baseN));
+    delete bagsBy[ST_MINE];
+    mineName = list.length ? String(name || '') : '';
+    if (station === ST_MINE) {
+      if (!list.length) { setStation(prevStation === ST_MINE ? ST_START : prevStation); return 0; }
+      rebuildLists();
+      JOIN = 1; PS[S_GAP] = -1;
+      const c = PS[S_CUR];
+      if (ctx && c >= 0 && PS[S_ACT] < 0) startNext(c, 0);
+    } else if (wantMine && list.length) setStation(ST_MINE);
+    tell();
+    return list.length;
+  }
+
   setCatalogue(G.FLYDIY_MUSIC || []);
   const api = {
     CTX_NAMES, CRUISE, XFADE_S, GAP_MIN_S, GAP_MAX_S, DUCK_K, DUCK_HOLD_S, LUFS_TARGET, SOUND_CREDITS, FILE_RE, LICENCE_RE,
     validate, contextLists, creditRows, creditLine, cruiseStep, contextOf, makeBag, bagNext, trimOf,
     STATIONS, STATION_KEYS, ST_MIX, BED_K, BED_IN_S, BED_UP_S, VOICE_K, TALK_EVERY, TALK_UP_S, stationLists, stationOf, stationLine,
-    setStation, stepStation, get station() { return station; }, get stationFell() { return fell.slice(); },
+    setStation, stepStation, get station() { return station; },
+    setSourcePos, get pan() { return SRC[4]; }, PAN_K, PAN_NEAR, PAN_FAR, ST_MINE, MINE_RE, setUserTracks, titleOf, get hasMine() { return hasMine(); }, get mineCount() { return cat.length - baseN; }, get mineName() { return mineName; }, labelOf,
+    // the station a radio turned back on plays: the last one that was on (the folder's only while it is there)
+    get lastStation() { return lastOn === ST_MINE && !hasMine() ? (prevStation !== 'off' ? prevStation : ST_START) : (STATION_KEYS.indexOf(lastOn) >= 0 || lastOn === ST_MINE ? lastOn : ST_START); }, get stationFell() { return fell.slice(); },
     get talk() { return talkOn; }, setTalk(on) { talkOn = !!on; prefPut('radioTalk', talkOn ? 1 : 0); if (!talkOn) cancelTalk(); },
     get talkEvery() { return talkEvery; }, setTalkEvery(n) { talkEvery = Math.max(TALK_MIN, Math.min(TALK_MAX, Math.round(+n) || TALK_EVERY)); prefPut('radioEvery', talkEvery); },
     get voice() { return voiceName; }, setVoice(n) { voiceName = String(n || ''); prefPut('radioVoice', voiceName); },
@@ -762,7 +879,7 @@ var AUDIO_MUSIC = (function () {
         for (const [v, t] of opts) { const o = D.createElement('option'); o.value = v; o.textContent = t; sel.appendChild(o); }
         sel.value = cur; sel.onchange = () => fn(sel.value); r.appendChild(sel); return sel;
       };
-      pick('station', STATION_KEYS.concat(['off']).map(k => [k, stationLine(k)]), station, v => setStation(v));
+      pick('station', STATION_KEYS.concat(['off']).map(k => [k, stationLine(k)]).concat(hasMine() ? [[ST_MINE, stationLine(ST_MINE)]] : []), station, v => setStation(v));
       toggle('Radio Jolene talk', () => talkOn, on => api.setTalk(on));
       kit.range(body, 'talk every', TALK_MIN, TALK_MAX, 1, () => talkEvery, v => api.setTalkEvery(v), v => v + (v === 1 ? ' track' : ' tracks'));
       const vs = speaker ? speaker.voices() : [];

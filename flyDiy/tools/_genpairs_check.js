@@ -5,8 +5,8 @@
 // where HTL/HTR coincide with the boom chain). For every configuration here: every node finite, every beam between
 // two distinct nodes with a length over 1 mm, every mass finite and positive, and the lattice mirror-symmetric in
 // positions and masses about z = 0. Verdict contract: one final `GATE GENPAIRS: PASS|FAIL`, exit code to match.
-// NOT REGISTERED in run_gates.js yet: RED on master (the twin boom's zero-length beams) until B10 is fixed; register
-// as core then (~10 s).
+// REGISTERED as core by GEN-PAIRS G1580 (B10 fixed: the stab's tagged boom node IS the boom's tail-triangle top when
+// the stab sits on the crown). B() refuses a zero-length member and counts it on parts.degenerate: held at 0 here.
 const C = require('./flight_core.js');
 const base = () => JSON.parse(JSON.stringify(C.GEN_DEFAULT));
 const mut = {
@@ -39,6 +39,8 @@ for (const cfg of CONFIGS) {
   const key = (x, y, z) => `${x.toFixed(3)}|${y.toFixed(3)}|${z.toFixed(3)}`;
   const map = new Map(); for (const nd of N) map.set(key(nd.p[0], nd.p[1], nd.p[2]), nd);
   for (const nd of N) { if (Math.abs(nd.p[2]) < 1e-3) continue; const t = map.get(key(nd.p[0], nd.p[1], -nd.p[2])); if (!t || Math.abs(t.m - nd.m) > 1e-6) asym++; }
+  const deg = (def.parts && def.parts.degenerate) || [];
+  if (deg.length) bad.push(`${deg.length} members refused at zero length (${deg.slice(0, 3).map(r => N[r[0]].tag + '-' + N[r[1]].tag).join(' ')})`);
   if (nanN) bad.push(`${nanN} non-finite nodes`); if (badM) bad.push(`${badM} bad masses`); if (zero) bad.push(`${zero} zero-length beams`);
   if (badRef) bad.push(`${badRef} bad beam refs`); if (asym) bad.push(`${asym} unmirrored nodes`);
   console.log(`${bad.length ? 'BAD' : 'ok '} ${label.padEnd(18)} nodes ${String(N.length).padStart(4)} beams ${String(B.length).padStart(4)}${bad.length ? '  ' + bad.join(', ') : ''}`);

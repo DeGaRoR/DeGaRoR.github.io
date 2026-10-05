@@ -8,9 +8,10 @@
 </style></head>
 <body>
 <div class="lab" id="lb" style="left:10px">BEFORE (master)</div>
-<div class="lab" id="la" style="left:calc(50% + 10px)">AFTER (G1415)</div>
+<div class="lab" id="la" style="left:calc(50% + 10px)">AFTER (G1545)</div>
 <div class="cap" id="cap"></div>
 <script src="../vendor/three.min.js"></script>
+<script src="../src/viewer/matlib.js"></script>
 <script>
 // rwylights_bench.html - G1415-G1419 (RUNWAY-LIGHTS): the runway lights BEFORE and AFTER, side by side, on the real
 // three r186 and the real code: each side's light block (RWY ... standRunwayLights, runwayLightsApply) is LIFTED out of
@@ -20,6 +21,8 @@
 // game: no aerial perspective, no post (no bloom), a plain hemisphere + sun, the exposure 1 on both sides (the lights'
 // own level law, at exposure 0.92 - k = 1). Driven by tools/rwylights_shots.js (BENCH.build(beforeText, afterText),
 // BENCH.view(name)).
+// G1545-G1549 (RUNWAY-LIGHTS-2): matlib.js loaded (the light block makes its materials through MATLIB since train 28);
+// the views of the shroud added - from the side, from behind a threshold, from above, the downwind leg, the final turn.
 'use strict';
 const W = 1920, H = 540;
 const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -90,6 +93,12 @@ const BENCH = {
   VIEWS: {
     night_1km:   [[-1450, 52.5, 0], [-150, 0, 0], false, 25, 'night - on the approach, 1 km from the threshold, 3 deg (fov 25: a zoomed eye)'],
     night_300m:  [[-750, 15.7, 0], [-250, 0, 0], false, 40, 'night - on the approach, 300 m from the threshold, 3 deg'],
+    night_side:  [[0, 2.4, -400], [0, 0, 0], false, 60, 'night - from the side, 400 m abeam the strip\'s middle, eye 2.4 m'],
+    night_behind: [[-380, 2.4, 0], [-480, 0, 0], false, 50, 'night - lined up on the runway 70 m in, looking BACK over the threshold (behind its green)'],
+    night_above: [[-450, 300, -150], [0, 0, 0], false, 50, 'night - from above: 300 m up over the near end, looking down the strip (~30 deg down)'],
+    night_downwind: [[0, 305, -1000], [0, 0, 0], false, 40, 'night - the downwind leg: 1,000 ft up, 1 km abeam (the side and above)'],
+    night_turn:  [[-1450, 80, -650], [-150, 0, 0], false, 35, 'night - the final turn: 1.4 km out, 25 deg off the axis, 80 m up'],
+    night_colour: [[-490, 3, -4], [-300, 0.3, -16.5], false, 18, 'night - the colour: just outside the threshold, eye 3 m, zoomed (fov 18) down the edge row to the far end'],
     night_stand: [[-120, 2.4, -95], [120, 0, 0], false, 55, 'night - from a stand 95 m off the strip, eye 2.4 m'],
     night_taxi:  [[-215, 2.4, -24], [0, 0.3, -16.5], false, 45, 'night - taxiing beside the edge row, 8 m off it, eye 2.4 m (the lights from 10 m to 600 m)'],
     day_close:   [[-91.3, 0.62, -18.4], [-89.9, 0.2, -16.5], true, 45, 'day - close to an edge light (2 m), the strip behind'],

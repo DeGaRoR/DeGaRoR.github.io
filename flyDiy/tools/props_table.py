@@ -48,6 +48,7 @@ GROUPS = [
 # Source provenance, keyed by the assets/props/<src> folder. `lic` drives what
 # CREDITS.md must carry: CC0 needs nothing, CC-BY needs visible attribution.
 SOURCES = {
+    'boombox':                     ('Boombox', 'Poly Haven (Thomas Paul Mouilleron)', 'CC0', 'https://polyhaven.com/a/boombox'),
     'barrel_02':                   ('Barrel 02', 'Poly Haven', 'CC0', 'https://polyhaven.com/a/Barrel_02'),
     'barrel_03':                   ('Barrel 03', 'Poly Haven', 'CC0', 'https://polyhaven.com/a/barrel_03'),
     'bench_vice_01':               ('Bench Vice 01', 'Poly Haven', 'CC0', 'https://polyhaven.com/a/bench_vice_01'),
@@ -249,6 +250,10 @@ PROPS = [
     P('radio_bench', 'curio', 'vintage transceiver', 'vintage_radio_transceiver',
       'vintage_radio_transceiver_1k.gltf',
       'replaces the drawn box-and-disc shop radio', place='surface'),
+    P('boombox', 'curio', 'boombox', 'boombox', 'boombox_1k.gltf',
+      'the garage radio (SND-BOOMBOX, the user 2026-10-05): a vintage 80s portable stood on the floor by '
+      'the aeroplane, clickable, opening the radio controls. 0.72 x 0.47 x 0.19 m, 10 168 tris as delivered; '
+      'the speaker grilles are alpha-MASK in the file (baked as blend)', place='floor'),
     P('instrument_panel', 'curio', 'vintage instrument', 'vintage_spacecraft_instrument',
       'vintage_spacecraft_instrument_1k.gltf', 'shelf curio', place='surface'),
     P('plan_wall', 'curio', 'hand-drawn aeroplane plan', 'plan_avion',

@@ -15,7 +15,7 @@
 // node tools/test_massproof.js            -> the battery
 // node tools/test_massproof.js --selftest -> negative verification
 'use strict';
-const { makeSim, makeTestPilot, buildGen, genShakedown } =
+const { makeSim, makeTestPilot, buildGen, genShakedown, genSpecAtFuel } =
   require('./flight_core.js');
 
 const fails = [];
@@ -73,10 +73,20 @@ function checkReserve(o) {
   check(o.reserve && o.reserve.mass < o.mass - 15,
     'reserve: it is lighter (' + (o.reserve ? o.reserve.mass.toFixed(0) : '—') +
     ' vs ' + o.mass.toFixed(0) + ' kg)');
-  check(o.reserve && Math.abs(o.reserve.staticMargin - o.staticMargin) > 0.002,
-    'reserve: the static margin MOVES with the fuel (' +
-    (o.reserve ? o.reserve.staticMargin.toFixed(3) : '—') + ' vs ' +
-    o.staticMargin.toFixed(3) + ') — the single-number plaque was the lie');
+  // SPEC-FIXPOINT (G1550): the reserve sheet is now the SAME airframe at 15 %
+  // fuel. The old 0.002 bar was cleared by a DIFFERENT one - smaller tank
+  // shells, shorter fuel lines, a re-solved gauge and gear - and on this
+  // wing-panel tank (it sits at the CG) the honest margin moves 0.0006: the
+  // CG walks 15 mm forward and the neutral point with it. What proves the
+  // sheet is no copy of the full one is the CG walking and the margin differing.
+  check(o.reserve && o.cgX != null && o.cgXRes != null && Math.abs(o.cgXRes - o.cgX) > 0.005,
+    'reserve: the CG MOVES with the fuel (' +
+    (o.cgXRes != null ? o.cgXRes.toFixed(3) : '—') + ' vs ' +
+    (o.cgX != null ? o.cgX.toFixed(3) : '—') + ' m) — the single-number plaque was the lie');
+  check(o.reserve && Math.abs(o.reserve.staticMargin - o.staticMargin) > 1e-4,
+    'reserve: ...and so does the static margin (' +
+    (o.reserve ? o.reserve.staticMargin.toFixed(4) : '—') + ' vs ' +
+    o.staticMargin.toFixed(4) + ')');
   check(o.dryReserve === undefined,
     'reserve: no sheet when there is no fuel to burn');
 }
@@ -126,7 +136,10 @@ if (process.argv.includes('--selftest')) {
     ['taxi feedforward frozen', checkTaxi, { before: 0.21, after: 0.21 }],
     ['reserve margin does not move', checkReserve,
      { reserve: { mass: 500, staticMargin: 0.2 }, mass: 540, staticMargin: 0.2,
-       dryReserve: undefined }],
+       cgX: 1.0, cgXRes: 1.02, dryReserve: undefined }],
+    ['reserve CG does not move', checkReserve,
+     { reserve: { mass: 500, staticMargin: 0.19 }, mass: 540, staticMargin: 0.2,
+       cgX: 1.0, cgXRes: 1.0, dryReserve: undefined }],
     ['envelope names the wrong aft corner', checkEnvelope,
      { envelope: { corners: [
          { label: 'solo \u00b7 full fuel', cgX: 1.0, staticMargin: 0.20 },
@@ -227,7 +240,9 @@ console.log('-- the sheet at reserves (B5) --');
 {
   const sh = genShakedown(def);
   const dry = genShakedown(buildGen({ fuel: { litres: 0 } }));
-  checkReserve({ reserve: sh.reserve, mass: sh.mass,
+  // the reserve sheet's CG, through the sheet's own door (genSpecAtFuel)
+  const cgXRes = sh.reserve ? genShakedown(buildGen(genSpecAtFuel(def.spec, sh.reserve.litres)), { slim: true }).cgX : null;
+  checkReserve({ reserve: sh.reserve, mass: sh.mass, cgX: sh.cgX, cgXRes,
                  staticMargin: sh.staticMargin, dryReserve: dry.reserve });
 }
 

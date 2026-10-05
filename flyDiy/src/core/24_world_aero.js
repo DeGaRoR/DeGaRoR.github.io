@@ -10,9 +10,9 @@
 // Deterministic: fixed iteration orders, hash jitter only.
 // ============================================================
 function bakeAerodromes(D) {
-  // D: { terrain(x,z), water(x,z), settlements, meadows, roadNear, SURFACE, salt }
+  // D: { terrain(x,z), water(x,z), carved(x,z), settlements, meadows, roadNear, SURFACE, salt }
   const t0 = Date.now();
-  const { terrain, water, settlements, meadows, roadNear, SURFACE, salt } = D;
+  const { terrain, water, carved, settlements, meadows, roadNear, SURFACE, salt } = D;
   const smf01 = t => { t = Math.min(1, Math.max(0, t)); return t * t * (3 - 2 * t); };
   const hash2 = (ix, iz) => {
     let h = (ix * 786433 + iz * 393241 + 65213 + salt) | 0;
@@ -47,6 +47,32 @@ function bakeAerodromes(D) {
     }
     return { flat, slopeMax, elev, wet };
   }
+  // THE STRIP STANDS ON ITS OWN GROUND (G1560, REVIEW 2026-10-04 A5). probe() above scores a candidate on eleven
+  // centreline points - 65 m apart on a 650 m field, and a river fits between two of them: seed 0's A2 "Pelham Field"
+  // was sited across one (5.43 m of trench and water under a record that said elev 24.4), and the grading below cannot
+  // fill it - baseH (20_world.js) fades the grade out by the carve depth, by design, so a bed stays a bed. So a
+  // candidate that WINS on the score is walked before it is taken: every STEP metres down the centreline and down both
+  // edges of the graded flat (wid/2 + 6, the grade's own shoulder), no carve under it (a river's bank, a lake's bed:
+  // `carved` is tV2's carve depth) and no water over it. A candidate that fails it gives way to the next best - the
+  // score's own order, so a strip that was clean stands where it stood, on the elev it had. Only winners are walked
+  // (a few per town, a few backcountry benches): the bake's cost does not move.
+  const STEP = 4;
+  const NUDGE = [];
+  for (const dv of [0, -60, 60, -120, 120, -180, 180, -240, 240]) for (const du of [0, -80, 80, -160, 160]) if (du || dv) NUDGE.push([du, dv]);
+  function clean(cx, cz, hdg, len, wid) {
+    const dx = Math.cos(hdg), dz = Math.sin(hdg), hw = wid / 2 + 6;
+    const n = Math.ceil(len / STEP);
+    for (let i = 0; i <= n; i++) {
+      const t = (i / n - 0.5) * len;
+      for (const v of [-hw, 0, hw]) {
+        const x = cx + dx * t - dz * v, z = cz + dz * t + dx * v;
+        if (carved(x, z) > 1e-3) return false;
+        const h = terrain(x, z);
+        if (h < 1.2 || water(x, z) > h) return false;
+      }
+    }
+    return true;
+  }
   const nearMeadow = (x, z, f) => meadows.some(m => Math.hypot(x - m.x, z - m.z) < m.r * f);
   const inHomeZone = (x, z) =>
     (x > -3400 && x < 400 && Math.abs(z) < 500) ||     // circuit band
@@ -56,8 +82,11 @@ function bakeAerodromes(D) {
   function push(cx, cz, hdg, len, wid, surf, elev, name, kind, flyIn) {
     const dx = Math.cos(hdg), dz = Math.sin(hdg);
     const feather = 90 + len * 0.1;
-    const ex = Math.abs(dx) * len / 2 + Math.abs(dz) * wid / 2 + feather;
-    const ez = Math.abs(dz) * len / 2 + Math.abs(dx) * wid / 2 + feather;
+    // the box holds the WHOLE feather (G1560, REVIEW C-world): grade() flattens wid/2 + 6 across and feathers past
+    // that, and the box stopped at wid/2 + feather - the grade was cut off 6 m short of its end on the long sides,
+    // a C0 step in the ground along the box's edge
+    const ex = Math.abs(dx) * len / 2 + Math.abs(dz) * (wid / 2 + 6) + feather;
+    const ez = Math.abs(dz) * len / 2 + Math.abs(dx) * (wid / 2 + 6) + feather;
     // tdz on the APPROACH side: threshold + 20% (G381; was 25%) (landing dir = -takeoffDir,
     // so the threshold is the +takeoffDir end). The W9 formula had it on
     // the rollout end — frame math was self-consistent so landings "worked",
@@ -81,7 +110,9 @@ function bakeAerodromes(D) {
     const len = s.pop >= 800 ? 900 : s.pop >= 450 ? 650 : 480;
     const wid = len >= 900 ? 30 : 22;
     const surf = len >= 900 ? SURFACE.PAVED : SURFACE.GRASS;
-    let best = null;
+    // every candidate the score admits, in the search's order; the cheapest CLEAN one is taken (ties: the earliest,
+    // as the old strict `<` kept them) - the old pick whenever it was clean
+    const cands = [];
     const r0 = Math.max(320, s.r + 160);
     for (let ri = 0; ri < 3; ri++) for (let ai = 0; ai < 12; ai++) {
       const ang = (ai / 12) * 2 * Math.PI + hash2(si * 37 + ri, ai) * 0.2;
@@ -94,8 +125,32 @@ function bakeAerodromes(D) {
         const p = probe(cx, cz, hdg, len, wid);
         if (p.wet || p.flat > 6 || p.slopeMax > 0.06) continue;
         const cost = p.flat + p.slopeMax * 60 + Math.min(2, roadNear(cx, cz) / 600);
-        if (!best || cost < best.cost) best = { cx, cz, hdg, cost, elev: p.elev };
+        cands.push({ cx, cz, hdg, cost, elev: p.elev, i: cands.length });
       }
+    }
+    cands.sort((a, b) => (a.cost - b.cost) || (a.i - b.i));
+    let best = null;
+    for (const c of cands) if (clean(c.cx, c.cz, c.hdg, len, wid)) { best = c; break; }
+    // NONE CLEAN: THE FIELD MOVES, it is not dropped (a river town - seed 0's Pelham, its every candidate across a
+    // 45 m river's bank). Each admitted candidate is slid along and across its own axis (NUDGE, metres) and the
+    // slid sites are scored and walked the same way; the town keeps its field and every later strip its id
+    // (PILOTMATRIX flies A3 and A5 by id). Only a town with no clean candidate pays for this.
+    if (!best && cands.length) {
+      const more = [];
+      for (const c of cands) {
+        const ux = Math.cos(c.hdg), uz = Math.sin(c.hdg);
+        for (const [du, dv] of NUDGE) {
+          const cx = c.cx + ux * du - uz * dv, cz = c.cz + uz * du + ux * dv;
+          if (inHomeZone(cx, cz) || nearMeadow(cx, cz, 1.8) || !farFromStrips(cx, cz, 1500)) continue;
+          if (roadNear(cx, cz) > 1100) continue;
+          const p = probe(cx, cz, c.hdg, len, wid);
+          if (p.wet || p.flat > 6 || p.slopeMax > 0.06) continue;
+          const cost = p.flat + p.slopeMax * 60 + Math.min(2, roadNear(cx, cz) / 600);
+          more.push({ cx, cz, hdg: c.hdg, cost, elev: p.elev, i: more.length });
+        }
+      }
+      more.sort((a, b) => (a.cost - b.cost) || (a.i - b.i));
+      for (const c of more) if (clean(c.cx, c.cz, c.hdg, len, wid)) { best = c; break; }
     }
     if (best)
       push(best.cx, best.cz, best.hdg, len, wid, surf, best.elev,
@@ -113,21 +168,35 @@ function bakeAerodromes(D) {
         if (h < 90 || h > 420) continue;
         if (inHomeZone(cx, cz) || nearMeadow(cx, cz, 1.8)) continue;
         if (settlements.some(s => Math.hypot(cx - s.x, cz - s.z) < 1800)) continue;
-        let bestH = null;
+        // the headings the score admits, flattest first (ties: the earliest heading, as the old strict `<` kept them);
+        // the site stands in the list at its flattest, and is walked (clean) only when the list reaches it
+        const hs = [];
         for (let hi = 0; hi < 8; hi++) {
           const hdg = hi * Math.PI / 8;
           const p = probe(cx, cz, hdg, 340, 18);
           if (p.wet || p.flat > 5 || p.slopeMax > 0.05) continue;
-          if (!bestH || p.flat < bestH.flat) bestH = { hdg, flat: p.flat, elev: p.elev };
+          hs.push({ hdg, flat: p.flat, elev: p.elev, hi });
         }
-        if (bestH) cand.push({ cx, cz, ...bestH });
+        hs.sort((a, b) => (a.flat - b.flat) || (a.hi - b.hi));
+        if (hs.length) cand.push({ cx, cz, hdg: hs[0].hdg, flat: hs[0].flat, elev: hs[0].elev, hs, k: 0 });
       }
     }
-    cand.sort((a, b) => (a.flat - b.flat) || (a.cx - b.cx) || (a.cz - b.cz));
+    const cOrd = (a, b) => (a.flat - b.flat) || (a.cx - b.cx) || (a.cz - b.cz);
+    cand.sort(cOrd);
     const SYL = ['Kar', 'Tyl', 'Ulv', 'Brekk', 'Stein', 'Vass'];
-    for (const c of cand) {
+    while (cand.length) {
+      const c = cand.shift();
       if (strips.filter(st => st.kind === 'strip').length >= 3) break;
       if (!farFromStrips(c.cx, c.cz, 3000)) continue;
+      if (!clean(c.cx, c.cz, c.hdg, 340, 18)) {
+        // its flattest heading crosses a bed or water: the site goes back in the list at its next heading's flatness
+        if (++c.k < c.hs.length) {
+          const h = c.hs[c.k]; c.hdg = h.hdg; c.flat = h.flat; c.elev = h.elev;
+          let at = 0; while (at < cand.length && cOrd(cand[at], c) <= 0) at++;
+          cand.splice(at, 0, c);
+        }
+        continue;
+      }
       let nm = '';
       for (let v = 0; v < SYL.length; v++) {   // rotate on collision
         nm = SYL[(((hash2(Math.round(c.cx), Math.round(c.cz)) * SYL.length) | 0) + v) % SYL.length] + ' Strip';

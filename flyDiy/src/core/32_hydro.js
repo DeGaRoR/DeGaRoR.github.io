@@ -1689,6 +1689,18 @@ const WB_DRAIN = 30;            // s: a slice out of the water drains (its flood
 const WB_BREACH_K = 10;         // a holed slice floods this much faster
 const WB_BETA_MIN = 10 * D2R;   // the slam's floor on a face's deadrise: a flat bottom is cushioned (air, skin flex)
 const WB_WING_TC = 0.12;        // the wing slab's thickness over chord (no per-strip thickness in the def)
+// G1385 TANKS-FLOAT: THE REAL TANKS. Each fuel vessel (spec.energy.vessels, GEN_TANKS' stations) is its own buoyant
+// volume where the frame billed its kilos (the vessel's `_pair`, split by side: a wing tank is two tanks), its design
+// capacity in litres. SEALED: the trapped air (capacity - the fuel in it now) does not flood like the cloth; only a
+// holed tank floods, the slam's rule - its host hull slice slammed past the vessel's own breach pressure (a wing tank's
+// slab takes no slam: never holed, a stated cut), then at that slice's holed rate. THE FUEL IS NOT DEAD WEIGHT IN THE
+// WATER: a sealed tank displaces its whole volume, the fuel's share too (avgas 0.72 kg/L floats), while the fuel's
+// kilos ride the nodes the burn drains (setNodeMass) - so a burnt litre raises the NET lift by its 0.72 kg, and the
+// air it leaves is what a holed tank can lose. The tank's volume is carved out of its host's flooding air (a wing slab,
+// a hull slice; a tank ahead of the firewall has none), so at the moment of entry the build holds the air it held
+// before - the tank's share just no longer floods. Breach pressures INFERRED (a welded tank behind the skin outlasts
+// the skin; a bladder or a moulded tank less so). The vent's slow leak is not modelled (a stated cut).
+const WB_TANK_BREACH = { alu: 400e3, bladder: 300e3, moulded: 300e3, wet: 400e3 };
 // the 27 sample points of a slice (the cell midpoints of a 3 x 3 x 3 grid on the unit cube) and their trilinear weights
 const WB_Q = (() => { const q = []; for (let k = 0; k < 3; k++) for (let j = 0; j < 3; j++) for (let i = 0; i < 3; i++) {
   const u = (i + 0.5) / 3, v = (j + 0.5) / 3, w = (k + 0.5) / 3;
@@ -1697,7 +1709,70 @@ const WB_Q = (() => { const q = []; for (let k = 0; k < 3; k++) for (let j = 0; 
     const fu = ci ? u : 1 - u, fv = cj ? v : 1 - v, fw = ck ? w : 1 - w, su = ci ? 1 : -1, sv = cj ? 1 : -1, sw = ck ? 1 : -1;
     N[c] = fu * fv * fw; dU[c] = su * fv * fw; dV[c] = fu * sv * fw; dW[c] = fu * fv * sw; }
   q.push({ N, dU, dV, dW }); } return q; })();
-function wetBuild(def, p, v, m) {
+// a hull slice's volume as built (its 27 samples' Jacobians on the rest positions)
+function sliceVol0(def, n8) {
+  let vol = 0;
+  for (const Q of WB_Q) {
+    let ux = 0, uy = 0, uz = 0, vx = 0, vy = 0, vz = 0, wx = 0, wy = 0, wz = 0;
+    for (let c = 0; c < 8; c++) { const P = def.nodes[n8[c]].p;
+      ux += Q.dU[c] * P[0]; uy += Q.dU[c] * P[1]; uz += Q.dU[c] * P[2];
+      vx += Q.dV[c] * P[0]; vy += Q.dV[c] * P[1]; vz += Q.dV[c] * P[2];
+      wx += Q.dW[c] * P[0]; wy += Q.dW[c] * P[1]; wz += Q.dW[c] * P[2]; }
+    vol += Math.abs(ux * (vy * wz - vz * wy) - uy * (vx * wz - vz * wx) + uz * (vx * wy - vy * wx)) / 27;
+  }
+  return vol;
+}
+// G1385: the tanks, per side, each with its host (a slab or a slice) carved; see WB_TANK_BREACH
+function wetTanks(def, spec, F, slices, slabs, MAT) {
+  const tanks = [], E = spec.energy;
+  if (!E || E.kind === 'battery' || !Array.isArray(E.vessels) || !E.vessels.length) return tanks;
+  const fu = spec.fuel || {};
+  // genSpecAtFuel scales the vessels' capacity to the litres carried and keeps the design's in fuel.designL: the TANK
+  // is the design's
+  const k0 = fu.designL > 0 && fu.litres > 0 ? fu.designL / fu.litres : 1;
+  const breach = WB_TANK_BREACH[E.vessel || 'alu'] || WB_TANK_BREACH.alu;
+  const X = Array.isArray(F) && F.length >= 2 && slices.length
+    ? F.map(s => (def.nodes[s.BL].p[0] + def.nodes[s.BR].p[0] + def.nodes[s.TL].p[0] + def.nodes[s.TR].p[0]) / 4) : null;
+  E.vessels.forEach((ves, k) => {
+    const pair = ves && ves._pair;
+    if (!Array.isArray(pair) || !pair.length) return;
+    let capL = (+ves.capacity || 0) * k0;
+    if (!(capL > 0) && fu.designL > 0 && !(fu.litres > 0)) capL = fu.designL / E.vessels.length;   // built empty
+    if (!(capL > 0)) return;
+    const fuelL = +ves.capacity || 0;             // as built: the vessel's billed litres (the solver's fuel.vessels[k])
+    const sides = new Map();
+    let wT = 0;
+    for (const [i, w] of pair) { if (!(w > 0) || !def.nodes[i]) continue;
+      const z = def.nodes[i].p[2], s = z > 0.05 ? 1 : z < -0.05 ? -1 : 0;
+      if (!sides.has(s)) sides.set(s, []); sides.get(s).push([i, w]); wT += w; }
+    for (const g of sides.values()) {
+      const ws = g.reduce((a, x) => a + x[1], 0), share = ws / wT, vol = capL / 1000 * share;
+      const n = g.map(x => x[0]), w = g.map(x => x[1] / ws);
+      const T = { n, w, k, share, vol, fuel0: fuelL / 1000 * share, th: Math.max(0.1, Math.min(0.6, Math.cbrt(capL / 1000))),
+                  breach: Infinity, tau: MAT.tau / WB_BREACH_K, host: -1, slab: false, f: 0, br: false, wetS: 0 };
+      // a wing tank: the slabs that hold most of its nodes (a node on a rib is two strips'), carved alike
+      let best = 0, hs = [];
+      slabs.forEach((SB, j) => { const c = n.filter(i => SB.n.includes(i)).length;
+        if (c > best) { best = c; hs = [j]; } else if (c && c === best) hs.push(j); });
+      if (hs.length) {
+        T.slab = true; T.th = hs.reduce((a, j) => a + slabs[j].th, 0) / hs.length;
+        for (const j of hs) slabs[j].air = Math.max(0, slabs[j].air - vol / hs.length / slabs[j].vol);
+      } else if (X) {
+        // a body tank: the hull slice its kilos sit in (by the frame's rest x), slammed past the vessel's breach -> holed
+        let x = 0; for (let c = 0; c < n.length; c++) x += w[c] * def.nodes[n[c]].p[0];
+        for (let j = 0; j + 1 < X.length && j < slices.length; j++) if (x >= X[j] && x < X[j + 1]) { T.host = j; break; }
+        if (T.host >= 0) {
+          const S8 = slices[T.host], v0 = sliceVol0(def, S8.n);
+          if (v0 > 1e-6) S8.air = Math.max(0, S8.air - vol / v0);
+          T.breach = breach; T.tau = S8.tau / WB_BREACH_K;
+        }
+      }
+      tanks.push(T);
+    }
+  });
+  return tanks;
+}
+function wetBuild(def, p, v, m, fuel) {
   if (def.parts && def.parts.floats && def.parts.floats.length) return null;
   const F = def.parts && def.parts.F;
   const refs = def.refs || {};
@@ -1713,7 +1788,7 @@ function wetBuild(def, p, v, m) {
   // (a hull face) the slice it closes - the slam's breach floods that slice
   let curSl = -1;
   const T = (a, b, c, two, kA) => tris.push({ n: [a, b, c], two: !!two, kA: kA || 1, sl: two ? -1 : curSl });
-  const SL = n8 => slices.push({ n: n8, air: open ? 0 : MAT.air, tau: MAT.tau, breach: MAT.breach, f: 0, br: false, wetS: 0 });
+  const SL = n8 => slices.push({ n: n8, air: open ? 0 : MAT.air, air0: open ? 0 : MAT.air, tau: MAT.tau, breach: MAT.breach, f: 0, br: false, wetS: 0, pk: 0 });
   if (!open && Array.isArray(F) && F.length >= 2 && F.every(s => s && [s.BL, s.BR, s.TL, s.TR].every(i => i != null && def.nodes[i]))) {
     const h0 = tris.length;
     for (let k = 0; k + 1 < F.length; k++) {
@@ -1760,18 +1835,19 @@ function wetBuild(def, p, v, m) {
       let wk = 'fabric';
       try { if (typeof genSurfKey === 'function') wk = genSurfKey(spec, 'wing', st.plane || 0); } catch (e) {}
       const WM = WB_WING[wk] || WB_WING.fabric, th = WB_WING_TC * st.chord;
-      slabs.push({ n: q, vol: 0.68 * st.area * th, th, air: WM.air, tau: WM.tau, f: 0, wetS: 0 });
+      slabs.push({ n: q, vol: 0.68 * st.area * th, th, air: WM.air, air0: WM.air, tau: WM.tau, f: 0, wetS: 0 });
     }
   }
+  const tanks = wetTanks(def, spec, F, slices, slabs, MAT);
   if (!tris.length && !wheels.length) return null;
-  const nodes = [...new Set([].concat(...tris.map(t => t.n), ...slices.map(s => s.n), ...slabs.map(s => s.n), wheels))];
+  const nodes = [...new Set([].concat(...tris.map(t => t.n), ...slices.map(s => s.n), ...slabs.map(s => s.n), ...tanks.map(s => s.n), wheels))];
   const R = new Float64Array(p.length / 3); for (const i of wheels) R[i] = def.nodes[i].r;
   // the axle's direction: the mains' pair, else the firewall's bottom edge (left -> right)
   const M = refs.mains || [];
   const axPair = M.length >= 2 ? [M[0], M[M.length - 1]] : (Array.isArray(F) && F.length ? [F[0].BL, F[0].BR] : null);
   const sub_ = (def.params && def.params.substeps) || 24;
   const every = Math.max(1, Math.round((def.params && def.params.hydroEvery) || (sub_ * 60 / HYDRO_HZ)));
-  return { tris, slices, slabs, open, material: spec.material || null, wheels, nodes, p, v, m, R, axPair, axle: [0, 0, 1], rho: DEF.rho || 1000, every, tick: 0,
+  return { tris, slices, slabs, tanks, fuel: fuel || null, open, material: spec.material || null, wheels, nodes, p, v, m, R, axPair, axle: [0, 0, 1], rho: DEF.rho || 1000, every, tick: 0,
            fh: new Float64Array(p.length), h: new Float64Array(p.length / 3), wet: 0, drag: 0, buoy: 0, flood: 0, slamPeak: 0 };
 }
 // the fill toward the water outside: in over tau, out over WB_DRAIN (exact exponential steps, any interval)
@@ -1782,8 +1858,9 @@ function flood(f, wetS, tau, dt) {
 // a fresh aeroplane (the solver's reset): nothing flooded, nothing holed
 function wetReset(WB) {
   if (!WB) return;
-  for (const s of WB.slices) { s.f = 0; s.br = false; s.wetS = 0; }
+  for (const s of WB.slices) { s.f = 0; s.br = false; s.wetS = 0; s.pk = 0; }
   for (const s of WB.slabs) { s.f = 0; s.wetS = 0; }
+  for (const s of WB.tanks) { s.f = 0; s.br = false; s.wetS = 0; }
   WB.tick = 0; WB.wet = 0; WB.flood = 0; WB.slamPeak = 0;
 }
 function wetSolverPass(WB, world, f, simT, dt) {
@@ -1878,6 +1955,24 @@ function wetCompute(WB, fh, dtH) {
     fl += SB.f; flN++;
   }
   WB.flood = flN ? fl / flN : 0;
+  // G1385 THE TANKS: each side's tank wet by a ramp over its height (a wing tank: its slab's thickness) at its kilos'
+  // own place, its lift onto those nodes by the frame's own shares. The fuel in it displaces as the air does; the air
+  // (capacity - fuel now: the solver's fuel.vessels, drained by the burn) floods only once the tank is holed
+  const FV = WB.fuel && WB.fuel.vessels;
+  for (const T of WB.tanks) {
+    const n = T.n, w = T.w;
+    let y = 0, hS = 0;
+    for (let c = 0; c < n.length; c++) { y += w[c] * p[n[c] * 3 + 1]; hS += w[c] * H[n[c]]; }
+    const wS = smooth01((hS - y) / T.th + 0.5);
+    if (!T.br && T.host >= 0 && WB.slices[T.host].pk > T.breach) T.br = true;
+    if (T.br) T.f = flood(T.f, wS, T.tau, dtH);
+    T.wetS = wS;
+    if (!wS) continue;
+    const vf = Math.min(T.vol, FV && FV[T.k] ? Math.max(0, FV[T.k].litres) / 1000 * T.share : T.fuel0);
+    const Fb = rho * G * (vf * wS + (T.vol - vf) * Math.max(0, wS - T.f));
+    for (let c = 0; c < n.length; c++) fh[n[c] * 3 + 1] += w[c] * Fb;
+    buoy += Fb; wet += T.vol * wS;
+  }
   // THE FACES: the Newtonian pressure on a face advancing into the water (a hull face one-sided, a plate on whichever
   // side meets the flow) and the skin friction along it, over each triangle's wet polygon
   for (const t of WB.tris) {
@@ -1927,7 +2022,7 @@ function wetCompute(WB, fh, dtH) {
         const beta = Math.max(WB_BETA_MIN, Math.acos(Math.min(1, -n[1])));
         const ps = 0.5 * rho * (Math.PI * Math.PI / (2 * Math.tan(beta))) * u[1] * u[1];
         pn += ps;
-        if (t.sl >= 0) { const S8 = WB.slices[t.sl]; if (S8 && ps > S8.breach) S8.br = true; }
+        if (t.sl >= 0) { const S8 = WB.slices[t.sl]; if (S8) { if (ps > S8.breach) S8.br = true; if (ps > S8.pk) S8.pk = ps; } }
         if (ps > WB.slamPeak) WB.slamPeak = ps;
       }
     }

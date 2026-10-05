@@ -2406,7 +2406,7 @@ window.CAGE_PAGE = {
       paint: { job: "full", base: 15909943, trim: 1784412, sweep: 0.55, gloss: 0.42, regX: 0.3 },
       finish: {
         sections: {
-          strut: { fin: "castAlu", tint: 16777215 },
+          // G1911: no `strut` row - the lift struts wear the body's paint (the bare-alloy pin of 3 Sep is gone; aeroskin.js aeroFinishLegacy)
           body: { tint: 16764160 },
           waistband: { tint: 2500134 },
           ceilingLoop: { tint: 16764160 },
@@ -2643,7 +2643,6 @@ window.CAGE_PAGE = {
       paint: { job: "full", base: 15854296, trim: 8134444, sweep: 0.55, gloss: 0.42, regX: 0.3 },
       finish: {
         sections: {
-          strut: { fin: "castAlu", tint: 15854296 },
           body: { tint: 15854296 },
           waistband: { tint: 15854296 },
           ceilingLoop: { tint: 15854296 },

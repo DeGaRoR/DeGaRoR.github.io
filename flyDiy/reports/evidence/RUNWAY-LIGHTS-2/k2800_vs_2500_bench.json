@@ -1,0 +1,28 @@
+{
+ "sides": [
+  {
+   "meshes": 1,
+   "glows": 1,
+   "inst": 44,
+   "tris": 10560
+  },
+  {
+   "meshes": 1,
+   "glows": 1,
+   "inst": 44,
+   "tris": 10560
+  }
+ ],
+ "shots": {
+  "night_colour": {
+   "file": "reports/evidence/RUNWAY-LIGHTS-2/k2800_vs_2500_night_colour.jpg",
+   "kb": 27,
+   "q": 85
+  },
+  "night_taxi": {
+   "file": "reports/evidence/RUNWAY-LIGHTS-2/k2800_vs_2500_night_taxi.jpg",
+   "kb": 23,
+   "q": 85
+  }
+ }
+}

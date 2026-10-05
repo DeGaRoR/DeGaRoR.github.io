@@ -34,7 +34,9 @@ function get(url, binary) {
       const chunks = [];
       res.on('data', c => chunks.push(c));
       res.on('end', () => resolve(binary ? Buffer.concat(chunks) : Buffer.concat(chunks).toString('utf8')));
-    }).on('error', e => { e.retry = true; reject(e); });
+    }).on('error', e => { e.retry = true; reject(e); })
+      // a stalled socket never ends on its own (a download hung 15 h on 2026-10-04): 60 s of silence is an error, retried
+      .setTimeout(60000, function () { this.destroy(new Error('timeout ' + url)); });
   });
 }
 
@@ -56,8 +58,11 @@ const unesc = s => s.replace(/&amp;/g, '&').replace(/&#x27;/g, "'").replace(/&qu
 
 // REFERENCE mode (--reference): any licence, for tuning by ear and spectrum only — stored apart, never shipped.
 const REFERENCE = process.argv.includes('--reference');
+// --by: CC BY sounds instead of CC0 (allowed to ship: credited by construction; the licence and its version are read
+// again on the sound's own page at download, and prep_sfx.js writes the credit)
+const BY = process.argv.includes('--by');
 function searchUrl(q, page) {
-  const f = REFERENCE ? '' : '&f=' + encodeURIComponent('license:"Creative Commons 0"');
+  const f = REFERENCE ? '' : '&f=' + encodeURIComponent(BY ? 'license:"Attribution"' : 'license:"Creative Commons 0"');
   return `https://freesound.org/search/?q=${encodeURIComponent(q)}${f}&s=Rating+highest+first&g=1&page=${page}`;
 }
 
@@ -101,7 +106,7 @@ async function search(L, q, tag, pages) {
     for (const h of hits) {
       const prev = L.sounds[h.id] || {};
       L.sounds[h.id] = Object.assign({}, prev, h, {
-        licence: REFERENCE ? (prev.licence || 'unknown (reference)') : 'CC0-1.0',
+        licence: REFERENCE ? (prev.licence || 'unknown (reference)') : BY ? (prev.licence && prev.licence !== 'CC0-1.0' ? prev.licence : 'CC-BY (search; version read at download)') : 'CC0-1.0',
         reference: REFERENCE || prev.reference || false,
         page: `https://freesound.org/people/${h.author}/sounds/${h.id}/`,
         tags: Array.from(new Set([...(prev.tags || []), tag].filter(Boolean))),
@@ -126,8 +131,9 @@ async function download(L, ids) {
     const page = await getPolite(s.page);
     const lm = /creativecommons\.org\/(publicdomain\/zero\/1\.0|licenses\/[a-z-]+\/\d\.\d)/.exec(page);
     s.licence = !lm ? 'unknown' : lm[1].startsWith('publicdomain') ? 'CC0-1.0' : 'CC-' + lm[1].replace('licenses/', '').replace('/', '-').toUpperCase();
-    if (!s.reference && !(lm && lm[1].startsWith('publicdomain'))) {
-      console.log('SKIP', id, 'licence on the page is not CC0'); s.licenceCheck = 'failed'; continue;
+    // CC0, or CC BY (any version) - never NC / SA / ND (the user, 2026-10-05: "these are traps")
+    if (!s.reference && !(lm && (lm[1].startsWith('publicdomain') || /^licenses\/by\/\d\.\d$/.test(lm[1])))) {
+      console.log('SKIP', id, 'licence on the page is ' + s.licence + ' (only CC0 or CC BY ship)'); s.licenceCheck = 'failed'; continue;
     }
     const buf = await getPolite(s.preview, true);
     const dir = s.reference ? path.join(RAW, '..', 'reference') : RAW;

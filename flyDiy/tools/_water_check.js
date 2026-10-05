@@ -118,7 +118,10 @@ console.log('\n2. THE RULES');
   const world = CORE.makeWorld(0); world.setWind({ base: [30, 0, 0] });
   verdict(world.sea.W.length <= W.NTR, `seaFrom at 30 m/s: ${world.sea.W.length} trains <= ${W.NTR}`);
   verdict(!/pa\.setY\(i, waves \? world\.waterH[^\n]*\n(?![^\n]*else)/.test(rw) || /if \(WSH\) WSH\.setNear/.test(rw), 'render_world.js lifts the patch on the GPU (the CPU loop is the no-shader path only)');
-  verdict(/WSH \? 0\.0 : -0\.4/.test(rw), 'the far plane is at the level with the shader (-0.4 only without it)');
+  // (G1563, REVIEW B25: the stock tier's -0.4 is gone too - the floats ride waterH = 0 on every tier; without the shader the
+  // plane steps under the wavy patch's troughs only while the patch is up)
+  verdict(/seaPlaneY = 0\.0;/.test(rw) && !/WSH \? 0\.0 : -0\.4/.test(rw) && /water\.position\.y = seaPlaneY - reach/.test(rw),
+    'the far plane is at the level on every tier (the stock tier steps under the wavy patch only while it is up)');
   verdict(/const seaTime = \(\) => WSH \? WSH\.time\(\) : seaT/.test(rw), 'the buoys and the patch read the shader\'s clock (the solver\'s)');
   verdict(/WSH\.make\(THREE\)/.test(rw) && /wtag\(farGeo, 0, false\)/.test(rw) && /wtag\(seaGeo, 0, true\)/.test(rw) && /wtag\(g, 1, false\)/.test(rw), 'the sea, the patch and the lakes take the one material with their body attribute');
   verdict(/WATER\.setSDF\(gU\.uGPackA\.value, gU\.uGGrid\.value\)/.test(rw), 'the coast and lake fields reach the water');

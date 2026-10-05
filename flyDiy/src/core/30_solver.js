@@ -759,7 +759,7 @@ function makeSim(def, world) {
     let near = w1 > -1e8 && reach < w1;
     if (!near) { const w2 = world.waterH(cx, cz); near = w2 > -1e8 && Math.min(reach, cy - WB_REACH) < w2; }
     if (!near) { if (WB) { WB.tick = 0; WB.wet = 0; } return; }
-    if (!WB) WB = HYDRO.wetBuild(def, p, v, m);
+    if (!WB) WB = HYDRO.wetBuild(def, p, v, m, fuel);   // G1385: the tanks read the fuel the burn leaves
     wetArm = !!WB;
   }
   let totalM = 0;
