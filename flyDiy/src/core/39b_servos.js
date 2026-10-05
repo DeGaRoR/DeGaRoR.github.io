@@ -24,6 +24,9 @@
 // tail-down rudder stop rising with speed, the gains scaled by the mass), the
 // aileron into the wind on the ground (2026-09-08), the water branch (H4) and
 // the water's elevator top (G396.2). 40 and 41 run with them off.
+// G1940 (PILOT-ONE): 40 and 41 RETIRED - 43 is the one pilot and flies every
+// feature on; the flags stay as the seams a personality (G1943) or a gate
+// may switch, and the history above is why the module exists.
 //
 // THE GAINS ARE ONE TABLE (SERVO_GAINS). A per-aeroplane key in
 // def.params.ap (genTuneAP writes rollP, pitchD, ...) wins over the table, as
@@ -68,6 +71,9 @@ const SERVO_GAINS = {
   VTailUp: 12, VSteer: 12, steerMin: 0.30, steerBW: 3.5, trikeSteerD: 0.25,
   steerMassRef: 500, steerMassMin: 200,
   drTailDown: 0.45, drTailUp: 0.95, drWater: 0.9,
+  // G1937 (PILOT-ONE, for DMG-DAMP): the water-step entry - kP x waterStepK on the water with the hull on the step
+  // (tail up); 1 today (no change), DAMP's only pilot gain (0.6 once the solver's rigid-rotation damper is gone)
+  waterStepK: 1,
   gAilP: 2.0, gAilD: 1.0, gBankDb: 0.010, gRateDb: 0.02, gAilTaxi: 0.25, gAilRoll: 0.30,
   xwBank: 0.06, xwBankGround: 0.035,
   // taxi
@@ -76,18 +82,20 @@ const SERVO_GAINS = {
   // the crosswind decrab
   decrabAgl: 3.5, decrabK: 2.2, decrabD: 0.6, decrabI: 1.0, decrabIMax: 0.2, decrabMax: 0.35,
   decrabBank: 0.12, xwArm: 0.5,
+  // G1937: THE STEP-ATTITUDE HOLD (servoStepHold): de = stepDe0 + stepK (stepTrim - trim) - stepD trim-rate, trim in
+  // deg, from stepV (m/s) on the step - DAMP's GATE FLOATS script law, owned here as a technique the gates call
+  stepDe0: 0.2, stepK: 0.04, stepD: 0.01, stepTrim: 6, stepV: 9,
 };
 
 // ONE TABLE PER PILOT (A0, 2026-10-04: the Deform Coordinator's DMG-DAMP fixes the
 // solver's rigid-rotation damping, review D1, and re-tunes after this lands): a
 // pilot's gains are SERVO_GAINS overlaid with its own row here. Every row is
 // EMPTY today — G1570 unified the laws and fixed B3-B7 without re-tuning a gain;
-// a re-tune writes the keys it moves into the pilot's row (40 = classic, 41 =
-// test, 43 = pilot), and a per-aeroplane key in def.params.ap still wins.
+// a re-tune writes the keys it moves into the pilot's row, and a per-aeroplane
+// key in def.params.ap still wins. G1940: the classic (40) and test (41) rows
+// retired with their pilots - every gate flies 43 and its row.
 const SERVO_TUNE = {
-  classic: {},     // 40_autopilot.js — every structural gate's circuit (GEN, FLEX, STRESS, FLAPS, GE, HOTHIGH)
-  test: {},        // 41_test_pilot.js — the bench's test flight, GATE MASS
-  pilot: {},       // 43_pilot.js — the game's pilot, PILOT / TAKEOFF / PILOTACT / SOAR / PILOTMATRIX / ARCHETYPES
+  pilot: {},       // 43_pilot.js — THE pilot: every flying gate (GEN, FLEX, STRESS, FLAPS, GE, HOTHIGH, PILOT, TAKEOFF, ...)
 };
 
 function servoWrapPi(a) { return a - 2 * Math.PI * Math.round(a / (2 * Math.PI)); }
@@ -416,7 +424,8 @@ function makeServos(sim, def, opts) {
       tailUp = rotateTD && onG <= 2 && thRest !== null && (thRest - th) > 0.04;
       drMax = tailUp ? G.drTailUp : G.drTailDown;
     }
-    const [kP, kD] = S.steerK(tailUp);
+    const [kP0, kD] = S.steerK(tailUp);
+    const kP = (onWater && tailUp) ? kP0 * g('waterStepK') : kP0;   // G1937: DAMP's water-step entry (1 = unchanged)
     c.dr = clamp(-kP * e - kD * S.eR, -drMax, drMax);
     if (FT.xwBank && F) {
       // AILERON INTO THE WIND (2026-09-08, 43): a bank bias the level-wing
@@ -461,7 +470,7 @@ function makeServos(sim, def, opts) {
 
   // ---- the servo slew, on the axes the pilot owns ----------------------------------
   S.slew = (ownV = true, ownL = true) => {
-    const sl = A.slew * S.dt;
+    const sl = A.slew * (S.slewK || 1) * S.dt;   // G1943: a profile's smoothness (unset: 1, the expert)
     if (ownV) { S.aDe += clamp(c.de - S.aDe, -sl, sl); c.de = S.aDe; } else S.aDe = c.de;
     if (ownL) {
       S.aDa += clamp(c.da - S.aDa, -sl, sl); c.da = S.aDa;
@@ -471,6 +480,19 @@ function makeServos(sim, def, opts) {
   // end of the pilot's update: holdPitch re-latches when the previous step did not call it
   S.endStep = () => { holdWas = holdActive; holdActive = false; };
   return S;
+}
+
+// G1937 (PILOT-ONE): THE STEP-ATTITUDE HOLD, a technique - the elevator that holds a planing hull at its trim:
+// de = stepDe0 + stepK (trimTgt - trim) - stepD q (trim and its rate q in deg, deg/s), clamped to the water's stick
+// [-0.30, deWater]. The Deform Coordinator's GATE FLOATS script flies exactly this from 9 m/s; a gate calls it
+// (or SV.stepHold) instead of keeping its own copy. THE PILOT does not fly it today: measured on the float builds
+// (scratch water_exp, law 'hold', between the step and the pull, with G1937's throttle ramp) it changed nothing on
+// the v7 twin (lift-off 28.2 vs 28.1 m/s), lifted the ultralight off later (21.2 vs 20.9) and SKIPPED the Wipline
+// C172 once (2 lifts, a 26.7 deg/s pitch rate) where the neutral stick lifts it off once - with the solver's
+// rigid-rotation damper present. `A.stepHold` (true) or a personality turns it on in ROLL (43)
+function servoStepHold(trimDeg, qDeg, gains) {
+  const G = Object.assign({}, SERVO_GAINS, gains || {});
+  return Math.max(G.deMin, Math.min(G.deWater, G.stepDe0 + G.stepK * ((gains && gains.trimTgt != null ? gains.trimTgt : G.stepTrim) - trimDeg) - G.stepD * qDeg));
 }
 
 // the CG's rest height over the ground in the design pose (sim.reset seats the
