@@ -196,7 +196,9 @@ var AUDIO_MUSIC = (function () {
   // indices to choose from (a station's), else the whole catalogue
   function contextLists(cat, idx) {
     const ix = idx || cat.map((t, i) => i);
-    const L = CTX_NAMES.map(n => ix.filter(i => cat[i].contexts.indexOf(n) >= 0));
+    // the loading screens deal from EVERY track of the station (the user, 2026-10-05: "random songs for the loadings"),
+    // not only the ones tagged 'welcome'
+    const L = CTX_NAMES.map((n, c) => (c === C_WELCOME ? ix.slice() : ix.filter(i => cat[i].contexts.indexOf(n) >= 0)));
     return L.map((l, c) => (l.length || FALLBACK[c] < 0 ? l : L[FALLBACK[c]].slice()));
   }
   const stationOf = t => (t && t.station) || ST_DEFAULT;
@@ -260,9 +262,10 @@ var AUDIO_MUSIC = (function () {
     if (agl >= CRUISE.enterAgl) { st[1] += dt; if (st[1] >= CRUISE.dwellS) st[0] = 1; } else st[1] = 0;
     return st[0] > 0 ? 1 : 0;
   }
-  function contextOf(welcome, photo, garage, musicGarage, musicFlight, cruise) {
+  function contextOf(welcome, photo, garage, musicGarage, musicFlight, cruise, musicLoading) {
     if (photo) return C_PHOTO;
-    if (welcome || garage) return musicGarage ? (welcome ? C_WELCOME : C_GARAGE) : C_NONE;
+    if (welcome) return musicLoading ? C_WELCOME : C_NONE;   // a loading screen: its own switch (off by default)
+    if (garage) return musicGarage ? C_GARAGE : C_NONE;
     return musicFlight && cruise ? C_CRUISE : C_NONE;
   }
 
@@ -444,7 +447,8 @@ var AUDIO_MUSIC = (function () {
     if (a >= 0 && c >= 0 && eligible(at, c)) return;   // the track plays on into the new context
     if (a >= 0) {
       const pos = DK[a * K_N + K_POS];
-      if (prev >= 0 && pos > 1 && pos < DK[a * K_N + K_DUR] - RESUME_S) { RESUME_T[prev] = at; RESUME_P[prev] = pos; }
+      // (a loading screen never resumes: each one deals a new song)
+      if (prev >= 0 && prev !== C_WELCOME && pos > 1 && pos < DK[a * K_N + K_DUR] - RESUME_S) { RESUME_T[prev] = at; RESUME_P[prev] = pos; }
       fadeOut(a, XFADE_S);
     }
     hideNow();
@@ -599,7 +603,7 @@ var AUDIO_MUSIC = (function () {
     if (!ctx) return;
     const s = P.s, I = P.I, garage = au.inGarage;
     const cruise = garage ? (CRUISE_ST[0] = 0, CRUISE_ST[1] = 0, 0) : cruiseStep(CRUISE_ST, s[I.onGround], s[I.agl], s[I.V], s[I.vs], s[I.flap], dt);
-    const want = station === 'off' ? C_NONE : contextOf(au.welcome, PS[S_PHOTO] > 0, garage, au.get('musicGarage'), au.get('musicFlight'), cruise);
+    const want = station === 'off' ? C_NONE : contextOf(au.welcome, PS[S_PHOTO] > 0, garage, au.get('musicGarage'), au.get('musicFlight'), cruise, au.get('musicLoading'));
     if (want !== PS[S_CUR]) switchTo(want);
     if (panner) { PS[S_PANT] -= dt; if (PS[S_PANT] <= 0) { PS[S_PANT] = PAN_EVERY_S; lean(au); } }   // G1714 (4 Hz)
     if (au.state === 'suspended') return;   // the timers wait with the sound
@@ -864,10 +868,35 @@ var AUDIO_MUSIC = (function () {
     _dk: DK, _ps: PS, _C: C, _decks: () => decks, _lvlAt: lvlAt, _talkSt: () => CUR, _lastSegs: () => lastSegs, source: { connect, update, disconnect },
   };
 
+  // THE LOADING SCREENS' BUTTON (the user, 2026-10-05: "a piece of UI there to turn the music on and off. And off by
+  // default for now"): #bootMusic on BOOT's panel drives AUDIO's 'musicLoading' both ways. The press is itself the
+  // gesture that unlocks the sound; turning it on with the radio off brings back the start station. While a loading
+  // song plays, the button names it. With ?audio=0 (AUDIO a stub) the button stays hidden.
+  function mountBootMusic(AU) {
+    const D = G.document, b = D && D.getElementById && D.getElementById('bootMusic');
+    if (!b) return false;
+    const paint = () => {
+      const on = AU.get('musicLoading') === 1, np = on && PS[S_CUR] === C_WELCOME ? nowPlaying() : null;
+      if (b.classList) b.classList.toggle('on', on);
+      b.textContent = on ? (np ? '\u266A ' + np.title + ' \u2014 ' + np.artist : '\u266A music on') : '\u266A music off';
+      b.title = 'Music while loading: ' + (on ? 'on (press to turn it off)' : 'off (press to turn it on)');
+    };
+    b.hidden = false;   // shown: the sound is built
+    b.onclick = () => {
+      const on = AU.get('musicLoading') ? 0 : 1;
+      if (on && station === 'off') setStation(ST_START, true);
+      AU.set('musicLoading', on); paint();
+    };
+    AU.onEvent('settings', paint); AU.onEvent('music', paint); AU.onEvent('station', paint);
+    paint();
+    return true;
+  }
+
   mountCreditLink();
   const AU = G.AUDIO;
   if (AU && AU.enabled) {
     AU.addSource('music', api.source);
+    mountBootMusic(AU);
     if (AU.addRows) AU.addRows((body, kit, toggle) => {
       const np = nowPlaying();
       if (kit.note) kit.note(body, np ? 'Now playing: ' + nowLine(np) : (cat.length ? 'No music playing.' : 'No music ships yet.'));
