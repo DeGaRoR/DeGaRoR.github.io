@@ -456,25 +456,28 @@ vec3 dmgCell(vec3 x) {
         col = mix(col, col * mix(vec3(1.0), uDmgCol[3].rgb * 3.0, 0.55), dFab * crease);
         rgh = mix(rgh, max(rgh, 0.92), dFab * cr);
         dGrad += dFab * cr * (nB.yzw * 7.0 * 0.006 + nF.yzw * 31.0 * 0.0015);
-        // metal: the paint CRAZES (a crack network on cells of ~2.5 cm), and where it is worst it CHIPS - primer at the
-        // chip's rim, bare alloy in its middle; the sheet dents (the buckle field as relief)
-        vec3 cc = dmgCell(dP * 40.0);
-        float crack = 1.0 - smoothstep(0.0, 0.06 + 40.0 * dFw, cc.y - cc.x);
-        float crz = crack * smoothstep(0.15, 0.6, cr);
-        float chipOn = step(cc.z, 0.75 * cr * cr) * smoothstep(0.35, 0.8, cr);
-        float chipRim = chipOn * smoothstep(0.30, 0.45, cc.x);
-        col = mix(col, col * 0.45, dMet * crz * 0.8);
-        col = mix(col, uDmgCol[0].rgb, dMet * chipOn);
-        col = mix(col, dSub, dMet * chipOn * (1.0 - chipRim));
-        met = mix(met, dSubM, dMet * chipOn * (1.0 - chipRim));
-        rgh = mix(rgh, dSubR, dMet * chipOn * (1.0 - chipRim));
-        rgh = mix(rgh, max(rgh, uDmgCol[0].w), dMet * chipRim);
+        // metal: the paint CRAZES - a crack network on cells of ~1.8 cm, broken by a noise so it is a network in places,
+        // not a tiling - and where the crush is worst whole cells FLAKE off (polygons along the network, not discs),
+        // clustered by the buckle field: zinc-chromate primer at a flake's edge, bare alloy in it; the sheet dents
+        vec3 cc = dmgCell(dP * 55.0);
+        float edgeD = cc.y - cc.x;
+        float crack = 1.0 - smoothstep(0.0, 0.05 + 55.0 * dFw, edgeD);
+        float crz = crack * smoothstep(0.30, 0.75, cr) * smoothstep(0.35, 0.65, nF.x + 0.25 * cr);
+        float flake = step(cc.z, 0.24 * smoothstep(0.55, 1.0, cr)) * step(0.42 - 0.2 * cr, nB.x);
+        float rim = flake * (1.0 - smoothstep(0.03, 0.10, edgeD));
+        col = mix(col, col * 0.35, dMet * crz * (1.0 - flake));
+        col = mix(col, dSub, dMet * flake);
+        col = mix(col, uDmgCol[0].rgb, dMet * rim);
+        met = mix(met, dSubM, dMet * flake * (1.0 - rim));
+        rgh = mix(rgh, dSubR, dMet * flake * (1.0 - rim));
+        rgh = mix(rgh, max(rgh, uDmgCol[0].w), dMet * rim);
         dGrad += dMet * cr * nB.yzw * 7.0 * 0.004;
-        // wood: SPLINTERS - pale raw grain torn along the part, dark splits between
-        float sp = dmgVN(vec3(dP.x * 3.0, dP.y * 60.0, dP.z * 60.0)).x;
-        float spl = smoothstep(0.62, 0.70, sp) * smoothstep(0.25, 0.7, cr);
+        float chipOn = flake;
+        // wood: SPLINTERS - thin pale raw grain torn along the part, dark splits between, sparse
+        float sp = dmgVN(vec3(dP.x * 3.0, dP.y * 90.0, dP.z * 90.0)).x;
+        float spl = smoothstep(0.78, 0.84, sp) * smoothstep(0.35, 0.8, cr);
         col = mix(col, dSub * 1.35, dWood * spl);
-        col = mix(col, uDmgCol[3].rgb, dWood * (1.0 - smoothstep(0.0, 0.05, abs(sp - 0.5))) * cr * 0.7);
+        col = mix(col, uDmgCol[3].rgb, dWood * (1.0 - smoothstep(0.0, 0.03, abs(sp - 0.5))) * cr * 0.6);
         rgh = mix(rgh, max(rgh, dSubR), dWood * cr);
         // everything crushed: a little grime in the folds, never shiny (the weathering's rule)
         col = mix(col, col * 0.8, cr * 0.3 * (1.0 - wr));
@@ -496,7 +499,7 @@ vec3 dmgCell(vec3 x) {
         float soil = dR.w;
         // the broad abrasion first: dull, paler, the varnish gone
         float ab = smoothstep(0.1, 0.6, sc);
-        col = mix(col, mix(col, vec3(dot(col, vec3(0.2126, 0.7152, 0.0722))), 0.5) * 1.12, ab * 0.5);
+        col = mix(col, mix(col, vec3(dot(col, vec3(0.2126, 0.7152, 0.0722))), 0.35) * 1.05, ab * 0.4);
         rgh = mix(rgh, max(rgh, 0.78), ab);
         // the streaks: ground through to what is under the paint
         vec3 bare = mix(dSub, dSub * 0.75, dFab);           // fabric: the weave, darker with the dope gone
@@ -505,7 +508,7 @@ vec3 dmgCell(vec3 x) {
         rgh = mix(rgh, mix(dSubR * 0.8, 0.95, dFab + soil), st);
         // ...and the ground in them: soil on soft ground, a green-brown stain from grass, dust on hard ground
         float stain = soil * smoothstep(0.2, 0.7, sc) * (0.45 + 0.55 * g2);
-        col = mix(col, mix(uDmgCol[1].rgb, uDmgCol[2].rgb, 0.45 + 0.4 * g2), stain * (0.35 + 0.65 * st));
+        col = mix(col, mix(uDmgCol[1].rgb, uDmgCol[2].rgb, 0.45 + 0.4 * g2), stain * (0.15 + 0.45 * st));
         rgh = mix(rgh, max(rgh, uDmgCol[1].w), stain);
         met *= 1.0 - stain;
         dmgCov = max(dmgCov, max(ab, st));
@@ -643,14 +646,14 @@ vec3 dmgCell(vec3 x) {
     const subOf = f => (WX && WX.aeroWxSubOf ? WX.aeroWxSubOf(f) : (WX && WX.AERO_WX_SUB && WX.AERO_WX_SUB[f]) || { col: [0.5, 0.5, 0.5], metal: 0, rough: 0.8 });
     const subs = SUB_FIN.slice(0, 4).map(subOf);
     const colOf = k => { const C = WX && WX.AERO_WX_COL && WX.AERO_WX_COL.find(c => c.k === k); return C ? C.v : [0.085, 0.062, 0.040, 0.95]; };
-    const soil = colOf('mud'), grime = colOf('grime');
+    const soil = colOf('dirt'), grime = colOf('grime');
     UNI = {
       uDmgOn: { value: 0 }, uDmgM: { value: 1 },
       uDmgPane: { value: Array.from({ length: SC.panes }, () => new THREE.Vector4(0, 0, 0, 0)) },
       uDmgSub: { value: subs.map(s => new THREE.Vector4(s.col[0], s.col[1], s.col[2], s.metal)) },
       uDmgSub2: { value: subs.map(s => new THREE.Vector4(s.rough, 0, 0, 0)) },
       uDmgCol: { value: [new THREE.Vector4(PRIMER[0], PRIMER[1], PRIMER[2], 0.85),               // zinc chromate under the paint
-                         new THREE.Vector4(soil[0], soil[1], soil[2], Math.max(0.9, soil[3])),  // the weathering's mud
+                         new THREE.Vector4(soil[0], soil[1], soil[2], Math.max(0.9, soil[3])),  // the weathering's dirt
                          new THREE.Vector4(0.045, 0.060, 0.022, 0.92),                          // grass's green-brown juice (linear)
                          new THREE.Vector4(grime[0] * 0.6, grime[1] * 0.6, grime[2] * 0.6, grime[3])] },   // the weathering's grime, deeper
       uDmgK: { value: new THREE.Vector4(1, 1, 1, 1) }, uDmgG: { value: 1 },

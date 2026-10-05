@@ -62,7 +62,7 @@
     const box = new T.Box3(), v = new T.Vector3();
     for (const o of all) { const { M } = craftOf(o), p = o.geometry.attributes.position; for (let i = 0; i < p.count; i += 7) { v.fromBufferAttribute(p, i).applyMatrix4(M); box.expandByPoint(v); } }
     const L = box.max.y - box.min.y, span = box.max.x - box.min.x, xc = (box.max.x + box.min.x) / 2;
-    const nose = new T.Vector3(xc, box.min.y + 0.12 * L, box.min.z + 0.45 * (box.max.z - box.min.z));
+    const nose = new T.Vector3(xc - 0.3, box.min.y + 0.08 * L, box.min.z + 0.42 * (box.max.z - box.min.z));
     const cut = xc - 0.31 * span;                          // a station across the left wing
     // the windscreen: the glass mesh that faces FORWARD the most (its area-weighted normal's -y, craft), not the most
     // forward centre (that was the Cub's roof skylight)
@@ -101,9 +101,14 @@
       let c = 0, s = 0, t = 0, soil = 0;
       if (full) { c = 1; s = 1; t = 0.5; soil = p.x < (P.box.min.x + P.box.max.x) / 2 ? 1 : 0; }
       else if (cls !== S.CLS.glass) {
-        const dn = p.distanceTo(P.nose); c = Math.max(0, Math.min(1, (1.3 - dn) / 0.5));
-        if (q.z < -0.2 && p.y < P.box.min.y + 0.65 * P.L) { s = Math.min(1, (-q.z - 0.2) / 0.5); soil = p.x < (P.box.min.x + P.box.max.x) / 2 ? 1 : 0; }
-        if (p.x < P.cut + 0.07 && p.x > P.cut - 0.07 && Math.abs(p.z - P.box.min.z) > 0.2) t = 1 - Math.abs(p.x - P.cut) / 0.07;
+        // a crush on the cowl's left cheek (full within 0.3 m, nothing past 0.8 m); a scrape on the fuselage's belly only
+        // (within 0.45 m of the centreline, its front two thirds); a torn band across the left wing - +-0.3 m, wider
+        // than the game's 7 cm: a record is per VERTEX, and the editor's wing has none within 7 cm of an arbitrary
+        // station (in the game the band starts at the tear's own edge vertices)
+        const dn = p.distanceTo(P.nose); c = Math.max(0, Math.min(1, (0.8 - dn) / 0.5));
+        const xc = (P.box.min.x + P.box.max.x) / 2;
+        if (q.z < -0.2 && Math.abs(p.x - xc) < 0.45 && p.y < P.box.min.y + 0.65 * P.L) { s = Math.min(1, (-q.z - 0.2) / 0.5); soil = p.x < xc ? 1 : 0; }
+        if (p.x < P.cut + 0.3 && p.x > P.cut - 0.3 && Math.abs(p.z - P.box.min.z) > 0.2) t = 1 - Math.abs(p.x - P.cut) / 0.3;
       }
       rec[i * 4] = Math.round(255 * c); rec[i * 4 + 1] = Math.round(255 * s); rec[i * 4 + 2] = Math.round(255 * t); rec[i * 4 + 3] = Math.round(255 * soil);
       d.copy(aft); if (na) { const nl = new T.Vector3().fromBufferAttribute(na, i); d.addScaledVector(nl, -d.dot(nl)); } d.normalize();
