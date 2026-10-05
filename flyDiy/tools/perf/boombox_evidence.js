@@ -2,7 +2,7 @@
 // cannot render the game)
 //
 //   node tools/perf/boombox_evidence.js [--url http://localhost:8450/flyDiy/dev.html] [--out reports/evidence/SND-BOOMBOX]
-//        [--wait 15000] [--log]
+//        [--wait 15000] [--log] [--swgl]
 //
 // garage_shot.js's rig (headless Chrome on this machine's GPU, CDP), pointed at the garage. Everything is pressed the
 // way a player presses it - real mouse events through Input.dispatchMouseEvent - so the pictures prove the path, not a
@@ -35,7 +35,10 @@ const CHROME = ['C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
 if (!CHROME) { console.error('boombox_evidence: no Chrome'); process.exit(2); }
 const udd = path.join(require('os').tmpdir(), 'cdp_bb_' + PORT + '_' + Date.now());
 const ch = spawn(CHROME, ['--headless=new', '--remote-debugging-port=' + PORT, '--window-size=1920,1080', '--hide-scrollbars',
-  '--no-first-run', '--user-data-dir=' + udd, '--disable-gpu-sandbox', '--autoplay-policy=no-user-gesture-required', 'about:blank'], { stdio: 'ignore' });
+  '--no-first-run', '--user-data-dir=' + udd, '--disable-gpu-sandbox', '--autoplay-policy=no-user-gesture-required']
+  // (root, a container: Chrome's sandbox refuses it; --swgl: no GPU here - ANGLE on SwiftShader, slow but it draws)
+  .concat(process.getuid && process.getuid() === 0 ? ['--no-sandbox'] : [])
+  .concat(argv.includes('--swgl') ? ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] : []).concat(['about:blank']), { stdio: 'ignore' });
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const getJSON = url => new Promise((res, rej) => { http.get(url, r => { let b = ''; r.on('data', d => b += d); r.on('end', () => res(JSON.parse(b))); }).on('error', rej); });
 const summary = { url: URL0, steps: [] };
@@ -68,10 +71,14 @@ const summary = { url: URL0, steps: [] };
   const step = (k, v) => { summary.steps.push(Object.assign({ step: k }, v || {})); console.log('boombox_evidence: ' + k + ' ' + JSON.stringify(v || {})); };
   const boot = async url => {
     await cmd('Page.navigate', { url });
+    // the workshop up: the loading screen gone, #edView shown, the editor's pick and the quick bar there (SwiftShader: minutes)
     let up = false;
-    for (let i = 0; i < 90 && !up; i++) { await sleep(1000); up = await ev("!!(window.BOOMBOX && window.EDITOR_PICK && document.querySelector('#edQuick .edQuickBtn'))"); }
-    if (!up) throw new Error('the garage never came up (no BOOMBOX / EDITOR_PICK / quick bar)');
+    for (let i = 0; i < 600 && !up; i++) { await sleep(1000); up = await ev("!!(window.BOOMBOX && window.EDITOR_PICK && document.querySelector('#edQuick .edQuickBtn') && (!window.BOOT || BOOT.state === 'gone') && !document.getElementById('edView').hidden)"); }
+    if (!up) throw new Error('the garage never came up (the boot screen, #edView, EDITOR_PICK or the quick bar)');
     await sleep(WAIT);   // the props land, the boot screen lifts
+    // a fresh profile opens the archetype picker over the render (design_flow.js): its own "keep the current build"
+    const keep = await ev("(()=>{const b=document.querySelector('.dfClose');if(!b||!b.offsetParent)return null;const r=b.getBoundingClientRect();return {x:r.left+r.width/2,y:r.top+r.height/2}})()");
+    if (keep) { await click(Math.round(keep.x), Math.round(keep.y)); await sleep(1500); step('the archetype picker closed (keep the current build)'); }
   };
   // the render's free estate (#edView's box: inset by both panels), the quick bar's box
   const rect = sel => ev("(()=>{const e=document.querySelector(" + JSON.stringify(sel) + ");if(!e)return null;const r=e.getBoundingClientRect();return {x:r.left,y:r.top,width:r.width,height:r.height}})()");

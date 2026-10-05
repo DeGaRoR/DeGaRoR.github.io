@@ -72687,3 +72687,115 @@ FOR THE COORDINATOR: (1) the user picks the guests by ear in voices/ (john / kri
   catalogue track: radio_gen.js (writes its spoken title) then prep_voice.js - VOICE_CAT is red until then, the talk speaks its
   credit meanwhile; (5) GATE AUDIO measured ~190 s here (run_gates' wall is 160 - SND-RADIO-2 measured the same overrun);
   SP_BUDGET's TurboFan mutation missed once under load in a full run and was caught alone (a contended sample, as before).
+
+## G1710-G1714 - SND-BOOMBOX: THE SHED'S RADIO - A SOUND AND A RADIO BUTTON ON THE QUICK BAR, THE BOOMBOX CLICKABLE WITH ITS OWN LITTLE PANEL, MY MUSIC (A LOCAL FOLDER AS A STATION), THE GARAGE MUSIC LEANING TOWARD THE RADIO; GATED (2026-10-05, SND-BOOMBOX for the Sound Coordinator, cloud; branch claude/snd-boombox off origin/claude/boombox 9f3a52bf, merged with origin/claude/sound-next b0fe1bae)
+
+The user (2026-10-05): "you'll add UI elements too. In the garage 2 ways; a toggle button next to the existing toggles (like the
+reference plane view), sound on/off, and another one cycling the radios. On top of that, you'll place the boombox close to the
+plane, and make it clickable. It will spawn a little menu like the plane elements and will present the radio controls, volume
+and channels, and if possible and easy, the ability to point to a local music folder." The prop and its place by the aeroplane
+were already on claude/boombox (9f3a52bf); this session is the UI, the folder, the gate and the evidence.
+G1710 THE QUICK BAR - editor.js QUICK += 'sound' and 'radio' (between `ref` and `time`). Both declare state + why (the rail's
+  `sound` item is AUDIO.mount's own panel, so there is no row to name; GATE VIEW passes). `sound`: AUDIO.enable, both ways. Its
+  icon is the rail's speaker with its waves, struck through when off. ?audio=0 shows it greyed with the reason. Under the stub
+  (sound switched off at load) a press switches it on for the next load, and the title says so. `radio`: a press gives music if
+  there was none: the sound first, then 'music in the garage' on (it is OFF by default, the 2026-10-04 ruling, so asking for
+  music is what turns it on), then the station, or the last one after 'off'. With music already playing, a press steps the
+  station (stepStation(1), the [ ] keys' door). A right-click or a 600 ms hold switches the radio off (setStation('off');
+  buildQuick binds a QUICK entry's new optional `alt`). The icon is a boombox, its cones dashed while silent; the title names
+  the station. The bar repaints on AUDIO 'settings' / 'station' / 'ready' / 'music'. music.js now emits 'station' from
+  setStation (and from setUserTracks).
+G1711 THE BOOMBOX - src/viewer/boombox.js (NEW, window.BOOMBOX).
+  THE RADIO: BOOMBOX.radio holds the actions both surfaces share: soundOn / soundNext / playing / setSound / listen(st) / next /
+  off. It reads AUDIO and AUDIO_MUSIC back and keeps no state of its own.
+  THE HIT: pick(obj, ray, hit) puts the ray in the prop's own frame against PROP_REG's bb (an oriented box, no triangles). It
+  takes the click only when the box is NEARER than the aeroplane's hit (pickAt's point), so a part in front of the radio keeps its
+  click. A hidden kit is not struck. hangar.js gains mobileProp(key), which finds the 'prop:<key>' group in MOBILE.
+  app.js (HOT FILE):
+  - function bbProp() (in the garage: hangar.mobileProp('boombox'));
+  - the pointerup: BOOMBOX.click first, then the switches and EDITOR_PICK (the click path no longer needs EDITOR_PICK to exist
+    for the radio);
+  - the throttled hover asks BOOMBOX.hover, and over the radio hands EDITOR_PICK a miss, so the part under it is not tinted;
+  - pointerleave clears it;
+  - BOOMBOX.frame(camera, bbProp) once, right after AUDIO.update;
+  - BOOMBOX.placed(...) after hangar.placeMobile (G1714).
+  The rays run on pointer events only. frame() returns at once while the panel is closed: no lookup, no projection.
+  THE CUE: the pointer cursor, and a faint warm pool on the floor under the radio. It is one additive quad, a child of the prop
+  group, marked edHi. The prop's materials are shared per record by MATLIB, so they are never touched.
+  THE PANEL: a small card in #edView (editor.css #bbPanel, HOT FILE: the rail flyout's plate, head, rows, toggles and pills). It
+  holds:
+  - now playing (title, artist · licence);
+  - the station pills: the six, Random, My music once a folder is there, and off. A station pill also turns on the sound and
+    'music in the garage';
+  - the music and master sliders;
+  - skip;
+  - toggles for Radio Jolene's talk, music in the garage and music in flight;
+  - MY MUSIC;
+  - music credits.
+  It is anchored beside the radio's projected top: while open, one projection and at most two style writes per frame, and its
+  rects are re-measured on resize. It closes on Esc, on a press outside (a press ON the radio leaves it to the click, which
+  toggles it shut), when the radio goes behind the eye or off the view, or when the shed is left. It repaints on 'music',
+  'station', 'settings' and 'ready' (build / paint / refresh: a rebuild only when its shape changes, never recursive).
+  ?audio=0, the stub, or the sound off: a line and the "turn the sound on" switch, greyed where it can't act (?audio=0, or
+  already on for the next load). Nothing else is built.
+G1712 MY MUSIC - src/viewer/audio/my_music.js (NEW, window.AUDIO_MYMUSIC) + music.js's virtual station 'mine'.
+  THE PICK: showDirectoryPicker (Chromium), else a one-off <input type=file webkitdirectory multiple>. It walks at most 4
+  folders down and keeps at most 4 000 files. It keeps mp3 / ogg / oga / opus / m4a / aac / wav / flac. Titles come from the
+  file names (no extension, no leading track number, "_" as spaces).
+  KEPT: only the DirectoryHandle, in IndexedDB (flydiy-mymusic / h / dir), every access in try/catch. The panel's opening (a
+  click) calls restore():
+  - a handle whose permission is still 'granted' is walked at once;
+  - a 'prompt' one waits for "reconnect <folder>" (requestPermission, from that click);
+  - with the fallback input the browser forgets, and the panel says so.
+  "forget" drops the handle and the station. Nothing is uploaded, fetched or decoded, and nothing runs before a click.
+  music.js setUserTracks(files, name):
+  - the files are appended past the shipped catalogue (baseN), so shipped indices, bags and resume points never move;
+  - a deck makes the track's blob: object URL at its load and REVOKES it at its release, so at most two exist at once, and a
+    dropped folder or the sound switched off leaves none;
+  - USER_DUR_S stands in until durationchange (a track is never cut for an unknown length), and the file's length is kept once
+    known;
+  - no silences between tracks (gap(c) wraps gapped(c): GATE AUDIO's anchor untouched), no talk (talkDue is Radio Jolene's),
+    not in the mix or the credits.
+  STATION_KEYS is unchanged; 'mine' joins the [ ] cycle and the sound menu's select once a folder is there. The station is
+  persisted. A page that loads on 'mine' plays the start station until the folder is back, then returns to it (wantMine).
+  `lastStation` is the station a radio switched back on plays.
+G1713 GATE BOOMBOX - tools/audio/_boombox_check.js (run_gates BOOMBOX, core, < 1 s), node only:
+  - BB_QUICK runs editor.js's QI + QUICK in a vm over recording AUDIO / AUDIO_MUSIC and the real boombox.js.
+  - BB_HIT uses vendor THREE: the turned box, a nearer part keeps the click, a part behind does not, a hidden kit, a vertical ray
+    inside the AABB but outside the turned box. It also checks mobileProp, propPlace's 'prop:' name, app.js's order and its
+    single frame call, frame() idle while closed, the cue, and placed().
+  - BB_PANEL runs on tools/_page_dom.js: every control calls its API; Esc, a press inside / outside, behind the eye, off the
+    side, the shed left; the click toggles; ?audio=0; the sound off then switched on.
+  - BB_MINE runs the real audio.js + music.js + my_music.js with the picker, IndexedDB and URL stubbed: nothing before a
+    gesture; 3 of 5 files kept, with titles; the handle alone stored; blob: URLs only, at most two live, every one revoked;
+    unknown length not cut; forget; restore granted / prompt + reconnect; the webkitdirectory fallback; a page loaded on 'mine'.
+  - BB_PAN (G1714).
+  38 / 38 mutations caught; the sources byte-identical after.
+G1714 THE BOOMBOX AS THE SOURCE (the stretch) - music.js:
+  - a StereoPanner between the duck and the music bus; a context with none keeps the old straight path, and space.js's room
+    send follows the bus untouched;
+  - 4 times a second, in the garage: the camera's right axis (its matrixWorld, read in place) against the direction to the radio,
+    times PAN_K 0.35, full within 2 m and nothing past 9 m;
+  - centred in flight or with no radio; a move under 0.02 schedules nothing; nothing allocates;
+  - setSourcePos is fed by BOOMBOX.placed after placeMobile.
+  THE EVIDENCE: tools/perf/boombox_evidence.js (CDP, real mouse and key events: it finds the radio by sweeping the hover) and
+  reports/evidence/SND-BOOMBOX/README.md ("what to check": eight shots, summary.json, and the checks by ear).
+  Gates  BOOMBOX, VIEW, UISMOKE, AUDIO, HANGAR, PROPS, BUILD, MEDIA PASS. GATE AUDIO passes alone. In the 8-gate parallel battery
+         its load-sensitive heap / allocation samples went red once each: RADIO_BUDGET (+76 KB once, a page with no
+         StereoPanner, where none of this runs; alone +6 KB, 0 GC) and SP_BUDGET's doppler-boxing mutation (space.js untouched).
+  Budget AUDIO.update unchanged in shape (GATE AUDIO's budgets green); the music frame adds one typed-slot countdown and, at
+         4 Hz in the garage, a dot product. The boombox costs nothing per frame while its panel is closed.
+  HOT FILES TOUCHED (for A0's trains): src/viewer/app.js (+19 lines: the pointerup, the hover, the leave, the frame call, the
+         placed call), src/viewer/editor.js (+69: QI glyphs, two QUICK entries, buildQuick's alt + AUDIO listeners),
+         src/viewer/editor.css (+30: #bbPanel). NOT body.html: the panel is made by boombox.js. Also src/viewer/hangar.js (+7,
+         mobileProp), src/viewer/audio/music.js, tools/build.js (+audio/my_music.js, boombox.js after music.js, before app.js),
+         tools/run_gates.js (+BOOMBOX). NEW: src/viewer/boombox.js, src/viewer/audio/my_music.js, tools/audio/_boombox_check.js,
+         tools/perf/boombox_evidence.js, reports/evidence/SND-BOOMBOX/. Generated files (index.html, dev.html, sw.js,
+         version.json, flight_core.js) not committed: the train builds them.
+FOR THE COORDINATOR: (1) NOT YET SEEN RENDERED - the screenshots and the visual check are yours, on the box's GPU (the user,
+  2026-10-05: "screenshots will be done by the coordinator"). Run tools/perf/boombox_evidence.js and read the README's table;
+  it dismisses a fresh profile's archetype picker ("keep the current build") before it sweeps. A cloud try under SwiftShader
+  (--swgl) drew the quick bar with both new buttons but left the render blank, so no picture was kept. The folder, the reconnect
+  after a reload, and the lean need ears and a real Chromium. (2) SND-TUNE knobs: PAN_K / PAN_NEAR / PAN_FAR (music.js), the
+  halo's colour and opacity, QUICK_HOLD_MS. (3) The panel has no keyboard focus trap (Esc closes it); say if it should take
+  focus when it opens.
