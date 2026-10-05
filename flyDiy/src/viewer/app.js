@@ -4170,7 +4170,7 @@
       B.obj.matrixWorldNeedsUpdate = true;
       if (B.sunk && B.obj.visible) B.obj.visible = false;
     }
-    wreckRide();
+    wreckRide(D);
     wreckEye(D);
     // G1868: the orbit the cockpit rule cut to turns slowly round the wreck (WRECK_DRIFT rad/s) until the player takes it
     if (WK.drift) { if (cam.mode === 'orbit') azT += WRECK_DRIFT * frameDt(); else WK.drift = false; }
@@ -4182,9 +4182,23 @@
   // translation: right while the airframe is whole); once the wreck is drawn, each unit still on the aeroplane is placed
   // by its engine nodes' rigid fit instead - world = fit(rest -> live) x the rest pose x its own local turn (the prop's spin,
   // as poseRigid set it) - so a nose folded down or an engine torn round on its mount carries its block and its prop with
-  // it. A unit gone as debris is the body's. Restored at the heal (matrixAutoUpdate back)
+  // it. A unit gone as debris is the body's. Restored at the heal (matrixAutoUpdate back).
+  // G1861.4: THE FIT'S SET is the engine nodes AND every node still joined to them by an unbroken member (the CG node, the
+  // mount's ring corners while the mount holds, a nose leg built on the engine nodes): a nose engine's rig has two nodes
+  // (ENGL, ENGR) and a two-node fit has no turn - the block was drawn in the frame's own axes, turned off the aeroplane's
+  // heading and out through its cowl (the box, the metal Cessna's 3 m/s taxi, nothing broken). The set follows the
+  // breaks: a broken mount leaves the engine on what still holds it.
   const wreckM = new THREE.Matrix4(), wreckM2 = new THREE.Matrix4(), wreckG0 = new THREE.Matrix4(), wreckGi = new THREE.Matrix4();
-  function wreckRide() {
+  function wreckRideSet(e, D) {
+    const vB = D ? D.vB : 0, k = e.rideSet;
+    if (k && k.vB === vB) return k.ids;
+    const T = WK.T, br = D && D.broken, set = new Set(e.idxs);
+    for (const i of e.idxs) for (const bi of T.adj[i] || []) { if (br && br[bi]) continue; const b = T.beams[bi]; set.add(b.a === i ? b.b : b.a); }
+    const ids = [...set];
+    e.rideSet = { vB, ids };
+    return ids;
+  }
+  function wreckRide(D) {
     if (!model.engRigs || !WK.rest) return;
     if (!WK.g0) { const B0 = (model.brk && model.brk.B0) || null, toDef = wreckToDef(), o0 = toDef([0, 0, 0]), ex = toDef([1, 0, 0]), ey = toDef([0, 1, 0]), ez = toDef([0, 0, 1]);
       WK.g0 = new THREE.Matrix4().set(ex[0] - o0[0], ey[0] - o0[0], ez[0] - o0[0], o0[0], ex[1] - o0[1], ey[1] - o0[1], ez[1] - o0[1], o0[1], ex[2] - o0[2], ey[2] - o0[2], ez[2] - o0[2], o0[2], 0, 0, 0, 1); }
@@ -4192,9 +4206,12 @@
     wreckGi.copy(model.grp.matrixWorld).invert();
     for (const e of model.engRigs) {
       const o = e.obj; if (!o || !o.matrix) continue;
-      const F = window.WRECK_DEBRIS.fit(e.idxs, WK.rest, sim.p), R = F.R;
-      // the fit as a 4x4: x -> R (x - cr) + cl
-      const tx = F.cl[0] - (R[0]*F.cr[0] + R[1]*F.cr[1] + R[2]*F.cr[2]), ty = F.cl[1] - (R[3]*F.cr[0] + R[4]*F.cr[1] + R[5]*F.cr[2]), tz = F.cl[2] - (R[6]*F.cr[0] + R[7]*F.cr[1] + R[8]*F.cr[2]);
+      const F = window.WRECK_DEBRIS.fit(wreckRideSet(e, D), WK.rest, sim.p), R = F.R;
+      // the fit as a 4x4: x -> R (x - cr) + cl - the turn the set's, the place the engine nodes' own (on its nodes, exactly)
+      let crx = 0, cry = 0, crz = 0, clx = 0, cly = 0, clz = 0;
+      for (const i of e.idxs) { crx += WK.rest[i*3]; cry += WK.rest[i*3+1]; crz += WK.rest[i*3+2]; clx += sim.p[i*3]; cly += sim.p[i*3+1]; clz += sim.p[i*3+2]; }
+      const ni = e.idxs.length; crx /= ni; cry /= ni; crz /= ni; clx /= ni; cly /= ni; clz /= ni;
+      const tx = clx - (R[0]*crx + R[1]*cry + R[2]*crz), ty = cly - (R[3]*crx + R[4]*cry + R[5]*crz), tz = clz - (R[6]*crx + R[7]*cry + R[8]*crz);
       wreckM.set(R[0], R[1], R[2], tx, R[3], R[4], R[5], ty, R[6], R[7], R[8], tz, 0, 0, 0, 1);
       // its local turn (the prop's spin as poseRigid wrote it, else none) at its rest place (the pivot)
       // (its local turn: what poseRigid wrote this frame - the prop's spin - or, where nothing rewrote the matrix since this
@@ -4483,6 +4500,7 @@
     const mdl = WK.model;
     if (mdl && WK.rigs) { mdl.engRigs = WK.rigs.engRigs; mdl.props = WK.rigs.props; mdl.wheelParts = WK.rigs.wheelParts; mdl.stretchRigs = WK.rigs.stretchRigs; mdl.castorRig = WK.rigs.castorRig;
       for (const r of mdl.stretchRigs || []) r.wreckGone = false;
+      for (const e of mdl.engRigs || []) e.rideSet = null;
       mdl._poseNG = null; mdl._pose = null; }
     for (let j = WK.idx.length - 1; j >= 0; j--) { const q = WK.idx[j], ix = q.g.index.array;
       q.T.forEach((t, k) => { ix[t*3] = q.saved[k*3]; ix[t*3+1] = q.saved[k*3+1]; ix[t*3+2] = q.saved[k*3+2]; }); q.g.index.needsUpdate = true; idxMirror(q.g);
