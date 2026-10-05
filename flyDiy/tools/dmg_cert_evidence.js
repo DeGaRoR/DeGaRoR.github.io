@@ -9,7 +9,7 @@
 //   kappa.json/.svg   the census for the floor: per kappa, the members on the floor and the bench's first joint
 //                     (linear, from the stamped limits) - why 0.1
 //   runs.json         every run's numbers
-// Run: node tools/dmg_cert_evidence.js
+// Run: node tools/dmg_cert_evidence.js [--plot: redraw the plots from runs.json]
 'use strict';
 const fs = require('fs'), path = require('path');
 const L = require('./_treecrash_lib.js');
@@ -47,8 +47,10 @@ function badOf(k, def, sim, phys) {
   bad.cert = C.genCertify(bad, { world: bad.parts.floats ? C.makeWorld() : null });
   return { what: strut.length ? 'lift struts' : 'wing root', def: bad };
 }
-const ENV = {}, DES = {}, BAD = {}, KAP = {};
-for (const k of KEYS) {
+let ENV = {}, DES = {}, BAD = {}, KAP = {};
+const PLOT = process.argv.includes('--plot');
+if (PLOT) ({ envelope: ENV, destroy: DES, bad: BAD, kappa: KAP } = JSON.parse(fs.readFileSync(path.join(OUT, 'runs.json'), 'utf8')));
+for (const k of PLOT ? [] : KEYS) {
   const t0 = Date.now(), cert = L.certOf(k), ms = Date.now() - t0;
   const def = L.defOf(k, { cert: true }), sim = C.makeSim(def, null), phys = C.makeSim(L.defOf(k, { cert: false }), null);
   // the envelope by class
@@ -78,14 +80,16 @@ for (const k of KEYS) {
     '; kappa', KAP[k].map(x => x.kappa + ':' + x.floor + '/' + x.n + '@' + x.firstJoint.toFixed(2)).join(' '));
 }
 RUNS.envelope = ENV; RUNS.destroy = DES; RUNS.bad = BAD; RUNS.kappa = KAP; RUNS.rules = K;
-fs.writeFileSync(path.join(OUT, 'envelope.json'), JSON.stringify(ENV, null, 1));
-fs.writeFileSync(path.join(OUT, 'kappa.json'), JSON.stringify(KAP, null, 1));
-fs.writeFileSync(path.join(OUT, 'runs.json'), JSON.stringify(RUNS, null, 1));
+if (!PLOT) {
+  fs.writeFileSync(path.join(OUT, 'envelope.json'), JSON.stringify(ENV, null, 1));
+  fs.writeFileSync(path.join(OUT, 'kappa.json'), JSON.stringify(KAP, null, 1));
+  fs.writeFileSync(path.join(OUT, 'runs.json'), JSON.stringify(RUNS, null, 1));
+}
 
 // ---- envelope.svg: which case governs how many members (tension), one row a build ----
 {
   const cases = [...new Set(KEYS.flatMap(k => Object.keys(ENV[k].gov)))];
-  const W = 900, rowH = 30, top = 60, padL = 140, bw = (W - padL - 20) / cases.length;
+  const W = 900, rowH = 30, top = 100, padL = 140, bw = (W - padL - 20) / cases.length;
   let body = txt(10, 22, 'DMG-D2a: the case that sets each member\'s tension limit (members per case)', { size: 15, bold: true, fill: COL.ink });
   cases.forEach((c, j) => { body += `<text transform="translate(${padL + j * bw + bw / 2},${top - 6}) rotate(-40)" font-size="10" fill="${COL.ink2}">${esc(c)}</text>`; });
   KEYS.forEach((k, i) => {
@@ -106,10 +110,10 @@ fs.writeFileSync(path.join(OUT, 'runs.json'), JSON.stringify(RUNS, null, 1));
     const y0 = top + i * rowH + 10, y1 = y0 + rowH - 34;
     const d = DES[k], b = BAD[k], nMax = Math.max(1, d.breaks.length, b.breaks.length);
     const Y = c => y1 - (y1 - y0) * c / nMax;
-    body += txt(10, y0 + 12, L.BUILDS[k].label, { size: 12, bold: true, fill: COL.ink }) + txt(10, y0 + 28, 'broke at ' + (d.brokeAt ? d.brokeAt.toFixed(2) + ' g' : '-')) + txt(10, y0 + 42, (d.brokeKey || '') + ' (' + (d.brokeSeam || '') + ')') + txt(10, y0 + 56, 'bad: ' + b.verdict + (b.breakAt ? ' at ' + b.breakAt.toFixed(2) + ' g' : ''), { fill: COL.bad });
+    body += txt(10, y0 + 12, L.BUILDS[k].label, { size: 12, bold: true, fill: COL.ink }) + txt(10, y0 + 28, 'broke at ' + (d.brokeAt ? d.brokeAt.toFixed(2) + ' g' : '-')) + txt(10, y0 + 42, (d.brokeKey || '') + ' (' + (d.brokeSeam || '') + ')') + txt(10, y0 + 56, 'bad design: first break ' + (b.breakAt ? b.breakAt.toFixed(2) + ' g' : '-'), { fill: COL.bad });
     body += `<rect x="${X(1.5 * 3.8)}" y="${y0}" width="${X(1.5 * K.m * 3.8) - X(1.5 * 3.8)}" height="${y1 - y0}" fill="${COL.grid}"/>`;
     for (let g = 0; g <= xMax; g += 1) body += `<line x1="${X(g)}" y1="${y0}" x2="${X(g)}" y2="${y1}" stroke="${COL.grid}" stroke-width="0.5"/>` + (i === KEYS.length - 1 ? txt(X(g), y1 + 14, g + ' g', { anchor: 'middle' }) : '');
-    for (const [g, lab] of [[3.8, 'limit'], [5.7, 'ultimate']]) body += `<line x1="${X(g)}" y1="${y0}" x2="${X(g)}" y2="${y1}" stroke="${COL.ref}" stroke-dasharray="3 3"/>` + (i === 0 ? txt(X(g) + 3, y0 + 8, lab, { size: 10 }) : '');
+    for (const [g, lab] of [[3.8, 'limit'], [5.7, 'ultimate']]) body += `<line x1="${X(g)}" y1="${y0}" x2="${X(g)}" y2="${y1}" stroke="${COL.ref}" stroke-dasharray="3 3"/>` + (i === 0 ? txt(X(g) + (g > 5 ? -3 : 3), y0 + 8, lab, { size: 10, anchor: g > 5 ? 'end' : undefined }) : '');
     for (const [R, col] of [[b, COL.bad], [d, COL.ink2]]) {
       let pts = `${X(0)},${y1}`; R.breaks.forEach((q, j) => { pts += ` ${X(q[0])},${Y(j)} ${X(q[0])},${Y(j + 1)}`; });
       body += `<polyline points="${pts}" fill="none" stroke="${col}" stroke-width="1.5"/>`;
@@ -120,15 +124,15 @@ fs.writeFileSync(path.join(OUT, 'runs.json'), JSON.stringify(RUNS, null, 1));
 }
 // ---- kappa.svg: the bench's first joint against kappa ----
 {
-  const W = 640, H = 300, padL = 60, padB = 40, top = 40, kx = [0.05, 0.1, 0.15, 0.2, 0.3], gMax = 14;
-  const X = kk => padL + (W - padL - 160) * (kk - 0.05) / 0.25, Y = g => H - padB - (H - padB - top) * Math.min(g, gMax) / gMax;
+  const W = 640, H = 300, padL = 60, padB = 40, top = 40, kx = [0.05, 0.1, 0.15, 0.2, 0.3], gMin = 5, gMax = 10;
+  const X = kk => padL + (W - padL - 160) * (kk - 0.05) / 0.25, Y = g => H - padB - (H - padB - top) * (Math.min(g, gMax) - gMin) / (gMax - gMin);
   const cols = [COL.one, COL.two, COL.three, COL.four, '#7a5cc4'];
   let body = txt(10, 22, 'DMG-D2a: the floor kappa - the bench\'s first joint (g) against kappa', { size: 14, bold: true, fill: COL.ink });
-  for (let g = 0; g <= gMax; g += 2) body += `<line x1="${padL}" y1="${Y(g)}" x2="${W - 160}" y2="${Y(g)}" stroke="${COL.grid}"/>` + txt(padL - 6, Y(g) + 4, g + ' g', { anchor: 'end' });
+  for (let g = gMin; g <= gMax; g += 1) body += `<line x1="${padL}" y1="${Y(g)}" x2="${W - 160}" y2="${Y(g)}" stroke="${COL.grid}"/>` + txt(padL - 6, Y(g) + 4, g + ' g', { anchor: 'end' });
   kx.forEach(kk => { body += txt(X(kk), H - padB + 16, String(kk), { anchor: 'middle' }); });
   body += `<rect x="${padL}" y="${Y(1.5 * K.m * 3.8)}" width="${W - 160 - padL}" height="${Y(5.7) - Y(1.5 * K.m * 3.8)}" fill="${COL.grid}" opacity="0.8"/>` + txt(W - 158, Y(5.85), 'the card\'s band', { size: 10 });
-  KEYS.forEach((k, i) => { const pts = KAP[k].map(x => `${X(x.kappa)},${Y(x.firstJoint)}`).join(' ');
-    body += `<polyline points="${pts}" fill="none" stroke="${cols[i]}" stroke-width="2"/>` + txt(W - 150, top + 16 + i * 16, L.BUILDS[k].label, { fill: cols[i] }); });
+  KEYS.forEach((k, i) => { const pts = KAP[k].map(x => `${X(x.kappa)},${Y(x.firstJoint) + (i - 2) * 2}`).join(' ');   // 2 px apart: they coincide
+    body += `<polyline points="${pts}" fill="none" stroke="${cols[i]}" stroke-width="2"/>` + KAP[k].map(x => `<circle cx="${X(x.kappa)}" cy="${Y(x.firstJoint) + (i - 2) * 2}" r="2.5" fill="${cols[i]}"><title>${esc(L.BUILDS[k].label + ' kappa ' + x.kappa + ': first joint ' + x.firstJoint.toFixed(2) + ' g, ' + x.floor + '/' + x.n + ' on the floor')}</title></circle>`).join('') + txt(W - 150, top + 16 + i * 16, L.BUILDS[k].label, { fill: cols[i] }); });
   body += `<line x1="${X(K.kappa)}" y1="${top}" x2="${X(K.kappa)}" y2="${H - padB}" stroke="${COL.ref}" stroke-dasharray="4 3"/>` + txt(X(K.kappa) + 4, top + 10, 'kappa ' + K.kappa, { size: 10 });
   fs.writeFileSync(path.join(OUT, 'kappa.svg'), svgDoc(W, H, body, 'DMG-D2a kappa census'));
 }

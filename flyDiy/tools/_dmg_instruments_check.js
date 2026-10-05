@@ -4,7 +4,7 @@
 // the Cessna on floats, the twin on floats), the damage layer ON where it is read (params.damage: true):
 //   1. G1800 SIM-DIVERGED vs BROKE-UP (ruling dm4): the NaN ending is 'sim-diverged' everywhere it is written (the page's
 //      watchdog, the load test's 'SIM DIVERGED', the bench card, the crosswind probe, the rigs); 'broke-up' is written by
-//      nothing (the structure's, DMG-D1b's to fire). The load test with a NaN thrown into it says SIM DIVERGED and the
+//      nothing (the structure's, DMG-D1b's to fire); the load test's 'BROKE UP' only on the damage layer's breaks (G1832). The load test with a NaN thrown into it says SIM DIVERGED and the
 //      bench card names the numbers, not a member.
 //   2. G1801 THE VELOCITY GUARD: a lattice past its integrator's limit (k x 5) rings at ~1 km/s and stays FINITE - the old
 //      NaN watchdog never sees it - and trips the guard as 'speed' the first frame; a 1e300 kick trips it the first frame;
@@ -46,7 +46,10 @@ console.log('1. G1800: sim-diverged (the numbers) vs broke-up (the structure)');
   const app = src('src/viewer/app.js'), lt = src('src/core/65_gen_loadtest.js'), bench = src('src/viewer/bench.js'), xw = src('src/core/42_crosswind.js');
   yes(/endFlight\('sim-diverged'\)/.test(app) && !/endFlight\('broke-up'\)/.test(app) && /'SIM DIVERGED — RESET'/.test(app),
     'the page\'s watchdog ends a NaN / guarded flight \'sim-diverged\' (the message "SIM DIVERGED — RESET" stays); nothing ends one \'broke-up\'');
-  yes(/bad \? 'SIM DIVERGED'/.test(lt) && !/'BROKE UP'/.test(lt.replace(/\/\/.*$/gm, '')), 'the load test\'s NaN verdict is \'SIM DIVERGED\' (65_gen_loadtest.js); it writes no \'BROKE UP\'');
+  // G1832 (DMG-D2a): the test to destruction writes 'BROKE UP' - the structure's, from the damage layer's own breaks only
+  const ltCode = lt.replace(/\/\/.*$/gm, ''), brokeUp = (ltCode.match(/'BROKE UP'/g) || []).length;
+  yes(/bad \? 'SIM DIVERGED'/.test(lt) && brokeUp === (ltCode.match(/sim\.damage\(\)\.breaks\) \? 'BROKE UP'/g) || []).length,
+    'the load test\'s NaN verdict is \'SIM DIVERGED\' (65_gen_loadtest.js); \'BROKE UP\' only on the damage layer\'s breaks (' + brokeUp + ')');
   yes(/why: 'sim-diverged'/.test(xw) && !/'broke-up'/.test(xw.replace(/\/\/.*$/gm, '')), 'the crosswind probe\'s NaN ending is \'sim-diverged\' (42_crosswind.js)');
   const writers = [];
   for (const f of ['src/viewer/app.js', 'src/viewer/bench.js', 'src/viewer/sim_host.js', 'src/viewer/sim_link.js', 'src/core/41_test_pilot.js', 'src/core/42_crosswind.js', 'src/core/43_pilot.js', 'src/core/65_gen_loadtest.js',
