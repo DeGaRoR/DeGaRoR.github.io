@@ -183,6 +183,11 @@ const GATES = [
   // about roll, pitch and yaw keep L about the CG (<= 1e-3 over 10 s, the damper's own share <= 1e-5), the pre-G1885
   // damper as the control reproduces exp(-0.5 t), and a plucked wingtip still rings down as before; ~3.5 min
   { id: 'DMGDAMP', file: '_dmgdamp_check.js', tier: 'core', wall: 220 },
+  // G1846 (DMG-TYRE): the tyre's side force is its slip angle's - measured in the solver per tyre class (zero at zero
+  // slip, F = cN tan(beta) N linear, then the Coulomb mu N; the old law as the control), parked 30 s without jitter
+  // (the old law's at-rest hold), the user's Cub's crosswind roll-out at 3 / 4 / 5 m/s held (three pilot_trace
+  // children), the Jodel's and the metal Cessna's taxi turns within 0.80-1.10 of the old radius; ~6 min
+  { id: 'DMGTYRE', file: '_dmgtyre_check.js', tier: 'core', weight: 4, wall: 420 },
   // G286: the graphics settings menu - presets, the pref, the handles
   { id: 'GFX', file: '_gfx_check.js', tier: 'core' },
   // G584: the programs - the real three on a fake GL: the depth warm-up is the shadow pass's own set, two
