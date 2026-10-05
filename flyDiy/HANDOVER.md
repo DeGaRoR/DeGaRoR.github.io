@@ -74383,3 +74383,164 @@ src/core/30_solver.js (G1885 integrate), src/core/65_gen_loadtest.js (comment), 
 tools/_dmgdamp_check.js + run_gates.js row (G1886), tools/dmgdamp_evidence.js (G1887), tools/_floats_check.js /
 tools/_seaplane_check.js (G1888), reports/evidence/DMG-DAMP/ (L_*.svg, modes.json, README.md, perf.txt).
 The generated files (flight_core.js, index.html, dev.html, sw.js, version.json) are NOT committed.
+
+## G1847-G1849 DMG-HULL: THE HULL'S SIDE FORCE IS IN (SLENDER BODY, ZERO AT REST AND DRY); THE TWIN'S "CROSSWIND WATER LOOPS" ARE NOSE-OVERS AT THE PLOUGH, NOT YAW - G1848'S ACCEPTANCE IS NOT MET (2026-10-05, DMG-HULL for the DEFORM COORDINATOR, cloud, node only; branch claude/dmg-hull off claude/dmg-damp 8a22a4f9 + origin/master train 33 merged in, 4f1eec0)
+
+**Read this first, coordinator: the brief's premise was half wrong, and the honest term does not do what the brief hoped.**
+1. **The twin on floats' crosswind failures at 2, 4, 4.5 and 5 m/s are NOSE-OVERS at the plough, not water loops.** Traced
+   frame by frame (both bows' depth, pitch, roll): at 4-7 m/s the twin rides 7-10 deg NOSE-DOWN, both bows bury together
+   (0.4 -> 1.9 m deep, the roll ~0), the pitch runs to -70..-89 deg in about a second, and the heading flips 180 deg as the
+   nose goes through the vertical. DMG-DAMP's "yaw rate 0.3 -> 3 rad/s in a quarter second" was that heading flip. It is the
+   same on the base and with G1847 (the side force cannot hold a pitch). Full back stick (0.7) from 0.6 s does not save it
+   (no elevator at 3-7 m/s of air). The hydro pitch moment explains it: up to about -20 deg the water pitches the nose
+   back up (-1000..-2400 N m at the bows); past it the CG, 1.2 m over the keels, is ahead of the centre of buoyancy and
+   the water pitches it OVER (+1000..+4000 N m nose-down at -23..-45 deg, the deck's Newtonian pressure +1000 of it).
+   Open question 1.
+2. **The hull's honest side force puts its centre AHEAD of the CG on the step** (0.3-0.95 m ahead of the step; the step
+   is under or just aft of the CG). It damps yaw RATE, and it also turns the slip (the slender body's Munk-type N_v).
+   On the twin at the hump (trim 4.6 deg) and on the step the second wins: a yaw kick grows (table below). On the
+   Cessna's hump (trim 10.5 deg, more than the afterbody keel's 6.5 deg rise, so its afterbody carries draft aft) the
+   first wins. The brief's "the yaw moment that gives directional stability on the water" holds only where the
+   afterbody is in the water. Open question 2.
+3. **GATE SEAPLANE stays at DMG-DAMP's 0.2 V_SO (3.3 m/s), not 5.** At 5 m/s the twin noses over on both cores.
+
+### G1847 - THE LAW (32_hydro.js `hullSide`, called at the end of `hydroPanels`; the solver's pass lands it slice by slice)
+- A hull moving ahead at U with a lateral velocity w through the water is a low-aspect lifting surface: span = the
+  keel's draft T (the free surface its mirror), chord = the wetted length. Each keel station's lateral added mass is
+  **m(x) = kSide (pi/2) rho T(x)^2**: a flat plate of span 2T with its image, the half in the water, the manoeuvring
+  (low-frequency) limit. Per unit length **dY/dx = -U d(m w)/dx**, with w the station's OWN lateral velocity, so a yaw
+  rate enters. Walked bow -> stern (stern -> bow backing).
+- **Where a section shrinks, the impulse is shed and kept**: the running maximum of m (the Kutta condition of a
+  low-aspect wing) at the step's drop, the afterbody keel rising aft, and the stem. Where the hull leaves the water
+  (a ventilated step's dry afterbody) the piece ends; a re-wetted stern starts its own.
+- **Linear in U x v.** For pure sway on a hull whose draft grows to its trailing edge it telescopes to
+  **Y = (pi/2) rho T_TE^2 U v**. That is the leading term of Clarke, Gedling & Hine's ship regression (1983:
+  Y'_v = -pi (T/L)^2 (1 + 0.40 C_B B/T)); the plate is its B -> 0 limit, and the beam term adds 1.2-2x for B/T 1-5.
+  **kSide = 1 takes the plate alone: the lower bound.** The planing literature (Brown 1971 and Lewandowski 1997 on
+  prismatic planing hulls in yaw; RECALLED, no copy in the repo, A0 to check): the side force is linear in yaw angle
+  to ~5-10 deg and of the slender-body order on the transom draft, a factor ~0.5-1.5 across deadrise and trim.
+- **Centre of pressure: where the draft grows.** On a planing forebody whose draft rises linearly from the spray root
+  to the step, that is 2/3 of the wetted keel length (the slender delta's), a third of lambda ahead of the step.
+- **Large slip:** U w = V^2 sin b cos b is Jones' low-aspect lift in its own form. It peaks at 45 deg and dies at 90,
+  where the base's quadratic cross-flow on the side panels (1/2 rho Cd Vn|Vn|, unchanged) carries the whole lateral
+  force: Hoerner's low-aspect wing, linear + cross-flow. No extra saturation constant is fitted.
+- **Zero at rest** (U = 0, exactly) and **zero dry** (T = 0; a dry float is not computed at all). Horizontal, on the
+  float's lateral axis, at mid-draft on each slice's keel (its roll arm). Floats only: GEAR-WATER 2's wet body
+  (a wheeled fuselage in the water) is untouched (wetBuild returns null on a floatplane). The coordinator's G1898.5 `wetCut`
+  lives on dmg-integration, not on this base; this branch touches no wet-body line, so it merges past it clean.
+- **Constants:** `kSide: 1` in the float DEF (every float, via floatParamsFor / presets; 0 = off, the base to the bit).
+  Nothing else new. The added-mass INERTIA term m dw/dt stays an H0 cut, as the heave's does.
+
+### G1849 - GATE DMGHULL (tools/_dmghull_check.js, tier full, weight 4, ~13 min on 4 cores; 42 runs in its own children)
+**THE LAW** (the rigid bench, each build's own float at the pose its calm take-off flies; the force at 3 deg of slip):
+
+| float, where | V (m/s) | step keel (m) | trim (deg) | side force (N) | the base's panels (N) | (pi/2) rho T^2 U v (N) | centre from the step (m) |
+|---|---|---|---|---|---|---|---|
+| twin, hump | 7.1 | 0.272 | 4.6 | 305.5 | 111.2 | 306.5 | -0.95 |
+| twin, step | 12.0 | 0.172 | 4.8 | 346.1 | 150.8 | 347.3 | -0.67 |
+| Cessna, hump | 11.1 | 0.274 | 10.5 | 747.3 | 325.4 | 760.0 | -0.52 |
+| Cessna, step | 18.8 | 0.087 | 6.6 | 218.7 | 135.5 | 220.1 | -0.29 |
+
+Asserted, all PASS on both builds: 0 N at rest (U 0, slip 0.5 m/s); 0 N a metre over the water; F(2v) = 2F(v) and
+F(2U) = 2F(U) within 1 % (1.0000); the closed form on the step within 2 % (0.4-0.6 %); the peak at 45 deg, 0 N at 90 deg
+with the cross-flow carrying; the centre ahead of the step on the forebody. Plot: `reports/evidence/DMG-HULL/side_force.svg`.
+
+**THE SWEEP** (GATE SEAPLANE's crosswind take-off: THE PILOT, the SEA lane; swing from the roll's own heading; NO = nose-over):
+
+| across (m/s) | twin, base | twin, now | Cessna on floats, base | Cessna on floats, now |
+|---|---|---|---|---|
+| 0 | 8.3 s, 0.0 deg | 8.3 s, 0.0 | 30.5 s, 0.0 | 30.5 s, 0.0 |
+| 0.5 | 8.3, 1.4 | 8.3, 1.8 | 30.6, 0.3 | 30.6, 0.3 |
+| 1.0 | 8.1, 2.3 | 8.2, 2.9 | 30.3, 0.9 | 30.3, 1.0 |
+| 1.5 | 7.6, 5.2 | 7.8, 5.1 | 30.3, 0.8 | 30.1, 0.9 |
+| 2.0 | **NO (-83 deg)** | **NO (-89)** | 29.7, 5.1 | 28.7, 4.7 |
+| 2.5 | 8.0, 7.8 | 8.4, 8.5 | 31.3, 1.2 | 31.3, 1.3 |
+| 3.0 | 7.7, 10.1 | 7.8, 10.3 | 30.5, 9.7 | 30.2, 7.7 |
+| 3.5 | 7.1, 11.5 | 7.0, **30.7 (yaw)** | 30.0, 2.1 | 30.4, 9.4 |
+| 4.0 | **NO (-86)** | **NO (-87)** | 30.9, 2.6 | 29.6, 5.1 |
+| 4.5 | **NO (-77)** | **NO (-80)** | 31.6, 2.6 | 30.9, 12.0 |
+| 5.0 | **NO (-71)** | **NO (-72)** | 31.8, 16.4 | 33.2, 14.0 |
+
+- **The Cessna on floats is clean at every wind, base and now** (lane 8.1 -> 7.7 m at worst). Asserted.
+- **The twin: the same four nose-overs on both cores. One new failure, 3.5 m/s: 11.5 -> 30.7 deg.** Traced: full rudder
+  from 4 s against a 1-1.8 m/s drift on the step, a skip off at ~16 m/s (1 Vs), the swing passing 30 deg about the
+  re-touch. A skip-and-swing on the step, the side force's forward centre at work; a yaw loop by the gate's class.
+- The twin is asserted only over 0-1.5 m/s (the base's clean band). Every failure past that is printed OWED, classed,
+  on every run. **G1848's acceptance (no loop 0-5 m/s, the bar back at 5) is NOT met.**
+- Traces: `reports/evidence/DMG-HULL/heading_2.svg`, `heading_4.svg`, `heading_5.svg` (heading swing and pitch, base and now).
+
+**THE KICK** (0.3 rad/s of yaw rate about the body's up axis through the CG; the kicked run minus the unkicked one
+from the same state; controls frozen, rudder and aileron neutral; yaw rate left after 1 / 2 (/ 6) s, rad/s;
+BEFORE = the pre-G1885 damper (params.defDampMean), AFTER = DMG-DAMP (kSide 0), NOW):
+
+| build, where | before | after (DMG-DAMP) | now |
+|---|---|---|---|
+| twin, rest | 0.143 / 0.078 / 0.009 (t1/2 0.93 s) | 0.235 / 0.197 / 0.120 (t1/2 3.97 s) | 0.223 / 0.181 / 0.103 (t1/2 3.08 s) |
+| twin, hump (7.1 m/s) | 0.176 / 0.201 | 0.229 / 0.361 | **0.255 / 0.540** |
+| twin, step (12.0 m/s) | 0.278 / 0.230 | 0.276 / 0.121 (t1/2 1.73 s) | **0.427 / 0.429** |
+| Cessna, rest | 0.088 / 0.042 / 0.003 (t1/2 0.45 s) | 0.133 / 0.090 / 0.041 (0.78 s) | 0.127 / 0.084 / 0.037 (0.72 s) |
+| Cessna, hump (11.1 m/s) | 0.065 / -0.014 (0.47 s) | 0.141 / -0.010 (0.97 s) | **0.103** / -0.027 (0.70 s) |
+| Cessna, step (18.8 m/s) | 0.060 / -0.042 (0.58 s) | 0.081 / -0.063 (0.82 s) | **0.106** / -0.014 (0.87 s) |
+
+- **At rest** DMG-DAMP's own number is reproduced: the twin 0.30 -> 0.12 rad/s in 6 s. G1847 moves it a little
+  (0.103), honestly. The floats ride a metre each side of the CG, so a 0.3 rad/s spin drives them 0.3 m/s ahead and
+  astern, and the term acts on that. A moored, still aeroplane feels nothing (the law's U = 0 row). Asserted: no slower
+  than AFTER.
+- **At speed: REPORTED, not asserted.** The Cessna's hump is damped (0.141 -> 0.103). Its step and the twin's hump
+  and step are LESS stable (the centre ahead of the CG). Printed OWED on every run.
+
+### G1848 - THE GATES (base = 4f1eec0, dmg-damp + train 33, built; now = this branch; whole outputs diffed; reports/evidence/DMG-HULL/gates/)
+- **Identical to the base (every line):** WATER, WIPLINE, DMGDAMP (vacuum: the term never acts), LOAD, BENCH, SOAR.
+  SIMWORKER: every step's FNV(p, v) equal; only the worker host's wall-clock lines differ (steps in 3.5 s, latencies).
+- **Dry air, bitwise** (`bits.txt`, MD5 of p and v after 600 frames, base core vs this one): the Cub ground / air,
+  the metal Cessna ground / air, the Jodel ground: IDENTICAL. The floatplanes with kSide 0: IDENTICAL (the term off is
+  the base to the bit). With kSide 1: different, as they must be.
+- **HYDRODYN:** every physics line identical; only its own timing line differs (water / dry 1.56 -> 1.02 x, two
+  batteries sharing the box).
+- **Moved, PASS:**
+
+| gate | number | base -> now |
+|---|---|---|
+| SEAPLANE | crosswind take-off (3.3 m/s): swing / lane | 11.1 -> 13.5 deg / 4.1 -> 5.6 m (bounds 30 / 30); lift-off 7.0 s both |
+| SEAPLANE | the water taxi (5 m/s across, idle, 60 s): heading / track | 15.3 -> 13.4 deg / 2.0 -> 1.5 m (bounds 20 / 10) |
+| SEAPLANE | circuit | identical |
+| FLOATS | on the step: the trim band | -0.2..7.5 -> -0.1..7.5 deg; R/W 0.308 both |
+| FLOATS | landing: the touchdown's peak | 1.079 -> 1.080 W |
+| TREECRASH | the twin floatplane's float nose-in (90 km/h, 5 m/s, 20 deg) | 5.62 -> 5.61 g; no damage both |
+| TREECRASH | the twin's SEVERE nose-in (150 km/h, 10 m/s, 60 deg) | 78 -> 75 set, 35 -> 37 broken, 14.72 -> 14.74 g; CRASHED both (must) |
+
+### The perf
+PERF_PLACEHOLDER
+
+### Open questions (the user, through A0)
+1. **THE TWIN ON FLOATS NOSES OVER AT THE PLOUGH** (crosswind 2, 4, 4.5, 5 m/s; marginal even in calm air, which
+   rides to -7.7 deg and recovers). The missing physics, as I read it: **the plough's bow-up trim.** A real hull rises
+   onto its own bow wave and squats its stern into the trough, so it trims 8-12 deg NOSE-UP at the hump (the seaplane
+   handbooks' "plowing attitude"). 32_hydro carries no wave system in the displacement regime (its own H0 cut: "NO
+   separate wave-making curve", "the spray-root rise is not modelled"). So the twin, its thrust line high over the
+   floats, ploughs nose-DOWN with nothing to lift the bow but its buoyancy. The Cessna's floats ride 10.5 deg nose-up
+   at its hump and never come close. Not fixed here (not this brief, and it moves FLOATS / HYDRODYN's tank comparisons).
+   Recommendation: a GEAR-WATER follow-up for the displacement-regime wave trim. Then re-sweep with GATE DMGHULL; its
+   OWED lines are the to-do list. A pilot technique (power in progressively) was not tried; full back stick was, and
+   failed.
+2. **THE SIDE FORCE'S CENTRE IS AHEAD OF THE CG ON THE STEP** (honest slender-body physics: a hull alone is
+   directionally unstable; the stability comes from the afterbody, a skeg, the water rudder, the fin). On the twin this
+   is a net loss: the yaw kick grows at the hump and on the step, and SEAPLANE's sweep gains a 30.7 deg swing at
+   3.5 m/s. The coordinator / user decides between:
+   (a) keep kSide 1 (honest, the plate's lower bound);
+   (b) kSide 0 (the term carried, measured and off: the base to the bit);
+   (c) revisit after open question 1. With a realistic hump trim (above the afterbody's 6.5 deg rise) the afterbody
+   carries draft and the centre moves aft, as on the Cessna.
+   Shipped as (a), per the user's ruling for honest physics; one constant flips it.
+3. **The pilot's step gains** (G1888's waterStepK 0.6) were sized without this term. Not re-tuned (not water physics).
+4. **The wet body** (GEAR-WATER 2: a wheeled fuselage in the water) carries no lift-type side force. It is not a
+   planing hull and a ditching is short; flagged, not done.
+
+### Files
+src/core/32_hydro.js (G1847: DEF.kSide, hullSide, the scratch's side slices, the solver pass lands them),
+tools/_dmghull_check.js + run_gates.js row (G1849), tools/dmghull_evidence.js (perf, bits, plots),
+tools/_seaplane_check.js (comment: why the crosswind bar stays at 0.2 V_SO), reports/evidence/DMG-HULL/
+(side_force.svg, heading_2/4/5.svg, dmghull_now.json / dmghull_base.json, the gate outputs, bits.txt, perf.txt, gates/).
+The base: 4f1eec0, a merge of origin/master (train 33) into claude/dmg-damp 8a22a4f9. Only HANDOVER conflicted
+(both kept). That brings GEAR-WATER 2's wet body under DMG-DAMP, which DMG-DAMP's own entry said it owed.
+The generated files (flight_core.js, index.html, dev.html, sw.js, version.json) are NOT committed.

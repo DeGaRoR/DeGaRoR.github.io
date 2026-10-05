@@ -106,6 +106,10 @@ if (ONLY.includes('crosswind')) {
 // at 7.2 m/s, full air rudder, the yaw rate 0.3 -> 3 rad/s in a quarter second. No pilot gain holds those (x2-x4 of
 // the displacement gains, x1.5-x2 of the rate term, the water rudder raised later at 9.6 or 12 m/s: measured, none).
 // HANDOVER G1885-G1889 carries it as the open question it is (the water's yaw at the hump).
+// G1848 (DMG-HULL): NOT RESTORED TO 5 m/s. Traced, those "loops" are NOSE-OVERS at the plough (both bows bury at 6-7
+// m/s, the pitch to -70..-89 deg, the heading reads 180 once the nose has gone through the vertical) - on the base and
+// with the hull's side force (G1847) alike, at 2, 4, 4.5 and 5 m/s; the side force cannot hold a pitch. GATE DMGHULL
+// sweeps 0-5 m/s and classes every failure; HANDOVER G1847-G1849, open question 1.
 const XW = 0.2 * (def.params.gen.VsFlap || def.params.gen.Vs);
 console.log(`\nCROSSWIND TAKE-OFF (${f(XW, 1)} m/s across the lane = 0.2 V_SO, FAR 23.233)`);
   const R = fly({ wind: [XW, 0, 0], untilPhase: 'CLIMB', maxS: 120 });
