@@ -923,7 +923,10 @@ function makeSim(def, world) {
     }
     VG.vMax = Math.sqrt(mx); VG.node = im;
     if (VG.vMax > VG.peak) VG.peak = VG.vMax;
-    if (!VG.fault && (nan || mx > VGUARD2)) VG.fault = { why: nan ? 'nan' : 'speed', node: im, v: nan ? NaN : VG.vMax, t: simT };
+    // G1898.2 (coordinator): the SPEED fault ends a flight only with the damage layer on - with it off an elastic wreck whips
+    // its nodes to ~1.8 x the impact speed off the CG (a 45 m/s trunk: 82 m/s), so an ~80 m/s impact would read 'sim-diverged'
+    // where master flies on; off = master's game (as G1898's crash verdict). A NaN is a fault either way. The peak is kept.
+    if (!VG.fault && (nan || (DMG_ON && mx > VGUARD2))) VG.fault = { why: nan ? 'nan' : 'speed', node: im, v: nan ? NaN : VG.vMax, t: simT };
   }
   out.nz = 1; out.nzMax = 1; out.nzMin = 1; out.r = 0; out.beta = 0;
   out.pitch = 0; out.roll = 0; out.hdg = 0; out.rpm = []; out.rpmEng = [];
