@@ -14,7 +14,7 @@
 //   SETTLE   dropped from 0.3 m, engines idle: the water carries the weight
 //            (+-3 %) with the step keels 0.15-0.40 m under, 2-10 deg
 //            nose-up, level in roll, the frame under 6 % strain, finite
-//   TAKEOFF  full throttle, stick back past 12 m/s: a hump (R/W 0.10-0.40)
+//   TAKEOFF  full throttle, stick back, the step attitude held (G1888): a hump (R/W 0.10-0.40)
 //            below 14 m/s, the steps ventilated before lift-off, airborne
 //            inside 30 s, roll under 5 deg the whole run
 //   LANDING  the approach trimmed by bisection (1.3 Vs, quarter throttle,
@@ -114,16 +114,27 @@ const sim = C.makeSim(def, world); sim.reset(0); place(sim, 0.3, 0, 0); sim.ctl.
 // porpoise reads as a resistance spike at 17 m/s: with the chine-ventilated
 // step the twin pops up to 14 deg at 7 m/s and the eased stick lets it
 // porpoise 1-6 deg on the step, damped, R/W 0.27 at the trough).
-console.log('\nTAKEOFF (full throttle from rest, stick back, eased past 14 m/s)');
+// G1888 (DMG-DAMP): ...AND ON THE STEP THE PILOT HOLDS THE PLANING ATTITUDE, not a fixed stick. The fixed 0.2 rode the
+// step only while the solver's deformation damper damped the hull's pitch as rigid rotation (0.5 /s, the review's D1,
+// fixed G1885): without it the porpoise grew (-4.1..12.7 deg) and the twin left the water at 14.6 m/s, 0.9 Vs, on the
+// full back stick before the easing, and slammed back (R/W 0.53). A seaplane pilot answers a porpoise by holding the
+// step attitude; 6 deg is inside a planing hull's least-resistance trim band (Savitsky, 4-6 deg, the law 32_hydro
+// flies). From 9 m/s (past the plough's pop-up at 7): de = 0.2 + 0.04 (6 - trim) - 0.01 trim-rate, 0.45 on the stop.
+// Measured: targets 5, 6, 7 and 8 deg and a start at 9-11 m/s all PASS (R/W on the step 0.29-0.34); the pre-G1885
+// solver flies this hold at R/W 0.19, trim 2.7-5.4 deg.
+const STEP_TRIM = 6, STEP_V = 9;
+console.log('\nTAKEOFF (full throttle from rest, stick back, the planing attitude held from 9 m/s)');
 {
   sim.ctl.thr = 1; sim.ctl.de = 0.45;
+  let trimP = null;
   let ok = true, hump = { R: 0, V: 0 }, ventBeforeLift = 0, airborne = null, maxRoll = 0, T = 0, Vlift = 0;
   let stepR = { R: 0, V: 0 }, trimLo = Infinity, trimHi = -Infinity;
   for (let s = 0; s < 40 * 60; s++) {
     sim.step(1 / 60); T += 1 / 60;
     const r = state(sim);
     if (!finite(r)) { ok = false; break; }
-    sim.ctl.de = r.V > 14 ? 0.2 : 0.45;
+    const tq = trimP == null ? 0 : (r.trim - trimP) * 60; trimP = r.trim;
+    sim.ctl.de = r.V > STEP_V ? Math.max(-0.2, Math.min(0.45, 0.2 + 0.04 * (STEP_TRIM - r.trim) - 0.01 * tq)) : 0.45;
     maxRoll = Math.max(maxRoll, Math.abs(r.roll));
     if (r.wet > 0 && r.V < 14 && r.R > hump.R) hump = { R: r.R, V: r.V };
     if (r.wet > 0 && r.V >= 14) { if (r.R > stepR.R) stepR = { R: r.R, V: r.V }; trimLo = Math.min(trimLo, r.trim); trimHi = Math.max(trimHi, r.trim); }

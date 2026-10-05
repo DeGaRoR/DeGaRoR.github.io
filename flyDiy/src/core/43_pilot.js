@@ -1512,7 +1512,13 @@ function makePilot(sim, def, world, opts) {
       // the gains were sized for, and the weave grew 2 -> 7 -> 12 -> 52 deg
       // with the rudder on its stop (stearman and cub archetypes, measured).
       // The floor 0.3 = VTailUp x 1.8, the fastest a tail-down roll gets.
-      const [kP, kD] = steerK(tailUp);
+      // G1888 (DMG-DAMP): ON THE STEP THE HEADING GAIN IS 0.6 OF THE TAIL-UP ONE. The air rudder alone holds the run
+      // there (the water rudder is up), and the loop's P was sized while the solver's deformation damper still damped
+      // rigid yaw at 0.5 /s (the independent review's D1, fixed G1885): without it the ultralight on floats weaved
+      // stop-to-stop on the step, -5 -> +18 -> -35 deg at a 4.5 s period in a 3.5 m/s crosswind (GATE SEAPLANE's run,
+      // traced). 0.6: 11.5 deg there; 0.5 and 0.6 measured alike over 2.5-3.75 m/s. The rate term is unchanged (x1.5
+      // and x2 of it did not damp the weave). Water only: a wheeled roll is bit-identical.
+      const [kP0, kD] = steerK(tailUp), kP = onWater && tailUp ? kP0 * (A.waterStepK ?? 0.6) : kP0;
       c.dr = clamp(-kP * e - kD * eR, -drMax, drMax);
       // AILERON INTO THE WIND (2026-09-08) — the other half of a crosswind
       // ground roll, and the pilot had only the first. This held the wings
