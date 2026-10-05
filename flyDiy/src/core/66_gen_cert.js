@@ -43,10 +43,12 @@
 //   floatplane's BOW LANDING (23.527-23.529: TREECRASH's float nose-in), and THE FLIGHT TEST (23.307: the pull flown to
 //   the limit - the airframe's own dynamics, read up to the step the wing's load first reaches it).
 // Linear algebra: a dense Cholesky of ~300-400 degrees of freedom per stiffness, Newton on the tangent to the
-// equilibrium (a few rounds a case). The dynamic cases are most of the cost (2.6-9 s a build in node and in a browser
-// worker). THE COST IS NEVER IN THE GARAGE'S EDIT LOOP: the page asks for the certificate when the aeroplane rolls out,
-// on the bench's thread (bench_worker.js 'cert'), and stamps the live sim when it lands (app.js certKick); the bench's
-// test to destruction takes it from there; the gates call genCertify / genCertAttach (cached by the spec's hash).
+// equilibrium (a few rounds a case). The dynamic cases are most of the cost: with DMG-D2b's gear cases 13-46 s a build
+// in node, 8-28 s since G1891 (the settle shared, a wheel landing's window 1.2 s - the same envelope to the bit; GATE
+// DMGCERTCOST). THE COST IS NEVER IN THE GARAGE'S EDIT LOOP: the page asks for the certificate when the aeroplane rolls
+// out, on the bench's thread (bench_worker.js 'cert'), and stamps the live sim when it lands (app.js certKick); the
+// bench's test to destruction takes it from there; the gates call genCertify / genCertAttach (cached by the spec's
+// hash). G1891: the page keeps it across page loads (IndexedDB, bench_worker.js certStoreGet / certStorePut).
 // ============================================================
 const GEN_CERT = {
   limit: GEN_LOAD_LIMIT,     // 23.337(a), the normal category's +3.8 g
@@ -78,6 +80,12 @@ const GEN_CERT = {
   tailAsymMax: 0.8,          // G1836: 23.427(b)'s other side, 100 - 10 (n - 1) %, at most 80 %
   landK: 1.5,                // G1836: the airframe behind the gear at the gear's ultimate in the landing / ground / water cases
   rough: { A: 0.04, lam: 3, V: 8, secs: 12 },
+  // G1891 (DMG-CERTCOST): A LANDING'S WINDOW, frames after the release (60 a second). On WHEELS the peaks that set the
+  // envelope come in the first impact and its first rebound: the last frame that moved any member's envelope on the
+  // three wheel builds was 14 / 13 / 42 of D2a's 120 (the Cub / the Jodel / the metal Cessna; tools/
+  // dmg_certcost_evidence.js), so 1.2 s keeps every one of them, to the bit. On the WATER a float keeps porpoising and
+  // the struts' peaks still move at 98-119 frames: the floats keep the 2 s
+  win: { wheels: 72, water: 120 },
   weave: { V: 0.6, hold: 0.5 },   // G1836: a floatplane's run-out, the rudder hard over and back (s each way, 3 cycles) at 0.6 V_S0  // G1836: 23.491's roughest ground (a stated field: bumps of A m, lam m apart), at V m/s
   // G1835 (DMG-D2b): THE GEAR'S BRACKET (30_solver gearStamp; DEFORM §7.3): a wheel's gear gives in compression with no
   // set to its limit - where a steel section sized for the ultimate yields (yUlt: 1.5 x 4130's ty / tu = 1.18), then crushes at that load over its own TRAVEL (the share of a member's length it gives
@@ -102,8 +110,9 @@ const GEN_CERT = {
 const GEN_CERT_LAND = /^(drop|bow|taxiRough|g[A-Z]|w[A-Z])/;
 // the controls flown (genCertFlownCtl): a member's larger peak certifies it both ways
 const GEN_CERT_RING = /^flown(Elev|Rud)/;
-const GEN_CERT_V = 2;        // the certificate's own version (a cached answer is only valid for the rules that made it);
-                             // 2: G1835-G1836 (DMG-D2b) - the gear's cases, the ground and water loads, the flaps
+const GEN_CERT_V = 3;        // the certificate's own version (a cached answer is only valid for the rules that made it);
+                             // 2: G1835-G1836 (DMG-D2b) - the gear's cases, the ground and water loads, the flaps;
+                             // 3: G1891 (DMG-CERTCOST) - the settle shared, a wheel landing's window 1.2 s (the same envelope)
 
 // is the damage layer on for this def? (30_solver's own DMG_ON: params.damage, else the page's ?damage, else the
 // default) - the page asks before it spends a thread on a certificate
@@ -510,14 +519,27 @@ function genCertBench(def, nz) {
 // THE DROP (23.473): the real sim under the probe (every member's peak force, per substep): settled on its wheels
 // 4 s (a floatplane on the analytic world's sea lane), lifted 2 cm and dropped at the sink rate, no lift, 2 s - the
 // procedure GATE TREECRASH's own drop flies (so the airframe starts the impact carrying its 1 g, as a real one does)
-function genCertDrop(def, sink, world, o) {
+// G1891 (DMG-CERTCOST): THE SETTLE, ONCE A BUILD. Every landing starts from the same 4 s on the wheels (or the water)
+// from the same reset; genCertSettled flies it once and keeps the sim's state (30_solver.js snap), and each landing's
+// fresh sim, made and placed the same way, takes it (unsnap) instead of flying it again - to the bit the same start
+// (GATE DMGCERTCOST). Without a settled state (a sim that will not snap) a landing settles itself, as before
+function genCertDropSim(def, world) {
   const d2 = Object.assign({}, def, { cert: null, params: Object.assign({}, def.params, { damage: true, damageProbe: true }) });
   const floats = !!(def.parts && def.parts.floats), sea = floats && world && world.aerodromes ? world.aerodromes.find(a => a.id === 'SEA') : null;
   const sim = makeSim(d2, sea ? world : null);
   sim.reset(0);
   if (sea) placeAtAerodrome(sim, sea);
   if (sim.setEngine && sim.eng) for (let i = 0; i < sim.eng.length; i++) sim.setEngine(i, { key: 'off' });
-  for (let f = 0; f < 240; f++) sim.step(1 / 60);
+  return sim;
+}
+function genCertSettled(def, world) {
+  const sim = genCertDropSim(def, world);
+  for (let f = 0; f < 240; f++) genCertStep(sim);
+  return typeof sim.snap === 'function' ? sim.snap() : null;
+}
+function genCertDrop(def, sink, world, o, settled, frames) {
+  const sim = genCertDropSim(def, world);
+  if (!(settled && sim.unsnap(settled))) for (let f = 0; f < 240; f++) genCertStep(sim);
   const n = sim.n, P = sim.damagePeak();
   for (let i = 0; i < n; i++) { sim.p[i * 3 + 1] += 0.02; sim.v[i * 3] = 0; sim.v[i * 3 + 1] = -sink; sim.v[i * 3 + 2] = 0; }
   // G1835 (DMG-D2b): THE GEAR'S OWN LANDING ATTITUDES (23.479-23.483, as recalled): the settled aeroplane turned about
@@ -547,7 +569,8 @@ function genCertDrop(def, sink, world, o) {
   }
   P.t.fill(0); P.c.fill(0);
   let nzMax = 0;
-  for (let f = 0; f < 120; f++) { sim.step(1 / 60); nzMax = Math.max(nzMax, sim.out.nz || 0); }
+  const nF = frames || 120;
+  for (let f = 0; f < nF; f++) { genCertStep(sim); nzMax = Math.max(nzMax, sim.out.nz || 0); genCertTap(sim, f); }
   const nb = def.beams.length, t = new Float64Array(nb), c = new Float64Array(nb);
   for (let bi = 0; bi < nb; bi++) {
     const b = sim.beams[bi];
@@ -576,7 +599,7 @@ function genCertBow(def, world) {
   const hl = Math.hypot(xA[0], xA[2]) || 1, V = 90 / 3.6;
   for (let i = 0; i < n; i++) { p[i*3+1] += wh + 0.3 - yMin; v[i*3] = -V * xA[0] / hl; v[i*3+1] = -5; v[i*3+2] = -V * xA[2] / hl; }
   sim.ctl.thr = 0;
-  for (let f = 0; f < 72; f++) sim.step(1 / 60);
+  for (let f = 0; f < 72; f++) { genCertStep(sim); genCertTap(sim, f); }
   const P = sim.damagePeak(), nb = def.beams.length, t = new Float64Array(nb), c = new Float64Array(nb);
   for (let bi = 0; bi < nb; bi++) { const b = sim.beams[bi];
     t[bi] = Number.isFinite(b.fyP) ? P.t[bi] * b.fyP : 0; c[bi] = Number.isFinite(b.fcP) ? P.c[bi] * b.fcP : 0; }
@@ -595,7 +618,7 @@ function genCertFlown(def) {
   const g = (def.params && def.params.gen) || {}, V = 2.6 * (g.Vs || 25), L = GEN_CERT.limit;
   for (let i = 0; i < sim.n; i++) { sim.p[i * 3 + 1] += 400; sim.v[i * 3] = -V; sim.v[i * 3 + 1] = 0; sim.v[i * 3 + 2] = 0; }
   sim.ctl.thr = 1;
-  for (let f = 0; f < 60; f++) sim.step(1 / 60);
+  for (let f = 0; f < 60; f++) genCertStep(sim);
   const P = sim.damagePeak(); P.t.fill(0); P.c.fill(0);
   // THE LOAD FACTOR IS THE AIR'S: the aero force over the weight (out.aeroFy), not the CG's acceleration (out.nz),
   // which lags the wing's load through the frame's own springs in a quick pull - measured on the metal Cessna, the
@@ -606,7 +629,7 @@ function genCertFlown(def) {
     const tgt = Math.min(L, 1 + (L - 1) * (f / 60));
     const e = tgt - sim.out.nz; I += e / 60;
     sim.ctl.de = Math.max(-1, Math.min(1, 0.4 * e + 0.8 * I));
-    sim.step(1 / 60);
+    genCertStep(sim); genCertTap(sim, f);
     const na = sim.out.aeroFy / W;
     nzMax = Math.max(nzMax, na);
     if (na >= L) { reached = true; break; }
@@ -690,7 +713,7 @@ function genCertTaxi(def) {
               waterH: () => -1e9, trees: [], treesNear: (x, z, q) => { q.length = 0; return q; } };
   const d2 = Object.assign({}, def, { cert: null, params: Object.assign({}, def.params, { damage: true, damageProbe: true }) });
   const sim = makeSim(d2, W); sim.reset(0);
-  for (let f = 0; f < 120; f++) sim.step(1 / 60);
+  for (let f = 0; f < 120; f++) genCertStep(sim);
   const x0 = sim.axes()[0], hl = Math.hypot(x0[0], x0[2]) || 1, fx = -x0[0] / hl, fz = -x0[2] / hl, h0 = Math.atan2(fz, fx);
   for (let i = 0; i < sim.n; i++) { sim.v[i * 3] = R.V * fx; sim.v[i * 3 + 2] = R.V * fz; }
   const P = sim.damagePeak(); P.t.fill(0); P.c.fill(0);
@@ -700,7 +723,7 @@ function genCertTaxi(def) {
     sim.ctl.thr = Math.max(0, Math.min(1, 0.25 + 0.15 * e + 0.1 * I));
     const xA = sim.axes()[0]; let dh = Math.atan2(-xA[2], -xA[0]) - h0; while (dh > Math.PI) dh -= 2 * Math.PI; while (dh < -Math.PI) dh += 2 * Math.PI;
     sim.ctl.dr = Math.max(-1, Math.min(1, 3 * dh));
-    sim.step(1 / 60);
+    genCertStep(sim); genCertTap(sim, f);
   }
   const nb = def.beams.length, t = new Float64Array(nb), c = new Float64Array(nb);
   for (let bi = 0; bi < nb; bi++) { const b = sim.beams[bi];
@@ -715,7 +738,9 @@ function genCertTaxi(def) {
 // between two posts that no static load path crosses (the metal Cessna's stab root cross-tie, HR-HR, 18 cm between
 // its two root posts: 0.35 kN in every static case, 0.5 kN in a single frame as its final's throttle came off and its
 // elevator moved) carries what the frame's own modes put through it, and only a flown case puts them there
-function genCertFlownCtl(def, k, flap) {
+// (G1891: `lead` - { S }: the elevator's and the rudder's cases at V_A fly the same second of level flight first; the
+// first keeps it (30_solver snap), the second starts from it)
+function genCertFlownCtl(def, k, flap, lead) {
   const d2 = Object.assign({}, def, { cert: null, params: Object.assign({}, def.params, { damage: true, damageProbe: true }) });
   const sim = makeSim(d2, null); sim.reset(0);
   if (sim.setAtmos) sim.setAtmos(null, 400);
@@ -723,12 +748,15 @@ function genCertFlownCtl(def, k, flap) {
   sim.ctl.flap = flap || 0;
   for (let i = 0; i < sim.n; i++) { sim.p[i * 3 + 1] += 400; sim.v[i * 3] = -V; sim.v[i * 3 + 1] = 0; sim.v[i * 3 + 2] = 0; }
   sim.ctl.thr = 1;
-  for (let f = 0; f < 60; f++) sim.step(1 / 60);
+  if (!(lead && lead.S && sim.unsnap(lead.S))) {
+    for (let f = 0; f < 60; f++) genCertStep(sim);
+    if (lead && typeof sim.snap === 'function') lead.S = sim.snap();
+  }
   const P = sim.damagePeak(); P.t.fill(0); P.c.fill(0);
   const h = Math.round(CF.hold * 60);
   for (let f = 0; f < 4 * h; f++) {
     sim.ctl[k] = f < h ? 1 : f < 2 * h ? -1 : 0; sim.ctl.thr = 0;
-    sim.step(1 / 60);
+    genCertStep(sim); genCertTap(sim, f);
   }
   const nb = def.beams.length, t = new Float64Array(nb), c = new Float64Array(nb);
   for (let bi = 0; bi < nb; bi++) { const b = sim.beams[bi];
@@ -745,13 +773,13 @@ function genCertWaterWeave(def, world) {
   const sea = world.aerodromes.find(a => a.id === 'SEA'); if (!sea) return null;
   const d2 = Object.assign({}, def, { cert: null, params: Object.assign({}, def.params, { damage: true, damageProbe: true }) });
   const sim = makeSim(d2, world); sim.reset(0); placeAtAerodrome(sim, sea);
-  for (let f = 0; f < 120; f++) sim.step(1 / 60);
+  for (let f = 0; f < 120; f++) genCertStep(sim);
   const g = (def.params && def.params.gen) || {}, V = GEN_CERT.weave.V * (g.VsFlap || g.Vs || 25), xA = sim.axes()[0], hl = Math.hypot(xA[0], xA[2]) || 1;
   for (let i = 0; i < sim.n; i++) { sim.v[i * 3] = -V * xA[0] / hl; sim.v[i * 3 + 2] = -V * xA[2] / hl; }
   sim.ctl.thr = 0;
   const P = sim.damagePeak(); P.t.fill(0); P.c.fill(0);
   const h = Math.round(GEN_CERT.weave.hold * 60);
-  for (let f = 0; f < 6 * h; f++) { sim.ctl.dr = (Math.floor(f / h) % 2) ? -1 : 1; sim.step(1 / 60); }
+  for (let f = 0; f < 6 * h; f++) { sim.ctl.dr = (Math.floor(f / h) % 2) ? -1 : 1; genCertStep(sim); genCertTap(sim, f); }
   sim.ctl.dr = 0;
   const nb = def.beams.length, t = new Float64Array(nb), c = new Float64Array(nb);
   for (let bi = 0; bi < nb; bi++) { const b = sim.beams[bi];
@@ -768,9 +796,18 @@ function genCertSink(def) {
 
 // genCertify(def, opt) -> the certificate: per member the tension and compression envelopes at limit (N), and per
 // case its own (the evidence and the gate read them). `opt.world`: the world a floatplane's drop lands on.
+// G1891 (DMG-CERTCOST): genCertifySteps is the same computation as a generator - it yields the name of each case (or
+// group of cases) as it completes, and returns the certificate - so the bench worker can give its event loop a turn
+// between the cases; genCertify runs it to the end in one go
 function genCertify(def, opt) {
+  const g = genCertifySteps(def, opt);
+  let r = g.next();
+  while (!r.done) r = g.next();
+  return r.value;
+}
+function* genCertifySteps(def, opt) {
   opt = opt || {};
-  const t0 = (typeof performance !== 'undefined' ? performance : Date).now();
+  const t0 = (typeof performance !== 'undefined' ? performance : Date).now(), s0 = GEN_CERT_HOOK.steps;
   const nb = def.beams.length, nN = def.nodes.length;
   const kF = b => b.k, kT = b => (b.kTrue != null ? b.kTrue : b.k);
   const sysCache = {};
@@ -884,13 +921,22 @@ function genCertify(def, opt) {
     }
   }
   const tF = (typeof performance !== 'undefined' ? performance : Date).now();
+  yield 'static';
   const bc = genCertBench(def, L);
   if (bc) put('bench', genCertForces(sysOf('bench', { kOf: kT, sub: genCertSubsTrue(def), pinned: bc.pinned, pos: bc.pos }), bc.F));
   const tB = (typeof performance !== 'undefined' ? performance : Date).now();
   const sink = GEN_CERT.dropCap ? 10 * 0.3048 : genCertSink(def);
   let drop = null;
-  if (opt.drop !== false) { drop = genCertDrop(def, sink, opt.world); cases.drop = { t: drop.t, c: drop.c }; }
-  if (opt.drop !== false && def.parts && def.parts.floats) { const bw = genCertBow(def, opt.world); if (bw) cases.bow = bw; }
+  const now = () => (typeof performance !== 'undefined' ? performance : Date).now(), msC = {};
+  let tc = now(); const lap = nm => { const t = now(); msC[nm] = t - tc; tc = t; };
+  const tap = nm => { GEN_CERT_HOOK.name = nm; };
+  // G1891: the settle every landing starts from, flown once (opt.share === false: each landing settles itself)
+  const settled = opt.drop !== false && opt.share !== false ? genCertSettled(def, opt.world) : null;
+  if (settled) { lap('settle'); yield 'settle'; }
+  // (opt.full: every landing its 2 s, D2a's window - the evidence's and the gate's uncut reference)
+  const dropN = opt.full ? 120 : def.parts && def.parts.floats ? GEN_CERT.win.water : GEN_CERT.win.wheels;
+  if (opt.drop !== false) { tap('drop'); drop = genCertDrop(def, sink, opt.world, null, settled, dropN); cases.drop = { t: drop.t, c: drop.c }; lap('drop'); yield 'drop'; }
+  if (opt.drop !== false && def.parts && def.parts.floats) { tap('bow'); const bw = genCertBow(def, opt.world); if (bw) cases.bow = bw; lap('bow'); yield 'bow'; }
   // G1835 (DMG-D2b): THE GEAR'S OWN CASES - the landings at the drop's sink in the attitudes 23.479-23.483 ask for, at
   // the touchdown speed (the wheel's spin-up and spring-back, the float's step meeting the water at speed), and the
   // ground and water loads (genCertGroundLoads) on the free aeroplane
@@ -911,16 +957,34 @@ function genCertify(def, opt) {
     // dynamic answer is not monotone in the sink (the Cessna on floats' wing spar took more at 2.54 m/s, level, than in
     // the one-float landing at the cap's 3.05)
     GD.push(['drop473', { fwd: Vso }]);
-    for (const [nm, o] of GD) { const r = genCertDrop(def, nm === 'drop473' ? genCertSink(def) : sink, opt.world, o); cases[nm] = { t: r.t, c: r.c }; }
-    if (!FLt) cases.taxiRough = genCertTaxi(def);
-    else { const ww = genCertWaterWeave(def, opt.world); if (ww) cases.wWeave = ww; }
+    for (const [nm, o] of GD) { tap(nm); const r = genCertDrop(def, nm === 'drop473' ? genCertSink(def) : sink, opt.world, o, settled, dropN); cases[nm] = { t: r.t, c: r.c }; lap(nm); yield nm; }
+    if (!FLt) { tap('taxiRough'); cases.taxiRough = genCertTaxi(def); lap('taxiRough'); yield 'taxiRough'; }
+    else { tap('wWeave'); const ww = genCertWaterWeave(def, opt.world); if (ww) cases.wWeave = ww; lap('wWeave'); yield 'wWeave'; }
     ground = genCertGroundLoads(def, drop ? drop.nz : 0);
     for (const [nm, F] of ground) put(nm, genCertForces(flight, genCertRelieve(def, F)));
+    lap('ground'); yield 'ground';
   }
   let flown = null;
-  if (opt.drop !== false) { flown = genCertFlown(def); cases.flown = { t: flown.t, c: flown.c }; }
-  if (opt.drop !== false) { cases.flownElev = genCertFlownCtl(def, 'de'); cases.flownRud = genCertFlownCtl(def, 'dr'); cases.flownElevF = genCertFlownCtl(def, 'de', 1); }
+  if (opt.drop !== false) { tap('flown'); flown = genCertFlown(def); cases.flown = { t: flown.t, c: flown.c }; lap('flown'); yield 'flown'; }
+  if (opt.drop !== false) {
+    const lead = opt.share !== false ? {} : null;   // G1891: the elevator's and the rudder's second of level flight, flown once
+    tap('flownElev'); cases.flownElev = genCertFlownCtl(def, 'de', 0, lead); lap('flownElev'); yield 'flownElev';
+    tap('flownRud'); cases.flownRud = genCertFlownCtl(def, 'dr', 0, lead); lap('flownRud'); yield 'flownRud';
+    tap('flownElevF'); cases.flownElevF = genCertFlownCtl(def, 'de', 1); lap('flownElevF'); yield 'flownElevF';
+  }
+  GEN_CERT_HOOK.name = '';
   const tD = (typeof performance !== 'undefined' ? performance : Date).now();
+  const { Ft, Fc, byT, byC, names } = genCertCombine(def, cases);
+  return { v: GEN_CERT_V, key: genCertKey(def), nb, nN, limit: L, ult: GEN_CERT.ult, neg: -GEN_CERT.neg * L, m: GEN_CERT.m,
+           sink, dropNz: drop ? drop.nz : null, flownNz: flown ? flown.nz : null, flownReached: flown ? flown.reached : null,
+           Ft, Fc, byT, byC, names, cases, speeds: VS, aero, nw: ground && ground.nw != null ? ground.nw : null,
+           ms: { flight: tF - t0, bench: tB - tF, drop: tD - tB, total: tD - t0, cases: msC, frames: GEN_CERT_HOOK.steps - s0 } };
+}
+// THE ENVELOPE from the cases (each { t, c }: every member's peak at limit, tension and compression), in the cases' own
+// order (byT / byC: the governing case's index in `names`). G1890: its own function - the evidence re-reads it with a
+// case's window cut short
+function genCertCombine(def, cases) {
+  const nb = def.beams.length;
   const Ft = new Float64Array(nb), Fc = new Float64Array(nb), byT = new Int8Array(nb).fill(-1), byC = new Int8Array(nb).fill(-1);
   const names = Object.keys(cases);
   // G1836 (DMG-D2b, dm14): THE GEAR IS THE FUSE. The landing, ground and water cases (the drops, the bow, the taxi over
@@ -941,11 +1005,15 @@ function genCertify(def, opt) {
     const k = def.beams[bi].cls === 'gear' ? 1 : kL, r = ringC[ci] ? Math.max(C.t[bi], C.c[bi]) : 0;
     const t = Math.max(C.t[bi], r) * k, c = (def.beams[bi].tens ? C.c[bi] : Math.max(C.c[bi], r)) * k;
     if (t > Ft[bi]) { Ft[bi] = t; byT[bi] = ci; } if (c > Fc[bi]) { Fc[bi] = c; byC[bi] = ci; } } });
-  return { v: GEN_CERT_V, key: genCertKey(def), nb, nN, limit: L, ult: GEN_CERT.ult, neg: -GEN_CERT.neg * L, m: GEN_CERT.m,
-           sink, dropNz: drop ? drop.nz : null, flownNz: flown ? flown.nz : null, flownReached: flown ? flown.reached : null,
-           Ft, Fc, byT, byC, names, cases, speeds: VS, aero, nw: ground && ground.nw != null ? ground.nw : null,
-           ms: { flight: tF - t0, bench: tB - tF, drop: tD - tB, total: tD - t0 } };
+  return { Ft, Fc, byT, byC, names };
 }
+// G1890 (DMG-CERTCOST): THE EVIDENCE'S TAP - `frame(name, f, sim)` after every measured frame of a dynamic case (the
+// case's name, the frame since its window opened, the sim under the probe); null in the game (one compare a frame)
+// `steps`: every frame the certificate's sims have stepped (the certificate's own count: C.ms.frames, GATE DMGCERTCOST's
+// budget - the time a machine takes, the frames do not move)
+const GEN_CERT_HOOK = { frame: null, name: '', steps: 0 };
+function genCertTap(sim, f) { if (GEN_CERT_HOOK.frame) GEN_CERT_HOOK.frame(GEN_CERT_HOOK.name, f, sim); }
+function genCertStep(sim) { GEN_CERT_HOOK.steps++; sim.step(1 / 60); }
 // THE CACHE: one certificate per build (its spec hash), a few builds deep
 const GEN_CERT_CACHE = new Map();
 function genCertAttach(def, opt) {

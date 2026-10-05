@@ -7238,44 +7238,61 @@
   // A page without the screen machinery (the harness) syncs and rolls out inline, as before.
   // G1831 (DMG-D2a): THE CERTIFICATE (66_gen_cert.js), only while the damage layer is on. Never in the garage's edit
   // loop: asked for when the aeroplane ROLLS OUT (the roll-out shot and the stand give its thread the seconds it
-  // takes - 2.6-9.6 s in node on the validated builds, the gear drop and the floats' bow most of it), on the bench's thread
+  // takes - 8-28 s in node on the validated builds since G1891, the landings, the rough taxi and the floats' water cases
+  // most of it), on the bench's thread
   // (bench_worker.js 'cert'), kept by the build's spec hash (a second flight of the same build stamps at once). The
   // page does nothing while it computes: the flight rolls out and starts on D1a's physics limits, and the stamp lands
   // on the live sim the moment the answer does (sim.certStamp - refused once anything has bent; under the physics
   // worker sim_link forwards it). No worker (file://): the page computes it in one task after the roll-out.
+  // G1891 (DMG-CERTCOST): AND KEPT ACROSS PAGE LOADS (bench_worker.js certStoreGet / certStorePut: IndexedDB, keyed by
+  // genCertKey, checked against GEN_CERT_V, PHYSICS_V and a checksum): a build is certified once, ever - the memory
+  // cache first, then the store (how: 'store'), and only then the worker; whatever the worker or the page computes is
+  // kept. A stale or corrupt record is deleted and computed again; no IndexedDB is a miss.
   const certCache = new Map();
   let certJob = null, certLast = null;
   function certKick() {
     try {
       if (curKey !== 'gen' || !def || typeof genCertKey !== 'function' || typeof genDamageOn !== 'function' || !genDamageOn(def)) return;
       const key = genCertKey(def);
-      const land = (C, how) => {
+      const land = (C, how, ms) => {
         if (certJob && certJob.key === key) certJob = null;
         if (!C || !C.Ft || C.nb !== def.beams.length) return;
         certCache.set(key, C); while (certCache.size > 8) certCache.delete(certCache.keys().next().value);
         if (curKey !== 'gen' || !def || genCertKey(def) !== key) return;   // the build changed meanwhile: kept for its return
         def.cert = C;
         const ok = !!(sim && typeof sim.certStamp === 'function' && sim.certStamp(C));
-        certLast = { key, how, stamped: ok, ms: C.ms ? C.ms.total : null, limit: C.limit, ult: C.ult };
+        certLast = { key, how, stamped: ok, ms: ms != null ? ms : C.ms ? C.ms.total : null, limit: C.limit, ult: C.ult };
       };
       const hit = certCache.get(key);
       if (hit) { land(hit, 'cache'); return; }
       if (certJob && certJob.key === key) return;                         // on its way
       if (certJob && certJob.w) certJob.w.kill();
       const W = window.BENCH_WORKER, job = certJob = { key, w: null, t0: perfNow() };
+      const ver = { cert: typeof GEN_CERT_V !== 'undefined' ? GEN_CERT_V : null, phys: typeof PHYSICS_V !== 'undefined' ? PHYSICS_V : null };
+      const keep = C => { if (W && typeof W.certPut === 'function') W.certPut(key, C, ver); };   // G1891
       const onPage = () => setTimeout(() => {
         if (certJob !== job || genCertKey(def) !== key) return;
-        land(genCertify(def, {}), 'page');
+        const C = genCertify(def, {}); keep(C); land(C, 'page');
       }, 0);
-      const w = (W && typeof W.start === 'function') ? W.start(m => {
-        if (certJob !== job || !m) return;
-        if (m.error) { console.warn('certificate: the worker could not compute it, the page will -', m.error); if (job.w) job.w.kill(); job.w = null; onPage(); return; }
-        if (m.kind !== 'cert') return;
-        if (job.w) job.w.kill(); job.w = null;
-        land(m, 'worker');
-      }, why => { if (certJob === job) { job.w = null; onPage(); } }) : null;
-      if (w && w.post({ kind: 'cert', spec: genSpec, seq: 1 })) job.w = w;
-      else { if (w) w.kill(); onPage(); }
+      const compute = () => {
+        if (certJob !== job) return;
+        const w = (W && typeof W.start === 'function') ? W.start(m => {
+          if (certJob !== job || !m) return;
+          if (m.error) { console.warn('certificate: the worker could not compute it, the page will -', m.error); if (job.w) job.w.kill(); job.w = null; onPage(); return; }
+          if (m.kind !== 'cert') return;
+          if (job.w) job.w.kill(); job.w = null;
+          keep(m); land(m, 'worker');
+        }, why => { if (certJob === job) { job.w = null; onPage(); } }) : null;
+        if (w && w.post({ kind: 'cert', spec: genSpec, seq: 1 })) job.w = w;
+        else { if (w) w.kill(); onPage(); }
+      };
+      // G1891: the store first (a miss, a stale or a corrupt record, no IndexedDB: computed)
+      if (W && typeof W.certGet === 'function') {
+        W.certGet(key, def.beams.length, ver).then(C => {
+          if (certJob !== job) return;
+          if (C && curKey === 'gen' && def && genCertKey(def) === key) land(C, 'store', perfNow() - job.t0); else compute();
+        }, compute);
+      } else compute();
     } catch (e) { console.warn('certificate:', e && e.message); }
   }
   if (typeof window !== 'undefined') window.CERT_STATE = () => ({ last: certLast, pending: !!certJob, cached: certCache.size,
