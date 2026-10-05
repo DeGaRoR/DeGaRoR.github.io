@@ -2,11 +2,13 @@
 // Every formula here is transcribed verbatim from the pre-dedup gates;
 // the metric-identity rule applies: numbers printed by a gate before and
 // after adopting this harness must match at printed precision.
-const { makeSim, makeAutopilot, placeAtAerodrome, makeWorld } = require('./flight_core.js');
+const { makeSim, makePilot, placeAtAerodrome, makeWorld } = require('./flight_core.js');
+// G1940 (PILOT-ONE): THE PILOT (43) flies every circuit - the classic (40_autopilot) retired. Its CRUISE (the
+// settled leg the elevator chatter was read on) is 43's DOWNWIND.
 
 // Standard per-step pipeline:
 //   ap.update -> sim.step -> strain split (gear/chassis) -> NaN abort ->
-//   rolloutPitchMin -> CRUISE elevator chatter -> tip-flap measurement ->
+//   rolloutPitchMin -> DOWNWIND elevator chatter -> tip-flap measurement ->
 //   custom onStep -> phase-transition log -> break 5 s after STOPPED.
 function runCircuit(cfg) {
   const {
@@ -51,7 +53,7 @@ function runCircuit(cfg) {
   let zDrift = 0;
   for (let i = 0; i < sim.n; i++)
     zDrift = Math.max(zDrift, Math.abs(sim.p[i*3+2] - p0[i*3+2] - meanDz));
-  const ap = makeAutopilot(sim, def, world);
+  const ap = makePilot(sim, def, world);
   // cfg.dest: fly cfg.from (default HOME) -> that aerodrome (id or name)
   if (cfg.dest || cfg.from) {
     const to = cfg.dest
@@ -83,7 +85,7 @@ function runCircuit(cfg) {
     }
     if (sim.stats().bad) { console.log(`NaN t=${t.toFixed(1)} ${ap.phase}`); console.log(`GATE ${id}: FAIL (NaN)`); process.exit(1); }
     if (ap.phase === 'ROLLOUT') ctx.rollPitchMin = Math.min(ctx.rollPitchMin, ap.dbg.th * 57.3);
-    if (ap.phase === 'CRUISE') { ctx.chat += Math.abs(sim.ctl.de - deP); ctx.chatN++; }
+    if (ap.phase === 'DOWNWIND') { ctx.chat += Math.abs(sim.ctl.de - deP); ctx.chatN++; }
     deP = sim.ctl.de;
     {
       const [xB, yB, zB] = sim.axes();

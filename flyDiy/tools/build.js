@@ -99,21 +99,22 @@ const MANIFEST = {
     // box and by the panel to come.
     '38_nav.js',
     '39_ground_path.js',
-    // THE SERVOS (G1570, review E4): the inner loops of all three pilots, one
-    // module and one gain table (SERVO_GAINS); pure, read by 40_, 41_ and 43_.
+    // THE SERVOS (G1570, review E4): the pilot's inner loops, one module and
+    // one gain table (SERVO_GAINS); pure, read by 43_.
     '39b_servos.js',
-    '40_autopilot.js',
-    // the TEST PILOT (G107): the second autopilot, forked from 40_ — bounded
-    // attempts, structured verdicts. Generated builds fly it; the fleet keeps 40_.
-    '41_test_pilot.js',
+    // THE PLACEMENT (G1940): the spawn identity, the stand, the true ground, the
+    // line-up pose - moved out of 40_autopilot.js when the classic (40_) and the
+    // test pilot (41_) retired (PILOT-ONE, G1935-G1944): ONE pilot, 43_.
+    '39c_placement.js',
     // THE CROSSWIND LIMIT (G193.2): the plaque's measured crosswind, a ladder
-    // of departures on the test pilot; pure, polled by the page, run whole by
+    // of departures on THE PILOT; pure, polled by the page, run whole by
     // the gates.
     '42_crosswind.js',
-    // THE PILOT (G202): the third pilot — the test pilot's inner loops under a
-    // new decision layer (rectangular circuit into wind, planned arrival,
-    // accelerate-stop reject, trike rotation, taxi-back with a U-turn, a
-    // published status). Generated builds fly it; 41_ stays for A/B.
+    // THE PILOT (G202): the game's pilot and, since PILOT-ONE (G1940), the
+    // only one — a decision layer (rectangular circuit into wind, planned
+    // arrival, accelerate-stop reject, trike rotation, taxi-back with a U-turn
+    // or a pivot, a published status) over 39b's servos; personalities are
+    // profiles on it (G1943), never forks.
     '43_pilot.js',
     '44_machine_sheet.js',     // P0.4 (PILOT-ROADMAP): the one sheet the pilot reads the aeroplane from
     '50_model_codec.js',
@@ -1228,12 +1229,12 @@ window.FLYDIY_BOOT.then(function () {
   }
   // the CORE marker block is filled above; the worker's registration is storage.js's (RENDER)
   art = `<!-- GENERATED FILE - DO NOT EDIT. Built from src/ by tools/build.js. -->\n` + art;
-  if (!art.includes('function makeAutopilot')) {
+  if (!art.includes('function makePilot(')) {
     console.error('POST-BUILD ASSERTION FAILED: artifact lost the core (String.replace corruption?)');
     process.exit(1);
   }
   // the loading screen precedes the vendor, and every baked picture is on the page
-  if (art.indexOf('window.BOOT = B') < 0 || art.indexOf('window.BOOT = B') > art.indexOf('function makeAutopilot')) {
+  if (art.indexOf('window.BOOT = B') < 0 || art.indexOf('window.BOOT = B') > art.indexOf('function makePilot(')) {
     console.error('POST-BUILD ASSERTION FAILED: boot.js must precede the core in index.html');
     process.exit(1);
   }

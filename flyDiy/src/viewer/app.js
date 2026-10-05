@@ -4391,25 +4391,21 @@
   // it unbounded. (Until the fleet retired, 2026-09-05, 'auto' also meant
   // "classic under a fiche" — there is no fiche now, so 'auto' is 'test'.)
   // G202: 'auto' is THE PILOT (43_pilot.js) in its normal style; 'cautious'
-  // and 'brisk' are its other two; 'test' keeps the G107 test pilot for A/B
-  // and 'classic' the unbounded autopilot.
+  // and 'brisk' are its other two. G1940 (PILOT-ONE): the G107 test pilot
+  // ('test') and the classic autopilot ('classic') RETIRED - one pilot; a
+  // choice of either (an old page, a link) flies THE PILOT's normal style.
   let pilotChoice = 'auto';
   // G202.1: ONE navigator for the flight screen (the aerodromes as its
   // database), handed to every pilot so the AP box's NAV mode has a plan
   let flNav = null;
   const mkPilot = () => {
-    if (pilotChoice === 'classic') return makeAutopilot(sim, def, world);
-    if (pilotChoice === 'test' && typeof makeTestPilot === 'function') return makeTestPilot(sim, def, world);
-    if (typeof makePilot === 'function') {
-      // P0.4 (PILOT-ROADMAP): the machine sheet's shakedown is the bench's
-      // memoised one (shakeOf), handed as a getter — a TDZ before the bench
-      // block runs reads as "no shakedown yet", never as a throw
-      const p = makePilot(sim, def, world, { style: pilotChoice === 'auto' ? 'normal' : pilotChoice,
-                                             shakedown: () => { try { return shakeOf(); } catch (e) { return null; } } });
-      if (typeof navMake === 'function') { if (!flNav) flNav = navMake({ waypoints: world.aerodromes }); p.setNav(flNav); }
-      return p;
-    }
-    return makeTestPilot(sim, def, world);
+    // P0.4 (PILOT-ROADMAP): the machine sheet's shakedown is the bench's
+    // memoised one (shakeOf), handed as a getter — a TDZ before the bench
+    // block runs reads as "no shakedown yet", never as a throw
+    const p = makePilot(sim, def, world, { style: PILOT_STYLES[pilotChoice] ? pilotChoice : 'normal',
+                                           shakedown: () => { try { return shakeOf(); } catch (e) { return null; } } });
+    if (typeof navMake === 'function') { if (!flNav) flNav = navMake({ waypoints: world.aerodromes }); p.setNav(flNav); }
+    return p;
   };
   if ($('selPilot')) $('selPilot').onchange = e => {
     pilotChoice = e.target.value;
@@ -6120,7 +6116,8 @@
     const s2 = makeSim(def, world);
     s2.reset(0);
     placeAtAerodrome(s2, sea);
-    const pilot = (typeof makeTestPilot === 'function') ? makeTestPilot(s2, def, world) : makeAutopilot(s2, def, world);
+    // G1940: THE PILOT flies the certificate (the test pilot it flew had no water law at all - 41 never read sim.hydro)
+    const pilot = makePilot(s2, def, world);
     pilot.setRoute(sea, sea);
     let M = 0; for (const n of def.nodes) M += n.m;
     const P = def.parts.floats[0].P;

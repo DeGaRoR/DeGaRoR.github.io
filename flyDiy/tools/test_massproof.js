@@ -15,7 +15,7 @@
 // node tools/test_massproof.js            -> the battery
 // node tools/test_massproof.js --selftest -> negative verification
 'use strict';
-const { makeSim, makeTestPilot, buildGen, genShakedown, genSpecAtFuel } =
+const { makeSim, makePilot, buildGen, genShakedown, genSpecAtFuel } =
   require('./flight_core.js');
 
 const fails = [];
@@ -228,7 +228,7 @@ console.log('-- the integrator at dry mass (B2) --');
 console.log('-- the taxi feedforward (B4) --');
 {
   const sim = makeSim(def, null); sim.reset(0);
-  const ap = makeTestPilot(sim, def, null);
+  const ap = makePilot(sim, def, null);   // G1940: THE PILOT (the test pilot retired; the same taxi feed-forward)
   const before = ap.taxiFF();
   for (let i = 0; i < def.nodes.length; i++)
     if (def.nodes[i].mFuel > 0)

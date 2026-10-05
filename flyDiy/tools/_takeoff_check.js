@@ -179,6 +179,67 @@ function judge(name, r, opts) {
   check(r.t < (opts.maxS || 300), tag + 'airborne inside the bound', r.t.toFixed(0) + ' s');
 }
 
+// G1937 (PILOT-ONE): THE TAKE-OFF TECHNIQUE, per build. The user (5 Oct): the take-off "pulls on the stick much too
+// fast, and hops before taking off, rather than building speed and taking off clean" - then, the same day, "the
+// remark only applies to floatplanes and water take off. The normal take off is OK". Every build is held to the
+// same technique: EXACTLY ONE lift-off (a hop / a skip is a second one), no contact after it, no lift-off before
+// Vr (0.95 of the build's Vs at least), the lift-off at 1.0-1.35 Vs on wheels (1.0-1.6 on the water: the hull
+// lets go late), the rotation at a bounded pitch rate, and the run against a reference where one exists.
+// THE REFERENCES (POH-style; RECALLED from the published handbooks, not re-read here - check before quoting):
+//   C172 (C172S POH, 2550 lb, sea level, ISA, paved): Vr 55 KIAS (28.3 m/s); ground roll 960 ft (293 m),
+//        to 50 ft 1685 ft (514 m). The user's C172 is 1135 kg (2500 lb) on grass.
+//   J-3 Cub (65 hp, the owner's handbook): lift-off ~35-40 mph (16-18 m/s); ground run ~370 ft (113 m).
+//   Jodel D11-class (INFERRED from the class, no handbook): lift-off ~80-85 km/h (22-24 m/s), ground roll ~200 m.
+//   C172 on Wipline floats (INFERRED from the floatplane supplements' ~1200-1500 ft water runs): ~370-460 m.
+//   The ultralight and the twin on floats are the user's own designs: no reference, the technique checks only.
+// The band on a reference is [0.6, 1.4] x: the sim's grass, the build as corrected, the recalled numbers.
+const TECH_REF = {
+  cub:   { run: 113, src: 'J-3 Cub handbook (recalled)' },
+  c172:  { run: 293, d15: 514, src: 'C172S POH (recalled)' },
+  jodel: { run: 200, src: 'Jodel D11 class (INFERRED)' },
+  wip:   { run: 410, src: 'C172 floatplane supplements (INFERRED)' },
+};
+const TECH_BUILDS = ['cub', 'jodel', 'c172', 'wip', 'ultraf', 'twinf', 'c172f'];
+function techFlights() {
+  const PT = require('./pilot_one_trace.js');
+  return TECH_BUILDS.map(b => PT.trace(b));
+}
+function judgeTech(R) {
+  const f = (v, n = 1) => (typeof v === 'number' && Number.isFinite(v)) ? v.toFixed(n) : '-';
+  const tag = 'technique ' + R.name + ': ';
+  console.log('  ' + R.name.padEnd(7) + (R.float ? 'water ' : 'wheels') + ' Vs ' + f(R.Vs) + ' Vr ' + f(R.Vr) + ' Vlof ' + f(R.Vlof) +
+              ' (' + f(R.Vlof / R.Vs, 2) + ' Vs)  lifts ' + R.lifts + ' (first at ' + f(R.hopV) + ')  touch-after ' + R.touchAfter +
+              '  qMax ' + f(R.qMax) + ' deg/s  run ' + f(R.dist, 0) + ' m  to 15 m ' + f(R.d15, 0) + ' m' + (R.out ? '  ' + R.out + ' ' + R.verdicts : ''));
+  if (R.name === 'c172f') {
+    // the user's C172 with floats for wheels: 1135 kg on 2198 N static (T/W 0.20) cannot climb over the hump; the
+    // pilot must SAY so (G1937), not plough the lane for minutes
+    check(R.out === 'ABORT' && /rejected-takeoff/.test(R.verdicts), tag + 'stuck on the hump: rejected, said', R.out + ' ' + R.verdicts);
+    return;
+  }
+  check(R.Vlof != null, tag + 'airborne', R.out || 'never');
+  if (R.Vlof == null) return;
+  check(R.lifts === 1, tag + 'exactly one lift-off (no hop, no skip)', R.lifts + ' (the first at ' + f(R.hopV) + ' m/s)');
+  check(R.touchAfter === 0, tag + 'no contact after the lift-off', String(R.touchAfter));
+  check(R.hopV >= 0.95 * R.Vs, tag + 'no lift-off before Vr (0.95 Vs)', f(R.hopV) + ' of ' + f(0.95 * R.Vs));
+  const hi = R.float ? 1.6 : 1.35;
+  check(R.Vlof / R.Vs >= 1.0 && R.Vlof / R.Vs <= hi, tag + 'the lift-off at 1.0-' + hi + ' Vs', f(R.Vlof / R.Vs, 2));
+  check(Math.abs(R.qMax) <= 12, tag + 'the pitch rate bounded (12 deg/s) from the roll to 2 hSafe', f(R.qMax));
+  const ref = TECH_REF[R.name];
+  if (ref && ref.run) check(R.dist >= 0.6 * ref.run && R.dist <= 1.4 * ref.run, tag + 'the run ' + f(R.dist, 0) + ' m in [0.6, 1.4] x ' + ref.run + ' m (' + ref.src + ')');
+  if (ref && ref.d15) check(R.d15 >= 0.6 * ref.d15 && R.d15 <= 1.4 * ref.d15, tag + 'to 15 m ' + f(R.d15, 0) + ' m in [0.6, 1.4] x ' + ref.d15 + ' m (' + ref.src + ')');
+}
+// G1938: THE TURN-AROUND - on the strip's own surface the whole way (a site may lay its lane beside the strip on the
+// same surface), within the ends, turned on the spot (said 'pivot'), the roll begun inside 60 s and airborne
+function judgeTurn(T) {
+  const tag = 'turn-around (cub, East Point): ';
+  console.log('  roll at ' + (T.tRoll != null ? T.tRoll.toFixed(1) : 'never') + ' s; max |cross| ' + T.maxX.toFixed(1) + ' m, past an end ' +
+              T.beyond.toFixed(1) + ' m, off the surface ' + T.offSurf.toFixed(1) + ' s; ' + T.end + (T.lift ? ' (airborne)' : '') + '; ' + T.verdicts);
+  check(T.offSurf === 0 && T.beyond <= 0, tag + 'never off the strip', T.offSurf.toFixed(1) + ' s, ' + T.beyond.toFixed(1) + ' m past an end');
+  check(/pivot/.test(T.verdicts), tag + 'turned on the spot (the pivot)', T.verdicts);
+  check(T.tRoll != null && T.tRoll < 60, tag + 'the roll begun inside 60 s', T.tRoll != null ? T.tRoll.toFixed(1) + ' s' : 'never');
+  check(T.lift, tag + 'airborne off the strip', T.end);
+}
+
 const CASES = [
   ['stand · calm', { stand: true }],
   ['stand · 2 m/s cross (+z)', { stand: true, wind: [0, 2] }],
@@ -203,15 +264,21 @@ if (!SELF) {
   // THE FOLLOWER'S SOURCE lives in ONE module and both pilots carry the same
   // phases: a fix that lands in one pilot and not the other is the fork's
   // known failure, and this is the cheap insurance against it
-  const s40 = fs.readFileSync(path.join(__dirname, '..', 'src', 'core', '40_autopilot.js'), 'utf8');
-  const s41 = fs.readFileSync(path.join(__dirname, '..', 'src', 'core', '41_test_pilot.js'), 'utf8');
-  const s43 = fs.readFileSync(path.join(__dirname, '..', 'src', 'core', '43_pilot.js'), 'utf8');   // G202: the third pilot
+  // G1940 (PILOT-ONE): THE FORK IS GONE - the classic (40) and the test pilot (41) retired; the insurance is now
+  // that ONE pilot exists: no other core file defines a pilot factory (a fork that comes back fails here)
+  const s43 = fs.readFileSync(path.join(__dirname, '..', 'src', 'core', '43_pilot.js'), 'utf8');
+  {
+    const dir = path.join(__dirname, '..', 'src', 'core');
+    const forks = fs.readdirSync(dir).filter(f => f.endsWith('.js') && f !== '43_pilot.js')
+      .filter(f => /function\s+make(Auto|Test)?[Pp]ilot\s*\(/.test(fs.readFileSync(path.join(dir, f), 'utf8')));
+    check(!forks.length, 'one pilot: no core file but 43_pilot.js defines a pilot factory', forks.join(', '));
+  }
   // G1570: the servos are ONE module now (39b_servos.js): the tail-state
   // schedule is written once there, and every pilot must fly that module's
   // ground steer rather than a copy of it
   const sSV = fs.readFileSync(path.join(__dirname, '..', 'src', 'core', '39b_servos.js'), 'utf8');
   check(/tailUp = rotateTD/.test(sSV), 'the servo module schedules the ground steer on the tail state');
-  for (const s of [s40, s41, s43]) {
+  for (const s of [s43]) {
     check(/case 'STOP':/.test(s) && /case 'HOLD':/.test(s), 'both pilots carry STOP and HOLD');
     check(/pathLocate\(ap\.path/.test(s) && /pathSpeed\(ap\.path/.test(s), 'both pilots follow the path');
     check(/makeServos\(sim, def/.test(s) && /SV\.groundSteer\(thRest/.test(s) && !/const tailUp = rotateTD/.test(s),
@@ -265,6 +332,12 @@ if (!SELF) {
     console.log('  crosswind limit ' + xw.limit + ' m/s (band ' + xw.band + ' m, roll ' + xw.roll +
                 ' m at the limit; first failure ' + xw.failW + ' m/s, ' + xw.failRoll + ' m) in ' + cpu.toFixed(1) + ' s CPU, ' + wall.toFixed(1) + ' s wall');
   }
+  // ---- THE TECHNIQUE, PER BUILD (G1937, PILOT-ONE) -------------------------------
+  console.log('THE TECHNIQUE (pilot_one_trace: Vr, Vlof, the lift-offs, the pitch rate, the run)');
+  for (const r of techFlights()) judgeTech(r);
+  // ---- THE TURN-AROUND AT THE END OF A ONE-WAY STRIP (G1938) ----------------------
+  console.log('THE TURN-AROUND (pilot_one_turnaround: the Cub at East Point, 150 x 12 m, stopped 20 m from the closed end)');
+  judgeTurn(require('./pilot_one_turnaround.js').turnaround('cub'));
   for (const f of fail) console.log('  FAIL ' + f);
   console.log('GATE TAKEOFF: ' + (fail.length ? 'FAIL' : 'PASS'));
   process.exit(fail.length ? 1 : 0);
@@ -293,6 +366,37 @@ if (!SELF) {
     fail = [];
     const r = JSON.parse(JSON.stringify(good)); doctor(r);
     judge('doctored', r, { stand: true });
+    const caught = fail.length > 0;
+    console.log((caught ? '  caught  ' : '  MISSED  ') + what);
+    if (!caught) bad++;
+  }
+  // G1937: the technique judge, doctored each way it can be wrong
+  const goodT = { name: 'cub', float: false, Vs: 16, Vr: 16.2, Vlof: 17.2, lifts: 1, hopV: 17.2, touchAfter: 0, qMax: 6, dist: 106, d15: 216, out: null, verdicts: '' };
+  const BREAKS_T = [
+    ['a hop (two lift-offs)', r => { r.lifts = 2; }],
+    ['a touch after the lift-off', r => { r.touchAfter = 1; }],
+    ['a lift-off before Vr', r => { r.hopV = 12; }],
+    ['a lift-off at 1.6 Vs on wheels', r => { r.Vlof = 25.6; }],
+    ['a 30 deg/s rotation', r => { r.qMax = 30; }],
+    ['a 300 m run for a Cub', r => { r.dist = 300; }],
+    ['never airborne', r => { r.Vlof = null; }],
+  ];
+  for (const [what, doctor] of BREAKS_T) {
+    fail = [];
+    const r = JSON.parse(JSON.stringify(goodT)); doctor(r);
+    judgeTech(r);
+    const caught = fail.length > 0;
+    console.log((caught ? '  caught  ' : '  MISSED  ') + what);
+    if (!caught) bad++;
+  }
+  fail = []; judgeTech(JSON.parse(JSON.stringify(goodT)));
+  if (fail.length) { console.log('  the sound technique record FAILS: ' + fail.join('; ')); bad++; }
+  const goodTA = { tRoll: 21.5, maxX: 2.7, beyond: -18.7, offSurf: 0, end: 'LIFTOFF', lift: true, verdicts: 'pivot,committed-takeoff' };
+  for (const [what, doctor] of [['a turn off the strip', r => { r.offSurf = 3; }], ['no pivot', r => { r.verdicts = 'committed-takeoff'; }],
+                                ['a 120 s turn-around', r => { r.tRoll = 120; }], ['never airborne after it', r => { r.lift = false; }]]) {
+    fail = [];
+    const r = JSON.parse(JSON.stringify(goodTA)); doctor(r);
+    judgeTurn(r);
     const caught = fail.length > 0;
     console.log((caught ? '  caught  ' : '  MISSED  ') + what);
     if (!caught) bad++;
