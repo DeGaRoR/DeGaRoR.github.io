@@ -24,7 +24,7 @@
 //
 // Run: node tools/test_hothigh.js   (contract: one final `GATE HOTHIGH: ...`)
 
-const { makeWorld, makeSim, makeAutopilot, placeAtAerodrome,
+const { makeWorld, makeSim, makePilot, placeAtAerodrome,
         buildGen, genDensityAlt, makeAtmos, GEN_DEFAULT,
         GEN_FUELS } = require('./flight_core.js');
 const { runCircuit } = require('./circuit_harness.js');
@@ -112,7 +112,7 @@ function takeoffRun(build, weather, stripName) {
   sim.reset(0);
   placeAtAerodrome(sim, strip);
   for (let s = 0; s < 5 * 60; s++) sim.step(1 / 60);       // settle on the gear
-  const ap = makeAutopilot(sim, def, W);
+  const ap = makePilot(sim, def, W);   // G1940: THE PILOT (the classic retired)
   ap.setRoute(strip, strip);
   const c0 = sim.cgPos();
   // UNSTICK IS WHEN THE WHEELS LEAVE, and it is a different event from the

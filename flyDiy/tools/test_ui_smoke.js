@@ -17,7 +17,7 @@ const pick = (marker, label) => {
   if (!b) { console.log(`missing ${label} block (no "${marker}")`); console.log('GATE UISMOKE: FAIL'); process.exit(1); }
   return b;
 };
-const coreBlock = pick('function makeAutopilot', 'core');
+const coreBlock = pick('function makePilot(', 'core');
 // Model and prop payloads are <script src> refs since the multi-file artifact
 // (2026-09-01), not inline blocks. The gate still tests the ARTIFACT: it first
 // asserts the artifact references every published payload, then executes
@@ -42,7 +42,7 @@ const worldBootBlock = pick('FLYDIY_WORLD_COMPOSE = function', 'world boot');   
 // once, so BOOT.run unrolls synchronously inside app.js's eval - and so
 // the teardown is asserted on the real object, not a shim.
 const bootBlock = pick('window.BOOT = B', 'boot');
-if (html.indexOf('window.BOOT = B') > html.indexOf('function makeAutopilot'))
+if (html.indexOf('window.BOOT = B') > html.indexOf('function makePilot('))
   throw new Error('boot.js must precede the core in index.html (the overlay speaks before the vendor parses)');
 if (html.indexOf('id="boot"') < 0 || html.indexOf('id="boot"') > html.indexOf('<canvas id="c">'))
   throw new Error('#boot must be the first thing in <body>, ahead of the canvas');

@@ -17,7 +17,7 @@
 //   node tools/gen_ap_probe.js            all specs
 //   node tools/gen_ap_probe.js fastLowWing bigSlow    a subset
 //   node tools/gen_ap_probe.js --trace stock          per-phase trace as well
-const { buildGen, genShakedown, makeSim, makeWorld, makeAutopilot,
+const { buildGen, genShakedown, makeSim, makeWorld, makePilot,
         GEN_DEFAULT, POWERPLANTS } = require('./flight_core.js');
 
 // ---------------------------------------------------------------------------
@@ -87,15 +87,16 @@ const want = args.filter(a => !a.startsWith('--'));
 // here is OBSERVABLE from sim.ctl and ap.dbg — no reaching into the autopilot's
 // closures, so the instrument survives the autopilot being edited.
 // ---------------------------------------------------------------------------
-const CRUISEY = ['CRUISE', 'ENROUTE', 'TURNBACK', 'INBOUND'];
-const FINALY = ['INBOUND', 'APPROACH'];
+// G1940: THE PILOT's phases (the classic's CRUISE / TURNBACK / APPROACH retired with it)
+const CRUISEY = ['CROSSWIND', 'DOWNWIND', 'BASE', 'ENROUTE', 'INBOUND'];
+const FINALY = ['INBOUND', 'FINAL'];
 
 function fly(def, maxS = 420) {
   const world = makeWorld();
   const sim = makeSim(def, world);
   sim.reset(0);
   for (let f = 0; f < 5 * 60; f++) sim.step(1 / 60);   // settle on the wheels
-  const ap = makeAutopilot(sim, def, world);
+  const ap = makePilot(sim, def, world);
   const A = def.params.ap;
   const thrFloor = A.thrFloor ?? 0.12;
   // THE FLAPS-DOWN stall, because the margin being judged is the one on final
@@ -140,7 +141,7 @@ function fly(def, maxS = 420) {
       if (sim.ctl.thr <= thrFloor + 1e-6) m.thrPin++;
       if (d.V > 1) m.minVratio = Math.min(m.minVratio, d.V / Vs);
     }
-    if (ph === 'APPROACH' || ph === 'FLARE') {
+    if (ph === 'FINAL' || ph === 'FLARE') {
       m.deSatN++;
       // holdPitch clamps de to [-0.30, +0.35]; against the stop = out of elevator
       if (sim.ctl.de >= 0.3325 || sim.ctl.de <= -0.285) m.deSat++;
@@ -162,7 +163,7 @@ function fly(def, maxS = 420) {
   // the top of the climb. CLIMB only ever exits on reaching hCruise-8, so a
   // build that cannot reach the Cub's 100 m stays there until the clock runs
   // out — which is what "it keeps climbing forever" actually is.
-  m.toCruise = m.reached.CRUISE ?? m.reached.ENROUTE ?? null;
+  m.toCruise = m.reached.CROSSWIND ?? m.reached.ENROUTE ?? null;
   m.upT = (m.phaseT.LIFTOFF || 0) + (m.phaseT.CLIMB || 0) + (m.phaseT.ROLL || 0);
   return m;
 }
@@ -263,8 +264,8 @@ console.log('toCru    = seconds from brakes-off to the top of the climb ("-" = N
 console.log('           CLIMB only exits on reaching hCruise-8, so "-" IS the endless climb)');
 console.log('end      = phase when the run ended · dAim = touchdown minus aim, m (+ long) · dZ = cross-track');
 console.log('climbPin = share of the cruise legs spent above target altitude STILL climbing (vsFloor pinned)');
-console.log('thrPin   = share of INBOUND+APPROACH with the throttle on its floor (no decel margin: floats)');
-console.log('deSat    = share of APPROACH+FLARE with the elevator against its stop (out of trim on final)');
+console.log('thrPin   = share of INBOUND+FINAL with the throttle on its floor (no decel margin: floats)');
+console.log('deSat    = share of FINAL+FLARE with the elevator against its stop (out of trim on final)');
 console.log('minV/Vs  = worst airspeed margin on the arrival, against the FLAPS-DOWN stall');
 console.log('           (doctrine: the AP flies 1.25 Vs approaches; 1.13 stalled the Chinook)');
 console.log('minAgl   = lowest height above the field on the CRUISE legs (should never approach hSafe)');

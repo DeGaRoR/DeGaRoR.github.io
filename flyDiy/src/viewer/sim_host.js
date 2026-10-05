@@ -112,8 +112,8 @@ function simHostProbe(world, pts, t, H, opts) {
   };
 }
 // the core names the worker's Blob picks out of the imported bundle
-const SIM_HOST_CORE = ['ISLAND_GEN', 'makeWorld', 'buildGen', 'makeSim', 'makePilot', 'makeAutopilot',
-                       'makeTestPilot', 'navMake', 'siteOf', 'placeAtStand', 'placeAtAerodrome', 'seatOnGround', 'placeAtLineup',
+const SIM_HOST_CORE = ['ISLAND_GEN', 'makeWorld', 'buildGen', 'makeSim', 'makePilot', 'PILOT_STYLES',
+                       'navMake', 'siteOf', 'placeAtStand', 'placeAtAerodrome', 'seatOnGround', 'placeAtLineup',
                        'stripSurface', 'stripGear'];
 const SIM_HOST_DT = 1 / 60;
 const SIM_HOST_CATCH = 4;          // steps owed per turn at most (G586's frame owed 4)
@@ -301,11 +301,11 @@ function makeSimHost(CORE, init, keptWorld) {
   // app.js mkPilot
   function mkPilot() {
     const PK = init.pilot || {}, kind = PK.kind || 'auto';
-    if (kind === 'classic') return CORE.makeAutopilot(sim, def, world);
-    if (kind === 'test' && typeof CORE.makeTestPilot === 'function') return CORE.makeTestPilot(sim, def, world);
-    if (typeof CORE.makePilot === 'function') {
+    {
+      // G1940 (PILOT-ONE): one pilot; 'test' / 'classic' (retired) fly its normal style
       const sd = PK.shakedown || null;
-      const p = CORE.makePilot(sim, def, world, { style: kind === 'auto' ? 'normal' : kind, shakedown: () => sd });
+      const ST_ = CORE.PILOT_STYLES || {};
+      const p = CORE.makePilot(sim, def, world, { style: ST_[kind] ? kind : 'normal', shakedown: () => sd });
       if (PK.nav !== false && typeof CORE.navMake === 'function') {
         // one nav for the page's life (app.js flNav, made once, kept across flights): one per world here (G815)
         if (!world.__simNav) world.__simNav = CORE.navMake({ waypoints: world.aerodromes });
@@ -314,7 +314,6 @@ function makeSimHost(CORE, init, keptWorld) {
       }
       return p;
     }
-    return CORE.makeTestPilot(sim, def, world);
   }
   // app.js applyRoute; `stand`: true = the site's own, an object = the page's (standFor, the player's door), false = the spawn
   function place() {
