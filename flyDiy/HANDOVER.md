@@ -72476,3 +72476,400 @@ the crash drawn with it), perf.json, battery_diff.txt, gate_battery_mine.txt.
 - **'bracing' = the wing's torsion box** in the ledger (G1803 table): D5 decides how the bill names it.
 - The view under the worker (D4a's broken-list hop), and the dashes for broken (a second LineDashedMaterial pass) - left out.
 - **The coordinator must eyeball the damage view on the box** (G1804 above).
+
+## G1820-G1829 DMG-D1b WRECK INTEGRITY - THE STRIP COMPONENT TEST, THE REFS-CORE, SUPPORT LIMITERS ON THE ONE PATH A CRASH SHOWED (THE NOSE ENGINE THROUGH THE FIREWALL) (2026-10-05, DMG-D1b for the DEFORM COORDINATOR, cloud, node only; branch claude/dmg-d1b-integrity off claude/dmg-integration = 8b074564; G1824-G1829 unused)
+
+DEFORM-AND-BREAK §4.5 / §4.6 / §8.1 / §11.1 (DMG-D1b). Base: origin/claude/dmg-integration (TREE-CRASH + G1898 + D1a). origin/master carries no
+train 32 commit, so nothing was merged from it (GEAR-WATER 2's wet body is not on this base: the Cub's three wet-body cases skip, as in D1a).
+DMG-D0 is not on the base either: the break-up verdict is raised in `sim.damage()` (below); the app's `broke-up` string is the coordinator's
+merge with D0's rename. **All of it is behind `params.damage`**: with the layer off nothing here runs and the bytes are the base's (the battery below).
+
+### G1820 - THE STRIP COMPONENT TEST (30_solver.js; TREE-CRASH's `beamStrips` / any-break kill removed)
+- **On a break EVENT only** - the outermost `beamBreak`, after its group has broken whole (a depth counter), never per substep - a union-find over
+  the live members (and the shape-matched clusters still on) gives the pieces. Then, per live strip:
+  - its weights (`st.w`) on one piece: it flies on, whatever broke between its nodes (one broken diagonal no longer silences its bay);
+  - on two or more: **SPLIT** - the weights renormalised onto the piece holding most of them (`SW[si]`, what the aero pass, the induction's control
+    point and the force spread read; the build's own `st.w` array until then) - or **DROPPED** if no piece holds 70 %;
+  - **a strip that reads its chord and normal off its own four spar nodes (`fIn..rOut`) is dropped when those part** (its frame would be read
+    across the gap). On a generated build that is every wing, stab and fin strip, and their weights ARE those four nodes - so on the five
+    validated builds a parted strip is always dropped, never split. **The split path serves strips that read the body axes** (a V-tail's, a
+    hand fiche's tail): those are dropped when the piece they keep is not the core's. A deliberate reading of §4.5 - the coordinator's call.
+  - A part that came off whole keeps its strips (a wing off tumbles under its own aero). Debris nodes are TREE-CRASH's (aero dropped, gravity and ground).
+- `sim.damageStrips()` = `{ dead, w }` (what the aero pass flies); `DMG.stripsSplit / stripsDropped`. `reset()` restores the build's weights.
+- **Cost of a break event** (the group's breaks + the union-find + the strips; the mean of 1000 after 300 to warm the JIT): **15-26 us** on the
+  five builds (394-533 members). A crash run in the gate has 1-12 frames with a new break.
+
+### G1821 - THE REFS-CORE (30_solver.js compEvent)
+- The body frame's refs (`noseFrame`, `tailMid`, `upLo`, `upHi`: the firewall ring and the tail post) checked at every break event: on two pieces,
+  **the flight ends at once as BROKE UP** - `DMG.brokeUp = { t, node, tag }`, `crashed` (its time kept if it had crashed already), `over = true`
+  (the body frame does not average a wreck), `reason = 'broke up: the fuselage parted (<tag> off the core)'` (it replaces an earlier crash reason).
+  Not `refs.origin` (the drawing's datum is the wing roots': a wing coming off takes it along - D4's to re-pin).
+- On every validated build the refs are 6 body nodes; with EVERY group broken at once they stay one piece, a core of 32 body nodes holding no node
+  of any group's part (`parts.dmg.part`, a new per-node part list from the generator's `dmgPart`): one group-free core. No group alone breaks it up.
+- A fuselage cut across behind ring 3 (10 members): BROKE UP on all five. **None of the gate's crash runs breaks up now** (the Cub's 30 m/s
+  centreline did - its firewall corner S0BR torn off - before the limiters below held the engine off the cabin).
+
+### G1822 - SUPPORT LIMITERS, ONLY WHERE A CRASH SHOWED A PASS-THROUGH (61_gen_frame.js parts.dmg.supp; 30_solver.js suppPass)
+**Looked for** with a pass-through probe (`tools/_dmg_integrity_lib.js` makeProbe: a node of another part inside a fuselage bay's hull - rings i,
+i+1 - deeper than it was built by more than 5 cm, while the bay is still a bay), in TREECRASH's trunk flights (30 m/s centreline and 2.5 m out, the
+3 m/s taxi), nose-ins and pancakes on the ground (100 km/h / 4 m/s / 10 deg; 180 / 10 / 60; level 5 and 10 m/s), the float nose-ins and a 5 m/s
+water pancake on the floatplanes, and the bench to destruction:
+
+| path (§4.6 / §8.1) | seen | where |
+|---|---|---|
+| **the nose engine through the firewall** | **yes** | severe ground nose-in: the metal Cessna's ENGL 0.44 m / ENGR 0.31 m into bay 0 still on its mount, its CG node 0.42 m into bay 2 off it; the Cub's 0.09, the Jodel's 0.07 (off). Trunk centreline: the engine CG node off its mount 0.36 m into bay 0 and on through bays 1-4 (the Cub), 0.33 m through bays 0-2 (the Jodel), 0.23 m through bays 0-1 (the Cessna) |
+| the gear leg top through the cabin floor | no | not in any case, the 10 m/s pancake included |
+| a crushed belly into the cockpit | no | no bay's height under 0.96 of built |
+| a wing into the cabin | only after its attachment went | see below - not a limiter's case |
+
+**The limiters (the engine path only):** each nose-engine node (the `eng` part: ENGL, ENGR, CGE) gets one to each corner of RING 1 (the ring behind the
+firewall), 12 a build (0 on the twin: its engines are on the wings).
+- **To ring 1, not the firewall's own corners**: a limiter to the firewall's corners lies across a centred node's path - the Cessna's engine CG node
+  sits 0.18 m ahead of a 1.1 m ring and met them at under 2 % of its stand-off, and went through - while one to ring 1 lies along it.
+- **Slack** until the node has come within `SUPP_GAP` = 20 % of its stand-off of the firewall (L0 = the distance to that corner then); slack at
+  **1.07-1.51 of their closing length** at the load test to 5.7 g, a flown pull (3.99-5.25 g) and FAR 23.473's drop (GATE DMGINTEGRITY).
+- **Stiffness**: the stiffest member's k and c at either end (the cabin ring's, as a rule). On the engine bearer's k the Cessna's engine CG node,
+  pinned by the trunk with the whole cabin behind it, still ended 0.28 m past the firewall; on the ring's 0.11 m. Finite, the energy never above the
+  impact's (TREECRASH's check), the node's own members gone by then. Engaging at 40 % instead of 20 % took it to 0.08 m - kept at 20 %.
+- **NOT MEMBERS (the doc's one line in the beam loop was measured and dropped):** written as members (`(b.supp && L >= b.L0) ? 0 : ...`, appended to
+  `beams`), they cost the stock step **+5-7 % with nothing touching** (12 alternating pairs a case, 1 negative in 48; `perf_members_in_loop.txt`). Bisected:
+  the limiters alone (without them -0.7 / +0.7 %); 12 more objects of another shape in the hottest loop, not the compare. So they are walked in
+  their own pass (`suppPass`, beside D1a's `floorPass`), **only in a frame armed or after a break** (`if (nSup && (armed || DMG.breaks))`: a gap
+  closes only once the mount has yielded or broken), pushing only (their damper never pulls). The beam loop is the base's, byte for byte.
+  `sim.damageSupp()` lists them (`{ a, b, k, c, L0, path }`). They hold nothing (not members: the orphan count, the component test, the trunk pairs
+  never see them). With the layer off, none.
+- **The pass-through gone** (`passthru_metal_ground.svg`, `passthru_cub_trunk.svg`):
+
+  | case | without | with |
+  |---|---|---|
+  | metal Cessna, severe ground nose-in | ENGL 0.44 / CGE 0.42 / ENGR 0.31 m | none |
+  | Cub, severe ground nose-in | ENGL, ENGR 0.09 m (off) | none |
+  | Jodel, severe ground nose-in | ENGR 0.07 m (off) | none |
+  | Cub, trunk 30 m/s centreline | CGE 0.36 m, through bays 0-4 | none |
+  | Jodel, trunk centreline | CGE 0.33 m, bays 0-2 | none |
+  | metal Cessna, trunk centreline | CGE 0.23 m, bays 0-1 | CGE 0.11 m, bay 0 (the trunk holds the engine, the whole cabin's momentum on the limiters) |
+
+- **What the trunk centreline was** (before): the engine stayed pinned at the tree and the fuselage went on THROUGH the trunk (the Cub's firewall
+  ring 9 m past the trunk at 2 s, still at 12 m/s) - members folding round it and tearing, the trunk passing between nodes. With the engine held off
+  the cabin, the cabin now stops at the engine against the trunk: **the 30 m/s centreline's numbers move** (TREECRASH below): fewer members broken
+  (the Cub 100 -> 86, the Jodel 89 -> 73, the Cessna 177 -> 110), less plastic work, and **the contact g up** (16 -> 43 g, 19 -> 40, 25 -> 48).
+- **What the probe still sees, not fixed (the coordinator's / §8.2):**
+  - **a wing into the cabin once its attachment has gone**: a strut-braced wing hit 2.5 m out folds at its first station after the strut lets go
+    and that station's nodes pass 0.10 m (the Cessna, 3 s after the hit, the wreck at rest) / 0.14 m (the Jodel, its low wing under the floor) into a
+    cabin bay; on the Cub's trunk centreline, now that the cabin stops, the right wing's root fittings tear and its root end, still on the strut,
+    drops 0.18 m into the windscreen bay. A free end sweeping the hull: §8.2's point-against-tube collision. **Root limiters were tried** (each
+    root node to the far corners - the floor's under a high wing, the roof's over a low one - of the two rings either side, closing after 5 cm,
+    16-32 more): the 0.18 m went, the other wing's rear root went in 0.11 m a second later. Not kept.
+  - **a detached part through the wreck**: the Cessna's stab or fin off its attach, lying across a folded tailcone (0.06-0.70 m, `off`).
+  - **the trunk through the cabin** where the engine is not in front of it (a trunk is not a member: TREE-CRASH bends what it meets).
+  - the tail's roots 5-13 cm into the tailcone's last bays as the tail crumples forward (attached; marginal).
+
+### G1823 - GATE DMGINTEGRITY (tools/_dmg_integrity_check.js; run_gates core, weight 3, ~90 s on 3 cores) - 54/54
+Per build (the five), damage ON:
+1. **The component test:** intact, one piece and every strip live. **Every member a strip's nodes hold, broken alone (no group): 77-82 members a
+   build; of the 160-168 strip-kills TREE-CRASH's rule made, all fly on now (0 dropped, no single break parted the nodes)**. Each group broken alone,
+   then all: no live strip on two pieces; the parts off keep their own strips (27/27, the twin 28/28). In the crash runs - the trunk flights (land builds), the
+   severe ground nose-in, the severe float nose-in (floatplanes) - **after EVERY frame with a new break (1-12 of them), no live strip on two pieces**
+   (the gate's own union-find against the solver's).
+2. **The refs-core:** on the body; one group-free core of 32 body nodes; the cut across BREAKS UP, over at once.
+3. **SUPPORT:** 12 limiters with the layer on (0 on the twin), none off, the build's own members either way; slack in normal operations; the engine
+   through the firewall without them and not with them (the table above); finite.
+4. **The cost** (REPORT): the break event, 15-26 us.
+- **The V-tail Cub** (its tail strips read the body axes - the split path): stab + tailwheel groups broken (a V-tail's tailwheel spring ends on
+  the H node: the stab comes off only with the tailwheel - D1a's, reported): 2 tail strips split onto the core (75 % of their weight kept,
+  renormalised to 1.000), 2 dropped (50 %).
+
+### THE EVIDENCE (reports/evidence/DMG-D1b/, `node tools/dmg_integrity_evidence.js --base <the base's flyDiy, built>`)
+- `component_cub_diagonal.svg`: the Cub from above, ONE diagonal of a wing's second bay broken: before (the base) the bay's 2 strips go silent; after, 28/28 fly.
+- `component_jodel_wing.svg`: the Jodel's wing into a trunk 2.5 m out, 0.6 s after the first break, the base's core and this one flown: before 2 strips
+  of a wing still whole dropped, after 0 (7 members broken in both).
+- `passthru_metal_ground.svg`, `passthru_cub_trunk.svg`: the engine (ringed) without the limiters and with them (green, solid while closed).
+- `runs.json`; `perf_*.txt`; `gate_dmgintegrity.txt`, `battery_vs_base.txt`.
+
+### PERFORMANCE (§11.2 #2: node, sim.step(1/60), the layer ON, nothing touching, a 4000-trunk set far away)
+Alternating base / now child processes (`treecrash_evidence.js --perf-child`, 600 steps after 120), 12 pairs a case, two runs; the base =
+claude/dmg-integration 8b074564 built in a worktree:
+
+| case | base (ms) | now (ms) | run 1 | run 2 | pooled |
+|---|---|---|---|---|---|
+| the Cub, ground | 3.531 / 3.500 | 3.496 / 3.519 | -1.0 % | +0.6 % | **-0.2 %** |
+| the Cub, air | 3.371 / 3.377 | 3.377 / 3.385 | +0.2 % | +0.2 % | **+0.2 %** |
+| the metal Cessna, ground | 6.128 / 6.126 | 6.193 / 6.221 | +1.1 % | +1.6 % | **+1.3 %** |
+| the metal Cessna, air | 5.843 / 5.826 | 5.875 / 5.859 | +0.6 % | +0.6 % | **+0.6 %** |
+
+- Each run: the median over 12 processes of each process's median (600 steps), base and now alternating (the first of a pair swapped each time);
+  the pairs' own median -0.4 / +0.7 / +0.9 / -0.0 % (run 1) and +0.7 / +0.2 / +1.0 / +0.1 % (run 2), 4-7 of 12 negative in every case.
+  `perf_run1.txt`, `perf_run2.txt`.
+- **The first cut, the limiters as members in the beam loop: +5.1 / +6.9 / +6.6 / +6.8 %, 1 pair negative in 48** (`perf_members_in_loop.txt`).
+  Bisected on side cores: without the limiters -0.7 / +0.7 % (the Cub / the Cessna, air); the strips' `SW[stripIdx]` reads reverted to `st.w`
+  and the limiters kept: +5.7 / +6.7 %. So the limiters, all of it; moved out (G1822 above).
+- What runs with nothing touching: one `if (nSup && (armed || DMG.breaks))` a substep (D1a measured 0 frames armed, nothing touching, on every
+  validated build); the strips' weights read through `SW[stripIdx]` (the same arrays); the union-find only on a break.
+
+### NORMAL OPERATIONS NEVER YIELD (§11.2 #3: GATE TREECRASH's margins re-printed) - byte for byte the base's
+The worst member's peak force over its yield (per substep, under the probe) - **every line of section 2 identical to the base's TREECRASH**:
+
+| build | bench 3.8 / 5.7 g | flown pull | drop FAR 23.473 / 10 ft/s | circuit |
+|---|---|---|---|---|
+| the user's Cub | 0.17 / 0.25 | 0.51 (3.99 g) | 0.22 / 0.30 | 0.17 |
+| Jodel | 0.34 / 0.50 | 0.38 (4.69 g) | 0.24 / 0.32 | 0.15 |
+| metal Cessna | 0.29 / 0.42 | 0.36 (5.25 g) | 0.15 / 0.19 | 0.18 |
+| Cessna floats | 0.36 / 0.52 | 0.48 (5.23 g) | 0.16 / 0.21 | 0.21 |
+| twin floatplane | 0.27 / 0.42 | 0.61 (4.95 g) | 0.18 / 0.26 | 0.18 |
+
+### THE WATER CASE (§11.2 #4: TREECRASH section 6) - the base's
+- The twin's float nose-in (90 km/h, 5 m/s, 20 deg): worst member 0.83, nothing set, nothing broken, 5.62 g, no damage. Its severe nose-in (150 / 10 / 60):
+  38 set, 60 broken, 14.87 g, CRASHED (a tail member broke) - as the base. The floatplanes' severe nose-ins in DMGINTEGRITY: no strip on two pieces.
+- **The Cub's three wet-body cases SKIP** (GEAR-WATER 2's wetBuild is not on this base; master carries no train 32). The coordinator's integration
+  re-reads them once both are in.
+
+### THE BATTERY (§11.2 #1: off = the base's bytes; node, GATES_CORE=1, --verbose, each gate's whole output diffed, TREE-CRASH G1478's method)
+The base's battery (claude/dmg-integration 8b074564, built in a worktree, 2 jobs) against this branch's on its final code (3 jobs), the same 41 gates
+(`--only=SOAR,PILOT,GEN,HONEST,AERO,HOTHIGH,FLEX,FLAPS,GE,STRESS,NAV,TAXICLEAR,LINEUP,PLAN,DEFAULT,WEIGHT,DRAG,MASS,GEAR,STRUT,SITE,FLOATS,SEAPLANE,ENERGY,MOUNT,SUBSTEP,PACE,FLIGHTREC,PILOTACT,STRIPSURF,TAKEOFF,SETTLE,HYDRODYN,SIMWORKER,HITBOX,LOAD,BENCH,BIPLANE,OBSTACLE,TREEHIT,TREECRASH,DMGMEMBERS`) plus DMGINTEGRITY:
+- **The base: BATTERY PASS 42/42. This branch: 42 of 43 PASS in the battery; HITBOX FAIL on a wall-clock line** ("arch:c172 e: the spec shape
+  costs less than the raster it replaces", 155 ms against 144 ms with 3 jobs running; the base read 71 against 362) - **HITBOX alone on the same
+  core: PASS** (368 s). The same kind of clock check failed on the base in D1a's battery. (The first battery, on the limiters-as-members commit,
+  2 jobs: 43/43 PASS, the same verdicts below.)
+- **The same bytes (28):** AERO, BENCH, DEFAULT, DRAG, ENERGY, FLAPS, FLOATS, GE, GEAR, HONEST, HOTHIGH, LINEUP, LOAD, MASS, MOUNT, NAV, OBSTACLE,
+  PACE, PLAN, SEAPLANE, SITE, SOAR, STRESS, STRUT, SUBSTEP, TAXICLEAR, TREEHIT, WEIGHT (LOAD, BENCH, TREEHIT, OBSTACLE: the layer is off in them).
+- **Only clock readings differ (every number stripped, the same bytes):** BIPLANE (buildGen ms), FLEX / GEN / PILOT (the shards' seconds only),
+  FLIGHTREC, HYDRODYN (the water's ms ratio), PILOTACT (a temp core's name), SETTLE (the bake ms), STRIPSURF, TAKEOFF, HITBOX (its ms and the line
+  above), **SIMWORKER** (every step's FNV(p, v) equal: the stock f2b3de3f, the Cessna cbccf99f, as the base; the real-time half's action steps move
+  with the clock).
+- **Damage ON, moved as expected:** TREECRASH 47/47 (the base 47/47): **only the 30 m/s trunk flights' lines move** - the centreline, the cabin now
+  stopped at the engine against the trunk: the Cub 100 -> 86 broken, 65.6 -> 51.4 kJ, 16.0 -> 43.5 g; the Jodel 89 -> 73, 77.2 -> 18.1 kJ, 18.7 -> 40.1 g;
+  the Cessna 177 -> 110, 109.1 -> 79.3 kJ, 24.7 -> 47.7 g; the wing 2.5 m out within 0.3 g and 0.2 kJ (the strips that fly on). Every check holds
+  (crashed, a wing member broken, finite, the energy never above the impact's 100.0 %). **Sections 2 and 6 (normal operations, the water) are
+  byte for byte the base's.** DMGMEMBERS 79/79 (the base 78/78): the same trunk centrelines, the Jodel's kink-floor line now printed (5 kinked, ends
+  1.05 of their crushed length apart), the twin's spruce crack-to-gone 2.22 -> 2.35 ms (strips the old rule silenced on the bench fly on: tiny aero
+  forces, a later stage). DMGINTEGRITY 54/54.
+- `reports/evidence/DMG-D1b/battery_vs_base.txt` (the per-gate verdict and both summaries), `gate_dmgintegrity.txt`, `gate_treecrash.txt`.
+- The generated outputs (flight_core.js, index.html, dev.html, sw.js, version.json) are NOT committed.
+
+### Open questions (the coordinator / A0)
+- **The split path never fires on a generated build** (every strip reads its frame off its own spar nodes, which are its weights): a parted strip is
+  dropped. §4.5 asks split-or-drop on the weights; dropping a strip whose frame has parted is this session's reading. A frame substitute (a
+  parallelogram from three corners) would make the split real for the wing bays - a hot-path change, not done.
+- **The engine is held off the cabin, so the 30 m/s trunk centreline now stops the cabin at the trunk**: contact g 40-48 (was 16-25), fewer members
+  broken. Realistic (the engine against the tree, the cabin behind it) but TREECRASH's numbers moved; the 9 g verdict fires either way.
+- **A wing into the cabin after its attachment has gone, a detached part through the wreck, a trunk through the cabin**: §8.2's selective
+  point-against-tube collision (switched on at the first yield), not limiters (root limiters tried: whack-a-mole, 16-32 more).
+- **A V-tail's tailwheel spring ends on the stab's H node**, so its stab comes off only with the tailwheel group (the closed sets hold: it is a
+  fitting of `tw:gear`). D1a's generator; not a validated build.
+- **`refs.origin` (the drawing's datum) is the wing roots'**: a wing coming off takes the drawing's pin along. D4.
+- **The break-up verdict is `sim.damage()`'s** (`crashed`, `over` at once, `reason 'broke up: ...'`, `brokeUp`); the app's ending string waits for
+  DMG-D0's `sim-diverged` / `broke-up` split at the merge.
+- Merge notes: solver edits are the strip block (stripDead / SW / compEvent, replacing `beamStrips`), `beamBreak`'s depth counter, `dmgReset`'s
+  two lines, the aero pass's two `SW[stripIdx]` reads and `cpOf(ti)`, the limiters beside D1a's floors (SUP / suppPass / one line in `substep`),
+  and two `sim` accessors. The beam loop, `armFrame` and `beamYield` are untouched. The generator: `parts.dmg.part` and `parts.dmg.supp`.
+  `_treecrash_lib.js` gained `onStart` / `onFrame` hooks (flyRun, pull, hardLanding, waterCase).
+- The generated outputs (flight_core.js, index.html, dev.html, sw.js, version.json) are NOT committed.
+
+## G1840-G1849 DMG-D3 CLUSTERS - A CLUSTER IS ONE BREAKABLE PART: ROOT MOMENT AND TORQUE LIMITS ON THE FIN, THE ROD, THE BOOMS AND THE FLOATS; THE TUBE'S MID-SPAN STATION; THE TWIST'S TORQUE LIMIT; A PART COMES OFF RIGID (2026-10-05, DMG-D3 for the DEFORM COORDINATOR, cloud, node only; branch claude/dmg-d3-clusters off claude/dmg-integration = b819b779 (TREE-CRASH + G1898 + D1a + D0); master carries no train 32 yet, so nothing merged; G1844-G1849 unused)
+
+DEFORM-AND-BREAK §4.0 (the clusters row), §4.4, §4.7 option (i), §7.1 #8, §7.4 (float dig-in), §11.1-§11.4. A shape-matched cluster holds its
+shape by projection, so the members inside it carry almost nothing and no member limit can see what it carries. It is now judged as what it
+stands for: a part with a ROOT SECTION. Everything is behind `params.damage` (off by default, G1898): with the layer off no cut exists, nothing
+is measured, and the bytes are the base's (the battery below). There is no flyDiy/CLAUDE.md on this base (read docs/SHARED-TREE-PRACTICES.md).
+
+### WHICH VALIDATED BUILD HAS WHICH CLUSTER
+| build | clusters (and their root's D1a group) |
+|---|---|
+| the user's Cub, the Jodel, the metal Cessna | the FIN (fin:attach) |
+| the Cessna on floats | the FIN; the two rigid FLOATS (floatL:strut, floatR:strut) |
+| the twin floatplane | the ROD (its tail boom: a tube cluster with G350's twist and a mid-span station; no group - its root bay's 10 members); the FIN; the two FLOATS |
+| (no validated build) | a TWIN BOOM: flown on the FIXTURE tools/fixtures/build_v8_twin-boom_2026-09-11.json, REPORTED, tuned on nothing |
+
+### G1840 - THE ROOT LIMITS (61_gen_frame `dmg` on every cluster; 30_solver's DMG-D3 block)
+- **The section (the generator, beside the cluster):** the fin's two caps (Acap = 1 cm2 each, d = 8 % of the root chord apart: the EI its omega is
+  built from) on its front and rear root posts (s apart); the rod's drawn tube (EI = E pi r^3 t, GJ as G350's, r and the wall rodWall); a twin
+  boom's oval (EI both ways, GJ); a float's attachment (the struts and spreader bars that end on it: read in the solver as a BOLT GROUP of the
+  members' own break forces).
+- **The limit: D1a's FITTING RULE on that section.** A cluster's root attachment IS a fitting group (D1a's fin:attach, floatX:strut, boomX:attach;
+  the rod's root bay), so it breaks as D1a breaks a fitting: 1.15 (FAR 23.625) x the section's ULTIMATE capacity at the material's own GEN_CRASH
+  tu (shear tu / sqrt 3) - fully plastic where the material is ductile (a thin tube's Z_p = 4/pi x I / c), its extreme fibre where it is brittle
+  (spruce, carbon: tu = ty). Bending is judged on both axes (hypot of each over its limit), the torque about the part's axis on its own.
+- **WHY NOT THE BRIEF'S FIRST YIELD (sigma_y I / c) - the coordinator's call.** At first yield the twin's rod (its drawn tube, 113 x 1.2 mm 4130,
+  first yield 5.56 kN.m) is passed in TREECRASH's own flown pull (1.43 x first yield at 4.95 g from 43 m/s, mostly the stab's load) and in the
+  90 km/h / 20 deg float nose-in (1.72 x): the tail would come off in both. The lattice's own rod members (the aft fuselage truss, rings 1.3 x 0.6 m
+  at the root) are 15-28 x stronger than that tube; the cluster's stiffness is the tube's. First yield is REPORTED beside every load (the gate's
+  "of first yield", clusterCuts' yb / yt) so the census still says where a section first yields. One line (`CL_FIT`, `fu`, `sh` in 30_solver)
+  turns it back to first yield.
+- **THE ROOT LOAD is the reaction across the cut, from the forces across it** (validated against the statics, below): the members joining the part
+  to its root (their force this substep), plus - where the cluster spans the cut (the fin's cluster holds its post, the rod's its bulkhead ring) -
+  the projection's own correction on the part's nodes (m al e / dt^2: the force that held it to the rest) and the twist constraint's turn of a ring
+  across the cut. The moment about the root's centroid, split into the torque about the part's axis and the two bending components.
+- **Past either limit the part's root group breaks** (D1a's; the rod's root bay), and the part comes off as a RIGID BODY (BeamNG's 'prop'): its
+  cluster is re-formed on the part's own nodes (the root's dropped, the rest re-taken). A root group broken MEMBER BY MEMBER (D1a's axial check;
+  a float's struts are outside its cluster) parts the cut the same way (DMG.cl's `why: 'member'`). Any other member broken inside a cluster still
+  releases it (G1470's C.off). reset() restores every cluster and cut.
+- **The cost:** measured on the LAST substep of every frame (one pass over the cut members and the cluster's nodes: the quiet path's one per
+  frame, like armFrame's beam pass) and every substep of a frame ARMED (armFrame; a cut past half its limit arms the next frame, `clArm`). Read-only:
+  nothing it computes moves a node.
+- **New instruments:** `sim.clusterCuts()` (every cut's limits, last loads and ratios, peaks, parted; the twist bays; the live clusters),
+  `DMG.cl` / `DMG.firstCl` (the cuts parted, in order: tag, cut, why = bend / twist / member, ratio, t, group), the probe's `PEAK.cl` / `PEAK.tw`
+  (`_treecrash_lib.clearPeak` clears them too).
+
+**The limits (break, kN.m: bending about the weak axis / the other / torque; first yield at the share yb of the break):**
+| build | cut | limits | first yield | group |
+|---|---|---|---|---|
+| the user's Cub | FIN root | 6.70 / 20.32 / 11.73 | 0.69 | fin:attach |
+| Jodel (spruce: brittle) | FIN root | 0.76 / 3.02 / 1.74 | 0.87 | fin:attach |
+| metal Cessna, Cessna floats | FIN root | 6.54 / 24.15 / 13.94 | 0.64 | fin:attach |
+| Cessna floats | FLTL / FLTR root (bolt group) | 2641 / 2728 / 158 | 0.73 | floatX:strut |
+| twin floatplane | ROD root | 10.31 / 10.31 / 9.35 | 0.54 | its bay (10 members) |
+| | ROD station (bay 2) | 7.22 / 7.22 / 6.55 | 0.54 | its bay (10) |
+| | FIN root | 6.02 / 32.34 / 18.67 | 0.69 | fin:attach |
+| | FLTL / FLTR root | 633 / 665 / 45.5 | 0.79 | floatX:strut |
+| twin-boom FIXTURE | BML / BMR root | 25.10 / 20.45 / 20.23 | 0.54 | boomX:attach |
+| | BML / BMR station (bay 1) | 17.57 / 14.31 / 14.16 | 0.54 | its bay (6) |
+| | FINL / FINR root | 4.87 / 36.00 / 20.79 | 0.69 | finX:attach |
+
+### G1841 - THE TWIST CONSTRAINT'S TORQUE LIMIT (BeamNG's torsionbar strength, N.m)
+- On a measured substep each bay's torque - the ring's angular impulse over the substep, I_red phi / dt^2 (= GJ / L x the excess twist below the
+  cap) - against the tube's torque limit (above; the station's bay at the splice's 0.7). Past it the tube TEARS there: the cluster splits at that
+  bay (the rod's bay 0 is its root, the station's bay its station; any other bay gets a cut of its own). Rod: 9.35 / 9.35 / 6.55 / 9.35 kN.m per
+  bay; the fixture's booms 20.23 / 14.16.
+- A torque on the rod's last ring (the gate's twist pull) tears it at the STATION by twist at 6.55 kN.m (the cut's own torque reaches it with the
+  bay's), the root untouched, 10 members broken (its bay), both halves rigid to 1.7 mm.
+
+### G1842 - THE TUBE'S MID-SPAN STATION (61_gen_frame dmgStation)
+- **Where:** the bay (ring k to k + 1) whose midpoint is nearest the tube's mid-length, never the root bay: the user's "booms crack, often in the
+  middle" (§7.1 #8). A long boom is spliced and carries its bracing's and control runs' through-bolted brackets along its length; the reports'
+  "just aft of the cabin" is the tube's ROOT cut here (and the monocoque's rivet line, D1a). The rod: bay 2 (rings at x 3.04 / 3.79 of a tube from
+  1.55 to the post at ~5.0); the fixture's booms: bay 1. Its limits are the tube's x 0.7 (D1a's riveted-joint efficiency, the doc's range).
+- **Past it the tube splits into two rigid clusters** (`ROD` and `ROD/aft`); its bay's members break. A cluster still holding nodes on both sides
+  (the twin boom's fin stands on the station's ring and the ring before) lets go of the fewer.
+- **Which case loads mid-span:** a shape-matched tube between two clamps carries no beam's mid-span peak (its stiffness is one spring to the rigid
+  fit, not a beam's), so its moment is a beam's only where the load is statically determinate: the gate LEVERS the tube over an obstacle at its
+  station (the station ring pushed up 1.5, the tail down 1): the station parts first (rod 7.22 kN.m at 3.93 s, the fixture 17.57 at 3.33 s), the
+  root never. In the twin's 90 km/h nose-in the station carries 0.82 of the root's moment (0.76 against its own limit).
+
+### G1843 - GATE DMGCLUSTERS (tools/_dmg_clusters_check.js; run_gates core, weight 3; ~8 min on 3 cores)
+**83/83 PASS** (482 s in the battery, 4 jobs; three builds' children at once). REPORT lines: the floats' fittings hold in both nose-ins (§7.4, below); the fixture's six pulls, all clean.
+1. **The cuts:** every cluster of every build has its root cut, limits finite (table above); the rod and the booms their station and their twist
+   limits.
+2. **The measure is the statics** (the airframe pinned, the part and what hangs on it at 5 g of its own weight; read / sum(m g x lever)): the
+   Cub's fin 0.08 / 0.08 kN.m; the Jodel's 0.04 / 0.04; the metal Cessna's 0.13 / 0.13; the floats' fin 0.14 / 0.14, its floats 1.31 / 1.29; the
+   twin's rod root 3.99 / 3.98, its station 1.99 / 2.00, its fin 0.08 / 0.08, its floats 0.25 / 0.24 - all within 2 %.
+3. **Nothing parts in normal operations** (the probe: the worst cut's peak load over its break limit per substep; in brackets its first-yield
+   share):
+
+   | build | bench wing / fin / stab 5.7 g | flown pull | drop FAR 23.473 / 10 ft/s | circuit | the water |
+   |---|---|---|---|---|---|
+   | the user's Cub | 0.000 / 0.040 / 0.009 | 0.009 | 0.011 / 0.015 | 0.008 | - |
+   | Jodel | 0.000 / **0.733 (0.84)** / 0.000 | 0.232 | 0.144 / 0.184 | 0.080 | - |
+   | metal Cessna | 0.000 / 0.126 / 0.001 | 0.015 | 0.006 / 0.007 | 0.009 | - |
+   | Cessna floats | 0.000 / 0.164 / 0.001 | 0.013 | 0.021 / 0.027 (on the water) | 0.021 (on the water) | the 5 m/s pancake 0.082 |
+   | twin floatplane | 0.000 / 0.147 / 0.000 | **0.771 (1.43)** rod root | 0.310 / 0.502 (0.93) rod root | 0.324 rod root | the 90 km/h nose-in **0.928 (1.72)** rod root |
+
+   Parked 10 s, damage on: nothing parts, no frame armed once settled (worst cut 0.0005-0.106); the two drops with damage on: nothing parts.
+   GEAR-WATER 2's "ordinary float touchdowns" are the drops onto the water and the water circuit here: the floats' roots 0.02-0.04.
+4. **The parts come off cleanly** (damage on; the airframe pinned, a load ramped on the part until its root gives; the load off once it has):
+
+   | build | pull | parts | at | broken | the part |
+   |---|---|---|---|---|---|
+   | Cub / Jodel / metal / floats / twin | the fin, n g sideways | FIN root by bend at its limit (6.70 / 0.76 / 6.55 / 6.55 / 6.02 kN.m) | 1.6-2.5 s | 16 (fin:attach), 0 others | rigid to 0.0-0.1 mm, falls clear |
+   | twin | the rod, n g down on the tube and the tail | ROD root by bend, 10.31 kN.m | 1.45 s | 10 (its bay) | rigid to 4.0 mm (the rod's cluster is compliant: omega 337 rad/s), 1.0 m off |
+   | twin | the rod levered at its station | ROD station by bend, 7.22 kN.m | 3.93 s | 10 (its bay) | two rigid halves, 1.4 mm |
+   | twin | a torque on the rod's last ring | ROD station by twist, 6.55 kN.m | 2.13 s | 10 (its bay) | 1.7 mm |
+   | twin / Cessna floats | a float's bow driven up and aft (a dig-in) | FLTx root by MEMBER (a strut fitting, 1.15 Fu, before the group's moment: 79.5 / 233.7 kN.m, 0.13 / 0.09 of it) | 0.60 / 0.45 s | 12 (floatX:strut) | rigid to 0.0 mm (the prop), falls clear |
+   | FIXTURE | each fin; each boom loaded down (n g on its own boom); each boom levered at its station | FINx root bend 4.88; BMx root bend 24.94; BMx station bend 17.57 | 1.60; 4.13; 3.33 s | 16; 24 (boomX:attach); 6 | rigid to 0.0-0.1 mm, clean (REPORT) |
+
+5. **The water** (§11.2 #4, §7.4): see THE WATER CASE below.
+6. **The fixture** is REPORT lines only.
+
+### THE WATER CASE (§11.2 #4; GATE TREECRASH §6 and DMGCLUSTERS §5)
+- **The twin's float nose-in (90 km/h, 5 m/s, 20 deg): nothing parts, nothing breaks** (TREECRASH: the worst member 0.83, 0 set, 5.62 g, no
+  damage, as the base). Its rod root carries 0.928 of its break limit (1.72 x first yield): the closest any cluster comes in a case that must not
+  break - the tail's inertia (~40 kg on the lattice behind the rod's root) as the floats dig and the aeroplane pitches; the station 0.76; the
+  floats' roots 0.02 bend / 0.04 twist. reports/evidence/DMG-D3/loads_water.svg.
+- **The twin's SEVERE nose-in (150 km/h, 10 m/s, 60 deg):** the rod comes off at its root at 0.067 s (10.8 x its limit by the probe), then both
+  engine mounts (0.142 s); CRASHED (a fus member broke); TREECRASH 32 set, 38 broken, 17.7 g (the base 38 set, 60 broken - the rod's going first
+  spares the tail truss). The floats' roots 0.16 / 0.29 (bend / twist): **THE FLOAT FITTINGS HOLD.**
+- **The Cessna on floats:** ordinary nose-in nothing (floats 0.01 / 0.02); severe: the engine mount, the stab, then the fin off (by member, 0.53 s);
+  the floats' roots 0.06 / 0.15: **they hold.** Its 5 m/s level pancake 0.082 (the fin).
+- **So §7.4's "float-strut fittings fail in overload" does not happen in the severe case:** the struts as billed (the gear class's section: 134
+  mm2 4130 on the twin, 414 mm2 2024 on the Cessna, 90-224 kN each) are 3.4-6.7 x stronger than what the severe nose-in puts through them, and the
+  airframe gives first. A real float fitting is the deck fitting bolted into the float's bulkhead, not the strut tube; its strength is the
+  certificate's (FAR 23.527-.537 water loads x 1.5 x 1.15) - DMG-D2a's per-member envelope, not a section. Reported, not tuned.
+- The Cub's three wet-body cases still skip in this core (GEAR-WATER 2's wetBuild is not on dmg-integration): re-read when train 32 is in.
+
+### TREECRASH AND DMGMEMBERS (damage on)
+- **GATE TREECRASH 47/47 PASS** (the base 47/47). The trunk flights: the Cub's centreline 100 broken / 65.6 kJ, the wing 2.5 m out 25 / 13.6 kJ;
+  the Jodel 89 / 77.2, 23 / 9.2; the metal Cessna 177 / 109.1, 20 / 19.6 - a fin whose group breaks now comes off rigid instead of going limp.
+- **GATE DMGMEMBERS 78/78 PASS** (the Jodel's carry-through REPORT unchanged).
+- **DMGFPS / DMGINST:** GATE DMGFPS 130/130 PASS, GATE DMGINST 32/32 PASS (in the battery below).
+
+### PERFORMANCE (§11.2 #2: node, sim.step(1/60), the layer ON, nothing touching, a far 4000-trunk set)
+`node tools/treecrash_evidence.js --perf-only --perf-base <the base's core>` (the median of 5 processes' medians, 600 steps; the base =
+claude/dmg-integration b819b779 built in a worktree, its own _treecrash_lib.js beside it), run twice, pooled (10 processes a side, their median):
+
+| case | base (ms) | now (ms) | |
+|---|---|---|---|
+| the Cub, ground | 2.685 | 2.693 | +0.3 % |
+| the Cub, air | 2.564 | 2.592 | +1.1 % |
+| the metal Cessna, ground | 4.552 | 4.571 | +0.4 % |
+| the metal Cessna, air | 4.456 | 4.535 | +1.8 % |
+
+- **The metal Cessna in the air, alternating base / now pairs:** 12 pairs +2.0 % (mean) / +1.8 % (median); 20 pairs **+0.8 % / +0.6 %**
+  (11 of 20 slower). The cloud box's process noise is +-2-4 % (D1a's note); the code's own share, profiled over 1200 steps in-process: cutX 0.08 %,
+  clCuts 0.04 %, the projection's reporting twin 0.02 % of the step - **0.14 %**.
+- **Found and fixed on the way:** the first cut called the measurement from INSIDE substep() (`if (clMs) cutX()` after the beam loop, `if (clMs)
+  clCuts()` after the projection) and cost the Cub in the air **+3.7 %** pooled, +1.9 % in 12-20 pairs - the calls' cost, not the work (a variant with
+  the work stubbed out kept +1.6 %; with the flag constant-false, -0.1 %). The members across a cut are now read in step()'s loop from the state
+  the substep's beam loop reads (the same bits), the cuts judged after it returns: **substep() is the base's**. Then the Cub in the air read
+  -0.4 % in 20 pairs.
+- **Never armed** with nothing touching (the Cub, the metal Cessna, ground and air, 600 frames after 120: 0 frames armed, the worst cut 0.0005-0.0009
+  of its limit). Unarmed, one substep a frame is measured (the frame's last); armed, every substep (the in-contact cost: a cut's members and a
+  cluster's nodes, reported, not gated).
+- perf.json, perf_pairs_metal_air.txt.
+
+### THE BATTERY (§11.2 #1: off = the base's bytes; node, GATES_CORE=1, --verbose, each gate's whole output diffed, TREE-CRASH G1478's method)
+The base's battery (claude/dmg-integration b819b779 in a worktree) against this branch's, the same 41 gates (TREE-CRASH G1478's list:
+`--only=SOAR,PILOT,GEN,HONEST,AERO,HOTHIGH,FLEX,FLAPS,GE,STRESS,NAV,TAXICLEAR,LINEUP,PLAN,DEFAULT,WEIGHT,DRAG,MASS,GEAR,STRUT,SITE,FLOATS,SEAPLANE,
+ENERGY,MOUNT,SUBSTEP,PACE,FLIGHTREC,PILOTACT,STRIPSURF,TAKEOFF,SETTLE,HYDRODYN,SIMWORKER,HITBOX,LOAD,BENCH,BIPLANE,OBSTACLE,TREEHIT,TREECRASH`), this
+branch with DMGMEMBERS, DMGCLUSTERS, DMGFPS, DMGINST on top:
+- **Both: BATTERY PASS** (the base 41/41 in 1789 s wall; this branch 45/45 in 2346 s, 4 jobs).
+- **The same bytes (28):** SUBSTEP PACE GE FLAPS STRESS NAV TAXICLEAR PLAN LINEUP DEFAULT HONEST WEIGHT DRAG MASS TREEHIT BENCH GEAR STRUT SITE
+  OBSTACLE FLOATS SEAPLANE ENERGY AERO HOTHIGH SOAR LOAD MOUNT (the asked-for LOAD, BENCH, FLEX's verdicts, TREEHIT, OBSTACLE: the layer is off in them).
+- **Only clock readings differ (12; every number masked, the same bytes):** FLIGHTREC GEN PILOT STRIPSURF TAKEOFF PILOTACT (a temp core's name)
+  BIPLANE (its buildGen ms) SIMWORKER (every step's FNV(p, v) equal: the stock f2b3de3f, the Cessna cbccf99f, as the base) HITBOX HYDRODYN SETTLE
+  FLEX (its shards' seconds).
+- **TREECRASH** (damage ON) differs where the clusters act, PASS 47/47 as the base: the Jodel's wing 2.5 m out breaks 23 members (the base 7; its
+  fin comes off too, 16, the aeroplane slewing round the trunk) for 9.2 kJ (8.9); the twin's severe nose-in 32 set / 38 broken, 17.70 g, CRASHED (a
+  fus member broke) (the base 38 / 60, 14.87 g, a tail member) - the rod comes off at 0.067 s and spares the tail truss.
+- battery_diff.txt (the per-gate verdict and every differing line), battery_summary.txt, gate_*.txt.
+- The generated outputs (flight_core.js, index.html, dev.html, sw.js, version.json) are NOT committed.
+
+### EVIDENCE (reports/evidence/DMG-D3/, `node tools/dmg_clusters_evidence.js`, ~3 min)
+- `loads_pulls.svg`: each scripted pull - the cut's bending and torque over its break limit against time, to the moment the part comes off.
+- `loads_water.svg`: the twin's two nose-ins per frame (the probe) - the rod's root and station, the left float's root, over their limits.
+- `view_fin_cub.svg`, `view_fin_jodel.svg` (from behind), `view_rod_root.svg`, `view_rod_station.svg`, `view_rod_twist.svg`, `view_float.svg`,
+  `view_boom_station.svg` (from the left): the beams 0.5 s after the part came off - the part's own members, the broken ones, the rest.
+- `runs.json`; `gate_dmgclusters.txt`, `gate_treecrash.txt`, `gate_dmgmembers.txt`; `perf.json`; `battery_diff.txt`.
+
+### Open questions (the coordinator / DMG-D2)
+- **The break limit is D1a's fitting rule on the section, not first yield** (above). At first yield the twin's rod comes off in TREECRASH's flown
+  pull and in the 90 km/h nose-in. If first yield is wanted, the twin's drawn rod (rodWall 1.2 mm, a GEN_RULES default) is under-strength for its
+  tail - that is a generator / archetype question, not tuned here.
+- **The twin's 90 km/h nose-in reads 0.93 of the rod root's break limit** - under 1, but the thinnest margin of any normal case. D2 may want
+  headroom (as D1a's 0.83 there on a truss member).
+- **The Jodel's fin at 0.73 (0.84 of first yield) on the fin's own 5.7 g bench:** its spruce caps (1 cm2 each, the EI's stand-in) are what the
+  wooden fin's omega was built on. Under 1.
+- **The floats' fittings do not fail in the severe nose-in** (above): the certificate's fitting limits (D2a) are what would make them.
+- **A float's attachment is never judged by its moment first:** its own struts' fittings (D1a, 1.15 Fu each, axial) let go at 0.09-0.13 of the
+  bolt group's moment - the moment check is consistent with them but never the first to trip. The fin, the rod and the booms are judged by the
+  moment (their members inside the cluster carry nothing).
+- **Plastic clusters (§4.7 ii) are not built:** a cluster takes no set; it holds or its part comes off.
+- **A part that came off has no aero** (its strips died with the members across them, G1470's rule; D1b's component test may restore them) and is
+  not drawn detached (D4a's mesh breaking).
+- **After a root cut parts, that part's other cuts are spent** (a torn-off rod does not split again at its station); after a station split, the
+  fore half keeps its root cut.
+- **No validated build has a twin boom;** the fixture's numbers are reported and nothing was tuned on it.
+- Not touched: per-beam work, bm.sec, sim-diverged, DMGFPS (D0); the strip component test, refs-core, SUPPORT beams (D1b); certificate limits
+  (D2a); the deformation damper (DAMP). Solver edits are localized to the cluster code (shapeMatch's one branch to its reporting twin
+  shapeGoalReport, twistHold / rotateRing's report and torque limit), TREE-CRASH's DMG block (the D3 block, dmgReset, beamBreak's cluster line
+  and its group line, armFrame's `clArm`) and step()'s substep loop (cutX before, clCuts / clApply after); substep() is the base's. The
+  generator (61_gen_frame) adds a `dmg` record to each cluster and the rod / boom station (finCluster takes the fin's root ends); tools: GATE
+  DMGCLUSTERS (new, registered core), dmg_clusters_evidence.js (new), _treecrash_lib's clearPeak clears the cluster peaks too.

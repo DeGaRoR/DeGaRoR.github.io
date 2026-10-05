@@ -11659,9 +11659,10 @@
       if (!flightOver && (sw ? sw.crashed : (sim.damage && sim.damage().over))) {
         // G1470 (TREE-CRASH): a member broke, the impact passed 9 g or the airframe crushed - the wreck at rest, the
         // flight is over with its own row in the logbook; the card says why
-        const D = flDmg;
-        endFlight('crashed');
-        $('phName').textContent = 'CRASHED' + (D && D.reason ? ': ' + D.reason : '') + ' — RESET';
+        // G1898.3 (coordinator, D0 x D1b): the body frame's refs parted (DMG.brokeUp, G1821) is the STRUCTURE's ending, 'broke-up'
+        const D = flDmg, up = !!(D && D.brokeUp);
+        endFlight(up ? 'broke-up' : 'crashed');
+        $('phName').textContent = (up ? 'BROKE UP' : 'CRASHED') + (D && D.reason ? ': ' + D.reason : '') + ' — RESET';
       }
     } else if (SIMW) SIMW.idle();       // G815: nothing flies this frame (a pause, the card) - the worker's clock stops
     if (FR) FR.lap(FR.S.other);        // G620: the hand, the shed, the day, the director, the panel

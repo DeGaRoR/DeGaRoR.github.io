@@ -579,7 +579,7 @@ function makeSimHost(CORE, init, keptWorld) {
       out: simHostPlain(sim.out, 3, ['hydro']),
       eng: simHostPlain(sim.eng, 3),
       // G1470: the crash's verdict for the page's card (why), once it is one
-      dmg: sim.damage && sim.damage().crashed ? (d => ({ crashed: d.crashed, over: d.over, reason: d.reason, at: d.at, propStrike: d.propStrike, members: d.members, breaks: d.breaks })) (sim.damage()) : null,
+      dmg: sim.damage && sim.damage().crashed ? (d => ({ crashed: d.crashed, over: d.over, reason: d.reason, at: d.at, brokeUp: d.brokeUp || null, propStrike: d.propStrike, members: d.members, breaks: d.breaks })) (sim.damage()) : null,
       fuel: simHostPlain(sim.fuel, 3),
       // G1180 (LOC-SWITCH): a float's tables of vectors (W, dq, per) do not survive the plain copy at depth 2 - they
       // came over as arrays of undefined and the page's spray threw on every frame under the worker (the water taxi

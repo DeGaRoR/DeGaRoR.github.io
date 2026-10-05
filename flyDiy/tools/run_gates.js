@@ -190,6 +190,12 @@ const GATES = [
   // ultimate held, to ultimate x 1.1 broken at a joint; to destruction BROKE AT within [1.5, 1.5 m] x limit, a joint first;
   // the flown pull to the limit clean; a bad design (struts / root at half the section asked) BROKE UP. Three builds at once
   { id: 'DMGCERT', file: '_dmg_cert_check.js', tier: 'core', weight: 3, wall: 240 },
+  // G1840-G1843 (DMG-D3 CLUSTERS): a shape-matched cluster is one breakable part - the fin, the twin's rod, the floats (and
+  // the twin-boom fixture, reported): its root load read off the cut equals the statics; nothing parts in normal
+  // operations (the load test, the pull, the drops, a circuit, parked, the ordinary water cases); a scripted pull takes
+  // each part off cleanly (its own group, rigid), the rod splits at its mid-span station, tears in twist; the water's
+  // nose-ins reported. Three builds at once
+  { id: 'DMGCLUSTERS', file: '_dmg_clusters_check.js', tier: 'core', weight: 3, wall: 900 },
   // G1800-G1804 (DMG-D0 INSTRUMENTS): the NaN ending is 'sim-diverged' ('broke-up' the structure's); the velocity guard (150 m/s
   // off the CG: a blown lattice that never goes NaN trips it, 200 m/s true does not; the census of what the validated builds
   // fly never near it); the per-beam plastic work sums to the total; every beam of the five builds carries its ledger
@@ -199,6 +205,11 @@ const GATES = [
   // two water cases batched as the page batches them at 2 / 5 / 10 / 30 fps (the brief's 30 / 12 / 6 / 2 steps, and the PACE
   // block lifted out of app.js at caps 30 / 60, 1x / 2x) and through the worker host: bitwise the 60 fps run. Four at once
   { id: 'DMGFPS', file: '_dmgfps_check.js', tier: 'core', weight: 4, wall: 400 },
+  // G1820-G1823 (DMG-D1b WRECK INTEGRITY): the strip component test (no live strip on two pieces after any break; one
+  // broken diagonal no longer silences a bay), the refs-core (one group-free core; a fuselage cut across breaks up), the
+  // SUPPORT limiters (only with damage on, slack in normal operations, the engine kept off the cabin in a severe
+  // nose-in). Three builds at once
+  { id: 'DMGINTEGRITY', file: '_dmg_integrity_check.js', tier: 'core', weight: 3, wall: 180 },
   // G286: the graphics settings menu - presets, the pref, the handles
   { id: 'GFX', file: '_gfx_check.js', tier: 'core' },
   // G584: the programs - the real three on a fake GL: the depth warm-up is the shadow pass's own set, two

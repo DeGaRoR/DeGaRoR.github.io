@@ -193,9 +193,11 @@ function makeSim(def, world) {
     const s = (cx * ax + cy * ay + cz * az) / (lu * lv), c = (u[0]*v[0] + u[1]*v[1] + u[2]*v[2]) / (lu * lv);
     return { c0, c1, ax: [ax, ay, az], theta: Math.atan2(s, c), L, I0: inertia(r0, c0), I1: inertia(r1, c1) };
   }
-  function rotateRing(r, c, a, phi, dt) {
+  // (Cm: G1840's measured substep - the turn's force on a node of a cut's part, m e / dt^2, reported to the cut)
+  function rotateRing(r, c, a, phi, dt, Cm) {
     const cw = Math.cos(phi), sw = Math.sin(phi), t = 1 - cw;
     const [kx, ky, kz] = a;
+    const nm = Cm ? Cm.nm : null;
     for (const i of r) {
       const i3 = i*3, x = p[i3] - c[0], y = p[i3+1] - c[1], z = p[i3+2] - c[2];
       const nx = x*(cw + kx*kx*t) + y*(kx*ky*t - kz*sw) + z*(kx*kz*t + ky*sw);
@@ -204,10 +206,15 @@ function makeSim(def, world) {
       const ex = nx - x, ey = ny - y, ez = nz - z;
       p[i3] += ex; p[i3+1] += ey; p[i3+2] += ez;
       v[i3] += ex / dt; v[i3+1] += ey / dt; v[i3+2] += ez / dt;
+      if (nm !== null && nm[i]) { const s = m[i] / (dt * dt); clAcc(Cm, nm[i], i3, s * ex, s * ey, s * ez); }
     }
   }
   function twistHold(C, dt) {
     if (!C.twist) return;
+    // G1841 (DMG-D3): on a measured substep, each bay's torque (I_red phi / dt^2: the ring's angular impulse over the
+    // substep) against the tube's torque limit; past it the tube tears at that bay
+    const Cm = C.ms ? C : null, tw = Cm ? C.twL0 : null;
+    if (Cm) C.twR = 0;
     for (let k = 0; k + 1 < C.rings.length; k++) {
       const T = C.twist[k];
       if (!T) continue;
@@ -221,8 +228,17 @@ function makeSim(def, world) {
       if (Math.abs(phi) < 1e-9) continue;
       // split by inertia: the lighter ring turns more
       const s0 = g.I1 / Math.max(1e-9, g.I0 + g.I1), s1 = 1 - s0;
-      rotateRing(C.rings[k], g.c0, g.ax, phi * s0, dt);
-      rotateRing(C.rings[k + 1], g.c1, g.ax, -phi * s1, dt);
+      rotateRing(C.rings[k], g.c0, g.ax, phi * s0, dt, Cm);
+      rotateRing(C.rings[k + 1], g.c1, g.ax, -phi * s1, dt, Cm);
+      if (tw) {
+        const k0 = C.rk[k];
+        if (C.rk[k + 1] === k0 + 1 && tw[k0] > 0) {
+          const r = g.I0 * Math.abs(phi * s0) / (dt * dt) / tw[k0];
+          if (r > C.twR) C.twR = r;
+          if (r > C.twPk) C.twPk = r;
+          if (r >= 1 && !PEAK) { bayPart(clusters.indexOf(C), k0, r); return; }
+        }
+      }
     }
   }
   function clusterRest(C) {
@@ -339,6 +355,9 @@ function makeSim(def, world) {
     }
     const R = C.R = extractRotation(A, C.R, 4);
     const al = C.omega > 0 ? Math.min(1, (C.omega * dt) * (C.omega * dt)) : 1, inv = al / dt;
+    // G1840 (DMG-D3): on a measured substep, the projection's force on a node of a cut's part (m al e / dt^2) is that
+    // cut's reaction - reported to it (clAcc) by the same loop's twin below; the quiet loop is the base's, untouched
+    if (C.ms && C.nm) { shapeGoalReport(C, R, al, inv, dt, cx, cy, cz, qbx, qby, qbz); return; }
     for (let k = 0; k < n2; k++) {
       const i = C.idx[k], i3 = i*3;
       const qx = C.q[k*3] - qbx, qy = C.q[k*3+1] - qby, qz = C.q[k*3+2] - qbz;
@@ -348,6 +367,21 @@ function makeSim(def, world) {
       const ex = gx - p[i3], ey = gy - p[i3+1], ez = gz - p[i3+2];
       p[i3] += al * ex; p[i3+1] += al * ey; p[i3+2] += al * ez;
       v[i3] += inv * ex; v[i3+1] += inv * ey; v[i3+2] += inv * ez;
+    }
+  }
+  // (G1840: shapeMatch's goal loop, the same arithmetic, reporting each part node's correction to its cuts)
+  function shapeGoalReport(C, R, al, inv, dt, cx, cy, cz, qbx, qby, qbz) {
+    const nm = C.nm, n2 = C.idx.length;
+    for (let k = 0; k < n2; k++) {
+      const i = C.idx[k], i3 = i*3;
+      const qx = C.q[k*3] - qbx, qy = C.q[k*3+1] - qby, qz = C.q[k*3+2] - qbz;
+      const gx = R[0]*qx + R[1]*qy + R[2]*qz + cx;
+      const gy = R[3]*qx + R[4]*qy + R[5]*qz + cy;
+      const gz = R[6]*qx + R[7]*qy + R[8]*qz + cz;
+      const ex = gx - p[i3], ey = gy - p[i3+1], ez = gz - p[i3+2];
+      p[i3] += al * ex; p[i3+1] += al * ey; p[i3+2] += al * ez;
+      v[i3] += inv * ex; v[i3+1] += inv * ey; v[i3+2] += inv * ez;
+      if (nm[i]) { const s = m[i] * inv / dt; clAcc(C, nm[i], i3, s * ex, s * ey, s * ez); }
     }
   }
   // ---- THE MEMBERS YIELD AND BREAK (G1470, TREE-CRASH) ----
@@ -373,7 +407,9 @@ function makeSim(def, world) {
                 gPeak: 0, setMax: 0, orphans: [], members: 0, dents: 0, primary: 0, firstPrimary: null, holed: 0,
                 // DMG-D1a: the groups broken (in order, G1815), the kink floors (G1813), the spruce cracks and their log
                 // [member, stage, t] (G1814), the frames armed (the census GATE DMGMEMBERS reads parked)
-                groups: [], floors: 0, cracks: 0, rag: [], armedN: 0 };
+                groups: [], floors: 0, cracks: 0, rag: [], armedN: 0,
+                // DMG-D1b: the body frame's refs parted (G1821: when, which node), the strips split / dropped (G1820)
+                brokeUp: null, stripsSplit: 0, stripsDropped: 0 };
   // G1802 (DMG-D0): THE PLASTIC WORK PER BEAM (J), beside the total: what the repair bill sums by the ledger's section
   // (bm.sec, G1803; DEFORM §10). Written only where the total is (beamYield, beamKink: the armed path), zeroed by reset()
   DMG.wB = new Float64Array(nb);
@@ -393,11 +429,65 @@ function makeSim(def, world) {
   // THE NOSE: a fuselage member with both ends ahead of the firewall (x < 0 in the def's frame) - the engine and its
   // bearer's front, the cowl's stand-ins. It crushes round a trunk at a taxi's pace (the prop strikes, the engine
   // stops) and that is a dent, not a crash; any other member broken is (dmgFrame)
-  // THE STRIPS A MEMBER HOLDS: every aero strip with both the member's ends among its nodes - torn with it
-  const stripDead = new Uint8Array(def.strips.length), beamStrips = [];
-  {
-    const sets = def.strips.map(st => { const S = new Set(st.w.map(w => w[0])); for (const k of ['fIn', 'fOut', 'rIn', 'rOut']) if (st[k] != null) S.add(st[k]); return S; });
-    for (let bi = 0; bi < nb; bi++) { const b = beams[bi], L = []; sets.forEach((S, si) => { if (S.has(b.a) && S.has(b.b)) L.push(si); }); beamStrips.push(L); }
+  // G1820 (DMG-D1b, §4.5): THE STRIP COMPONENT TEST, in place of TREE-CRASH's "a strip dies with any member between two
+  // of its nodes" (one broken diagonal silenced a bay still whole). On a break EVENT (the outermost beamBreak, its
+  // group included; never per substep) a union-find over the live members (and the clusters still holding) gives the
+  // pieces. A strip whose weight set now spans two of them is SPLIT - its weights renormalised onto the piece holding
+  // most of them - or, if no piece holds 70 %, DROPPED. A strip that reads its chord and normal off its own spar nodes
+  // (fIn..rOut: every wing, stab and fin bay of a generated build) is dropped if those part (its frame would be read
+  // across the gap); one that reads them off the body axes is dropped off the core's piece. A part that came off whole
+  // keeps its strips (a wing that came off tumbles under its own aero). `SW` is what the aero pass spreads with: the
+  // build's own st.w arrays until a split
+  const stripDead = new Uint8Array(def.strips.length), SW = def.strips.map(st => st.w);
+  const STRIP_KEEP = 0.7;
+  // G1821 (§4.5): THE REFS-CORE. bodyAxes() averages noseFrame / tailMid / upLo / upHi: every out.* the pilot, the
+  // HUD, the camera and the autopilot read comes from them. If a break puts them on two pieces the body frame would
+  // average a wreck: the flight ends there, BROKE UP (DMG.brokeUp, the reason 'broke up: ...'). (Not refs.origin, the
+  // drawing's datum: it is the wing roots', which a wing coming off takes along - DMG-D4's to re-pin)
+  const REFS = [...new Set([].concat(def.refs.noseFrame || [], def.refs.tailMid || [], def.refs.upLo || [], def.refs.upHi || []))].filter(i => i >= 0 && i < n);
+  const ufP = new Int32Array(n);
+  const ufFind = i => { while (ufP[i] !== i) { ufP[i] = ufP[ufP[i]]; i = ufP[i]; } return i; };
+  // the pieces now: live members (a kink floor pushes only, a SUPPORT limiter only touches: neither holds), clusters still on
+  function pieces() {
+    for (let i = 0; i < n; i++) ufP[i] = i;
+    for (let bi = 0; bi < nb; bi++) { const b = beams[bi]; if (b.broken) continue; const x = ufFind(b.a), y = ufFind(b.b); if (x !== y) ufP[x] = y; }
+    for (const C of clusters) if (!C.off) { const r0 = ufFind(C.idx[0]); for (const i of C.idx) { const x = ufFind(i); if (x !== r0) ufP[x] = r0; } }
+    return ufFind;
+  }
+  const _cr = new Int32Array(8), _cs = new Float64Array(8);
+  let brkDepth = 0;
+  function compEvent() {
+    const fd = pieces();
+    const core = REFS.length ? fd(REFS[0]) : -1;
+    if (REFS.length && !DMG.brokeUp) for (const i of REFS) if (fd(i) !== core) {
+      DMG.brokeUp = { t: simT, node: i, tag: def.nodes[i].tag || null };
+      if (!DMG.crashed) { DMG.crashed = true; DMG.at = simT; }
+      DMG.reason = 'broke up: the fuselage parted (' + (def.nodes[i].tag || 'node ' + i) + ' off the core)';
+      DMG.over = true;                               // the body frame does not average a wreck: the flight ends now
+      break;
+    }
+    for (let si = 0; si < def.strips.length; si++) {
+      if (stripDead[si]) continue;
+      const st = def.strips[si], W = st.w;
+      // the weight on each piece the strip's nodes sit on (a strip has a handful of nodes)
+      let nr = 0, tot = 0;
+      for (let q = 0; q < W.length; q++) {
+        const r = fd(W[q][0]), w = W[q][1]; tot += w; let h = 0;
+        while (h < nr && _cr[h] !== r) h++;
+        if (h === nr) { if (nr === 8) { h = 7; } else { _cr[nr] = r; _cs[nr++] = 0; } }
+        _cs[h] += w;
+      }
+      let keep = _cr[0], best = _cs[0];
+      for (let h = 1; h < nr; h++) if (_cs[h] > best) { best = _cs[h]; keep = _cr[h]; }
+      const whole = nr === 1;
+      const frameOff = st.fIn != null ? (fd(st.fIn) !== keep || fd(st.fOut) !== keep || fd(st.rIn) !== keep || fd(st.rOut) !== keep) : (core >= 0 && keep !== core);
+      if ((!whole && !(best >= STRIP_KEEP * tot)) || frameOff) { stripDead[si] = 1; SW[si] = W; DMG.stripsDropped++; continue; }
+      if (whole) continue;
+      if (SW[si] !== W && SW[si].every(x => fd(x[0]) === keep)) continue;   // split before, nothing new
+      SW[si] = W.filter(x => fd(x[0]) === keep).map(x => [x[0], x[1] / best]);
+      DMG.stripsSplit++;
+    }
+    aicHash = NaN;                                   // the induction's control points move with the weights
   }
   const noseB = new Uint8Array(nb);
   // ---- DMG-D1a MEMBERS (G1810-G1815): the members' own limits, stamped once here (nothing new per substep) ----
@@ -461,6 +551,28 @@ function makeSim(def, world) {
   // while it is not empty
   const FLR = new Int32Array(nb);
   let nFlr = 0;
+  // G1822 (DMG-D1b, §4.6 / §8.1): THE SUPPORT LIMITERS (61_gen_frame's parts.dmg.supp: the nose engine held off the
+  // firewall, on the cabin's first ring), with the damage layer on. The mirror of a slack wire (G185): compression only,
+  // carrying nothing until its gap closes (L0 the gap short of the length as built, `pre` as a wire's rigging), then
+  // the stiffest member's k (and c) at either end - the cabin ring's, as a rule (the engine bearer's held only part of
+  // it: the metal Cessna's engine CG node, pinned by a trunk at 30 m/s with the whole cabin behind it, ended 0.28 m
+  // past the firewall on the bearer's k, 0.11 m on the ring's); pushing only, its damper never pulls. NOT MEMBERS:
+  // first written as members in the beam loop (`(b.supp && L >= b.L0) ? 0`, the doc's one line), they cost the stock
+  // step 5-7 % with nothing touching (12 more objects of another shape in the hottest loop; the compare itself nothing
+  // measurable). So they are walked in their own pass, as the kink floors, and only in a frame ARMED or after a break:
+  // a gap closes only once the engine's mount has yielded or broken (slack at 1.07-1.51 of their closing length in
+  // the load test to 5.7 g, a flown pull and FAR 23.473's drop - GATE DMGINTEGRITY). They hold nothing (the orphan count,
+  // the component test) and no trunk bends them
+  const SUP = [];
+  if (DMG_ON && def.parts && def.parts.dmg && def.parts.dmg.supp && def.parts.dmg.supp.length) {
+    const kN = new Float64Array(n), cN = new Float64Array(n);
+    for (const b of beams) for (const i of [b.a, b.b]) { if (b.k > kN[i]) kN[i] = b.k; if (b.c > cN[i]) cN[i] = b.c; }
+    for (const S of def.parts.dmg.supp) {
+      const A = def.nodes[S.a].p, B = def.nodes[S.b].p;
+      SUP.push({ a: S.a, b: S.b, k: Math.max(kN[S.a], kN[S.b]), c: Math.max(cN[S.a], cN[S.b]), L0: Math.hypot(B[0] - A[0], B[1] - A[1], B[2] - A[2]) * (1 - S.pre), path: S.path });
+    }
+  }
+  const nSup = SUP.length;
   for (let bi = 0; bi < nb; bi++) { const b = beams[bi]; if (b.cls === 'fus' && def.nodes[b.a].p[0] < -0.05 && def.nodes[b.b].p[0] < -0.05) noseB[bi] = 1; }
   {
     const nodeCl = new Int16Array(n).fill(-1);
@@ -532,6 +644,301 @@ function makeSim(def, world) {
   if (PEAK) beams.forEach((b, bi) => { b.fyP = b.fy0; b.fcP = b.fc0; b.fy0 = 0; b.fyM = 0; FY[bi] = 0; b.fc0 = 0; FC[bi] = 0; b.mp = Infinity; });
   peakOn = !!PEAK;   // (G1831: a probed sim's limits are its readout; no later stamp)
   let clDirty = false;
+  DMG.cl = []; DMG.firstCl = null;   // G1840 (DMG-D3): the cluster cuts parted, in order
+  // ---- DMG-D3 CLUSTERS (G1840-G1842): A CLUSTER IS ONE BREAKABLE PART (DEFORM-AND-BREAK §4.7 (i)) ----
+  // A shape-matched cluster (the fin, the rod, a twin boom, a float) holds its shape by projection, so the members
+  // inside it carry almost nothing and no member limit can see what it carries. It is judged as what it stands for: a
+  // part with a ROOT SECTION, the same section whose EI / GJ set its omega and its twist (61_gen_frame `dmg`), and that
+  // part's root attachment is a FITTING GROUP (DMG-D1a's): it breaks as D1a breaks a fitting, at CL_FIT (1.15, FAR
+  // 23.625) x the section's ULTIMATE capacity at the material's own stresses (GEN_CRASH tu; shear tu / sqrt 3) - the
+  // section fully plastic where the material is ductile (a thin tube's Z_p = 4/pi x its I / c), its extreme fibre where
+  // it is brittle (spruce, carbon: tu = ty). Its first-yield moment (ty I / c) is reported beside it (clusterCuts' yb,
+  // yt) - the census's 'yield' (G1843: why not the break limit, HANDOVER):
+  //   'caps'  the fin: two caps of Acap, d apart (its EI) on its front and rear root posts, s apart. Bending about the
+  //           chord (a side load) f Acap d; in its own plane f Acap s; torque (the posts' shear couple) f/sqrt3 Acap s
+  //   'tube'  the rod: f EI / (E r) both ways (x 4/pi ductile), f/sqrt3 GJ / (G r), G = E / 2.6 (the twist's own G)
+  //   'oval'  a twin boom: its oval's EI each way over its semi-axis; f/sqrt3 GJ / (G r_mean)
+  //   'bolts' a rigid float (G790's: BeamNG's 'prop'): its attachment - the struts and spreader bars ending on it - read
+  //           as a bolt group of the members' own break forces (D1a's b.fu: a fitting's 1.15 tu A): about each axis the
+  //           group's polar sum(F rho^2) over the farthest member's rho
+  // THE ROOT LOAD is the reaction the rest of the aeroplane puts on the part across the cut, from the forces ACROSS it:
+  // the members joining the part to its root (their force this substep), plus - where the cluster spans the cut (the
+  // fin's cluster holds its post, the rod's its bulkhead ring) - the projection's own correction on the part's nodes
+  // (m al e / dt^2: the force that held it to the rest) and the twist constraint's turn of a ring across the cut. The
+  // moment about the root's centroid, split into the torque about the part's axis and the two bending components.
+  // Past either limit the part's ROOT ATTACHMENT GROUP breaks (DMG-D1a's group: the fin comes off, the float's struts
+  // let go, the boom off its wing bay; the rod has no group - its root bay's members break) and the part comes off as
+  // a RIGID BODY: its cluster is re-formed on the part's own nodes (the root's dropped), rest re-taken.
+  // G1842: a rod / boom tube also has its MID-SPAN STATION (61_gen_frame dmgStation): the same cut one bay aft of ring
+  // k, at the splice's efficiency (eta 0.7) - past it the tube splits into two rigid halves (the bay's members break).
+  // G1841: the TWIST CONSTRAINT's own torque per bay (G350: I_red phi / dt^2, which is GJ / L x the excess twist below
+  // the cap) against the tube's torque limit (the station's bay at eta): past it the tube tears there (BeamNG's
+  // torsionbar strength, N.m) - the cluster splits at that bay (the root bay of the rod is its root).
+  // THE COST: measured on the LAST substep of every frame (one pass over the cut members and the cluster's nodes: the
+  // quiet path's one per frame, as armFrame's beam pass) and every substep of a frame ARMED (armFrame; a cut past half
+  // its limit arms the next frame). Read-only: nothing it computes moves a node. Off (params.damage) it does not exist.
+  const CUTS = [], clQ = [], nCl0 = clusters.length, beamCl0 = beamCl.slice();
+  const cutOf = new Int32Array(nb);            // an in-cluster member of a root / station cut: the cut + 1
+  const CL_FIT = 1.15, SQ3 = Math.sqrt(3);
+  let clMs = false, clArm = false, clGuard = -1;
+  const nodeSet = a => { const S = new Uint8Array(n); for (const i of a) S[i] = 1; return S; };
+  // the members across a cut: one end in P, the other in R (R null: anywhere outside P); xs +1 when P holds end a
+  function cutMembers(inP, inR) {
+    const X = [], xs = [];
+    for (let bi = 0; bi < nb; bi++) {
+      const b = beams[bi], pa = inP[b.a], pb = inP[b.b];
+      if (pa === pb) continue;
+      const o = pa ? b.b : b.a;
+      if (inR && !inR[o]) continue;
+      X.push(bi); xs.push(pa ? 1 : -1);
+    }
+    return { X: Int32Array.from(X), xs: Int8Array.from(xs) };
+  }
+  // the nodes of a tube cluster aft of its bay k (ring k to k + 1): the rings after it and the cluster's other nodes
+  // past the bay's middle along the tube (the rod's tail post; a boom's wing-bay nodes stay forward)
+  function aftOf(C, S, k) {
+    const R0 = C.rings0, ax = def.nodes[S.ax[1]].p, a0 = def.nodes[S.ax[0]].p;
+    let ux = ax[0] - a0[0], uy = ax[1] - a0[1], uz = ax[2] - a0[2]; const ul = hyp3(ux, uy, uz) || 1; ux /= ul; uy /= ul; uz /= ul;
+    const cen = r => { let s = 0; for (const i of r) { const q = def.nodes[i].p; s += q[0] * ux + q[1] * uy + q[2] * uz; } return s / r.length; };
+    const sMid = 0.5 * (cen(R0[k]) + cen(R0[k + 1])), inRing = new Uint8Array(n), A = [];
+    for (const r of R0) for (const i of r) inRing[i] = 1;
+    for (let j = k + 1; j < R0.length; j++) for (const i of R0[j]) A.push(i);
+    for (const i of C.idx0) if (!inRing[i]) { const q = def.nodes[i].p; if (q[0] * ux + q[1] * uy + q[2] * uz > sMid) A.push(i); }
+    return A;
+  }
+  function addCut(ci, kind, P, inR, lim, ref, S, bay) {
+    const inP = nodeSet(P), { X, xs } = cutMembers(inP, inR), C = clusters[ci];
+    // the group the root attachment is (the most common among its members): its break takes the part off whole
+    let grp = -1;
+    if (kind === 'root') { const cnt = {}; for (const x of X) { const g = grpOf[x]; if (g >= 0) cnt[g] = (cnt[g] || 0) + 1; }
+      for (const g in cnt) if (grp < 0 || cnt[g] > cnt[grp]) grp = +g; }
+    let span = false; for (const i of C.idx0) if (!inP[i]) { span = true; break; }
+    const cut = { cl: ci, kind, P, inP, X, xs, grp, span, bay, ref: ref.nodes, refW: ref.w, ax: S.ax, lat: S.lat,
+                  Mu: lim.Mu, Mv: lim.Mv, T: lim.T, yb: lim.yb || 1, yt: lim.yt || 1, aF: new Float64Array(3), aM: new Float64Array(3),
+                  done: false, rb: 0, rt: 0, Mb: 0, Tq: 0, pk: 0, pkB: 0, pkT: 0 };
+    CUTS.push(cut);
+    const k = CUTS.length - 1;
+    if (kind !== 'bay') for (const x of X) if (beamCl[x] >= 0) cutOf[x] = k + 1;
+    C.cuts.push(k);
+    return k;
+  }
+  if (DMG_ON) clusters.forEach((C, ci) => {
+    const S = def.clusters[ci] && def.clusters[ci].dmg;
+    C.idx0 = C.idx; C.q0 = C.q; C.rings0 = C.rings; C.rk0 = C.rings.map((r, j) => j); C.rk = C.rk0;
+    C.cuts = []; C.nm = null; C.ms = false; C.twL0 = null; C.twPk = 0; C.twR = 0;
+    if (!S || !S.ax || !S.lat) return;
+    const Rw = S.mat ? GEN_CRASH[S.mat] : null, ty = Rw && Rw.ty, G = S.E / 2.6;
+    // the break stress (the fitting's factor on the ultimate) and the section's shape factor (plastic where ductile);
+    // yb / yt: the first-yield moment and torque over the break limits (reported)
+    const fu = Rw && Rw.tu ? CL_FIT * Rw.tu : 0, sh = Rw && Rw.etu > 0 ? 4 / Math.PI : 1;
+    let lim = null;
+    if (S.kind === 'caps' && fu) {
+      const s = hyp3(def.nodes[S.lat[1]].p[0] - def.nodes[S.lat[0]].p[0], def.nodes[S.lat[1]].p[1] - def.nodes[S.lat[0]].p[1], def.nodes[S.lat[1]].p[2] - def.nodes[S.lat[0]].p[2]);
+      lim = { Mu: fu * S.Acap * S.d, Mv: fu * S.Acap * s, T: fu / SQ3 * S.Acap * s, yb: ty / fu, yt: ty / fu };
+    } else if (S.kind === 'tube' && fu) {
+      const Mb = fu * sh * S.EI / (S.E * S.r);
+      lim = { Mu: Mb, Mv: Mb, T: fu / SQ3 * S.GJ / (G * S.r), yb: ty / (fu * sh), yt: ty / fu };
+    } else if (S.kind === 'oval' && fu) {
+      lim = { Mu: fu * sh * S.EIv / (S.E * S.cv), Mv: fu * sh * S.EIl / (S.E * S.cl), T: fu / SQ3 * S.GJ / (G * S.rT), yb: ty / (fu * sh), yt: ty / fu };
+    }
+    const inR = S.root ? nodeSet(S.root) : null;
+    if (S.kind === 'bolts') {
+      // the attachment as a bolt group: the members ending on the part, at their own A and yield, about the keel (a),
+      // the deck's beam (u) and the normal (v), round the group's centroid - the rest pose as built
+      const inP = nodeSet(S.part), { X, xs } = cutMembers(inP, null), pts = [];
+      X.forEach((x, j) => { const b = beams[x]; if (!(b.A > 0) || !(b.fu > 0) || !Number.isFinite(b.fu)) return;
+        pts.push({ i: xs[j] > 0 ? b.a : b.b, A: b.A, ty: b.fu / b.A, y: (PEAK ? b.fyP : b.fy0) / b.fu }); });
+      if (pts.length < 3) return;
+      const pn = i => def.nodes[i].p, A0 = pn(S.ax[0]), A1 = pn(S.ax[1]), L0 = pn(S.lat[0]), L1 = pn(S.lat[1]);
+      let a = [A1[0] - A0[0], A1[1] - A0[1], A1[2] - A0[2]], la = hyp3(a[0], a[1], a[2]); a = a.map(x => x / la);
+      let u = [L1[0] - L0[0], L1[1] - L0[1], L1[2] - L0[2]]; const du = u[0] * a[0] + u[1] * a[1] + u[2] * a[2];
+      u = [u[0] - du * a[0], u[1] - du * a[1], u[2] - du * a[2]]; const lu = hyp3(u[0], u[1], u[2]); u = u.map(x => x / lu);
+      const v = [a[1] * u[2] - a[2] * u[1], a[2] * u[0] - a[0] * u[2], a[0] * u[1] - a[1] * u[0]];
+      let W = 0; const c = [0, 0, 0];
+      for (const q of pts) { const P = pn(q.i); W += q.A; for (let j = 0; j < 3; j++) c[j] += q.A * P[j]; }
+      for (let j = 0; j < 3; j++) c[j] /= W;
+      const polar = (e, sh) => { let I = 0; const rho = pts.map(q => { const P = pn(q.i), d = [P[0] - c[0], P[1] - c[1], P[2] - c[2]], de = d[0] * e[0] + d[1] * e[1] + d[2] * e[2];
+          return hyp3(d[0] - de * e[0], d[1] - de * e[1], d[2] - de * e[2]); });
+        pts.forEach((q, j) => { I += q.A * rho[j] * rho[j]; });
+        let L = Infinity; pts.forEach((q, j) => { if (rho[j] > 1e-6) L = Math.min(L, q.ty * sh * I / rho[j]); }); return L; };
+      const yr = Math.min(...pts.map(q => q.y));
+      lim = { Mu: polar(u, 1), Mv: polar(v, 1), T: polar(a, 1 / SQ3), yb: yr, yt: yr };
+      addCut(ci, 'root', S.part, null, lim, { nodes: Int32Array.from(pts.map(q => q.i)), w: Float64Array.from(pts.map(q => q.A)) }, S, -1);
+      return;
+    }
+    if (!lim) return;
+    const refN = S.ref || S.root, ones = n0 => Float64Array.from(n0.map(() => 1));
+    // the root: the rod's root ring is its first ring (its bay 0 is the root's), a boom's root its wing bay
+    const r0 = C.rings0.length && S.root ? C.rings0[0].every(i => inR[i]) : false;
+    addCut(ci, 'root', S.part, inR, lim, { nodes: Int32Array.from(refN), w: ones(refN) }, S, r0 ? 0 : -1);
+    if (S.station >= 0 && S.station + 1 < C.rings0.length) {
+      const k = S.station, P = aftOf(C, S, k), inA = nodeSet(P), R2 = [];
+      for (const i of C.idx0) if (!inA[i]) R2.push(i);
+      addCut(ci, 'station', P, nodeSet(R2), { Mu: S.eta * lim.Mu, Mv: S.eta * lim.Mv, T: S.eta * lim.T, yb: lim.yb, yt: lim.yt },
+             { nodes: Int32Array.from(C.rings0[k]), w: ones(Array.from(C.rings0[k])) }, S, k);
+    }
+    // G1841: the twist constraint's torque limit per bay (the station's bay at the splice's eta)
+    if (C.rings0.length >= 2 && C.gj > 0) C.twL0 = C.rings0.slice(1).map((r, k) => (k === S.station ? S.eta : 1) * lim.T);
+    C.dmgS = S;
+  });
+  // the per-node mask of the cuts a cluster's projection reports to (bit j: its cut j's part, where the cluster spans it)
+  function clMask(C) {
+    C.nm = null;
+    for (let j = 0; j < C.cuts.length; j++) { const ct = CUTS[C.cuts[j]]; if (ct.done || !ct.span || ct.kind === 'bay') continue;
+      if (!C.nm) C.nm = new Uint8Array(n);
+      for (const i of C.idx) if (ct.inP[i]) C.nm[i] |= 1 << j; }
+  }
+  for (const C of clusters) if (C.cuts && C.cuts.length) clMask(C);
+  const nCut0 = CUTS.length;
+  // a root cut's group (a float's struts are outside its cluster: the group breaking member by member parts the cut too)
+  const grpCut = new Int32Array(DGR.length).fill(-1);
+  for (let k = 0; k < nCut0; k++) if (CUTS[k].kind === 'root' && CUTS[k].grp >= 0) grpCut[CUTS[k].grp] = k;
+  if (PEAK) { PEAK.cl = new Float64Array(nCut0 * 2); PEAK.tw = new Float64Array(nCl0); }
+  // a force on a node of a cut's part (the projection's, the twist's): to every cut of the cluster whose part holds it
+  function clAcc(C, bm, i3, fx, fy, fz) {
+    const x = p[i3], y = p[i3+1], z = p[i3+2];
+    for (let j = 0; bm; j++, bm >>= 1) if (bm & 1) {
+      const ct = CUTS[C.cuts[j]], F = ct.aF, M = ct.aM;
+      F[0] += fx; F[1] += fy; F[2] += fz;
+      M[0] += y * fz - z * fy; M[1] += z * fx - x * fz; M[2] += x * fy - y * fx;
+    }
+  }
+  // (before a measured substep: the state its beam loop reads) the members across each live cut: their force on the part
+  function cutX() {
+    for (const C of clusters) if (C.cuts) C.ms = !C.off && (C.nm !== null || C.twL0 !== null);
+    for (let k = 0; k < CUTS.length; k++) {
+      const ct = CUTS[k];
+      if (ct.done || ct.kind === 'bay' || clusters[ct.cl].off) continue;
+      const F = ct.aF, M = ct.aM;
+      F[0] = F[1] = F[2] = 0; M[0] = M[1] = M[2] = 0;
+      for (let j = 0; j < ct.X.length; j++) {
+        const b = beams[ct.X[j]], a3 = b.a*3, b3 = b.b*3;
+        let dx = p[b3]-p[a3], dy = p[b3+1]-p[a3+1], dz = p[b3+2]-p[a3+2];
+        const L = hyp3(dx, dy, dz) || 1e-9; dx /= L; dy /= L; dz /= L;
+        const vrel = (v[b3]-v[a3])*dx + (v[b3+1]-v[a3+1])*dy + (v[b3+2]-v[a3+2])*dz;
+        const Fb = (b.tens && L <= b.L0) ? 0 : b.k * (L - b.L0) + b.c * vrel;
+        const s = ct.xs[j] > 0 ? Fb : -Fb, i3 = ct.xs[j] > 0 ? a3 : b3;
+        const fx = s * dx, fy = s * dy, fz = s * dz, x = p[i3], y = p[i3+1], z = p[i3+2];
+        F[0] += fx; F[1] += fy; F[2] += fz;
+        M[0] += y * fz - z * fy; M[1] += z * fx - x * fz; M[2] += x * fy - y * fx;
+      }
+    }
+  }
+  // (after a measured substep: its projection has reported) every live cut's moment and torque against its limits
+  const _ca = [0, 0, 0], _cu = [0, 0, 0];
+  function clCuts() {
+    let arm = false;
+    for (let k = 0; k < CUTS.length; k++) {
+      const ct = CUTS[k];
+      if (ct.done || ct.kind === 'bay' || clusters[ct.cl].off) continue;
+      let W = 0, cx = 0, cy = 0, cz = 0;
+      for (let j = 0; j < ct.ref.length; j++) { const i3 = ct.ref[j] * 3, w = ct.refW[j]; cx += w * p[i3]; cy += w * p[i3+1]; cz += w * p[i3+2]; W += w; }
+      cx /= W; cy /= W; cz /= W;
+      const F = ct.aF, M = ct.aM;
+      const mx = M[0] - (cy * F[2] - cz * F[1]), my = M[1] - (cz * F[0] - cx * F[2]), mz = M[2] - (cx * F[1] - cy * F[0]);
+      const a0 = ct.ax[0] * 3, a1 = ct.ax[1] * 3, l0 = ct.lat[0] * 3, l1 = ct.lat[1] * 3;
+      let ax = p[a1] - p[a0], ay = p[a1+1] - p[a0+1], az = p[a1+2] - p[a0+2]; const al = hyp3(ax, ay, az) || 1; ax /= al; ay /= al; az /= al;
+      let ux = p[l1] - p[l0], uy = p[l1+1] - p[l0+1], uz = p[l1+2] - p[l0+2]; const du = ux * ax + uy * ay + uz * az;
+      ux -= du * ax; uy -= du * ay; uz -= du * az; const ul = hyp3(ux, uy, uz) || 1; ux /= ul; uy /= ul; uz /= ul;
+      const vx = ay * uz - az * uy, vy = az * ux - ax * uz, vz = ax * uy - ay * ux;
+      const Tq = mx * ax + my * ay + mz * az, Mu = mx * ux + my * uy + mz * uz, Mv = mx * vx + my * vy + mz * vz;
+      const rb = Math.hypot(Mu / ct.Mu, Mv / ct.Mv), rt = Math.abs(Tq) / ct.T;
+      ct.rb = rb; ct.rt = rt; ct.Mb = Math.hypot(Mu, Mv); ct.Tq = Tq;
+      if (rb > ct.pkB) ct.pkB = rb; if (rt > ct.pkT) ct.pkT = rt;
+      const r = rb > rt ? rb : rt;
+      if (r > ct.pk) ct.pk = r;
+      if (r > ARM_FRAC) arm = true;
+      if (PEAK) { if (k < nCut0) { if (rb > PEAK.cl[k*2]) PEAK.cl[k*2] = rb; if (rt > PEAK.cl[k*2+1]) PEAK.cl[k*2+1] = rt; } }
+      else if (r >= 1) cutPart(k, rb >= rt ? 'bend' : 'twist', r);
+    }
+    for (let ci = 0; ci < clusters.length; ci++) { const C = clusters[ci];
+      if (C.ms && C.twR > ARM_FRAC) arm = true;
+      if (PEAK && ci < nCl0 && C.twR > PEAK.tw[ci]) PEAK.tw[ci] = C.twR;
+      C.ms = false; }
+    clArm = arm;
+  }
+  // A CUT PARTS (its limit passed, a twist bay torn, or one of its members broken as a member): its group / its members
+  // break, and at the substep's end its cluster is re-formed (clApply)
+  function cutPart(k, why, r) {
+    const ct = CUTS[k];
+    if (ct.done) return;
+    ct.done = true;
+    const C = clusters[ct.cl];
+    DMG.cl.push({ tag: C.tag, cl: ct.cl, cut: ct.kind, why, ratio: r, Mb: ct.Mb, T: ct.Tq, t: simT, grp: ct.grp >= 0 ? DGR[ct.grp].key : null });
+    if (!DMG.firstCl) DMG.firstCl = DMG.cl[DMG.cl.length - 1];
+    clQ.push(k);
+    const how = ct.kind + '-' + why;
+    clGuard = ct.cl;
+    if (ct.grp >= 0) { if (!grpDone[ct.grp]) beamBreak(DGR[ct.grp].t0[0], how); }
+    for (let j = 0; j < ct.X.length; j++) if (ct.kind !== 'root' || ct.grp < 0) beamBreak(ct.X[j], how);
+    clGuard = -1;
+  }
+  // G1841: a twist bay of cluster ci past its torque: the bay's own cut (the rod's root, the station) or a new one
+  function bayPart(ci, k0, r) {
+    const C = clusters[ci];
+    if (C.cuts) for (const j of C.cuts) if (CUTS[j].bay === k0) { if (!CUTS[j].done) cutPart(j, 'twist', r); return; }
+    const S = C.dmgS; if (!S) return;
+    const inC = nodeSet(C.idx), P = aftOf(C, S, k0).filter(i => inC[i]), inP = nodeSet(P), R2 = [];
+    for (const i of C.idx) if (!inP[i]) R2.push(i);
+    if (!P.length || !R2.length) return;
+    const k = addCut(ci, 'bay', P, nodeSet(R2), { Mu: Infinity, Mv: Infinity, T: Infinity }, { nodes: new Int32Array(0), w: new Float64Array(0) }, S, k0);
+    cutPart(k, 'twist', r);
+  }
+  function setIdx(C, list) {
+    const S = nodeSet(list);
+    C.idx = Int32Array.from(list); C.q = new Float64Array(list.length * 3);
+    const rings = [], rk = [];
+    C.rings.forEach((r, j) => { if (Array.prototype.every.call(r, i => S[i])) { rings.push(r); rk.push(C.rk[j]); } });
+    C.rings = rings; C.rk = rk;
+  }
+  // the parts that came off this substep: a ROOT cut's part keeps its cluster on its own nodes (the root's dropped) - a
+  // rigid body that detaches; a STATION's (a bay's) splits the tube into two rigid clusters. A cluster still holding
+  // nodes on both sides (a twin boom's fin stands on the station's ring and the ring before) lets go of the fewer
+  function clApply() {
+    for (const k of clQ) {
+      const ct = CUTS[k], C = clusters[ct.cl];
+      if (C.off) continue;
+      const keep = [], other = [];
+      for (const i of C.idx) (ct.inP[i] ? keep : other).push(i);
+      if (ct.kind === 'root') {
+        for (const j of C.cuts) CUTS[j].done = true;
+        if (other.length) setIdx(C, keep);
+      } else {
+        setIdx(C, other);
+        if (keep.length >= 3) {
+          const C2 = { cls: C.cls, tag: C.tag + '/aft', idx: null, q: null, R: [1, 0, 0, 0, 1, 0, 0, 0, 1], omega: C.omega,
+                       rings: C.rings0, rk: C.rk0, gj: C.gj, twist: null, off: false, dirty: false, cuts: [], nm: null, ms: false,
+                       twL0: C.twL0, twPk: 0, twR: 0, dmgS: null };
+          setIdx(C2, keep);
+          clusters.push(C2); clusterRest(C2); twistRest(C2);
+        }
+      }
+      if (C.idx.length < 3) C.off = true;
+      const sideA = ct.inP, sideB = nodeSet(other);
+      for (const D of clusters) {
+        if (D === C || D.off || D.tag === C.tag + '/aft') continue;
+        let nA = 0, nB = 0; for (const i of D.idx) { if (sideA[i]) nA++; else if (sideB[i]) nB++; }
+        if (nA && nB) { const drop = nA < nB ? sideA : sideB; setIdx(D, Array.from(D.idx).filter(i => !drop[i])); if (D.idx.length < 3) D.off = true; else { clusterRest(D); twistRest(D); } }
+      }
+      if (!C.off) { clusterRest(C); twistRest(C); }
+    }
+    clQ.length = 0;
+    // which cluster each member is inside now (the rule makeSim's own)
+    const nodeCl = new Int16Array(n).fill(-1);
+    clusters.forEach((C, ci) => { for (const i of C.idx) nodeCl[i] = ci; });
+    for (let bi = 0; bi < nb; bi++) { const b = beams[bi]; beamCl[bi] = nodeCl[b.a] >= 0 && nodeCl[b.a] === nodeCl[b.b] ? nodeCl[b.a] : -1; }
+    for (const C of clusters) if (C.cuts && C.cuts.length) clMask(C);
+  }
+  // reset(): every cluster as built, every cut whole
+  function clReset() {
+    clusters.length = nCl0;
+    CUTS.length = nCut0;
+    for (const C of clusters) if (C.idx0) { C.idx = C.idx0; C.q = C.q0; C.rings = C.rings0; C.rk = C.rk0; C.cuts = C.cuts.filter(k => k < nCut0); C.twPk = 0; C.twR = 0; C.ms = false; }
+    for (const ct of CUTS) { ct.done = false; ct.rb = ct.rt = ct.Mb = ct.Tq = ct.pk = ct.pkB = ct.pkT = 0; }
+    beamCl.set(beamCl0);
+    for (const C of clusters) if (C.cuts && C.cuts.length) clMask(C);
+    clQ.length = 0; clArm = false; clGuard = -1; DMG.cl.length = 0; DMG.firstCl = null;
+  }
   function dmgReset() {
     for (let bi = 0; bi < nb; bi++) {
       const b = beams[bi];
@@ -541,8 +948,10 @@ function makeSim(def, world) {
     }
     nFlr = 0; grpDone.fill(0); DMG.groups.length = 0; DMG.floors = 0; DMG.cracks = 0; DMG.rag.length = 0; DMG.armedN = 0;
     for (let i = 0; i < n; i++) { nodeDeg[i] = nodeDeg0[i]; orphan[i] = 0; }
+    if (DMG_ON) clReset();          // G1840 (DMG-D3): every cluster as built, every cut whole
     for (const C of clusters) { C.off = false; C.dirty = false; }
-    clDirty = false; stripDead.fill(0);
+    clDirty = false; stripDead.fill(0); for (let si = 0; si < SW.length; si++) SW[si] = def.strips[si].w;
+    DMG.brokeUp = null; DMG.stripsSplit = 0; DMG.stripsDropped = 0;
     DMG.yields = 0; DMG.breaks = 0; DMG.work = 0; DMG.broken.length = 0; DMG.firstBreak = null; DMG.firstYield = null;
     DMG.crashed = false; DMG.over = false; DMG.reason = null; DMG.at = null; DMG.dented = false; DMG.propStrike = false; DMG.propAt = null;
     DMG.gPeak = 0; DMG.setMax = 0; DMG.orphans.length = 0; DMG.members = 0; DMG.dents = 0; DMG.primary = 0; DMG.firstPrimary = null; DMG.holed = 0; gF = 0; cIx = cIy = cIz = 0;
@@ -559,15 +968,21 @@ function makeSim(def, world) {
     if (!DMG.firstBreak) DMG.firstBreak = { beam: bi, cls: b.cls, t: simT, seam: b.seam || null, grp: grpOf[bi], how: how || 'tension' };
     if (b.kink) { FLR[nFlr++] = bi; DMG.floors++; }  // G1813: the crushed member stays a floor
     if (!noseB[bi]) { DMG.primary++; if (!DMG.firstPrimary) DMG.firstPrimary = { beam: bi, cls: b.cls, t: simT }; }
-    if (beamCl[bi] >= 0) clusters[beamCl[bi]].off = true;
-    for (const si of beamStrips[bi]) stripDead[si] = 1;
+    // G1840 (DMG-D3): a member of a cluster's root or station cut parts that cut (the part comes off, the tube splits);
+    // any other member inside a cluster lets the cluster go (G1470)
+    // (a cut's member another cluster also holds - a twin boom's fin stands across its station - parts the cut too: the
+    // re-form makes that cluster let go of the fewer side)
+    if (beamCl[bi] >= 0) { const ck = cutOf[bi] - 1; if (ck >= 0) cutPart(ck, 'member', 0); else if (beamCl[bi] !== clGuard) clusters[beamCl[bi]].off = true; }
     for (const i of [b.a, b.b]) if (--nodeDeg[i] <= 0 && !orphan[i]) { orphan[i] = 1; DMG.orphans.push(i); }
     // G1815: the member's group breaks whole (once)
     const g = grpOf[bi];
+    brkDepth++;
     if (g >= 0 && !grpDone[g]) {
       grpDone[g] = 1; DMG.groups.push({ grp: g, key: DGR[g].key, seam: b.seam || null, by: bi, cls: b.cls, t: simT });
+      if (grpCut[g] >= 0) cutPart(grpCut[g], 'member', 0);   // G1840: a cluster's root group broken as members: its part is off
       for (const j of grpAll[g]) beamBreak(j, 'group');
     }
+    if (--brkDepth === 0) compEvent();               // G1820 / G1821: once per event, its group whole
   }
   // the return mapping: the member's force k (L - L0) is held at the yield surface by moving L0; returns nothing,
   // the caller re-reads b.L0 / b.k
@@ -683,7 +1098,7 @@ function makeSim(def, world) {
   function armFrame() {
     armed = false;
     if (!DMG_ON) return;
-    if (PEAK || _prN || _obstRecs.length || scrape || DMG.yields || DMG.dents || waterDynamic()) { armed = true; scrape = false; DMG.armedN++; return; }
+    if (PEAK || _prN || _obstRecs.length || scrape || DMG.yields || DMG.dents || clArm || waterDynamic()) { armed = true; scrape = false; DMG.armedN++; return; }
     for (let bi = 0; bi < nb; bi++) {
       const b = beams[bi], a3 = b.a * 3, b3 = b.b * 3;
       const Fs = b.k * (hyp3(p[b3] - p[a3], p[b3+1] - p[a3+1], p[b3+2] - p[a3+2]) - b.L0);
@@ -1121,9 +1536,9 @@ function makeSim(def, world) {
   const bHalf = new Float64Array(NPL);
   const ellF = u => { u = Math.max(-1, Math.min(1, u)); return 0.5 * (u * Math.sqrt(1 - u * u) + Math.asin(u)); };
   let aicHash = NaN, aicFresh = true;
-  const cpOf = (st, o) => {                 // a strip's control point: its attach-weighted c/4
+  const cpOf = (ti, o) => {                 // a strip's control point: its attach-weighted c/4 (G1820: a split strip's)
     o[0] = o[1] = o[2] = 0;
-    for (const [i, w] of st.w) { o[0] += p[i*3]*w; o[1] += p[i*3+1]*w; o[2] += p[i*3+2]*w; }
+    for (const [i, w] of SW[ti]) { o[0] += p[i*3]*w; o[1] += p[i*3+1]*w; o[2] += p[i*3+2]*w; }
     return o;
   };
   // the bound vortex of a wing strip: the quarter-chord line over the
@@ -1174,7 +1589,7 @@ function makeSim(def, world) {
       Ez[j] = LOADING === 'uniform' ? 1
             : (u1 - u0 > 1e-9 ? (ellF(u1) - ellF(u0)) / (u1 - u0) : Math.sqrt(Math.max(0, 1 - u0 * u0)));
     }
-    for (let ti = 0; ti < NST; ti++) { cpOf(def.strips[ti], _P); cpt[ti*3] = _P[0]; cpt[ti*3+1] = _P[1]; cpt[ti*3+2] = _P[2]; }
+    for (let ti = 0; ti < NST; ti++) { cpOf(ti, _P); cpt[ti*3] = _P[0]; cpt[ti*3+1] = _P[1]; cpt[ti*3+2] = _P[2]; }
     for (let q = 0; q < NP; q++) {
       const ti = pairs[q][0], sj = pairs[q][1];
       const rc = IND.core * def.strips[sj].chord;
@@ -1573,7 +1988,7 @@ function makeSim(def, world) {
     let stripIdx = -1;
     for (const st of def.strips) {
       stripIdx++;
-      // G1470: a strip a broken member ran through is no longer a wing (its nodes are two pieces): no lift, no drag
+      // G1470 / G1820: a strip whose nodes a break has parted is no longer a wing: no lift, no drag (the component test)
       if (stripDead[stripIdx]) { if (NP) Gam[stripIdx] = 0; continue; }
       // --- strip frame ---
       // a strip that names its four spar nodes (the wing's, and since TAIL
@@ -1619,7 +2034,7 @@ function makeSim(def, world) {
       }
       // --- local velocity + position via attach weights ---
       let vx=0, vy=0, vz=0, spx=0, spy=0, spz=0;
-      for (const [i, w] of st.w) {
+      for (const [i, w] of SW[stripIdx]) {           // G1820: a split strip's weights
         vx+=v[i*3]*w; vy+=v[i*3+1]*w; vz+=v[i*3+2]*w;
         spx+=p[i*3]*w; spy+=p[i*3+1]*w; spz+=p[i*3+2]*w;
       }
@@ -1710,7 +2125,7 @@ function makeSim(def, world) {
         if (out.dump) out.dump.push({ side: st.side, t: st.t, wash: st.wash,
           al: al*57.3, Fy, ch: st.chord }); }
       else if (st.kind === 'stab' || st.kind === 'vtail') out.stabFy += Fy;
-      for (const [i, w] of st.w) {
+      for (const [i, w] of SW[stripIdx]) {
         f[i*3] += Fx*w; f[i*3+1] += Fy*w; f[i*3+2] += Fz*w;
       }
       // wing pitching moment as front/rear spar couple (d = spar spacing 0.78 m)
@@ -1856,6 +2271,20 @@ function makeSim(def, world) {
       f[b3]-=Fb*dx; f[b3+1]-=Fb*dy; f[b3+2]-=Fb*dz;
     }
   }
+  // G1822: the SUPPORT limiters - push only, below their closing length (walked in a frame armed or after a break)
+  function suppPass() {
+    for (let q = 0; q < nSup; q++) {
+      const S = SUP[q], a3 = S.a*3, b3 = S.b*3;
+      let dx = p[b3]-p[a3], dy = p[b3+1]-p[a3+1], dz = p[b3+2]-p[a3+2];
+      const L = hyp3(dx, dy, dz) || 1e-9;
+      if (L >= S.L0) continue;
+      dx /= L; dy /= L; dz /= L;
+      const Fb = S.k * (L - S.L0) + S.c * ((v[b3]-v[a3])*dx + (v[b3+1]-v[a3+1])*dy + (v[b3+2]-v[a3+2])*dz);
+      if (Fb >= 0) continue;
+      f[a3]+=Fb*dx; f[a3+1]+=Fb*dy; f[a3+2]+=Fb*dz;
+      f[b3]-=Fb*dx; f[b3+1]-=Fb*dy; f[b3+2]-=Fb*dz;
+    }
+  }
   function substep(dt) {
     for (let i = 0; i < n; i++) { f[i*3]=0; f[i*3+1]=G*m[i]; f[i*3+2]=0; }
     aeroPass(false);
@@ -1879,6 +2308,7 @@ function makeSim(def, world) {
       f[b3]-=Fb*dx; f[b3+1]-=Fb*dy; f[b3+2]-=Fb*dz;
     }
     if (nFlr) floorPass();                           // G1813: the kinked members' floors (none: one compare)
+    if (nSup && (armed || DMG.breaks)) suppPass();   // G1822: the SUPPORT limiters (unarmed and whole: one compare)
     // ground: wheels roll, everything else scrapes. Terrain-aware.
     const gH = world ? world.terrainH : null;
     for (let i = 0; i < n; i++) {
@@ -2135,7 +2565,17 @@ function makeSim(def, world) {
     obstFrame();
     trunkFrame(dtFrame);
     armFrame();
-    for (let s = 0; s < sub; s++) { substep(dt); simT += dt; burn(dt); }
+    // G1840 (DMG-D3): the clusters' cuts are measured on every substep of an armed frame, and on the last of any other:
+    // the members across them read from the substep's own starting state (the beam loop's), the cuts judged once its
+    // projection has run, the parts that came off re-formed rigid - all out here, so substep() is the base's
+    for (let s = 0; s < sub; s++) {
+      clMs = nCut0 > 0 && (armed || s === sub - 1);
+      if (clMs) cutX();
+      substep(dt);
+      if (clMs) clCuts();
+      if (clQ.length) clApply();
+      simT += dt; burn(dt);
+    }
     readPanel(dtFrame);
     dmgFrame(dtFrame);
     dmgOver();
@@ -2277,8 +2717,19 @@ function makeSim(def, world) {
            certStamp: Cc => certStamp(Cc), cert: () => CERT,
            // G1815: break one member as a crash would (GATE DMGMEMBERS' closed-set check: its group, and nothing more)
            damageBreak: bi => { if (DMG_ON && bi >= 0 && bi < nb) beamBreak(bi, 'gate'); },
+           // G1840 (DMG-D3): the clusters' cuts - limits (N.m), the last measured ratios and loads, the peaks, parted -
+           // and each tube cluster's twist bays (the worst bay's torque over its limit); `clusters` live (their nodes)
+           clusterCuts: () => ({ cuts: CUTS.map((c, k) => ({ k, cl: c.cl, tag: clusters[c.cl] ? clusters[c.cl].tag : null, cls: clusters[c.cl] ? clusters[c.cl].cls : null, kind: c.kind,
+                                   Mu: c.Mu, Mv: c.Mv, T: c.T, yb: c.yb, yt: c.yt, rb: c.rb, rt: c.rt, Mb: c.Mb, Tq: c.Tq, pk: c.pk, pkB: c.pkB, pkT: c.pkT, done: c.done,
+                                   grp: c.grp >= 0 ? DGR[c.grp].key : null, P: Array.from(c.P), X: Array.from(c.X), bay: c.bay })),
+                                 twist: clusters.map((C, ci) => C.twL0 ? { cl: ci, tag: C.tag, lim: C.twL0.slice(), r: C.twR, pk: C.twPk } : null).filter(x => x),
+                                 clusters: clusters.map(C => ({ tag: C.tag, cls: C.cls, off: !!C.off, nodes: Array.from(C.idx) })) }),
            // G1801: the velocity guard - { vMax, node, peak, fault: null | { why: 'speed' | 'nan', node, v, t } }
            guard: () => VG, fault: () => VG.fault,
+           // G1820: the strips as the aero pass flies them (dead, and each one's weights: the build's or a split's)
+           damageStrips: () => ({ dead: stripDead, w: SW }),
+           // G1822: the SUPPORT limiters ({ a, b, k, c, L0, path }; closed while their nodes are nearer than L0)
+           damageSupp: () => SUP,
            reset, stance, step, trueBox, probe, stats, impulse, wheelsOnGround, wheelContacts, cgPos, cgVel, axes,
            // G197: the kernel's sources, readable (the gate asserts the weights' normalisation)
            induction: () => ({ WS: WS.slice(), plane: Array.from(PLANE), bHalf: Array.from(bHalf), Ez: Array.from(Ez), Dz: Array.from(Dz), Gam: Array.from(Gam), Wg: Array.from(Wg), zA: WS.map(j => sZA[j]), zB: WS.map(j => sZB[j]), A: WS.map(j => [sA[j*3], sA[j*3+1], sA[j*3+2]]), B: WS.map(j => [sB[j*3], sB[j*3+1], sB[j*3+2]]), d: sD.slice(), cpt: Array.from(cpt), pairs: pairs.length, loading: LOADING }),

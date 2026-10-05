@@ -1,0 +1,224 @@
+{
+ "pulls": [
+  {
+   "k": "cub",
+   "lab": "Cub: the fin pulled sideways",
+   "tag": "FIN",
+   "kind": "root",
+   "ev": {
+    "tag": "FIN",
+    "cl": 0,
+    "cut": "root",
+    "why": "bend",
+    "ratio": 1.0002992726355155,
+    "Mb": 6697.9742881633765,
+    "T": -8545.82373328433,
+    "t": 2.952444444444579,
+    "grp": "fin:attach"
+   },
+   "lim": {
+    "Mu": 6695.556681750369,
+    "Mv": 20323.366705236494,
+    "T": 11733.701238107767
+   },
+   "groups": [
+    "fin:attach"
+   ],
+   "broken": 16,
+   "rigid": {
+    "dmax": 8.512970051111068e-10,
+    "moved": 1.1923597012890947
+   }
+  },
+  {
+   "k": "jodel",
+   "lab": "Jodel: the fin pulled sideways",
+   "tag": "FIN",
+   "kind": "root",
+   "ev": {
+    "tag": "FIN",
+    "cl": 0,
+    "cut": "root",
+    "why": "bend",
+    "ratio": 1.000009537555009,
+    "Mb": 761.9653130621924,
+    "T": -96.97554075483292,
+    "t": 2.127477477478845,
+    "grp": "fin:attach"
+   },
+   "lim": {
+    "Mu": 761.8869671633278,
+    "Mv": 3021.3741363832346,
+    "T": 1744.3911709634338
+   },
+   "groups": [
+    "fin:attach"
+   ],
+   "broken": 16,
+   "rigid": {
+    "dmax": 0.00011024252854435757,
+    "moved": 1.1565253383367167
+   }
+  },
+  {
+   "k": "twinFloats",
+   "lab": "twin floatplane: the rod loaded down at its tail",
+   "tag": "ROD",
+   "kind": "root",
+   "ev": {
+    "tag": "ROD",
+    "cl": 0,
+    "cut": "root",
+    "why": "bend",
+    "ratio": 1.000038151005263,
+    "Mb": 10311.350507587887,
+    "T": 632.3083541614284,
+    "t": 1.9350617283945453,
+    "grp": null
+   },
+   "lim": {
+    "Mu": 10310.957134207996,
+    "Mv": 10310.957134207996,
+    "T": 9351.00374733637
+   },
+   "groups": [],
+   "broken": 10,
+   "rigid": {
+    "dmax": 0.004013344960525522,
+    "moved": 0.9922361225595026
+   }
+  },
+  {
+   "k": "twinFloats",
+   "lab": "twin floatplane: the rod levered over an obstacle at its station",
+   "tag": "ROD",
+   "kind": "station",
+   "ev": {
+    "tag": "ROD",
+    "cl": 0,
+    "cut": "station",
+    "why": "bend",
+    "ratio": 1.000102997110294,
+    "Mb": 7218.413393098029,
+    "T": 445.45480761186457,
+    "t": 3.819135802467408,
+    "grp": null
+   },
+   "lim": {
+    "Mu": 7217.669993945597,
+    "Mv": 7217.669993945597,
+    "T": 6545.702623135458
+   },
+   "groups": [],
+   "broken": 10,
+   "rigid": {
+    "dmax": 0.0009031213806593996,
+    "moved": 1.036169344144106
+   }
+  },
+  {
+   "k": "twinFloats",
+   "lab": "twin floatplane: the rod twisted (a torque on its last ring)",
+   "tag": "ROD",
+   "kind": "station",
+   "ev": {
+    "tag": "ROD",
+    "cl": 0,
+    "cut": "station",
+    "why": "twist",
+    "ratio": 1.0000569424984336,
+    "Mb": 1107.3352284071057,
+    "T": -6546.075351796823,
+    "t": 7.085061728391234,
+    "grp": null
+   },
+   "lim": {
+    "Mu": 7217.669993945597,
+    "Mv": 7217.669993945597,
+    "T": 6545.702623135458
+   },
+   "groups": [],
+   "broken": 10,
+   "rigid": {
+    "dmax": 0.0016636339214812779,
+    "moved": 1.065943861927292
+   }
+  },
+  {
+   "k": "twinFloats",
+   "lab": "twin floatplane: the left float dug in",
+   "tag": "FLTL",
+   "kind": "root",
+   "ev": {
+    "tag": "FLTL",
+    "cl": 2,
+    "cut": "root",
+    "why": "member",
+    "ratio": 0,
+    "Mb": 78663.98356373896,
+    "T": -10089.297126224885,
+    "t": 1.673580246913232,
+    "grp": "floatL:strut"
+   },
+   "lim": {
+    "Mu": 633272.6357897898,
+    "Mv": 664938.0914874085,
+    "T": 45510.59224242774
+   },
+   "groups": [
+    "floatL:strut"
+   ],
+   "broken": 12,
+   "rigid": {
+    "dmax": 1.9095836023552692e-14,
+    "moved": 0.2510833286867546
+   }
+  },
+  {
+   "k": "twinBoom",
+   "lab": "twin-boom FIXTURE: the left boom levered at its station",
+   "tag": "BML",
+   "kind": "station",
+   "ev": {
+    "tag": "BML",
+    "cl": 0,
+    "cut": "station",
+    "why": "bend",
+    "ratio": 1.0000599708890865,
+    "Mb": 17567.403578170524,
+    "T": 2.3680067458448657,
+    "t": 3.95935374149562,
+    "grp": null
+   },
+   "lim": {
+    "Mu": 17567.861472,
+    "Mv": 14314.553791999997,
+    "T": 14162.03376394151
+   },
+   "groups": [],
+   "broken": 6,
+   "rigid": {
+    "dmax": 0.00007968636432392762,
+    "moved": 0.33800092097178075
+   }
+  }
+ ],
+ "water": [
+  {
+   "lab": "the float nose-in: 90 km/h, 5 m/s, 20 deg",
+   "peak": {
+    "root": 0.9229809086155922,
+    "station": 0.7557288183831596,
+    "flt": 0.03592287746616331
+   }
+  },
+  {
+   "lab": "SEVERE: 150 km/h, 10 m/s, 60 deg",
+   "peak": {
+    "root": 8.475875857325734,
+    "station": 5.795304554462855,
+    "flt": 0.15760401358930426
+   }
+  }
+ ]
+}
