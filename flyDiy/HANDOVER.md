@@ -75813,3 +75813,12 @@ paths are page-only (the gate's records keep D4a's semantics; its numbers do not
 **Open:** the tear still takes most of the fuselage covering in a 30 m/s trunk impact (the frame folds; fabric past 15 % tears) and
 leaves small torn islands riding loose nodes; a crumple instead of a tear in compression, and dropping islands under a size, are
 D4b's / D4c's to judge with the user (D4b's stills and the colour census).
+
+### G1867.1 - THE WORLD-FRAME RIDING'S PRIOR (DMG-D4b, the D4a fix's follow-up; box-verified)
+A node whose live neighbourhood cannot say its turn (nodes in a line - a spar's) is held to a prior. It was its last turn, starting
+at the identity: right in the body frame (the gate's records), wrong by the aeroplane's whole attitude in the world (G1867's riding) -
+the chord-wise skin swung about the spar line and tore: **a 3 m/s taxi into a trunk (10 fuselage members broken) shredded both wings
+on the box**. Now (skin_break.js nodeFrames `init`, the page's world path only) every node's turn starts at, and is held to, its
+PIECE's rigid turn this frame (a Horn fit a piece, a few pieces), and the nodes' frames start again at a heal. The same taxi now
+draws its wings whole (g1867_1_taxi_after.jpg; the 30 m/s trunk 2.5 m out: g1867_1_trunk25_after.jpg). GATE DMGSKIN identical to
+089b2a2a's with times masked (its records do not pass `init`).

@@ -3869,7 +3869,7 @@
     tris: BRK.recs.reduce((a, R) => a + R.nt, 0), riding: BRK.recs.reduce((a, R) => a + (R.ride ? R.ride.reduce((x, y) => x + y, 0) : 0), 0) });
   function brkRestore() {
     for (const R of BRK.recs) { if (R.idx0) { R.idx.set(R.idx0); brkIdx(R); } R.vB = -1; R.active = false; brkNrm(R); }
-    BRK.posed = false;
+    BRK.posed = false; if (BRK.model && BRK.model.brk) BRK.model.brk.NF = {};   // (G1867.1: the nodes' turns start again)
     if (BRK.model) { BRK.model._pose = null; BRK.model._poseNG = null; }   // re-posed from the rest on the next frame
     BRK.recs.length = 0; BRK.model = null;
   }
@@ -3897,7 +3897,7 @@
     if (!D || !D.br.length) {
       // a heal (a reset, a new flight): every record's index as built, the records let go (their bindings kept)
       if (BRK.recs.length && model && model.brk) for (const R of BRK.recs) { if (SKIN_BREAK.event(R, model.brk.T, D || { br: [], vB: -2 })) brkIdx(R); R.vB = -1; brkNrm(R); }
-      BRK.recs.length = 0; BRK.posed = false;
+      BRK.recs.length = 0; BRK.posed = false; if (model && model.brk) model.brk.NF = {};
       return null;
     }
     BRK.model = model;
@@ -4012,7 +4012,7 @@
     let left = bud;
     for (const R of BRK.recs) { if (left <= 0) break; if (R.pending) left -= SB.bindMore(R, K.T, left); }
     const t2 = performance.now();
-    SB.nodeFrames(K.NF, K.T, D, K.rest, sim.p);
+    SB.nodeFrames(K.NF, K.T, D, K.rest, sim.p, true);
     const t3 = performance.now();
     const X = { Mi: inv3(xA, yU), B: basis(xA, yU), cg, o, w: null, n: null, nB: null };
     for (const [own, , pa, , off] of groups) {
