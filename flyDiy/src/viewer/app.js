@@ -6654,6 +6654,33 @@
     else if (w) w.kill();
     return F;
   }
+  // G1832 (DMG-D2a): THE TEST TO DESTRUCTION (ruling dm6: FREE - the bench's own sim on its own thread; the aeroplane
+  // on the stand and the wallet are never touched): the rig on the certified airframe, the bags on past the
+  // ultimate until the first break group lets go. `cb(r)` once with { brokeAt, brokeKey, brokeSeam, yieldAt, limit,
+  // ult } (or { error }). The certificate the roll-out already computed goes along (certCache); else the thread makes it.
+  // No worker (file://): not run (a destruction is seconds of stepping - never on the page's thread).
+  let destroyJob = null;
+  function startLoadDestroy(cb) {
+    if (destroyJob && destroyJob.w) destroyJob.w.kill();
+    destroyJob = null;
+    const spec = genSpec, W = window.BENCH_WORKER;
+    if (!spec || !W || typeof W.start !== 'function') { if (cb) cb({ error: 'no bench thread' }); return null; }
+    const cfg = { material: (spec.fuselage && spec.fuselage.material) || undefined,
+                  wingMaterial: (typeof genSurfKey === 'function') ? genSurfKey(spec, 'wing', 0) : undefined };
+    let cert = null;
+    try { if (def && typeof genCertKey === 'function') cert = certCache.get(genCertKey(def)) || null; } catch (e) {}
+    const job = destroyJob = { seq: ++loadSeq, w: null, t0: perfNow() };
+    const w = W.start(m => {
+      if (destroyJob !== job || !m || m.seq !== job.seq) return;
+      if (job.w) job.w.kill(); job.w = null; destroyJob = null;
+      if (cb) cb(m.error ? { error: m.error } : Object.assign({}, m, { ms: perfNow() - job.t0 }));
+    }, why => { if (destroyJob === job) { destroyJob = null; if (cb) cb({ error: why }); } });
+    const msg = { kind: 'destroy', spec: JSON.parse(JSON.stringify(spec)), cfg, seq: job.seq };
+    if (cert) msg.cert = { nb: cert.nb, Ft: cert.Ft, Fc: cert.Fc };
+    if (!w || !w.post(msg)) { if (w) w.kill(); destroyJob = null; if (cb) cb({ error: 'no bench thread' }); return null; }
+    job.w = w;
+    return job;
+  }
   function fixTick() {
     const F = loadFix, W = window.BENCH_WORKER;
     if (!F || F.done || F.w) return;              // nothing, or the worker has it
@@ -6890,7 +6917,52 @@
   //   3. THE STAND AND THE WORLD - the cut to the stand (rollOutStand), then whatever of the world's steps a new stand
   //      or new graphics need, under the screen; a round trip needs none and reveals at once.
   // A page without the screen machinery (the harness) syncs and rolls out inline, as before.
+  // G1831 (DMG-D2a): THE CERTIFICATE (66_gen_cert.js), only while the damage layer is on. Never in the garage's edit
+  // loop: asked for when the aeroplane ROLLS OUT (the roll-out shot and the stand give its thread the seconds it
+  // takes - 0.7-2.6 s in node on the validated builds, the gear drop most of it), computed on the bench's thread
+  // (bench_worker.js 'cert'), kept by the build's spec hash (a second flight of the same build stamps at once). The
+  // page does nothing while it computes: the flight rolls out and starts on D1a's physics limits, and the stamp lands
+  // on the live sim the moment the answer does (sim.certStamp - refused once anything has bent; under the physics
+  // worker sim_link forwards it). No worker (file://): the page computes it in one task after the roll-out.
+  const certCache = new Map();
+  let certJob = null, certLast = null;
+  function certKick() {
+    try {
+      if (curKey !== 'gen' || !def || typeof genCertKey !== 'function' || typeof genDamageOn !== 'function' || !genDamageOn(def)) return;
+      const key = genCertKey(def);
+      const land = (C, how) => {
+        if (certJob && certJob.key === key) certJob = null;
+        if (!C || !C.Ft || C.nb !== def.beams.length) return;
+        certCache.set(key, C); while (certCache.size > 8) certCache.delete(certCache.keys().next().value);
+        if (curKey !== 'gen' || !def || genCertKey(def) !== key) return;   // the build changed meanwhile: kept for its return
+        def.cert = C;
+        const ok = !!(sim && typeof sim.certStamp === 'function' && sim.certStamp(C));
+        certLast = { key, how, stamped: ok, ms: C.ms ? C.ms.total : null, limit: C.limit, ult: C.ult };
+      };
+      const hit = certCache.get(key);
+      if (hit) { land(hit, 'cache'); return; }
+      if (certJob && certJob.key === key) return;                         // on its way
+      if (certJob && certJob.w) certJob.w.kill();
+      const W = window.BENCH_WORKER, job = certJob = { key, w: null, t0: perfNow() };
+      const onPage = () => setTimeout(() => {
+        if (certJob !== job || genCertKey(def) !== key) return;
+        land(genCertify(def, {}), 'page');
+      }, 0);
+      const w = (W && typeof W.start === 'function') ? W.start(m => {
+        if (certJob !== job || !m) return;
+        if (m.error) { console.warn('certificate: the worker could not compute it, the page will -', m.error); if (job.w) job.w.kill(); job.w = null; onPage(); return; }
+        if (m.kind !== 'cert') return;
+        if (job.w) job.w.kill(); job.w = null;
+        land(m, 'worker');
+      }, why => { if (certJob === job) { job.w = null; onPage(); } }) : null;
+      if (w && w.post({ kind: 'cert', spec: genSpec, seq: 1 })) job.w = w;
+      else { if (w) w.kill(); onPage(); }
+    } catch (e) { console.warn('certificate:', e && e.message); }
+  }
+  if (typeof window !== 'undefined') window.CERT_STATE = () => ({ last: certLast, pending: !!certJob, cached: certCache.size,
+    stamped: !!(sim && typeof sim.cert === 'function' && sim.cert()) });
   function rollOut(after, sync) {      // `after` runs when the aeroplane is on the stand and on screen (S3)
+    certKick();                        // G1831: the certificate's thread starts with the roll-out
     const reveal = () => { flRevealStart(); if (after) after(); };
     rollHold = false;   // G690: a screen cut short (a roll-in over it) must not hold the next flight
     if (!screenCan()) {
@@ -6970,6 +7042,7 @@
     // they fly to the strip bolted to the wing.
     rigLift = 0; clearLoadViz();
     inGarage = false; rolledOut = true;
+    certKick();                        // G1831: stamped now if the roll-out's request has landed (or the build was flown before)
     envAway = true;                    // C0c: the room's probe waits for the way back (bakeHangarEnv)
     if (typeof ATMO !== 'undefined' && ATMO.MIST) ATMO.MIST.room = null;   // F3: the room's air stays in the room
     showCage = false; applySkinVis();  // the MESH flies, not the editor's cage
@@ -11092,6 +11165,9 @@
     loadTestState: () => loadTestState(),
     endLoadTest: () => endLoadTest(),
     loadAdvise: cb => startLoadAdvise(cb),           // A9: the measured levers, after the verdict
+    // G1832 (DMG-D2a): the free test to destruction after the wing loading, while the damage layer is on
+    loadDestroy: cb => startLoadDestroy(cb),
+    damageOn: () => !!(def && typeof genDamageOn === 'function' && genDamageOn(def)),
     isGen: () => curKey === 'gen',
     inGarage: () => inGarage,
   });

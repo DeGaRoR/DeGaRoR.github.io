@@ -177,12 +177,19 @@ const GATES = [
   { id: 'TREEHIT', file: '_treehit_check.js', tier: 'core' },
   // G1470 (TREE-CRASH): the airframe yields, breaks and crashes against a trunk and never in what it was built for - the
   // load test to 5.7 g, a flown 3.8 g pull, a drop at FAR 23.473's sink and its cap, a circuit (no yield on the five validated
-  // builds); a taxi into a trunk dents, a 30 m/s flight into one crashes with a wing broken; reset heals. Three builds at once
-  { id: 'TREECRASH', file: '_treecrash_check.js', tier: 'core', weight: 3, wall: 600 },
+  // builds); a taxi into a trunk dents, a 30 m/s flight into one crashes with a wing broken; reset heals. Three builds at once.
+  // G1833 (DMG-D2a): flown on THE CERTIFICATE's limits (the game's, with the layer on): the load test clean to its limit and
+  // held at its ultimate, the pull read to the limit; `--physics` flies D1a's physics limits as before
+  { id: 'TREECRASH', file: '_treecrash_check.js', tier: 'core', weight: 3, wall: 900 },
   // G1810-G1817 (DMG-D1a MEMBERS): the seams and the break groups (closed sets, in the generator and in the solver), Euler on
   // the tube members, the seam rules, spruce's ragged break, the kink floor, nothing armed parked, and the break order on
   // the bench to destruction and in the trunk flights (the first group to let go is a fitting's). Three builds at once
   { id: 'DMGMEMBERS', file: '_dmg_members_check.js', tier: 'core', weight: 3, wall: 120 },
+  // G1830-G1834 (DMG-D2a CERTIFICATE): the members anchored to the loads the aeroplane is certified for (66_gen_cert.js): the
+  // cases, the stamp (the gear kept, off = nothing); on the bench to limit x 1.0 no set, x 1.2 a set (a ductile wing), to
+  // ultimate held, to ultimate x 1.1 broken at a joint; to destruction BROKE AT within [1.5, 1.5 m] x limit, a joint first;
+  // the flown pull to the limit clean; a bad design (struts / root at half the section asked) BROKE UP. Three builds at once
+  { id: 'DMGCERT', file: '_dmg_cert_check.js', tier: 'core', weight: 3, wall: 240 },
   // G1800-G1804 (DMG-D0 INSTRUMENTS): the NaN ending is 'sim-diverged' ('broke-up' the structure's); the velocity guard (150 m/s
   // off the CG: a blown lattice that never goes NaN trips it, 200 m/s true does not; the census of what the validated builds
   // fly never near it); the per-beam plastic work sums to the total; every beam of the five builds carries its ledger

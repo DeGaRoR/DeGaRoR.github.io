@@ -45,7 +45,29 @@ function defOf(key, opts) {
   }
   const d = _defs[key];
   // a shallow copy with its own params (the probe flag) - the beams are copied by makeSim
-  return Object.assign({}, d, { params: Object.assign({}, d.params, (opts && opts.probe) ? { damageProbe: true } : {}, { damage: !(opts && opts.elastic) }) });   // G1898: the damage gates say what they test (the default is off)
+  const o = Object.assign({}, d, { params: Object.assign({}, d.params, (opts && opts.probe) ? { damageProbe: true } : {}, { damage: !(opts && opts.elastic) }) });   // G1898: the damage gates say what they test (the default is off)
+  // G1831 (DMG-D2a): `cert` - the certificate stamped (66_gen_cert, computed once per build, the floats' drop on the
+  // analytic world's sea lane); without it the members are D1a's physics
+  if ((opts && opts.cert) || (process.env.FLYDIY_CERT === '1' && !(opts && opts.cert === false))) o.cert = certOf(key);
+  else o.cert = null;
+  return o;
+}
+const _certs = {};
+let _seaWorld = null;
+function certOf(key) {
+  if (_certs[key]) return _certs[key];
+  // (FLYDIY_CERT_DIR: the envelope precomputed in another process - <dir>/<key>.json, { nb, Ft, Fc } - as the game hands
+  // the flight a certificate its bench thread computed: a sim timed in this process then never shares its solver's
+  // code with the certificate's own probe sims, whose beams carry the probe's fields)
+  if (process.env.FLYDIY_CERT_DIR) {
+    const J = JSON.parse(fs.readFileSync(path.join(process.env.FLYDIY_CERT_DIR, key + '.json'), 'utf8'));
+    return (_certs[key] = { nb: J.nb, Ft: Float64Array.from(J.Ft), Fc: Float64Array.from(J.Fc) });
+  }
+  if (!_defs[key]) defOf(key);
+  const C = core(), d = _defs[key];
+  const hydro = !!(d.parts && d.parts.floats);
+  if (hydro && !_seaWorld) _seaWorld = C.makeWorld();
+  return (_certs[key] = C.genCertify(d, { world: hydro ? _seaWorld : null }));
 }
 
 // a flat world at `elev` with a trunk set of its own (the TREEHIT gate's world)
@@ -92,7 +114,7 @@ function pull(key, o) {
   for (let i = 0; i < sim.n; i++) { sim.v[i*3] = V * fx; sim.v[i*3+2] = V * fz; }
   sim.ctl.thr = 1;
   // the elevator's sense: a nose-up input is the one that raises nz (found, not assumed)
-  let de = 0, I = 0, nzMax = 0, held = 0, sgn = o.sgn || -1;
+  let de = 0, I = 0, nzMax = 0, held = 0, sgn = o.sgn || -1, naMax = 0;
   for (let f = 0; f < 60 * 1; f++) { sim.step(1 / 60); }   // a second to settle in the air (the trim transient's own load)
   clearPeak(sim);
   const t0 = sim.t, hist = [];
@@ -106,8 +128,12 @@ function pull(key, o) {
     if (sim.out.nz > nzT - 0.1) held += 1 / 60;
     if (f % 6 === 0) hist.push([sim.t - t0, sim.out.nz, sim.out.V]);
     if (held > (o.hold || 1.5)) break;
+    // G1833 (DMG-D2a): `toLimit` - the pull read up to the step its APPLIED load factor (the aero force over the
+    // weight - the CG's nz lags the wing's load in a quick pull: 3.8 read while the wing carried 5.7 W) first reaches
+    // the limit; past it is an over-g, where the certificate's set is the point
+    if (o.toLimit) { const na = sim.out.aeroFy / (sim.totalM * 9.81); naMax = Math.max(naMax, na); if (na >= o.toLimit) break; }
   }
-  return { nzMax, held, V: sim.out.V, peak: peakOf(sim), dmg: dmgOf(sim), finite: finite(sim), hist };
+  return { nzMax, naMax, held, V: sim.out.V, peak: peakOf(sim), dmg: dmgOf(sim), finite: finite(sim), hist };
 }
 
 // A HARD LANDING: the aeroplane settled on its wheels, lifted `gap` m and dropped onto them at `sink` m/s (no lift:
@@ -233,4 +259,4 @@ function far473(key) {
   const g = defOf(key).params.gen, WS = (g.W / 4.4482) / (g.Sw * 10.7639);
   return Math.min(10, Math.max(7, 4.4 * Math.pow(WS, 0.25))) * 0.3048;
 }
-module.exports = { lastRun, far473, waterCase, core, BUILDS, defOf, flatWorld, loadTest, pull, hardLanding, circuit, atTrunk, peakOf, dmgOf, finite };
+module.exports = { certOf, lastRun, far473, waterCase, core, BUILDS, defOf, flatWorld, loadTest, pull, hardLanding, circuit, atTrunk, peakOf, dmgOf, finite };
