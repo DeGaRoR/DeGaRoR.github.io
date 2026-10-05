@@ -200,6 +200,11 @@ const GATES = [
   // a crosswind circuit, taxis on grass / a rough field / the water / a chop, touchdowns at 1.0 and 1.5 m/s: at most
   // 2/3 of the certified yield) and §7.4's gear rows (the ground loop, the porpoise, the float dig-in). Three at once
   { id: 'DMGGEAR', file: '_dmg_gear_check.js', tier: 'core', weight: 3, wall: 1800 },
+  // G1883-G1884 (DMG-WINDBREAK): the 3 m/s taxi into a trunk IN A WIND breaks no engine mount - the page's staging (settled in
+  // the wind, 3 m/s, the throttle shut, a trunk 6 m ahead) in steady winds 0-10 m/s from 12 directions on the Cub, the Jodel
+  // and the metal Cessna, the page's own wind (steady and the climate's gust field), the floatplanes on the water; the
+  // per-substep reader changes nothing; REPORTs the page's impact speed and the trunk's offset. Three at once
+  { id: 'DMGWIND', file: '_dmg_wind_check.js', tier: 'core', weight: 3, wall: 1500 },
   // G1840-G1843 (DMG-D3 CLUSTERS): a shape-matched cluster is one breakable part - the fin, the twin's rod, the floats (and
   // the twin-boom fixture, reported): its root load read off the cut equals the statics; nothing parts in normal
   // operations (the load test, the pull, the drops, a circuit, parked, the ordinary water cases); a scripted pull takes
