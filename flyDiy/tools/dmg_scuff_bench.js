@@ -9,14 +9,14 @@
 //   4. DS.cost(): the frame's median with the block absent, present + intact (the uniform branch only), present + every
 //      vertex fully damaged (the fragment-cost estimate);
 //   5. stills: each preset before (unarmed) and after (the test patterns), + close-ups.
-// Run: node tools/dmg_scuff_bench.js [--out reports/evidence/DMG-SCUFF/bench] [--builds cub,metal] [--size 960x540]
+// Run: node tools/dmg_scuff_bench.js [--out reports/evidence/DMG-SCUFF/scuffbench] [--builds cub,metal] [--size 960x540]
 'use strict';
 const fs = require('fs'), path = require('path'), net = require('net');
 const { spawn } = require('child_process');
 const argv = process.argv.slice(2);
 const opt = (k, d) => { const i = argv.indexOf('--' + k); return i >= 0 && argv[i + 1] ? argv[i + 1] : d; };
 const ROOT = path.resolve(__dirname, '..'), REPO = path.resolve(ROOT, '..');
-const OUT = path.resolve(ROOT, opt('out', 'reports/evidence/DMG-SCUFF/bench'));
+const OUT = path.resolve(ROOT, opt('out', 'reports/evidence/DMG-SCUFF/scuffbench'));
 const [W, H] = opt('size', '960x540').split('x').map(Number);
 const BUILDS = { cub: 'builds/cub_2026-09-20_corrected.json', metal: 'bugReports/cessnaMetal (1).json', jodel: 'builds/jodel_2026-09-20_corrected.json' };
 const which = opt('builds', 'cub,metal').split(',');
