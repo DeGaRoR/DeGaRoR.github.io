@@ -59262,3 +59262,41 @@ ROOT forbids - a measure tool that shows the number beside the build's own row w
 - FILES: src/viewer/blueprint.js, blueprint.css (new), refplane.js, editor.js (root kids), editor.css, app.js
   (bpGroup), tools/build.js (manifest), tools/run_gates.js, tools/_blueprint_check.js, tools/_blueprint_fixture.json,
   tools/_ref_check.js.
+
+## G573.1 - THE BLUEPRINT, TRIED ON A REAL SHEET: the Birdman Chinook three-view against the shed's Chinook (2026-10-05)
+
+The user: "Let's do a test with this one. It has a couple of difficult things; the ground line is drawn, but faded, and
+it is not straight, and the top view is also not straight ... load it in your new tool ... and also load the chinook
+from the game against it" - and then: "use the methods that the tool has, so you don't do something the user couldn't,
+but you don't have to go through the interface".
+
+THE TOOL'S METHODS, CALLABLE: `BLUEPRINT.api` - one call per desk action, through the same code the pointer runs, in the
+coordinates the desk shows (the SHEET for scale and cuts, the ORIENTED view for level/plumb, extent and ground): look
+(pan/zoom the desk on a step, a view, a point), scale, cut (box | lasso), orient, level ('h' | 'v' = plumb), extent
+(edges | 'auto'), ground, measure, place, snapNose, set (a panel row). Points were found by zooming the desk on each
+feature (look at x5-x6) and reading the picture, as a user would; no pixel analysis outside the tool.
+
+THE SHEET (1075 x 585, the user's image, not committed - its licence is unknown): no scale bar; front view top left,
+side view below it, top view at about 50 degrees on the right. Done at the desk:
+- SCALE on the top view's span, tip to tip (795 px), at 37 ft: the sheet's span/length is 2.14, which is the 37 ft
+  Chinook 2S (futureDesigns/CHINOOK-STUDY: the 2S has 2 ft more span), not the 32 ft Plus 2 the shed's Chinook is
+  (1.81). 14.2 mm a pixel.
+- CUTS: front and side boxed; the TOP LASSOED - a box round a view drawn at 50 degrees takes the side view's tail and
+  the front view's tip with it.
+- TOP VIEW: PLUMB on two points of the wing's leading edge (the longest straight line on the view) -> -49.5 deg, nose
+  left. Its auto extent started 15 px ahead of the nose: the drawing's dash-dot centreline runs out past the pod. Edge
+  dragged onto the pod's nose.
+- FRONT VIEW: THE IMAGE IS CROPPED - the left wing tip is cut off at the sheet's edge, so the auto extent (and with it
+  the centreline registration) was 37 px off. Fix with the tool: the extent's left edge mirrored about the drawn
+  centreline (x 341.5) across the right tip (746) -> -63, OUTSIDE the image; the extent is allowed to be. Its ground
+  line on the faint drawn one under both tyres.
+- SIDE VIEW: the faint, sloping ground line read as two tyre contacts (main 104.0, 163.3; tail 358.5, 132.6, oriented
+  px) -> 6.9 deg nose-up parked.
+AGAINST THE SHED'S CHINOOK (stock 'chinook', C-ICHK): length 5.33 m drawn vs 5.36 built (3 cm); span 11.36 vs 9.76
+(the 2S vs the Plus 2, by design); the front view's pod, gear legs, wheels and prop disc sit on the build's. Pictures in
+the session (quarter with the Blueprint panel, front, sides, top with `over the build`).
+
+LEARNED, for the desk: (1) a script-initiated click cannot open a file picker - the api loads through the same loadFile
+the button does; (2) an extent beyond the image is the right tool for a cropped sheet - say so in the orient step's
+help one day; (3) the editor's camera presets (CAGE_UI.setView) do not move the shed's camera; FLIGHT_PROBE.camSet does.
+- FILES: src/viewer/blueprint.js (BLUEPRINT.api). Built files not regenerated here: the coordinator builds on merge.
