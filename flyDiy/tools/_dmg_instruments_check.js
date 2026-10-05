@@ -86,6 +86,14 @@ console.log('2. G1801: the velocity guard (150 m/s off the CG)');
     yes(sim.fault() === null && sim.guard().peak === 0 && !sim.stats().bad, 'reset() clears it');
   }
   {
+    // G1898.2: with the layer OFF the speed fault does not end a flight (off = master's game); the peak is still measured
+    const def = L.defOf('cub', { elastic: true }), { W, strip } = L.flatWorld(0), sim = C.makeSim(def, W); sim.reset(0);
+    C.placeAtAerodrome(sim, Object.assign({}, strip, { elev: 0, spawnElev: 300 })); sim.step(1 / 60);
+    for (const b of sim.beams) b.k *= 5;
+    for (let f = 0; f < 30; f++) sim.step(1 / 60);
+    yes(sim.fault() === null && sim.guard().peak > 150, 'damage OFF, every k x 5: no speed fault (the peak still read, ' + f2(sim.guard().peak) + ' m/s)');
+  }
+  {
     const { sim } = air(); sim.step(1 / 60); sim.impulse(0, 0, 1e300, 0); sim.step(1 / 60);
     const F = sim.fault();
     yes(!!F && sim.stats().bad, 'a 1e300 kick (GATE SIMWORKER-EDGES\' divergence): tripped the first frame (\'' + (F && F.why) + '\')');
