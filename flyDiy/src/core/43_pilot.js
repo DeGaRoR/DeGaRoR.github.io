@@ -384,6 +384,39 @@ function makePilot(sim, def, world, opts) {
     ap.budget = Math.max(ap.budget, ap.t + routeBudget(from, to));
     go('DEPART');
   };
+  // G1945 DEST-TO: THE DESTINATION, CHANGED - like an autopilot's (38b_dest.js says what a flight's To is).
+  // The From stays the field the aeroplane left; only the To moves, fitted to the gear (landable). What it
+  // does depends on where the flight is:
+  //   'kept'    on the ground before the take-off, the climb-out, the go-around, the AP box: the route is
+  //             the new one and the arrival is planned from it when the climb hands over (planFromHere; after
+  //             a go-around its first leg is re-planned as below)
+  //   'replan'  on a leg of the arrival (CROSSWIND .. INBOUND, FINAL): the arrival is planned again FROM HERE
+  //             at the next step - the first leg begins ahead on the track, the path filleted from the
+  //             aeroplane, so the turn onto it is the path's (no heading step)
+  //   'queued'  the landing is committed (FLARE, ROLLOUT, GLIDE) or done (STOPPED): nothing moves - FLARE and
+  //             ROLLOUT read the runway they land on - and ap.nextTo holds it for the next departure (the
+  //             page chains it from where the aeroplane stops: app.js nextLeg)
+  //   'same'    the To it already has; 'none' nothing to go to
+  ap.nextTo = null;
+  let replanReq = false, replanning = false;
+  const DEST_KEPT = ['DEPART', 'TAXI', 'LINEUP', 'STOP', 'HOLD', 'ROLL', 'ABORT', 'LIFTOFF', 'PUTDOWN', 'CLIMB', 'GOAROUND', 'BOX'];
+  const DEST_REPLAN = ['CROSSWIND', 'DOWNWIND', 'BASE', 'ENROUTE', 'INBOUND', 'FINAL'];
+  ap.setDest = (to) => {
+    if (!to || !ap.route) return 'none';
+    const from = ap.route.from;
+    to = landable(from, to);
+    const ph = ap.phase;
+    if (!DEST_KEPT.includes(ph) && !DEST_REPLAN.includes(ph)) { ap.nextTo = to; return 'queued'; }
+    ap.nextTo = null;
+    if (to === ap.route.to) return 'same';
+    ap.route = { from, to };
+    ap.xc = from !== to;
+    ap.budget = Math.max(ap.budget, ap.t + routeBudget(ap._m ? { x: ap._m.x, z: ap._m.z } : (from && from.x != null ? from : null), to));   // the way left, from here
+    say('new-destination', 'the destination is now ' + (to.name || to.id) + (DEST_REPLAN.includes(ph) ? ' - re-planning the arrival from here' : ''));
+    if (DEST_REPLAN.includes(ph)) { replanReq = true; return 'replan'; }
+    if (ph === 'GOAROUND') replanReq = true;   // the go-around climbs out first; its first leg is then re-planned the cross-country way
+    return 'kept';
+  };
 
   // ---- the servos' state lives in SV (39b_servos.js, G1570) -------------------
   let gaT = 0;
@@ -1529,7 +1562,8 @@ function makePilot(sim, def, world, opts) {
       const { from, to } = ap.route;
       const climbDir = [F.ux * ap.dirX, 0, F.uz * ap.dirX];
       let u;
-      if (ap.xc) u = dirAt(to, to.x - cg[0], to.z - cg[2]);
+      // G1945 DEST-TO: a re-plan in the air (ap.setDest) arrives the cross-country way, whatever the To
+      if (ap.xc || replanning) u = dirAt(to, to.x - cg[0], to.z - cg[2]);
       // P1.A: the circuit lands the SCORED direction (the wind, the slope,
       // the obstacles) with the climb-out as the preference — on a flat strip
       // in calm air that is the way it took off; on a hillside the other way
@@ -1541,7 +1575,7 @@ function makePilot(sim, def, world, opts) {
       // P1: the crosswind form is the CLIMB-OUT's — the aeroplane near the
       // extended centreline; resumed anywhere else (the AP box handed back
       // over the next valley) the arrival is joined the cross-country way
-      if (!ap.xc && Math.abs(cNow) < 0.5 * P.W) {
+      if (!ap.xc && !replanning && Math.abs(cNow) < 0.5 * P.W) {
         // G381: the crosswind leg begins where the ARC ends — one turn
         // radius ahead at the climbing bank — and the arc is armed from the
         // climb-out direction, so the aeroplane rolls out ON the leg
@@ -1682,6 +1716,15 @@ function makePilot(sim, def, world, opts) {
       say('in-the-water', 'under the water at t=' + Math.round(ap.t) + ' s — the flight is over');
       ap.report.outcome = ap.report.outcome || 'in-the-water';
       go('STOPPED');
+    }
+    // G1945 DEST-TO: a To changed on a leg of the arrival is re-planned here, from the aeroplane's own
+    // position and track (ap.setDest); the box flies on until it hands back (CLIMB plans then)
+    if (replanReq && !BX.on && onG === 0 && DEST_REPLAN.includes(ap.phase)) {
+      replanReq = false; replanning = true;
+      try { go(planFromHere()); } finally { replanning = false; }
+      const tl = Math.hypot(vcg[0], vcg[2]);
+      if (tl > 3) ap.holdDir = [vcg[0] / tl, 0, vcg[2] / tl];   // the escape fan is about the track flown, not a climb-out
+      committed = false; slopeCaptured = false; finalLevel = null; heldOut = false; escapeHdg = null;
     }
     const phRun = ap.phase, legRun = ap.legI;   // G710: the phase and leg this step flies (ap.intent names them, not the next)
     if (BX.on) boxFly(); else

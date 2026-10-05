@@ -1435,7 +1435,7 @@ body.shot #c { margin-left:0 !important; width:100% !important; cursor:grab; }
 .verb.pri { font-weight:600; padding:11px 18px; color:var(--ed-acc-ink);
   background:var(--ed-acc); border-color:var(--ed-acc); }
 
-/* G710: WHERE THE ROLL-OUT GOES - from / to beside ROLL OUT, the verbs' own row and the row selects'
+/* G710: WHERE THE ROLL-OUT GOES - base / to beside ROLL OUT (G1945: the from retired), the verbs' own row and the row selects'
    dress (#edRoute; the roll-out screen's #bootRoute is style.css's, on the loading panel) */
 #edRoute { display:flex; align-items:center; gap:8px; }
 #edRoute label { display:flex; align-items:center; gap:5px; }
@@ -1444,6 +1444,8 @@ body.shot #c { margin-left:0 !important; width:100% !important; cursor:grab; }
   background:var(--ed-btn-bg); border:1px solid var(--ed-btn-bd); border-radius:7px; color-scheme:dark; }
 /* G1375 STRIP-SURFACE: a strip the build's gear may not use is a disabled option - faint, its reason in the text */
 #edRoute option:disabled, #ui .fsel option:disabled { color:rgba(244,239,230,.38); }
+/* G1945 DEST-TO: the base is a line, not a pick (one base today); the To is the one choice */
+#edRoute .routeBase { font:400 11.5px/1.2 'IBM Plex Sans'; color:var(--ed-ink); white-space:nowrap; opacity:.8; }
 
 .verb.pri:hover { background:#f0e7d8; }
 

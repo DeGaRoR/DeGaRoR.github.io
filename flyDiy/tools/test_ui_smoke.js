@@ -461,6 +461,42 @@ try {
       `${apOld.dbg && apOld.dbg.agl != null ? apOld.dbg.agl.toFixed(2) : '-'}); IAS "${shown}" at ${raw.toFixed(1)} km/h; ` +
       `fly on: a new leg in place (${P.ap().phase}), not a reset`);
   }
+  // ---- G1945 DEST-TO: ONE "TO" ----
+  // The user: "we could gradually drop the FROM-TO in favour of a simple 'To', which can be updated in flight or on the
+  // ground. The plane reacts like its autopilot's destination has been updated." The From picker is gone (#selFrom is
+  // never asked for); a To picked while the pilot taxis is the route at once (setDest 'kept': the same pilot, the
+  // aeroplane not moved); on a leg of the arrival it re-plans ('replan'); STOPPED, it is the next leg from where the
+  // aeroplane stands (the From derived: the field under it) - a new pilot, no reset.
+  {
+    const P = sandbox.window.FLIGHT_PROBE, R = sandbox.window.FLYDIY_ROUTE;
+    if (!R || typeof R.to !== 'function' || typeof R.where !== 'function') throw new Error('FLYDIY_ROUTE.to / .where are missing (G1945)');
+    if ('selFrom' in els) throw new Error('#selFrom was asked for: the From picker is retired (G1945)');
+    const W = P.world(), other = W.aerodromes.find(a => a.kind !== 'meadow' && a.kind !== 'water' && !a.water && a.id !== 'HOME');
+    if (!other) throw new Error('no second land strip in the smoke world');
+    const sim = P.sim(), ap0 = P.ap(), cg0 = sim.cgPos().slice();
+    if (ap0.phase === 'STOPPED') throw new Error('the pilot is STOPPED before the To test');
+    const how1 = R.to(other.id);
+    if (how1 !== 'kept' || P.ap() !== ap0 || !ap0.route.to || ap0.route.to.id !== other.id)
+      throw new Error(`a To picked while ${ap0.phase}: ${how1}, route.to ${ap0.route.to && ap0.route.to.id} (want kept, ${other.id}, the same pilot)`);
+    const ph0 = ap0.phase;
+    ap0.phase = 'ENROUTE';
+    const how2 = R.to('CIRCUIT');
+    ap0.phase = ph0;
+    if (how2 !== 'replan' || ap0.route.to.id !== ap0.route.from.id) throw new Error(`a To picked on a leg of the arrival: ${how2} (want replan, back to ${ap0.route.from.id})`);
+    const cg1 = sim.cgPos();
+    if (Math.hypot(cg1[0] - cg0[0], cg1[2] - cg0[2]) > 0.5) throw new Error('a To change moved the aeroplane (a reset, not a destination)');
+    ap0.phase = 'STOPPED';
+    const where = R.where();
+    const how3 = R.to(other.id);
+    const ap1 = P.ap(), cg2 = P.sim().cgPos();
+    if (how3 !== 'leg' || ap1 === ap0 || ap1.phase === 'STOPPED' || !ap1.route.from || ap1.route.from.id !== (where && where.id))
+      throw new Error(`STOPPED, a new To: ${how3}, from ${ap1.route.from && ap1.route.from.id} (want leg, a new pilot, the From derived: ${where && where.id})`);
+    if (Math.hypot(cg2[0] - cg0[0], cg2[2] - cg0[2]) > 0.5) throw new Error('the next leg moved the aeroplane (a reset, not a leg)');
+    if (R.get().from !== where.id || R.get().to !== other.id || R.get().base !== 'HOME') throw new Error('FLYDIY_ROUTE: ' + JSON.stringify(R.get()));
+    R.to('CIRCUIT');
+    frames(30);
+    console.log(`one To: taxiing ${how1}, on a leg ${how2}, stopped ${how3} from ${where.kind} ${where.id} (the From derived), the aeroplane never moved`);
+  }
   // exercise every wired button (Skin cycles all 3 states)
   // bEdit is the editor door the shelf's move left behind (G63): CAGE_UI_BOOT
   // does not exist in this sandbox, so what it proves is the WIRING — that the
