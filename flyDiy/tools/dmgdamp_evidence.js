@@ -27,6 +27,7 @@ if (argv[0] === '--perf-child') {
   const L = require(path.join(path.dirname(core), '_treecrash_lib.js'));
   const C = L.core(), def = L.defOf(key, { elastic: true }), { W, strip } = L.flatWorld(0);
   delete def.params.damage;                                   // the stock build: the switch's default (off)
+  if (process.env.DMGDAMP_MEAN) def.params.defDampMean = true;   // the old formula on this core: the base's trajectory, this core's code
   const sim = C.makeSim(def, W); sim.reset(0);
   C.placeAtAerodrome(sim, Object.assign({}, strip, { elev: 0, spawnElev: mode === 'air' ? 300 : 0 }));
   const fx = Math.cos(strip.hdg), fz = Math.sin(strip.hdg), V = mode === 'air' ? 1.6 * def.params.gen.Vs : 0;

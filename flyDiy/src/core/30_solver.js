@@ -1636,6 +1636,9 @@ function makeSim(def, world) {
   // brings back the pre-G1885 damper (off the mean velocity, which damped rigid rotation too) for GATE DMGDAMP's
   // control - an instrument, like defDamp; no build sets it.
   const G = -9.81, DEFDAMP = def.params.defDamp ?? 0.5, DEFDAMP_MEAN = !!def.params.defDampMean;
+  // G1885: the rigid fit's second moments about the CG (xx yy zz xy xz yz) and its last w, carried through a frame
+  const rigS = new Float64Array(6), rigW = new Float64Array(3);
+  let rigFresh = true;
   // ground stiffness scales with node mass so light aircraft stay stable at the same dt
   const KGn = new Float64Array(n), CGn = new Float64Array(n),
         KTn = new Float64Array(n), CTn = new Float64Array(n);
@@ -1928,7 +1931,11 @@ function makeSim(def, world) {
       // its digits in the second moments). DEFDAMP's value is the deformation's, unchanged.
       const ox = p[0], oy = p[1], oz = p[2];
       let Px=0, Py=0, Pz=0, Rx=0, Ry=0, Rz=0, Lx=0, Ly=0, Lz=0, Sxx=0, Syy=0, Szz=0, Sxy=0, Sxz=0, Syz=0;
-      for (let i = 0; i < n; i++) {
+      // the second moments are summed on a frame's first substep (and after any reset); the frame's others carry
+      // them on rigidly with the last w (dS/dt = W S + S W^T): the frame turns the aeroplane by w/60 rad and the
+      // deformation moves them by ~1e-4, against a quarter of the loop's sums every substep (G1885's perf, HANDOVER)
+      const fresh = rigFresh || dp >= 1;
+      if (fresh) for (let i = 0; i < n; i++) {
         const i3 = i*3, mi = m[i], im = dt/mi;
         const vx = v[i3] += f[i3]*im, vy = v[i3+1] += f[i3+1]*im, vz = v[i3+2] += f[i3+2]*im;
         const rx = p[i3] - ox, ry = p[i3+1] - oy, rz = p[i3+2] - oz;
@@ -1936,12 +1943,31 @@ function makeSim(def, world) {
         Px += mi*vx; Py += mi*vy; Pz += mi*vz; Rx += mx; Ry += my; Rz += mz;
         Lx += my*vz - mz*vy; Ly += mz*vx - mx*vz; Lz += mx*vy - my*vx;
         Sxx += mx*rx; Syy += my*ry; Szz += mz*rz; Sxy += mx*ry; Sxz += mx*rz; Syz += my*rz;
+      } else for (let i = 0; i < n; i++) {
+        const i3 = i*3, mi = m[i], im = dt/mi;
+        const vx = v[i3] += f[i3]*im, vy = v[i3+1] += f[i3+1]*im, vz = v[i3+2] += f[i3+2]*im;
+        const mx = mi*(p[i3] - ox), my = mi*(p[i3+1] - oy), mz = mi*(p[i3+2] - oz);
+        Px += mi*vx; Py += mi*vy; Pz += mi*vz; Rx += mx; Ry += my; Rz += mz;
+        Lx += my*vz - mz*vy; Ly += mz*vx - mx*vz; Lz += mx*vy - my*vx;
       }
       if (dp < 1) {
         const iM = 1 / totalM, ux = Px*iM, uy = Py*iM, uz = Pz*iM, cx = Rx*iM, cy = Ry*iM, cz = Rz*iM;
-        // about the CG: L - M c x v_cm, and the second moments by the parallel axis
+        // about the CG: L - M c x v_cm, and (fresh) the second moments by the parallel axis
         Lx -= Ry*uz - Rz*uy; Ly -= Rz*ux - Rx*uz; Lz -= Rx*uy - Ry*ux;
-        Sxx -= Rx*cx; Syy -= Ry*cy; Szz -= Rz*cz; Sxy -= Rx*cy; Sxz -= Rx*cz; Syz -= Ry*cz;
+        if (fresh) {
+          rigS[0] = Sxx - Rx*cx; rigS[1] = Syy - Ry*cy; rigS[2] = Szz - Rz*cz; rigS[3] = Sxy - Rx*cy; rigS[4] = Sxz - Rx*cz; rigS[5] = Syz - Ry*cz;
+          rigFresh = false;
+        } else {
+          const wx = rigW[0] * dt, wy = rigW[1] * dt, wz = rigW[2] * dt;
+          const s0 = rigS[0], s1 = rigS[1], s2 = rigS[2], s3 = rigS[3], s4 = rigS[4], s5 = rigS[5];   // xx yy zz xy xz yz
+          rigS[0] = s0 + 2 * (wy*s4 - wz*s3);
+          rigS[1] = s1 + 2 * (wz*s3 - wx*s5);
+          rigS[2] = s2 + 2 * (wx*s5 - wy*s4);
+          rigS[3] = s3 + (wy*s5 - wz*s1) + (wz*s0 - wx*s4);
+          rigS[4] = s4 + (wy*s2 - wz*s5) + (wx*s3 - wy*s0);
+          rigS[5] = s5 + (wz*s4 - wx*s2) + (wx*s1 - wy*s3);
+        }
+        Sxx = rigS[0]; Syy = rigS[1]; Szz = rigS[2]; Sxy = rigS[3]; Sxz = rigS[4]; Syz = rigS[5];
         const a = Syy + Szz, b = Sxx + Szz, c = Sxx + Syy;           // I = [[a,-Sxy,-Sxz],[-Sxy,b,-Syz],[-Sxz,-Syz,c]]
         const k0 = b*c - Syz*Syz, k1 = Sxy*c + Syz*Sxz, k2 = Sxy*Syz + b*Sxz;
         const det = a*k0 - Sxy*k1 - Sxz*k2;
@@ -1952,14 +1978,16 @@ function makeSim(def, world) {
           wy = (k1*Lx + k4*Ly + k5*Lz) * id;
           wz = (k2*Lx + k5*Ly + k8*Lz) * id;
         }
+        rigW[0] = wx; rigW[1] = wy; rigW[2] = wz;
+        // v_r = v_cm + w x (x - x_cm) = (v_cm - w x x_cm) + w x x, x_cm and x off node 0 (their digits kept)
         const qx = ox + cx, qy = oy + cy, qz = oz + cz;
+        const gx = ux - (wy*qz - wz*qy), gy = uy - (wz*qx - wx*qz), gz = uz - (wx*qy - wy*qx);
         for (let i = 0; i < n; i++) {
-          const i3 = i*3, rx = p[i3] - qx, ry = p[i3+1] - qy, rz = p[i3+2] - qz;
-          const rgx = ux + wy*rz - wz*ry, rgy = uy + wz*rx - wx*rz, rgz = uz + wx*ry - wy*rx;
-          v[i3]   = rgx + (v[i3]   - rgx) * dp;
-          v[i3+1] = rgy + (v[i3+1] - rgy) * dp;
-          v[i3+2] = rgz + (v[i3+2] - rgz) * dp;
-          p[i3] += v[i3]*dt; p[i3+1] += v[i3+1]*dt; p[i3+2] += v[i3+2]*dt;
+          const i3 = i*3, px = p[i3], py = p[i3+1], pz = p[i3+2];
+          const rgx = gx + wy*pz - wz*py, rgy = gy + wz*px - wx*pz, rgz = gz + wx*py - wy*px;
+          const nx = rgx + (v[i3] - rgx) * dp, ny = rgy + (v[i3+1] - rgy) * dp, nz = rgz + (v[i3+2] - rgz) * dp;
+          v[i3] = nx; v[i3+1] = ny; v[i3+2] = nz;
+          p[i3] = px + nx*dt; p[i3+1] = py + ny*dt; p[i3+2] = pz + nz*dt;
         }
       } else for (let i = 0; i < n; i++) { const i3 = i*3; p[i3] += v[i3]*dt; p[i3+1] += v[i3+1]*dt; p[i3+2] += v[i3+2]*dt; }
     }
@@ -1984,6 +2012,7 @@ function makeSim(def, world) {
   function step(dtFrame, sub = subN) {
     const dt = dtFrame / sub;
     aicFresh = true;
+    rigFresh = true;               // G1885: the frame's first substep sums the second moments
     // the cone's frame-start samples (a bound the world declares, else off)
     const S = coneOn && world ? world.slopeMax : undefined;
     coneLive = typeof S === 'number' && Number.isFinite(S) && S >= 0;
