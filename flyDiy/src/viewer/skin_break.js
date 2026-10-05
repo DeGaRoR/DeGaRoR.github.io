@@ -692,6 +692,44 @@
       _md[j] = d; _mi[j] = s; _mt[j] = t; }
     return m;
   }
+  // the tube pieces of a record: its tube places joined by its triangles (welded: the record's rep), each piece's member or
+  // node -> Map(place -> { seg, node })
+  const JOINT_D = 0.06;       // m: a tube piece no wider than this is a knuckle at a node
+  const TUBE_SEG = 0.10;      // m: ...and a piece farther than this from every member along its length is no member's tube
+  function tubePieces(E, Sall, st) {
+    const R = E.R, cv = E.cv, P = R.g.pos, rp = R.rep, ix = R.idx0 || R.idx, nt = (ix.length / 3) | 0;
+    if (cv.indexOf(INH.tube) < 0) return null;
+    const par = new Int32Array(R.nv); for (let v = 0; v < R.nv; v++) par[v] = v;
+    const f = v => { while (par[v] !== v) { par[v] = par[par[v]]; v = par[v]; } return v; };
+    const pl = v => rp ? rp[v] : v;
+    for (let t = 0; t < nt; t++) { const a = pl(ix[t * 3]), b = pl(ix[t * 3 + 1]), c = pl(ix[t * 3 + 2]);
+      if (cv[a] !== INH.tube || cv[b] !== INH.tube || cv[c] !== INH.tube) continue;
+      const ra = f(a), rb = f(b), rc = f(c); par[rb] = ra; par[f(rc)] = ra; }
+    const pieces = new Map();
+    for (let v = 0; v < R.nv; v++) { if (cv[v] !== INH.tube || (rp && rp[v] !== v)) continue; const r = f(v); let L = pieces.get(r); if (!L) pieces.set(r, L = []); L.push(v); }
+    const out = new Map();
+    for (const L of pieces.values()) {
+      let x0 = Infinity, y0 = Infinity, z0 = Infinity, x1 = -Infinity, y1 = -Infinity, z1 = -Infinity, cx = 0, cy = 0, cz = 0;
+      for (const v of L) { const x = P[v * 3], y = P[v * 3 + 1], z = P[v * 3 + 2]; cx += x; cy += y; cz += z;
+        if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; if (z < z0) z0 = z; if (z > z1) z1 = z; }
+      cx /= L.length; cy /= L.length; cz /= L.length;
+      if (Math.hypot(x1 - x0, y1 - y0, z1 - z0) <= JOINT_D) {             // a knuckle: its nearest node (a member's end)
+        const m = nearSegs(Sall, cx, cy, cz, 1); if (!m) continue; const g = Sall[_mi[0]];
+        const node = _mt[0] < 0.5 ? g.a : g.b; for (const v of L) out.set(v, { seg: -1, node }); st.tubeJoint = (st.tubeJoint || 0) + 1; continue; }
+      // the member closest along the whole piece: candidates from the piece's centroid, each scored by its worst place
+      const m = nearSegs(Sall, cx, cy, cz, 6); const cand = []; for (let j = 0; j < m; j++) cand.push(_mi[j]);
+      let best = -1, bw = Infinity;
+      for (const s2 of cand) { const g = Sall[s2]; let w = 0;
+        for (const v of L) { const x = P[v * 3], y = P[v * 3 + 1], z = P[v * 3 + 2];
+          let t = ((x - g.ax) * g.ex + (y - g.ay) * g.ey + (z - g.az) * g.ez) / g.L2; t = t < 0 ? 0 : t > 1 ? 1 : t;
+          const d = Math.hypot(g.ax + t * g.ex - x, g.ay + t * g.ey - y, g.az + t * g.ez - z); if (d > w) w = d; if (w >= bw) break; }
+        if (w < bw) { bw = w; best = s2; } }
+      if (best < 0 || bw > TUBE_SEG) { st.tubeLoose = (st.tubeLoose || 0) + 1; continue; }   // (place by place, below)
+      for (const v of L) out.set(v, { seg: best, node: -1 });
+      st.tubePieces = (st.tubePieces || 0) + 1;
+    }
+    return out;
+  }
   // a node-weight accumulator (a small map), cut to the top INH_K and renormalised into wi / ww at o
   function Acc() { this.n = 0; this.i = new Int32Array(64); this.w = new Float64Array(64); }
   Acc.prototype.clear = function () { this.n = 0; return this; };
@@ -743,13 +781,24 @@
         const key = u * 64 + cv[v] * 8 + 1 + (obj ? (obj[v] & 0xffff) * 1e9 : 0); const f = first.get(key);
         if (f == null) { first.set(key, v); rp[v] = v; } else rp[v] = f; } }
     const placesOf = (E, c) => { const R = E.R, out = []; for (let v = 0; v < R.nv; v++) if ((!R.rep || R.rep[v] === v) && E.cv[v] === c) out.push(v); return out; };
-    // 1. the frame's tubes and the covering
+    // 1. the frame's tubes and the covering. A TUBE is bound as a UNIT (G1859.2, the coordinator: a tube bound place by
+    // place to its nearest member put one ring's places on two members at a joint, and the ring was drawn 145-640 x its
+    // rest once they parted): its drawn pieces (the places joined by its triangles) each take ONE member - the one whose
+    // segment lies closest along the whole piece - every place its station t on it; a piece no wider than JOINT_D (a
+    // joint's knuckle, a fitting) takes the nearest node alone; a piece no member runs along (worst place past TUBE_SEG)
+    // is bound place by place as before
     for (const E of L) {
       const R = E.R, K = R.K, P = R.g.pos;
+      const tubeOf = tubePieces(E, Sall, st);
       for (const c of [INH.tube, INH.cover]) for (const v of placesOf(E, c)) {
         const x = P[v * 3], y = P[v * 3 + 1], z = P[v * 3 + 2];
         if (++_n >= every) { _n = 0; yield st.places; } _acc.clear(); st.places++;
-        if (c === INH.tube) { const m = nearSegs(Sall, x, y, z, 1);
+        if (c === INH.tube && tubeOf && tubeOf.has(v)) { const u = tubeOf.get(v);
+          if (u.node >= 0) _acc.add(u.node, 1);
+          else { const g = Sall[u.seg]; let t = ((x - g.ax) * g.ex + (y - g.ay) * g.ey + (z - g.az) * g.ez) / g.L2; t = t < 0 ? 0 : t > 1 ? 1 : t;
+            _acc.add(g.a, 1 - t); _acc.add(g.b, t); }
+          st.tube++; }
+        else if (c === INH.tube) { const m = nearSegs(Sall, x, y, z, 1);
           // (always its nearest member, however far: a drawn tube off the physics line - a lift strut drawn beside its member -
           // blended over the covering's frame was stretched metres when its piece went; counted past TUBE_R)
           if (m) { const g = Sall[_mi[0]]; _acc.add(g.a, 1 - _mt[0]); _acc.add(g.b, _mt[0]); if (_md[0] < TUBE_R * TUBE_R) st.tube++; else st.tubeFar++; } }
