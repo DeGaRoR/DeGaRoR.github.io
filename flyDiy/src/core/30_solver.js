@@ -58,6 +58,34 @@ function vkHorseshoe(A, B, d, rc, P, out) {
 }
 const vortexKernel = { segment: vkSegment, semi: vkSemi, horseshoe: vkHorseshoe };
 
+// G1891 (DMG-CERTCOST): the snapshot's deep copy and its write-back (makeSim's snap / unsnap): typed arrays, arrays and
+// plain objects copied, functions left (a closure is the sim's own), shared references kept shared; snapPut writes a
+// copy back INTO the live objects (the closures hold them), a missing or differently-shaped one replaced by a copy
+function snapCopy(x, seen) {
+  if (x === null || typeof x !== 'object') return x;
+  seen = seen || new Map();
+  if (seen.has(x)) return seen.get(x);
+  if (ArrayBuffer.isView(x)) { const y = x.slice(); seen.set(x, y); return y; }
+  if (Array.isArray(x)) { const y = []; seen.set(x, y); for (let i = 0; i < x.length; i++) y.push(typeof x[i] === 'function' ? undefined : snapCopy(x[i], seen)); return y; }
+  const y = {}; seen.set(x, y);
+  for (const k of Object.keys(x)) if (typeof x[k] !== 'function') y[k] = snapCopy(x[k], seen);
+  return y;
+}
+function snapPut(t, s, seen) {
+  seen = seen || new Set();
+  if (seen.has(t)) return; seen.add(t);
+  if (ArrayBuffer.isView(t)) { t.set(s); return; }
+  const kind = o => o === null || typeof o !== 'object' ? 0 : ArrayBuffer.isView(o) ? 1 : Array.isArray(o) ? 2 : 3;
+  const put = (o, k, sv) => {
+    const tv = o[k];
+    if (typeof tv === 'function' || tv === sv) return;   // (equal: not written - see unsnap's members)
+    if (kind(sv) && kind(sv) === kind(tv) && (kind(sv) !== 1 || tv.length === sv.length)) snapPut(tv, sv, seen);
+    else o[k] = snapCopy(sv);
+  };
+  if (Array.isArray(t)) { t.length = s.length; for (let i = 0; i < s.length; i++) if (s[i] !== undefined) put(t, i, s[i]); return; }
+  for (const k of Object.keys(t)) if (!(k in s) && typeof t[k] !== 'function') delete t[k];
+  for (const k of Object.keys(s)) put(t, k, s[k]);
+}
 function makeSim(def, world) {
   const P_ = def.params;
   const PP = POWERPLANTS[P_.powerplant];
@@ -2808,6 +2836,55 @@ function makeSim(def, world) {
   // every generated build), the firewall ring otherwise (the imported fiches)
   function bodyOrigin() { avgP(def.refs.origin || def.refs.noseFrame, t1); return t1.slice(); }
 
+  // G1891 (DMG-CERTCOST): THE STATE OF A WHOLE AEROPLANE, SAVED AND PUT BACK. The certificate's landings (66_gen_cert.js
+  // genCertDrop) each settled a fresh sim on its wheels for 4 s from the same reset - the same 240 frames four to six
+  // times a build, most of a floatplane's certificate. snap() takes everything a step reads and writes - the nodes, the
+  // members' mechanical state (rest length, stiffness: never their limits), the clusters, the air's lag (the
+  // circulations, the kernel's cache), the ground's and the water's state, the engines, the tanks, the panel's filters,
+  // the clock - and unsnap(S) writes it into ANOTHER sim of the same def (its nodes and beams the same arrays), made
+  // the same way: the second runs on exactly as the first would have (GATE DMGCERTCOST: the certificate with the
+  // settle shared is the unshared one to the bit).
+  // Only for a WHOLE aeroplane: nothing bent, broken or parted, no wet body - snap() returns null otherwise (a damaged
+  // lattice's structure is not its def's). Never in the step: what a step costs is untouched.
+  const whole = () => !(DMG.breaks || DMG.yields || DMG.dents || DMG.cl.length || WB || clQ.length);
+  function snap() {
+    if (!whole()) return null;
+    return { n, nb, nodes: def.nodes, beams: def.beams,
+      A: [p, v, f, m, r, rC, KGn, CGn, KTn, CTn, gcx, gcy, gcz, Gam, GamPrev, vi, AIC, sA, sB, sZA, sZB, cpt, Ez, Dz, Wg, pG, pS, pDz, pEDz, bHalf, _tk, _pr]
+        .map(a => a.slice()),
+      O: snapCopy([xAft, yUp, zRt, t1, t2, sD, sC, beams.map(b => [b.L0, b.Lr, b.strain, b.k, b.c, b.sK]), clusters, CUTS, eng, fuel, VG, ctl,
+                   Object.assign({}, out, { hydro: null })]),
+      // the floats' water (32_hydro.js hydroBuild): its sub-rate's count and held forces and the floats' last answers -
+      // the rest of it (the hull, the scratch) is rebuilt from the nodes at every compute
+      H: HY ? { tick: HY.tick, wet: HY.wet, fh: HY.fh.slice(), fl: HY.floats.map(fx => [fx.h, fx.wet, fx.wrDown]) } : null,
+      S: [subN, clusterFresh, simT, gF, cIx, cIy, cIz, armed, scrape, noseGnd, aicHash, aicFresh, atmOver, hProbe, gRef,
+          vPrev && vPrev.slice(), hdgPrev, totalM, coneOn, coneLive, coneS2, hbLive, hbH, hbX0, hbX1, hbZ0, hbZ1, wetArm,
+          _tkN, _prN, _tkHits, postLive, clMs, clArm, clDirty, _w0x, _w0y, _w0z] };
+  }
+  function unsnap(Sn) {
+    if (!Sn || Sn.nodes !== def.nodes || Sn.beams !== def.beams || Sn.n !== n || Sn.nb !== nb || !whole()) return false;
+    [p, v, f, m, r, rC, KGn, CGn, KTn, CTn, gcx, gcy, gcz, Gam, GamPrev, vi, AIC, sA, sB, sZA, sZB, cpt, Ez, Dz, Wg, pG, pS, pDz, pEDz, bHalf, _tk, _pr]
+      .forEach((a, k) => a.set(Sn.A[k]));
+    const O = Sn.O, B = O[7];
+    [xAft, yUp, zRt, t1, t2, sD, sC].forEach((a, k) => snapPut(a, O[k]));
+    // (a field written only where it differs: a whole aeroplane's members hold their reset's values but the strain, and
+    // a number read back out of a double array is a heap number - written into a member's small-integer field (a wire's
+    // c 0, sK 1) it generalises the field and every later sim's beam loop ran 40 % slower, measured)
+    beams.forEach((b, bi) => { const x = B[bi];
+      if (b.L0 !== x[0]) b.L0 = x[0]; if (b.Lr !== x[1]) b.Lr = x[1]; if (b.strain !== x[2]) b.strain = x[2];
+      if (b.k !== x[3]) b.k = x[3]; if (b.c !== x[4]) b.c = x[4]; if (b.sK !== x[5]) b.sK = x[5]; });
+    snapPut(clusters, O[8]); snapPut(CUTS, O[9]); snapPut(eng, O[10]); snapPut(fuel, O[11]); snapPut(VG, O[12]);
+    snapPut(ctl, O[13]); snapPut(out, Object.assign({}, O[14], { hydro: HY }));
+    if (HY && Sn.H) {
+      if (HY.tick !== Sn.H.tick) HY.tick = Sn.H.tick; if (HY.wet !== Sn.H.wet) HY.wet = Sn.H.wet; HY.fh.set(Sn.H.fh);
+      HY.floats.forEach((fx, k) => { const x = Sn.H.fl[k]; if (fx.h !== x[0]) fx.h = x[0]; if (fx.wet !== x[1]) fx.wet = x[1]; if (fx.wrDown !== x[2]) fx.wrDown = x[2]; });
+    }
+    [subN, clusterFresh, simT, gF, cIx, cIy, cIz, armed, scrape, noseGnd, aicHash, aicFresh, atmOver, hProbe, gRef,
+     vPrev, hdgPrev, totalM, coneOn, coneLive, coneS2, hbLive, hbH, hbX0, hbX1, hbZ0, hbZ1, wetArm,
+     _tkN, _prN, _tkHits, postLive, clMs, clArm, clDirty, _w0x, _w0y, _w0z] = Sn.S;
+    if (vPrev) vPrev = vPrev.slice();
+    return true;
+  }
   // G121: totalM is a GETTER — it was a copied value, so a mass change via
   // setNodeMass would have been invisible to every external reader (the
   // autopilot's taxi feedforward, the shakedown's weights). Same number as
@@ -2826,6 +2903,7 @@ function makeSim(def, world) {
            // G1831 (DMG-D2a): stamp the certificate on a sim that has not bent yet (the page's arrives from its
            // worker); true if stamped. cert(): the certificate stamped, or null
            certStamp: Cc => certStamp(Cc), cert: () => CERT,
+           snap, unsnap,   // G1891: a whole aeroplane's state, saved and put back into a sim of the same def
            // G1815: break one member as a crash would (GATE DMGMEMBERS' closed-set check: its group, and nothing more)
            damageBreak: bi => { if (DMG_ON && bi >= 0 && bi < nb) beamBreak(bi, 'gate'); },
            // G1840 (DMG-D3): the clusters' cuts - limits (N.m), the last measured ratios and loads, the peaks, parted -

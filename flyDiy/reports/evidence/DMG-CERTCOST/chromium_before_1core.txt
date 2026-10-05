@@ -1,0 +1,5 @@
+x1 idle: frame 16.7 / p95 16.8 ms, step 2.40 / p95 19.00 ms, long tasks 0
+x1 cub: cert 15.0 s in the worker (static 1059 ms, bench 15, dynamic 13464: drop 2014, dropLevel 1683, dropOne 1420, drop473 1414, taxiRough 3964, ground 294, flown 1008, flownElev 527, flownRud 544, flownElevF 596)
+      the page meanwhile: frame 16.7 / p95 16.7 / max 16.8 ms, step 1.90 / p95 3.20 ms, long tasks 0 (0 ms)
+x1 twinFloats: cert 47.4 s in the worker (static 2528 ms, bench 48, dynamic 42298: drop 6278, bow 1597, dropStep 5150, dropOne 4570, dropDriftR 4705, dropDriftL 4922, drop473 4946, wWeave 4156, ground 565, flown 1490, flownElev 1318, flownRud 1304, flownElevF 1299)
+      the page meanwhile: frame 16.7 / p95 16.7 / max 16.8 ms, step 2.00 / p95 3.30 ms, long tasks 0 (0 ms)

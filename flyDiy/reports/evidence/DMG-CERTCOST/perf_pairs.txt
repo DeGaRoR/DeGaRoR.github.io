@@ -1,0 +1,45 @@
+# the stock sim.step(1/60), damage off, median ms of 600 steps after 120 warm; base = claude/dmg-integration da35ed12 built, mine = this branch built; alternating (ABBA) processes pinned to one CPU (taskset -c 3), the cloud box
+cub ground base 2.7063 mine 2.6604
+cub ground base 2.6028 mine 2.7719
+cub ground base 2.7771 mine 2.8715
+cub ground base 2.5998 mine 2.6296
+cub ground base 2.7555 mine 2.7524
+cub ground base 2.5460 mine 2.6792
+cub ground base 2.4388 mine 2.5682
+cub ground base 2.6194 mine 2.6472
+cub air base 2.8202 mine 2.6719
+cub air base 2.6400 mine 2.7337
+cub air base 2.8135 mine 2.5288
+cub air base 2.5354 mine 2.8500
+cub air base 2.8540 mine 2.5825
+cub air base 2.5606 mine 2.6078
+cub air base 2.5939 mine 2.6446
+cub air base 2.6491 mine 2.6830
+metal air base 4.9125 mine 4.6445
+metal air base 4.6238 mine 4.4385
+metal air base 4.5914 mine 4.6524
+metal air base 4.7263 mine 4.5129
+metal air base 4.4483 mine 4.5664
+metal air base 4.5084 mine 4.3364
+metal air base 4.5007 mine 4.8959
+metal air base 4.6307 mine 4.5455
+cub ground   base 2.611 mine 2.670 ms: 2.2% | pair median 2.3% | mine slower in 6 of 8
+cub air      base 2.645 mine 2.658 ms: 0.5% | pair median 1.6% | mine slower in 5 of 8
+metal air    base 4.608 mine 4.556 ms: -1.1% | pair median -2.8% | mine slower in 3 of 8
+cub ground base 2.9843 mine 2.7661
+cub ground base 2.6057 mine 2.6535
+cub ground base 2.5890 mine 2.5814
+cub ground base 2.5046 mine 2.5859
+cub ground base 2.9135 mine 2.5349
+cub ground base 2.6886 mine 2.5596
+cub ground base 2.6198 mine 2.5581
+cub ground base 2.6853 mine 2.6126
+cub ground base 2.6642 mine 2.9424
+cub ground base 2.4674 mine 2.6164
+cub ground base 2.6336 mine 2.6912
+cub ground base 2.9018 mine 2.7567
+cub ground base 2.6668 mine 2.6747
+cub ground base 2.8265 mine 2.6792
+cub ground base 2.7396 mine 2.6618
+cub ground base 2.6979 mine 2.5613
+cub ground x16: base 2.676 mine 2.635 -1.5% pair median -2.5% mine slower in 6 of 16
