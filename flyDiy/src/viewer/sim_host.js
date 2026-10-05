@@ -250,6 +250,7 @@ function simHostWorldOp(world, c) {
       if (o.op === 'tset') { if (TH) TH.set(o.key, o.arr); }
       else if (o.op === 'tdrop') { if (TH) TH.drop(o.key); }
       else if (o.op === 'tclear') { if (TH) TH.clear(); }
+      else if (o.op === 'wsolid') { if (typeof world.setWoodSolid === 'function') world.setWoodSolid(o.on); }   // G1481
       else if (o.op === 'add') { const id = R.add({ x: o.x, z: o.z, yaw: o.yaw, y0: o.y0, shape: o.shape, tag: o.tag }); ids.set(o.id, id); }
       else if (o.op === 'move') R.move(idOf(o.id), o.x, o.z, o.yaw, o.y0);
       else if (o.op === 'remove') { R.remove(idOf(o.id)); ids.delete(o.id); }

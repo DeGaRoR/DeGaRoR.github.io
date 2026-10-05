@@ -571,7 +571,7 @@ function makeWorld(seed, opts) {
   // read composed the uncooked town cells on the raw ground and skipped the bed (GATE LAKEBED: a ring over a lake there)
   function lakeCarve(x, z, h0, h, compose) {
     if (LAKE_BED) {
-      const b = LAKE_BED(x, z);
+      const b = LAKE_BED(x, z, h0);   // (SHORES G1500: the raw ground - the bank's cap: no deeper than LAKE-HOLES' bank + `cap`)
       if (b < h) {
         if (!PM || h === h0) h = b;
         else {
@@ -1176,6 +1176,11 @@ function makeWorld(seed, opts) {
     get slopeMax() { return PM ? undefined : SLOPE_MAX; },   // the cone's bound (30_solver.js); none under a premises layer
     TILE, tile, aerodromes, settlements: SET.settlements,
     treesNear, canopyH,
+    // G1481 (WOODLAND): whether the solver tests the woodland's cylinders (world.trees). True in a world no viewer
+    // stands on (the gates, a replay); the game's viewer draws the fill in their place and turns them off - the
+    // page's world and the worker's (sim_link 'wsolid') - so nothing the aeroplane can hit goes undrawn
+    woodSolid: true,
+    setWoodSolid(on) { this.woodSolid = !!on; return this.woodSolid; },
     // THE OBSTACLES (G433): the registry of solid things the solver pushes out of (29_obstacles.js) -
     // the settlements' own buildings stand in it from the start as plain boxes; the viewer adds what
     // it stands (houses, props, cars, parked aeroplanes) and moves the traffic

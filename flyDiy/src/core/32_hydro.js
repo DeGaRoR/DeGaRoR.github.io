@@ -1676,10 +1676,23 @@ function flood(f, wetS, tau, dt) {
   return Math.min(1, Math.max(0, wetS + (f - wetS) * Math.exp(-dt / T)));
 }
 // a fresh aeroplane (the solver's reset): nothing flooded, nothing holed
+// G1898.5 (DEFORM coordinator, D1b x GEAR-WATER 2): THE WET BODY OVER A BREAK. A slice, slab or face whose nodes a break
+// has parted (two pieces, or a node left with no member: debris) is no longer a hull - its 'volume' would be read across
+// the gap and its buoyancy / slam flung onto a few kilos of debris (the Cub's severe nose-in went NaN the substep its
+// last members broke). Called by the solver's component test on a break event (fd: the pieces' find), and when a wet
+// body is first built on an airframe already broken. With nothing broken it is never called: the base's bits.
+function wetCut(WB, fd, orphan) {
+  if (!WB) return;
+  const cut = n => { const r = fd(n[0]); for (let k = 0; k < n.length; k++) if (orphan[n[k]] || fd(n[k]) !== r) return true; return false; };
+  for (const s of WB.slices) if (!s.dead && cut(s.n)) s.dead = true;
+  for (const s of WB.slabs) if (!s.dead && cut(s.n)) s.dead = true;
+  for (const t of WB.tris) if (!t.dead && cut(t.n)) t.dead = true;
+}
 function wetReset(WB) {
   if (!WB) return;
-  for (const s of WB.slices) { s.f = 0; s.br = false; s.wetS = 0; }
-  for (const s of WB.slabs) { s.f = 0; s.wetS = 0; }
+  for (const s of WB.slices) { s.f = 0; s.br = false; s.wetS = 0; s.dead = false; }
+  for (const s of WB.slabs) { s.f = 0; s.wetS = 0; s.dead = false; }
+  for (const t of WB.tris) t.dead = false;   // G1898.5
   WB.tick = 0; WB.wet = 0; WB.flood = 0; WB.slamPeak = 0;
 }
 function wetSolverPass(WB, world, f, simT, dt) {
@@ -1720,6 +1733,7 @@ function wetCompute(WB, fh, dtH) {
   // mass; a hull that floods to its waterline sinks lower, floods further, and goes down unless the wings hold it.
   let fl = 0, flN = 0;
   for (const S8 of WB.slices) {
+    if (S8.dead) continue;                                  // G1898.5: parted by a break
     const sl = S8.n;
     let anyWet = false;
     for (let c = 0; c < 8; c++) if (H[sl[c]] - p[sl[c] * 3 + 1] > -WB_DELTA) { anyWet = true; break; }
@@ -1750,6 +1764,7 @@ function wetCompute(WB, fh, dtH) {
   // G1384.4 THE WINGS: four samples a slab (the quad's bilinear quarter points), each a quarter of the volume, wet by a
   // ramp over the slab's thickness, its lift onto the four spar nodes by the same bilinear weights; flooding as above
   for (const SB of WB.slabs) {
+    if (SB.dead) continue;                                  // G1898.5
     const q = SB.n;
     let anyWet = false;
     for (let c = 0; c < 4; c++) if (H[q[c]] - p[q[c] * 3 + 1] > -SB.th) { anyWet = true; break; }
@@ -1777,6 +1792,7 @@ function wetCompute(WB, fh, dtH) {
   // THE FACES: the Newtonian pressure on a face advancing into the water (a hull face one-sided, a plate on whichever
   // side meets the flow) and the skin friction along it, over each triangle's wet polygon
   for (const t of WB.tris) {
+    if (t.dead) continue;                                   // G1898.5
     const tn = t.n;
     let any = false;
     for (let k = 0; k < 3; k++) { const i3 = tn[k] * 3, P = S.P[k]; P[0] = p[i3]; P[1] = p[i3 + 1]; P[2] = p[i3 + 2];
@@ -1870,7 +1886,7 @@ function wetCompute(WB, fh, dtH) {
 const API = { DEF, G, NU, makeFloat, sectionOf, makeBody, makeScratch, hydroForces, bodyStep, readState, levelVolume,
               stillWater, gerstner, submergedVolumeMC, expDrop, expTow, expLand, nodeSlam, stabilityReport, ENVELOPE,
               savitskyStatic, rotPitch, polyArea, hullTriangles,
-              hydroPanels, rigidCtx, tetraCtx, baryOf, hydroBuild, hydroSolverPass, wetBuild, wetSolverPass, wetReset, WB_MAT, WB_WING, floatParamsFor, FLOAT_DISP,
+              hydroPanels, rigidCtx, tetraCtx, baryOf, hydroBuild, hydroSolverPass, wetBuild, wetSolverPass, wetReset, wetCut, WB_MAT, WB_WING, floatParamsFor, FLOAT_DISP,
               FLOAT_PRESETS, FLOAT_PRESET_NAMES, FLOAT_METRIC, FLOAT_SPEC_KEYS, presetParams, fineParams, scaleParams, secPoly, secAreaTo, keelOf, deckAt,
               waterRudder, WR_AREA, WR_DEPTH, WR_TRAVEL, WR_UP_V, HYDRO_EVERY, floatAdvice };
 HYDRO = API;

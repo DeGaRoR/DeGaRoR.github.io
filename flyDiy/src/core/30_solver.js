@@ -488,6 +488,7 @@ function makeSim(def, world) {
       DMG.stripsSplit++;
     }
     aicHash = NaN;                                   // the induction's control points move with the weights
+    if (typeof WB !== 'undefined' && WB && HYDRO.wetCut) HYDRO.wetCut(WB, fd, orphan);   // G1898.5: the wet body over the break
   }
   const noseB = new Uint8Array(nb);
   // ---- DMG-D1a MEMBERS (G1810-G1815): the members' own limits, stamped once here (nothing new per substep) ----
@@ -595,7 +596,7 @@ function makeSim(def, world) {
       const Dt = R ? Math.sqrt(GEN_CRASH_TUBE_DT * b.A / Math.PI) : 0;
       b.mp = R && R.ty ? R.ty * b.A * Dt / Math.PI : Infinity;
       b.thf = R ? R.thf : 0;
-      b.rgN = 0; b.rgS = 0; b.rgD = 0; b.kink = false; b.Lf = 0;
+      b.rgN = 0; b.rgS = 0; b.rgD = 0; b.kink = false; b.Lf = 0; b.Ff = 0;
       if (R) dmgMember(bi, b, R);                    // G1811-G1814 (DMG-D1a): Euler, the seams, wood's ragged break
       if (PHY && R) { PHY[bi * 4] = b.fy0; PHY[bi * 4 + 1] = b.fu; PHY[bi * 4 + 2] = b.fc0; PHY[bi * 4 + 3] = R.ty * b.A; }
       b.fyM = b.fy0; FY[bi] = b.fy0; FC[bi] = b.fc0; b.ep = 0; b.ec = 0; b.Lr = 0; b.broken = false; b.kB = 0; b.cB = 0; b.yielded = false;
@@ -999,7 +1000,7 @@ function makeSim(def, world) {
       const b = beams[bi];
       if (b.broken) { b.k = b.kB; b.c = b.cB; b.broken = false; }
       b.fyM = b.fy0; FY[bi] = b.fy0; FC[bi] = b.fc0; b.ep = 0; b.ec = 0; b.dOn = false; b.dk = 0; b.ks = 0;
-      b.rgS = 0; b.rgD = 0; b.kink = false; b.Lf = 0;
+      b.rgS = 0; b.rgD = 0; b.kink = false; b.Lf = 0; b.Ff = 0;
     }
     nFlr = 0; postLive = 0; grpDone.fill(0); DMG.groups.length = 0; DMG.floors = 0; DMG.cracks = 0; DMG.rag.length = 0; DMG.armedN = 0;
     for (let i = 0; i < n; i++) { nodeDeg[i] = nodeDeg0[i]; orphan[i] = 0; }
@@ -1101,7 +1102,7 @@ function makeSim(def, world) {
         b.ks += dL; b.dk = Math.sqrt(2 * b.Lr * b.kt * b.ks); kinkCaps(bi); hingeCheck(bi);
       } else {
         b.ec += dL / b.Lr;
-        if (b.ec >= b.ecu) { b.kink = true; b.Lf = L; beamBreak(bi, 'kink'); }   // G1813: kinked - a floor at its crushed length
+        if (b.ec >= b.ecu) { b.kink = true; b.Lf = L; b.Ff = fc; beamBreak(bi, 'kink'); }   // G1813: kinked - a floor at its crushed length (G1898.6: its crush force kept)
       }
     }
     noteSet(bi);
@@ -1375,7 +1376,7 @@ function makeSim(def, world) {
     let near = w1 > -1e8 && reach < w1;
     if (!near) { const w2 = world.waterH(cx, cz); near = w2 > -1e8 && Math.min(reach, cy - WB_REACH) < w2; }
     if (!near) { if (WB) { WB.tick = 0; WB.wet = 0; } return; }
-    if (!WB) WB = HYDRO.wetBuild(def, p, v, m);
+    if (!WB) { WB = HYDRO.wetBuild(def, p, v, m); if (WB && DMG.breaks && HYDRO.wetCut) HYDRO.wetCut(WB, pieces(), orphan); }   // G1898.5
     wetArm = !!WB;
   }
   let totalM = 0;
@@ -2362,8 +2363,12 @@ function makeSim(def, world) {
       const L = hyp3(dx, dy, dz) || 1e-9;
       if (L >= b.Lf) continue;
       dx /= L; dy /= L; dz /= L;
-      const Fb = b.kB * (L - b.Lf) + b.cB * ((v[b3]-v[a3])*dx + (v[b3+1]-v[a3+1])*dy + (v[b3+2]-v[a3+2])*dz);
+      let Fb = b.kB * (L - b.Lf) + b.cB * ((v[b3]-v[a3])*dx + (v[b3+1]-v[a3+1])*dy + (v[b3+2]-v[a3+2])*dz);
       if (Fb >= 0) continue;
+      // G1898.6 (coordinator): THE FLOOR IS PLASTIC - a crushed tube pushes back at most its crush force and crushes further
+      // past it (its floor follows), never an elastic stop: the Cub's severe water nose-in drove its stab's 0.3 kg nodes
+      // half a metre into 474 kN/m floors and the stored ~60 kJ came back as 3 km/s. Stored energy now <= Ff^2 / 2k
+      if (b.Ff > 0 && -Fb > b.Ff) { Fb = -b.Ff; const Le = L + b.Ff / b.kB; if (Le < b.Lf) b.Lf = Le; }
       f[a3]+=Fb*dx; f[a3+1]+=Fb*dy; f[a3+2]+=Fb*dz;
       f[b3]-=Fb*dx; f[b3+1]-=Fb*dy; f[b3+2]-=Fb*dz;
     }
@@ -2494,7 +2499,8 @@ function makeSim(def, world) {
       // HEIGHT OVER THE GROUND, NOT ALTITUDE (G1112, TREES-NEAR): `p[1] < 24` was the analytic world's, whose field
       // is at y = 0. Jolene's HOME stands at 31.7 m, so no tree was ever tested there - and of the island's collidable
       // woodland only the 23 % rooted under 24 m could be reached at all, and only from under 24 m of altitude
-      if (p[1] - world.terrainH(cgx, cgz) < 24) {
+      // (G1481: not where the viewer drew the forest fill in the woodland's place - world.woodSolid false)
+      if (world.woodSolid !== false && p[1] - world.terrainH(cgx, cgz) < 24) {
         const near = world.treesNear(cgx, cgz, _treeScratch);
         if (near.length) for (let i = 0; i < n; i++) {
           const i3 = i*3;

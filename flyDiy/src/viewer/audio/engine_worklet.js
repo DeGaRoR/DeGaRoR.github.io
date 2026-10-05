@@ -97,6 +97,9 @@
  *     starter 0|1    eng[i].crank > 0 (the 1.5 s crank)
  *     starve 0..1    the last seconds of fuel: misfires and coughs
  *     cold 0..1      a cold engine runs rougher
+ *     pitch 0.5..2   SND-SPACE's doppler (default 1): the crank's phase, the
+ *                    starter and the blower turn x pitch as HEARD; the life
+ *                    model and the control output keep the physical rpm
  *   port messages:
  *     { type: 'config', config, seed? }  rebuild the voice (allocates — not
  *                                        on the audio callback's hot path)
@@ -457,6 +460,9 @@ class FlyDiyEngineProcessor extends AudioWorkletProcessor {
          { name: 'starter', defaultValue: 0, minValue: 0, maxValue: 1, automationRate: 'k-rate' },
          { name: 'starve',  defaultValue: 0, minValue: 0, maxValue: 1, automationRate: 'k-rate' },
          { name: 'cold',    defaultValue: 0, minValue: 0, maxValue: 1, automationRate: 'k-rate' },
+         // SND-SPACE (G1641): the DOPPLER - every frequency the voice makes x pitch (the crank's phase, the starter's
+         // and the blower's), the life model untouched (the control output stays the physical rpm)
+         { name: 'pitch',   defaultValue: 1, minValue: 0.5, maxValue: 2, automationRate: 'k-rate' },
       ];
    }
 
@@ -774,6 +780,9 @@ class FlyDiyEngineProcessor extends AudioWorkletProcessor {
       const comb = this.comb, pMis = this.pMis, sigma = this.sigma, popProb = this.popProb;
       const dcR = this.dcR, invGear = 1 / this.gear;
       const asleep = this.asleep;
+      let pitch = parameters.pitch ? +parameters.pitch[0] : 1;   // SND-SPACE: the doppler (k-rate)
+      if (!(pitch >= 0.5)) pitch = pitch < 0.5 ? 0.5 : 1; else if (pitch > 2) pitch = 2;
+      const spP = spS * pitch, stMotorP = stMotor * pitch, blFP = blF * pitch;
       const inLp = net.intakeNoiseLowPassFilter, ckLp = net.crankshaftLowPassFilter;
       const bLp = net.engineLowPassFilter;
       const sp = net.straightPipe, mu = net.muffler, ol = net.outlet;
@@ -844,7 +853,7 @@ class FlyDiyEngineProcessor extends AudioWorkletProcessor {
                cyl.update();
                block += cyl.cylinderWaveguide.outputLeft;
             }
-            let r2 = rev + spS*rpmInst/(60.0*cycleRevs);
+            let r2 = rev + spP*rpmInst/(60.0*cycleRevs);
             if (r2 >= 1.0) {
                r2 -= 1.0;
             }
@@ -892,7 +901,7 @@ class FlyDiyEngineProcessor extends AudioWorkletProcessor {
          // revolution (the Bendix's mesh, a fresh grit each turn), heavier as
          // the crank slows into each compression. No tone.
          if (stLevel > 1e-7) {
-            this.phStarter += v * stMotor;
+            this.phStarter += v * stMotorP;
             if (this.phStarter >= 1) {
                this.phStarter -= Math.floor(this.phStarter);
                rq ^= rq << 13; rq ^= rq >>> 17; rq ^= rq << 5;
@@ -909,7 +918,7 @@ class FlyDiyEngineProcessor extends AudioWorkletProcessor {
          }
          // the blower's whistle, on the intake side
          if (blAmp > 1e-6) {
-            this.phBlower += blF;
+            this.phBlower += blFP;
             if (this.phBlower >= 1) this.phBlower -= 1;
             a += blAmp * Math.sin(TWO_PI * this.phBlower);
          }

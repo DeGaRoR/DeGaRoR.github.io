@@ -332,7 +332,14 @@ function makeLoadTest(sim, def, cfg) {
       return state;
     }
     // ramp to ultimate, recording the limit case on the way past
-    const n = state.phase === 'hold' ? ULT : Math.min(ULT, ULT * (t / RAMP));
+    // G1898.7 (DEFORM coordinator): THE TEST TO DESTRUCTION CREEPS PAST THE ULTIMATE - a third of the rate once the bags
+    // pass the card's ultimate (as a real test to destruction is loaded slowly near failure): at the full rate the bags'
+    // g led the structure's response and the Jodel read BROKE AT 6.17 g against its static first joint at 5.99 (a third
+    // of the rate: 6.06; the Cub 6.01, the metal Cessna 6.06). Every other load test keeps its expression, bit for bit
+    const tU = RAMP * GEN_LOAD_ULT / ULT;
+    const n = state.phase === 'hold' ? ULT
+      : (cfg.destroy && ULT > GEN_LOAD_ULT && t > tU) ? Math.min(ULT, GEN_LOAD_ULT + (ULT / RAMP / 3) * (t - tU))
+      : Math.min(ULT, ULT * (t / RAMP));
     state.n = n;
     // the bags press DOWN, because they are bags. The aeroplane being inverted
     // is what makes that the flight-load direction through the spar. The

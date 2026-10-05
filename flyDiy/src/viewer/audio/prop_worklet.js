@@ -60,6 +60,9 @@
  *     interior 0|1   the cockpit eye: more chop (the disc beside the windscreen),
  *                    less of the trailing-edge hiss (a starting point: the cabin
  *                    itself is SND-SPACE's)
+ *     pitch 0.5..2   SND-SPACE's doppler (default 1; also on the turbine and the
+ *                    electric voice): every frequency heard x pitch, the block's
+ *                    physics (tip Mach, loading) the prop's own
  *
  *   new AudioWorkletNode(ctx, 'flydiy-turbine' | 'flydiy-electric', {
  *     numberOfInputs: 0, numberOfOutputs: 2, outputChannelCount: [1, 2],
@@ -129,6 +132,7 @@ class FlyDiyPropProcessor extends AudioWorkletProcessor {
       { name: 'alpha',    defaultValue: 0,   minValue: -4,   maxValue: 4,     automationRate: 'k-rate' },
       { name: 'beta',     defaultValue: 0,   minValue: -4,   maxValue: 4,     automationRate: 'k-rate' },
       { name: 'interior', defaultValue: 0,   minValue: 0,    maxValue: 1,     automationRate: 'k-rate' },
+      { name: 'pitch',    defaultValue: 1,   minValue: 0.5,  maxValue: 2,     automationRate: 'k-rate' },   // SND-SPACE: the doppler
     ];
   }
 
@@ -204,6 +208,9 @@ class FlyDiyPropProcessor extends AudioWorkletProcessor {
     let al = P.alpha ? +P.alpha[0] : 0; if (!(al >= -4 && al <= 4)) al = 0;   // (NaN and +-Infinity fail both)
     let be = P.beta ? +P.beta[0] : 0; if (!(be >= -4 && be <= 4)) be = 0;
     let inn = P.interior ? +P.interior[0] : 0; if (!(inn >= 0)) inn = 0; else if (inn > 1) inn = 1;
+    // SND-SPACE (G1641): the doppler - every frequency HEARD x pitch (the phases, the sections' bands); the physics of
+    // the block (tip Mach, loading, the Bessel levels) stays the prop's own
+    let pch = P.pitch ? +P.pitch[0] : 1; if (!(pch >= 0.5)) pch = pch < 0.5 ? 0.5 : 1; else if (pch > 2) pch = 2;
     // the prop's speed this block: the driver's last sample (or the fallback), for the per-block numbers
     let rpmB;
     if (inP) { rpmB = +inP[n - 1] * 1000; if (!(rpmB >= 0)) rpmB = 0; }
@@ -275,7 +282,7 @@ class FlyDiyPropProcessor extends AudioWorkletProcessor {
     const sec = this.sec;
     for (let k = 0; k < PROP_NS; k++) {
       const r = PROP_SEC_R[k] * R, U = Math.sqrt(om * om * r * r + V * V);
-      let fc = PROP_ST * U / (PROP_SEC_T[k] * D);
+      let fc = PROP_ST * U / (PROP_SEC_T[k] * D) * pch;
       if (fc < 40) fc = 40; else if (fc > 0.42 * sr) fc = 0.42 * sr;
       const g = Math.tan(Math.PI * fc / sr), kq = 1 / 1.1;     // Q 1.1: a turbulent wake is broad
       const a1 = 1 / (1 + g * (g + kq)), a2 = g * a1, a3 = g * a2;
@@ -310,6 +317,7 @@ class FlyDiyPropProcessor extends AudioWorkletProcessor {
     let ch = st[9], pp = st[10], dr = st[11], wh = st[12];
     const dcR = this.dcR, pin = this.pinion, gearR = this.gear;
     const aK = 1 - Math.exp(-1 / (0.05 * sr));
+    const isrP = pch / (60 * sr);   // revolutions per sample per rpm, heard (x the doppler)
     let rs = this.rs[0] | 0;
     // per-sample ramps of the block's targets
     const dCh = (chop - ch) * kA, dPp = (p1 - pp) * kA, dDr = (drive - dr) * kA, dWh = (whT - wh) * kA;
@@ -333,8 +341,8 @@ class FlyDiyPropProcessor extends AudioWorkletProcessor {
         rpmS += aK * (rpmK - rpmS); rp = rpmS; re = rp * gearR;
       }
       // the phases: blade passages, shaft revolutions, gear mesh
-      ps += rp / (60 * sr); if (ps >= 1) ps -= Math.floor(ps);
-      ph += rp * B / (60 * sr);
+      ps += rp * isrP; if (ps >= 1) ps -= Math.floor(ps);
+      ph += rp * B * isrP;
       if (ph >= 1) {
         ph -= Math.floor(ph);
         // a new blade passage: this blade's irregularity (a real prop's blades are not twins; at beta, buzzy)
@@ -376,7 +384,7 @@ class FlyDiyPropProcessor extends AudioWorkletProcessor {
       bb *= mod;
       // the gear whine (geared engines): the mesh and its second harmonic
       if (pin > 0 && wh > 1e-7) {
-        pw += re * pin / (60 * sr); if (pw >= 1) pw -= Math.floor(pw);
+        pw += re * pin * isrP; if (pw >= 1) pw -= Math.floor(pw);
         const q = PROP_TWO_PI * pw;
         t += wh * (Math.sin(q) + 0.3 * Math.sin(2 * q));
       }
@@ -430,6 +438,7 @@ class FlyDiyTurbineProcessor extends AudioWorkletProcessor {
       { name: 'power',   defaultValue: 0, minValue: 0, maxValue: 1,     automationRate: 'k-rate' },
       { name: 'running', defaultValue: 0, minValue: 0, maxValue: 1,     automationRate: 'k-rate' },
       { name: 'starter', defaultValue: 0, minValue: 0, maxValue: 1,     automationRate: 'k-rate' },
+      { name: 'pitch',   defaultValue: 1, minValue: 0.5, maxValue: 2,     automationRate: 'k-rate' },   // SND-SPACE: the doppler
     ];
   }
   constructor (options) {
@@ -481,6 +490,7 @@ class FlyDiyTurbineProcessor extends AudioWorkletProcessor {
     let rpm = P.rpm ? +P.rpm[0] : 0; if (!(rpm >= 0)) rpm = 0; else if (rpm > 30000) rpm = 30000;
     let pw = P.power ? +P.power[0] : 0; if (!(pw >= 0)) pw = 0; else if (pw > 1) pw = 1;
     const run = P.running ? P.running[0] > 0.5 : false, sta = P.starter ? P.starter[0] > 0.5 : false;
+    let pch = P.pitch ? +P.pitch[0] : 1; if (!(pch >= 0.5)) pch = pch < 0.5 ? 0.5 : 1; else if (pch > 2) pch = 2;   // SND-SPACE
     const dt = n / sr;
     let ng = st[0], np = st[1];
     // the spool: Ng toward its target; Np toward the governor's (the solver's) speed
@@ -504,7 +514,7 @@ class FlyDiyTurbineProcessor extends AudioWorkletProcessor {
     }
     // the roar's filters: a 1-pole pair (rumble below ~600 Hz) and a TPT band-pass at ~1.4 kHz
     const lpA = 1 - Math.exp(-PROP_TWO_PI * 600 / sr);
-    const g = Math.tan(Math.PI * 1400 / sr), kq = 1 / 0.8;
+    const g = Math.tan(Math.PI * 1400 * pch / sr), kq = 1 / 0.8;
     const b1 = 1 / (1 + g * (g + kq)), b2 = g * b1, b3 = g * b2;
     let lp1 = st[8], lp2 = st[9], ic1 = st[10], ic2 = st[11], dx = st[12], dy = st[13];
     let p0 = st[2], p1 = st[3], p2 = st[4], p3 = st[5], p4 = st[6];
@@ -520,7 +530,7 @@ class FlyDiyTurbineProcessor extends AudioWorkletProcessor {
       if (fG > 0 && ng > ngT) { ng -= fG; if (ng < ngT) ng = ngT; }
       if (fP > 0 && np > npT) { np -= fP; if (np < npT) np = npT; }
       lev += kL * (roarT - lev);
-      const fr = ng * ngRps / sr;   // Ng revolutions per sample
+      const fr = ng * ngRps * pch / sr;   // Ng revolutions per sample, heard (x the doppler)
       // the whine: level with Ng^2; a tone above ~0.45 sr fades out instead of folding
       const wl = ng * ng;
       let w = 0, f;
@@ -568,6 +578,7 @@ class FlyDiyElectricProcessor extends AudioWorkletProcessor {
       { name: 'power',   defaultValue: 0, minValue: 0, maxValue: 1,     automationRate: 'k-rate' },
       { name: 'running', defaultValue: 0, minValue: 0, maxValue: 1,     automationRate: 'k-rate' },
       { name: 'starter', defaultValue: 0, minValue: 0, maxValue: 1,     automationRate: 'k-rate' },
+      { name: 'pitch',   defaultValue: 1, minValue: 0.5, maxValue: 2,     automationRate: 'k-rate' },   // SND-SPACE: the doppler
     ];
   }
   constructor (options) {
@@ -600,6 +611,7 @@ class FlyDiyElectricProcessor extends AudioWorkletProcessor {
     let rpm = P.rpm ? +P.rpm[0] : 0; if (!(rpm >= 0)) rpm = 0; else if (rpm > 30000) rpm = 30000;
     let pw = P.power ? +P.power[0] : 0; if (!(pw >= 0)) pw = 0; else if (pw > 1) pw = 1;
     const run = P.running ? P.running[0] > 0.5 : false;
+    let pch = P.pitch ? +P.pitch[0] : 1; if (!(pch >= 0.5)) pch = pch < 0.5 ? 0.5 : 1; else if (pch > 2) pch = 2;   // SND-SPACE
     const gear = this.gear, mT = rpm * gear;
     let m = st[0], cur = st[7], arm = st[8], quiet = st[9];
     if (!run && m < 1 && mT < 1) quiet += n / sr; else quiet = 0;
@@ -614,10 +626,10 @@ class FlyDiyElectricProcessor extends AudioWorkletProcessor {
     const kC = 1 - Math.exp(-1 / (0.05 * sr));
     const curT = run ? 0.12 + 0.88 * pw : 0, armT = run ? 1 : 0;
     let p1 = st[1], p2 = st[2], p3 = st[3], p4 = st[4], p5 = st[5], dx = st[10], dy = st[11];
-    const pp = this.pp, fsw = this.pwmHz / sr, nyq = 0.45 * sr, gain = this.gain, pwmK = this.pwmK, dcR = this.dcR;
+    const pp = this.pp, fsw = this.pwmHz * pch / sr, nyq = 0.45 * sr, gain = this.gain, pwmK = this.pwmK, dcR = this.dcR;
     for (let s = 0; s < n; s++) {
       m += kM * (mT - m); cur += kC * (curT - cur); arm += kC * (armT - arm);
-      const fe = m * pp / (60 * sr);   // electrical cycles per sample
+      const fe = m * pp * pch / (60 * sr);   // electrical cycles per sample, heard (x the doppler)
       p1 += 6 * fe; if (p1 >= 1) p1 -= Math.floor(p1);
       p2 += 12 * fe; if (p2 >= 1) p2 -= Math.floor(p2);
       p3 += 2 * fe; if (p3 >= 1) p3 -= Math.floor(p3);
