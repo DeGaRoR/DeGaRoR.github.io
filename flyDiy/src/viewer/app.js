@@ -3840,14 +3840,23 @@
   // G1851 / G1852 (DMG-D4a): THE SKIN OVER A BREAK (src/viewer/skin_break.js; DEFORM-AND-BREAK §2.5, §5.1, §8.4). Both
   // skins read the one damage state (dmgNow: the broken list and DMG-D1b's pieces, inline or from the worker on change).
   // Nothing broken: neither function does more than one test, and no skin bit moves. Broken: each group gets a record
-  // (built once, at the first break: the cage snapshot's nearest-node binding with it), re-made at each break EVENT
-  // (the state's vB: which vertex goes with which piece, which triangles span the break and are removed); per frame
-  // the detached pieces' rigid fits, their skin carried on them, the tear past TEAR and the fabric's drape.
+  // (built once, at the first break, with its node binding), re-made at each break EVENT (the state's vB: which vertex
+  // goes with which piece, which triangles span the break and are removed); per frame the nodes' frames, the vertices
+  // that ride them (the generated skin's all; the cage's off the core or at the break), the tear past TEAR and the
+  // fabric's drape. While a wreck is drawn the cage is re-posed every frame (its `still` skip is off).
   // The index arrays are the payload's own (every view on them loses a removed triangle): restored at a heal (a reset)
   // and before another model poses (brkRestore)
+  // ?skinbreak=0 (or window.FLYDIY_SKINBREAK = false at any time): the skin as it was drawn before G1851 - the A/B for the
+  // box (D4b) and for the stills (tools/dmg_skin_stills.js: the same wreck, both ways)
   const BRK = { model: null, recs: [] };
+  try { if (/[?&]skinbreak=0(&|$)/.test(location.search || '')) window.FLYDIY_SKINBREAK = false; } catch (e) {}
+  // the rig's read-out (tools/dmg_skin_stills.js): the records live, the triangles removed / torn, the vertices riding
+  window.FLYDIY_SKINBREAK_STATS = () => ({ on: window.FLYDIY_SKINBREAK !== false, recs: BRK.recs.length,
+    removed: BRK.recs.reduce((a, R) => a + (R.removed || 0), 0), torn: BRK.recs.reduce((a, R) => a + (R.torn || 0), 0),
+    tris: BRK.recs.reduce((a, R) => a + R.nt, 0), riding: BRK.recs.reduce((a, R) => a + (R.ride ? R.ride.reduce((x, y) => x + y, 0) : 0), 0) });
   function brkRestore() {
-    for (const R of BRK.recs) if (R.idx0) { R.idx.set(R.idx0); brkIdx(R); }
+    for (const R of BRK.recs) { if (R.idx0) { R.idx.set(R.idx0); brkIdx(R); } R.vB = -1; R.active = false; }
+    if (BRK.model) { BRK.model._pose = null; BRK.model._poseNG = null; }   // re-posed from the rest on the next frame
     BRK.recs.length = 0; BRK.model = null;
   }
   // an index array changed: every geometry drawing it re-uploads it (the rig's mesh, and the flown bake's views on the
@@ -3855,6 +3864,7 @@
   function brkIdx(R) { for (const g of R.geos || [R.geo]) if (g && g.index) g.index.needsUpdate = true; }
   function brkState() {
     if (!window.SKIN_BREAK) return null;
+    if (window.FLYDIY_SKINBREAK === false) { if (BRK.recs.length) brkRestore(); return null; }
     if (BRK.model && BRK.model !== model) brkRestore();
     const D = dmgNow();
     if (!D || !D.br.length) {
@@ -4680,6 +4690,9 @@
     if (P) SIM_VIEW.dmgApply(DMGS.st, P);
     return DMGS.st;
   }
+  // D4b's hook (the debris for the non-member parts, the prop strike's visual): the same state, read-only - D.pc says
+  // which piece each node is on (0 the core), D.br which members broke
+  window.FLYDIY_DMG_STATE = () => dmgNow();
   const dmgSync = (b, i, o) => {
     const T = window.DMG_TINT;
     if (!T) return false;
