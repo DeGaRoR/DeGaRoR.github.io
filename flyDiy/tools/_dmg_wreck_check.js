@@ -98,7 +98,7 @@ function candidates(def) {
     const cAt = nose ? cen(ids.concat(R.noseFrame)) : at;
     out.push({ kind: 'cowl', unit: u, at: cAt, box: { lo: [-0.45, -0.32, -0.32], hi: [0.45, 0.32, 0.32] }, mass: 7, floats: false });
     // the engine unit (block, prop and spinner on it): leaves only loose; the spinner alone only crushed
-    out.push({ kind: 'eng', unit: u, at, nodes: ids.slice(), rule: 'loose', mount: {}, box: { lo: [-0.4, -0.3, -0.3], hi: [0.4, 0.3, 0.3] }, mass: 90, floats: false });
+    out.push({ kind: 'eng', unit: u, at, nodes: ids.slice(), rule: 'loose', box: { lo: [-0.4, -0.3, -0.3], hi: [0.4, 0.3, 0.3] }, mass: 90, floats: false });
     out.push({ kind: 'spinner', unit: u, at, rule: 'crush', box: { lo: [-0.14, -0.12, -0.12], hi: [0.14, 0.12, 0.12] }, mass: 1, floats: true });
   }
   const axles = [].concat(R.mains || [], R.tw != null && R.tw >= 0 ? [R.tw] : []);

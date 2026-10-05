@@ -4255,7 +4255,7 @@
     for (const e of model.engRigs || []) { const k = e.idxs.join(','); const u = units.get(k) || { idxs: e.idxs }; if (e.obj.userData && e.obj.userData.spinAxis) u.prop = e; else u.eng = e; units.set(k, u); }
     for (const u of units.values()) {
       const unit = EO[E.indexOf(u.idxs[0])] | 0, at = cen(u.idxs);
-      cands.push({ kind: 'eng', unit, nodes: u.idxs.slice(), rule: 'loose', mount: {}, at, objs: [u.eng && u.eng.obj, u.prop && u.prop.obj].filter(Boolean), mass: 90 });
+      cands.push({ kind: 'eng', unit, nodes: u.idxs.slice(), rule: 'loose', at, objs: [u.eng && u.eng.obj, u.prop && u.prop.obj].filter(Boolean), mass: 90 });
       if (u.prop) {
         const sp = wreckMeshesOf(u.prop.obj).filter(m => { const k = B.keyOf.get(m); return k && model.mats[k] && model.mats[k].spin === 2; });
         if (sp.length) cands.push({ kind: 'spinner', unit, nodes: u.idxs.slice(), rule: 'crush', at, meshes: sp, mass: 1, floats: true });
