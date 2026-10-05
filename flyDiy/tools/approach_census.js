@@ -2,7 +2,7 @@
 // approach_census.js - THE APPROACH CENSUS (ISLAND-TOUR, G1965): every land strip's final(s) and climb-out(s) against
 // the ground, the woodland's trees and every cooked structure (tools/_approach_lib.js says how). Prints a table, the
 // violations first.
-//   node tools/approach_census.js [--island jolene] [--json]
+//   node tools/approach_census.js [--island=jolene] [--fixture=<record.json>] [--json]
 'use strict';
 const fs = require('fs'), path = require('path');
 const T = __dirname;
@@ -14,7 +14,8 @@ const L = require(path.join(T, '_taxiclear_lib.js'));
 const A = require(path.join(T, '_approach_lib.js'));
 const argv = process.argv.slice(2);
 const isl = (argv.find(a => a.startsWith('--island=')) || '--island=jolene').split('=')[1];
-const W = IN.islandWorld(isl, { premises: fs.readFileSync(path.join(T, 'fixtures', 'island_' + isl + '.json'), 'utf8') });
+const fx = (argv.find(a => a.startsWith('--fixture=')) || '').split('=')[1] || path.join(T, 'fixtures', 'island_' + isl + '.json');
+const W = IN.islandWorld(isl, { premises: fs.readFileSync(fx, 'utf8') });
 const OB = L.islandObstacles(C, isl, 'town');
 const rows = [];
 for (const a of W.aerodromes) {

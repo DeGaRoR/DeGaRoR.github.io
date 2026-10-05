@@ -1,0 +1,8 @@
+### the aluminium C172: HOME > w3 > tw_ski > w2 > HOME - NOT DONE, fuel left 18.2 L
+
+| leg | time | on the ground before the roll | roll from the end | lift-off | final (dist / height) | final's least clearance | touchdown (sink, speed, run, off centre) | fuel | faults |
+|---|---|---|---|---|---|---|---|---|---|
+| HOME > w3 | 439 s | 102.8 deg, 274.9 m off the centreline | 109.5 m | 140.3 m | 2185.9 m / 182.8 m | 12.9 m (ground, 40.4 m out) | 0.74 m/s, 24.8 m/s, 303 m, 0.1 m | 25 L (-3) | none; pilot: vx-climb: ground ahead above the aeroplane — climbing at Vx 26.9 m/s until clear; flap-limited: the elevator holds flap 0.88 at its trim budget — no more; flap-limited: the elevator cannot hold flap 0.88 — landing on 0.63; flap-limited: the elevator cannot hold flap 0.82 — landing on 0.57; flap-limited: the elevator cannot hold flap 0.75 — landing on 0.50 |
+| w3 > tw_ski | 344 s | 173 deg (U-turn), 17.1 m off the centreline | 17.6 m | 137.4 m | 2396.2 m / 566 m | 15.8 m (ground, 40.6 m out) | -0.5 m/s, 18.7 m/s, 138 m, 0 m | 21.1 L (-3.8) | none; pilot: committed-takeoff: past the point of stopping at V=24.1 with 397 m left — continuing; slope: stopped on a 8.7 % grade — rolling 110 m on to the level part |
+| tw_ski > w2 | 394 s | 171.3 deg (U-turn), 16.9 m off the centreline | 16.9 m | 152.1 m | 1803.7 m / 152.5 m | 37.5 m (ground, 40.3 m out) | 1.11 m/s, 21.7 m/s, 197 m, 0.1 m | 18.4 L (-2.7) | none; pilot: committed-takeoff: past the point of stopping at V=18.8 with 290 m left — Vr in 28 m, continuing |
+| w2 > HOME | 10 s | 0 deg, 0 m off the centreline | 620.9 m | - | - | - | - | 18.2 L (-0.2) | abort; pilot: rejected-takeoff: will not reach Vr: 0.02 m/s^2 needs 7279 m more, 1142 m left |
