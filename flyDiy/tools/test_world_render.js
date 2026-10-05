@@ -252,10 +252,12 @@ const premStub = {
   rebuild() { PREM.calls.push(['rebuild']); },
   drainNear(x, z, r) { PREM.calls.push(['drainNear', x, z, r]); },
 };
+// ...and TREE_PLACE (G1481, WOODLAND): the woodland planter's handle is kept, so the gate can plant by hand below
+const PLACE = {};
 const PREM_WINDOW = new Proxy({}, {
   get: (o, k) => k === 'RENDER_PREMISES' ? { make(T, sc, w, rec, opts) { PREM.calls.push(['make', !!(opts && opts.game)]); return premStub; } }
-               : k === 'PREMISES_HOST_OPEN' ? false : undefined,
-  set: () => true,
+               : k === 'PREMISES_HOST_OPEN' ? false : k === 'TREE_PLACE' ? PLACE.h : undefined,
+  set: (o, k, v) => { if (k === 'TREE_PLACE') PLACE.h = v; return true; },
 });
 const warn0 = console.warn;
 console.warn = (...a) => { if (/^premises:/.test(String(a[0]))) PREM.warns.push(a.map(x => String(x && x.message || x)).join(' ')); return warn0.apply(console, a); };
@@ -316,6 +318,18 @@ for (const k of ['worldUpdate', 'minimap', 'minimapBox', 'scene', 'camera', 'gro
   if (!ok) { console.log('GATE WORLDRENDER: FAIL'); process.exit(1); }
 }
 
+// THE WOODLAND PLANTER DRAWS THE HAND-PLACED TREES (G1481, WOODLAND): the woodland's seeds (world.trees and their clump
+// neighbours) were retired from the draw - the forest fill plants their ground - so this world's planter holds only what
+// TREE_PLACE gives it. A placed stand (a 300 m grid over 12 km, the cone fallback here: no tree payload in node) keeps
+// its chunking, trunks, shadow-pass cull, impostor tier and LOD switch under the checks below, as the seeds did
+{
+  const TP = PLACE.h, stand = [];
+  chk(!!TP && typeof TP.replant === 'function', 'render_world published no TREE_PLACE (the hand-placed trees\' handle)');
+  if (TP) {
+    for (let i = 0; i < 40; i++) for (let j = 0; j < 40; j++) stand.push({ x: -6000 + i * 300 + (j % 7) * 11, z: -6000 + j * 300 + (i % 5) * 13 });
+    TP.set(stand); TP.replant();
+  }
+}
 // stream a few chunks in, as flying over the world would
 for (let i = 0; i < 60; i++) WF.worldUpdate([0, 120, 0]);
 // THE API ANSWERS (G460.11.5): every function the frame loop calls on WF is CALLED here - a name that lives in a

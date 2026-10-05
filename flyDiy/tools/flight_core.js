@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: cf86e4793733e20c
+// body-sha256: c892337232ea29ab
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -3403,7 +3403,7 @@ function makeWorld(seed, opts) {
   // read composed the uncooked town cells on the raw ground and skipped the bed (GATE LAKEBED: a ring over a lake there)
   function lakeCarve(x, z, h0, h, compose) {
     if (LAKE_BED) {
-      const b = LAKE_BED(x, z);
+      const b = LAKE_BED(x, z, h0);   // (SHORES G1500: the raw ground - the bank's cap: no deeper than LAKE-HOLES' bank + `cap`)
       if (b < h) {
         if (!PM || h === h0) h = b;
         else {
@@ -4008,6 +4008,11 @@ function makeWorld(seed, opts) {
     get slopeMax() { return PM ? undefined : SLOPE_MAX; },   // the cone's bound (30_solver.js); none under a premises layer
     TILE, tile, aerodromes, settlements: SET.settlements,
     treesNear, canopyH,
+    // G1481 (WOODLAND): whether the solver tests the woodland's cylinders (world.trees). True in a world no viewer
+    // stands on (the gates, a replay); the game's viewer draws the fill in their place and turns them off - the
+    // page's world and the worker's (sim_link 'wsolid') - so nothing the aeroplane can hit goes undrawn
+    woodSolid: true,
+    setWoodSolid(on) { this.woodSolid = !!on; return this.woodSolid; },
     // THE OBSTACLES (G433): the registry of solid things the solver pushes out of (29_obstacles.js) -
     // the settlements' own buildings stand in it from the start as plain boxes; the viewer adds what
     // it stands (houses, props, cars, parked aeroplanes) and moves the traffic
@@ -9645,7 +9650,7 @@ var ISLAND_GEN = (function () {
     // the clear colour through it. Now the ground is CONTINUOUS and lies under the water: inside a lake's field
     // (the physics' lake field, + inside) the ground is held under the lake's level - `edge` under it at the line,
     // sloping to `depth` by `shoreW` metres in - and on the bank (outside the line) under a slope that rises out of the
-    // line at 1:1 and steepens (s + s^2/16: 8 m over the water 6 m out, 86 m by 30), so a bank over the water meets the bed without a step (min with the DEM: a ground
+    // line along a profile (THE BANK SHELVES, below), so a bank over the water meets the bed without a step (min with the DEM: a ground
     // already lower - a real bed, a bank below the lake - is kept; this only ever LOWERS the ground, so every ceiling
     // the codec gives (hMaxRect) still holds). WHICH LAKE: each field texel has ONE owner, made once here - an inside
     // texel (the field > 0) belongs to the lake whose box holds it, and where boxes overlap to the one whose level the
@@ -9655,7 +9660,34 @@ var ISLAND_GEN = (function () {
     // two lakes' boxes meet at different levels, and dug a 60 m pit round a hillside pond inside a big lake's box -
     // GATE LAKEBED's walk). The records are the ones the world keeps (level > 0.2, cells >= 3); a texel no record owns is
     // left as the DEM has it. Per lake a byte mask over its box and the bank's reach: 0.67 MB on Jolene, built in ~40 ms.
-    const LAKE_BED = { edge: 0.5, depth: 3.0, shoreW: 12, bank: 30 };
+    // THE BANK SHELVES (SHORES G1500, the user 2026-10-04: the carved banks "read as steep, stretched slopes"). The bank
+    // was s + s^2/16 over the line (`old` below) - 45 deg at the water, 63 deg by 8 m out - so a bank the DEM held over
+    // the water became a wall: of the carved bank points outside the line, 10 400 of 13 700 steeper than 45 deg, many
+    // where the DEM itself was 30-45. Now the bank is a SLOPE PROFILE (`prof`: [metres out, rise per metre] knots,
+    // linear between, integrated): a lip that takes the ground just over the water (1:1 for 0.4 m, as before), a SHELF
+    // at the waterline (1:5.5 from 1.2 to 4.5 m out: the margin a shore has, ~1 m over the water at 4.5 m), then a FACE
+    // at 0.65 (33 deg) - the hill gives way further back instead of standing as a wall over the water.
+    // THE CAP (`cap` 6 m): the gentle bank may cut at most `cap` metres deeper than the old law did (the ground known,
+    // bed(x, z, g)) - a lake under a cliff gets its shelf and a gentle toe, then the cliff's own face lowered by at most
+    // `cap` (the gentle law alone cut 35.7 m into one; no hill moves away from its lake); the cap fades to 0 over the last
+    // 45 % of the reach, so at `bank` (30 m, as before: the same masks) the ground is the old law's - which met the DEM
+    // before the reach everywhere on Jolene (GATE LAKEBED's walk). Without the ground (bed(x, z)) the gentle law alone.
+    const LAKE_BED = { edge: 0.5, depth: 3.0, shoreW: 12, bank: 30, cap: 6,
+                       prof: [[0, 1], [0.4, 1], [1.2, 0.18], [4.5, 0.18], [8, 0.65]] };
+    // the bank's rise over (level - edge) at s metres out: the profile's slope integrated (trapezoids between knots)
+    const bankRise = (() => {
+      const K = LAKE_BED.prof, cum = [0];
+      for (let k = 1; k < K.length; k++) cum.push(cum[k - 1] + (K[k][0] - K[k - 1][0]) * (K[k][1] + K[k - 1][1]) / 2);
+      const last = K.length - 1;
+      return s => {
+        if (s >= K[last][0]) return cum[last] + (s - K[last][0]) * K[last][1];
+        let k = 1; while (K[k][0] < s) k++;
+        const s0 = K[k - 1][0], g0 = K[k - 1][1], g1 = K[k][1], d = s - s0, t = d / (K[k][0] - s0);
+        return cum[k - 1] + d * (g0 + (g0 + (g1 - g0) * t)) / 2;
+      };
+    })();
+    const bankOld = s => s + s * s / 16;   // LAKE-HOLES' bank (G1336): the cap's reference
+    LAKE_BED.rise = bankRise; LAKE_BED.riseOld = bankOld;
     const lakeBed = (() => {
       const LF = src.grid.lake, recs = (src.grid.lakes || []).filter(L => L.level > 0.2 && L.cells >= 3);
       if (!LF || !recs.length) return null;
@@ -9734,8 +9766,8 @@ var ISLAND_GEN = (function () {
             const k = iz * CX + ix; (cells[k] || (cells[k] = [])).push(o);
           }
       const sm = t => (t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t));
-      // the bed's height at (x, z), or Infinity where no lake holds the ground down
-      const bed = (x, z) => {
+      // the bed's height at (x, z), or Infinity where no lake holds the ground down; g: the ground there (the bank's cap)
+      const bed = (x, z, g) => {
         const ci = cellOf(x, z), a = ci < 0 ? null : cells[ci];
         if (!a) return Infinity;
         const sd = lakeAt(x, z);
@@ -9749,8 +9781,11 @@ var ISLAND_GEN = (function () {
         }
         if (lv === -Infinity) return Infinity;
         if (sd >= 0) return lv - LAKE_BED.edge - (LAKE_BED.depth - LAKE_BED.edge) * sm(sd / LAKE_BED.shoreW);
-        const s = -sd;
-        return lv - LAKE_BED.edge + s + s * s / 16;
+        const s = -sd, b0 = lv - LAKE_BED.edge, gentle = b0 + bankRise(s);
+        if (!(g < Infinity)) return gentle;
+        // (the cap: never more than `cap` under the old law's carved ground, fading out over the reach's last 45 %)
+        const t = Math.max(0, Math.min(1, (s - 0.55 * LAKE_BED.bank) / (0.45 * LAKE_BED.bank)));
+        return Math.max(gentle, Math.min(g, b0 + bankOld(s)) - LAKE_BED.cap * (1 - t * t * (3 - 2 * t)));
       };
       // the owning lake's level INSIDE its line (the field >= 0), or -Infinity: the physics' water there (20_world waterAt)
       // - one lake per texel, the bed's own, so the floats ride the surface the bed was carved under
@@ -9962,6 +9997,9 @@ const GROUND_FIELDS = (() => {
       hDepth: 0.02, seamDepth: 0.34, hexOn: 1, hexN: 2, hexRot: 180, nrmK: 3, specK: 0.6,
       sheen: 1,   // the GAME's lever on the sets' roughness (the near ring is a Standard material, 2026-09-21): 1 = the sets' own, 0 = matte (specK is the bench's Blinn strength)
       pudCell: 0, pudCover: 0.32, pudEdge: 0.01, pudSlope: 3, lakeEdge: 1,
+      // THE CARVED BANK (SHORES G1500): within bankReach m of a lake's line the carve's steep faces (bankLo..bankHi deg) wear
+      // the rocky shore (11) with no macro on them (it gives way from bankLo - 10 deg), and the first bankWet m over the water are a wet margin (splat_ground sSplat)
+      bankReach: 30, bankLo: 30, bankHi: 42, bankWet: 2.5,
       // THE POND FROM THE AIR (2026-09-23, the user at 400 m: "they look like speckles on a surface, not like
       // puddles"): pudFar widens the shore with distance (0 = the old hard rim; 6 = pudEdge x 7 by 500 m, so
       // 1.33 m of shore becomes 9.3 m and survives a pixel), pudRim is where the OPEN water starts in the mask
@@ -12696,7 +12734,8 @@ function makeSim(def, world) {
       // HEIGHT OVER THE GROUND, NOT ALTITUDE (G1112, TREES-NEAR): `p[1] < 24` was the analytic world's, whose field
       // is at y = 0. Jolene's HOME stands at 31.7 m, so no tree was ever tested there - and of the island's collidable
       // woodland only the 23 % rooted under 24 m could be reached at all, and only from under 24 m of altitude
-      if (p[1] - world.terrainH(cgx, cgz) < 24) {
+      // (G1481: not where the viewer drew the forest fill in the woodland's place - world.woodSolid false)
+      if (world.woodSolid !== false && p[1] - world.terrainH(cgx, cgz) < 24) {
         const near = world.treesNear(cgx, cgz, _treeScratch);
         if (near.length) for (let i = 0; i < n; i++) {
           const i3 = i*3;

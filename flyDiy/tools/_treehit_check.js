@@ -50,18 +50,19 @@ if (argv[0] === '--page') {
     const legacy = (x, y, z) => { w.treesNear(x, z, scratch); for (const i of scratch) { const T = w.trees[i], r = 0.7 * T.s + 0.12;
       if ((T.x - x) ** 2 + (T.z - z) ** 2 <= r * r && y <= T.h + 4.6 * T.s) return true; } return false; };
     const K = { fill: [0, 0, 0], wood: [0, 0, 0], prem: [0, 0, 0] };   // drawn, collidable now, collidable before
+    const solidNow = w.woodSolid !== false;   // G1481: the page turns the woodland's cylinders off (the 'before' column keeps them)
     const D = W.TREE_LOD.drawn(cg[0], cg[2], R);
     for (let i = 0; i < D.length; i += 4) {
       // probed 0.2 m over its root: a 1.5 m sapling's trunk tops out at 1 m (it read as a miss at root + 1 m)
       const k = D[i + 3] ? K.wood : K.fill, x = D[i], y = D[i + 1] + 0.2, z = D[i + 2], was = legacy(x, y, z);
-      k[0]++; if (was || TH.at(x, y, z) > 0) k[1]++; if (was) k[2]++;
+      k[0]++; if ((was && solidNow) || TH.at(x, y, z) > 0) k[1]++; if (was) k[2]++;
     }
     const O = w.premises && w.premises.overlay;
     if (O) for (const t of O.records.trees) {
       if (!t.key || t.key === 'stub|tree') continue;
       const p = O.frame.toWorld(t.x, t.z); if ((p[0] - cg[0]) ** 2 + (p[1] - cg[2]) ** 2 > R * R) continue;
       const y = t.y + 0.2, was = legacy(p[0], y, p[1]);
-      K.prem[0]++; if (was || TH.at(p[0], y, p[1]) > 0) K.prem[1]++; if (was) K.prem[2]++;
+      K.prem[0]++; if ((was && solidNow) || TH.at(p[0], y, p[1]) > 0) K.prem[1]++; if (was) K.prem[2]++;
     }
     // the fill trunk nearest the stand, as the page registered it
     let best = null, bd = Infinity;
@@ -69,7 +70,7 @@ if (argv[0] === '--page') {
       for (let o = 0; o < a.length; o += 5) { const d = Math.hypot(a[o] - cg[0], a[o + 1] - cg[2]); if (d < bd) { bd = d; best = Array.from(a.subarray(o, o + 5)); } } }
     const phys = w.trees.filter(T => (T.x - cg[0]) ** 2 + (T.z - cg[2]) ** 2 <= R * R).length;   // the woodland's physics trees (drawn or not)
     const out = { world: W.FLYDIY_WORLD, phys, cg: Array.from(cg), R, K, sets: TH.sets, keys: TH.keys().length, count: TH.count, fillSets: TH.keys().filter(k => k.indexOf('fill:') === 0).length,
-                  wood: TH.has('wood'), prem: TH.has('prem'), trunk: best, trunkD: bd,
+                  wood: TH.has('wood'), prem: TH.has('prem'), trunk: best, trunkD: bd, woodSolid: w.woodSolid,
                   errors: P.errors.filter(e => /^(script |timer: |frame: )/.test(e)).slice(0, 5) };
     process.stdout.write('\nPAGE ' + JSON.stringify(out) + '\n');
     process.exit(0);
@@ -102,9 +103,9 @@ console.log('2. the solver meets a trunk at any elevation');
   const strip = W0.aerodromes.find(a => a.id === 'HOME') || W0.aerodromes[0];
   const D = 60;
   // a flat world at `elev`, one tree (size 1.5: R 1.17 m, 6.9 m tall) stood on the aeroplane's measured track D m on
-  const run = (elev, tree) => {
+  const run = (elev, tree, solid) => {
     const trees = [];
-    const W = Object.assign({}, W0, { terrainH: () => elev, obstacles: C.OBSTACLES.make(), trees,
+    const W = Object.assign({}, W0, { terrainH: () => elev, obstacles: C.OBSTACLES.make(), trees, woodSolid: solid !== false,
       treesNear: (x, z, o) => { o.length = 0; for (let i = 0; i < trees.length; i++) if (Math.abs(trees[i].x - x) < 192 && Math.abs(trees[i].z - z) < 192) o.push(i); return o; } });
     const def = C.buildGen(), sim = C.makeSim(def, W);
     sim.reset(0); C.placeAtAerodrome(sim, Object.assign({}, strip, { elev, spawnElev: elev }));
@@ -126,7 +127,7 @@ console.log('2. the solver meets a trunk at any elevation');
     }
     return { bad, stood, along, reach, vmax };
   };
-  const free = run(300, false), low = run(0, true), high = run(300, true);
+  const free = run(300, false), low = run(0, true), high = run(300, true), off = run(300, true, false);
   yes(!free.bad && !low.bad && !high.bad && free.stood && low.stood && high.stood, 'the three runs finite and rolling (' + free.vmax.toFixed(1) + ' m/s at the most)');
   yes(free.along > D + 2, 'with no tree the aeroplane rolls through the place (' + free.along.toFixed(1) + ' m)');
   // the trunk springs the aeroplane back (it rolls back and forth against it under a third of throttle), so the verdict
@@ -134,6 +135,8 @@ console.log('2. the solver meets a trunk at any elevation');
   const TOUCH = 6;   // the CG is ~1.2 m behind the nose on the stock build, the trunk's radius 1.17 m, the spring's give
   yes(low.reach < D && low.reach > D - TOUCH, 'at 0 m the trunk stops it (the CG got to ' + low.reach.toFixed(1) + ' m of ' + D + ')');
   yes(high.reach < D && high.reach > D - TOUCH, 'at 300 m the trunk stops it too (' + high.reach.toFixed(1) + ' m of ' + D + ') - the altitude gate is gone');
+  // G1481 (WOODLAND): the game's viewer draws the fill in the woodland's place and turns its cylinders off - not met
+  yes(!off.bad && off.along > D + 2, 'with the woodland cylinders off (world.woodSolid false: the game page and its worker) the same tree is not met (' + off.along.toFixed(1) + ' m)');
 }
 
 // ---- G1330 (TREE-HITBOX) ------------------------------------------------------------------------------------------
@@ -167,6 +170,9 @@ console.log('3. the trunk rule, the bins, the worker\'s world');
   yes(SH.simHostIsWorldOp({ cmd: 'obst' }) && Wk.treeHits.count === 3000 && Wk.treeHits.keys().join() === 'fill:0,0:0' && Wk.__simV === 1, 'the worker\'s world takes the page\'s tset / tdrop (' + Wk.treeHits.count + ' trunks, version ' + Wk.__simV + ')');
   SH.simHostWorldOp(Wk, { cmd: 'obst', ops: [{ op: 'tclear' }] });
   yes(Wk.treeHits.count === 0, 'and its tclear');
+  // G1481: the woodland's cylinders off, as the page's viewer turns them (sim_link 'wsolid')
+  const v0 = Wk.__simV; SH.simHostWorldOp(Wk, { cmd: 'obst', ops: [{ op: 'wsolid', on: false }] });
+  yes(Wk.woodSolid === false && Wk.__simV === v0 + 1 && C.makeWorld(0, {}).woodSolid === true, 'the worker world takes wsolid (woodSolid ' + Wk.woodSolid + '); a world no viewer stands on keeps its cylinders');
 }
 
 console.log('4. a flight into a forest-fill trunk');
@@ -243,10 +249,10 @@ if (FULL) {
     yes(pg.K.wood[1] === pg.K.wood[0], 'every woodland tree drawn - its neighbours and the placed ones too - is collidable (' + pg.K.wood[1] + ' of ' + pg.K.wood[0] + '; before: ' + pg.K.wood[2] + ')');
     yes(pg.K.prem[1] === pg.K.prem[0], 'every premises tree drawn is collidable (' + pg.K.prem[1] + ' of ' + pg.K.prem[0] + '; before: ' + pg.K.prem[2] + ')');
     yes(pg.fillSets > 0 && (pg.wood || !pg.K.wood[0]), 'the world holds ' + pg.count + ' trunks in ' + pg.sets + ' sets (' + pg.fillSets + ' fill chunk parts round the aeroplane' + (pg.wood ? ', the woodland' : '') + (pg.prem ? ', the premises' : '') + ')');
-    // FOUND HERE, NOT FIXED (G1330): on Jolene the woodland draws NOTHING - plantWoodland's fill() reads H.imps[0], null
-    // when no tree of a side was dealt series 0, and throws on the first cell (master too). Its physics trees are
-    // still the core's cylinders: hit, not seen. Printed so the day it is drawn the census counts it
-    if (!pg.K.wood[0] && pg.phys) console.log('       NOTE: the woodland draws nothing here (' + pg.phys + ' physics trees within ' + pg.R + ' m: the core\'s cylinders, unseen) - plantWoodland throws on H.imps[0] (pre-existing; see HANDOVER G1330)');
+    // FOUND HERE (G1330), DECIDED IN G1481 (WOODLAND): the woodland drew nothing (plantWoodland threw on H.imps[0]) while
+    // its physics trees stayed the core's cylinders - hit, not seen. The fill draws that ground; the seeds left the draw
+    // and the physics (world.woodSolid false in the page). Nothing collides that is not drawn
+    yes(pg.woodSolid === false || !pg.phys || pg.K.wood[0] > 0, 'no woodland cylinder collides unseen (' + pg.phys + ' physics seeds within ' + pg.R + ' m, woodSolid ' + pg.woodSolid + ', ' + pg.K.wood[0] + ' woodland trees drawn)');
     yes(!pg.errors.length, 'no page error' + (pg.errors.length ? ': ' + pg.errors[0] : ''));
     if (pg.trunk) {
       const a = pg.trunk, ground = pg.cg[1];   // (the sink: the drawn foot under the ground it stands on is not known here; the trunk's own length is)

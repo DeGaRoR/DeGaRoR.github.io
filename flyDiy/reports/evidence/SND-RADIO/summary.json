@@ -1,0 +1,451 @@
+{
+ "generated": "node tools/audio/radio_scripts.js",
+ "world": "jolene (media/world/jolene + tools/fixtures/island_jolene.json)",
+ "weathers": [
+  {
+   "key": "breeze",
+   "title": "The game's day: a light breeze, 16:00 local (DAY_CLOCK GAME_DAY)",
+   "numbers": {
+    "windKt": 8,
+    "windDirT": 250,
+    "gust": 0.15,
+    "visM": 60000,
+    "layers": [
+     {
+      "cover": 0.2,
+      "baseM": 1293
+     }
+    ],
+    "oatC": 15,
+    "dewC": 4.7,
+    "qnhPa": 101325,
+    "rh": 0.5,
+    "utc": 0,
+    "local": 57600,
+    "seaFt": 0.5,
+    "storm": null,
+    "runways": [
+     [
+      13,
+      31
+     ],
+     [
+      2,
+      20
+     ]
+    ],
+    "oneWay": [
+     "Tamgas Hill Strip",
+     "Jumbo Mine Street",
+     "East Point Clearing",
+     "Skyline Altiport"
+    ],
+    "lanes": [
+     "Annette Dock",
+     "Metlakatla Seaplane Base"
+    ],
+    "declared": []
+   },
+   "breaks": [
+    [
+     {
+      "kind": "id",
+      "key": "id.main",
+      "text": "Good afternoon. Radio Jolene, ninety point seven, community radio for Jolene Island and the Sound. The time on the island, four o'clock."
+     },
+     {
+      "kind": "awos",
+      "key": "awos",
+      "text": "Here is the field. Jolene field automated weather observation, zero zero zero zero zulu. Wind two five zero at eight. Visibility one zero. Sky condition few clouds at four thousand two hundred. Temperature one five, dew point five. Altimeter two niner niner two."
+     }
+    ],
+    [
+     {
+      "kind": "back",
+      "key": "back",
+      "text": "That was Yet Again by Holizna, and before that, Break From Reality by Holizna."
+     },
+     {
+      "kind": "bulletin",
+      "key": "bulletin.mill",
+      "text": "Island bulletins. The sawmill at the head of the bay is on winter hours from Monday: seven in the morning till half past three, closed Sundays."
+     }
+    ],
+    [
+     {
+      "kind": "back",
+      "key": "back",
+      "text": "That was The Best Of Times by Holizna, and before that, Faded in the Sunlight by Holizna."
+     },
+     {
+      "kind": "id",
+      "key": "id.main",
+      "text": "Good afternoon. Radio Jolene, ninety point seven, community radio for Jolene Island and the Sound. The time on the island, four o'clock."
+     },
+     {
+      "kind": "pilots",
+      "key": "pilots",
+      "text": "Notes for pilots. At Jolene field, runway two zero is favoured, wind two five zero at eight. Tamgas Hill Strip, gravel: it is one way, so land uphill and take off downhill. The seaplane lane at Annette Dock is active. Skiffs, keep clear of the buoys. And the eagles are back on runway one three this afternoon. Give them a low pass before you land."
+     }
+    ],
+    [
+     {
+      "kind": "back",
+      "key": "back",
+      "text": "That was Peaceful Drift by Holizna, and before that, Ease into Night by Holizna."
+     },
+     {
+      "kind": "marine",
+      "key": "marine",
+      "text": "And the marine forecast. Marine forecast for the inside waters, Jolene Sound and the passages. This afternoon, west wind ten knots. Seas one foot or less. Outlook, little change."
+     }
+    ],
+    [
+     {
+      "kind": "back",
+      "key": "back",
+      "text": "That was Washed Up by Holizna, and before that, Down Time by Holizna."
+     },
+     {
+      "kind": "id",
+      "key": "id.main",
+      "text": "Good afternoon. Radio Jolene, ninety point seven, community radio for Jolene Island and the Sound."
+     },
+     {
+      "kind": "awos",
+      "key": "awos",
+      "text": "Here is the field. Jolene field automated weather observation, zero zero zero zero zulu. Wind two five zero at eight. Visibility one zero. Sky condition few clouds at four thousand two hundred. Temperature one five, dew point five. Altimeter two niner niner two."
+     }
+    ],
+    [
+     {
+      "kind": "back",
+      "key": "back",
+      "text": "That was Ocean Breeze by Holizna, and before that, Traveling in your mind by Loyalty Freak Music."
+     },
+     {
+      "kind": "swap",
+      "key": "swap.floats",
+      "text": "Swap corner. A set of float rigging for a Cub, needs new cables. Will trade for a chainsaw that runs. Ask at the boat shed."
+     }
+    ],
+    [
+     {
+      "kind": "back",
+      "key": "back",
+      "text": "That was Beach by Loyalty Freak Music, and before that, Kodama by Holizna."
+     },
+     {
+      "kind": "id",
+      "key": "id.main",
+      "text": "Good afternoon. Radio Jolene, ninety point seven, community radio for Jolene Island and the Sound. The time on the island, four o'clock."
+     },
+     {
+      "kind": "awos",
+      "key": "awos",
+      "text": "Here is the field. Jolene field automated weather observation, zero zero zero zero zulu. Wind two five zero at eight. Visibility one zero. Sky condition few clouds at four thousand two hundred. Temperature one five, dew point five. Altimeter two niner niner two."
+     }
+    ]
+   ]
+  },
+  {
+   "key": "front",
+   "title": "A front an hour out (weather_ui \"a front\"), 06:10 local",
+   "numbers": {
+    "windKt": 15.7,
+    "windDirT": 190,
+    "gust": 0.5833333333333333,
+    "visM": 17119,
+    "layers": [
+     {
+      "cover": 0.39,
+      "baseM": 500
+     }
+    ],
+    "oatC": 17,
+    "dewC": 13,
+    "qnhPa": 100767,
+    "rh": 0.77,
+    "utc": 51000,
+    "local": 22200,
+    "seaFt": 0.7,
+    "storm": {
+     "I": 0.25925925925925924,
+     "phase": "pre",
+     "inS": 3600,
+     "kNow": 1.3111111111111111,
+     "windK": 2.2,
+     "veerDeg": 55
+    },
+    "runways": [
+     [
+      13,
+      31
+     ],
+     [
+      2,
+      20
+     ]
+    ],
+    "oneWay": [
+     "Tamgas Hill Strip",
+     "Jumbo Mine Street",
+     "East Point Clearing",
+     "Skyline Altiport"
+    ],
+    "lanes": [
+     "Annette Dock",
+     "Metlakatla Seaplane Base"
+    ],
+    "declared": []
+   },
+   "breaks": [
+    [
+     {
+      "kind": "id",
+      "key": "id.main",
+      "text": "Good morning. Radio Jolene, ninety point seven, community radio for Jolene Island and the Sound. The time on the island, six ten."
+     },
+     {
+      "kind": "awos",
+      "key": "awos",
+      "text": "Here is the field. Jolene field automated weather observation, one four one zero zulu. Wind one niner zero at one six gusts two five. Visibility one zero. Sky condition scattered clouds at one thousand six hundred. Temperature one seven, dew point one three. Altimeter two niner seven six."
+     }
+    ],
+    [
+     {
+      "kind": "back",
+      "key": "back",
+      "text": "That was Yet Again by Holizna, and before that, Break From Reality by Holizna."
+     },
+     {
+      "kind": "bulletin",
+      "key": "bulletin.mill",
+      "text": "Island bulletins. The sawmill at the head of the bay is on winter hours from Monday: seven in the morning till half past three, closed Sundays."
+     }
+    ],
+    [
+     {
+      "kind": "back",
+      "key": "back",
+      "text": "That was The Best Of Times by Holizna, and before that, Faded in the Sunlight by Holizna."
+     },
+     {
+      "kind": "id",
+      "key": "id.main",
+      "text": "Good morning. Radio Jolene, ninety point seven, community radio for Jolene Island and the Sound. The time on the island, six ten."
+     },
+     {
+      "kind": "pilots",
+      "key": "pilots",
+      "text": "Notes for pilots. At Jolene field, runway two zero is favoured, wind one niner zero at one six gusts two five. Tamgas Hill Strip, gravel: it is one way, so land uphill and take off downhill. The seaplane lane at Annette Dock is active. Skiffs, keep clear of the buoys. And the eagles are back on runway one three this morning. Give them a low pass before you land."
+     }
+    ],
+    [
+     {
+      "kind": "back",
+      "key": "back",
+      "text": "That was Peaceful Drift by Holizna, and before that, Ease into Night by Holizna."
+     },
+     {
+      "kind": "marine",
+      "key": "marine",
+      "text": "And the marine forecast. Marine forecast for the inside waters, Jolene Sound and the passages. This morning, south wind fifteen knots, gusts to twenty-five. Seas one foot or less. A front within the next few hours: southwest wind twenty-five knots, gusts to forty, seas building to two feet."
+     }
+    ],
+    [
+     {
+      "kind": "back",
+      "key": "back",
+      "text": "That was Washed Up by Holizna, and before that, Down Time by Holizna."
+     },
+     {
+      "kind": "id",
+      "key": "id.main",
+      "text": "Good morning. Radio Jolene, ninety point seven, community radio for Jolene Island and the Sound."
+     },
+     {
+      "kind": "awos",
+      "key": "awos",
+      "text": "Here is the field. Jolene field automated weather observation, one four one zero zulu. Wind one niner zero at one six gusts two five. Visibility one zero. Sky condition scattered clouds at one thousand six hundred. Temperature one seven, dew point one three. Altimeter two niner seven six."
+     }
+    ],
+    [
+     {
+      "kind": "back",
+      "key": "back",
+      "text": "That was Ocean Breeze by Holizna, and before that, Traveling in your mind by Loyalty Freak Music."
+     },
+     {
+      "kind": "swap",
+      "key": "swap.floats",
+      "text": "Swap corner. A set of float rigging for a Cub, needs new cables. Will trade for a chainsaw that runs. Ask at the boat shed."
+     }
+    ],
+    [
+     {
+      "kind": "back",
+      "key": "back",
+      "text": "That was Beach by Loyalty Freak Music, and before that, Kodama by Holizna."
+     },
+     {
+      "kind": "id",
+      "key": "id.main",
+      "text": "Good morning. Radio Jolene, ninety point seven, community radio for Jolene Island and the Sound. The time on the island, six ten."
+     },
+     {
+      "kind": "awos",
+      "key": "awos",
+      "text": "Here is the field. Jolene field automated weather observation, one four one zero zulu. Wind one niner zero at one six gusts two five. Visibility one zero. Sky condition scattered clouds at one thousand six hundred. Temperature one seven, dew point one three. Altimeter two niner seven six."
+     }
+    ]
+   ]
+  },
+  {
+   "key": "gale",
+   "title": "A gale (weather_ui \"gale\"), 07:45 local",
+   "numbers": {
+    "windKt": 35,
+    "windDirT": 245,
+    "gust": 0.5,
+    "visM": 5328,
+    "layers": [
+     {
+      "cover": 0.2,
+      "baseM": 250
+     }
+    ],
+    "oatC": 9,
+    "dewC": 7,
+    "qnhPa": 99200,
+    "rh": 0.87,
+    "utc": 56700,
+    "local": 27900,
+    "seaFt": 2.1,
+    "storm": null,
+    "runways": [
+     [
+      13,
+      31
+     ],
+     [
+      2,
+      20
+     ]
+    ],
+    "oneWay": [
+     "Tamgas Hill Strip",
+     "Jumbo Mine Street",
+     "East Point Clearing",
+     "Skyline Altiport"
+    ],
+    "lanes": [
+     "Annette Dock",
+     "Metlakatla Seaplane Base"
+    ],
+    "declared": []
+   },
+   "breaks": [
+    [
+     {
+      "kind": "id",
+      "key": "id.main",
+      "text": "Good morning. Radio Jolene, ninety point seven, community radio for Jolene Island and the Sound. The time on the island, seven forty-five."
+     },
+     {
+      "kind": "awos",
+      "key": "awos",
+      "text": "Here is the field. Jolene field automated weather observation, one five four five zulu. Wind two four zero at three five gusts five three. Visibility three. Sky condition few clouds at eight hundred. Temperature niner, dew point seven. Altimeter two niner two niner."
+     }
+    ],
+    [
+     {
+      "kind": "back",
+      "key": "back",
+      "text": "That was Yet Again by Holizna, and before that, Break From Reality by Holizna."
+     },
+     {
+      "kind": "bulletin",
+      "key": "bulletin.mill",
+      "text": "Island bulletins. The sawmill at the head of the bay is on winter hours from Monday: seven in the morning till half past three, closed Sundays."
+     }
+    ],
+    [
+     {
+      "kind": "back",
+      "key": "back",
+      "text": "That was The Best Of Times by Holizna, and before that, Faded in the Sunlight by Holizna."
+     },
+     {
+      "kind": "id",
+      "key": "id.main",
+      "text": "Good morning. Radio Jolene, ninety point seven, community radio for Jolene Island and the Sound. The time on the island, seven forty-five."
+     },
+     {
+      "kind": "pilots",
+      "key": "pilots",
+      "text": "Notes for pilots. At Jolene field, runway two zero is favoured, wind two four zero at three five gusts five three. Tamgas Hill Strip, gravel, soft after the rain: it is one way, so land uphill and take off downhill. The seaplane lane at Annette Dock is active. Skiffs, keep clear of the buoys. And the eagles are back on runway one three this morning. Give them a low pass before you land."
+     }
+    ],
+    [
+     {
+      "kind": "back",
+      "key": "back",
+      "text": "That was Peaceful Drift by Holizna, and before that, Ease into Night by Holizna."
+     },
+     {
+      "kind": "marine",
+      "key": "marine",
+      "text": "And the marine forecast. Marine forecast for the inside waters, Jolene Sound and the passages, gale warning. This morning, southwest wind thirty-five knots, gusts to fifty-five. Seas two feet. Outlook, little change."
+     }
+    ],
+    [
+     {
+      "kind": "back",
+      "key": "back",
+      "text": "That was Washed Up by Holizna, and before that, Down Time by Holizna."
+     },
+     {
+      "kind": "id",
+      "key": "id.main",
+      "text": "Good morning. Radio Jolene, ninety point seven, community radio for Jolene Island and the Sound."
+     },
+     {
+      "kind": "awos",
+      "key": "awos",
+      "text": "Here is the field. Jolene field automated weather observation, one five four five zulu. Wind two four zero at three five gusts five three. Visibility three. Sky condition few clouds at eight hundred. Temperature niner, dew point seven. Altimeter two niner two niner."
+     }
+    ],
+    [
+     {
+      "kind": "back",
+      "key": "back",
+      "text": "That was Ocean Breeze by Holizna, and before that, Traveling in your mind by Loyalty Freak Music."
+     },
+     {
+      "kind": "swap",
+      "key": "swap.floats",
+      "text": "Swap corner. A set of float rigging for a Cub, needs new cables. Will trade for a chainsaw that runs. Ask at the boat shed."
+     }
+    ],
+    [
+     {
+      "kind": "back",
+      "key": "back",
+      "text": "That was Beach by Loyalty Freak Music, and before that, Kodama by Holizna."
+     },
+     {
+      "kind": "id",
+      "key": "id.main",
+      "text": "Good morning. Radio Jolene, ninety point seven, community radio for Jolene Island and the Sound. The time on the island, seven forty-five."
+     },
+     {
+      "kind": "awos",
+      "key": "awos",
+      "text": "Here is the field. Jolene field automated weather observation, one five four five zulu. Wind two four zero at three five gusts five three. Visibility three. Sky condition few clouds at eight hundred. Temperature niner, dew point seven. Altimeter two niner two niner."
+     }
+    ]
+   ]
+  }
+ ]
+}

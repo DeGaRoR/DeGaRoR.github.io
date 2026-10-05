@@ -1,0 +1,692 @@
+{
+ "meta": {
+  "date": "2026-10-05T04:51:22.422Z",
+  "commit": "6e588c39",
+  "build": "f7d1979c7a48",
+  "mode": "full",
+  "parts": [
+   "bench"
+  ],
+  "gpu": null,
+  "size": null,
+  "label": "wood_cold_b",
+  "remote": "mn_strip",
+  "m": {
+   "reps": 2,
+   "secs": 25,
+   "glReps": 3,
+   "cold": true,
+   "taxi": 15,
+   "water": 25,
+   "garage": 6
+  },
+  "minutes": 6.1,
+  "steps": [
+   {
+    "id": "master_bench",
+    "code": 0,
+    "sec": 363,
+    "part": "bench"
+   }
+  ],
+  "reports": "tools/perf/tg_wood_cold_b"
+ },
+ "rows": [
+  {
+   "id": "bench|cub cold: navigation -> garage|sec",
+   "part": "bench",
+   "what": "cub cold: navigation -> garage",
+   "value": 57.6,
+   "rule": {
+    "rel": 0.12,
+    "abs": 8,
+    "unit": "s"
+   }
+  },
+  {
+   "id": "bench|cub cold: garage -> world (first)|sec",
+   "part": "bench",
+   "what": "cub cold: garage -> world (first)",
+   "value": 9.08,
+   "rule": {
+    "rel": 0.12,
+    "abs": 8,
+    "unit": "s"
+   }
+  },
+  {
+   "id": "bench|cub cold: garage -> world (first)|taskWorst",
+   "part": "bench",
+   "what": "cub cold: garage -> world (first) worst task",
+   "value": 240,
+   "rule": {
+    "rel": 0.15,
+    "abs": 150,
+    "unit": "ms"
+   }
+  },
+  {
+   "id": "bench|cub cold: first flight|sec",
+   "part": "bench",
+   "what": "cub cold: first flight",
+   "value": 66.7,
+   "rule": {
+    "rel": 0.12,
+    "abs": 8,
+    "unit": "s"
+   }
+  },
+  {
+   "id": "bench|cub warm: navigation -> garage|sec",
+   "part": "bench",
+   "what": "cub warm: navigation -> garage",
+   "value": 45.2,
+   "rule": {
+    "rel": 0.1,
+    "abs": 4,
+    "unit": "s"
+   }
+  },
+  {
+   "id": "bench|cub warm: navigation -> garage|links5s",
+   "part": "bench",
+   "what": "cub warm: navigation -> garage links over 5 s (a cache miss)",
+   "value": 2,
+   "rule": {
+    "rel": 0,
+    "abs": 0,
+    "unit": "",
+    "info": true
+   }
+  },
+  {
+   "id": "bench|cub garage -> world (first) @HOME|sec",
+   "part": "bench",
+   "what": "cub garage -> world (first) @HOME",
+   "value": 9.1,
+   "rule": {
+    "rel": 0.15,
+    "abs": 1.5,
+    "unit": "s"
+   }
+  },
+  {
+   "id": "bench|cub garage -> world (first) @HOME|taskWorst",
+   "part": "bench",
+   "what": "cub garage -> world (first) @HOME worst task",
+   "value": 258,
+   "rule": {
+    "rel": 0.15,
+    "abs": 150,
+    "unit": "ms"
+   }
+  },
+  {
+   "id": "bench|cub warm: first flight|sec",
+   "part": "bench",
+   "what": "cub warm: first flight",
+   "value": 54.4,
+   "rule": {
+    "rel": 0.1,
+    "abs": 4,
+    "unit": "s"
+   }
+  },
+  {
+   "id": "bench|cub world -> garage @HOME|sec",
+   "part": "bench",
+   "what": "cub world -> garage @HOME",
+   "value": 0.28,
+   "rule": {
+    "rel": 0.15,
+    "abs": 1.5,
+    "unit": "s"
+   }
+  },
+  {
+   "id": "bench|cub world -> garage @HOME|taskWorst",
+   "part": "bench",
+   "what": "cub world -> garage @HOME worst task",
+   "value": 78,
+   "rule": {
+    "rel": 0.15,
+    "abs": 150,
+    "unit": "ms"
+   }
+  },
+  {
+   "id": "bench|cub round trip 2: garage -> world|sec",
+   "part": "bench",
+   "what": "cub round trip 2: garage -> world",
+   "value": 8.87,
+   "rule": {
+    "rel": 0.15,
+    "abs": 1.5,
+    "unit": "s"
+   }
+  },
+  {
+   "id": "bench|cub round trip 2: garage -> world|taskWorst",
+   "part": "bench",
+   "what": "cub round trip 2: garage -> world worst task",
+   "value": 0,
+   "rule": {
+    "rel": 0.15,
+    "abs": 150,
+    "unit": "ms"
+   }
+  },
+  {
+   "id": "bench|cub round trip 2: world -> garage|sec",
+   "part": "bench",
+   "what": "cub round trip 2: world -> garage",
+   "value": 0.13,
+   "rule": {
+    "rel": 0.15,
+    "abs": 1.5,
+    "unit": "s"
+   }
+  },
+  {
+   "id": "bench|cub garage -> world @mn_strip|sec",
+   "part": "bench",
+   "what": "cub garage -> world @mn_strip",
+   "value": 24.97,
+   "rule": {
+    "rel": 0.15,
+    "abs": 1.5,
+    "unit": "s"
+   }
+  },
+  {
+   "id": "bench|cub garage -> world @mn_strip|taskWorst",
+   "part": "bench",
+   "what": "cub garage -> world @mn_strip worst task",
+   "value": 217,
+   "rule": {
+    "rel": 0.15,
+    "abs": 150,
+    "unit": "ms"
+   }
+  },
+  {
+   "id": "bench|cub world -> garage @mn_strip|sec",
+   "part": "bench",
+   "what": "cub world -> garage @mn_strip",
+   "value": 0.22,
+   "rule": {
+    "rel": 0.15,
+    "abs": 1.5,
+    "unit": "s"
+   }
+  },
+  {
+   "id": "bench|floats warm: navigation -> garage|sec",
+   "part": "bench",
+   "what": "floats warm: navigation -> garage",
+   "value": 52,
+   "rule": {
+    "rel": 0.1,
+    "abs": 4,
+    "unit": "s"
+   }
+  },
+  {
+   "id": "bench|floats warm: navigation -> garage|links5s",
+   "part": "bench",
+   "what": "floats warm: navigation -> garage links over 5 s (a cache miss)",
+   "value": 2,
+   "rule": {
+    "rel": 0,
+    "abs": 0,
+    "unit": "",
+    "info": true
+   }
+  },
+  {
+   "id": "bench|floats garage -> world (the SEA lane)|sec",
+   "part": "bench",
+   "what": "floats garage -> world (the SEA lane)",
+   "value": 0.02,
+   "rule": {
+    "rel": 0.15,
+    "abs": 1.5,
+    "unit": "s"
+   }
+  },
+  {
+   "id": "bench|floats world -> garage|sec",
+   "part": "bench",
+   "what": "floats world -> garage",
+   "value": 0.25,
+   "rule": {
+    "rel": 0.15,
+    "abs": 1.5,
+    "unit": "s"
+   }
+  },
+  {
+   "id": "bench|floats world -> garage|taskWorst",
+   "part": "bench",
+   "what": "floats world -> garage worst task",
+   "value": 71,
+   "rule": {
+    "rel": 0.15,
+    "abs": 150,
+    "unit": "ms"
+   }
+  },
+  {
+   "id": "bench|cub garage|fps",
+   "part": "bench",
+   "what": "cub garage fps",
+   "value": 30,
+   "rule": {
+    "up": true,
+    "rel": 0.05,
+    "abs": 1,
+    "unit": "fps"
+   }
+  },
+  {
+   "id": "bench|cub garage|p99",
+   "part": "bench",
+   "what": "cub garage p99",
+   "value": 33.5,
+   "rule": {
+    "rel": 0.1,
+    "abs": 17,
+    "unit": "ms"
+   }
+  },
+  {
+   "id": "bench|cub garage|over15",
+   "part": "bench",
+   "what": "cub garage over15",
+   "value": 0,
+   "rule": {
+    "rel": 0.2,
+    "abs": 0.02,
+    "unit": ""
+   }
+  },
+  {
+   "id": "bench|cub garage|over100",
+   "part": "bench",
+   "what": "cub garage over100",
+   "value": 0,
+   "rule": {
+    "rel": 0,
+    "abs": 1,
+    "unit": ""
+   }
+  },
+  {
+   "id": "bench|cub garage|taskWorst",
+   "part": "bench",
+   "what": "cub garage taskWorst",
+   "value": 0,
+   "rule": {
+    "rel": 0.15,
+    "abs": 150,
+    "unit": "ms"
+   }
+  },
+  {
+   "id": "bench|cub garage|tasks1s",
+   "part": "bench",
+   "what": "cub garage tasks1s",
+   "value": 0,
+   "rule": {
+    "rel": 0,
+    "abs": 0,
+    "unit": ""
+   }
+  },
+  {
+   "id": "bench|cub garage|p999",
+   "part": "bench",
+   "what": "cub garage p999",
+   "value": 33.5,
+   "rule": {
+    "rel": 0.25,
+    "abs": 10,
+    "unit": "ms",
+    "info": true
+   }
+  },
+  {
+   "id": "bench|cub garage|over3x",
+   "part": "bench",
+   "what": "cub garage over3x",
+   "value": 0,
+   "rule": {
+    "rel": 0.25,
+    "abs": 0.002,
+    "unit": "",
+    "info": true
+   }
+  },
+  {
+   "id": "bench|cub garage|uneven",
+   "part": "bench",
+   "what": "cub garage uneven",
+   "value": 0,
+   "rule": {
+    "rel": 0,
+    "abs": 0.05,
+    "unit": "",
+    "info": true
+   }
+  },
+  {
+   "id": "bench|cub taxi chase @HOME|fps",
+   "part": "bench",
+   "what": "cub taxi chase @HOME fps",
+   "value": 30,
+   "rule": {
+    "up": true,
+    "rel": 0.05,
+    "abs": 1,
+    "unit": "fps"
+   }
+  },
+  {
+   "id": "bench|cub taxi chase @HOME|p99",
+   "part": "bench",
+   "what": "cub taxi chase @HOME p99",
+   "value": 33.5,
+   "rule": {
+    "rel": 0.1,
+    "abs": 17,
+    "unit": "ms"
+   }
+  },
+  {
+   "id": "bench|cub taxi chase @HOME|over15",
+   "part": "bench",
+   "what": "cub taxi chase @HOME over15",
+   "value": 0,
+   "rule": {
+    "rel": 0.2,
+    "abs": 0.02,
+    "unit": ""
+   }
+  },
+  {
+   "id": "bench|cub taxi chase @HOME|over100",
+   "part": "bench",
+   "what": "cub taxi chase @HOME over100",
+   "value": 0,
+   "rule": {
+    "rel": 0,
+    "abs": 1,
+    "unit": ""
+   }
+  },
+  {
+   "id": "bench|cub taxi chase @HOME|taskWorst",
+   "part": "bench",
+   "what": "cub taxi chase @HOME taskWorst",
+   "value": 0,
+   "rule": {
+    "rel": 0.15,
+    "abs": 150,
+    "unit": "ms"
+   }
+  },
+  {
+   "id": "bench|cub taxi chase @HOME|tasks1s",
+   "part": "bench",
+   "what": "cub taxi chase @HOME tasks1s",
+   "value": 0,
+   "rule": {
+    "rel": 0,
+    "abs": 0,
+    "unit": ""
+   }
+  },
+  {
+   "id": "bench|cub taxi chase @HOME|p999",
+   "part": "bench",
+   "what": "cub taxi chase @HOME p999",
+   "value": 33.6,
+   "rule": {
+    "rel": 0.25,
+    "abs": 10,
+    "unit": "ms",
+    "info": true
+   }
+  },
+  {
+   "id": "bench|cub taxi chase @HOME|over3x",
+   "part": "bench",
+   "what": "cub taxi chase @HOME over3x",
+   "value": 0,
+   "rule": {
+    "rel": 0.25,
+    "abs": 0.002,
+    "unit": "",
+    "info": true
+   }
+  },
+  {
+   "id": "bench|cub taxi chase @HOME|uneven",
+   "part": "bench",
+   "what": "cub taxi chase @HOME uneven",
+   "value": 0,
+   "rule": {
+    "rel": 0,
+    "abs": 0.05,
+    "unit": "",
+    "info": true
+   }
+  },
+  {
+   "id": "bench|cub taxi chase @mn_strip|fps",
+   "part": "bench",
+   "what": "cub taxi chase @mn_strip fps",
+   "value": 30,
+   "rule": {
+    "up": true,
+    "rel": 0.05,
+    "abs": 1,
+    "unit": "fps"
+   }
+  },
+  {
+   "id": "bench|cub taxi chase @mn_strip|p99",
+   "part": "bench",
+   "what": "cub taxi chase @mn_strip p99",
+   "value": 33.5,
+   "rule": {
+    "rel": 0.1,
+    "abs": 17,
+    "unit": "ms"
+   }
+  },
+  {
+   "id": "bench|cub taxi chase @mn_strip|over15",
+   "part": "bench",
+   "what": "cub taxi chase @mn_strip over15",
+   "value": 0,
+   "rule": {
+    "rel": 0.2,
+    "abs": 0.02,
+    "unit": ""
+   }
+  },
+  {
+   "id": "bench|cub taxi chase @mn_strip|over100",
+   "part": "bench",
+   "what": "cub taxi chase @mn_strip over100",
+   "value": 0,
+   "rule": {
+    "rel": 0,
+    "abs": 1,
+    "unit": ""
+   }
+  },
+  {
+   "id": "bench|cub taxi chase @mn_strip|taskWorst",
+   "part": "bench",
+   "what": "cub taxi chase @mn_strip taskWorst",
+   "value": 60,
+   "rule": {
+    "rel": 0.15,
+    "abs": 150,
+    "unit": "ms"
+   }
+  },
+  {
+   "id": "bench|cub taxi chase @mn_strip|tasks1s",
+   "part": "bench",
+   "what": "cub taxi chase @mn_strip tasks1s",
+   "value": 0,
+   "rule": {
+    "rel": 0,
+    "abs": 0,
+    "unit": ""
+   }
+  },
+  {
+   "id": "bench|cub taxi chase @mn_strip|p999",
+   "part": "bench",
+   "what": "cub taxi chase @mn_strip p999",
+   "value": 50,
+   "rule": {
+    "rel": 0.25,
+    "abs": 10,
+    "unit": "ms",
+    "info": true
+   }
+  },
+  {
+   "id": "bench|cub taxi chase @mn_strip|over3x",
+   "part": "bench",
+   "what": "cub taxi chase @mn_strip over3x",
+   "value": 0,
+   "rule": {
+    "rel": 0.25,
+    "abs": 0.002,
+    "unit": "",
+    "info": true
+   }
+  },
+  {
+   "id": "bench|cub taxi chase @mn_strip|uneven",
+   "part": "bench",
+   "what": "cub taxi chase @mn_strip uneven",
+   "value": 0.013,
+   "rule": {
+    "rel": 0,
+    "abs": 0.05,
+    "unit": "",
+    "info": true
+   }
+  },
+  {
+   "id": "bench|floats water taxi @SEA|fps",
+   "part": "bench",
+   "what": "floats water taxi @SEA fps",
+   "value": 29.9,
+   "rule": {
+    "up": true,
+    "rel": 0.05,
+    "abs": 1,
+    "unit": "fps"
+   }
+  },
+  {
+   "id": "bench|floats water taxi @SEA|p99",
+   "part": "bench",
+   "what": "floats water taxi @SEA p99",
+   "value": 33.5,
+   "rule": {
+    "rel": 0.1,
+    "abs": 17,
+    "unit": "ms"
+   }
+  },
+  {
+   "id": "bench|floats water taxi @SEA|over15",
+   "part": "bench",
+   "what": "floats water taxi @SEA over15",
+   "value": 0.0054,
+   "rule": {
+    "rel": 0.2,
+    "abs": 0.02,
+    "unit": ""
+   }
+  },
+  {
+   "id": "bench|floats water taxi @SEA|over100",
+   "part": "bench",
+   "what": "floats water taxi @SEA over100",
+   "value": 0,
+   "rule": {
+    "rel": 0,
+    "abs": 1,
+    "unit": ""
+   }
+  },
+  {
+   "id": "bench|floats water taxi @SEA|taskWorst",
+   "part": "bench",
+   "what": "floats water taxi @SEA taskWorst",
+   "value": 80,
+   "rule": {
+    "rel": 0.15,
+    "abs": 150,
+    "unit": "ms"
+   }
+  },
+  {
+   "id": "bench|floats water taxi @SEA|tasks1s",
+   "part": "bench",
+   "what": "floats water taxi @SEA tasks1s",
+   "value": 0,
+   "rule": {
+    "rel": 0,
+    "abs": 0,
+    "unit": ""
+   }
+  },
+  {
+   "id": "bench|floats water taxi @SEA|p999",
+   "part": "bench",
+   "what": "floats water taxi @SEA p999",
+   "value": 66.8,
+   "rule": {
+    "rel": 0.25,
+    "abs": 10,
+    "unit": "ms",
+    "info": true
+   }
+  },
+  {
+   "id": "bench|floats water taxi @SEA|over3x",
+   "part": "bench",
+   "what": "floats water taxi @SEA over3x",
+   "value": 0,
+   "rule": {
+    "rel": 0.25,
+    "abs": 0.002,
+    "unit": "",
+    "info": true
+   }
+  },
+  {
+   "id": "bench|floats water taxi @SEA|uneven",
+   "part": "bench",
+   "what": "floats water taxi @SEA uneven",
+   "value": 0.016,
+   "rule": {
+    "rel": 0,
+    "abs": 0.05,
+    "unit": "",
+    "info": true
+   }
+  }
+ ]
+}

@@ -1,0 +1,161 @@
+{
+ "note": "rollout_perf, the Cub, HOME, 25 s, medians; ABBA (chase: rule old ease ease old rule; cockpit: new old old new); POTATO-DEEP CPU battery beside; build G1490-G1494 + local parked cook",
+ "means": {
+  "chase": {
+   "rule": {
+    "render": 12.85,
+    "loop": 17.1
+   },
+   "old": {
+    "render": 10.7,
+    "loop": 14.75
+   },
+   "ease": {
+    "render": 12.1,
+    "loop": 16.25
+   }
+  },
+  "cockpit": {
+   "new": {
+    "render": 12.45,
+    "loop": 16.75
+   },
+   "old": {
+    "render": 13.55,
+    "loop": 18.25
+   }
+  }
+ },
+ "rows": [
+  {
+   "run": "rh_chase_rule_001814",
+   "url": "http://localhost:8862/flyDiy/index.html",
+   "taxi": {
+    "renderMed": 13,
+    "renderP90": 16.2,
+    "shadowMed": 2.3,
+    "workMed": 17.3,
+    "fpsDelivered": 30,
+    "dtP99": 33.5,
+    "frames": 849
+   }
+  },
+  {
+   "run": "rh_chase_old_001953",
+   "url": "http://localhost:8862/flyDiy/index.html?fbake=hy1.6-2.0",
+   "taxi": {
+    "renderMed": 10.5,
+    "renderP90": 13.6,
+    "shadowMed": 2.1,
+    "workMed": 14.6,
+    "fpsDelivered": 30,
+    "dtP99": 33.5,
+    "frames": 856
+   }
+  },
+  {
+   "run": "rh_chase_ease_002131",
+   "url": "http://localhost:8862/flyDiy/index.html?fbake=hyease",
+   "taxi": {
+    "renderMed": 11.9,
+    "renderP90": 15,
+    "shadowMed": 2,
+    "workMed": 16,
+    "fpsDelivered": 30,
+    "dtP99": 33.5,
+    "frames": 857
+   }
+  },
+  {
+   "run": "rh_chase_ease_002307",
+   "url": "http://localhost:8862/flyDiy/index.html?fbake=hyease",
+   "taxi": {
+    "renderMed": 12.3,
+    "renderP90": 15.6,
+    "shadowMed": 2.1,
+    "workMed": 16.5,
+    "fpsDelivered": 30,
+    "dtP99": 33.5,
+    "frames": 855
+   }
+  },
+  {
+   "run": "rh_chase_old_002444",
+   "url": "http://localhost:8862/flyDiy/index.html?fbake=hy1.6-2.0",
+   "taxi": {
+    "renderMed": 10.9,
+    "renderP90": 13.6,
+    "shadowMed": 2.1,
+    "workMed": 14.9,
+    "fpsDelivered": 30,
+    "dtP99": 33.5,
+    "frames": 853
+   }
+  },
+  {
+   "run": "rh_chase_rule_002620",
+   "url": "http://localhost:8862/flyDiy/index.html",
+   "taxi": {
+    "renderMed": 12.7,
+    "renderP90": 16.1,
+    "shadowMed": 2,
+    "workMed": 16.9,
+    "fpsDelivered": 30,
+    "dtP99": 33.5,
+    "frames": 862
+   }
+  },
+  {
+   "run": "rh_cockpit_new_002816",
+   "url": "http://localhost:8862/flyDiy/index.html",
+   "taxi": {
+    "renderMed": 13.5,
+    "renderP90": 19.6,
+    "shadowMed": 2.1,
+    "workMed": 18.2,
+    "fpsDelivered": 30,
+    "dtP99": 33.6,
+    "frames": 869
+   }
+  },
+  {
+   "run": "rh_cockpit_old_002955",
+   "url": "http://localhost:8862/flyDiy/index.html?fbake=hy1.6-2.0",
+   "taxi": {
+    "renderMed": 13.2,
+    "renderP90": 16.9,
+    "shadowMed": 2.3,
+    "workMed": 18,
+    "fpsDelivered": 30,
+    "dtP99": 33.5,
+    "frames": 850
+   }
+  },
+  {
+   "run": "rh_cockpit_old_003133",
+   "url": "http://localhost:8862/flyDiy/index.html?fbake=hy1.6-2.0",
+   "taxi": {
+    "renderMed": 13.9,
+    "renderP90": 19.1,
+    "shadowMed": 2.2,
+    "workMed": 18.5,
+    "fpsDelivered": 30,
+    "dtP99": 33.5,
+    "frames": 848
+   }
+  },
+  {
+   "run": "rh_cockpit_new_003330",
+   "url": "http://localhost:8862/flyDiy/index.html",
+   "taxi": {
+    "renderMed": 11.4,
+    "renderP90": 13.6,
+    "shadowMed": 2,
+    "workMed": 15.3,
+    "fpsDelivered": 30,
+    "dtP99": 33.5,
+    "frames": 852
+   }
+  }
+ ]
+}

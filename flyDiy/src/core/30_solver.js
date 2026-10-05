@@ -2441,7 +2441,8 @@ function makeSim(def, world) {
       // HEIGHT OVER THE GROUND, NOT ALTITUDE (G1112, TREES-NEAR): `p[1] < 24` was the analytic world's, whose field
       // is at y = 0. Jolene's HOME stands at 31.7 m, so no tree was ever tested there - and of the island's collidable
       // woodland only the 23 % rooted under 24 m could be reached at all, and only from under 24 m of altitude
-      if (p[1] - world.terrainH(cgx, cgz) < 24) {
+      // (G1481: not where the viewer drew the forest fill in the woodland's place - world.woodSolid false)
+      if (world.woodSolid !== false && p[1] - world.terrainH(cgx, cgz) < 24) {
         const near = world.treesNear(cgx, cgz, _treeScratch);
         if (near.length) for (let i = 0; i < n; i++) {
           const i3 = i*3;
