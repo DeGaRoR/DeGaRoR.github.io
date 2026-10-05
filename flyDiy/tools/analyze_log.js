@@ -77,6 +77,13 @@ function analyze(log, opt) {
   const reveals = events.filter(e => e.kind === 'reveal').map(e => e.t);
   if (reveals.length) revealT = reveals[0];
   if (revealT == null && H.revealAt != null && H.revealAt >= 0) revealT = H.revealAt;
+  // G1995 (HW-COVERAGE): a log from before the recorder marked a screenless roll-out (the world built in the one loading:
+  // no roll-out screen, so no `reveal` - the GTX 660 log of 4 Oct, the 1660 Ti's of 5 Oct): the reveal is INFERRED as the
+  // first frame of a running flight out of the shed and under no screen, and the report says it was inferred
+  let revealInferred = false;
+  if (revealT == null) {
+    for (const r of rows) { const fl = r.flags | 0; if (!(fl & FL.boot) && !(fl & FL.garage) && !(fl & FL.held) && (fl & FL.running)) { revealT = r.t - 1e-3; revealInferred = true; break; } }
+  }
   const t0 = rows.length ? rows[0].t : 0;
   // the phase of each frame
   for (const r of rows) {
@@ -203,7 +210,7 @@ function analyze(log, opt) {
     { id: 'task1s', what: 'no task over 1 s (the whole log, the loading screens included)', ok: longTasks.length === 0,
       got: longTasks.length + ' over 1 s' + (longTasks.length ? ' (' + longTasks.filter(x => x.afterReveal).length + ' after the reveal; worst ' + Math.max(...longTasks.map(x => x.ms)).toFixed(0) + ' ms)' : '') },
   ];
-  return { header: H, t0, revealT, reveals, frames: rows.length, boots, scopeName, scopeFrames: scope.length, dist, phases, worst, stretches: stretches.slice(0, 10), slowS,
+  return { hwsteps: events.filter(e => e.kind === 'hwstep'), header: H, t0, revealT, revealInferred, reveals, frames: rows.length, boots, scopeName, scopeFrames: scope.length, dist, phases, worst, stretches: stretches.slice(0, 10), slowS,
     over100: over100.slice(0, 30).map(r => ({ i: r.i, t: r.t, dt: r.dt, phase: r.ph })), over100N: over100.length, longTasks, evCount, catches, catcher: H.catcher || null, targets };
 }
 
@@ -221,11 +228,13 @@ function report(A) {
   if (H.pace) L.push('  frame clock ' + H.pace.mode + (H.pace.legacy ? ' (rig clock)' : '') + ', cap ' + H.pace.cap + ', auto went down ' + (H.pace.stats ? H.pace.stats.down : '?') + 'x / up ' + (H.pace.stats ? H.pace.stats.up : '?') + 'x');
   if (H.aircraft) L.push('  aeroplane ' + (H.aircraft.name || H.aircraft.key || '?') + ', ' + (H.aircraft.nodes || '?') + ' nodes, ' + (H.aircraft.massKg || '?') + ' kg');
   if (H.overhead) L.push('  the recorder: ' + (H.overhead.frameUsMean != null ? H.overhead.frameUsMean + ' us a frame, measured live on ' + H.overhead.sampled + ' sampled frames (max ' + H.overhead.frameUsMax + ' us; budget 200)' + (H.overhead.gpuTimerUsMean ? ' + the GPU timer\'s GL calls ' + H.overhead.gpuTimerUsMean + ' us'  : '') : H.overhead.endUsMean + ' us a frame at its end()') + (H.gpuTimer ? '; GPU timer: ' + H.gpuTimer.ok + ' frames timed, ' + H.gpuTimer.disjoint + ' disjoint, another module\'s timer seen ' + H.gpuTimer.foreignFrames + 'x' : '; no GPU timer in this browser'));
-  L.push('  ' + A.frames + ' frames' + (A.revealT != null ? ', the reveal at ' + ts(A.revealT) + (A.reveals.length > 1 ? ' (the roll-out screen went ' + A.reveals.length + ' times: ' + A.reveals.map(ts).join(', ') + ')' : '') : ', NO REVEAL (the roll-out screen never went)') + '; events: ' + Object.keys(A.evCount).map(k => k + ' ' + A.evCount[k]).join(', '));
+  L.push('  ' + A.frames + ' frames' + (A.revealT != null ? ', the reveal at ' + ts(A.revealT) + (A.revealInferred ? ' (INFERRED: no reveal marked - the first running flight frame; G1995)' : '') + (A.reveals.length > 1 ? ' (the roll-out screen went ' + A.reveals.length + ' times: ' + A.reveals.map(ts).join(', ') + ')' : '') : ', NO REVEAL (the roll-out screen never went)') + '; events: ' + Object.keys(A.evCount).map(k => k + ' ' + A.evCount[k]).join(', '));
   for (const b of A.boots || []) {
     L.push('  loading screen ' + (b.set || '?') + ': ' + (b.screenMs != null ? (b.screenMs / 1000).toFixed(1) + ' s' : 'never lifted') + (b.shaders ? ', ' + b.shaders + ' shaders' : '') +
       ' - ' + b.steps.map(s => s.id + ' ' + (s.ms != null ? (s.ms >= 1000 ? (s.ms / 1000).toFixed(1) + ' s' : s.ms + ' ms') : '?')).join(', '));
   }
+  // G1995: the runtime step-down's moves (gfx_settings.js GFX.hw)
+  for (const e of A.hwsteps || []) { const d = e.detail || {}; L.push('  STEP-DOWN at ' + ts(e.t) + ': ' + d.from + ' -> ' + d.to + ' (' + d.fps + ' fps in the ' + d.kind + ', GPU ' + d.gpuMs + ' ms, JS ' + d.workMs + ' ms' + (d.reload ? '; the lighter build at the next load: ' + d.reload.join(', ') : '') + ')'); }
   L.push('');
   L.push('PER PHASE (every frame of the phase, the loading screens their own)');
   L.push('  phase       frames     s   mean  p50  p10   p1 fps   worst ms  <30fps s   cpu ms   gpu ms  draws  ktris   cpu split (ms/frame, top)');
