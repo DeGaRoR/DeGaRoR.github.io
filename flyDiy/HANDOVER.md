@@ -77130,3 +77130,149 @@ PERF (the coordinator's quiet A/B, damage OFF vs train 34, 20 rotated rounds): +
 STRICT GATE (full): 95 in slack, 50 better, 12 RED = the 30 cap's rows + the known hybrid-band rows; chase / cockpit loop
 15.25 / 15.35 / 16.2 ms (train 34's gate: 16.2 / 16.15 / 16.35) - no damage cost. BATTERY: the full battery PASS but AUDIO,
 which passed alone (145 s; its wall-clock read under the 6-job battery and D4b's untimed page boot). Parked re-cooked.
+## G1945-G1954 - DEST-TO: ONE "TO" - THE FROM IS WHERE THE AEROPLANE IS, A NEW DESTINATION IS THE AUTOPILOT'S, NEVER A RESET; A BASE TO START FROM (2026-10-05, DEST-TO for A0, cloud - node + SwiftShader, no GPU; branch claude/dest-to-g1945 off origin/master 55dd98b7 = train 34; G1950-G1954 unused)
+
+The user (5 Oct): "I'm landing at an airport. I'd want the plane to take off from that very airport, to a new
+destination. I can't do that now, it will always reset the plane to the default starting location. It needs to start
+from where it is. Actually we could gradually drop the FROM-TO in favour of a simple 'To', which can be updated in flight
+or on the ground. The plane reacts like its autopilot's destination has been updated. Right now our original location is
+always the WWII hangar, so easy, but in the future we'll have a few bases out of which we will be able to spawn airplanes."
+
+**WHAT WAS THERE.** W14's chain (a destination picked while STOPPED made a fresh pilot `departFrom(ap.route.to, dest)`)
+and G700's `Fly on` (the same chain) already flew on in place - but only STOPPED, and with the From taken as the last
+leg's TO (a landing the pilot diverted - a forced landing, the wrong-surface fallback - or a stop by hand somewhere else
+departed from a field it was not on). Every other change reset: the From select (`fullReset`), a destination changed in flight or on the stand (`fullReset`, back to the hangar).
+
+**G1945 THE MODEL** (`src/core/38b_dest.js`, new, pure, in MANIFEST.core after 38_nav and in 90_node_exports):
+- `FLIGHT_BASES` / `FLIGHT_BASE_DEFAULT` / `flightBases(world)` / `flightBase(world, id)` - a base = an aerodrome id +
+  the words a picker shows (its site, 25_airfield.js, is the hangar / stand set). One today: HOME, "Home base · the WWII
+  hangar". A second base is a row here (+ its site's stand); the pickers grow a base select at two.
+- `flightWhere(world, x, z, {air})` - THE DERIVED FROM: `airborne` | `runway` | `water` (a lane) | `stand` (25 m of a
+  site's stand) | `apron` (450 m of the strip: apron, taxiways, the grass beside) | `out`; with the aerodrome it is about.
+  `flightCanDepart(where)`: on an aerodrome, not in the air, not `out`.
+- `flightToChoices(world, gear)` - the To picker's rows: '⟳ Circuit' (the field the aeroplane is at), then every
+  non-meadow aerodrome with its surface word, disabled with its reason where STRIP-SURFACE's `stripAllows` says no.
+- `flightToRecord(world, gear, toId, here)` / `flightLeg(world, gear, x, z, toId, {air, legFrom})` - the leg a To asks for
+  from here: From = the aerodrome under the aeroplane (in the air: the leg's From, so a Circuit picked in flight goes
+  back), To = the record (a lane asked of wheels, or an id the world lacks, falls back to the circuit here, `why` says).
+- `flightRouteMigrate(saved)` - the pref `flydiy.route` v1 `{ from, dest }` -> v2 `{ v: 2, base, to, spawn? }`.
+
+**G1946 THE PILOT'S DESTINATION** (`43_pilot.js`, for PILOT-ONE's merge - the plan / destination interface only, no
+control law, no take-off):
+- NEW `ap.setDest(to)` (after `ap.departFrom`), with `ap.nextTo`, the closure flags `replanReq` / `replanning` and the
+  lists `DEST_KEPT` / `DEST_REPLAN`. Returns `kept` (DEPART..CLIMB, GOAROUND, BOX: `ap.route.to` / `ap.xc` / the budget
+  moved, the arrival planned from it when the climb hands over; after a go-around its first leg is re-planned),
+  `replan` (CROSSWIND, DOWNWIND, BASE, ENROUTE, INBOUND, FINAL), `queued` (FLARE, ROLLOUT, GLIDE, STOPPED: NOTHING moves -
+  FLARE / ROLLOUT read `ap.route.to` for the runway they land on - the To kept in `ap.nextTo` for the page to chain),
+  `same`, `none`. It says `new-destination` in the verdicts.
+- NEW hook in `ap.update`, just before `const phRun = ap.phase` (ahead of the phase switch): `replanReq` on a leg phase,
+  airborne, box off -> `go(planFromHere())` with `replanning` set, `ap.holdDir` = the track flown, `committed` /
+  `slopeCaptured` / `finalLevel` / `heldOut` / `escapeHdg` cleared.
+- `planFromHere` (two conditions): `if (ap.xc || replanning) u = dirAt(to, to - cg)` and the crosswind form only
+  `if (!ap.xc && !replanning && ...)` - a re-plan always joins the cross-country way. The first leg begins two turn radii
+  ahead on the track and the path is filleted from the aeroplane (`pathFrom`) - the turn onto it is the path's own.
+- 38_nav.js: untouched (the AP box's navigator is not the route). 39_ground_path.js: untouched - the departure planner
+  (`planDeparture`: the U-turn, the site's `routes.out` / `routes.back`) already plans from any pose; the chain just
+  hands it the right From.
+
+**G1947 THE PAGE** (`app.js`, `sim_link.js`, `sim_host.js`, `body.html`, the CSS):
+- `destId` is the To; `baseId` the base; `spawnId` the perf rigs' override (pref v2 `spawn`, `FLYDIY_ROUTE.spawn(id)`,
+  on no picker); `fromId` is no longer a choice - the From of the leg flying (the base's aerodrome at every roll-out,
+  `applyRoute`; where the aeroplane stood at a chained leg, `nextLeg`), so every old reader (the logbook, the map's line,
+  the cockpit's field, the tower camera, the worker's init) reads what it read.
+- `setTo(id)` (every To picker: `#selDest` borrowed by the plate's `route` flyout, `#edRoute` in the shed, `#bootRoute`
+  under the roll-out screen, `FLYDIY_ROUTE.to`) -> `destApply()`: the shed - remembered for the roll-out; STOPPED on an
+  aerodrome - `nextLeg()` (`held` out in a field: Restart); else `ap.setDest(record)` and `SIMW.dest(id)`; `queued` sets a
+  pending leg chained by the HUD's STOPPED branch (after the logbook row). The classic and test pilots (no setDest) reset
+  before the start and keep their route in flight. No To change resets any more.
+- `nextLeg()` takes `flightLeg` - the From under the aeroplane, not the last leg's To.
+- THE WORKER: `sim_link.dest(to)` -> a stamped `{ cmd: 'dest', to }` (a flight not live yet sends it at k 0 in
+  `attach`); `sim_host` `case 'dest'`: `ap.setDest(aeroById(to))` (+ `init.place.to`).
+- THE UI: `#selFrom` retired (body.html, the plate's flyout, flTrip). The plate's `route` flyout: a `from` LINE (where
+  the aeroplane is: the field, `airborne`, `off-field`; the base's field before the roll-out) and the `to` picker, with a
+  note per state ("A new destination re-plans the flight from here, like an autopilot's" / "...taxis out from here and
+  flies there - same flight, no reset" / landing: "flown from where the aeroplane stops"). The trip line reads
+  "<where> -> <To>". The shed and the roll-out screen: a `base` line ("Home base · the WWII hangar", a select once there
+  are two bases) and the `to` picker. The rail's route sub: "the destination, or the circuit - on the ground or in the air".
+- THE PREF: read through `flightRouteMigrate`, written back as v2 once. Tools: `rollout_perf.js` writes v2 (a `--from`
+  other than HOME rides as `spawn`); `master_bench.js setFrom` calls `FLYDIY_ROUTE.spawn` (the shed's Departure select is
+  gone); the rigs writing v1 `{ from: 'HOME', dest: 'CIRCUIT' }` (master_bench, rollout_shots, woodland_shots,
+  master_bench_smoke) migrate to exactly that.
+
+**WHAT IS LEFT OF THE OLD FROM-TO** (retire when no saved profile can hold it): the v1 branch of `flightRouteMigrate`
+(and its one-time write-back); `FLYDIY_ROUTE.get()` still returns `from` / `dest` beside `to` / `base` / `spawn` (the
+rigs' readers); `fromId` / `destId` as the variable names; the logbook rows' `{ from, to }` (true: the leg's From and
+To); the rigs' `spawn` (a developer's spawn-anywhere, deliberately on no picker); the worker's `place.from` (the base or
+the spawn).
+
+**G1948 GATE DESTTO** (`tools/_destto_check.js`, core, 3 shards; `--show`, `--only`, `--evidence`, `--selftest`).
+Jolene, the real sim and pilot, the damage model ON, the validated builds only (`_treecrash_lib` BUILDS):
+A. no flight - the base (HOME, its stand reads `stand / HOME`), flightWhere's kinds, the picker's surface rule (wheels:
+   no lane; floats: the lanes only; every refusal says why), the migration (v1 HOME/w3, v1 from w3 -> the base, v2 passes),
+   and THE DEFAULT START UNCHANGED: a Cub on HOME's stand departs by the same taxi route ids and take-off direction from
+   the derived From as from master's `departFrom(HOME, to, site)`.
+B. LAND, THEN DEPART (`ltd:<build>`): a To picked IN THE ROLL-OUT is `queued` (the runway it lands on untouched); at
+   STOPPED the page's chain (`flightLeg`, a fresh pilot on the same sim): the From derived, no reset (the leg's first step
+   where the stop was, `sim.t` and the fuel and the damage state carried), DEPART -> TAXI|STOP -> HOLD -> ROLL, take-off,
+   the To landed on. Measured (`reports/evidence/DEST-TO/destto_cases.txt`, the three shards, `--show --evidence`):
+     metal Cessna   HOME -> landed on w3 (274 s); To w2: 522 m of backtrack taxi, take-off, landed on 02/20 (402 s);
+                    fuel 18.47 -> 16.06 kg; the From w3 (not the leg's HOME)
+     Cub            a circuit at HOME (336 s), stopped on 13/31; To w3: rolled from the stop (lined up, the run ahead
+                    enough: STOP > HOLD > ROLL), landed on w3 (378 s); fuel 31.67 -> 30.83 kg
+     Jodel          a circuit at HOME (362 s), then To w3: the same, landed on w3 (331 s)
+     Cessna floats  a circuit on Annette Dock (373 s), stopped on the lane; To Metlakatla: 1132 m of water taxi,
+                    take-off, 10 km, landed on mk_sea (661 s); fuel 17.41 -> 11.97 kg
+     twin on floats the same (290 s, then 453 s); fuel 12.17 -> 9.49 kg
+   no member broken in any; no rejected take-off, no wrong surface, no lost taxi; no step moves the aeroplane further
+   than it flies (< 0.5 m).
+C. A NEW TO IN THE AIR (`air:<build>`): lined up at HOME bound for w3; 40 % down the enroute leg the To becomes 02/20
+   (w2), behind the aeroplane - `replan`; the new path's first point ON the aeroplane (0.0 m); the bank inside the
+   pilot's limit + 4 deg (Cub 23.4 deg, Cessna 23.6); the track's rate against g tan(limit)/V at most 0.93 (Cub) and 1.10
+   (Cessna) - the bound is 1.3, a heading step would read tens; both landed on 02/20, completed (389 s, 326 s).
+NEGATIVE-VERIFIED (`--selftest`, the metal case's chain and the Cub's air case, each doctored): the OLD chain (the From =
+the leg's own From) - caught ('the From is DERIVED'); a re-plan that is a jump (the legs swapped for a straight line to
+the field, no path re-planned) - caught twice ('re-plans from here', 'the new path starts at the aeroplane': 846 m).
+
+**MEASURED ON MASTER, NOT THIS BRANCH'S** (the old chain, from the field's own stand; `reports/evidence/DEST-TO/
+master_w3.txt`): the user's Cub cannot line up at Tamgas Hill (`could not line up in 60 s` x 3, `taxi-lost`); the Jodel
+rejects its take-off there (`will not reach Vr: 1.45 m/s^2 ... 327 m left`); and in this branch's first cut the Cub's
+arrival from w3 into 13/31 flew a 392 s DOWNWIND (leg-timeout), went around 283 m off the centreline and ran out of the
+watchdog's budget (`gave-up` at 736 s - the budget is set at departFrom and never grows for a go-around); the metal
+Cessna, landed on w3 and sent to HOME, backtracked 522 m and took off fine, then flew a 280 s DOWNWIND at 13/31, went
+around "past the aim at 148 m" and gave up the same way - a fresh pilot's own `departFrom(w3, HOME)`, nothing of the
+chain. The gate's cases avoid them (the pilot's and the strip's: PILOT-ONE's take-off / circuit work, and worth a look -
+an arrival at 13/31 from the south-west is the case a player flying home from Tamgas Hill will meet).
+
+**G1949 THE EVIDENCE** (`reports/evidence/DEST-TO/`): the traces, 1 Hz (leg, t, phase, x, z, y, heading, bank, ground
+speed, fuel, the route's To) - `ltd_*.csv`, `air_*.csv`; the UI before / after (`tools/destto_shot.js`, SwiftShader,
+the same saved v1 route `{ from: HOME, dest: w3 }`): `before_garage.jpg` / `after_garage.jpg` (the shed's from + to
+selects -> the base line + the To), `before_flight_route.jpg` / `after_flight_route.jpg` (the plate's flyout: two
+selects and "Changing the origin restarts the flight" -> the from line and the To, "A new destination re-plans the flight
+from here, like an autopilot's"), `ui_before_after.txt` (every picker's rows, the trip line, FLYDIY_ROUTE). The
+roll-out screen's picker was not shot (the screen lifted before the rig saw #bootRoute; it is the same `routeBuild` as
+the shed's). `destto_cases.txt` (the gate's own lines, the selftest), `master_w3.txt` (the w3 departures on master, and
+the 13/31 arrivals that went around), `framecost_control.txt` (FRAMECOST, the branch against master + one comment).
+
+**THE BATTERY** (`node tools/run_gates.js`, core, 4 jobs, 104 min wall on the 4-core cloud box): 158 jobs, every row
+PASS but four, none this branch's - DESTTO (3 shards, new), ROUNDTRIP, UISMOKE (with its new DEST-TO block), PILOT (3
+shards), NAV, PLAN, LINEUP, TAKEOFF, STRIPSURF, HONESTY, GEN, FLEX, LOAD among the passes.
+- FRAMECOST FAIL (24): THE STALE PARKED COOK (`parked_cook.js --check`: STALE, keys arch:c172 / cub / jodel - any viewer
+  edit moves the build id). Proven by a control: master 55dd98b with ONE COMMENT appended to app.js gives the same 24
+  rises to the unit (cub stand draws.main 914 -> 1046, draws.shadow 169.5 -> 259.5, uniform4f 6 -> 222; the Cessna's the
+  same) - `reports/evidence/DEST-TO/framecost_control.txt`. So DEST-TO costs nothing a frame; A0's re-cook clears it.
+- HITBOX FAIL (1 of 84): its captures say "not cooked in this page (a stale or missing parked cook)" and its one red row
+  is a wall-clock one (the spec shape 380 ms against the raster's 186, under the 4 jobs); alone (`--only=HITBOX
+  --jobs=1`): PASS.
+- SETTLE FAIL (bake budget, wall-clock under the 4 jobs): alone PASS.
+- BIOME FAIL (surface perf < 5 us/call): box-bound - interleaved runs read master 4.9 / 5.1 / 4.8 / 4.7 / 5.0 / 5.3 and
+  this branch 5.1 / 5.3 / 5.0 / 4.9 / 4.6 / 5.2: master itself fails half the time here; nothing of this branch is on
+  `world.surface`'s path.
+THE FULL TIER: SEAPLANE and HOTHIGH (the full rows that fly the pilot over water and a hot strip) run on the branch:
+PASS. ARCHETYPES and PILOTMATRIX were NOT run (hours each on this box; `ap.setDest` is inert until called - no flag, no
+branch of the phase machine moves without it - and the core pilot gates PASS); A0's `--all` at the train is the verdict.
+
+**A0 AT LANDING.** Re-cook the parked aeroplanes on the train's final build (any viewer edit stales the cook -
+FRAMECOST / HITBOX above); no spec, no asset moved. Frame cost: none (the To work runs on a pick; the pilot's
+hook is one boolean a step). PILOT-ONE: the merge surface in 43 is `ap.setDest` (+ `ap.nextTo`, `DEST_KEPT` /
+`DEST_REPLAN`, `replanReq` / `replanning`), the hook before `phRun`, and the two `replanning` conditions in
+`planFromHere`; a unified pilot needs the same entry (the classic and test pilots have none - the page keeps their route).

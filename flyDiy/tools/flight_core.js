@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 572683e63ad89bee
+// body-sha256: 2996425343c903eb
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -16311,6 +16311,164 @@ if (typeof module !== 'undefined') {
   module.exports = { navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE };
 }
 // ============================================================
+// THE FLIGHT'S "TO" (G1945 DEST-TO, 2026-10-05) — pure: no sim, no THREE, no
+// DOM. The user: "I'm landing at an airport. I'd want the plane to take off
+// from that very airport, to a new destination. I can't do that now, it will
+// always reset the plane to the default starting location. It needs to start
+// from where it is. Actually we could gradually drop the FROM-TO in favour of
+// a simple 'To', which can be updated in flight or on the ground. The plane
+// reacts like its autopilot's destination has been updated. Right now our
+// original location is always the WWII hangar, so easy, but in the future
+// we'll have a few bases out of which we will be able to spawn airplanes."
+//
+// THE MODEL. A flight has a STATE — where the aeroplane is: on a stand, on the
+// apron or a taxiway, on a runway, on a water lane, in a field, in the air —
+// and ONE destination, the TO (an aerodrome id; 'CIRCUIT' = the field it is
+// at). The FROM is DERIVED (flightWhere: the aerodrome under the aeroplane),
+// never a choice and never a reset. A new TO is the autopilot's destination
+// changing (43_pilot.js ap.setDest): on the ground the next departure taxis
+// out from where it stands; in the air the arrival is re-planned from here.
+//
+// THE BASE is where a flight BEGINS — the garage's roll-out spawns there: an
+// airfield plus a hangar / stand set (its site, 25_airfield.js). Today there
+// is one, HOME (the WWII hangar beside 13/31 on Jolene, the home strip of the
+// analytic world); the registry is the slot the next one lands in, and the
+// pickers show a base row only once there are two.
+//
+// THE OLD FROM-TO, MIGRATED (flightRouteMigrate): the pref `flydiy.route` was
+// { from, dest } (G710); it is { v: 2, base, to } now. A v1 `from` that names
+// a base is kept as the base; any other `from` (the old "spawn anywhere") falls
+// back to the default base — the From picker is retired. A v2 `spawn` (an
+// aerodrome id) is the developer's override the perf rigs set (rollout_perf
+// --from, master_bench setFrom): not on any picker, read by the roll-out only.
+// ============================================================
+const FLIGHT_BASE_DEFAULT = 'HOME';
+// one row per base: the aerodrome it stands on and the words a picker shows
+const FLIGHT_BASES = {
+  HOME: { id: 'HOME', aero: 'HOME', name: 'Home base', hangar: 'the WWII hangar' },
+};
+// the bases this world has: the aerodrome exists and is not a meadow
+function flightBases(world) {
+  const L = (world && world.aerodromes) || [];
+  const out = [];
+  for (const id of Object.keys(FLIGHT_BASES)) {
+    const B = FLIGHT_BASES[id], a = L.find(x => x.id === B.aero);
+    if (a && a.kind !== 'meadow') out.push(Object.assign({}, B, { a }));
+  }
+  return out;
+}
+// the base `id`, else the default, else the first — null in a world with none
+function flightBase(world, id) {
+  const L = flightBases(world);
+  return L.find(b => b.id === id) || L.find(b => b.id === FLIGHT_BASE_DEFAULT) || L[0] || null;
+}
+
+// ---- WHERE THE AEROPLANE IS (the derived From) ------------------------------------
+// -> { kind, aero, id, d, along, cross }
+//   kind  'airborne' | 'runway' | 'water' (on a water lane) | 'stand' | 'apron' (on the airfield, off
+//         its strip: the apron, a taxiway, the grass beside) | 'out' (nowhere near an aerodrome)
+//   aero  the aerodrome record that kind is about (the nearest for 'airborne' / 'out'), d its distance
+// The strip is its record's rectangle (len x wid about x, z along hdg) with a margin; the airfield is
+// FLIGHT_FIELD_R m round the strip (a site's stand and its taxi graph lie well inside it: HOME's stand
+// is 150 m off 13/31, the far end of Jolene's club apron 280 m). opts.air: the aeroplane is flying.
+const FLIGHT_FIELD_R = 450;
+const FLIGHT_STAND_R = 25;
+function flightStripGeom(a, x, z) {
+  const ux = Math.cos(a.hdg || 0), uz = Math.sin(a.hdg || 0);
+  const rx = x - a.x, rz = z - a.z;
+  const along = rx * ux + rz * uz, cross = -rx * uz + rz * ux;
+  const ea = Math.max(0, Math.abs(along) - (a.len || 0) / 2), ec = Math.max(0, Math.abs(cross) - (a.wid || 30) / 2);
+  return { along, cross, d: Math.hypot(ea, ec) };   // d: 0 on the strip, the distance to its rectangle off it
+}
+function flightWhere(world, x, z, opts) {
+  opts = opts || {};
+  const L = ((world && world.aerodromes) || []).filter(a => a.kind !== 'meadow');
+  let best = null;
+  for (const a of L) {
+    const g = flightStripGeom(a, x, z);
+    // a strip under the aeroplane wins over the airfield of another (Jolene's 02/20 crosses 13/31)
+    const k = g.d + (g.d > 0 ? 1e-3 : 0);
+    if (!best || k < best.k) best = { a, g, k };
+  }
+  if (!best) return { kind: opts.air ? 'airborne' : 'out', aero: null, id: null, d: Infinity, along: 0, cross: 0 };
+  const a = best.a, g = best.g;
+  const out = { kind: 'out', aero: a, id: a.id, d: g.d, along: g.along, cross: g.cross };
+  if (opts.air) { out.kind = 'airborne'; return out; }
+  const wet = a.kind === 'water' || !!a.water || +a.surface === 4;
+  if (g.d <= 5 && Math.abs(g.along) <= (a.len || 0) / 2 + 30) { out.kind = wet ? 'water' : 'runway'; return out; }
+  if (wet) { out.kind = g.d <= FLIGHT_FIELD_R ? 'water' : 'out'; return out; }
+  const st = typeof siteOf === 'function' ? siteOf(a.id) : null;
+  if (st && st.stand && Math.hypot(x - st.stand.x, z - st.stand.z) <= FLIGHT_STAND_R) { out.kind = 'stand'; return out; }
+  if (g.d <= FLIGHT_FIELD_R) out.kind = 'apron';
+  return out;
+}
+// may a departure be planned from here? On an aerodrome (a strip, a lane, its stand or apron) - not out in
+// a field and not in the air (an air change is a re-plan, not a departure)
+function flightCanDepart(where) {
+  return !!where && !!where.aero && ['runway', 'water', 'stand', 'apron'].includes(where.kind);
+}
+
+// ---- THE TO -------------------------------------------------------------------------
+// The choices a picker offers for a gear (25_airfield.js stripAllows: wheels anywhere but water, floats on
+// water only, ...): every aerodrome but the meadows, each with its surface word and, when this gear may not
+// use it, why. 'CIRCUIT' first: the field the aeroplane is at.
+function flightToChoices(world, gear) {
+  const out = [{ id: 'CIRCUIT', name: 'Circuit', label: '⟳ Circuit here', ok: true, why: '' }];
+  for (const a of ((world && world.aerodromes) || [])) {
+    if (a.kind === 'meadow') continue;
+    const S = typeof stripSurface === 'function' ? stripSurface(a) : null;
+    const A = typeof stripAllows === 'function' ? stripAllows(gear || 'wheels', a) : { ok: true, why: '' };
+    out.push({ id: a.id, name: a.name || a.id, surface: S ? S.word : '',
+               label: (a.name || a.id) + (a.flyIn ? ' (fly-in)' : '') + (S ? ' · ' + S.word : '') + (A.ok ? '' : ' — ' + A.why),
+               ok: A.ok, why: A.why });
+  }
+  return out;
+}
+// the TO as the pilot is handed it: 'CIRCUIT' (or nothing) is the field `here` is at; an id this world has
+// and this gear may use is that aerodrome; anything else falls back to the circuit at `here`, `why` saying so
+function flightToRecord(world, gear, toId, here) {
+  const L = (world && world.aerodromes) || [];
+  const at = here || null;
+  if (!toId || toId === 'CIRCUIT') return { to: at, circuit: true, why: '' };
+  const a = L.find(x => x.id === toId);
+  if (!a || a.kind === 'meadow') return { to: at, circuit: true, why: 'no aerodrome ' + toId + ' here' };
+  const A = typeof stripAllows === 'function' ? stripAllows(gear || 'wheels', a) : { ok: true, why: '' };
+  if (!A.ok) return { to: at, circuit: true, why: (a.name || a.id) + ': ' + A.why };
+  return { to: a, circuit: !!at && a === at, why: '' };
+}
+
+// THE NEXT LEG, as the page chains it (app.js nextLeg / setTo) and GATE DESTTO flies it: the From is the
+// aerodrome under the aeroplane (flightWhere), the To the record for `toId` (flightToRecord). `legFrom` is the
+// field the flying leg left (a circuit picked in the air goes back there). -> { from, to, where, depart, why }
+// `depart`: a departure may be planned from here (flightCanDepart); in the air it is false - that is a re-plan
+function flightLeg(world, gear, x, z, toId, opts) {
+  opts = opts || {};
+  const where = flightWhere(world, x, z, { air: !!opts.air });
+  const from = (where.kind !== 'airborne' && where.aero) ? where.aero : (opts.legFrom || where.aero || null);
+  const R = flightToRecord(world, gear, toId, from);
+  return { from, to: R.to || from, where, depart: flightCanDepart(where), circuit: R.circuit, why: R.why };
+}
+
+// ---- THE PREF, MIGRATED --------------------------------------------------------------
+// v1 (G710) { from, dest } -> v2 { v: 2, base, to }; a v2 is passed through (its spawn kept). `isBase(id)`
+// says whether an id names a base (the world's, when it is known; FLIGHT_BASES otherwise)
+function flightRouteMigrate(saved, isBase) {
+  const base0 = FLIGHT_BASE_DEFAULT;
+  const isB = typeof isBase === 'function' ? isBase : (id => !!FLIGHT_BASES[id]);
+  const r = { v: 2, base: base0, to: 'CIRCUIT', spawn: null, migrated: false };
+  if (!saved || typeof saved !== 'object') return r;
+  if (saved.v === 2) {
+    if (typeof saved.base === 'string' && isB(saved.base)) r.base = saved.base;
+    if (typeof saved.to === 'string' && saved.to) r.to = saved.to;
+    if (typeof saved.spawn === 'string' && saved.spawn) r.spawn = saved.spawn;
+    return r;
+  }
+  r.migrated = true;
+  if (typeof saved.from === 'string' && isB(saved.from)) r.base = saved.from;
+  if (typeof saved.dest === 'string' && saved.dest) r.to = saved.dest;
+  return r;
+}
+// ============================================================
 // THE GROUND PATH (G193) — a declared pattern graph, sampled into a path
 // the pilots can FOLLOW rather than chase.
 //
@@ -19435,6 +19593,39 @@ function makePilot(sim, def, world, opts) {
     ap.budget = Math.max(ap.budget, ap.t + routeBudget(from, to));
     go('DEPART');
   };
+  // G1945 DEST-TO: THE DESTINATION, CHANGED - like an autopilot's (38b_dest.js says what a flight's To is).
+  // The From stays the field the aeroplane left; only the To moves, fitted to the gear (landable). What it
+  // does depends on where the flight is:
+  //   'kept'    on the ground before the take-off, the climb-out, the go-around, the AP box: the route is
+  //             the new one and the arrival is planned from it when the climb hands over (planFromHere; after
+  //             a go-around its first leg is re-planned as below)
+  //   'replan'  on a leg of the arrival (CROSSWIND .. INBOUND, FINAL): the arrival is planned again FROM HERE
+  //             at the next step - the first leg begins ahead on the track, the path filleted from the
+  //             aeroplane, so the turn onto it is the path's (no heading step)
+  //   'queued'  the landing is committed (FLARE, ROLLOUT, GLIDE) or done (STOPPED): nothing moves - FLARE and
+  //             ROLLOUT read the runway they land on - and ap.nextTo holds it for the next departure (the
+  //             page chains it from where the aeroplane stops: app.js nextLeg)
+  //   'same'    the To it already has; 'none' nothing to go to
+  ap.nextTo = null;
+  let replanReq = false, replanning = false;
+  const DEST_KEPT = ['DEPART', 'TAXI', 'LINEUP', 'STOP', 'HOLD', 'ROLL', 'ABORT', 'LIFTOFF', 'PUTDOWN', 'CLIMB', 'GOAROUND', 'BOX'];
+  const DEST_REPLAN = ['CROSSWIND', 'DOWNWIND', 'BASE', 'ENROUTE', 'INBOUND', 'FINAL'];
+  ap.setDest = (to) => {
+    if (!to || !ap.route) return 'none';
+    const from = ap.route.from;
+    to = landable(from, to);
+    const ph = ap.phase;
+    if (!DEST_KEPT.includes(ph) && !DEST_REPLAN.includes(ph)) { ap.nextTo = to; return 'queued'; }
+    ap.nextTo = null;
+    if (to === ap.route.to) return 'same';
+    ap.route = { from, to };
+    ap.xc = from !== to;
+    ap.budget = Math.max(ap.budget, ap.t + routeBudget(ap._m ? { x: ap._m.x, z: ap._m.z } : (from && from.x != null ? from : null), to));   // the way left, from here
+    say('new-destination', 'the destination is now ' + (to.name || to.id) + (DEST_REPLAN.includes(ph) ? ' - re-planning the arrival from here' : ''));
+    if (DEST_REPLAN.includes(ph)) { replanReq = true; return 'replan'; }
+    if (ph === 'GOAROUND') replanReq = true;   // the go-around climbs out first; its first leg is then re-planned the cross-country way
+    return 'kept';
+  };
 
   // ---- the servos' state lives in SV (39b_servos.js, G1570) -------------------
   let gaT = 0;
@@ -20592,7 +20783,8 @@ function makePilot(sim, def, world, opts) {
       const { from, to } = ap.route;
       const climbDir = [F.ux * ap.dirX, 0, F.uz * ap.dirX];
       let u;
-      if (ap.xc) u = dirAt(to, to.x - cg[0], to.z - cg[2]);
+      // G1945 DEST-TO: a re-plan in the air (ap.setDest) arrives the cross-country way, whatever the To
+      if (ap.xc || replanning) u = dirAt(to, to.x - cg[0], to.z - cg[2]);
       // P1.A: the circuit lands the SCORED direction (the wind, the slope,
       // the obstacles) with the climb-out as the preference — on a flat strip
       // in calm air that is the way it took off; on a hillside the other way
@@ -20604,7 +20796,7 @@ function makePilot(sim, def, world, opts) {
       // P1: the crosswind form is the CLIMB-OUT's — the aeroplane near the
       // extended centreline; resumed anywhere else (the AP box handed back
       // over the next valley) the arrival is joined the cross-country way
-      if (!ap.xc && Math.abs(cNow) < 0.5 * P.W) {
+      if (!ap.xc && !replanning && Math.abs(cNow) < 0.5 * P.W) {
         // G381: the crosswind leg begins where the ARC ends — one turn
         // radius ahead at the climbing bank — and the arc is armed from the
         // climb-out direction, so the aeroplane rolls out ON the leg
@@ -20745,6 +20937,15 @@ function makePilot(sim, def, world, opts) {
       say('in-the-water', 'under the water at t=' + Math.round(ap.t) + ' s — the flight is over');
       ap.report.outcome = ap.report.outcome || 'in-the-water';
       go('STOPPED');
+    }
+    // G1945 DEST-TO: a To changed on a leg of the arrival is re-planned here, from the aeroplane's own
+    // position and track (ap.setDest); the box flies on until it hands back (CLIMB plans then)
+    if (replanReq && !BX.on && onG === 0 && DEST_REPLAN.includes(ap.phase)) {
+      replanReq = false; replanning = true;
+      try { go(planFromHere()); } finally { replanning = false; }
+      const tl = Math.hypot(vcg[0], vcg[2]);
+      if (tl > 3) ap.holdDir = [vcg[0] / tl, 0, vcg[2] / tl];   // the escape fan is about the track flown, not a climb-out
+      committed = false; slopeCaptured = false; finalLevel = null; heldOut = false; escapeHdg = null;
     }
     const phRun = ap.phase, legRun = ap.legI;   // G710: the phase and leg this step flies (ap.intent names them, not the next)
     if (BX.on) boxFly(); else
@@ -37445,4 +37646,4 @@ function playerShedDims(doc, id, site) {
   return { HW: d.HW || h.HW, HD: d.HD || h.HD, EAVE: d.EAVE || h.EAVE };
 }
 if (typeof module !== 'undefined')
-  module.exports = { TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, TREE_HITS, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, RWY_LIGHTS, runwayLightStrips, runwayLightSite, runwayLightPoints, STRIP_SURFACES, stripSurface, stripGear, stripAllows, stripFallback, stripLandable, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, turnOf, turnPadNodes, TURN_S0, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, atmosWater, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, CLIMATE, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, decodeAnimal, decodeAnimalClips, registerAnimal, animalList, animalClips, animalClip, ANIMAL_REG, makeSim, HYDRO, makeBus, vortexKernel, makeAutopilot, makeTestPilot, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, seatOnGround, placeAtLineup, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, POLARS, PAR, RHO, hyp2, hyp3, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genPlanePair, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_CRASH, GEN_CRASH_TUBE_DT, genPhysKey, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genMesh, genBeamInto, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, genTrueBox, genNetEig, genRigidFloatOf, GEN_BOX_N, GEN_BOX_KMIN, GEN_NET_MAX, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, GEN_CERT, GEN_CERT_V, genDamageOn, GEN_CERT_CACHE, genCertKey, genCertify, genCertAttach, genCertSystem, genCertForces, genCertBench, genCertBenchPose, genCertDrop, genCertBow, genCertFlown, genCertAeroLoads, genCertProbeSim, genCertSpeeds, genCertSink, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC, GP_PARKED_FOOT, GP_PARKED_DEFAULT, GP_CLEAR, GP_HALF_DEFAULT, parkedFoot, gpParkedDist, gpClearWay, GEN_WING_ENVELOPE, GEN_FIELDS, genFieldClamp, genNullToDefault, genSpecMerge, SERVO_GAINS, makeServos, SERVO_TUNE, servoWrapPi, servoCrossWind, servoRestHeight };
+  module.exports = { TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, TREE_HITS, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, RWY_LIGHTS, runwayLightStrips, runwayLightSite, runwayLightPoints, STRIP_SURFACES, stripSurface, stripGear, stripAllows, stripFallback, stripLandable, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, turnOf, turnPadNodes, TURN_S0, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, atmosWater, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, CLIMATE, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, decodeAnimal, decodeAnimalClips, registerAnimal, animalList, animalClips, animalClip, ANIMAL_REG, makeSim, HYDRO, makeBus, vortexKernel, makeAutopilot, makeTestPilot, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, FLIGHT_BASES, FLIGHT_BASE_DEFAULT, flightBases, flightBase, flightWhere, flightCanDepart, flightStripGeom, flightToChoices, flightToRecord, flightLeg, flightRouteMigrate, FLIGHT_FIELD_R, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, seatOnGround, placeAtLineup, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, POLARS, PAR, RHO, hyp2, hyp3, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genPlanePair, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_CRASH, GEN_CRASH_TUBE_DT, genPhysKey, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genMesh, genBeamInto, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, genTrueBox, genNetEig, genRigidFloatOf, GEN_BOX_N, GEN_BOX_KMIN, GEN_NET_MAX, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, GEN_CERT, GEN_CERT_V, genDamageOn, GEN_CERT_CACHE, genCertKey, genCertify, genCertAttach, genCertSystem, genCertForces, genCertBench, genCertBenchPose, genCertDrop, genCertBow, genCertFlown, genCertAeroLoads, genCertProbeSim, genCertSpeeds, genCertSink, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC, GP_PARKED_FOOT, GP_PARKED_DEFAULT, GP_CLEAR, GP_HALF_DEFAULT, parkedFoot, gpParkedDist, gpClearWay, GEN_WING_ENVELOPE, GEN_FIELDS, genFieldClamp, genNullToDefault, genSpecMerge, SERVO_GAINS, makeServos, SERVO_TUNE, servoWrapPi, servoCrossWind, servoRestHeight };

@@ -216,9 +216,10 @@ function preScript(build, gfx, patch) {
 // ---- the page-side actions (strings evaluated in the page; --node-smoke runs them in tools/_page_node.js) --------------
 const A = {
   places: "JSON.stringify((FLIGHT_PROBE.world().aerodromes || []).map(a => ({ id: a.id, name: a.name || a.id, kind: a.kind === 'water' || a.water ? 'water' : 'strip', x: +(+a.x).toFixed(1), z: +(+a.z).toFixed(1), hdg: +(+a.hdg || 0).toFixed(4), len: a.len, elev: +(+(a.spawnElev != null ? a.spawnElev : a.elev) || 0).toFixed(1) })))",
-  // the shed's own Departure pick (#edRoute: the route select the garage shows), as a player's change makes it
-  setFrom: id => "(() => { const s = [...document.querySelectorAll('#edRoute select, #bootRoute select')].find(x => x.title === 'Departure'); if (!s) return 'no select';"
-    + " if (![...s.options].some(o => o.value === " + JSON.stringify(id) + ")) return 'no option'; s.value = " + JSON.stringify(id) + "; s.onchange({ target: s }); return window.FLYDIY_ROUTE ? FLYDIY_ROUTE.get().from : 'set'; })()",
+  // where the next roll-out starts. G1945 DEST-TO retired the shed's Departure pick (a flight starts at the base and goes
+  // on from where it lands): the rigs' spawn (FLYDIY_ROUTE.spawn - no picker has it) puts the roll-out at `id`
+  setFrom: id => "(() => { if (!window.FLYDIY_ROUTE || !FLYDIY_ROUTE.spawn) return 'no route';"
+    + " if (!FLIGHT_PROBE.world().aerodromes.some(a => a.id === " + JSON.stringify(id) + ")) return 'no option'; return FLYDIY_ROUTE.spawn(" + JSON.stringify(id) + "); })()",
   // G1117: ONE press - the bar's #bGo, else the first visible 'Roll out'
   rollOut: "(() => { const g = document.getElementById('bGo'); const l = [...document.querySelectorAll('button')].filter(b => /roll out/i.test(b.textContent) && b.offsetParent);"
     + " const b = g && g.offsetParent && /roll out/i.test(g.textContent) ? g : l[0]; if (!b) return 'no button'; b.click(); return b.id || 'button'; })()",
