@@ -1639,6 +1639,13 @@ function makeSim(def, world) {
   // G1885: the rigid fit's second moments about the CG (xx yy zz xy xz yz) and its last w, carried through a frame
   const rigS = new Float64Array(6), rigW = new Float64Array(3);
   let rigFresh = true;
+  // G1844 (DMG-TYRE): the tyres' cornering stiffness per unit load (/rad; 62_gen_aero `tyre`, TYRE_CN), held as
+  // its inverse (the side force below). A def without `tyre` (a hand-written fiche) reads a standard main and a
+  // tailwheel. `tyreCoulomb` brings back the pre-G1844 side force (Coulomb at 0.02 m/s at every speed) for GATE
+  // DMGTYRE's control - an instrument, like defDampMean; no build sets it.
+  const TYRE_ = P_.tyre || {}, TYRE_OLD = !!P_.tyreCoulomb;
+  const iCnM = TYRE_OLD ? 0 : 1 / (TYRE_.main || TYRE_CN.standard),
+        iCnT = TYRE_OLD ? 0 : 1 / (TYRE_.tw || (P_.twSteer < 0 ? TYRE_CN.nosewheel : TYRE_CN.tailwheel));
   // ground stiffness scales with node mass so light aircraft stay stable at the same dt
   const KGn = new Float64Array(n), CGn = new Float64Array(n),
         KTn = new Float64Array(n), CTn = new Float64Array(n);
@@ -1860,7 +1867,16 @@ function makeSim(def, world) {
         // second); HOME remains bit-identical (muR == CRR there).
         const muRe = Math.abs(vr_) < 0.5 ? Math.max(muR, CRR) : muR;
         const kR = Math.min(muRe * Fn / Math.max(Math.abs(vr_), 0.2), m[i]/dt);
-        const kL = Math.min(su[2] * Fn / Math.max(Math.abs(vl), 0.02), m[i]/dt);
+        // G1844 (DMG-TYRE): THE SIDE FORCE OF A ROLLING TYRE IS ITS SLIP ANGLE'S. It was Coulomb regularised at
+        // 0.02 m/s at every speed: at 14 m/s a slip of 0.08 deg already took the full mu N, so every tyre was a
+        // bang-bang switch - no cornering stiffness, no yaw damping proportional to the yaw rate, and the steered
+        // third wheel all-or-nothing - and the hidden 2 s angular damper (G1885 took it out) was the ground's
+        // only rate-proportional yaw resistance. Now F = C_alpha tan(alpha) = cN N |vl| / |vr|, linear, until it
+        // reaches the same Coulomb limit mu N; C_alpha = cN N (TYRE_CN, per unit load). As a coefficient on vl
+        // that is mu N / max(|vl|, |vr| mu / cN): the regularising speed grows with the rolling speed. Below
+        // 0.02 cN / mu (0.2 m/s on a standard tyre on grass) the old 0.02 m/s floor wins and the wheel holds as
+        // it always held, bit for bit (no jitter parked: the at-rest law is the old one).
+        const kL = Math.min(su[2] * Fn / Math.max(Math.abs(vl), 0.02, Math.abs(vr_) * su[2] * (isTW ? iCnT : iCnM)), m[i]/dt);
         f[i3]   -= kR*vr_*hx + kL*vl*lx;
         f[i3+2] -= kR*vr_*hz + kL*vl*lz;
       } else {
