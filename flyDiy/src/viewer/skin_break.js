@@ -772,7 +772,9 @@
         b.x0 = Math.min(b.x0, x); b.y0 = Math.min(b.y0, y); b.z0 = Math.min(b.z0, z); b.x1 = Math.max(b.x1, x); b.y1 = Math.max(b.y1, y); b.z1 = Math.max(b.z1, z); }
       for (const b of box.values()) { b.wi = new Int32Array(K); b.ww = new Float32Array(K);
         b.big = Math.hypot(b.x1 - b.x0, b.y1 - b.y0, b.z1 - b.z0) > RIGID_D;
-        if (!b.big) { _acc.clear(); coverInto(_acc, S, b.x / b.n, b.y / b.n, b.z / b.n); _acc.put(b.wi, b.ww, 0, K); st.parts++; } else st.bigParts++; }
+        // (a part rides what carries it - every member, the engine mount and the gear's too: a nose bowl on the engine and
+        // its mount, a side panel on the firewall's frame, a gear plate on its leg)
+        if (!b.big) { _acc.clear(); coverInto(_acc, Sall, b.x / b.n, b.y / b.n, b.z / b.n); _acc.put(b.wi, b.ww, 0, K); st.parts++; } else st.bigParts++; }
       for (const v of list) { if (++_n >= every) { _n = 0; yield st.places; } const b = box.get(obj ? obj[v] : 0); st.places++;
         if (b.big) { _acc.clear(); coverInto(_acc, S, P[v * 3], P[v * 3 + 1], P[v * 3 + 2]); if (_acc.put(R.wi, R.ww, v * K, K)) st.over8++; st.cover++; }
         else { for (let k = 0; k < K; k++) { R.wi[v * K + k] = b.wi[k]; R.ww[v * K + k] = b.ww[k]; } st.rigid++; } }

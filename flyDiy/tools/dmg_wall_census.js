@@ -203,9 +203,12 @@ async function pageRunOn(o) {
   const P = FLIGHT_PROBE, sim = P.sim(), step = window.__dwStep;
   const raf = () => new Promise(r => requestAnimationFrame(() => r()));
   const ms = [];
+  // (the crash's node path, a frame each: the drawings replay it - the SAME wreck for each binding, pageReplay)
+  const rec = window.__dwRec = [];
   let s = 0, settled = 0, t1 = performance.now();
   for (; s < (o.steps || 1200); s += 2) {
     step(1 / 60); step(1 / 60);
+    rec.push(Float64Array.from(sim.p));
     await raf();
     const t2 = performance.now(); ms.push(t2 - t1); t1 = t2;
     const D = sim.damage();
@@ -217,6 +220,17 @@ async function pageRunOn(o) {
   return { steps: s, crashed: D.crashed, over: !!D.over, reason: D.reason, broken: D.broken.length, brokeUp: !!D.brokeUp,
     frameMed: +q[q.length >> 1].toFixed(1), frameMax: +q[q.length - 1].toFixed(1),
     skin: window.FLYDIY_SKINBREAK_STATS(), wall: window.FLYDIY_SKINWALL_STATS ? window.FLYDIY_SKINWALL_STATS() : null };
+}
+// THE REPLAY: the recorded crash's node path drawn again, a recorded frame a page frame, under the binding the flags say
+// now - the physics' damage state stays the crash's last (the broken list, the pieces), so both drawings see the same
+// wreck through the same path (the page's own crash does not repeat bit for bit: 141 vs 120 members broken in two runs)
+async function pageReplay() {
+  const P = FLIGHT_PROBE, sim = P.sim(), rec = window.__dwRec || [];
+  const raf = () => new Promise(r => requestAnimationFrame(() => r()));
+  sim.p.set(rec[0]); for (let f = 0; f < 6; f++) await raf();      // (the switch's reset and the binding's first frames at the start)
+  for (const f of rec) { sim.p.set(f); await raf(); }
+  for (let f = 0; f < 60; f++) await raf();                       // (the binding's budget finishes; the pose settles)
+  return { frames: rec.length, skin: window.FLYDIY_SKINBREAK_STATS(), wall: window.FLYDIY_SKINWALL_STATS ? window.FLYDIY_SKINWALL_STATS() : null };
 }
 // THE BOOT: the page up, the build kept, rolled out, the roll-out screen gone
 async function pageBootStep(k) {
@@ -262,13 +276,16 @@ if (require.main === module) (async () => {
     await run(pageStage, Object.assign({}, C.o, { placeOnly: true }));
     for (const [ci, c] of C.cams.entries()) { await run(pageView, c); const f = path.join(OUT, k + '_' + (ci + 1) + '_intact.jpg'); out.intact.push({ cam: c, census: await censusTo(f), file: await shoot(f) }); }
     out.stage = {};
+    // ONE crash (flown under the inherited binding), then each mode REPLAYS its recorded node path: the same wreck
+    await post('/run', 'window.FLYDIY_WALLBIND = true; window.FLYDIY_SKINWALL = true; return 1;');
+    out.crash = await run(pageStage, Object.assign({}, C.o));
+    console.log(k + ' crash', JSON.stringify(out.crash).slice(0, 600));
+    if (out.crash && out.crash.err) { R.cases[k] = out; continue; }
     for (const mode of modes) {
-      // before: the old binding, no cut (the drawing until G1858); g1858: the old binding and the lining cut; after: inherited.
-      // Each mode flies the crash itself (the solver is deterministic: the same wreck), so its tears are its own history's
+      // before: the old binding, no cut (the drawing until G1858); g1858: the old binding and the lining cut; after: inherited
       await post('/run', 'window.FLYDIY_WALLBIND = ' + (mode === 'after') + '; window.FLYDIY_SKINWALL = ' + (mode !== 'before') + '; return 1;');
-      const st = out.stage[mode] = await run(pageStage, Object.assign({}, C.o));
+      const st = out.stage[mode] = await run(pageReplay);
       console.log(k + ' ' + mode, JSON.stringify(st).slice(0, 900));
-      if (st && st.err) break;
       await sleep(1500);
       for (const [ci, c] of C.cams.entries()) {
         await run(pageView, c);

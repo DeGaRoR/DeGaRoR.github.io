@@ -3934,6 +3934,7 @@
   // (G1864: ms - each phase's worst frame and total, the box's own read of the cost: records = the first break's binding,
   // event = the break events, frames = the nodes' frames, pose = the riding and the tear)
   const BRK_BIND = 4000;                                  // G1864: the places a frame the full binding takes
+  const BRK_INH = 1500;                                   // G1855: ...and the inherited one (each place weighs every member: ~12 us a place on the box, measured: 4000 was a 47 ms frame)
   const BRK = { model: null, recs: [], vB: -1, posed: false, ms: { records: 0, event: 0, frames: 0, pose: 0, recordsT: 0, eventT: 0, poseT: 0, frameMax: 0, n: 0 } };
   try { if (/[?&]skinbreak=0(&|$)/.test(location.search || '')) window.FLYDIY_SKINBREAK = false; } catch (e) {}
   // the rig's read-out (tools/dmg_skin_stills.js): the records live, the triangles removed / torn, the vertices riding
@@ -4176,7 +4177,7 @@
         R.inhRec = true; L.push(E);
       }
       K.inhL = L; K.inhSt = {}; K.inhGone = -1;
-      K.inhIt = SB.inhSteps(L, K.T, K.rest, K.inhSt, BRK_BIND);
+      K.inhIt = SB.inhSteps(L, K.T, K.rest, K.inhSt, BRK_INH);
     }
     if (K.inhSt.done) return;
     const r = K.inhIt.next();
