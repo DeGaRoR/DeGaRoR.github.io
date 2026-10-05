@@ -367,23 +367,6 @@ function makeSim(def, world) {
   // G1898: on only when asked (params.damage, else the page's ?damage, else GEN_DAMAGE_DEFAULT - 60_gen_spec.js)
   const DMG_ON = (P_.damage ?? (typeof FLYDIY_DAMAGE === 'boolean' ? FLYDIY_DAMAGE
                   : typeof GEN_DAMAGE_DEFAULT !== 'undefined' && GEN_DAMAGE_DEFAULT)) === true && typeof GEN_CRASH !== 'undefined';
-  // G1822 (DMG-D1b, §4.6 / §8.1): THE SUPPORT LIMITERS (61_gen_frame's parts.dmg.supp: the nose engine held off the
-  // firewall, on the cabin's first ring), members only with the damage layer on and appended after the build's own (whose indices stay). The mirror of
-  // a slack wire (G185): compression-only, carrying nothing until its gap closes (its L0 the gap short of the drawn
-  // length, `pre` as a wire's rigging), then the stiffest member's k at either end (the cabin ring's, as a rule: the
-  // engine's own bearer's k held only part of it - the metal Cessna's engine CG node, pinned by a trunk at 30 m/s with
-  // the whole cabin behind it, ended 0.28 m past the firewall on the bearer's k, 0.11 m on the ring's; finite, the
-  // energy never above the impact's, at the solver's step with the node's own members gone by then). No
-  // limits, no mass, no group, no strain readout (sK 0); not a member that holds (the orphan count, the component test),
-  // not one a trunk can bend (the trunk pairs)
-  if (DMG_ON && def.parts && def.parts.dmg && def.parts.dmg.supp && def.parts.dmg.supp.length) {
-    const kN = new Float64Array(n), cN = new Float64Array(n);
-    for (const b of beams) for (const i of [b.a, b.b]) { if (b.k > kN[i]) kN[i] = b.k; if (b.c > cN[i]) cN[i] = b.c; }
-    for (const S of def.parts.dmg.supp) {
-      const k = Math.max(kN[S.a], kN[S.b]), c = Math.max(cN[S.a], cN[S.b]);
-      beams.push({ a: S.a, b: S.b, k, c, cls: 'supp', pre: S.pre, supp: true, path: S.path, grp: -1, seam: null, L0: 0, strain: 0, sK: 0, kF: k, cF: c });
-    }
-  }
   const nb = beams.length;
   const DMG = { yields: 0, breaks: 0, work: 0, broken: [], firstBreak: null, firstYield: null,
                 crashed: false, reason: null, at: null, dented: false, propStrike: false, propAt: null,
@@ -427,7 +410,7 @@ function makeSim(def, world) {
   // the pieces now: live members (a kink floor pushes only, a SUPPORT limiter only touches: neither holds), clusters still on
   function pieces() {
     for (let i = 0; i < n; i++) ufP[i] = i;
-    for (let bi = 0; bi < nb; bi++) { const b = beams[bi]; if (b.broken || b.supp) continue; const x = ufFind(b.a), y = ufFind(b.b); if (x !== y) ufP[x] = y; }
+    for (let bi = 0; bi < nb; bi++) { const b = beams[bi]; if (b.broken) continue; const x = ufFind(b.a), y = ufFind(b.b); if (x !== y) ufP[x] = y; }
     for (const C of clusters) if (!C.off) { const r0 = ufFind(C.idx[0]); for (const i of C.idx) { const x = ufFind(i); if (x !== r0) ufP[x] = r0; } }
     return ufFind;
   }
@@ -470,7 +453,7 @@ function makeSim(def, world) {
   // ---- DMG-D1a MEMBERS (G1810-G1815): the members' own limits, stamped once here (nothing new per substep) ----
   // THE BUILD'S SEED (G1811, G1814): the scatter of a glue line and of a spruce member is the build's own and never
   // changes between runs: an FNV hash of the nodes as built and the member count, then one per member and purpose
-  let dmgSeed = 0x811c9dc5 ^ def.beams.length;      // (G1822: the build's own members - the limiters seed nothing)
+  let dmgSeed = 0x811c9dc5 ^ nb;
   if (DMG_ON) for (const nd of def.nodes) for (let k = 0; k < 3; k++) { dmgSeed = Math.imul(dmgSeed ^ (Math.round(nd.p[k] * 1e6) | 0), 16777619) >>> 0; }
   const dmgRnd = (bi, salt) => { let h = Math.imul(dmgSeed ^ Math.imul(bi + 1, 0x9e3779b1), 0x85ebca6b) ^ Math.imul(salt, 0xc2b2ae35);
     h = Math.imul(h ^ (h >>> 16), 0x7feb352d); h = Math.imul(h ^ (h >>> 15), 0x846ca68b); return ((h ^ (h >>> 16)) >>> 0) / 4294967296; };
@@ -528,12 +511,34 @@ function makeSim(def, world) {
   // while it is not empty
   const FLR = new Int32Array(nb);
   let nFlr = 0;
+  // G1822 (DMG-D1b, §4.6 / §8.1): THE SUPPORT LIMITERS (61_gen_frame's parts.dmg.supp: the nose engine held off the
+  // firewall, on the cabin's first ring), with the damage layer on. The mirror of a slack wire (G185): compression only,
+  // carrying nothing until its gap closes (L0 the gap short of the length as built, `pre` as a wire's rigging), then
+  // the stiffest member's k (and c) at either end - the cabin ring's, as a rule (the engine bearer's held only part of
+  // it: the metal Cessna's engine CG node, pinned by a trunk at 30 m/s with the whole cabin behind it, ended 0.28 m
+  // past the firewall on the bearer's k, 0.11 m on the ring's); pushing only, its damper never pulls. NOT MEMBERS:
+  // first written as members in the beam loop (`(b.supp && L >= b.L0) ? 0`, the doc's one line), they cost the stock
+  // step 5-7 % with nothing touching (12 more objects of another shape in the hottest loop; the compare itself nothing
+  // measurable). So they are walked in their own pass, as the kink floors, and only in a frame ARMED or after a break:
+  // a gap closes only once the engine's mount has yielded or broken (slack at 1.07-1.51 of their closing length in
+  // the load test to 5.7 g, a flown pull and FAR 23.473's drop - GATE DMGINTEGRITY). They hold nothing (the orphan count,
+  // the component test) and no trunk bends them
+  const SUP = [];
+  if (DMG_ON && def.parts && def.parts.dmg && def.parts.dmg.supp && def.parts.dmg.supp.length) {
+    const kN = new Float64Array(n), cN = new Float64Array(n);
+    for (const b of beams) for (const i of [b.a, b.b]) { if (b.k > kN[i]) kN[i] = b.k; if (b.c > cN[i]) cN[i] = b.c; }
+    for (const S of def.parts.dmg.supp) {
+      const A = def.nodes[S.a].p, B = def.nodes[S.b].p;
+      SUP.push({ a: S.a, b: S.b, k: Math.max(kN[S.a], kN[S.b]), c: Math.max(cN[S.a], cN[S.b]), L0: Math.hypot(B[0] - A[0], B[1] - A[1], B[2] - A[2]) * (1 - S.pre), path: S.path });
+    }
+  }
+  const nSup = SUP.length;
   for (let bi = 0; bi < nb; bi++) { const b = beams[bi]; if (b.cls === 'fus' && def.nodes[b.a].p[0] < -0.05 && def.nodes[b.b].p[0] < -0.05) noseB[bi] = 1; }
   {
     const nodeCl = new Int16Array(n).fill(-1);
     clusters.forEach((C, ci) => { for (const i of C.idx) nodeCl[i] = ci; });
     for (let bi = 0; bi < nb; bi++) {
-      const b = beams[bi]; if (!b.supp) { nodeDeg0[b.a]++; nodeDeg0[b.b]++; }   // (G1822: a limiter holds nothing)
+      const b = beams[bi]; nodeDeg0[b.a]++; nodeDeg0[b.b]++;
       if (nodeCl[b.a] >= 0 && nodeCl[b.a] === nodeCl[b.b]) beamCl[bi] = nodeCl[b.a];
       const R = DMG_ON && b.A > 0 && b.mat ? GEN_CRASH[b.mat] : null;
       b.fy0 = R && R.ty ? R.ty * b.A : Infinity;     // tension yield, N
@@ -806,7 +811,7 @@ function makeSim(def, world) {
     // substeps walk the pairs alone (a trunk under the wingtip is a few beams, not all 389)
     if (_tkN) for (let bi = 0; bi < beams.length && _prN < PR_CAP; bi++) {
       const b = beams[bi], ia = b.a * 3, ib = b.b * 3;
-      if (b.broken || b.supp) continue;              // G1470: a broken member is two loose ends, not a bar (G1822: a limiter is no bar)
+      if (b.broken) continue;                        // G1470: a broken member is two loose ends, not a bar
       const bx0 = Math.min(p[ia], p[ib]) - mg, bx1 = Math.max(p[ia], p[ib]) + mg, bz0 = Math.min(p[ia+2], p[ib+2]) - mg, bz1 = Math.max(p[ia+2], p[ib+2]) + mg;
       const by0 = Math.min(p[ia+1], p[ib+1]) - mg, by1 = Math.max(p[ia+1], p[ib+1]) + mg;
       for (let k = 0; k < _tkN && _prN < PR_CAP; k++) {
@@ -1861,6 +1866,20 @@ function makeSim(def, world) {
       f[b3]-=Fb*dx; f[b3+1]-=Fb*dy; f[b3+2]-=Fb*dz;
     }
   }
+  // G1822: the SUPPORT limiters - push only, below their closing length (walked in a frame armed or after a break)
+  function suppPass() {
+    for (let q = 0; q < nSup; q++) {
+      const S = SUP[q], a3 = S.a*3, b3 = S.b*3;
+      let dx = p[b3]-p[a3], dy = p[b3+1]-p[a3+1], dz = p[b3+2]-p[a3+2];
+      const L = hyp3(dx, dy, dz) || 1e-9;
+      if (L >= S.L0) continue;
+      dx /= L; dy /= L; dz /= L;
+      const Fb = S.k * (L - S.L0) + S.c * ((v[b3]-v[a3])*dx + (v[b3+1]-v[a3+1])*dy + (v[b3+2]-v[a3+2])*dz);
+      if (Fb >= 0) continue;
+      f[a3]+=Fb*dx; f[a3+1]+=Fb*dy; f[a3+2]+=Fb*dz;
+      f[b3]-=Fb*dx; f[b3+1]-=Fb*dy; f[b3+2]-=Fb*dz;
+    }
+  }
   function substep(dt) {
     for (let i = 0; i < n; i++) { f[i*3]=0; f[i*3+1]=G*m[i]; f[i*3+2]=0; }
     aeroPass(false);
@@ -1879,12 +1898,12 @@ function makeSim(def, world) {
       b.strain = (L - b.L0) / b.L0 * b.sK;
       // G185: a WIRE carries tension only — slack, it is not there (no
       // spring, and no damper either: a slack cable damps nothing)
-      // G1822: a SUPPORT limiter the mirror: compression only - open, it is not there
-      const Fb = (b.tens && L <= b.L0) || (b.supp && L >= b.L0) ? 0 : b.k * (L - b.L0) + b.c * vrel;
+      const Fb = (b.tens && L <= b.L0) ? 0 : b.k * (L - b.L0) + b.c * vrel;
       f[a3]+=Fb*dx; f[a3+1]+=Fb*dy; f[a3+2]+=Fb*dz;
       f[b3]-=Fb*dx; f[b3+1]-=Fb*dy; f[b3+2]-=Fb*dz;
     }
     if (nFlr) floorPass();                           // G1813: the kinked members' floors (none: one compare)
+    if (nSup && (armed || DMG.breaks)) suppPass();   // G1822: the SUPPORT limiters (unarmed and whole: one compare)
     // ground: wheels roll, everything else scrapes. Terrain-aware.
     const gH = world ? world.terrainH : null;
     for (let i = 0; i < n; i++) {
@@ -2280,6 +2299,8 @@ function makeSim(def, world) {
            damageBreak: bi => { if (DMG_ON && bi >= 0 && bi < nb) beamBreak(bi, 'gate'); },
            // G1820: the strips as the aero pass flies them (dead, and each one's weights: the build's or a split's)
            damageStrips: () => ({ dead: stripDead, w: SW }),
+           // G1822: the SUPPORT limiters ({ a, b, k, c, L0, path }; closed while their nodes are nearer than L0)
+           damageSupp: () => SUP,
            reset, stance, step, trueBox, probe, stats, impulse, wheelsOnGround, wheelContacts, cgPos, cgVel, axes,
            // G197: the kernel's sources, readable (the gate asserts the weights' normalisation)
            induction: () => ({ WS: WS.slice(), plane: Array.from(PLANE), bHalf: Array.from(bHalf), Ez: Array.from(Ez), Dz: Array.from(Dz), Gam: Array.from(Gam), Wg: Array.from(Wg), zA: WS.map(j => sZA[j]), zB: WS.map(j => sZB[j]), A: WS.map(j => [sA[j*3], sA[j*3+1], sA[j*3+2]]), B: WS.map(j => [sB[j*3], sB[j*3+1], sB[j*3+2]]), d: sD.slice(), cpt: Array.from(cpt), pairs: pairs.length, loading: LOADING }),

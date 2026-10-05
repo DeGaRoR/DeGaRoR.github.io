@@ -11,7 +11,7 @@
 //   2. THE REFS-CORE (G1821): every ref node (noseFrame, tailMid, upLo, upHi) is on the body; with every group broken at
 //      once the refs are one piece holding the body's nodes only - one group-free core; no group alone breaks it up; a
 //      fuselage cut across behind the cabin BREAKS UP (crashed, over at once, 'broke up: ...'); which crash runs did
-//   3. SUPPORT LIMITERS (G1822): only with the damage layer on (off: the build's own members, no more); slack - not one
+//   3. SUPPORT LIMITERS (G1822): only with the damage layer on (and never members: the build's own either way); slack - not one
 //      closes - in the load test to 5.7 g, a flown 3.8 g pull and FAR 23.473's drop; THE PASS-THROUGH they were put in
 //      for - the nose engine through the firewall in a severe ground nose-in (180 km/h, 10 m/s, 60 deg) - present
 //      without them and gone with them (the pass-through probe, _dmg_integrity_lib.js); every number finite. What the
@@ -82,8 +82,9 @@ if (argv[0] === '--build') {
   }
   // ---- 3. SUPPORT ----
   { const off = C.makeSim(L.defOf(k, { elastic: true }), null); off.reset(0);
-    out.supp = { n: B.filter(b => b.supp).length, offN: off.beams.length, nb0, data: (def.parts.dmg.supp || []).length, paths: [...new Set(B.filter(b => b.supp).map(b => b.path))] }; }
-  const slack = s => { let r = Infinity; for (const b of s.beams) if (b.supp) { const p = s.p, Lc = Math.hypot(p[b.b*3]-p[b.a*3], p[b.b*3+1]-p[b.a*3+1], p[b.b*3+2]-p[b.a*3+2]); r = Math.min(r, Lc / b.L0); } return r; };
+    const SP = sim.damageSupp();
+    out.supp = { n: SP.length, offN: off.damageSupp().length, beams: B.length, offBeams: off.beams.length, nb0, data: (def.parts.dmg.supp || []).length, paths: [...new Set(SP.map(b => b.path))] }; }
+  const slack = s => { let r = Infinity; for (const b of s.damageSupp()) { const p = s.p, Lc = Math.hypot(p[b.b*3]-p[b.a*3], p[b.b*3+1]-p[b.a*3+1], p[b.b*3+2]-p[b.a*3+2]); r = Math.min(r, Lc / b.L0); } return r; };
   const watchSlack = () => { let m = Infinity; return { onFrame: s => { m = Math.min(m, slack(s)); }, get m() { return m; } }; };
   if (out.supp.n) {
     const lt = watchSlack(); { const sm = C.makeSim(L.defOf(k), null); sm.reset(0); const spec = def.spec;
@@ -168,7 +169,7 @@ const f2 = x => (x == null || !isFinite(x) ? String(x) : x.toFixed(2));
       'the ' + r.refs.n + ' ref nodes (' + r.refs.tags.join(' ') + ') on the body; every group broken at once: the refs one piece, a core of ' + r.allGroups.coreNodes + ' body nodes and nothing of a group\'s part' + (r.allGroups.coreOther.length ? ' - ' + r.allGroups.coreOther.join(' ') : ''));
     yes(r.cut.brokeUp && r.cut.crashed && r.cut.over && /^broke up/.test(r.cut.reason) && r.cut.span === 0, 'the fuselage cut across behind ring ' + r.cut.ring + ' (' + r.cut.cut + ' members): ' + (r.cut.brokeUp ? 'BROKE UP (' + r.cut.reason + '), the flight over at once' : 'no break-up'));
     console.log('3. SUPPORT limiters (G1822)');
-    yes(r.supp.offN === r.supp.nb0 && r.supp.n === r.supp.data, r.supp.n + ' limiters (' + (r.supp.paths.join(', ') || 'none: no nose engine') + ') with the layer on; off, the build\'s own ' + r.supp.nb0 + ' members and no more');
+    yes(r.supp.offN === 0 && r.supp.n === r.supp.data && r.supp.beams === r.supp.nb0 && r.supp.offBeams === r.supp.nb0, r.supp.n + ' limiters (' + (r.supp.paths.join(', ') || 'none: no nose engine') + ') with the layer on, none off; the build\'s own ' + r.supp.nb0 + ' members either way (the limiters are no members)');
     if (r.supp.n) yes(r.slackLoad.m > 1 && r.slackPull.m > 1 && r.slackDrop.m > 1, 'slack in normal operations (the shortest over its closing length): the load test to 5.7 g ' + f2(r.slackLoad.m) + ' (' + r.slackLoad.verdict + '), a flown pull to ' + f2(r.slackPull.nz) + ' g ' + f2(r.slackPull.m) + ', FAR 23.473\'s drop ' + f2(r.slackDrop.m));
     if (r.supp.n && r.noseBefore) {
       const b = r.noseBefore, a = r.noseAfter, dmax = x => x.eng.reduce((m, e) => Math.max(m, e.d), 0);

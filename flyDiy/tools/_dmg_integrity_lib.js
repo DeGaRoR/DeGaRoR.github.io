@@ -1,6 +1,6 @@
 // G1823 (DMG-D1b WRECK INTEGRITY): what GATE DMGINTEGRITY (_dmg_integrity_check.js) and its evidence
 // (dmg_integrity_evidence.js) share, node only, on _treecrash_lib's validated builds and scenarios:
-//   pieces(sim)       the airframe's pieces now (a union-find over the live members; a SUPPORT limiter holds nothing),
+//   pieces(sim)       the airframe's pieces now (a union-find over the live members; a SUPPORT limiter is no member),
 //                     independent of the solver's own (30_solver.js compEvent) - the gate checks one against the other
 //   spanning(sim)     the live strips whose weights (as the aero pass flies them) sit on two pieces: must be none
 //   oldRule(sim, def) the strips TREE-CRASH's any-break kill would have silenced for the same broken members
@@ -17,7 +17,7 @@ function pieces(sim) {
   const n = sim.n, P = new Int32Array(n);
   for (let i = 0; i < n; i++) P[i] = i;
   const f = i => { while (P[i] !== i) { P[i] = P[P[i]]; i = P[i]; } return i; };
-  for (const b of sim.beams) { if (b.broken || b.supp) continue; const x = f(b.a), y = f(b.b); if (x !== y) P[x] = y; }
+  for (const b of sim.beams) { if (b.broken) continue; const x = f(b.a), y = f(b.b); if (x !== y) P[x] = y; }
   return f;
 }
 function spanning(sim) {
@@ -134,9 +134,10 @@ function draw(sim, def, o) {
     const X = q => x0 + (vi === 2 ? (q[ia] - lo[ia]) : (q[ia] - lo[ia])) * sc, Y = q => yc - sg * (q[ib] - mb) * sc;
     s += `<rect x="${x0.toFixed(1)}" y="22" width="${wv.toFixed(1)}" height="${H - 8}" fill="none" stroke="#ddd"/><text x="${(x0 + 4).toFixed(1)}" y="34" fill="#888">${nm}</text>`;
     s += `<clipPath id="${cid}${vi}"><rect x="${x0.toFixed(1)}" y="22" width="${wv.toFixed(1)}" height="${H - 8}"/></clipPath><g clip-path="url(#${cid}${vi})">`;
-    sim.beams.forEach(b => {
+    const SP = o.supp === false || !sim.damageSupp ? [] : sim.damageSupp();
+    sim.beams.concat(SP.map(S => Object.assign({ supp: true }, S))).forEach(b => {
       const A = Lp[b.a], B = Lp[b.b], ln = `x1="${X(A).toFixed(1)}" y1="${Y(A).toFixed(1)}" x2="${X(B).toFixed(1)}" y2="${Y(B).toFixed(1)}"`;
-      if (b.supp) { if (o.supp === false) return; const Lc = Math.hypot(p[b.b*3]-p[b.a*3], p[b.b*3+1]-p[b.a*3+1], p[b.b*3+2]-p[b.a*3+2]), on = Lc < b.L0;
+      if (b.supp) { const Lc = Math.hypot(p[b.b*3]-p[b.a*3], p[b.b*3+1]-p[b.a*3+1], p[b.b*3+2]-p[b.a*3+2]), on = Lc < b.L0;
         s += `<line ${ln} stroke="${on ? '#1e8449' : '#a9dfbf'}" stroke-width="${on ? 2.2 : 0.8}"${on ? '' : ' stroke-dasharray="3,2"'}/>`; return; }
       const q = P[b.a] === P[b.b] ? P[b.a] : 'joint';
       s += b.broken ? `<line ${ln} stroke="#f5b7b1" stroke-width="0.6" stroke-dasharray="2,2"/>` : `<line ${ln} stroke="${q === 'joint' ? '#e67e22' : col(q)}" stroke-width="1"/>`;
