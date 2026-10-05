@@ -77040,3 +77040,17 @@ certificate (the train-36 state) +0.3..+1.2 %; **ON without a certificate** (a n
 **Rulings this train** (DEFORM-AND-BREAK §12): dm10-dm12 (the user's), dm13 the fitting factor, dm14 headroom, dm15 the
 gear is the fuse, dm16 the 23.473 sink is the gear's limit case. FAR sections for A0 to open: 23.233, 23.345, 23.427,
 23.473-.499, 23.521-.537.
+
+## TRAIN 35 LANDED (2026-10-05, A0 the coordinator) - THE DAMAGE TRAIN
+
+Cargo: the Deform Coordinator's frozen SHA a7ad3fdf (claude/dmg-integration, on train 34 55dd98b7): DMG-D0 (instruments),
+D1a (members: Euler buckling, the plastic kink floor, seams, break groups), D1b (wreck integrity), D3 (clusters), D2a (the
+certificate), D2b's damage-OFF commit (the gear is the fuse; headroom 0.10-0.66 of yield), D4a (the skin breaks) with D4b's
+fixes (G1866-G1867.1), the coordinator's G1898.1-.10 (the water nose-in NaNs, the wet body over a break, the tanks over a
+break, the off path = master's). DAMAGE IS OFF BY DEFAULT (GEN_DAMAGE_DEFAULT false; ?damage=1 shows it). Details in the
+entry "TRAIN 35 - THE DMG TRAIN" above. HELD: the switch ON (the certificate's time per new build, CERTCOST), DMG-DAMP +
+TYRE + HULL + PLOUGH (after PILOT-ONE), D4b's crash-FPS cuts and the end card, D4c.
+PERF (the coordinator's quiet A/B, damage OFF vs train 34, 20 rotated rounds): +0.2..+0.8 % of the node step (noise ~0.5 %).
+STRICT GATE (full): 95 in slack, 50 better, 12 RED = the 30 cap's rows + the known hybrid-band rows; chase / cockpit loop
+15.25 / 15.35 / 16.2 ms (train 34's gate: 16.2 / 16.15 / 16.35) - no damage cost. BATTERY: the full battery PASS but AUDIO,
+which passed alone (145 s; its wall-clock read under the 6-job battery and D4b's untimed page boot). Parked re-cooked.
