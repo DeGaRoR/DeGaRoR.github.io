@@ -145,6 +145,10 @@ async function pageStage(o) {
   const step = window.__d4bStep;
   sim.step = () => {};
   window.FLYDIY_WRECK = true; window.FLYDIY_SKINBREAK = true;
+  // THE WIND OFF while staged (the solver reads world.wind every step, a gust field at sim.t: the same staging at another t
+  // was another crash - 2.43 vs 3.11 kJ on the metal Cessna's taxi); back at the run's end (pageRunOn)
+  if (!('__d4bWind' in window)) window.__d4bWind = world.wind;
+  world.wind = null;
   const strip = world.aerodromes.find(a => a.id === 'HOME') || world.aerodromes[0];
   sim.reset(0); placeAtAerodrome(sim, strip);
   const n = sim.n, p = sim.p, v = sim.v, fx = Math.cos(strip.hdg), fz = Math.sin(strip.hdg);
@@ -201,6 +205,7 @@ async function pageRunOn(o) {
     const W = window.FLYDIY_WRECK_STATS(), D = sim.damage();
     if ((D.over || (!D.crashed && s > 400)) && W.bodies.every(b => b.asleep)) { if (++settled > 40) break; }
   }
+  if ('__d4bWind' in window) { P.world().wind = window.__d4bWind; delete window.__d4bWind; }
   const D = sim.damage(), q = ms.slice().sort((a, b) => a - b);
   return { steps: s, crashed: D.crashed, over: !!D.over, reason: D.reason, broken: D.broken.length, brokeUp: !!D.brokeUp,
     frameMed: +q[q.length >> 1].toFixed(1), frameP95: +q[Math.floor(q.length * 0.95)].toFixed(1), frameMax: +q[q.length - 1].toFixed(1), trace: o.trace ? trace : undefined,

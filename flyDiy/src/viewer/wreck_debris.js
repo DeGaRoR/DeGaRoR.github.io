@@ -323,6 +323,39 @@
   // blade bends less (x WET_K), a wooden one breaks only past E_BREAK (a slow one in the water just stops)
   const WET_K = 0.4, CUT0 = 0.25, CUT1 = 0.2;
   const isMetal = m => /alu|steel|metal|titan/i.test(m || '');
+  // G1861.5 (the coordinator: "one physics, one picture"): DMG-DRIVE's VERDICT DRAWN. When the solver grades the strike
+  // (33_drive.js: sim.damage().drive[k] - strike null / 'brush' / 'bent' / 'stoppage' / 'separation', strikeAt { t, what,
+  // surf, bite, biteR, tip, rpm }, bladeLost), the prop draws that grade instead of deciding its own (strike() below
+  // stays for a solver without DRIVE):
+  //   brush       the tips scuffed: a slight curl (CURL_B), nothing lost;
+  //   bent        curled back, by the bite: k = (biteR - brush) / (the surface's stop - brush), CURL0 + CURL1 k a blade;
+  //   stoppage    the prop stopped by the impact (its engine seized): a metal blade fully curled, a wooden one whole -
+  //               its tips splintered (cut at 85-95 % of R) only where the tip reached the separation speed (DRIVE's);
+  //   separation  ONE blade short by bladeLost (its piece a body), the rest as a stoppage.
+  // The spinner's dent only at a stoppage or a separation. Seeded by the strike's own time: the same strike, the same
+  // picture. `cut` 1 = the blade whole.
+  const CURL_B = 0.06, DRV_BRUSH = 0.04, DRV_STOP = { soft: 0.15, water: 0.25, rigid: 0.04 }, DRV_SEP = { wood: 120, maple: 120, walnut: 120, carbon: 120, alu: 200 };
+  const DRV_RANK = { brush: 1, bent: 2, stoppage: 3, separation: 4 };
+  function fromDrive(dv, info) {
+    const st = dv && dv.strike; if (!DRV_RANK[st]) return null;
+    const at = dv.strikeAt || {}, nb = Math.max(1, info.nb | 0), metal = isMetal(info.material);
+    const G0 = typeof GEN_DRIVE !== 'undefined' && GEN_DRIVE.strike ? GEN_DRIVE.strike : null;
+    const stopR = ((G0 && G0.stop) || DRV_STOP)[at.surf || 'soft'] || DRV_STOP.soft, brushR = (G0 && G0.brush) || DRV_BRUSH;
+    const sepTip = ((G0 && G0.sep) || DRV_SEP)[info.material] || (metal ? DRV_SEP.alu : DRV_SEP.wood);
+    const k = st === 'bent' ? Math.max(0, Math.min(1, ((at.biteR || 0) - brushR) / Math.max(1e-3, stopR - brushR))) : st === 'brush' ? 0 : 1;
+    const r = rng(hash(Math.round((at.t || 0) * 1000), info.eng | 0, nb, DRV_RANK[st]));
+    const hard = st === 'stoppage' || st === 'separation', splinter = !metal && hard && (at.tip || 0) >= sepTip;
+    const lostB = st === 'separation' ? Math.floor(r() * nb) % nb : -1;
+    const curl = [], cut = [];
+    for (let b = 0; b < nb; b++) {
+      const j = 0.8 + 0.4 * r();
+      curl.push(st === 'brush' ? CURL_B * j : st === 'bent' ? (CURL0 + CURL1 * k) * j : metal ? (CURL0 + CURL1) * j : 0);
+      cut.push(b === lostB ? Math.max(0.05, 1 - (dv.bladeLost || 0.35)) : splinter ? 0.85 + 0.1 * r() : 1);
+    }
+    const breaks = cut.some(c => c < 1);
+    return { drive: st, k, material: info.material || null, metal, wet: at.surf === 'water', breaks, lost: lostB, cut, curl,
+             dent: hard ? DENT0 + DENT1 * k : 0, dentAz: r() * 2 * Math.PI, what: at.what || info.what, bite: at.bite, biteR: at.biteR, tip: at.tip, rpm: at.rpm };
+  }
   function strike(info) {
     const R = info.D / 2, nb = Math.max(1, info.nb | 0), mB = 3.0 * Math.pow(info.D / 1.88, 2.5);   // ~3 kg a wooden blade of 1.88 m (genPropSynth's scale)
     const om = Math.max(0, info.rpm || 0) * 2 * Math.PI / 60, I = nb * mB * R * R / 3;
@@ -479,7 +512,7 @@
   }
 
   const API = { G, DT, CRUSH, TORN, KICK, SPIN, MU, BOUNCE, REST_V, REST_W, REST_T, LIFE, E_BEND, E_BREAK, CURL0, CURL1, CURL_S0, DENT0, DENT1, EYE_CLEAR, EYE_VOL,
-    WET_K, CUT0, CUT1, TWIST, isMetal,
+    WET_K, CUT0, CUT1, TWIST, isMetal, CURL_B, DRV_RANK, fromDrive,
     rng, hash, carry, plan, watcher, watch, leaves, fit, release, step, rotOf, clearance, heal, strike, azOf, bladeFrame, bladeOf, curlBlades, dentSpinner,
     bays, depth, vol, cabin, crushed };
   if (typeof module !== 'undefined' && module.exports) module.exports = API;

@@ -4149,6 +4149,8 @@
     let seized = false; const E = sim.eng;
     if (E) for (let k = 0; k < E.length; k++) if (E[k] && E[k].seized) { seized = true; break; }
     const D = dmgNow();
+    // (G1861.5: a strike DRIVE graded - a brush or a bend - marks the prop without a seizure or a break)
+    if (!seized) { const DV = wreckDrive(); if (DV) for (const x of DV) if (x && x.strike) { seized = true; break; } }
     if (!seized && !(D && (D.br.length || D.sS !== '0:0'))) { if (WK.model) wreckHeal(); return null; }
     return D || { v: 0, vB: 0, br: [], broken: null, pc: null, set: null, sS: '0:0' };
   }
@@ -4261,7 +4263,7 @@
     WK.model = model; WK.W = WD.watcher(); WK.T = (model.brk && model.brk.def === def) ? model.brk.T : SKIN_BREAK.topo(def.beams, N.length);
     WK.rest = new Float64Array(N.length * 3); N.forEach((nd, i) => { WK.rest[i*3] = nd.p[0]; WK.rest[i*3+1] = nd.p[1]; WK.rest[i*3+2] = nd.p[2]; });
     WK.rigs = { engRigs: model.engRigs, props: model.props, wheelParts: model.wheelParts, stretchRigs: model.stretchRigs, castorRig: model.castorRig };
-    WK.seen = (sim.eng || []).map(() => false); WK.strikes = []; WK.eyeCut = null; WK.eye = null; WK.eyeT = -1;
+    WK.seen = (sim.eng || []).map(() => 0); WK.posOf = null; WK.bladeGone = null; WK.strikes = []; WK.eyeCut = null; WK.eye = null; WK.eyeT = -1;
     WK.env = { ground: (x, z) => world.terrainH(x, z),
                water: typeof world.waterH === 'function' ? (x, z) => { const h = world.waterH(x, z, sim.t); return Number.isFinite(h) && h > world.terrainH(x, z) ? h : null; } : null };
     const cen = ids => { const c = [0, 0, 0]; for (const i of ids) for (let j = 0; j < 3; j++) c[j] += N[i].p[j] / ids.length; return c; };
@@ -4411,11 +4413,17 @@
   }
   // THE PROP STRIKE, drawn: each newly seized engine's prop - its blades curled, one broken off (a body) or none, its
   // spinner dented - from the rate it turned at (the prop loop's seizeRate) and the hub's speed
+  // G1861.5: DMG-DRIVE's per-engine state (sim.damage().drive inline; the worker's meta.drv once its link carries it -
+  // sim.drv), or null on a solver without DRIVE
+  function wreckDrive() { const D2 = sim && sim.damage ? sim.damage() : null; return (D2 && D2.drive) || (sim && sim.drv) || null; }
   function wreckStrikes(vel) {
-    const WD = window.WRECK_DEBRIS, E = sim.eng || [];
+    const WD = window.WRECK_DEBRIS, E = sim.eng || [], DV = wreckDrive();
     for (let k = 0; k < E.length; k++) {
-      if (!E[k] || !E[k].seized || WK.seen[k]) continue;
-      WK.seen[k] = true;
+      // the grade to draw: DRIVE's (G1861.5), else TREE-CRASH's seizure (G1861's own strike); drawn again only when it rises
+      const dv = DV && DV[k] && WD.DRV_RANK[DV[k].strike] ? DV[k] : null;
+      const rank = dv ? WD.DRV_RANK[dv.strike] : (E[k] && E[k].seized ? 3 : 0);
+      if (!rank || rank <= (WK.seen[k] || 0)) continue;
+      WK.seen[k] = rank;
       const prop = (WK.rigs.props || []).find(p => p.userData && (p.userData.engIdx || 0) === k && p.userData.spinAxis);
       const rig = prop && (WK.rigs.engRigs || []).find(e => e.obj === prop);
       if (!prop || !rig || model.props.indexOf(prop) < 0) continue;   // (its engine already gone as a body: it went whole)
@@ -4423,47 +4431,51 @@
       const n = Math.max(1, rig.idxs.length), D = sim.damage ? sim.damage() : null;
       const B0 = model.wreckBuild, ms = wreckMeshesOf(prop), spin = m => { const kk = B0.keyOf.get(m); return kk && model.mats[kk] ? model.mats[kk].spin || 0 : 0; };
       const blades = ms.filter(m => spin(m) !== 2), cones = ms.filter(m => spin(m) === 2);
+      // each part's vertices as built (kept at its first draw: a higher grade is drawn again from them, not over the last)
+      const baseOf = pa => { const P0 = WK.posOf || (WK.posOf = new Map()); let b = P0.get(pa); if (!b) { b = Float32Array.from(pa.array); P0.set(pa, b); WK.pos.push({ pa, base: b }); } return b; };
       // the prop's own frame, the TRUE frame (the stored vertices are B^-1-mapped - model.poseK - and the shaft axis is true)
       const K = model.poseK, ax = prop.userData.spinAxis;
       const toT = a => { const o = new Float64Array(a.length); for (let i = 0; i < a.length; i += 3) { const x = a[i], y = a[i+1]; o[i] = K ? K[0]*x + K[1]*y : x; o[i+1] = K ? K[2]*x + K[3]*y : y; o[i+2] = a[i+2]; } return o; };
       const fromT = a => { if (!K) return a; const det = K[0]*K[3] - K[1]*K[2]; for (let i = 0; i < a.length; i += 3) { const x = a[i], y = a[i+1]; a[i] = (K[3]*x - K[1]*y) / det; a[i+1] = (-K[2]*x + K[0]*y) / det; } return a; };
-      const tb = blades.map(m => toT(m.geometry.attributes.position.array));
+      const tb = blades.map(m => toT(baseOf(m.geometry.attributes.position)));
       const cat = new Float64Array(tb.reduce((s2, a) => s2 + a.length, 0)); { let o2 = 0; for (const a of tb) { cat.set(a, o2); o2 += a.length; } }
       const BF = WD.bladeFrame(cat, cat.length / 3, ax);
       if (!BF) continue;
-      const rpm = (prop.userData.seizeRate || 0) * 60 / (2 * Math.PI);
+      const rpm = dv && dv.strikeAt && dv.strikeAt.rpm != null ? dv.strikeAt.rpm : (prop.userData.seizeRate || 0) * 60 / (2 * Math.PI);
       // (G1861.2: the build's material; a strike in the water - the hub over water deeper than the ground)
       let hx = 0, hy = 0, hz = 0; for (const i of rig.idxs) { hx += sim.p[i*3] / n; hy += sim.p[i*3+1] / n; hz += sim.p[i*3+2] / n; }
       const wh = WK.env.water ? WK.env.water(hx, hz) : null, wet = wh != null && hy < wh + 1.5;
       const material = (def.spec && def.spec.prop && def.spec.prop.material) || 'wood';
       const sense = ((def.params && def.params.engines || [])[k] || {}).sense || 1;
-      const S = WD.strike({ rpm, V: Math.hypot(vx, vy, vz) / n, M: sim.totalM || 0, D: 2 * BF.R, nb: BF.nb, what: wet ? 'water' : (D && D.propAt ? D.propAt.what : 'ground'), eng: k, material, wet });
-      WK.strikes.push({ eng: k, what: S.what, material, metal: S.metal, rpm: Math.round(rpm), V: +(Math.hypot(vx, vy, vz) / n).toFixed(2), E: Math.round(S.E), breaks: S.breaks,
-                        cut: S.cut.map(c => +c.toFixed(2)), curl: S.curl.map(c => +c.toFixed(2)), dent: +S.dent.toFixed(3), nb: BF.nb, R: +BF.R.toFixed(3) });
+      const info = { rpm, V: Math.hypot(vx, vy, vz) / n, M: sim.totalM || 0, D: 2 * BF.R, nb: BF.nb, what: wet ? 'water' : (D && D.propAt ? D.propAt.what : 'ground'), eng: k, material, wet };
+      const S0 = WD.strike(info), S = dv ? WD.fromDrive(dv, info) : S0;
+      WK.strikes.push({ eng: k, drive: dv ? dv.strike : null, what: S.what, material, metal: S.metal, rpm: Math.round(rpm), V: +info.V.toFixed(2), E: Math.round(S0.E), breaks: S.breaks,
+                        cut: S.cut.map(c => +c.toFixed(2)), curl: S.curl.map(c => +c.toFixed(2)), dent: +S.dent.toFixed(3), nb: BF.nb, R: +BF.R.toFixed(3),
+                        ...(dv && dv.strikeAt ? { biteR: dv.strikeAt.biteR, surf: dv.strikeAt.surf, tip: dv.strikeAt.tip, bladeLost: dv.bladeLost } : {}) });
       // the spinner's radius (its farthest vertex from the shaft): the curl never reaches into the hub
       let hubR = 0.04;
-      for (const m of cones) { const p = toT(m.geometry.attributes.position.array); for (let i = 0; i < p.length; i += 3) { const a = WD.azOf(p[i], p[i+1], p[i+2], ax, BF.u0); if (a.r > hubR) hubR = a.r; } }
-      const lostT = new Map();
+      for (const m of cones) { const p = toT(baseOf(m.geometry.attributes.position)); for (let i = 0; i < p.length; i += 3) { const a = WD.azOf(p[i], p[i+1], p[i+2], ax, BF.u0); if (a.r > hubR) hubR = a.r; } }
+      const lostT = new Map(), gone = WK.bladeGone || (WK.bladeGone = new Set());
       blades.forEach((m, bi) => {
-        const pa = m.geometry.attributes.position, base = Float32Array.from(pa.array), t = tb[bi], out = new Float64Array(base.length);
-        WK.pos.push({ pa, base });
+        const pa = m.geometry.attributes.position, base = baseOf(pa), t = tb[bi], out = new Float64Array(base.length);
         WD.curlBlades(t, out, base.length / 3, ax, BF, S.curl, hubR, sense);
         pa.array.set(fromT(out)); pa.needsUpdate = true;
         if (S.breaks) {
-          // (G1861.2: each blade's piece past its cut - by the triangle's centroid, so the break is one clean line)
+          // (G1861.2: each blade's piece past its cut - by the triangle's centroid, so the break is one clean line; a blade
+          // already broken off at a lower grade is not broken again)
           const ix = m.geometry.index.array, nt = (m.geometry.index.count / 3) | 0;
           for (let q = 0; q < nt; q++) {
             let cx2 = 0, cy2 = 0, cz2 = 0; for (let e = 0; e < 3; e++) { const v = ix[q*3+e]; cx2 += t[v*3] / 3; cy2 += t[v*3+1] / 3; cz2 += t[v*3+2] / 3; }
             const a = WD.azOf(cx2, cy2, cz2, ax, BF.u0), b2 = WD.bladeOf(a.az, BF.nb);
-            if (a.r <= Math.max(hubR, S.cut[b2] * BF.R)) continue;
+            if (S.cut[b2] >= 1 || gone.has(k + ':' + b2) || a.r <= Math.max(hubR, S.cut[b2] * BF.R)) continue;
             let per = lostT.get(b2); if (!per) lostT.set(b2, per = new Map());
             let L2 = per.get(m); if (!L2) per.set(m, L2 = []); L2.push(q);
           }
         }
       });
-      for (const m of cones) {
-        const pa = m.geometry.attributes.position, base = Float32Array.from(pa.array), out = new Float64Array(base.length);
-        WK.pos.push({ pa, base });
+      for (const b2 of lostT.keys()) gone.add(k + ':' + b2);
+      if (S.dent > 0) for (const m of cones) {
+        const pa = m.geometry.attributes.position, base = baseOf(pa), out = new Float64Array(base.length);
         WD.dentSpinner(toT(base), out, base.length / 3, ax, BF, S.dent, S.dentAz);
         pa.array.set(fromT(out)); pa.needsUpdate = true;
       }
@@ -4510,6 +4522,7 @@
     if (mdl) for (const p of mdl.props || []) if (p.userData) p.userData.seizeRate = null;
     if (WK.autoOf) { for (const o of WK.autoOf) { o.matrixAutoUpdate = true; o.updateMatrix(); } WK.autoOf = null; }
     WK.g0 = null; WK.ride = null;
+    WK.posOf = null; WK.bladeGone = null;
     WK.hid = []; WK.idx = []; WK.pos = []; WK.model = null; WK.P = null; WK.W = null; WK.t = null; WK.rigs = null; WK.cab = null;
   }
   // G1002 (A6-GROUND, the playtest's "floaty" taxi): THE CONTACT SHADOWS. One instanced draw of soft dark blobs on

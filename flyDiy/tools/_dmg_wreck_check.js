@@ -124,25 +124,29 @@ function runCase(k, c, damage, opt) {
   const eye = [0, 0, 0]; for (const i of eyeBay.n) for (let j = 0; j < 3; j++) eye[j] += rest[i*3+j] / 8;
   let hTop = 0, hBot = 0; for (const i of eyeBay.n.slice(2, 4)) hTop += rest[i*3+1] / 2; for (const i of eyeBay.n.slice(0, 2)) hBot += rest[i*3+1] / 2; eye[1] += 0.2 * (hTop - hBot);
   const CAB = WD.cabin(def, eye);
-  const rel = [], strikes = [], prevRpm = [], seized = sim.eng.map(e => !!e.seized);
+  const rel = [], strikes = [], prevRpm = [], seized = sim.eng.map(e => e.seized ? 3 : 0);
   let payloads = 0;
   const stepEvery = Math.round(60 / (opt.fps || 60));
   let accDt = 0;
   const onFrame = (f) => {
     const PL = SH.simDmgHop(sim, hop, core, 0);
     if (PL) { SV.simViewDmgApply(st, PL); payloads++; }
-    // the strikes (a seized engine, once): its rpm the frame before, the hub's speed, the aeroplane's mass
+    // the strikes (a seized engine, once; or DMG-DRIVE's grade as it rises - G1861.5, the page's rule): its rpm the frame
+    // before, the hub's speed, the aeroplane's mass
+    const DV = (sim.damage() || {}).drive || null;
     sim.eng.forEach((e, ki) => {
-      if (e.seized && !seized[ki]) {
-        seized[ki] = true;
+      const dv = DV && DV[ki] && WD.DRV_RANK[DV[ki].strike] ? DV[ki] : null, rank = dv ? WD.DRV_RANK[dv.strike] : (e.seized ? 3 : 0);
+      if (rank > (seized[ki] || 0)) {
+        seized[ki] = rank;
         const E = def.refs.engine.filter((i, j) => ((def.refs.engineOf || [])[j] | 0) === ki);
         let vx = 0, vy = 0, vz = 0; for (const i of E) { vx += sim.v[i*3]; vy += sim.v[i*3+1]; vz += sim.v[i*3+2]; }
         const D = sim.damage(), wet = c.kind === 'water';
         const info = { rpm: prevRpm[ki] || 0, V: Math.hypot(vx, vy, vz) / Math.max(1, E.length), M: sim.totalM, D: CD.D, nb: 2, what: wet ? 'water' : (D.propAt ? D.propAt.what : 'ground'), eng: ki, t: sim.t,
           material: (def.spec && def.spec.prop && def.spec.prop.material) || 'wood', wet };
-        const S = WD.strike(info), S2 = WD.strike(info);
-        const s = { t: sim.t, eng: ki, info, E: S.E, Espin: S.Espin, Ehit: S.Ehit, metal: S.metal, breaks: S.breaks, cut: S.cut, curl: S.curl, dent: S.dent, same: JSON.stringify(S) === JSON.stringify(S2) };
+        const S0 = WD.strike(info), S = dv ? WD.fromDrive(dv, info) : S0, S2 = dv ? WD.fromDrive(dv, info) : WD.strike(info);
+        const s = { t: sim.t, eng: ki, info, drive: dv ? dv.strike : null, E: S0.E, Espin: S0.Espin, Ehit: S0.Ehit, metal: S.metal, breaks: S.breaks, cut: S.cut, curl: S.curl, dent: S.dent, same: JSON.stringify(S) === JSON.stringify(S2) };
         if (S.breaks) for (let b = 0; b < 2; b++) {
+          if (!(S.cut[b] < 1) && dv) continue;                // (DRIVE's grade: only the blades it breaks)
           if (accDt) { WD.step(W, accDt, IN.env); accDt = 0; }
           // the lost blade: a body off the engine's nodes, at half the radius out along the strike's seeded direction
           const at = [0, 0, 0]; for (const i of E) for (let j = 0; j < 3; j++) at[j] += rest[i*3+j] / E.length;
@@ -286,7 +290,8 @@ const f2 = x => (x == null || !Number.isFinite(x)) ? String(x) : x.toFixed(2);
       }
       for (const s of S.strikes) yes(s.same, 'the strike is seeded: the same strike, the same answer (engine ' + s.eng + ')');
       // G1861.2: the build's prop material decides - wood (and carbon) snaps, aluminium bends
-      for (const s of S.strikes) yes(s.metal ? (!s.breaks && s.curl.every(x => x > 0)) : (s.breaks || s.info.wet), 'the ' + s.info.material + ' prop ' + (s.metal ? 'bends, none breaks' : s.breaks ? 'snaps on every blade' : 'stops whole in the water') + ' (' + c.id + ')');
+      for (const s of S.strikes) if (!s.drive) yes(s.metal ? (!s.breaks && s.curl.every(x => x > 0)) : (s.breaks || s.info.wet), 'the ' + s.info.material + ' prop ' + (s.metal ? 'bends, none breaks' : s.breaks ? 'snaps on every blade' : 'stops whole in the water') + ' (' + c.id + ')');
+        else console.log('    DMG-DRIVE graded the strike "' + s.drive + '" (engine ' + s.eng + '): curl ' + s.curl.map(f2).join(' / ') + ', cut ' + s.cut.map(f2).join(' / '));
       if (c.id === 'taxi') yes(S.strikes.length > 0, 'the 3 m/s taxi into a trunk strikes the prop');
       // G1860.1: dented sheet stays on its fasteners - a cowl panel or a spinner leaves crushed only past TORN
       yes(S.rel.every(x => !((x.kind === 'cowl' || x.kind === 'spinner') && x.why === 'crushed') || x.crush > WD.TORN), 'a cowl / spinner leaves only loose, off or torn past ' + (WD.TORN * 100) + ' cm (' + c.id + ')');
@@ -307,6 +312,23 @@ const f2 = x => (x == null || !Number.isFinite(x)) ? String(x) : x.toFixed(2);
     yes(U.Sw.breaks && U.Sw.cut.every(c => c >= WD.CUT0 && c <= WD.CUT0 + WD.CUT1) && U.Sw.curl.every(c => c === 0), 'a wooden prop snaps on every blade at 25-45 % of its radius (' + U.Sw.cut.map(c => Math.round(c * 100)).join(' / ') + ' %)');
     yes(!U.Sm.breaks && U.Sm.curl.every(c => c > 0), 'an aluminium prop bends, none breaks (' + U.Sm.curl.map(f2).join(' / ') + ' rad)');
     yes(!U.Sww.breaks && !U.Smw.breaks && U.Smw.curl.every(c => c > 0) && Math.max(...U.Smw.curl) < WD.WET_K * (WD.CURL0 + WD.CURL1) * 1.2 + 1e-9, 'in the water a slow wooden prop stops whole, an aluminium one bends less (' + U.Smw.curl.map(f2).join(' / ') + ' rad)');
+  }
+  // G1861.5: DMG-DRIVE's grade drawn (WD.fromDrive) - each tier as the shared fields say, seeded by the strike
+  {
+    const at = (surf, biteR, tip) => ({ t: 3.25, what: 'trunk', surf, bite: biteR, biteR, tip, rpm: 2100 });
+    const F = (st, mat, a, lost) => WD.fromDrive({ strike: st, strikeAt: a, bladeLost: lost || 0 }, { nb: 2, material: mat, eng: 0 });
+    const br = F('brush', 'wood', at('soft', 0.03, 80)), bA = F('bent', 'alu', at('soft', 0.06, 80)), bB = F('bent', 'alu', at('soft', 0.14, 80));
+    const sW = F('stoppage', 'wood', at('rigid', 0.3, 90)), sWs = F('stoppage', 'wood', at('rigid', 0.3, 150)), sM = F('stoppage', 'alu', at('rigid', 0.3, 150));
+    const pM = F('separation', 'alu', at('rigid', 0.3, 230), 0.35), pW = F('separation', 'wood', at('rigid', 0.3, 100), 0.35);
+    console.log('DMG-DRIVE\'s grade drawn (G1861.5):');
+    yes(WD.fromDrive({ strike: null }, { nb: 2 }) === null, 'no strike graded: nothing drawn from DRIVE');
+    yes(!br.breaks && br.curl.every(c => c > 0 && c < 0.1) && br.dent === 0, 'brush: the tips scuffed (' + br.curl.map(f2).join(' / ') + ' rad), nothing lost, the spinner whole');
+    yes(!bA.breaks && !bB.breaks && Math.max(...bA.curl) < Math.min(...bB.curl) * 1.5 && bA.k < bB.k && bA.dent === 0, 'bent: curled back by the bite (biteR 0.06 -> k ' + f2(bA.k) + ', 0.14 -> k ' + f2(bB.k) + ')');
+    yes(!sW.breaks && sW.curl.every(c => c === 0) && sWs.breaks && sWs.cut.every(c => c >= 0.85 && c < 1) && sM.curl.every(c => c > WD.CURL0) && !sM.breaks && sM.dent > 0,
+      'stoppage: a wooden prop stops whole below the separation tip speed, its tips splinter above it (' + sWs.cut.map(c => Math.round(c * 100)).join(' / ') + ' %); an aluminium one fully curled; the spinner dented');
+    yes(pM.cut.filter(c => c < 1).length === 1 && Math.abs(Math.min(...pM.cut) - 0.65) < 1e-9 && pW.cut.filter(c => c < 1).length === 1, 'separation: ONE blade short by bladeLost (cut at ' + Math.round(Math.min(...pM.cut) * 100) + ' % of R), its piece a body');
+    const again = F('separation', 'alu', at('rigid', 0.3, 230), 0.35);
+    yes(JSON.stringify(again) === JSON.stringify(pM), 'seeded by the strike: the same grade at the same moment, the same picture');
   }
   // app.js: the wreck path behind the damage state
   {
