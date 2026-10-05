@@ -2117,10 +2117,10 @@ function compose(rec0, world, opts) {
     // One index cell per 64 m; O(1) a point. The pavement's own laws (the band, the fade) live here
     // and in pavement.js's recipe; GATE PAVEMENT holds the band table equal.
     coverAt: (x, z, pave) => coverAt(x, z, pave),
-    // pavedAt(x, z) -> null | { d, cls, halfW, kind }: the pavement whose surface the point lies deepest
+    // pavedAt(x, z, reach) -> null | { d, cls, halfW, kind, dPre }: the pavement whose surface the point lies deepest
     // inside (d = metres in from its edge, > 0). The viewer sinks its ground patch under the pavement's
     // opaque interior by it (G660, PAVEMENT.sinkAt); the same index as coverAt, the same dEdge
-    pavedAt: (x, z) => pavedAt(x, z),
+    pavedAt: (x, z, reach) => pavedAt(x, z, reach),
     // pavedNear(x, z, margin, skip) -> null | { d, id, kind, cls }: any pavement here or within `margin`, other than
     // `skip` - what a loose thing (a stone, litter, a parked car) asks before it is put down (G1003)
     pavedNear: (x, z, margin, skip) => pavedNear(x, z, margin, skip),
@@ -2279,13 +2279,59 @@ function compose(rec0, world, opts) {
     return { kill, boost: Math.min(1, boost * (1 - kill)), kind, cls, grass };
   }
 
-  function pavedAt(x, z) {
-    const L = F.toLocal(x, z), lx = L[0], lz = L[1];
+  // G1542 (GROUND-LATTICE): A ROAD'S RIBBON ENDS SQUARE (pavement.js roadGeometry: s from 0 to the length, the rows
+  // across at each), while its dEdge is w/2 less the distance to the polyline - a round cap past each end. The patch
+  // sinks by pavedAt (render_premises sinkOf, up to 0.8 m), so past every dead end a half disc of the patch was sunk
+  // under NOTHING: a pit as wide as the road. tools/ground_drawn.js found it under mn_strip's stand, at the start of
+  // mn_stand_lane: the drawn ground 0.23-0.59 m under the wheels of a Cub, a Jodel and a Cessna parked there. So for
+  // the patch a road's DEAD end is an EDGE too: past it nothing is paved, and the DEEP sink (0.8 m) is held PAVE_END_IN
+  // (the patch's 2 m cell) inside it, so no deeply sunk vertex lies within a cell of the end and no triangle carries that
+  // sink past it. The last 2 m take the edge's own 7 cm (`dPre`: the depth sinkAt's pre-sink reads, G1001's law), so the
+  // road still stands over the patch there by what it does at every edge. A closed road has no end. (pavedNear /
+  // coverAt keep the round cap: the stones, the trees, the life.)
+  // Only a DEAD end: an end that opens onto another pavement (a junction, a stand lane onto an apron) is covered by it,
+  // and keeps the round cap there (the other pavement draws over it; GATE CONTACT's ratchet counted 33 more points of
+  // a road's band within 5 mm of the patch when every end was held back).
+  const PAVE_END_IN = 2;
+  function roadDeadEnds(it) {                     // [start, end]: true where nothing else is paved at the end (cached)
+    if (it.deadEnds) return it.deadEnds;
+    const pts = it.road.pts, dead = p => { const cell = CIDX.query(p[0], p[1]); if (cell) for (const o2 of cell) if (o2 !== it && dEdgeOf(o2, p[0], p[1]) > -0.5) return false; return true; };
+    return (it.deadEnds = [dead(pts[0]), dead(pts[pts.length - 1])]);
+  }
+  function roadEndIn(it, x, z) {                  // metres inside the nearer DEAD end, along the road (Infinity: not near one)
+    const pts = it.road && it.road.pts, n = pts ? pts.length : 0;
+    if (n < 2 || (pts[0][0] === pts[n - 1][0] && pts[0][1] === pts[n - 1][1])) return Infinity;
+    const DE = roadDeadEnds(it);
+    if (!DE[0] && !DE[1]) return Infinity;
+    let best = Infinity, bi = 1, bt = 0;
+    for (let i = 1; i < n; i++) {
+      const a = pts[i - 1], b = pts[i], dx = b[0] - a[0], dz = b[1] - a[1], l2 = dx * dx + dz * dz;
+      const t = l2 > 1e-12 ? ((x - a[0]) * dx + (z - a[1]) * dz) / l2 : 0, tc = Math.max(0, Math.min(1, t));
+      const d = HYP2(x - (a[0] + dx * tc), z - (a[1] + dz * tc));
+      if (d < best) { best = d; bi = i; bt = t; }
+    }
+    const len = i => HYP2(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]);
+    let e = Infinity;
+    if (bi === 1 && DE[0]) e = bt * len(1);
+    if (bi === n - 1 && DE[1]) e = Math.min(e, (1 - bt) * len(n - 1));
+    return e;
+  }
+  // `reach` (G1541, m, default 0): also a pavement whose edge lies within `reach` OUTSIDE the point (d > -reach) - the
+  // patch keeps its 2 cm under a pavement's side, the translucent fade drawn over the ground past the edge
+  function pavedAt(x, z, reach) {
+    const L = F.toLocal(x, z), lx = L[0], lz = L[1], r0 = reach > 0 ? -reach : 0;
     const cell = CIDX.query(lx, lz);
     let best = null;
     if (cell) for (const it of cell) {
-      const d = dEdgeOf(it, lx, lz);
-      if (d > 0 && (!best || d > best.d)) best = { d, cls: it.cls, halfW: it.halfW || 1e3, kind: it.kind };
+      let d = dEdgeOf(it, lx, lz), dPre = d;
+      if (it.kind === 'road' && d > r0) {           // past the square end nothing is drawn, not even a side
+        const e = roadEndIn(it, lx, lz);
+        if (e < 0) continue;
+        dPre = Math.min(d, e); d = Math.min(d, e - PAVE_END_IN);
+      }
+      if (dPre <= r0) continue;
+      if (!best || d > best.d) best = { d, cls: it.cls, halfW: it.halfW || 1e3, kind: it.kind, dPre: Math.max(dPre, best ? best.dPre : -Infinity) };
+      else if (dPre > best.dPre) best.dPre = dPre;   // (the deepest pavement for the deep sink; the deepest paved extent for the rest)
     }
     return best;
   }

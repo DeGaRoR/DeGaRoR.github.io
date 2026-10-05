@@ -1,0 +1,8124 @@
+{
+ "world": "jolene (media/world/jolene + tools/fixtures/island_jolene.json), the real world module; the animals: the record's hotspots run by src/viewer/animal_run.js on three + the shipped payload",
+ "note": "the emitters alone (no engine, no beds); each call through the scheduled gain, absorption, inverse distance and equal-power pan in the camera's frame, and its playbackRate",
+ "tier": "gamer",
+ "podScan": {
+  "t0": 3,
+  "n": 2
+ },
+ "ranSeconds": 54.6,
+ "scenes": [
+  {
+   "key": "orca",
+   "name": "a pass over the orca pod as two of them surface",
+   "localHours": 15,
+   "sunDeg": 50.1,
+   "seconds": 40,
+   "seed": 2001,
+   "animalsRunBefore": 3,
+   "audio": {
+    "peak": 0.092,
+    "normalised": false,
+    "rmsDb": -49.3
+   },
+   "loader": {
+    "fetches": 37,
+    "decodes": 37,
+    "peakMB": 7,
+    "proc": 0
+   },
+   "calls": [
+    {
+     "t": 4.58,
+     "sound": "orcablow",
+     "from": "orca a4",
+     "x": -188,
+     "y": 0.2,
+     "z": -3965,
+     "d": 559.8
+    },
+    {
+     "t": 7.43,
+     "sound": "gull",
+     "from": "",
+     "x": -632.7,
+     "y": 10.2,
+     "z": -3685.6,
+     "d": 85.3
+    },
+    {
+     "t": 26.32,
+     "sound": "orcablow",
+     "from": "orca a4",
+     "x": -29.3,
+     "y": 0.2,
+     "z": -3523.4,
+     "d": 377
+    },
+    {
+     "t": 28.52,
+     "sound": "orcablow",
+     "from": "orca a4",
+     "x": 351.7,
+     "y": 0.2,
+     "z": -3817.2,
+     "d": 100.6
+    }
+   ],
+   "track": [
+    {
+     "t": 0,
+     "x": -900,
+     "z": -3730,
+     "agl": 40,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 1347,
+      "bear": 1423,
+      "doe": 1234,
+      "orca": 736,
+      "whale": 9886,
+      "bird": 2141
+     },
+     "sea": "ddUdd"
+    },
+    {
+     "t": 1,
+     "x": -855,
+     "z": -3730,
+     "agl": 40,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 1357,
+      "bear": 1421,
+      "doe": 1251,
+      "orca": 696,
+      "whale": 9921,
+      "bird": 2101
+     },
+     "sea": "ddUdd"
+    },
+    {
+     "t": 2,
+     "x": -810,
+     "z": -3730,
+     "agl": 40,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 1368,
+      "bear": 1420,
+      "doe": 1269,
+      "orca": 656,
+      "whale": 9956,
+      "bird": 2061
+     },
+     "sea": "ddUdd"
+    },
+    {
+     "t": 3,
+     "x": -765,
+     "z": -3730,
+     "agl": 40,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 1381,
+      "bear": 1420,
+      "doe": 1289,
+      "orca": 617,
+      "whale": 9991,
+      "bird": 2021
+     },
+     "sea": "ddUdd"
+    },
+    {
+     "t": 4,
+     "x": -720,
+     "z": -3730,
+     "agl": 40,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 1395,
+      "bear": 1422,
+      "doe": 1310,
+      "orca": 579,
+      "whale": 10026,
+      "bird": 1981
+     },
+     "sea": "ddUdd"
+    },
+    {
+     "t": 5,
+     "x": -675,
+     "z": -3730,
+     "agl": 40,
+     "voices": 1,
+     "loops": [],
+     "nearest": {
+      "elk": 1411,
+      "bear": 1425,
+      "doe": 1332,
+      "orca": 541,
+      "whale": 10061,
+      "bird": 1941
+     },
+     "sea": "ddddU"
+    },
+    {
+     "t": 6,
+     "x": -630,
+     "z": -3730,
+     "agl": 40,
+     "voices": 1,
+     "loops": [],
+     "nearest": {
+      "elk": 1427,
+      "bear": 1430,
+      "doe": 1355,
+      "orca": 504,
+      "whale": 10096,
+      "bird": 1900
+     },
+     "sea": "ddddU"
+    },
+    {
+     "t": 7,
+     "x": -585,
+     "z": -3730,
+     "agl": 40,
+     "voices": 1,
+     "loops": [],
+     "nearest": {
+      "elk": 1445,
+      "bear": 1436,
+      "doe": 1379,
+      "orca": 469,
+      "whale": 10131,
+      "bird": 1860
+     },
+     "sea": "ddddU"
+    },
+    {
+     "t": 8,
+     "x": -540,
+     "z": -3730,
+     "agl": 40,
+     "voices": 1,
+     "loops": [],
+     "nearest": {
+      "elk": 1464,
+      "bear": 1444,
+      "doe": 1404,
+      "orca": 434,
+      "whale": 10167,
+      "bird": 1819
+     },
+     "sea": "ddddU"
+    },
+    {
+     "t": 9,
+     "x": -495,
+     "z": -3730,
+     "agl": 40,
+     "voices": 1,
+     "loops": [],
+     "nearest": {
+      "elk": 1484,
+      "bear": 1453,
+      "doe": 1430,
+      "orca": 401,
+      "whale": 10202,
+      "bird": 1778
+     },
+     "sea": "UdddU"
+    },
+    {
+     "t": 10,
+     "x": -450,
+     "z": -3730,
+     "agl": 40,
+     "voices": 1,
+     "loops": [],
+     "nearest": {
+      "elk": 1505,
+      "bear": 1463,
+      "doe": 1458,
+      "orca": 370,
+      "whale": 10237,
+      "bird": 1738
+     },
+     "sea": "UdddU"
+    },
+    {
+     "t": 11,
+     "x": -405,
+     "z": -3730,
+     "agl": 40,
+     "voices": 1,
+     "loops": [],
+     "nearest": {
+      "elk": 1528,
+      "bear": 1475,
+      "doe": 1486,
+      "orca": 341,
+      "whale": 10273,
+      "bird": 1697
+     },
+     "sea": "UdddU"
+    },
+    {
+     "t": 12,
+     "x": -360,
+     "z": -3730,
+     "agl": 40,
+     "voices": 1,
+     "loops": [],
+     "nearest": {
+      "elk": 1551,
+      "bear": 1487,
+      "doe": 1515,
+      "orca": 316,
+      "whale": 10308,
+      "bird": 1657
+     },
+     "sea": "UdddU"
+    },
+    {
+     "t": 13,
+     "x": -315,
+     "z": -3730,
+     "agl": 40,
+     "voices": 1,
+     "loops": [],
+     "nearest": {
+      "elk": 1575,
+      "bear": 1501,
+      "doe": 1544,
+      "orca": 294,
+      "whale": 10344,
+      "bird": 1616
+     },
+     "sea": "UdddU"
+    },
+    {
+     "t": 14,
+     "x": -270,
+     "z": -3730,
+     "agl": 40,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 1600,
+      "bear": 1517,
+      "doe": 1559,
+      "orca": 277,
+      "whale": 10380,
+      "bird": 1576
+     },
+     "sea": "UdddU"
+    },
+    {
+     "t": 15,
+     "x": -225,
+     "z": -3730,
+     "agl": 40,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 1626,
+      "bear": 1533,
+      "doe": 1529,
+      "orca": 266,
+      "whale": 10416,
+      "bird": 1536
+     },
+     "sea": "UdddU"
+    },
+    {
+     "t": 16,
+     "x": -180,
+     "z": -3730,
+     "agl": 40,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 1653,
+      "bear": 1551,
+      "doe": 1500,
+      "orca": 261,
+      "whale": 10452,
+      "bird": 1497
+     },
+     "sea": "UdddU"
+    },
+    {
+     "t": 17,
+     "x": -135,
+     "z": -3730,
+     "agl": 40,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 1680,
+      "bear": 1569,
+      "doe": 1471,
+      "orca": 256,
+      "whale": 10488,
+      "bird": 1457
+     },
+     "sea": "UdddU"
+    },
+    {
+     "t": 18,
+     "x": -90,
+     "z": -3730,
+     "agl": 40,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 1708,
+      "bear": 1589,
+      "doe": 1443,
+      "orca": 234,
+      "whale": 10524,
+      "bird": 1419
+     },
+     "sea": "Udddd"
+    },
+    {
+     "t": 19,
+     "x": -45,
+     "z": -3730,
+     "agl": 40,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 1737,
+      "bear": 1610,
+      "doe": 1416,
+      "orca": 219,
+      "whale": 10560,
+      "bird": 1381
+     },
+     "sea": "Udddd"
+    },
+    {
+     "t": 20,
+     "x": 0,
+     "z": -3730,
+     "agl": 40,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 1767,
+      "bear": 1631,
+      "doe": 1390,
+      "orca": 215,
+      "whale": 10596,
+      "bird": 1343
+     },
+     "sea": "Udddd"
+    },
+    {
+     "t": 21,
+     "x": 45,
+     "z": -3730,
+     "agl": 40,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 1797,
+      "bear": 1654,
+      "doe": 1365,
+      "orca": 188,
+      "whale": 10632,
+      "bird": 1306
+     },
+     "sea": "Udddd"
+    },
+    {
+     "t": 22,
+     "x": 90,
+     "z": -3730,
+     "agl": 40,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 1828,
+      "bear": 1677,
+      "doe": 1341,
+      "orca": 149,
+      "whale": 10668,
+      "bird": 1270
+     },
+     "sea": "ddddd"
+    },
+    {
+     "t": 23,
+     "x": 135,
+     "z": -3730,
+     "agl": 40,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 1860,
+      "bear": 1702,
+      "doe": 1318,
+      "orca": 117,
+      "whale": 10705,
+      "bird": 1235
+     },
+     "sea": "ddddd"
+    },
+    {
+     "t": 24,
+     "x": 180,
+     "z": -3730,
+     "agl": 40,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 1892,
+      "bear": 1727,
+      "doe": 1297,
+      "orca": 96,
+      "whale": 10741,
+      "bird": 1201
+     },
+     "sea": "ddddd"
+    },
+    {
+     "t": 25,
+     "x": 225,
+     "z": -3730,
+     "agl": 40,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 1924,
+      "bear": 1753,
+      "doe": 1276,
+      "orca": 96,
+      "whale": 10778,
+      "bird": 1168
+     },
+     "sea": "ddddd"
+    },
+    {
+     "t": 26,
+     "x": 270,
+     "z": -3730,
+     "agl": 40,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 1957,
+      "bear": 1780,
+      "doe": 1257,
+      "orca": 116,
+      "whale": 10814,
+      "bird": 1137
+     },
+     "sea": "ddddd"
+    },
+    {
+     "t": 27,
+     "x": 315,
+     "z": -3730,
+     "agl": 40,
+     "voices": 1,
+     "loops": [],
+     "nearest": {
+      "elk": 1991,
+      "bear": 1807,
+      "doe": 1239,
+      "orca": 110,
+      "whale": 10851,
+      "bird": 1106
+     },
+     "sea": "dddUd"
+    },
+    {
+     "t": 28,
+     "x": 360,
+     "z": -3730,
+     "agl": 40,
+     "voices": 1,
+     "loops": [],
+     "nearest": {
+      "elk": 2025,
+      "bear": 1835,
+      "doe": 1223,
+      "orca": 101,
+      "whale": 10888,
+      "bird": 1078
+     },
+     "sea": "dddUd"
+    },
+    {
+     "t": 29,
+     "x": 405,
+     "z": -3730,
+     "agl": 40,
+     "voices": 2,
+     "loops": [],
+     "nearest": {
+      "elk": 2059,
+      "bear": 1864,
+      "doe": 1208,
+      "orca": 111,
+      "whale": 10924,
+      "bird": 1051
+     },
+     "sea": "dUdUd"
+    },
+    {
+     "t": 30,
+     "x": 450,
+     "z": -3730,
+     "agl": 40,
+     "voices": 1,
+     "loops": [],
+     "nearest": {
+      "elk": 2094,
+      "bear": 1894,
+      "doe": 1194,
+      "orca": 136,
+      "whale": 10961,
+      "bird": 1026
+     },
+     "sea": "dUdUd"
+    },
+    {
+     "t": 31,
+     "x": 495,
+     "z": -3730,
+     "agl": 40,
+     "voices": 1,
+     "loops": [],
+     "nearest": {
+      "elk": 2129,
+      "bear": 1924,
+      "doe": 1182,
+      "orca": 169,
+      "whale": 10998,
+      "bird": 1002
+     },
+     "sea": "dUdUd"
+    },
+    {
+     "t": 32,
+     "x": 540,
+     "z": -3730,
+     "agl": 40,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 2165,
+      "bear": 1955,
+      "doe": 1173,
+      "orca": 207,
+      "whale": 11035,
+      "bird": 981
+     },
+     "sea": "dUdUd"
+    },
+    {
+     "t": 33,
+     "x": 585,
+     "z": -3730,
+     "agl": 40,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 2200,
+      "bear": 1986,
+      "doe": 1165,
+      "orca": 246,
+      "whale": 11072,
+      "bird": 962
+     },
+     "sea": "dUdUd"
+    },
+    {
+     "t": 34,
+     "x": 630,
+     "z": -3730,
+     "agl": 40,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 2237,
+      "bear": 2017,
+      "doe": 1158,
+      "orca": 288,
+      "whale": 11109,
+      "bird": 946
+     },
+     "sea": "dUdUd"
+    },
+    {
+     "t": 35,
+     "x": 675,
+     "z": -3730,
+     "agl": 40,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 2273,
+      "bear": 2050,
+      "doe": 1154,
+      "orca": 330,
+      "whale": 11146,
+      "bird": 932
+     },
+     "sea": "dUdUd"
+    },
+    {
+     "t": 36,
+     "x": 720,
+     "z": -3730,
+     "agl": 40,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 2310,
+      "bear": 2082,
+      "doe": 1150,
+      "orca": 373,
+      "whale": 11183,
+      "bird": 920
+     },
+     "sea": "dUdUd"
+    },
+    {
+     "t": 37,
+     "x": 765,
+     "z": -3730,
+     "agl": 40,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 2347,
+      "bear": 2116,
+      "doe": 1149,
+      "orca": 416,
+      "whale": 11220,
+      "bird": 911
+     },
+     "sea": "dUdUd"
+    },
+    {
+     "t": 38,
+     "x": 810,
+     "z": -3730,
+     "agl": 40,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 2384,
+      "bear": 2149,
+      "doe": 1150,
+      "orca": 460,
+      "whale": 11258,
+      "bird": 905
+     },
+     "sea": "dUdUd"
+    },
+    {
+     "t": 39,
+     "x": 855,
+     "z": -3730,
+     "agl": 40,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 2422,
+      "bear": 2183,
+      "doe": 1152,
+      "orca": 503,
+      "whale": 11295,
+      "bird": 902
+     },
+     "sea": "dUdUd"
+    }
+   ]
+  },
+  {
+   "key": "elk",
+   "name": "the elk meadow at dusk (the sanctuary herd, 250 m off)",
+   "localHours": 21.8,
+   "sunDeg": -2.5,
+   "seconds": 150,
+   "seed": 2002,
+   "animalsRunBefore": 60,
+   "audio": {
+    "peak": 0.091,
+    "normalised": false,
+    "rmsDb": -55.8
+   },
+   "loader": {
+    "fetches": 21,
+    "decodes": 21,
+    "peakMB": 5.85,
+    "proc": 0
+   },
+   "calls": [
+    {
+     "t": 61.25,
+     "sound": "elk",
+     "from": "elk a7",
+     "x": -1269.6,
+     "y": 32,
+     "z": -2412.1,
+     "d": 238.1
+    },
+    {
+     "t": 126.53,
+     "sound": "thrush",
+     "from": "",
+     "x": -989,
+     "y": 32.5,
+     "z": -2329.1,
+     "d": 61.6
+    },
+    {
+     "t": 126.58,
+     "sound": "elk",
+     "from": "elk a7",
+     "x": -1265.8,
+     "y": 33.3,
+     "z": -2367.2,
+     "d": 220.9
+    }
+   ],
+   "track": [
+    {
+     "t": 0,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 170,
+      "bear": 247,
+      "doe": 319,
+      "orca": 1547,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "UdddU"
+    },
+    {
+     "t": 1,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 170,
+      "bear": 247,
+      "doe": 319,
+      "orca": 1547,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "UdddU"
+    },
+    {
+     "t": 2,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 170,
+      "bear": 247,
+      "doe": 319,
+      "orca": 1546,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "UdddU"
+    },
+    {
+     "t": 3,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 170,
+      "bear": 247,
+      "doe": 319,
+      "orca": 1546,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "UdddU"
+    },
+    {
+     "t": 4,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 170,
+      "bear": 247,
+      "doe": 319,
+      "orca": 1546,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "UdddU"
+    },
+    {
+     "t": 5,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 170,
+      "bear": 247,
+      "doe": 319,
+      "orca": 1546,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "UdddU"
+    },
+    {
+     "t": 6,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 170,
+      "bear": 247,
+      "doe": 319,
+      "orca": 1546,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "UdddU"
+    },
+    {
+     "t": 7,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 170,
+      "bear": 247,
+      "doe": 319,
+      "orca": 1547,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "UdddU"
+    },
+    {
+     "t": 8,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 170,
+      "bear": 247,
+      "doe": 319,
+      "orca": 1547,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "UdddU"
+    },
+    {
+     "t": 9,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 170,
+      "bear": 247,
+      "doe": 319,
+      "orca": 1547,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "Udddd"
+    },
+    {
+     "t": 10,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 170,
+      "bear": 247,
+      "doe": 319,
+      "orca": 1547,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "Udddd"
+    },
+    {
+     "t": 11,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 170,
+      "bear": 247,
+      "doe": 319,
+      "orca": 1548,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "Udddd"
+    },
+    {
+     "t": 12,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 170,
+      "bear": 247,
+      "doe": 319,
+      "orca": 1548,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "Udddd"
+    },
+    {
+     "t": 13,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 170,
+      "bear": 247,
+      "doe": 319,
+      "orca": 1549,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "ddddd"
+    },
+    {
+     "t": 14,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 170,
+      "bear": 247,
+      "doe": 319,
+      "orca": 1549,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "ddddd"
+    },
+    {
+     "t": 15,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 170,
+      "bear": 247,
+      "doe": 319,
+      "orca": 1550,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "ddddd"
+    },
+    {
+     "t": 16,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 170,
+      "bear": 247,
+      "doe": 319,
+      "orca": 1550,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "ddddd"
+    },
+    {
+     "t": 17,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 170,
+      "bear": 247,
+      "doe": 319,
+      "orca": 1551,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "ddddd"
+    },
+    {
+     "t": 18,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 170,
+      "bear": 247,
+      "doe": 319,
+      "orca": 1552,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "dddUd"
+    },
+    {
+     "t": 19,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 171,
+      "bear": 247,
+      "doe": 319,
+      "orca": 1552,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "dddUd"
+    },
+    {
+     "t": 20,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 172,
+      "bear": 247,
+      "doe": 319,
+      "orca": 1553,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "dUdUd"
+    },
+    {
+     "t": 21,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 172,
+      "bear": 247,
+      "doe": 319,
+      "orca": 1554,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "dUdUd"
+    },
+    {
+     "t": 22,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 172,
+      "bear": 247,
+      "doe": 319,
+      "orca": 1555,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "dUdUd"
+    },
+    {
+     "t": 23,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 172,
+      "bear": 247,
+      "doe": 319,
+      "orca": 1556,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "dUdUd"
+    },
+    {
+     "t": 24,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 172,
+      "bear": 247,
+      "doe": 319,
+      "orca": 1557,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "dUdUd"
+    },
+    {
+     "t": 25,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 172,
+      "bear": 247,
+      "doe": 319,
+      "orca": 1559,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "dUdUd"
+    },
+    {
+     "t": 26,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 172,
+      "bear": 247,
+      "doe": 319,
+      "orca": 1560,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "dUdUd"
+    },
+    {
+     "t": 27,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 172,
+      "bear": 247,
+      "doe": 319,
+      "orca": 1561,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "dUdUd"
+    },
+    {
+     "t": 28,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 172,
+      "bear": 247,
+      "doe": 319,
+      "orca": 1562,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "dUdUd"
+    },
+    {
+     "t": 29,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 172,
+      "bear": 247,
+      "doe": 319,
+      "orca": 1564,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "dUdUd"
+    },
+    {
+     "t": 30,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 173,
+      "bear": 247,
+      "doe": 319,
+      "orca": 1565,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "dUdUd"
+    },
+    {
+     "t": 31,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 173,
+      "bear": 247,
+      "doe": 320,
+      "orca": 1567,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "dUUdd"
+    },
+    {
+     "t": 32,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 173,
+      "bear": 247,
+      "doe": 321,
+      "orca": 1568,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "dUUdd"
+    },
+    {
+     "t": 33,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 173,
+      "bear": 247,
+      "doe": 321,
+      "orca": 1570,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "ddUdd"
+    },
+    {
+     "t": 34,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 173,
+      "bear": 247,
+      "doe": 322,
+      "orca": 1572,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "ddUdd"
+    },
+    {
+     "t": 35,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 173,
+      "bear": 247,
+      "doe": 323,
+      "orca": 1573,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "ddUdd"
+    },
+    {
+     "t": 36,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 174,
+      "bear": 247,
+      "doe": 324,
+      "orca": 1575,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "ddUdd"
+    },
+    {
+     "t": 37,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 174,
+      "bear": 247,
+      "doe": 324,
+      "orca": 1577,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "ddUdd"
+    },
+    {
+     "t": 38,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 174,
+      "bear": 247,
+      "doe": 325,
+      "orca": 1579,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "ddUdd"
+    },
+    {
+     "t": 39,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 174,
+      "bear": 247,
+      "doe": 326,
+      "orca": 1581,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "ddUdd"
+    },
+    {
+     "t": 40,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 174,
+      "bear": 247,
+      "doe": 326,
+      "orca": 1583,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "ddUdd"
+    },
+    {
+     "t": 41,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 174,
+      "bear": 247,
+      "doe": 326,
+      "orca": 1585,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "ddUdd"
+    },
+    {
+     "t": 42,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 174,
+      "bear": 247,
+      "doe": 326,
+      "orca": 1587,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "ddUdd"
+    },
+    {
+     "t": 43,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 174,
+      "bear": 247,
+      "doe": 326,
+      "orca": 1589,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "ddUdd"
+    },
+    {
+     "t": 44,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 174,
+      "bear": 247,
+      "doe": 326,
+      "orca": 1591,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "ddddU"
+    },
+    {
+     "t": 45,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 173,
+      "bear": 247,
+      "doe": 326,
+      "orca": 1592,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "ddddU"
+    },
+    {
+     "t": 46,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 173,
+      "bear": 247,
+      "doe": 326,
+      "orca": 1590,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "ddddU"
+    },
+    {
+     "t": 47,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 173,
+      "bear": 247,
+      "doe": 326,
+      "orca": 1588,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "ddddU"
+    },
+    {
+     "t": 48,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 173,
+      "bear": 247,
+      "doe": 326,
+      "orca": 1586,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "UdddU"
+    },
+    {
+     "t": 49,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 173,
+      "bear": 247,
+      "doe": 326,
+      "orca": 1584,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "UdddU"
+    },
+    {
+     "t": 50,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 172,
+      "bear": 247,
+      "doe": 326,
+      "orca": 1582,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "UdddU"
+    },
+    {
+     "t": 51,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 172,
+      "bear": 247,
+      "doe": 326,
+      "orca": 1580,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "UdddU"
+    },
+    {
+     "t": 52,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 172,
+      "bear": 247,
+      "doe": 326,
+      "orca": 1578,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "UdddU"
+    },
+    {
+     "t": 53,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 172,
+      "bear": 247,
+      "doe": 326,
+      "orca": 1576,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "UdddU"
+    },
+    {
+     "t": 54,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 172,
+      "bear": 248,
+      "doe": 326,
+      "orca": 1574,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "UdddU"
+    },
+    {
+     "t": 55,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 172,
+      "bear": 248,
+      "doe": 326,
+      "orca": 1572,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "UdddU"
+    },
+    {
+     "t": 56,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 172,
+      "bear": 248,
+      "doe": 326,
+      "orca": 1570,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "UdddU"
+    },
+    {
+     "t": 57,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 172,
+      "bear": 249,
+      "doe": 326,
+      "orca": 1569,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "Udddd"
+    },
+    {
+     "t": 58,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 172,
+      "bear": 249,
+      "doe": 326,
+      "orca": 1567,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "Udddd"
+    },
+    {
+     "t": 59,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 172,
+      "bear": 249,
+      "doe": 326,
+      "orca": 1565,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "Udddd"
+    },
+    {
+     "t": 60,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 172,
+      "bear": 250,
+      "doe": 326,
+      "orca": 1564,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "Udddd"
+    },
+    {
+     "t": 61,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 172,
+      "bear": 250,
+      "doe": 326,
+      "orca": 1562,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "ddddd"
+    },
+    {
+     "t": 62,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 1,
+     "loops": [],
+     "nearest": {
+      "elk": 172,
+      "bear": 250,
+      "doe": 326,
+      "orca": 1561,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "ddddd"
+    },
+    {
+     "t": 63,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 1,
+     "loops": [],
+     "nearest": {
+      "elk": 172,
+      "bear": 251,
+      "doe": 327,
+      "orca": 1560,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "ddddd"
+    },
+    {
+     "t": 64,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 1,
+     "loops": [],
+     "nearest": {
+      "elk": 172,
+      "bear": 251,
+      "doe": 327,
+      "orca": 1558,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "ddddd"
+    },
+    {
+     "t": 65,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 1,
+     "loops": [],
+     "nearest": {
+      "elk": 172,
+      "bear": 251,
+      "doe": 328,
+      "orca": 1557,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "ddddd"
+    },
+    {
+     "t": 66,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 172,
+      "bear": 252,
+      "doe": 329,
+      "orca": 1556,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "dddUd"
+    },
+    {
+     "t": 67,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 172,
+      "bear": 252,
+      "doe": 329,
+      "orca": 1555,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "dddUd"
+    },
+    {
+     "t": 68,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 172,
+      "bear": 252,
+      "doe": 330,
+      "orca": 1554,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "dUdUd"
+    },
+    {
+     "t": 69,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 172,
+      "bear": 253,
+      "doe": 331,
+      "orca": 1552,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "dUdUd"
+    },
+    {
+     "t": 70,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 172,
+      "bear": 253,
+      "doe": 332,
+      "orca": 1551,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "dUdUd"
+    },
+    {
+     "t": 71,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 172,
+      "bear": 253,
+      "doe": 332,
+      "orca": 1550,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "dUdUd"
+    },
+    {
+     "t": 72,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 172,
+      "bear": 254,
+      "doe": 333,
+      "orca": 1549,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "dUdUd"
+    },
+    {
+     "t": 73,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 172,
+      "bear": 254,
+      "doe": 334,
+      "orca": 1549,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "dUdUd"
+    },
+    {
+     "t": 74,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 172,
+      "bear": 254,
+      "doe": 334,
+      "orca": 1548,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "dUdUd"
+    },
+    {
+     "t": 75,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 172,
+      "bear": 254,
+      "doe": 335,
+      "orca": 1547,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "dUdUd"
+    },
+    {
+     "t": 76,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 172,
+      "bear": 254,
+      "doe": 336,
+      "orca": 1546,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "dUdUd"
+    },
+    {
+     "t": 77,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 172,
+      "bear": 254,
+      "doe": 337,
+      "orca": 1546,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "dUdUd"
+    },
+    {
+     "t": 78,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 172,
+      "bear": 254,
+      "doe": 337,
+      "orca": 1545,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "dUdUd"
+    },
+    {
+     "t": 79,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 172,
+      "bear": 254,
+      "doe": 338,
+      "orca": 1545,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "dUUdd"
+    },
+    {
+     "t": 80,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 172,
+      "bear": 254,
+      "doe": 338,
+      "orca": 1544,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "dUUdd"
+    },
+    {
+     "t": 81,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 172,
+      "bear": 254,
+      "doe": 339,
+      "orca": 1544,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "ddUdd"
+    },
+    {
+     "t": 82,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 172,
+      "bear": 254,
+      "doe": 339,
+      "orca": 1543,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "ddUdd"
+    },
+    {
+     "t": 83,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 172,
+      "bear": 254,
+      "doe": 339,
+      "orca": 1543,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "ddUdd"
+    },
+    {
+     "t": 84,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 172,
+      "bear": 254,
+      "doe": 339,
+      "orca": 1543,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "ddUdd"
+    },
+    {
+     "t": 85,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 172,
+      "bear": 254,
+      "doe": 339,
+      "orca": 1543,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "ddUdd"
+    },
+    {
+     "t": 86,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 172,
+      "bear": 255,
+      "doe": 339,
+      "orca": 1542,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "ddUdd"
+    },
+    {
+     "t": 87,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 172,
+      "bear": 255,
+      "doe": 339,
+      "orca": 1542,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "ddUdd"
+    },
+    {
+     "t": 88,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 172,
+      "bear": 255,
+      "doe": 339,
+      "orca": 1542,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "ddUdd"
+    },
+    {
+     "t": 89,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 172,
+      "bear": 255,
+      "doe": 339,
+      "orca": 1542,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "ddUdd"
+    },
+    {
+     "t": 90,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 172,
+      "bear": 255,
+      "doe": 339,
+      "orca": 1542,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "ddUdd"
+    },
+    {
+     "t": 91,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 172,
+      "bear": 255,
+      "doe": 339,
+      "orca": 1542,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "ddUdd"
+    },
+    {
+     "t": 92,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 172,
+      "bear": 255,
+      "doe": 339,
+      "orca": 1543,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "ddddU"
+    },
+    {
+     "t": 93,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 172,
+      "bear": 256,
+      "doe": 339,
+      "orca": 1543,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "ddddU"
+    },
+    {
+     "t": 94,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 172,
+      "bear": 256,
+      "doe": 339,
+      "orca": 1543,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "ddddU"
+    },
+    {
+     "t": 95,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 172,
+      "bear": 256,
+      "doe": 339,
+      "orca": 1543,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "ddddU"
+    },
+    {
+     "t": 96,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 173,
+      "bear": 256,
+      "doe": 339,
+      "orca": 1544,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "UdddU"
+    },
+    {
+     "t": 97,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 174,
+      "bear": 256,
+      "doe": 339,
+      "orca": 1544,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "UdddU"
+    },
+    {
+     "t": 98,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 175,
+      "bear": 256,
+      "doe": 339,
+      "orca": 1545,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "UdddU"
+    },
+    {
+     "t": 99,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 176,
+      "bear": 256,
+      "doe": 339,
+      "orca": 1546,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "UdddU"
+    },
+    {
+     "t": 100,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 177,
+      "bear": 256,
+      "doe": 339,
+      "orca": 1546,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "UdddU"
+    },
+    {
+     "t": 101,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 178,
+      "bear": 257,
+      "doe": 339,
+      "orca": 1547,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "UdddU"
+    },
+    {
+     "t": 102,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 179,
+      "bear": 257,
+      "doe": 339,
+      "orca": 1548,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "UdddU"
+    },
+    {
+     "t": 103,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 180,
+      "bear": 257,
+      "doe": 339,
+      "orca": 1548,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "UdddU"
+    },
+    {
+     "t": 104,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 180,
+      "bear": 257,
+      "doe": 339,
+      "orca": 1549,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "UdddU"
+    },
+    {
+     "t": 105,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 181,
+      "bear": 257,
+      "doe": 339,
+      "orca": 1550,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "Udddd"
+    },
+    {
+     "t": 106,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 182,
+      "bear": 257,
+      "doe": 339,
+      "orca": 1551,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "Udddd"
+    },
+    {
+     "t": 107,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 183,
+      "bear": 257,
+      "doe": 339,
+      "orca": 1552,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "Udddd"
+    },
+    {
+     "t": 108,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 184,
+      "bear": 257,
+      "doe": 339,
+      "orca": 1553,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "Udddd"
+    },
+    {
+     "t": 109,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 185,
+      "bear": 257,
+      "doe": 339,
+      "orca": 1555,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "ddddd"
+    },
+    {
+     "t": 110,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 186,
+      "bear": 257,
+      "doe": 339,
+      "orca": 1556,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "ddddd"
+    },
+    {
+     "t": 111,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 187,
+      "bear": 257,
+      "doe": 339,
+      "orca": 1557,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "ddddd"
+    },
+    {
+     "t": 112,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 188,
+      "bear": 257,
+      "doe": 339,
+      "orca": 1559,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "ddddd"
+    },
+    {
+     "t": 113,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 189,
+      "bear": 257,
+      "doe": 339,
+      "orca": 1560,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "ddddd"
+    },
+    {
+     "t": 114,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 190,
+      "bear": 257,
+      "doe": 339,
+      "orca": 1561,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "dddUd"
+    },
+    {
+     "t": 115,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 190,
+      "bear": 257,
+      "doe": 339,
+      "orca": 1563,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "dddUd"
+    },
+    {
+     "t": 116,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 190,
+      "bear": 257,
+      "doe": 339,
+      "orca": 1564,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "dUdUd"
+    },
+    {
+     "t": 117,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 190,
+      "bear": 257,
+      "doe": 339,
+      "orca": 1566,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "dUdUd"
+    },
+    {
+     "t": 118,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 190,
+      "bear": 257,
+      "doe": 339,
+      "orca": 1568,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "dUdUd"
+    },
+    {
+     "t": 119,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 191,
+      "bear": 257,
+      "doe": 339,
+      "orca": 1569,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "dUdUd"
+    },
+    {
+     "t": 120,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 192,
+      "bear": 257,
+      "doe": 339,
+      "orca": 1571,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "dUdUd"
+    },
+    {
+     "t": 121,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 193,
+      "bear": 257,
+      "doe": 339,
+      "orca": 1573,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "dUdUd"
+    },
+    {
+     "t": 122,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 194,
+      "bear": 257,
+      "doe": 339,
+      "orca": 1575,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "dUdUd"
+    },
+    {
+     "t": 123,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 195,
+      "bear": 257,
+      "doe": 339,
+      "orca": 1576,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "dUdUd"
+    },
+    {
+     "t": 124,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 195,
+      "bear": 257,
+      "doe": 339,
+      "orca": 1578,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "dUdUd"
+    },
+    {
+     "t": 125,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 194,
+      "bear": 257,
+      "doe": 339,
+      "orca": 1580,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "dUdUd"
+    },
+    {
+     "t": 126,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 193,
+      "bear": 257,
+      "doe": 339,
+      "orca": 1582,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "dUdUd"
+    },
+    {
+     "t": 127,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 2,
+     "loops": [],
+     "nearest": {
+      "elk": 192,
+      "bear": 257,
+      "doe": 339,
+      "orca": 1584,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "dUUdd"
+    },
+    {
+     "t": 128,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 2,
+     "loops": [],
+     "nearest": {
+      "elk": 190,
+      "bear": 257,
+      "doe": 339,
+      "orca": 1582,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "dUUdd"
+    },
+    {
+     "t": 129,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 1,
+     "loops": [],
+     "nearest": {
+      "elk": 189,
+      "bear": 257,
+      "doe": 339,
+      "orca": 1579,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "ddUdd"
+    },
+    {
+     "t": 130,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 188,
+      "bear": 257,
+      "doe": 339,
+      "orca": 1576,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "ddUdd"
+    },
+    {
+     "t": 131,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 187,
+      "bear": 257,
+      "doe": 339,
+      "orca": 1573,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "ddUdd"
+    },
+    {
+     "t": 132,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 186,
+      "bear": 257,
+      "doe": 339,
+      "orca": 1570,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "ddUdd"
+    },
+    {
+     "t": 133,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 185,
+      "bear": 257,
+      "doe": 339,
+      "orca": 1567,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "ddUdd"
+    },
+    {
+     "t": 134,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 185,
+      "bear": 257,
+      "doe": 339,
+      "orca": 1564,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "ddUdd"
+    },
+    {
+     "t": 135,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 185,
+      "bear": 257,
+      "doe": 339,
+      "orca": 1561,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "ddUdd"
+    },
+    {
+     "t": 136,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 185,
+      "bear": 257,
+      "doe": 339,
+      "orca": 1559,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "ddUdd"
+    },
+    {
+     "t": 137,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 185,
+      "bear": 257,
+      "doe": 339,
+      "orca": 1556,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "ddUdd"
+    },
+    {
+     "t": 138,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 185,
+      "bear": 257,
+      "doe": 339,
+      "orca": 1553,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "ddUdd"
+    },
+    {
+     "t": 139,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 185,
+      "bear": 257,
+      "doe": 339,
+      "orca": 1550,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "ddUdd"
+    },
+    {
+     "t": 140,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 185,
+      "bear": 257,
+      "doe": 339,
+      "orca": 1547,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "ddddU"
+    },
+    {
+     "t": 141,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 185,
+      "bear": 257,
+      "doe": 339,
+      "orca": 1544,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "ddddU"
+    },
+    {
+     "t": 142,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 185,
+      "bear": 257,
+      "doe": 339,
+      "orca": 1542,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "ddddU"
+    },
+    {
+     "t": 143,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 185,
+      "bear": 257,
+      "doe": 339,
+      "orca": 1539,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "ddddU"
+    },
+    {
+     "t": 144,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 185,
+      "bear": 257,
+      "doe": 339,
+      "orca": 1536,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "UdddU"
+    },
+    {
+     "t": 145,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 185,
+      "bear": 257,
+      "doe": 339,
+      "orca": 1533,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "UdddU"
+    },
+    {
+     "t": 146,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 185,
+      "bear": 257,
+      "doe": 339,
+      "orca": 1531,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "UdddU"
+    },
+    {
+     "t": 147,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 185,
+      "bear": 257,
+      "doe": 339,
+      "orca": 1528,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "UdddU"
+    },
+    {
+     "t": 148,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 185,
+      "bear": 257,
+      "doe": 339,
+      "orca": 1525,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "UdddU"
+    },
+    {
+     "t": 149,
+     "x": -1050,
+     "z": -2320,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 185,
+      "bear": 257,
+      "doe": 339,
+      "orca": 1523,
+      "whale": 8928,
+      "bird": 2247
+     },
+     "sea": "UdddU"
+    }
+   ]
+  },
+  {
+   "key": "bear",
+   "name": "three low passes beside the bear (25 m AGL, 20 m off)",
+   "localHours": 15,
+   "sunDeg": 50.1,
+   "seconds": 120,
+   "seed": 2003,
+   "animalsRunBefore": 60,
+   "audio": {
+    "peak": 0.22,
+    "normalised": false,
+    "rmsDb": -42
+   },
+   "loader": {
+    "fetches": 81,
+    "decodes": 81,
+    "peakMB": 7.06,
+    "proc": 0
+   },
+   "calls": [
+    {
+     "t": 18.85,
+     "sound": "bear",
+     "from": "bear a2",
+     "x": -802.5,
+     "y": 23,
+     "z": -2310.4,
+     "d": 59.7
+    },
+    {
+     "t": 29.2,
+     "sound": "eagle",
+     "from": "",
+     "x": -250.8,
+     "y": 18.3,
+     "z": -2327.8,
+     "d": 189.5
+    }
+   ],
+   "track": [
+    {
+     "t": 0,
+     "x": -1600,
+     "z": -2280,
+     "agl": 25,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 286,
+      "bear": 798,
+      "doe": 269,
+      "orca": 1953,
+      "whale": 8450,
+      "bird": 2472
+     },
+     "sea": "UdddU"
+    },
+    {
+     "t": 1,
+     "x": -1560,
+     "z": -2280,
+     "agl": 25,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 253,
+      "bear": 758,
+      "doe": 248,
+      "orca": 1923,
+      "whale": 8483,
+      "bird": 2433
+     },
+     "sea": "UdddU"
+    },
+    {
+     "t": 2,
+     "x": -1520,
+     "z": -2280,
+     "agl": 25,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 221,
+      "bear": 718,
+      "doe": 222,
+      "orca": 1892,
+      "whale": 8516,
+      "bird": 2395
+     },
+     "sea": "UdddU"
+    },
+    {
+     "t": 3,
+     "x": -1480,
+     "z": -2280,
+     "agl": 25,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 191,
+      "bear": 678,
+      "doe": 194,
+      "orca": 1862,
+      "whale": 8549,
+      "bird": 2357
+     },
+     "sea": "UdddU"
+    },
+    {
+     "t": 4,
+     "x": -1440,
+     "z": -2280,
+     "agl": 25,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 166,
+      "bear": 638,
+      "doe": 170,
+      "orca": 1833,
+      "whale": 8582,
+      "bird": 2318
+     },
+     "sea": "UdddU"
+    },
+    {
+     "t": 5,
+     "x": -1400,
+     "z": -2280,
+     "agl": 25,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 136,
+      "bear": 598,
+      "doe": 153,
+      "orca": 1804,
+      "whale": 8615,
+      "bird": 2280
+     },
+     "sea": "UdddU"
+    },
+    {
+     "t": 6,
+     "x": -1360,
+     "z": -2280,
+     "agl": 25,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 99,
+      "bear": 558,
+      "doe": 146,
+      "orca": 1776,
+      "whale": 8648,
+      "bird": 2242
+     },
+     "sea": "UdddU"
+    },
+    {
+     "t": 7,
+     "x": -1320,
+     "z": -2280,
+     "agl": 25,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 66,
+      "bear": 519,
+      "doe": 149,
+      "orca": 1749,
+      "whale": 8681,
+      "bird": 2204
+     },
+     "sea": "UdddU"
+    },
+    {
+     "t": 8,
+     "x": -1280,
+     "z": -2280,
+     "agl": 25,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 45,
+      "bear": 479,
+      "doe": 162,
+      "orca": 1722,
+      "whale": 8714,
+      "bird": 2166
+     },
+     "sea": "UdddU"
+    },
+    {
+     "t": 9,
+     "x": -1240,
+     "z": -2280,
+     "agl": 25,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 54,
+      "bear": 439,
+      "doe": 184,
+      "orca": 1696,
+      "whale": 8748,
+      "bird": 2128
+     },
+     "sea": "Udddd"
+    },
+    {
+     "t": 10,
+     "x": -1200,
+     "z": -2280,
+     "agl": 25,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 84,
+      "bear": 400,
+      "doe": 211,
+      "orca": 1671,
+      "whale": 8781,
+      "bird": 2090
+     },
+     "sea": "Udddd"
+    },
+    {
+     "t": 11,
+     "x": -1160,
+     "z": -2280,
+     "agl": 25,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 120,
+      "bear": 360,
+      "doe": 241,
+      "orca": 1646,
+      "whale": 8814,
+      "bird": 2364
+     },
+     "sea": "Udddd"
+    },
+    {
+     "t": 12,
+     "x": -1120,
+     "z": -2280,
+     "agl": 25,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 152,
+      "bear": 321,
+      "doe": 274,
+      "orca": 1623,
+      "whale": 8848,
+      "bird": 2326
+     },
+     "sea": "Udddd"
+    },
+    {
+     "t": 13,
+     "x": -1080,
+     "z": -2280,
+     "agl": 25,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 174,
+      "bear": 281,
+      "doe": 308,
+      "orca": 1599,
+      "whale": 8881,
+      "bird": 2287
+     },
+     "sea": "ddddd"
+    },
+    {
+     "t": 14,
+     "x": -1040,
+     "z": -2280,
+     "agl": 25,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 203,
+      "bear": 241,
+      "doe": 344,
+      "orca": 1577,
+      "whale": 8915,
+      "bird": 2249
+     },
+     "sea": "ddddd"
+    },
+    {
+     "t": 15,
+     "x": -1000,
+     "z": -2280,
+     "agl": 25,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 234,
+      "bear": 201,
+      "doe": 380,
+      "orca": 1556,
+      "whale": 8949,
+      "bird": 2211
+     },
+     "sea": "ddddd"
+    },
+    {
+     "t": 16,
+     "x": -960,
+     "z": -2280,
+     "agl": 25,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 268,
+      "bear": 162,
+      "doe": 418,
+      "orca": 1535,
+      "whale": 8982,
+      "bird": 2171
+     },
+     "sea": "ddddd"
+    },
+    {
+     "t": 17,
+     "x": -920,
+     "z": -2280,
+     "agl": 25,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 304,
+      "bear": 124,
+      "doe": 455,
+      "orca": 1516,
+      "whale": 9016,
+      "bird": 2130
+     },
+     "sea": "ddddd"
+    },
+    {
+     "t": 18,
+     "x": -880,
+     "z": -2280,
+     "agl": 25,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 341,
+      "bear": 87,
+      "doe": 493,
+      "orca": 1498,
+      "whale": 9050,
+      "bird": 2087
+     },
+     "sea": "dddUd"
+    },
+    {
+     "t": 19,
+     "x": -840,
+     "z": -2280,
+     "agl": 25,
+     "voices": 1,
+     "loops": [],
+     "nearest": {
+      "elk": 379,
+      "bear": 55,
+      "doe": 532,
+      "orca": 1480,
+      "whale": 9083,
+      "bird": 2044
+     },
+     "sea": "dddUd"
+    },
+    {
+     "t": 20,
+     "x": -800,
+     "z": -2280,
+     "agl": 25,
+     "voices": 1,
+     "loops": [],
+     "nearest": {
+      "elk": 418,
+      "bear": 40,
+      "doe": 570,
+      "orca": 1464,
+      "whale": 9117,
+      "bird": 2001
+     },
+     "sea": "dUdUd"
+    },
+    {
+     "t": 21,
+     "x": -760,
+     "z": -2280,
+     "agl": 25,
+     "voices": 1,
+     "loops": [],
+     "nearest": {
+      "elk": 456,
+      "bear": 58,
+      "doe": 609,
+      "orca": 1449,
+      "whale": 9151,
+      "bird": 1957
+     },
+     "sea": "dUdUd"
+    },
+    {
+     "t": 22,
+     "x": -720,
+     "z": -2280,
+     "agl": 25,
+     "voices": 1,
+     "loops": [],
+     "nearest": {
+      "elk": 495,
+      "bear": 92,
+      "doe": 648,
+      "orca": 1435,
+      "whale": 9185,
+      "bird": 1913
+     },
+     "sea": "dUdUd"
+    },
+    {
+     "t": 23,
+     "x": -680,
+     "z": -2280,
+     "agl": 25,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 534,
+      "bear": 129,
+      "doe": 687,
+      "orca": 1422,
+      "whale": 9219,
+      "bird": 1868
+     },
+     "sea": "dUdUd"
+    },
+    {
+     "t": 24,
+     "x": -640,
+     "z": -2280,
+     "agl": 25,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 574,
+      "bear": 167,
+      "doe": 726,
+      "orca": 1410,
+      "whale": 9253,
+      "bird": 1822
+     },
+     "sea": "dUdUd"
+    },
+    {
+     "t": 25,
+     "x": -600,
+     "z": -2280,
+     "agl": 25,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 613,
+      "bear": 207,
+      "doe": 765,
+      "orca": 1400,
+      "whale": 9287,
+      "bird": 1776
+     },
+     "sea": "dUdUd"
+    },
+    {
+     "t": 26,
+     "x": -560,
+     "z": -2280,
+     "agl": 25,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 653,
+      "bear": 246,
+      "doe": 805,
+      "orca": 1391,
+      "whale": 9321,
+      "bird": 1730
+     },
+     "sea": "dUdUd"
+    },
+    {
+     "t": 27,
+     "x": -520,
+     "z": -2280,
+     "agl": 25,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 693,
+      "bear": 285,
+      "doe": 844,
+      "orca": 1374,
+      "whale": 9356,
+      "bird": 1683
+     },
+     "sea": "dUdUd"
+    },
+    {
+     "t": 28,
+     "x": -480,
+     "z": -2280,
+     "agl": 25,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 733,
+      "bear": 325,
+      "doe": 883,
+      "orca": 1356,
+      "whale": 9390,
+      "bird": 1636
+     },
+     "sea": "dUdUd"
+    },
+    {
+     "t": 29,
+     "x": -440,
+     "z": -2280,
+     "agl": 25,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 773,
+      "bear": 365,
+      "doe": 923,
+      "orca": 1339,
+      "whale": 9424,
+      "bird": 1589
+     },
+     "sea": "dUdUd"
+    },
+    {
+     "t": 30,
+     "x": -400,
+     "z": -2280,
+     "agl": 25,
+     "voices": 1,
+     "loops": [],
+     "nearest": {
+      "elk": 813,
+      "bear": 405,
+      "doe": 963,
+      "orca": 1323,
+      "whale": 9458,
+      "bird": 1542
+     },
+     "sea": "dUdUd"
+    },
+    {
+     "t": 31,
+     "x": -360,
+     "z": -2280,
+     "agl": 25,
+     "voices": 1,
+     "loops": [],
+     "nearest": {
+      "elk": 853,
+      "bear": 445,
+      "doe": 1003,
+      "orca": 1308,
+      "whale": 9493,
+      "bird": 1494
+     },
+     "sea": "dUUdd"
+    },
+    {
+     "t": 32,
+     "x": -320,
+     "z": -2280,
+     "agl": 25,
+     "voices": 1,
+     "loops": [],
+     "nearest": {
+      "elk": 893,
+      "bear": 485,
+      "doe": 1025,
+      "orca": 1294,
+      "whale": 9527,
+      "bird": 1447
+     },
+     "sea": "dUUdd"
+    },
+    {
+     "t": 33,
+     "x": -280,
+     "z": -2280,
+     "agl": 25,
+     "voices": 1,
+     "loops": [],
+     "nearest": {
+      "elk": 933,
+      "bear": 524,
+      "doe": 986,
+      "orca": 1282,
+      "whale": 9562,
+      "bird": 1399
+     },
+     "sea": "ddUdd"
+    },
+    {
+     "t": 34,
+     "x": -240,
+     "z": -2280,
+     "agl": 25,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 974,
+      "bear": 564,
+      "doe": 946,
+      "orca": 1272,
+      "whale": 9596,
+      "bird": 1351
+     },
+     "sea": "ddUdd"
+    },
+    {
+     "t": 35,
+     "x": -200,
+     "z": -2280,
+     "agl": 25,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 1014,
+      "bear": 604,
+      "doe": 907,
+      "orca": 1262,
+      "whale": 9631,
+      "bird": 1304
+     },
+     "sea": "ddUdd"
+    },
+    {
+     "t": 36,
+     "x": -160,
+     "z": -2280,
+     "agl": 25,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 1054,
+      "bear": 644,
+      "doe": 867,
+      "orca": 1255,
+      "whale": 9665,
+      "bird": 1256
+     },
+     "sea": "ddUdd"
+    },
+    {
+     "t": 37,
+     "x": -120,
+     "z": -2280,
+     "agl": 25,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 1095,
+      "bear": 684,
+      "doe": 828,
+      "orca": 1249,
+      "whale": 9700,
+      "bird": 1209
+     },
+     "sea": "ddUdd"
+    },
+    {
+     "t": 38,
+     "x": -80,
+     "z": -2280,
+     "agl": 25,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 1135,
+      "bear": 724,
+      "doe": 788,
+      "orca": 1244,
+      "whale": 9735,
+      "bird": 1162
+     },
+     "sea": "ddUdd"
+    },
+    {
+     "t": 39,
+     "x": -40,
+     "z": -2280,
+     "agl": 25,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 1175,
+      "bear": 764,
+      "doe": 749,
+      "orca": 1241,
+      "whale": 9769,
+      "bird": 1115
+     },
+     "sea": "ddUdd"
+    },
+    {
+     "t": 40,
+     "x": -1600,
+     "z": -2280,
+     "agl": 25,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 292,
+      "bear": 798,
+      "doe": 269,
+      "orca": 1960,
+      "whale": 8450,
+      "bird": 2592
+     },
+     "sea": "ddUdd"
+    },
+    {
+     "t": 41,
+     "x": -1560,
+     "z": -2280,
+     "agl": 25,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 257,
+      "bear": 758,
+      "doe": 248,
+      "orca": 1933,
+      "whale": 8483,
+      "bird": 2553
+     },
+     "sea": "ddUdd"
+    },
+    {
+     "t": 42,
+     "x": -1520,
+     "z": -2280,
+     "agl": 25,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 223,
+      "bear": 718,
+      "doe": 218,
+      "orca": 1907,
+      "whale": 8516,
+      "bird": 2514
+     },
+     "sea": "ddUdd"
+    },
+    {
+     "t": 43,
+     "x": -1480,
+     "z": -2280,
+     "agl": 25,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 193,
+      "bear": 678,
+      "doe": 190,
+      "orca": 1881,
+      "whale": 8549,
+      "bird": 2475
+     },
+     "sea": "ddUdd"
+    },
+    {
+     "t": 44,
+     "x": -1440,
+     "z": -2280,
+     "agl": 25,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 166,
+      "bear": 638,
+      "doe": 168,
+      "orca": 1856,
+      "whale": 8582,
+      "bird": 2436
+     },
+     "sea": "ddddU"
+    },
+    {
+     "t": 45,
+     "x": -1400,
+     "z": -2280,
+     "agl": 25,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 133,
+      "bear": 598,
+      "doe": 153,
+      "orca": 1832,
+      "whale": 8615,
+      "bird": 2397
+     },
+     "sea": "ddddU"
+    },
+    {
+     "t": 46,
+     "x": -1360,
+     "z": -2280,
+     "agl": 25,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 95,
+      "bear": 559,
+      "doe": 147,
+      "orca": 1808,
+      "whale": 8648,
+      "bird": 2357
+     },
+     "sea": "ddddU"
+    },
+    {
+     "t": 47,
+     "x": -1320,
+     "z": -2280,
+     "agl": 25,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 60,
+      "bear": 519,
+      "doe": 152,
+      "orca": 1785,
+      "whale": 8681,
+      "bird": 2318
+     },
+     "sea": "ddddU"
+    },
+    {
+     "t": 48,
+     "x": -1280,
+     "z": -2280,
+     "agl": 25,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 38,
+      "bear": 479,
+      "doe": 167,
+      "orca": 1763,
+      "whale": 8714,
+      "bird": 2279
+     },
+     "sea": "UdddU"
+    },
+    {
+     "t": 49,
+     "x": -1240,
+     "z": -2280,
+     "agl": 25,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 50,
+      "bear": 439,
+      "doe": 190,
+      "orca": 1741,
+      "whale": 8748,
+      "bird": 2240
+     },
+     "sea": "UdddU"
+    },
+    {
+     "t": 50,
+     "x": -1200,
+     "z": -2280,
+     "agl": 25,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 82,
+      "bear": 400,
+      "doe": 217,
+      "orca": 1713,
+      "whale": 8781,
+      "bird": 2201
+     },
+     "sea": "UdddU"
+    },
+    {
+     "t": 51,
+     "x": -1160,
+     "z": -2280,
+     "agl": 25,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 111,
+      "bear": 360,
+      "doe": 248,
+      "orca": 1683,
+      "whale": 8814,
+      "bird": 2152
+     },
+     "sea": "UdddU"
+    },
+    {
+     "t": 52,
+     "x": -1120,
+     "z": -2280,
+     "agl": 25,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 135,
+      "bear": 321,
+      "doe": 281,
+      "orca": 1655,
+      "whale": 8848,
+      "bird": 2102
+     },
+     "sea": "UdddU"
+    },
+    {
+     "t": 53,
+     "x": -1080,
+     "z": -2280,
+     "agl": 25,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 164,
+      "bear": 281,
+      "doe": 316,
+      "orca": 1626,
+      "whale": 8881,
+      "bird": 2052
+     },
+     "sea": "UdddU"
+    },
+    {
+     "t": 54,
+     "x": -1040,
+     "z": -2280,
+     "agl": 25,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 197,
+      "bear": 242,
+      "doe": 351,
+      "orca": 1599,
+      "whale": 8915,
+      "bird": 2003
+     },
+     "sea": "UdddU"
+    },
+    {
+     "t": 55,
+     "x": -1000,
+     "z": -2280,
+     "agl": 25,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 233,
+      "bear": 203,
+      "doe": 388,
+      "orca": 1572,
+      "whale": 8949,
+      "bird": 1953
+     },
+     "sea": "UdddU"
+    },
+    {
+     "t": 56,
+     "x": -960,
+     "z": -2280,
+     "agl": 25,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 270,
+      "bear": 164,
+      "doe": 425,
+      "orca": 1546,
+      "whale": 8982,
+      "bird": 1904
+     },
+     "sea": "UdddU"
+    },
+    {
+     "t": 57,
+     "x": -920,
+     "z": -2280,
+     "agl": 25,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 308,
+      "bear": 126,
+      "doe": 463,
+      "orca": 1521,
+      "whale": 9016,
+      "bird": 1856
+     },
+     "sea": "Udddd"
+    },
+    {
+     "t": 58,
+     "x": -880,
+     "z": -2280,
+     "agl": 25,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 347,
+      "bear": 89,
+      "doe": 501,
+      "orca": 1497,
+      "whale": 9050,
+      "bird": 1808
+     },
+     "sea": "Udddd"
+    },
+    {
+     "t": 59,
+     "x": -840,
+     "z": -2280,
+     "agl": 25,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 385,
+      "bear": 56,
+      "doe": 539,
+      "orca": 1474,
+      "whale": 9083,
+      "bird": 1760
+     },
+     "sea": "Udddd"
+    },
+    {
+     "t": 60,
+     "x": -800,
+     "z": -2280,
+     "agl": 25,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 424,
+      "bear": 40,
+      "doe": 578,
+      "orca": 1452,
+      "whale": 9117,
+      "bird": 1712
+     },
+     "sea": "Udddd"
+    },
+    {
+     "t": 61,
+     "x": -760,
+     "z": -2280,
+     "agl": 25,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 463,
+      "bear": 56,
+      "doe": 616,
+      "orca": 1431,
+      "whale": 9151,
+      "bird": 1666
+     },
+     "sea": "ddddd"
+    },
+    {
+     "t": 62,
+     "x": -720,
+     "z": -2280,
+     "agl": 25,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 503,
+      "bear": 88,
+      "doe": 655,
+      "orca": 1411,
+      "whale": 9185,
+      "bird": 1620
+     },
+     "sea": "ddddd"
+    },
+    {
+     "t": 63,
+     "x": -680,
+     "z": -2280,
+     "agl": 25,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 542,
+      "bear": 125,
+      "doe": 695,
+      "orca": 1392,
+      "whale": 9219,
+      "bird": 1574
+     },
+     "sea": "ddddd"
+    },
+    {
+     "t": 64,
+     "x": -640,
+     "z": -2280,
+     "agl": 25,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 582,
+      "bear": 163,
+      "doe": 735,
+      "orca": 1374,
+      "whale": 9253,
+      "bird": 1529
+     },
+     "sea": "ddddd"
+    },
+    {
+     "t": 65,
+     "x": -600,
+     "z": -2280,
+     "agl": 25,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 621,
+      "bear": 202,
+      "doe": 775,
+      "orca": 1357,
+      "whale": 9287,
+      "bird": 1485
+     },
+     "sea": "ddddd"
+    },
+    {
+     "t": 66,
+     "x": -560,
+     "z": -2280,
+     "agl": 25,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 661,
+      "bear": 241,
+      "doe": 815,
+      "orca": 1342,
+      "whale": 9321,
+      "bird": 1442
+     },
+     "sea": "dddUd"
+    },
+    {
+     "t": 67,
+     "x": -520,
+     "z": -2280,
+     "agl": 25,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 700,
+      "bear": 280,
+      "doe": 855,
+      "orca": 1328,
+      "whale": 9356,
+      "bird": 1399
+     },
+     "sea": "dddUd"
+    },
+    {
+     "t": 68,
+     "x": -480,
+     "z": -2280,
+     "agl": 25,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 740,
+      "bear": 320,
+      "doe": 895,
+      "orca": 1315,
+      "whale": 9390,
+      "bird": 1358
+     },
+     "sea": "dUdUd"
+    },
+    {
+     "t": 69,
+     "x": -440,
+     "z": -2280,
+     "agl": 25,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 780,
+      "bear": 360,
+      "doe": 935,
+      "orca": 1304,
+      "whale": 9424,
+      "bird": 1317
+     },
+     "sea": "dUdUd"
+    },
+    {
+     "t": 70,
+     "x": -400,
+     "z": -2280,
+     "agl": 25,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 819,
+      "bear": 399,
+      "doe": 976,
+      "orca": 1294,
+      "whale": 9458,
+      "bird": 1278
+     },
+     "sea": "dUdUd"
+    },
+    {
+     "t": 71,
+     "x": -360,
+     "z": -2280,
+     "agl": 25,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 859,
+      "bear": 439,
+      "doe": 1016,
+      "orca": 1285,
+      "whale": 9493,
+      "bird": 1240
+     },
+     "sea": "dUdUd"
+    },
+    {
+     "t": 72,
+     "x": -320,
+     "z": -2280,
+     "agl": 25,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 899,
+      "bear": 478,
+      "doe": 1025,
+      "orca": 1278,
+      "whale": 9527,
+      "bird": 1204
+     },
+     "sea": "dUdUd"
+    },
+    {
+     "t": 73,
+     "x": -280,
+     "z": -2280,
+     "agl": 25,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 939,
+      "bear": 518,
+      "doe": 986,
+      "orca": 1272,
+      "whale": 9562,
+      "bird": 1168
+     },
+     "sea": "dUdUd"
+    },
+    {
+     "t": 74,
+     "x": -240,
+     "z": -2280,
+     "agl": 25,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 979,
+      "bear": 557,
+      "doe": 946,
+      "orca": 1268,
+      "whale": 9596,
+      "bird": 1135
+     },
+     "sea": "dUdUd"
+    },
+    {
+     "t": 75,
+     "x": -200,
+     "z": -2280,
+     "agl": 25,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 1019,
+      "bear": 597,
+      "doe": 907,
+      "orca": 1265,
+      "whale": 9631,
+      "bird": 1102
+     },
+     "sea": "dUdUd"
+    },
+    {
+     "t": 76,
+     "x": -160,
+     "z": -2280,
+     "agl": 25,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 1058,
+      "bear": 637,
+      "doe": 867,
+      "orca": 1264,
+      "whale": 9665,
+      "bird": 1072
+     },
+     "sea": "dUdUd"
+    },
+    {
+     "t": 77,
+     "x": -120,
+     "z": -2280,
+     "agl": 25,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 1098,
+      "bear": 677,
+      "doe": 828,
+      "orca": 1264,
+      "whale": 9700,
+      "bird": 1043
+     },
+     "sea": "dUdUd"
+    },
+    {
+     "t": 78,
+     "x": -80,
+     "z": -2280,
+     "agl": 25,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 1138,
+      "bear": 717,
+      "doe": 789,
+      "orca": 1253,
+      "whale": 9735,
+      "bird": 1016
+     },
+     "sea": "dUdUd"
+    },
+    {
+     "t": 79,
+     "x": -40,
+     "z": -2280,
+     "agl": 25,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 1178,
+      "bear": 757,
+      "doe": 750,
+      "orca": 1241,
+      "whale": 9769,
+      "bird": 990
+     },
+     "sea": "dUUdd"
+    },
+    {
+     "t": 80,
+     "x": -1600,
+     "z": -2280,
+     "agl": 25,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 292,
+      "bear": 805,
+      "doe": 270,
+      "orca": 1954,
+      "whale": 8450,
+      "bird": 2394
+     },
+     "sea": "dUUdd"
+    },
+    {
+     "t": 81,
+     "x": -1560,
+     "z": -2280,
+     "agl": 25,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 257,
+      "bear": 765,
+      "doe": 240,
+      "orca": 1922,
+      "whale": 8483,
+      "bird": 2356
+     },
+     "sea": "ddUdd"
+    },
+    {
+     "t": 82,
+     "x": -1520,
+     "z": -2280,
+     "agl": 25,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 223,
+      "bear": 725,
+      "doe": 210,
+      "orca": 1892,
+      "whale": 8516,
+      "bird": 2317
+     },
+     "sea": "ddUdd"
+    },
+    {
+     "t": 83,
+     "x": -1480,
+     "z": -2280,
+     "agl": 25,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 193,
+      "bear": 685,
+      "doe": 184,
+      "orca": 1861,
+      "whale": 8549,
+      "bird": 2279
+     },
+     "sea": "ddUdd"
+    },
+    {
+     "t": 84,
+     "x": -1440,
+     "z": -2280,
+     "agl": 25,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 163,
+      "bear": 645,
+      "doe": 164,
+      "orca": 1832,
+      "whale": 8582,
+      "bird": 2241
+     },
+     "sea": "ddUdd"
+    },
+    {
+     "t": 85,
+     "x": -1400,
+     "z": -2280,
+     "agl": 25,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 124,
+      "bear": 605,
+      "doe": 152,
+      "orca": 1803,
+      "whale": 8615,
+      "bird": 2203
+     },
+     "sea": "ddUdd"
+    },
+    {
+     "t": 86,
+     "x": -1360,
+     "z": -2280,
+     "agl": 25,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 85,
+      "bear": 566,
+      "doe": 150,
+      "orca": 1774,
+      "whale": 8648,
+      "bird": 2166
+     },
+     "sea": "ddUdd"
+    },
+    {
+     "t": 87,
+     "x": -1320,
+     "z": -2280,
+     "agl": 25,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 51,
+      "bear": 526,
+      "doe": 158,
+      "orca": 1746,
+      "whale": 8681,
+      "bird": 2131
+     },
+     "sea": "ddUdd"
+    },
+    {
+     "t": 88,
+     "x": -1280,
+     "z": -2280,
+     "agl": 25,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 31,
+      "bear": 486,
+      "doe": 175,
+      "orca": 1719,
+      "whale": 8714,
+      "bird": 2096
+     },
+     "sea": "ddUdd"
+    },
+    {
+     "t": 89,
+     "x": -1240,
+     "z": -2280,
+     "agl": 25,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 48,
+      "bear": 447,
+      "doe": 199,
+      "orca": 1692,
+      "whale": 8748,
+      "bird": 2063
+     },
+     "sea": "ddUdd"
+    },
+    {
+     "t": 90,
+     "x": -1200,
+     "z": -2280,
+     "agl": 25,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 82,
+      "bear": 407,
+      "doe": 228,
+      "orca": 1667,
+      "whale": 8781,
+      "bird": 2030
+     },
+     "sea": "ddUdd"
+    },
+    {
+     "t": 91,
+     "x": -1160,
+     "z": -2280,
+     "agl": 25,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 108,
+      "bear": 367,
+      "doe": 260,
+      "orca": 1642,
+      "whale": 8814,
+      "bird": 1998
+     },
+     "sea": "ddUdd"
+    },
+    {
+     "t": 92,
+     "x": -1120,
+     "z": -2280,
+     "agl": 25,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 133,
+      "bear": 328,
+      "doe": 293,
+      "orca": 1617,
+      "whale": 8848,
+      "bird": 1967
+     },
+     "sea": "ddddU"
+    },
+    {
+     "t": 93,
+     "x": -1080,
+     "z": -2280,
+     "agl": 25,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 163,
+      "bear": 288,
+      "doe": 328,
+      "orca": 1594,
+      "whale": 8881,
+      "bird": 1937
+     },
+     "sea": "ddddU"
+    },
+    {
+     "t": 94,
+     "x": -1040,
+     "z": -2280,
+     "agl": 25,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 197,
+      "bear": 248,
+      "doe": 364,
+      "orca": 1571,
+      "whale": 8915,
+      "bird": 1908
+     },
+     "sea": "ddddU"
+    },
+    {
+     "t": 95,
+     "x": -1000,
+     "z": -2280,
+     "agl": 25,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 234,
+      "bear": 209,
+      "doe": 400,
+      "orca": 1549,
+      "whale": 8949,
+      "bird": 1879
+     },
+     "sea": "ddddU"
+    },
+    {
+     "t": 96,
+     "x": -960,
+     "z": -2280,
+     "agl": 25,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 272,
+      "bear": 169,
+      "doe": 438,
+      "orca": 1528,
+      "whale": 8982,
+      "bird": 1851
+     },
+     "sea": "UdddU"
+    },
+    {
+     "t": 97,
+     "x": -920,
+     "z": -2280,
+     "agl": 25,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 311,
+      "bear": 130,
+      "doe": 475,
+      "orca": 1508,
+      "whale": 9016,
+      "bird": 1824
+     },
+     "sea": "UdddU"
+    },
+    {
+     "t": 98,
+     "x": -880,
+     "z": -2280,
+     "agl": 25,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 350,
+      "bear": 92,
+      "doe": 514,
+      "orca": 1489,
+      "whale": 9050,
+      "bird": 1797
+     },
+     "sea": "UdddU"
+    },
+    {
+     "t": 99,
+     "x": -840,
+     "z": -2280,
+     "agl": 25,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 390,
+      "bear": 57,
+      "doe": 552,
+      "orca": 1472,
+      "whale": 9083,
+      "bird": 1771
+     },
+     "sea": "UdddU"
+    },
+    {
+     "t": 100,
+     "x": -800,
+     "z": -2280,
+     "agl": 25,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 430,
+      "bear": 33,
+      "doe": 590,
+      "orca": 1455,
+      "whale": 9117,
+      "bird": 1746
+     },
+     "sea": "UdddU"
+    },
+    {
+     "t": 101,
+     "x": -760,
+     "z": -2280,
+     "agl": 25,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 470,
+      "bear": 47,
+      "doe": 629,
+      "orca": 1439,
+      "whale": 9151,
+      "bird": 1721
+     },
+     "sea": "UdddU"
+    },
+    {
+     "t": 102,
+     "x": -720,
+     "z": -2280,
+     "agl": 25,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 511,
+      "bear": 80,
+      "doe": 668,
+      "orca": 1425,
+      "whale": 9185,
+      "bird": 1697
+     },
+     "sea": "UdddU"
+    },
+    {
+     "t": 103,
+     "x": -680,
+     "z": -2280,
+     "agl": 25,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 551,
+      "bear": 118,
+      "doe": 707,
+      "orca": 1411,
+      "whale": 9219,
+      "bird": 1673
+     },
+     "sea": "UdddU"
+    },
+    {
+     "t": 104,
+     "x": -640,
+     "z": -2280,
+     "agl": 25,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 592,
+      "bear": 157,
+      "doe": 746,
+      "orca": 1399,
+      "whale": 9253,
+      "bird": 1650
+     },
+     "sea": "UdddU"
+    },
+    {
+     "t": 105,
+     "x": -600,
+     "z": -2280,
+     "agl": 25,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 632,
+      "bear": 196,
+      "doe": 786,
+      "orca": 1388,
+      "whale": 9287,
+      "bird": 1627
+     },
+     "sea": "Udddd"
+    },
+    {
+     "t": 106,
+     "x": -560,
+     "z": -2280,
+     "agl": 25,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 673,
+      "bear": 236,
+      "doe": 825,
+      "orca": 1366,
+      "whale": 9321,
+      "bird": 1604
+     },
+     "sea": "Udddd"
+    },
+    {
+     "t": 107,
+     "x": -520,
+     "z": -2280,
+     "agl": 25,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 714,
+      "bear": 276,
+      "doe": 864,
+      "orca": 1342,
+      "whale": 9356,
+      "bird": 1581
+     },
+     "sea": "Udddd"
+    },
+    {
+     "t": 108,
+     "x": -480,
+     "z": -2280,
+     "agl": 25,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 754,
+      "bear": 316,
+      "doe": 904,
+      "orca": 1319,
+      "whale": 9390,
+      "bird": 1559
+     },
+     "sea": "Udddd"
+    },
+    {
+     "t": 109,
+     "x": -440,
+     "z": -2280,
+     "agl": 25,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 795,
+      "bear": 355,
+      "doe": 943,
+      "orca": 1298,
+      "whale": 9424,
+      "bird": 1537
+     },
+     "sea": "ddddd"
+    },
+    {
+     "t": 110,
+     "x": -400,
+     "z": -2280,
+     "agl": 25,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 836,
+      "bear": 395,
+      "doe": 983,
+      "orca": 1277,
+      "whale": 9458,
+      "bird": 1514
+     },
+     "sea": "ddddd"
+    },
+    {
+     "t": 111,
+     "x": -360,
+     "z": -2280,
+     "agl": 25,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 877,
+      "bear": 435,
+      "doe": 1022,
+      "orca": 1257,
+      "whale": 9493,
+      "bird": 1492
+     },
+     "sea": "ddddd"
+    },
+    {
+     "t": 112,
+     "x": -320,
+     "z": -2280,
+     "agl": 25,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 918,
+      "bear": 475,
+      "doe": 1026,
+      "orca": 1239,
+      "whale": 9527,
+      "bird": 1471
+     },
+     "sea": "ddddd"
+    },
+    {
+     "t": 113,
+     "x": -280,
+     "z": -2280,
+     "agl": 25,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 959,
+      "bear": 515,
+      "doe": 987,
+      "orca": 1222,
+      "whale": 9562,
+      "bird": 1449
+     },
+     "sea": "ddddd"
+    },
+    {
+     "t": 114,
+     "x": -240,
+     "z": -2280,
+     "agl": 25,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 999,
+      "bear": 555,
+      "doe": 947,
+      "orca": 1206,
+      "whale": 9596,
+      "bird": 1427
+     },
+     "sea": "dddUd"
+    },
+    {
+     "t": 115,
+     "x": -200,
+     "z": -2280,
+     "agl": 25,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 1039,
+      "bear": 595,
+      "doe": 909,
+      "orca": 1192,
+      "whale": 9631,
+      "bird": 1405
+     },
+     "sea": "dddUd"
+    },
+    {
+     "t": 116,
+     "x": -160,
+     "z": -2280,
+     "agl": 25,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 1079,
+      "bear": 635,
+      "doe": 870,
+      "orca": 1179,
+      "whale": 9665,
+      "bird": 1383
+     },
+     "sea": "dUdUd"
+    },
+    {
+     "t": 117,
+     "x": -120,
+     "z": -2280,
+     "agl": 25,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 1119,
+      "bear": 675,
+      "doe": 831,
+      "orca": 1167,
+      "whale": 9700,
+      "bird": 1361
+     },
+     "sea": "dUdUd"
+    },
+    {
+     "t": 118,
+     "x": -80,
+     "z": -2280,
+     "agl": 25,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 1159,
+      "bear": 715,
+      "doe": 792,
+      "orca": 1157,
+      "whale": 9735,
+      "bird": 1339
+     },
+     "sea": "dUdUd"
+    },
+    {
+     "t": 119,
+     "x": -40,
+     "z": -2280,
+     "agl": 25,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 1199,
+      "bear": 755,
+      "doe": 754,
+      "orca": 1149,
+      "whale": 9769,
+      "bird": 1316
+     },
+     "sea": "dUdUd"
+    }
+   ]
+  },
+  {
+   "key": "gulls",
+   "name": "under the dock's gull flock as it circles over (and the ambient flocks)",
+   "localHours": 15,
+   "sunDeg": 50.1,
+   "seconds": 90,
+   "seed": 2004,
+   "animalsRunBefore": 60,
+   "audio": {
+    "peak": 0.21,
+    "normalised": false,
+    "rmsDb": -42.9
+   },
+   "loader": {
+    "fetches": 20,
+    "decodes": 20,
+    "peakMB": 5.81,
+    "proc": 0
+   },
+   "calls": [
+    {
+     "t": 1.93,
+     "sound": "gull",
+     "from": "",
+     "x": 987,
+     "y": 19.3,
+     "z": -2952.9,
+     "d": 46.2
+    },
+    {
+     "t": 16.12,
+     "sound": "gull",
+     "from": "",
+     "x": 1037.6,
+     "y": 9.4,
+     "z": -2959.7,
+     "d": 27.9
+    },
+    {
+     "t": 27.55,
+     "sound": "gull",
+     "from": "",
+     "x": 976.7,
+     "y": 8,
+     "z": -2965.9,
+     "d": 46
+    },
+    {
+     "t": 31.88,
+     "sound": "gull",
+     "from": "bird a6",
+     "x": 963.4,
+     "y": 45.3,
+     "z": -3167.1,
+     "d": 200.3
+    },
+    {
+     "t": 31.93,
+     "sound": "gull",
+     "from": "bird (ambient)",
+     "x": 611.5,
+     "y": 103.2,
+     "z": -3069.7,
+     "d": 430.3
+    },
+    {
+     "t": 44.3,
+     "sound": "dog",
+     "from": "",
+     "x": 999.5,
+     "y": -4.1,
+     "z": -2875.1,
+     "d": 107.1
+    },
+    {
+     "t": 45.35,
+     "sound": "gull",
+     "from": "bird (ambient)",
+     "x": 733.3,
+     "y": 88.1,
+     "z": -3147,
+     "d": 342.9
+    },
+    {
+     "t": 50.57,
+     "sound": "gull",
+     "from": "bird a6",
+     "x": 1097.7,
+     "y": 38.8,
+     "z": -3023.4,
+     "d": 96.5
+    },
+    {
+     "t": 58.03,
+     "sound": "gull",
+     "from": "bird (ambient)",
+     "x": 802,
+     "y": 92.4,
+     "z": -3268.3,
+     "d": 372.7
+    },
+    {
+     "t": 59.12,
+     "sound": "eagle",
+     "from": "",
+     "x": 980.7,
+     "y": 18.2,
+     "z": -2767.9,
+     "d": 216.3
+    },
+    {
+     "t": 72.87,
+     "sound": "gull",
+     "from": "bird a6",
+     "x": 1005.1,
+     "y": 38.4,
+     "z": -2812.7,
+     "d": 172
+    },
+    {
+     "t": 73.73,
+     "sound": "gull",
+     "from": "bird (ambient)",
+     "x": 907.2,
+     "y": 110.7,
+     "z": -3400.7,
+     "d": 449
+    },
+    {
+     "t": 86.8,
+     "sound": "gull",
+     "from": "",
+     "x": 1062.4,
+     "y": 9.4,
+     "z": -2907,
+     "d": 84.7
+    }
+   ],
+   "track": [
+    {
+     "t": 0,
+     "x": 1020,
+     "z": -2980,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 1910,
+      "bear": 1943,
+      "doe": 482,
+      "orca": 996,
+      "whale": 11037,
+      "bird": 318
+     },
+     "sea": "UdddU"
+    },
+    {
+     "t": 1,
+     "x": 1020,
+     "z": -2980,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 1910,
+      "bear": 1943,
+      "doe": 482,
+      "orca": 994,
+      "whale": 11037,
+      "bird": 317
+     },
+     "sea": "UdddU"
+    },
+    {
+     "t": 2,
+     "x": 1020,
+     "z": -2980,
+     "agl": 1.7,
+     "voices": 1,
+     "loops": [],
+     "nearest": {
+      "elk": 1910,
+      "bear": 1943,
+      "doe": 483,
+      "orca": 992,
+      "whale": 11037,
+      "bird": 316
+     },
+     "sea": "UdddU"
+    },
+    {
+     "t": 3,
+     "x": 1020,
+     "z": -2980,
+     "agl": 1.7,
+     "voices": 1,
+     "loops": [],
+     "nearest": {
+      "elk": 1910,
+      "bear": 1943,
+      "doe": 483,
+      "orca": 989,
+      "whale": 11037,
+      "bird": 315
+     },
+     "sea": "UdddU"
+    },
+    {
+     "t": 4,
+     "x": 1020,
+     "z": -2980,
+     "agl": 1.7,
+     "voices": 1,
+     "loops": [],
+     "nearest": {
+      "elk": 1910,
+      "bear": 1943,
+      "doe": 483,
+      "orca": 987,
+      "whale": 11037,
+      "bird": 314
+     },
+     "sea": "UdddU"
+    },
+    {
+     "t": 5,
+     "x": 1020,
+     "z": -2980,
+     "agl": 1.7,
+     "voices": 1,
+     "loops": [],
+     "nearest": {
+      "elk": 1910,
+      "bear": 1943,
+      "doe": 484,
+      "orca": 985,
+      "whale": 11037,
+      "bird": 312
+     },
+     "sea": "UdddU"
+    },
+    {
+     "t": 6,
+     "x": 1020,
+     "z": -2980,
+     "agl": 1.7,
+     "voices": 1,
+     "loops": [],
+     "nearest": {
+      "elk": 1910,
+      "bear": 1943,
+      "doe": 484,
+      "orca": 983,
+      "whale": 11037,
+      "bird": 310
+     },
+     "sea": "UdddU"
+    },
+    {
+     "t": 7,
+     "x": 1020,
+     "z": -2980,
+     "agl": 1.7,
+     "voices": 1,
+     "loops": [],
+     "nearest": {
+      "elk": 1910,
+      "bear": 1943,
+      "doe": 484,
+      "orca": 981,
+      "whale": 11037,
+      "bird": 308
+     },
+     "sea": "UdddU"
+    },
+    {
+     "t": 8,
+     "x": 1020,
+     "z": -2980,
+     "agl": 1.7,
+     "voices": 1,
+     "loops": [],
+     "nearest": {
+      "elk": 1910,
+      "bear": 1943,
+      "doe": 485,
+      "orca": 978,
+      "whale": 11037,
+      "bird": 306
+     },
+     "sea": "UdddU"
+    },
+    {
+     "t": 9,
+     "x": 1020,
+     "z": -2980,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 1910,
+      "bear": 1943,
+      "doe": 485,
+      "orca": 976,
+      "whale": 11037,
+      "bird": 303
+     },
+     "sea": "Udddd"
+    },
+    {
+     "t": 10,
+     "x": 1020,
+     "z": -2980,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 1910,
+      "bear": 1943,
+      "doe": 485,
+      "orca": 974,
+      "whale": 11037,
+      "bird": 301
+     },
+     "sea": "Udddd"
+    },
+    {
+     "t": 11,
+     "x": 1020,
+     "z": -2980,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 1910,
+      "bear": 1943,
+      "doe": 485,
+      "orca": 972,
+      "whale": 11037,
+      "bird": 298
+     },
+     "sea": "Udddd"
+    },
+    {
+     "t": 12,
+     "x": 1020,
+     "z": -2980,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 1910,
+      "bear": 1943,
+      "doe": 485,
+      "orca": 970,
+      "whale": 11037,
+      "bird": 295
+     },
+     "sea": "Udddd"
+    },
+    {
+     "t": 13,
+     "x": 1020,
+     "z": -2980,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 1910,
+      "bear": 1943,
+      "doe": 485,
+      "orca": 968,
+      "whale": 11037,
+      "bird": 291
+     },
+     "sea": "ddddd"
+    },
+    {
+     "t": 14,
+     "x": 1020,
+     "z": -2980,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 1910,
+      "bear": 1943,
+      "doe": 485,
+      "orca": 966,
+      "whale": 11037,
+      "bird": 288
+     },
+     "sea": "ddddd"
+    },
+    {
+     "t": 15,
+     "x": 1020,
+     "z": -2980,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 1910,
+      "bear": 1943,
+      "doe": 485,
+      "orca": 964,
+      "whale": 11037,
+      "bird": 284
+     },
+     "sea": "ddddd"
+    },
+    {
+     "t": 16,
+     "x": 1020,
+     "z": -2980,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 1910,
+      "bear": 1943,
+      "doe": 485,
+      "orca": 963,
+      "whale": 11037,
+      "bird": 280
+     },
+     "sea": "ddddd"
+    },
+    {
+     "t": 17,
+     "x": 1020,
+     "z": -2980,
+     "agl": 1.7,
+     "voices": 1,
+     "loops": [],
+     "nearest": {
+      "elk": 1910,
+      "bear": 1943,
+      "doe": 485,
+      "orca": 961,
+      "whale": 11037,
+      "bird": 277
+     },
+     "sea": "ddddd"
+    },
+    {
+     "t": 18,
+     "x": 1020,
+     "z": -2980,
+     "agl": 1.7,
+     "voices": 1,
+     "loops": [],
+     "nearest": {
+      "elk": 1910,
+      "bear": 1943,
+      "doe": 485,
+      "orca": 959,
+      "whale": 11037,
+      "bird": 272
+     },
+     "sea": "dddUd"
+    },
+    {
+     "t": 19,
+     "x": 1020,
+     "z": -2980,
+     "agl": 1.7,
+     "voices": 1,
+     "loops": [],
+     "nearest": {
+      "elk": 1910,
+      "bear": 1943,
+      "doe": 485,
+      "orca": 957,
+      "whale": 11037,
+      "bird": 268
+     },
+     "sea": "dddUd"
+    },
+    {
+     "t": 20,
+     "x": 1020,
+     "z": -2980,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 1910,
+      "bear": 1943,
+      "doe": 485,
+      "orca": 955,
+      "whale": 11037,
+      "bird": 264
+     },
+     "sea": "dUdUd"
+    },
+    {
+     "t": 21,
+     "x": 1020,
+     "z": -2980,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 1910,
+      "bear": 1943,
+      "doe": 485,
+      "orca": 954,
+      "whale": 11037,
+      "bird": 259
+     },
+     "sea": "dUdUd"
+    },
+    {
+     "t": 22,
+     "x": 1020,
+     "z": -2980,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 1910,
+      "bear": 1943,
+      "doe": 485,
+      "orca": 952,
+      "whale": 11037,
+      "bird": 254
+     },
+     "sea": "dUdUd"
+    },
+    {
+     "t": 23,
+     "x": 1020,
+     "z": -2980,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 1910,
+      "bear": 1943,
+      "doe": 485,
+      "orca": 950,
+      "whale": 11037,
+      "bird": 249
+     },
+     "sea": "dUdUd"
+    },
+    {
+     "t": 24,
+     "x": 1020,
+     "z": -2980,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 1910,
+      "bear": 1943,
+      "doe": 485,
+      "orca": 949,
+      "whale": 11037,
+      "bird": 244
+     },
+     "sea": "dUdUd"
+    },
+    {
+     "t": 25,
+     "x": 1020,
+     "z": -2980,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 1910,
+      "bear": 1943,
+      "doe": 485,
+      "orca": 947,
+      "whale": 11037,
+      "bird": 239
+     },
+     "sea": "dUdUd"
+    },
+    {
+     "t": 26,
+     "x": 1020,
+     "z": -2980,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 1910,
+      "bear": 1943,
+      "doe": 485,
+      "orca": 946,
+      "whale": 11037,
+      "bird": 234
+     },
+     "sea": "dUdUd"
+    },
+    {
+     "t": 27,
+     "x": 1020,
+     "z": -2980,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 1910,
+      "bear": 1943,
+      "doe": 485,
+      "orca": 944,
+      "whale": 11037,
+      "bird": 228
+     },
+     "sea": "dUdUd"
+    },
+    {
+     "t": 28,
+     "x": 1020,
+     "z": -2980,
+     "agl": 1.7,
+     "voices": 1,
+     "loops": [],
+     "nearest": {
+      "elk": 1910,
+      "bear": 1943,
+      "doe": 485,
+      "orca": 943,
+      "whale": 11037,
+      "bird": 223
+     },
+     "sea": "dUdUd"
+    },
+    {
+     "t": 29,
+     "x": 1020,
+     "z": -2980,
+     "agl": 1.7,
+     "voices": 1,
+     "loops": [],
+     "nearest": {
+      "elk": 1910,
+      "bear": 1943,
+      "doe": 485,
+      "orca": 942,
+      "whale": 11037,
+      "bird": 217
+     },
+     "sea": "dUdUd"
+    },
+    {
+     "t": 30,
+     "x": 1020,
+     "z": -2980,
+     "agl": 1.7,
+     "voices": 1,
+     "loops": [],
+     "nearest": {
+      "elk": 1910,
+      "bear": 1943,
+      "doe": 485,
+      "orca": 940,
+      "whale": 11037,
+      "bird": 211
+     },
+     "sea": "dUdUd"
+    },
+    {
+     "t": 31,
+     "x": 1020,
+     "z": -2980,
+     "agl": 1.7,
+     "voices": 1,
+     "loops": [],
+     "nearest": {
+      "elk": 1910,
+      "bear": 1943,
+      "doe": 485,
+      "orca": 939,
+      "whale": 11037,
+      "bird": 205
+     },
+     "sea": "dUUdd"
+    },
+    {
+     "t": 32,
+     "x": 1020,
+     "z": -2980,
+     "agl": 1.7,
+     "voices": 3,
+     "loops": [],
+     "nearest": {
+      "elk": 1910,
+      "bear": 1943,
+      "doe": 485,
+      "orca": 938,
+      "whale": 11037,
+      "bird": 200
+     },
+     "sea": "dUUdd"
+    },
+    {
+     "t": 33,
+     "x": 1020,
+     "z": -2980,
+     "agl": 1.7,
+     "voices": 2,
+     "loops": [],
+     "nearest": {
+      "elk": 1910,
+      "bear": 1943,
+      "doe": 485,
+      "orca": 937,
+      "whale": 11037,
+      "bird": 194
+     },
+     "sea": "ddUdd"
+    },
+    {
+     "t": 34,
+     "x": 1020,
+     "z": -2980,
+     "agl": 1.7,
+     "voices": 1,
+     "loops": [],
+     "nearest": {
+      "elk": 1910,
+      "bear": 1943,
+      "doe": 485,
+      "orca": 935,
+      "whale": 11037,
+      "bird": 187
+     },
+     "sea": "ddUdd"
+    },
+    {
+     "t": 35,
+     "x": 1020,
+     "z": -2980,
+     "agl": 1.7,
+     "voices": 1,
+     "loops": [],
+     "nearest": {
+      "elk": 1910,
+      "bear": 1943,
+      "doe": 485,
+      "orca": 934,
+      "whale": 11037,
+      "bird": 181
+     },
+     "sea": "ddUdd"
+    },
+    {
+     "t": 36,
+     "x": 1020,
+     "z": -2980,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 1910,
+      "bear": 1943,
+      "doe": 485,
+      "orca": 933,
+      "whale": 11037,
+      "bird": 175
+     },
+     "sea": "ddUdd"
+    },
+    {
+     "t": 37,
+     "x": 1020,
+     "z": -2980,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 1910,
+      "bear": 1943,
+      "doe": 485,
+      "orca": 932,
+      "whale": 11037,
+      "bird": 169
+     },
+     "sea": "ddUdd"
+    },
+    {
+     "t": 38,
+     "x": 1020,
+     "z": -2980,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 1910,
+      "bear": 1943,
+      "doe": 485,
+      "orca": 931,
+      "whale": 11037,
+      "bird": 162
+     },
+     "sea": "ddUdd"
+    },
+    {
+     "t": 39,
+     "x": 1020,
+     "z": -2980,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 1910,
+      "bear": 1943,
+      "doe": 485,
+      "orca": 930,
+      "whale": 11037,
+      "bird": 156
+     },
+     "sea": "ddUdd"
+    },
+    {
+     "t": 40,
+     "x": 1020,
+     "z": -2980,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 1910,
+      "bear": 1943,
+      "doe": 485,
+      "orca": 929,
+      "whale": 11037,
+      "bird": 150
+     },
+     "sea": "ddUdd"
+    },
+    {
+     "t": 41,
+     "x": 1020,
+     "z": -2980,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 1910,
+      "bear": 1943,
+      "doe": 485,
+      "orca": 928,
+      "whale": 11037,
+      "bird": 143
+     },
+     "sea": "ddUdd"
+    },
+    {
+     "t": 42,
+     "x": 1020,
+     "z": -2980,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 1910,
+      "bear": 1943,
+      "doe": 485,
+      "orca": 928,
+      "whale": 11037,
+      "bird": 137
+     },
+     "sea": "ddUdd"
+    },
+    {
+     "t": 43,
+     "x": 1020,
+     "z": -2980,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 1910,
+      "bear": 1943,
+      "doe": 485,
+      "orca": 927,
+      "whale": 11037,
+      "bird": 131
+     },
+     "sea": "ddUdd"
+    },
+    {
+     "t": 44,
+     "x": 1020,
+     "z": -2980,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 1910,
+      "bear": 1943,
+      "doe": 485,
+      "orca": 926,
+      "whale": 11037,
+      "bird": 125
+     },
+     "sea": "ddddU"
+    },
+    {
+     "t": 45,
+     "x": 1020,
+     "z": -2980,
+     "agl": 1.7,
+     "voices": 1,
+     "loops": [],
+     "nearest": {
+      "elk": 1910,
+      "bear": 1943,
+      "doe": 485,
+      "orca": 925,
+      "whale": 11037,
+      "bird": 119
+     },
+     "sea": "ddddU"
+    },
+    {
+     "t": 46,
+     "x": 1020,
+     "z": -2980,
+     "agl": 1.7,
+     "voices": 1,
+     "loops": [],
+     "nearest": {
+      "elk": 1910,
+      "bear": 1943,
+      "doe": 485,
+      "orca": 925,
+      "whale": 11037,
+      "bird": 113
+     },
+     "sea": "ddddU"
+    },
+    {
+     "t": 47,
+     "x": 1020,
+     "z": -2980,
+     "agl": 1.7,
+     "voices": 1,
+     "loops": [],
+     "nearest": {
+      "elk": 1910,
+      "bear": 1943,
+      "doe": 485,
+      "orca": 924,
+      "whale": 11037,
+      "bird": 108
+     },
+     "sea": "ddddU"
+    },
+    {
+     "t": 48,
+     "x": 1020,
+     "z": -2980,
+     "agl": 1.7,
+     "voices": 1,
+     "loops": [],
+     "nearest": {
+      "elk": 1910,
+      "bear": 1943,
+      "doe": 485,
+      "orca": 923,
+      "whale": 11037,
+      "bird": 103
+     },
+     "sea": "UdddU"
+    },
+    {
+     "t": 49,
+     "x": 1020,
+     "z": -2980,
+     "agl": 1.7,
+     "voices": 1,
+     "loops": [],
+     "nearest": {
+      "elk": 1910,
+      "bear": 1943,
+      "doe": 485,
+      "orca": 923,
+      "whale": 11037,
+      "bird": 98
+     },
+     "sea": "UdddU"
+    },
+    {
+     "t": 50,
+     "x": 1020,
+     "z": -2980,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 1910,
+      "bear": 1943,
+      "doe": 485,
+      "orca": 922,
+      "whale": 11037,
+      "bird": 94
+     },
+     "sea": "UdddU"
+    },
+    {
+     "t": 51,
+     "x": 1020,
+     "z": -2980,
+     "agl": 1.7,
+     "voices": 1,
+     "loops": [],
+     "nearest": {
+      "elk": 1910,
+      "bear": 1943,
+      "doe": 485,
+      "orca": 922,
+      "whale": 11037,
+      "bird": 90
+     },
+     "sea": "UdddU"
+    },
+    {
+     "t": 52,
+     "x": 1020,
+     "z": -2980,
+     "agl": 1.7,
+     "voices": 1,
+     "loops": [],
+     "nearest": {
+      "elk": 1910,
+      "bear": 1943,
+      "doe": 485,
+      "orca": 922,
+      "whale": 11037,
+      "bird": 87
+     },
+     "sea": "UdddU"
+    },
+    {
+     "t": 53,
+     "x": 1020,
+     "z": -2980,
+     "agl": 1.7,
+     "voices": 1,
+     "loops": [],
+     "nearest": {
+      "elk": 1910,
+      "bear": 1943,
+      "doe": 485,
+      "orca": 921,
+      "whale": 11037,
+      "bird": 85
+     },
+     "sea": "UdddU"
+    },
+    {
+     "t": 54,
+     "x": 1020,
+     "z": -2980,
+     "agl": 1.7,
+     "voices": 1,
+     "loops": [],
+     "nearest": {
+      "elk": 1910,
+      "bear": 1943,
+      "doe": 485,
+      "orca": 921,
+      "whale": 11037,
+      "bird": 84
+     },
+     "sea": "UdddU"
+    },
+    {
+     "t": 55,
+     "x": 1020,
+     "z": -2980,
+     "agl": 1.7,
+     "voices": 1,
+     "loops": [],
+     "nearest": {
+      "elk": 1910,
+      "bear": 1943,
+      "doe": 485,
+      "orca": 921,
+      "whale": 11037,
+      "bird": 84
+     },
+     "sea": "UdddU"
+    },
+    {
+     "t": 56,
+     "x": 1020,
+     "z": -2980,
+     "agl": 1.7,
+     "voices": 1,
+     "loops": [],
+     "nearest": {
+      "elk": 1910,
+      "bear": 1943,
+      "doe": 485,
+      "orca": 920,
+      "whale": 11037,
+      "bird": 84
+     },
+     "sea": "UdddU"
+    },
+    {
+     "t": 57,
+     "x": 1020,
+     "z": -2980,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 1910,
+      "bear": 1943,
+      "doe": 485,
+      "orca": 920,
+      "whale": 11037,
+      "bird": 85
+     },
+     "sea": "Udddd"
+    },
+    {
+     "t": 58,
+     "x": 1020,
+     "z": -2980,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 1910,
+      "bear": 1943,
+      "doe": 485,
+      "orca": 920,
+      "whale": 11037,
+      "bird": 88
+     },
+     "sea": "Udddd"
+    },
+    {
+     "t": 59,
+     "x": 1020,
+     "z": -2980,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 1910,
+      "bear": 1943,
+      "doe": 485,
+      "orca": 920,
+      "whale": 11037,
+      "bird": 90
+     },
+     "sea": "Udddd"
+    },
+    {
+     "t": 60,
+     "x": 1020,
+     "z": -2980,
+     "agl": 1.7,
+     "voices": 1,
+     "loops": [],
+     "nearest": {
+      "elk": 1910,
+      "bear": 1943,
+      "doe": 485,
+      "orca": 920,
+      "whale": 11037,
+      "bird": 94
+     },
+     "sea": "Udddd"
+    },
+    {
+     "t": 61,
+     "x": 1020,
+     "z": -2980,
+     "agl": 1.7,
+     "voices": 1,
+     "loops": [],
+     "nearest": {
+      "elk": 1910,
+      "bear": 1943,
+      "doe": 485,
+      "orca": 920,
+      "whale": 11037,
+      "bird": 98
+     },
+     "sea": "ddddd"
+    },
+    {
+     "t": 62,
+     "x": 1020,
+     "z": -2980,
+     "agl": 1.7,
+     "voices": 1,
+     "loops": [],
+     "nearest": {
+      "elk": 1910,
+      "bear": 1943,
+      "doe": 486,
+      "orca": 920,
+      "whale": 11037,
+      "bird": 103
+     },
+     "sea": "ddddd"
+    },
+    {
+     "t": 63,
+     "x": 1020,
+     "z": -2980,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 1910,
+      "bear": 1943,
+      "doe": 487,
+      "orca": 920,
+      "whale": 11037,
+      "bird": 108
+     },
+     "sea": "ddddd"
+    },
+    {
+     "t": 64,
+     "x": 1020,
+     "z": -2980,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 1910,
+      "bear": 1943,
+      "doe": 488,
+      "orca": 920,
+      "whale": 11037,
+      "bird": 114
+     },
+     "sea": "ddddd"
+    },
+    {
+     "t": 65,
+     "x": 1020,
+     "z": -2980,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 1910,
+      "bear": 1943,
+      "doe": 488,
+      "orca": 920,
+      "whale": 11037,
+      "bird": 120
+     },
+     "sea": "ddddd"
+    },
+    {
+     "t": 66,
+     "x": 1020,
+     "z": -2980,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 1910,
+      "bear": 1943,
+      "doe": 489,
+      "orca": 921,
+      "whale": 11037,
+      "bird": 126
+     },
+     "sea": "dddUd"
+    },
+    {
+     "t": 67,
+     "x": 1020,
+     "z": -2980,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 1910,
+      "bear": 1943,
+      "doe": 490,
+      "orca": 921,
+      "whale": 11037,
+      "bird": 132
+     },
+     "sea": "dddUd"
+    },
+    {
+     "t": 68,
+     "x": 1020,
+     "z": -2980,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 1910,
+      "bear": 1943,
+      "doe": 491,
+      "orca": 921,
+      "whale": 11037,
+      "bird": 138
+     },
+     "sea": "dUdUd"
+    },
+    {
+     "t": 69,
+     "x": 1020,
+     "z": -2980,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 1910,
+      "bear": 1943,
+      "doe": 491,
+      "orca": 922,
+      "whale": 11037,
+      "bird": 145
+     },
+     "sea": "dUdUd"
+    },
+    {
+     "t": 70,
+     "x": 1020,
+     "z": -2980,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 1910,
+      "bear": 1943,
+      "doe": 491,
+      "orca": 922,
+      "whale": 11037,
+      "bird": 151
+     },
+     "sea": "dUdUd"
+    },
+    {
+     "t": 71,
+     "x": 1020,
+     "z": -2980,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 1910,
+      "bear": 1943,
+      "doe": 491,
+      "orca": 922,
+      "whale": 11037,
+      "bird": 158
+     },
+     "sea": "dUdUd"
+    },
+    {
+     "t": 72,
+     "x": 1020,
+     "z": -2980,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 1910,
+      "bear": 1943,
+      "doe": 491,
+      "orca": 923,
+      "whale": 11037,
+      "bird": 165
+     },
+     "sea": "dUdUd"
+    },
+    {
+     "t": 73,
+     "x": 1020,
+     "z": -2980,
+     "agl": 1.7,
+     "voices": 1,
+     "loops": [],
+     "nearest": {
+      "elk": 1910,
+      "bear": 1943,
+      "doe": 491,
+      "orca": 923,
+      "whale": 11037,
+      "bird": 171
+     },
+     "sea": "dUdUd"
+    },
+    {
+     "t": 74,
+     "x": 1020,
+     "z": -2980,
+     "agl": 1.7,
+     "voices": 2,
+     "loops": [],
+     "nearest": {
+      "elk": 1910,
+      "bear": 1943,
+      "doe": 491,
+      "orca": 924,
+      "whale": 11037,
+      "bird": 178
+     },
+     "sea": "dUdUd"
+    },
+    {
+     "t": 75,
+     "x": 1020,
+     "z": -2980,
+     "agl": 1.7,
+     "voices": 2,
+     "loops": [],
+     "nearest": {
+      "elk": 1910,
+      "bear": 1943,
+      "doe": 491,
+      "orca": 925,
+      "whale": 11037,
+      "bird": 184
+     },
+     "sea": "dUdUd"
+    },
+    {
+     "t": 76,
+     "x": 1020,
+     "z": -2980,
+     "agl": 1.7,
+     "voices": 2,
+     "loops": [],
+     "nearest": {
+      "elk": 1910,
+      "bear": 1943,
+      "doe": 491,
+      "orca": 925,
+      "whale": 11037,
+      "bird": 191
+     },
+     "sea": "dUdUd"
+    },
+    {
+     "t": 77,
+     "x": 1020,
+     "z": -2980,
+     "agl": 1.7,
+     "voices": 1,
+     "loops": [],
+     "nearest": {
+      "elk": 1910,
+      "bear": 1943,
+      "doe": 491,
+      "orca": 926,
+      "whale": 11037,
+      "bird": 198
+     },
+     "sea": "dUdUd"
+    },
+    {
+     "t": 78,
+     "x": 1020,
+     "z": -2980,
+     "agl": 1.7,
+     "voices": 1,
+     "loops": [],
+     "nearest": {
+      "elk": 1910,
+      "bear": 1943,
+      "doe": 491,
+      "orca": 927,
+      "whale": 11037,
+      "bird": 204
+     },
+     "sea": "dUdUd"
+    },
+    {
+     "t": 79,
+     "x": 1020,
+     "z": -2980,
+     "agl": 1.7,
+     "voices": 1,
+     "loops": [],
+     "nearest": {
+      "elk": 1910,
+      "bear": 1943,
+      "doe": 491,
+      "orca": 928,
+      "whale": 11037,
+      "bird": 210
+     },
+     "sea": "dUUdd"
+    },
+    {
+     "t": 80,
+     "x": 1020,
+     "z": -2980,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 1910,
+      "bear": 1943,
+      "doe": 491,
+      "orca": 928,
+      "whale": 11037,
+      "bird": 216
+     },
+     "sea": "dUUdd"
+    },
+    {
+     "t": 81,
+     "x": 1020,
+     "z": -2980,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 1910,
+      "bear": 1943,
+      "doe": 491,
+      "orca": 929,
+      "whale": 11037,
+      "bird": 222
+     },
+     "sea": "ddUdd"
+    },
+    {
+     "t": 82,
+     "x": 1020,
+     "z": -2980,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 1910,
+      "bear": 1943,
+      "doe": 491,
+      "orca": 930,
+      "whale": 11037,
+      "bird": 228
+     },
+     "sea": "ddUdd"
+    },
+    {
+     "t": 83,
+     "x": 1020,
+     "z": -2980,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 1910,
+      "bear": 1943,
+      "doe": 491,
+      "orca": 931,
+      "whale": 11037,
+      "bird": 234
+     },
+     "sea": "ddUdd"
+    },
+    {
+     "t": 84,
+     "x": 1020,
+     "z": -2980,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 1910,
+      "bear": 1943,
+      "doe": 491,
+      "orca": 932,
+      "whale": 11037,
+      "bird": 239
+     },
+     "sea": "ddUdd"
+    },
+    {
+     "t": 85,
+     "x": 1020,
+     "z": -2980,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 1910,
+      "bear": 1943,
+      "doe": 491,
+      "orca": 933,
+      "whale": 11037,
+      "bird": 245
+     },
+     "sea": "ddUdd"
+    },
+    {
+     "t": 86,
+     "x": 1020,
+     "z": -2980,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 1910,
+      "bear": 1943,
+      "doe": 491,
+      "orca": 935,
+      "whale": 11037,
+      "bird": 250
+     },
+     "sea": "ddUdd"
+    },
+    {
+     "t": 87,
+     "x": 1020,
+     "z": -2980,
+     "agl": 1.7,
+     "voices": 1,
+     "loops": [],
+     "nearest": {
+      "elk": 1910,
+      "bear": 1943,
+      "doe": 491,
+      "orca": 936,
+      "whale": 11037,
+      "bird": 255
+     },
+     "sea": "ddUdd"
+    },
+    {
+     "t": 88,
+     "x": 1020,
+     "z": -2980,
+     "agl": 1.7,
+     "voices": 1,
+     "loops": [],
+     "nearest": {
+      "elk": 1910,
+      "bear": 1943,
+      "doe": 491,
+      "orca": 937,
+      "whale": 11037,
+      "bird": 260
+     },
+     "sea": "ddUdd"
+    },
+    {
+     "t": 89,
+     "x": 1020,
+     "z": -2980,
+     "agl": 1.7,
+     "voices": 1,
+     "loops": [],
+     "nearest": {
+      "elk": 1910,
+      "bear": 1943,
+      "doe": 491,
+      "orca": 938,
+      "whale": 11037,
+      "bird": 264
+     },
+     "sea": "ddUdd"
+    }
+   ]
+  },
+  {
+   "key": "mill",
+   "name": "the walk to the Kennecott mill (its recorded stamp loop)",
+   "localHours": 15,
+   "sunDeg": 50.1,
+   "seconds": 45,
+   "seed": 2005,
+   "animalsRunBefore": 60,
+   "audio": {
+    "peak": 0.096,
+    "normalised": false,
+    "rmsDb": -44.9
+   },
+   "loader": {
+    "fetches": 20,
+    "decodes": 20,
+    "peakMB": 7.71,
+    "proc": 0
+   },
+   "calls": [
+    {
+     "t": 0.3,
+     "sound": "mill:on",
+     "from": "",
+     "x": 7292.2,
+     "y": 367.7,
+     "z": -15396.6,
+     "d": 0
+    }
+   ],
+   "track": [
+    {
+     "t": 0,
+     "x": 7032.2,
+     "z": -15356.6,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [],
+     "nearest": {
+      "elk": 15330,
+      "bear": 15220,
+      "doe": 14219,
+      "orca": 13330,
+      "whale": 23732,
+      "bird": 4841
+     },
+     "sea": "UUUUU"
+    },
+    {
+     "t": 1,
+     "x": 7036,
+     "z": -15357,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [
+      [
+       "mill",
+       1
+      ]
+     ],
+     "nearest": {
+      "elk": 15333,
+      "bear": 15223,
+      "doe": 14221,
+      "orca": 13332,
+      "whale": 23735,
+      "bird": 4839
+     },
+     "sea": "UUUUU"
+    },
+    {
+     "t": 2,
+     "x": 7039.8,
+     "z": -15357.5,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [
+      [
+       "mill",
+       1
+      ]
+     ],
+     "nearest": {
+      "elk": 15335,
+      "bear": 15225,
+      "doe": 14223,
+      "orca": 13334,
+      "whale": 23738,
+      "bird": 4837
+     },
+     "sea": "UUUUU"
+    },
+    {
+     "t": 3,
+     "x": 7043.5,
+     "z": -15357.9,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [
+      [
+       "mill",
+       1
+      ]
+     ],
+     "nearest": {
+      "elk": 15337,
+      "bear": 15227,
+      "doe": 14225,
+      "orca": 13337,
+      "whale": 23741,
+      "bird": 4835
+     },
+     "sea": "UUUUU"
+    },
+    {
+     "t": 4,
+     "x": 7047.3,
+     "z": -15358.4,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [
+      [
+       "mill",
+       1
+      ]
+     ],
+     "nearest": {
+      "elk": 15340,
+      "bear": 15230,
+      "doe": 14227,
+      "orca": 13339,
+      "whale": 23744,
+      "bird": 4833
+     },
+     "sea": "UUUUU"
+    },
+    {
+     "t": 5,
+     "x": 7051.1,
+     "z": -15358.8,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [
+      [
+       "mill",
+       1
+      ]
+     ],
+     "nearest": {
+      "elk": 15342,
+      "bear": 15232,
+      "doe": 14229,
+      "orca": 13341,
+      "whale": 23746,
+      "bird": 4831
+     },
+     "sea": "UUUUU"
+    },
+    {
+     "t": 6,
+     "x": 7054.9,
+     "z": -15359.3,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [
+      [
+       "mill",
+       1
+      ]
+     ],
+     "nearest": {
+      "elk": 15345,
+      "bear": 15234,
+      "doe": 14231,
+      "orca": 13344,
+      "whale": 23749,
+      "bird": 4829
+     },
+     "sea": "UUUUU"
+    },
+    {
+     "t": 7,
+     "x": 7058.6,
+     "z": -15359.7,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [
+      [
+       "mill",
+       1
+      ]
+     ],
+     "nearest": {
+      "elk": 15347,
+      "bear": 15237,
+      "doe": 14233,
+      "orca": 13346,
+      "whale": 23752,
+      "bird": 4827
+     },
+     "sea": "UUUUU"
+    },
+    {
+     "t": 8,
+     "x": 7062.4,
+     "z": -15360.2,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [
+      [
+       "mill",
+       1
+      ]
+     ],
+     "nearest": {
+      "elk": 15349,
+      "bear": 15239,
+      "doe": 14235,
+      "orca": 13348,
+      "whale": 23755,
+      "bird": 4825
+     },
+     "sea": "UUUUU"
+    },
+    {
+     "t": 9,
+     "x": 7066.2,
+     "z": -15360.6,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [
+      [
+       "mill",
+       1
+      ]
+     ],
+     "nearest": {
+      "elk": 15352,
+      "bear": 15241,
+      "doe": 14238,
+      "orca": 13350,
+      "whale": 23758,
+      "bird": 4823
+     },
+     "sea": "UUUUU"
+    },
+    {
+     "t": 10,
+     "x": 7070,
+     "z": -15361,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [
+      [
+       "mill",
+       1
+      ]
+     ],
+     "nearest": {
+      "elk": 15354,
+      "bear": 15244,
+      "doe": 14240,
+      "orca": 13353,
+      "whale": 23761,
+      "bird": 4821
+     },
+     "sea": "UUUUU"
+    },
+    {
+     "t": 11,
+     "x": 7073.8,
+     "z": -15361.5,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [
+      [
+       "mill",
+       1
+      ]
+     ],
+     "nearest": {
+      "elk": 15357,
+      "bear": 15246,
+      "doe": 14242,
+      "orca": 13355,
+      "whale": 23763,
+      "bird": 4819
+     },
+     "sea": "UUUUU"
+    },
+    {
+     "t": 12,
+     "x": 7077.5,
+     "z": -15361.9,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [
+      [
+       "mill",
+       1
+      ]
+     ],
+     "nearest": {
+      "elk": 15359,
+      "bear": 15248,
+      "doe": 14244,
+      "orca": 13357,
+      "whale": 23766,
+      "bird": 4817
+     },
+     "sea": "UUUUU"
+    },
+    {
+     "t": 13,
+     "x": 7081.3,
+     "z": -15362.4,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [
+      [
+       "mill",
+       1
+      ]
+     ],
+     "nearest": {
+      "elk": 15361,
+      "bear": 15251,
+      "doe": 14246,
+      "orca": 13360,
+      "whale": 23769,
+      "bird": 4815
+     },
+     "sea": "UUUUU"
+    },
+    {
+     "t": 14,
+     "x": 7085.1,
+     "z": -15362.8,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [
+      [
+       "mill",
+       1
+      ]
+     ],
+     "nearest": {
+      "elk": 15364,
+      "bear": 15253,
+      "doe": 14248,
+      "orca": 13362,
+      "whale": 23772,
+      "bird": 4813
+     },
+     "sea": "UUUUU"
+    },
+    {
+     "t": 15,
+     "x": 7088.9,
+     "z": -15363.3,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [
+      [
+       "mill",
+       1
+      ]
+     ],
+     "nearest": {
+      "elk": 15366,
+      "bear": 15256,
+      "doe": 14250,
+      "orca": 13364,
+      "whale": 23775,
+      "bird": 4811
+     },
+     "sea": "UUUUU"
+    },
+    {
+     "t": 16,
+     "x": 7092.6,
+     "z": -15363.7,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [
+      [
+       "mill",
+       1
+      ]
+     ],
+     "nearest": {
+      "elk": 15369,
+      "bear": 15258,
+      "doe": 14252,
+      "orca": 13367,
+      "whale": 23777,
+      "bird": 4810
+     },
+     "sea": "UUUUU"
+    },
+    {
+     "t": 17,
+     "x": 7096.4,
+     "z": -15364.2,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [
+      [
+       "mill",
+       1
+      ]
+     ],
+     "nearest": {
+      "elk": 15371,
+      "bear": 15260,
+      "doe": 14254,
+      "orca": 13369,
+      "whale": 23780,
+      "bird": 4808
+     },
+     "sea": "UUUUU"
+    },
+    {
+     "t": 18,
+     "x": 7100.2,
+     "z": -15364.6,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [
+      [
+       "mill",
+       1
+      ]
+     ],
+     "nearest": {
+      "elk": 15374,
+      "bear": 15263,
+      "doe": 14256,
+      "orca": 13372,
+      "whale": 23783,
+      "bird": 4806
+     },
+     "sea": "UUUUU"
+    },
+    {
+     "t": 19,
+     "x": 7104,
+     "z": -15365,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [
+      [
+       "mill",
+       1
+      ]
+     ],
+     "nearest": {
+      "elk": 15376,
+      "bear": 15265,
+      "doe": 14259,
+      "orca": 13374,
+      "whale": 23786,
+      "bird": 4804
+     },
+     "sea": "UUUUU"
+    },
+    {
+     "t": 20,
+     "x": 7107.8,
+     "z": -15365.5,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [
+      [
+       "mill",
+       1
+      ]
+     ],
+     "nearest": {
+      "elk": 15379,
+      "bear": 15267,
+      "doe": 14261,
+      "orca": 13376,
+      "whale": 23789,
+      "bird": 4802
+     },
+     "sea": "UUUUU"
+    },
+    {
+     "t": 21,
+     "x": 7111.5,
+     "z": -15365.9,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [
+      [
+       "mill",
+       1
+      ]
+     ],
+     "nearest": {
+      "elk": 15381,
+      "bear": 15270,
+      "doe": 14263,
+      "orca": 13379,
+      "whale": 23792,
+      "bird": 4800
+     },
+     "sea": "UUUUU"
+    },
+    {
+     "t": 22,
+     "x": 7115.3,
+     "z": -15366.4,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [
+      [
+       "mill",
+       1
+      ]
+     ],
+     "nearest": {
+      "elk": 15383,
+      "bear": 15272,
+      "doe": 14265,
+      "orca": 13381,
+      "whale": 23795,
+      "bird": 4798
+     },
+     "sea": "UUUUU"
+    },
+    {
+     "t": 23,
+     "x": 7119.1,
+     "z": -15366.8,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [
+      [
+       "mill",
+       1
+      ]
+     ],
+     "nearest": {
+      "elk": 15386,
+      "bear": 15275,
+      "doe": 14267,
+      "orca": 13383,
+      "whale": 23797,
+      "bird": 4796
+     },
+     "sea": "UUUUU"
+    },
+    {
+     "t": 24,
+     "x": 7122.9,
+     "z": -15367.3,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [
+      [
+       "mill",
+       1
+      ]
+     ],
+     "nearest": {
+      "elk": 15388,
+      "bear": 15277,
+      "doe": 14269,
+      "orca": 13386,
+      "whale": 23800,
+      "bird": 4795
+     },
+     "sea": "UUUUU"
+    },
+    {
+     "t": 25,
+     "x": 7126.6,
+     "z": -15367.7,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [
+      [
+       "mill",
+       1
+      ]
+     ],
+     "nearest": {
+      "elk": 15391,
+      "bear": 15279,
+      "doe": 14271,
+      "orca": 13388,
+      "whale": 23803,
+      "bird": 4793
+     },
+     "sea": "UUUUU"
+    },
+    {
+     "t": 26,
+     "x": 7130.4,
+     "z": -15368.2,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [
+      [
+       "mill",
+       1
+      ]
+     ],
+     "nearest": {
+      "elk": 15393,
+      "bear": 15282,
+      "doe": 14273,
+      "orca": 13391,
+      "whale": 23806,
+      "bird": 4791
+     },
+     "sea": "UUUUU"
+    },
+    {
+     "t": 27,
+     "x": 7134.2,
+     "z": -15368.6,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [
+      [
+       "mill",
+       1
+      ]
+     ],
+     "nearest": {
+      "elk": 15396,
+      "bear": 15284,
+      "doe": 14276,
+      "orca": 13393,
+      "whale": 23809,
+      "bird": 4789
+     },
+     "sea": "UUUUU"
+    },
+    {
+     "t": 28,
+     "x": 7138,
+     "z": -15369,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [
+      [
+       "mill",
+       1
+      ]
+     ],
+     "nearest": {
+      "elk": 15398,
+      "bear": 15286,
+      "doe": 14278,
+      "orca": 13395,
+      "whale": 23812,
+      "bird": 4787
+     },
+     "sea": "UUUUU"
+    },
+    {
+     "t": 29,
+     "x": 7141.8,
+     "z": -15369.5,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [
+      [
+       "mill",
+       1
+      ]
+     ],
+     "nearest": {
+      "elk": 15401,
+      "bear": 15289,
+      "doe": 14280,
+      "orca": 13398,
+      "whale": 23815,
+      "bird": 4786
+     },
+     "sea": "UUUUU"
+    },
+    {
+     "t": 30,
+     "x": 7145.5,
+     "z": -15369.9,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [
+      [
+       "mill",
+       1
+      ]
+     ],
+     "nearest": {
+      "elk": 15403,
+      "bear": 15291,
+      "doe": 14282,
+      "orca": 13400,
+      "whale": 23817,
+      "bird": 4784
+     },
+     "sea": "UUUUU"
+    },
+    {
+     "t": 31,
+     "x": 7149.3,
+     "z": -15370.4,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [
+      [
+       "mill",
+       1
+      ]
+     ],
+     "nearest": {
+      "elk": 15406,
+      "bear": 15294,
+      "doe": 14284,
+      "orca": 13402,
+      "whale": 23820,
+      "bird": 4782
+     },
+     "sea": "UUUUU"
+    },
+    {
+     "t": 32,
+     "x": 7153.1,
+     "z": -15370.8,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [
+      [
+       "mill",
+       1
+      ]
+     ],
+     "nearest": {
+      "elk": 15408,
+      "bear": 15296,
+      "doe": 14286,
+      "orca": 13405,
+      "whale": 23823,
+      "bird": 4780
+     },
+     "sea": "UUUUU"
+    },
+    {
+     "t": 33,
+     "x": 7156.9,
+     "z": -15371.3,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [
+      [
+       "mill",
+       1
+      ]
+     ],
+     "nearest": {
+      "elk": 15410,
+      "bear": 15298,
+      "doe": 14288,
+      "orca": 13407,
+      "whale": 23826,
+      "bird": 4778
+     },
+     "sea": "UUUUU"
+    },
+    {
+     "t": 34,
+     "x": 7160.6,
+     "z": -15371.7,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [
+      [
+       "mill",
+       1
+      ]
+     ],
+     "nearest": {
+      "elk": 15413,
+      "bear": 15301,
+      "doe": 14290,
+      "orca": 13409,
+      "whale": 23829,
+      "bird": 4776
+     },
+     "sea": "UUUUU"
+    },
+    {
+     "t": 35,
+     "x": 7164.4,
+     "z": -15372.2,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [
+      [
+       "mill",
+       1
+      ]
+     ],
+     "nearest": {
+      "elk": 15415,
+      "bear": 15303,
+      "doe": 14292,
+      "orca": 13412,
+      "whale": 23832,
+      "bird": 4774
+     },
+     "sea": "UUUUU"
+    },
+    {
+     "t": 36,
+     "x": 7168.2,
+     "z": -15372.6,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [
+      [
+       "mill",
+       1
+      ]
+     ],
+     "nearest": {
+      "elk": 15418,
+      "bear": 15305,
+      "doe": 14294,
+      "orca": 13414,
+      "whale": 23834,
+      "bird": 4772
+     },
+     "sea": "UUUUU"
+    },
+    {
+     "t": 37,
+     "x": 7172,
+     "z": -15373,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [
+      [
+       "mill",
+       1
+      ]
+     ],
+     "nearest": {
+      "elk": 15420,
+      "bear": 15308,
+      "doe": 14296,
+      "orca": 13416,
+      "whale": 23837,
+      "bird": 4770
+     },
+     "sea": "UUUUU"
+    },
+    {
+     "t": 38,
+     "x": 7175.8,
+     "z": -15373.5,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [
+      [
+       "mill",
+       1
+      ]
+     ],
+     "nearest": {
+      "elk": 15422,
+      "bear": 15310,
+      "doe": 14299,
+      "orca": 13419,
+      "whale": 23840,
+      "bird": 4768
+     },
+     "sea": "UUUUU"
+    },
+    {
+     "t": 39,
+     "x": 7179.5,
+     "z": -15373.9,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [
+      [
+       "mill",
+       1
+      ]
+     ],
+     "nearest": {
+      "elk": 15425,
+      "bear": 15312,
+      "doe": 14301,
+      "orca": 13421,
+      "whale": 23843,
+      "bird": 4766
+     },
+     "sea": "UUUUU"
+    },
+    {
+     "t": 40,
+     "x": 7183.3,
+     "z": -15374.4,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [
+      [
+       "mill",
+       1
+      ]
+     ],
+     "nearest": {
+      "elk": 15427,
+      "bear": 15315,
+      "doe": 14303,
+      "orca": 13423,
+      "whale": 23846,
+      "bird": 4764
+     },
+     "sea": "UUUUU"
+    },
+    {
+     "t": 41,
+     "x": 7187.1,
+     "z": -15374.8,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [
+      [
+       "mill",
+       1
+      ]
+     ],
+     "nearest": {
+      "elk": 15430,
+      "bear": 15317,
+      "doe": 14305,
+      "orca": 13426,
+      "whale": 23848,
+      "bird": 4762
+     },
+     "sea": "UUUUU"
+    },
+    {
+     "t": 42,
+     "x": 7190.9,
+     "z": -15375.3,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [
+      [
+       "mill",
+       1
+      ]
+     ],
+     "nearest": {
+      "elk": 15432,
+      "bear": 15319,
+      "doe": 14307,
+      "orca": 13428,
+      "whale": 23851,
+      "bird": 4760
+     },
+     "sea": "UUUUU"
+    },
+    {
+     "t": 43,
+     "x": 7194.6,
+     "z": -15375.7,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [
+      [
+       "mill",
+       1
+      ]
+     ],
+     "nearest": {
+      "elk": 15435,
+      "bear": 15322,
+      "doe": 14309,
+      "orca": 13430,
+      "whale": 23854,
+      "bird": 4759
+     },
+     "sea": "UUUUU"
+    },
+    {
+     "t": 44,
+     "x": 7198.4,
+     "z": -15376.2,
+     "agl": 1.7,
+     "voices": 0,
+     "loops": [
+      [
+       "mill",
+       1
+      ]
+     ],
+     "nearest": {
+      "elk": 15437,
+      "bear": 15324,
+      "doe": 14311,
+      "orca": 13433,
+      "whale": 23857,
+      "bird": 4757
+     },
+     "sea": "UUUUU"
+    }
+   ]
+  }
+ ]
+}

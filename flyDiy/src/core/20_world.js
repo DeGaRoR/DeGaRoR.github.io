@@ -318,7 +318,10 @@ function makeWorld(seed, opts) {
       A0m2: !ISL || ISL.hydro === 'proc' ? 274650 : ISL.hydro === 'blend' ? 1.2e6 : 1e12,
       kW: (ISL && ISL.hydro === 'blend') ? 0.22 : 0.35, kD: ISL ? 0.12 : 0.4, maxW: (ISL && ISL.hydro === 'blend') ? 28 : 45, dLake: 2,
       lakeOf: (ISL && ISL.hydro === 'blend') ? ISL.lakeAt : null, lakeSurf: !(ISL && ISL.hydro !== 'proc'),
-      dpEps: 25, bankFrac: 1.4, qCell: 96, wsAdjust: domes });
+      dpEps: 25, bankFrac: 1.4, qCell: 96, wsAdjust: domes,
+      // G1562 (REVIEW D8): the analytic world's sea is the below-0 ground that reaches the domain's edge; a basin under
+      // 0 inland is a lake. The island's sea is its data's (28_island's coast field), as it was.
+      seaConnected: !ISL });
   // stage 0+1 terrain: carved + meadow-blended, PRE-road (the settle bake
   // scores sites and derives grading targets on this)
   function tV1(x, z) {
@@ -378,7 +381,7 @@ function makeWorld(seed, opts) {
   const AERO = ISL
     ? { strips: [], grade: (x, z, h) => h, surfaceAt: () => -1, inBox: () => false, stats: { bakeMs: 0 } }
     : bakeAerodromes({
-      terrain: tV2, water: HYD.water, settlements: SET.settlements,
+      terrain: tV2, water: HYD.water, carved: (x, z) => { tV2(x, z); return _cd; }, settlements: SET.settlements,
       meadows, roadNear: SET.roadNear, SURFACE, salt: SALT });
   // the island takes no generated strips (maps first: its field is a premises record)
   if (!ISL) for (const st of AERO.strips) aerodromes.push(st);
@@ -776,7 +779,9 @@ function makeWorld(seed, opts) {
     }
     const ws = HYD.water(x, z);
     if (ws > t) return ws;
-    if (t < 0 && blendM(x, z, h0(x, z)) < 0) return 0;
+    // (G1562, REVIEW D8: the sea is the below-0 ground that REACHES the open water - a landlocked basin under 0 is the
+    // bake's lake, answered above, and dry on its rim, not sea-level water with nothing joining it to the sea)
+    if (t < 0 && blendM(x, z, h0(x, z)) < 0 && HYD.seaAt(x, z)) return 0;
     return -Infinity;
   }
   // (G1406) waterH's build read (the two-argument call, on terrainHBuild)
@@ -1131,7 +1136,11 @@ function makeWorld(seed, opts) {
     // the sea walks after the wind, on the same clock the wind moved on
     // REVIEW 2026-10-04 (B15): day.advance wraps utc at 86400, so the first tick across midnight read ~86380 s and the
     // sea snapped to its target in one tick; the elapsed day-time is the wrapped difference
-    seaRelax(((day.utc - u0) % 86400 + 86400) % 86400, simT, ax, az);
+    // (G1567: wrapped into +-half a day and taken absolute - the positive modulo would read a BACKWARD step of the day
+    // (-20 s) as ~86 380 s and snap the sea; forward steps under 12 h read the same either way. NOT the cause of the
+    // FRAMECOST reds it was first suspected of: those are the parked cook's build-id key, see HANDOVER G1560-G1569)
+    let dU = day.utc - u0; dU -= 86400 * Math.round(dU / 86400);
+    seaRelax(Math.abs(dU), simT, ax, az);
   }
   // setWeather({ oatC, qnhPa, wind }) — the AIR + WIND subset, as it always was:
   // absent fields are CLEARED (the standard day, the zero wind), so the
@@ -1194,7 +1203,7 @@ function makeWorld(seed, opts) {
     roadNet: { roads: SET.roads, buildings: SET.buildings, roadNear: SET.roadNear, inCore: SET.inCore, settlements: SET.settlements, bakeMs: SET.stats.bakeMs },
     // informative stage-1 block (not contract surface): gates/debug read
     // reach records and bake stats here without walking every tile.
-    hydro: { rivers: HYD.rivers, lakeCount: HYD.lakeCount, lakeCells: HYD.lakeCells, bakeMs: HYD.stats.bakeMs, water: HYD.water, lakeSurf: HYD.lakeSurf, cellW: HYD.stats.cellW, distW: HYD.distW },
+    hydro: { grids: HYD.grids, rivers: HYD.rivers, lakeCount: HYD.lakeCount, lakeCells: HYD.lakeCells, bakeMs: HYD.stats.bakeMs, water: HYD.water, lakeSurf: HYD.lakeSurf, cellW: HYD.stats.cellW, distW: HYD.distW },
     // ---- the day (G72): the air is a getter so it is read LIVE ----
     get atmos() { return airNow(); },
     get weather() { return weather; },

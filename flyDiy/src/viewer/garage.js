@@ -658,43 +658,12 @@ function garageInit(api) {
   // good number beats a silent revert) and the wrong one if a design could
   // lose a part mid-session — which it cannot, because switching designs goes
   // through `set`, not through here.
-  const isPlain = o => o && typeof o === 'object' && !Array.isArray(o);
-  function merge(base, over) {
-    if (!isPlain(over)) return over;
-    const out = isPlain(base) ? Object.assign({}, base) : {};
-    for (const k in over) {
-      if (Array.isArray(over[k])) {
-        // WINGS merge element-wise: the join writes nearly every wing key but
-        // not `place`, and a wholesale replace loses it. Every other array —
-        // the boom profile, the engine list — is a measurement of a whole
-        // thing and replaces as a whole.
-        out[k] = (k === 'wings' && Array.isArray(base && base[k]))
-          ? over[k].map((w, i) => merge(base[k][i], w))
-          : over[k];
-      } else if (k === 'finish' || k === 'cage') {
-        // THE FINISH AND THE CAGE REPLACE AS A WHOLE (G105; the cage joined it
-        // 2026-09-03), like the arrays above and for the same reason: each is
-        // one measurement of one thing, and each is written as DEVIATIONS — so
-        // "this row is back at its default" is said by the KEY'S ABSENCE.
-        // Deep-merged, a deviation could be put on and never taken off again.
-        //
-        // THE CAGE HAD EXACTLY THE FINISH'S BUG and nobody noticed, because it
-        // only bites on the way BACK. Move a row off its default and the
-        // fragment carries it; move it back and the fragment stops mentioning
-        // it — and the merge then kept the old value for ever. The user built
-        // a side-by-side jodel with a central cowl opening, and the file said
-        // tandem with a pair of intakes, because both rows had been off their
-        // defaults once (an archetype's seating, the cub's cowl) and coming
-        // home was unsayable. Their build carried the tell: `cage.seatLayout`
-        // 2 beside `cabin.seating` 'side2' — the same join run writing both,
-        // one of them merged and stale, the other a plain value and current.
-        // (The user: "the tandem configuration was never in my build.")
-        out[k] = over[k];
-      } else if (isPlain(over[k])) out[k] = merge(base && base[k], over[k]);
-      else out[k] = over[k];
-    }
-    return out;
-  }
+  // THE MERGE LIVES IN THE CORE now (genSpecMerge, 60_gen_spec.js; SPEC-
+  // FIXPOINT G1550) - verbatim, so GATE SPECFIX drives the very merge this
+  // page runs through the join's on -> off -> commit round trip (the review's
+  // A3 / E2: the join now STATES every row it owns, so a row coming home is
+  // a value the merge writes, never an absence it keeps the old value for).
+  const merge = (base, over) => genSpecMerge(base, over);
 
   // ---- THE STOCK DESIGNS ------------------------------------------------
   // What the editor's `presets` menu was. They are BAKED here into ordinary

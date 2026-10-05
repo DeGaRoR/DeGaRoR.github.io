@@ -327,7 +327,7 @@ const HANGAR_KITS = {
   office: {
     name: 'Office corner', grants: ['avionics', 'paperwork'],
     props: ['desk_metal', 'radio_bench', 'instrument_panel', 'lamp_desk',
-            'plan_wall'],
+            'plan_wall', 'boombox'],
     sites: [
       { prop: 'desk_metal', at: 'build', along: HF_A(2.6), out: 0.90, dry: 0 },
       { prop: 'lamp_desk', at: 'build', along: HF_A(3.35), out: 1.15,
@@ -356,7 +356,12 @@ const HANGAR_KITS = {
       { recipe: 'planTable', at: 'floor', fx: HF_PF(-9.2, 13), fz: HF_PF(8.4, 18),
         dry: 0.4, foot: [0.8, 0.55], props: [] },
     ],
-    ring: [],
+    ring: [
+      // THE GARAGE RADIO (SND-BOOMBOX, the user 2026-10-05: "place the boombox
+      // close to the plane, and make it clickable"): on the floor abeam to
+      // starboard, a metre forward of the tool chest, angled to the bay
+      { prop: 'boombox', station: 'abeamS', dx: -0.6, dz: 0.1, dry: Math.PI + 0.45 },
+    ],
   },
 
   comfort: {

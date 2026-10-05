@@ -881,7 +881,7 @@ var CLIMATE = (function () {
       setWind, wind, sample, reliefAt, ensureRelief, surfaceWind,
       profile, mixTop, haze, refresh, thermals, get water() { return waterNow(); },
       get conv() { return convNow(); }, convState, convSeed,
-      get mode() { return mode; }, get spec() { return windSpec; }, get rich() { return rich; },
+      get mode() { return mode; }, get spec() { return windSpec; }, get declared() { return spec0; }, get rich() { return rich; },
       get relief() { return relief; }, get version() { return version; }, stats,
     };
   }

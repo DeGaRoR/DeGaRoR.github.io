@@ -96,6 +96,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   const R = GEN_RULES;
   const D = Math.PI / 180;
   const nodes = [], beams = [];
+  const degenerate = [];                            // B10: the members B() refused (zero length)
   const clusters = [];                              // G294: rigid node groups (the tube)
   // G327: a fin's cluster — its truss and the station it stands on — with
   // its stiffness declared as a K_tip for the end-of-lattice resolution
@@ -293,6 +294,13 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   const boxRearJ = S.fuse ? S.fuse.boxRear : -1;
   const B = (a, b, cls, ext, vis, mnt, opt) => {
     const L = Math.hypot(P[b][0]-P[a][0], P[b][1]-P[a][1], P[b][2]-P[a][2]);
+    // A MEMBER BETWEEN TWO POINTS THAT ARE ONE POINT IS REFUSED (REVIEW
+    // 2026-10-04 B10): its strain is (L - 0) / 0 = Infinity on every
+    // shakedown and the load rig's force on it is NaN, which the rig then
+    // skipped without a word. Not built, and COUNTED on parts.degenerate,
+    // so GATE GENPAIRS sees a call site that asked for one; a node that
+    // coincides with another is the call site's to alias.
+    if (!(L >= 1e-6) || a === b) { degenerate.push([a, b, cls]); return; }
     const isG = cls === 'gear';
     // GEN_RULES.wingK: the wing class is x19 softer than the cap its own mass
     // already buys. See the constant for the measurements and the substep
@@ -1764,7 +1772,19 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     // keys off): the stab's own point on each boom, mid-chord at the drawn
     // stab station — what the tail-arm rig loads, the gauge reads and the
     // game's tail assembly anchors on
-    HTL = N(xStab, yStab, -bx, 'HTL'); HTR = N(xStab, yStab, bx, 'HTR');
+    // ...AND WHERE THE STAB SITS ON THE BOOM'S CROWN (stabY unset: yStab is
+    // the crown at xStab, which is the tail station's x) that point IS the
+    // tail triangle's top: the tag goes on that node (REVIEW 2026-10-04
+    // B10 — a second node on top of it was two zero-length members, strain
+    // Infinity on every twin-boom shakedown). The aliased node's ties to I,
+    // O and the bay before are the boom's own members already.
+    const onCrown = sd => {
+      const q = chains[sd][iTail].T;
+      return Math.hypot(P[q][0] - xStab, P[q][1] - yStab, Math.abs(P[q][2]) - bx) < 1e-3 ? q : -1;
+    };
+    const aL = onCrown('L'), aR = onCrown('R');
+    if (aL >= 0) { HTL = aL; nodes[aL].tag = 'HTL'; } else HTL = N(xStab, yStab, -bx, 'HTL');
+    if (aR >= 0) { HTR = aR; nodes[aR].tag = 'HTR'; } else HTR = N(xStab, yStab, bx, 'HTR');
     // T2.3 (140): the incidence on the twin boom's stab too (LE up +)
     const tanI = Math.tan(((t.hInc || 0) * Math.PI) / 180);
     const yR = z => yStab - (xRH(z) - xFH(z)) * tanI;
@@ -1781,6 +1801,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
       const q = chains[sd][iTail], prev = chains[sd][iTail - 1];
       const H = sd === 'L' ? HTL : HTR;
       for (const nd of [HF[sd][iBoom], HR[sd][iBoom], HB[sd][iBoom], H]) {
+        if (nd === q.T) continue;                                // B10: aliased, its ties are the boom's
         B(nd, q.T, 'tail'); B(nd, q.I, 'tail'); B(nd, q.O, 'tail'); B(nd, prev.T, 'tail');
       }
       B(H, HF[sd][iBoom], 'tail'); B(H, HR[sd][iBoom], 'tail'); B(H, HB[sd][iBoom], 'tail');
@@ -2113,8 +2134,15 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   // is what a real aeroplane does when the gear lives that far forward — and
   // which keeps rule 7's "into HEAVY nodes" satisfied.
   const aheadOfAll = ST[0].x > gx + 0.10;
-  const fwdL = aheadOfAll ? EL : F[iFwd].BL, fwdR = aheadOfAll ? ER : F[iFwd].BR;
-  const AA = F[Math.max(iAft, aheadOfAll ? 0 : Math.min(iFwd + 1, F.length - 1))];
+  // ...ONLY A NOSE ENGINE'S MOUNT (REVIEW 2026-10-04 B11). EL / ER are
+  // reassigned to the engine's own nodes on a pusher, an over-wing pylon or
+  // the wing nacelles (block 2b), and the mains then hung 2.3 m gear-class
+  // braces off an engine at the back of the cabin or out on the wing. With no
+  // mount ahead of the firewall the firewall ring is the forward anchor, and
+  // the drag brace goes one ring aft so it is not the leg's own member.
+  const engFwd = aheadOfAll && noseEng;
+  const fwdL = engFwd ? EL : F[iFwd].BL, fwdR = engFwd ? ER : F[iFwd].BR;
+  const AA = F[Math.max(iAft, engFwd ? 0 : Math.min(iFwd + 1, F.length - 1))];
   const trike = S.gear.type === 'tricycle';
   let GAL, GAR, TW, twX, twY, FLOATS = null;
   if (S.gear.type !== 'floats') {
@@ -2177,7 +2205,11 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     // A real nose gear is one strut and a drag link, so the firewall pair is
     // the leg and the other four are links.
     B(TW, F[0].BL, 'gear', false, 'leg'); B(TW, F[0].BR, 'gear', false, 'leg');
-    B(TW, EL, 'gear', false, 'wire'); B(TW, ER, 'gear', false, 'wire');
+    // B11: the engine mount only when the engine IS on the nose; a pusher's
+    // or a nacelle's EL / ER are 2.3 m away — the firewall's top corners are
+    // the airframe above the leg there (off the belly plane, rule 10)
+    const twUpL = noseEng ? EL : F[0].TL, twUpR = noseEng ? ER : F[0].TR;
+    B(TW, twUpL, 'gear', false, 'wire'); B(TW, twUpR, 'gear', false, 'wire');
     B(TW, F[Math.min(1, F.length-1)].BL, 'gear', false, 'wire');
     B(TW, F[Math.min(1, F.length-1)].BR, 'gear', false, 'wire');
     pt(TW, R.wheelTwKg(S.gear.twR) + mFairTw);        // the nosewheel with its fork, by size
@@ -2478,6 +2510,15 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
       S.energy.kind === 'battery' ? 'battery' : 'fuel',
       v.capacity, S.energy.vessel || (S.energy.kind === 'battery' ? 'packCase' : 'alu'),
       S.energy.kind === 'battery' ? S.energy.cell : S.energy.fuel);
+    // THE TANK IS THE AIRFRAME'S, ITS CONTENTS ARE THE LOADING (SPEC-FIXPOINT
+    // G1550). genSpecAtFuel drains a vessel by its capacity, and the shell was
+    // sized off that same number - so the dry corner flew without its tanks
+    // (the metal Cessna's 4.3 kg of shells billed 0) and the reserve sheet with
+    // smaller ones. A drained vessel carries its design capacity (`designCap`,
+    // fuel.designL's twin); the shell and its price are that vessel's.
+    const rD = (S.energy.kind !== 'battery' && v.designCap > v.capacity)
+      ? genVesselResolve('fuel', v.designCap, S.energy.vessel || 'alu', S.energy.fuel) : r;
+    if (rD !== r) { r.vesselKg = rD.vesselKg; r.emptyKg = rD.emptyKg; r.price = rD.price; }
     let pair;
     if (BAY.on === 'strut') {
       // G477: A POD ON EACH FRONT LIFT STRUT — the vessel's litres shared
@@ -2615,8 +2656,11 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     const exhM = electric ? 0 : O.exhaustKgKW * kW;
     // THE FUEL PLUMBING, from the litres. A pack's cabling is the energy
     // module's, not this row's, so an electric aeroplane pays nothing here.
-    const plumbM = (electric || S.fuelL <= 0) ? 0
-                 : O.fuelKgFixed + O.fuelKgL * S.fuelL;
+    // (SPEC-FIXPOINT: off the DESIGN litres when the spec is a fuel state -
+    // the plumbing is the airframe's, a dry corner keeps its lines)
+    const plumbL = (S.fuel && S.fuel.designL > 0) ? S.fuel.designL : S.fuelL;
+    const plumbM = (electric || plumbL <= 0) ? 0
+                 : O.fuelKgFixed + O.fuelKgL * plumbL;
     // THE CONTROLS, from the reach: out to the tips and back to the tail.
     // Dual controls are a second stick and a second set of pedals.
     const reach = S.geom.semi + S.fuse.tailArm;
@@ -2752,6 +2796,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     // PERF STUDY chantier 1: what the pass measured for the gauge (pass 1)
     // and the gauge it was billed at (pass 2)
     gauged, gaugeRef, gauge: GG,
+    degenerate,                 // B10: [a, b, cls] of every member B() refused at zero length
   };
   // G314: a cluster that declared a stiffness and its calibration pair gets
   // its omega now, on the final masses (omega scales as sqrt(K / M))
@@ -2887,6 +2932,26 @@ function genDesignGross(S, a, cg) {
 function genFrame(S) {
   const R = GEN_RULES, D = Math.PI / 180;
   const M = GEN_MATERIALS[S.material];
+  // THE SAME AIRFRAME, RE-FED (SPEC-FIXPOINT G1550, the review's A2). A
+  // resolved spec carries what this function chose for it (S._frame, written
+  // by buildGen): the mains' station and track, the structure's scale, the
+  // gross the floats are sized from and the gauge. The reserve sheet, the CG
+  // corners and the editor's fuel slider re-feed the resolved spec at another
+  // loading, and every one of those numbers used to be solved again - off a
+  // first pass that read the WRITTEN-BACK gear station (so a floatplane's
+  // corners were a different lattice even at the same fuel: 1018.19 vs
+  // 1018.09 kg on the validated Cessna floats) and off the loaded mass (so the
+  // floats, the stiffness and the gear walked with the fuel). A spec that
+  // carries the record builds the airframe it describes, once, at its loading.
+  const FK = S._frame;
+  if (FK && typeof FK === 'object' && isFinite(FK.gx) && isFinite(FK.tr) &&
+      isFinite(FK.kScale) && FK.gauge && typeof FK.gauge === 'object') {
+    const outK = genLattice(S, FK.gx, FK.tr, FK.kScale, FK.gross, FK.gauge);
+    outK.cg0 = genLatticeCG(outK.nodes);
+    outK.parts.designGross = FK.W0;
+    outK.frameKeep = FK;
+    return outK;
+  }
   const a = genLattice(S, S.gear.x, S.gear.track);
   const cg1 = genLatticeCG(a.nodes);
   // THE GAUGE (PERF STUDY chantier 1): the design gross solved on the first
@@ -2952,5 +3017,7 @@ function genFrame(S) {
   const out = genLattice(S, gx, tr, kScale, cg[3], DG.gauge);   // H1: the gross mass sizes the floats
   out.cg0 = genLatticeCG(out.nodes);
   out.parts.designGross = DG.W0;                    // the plaque's and GATE WEIGHT's
+  // what a re-fed resolved spec rebuilds from (above; buildGen keeps it)
+  out.frameKeep = { gx, tr, kScale, gross: cg[3], gauge: DG.gauge, W0: DG.W0 };
   return out;
 }

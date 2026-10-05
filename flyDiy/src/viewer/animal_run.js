@@ -48,6 +48,26 @@
 //   ctx.wind()     -> [wx, wz] m/s, for the plume's lean
 // Everything optional is ASKED, never assumed: the node gate hands it a flat
 // ground and no water at all, and the same code runs.
+//
+// THE SOUND'S READER (G1705, SND-ANIMALS; SOUND-2026-10-04 §6.3): `sound(out)` writes
+// one row of AR.SOUND.ROW (12) per individual into a caller's Float64Array -
+//   [species, x, y, z, vx, vy, vz, state, event, herd, shown, length]
+// species: the index in AR.SOUND.SPECIES (-1 an animal the sound does not know);
+// x y z: where its voice is - a land animal's head, a sea animal's BLOWHOLE (at the
+// surface while it is up), a bird itself; v: its velocity (the sea's circuit, the
+// flock's track; a land animal 0); state: AR.SOUND.STATE (idle / walk / surfaced /
+// submerged / flying); event: the run's clock (`clock()`) at its last EVENT - a sea
+// animal's BLOW (the frame the back broke through and the plume was fired), a land
+// animal's CALL opportunity (it changed what it does: the herd decides whether it
+// calls); -1 none (AR.SOUND.EV names the two). A caller that keeps the clock it read
+// last time has this frame's events: event > that clock. (The clock is compared by
+// the caller, never handed in: a double passed to a call is a heap box a frame.)
+// herd: an integer per herd / pod / flock (placed or ambient), stable while it
+// lives; shown: stepped and drawn (in reach); length: its own, x its size.
+// READ ONLY: nothing about an animal is written, no random is drawn, no joint is
+// touched (the user's G498 ruling). ALLOCATION-FREE: Map.forEach with callbacks
+// made once, rows into the caller's array. The two marks it reads (blowT, callT)
+// are written where the behaviour already acts and change nothing it does.
 'use strict';
 (function () {
 const AR = {};
@@ -77,6 +97,10 @@ const REACH = { land: 1400, sea: 3200, air: 2200 };
 // at most this many of the interaction field's 16 stamps a frame go to
 // animals, nearest first — the aeroplane's own hull comes first (app.js)
 const STAMP_BUDGET = 4;
+// THE SOUND'S VOCABULARY (G1705): the rows `sound()` writes (see the header)
+const SOUND = { ROW: 12, SPECIES: ['bear', 'elk', 'doe', 'orca', 'whale', 'bird'],
+                STATE: { idle: 0, walk: 1, surfaced: 2, submerged: 3, flying: 4 }, EV: { BLOW: 1, CALL: 2 } };
+AR.SOUND = SOUND;
 
 AR.make = function (THREE, ctx) {
   const scene = ctx.scene;
@@ -93,6 +117,7 @@ AR.make = function (THREE, ctx) {
   const FLOCKS = [];                // the ambient ones (no record)
   const stats = { herds: 0, animals: 0, shown: 0, stamps: 0, blows: 0 };
   let T = 0;
+  let HSEQ = 0;                     // the herds' integers for the sound (G1705)
 
   // ---- the frames ---------------------------------------------------------
   const _F = new THREE.Vector3(), _U = new THREE.Vector3(), _R = new THREE.Vector3();
@@ -147,6 +172,8 @@ AR.make = function (THREE, ctx) {
                   x: 0, z: 0, y: 0, hd: rnd() * TWO_PI,
                   state: 'idle', t: 0, dwell: 1 + rnd() * 3, next: null,
                   tgt: null, depth: 0, phase: rnd(), wasUp: false, plume: null,
+                  // the sound's marks (G1705): the run's clock at the last blow / call opportunity, the herd, the species
+                  blowT: -1, callT: -1, herd: 0, F: null, sp: SOUND.SPECIES.indexOf(spot.key),
                   up: new THREE.Vector3(0, 1, 0), dir: new THREE.Vector3(0, 0, 1) };
     // where it starts: scattered in the hotspot, seeded per individual so
     // adding one never moves the others (the premises contract's rule 5)
@@ -201,6 +228,7 @@ AR.make = function (THREE, ctx) {
   const H_clip = (one, role) => CLIP(one.a, role, one.rnd());
   function landStart(one, state) {
     one.state = state; one.t = 0; one.next = null;
+    if (state !== 'lie') one.callT = T;             // a call opportunity (G1705): it stands, walks or browses anew
     const c = H_clip(one, state === 'walk' ? 'walk' : state);
     if (c) one.H.play(c, { fade: 0.25, loop: true, rate: 1 });
     if (state === 'walk') {
@@ -338,6 +366,7 @@ AR.make = function (THREE, ctx) {
     }
     // BREAKING OUT: the frame the back comes through, a ring and a burst
     if (up && !one.wasUp) {
+      if (S.blow > 0) one.blowT = T;                // the sound's mark (G1705): the frame the plume is fired below
       if (ctx.stamp && stats.stamps < STAMP_BUDGET) {
         ctx.stamp(cx, cz, beam * 1.8, -0.35, 0.7, 'ring');
         stats.stamps++;
@@ -434,7 +463,7 @@ AR.make = function (THREE, ctx) {
       const a = window.ANIMALS ? window.ANIMALS.reg(s.key) : null;
       if (!a) continue;
       const n = Math.max(1, Math.min(24, s.n | 0 || 1));
-      const h = { key: s.key, spec: specOf(s), ones: [], kind: a.kind, flock: null };
+      const h = { key: s.key, spec: specOf(s), ones: [], kind: a.kind, flock: null, n: ++HSEQ };
       if (a.kind === 'air') {
         // `dy` IS the height when the author gave one (the editor's own row),
         // not an addition to a default: a flock asked for at 45 m flies at 45
@@ -446,6 +475,7 @@ AR.make = function (THREE, ctx) {
           if (!one) continue;
           one.slot = vSlot(i, a.length);
           one.rate = 0.85 + one.rnd() * 0.4;
+          one.herd = h.n; one.F = F;
           F.ones.push(one); h.ones.push(one);
         }
         h.flock = F;
@@ -453,7 +483,8 @@ AR.make = function (THREE, ctx) {
         for (let i = 0; i < n; i++) {
           const one = makeOne(s, i);
           if (!one) continue;
-          if (a.kind === 'land') landStart(one, 'idle');
+          if (a.kind === 'land') { landStart(one, 'idle'); one.callT = -1; }   // (being sown is not a call)
+          one.herd = h.n;
           h.ones.push(one);
         }
       }
@@ -492,12 +523,13 @@ AR.make = function (THREE, ctx) {
       const spot = { id: 'amb' + (ambientSeed & 0xffff), key: ambientKey, x, z, n, r: 0 };
       const F = { t: 0, seed: rnd() * 100, x, z, y: 0, base: ground(x, z) + 70 + rnd() * 160,
                   hd, speed: ((a.air && a.air.speed) || 11) * (0.8 + rnd() * 0.5),
-                  a: 0, r: 0, centre: null, ones: [] };
+                  a: 0, r: 0, centre: null, ones: [], n: ++HSEQ };
       for (let k = 0; k < n; k++) {
         const one = makeOne(spot, k);
         if (!one) break;
         one.slot = vSlot(k, a.length);
         one.rate = 0.85 + one.rnd() * 0.4;
+        one.herd = F.n; one.F = F;
         F.ones.push(one);
       }
       if (!F.ones.length) return;
@@ -544,6 +576,48 @@ AR.make = function (THREE, ctx) {
     return stats.shown;
   }
 
+  // ---- THE SOUND'S READER (G1705) -----------------------------------------------------------------------------------
+  // rows of SOUND.ROW into RD.out (see the header); the callbacks made once, nothing allocated, nothing written but `out`
+  const RD = { out: null, n: 0, max: 0 };
+  const SEA0 = { speed: 3, depth: 12, cycle: 60, surface: 0.2, blow: 1, beam: 2 };
+  function rdRow(one, kind) {
+    if (RD.n >= RD.max) return;
+    const o = RD.out, q = RD.n * 12, a = one.a, sz = one.size || 1, len = (a.length || 1) * sz;
+    let x = one.x, y = one.y, z = one.z, vx = 0, vz = 0, vy = 0, st = 0, ev = -1;
+    if (kind === 'sea') {
+      // the blowhole: a third of the length forward of the pivot, at the surface while the back is out
+      const S = a.sea || SEA0, d = one.dir, hl = Math.sqrt(d.x * d.x + d.z * d.z) || 1;
+      x += d.x / hl * len * 0.33; z += d.z / hl * len * 0.33;
+      y = one.wasUp ? one.y + one.depth + 0.2 : one.y;
+      vx = d.x * S.speed; vy = d.y * S.speed; vz = d.z * S.speed;
+      st = one.wasUp ? 2 : 3;
+      ev = one.blowT;
+    } else if (kind === 'air') {
+      // the flock's track: its heading is the bird's dir (flockStep set it from F.hd)
+      const F = one.F, sp = F ? F.speed : 0;
+      vx = one.dir.x * sp; vz = one.dir.z * sp;
+      st = 4;
+    } else {
+      // the head: forward of the pivot along the heading, near the top of the body
+      const hgt = a.dim && a.dim[1] > 0 ? a.dim[1] : 1.2;
+      x += one.dir.x * len * 0.42; z += one.dir.z * len * 0.42;   // (dir: the heading, landStep's own (sin hd, 0, cos hd))
+      y = one.H.obj.position.y + hgt * sz * 0.8;
+      st = one.state === 'walk' ? 1 : 0;
+      ev = one.callT;
+    }
+    o[q] = one.sp; o[q + 1] = x; o[q + 2] = y; o[q + 3] = z; o[q + 4] = vx; o[q + 5] = vy; o[q + 6] = vz;
+    o[q + 7] = st; o[q + 8] = ev; o[q + 9] = one.herd; o[q + 10] = one.H.obj.visible ? 1 : 0; o[q + 11] = len;
+    RD.n++;
+  }
+  const rdHerd = h => { const ones = h.ones, k = h.kind; for (let i = 0; i < ones.length; i++) rdRow(ones[i], k); };
+  function sound(out) {
+    RD.out = out; RD.n = 0; RD.max = Math.floor(out.length / 12);
+    HERDS.forEach(rdHerd);
+    for (let f = 0; f < FLOCKS.length; f++) { const ones = FLOCKS[f].ones; for (let i = 0; i < ones.length; i++) rdRow(ones[i], 'air'); }
+    RD.out = null;
+    return RD.n;
+  }
+
   function dispose() {
     for (const [, h] of HERDS) drop(h);
     HERDS.clear();
@@ -553,6 +627,7 @@ AR.make = function (THREE, ctx) {
   }
 
   return { root, sync, tick, ambient, dispose, stats,
+           sound, clock: () => T,                     // G1705 (SND-ANIMALS): the sound's read-only reader and the run's clock
            herds: () => Array.from(HERDS.keys()),
            // the probe the gate and the bench read: every individual, flat
            list: () => {
