@@ -74431,7 +74431,7 @@ The generated files (flight_core.js, index.html, dev.html, sw.js, version.json) 
 - **Constants:** `kSide: 1` in the float DEF (every float, via floatParamsFor / presets; 0 = off, the base to the bit).
   Nothing else new. The added-mass INERTIA term m dw/dt stays an H0 cut, as the heave's does.
 
-### G1849 - GATE DMGHULL (tools/_dmghull_check.js, tier full, weight 4, ~13 min on 4 cores; 42 runs in its own children)
+### G1849 - GATE DMGHULL (tools/_dmghull_check.js, tier full, weight 4, ~8 min on 4 cores; 42 runs in its own children)
 **THE LAW** (the rigid bench, each build's own float at the pose its calm take-off flies; the force at 3 deg of slip):
 
 | float, where | V (m/s) | step keel (m) | trim (deg) | side force (N) | the base's panels (N) | (pi/2) rho T^2 U v (N) | centre from the step (m) |
@@ -74510,7 +74510,27 @@ BEFORE = the pre-G1885 damper (params.defDampMean), AFTER = DMG-DAMP (kSide 0), 
 | TREECRASH | the twin's SEVERE nose-in (150 km/h, 10 m/s, 60 deg) | 78 -> 75 set, 35 -> 37 broken, 14.72 -> 14.74 g; CRASHED both (must) |
 
 ### The perf
-PERF_PLACEHOLDER
+`sim.step(1/60)` in node, base core vs this one, alternating child processes, the median of 15 processes' medians
+(600 steps each): `tools/dmghull_evidence.js --perf --perf-base <base core>`, `reports/evidence/DMG-HULL/perf.txt`.
+
+| case | base (ms) | now (ms) | now vs base |
+|---|---|---|---|
+| the Cub, ground (dry: the term never runs) | 3.614 | 3.603 | **-0.29 %** |
+| the Cub, air | 3.438 | 3.445 | **+0.19 %** |
+| the metal Cessna, ground | 6.249 | 6.270 | **+0.34 %** |
+| the metal Cessna, air | 6.004 | 6.072 | **+1.14 %** |
+| the twin on floats, the water taxi (idle, 3 m/s across) | 16.893 | 16.851 | **-0.25 %** |
+| the Cessna on floats, the water taxi | 14.957 | 15.019 | **+0.41 %** |
+
+- **The first cut read the Cessna's water taxi at +6.1 % (11 processes), then +2.0 % (15); pooled +2.7 %**
+  (`first_cut/`). The term's own cost, on one core with kSide 0 against 1, read +1.0 % then. G1847 now reads each keel
+  station's velocity off its rest barycentrics (`ctx.velV`: 12 multiplies, the same affine field `fill()` places the
+  vertex by) instead of a barycentric solve per call. Its own cost now: the twin -0.9 %, the Cessna +0.7 %
+  (`perf_k0_k1.txt`). Every gate and the sweep were re-run on that final code (`gates_final/`, `gate_now_DMGHULL.txt`):
+  the same numbers to the printed digit. Only two post-nose-over drift distances (|x| at 4.5 / 5 m/s: 772 -> 1142,
+  1147 -> 1131 m) and the timing lines moved.
+- The box's process-to-process noise is +-3-4 % (the Cub in the air, bit-identical code, read +3.3 % on one run).
+  **A0 to re-read on a quiet machine.**
 
 ### Open questions (the user, through A0)
 1. **THE TWIN ON FLOATS NOSES OVER AT THE PLOUGH** (crosswind 2, 4, 4.5, 5 m/s; marginal even in calm air, which
@@ -74537,10 +74557,12 @@ PERF_PLACEHOLDER
    planing hull and a ditching is short; flagged, not done.
 
 ### Files
-src/core/32_hydro.js (G1847: DEF.kSide, hullSide, the scratch's side slices, the solver pass lands them),
+src/core/32_hydro.js (G1847: DEF.kSide, hullSide, the scratch's side slices, the solver pass lands them, tetraCtx.velV),
 tools/_dmghull_check.js + run_gates.js row (G1849), tools/dmghull_evidence.js (perf, bits, plots),
 tools/_seaplane_check.js (comment: why the crosswind bar stays at 0.2 V_SO), reports/evidence/DMG-HULL/
-(side_force.svg, heading_2/4/5.svg, dmghull_now.json / dmghull_base.json, the gate outputs, bits.txt, perf.txt, gates/).
+(side_force.svg, heading_2/4/5.svg, dmghull_now.json / dmghull_base.json, gate_now_DMGHULL.txt, gate_base_sweep.txt,
+bits.txt, perf.txt / perf.json, perf_k0_k1.txt, gates/ (the first battery, base and now), gates_final/ (the water gates on the
+final code), first_cut/ (the first cut's gate and perf runs)).
 The base: 4f1eec0, a merge of origin/master (train 33) into claude/dmg-damp 8a22a4f9. Only HANDOVER conflicted
 (both kept). That brings GEAR-WATER 2's wet body under DMG-DAMP, which DMG-DAMP's own entry said it owed.
 The generated files (flight_core.js, index.html, dev.html, sw.js, version.json) are NOT committed.
