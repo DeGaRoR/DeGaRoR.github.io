@@ -3420,13 +3420,15 @@
       // applied in the view structure". It was applied. See GATE FLEX.
       const gain = skinMode === 1 ? SKIN_GAINS[1] : SKIN_GAINS[0];
       genNodeBody(sim, model.nodeBody, model.oNode);
+      // G1851 (DMG-D4a): over a break the skin's records (skin_break.js) pose it; nothing broken, nothing of it runs
+      const BK = brkGen(gain);
       // THE SKIN IS POSED WHEN IT HAS MOVED (PERF 2026-09-23). Everything below is in the BODY frame -
       // the nodes against their rest, the control deflections, the gain - and it was redone, and every
       // skin buffer re-uploaded (54 of them, 2.8 MB a frame on the Cub-alike), on every frame: paused, at
       // the stand, in the garage. It runs now when a node has moved more than 0.3 mm or a control more
       // than 1e-4 since the pose last APPLIED (not since the last frame, so a slow drift still lands).
       { const nb = model.nodeBody, P = model._pose;
-        let same = !!P && P.gain === gain && P.nb.length === nb.length && P.rigs === model.rigs && P.nr === model.rigs.length && P.moving === model.moving;
+        let same = !!P && P.gain === gain && P.nb.length === nb.length && P.rigs === model.rigs && P.nr === model.rigs.length && P.moving === model.moving && !BK;
         if (same) for (let i = 0; i < nb.length; i++) if (Math.abs(nb[i] - P.nb[i]) > 3e-4) { same = false; break; }
         if (same) for (const k in link) if (Math.abs((link[k] || 0) - (P.link[k] || 0)) > 1e-4) { same = false; break; }
         if (same) return;
@@ -3459,13 +3461,15 @@
           pos[o+1] = py + y * ca + (az * x - ax * z) * sa + ay * d * C1 + ty;
           pos[o+2] = pz + z * ca + (ax * y - ay * x) * sa + az * d * C1 + tz;
         }
-        poseSkinGen(mv.g, model.rest, model.nodeBody, base, pos, gain, mv.hinged);
+        poseSkinGen(mv.g, model.rest, model.nodeBody, base, pos, gain, mv.hinged, BK && BK.of(mv));
+        if (BK) BK.after(mv, base, pos);
         mv.posAttr.needsUpdate = true;
       }
       for (const r of model.rigs) {
         if (r.hb) applyHinges(r.hb, model.surfaces, r.base, r.posAttr.array, link);
         poseSkinGen(r.g, model.rest, model.nodeBody, r.base, r.posAttr.array,
-                    gain, r.hb && r.hb.hinged);
+                    gain, r.hb && r.hb.hinged, BK && BK.of(r));
+        if (BK) BK.after(r, r.base, r.posAttr.array);
         r.posAttr.needsUpdate = true;
       }
       return;
@@ -3489,7 +3493,8 @@
         wr.push(sim.ctl ? (sim.ctl.dr || 0) : 0, fx ? (fx.wrDown ? 1 : 0) : 1, Math.abs((fx ? (fx.wrDown ? 0 : 1) : 0) - r.ret) > 1e-3 ? NaN : 0);
       }
       const rows = [model.rigs, model.strutRigs, model.stretchRigs, model.surfParts, model.floatRigs, model.anchorRigs, model.linkRigs];
-      still = !!P && P.nb.length === n3 && P.gain === gain && P.wr.length === wr.length && rows.every((a, i) => a === P.rows[i]);
+      still = !!P && P.nb.length === n3 && P.gain === gain && P.wr.length === wr.length && rows.every((a, i) => a === P.rows[i]) &&
+              !brkCageOn();   // G1851: a wreck is re-posed every frame (its pieces move, its skin is redrawn over them)
       if (still) for (let i = 0; i < wr.length; i++) if (!(wr[i] === P.wr[i])) { still = false; break; }
       if (still) for (let i = 0; i < n3; i++) if (Math.abs(nb[i] - P.nb[i]) > 3e-4) { still = false; break; }
       if (still) for (const k in link) if (Math.abs((link[k] || 0) - (P.link[k] || 0)) > 1e-4) { still = false; break; }
@@ -3829,6 +3834,118 @@
         }
         poseRigid(c.obj);                             // G357: in the true frame
       }
+    }
+    brkCage(xA, yU, cg, [O[0] + oR[0], O[1] + oR[1], oR[2]], skinMode === 1 ? SKIN_GAINS[1] : SKIN_GAINS[0]);   // G1851
+  }
+  // G1851 / G1852 (DMG-D4a): THE SKIN OVER A BREAK (src/viewer/skin_break.js; DEFORM-AND-BREAK §2.5, §5.1, §8.4). Both
+  // skins read the one damage state (dmgNow: the broken list and DMG-D1b's pieces, inline or from the worker on change).
+  // Nothing broken: neither function does more than one test, and no skin bit moves. Broken: each group gets a record
+  // (built once, at the first break: the cage snapshot's nearest-node binding with it), re-made at each break EVENT
+  // (the state's vB: which vertex goes with which piece, which triangles span the break and are removed); per frame
+  // the detached pieces' rigid fits, their skin carried on them, the tear past TEAR and the fabric's drape.
+  // The index arrays are the payload's own (every view on them loses a removed triangle): restored at a heal (a reset)
+  // and before another model poses (brkRestore)
+  const BRK = { model: null, recs: [] };
+  function brkRestore() {
+    for (const R of BRK.recs) if (R.idx0) { R.idx.set(R.idx0); brkIdx(R); }
+    BRK.recs.length = 0; BRK.model = null;
+  }
+  // an index array changed: every geometry drawing it re-uploads it (the rig's mesh, and the flown bake's views on the
+  // same payload group - their index attributes wrap the same array)
+  function brkIdx(R) { for (const g of R.geos || [R.geo]) if (g && g.index) g.index.needsUpdate = true; }
+  function brkState() {
+    if (!window.SKIN_BREAK) return null;
+    if (BRK.model && BRK.model !== model) brkRestore();
+    const D = dmgNow();
+    if (!D || !D.br.length) {
+      // a heal (a reset, a new flight): every record's index as built, the records let go (their bindings kept)
+      if (BRK.recs.length && model && model.brk) for (const R of BRK.recs) { if (SKIN_BREAK.event(R, model.brk.T, D || { br: [], vB: -2 })) brkIdx(R); R.vB = -1; }
+      BRK.recs.length = 0;
+      return null;
+    }
+    BRK.model = model;
+    if (!model.brk || model.brk.def !== def) model.brk = { def, T: SKIN_BREAK.topo(def.beams, def.nodes.length), NF: {}, down: [0, -1, 0] };
+    return D;
+  }
+  // the record of one group: g { nv, idx }, geo its geometry, base its rest in the frame of `rest` (the nodes'); its
+  // binding is made here, at the first break (skin_break.js bindNearest: the generated skin's whole, the cage's on its
+  // nearest node and then where the breaks are)
+  function brkRec(owner, g, geo, base, rest, fabric, cage) {
+    if (owner.brkR) { if (BRK.recs.indexOf(owner.brkR) < 0) BRK.recs.push(owner.brkR); return owner.brkR; }
+    if (!cage) Object.assign(g, SKIN_BREAK.bindNearest(base, g.nv, rest, def.nodes.length));
+    const R = SKIN_BREAK.make(g, SKIN_BREAK.NEAR_K, { fabric, cage, pos: base, rest });
+    R.geo = geo; R.geos = []; owner.brkR = R; BRK.recs.push(R);
+    model.grp.traverse(m => { if (m.geometry && m.geometry.index && m.geometry.index.array === geo.index.array && R.geos.indexOf(m.geometry) < 0) R.geos.push(m.geometry); });
+    return R;
+  }
+  const brkFabricWing = () => { try { return /fabric|steel|aluFabric/.test(genSurfKey(def.spec, 'wing', 0)); } catch (e) { return false; } };
+  // THE GENERATED SKIN (model.gen): poseSkinGen's `brk`
+  function brkGen(gain) {
+    const D = brkState();
+    if (!D) return null;
+    const K = model.brk, SB = SKIN_BREAK, rest = model.rest, live = model.nodeBody, fab = brkFabricWing();
+    const [xA, yU] = sim.axes(), zL = [xA[1]*yU[2]-xA[2]*yU[1], xA[2]*yU[0]-xA[0]*yU[2], xA[0]*yU[1]-xA[1]*yU[0]];
+    K.down[0] = -xA[1]; K.down[1] = -yU[1]; K.down[2] = -zL[1];
+    const ev = (o, g, geo, base) => { const R = brkRec(o, { nv: g.nv, idx: geo.index.array }, geo, base, rest, fab && /^(skin|ail|flap)/.test(o.meshName || (o.c && o.c.group) || ''));
+      if (SB.event(R, K.T, D, rest, base)) brkIdx(R); return R; };
+    for (const mv of model.moving || []) ev(mv, mv.g, mv.mesh.geometry, mv.base);
+    for (const r of model.rigs) ev(r, r.g, model.meshes[r.meshName].geometry, r.base);
+    SB.nodeFrames(K.NF, K.T, D, rest, live);
+    return { of: o => o.brkR ? { R: o.brkR, NF: K.NF, down: K.down, poseGen: SB.poseGen } : null,
+             after: (o, base, pos) => { if (o.brkR && o.brkR.active && gain === 1 && SB.tear(o.brkR, base, pos)) brkIdx(o.brkR); } };
+  }
+  // THE FLOWN CAGE SNAPSHOT: after its own pose (the rigid body frame, the spar stations, the hinges, the struts'
+  // two ends). Its frame is the visual's: a node at B^-1 (p - origin) - o (app.js nodeVis, G267.2), o = off + oRest
+  const brkCageOn = () => { if (BRK.recs.length) return true; const D = model && !model.gen ? dmgNow() : null; return !!(D && D.br.length); };
+  function brkCage(xA, yU, cg, o, gain) {
+    const D = brkState();
+    if (!D || model.gen) return;
+    const K = model.brk, SB = SKIN_BREAK, N = def.nodes, n = N.length;
+    // the 3x3 inverse of the pose's oblique basis (columns xA, yU, xA x yU), as nodeVis takes it
+    const inv3 = (X, Y) => { const Z = [X[1]*Y[2]-X[2]*Y[1], X[2]*Y[0]-X[0]*Y[2], X[0]*Y[1]-X[1]*Y[0]];
+      const a = X[0], b = Y[0], c = Z[0], d = X[1], e = Y[1], f = Z[1], g = X[2], h = Y[2], k = Z[2];
+      const det = a * (e * k - f * h) - b * (d * k - f * g) + c * (d * h - e * g) || 1e-9;
+      return [(e * k - f * h) / det, (c * h - b * k) / det, (b * f - c * e) / det, (f * g - d * k) / det, (a * k - c * g) / det,
+              (c * d - a * f) / det, (d * h - e * g) / det, (b * g - a * h) / det, (a * e - b * d) / det]; };
+    const into = (out, Mi, P, org) => { for (let i = 0; i < n; i++) { const x = P(i, 0) - org[0], y = P(i, 1) - org[1], z = P(i, 2) - org[2];
+      out[i*3] = Mi[0]*x + Mi[1]*y + Mi[2]*z - o[0]; out[i*3+1] = Mi[3]*x + Mi[4]*y + Mi[5]*z - o[1]; out[i*3+2] = Mi[6]*x + Mi[7]*y + Mi[8]*z - o[2]; } return out; };
+    if (!K.rest) {
+      const R2 = def.refs, avg = ids => { const q = [0, 0, 0]; for (const i of ids) for (let j = 0; j < 3; j++) q[j] += N[i].p[j] / ids.length; return q; };
+      const nrm = a => { const L = Math.hypot(a[0], a[1], a[2]) || 1e-9; return [a[0] / L, a[1] / L, a[2] / L]; };
+      const t1 = avg(R2.noseFrame), t2 = avg(R2.tailMid), u1 = avg(R2.upLo), u2 = avg(R2.upHi);
+      K.rest = into(new Float64Array(n * 3), inv3(nrm([t2[0]-t1[0], t2[1]-t1[1], t2[2]-t1[2]]), nrm([u2[0]-u1[0], u2[1]-u1[1], u2[2]-u1[2]])),
+                    (i, j) => N[i].p[j], avg(R2.origin || R2.noseFrame));
+      K.live = new Float64Array(n * 3);
+      // which geometry each rigged position buffer belongs to (the index each record edits)
+      K.geoOf = new Map(); model.grp.traverse(m => { if (m.isMesh && m.geometry && m.geometry.attributes.position) K.geoOf.set(m.geometry.attributes.position, m.geometry); });
+    }
+    const Mi = inv3(xA, yU);
+    into(K.live, Mi, (i, j) => sim.p[i * 3 + j], cg);
+    K.down[0] = -Mi[1]; K.down[1] = -Mi[4]; K.down[2] = -Mi[7];
+    const fabW = brkFabricWing(), fabB = def.spec && def.spec.material === 'tubeFabric';
+    // the groups: the snapshot's own (the covering, the wing band), the control surfaces (rebased about their pivot),
+    // the struts and the tail's anchored parts (unrebased)
+    const groups = [];
+    for (const r of model.rigs) groups.push([r, r.g, r.posAttr, r.base, null, (r.bind && r.bind.bound.length) ? fabW : fabB]);
+    for (const s2 of model.surfParts || []) groups.push([s2, null, s2.posAttr, s2.base, s2.pivot, fabW]);
+    for (const s2 of (model.strutRigs || []).concat(model.anchorRigs || [])) groups.push([s2, null, s2.posAttr, s2.base, null, false]);
+    for (const [own, , pa, base, off, fab] of groups) {
+      const geo = K.geoOf.get(pa);
+      if (!geo || !geo.index) continue;
+      if (!own.brkR) {
+        const nv = pa.count, bM = off ? Float32Array.from(base, (x, i) => x + off[i % 3]) : base;
+        const R = brkRec(own, { nv, idx: geo.index.array }, geo, bM, K.rest, fab, true);
+        R.baseM = bM;
+      }
+      const R = own.brkR;
+      if (SB.event(R, K.T, D, K.rest, R.baseM)) brkIdx(R);
+    }
+    SB.nodeFrames(K.NF, K.T, D, K.rest, K.live);
+    for (const [own, , pa, base, off] of groups) {
+      const R = own.brkR; if (!R || !R.active) continue;
+      SB.poseCage(R, K.rest, K.live, R.baseM, pa.array, K.NF, K.down, off);
+      if (gain === 1 && SB.tear(R, base, pa.array)) brkIdx(R);
+      pa.needsUpdate = true;
     }
   }
   // G1002 (A6-GROUND, the playtest's "floaty" taxi): THE CONTACT SHADOWS. One instanced draw of soft dark blobs on
@@ -4550,12 +4667,33 @@
   // under the physics worker (?simw=1) the page's beams do not (the broken list crosses on change in DMG-D4a), so the
   // view stays the strain's there
   let dmgView = (() => { try { return /[?&]dmgview=1(&|$)/.test(location.search || ''); } catch (e) { return false; } })();
+  // G1850 (DMG-D4a): THE DAMAGE STATE, ONE FOR BOTH PATHS - the broken members, the pieces, the sets (sim_view.js
+  // simViewDmgState). Under the worker the host sends it on change (sim_host.js simDmgHop); inline the same hop runs here
+  // on the page's own sim, with no window. Read by the damage view below and the skin (skin_break.js, poseModel)
+  const DMGS = { sim: null, hop: null, st: null };
+  function dmgNow() {
+    if (!sim) return null;
+    if (sim.dmgState) return sim.dmgState();
+    if (!sim.damage || !window.SIM_HOST || !SIM_HOST.dmgHop || !window.SIM_VIEW) return null;
+    if (DMGS.sim !== sim) { DMGS.sim = sim; DMGS.hop = SIM_HOST.dmgHop0(); DMGS.st = SIM_VIEW.dmgState(sim.n, sim.beams.length); }
+    const P = SIM_HOST.dmgHop(sim, DMGS.hop, def && def.refs && def.refs.noseFrame ? def.refs.noseFrame[0] : 0, 0);
+    if (P) SIM_VIEW.dmgApply(DMGS.st, P);
+    return DMGS.st;
+  }
   const dmgSync = (b, i, o) => {
     const T = window.DMG_TINT;
-    if (!T || b.L0 == null || b.Lr == null) return false;
-    const P = sim.damagePeak && sim.damagePeak();
-    const L = Math.hypot(bPos[o+3] - bPos[o], bPos[o+4] - bPos[o+1], bPos[o+5] - bPos[o+2]);
-    T.tint(bCol, o, P ? T.ratioPeak(P, i) : T.ratioOf(b, L), T.setOf(b), !!b.broken);
+    if (!T) return false;
+    if (b.L0 == null || b.Lr == null) {
+      // G1850: under the worker the page's beams are the def's - the broken list and the sets come over on change
+      // (no live force crosses: a member reads calm, set or broken, not its stress)
+      const D = dmgNow();
+      if (!D) return false;
+      T.tint(bCol, o, 0, D.set[i] || 0, !!D.broken[i]);
+    } else {
+      const P = sim.damagePeak && sim.damagePeak();
+      const L = Math.hypot(bPos[o+3] - bPos[o], bPos[o+4] - bPos[o+1], bPos[o+5] - bPos[o+2]);
+      T.tint(bCol, o, P ? T.ratioPeak(P, i) : T.ratioOf(b, L), T.setOf(b), !!b.broken);
+    }
     bCol[o+3] = bCol[o]; bCol[o+4] = bCol[o+1]; bCol[o+5] = bCol[o+2];
     return true;
   };
