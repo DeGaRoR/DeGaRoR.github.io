@@ -11,6 +11,7 @@
 //        [--page index.html|dev.html]      the page (default index.html; dev.html = the parts, no build needed)
 //        [--place garage|stand]            where the still is taken (default stand: rolled out, the world drawn)
 //        [--build default|stock|<file.json>]  the aeroplane (default: the fresh profile's, the Cub)
+//        [--from HOME|mn_strip|...]        the stand rolled out to (flydiy.route's departure; default the page's, HOME)
 //        [--day noon|morning|afternoon|golden|sunset|dawn|dusk|night|YYYY-MM-DDTHH:MM]   (DAY_CLOCK ?day=)
 //        [--cam chase|orbit|wing|cockpit]  the stand's camera mode (default: the page's own)
 //        [--orbit az,el,dist]              a fixed orbit view (deg, deg, m) - FLIGHT_PROBE.camSet
@@ -54,6 +55,8 @@ function preScript(o) {
   if (o.build === 'default') L.push('try{localStorage.removeItem("flydiy.wip")}catch(e){}');
   else if (o.build === 'stock') L.push(require('./_stock_pin.js').pinScript());
   else L.push('try{localStorage.setItem("flydiy.wip",' + JSON.stringify(fs.readFileSync(path.resolve(o.build), 'utf8')) + ')}catch(e){}');
+  // MILL-TAXI (G1929): the roll-out's stand - the route the pickers remember (app.js flydiy.route { from, dest })
+  if (o.from) L.push('try{localStorage.setItem("flydiy.route",' + JSON.stringify(JSON.stringify({ from: o.from, dest: 'CIRCUIT' })) + ')}catch(e){}');
   return L.join('\n');
 }
 
@@ -213,7 +216,7 @@ function parse() {
     cam: opt('cam', null), orbit: orbit ? orbit.split(',').map(Number) : null, q: opt('q', ''), gfx: opt('gfx', null),
     size, quality: +opt('quality', 80), secs: +opt('secs', 3600), port: +opt('port', 0), frames: +opt('frames', 3),
     out: opt('out', path.join(REPO, 'flyDiy', 'reports', 'evidence', 'soft_still.jpg')), keepHud: flag('keep-hud'), aeroCheck: flag('aero-check'),
-    json: opt('json', null), quiet: flag('quiet'),
+    json: opt('json', null), quiet: flag('quiet'), from: opt('from', null),
   };
 }
 
