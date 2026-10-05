@@ -20,6 +20,7 @@ const OUT = path.resolve(ROOT, opt('out', 'reports/evidence/DMG-SCUFF/bench'));
 const [W, H] = opt('size', '960x540').split('x').map(Number);
 const BUILDS = { cub: 'builds/cub_2026-09-20_corrected.json', metal: 'bugReports/cessnaMetal (1).json', jodel: 'builds/jodel_2026-09-20_corrected.json' };
 const which = opt('builds', 'cub,metal').split(',');
+const VIEWS = opt('views', 'flank,nose,belly,screen').split(',');
 function findPlaywright() {
   for (const p of ['playwright', '/opt/node-tools/node_modules/playwright', '/opt/node22/lib/node_modules/playwright', 'playwright-core']) { try { return require(p); } catch (e) {} }
   throw new Error('no playwright');
@@ -48,25 +49,26 @@ const freePort = () => new Promise((res, rej) => { const s = net.createServer();
       const R = report.builds[k] = { build: BUILDS[k] };
       // 1. the reference: the same build with the module removed, the programs compiled for each preset
       const ref = await open('?noscuff', spec);
-      R.noscuff = await ref.page.evaluate(() => { for (const v of Object.keys(WX_BENCH.PRESETS)) { WX_BENCH.look(v); WX_BENCH.shoot(); } return DS.sources(); });
+      R.noscuff = await ref.page.evaluate(V => { for (const v of V) { WX_BENCH.look(v); WX_BENCH.shoot(); } return DS.sources(); }, VIEWS);
       R.noscuffErrors = ref.errs; await ref.page.close();
       const { page, errs } = await open('', spec);
-      R.loaded = await page.evaluate(() => { for (const v of Object.keys(WX_BENCH.PRESETS)) { WX_BENCH.look(v); WX_BENCH.shoot(); } return DS.sources(); });
+      R.loaded = await page.evaluate(V => { for (const v of V) { WX_BENCH.look(v); WX_BENCH.shoot(); } return DS.sources(); }, VIEWS);
       R.sameAsNoscuff = R.loaded.hash === R.noscuff.hash && R.loaded.n === R.noscuff.n;
       // 5a. the stills before
+      const dump = () => fs.writeFileSync(path.join(OUT, 'bench.json'), JSON.stringify(report, null, 1));
+      dump();
       R.stills = [];
-      const views = ['flank', 'nose', 'belly', 'top', 'screen', 'front'];
+      const views = VIEWS;
       for (const v of views) R.stills.push(save(k + '_' + v + '_before.jpg', await page.evaluate(([v, w, h]) => { WX_BENCH.look(v); return DS.still(w, h); }, [v, W, H])));
       // 2. arming (the programs) and the crash window (no program)
-      R.arm = await page.evaluate(() => DS.arm());
+      R.arm = await page.evaluate(() => DS.arm()); dump(); console.log('arm', JSON.stringify(R.arm).slice(0, 600));
       R.crashLinks = await page.evaluate(() => DS.crashWindow());
       // 5b. after
       for (const v of views) R.stills.push(save(k + '_' + v + '_after.jpg', await page.evaluate(([v, w, h]) => { WX_BENCH.look(v); return DS.still(w, h); }, [v, W, H])));
       // 3. the layers
-      R.measure = await page.evaluate(() => ['crush', 'scrape', 'torn', 'glass'].map(l => DS.measure(l)));
+      R.measure = await page.evaluate(() => ['crush', 'scrape', 'torn', 'glass'].map(l => DS.measure(l))); dump(); console.log('measure', JSON.stringify(R.measure).slice(0, 600));
       // 4. the cost
-      R.cost = await page.evaluate(() => DS.cost('flank', 9));
-      R.costNose = await page.evaluate(() => DS.cost('nose', 9));
+      R.cost = await page.evaluate(() => DS.cost('flank', 9)); dump(); console.log('cost', JSON.stringify(R.cost).slice(0, 600));
       R.sourcesEnd = await page.evaluate(() => DS.sources());
       R.errors = errs;
       console.log(k, JSON.stringify({ same: R.sameAsNoscuff, arm: R.arm, crashLinks: R.crashLinks, measure: R.measure.map(m => m.layer + ' ' + m.pct.toFixed(2) + '% ' + m.view), cost: R.cost, errors: errs.length }));
