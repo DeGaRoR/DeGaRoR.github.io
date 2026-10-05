@@ -74752,6 +74752,6 @@ owner's call.
   stayed), but the wrap stays: it equals the modulo for every forward step under 12 h and does not read a backward
   step as a whole day. GATE DAY is green.
 After the fixes: STRIPGROUND, WORLD, LAKEBED, HYDRODYN, SPLAT, PREMRASTER, PREMCOOK, OBSTFRAME, WATER, AERO, PARTS,
-SKINMAT, LIVERYREACH, WEATHER, DAY and ROLLANIM re-run on the final source: see the READY commit.
+SKINMAT, LIVERYREACH, WEATHER, DAY and ROLLANIM re-run on the final source: 16 / 16 PASS (225 s wall, 4 jobs).
 NOT RUN (full tier): HOTHIGH (now on the highest fly-in strip), PILOTMATRIX (its seed-0 A0 / A3 / A5 cells fly moved
 strips), SEAPLANE, ARCHETYPES.
