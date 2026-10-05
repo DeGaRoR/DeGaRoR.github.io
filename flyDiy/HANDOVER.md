@@ -74194,3 +74194,7 @@ TOOLS: the stills rig is tools/shadowsky_shots.js (views.json in the evidence); 
 (bank slopes by carve depth, the coast's tint by distance - their numbers are above). OPEN FOR THE USER (A0 relays): (1) the
 bank faces' rocky-shore dress vs their own cover with only the stretch removed; (2) the sea: keep / tone the waterline step /
 shelve the seabed geometry (G1503).
+- BATTERY (run_gates --all under the cpu lock, this branch on train 31): 147 PASS, SOFTGPU SKIP (no basisu encoder on this
+  box), FRAMECOST FAIL (24) = the stale parked cook's rows (the aeroplanes captured live: draws +133, uniform4fv +2 000) -
+  with the parked aeroplanes cooked on this build (tools/parked_cook.js, local, NOT committed) GATE FRAMECOST: PASS.
+  FOR A0: generated files not committed (node tools/build.js); the parked aeroplanes need the train's cook.
