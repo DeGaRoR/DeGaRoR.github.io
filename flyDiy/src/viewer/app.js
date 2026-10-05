@@ -1758,7 +1758,7 @@
         const g = meshes[n].geometry, c = g.attributes.position.count;
         for (const k of at) arr[k].set(g.attributes[k].array.subarray(0, c * g.attributes[k].itemSize), vo * g.attributes[k].itemSize);
         const ix = g.index.array; for (let i = 0; i < g.index.count; i++) idx[io + i] = ix[i] + vo;
-        mir.push([g, { ix: idx, io, vo, n: g.index.count, attr: null }]);
+        mir.push([g, { ix: idx, io, vo, n: g.index.count, attr: null, nv: c }]);
         vo += c; io += g.index.count;
       }
       const geo = new THREE.BufferGeometry();
@@ -1767,6 +1767,9 @@
       // G1866 (DMG-D4b, the D4a fix): each source's INDEX MIRROR - a triangle the wreck removes from a bucket's own index
       // (skin_break's tear) reaches the merged copy through it (app.js idxMirror)
       for (const [g, M] of mir) { M.attr = geo.index; (g.userData.ixMirror || (g.userData.ixMirror = [])).push(M); }
+      // (G1859, DMG-WALL: ...and its POSITIONS' - the merged copy draws its own copy of a bucket's vertices, so a wreck's
+      // riding of the bucket reaches it through this (app.js brkPosMirror); metadata, nothing reads it intact)
+      for (const [, M] of mir) { M.pos = geo.attributes.position; M.nrm = geo.attributes.normal || null; }
       geo.computeBoundingSphere();
       const mesh = new THREE.Mesh(geo, m0.material);
       mesh.name = 'craftStill';
@@ -3122,7 +3125,7 @@
     // (a map over objects that exist anyway; no frame reads it until a break)
     // (G1858, DMG-WALL: meshes0 - each bucket's own mesh by its payload key, before the fold and the still merge rename
     // them: what the wall's records read their section from; parentOf - each mesh's parent as built, as DMG-D4b keeps it)
-    const wreckBuild = { geoOf: new Map(), parentOf: new Map(), meshes0: Object.assign({}, meshes) };
+    const wreckBuild = { geoOf: new Map(), parentOf: new Map(), meshes0: Object.assign({}, meshes), rigsAll: null };
     grp.traverse(o => { if (!o.isMesh || !o.geometry) return; wreckBuild.parentOf.set(o, o.parent);
       if (o.geometry.attributes.position) wreckBuild.geoOf.set(o.geometry.attributes.position, o.geometry); });
     let fold = null, foldIn = null, foldEye = null;
@@ -3146,6 +3149,10 @@
     }
     // G576: THE STILL AIRFRAME, ONE DRAW PER MATERIAL - see mergeStill
     const still = data.cage ? mergeStill(grp, meshes, mats, rigs, lamps) : null;
+    // (G1859, DMG-WALL: every bucket's rig, the still-merged ones too - a wreck must ride the frame's tubes, the bulkheads
+    // and the firewall, which the still merge takes out of model.rigs: they stood rigid in the body frame while the skin
+    // rode its nodes - the user's 'the frame looks unbent')
+    wreckBuild.rigsAll = rigs;
     // ...which may have folded a kept fold's members (the cabin's hidden live buckets; the A/B build's baked ones) per
     // material: the swap shows what stands now
     // (G1124: a zone's still meshes are the ones on that zone's live copies)
@@ -3942,7 +3949,14 @@
   // an index array changed: every geometry drawing it re-uploads it (the rig's mesh, and the flown bake's views on the
   // same payload group - their index attributes wrap the same array)
   // (G1864: the normals a riding vertex turned, back as built)
-  function brkNrm(R) { if (R.nAttr && R.nRest) { R.nAttr.array.set(R.nRest); R.nAttr.needsUpdate = true; } }
+  function brkNrm(R) { if (R.nAttr && R.nRest) { R.nAttr.array.set(R.nRest); R.nAttr.needsUpdate = true; }
+    if (R.base0 && R.geo && R.geo.attributes.position) { R.geo.attributes.position.array.set(R.base0); brkPosMirror(R, R.base0, R.nRest || null); } }
+  // G1859 (DMG-WALL): a still-merged bucket's riding (or its rest, at a heal) copied into the merged copy that draws it
+  function brkPosMirror(R, P, N) {
+    const M = R.geo && R.geo.userData && R.geo.userData.ixMirror; if (!M) return;
+    for (const m of M) { if (!m.pos || !m.nv) continue; m.pos.array.set(P.subarray(0, m.nv * 3), m.vo * 3); m.pos.needsUpdate = true;
+      if (N && m.nrm) { m.nrm.array.set(N.subarray(0, m.nv * 3), m.vo * 3); m.nrm.needsUpdate = true; } }
+  }
   function brkIdx(R) { for (const g of R.geos || [R.geo]) if (g && g.index) { g.index.needsUpdate = true; idxMirror(g); } }
   // G1866 (DMG-D4b, the D4a fix): ...AND EVERY MERGED COPY OF IT. The flown bake's fold (flown_bake.js mergeModel) and the
   // still merge (mergeStill) draw a bucket from their own copy of its index, offset - its positions they share (views),
@@ -4042,7 +4056,8 @@
     // the groups: the snapshot's own (the covering, the wing band), the control surfaces (rebased about their pivot),
     // the struts and the tail's anchored parts (unrebased)
     const groups = [];
-    for (const r of model.rigs) groups.push([r, r.g, r.posAttr, r.base, null, (r.bind && r.bind.bound.length) ? fabW : fabB]);
+    const rigsW = (model.wreckBuild && model.wreckBuild.rigsAll && brkInhWant()) ? model.wreckBuild.rigsAll : model.rigs;
+    for (const r of rigsW) groups.push([r, r.g, r.posAttr, r.base, null, (r.bind && r.bind.bound.length) ? fabW : fabB]);
     for (const s2 of model.surfParts || []) groups.push([s2, null, s2.posAttr, s2.base, s2.pivot, fabW]);
     for (const s2 of (model.strutRigs || []).concat(model.anchorRigs || [])) groups.push([s2, null, s2.posAttr, s2.base, null, false]);
     // G1859: the gear legs too, once the wreck binds by inheritance (they stretched from a root pinned to the body frame to
@@ -4065,6 +4080,7 @@
           bD[v*3] = og[0] + B0[0]*a + B0[1]*b + B0[2]*c; bD[v*3+1] = og[1] + B0[3]*a + B0[4]*b + B0[5]*c; bD[v*3+2] = og[2] + B0[6]*a + B0[7]*b + B0[8]*c; }
         const R = brkRec(own, { nv, idx: geo.index.array }, geo, bD, K.rest, fab, true, inhOn ? SB.INH_K : SB.NEAR_K);
         R.baseD = bD; R.w = new Float64Array(nv * 3);
+        if (geo.userData && geo.userData.ixMirror && geo.userData.ixMirror.some(m => m.pos)) R.base0 = Float32Array.from(base);
         const na = geo.attributes.normal;
         if (na && na.count === nv) {
           R.nAttr = na; R.nRest = Float32Array.from(na.array); const nB = R.nB = new Float32Array(nv * 3);
@@ -4106,6 +4122,7 @@
       SB.poseCage(R, K.rest, sim.p, R.baseD, pa.array, K.NF, K.down, off, X);
       if (gain === 1 && SB.tear(R, R.baseD, R.w)) brkIdx(R);
       pa.needsUpdate = true; if (R.nAttr) R.nAttr.needsUpdate = true;
+      brkPosMirror(R, pa.array, R.nAttr ? R.nAttr.array : null);
     }
     // (G1856: the wall goes with its covering - asked only when a covering triangle went since the last time)
     if (K.inhL && K.inhSt.done) { let gone = 0; for (const E of K.inhL) if (E.cv.indexOf(SB.INH.cover) >= 0) gone += E.R.removed;
