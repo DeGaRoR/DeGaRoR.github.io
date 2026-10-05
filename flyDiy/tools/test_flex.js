@@ -271,6 +271,14 @@ function flex(name, def, matKey) {
   // cannot climb still says so, one second past the old window did not.
   while (ap.phase !== 'DOWNWIND' && t < 200) { ap.update(1/60); sim.step(1/60); t += 1/60; }
   if (ap.phase !== 'DOWNWIND') { say(`  ${name}: never reached cruise`); return null; }
+  // G1940: THE PILOT flies the crosswind -> downwind ARC under DOWNWIND - the 1 g reference waits for the straight
+  // leg (wings within 2 deg for 3 s, 40 s at most): measured from the arc the Dacron wing read a 1.08 % p2p "cruise
+  // flail" at n 1.05 that was the turn (the classic's CRUISE was straight from its first frame)
+  { let lvl = 0;
+    for (let f = 0; f < 60 * 40 && lvl < 180 && ap.phase === 'DOWNWIND'; f++) {
+      ap.update(1/60); sim.step(1/60); t += 1/60;
+      const [, yB0, zB0] = sim.axes(); lvl = Math.abs(Math.atan2(zB0[1], yB0[1]) * 57.3) < 2 ? lvl + 1 : 0;
+    } }
 
   // peak member load and strain, per class, over the whole measured run
   const peak = {};
