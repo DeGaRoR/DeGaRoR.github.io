@@ -77085,3 +77085,10 @@ THE NEXT POTATO LEVERS FOR THE TAXI, ranked by triangles (each wants a GPU still
 4. the tram (143 k) and the roads' merged mesh (210 k): the tram hidden on potato, the roads' far batches decimated.
 Together ~-0.8..-1.0 M: the taxi near 33 ms on the 660 by the model. The animals switch (53 MB) and the town's house
 textures stay owed (memory, not the taxi's GPU).
+**G1527 READY - THE DISTANT-RUNWAY STILL (A0's untimed window, 22:13-22:17, the box's GPU, potato, the default Cub at HOME's
+stand, paused; `?patchtol=1` vs `?patchtol=3` in one build, tools/perf/potato_census.js --orbits, 4 headings x 400 m and
+1 200 m at 5 deg):** `reports/evidence/POTATO-DEEP/g1527_runways_400m_patch1px_vs_3px.jpg`,
+`g1527_runways_1200m_patch1px_vs_3px.jpg` (left 1 px, right 3 px) and `g1527_runways_diff_x4.jpg` (the difference x4). No
+ground shows through any runway, taxiway or far strip at either range; 0.14-0.94 % of the pixels differ by more than 40/255,
+all of them trees (the impostors' dither and sway, different run to run) and the pavement's joint lines at a sub-pixel
+camera offset - none in the shape of the ground. The stand's frame 4.23 -> 3.84 M triangles in the same runs.

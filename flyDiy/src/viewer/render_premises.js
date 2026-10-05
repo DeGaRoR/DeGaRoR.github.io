@@ -544,6 +544,8 @@ function make(THREE, scene, world, rec0, opts) {
   // GTX 660 taxi paid ~6 ms a million triangles and the patch was the taxi's largest owner (780 k of 4.1 M at tolPx 1)
   const PL = { res: [2, 4, 8, 16], block: 8, focal: 1160, minQuads: 25, skirt: [0.5, 1, 2, 3],
                tolPx: (typeof window !== 'undefined' && window.GFX && typeof window.GFX.budget === 'function' && window.GFX.budget().patchTolPx > 1) ? window.GFX.budget().patchTolPx : 1 };
+  // ?patchtol=N (G1527, a rig's A/B): the patch's level error forced, whatever the budget - the still's before / after in one build
+  try { const q = typeof location !== 'undefined' && /[?&]patchtol=([0-9.]+)/.exec(location.search || ''); if (q && +q[1] >= 1) PL.tolPx = +q[1]; } catch (e) {}
   // HOW DEEP INSIDE THE PATCH (x, z) LIES: metres to the extent's edge or to the nearest UNBUILT neighbour chunk, 0
   // outside the patch. The patch's border tucks under the ring over its last 40 m by it, and (G752) the rings sink
   // under the patch by it (ringSink) - not within PATCH_TUCK.ring0 of the edge, so a ring triangle crossing the border keeps
