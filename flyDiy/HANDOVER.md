@@ -75426,9 +75426,12 @@ THE DRAWN PROP turns at the rpm the engine's VOICE makes, not the solver's 0 whi
   visual).
 
 GATE ROLLSND holds the mirror against the worklet run offline on the shot's own timeline: within 6 % of idle (worst: Cub 31 rpm,
-Cessna 38, Rotax 126 of 1820). Allocation: the start's frame 1.5 B, the roll 17.8 B (was ~16), the fixed roll 33.5 B (was 32; a
-call into the pose write had cost +32 B, so the pose is written out in the roll tick and written once at play for the rest),
-the check unchanged.
+Cessna 38, Rotax 126 of 1820). Allocation (GATE ROLLANIM, B a frame; base = train 34 measured the same way): the start 1.5, the
+roll 17.8 (base 17.5), the fixed roll 33.5 (base 33.5; a call into the pose write had cost +32 B, so the pose is written out
+in the roll tick, and written once at play for the start and the check), the check 81.5 (base 65.5: one more boxed double, inside
+its bound 64 + the linkage's snap 81). The frame writes a field only when it moved: ctl.thr on a step, the props' spinRate past
+1e-6 rad/s, and sim.out on a change. Writing every frame made the fixed roll box two more doubles now and then (65.5 B in 3 of 16
+runs of the gate, 8 at a time on 4 cores); with the guards it was 16 of 16 at 33.5, the same as the base.
 
 **WHAT THE WORLD EXPECTS AT THE CUT: THE STAND STARTS WITH THE ENGINE RUNNING.** fullReset -> sim.reset -> resetPanel puts every
 engine running / key both / crank 0; the first step writes the idle. So the shot hands over: `o.handover` (app.js's roll-out
@@ -75487,8 +75490,9 @@ FRAMECOST's `boot/rollout:click/` row spans the shot (a waiver row): ~175 more s
 the start's frames: the aeroplane at rest, no surface moving, no re-pose. The app's 30 s timeout still covers a twin with the
 longest roll (5.4 + 3.3 + 5.85 = 14.6 s).
 
-**GATES** (this branch's head): ROLLANIM PASS, ROLLSND PASS (20/20), AUDIO PASS (alone, 6 min; in a 4-job battery EMITALLOC went
-red once on a starved sample: emitters.js, untouched here; it is green alone), AUDIOENG PASS, UISMOKE PASS, BUILD PASS. The
+**GATES** (this branch's head): run_gates ROLLANIM, ROLLSND (20/20), UISMOKE, BUILD - BATTERY PASS; AUDIO PASS and AUDIOENG
+PASS on the same audio sources (AUDIO alone, 6 min: in a 4-job battery EMITALLOC went red once on a starved sample - emitters.js,
+untouched here, green alone; the last commits touch rollanim.js only, which neither reads). The
 runner's rebuilt built files are restored: none is in this branch. Physics untouched (no src/core file).
 
 **HOT FILES for A0's trains:** src/viewer/rollanim.js (the start, the engines, the restore, the pose), src/viewer/app.js
