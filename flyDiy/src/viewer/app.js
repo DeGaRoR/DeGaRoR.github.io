@@ -11105,6 +11105,7 @@
   const FL_REVEAL_K = 0.022, FL_REVEAL_FRAMES = 360;
   function flRevealStart() {
     rollShotUi(false);                   // G1370: the verbs come back as the reveal hands over
+    if (window.FLIGHT_REC && window.FLIGHT_REC.reveal) window.FLIGHT_REC.reveal('the flight');   // G1996: marked with or without a screen
     flShedBox = worldShedBox();
     flReveal = 0;
     // the panel arc (session 4b): rolling out INTO the cockpit seats the

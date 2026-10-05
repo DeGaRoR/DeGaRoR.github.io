@@ -87,6 +87,13 @@
     // wait the frame's next GL call would have paid). A frame under a loading screen is not a sample.
     let depth = 0, open = false, fi = 0, taken = 0, owed = 0, selfN = 0, samp = false, sampN = 0;
     let calls = 0, tris = 0, lastCap = -1, lastBoot = '', revealAt = -1, freezes = 0;
+    // G1995 (HW-COVERAGE): THE REVEAL IS THE FLIGHT'S, NOT THE SCREEN'S. A roll-out whose plan is empty (the world built in
+    // the one loading, B9 - every first roll-out of a boot that finished) reveals with no screen at all, and the reveal was
+    // only ever marked on a roll-out screen gone: the user's GTX 660 log (4 Oct) and the 1660 Ti log (5 Oct) both read
+    // NO REVEAL and the analyzer scored nothing. app.js's flRevealStart now says so (reveal()); the screen's own line stays
+    // for a screen that lifts on its own, and one reveal is kept per hand-over (2 s apart)
+    let lastReveal = -1e9;
+    function reveal(how) { const t = clock(); if (t - lastReveal < 2000) return; lastReveal = t; revealAt = t; event('reveal', t, null, how || 'the flight'); }
     // G1340 THE SHADER WATCHDOG: the programs three made since the last frame closed (name + what changed in its key against
     // the last program of that name: three's key is comma-joined, '#i:a>b' per differing field) and the link waits since;
     // a frame whose shader time (its slot, or the waits held since the last frame - a wait outside the open frame counts)
@@ -202,7 +209,7 @@
       const B = W.BOOT;
       if (B && B.state !== lastBoot) {
         event('boot', t, null, B.state + (B.set ? ' ' + B.set : ''));
-        if (B.state === 'gone' && B.set === 'rollout') { revealAt = t; event('reveal', t, null, null); }
+        if (B.state === 'gone' && B.set === 'rollout' && !(t - lastReveal < 2000)) { revealAt = t; lastReveal = t; event('reveal', t, null, 'roll-out screen'); }
         lastBoot = B.state;
       }
       if (B && B.state !== 'gone') fl |= F.boot;
@@ -239,7 +246,7 @@
     // ---- the GPU's time (EXT_disjoint_timer_query_webgl2) ------------------------------------------------------
     function gpuBegin() {
       const G = rec.gpu;
-      if (!G.ext) return;
+      if (!G.ext || G.off) return;                  // (G1995: G.off - the self-test's 'timer off' variant, live)
       if ((fi & 3) === 0) gpuPoll();                  // the results read every 4th frame, in a batch (each read is a GL call)
       if (fi - G.foreignF < 120) return;              // another module's timer ran in the last 2 s: not ours to open
       const qy = G.pool.length ? G.pool.pop() : (G.pend.length < 16 ? G.gl.createQuery() : null);
@@ -431,7 +438,7 @@
 
     const api = {
       SLOTS, S, COLS, C, F, N, CHUNK, rec,
-      attach, begin, end, lap, push, pop, event, stats, header, logParts, chunkRec, eventsSince,
+      attach, begin, end, lap, push, pop, event, stats, header, logParts, chunkRec, eventsSince, reveal,
       codeOf, names,
       get frame() { return fi; }, get open() { return open; }, get events() { return events; },
       set chunkSink(fn) { chunkSink = fn; },
@@ -463,6 +470,8 @@
     attach: (renderer, probe) => OFF ? null : REC.attach(renderer, probe),
     begin: REC.begin, end: REC.end, lap: REC.lap, push: REC.push, pop: REC.pop,
     event: (kind, ms, detail) => REC.event(kind, null, ms, detail),
+    reveal: how => REC.reveal(how),
+    gpuTimer: on => { if (on !== undefined) REC.rec.gpu.off = !on; return !!REC.rec.gpu.ext && !REC.rec.gpu.off; },   // G1995: the GPU timer on / off, live (the self-test)   // G1995: the flight handed to the player (app.js flRevealStart), screen or none
     stats: w => REC.stats(w), header: () => REC.header(), self: REC.self,
     get off() { return OFF; }, rec: REC,
     save: () => save(null), savePrevious: () => save('previous'), mark: note => mark(note),
