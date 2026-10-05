@@ -177,6 +177,10 @@ async function pageStage(o) {
   const step = window.__dwStep;
   sim.step = () => {};
   window.FLYDIY_SKINBREAK = true;
+  // the wind off (DMG-D4b's parity finding: the gust field is read at sim.t and every staging starts at another t - with
+  // it off the page's crash is bit for bit the same); given back after the run
+  if (!('__dwWind0' in window)) window.__dwWind0 = world.wind;
+  world.wind = null;
   const strip = world.aerodromes.find(a => a.id === 'HOME') || world.aerodromes[0];
   sim.reset(0); placeAtAerodrome(sim, strip);
   const n = sim.n, p = sim.p, v = sim.v, fx = Math.cos(strip.hdg), fz = Math.sin(strip.hdg);
@@ -216,6 +220,7 @@ async function pageRunOn(o) {
   }
   // (a few more frames: the pose reaches the last state, the binding's budget finishes)
   for (let f = 0; f < 40; f++) await raf();
+  if ('__dwWind0' in window) { P.world().wind = window.__dwWind0; delete window.__dwWind0; }
   const D = sim.damage(), q = ms.slice().sort((a, b) => a - b);
   return { steps: s, crashed: D.crashed, over: !!D.over, reason: D.reason, broken: D.broken.length, brokeUp: !!D.brokeUp,
     frameMed: +q[q.length >> 1].toFixed(1), frameMax: +q[q.length - 1].toFixed(1),
