@@ -1,0 +1,19 @@
+cessna172 (file tail) w3 -> mn_strip calm · normal
+  ROLL@0 LIFTOFF@19 CLIMB@35.4 ENROUTE@76.2 DOWNWIND@488.8 BASE@530.3 FINAL@566.2 FLARE@645.4 ROLLOUT@650.3 STOPPED@673.1
+  take-off: run 260 m, lift-off 27.5 m/s · crosswind turn at null m
+  ENROUTE   overshoot  316 m  settle 12.9 s  roll reversals 0.1/min
+  DOWNWIND  overshoot    4 m  settle 9 s  roll reversals 0.2/min
+  BASE      overshoot   29 m  settle 17.1 s  roll reversals 0.6/min
+  final: captured at 590.9 s · above-slope rms 3.2 m · V-VAppr rms 0.84 (mean 0.17) · thr 0.06..0.29
+  flare: from 13.54 m at -5.57 m/s, 4.9 s
+  departure: short · Vx 30.1 m/s · run needed 313 m of 520
+  circuit: left-hand at 175 m, join straight
+  approach: short · Vref 24.9 m/s · aim 30 m in · flap 1 · run needed 219 m of 250
+  landing: sink 1.14 m/s · 22.8 m/s = 1.1 Vs · 26 m past the aim · 0.2 m off · run 238 m
+  control reversals /min (da dr de): takeoff 8.5 6.8 6.8 · climb 0 0 10.3 · legs 0.7 15.7 7 · downwind 0 0 0 · base 3.3 3.3 3.3 · final 1.5 1.5 12.1 · landing 0 0 16
+  rollout: max heading 0.8 deg, 0 reversals, rudder 0.02 · 0 m off at the stop
+  ! 13.7s committed-takeoff: past the point of stopping at V=21.2 with 241 m left — Vr in 56 m, continuing
+  ! 37.1s vx-climb: ground ahead above the aeroplane — climbing at Vx 30.1 m/s until clear
+  ! 76.2s strip-short: 250 m of strip for a 219 m landing run — landing short-field, no margin
+  completed at 673.1 s (298 s wall)
+{"key":"builds/cessna172_2026-09-20_corrected.json","name":"cessna172","from":"w3","to":"mn_strip","style":"normal","tail":"file","slope":0,"surface":null,"weather":null,"day":"2026-06-21 10:00:00 AKDT","outcome":"completed","phase":"STOPPED","t":673.1,"phases":["ROLL@0","LIFTOFF@19","CLIMB@35.4","ENROUTE@76.2","DOWNWIND@488.8","BASE@530.3","FINAL@566.2","FLARE@645.4","ROLLOUT@650.3","STOPPED@673.1"],"goArounds":0,"verdicts":["13.7s committed-takeoff: past the point of stopping at V=21.2 with 241 m left — Vr in 56 m, continuing","37.1s vx-climb: ground ahead above the aeroplane — climbing at Vx 30.1 m/s until clear","76.2s strip-short: 250 m of strip for a 219 m landing run — landing short-field, no margin"],"takeoff":{"run":260,"Vlo":27.5},"climb":{"hTurn":null,"vsMean":3.21},"legs":[{"name":"ENROUTE","overshoot":316,"settleT":12.9,"rollRev":0.1},{"name":"DOWNWIND","overshoot":4,"settleT":9,"rollRev":0.2},{"name":"BASE","overshoot":29,"settleT":17.1,"rollRev":0.6}],"final":{"captureT":590.9,"aboveRms":3.2,"vRms":0.84,"vErrMean":0.17,"thrMin":0.06,"thrMax":0.29},"flare":{"entryAgl":13.54,"entryVs":-5.57,"t0":645.4166666666666,"dur":4.9},"landing":{"sink":1.14,"V":22.8,"VoverVs":1.1,"pastAim":26,"off":0.2,"run":238,"three":false,"drift":0.15},"activity":{"takeoff":{"s":35,"da":8.5,"dr":6.8,"de":6.8},"climb":{"s":41,"da":0,"dr":0,"de":10.3},"legs":{"s":413,"da":0.7,"dr":15.7,"de":7},"downwind":{"s":42,"da":0,"dr":0,"de":0},"base":{"s":36,"da":3.3,"dr":3.3,"de":3.3},"final":{"s":79,"da":1.5,"dr":1.5,"de":12.1},"landing":{"s":28,"da":0,"dr":0,"de":16}},"rollout":{"maxE":0.8,"zeroX":0,"maxDr":0.02,"xtEnd":0},"Vs":25.1,"VsLanding":20.7,"VAppr":24.9,"appr":{"technique":"short","Vref":24.9,"Vbase":24.9,"gust":0,"aimIn":30,"flap":1,"len":250,"surface":6,"runNeed":219},"dep":{"technique":"short","Vx":30.1,"runNeed":313,"len":520,"surface":6},"circuit":{"hand":"left","hC":175,"join":"straight","declared":null},"mass":989,"sheet":{"Vs":24.39,"Vs0":20.71,"Vref":26.92,"Vrot":24.8,"Vx":30.1,"Vy":34.6,"Vbg":36.69,"Vms":27.88,"Vcruise":51.2,"climbMax":3.84,"sinkMin":2.88,"LDbest":11.18,"TORun":313,"LDGrun":219.17,"mass":993.9},"tecs":true,"path":true,"wall":298,"csv":"/tmp/claude-0/-home-user-DeGaRoR-github-io/e7e858f3-5d06-56b7-b9c9-c9722c2634d1/scratchpad/ep6/c172_mn_base.csv"}

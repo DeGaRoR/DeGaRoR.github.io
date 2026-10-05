@@ -75527,11 +75527,12 @@ landing run), each step measured on the user's Cub (no landing flap: genTrim's `
 MEASURED (pilot_trace, Jolene, calm; evidence/PILOT-ONE/shortfield/):
 ```
 flight                          base (train 34)                                    branch
-C172 Tamgas -> Jumbo Mine 250 m  SHORTFIELD_C172_BASE                                touched 16 m in (1 m past the aim), 0.96 m/s, 1.11 Vs,
-  (full flap)                                                                       on the centreline, stopped after 154 m: 80 m to spare
+C172 Tamgas -> Jumbo Mine 250 m  aim 30 m in; touched 56 m in, 1.14 m/s, run 238 m:  touched 16 m in (1 m past the aim), 0.96 m/s, 1.11 Vs,
+  (full flap)                     stopped ~44 m PAST the end - 'completed'             on the centreline, stopped after 154 m: 80 m to spare
 Cub East Point circuit 150 m     final 4 m over the slope at idle and 2.5 m/s fast,  on the slope (1.2 m rms), slip, flare from 5.9 m; floats
   (no flap)                      flare at 25.4 m/s (1.56 Vs), touched 213 m in,       in ground effect with 97 m left for a 134 m stop: round
-                                 'completed' 63 m past the end                       twice, then 'divert' to Tamgas Hill (520 m, 14.3 km)
+                                 'completed' 63 m past the end                       twice, then 'divert' to Tamgas Hill (520 m, 14.3 km):
+                                                                                    landed there, 1.18 Vs, 0.4 m/s, run 158 m, 'completed'
 Cub Jumbo Mine circuit 250 m     SHORTFIELD_CUB_MN_BASE                              the 15 deg cone: 50 m over the slope at idle with the slip;
   (no flap)                                                                         round twice ('past the aim'), divert
 ```
