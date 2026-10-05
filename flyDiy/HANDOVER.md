@@ -77636,3 +77636,93 @@ stand, paused; `?patchtol=1` vs `?patchtol=3` in one build, tools/perf/potato_ce
 ground shows through any runway, taxiway or far strip at either range; 0.14-0.94 % of the pixels differ by more than 40/255,
 all of them trees (the impostors' dither and sway, different run to run) and the pavement's joint lines at a sub-pixel
 camera offset - none in the shape of the ground. The stand's frame 4.23 -> 3.84 M triangles in the same runs.
+
+## G1930-G1934 FLOAT-SHAPE - THE WIPLINE AFTERBODY: A STRAIGHT KEEL ON AN 8 DEG STERNPOST, THE DECK HELD TO THE AFT SPREADER BAR, A STERN HALF THE BEAM; THE FIT TAKES ITS VOLUME FROM THE FOREBODY; GATE WIPLINE MEASURES THE REFERENCE (2026-10-05, cloud - node + SwiftShader, no GPU; branch claude/float-shape-g1930 off origin/master 55dd98b7 = train 34)
+
+The user (5 Oct): "the shape of the Cessna floats seems a little off. The back part is really thin. Can you check
+that? It had the objective to model the range of Wipaire, but the current one seems slightly off."
+
+**G1930 THE CHECK (tools/_float_gen.js REF / measure / check).** No Wipaire lines drawing was reachable (wipaire.com,
+manualslib, manualzz, ntrs.nasa.gov, dtic.mil, the Elsevier book site: all denied by the cloud environment's network
+policy; search snippets only). The reference is tagged by kind: CAT (the catalogue rows, measured - L / hull width /
+hull height / maximum flotation; the 2350 2,570 lb displacement, 2,855 lb max flotation, the 3450's page the same
+way, so `flot` stays the fit target), RULE (the sternpost angle 7-9 deg on a straight afterbody keel - NACA tank
+practice via Gudmundsson App. C3 / USNA EN486; the step at 0.55 L - G451's p. 97 reading) and INF (inferred from
+photographs and the parts manual's rigging: the deck held to the aft spreader bar, a stern 0.45-0.65 of the beam and
+>= 0.25 of the step's depth, the mid-afterbody section >= 0.45 of the step's, the afterbody 30-45 % of the volume).
+The 2350 before: mid-afterbody section 0.39 of the step's, the stern 0.22 deep and 0.56 wide, an 8.7 deg sternpost
+on a curved keel (dev 0.05 H), the afterbody 28 % of the volume; 14 of the 15 rows broke the sternpost rule (9.5-10.3
+deg on the big rows), every row broke the inferred fullness. Three causes: the plan tapered from the step itself
+(u^1.15), the keel's up-curve (aftCurve), and the fineness fit taking the catalogue's excess volume OFF THE STERN
+(it raised / curved the keel and narrowed the transom with f: the 8750's stern was 0.34 of the beam, 0.19 deep).
+
+**G1931 THE FIX (src/core/32_hydro.js - sectionOf's afterbody, DEF, WIPLINE_AFT, fineParams, presetParams).**
+- sectionOf: the afterbody plan holds the step's beam over `aftHold` of its length, then closes to bStern as
+  ((u - aftHold) / (1 - aftHold))^`aftPow`. DEF keeps aftHold 0 / aftPow 1.15 = the old law, BIT FOR BIT (DEF's
+  volume, floatParamsFor's twin, every section identical to master): the H0 float and every aeroplane sized by its
+  gross keep what they were calibrated on. A record without the keys (saved before G1930) takes DEF's: unchanged.
+- `WIPLINE_AFT` = { aftAngle 5.9, aftCurve 0, aftHold 0.20, aftPow 2, bStern 0.50 } on every catalogue row
+  (presetParams): a straight keel on an 8.0 deg sternpost (tan 8 = tan 5.9 + hs / LA), the deck parallel to the aft
+  spreader bar, a stern half the beam.
+- fineParams: the afterbody is OUT of the fit (no aftAngle / aftCurve / bStern terms); the finer branch is the bow
+  plan (planK - 2.6 f, floor 1.2), the rocker (flatK - 0.3 f, floor 0.2) and the V at 12 deg per unit (was 20). Every
+  row on its flotation (0.0 %), f -0.7..1 not hit: 1450 0.40, 2100 0.22, 2350 0.09, 3000 0.99, 8750 0.98.
+  The 2350: deadrise 23.1 / 18.6 (was 20.6 / 17.1 at f -0.23), planK 3.76 (4.93), flatK 0.47 (0.57). The 8750:
+  33.7 / 23.9 (34.8 / 24.4).
+- FLOAT_SPEC_KEYS + aftHold, aftPow (the join carries them; 60_gen_spec clamps aftHold 0-0.6, aftPow 1-3, and fineK
+  now -0.7..1 - it clamped a fuller row's negative fineness to 0; fineK is a label, nothing reads it).
+- tools/_cage_float.js hullParams: the garage's float wears WIPLINE_AFT's plan law (the keel and bStern are rows).
+- 32_hydro TOUCHED FOR A0 (DMG-HULL / DMG-PLOUGH also edit it): DEF gains two keys (aftHold, aftPow) after aftCurve;
+  sectionOf's afterbody plan line (one line -> four); WIPLINE_AFT + its comment before fineParams; fineParams' body;
+  presetParams' P0 line (Object.assign WIPLINE_AFT); FLOAT_SPEC_KEYS (+2); the API (+WIPLINE_AFT). Nothing in the
+  force law, the panels, the clipper or the sub-rate.
+- After: the 2350's mid-afterbody 0.49 of the step section, the stern 0.29 deep (0.155 m, was 0.118) and 0.54 wide,
+  the deck 0.740 m wide to u 0.2 (was 0.689), the afterbody 32 % of the volume; every row inside the reference.
+
+**G1932 GATE WIPLINE REFERENCE.** A new section: every row against FLOAT_GEN.REF (step 0.52-0.58 L, sternpost 7-9 deg,
+keel off its chord <= 0.01 H, stern >= 0.25 deep and 0.45-0.65 wide, the deck >= 0.97 at the aft bar, mid-afterbody
+>= 0.45, afterbody 30-45 %), and the 2350's station table printed. The FIXTURE (the 172 on 2350s) re-picked to the
+G1930 preset (its cage rows and joined record: the rows the starter writes). Its trim floor -1 deg, from 0.5: the
+fuller afterbody puts the centre of buoyancy 0.13 m further aft (1.08 -> 0.95 m ahead of the step at the rest draft)
+and the 172 floats decks-level (-0.12 deg; +0.79 on master).
+
+**G1933 THE EVIDENCE (reports/evidence/FLOAT-SHAPE/, README there).** `Wipline{2350,8750,2100}_lines.{svg,png}` -
+tools/float_shape_drawing.js, the orthographic drawing (profile, plan, afterbody sections, area per station; before
+dashed, after solid, the reference magenta); before/ after/ - tools/float_shape_shots.js on the bench
+(tools/_float.html gained `?ref=1` / a "reference" checkbox drawing FLOAT_GEN.outline + the verdicts, and three
+cameras: profile, top, aft - "#view" is both a select and a div on that page: screenshot `div#view`); game/ -
+tools/soft_still.js, the 172 fixture on the stand before / after; numbers_{before,after}.json -
+tools/float_shape_numbers.js (displacement, settle, hump, step, lift-off; `--core <tree>/flyDiy/tools/flight_core.js`
+reads THAT tree's fixtures).
+
+**G1934 THE HYDRO NUMBERS.** Only the 172 on 2350s moves; the twin (GATE FLOATS / SEAPLANE) and the user's custom
+Cessna (bugReports/cessnaFloatsWOrks.json - pre-G451 rows, no preset) are identical to master in every number.
+The 172 on 2350s, before -> after: pair displacement 2590 -> 2590 kg; draft at the step 0.320 -> 0.318 m; trim at rest
++0.79 -> -0.12 deg; hump R/W 0.243 at 7.9 m/s -> 0.250 at 8.9 m/s; on the step 13.3 s / 111 m -> 13.1 s / 111 m;
+lift-off 35.8 s / 714 m / 38.1 m/s -> 33.8 s / 654 m / 37.7 m/s. SEAPLANE's crosswind take-off flown on the 172 (not a
+gate): 21.1 s, swing 12.5 deg, 4 skips -> 21.3 s, 11.0 deg, 3 skips (the skip bound of 2 is the twin's; master fails
+it too); taxi 10.2 -> 10.3 deg. HYDRODYN's cost row 8.15 -> 8.47 ms a water step (1.22 -> 1.25 x dry: noise - the hull
+has the same panels; drawn 5910 tris against 5914). No frame cost.
+
+TRIED AND DROPPED: the Wipline afterbody on DEF too - the twin's floats got a deeper, fuller stern (more lateral area
+aft) and SEAPLANE's crosswind take-off weathercocked 180 deg and never left the water (master swings 28 deg against
+a bound of 30: no margin). A level deck at the catalogue's 0.58 m (no sheer): the fit then puts the 2350 on a 30.8
+deg V and the 8750 cannot reach its flotation (4978 kg against 4405) - under this family the catalogue argues for
+G451's overall-height reading.
+
+GATES: WIPLINE (+ REFERENCE), FLOATS, HYDRODYN, WATER, SEAPLANE PASS. THE CORE BATTERY (node tools/run_gates.js,
+jobs 4, 155 jobs / 148 gates, wall 4291 s): 143 PASS, 5 red, each re-run alone against master's worktree on
+the idle box: BIOME (surface perf < 5 us) and SETTLE (bake budget) are timing budgets missed under the battery's
+load and an in-game still beside it - both PASS alone on this branch; ROUNDTRIP (the cessna's boot, exit null under
+load) PASS alone (878 s; master 757 s); INSTANT times out at 1800 s on master too (this 4-core box); FRAMECOST (24:
+cub / cessna stand + taxi draws.main 914 -> 1046, shadow 169.5 -> 259.5, uniforms x2, boot bufferData 0 -> 768) is THE
+STALE PARKED COOK - parked_cook.js --check: manifest c8f3b024a774, this tree 56071d1d5779, STALE (every key
+captured live), the same 24 rises other sessions measured on a one-comment control; master PASSES (45 admitted). A0's
+re-cook on the train's build clears it; the float hulls cost nothing a frame (same panels, same tris).
+
+FOR A0: (1) generated outputs NOT committed (index.html, dev.html, tools/flight_core.js, sw.js, version.json). (2) A
+build saved on a preset before G1930 keeps its rows (the starter applies once); re-picking the 2350 in the float page
+gives it the new lines. Any saved Wipline float opened in the garage takes the held plan on its next join (its own
+keel / stern rows kept). (3) OPEN for the user: the deck height (the catalogue's 0.58 m read as the bow's overall
+height, the deck aft at 0.527 m) and a Wipaire lines drawing against the INF rules - a session that can reach
+wipaire.com (the service manual P/N 1002549, the parts manual's p. 97 profile).
