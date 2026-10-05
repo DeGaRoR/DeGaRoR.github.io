@@ -73095,3 +73095,26 @@ at the stand on potato (scenery 'low' already) - a cheaper far house tier would 
 atlas + map (~50 MB) could be 1024 on potato (its 256 px slots need a re-pack); the potato frame's MSAA (4x in the target) is
 kept - its cost needs the card; dynamic resolution was NOT added (EVEN-30: a moving scale is uneven; potato keeps 0.67 fixed,
 laptop 0.5); no GTX 660 / HD 620 numbers exist yet - the user's next log is the measurement.
+
+## TRAIN 32 LANDED (2026-10-05, A0 the coordinator)
+
+Cargo (on train 31 = bff4f64b): the INDEPENDENT REVIEW's round 1+2 fixes (ccr-4c7cf662-zcpqoe: A4 the newborn build's
+fresh slot, A6 settlement hitboxes, A7 cage buffers disposed, A8 the camera after Fly again, B15-B19/B23/B24/B26, build.js
+checks, GATE OBSTFRAME; its report reports/INDEPENDENT-REVIEW-2026-10-04.md), GEAR-WATER + GEAR-WATER 2 (G1380-G1384.4:
+SOAR's control on a lake, the wet pass armed per frame - nothing in dry air; the slam, flooding, wing buoyancy), POSE-BACK
+G1530-G1534, UPDATE-NOW G1535-G1539, MOBILE-GARAGE G1510 (study), TREE-CRASH G1470-G1479 + the DMG switch G1898 (damage OFF
+by default, ?damage=1), the DEFORM-AND-BREAK doc (claude/dmg-integration), HYBRID-TRIPS G1490-G1493 (the trips after a taxi
+0.3 / 8.9 s with the farther band; the live aeroplane's decals), POTATO-DEEP G1520-G1529 (potato's GPU memory 2.2 -> 1.4 GB,
+the shed's lamp shadows, a real plain ground, a laptop rung, never Metlakatla on potato / laptop / software), the dead
+.github/workflow removed (REVIEW A1: Pages stays on the legacy branch builder, the user's call).
+HELD OUT: G1408 (Metlakatla ON by default, the user's 4 Oct call) - the first full gate (40 reds) showed town-on costs: warm
+loads +7 s, chase/cockpit render +3-4 ms, two 1.4 s tasks at the roll-out, the water taxi's p99 33 -> 83 ms, and GATE
+SIMWORKER-EDGES' worker world differing after an edit. Measured separately for the user's call. Kept from it: a saved free
+row (town) reads back (S seeds the free rows before the copy).
+A0 IN THE TRAIN: TREE-CRASH merged beside GEAR-WATER 2's armed wet pass (both resets, both frame arms); the review's scratch
+matrices made on first use (node harnesses load aeroskin.js before THREE); gates reading train 32's code: STAND, FOG,
+CLOUD (six presets), UILAYER, PARTS, GFX.
+STRICT GATE (full, vs train 26's baseline): 98 in slack, 47 better, 12 RED = the 30 cap's fps rows (intended), the chase
+render / loop +1.85-1.9 ms (HYBRID-FARTHER's band, admitted by the user; train 33's dissolve brings it to ~+1.4) and one
+garage -> world @mn_strip worst task 107 -> 270 ms (one row, slack 150; watched in train 33). BATTERY: the full battery
+PASS on the final build (SOFTGPU SKIP: no Playwright on the box). The parked aeroplanes re-cooked on it.
