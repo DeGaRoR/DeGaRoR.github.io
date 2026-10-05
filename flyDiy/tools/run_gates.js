@@ -206,6 +206,11 @@ const GATES = [
   // a crosswind circuit, taxis on grass / a rough field / the water / a chop, touchdowns at 1.0 and 1.5 m/s: at most
   // 2/3 of the certified yield) and §7.4's gear rows (the ground loop, the porpoise, the float dig-in). Three at once
   { id: 'DMGGEAR', file: '_dmg_gear_check.js', tier: 'core', weight: 3, wall: 1800 },
+  // G1890-G1892 (DMG-CERTCOST): the certificate's cost - its frames (exact) and its node time per build against a budget,
+  // the target (~5 s) and what is left printed; its envelope against the UNCUT certificate (the stored reference while it
+  // is still this physics' answer, else computed again) to the bit; the store (IndexedDB) - a record's checks, the round
+  // trip (in headless Chromium when Playwright is here: a second page load stamps from it in under 50 ms). Two at once
+  { id: 'DMGCERTCOST', file: '_dmg_certcost_check.js', tier: 'core', weight: 2, wall: 300 },
   // G1840-G1843 (DMG-D3 CLUSTERS): a shape-matched cluster is one breakable part - the fin, the twin's rod, the floats (and
   // the twin-boom fixture, reported): its root load read off the cut equals the statics; nothing parts in normal
   // operations (the load test, the pull, the drops, a circuit, parked, the ordinary water cases); a scripted pull takes

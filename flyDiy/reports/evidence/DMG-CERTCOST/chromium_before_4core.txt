@@ -1,0 +1,11 @@
+x1 idle: frame 16.7 / p95 16.8 ms, step 2.90 / p95 7.60 ms, long tasks 0
+x1 cub: cert 12.5 s in the worker (static 928 ms, bench 7, dynamic 11280: drop 1704, dropLevel 1326, dropOne 1360, drop473 1149, taxiRough 3504, ground 223, flown 616, flownElev 485, flownRud 455, flownElevF 459)
+      the page meanwhile: frame 16.7 / p95 16.7 / max 16.8 ms, step 2.20 / p95 3.60 ms, long tasks 0 (0 ms)
+x1 jodel: cert 23.1 s in the worker (static 1522 ms, bench 15, dynamic 21312: drop 2748, dropLevel 2718, dropOne 2363, drop473 2477, taxiRough 6962, ground 242, flown 1043, flownElev 970, flownRud 903, flownElevF 887)
+      the page meanwhile: frame 16.7 / p95 16.7 / max 16.8 ms, step 2.20 / p95 3.50 ms, long tasks 0 (0 ms)
+x1 metal: cert 20.5 s in the worker (static 802 ms, bench 14, dynamic 19417: drop 2448, dropNoseUp 2247, dropOne 2137, drop473 2407, taxiRough 6489, ground 236, flown 883, flownElev 845, flownRud 888, flownElevF 838)
+      the page meanwhile: frame 16.7 / p95 16.7 / max 16.8 ms, step 2.10 / p95 3.50 ms, long tasks 0 (0 ms)
+x1 floats: cert 36.1 s in the worker (static 2215 ms, bench 19, dynamic 32087: drop 4285, bow 839, dropStep 3722, dropOne 4101, dropDriftR 4145, dropDriftL 3661, drop473 3700, wWeave 3379, ground 246, flown 971, flownElev 1015, flownRud 1028, flownElevF 997)
+      the page meanwhile: frame 16.7 / p95 16.7 / max 33.3 ms, step 2.20 / p95 3.50 ms, long tasks 0 (0 ms)
+x1 twinFloats: cert 39.1 s in the worker (static 1865 ms, bench 18, dynamic 35649: drop 4678, bow 1097, dropStep 4207, dropOne 4239, dropDriftR 3998, dropDriftL 4561, drop473 4190, wWeave 3518, ground 441, flown 1200, flownElev 1261, flownRud 1146, flownElevF 1114)
+      the page meanwhile: frame 16.7 / p95 16.7 / max 16.8 ms, step 2.20 / p95 3.50 ms, long tasks 0 (0 ms)

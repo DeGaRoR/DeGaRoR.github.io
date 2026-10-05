@@ -77874,3 +77874,163 @@ FRAMECOST / HITBOX above); no spec, no asset moved. Frame cost: none (the To wor
 hook is one boolean a step). PILOT-ONE: the merge surface in 43 is `ap.setDest` (+ `ap.nextTo`, `DEST_KEPT` /
 `DEST_REPLAN`, `replanReq` / `replanning`), the hook before `phRun`, and the two `replanning` conditions in
 `planFromHere`; a unified pilot needs the same entry (the classic and test pilots have none - the page keeps their route).
+
+## G1890-G1892 DMG-CERTCOST - THE CERTIFICATE'S COST: MEASURED (NODE, CHROMIUM, ONE CORE AND A BUSY PAGE), CUT 35-46 % WITH THE SAME ENVELOPE TO THE BIT (THE SETTLE SHARED, A WHEEL LANDING'S WINDOW 1.2 S), KEPT ACROSS PAGE LOADS (INDEXEDDB), GATE DMGCERTCOST (2026-10-05, DMG-CERTCOST for the DEFORM COORDINATOR, cloud, node + headless Chromium; branch claude/dmg-certcost off claude/dmg-integration da35ed12 - it carries train 34, origin/master 55dd98b7, so nothing to merge; damage stays OFF by default)
+
+DEFORM-AND-BREAK §12 ("the switch ON waits for"). **What it stamps did not move: on all five validated builds the certificate is
+DMG-D2b's to the bit** (Ft and Fc, every member, both ways - so every stamped FY, FC, Fu and the gear bracket are D2b's exactly: the
+worst deviation is 0, not "under 1 %"). The certificate costs 35-46 % less in node and in the bench worker; a build is now certified
+**once, ever** (the page keeps it in IndexedDB; a second page load stamps from it in 2-3 ms). **The ~5 s target is NOT reached**:
+8.1 / 16.1 / 14.3 / 21.1 / 24.1 s in node (the Cub / the Jodel / the metal Cessna / the Cessna on floats / the twin on floats) -
+what is left, and why the remaining cuts would change the stamp, below. (Note: DEFORM-AND-BREAK's plan gave G1890-G1897 to DMG-TUNE;
+the coordinator assigned G1890-G1892 here - DMG-TUNE wants another range.)
+
+### G1890 - MEASURED FIRST (reports/evidence/DMG-CERTCOST/node_times.txt, chromium_*.txt / .json)
+**Node** (each build alone in a fresh process - the shape of the game's worker: one certificate a fresh isolate), D2b's code:
+13.5 / 25.1 / 22.0 / 38.8 / 43.5 s. Per case (the first measurement): the static flight cases and the bench 0.6-1.6 s, **everything
+else the dynamic cases** - the four (wheels) or six (floats) landings 1.3-6.0 s EACH, of which 240 of their 360 frames are the same
+4 s settle; the rough taxi 4.9 / 8.3 / 6.7 s (the land builds); the floats' water weave 4.3-4.7 s; the flown pull and the three
+flown controls 0.5-2.0 s each. A frame costs 4.5 ms on the Cub and 13-17 ms on the floatplanes on the water (75-120 substeps a frame,
+every one armed by the probe: 1.3-2 x a plain step). Where a frame goes (cpu-prof): substep 39-45 % self, aeroPass 18-27 %, the
+probe's own branch 4-6 %, the floats' hydro 12 %.
+
+**The bench worker in headless Chromium** (tools/dmg_certcost_shot.js: the worker as the page starts it, beside a page whose frame
+loop steps the stock Cub - sim.step(1/60), damage off - every requestAnimationFrame; frame intervals, the step's cost and long tasks,
+with the worker idle and while it computes):
+
+| | the Cub | the Jodel | metal Cessna | Cessna floats | twin floats |
+|---|---|---|---|---|---|
+| 4 cores, before / after | 12.5 / **9.6 s** | 23.1 / **17.8** | 20.5 / **15.6** | 36.1 / **22.5** | 39.1 / **25.0** |
+| 2 cores (taskset), before / after | 13.1 / **9.7** | | | | 40.2 / **26.2** |
+| 2 cores, CDP throttle x4 / x6, after | 11.7 / 11.6 | | | | 29.3 / 29.0 |
+| 1 core, before / after | 15.0 / **12.9** | | | | 47.4 / **32.2** |
+| 1 core, a BUSY page (5 Cub steps a frame, ~10 ms of 16.7), before / after | 35.6 / **27.9** | | | | |
+| 1 core, a SATURATED page (7 steps, ~14.5 ms), before / after | 73.6 / **56.2** | | | | |
+
+**The page's main thread while the worker computes:**
+- With a core to spare (4 or 2 cores, any build): **nothing measurable** - the frame interval's median and p95 16.7 / 16.7-16.8 ms
+  idle and busy, the step's p95 3.4-4.1 ms, no long task but one 55 ms (floats, 4 cores) and one 56 ms (twin, 2 cores, x4).
+- **CDP's CPU throttle does not reach the worker** (the Cub's certificate 13.1 s at x1, 14.0 at x4 and x6, before): it stretches the
+  page's own thread only, so it stands for a slow PAGE, not a slow machine; the page at x6 runs at 33 ms p95 idle and busy alike.
+- **One core and a page that spends real CPU** (the potato's case - its page is the busy one): at 10 ms of work a frame the page holds
+  60 fps through the certificate (p95 16.7 ms idle and busy); at 14.5 ms it drops to 30 fps at the p95 (16.8 -> 33.3 ms, max 50-67)
+  **for as long as the certificate runs** - 56 s now, 74 s before - and the scheduler gives the worker what the page leaves. That is the
+  cost the user feels: the cut shortens it 24-46 %, the store makes it once per build, ever.
+
+### G1891 - THE CUTS (each proven on each build; GATE DMGCERTCOST rechecks the result against the uncut certificate)
+1. **THE SETTLE, ONCE A BUILD (exact).** Every landing settled a fresh sim 4 s from the same reset - 4 x 240 frames (wheels), 6 x 240
+   (floats). Now `genCertSettled` flies it once and each landing's fresh sim takes its state: **30_solver.js `sim.snap()` /
+   `sim.unsnap(S)`** - everything a step reads and writes (the nodes; the members' mechanical state - rest length, stiffness, never
+   their limits; the clusters; the air's lag and the kernel's cache; the ground's and the water's held state; the engines, the tanks,
+   the panel's filters, the clock), only for a WHOLE aeroplane (nothing bent, broken, parted, no wet body: null otherwise). Proven:
+   a sim settled, snapped, and a fresh one unsnapped run the same 120 frames **to the bit** (every node, both ways) on all five
+   builds, on the ground and in the air. The elevator's and the rudder's flown cases share their second of level flight the same way.
+   Not in the step: the stock sim.step's code is untouched.
+   - **A JIT trap found on the way** (node_times.txt): writing a member's numbers back out of a double array put heap numbers into
+     small-integer fields (a wire's c 0, sK 1) and every LATER sim in the isolate ran 40 % slower (the Jodel's taxi 7 -> 11 s); and
+     restoring the floats' water state object by object (new objects of another shape in the hydro's scratch) cost their later
+     water cases 20 %. Now a field is written only where it differs and the water's state is its counter, its held forces and three
+     numbers a float (the rest is rebuilt from the nodes at every compute). After: within noise of no unsnap at all.
+2. **A WHEEL LANDING'S WINDOW 1.2 s (72 frames) instead of 2 s (exact on the validated builds).** tools/dmg_certcost_evidence.js
+   traces every member's peak after every frame of every dynamic case (66_gen_cert GEN_CERT_HOOK) and re-reads the envelope with one
+   case cut at every frame: **the last frame that moves any member's envelope** on the wheel builds' landings is 14 / 3 / 8 / - (the
+   Cub's drop / level / one-wheel / 23.473), 12 / 10 / 13 / - (the Jodel), 37 / 8 / 42 / - (the metal Cessna) of 120; 72 keeps 30
+   frames over the worst. **The floats keep 2 s**: their struts' peaks still move at frame 61-119 (the water bounce), the bow at 71
+   of 72, the weave at 71 / 178 of 180. GEN_CERT.win { wheels: 72, water: 120 }; GEN_CERT_V 3.
+3. **Measured and NOT cut** (each would change the stamp):
+   - **the rough taxi 8 s instead of 12**: the Jodel's taxi governs 28 / 16 members and moves the envelope at its LAST frame (719 of
+     720); cut at 8 s the envelope moves 34.5 %, at 4 s 66 %. Its peak is the roughest bump the run happens to meet - longer is
+     harsher. On the Cub it governs nothing; on the metal Cessna 1 / 1 (last move at 320).
+   - **an adaptive window** (stop once no member's peak has risen for Q frames, after M): no saving worth its risk - some member's peak
+     creeps up to frame 50-111 in every wheel landing, and the Jodel's taxi stops at 387 frames with the envelope 34.5 % off.
+   - **fewer substeps**: not tried on the peaks - the substeps are the lattice's stability; the probe reads every one.
+   - **the probe sims' shape** (D2a's note): within one certificate in a fresh process, the static probe and bench-pose sims made with
+     the dynamic cases' beam shape changed nothing (9.2-9.8 s against 8.8-10.1, three alternating pairs, the envelope equal). Left.
+4. **THE STORE (G1891; bench_worker.js certStoreGet / certStorePut, app.js certKick).** IndexedDB 'flydiy.cert', keyed by genCertKey
+   (the spec, GEN_CERT with its version, PHYSICS_V hashed), the record carrying GEN_CERT_V, PHYSICS_V, the member count and an FNV
+   checksum of the envelope's bytes. certKick: the page's memory cache, then **the store** (how: 'store'), then the worker; whatever
+   the worker (or, on file://, the page) computes is kept. A record whose key, version, physics or member count is not the build's,
+   whose arrays are not two Float64Arrays of the member count, whose values are not finite and >= 0, or whose checksum fails is
+   **deleted and computed again**; the last 64 builds kept (~8 KB each); no IndexedDB or an open slower than 500 ms is a miss. The
+   memory cache, the bench's destroy job and CERT_STATE() read it as before (CERT_STATE().last.how 'store', its ms the lookup's).
+5. **The worker yields between cases** (genCertifySteps, a generator; the worker's loop takes the next case on setTimeout(0)): cheap
+   and safe, the same certificate. It does not lend the page a core (the worker is its own thread; the measurement above is with it) -
+   a duty cycle that would is in the open questions.
+
+**Node after** (alone, fresh process; D2b's in brackets): **8.1 (13.5) / 16.1 (25.1) / 14.3 (22.0) / 21.1 (38.8) / 24.1 (43.5) s**,
+-35 to -46 %; frames 1809 / 1792 / 1797 / 1763 / 1791 (2781 / 2764 / 2769 / 3023 / 3051). **What is left**: the rough taxi (3.5 /
+7.0 / 6.2 s, 40-45 % of a land build's), the one settle (1.0-3.8 s), the water weave (3.5-4.5 s), the floats' six landings (1.2-1.8 s
+each), the flown cases (2-4 s), the static cases (0.5-1.5 s) - all at the cost of the step itself (substep and aeroPass). Under 5 s
+needs a cheaper probed step (the solver's hot path) or fewer / shorter cases (the stamp moves). Not done.
+
+### G1892 - GATE DMGCERTCOST (tools/_dmg_certcost_check.js; run_gates core, weight 2, wall 300) - **PASS** (alone 2 min 49 s with `--write-ref`; in the run below beside the others)
+Per build (two children at once): 1. **the cost** - the frames stepped (an exact budget: 1809 / 1792 / 1797 / 1763 / 1791) and the
+node time under a ceiling about twice the measured (18 / 32 / 30 / 42 / 48 s; it prints the ~5 s target and the gap); 2. **the
+envelope against the UNCUT certificate** (opt.share false, opt.full: D2b's procedure) - the stored reference
+(tools/fixtures/dmg_certcost_ref.json, 52 KB) while it is still the physics' answer (the rules without the window, PHYSICS_V, the
+spec and a fingerprint - the drop sim's first second, hashed - all equal), **else computed again** (`--full` forces it; `--write-ref`
+refreshes it): **equal to the bit on all five**; 3. **the store** - in node on an in-memory IndexedDB (a miss, kept, a second "page
+load" stamps from it in 2.3 ms, a flipped value / another version / another physics / another member count / a NaN / another key all
+refused, a corrupt record read as a miss and deleted), and **in headless Chromium when Playwright is here** (page 1: a miss, the bench
+worker computes the Cub's certificate in 9.3 s and the page keeps it; page 2 - a reload - reads it and stamps a sim in **2.8 ms**; a
+corrupted record and a stale one are refused and deleted). Without Playwright (the box) the browser half prints a REPORT line and
+the node half still gates. **The worker's certificate is node's within 2.1e-8** (relative, a few members' last bits: the browser's V8
+is not node's - the same on D2b's code; D2a's "bit-equal" compared sums at 1e-6): the gate holds it under 1e-6.
+
+### THE ACCEPTANCE
+- **Every member's stamped limits within tolerance of the uncut certificate: the worst deviation is 0** - the envelope is D2b's to the
+  bit on all five builds (window_scan_and_cut.txt: the envelope and the STAMPED fy0 / fu / fc0 of a sim made with each certificate,
+  0.000 %), checked three ways: against D2b's own built core (da35ed12's tools/flight_core.js, a fresh process a build), against this
+  branch's uncut path, and by GATE DMGCERTCOST.
+- **The gates** (`run_gates --only=DMGCERTCOST,DMGCERT,DMGGEAR,TREECRASH,UISMOKE,BUILD,JOIN,BENCH --verbose`): **BATTERY PASS, all eight**; the same seven
+  on claude/dmg-integration da35ed12 built in a worktree, **BATTERY PASS**, and per gate the SAME LINES with the clocks masked
+  (gates_diff.txt): UISMOKE, TREECRASH, DMGGEAR, BUILD, JOIN, BENCH line for line; DMGCERT line for line but its certificate-cost line
+  (the dynamic cases 13.3 -> 10.9, 24.3 -> 17.5, 22.0 -> 16.8, 35.3 -> 24.0, 41.6 -> 24.2 s in that gate's parallel children). DMGGEAR's
+  bracket, headroom table and §7.4 rows and TREECRASH's margins are D2b's numbers to the printed digit - as they must be on the same
+  certificate.
+- **The bench's BROKE AT unchanged**: **6.01 / 6.02 / 6.06 / 6.08 / 6.01 g**, a fitting first on all five, the page's bench thread
+  the same and the card's line the same (DMGCERT section 3: D2b's numbers).
+- **PERF**: the stock sim.step(1/60), damage off, alternating processes pinned to one CPU against da35ed12
+  built (perf_pairs.txt): the Cub on the ground +2.2 % in 8 pairs then **-1.5 % in 16** (pooled within noise), the Cub in the air
+  +0.5 % (8), the metal Cessna in the air -1.1 % (8). The step's code is untouched (snap / unsnap are two closures beside it, called
+  only by the certificate); no regression the noise can resolve.
+- **The garage's parameter-change response**: nothing in the edit loop changed - no generator, garage or viewer edit-path file; the
+  page's only new work is certKick's IndexedDB lookup at ROLL-OUT, with the layer on.
+- Damage stays OFF by default; validated builds only; no archetype tuned; no Rigs of Rods / BeamNG code.
+
+### Evidence (flyDiy/reports/evidence/DMG-CERTCOST/)
+- `node_times.txt` - the profile before, per case; D2b against now, alone in a process; the frames; the two JIT findings.
+- `chromium_before_*.txt / .json`, `chromium_after_*.txt / .json` - the worker and the page (4 / 2 / 1 cores; x1 / x4 / x6; the busy
+  page `_1core_load5`, `_1core_load7`).
+- `window_scan_and_cut.txt`, `scan_<build>.json` - per case the last frame that moves the envelope, the 0.1 % / 1 % points, the adaptive
+  window's stops, and the cut against the uncut (envelope and stamp). (The times inside are the second and third certificates of one
+  process - polluted, see node_times.txt; the clean ones are node_times.txt's.)
+- `gate_dmgcertcost.txt`, `gates_mine.txt`, `gates_base.txt`, `gates_diff.txt`, `perf_pairs.txt`.
+- Tools: `tools/dmg_certcost_shot.js` (the browser measurement; `--load=k` a busy page, run under `taskset` for the cores),
+  `tools/dmg_certcost_evidence.js` (the window scan, `--cut` the cut against the uncut), `tools/_dmg_certcost_check.js` (the gate).
+
+### THE COORDINATOR MUST EYEBALL ON THE BOX
+1. `dev.html?damage=1`, a validated build, roll out: `CERT_STATE().last.how === 'worker'` a few seconds later, then **reload the page**
+   and roll out again: `how: 'store'`, `ms` a few ms, `stamped: true`. DevTools > Application > IndexedDB > flydiy.cert holds one
+   record a build.
+2. Change a row in the garage and roll out: a new key, the worker again (the store never answers for another spec).
+
+### Open questions
+- **The ~5 s target**: what is left is the probed step itself. Two levers, neither mine to pull: (a) a cheaper probed step (the
+  probe arms every substep - the clusters' cut measurement, the support limiters, the per-member call; a members-only probe that
+  skips what the certificate does not read would save a few %, more only inside the beam loop - the solver's hot path, alternating
+  pairs owed); (b) the cases (the rough taxi at 8 s moves the Jodel's envelope 34.5 %; drop473 governs no member on four of the five
+  builds and one on the Cessna on floats - D2b's case, kept as a rule).
+- **A duty cycle for the potato**: on one saturated core the certificate halves the page's frame rate at the p95 for its 30-60 s. The
+  worker could sleep between cases (or every N frames - the cases would become generators) when the page reports a frame time over
+  budget; it lands later (the flight runs on D1a's limits meanwhile, never weaker). The persistent store already makes it once per
+  build; ask the user whether the first flight of a new build should pay it in fps or in time.
+- **Two workers on a machine with cores to spare** (navigator.hardwareConcurrency >= 4): the landings in one, the taxi and the flown
+  cases in the other, the envelope combined on the page in the cases' order (genCertCombine) - ~35-40 % off the wall time there, nothing
+  on the potato. Not done.
+- **The worker's certificate is node's within 2.1e-8, not to the bit** (the browser's V8, not mine: the same on D2b's code). The page
+  stamps the worker's; the gates read node's.
+- **DMG-DAMP**: when it lands every dynamic case moves - GATE DMGCERTCOST's stored reference goes stale on its fingerprint and the
+  gate computes the uncut certificate again (the slow path, ~3 min); `--write-ref` refreshes it. Re-run the window scan then: the
+  wheel window's margin (30 frames over the worst) is the validated builds' - a damped bounce peaks no later, an undamped one could.
+

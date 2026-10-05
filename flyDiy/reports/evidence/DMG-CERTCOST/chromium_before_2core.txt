@@ -1,0 +1,15 @@
+x1 idle: frame 16.7 / p95 16.8 ms, step 2.50 / p95 7.90 ms, long tasks 0
+x1 cub: cert 13.1 s in the worker (static 776 ms, bench 11, dynamic 12023: drop 1567, dropLevel 1309, dropOne 1281, drop473 1182, taxiRough 4082, ground 315, flown 576, flownElev 650, flownRud 560, flownElevF 501)
+      the page meanwhile: frame 16.7 / p95 16.7 / max 66.7 ms, step 2.20 / p95 3.80 ms, long tasks 0 (0 ms)
+x1 twinFloats: cert 40.2 s in the worker (static 1752 ms, bench 25, dynamic 36810: drop 5313, bow 1183, dropStep 4309, dropOne 4430, dropDriftR 4178, dropDriftL 4259, drop473 4571, wWeave 3612, ground 520, flown 1192, flownElev 1165, flownRud 1063, flownElevF 1017)
+      the page meanwhile: frame 16.7 / p95 16.8 / max 16.8 ms, step 2.10 / p95 3.60 ms, long tasks 0 (0 ms)
+x4 idle: frame 16.7 / p95 16.8 ms, step 8.60 / p95 15.30 ms, long tasks 0
+x4 cub: cert 14.0 s in the worker (static 1063 ms, bench 18, dynamic 12553: drop 1844, dropLevel 1542, dropOne 1245, drop473 1258, taxiRough 3921, ground 261, flown 756, flownElev 550, flownRud 537, flownElevF 639)
+      the page meanwhile: frame 16.7 / p95 16.7 / max 50.0 ms, step 8.50 / p95 15.70 ms, long tasks 0 (0 ms)
+x4 twinFloats: cert 43.3 s in the worker (static 2486 ms, bench 27, dynamic 38584: drop 6049, bow 1301, dropStep 4472, dropOne 4340, dropDriftR 4108, dropDriftL 4552, drop473 4089, wWeave 3985, ground 587, flown 1438, flownElev 1285, flownRud 1153, flownElevF 1224)
+      the page meanwhile: frame 16.7 / p95 16.8 / max 66.8 ms, step 8.80 / p95 18.50 ms, long tasks 3 (180 ms)
+x6 idle: frame 16.7 / p95 16.8 ms, step 14.00 / p95 22.60 ms, long tasks 0
+x6 cub: cert 14.0 s in the worker (static 1041 ms, bench 16, dynamic 12517: drop 1900, dropLevel 1441, dropOne 1239, drop473 1171, taxiRough 4033, ground 312, flown 880, flownElev 519, flownRud 536, flownElevF 486)
+      the page meanwhile: frame 16.7 / p95 33.2 / max 83.4 ms, step 14.00 / p95 24.20 ms, long tasks 0 (0 ms)
+x6 twinFloats: cert 44.2 s in the worker (static 2472 ms, bench 32, dynamic 39321: drop 6266, bow 1419, dropStep 4517, dropOne 4549, dropDriftR 4264, dropDriftL 4888, drop473 4386, wWeave 3881, ground 548, flown 1221, flownElev 1130, flownRud 1195, flownElevF 1058)
+      the page meanwhile: frame 16.7 / p95 33.3 / max 50.0 ms, step 14.80 / p95 26.70 ms, long tasks 0 (0 ms)
