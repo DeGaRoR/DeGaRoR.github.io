@@ -1136,9 +1136,9 @@ function makeWorld(seed, opts) {
     // the sea walks after the wind, on the same clock the wind moved on
     // REVIEW 2026-10-04 (B15): day.advance wraps utc at 86400, so the first tick across midnight read ~86380 s and the
     // sea snapped to its target in one tick; the elapsed day-time is the wrapped difference
-    // (G1567: wrapped into +-half a day and taken absolute, as before B15 - the positive modulo read a small BACKWARD step
-    // of the day (-20 s) as ~86 380 s and snapped the sea to its target: GATE FRAMECOST's stand drew the wave trains,
-    // 914 -> 1047 draws, uniform4fv 741 -> 2778, on Jolene with nothing else changed)
+    // (G1567: wrapped into +-half a day and taken absolute - the positive modulo would read a BACKWARD step of the day
+    // (-20 s) as ~86 380 s and snap the sea; forward steps under 12 h read the same either way. NOT the cause of the
+    // FRAMECOST reds it was first suspected of: those are the parked cook's build-id key, see HANDOVER G1560-G1569)
     let dU = day.utc - u0; dU -= 86400 * Math.round(dU / 86400);
     seaRelax(Math.abs(dU), simT, ax, az);
   }
