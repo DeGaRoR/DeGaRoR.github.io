@@ -498,7 +498,7 @@ const SPLAT_GROUND = (() => {
       float wsH = max(uSBank2.w, 1e-3);
       float wsea = step(1e-3, uSBank2.w) * (1.0 - smoothstep(0.6 * bR, bR, sd)) * step(-8.0, sd) * smoothstep(-0.8, -0.1, vWPi.y)
                  * (1.0 - smoothstep(wsH * 0.25, wsH, vWPi.y + bn * wsH * 0.9));
-      col *= (1.0 - 0.45 * wet) * (1.0 - 0.3 * wsea); gSRough = mix(mix(gSRough, min(gSRough, 0.45), wet), min(gSRough, 0.65), wsea); }   // (the sea's lighter and duller: a gloss there caught the sun in white streaks, it3)
+      col *= (1.0 - 0.45 * wet) * (1.0 - 0.3 * wsea); gSRough = mix(gSRough, min(gSRough, 0.45), wet); }   // (the sea's band darkens only: any gloss on its steep face caught the sun as a white line at the foot, it2/it3)
     return mix(col, mac, mw);
   }
 `;
