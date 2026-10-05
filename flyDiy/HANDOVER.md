@@ -75283,3 +75283,215 @@ evidence.
 STRICT GATE (full): 98 in slack, 47 better, 12 RED = the 30 cap's fps rows, the chase render / loop +1.65-1.8 ms (the
 hybrid band, admitted; the dissolve's +1.4 expected), and garage -> world @mn_strip worst task 107 -> 335 ms (270 in train
 32: arrived with train 32, investigated separately). BATTERY: the full battery PASS (SOFTGPU SKIP). Parked re-cooked.
+
+
+## G1850-G1859 DMG-D4a SKIN - THE BROKEN LIST OVER THE WORKER ON CHANGE, THE SKIN OVER A BREAK (BOTH SKINS), THE FABRIC'S DRAPE, GATE DMGSKIN (2026-10-05, DMG-D4a for the DEFORM COORDINATOR, cloud, node + the soft GPU; branch claude/dmg-d4a-skin off claude/dmg-integration 41e7f7e + train 32, then claude/dmg-integration be22b905 (D2a, G1898.5-.7, train 33) merged in; G1855-G1859 unused)
+
+DEFORM-AND-BREAK §2.5 / §4.0 ("skin over a break", G1474's owed row) / §5.1 / §5.2 / §8.4 / §11.1-§11.4. Base: origin/claude/dmg-integration
+(TREE-CRASH + G1898 + D0 + D1a + D1b + D3) with origin/master's train 32 merged in first (one HANDOVER conflict - both sides appended;
+the three DEFORM entries both had, kept once). At the end claude/dmg-integration had moved on (D2a's certificate, G1898.5-.7, train
+33) and was merged in (be22b905; two mechanical conflicts: the node-export list - theirs plus genMesh / genBeamInto - and HANDOVER,
+mine empty at both hunks). Against be22b905 this branch's diff is its own 11 files, nothing else. The numbers below are re-run on
+the merged branch unless marked.
+**Nothing here touches the solver**: 30_solver.js is the base's byte for byte; the built core differs from the base's only in
+poseSkinGen (an optional last argument) and two node exports (genMesh, genBeamInto, for the gate). (There is no flyDiy/CLAUDE.md on
+this base; I read docs/SHARED-TREE-PRACTICES.md.)
+
+### FIRST, WHAT THE GAME DRAWS (the brief's premise, checked)
+**The flown aeroplane is not drawn by poseSkinGen.** Every garage build - the five validated ones included - flies the CAGE SNAPSHOT
+(`window.CAGE_VISUAL`, app.js buildModel: "THE CAGE VISUAL (G46) ... down the same path as the PA-18's imported skin: rigid body-frame
+pose + makeSkinBinding wing flex"): the static merge rigid in the body frame, the wing band on the spar STATIONS (makeSkinBinding /
+applySkinDeform: translations per |z| station, the root pinned), the struts on their two ends, the surfaces on their hinges, the
+wheels / engines / floats on their nodes. poseSkinGen poses only a `data.generated` payload, which G67.1 left with no flown use
+(genWing builds the editor's wing; the snapshot carries its vertices, not their weights). G1474's "the gen skin already deforms with
+the nodes" is true of that path only. So G1851 is done ON BOTH: poseSkinGen (as briefed, and what the gate measures exactly) and the
+flown cage path (what the stills and the box see).
+
+### G1850 - THE BROKEN LIST OVER THE WORKER, ON CHANGE (sim_host.js, sim_view.js, app.js)
+- ONE STATE, inline and under the worker (sim_view.js `simViewDmgState`): `br` the broken members in order (+ a flag per member), `pc`
+  each node's PIECE (DMG-D1b's union-find: the live members and the shape-matched clusters still on; 0 = the core, the piece holding
+  the body's refs; null while one piece), `set` each member's permanent set (dmg_overlay.js setOf), `vB` bumped when the broken list /
+  the pieces move (the skin's event), `v` on every payload.
+- THE HOP (sim_host.js `simDmgHop`, called in the host's `H.meta()` per snapshot): two counters compared - `breaks:cluster cuts` and
+  `yields:dents`. A break sends the whole state at once (`meta.dmgB = { sB, sS, br, pc, st }`); a set alone at most every 0.1 s of sim
+  time (`SIM_DMG_SET_S`), the last one always (it goes once the window has passed, changing or not); nothing broken or set: **no key in
+  the meta at all**. A new view (`resend`) starts it over (forgetRare). The page applies it (`simViewDmgApply`) and the view answers
+  `sim.dmgState()`. app.js `dmgNow()` runs the same hop on the inline sim with no window - so the damage view and the skin read the
+  same object either way.
+- THE DAMAGE VIEW UNDER THE WORKER (G1804's "inline only"): dmgSync reads the state when the page's beams are the def's - broken red,
+  set orange / cyan; no live force crosses (the stress tint stays inline, stated in the code).
+- **ITS COST (GATE DMGSKIN, the host's own meta, a snapshot a step - the strictest):** in the crash runs 3-32 payloads over 240-300
+  snapshots, **1.7-36.1 kB a crash** (354-1152 B a payload; the Cub's 30 m/s centreline the most: 82 broken, 9 frames with a new
+  break), **0.5-10 ms building them in all** (the union-find and the sets loop, on a payload only). **Nothing broken (a FAR 23.473
+  drop through the host, 0 yields): 0 payloads, 0 bytes, no `dmgB` key in 120 metas; the check 0.33-0.74 us a snapshot.** Damage OFF:
+  0 payloads in every crash case.
+- **Inline = worker:** the same crash flown inline and through makeSimHost (H.step, H.meta, a structured clone into the view's state):
+  the broken list and the pieces equal **at every step** of every case (11 cases, 240-300 steps each); the sets equal whenever the
+  host sends them and at the end past its window; the pieces are DMG-D1b's (the gate's own union-find) on every frame.
+
+### G1851 - THE SKIN OVER A BREAK (src/viewer/skin_break.js; poseSkinGen; app.js brkGen / brkCage)
+One pure module (window.SKIN_BREAK / module.exports), two callers. Nothing of it runs, and no skin bit moves, while nothing is broken.
+- **THE BINDING, at the first break:** each vertex's K = 4 nearest nodes at rest, weighted so their blend lands ON the vertex as nearly
+  as the nodes allow (least squares to the vertex, regularised toward inverse-square, summing to 1) - so the vertex's lever off its
+  nodes' blend is the skin's own offset off the frame. The cage snapshot has no weights; **the generator's own are not geometric** (a
+  leading-edge vertex 1.54 on the rear spar's tip node and -0.54 on the front one: a small flex's interpolation) and tore clean wing
+  tips once a wreck folded them 23 degrees (measured), so both skins take this binding after a break. On the cage it is made in two
+  tiers: every vertex its nearest node at the first break (its piece, its dominant node), the full binding only for the vertices at a
+  break (nearest node an end of a broken member or one live member from one) or off the core - the cost follows the damage, not the
+  skin's ~200k vertices (the full binding on a 150-200k-vertex cloud: 0.19-0.25 s, measured, so it is not done whole; the nearest-node tier: 55-195 ms
+  for 115-155k vertices, the box loaded - bind_cost.txt).
+- **AT EACH BREAK EVENT (the state's vB; never per frame):** (1) each vertex goes with the PIECE holding most of its weight, its weights
+  on other pieces dropped; (2) of its nodes, those joined to its dominant node only by broken members are dropped (a lift strut snapped
+  in the middle is two halves, each on its own end); (3) a triangle whose vertices sit on two pieces, or whose vertices' dominant nodes
+  are joined only by broken members, is REMOVED - its three indices collapsed onto one vertex in the geometry's own index array, so
+  every view on that array (the flown bake's buckets) loses it too; restored at a heal (a reset) or before another model poses. The
+  torn edge is left open. A part that came off whole keeps all its own triangles.
+- **PER FRAME, once broken - THE VERTEX RIDES ITS NODES' FRAMES** (RoR / BeamNG flexbodies): pos = sum w l + q_v (base - sum w r), q_v
+  the weighted blend of its nodes' turns, each node's from its rest neighbourhood (itself and the other ends of its live members on its
+  piece; the second ring if under 4) to its live one, by Horn's closed-form quaternion (held to its last turn where the set cannot say:
+  a line of nodes). With no turn it is poseSkinGen's own blend; under a rigid motion it is that motion exactly (75 deg about a skew
+  axis: 0.000 mm off on the Cub's wing). Measured and dropped on the way: the plain blend (a wing folded back round a trunk dragged a
+  vertex a third of a metre off its neighbour: 65 % stretch with nothing broken there), one rotation per cell (tore at the cells'
+  borders), linear-blend skinning (each node's turn on the vertex's half-bay lever), an iterative polar decomposition (crawled on the
+  wing bays' planar node sets: 1e-3 off after 80 iterations), the generator's weights clipped to positive, inverse-square weights alone
+  (their lever: up to 0.3 m), one rigid fit per detached piece (the broken-up twin's rear fuselage 0.85 m off its own nodes).
+  - THE GENERATED SKIN (poseSkinGen's optional `brk` = { R, NF, down, poseGen }): every vertex rides its nodes' frames.
+  - THE FLOWN CAGE (app.js brkCage, after the cage's own pose, in the visual frame: a node at B^-1 (p - origin) - off - oRest, G267.2's
+    nodeVis): the static merge and the wing band, the control surfaces (rebased about their pivots), the struts and the tail's anchored
+    parts keep their own pose except the vertices off the core or at a broken member's end, which ride their nodes' frames. While a
+    wreck is drawn the cage is re-posed every frame (its G731 `still` skip is off).
+- **THE TEAR:** a live triangle near the break (a vertex riding its nodes) whose edge stretched past **1.15 x its rest length + 1 cm** is
+  torn for good. 15 %: the skin's elongation at break - doped fabric 15-20 % (AC 43.13-1B Table 2-1; GEN_CRASH.fabric.etu = 0.15),
+  2024-T3 sheet 15 % (MIL-HDBK-5J 3.2.3.0(b)), the lower taken. + 1 cm: the generator's sliver triangles (1-2 mm edges at the leading
+  edge) read 17-40 % on 0.4-8 mm of float noise and node jitter - not a tear anyone sees. Not in the exaggerated flex view (x4).
+- **What tears that is not broken:** the 30 m/s trunk runs stretch bays ELASTICALLY for a few frames (the Cub's outer wing bay, every
+  member intact: a diagonal at +19 %, the other at -15 % at t = 2.5 s) - the skin follows the nodes and tears there, as fabric would.
+
+### G1852 - THE FABRIC'S DRAPE (skin_break.js, the event)
+A FABRIC panel (the wing's when its surface row is fabric / steel / aluFabric; the cage's covering when the fuselage is tube + fabric)
+over a broken member goes slack: each vertex the member carried - its weight shared between the member's two ends, s = 4 w_a w_b /
+(w_a + w_b): 1 on the member's line, 0 at a node or away from it - hangs DRAPE_K = 0.06 x the member's length lower along gravity in
+the skin's frame, rippled along the member (a wrinkle of 12 cm pitch, +-35 % of the sag) so a slack panel does not read as a stretched
+one (§8.4). Why this: it is a fixed field per vertex made at the event (no per-frame physics, no new node), one multiply-add along
+`down` per frame; it is where the loss of tension is (on the member's line, not at its ends); and it never pulls a vertex apart from
+its neighbours by more than the sag's own gradient. Metal and ply skins do not drape (they dent: D4b's to judge). Measured deepest
+sag: 5.2-17.9 cm on the fabric builds' crashes (the Cub, the Jodel, the twin), 0 on the metal ones.
+
+### G1853 - GATE DMGSKIN (tools/_dmg_skin_check.js; run_gates core, weight 3; 116/116 on the merged branch, ~135-300 s on 3 cores)
+The skin measured: genWing's groups (the covering, the surfaces, the struts) and every member drawn as its tube (genBeamInto), on each
+validated build (11.4-13.1k vertices, 21-24k triangles), bound both ways (the generated path's and the cage's two-tier binding with its
+rigid core). Cases: TREECRASH / DMGINTEGRITY's - the 30 m/s trunk on the centreline and 2.5 m out, the severe ground nose-in (land
+builds); the severe float nose-in (floatplanes). Damage ON. From the first break, EVERY frame (not only the 2-12 frames with a new
+break), both bindings:
+- no live triangle spans two pieces (each vertex's kept nodes against the gate's own union-find): **0** everywhere;
+- no live triangle spans a broken member: **0**;
+- **no live edge past 1.15 x its rest + 1 cm: the worst -0.00 to -0.09 mm from the bound** (the tear holds it; the worst stretch of an
+  edge of 2 cm or more 1.39-1.65 - the +1 cm on 2-5 cm edges); every position finite;
+- before the first break, poseSkinGen with an idle record passed = the base's loop (frozen in the gate) **bit for bit**, every frame;
+- damage OFF: no payload, and poseSkinGen = the base's loop bit for bit on every frame of the same crash (1920-2700 group poses a case);
+- app.js: the break path only through brkGen / brkCage, each returning at once unless the state holds a broken member (static).
+
+| build | case | broken | frames w/ a new break | pieces | hop: payloads / bytes / ms | cage: removed (torn) | generated: removed (torn) | cage vertices on detached pieces | sag (cm) |
+|---|---|---|---|---|---|---|---|---|---|
+| the user's Cub | trunk, centreline | 82 | 9 | 4 | 32 / 36064 / 10.1 | 7202 (5586) | 5703 (4071) | 144 | 12.5 |
+| the user's Cub | trunk, the wing 2.5 m out | 17 | 8 | 2 | 17 / 6568 / 1.2 | 1613 (1077) | 1229 (693) | 1072 | 17.9 |
+| the user's Cub | severe ground nose-in | 29 | 8 | 3 | 13 / 8907 / 1.0 | 1656 (1196) | 1693 (1229) | 144 | 5.2 |
+| Jodel | trunk, centreline | 103 | 5 | 7 | 10 / 6735 / 1.4 | 4249 (2227) | 3419 (1205) | 7140 | 6.3 |
+| Jodel | trunk, the wing 2.5 m out | 33 | 5 | 3 | 9 / 3471 / 6.6 | 1672 (1113) | 953 (390) | 1170 | 9.5 |
+| Jodel | severe ground nose-in | 27 | 3 | 3 | 6 / 2121 / 0.9 | 1034 (602) | 489 (57) | 1170 | 0 |
+| metal Cessna | trunk, centreline | 107 | 8 | 7 | 15 / 17285 / 2.4 | 5533 (4029) | 3798 (1910) | 2834 | 0 |
+| metal Cessna | trunk, the wing 2.5 m out | 20 | 3 | 3 | 3 / 1654 / 0.5 | 1254 (561) | 1196 (503) | 1927 | 0 |
+| metal Cessna | severe ground nose-in | 63 | 6 | 4 | 11 / 4973 / 1.0 | 4884 (4022) | 4278 (3206) | 2538 | 0 |
+| Cessna floats | severe float nose-in | 59 | 4 | 4 | 11 / 4435 / 3.8 | 2109 (1247) | 1310 (302) | 2628 | 0 |
+| twin floatplane | severe float nose-in (BROKE UP) | 38 | 4 | 6 | 7 / 3717 / 2.8 | 5456 (4622) | 5137 (4317) | 5284 | 8.9 |
+
+(The measured skin is 11.4-13.1k vertices / 21-24k triangles a build; the removed counts are of that, both bindings separately.)
+
+Costs in node (the box loaded by a second gate run): a break event 1.0-6.6 ms (both records of every group: the piece / member tests
+over every vertex and triangle, the drape); the nodes' frames 0.20-0.51 ms a frame (93-130 nodes, a Horn fit each); the first break's
+binding (the generated skin, whole) 9-34 ms warm (to 322 ms on the JIT's first call), the cage's nearest-node tier 4-46 ms for ~12k
+vertices.
+
+### THE ACCEPTANCE (§11.2)
+- **Off = the base's bytes** (§11.3's worker set for viewer + generator + host files - the DMG set, TREECRASH, SIMWORKER, UISMOKE,
+  BUILD, JOIN, GEN, MASS; GATES_CORE=1 --verbose, the new base be22b905 built in a worktree against the merged branch, each gate's
+  section diffed): **both BATTERY PASS** (13/13, and 14/14 with DMGSKIN). **The same bytes: BUILD, DMGINST, JOIN, MASS, UISMOKE.**
+  **Only clock readings differ** (identical with every number masked): DMGCERT (its compute ms), DMGCLUSTERS, DMGMEMBERS, TREECRASH,
+  GEN (wall seconds), DMGFPS (each case's wall seconds), DMGINTEGRITY (the break event's us REPORT), **SIMWORKER** (every step's FNV(p,
+  v) equal - stock f2b3de3f, the metal Cessna cbccf99f - as the base; its real-time half's step counts and ms move with the clock; its
+  one text line is the runner's closing table listing DMGSKIN). gates_vs_base.txt. (A full 49-gate battery against the pre-merge base
+  was started and stopped a third of the way when the base moved - §11.3 now leaves the full battery to the coordinator.)
+- **PERF, the stock step:** the built core's step code is the base's byte for byte - against ebc6899 and again against be22b905
+  (`diff` of the two tools/flight_core.js: the body hash, poseSkinGen's signature and first line, the export list - nothing sim.step
+  runs). Measured anyway, before the merge (treecrash_evidence.js
+  --perf-child, the layer ON, nothing touching, a far 4000-trunk set, the median of each process's 600 steps; alternating pairs, the
+  base = ebc6899 built in a worktree):
+
+  | case | run 1 base / now (ms) | run 2 base / now | pooled |
+  |---|---|---|---|
+  | the Cub, ground | 3.860 / 3.738 (-3.2 %) | 3.710 / 3.756 (+1.2 %) | -1.0 % |
+  | the Cub, air | 3.551 / 3.711 (+4.5 %) | 3.521 / 3.554 (+0.9 %) | +2.7 % |
+  | the metal Cessna, ground | 6.525 / 6.602 (+1.2 %) | 6.354 / 6.434 (+1.2 %) | +1.2 % |
+  | the metal Cessna, air | 6.266 / 6.386 (+1.9 %) | 6.103 / 6.212 (+1.8 %) | +1.8 % |
+
+  The Cub in the air over 2 % pooled, with identical code: a third run +2.3 % (16 pairs), and **the control - the same two cores in
+  two copies of the same tools directory side by side - -3.5 % (10 of 16 pairs faster)**: the base worktree's location, not the code.
+  perf_run1.txt / perf_run2.txt / perf_run3.txt / perf_control.txt.
+- **PERF, the page's skin pose with nothing broken:** poseSkinGen (this branch, an idle record passed, as app.js hands it) against the
+  base's loop (frozen in GATE DMGSKIN) on the Cub's and the metal Cessna's generated groups, a flown frame's nodes, 15 x 200 frames:
+  0.1261 vs 0.1337 ms and 0.1125 vs 0.1263 ms (-6 / -11 %: the JIT's noise on a copied function; a first run read -0.2 / -16 %) - no
+  cost; the damage state's check a frame (app.js dmgNow, what brkGen / brkCage ask before returning) 0.22-0.33 us. The cage path adds
+  two such checks and nothing else; nothing broken, no skin bit moves (DMGSKIN's bitwise checks). pose_cost.txt.
+- **GATES (the merged branch):** DMGSKIN 116/116; TREECRASH, DMGINTEGRITY, SIMWORKER (as asked) and DMGINST, DMGFPS, DMGMEMBERS,
+  DMGCLUSTERS, DMGCERT, UISMOKE, BUILD, JOIN, GEN, MASS - all PASS (gate_dmgskin.txt, gates_vs_base.txt).
+- Validated builds only (the user's Cub builds/cub_2026-09-20_corrected.json, the Jodel, the metal Cessna, the Cessna on floats, the
+  twin on floats); no archetype touched; nothing from RoR / BeamNG (the flexbody idea is §2.5's description; Horn 1987 and the
+  regularised least squares are textbook). The generated outputs are NOT committed.
+
+### G1854 - THE STILLS (tools/dmg_skin_stills.js on tools/soft_still.js's new `--stage` hook; reports/evidence/DMG-D4a/)
+**Taken before the final merge** (on ebc6899 + this work: no D2a certificate, so the member limits - and so which members break in
+these two crashes - are TREE-CRASH / D1's; the skin code is the same). Not re-taken (~30 min on the soft GPU). The real page on SwiftShader (soft_still.js, one boot of ~12 min, the stage ~13 min), the user's Cub, `?damage=1&simw=0` (the crash
+stepped in the page - the solver the worker runs; the hop's equality is the gate's), the GATE cases staged on the home strip: the sim
+stepped until the flight is over, then frozen (the page's loop would carry it on between two shots), each camera shot with the skin
+break ON (after) and OFF (before: `window.FLYDIY_SKINBREAK = false`, the drawing until G1851) - one moment each pair:
+- `wing_1_after.jpg` / `wing_1_before.jpg`, `wing_2_*` (from above): 30 m/s, 4 m up, the trunk (drawn as a grey cylinder; the
+  physics' own) 2.5 m out on the left wing - CRASHED (a wing member broke), 32 broken, the groups wing0L:strut, eng:mount, gearL:gear.
+  After: the left wing's covering split where it tore, the strut in two halves, the engine piece lying off on its own; before: the wing
+  drawn whole and a thin yellow ribbon of skin stretched out to the separated engine piece. 3201 of the snapshot's 162198 triangles
+  removed (2168 of them by the tear), 92 groups held.
+- `nosein_1_*` / `nosein_2_*` (from above): 180 km/h, 10 m/s, 60 deg nose-down - CRASHED (a fus member broke), 26 broken (eng:mount),
+  the Cub on its back. **Before: the covering stretched as a 3-4 m band from the tail to the separated piece - the chewing gum of
+  §2.5; after: no band, the piece drawn on its own, the fuselage covering open along the break.** 10650 triangles removed (8006 torn):
+  the crushed wing loses strips of its bays to the tear (nosein_2_after, from above) - for D4b to judge on the box.
+- stills.json: every shot's numbers (the picture's coverage, the records, removed / torn, the physics' verdict).
+- Measured here and fixed: the first run's stats read 0 records after an off / on (a cage record re-used was not held again, so a
+  later heal would not have restored its index - holes on a healed aeroplane); brkCage now re-holds it.
+
+### FOR D4b AND THE COORDINATOR (the box, the GPU) - what to eyeball, and the hooks left
+- **Eyeball (D4b and the coordinator, on the box):** `index.html?damage=1` (worker) and `?damage=1&simw=0` (inline), the user's Cub: a trunk 2.5 m out at 30 m/s, a nose-in;
+  `?skinbreak=0` (or `window.FLYDIY_SKINBREAK = false` live) is the old drawing for the A/B. Look for: the torn edges (open, uncapped),
+  the drape's look on fabric, holes where the tear took slivers, the first break's binding hitch (node: tens of ms on ~12k vertices;
+  the real snapshot is ~200k - only the nearest-node tier runs whole), the flown bake's buckets losing the same triangles as the live
+  meshes (they share the index arrays; brkIdx flags every geometry on them), the damage view under the worker (`?dmgview=1`, Overlay).
+- **Not done here (D4b's):** debris for the non-member parts (cowl, spinner, blades, fairings, glazing, wheels) - they ride their nodes
+  as before (an engine unit translates with its node mean; a wheel with its axle); the prop strike's visual; GATE CLIP on the wreck;
+  the cockpit camera rule; fleet-model part detach.
+- **Hooks:** `window.FLYDIY_DMG_STATE()` (the one state: `pc` which piece each node is on - 0 the core -, `br`, `set`, `vB` to key on);
+  `window.FLYDIY_SKINBREAK_STATS()` (records, triangles removed / torn, vertices riding); each rig's `brkR` record (`vp` per vertex: its
+  piece; `ride`; `dead` per triangle: 1 removed, 2 torn); skin_break.js `nodeFrames` (each node's live turn, `NF.q`) - a part that
+  rides a node (an engine unit, a wheel, a prop) can take its node's turn from there; `TEAR`, `DRAPE_K` are the module's constants.
+
+### Open questions (the coordinator / A0)
+- **The first break's binding on the real snapshot:** the cage's nearest-node tier runs over every vertex at the first break (0.4-1.7 us
+  a vertex in node, loaded; the Cub's snapshot has ~162k triangles) - a one-off hitch of ~0.1-0.3 s at the impact. Spreading it over
+  frames is easy if the box says so.
+- **The fuselage covering does not crumple without a break:** the cage's static merge is rigid in the body frame (as before); only
+  vertices at a break or off the core ride their nodes. A nose crushed with no member broken still draws pristine (D4b / GATE CLIP).
+- **The tear takes much skin in the 30 m/s centreline runs** (5-37 % of the measured triangles): real stretch (elastic and plastic) in
+  a wrecked front end; the bound is stated, D4b judges the look.
+- **Off-core vertices ride their nodes, so a detached part's skin flexes with it** - right for a folding wing, and a free piece's nodes
+  have no aero any more (D1b) so it tumbles as debris does.
+- **G1474's note in the doc (§4.0 "skin over a break: no") is closed by this entry;** §5.1's "Generated wings and cage (poseSkinGen)"
+  should read "the cage snapshot (app.js poseModel) and the generated skin (poseSkinGen)".
+- The stills predate D2a's certificate (above); the coordinator may want them re-shot on the integration branch once D4b's
+  look is settled (`node tools/dmg_skin_stills.js`, ~25 min on the soft GPU).
