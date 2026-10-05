@@ -44,7 +44,7 @@ const CASES = {
   'nosein':    { label: 'a nose-in on the ground (180 km/h, 10 m/s, 60 deg; DMG-D4a\'s nose-in still)', o: { kind: 'ground', V: 50, sink: 10, pitch: 60, steps: 1500 }, cams: [[150, 20, 12], [235, 28, 14]] },
   // G1863: the cockpit rule - the severe nose-in watched from the pilot's eye; no stills, its verdict read
   'cockpit':   { label: 'the severe nose-in from the cockpit view (the camera rule)', o: { kind: 'ground', V: 50, sink: 10, pitch: 60, steps: 900 }, cams: [], cockpit: true },
-  'taxi':      { label: 'a taxi into a trunk at 3 m/s, the throttle shut (the prop strike: the blades curl)', o: { kind: 'trunk', D: 6, agl: 0, V: 3, off: 0, steps: 700, thr: 0 }, cams: [[150, 8, 4.5], [215, 14, 6]] },
+  'taxi':      { label: 'a taxi into a trunk at 3 m/s, the throttle shut (the prop strike: a wooden prop snaps, a metal one bends)', o: { kind: 'trunk', D: 6, agl: 0, V: 3, off: 0, steps: 700, thr: 0 }, cams: [[150, 8, 4.5], [215, 14, 6], ['nose', 10, 4.2]] },
 };
 
 // ---- in the page ----
@@ -54,7 +54,9 @@ function pageView([az, el, dist]) {
   s.textContent = '#ui,#hud,.hud,#pfd,#mm,#topbar,.plate,#phase,#card,.card,#flLine,#bootFly{visibility:hidden!important}';
   document.head.appendChild(s);
   if (FLIGHT_PROBE.camModeNow() !== 'orbit') FLIGHT_PROBE.camMode('orbit');   // (the chase writes its own pose: camSet is the orbit's)
-  FLIGHT_PROBE.camSet(az * Math.PI / 180, el * Math.PI / 180, dist);
+  // (az 'nose': a front-quarter close on the prop, from the aeroplane's own heading - the orbit is centred on the CG)
+  if (az === 'nose') { const [xA] = FLIGHT_PROBE.sim().axes(); FLIGHT_PROBE.camSet(Math.atan2(-xA[2], -xA[0]) + 0.6, el * Math.PI / 180, dist); }
+  else FLIGHT_PROBE.camSet(az * Math.PI / 180, el * Math.PI / 180, dist);
   return new Promise(r => setTimeout(() => r(1), 900));
 }
 // a JPEG of what the screen shows, made in the page from the CDP's PNG (no image library in node)
