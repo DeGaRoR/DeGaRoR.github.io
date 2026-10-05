@@ -4135,7 +4135,7 @@
     for (const e of GS.ents.values()) { if (!e || !e.R.active || e.cpu) continue;
       const R = e.R, nv = R.nv, Kk = R.K, X = Object.assign({}, BRK.X), P = new Float64Array(nv * 3), N = new Float32Array(nv * 3);
       X.w = new Float64Array(nv * 3); X.n = N; X.nB = R.nB;
-      SKIN_BREAK.poseCage(R, K.rest, sim.p, R.baseD, P, K.NF, K.down, [e.px[0] - X.o[0], e.px[1] - X.o[1], e.px[2] - X.o[2]], X);
+      SKIN_BREAK.poseCage(R, K.rest, BRK.liveAt || sim.p, R.baseD, P, K.NF, K.down, [e.px[0] - X.o[0], e.px[1] - X.o[1], e.px[2] - X.o[2]], X);
       const G2 = SKIN_GPU.readBack(e.D, e.vo, nv);
       for (let i = 0; i < nv; i++) { const i3 = i * 3;
         if (!Number.isFinite(G2.P[i3])) { out.nanG++; continue; }
@@ -4264,7 +4264,8 @@
       if (R.tornNew && !(sim.t - (R.islT || -1) < 0.25)) { R.islT = sim.t; R.tornNew = false; if (SB.islands(R, BRK_ISLAND)) brkIdx(R); }
       if (!onGpu) { pa.needsUpdate = true; if (R.nAttr) R.nAttr.needsUpdate = true; }
     }
-    if (GP) BRK.ms.gpu = Math.max(BRK.ms.gpu || 0, BRK.ms.lastGpu = GP.frame(X));
+    if (GP) { BRK.ms.gpu = Math.max(BRK.ms.gpu || 0, BRK.ms.lastGpu = GP.frame(X));
+      BRK.liveAt = BRK.liveAt && BRK.liveAt.length === sim.p.length ? (BRK.liveAt.set(sim.p), BRK.liveAt) : Float64Array.from(sim.p); }   // (the check: the nodes the GPU drew)
     BRK.vB = D.vB; BRK.posed = true; BRK.gpuOn = window.FLYDIY_SKINGPU !== false;
     const t4 = performance.now(), M = BRK.ms;
     M.records = Math.max(M.records, tRec); M.event = Math.max(M.event, tEv); M.frames = Math.max(M.frames, t3 - t2); M.pose = Math.max(M.pose, t4 - t3);

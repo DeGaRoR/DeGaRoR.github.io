@@ -88,7 +88,7 @@ async function pageFlown(o) {
   while (performance.now() - t0 < o.secs * 1000) {
     await raf();
     const t2 = performance.now(), ms = t2 - t1; t1 = t2;
-    const SB2 = window.FLYDIY_SKINBREAK_STATS(), M = SB2.ms, D = P.damage ? P.damage() : null, nb = sim.dmgState ? (sim.dmgState() || { br: [] }).br.length : 0;
+    const SB2 = window.FLYDIY_SKINBREAK_STATS(), M = SB2.ms, DS = window.FLYDIY_DMG_STATE ? window.FLYDIY_DMG_STATE() : null, nb = DS && DS.br ? DS.br.length : 0;
     if (nb > 0 && first < 0) first = trace.length;
     trace.push({ t: +sim.t.toFixed(3), ms: +ms.toFixed(2), brk: M.lastT === sim.t ? +(M.last || 0).toFixed(2) : 0, gpu: M.lastT === sim.t ? +(M.lastGpu || 0).toFixed(2) : 0, broken: nb });
   }
@@ -97,24 +97,25 @@ async function pageFlown(o) {
     check: null, skin: SB3 };
 }
 // THE STILL PAIR (--stills): the wreck at rest (the stepper done, the solver held), one camera, drawn by the GPU's riding
-// and then by the CPU's (window.FLYDIY_SKINGPU flipped: the page re-poses on the flip) - two JPEGs and their difference
-// in the page: the pixels whose colour moved by more than 24 (of 255) on a channel
-async function pageShotPair(o) {
-  const raf = () => new Promise(r => requestAnimationFrame(() => r()));
-  const wait = async n => { for (let i = 0; i < n; i++) await raf(); await new Promise(r => setTimeout(r, 120)); };
-  const grab = async () => { await wait(4); const c = document.querySelector('canvas'); return c.toDataURL('image/png'); };
-  window.FLYDIY_SKINGPU = true; await wait(6);
-  const g = await grab();
-  window.FLYDIY_SKINGPU = false; await wait(6);
-  const cpu = await grab();
-  window.FLYDIY_SKINGPU = true; await wait(4);
-  const img = async u => { const i = new Image(); i.src = u; await i.decode(); return i; };
-  const A = await img(g), B = await img(cpu), W = A.width, H = A.height, cv = document.createElement('canvas'); cv.width = W; cv.height = H;
+// and then by the CPU's (window.FLYDIY_SKINGPU flipped: the page re-poses on the flip), each shot by the driver's CDP
+// screenshot (a WebGL canvas reads back black without a preserved drawing buffer: the first pairs were blank) - two
+// JPEGs and their difference made in the page: the pixels whose colour moved by more than 24 (of 255) on a channel
+async function pageFlip(on) {
+  window.FLYDIY_SKINGPU = on;
+  for (let i = 0; i < 8; i++) await new Promise(r => requestAnimationFrame(() => r()));
+  await new Promise(r => setTimeout(r, 150));
+  const S = window.FLYDIY_SKINBREAK_STATS();
+  return { gpuRecs: S.gpu ? S.gpu.recs : null, gpuOk: S.gpu ? S.gpu.ok : null };
+}
+async function pageDiff([pa, pb]) {
+  const img = async b64 => { const i = new Image(); i.src = 'data:image/png;base64,' + b64; await i.decode(); return i; };
+  const A = await img(pa), B = await img(pb), W = A.width, H = A.height, cv = document.createElement('canvas'); cv.width = W; cv.height = H;
   const x = cv.getContext('2d', { willReadFrequently: true });
   x.drawImage(A, 0, 0); const a = x.getImageData(0, 0, W, H).data; x.drawImage(B, 0, 0); const b = x.getImageData(0, 0, W, H).data;
-  let diff = 0; for (let i = 0; i < a.length; i += 4) if (Math.abs(a[i] - b[i]) > 24 || Math.abs(a[i + 1] - b[i + 1]) > 24 || Math.abs(a[i + 2] - b[i + 2]) > 24) diff++;
+  let diff = 0, lit = 0; for (let i = 0; i < a.length; i += 4) { if (a[i] + a[i + 1] + a[i + 2] > 30) lit++;
+    if (Math.abs(a[i] - b[i]) > 24 || Math.abs(a[i + 1] - b[i + 1]) > 24 || Math.abs(a[i + 2] - b[i + 2]) > 24) diff++; }
   const jpg = im => { const c = document.createElement('canvas'); c.width = W / 2; c.height = H / 2; c.getContext('2d').drawImage(im, 0, 0, c.width, c.height); return c.toDataURL('image/jpeg', 0.85).slice(23); };
-  return { gpu: jpg(A), cpu: jpg(B), diff, px: W * H, share: +(diff / (W * H)).toFixed(5) };
+  return { gpu: jpg(A), cpu: jpg(B), diff, lit, px: W * H, share: +(diff / (W * H)).toFixed(5) };
 }
 const summary = st => {
   const T = st.trace || [], i0 = st.first >= 0 ? st.first : T.length, t0 = i0 < T.length ? T[i0].t : 0;
@@ -175,12 +176,17 @@ const summary = st => {
       fs.mkdirSync(dir, { recursive: true }); S.stills = [];
       for (const [ci, cam] of W.CASES[k].cams.slice(0, 2).entries()) {
         await W.run(W.pageView, cam);
-        const P2 = await W.run(pageShotPair, {});
+        const shot = async tag => { const f = path.join(dir, '_tmp_' + tag + '.png'); await W.get('/shot?f=' + encodeURIComponent(f)); const b = fs.readFileSync(f).toString('base64'); fs.unlinkSync(f); return b; };
+        const fg = await W.run(pageFlip, true), pg = await shot('gpu');
+        const fc = await W.run(pageFlip, false), pc = await shot('cpu');
+        await W.run(pageFlip, true);
+        const P2 = await W.run(pageDiff, [pg, pc]);
         if (!P2 || !P2.gpu) { S.stills.push({ cam, err: JSON.stringify(P2).slice(0, 200) }); continue; }
+        P2.flip = { gpu: fg, cpu: fc };
         const base = k + '_' + (ci + 1);
         fs.writeFileSync(path.join(dir, base + '_gpu.jpg'), Buffer.from(P2.gpu, 'base64')); fs.writeFileSync(path.join(dir, base + '_cpu.jpg'), Buffer.from(P2.cpu, 'base64'));
-        S.stills.push({ cam, gpu: base + '_gpu.jpg', cpu: base + '_cpu.jpg', diffPx: P2.diff, share: P2.share });
-        console.log('  still ' + base + ': ' + P2.diff + ' pixels differ (' + (P2.share * 100).toFixed(3) + ' %)');
+        S.stills.push({ cam, gpu: base + '_gpu.jpg', cpu: base + '_cpu.jpg', diffPx: P2.diff, share: P2.share, lit: P2.lit, flip: P2.flip });
+        console.log('  still ' + base + ': ' + P2.diff + ' pixels differ (' + (P2.share * 100).toFixed(3) + ' %), ' + P2.lit + ' lit; GPU records riding ' + JSON.stringify(P2.flip));
       }
       await W.post('/run', "document.getElementById('d4bHide') && document.getElementById('d4bHide').remove(); FLIGHT_PROBE.camMode('chase'); return 1;");
     }
