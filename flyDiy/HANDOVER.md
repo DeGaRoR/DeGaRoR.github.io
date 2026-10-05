@@ -101,7 +101,9 @@ before every battery so stale hand-edits get overwritten, loudly.
   patches, tree exclusion, AP-ready registry records. As-built:
   WORLD-GEN-PROC stage 4.
 - `src/core/30_solver.js` — makeSim: node-beam solver + strip aero + ground.
-- `src/core/40_autopilot.js` — makeAutopilot: 9-phase circuit FSM.
+- `src/core/39c_placement.js` — placeAtAerodrome / placeAtStand / seatOnGround / placeAtLineup (moved out of the
+  retired 40_autopilot.js, G1940). THE PILOT is `43_pilot.js` (makePilot), the ONLY pilot since PILOT-ONE; its inner
+  loops are `39b_servos.js`; personalities are profiles on it (PILOT_PROFILES, G1943).
 - `src/core/50_model_codec.js` — flexbody skin codec (decode, spanwise flex
   binding, control-surface hinges, visual linkage). Pure JS, no THREE; ported
   byte-identical from the flexbody branch except the linkage's flap channel.
@@ -486,6 +488,10 @@ gate and the game fly one condition and not two.
    aeroplane stops flying. A cranked wing gets the box instead.
 
 ## AUTOPILOT RULES
+- **G1940 (PILOT-ONE): ONE PILOT.** The classic (40) and the test pilot (41) are retired; every gate, the page,
+  the worker and the hydroplane test fly `makePilot` (43). A downgrade or a quirk is a PROFILE on it (G1943,
+  futureDesigns/PILOT-PERSONALITY-2026-10-05.md), never a fork - GATE TAKEOFF fails if any other core file
+  defines a pilot factory.
 - **G1570: the servos are ONE module (`src/core/39b_servos.js`); a law is fixed THERE, once.** The three pilots
   (40 classic, 41 test, 43 the game's) keep their phase machines and call one `makeServos` for the filters and every
   inner loop (pitch / roll / yaw / speed / VS, the ground steer, the taxi, the decrab, the slew). Gains: `SERVO_GAINS`
@@ -75461,7 +75467,127 @@ CROSSWIND where 60-90 s is tight: 43 reaches DOWNWIND at ~64 s on the stock buil
 (b) the placement helpers moved out of 40, (c) the text-readers re-pointed, (d) the bounds 40 set re-read honestly on
 43 (the GEN circuit's sink bound 1.3 was WIDENED for 40; nothing is loosened here).
 
-RECOMMENDATION (taken, G1940-G1941 below): retire both. The placement helpers move to 25_airfield (the aerodromes'
-own geometry); every caller moves to makePilot; the menu keeps the three STYLES of THE PILOT (auto / cautious / brisk)
+RECOMMENDATION (taken, G1940-G1941 below): retire both. The placement helpers move out (to their own module,
+src/core/39c_placement.js, as it turned out - 25_airfield stays untouched); every caller moves to makePilot; the menu keeps the three STYLES of THE PILOT (auto / cautious / brisk)
 and loses "Test pilot (G107)" and "Autopilot" (a stored choice of either falls back to 'auto'); a downgrade is a
 PERSONALITY on the one pilot (G1943), never a fork.
+
+### G1936-G1938 THE TECHNIQUES (43_pilot.js; 30_solver.js for the brake)
+
+**G1937 THE WATER TAKE-OFF** (the user narrowed the take-off complaint to "floatplanes and water take off"; the land
+take-off is unchanged - pilot_one_trace on the Cub / Jodel / C172 is identical base -> branch to the digit). MEASURED
+first (tools/pilot_one_trace.js, the SEA lane, calm; evidence/PILOT-ONE/takeoff/):
+```
+build (floats)                 base (train 34)                                  branch
+v7 twin (two 582s, user's)     bow dug in at throttle-up: trim -66 deg, q -91     ONE lift-off at 28.1 m/s (1.53 Vs), trim +1.4..+13.7,
+                               deg/s, then on the step at 17 m/s for ever:      q 8.1 deg/s, run 180 m
+                               never airborne in 150 s, 2.3 km down a 1.5 km lane
+v7 ultralight (floats)         porpoise -2.9..+12.9 deg, q 14.6 deg/s, lift-off   trim +0.1..+12.6, q 10.4, lift-off 20.9 (one), run 86 m
+                               20.9 (one)
+C172 on Wipline 2350s          27.7 m/s, one lift-off, 344 m                     the same (27.7, one, 346 m)
+user's C172, floats for wheels hump at 5.73 m/s, 0.00 m/s^2, for the whole run   REJECTED at 45 s: 'stuck on the hump at V=5.7 ... the thrust
+(1135 kg on 2198 N, T/W 0.20)  - no decision                                     cannot push the hull onto the step'
+```
+What changed: (1) THE POWER COMES IN OVER 4 s on the water (`A.waterThrRampS`; the throttle went 0 -> 1 in a step at
+0.5 s, and against a thrust line over the CG on undersized floats that buried the bow); back stick through the hump
+was tried and changed nothing (G396.4's neutral stays). (2) 'STUCK ON THE HUMP' is a rejection: 20 s at the hump with
+< 0.03 m/s^2, past the first 20 s (G396.4 / G790's waiting stays for a hull that is accelerating at all). (3) THE STEP-
+ATTITUDE HOLD is a technique the gates can call (39b `servoStepHold`, DAMP's GATE FLOATS law: de = 0.2 + 0.04 (6 -
+trim) - 0.01 trim-rate from 9 m/s; gains in SERVO_GAINS stepDe0 / stepK / stepD / stepTrim / stepV) - MEASURED NOT
+BETTER with today's solver (scratch water_exp 'hold': twin 28.2 vs 28.1, ultralight 21.2 vs 20.9 later, the Wipline
+C172 SKIPPED once with a 26.7 deg/s pitch rate), so the pilot flies it only under `A.stepHold` or a profile's
+`stepHold`; DMG-DAMP (the rigid-rotation damper removed) may need it - one switch. (4) `waterStepK` (39b groundSteer:
+kP x waterStepK on the water with the hull on the step) is in the table at 1: DAMP sets 0.6 there and nowhere else.
+The rotation on the water is unchanged (neutral to the step, the pull at 1.12 Vr): every build lifts off once, with
+no contact after, at <= 10.4 deg/s. OWED: the v7 twin lifts off late (1.53 Vs) - undersized floats (floatAdvice:
+UNDERSIZED, reserve 1.78 < 1.8); the C172-on-floats-for-wheels is a build that cannot fly off water, said as such.
+
+**G1936 THE SHORT FIELD** (the user: "no autopilot succeeding in landing on the short 150 m runway, where they should
+start from farther away, use the full flaps, and aim for touching down at the beginning of the strip"). On Jolene:
+East Point Clearing (150 x 12 m gravel, one-way, trees: the obstacle cone asks 6.5 deg) and Jumbo Mine Street (250 x
+18 m, the cone asks 15 deg - the pilot caps it at gsMax 8.5). Technique 'short' (strip < 450 m or < 1.6 x the sheet's
+landing run), each step measured on the user's Cub (no landing flap: genTrim's `ldg: 0`) and C172 (full flap):
+- the aim 10 m in (6 % of the strip; was max(30, 8 %)); a FINAL of 900 m / 30 s at Vref before the slope (was 400 m
+  or 10 s at VTurn); the BASE at 1.25 Vref with half the landing flap; the full landing flap on final (G975's elevator
+  cap still rules);
+- TECS holds the SPEED on a short final at idle (`spdPri`: the speed weight 2 where it gave the speed half away), and
+  the FORWARD SLIP takes the energy the flap would have: the rudder (0.8) mixed over the lateral law, whose bank
+  then holds the track, armed on the slope at idle with > 2 m of energy over the plan, off below the flare height;
+- a stabilized-approach go-around (5 m/s over Vref under 20 m); the float judged IN GROUND EFFECT (0.3-1.0 m) against
+  the MEASURED short-field stop (full brake = 0.84 x the 0.3-brake stop: the Cub three-point from 19 m/s on HOME's
+  grass ran 152 m at 0.3, 133 at 0.6, 128 at 1.0, never pitching under +2.1 deg - the wing still carries the weight,
+  the friction law said 0.5 x);
+- the roll-out brakes to the limit (`A.brakeShort`, 1) with a tail-rise guard (a taildragger's tailwheel off: the
+  brake off at once; a tricycle's nose 3 deg under its rest);
+- TWICE ROUND A SHORT FIELD IS A DIVERSION: the nearest strip this gear may use with 1.6 x the landing run (450 m at
+  least), said ('divert') and flown as a cross-country (the cap of two go-arounds then a COMMITTED third took the Cub
+  into East Point's trees);
+- the landing is said ON or OFF the strip: `report.landing.onStrip / tdIn / stopLeft`, verdict 'off-the-strip' (the
+  base wrote 'completed' for a Cub that stopped 63 m past East Point's end).
+MEASURED (pilot_trace, Jolene, calm; evidence/PILOT-ONE/shortfield/):
+```
+flight                          base (train 34)                                    branch
+C172 Tamgas -> Jumbo Mine 250 m  SHORTFIELD_C172_BASE                                touched 16 m in (1 m past the aim), 0.96 m/s, 1.11 Vs,
+  (full flap)                                                                       on the centreline, stopped after 154 m: 80 m to spare
+Cub East Point circuit 150 m     final 4 m over the slope at idle and 2.5 m/s fast,  on the slope (1.2 m rms), slip, flare from 5.9 m; floats
+  (no flap)                      flare at 25.4 m/s (1.56 Vs), touched 213 m in,       in ground effect with 97 m left for a 134 m stop: round
+                                 'completed' 63 m past the end                       twice, then 'divert' to Tamgas Hill (520 m, 14.3 km)
+Cub Jumbo Mine circuit 250 m     SHORTFIELD_CUB_MN_BASE                              the 15 deg cone: 50 m over the slope at idle with the slip;
+  (no flap)                                                                         round twice ('past the aim'), divert
+```
+THE LIMITS FOUND (not the pilot's; for their owners): (a) THE SLIP IS WEAK IN THE SOLVER: 22 deg of sideslip at full
+rudder costs the Cub ~12 % of its L/D (9.7 -> 8.6), where a real Cub's full slip about doubles the sink - the body's
+cross-flow drag (review D7's Cub-calibrated blobs) - so a flapless aeroplane cannot fly a steep short-field slope at
+Vref; a physics session. (b) THE USER'S CUB'S ELEVATOR cannot hold 1.2 Vs0 at idle on final ('vref-raised' to 20.7
+m/s), and its three-point deck angle touches at 1.13-1.19 Vs: a 143-152 m roll, more than East Point has after any
+float. The pilot flies the technique, goes round, diverts and says why; landing this build there is the builder's
+(flaps, the CG / tail) or the solver's (the slip).
+
+**G1938 THE TURN ON THE SPOT** (the user: "No autopilot manages to turn sharp for a 180 degrees. Most planes should
+allow for almost static turn ... turning at the end of a 1 way strip"). The solver had ONE brake for both mains: the
+tightest turn was the tailwheel's steering (groundRmin: the Cub 9.4 m, the Jodel 7.6 m, the C172's nosewheel 4.4 m)
+- 19 m across for the Cub on East Point's 12 m. THE USER'S RULING (asked mid-session): add the differential brake.
+- 30_solver: `ctl.brakeD` (-1..1): a main's brake is clamp(brake + side x brakeD, 0, 1), the side its +z / -z in the
+  built pose; brakeD 0 is the old line to the bit (`ctl.brakeD ? ... : ctl.brake`). It yaws the aeroplane the way a
+  positive rudder does. MEASURED (scratch pivot, the Cub on HOME, stopped): stick neutral, full rudder + inside brake
+  at 0.7 throttle: 180 deg in 8.6 s, the CG moving 2.6 m; stick back pins the tail (16 deg in 30 s) - as the real one.
+  **FOR DMG-TYRE: this is the one line of the wheel-friction block it rewrites (`muR = su[0] + bkI x su[1]`); carry
+  `bkI` (the per-main brake) into the slip-angle tyre's longitudinal force.**
+- 43 `pivotFly(hdg)`: stopped (brakes on above 1.2 m/s), full rudder and the inside brake toward the turn, the stick
+  neutral (a tricycle's taxi elevator), the throttle walked up until the nose turns ~20 deg/s (0.35 -> 0.75), off
+  while it swings in the last 25 deg (proportional there: bang-bang hunted +-4 deg for 60 s), the way round CHOSEN
+  ONCE (a target 180 deg behind the nose is left or right by a degree of wobble), done within ~9 deg - the taxi's own
+  steering takes the rest. THE SIGN: e > 0 is turned by NEGATIVE rudder (groundSteer's -kP x e) - the first cut had
+  it backwards and overshot 35 deg.
+- where: a taxi path's hairpin tighter than 1/(1.1 Rmin) turning > 60 deg (on a strip under 300 m: any U-turn over
+  150 deg for every aeroplane, the site's lane U-turn being a 12 m arc 15 m from the end); a taxi point behind the
+  aeroplane; LINEUP facing > 100 deg away on a strip narrower than the turn; and on a strip under 300 m with 3/4 of it
+  ahead, the departure turns WHERE THE AEROPLANE STOPPED (planDeparture -> LINEUP) instead of the lane U-turn to the
+  hold a quarter in (which left the Cub 113 m of East Point's 150 and a rightly rejected roll).
+MEASURED (tools/pilot_one_turnaround.js: stopped 20 m from the closed end, nose to it, departFrom; the strip's own
+SURFACE is the judge - a site may lay its lane beside the strip on the same surface, G710):
+```
+                       base (train 34)                                       branch
+Cub, East Point        never rolled in 200 s: 26 m off the centreline, 151 m  pivot; rolling at 21.5 s, 2.7 m off the centreline, never off
+                       past an end, 128 s off the strip                      the strip; airborne
+Jodel, East Point      16.7 m off, 11.3 s off the strip, rejected roll         pivot; 2.8 m, 0 s off; the roll rightly rejected (needs ~180 m)
+C172, East Point       9.1 m, 0 s off, rejected roll                          the same (a nosewheel turns there; the roll rejected: 219 m needed)
+Cub, Jumbo Mine        17.8 m off, 14.3 m past the end, 19.2 s off            pivot at the far end; 0 s off the strip; airborne
+Jodel, Jumbo Mine      13.7 m off, 12.1 m past the end, 15.8 s off            pivot; 2.5 s off, 0.1 m past the end; roll rejected
+C172, Jumbo Mine       7.7 m past the end, 10.7 s off                         pivot; 1.3 m past the end, 5.7 s off (PARTIAL: a tricycle's
+                                                                             pivot still swings wide of the lane)
+```
+
+### G1940-G1942 ONE PILOT (the retirement)
+
+40 and 41 deleted; `39c_placement.js` (the four helpers, verbatim); every caller on makePilot (the table in G1935).
+The phase mapping: the classic's CRUISE = 43's circuit legs (flyLeg) / its settled DOWNWIND (STRESS, FLEX, INPUT, CRUISE
+QUIET, circuit_harness's chatter); APPROACH = FINAL (FLAPS). The page's menu: auto / cautious / brisk. The bench strip
+knows 43's phases. GATE TAKEOFF's fork check became "one pilot".
+
+### G1943 THE PERSONALITY - see futureDesigns/PILOT-PERSONALITY-2026-10-05.md
+
+`makePilot(.., { profile })`: PILOT_PROFILES expert (today's pilot, every hook bypassed - bit-identical) / club /
+student / bush / hamfist; hooks live today: reaction delay, smoothness (SV.slewK), ham-fisted inputs (seeded), over-
+rotation, late flare, bank / comfort-g limits, the field technique, the slip, the step hold. GATE INPUT's second slot
+flies 'club'. The menu row is owed (the design's §5).

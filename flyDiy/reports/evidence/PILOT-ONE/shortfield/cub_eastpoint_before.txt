@@ -1,0 +1,19 @@
+piperCub (file tail) nv_strip calm · normal
+  ROLL@0 LIFTOFF@13.1 CLIMB@24.8 CROSSWIND@46.2 DOWNWIND@65.5 BASE@131.6 FINAL@150 FLARE@219.6 ROLLOUT@226.7 STOPPED@237.4
+  take-off: run 105 m, lift-off 17.1 m/s · crosswind turn at 69.1 m
+  CROSSWIND overshoot    2 m  settle 8.6 s  roll reversals 1/min
+  DOWNWIND  overshoot    4 m  settle 8.5 s  roll reversals 0.3/min
+  BASE      overshoot    7 m  settle 9.4 s  roll reversals 0.5/min
+  final: captured at 167.4 s · above-slope rms 4.3 m · V-VAppr rms 3.17 (mean 2.55) · thr 0.05..0.11
+  flare: from 5.87 m at -2.91 m/s, 7.1 s
+  departure: short · Vx 19.6 m/s · run needed 156 m of 150
+  circuit: left-hand at 115 m, join straight
+  approach: short · Vref 19.2 m/s · aim 30 m in · flap 0 · run needed 135 m of 150
+  landing: sink 0.33 m/s · 20.7 m/s = 1.27 Vs · 183 m past the aim · -0.1 m off · run 167 m
+  control reversals /min (da dr de): takeoff 8 14 6 · climb 0 0 14 · legs 6 4 10 · downwind 0.9 0.9 0 · base 2 4 6 · final 6 3.4 7.8 · landing 16 18 32
+  rollout: max heading 139.6 deg, 0 reversals, rudder 0.95 · -8 m off at the stop
+  ! 9.6s committed-takeoff: past the point of stopping at V=12.5 with 95 m left — Vr in 38 m, continuing
+  ! 24.9s vx-climb: ground ahead above the aeroplane — climbing at Vx 19.6 m/s until clear
+  ! 46.2s strip-short: 150 m of strip for a 135 m landing run — landing short-field, no margin
+  completed at 237.4 s (62 s wall)
+{"key":"builds/cub_2026-09-20_corrected.json","name":"piperCub","from":"nv_strip","to":"nv_strip","style":"normal","tail":"file","slope":0,"surface":null,"weather":null,"day":"2026-06-21 10:00:00 AKDT","outcome":"completed","phase":"STOPPED","t":237.4,"phases":["ROLL@0","LIFTOFF@13.1","CLIMB@24.8","CROSSWIND@46.2","DOWNWIND@65.5","BASE@131.6","FINAL@150","FLARE@219.6","ROLLOUT@226.7","STOPPED@237.4"],"goArounds":0,"verdicts":["9.6s committed-takeoff: past the point of stopping at V=12.5 with 95 m left — Vr in 38 m, continuing","24.9s vx-climb: ground ahead above the aeroplane — climbing at Vx 19.6 m/s until clear","46.2s strip-short: 150 m of strip for a 135 m landing run — landing short-field, no margin"],"takeoff":{"run":105,"Vlo":17.1},"climb":{"hTurn":69.1,"vsMean":2.19},"legs":[{"name":"CROSSWIND","overshoot":2,"settleT":8.6,"rollRev":1},{"name":"DOWNWIND","overshoot":4,"settleT":8.5,"rollRev":0.3},{"name":"BASE","overshoot":7,"settleT":9.4,"rollRev":0.5}],"final":{"captureT":167.4,"aboveRms":4.3,"vRms":3.17,"vErrMean":2.55,"thrMin":0.05,"thrMax":0.11},"flare":{"entryAgl":5.87,"entryVs":-2.91,"t0":219.6,"dur":7.1},"landing":{"sink":0.33,"V":20.7,"VoverVs":1.27,"pastAim":183,"off":-0.1,"run":167,"three":false,"drift":0.02},"activity":{"takeoff":{"s":25,"da":8,"dr":14,"de":6},"climb":{"s":21,"da":0,"dr":0,"de":14},"legs":{"s":19,"da":6,"dr":4,"de":10},"downwind":{"s":66,"da":0.9,"dr":0.9,"de":0},"base":{"s":18,"da":2,"dr":4,"de":6},"final":{"s":70,"da":6,"dr":3.4,"de":7.8},"landing":{"s":18,"da":16,"dr":18,"de":32}},"rollout":{"maxE":139.6,"zeroX":0,"maxDr":0.95,"xtEnd":-8},"Vs":16.3,"VsLanding":16.3,"VAppr":19.2,"appr":{"technique":"short","Vref":19.2,"Vbase":19.2,"gust":0,"aimIn":30,"flap":0,"len":150,"surface":6,"runNeed":135},"dep":{"technique":"short","Vx":19.6,"runNeed":156,"len":150,"surface":6},"circuit":{"hand":"left","hC":115,"join":"straight","declared":null},"mass":476,"sheet":{"Vs":15.98,"Vs0":15.98,"Vref":20.78,"Vrot":16.2,"Vx":19.58,"Vy":22.5,"Vbg":22.61,"Vms":17.19,"Vcruise":31.4,"climbMax":2.97,"sinkMin":2.11,"LDbest":9.4,"TORun":156,"LDGrun":134.73,"mass":476.19},"tecs":true,"path":true,"wall":62,"csv":"/tmp/claude-0/-home-user-DeGaRoR-github-io/e7e858f3-5d06-56b7-b9c9-c9722c2634d1/scratchpad/ep/cub_ep.csv"}
