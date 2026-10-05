@@ -1122,6 +1122,18 @@ clearing it (Repair) is the only thing Repair does besides charging.
 - **(dm8) Fire** (§9): conditions plus a seeded roll, base-rate checked, always a write-off. Crash-resistant tanks
   are garage options. Visuals owed to POST-FX.
 
+**Taken by the coordinator** (2026-10-05; A0 may overturn):
+- **(dm13) The fitting factor's reading (DMG-D2a G1831).** FAR 23.625's 15 % is kept BETWEEN joints and members, joints
+  the weaker: a joint breaks at 1.5 F_l m, every member between joints holds 1.15 x past it. Read literally ("fittings
+  1.15 x stronger") the members broke first, mid-span, at ~6.9-7.2 g, against §7.2's break order and §7.4's over-g row.
+  This way a part comes off as a part, at a joint, at the card's broke-at (6.01-6.10 g on the five builds).
+- **(dm14) Normal operations need real headroom before damage turns ON (train 35).** On D2a's certificate the worst
+  member reaches 0.98 of its certified yield in an ordinary circuit on the Cessna floats (0.74 on the metal Cessna);
+  the certificate's own cases sit at ~0.99 by construction. Under dm10 a slightly harder landing would ground the
+  aeroplane. DMG-D2b owns the fix: ordinary operations (the circuit, taxi on grass and water, touchdowns at the
+  normal sink, chop, a crosswind within the demonstrated component) at most 2/3 of the certified yield on every
+  validated build; only the certificate's limit cases, deliberately flown, may approach 1.
+
 ---
 
 ## 13. COPYRIGHT — what we consulted, and what it allows
