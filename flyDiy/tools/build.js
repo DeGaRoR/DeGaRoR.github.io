@@ -442,7 +442,9 @@ const MANIFEST = {
     // blueprint.js after refplane.js (G573): the reference plane's second
     // source. It builds its half of the panel from REFPLANE.ui, lazily, and
     // stands its planes in app.js's REF_MOUNT.bpGroup.
-              'garage.js', 'workshop.js', 'plaque.js', 'stickers.js', 'bench_worker.js', 'bench.js', 'refplane.js', 'blueprint.js',
+    // blueprint_library.js before it (G573.2): the prepared sheets, a plain
+    // table (window.BLUEPRINT_LIBRARY) that blueprint.js reads lazily.
+              'garage.js', 'workshop.js', 'plaque.js', 'stickers.js', 'bench_worker.js', 'bench.js', 'refplane.js', 'blueprint_library.js', 'blueprint.js',
               'sim_host.js', 'sim_view.js', 'sim_link.js',
     // house_worker.js (G830, C2a): the houses' own thread - the page's client (window.HOUSE_WORKER, started by
     // world_boot.js) and the worker's body, imported RAW by its own Blob worker (with sim_host.js, the core, three and
