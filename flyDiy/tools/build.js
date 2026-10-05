@@ -610,8 +610,12 @@ const SCAN_EXT = /\.(?:js|mjs|json|css|html)$/;
 // written by tools/parked_cook.js AFTER the build and keyed on its id - hashed, every re-cook would move the id and
 // stale its own cook (the cooked bodies are media/parked/<content hash>, named by that manifest)
 const GENERATED = new Set(['tools/flight_core.js', 'index.html', 'dev.html', 'sw.js', 'version.json', 'src/core/parked_packs.json']);
-// paths built at run time ('tools/fixtures/island_' + id + '.json', the KTX2 transcoder's folder): [dir, file pattern]
-const DYNAMIC_INPUTS = [['tools/fixtures', /^(?:island_.+|premises_v1_.+)\.json$/], ['vendor/ktx2', /^basis_transcoder\./]];
+// paths built at run time ('tools/fixtures/island_' + id + '.json', the KTX2 transcoder's folder), and the manifests the
+// BUILD reads and inlines (the music / sfx / voice catalogues - FLYDIY_MUSIC, FLYDIY_AUDIO_MEDIA, FLYDIY_VOICE - and the
+// boot shots): the page already carries their content, they are named here so the closure lists them and a manifest
+// that stops being inlined stays an input: [dir, file pattern]
+const DYNAMIC_INPUTS = [['tools/fixtures', /^(?:island_.+|premises_v1_.+)\.json$/], ['vendor/ktx2', /^basis_transcoder\./],
+  ['src/viewer/audio', /_catalogue\.json$/], ['src/viewer', /^shots_pack\.json$/]];
 const LAST = { build: null, inputs: null };
 function shippedInputs(texts) {
   const seen = new Map(), queue = [];
