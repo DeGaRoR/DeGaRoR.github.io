@@ -25,6 +25,7 @@ be the giant sheets' root cause (see below).
 
 **CORRECTION (2026-10-07, DMG-DRIVE2 found it): the INLINE taxi here was NOT run with the throttle shut.** The stills rig set the
 throttle once and the page's own loop wrote it back from the input every frame (0.62: 1710 rpm, 3 -> 4.27 m/s before the strike).
-Its DRIVE "separation" and the mount it tore are a POWERED strike - expected, not a DMG-DRIVE bug; the "strike first at an
-idle tip speed" finding is withdrawn. Fixed in the rig (3455e001: hands on, the controls zeroed before every step pair).
+Its DRIVE "separation" and the mount it tore came from a POWERED strike - my "strike first at an idle tip speed" finding is
+withdrawn. (DMG-DRIVE2's own finding is separate and stands at any throttle: the strike was graded with the trunk's face
+0.84-0.98 m AHEAD of the flange - biteR = R + r - lat passes R whenever the trunk is near the hub's line - see its READY ab53b8e4.) Fixed in the rig (3455e001: hands on, the controls zeroed before every step pair).
 The worker-staged shots were unaffected.
