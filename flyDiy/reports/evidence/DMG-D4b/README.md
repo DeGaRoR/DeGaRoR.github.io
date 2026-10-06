@@ -37,3 +37,12 @@ camera on the same frame: **after** (all of it: debris, the prop strike, D4a's s
 ## The impact's frame rate (G1869)
 - `fps_trace.svg` - every frame through each crash (the trunk on the centreline, 2.5 m out, the severe nose-in), the G1869 cuts off (red) and on (green), and the cuts-on frame split into the physics, the skin break, the rest of the scene and the render. Worst frame 263 -> 104 / 145 -> 138 / 116 -> 96 ms; the impact second's mean 91 -> 58.5 / 55 -> 43.5 / 64.5 -> 51.6 ms; the wreck at rest 25.8 -> 22.9 / 52.7 -> 41.8 / 24.4 -> 21.4 ms (the box, 1600x900, inline).
 - `fps_trace.json` (the summaries), `fps_trace_frames.json` (every frame's split).
+
+## The user's review, 2026-10-06 03:00 (review/; the Cub, the wind off, `tools/dmg_wreck_stills.js` + `tools/dmg_wreck_paths.js`)
+- THE COWL IN THE HARD CRASHES: both cowl halves come OFF in every hard case (`cowl_stills.json`, each panel's reason):
+  the 30 m/s trunk on the centreline (crushed 27 / 36 cm; it breaks up), the severe nose-in (69 / 66 cm), the NOSE-OVER (12 m/s into a 35 cm stump, DMG-WALL's staging: 60 / 43 cm).
+  A 3 m/s bump keeps it on, on purpose (G1860.1: a few cm of dent keeps its fasteners; the Cessna's taxi measured 1 mm).
+- `cowl_trunk0_after.jpg` (+ `_low_`, `_skin` = D4a's skin alone), `cowl_nosein_after.jpg` / `_2_` (a cowl half lying open on the runway), `cowl_noseover_after.jpg` / `_2_` (the cowl bowl off the nose; `_intact` before, `_skin` without the debris).
+  In the nose-over the wings' covering is torn into strips - D4a's tear (DMG-WALL's), not the debris.
+- THE RESET PATHS (`paths.json`): after a 30 m/s break-up, `Fly again` (retry) and `The shed` + `Roll out` (garage) both left the wreck layer idle, 0 debris bodies, 0 hidden or collapsed part objects, 0 broken members, 0 skin records. The third path (another departure) was NOT exercised: its staged crash did not happen (0 broken), so its "clean" proves nothing.
+- `path_garage_after_SUSPECT.jpg`: the garage path's still (the hangar, close): jagged dark edges along the top of the wing - possibly the previous crash's torn drawing surviving the reset (the user's report). The wreck layer's own numbers were clean; whether the torn triangles of D4a's records came back is DMG-WALL's check. Flagged, not concluded.

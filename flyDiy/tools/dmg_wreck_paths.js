@@ -38,7 +38,7 @@ const inShed = "document.body.classList.contains('mode-ws')";
 
 (async () => {
   const R = { at: new Date().toISOString(), paths: {} };
-  const places = JSON.parse(await ev(MB.A.places));
+  const pl0 = await ev(MB.A.places), places = typeof pl0 === 'string' ? JSON.parse(pl0) : pl0;
   const strips = places.filter(p => p.kind === 'strip');
   for (const k of opt('paths', 'retry,garage,place').split(',')) {
     const r = { path: k };
