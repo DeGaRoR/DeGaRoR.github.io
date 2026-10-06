@@ -1,0 +1,65 @@
+[    0.0 s] tour_real: root D:\Dev\wt-tour2 · build builds/cub_2026-09-20_corrected.json · damage 0 · rate 2 · HOME > nv_strip > mn_strip > tw_ski > w3 > HOME · out D:\Dev\tour_real_runs\tour
+[    0.5 s]   version.json {"build":"b8d949466587","date":"2026-10-06T06:29:57.686Z"}
+[    0.5 s]   chrome pid 55468 · devtools 9656 · profile C:\Users\denis\AppData\Local\Temp\tour_real_udd_20261006T070003
+[    1.1 s]   -> http://localhost:8783/flyDiy/index.html?damage=0
+[   66.2 s]   garage: ready after 65.2 s
+[   69.9 s]   env {"gpu":"ANGLE (NVIDIA, NVIDIA GeForce RTX 3080 (0x00002216) Direct3D11 vs_5_0 ps_5_0, D3D11)","gfx":{"preset":"gamer","build":"gamer","pv":8,"fps":30,"fpsOwn":false,"ground":"far1","scale":1,"cover":"full","scenery":"full","drawDist":"vis","terrain":1,"aa":"msaa","density":128,"bands":"mid","shadows":"full","canopy":"on","rails":"on","poles":"on","glare":"on","sway":"on","mist":"land","clouds":"half","water":"simple","mirror":"off","lighting":"sunset","tone":"cineon","exposure":1,"colour":"managed","bloom":"soft","look":"off","lens":"off","rays":"off","ao":"off","eye":"off","compositing":"linear","town":"nearby"},"build":"b8d949466587","route":{"from":"HOME","dest":"nv_strip","to":"nv_strip","base":"HOME","spawn":null},"ua":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36","webdriver":false}
+[   73.3 s]   roll-out screen: gone after 3.3 s
+[   81.8 s]   start {"route":{"from":"HOME","dest":"nv_strip","to":"nv_strip","base":"HOME","spawn":null},"where":{"kind":"stand","aero":{"id":"HOME","name":"Jolene AFB 13/31","kind":"strip","x":-301,"z":221,"hdg":0.7156,"len":2325,"wid":45,"surface":5,"look":"worn","elev":31.683077650974106,"tdz":[135.78247155506182,600.7007177268059],"spawn":[-154,712],"spawnElev":30.6,"flyIn":false,"premises":true,"band":40,"pav":{"rubberK":0,"laneW":6.1},"landHdg":null,"altiport":false,"treeBox":true,"treeClear":null,"takeoffHdg":null,"turn":null,"slope":0,"disp":[0,0],"papi":["vasi","vasi"],"circuit":null},"id":"HOME","d":247.43318624355965,"along":432.71088910484235,"cross":269.93318624355965},"span":10.7,"dmgPage":false,"substeps":74,"mass":462,"cg":[-151.5,31.6,708.6],"phase":"TAXI","apRoute":{"from":{"id":"HOME","name":"Jolene AFB 13/31","kind":"strip","x":-301,"z":221,"hdg":0.7156,"len":2325,"wid":45,"surface":5,"look":"worn","elev":31.683077650974106,"tdz":[135.78247155506182,600.7007177268059],"spawn":[-154,712],"spawnElev":30.6,"flyIn":false,"premises":true,"band":40,"pav":{"rubberK":0,"laneW":6.1},"landHdg":null,"altiport":false,"treeBox":true,"treeClear":null,"takeoffHdg":null,"turn":null,"slope":0,"disp":[0,0],"papi":["vasi","vasi"],"circuit":null},"to":{"id":"nv_strip","name":"East Point Clearing","kind":"strip","x":10030,"z":-11660,"hdg":1.8326,"len":150,"wid":12,"surface":6,"look":"gravel","elev":21.136829365271517,"tdz":[10020.941188543045,-11626.192634900257],"spawn":[10063.83,-11724.44],"spawnElev":21.14,"flyIn":false,"premises":true,"band":3,"pav":{"marks":"none","mossK":0.8,"wet":0.35},"landHdg":4.974192653589793,"altiport":false,"treeBox":false,"treeClear":null,"takeoffHdg":1.8326,"turn":[{"r":9,"side":-1},{"r":9,"side":-1}],"slope":0,"disp":[0,0],"papi":[false,false],"circuit":null}},"manual":false,"simw":true,"t":2.433333333333358,"timeOrigin":1791270005101.5,"weather":null,"day":{"cloudCover":0.25,"cloudSeed":1,"cloudType":"cuh","date":"2026-06-22","groundAlbedo":0.15,"ozone":300,"rate":1,"rh":0.5,"turbidity":2.8,"utc":18.389266666666753,"wind":{"kts":8,"dirDeg":250,"gust":0.15,"refH":10,"breeze":1}},"woodSolid":false,"obstacles":249,"treeHits":59559}
+[   81.8 s]   install: installed
+[   81.8 s]   rate: 2
+[   81.8 s]   LEG 1 HOME > nv_strip (the roll-out: the route pref {"from":"HOME","dest":"nv_strip","to":"nv_strip","base":"HOME","spawn":null})
+[   82.0 s]     t 3 (leg 0 s) TAXI agl 0 Vg 3.9 to nv_strip rate 2 dil 1.00 rows 2
+[   84.6 s]     still L1 depart t 5.72 TAXI agl 0
+[  102.1 s]     t 43 (leg 40 s) TAXI agl 0 Vg 3.3 to nv_strip rate 2 dil 1.00 rows 163
+[  122.1 s]     t 83 (leg 80 s) TAXI agl 0 Vg 8.9 to nv_strip rate 2 dil 1.00 rows 323
+[  142.2 s]     t 123 (leg 121 s) TAXI agl 0 Vg 8.0 to nv_strip rate 2 dil 1.00 rows 484
+[  154.0 s]     still L1 uturn t 144.73 TAXI agl 0
+[  162.3 s]     t 163 (leg 161 s) TAXI agl 0 Vg 3.5 to nv_strip rate 2 dil 1.00 rows 645
+[  166.8 s]     still L1 roll t 170.22 ROLL agl 0
+[  172.3 s]     still L1 liftoff t 181.23 LIFTOFF agl 0
+[  182.4 s]     t 204 (leg 201 s) CLIMB agl 41 Vg 24.6 to nv_strip rate 2 dil 1.00 rows 806
+[  202.5 s]     t 244 (leg 241 s) INBOUND agl 168 Vg 27.0 to nv_strip rate 2 dil 1.00 rows 967
+[  222.6 s]     t 284 (leg 281 s) INBOUND agl 292 Vg 27.4 to nv_strip rate 2 dil 1.00 rows 1127
+[  242.7 s]     t 324 (leg 322 s) INBOUND agl 376 Vg 33.9 to nv_strip rate 2 dil 1.00 rows 1288
+[  262.7 s]     t 364 (leg 362 s) INBOUND agl 455 Vg 29.9 to nv_strip rate 2 dil 1.00 rows 1448
+[  282.7 s]     t 404 (leg 402 s) INBOUND agl 508 Vg 32.7 to nv_strip rate 2 dil 1.00 rows 1608
+[  302.8 s]     t 444 (leg 442 s) INBOUND agl 483 Vg 37.4 to nv_strip rate 2 dil 1.00 rows 1768
+[  322.9 s]     t 485 (leg 482 s) INBOUND agl 500 Vg 29.8 to nv_strip rate 2 dil 1.00 rows 1929
+[  342.9 s]     t 525 (leg 522 s) INBOUND agl 506 Vg 39.4 to nv_strip rate 2 dil 1.00 rows 2090
+[  363.0 s]     t 565 (leg 562 s) INBOUND agl 560 Vg 37.4 to nv_strip rate 2 dil 1.00 rows 2250
+[  383.2 s]     t 605 (leg 602 s) INBOUND agl 111 Vg 37.7 to nv_strip rate 2 dil 1.00 rows 2411
+[  403.2 s]     t 645 (leg 643 s) INBOUND agl 550 Vg 34.6 to nv_strip rate 2 dil 1.00 rows 2572
+[  423.3 s]     t 685 (leg 683 s) FINAL agl 497 Vg 20.6 to nv_strip rate 2 dil 1.00 rows 2733
+[  432.3 s]     still L1 final1k t 701.27 FINAL agl 474.8
+[  443.4 s]     t 726 (leg 723 s) CROSSWIND agl 433 Vg 21.6 to nv_strip rate 2 dil 1.00 rows 2893
+[  463.5 s]     t 766 (leg 763 s) DOWNWIND agl 253 Vg 27.0 to nv_strip rate 2 dil 1.00 rows 3054
+[  483.7 s]     t 806 (leg 804 s) BASE agl 184 Vg 25.0 to nv_strip rate 2 dil 1.00 rows 3216
+[  503.7 s]     t 846 (leg 844 s) FINAL agl 132 Vg 16.5 to nv_strip rate 2 dil 1.00 rows 3376
+[  523.7 s]     t 886 (leg 884 s) FINAL agl 97 Vg 18.8 to nv_strip rate 2 dil 1.00 rows 3536
+[  530.5 s]     still L1 final300 t 897.67 FINAL agl 65.5
+[  538.2 s]     still L1 touchdown t 912.9 ROLLOUT agl 0
+[  544.5 s]     still L1 stop t 925.63 STOPPED agl 0
+[  544.5 s]   LEG 1 stopped at nv_strip · 923 s sim, 463 s wall ({"mean":2,"min":1.91,"simOverWall":2}) · verdicts ["go-around: high on the slope 537 m out (attempt 1)"]
+[  545.3 s]   LEG 2 nv_strip > mn_strip: the To picker -> {"last":{"to":"mn_strip","how":"leg","phase":"DEPART"},"disabled":false,"t":929.3833333203078,"phase":"DEPART","from":"nv_strip"}
+[  545.5 s]     t 930 (leg 0 s) TAXI agl 0 Vg 0.2 to mn_strip rate 2 dil 1.00 rows 3710
+[  548.0 s]     still L2 depart t 932.45 TAXI agl 0
+[  565.6 s]     t 970 (leg 40 s) TAXI agl 0 Vg 3.9 to mn_strip rate 2 dil 1.00 rows 3870
+[  580.0 s]     still L2 uturn t 996.5 TAXI agl 0
+[  585.7 s]     t 1010 (leg 81 s) TAXI agl 0 Vg 2.6 to mn_strip rate 2 dil 1.00 rows 4031
+[  605.8 s]     t 1050 (leg 121 s) TAXI agl 0 Vg 3.8 to mn_strip rate 2 dil 1.00 rows 4192
+[  625.9 s]     t 1090 (leg 161 s) TAXI agl 0 Vg 2.7 to mn_strip rate 2 dil 1.00 rows 4353
+[  640.8 s]     still L2 roll t 1117.83 ROLL agl 0
+[  643.1 s]   !!! ABORT: the take-off rejected
+[  644.2 s]     still L2 abort t 1124.82 ABORT agl 0
+[  646.0 s]     t 1130 (leg 201 s) ABORT agl 0 Vg 5.8 to mn_strip rate 2 dil 1.00 rows 4513
+[  650.1 s]   RETRY nv_strip > mn_strip: the To picker -> {"last":{"to":"mn_strip","how":"leg","phase":"DEPART"},"disabled":false,"t":1138.83333331726,"phase":"DEPART","from":"nv_strip"}
+[  666.1 s]     t 1170 (leg 241 s) TAXI agl 0 Vg 2.5 to mn_strip rate 2 dil 1.00 rows 4673
+[  686.1 s]     t 1211 (leg 281 s) TAXI agl 0 Vg 0.4 to mn_strip rate 2 dil 1.00 rows 4833
+[  697.2 s]   !!! ABORT: the take-off rejected
+[  698.3 s]     still L2 abort1 t 1232.87 ABORT agl 0
+[  704.2 s]   LEG 2 FAULTS abort,abort · 317 s sim, 160 s wall ({"mean":2,"min":1.94,"simOverWall":1.99}) · verdicts ["pivot: a 197 deg turn tighter than the wheels steer (11.3 m) — turning on the spot","rejected-takeoff: will not reach Vr: 1.48 m/s^2 needs 59 m more, 65 m left"]
+[  704.2 s] TOUR ENDED: the take-off rejected twice · 10.4 min of flight
+[  704.2 s]   flight log: {"name":"flydiy-flightlog-20261006T070006-1g91.json","bytes":2929966}
+[  705.2 s]   flight log saved: flydiy-flightlog-20261006T070006-1g91.json
+[  705.3 s]   wrote samples.json (4978 rows), legs.json (2 legs, 13 stills), cast 3689 frames

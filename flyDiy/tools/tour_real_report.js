@@ -282,16 +282,16 @@ if (!flag('no-media')) {
   // the casts: page sim time -> epoch ms through the samples (wallMs on the page's clock + its timeOrigin)
   const TO = PL.start && PL.start.timeOrigin;
   const frames = (PL.cast && PL.cast.frames) || [], blanks = (PL.cast && PL.cast.blanks) || [];
-  const epochOfT = t => { let best = null; for (const p of pageRows) { if (p.t >= t) { best = p; break; } } return best && TO ? TO + best.wallMs : null; };
+  const epochOfT = t => { let best = null; for (const p of pageRows) { if (p.t >= t) { best = p; break; } } best = best || pageRows[pageRows.length - 1]; return best && TO ? TO + best.wallMs : null; };
   const cut = (name, tA, tB) => {
     const eA = epochOfT(tA), eB = epochOfT(tB); if (!eA || !eB) return;
     let F = frames.filter(fr => { const e = fr[2] ? fr[2] * 1000 : fr[1]; return e >= eA && e <= eB && !fr[3] && !blanks.some(b => e >= b[0] - 100 && e <= b[1] + 150); });
     if (F.length < 3) { console.log('  cast ' + name + ': ' + F.length + ' frames - skipped'); return; }
-    const keep = Math.min(F.length, 240); F = F.filter((_, i) => i % Math.ceil(F.length / keep) === 0);
+    const keep = Math.min(F.length, 160); F = F.filter((_, i) => i % Math.ceil(F.length / keep) === 0);
     const list = F.map(fr => path.join(PAGE, 'cast', 'c' + String(fr[0]).padStart(6, '0') + '.jpg')).filter(p => fs.existsSync(p));
     const lf = path.join(tmp, name + '.txt'); fs.writeFileSync(lf, list.map(p => p.replace(/\\/g, '/')).join('\n'));
     const dur = (eB - eA) / 1000, delay = Math.max(4, Math.round(100 * dur / list.length / 2));   // played at 2x the wall clock it was recorded on
-    try { execFileSync('magick', ['-delay', String(delay), '-loop', '0', '@' + lf, '-resize', '640x', '-quality', '55', path.join(OUT, name + '.webp')], { stdio: 'ignore' }); console.log('  cast ' + name + ': ' + list.length + ' frames, ' + dur.toFixed(0) + ' s wall'); }
+    try { execFileSync('magick', ['-delay', String(delay), '-loop', '0', '@' + lf, '-resize', '512x', '-quality', '40', path.join(OUT, name + '.webp')], { stdio: 'ignore' }); console.log('  cast ' + name + ': ' + list.length + ' frames, ' + dur.toFixed(0) + ' s wall'); }
     catch (e) { console.log('  (cast ' + name + ': ' + e.message.split('\n')[0] + ')'); }
   };
   for (const L of PL.legs) {
@@ -300,6 +300,8 @@ if (!flag('no-media')) {
     if (roll) cut('cast_L' + L.leg + '_uturn', Math.max(L.tStart, roll.t - 90), roll.t + 4);
     const f300 = R.find(p => p.phase === 'FINAL' && Math.hypot(p.x - b.x, p.z - b.z) - b.len / 2 <= 300) || R.find(p => p.phase === 'FINAL');
     if (f300 && L.tStop != null) cut('cast_L' + L.leg + '_landing', f300.t, L.tStop + 2);
+    // a rejected take-off (and its retry): the whole ground part of the leg, the turn-arounds, both rolls, both stops
+    if ((L.faults || []).some(f => f.k === 'abort') && L.tStop != null) cut('cast_L' + L.leg + '_ground', L.tStart, L.tStop + 2);
   }
 }
 console.log('tour_real_report: wrote ' + OUT);

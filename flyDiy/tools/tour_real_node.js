@@ -31,11 +31,17 @@ const LEGS = +opt('legs', 99), TMAX = opt('tmax', null);   // a smoke run: --leg
 const OUT = opt('out', path.join(__dirname, '..', 'reports', 'evidence', 'TOUR-REAL', 'node_tour.json'));
 
 const spec = PT.specOf(BUILD).spec;
+// --fuel <litres>: the load the page flies (its first sample's fuelL - the game does not take the build file's spec.fuel)
+if (opt('fuel', null) != null) { spec.fuel = Object.assign({}, spec.fuel || {}, { litres: +opt('fuel') }); console.log('  fuel set to ' + spec.fuel.litres + ' L'); }
 const def = C.buildGen(C.genMigrateSpec ? C.genMigrateSpec(spec) : spec);
 def.params = Object.assign({}, def.params, { damage: DAMAGE });
 const t0 = Date.now();
 const TW = TR.tourWorld(C, IN, fs);
 const W = TW.W;
+// --day <json | @file>: the page's own day (tour_real.js legs.json start.day - the default 'Standard · light breeze 8 kt',
+// its clock and its wind) instead of the node world's calm default; frozen for the flight (node has no viewer clock)
+const DAYJ = opt('day', null);
+if (DAYJ) { const d = JSON.parse(DAYJ[0] === '@' ? fs.readFileSync(DAYJ.slice(1), 'utf8') : DAYJ); W.setDay(d.start && d.start.day ? d.start.day : d); console.log('  the day: ' + JSON.stringify(W.day.spec())); }
 console.log('tour_real_node: ' + path.basename(BUILD) + ' (span ' + def.params.gen.span.toFixed(2) + ' m), damage ' + (DAMAGE ? 'ON' : 'off') + ', ' + TW.obstacles + ' obstacles + ' + TW.trunks + ' trunks; ' + order.join(' > '));
 
 // the pilot flyLeg makes, caught as it is made (the sampler reads its phase)
@@ -80,6 +86,7 @@ for (let i = 1; i < order.length && i <= LEGS; i++) {
   L.landedAt = AP && AP.route && AP.route.to ? AP.route.to.id : null;   // the field it really landed on (a diversion's)
   legs.push(L);
   console.log(TR.fmtLeg(L));
+  writeOut(false);   // after every leg: a killed run keeps what it flew
   // a leg that did not end at its To: the tour stops - unless it is a DIVERSION (stopped on the ground at another field,
   // the sim sane), which the page rig flies on from too (the next To picked where the aeroplane stands)
   // (_tour_lib judges a landing roll against the PLANNED To's box: after a diversion its ground-loop / off-strip are the
@@ -90,13 +97,16 @@ for (let i = 1; i < order.length && i <= LEGS; i++) {
 }
 sim.step = step0;
 const done = legs.length === order.length - 1 && legs.every(L => L.ok);
-const obst = W.obstacles && W.obstacles.list ? W.obstacles.list().map(o => ({ x: r2(o.x), z: r2(o.z), tag: o.tag || null, r: o.shape && o.shape.r != null ? r2(o.shape.r) : null })) : [];
 console.log((done ? 'TOUR DONE' : 'TOUR NOT DONE') + ' - ' + legs.length + ' legs, ' + T0.toFixed(0) + ' s sim, ' + ((Date.now() - t0) / 1000).toFixed(0) + ' s wall');
+writeOut(done);
+console.log('-> ' + OUT);
+process.exit(done ? 0 : 1);
+function writeOut(done) {
+  const obst = W.obstacles && W.obstacles.list ? W.obstacles.list().map(o => ({ x: r2(o.x), z: r2(o.z), tag: o.tag || null, r: o.shape && o.shape.r != null ? r2(o.shape.r) : null })) : [];
 fs.mkdirSync(path.dirname(OUT), { recursive: true });
 fs.writeFileSync(OUT, JSON.stringify({ kind: 'node', build: path.basename(BUILD), damage: DAMAGE, order, done, hz: HZ,
   cols: ['t', 'x', 'y', 'z', 'agl', 'phase', 'Vg', 'nose', 'onG', 'leg'], rows, legs, obstacles: obst,
   fuel: sim.fuel ? r2(sim.fuel.litres) : null, wall: (Date.now() - t0) / 1000,
   world: { weather: JSON.parse(JSON.stringify(W.weather || null)), day: W.day && W.day.spec ? JSON.parse(JSON.stringify(W.day.spec())) : null, woodSolid: W.woodSolid,
     obstacles: W.obstacles ? W.obstacles.count : null, trunks: TW.trunks } }));
-console.log('-> ' + OUT);
-process.exit(done ? 0 : 1);
+}

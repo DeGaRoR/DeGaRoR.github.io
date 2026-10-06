@@ -1,0 +1,126 @@
+[    0.0 s] tour_real: root D:\Dev\wt-tour2 · build builds/cub_2026-09-20_corrected.json · damage 0 · rate 2 · HOME > mn_strip > tw_ski > w3 > HOME · out D:\Dev\tour_real_runs\tour2
+[    0.5 s]   version.json {"build":"b8d949466587","date":"2026-10-06T06:29:57.686Z"}
+[    0.5 s]   chrome pid 61052 · devtools 9748 · profile C:\Users\denis\AppData\Local\Temp\tour_real_udd_20261006T071231
+[    1.1 s]   -> http://localhost:8783/flyDiy/index.html?damage=0
+[   67.4 s]   garage: ready after 66.3 s
+[   71.0 s]   env {"gpu":"ANGLE (NVIDIA, NVIDIA GeForce RTX 3080 (0x00002216) Direct3D11 vs_5_0 ps_5_0, D3D11)","gfx":{"preset":"gamer","build":"gamer","pv":8,"fps":30,"fpsOwn":false,"ground":"far1","scale":1,"cover":"full","scenery":"full","drawDist":"vis","terrain":1,"aa":"msaa","density":128,"bands":"mid","shadows":"full","canopy":"on","rails":"on","poles":"on","glare":"on","sway":"on","mist":"land","clouds":"half","water":"simple","mirror":"off","lighting":"sunset","tone":"cineon","exposure":1,"colour":"managed","bloom":"soft","look":"off","lens":"off","rays":"off","ao":"off","eye":"off","compositing":"linear","town":"nearby"},"build":"b8d949466587","route":{"from":"HOME","dest":"mn_strip","to":"mn_strip","base":"HOME","spawn":null},"ua":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36","webdriver":false}
+[   74.4 s]   roll-out screen: gone after 3.3 s
+[   83.0 s]   start {"route":{"from":"HOME","dest":"mn_strip","to":"mn_strip","base":"HOME","spawn":null},"where":{"kind":"stand","aero":{"id":"HOME","name":"Jolene AFB 13/31","kind":"strip","x":-301,"z":221,"hdg":0.7156,"len":2325,"wid":45,"surface":5,"look":"worn","elev":31.683077650974106,"tdz":[135.78247155506182,600.7007177268059],"spawn":[-154,712],"spawnElev":30.6,"flyIn":false,"premises":true,"band":40,"pav":{"rubberK":0,"laneW":6.1},"landHdg":null,"altiport":false,"treeBox":true,"treeClear":null,"takeoffHdg":null,"turn":null,"slope":0,"disp":[0,0],"papi":["vasi","vasi"],"circuit":null},"id":"HOME","d":247.57934957902313,"along":432.7235112579914,"cross":270.07934957902313},"span":10.7,"dmgPage":false,"substeps":74,"mass":462,"cg":[-151.6,31.6,708.7],"phase":"TAXI","apRoute":{"from":{"id":"HOME","name":"Jolene AFB 13/31","kind":"strip","x":-301,"z":221,"hdg":0.7156,"len":2325,"wid":45,"surface":5,"look":"worn","elev":31.683077650974106,"tdz":[135.78247155506182,600.7007177268059],"spawn":[-154,712],"spawnElev":30.6,"flyIn":false,"premises":true,"band":40,"pav":{"rubberK":0,"laneW":6.1},"landHdg":null,"altiport":false,"treeBox":true,"treeClear":null,"takeoffHdg":null,"turn":null,"slope":0,"disp":[0,0],"papi":["vasi","vasi"],"circuit":null},"to":{"id":"mn_strip","name":"Jumbo Mine Street","kind":"strip","x":7249.68,"z":-15429.37,"hdg":-1.6581,"len":250,"wid":18,"surface":6,"look":"gravel","elev":346.7980078261866,"tdz":[7244.448431298294,-15489.141487257048],"spawn":[7278,-15318],"spawnElev":346.8,"flyIn":false,"premises":true,"band":2,"pav":{"marks":"none"},"landHdg":1.4834926535897932,"altiport":false,"treeBox":true,"treeClear":null,"takeoffHdg":-1.6581,"turn":null,"slope":0,"disp":[0,0],"papi":[false,false],"circuit":null}},"manual":false,"simw":true,"t":2.3833333333333955,"timeOrigin":1791270752399.3,"weather":null,"day":{"cloudCover":0.25,"cloudSeed":1,"cloudType":"cuh","date":"2026-06-22","groundAlbedo":0.15,"ozone":300,"rate":1,"rh":0.5,"turbidity":2.8,"utc":17.939233333333405,"wind":{"kts":8,"dirDeg":250,"gust":0.15,"refH":10,"breeze":1}},"woodSolid":false,"obstacles":249,"treeHits":59559}
+[   83.0 s]   install: installed
+[   83.0 s]   rate: 2
+[   83.0 s]   LEG 1 HOME > mn_strip (the roll-out: the route pref {"from":"HOME","dest":"mn_strip","to":"mn_strip","base":"HOME","spawn":null})
+[   83.2 s]     t 3 (leg 0 s) TAXI agl 0 Vg 3.9 to mn_strip rate 2 dil 1.00 rows 2
+[   85.5 s]     still L1 depart t 5.4 TAXI agl 0
+[  103.2 s]     t 43 (leg 40 s) TAXI agl 0 Vg 3.4 to mn_strip rate 2 dil 1.00 rows 162
+[  123.2 s]     t 83 (leg 80 s) TAXI agl 0 Vg 8.9 to mn_strip rate 2 dil 1.00 rows 323
+[  143.3 s]     t 123 (leg 121 s) TAXI agl 0 Vg 8.0 to mn_strip rate 2 dil 1.00 rows 484
+[  155.2 s]     still L1 uturn t 144.67 TAXI agl 0
+[  163.4 s]     t 163 (leg 161 s) TAXI agl 0 Vg 3.5 to mn_strip rate 2 dil 1.00 rows 645
+[  168.1 s]     still L1 roll t 170.47 ROLL agl 0
+[  173.6 s]     still L1 liftoff t 181.45 LIFTOFF agl 0.1
+[  183.5 s]     t 203 (leg 201 s) CLIMB agl 40 Vg 24.7 to mn_strip rate 2 dil 1.00 rows 805
+[  203.6 s]     t 244 (leg 241 s) ENROUTE agl 169 Vg 26.2 to mn_strip rate 2 dil 1.00 rows 966
+[  223.7 s]     t 284 (leg 281 s) ENROUTE agl 286 Vg 26.7 to mn_strip rate 2 dil 1.00 rows 1127
+[  243.8 s]     t 324 (leg 322 s) ENROUTE agl 427 Vg 27.4 to mn_strip rate 2 dil 1.00 rows 1287
+[  263.8 s]     t 364 (leg 362 s) ENROUTE agl 560 Vg 27.7 to mn_strip rate 2 dil 1.00 rows 1447
+[  283.9 s]     t 404 (leg 402 s) ENROUTE agl 512 Vg 34.2 to mn_strip rate 2 dil 1.00 rows 1608
+[  304.0 s]     t 444 (leg 442 s) ENROUTE agl 158 Vg 38.0 to mn_strip rate 2 dil 1.00 rows 1768
+[  324.1 s]     t 485 (leg 482 s) ENROUTE agl 437 Vg 38.2 to mn_strip rate 2 dil 1.00 rows 1930
+[  344.3 s]     t 525 (leg 523 s) ENROUTE agl 527 Vg 38.1 to mn_strip rate 2 dil 1.00 rows 2091
+[  364.3 s]     t 565 (leg 563 s) ENROUTE agl 62 Vg 36.4 to mn_strip rate 2 dil 1.00 rows 2251
+[  384.4 s]     t 605 (leg 603 s) ENROUTE agl 503 Vg 38.1 to mn_strip rate 2 dil 1.00 rows 2412
+[  404.5 s]     t 645 (leg 643 s) ENROUTE agl 349 Vg 37.5 to mn_strip rate 2 dil 1.00 rows 2573
+[  424.6 s]     t 685 (leg 683 s) ENROUTE agl 281 Vg 37.2 to mn_strip rate 2 dil 1.00 rows 2733
+[  444.7 s]     t 726 (leg 723 s) ENROUTE agl 193 Vg 36.1 to mn_strip rate 2 dil 1.00 rows 2894
+[  464.8 s]     t 766 (leg 764 s) DOWNWIND agl 230 Vg 34.7 to mn_strip rate 2 dil 1.00 rows 3055
+[  484.8 s]     t 806 (leg 804 s) BASE agl 336 Vg 26.7 to mn_strip rate 2 dil 1.00 rows 3215
+[  504.9 s]     t 846 (leg 844 s) FINAL agl 381 Vg 9.2 to mn_strip rate 2 dil 1.00 rows 3376
+[  525.0 s]     t 886 (leg 884 s) FINAL agl 395 Vg 12.1 to mn_strip rate 2 dil 1.00 rows 3537
+[  527.2 s]     still L1 final1k t 888.67 FINAL agl 370.1
+[  545.0 s]     t 926 (leg 924 s) FINAL agl 122 Vg 13.6 to mn_strip rate 2 dil 1.00 rows 3697
+[  553.3 s]     still L1 final300 t 940.7 FINAL agl 86.1
+[  564.7 s]     still L1 touchdown t 963.6 ROLLOUT agl 0
+[  565.0 s]     t 966 (leg 964 s) ROLLOUT agl 0 Vg 8.6 to mn_strip rate 2 dil 1.00 rows 3857
+[  569.8 s]     still L1 stop t 973.82 STOPPED agl 0
+[  569.8 s]   LEG 1 stopped at mn_strip · 971 s sim, 487 s wall ({"mean":2,"min":1.89,"simOverWall":2}) · verdicts []
+[  570.6 s]   LEG 2 mn_strip > tw_ski: the To picker -> {"last":{"to":"tw_ski","how":"leg","phase":"DEPART"},"disabled":false,"t":977.6333333196056,"phase":"DEPART","from":"mn_strip"}
+[  570.8 s]     t 978 (leg 0 s) TAXI agl 0 Vg 0.3 to tw_ski rate 2 dil 1.00 rows 3903
+[  573.3 s]     still L2 depart t 980.78 TAXI agl 0
+[  587.0 s]     still L2 uturn t 1008.15 TAXI agl 0
+[  590.8 s]     t 1018 (leg 40 s) TAXI agl 0 Vg 3.6 to tw_ski rate 2 dil 1.00 rows 4063
+[  595.1 s]     still L2 roll t 1024.28 ROLL agl 0
+[  601.2 s]     still L2 liftoff t 1036.35 LIFTOFF agl 0.1
+[  611.0 s]     t 1058 (leg 81 s) CLIMB agl 91 Vg 26.8 to tw_ski rate 2 dil 1.00 rows 4224
+[  631.1 s]     t 1098 (leg 121 s) ENROUTE agl 422 Vg 17.7 to tw_ski rate 2 dil 1.00 rows 4385
+[  651.2 s]     t 1139 (leg 161 s) ENROUTE agl 384 Vg 17.1 to tw_ski rate 2 dil 1.00 rows 4546
+[  671.3 s]     t 1179 (leg 201 s) ENROUTE agl 372 Vg 17.1 to tw_ski rate 2 dil 1.00 rows 4707
+[  691.4 s]     t 1219 (leg 241 s) ENROUTE agl 724 Vg 25.9 to tw_ski rate 2 dil 1.00 rows 4867
+[  711.4 s]     t 1259 (leg 281 s) ENROUTE agl 450 Vg 27.1 to tw_ski rate 2 dil 1.00 rows 5027
+[  731.5 s]     t 1299 (leg 322 s) ENROUTE agl 528 Vg 26.5 to tw_ski rate 2 dil 1.00 rows 5188
+[  751.6 s]     t 1339 (leg 362 s) ENROUTE agl 748 Vg 26.4 to tw_ski rate 2 dil 1.00 rows 5349
+[  771.7 s]     t 1380 (leg 402 s) ENROUTE agl 737 Vg 26.4 to tw_ski rate 2 dil 1.00 rows 5510
+[  791.7 s]     t 1420 (leg 442 s) ENROUTE agl 627 Vg 26.3 to tw_ski rate 2 dil 1.00 rows 5670
+[  811.8 s]     t 1460 (leg 482 s) ENROUTE agl 411 Vg 25.9 to tw_ski rate 2 dil 1.00 rows 5830
+[  831.8 s]     t 1500 (leg 522 s) ENROUTE agl 237 Vg 25.6 to tw_ski rate 2 dil 1.00 rows 5991
+[  851.9 s]     t 1540 (leg 562 s) ENROUTE agl 542 Vg 25.9 to tw_ski rate 2 dil 1.00 rows 6152
+[  872.1 s]     t 1580 (leg 603 s) DOWNWIND agl 669 Vg 26.4 to tw_ski rate 2 dil 1.00 rows 6313
+[  892.1 s]     t 1620 (leg 643 s) DOWNWIND agl 687 Vg 26.4 to tw_ski rate 2 dil 1.00 rows 6473
+[  912.2 s]     t 1661 (leg 683 s) BASE agl 810 Vg 18.1 to tw_ski rate 2 dil 1.00 rows 6634
+[  932.2 s]     t 1701 (leg 723 s) FINAL agl 762 Vg 21.6 to tw_ski rate 2 dil 1.00 rows 6794
+[  952.4 s]     t 1741 (leg 763 s) FINAL agl 638 Vg 23.1 to tw_ski rate 2 dil 1.00 rows 6955
+[  955.1 s]     still L2 final1k t 1744.47 FINAL agl 592.6
+[  969.9 s]     still L2 final300 t 1773.97 FINAL agl 191.5
+[  972.4 s]     t 1781 (leg 803 s) FINAL agl 47 Vg 22.7 to tw_ski rate 2 dil 1.00 rows 7116
+[  978.8 s]     still L2 touchdown t 1791.55 ROLLOUT agl 0
+[  992.5 s]     t 1821 (leg 843 s) ROLLOUT agl 0 Vg 3.0 to tw_ski rate 2 dil 1.00 rows 7273
+[ 1012.5 s]     t 1861 (leg 883 s) ROLLOUT agl 0 Vg 3.0 to tw_ski rate 2 dil 1.00 rows 7433
+[ 1015.7 s]     still L2 stop t 1865.25 STOPPED agl 0
+[ 1015.7 s]   LEG 2 stopped at tw_ski · 888 s sim, 446 s wall ({"mean":2,"min":1.78,"simOverWall":1.99}) · verdicts ["pivot: a 217 deg turn tighter than the wheels steer (11.3 m) — turning on the spot","committed-takeoff: past the point of stopping at V=12.8 with 133 m left — Vr in 31 m, continuing","slope: stopped on a 9.8 % grade — rolling 190 m on to the level part"]
+[ 1016.5 s]   LEG 3 tw_ski > w3: the To picker -> {"last":{"to":"w3","how":"leg","phase":"DEPART"},"disabled":false,"t":1868.86666663997,"phase":"DEPART","from":"tw_ski"}
+[ 1016.7 s]     t 1869 (leg 0 s) TAXI agl 0 Vg 0.2 to w3 rate 2 dil 1.00 rows 7467
+[ 1019.2 s]     still L3 depart t 1871.95 TAXI agl 0
+[ 1027.4 s]     still L3 uturn t 1888.45 TAXI agl 0
+[ 1036.1 s]     still L3 roll t 1905.72 ROLL agl 0
+[ 1036.7 s]     t 1909 (leg 40 s) ROLL agl 0 Vg 5.3 to w3 rate 2 dil 1.00 rows 7627
+[ 1040.7 s]     still L3 liftoff t 1915.08 LIFTOFF agl 0.2
+[ 1056.9 s]     t 1949 (leg 80 s) CLIMB agl 243 Vg 18.0 to w3 rate 2 dil 1.00 rows 7788
+[ 1076.9 s]     t 1990 (leg 121 s) ENROUTE agl 578 Vg 26.2 to w3 rate 2 dil 1.00 rows 7948
+[ 1097.1 s]     t 2030 (leg 161 s) ENROUTE agl 557 Vg 26.8 to w3 rate 2 dil 1.00 rows 8109
+[ 1117.1 s]     t 2070 (leg 201 s) ENROUTE agl 389 Vg 26.7 to w3 rate 2 dil 1.00 rows 8270
+[ 1137.2 s]     t 2110 (leg 241 s) ENROUTE agl 273 Vg 28.0 to w3 rate 2 dil 1.00 rows 8431
+[ 1157.2 s]     t 2150 (leg 281 s) DOWNWIND agl 141 Vg 38.1 to w3 rate 2 dil 1.00 rows 8591
+[ 1177.3 s]     t 2190 (leg 321 s) FINAL agl 160 Vg 12.3 to w3 rate 2 dil 1.00 rows 8751
+[ 1197.4 s]     t 2230 (leg 362 s) FINAL agl 113 Vg 11.3 to w3 rate 2 dil 1.00 rows 8912
+[ 1199.4 s]     still L3 final1k t 2232.43 FINAL agl 110
+[ 1217.5 s]     t 2271 (leg 402 s) FINAL agl 85 Vg 10.7 to w3 rate 2 dil 1.00 rows 9073
+[ 1231.4 s]     still L3 final300 t 2296.38 FINAL agl 55.1
+[ 1237.6 s]     t 2311 (leg 442 s) FINAL agl 35 Vg 14.5 to w3 rate 2 dil 1.00 rows 9234
+[ 1244.3 s]     still L3 touchdown t 2322.08 ROLLOUT agl 0
+[ 1250.4 s]     still L3 stop t 2334.47 STOPPED agl 0
+[ 1250.4 s]   LEG 3 stopped at w3 · 466 s sim, 235 s wall ({"mean":2,"min":1.92,"simOverWall":1.98}) · verdicts ["committed-takeoff: airborne with 271 m of strip left, past the point of stopping — continuing"]
+[ 1251.2 s]   LEG 4 w3 > HOME: the To picker -> {"last":{"to":"HOME","how":"leg","phase":"DEPART"},"disabled":false,"t":2338.099999966475,"phase":"DEPART","from":"w3"}
+[ 1251.4 s]     t 2338 (leg 0 s) TAXI agl 0 Vg 0.2 to HOME rate 2 dil 1.00 rows 9344
+[ 1253.8 s]     still L4 depart t 2341.17 TAXI agl 0
+[ 1271.4 s]     t 2378 (leg 40 s) TAXI agl 0 Vg 5.1 to HOME rate 2 dil 1.00 rows 9504
+[ 1289.6 s]     still L4 uturn t 2412.77 TAXI agl 0
+[ 1291.5 s]     t 2418 (leg 80 s) TAXI agl 0 Vg 3.1 to HOME rate 2 dil 1.00 rows 9664
+[ 1299.0 s]     still L4 roll t 2431.3 ROLL agl 0
+[ 1304.1 s]     still L4 liftoff t 2441.43 LIFTOFF agl 0.1
+[ 1311.6 s]     t 2459 (leg 121 s) CLIMB agl 36 Vg 26.4 to HOME rate 2 dil 1.00 rows 9825
+[ 1331.6 s]     t 2499 (leg 161 s) ENROUTE agl 149 Vg 24.1 to HOME rate 2 dil 1.00 rows 9985
+[ 1351.6 s]     t 2539 (leg 201 s) ENROUTE agl 130 Vg 29.2 to HOME rate 2 dil 1.00 rows 10145
+[ 1371.8 s]     t 2579 (leg 241 s) DOWNWIND agl 119 Vg 30.7 to HOME rate 2 dil 1.00 rows 10306
+[ 1391.8 s]     t 2619 (leg 281 s) DOWNWIND agl 122 Vg 30.3 to HOME rate 2 dil 1.00 rows 10466
+[ 1411.8 s]     t 2659 (leg 321 s) BASE agl 130 Vg 19.9 to HOME rate 2 dil 1.00 rows 10626
+[ 1421.6 s]     still L4 final1k t 2676.68 FINAL agl 151.5
+[ 1431.8 s]     t 2699 (leg 361 s) FINAL agl 129 Vg 17.2 to HOME rate 2 dil 1.00 rows 10787
+[ 1443.6 s]     still L4 final300 t 2720.63 FINAL agl 87.6
+[ 1451.9 s]     t 2739 (leg 401 s) FINAL agl 49 Vg 17.9 to HOME rate 2 dil 1.00 rows 10948
+[ 1466.6 s]     still L4 touchdown t 2766.63 ROLLOUT agl 0
+[ 1472.1 s]     t 2780 (leg 442 s) ROLLOUT agl 0 Vg 1.1 to HOME rate 2 dil 1.00 rows 11109
+[ 1475.5 s]     still L4 stop t 2784.48 STOPPED agl 0
+[ 1475.5 s]   LEG 4 stopped at HOME · 446 s sim, 225 s wall ({"mean":2,"min":1.94,"simOverWall":1.98}) · verdicts []
+[ 1475.5 s] TOUR DONE · 23.2 min of flight
+[ 1475.7 s]   flight log: {"name":"flydiy-flightlog-20261006T071233-hl59.json","bytes":6324918}
+[ 1476.7 s]   flight log saved: flydiy-flightlog-20261006T071233-hl59.json
+[ 1476.7 s]   wrote samples.json (11137 rows), legs.json (4 legs, 32 stills), cast 8246 frames
