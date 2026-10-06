@@ -44,6 +44,12 @@
 //     wrinkle of WRINKLE_L, +-WRINKLE_A of the sag) so a slack panel does not read as a stretched one (§8.4). A fixed
 //     field per vertex, made at the event; per frame one multiply-add along `down`. Metal and ply skins do not drape
 //     (they would dent - D4b's to judge on the box).
+//   - G2047 (DMG-COMPOSITE): A COMPOSITE SHELL CRACKS, IT NEVER STRETCHES (R.shellTear: a carbon or glass skin, o.shell):
+//     a laminate breaks at 1-2.5 % strain (carbon ~1.1-1.5, E-glass ~2-2.5: GEN_CRASH carbon / glass), so a watched
+//     triangle whose edge has gone past SHELL_TEAR over its rest (+ SHELL_ABS, the lattice's own elastic give - its
+//     springs are softer than the laminate) has cracked and is gone: the shell comes apart in large pieces along the
+//     members' breaks (the event's rule) with jagged edges where it cracked between them - never a 15 % sheet, never a
+//     metal's 40 %. No drape (a laminate is not slack cloth).
 // The core's skin is posed as it always was until a member breaks: nothing here runs, and not one bit of a skin moves,
 // while nothing is broken. PURE: no THREE, no DOM; node-tested by GATE DMGSKIN (tools/_dmg_skin_check.js).
 // window.SKIN_BREAK in the page; module.exports in node.
@@ -55,6 +61,8 @@
   const WRINKLE_L = 0.12;     // the wrinkles' pitch along the broken member (m)
   const WRINKLE_A = 0.35;     // ...their depth, over the sag
   const NEAR_K = 4;           // the cage snapshot's binding: the 4 nearest nodes, inverse-square weighted
+  const SHELL_TEAR = 0.05;    // G2047: a composite shell's crack (above)
+  const SHELL_ABS = 0.01;
 
   // ---- the topology: the member pairs and each node's members, built once a def ----
   function topo(beams, n) {
@@ -192,7 +200,7 @@
     }
     return { g, nv: g.nv, K, wi: g.wi, ww: g.ww, idx: g.idx, idx0: null, nt: (g.idx.length / 3) | 0,
              vB: -1, vp: null, dom: null, w2: null, ride: null, dead: null, watch: null, sag: null, torn: 0, removed: 0,
-             fabric: !!(o && o.fabric), cage: !!(o && o.cage), active: false,
+             fabric: !!(o && o.fabric), cage: !!(o && o.cage), active: false, shellTear: !!(o && o.shell),
              // G1864 (the page's wreck): rideAll - every vertex rides its nodes' frames once anything is broken (in the
              // world frame, exact under a rigid motion: a part bent without a member broken no longer keeps the cage's
              // rigid pose and stretches); its full binding made `budget` places a frame (pending: those still on their
@@ -570,7 +578,7 @@
   }
   // ---- THE TEAR: a watched triangle past TEAR over its rest edge is torn for good. Returns the triangles torn now ----
   function tear(R, base, pos) {
-    if (!R.watch || (R.noTear && !R.tubeTear && !R.sheetTear)) return 0;                  // (G1859: a tube, a rigid part, sheet metal - never cut to confetti)
+    if (!R.watch || (R.noTear && !R.tubeTear && !R.sheetTear && !R.shellTear)) return 0;                  // (G1859: a tube, a rigid part, sheet metal - never cut to confetti)
     const i0 = R.idx0, idx = R.idx, dead = R.dead, W = R.watch;
     let n = 0;
     for (let j = 0; j < W.length; j++) {
@@ -589,6 +597,8 @@
     // (G1859.3: a drawn TUBE's own bound - a whole member ends at 15 % (the solver), so a tube triangle past 20 % + 3 mm
     // spans two bindings that parted at a joint: drawn torn, never stretched)
     if (R && R.tubeTear) return !(l <= 1.2 * r + 0.003);
+    // (G2047: a composite shell cracks - past 5 % + 1 cm it is gone, never drawn stretched)
+    if (R && R.shellTear) return !(l <= (1 + SHELL_TEAR) * r + SHELL_ABS);
     // (G1859.3: SHEET METAL tears only where it is torn for real - past 40 % + 2 cm: no confetti from a few frames of
     // elastic bay shear, but no sheet drawn stretched across a wreck either)
     if (R && R.sheetTear) return !(l <= 1.4 * r + 0.02);
@@ -963,7 +973,7 @@
     R.removed += n; R.followed = (R.followed || 0) + n;
     return n;
   }
-  const API = { TEAR, TEAR_ABS, DRAPE_K, WRINKLE_L, WRINKLE_A, NEAR_K, SET_HOT, INH_K, INH, inhClass, inhSteps, bindInherit, wallSync, wallFollow, frameSegs, coverGrid, closestCover, triClosest, topo, brokenPairs, bindNearest, dupOf, make, event, bindMore, nodeFrames, polar, poseGen, poseCage, tear, worstStretch, hotNodes, cutWall };
+  const API = { SHELL_TEAR, SHELL_ABS, TEAR, TEAR_ABS, DRAPE_K, WRINKLE_L, WRINKLE_A, NEAR_K, SET_HOT, INH_K, INH, inhClass, inhSteps, bindInherit, wallSync, wallFollow, frameSegs, coverGrid, closestCover, triClosest, topo, brokenPairs, bindNearest, dupOf, make, event, bindMore, nodeFrames, polar, poseGen, poseCage, tear, worstStretch, hotNodes, cutWall };
   if (typeof module !== 'undefined' && module.exports) module.exports = API;
   if (typeof window !== 'undefined') window.SKIN_BREAK = API;
 })();

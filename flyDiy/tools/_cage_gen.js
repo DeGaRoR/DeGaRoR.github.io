@@ -7930,8 +7930,9 @@ function cageSpec(P) {
       S.config.mirrorAftSpec = SA;
     }
   }
-  const consG = ['carbon', 'tube', 'wood', 'metal'][
-    Math.max(0, Math.min(3, Math.round(P.intCons || 0)))];
+  // (G2047: glassfibre, the sixth stop, is built as the composite is - the moulded shell's idiom)
+  const consG = ['carbon', 'tube', 'wood', 'metal', 'metal', 'carbon'][   // (index 4 'metal': the clamp's old reading)
+    Math.max(0, Math.min(5, Math.round(P.intCons || 0)))];
   const skinTv = Math.max(0, P.skinT || 0);
   S.interior = { on: P.intOn ? 1 : 0, bulk: P.intBulk ? 1 : 0,
                  fire: P.intFire ? 1 : 0, dash: P.intDash ? 1 : 0,
