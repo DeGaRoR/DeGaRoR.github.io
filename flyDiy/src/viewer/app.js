@@ -4444,6 +4444,8 @@
     if (personaChoice === 'custom') return Object.assign({ name: 'custom', active: true }, JSON.parse(JSON.stringify(personaCustom)));
     return (typeof PILOT_PROFILES !== 'undefined' && PILOT_PROFILES[personaChoice]) ? personaChoice : 'expert';
   }
+  // the rigs' and the gates' handle (read-only): the choice, the custom person, what makePilot is handed
+  if (typeof window !== 'undefined') window.FLYDIY_PERSONA = { get: () => ({ choice: personaChoice, custom: JSON.parse(JSON.stringify(personaCustom)), profile: personaProfile() }) };
   const personaLabel = k => k === 'custom' ? 'Custom' : ((typeof PILOT_PROFILES !== 'undefined' && PILOT_PROFILES[k] && PILOT_PROFILES[k].label) || k);
   // THE KEEPER'S OPTIONS, off the one table (the HTML carries the select empty)
   (() => {
@@ -10130,7 +10132,8 @@
         const off = K.d === null;   // the top stop is the knob's null: 'off' (comfort g: the bank limit alone), 'auto' (grip)
         const hi = off ? K.hi + K.step : K.hi;
         const get = () => { const v = cur()[K.k]; return v == null ? hi * k : v * k; };
-        const fmt = x => (off && x >= hi * k - 1e-9) ? (K.nullLabel || 'off') : (Math.round(x * 100) / 100) + (K.unit ? ' ' + K.unit : '');
+        const dp = Math.max(1, Math.min(3, Math.ceil(-Math.log10(K.step * k) - 1e-9)));   // the knob's own resolution (0.015, not 0.02)
+        const fmt = x => (off && x >= hi * k - 1e-9) ? (K.nullLabel || 'off') : (+x.toFixed(dp)) + (K.unit ? ' ' + K.unit : '');
         const r = flRange(fb, K.label, K.lo * k, hi * k, K.step * k, get,
                           x => put(K, off && x >= hi * k - 1e-9 ? null : x / k), fmt);
         r.title = K.desc;

@@ -22,6 +22,7 @@ try { pw = require('playwright'); } catch (e) { pw = require(path.join(cp.execSy
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const WIP = fs.readFileSync(path.join(__dirname, 'perf', 'garage_lag_cub_wip.json'), 'utf8');
 const NOGL = process.argv.includes('--nogl');
+const QS = opt('qs', '');   // e.g. --qs=?simw=0 (the inline pilot)
 
 (async () => {
   fs.mkdirSync(OUT, { recursive: true });
@@ -65,7 +66,7 @@ const NOGL = process.argv.includes('--nogl');
     }
     return false;
   };
-  await page.goto('http://127.0.0.1:' + PORT + '/flyDiy/index.html', { waitUntil: 'load', timeout: 240000 });
+  await page.goto('http://127.0.0.1:' + PORT + '/flyDiy/index.html' + QS, { waitUntil: 'load', timeout: 240000 });
   if (!await garageUp()) { console.log('garage NOT up after ' + el() + ' ' + errs.slice(0, 3).join(' / ')); process.exit(1); }
   console.log('garage up after ' + el());
   await sleep(3000);
@@ -90,6 +91,10 @@ const NOGL = process.argv.includes('--nogl');
   await nogl(false);
   await ev(`(()=>{ const s = document.querySelector('#edRoute select.persona'); s.size = 0; s.style.height = ''; return 1; })()`);
   // ROLL OUT: the roll-out screen's route row, then the flight
+  const who = () => ev("JSON.stringify({ persona: window.FLYDIY_PERSONA && FLYDIY_PERSONA.get(), page: window.FLIGHT_PROBE && FLIGHT_PROBE.ap() ? FLIGHT_PROBE.ap().profile + ' / ' + FLIGHT_PROBE.ap().phase : null, simw: window.FLYDIY_SIMW && FLYDIY_SIMW.state ? (s => s && { phase: s.phase, reason: s.reason, dead: s.dead })(FLYDIY_SIMW.state()) : null })", null);
+  // the shed's standing pilot, remembered: the flight's is another object (mkPilot at the roll-out's fullReset)
+  await ev(`(()=>{ window.__ap0 = window.FLIGHT_PROBE ? FLIGHT_PROBE.ap() : null; return 1; })()`);
+  notes.push('before the roll-out (the shed\'s standing pilot): ' + await who());
   await ev("(()=>{const b=document.getElementById('edRoll'); if(b) b.click(); return !!b;})()");
   let bootShot = false, flying = false;
   for (let i = 0; i < 400 && !flying; i++) {
@@ -100,12 +105,15 @@ const NOGL = process.argv.includes('--nogl');
       const bh = await page.$('#bootRoute');
       if (bh) { await held(() => bh.screenshot({ path: path.join(OUT, '2_rollout_route_pilot.jpg'), type: 'jpeg', quality: 85, timeout: 60000 })); bootShot = true; console.log('  roll-out row shot ' + el()); }
     }
-    flying = (await ev("(()=>!!(document.getElementById('flPlate') && document.getElementById('flPlate').offsetParent) && (!window.BOOT || !BOOT.state || BOOT.state === 'gone'))()", false)) === true;
+    // out of the shed: its actions gone (the plate shows in the shed too - it is no sign of a flight) and the pilot a new one
+    flying = (await ev("(()=>!!(document.getElementById('flPlate') && document.getElementById('flPlate').offsetParent) && !(document.getElementById('edActs') && document.getElementById('edActs').offsetParent) && (!window.BOOT || !BOOT.state || BOOT.state === 'gone') && window.FLIGHT_PROBE && FLIGHT_PROBE.ap() && FLIGHT_PROBE.ap() !== window.__ap0)()", false)) === true;
   }
   if (!flying) { console.log('  no flight screen after ' + el()); process.exit(1); }
   await sleep(4000);
+  notes.push('rolled out: ' + await who());
   await ev("(()=>{ const g = document.getElementById('bGo'); if (g && g.offsetParent && !/roll out/i.test(g.textContent)) g.click(); return 1; })()");
   await sleep(12000);
+  notes.push('flying: ' + await who());
   notes.push('flight: the plate reads "' + await ev("document.getElementById('flPilotV').textContent") + '"; the pilot flying: ' +
              await ev("(()=>{ const a = window.FLIGHT_PROBE && FLIGHT_PROBE.ap(); return a ? a.profile + ' in ' + a.phase : null; })()"));
   // the plate's pilot slot
@@ -131,7 +139,7 @@ const NOGL = process.argv.includes('--nogl');
   if (fly) await held(() => fly.screenshot({ path: path.join(OUT, '4_flight_custom_knobs.jpg'), type: 'jpeg', quality: 85, timeout: 60000 }));
   await nogl(false);
   // RELOAD: the same storage, a fresh page - the player's pilot is kept
-  await page.goto('http://127.0.0.1:' + PORT + '/flyDiy/index.html', { waitUntil: 'load', timeout: 240000 });
+  await page.goto('http://127.0.0.1:' + PORT + '/flyDiy/index.html' + QS, { waitUntil: 'load', timeout: 240000 });
   if (await garageUp()) {
     await sleep(2000);
     notes.push('reload: player.pilot = ' + await playerPilot() + '; the shed\'s pilot picker = ' + await ev("document.querySelector('#edRoute select.persona').value") +
