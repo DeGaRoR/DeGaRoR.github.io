@@ -4160,7 +4160,7 @@
   // value, which another program may have set), so every one has them from the start
   function scuffAttach(grp, FBK, scuffMat, W) {
     const S = window.SKIN_SCUFF;
-    const at = { W, pre: 0, byPos: new Map(), byGeo: new Map(), byIdx: new Map(), st: S.state(), vB: 0, vS: 0, F: null, req: false, work: false,
+    const at = { W, pre: 0, bindUs: 10, ms: { fields: 0, rec1: 0, recs: 0, bind: 0, tick: 0, upload: 0 }, byPos: new Map(), byGeo: new Map(), byIdx: new Map(), st: S.state(), vB: 0, vS: 0, F: null, req: false, work: false,
                  recs: [], todo: null, made: false, pend: 0, bound: 0, show: true, any: false, bytes: 0, uploads: 0, mkMs: 0, frameMax: 0, verts: 0 };
     const bk = FBK && FBK.mat, bkC = bk ? scuffMat(bk, 'baked') : null;
     grp.traverse(o => {
@@ -4208,24 +4208,26 @@
     if (!D) return;
     const ev = D.vB !== at.vB || D.vS !== at.vS;
     if (!ev && !at.work) return;
-    const S = SKIN_SCUFF, SB = SKIN_BREAK, t0 = performance.now();
+    const S = SKIN_SCUFF, SB = SKIN_BREAK, t0 = performance.now(), PM = at.ms;   // (PM: each phase's worst, ms)
     const K = brkK();
     if (ev) { at.vB = D.vB; at.vS = D.vS; at.F = S.fields(def, D, { X0: K.X0, Y0: K.Y0 }); at.req = true; }
+    const tK = performance.now(); PM.fields = Math.max(PM.fields, tK - t0);
     // the records: the break path's own (brkCageRec - the same record a break would make, off the break list until one
     // comes), only for groups something draws with a pair; ~4 ms of them a frame
     if (!at.made) {
       if (!at.todo) at.todo = brkGroups().filter(G => { const geo = K.geoOf.get(G[2]); return geo && geo.index && scuffTargets(at, geo).length; });
       const fin = model.wreckBuild && model.wreckBuild.finOf;
       while (at.todo.length && performance.now() - t0 < 4) {
-        const [own, , pa, base, off, fab] = at.todo.shift();
+        const [own, , pa, base, off, fab] = at.todo.shift(), tR = performance.now();
         const R = brkCageRec(own, pa, base, off, fab, o, true);
+        PM.rec1 = Math.max(PM.rec1, performance.now() - tR);
         if (!R) continue;
         if (!R.sc) S.prep(R, { cls: S.clsOf(fin ? fin.get(R.geo) : ''), nrm: R.nB || S.restNormals(R.baseD, R.idx0 || R.idx, R.nv, R.rep),
                                base: R.baseD, Mi: K.Mi0, nA: R.nRest || null });
         R.restN = K.rest; R.scA = base; R.scT = scuffTargets(at, R.geo);
         at.recs.push(R);
       }
-      at.mkMs += performance.now() - t0;
+      at.mkMs += performance.now() - tK; PM.recs = Math.max(PM.recs, performance.now() - tK);
       if (!at.todo.length) { at.made = true; at.req = true; }
     }
     if (at.made) {
@@ -4233,14 +4235,32 @@
       // break path's budgeted binding - a pass again once either has moved
       let pend = 0;
       let b = 0, cut = false;   // (cut: the frame's time ran out before every record was asked - more next frame)
-      if (!D.br.length && at.F && !at.F.zero) { for (const R of at.recs) { if (performance.now() - t0 > S.SC.frameMs) { cut = true; break; } b += S.bindWanted(R, at.F, SB, K.T, S.SC.bindBudget - b); } if (b) { at.bound += b; at.req = true; } }
+      // (the binding's budget from its own measured cost a place - skin_break's bindNearest, ~10 us a place assumed
+      // until measured - so one record's call never runs past the frame's time)
+      const tB = performance.now();
+      if (!D.br.length && at.F && !at.F.zero) {
+        for (const R of at.recs) {
+          const left = S.SC.frameMs - (performance.now() - t0);
+          if (left <= 0) { cut = true; break; }
+          const want = Math.min(S.SC.bindBudget - b, Math.max(16, Math.floor(left * 1000 / at.bindUs)));
+          if (want <= 0) { cut = true; break; }
+          const t1 = performance.now(), n = S.bindWanted(R, at.F, SB, K.T, want);
+          if (n >= 16) at.bindUs = 0.7 * at.bindUs + 0.3 * Math.max(1, (performance.now() - t1) * 1000 / n);
+          b += n;
+        }
+        if (b) { at.bound += b; at.req = true; }
+      }
+      PM.bind = Math.max(PM.bind, performance.now() - tB);
       at.lastBound = b || (cut ? 1 : 0);
       for (const R of at.recs) if (R.pending) pend += R.pending.length;
       if (at.pend && !pend) at.req = true;
       at.pend = pend;
       if (at.req && at.F) { S.request(at.st, at.F, at.recs); at.req = false; }
-      const fin = S.tick(at.st, null, Math.max(0.5, S.SC.frameMs - (performance.now() - t0)));   // (the frame's time left)
+      const tT = performance.now();
+      const fin = S.tick(at.st, null, Math.max(0.5, S.SC.frameMs - (tT - t0)));   // (the frame's time left)
+      const tU = performance.now(); PM.tick = Math.max(PM.tick, tU - tT);
       for (const R of fin) scuffUpload(at, R);
+      PM.upload = Math.max(PM.upload, performance.now() - tU);
       if (fin.length) {
         if (fin.some(R => R.sc.cls === S.CLS.glass)) {
           const P = S.paneVec(at.st, Q => { const A = Q.R.scA; return [A[Q.at * 3], A[Q.at * 3 + 1], A[Q.at * 3 + 2]]; });
@@ -4289,6 +4309,7 @@
     return { on: true, recs: at.recs.length, attrVerts: at.verts, passes: st.passes, places: st.places, frameMs: +at.frameMax.toFixed(2), tickMs: +st.ms.frameMax.toFixed(2),
              tornMs: +st.ms.torn.toFixed(2), mkMs: +at.mkMs.toFixed(1), bound: at.bound, uploads: at.uploads, bytes: at.bytes, any: at.any, uOn: SCUFF_U().uDmgOn.value,
              awake: at.W.on, flips: at.W.flips, mats: at.W.mats.size, prelinks: at.pre,
+             phases: Object.fromEntries(Object.entries(at.ms).map(([k, v]) => [k, +v.toFixed(2)])), bindUs: +at.bindUs.toFixed(2),
              panes: st.panes.map(P => ({ sev: +P.sev.toFixed(3), slot: P.slot })), counts: cnt, busy: S_busy(st) };
   };
   const S_busy = st => (window.SKIN_SCUFF ? SKIN_SCUFF.busy(st) : false);
