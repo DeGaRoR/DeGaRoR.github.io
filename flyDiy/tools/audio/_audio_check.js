@@ -4157,58 +4157,69 @@ async function checkAniAlloc(S, report) {
   for (let i = 0; i < 600; i++) R.tick(1 / 30);
   const out = new Float64Array(M.MAXANI * M.AROW);
   let n = 0;
-  for (let i = 0; i < 20000; i++) n = R.sound(out);   // warm
-  // (the heap's own noise is a few KB a window whatever runs: the reads are measured against a twin loop doing nothing,
-  // over 30 000 reads - one boxed double a read would be 480 KB)
-  const NR = 30000, noop = () => 0;
-  const win = async f => { let best = null;
-    for (let w = 0; w < 2; w++) {
-      global.gc(); global.gc(); await new Promise(r => setTimeout(r, 5));
-      let g = 0; const obs = new PerformanceObserver(l => { g += l.getEntries().length; }); obs.observe({ entryTypes: ['gc'] });
-      const h0 = process.memoryUsage().heapUsed, t0 = performance.now();
-      for (let i = 0; i < NR; i++) n = f(out);
-      const ms = (performance.now() - t0) / NR, d = process.memoryUsage().heapUsed - h0;
-      await new Promise(r => setTimeout(r, 5)); obs.disconnect();
-      if (!best || g < best.g || (g === best.g && d < best.d)) best = { g, d, ms };
-    }
-    return best; };
-  for (let i = 0; i < 20000; i++) noop(out);
-  const B0 = await win(noop), best = await win(R.sound);
-  if (!(n >= 36)) F.push('the reader wrote ' + n + ' rows for the island\'s cast (want >= 36)');
-  best.d -= Math.max(0, B0.d);
-  if (best.g > B0.g || best.d > NR * 0.5) F.push('the reader allocates: ' + (best.d / NR).toFixed(2) + ' B a read over a loop doing nothing (' + best.g + ' vs ' + B0.g + ' GC; want none)');
-  // THE MODEL: recorded rows replayed (600 frames of the cast, events and all) against its twin with no animals
-  const FR = 600, rec = new Float64Array(FR * M.MAXANI * M.AROW), cnt = new Int32Array(FR), clk = new Float64Array(FR);
-  for (let f = 0; f < FR; f++) { R.tick(1 / 60); eye.x = 0; cnt[f] = R.sound(out); clk[f] = R.clock(); for (let k = 0; k < cnt[f] * M.AROW; k++) rec[f * M.MAXANI * M.AROW + k] = out[k]; }
-  const meas = async (withAni, windows) => {
-    const { AM } = MM, Wm = ambWorld(), AP = loadParams(SRC0.params), P = AP.audioParamsBlock(), amb = AM.ambienceState(), st = M.emittersState('full');
-    st.ready.fill(1); M.seed(st, 3); Wm.day.sunEl = -3;
-    const F_ = new Int32Array(1), base = new Float64Array(1);
-    const prov = { animalSpecies: () => L.AR.SOUND.SPECIES, animalClock: () => base[0] + clk[F_[0] % FR],
-      animals(o) { if (!withAni) return 0; const f = F_[0] % FR, q = f * M.MAXANI * M.AROW, m = cnt[f]; for (let k = 0; k < m * M.AROW; k++) o[k] = rec[q + k]; return m; } };
-    P.s[P.I.listenerX] = 100; P.s[P.I.listenerY] = 21.7; P.s[P.I.listenerZ] = 450;
-    const go = () => { F_[0]++; if (F_[0] % FR === 0) base[0] += clk[FR - 1]; AM.ambienceStep(amb, P, Wm, 1 / 60); M.emittersStep(st, P, amb, Wm, prov, 1 / 60, null); st.vNew.fill(0); };
-    for (let i = 0; i < 20000; i++) go();   // (warm: V8's optimising tier, where a double local is not a heap box)
-    let res = null;
-    for (let w = 0; w < windows; w++) {
-      global.gc(); global.gc(); await new Promise(r => setTimeout(r, 5));
-      let g = 0; const obs = new PerformanceObserver(l => { g += l.getEntries().length; }); obs.observe({ entryTypes: ['gc'] });
-      const n0 = st.n.reduce((a, b) => a + b, 0), h0 = process.memoryUsage().heapUsed, t0 = performance.now();
-      for (let i = 0; i < 20000; i++) go();
-      const ms = (performance.now() - t0) / 20000, d = process.memoryUsage().heapUsed - h0, calls = st.n.reduce((a, b) => a + b, 0) - n0;
-      await new Promise(r => setTimeout(r, 5)); obs.disconnect();
-      const m = { g, d, ms, calls };
-      if (!res || m.g < res.g || (m.g === res.g && m.d - 4096 * m.calls < res.d - 4096 * res.calls)) res = m;
-    }
-    return res;
+  // ROBUST TO A LOADED BOX (A0, train 37: red under a 6-job battery + a peer's node work, green alone): the whole
+  // measurement is an ATTEMPT; a failing one is measured again (up to 3), and the check fails only when every attempt
+  // does - a real allocation fails all three (the mutations), a GC that a neighbour's load provoked does not repeat
+  const attempt = async () => {
+  const Fa = [];
+    for (let i = 0; i < 20000; i++) n = R.sound(out);   // warm
+    // (the heap's own noise is a few KB a window whatever runs: the reads are measured against a twin loop doing nothing,
+    // over 30 000 reads - one boxed double a read would be 480 KB)
+    const NR = 30000, noop = () => 0;
+    const win = async f => { let best = null;
+      for (let w = 0; w < 2; w++) {
+        global.gc(); global.gc(); await new Promise(r => setTimeout(r, 5));
+        let g = 0; const obs = new PerformanceObserver(l => { g += l.getEntries().length; }); obs.observe({ entryTypes: ['gc'] });
+        const h0 = process.memoryUsage().heapUsed, t0 = performance.now();
+        for (let i = 0; i < NR; i++) n = f(out);
+        const ms = (performance.now() - t0) / NR, d = process.memoryUsage().heapUsed - h0;
+        await new Promise(r => setTimeout(r, 5)); obs.disconnect();
+        if (!best || g < best.g || (g === best.g && d < best.d)) best = { g, d, ms };
+      }
+      return best; };
+    for (let i = 0; i < 20000; i++) noop(out);
+    const B0 = await win(noop), best = await win(R.sound);
+    if (!(n >= 36)) Fa.push('the reader wrote ' + n + ' rows for the island\'s cast (want >= 36)');
+    best.d -= Math.max(0, B0.d);
+    if (best.g > B0.g || best.d > NR * 0.5) Fa.push('the reader allocates: ' + (best.d / NR).toFixed(2) + ' B a read over a loop doing nothing (' + best.g + ' vs ' + B0.g + ' GC; want none)');
+    // THE MODEL: recorded rows replayed (600 frames of the cast, events and all) against its twin with no animals
+    const FR = 600, rec = new Float64Array(FR * M.MAXANI * M.AROW), cnt = new Int32Array(FR), clk = new Float64Array(FR);
+    for (let f = 0; f < FR; f++) { R.tick(1 / 60); eye.x = 0; cnt[f] = R.sound(out); clk[f] = R.clock(); for (let k = 0; k < cnt[f] * M.AROW; k++) rec[f * M.MAXANI * M.AROW + k] = out[k]; }
+    const meas = async (withAni, windows) => {
+      const { AM } = MM, Wm = ambWorld(), AP = loadParams(SRC0.params), P = AP.audioParamsBlock(), amb = AM.ambienceState(), st = M.emittersState('full');
+      st.ready.fill(1); M.seed(st, 3); Wm.day.sunEl = -3;
+      const F_ = new Int32Array(1), base = new Float64Array(1);
+      const prov = { animalSpecies: () => L.AR.SOUND.SPECIES, animalClock: () => base[0] + clk[F_[0] % FR],
+        animals(o) { if (!withAni) return 0; const f = F_[0] % FR, q = f * M.MAXANI * M.AROW, m = cnt[f]; for (let k = 0; k < m * M.AROW; k++) o[k] = rec[q + k]; return m; } };
+      P.s[P.I.listenerX] = 100; P.s[P.I.listenerY] = 21.7; P.s[P.I.listenerZ] = 450;
+      const go = () => { F_[0]++; if (F_[0] % FR === 0) base[0] += clk[FR - 1]; AM.ambienceStep(amb, P, Wm, 1 / 60); M.emittersStep(st, P, amb, Wm, prov, 1 / 60, null); st.vNew.fill(0); };
+      for (let i = 0; i < 20000; i++) go();   // (warm: V8's optimising tier, where a double local is not a heap box)
+      let res = null;
+      for (let w = 0; w < windows; w++) {
+        global.gc(); global.gc(); await new Promise(r => setTimeout(r, 5));
+        let g = 0; const obs = new PerformanceObserver(l => { g += l.getEntries().length; }); obs.observe({ entryTypes: ['gc'] });
+        const n0 = st.n.reduce((a, b) => a + b, 0), h0 = process.memoryUsage().heapUsed, t0 = performance.now();
+        for (let i = 0; i < 20000; i++) go();
+        const ms = (performance.now() - t0) / 20000, d = process.memoryUsage().heapUsed - h0, calls = st.n.reduce((a, b) => a + b, 0) - n0;
+        await new Promise(r => setTimeout(r, 5)); obs.disconnect();
+        const m = { g, d, ms, calls };
+        if (!res || m.g < res.g || (m.g === res.g && m.d - 4096 * m.calls < res.d - 4096 * res.calls)) res = m;
+      }
+      return res;
+    };
+    // (the first model measured in a realm allocates more - V8's tiers settling: measured 465 vs 320 KB for the same twin -
+    // so a twin is measured first and thrown away)
+    await meas(false, 0);
+    const A = await meas(true, 2), B = await meas(false, 2);
+    const own = A.d - B.d - 4096 * A.calls;
+    if (A.g > B.g || own > 16384) Fa.push('the model\'s animals allocate: ' + ((A.d - B.d) / 20000).toFixed(1) + ' B a frame over its twin (' + A.g + ' vs ' + B.g + ' GC; ' + A.calls + ' calls allow ' + 4096 * A.calls + ' B + 16 KB)');
+    if (!(A.calls >= 1)) Fa.push('the replayed cast made no call in 20 000 frames (the check proves nothing)');
+  return { Fa, best, n, A, B, NR };
   };
-  // (the first model measured in a realm allocates more - V8's tiers settling: measured 465 vs 320 KB for the same twin -
-  // so a twin is measured first and thrown away)
-  await meas(false, 0);
-  const A = await meas(true, 2), B = await meas(false, 2);
-  const own = A.d - B.d - 4096 * A.calls;
-  if (A.g > B.g || own > 16384) F.push('the model\'s animals allocate: ' + ((A.d - B.d) / 20000).toFixed(1) + ' B a frame over its twin (' + A.g + ' vs ' + B.g + ' GC; ' + A.calls + ' calls allow ' + 4096 * A.calls + ' B + 16 KB)');
-  if (!(A.calls >= 1)) F.push('the replayed cast made no call in 20 000 frames (the check proves nothing)');
+  let at = null;
+  for (let k = 0; k < 3; k++) { at = await attempt(); if (!at.Fa.length) break; }
+  F.push(...at.Fa);
+  const { best, A, B, NR } = at;   // (n: the outer count, which the attempt wrote)
   if (report) report.push('the animals: the reader ' + (best.ms * 1000).toFixed(1) + ' us for ' + n + ' rows, ' + (best.d / NR).toFixed(2) + ' B a read over a loop doing nothing; the model with them ' + (A.ms * 1000).toFixed(1) + ' us a frame vs ' + (B.ms * 1000).toFixed(1) + ' us without (+' + ((A.ms - B.ms) * 1000).toFixed(1) + ' us), ' + ((A.d - B.d) / 20000).toFixed(2) + ' B a frame over the twin, ' + A.calls + ' calls');
   return F;
 }
