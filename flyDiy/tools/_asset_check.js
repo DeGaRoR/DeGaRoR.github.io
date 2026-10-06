@@ -67,7 +67,7 @@ const ALLOW = {
   },
   // JPEG normal maps per directory: 166 files
   jpgNormal: {
-    "media/tex/ground": 63,
+    "media/tex/ground": 64,   // +1 SHORES-2 G1955 (darkRock): GATE SPLAT's contract is four .jpg maps a splat set (the GPU reads the cooked planes / KTX2 kN); Poly Haven's own nor_gl is a JPEG (HANDOVER G1955-G1964)
     "media/tex/house": 25,
     "media/tex/models/c172": 2,
     "media/tex/trees": 75,

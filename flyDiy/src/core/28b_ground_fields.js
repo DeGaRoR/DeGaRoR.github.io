@@ -124,9 +124,17 @@ const GROUND_FIELDS = (() => {
       // dirt of a yard showing through. It is NOT `built`: built is a yard, this is the
       // wood that never left, and its trees are the `residential` mix.
       16: { tex: ['forestAir', 'dirt', 'grassRock'], scale: [81, 2.4, 15], far: ['forestAir', null, 'grassRock'], farScale: [81, 0, 15], mix: [20, 3, -0.15, -0.1], vary: [7, 0.14, 26], para: 0.28 },
+      // 17 THE BANK (SHORES-2 G1955, the user 2026-10-05: "you just need a good cliff texture, ideally oriented with respect
+      // to the slope ... we need good blending"): DERIVED in the shader, like 12-14 - the steep faces within bankReach of a
+      // lake's line or the coast, whatever their own code, take it by a soft, noise-broken weight (splat_ground sSplat), read
+      // through the triplanar oriented to the face. ITS SETS ARE THE ROCKY SHORE'S (11), the colour SHORES' banks wore: the
+      // user on the first sheets (2026-10-06): "the blending is good, but the new colour and lightness is not. We have lost the
+      // nice colour of the original texture, and the new one is too dark" - darkRock (Poly Haven dark_rock_02) stays in the
+      // library, a pick in the world rail's bank slots. Hex kept on: the coast's step is a band kilometres long.
+      17: { tex: ['coastA', 'rocksG', 'coastSand'], scale: [19.94, 2, 15.2], far: ['coastA', null, 'coastSand'], farScale: [19.94, 0, 15.2], mix: [14, 3, -0.2, -0.3], vary: [3, 0.08, 15], para: 0.6 },
     },
     // the map's code names (0-11 from island_prep's ttype) and the three derived in the shader
-    names: { 0: 'sea', 1: 'lake', 2: 'heath', 3: 'muskeg', 4: 'sand', 5: 'scree', 6: 'rock', 7: 'scrub', 8: 'forest', 9: 'snow', 10: 'built', 11: 'shingle', 12: 'cliff', 13: 'forest old', 14: 'scrub dense', 15: 'lush', 16: 'city trees' },
+    names: { 0: 'sea', 1: 'lake', 2: 'heath', 3: 'muskeg', 4: 'sand', 5: 'scree', 6: 'rock', 7: 'scrub', 8: 'forest', 9: 'snow', 10: 'built', 11: 'shingle', 12: 'cliff', 13: 'forest old', 14: 'scrub dense', 15: 'lush', 16: 'city trees', 17: 'bank' },
     knobs: {
       cliffLo: 32, cliffHi: 42, oldLo: 14, oldHi: 20, denseLo: 1, denseHi: 2.5,   // the derived codes: rock -> cliff by slope (deg), forest -> old / scrub -> dense by canopy (m)
       splatWobble: 9, splatBlend: 3, beachRot: 90, triK: 8,
@@ -135,8 +143,14 @@ const GROUND_FIELDS = (() => {
       sheen: 1,   // the GAME's lever on the sets' roughness (the near ring is a Standard material, 2026-09-21): 1 = the sets' own, 0 = matte (specK is the bench's Blinn strength)
       pudCell: 0, pudCover: 0.32, pudEdge: 0.01, pudSlope: 3, lakeEdge: 1,
       // THE CARVED BANK (SHORES G1500): within bankReach m of a lake's line the carve's steep faces (bankLo..bankHi deg) wear
-      // the rocky shore (11) with no macro on them (it gives way from bankLo - 10 deg), and the first bankWet m over the water are a wet margin (splat_ground sSplat)
-      bankReach: 30, bankLo: 30, bankHi: 42, bankWet: 2.5,
+      // the bank (17, SHORES-2; was the rocky shore 11) with no macro on them (it gives way from bankLo - 10 deg), and the first bankWet m over the water are a wet margin (splat_ground sSplat)
+      bankReach: 30, bankLo: 22, bankHi: 36, bankWet: 2.5,
+      // THE BANK'S BLEND (SHORES-2 G1956, the user: "right now it's like you simply apply a setting to a cell, with no management
+      // of transitions and blending"): bankSoft widens the slope ramp each side (deg), bankJit breaks its edge with a two-octave
+      // noise of bankCell m (deg of slope, and a third of it in metres on the wet line), bankWetSea the sea's wet band (m of height
+      // over the water - the lakes' is bankWet, in metres from the line)
+      bankSoft: 4, bankJit: 20, bankCell: 3.5, bankWetSea: 0.9,
+      bankLip: 4,   // (G1959) the sea's step: the rock spills up to this many metres over its crest, ragged (0 = off)
       // THE POND FROM THE AIR (2026-09-23, the user at 400 m: "they look like speckles on a surface, not like
       // puddles"): pudFar widens the shore with distance (0 = the old hard rim; 6 = pudEdge x 7 by 500 m, so
       // 1.33 m of shore becomes 9.3 m and survives a pixel), pudRim is where the OPEN water starts in the mask
@@ -172,6 +186,7 @@ const GROUND_FIELDS = (() => {
       ['grassRock', 15.04], ['forestAir', 80.81], ['snowAir', 81.2],
       ['lush', 2.4], ['grass', 2.4], ['pebble', 4.5], ['dry', 2.2], ['dirt', 1.8],
       ['coastA', 19.94], ['coastSand', 15.2],   // the rocky beach (TERRAIN FOLLOW-UP 4, 2026-09-21): appended, never inserted - a set's index is its layer
+      ['darkRock', 2.0],   // the bank's face (SHORES-2 G1955): Poly Haven dark_rock_02, CC0 (Amal Kumar), 2.0 m
     ],
   };
   // ---- PER TERRAIN-TYPE CODE: the ground's arguments to the fields ---------
