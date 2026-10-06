@@ -421,10 +421,13 @@ console.log('\n6. THE LAKE\'S SURFACE IS THE DATA\'S (a stub island: a bowl with
   const C = require('./flight_core.js');
   const fs = require('fs'), path = require('path');
   const world = C.makeWorld(), sea = world.aerodromes.find(a => a.id === 'SEA');
-  const cub = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'builds', 'cub_2026-09-20_corrected.json'), 'utf8')).spec;
-  const wingCub = JSON.parse(JSON.stringify(cub));
-  wingCub.fuel = Object.assign({}, wingCub.fuel, { tank: 'wing' });
-  wingCub.energy.vessels = wingCub.energy.vessels.map(v => Object.assign({}, v, { bay: 'wingRoot', along: 0.28, lv: null }));
+  // G1985 (JOIN-PARITY): the Cub and its wing-tank edit, each AS THE GAME FLIES IT (tools/_load_build.js)
+  const LB = require('./_load_build.js'), raw = process.env.FLYDIY_RAW_BUILDS === '1';
+  const cub0 = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'builds', 'cub_2026-09-20_corrected.json'), 'utf8')).spec;
+  const wingCub0 = JSON.parse(JSON.stringify(cub0));
+  wingCub0.fuel = Object.assign({}, wingCub0.fuel, { tank: 'wing' });
+  wingCub0.energy.vessels = wingCub0.energy.vessels.map(v => Object.assign({}, v, { bay: 'wingRoot', along: 0.28, lv: null }));
+  const cub = raw ? cub0 : LB.gameSpec(cub0), wingCub = raw ? wingCub0 : LB.gameSpec(wingCub0);
   // ARCHIMEDES, independently of the ramps: the whole aeroplane under a water 100 m up (wetSolverPass on a world of
   // that water), the tanks' share of the lift against rho g V; and the carve: with the wing tanks the build's whole lift
   // is the lift it had without them (the tank's volume moved out of the slabs' flooding air into the sealed tank)

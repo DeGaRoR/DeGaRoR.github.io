@@ -30,8 +30,9 @@ let fails = 0;
 const verdict = (ok, line) => { if (!ok) fails++; console.log((ok ? 'PASS ' : 'FAIL ') + line); };
 const f = (v, n = 2) => (typeof v === 'number' && Number.isFinite(v)) ? v.toFixed(n) : String(v);
 
-const spec = JSON.parse(fs.readFileSync(FIX, 'utf8')).spec;
-spec.gear.type = 'floats';
+// G1985 (JOIN-PARITY): the twin on floats AS THE GAME FLIES IT (tools/_load_build.js `twinFloats`, see _floats_check.js)
+const spec = process.env.FLYDIY_RAW_BUILDS === '1' ? JSON.parse(fs.readFileSync(FIX, 'utf8')).spec : require('./_load_build.js').loadValidated('twinFloats').spec;
+if (process.env.FLYDIY_RAW_BUILDS === '1') spec.gear.type = 'floats';
 const def = C.buildGen(C.genMigrateSpec(spec));
 
 function fly(o) {

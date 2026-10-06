@@ -127,7 +127,8 @@ const worlds = [['analytic', A], ['jolene', J]];
 BJ.loadPanel();
 const cub = BJ.bakeCard('cub');
 if (cub.errors && cub.errors.length) console.log('  (the cub\'s join: ' + cub.errors.join('; ') + ')');
-const fl = JSON.parse(fs.readFileSync(path.join(T, '..', 'bugReports', 'cessnaFloatsWOrks.json'), 'utf8')).spec;
+// G1985 (JOIN-PARITY): the Cessna on floats as the game flies it (tools/_load_build.js)
+const fl = process.env.FLYDIY_RAW_BUILDS === '1' ? JSON.parse(fs.readFileSync(path.join(T, '..', 'bugReports', 'cessnaFloatsWOrks.json'), 'utf8')).spec : require('./_load_build.js').loadValidated('floats').spec;
 const amph = JSON.parse(JSON.stringify(fl)); amph.gear.floats.amphibian = true;
 const O = { worlds, cub: cub.spec, floats: C.genMigrateSpec(JSON.parse(JSON.stringify(fl))), amph: C.genMigrateSpec(amph) };
 
