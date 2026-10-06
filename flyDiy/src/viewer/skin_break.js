@@ -990,7 +990,7 @@
       const r = f(at(i0[t * 3]));
       if (touched[r] && size[r] < min) { dead[t] = 2; idx[t * 3] = idx[t * 3 + 1] = idx[t * 3 + 2] = i0[t * 3]; n++; }
     }
-    R.removed += n; R.torn += n;
+    R.removed += n; R.torn += n; R.islN = (R.islN || 0) + n;   // (islN: the census tells the confetti from the tear)
     return n;
   }
   function over(pos, base, a, b) {

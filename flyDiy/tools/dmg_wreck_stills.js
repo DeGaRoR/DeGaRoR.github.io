@@ -215,6 +215,36 @@ async function pageRunOn(o) {
     frameMed: +q[q.length >> 1].toFixed(1), frameP95: +q[Math.floor(q.length * 0.95)].toFixed(1), frameMax: +q[q.length - 1].toFixed(1), trace: o.trace ? trace : undefined,
     wreck: window.FLYDIY_WRECK_STATS(), skin: window.FLYDIY_SKINBREAK_STATS() };
 }
+// THE TEAR CENSUS (the user's review: "why are the wings lacerated like this?"): the members broken (names), the plastic
+// work, the impact's energy; and per wing side (the triangle's rest centroid z in the frame's own coordinates) the
+// covering triangles gone, by the rule that took them - skin_break's dead codes: 1 spanned two pieces / crossed a broken
+// member (the event), 2 the stretch tear (a fabric record's own; WALL's tube or sheet bound on a tube / sheet record;
+// the confetti islands counted apart), 3 the wall cut, 4 gone with its covering, 5 taken by a debris body
+function pageTears() {
+  const P = FLIGHT_PROBE, sim = P.sim(), def = P.def(), m = P.model(), D = sim.damage(), tg = i => def.nodes[i].tag || i;
+  const o = window.__d4bO || {}, M = sim.totalM || 0, V = o.V || 0, sink = o.sink || 0;
+  const out = { broken: D.broken.length, members: D.broken.map(i => tg(sim.beams[i].a) + '-' + tg(sim.beams[i].b)), workJ: Math.round(D.work || 0),
+                energyJ: Math.round(0.5 * M * (V * V + sink * sink)), reason: D.reason, wings: {}, other: {} };
+  const recs = window.FLYDIY_SKINBREAK_RECS ? FLYDIY_SKINBREAK_RECS() : [];
+  const NAME = { 1: 'pieces/broken member', 3: 'wall cut', 4: 'with its covering', 5: 'debris' };
+  for (const R of recs) {
+    if (!R.dead || !R.idx0 || !R.baseD) continue;
+    const mt = m.mats && R.secName ? m.mats[R.secName] : null, sec = (mt && mt.sec) || R.secName || '?';
+    const wing = /wing|ail|flap|tip/i.test(sec);
+    const rule2 = R.tubeTear ? 'tube tear (WALL)' : R.sheetTear ? 'sheet tear (WALL)' : 'stretch tear';
+    for (let t = 0; t < R.nt; t++) {
+      const c = R.dead[t];
+      let z = 0; for (let k = 0; k < 3; k++) z += R.baseD[R.idx0[t * 3 + k] * 3 + 2] / 3;
+      const side = z >= 0 ? 'z+' : 'z-', key = wing ? side : sec;
+      const B = wing ? (out.wings[key] = out.wings[key] || { tris: 0, gone: 0, by: {} }) : (out.other[key] = out.other[key] || { tris: 0, gone: 0, by: {} });
+      B.tris++;
+      if (!c) continue;
+      B.gone++; const why = c === 2 ? rule2 : (NAME[c] || 'code ' + c); B.by[why] = (B.by[why] || 0) + 1;
+    }
+    if (R.islN && wing) { let z = 0; for (let v = 0; v < Math.min(R.nv, 50); v++) z += R.baseD[v * 3 + 2]; const B = out.wings[z >= 0 ? 'z+' : 'z-']; if (B) B.islands = (B.islands || 0) + R.islN; }
+  }
+  return out;
+}
 // THE DRAWN CLIP's dump: every drawn triangle of the aeroplane in the world, by class (base64 Float32 x 9 a triangle)
 function pageDump() {
   const P = FLIGHT_PROBE, m = P.model(), B = m.wreckBuild, scene = P.craft().parent;
@@ -267,7 +297,7 @@ function clipOf(dump) {
   return { skinTris: skin.length / 9, furnitureOutside: stat(dump.furniture, true, 1), debrisInside: stat(dump.debris, false, 3) };
 }
 
-module.exports = { run, post, get, CASES, pageStage, pageView, pageCensus };
+module.exports = { run, post, get, CASES, pageStage, pageView, pageCensus, pageTears };
 if (require.main === module) (async () => {
   fs.mkdirSync(OUT, { recursive: true });
   const names = opt('cases', Object.keys(CASES).join(',')).split(',');
@@ -291,6 +321,12 @@ if (require.main === module) (async () => {
     if (out.stage && out.stage.wreck) console.log('  ' + k + ' cowl: ' + out.stage.wreck.parts.filter(p => p.kind === 'cowl' || p.kind === 'spinner' || p.kind === 'eng')
       .map(p => p.kind + ' ' + (p.gone ? 'OFF (' + p.why + (p.crush != null ? ', ' + Math.round(p.crush * 100) + ' cm' : '') + ')' : 'on' + (p.crush != null ? ' (' + Math.round(p.crush * 100) + ' cm)' : ''))).join(', '));
     if (out.stage && out.stage.wreck) console.log('  ' + k + ' strikes: ' + (out.stage.wreck.strikes || []).map(x => 'engine ' + x.eng + ' ' + (x.drive ? 'DRIVE ' + x.drive + (x.biteR != null ? ' biteR ' + (+x.biteR).toFixed(3) : '') + (x.surf ? ' ' + x.surf : '') : 'own strike') + ' ' + x.material + ' curl ' + x.curl.join('/') + ' cut ' + x.cut.join('/')).join('; '));
+    // (the user's review: the tear census - which members, how much work, which rule took each wing's covering)
+    try { out.tears = await run(pageTears);
+      const W = out.tears.wings, f = b => b ? b.gone + '/' + b.tris + ' gone (' + Object.entries(b.by).map(([r, n]) => r + ' ' + n).join(', ') + (b.islands ? '; islands ' + b.islands : '') + ')' : 'n/a';
+      console.log('  ' + k + ' tears: ' + out.tears.broken + ' members broken, work ' + out.tears.workJ + ' J of ' + out.tears.energyJ + ' J; wing z+ ' + f(W['z+']) + '; wing z- ' + f(W['z-']));
+      console.log('  ' + k + ' members: ' + out.tears.members.join(' '));
+    } catch (e) { console.log('  ' + k + ' tears: ' + (e && e.message)); }
     if (out.stage && out.stage.err) { R.cases[k] = out; continue; }
     // the wreck drawn first from every camera, then D4a's alone, then neither (a heal does not fly the debris again: it
     // would re-release them from the wreck at rest)
