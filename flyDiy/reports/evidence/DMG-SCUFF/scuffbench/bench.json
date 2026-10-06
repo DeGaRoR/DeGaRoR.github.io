@@ -1,0 +1,24 @@
+{
+ "when": "2026-10-05T23:57:27.507Z",
+ "size": [
+  800,
+  450
+ ],
+ "builds": {
+  "cub": {
+   "build": "builds/cub_2026-09-20_corrected.json",
+   "noscuff": {
+    "n": 62,
+    "hash": "226e0692",
+    "links": 31
+   },
+   "noscuffErrors": [],
+   "loaded": {
+    "n": 62,
+    "hash": "226e0692",
+    "links": 31
+   },
+   "sameAsNoscuff": true
+  }
+ }
+}
