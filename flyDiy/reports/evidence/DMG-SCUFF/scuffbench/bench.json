@@ -103,7 +103,21 @@
     "hash": "5e93b8af",
     "links": 33
    },
-   "sameAsNoscuff": true
+   "sameAsNoscuff": true,
+   "stills": [
+    "metal_overview_before.jpg",
+    "metal_under_before.jpg",
+    "metal_nose_before.jpg",
+    "metal_belly_before.jpg",
+    "metal_wing_before.jpg",
+    "metal_pane_before.jpg"
+   ],
+   "arm": {
+    "meshes": 704,
+    "links": 10,
+    "front": true,
+    "uDmgM": 0.745
+   }
   }
  }
 }
