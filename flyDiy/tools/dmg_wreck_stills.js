@@ -306,6 +306,7 @@ function pageTears() {
       B.tris++;
       if (!c) continue;
       B.gone++; const why = c === 2 ? rule2 : (NAME[c] || 'code ' + c); B.by[why] = (B.by[why] || 0) + 1;
+      if (wing) { B.secs = B.secs || {}; B.secs[sec] = (B.secs[sec] || 0) + 1; }   // (which sections the 'wing' count is made of)
     }
     if (R.islN && wing) { let z = 0; for (let v = 0; v < Math.min(R.nv, 50); v++) z += R.baseD[v * 3 + 2]; const B = out.wings[z >= 0 ? 'z+' : 'z-']; if (B) B.islands = (B.islands || 0) + R.islN; }
   }
@@ -390,7 +391,7 @@ if (require.main === module) (async () => {
     if (out.stage) console.log('  ' + k + ' mount first: ' + JSON.stringify(out.stage.mountFirst || null));
     // (the user's review: the tear census - which members, how much work, which rule took each wing's covering)
     try { out.tears = await run(pageTears);
-      const W = out.tears.wings, f = b => b ? b.gone + '/' + b.tris + ' gone (' + Object.entries(b.by).map(([r, n]) => r + ' ' + n).join(', ') + (b.islands ? '; islands ' + b.islands : '') + ')' : 'n/a';
+      const W = out.tears.wings, f = b => b ? b.gone + '/' + b.tris + ' gone (' + Object.entries(b.by).map(([r, n]) => r + ' ' + n).join(', ') + (b.islands ? '; islands ' + b.islands : '') + (b.secs ? '; by section ' + JSON.stringify(b.secs) : '') + ')' : 'n/a';
       console.log('  ' + k + ' tears: ' + out.tears.broken + ' members broken, work ' + out.tears.workJ + ' J of ' + out.tears.energyJ + ' J; wing z+ ' + f(W['z+']) + '; wing z- ' + f(W['z-']));
       console.log('  ' + k + ' members: ' + out.tears.members.join(' '));
     } catch (e) { console.log('  ' + k + ' tears: ' + (e && e.message)); }
