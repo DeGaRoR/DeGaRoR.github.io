@@ -177,7 +177,7 @@ function buildFin2(S) {
   // The Cub tail is the proof case: it drops the mid row 0.46 and the u row
   // 0.19, and aligns its LE root and shoulder ONTO those rows.
   const yMid = D.yMid + (S.midY || 0) + dyR;
-  const yU = D.yU + (S.uY || 0) + dyR;
+  let yU = D.yU + (S.uY || 0) + dyR;      // ordered against the root strand below (G2050)
 
   // THE ROOT'S FORWARD POINT IS ITS OWN STATION (user ask: shifting the
   // whole surface is not the control): rootFwd moves the drawn front
@@ -239,14 +239,73 @@ function buildFin2(S) {
   const loTEy = S.keelExt ? loH : loH + (S.baseY || 0);
   const hiTEy = loTEy + (D.hi.H - D.lo.H);
   const yBA = S.keelExt ? baY : loTEy;
+  // THE ROWS STAY IN ORDER (G2050, JODEL-TAIL; the user, 6 Oct: "the Jodel
+  // flickers at the tail, at the root of the stabs"). The u row is the
+  // sheet's first row above the root strand, and the root strand's TE end is
+  // the corner baseY pulls off the root line (the elevator's centre-apart
+  // cut-out). The Jodel asked for both past each other - its u row 0.07 BELOW
+  // the root guard pair (uY -0.385) and its TE corner 0.35 ABOVE the u row
+  // (baseY 0.285) - and two control quads turned inside out: the subdivided
+  // elevator folded its inboard third back over itself, 1045 cm2 a side of
+  // sheet lying on sheet with opposite winding, which a double-sided skin
+  // draws as a z-fight (the blue shards at the stab root, every aeroplane
+  // built that way). A row cannot sit below the strand it is the next row
+  // of: the u row keeps a margin over both the guard pair and the TE corner,
+  // and names itself when that stops the slider. The corner the builder drew
+  // stays where it was.
+  yU = clampSay('u row', yU, Math.max(hiH, hiTEy) + 0.01, Math.max(Math.max(hiH, hiTEy) + 0.01, yMid - 0.05));
   const teZ = y => taZ + (baZ - taZ) * (taY - y) / ((taY - yBA) || 1);
   // positive offsets pull a TE row FORWARD (the clearance notch); clamped
   // aft of the hinge band so the surface can never fold through its own
   // hinge columns
   const teLim = D.zH2 - 0.05;
-  const teRootZ = clampSay('TE root', teZ((loTEy + hiTEy) / 2) + (S.teRoot || 0), -Infinity, teLim);
+  let teRootZ = clampSay('TE root', teZ((loTEy + hiTEy) / 2) + (S.teRoot || 0), -Infinity, teLim);
   const teUZ = clampSay('TE u row', teZ(yU) + (S.teU || 0), -Infinity, teLim);
   const teMidZ = clampSay('TE mid row', teZ(yMid) + (S.teMid || 0), -Infinity, teLim);
+  // THE NOTCH STAYS BEHIND ITS CHORD (G2050). The TE root corner is the
+  // inner corner of the quad (u row at the hinge, guard pair at the hinge,
+  // the corner, the u row's TE): pulled forward of the chord from the guard
+  // pair's hinge end to the u row's TE it turns that quad concave, and the
+  // subdivision folds it - the Jodel's teRoot 0.4 on top of its baseY 0.29
+  // put the corner 0.32 forward of that chord, the inboard elevator's last
+  // folded faces. Two clearances asked of one corner; the notch stops on the
+  // chord (a margin aft of it) and names itself.
+  if (!S.keelExt && yU - hiH > 1e-9) {
+    const zChord = ((hiTEy - hiH) * teUZ + (yU - hiTEy) * D.zH2) / (yU - hiH);
+    teRootZ = clampSay('TE root', teRootZ, -Infinity, zChord - 0.03);
+  }
+  // THE NOTCH STAYS BEHIND ITS CHORD (G2050). The TE root corner is the
+  // inner corner of the quad (u row at the hinge, guard pair at the hinge,
+  // the corner, the u row's TE): pulled forward of the chord from the guard
+  // pair's hinge end to the u row's TE it turns that quad concave, and the
+  // subdivision folds it - the Jodel's teRoot 0.4 on top of its baseY 0.29
+  // put the corner 0.32 forward of that chord, the inboard elevator's last
+  // folded faces. Two clearances asked of one corner; the notch stops on the
+  // chord (a margin aft of it) and names itself.
+  if (!S.keelExt && yU - hiH > 1e-9) {
+    const zChord = ((hiTEy - hiH) * teUZ + (yU - hiTEy) * D.zH2) / (yU - hiH);
+    teRootZ = clampSay('TE root', teRootZ, -Infinity, zChord - 0.03);
+  }
+  // THE GUARD PAIR STANDS SQUARE TO ITS STRAND (G2050). The pair is the
+  // root strand's partner a guard gap off it, drawn as +y - square to a LEVEL
+  // strand. baseY tilts the strand's TE end outboard (the Jodel's: 0.29 out
+  // over 0.14 aft, 65 degrees off the chord), and a +y gap on a strand that
+  // runs mostly +y is a gap ALONG it: the guard quad (loH2, loTE, hiTE, hiH2)
+  // was a 6 mm sliver whose interior edge, smoothed by the subdivision past
+  // the creased boundary, crossed it - the last folds of the stab-root
+  // flicker. The partner now stands the gap off along the strand's own
+  // normal (toward the sheet, +y); a level strand's normal IS +y, so every
+  // fin and stab without a baseY is the same vertex as before.
+  let hiTE = [hiTEy, teRootZ];
+  if (!S.keelExt) {
+    const dy = loTEy - loH, dzS = teRootZ - D.zH2, L = Math.hypot(dy, dzS);
+    if (L > 1e-9) {
+      let ny = -dzS / L, nz = dy / L;
+      if (ny < 0) { ny = -ny; nz = -nz; }
+      const g = hiTEy - loTEy;
+      hiTE = [loTEy + g * ny, teRootZ + g * nz];
+    }
+  }
 
   // ---- emission, in the sketch OBJ's own vertex order -----------------------
   // (all z through Z(): the rebase, the identity when there is no deck)

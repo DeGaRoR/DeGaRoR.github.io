@@ -1,0 +1,4 @@
+nav http://localhost:8591/flyDiy/index.html?gfx=retro
+garage up in 40.7 s
+garage: 30 fps drawn, GPU 10.135 ms, calls 1205, ktris 1315.4, programs 379, VRAM 2915.6 MB, canvas 960,1080 scale 0.85
+POTATO_CENSUS {"garage":{"gpu":10.135,"fps":30,"calls":1205,"ktris":1315.4,"vramMB":2915.6}}

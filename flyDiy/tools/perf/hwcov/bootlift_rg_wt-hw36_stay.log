@@ -1,0 +1,10 @@
+stay (95 s)
+  ok   stay: the screen lifted at compile
+  ok   stay: the shed drawn while the chain finished under it (60 renders in 60 frames)
+  ok   stay: the lifted chain ran to its end (["firstFrame","frames","craft","recheck"])
+  ok   stay: the shed still drawn after it (30)
+  ok   stay: then Fly - the roll-out landed ({"kind":"rollout","done":true,"ran":[]}, the screen: garage)
+  ok   stay: the world drawn (60)
+  FAIL stay: a reveal marked with or without a roll-out screen (0)
+  ok   stay: no page error ([])
+GATE BOOTLIFT: FAIL (1)

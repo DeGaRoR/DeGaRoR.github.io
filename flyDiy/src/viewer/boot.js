@@ -445,10 +445,19 @@
     const idle = (B.opt.idle || 30000) * k, hard = (B.opt.hard || 120000) * k, skipAt = (B.opt.skipAt || 14000) * k;
     if (t - B.lastEvent >= skipAt || t - B.opt.t0 >= 45000) { const b = $('bootSkip'); if (b) b.hidden = false; }
     const compiling = B._shaderT && t - B._shaderT < idle;   // G567: a moving shader count is not a stuck boot
-    if (t - B.lastEvent >= idle || (t - B.opt.t0 >= hard && !compiling)) { fail(t - B.opt.t0 >= hard ? 'hard timeout' : 'nothing landed for ' + Math.round(idle / 1000) + ' s'); return; }
+    // G1995 (HW-COVERAGE): THE HARD TIMEOUT WAITS FOR A CHAIN THAT STILL MOVES. The user's GTX 1660 Ti laptop loaded the garage
+    // in 120-137 s, every step landing: the 120 s timeout lifted the screen mid-chain (train 35: before first light, the
+    // loop never started - 0 frames; train 36: the shed shown half-built at 8 fps while the chain compiled under it). A
+    // step finished or a step's own count rising within the idle window is progress (B._progT): the hard timeout lifts
+    // only a chain that has stopped moving; 'nothing landed for 30 s' stays as it was, and five times the hard timeout is
+    // the last resort whatever moves (a chain that never ends)
+    const moving = B._progT && t - B._progT < idle && B.state === 'loading';
+    if (t - B.lastEvent >= idle || (t - B.opt.t0 >= hard && !compiling && !moving) || t - B.opt.t0 >= 5 * hard) {
+      fail(t - B.opt.t0 >= hard ? 'hard timeout' : 'nothing landed for ' + Math.round(idle / 1000) + ' s'); return; }
     B._watchArmed = t; if (hasTimer) setTimeout(watch, 2000);
   }
   function armWatch() { B.lastEvent = now(); }
+  function progress() { B._progT = now(); armWatch(); }   // G1995: the chain moved (a step done, a step's count rising)
 
   // ---- the aggregator ---------------------------------------------------
   const LABELS = { sky: 'sky', env: 'lighting', room: 'the room', props: 'props', propTex: 'prop textures', skin: 'the skin',
@@ -496,13 +505,14 @@
     if (B._runT && B.state === 'loading' && B.stepI > 0 && !(B.current && B.current.id === id)) { rec('phase', { id, stale: true }); return; }
     // the same step reporting its count again: the fraction only ever rises (G640)
     const same = B.current && B.current.id === id;
+    if (B._runT && B.state === 'loading' && (!same || (frac || 0) > (B.frac || 0))) progress();   // G1995: a new step, or its count rising
     B.current = { id, label, w: same ? B.current.w : 1 };
     B.frac = same ? Math.max(B.frac || 0, frac || 0) : (frac || 0);
     rec('phase', { id }); if (!same) why(id);
     setPhase(label || id); paint();
   }
   // G640: the current step's own count (the shader compile's linked / seen)
-  function sub(frac) { if (B.state !== 'loading' || !(frac >= 0)) return; if (frac > (B.frac || 0)) { B.frac = Math.min(1, frac); paint(); } }
+  function sub(frac) { if (B.state !== 'loading' || !(frac >= 0)) return; if (frac > (B.frac || 0)) { B.frac = Math.min(1, frac); progress(); paint(); } }
   function run(steps, opt) {
     opt = opt || {};
     B.opt = Object.assign({ t0: now() }, opt);
@@ -522,7 +532,7 @@
     rec('run', { set: B.set, steps: B.steps.length });
     if (!B._readyP) B._readyP = new Promise(r => { B._readyRes = r; });
     if (typeof window !== 'undefined') window.FLYDIY_READY = B._readyP;
-    armWatch(); B._watchArmed = now(); if (hasTimer) setTimeout(watch, 2000);
+    progress(); B._watchArmed = now(); if (hasTimer) setTimeout(watch, 2000);
     recheckCold(); startTick();
     // the first step is its own task too (LOADING S2): run() is called at the
     // end of app.js's eval, and a step run inside that task would keep the
@@ -553,7 +563,7 @@
     const s = B.steps[B.stepI++];
     B.current = { id: s.id, label: s.label, w: s.w || 1 }; B.frac = 0;
     const E = B._E[B.stepI - 1]; B._stepE = E; B._stepT = now();
-    setPhase(s.label || s.id); why(s.id); paint(); armWatch();
+    setPhase(s.label || s.id); why(s.id); paint(); progress();
     const t = now(); const e = rec('step', { id: s.id });
     const failed = err => { rec('error', { id: s.id, msg: String(err && err.message || err) }); note('a step failed (' + s.id + '): ' + String(err && err.message || err)); if (typeof console !== 'undefined') console.error('boot step ' + s.id + ':', err); };
     const gen = B._gen, i = B.stepI - 1;
@@ -563,7 +573,7 @@
       B._runMs[hid(s)] = e.ms;
       if (B._Edef[i]) { B._paceN += e.ms; B._paceD += E / pace(); }
       if (B.opt.probe) { try { Object.assign(e, B.opt.probe()); } catch (err) {} }   // e.g. the renderer's program count
-      B.doneW += E; B._stepE = 0; armWatch(); paint();
+      B.doneW += E; B._stepE = 0; progress(); paint();
       if (hasTimer) setTimeout(() => next(gen), 0); else next(gen);
     };
     let r;

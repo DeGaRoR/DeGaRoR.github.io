@@ -1080,6 +1080,23 @@
     ]
    },
    "cook": true
+  },
+  "darkRock": {
+   "src": {
+    "diff": [
+     "assets/splat/darkRock/diff_512.jpg"
+    ],
+    "nor": [
+     "assets/splat/darkRock/nor_gl_512.jpg"
+    ],
+    "rough": [
+     "assets/splat/darkRock/rough_512.jpg"
+    ],
+    "height": [
+     "assets/splat/darkRock/height_512.jpg"
+    ]
+   },
+   "cook": true
   }
  },
  "libs": {
@@ -1272,6 +1289,16 @@
      0.0728,
      0.0598,
      0.0284
+    ]
+   },
+   {
+    "key": "darkRock",
+    "set": "darkRock",
+    "metres": 2.0,
+    "mean": [
+     0.0434,
+     0.0344,
+     0.0255
     ]
    }
   ],

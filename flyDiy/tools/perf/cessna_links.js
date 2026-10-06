@@ -6,7 +6,7 @@
 // of the same profile already linked (the cache should have held it: capacity / key) vs the ones whose source is NEW (a
 // source that differs per load: the cause this rig looks for). --dump <dir> writes the differing sources (load a / load b)
 // for a diff.
-// Usage: node tools/perf/cessna_links.js --port 8650 [--udd D:/cl1] [--builds metal,metal,metal] [--slow 1000] [--dump <dir>] [--fallback D:/Dev/DeGaRoR.github.io]
+// Usage: node tools/perf/cessna_links.js --port 8650 [--udd D:/cl1] [--builds metal,metal,metal | cub@town=0,cub@town=1] [--slow 1000] [--dump <dir>] [--fallback D:/Dev/DeGaRoR.github.io]
 //        [--out <file.json>]     (GPU lock first; --udd a SHORT fresh path; no --help: an unknown flag runs it)
 'use strict';
 const fs = require('fs'), path = require('path'), os = require('os');
@@ -40,9 +40,10 @@ const HASH = `(function(){ if (window.__CL) return; var C = window.__CL = { ln: 
   const ONE = argv.includes('--one'), FLY = argv.includes('--fly');
   let b1 = null;
   for (let li = 0; li < LOADS.length; li++) {
-    const key = LOADS[li], B = MB.BUILDS[key];
+    // G2060 (METLA-COOK): a load may carry its page query - 'cub@town=0', 'cub@town=1' (the town's first visit on a profile)
+    const key = LOADS[li], [bk, qs] = key.split('@'), B = MB.BUILDS[bk];
     const b = ONE ? (b1 = b1 || await MB.browser(UDD)) : await MB.browser(UDD);
-    const l = await b.load(BASE, MB.preScript(B.build, null, B.patch) + '\n' + HASH);
+    const l = await b.load(BASE + (qs ? '?' + qs : ''), MB.preScript(B.build, null, B.patch) + '\n' + HASH);
     await sleep(3000);   // the garage's own links settle
     const tG = await b.ev('performance.now()');
     let fly = null;

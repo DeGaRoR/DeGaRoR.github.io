@@ -792,9 +792,12 @@ PAGE.post = ctx => {
         const yT = deck0.top(z), yB = deck0.bot(z);
         const r = 0.5 * (yT - yB) * FS;
         if (!(r > 0.01)) continue;
-        RF.saddle(bag, { ctr: [0, 0.5 * (yT + yB) * FS, z * FS], axis: [0, 0, -1], r, collar: !near,
-                         plate: { top: 1, W: Math.max(r * 2 + 0.02, (P.finThick || 0.06) * FS + 0.04), L: 0.09 } });
-        drawn.push({ z: z * FS, r, shared: !!near });
+        const Wp = Math.max(r * 2 + 0.02, (P.finThick || 0.06) * FS + 0.04), Lp = 0.09;
+        const rec = RF.saddle(bag, { ctr: [0, 0.5 * (yT + yB) * FS, z * FS], axis: [0, 0, -1], r, collar: !near,
+                                     plate: { top: 1, W: Wp, L: Lp } });
+        // G2050: the plate's upper face and footprint ride along - a stab
+        // seated at this station bolts onto THIS plate (_cage_stab.js)
+        drawn.push({ z: z * FS, r, shared: !!near, top: rec && rec.top, W: Wp, L: Lp });
       }
       const sad = new THREE.Group();
       sad.name = 'edSaddle_fin';

@@ -1,0 +1,45 @@
+[
+ {
+  "which": "hard",
+  "errors": [],
+  "end": {
+   "state": "gone",
+   "ready": true,
+   "fails": [],
+   "steps": [
+    "treeBins",
+    "aircraft",
+    "garage",
+    "editor",
+    "seed",
+    "world",
+    "town",
+    "parking",
+    "trees",
+    "ring",
+    "settle",
+    "parked",
+    "snapshot",
+    "bake",
+    "spec",
+    "restore",
+    "images",
+    "upload",
+    "worldCompile",
+    "compile",
+    "firstFrame",
+    "frames",
+    "craft",
+    "recheck"
+   ],
+   "vS": 2
+  },
+  "renders": {
+   "world": 6,
+   "shed": 13,
+   "other": 2564
+  },
+  "wallS": 108,
+  "bad": []
+ }
+]

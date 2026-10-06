@@ -1,0 +1,48 @@
+[
+ {
+  "which": "diag",
+  "errors": [],
+  "diag": {
+   "ok": true,
+   "state": "done - the worst offender: shadows off (saves 0 ms of 16.7). Download the report and send it.",
+   "variants": [
+    "base:300",
+    "shadows=off:300",
+    "glare=off:300",
+    "cover=off:300",
+    "mist=off:300",
+    "ground=plain:300",
+    "terrain=6:300",
+    "scenery=low:300",
+    "rails=off:300",
+    "poles=off:300",
+    "clouds=off:300",
+    "aa=off:300",
+    "bloom=off:300",
+    "scale=0.5:300"
+   ],
+   "census": 2,
+   "gl": {
+    "renderer": "gate",
+    "timer": false
+   },
+   "worst": {
+    "id": "shadows=off",
+    "label": "shadows off",
+    "saves": 0,
+    "of": 16.7,
+    "by": "frame ms"
+   },
+   "text": 27,
+   "restored": true,
+   "held": 0
+  },
+  "renders": {
+   "world": 6726,
+   "shed": 733,
+   "other": 109610
+  },
+  "wallS": 347,
+  "bad": []
+ }
+]

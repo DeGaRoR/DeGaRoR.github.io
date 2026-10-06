@@ -1,0 +1,40 @@
+phone  (Android ), Chrome/141.0.7390.37; battery null C
+boot: gone in 197.2 s; JS heap peak 323.4 MB + backing stores 1172.4 MB; renderer PSS peak 0 MB, GPU process 0 MB
+   reading the island                      1 s  heap 2 + 164.2 MB
+   reading the model                       3 s  heap 46.8 + 496 MB
+   building your aeroplane                 9 s  heap 82 + 536.4 MB
+   your aeroplane on the stand            13 s  heap 105 + 567.5 MB
+   laying out the world: light            16 s  heap 110 + 611.2 MB
+   laying out the world: ground colou     17 s  heap 96.9 + 633 MB
+   laying out the world: ground field     20 s  heap 131.2 + 657.8 MB
+   laying out the world: water            22 s  heap 131.1 + 762 MB
+   laying out the world: premises mad     23 s  heap 225.2 + 820.4 MB
+   laying out the world: patch ground     25 s  heap 236.9 + 937.8 MB
+   laying out the world: patch block      27 s  heap 247.6 + 990.3 MB
+   laying out the world: lots             28 s  heap 238.8 + 1068.1 MB
+   laying out the world: pavement:mer     29 s  heap 268 + 1130.8 MB
+   laying out the world: far terrain      31 s  heap 183.6 + 872.2 MB
+   building the field 0 / 50              32 s  heap 192.2 + 1008 MB
+   building the field 37 / 50             34 s  heap 192.9 + 1029.3 MB
+   building the field 48 / 50             35 s  heap 188.4 + 1097.3 MB
+   growing the forest 7 / 148             36 s  heap 197.4 + 1145.1 MB
+   growing the forest 17 / 148            37 s  heap 204.3 + 1152.9 MB
+   the world settling round the stand     39 s  heap 218.1 + 1063.5 MB
+   busy                                   92 s  heap 213.3 + 1073.6 MB
+   committing your build                  94 s  heap 273.6 + 1001.5 MB
+   your aeroplane, built                  98 s  heap 284.5 + 1055.6 MB
+   uploading the textures 16 / 171       100 s  heap 306.6 + 1055.6 MB
+   uploading the textures 51 / 171       101 s  heap 290.3 + 1075.5 MB
+   uploading the textures 121 / 171      102 s  heap 323.4 + 1075.5 MB
+   compiling the shaders                 105 s  heap 295.8 + 1076.4 MB
+   busy                                  136 s  heap 301 + 1076.4 MB
+   first light                           151 s  heap 181.2 + 953.3 MB
+   first light 215 / 215                 158 s  heap 183.2 + 946.5 MB
+   your aeroplane, as it settled         187 s  heap 183 + 946.5 MB
+   landing                               190 s  heap 183.4 + 946.5 MB
+   gone                                  197 s  heap 182.9 + 946.5 MB
+   after GC: heap 177.9 + 945.9 MB, PSS {"rendererMB":0,"gpuMB":0,"browserMB":0}
+share/storage probe: {"share":false,"canShareUrl":false,"json":false,"txt":false,"flydiy":false,"persisted":false,"estimate":{"quotaMB":154812,"usageMB":156},"standalone":false,"coarse":true,"dpr":2.625,"w":412,"h":915}
+frames at rest: {"n":3,"fps":0.9,"p50":1583.3,"p95":1583.3,"p99":1583.3,"over50":2}
+frames orbiting: {"n":3,"fps":1,"p50":1466.5,"p95":1466.5,"p99":1466.5,"over50":2}
+-> /home/user/DeGaRoR.github.io/flyDiy/reports/evidence/MOBILE-GARAGE-1/s20emu_trunk.json

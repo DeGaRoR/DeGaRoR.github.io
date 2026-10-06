@@ -273,6 +273,11 @@ console.log('GATE GFX');
   ok(D(phone).screen === 'gate' && D(ipad).screen === 'gate', 'a phone and a tablet get the device gate');
   ok(D(desk('', { webgl2: false })).screen === 'gate' && /WebGL2/.test(D(desk('', { webgl2: false })).why), 'a browser without WebGL2 gets the device gate');
   ok(D(phone, { 'flydiy.welcome': JSON.stringify({ gpu: 'Adreno (TM) 650', preset: 'potato', tried: true }) }).screen === 'none', '"try anyway" is remembered (no gate the next time)');
+  // G2100 (MOBILE-GARAGE 1): "Build on this phone" is remembered too, as the phone profile - and only on a phone
+  { const phoneRec = { 'flydiy.welcome': JSON.stringify({ gpu: 'Adreno (TM) 650', preset: 'laptop', tried: true, profile: 'phone' }) };
+    const dp = D(phone, phoneRec), dd = D(desk('NVIDIA GeForce RTX 3080'), phoneRec), dt = D(phone, { 'flydiy.welcome': JSON.stringify({ gpu: 'Adreno (TM) 650', preset: 'potato', tried: true }) });
+    ok(dp.screen === 'none' && dp.profile === 'phone' && !dd.profile && dt.profile === undefined && D(desk('NVIDIA GeForce RTX 3080')).profile === undefined,
+       '"build on this phone" remembered: the phone profile again with no gate; a desktop, "try anyway" and a first visit never get it'); }
   // THE RIGS NEVER SEE EITHER SCREEN
   const rigs = [{ webdriver: true, userAgent: 'Mozilla/5.0 Chrome/140' }, { userAgent: 'Mozilla/5.0 (X11; Linux x86_64) HeadlessChrome/140.0' }];
   ok(rigs.every(n => D(desk('NVIDIA GeForce RTX 3080'), {}, '', n).screen === 'none' && D(phone, {}, '', n).screen === 'none' && D(desk('', { webgl2: false }), {}, '', n).screen === 'none'),
@@ -292,7 +297,7 @@ console.log('GATE GFX');
   ok(rows.includes('this computer') && !rows2.includes('this computer'), 'the menu carries "re-check my computer" (not on the loading screen)');
   // the page: the welcome's block right after boot.js's, ahead of the vendor; the island loader waits on it
   const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
-  const iB = html.indexOf('window.BOOT = B'), iW = html.indexOf('W.WELCOME = {'), iV = html.indexOf('function makeAutopilot'), iL = html.indexOf('return window.FLYDIY_WELCOME;');
+  const iB = html.indexOf('window.BOOT = B'), iW = html.indexOf('W.WELCOME = {'), iV = html.indexOf('function makePilot('), iL = html.indexOf('return window.FLYDIY_WELCOME;');
   ok(iB > 0 && iW > iB && iW < iV && iL > iW && iL < html.indexOf("fetch('src/core/world_packs.json')"),
      'index.html: welcome.js after boot.js and before the core; the island loader holds on FLYDIY_WELCOME before its first fetch');
 }
@@ -354,10 +359,13 @@ console.log('GATE GFX');
 {
   // the rows and the build budgets of retro .. ultra as train 31 shipped them (the user: "desktop presets must not change at all")
   const FROZEN = {"retro":{"ground":"lean","scale":0.85,"cover":"lean","scenery":"lean","drawDist":"vis","terrain":2,"aa":"off","density":100,"bands":"near","shadows":"near","canopy":"off","rails":"on","poles":"off","glare":"on","sway":"off","mist":"on","clouds":"off","water":"simple","mirror":"off","lighting":"sunset","tone":"cineon","exposure":1,"colour":"managed","bloom":"off","look":"off","lens":"off","rays":"off","ao":"off","eye":"off","compositing":"linear"},"current":{"ground":"far1","scale":1,"cover":"full","scenery":"full","drawDist":"vis","terrain":2,"aa":"off","density":128,"bands":"near","shadows":"full","canopy":"on","rails":"on","poles":"on","glare":"on","sway":"on","mist":"on","clouds":"half","water":"simple","mirror":"off","lighting":"sunset","tone":"cineon","exposure":1,"colour":"managed","bloom":"soft","look":"off","lens":"off","rays":"off","ao":"off","eye":"off","compositing":"linear"},"gamer":{"ground":"far1","scale":1,"cover":"full","scenery":"full","drawDist":"vis","terrain":1,"aa":"msaa","density":128,"bands":"mid","shadows":"full","canopy":"on","rails":"on","poles":"on","glare":"on","sway":"on","mist":"land","clouds":"half","water":"simple","mirror":"off","lighting":"sunset","tone":"cineon","exposure":1,"colour":"managed","bloom":"soft","look":"off","lens":"off","rays":"off","ao":"off","eye":"off","compositing":"linear"},"ultra":{"ground":"full","scale":1,"cover":"full","scenery":"full","drawDist":"vis","terrain":1,"aa":"full","density":200,"bands":"mid","shadows":"ultra","canopy":"on","rails":"on","poles":"on","glare":"on","sway":"on","mist":"banks","clouds":"full","water":"full","mirror":"off","lighting":"sunset","tone":"cineon","exposure":1,"colour":"managed","bloom":"soft","look":"off","lens":"off","rays":"off","ao":"off","eye":"off","compositing":"linear"}};
-  const FROZEN_B = {"retro":{"heapMB":1500,"mipSkip":0,"townBoot":4000,"townReach":6000,"parked":true,"forestK":1},"current":{"heapMB":1500,"mipSkip":0,"townBoot":4000,"townReach":6000,"parked":true,"forestK":1},"gamer":{"heapMB":2000,"mipSkip":0,"townBoot":4000,"townReach":6000,"parked":true,"forestK":1},"ultra":{"heapMB":2000,"mipSkip":0,"townBoot":4000,"townReach":6000,"parked":true,"forestK":1}};
+  // (G1529, A0's call 2026-10-05: retro's BUILD budget moved - no flown bake - after the user's i5-9300H / GTX 1660 Ti laptop loaded
+  // the garage in 120.5 s on retro (the bake 38.5 s + 31.3 s at the roll-out); townBoot stays 4000 (1500 streamed houses into the
+  // taxi: 217-250 ms hitches); retro's drawn ROWS are untouched, current / gamer / ultra's budgets too)
+  const FROZEN_B = {"retro":{"heapMB":1500,"mipSkip":0,"townBoot":4000,"townReach":6000,"parked":true,"forestK":1,"flownBake":false},"current":{"heapMB":1500,"mipSkip":0,"townBoot":4000,"townReach":6000,"parked":true,"forestK":1},"gamer":{"heapMB":2000,"mipSkip":0,"townBoot":4000,"townReach":6000,"parked":true,"forestK":1},"ultra":{"heapMB":2000,"mipSkip":0,"townBoot":4000,"townReach":6000,"parked":true,"forestK":1}};
   const G = boot({}).GFX;
   ok(['retro', 'current', 'gamer', 'ultra'].every(k => JSON.stringify(G.PRESETS[k]) === JSON.stringify(FROZEN[k])), 'retro, current, gamer, ultra: every row as train 31 shipped it');
-  ok(['retro', 'current', 'gamer', 'ultra'].every(k => JSON.stringify(G.BUDGETS[k]) === JSON.stringify(FROZEN_B[k])), '...and their build budgets (none of the new levers)');
+  ok(['retro', 'current', 'gamer', 'ultra'].every(k => JSON.stringify(G.BUDGETS[k]) === JSON.stringify(FROZEN_B[k])), '...and their build budgets (none of the new levers; retro: G1529 no flown bake - the user’s laptop load)');
   ok(G.PRESETS.potato.ground === 'plain' && G.PRESETS.laptop.ground === 'plain' && G.PRESETS.retro.ground === 'lean', "potato and laptop draw the plain ground; retro keeps 'lean'");
   const BP = G.BUDGETS.potato, BL = G.BUDGETS.laptop;
   ok(BP.impTile === 64 && BP.aeroAtlas === 2048 && BP.flownBake === false && BP.shedLamps === false && BP.shedGlass === false && BP.msaa === undefined,
@@ -374,17 +382,21 @@ console.log('GATE GFX');
   ok(wc.GFX.get().preset === 'custom' && wc.GFX.get().shadows === 'off', '...a custom mix keeps its rows');
   // the live hooks: the plain ground (the splat's plain()), the shed glass (FLYDIY_SHED), the MSAA cap (FLYDIY_AA.setMsaaCap)
   const hook = q => { const w = makeWindow({}); const calls = { plain: [], msaa: [] };
-    w.WORLD.ground = { splat: () => ({ blend() {}, plain: v => { calls.plain.push(v); return v; } }) };
+    let pl = false; calls.reload = 0;   // the splat's plain state (a real page builds it as the budget's row says)
+    w.WORLD.ground = { splat: () => ({ blend() {}, plain: v => { if (v === undefined) return pl; calls.plain.push(v); pl = !!v; return pl; } }) };
+    w.location = Object.assign({ search: '', reload: () => { calls.reload++; } }, w.location || {});
     const glass = { isMeshPhysicalMaterial: true, transmission: 0.9 }; w.FLYDIY_SHED = () => ({ mats: { glass } }); calls.glass = glass;
     w.FLYDIY_AA.setMsaaCap = n => { calls.msaa.push(n); return n; };
-    if (q) w.location = { search: q };
+    if (q) w.location.search = q;
     vm.runInNewContext(fs.readFileSync(path.join(__dirname, '..', 'src', 'viewer', 'gfx_settings.js'), 'utf8'), Object.assign({ window: w, setInterval: () => 0, clearInterval: () => {} }, w));
     w.GFX.onWorld(); return { w, calls }; };
   const hp = hook('?gfx=potato'), hg = hook(''), hl = hook('?gfx=laptop');
   ok(hp.calls.plain[0] === true && hg.calls.plain[0] === false && hl.calls.plain[0] === true, 'the plain ground reaches the splat: potato and laptop plain, gamer not');
   ok(hp.calls.glass.transmission === 0 && hg.calls.glass.transmission === 0.9, "the shed's glass: no transmission on potato, gamer's as it was");
   hp.w.GFX.set('preset', 'gamer');
-  ok(hp.calls.glass.transmission === 0.9 && hp.calls.plain[hp.calls.plain.length - 1] === false, '...both back live when the preset goes to gamer');
+  // G1531: both ways LIVE, no reload (the root fix: render_world's ground hook, the same uniforms in every state - GATE SPLAT)
+  ok(hp.calls.reload === 0 && hp.calls.plain[hp.calls.plain.length - 1] === false && hp.calls.glass.transmission === 0.9, '...potato -> gamer: the textured ground and the glass back LIVE (no reload, G1531)');
+  { const h2 = hook('?gfx=gamer'); h2.w.GFX.set('ground', 'plain'); h2.w.GFX.set('ground', 'lean'); ok(h2.calls.reload === 0 && h2.calls.plain.slice(-2).join() === 'true,false', '...textured -> plain -> textured, live both ways'); }
   ok(hl.calls.msaa[0] === 0 && hg.calls.msaa.length === 0 && hp.calls.msaa.length === 0, 'the MSAA cap: laptop 0; potato and gamer never set one');
   hl.w.GFX.set('preset', 'gamer');
   ok(hl.calls.msaa[hl.calls.msaa.length - 1] === null, '...laptop -> gamer lifts it');
@@ -396,7 +408,7 @@ console.log('GATE GFX');
     if (pref && pref.town) w.GFX.set('town', pref.town);
     return w.GFX.townAll(); };
   ok(G.BUDGETS.potato.town === 'nearby' && G.BUDGETS.laptop.town === 'nearby', "potato's and laptop's budgets cap the town at 'nearby'");
-  ok(G.BUDGETS.potato.patchTolPx === 3 && G.BUDGETS.laptop.patchTolPx === 3, "G1527: potato's and laptop's premises patch at 3 px (the taxi's largest owner: 780 k -> 431 k triangles)");
+  ok(G.BUDGETS.potato.patchTolPx === 6 && G.BUDGETS.laptop.patchTolPx === 6, "G1528: potato's and laptop's premises patch at 6 px (the taxi's largest owner: 780 k -> 205 k triangles; the sink and the pavement tolerance in render_premises)");
   ok(town(Object.assign({}, G.PRESETS.potato, { preset: 'potato', pv: 8, town: 'all' })) === false && town(Object.assign({}, G.PRESETS.laptop, { preset: 'laptop', pv: 8, town: 'all' })) === false
      && town({ town: 'all', pv: 8 }, '?gfx=potato') === false && town({ town: 'all', pv: 8 }, '?gfx=laptop') === false,
      "...the row at 'all' builds no Metlakatla on potato or laptop (saved or ?gfx=)");

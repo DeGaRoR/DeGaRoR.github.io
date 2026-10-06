@@ -112,8 +112,8 @@ function simHostProbe(world, pts, t, H, opts) {
   };
 }
 // the core names the worker's Blob picks out of the imported bundle
-const SIM_HOST_CORE = ['ISLAND_GEN', 'makeWorld', 'buildGen', 'makeSim', 'makePilot', 'makeAutopilot',
-                       'makeTestPilot', 'navMake', 'siteOf', 'placeAtStand', 'placeAtAerodrome', 'seatOnGround', 'placeAtLineup',
+const SIM_HOST_CORE = ['ISLAND_GEN', 'makeWorld', 'buildGen', 'makeSim', 'makePilot', 'PILOT_STYLES',
+                       'navMake', 'siteOf', 'placeAtStand', 'placeAtAerodrome', 'seatOnGround', 'placeAtLineup',
                        'stripSurface', 'stripGear'];
 const SIM_HOST_DT = 1 / 60;
 const SIM_HOST_CATCH = 4;          // steps owed per turn at most (G586's frame owed 4)
@@ -201,6 +201,17 @@ function simHostPanels(per) {
   per.forEach((o, i) => { if (!o.wet) return; f[j++] = i; f[j++] = o.wet; f[j++] = o.A;
     for (const v of [o.c, o.n, o.Fp, o.Fm]) { f[j++] = v[0]; f[j++] = v[1]; f[j++] = v[2]; } });
   return f;
+}
+// G2090: the wet body's contact records, trimmed to the groups in contact (null when none: a dry flight posts nothing);
+// reading clears the slam peaks it hands over (the page sees each entry's splash once)
+let simHostWetBuf = null;
+function simHostWet(sim) {
+  if (typeof sim.wetFx !== 'function') return null;
+  const b = sim.wetFx(simHostWetBuf); if (!b) return null;
+  simHostWetBuf = b;
+  const n = b[0]; if (!(n > 0)) return null;
+  const H = (typeof HYDRO !== 'undefined' && HYDRO.WFX_HEAD) || 5, R = (typeof HYDRO !== 'undefined' && HYDRO.WFX_R) || 18;
+  return b.slice(0, H + n * R);
 }
 function simHostPlain(o, depth, skip) {
   if (o === null || typeof o !== 'object') return typeof o === 'function' ? undefined : o;
@@ -361,11 +372,11 @@ function makeSimHost(CORE, init, keptWorld) {
   // app.js mkPilot
   function mkPilot() {
     const PK = init.pilot || {}, kind = PK.kind || 'auto';
-    if (kind === 'classic') return CORE.makeAutopilot(sim, def, world);
-    if (kind === 'test' && typeof CORE.makeTestPilot === 'function') return CORE.makeTestPilot(sim, def, world);
-    if (typeof CORE.makePilot === 'function') {
+    {
+      // G1940 (PILOT-ONE): one pilot; 'test' / 'classic' (retired) fly its normal style
       const sd = PK.shakedown || null;
-      const p = CORE.makePilot(sim, def, world, { style: kind === 'auto' ? 'normal' : kind, shakedown: () => sd });
+      const ST_ = CORE.PILOT_STYLES || {};
+      const p = CORE.makePilot(sim, def, world, { style: ST_[kind] ? kind : 'normal', shakedown: () => sd });
       if (PK.nav !== false && typeof CORE.navMake === 'function') {
         // one nav for the page's life (app.js flNav, made once, kept across flights): one per world here (G815)
         if (!world.__simNav) world.__simNav = CORE.navMake({ waypoints: world.aerodromes });
@@ -374,7 +385,6 @@ function makeSimHost(CORE, init, keptWorld) {
       }
       return p;
     }
-    return CORE.makeTestPilot(sim, def, world);
   }
   // app.js applyRoute; `stand`: true = the site's own, an object = the page's (standFor, the player's door), false = the spawn
   function place() {
@@ -661,6 +671,8 @@ function makeSimHost(CORE, init, keptWorld) {
       // WET panels the spray reads, flat (simHostPanels)
       hydro: HY ? { wet: HY.wet, tick: HY.tick, floats: HY.floats.map(fx => ({ side: fx.side, wet: fx.wet, out: simHostPlain(fx.out, 2, ['W', 'dq', 'per', 'd']), per: simHostPanels(fx.out.per), lam: fx.lam.slice() })) } : null,
       wheels: sim.wheelContacts ? sim.wheelContacts() : null,
+      // G2090 (WATER-LOOK): the wet body's contacts (32_hydro.js wetFx), only while any - a dry flight sends nothing
+      wet: simHostWet(sim),
       ctl: simHostPlain(sim.ctl, 3),
       ap: A, apNew,
       ...(dmgB ? { dmgB } : {}),   // G1850: only when it changed

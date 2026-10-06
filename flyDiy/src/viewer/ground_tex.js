@@ -77,6 +77,7 @@ const GROUND_TEX = {
     pebblePv: {"diff":"media/tex/ground/pebblePv_diff_512.40a4421d.jpg","nor":"media/tex/ground/pebblePv_nor_gl_512.69d75104.jpg","rough":"media/tex/ground/pebble_rough_512.d985d705.jpg","height":"media/tex/ground/pebblePv_height_512.f06ba062.jpg","layers":"media/tex/ground/pebblePv_layers_512.f9c07fe1.gz.bin","kA":"media/tex/ground/pebblePv_kA_512.8a5b3989.ktx2","kN":"media/tex/ground/pebblePv_kN_512.20ed4a43.ktx2"},
     dryPv: {"diff":"media/tex/ground/dryPv_diff_512.75fa2778.jpg","nor":"media/tex/ground/dryPv_nor_gl_512.f4f6e27d.jpg","rough":"media/tex/ground/dry_rough_512.8360b752.jpg","height":"media/tex/ground/dryPv_height_512.c822a8e1.jpg","layers":"media/tex/ground/dryPv_layers_512.6aea6768.gz.bin","kA":"media/tex/ground/dryPv_kA_512.6ed0b0ae.ktx2","kN":"media/tex/ground/dryPv_kN_512.23347cfd.ktx2"},
     dirtPv: {"diff":"media/tex/ground/dirtPv_diff_512.b7294a0a.jpg","nor":"media/tex/ground/dirtPv_nor_gl_512.e87f2d2e.jpg","rough":"media/tex/ground/dirt_rough_512.a924c560.jpg","height":"media/tex/ground/dirtPv_height_512.bd31ef00.jpg","layers":"media/tex/ground/dirtPv_layers_512.4c91c4a2.gz.bin","kA":"media/tex/ground/dirtPv_kA_512.3393f3e3.ktx2","kN":"media/tex/ground/dirtPv_kN_512.df26ad2e.ktx2"},
+    darkRock: {"diff":"media/tex/ground/darkRock_diff_512.0d8a30f9.jpg","nor":"media/tex/ground/darkRock_nor_gl_512.79c2bb5b.jpg","rough":"media/tex/ground/darkRock_rough_512.1cde0b23.jpg","height":"media/tex/ground/darkRock_height_512.3be04022.jpg","layers":"media/tex/ground/darkRock_layers_512.f17d3f7d.gz.bin","kAl":"media/tex/ground/darkRock_kAl_512.6b046d05.ktx2","kN":"media/tex/ground/darkRock_kN_512.4cc2d718.ktx2"},
   },
   libs: {
     splat: [
@@ -99,6 +100,7 @@ const GROUND_TEX = {
       {"key":"dirt","set":"dirt","metres":1.8,"mean":[0.1326,0.1085,0.0826]},
       {"key":"coastA","set":"coastA","metres":19.94,"mean":[0.0885,0.0593,0.0297]},
       {"key":"coastSand","set":"coastSand","metres":15.2,"mean":[0.0728,0.0598,0.0284]},
+      {"key":"darkRock","set":"darkRock","metres":2,"mean":[0.0434,0.0344,0.0255]},
     ],
     pavement: [
       {"key":"concreteA","set":"concreteA","name":"the WWII runway - damaged poured concrete","metres":4.5,"role":"base","mean":[0.0662,0.045,0.0276],"source":"Poly Haven","slug":"damaged_concrete_floor"},
