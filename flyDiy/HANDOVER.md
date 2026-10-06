@@ -78700,3 +78700,266 @@ riding to the GPU (format agreed: R.K, wi / ww / w2, dead >= 2; the still-merged
   places turning differently over a lever. The coordinator's idea - each window assembly (frame, bead, pane) one rigid part
   on its frame's nodes - is the next step if the census shows it.
 - The 3 m/s taxi breaks fuselage members on the page and nothing in node (DMG-D4b's parity hunt).
+
+## G2000-G2009 DMG-SCUFF - THE DAMAGE DRAWN WHERE THE PHYSICS PUT IT: CRUSH, SCRAPE, TORN EDGE AND A CRACKED WINDSCREEN, PER VERTEX FROM THE SOLVER THROUGH THE SKIN'S OWN BINDING, ASLEEP (THE PLAIN PROGRAMS) UNTIL THE FIRST DAMAGE, NOTHING WITH DAMAGE OFF (2026-10-06, DMG-SCUFF for the DEFORM COORDINATOR, cloud: node + SwiftShader, no GPU; branch claude/dmg-scuff off claude/dmg-integration 01e6892f, merged up to d3d5e24e - DMG-WALL, DMG-WINDBREAK, train 37b)
+
+The user (2026-10-06): "We should start looking at texturing damage too. We have already the weathering system that might
+help, not sure if it can apply per zone. A broken glass texture would be cool too." The weathering cannot apply per zone
+(its layers are macros x placement rules, one value for the aeroplane); the damage is its own record PER VERTEX, read
+from the physics at each damage event, drawn in the weathering's grammar (its palette, substrates, grunge sheet, "no
+shiny dirt"). DEFORM-AND-BREAK §8 (the wreck drawn), §5.3 (windscreen cracked).
+
+### G2001 - THE SLIDE WORK PER NODE (30_solver.js scuffAdd / scuffTrunk; sim_host.js simDmgScuff; sim_view.js)
+- The solver had the plastic work per member (D0's DMG.wB) but no record of SLIDING. Added, **behind DMG_ON only, never
+  read back by the physics** (no force, no state the step uses): the ground's own friction work on a node that is not a
+  wheel (kf |v|^2 dt, the Coulomb term already there), and a node's rub along a trunk (the trunk push has no friction:
+  0.5 x its push x the speed along the bark, for the picture only). With each node's work, in the BODY frame at that
+  substep (aft, up, right): the slide's direction and the side it was pushed from (into the surface), work-weighted, and
+  the share on SOFT ground (GROUND_SURF 0 grass, 3 forest floor, 7 sand). DMG.sW / sD / sN / sG, scN / scW; zeroed by
+  reset(); arrays of length 0 with damage off.
+- THE HOP: simDmgSigs gains a THIRD signature, the slide (sC: its work in coarse steps, ~19 % more a step, from 1 J;
+  '0' with none) on a clock of its own (hop.sC / hop.tC, the same window) - never in the sets' sS (it was at first:
+  the sets' timing moved with it, and DMG-WALL keys its wall on D.vB | D.sS - every slide step re-keyed the wall). The
+  break and set payloads are the base's plus `wb` (each member's plastic work, sparse, 0.1 J) and `sc` (each node's
+  slide work, mean direction, side, soft share, sparse); a slide payload carries `sC` and those two only.
+  simViewDmgApply fills D.wB / sW / sD / sN / sG and bumps **D.vS** (the scuff's event); one with neither after
+  there was some (a reset) heals. Cost: the Cub's 30 m/s
+  trunk 32 payloads, 36 kB -> 94 kB (wb is up to 394 members); nothing with damage off (no payload ever).
+
+### G2000 / G2002 / G2003 - skin_scuff.js (pure; window.SKIN_SCUFF; module.exports)
+- **The fields** (fields(def, D, {X0, Y0})): a member's equivalent plastic strain e = wB / (sigY A L) (GEN_CRASH ty, the
+  billed section, the length: a member of yield stress sigY spends sigY A L e to take a plastic strain e); the crush
+  0 at 0.8 %, full at 6 % (retuned on the real page: at 0.2 % a 3 m/s taxi crazed the whole cowl); a node takes its worst member's. A node's scrape 1 - exp(-W / 60 J); its slide direction and
+  side into the records' DESIGN frame through the rest basis (brkCage's K.B0 columns: aft, up; right = up x aft).
+- **The record, per place** (a place = skin_break's welded vertex; its copies take its bytes), through the place's
+  EXISTING binding: wi and w2 (the event's kept weights) or ww, clamped >= 0 and renormalised - **nothing rebound**:
+  crush = sum w cN; scrape = sum w sI f(n . into) - the vertex's REST normal against the side its node was pushed from
+  (0.05 -> 0.55): the side that slid only; soil = the scrape's soft share; the slide's direction to the GEOMETRY's frame
+  (Mi0) and tangent to the skin there. aDmg (Uint8 x4 normalised) = crush, scrape, torn band, soil; aDmgD (Int8 x4) =
+  the direction, w the class (0 metal, 1 fabric, 2 wood, 3 other, 4 glass) + 8 x the pane slot.
+- **The torn band**: a multi-source Dijkstra over the live skin from the places on a removed / torn triangle's edge
+  (skin_break `dead` 1, 2; D4b's 5), out to 7 cm; 1 at the edge.
+- **The panes** (glass records): each connected piece's severity = max(its nodes' hit - crush or slide -, its frame's
+  distortion: the worst set, in metres, of a member at one of its nodes, 4 mm -> 6 cm = **DMG-D4b's CRUSH: the pane
+  leaves as debris there**, so 1 here); drawn from 0.12; up to 8 slots, impact = the most hit place (or the nearest to
+  the worst-set member). A pane past breaking is D4b's; a cracked one stays.
+- **Budgeted, never per frame**: request() on an event, tick() each frame (SC.budget 8000 places AND SC.frameMs 4 ms,
+  whichever first: ~0.2 us a place in node, ~1.4 us on the SwiftShader page), the torn band a tick of its own, a pass NEVER restarted (a crash sends a payload every 0.1 s of sim
+  time; the newest fields wait for the pass to end). No break, a scrape or a dent: the damaged places get skin_break's
+  OWN binding (its bindNearest into the record's own arrays, flagged bound: what its bindSome does at a break),
+  1500 places a frame.
+- **The shader** (ONE block; the same text in the three programs a flown exterior draws with - the live AEROSKIN, the
+  flown bake's baked material, the glass - spliced by `wrap(hook, kind, U)`, before lights_physical_fragment; the
+  clear coat cut after it): `if (uDmgOn > 0.0)`;
+  the derivatives taken there (uniform flow), then a per-fragment early-out on the record, textureGrad on the grunge
+  sheet. CRUSH: metal - the paint crazes (a cell network ~2.6 cm, broken by noise, fading where a cell is under ~4 pixels:
+  no moire far off), whole cells FLAKE off only near full crush (polygons along the network, clustered by the buckle
+  field, at most ~1/8 of the cells), zinc-chromate
+  primer at a flake's edge, bare alloy (the weathering's substrate) in it, the sheet dented (an analytic-gradient
+  relief); fabric - slack: wrinkles, dark in the valleys, the sheen gone; wood - sparse pale splinters. SCRAPE: the
+  weathering's scratch read stretched ALONG the slide (1 cm across, 0.9 m along), about a sixth of the surface streaked
+  at full - and ONLY where the slide went one way along the skin (the record's direction keeps its length: the hop's
+  mean direction is the slide's coherence, less what points into the skin; a slide 0.8-0.9, a nose pressed into a trunk
+  0.4-0.7 - that one abrades, it does not streak); a streak under a few pixels fades to the abrasion's tone; metal to bare alloy, doped fabric to its SILVER coat then the raw weave in a streak's core, wood to the grain;
+  soil / grass stain where the ground was soft; the broad abrasion dull. TORN: fabric - the dope's crack network back
+  from the edge, the pale weave in threads at it; metal - a ragged bright edge, the paint cracked behind it. GLASS: an
+  ACRYLIC crack - a crack a sector (6-14 by severity) from the impact point, jittered, wobbling, a third forking past
+  mid-run, arcs and a fine web of crazing round the point, stress-whitened; the add pass's albedo / alpha / roughness
+  (the multiply pass untouched: a crack scatters, it does not block).
+
+### G2004 - THE PAGE (app.js, flown_bake.js one line, build.js)
+- `scuffFor(def)`: the solver's own DMG_ON rule (params.damage, else ?damage / FLYDIY_DAMAGE, else GEN_DAMAGE_DEFAULT);
+  `?scuff=0` / FLYDIY_SCUFF = false off. **null with damage off: buildModel's `scuffMat` hands back the material it was
+  given, scuffAttach never runs, model.scuff is null, scuffFrame returns on its first test.**
+- With damage on, at the BUILD (so the roll-out links them with the rest): every exterior AEROSKIN and glass material of
+  the flown model is a WRAPPED COPY (never the pool's: the garage and the parked aeroplanes keep theirs), the baked
+  exterior material too (scuffAttach swaps it); the hybrid's twins and band twins inherit the wrapper (copyMat takes
+  the hook; flown_bake bandOf re-wraps FB_BAND_HOOK through `userData.scuffRe` - absent with damage off, the line as
+  it was). The wrapper's toString names the hook it wraps: one program per wrapped hook, keyed apart.
+- Every geometry a wrapped material draws gets aDmg / aDmgD (zero) BEFORE the hybrid's views leave the graph (one pair
+  per position attribute: the fold and its views share it). A wrapped program never draws a geometry without them (a
+  missing attribute reads the context's generic value). A record's bytes go to its geometry's own pair and every merged
+  copy that draws it (the fold's, the still merge's: G1866's ixMirror with its vertex offset), as update ranges.
+- scuffFrame (from poseModel, just before brkCage - brkCage's opening is the base's, DMGSKIN's static check): two compares while nothing happens; on an event the fields; the records - the break
+  path's OWN (brkCageRec, mirroring brkCage: the same record a break makes, kept off the break list until a break -
+  noPush), made at the roll-out (below; 4 ms a frame from the first event where none ran); the no-break binding; the pass ticked; uploads; uDmgOn = any record non-zero.
+  A reset heals it (vS bumps, the fields zero, every byte zero, uDmgOn 0). FLYDIY_SCUFF_SHOW(false) closes the branch
+  live (the A/B, no program change); FLYDIY_SCUFF_STATS() the numbers.
+
+### G2004.1 - THE BLOCK SLEEPS UNTIL THE FIRST DAMAGE (skin_scuff.js waker / wakeSet; app.js scuffPrelink)
+- The bench measured the AWAKE block on an intact aeroplane (attributes fetched, four varyings, the branch closed) at
+  +6-13 % of a SwiftShader frame - more than "one uniform branch". So each flight's wrappers carry a waker W: ASLEEP the
+  wrapper runs the hook it wraps and nothing more - three gets the plain program's source under its own key
+  ('dmg.scuff|asleep|...'): an intact aeroplane with damage ON draws exactly the programs it draws with damage off (the
+  attributes ride the geometry unread). AWAKE it splices the block.
+- three keeps EVERY program a material was compiled to, by key (the material's properties' programs map; onBeforeCompile
+  only runs for a key it has not got). So the roll-out (compileCraftLinks, after the craft's own compile) runs
+  scuffPrelink: W held awake, the craft and the hybrid's kept meshes and band twins (FLOWN_BAKE.warmPairs, by stand-in)
+  compiled and warm-drawn, then asleep again. The first record written wakes W (wakeSet: the key flips, every material
+  the wrapper compiled - registered in its hook - bumped): each finds its awake program in its map, NO LINK. A reset
+  (records zero) sleeps it. The wrapper adds the uniforms asleep too (a program found in the map keeps the LAST
+  compile's uniforms object).
+- FLYDIY_SCUFF_STATS() reports awake / flips / mats / prelinks / premade (ms) / made, and each phase's worst ms.
+
+### G2004.2 - THE ATMO ACCESSOR (found on the real page)
+- The game's ATMO turns Material.prototype.onBeforeCompile into an accessor (a material's own hook kept in _atmoHook,
+  served wrapped). scuffMat's first own-property test found no hook, the copies drew without AEROSKIN's and FAILED TO
+  COMPILE (soft_still on dev.html: wings missing, the fuselage grey). scuffMat now reads `_atmoHook` as flown_bake's
+  hookOf does. The bench does not load ATMO, so only the real page could catch it; the evidence script now reports every
+  program that failed (`failed` in its link census).
+
+### G2005 - GATE DMGSCUFF (tools/_dmg_scuff_check.js + _dmg_scuff_lib.js; run_gates core, weight 2)
+- The validated builds (the user's Cub, the Jodel, the metal Cessna), damage ON, five cases each (an intact taxi, a
+  3 m/s taxi into a trunk, a wing-low slide on grass, a nose-over into a stump, a 30 m/s trunk on the centreline),
+  through the page's own path: the solver, simDmgHop, simViewDmgApply, skin_break's records (the editor's covering of
+  the build: its wing groups, member tubes and two synthetic panes), the scuff's budgeted ticks. **116/116**:
+  records zero intact (no payload, no record) and after a reset (every byte zero); the wing-low slide scrapes the LOW
+  side only, no scraped vertex faces up, its grass stains what it scraped, its slide is coherent along the skin (0.79-0.92: streaked;
+  the taxi's trunk rub 0.43-0.66); every crushed vertex is bound to an end of
+  a member that took plastic work, the 50 most crushed on the most strained members; the panes crack exactly as their
+  nodes / frame say (the 30 m/s trunk the windscreen, not the rear window; the slide and the intact none); the torn
+  band only at removed / torn triangles; the same bytes twice (fresh runs) and when the pass is cut by time (0.05 ms
+  a tick, from zeroed records); the block asleep = the hook's own source, the flip, the prelink's hold; damage OFF no
+  payload, record or slide array; the static checks (app.js reaches skin_scuff.js only in its block, scuffMat returns
+  its material unless the layer is on, scuffFrame's first test, the prelink chained, flown_bake's one line, the
+  solver's records behind DMG_ON); and the same claims on WALL's inherited binding (below).
+- Cost in node: ~0.2 us a place, the worst torn band ~1 ms, a 2000-place tick <= 1.9 ms.
+
+### G2006 - THE BENCH (tools/_dmg_scuff.html + _dmg_scuff_bench.js; tools/dmg_scuff_bench.js headless)
+- tools/_dmg_scuff.html (the editor's chain + the weathering bench) and _dmg_scuff_bench.js (window.DS): a build loaded,
+  DS.arm() puts every AEROSKIN / glass material on a wrapped copy (as scuffMat) with TEST PATTERNS in the records (a
+  crush round the nose, a scrape along the belly - left half on grass -, a torn band across the left wing, the cabin's
+  windscreen cracked at its middle), compiles both variants (as the roll-out), DS.measure / cost / crashWindow / still.
+- tools/dmg_scuff_bench.js runs it headless (SwiftShader) for the Cub and the metal Cessna:
+  reports/evidence/DMG-SCUFF/scuffbench/ (v5 the final shader; v4 the first with the sleeping block). **v4**: the shader sources the same with and without the module;
+  18 / 20 links at arming (both variants), **0 in the crash window**; every layer changes pixels (crush 3.4 % / 0.5 %
+  of the nose view, scrape 31 % / 21 % of the belly, torn 24 % / 6 % of the wing, glass 5 % / 3 % of the pane);
+  the cost (ms a SwiftShader frame, medians): plain 7146 / 6125, **asleep 7158 (+0.2 %) / 6211 (+1.4 %)**, awake +
+  intact +8 % / +11 %, awake + every vertex fully damaged +59 % / +84 %. **v5** (the final shader): asleep 0.991 of plain on both builds (noise), awake + intact +6 % /
+  +10 %, full +54 % / +77 %; links 18 / 20 at arming, 0 in the crash window; the sources the same without the module.
+- The bench does not load ATMO - it could not see G2004.2; the real page did (`--soft`).
+
+### G2007 - THE BOX EVIDENCE (tools/dmg_scuff_evidence.js) - FOR THE COORDINATOR
+A client of tools/live_driver.js (DMG-WALL's census staging verbatim: the home strip, the wind OFF for the run, the
+physics' trunk drawn as a cylinder). Take the GPU lock, then:
+```
+SPORT=8701 DPORT=9601 UDD=C:/dmgscuff Q='damage=1&simw=0' node tools/live_driver.js <repo> builds/cub_2026-09-20_corrected.json dev.html 8702
+node tools/dmg_scuff_evidence.js --cmd 8702 --boot --out reports/evidence/DMG-SCUFF/box/cub
+# the metal Cessna (bare-alloy scrapes): the same with 'bugReports/cessnaMetal (1).json', --out .../box/metal
+# damage OFF = the same programs: Q='damage=0' on this branch and on the base, each with --keys; the two keys.json equal
+```
+Per case (trunk-0, taxi 3 m/s, nose-over): `<case>_<cam>_intact.jpg` before the crash, `_after.jpg` the wreck drawn,
+`_noscuff.jpg` the same frame with the branch closed; `<case>_close_{scrape,crease,torn,glass}.jpg` (+ `_noscuff`) the
+camera 1.3 m off the most damaged vertex of each layer; evidence.json: **the program links in the crash window** (the
+rule: 0), the programs added, the crash's frame times, the scuff's own costs (tick / frame / torn ms), and the block's
+GPU time on the wreck (EXT_disjoint_timer_query_webgl2 round renderer.render, branch on / off twice each).
+Not run here: a cloud session has no GPU. (`--soft` runs the same sequence as a soft_still.js stage on SwiftShader.)
+
+### THE HARD RULES, AND WHERE EACH IS HELD
+- **Damage OFF = not one bit, shaders included**: no material wrapped, no attribute, no program (static: GATE DMGSCUFF
+  9; the bench: the shader sources compiled with skin_scuff.js present and with it removed are the same hash); the
+  solver's records only behind DMG_ON (GATE DMGSCUFF 9) and with zero-length arrays; the hop's strings the base's. The
+  coordinator's box check: `--keys` with ?damage=0 here and on the base.
+- **No link at the crash**: the wrapped materials are the flown model's own from the build; the roll-out links BOTH
+  their programs (the craft's compile asleep, then scuffPrelink awake); the crash writes attributes and a uniform and
+  flips the key to a program each material already holds. The real page (SwiftShader, the user's Cub): **0 links, 0
+  programs added** in the crash window of the taxi, the nose-over and the 30 m/s trunk (81 wrapped materials, 2
+  prelinks, 0 failed programs); the bench 0. The box script counts it on a GPU.
+- **Perf, nothing broken**: the block SLEEPS (G2004.1): the intact aeroplane draws the PLAIN programs - not even the
+  branch (bench v4: +0.2 % / +1.4 %, v5: -0.9 % / -0.9 % - noise). The attributes ride the geometry unread (8 bytes a vertex of memory:
+  ~4.4 MB on the Cub's 544 k drawn vertices). Per frame on the CPU: scuffFrame's two compares.
+- **Event cost budgeted**: per frame, SC.budget places (8000) AND SC.frameMs (4 ms) - whichever comes first (the pass
+  cut between chunks of 256 places, the no-break binding between records); the torn band a tick of its own (~1 ms in
+  node, 3 ms on the SwiftShader page); the records made ~4 ms a frame. The time cap came from the real page: on
+  SwiftShader a place cost ~1.4 us (node 0.2), an 8000-place tick 10.9 ms and the worst scuff frame 30.9 ms (the run
+  before the cap: soft/run.log); soft/taxi_v2 is the run after it (tick 3.6 ms). The phases (FLYDIY_SCUFF_STATS().phases,
+  the taxi on the SwiftShader page): fields 1.2 ms, the worst SINGLE record 16.2 ms (the frame's worst, 17.4 ms - once,
+  at the first event: skin_break's brkCageRec on the biggest group, not cut), the binding 6.7 ms (its budget now sized
+  by its measured 3.2 us a place), the tick 3.6 ms, the uploads 1.3 ms. So the RECORDS ARE MADE AT THE ROLL-OUT, under its
+  screen (scuffPrelink, before the awake compile): their pose offset is the model's constant (poseModel's oB =
+  model.off + model.oRest), they stay off the break list (exactly as when a scuff precedes a break - brkCage finds
+  own.brkR at the first break), and nothing runs per frame until an event. Memory: the records exist for every flight
+  with damage on (the Cub: 46 records over 280 k vertices). scuffFrame still makes them 4 ms a frame where no roll-out
+  ran (a page without compileAsync). soft/final_taxi2: 46 records premade in 104.6 ms (the
+  SwiftShader page, under the screen); the taxi's crash then: the worst scuff frame 12.5 ms on SwiftShader (the
+  binding 7, the tick 4, the uploads 2.1) - ~2-3 ms on the box by node's ratio; the box's FLYDIY_SCUFF_STATS().phases
+  says.
+
+### FOR DMG-WALL, DMG-SKINGPU AND DMG-D4b (what each landing needs from the other)
+- **WALL LANDED FIRST** (claude/dmg-integration d3d5e24e, train 38) - merged in (60a7c670; the base's merge-commit
+  convention, the branch's history kept). The scuff now rides WALL's binding:
+  - brkCage and brkRec are WALL's VERBATIM (brkRec gains a trailing `noPush` only); the scuff's record helpers (brkK,
+    brkGroups, brkCageRec) sit beside them and MIRROR brkCage - the wall's K (INH_K when brkInhWant()), its heal's rest
+    (R.base0 / R.paRef), its group list (rigsAll under the wall, the surfaces, struts and anchored parts, wreckGone out;
+    not the gear legs / control links it adds: rigid parts, no skin drawn). A record made at the roll-out is the one
+    brkCage finds on its owner at the first break, and WALL's inheritance binds it with the rest.
+  - The scuff's own no-break binding (bindWanted: nearest nodes, where a dent or a scrape needs it before any break)
+    stops once the wall's inheritance has run (K.inhL) - that IS the binding, kept through a heal.
+  - A pass again whenever a record's R.dv moves (WALL bumps it when the inheritance is done and at each event's
+    weights); scuffFrame keeps working while the inheritance binds over frames.
+  - inhSteps SPLITS a welded place spanning two classes / parts: skin_scuff rebuilds a record's place list at a
+    pass's start when its welds moved (replace: the place count or R.dv) - GATE checks every record after the split.
+  - `dead` 3 / 4 (WALL's wall-gone triangles) are not torn edges here (the band reads 1, 2 and D4b's 5).
+  - GATE DMGSCUFF runs every claim twice: on the K = 4 nearest binding and on WALL's (K = 8, skin_break.bindInherit at
+    the first break, as brkCage: the tubes 'tube', the covering 'cover', the panes 'wall').
+  - If ?wallbind flips live (brkInhReset: every record made again), the scuff keeps its old records until the next
+    flight - a dial only, noted.
+- **SKINGPU** (positions on the GPU): it swaps the drawn position / normal attributes for GLBufferAttributes and
+  touches nothing else - aDmg / aDmgD are plain attributes on the same geometries and keep drawing. Nothing needed;
+  skin_scuff reads no drawn position (rest positions only; the evidence script's close-up aim reads R.w, which SKINGPU
+  stops refreshing: it falls back to the drawn position).
+- **D4b** (debris): wreckRelease copies every attribute into a debris mesh - the records travel with a part that leaves.
+  A pane D4b releases goes with its cracks. Its debris meshes wear the source material (wrapped): they have the
+  attributes (copied), so they draw right.
+
+### G2007 ON THE REAL PAGE (soft_still, dev.html on SwiftShader - reports/evidence/DMG-SCUFF/soft/)
+- Run 1 found G2004.2 (the ATMO accessor: wings missing). Run 2 showed the crush far too strong (0.2 % strain: the whole
+  cowl crazed after a 3 m/s taxi) - retuned (0.8 % / 6 %, lower contrast, fewer flakes). Run 3 (the sleeping block):
+  at the stand asleep, 2 prelinks, 81 wrapped materials, 0 failed; each crash woke it with **0 links / 0 programs
+  added**: taxi (0 broken, 1456 yields, 782 J plastic, 830 J slid; 16.7 k crushed, 11.3 k scraped vertices), nose-over
+  (63 broken; 25.9 k scraped, 19.7 k torn), 30 m/s trunk (179 broken, the fuselage parted; 7 panes at severity 1).
+  Run 3's cowl drew contour STRIPES. First taken for the crack network's warp (eased anyway: its slope was over the
+  cells'), still there in soft/taxi_v2; isolated on the page (the gains one at a time: crush off, scrape on) it was the
+  SCRAPE - the taxi's trunk rub over the whole cowl front, thin bright streaks following a direction field that curls
+  over the cowl. Fixed: streaks only where the slide went one way (coherence), wider, sparser, faded under a few pixels.
+- The branch on / off on the wreck (EXT_disjoint_timer_query on SwiftShader, a ratio only): the taxi 27.1 -> 29.3 ms
+  (+8 %), the nose-over and the trunk within noise (little of the wreck on screen).
+- soft/final (the final shader): the three cases again - 0 links / 0 programs added / 0 failed each; the taxi's cowl
+  abraded where the trunk rubbed it (no stripes), the nose-over's torn edges frayed, the trunk's pieces scattered.
+  soft/final_taxi2: the premade records (below).
+- soft/merged (after merging DMG-WALL / WINDBREAK): the taxi and the nose-over on WALL's records - 0 links / 0 programs
+  added each, 0 failed, the records premade at the roll-out (176 ms on the SwiftShader page), the worst scuff frame 11 ms
+  there (the binding 4.7, the tick 5.4-7.8 with a torn band, the uploads 1); WALL's inheritance bound the nose-over's skin
+  and the scuff drew on it (the torn pieces' frayed edges, the abraded cowl).
+
+### GATES (targeted, as the brief asks)
+`node tools/run_gates.js --only=DMGSKIN,WEATHER,BUILD,JOIN,UISMOKE,DMGSCUFF,DMGWALL,DMGWIND` after the merge (DMGWALL and
+DMGWIND added: this branch touches WALL's record path and WINDBREAK's trunk pass): UISMOKE, DMGWIND, DMGWALL, DMGSCUFF, BUILD, WEATHER, JOIN
+**PASS**; DMGSKIN red on one check, red on the base too (below)
+(reports/evidence/DMG-SCUFF/gates_run5.txt; run 4 before the merge all PASS, runs 1-3 before it).
+**GATE DMGSKIN IS RED ON THE BASE** - claude/dmg-integration built from its own sources (its committed flight_core.js
+predates its WINDBREAK merge, so a run on the committed build looks green): 'the hop: the sets the same whenever the
+host sends them, and at the end past its window', the metal Cessna's 30 m/s trunk with the wing 2.5 m out (11 broken).
+The same check and case fail here, the rest of the gate identical
+(reports/evidence/DMG-SCUFF/dmgskin_on_base.txt). Not this branch's (the slide's own hop channel leaves the sets'
+timing the base's), not fixed here: the hop's sets vs the window after WINDBREAK - DMG-SKIN's / WINDBREAK's to look at.
+DMGWRECK is not on this base (it rides claude/dmg-d4b-wreck): run it after D4b lands. (Once in this session a stray
+`run_gates.js --help` started the full battery: stopped after 2 minutes, before any job finished.)
+
+### OPEN
+- The box stills and the GPU time are the coordinator's (the script is ready; nothing in the cloud can time a GPU).
+- The fragment cost after a crash: the bench's SwiftShader ratio is an estimate; the box number decides whether the
+  block wants a cheaper far path (the baked exterior draws it at every distance).
+- The torn band is per vertex: on a coarse covering it is one triangle wide at least (the bench showed the editor's
+  wing has spanwise vertices only at its stations).
+- Obstacles (houses, props) are not rubbed (the trunks and the ground are); water does not scrape.
+- The crush follows the BINDING: a cowl bound to the engine mount's nodes crushes whole when the mount yields (the
+  taxi: 16.7 k of the Cub's 280 k vertices). That is where the physics put it; whether a cowl wants a finer binding
+  (its own panels' nodes) is DMG-WALL's call, not a shader's.
+- The close-up aim after a break-up (`trunk-0_close_*`) frames the scattered pieces, not the vertex: it reads the
+  record's positions, stale once the pieces fly - on the box, aim from the drawn position if it misses again.
+- The awake-intact cost (+8-11 % on SwiftShader) is still paid between the first damage and a reset; a far LOD of the
+  block (the baked exterior at distance) is the lever if the box's after-crash GPU time asks for one.
+- The prelink's awake programs cover the craft and the hybrid's kept meshes / band twins at the roll-out; a material
+  first made AFTER it (none known today: D4b's debris wears its source's material) would link at its first awake draw
+  - the soft runs' `programsAdded` 0 says none did here.
