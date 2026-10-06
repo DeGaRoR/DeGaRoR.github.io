@@ -322,7 +322,10 @@ ck('the editor rail\'s controls entry is a literal (GATE VIEW reads it in an emp
 let flown = [];
 try {
   const C = require('./flight_core.js');
-  const pilots = [['classic', (s, d, w) => C.makeAutopilot(s, d, w)], ['test', (s, d, w) => C.makeTestPilot(s, d, w)]];
+  // G1940 (PILOT-ONE): ONE pilot - the classic and the test pilot retired; the two slots fly THE PILOT as the
+  // expert (today's) and as a CLUB PILOT (G1943's profile: a 0.25 s reaction, smoother hands), so the handoff is
+  // proven through the personality layer too
+  const pilots = [['pilot', (s, d, w) => C.makePilot(s, d, w)], ['club', (s, d, w) => C.makePilot(s, d, w, { profile: 'club' })]];
   const world = C.makeWorld();
   const def = C.buildGen();
   const att = sim => { const [xA, yU, zR] = sim.axes();
@@ -332,8 +335,9 @@ try {
       const sim = C.makeSim(def, world); sim.reset(0);
       const ap = mk(sim, def, world);
       let t = 0;
-      while (ap.phase !== 'CRUISE' && t < 150) { ap.update(1 / 60); sim.step(1 / 60); t += 1 / 60; }
-      const r = { name: name + '/' + path2, cruise: ap.phase === 'CRUISE', ok: false };
+      // the cruise is 43's settled DOWNWIND (the classic's CRUISE retired with it)
+      while (ap.phase !== 'DOWNWIND' && t < 150) { ap.update(1 / 60); sim.step(1 / 60); t += 1 / 60; }
+      const r = { name: name + '/' + path2, cruise: ap.phase === 'DOWNWIND', ok: false };
       flown.push(r);
       if (!r.cruise) continue;
       const alt0 = sim.cgPos()[1], th0 = att(sim).th;
@@ -360,7 +364,7 @@ try {
       }
       r.bankHeld = phMax; r.pitchHeld = thMax - th0;
       // hand it back
-      ap.reEngage({ phase: 'CRUISE' });
+      ap.reEngage({ phase: 'DOWNWIND' });
       // the AP is off its course after the turn, so it is TURNING BACK for a
       // while — a bank after re-engage is the AP flying, not a failure. What
       // must hold: no divergence, no over-bank, the nose bounded, the height

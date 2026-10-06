@@ -1,0 +1,21 @@
+0.0 TAXI cg 10065,21,-11724 V 0.0 agl 0.0 dbg s -344 z 17.0
+8.7 STOP cg 10046,22,-11715 V 2.2 agl 0.9 dbg s -358 z 1.3
+9.4 HOLD cg 10046,22,-11714 V 0.3 agl 0.9 dbg s -359 z 1.0
+11.4 LINEUP cg 10046,22,-11714 V 0.0 agl 0.9 dbg s -359 z 1.0
+13.4 STOP cg 10044,22,-11711 V 3.1 agl 0.9 dbg s -362 z 0.2
+14.4 HOLD cg 10043,22,-11710 V 0.3 agl 0.9 dbg s -363 z -0.0
+16.4 ROLL cg 10043,22,-11710 V 0.0 agl 0.9 dbg s -363 z -0.0
+27.7 LIFTOFF cg 10016,22,-11609 V 17.0 agl 1.0 dbg s -467 z -0.0
+38.7 CLIMB cg 9968,43,-11428 V 18.2 agl 21.2 dbg s -655 z -0.0
+60.6 CROSSWIND cg 9853,90,-11001 V 23.1 agl 69.0 dbg s -1097 z -0.0
+81.4 DOWNWIND cg 9447,143,-10912 V 26.5 agl 121.8 dbg s -1289 z -369.3
+104.2 BASE cg 9125,196,-10403 V 23.8 agl 174.3 dbg s -1863 z -549.2
+120.9 FINAL cg 9418,150,-10145 V 27.5 agl 128.7 dbg s -2036 z -199.5
+205.7 FLARE cg 10014,27,-11599 V 20.2 agl 6.0 dbg s -479 z 0.0
+210.1 ROLLOUT cg 10036,22,-11682 V 18.3 agl 1.0 dbg s -392 z 0.0
+223.8 STOPPED cg 10071,20,-11813 V 0.4 agl -1.7 dbg s -256 z 0.2
+contacts 0 outcome completed landing {"run":136,"sink":0.47,"V":18.3,"offCentre":0,"pastAim":68,"k":0,"three":false}
+  v 23.4 committed-takeoff past the point of stopping at V=11.5 with 84 m left — Vr in 45 m, continuing
+  v 38.8 vx-climb ground ahead above the aeroplane — climbing at Vx 19.6 m/s until clear
+  v 60.6 strip-short 150 m of strip for a 135 m landing run — landing short-field, no margin
+appr {"technique":"short","Vref":19.2,"Vbase":19.2,"gust":0,"aimIn":30,"flap":0,"len":150,"surface":6,"runNeed":135}
