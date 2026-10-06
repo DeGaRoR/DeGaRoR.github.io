@@ -78079,3 +78079,11 @@ on claude/hw-coverage-g1995.
 
 FOR THE USER (the laptop, once live): index.html?diag=bench (the card against its class, ~20 s after the load) and index.html?diag
 (~4-5 min: which pass carries the world's extra cost) - each a downloaded .json for HW-COVERAGE.
+
+## TRAIN 37b LANDED (2026-10-06, A0 the coordinator) - ?diag for the user's laptop
+Cargo: HW-COVERAGE's diag-only cut G1996-G1997 (claude/hw-diag-g1997 81b8a389, 3faccb86, ffd3f1ba): src/viewer/diag.js (lazy,
+fetched only with ?diag), flight_recorder reveal() + gpuTimer(), app.js one line (flRevealStart -> FLIGHT_REC.reveal: the
+recorder marks a reveal with no roll-out screen), build.js lazy row, analyze_log inferred reveal, tools/perf/diag_run.js.
+Light pass (test proportional to risk): the cut's gates BUILD FLIGHTREC BOOT GFX UISMOKE BUILT MEDIA PASS (HW-COVERAGE), GATE
+BOOTLIFT 4/4 on its full branch; A0: parked re-cook, MEDIA, BUILT strict. No strict-gate run (nothing per-frame but the reveal mark).
+For the user: index.html?diag=bench (~15 s) then index.html?diag (~5 min) on the gaming laptop, each a downloaded .json.
