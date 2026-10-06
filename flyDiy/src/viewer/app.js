@@ -4176,12 +4176,23 @@
     applySkinVis();
   }
 
-  // ---- W10 route: spawn at any aerodrome (default the home base), fly
-  // a circuit there or cross-country to any other strip ----
-  let fromId = 'HOME', destId = 'CIRCUIT';
-  // G710: THE ROUTE IS REMEMBERED (flydiy.route: { from, dest }); checked against the world's strips
-  // where the selects are filled (an id the world no longer has falls back to HOME / the circuit)
-  try { const r = JSON.parse(prefGet('flydiy.route', 'null')); if (r && typeof r.from === 'string') fromId = r.from; if (r && typeof r.dest === 'string') destId = r.dest; } catch (e) {}
+  // ---- W10 route: a circuit at the start or cross-country to any other strip ----
+  // G1945 DEST-TO: THE FLIGHT HAS ONE CHOICE, ITS TO (38b_dest.js). `destId` is the To (an aerodrome id, or
+  // 'CIRCUIT': the field the aeroplane is at); a change is the autopilot's destination moving (setTo below),
+  // on the ground or in the air, never a reset. `fromId` is NOT a choice any more: it is the From of the leg
+  // flying - the base's aerodrome at a roll-out, where the aeroplane stood when a leg was chained (nextLeg) -
+  // and every reader (the logbook, the map's line, the cockpit's field, the tower camera) reads it as before.
+  // `baseId` is where a roll-out spawns (FLIGHT_BASES: HOME, the WWII hangar, today); `spawnId` is the perf
+  // rigs' override (a v2 pref's `spawn`, FLYDIY_ROUTE.spawn) - on no picker.
+  let baseId = 'HOME', spawnId = null, destId = 'CIRCUIT', routeMigrated = false;
+  // G710: THE ROUTE IS REMEMBERED (flydiy.route, v2 { v: 2, base, to }; a v1 { from, dest } migrates once:
+  // flightRouteMigrate); checked against the world's strips where the picker is filled
+  try {
+    const r = typeof flightRouteMigrate === 'function' ? flightRouteMigrate(JSON.parse(prefGet('flydiy.route', 'null'))) : null;
+    if (r) { baseId = r.base; destId = r.to; spawnId = r.spawn; routeMigrated = !!r.migrated; }
+  } catch (e) {}
+  const baseAeroId = () => { const B = typeof FLIGHT_BASES === 'object' && FLIGHT_BASES[baseId]; return B ? B.aero : 'HOME'; };
+  let fromId = spawnId || baseAeroId();
   const aeroById = id => world.aerodromes.find(a => a.id === id) || world.aerodromes[0];
   // G1375 STRIP-SURFACE: THE GEAR DECIDES WHERE THE ROUTE MAY GO (25_airfield.js stripSurface / stripAllows: wheels
   // anywhere but water, floats on water only, amphibians both, skis snow and grass). `garage` reads the build on the
@@ -4202,7 +4213,7 @@
     if (did !== 'CIRCUIT') { const d = world.aerodromes.find(a => a.id === did); if (!d || !stripAllows(gear, d).ok) did = 'CIRCUIT'; }
     return [fid, did];
   };
-  const routeFit = gear => { [fromId, destId] = routeFitted(gear, fromId, destId); };
+  const routeFit = gear => { destId = routeFitted(gear, fromId, destId)[1]; };   // G1945: the From is derived - only the To is fitted
   let routeRefresh = () => {};   // the pickers re-labelled for the gear (the selects' block below)
   // 'taxi' (the stand, G151) or 'lineup' (the runway). A string on purpose:
   // the flight layer's flPref objects are declared far below this and this
@@ -4239,8 +4250,10 @@
     // player's choice and only this placement is fitted
     const gearNow = routeGear(false);
     let shed = false; try { shed = inGarage; } catch (e) {}
-    const [fid, did] = routeFitted(gearNow, fromId, destId);
-    if (!shed) { fromId = fid; destId = did; routeRefresh(false); }
+    // G1945 DEST-TO: every roll-out starts at the base (or the rig's spawn), never where the last flight was
+    const [fid, did] = routeFitted(gearNow, spawnId || baseAeroId(), destId);
+    fromId = fid;
+    if (!shed) { destId = did; routeRefresh(false); }
     const from = aeroById(fid);
     const to = did === 'CIRCUIT' ? from : aeroById(did);
     // G151: ON THE APRON, NOT ON THE RUNWAY. `placeAtAerodrome` puts the
@@ -5513,6 +5526,8 @@
     // the trace is OF (distance flown, time), and what HAPPENED is the arrival
     // card's whole job. The logging is unchanged and still automatic.
     if (ap.phase === 'STOPPED' && (ap.tdInfo || ap.report)) logFlight();
+    // G1945 DEST-TO: a To picked in the flare or the roll-out - the next leg begins where the aeroplane stopped
+    if (ap.phase === 'STOPPED' && !manual && flDestPend()) { $('arrCard').hidden = true; arrivalShown = false; return; }
     // THE ARRIVAL CARD (G107.2): shown ONCE per stop, gone the moment the
     // phase moves on (a new leg, a reset, a fresh roll) — so `nextLeg` and
     // `departFrom` dismiss it by flying, with no extra wiring.
@@ -5532,6 +5547,7 @@
   let flightOver = false;
   let flDmg = null;           // G1470 (TREE-CRASH): sim.damage() - the worker's verdict under the physics worker
   let flNextLeg = null;   // G700: the selects' block publishes nextLeg here - `Fly on` chains the next leg in place
+  let flDestPend = () => false;   // G1945 DEST-TO: a To picked in the flare / roll-out - chained at STOPPED
   let userPaused = false;     // G650: set by the Pause button alone; the world's clocks hold on it (FLYDIY_HELD)
   function endFlight(outcome) {
     if (flightOver || inGarage) return;
@@ -7192,7 +7208,9 @@
     return typeof ROLLANIM !== 'undefined' && inGarage && !raBusy && !!model && !rig && !rigLift && garageIsHangar() && !!hangar;
   }
   // the shed dressed for the shot (the mesh, not the editor's cage; no editor, no plaque), then the shot
-  function rollAnimPlay(done) {
+  // G1715 (SND-ROLLOUT): `handover` - the stand follows (the roll-out: its reset runs the engines, so the shot leaves them
+  // idling in sim.out across the cut); the solo shot goes back to the shed and puts every engine field back
+  function rollAnimPlay(done, handover) {
     raBusy = true;
     // a fresh profile's aeroplane chooser (design_flow.js) has nothing to say to the shot (SCENERY's rule)
     for (const x of document.querySelectorAll('.dfClose')) { try { x.click(); } catch (e) {} }
@@ -7204,6 +7222,7 @@
     try {
       h = ROLLANIM.play({ craft, scene: hangarScene, camera, hangar, model, def, sim,
         camMode: cam.mode, fov: cam.fov, follow: RA_Q === 'follow', front: RA_Q === 'back' ? null : garageFraming(),
+        handover: !!handover, audioPose: window.AUDIO && AUDIO.space ? AUDIO.space.shotPose : null,   // G1715: the start, the space
         onDone: hh => { raBusy = false; placeIndicators(); done(cage, hh); } });   // (hh: the handle - a skip calls this before play returns)
       placeIndicators();                 // (G1115: the CG marks off for the shot - placeIndicators reads ROLLANIM.busy)
     } catch (e) { console.warn('rollanim:', e && e.message); raBusy = false; done(cage, null); }
@@ -7238,44 +7257,61 @@
   // A page without the screen machinery (the harness) syncs and rolls out inline, as before.
   // G1831 (DMG-D2a): THE CERTIFICATE (66_gen_cert.js), only while the damage layer is on. Never in the garage's edit
   // loop: asked for when the aeroplane ROLLS OUT (the roll-out shot and the stand give its thread the seconds it
-  // takes - 2.6-9.6 s in node on the validated builds, the gear drop and the floats' bow most of it), on the bench's thread
+  // takes - 8-24 s in node on the validated builds since G1891, the landings, the rough taxi and the floats' water cases
+  // most of it), on the bench's thread
   // (bench_worker.js 'cert'), kept by the build's spec hash (a second flight of the same build stamps at once). The
   // page does nothing while it computes: the flight rolls out and starts on D1a's physics limits, and the stamp lands
   // on the live sim the moment the answer does (sim.certStamp - refused once anything has bent; under the physics
   // worker sim_link forwards it). No worker (file://): the page computes it in one task after the roll-out.
+  // G1891 (DMG-CERTCOST): AND KEPT ACROSS PAGE LOADS (bench_worker.js certStoreGet / certStorePut: IndexedDB, keyed by
+  // genCertKey, checked against GEN_CERT_V, PHYSICS_V and a checksum): a build is certified once, ever - the memory
+  // cache first, then the store (how: 'store'), and only then the worker; whatever the worker or the page computes is
+  // kept. A stale or corrupt record is deleted and computed again; no IndexedDB is a miss.
   const certCache = new Map();
   let certJob = null, certLast = null;
   function certKick() {
     try {
       if (curKey !== 'gen' || !def || typeof genCertKey !== 'function' || typeof genDamageOn !== 'function' || !genDamageOn(def)) return;
       const key = genCertKey(def);
-      const land = (C, how) => {
+      const land = (C, how, ms) => {
         if (certJob && certJob.key === key) certJob = null;
         if (!C || !C.Ft || C.nb !== def.beams.length) return;
         certCache.set(key, C); while (certCache.size > 8) certCache.delete(certCache.keys().next().value);
         if (curKey !== 'gen' || !def || genCertKey(def) !== key) return;   // the build changed meanwhile: kept for its return
         def.cert = C;
         const ok = !!(sim && typeof sim.certStamp === 'function' && sim.certStamp(C));
-        certLast = { key, how, stamped: ok, ms: C.ms ? C.ms.total : null, limit: C.limit, ult: C.ult };
+        certLast = { key, how, stamped: ok, ms: ms != null ? ms : C.ms ? C.ms.total : null, limit: C.limit, ult: C.ult };
       };
       const hit = certCache.get(key);
       if (hit) { land(hit, 'cache'); return; }
       if (certJob && certJob.key === key) return;                         // on its way
       if (certJob && certJob.w) certJob.w.kill();
       const W = window.BENCH_WORKER, job = certJob = { key, w: null, t0: perfNow() };
+      const ver = { cert: typeof GEN_CERT_V !== 'undefined' ? GEN_CERT_V : null, phys: typeof PHYSICS_V !== 'undefined' ? PHYSICS_V : null };
+      const keep = C => { if (W && typeof W.certPut === 'function') W.certPut(key, C, ver); };   // G1891
       const onPage = () => setTimeout(() => {
         if (certJob !== job || genCertKey(def) !== key) return;
-        land(genCertify(def, {}), 'page');
+        const C = genCertify(def, {}); keep(C); land(C, 'page');
       }, 0);
-      const w = (W && typeof W.start === 'function') ? W.start(m => {
-        if (certJob !== job || !m) return;
-        if (m.error) { console.warn('certificate: the worker could not compute it, the page will -', m.error); if (job.w) job.w.kill(); job.w = null; onPage(); return; }
-        if (m.kind !== 'cert') return;
-        if (job.w) job.w.kill(); job.w = null;
-        land(m, 'worker');
-      }, why => { if (certJob === job) { job.w = null; onPage(); } }) : null;
-      if (w && w.post({ kind: 'cert', spec: genSpec, seq: 1 })) job.w = w;
-      else { if (w) w.kill(); onPage(); }
+      const compute = () => {
+        if (certJob !== job) return;
+        const w = (W && typeof W.start === 'function') ? W.start(m => {
+          if (certJob !== job || !m) return;
+          if (m.error) { console.warn('certificate: the worker could not compute it, the page will -', m.error); if (job.w) job.w.kill(); job.w = null; onPage(); return; }
+          if (m.kind !== 'cert') return;
+          if (job.w) job.w.kill(); job.w = null;
+          keep(m); land(m, 'worker');
+        }, why => { if (certJob === job) { job.w = null; onPage(); } }) : null;
+        if (w && w.post({ kind: 'cert', spec: genSpec, seq: 1 })) job.w = w;
+        else { if (w) w.kill(); onPage(); }
+      };
+      // G1891: the store first (a miss, a stale or a corrupt record, no IndexedDB: computed)
+      if (W && typeof W.certGet === 'function') {
+        W.certGet(key, def.beams.length, ver).then(C => {
+          if (certJob !== job) return;
+          if (C && curKey === 'gen' && def && genCertKey(def) === key) land(C, 'store', perfNow() - job.t0); else compute();
+        }, compute);
+      } else compute();
     } catch (e) { console.warn('certificate:', e && e.message); }
   }
   if (typeof window !== 'undefined') window.CERT_STATE = () => ({ last: certLast, pending: !!certJob, cached: certCache.size,
@@ -7344,7 +7380,7 @@
       if (hh && hh.skipped === 'skipped by the player') rollAnimSwallow = perfNow() + 500;
       if (hh && !hh.skipped && !over) trip.dissolveMs = +raDissolve().toFixed(1);   // (G1115: played to its end - the fade)
       fin(!hh ? 'threw' : hh.skipped ? (hh.plan ? 'skipped' : 'refused: ' + hh.skipped) : 'played');
-    });
+    }, true);
   }
   window.addEventListener('keydown', e => { if (rollAnimSkip && e.key === 'Escape') { rollAnimSkip(); e.preventDefault(); } });
   function rollOutStand() {
@@ -8704,88 +8740,121 @@
     if (td) td.onclick = () => show(false);
     if (tb) tb.onclick = () => show(true);
   }
-  { // departure + destination selects: spawn anywhere, fly circuit or leg
+  { // G1945 DEST-TO: THE TO PICKER (was G710's departure + destination selects: spawn anywhere, fly circuit or leg)
     // G1375: every strip says its surface ('Annette Dock · water'), and one the gear may not use is greyed and
-    // says why ('— floats land on water only'); `gear` is the gear the labels are for (routeGear)
-    const fill = (sel, first, firstLabel, skipId, gear) => {
+    // says why ('— floats land on water only'); `gear` is the gear the labels are for (routeGear). The choices
+    // are 38b_dest.js flightToChoices: '⟳ Circuit' (the field the aeroplane is at) first, then every aerodrome.
+    const fill = (sel, gear) => {
       sel.innerHTML = '';
-      const opt = (v, label, off, why) => {
+      const L = typeof flightToChoices === 'function' ? flightToChoices(world, gear || 'wheels')
+              : [{ id: 'CIRCUIT', label: '⟳ Circuit', ok: true, why: '' }];
+      for (const c of L) {
         const o = document.createElement('option');
-        o.value = v; o.textContent = label; o.disabled = !!off; if (why) o.title = why; sel.appendChild(o);
-      };
-      if (first) opt(first, firstLabel);
-      for (const a of world.aerodromes) {
-        if (a.kind === 'meadow' || a.id === skipId) continue;
-        const S = typeof stripSurface === 'function' ? stripSurface(a) : null;
-        const A = typeof stripAllows === 'function' ? stripAllows(gear || 'wheels', a) : { ok: true, why: '' };
-        opt(a.id, `${a.name}${a.flyIn ? ' (fly-in)' : ''}${S ? ' · ' + S.word : ''}${A.ok ? '' : ' — ' + A.why}`, !A.ok, A.why);
+        o.value = c.id; o.textContent = c.id === 'CIRCUIT' ? '⟳ Circuit' : c.label; o.disabled = !c.ok; if (c.why) o.title = c.why;
+        sel.appendChild(o);
       }
     };
     const gear0 = routeGear(false);
     routeFit(gear0);
-    fill($('selFrom'), null, null, null, gear0);
-    fill($('selDest'), 'CIRCUIT', '⟳ Circuit', null, gear0);
+    fill($('selDest'), gear0);
     // G710: a remembered id the world does not have (another island, a strip deleted) is not a route
-    if (![...$('selFrom').options].some(o => o.value === fromId)) fromId = 'HOME';
     if (![...$('selDest').options].some(o => o.value === destId)) destId = 'CIRCUIT';
-    if ([...$('selDest').options].some(o => o.value === destId)) $('selDest').value = destId;
-    // the select SAYS where the flight starts (G434): HOME need not be the registry's first row (Jolene's
-    // 02/20 is composed before 13/31 so the crossing keeps 13/31's profile) and the bar read the first option
-    if ([...$('selFrom').options].some(o => o.value === fromId)) $('selFrom').value = fromId;
-    $('selFrom').onchange = e => { fromId = e.target.value; fullReset(); };
-    // W14 multi-hop: picking a new destination AFTER LANDING chains the
-    // next leg seamlessly — same sim, no reset, no teleport. The fresh AP
-    // taxis back / turns around if the runway left is too short, then
-    // departs (into the wind if any). Mid-flight changes still reset.
-    $('selDest').onchange = e => {
-      destId = e.target.value;
-      if (started && ap.phase === 'STOPPED') nextLeg();
-      else fullReset();
-    };
-    // G710: THE ROUTE, CHOSEN BEFORE THE FLIGHT (the Jolene playtest: "there should be a way to select
-    // the circuit either from the garage, or straight at roll out"). It was #selFrom / #selDest alone,
-    // which live in #flStore and are borrowed by the flight plate's `route` flyout - reachable only once
-    // flying, where a change restarts the flight. Two more pickers, the same two choices: in the shed
-    // beside ROLL OUT (#edRoute: it sets the route the roll-out applies - fullReset -> applyRoute) and
-    // on the roll-out screen (#bootRoute: under the screen nothing has stepped (G690), so a change
-    // re-plans the stand and the taxi there and then). Every picker, the flight's two included, shows
-    // the one fromId / destId, and every change is remembered (flydiy.route). A departure changed under
-    // the screen takes the new stand; its town and trees then stream in flight as any spawn's do.
-    const routeRemember = () => prefSet('flydiy.route', JSON.stringify({ from: fromId, dest: destId }));
-    const routeSels = [];                // { sel, kind } - the pickers this block built
+    $('selDest').value = destId;
+    const routeRemember = () => prefSet('flydiy.route', JSON.stringify({ v: 2, base: baseId, to: destId, spawn: spawnId || undefined }));
+    if (routeMigrated) { routeMigrated = false; routeRemember(); }   // G1945: a v1 pref is written back as v2, once
+    const routeSels = [];                // { sel, kind } - the pickers this block built ('to', and 'base' when there are bases to pick)
     const routeSync = () => {
-      for (const r of routeSels) r.sel.value = r.kind === 'from' ? fromId : destId;
-      if ($('selFrom').value !== fromId && [...$('selFrom').options].some(o => o.value === fromId)) $('selFrom').value = fromId;
+      for (const r of routeSels) r.sel.value = r.kind === 'base' ? baseId : destId;
       if ($('selDest').value !== destId) $('selDest').value = destId;
     };
+    // WHERE THE AEROPLANE IS (38b_dest.js flightWhere); a 'Circuit' means the aerodrome under it on the ground,
+    // in the air the field it left (the leg's From) - a circuit picked in flight goes back (flightLeg)
+    const flWhere = () => {
+      if (!sim || !world) return null;
+      const cg = sim.cgPos(), onG = sim.wheelsOnGround();
+      const air = onG === 0 && cg[1] - groundH(cg[0], cg[2]) > 3;
+      return typeof flightWhere === 'function' ? flightWhere(world, cg[0], cg[2], { air }) : null;
+    };
+    const asAero = a => (a && typeof a === 'object') ? a : (typeof a === 'string' ? aeroById(a) : null);   // a record, or an id read as one
+    // A NEW TO, APPLIED - the autopilot's destination moving (43_pilot.js ap.setDest), never a reset:
+    //   stopped on an aerodrome (after a landing, or parked by hand) -> the next leg from where it stands (nextLeg);
+    //   on the stand / taxiing / rolling / climbing -> the route is the new one ('kept');
+    //   on a leg of the arrival -> re-planned from here ('replan');
+    //   flaring / rolling out -> the next departure, from where it stops ('queued': chained at STOPPED)
+    // The classic and test pilots have no setDest: before the start a reset re-plans the stand, in flight their
+    // route is kept as it was (the old "a change mid-flight resets" is gone - the To waits for the next leg).
+    let destPend = false;
+    // the leg a To asks for from here (38b_dest.js flightLeg: the From under the aeroplane, the To fitted to the gear)
+    const legHere = () => {
+      if (!sim || typeof flightLeg !== 'function') { const c = aeroById(fromId); return { from: c, to: destId === 'CIRCUIT' ? c : aeroById(destId), where: null, depart: true }; }
+      const cg = sim.cgPos(), air = sim.wheelsOnGround() === 0 && cg[1] - groundH(cg[0], cg[2]) > 3;
+      return flightLeg(world, routeGear(false), cg[0], cg[2], destId, { air, legFrom: asAero(ap && ap.route && ap.route.from) || aeroById(fromId) });
+    };
+    function destApply() {
+      if (!ap || !sim || inGarage) return 'shed';
+      if (flightOver) return 'over';              // a crash, a give-up: the card's way on (Restart / Fly on) takes the To
+      const R = legHere();
+      if (!R.to) return 'none';
+      if (started && ap.phase === 'STOPPED') {
+        if (!R.depart) return 'held';             // out in a field: Restart is the way back to the base
+        nextLeg(); return 'leg';
+      }
+      if (typeof ap.setDest !== 'function') { if (!started) { fullReset(); return 'reset'; } return 'later'; }
+      const r = ap.setDest(R.to);
+      if (SIMW && R.to.id) SIMW.dest(R.to.id);     // the worker's pilot, at the same step boundary
+      destPend = r === 'queued';
+      return r;
+    }
+    window.FLYDIY_DEST_LAST = null;
+    function setTo(id) {
+      destId = id; routeRemember(); routeSync();
+      const r = destApply();
+      window.FLYDIY_DEST_LAST = { to: id, how: r, phase: ap ? ap.phase : null };
+      if (FL.ready) flRender();
+      return r;
+    }
+    $('selDest').onchange = e => setTo(e.target.value);
+    // G710: THE ROUTE, CHOSEN BEFORE THE FLIGHT (the Jolene playtest: "there should be a way to select the circuit
+    // either from the garage, or straight at roll out"): the same To picker in the shed beside ROLL OUT (#edRoute: the
+    // roll-out applies it - fullReset -> applyRoute) and on the roll-out screen (#bootRoute: the pilot on the stand is
+    // handed it). G1945: the From picker is retired - a flight starts at the BASE; the base is a row of its own,
+    // a picker only once a world has two (FLIGHT_BASES), else the line that says where the roll-out starts.
     const routeBuild = (host, where) => {
       if (!host) return;
       host.innerHTML = '';
-      const pick = (kind, label, cap) => {
+      const bases = typeof flightBases === 'function' ? flightBases(world) : [];
+      {
         const lab = document.createElement('label');
-        const sp = document.createElement('span'); sp.textContent = cap; lab.appendChild(sp);
-        const sel = document.createElement('select');
-        sel.title = label; routeSels.push({ sel, kind });
-        if (kind === 'from') fill(sel, null, null, null, gear0); else fill(sel, 'CIRCUIT', '⟳ Circuit', null, gear0);
-        // the build on the bench may have changed its gear since: the labels are re-read before a pick
-        sel.addEventListener('pointerenter', () => routeRefresh(where === 'garage' || inGarage));
-        sel.addEventListener('focus', () => routeRefresh(where === 'garage' || inGarage));
-        sel.value = kind === 'from' ? fromId : destId;
-        sel.onchange = e => {
-          if (kind === 'from') fromId = e.target.value; else destId = e.target.value;
-          routeRemember(); routeSync();
-          if (where === 'rollout' && rollHold && !inGarage) fullReset();
-        };
-        lab.appendChild(sel); host.appendChild(lab);
-      };
-      pick('from', 'Departure', 'from');
-      pick('dest', 'Destination', 'to');
+        const sp = document.createElement('span'); sp.textContent = 'base'; lab.appendChild(sp);
+        if (bases.length > 1) {
+          const sel = document.createElement('select');
+          sel.title = 'Base'; routeSels.push({ sel, kind: 'base' });
+          for (const b of bases) { const o = document.createElement('option'); o.value = b.id; o.textContent = b.name + ' · ' + (b.a.name || b.a.id); sel.appendChild(o); }
+          sel.value = baseId;
+          sel.onchange = e => { baseId = e.target.value; routeRemember(); routeSync(); if (where === 'rollout' && rollHold && !inGarage) fullReset(); };
+          lab.appendChild(sel);
+        } else {
+          const b = bases[0], v = document.createElement('b');
+          v.className = 'routeBase'; v.textContent = b ? b.name + ' · ' + b.hangar : 'Home base';
+          v.title = 'Every roll-out starts at the base' + (b ? ' (' + (b.a.name || b.a.id) + ')' : '') + '; a flight goes on from wherever it lands';
+          lab.appendChild(v);
+        }
+        host.appendChild(lab);
+      }
+      const lab = document.createElement('label');
+      const sp = document.createElement('span'); sp.textContent = 'to'; lab.appendChild(sp);
+      const sel = document.createElement('select');
+      sel.title = 'Destination'; routeSels.push({ sel, kind: 'to' });
+      fill(sel, gear0);
+      // the build on the bench may have changed its gear since: the labels are re-read before a pick
+      sel.addEventListener('pointerenter', () => routeRefresh(where === 'garage' || inGarage));
+      sel.addEventListener('focus', () => routeRefresh(where === 'garage' || inGarage));
+      sel.value = destId;
+      sel.onchange = e => setTo(e.target.value);
+      lab.appendChild(sel); host.appendChild(lab);
     };
     routeBuild($('edRoute'), 'garage');
     routeBuild($('bootRoute'), 'rollout');
-    // the flight's own two: remembered and mirrored (their handlers - the reset, the chained leg - untouched)
-    $('selFrom').addEventListener('change', () => { routeRemember(); routeSync(); });
-    $('selDest').addEventListener('change', () => { routeRemember(); routeSync(); });
     // G1375: the pickers re-filled for the gear (the garage's build, or the one flying), the route fitted to it first;
     // only when the gear changed - a refill under an open list would close it
     let refGear = gear0;
@@ -8795,24 +8864,37 @@
       routeFit(g);
       if (g !== refGear) {
         refGear = g;
-        fill($('selFrom'), null, null, null, g);
-        fill($('selDest'), 'CIRCUIT', '⟳ Circuit', null, g);
-        for (const r of routeSels) { if (r.kind === 'from') fill(r.sel, null, null, null, g); else fill(r.sel, 'CIRCUIT', '⟳ Circuit', null, g); }
+        fill($('selDest'), g);
+        for (const r of routeSels) if (r.kind === 'to') fill(r.sel, g);
       }
       routeSync();
     };
-    window.FLYDIY_ROUTE = { get: () => ({ from: fromId, dest: destId }), sync: () => routeRefresh(), gear: () => refGear };
+    window.FLYDIY_ROUTE = {
+      // `from` is the leg's From (derived), kept in the shape the rigs read
+      get: () => ({ from: fromId, dest: destId, to: destId, base: baseId, spawn: spawnId }),
+      sync: () => routeRefresh(), gear: () => refGear,
+      to: id => setTo(id), where: () => flWhere(),
+      // the perf rigs' spawn (rollout_perf --from, master_bench setFrom): the next roll-out starts there; null = the base
+      spawn: id => { spawnId = id && id !== baseAeroId() ? id : null; routeRemember(); return spawnId || baseAeroId(); },
+    };
+    // A NEW LEG FROM WHERE THE AEROPLANE STANDS (W14's chain; G700's Fly on; G1945: the From derived - the aerodrome
+    // under the aeroplane, 38b_dest.js flightWhere - not the last leg's To, so a stop by hand on another field, or a
+    // landing the pilot diverted, departs from where it really is). Same sim, a fresh pilot: it taxis out from here
+    // (its departure planner: a U-turn and backtrack on the strip, the site's taxi graph off it) and flies the To.
     function nextLeg() {
-      const cur = (ap.route && ap.route.to) || aeroById(fromId);
-      if (cur.id) { fromId = cur.id; $('selFrom').value = fromId; }
+      const R = legHere(), cur = R.from || aeroById(fromId), to = R.to || cur;
+      if (cur && cur.id) fromId = cur.id;
       telBase += ap.t;                 // new AP restarts its clock at 0
       ap = mkPilot(curKey);
-      ap.departFrom(cur, destId === 'CIRCUIT' ? cur : aeroById(destId));
-      if (SIMW) SIMW.leg(cur.id, destId);   // G820 (C1c): the worker's pilot made anew at the same step boundary
+      ap.departFrom(cur, to);
+      destPend = false;
+      if (SIMW) SIMW.leg(cur.id, to === cur ? 'CIRCUIT' : to.id);   // G820 (C1c): the worker's pilot made anew at the same step boundary
       // G700: a new leg is a new flight for the book and the hand's ending (the leg after a W14 chain never logged)
       flightLogged = false; airborneSeen = wasAir = false; stillT = 0;
     }
     flNextLeg = nextLeg;
+    // a To changed in the flare or the roll-out: the leg it asks for begins where the aeroplane stops
+    flDestPend = () => { if (!destPend) return false; destPend = false; return destApply() === 'leg'; };
   }
   // ---- W13 wind, G72 conditions: presets drive world.setWeather live — no
   // reset needed, the AP flies EAS and takes changes mid-flight. FRESH is
@@ -9400,7 +9482,7 @@
   // THE SECTIONS - the old rail's items (their k / label / title kept as they were) and the four G760 added.
   // `head` is the fold's own name where the item's one word no longer says it; `sub` the line under it.
   const FL_SECS = [
-    { k: 'route', label: 'route', title: 'Where it goes', head: 'route & circuit', sub: 'the departure, the destination or the circuit' },
+    { k: 'route', label: 'route', title: 'Where it goes', head: 'route & circuit', sub: 'the destination, or the circuit - on the ground or in the air' },
     // 2026-09-04: WHERE THE FLIGHT STARTS - the stand and a taxi out (G151), or lined up on the strip
     { k: 'start', label: 'start', title: 'Where the flight starts', sub: 'from the stand, or lined up' },
     // G193: THE PATTERNS - the taxi graph, the glide slopes and the two touchdown targets
@@ -9944,15 +10026,19 @@
                    'restarts the flight.');
     },
     slot_route(body) {
-      // BORROWED, not rebuilt: #selDest's "change while stopped chains the
-      // next leg" behaviour is its own handler's, and it is kept by not
-      // touching it.
-      flBorrow(flS('From'), flRow(body, 'from'));
+      // G1945 DEST-TO: ONE CHOICE, THE TO. BORROWED, not rebuilt: #selDest's handler is the autopilot's destination
+      // moving (setTo: on the ground the next leg from where it stands, in the air a re-plan from here). The From
+      // is a line, never a choice: where the aeroplane is (38b_dest.js flightWhere), the base before a roll-out.
+      const fr = flRow(body, 'from');
+      const v = document.createElement('span');
+      v.className = 'v'; v.style.flex = '1'; v.style.textAlign = 'left'; v.style.font = "400 11px/1.2 'IBM Plex Sans'";
+      v.textContent = flFrom(); fr.appendChild(v);
       flBorrow(flS('Dest'), flRow(body, 'to'));
-      flNote(body, railPhase === 'STOPPED'
-        ? 'Picking a new destination now chains the next leg — same flight, ' +
-          'no reset.'
-        : 'Changing the origin restarts the flight.');
+      const ph = ap ? ap.phase : '';
+      flNote(body, inGarage || !started ? 'The flight starts at the base. The destination can be changed at any time - on the ground or in the air.'
+        : ph === 'STOPPED' ? 'Picking a new destination now taxis out from here and flies there - same flight, no reset.'
+        : ['FLARE', 'ROLLOUT', 'GLIDE'].includes(ph) ? 'Landing: a new destination is flown from where the aeroplane stops.'
+        : 'A new destination re-plans the flight from here, like an autopilot\'s.');
     },
     // 2026-09-20: THE DAY PANEL (day_ui.js) - the same panel the shed's `night` flyout mounts:
     // the conditions (#selCond stays the keeper, pressed through its own change), the clock's
@@ -11019,6 +11105,7 @@
   const FL_REVEAL_K = 0.022, FL_REVEAL_FRAMES = 360;
   function flRevealStart() {
     rollShotUi(false);                   // G1370: the verbs come back as the reveal hands over
+    if (window.FLIGHT_REC && window.FLIGHT_REC.reveal) window.FLIGHT_REC.reveal('the flight');   // G1996: marked with or without a screen
     flShedBox = worldShedBox();
     flReveal = 0;
     // the panel arc (session 4b): rolling out INTO the cockpit seats the
@@ -11233,11 +11320,21 @@
   });
 
   // ---- THE BRIEF, THE VERBS AND THE NOTICE --------------------------------
+  // G1945 DEST-TO: THE FROM IS WHERE THE AEROPLANE IS (38b_dest.js flightWhere) - the field under it, 'airborne'
+  // in the air, the base before the roll-out - and the trip line reads it, not a picker
+  const flFrom = () => {
+    try {
+      if (inGarage || !started || !sim || typeof flightWhere !== 'function') { const a = aeroById(fromId); return a ? a.name || a.id : '—'; }
+      const cg = sim.cgPos(), air = sim.wheelsOnGround() === 0 && cg[1] - groundH(cg[0], cg[2]) > 3;
+      const W = flightWhere(world, cg[0], cg[2], { air });
+      if (W.kind === 'airborne') return 'airborne';
+      if (!W.aero || W.kind === 'out') return 'off-field';
+      return W.aero.name || W.aero.id;
+    } catch (e) { return '—'; }
+  };
   const flTrip = () => {
-    const f = flS('From'), d = flS('Dest');
-    const fo = f.options[f.selectedIndex], dov = d.options[d.selectedIndex];
-    return (fo ? fo.textContent : '—') + ' → ' +
-           (dov ? dov.textContent.replace(/^⟳\s*/, '') : '—');
+    const d = flS('Dest'), dov = d.options[d.selectedIndex];
+    return flFrom() + ' → ' + (dov ? dov.textContent.replace(/^⟳\s*/, '').replace(/ · .*$/, '') : '—');
   };
   const flSel = sel => {
     const o = sel.options[sel.selectedIndex];
@@ -11883,6 +11980,11 @@
   if (SIMW) { window.FLYDIY_SIMW = SIMW; PACE.worker = () => SIMW.perf(); }
   let simwRan = -1;   // G820: the steps the worker's snapshot moved the picture on this frame (the recorder's wran)
   let frame = 0, wdFrame = 0, hudAcc = 0, shedT = 0;
+  // THE LOOP STARTS ONCE, WHATEVER STARTS IT (the laptop log, 5 Oct): 'first light' was its only start, and a garage
+  // load the watchdog lifted at 120 s, then a Fly press, superseded that step (G640: a newer run owns the chain) -
+  // no frame ever drawn. The boot's done() starts it too.
+  let loopOn = false;
+  function startLoop() { if (loopOn) return; loopOn = true; loop(); }
   function loop(ts) {
     requestAnimationFrame(loop);
     POSE_LERP.back();                  // G1100: a frame that threw between the swap and its restore leaves nothing drawn behind
@@ -12830,7 +12932,7 @@
   // the first frame renders UNDER the overlay: this is where the shaders
   // compile, and the frames after it are where the late landings re-bake
   bootStep('firstFrame', 'first light', 10, () => {
-    hud(); loop();
+    hud(); startLoop();
     // G441: the see-through programs, after the room is up. G1027 (B8B9 on train 14): UNDER THE SCREEN, a task after first
     // light, not on a 1.5 s timer - "no background loading in the garage" (B9), and the timer fired into the first
     // roll-out's shot when Roll out came quickly (22 links counted in roll-out 1 by the page in node)
@@ -12891,7 +12993,7 @@
   if (typeof window !== 'undefined') window.SCENERY = SCENERY;
   const bootOpts = { set: 'garage', landingLabel: 'the last pieces landing',
     done: () => { tripClose(bootTrip); if (PK_ASYNC() && window.PARKED.async) { window.PARKED.async = false; parkedFlush(); } setupClose(); if (SCENERY_Q) setTimeout(() => SCENERY.enter(), 0);
-      if (SIMW) SIMW.prewarm(); },   // G820 (C1c): the physics worker's world made on its own thread while the player is in the shed
+      if (SIMW) SIMW.prewarm(); startLoop(); },   // G820 (C1c): the physics worker's world made on its own thread while the player is in the shed
     require: ['sky', 'env', 'room', 'props', 'propTex', 'skin', 'crew', 'crewTex', 'crewBuild'],
     // the program count rides on every step's log entry: what each step compiled
     probe: () => ({ programs: renderer.info && renderer.info.programs ? renderer.info.programs.length : -1 }) };

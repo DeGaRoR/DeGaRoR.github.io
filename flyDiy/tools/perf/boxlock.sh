@@ -4,7 +4,7 @@
 # so every session takes and drops its locks through this.
 #
 #   bash D:/Dev/DeGaRoR.github.io/flyDiy/tools/perf/boxlock.sh take gpu <who> [note]  # waits: no GPU lock AND no CPU lock
-#   bash D:/Dev/DeGaRoR.github.io/flyDiy/tools/perf/boxlock.sh take cpu <who> [note]  # waits: no GPU lock (CPU locks share)
+#   bash D:/Dev/DeGaRoR.github.io/flyDiy/tools/perf/boxlock.sh take cpu <who> [note]  # waits: no GPU lock AND no other CPU lock (exclusive since 5 Oct)
 #   bash D:/Dev/DeGaRoR.github.io/flyDiy/tools/perf/boxlock.sh drop gpu|cpu <who>
 #   bash D:/Dev/DeGaRoR.github.io/flyDiy/tools/perf/boxlock.sh show
 #   bash D:/Dev/DeGaRoR.github.io/flyDiy/tools/perf/boxlock.sh reserve <who> [note]   # PRIORITY: every OTHER take waits
@@ -38,9 +38,14 @@ case "$cmd" in
           echo "boxlock: GPU taken by $who"; exit 0
         fi
       elif [ "$kind" = cpu ]; then
+        # 2026-10-05 (A0): CPU locks no longer share - a node battery beside another one (D4b's TREECRASH beside train
+        # 36's battery) skews both; a take waits while ANOTHER owner's CPU lock exists (its own is accepted)
         f="$D/CPU_BATTERY_$who.lock"
-        if [ ! -e "$gpu" ] && ( set -C; echo "$who $(date +%H:%M) $note" > "$f" ) 2>/dev/null; then
-          if [ -e "$gpu" ]; then rm -f "$f"; else echo "boxlock: CPU battery taken by $who"; exit 0; fi
+        if grep -q "^$who " "$f" 2>/dev/null; then echo "boxlock: CPU battery already held by $who"; exit 0; fi
+        other=$(ls "$D"/CPU_BATTERY_*.lock 2>/dev/null | grep -v "/CPU_BATTERY_$who.lock$")
+        if [ -z "$other" ] && [ ! -e "$gpu" ] && ( set -C; echo "$who $(date +%H:%M) $note" > "$f" ) 2>/dev/null; then
+          other=$(ls "$D"/CPU_BATTERY_*.lock 2>/dev/null | grep -v "/CPU_BATTERY_$who.lock$")
+          if [ -e "$gpu" ] || [ -n "$other" ]; then rm -f "$f"; else echo "boxlock: CPU battery taken by $who"; exit 0; fi
         fi
       else echo "boxlock: kind must be gpu or cpu" >&2; exit 2; fi
       n=$((n + 1)); [ $((n % 20)) -eq 1 ] && { echo "boxlock: $who waiting for $kind - held: $(ls "$D"/*.lock 2>/dev/null | xargs -n1 basename 2>/dev/null | tr '\n' ' ')" >&2; stale; }

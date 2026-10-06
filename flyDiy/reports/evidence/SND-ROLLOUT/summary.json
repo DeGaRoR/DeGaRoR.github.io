@@ -1,0 +1,143 @@
+{
+ "cub": {
+  "label": "the user's Cub (Continental A-65, direct drive)",
+  "start": 2.9,
+  "check": 3.3,
+  "roll": 5.594044240850757,
+  "total": 11.794044240850756,
+  "marks": {
+   "key": 0.22,
+   "engines": [
+    {
+     "crank": 0.6,
+     "catch": 2.1,
+     "method": "starter"
+    }
+   ],
+   "check": 2.92,
+   "roll": 6.23,
+   "throttle": 6.3,
+   "thrMax": 0.14,
+   "idleAgain": 10.48,
+   "doorOut": 10.98,
+   "end": 11.85
+  },
+  "rpm": {
+   "idle": 644,
+   "roll": 992,
+   "crankVoice": 266,
+   "flareVoice": 904
+  },
+  "listenDb": 18,
+  "peak": 0.347,
+  "rmsDb": -21.8,
+  "seconds": 13.35
+ },
+ "jodel": {
+  "label": "the Jodel D112 (Continental A-65)",
+  "start": 2.9,
+  "check": 3.3,
+  "roll": 5.432650227325635,
+  "total": 11.632650227325634,
+  "marks": {
+   "key": 0.22,
+   "engines": [
+    {
+     "crank": 0.6,
+     "catch": 2.1,
+     "method": "starter"
+    }
+   ],
+   "check": 2.92,
+   "roll": 6.23,
+   "throttle": 6.3,
+   "thrMax": 0.14,
+   "idleAgain": 10.37,
+   "doorOut": 10.97,
+   "end": 11.68
+  },
+  "rpm": {
+   "idle": 644,
+   "roll": 992,
+   "crankVoice": 266,
+   "flareVoice": 904
+  },
+  "listenDb": 18,
+  "peak": 0.311,
+  "rmsDb": -22.3,
+  "seconds": 13.18
+ },
+ "cessna": {
+  "label": "the Cessna 172 (custom flat four 5.9 L)",
+  "start": 2.9,
+  "check": 3.3,
+  "roll": 5.7119026473818035,
+  "total": 11.911902647381803,
+  "marks": {
+   "key": 0.22,
+   "engines": [
+    {
+     "crank": 0.6,
+     "catch": 2.1,
+     "method": "starter"
+    }
+   ],
+   "check": 2.92,
+   "roll": 6.23,
+   "throttle": 6.3,
+   "thrMax": 0.14,
+   "idleAgain": 10.57,
+   "doorOut": 10.95,
+   "end": 11.97
+  },
+  "rpm": {
+   "idle": 686,
+   "roll": 1056,
+   "crankVoice": 229,
+   "flareVoice": 962
+  },
+  "listenDb": 18,
+  "peak": 0.436,
+  "rmsDb": -20.8,
+  "seconds": 13.47
+ },
+ "twin582": {
+  "label": "the twin-582 (two Rotax 582 two-strokes, 2.62 reduction)",
+  "start": 5.4,
+  "check": 3.3,
+  "roll": 5.594044240850757,
+  "total": 14.294044240850756,
+  "marks": {
+   "key": 0.22,
+   "engines": [
+    {
+     "crank": 0.6,
+     "catch": 2.1,
+     "method": "starter"
+    },
+    {
+     "crank": 3.12,
+     "catch": 4.62,
+     "method": "starter"
+    }
+   ],
+   "check": 5.42,
+   "roll": 8.73,
+   "throttle": 8.8,
+   "thrMax": 0.14,
+   "idleAgain": 12.98,
+   "doorOut": 13.73,
+   "end": 14.35
+  },
+  "rpm": {
+   "idle": 1820,
+   "roll": 2803,
+   "crankVoice": 290,
+   "flareVoice": 2552
+  },
+  "listenDb": 18,
+  "peak": 0.143,
+  "rmsDb": -32.4,
+  "seconds": 15.85
+ }
+}
