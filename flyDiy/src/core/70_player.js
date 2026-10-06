@@ -22,6 +22,11 @@
 // cabinet — per-item envelopes, individually shareable; this document is the
 // ledger of ownership, not the filing.)
 //
+// G2085 (PILOT-PERSONA): AND THE PLAYER'S PILOT - `pilot: { profile, custom }`, the personality that flies the
+// player's aeroplanes (43_pilot.js PILOT_PROFILES; the design's §4.9: "a profile is data; it can be saved with the
+// player"). OPTIONAL and absent by default: absent is the expert, the null-means-derived ruling again; no version step
+// (a field added, not one that changed units, sign or home - an older game carries it untouched, as any unknown field).
+//
 // The name is `player`, not `estate` — ROADMAP G77.1 already spends "free
 // estate" on screen real-estate, and this is property, not pixels.
 const PLAYER_V = 1;
@@ -82,7 +87,22 @@ function playerNormalise(r) {
   const h = r.sheds.HOME;
   if (typeof h.shell !== 'string') h.shell = 'club';
   if (!Array.isArray(h.kits)) h.kits = def.sheds.HOME.kits;
+  if ('pilot' in r) r.pilot = playerPilot(r);
   return r;
+}
+
+// G2085: THE PLAYER'S PILOT, read (never invented into the document): { profile, custom } with the profile a name the
+// pilot knows ('custom' included) - anything else is the expert - and the custom person clamped to the knobs
+// (43 pilotProfile / pilotProfileSpec: a saved slider can never hand the pilot a NaN). Absent: the expert.
+function playerPilot(r) {
+  const P = r && r.pilot && typeof r.pilot === 'object' ? r.pilot : {};
+  const known = (typeof PILOT_PROFILES !== 'undefined') ? PILOT_PROFILES : { expert: 1 };
+  const profile = typeof P.profile === 'string' && (known[P.profile] || P.profile === 'custom') ? P.profile : 'expert';
+  const out = { profile };
+  if (P.custom && typeof P.custom === 'object')
+    out.custom = (typeof pilotProfileSpec === 'function' && typeof pilotProfile === 'function')
+      ? pilotProfileSpec(pilotProfile(P.custom)) : P.custom;
+  return out;
 }
 
 // THE ONE-TIME LIFT: the two old pref values (already parsed, or null) into

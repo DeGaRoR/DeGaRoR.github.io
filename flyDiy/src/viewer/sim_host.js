@@ -365,7 +365,8 @@ function makeSimHost(CORE, init, keptWorld) {
       // G1940 (PILOT-ONE): one pilot; 'test' / 'classic' (retired) fly its normal style
       const sd = PK.shakedown || null;
       const ST_ = CORE.PILOT_STYLES || {};
-      const p = CORE.makePilot(sim, def, world, { style: ST_[kind] ? kind : 'normal', shakedown: () => sd });
+      // G2085 (PILOT-PERSONA): the page's personality (a name or the custom object) flies here as it does inline
+      const p = CORE.makePilot(sim, def, world, { style: ST_[kind] ? kind : 'normal', profile: PK.profile || undefined, shakedown: () => sd });
       if (PK.nav !== false && typeof CORE.navMake === 'function') {
         // one nav for the page's life (app.js flNav, made once, kept across flights): one per world here (G815)
         if (!world.__simNav) world.__simNav = CORE.navMake({ waypoints: world.aerodromes });

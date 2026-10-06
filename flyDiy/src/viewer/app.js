@@ -4408,6 +4408,54 @@
   // ('test') and the classic autopilot ('classic') RETIRED - one pilot; a
   // choice of either (an old page, a link) flies THE PILOT's normal style.
   let pilotChoice = 'auto';
+  // G2085 (PILOT-PERSONA): AND WHO THE PILOT IS - the personality (43 PILOT_PROFILES: expert / club / student / bush /
+  // ham-fist, or the player's own 'custom' person off the knobs, PILOT_PROFILE_KNOBS) that flies under the style. One
+  // keeper, #selPersona (the flyout borrows its options as pills, as it does #selPilot's); persisted in the PLAYER
+  // document (`pilot: { profile, custom }`, 70_player.js playerPilot - it is the player's pilot, not a view pref), read
+  // once at the first pilot made. Changing the person restarts the flight, as the style does; the custom knobs fly
+  // from the next start.
+  const PERSONA_ORDER = ['expert', 'club', 'student', 'bush', 'hamfist'];
+  let personaChoice = 'expert', personaCustom = {}, personaRead = false;
+  function personaLoad() {
+    if (personaRead) return;
+    personaRead = true;
+    try {
+      const P = (typeof playerPilot === 'function') ? playerPilot(playerLoad()) : { profile: 'expert' };
+      personaChoice = P.profile; personaCustom = P.custom || {};
+    } catch (e) { personaChoice = 'expert'; personaCustom = {}; }
+    personaSync();
+  }
+  function personaSave() {
+    try {
+      const pl = playerLoad();
+      pl.pilot = { profile: personaChoice };
+      if (Object.keys(personaCustom).length) pl.pilot.custom = JSON.parse(JSON.stringify(personaCustom));
+      playerSave();
+    } catch (e) {}
+    personaSync();
+  }
+  // every view of the keeper on it (#selPersona, the route rows' mirrors)
+  function personaSync() {
+    try { for (const s of document.querySelectorAll('#selPersona, .routePick select.persona')) s.value = personaChoice; } catch (e) {}
+  }
+  // what makePilot is handed: a name, or the custom person as an object (pilotProfile clamps it)
+  function personaProfile() {
+    personaLoad();
+    if (personaChoice === 'custom') return Object.assign({ name: 'custom', active: true }, JSON.parse(JSON.stringify(personaCustom)));
+    return (typeof PILOT_PROFILES !== 'undefined' && PILOT_PROFILES[personaChoice]) ? personaChoice : 'expert';
+  }
+  const personaLabel = k => k === 'custom' ? 'Custom' : ((typeof PILOT_PROFILES !== 'undefined' && PILOT_PROFILES[k] && PILOT_PROFILES[k].label) || k);
+  // THE KEEPER'S OPTIONS, off the one table (the HTML carries the select empty)
+  (() => {
+    const s = $('selPersona');
+    if (!s || s.options.length || typeof PILOT_PROFILES === 'undefined') return;
+    for (const k of PERSONA_ORDER.concat(['custom'])) {
+      const o = document.createElement('option'); o.value = k; o.textContent = personaLabel(k);
+      o.title = k === 'custom' ? 'your own pilot, off the knobs' : PILOT_PROFILES[k].desc;
+      s.appendChild(o);
+    }
+    s.value = 'expert';
+  })();
   // G202.1: ONE navigator for the flight screen (the aerodromes as its
   // database), handed to every pilot so the AP box's NAV mode has a plan
   let flNav = null;
@@ -4415,7 +4463,7 @@
     // P0.4 (PILOT-ROADMAP): the machine sheet's shakedown is the bench's
     // memoised one (shakeOf), handed as a getter — a TDZ before the bench
     // block runs reads as "no shakedown yet", never as a throw
-    const p = makePilot(sim, def, world, { style: PILOT_STYLES[pilotChoice] ? pilotChoice : 'normal',
+    const p = makePilot(sim, def, world, { style: PILOT_STYLES[pilotChoice] ? pilotChoice : 'normal', profile: personaProfile(),
                                            shakedown: () => { try { return shakeOf(); } catch (e) { return null; } } });
     if (typeof navMake === 'function') { if (!flNav) flNav = navMake({ waypoints: world.aerodromes }); p.setNav(flNav); }
     return p;
@@ -4424,6 +4472,12 @@
     pilotChoice = e.target.value;
     // mid-flight the change takes effect through a fresh departure; in the
     // garage it simply decides who flies the next roll-out
+    if (!inGarage) fullReset();
+  };
+  if ($('selPersona')) $('selPersona').onchange = e => {
+    personaLoad();
+    personaChoice = e.target.value === 'custom' || PERSONA_ORDER.includes(e.target.value) ? e.target.value : 'expert';
+    personaSave();
     if (!inGarage) fullReset();
   };
   // THE FLOATS IN FLIGHT (H1, G383). A float build carries sim.hydro — the
@@ -8849,6 +8903,23 @@
       sel.value = destId;
       sel.onchange = e => setTo(e.target.value);
       lab.appendChild(sel); host.appendChild(lab);
+      // G2085 (PILOT-PERSONA): WHO FLIES IT, beside where it goes - the personality on the route row (the shed's flight
+      // setup beside ROLL OUT, the roll-out screen's), a mirror of the one keeper #selPersona (personaSync keeps every
+      // mirror on it); each option's hover is that person's one line. In the shed it decides who flies the roll-out;
+      // on a held roll-out screen the pilot on the stand is made again, as the base's pick does
+      const lp = document.createElement('label');
+      const sq = document.createElement('span'); sq.textContent = 'pilot'; lp.appendChild(sq);
+      const ps = document.createElement('select');
+      ps.title = 'Who flies it'; ps.className = 'persona';
+      const ks = $('selPersona');
+      if (ks) for (const o of ks.options) { const e = document.createElement('option'); e.value = o.value; e.textContent = o.textContent; e.title = o.title; ps.appendChild(e); }
+      personaLoad(); ps.value = personaChoice;
+      ps.onchange = e => {
+        personaChoice = e.target.value; personaSave();
+        if (where === 'rollout' && rollHold && !inGarage) fullReset();
+        if (FL.ready) flRender();
+      };
+      lp.appendChild(ps); host.appendChild(lp);
     };
     routeBuild($('edRoute'), 'garage');
     routeBuild($('bootRoute'), 'rollout');
@@ -10007,6 +10078,72 @@
   window.SHOT_MODE = { enter: () => shotSet(true), exit: () => shotSet(false),
                        get on() { return SHOT.on; } };
 
+  // G2085 (PILOT-PERSONA): THE PERSON WHO FLIES - the design's §5 row. The five personalities as pills (the keeper is
+  // #selPersona, borrowed as the style's #selPilot is), a line each saying what that person does, and the CUSTOM
+  // person's knobs (43 PILOT_PROFILE_KNOBS: every hook) in a fold of its own, folded by default - advanced. A knob
+  // moved makes the pilot 'custom' (its values start from the person picked), saved in the player document at once;
+  // it flies from the next start. 'start from' copies a personality into the knobs (the downgrade the user asked for:
+  // the full model, tuned down to a person).
+  function flPersona(body) {
+    const sel = $('selPersona');
+    if (!sel || typeof PILOT_PROFILES === 'undefined') return;
+    personaLoad();
+    sel.value = personaChoice;
+    flRow(body, 'personality');
+    // (off the one table, not the select's options: the keeper's value is what a pill writes - flPick)
+    flPills(body, PERSONA_ORDER.concat(['custom']).map(k => ({ label: personaLabel(k), value: k,
+              title: k === 'custom' ? 'your own pilot, off the knobs below' : PILOT_PROFILES[k].desc })),
+            o => o.value === personaChoice, o => flPick(sel, o.value));
+    const L = document.createElement('div'); L.className = 'fnote fpersona';
+    for (const k of PERSONA_ORDER.concat(personaChoice === 'custom' ? ['custom'] : [])) {
+      const d = document.createElement('div'); d.className = 'fpLine' + (k === personaChoice ? ' on' : ''); d.dataset.p = k;
+      const b = document.createElement('b'); b.textContent = personaLabel(k);
+      const t = document.createElement('span'); t.textContent = ' ' + (k === 'custom' ? 'your own pilot: the knobs below' : PILOT_PROFILES[k].desc);
+      d.appendChild(b); d.appendChild(t);
+      L.appendChild(d);
+    }
+    body.appendChild(L);
+    // the fold is the pilot's own, not a rail section (a section is an old item's home - the census holds the list):
+    // a pill that shows or hides the knobs, remembered with the rail's folds (flydiy.flSec 'persona'); a census opens it
+    const open = flCensus ? true : flSecIsOpen('persona');
+    flRow(body, 'custom pilot');
+    flPills(body, [{ label: open ? 'hide the knobs' : 'show the knobs', value: !open, title: 'advanced: every trait of the pilot as a knob' }],
+            () => open, o => flSecSet('persona', o.value));
+    if (!open) return;
+    const fb = document.createElement('div'); fb.className = 'fpKnobs'; body.appendChild(fb);
+    // the knobs read the person flying (a named one until a knob moves), write the custom person
+    const cur = () => personaChoice === 'custom' ? pilotProfile(Object.assign({ name: 'custom', active: true }, personaCustom))
+                                                : pilotProfile(personaChoice);
+    const put = (K, v) => {
+      const R = Object.assign({}, cur()); R[K.k] = v;
+      personaCustom = pilotProfileSpec(pilotProfile(Object.assign({ name: 'custom', active: true }, pilotProfileSpec(R))));
+      if (personaChoice !== 'custom') { personaChoice = 'custom'; sel.value = 'custom'; }
+      personaSave(); flRender();
+    };
+    flRow(fb, 'start from');
+    flPills(fb, PERSONA_ORDER.map(k => ({ label: personaLabel(k), value: k, title: 'copy the ' + personaLabel(k) + ' into the knobs' })), () => false,
+            o => { personaCustom = pilotProfileSpec(o.value); personaChoice = 'custom'; sel.value = 'custom'; personaSave(); flRender(); });
+    for (const K of PILOT_PROFILE_KNOBS) {
+      const R = cur();
+      if (K.kind === 'range') {
+        const toUi = K.toUi || (x => x), k = toUi(1) === 1 ? 1 : toUi(1);
+        const off = K.d === null;   // the top stop is the knob's null: 'off' (comfort g: the bank limit alone), 'auto' (grip)
+        const hi = off ? K.hi + K.step : K.hi;
+        const get = () => { const v = cur()[K.k]; return v == null ? hi * k : v * k; };
+        const fmt = x => (off && x >= hi * k - 1e-9) ? (K.nullLabel || 'off') : (Math.round(x * 100) / 100) + (K.unit ? ' ' + K.unit : '');
+        const r = flRange(fb, K.label, K.lo * k, hi * k, K.step * k, get,
+                          x => put(K, off && x >= hi * k - 1e-9 ? null : x / k), fmt);
+        r.title = K.desc;
+      } else if (K.kind === 'pick') {
+        flRow(fb, K.label).title = K.desc;
+        flPills(fb, K.opts.map(v => ({ label: v == null ? 'own' : v, value: v })), o => o.value === R[K.k], o => put(K, o.value));
+      } else if (K.kind === 'bool') {
+        flToggle(fb, K.label, () => cur()[K.k], v => put(K, !!v)).title = K.desc;
+      }
+    }
+    flNote(fb, 'A knob moved makes the pilot your own (custom), kept with your player. It flies from the next start.');
+  }
+
   const FL_BUILD = {
     // -------- the four brief slots --------------------------------------
     slot_ac(body) {
@@ -10016,11 +10153,12 @@
                    'bench subjects are measured in node, not flown here.');
     },
     slot_pilot(body) {
+      flRow(body, 'style');
       flPills(body, flOpts(flS('Pilot')), o => o.value === flS('Pilot').value,
               o => flPick(flS('Pilot'), o.value));
-      flNote(body, 'Auto puts the test pilot under your own build and the ' +
-                   'classic autopilot under anything else. Changing it ' +
-                   'restarts the flight.');
+      flPersona(body);
+      flNote(body, 'The style is the margins the pilot keeps (cautious: wider, brisk: tighter); the personality is who ' +
+                   'holds the stick. Changing either restarts the flight.');
     },
     slot_route(body) {
       // G1945 DEST-TO: ONE CHOICE, THE TO. BORROWED, not rebuilt: #selDest's handler is the autopilot's destination
@@ -10143,6 +10281,9 @@
       flRow(body, 'the pilot');
       flPills(body, [{ label: 'autopilot', value: false }, { label: 'by hand', value: true }],
               o => o.value === manual, o => setManual(o.value));
+      // G2085 (PILOT-PERSONA): who the autopilot is - here too, so the setup screen (this section is on it) and the
+      // FLY rail choose the person where the pilot is chosen; the same keeper as the plate's pilot slot
+      flPersona(body);
       // A9: the clock, on the test flight — 2× is two solver steps a frame
       if (testFlight) {
         flRow(body, 'time');
@@ -11368,7 +11509,8 @@
     $('flPlate').hidden = flFolded;
     $('flLine').hidden = !flFolded;
     $('acName').textContent = flSel(flS('Ac')).replace(/^⚒\s*/, '');
-    $('flPilotV').textContent = flSel(flS('Pilot'));
+    personaLoad();
+    $('flPilotV').textContent = flSel(flS('Pilot')) + (personaChoice !== 'expert' ? ' \u00b7 ' + personaLabel(personaChoice) : '');
     $('flRouteV').textContent = flTrip();
     $('flDayV').textContent = flDay();
     $('flLineName').textContent = $('acName').textContent;
@@ -11972,7 +12114,7 @@
   const SIMW_ON = (() => { try { const m = /[?&]simw=([01])(&|$)/.exec(location.search || ''); if (m) return m[1] === '1';
     const p = prefGet('flydiy.simw', ''); if (p === '0' || p === '1') return p === '1'; } catch (e) {} return SIMW_DEFAULT; })();
   const SIMW = (SIMW_ON && typeof SIM_LINK !== 'undefined' && typeof location !== 'undefined') ? SIM_LINK.make({
-    get: () => ({ sim, ap, def, world, started, manual, INP, curKey, genSpec, pilotChoice, lastStart, fromId, destId, shake: shakeOf, over: flightOver }),
+    get: () => ({ sim, ap, def, world, started, manual, INP, curKey, genSpec, pilotChoice, pilotProfile: personaProfile(), lastStart, fromId, destId, shake: shakeOf, over: flightOver }),
     rig: () => PACE.state().legacy, premises: () => WB.premisesPlaced }) : null;
   if (SIMW) { window.FLYDIY_SIMW = SIMW; PACE.worker = () => SIMW.perf(); }
   let simwRan = -1;   // G820: the steps the worker's snapshot moved the picture on this frame (the recorder's wran)

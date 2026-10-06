@@ -100,6 +100,9 @@
   #bootSetup .pill.on { color:#1a1815; background:#e6a15a; border-color:#e6a15a; }
   #bootSetup .pill:disabled { opacity:.4; cursor:not-allowed; }
   #bootSetup .fnote { margin-top:8px; color:#7d766a; font-size:10.5px; line-height:1.4; }
+  #bootSetup .fpersona .fpLine { margin:2px 0; }
+  #bootSetup .fpersona .fpLine b { font-weight:600; color:#a59d8f; }
+  #bootSetup .fpersona .fpLine.on, #bootSetup .fpersona .fpLine.on b { color:#f4efe6; }
   #bootSetup .fsw { flex:none; accent-color:#e6a15a; }
   #bootSetup .frng { flex:1; min-width:30px; accent-color:#e6a15a; }
   #bootSetup .fsel { flex:1; min-width:0; padding:4px 6px; color:#f4efe6; background:#26231f; border:1px solid rgba(255,255,255,.14); border-radius:4px; }

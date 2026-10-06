@@ -65,7 +65,7 @@ const MACHINES_ALL = MACHINES_CORE.concat(['pittsAlike', 'sesqui', 'caravan', 'r
 
 function cellsOf(set) {
   const cells = [];
-  const add = (key, from, to, weather, style, drawnTail, fixture) => cells.push({ key, from, to: to || from, weather, style: style || 'normal', drawnTail: !!drawnTail, fixture: fixture || 'flat' });
+  const add = (key, from, to, weather, style, drawnTail, fixture, profile) => cells.push({ key, from, to: to || from, weather, style: style || 'normal', drawnTail: !!drawnTail, fixture: fixture || 'flat', profile: profile || 'expert' });
   if (set === 'quick') {
     for (const k of MACHINES_QUICK) add(k, 'HOME', null, 'calm');
     add('cub', 'HOME', null, 'x2'); add('stearman', 'HOME', null, 'x2'); add('c172', 'HOME', null, 'x2');
@@ -74,6 +74,9 @@ function cellsOf(set) {
     // P1: the 4 m/s gusting cross on two taildraggers, the short field, the soft field, the declared circuit
     add('cub', 'HOME', null, 'x4'); add('stearman', 'HOME', null, 'x4');
     add('cub', 'HOME', 'A5', 'calm'); add('cub', 'HOME', null, 'calm', null, false, 'sand'); add('c172', 'HOME', null, 'calm', null, false, 'rh');
+    // G2085 (PILOT-PERSONA): THE PER-PROFILE ROW - every personality but the expert on the Cub's calm HOME circuit (the
+    // expert's is the first cell), held by the ratchet like any cell: a pilot change that moves a person is seen
+    for (const p of PERSONAS) add('cub', 'HOME', null, 'calm', null, false, null, p);
   } else if (set === 'core') {
     for (const k of MACHINES_CORE) { add(k, 'HOME', null, 'calm'); add(k, 'HOME', null, 'x2'); }
     for (const k of ['cub', 'c172', 'savannah']) { add(k, 'HOME', 'A3', 'calm'); add(k, 'HOME', 'A5', 'calm'); }
@@ -95,12 +98,13 @@ function cellsOf(set) {
   }
   return cells;
 }
-const cellId = c => [c.key, c.from + (c.to !== c.from ? '-' + c.to : ''), c.weather, c.fixture && c.fixture !== 'flat' ? c.fixture : '', c.style !== 'normal' ? c.style : '', c.drawnTail ? 'drawn' : ''].filter(Boolean).join(':');
+const PERSONAS = ['club', 'student', 'bush', 'hamfist'];   // G2085: 43 PILOT_PROFILES but the expert (every cell's default)
+const cellId = c => [c.key, c.from + (c.to !== c.from ? '-' + c.to : ''), c.weather, c.fixture && c.fixture !== 'flat' ? c.fixture : '', c.style !== 'normal' ? c.style : '', c.drawnTail ? 'drawn' : '', c.profile && c.profile !== 'expert' ? c.profile : ''].filter(Boolean).join(':');
 function parseCell(s) {
   const p = s.split(':');
   const [from, to] = (p[1] || 'HOME').split('-');
   return { key: p[0], from, to: to || from, weather: p[2] || 'calm', style: p.includes('cautious') ? 'cautious' : p.includes('brisk') ? 'brisk' : 'normal', drawnTail: p.includes('drawn'),
-           fixture: p.find(x => FIXTURES[x] && x !== 'flat') || 'flat' };
+           fixture: p.find(x => FIXTURES[x] && x !== 'flat') || 'flat', profile: p.find(x => PERSONAS.includes(x)) || 'expert' };
 }
 
 // THE THRESHOLDS — the numbers a good pilot flies to, on every machine. A
@@ -145,6 +149,7 @@ function runCell(c, extra) {
     if (w.oat != null) args.push('--oat', String(w.oat));
     if (w.qnh != null) args.push('--qnh', String(w.qnh));
     if (c.drawnTail) args.push('--drawn-tail');
+    if (c.profile && c.profile !== 'expert') args.push('--profile', c.profile);   // G2085
     const fx = FIXTURES[c.fixture] || {};
     if (fx.slope) args.push('--slope', String(fx.slope));
     if (fx.surface != null) args.push('--surface', String(fx.surface));
@@ -311,4 +316,4 @@ if (require.main === module) {
     process.exit(rep.nBad ? 1 : 0);
   });
 }
-module.exports = { ACT_LIMIT, ACT_KEYS, actWorst, activityVerdict, ratchet, WEATHERS, FIXTURES, cellsOf, parseCell, cellId, runCell, runMatrix, judge, report, CHECKS };
+module.exports = { PERSONAS, ACT_LIMIT, ACT_KEYS, actWorst, activityVerdict, ratchet, WEATHERS, FIXTURES, cellsOf, parseCell, cellId, runCell, runMatrix, judge, report, CHECKS };
