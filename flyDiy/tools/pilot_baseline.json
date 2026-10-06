@@ -1030,6 +1030,778 @@
    "path": true,
    "wall": 64,
    "cell": "cub:HOME:calm:dn4"
+  },
+  {
+   "key": "cub",
+   "name": "Cub-alike",
+   "from": "HOME",
+   "to": "HOME",
+   "style": "normal",
+   "profile": "club",
+   "seed": null,
+   "floats": false,
+   "tail": "rule",
+   "slope": 0,
+   "surface": null,
+   "weather": null,
+   "day": "2026-06-21 10:00:00 AKDT",
+   "outcome": "completed",
+   "phase": "STOPPED",
+   "t": 339.9,
+   "phases": [
+    "ROLL@0",
+    "LIFTOFF@12",
+    "CLIMB@27.3",
+    "CROSSWIND@45",
+    "DOWNWIND@65.1",
+    "BASE@169.3",
+    "FINAL@190",
+    "FLARE@315.9",
+    "ROLLOUT@321.5",
+    "STOPPED@339.9"
+   ],
+   "goArounds": 0,
+   "verdicts": [],
+   "takeoff": {
+    "run": 107,
+    "Vlo": 17.3,
+    "lifts": 1,
+    "qMax": 4.2
+   },
+   "climb": {
+    "hTurn": 69,
+    "vsMean": 2.32
+   },
+   "legs": [
+    {
+     "name": "CROSSWIND",
+     "overshoot": 2,
+     "settleT": 9.2,
+     "rollRev": 1
+    },
+    {
+     "name": "DOWNWIND",
+     "overshoot": 4,
+     "settleT": 9.8,
+     "rollRev": 0.4
+    },
+    {
+     "name": "BASE",
+     "overshoot": 6,
+     "settleT": 10.6,
+     "rollRev": 0.5
+    }
+   ],
+   "final": {
+    "captureT": 204.1,
+    "aboveRms": 0.6,
+    "vRms": 0.12,
+    "vErrMean": -0.01,
+    "thrMin": 0.24,
+    "thrMax": 0.36
+   },
+   "flare": {
+    "entryAgl": 4.86,
+    "entryVs": -1.09,
+    "t0": 315.8833333333333,
+    "dur": 5.6
+   },
+   "track": {
+    "xtRms": 1.3,
+    "n": 6147
+   },
+   "bounces": 0,
+   "pitchMax": 15.5,
+   "landing": {
+    "sink": 0.54,
+    "V": 19.6,
+    "VoverVs": 1.2,
+    "pastAim": 17,
+    "off": -0.1,
+    "run": 185,
+    "three": false,
+    "drift": 0.02
+   },
+   "activity": {
+    "takeoff": {
+     "s": 27,
+     "da": 0,
+     "dr": 18,
+     "de": 10
+    },
+    "climb": {
+     "s": 18,
+     "da": 0,
+     "dr": 0,
+     "de": 10
+    },
+    "legs": {
+     "s": 20,
+     "da": 8,
+     "dr": 8,
+     "de": 10
+    },
+    "downwind": {
+     "s": 104,
+     "da": 6.3,
+     "dr": 0,
+     "de": 4.6
+    },
+    "base": {
+     "s": 21,
+     "da": 2,
+     "dr": 8,
+     "de": 12
+    },
+    "final": {
+     "s": 126,
+     "da": 6.7,
+     "dr": 1.9,
+     "de": 3.8
+    },
+    "landing": {
+     "s": 24,
+     "da": 0,
+     "dr": 56,
+     "de": 26
+    }
+   },
+   "rollout": {
+    "maxE": 0.3,
+    "zeroX": 0,
+    "maxDr": 0.07,
+    "xtEnd": 0
+   },
+   "Vs": 16.3,
+   "VsLanding": 16.3,
+   "VAppr": 20.8,
+   "appr": {
+    "technique": "normal",
+    "Vref": 20.8,
+    "Vbase": 20.8,
+    "gust": 0,
+    "aimIn": 155,
+    "flap": 0,
+    "len": 1100,
+    "surface": 0,
+    "runNeed": 135,
+    "gs": 0.052,
+    "reqGs": 0.035
+   },
+   "dep": {
+    "technique": "normal",
+    "Vx": 19.6,
+    "runNeed": 156,
+    "len": 1100,
+    "surface": 0
+   },
+   "circuit": {
+    "hand": "left",
+    "hC": 115,
+    "join": "straight",
+    "declared": null
+   },
+   "mass": 475,
+   "sheet": {
+    "Vs": 15.98,
+    "Vs0": 15.98,
+    "Vref": 20.78,
+    "Vrot": 16.2,
+    "Vx": 19.58,
+    "Vy": 22.5,
+    "Vbg": 22.61,
+    "Vms": 17.19,
+    "Vcruise": 31.4,
+    "climbMax": 2.97,
+    "sinkMin": 2.11,
+    "LDbest": 9.4,
+    "TORun": 156,
+    "LDGrun": 134.73,
+    "mass": 476.19
+   },
+   "tecs": true,
+   "path": true,
+   "wall": 84,
+   "cell": "cub:HOME:calm:club"
+  },
+  {
+   "key": "cub",
+   "name": "Cub-alike",
+   "from": "HOME",
+   "to": "HOME",
+   "style": "normal",
+   "profile": "student",
+   "seed": null,
+   "floats": false,
+   "tail": "rule",
+   "slope": 0,
+   "surface": null,
+   "weather": null,
+   "day": "2026-06-21 10:00:00 AKDT",
+   "outcome": "completed",
+   "phase": "STOPPED",
+   "t": 354.9,
+   "phases": [
+    "ROLL@0",
+    "LIFTOFF@11.9",
+    "CLIMB@27.5",
+    "CROSSWIND@45.5",
+    "DOWNWIND@69.8",
+    "BASE@175.3",
+    "FINAL@202.9",
+    "FLARE@331.7",
+    "ROLLOUT@336.4",
+    "STOPPED@354.9"
+   ],
+   "goArounds": 0,
+   "verdicts": [],
+   "takeoff": {
+    "run": 106,
+    "Vlo": 17.2,
+    "lifts": 1,
+    "qMax": 4.3
+   },
+   "climb": {
+    "hTurn": 69.1,
+    "vsMean": 2.28
+   },
+   "legs": [
+    {
+     "name": "CROSSWIND",
+     "overshoot": 2,
+     "settleT": 12.6,
+     "rollRev": 4.1
+    },
+    {
+     "name": "DOWNWIND",
+     "overshoot": 5,
+     "settleT": 13.5,
+     "rollRev": 7.2
+    },
+    {
+     "name": "BASE",
+     "overshoot": 6,
+     "settleT": 14.4,
+     "rollRev": 5.8
+    }
+   ],
+   "final": {
+    "captureT": 219.7,
+    "aboveRms": 0.6,
+    "vRms": 0.14,
+    "vErrMean": -0.03,
+    "thrMin": 0.23,
+    "thrMax": 0.33
+   },
+   "flare": {
+    "entryAgl": 4.08,
+    "entryVs": -1.32,
+    "t0": 331.7,
+    "dur": 4.7
+   },
+   "track": {
+    "xtRms": 1.5,
+    "n": 6197
+   },
+   "bounces": 0,
+   "pitchMax": 16.6,
+   "landing": {
+    "sink": 0.58,
+    "V": 19.8,
+    "VoverVs": 1.21,
+    "pastAim": 11,
+    "off": 0.5,
+    "run": 188,
+    "three": false,
+    "drift": 0.19
+   },
+   "activity": {
+    "takeoff": {
+     "s": 28,
+     "da": 30,
+     "dr": 34,
+     "de": 36
+    },
+    "climb": {
+     "s": 18,
+     "da": 26,
+     "dr": 18,
+     "de": 22
+    },
+    "legs": {
+     "s": 24,
+     "da": 24,
+     "dr": 24,
+     "de": 26
+    },
+    "downwind": {
+     "s": 105,
+     "da": 47.2,
+     "dr": 34.7,
+     "de": 47.8
+    },
+    "base": {
+     "s": 28,
+     "da": 32,
+     "dr": 22,
+     "de": 42
+    },
+    "final": {
+     "s": 129,
+     "da": 32.1,
+     "dr": 32.6,
+     "de": 34.5
+    },
+    "landing": {
+     "s": 23,
+     "da": 18,
+     "dr": 70,
+     "de": 34
+    }
+   },
+   "rollout": {
+    "maxE": 2.8,
+    "zeroX": 0,
+    "maxDr": 0.3,
+    "xtEnd": 0
+   },
+   "Vs": 16.3,
+   "VsLanding": 16.3,
+   "VAppr": 20.8,
+   "appr": {
+    "technique": "normal",
+    "Vref": 20.8,
+    "Vbase": 20.8,
+    "gust": 0,
+    "aimIn": 155,
+    "flap": 0,
+    "len": 1100,
+    "surface": 0,
+    "runNeed": 135,
+    "gs": 0.052,
+    "reqGs": 0.035
+   },
+   "dep": {
+    "technique": "normal",
+    "Vx": 19.6,
+    "runNeed": 156,
+    "len": 1100,
+    "surface": 0
+   },
+   "circuit": {
+    "hand": "left",
+    "hC": 115,
+    "join": "straight",
+    "declared": null
+   },
+   "mass": 475,
+   "sheet": {
+    "Vs": 15.98,
+    "Vs0": 15.98,
+    "Vref": 20.78,
+    "Vrot": 16.2,
+    "Vx": 19.58,
+    "Vy": 22.5,
+    "Vbg": 22.61,
+    "Vms": 17.19,
+    "Vcruise": 31.4,
+    "climbMax": 2.97,
+    "sinkMin": 2.11,
+    "LDbest": 9.4,
+    "TORun": 156,
+    "LDGrun": 134.73,
+    "mass": 476.19
+   },
+   "tecs": true,
+   "path": true,
+   "wall": 88,
+   "cell": "cub:HOME:calm:student"
+  },
+  {
+   "key": "cub",
+   "name": "Cub-alike",
+   "from": "HOME",
+   "to": "HOME",
+   "style": "normal",
+   "profile": "bush",
+   "seed": null,
+   "floats": false,
+   "tail": "rule",
+   "slope": 0,
+   "surface": null,
+   "weather": null,
+   "day": "2026-06-21 10:00:00 AKDT",
+   "outcome": "completed",
+   "phase": "STOPPED",
+   "t": 381,
+   "phases": [
+    "ROLL@0",
+    "LIFTOFF@11.9",
+    "CLIMB@27.3",
+    "CROSSWIND@44.9",
+    "DOWNWIND@62.5",
+    "BASE@185.7",
+    "FINAL@205.4",
+    "FLARE@362.1",
+    "ROLLOUT@368.1",
+    "STOPPED@381"
+   ],
+   "goArounds": 0,
+   "verdicts": [],
+   "takeoff": {
+    "run": 106,
+    "Vlo": 17.3,
+    "lifts": 1,
+    "qMax": 3.7
+   },
+   "climb": {
+    "hTurn": 69,
+    "vsMean": 2.33
+   },
+   "legs": [
+    {
+     "name": "CROSSWIND",
+     "overshoot": 1,
+     "settleT": 9.2,
+     "rollRev": 1.1
+    },
+    {
+     "name": "DOWNWIND",
+     "overshoot": 5,
+     "settleT": 8,
+     "rollRev": 0.1
+    },
+    {
+     "name": "BASE",
+     "overshoot": 5,
+     "settleT": 8.2,
+     "rollRev": 1
+    }
+   ],
+   "final": {
+    "captureT": 226.7,
+    "aboveRms": 0.7,
+    "vRms": 0.2,
+    "vErrMean": 0.02,
+    "thrMin": 0.26,
+    "thrMax": 0.32
+   },
+   "flare": {
+    "entryAgl": 5.12,
+    "entryVs": -1,
+    "t0": 362.06666666666666,
+    "dur": 6
+   },
+   "track": {
+    "xtRms": 1.2,
+    "n": 7401
+   },
+   "bounces": 0,
+   "pitchMax": 15.4,
+   "landing": {
+    "sink": 0.7,
+    "V": 18.5,
+    "VoverVs": 1.13,
+    "pastAim": 13,
+    "off": -0.1,
+    "run": 121,
+    "three": false,
+    "drift": 0.02
+   },
+   "activity": {
+    "takeoff": {
+     "s": 27,
+     "da": 0,
+     "dr": 12,
+     "de": 6
+    },
+    "climb": {
+     "s": 18,
+     "da": 0,
+     "dr": 0,
+     "de": 8
+    },
+    "legs": {
+     "s": 18,
+     "da": 6,
+     "dr": 8,
+     "de": 10
+    },
+    "downwind": {
+     "s": 123,
+     "da": 0.5,
+     "dr": 0,
+     "de": 0
+    },
+    "base": {
+     "s": 20,
+     "da": 2,
+     "dr": 4,
+     "de": 8
+    },
+    "final": {
+     "s": 157,
+     "da": 2.3,
+     "dr": 1.9,
+     "de": 2.3
+    },
+    "landing": {
+     "s": 19,
+     "da": 0,
+     "dr": 12,
+     "de": 18
+    }
+   },
+   "rollout": {
+    "maxE": 0.5,
+    "zeroX": 0,
+    "maxDr": 0.09,
+    "xtEnd": 0
+   },
+   "Vs": 16.3,
+   "VsLanding": 16.3,
+   "VAppr": 19.2,
+   "appr": {
+    "technique": "short",
+    "Vref": 19.2,
+    "Vbase": 19.2,
+    "gust": 0,
+    "aimIn": 66,
+    "flap": 0,
+    "len": 1100,
+    "surface": 0,
+    "runNeed": 135,
+    "gs": 0.052,
+    "reqGs": 0.035
+   },
+   "dep": {
+    "technique": "normal",
+    "Vx": 19.6,
+    "runNeed": 156,
+    "len": 1100,
+    "surface": 0
+   },
+   "circuit": {
+    "hand": "left",
+    "hC": 115,
+    "join": "straight",
+    "declared": null
+   },
+   "mass": 475,
+   "sheet": {
+    "Vs": 15.98,
+    "Vs0": 15.98,
+    "Vref": 20.78,
+    "Vrot": 16.2,
+    "Vx": 19.58,
+    "Vy": 22.5,
+    "Vbg": 22.61,
+    "Vms": 17.19,
+    "Vcruise": 31.4,
+    "climbMax": 2.97,
+    "sinkMin": 2.11,
+    "LDbest": 9.4,
+    "TORun": 156,
+    "LDGrun": 134.73,
+    "mass": 476.19
+   },
+   "tecs": true,
+   "path": true,
+   "wall": 93,
+   "cell": "cub:HOME:calm:bush"
+  },
+  {
+   "key": "cub",
+   "name": "Cub-alike",
+   "from": "HOME",
+   "to": "HOME",
+   "style": "normal",
+   "profile": "hamfist",
+   "seed": null,
+   "floats": false,
+   "tail": "rule",
+   "slope": 0,
+   "surface": null,
+   "weather": null,
+   "day": "2026-06-21 10:00:00 AKDT",
+   "outcome": "completed",
+   "phase": "STOPPED",
+   "t": 335.7,
+   "phases": [
+    "ROLL@0",
+    "LIFTOFF@12.1",
+    "CLIMB@27.9",
+    "CROSSWIND@45.6",
+    "DOWNWIND@65.1",
+    "BASE@170.1",
+    "FINAL@188.6",
+    "FLARE@312.7",
+    "ROLLOUT@316.8",
+    "STOPPED@335.7"
+   ],
+   "goArounds": 0,
+   "verdicts": [],
+   "takeoff": {
+    "run": 108,
+    "Vlo": 17.2,
+    "lifts": 1,
+    "qMax": 6.7
+   },
+   "climb": {
+    "hTurn": 69,
+    "vsMean": 2.33
+   },
+   "legs": [
+    {
+     "name": "CROSSWIND",
+     "overshoot": 1,
+     "settleT": 9.1,
+     "rollRev": 3.6
+    },
+    {
+     "name": "DOWNWIND",
+     "overshoot": 3,
+     "settleT": 8.2,
+     "rollRev": 9.7
+    },
+    {
+     "name": "BASE",
+     "overshoot": 10,
+     "settleT": 9.1,
+     "rollRev": 5.9
+    }
+   ],
+   "final": {
+    "captureT": 204.1,
+    "aboveRms": 0.8,
+    "vRms": 0.28,
+    "vErrMean": 0.01,
+    "thrMin": 0.2,
+    "thrMax": 0.37
+   },
+   "flare": {
+    "entryAgl": 5.12,
+    "entryVs": -1.71,
+    "t0": 312.71666666666664,
+    "dur": 4.1
+   },
+   "track": {
+    "xtRms": 2,
+    "n": 6125
+   },
+   "bounces": 0,
+   "pitchMax": 16.5,
+   "landing": {
+    "sink": 0.88,
+    "V": 20.1,
+    "VoverVs": 1.23,
+    "pastAim": -19,
+    "off": -0.5,
+    "run": 196,
+    "three": false,
+    "drift": -0.3
+   },
+   "activity": {
+    "takeoff": {
+     "s": 28,
+     "da": 76,
+     "dr": 86,
+     "de": 94
+    },
+    "climb": {
+     "s": 18,
+     "da": 48,
+     "dr": 40,
+     "de": 62
+    },
+    "legs": {
+     "s": 20,
+     "da": 64,
+     "dr": 50,
+     "de": 62
+    },
+    "downwind": {
+     "s": 105,
+     "da": 101.7,
+     "dr": 89.1,
+     "de": 113.7
+    },
+    "base": {
+     "s": 19,
+     "da": 54,
+     "dr": 50,
+     "de": 62
+    },
+    "final": {
+     "s": 124,
+     "da": 96.7,
+     "dr": 89.9,
+     "de": 96.7
+    },
+    "landing": {
+     "s": 23,
+     "da": 76,
+     "dr": 76,
+     "de": 66
+    }
+   },
+   "rollout": {
+    "maxE": 2.8,
+    "zeroX": 0,
+    "maxDr": 0.38,
+    "xtEnd": -0.1
+   },
+   "Vs": 16.3,
+   "VsLanding": 16.3,
+   "VAppr": 20.8,
+   "appr": {
+    "technique": "normal",
+    "Vref": 20.8,
+    "Vbase": 20.8,
+    "gust": 0,
+    "aimIn": 155,
+    "flap": 0,
+    "len": 1100,
+    "surface": 0,
+    "runNeed": 135,
+    "gs": 0.052,
+    "reqGs": 0.035
+   },
+   "dep": {
+    "technique": "normal",
+    "Vx": 19.6,
+    "runNeed": 156,
+    "len": 1100,
+    "surface": 0
+   },
+   "circuit": {
+    "hand": "left",
+    "hC": 115,
+    "join": "straight",
+    "declared": null
+   },
+   "mass": 475,
+   "sheet": {
+    "Vs": 15.98,
+    "Vs0": 15.98,
+    "Vref": 20.78,
+    "Vrot": 16.2,
+    "Vx": 19.58,
+    "Vy": 22.5,
+    "Vbg": 22.61,
+    "Vms": 17.19,
+    "Vcruise": 31.4,
+    "climbMax": 2.97,
+    "sinkMin": 2.11,
+    "LDbest": 9.4,
+    "TORun": 156,
+    "LDGrun": 134.73,
+    "mass": 476.19
+   },
+   "tecs": true,
+   "path": true,
+   "wall": 84,
+   "cell": "cub:HOME:calm:hamfist"
   }
  ]
 }

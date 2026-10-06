@@ -56,7 +56,7 @@ const WEATHER = { calm: [], x2: ['--wind', '2,2'], x4: ['--wind', '1,4', '--gust
 const PERSONA_BANDS = {
   expert:  { sink: [0, 1.5], ga: [0, 1], lifts: [1, 1], bounces: [0, 0], xtRms: [0, 6], aboveRms: [0, 3], vRms: [0, 1.5] },
   club:    { sink: [0, 2.0], ga: [0, 1], lifts: [1, 1], bounces: [0, 1], xtRms: [0, 10], aboveRms: [0, 4], vRms: [0, 2.0] },
-  student: { sink: [0, 2.2], ga: [0, 2], lifts: [1, 2], bounces: [0, 1], xtRms: [0, 15], aboveRms: [0, 6], vRms: [0, 2.5] },
+  student: { sink: [0, 2.2], ga: [0, 2], lifts: [1, 2], bounces: [0, 1], xtRms: [0, 20], aboveRms: [0, 6], vRms: [0, 2.5] },
   bush:    { sink: [0, 1.8], ga: [0, 2], lifts: [1, 1], bounces: [0, 1], xtRms: [0, 8], aboveRms: [0, 8], vRms: [0, 2.0] },
   hamfist: { sink: [0, 2.4], ga: [0, 2], lifts: [1, 2], bounces: [0, 2], xtRms: [0, 12], aboveRms: [0, 5], vRms: [0, 2.5] },
   custom:  { sink: [0, 2.5], ga: [0, 2] },

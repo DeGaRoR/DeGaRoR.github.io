@@ -127,6 +127,10 @@ const CHECKS = [
 ];
 const judge = (r, skip) => {
   if (r.error) return { verdict: false, cols: [] };
+  // G2085: A PERSON'S HANDS ARE THE PERSON - a profile cell (club / student / bush / ham-fist) is not judged on the
+  // expert's control-reversal limit (GATE PILOTACT's, the expert's hands); pilot_persona.js holds each person to their
+  // own band. Every other column - the outcome, the sink, the aim, the swing - is judged as the expert's is
+  if (r.profile && r.profile !== 'expert') skip = new Set([...(skip || []), 'ctl rev']);
   let verdict = true; const cols = [];
   for (const [label, get, ok, fmt] of CHECKS) {
     const v = skip && skip.has(label) ? null : get(r);
