@@ -362,7 +362,19 @@ function pageScenes() {
   for (const o of shared) roots.push(['SNAPSHOT-SHARED', o]);
   for (const [tag, root] of roots) root.traverse(o => {
     if (!o.isMesh || !o.geometry || !o.geometry.attributes.position || !o.visible) return;
-    const g = o.geometry, A = g.attributes.position.array, ix = g.index ? g.index.array : null, nt = ix ? g.index.count / 3 : A.length / 9; let n = 0;
+    // (G1858.2: a SKINNED mesh - the hybrid fold, a bone a part - is measured on its SKINNED positions: the raw attribute
+    // of a part whose bone kept the wreck's matrix is clean while the drawing is not; and its bones off their bind by more
+    // than 0.5 m are listed)
+    const g = o.geometry, ix = g.index ? g.index.array : null; let A = g.attributes.position.array; let n = 0;
+    if (o.isSkinnedMesh && o.skeleton && (o.applyBoneTransform || o.boneTransform)) { try {
+      o.skeleton.update(); const T3 = THREE, v = new T3.Vector3(), cnt = g.attributes.position.count, S = new Float32Array(cnt * 3), f = o.applyBoneTransform ? 'applyBoneTransform' : 'boneTransform';
+      for (let i = 0; i < cnt; i++) { v.fromBufferAttribute(g.attributes.position, i); o[f](i, v); S[i*3] = v.x; S[i*3+1] = v.y; S[i*3+2] = v.z; }
+      A = S;
+      const Mi = new T3.Matrix4().copy(o.matrixWorld).invert(), M = new T3.Matrix4(), p = new T3.Vector3(), off = [];
+      o.skeleton.bones.forEach((b, i) => { M.multiplyMatrices(Mi, b.matrixWorld).multiply(o.skeleton.boneInverses[i]); p.setFromMatrixPosition(M); const d = p.length(); if (d > 0.5) off.push((b.name || 'bone' + i) + ' ' + d.toFixed(2)); });
+      if (off.length) { const kb = 'BONES-OFF-BIND:' + (o.name || 'mesh') + ' ' + off.slice(0, 6).join(', '); out[kb] = off.length; }
+    } catch (e) { out['SKIN-ERR:' + (o.name || 'mesh') + ' ' + String(e && e.message || e).slice(0, 80)] = 1; } }
+    const nt = ix ? g.index.count / 3 : A.length / 9;
     for (let t = 0; t < nt; t++) { const a = ix ? ix[t*3] : t*3, b = ix ? ix[t*3+1] : t*3+1, c = ix ? ix[t*3+2] : t*3+2; if (a === b && b === c) continue;
       const e = (i, j) => Math.hypot(A[i*3] - A[j*3], A[i*3+1] - A[j*3+1], A[i*3+2] - A[j*3+2]); if (Math.max(e(a, b), e(b, c), e(a, c)) > 2) n++; }
     if (n) { const col = o.material && o.material.color ? '#' + o.material.color.getHexString() : ''; const k = tag + ':' + (o.name || 'mesh') + '<' + ((o.parent && o.parent.name) || '') + '>' + col; out[k] = (out[k] || 0) + n; } });
