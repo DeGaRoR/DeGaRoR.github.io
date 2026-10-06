@@ -727,7 +727,7 @@ try {
       view: ['field of view', 'level horizon', 'lead the turn', 'free', 'small', 'show', 'large', 'north up', 'the three', 'frame rate', 'fps meter', 'screenshot'],
       sky: ['outside air', 'density altitude', 'wind', 'gusts', 'time of day', 'world'],
       graphics: ['preset'].concat(G.OPTIONS.map(o => o.label)),
-      audio: ['sound', 'master', 'aircraft', 'environment', 'music', 'interface', 'mute when unfocused', 'headset', 'music in flight'],   // G1600 (audio.js)
+      audio: ['sound', 'master', 'engine', 'airframe', 'environment', 'music', 'interface', 'mute when unfocused', 'headset', 'music in flight'],   // G1600 (audio.js); G1722: the engine apart, 'aircraft' is the airframe
       dev: ['physics', 'enter the test mode', 'the WORLD rail', 'flight log', 'save log', 'previous session', 'the F8 panel'],
     };
     // the covering's pills show while #bSkin does (applySkinVis hides it with no model on the stand - this stub's case)

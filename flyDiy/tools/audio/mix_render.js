@@ -418,6 +418,38 @@ function lottery(key, stateKey, tonalDb, seeds) {
   return { build: key, state: stateKey, tonalDb: tonalDb || 0, rows, worst: Math.min(...v), best: Math.max(...v), spreadDb: +(Math.max(...e) - Math.min(...e)).toFixed(1) };
 }
 
+// THE LAPTOP'S FRAME RATE (G1724): a throttle ramp idle -> full -> idle over 6 s whose parameters arrive every `dt` s (the
+// page's frame), each scheduled as setTargetAtTime(tau) - the old 30 ms, or the frame's tau (audio.js: 0.6 x dt). The
+// stepping is the lever's as the voice receives it (its peak slope over the commanded ramp's; the 10 ms envelope's jumps
+// are kept in the json, but the firing's own ripple at idle swamps them); the three renders are the ears' evidence
+function lowFps(key, dt, tau) {
+  WK = WK || RP.loadAll(SR);
+  const B = buildOf(key), ch = RP.makeChain(WK, B, 0, { seed: 1, heat: 0.5, state: { running: true, rpm: B.engRpm(B.propRpm(0, true, 0)) } });
+  const T = 6, nb = Math.ceil(T * SR / BLOCK), y = new Float32Array(nb * BLOCK);
+  const thrAt = t => (t < 0.5 ? 0 : t < 3 ? (t - 0.5) / 2.5 : t < 3.5 ? 1 : t < 5.5 ? 1 - (t - 3.5) / 2 : 0);
+  const p = { thr: 0, V: 0, alpha: 0, beta: 0, running: 1, starter: 0, interior: 0, rpmOver: null, thrustOver: null };
+  let tgtThr = 0, cur = 0, next = 0, prev = 0, maxSlope = 0;
+  const a = 1 - Math.exp(-(BLOCK / SR) / tau);
+  for (let b = 0; b < nb; b++) {
+    const t = b * BLOCK / SR;
+    if (t >= next) { tgtThr = thrAt(t); next += dt; }   // a frame: the new targets
+    cur += (tgtThr - cur) * a;                           // setTargetAtTime, block by block (k-rate)
+    const sl = Math.abs(cur - prev) / (BLOCK / SR); if (sl > maxSlope) maxSlope = sl; prev = cur;
+    p.thr = cur;
+    RP.stepChain(ch, p);
+    const e = ch.drv.outputs[0][0], q = ch.pout[0][0];
+    for (let i = 0; i < BLOCK; i++) y[b * BLOCK + i] = e[i] + q[i];
+  }
+  const W = Math.round(0.01 * SR), env = [];
+  for (let o = 0; o + W <= y.length; o += W) { let q = 0; for (let i = o; i < o + W; i++) q += y[i] * y[i]; env.push(10 * Math.log10(q / W + 1e-12)); }
+  // the envelope's jumps, smoothed over 3 windows (the engine's own firing ripple is not a step)
+  const sm = env.map((v, i) => (env[Math.max(0, i - 1)] + v + env[Math.min(env.length - 1, i + 1)]) / 3);
+  let maxJ = 0, n1 = 0; for (let i = 1; i < sm.length; i++) { const j = Math.abs(sm[i] - sm[i - 1]); if (j > maxJ) maxJ = j; if (j > 1) n1++; }
+  // THE STAIRCASE: the lever's peak slope as the voice receives it, over the commanded ramp's (0.4 / s up, 0.5 / s down):
+  // 1 is a glide, 10 is a 30 ms jump every frame
+  return { build: key, dt, tau, slopeOverRamp: +(maxSlope / 0.5).toFixed(2), maxStepDb: +maxJ.toFixed(2), stepsOver1dB: n1, y };
+}
+
 function writeOgg(file, L, Rr) {
   const n = L.length, buf = Buffer.alloc(n * 8);
   for (let i = 0; i < n; i++) { buf.writeFloatLE(L[i], i * 8); buf.writeFloatLE(Rr[i], i * 8 + 4); }
@@ -432,7 +464,7 @@ async function main() {
   fs.mkdirSync(OUT_DIR, { recursive: true });
   const rows = [];
   for (const key of BUILDS) {
-    if (only.length && !only.includes(key)) continue;
+    if (only.length && !only.includes(key)) continue;   // (--only=none: no states, e.g. with --lowfps)
     for (const s of Object.keys(STATES)) for (const inn of [1, 0]) {
       const music = s === 'cruise';   // the radio in cruise, music in flight on
       const r = await measureState(key, s, inn, { music });
@@ -450,6 +482,14 @@ async function main() {
     const r = lottery(key, s, td, 12); lot.push(r);
     console.log('lottery ' + key + ' ' + s + ' tonal ' + td + ' dB: e+p vs the power sum ' + r.worst + ' .. +' + r.best + ' dB, the e+p spread over 12 angles ' + r.spreadDb + ' dB');
   }
+  const lf = [];
+  if (process.argv.includes('--lowfps')) for (const [dt, tau, tag] of [[1 / 60, 0.03, '60fps'], [0.33, 0.03, '3fps_tau30ms'], [0.33, 0.198, '3fps_frametau']]) {
+    const r = lowFps('jodel', dt, tau);
+    if (tag !== '60fps' || true) writeOgg(path.join(OUT_DIR, 'jodel_ramp_' + tag + '.ogg'), r.y, r.y);
+    delete r.y; r.tag = tag; lf.push(r);
+    console.log('lowfps ' + tag + ': the lever\'s peak slope ' + r.slopeOverRamp + ' x the ramp\'s');
+  }
+  if (!rows.length && lf.length) { fs.writeFileSync(path.join(OUT_DIR, 'lowfps.json'), JSON.stringify(lf, null, 1) + '\n'); return; }
   fs.writeFileSync(out, JSON.stringify({ when: new Date().toISOString().slice(0, 10), sr: SR, rows, lottery: lot.length ? lot : undefined }, null, 1) + '\n');
 }
 if (require.main === module) main().catch(e => { console.error(e); process.exit(1); });

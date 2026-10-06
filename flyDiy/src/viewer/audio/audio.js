@@ -203,7 +203,9 @@ var AUDIO = (function () {
     refreshGains() { applyGains(); },
     world: null,   // G1651: the world update() was last handed (the ambience reads the cover, the coast, the zones off it)
     rowHooks: [], addRows(fn) { api.rowHooks.push(fn); },   // G1672: fn(body, kit, toggle) adds rows under the settings
-    get inGarage() { return garage === 1; }, get welcome() { return welcome === 1; },   // G1672: what update() last saw
+    // G1672: the shed as update() last saw it; G1723: the loading screen read NOW (BOOT's state - a press of #bootMusic or a
+    // setting between two frames is answered on the screen that is up, not on the last frame's)
+    get inGarage() { return garage === 1; }, get welcome() { return welcomeNow() === 1; },
     get pumped() { return LAST[1]; }, pump: () => pump(),   // G1723: the stalled-loop pump (the count; one tick, for the gate)
     bus: name => N[name] || null,
     get: k => set[k],
@@ -326,7 +328,9 @@ var AUDIO = (function () {
     for (const b of BUSES) N[b] = g();
     N.master.connect(N.fade); N.fade.connect(L); L.connect(ctx.destination);
     N.aircraft.connect(N.master);
-    N['aircraft.ext'].connect(N.aircraft); N['aircraft.int'].connect(N.aircraft);
+    // G1720: the interior side through its own trim (MIX.interior; the viewpoint fader stays a pure equal-power pair)
+    N.intTrim = g(); N.intTrim.gain.value = MIXK.interior;
+    N['aircraft.ext'].connect(N.aircraft); N['aircraft.int'].connect(N.intTrim); N.intTrim.connect(N.aircraft);
     N.ambience.connect(N.master); N.music.connect(N.master); N.ui.connect(N.master);
     tgt.fill(-1); XF[0] = -1;
   }
@@ -352,8 +356,6 @@ var AUDIO = (function () {
     if (p.setTargetAtTime) p.setTargetAtTime(v, ctx.currentTime, tau); else p.value = v;
   }
   // the viewpoint's equal-power cross-fade (above): toward `to` (1 interior) from the share the last fade has reached
-  // (the interior side carries MIX.interior: the cockpit is only ever heard out of the shed - interior needs !inGarage)
-  const kInt = MIXK.interior;
   function xfade(to) {
     if (XF[0] === to) return;
     const pe = N['aircraft.ext'].gain, pi = N['aircraft.int'].gain, t = ctx.currentTime;
@@ -362,12 +364,12 @@ var AUDIO = (function () {
     XF[0] = to; XF[1] = t; XF[2] = x; XF[3] = XFADE_S * Math.abs(to - x);
     if (pe.cancelScheduledValues) { pe.cancelScheduledValues(t); pi.cancelScheduledValues(t); }
     if (XF[3] < 1e-3 || !pe.setValueCurveAtTime) {   // the first frame (nothing to fade from), or no curves: set
-      if (pe.setValueAtTime) { pe.setValueAtTime(to ? 0 : 1, t); pi.setValueAtTime(to ? kInt : 0, t); } else { pe.value = to ? 0 : 1; pi.value = to ? kInt : 0; }
+      if (pe.setValueAtTime) { pe.setValueAtTime(to ? 0 : 1, t); pi.setValueAtTime(to ? 1 : 0, t); } else { pe.value = to ? 0 : 1; pi.value = to ? 1 : 0; }
       return;
     }
     const n = XC_E.length;
-    for (let i = 0; i < n; i++) { const a = Math.PI / 2 * (x + (to - x) * i / (n - 1)); XC_E[i] = Math.cos(a); XC_I[i] = Math.sin(a) * kInt; }
-    XC_E[n - 1] = to ? 0 : 1; XC_I[n - 1] = to ? kInt : 0;   // the endpoints exact (cos pi/2 is 6e-17, not 0)
+    for (let i = 0; i < n; i++) { const a = Math.PI / 2 * (x + (to - x) * i / (n - 1)); XC_E[i] = Math.cos(a); XC_I[i] = Math.sin(a); }
+    XC_E[n - 1] = to ? 0 : 1; XC_I[n - 1] = to ? 1 : 0;   // the endpoints exact (cos pi/2 is 6e-17, not 0)
     pe.setValueCurveAtTime(XC_E, t, XF[3]); pi.setValueCurveAtTime(XC_I, t, XF[3]);
   }
   function applyGains() {

@@ -258,18 +258,23 @@ var AUDIO_SPACE = (function () {
   // the panner at X3[0..2] (the camera's frame)
   // G1724: the frame's tau (audio.js tauS: 0.6 x the smoothed dt) when it is longer than a law's own - a 3 fps laptop's
   // positions, gains and doppler glide across the 0.3 s between frames instead of stepping
-  // (typed slots, set once a frame in update(): a double handed to a helper is a heap box) TF: 0 gains, 1 positions, 2 pitch
-  const TF = new Float64Array([TAU, POS_TAU, PITCH_TAU]);
+  // (typed slots, set once a frame in update(): a double handed to a helper is a heap box) TF: 0 gains, 1 positions, 2 pitch,
+  // 3 slow (1: the frame's tau is longer than a law's own). A double READ from a slot and handed to setTargetAtTime is a
+  // fresh box too (measured: +5 B a frame on the roll-out shot), so a frame at speed hands the laws' constants as before
+  // and only a slow frame (the laptop's) hands the slot - a few frames a second
+  const TF = new Float64Array([TAU, POS_TAU, PITCH_TAU, 0]);
   function frameTaus() {
     const f = A.tauS ? A.tauS[0] : 0;
     TF[0] = f > TAU ? f : TAU; TF[1] = f > POS_TAU ? f : POS_TAU; TF[2] = f > PITCH_TAU ? f : PITCH_TAU;
+    TF[3] = f > TAU ? 1 : 0;
   }
   function placeRel(pan, o) {
-    const t = G.ctx.currentTime, rx = X3[0], ry = X3[1], rz = X3[2], pt = TF[1];
+    const t = G.ctx.currentTime, rx = X3[0], ry = X3[1], rz = X3[2];
     if (Math.abs(rx - last[o]) + Math.abs(ry - last[o + 1]) + Math.abs(rz - last[o + 2]) < 0.01) return;
     last[o] = rx; last[o + 1] = ry; last[o + 2] = rz;
     if (pan.positionX) {
-      pan.positionX.setTargetAtTime(rx, t, pt); pan.positionY.setTargetAtTime(ry, t, pt); pan.positionZ.setTargetAtTime(rz, t, pt);
+      if (TF[3] > 0) { pan.positionX.setTargetAtTime(rx, t, TF[1]); pan.positionY.setTargetAtTime(ry, t, TF[1]); pan.positionZ.setTargetAtTime(rz, t, TF[1]); }
+      else { pan.positionX.setTargetAtTime(rx, t, POS_TAU); pan.positionY.setTargetAtTime(ry, t, POS_TAU); pan.positionZ.setTargetAtTime(rz, t, POS_TAU); }
     } else if (pan.setPosition) pan.setPosition(rx, ry, rz);
   }
   // a gain toward X3[3] when it moved more than 0.005 (tau TAU)
@@ -277,7 +282,7 @@ var AUDIO_SPACE = (function () {
     const v = X3[3];
     if (Math.abs(v - last[o]) <= 0.005) return;
     last[o] = v;
-    p.setTargetAtTime(v, G.ctx.currentTime, TF[0]);
+    if (TF[3] > 0) p.setTargetAtTime(v, G.ctx.currentTime, TF[0]); else p.setTargetAtTime(v, G.ctx.currentTime, TAU);
   }
   // the pitch of the voices a group drives (the doppler); slot q = gi * 3 + k
   function pitchSlot(q, node) {
@@ -290,7 +295,7 @@ var AUDIO_SPACE = (function () {
     const pm = pParam[q];
     if (!pm || Math.abs(v - pLast[q]) <= 2e-4) return;
     pLast[q] = v;
-    pm.setTargetAtTime(v, G.ctx.currentTime, TF[2]);
+    if (TF[3] > 0) pm.setTargetAtTime(v, G.ctx.currentTime, TF[2]); else pm.setTargetAtTime(v, G.ctx.currentTime, PITCH_TAU);
   }
   // the group's voices toward the doppler in X3[3]
   function pitchGroup(gi) {
@@ -366,7 +371,7 @@ var AUDIO_SPACE = (function () {
         SC.dopplerAt(SD, 4); kDop = SD[7];
         if (!haveMain && (gi === 0 || gi === GAF)) { lagT = RS[0]; haveMain = 1; }
       }
-      if (Math.abs(fAbs - last[o + 7]) > 0.015 * fAbs) { last[o + 7] = fAbs; gr.lpf.frequency.setTargetAtTime(fAbs, G.ctx.currentTime, TF[0]); }
+      if (Math.abs(fAbs - last[o + 7]) > 0.015 * fAbs) { last[o + 7] = fAbs; if (TF[3] > 0) gr.lpf.frequency.setTargetAtTime(fAbs, G.ctx.currentTime, TF[0]); else gr.lpf.frequency.setTargetAtTime(fAbs, G.ctx.currentTime, TAU); }
       X3[3] = kDop; pitchGroup(gi);
       OUT[o + 8] = kDop; OUT[o + 9] = dist; OUT[o + 7] = fAbs; OUT[o + 3] = cosT;
     }
