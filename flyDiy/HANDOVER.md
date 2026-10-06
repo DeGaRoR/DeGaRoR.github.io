@@ -79051,3 +79051,217 @@ box's GPU near 4.5 ms in the shed.
 
 READY for A0 (train 38): claude/garage-laptop-g2070 on 068584d6 (sources, tools, evidence; generated files untouched).
 Train 38's battery runs the targeted set (A0's call); the room merge (G2074) is the next train's, with its own GPU proof.
+
+
+## G1715-G1717 - SND-ROLLOUT: THE ROLL-OUT SHOT STARTS ITS ENGINES THE WAY THE AEROPLANE DOES - THE KEY, THE STARTER, THE CATCH, IDLE THROUGH THE CHECK, A LITTLE THROTTLE TO BREAK AWAY; THE SHED HEARS IT WHERE IT ROLLS; THE SHOT LENGTHENED BY ITS START; GATED (2026-10-05, SND-ROLLOUT for the Sound Coordinator, cloud, node only; branch claude/snd-rollout off origin/master 55dd98b7 = train 34; G1718-G1719 unused)
+
+The user, 2026-10-05: "There's an animation of the plane starting and rolling out of the hangar. This one needs sound too, using
+the same methods as the real aircraft would", and "I suspect the rollout animation does not leave enough time for a proper starting
+sound. If that's the case, you have the authority to adjust it to fit." It did not: the shot only wrote sim.out.rpm (the prop's
+spin), so the engine voice (audio_params: rpmEng, eng[i].running / crank / key) heard nothing. There was no start, and the
+spool was a 0.6 s curve.
+
+**G1715 THE START (rollanim.js).** A phase before the check (h.phase 'start' > 'check' > 'roll'; plan.start, plan.Ttotal = start
++ check + roll). Every engine is stopped at the first frame (the solver's own writer, setEngine key 'off'). The master and the key
+go on at 0.2 s (setEngine key 'both'), then silence until 0.6 s. Then each engine in turn:
+- **'starter'**: setEngine start with sim.starterOk lent as "the build has a starter". The crank is the solver's own 1.5 s,
+  counted down by burn()'s two lines (crank -= dt; at 0 it runs).
+- **'swing'**: genSystemsResolve(spec).starter false, a minimal-systems build; setEngine swing, the cockpit's hand on the prop. It
+  catches at once.
+- **'power'**: an electric motor; the cockpit's pack key, swing.
+- **A turboprop** cranks; its voice spools on its own.
+- **No engine**: no start (plan.start.n 0, nothing written; the shot as before).
+
+The next engine cranks 1.0 s after a catch; the check starts 0.8 s after the last one (an electric: 0.6 s after each power-on).
+sim.out.rpm / rpmEng / thrustPer come from the solver's laws at rest (genShaftRpm at V 0, sea level, as n^2 = nIdle^2 +
+(nFull^2 - nIdle^2) thr: exact, two calls at play, none a frame; Ti = thr x lever x Tstatic). They are 0 while it cranks, as
+the solver writes them. sim.ctl.thr is 0 through the start and the check. On the roll it rises to 0.14 over 0.3 s from the
+roll's start, before the aeroplane moves (hold0 0.35 s): +350 rpm on the A-65, 644 -> 992. It holds to 35 % of the roll and
+is back to 0 by 85 %. It moves in 0.02 steps with the linkage snapped on each, because a moving control re-poses and re-uploads
+the aeroplane every frame (poseModel: any link key > 1e-4; thr rides the linkage). That is ~14 re-poses in the roll, not ~170.
+THE DRAWN PROP turns at the rpm the engine's VOICE makes, not the solver's 0 while it cranks:
+- props' spinRate is written each frame (what poseModel spins them by; its 1.5 s ease toward out.rpm moves it ~1 % a frame);
+- for a piston, engine_worklet.js's own law, mirrored: the starter's envelope, the crank at cfg.crankRpm through each compression
+  (+-32 %: the stutter), the catch's surge 0.45 idle over 0.25-1.25 s, its taus, the run-down's friction;
+- for a turboprop or a motor, prop_worklet.js's Np / motor laws;
+- the numbers come from engine_config.js (ENGINE_SOUND: in the bundle with or without ?audio=0, so ?audio=0 changes nothing
+  visual).
+
+GATE ROLLSND holds the mirror against the worklet run offline on the shot's own timeline: within 6 % of idle (worst: Cub 31 rpm,
+Cessna 38, Rotax 126 of 1820). Allocation (GATE ROLLANIM, B a frame; base = train 34 measured the same way): the start 1.5, the
+roll 17.8 (base 17.5), the fixed roll 33.5 (base 33.5; a call into the pose write had cost +32 B, so the pose is written out
+in the roll tick, and written once at play for the start and the check), the check 81.5 (base 65.5: one more boxed double, inside
+its bound 64 + the linkage's snap 81). The frame writes a field only when it moved: ctl.thr on a step, the props' spinRate past
+1e-6 rad/s, and sim.out on a change. Writing every frame made the fixed roll box two more doubles now and then (65.5 B in 3 of 16
+runs of the gate, 8 at a time on 4 cores); with the guards it was 16 of 16 at 33.5, the same as the base.
+
+**WHAT THE WORLD EXPECTS AT THE CUT: THE STAND STARTS WITH THE ENGINE RUNNING.** fullReset -> sim.reset -> resetPanel puts every
+engine running / key both / crank 0; the first step writes the idle. So the shot hands over: `o.handover` (app.js's roll-out
+only). At the end or a skip, the engine fields are put back (equal to the stand's) and sim.out is left at the stand's idle
+(rpm / rpmEng at the law's idle, thrust 0). The voice idles across the cut: no gap, no second catch. A skip mid-crank lands on the
+stand with the engine running, so the voice hears one catch, at the cut. Without the handover (the solo shot `?rollanim=solo`
+and `FLYDIY_ROLLANIM`, which go back to the shed), and on EVERY cancel, every field the shot wrote is put back exactly as found:
+sim.eng key / crank / running, sim.out.rpm / rpmEng / thrustPer (a stale flight's included), sim.ctl.thr. There is no stuck
+starter, and the engine winds down to the shed's own state.
+
+**G1716 THE SPACE (space.js shotPose, app.js).** `AUDIO.space.shotPose` (Float64Array(5): on, the offset dx / dy / dz, the
+engines' share inside the shed) is handed to the shot by app.js (rollAnimPlay: `audioPose`, null with ?audio=0). The shot writes
+it at play (at rest) and every roll frame (the roll's own s and heave); it goes off at the end. While it is on, the shed is heard
+AS THE WORLD IS, not in the room mode (the group 8 m ahead): each engine group where it stands + the offset, through the same
+retarded solve, directivity, absorption, panner and lag as in flight, from the shot's camera (the listener; exterior). The
+aircraft's wet send into the shed's IR follows the share: 0.25 x (0.3 + 0.7 inside), in 2 % steps. The share falls from 1 to 0
+over 4 m across the door plane, at the engines' nodes, so the room thins as the engines leave by the opening. Ambience and
+music sends are unchanged.
+
+**G1717 GATES AND EVIDENCE.**
+- **GATE ROLLSND** (tools/_rollsnd_check.js, registered core, ~100 s):
+  - ORDER, on the Cub, the Jodel, the Cessna, the twin-582 and a PT6: stopped at the first frame; the key before the crank and
+    >= 0.4 s of silence; the crank for the solver's own time (setEngine measured on makeSim) ending in its catch; one catch per
+    engine; sim.out on the solver's laws every frame; the check at idle; the throttle 0.10-0.20 leading the roll and back to 0.
+  - TURN: a twin's engine 1 cranks after engine 0 caught, never two at once.
+  - KINDS: the electric never cranks, the swing never cranks, no engine writes nothing.
+  - VISUAL: the drawn crank within 25 % of the voice's, a flare >= 1.2 idle, idle by the check's end, and the worklet comparison.
+  - RESTORE: 7 endings x handover x a stale flight rpm.
+  - SPACE: space.js on a stub graph, the distance exact at three poses, the wet send, the room mode back.
+  - WIRING. 20 mutations, all red.
+- **GATE ROLLANIM** updated: the start rows, the props at idle once started, and a START allocation row (1.5 B / frame); its
+  allocation runs pass an audioPose as the page does.
+- **GATE AUDIO SP_BUDGET** gains the shot's sample (a fresh process, the shed, the pose rolling the aeroplane by the door): 17.6 B
+  a frame against the shed's own room mode in the same process (7.3 B, before this work: the shed's 1 Hz IR poll and the
+  airframe's shed path), 0 GC, 31 us. It is held to the shed's + 16 B a frame. The SP_IR mutation's anchor follows wet().
+- **Evidence**: reports/evidence/SND-ROLLOUT/: four renders (.ogg + spectrogram) by tools/audio/rollout_render.js (the shot
+  played in node, its fields per frame into the real engine + prop worklets, the space from the shot's camera, the club shed's
+  IR), summary.json (the marks), and the README (what to listen for, second by second; the red flags).
+- **Box script**: tools/perf/rollout_sound_evidence.js records THE REAL PAGE. Real clicks; AUDIO.bus('master') tapped into a
+  MediaRecorder; Roll out pressed; the shot, the cut and 4 s of the stand recorded; the shot's fields logged every frame.
+  --solo plays the shot alone.
+
+**THE SHOT'S NEW LENGTH (A0's strict gate: its roll-out rows time the shot; this is length, not load).** The start and the check
+are fixed. The roll is G1115's front shot, unchanged (it depends on the room and the framing; below: the club shed, the garage's
+own framing, GATE ROLLSND's rig):
+
+| build | start | check | roll | total (was) |
+|---|---|---|---|---|
+| the user's Cub (A-65) | 2.90 s | 3.30 s | 5.59 s | **11.79 s** (8.89) |
+| the Jodel D112 (A-65) | 2.90 s | 3.30 s | 5.43 s | **11.63 s** (8.73) |
+| the Cessna 172 (flat four 5.9 L) | 2.90 s | 3.30 s | 5.71 s | **11.91 s** (9.01) |
+| the twin-582 (two Rotax 582) | 5.40 s | 3.30 s | 5.59 s | **14.29 s** (8.89) |
+
+The other kinds: an electric 1.2 s of start (0.6 lead + 0.6 per motor), a turboprop 2.9 s, no engine 0 s.
+FRAMECOST's `boot/rollout:click/` row spans the shot (a waiver row): ~175 more shed frames on a single, ~325 on a twin. They are
+the start's frames: the aeroplane at rest, no surface moving, no re-pose. The app's 30 s timeout still covers a twin with the
+longest roll (5.4 + 3.3 + 5.85 = 14.6 s).
+
+**GATES** (this branch's head): run_gates ROLLANIM, ROLLSND (20/20), UISMOKE, BUILD - BATTERY PASS; AUDIO PASS and AUDIOENG
+PASS on the same audio sources (AUDIO alone, 6 min: in a 4-job battery EMITALLOC went red once on a starved sample - emitters.js,
+untouched here, green alone; the last commits touch rollanim.js only, which neither reads). The
+runner's rebuilt built files are restored: none is in this branch. Physics untouched (no src/core file).
+
+**HOT FILES for A0's trains:** src/viewer/rollanim.js (the start, the engines, the restore, the pose), src/viewer/app.js
+(rollAnimPlay: `handover`, `audioPose`; rollAnim's call: `, true`: 4 lines), src/viewer/audio/space.js (shotPose: 9 lines),
+tools/_rollanim_check.js, tools/audio/_audio_check.js (SP_BUDGET's shot sample, one anchor), tools/run_gates.js (ROLLSND).
+New: tools/_rollsnd_check.js, tools/audio/rollout_render.js, tools/perf/rollout_sound_evidence.js, reports/evidence/SND-ROLLOUT/.
+
+**FOR THE COORDINATOR:**
+1. NOT YET HEARD ON THE REAL PAGE: run the box script, listen with headphones, and read the README's list.
+2. A pre-existing issue, found on the way (not fixed: not this brief): sim.reset() does not clear sim.out.rpm / rpmEng. After a
+   flight the shed keeps the flight's last rpm with every engine "running" (resetPanel), so in the shed the engine voice would go
+   on at that rpm, and poseModel spins the prop at it (both `running` in the garage). Shown in node: Cub 644 rpm left after
+   reset. The shot handles it (the start stops everything first; a cancel puts it back as found). The shed's own state wants a
+   ruling: clear sim.out's rpm on enterGarage, or have audio_params read the shed's engines as stopped.
+3. SND-TUNE knobs: S.startLead / crankS (the solver's, 1.5 s) / catchNext / catchCheck / rollThr (0.14) / thrHold / thrDown, and
+   space.js WET_OUT (0.3).
+4. No tyre or floor sound on the roll: the airframe voice reads the solver's V (0 in a kinematic shot). A ground-roll layer for
+   the shot would be SND-AIRFRAME's.
+
+## G1720-G1724 - SND-MIX: THE PAGE'S MIX MEASURED OFFLINE (LUFS PER BUS), THE ENGINE LEADS (THE MEASURED TRIMS, THE PHASE LOTTERY), AN ENGINE SLIDER APART FROM THE AIRFRAME, MUSIC IN FLIGHT AT ONCE AND ANYWHERE, THE LOOP-STALL PUMP, THE FRAME'S TAU AT 3-4 FPS; GATED (2026-10-06, SND-MIX for the Sound Coordinator, cloud, node + a headless smoke of the meter; branch claude/snd-mix off origin/master 1ae2eebb = train 36, merged with origin/claude/snd-rollout 899a0979 - ROLLSND is that branch's gate; target train 38)
+
+The user's laptop test on train 36 (relayed by A0, 2026-10-06; GTX 1660 Ti at 3-4 fps, the Jodel): "the engine sound is
+much too faint compared to all other noises"; "we need a slider for the engine noise separately from the rest of the
+airplane"; "turning the music on in game did not work". Evidence: reports/evidence/SND-MIX/README.md (the full table, the
+renders, what to listen for, the box script).
+
+G1720 THE MEASUREMENT - tools/audio/mix_render.js (NEW): the page's whole mix rendered offline from the page's own files
+  (the engine + prop worklets chained as the page chains them, the airframe's three outputs, space.js's graph written out
+  with space_config.js's laws, the cabin transfer inside, ambience.js + emitters.js on Jolene under emitters_render's
+  recording context with the shipped MP3s, a Radio Jolene track at music.js trimOf, a Norman take at clipK) at audio.js's
+  OWN settings and MIX (audio.js run in a vm), then the limiter's law; per bus integrated LUFS (BS.1770-4) and peak, the
+  master after the limiter and its GR. The Jodel and the Cub x idle on the stand / taxi 1500 rpm 5 m/s / climb full power
+  Vy / cruise 0.75 Vc x cockpit (closed, headset off) / chase, ambience at the stand / over the forest / over the sea,
+  emitters over 40 s, the radio in cruise. `--table` (before / after markdown), `--lottery`, `--lowfps`, `--renders=tag`.
+  BEFORE (the train-36 tree): outside at idle the airfield bed was 15 dB OVER the idling engine (-31.9 vs -46.6 LUFS); in
+  cruise the radio 4-11 dB over the engine; the limiter never reduced (headroom to spare).
+  AFTER (cockpit cruise, Jodel): engine+prop -20.7, wind -33.1, radio -27.9, Norman -24.7, ambience under the gate; chase
+  idle: engine -38.6, the airfield -47.9, the emitters -61.8; GR 0 dB in all 16 states, the loudest peak -6.9 dBFS.
+  THE BOX SCRIPT - tools/perf/mix_meter.js (NEW): a console paste for the real page (SNDMIX.mark / split / table / stop):
+  read-only taps on AUDIO.bus('aircraft' | 'ambience' | 'music' | 'ui' | 'master'), K-weighting biquads, one analyser a
+  channel, BS.1770 gating, the limiter's own `reduction`; split() solos the engine and the airframe through their own
+  volumes (put back). Smoke-tested in headless Chromium on dev.html (a 1 kHz tone into ui read as computed); the game
+  itself does not finish loading under SwiftShader here, so THE COORDINATOR'S RUN on the box is the page's own table.
+
+G1721 THE MIX (audio.js MIX, dB, OUT OF THE SHED ONLY - the garage is untouched: the shed stays faint, the roll-out shot
+  keeps its levels): engine +8 (the engine groups' inputs), interior +6 (N.intTrim after the viewpoint fader's interior
+  side: the cockpit's listening level - the cabin's insulation stays the build's, ruling s5), airframe +4 (the wind a clear
+  second, 12-16 dB under at cruise), ambience -6 and ambienceRun -10 more while an engine of the flown aeroplane runs
+  (ramped ~3 s; a parked aeroplane with its engine off hears its world at -6), music -6 in flight (under the engine; the
+  shed and the loading screens unchanged). THE PHASE LOTTERY: in a direct drive the 2-blade prop's blade passage IS the
+  flat four's firing frequency, the two voices phase-locked at an angle each session draws by chance (the crank's seeded
+  start, the prop node starting blocks apart); over 12 angles through the cabin the power plant lost 10-13 dB at two of
+  them (the e+p spread 11-14 dB) - a session's draw could be the laptop's faint engine. space_config.js CABIN_TONAL_DB =
+  -10: the prop's TONAL enters the cabin 10 dB under (space.js gr.tonalCab between ins[1] and the side); the spread is
+  3-4.4 dB, the worst angle +6.5 dB louder. Outside the directivity already keeps them apart; the broadband is untrimmed.
+
+G1722 THE ENGINE SLIDER - audio.js SETTINGS 'engine' ("the engine and the propeller", 100 %), persisted as
+  flydiy.audio.engine; 'aircraft' (its key kept) is now the AIRFRAME row ("the wind, the gear, the touchdown, the stall
+  warning"). Why two flat rows and not a group master: each row names exactly what it moves, and the user's ask ("the
+  engine separately from the rest of the airplane") is to turn one against the other - with a master over both, the
+  engine could never be raised over the airframe. A STORED 'aircraft' (it scaled the engine and the airframe together):
+  at load, with no stored engine, the engine takes its value and stores it - both stay where the player had them, and a
+  later airframe move never drags the engine. THE GAINS: space.js applyLevels(lv) - the engine volume (x MIX.engine out of
+  the shed) on every engine group's inputs (the exhaust, the prop's tonal and broadband: each feeds the exterior chain AND
+  the cabin, so both perspectives and the headset), and on the other aircraft's world bus (their engines); the airframe's
+  on its group input and on G.afIn (NEW: interior() returns it - the airframe's structure-borne and interior-only layers
+  through its volume); with the space the aircraft bus is unity (without space.js 'aircraft' stays the old group master).
+  The row appears in both rails (AUDIO.mount) and in the boombox panel (boombox.js: beside music and master).
+
+G1723 MUSIC IN FLIGHT - the Coordinator's diagnosis confirmed (music.js's CRUISE: 200 m AGL held 20 s, flaps up). Now with
+  'music in flight' on the music plays AT ONCE ANYWHERE out of the shed and past the loading screen - the stand, the taxi,
+  the circuit - with the station's crossfades; the context (still named 'cruise') deals from EVERY track of the station,
+  as the loading screens do (Blues and Classical had no cruise-tagged track and fell to lo-fi's three). From silence the
+  music comes in over FADE_IN_S 1.5 s (a crossfade stays 4 s). THE SHORT FINAL (FINAL: flaps out, < 150 m, sinking faster
+  than 1.5 m/s, wheels up) dips it -4 dB over 1.5 s, released by the flaps up, a climb, 220 m or a wheel down - never
+  silence. The engine start / catch / stall ducks kept (folded with the dip on the same node). THE TOGGLE answers on its
+  own 'settings' event (no frame between AUDIO.set and the start), and AUDIO.welcome reads BOOT's state live (a #bootMusic
+  press between two frames lands on the screen that is up). THE PUMP (audio.js): app.js calls AUDIO.update only from its
+  loop, which does not run before the first light nor while holdRender holds a place change - so a loading screen's song
+  could not start or move on (seen on the real page here: AUDIO.pumped 3 under the boot). A 4 Hz timer after the gesture
+  runs update() itself when no frame came for 0.4 s (not in a hidden tab), with the last frame's sim / camera / aeroplane;
+  a frame from the loop idles it; gone with the context. Checked: the quick bar's radio and the boombox panel still drive
+  the same settings (GATE BOOMBOX), a station switch in flight starts at once.
+
+G1724 THE LOW FRAME RATE - audio.js tauS[0] = 0.6 x the smoothed dt, 30-250 ms; src_engine (rpm, load), src_prop, src_airframe,
+  space.js (directivity, absorption, panners, doppler) and emitters.js (panners) schedule with it when it is longer than
+  their own constant. A throttle ramp at 3 fps (lowfps.json: the lever's peak slope over the ramp's): 30 ms 10.55x (a step
+  each frame), the frame tau 2.04x, 60 fps 1.26x. ALLOCATION: a double read from a typed slot and handed to
+  setTargetAtTime is a heap box (measured +5 B a frame on the roll-out shot) - a frame at speed hands the laws' constants as
+  before (TF[3] / PT[1] = slow), only a slow frame hands the slot. BUDGET (A0's contract, GATE AUDIO): update() 4 us mean,
+  280 us worst, 0.40 B a frame; with every source + the space 28.6 us, 0.59 B a frame (unchanged); the roll-out shot 17.56 B
+  (unchanged); the emitters 2.15 B (was 4.42); nothing before the gesture (the pump's timer included), ?audio=0 builds
+  nothing (the stub is untouched).
+
+GATES (this branch's head): AUDIO PASS (351/351 mutations; +MIX block: the row and its default, the migration, the
+  persistence, "only the engine and the prop", both perspectives, the garage untouched, the cabin's tonal, the 3 fps tau
+  and its return to 30 ms, the pump and its limits, the loading song under a stalled loop; MUSIC_CTX rewritten to the new
+  rule: at once on the ground, the whole station dealt, the climb-out / circuit / low pass, the short final's dip and its
+  releases, the 3 fps toggle, a station switch in flight; 21 new mutations), AUDIOENG PASS, BUILD PASS, UISMOKE PASS (the
+  sound rail's rows: engine, airframe), BOOMBOX PASS (39/39: the engine slider), ROLLSND PASS.
+- HOT FILES: src/viewer/audio/audio.js, space.js, space_config.js, music.js, src_engine.js, src_prop.js, src_airframe.js,
+  emitters.js; src/viewer/boombox.js; tools/audio/_audio_check.js, _boombox_check.js; tools/test_ui_smoke.js.
+  NEW: tools/audio/mix_render.js, tools/perf/mix_meter.js, reports/evidence/SND-MIX/. Not touched: app.js, editor.js, build.js.
+- FOR THE COORDINATOR: (1) run tools/perf/mix_meter.js on the box (the Jodel: idle / climb / cruise, cockpit and chase,
+  Radio Jolene on) and compare with the README's table; (2) the trims are one table in audio.js MIX - if the ear wants the
+  engine hotter or the radio higher, move a number there and re-run mix_render.js (both tables are its); (3) ANIALLOC read
+  3.0 B a frame once in a full AUDIO run and 0.59 B alone and in the next two full runs - a heap-noise flake in a check that
+  reads the animals' model, not touched here; likewise MUSIC_BUDGET read 71 KB over 100 000 frames once in a 3-job
+  battery (budget 16 KB) and 4-6 KB in every solo run (4120 B in full runs, = the train-36 baseline) and in the re-run
+  battery, which is the one recorded above (EXIT 0).
