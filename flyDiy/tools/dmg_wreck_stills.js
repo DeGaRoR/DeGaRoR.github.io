@@ -254,7 +254,7 @@ async function pageRunOn(o) {
   const raf = () => new Promise(r => requestAnimationFrame(() => r()));
   const ms = [], trace = [];
   const FRr = window.FLIGHT_REC && window.FLIGHT_REC.rec, C = FRr ? FRr.COLS : null, col = k => C ? C.indexOf(k) : -1;
-  let s = 0, settled = 0, t1 = performance.now();
+  let s = 0, settled = 0, t1 = performance.now(); window.__d4bMountT = null;
   for (; s < (o.steps || 1200); s += 2) {
     const p0 = performance.now(); step(1 / 60); step(1 / 60); const phys = performance.now() - p0;
     await raf();
@@ -268,12 +268,14 @@ async function pageRunOn(o) {
       brk: SB2.lastT === sim.t ? +(SB2.last || 0).toFixed(2) : 0, brkRec: SB2.lastT === sim.t ? +(SB2.lastRec || 0).toFixed(2) : 0, brkEv: SB2.lastT === sim.t ? +(SB2.lastEv || 0).toFixed(2) : 0,
       brkPose: SB2.lastT === sim.t ? +(SB2.lastPose || 0).toFixed(2) : 0, wreck: +(WM.frame || 0).toFixed(2), broken: sim.damage().broken.length });
     const W = window.FLYDIY_WRECK_STATS(), D = sim.damage();
+    // (the first engine-mount member to break and when - the coordinator: the mount first, or the strike?)
+    if (window.__d4bMountT == null && D.broken.length) { const df = P.def(); for (const bi of D.broken) { const b = sim.beams[bi], ta = df.nodes[b.a].tag || '', tb = df.nodes[b.b].tag || '', ea = /^(ENG|CGE)/.test(ta), eb = /^(ENG|CGE)/.test(tb); if (ea !== eb) { window.__d4bMountT = { t: +sim.t.toFixed(3), member: ta + '-' + tb }; break; } } }
     if ((D.over || (!D.crashed && s > 400)) && W.bodies.every(b => b.asleep)) { if (++settled > 40) break; }
   }
   if ('__d4bWind' in window) { P.world().wind = window.__d4bWind; delete window.__d4bWind; }
   const D = sim.damage(), q = ms.slice().sort((a, b) => a - b);
   return { steps: s, crashed: D.crashed, over: !!D.over, reason: D.reason, broken: D.broken.length, brokeUp: !!D.brokeUp,
-    frameMed: +q[q.length >> 1].toFixed(1), frameP95: +q[Math.floor(q.length * 0.95)].toFixed(1), frameMax: +q[q.length - 1].toFixed(1), trace: o.trace ? trace : undefined,
+    mountFirst: window.__d4bMountT, frameMed: +q[q.length >> 1].toFixed(1), frameP95: +q[Math.floor(q.length * 0.95)].toFixed(1), frameMax: +q[q.length - 1].toFixed(1), trace: o.trace ? trace : undefined,
     wreck: window.FLYDIY_WRECK_STATS(), skin: window.FLYDIY_SKINBREAK_STATS() };
 }
 // THE TEAR CENSUS (the user's review: "why are the wings lacerated like this?"): the members broken (names), the plastic
@@ -384,7 +386,8 @@ if (require.main === module) (async () => {
     // (the user's review: does the cowl come off - each cowl panel and the spinner, its reason and its distortion)
     if (out.stage && out.stage.wreck) console.log('  ' + k + ' cowl: ' + out.stage.wreck.parts.filter(p => p.kind === 'cowl' || p.kind === 'spinner' || p.kind === 'eng')
       .map(p => p.kind + ' ' + (p.gone ? 'OFF (' + p.why + (p.crush != null ? ', ' + Math.round(p.crush * 100) + ' cm' : '') + ')' : 'on' + (p.crush != null ? ' (' + Math.round(p.crush * 100) + ' cm)' : ''))).join(', '));
-    if (out.stage && out.stage.wreck) console.log('  ' + k + ' strikes: ' + (out.stage.wreck.strikes || []).map(x => 'engine ' + x.eng + ' ' + (x.drive ? 'DRIVE ' + x.drive + (x.biteR != null ? ' biteR ' + (+x.biteR).toFixed(3) : '') + (x.surf ? ' ' + x.surf : '') : 'own strike') + ' ' + x.material + ' curl ' + x.curl.join('/') + ' cut ' + x.cut.join('/')).join('; '));
+    if (out.stage && out.stage.wreck) console.log('  ' + k + ' strikes: ' + (out.stage.wreck.strikes || []).map(x => 'engine ' + x.eng + ' at t ' + x.t + ' ' + (x.drive ? 'DRIVE ' + x.drive + (x.biteR != null ? ' biteR ' + (+x.biteR).toFixed(3) : '') + (x.surf ? ' ' + x.surf : '') : 'own strike') + ' ' + x.material + ' curl ' + x.curl.join('/') + ' cut ' + x.cut.join('/')).join('; '));
+    if (out.stage) console.log('  ' + k + ' mount first: ' + JSON.stringify(out.stage.mountFirst || null));
     // (the user's review: the tear census - which members, how much work, which rule took each wing's covering)
     try { out.tears = await run(pageTears);
       const W = out.tears.wings, f = b => b ? b.gone + '/' + b.tris + ' gone (' + Object.entries(b.by).map(([r, n]) => r + ' ' + n).join(', ') + (b.islands ? '; islands ' + b.islands : '') + ')' : 'n/a';

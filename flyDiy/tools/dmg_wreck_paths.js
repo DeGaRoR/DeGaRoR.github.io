@@ -26,22 +26,36 @@ function pageFree() { const sim = FLIGHT_PROBE.sim(); if (window.__d4bStep) { si
 // its triangles with an edge past 2 m, and its longest edge against the longest it has as built (wreckBuild's meshes0
 // copy where there is one) - which geometry holds them, by name and bucket section
 function pageGiant() {
-  const P = FLIGHT_PROBE, m = P.model(); if (!m || !m.grp) return { none: true };
-  const out = [], v = [0, 0, 0];
-  m.grp.traverse(o => {
-    if (!o.isMesh || !o.geometry || !o.geometry.attributes.position || !o.visible) return;
-    const g = o.geometry, pa = g.attributes.position.array, ix = g.index ? g.index.array : null, nt = ix ? g.index.count / 3 : pa.length / 9;
-    let big = 0, worst = 0;
-    for (let t = 0; t < nt; t++) {
-      const a = ix ? ix[t * 3] : t * 3, b = ix ? ix[t * 3 + 1] : t * 3 + 1, c = ix ? ix[t * 3 + 2] : t * 3 + 2;
-      if (a === b && b === c) continue;
-      const e = (i, j) => Math.hypot(pa[i * 3] - pa[j * 3], pa[i * 3 + 1] - pa[j * 3 + 1], pa[i * 3 + 2] - pa[j * 3 + 2]);
-      const L = Math.max(e(a, b), e(b, c), e(c, a)); if (L > worst) worst = L; if (L > 2) big++;
-    }
-    if (big) out.push({ name: o.name || '', key: m.wreckBuild && m.wreckBuild.keyOf ? (m.wreckBuild.keyOf.get(o) || null) : null,
-      sec: (m.mats && o.name && m.mats[o.name] && m.mats[o.name].sec) || null, tris: nt | 0, big, worst: +worst.toFixed(2), skinned: !!o.isSkinnedMesh });
-  });
-  return { meshes: out.sort((a, b) => b.big - a.big).slice(0, 12) };
+  // EVERY scene the page draws (the world's and the hangar's), not only the flight's model: a crashed aeroplane drawn in
+  // the hangar after a reset path was no mesh of FLIGHT_PROBE.model() (16:30 / 17:12: the model clean, the sheets drawn)
+  const P = FLIGHT_PROBE, m = P.model(), out = [];
+  const scenes = [['world', P.craft() && P.craft().parent], ['hangar', P.hangarScene ? P.hangarScene() : null]];
+  const inModel = new Set(); if (m && m.grp) m.grp.traverse(o => inModel.add(o));
+  const recGeos = new Set(); try { for (const R of (window.FLYDIY_SKINBREAK_RECS ? FLYDIY_SKINBREAK_RECS() : [])) for (const g of (R.geos || [])) recGeos.add(g); } catch (e) {}
+  const seen = new Set();
+  for (const [sn, sc] of scenes) {
+    if (!sc) continue;
+    sc.traverse(o => {
+      if (!o.isMesh || !o.geometry || !o.geometry.attributes.position || seen.has(o)) return; seen.add(o);
+      let vis = o.visible; for (let q = o.parent; q && vis; q = q.parent) vis = q.visible; if (!vis) return;
+      const g = o.geometry, pa = g.attributes.position.array, ix = g.index ? g.index.array : null, nt = ix ? g.index.count / 3 : pa.length / 9;
+      let big = 0, worst = 0;
+      for (let t = 0; t < nt; t++) {
+        const a = ix ? ix[t * 3] : t * 3, b = ix ? ix[t * 3 + 1] : t * 3 + 1, c = ix ? ix[t * 3 + 2] : t * 3 + 2;
+        if (a === b && b === c) continue;
+        const e = (i, j) => Math.hypot(pa[i * 3] - pa[j * 3], pa[i * 3 + 1] - pa[j * 3 + 1], pa[i * 3 + 2] - pa[j * 3 + 2]);
+        const L = Math.max(e(a, b), e(b, c), e(c, a)); if (L > worst) worst = L; if (L > 2) big++;
+      }
+      if (!big) return;
+      const chain = []; for (let q = o; q && chain.length < 6; q = q.parent) chain.push(q.name || q.type);
+      const mt = Array.isArray(o.material) ? o.material[0] : o.material;
+      out.push({ scene: sn, chain: chain.join(' < '), inFlightModel: inModel.has(o), key: m && m.wreckBuild && m.wreckBuild.keyOf ? (m.wreckBuild.keyOf.get(o) || null) : null,
+        sec: (m && m.mats && o.name && m.mats[o.name] && m.mats[o.name].sec) || null, tris: nt | 0, big, worst: +worst.toFixed(2),
+        kind: o.isSkinnedMesh ? 'skinned' : (o.isInstancedMesh ? 'instanced' : (recGeos.has(g) ? 'skin-break record (bound)' : 'static')),
+        material: mt ? (mt.name || mt.type) + (mt.color ? ' #' + mt.color.getHexString() : '') : null });
+    });
+  }
+  return { meshes: out.sort((a, b) => b.big - a.big).slice(0, 16) };
 }
 function pageWreck() {
   const P = FLIGHT_PROBE, m = P.model(), scene = P.craft().parent, W = window.FLYDIY_WRECK_STATS ? FLYDIY_WRECK_STATS() : {};

@@ -4602,7 +4602,7 @@
       const sense = ((def.params && def.params.engines || [])[k] || {}).sense || 1;
       const info = { rpm, V: Math.hypot(vx, vy, vz) / n, M: sim.totalM || 0, D: 2 * BF.R, nb: BF.nb, what: wet ? 'water' : (D && D.propAt ? D.propAt.what : 'ground'), eng: k, material, wet };
       const S0 = WD.strike(info), S = dv ? WD.fromDrive(dv, info) : S0;
-      WK.strikes.push({ eng: k, drive: dv ? dv.strike : null, what: S.what, material, metal: S.metal, rpm: Math.round(rpm), V: +info.V.toFixed(2), E: Math.round(S0.E), breaks: S.breaks,
+      WK.strikes.push({ eng: k, t: +sim.t.toFixed(3), drive: dv ? dv.strike : null, what: S.what, material, metal: S.metal, rpm: Math.round(rpm), V: +info.V.toFixed(2), E: Math.round(S0.E), breaks: S.breaks,
                         cut: S.cut.map(c => +c.toFixed(2)), curl: S.curl.map(c => +c.toFixed(2)), dent: +S.dent.toFixed(3), nb: BF.nb, R: +BF.R.toFixed(3),
                         ...(dv && dv.strikeAt ? { biteR: dv.strikeAt.biteR, surf: dv.strikeAt.surf, tip: dv.strikeAt.tip, bladeLost: dv.bladeLost } : {}) });
       // the spinner's radius (its farthest vertex from the shaft): the curl never reaches into the hub
