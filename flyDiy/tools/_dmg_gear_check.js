@@ -15,7 +15,8 @@
 //      (1.0 m/s) and a firm one (1.5 m/s) at the touchdown speed; the build's own 23.473 limit sink is the gear's own
 //      limit case: the airframe at most 2/3, the gear under 1
 //   3. §7.4's GEAR ROWS (damage on, the certificate): the ground loop (the Cub, the Jodel: rolling at 15 m/s, swung
-//      20 deg off its track at 120 deg/s - a main gear group lets go, the low wing strikes); the porpoise (the metal
+//      20 deg off its track at 120 deg/s, the Cub 30 deg at 180 deg/s since G1896 - a main gear group lets go, the low
+//      wing strikes); the porpoise (the metal
 //      Cessna: nose-first touchdowns at 25 m/s, 5 deg nose-down, the bounces growing 3 / 4 / 5 m/s - the nose gear
 //      collapses, the bounce it collapsed on printed); the float dig-in (the Cessna on floats, the twin: the 90 km/h /
 //      5 m/s / 20 deg nose-in breaks nothing; in TREECRASH's severe nose-in (150 km/h / 10 m/s / 60 deg) the floats'
@@ -50,7 +51,13 @@ if (argv[0] === '--part') {
     const cap = 10 * 0.3048, v473 = L.far473(k);
     out.drops = [[v473, 0, '473'], [1.2 * cap, 0, '727']].concat(fl ? [] : [[7, 18, 'nasa']]).map(([sink, fwd, kind]) => Object.assign({ kind }, G.bracketDrop(k, { sink, fwd })));
   } else if (part === 'rows') {
-    if (k === 'cub' || k === 'jodel') out.loop = G.groundLoop(k, { V: 15, yaw: 20, rate: 120, secs: 4 });
+    // G1896 (DMG-TUNE): the Cub's gated swing is 30 deg off its track at 180 deg/s; the base's 20 deg at 120 deg/s
+    // folded a main gear only AFTER its tail had come off - one stab fitting of 32 at the certificate's 0.1 floor
+    // (1.06 kN) taking the whole tailplane, the tail then dropping the aeroplane onto a wheel; with the tail at its
+    // material that swing slides its wheels (the side force friction-limited under 23.485's envelope, as D2b found
+    // for the Jodel) and is REPORTED; the harder swing folds the gear by its own side load
+    if (k === 'cub' || k === 'jodel') out.loop = G.groundLoop(k, k === 'cub' ? { V: 15, yaw: 30, rate: 180, secs: 4 } : { V: 15, yaw: 20, rate: 120, secs: 4 });
+    if (k === 'cub') out.loop20 = G.groundLoop(k, { V: 15, yaw: 20, rate: 120, secs: 4 });
     if (k === 'metal') out.porp = G.porpoise(k, { V: 25, pitch: 5, sinks: [3, 4, 5] });
     if (fl) out.dig = [{ V: 90, sink: 5, pitch: 20 }, { V: 150, sink: 10, pitch: 60 }].map(o => G.digIn(k, o));
   }
@@ -124,6 +131,7 @@ const wk = w => f2(w.max) + ' (' + w.cls + ' ' + w.tags + ', ' + (w.s === 't' ? 
     // first, the side force friction-limited under 23.485's envelope, and nothing folds - its row wants a rut or a
     // soft field, DMG-TUNE's)
     if (RW.loop && k !== 'cub') { const g = RW.loop; console.log('  --    REPORT the ground loop (' + g.V + ' m/s, swung ' + g.yaw + ' deg at ' + g.rate + ' deg/s): groups ' + (g.groups.join(' > ') || 'none') + ', the lowest wingtip ' + f2(g.tipMin) + ' m' + (g.tipStrike != null ? ' (struck)' : '') + ' - on flat grass the wheels slide (friction-limited side load)'); }
+    if (RW.loop20) { const g = RW.loop20; console.log('  --    REPORT the ground loop (' + g.V + ' m/s, swung ' + g.yaw + ' deg at ' + g.rate + ' deg/s, the base\'s staging): groups ' + (g.groups.join(' > ') || 'none') + ', the lowest wingtip ' + f2(g.tipMin) + ' m' + (g.tipStrike != null ? ' (struck)' : '') + ' - the wheels slide'); }
     if (RW.loop && k === 'cub') { const g = RW.loop, mains = g.groups.filter(x => /^gear[LR]:/.test(x));
       yes(g.finite && mains.length > 0 && g.tipStrike != null, 'the ground loop (' + g.V + ' m/s, swung ' + g.yaw + ' deg at ' + g.rate + ' deg/s): a main gear folds (' + (mains.join(', ') || 'none') + '), the low wing strikes (' + (g.tipStrike != null ? 'at ' + f2(g.tipStrike) + ' s' : 'no: ' + f2(g.tipMin) + ' m') + '); the groups in order ' + g.groups.join(' > ') + (g.reason ? '; ' + g.reason : '')); }
     if (RW.porp) { const g = RW.porp;

@@ -110,6 +110,19 @@ const GEN_CERT = {
 const GEN_CERT_LAND = /^(drop|bow|taxiRough|g[A-Z]|w[A-Z])/;
 // the controls flown (genCertFlownCtl): a member's larger peak certifies it both ways
 const GEN_CERT_RING = /^flown(Elev|Rud)/;
+// G1895 (DMG-TUNE): THE FLOOR OUTSIDE THE WING. GEN_CERT.kappa (0.1) is the floor D2a's census sized ON THE WING: from 0.2
+// it lifts the wing's strut and root joints off the certificate (the Cub's and the twin's first joint drifts, at 0.3 it
+// jumps to 9 g), so it stays the wing's - the wing's members, its root, strut and interplane joints and their links -
+// where the card's broke-at and the set past the limit live. Everywhere else (the fuselage, the engine mount, the tail,
+// the tanks) no card is read, and the 0.1 made a member a tenth of the material it is billed for: on the five validated
+// builds 40-77 % of the members sat on it (the Cub's 4130 fuselage tubes at 3-4 kN in tension where a 1/2 x 0.035 in
+// tube - the smallest of a Cub's truss, as recalled - yields at ~16 kN; the engine mount's tubes and bolts at 5 kN, so
+// one wing strike's yaw took the engine off). `body`: the floor there is half the member's physics - the smallest real
+// member of a class is about half the section the generator bills the class at (the Cub's 1/2-5/8 in diagonals against
+// its 1 in longerons' 74 mm2, as recalled from the type's tube schedule, not opened), and a mount at 0.5 x its 4130
+// tube's fitting break (~25 kN) is one AN5 bolt in single shear (25.6 kN, the AN bolt table as recalled). Kept apart
+// from GEN_CERT: the envelope (and its cache key, DMGCERTCOST's reference) does not depend on it.
+const GEN_CERT_FLOOR = { body: 0.5 };
 const GEN_CERT_V = 5;        // the certificate's own version (a cached answer is only valid for the rules that made it);
                              // 2: G1835-G1836 (DMG-D2b) - the gear's cases, the ground and water loads, the flaps;
                              // 3: G1891 (DMG-CERTCOST) - the settle shared, a wheel landing's window 1.2 s (the same envelope);

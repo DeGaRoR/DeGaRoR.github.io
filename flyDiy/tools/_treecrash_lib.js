@@ -40,6 +40,10 @@ function defOf(key, opts) {
   if (!_defs[key]) {
     let j = JSON.parse(fs.readFileSync(path.join(T, '..', B.build), 'utf8'));
     if (B.patch) j = B.patch(j);
+    // G1893 (DMG-TUNE): FLYDIY_SPEC_DIR=<dir> flies <dir>/<key>.json's spec where there is one (JOIN-PARITY's
+    // page-loaded spec, dumped from its branch: the Cessnas' engine where the game has it); unset, the file as written
+    const sd = process.env.FLYDIY_SPEC_DIR && path.join(process.env.FLYDIY_SPEC_DIR, key + '.json');
+    if (sd && fs.existsSync(sd)) j = { spec: JSON.parse(fs.readFileSync(sd, 'utf8')) };
     const spec = j.spec || j;
     _defs[key] = C.buildGen(C.genMigrateSpec ? C.genMigrateSpec(spec) : spec);
   }

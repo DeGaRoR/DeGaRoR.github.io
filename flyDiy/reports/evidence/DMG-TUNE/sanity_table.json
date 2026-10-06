@@ -1,0 +1,2065 @@
+{
+ "before": "2026-10-06T12:02:55.575Z",
+ "after": "2026-10-06T14:56:00.835Z",
+ "specDir": "/tmp/claude-0/-home-user-DeGaRoR-github-io/d592c9f1-da45-543b-a9a8-30c55273cb8d/scratchpad/specs",
+ "rows": [
+  {
+   "k": "cub",
+   "id": "taxi",
+   "ref": "A taxiing aeroplane meeting a tree or a post at walking-to-jogging pace: the propeller strikes (a prop strike: engine teardown per Lycoming SB 533 / Continental SB96-11), the spinner and the cowl dent, a leading edge dents if a wing meets it. No primary structure breaks; the engine stays on its mount.",
+   "src": "NTSB taxi-collision briefs (CA-class reports: \"the propeller struck a pole/tree while taxiing\", substantial damage to the propeller) - as recalled; DEFORM §7.1 #1",
+   "before": {
+    "broken": 0,
+    "bySec": {},
+    "work": 722.1923250505617,
+    "off": [],
+    "crashed": false,
+    "reason": null,
+    "plausible": true
+   },
+   "after": {
+    "broken": 0,
+    "bySec": {},
+    "setBySec": {
+     "engines": 3
+    },
+    "work": 727.158034375867,
+    "off": [],
+    "crashed": false,
+    "reason": null,
+    "gPeak": 3.569450270801932,
+    "prop": true,
+    "plausible": true
+   },
+   "physics": {
+    "broken": 0,
+    "bySec": {},
+    "work": 727.158034375867,
+    "off": []
+   }
+  },
+  {
+   "k": "cub",
+   "id": "noseover",
+   "ref": "The wheels stopped by a stump or soft ground at 8-12 m/s: the aeroplane pitches over onto its nose or its back. The propeller strikes and bends, the cowl and nose are crushed, the gear may be torn from the stump, the fin and rudder are crushed if it goes over; a wing tip or a strut may crease. The wings stay on and are not shredded; the engine stays on its (perhaps bent) mount.",
+   "src": "de Voogt & Louteiro 2024 (134 NTSB nose-overs, CC BY) and NTSB J-3 / PA-18 nose-over briefs (\"damage to the propeller, rudder and vertical stabilizer\"), AAIB G-BBPS (inverted) - as recalled, via DEFORM §7.1 #13 / §7.4",
+   "before": {
+    "broken": 50,
+    "bySec": {
+     "gear": 1,
+     "fuselage": 7,
+     "tail": 40,
+     "vessel": 2
+    },
+    "work": 3894.276410421821,
+    "off": [],
+    "crashed": true,
+    "reason": "a gear member broke",
+    "plausible": true
+   },
+   "after": {
+    "broken": 7,
+    "bySec": {
+     "gear": 1,
+     "fuselage": 4,
+     "tail": 2
+    },
+    "setBySec": {
+     "fuselage": 4,
+     "wings": 6,
+     "bracing": 7,
+     "tail": 5
+    },
+    "work": 4165.791549762496,
+    "off": [],
+    "crashed": true,
+    "reason": "a gear member broke",
+    "gPeak": 4.447118551325726,
+    "prop": true,
+    "plausible": true
+   },
+   "physics": {
+    "broken": 7,
+    "bySec": {
+     "gear": 1,
+     "fuselage": 4,
+     "tail": 2
+    },
+    "work": 3488.964680280565,
+    "off": []
+   }
+  },
+  {
+   "k": "cub",
+   "id": "trunk0",
+   "ref": "Into a tree on the centreline at 58 kt: the trunk stops the nose - the engine is driven back or torn from its mount, the firewall and cabin crush, the wings may tear off at their roots by their own inertia, the tail may separate. A non-survivable-class impact: a great deal breaks. The point here is only that it CRASHES and comes apart at its joints.",
+   "src": "NTSB tree-collision reports (\"both wings separated, the engine displaced aft\") - as recalled; NASA Langley GA crash tests (TP-1042, TP-1477, TP-1699: high-wing singles at ~25-27 m/s into soil, the engine bay and firewall crushed; NASA 20160006503 for the 172) - as recalled via DEFORM §7.1",
+   "before": {
+    "broken": 177,
+    "bySec": {
+     "engines": 13,
+     "vessel": 9,
+     "wings": 24,
+     "fuselage": 47,
+     "bracing": 12,
+     "tail": 57,
+     "gear": 15
+    },
+    "work": 23707.751147010476,
+    "off": [
+     {
+      "m": 90.4,
+      "parts": "eng"
+     },
+     {
+      "m": 45.4,
+      "parts": "body+fin"
+     },
+     {
+      "m": 42.7,
+      "parts": "wing0R"
+     },
+     {
+      "m": 42.7,
+      "parts": "wing0L"
+     },
+     {
+      "m": 41.7,
+      "parts": "body"
+     },
+     {
+      "m": 41.7,
+      "parts": "body"
+     },
+     {
+      "m": 22.5,
+      "parts": "body"
+     },
+     {
+      "m": 18.7,
+      "parts": "body"
+     },
+     {
+      "m": 18.7,
+      "parts": "body"
+     },
+     {
+      "m": 11.8,
+      "parts": "stab"
+     },
+     {
+      "m": 10.7,
+      "parts": "eng"
+     },
+     {
+      "m": 10.7,
+      "parts": "eng"
+     },
+     {
+      "m": 9.8,
+      "parts": "body"
+     },
+     {
+      "m": 9.8,
+      "parts": "body"
+     },
+     {
+      "m": 8.4,
+      "parts": "body"
+     },
+     {
+      "m": 8.4,
+      "parts": "body"
+     },
+     {
+      "m": 7.8,
+      "parts": "gearL"
+     },
+     {
+      "m": 7.8,
+      "parts": "gearR"
+     },
+     {
+      "m": 4,
+      "parts": "tw"
+     }
+    ],
+    "crashed": true,
+    "reason": "broke up: the fuselage parted (TPB off the core)",
+    "plausible": true
+   },
+   "after": {
+    "broken": 125,
+    "bySec": {
+     "engines": 13,
+     "vessel": 9,
+     "wings": 23,
+     "fuselage": 29,
+     "bracing": 12,
+     "gear": 10,
+     "tail": 29
+    },
+    "setBySec": {
+     "fuselage": 13,
+     "wings": 10,
+     "tail": 23
+    },
+    "work": 27397.352585288412,
+    "off": [
+     {
+      "m": 140,
+      "parts": "body+stab+tw"
+     },
+     {
+      "m": 90.4,
+      "parts": "eng"
+     },
+     {
+      "m": 42.7,
+      "parts": "wing0R"
+     },
+     {
+      "m": 42.7,
+      "parts": "wing0L"
+     },
+     {
+      "m": 30.9,
+      "parts": "body"
+     },
+     {
+      "m": 18.7,
+      "parts": "body"
+     },
+     {
+      "m": 18.7,
+      "parts": "body"
+     },
+     {
+      "m": 10.7,
+      "parts": "eng"
+     },
+     {
+      "m": 10.7,
+      "parts": "eng"
+     },
+     {
+      "m": 9.8,
+      "parts": "body"
+     },
+     {
+      "m": 9.8,
+      "parts": "body"
+     },
+     {
+      "m": 7.8,
+      "parts": "gearL"
+     },
+     {
+      "m": 7.8,
+      "parts": "gearR"
+     },
+     {
+      "m": 4.7,
+      "parts": "fin"
+     }
+    ],
+    "crashed": true,
+    "reason": "broke up: the fuselage parted (TPB off the core)",
+    "gPeak": 25.03144409761656,
+    "prop": true,
+    "plausible": true
+   },
+   "physics": {
+    "broken": 50,
+    "bySec": {
+     "engines": 13,
+     "vessel": 7,
+     "fuselage": 19,
+     "wings": 6,
+     "tail": 5
+    },
+    "work": 47153.958937247764,
+    "off": [
+     {
+      "m": 90.4,
+      "parts": "eng"
+     },
+     {
+      "m": 10.7,
+      "parts": "eng"
+     },
+     {
+      "m": 10.7,
+      "parts": "eng"
+     }
+    ]
+   }
+  },
+  {
+   "k": "cub",
+   "id": "trunk25",
+   "ref": "A wing meets a tree 2.5 m out at 58 kt: that wing is cut or torn - at the trunk, or at its strut / root fitting - and the aeroplane slews round the tree and meets the ground. That wing and the strut or bracing near it break; the gear, a wing tip, the propeller may take the ground. The engine stays on, the tail stays on, the far wing is not shredded.",
+   "src": "NTSB wing-strike reports (\"the left wing struck a tree and separated outboard of the lift strut attach\") - as recalled; DEFORM §7.4 \"tree at speed\" row",
+   "before": {
+    "broken": 118,
+    "bySec": {
+     "wings": 20,
+     "bracing": 12,
+     "vessel": 8,
+     "engines": 11,
+     "fuselage": 18,
+     "tail": 44,
+     "gear": 5
+    },
+    "work": 13464.54326879192,
+    "off": [
+     {
+      "m": 111.7,
+      "parts": "eng"
+     },
+     {
+      "m": 22.1,
+      "parts": "wing0L"
+     },
+     {
+      "m": 20.6,
+      "parts": "wing0L"
+     },
+     {
+      "m": 18.7,
+      "parts": "body"
+     },
+     {
+      "m": 7.8,
+      "parts": "gearR"
+     }
+    ],
+    "crashed": true,
+    "reason": "a wing member broke",
+    "plausible": false
+   },
+   "after": {
+    "broken": 49,
+    "bySec": {
+     "wings": 27,
+     "bracing": 6,
+     "vessel": 5,
+     "fuselage": 8,
+     "engines": 3
+    },
+    "setBySec": {
+     "fuselage": 15,
+     "engines": 3,
+     "wings": 7,
+     "bracing": 3,
+     "tail": 1,
+     "gear": 1,
+     "vessel": 2
+    },
+    "work": 14633.459957238456,
+    "off": [
+     {
+      "m": 22.1,
+      "parts": "wing0L"
+     },
+     {
+      "m": 20.6,
+      "parts": "wing0L"
+     }
+    ],
+    "crashed": true,
+    "reason": "a wing member broke",
+    "gPeak": 12.214858731789732,
+    "prop": true,
+    "plausible": true
+   },
+   "physics": {
+    "broken": 17,
+    "bySec": {
+     "wings": 4,
+     "bracing": 6,
+     "fuselage": 6,
+     "vessel": 1
+    },
+    "work": 13833.808061327616,
+    "off": [
+     {
+      "m": 20.6,
+      "parts": "wing0L"
+     }
+    ]
+   }
+  },
+  {
+   "k": "cub",
+   "id": "hard",
+   "ref": "A touchdown at 1.5 x the gear's limit sink (FAR 23.473's V, as recalled), no lift: past FAR 23.727's reserve (1.2 V, no failure). The gear may yield (a spread spring-steel leg, a bottomed oleo, a stretched bungee) or break at a lug; the airframe takes no set; a tricycle may strike its propeller.",
+   "src": "FAR 23.473 / 23.725 / 23.727 (as recalled); NASA 172 Test 1 breaks the gear at ~7 m/s (DEFORM §7.3)",
+   "before": {
+    "broken": 0,
+    "bySec": {},
+    "work": 0,
+    "off": [],
+    "crashed": false,
+    "reason": null,
+    "plausible": true
+   },
+   "after": {
+    "broken": 0,
+    "bySec": {},
+    "setBySec": {},
+    "work": 0,
+    "off": [],
+    "crashed": false,
+    "reason": null,
+    "gPeak": 3.028801821687174,
+    "prop": false,
+    "plausible": true
+   },
+   "physics": {
+    "broken": 0,
+    "bySec": {},
+    "work": 0,
+    "off": []
+   }
+  },
+  {
+   "k": "jodel",
+   "id": "taxi",
+   "ref": "A taxiing aeroplane meeting a tree or a post at walking-to-jogging pace: the propeller strikes (a prop strike: engine teardown per Lycoming SB 533 / Continental SB96-11), the spinner and the cowl dent, a leading edge dents if a wing meets it. No primary structure breaks; the engine stays on its mount.",
+   "src": "NTSB taxi-collision briefs (CA-class reports: \"the propeller struck a pole/tree while taxiing\", substantial damage to the propeller) - as recalled; DEFORM §7.1 #1",
+   "before": {
+    "broken": 0,
+    "bySec": {},
+    "work": 766.4998144155825,
+    "off": [],
+    "crashed": false,
+    "reason": null,
+    "plausible": true
+   },
+   "after": {
+    "broken": 0,
+    "bySec": {},
+    "setBySec": {
+     "engines": 7
+    },
+    "work": 721.8755698094182,
+    "off": [],
+    "crashed": false,
+    "reason": null,
+    "gPeak": 3.570516523851696,
+    "prop": true,
+    "plausible": true
+   },
+   "physics": {
+    "broken": 0,
+    "bySec": {},
+    "work": 721.8755698094182,
+    "off": []
+   }
+  },
+  {
+   "k": "jodel",
+   "id": "noseover",
+   "ref": "The wheels stopped by a stump or soft ground at 8-12 m/s: the aeroplane pitches over onto its nose or its back. The propeller strikes and bends, the cowl and nose are crushed, the gear may be torn from the stump, the fin and rudder are crushed if it goes over; a wing tip or a strut may crease. The wings stay on and are not shredded; the engine stays on its (perhaps bent) mount.",
+   "src": "de Voogt & Louteiro 2024 (134 NTSB nose-overs, CC BY) and NTSB J-3 / PA-18 nose-over briefs (\"damage to the propeller, rudder and vertical stabilizer\"), AAIB G-BBPS (inverted) - as recalled, via DEFORM §7.1 #13 / §7.4",
+   "before": {
+    "broken": 97,
+    "bySec": {
+     "gear": 15,
+     "fuselage": 10,
+     "tail": 50,
+     "engines": 10,
+     "bracing": 10,
+     "vessel": 2
+    },
+    "work": 2740.9968993983816,
+    "off": [
+     {
+      "m": 111.3,
+      "parts": "eng"
+     },
+     {
+      "m": 12.9,
+      "parts": "stab"
+     },
+     {
+      "m": 7.1,
+      "parts": "gearL"
+     },
+     {
+      "m": 7.1,
+      "parts": "gearR"
+     },
+     {
+      "m": 5.3,
+      "parts": "fin"
+     },
+     {
+      "m": 3.7,
+      "parts": "tw"
+     }
+    ],
+    "crashed": true,
+    "reason": "a gear member broke",
+    "plausible": false
+   },
+   "after": {
+    "broken": 3,
+    "bySec": {
+     "gear": 3
+    },
+    "setBySec": {
+     "wings": 2,
+     "gear": 2
+    },
+    "work": 1580.1549533031125,
+    "off": [],
+    "crashed": true,
+    "reason": "a gear member broke",
+    "gPeak": 2.660234835121627,
+    "prop": false,
+    "plausible": true
+   },
+   "physics": {
+    "broken": 1,
+    "bySec": {
+     "gear": 1
+    },
+    "work": 1669.345490162347,
+    "off": []
+   }
+  },
+  {
+   "k": "jodel",
+   "id": "trunk0",
+   "ref": "Into a tree on the centreline at 58 kt: the trunk stops the nose - the engine is driven back or torn from its mount, the firewall and cabin crush, the wings may tear off at their roots by their own inertia, the tail may separate. A non-survivable-class impact: a great deal breaks. The point here is only that it CRASHES and comes apart at its joints.",
+   "src": "NTSB tree-collision reports (\"both wings separated, the engine displaced aft\") - as recalled; NASA Langley GA crash tests (TP-1042, TP-1477, TP-1699: high-wing singles at ~25-27 m/s into soil, the engine bay and firewall crushed; NASA 20160006503 for the 172) - as recalled via DEFORM §7.1",
+   "before": {
+    "broken": 197,
+    "bySec": {
+     "engines": 13,
+     "wings": 26,
+     "bracing": 7,
+     "vessel": 9,
+     "fuselage": 39,
+     "gear": 15,
+     "tail": 88
+    },
+    "work": 28994.869203215374,
+    "off": [
+     {
+      "m": 90.4,
+      "parts": "eng"
+     },
+     {
+      "m": 46.7,
+      "parts": "wing0R"
+     },
+     {
+      "m": 46.7,
+      "parts": "wing0L"
+     },
+     {
+      "m": 38.2,
+      "parts": "body"
+     },
+     {
+      "m": 35.6,
+      "parts": "body"
+     },
+     {
+      "m": 29.7,
+      "parts": "body"
+     },
+     {
+      "m": 29.7,
+      "parts": "body"
+     },
+     {
+      "m": 18.7,
+      "parts": "body"
+     },
+     {
+      "m": 18.7,
+      "parts": "body"
+     },
+     {
+      "m": 12.9,
+      "parts": "stab"
+     },
+     {
+      "m": 10.5,
+      "parts": "eng"
+     },
+     {
+      "m": 10.5,
+      "parts": "eng"
+     },
+     {
+      "m": 8,
+      "parts": "body"
+     },
+     {
+      "m": 8,
+      "parts": "body"
+     },
+     {
+      "m": 7.1,
+      "parts": "gearL"
+     },
+     {
+      "m": 7.1,
+      "parts": "gearR"
+     },
+     {
+      "m": 5.3,
+      "parts": "fin"
+     },
+     {
+      "m": 3.7,
+      "parts": "tw"
+     }
+    ],
+    "crashed": true,
+    "reason": "broke up: the fuselage parted (TPB off the core)",
+    "plausible": true
+   },
+   "after": {
+    "broken": 154,
+    "bySec": {
+     "engines": 13,
+     "wings": 31,
+     "vessel": 9,
+     "gear": 15,
+     "fuselage": 16,
+     "bracing": 39,
+     "tail": 31
+    },
+    "setBySec": {
+     "fuselage": 2,
+     "wings": 13,
+     "bracing": 21,
+     "tail": 15
+    },
+    "work": 32225.653796417446,
+    "off": [
+     {
+      "m": 90.4,
+      "parts": "eng"
+     },
+     {
+      "m": 46.7,
+      "parts": "wing0R"
+     },
+     {
+      "m": 46.7,
+      "parts": "wing0L"
+     },
+     {
+      "m": 18.7,
+      "parts": "body"
+     },
+     {
+      "m": 18.7,
+      "parts": "body"
+     },
+     {
+      "m": 10.5,
+      "parts": "eng"
+     },
+     {
+      "m": 10.5,
+      "parts": "eng"
+     },
+     {
+      "m": 7.1,
+      "parts": "gearL"
+     },
+     {
+      "m": 7.1,
+      "parts": "gearR"
+     },
+     {
+      "m": 5.3,
+      "parts": "fin"
+     },
+     {
+      "m": 3.7,
+      "parts": "tw"
+     }
+    ],
+    "crashed": true,
+    "reason": "a fus member broke",
+    "gPeak": 32.40589693446015,
+    "prop": true,
+    "plausible": true
+   },
+   "physics": {
+    "broken": 52,
+    "bySec": {
+     "engines": 13,
+     "vessel": 5,
+     "fuselage": 4,
+     "wings": 4,
+     "tail": 22,
+     "bracing": 4
+    },
+    "work": 21983.444135344806,
+    "off": [
+     {
+      "m": 90.4,
+      "parts": "eng"
+     },
+     {
+      "m": 10.5,
+      "parts": "eng"
+     },
+     {
+      "m": 10.5,
+      "parts": "eng"
+     },
+     {
+      "m": 5.3,
+      "parts": "fin"
+     }
+    ]
+   }
+  },
+  {
+   "k": "jodel",
+   "id": "trunk25",
+   "ref": "A wing meets a tree 2.5 m out at 58 kt: that wing is cut or torn - at the trunk, or at its strut / root fitting - and the aeroplane slews round the tree and meets the ground. That wing and the strut or bracing near it break; the gear, a wing tip, the propeller may take the ground. The engine stays on, the tail stays on, the far wing is not shredded.",
+   "src": "NTSB wing-strike reports (\"the left wing struck a tree and separated outboard of the lift strut attach\") - as recalled; DEFORM §7.4 \"tree at speed\" row",
+   "before": {
+    "broken": 153,
+    "bySec": {
+     "bracing": 38,
+     "wings": 28,
+     "engines": 10,
+     "gear": 15,
+     "tail": 53,
+     "vessel": 6,
+     "fuselage": 3
+    },
+    "work": 4217.753320204117,
+    "off": [
+     {
+      "m": 111.3,
+      "parts": "eng"
+     },
+     {
+      "m": 46.7,
+      "parts": "wing0L"
+     },
+     {
+      "m": 18.7,
+      "parts": "body"
+     },
+     {
+      "m": 12.9,
+      "parts": "stab"
+     },
+     {
+      "m": 7.1,
+      "parts": "gearL"
+     },
+     {
+      "m": 7.1,
+      "parts": "gearR"
+     },
+     {
+      "m": 5.3,
+      "parts": "fin"
+     },
+     {
+      "m": 3.7,
+      "parts": "tw"
+     }
+    ],
+    "crashed": true,
+    "reason": "a wing member broke",
+    "plausible": false
+   },
+   "after": {
+    "broken": 96,
+    "bySec": {
+     "bracing": 50,
+     "wings": 21,
+     "gear": 9,
+     "tail": 16
+    },
+    "setBySec": {
+     "engines": 1,
+     "wings": 18,
+     "bracing": 15,
+     "gear": 2,
+     "vessel": 2
+    },
+    "work": 5129.171986090899,
+    "off": [
+     {
+      "m": 20.8,
+      "parts": "wing0L"
+     },
+     {
+      "m": 7.1,
+      "parts": "gearL"
+     },
+     {
+      "m": 7.1,
+      "parts": "gearR"
+     },
+     {
+      "m": 5.3,
+      "parts": "fin"
+     }
+    ],
+    "crashed": true,
+    "reason": "a wing member broke",
+    "gPeak": 7.826131679825488,
+    "prop": true,
+    "plausible": false
+   },
+   "physics": {
+    "broken": 16,
+    "bySec": {
+     "tail": 16
+    },
+    "work": 505.8437874811129,
+    "off": [
+     {
+      "m": 5.3,
+      "parts": "fin"
+     }
+    ]
+   }
+  },
+  {
+   "k": "jodel",
+   "id": "hard",
+   "ref": "A touchdown at 1.5 x the gear's limit sink (FAR 23.473's V, as recalled), no lift: past FAR 23.727's reserve (1.2 V, no failure). The gear may yield (a spread spring-steel leg, a bottomed oleo, a stretched bungee) or break at a lug; the airframe takes no set; a tricycle may strike its propeller.",
+   "src": "FAR 23.473 / 23.725 / 23.727 (as recalled); NASA 172 Test 1 breaks the gear at ~7 m/s (DEFORM §7.3)",
+   "before": {
+    "broken": 0,
+    "bySec": {},
+    "work": 0,
+    "off": [],
+    "crashed": false,
+    "reason": null,
+    "plausible": true
+   },
+   "after": {
+    "broken": 0,
+    "bySec": {},
+    "setBySec": {},
+    "work": 0,
+    "off": [],
+    "crashed": false,
+    "reason": null,
+    "gPeak": 4.560659749572807,
+    "prop": false,
+    "plausible": true
+   },
+   "physics": {
+    "broken": 0,
+    "bySec": {},
+    "work": 0,
+    "off": []
+   }
+  },
+  {
+   "k": "metal",
+   "id": "taxi",
+   "ref": "A taxiing aeroplane meeting a tree or a post at walking-to-jogging pace: the propeller strikes (a prop strike: engine teardown per Lycoming SB 533 / Continental SB96-11), the spinner and the cowl dent, a leading edge dents if a wing meets it. No primary structure breaks; the engine stays on its mount.",
+   "src": "NTSB taxi-collision briefs (CA-class reports: \"the propeller struck a pole/tree while taxiing\", substantial damage to the propeller) - as recalled; DEFORM §7.1 #1",
+   "before": {
+    "broken": 1,
+    "bySec": {
+     "engines": 1
+    },
+    "work": 2702.1862516885058,
+    "off": [],
+    "crashed": true,
+    "reason": "the airframe crushed (1.7 kJ of plastic work)",
+    "plausible": true
+   },
+   "after": {
+    "broken": 1,
+    "bySec": {
+     "engines": 1
+    },
+    "setBySec": {
+     "engines": 8
+    },
+    "work": 2702.1862516885058,
+    "off": [],
+    "crashed": true,
+    "reason": "the airframe crushed (1.7 kJ of plastic work)",
+    "gPeak": 2.2320747426130687,
+    "prop": true,
+    "plausible": true
+   },
+   "physics": {
+    "broken": 1,
+    "bySec": {
+     "engines": 1
+    },
+    "work": 2702.1862516885058,
+    "off": []
+   }
+  },
+  {
+   "k": "metal",
+   "id": "noseover",
+   "ref": "The wheels stopped by a stump or soft ground at 8-12 m/s: the aeroplane pitches over onto its nose or its back. The propeller strikes and bends, the cowl and nose are crushed, the gear may be torn from the stump, the fin and rudder are crushed if it goes over; a wing tip or a strut may crease. The wings stay on and are not shredded; the engine stays on its (perhaps bent) mount.",
+   "src": "de Voogt & Louteiro 2024 (134 NTSB nose-overs, CC BY) and NTSB J-3 / PA-18 nose-over briefs (\"damage to the propeller, rudder and vertical stabilizer\"), AAIB G-BBPS (inverted) - as recalled, via DEFORM §7.1 #13 / §7.4",
+   "before": {
+    "broken": 35,
+    "bySec": {
+     "engines": 10,
+     "gear": 7,
+     "vessel": 2,
+     "tail": 16
+    },
+    "work": 4019.618579814086,
+    "off": [
+     {
+      "m": 239.1,
+      "parts": "eng"
+     },
+     {
+      "m": 8,
+      "parts": "tw"
+     },
+     {
+      "m": 7.8,
+      "parts": "fin"
+     }
+    ],
+    "crashed": true,
+    "reason": "a fus member broke",
+    "plausible": false
+   },
+   "after": {
+    "broken": 7,
+    "bySec": {
+     "gear": 7
+    },
+    "setBySec": {
+     "engines": 4,
+     "wings": 8
+    },
+    "work": 3962.60001808722,
+    "off": [
+     {
+      "m": 8,
+      "parts": "tw"
+     }
+    ],
+    "crashed": true,
+    "reason": "a gear member broke",
+    "gPeak": 6.2093028091750435,
+    "prop": true,
+    "plausible": true
+   },
+   "physics": {
+    "broken": 1,
+    "bySec": {
+     "gear": 1
+    },
+    "work": 3202.6930070819303,
+    "off": []
+   }
+  },
+  {
+   "k": "metal",
+   "id": "trunk0",
+   "ref": "Into a tree on the centreline at 58 kt: the trunk stops the nose - the engine is driven back or torn from its mount, the firewall and cabin crush, the wings may tear off at their roots by their own inertia, the tail may separate. A non-survivable-class impact: a great deal breaks. The point here is only that it CRASHES and comes apart at its joints.",
+   "src": "NTSB tree-collision reports (\"both wings separated, the engine displaced aft\") - as recalled; NASA Langley GA crash tests (TP-1042, TP-1477, TP-1699: high-wing singles at ~25-27 m/s into soil, the engine bay and firewall crushed; NASA 20160006503 for the 172) - as recalled via DEFORM §7.1",
+   "before": {
+    "broken": 213,
+    "bySec": {
+     "engines": 13,
+     "wings": 24,
+     "gear": 15,
+     "bracing": 12,
+     "fuselage": 53,
+     "vessel": 9,
+     "tail": 87
+    },
+    "work": 47689.226302960684,
+    "off": [
+     {
+      "m": 198.9,
+      "parts": "eng"
+     },
+     {
+      "m": 115.8,
+      "parts": "body"
+     },
+     {
+      "m": 81.9,
+      "parts": "wing0R"
+     },
+     {
+      "m": 81.9,
+      "parts": "wing0L"
+     },
+     {
+      "m": 68.6,
+      "parts": "body"
+     },
+     {
+      "m": 68.6,
+      "parts": "body"
+     },
+     {
+      "m": 48.5,
+      "parts": "body"
+     },
+     {
+      "m": 20.1,
+      "parts": "eng"
+     },
+     {
+      "m": 20.1,
+      "parts": "eng"
+     },
+     {
+      "m": 15.9,
+      "parts": "body"
+     },
+     {
+      "m": 15.9,
+      "parts": "body"
+     },
+     {
+      "m": 14.5,
+      "parts": "body"
+     },
+     {
+      "m": 14.5,
+      "parts": "body"
+     },
+     {
+      "m": 12.2,
+      "parts": "body"
+     },
+     {
+      "m": 12.2,
+      "parts": "body"
+     },
+     {
+      "m": 9.1,
+      "parts": "gearL"
+     },
+     {
+      "m": 9.1,
+      "parts": "gearR"
+     },
+     {
+      "m": 8.2,
+      "parts": "stab"
+     },
+     {
+      "m": 8,
+      "parts": "tw"
+     },
+     {
+      "m": 7.8,
+      "parts": "fin"
+     },
+     {
+      "m": 5.6,
+      "parts": "stab"
+     },
+     {
+      "m": 0.7,
+      "parts": "stab"
+     },
+     {
+      "m": 0.7,
+      "parts": "stab"
+     }
+    ],
+    "crashed": true,
+    "reason": "broke up: the fuselage parted (TPB off the core)",
+    "plausible": true
+   },
+   "after": {
+    "broken": 154,
+    "bySec": {
+     "engines": 13,
+     "wings": 24,
+     "gear": 15,
+     "bracing": 12,
+     "fuselage": 48,
+     "vessel": 7,
+     "tail": 35
+    },
+    "setBySec": {
+     "fuselage": 6,
+     "wings": 27,
+     "bracing": 28,
+     "tail": 34
+    },
+    "work": 59302.43097118026,
+    "off": [
+     {
+      "m": 198.9,
+      "parts": "eng"
+     },
+     {
+      "m": 162.9,
+      "parts": "body+stab"
+     },
+     {
+      "m": 81.9,
+      "parts": "wing0R"
+     },
+     {
+      "m": 81.9,
+      "parts": "wing0L"
+     },
+     {
+      "m": 75.2,
+      "parts": "body"
+     },
+     {
+      "m": 68.6,
+      "parts": "body"
+     },
+     {
+      "m": 68.6,
+      "parts": "body"
+     },
+     {
+      "m": 20.1,
+      "parts": "eng"
+     },
+     {
+      "m": 20.1,
+      "parts": "eng"
+     },
+     {
+      "m": 9.1,
+      "parts": "gearL"
+     },
+     {
+      "m": 9.1,
+      "parts": "gearR"
+     },
+     {
+      "m": 8,
+      "parts": "tw"
+     },
+     {
+      "m": 7.8,
+      "parts": "fin"
+     }
+    ],
+    "crashed": true,
+    "reason": "broke up: the fuselage parted (TPB off the core)",
+    "gPeak": 25.406423099650432,
+    "prop": true,
+    "plausible": true
+   },
+   "physics": {
+    "broken": 83,
+    "bySec": {
+     "engines": 13,
+     "fuselage": 3,
+     "vessel": 5,
+     "wings": 7,
+     "tail": 53,
+     "bracing": 2
+    },
+    "work": 87902.25266399629,
+    "off": [
+     {
+      "m": 198.9,
+      "parts": "eng"
+     },
+     {
+      "m": 7.8,
+      "parts": "fin"
+     },
+     {
+      "m": 7.6,
+      "parts": "stab"
+     },
+     {
+      "m": 7.6,
+      "parts": "stab"
+     }
+    ]
+   }
+  },
+  {
+   "k": "metal",
+   "id": "trunk25",
+   "ref": "A wing meets a tree 2.5 m out at 58 kt: that wing is cut or torn - at the trunk, or at its strut / root fitting - and the aeroplane slews round the tree and meets the ground. That wing and the strut or bracing near it break; the gear, a wing tip, the propeller may take the ground. The engine stays on, the tail stays on, the far wing is not shredded.",
+   "src": "NTSB wing-strike reports (\"the left wing struck a tree and separated outboard of the lift strut attach\") - as recalled; DEFORM §7.4 \"tree at speed\" row",
+   "before": {
+    "broken": 44,
+    "bySec": {
+     "wings": 6,
+     "bracing": 6,
+     "gear": 15,
+     "engines": 10,
+     "fuselage": 6,
+     "vessel": 1
+    },
+    "work": 18583.44195149997,
+    "off": [
+     {
+      "m": 239.1,
+      "parts": "eng"
+     },
+     {
+      "m": 46.6,
+      "parts": "wing0L"
+     },
+     {
+      "m": 9.1,
+      "parts": "gearL"
+     },
+     {
+      "m": 9.1,
+      "parts": "gearR"
+     },
+     {
+      "m": 8,
+      "parts": "tw"
+     }
+    ],
+    "crashed": true,
+    "reason": "a wing member broke",
+    "plausible": false
+   },
+   "after": {
+    "broken": 28,
+    "bySec": {
+     "wings": 7,
+     "bracing": 6,
+     "gear": 15
+    },
+    "setBySec": {
+     "engines": 4,
+     "wings": 26,
+     "bracing": 6,
+     "vessel": 4
+    },
+    "work": 16945.491924411293,
+    "off": [
+     {
+      "m": 46.6,
+      "parts": "wing0L"
+     },
+     {
+      "m": 9.1,
+      "parts": "gearL"
+     },
+     {
+      "m": 9.1,
+      "parts": "gearR"
+     },
+     {
+      "m": 8,
+      "parts": "tw"
+     }
+    ],
+    "crashed": true,
+    "reason": "a wing member broke",
+    "gPeak": 5.908191834570804,
+    "prop": true,
+    "plausible": true
+   },
+   "physics": {
+    "broken": 11,
+    "bySec": {
+     "bracing": 6,
+     "wings": 5
+    },
+    "work": 17334.076693163417,
+    "off": [
+     {
+      "m": 46.6,
+      "parts": "wing0L"
+     }
+    ]
+   }
+  },
+  {
+   "k": "metal",
+   "id": "hard",
+   "ref": "A touchdown at 1.5 x the gear's limit sink (FAR 23.473's V, as recalled), no lift: past FAR 23.727's reserve (1.2 V, no failure). The gear may yield (a spread spring-steel leg, a bottomed oleo, a stretched bungee) or break at a lug; the airframe takes no set; a tricycle may strike its propeller.",
+   "src": "FAR 23.473 / 23.725 / 23.727 (as recalled); NASA 172 Test 1 breaks the gear at ~7 m/s (DEFORM §7.3)",
+   "before": {
+    "broken": 0,
+    "bySec": {},
+    "work": 2.438317636118163,
+    "off": [],
+    "crashed": false,
+    "reason": null,
+    "plausible": true
+   },
+   "after": {
+    "broken": 0,
+    "bySec": {},
+    "setBySec": {
+     "gear": 1
+    },
+    "work": 2.438317636118163,
+    "off": [],
+    "crashed": false,
+    "reason": null,
+    "gPeak": 4.8790027582999,
+    "prop": true,
+    "plausible": true
+   },
+   "physics": {
+    "broken": 0,
+    "bySec": {},
+    "work": 0,
+    "off": []
+   }
+  },
+  {
+   "k": "floats",
+   "id": "trunk0",
+   "ref": "Into a tree on the centreline at 58 kt: the trunk stops the nose - the engine is driven back or torn from its mount, the firewall and cabin crush, the wings may tear off at their roots by their own inertia, the tail may separate. A non-survivable-class impact: a great deal breaks. The point here is only that it CRASHES and comes apart at its joints.",
+   "src": "NTSB tree-collision reports (\"both wings separated, the engine displaced aft\") - as recalled; NASA Langley GA crash tests (TP-1042, TP-1477, TP-1699: high-wing singles at ~25-27 m/s into soil, the engine bay and firewall crushed; NASA 20160006503 for the 172) - as recalled via DEFORM §7.1",
+   "before": {
+    "broken": 189,
+    "bySec": {
+     "engines": 13,
+     "gear": 20,
+     "wings": 23,
+     "bracing": 12,
+     "fuselage": 36,
+     "vessel": 7,
+     "tail": 78
+    },
+    "work": 40415.50007653433,
+    "off": [
+     {
+      "m": 198.9,
+      "parts": "eng"
+     },
+     {
+      "m": 194.6,
+      "parts": "body"
+     },
+     {
+      "m": 78.5,
+      "parts": "wing0R"
+     },
+     {
+      "m": 78.5,
+      "parts": "wing0L"
+     },
+     {
+      "m": 75,
+      "parts": "body"
+     },
+     {
+      "m": 69.8,
+      "parts": "body"
+     },
+     {
+      "m": 40.3,
+      "parts": "floatL"
+     },
+     {
+      "m": 40.3,
+      "parts": "floatR"
+     },
+     {
+      "m": 19.4,
+      "parts": "eng"
+     },
+     {
+      "m": 19.4,
+      "parts": "eng"
+     },
+     {
+      "m": 18.9,
+      "parts": "body"
+     },
+     {
+      "m": 18.9,
+      "parts": "body"
+     },
+     {
+      "m": 8,
+      "parts": "fin"
+     },
+     {
+      "m": 7.8,
+      "parts": "stab"
+     },
+     {
+      "m": 7.8,
+      "parts": "stab"
+     }
+    ],
+    "crashed": true,
+    "reason": "broke up: the fuselage parted (S0BR off the core)",
+    "plausible": true
+   },
+   "after": {
+    "broken": 167,
+    "bySec": {
+     "engines": 13,
+     "gear": 20,
+     "wings": 24,
+     "bracing": 14,
+     "fuselage": 34,
+     "tail": 55,
+     "vessel": 7
+    },
+    "setBySec": {
+     "fuselage": 12,
+     "wings": 32,
+     "bracing": 38,
+     "tail": 21,
+     "vessel": 1
+    },
+    "work": 51809.38755367984,
+    "off": [
+     {
+      "m": 198.9,
+      "parts": "eng"
+     },
+     {
+      "m": 78.5,
+      "parts": "wing0R"
+     },
+     {
+      "m": 78.5,
+      "parts": "wing0L"
+     },
+     {
+      "m": 40.3,
+      "parts": "floatL"
+     },
+     {
+      "m": 40.3,
+      "parts": "floatR"
+     },
+     {
+      "m": 19.4,
+      "parts": "eng"
+     },
+     {
+      "m": 19.4,
+      "parts": "eng"
+     },
+     {
+      "m": 15.6,
+      "parts": "stab"
+     },
+     {
+      "m": 8.4,
+      "parts": "fin"
+     }
+    ],
+    "crashed": true,
+    "reason": "the airframe crushed (2.4 kJ of plastic work)",
+    "gPeak": 26.99002284203098,
+    "prop": true,
+    "plausible": true
+   },
+   "physics": {
+    "broken": 49,
+    "bySec": {
+     "engines": 13,
+     "gear": 1,
+     "tail": 24,
+     "vessel": 5,
+     "fuselage": 2,
+     "wings": 2,
+     "bracing": 2
+    },
+    "work": 75770.64085521546,
+    "off": [
+     {
+      "m": 198.9,
+      "parts": "eng"
+     },
+     {
+      "m": 19.4,
+      "parts": "eng"
+     },
+     {
+      "m": 19.4,
+      "parts": "eng"
+     },
+     {
+      "m": 8.4,
+      "parts": "fin"
+     }
+    ]
+   }
+  },
+  {
+   "k": "floats",
+   "id": "trunk25",
+   "ref": "A wing meets a tree 2.5 m out at 58 kt: that wing is cut or torn - at the trunk, or at its strut / root fitting - and the aeroplane slews round the tree and meets the ground. That wing and the strut or bracing near it break; the gear, a wing tip, the propeller may take the ground. The engine stays on, the tail stays on, the far wing is not shredded.",
+   "src": "NTSB wing-strike reports (\"the left wing struck a tree and separated outboard of the lift strut attach\") - as recalled; DEFORM §7.4 \"tree at speed\" row",
+   "before": {
+    "broken": 10,
+    "bySec": {
+     "wings": 4,
+     "bracing": 6
+    },
+    "work": 10926.77255240346,
+    "off": [
+     {
+      "m": 47.6,
+      "parts": "wing0L"
+     }
+    ],
+    "crashed": true,
+    "reason": "an impact of 9 g",
+    "plausible": true
+   },
+   "after": {
+    "broken": 10,
+    "bySec": {
+     "wings": 4,
+     "bracing": 6
+    },
+    "setBySec": {
+     "engines": 2,
+     "wings": 23,
+     "bracing": 11
+    },
+    "work": 10938.91414291121,
+    "off": [
+     {
+      "m": 47.6,
+      "parts": "wing0L"
+     }
+    ],
+    "crashed": true,
+    "reason": "an impact of 9 g",
+    "gPeak": 10.654550939715188,
+    "prop": false,
+    "plausible": true
+   },
+   "physics": {
+    "broken": 10,
+    "bySec": {
+     "bracing": 6,
+     "wings": 4
+    },
+    "work": 7205.631290893425,
+    "off": [
+     {
+      "m": 47.6,
+      "parts": "wing0L"
+     }
+    ]
+   }
+  },
+  {
+   "k": "floats",
+   "id": "hard",
+   "ref": "A touchdown at 1.5 x the gear's limit sink (FAR 23.473's V, as recalled), no lift: past FAR 23.727's reserve (1.2 V, no failure). The gear may yield (a spread spring-steel leg, a bottomed oleo, a stretched bungee) or break at a lug; the airframe takes no set; a tricycle may strike its propeller.",
+   "src": "FAR 23.473 / 23.725 / 23.727 (as recalled); NASA 172 Test 1 breaks the gear at ~7 m/s (DEFORM §7.3)",
+   "before": {
+    "broken": 0,
+    "bySec": {},
+    "work": 225.67491193795144,
+    "off": [],
+    "crashed": false,
+    "reason": null,
+    "plausible": true
+   },
+   "after": {
+    "broken": 0,
+    "bySec": {},
+    "setBySec": {
+     "engines": 2
+    },
+    "work": 225.67491193795144,
+    "off": [],
+    "crashed": false,
+    "reason": null,
+    "gPeak": 4.482718991303566,
+    "prop": false,
+    "plausible": true
+   },
+   "physics": {
+    "broken": 0,
+    "bySec": {},
+    "work": 225.67491193795144,
+    "off": []
+   }
+  },
+  {
+   "k": "floats",
+   "id": "digin",
+   "ref": "A float bow digs in on landing: a water loop or cartwheel, a wing into the water, the float struts' fittings fail in overload, it capsizes. The engine stays on its mount.",
+   "src": "NTSB ANC19FA035, TSB A18A0053 (as recalled, via DEFORM §7.4)",
+   "before": {
+    "broken": 11,
+    "bySec": {
+     "engines": 11
+    },
+    "work": 3714.671250789977,
+    "off": [
+     {
+      "m": 237.7,
+      "parts": "eng"
+     }
+    ],
+    "crashed": true,
+    "reason": "a fus member broke",
+    "plausible": false
+   },
+   "after": {
+    "broken": 2,
+    "bySec": {
+     "gear": 2
+    },
+    "setBySec": {
+     "engines": 2,
+     "wings": 8,
+     "bracing": 7,
+     "vessel": 1
+    },
+    "work": 102.54089257721895,
+    "off": [],
+    "crashed": true,
+    "reason": "a gear member broke",
+    "gPeak": 8.969103740689826,
+    "prop": true,
+    "plausible": true
+   },
+   "physics": {
+    "broken": 0,
+    "bySec": {},
+    "work": 19.908957851101906,
+    "off": []
+   }
+  },
+  {
+   "k": "twinFloats",
+   "id": "trunk0",
+   "ref": "Into a tree on the centreline at 58 kt: the trunk stops the nose - the engine is driven back or torn from its mount, the firewall and cabin crush, the wings may tear off at their roots by their own inertia, the tail may separate. A non-survivable-class impact: a great deal breaks. The point here is only that it CRASHES and comes apart at its joints.",
+   "src": "NTSB tree-collision reports (\"both wings separated, the engine displaced aft\") - as recalled; NASA Langley GA crash tests (TP-1042, TP-1477, TP-1699: high-wing singles at ~25-27 m/s into soil, the engine bay and firewall crushed; NASA 20160006503 for the 172) - as recalled via DEFORM §7.1",
+   "before": {
+    "broken": 208,
+    "bySec": {
+     "vessel": 7,
+     "fuselage": 43,
+     "gear": 20,
+     "engines": 24,
+     "wings": 23,
+     "bracing": 12,
+     "tail": 79
+    },
+    "work": 37567.37834328005,
+    "off": [
+     {
+      "m": 81.7,
+      "parts": "body"
+     },
+     {
+      "m": 60.6,
+      "parts": "engL"
+     },
+     {
+      "m": 60.6,
+      "parts": "engR"
+     },
+     {
+      "m": 47,
+      "parts": "wing0R"
+     },
+     {
+      "m": 47,
+      "parts": "wing0L"
+     },
+     {
+      "m": 28.4,
+      "parts": "floatL"
+     },
+     {
+      "m": 28.4,
+      "parts": "floatR"
+     },
+     {
+      "m": 11.6,
+      "parts": "body"
+     },
+     {
+      "m": 10.5,
+      "parts": "stab"
+     },
+     {
+      "m": 6.5,
+      "parts": "fin"
+     },
+     {
+      "m": 5.4,
+      "parts": "body"
+     }
+    ],
+    "crashed": true,
+    "reason": "broke up: the fuselage parted (TPB off the core)",
+    "plausible": true
+   },
+   "after": {
+    "broken": 89,
+    "bySec": {
+     "vessel": 5,
+     "fuselage": 40,
+     "gear": 11,
+     "wings": 27,
+     "engines": 4,
+     "bracing": 2
+    },
+    "setBySec": {
+     "fuselage": 20,
+     "wings": 14,
+     "bracing": 5,
+     "engines": 12,
+     "gear": 2,
+     "vessel": 2
+    },
+    "work": 49609.62308796347,
+    "off": [
+     {
+      "m": 28.9,
+      "parts": "body+fin+stab"
+     }
+    ],
+    "crashed": true,
+    "reason": "broke up: the fuselage parted (TPB off the core)",
+    "gPeak": 14.40871136487414,
+    "prop": true,
+    "plausible": true
+   },
+   "physics": {
+    "broken": 55,
+    "bySec": {
+     "vessel": 5,
+     "fuselage": 40,
+     "gear": 4,
+     "wings": 6
+    },
+    "work": 47665.948690181285,
+    "off": [
+     {
+      "m": 28.9,
+      "parts": "body+fin+stab"
+     }
+    ]
+   }
+  },
+  {
+   "k": "twinFloats",
+   "id": "trunk25",
+   "ref": "A wing meets a tree 2.5 m out at 58 kt: that wing is cut or torn - at the trunk, or at its strut / root fitting - and the aeroplane slews round the tree and meets the ground. That wing and the strut or bracing near it break; the gear, a wing tip, the propeller may take the ground. The engine stays on, the tail stays on, the far wing is not shredded.",
+   "src": "NTSB wing-strike reports (\"the left wing struck a tree and separated outboard of the lift strut attach\") - as recalled; DEFORM §7.4 \"tree at speed\" row",
+   "before": {
+    "broken": 136,
+    "bySec": {
+     "wings": 14,
+     "engines": 25,
+     "bracing": 12,
+     "fuselage": 22,
+     "gear": 20,
+     "tail": 35,
+     "vessel": 8
+    },
+    "work": 11074.922266553398,
+    "off": [
+     {
+      "m": 60.6,
+      "parts": "engL"
+     },
+     {
+      "m": 59.2,
+      "parts": "engR"
+     },
+     {
+      "m": 28.4,
+      "parts": "floatL"
+     },
+     {
+      "m": 28.4,
+      "parts": "floatR"
+     },
+     {
+      "m": 23.9,
+      "parts": "wing0L"
+     },
+     {
+      "m": 18.4,
+      "parts": "body+fin"
+     },
+     {
+      "m": 17.5,
+      "parts": "body"
+     },
+     {
+      "m": 10.5,
+      "parts": "stab"
+     },
+     {
+      "m": 5.1,
+      "parts": "wing0R"
+     },
+     {
+      "m": 1.4,
+      "parts": "engR"
+     }
+    ],
+    "crashed": true,
+    "reason": "broke up: the fuselage parted (TPB off the core)",
+    "plausible": false
+   },
+   "after": {
+    "broken": 78,
+    "bySec": {
+     "wings": 17,
+     "bracing": 8,
+     "fuselage": 17,
+     "gear": 20,
+     "engines": 15,
+     "vessel": 1
+    },
+    "setBySec": {
+     "fuselage": 12,
+     "wings": 15,
+     "bracing": 3,
+     "engines": 5,
+     "vessel": 2
+    },
+    "work": 18319.90819826104,
+    "off": [
+     {
+      "m": 60.6,
+      "parts": "engL"
+     },
+     {
+      "m": 28.9,
+      "parts": "body+fin+stab"
+     },
+     {
+      "m": 28.4,
+      "parts": "floatL"
+     },
+     {
+      "m": 28.4,
+      "parts": "floatR"
+     },
+     {
+      "m": 23.9,
+      "parts": "wing0L"
+     }
+    ],
+    "crashed": true,
+    "reason": "broke up: the fuselage parted (TPB off the core)",
+    "gPeak": 5.894083431862016,
+    "prop": true,
+    "plausible": false
+   },
+   "physics": {
+    "broken": 22,
+    "bySec": {
+     "wings": 4,
+     "bracing": 6,
+     "fuselage": 10,
+     "engines": 2
+    },
+    "work": 12204.035056352179,
+    "off": [
+     {
+      "m": 28.9,
+      "parts": "body+fin+stab"
+     },
+     {
+      "m": 23.9,
+      "parts": "wing0L"
+     }
+    ]
+   }
+  },
+  {
+   "k": "twinFloats",
+   "id": "hard",
+   "ref": "A touchdown at 1.5 x the gear's limit sink (FAR 23.473's V, as recalled), no lift: past FAR 23.727's reserve (1.2 V, no failure). The gear may yield (a spread spring-steel leg, a bottomed oleo, a stretched bungee) or break at a lug; the airframe takes no set; a tricycle may strike its propeller.",
+   "src": "FAR 23.473 / 23.725 / 23.727 (as recalled); NASA 172 Test 1 breaks the gear at ~7 m/s (DEFORM §7.3)",
+   "before": {
+    "broken": 0,
+    "bySec": {},
+    "work": 0,
+    "off": [],
+    "crashed": false,
+    "reason": null,
+    "plausible": true
+   },
+   "after": {
+    "broken": 0,
+    "bySec": {},
+    "setBySec": {},
+    "work": 0,
+    "off": [],
+    "crashed": false,
+    "reason": null,
+    "gPeak": 3.8262125503028663,
+    "prop": false,
+    "plausible": true
+   },
+   "physics": {
+    "broken": 0,
+    "bySec": {},
+    "work": 0,
+    "off": []
+   }
+  },
+  {
+   "k": "twinFloats",
+   "id": "digin",
+   "ref": "A float bow digs in on landing: a water loop or cartwheel, a wing into the water, the float struts' fittings fail in overload, it capsizes. The engine stays on its mount.",
+   "src": "NTSB ANC19FA035, TSB A18A0053 (as recalled, via DEFORM §7.4)",
+   "before": {
+    "broken": 179,
+    "bySec": {
+     "fuselage": 35,
+     "engines": 26,
+     "gear": 20,
+     "wings": 26,
+     "vessel": 8,
+     "bracing": 12,
+     "tail": 52
+    },
+    "work": 7292.528728648307,
+    "off": [
+     {
+      "m": 96.6,
+      "parts": "body"
+     },
+     {
+      "m": 47,
+      "parts": "wing0L"
+     },
+     {
+      "m": 46.4,
+      "parts": "engL"
+     },
+     {
+      "m": 46.4,
+      "parts": "engR"
+     },
+     {
+      "m": 42.2,
+      "parts": "wing0R"
+     },
+     {
+      "m": 28.4,
+      "parts": "floatL"
+     },
+     {
+      "m": 28.4,
+      "parts": "floatR"
+     },
+     {
+      "m": 24.6,
+      "parts": "body"
+     },
+     {
+      "m": 14.2,
+      "parts": "engL"
+     },
+     {
+      "m": 14.2,
+      "parts": "engR"
+     },
+     {
+      "m": 11.6,
+      "parts": "body"
+     },
+     {
+      "m": 10.5,
+      "parts": "stab"
+     },
+     {
+      "m": 8.7,
+      "parts": "body"
+     },
+     {
+      "m": 6.7,
+      "parts": "fin"
+     },
+     {
+      "m": 4.8,
+      "parts": "wing0R"
+     }
+    ],
+    "crashed": true,
+    "reason": "broke up: the fuselage parted (TPB off the core)",
+    "plausible": false
+   },
+   "after": {
+    "broken": 80,
+    "bySec": {
+     "fuselage": 20,
+     "gear": 20,
+     "vessel": 3,
+     "wings": 24,
+     "bracing": 8,
+     "engines": 5
+    },
+    "setBySec": {
+     "fuselage": 3,
+     "wings": 23,
+     "bracing": 4,
+     "engines": 15,
+     "vessel": 3
+    },
+    "work": 8958.676919985746,
+    "off": [
+     {
+      "m": 28.9,
+      "parts": "body+fin+stab"
+     },
+     {
+      "m": 28.4,
+      "parts": "floatL"
+     },
+     {
+      "m": 28.4,
+      "parts": "floatR"
+     }
+    ],
+    "crashed": true,
+    "reason": "broke up: the fuselage parted (TPB off the core)",
+    "gPeak": 24.78749544086379,
+    "prop": true,
+    "plausible": true
+   },
+   "physics": {
+    "broken": 12,
+    "bySec": {
+     "fuselage": 10,
+     "engines": 2
+    },
+    "work": 3705.4507653181795,
+    "off": [
+     {
+      "m": 28.9,
+      "parts": "body+fin+stab"
+     }
+    ]
+   }
+  }
+ ]
+}

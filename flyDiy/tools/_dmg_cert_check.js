@@ -61,7 +61,7 @@ if (argv[0] === '--build') {
     withPhys++;
     if (!(Number.isFinite(cert.Ft[i]) && Number.isFinite(cert.Fc[i]))) noEnv++;
     if (b.fy0 > p.fy0 * (1 + 1e-9) || b.fu > p.fu * (1 + 1e-9) || b.fc0 > p.fc0 * (1 + 1e-9)) overPhys++;
-    const kap = C.GEN_CERT.kappa;
+    const kap = (sim.damageCaps().KAP || [])[i] || C.GEN_CERT.kappa;   // G1895 (DMG-TUNE): the wing's floor or the body's
     if (b.fu > kap * p.fu * (1 + 1e-9)) govT++; else floorT++;
     if (!b.tens) { if (b.fc0 > kap * p.fc0 * (1 + 1e-9)) govC++; else floorC++; }
   }

@@ -1,0 +1,46 @@
+cub        taxi      cert broken   0 work   0.72 kJ {} off: 
+cub        taxi      phys broken   0 work   0.73 kJ {} off: 
+cub        noseover  cert broken  50 work   3.89 kJ {"gear":1,"fuselage":7,"tail":40,"vessel":2} off: 
+cub        noseover  phys broken  39 work   3.66 kJ {"gear":1,"fuselage":4,"tail":34} off: 
+cub        trunk0    cert broken 177 work  23.71 kJ {"engines":13,"vessel":9,"wings":24,"fuselage":47,"bracing":12,"tail":57,"gear":15} off: eng 90.4; body+fin 45.4; wing0R 42.7; wing0L 42.7; body 41.7; body 41.7; body 22.5; body 18.7; body 18.7; stab 11.8; eng 10.7; eng 10.7; body 9.8; body 9.8; body 8.4; body 8.4; gearL 7.8; gearR 7.8; tw 4
+cub        trunk0    phys broken  83 work  46.01 kJ {"engines":13,"vessel":7,"fuselage":15,"wings":15,"tail":33} off: eng 90.4; eng 10.7; eng 10.7
+cub        trunk25   cert broken 118 work  13.46 kJ {"wings":20,"bracing":12,"vessel":8,"engines":11,"fuselage":18,"tail":44,"gear":5} off: eng 111.7; wing0L 22.1; wing0L 20.6; body 18.7; gearR 7.8
+cub        trunk25   phys broken  17 work  13.38 kJ {"wings":4,"bracing":6,"fuselage":6,"vessel":1} off: wing0L 20.6
+cub        hard      cert broken   0 work   0.00 kJ {} off: 
+cub        hard      phys broken   0 work   0.00 kJ {} off: 
+jodel      taxi      cert broken   0 work   0.77 kJ {} off: 
+jodel      taxi      phys broken   0 work   0.72 kJ {} off: 
+jodel      noseover  cert broken  97 work   2.74 kJ {"gear":15,"fuselage":10,"tail":50,"engines":10,"bracing":10,"vessel":2} off: eng 111.3; stab 12.9; gearL 7.1; gearR 7.1; fin 5.3; tw 3.7
+jodel      noseover  phys broken   1 work   1.67 kJ {"gear":1} off: 
+jodel      trunk0    cert broken 197 work  28.99 kJ {"engines":13,"wings":26,"bracing":7,"vessel":9,"fuselage":39,"gear":15,"tail":88} off: eng 90.4; wing0R 46.7; wing0L 46.7; body 38.2; body 35.6; body 29.7; body 29.7; body 18.7; body 18.7; stab 12.9; eng 10.5; eng 10.5; body 8; body 8; gearL 7.1; gearR 7.1; fin 5.3; tw 3.7
+jodel      trunk0    phys broken 103 work  14.22 kJ {"engines":13,"vessel":5,"fuselage":4,"wings":26,"bracing":4,"tail":51} off: eng 90.4; wing0R 46.7; wing0L 46.7; eng 10.5; eng 10.5; fin 5.3
+jodel      trunk25   cert broken 153 work   4.22 kJ {"bracing":38,"wings":28,"engines":10,"gear":15,"tail":53,"vessel":6,"fuselage":3} off: eng 111.3; wing0L 46.7; body 18.7; stab 12.9; gearL 7.1; gearR 7.1; fin 5.3; tw 3.7
+jodel      trunk25   phys broken  16 work   0.51 kJ {"tail":16} off: fin 5.3
+jodel      hard      cert broken   0 work   0.00 kJ {} off: 
+jodel      hard      phys broken   0 work   0.00 kJ {} off: 
+metal      taxi      cert broken   1 work   2.70 kJ {"engines":1} off: 
+metal      taxi      phys broken   1 work   2.70 kJ {"engines":1} off: 
+metal      noseover  cert broken  35 work   4.02 kJ {"engines":10,"gear":7,"vessel":2,"tail":16} off: eng 239.1; tw 8; fin 7.8
+metal      noseover  phys broken   1 work   3.20 kJ {"gear":1} off: 
+metal      trunk0    cert broken 213 work  47.69 kJ {"engines":13,"wings":24,"gear":15,"bracing":12,"fuselage":53,"vessel":9,"tail":87} off: eng 198.9; body 115.8; wing0R 81.9; wing0L 81.9; body 68.6; body 68.6; body 48.5; eng 20.1; eng 20.1; body 15.9; body 15.9; body 14.5; body 14.5; body 12.2; body 12.2; gearL 9.1; gearR 9.1; stab 8.2; tw 8; fin 7.8; stab 5.6; stab 0.7; stab 0.7
+metal      trunk0    phys broken 109 work  56.21 kJ {"engines":13,"fuselage":3,"vessel":5,"wings":26,"tail":50,"bracing":12} off: eng 198.9; wing0R 72.5; wing0L 72.5; stab 15.3; wing0R 9.3; wing0L 9.3; fin 7.8
+metal      trunk25   cert broken  44 work  18.58 kJ {"wings":6,"bracing":6,"gear":15,"engines":10,"fuselage":6,"vessel":1} off: eng 239.1; wing0L 46.6; gearL 9.1; gearR 9.1; tw 8
+metal      trunk25   phys broken  11 work  17.34 kJ {"bracing":6,"wings":5} off: wing0L 46.6
+metal      hard      cert broken   0 work   0.00 kJ {} off: 
+metal      hard      phys broken   0 work   0.00 kJ {} off: 
+floats     trunk0    cert broken 189 work  40.42 kJ {"engines":13,"gear":20,"wings":23,"bracing":12,"fuselage":36,"vessel":7,"tail":78} off: eng 198.9; body 194.6; wing0R 78.5; wing0L 78.5; body 75; body 69.8; floatL 40.3; floatR 40.3; eng 19.4; eng 19.4; body 18.9; body 18.9; fin 8; stab 7.8; stab 7.8
+floats     trunk0    phys broken  85 work  70.18 kJ {"engines":13,"gear":1,"tail":50,"vessel":5,"fuselage":2,"wings":2,"bracing":12} off: eng 198.9; eng 19.4; eng 19.4; stab 15.6; fin 8.4
+floats     trunk25   cert broken  10 work  10.93 kJ {"wings":4,"bracing":6} off: wing0L 47.6
+floats     trunk25   phys broken  10 work   7.16 kJ {"bracing":6,"wings":4} off: wing0L 47.6
+floats     hard      cert broken   0 work   0.23 kJ {} off: 
+floats     hard      phys broken   0 work   0.23 kJ {} off: 
+floats     digin     cert broken  11 work   3.71 kJ {"engines":11} off: eng 237.7
+floats     digin     phys broken   0 work   0.02 kJ {} off: 
+twinFloats trunk0    cert broken 208 work  37.57 kJ {"vessel":7,"fuselage":43,"gear":20,"engines":24,"wings":23,"bracing":12,"tail":79} off: body 81.7; engL 60.6; engR 60.6; wing0R 47; wing0L 47; floatL 28.4; floatR 28.4; body 11.6; stab 10.5; fin 6.5; body 5.4
+twinFloats trunk0    phys broken  67 work  47.18 kJ {"vessel":5,"fuselage":38,"gear":4,"wings":20} off: body+engR+floatR+wing0R 223.2; body+fin+stab 28.9
+twinFloats trunk25   cert broken 136 work  11.07 kJ {"wings":14,"engines":25,"bracing":12,"fuselage":22,"gear":20,"tail":35,"vessel":8} off: engL 60.6; engR 59.2; floatL 28.4; floatR 28.4; wing0L 23.9; body+fin 18.4; body 17.5; stab 10.5; wing0R 5.1; engR 1.4
+twinFloats trunk25   phys broken  20 work  11.83 kJ {"wings":4,"bracing":6,"fuselage":10} off: body+fin+stab 28.9; wing0L 23.9
+twinFloats hard      cert broken   0 work   0.00 kJ {} off: 
+twinFloats hard      phys broken   0 work   0.00 kJ {} off: 
+twinFloats digin     cert broken 179 work   7.29 kJ {"fuselage":35,"engines":26,"gear":20,"wings":26,"vessel":8,"bracing":12,"tail":52} off: body 96.6; wing0L 47; engL 46.4; engR 46.4; wing0R 42.2; floatL 28.4; floatR 28.4; body 24.6; engL 14.2; engR 14.2; body 11.6; stab 10.5; body 8.7; fin 6.7; wing0R 4.8
+twinFloats digin     phys broken  34 work   3.20 kJ {"fuselage":10,"engines":24} off: engL 60.6; engR 60.6; body+fin+stab 28.9

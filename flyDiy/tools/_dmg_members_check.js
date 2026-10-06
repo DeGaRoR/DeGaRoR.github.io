@@ -68,6 +68,25 @@ if (argv[0] === '--build') {
   });
   const links = [...new Set(D.groups.flatMap(G => G.t1))];
   out.links = links.map(bi => { sim.reset(0); sim.damageBreak(bi); const X = sim.damage(); return X.broken.length === 1 && X.groups.length === 0; });
+  // 2b. G1894 (DMG-TUNE): THE RELEASE RULE (GEN_DMG_GROUP) - one member kinked: a group of several does not let go; its
+  // members severed one by one (the weakest first): it lets go exactly when the severed carry `rel` of its capacity
+  out.release = D.groups.map(G => {
+    sim.reset(0); const cap0 = G.t0.reduce((a, j) => a + sim.beams[j].fu, 0), strongest = G.t0.reduce((a, j) => sim.beams[j].fu > sim.beams[a].fu ? j : a, G.t0[0]);
+    sim.damageBreak(G.t0.length > 1 && sim.beams[strongest].fu < C.GEN_DMG_GROUP.rel * cap0 ? strongest : -1, 'kink');
+    const kinkRel = sim.damage().groups.length;
+    sim.reset(0);
+    const fu = j => sim.beams[j].fu, cap = G.t0.reduce((a, j) => a + fu(j), 0), ord = G.t0.slice().sort((x, y) => fu(x) - fu(y));
+    let lost = 0, at = -1, early = false;
+    for (let q = 0; q < ord.length; q++) {
+      const before = sim.damage().groups.length;
+      if (sim.beams[ord[q]].broken) break;
+      sim.damageBreak(ord[q], 'tension'); lost += fu(ord[q]);
+      const now = sim.damage().groups.length;
+      if (now > before) { at = q; early = lost < C.GEN_DMG_GROUP.rel * cap * (1 - 1e-9); break; }
+    }
+    const want = ord.reduce((a, j, q) => (a.q < 0 && (a.s += fu(j)) >= C.GEN_DMG_GROUP.rel * cap * (1 - 1e-9) ? { s: a.s, q } : a), { s: 0, q: -1 }).q;
+    return { key: G.key, n0: G.t0.length, kinkRel, at, want, ok: kinkRel === 0 && at === want && !early };
+  });
   sim.reset(0);
   // 3. Euler: the table by class, and which members it caps
   const eu = {}; let capOff = 0;
@@ -156,6 +175,9 @@ const f2 = x => (x == null ? '-' : (+x).toFixed(2)), rg = a => (a ? f2(a[0]) + '
     const nc = r.closed.filter(c => !c.ok);
     yes(nc.length === 0, 'one member of each group broken in the solver breaks exactly its group' + (nc.length ? ': ' + nc.map(c => c.key + ' ' + c.broke + '/' + c.want + (c.chained ? ' +' + c.chained + ' chained' : '')).join(', ') : ''));
     yes(r.links.every(Boolean), 'a pair\'s own link broken alone breaks nothing else (' + r.links.length + ' links)');
+    { const bad = r.release.filter(x => !x.ok);
+      yes(bad.length === 0, 'G1894 the release rule: one member kinked lets no group of several go; severed one by one (the weakest first) a group lets go at the member that takes the severed past ' + (1 / 3).toFixed(2) + ' of its capacity - '
+        + r.release.map(x => x.key + ' ' + (x.at + 1) + '/' + x.n0).join(', ') + (bad.length ? ' | WRONG: ' + bad.map(x => x.key + ' kink ' + x.kinkRel + ' at ' + x.at + ' want ' + x.want).join(', ') : '')); }
     console.log('3. Euler (G1812): Fc / (cy A) by class (L range; the smallest, the median; members capped)');
     for (const [kk, e] of Object.entries(r.euler.tab)) console.log('        ' + kk.padEnd(28) + String(e.n).padStart(4) + '  L ' + f2(e.Lmin) + '-' + f2(e.Lmax) + ' m  ' + f2(e.rmin) + ' / ' + f2(e.rmed) + '  capped ' + e.capped);
     yes(r.euler.capOff === 0, 'Euler caps the tube members only (the truss, the bearer, the cabane and interplane struts)');
@@ -180,8 +202,13 @@ const f2 = x => (x == null ? '-' : (+x).toFixed(2)), rg = a => (a ? f2(a[0]) + '
     console.log('8. the break order (G1816)');
     const bo = r.bench, fbOk = fb => fb && (fb.seam || fb.how === 'fold' || !fb.ductile);
     const fbTxt = fb => fb ? fb.cls + ' ' + fb.mat + (fb.seam ? ' ' + fb.seam : ' (no seam)') + ' (' + fb.how + ')' : 'none';
-    yes(bo.finite && bo.g0 && bo.g0.seam === 'fitting' && fbOk(bo.fb),
-      'the bench to destruction: first yield at ' + f2(bo.yAt) + ' g; the first member broken at ' + f2(bo.nAtB) + ' g: ' + fbTxt(bo.fb) + ' ' + (bo.fb ? bo.fb.tags : '') + '; the first GROUP at ' + f2(bo.nAtG) + ' g: ' + (bo.g0 ? bo.g0.key : 'none') + '; ' + bo.breaks + ' broken, groups ' + bo.groups.join(', '));
+    // (G1894, DMG-TUNE: a group lets go when a third of its strength is severed. On D1a's physics the Jodel's wing parts
+    // at its spruce carry-through first - a type-1 link of both roots, brittle - and its root fittings, unloaded once it
+    // has gone, no longer let go 0.3 g later as they did when ANY one of them took the group; that case reads as the
+    // root joint's own failure and is printed so)
+    const linkFirst = !bo.g0 && bo.fb && bo.fb.t1 && !bo.fb.ductile;
+    yes(bo.finite && ((bo.g0 && bo.g0.seam === 'fitting') || linkFirst) && fbOk(bo.fb),
+      (linkFirst ? '(no group let go: the wing parted at its root\'s own link, brittle) ' : '') + 'the bench to destruction: first yield at ' + f2(bo.yAt) + ' g; the first member broken at ' + f2(bo.nAtB) + ' g: ' + fbTxt(bo.fb) + ' ' + (bo.fb ? bo.fb.tags : '') + '; the first GROUP at ' + f2(bo.nAtG) + ' g: ' + (bo.g0 ? bo.g0.key : 'none') + '; ' + bo.breaks + ' broken, groups ' + bo.groups.join(', '));
     if (bo.fb && !bo.fb.seam) console.log('  REPORT  the bench\'s first member is not a fitting or a seam: ' + fbTxt(bo.fb) + ' ' + bo.fb.tags + ' at z ' + bo.fb.z.map(f2).join(' / ') + (bo.fb.t1 ? ' (a pair\'s own link: the carry-through)' : '') + ' - ' + (bo.fb.ductile ? 'DUCTILE' : 'brittle') + '; the lattice\'s spar has one section root to tip (DMG-D2\'s per-member envelope)');
     for (const t of r.trunk || []) {
       yes(t.finite && t.crashed && (!t.g0 || t.g0.seam === 'fitting') && fbOk(t.fb),

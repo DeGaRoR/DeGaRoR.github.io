@@ -577,7 +577,7 @@ function makeSim(def, world) {
   // G1815 (§4.4): THE BREAK GROUPS (61_gen_frame's table): a member that breaks its group (type 0: bm.grp) takes every
   // member of the group with it, the pair's own links (type 1) included, which break no group themselves
   const DGR = DMG_ON && def.parts && def.parts.dmg ? def.parts.dmg.groups : [];
-  const grpOf = new Int32Array(nb).fill(-1), grpAll = DGR.map(G => G.t0.concat(G.t1)), grpDone = new Uint8Array(DGR.length);
+  const grpOf = new Int32Array(nb).fill(-1), grpAll = DGR.map(G => G.t0.concat(G.t1)), grpDone = new Uint8Array(DGR.length), grpLost = new Float64Array(DGR.length);
   if (DGR.length) for (let bi = 0; bi < nb; bi++) { const g = beams[bi].grp; if (g >= 0 && g < DGR.length) grpOf[bi] = g; }
   // G1813 (§4.0): THE KINK FLOOR: a member that KINKED in compression (past ecu) is broken but keeps a compression-only
   // floor at its crushed length (its old k and c, pushing only): the nodes it held apart cannot pass through each
@@ -656,12 +656,17 @@ function makeSim(def, world) {
   function certStamp(Cc) {
     if (!PHY || !Cc || !Cc.Ft || Cc.Ft.length !== nb || DMG.yields || DMG.breaks || DMG.dents || peakOn) return false;
     const K = typeof GEN_CERT !== 'undefined' ? GEN_CERT : null; if (!K) return false;
-    const m = K.m, kap = K.kappa, cap = (x, ph) => Math.min(Math.max(x, kap * ph), ph);
+    // G1895 (DMG-TUNE): the floor per role - the wing at kappa (the card's), the rest at GEN_CERT_FLOOR.body (66_gen_cert)
+    const m = K.m, kapW = K.kappa, kapB = typeof GEN_CERT_FLOOR !== 'undefined' ? GEN_CERT_FLOOR.body : K.kappa;
+    let kap = kapW;
+    const cap = (x, ph) => Math.min(Math.max(x, kap * ph), ph);
     for (let bi = 0; bi < nb; bi++) {
       const b = beams[bi], fyP = PHY[bi * 4], fuP = PHY[bi * 4 + 1], fcP = PHY[bi * 4 + 2];
       if (!(fyP < Infinity) || CERT_ENG[bi]) continue;
       if (b.cls === 'gear') { if (CERT_GEAR[bi] && K.leg) gearStamp(bi, b, Cc.Ft[bi], Cc.Fc[bi], m, K); continue; }
       const Ft = Cc.Ft[bi], Fc = Cc.Fc[bi], fit = !!b.seam;   // a joint: a fitting, a rivet line, a glue line, an opening (§7.2)
+      kap = CERT_WING[bi] ? kapW : kapB;
+      KAP[bi] = kap;
       const brittle = fit || !(b.etu > 0);
       const scat = b.rgN && PHY[bi * 4 + 3] > 0 ? Math.max(1, fyP / PHY[bi * 4 + 3]) : 1;
       b.fu = cap(1.5 * m * Ft * (fit ? K.uFit : K.uMember) * scat, fuP);
@@ -699,7 +704,15 @@ function makeSim(def, world) {
   // its certified yield sat on that ringing - the Cessna on floats' circuit read 0.98 of it after its water
   // touchdown. It keeps its physics; the MOUNT (the bearer and its bolts to the firewall, D1a's fittings) is what the
   // certificate stamps and what lets go.
-  const CERT_GEAR = new Uint8Array(nb), CERT_ENG = new Uint8Array(nb), CERT_FLT = new Uint8Array(nb);
+  const CERT_GEAR = new Uint8Array(nb), CERT_ENG = new Uint8Array(nb), CERT_FLT = new Uint8Array(nb), CERT_WING = new Uint8Array(nb);
+  const KAP = PHY ? new Float64Array(nb) : null;   // G1895: the floor each member was stamped with (sim.damageCaps().KAP)
+  // G1895 (DMG-TUNE): THE WING'S LOAD PATH (GEN_CERT_FLOOR): a member with both ends on a wing, a wing's joint (its
+  // root, strut and interplane groups) and their links (the carry-through) - the card's; the rest is the body's floor
+  if (PHY && def.parts && def.parts.dmg) {
+    const PT = def.parts.dmg.part || [], wg = p => typeof p === 'string' && p.slice(0, 4) === 'wing';
+    for (let bi = 0; bi < nb; bi++) { const b = beams[bi]; if (wg(PT[b.a]) && wg(PT[b.b])) CERT_WING[bi] = 1; }
+    for (const G of DGR) if (wg(G.part)) { for (const j of G.t0) CERT_WING[j] = 1; for (const j of G.t1) CERT_WING[j] = 1; }
+  }
   let CERT_NOSE = -1, CERT_ARCH = 'bungee', CERT_W = 0;
   if (PHY) {
     for (const G of DGR) for (const j of G.t1) CERT_GEAR[j] = 1;
@@ -1035,7 +1048,7 @@ function makeSim(def, world) {
       b.fyM = b.fy0; FY[bi] = b.fy0; FC[bi] = b.fc0; b.ep = 0; b.ec = 0; b.dOn = false; b.dk = 0; b.ks = 0;
       b.rgS = 0; b.rgD = 0; b.kink = false; b.Lf = 0; b.Ff = 0;
     }
-    nFlr = 0; postLive = 0; grpDone.fill(0); DMG.groups.length = 0; DMG.floors = 0; DMG.cracks = 0; DMG.rag.length = 0; DMG.armedN = 0;
+    nFlr = 0; postLive = 0; grpDone.fill(0); grpLost.fill(0); DMG.groups.length = 0; DMG.floors = 0; DMG.cracks = 0; DMG.rag.length = 0; DMG.armedN = 0;
     for (let i = 0; i < n; i++) { nodeDeg[i] = nodeDeg0[i]; orphan[i] = 0; }
     if (DMG_ON) clReset();          // G1840 (DMG-D3): every cluster as built, every cut whole
     for (const C of clusters) { C.off = false; C.dirty = false; }
@@ -1068,8 +1081,21 @@ function makeSim(def, world) {
     // G1815: the member's group breaks whole (once)
     const g = grpOf[bi];
     brkDepth++;
-    if (g >= 0 && !grpDone[g]) {
-      grpDone[g] = 1; DMG.groups.push({ grp: g, key: DGR[g].key, seam: b.seam || null, by: bi, cls: b.cls, t: simT });
+    // G1894 (DMG-TUNE, GEN_DMG_GROUP): the group lets go once its broken members (severed, or kinked: a kinked member's
+    // floor pushes only, its pull is gone) carry `rel` of its tension capacity - one member never takes a group of many;
+    // a cluster's root cut ('root-moment' ...) or a gate's hook whole, at once
+    let rel = false;
+    if (g >= 0 && !grpDone[g] && how !== 'group') {
+      if (how === 'gate' || (how && how.indexOf('-') > 0)) rel = true;
+      else {
+        const G0 = DGR[g].t0; let cap = 0;
+        for (let q = 0; q < G0.length; q++) { const f = beams[G0[q]].fu; cap += f < Infinity ? f : 0; }
+        grpLost[g] += b.fu < Infinity ? b.fu : 0;
+        rel = !(cap > 0) || grpLost[g] >= GEN_DMG_GROUP.rel * cap * (1 - 1e-9);
+      }
+    }
+    if (rel) {
+      grpDone[g] = 1; DMG.groups.push({ grp: g, key: DGR[g].key, seam: b.seam || null, by: bi, cls: b.cls, t: simT, how: how || 'tension' });
       if (grpCut[g] >= 0) cutPart(grpCut[g], 'member', 0);   // G1840: a cluster's root group broken as members: its part is off
       for (const j of grpAll[g]) beamBreak(j, 'group');
     }
@@ -3248,7 +3274,7 @@ function makeSim(def, world) {
            // G1883 (DMG-WINDBREAK): the instruments - the live caps each member is judged against (FY tension, FC
            // compression; PHY its physics, 4 a member: yield, break, crush, sigY A) and a per-substep reader
            // (fn(s, dt), after the substep; null clears it) - nothing of either runs unless asked
-           damageCaps: () => ({ FY, FC, PHY }), set onSubstep(fn) { subHook = typeof fn === 'function' ? fn : null; },
+           damageCaps: () => ({ FY, FC, PHY, KAP }), set onSubstep(fn) { subHook = typeof fn === 'function' ? fn : null; },
            // (and the trunks' push on each node, N, summed since the reader last zeroed it: damagePush(true) arms it)
            damagePush: on => { if (on && !tkPush) tkPush = new Float64Array(n); else if (!on) tkPush = null; return tkPush; },
            // G1831 (DMG-D2a): stamp the certificate on a sim that has not bent yet (the page's arrives from its
@@ -3256,7 +3282,8 @@ function makeSim(def, world) {
            certStamp: Cc => certStamp(Cc), cert: () => CERT,
            snap, unsnap,   // G1891: a whole aeroplane's state, saved and put back into a sim of the same def
            // G1815: break one member as a crash would (GATE DMGMEMBERS' closed-set check: its group, and nothing more)
-           damageBreak: bi => { if (DMG_ON && bi >= 0 && bi < nb) beamBreak(bi, 'gate'); },
+           // (G1894: `how` - 'tension' / 'kink' break it as that, under the group rule; default 'gate': the joint let go)
+           damageBreak: (bi, how) => { if (DMG_ON && bi >= 0 && bi < nb) beamBreak(bi, how || 'gate'); },
            // G1840 (DMG-D3): the clusters' cuts - limits (N.m), the last measured ratios and loads, the peaks, parted -
            // and each tube cluster's twist bays (the worst bay's torque over its limit); `clusters` live (their nodes)
            clusterCuts: () => ({ cuts: CUTS.map((c, k) => ({ k, cl: c.cl, tag: clusters[c.cl] ? clusters[c.cl].tag : null, cls: clusters[c.cl] ? clusters[c.cl].cls : null, kind: c.kind,
