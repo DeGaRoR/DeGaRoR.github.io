@@ -58,7 +58,7 @@ if (argv[0] === '--part') {
       const T = C.GEN_DRIVE.strike.turf;
       // (the disc set 2 cm past the turf with the nose RISING at 0.3 m/s: one touch, then the tail settles - at rest the Jodel's would tip on over)
       { const r = D.noseOver(k, Object.assign({ V: -0.3, gap: -(T + 0.02), thr: 0.2, secs: 2 }, o)); out.brush = { running: r.running, d: (r.drive || []).map(slim), finite: r.finite }; }
-      { const r = D.trunkStrike(k, Object.assign({ V: 3, thr: 0.3 }, o)); out.trunk3 = { running: r.running, d: (r.drive || []).map(slim), groups: r.groups, finite: r.finite }; }
+      { const r = D.trunkStrike(k, Object.assign({ V: 3, thr: 0.3, across: 0.75 }, o));   // G2035: in the disc, clear of the spinner out.trunk3 = { running: r.running, d: (r.drive || []).map(slim), groups: r.groups, finite: r.finite }; }
     } else {
       out.noseIn = [{ V: 25, sink: 5, pitch: 20 }, { V: 41.7, sink: 10, pitch: 60 }].map(c => { const r = D.noseIn(k, Object.assign({ thr: 0.2 }, c, o));
         return Object.assign({}, c, { running: r.running, d: (r.drive || []).map(slim), groups: r.groups, finite: r.finite }); });
@@ -186,7 +186,7 @@ const rep = msg => console.log('  --    ' + msg);
     if (S.brush) { const d = S.brush.d[0];
       yes(S.brush.finite && d.strike === 'brush' && S.brush.running[0] && d.teardown, 'a brush (2 cm of soil past the turf\'s ' + C.GEN_DRIVE.strike.turf * 100 + ' cm): \'' + d.strike + '\', the engine runs on, a teardown still owed (SB 533: any strike that needs the prop repaired)'); }
     if (S.trunk3) { const d = S.trunk3.d[0];
-      yes(S.trunk3.finite && (d.strike === 'stoppage' || d.strike === 'separation') && !S.trunk3.running[0], 'a trunk in the disc at 3 m/s: \'' + d.strike + '\' (tip ' + Math.round((d.strikeAt || {}).tip || 0) + ' m/s' + (d.strike === 'separation' ? ': the blades broke off' : '') + '), the engine stopped (a sudden stoppage)'); }
+      yes(S.trunk3.finite && (d.strike === 'stoppage' || d.strike === 'separation') && !S.trunk3.running[0], 'a trunk in the disc at 3 m/s (0.75 m across the nose, clear of the spinner - G2035): \'' + d.strike + '\' (tip ' + Math.round((d.strikeAt || {}).tip || 0) + ' m/s' + (d.strike === 'separation' ? ': the blades broke off' : '') + '), the engine stopped (a sudden stoppage)'); }
     for (const n of (S.noseIn || [])) { const d = n.d[0], lab = 'the bow digging in at ' + Math.round(n.V * 3.6) + ' km/h, ' + n.sink + ' m/s, ' + n.pitch + ' deg';
       if (n.pitch < 40) yes(n.finite && (!!d.strike === d.gapMin < 0) && (!d.strike || (d.strikeAt || {}).surf === 'water'), lab + ' (the ordinary water case): ' + (d.strike ? 'the disc strikes the WATER (the base: no strike on water at all) - \'' + d.strike + '\'' : 'the disc clears the water by ' + f2(d.gapMin) + ' m - no strike') + ', the engine ' + (n.running[0] ? 'running' : 'stopped'));
       else yes(n.finite && !!d.strike && (d.strikeAt || {}).surf === 'water' && !n.running[0], lab + ' (TREECRASH\'s severe nose-in): the disc strikes the WATER - \'' + d.strike + '\', the engine stopped'); }
