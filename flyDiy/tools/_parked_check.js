@@ -39,6 +39,23 @@
 //      rungs to the bit, L1 within half a step), torn files refused, the
 //      cooked record's ladder = the live bake's at the same placement, the
 //      signature's inputs; the shipped manifest's files decode to its keys
+//  12  the fleet (G2221-G2224), headless: the draw rules (the nearest 6, L1 within
+//      30 m, the light presets' L3-only 4), the LRU (8 keys resident, the least
+//      recently stood out, its holder emptied), the signature (the fingerprint +
+//      the look), the flag off queues nothing
+//  11  THE CAPTURE LEAK (G2220), the page in node (tools/_page_node.js, its 2D
+//      canvases digested: tools/_c2d_digest.js; ~5 min): the same `mine:` spec
+//      (and arch:c172, G809's case) captured under the user's Cub and under the
+//      metal Cessna - the geometry's bytes and the atlas's (the copy's digest +
+//      the block's numbers) identical; PARKED.cleanCapture = false re-opens the
+//      leak and the row goes red (the negative control, every run)
+//  12p THE FLEET in the page: a save queues, the garage's idle path captures and
+//      bakes (a synthetic bake: no GPU here) and stores under the signature; with
+//      the world up (flying, the roll-out screen) nothing is captured or baked,
+//      a roll-out only decodes, a key with no bake stands nothing, back in the
+//      garage the queue drains; the world's doors hold no capture / bake call
+//
+// --pure (or PARKED_PURE=1): 1-10 and 12 only (seconds)
 //
 // Usage: node tools/_parked_check.js          (prints GATE PARKED: PASS|FAIL)
 'use strict';
@@ -580,11 +597,204 @@ async function cookRungs() {
   }
 }
 
+// ---- 12 THE FLEET, headless (G2221-G2224) -------------------------------------------------------------
+// a synthetic bake (the box soup as all three rungs, deterministic atlases) in a realm R's typed arrays
+function synthBake(R, seed) {
+  const g = box(-3, -0.6, -0.5, 3, 0.6, 0.5, 2, false), S = 16, n = S * S;
+  let q = seed >>> 0; const rnd = () => (q = (q * 1103515245 + 12345) >>> 0) >>> 24;
+  const T = () => { const t = new R.Uint8Array(n * 4); for (let i = 0; i < n; i++) { t[i * 4] = rnd(); t[i * 4 + 1] = rnd(); t[i * 4 + 2] = rnd(); t[i * 4 + 3] = 255; } return t; };
+  const nv = g.pos.length / 3, nrm = new R.Int8Array(nv * 3), uv = new R.Float32Array(nv * 2);
+  for (let i = 0; i < nv * 3; i++) nrm[i] = Math.round(g.nrm[i] * 127);
+  for (let i = 0; i < nv; i++) { uv[i * 2] = (i % 13) / 13; uv[i * 2 + 1] = (i % 7) / 7; }
+  const L = () => ({ pos: new R.Float32Array(g.pos), nrm: new R.Int8Array(nrm), uv: new R.Float32Array(uv), idx: new R.Uint32Array(g.idx) });
+  return { S, tex: [T(), T(), T()], cc: true, ccR: 0.2, ms: 1, stats: { charts: 1 }, L: [L(), L(), L()] };
+}
+const memStore = () => { const m = new Map(); return { m, get: k => Promise.resolve(m.has(k) ? m.get(k) : null), put: (k, v) => { m.set(k, v); return Promise.resolve(); } }; };
+async function fleetHeadless() {
+  const FD = PK.FLEET_DRAW;
+  check(FD.max === 6 && FD.l1 === 30 && FD.lightMax === 4 && FD.resident === 8 && ['potato', 'laptop', 'pocket'].every(p => FD.light.includes(p)),
+    '12 the fleet\'s draw rules as data: 6 drawn, L1 within 30 m, potato / laptop / pocket L3-only at most 4, 8 resident', JSON.stringify(FD));
+  // the count: ten props on a line 0..90 m, the camera at 0 - the nearest six (four on a light preset), nearest first
+  const pts = [5, 0, 8, 2, 9, 1, 7, 3, 6, 4].map(k => [k * 10, 0, 0]);
+  const pk = PK.fleetPick([0, 1.7, 0], pts, false), pl = PK.fleetPick([0, 1.7, 0], pts, true);
+  check(JSON.stringify(pk.drawn) === JSON.stringify([1, 5, 3, 7, 9, 0]) && pk.max === 6, '12 fleetPick: the nearest 6 drawn, nearest first', pk.drawn.join(','));
+  check(JSON.stringify(pl.drawn) === JSON.stringify([1, 5, 3, 7]) && pl.max === 4, '12 fleetPick on a light preset: the nearest 4', pl.drawn.join(','));
+  const tie = PK.fleetPick([0, 0, 0], [[10, 0, 0], [-10, 0, 0], [0, 0, 10]], false);
+  check(JSON.stringify(tie.drawn) === '[0,1,2]', '12 fleetPick is deterministic on a tie (by order)');
+  check(JSON.stringify(PK.fleetLadder(false)) === JSON.stringify([[0, 0], [1, 30], [2, PK.LEVELS.L3]]) && JSON.stringify(PK.fleetLadder(true)) === JSON.stringify([[2, 0]]),
+    '12 the fleet ladder: L1 to 30 m, L2 to 450 m, L3 on; a light preset L3 alone', JSON.stringify(PK.fleetLadder(false)) + ' / ' + JSON.stringify(PK.fleetLadder(true)));
+  // the flag off: a save queues nothing
+  W.GARAGE_SPEC = { slotSpec: n => ({ cage: { boomLen: 4 + n.length / 10 }, meta: { name: n }, finish: { body: '#c0ffee' } }), slotImages: () => null, cageDefaults: () => null };
+  check(PK.fleetOn() === false && PK.fleetQueue('a') === false && PK.fleet.queue.length === 0, '12 FLYDIY_FLEET off (the default): a save queues nothing');
+  // the signature: the spec's fingerprint plus the look
+  const sp = PK.specOf('mine:abc'), s0 = PK.fleetSig(sp, null);
+  const sp2 = JSON.parse(JSON.stringify(sp)); sp2.finish.body = '#000000';
+  const sp3 = JSON.parse(JSON.stringify(sp)); sp3.cage.boomLen += 0.1;
+  check(!!s0 && s0 === PK.fleetSig(JSON.parse(JSON.stringify(sp)), null) && PK.fleetSig(sp2, null) !== s0 && PK.fleetSig(sp3, null) !== s0 && PK.fleetSig(sp, { 1: { data: 'data:image/png;base64,AA' } }) !== s0,
+    '12 the fleet signature: stable; moves with the spec, the finish and the picture pages');
+  // THE LRU: ten slots baked into a store, all stood: 8 resident, the first two out (their holders emptied, pending again)
+  W.FLYDIY_FLEET = true;
+  const st = memStore(); PK.fleet.store = st;
+  const names = 'abcdefghij'.split('');
+  for (const [i, nm] of names.entries()) {
+    const key = 'mine:' + nm, spec = PK.specOf(key), sig = PK.fleetSig(spec, null);
+    const rec = record(key, synthVis('tail')), stc = PK.stance(rec.vis);
+    const u8 = PK.cookEncode({ key, sig, build: 'b', stance: stc, hitbox: PK.hitboxOf(rec, stc), tris: 100 + i, data: synthBake(globalThis, i + 1) });
+    await st.put(key, { sig, n: u8.length, bytes: u8, when: 0 });
+  }
+  const holders = [];
+  for (const nm of names) { const g = PK.place(THREE, 'mine:' + nm, 0, 0, 0, 0); new THREE.Group().add(g); holders.push(g); await PK.fleetLoad('mine:' + nm); }
+  const res = Object.keys(PK.records).filter(k => PK.records[k] && PK.records[k].fleet);
+  check(res.length === 8 && !res.includes('mine:a') && !res.includes('mine:b') && PK.fleet.stats.evicted === 2, '12 the LRU: 8 keys resident of 10 stood, the two least recent out',
+    res.length + ' resident, evicted ' + PK.fleet.stats.evicted + ': ' + res.join(' '));
+  check(holders[0].children.length === 0 && holders[2].children.length === 1 && PK.pending.some(p => p.key === 'mine:a'), '12 ...an evicted key\'s holder is emptied and pending again');
+  const lod = holders[9].children[0];
+  check(!!lod && lod.isLOD && lod.levels.map(l => l.distance).join() === [0, 30, PK.LEVELS.L3, PK.LEVELS.cull].join(), '12 a fleet prop stands the fleet ladder (L1 to 30 m)', lod ? lod.levels.map(l => l.distance).join(' / ') : 'none');
+  await PK.fleetLoad('mine:a');
+  check(!!(PK.records['mine:a'] && PK.records['mine:a'].fleet) && holders[0].children.length === 1 && !PK.records['mine:c'], '12 ...stood again it decodes again (and the next least recent goes)');
+  // the count on the placed props: the camera at the first holder, ten holders 20 m apart - six drawn
+  holders.forEach((g, i) => { g.position.set(i * 20, 0, 0); g.parent.updateMatrixWorld(true); });
+  const scene = new THREE.Scene(); for (const g of holders) scene.add(g.parent);
+  const cam = new THREE.PerspectiveCamera(); cam.position.set(-5, 2, 0); cam.updateMatrixWorld(true); scene.updateMatrixWorld(true);
+  let drawn = 0;
+  for (const g of holders) { const l = g.children[0]; if (!l) continue; l.update(cam); if (l.levels.some(v => v.object.visible)) drawn++; }
+  check(drawn === 6, '12 of the stood fleet props the nearest six are drawn', drawn + ' drawn');
+  W.FLYDIY_FLEET = false; PK.fleet.store = null; delete W.GARAGE_SPEC;
+  for (const k of Object.keys(PK.records)) if (PK.records[k] && PK.records[k].fleet) delete PK.records[k];
+  PK.pending.length = 0; PK.fleet.lru.length = 0; PK.fleet.placed.length = 0;
+}
+
+// ---- 11 / 12p THE PAGE IN NODE (G2220-G2224) ------------------------------------------------------------
+async function pageRows() {
+  if (process.argv.includes('--pure') || process.env.PARKED_PURE) { console.log('  --   11 / 12p: the page in node skipped (--pure)'); return; }
+  const crypto = require('crypto'), C2D = require('./_c2d_digest.js');
+  const { openPage } = require('./_page_node.js');
+  const rd = f => JSON.parse(fs.readFileSync(path.join(ROOT, f), 'utf8'));
+  const CUB = rd('builds/cub_2026-09-20_corrected.json').spec, MET = rd('tools/fixtures/build_v10_cessnaMetal_2026-09-26.json').spec;
+  const C172 = rd('tools/fixtures/build_v10_c172_wipline2350_2026-09-20.json').spec;
+  const env = (name, spec) => JSON.stringify({ what: 'flydiy-build', v: 10, name, spec });
+  const t0 = Date.now();
+  const P = await openPage({ quiet: true, storage: { 'flydiy.wip': env('cub', CUB), 'flydiy.build.parkC172': env('parkC172', C172) }, c2d: 'digest' });
+  const PW = P.win;
+  await P.until(() => PW.BOOT && PW.BOOT.state === 'gone', 900000);
+  const K = PW.PARKED, G = PW.GARAGE_SPEC;
+  if (!check(!!(K && G && K.capture && G.set), '11 the page booted the garage (PARKED, GARAGE_SPEC)', ((Date.now() - t0) / 1000).toFixed(0) + ' s')) return;
+  K.quiet = true;
+  const sha = x => crypto.createHash('sha1').update(x).digest('hex').slice(0, 16);
+  const geomHash = rec => {
+    const h = crypto.createHash('sha1');
+    const add = gs => { for (const k of Object.keys(gs).sort()) { const a = gs[k]; h.update('|' + k); for (const f of ['pos', 'nrm', 'idx', 'uv', 'srf']) if (a[f]) h.update(Buffer.from(a[f].buffer, a[f].byteOffset, a[f].byteLength)); } };
+    add(rec.vis.groups);
+    for (const p of rec.vis.parts) { h.update('|part ' + p.kind + JSON.stringify(p.pivot) + ' ' + p.R + ' ' + p.stretch); add(p.groups); }
+    h.update(JSON.stringify(rec.vis.mats));
+    return h.digest('hex').slice(0, 16);
+  };
+  // the atlas: the copy's digest, the block's numbers (every uniform but the placement's craft frame, which build()
+  // replaces per placement), the instrument faces' canvases
+  const valOf = v => {
+    if (v == null || typeof v === 'boolean') return String(v);
+    if (typeof v === 'number') return v.toFixed(6);
+    if (Array.isArray(v)) return '[' + v.map(valOf).join(',') + ']';
+    if (v.isTexture) return 'tex:' + (v.image ? C2D.digest(v.image) : 'none');
+    if (v.elements) return 'm[' + Array.from(v.elements, x => x.toFixed(6)).join(',') + ']';
+    if (typeof v.toArray === 'function') return 'v[' + v.toArray().map(x => x.toFixed(6)).join(',') + ']';
+    if (ArrayBuffer.isView(v)) return 'a:' + sha(Buffer.from(v.buffer, v.byteOffset, v.byteLength));
+    return JSON.stringify(v);
+  };
+  const atlasHash = rec => {
+    const parts = ['atlas ' + (rec.atlas && rec.atlas.image ? C2D.digest(rec.atlas.image) : 'none')];
+    for (const k of Object.keys(rec.block || {}).sort()) if (k !== 'uCraftInv') parts.push(k + '=' + valOf(rec.block[k].value));
+    // the instrument faces: each set's copied canvases and its colour (a material's uuid is no part of the picture)
+    for (const k of Object.keys(rec.panel || {}).sort()) { const m = rec.panel[k] || {};
+      parts.push('panel ' + k + '=' + ['map', 'emissiveMap', 'alphaMap'].map(sl => (m[sl] && m[sl].image ? C2D.digest(m[sl].image) : '-')).join(',') + ' ' + (m.color && m.color.getHexString ? m.color.getHexString() : '')); }
+    return { h: sha(parts.join('|')), parts };
+  };
+  const capUnder = (b, key) => { G.set(JSON.parse(JSON.stringify(b))); delete K.records[key]; const rec = K.capture(key); if (!rec) return null;
+    const a = atlasHash(rec); const out = { tris: rec.tris, g: geomHash(rec), a: a.h, parts: a.parts }; delete K.records[key]; return out; };
+  const diffParts = (a, b) => { const d = []; for (let i = 0; i < Math.max(a.parts.length, b.parts.length); i++) if (a.parts[i] !== b.parts[i]) d.push((a.parts[i] || '').slice(0, 40)); return d.slice(0, 4).join('; '); };
+  // 11 THE CAPTURE LEAK
+  for (const key of ['mine:parkC172', 'arch:c172']) {
+    const tA = Date.now();
+    const a = capUnder(CUB, key), b = capUnder(MET, key);
+    if (!check(!!(a && b), '11 ' + key + ' captured under both current builds')) continue;
+    check(a.g === b.g && a.tris === b.tris, '11 ' + key + ': the same geometry under the Cub and under the metal Cessna (the bytes)', a.tris + ' / ' + b.tris + ' tris, ' + a.g + ' / ' + b.g);
+    check(a.a === b.a, '11 ' + key + ': the same atlas under both (the copy\'s digest, the block, the faces)', a.a + ' / ' + b.a + (a.a !== b.a ? ': ' + diffParts(a, b) : ''));
+    console.log('  11 ' + key + ': ' + a.tris + ' tris under the Cub, ' + b.tris + ' under the metal Cessna; geometry ' + a.g + ' / ' + b.g + ', atlas ' + a.a + ' / ' + b.a + ' (' + ((Date.now() - tA) / 1000).toFixed(0) + ' s)');
+  }
+  // the negative control: the leak re-opened, the row must see it
+  {
+    K.cleanCapture = false;
+    let a = null, b = null;
+    try { a = capUnder(CUB, 'mine:parkC172'); b = capUnder(MET, 'mine:parkC172'); } finally { K.cleanCapture = true; }
+    check(!!(a && b) && (a.g !== b.g || a.a !== b.a), '11 NEGATIVE CONTROL: with the leak re-opened (PARKED.cleanCapture = false) the same spec captures DIFFERENTLY under the two builds - the row goes red',
+      a && b ? a.tris + ' / ' + b.tris + ' tris, geometry ' + (a.g === b.g ? 'same' : 'differs') + ', atlas ' + (a.a === b.a ? 'same' : 'differs') : 'no capture');
+  }
+  // 12p THE FLEET in the page
+  {
+    const F = K.fleet, S = F.stats, st = (() => { const m = new Map(); return { m, get: k => PW.Promise.resolve(m.has(k) ? m.get(k) : null), put: (k, v) => { m.set(k, v); return PW.Promise.resolve(); } }; })();
+    G.set(JSON.parse(JSON.stringify(MET)));
+    G.save('offA');
+    check(F.queue.length === 0 && S.queued === 0, '12p FLYDIY_FLEET off: the garage\'s save queues nothing');
+    PW.FLYDIY_FLEET = true; F.store = st;
+    let bakes = 0; F.bake = async (THREE, rec) => { bakes++; return synthBake(PW, rec.tris); };
+    const holds0 = PW.FLYDIY_HOLDS;
+    const setHolds = h => { PW.FLYDIY_HOLDS = h ? () => Object.assign({ holdRender: false, rollHold: false, craftAway: false, inGarage: false, running: true }, h) : holds0; };
+    G.save('fleetA');
+    check(F.queue.includes('mine:fleetA'), '12p a save queues its slot\'s key', F.queue.join(','));
+    await P.until(() => S.stored >= 1 && !F.busy && !F.queue.length, 300000);
+    const vA = st.m.get('mine:fleetA');
+    check(S.captures === 1 && bakes === 1 && !!vA && vA.sig === K.fleetSig(K.specOf('mine:fleetA'), null), '12p the garage\'s idle path captured, baked and kept it under its signature',
+      'captures ' + S.captures + ', bakes ' + bakes + ', stored ' + S.stored + (vA ? ', sig ' + vA.sig : ''));
+    const c0 = S.captures, b0 = bakes;
+    // FLYING: a save is queued, nothing starts; a decode is refused
+    setHolds({ inGarage: false });
+    G.save('fleetB');
+    await P.until(() => false, 20000);
+    const H = PW.THREE;
+    const gA = K.place(H, 'mine:fleetA', 0, 0, 0, 0);
+    await P.until(() => false, 2000);
+    check(S.captures === c0 && bakes === b0 && S.worldRefused > 0 && F.queue.includes('mine:fleetB'), '12p FLYING: no capture, no bake (the queue waits for the garage)', 'captures ' + S.captures + ', bakes ' + bakes + ', refused ' + S.worldRefused);
+    check(gA.children.length === 0 && S.flightRefused > 0 && S.decodes === 0, '12p FLYING: no decode either (the fleet set changes at the roll-out only)');
+    // THE ROLL-OUT SCREEN: a baked key decodes and stands; an unbaked one stands nothing; still no capture / bake
+    setHolds({ inGarage: false, holdRender: true });
+    const root = new H.Group(), gB = K.place(H, 'mine:fleetA', 5, 0, 5, 0.3), gC = K.place(H, 'mine:fleetB', 30, 0, 5, 0); root.add(gB); root.add(gC);
+    await P.until(() => gB.children.length > 0, 20000);
+    await P.until(() => false, 5000);
+    check(gB.children.length === 1 && gB.children[0].isLOD && gB.children[0].userData.cooked === 1 && S.decodes === 1, '12p THE ROLL-OUT ONLY DECODES: the baked slot stands from its bytes', 'decodes ' + S.decodes);
+    check(gC.children.length === 0 && F.why['mine:fleetB'] === 'not baked', '12p ...a slot with no bake stands nothing', String(F.why['mine:fleetB']));
+    check(S.captures === c0 && bakes === b0 && S.bakeInWorld === 0, '12p NO CAPTURE OR BAKE RAN WHILE THE WORLD WAS UP (flying, the roll-out screen)', 'captures ' + S.captures + ', bakes ' + bakes + ', bakeInWorld ' + S.bakeInWorld);
+    // BACK IN THE GARAGE: the queue drains
+    setHolds(null);
+    await P.until(() => S.stored >= 2 && !F.busy && !F.queue.length, 300000);
+    check(S.captures === c0 + 1 && st.m.has('mine:fleetB'), '12p back in the garage the queue drains (fleetB baked there)', 'captures ' + S.captures + ', stored ' + S.stored);
+    // a second save of an unchanged aeroplane is a hit, not a bake
+    G.save('fleetB');
+    await P.until(() => !F.busy && !F.queue.length && !F.timer, 60000);
+    check(S.hits >= 1 && S.captures === c0 + 1, '12p saving the same aeroplane again bakes nothing (its signature holds)', 'hits ' + S.hits);
+    PW.FLYDIY_FLEET = false; F.store = null; F.bake = null;
+    // (the node page's own: an impostor sheet baked on the recording GL reads back no pixels - every node page boot says so)
+    const errs = (P.errors || []).filter(e => !/WebGL|webgl|shader|AudioContext|impostor bake: .* sheet EMPTY/i.test(e));
+    check(!errs.length, '11 / 12p no page error', errs[0] ? errs[0].slice(0, 200) : '');
+  }
+  // the world's doors hold no capture and no bake (a source scan of the functions the roll-out and the flight run)
+  {
+    const src = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'parked.js'), 'utf8');
+    const fnText = name => { const i = src.indexOf('function ' + name + '('); if (i < 0) return ''; let d = 0, j = src.indexOf('{', i); for (let k = j; k < src.length; k++) { if (src[k] === '{') d++; else if (src[k] === '}' && --d === 0) return src.slice(i, k + 1); } return ''; };
+    const branch = (() => { const t = fnText('place'); const a = t.indexOf('if (fleetOn() && isMine(key))'); return a >= 0 ? t.slice(a, t.indexOf('return grp;', a)) : ''; })();
+    const world = [fnText('fleetLoad'), fnText('fleetGate'), fnText('fleetDrawn'), fnText('fleetEvict'), branch];
+    check(world.every(t => t.length > 40) && world.every(t => !/\b(capture|batchSteps|bakeData|bakeNow|farBaked|enqueue|cutFar|captureAll|fleetBake)\s*\(/.test(t)),
+      '12p SOURCE: the roll-out\'s and the flight\'s fleet doors (fleetLoad, the place() branch, fleetGate, fleetDrawn, fleetEvict) call no capture and no bake');
+    check(/if \(!garageIdle\(\)\)/.test(fnText('fleetStep')) && /garageIdle\(\)/.test(fnText('fleetBake')), '12p SOURCE: the bake door (fleetStep, fleetBake) starts only in the garage at rest');
+  }
+}
+
 farRungs().catch(e => check(false, '5b the far rungs threw', e && e.stack || String(e)))
   .then(() => paneLevels().catch(e => check(false, '6c the pane levels threw', e && e.stack || String(e))))
   .then(() => bakedRungs().catch(e => check(false, '8 the baked rungs threw', e && e.stack || String(e))))
   .then(() => shelvedL0().catch(e => check(false, '9 the shelved L0 threw', e && e.stack || String(e))))
-  .then(() => cookRungs().catch(e => check(false, '10 the cook threw', e && e.stack || String(e)))).then(() => {
+  .then(() => cookRungs().catch(e => check(false, '10 the cook threw', e && e.stack || String(e))))
+  .then(() => fleetHeadless().catch(e => check(false, '12 the fleet threw', e && e.stack || String(e))))
+  .then(() => pageRows().catch(e => check(false, '11 / 12p the page threw', e && e.stack || String(e)))).then(() => {
   if (fail.length) {
     for (const f of fail.slice(0, 30)) console.log('  ! ' + f);
     if (fail.length > 30) console.log('  ... ' + (fail.length - 30) + ' more');

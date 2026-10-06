@@ -218,7 +218,9 @@ function makeDocument(opts) {
   // the event handler properties (onclick = f): a plain slot per element, read by dispatchEvent
   class Canvas extends Element {
     constructor() { super('canvas'); this._w = 300; this._h = 150; this._ctx = null; }
-    get width() { return this._w; } set width(v) { this._w = v | 0; } get height() { return this._h; } set height(v) { this._h = v | 0; }
+    get width() { return this._w; } set width(v) { this._w = v | 0; this._cleared(); } get height() { return this._h; } set height(v) { this._h = v | 0; this._cleared(); }
+    // G2220: setting a size clears the canvas (tools/_c2d_digest.js's context forgets what it held)
+    _cleared() { const c = this._ctx && this._ctx.ctx; if (c && this._ctx.kind === '2d' && typeof c.__resize === 'function') c.__resize(); }
     getContext(kind, attrs) { if (this._ctx) return this._ctx.kind === kind || (kind !== '2d' && this._ctx.kind !== '2d') ? this._ctx.ctx : null;
       const ctx = opts.makeCanvasContext(this, kind, attrs); if (ctx) this._ctx = { kind, ctx }; return ctx; }
     toDataURL() { return 'data:image/png;base64,'; } toBlob(cb) { win.setTimeout(() => cb(new win.Blob([new Uint8Array(0)], { type: 'image/png' })), 0); }

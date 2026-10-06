@@ -1117,6 +1117,9 @@ function garageInit(api) {
     // AEROPLANE rather than as an orphan.
     writeWip();
     syncRibbon();
+    // G2221 (FLEET-PROPS A): the saved aeroplane's parked prop is baked on the garage's idle path, never in the world
+    // (parked.js fleetQueue; nothing with FLYDIY_FLEET off)
+    try { if (window.PARKED && window.PARKED.fleetQueue) window.PARKED.fleetQueue(name); } catch (e) {}
   };
   // EXPORT is a file, because a build you cannot hand to somebody else is not
   // really saved. It commits first for the same reason saving does, and more
@@ -1277,6 +1280,9 @@ function garageInit(api) {
       slotSpec: n => { const t = lsGet(SLOT + n); if (!t) return null;
                        try { return JSON.parse(JSON.stringify(whole(unwrap(t).spec))); }
                        catch (e) { return null; } },
+      // G2220: ...AND ITS PICTURE PAGES (the envelope's images, or null): a parked capture of a slot wears its own
+      slotImages: n => { const t = lsGet(SLOT + n); if (!t) return null;
+                         try { return unwrap(t).images || null; } catch (e) { return null; } },
       name: () => slotName,
       log: () => log,
       // the plaque and the logbook are WRITTEN here and read by the bench
