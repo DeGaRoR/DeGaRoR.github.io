@@ -54,8 +54,8 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
   });
   const until = async (pg, fn, ms) => { const t0 = Date.now(); while (Date.now() - t0 < ms) { try { if (await pg.evaluate(fn)) return true; } catch (e) {} await sleep(250); } return false; };
   const shot = async (pg, size, name, note) => {
-    const f = 'modes_' + size + '_' + name + '.png';
-    await pg.screenshot({ path: path.join(OUT, f), timeout: 120000 });
+    const f = 'modes_' + size + '_' + name + '.jpg';
+    await pg.screenshot({ path: path.join(OUT, f), type: 'jpeg', quality: 82, timeout: 120000 });
     const st = await state(pg);
     index.push(Object.assign({ size, name, file: f, note, url: pg.url() }, st));
     console.log('  ' + f + '  mode ' + st.mode + ' screen ' + st.screen + '  ' + note);

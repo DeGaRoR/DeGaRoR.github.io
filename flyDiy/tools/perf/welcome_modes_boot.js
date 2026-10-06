@@ -53,15 +53,15 @@ const one = async (which, run) => {
     const L = (window.BOOT && BOOT.log) || [];
     const steps = L.filter(e => e.k === 'step').map(e => [e.id, e.t]);
     const ready = (L.find(e => e.k === 'ready' || e.k === 'waiting') || {}).t;
-    const run = (L.find(e => e.k === 'run') || {}).t;
-    return { steps, run, ready, state: BOOT.state, mode: window.FLYDIY_MODE === undefined ? 'undefined' : window.FLYDIY_MODE, held: !!window.FLYDIY_WELCOME, world: window.FLYDIY_WORLD };
+    const runAt = (L.find(e => e.k === 'run') || {}).t;   // the scripts' share: T0 (after the menu's shift) to BOOT.run
+    return { steps, runAt, ready, state: BOOT.state, mode: window.FLYDIY_MODE === undefined ? 'undefined' : window.FLYDIY_MODE, held: !!window.FLYDIY_WELCOME, world: window.FLYDIY_WORLD };
   });
   // a step's duration: to the next step's start (the last one to 'ready')
   res.dur = {};
   for (let i = 0; i < res.steps.length; i++) res.dur[res.steps[i][0]] = (i + 1 < res.steps.length ? res.steps[i + 1][1] : res.ready) - res.steps[i][1];
-  Object.assign(res, { which, run, page: PAGES[which], menu, menuMs, wall: Math.round((Date.now() - t0) / 1000), wallFromChoice: Math.round((Date.now() - tClick) / 1000), errors });
+  Object.assign(res, { which, path: run, page: PAGES[which], menu, menuMs, wall: Math.round((Date.now() - t0) / 1000), wallFromChoice: Math.round((Date.now() - tClick) / 1000), errors });
   await browser.close();
-  console.log(which.padEnd(7) + run.padEnd(6) + ' menu ' + (menu ? 'yes' : 'no ') + '  mode ' + res.mode + '  run@' + res.run + ' ms  ready@' + res.ready + ' ms (BOOT clock)  wall ' + res.wall + ' s  state ' + res.state + '  errors ' + errors);
+  console.log(which.padEnd(7) + run.padEnd(6) + ' menu ' + (menu ? 'yes' : 'no ') + '  mode ' + res.mode + '  run@' + res.runAt + ' ms  ready@' + res.ready + ' ms (BOOT clock)  wall ' + res.wall + ' s  state ' + res.state + '  errors ' + errors);
   return res;
 };
 
@@ -70,10 +70,10 @@ const one = async (which, run) => {
   for (let r = 0; r < REPS; r++) for (const run of RUNS) for (const which of ['before', 'after']) out.runs.push(await one(which, run));
   // the table: step ms before vs after, per path (the mean over the reps)
   const ids = [...new Set(out.runs.flatMap(x => x.steps.map(s => s[0])))];
-  const mean = (which, run, f) => { const xs = out.runs.filter(x => x.which === which && x.run === run).map(f).filter(v => v != null && !isNaN(v)); return xs.length ? Math.round(xs.reduce((a, b) => a + b, 0) / xs.length) : null; };
+  const mean = (which, run, f) => { const xs = out.runs.filter(x => x.which === which && x.path === run).map(f).filter(v => v != null && !isNaN(v)); return xs.length ? Math.round(xs.reduce((a, b) => a + b, 0) / xs.length) : null; };
   out.table = {};
   for (const run of RUNS) {
-    out.table[run] = { run_ms: [mean('before', run, x => x.run), mean('after', run, x => x.run)], ready_ms: [mean('before', run, x => x.ready), mean('after', run, x => x.ready)], steps: {} };
+    out.table[run] = { run_ms: [mean('before', run, x => x.runAt), mean('after', run, x => x.runAt)], ready_ms: [mean('before', run, x => x.ready), mean('after', run, x => x.ready)], steps: {} };
     for (const id of ids) out.table[run].steps[id] = [mean('before', run, x => x.dur[id]), mean('after', run, x => x.dur[id])];
     console.log('\n' + run + ': step ms, before -> after');
     console.log('  scripts (T0 -> run)  ' + out.table[run].run_ms.join(' -> '));
