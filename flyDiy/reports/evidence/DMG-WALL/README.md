@@ -23,3 +23,8 @@ The user's Cub (`builds/cub_2026-09-20_corrected.json`), `dev.html?damage=1&simw
 - `gates2/` - the worker gate set at READY: GATE DMGWALL PASS 98/98; DMGSKIN, UISMOKE, BUILD, JOIN identical to the base.
 - `census4/` - the READY code, the user's two scenes (taxi, trunk-0), one wind-off crash replayed under both bindings; the
   heal true after both.
+- `merged_4300dc58/` - on the merged integration (train 37b + DRIVE + WINDBREAK + DMG-WALL + SKINGPU's worker fix), the 13:20 slot:
+  GATE DMGWALL PASS 105/105 (`gate_dmgwall_merged.txt`); the taxi and the nose-over (one wind-off crash replayed under both
+  bindings; `noseover_4_*` the top camera on both wings). The nose-over's wings: 0 covering triangles removed on either wing,
+  0 posed stale (the user's 'strips' were D4b's page on the old binding); the taxi still breaks the engine mount (13 members)
+  and the engine lies by the wheel under the cowl - G1859.5 (the cowl on the engine mount) to verify next.
