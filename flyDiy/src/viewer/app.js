@@ -4186,6 +4186,7 @@
           const rg = lay.get(own.name) || [], layer = new Array(nv).fill('');
           for (const r of rg) for (let v = r[2]; v < r[3] && v < nv; v++) { layer[v] = r[0]; obj[v] = r[4]; }
           for (let v = 0; v < nv; v++) cv[v] = SB.inhClass(sec, role, layer[v]);
+          if (layer.indexOf('cowl') >= 0) { E.cowl = new Uint8Array(nv); for (let v = 0; v < nv; v++) if (layer[v] === 'cowl') E.cowl[v] = 1; }   // (G1859.5)
         } else cv.fill(SB.INH.cover);
         // no stretch tear on a tube, a rigid part or sheet metal (G1859: not cut to confetti) - the fabric's tear stays
         const has = c => cv.indexOf(c) >= 0, fabric = R.fabric;
