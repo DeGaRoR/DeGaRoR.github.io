@@ -90,6 +90,33 @@ function pageScene() {
   if (W) walk('world', W, '', 1); if (H && H !== W) walk('hangar', H, '', 1);
   return out;
 }
+// THE AEROPLANE SNAPSHOT (the coordinator: the flown geometries wrapped CAGE_VISUAL's own arrays - a crash written into the
+// snapshot draws the wreck in every view built from it): (1) the snapshot's own triangles past 2 m - it is pristine or
+// it is not; (2) every visible mesh of every scene whose position / index shares a buffer with the snapshot, its
+// triangles past 2 m - 'built from the aeroplane snapshot' instead of by size
+function pageSnap() {
+  const CV = window.CAGE_VISUAL, P = FLIGHT_PROBE; if (!CV || !CV.groups) return { none: true };
+  const bufs = new Set(); let snapTris = 0, snapBig = 0;
+  const giant = (pa, ix, nt) => { let big = 0; for (let t = 0; t < nt; t++) { const a = ix ? ix[t * 3] : t * 3, b = ix ? ix[t * 3 + 1] : t * 3 + 1, c = ix ? ix[t * 3 + 2] : t * 3 + 2; if (a === b && b === c) continue;
+    const e = (i, j) => Math.hypot(pa[i * 3] - pa[j * 3], pa[i * 3 + 1] - pa[j * 3 + 1], pa[i * 3 + 2] - pa[j * 3 + 2]); if (Math.max(e(a, b), e(b, c), e(c, a)) > 2) big++; } return big; };
+  for (const k in CV.groups) { const g = CV.groups[k]; if (!g || !g.pos) continue;
+    for (const a of [g.pos, g.nrm, g.idx]) if (a && a.buffer) bufs.add(a.buffer);
+    const nt = g.idx ? g.idx.length / 3 : g.pos.length / 9; snapTris += nt; snapBig += giant(g.pos, g.idx || null, nt); }
+  const out = [], m = P.model();
+  const scenes = [['world', P.craft() && P.craft().parent], ['hangar', P.hangarScene ? P.hangarScene() : null]];
+  const seen = new Set();
+  for (const [sn, sc] of scenes) { if (!sc) continue;
+    sc.traverse(o => { if (!o.isMesh || !o.geometry || !o.geometry.attributes.position || seen.has(o)) return; seen.add(o);
+      const pa = o.geometry.attributes.position.array, ix = o.geometry.index ? o.geometry.index.array : null;
+      if (!(bufs.has(pa.buffer) || (ix && bufs.has(ix.buffer)))) return;
+      let vis = o.visible; for (let q = o.parent; q && vis; q = q.parent) vis = q.visible;
+      const nt = ix ? ix.length / 3 : pa.length / 9, big = giant(pa, ix, nt);
+      let inModel = false; for (let q = o; q; q = q.parent) if (m && q === m.grp) { inModel = true; break; }
+      const chain = []; for (let q = o; q && chain.length < 6; q = q.parent) chain.push(q.name || q.type);
+      out.push({ scene: sn, visible: vis, inFlightModel: inModel, chain: chain.join(' < '), tris: nt | 0, big, sharesPos: bufs.has(pa.buffer) }); }); }
+  const drawn = out.filter(e => e.visible);
+  return { snapTris: snapTris | 0, snapBig, meshes: drawn.length, meshesBig: drawn.filter(e => e.big).length, bigNotModel: drawn.filter(e => e.big && !e.inFlightModel).slice(0, 12), bigInModel: drawn.filter(e => e.big && e.inFlightModel).length };
+}
 function pageWreck() {
   const P = FLIGHT_PROBE, m = P.model(), scene = P.craft().parent, W = window.FLYDIY_WRECK_STATS ? FLYDIY_WRECK_STATS() : {};
   const debris = scene.children.filter(c => /^wreckDebris:/.test(c.name || '')).length;
@@ -109,6 +136,7 @@ const inShed = "document.body.classList.contains('mode-ws')";
   const pl0 = await ev(MB.A.places), places = typeof pl0 === 'string' ? JSON.parse(pl0) : pl0;
   const strips = places.filter(p => p.kind === 'strip');
   R.fresh = await S.run(pageScene);   // (a fresh load: the stand, before any crash)
+  R.freshSnap = await S.run(pageSnap); console.log('fresh load: the snapshot ' + JSON.stringify(R.freshSnap));
   for (const k of opt('paths', 'retry,garage,place').split(',')) {
     const r = { path: k };
     // (a staged crash that breaks nothing proves nothing about the path: staged once more, the why kept - the hits, the
@@ -133,6 +161,8 @@ const inShed = "document.body.classList.contains('mode-ws')";
     r.after = await S.run(pageWreck);
     r.giant = await S.run(pageGiant);
     r.old = await S.run(pageOld);
+    r.snap = await S.run(pageSnap);
+    console.log('  ' + k + ' the aeroplane snapshot after the path: ' + JSON.stringify(r.snap));
     r.scene = await S.run(pageScene);
     { const key = e => e.scene + e.path + '#' + e.tris, F = new Set((R.fresh || []).map(key)), U = new Set((R.fresh || []).map(e => e.uuid));
       r.survivors = r.scene.filter(e => e.big > 0 && !F.has(key(e))).map(e => Object.assign({ newUuid: !U.has(e.uuid) }, e));
