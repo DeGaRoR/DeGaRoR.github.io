@@ -77598,3 +77598,95 @@ New: tools/_rollsnd_check.js, tools/audio/rollout_render.js, tools/perf/rollout_
    space.js WET_OUT (0.3).
 4. No tyre or floor sound on the roll: the airframe voice reads the solver's V (0 in a kinematic shot). A ground-roll layer for
    the shot would be SND-AIRFRAME's.
+
+## G1720-G1724 - SND-MIX: THE PAGE'S MIX MEASURED OFFLINE (LUFS PER BUS), THE ENGINE LEADS (THE MEASURED TRIMS, THE PHASE LOTTERY), AN ENGINE SLIDER APART FROM THE AIRFRAME, MUSIC IN FLIGHT AT ONCE AND ANYWHERE, THE LOOP-STALL PUMP, THE FRAME'S TAU AT 3-4 FPS; GATED (2026-10-06, SND-MIX for the Sound Coordinator, cloud, node + a headless smoke of the meter; branch claude/snd-mix off origin/master 1ae2eebb = train 36, merged with origin/claude/snd-rollout 899a0979 - ROLLSND is that branch's gate; target train 38)
+
+The user's laptop test on train 36 (relayed by A0, 2026-10-06; GTX 1660 Ti at 3-4 fps, the Jodel): "the engine sound is
+much too faint compared to all other noises"; "we need a slider for the engine noise separately from the rest of the
+airplane"; "turning the music on in game did not work". Evidence: reports/evidence/SND-MIX/README.md (the full table, the
+renders, what to listen for, the box script).
+
+G1720 THE MEASUREMENT - tools/audio/mix_render.js (NEW): the page's whole mix rendered offline from the page's own files
+  (the engine + prop worklets chained as the page chains them, the airframe's three outputs, space.js's graph written out
+  with space_config.js's laws, the cabin transfer inside, ambience.js + emitters.js on Jolene under emitters_render's
+  recording context with the shipped MP3s, a Radio Jolene track at music.js trimOf, a Norman take at clipK) at audio.js's
+  OWN settings and MIX (audio.js run in a vm), then the limiter's law; per bus integrated LUFS (BS.1770-4) and peak, the
+  master after the limiter and its GR. The Jodel and the Cub x idle on the stand / taxi 1500 rpm 5 m/s / climb full power
+  Vy / cruise 0.75 Vc x cockpit (closed, headset off) / chase, ambience at the stand / over the forest / over the sea,
+  emitters over 40 s, the radio in cruise. `--table` (before / after markdown), `--lottery`, `--lowfps`, `--renders=tag`.
+  BEFORE (the train-36 tree): outside at idle the airfield bed was 15 dB OVER the idling engine (-31.9 vs -46.6 LUFS); in
+  cruise the radio 4-11 dB over the engine; the limiter never reduced (headroom to spare).
+  AFTER (cockpit cruise, Jodel): engine+prop -20.7, wind -33.1, radio -27.9, Norman -24.7, ambience under the gate; chase
+  idle: engine -38.6, the airfield -47.9, the emitters -61.8; GR 0 dB in all 16 states, the loudest peak -6.9 dBFS.
+  THE BOX SCRIPT - tools/perf/mix_meter.js (NEW): a console paste for the real page (SNDMIX.mark / split / table / stop):
+  read-only taps on AUDIO.bus('aircraft' | 'ambience' | 'music' | 'ui' | 'master'), K-weighting biquads, one analyser a
+  channel, BS.1770 gating, the limiter's own `reduction`; split() solos the engine and the airframe through their own
+  volumes (put back). Smoke-tested in headless Chromium on dev.html (a 1 kHz tone into ui read as computed); the game
+  itself does not finish loading under SwiftShader here, so THE COORDINATOR'S RUN on the box is the page's own table.
+
+G1721 THE MIX (audio.js MIX, dB, OUT OF THE SHED ONLY - the garage is untouched: the shed stays faint, the roll-out shot
+  keeps its levels): engine +8 (the engine groups' inputs), interior +6 (N.intTrim after the viewpoint fader's interior
+  side: the cockpit's listening level - the cabin's insulation stays the build's, ruling s5), airframe +4 (the wind a clear
+  second, 12-16 dB under at cruise), ambience -6 and ambienceRun -10 more while an engine of the flown aeroplane runs
+  (ramped ~3 s; a parked aeroplane with its engine off hears its world at -6), music -6 in flight (under the engine; the
+  shed and the loading screens unchanged). THE PHASE LOTTERY: in a direct drive the 2-blade prop's blade passage IS the
+  flat four's firing frequency, the two voices phase-locked at an angle each session draws by chance (the crank's seeded
+  start, the prop node starting blocks apart); over 12 angles through the cabin the power plant lost 10-13 dB at two of
+  them (the e+p spread 11-14 dB) - a session's draw could be the laptop's faint engine. space_config.js CABIN_TONAL_DB =
+  -10: the prop's TONAL enters the cabin 10 dB under (space.js gr.tonalCab between ins[1] and the side); the spread is
+  3-4.4 dB, the worst angle +6.5 dB louder. Outside the directivity already keeps them apart; the broadband is untrimmed.
+
+G1722 THE ENGINE SLIDER - audio.js SETTINGS 'engine' ("the engine and the propeller", 100 %), persisted as
+  flydiy.audio.engine; 'aircraft' (its key kept) is now the AIRFRAME row ("the wind, the gear, the touchdown, the stall
+  warning"). Why two flat rows and not a group master: each row names exactly what it moves, and the user's ask ("the
+  engine separately from the rest of the airplane") is to turn one against the other - with a master over both, the
+  engine could never be raised over the airframe. A STORED 'aircraft' (it scaled the engine and the airframe together):
+  at load, with no stored engine, the engine takes its value and stores it - both stay where the player had them, and a
+  later airframe move never drags the engine. THE GAINS: space.js applyLevels(lv) - the engine volume (x MIX.engine out of
+  the shed) on every engine group's inputs (the exhaust, the prop's tonal and broadband: each feeds the exterior chain AND
+  the cabin, so both perspectives and the headset), and on the other aircraft's world bus (their engines); the airframe's
+  on its group input and on G.afIn (NEW: interior() returns it - the airframe's structure-borne and interior-only layers
+  through its volume); with the space the aircraft bus is unity (without space.js 'aircraft' stays the old group master).
+  The row appears in both rails (AUDIO.mount) and in the boombox panel (boombox.js: beside music and master).
+
+G1723 MUSIC IN FLIGHT - the Coordinator's diagnosis confirmed (music.js's CRUISE: 200 m AGL held 20 s, flaps up). Now with
+  'music in flight' on the music plays AT ONCE ANYWHERE out of the shed and past the loading screen - the stand, the taxi,
+  the circuit - with the station's crossfades; the context (still named 'cruise') deals from EVERY track of the station,
+  as the loading screens do (Blues and Classical had no cruise-tagged track and fell to lo-fi's three). From silence the
+  music comes in over FADE_IN_S 1.5 s (a crossfade stays 4 s). THE SHORT FINAL (FINAL: flaps out, < 150 m, sinking faster
+  than 1.5 m/s, wheels up) dips it -4 dB over 1.5 s, released by the flaps up, a climb, 220 m or a wheel down - never
+  silence. The engine start / catch / stall ducks kept (folded with the dip on the same node). THE TOGGLE answers on its
+  own 'settings' event (no frame between AUDIO.set and the start), and AUDIO.welcome reads BOOT's state live (a #bootMusic
+  press between two frames lands on the screen that is up). THE PUMP (audio.js): app.js calls AUDIO.update only from its
+  loop, which does not run before the first light nor while holdRender holds a place change - so a loading screen's song
+  could not start or move on (seen on the real page here: AUDIO.pumped 3 under the boot). A 4 Hz timer after the gesture
+  runs update() itself when no frame came for 0.4 s (not in a hidden tab), with the last frame's sim / camera / aeroplane;
+  a frame from the loop idles it; gone with the context. Checked: the quick bar's radio and the boombox panel still drive
+  the same settings (GATE BOOMBOX), a station switch in flight starts at once.
+
+G1724 THE LOW FRAME RATE - audio.js tauS[0] = 0.6 x the smoothed dt, 30-250 ms; src_engine (rpm, load), src_prop, src_airframe,
+  space.js (directivity, absorption, panners, doppler) and emitters.js (panners) schedule with it when it is longer than
+  their own constant. A throttle ramp at 3 fps (lowfps.json: the lever's peak slope over the ramp's): 30 ms 10.55x (a step
+  each frame), the frame tau 2.04x, 60 fps 1.26x. ALLOCATION: a double read from a typed slot and handed to
+  setTargetAtTime is a heap box (measured +5 B a frame on the roll-out shot) - a frame at speed hands the laws' constants as
+  before (TF[3] / PT[1] = slow), only a slow frame hands the slot. BUDGET (A0's contract, GATE AUDIO): update() 4 us mean,
+  280 us worst, 0.40 B a frame; with every source + the space 28.6 us, 0.59 B a frame (unchanged); the roll-out shot 17.56 B
+  (unchanged); the emitters 2.15 B (was 4.42); nothing before the gesture (the pump's timer included), ?audio=0 builds
+  nothing (the stub is untouched).
+
+GATES (this branch's head): AUDIO PASS (351/351 mutations; +MIX block: the row and its default, the migration, the
+  persistence, "only the engine and the prop", both perspectives, the garage untouched, the cabin's tonal, the 3 fps tau
+  and its return to 30 ms, the pump and its limits, the loading song under a stalled loop; MUSIC_CTX rewritten to the new
+  rule: at once on the ground, the whole station dealt, the climb-out / circuit / low pass, the short final's dip and its
+  releases, the 3 fps toggle, a station switch in flight; 21 new mutations), AUDIOENG PASS, BUILD PASS, UISMOKE PASS (the
+  sound rail's rows: engine, airframe), BOOMBOX PASS (39/39: the engine slider), ROLLSND PASS.
+- HOT FILES: src/viewer/audio/audio.js, space.js, space_config.js, music.js, src_engine.js, src_prop.js, src_airframe.js,
+  emitters.js; src/viewer/boombox.js; tools/audio/_audio_check.js, _boombox_check.js; tools/test_ui_smoke.js.
+  NEW: tools/audio/mix_render.js, tools/perf/mix_meter.js, reports/evidence/SND-MIX/. Not touched: app.js, editor.js, build.js.
+- FOR THE COORDINATOR: (1) run tools/perf/mix_meter.js on the box (the Jodel: idle / climb / cruise, cockpit and chase,
+  Radio Jolene on) and compare with the README's table; (2) the trims are one table in audio.js MIX - if the ear wants the
+  engine hotter or the radio higher, move a number there and re-run mix_render.js (both tables are its); (3) ANIALLOC read
+  3.0 B a frame once in a full AUDIO run and 0.59 B alone and in the next two full runs - a heap-noise flake in a check that
+  reads the animals' model, not touched here; likewise MUSIC_BUDGET read 71 KB over 100 000 frames once in a 3-job
+  battery (budget 16 KB) and 4-6 KB in every solo run (4120 B in full runs, = the train-36 baseline) and in the re-run
+  battery, which is the one recorded above (EXIT 0).

@@ -1,5 +1,5 @@
 {
- "when": "2026-10-05",
+ "when": "2026-10-06",
  "sr": 48000,
  "rows": [
   {
@@ -26,12 +26,14 @@
      "peak": -240
     },
     "ambience": {
-     "lufs": -53.4,
-     "peak": -40.8
+     "lufs": -53.5,
+     "peak": -40.2
     },
     "emitters": {
-     "lufs": null,
-     "peak": -240
+     "lufs": -69.4,
+     "peak": -56.9,
+     "calls": 3,
+     "seconds": 40
     },
     "music": {
      "lufs": null,
@@ -47,7 +49,7 @@
     },
     "master": {
      "lufs": -51.1,
-     "peak": -37.7
+     "peak": -37.3
     }
    },
    "limiter": {
@@ -65,13 +67,15 @@
     "music": 0.6,
     "musicFlight": 0
    },
-   "trims": {},
+   "trims": {
+    "cabinTonalDb": 0
+   },
    "cabin": {
     "cls": "wood",
     "insulationDb": 11,
     "ambienceDb": 9
    },
-   "emitterCalls": 0,
+   "emitterCalls": 3,
    "rpm": 644,
    "V": 0
   },
@@ -99,12 +103,14 @@
      "peak": -240
     },
     "ambience": {
-     "lufs": -31.8,
-     "peak": -17.3
+     "lufs": -31.9,
+     "peak": -19.2
     },
     "emitters": {
-     "lufs": null,
-     "peak": -240
+     "lufs": -45,
+     "peak": -31.9,
+     "calls": 3,
+     "seconds": 40
     },
     "music": {
      "lufs": null,
@@ -119,8 +125,8 @@
      "peak": -33.5
     },
     "master": {
-     "lufs": -31.1,
-     "peak": -16
+     "lufs": -31.2,
+     "peak": -18.1
     }
    },
    "limiter": {
@@ -138,13 +144,15 @@
     "music": 0.6,
     "musicFlight": 0
    },
-   "trims": {},
+   "trims": {
+    "cabinTonalDb": 0
+   },
    "cabin": {
     "cls": "wood",
     "insulationDb": 11,
     "ambienceDb": 9
    },
-   "emitterCalls": 0,
+   "emitterCalls": 3,
    "rpm": 644,
    "V": 0
   },
@@ -172,12 +180,14 @@
      "peak": -33.8
     },
     "ambience": {
-     "lufs": -53.4,
-     "peak": -40.8
+     "lufs": -53.5,
+     "peak": -40.2
     },
     "emitters": {
-     "lufs": null,
-     "peak": -240
+     "lufs": -69.4,
+     "peak": -56.9,
+     "calls": 3,
+     "seconds": 40
     },
     "music": {
      "lufs": null,
@@ -193,7 +203,7 @@
     },
     "master": {
      "lufs": -38.9,
-     "peak": -29.3
+     "peak": -29.5
     }
    },
    "limiter": {
@@ -211,13 +221,15 @@
     "music": 0.6,
     "musicFlight": 0
    },
-   "trims": {},
+   "trims": {
+    "cabinTonalDb": 0
+   },
    "cabin": {
     "cls": "wood",
     "insulationDb": 11,
     "ambienceDb": 9
    },
-   "emitterCalls": 0,
+   "emitterCalls": 3,
    "rpm": 1500,
    "V": 5
   },
@@ -245,12 +257,14 @@
      "peak": -40.8
     },
     "ambience": {
-     "lufs": -31.8,
-     "peak": -17.3
+     "lufs": -31.9,
+     "peak": -19.2
     },
     "emitters": {
-     "lufs": null,
-     "peak": -240
+     "lufs": -45,
+     "peak": -31.9,
+     "calls": 3,
+     "seconds": 40
     },
     "music": {
      "lufs": null,
@@ -265,8 +279,8 @@
      "peak": -26.2
     },
     "master": {
-     "lufs": -28.4,
-     "peak": -15.3
+     "lufs": -28.2,
+     "peak": -16.4
     }
    },
    "limiter": {
@@ -284,13 +298,15 @@
     "music": 0.6,
     "musicFlight": 0
    },
-   "trims": {},
+   "trims": {
+    "cabinTonalDb": 0
+   },
    "cabin": {
     "cls": "wood",
     "insulationDb": 11,
     "ambienceDb": 9
    },
-   "emitterCalls": 0,
+   "emitterCalls": 3,
    "rpm": 1500,
    "V": 5
   },
@@ -318,12 +334,14 @@
      "peak": -36.2
     },
     "ambience": {
-     "lufs": -57.3,
-     "peak": -45.5
+     "lufs": -57,
+     "peak": -45.2
     },
     "emitters": {
      "lufs": null,
-     "peak": -240
+     "peak": -240,
+     "calls": 0,
+     "seconds": 40
     },
     "music": {
      "lufs": null,
@@ -339,7 +357,7 @@
     },
     "master": {
      "lufs": -29.8,
-     "peak": -25.2
+     "peak": -25.3
     }
    },
    "limiter": {
@@ -357,7 +375,9 @@
     "music": 0.6,
     "musicFlight": 0
    },
-   "trims": {},
+   "trims": {
+    "cabinTonalDb": 0
+   },
    "cabin": {
     "cls": "wood",
     "insulationDb": 11,
@@ -391,12 +411,14 @@
      "peak": -42.9
     },
     "ambience": {
-     "lufs": -35.6,
-     "peak": -24.4
+     "lufs": -36.6,
+     "peak": -24.8
     },
     "emitters": {
      "lufs": null,
-     "peak": -240
+     "peak": -240,
+     "calls": 0,
+     "seconds": 40
     },
     "music": {
      "lufs": null,
@@ -411,8 +433,8 @@
      "peak": -19.3
     },
     "master": {
-     "lufs": -23.6,
-     "peak": -16.1
+     "lufs": -23.7,
+     "peak": -15.8
     }
    },
    "limiter": {
@@ -430,7 +452,9 @@
     "music": 0.6,
     "musicFlight": 0
    },
-   "trims": {},
+   "trims": {
+    "cabinTonalDb": 0
+   },
    "cabin": {
     "cls": "wood",
     "insulationDb": 11,
@@ -464,12 +488,14 @@
      "peak": -30
     },
     "ambience": {
-     "lufs": -55.9,
-     "peak": -45.5
+     "lufs": -56.6,
+     "peak": -45.7
     },
     "emitters": {
      "lufs": null,
-     "peak": -240
+     "peak": -240,
+     "calls": 0,
+     "seconds": 40
     },
     "music": {
      "lufs": -21.9,
@@ -508,7 +534,9 @@
     "music": 0.6,
     "musicFlight": 0
    },
-   "trims": {},
+   "trims": {
+    "cabinTonalDb": 0
+   },
    "cabin": {
     "cls": "wood",
     "insulationDb": 11,
@@ -542,12 +570,14 @@
      "peak": -35.6
     },
     "ambience": {
-     "lufs": -34.5,
-     "peak": -23.6
+     "lufs": -34.4,
+     "peak": -24
     },
     "emitters": {
      "lufs": null,
-     "peak": -240
+     "peak": -240,
+     "calls": 0,
+     "seconds": 40
     },
     "music": {
      "lufs": -21.9,
@@ -563,7 +593,7 @@
     },
     "master": {
      "lufs": -19.8,
-     "peak": -3.8
+     "peak": -3.7
     }
    },
    "limiter": {
@@ -586,7 +616,9 @@
     "music": 0.6,
     "musicFlight": 0
    },
-   "trims": {},
+   "trims": {
+    "cabinTonalDb": 0
+   },
    "cabin": {
     "cls": "wood",
     "insulationDb": 11,
@@ -620,12 +652,14 @@
      "peak": -240
     },
     "ambience": {
-     "lufs": -50.4,
-     "peak": -37.8
+     "lufs": -50.5,
+     "peak": -37.2
     },
     "emitters": {
-     "lufs": null,
-     "peak": -240
+     "lufs": -67.5,
+     "peak": -53.9,
+     "calls": 3,
+     "seconds": 40
     },
     "music": {
      "lufs": null,
@@ -641,7 +675,7 @@
     },
     "master": {
      "lufs": -48.4,
-     "peak": -34.9
+     "peak": -34.5
     }
    },
    "limiter": {
@@ -659,13 +693,15 @@
     "music": 0.6,
     "musicFlight": 0
    },
-   "trims": {},
+   "trims": {
+    "cabinTonalDb": 0
+   },
    "cabin": {
     "cls": "fabric",
     "insulationDb": 8,
     "ambienceDb": 6
    },
-   "emitterCalls": 0,
+   "emitterCalls": 3,
    "rpm": 644,
    "V": 0
   },
@@ -693,12 +729,14 @@
      "peak": -240
     },
     "ambience": {
-     "lufs": -31.8,
-     "peak": -17.3
+     "lufs": -31.9,
+     "peak": -19.2
     },
     "emitters": {
-     "lufs": null,
-     "peak": -240
+     "lufs": -45,
+     "peak": -31.9,
+     "calls": 3,
+     "seconds": 40
     },
     "music": {
      "lufs": null,
@@ -713,8 +751,8 @@
      "peak": -33.5
     },
     "master": {
-     "lufs": -31.1,
-     "peak": -16
+     "lufs": -31.2,
+     "peak": -18.1
     }
    },
    "limiter": {
@@ -732,13 +770,15 @@
     "music": 0.6,
     "musicFlight": 0
    },
-   "trims": {},
+   "trims": {
+    "cabinTonalDb": 0
+   },
    "cabin": {
     "cls": "fabric",
     "insulationDb": 8,
     "ambienceDb": 6
    },
-   "emitterCalls": 0,
+   "emitterCalls": 3,
    "rpm": 644,
    "V": 0
   },
@@ -766,12 +806,14 @@
      "peak": -33.4
     },
     "ambience": {
-     "lufs": -50.4,
-     "peak": -37.8
+     "lufs": -50.5,
+     "peak": -37.2
     },
     "emitters": {
-     "lufs": null,
-     "peak": -240
+     "lufs": -67.5,
+     "peak": -53.9,
+     "calls": 3,
+     "seconds": 40
     },
     "music": {
      "lufs": null,
@@ -787,7 +829,7 @@
     },
     "master": {
      "lufs": -36.7,
-     "peak": -27.5
+     "peak": -27.7
     }
    },
    "limiter": {
@@ -805,13 +847,15 @@
     "music": 0.6,
     "musicFlight": 0
    },
-   "trims": {},
+   "trims": {
+    "cabinTonalDb": 0
+   },
    "cabin": {
     "cls": "fabric",
     "insulationDb": 8,
     "ambienceDb": 6
    },
-   "emitterCalls": 0,
+   "emitterCalls": 3,
    "rpm": 1500,
    "V": 5
   },
@@ -839,12 +883,14 @@
      "peak": -40.8
     },
     "ambience": {
-     "lufs": -31.8,
-     "peak": -17.3
+     "lufs": -31.9,
+     "peak": -19.2
     },
     "emitters": {
-     "lufs": null,
-     "peak": -240
+     "lufs": -45,
+     "peak": -31.9,
+     "calls": 3,
+     "seconds": 40
     },
     "music": {
      "lufs": null,
@@ -859,8 +905,8 @@
      "peak": -26.1
     },
     "master": {
-     "lufs": -28.4,
-     "peak": -15.3
+     "lufs": -28.2,
+     "peak": -16.4
     }
    },
    "limiter": {
@@ -878,13 +924,15 @@
     "music": 0.6,
     "musicFlight": 0
    },
-   "trims": {},
+   "trims": {
+    "cabinTonalDb": 0
+   },
    "cabin": {
     "cls": "fabric",
     "insulationDb": 8,
     "ambienceDb": 6
    },
-   "emitterCalls": 0,
+   "emitterCalls": 3,
    "rpm": 1500,
    "V": 5
   },
@@ -912,12 +960,14 @@
      "peak": -39.1
     },
     "ambience": {
-     "lufs": -54.3,
-     "peak": -42.5
+     "lufs": -54,
+     "peak": -42.2
     },
     "emitters": {
      "lufs": null,
-     "peak": -240
+     "peak": -240,
+     "calls": 0,
+     "seconds": 40
     },
     "music": {
      "lufs": null,
@@ -933,7 +983,7 @@
     },
     "master": {
      "lufs": -27.3,
-     "peak": -24.2
+     "peak": -24
     }
    },
    "limiter": {
@@ -951,7 +1001,9 @@
     "music": 0.6,
     "musicFlight": 0
    },
-   "trims": {},
+   "trims": {
+    "cabinTonalDb": 0
+   },
    "cabin": {
     "cls": "fabric",
     "insulationDb": 8,
@@ -985,12 +1037,14 @@
      "peak": -47.4
     },
     "ambience": {
-     "lufs": -35.6,
-     "peak": -24.4
+     "lufs": -36.6,
+     "peak": -24.8
     },
     "emitters": {
      "lufs": null,
-     "peak": -240
+     "peak": -240,
+     "calls": 0,
+     "seconds": 40
     },
     "music": {
      "lufs": null,
@@ -1006,7 +1060,7 @@
     },
     "master": {
      "lufs": -23.6,
-     "peak": -15.9
+     "peak": -16.1
     }
    },
    "limiter": {
@@ -1024,7 +1078,9 @@
     "music": 0.6,
     "musicFlight": 0
    },
-   "trims": {},
+   "trims": {
+    "cabinTonalDb": 0
+   },
    "cabin": {
     "cls": "fabric",
     "insulationDb": 8,
@@ -1058,12 +1114,14 @@
      "peak": -31.9
     },
     "ambience": {
-     "lufs": -52.9,
-     "peak": -42.5
+     "lufs": -53.6,
+     "peak": -42.7
     },
     "emitters": {
      "lufs": null,
-     "peak": -240
+     "peak": -240,
+     "calls": 0,
+     "seconds": 40
     },
     "music": {
      "lufs": -21.9,
@@ -1079,7 +1137,7 @@
     },
     "master": {
      "lufs": -20.8,
-     "peak": -3.8
+     "peak": -3.9
     }
    },
    "limiter": {
@@ -1102,7 +1160,9 @@
     "music": 0.6,
     "musicFlight": 0
    },
-   "trims": {},
+   "trims": {
+    "cabinTonalDb": 0
+   },
    "cabin": {
     "cls": "fabric",
     "insulationDb": 8,
@@ -1136,12 +1196,14 @@
      "peak": -38.2
     },
     "ambience": {
-     "lufs": -34.5,
-     "peak": -23.6
+     "lufs": -34.4,
+     "peak": -24
     },
     "emitters": {
      "lufs": null,
-     "peak": -240
+     "peak": -240,
+     "calls": 0,
+     "seconds": 40
     },
     "music": {
      "lufs": -21.9,
@@ -1157,7 +1219,7 @@
     },
     "master": {
      "lufs": -19.8,
-     "peak": -4.1
+     "peak": -3.9
     }
    },
    "limiter": {
@@ -1180,7 +1242,9 @@
     "music": 0.6,
     "musicFlight": 0
    },
-   "trims": {},
+   "trims": {
+    "cabinTonalDb": 0
+   },
    "cabin": {
     "cls": "fabric",
     "insulationDb": 8,
@@ -1189,6 +1253,288 @@
    "emitterCalls": 0,
    "rpm": 2079,
    "V": 31.4
+  }
+ ],
+ "lottery": [
+  {
+   "build": "jodel",
+   "state": "climb",
+   "tonalDb": 0,
+   "rows": [
+    {
+     "seed": 1,
+     "ep": -28.4,
+     "vsPowerSum": 0.8
+    },
+    {
+     "seed": 2,
+     "ep": -27.6,
+     "vsPowerSum": 1.6
+    },
+    {
+     "seed": 3,
+     "ep": -28.1,
+     "vsPowerSum": 1.1
+    },
+    {
+     "seed": 4,
+     "ep": -30.4,
+     "vsPowerSum": -1.2
+    },
+    {
+     "seed": 5,
+     "ep": -40.8,
+     "vsPowerSum": -11.6
+    },
+    {
+     "seed": 6,
+     "ep": -28,
+     "vsPowerSum": 1.2
+    },
+    {
+     "seed": 7,
+     "ep": -32.8,
+     "vsPowerSum": -3.6
+    },
+    {
+     "seed": 8,
+     "ep": -27.8,
+     "vsPowerSum": 1.4
+    },
+    {
+     "seed": 9,
+     "ep": -28.3,
+     "vsPowerSum": 0.9
+    },
+    {
+     "seed": 10,
+     "ep": -27.6,
+     "vsPowerSum": 1.5
+    },
+    {
+     "seed": 11,
+     "ep": -28.1,
+     "vsPowerSum": 1.1
+    },
+    {
+     "seed": 12,
+     "ep": -30.7,
+     "vsPowerSum": -1.5
+    }
+   ],
+   "worst": -11.6,
+   "best": 1.6,
+   "spreadDb": 13.2
+  },
+  {
+   "build": "jodel",
+   "state": "cruise",
+   "tonalDb": 0,
+   "rows": [
+    {
+     "seed": 1,
+     "ep": -31.1,
+     "vsPowerSum": 0.2
+    },
+    {
+     "seed": 2,
+     "ep": -29.8,
+     "vsPowerSum": 1.6
+    },
+    {
+     "seed": 3,
+     "ep": -30.1,
+     "vsPowerSum": 1.3
+    },
+    {
+     "seed": 4,
+     "ep": -31.6,
+     "vsPowerSum": -0.2
+    },
+    {
+     "seed": 5,
+     "ep": -40.7,
+     "vsPowerSum": -9.3
+    },
+    {
+     "seed": 6,
+     "ep": -30.2,
+     "vsPowerSum": 1.2
+    },
+    {
+     "seed": 7,
+     "ep": -33.2,
+     "vsPowerSum": -1.9
+    },
+    {
+     "seed": 8,
+     "ep": -29.7,
+     "vsPowerSum": 1.6
+    },
+    {
+     "seed": 9,
+     "ep": -31.2,
+     "vsPowerSum": 0.2
+    },
+    {
+     "seed": 10,
+     "ep": -29.9,
+     "vsPowerSum": 1.4
+    },
+    {
+     "seed": 11,
+     "ep": -30.2,
+     "vsPowerSum": 1.2
+    },
+    {
+     "seed": 12,
+     "ep": -31.8,
+     "vsPowerSum": -0.4
+    }
+   ],
+   "worst": -9.3,
+   "best": 1.6,
+   "spreadDb": 11
+  },
+  {
+   "build": "cub",
+   "state": "climb",
+   "tonalDb": 0,
+   "rows": [
+    {
+     "seed": 1,
+     "ep": -25.8,
+     "vsPowerSum": 1.3
+    },
+    {
+     "seed": 2,
+     "ep": -25.7,
+     "vsPowerSum": 1.4
+    },
+    {
+     "seed": 3,
+     "ep": -25.7,
+     "vsPowerSum": 1.3
+    },
+    {
+     "seed": 4,
+     "ep": -28.5,
+     "vsPowerSum": -1.5
+    },
+    {
+     "seed": 5,
+     "ep": -38.7,
+     "vsPowerSum": -11.7
+    },
+    {
+     "seed": 6,
+     "ep": -26.1,
+     "vsPowerSum": 0.9
+    },
+    {
+     "seed": 7,
+     "ep": -30.9,
+     "vsPowerSum": -3.9
+    },
+    {
+     "seed": 8,
+     "ep": -25.6,
+     "vsPowerSum": 1.5
+    },
+    {
+     "seed": 9,
+     "ep": -25.7,
+     "vsPowerSum": 1.3
+    },
+    {
+     "seed": 10,
+     "ep": -25.8,
+     "vsPowerSum": 1.3
+    },
+    {
+     "seed": 11,
+     "ep": -25.7,
+     "vsPowerSum": 1.3
+    },
+    {
+     "seed": 12,
+     "ep": -28.9,
+     "vsPowerSum": -1.8
+    }
+   ],
+   "worst": -11.7,
+   "best": 1.5,
+   "spreadDb": 13.1
+  },
+  {
+   "build": "cub",
+   "state": "cruise",
+   "tonalDb": 0,
+   "rows": [
+    {
+     "seed": 1,
+     "ep": -28.6,
+     "vsPowerSum": 0.8
+    },
+    {
+     "seed": 2,
+     "ep": -27.9,
+     "vsPowerSum": 1.4
+    },
+    {
+     "seed": 3,
+     "ep": -27.9,
+     "vsPowerSum": 1.4
+    },
+    {
+     "seed": 4,
+     "ep": -30,
+     "vsPowerSum": -0.6
+    },
+    {
+     "seed": 5,
+     "ep": -41.4,
+     "vsPowerSum": -12.1
+    },
+    {
+     "seed": 6,
+     "ep": -28.3,
+     "vsPowerSum": 1.1
+    },
+    {
+     "seed": 7,
+     "ep": -31.8,
+     "vsPowerSum": -2.5
+    },
+    {
+     "seed": 8,
+     "ep": -27.6,
+     "vsPowerSum": 1.7
+    },
+    {
+     "seed": 9,
+     "ep": -28.6,
+     "vsPowerSum": 0.8
+    },
+    {
+     "seed": 10,
+     "ep": -28,
+     "vsPowerSum": 1.3
+    },
+    {
+     "seed": 11,
+     "ep": -28,
+     "vsPowerSum": 1.4
+    },
+    {
+     "seed": 12,
+     "ep": -30.3,
+     "vsPowerSum": -0.9
+    }
+   ],
+   "worst": -12.1,
+   "best": 1.7,
+   "spreadDb": 13.8
   }
  ]
 }

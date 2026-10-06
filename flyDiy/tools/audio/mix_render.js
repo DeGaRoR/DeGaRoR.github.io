@@ -456,7 +456,26 @@ function writeOgg(file, L, Rr) {
   execFileSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-y', '-f', 'f32le', '-ar', String(SR), '-ac', '2', '-i', 'pipe:0', '-c:a', 'libopus', '-b:a', '96k', file], { input: buf });
 }
 
+// THE TABLE: before / after, a row a build x state x perspective, LUFS per bus (the master after the limiter), as markdown
+function table(before, after) {
+  const key = r => r.build + ' ' + r.state + ' ' + r.persp, B = {}; for (const r of before.rows) B[key(r)] = r;
+  const f = x => (x && x.lufs != null && isFinite(x.lufs) ? x.lufs.toFixed(1) : '-');
+  const cols = ['enginePlusProp', 'engine', 'prop', 'airframe', 'ambience', 'emitters', 'music', 'voice', 'master'];
+  const head = '| state | ' + cols.map(c => c === 'enginePlusProp' ? 'engine+prop' : c).join(' | ') + ' | peak | GR max |';
+  const lines = [head, '|' + '---|'.repeat(cols.length + 3)];
+  for (const r of after.rows) {
+    const b = B[key(r)];
+    lines.push('| ' + key(r) + ' | ' + cols.map(c => (b ? f(b.buses[c]) + ' → ' : '') + '**' + f(r.buses[c]) + '**').join(' | ') + ' | ' +
+      (b ? b.buses.master.peak + ' → ' : '') + r.buses.master.peak + ' | ' + (b ? b.limiter.grMaxDb + ' → ' : '') + r.limiter.grMaxDb + ' |');
+  }
+  return lines.join('\n');
+}
+
 async function main() {
+  if (process.argv.includes('--table')) {
+    const rd = f => JSON.parse(fs.readFileSync(path.join(OUT_DIR, f), 'utf8'));
+    console.log(table(rd('mix_before.json'), rd('mix_after.json'))); return;
+  }
   const arg = k => (process.argv.find(a => a.startsWith('--' + k + '=')) || '').slice(k.length + 3);
   const only = arg('only').split(',').filter(Boolean);
   const out = arg('out') || path.join(OUT_DIR, 'mix.json');
