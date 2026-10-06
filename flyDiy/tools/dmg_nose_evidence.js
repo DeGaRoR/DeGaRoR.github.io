@@ -45,13 +45,13 @@ const line = (pts, X, Y, color, wd, dash) => `<polyline fill="none" stroke="${co
 // 1. THE CRUSH: force against depth per build - the stack (the spinner's cone, the prop at its hub, the bowl), a
 // separation's prop layer dashed, the certificate's nose reaction at limit, and where the calm impact run stopped
 function crushSvg(A) {
-  const keys = ['cub', 'jodel', 'metal', 'twinFloats'], W = 980, H = 640, pw = 400, ph = 200;
+  const keys = ['cub', 'jodel', 'metal', 'twinFloats'], W = 980, H = 700, pw = 400, ph = 200;
   let body = '';
   keys.forEach((k, i) => {
     const st = A.find(r => r.kind === 'stack' && r.key === k); if (!st || !st.stack) return;
     const N = st.stack.find(x => x); if (!N) return;
-    const x0 = 80 + (i % 2) * 480, y0 = 100 + Math.floor(i / 2) * 270;
-    const ymax = Math.max(30, Math.ceil(st.Flim / 1000 / 10) * 10 + 5);
+    const x0 = 80 + (i % 2) * 480, y0 = 100 + Math.floor(i / 2) * 300;
+    const top = Math.max(...N.curve.map(c => c[1])) / 1000, ymax = Math.ceil(Math.max(30, k === 'twinFloats' ? top : st.Flim / 1000, top) / 10) * 10 + 5;
     const ax = axes(x0, y0, pw, ph, { title: LAB[k] + (k === 'twinFloats' ? '' : ' (' + Math.round(st.m) + ' kg)'), xr: [0, 50], yr: [0, ymax], xt: [0, 10, 20, 30, 40, 50], yt: Array.from({ length: Math.floor(ymax / 10) + 1 }, (_, j) => j * 10), xl: 'crush from the spinner\'s tip, cm', yl: 'force, kN' });
     body += ax.s;
     // the layers, shaded bands
@@ -61,20 +61,20 @@ function crushSvg(A) {
     if (k !== 'twinFloats') body += `<line x1="${x0}" x2="${x0 + pw}" y1="${ax.Y(st.Flim / 1000)}" y2="${ax.Y(st.Flim / 1000)}" stroke="${INK2}" stroke-dasharray="5 4"/><text x="${x0 + pw - 4}" y="${ax.Y(st.Flim / 1000) - 5}" font-size="10" text-anchor="end" fill="${INK2}">the mount certified: 9 g / 1.5 on the nose, ${(st.Flim / 1000).toFixed(1)} kN</text>\n`;
     body += line(N.curve.map(([c, F]) => [100 * c, F / 1000]), ax.X, ax.Y, BUILD[k] || S1, 2.5);
     const P = N.layers.find(x => x.name === 'prop');
-    if (P && P.Fsep != null) body += line([[100 * P.d0, P.Fsep / 1000], [100 * P.d1, P.Fsep / 1000]], ax.X, ax.Y, BUILD[k] || S1, 1.5, '4 3') + `<text x="${ax.X(100 * P.d1) + 3}" y="${ax.Y(P.Fsep / 1000) + 12}" font-size="9" fill="${INK2}">after a separation</text>\n`;
+    if (P && P.Fsep != null) body += line([[100 * P.d0, P.Fsep / 1000], [100 * P.d1, P.Fsep / 1000]], ax.X, ax.Y, BUILD[k] || S1, 1.5, '4 3') + `<text x="${(ax.X(100 * P.d0) + ax.X(100 * P.d1)) / 2}" y="${ax.Y(P.Fsep / 1000) + 13}" font-size="9" text-anchor="middle" fill="${INK2}">a separation</text>\n`;
     // the calm run at the impact speed: where the crush stopped
     const calm = A.filter(r => r.kind === 'sweep' && r.key === k && r.U === 0).flatMap(r => r.rows)[0];
     if (calm && calm.nose) {
       const x = ax.X(100 * calm.nose.crush), y = ax.Y(calm.nose.F / 1000);
-      body += `<circle cx="${x}" cy="${y}" r="5" fill="${BUILD[k]}" stroke="${SURF}" stroke-width="2"/><text x="${x + 8}" y="${y + 16}" font-size="10" fill="${INK}">3 m/s, calm: ${(100 * calm.nose.crush).toFixed(0)} cm, ${(calm.nose.J / 1000).toFixed(2)} kJ</text>\n`;
+      body += `<circle cx="${x}" cy="${y}" r="5" fill="${BUILD[k]}" stroke="${SURF}" stroke-width="2"/><text x="${x - 8}" y="${y - 10}" font-size="10" text-anchor="end" fill="${INK}">3 m/s, calm: ${(100 * calm.nose.crush).toFixed(0)} cm, ${(calm.nose.J / 1000).toFixed(2)} kJ</text>\n`;
     }
-    body += `<text x="${x0}" y="${y0 + ph + 52}" font-size="10" fill="${INK2}">${esc(N.layers.map(x => x.name + ' ' + (100 * (x.d1 - x.d0)).toFixed(0) + ' cm').join(' · ') + ' · the stack ' + (N.W / 1000).toFixed(2) + ' kJ; the 3 m/s taxi ' + (st.E3 / 1000).toFixed(2) + ' kJ')}</text>\n`;
+    body += `<text x="${x0}" y="${y0 + ph + 52}" font-size="10" fill="${INK2}">${esc(N.layers.map(x => x.name + ' ' + (100 * (x.d1 - x.d0)).toFixed(0) + ' cm').join(' · ') + ' · the stack ' + (N.W / 1000).toFixed(2) + ' kJ' + (k === 'twinFloats' ? ' (no trunk case on the water)' : '; the 3 m/s taxi ' + (st.E3 / 1000).toFixed(2) + ' kJ'))}</text>\n`;
   });
   return svgDoc(W, H, body, 'The crushable nose: force against crush depth, per build', 'the spinner (Alexander\'s shell crush on the cone), the propeller at its hub (the blade roots), the nose bowl; past the stack the engine itself (core)');
 }
 
 // 2. THE MOUNT'S WORST MEMBER OVER ITS LIMIT: a trace before / after (the Cub, a wind that broke it), and every run's peak
-function mountSvg(T, Bf, Af) {
+function mountSvg(T, Bf, Af, Bo, Ao) {
   const W = 980, H = 720;
   let body = '';
   // top: the traces
@@ -95,7 +95,7 @@ function mountSvg(T, Bf, Af) {
   const ax2 = axes(80, y0, 820, ph, { title: 'Every run at the impact speed (49 winds + 19 offsets a build): the worst mount member over its limit; red = the mount came off', xr: [0, 6], yr: [0, 1.4], xt: [], yt: [0, 0.2, 0.4, 0.6, 0.8, 1.0, 1.2, 1.4], xl: '', yl: 'peak force / its limit' });
   body += ax2.s + `<line x1="80" x2="900" y1="${ax2.Y(1)}" y2="${ax2.Y(1)}" stroke="${INK2}" stroke-dasharray="5 4"/>`;
   keys.forEach((k, i) => {
-    for (const [side, rows, j] of [['before', Bf(k), 0], ['after', Af(k), 1]]) {
+    for (const [side, rows, j] of [['before', Bf(k).concat(Bo(k)), 0], ['after', Af(k).concat(Ao(k)), 1]]) {
       const xc = ax2.X(2 * i + j + 0.5);
       rows.forEach((r, q) => { const jit = ((q * 37) % 23 - 11) * 2.6; const off = r.mount > 0;
         body += `<circle cx="${(xc + jit).toFixed(1)}" cy="${ax2.Y(off ? Math.max(1.02, r.peak) : r.peak).toFixed(1)}" r="3.2" fill="${off ? BAD : side === 'before' ? S1 : S2}" fill-opacity="${off ? 0.95 : 0.6}"/>`; });
@@ -116,7 +116,7 @@ function sweepSvg(Bf, Af, Bo, Ao) {
     [['before', Bf(k), Bo(k)], ['after', Af(k), Ao(k)]].forEach(([side, rows, offs], j) => {
       const x0 = 110 + j * 460, y0 = 100 + i * 220;
       const nOff = rows.filter(r => r.mount > 0).length, oOff = offs.filter(r => r.mount > 0).length;
-      body += `<text x="${x0}" y="${y0 - 12}" font-size="13" font-weight="600" fill="${INK}">${esc(LAB[k])}, ${side}: ${nOff} of ${rows.length} winds, ${oOff} of ${offs.length} offsets take the mount off</text>\n`;
+      body += `<text x="${x0}" y="${y0 - 12}" font-size="13" font-weight="600" fill="${INK}">${esc(LAB[k])}, ${side}: mount off in ${nOff}/${rows.length} winds, ${oOff}/${offs.length} offsets</text>\n`;
       US.forEach((U, a) => {
         body += `<text x="${x0 - 6}" y="${y0 + a * ch + 15}" font-size="10" text-anchor="end" fill="${INK2}">${U} m/s</text>`;
         TH.forEach((th, b) => {
@@ -161,7 +161,7 @@ function sweepSvg(Bf, Af, Bo, Ao) {
     fs.writeFileSync(runsF, JSON.stringify(T));
   }
   fs.writeFileSync(path.join(out, 'crush_curve.svg'), crushSvg(A));
-  fs.writeFileSync(path.join(out, 'mount_worst.svg'), mountSvg(T, Bf, Af));
+  fs.writeFileSync(path.join(out, 'mount_worst.svg'), mountSvg(T, Bf, Af, Bo, Ao));
   fs.writeFileSync(path.join(out, 'sweep.svg'), sweepSvg(Bf, Af, Bo, Ao));
   const sum = {};
   for (const k of ['cub', 'jodel', 'metal']) sum[k] = { winds: { before: Bf(k).filter(r => r.mount > 0).length, after: Af(k).filter(r => r.mount > 0).length, n: Af(k).length },
