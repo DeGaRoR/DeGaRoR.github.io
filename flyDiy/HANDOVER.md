@@ -78854,3 +78854,81 @@ and beside the floats under the hull line (key/floats_shed_low_off_on.jpg, sheet
 are in floats/narrow_keel (untracked).
 - Not run (no file of theirs touched): the physics, gear and pilot gates. contact_shadow.js and app.js's contact block
   read sim.p / def / terrainH and write only their own two meshes.
+
+
+## G2050 - JODEL-TAIL: THE FLICKER AT THE STAB ROOT WAS THE JODEL'S ELEVATOR SHEET FOLDED OVER ITSELF (THE CONTROL NET INSIDE OUT); ALSO TWO HINGES IN ONE PLACE ON EVERY RUDDER AND TWO SADDLE PLATES ON THE TWIN; BUILT RIGHT, GATES FIN 10 + HINGE 4g HOLD IT (2026-10-06, JODEL-TAIL for A0, local GPU; branch claude/jodel-tail-g2050 off origin/master 1ae2eebb = train 36)
+
+THE REPORT (the user, 6 Oct, laptop GTX 1660 Ti, preset retro, train 36): "the Jodel flickers at the tail, at the root
+of the stabs".
+
+1. THE FLICKER: THE ELEVATOR FOLDED (the stills, 03:45-04:00 under the GPU lock: blue/black shards on the elevator's
+inboard root that change completely between views 0.17 deg apart - garage and flight, live AND flown bake, retro AA off,
+MSAA and gamer; reports/evidence/JODEL-TAIL/before_*). The stab is the fin model laid flat (_fin_gen.js buildFin2). The
+user's Jodel asks for its u row BELOW the root guard pair (stUY -0.385: span 0.443 against 0.511/0.525) and its TE-root
+corner pulled outboard (stBaseY 0.285, to 0.796) AND forward (stTERoot 0.4, the slider's maximum): two control quads
+turned inside out (signed areas -0.208, -0.004) and the subdivided sheet folded its inboard elevator back over itself -
+41 faces, 1045 cm2 a side of sheet lying on sheet with opposite winding. A double-sided skin draws the back layer's dark
+face through the front one: the shards. The fold also broke the measure (stab root chord 0.018 m).
+THE FIX (_fin_gen.js, build not hide; both through clampSay, so the panel names the slider that stopped):
+- THE ROWS STAY IN ORDER: the u row keeps 0.01 over the root guard pair and over the TE corner.
+- THE NOTCH STAYS BEHIND ITS CHORD: the TE-root corner may not come forward of the chord from the guard pair's hinge
+  end to the u row's TE (a concave control quad folds under Catmull-Clark), 0.03 aft of it.
+Tried and dropped: a guard partner square to the tilted strand (removed no fold, moved every baseY stab's measure).
+Effect, measured (the drawn sheet; the join; the NP probe, tools/_np_decomp.js's method):
+  Jodel: folded faces 41 -> 0; stab panel 1.129 -> 1.088 m2 (the folded measure was inflated), elevator 0.507 -> 0.465;
+    joined spec tail.Sh 2.260 -> 2.208 (-2.3 %), hChord 0.833 -> 0.814, hTaper 0.975 -> 0.965, elevator chord frac
+    0.449 -> 0.427; NP 30.81 -> 30.72 % MAC, CG 26.57 -> 26.51, static margin 4.24 -> 4.21 %, stab trim -0.0694 -> -0.0702.
+  Cub: one folded face on master (0.0003) -> 0; Sh 2.460 -> 2.478 (+0.7 %); NP 40.04 -> 40.07, margin 17.46 -> 17.46.
+  Cessna, Cessna floats, the twin: joined spec BYTE-IDENTICAL (no clamp bites).
+THE USER'S CHOICE (a visual decision - see plan_jodel.jpg / plan_jodel_intent.jpg): the clamps give the nearest
+UNfolded outline, a longer straight cut-out from the hinge root to the TE (~0.3 m of span). The planform the user SAW
+(the visible outline over the fold) comes back without any fold or clamp at stBaseY 0.1, stTERoot 0.1, stUY -0.15:
+99.5 % the same raster, elevator 0.482 m2, Sh 2.241, margin 4.22 %. Not applied - the user's build, the user's call.
+The user's own saved copy needs nothing: the clamps act at build time.
+
+2. TWO HINGES IN ONE PLACE (found in node before any GPU time). A rudder wears straps on both faces of the fin
+(_cage_hinge.js, faces: 2), and the second face was drawn as a WHOLE second strapHinge on frameOn(..., -face), whose z is
+x * y - the flipped face flipped the hinge axis, so its fixed half landed on the first hinge's MOVING half: two identical
+pin bosses, one in edHinge_edFinSkin_metal and one in edHinge_rud_metal, coincident at every deflection (the rudder
+turns about that very axis). Every two-faced station of every aeroplane: Jodel 193 cm2, Cub 112, Cessna 128, twin 193.
+FIX: _hinge_gen.js strapHinge/bracketHinge(..., second): the second face is the same fitting's other legs (offsets
+reversed with the frame's z, no eye of its own - strapHalf noEye - and no pin); _cage_hinge.js passes f > 0. `flipF` in
+_hinge_gen.js has the same flip; nothing calls it.
+
+3. TWO PLATES ON THE TWIN'S SADDLE. The fin and the stab share the tailwheel's collar and each laid its own top plate
+on it (0.133 vs 0.1345 m, the same crown and gauge): 534 cm2 coincident. FIX: _cage_fin.js publishes each plate (top,
+W, L) in CAGE_FIN_SADDLES; _cage_stab.js bolts onto the fin's plate (its pedestal stands on it, capped to it).
+
+Ruled out on the way, measured: the game's REVERSED FLOAT DEPTH resolves ~1-8 um at 10 m, so the Jodel's flat stab
+crossing its 5-degree deck within 1-3 mm (and the wood liner 1.1 mm under the skin) cannot depth-fight; only exactly
+coplanar faces can - scan for those first (memory: flydiy-jodel-tail-g2050).
+
+THE GATES: GATE FIN §10 NO FOLD - the fin and stab sheets (subdivided, before the thickening) of the Jodel, Cub, Cessna,
+Cessna floats and twin have every face the same way round; red on master (Jodel 41, Cub 1), selftest flips one face.
+GATE HINGE 4g ONE FITTING - no tail hardware (edHinge_*, edSaddle_*) shares a face (same plane within 0.05 mm, same
+facing) with any other drawn tail part, on the four validated builds; red on master on all four; --selftest probe (f)
+draws the old two-hinge station and must be caught.
+GATES (6 Oct, 08:05-08:18 under boxlock cpu JTAIL, built tree 7928b2ba): CLIP JOIN FIT PARTS STAND FLOWNBAKE SAVE DESIGN
+FRAMES ROLLANIM HINGE (+ --selftest) FIN ARCHETYPES PASS. FRAMECOST FAIL (24) = THE STALE PARKED COOK, nothing else: the
+cub/cessna stand +132 draws, shadow +90, uniforms x2, taxi +120 - its own hint's signature - and `parked_cook.js --check`
+on this build says STALE (manifest b425dc42df1a vs tree 6a649d47735f; arch:c172, arch:cub, arch:jodel captured live). The
+train re-cooks on its final build; re-run FRAMECOST after. ROUNDTRIP not run (the slot's end) - the train's battery has it.
+
+FOUND, NOT FIXED: (a) the Cub's right elevator's inboard end reaches 5 mm into the rudder's thickness (x 0.0176 vs
+the rudder face 0.0224) and their cut faces share the hinge plane z -2.8405 - a 0.5 x 3 cm same-facing sliver inside the
+hinge slot (skin on skin; the two moving parts also meet there at deflection). (b) The Jodel's stab sits ON its round
+tail cone (the crown inside the stab's 3.7 cm thickness, a 1 cm slot between the fin and the stab's root rim) where the
+reference D112 (src/models/d112_model.js) passes the stab THROUGH the fuselage with the crown 2.5 cm above its top - the
+user's placement (stY 0.595), not a flicker under reversed depth; a user decision.
+
+EVIDENCE (reports/evidence/JODEL-TAIL/, each a strip of 4 views 0.17 deg apart, row 2 = frame-to-frame difference):
+  before_s_g_aaoff / after_s_g_aaoff - garage, retro, AA off: the shards, then none.
+  before_s_g_msaa / after_s_g_msaa - the same with MSAA (not an AA artefact).
+  before_s_f_live / after_s_f_live, before_s_f_bake / after_s_f_bake - flight, retro AA off, live craft and flown bake.
+  gamer_before_after - gamer preset, one frame each (the burst froze after the live preset switch).
+  before_o_garage / after_o_garage, before_o_flight / after_o_flight - the 3/4 views the strips are cut from.
+  plan_jodel, plan_cub - the stab panel's drawn sheet top-down, before/after (red = folded faces).
+  plan_jodel_intent - the user's visible outline kept without a fold (stBaseY 0.1, stTERoot 0.1, stUY -0.15).
+TRAIN NOTE (A0: train 38): _hinge_gen.js changes every aeroplane's hinge hardware and _fin_gen.js the Jodel's and the
+Cub's stab - re-cook the parked aeroplanes on the train.
+READY for A0.
