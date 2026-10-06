@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""ba_sheet.py - BEFORE / AFTER SHEETS from tools/shadowsky_shots.js pairs (SHORES-2 G1963).
+"""ba_sheet.py - BEFORE / AFTER SHEETS (and a middle column: --mid <page> --label-mid) from tools/shadowsky_shots.js pairs (SHORES-2 G1963).
 
 shadowsky_shots writes <view>_<page>.png per page; this lays each view out as one row [before | after], each
 half scaled to --w px wide, a label in the corner, and writes one JPEG per group.
@@ -14,6 +14,7 @@ ap = argparse.ArgumentParser()
 ap.add_argument('--dir', required=True); ap.add_argument('--before', required=True); ap.add_argument('--after', required=True)
 ap.add_argument('--out', required=True); ap.add_argument('--group', action='append', default=[]); ap.add_argument('--w', type=int, default=800)
 ap.add_argument('--label-before', default='before'); ap.add_argument('--label-after', default='after')
+ap.add_argument('--mid', default=None); ap.add_argument('--label-mid', default='middle')   # a third column between: before | mid | after
 a = ap.parse_args()
 try: font = ImageFont.truetype('consolab.ttf', 15)
 except Exception: font = ImageFont.load_default()
@@ -28,8 +29,11 @@ def tile(view, page, label):
 os.makedirs(a.out, exist_ok=True)
 for g in a.group:
     name, views = g.split('=', 1); views = views.split(',')
-    rows = [(tile(v, a.before, a.label_before), tile(v, a.after, a.label_after)) for v in views]
+    cols = [(a.before, a.label_before)] + ([(a.mid, a.label_mid)] if a.mid else []) + [(a.after, a.label_after)]
+    rows = [[tile(v, pg, lb) for pg, lb in cols] for v in views]
     H = sum(r[0].height for r in rows)
-    sheet = Image.new('RGB', (a.w * 2, H), (0, 0, 0)); y = 0
-    for b, f in rows: sheet.paste(b, (0, y)); sheet.paste(f, (a.w, y)); y += b.height
+    sheet = Image.new('RGB', (a.w * len(cols), H), (0, 0, 0)); y = 0
+    for r in rows:
+        for c, im in enumerate(r): sheet.paste(im, (a.w * c, y))
+        y += r[0].height
     p = os.path.join(a.out, name + '_before_after.jpg'); sheet.save(p, quality=86); print(p, sheet.size)
