@@ -429,6 +429,11 @@ function makeSim(def, world) {
   // G1898: on only when asked (params.damage, else the page's ?damage, else GEN_DAMAGE_DEFAULT - 60_gen_spec.js)
   const DMG_ON = (P_.damage ?? (typeof FLYDIY_DAMAGE === 'boolean' ? FLYDIY_DAMAGE
                   : typeof GEN_DAMAGE_DEFAULT !== 'undefined' && GEN_DAMAGE_DEFAULT)) === true && typeof GEN_CRASH !== 'undefined';
+  // G1883 (DMG-WINDBREAK): the instruments' hooks (sim.onSubstep, sim.damagePush) - null unless a reader asks
+  let subHook = null, tkPush = null;
+  // (and the trunk contact's crush state, G1883 below: each member's deepest intrusion and the substep it was last in contact)
+  const TK_RU = 10, tkIm = new Float64Array(beams.length), tkIt = new Int32Array(beams.length).fill(-2);
+  let tkSub = 0;
   const nb = beams.length;
   const DMG = { yields: 0, breaks: 0, work: 0, broken: [], firstBreak: null, firstYield: null,
                 crashed: false, reason: null, at: null, dented: false, propStrike: false, propAt: null,
@@ -1041,6 +1046,7 @@ function makeSim(def, world) {
     DMG.gPeak = 0; DMG.setMax = 0; DMG.orphans.length = 0; DMG.members = 0; DMG.dents = 0; DMG.primary = 0; DMG.firstPrimary = null; DMG.holed = 0; gF = 0; cIx = cIy = cIz = 0;
     for (const b of beams) b.yielded = false;
     DMG.wB.fill(0);   // G1802
+    tkSub += 2;       // G1883: every member's contact starts again
   }
   // (G1816) why a member broke, for the break-order gate: 'fold' (bent round a trunk past its fold angle), 'kink'
   // (crushed past ecu), 'ragged' (spruce's last stage), 'tension' (brittle at its strength, or ductile at etu), 'group'
@@ -2519,6 +2525,131 @@ function makeSim(def, world) {
       f[b3]-=Fb*dx; f[b3+1]-=Fb*dy; f[b3+2]-=Fb*dz;
     }
   }
+  // THE TRUNK PAIR q's CONTACT (G1330 / G1470), read by the contact pass and by tkShares: false when apart, else
+  // _tc = [t, nx, nz, pen, intrusion] - the beam's closest point to the trunk's axis (horizontal; t along a -> b), inside the
+  // radius and between the foot and the top, its normal out of the trunk and how deep it is in.
+  // G1470: a member already BENT ROUND THIS TRUNK keeps the side it was hit from (its line may now cross the trunk's
+  // axis: the bend wraps the trunk, it is not pushed out the far side), and stands clear of it by the bend's depth
+  const _tc = new Float64Array(5);
+  function tkHit(q) {
+    const b = beams[_pr[q * 2]], ia = b.a * 3, ib = b.b * 3;
+    const ax = p[ia], ay = p[ia+1], az = p[ia+2], ex = p[ib] - ax, ey = p[ib+1] - ay, ez = p[ib+2] - az;
+    const e2 = ex*ex + ez*ez;
+    const o = _pr[q * 2 + 1] * 5, tx = _tk[o], tz = _tk[o+1], R = _tk[o+3];
+    let t = e2 > 1e-12 ? ((tx - ax) * ex + (tz - az) * ez) / e2 : 0;
+    t = t < 0 ? 0 : t > 1 ? 1 : t;
+    const dx = ax + t * ex - tx, dz = az + t * ez - tz, d2 = dx*dx + dz*dz;
+    const bent = b.dOn && b.dTx === tx && b.dTz === tz;
+    let nx, nz, pen;
+    if (bent) {
+      nx = b.dNx; nz = b.dNz;
+      const sN = dx * nx + dz * nz, lat = dx * nz - dz * nx;
+      if (sN > R || lat * lat > R * R) return false;
+      pen = R - sN - b.dk;
+      if (pen <= 0) return false;
+    } else {
+      if (d2 > R*R) return false;
+      const d = Math.sqrt(d2) || 1e-6; nx = dx / d; nz = dz / d; pen = R - d;
+    }
+    const y = ay + t * ey;
+    if (y > _tk[o+4] || y < _tk[o+2] - 1) return false;
+    _tc[0] = t; _tc[1] = nx; _tc[2] = nz; _tc[3] = pen; _tc[4] = bent ? pen + b.dk : pen;
+    return true;
+  }
+  // G1883 (DMG-WINDBREAK): A NODE TAKES ONE CONTACT'S PUSH FROM A TRUNK. Each pair pushes its member's two ends by
+  // their share (1 - t, t), so a trunk met ON a node (t = 0 or 1 on every member meeting there: they all find their
+  // closest point at that node) pushed it once PER MEMBER - the Cub's thrust node ENGR, five members, took five times
+  // the ground's spring and damper on one node (KGn, CGn: what the same node gets on the ground, once). Its mount
+  // members went from nothing to their crush in 5 ms of a 3 m/s taxi, one kinked and the engine mount's group let go;
+  // the same taxi 14 cm to the side (the 2 deg a 5.5 m/s crosswind weathercocks the parked Cub, the drift on the
+  // roll) met the flange bar mid-span, which bends at its collapse load, and broke nothing. Now the shares a trunk
+  // puts on a node are a partition of one: where a node's shares sum past 1 they are scaled to 1 (one contact, the
+  // node's own spring and damper), split between its members as before; a node no trunk meets more than once is
+  // untouched (bit for bit). A node two trunks meet in one substep keeps the old sum (rare: two trunks within a
+  // member's reach). Only with the damage layer on (off = master's bits): the members' collapse loads, which judge
+  // each share, are the layer's.
+  const TKW = new Float64Array(PR_CAP * 2), tkWn = new Float64Array(n), tkWk = new Int32Array(n).fill(-1);
+  let tkNorm = false;
+  // G1883 (DMG-WINDBREAK): THE CONTACT CRUSHES; IT DOES NOT SPRING BACK. The contact's spring (the node's ground spring, KGn)
+  // stands for what the lattice does not carry as members where the trunk meets it - the skin, the cowl, the spinner -
+  // and that crushes: it loads on KGn and unloads along TK_RU x KGn from the deepest it went (the member's whole
+  // intrusion: its spring's depth plus any bend), so a tenth of what it stored comes back. Elastic both ways, a 3 m/s
+  // taxi stopped on one node (the per-node damper is critical for the node, 0.12 of critical for the 462 kg Cub it
+  // stops) rolled back 2.1-2.5 m: the over-count above had damped it by accident (five dampers on one node). Per
+  // member, the deepest intrusion of its current contact (a member out of contact for a substep starts again).
+  function tkAdd(i, k, w) {
+    if (tkWk[i] === -1) { tkWk[i] = k; tkWn[i] = w; }
+    else if (tkWk[i] === k) tkWn[i] += w;
+    else tkWk[i] = -2;                                 // two trunks on one node: left as it was
+  }
+  function tkShares() {
+    tkNorm = false;
+    for (let q = 0; q < _prN; q++) {
+      if (!tkHit(q)) continue;
+      const b = beams[_pr[q * 2]], k = _pr[q * 2 + 1], t = _tc[0];
+      tkAdd(b.a, k, 1 - t); tkAdd(b.b, k, t);
+    }
+    for (let q = 0; q < _prN; q++) {
+      const b = beams[_pr[q * 2]];
+      const sa = tkWk[b.a] >= 0 && tkWn[b.a] > 1 ? 1 / tkWn[b.a] : 1, sb = tkWk[b.b] >= 0 && tkWn[b.b] > 1 ? 1 / tkWn[b.b] : 1;
+      TKW[q * 2] = sa; TKW[q * 2 + 1] = sb;
+      if (sa < 1 || sb < 1) tkNorm = true;
+    }
+    for (let q = 0; q < _prN; q++) { const b = beams[_pr[q * 2]]; tkWk[b.a] = -1; tkWk[b.b] = -1; tkWn[b.a] = 0; tkWn[b.b] = 0; }
+  }
+  // THE TRUNK CONTACT PASS (G1330 / G1470; G1883 moved out of substep(), unchanged in its arithmetic): only when a trunk is in
+  // reach (trunkFrame's pairs) - the per-substep beam loop's function stays as small as it was
+  function trunkPass(dt) {
+    if (DMG_ON && _prN) { tkSub++; tkShares(); }     // G1883: a node takes one contact's push from a trunk
+    for (let q = 0; q < _prN; q++) {
+      if (!tkHit(q)) continue;
+      const b = beams[_pr[q * 2]], ia = b.a * 3, ib = b.b * 3;
+      {
+        const o = _pr[q * 2 + 1] * 5, tx = _tk[o], tz = _tk[o+1];
+        const t = _tc[0], nx = _tc[1], nz = _tc[2], pen = _tc[3];
+        const bent = b.dOn && b.dTx === tx && b.dTz === tz;
+        let wa = 1 - t, wb = t;
+        if (tkNorm) { wa *= TKW[q * 2]; wb *= TKW[q * 2 + 1]; }
+        const vna = v[ia] * nx + v[ia+2] * nz, vnb = v[ib] * nx + v[ib+2] * nz;
+        // G1883: the crush's give-back (DMG_ON): how far it has come back out of its deepest intrusion, unloaded at TK_RU x
+        let ret = 0;
+        if (DMG_ON) { const bi = _pr[q * 2], im = _tc[4];
+          if (tkIt[bi] < tkSub - 1 || im > tkIm[bi]) tkIm[bi] = im; else ret = (TK_RU - 1) * (tkIm[bi] - im);
+          tkIt[bi] = tkSub; }
+        // damped both ways and never pulling (a clamp at 0): with the damper on the way IN only, the spring handed the
+        // impact back and a 30 m/s aeroplane bounced 15 m off a trunk (G1333's pictures showed it)
+        let fa = wa * Math.max(0, KGn[b.a] * (pen - ret) - CGn[b.a] * vna), fb = wb * Math.max(0, KGn[b.b] * (pen - ret) - CGn[b.b] * vnb);
+        // G1470: no more than the member's own collapse load at that point (its ends' clusters take a node-on hit:
+        // t held to 0.1..0.9) - past it the member bends round the trunk (beamKink) and the work is gone, where the
+        // spring alone handed the whole impact back (an 8 m/s taxi into a trunk rolled back 16 m)
+        // G1883 (DMG-WINDBREAK): it BENDS under the share of the push ACROSS it (sA). Met along its length (0 < t < 1)
+        // the push is across it by construction (the closest point's normal is square to the member: sA = 1, as
+        // before, bit for bit); met at an END (t = 0 or 1: a trunk on a node) the push may run ALONG the member - a
+        // trunk on the Cub's thrust node pushes its three mount tubes from their engine ends, aft along them - and a push
+        // along a tube is its axial load (the beam's own law: its crush, its kink), not a bend: judged as a bend, the
+        // tubes "bent" at their ends, lost their chord (M_p / dk), the engine pivoted on the far side's fittings and pulled
+        // them out. Now only the across share bends it (sA = the sine between the push and the member)
+        if (b.mp < Infinity && !(b.dOn && !bent)) {
+          const t1 = t < 0.1 ? 0.1 : t > 0.9 ? 0.9 : t, tau = t1 * (1 - t1), Pc = b.mp / (b.Lr * tau), F = fa + fb;
+          let sA = 1;
+          if (!bent && (t === 0 || t === 1)) {
+            const ex = p[ib] - p[ia], ey = p[ib+1] - p[ia+1], ez = p[ib+2] - p[ia+2], e3 = Math.sqrt(ex*ex + ey*ey + ez*ez) || 1e-9;
+            const ca = (nx * ex + nz * ez) / e3; sA = Math.sqrt(Math.max(0, 1 - ca * ca));
+          }
+          if (F * sA > Pc) {
+            if (!bent) { b.dOn = true; b.dTx = tx; b.dTz = tz; b.dNx = nx; b.dNz = nz; b.dk = 0; b.kt = tau; b.kt1 = t1; }
+            const Ke = wa * KGn[b.a] + wb * KGn[b.b], dk = b.dk + pen * sA - Pc / Ke;
+            if (dk > b.dk) beamKink(_pr[q * 2], dk, Pc);
+            const sc = Pc / (F * sA); fa *= sc; fb *= sc;
+          }
+        }
+        f[ia] += fa * nx; f[ia+2] += fa * nz; f[ib] += fb * nx; f[ib+2] += fb * nz;
+        cIx += (fa + fb) * nx * dt; cIz += (fa + fb) * nz * dt;
+        if (tkPush !== null) { tkPush[b.a] += fa; tkPush[b.b] += fb; }   // G1883: the instrument (sim.damagePush)
+        _tkHits++;
+      }
+    }
+  }
   function substep(dt) {
     for (let i = 0; i < n; i++) { f[i*3]=0; f[i*3+1]=G*m[i]; f[i*3+2]=0; }
     aeroPass(false);
@@ -2660,54 +2791,7 @@ function makeSim(def, world) {
       // per node (KGn) and its damper on the velocity along the normal, the force never pulling (CGn): the woodland's softer KTn could not
       // hold a taxiing aeroplane inside a 0.3 m radius - the axis crossed the beam and pushed it on through
     }
-    for (let q = 0; q < _prN; q++) {
-      const b = beams[_pr[q * 2]], ia = b.a * 3, ib = b.b * 3;
-      const ax = p[ia], ay = p[ia+1], az = p[ia+2], ex = p[ib] - ax, ey = p[ib+1] - ay, ez = p[ib+2] - az;
-      const e2 = ex*ex + ez*ez;
-      {
-        const o = _pr[q * 2 + 1] * 5, tx = _tk[o], tz = _tk[o+1], R = _tk[o+3];
-        let t = e2 > 1e-12 ? ((tx - ax) * ex + (tz - az) * ez) / e2 : 0;
-        t = t < 0 ? 0 : t > 1 ? 1 : t;
-        const dx = ax + t * ex - tx, dz = az + t * ez - tz, d2 = dx*dx + dz*dz;
-        // G1470: a member already BENT ROUND THIS TRUNK keeps the side it was hit from (its line may now cross the
-        // trunk's axis: the bend wraps the trunk, it is not pushed out the far side), and stands clear of it by the
-        // bend's depth
-        const bent = b.dOn && b.dTx === tx && b.dTz === tz;
-        let nx, nz, pen;
-        if (bent) {
-          nx = b.dNx; nz = b.dNz;
-          const sN = dx * nx + dz * nz, lat = dx * nz - dz * nx;
-          if (sN > R || lat * lat > R * R) continue;
-          pen = R - sN - b.dk;
-          if (pen <= 0) continue;
-        } else {
-          if (d2 > R*R) continue;
-          const d = Math.sqrt(d2) || 1e-6; nx = dx / d; nz = dz / d; pen = R - d;
-        }
-        const y = ay + t * ey;
-        if (y > _tk[o+4] || y < _tk[o+2] - 1) continue;
-        const wa = 1 - t, wb = t;
-        const vna = v[ia] * nx + v[ia+2] * nz, vnb = v[ib] * nx + v[ib+2] * nz;
-        // damped both ways and never pulling (a clamp at 0): with the damper on the way IN only, the spring handed the
-        // impact back and a 30 m/s aeroplane bounced 15 m off a trunk (G1333's pictures showed it)
-        let fa = wa * Math.max(0, KGn[b.a] * pen - CGn[b.a] * vna), fb = wb * Math.max(0, KGn[b.b] * pen - CGn[b.b] * vnb);
-        // G1470: no more than the member's own collapse load at that point (its ends' clusters take a node-on hit:
-        // t held to 0.1..0.9) - past it the member bends round the trunk (beamKink) and the work is gone, where the
-        // spring alone handed the whole impact back (an 8 m/s taxi into a trunk rolled back 16 m)
-        if (b.mp < Infinity && !(b.dOn && !bent)) {
-          const t1 = t < 0.1 ? 0.1 : t > 0.9 ? 0.9 : t, tau = t1 * (1 - t1), Pc = b.mp / (b.Lr * tau), F = fa + fb;
-          if (F > Pc) {
-            if (!bent) { b.dOn = true; b.dTx = tx; b.dTz = tz; b.dNx = nx; b.dNz = nz; b.dk = 0; b.kt = tau; b.kt1 = t1; }
-            const Ke = wa * KGn[b.a] + wb * KGn[b.b], dk = b.dk + pen - Pc / Ke;
-            if (dk > b.dk) beamKink(_pr[q * 2], dk, Pc);
-            const sc = Pc / F; fa *= sc; fb *= sc;
-          }
-        }
-        f[ia] += fa * nx; f[ia+2] += fa * nz; f[ib] += fb * nx; f[ib+2] += fb * nz;
-        cIx += (fa + fb) * nx * dt; cIz += (fa + fb) * nz * dt;
-        _tkHits++;
-      }
-    }
+    if (_prN) trunkPass(dt);                         // G1883: its own function (the hot substep stays the base's size)
     // G1470: DEBRIS (a node every member of which broke - an engine torn off its mount) meets the trunks as a point:
     // with no beam left to test it would fly through the tree it was torn off on
     if (_tkN && DMG.orphans.length) for (const i of DMG.orphans) {
@@ -2809,7 +2893,8 @@ function makeSim(def, world) {
     // the members across them read from the substep's own starting state (the beam loop's), the cuts judged once its
     // projection has run, the parts that came off re-formed rigid - all out here, so substep() is the base's
     // G1898.10: no cut (always so with the layer off) - master's own loop, no per-substep flag
-    if (nCut0 === 0) for (let s = 0; s < sub; s++) { substep(dt); simT += dt; burn(dt); }
+    // G1883 (DMG-WINDBREAK): an instrument's per-substep reader (sim.onSubstep) takes the second loop; unset, one compare a frame
+    if (nCut0 === 0 && subHook === null) for (let s = 0; s < sub; s++) { substep(dt); simT += dt; burn(dt); }
     else for (let s = 0; s < sub; s++) {
       clMs = nCut0 > 0 && (armed || s === sub - 1);
       if (clMs) cutX();
@@ -2817,6 +2902,7 @@ function makeSim(def, world) {
       if (clMs) clCuts();
       if (clQ.length) clApply();
       simT += dt; burn(dt);
+      if (subHook !== null) subHook(s, dt);
     }
     readPanel(dtFrame);
     dmgFrame(dtFrame);
@@ -3005,6 +3091,12 @@ function makeSim(def, world) {
            // G1470: the damage - yields, breaks (beam indices), plastic work (J), the largest set (strain), the peak
            // filtered g, the prop strike, and the verdict: crashed (with why and when) / dented / neither
            damage: () => DMG, damagePeak: () => PEAK,
+           // G1883 (DMG-WINDBREAK): the instruments - the live caps each member is judged against (FY tension, FC
+           // compression; PHY its physics, 4 a member: yield, break, crush, sigY A) and a per-substep reader
+           // (fn(s, dt), after the substep; null clears it) - nothing of either runs unless asked
+           damageCaps: () => ({ FY, FC, PHY }), set onSubstep(fn) { subHook = typeof fn === 'function' ? fn : null; },
+           // (and the trunks' push on each node, N, summed since the reader last zeroed it: damagePush(true) arms it)
+           damagePush: on => { if (on && !tkPush) tkPush = new Float64Array(n); else if (!on) tkPush = null; return tkPush; },
            // G1831 (DMG-D2a): stamp the certificate on a sim that has not bent yet (the page's arrives from its
            // worker); true if stamped. cert(): the certificate stamped, or null
            certStamp: Cc => certStamp(Cc), cert: () => CERT,

@@ -183,6 +183,9 @@ function circuit(key, o) {
 // top-down every `every` frames (for the pictures) and the damage over time.
 function atTrunk(key, o) {
   const C = core(), def = defOf(key, o), elev = 300, { W, TH, strip } = flatWorld(elev);
+  // G1883 (DMG-WINDBREAK): `wind` - the air the aeroplane taxies in: a function (x, y, z, t) -> [wx, wy, wz] (the
+  // climate's field) or a fixed vector; without it the flat world is calm, as before
+  if (o.wind) { const w = o.wind; W.wind = typeof w === 'function' ? w : () => w; }
   const sim = C.makeSim(def, W); lastRun.sim = sim;
   const r = flyRun(C, sim, def, TH, strip, elev, o);
   // `then`: the same sim reset and flown again (reset must make the aeroplane whole)

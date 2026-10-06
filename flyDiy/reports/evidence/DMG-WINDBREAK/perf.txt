@@ -1,0 +1,19 @@
+Perf (node sim.step(1/60), nothing touching, a far 4000-trunk set; tools/treecrash_evidence.js --perf-only --perf-base <the base's core>, PERF_ELASTIC=1 for damage OFF): the median of 10 processes' medians a side, two runs pooled, alternating base / now
+damage ON   cub:ground    base 2.720 ms  now 2.721 ms  +0.0 %
+damage ON   cub:air       base 2.654 ms  now 2.607 ms  -1.7 %
+damage ON   metal:ground  base 4.629 ms  now 4.689 ms  +1.3 %
+damage ON   metal:air     base 4.527 ms  now 4.536 ms  +0.2 %
+damage OFF  cub:ground    base 2.748 ms  now 2.672 ms  -2.8 %
+damage OFF  cub:air       base 2.622 ms  now 2.642 ms  +0.8 %
+damage OFF  metal:ground  base 4.713 ms  now 4.646 ms  -1.4 %
+damage OFF  metal:air     base 4.570 ms  now 4.387 ms  -4.0 %
+
+Pinned pairs (taskset -c 2, alternating order), damage ON, after the contact pass moved out of substep():
+16 pinned pairs, metal ground damage ON: base 4.719 now 4.728 0.18 %; the pair median 1.97 %
+  pairs: -0.8 2.0 -1.0 2.4 2.2 -5.3 -1.8 0.3 4.0 2.2 -8.7 7.2 2.8 3.0 -3.9 -2.4
+16 pinned pairs, cub ground damage ON: base 2.727 now 2.727 -0.00 %; the pair median 0.58 %
+  pairs: -3.1 2.4 8.9 -2.9 -7.1 -4.2 0.7 3.8 4.6 0.6 -10.3 4.3 -4.0 -3.7 -0.4 1.6
+
+Before that move (the contact loop inside substep()), metal ground damage ON:
+16 pinned pairs, metal ground, damage ON: base 4.724 now 4.799 1.59 %; the pair median 2.08 %
+pairs: 2.1 -1.2 -3.1 3.2 5.3 2.2 4.0 1.0 -3.5 -0.6 2.5 6.3 3.7 2.0 1.2 -1.8
