@@ -1,0 +1,6 @@
+island_tour: the aluminium C172 (span 11.00 m), damage ON, 324 obstacles + 0 trunks in the world; HOME > w3 - the game's flight on a calm day
+  FAIL HOME > w3              509 s | dep: turned 102.7 deg, roll 109.7 m in, lift-off 157.4 m | final 3809.5 m / 192.8 m, clear 9.9 m (ground) | td sink 0.73 m/s, 32.3 m/s, run 563 m, off 0 m | fuel 24.4 L | FAULTS off-strip (the landing roll left w3's box) | phases TAXI>STOP>HOLD>ROLL>LIFTOFF>CLIMB>ENROUTE>DOWNWIND>BASE>FINAL>FLARE>ROLLOUT>STOPPED
+    phases TAXI>STOP>HOLD>ROLL>LIFTOFF>CLIMB>ENROUTE>DOWNWIND>BASE>FINAL>FLARE>ROLLOUT>STOPPED
+    verdicts vx-climb: ground ahead above the aeroplane — climbing at Vx 27.0 m/s until clear | vref-raised: the elevator cannot hold 28.8 m/s at this power — flying the approach faster | off-the-strip: touched 77 m in, stopped 121 m past the end of 520 m (0 m off the centreline)
+TOUR NOT DONE - 1 legs, fuel left 24.4 L, 434 s wall
+  the game: {"day":null,"shake":true,"stand":{"x":-154,"z":712},"mass":887.2,"fuel":28,"damage":true}

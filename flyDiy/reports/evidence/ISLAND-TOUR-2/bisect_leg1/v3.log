@@ -1,0 +1,86 @@
+host: cg0 -154.52,31.70,712.71 page cg0 [ -151.6, 31.6, 708.7 ] stand {"x":-154,"z":712,"hdg":-0.942,"elev":30.6}
+mass 460.39 fuel 27.00 shake true day tick utc0 17.9
+{
+ "args": "--shake --host --nav --day tick --out exp/v3.json",
+ "node": {
+  "phases": {
+   "TAXI": 0,
+   "STOP": 168,
+   "HOLD": 168.3,
+   "ROLL": 170.3,
+   "LIFTOFF": 181.3,
+   "CLIMB": 195.3,
+   "ENROUTE": 221.8,
+   "DOWNWIND": 739.5,
+   "BASE": 791.5,
+   "FINAL": 819.5,
+   "FLARE": 954,
+   "ROLLOUT": 959.3
+  },
+  "T": 967.8,
+  "enrVg": 32.6,
+  "enrAgl": 350.5,
+  "enrIas": 0
+ },
+ "page": {
+  "phases": {
+   "TAXI": 0,
+   "STOP": 165.4,
+   "HOLD": 165.9,
+   "ROLL": 167.9,
+   "LIFTOFF": 178.9,
+   "CLIMB": 193.2,
+   "ENROUTE": 221.1,
+   "DOWNWIND": 738.1,
+   "BASE": 790.9,
+   "FINAL": 819.1,
+   "FLARE": 955.9,
+   "ROLLOUT": 961.1,
+   "STOPPED": 970.1
+  },
+  "T": 975.2,
+  "enrVg": 32.6,
+  "enrAgl": 351.9,
+  "enrIas": 0
+ },
+ "dev": {
+  "p50": 6.6,
+  "p95": 37.8,
+  "max": 40.7
+ },
+ "landing": {
+  "run": 51,
+  "sink": 1.5,
+  "V": 13.8,
+  "offCentre": -0.2,
+  "pastAim": 11,
+  "k": 0,
+  "three": false,
+  "onStrip": true,
+  "tdIn": 26,
+  "stopLeft": 173
+ },
+ "pageLanding": {
+  "run": 50,
+  "sink": 1.56,
+  "V": 13.8,
+  "offCentre": -0.2,
+  "pastAim": 11,
+  "k": 0,
+  "three": false,
+  "onStrip": true,
+  "tdIn": 26,
+  "stopLeft": 174
+ },
+ "verdicts": [],
+ "wall": 458.821,
+ "sheet": {
+  "Vs0": 13.5,
+  "Vref": 17.5,
+  "LDbest": 9.448275548573196,
+  "sinkBg": 2.353352029301232,
+  "climbMax": 3.1262421803352374,
+  "src": "measured"
+ },
+ "mass": 458.05735963692257
+}

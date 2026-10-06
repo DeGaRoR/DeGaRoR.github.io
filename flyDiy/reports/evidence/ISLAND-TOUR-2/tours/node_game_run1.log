@@ -1,0 +1,8 @@
+  the day: {"cloudCover":0.25,"cloudSeed":1,"cloudType":"cuh","date":"2026-06-22","groundAlbedo":0.15,"ozone":300,"rate":1,"rh":0.5,"turbidity":2.8,"utc":18.389266666666753,"wind":{"kts":8,"dirDeg":250,"gust":0.15,"refH":10,"breeze":1}}
+tour_real_node: cub_2026-09-20_corrected.json (span 10.70 m), damage off, 324 obstacles + 0 trunks; HOME > nv_strip > mn_strip > tw_ski > w3 > HOME
+  the game's flight: {"day":{"cloudCover":0.25,"cloudSeed":1,"cloudType":"cuh","date":"2026-06-22","groundAlbedo":0.15,"ozone":300,"rate":1,"rh":0.5,"turbidity":2.8,"utc":18.389266666666753,"wind":{"kts":8,"dirDeg":250,"gust":0.15,"refH":10,"breeze":1}},"shake":true,"stand":{"x":-154,"z":712},"mass":460.4,"fuel":27,"damage":false}
+  ok   HOME > nv_strip        919 s | dep: turned 104.5 deg, roll 108.9 m in, lift-off 113.1 m | final 1697.8 m / 561.1 m, clear 9.7 m (ground) | td sink 0.95 m/s, 14.9 m/s, run 101 m, off 0.1 m | fuel 24.3 L | warnings go-around at 722.3 s
+  FAIL nv_strip > mn_strip    197 s | dep: turned 722.5 deg (U-turn), roll 37.3 m in, lift-off - | final -, clear - | td - | fuel 23.8 L | FAULTS abort (the take-off was rejected) | phases TAXI>STOP>HOLD>DEPART>TAXI>STOP>HOLD>DEPART>TAXI>STOP>HOLD>LINEUP>STOP>HOLD>LINEUP>STOP>HOLD>ROLL>ABORT  <- rejected; one retry
+  FAIL nv_strip > mn_strip     91 s | dep: turned 353.2 deg (U-turn), roll 37.2 m in, lift-off - | final -, clear - | td - | fuel 23.5 L | FAULTS abort-retried (the take-off was rejected); abort (the take-off was rejected) | phases TAXI>STOP>HOLD>LINEUP>STOP>HOLD>LINEUP>STOP>HOLD>ROLL>ABORT
+TOUR NOT DONE - 2 legs, 1218 s sim, 606 s wall
+-> /tmp/claude-0/-home-user-DeGaRoR-github-io/c4420ada-f0c6-57b2-ab25-5d56a07a16bc/scratchpad/tours/game_run1.json

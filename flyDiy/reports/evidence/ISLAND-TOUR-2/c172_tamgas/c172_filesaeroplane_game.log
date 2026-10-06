@@ -1,0 +1,6 @@
+island_tour: the aluminium C172 (span 11.00 m), damage ON, 324 obstacles + 0 trunks in the world; HOME > w3 - the game's flight
+  ok   HOME > w3              455 s | dep: turned 102.7 deg, roll 109.5 m in, lift-off 158 m | final 2195.9 m / 176.3 m, clear 13.1 m (ground) | td sink 0.91 m/s, 21.7 m/s, run 195 m, off 0 m | fuel 24.7 L
+    phases TAXI>STOP>HOLD>ROLL>LIFTOFF>CLIMB>ENROUTE>DOWNWIND>BASE>FINAL>FLARE>ROLLOUT>STOPPED
+    verdicts vx-climb: ground ahead above the aeroplane — climbing at Vx 26.9 m/s until clear | flap-limited: the elevator holds flap 0.98 at its trim budget — no more
+TOUR DONE - 1 legs, fuel left 24.7 L, 531 s wall
+  the game: {"day":{"cloudCover":0.25,"cloudSeed":1,"cloudType":"cuh","date":"2026-06-22","groundAlbedo":0.15,"ozone":300,"rate":1,"rh":0.5,"turbidity":2.8,"utc":0,"wind":{"kts":8,"dirDeg":250,"gust":0.15,"refH":10,"breeze":1}},"shake":true,"stand":{"x":-154,"z":712},"mass":883.4,"fuel":28,"damage":true}

@@ -25,7 +25,7 @@
 //     every tree, and the hold where the turn comes out lined up keeps the run the strip had (the hold <= r + 9 m in: 3 m from the end, the half circle, 6 m straight)
 //   4 THE MINE'S APRON: a gravel apron (apron: true) under the stand and the C172's parked box, 1.5 m off every
 //     footprint, on the street's level
-// THE TOURS (one heavy job each - shards: 3):
+// THE TOURS (one heavy job each - shards: 4; 6 East Point the fourth, G1970):
 //   5 (G1970: THE GAME'S FLIGHT - _tour_lib gameHost: the worker's host and placement, the page's pilot with the garage's
 //     shakedown, DAY_CLOCK's day ticked, the load door's aeroplane) the user's Cub (builds/cub_2026-09-20_corrected.json): HOME > Tamgas Hill > the altiport > Jumbo Mine > 02/20 >
 //     HOME; the aluminium C172: HOME > Tamgas Hill > the altiport > 02/20 > HOME (G531: its reserve refuses the mine's
@@ -181,7 +181,9 @@ if (!STRIPS) {
     const GW = R.game && R.game.day && R.game.day.wind;
     check(!!(GW && GW.kts === 8 && GW.dirDeg === 250 && R.game.shake), '5 ' + B.name + ': the game\'s flight - the game\'s day and the page\'s pilot', JSON.stringify(R.game && { wind: GW, shake: R.game.shake, stand: R.game.stand }));
     const raw = JSON.parse(fs.readFileSync(B.key, 'utf8')), rawFuel = ((raw.spec || raw).fuel || {}).litres;
-    const mGame = def.nodes.reduce((m, q) => m + q.m, 0);
+    // (the game's spec straight from JOIN-PARITY's one load path - not through the loader the tour used)
+    const gsp = require(path.join(T, '_load_build.js')).gameSpec(raw);
+    const gdef = C.buildGen(C.genMigrateSpec ? C.genMigrateSpec(gsp) : gsp), mGame = gdef.nodes.reduce((m, q) => m + q.m, 0);
     check(!!(R.game && Math.abs(R.game.mass - mGame) < 0.1), '5 ' + B.name + ': the load door\'s aeroplane flies', R.game ? R.game.mass + ' kg (the game spec\'s ' + mGame.toFixed(1) + '), ' + R.game.fuel + ' L at the start (the file says ' + rawFuel + ' L)' : '-');
     for (const L2 of R.legs) {
       const id = '5 ' + B.name + ' ' + L2.from + ' > ' + L2.to;
@@ -202,6 +204,23 @@ if (!STRIPS) {
       check(L2.fuel && L2.fuel.litres > 0, id + ': fuel left', L2.fuel ? L2.fuel.litres + ' L' : '-');
     }
     check(R.done && R.legs.length === order.length - 1, '5 ' + B.name + ': the tour is complete, back at ' + order[order.length - 1], R.legs.length + ' of ' + (order.length - 1) + ' legs');
+  }
+  // 6 EAST POINT, AS THE GAME FLIES IT (G1970). TOUR-REAL (G2065) flew it in the game: the user's Cub LANDS there (one
+  // go-around 'high on the slope 537 m out', a touchdown 29-33 m in, stopped with ~19 m left) and CANNOT TAKE OFF (the
+  // roll from 37.7 m in, downwind, 'rejected-takeoff: will not reach Vr', stopped 6.8 m past the far end - twice). The
+  // game's flight here reproduces both to the metre (reports/evidence/ISLAND-TOUR-2). The landing is held; the take-off
+  // is PILOT-ONE-2's owed fix (TOUR-REAL's routed item 1: the roll from the strip's end, the wind weighed, an abort that
+  // stops on the strip) - printed, not gated, until it lands; then fold East Point into ORDERS.land
+  if (SHD.take()) {
+    const B = TR.BUILDS.cub, order = ['HOME', 'nv_strip', 'mn_strip'];
+    const def = TR.defOf(C, PT, B.key);
+    const TW = TR.tourWorld(C, IN, fs);
+    const t0 = Date.now();
+    const R = TR.flyTour(C, TW.W, def, order, { game: {}, log: SHOW ? (L2 => console.log(TR.fmtLeg(L2))) : null });
+    const L1 = R.legs[0], L2 = R.legs[1];
+    console.log('  ' + B.name + ': ' + order.join(' > ') + ' (' + ((Date.now() - t0) / 1000).toFixed(0) + ' s)');
+    check(L1 && L1.ok && L1.landedOn === 'nv_strip', '6 ' + B.name + ' HOME > nv_strip: lands at East Point and stops on it, no fault', L1 ? (L1.faults.map(f => f.k + ': ' + f.note).join('; ') || 'td ' + JSON.stringify(L1.arr.landing)) : '-');
+    console.log('  INFO 6 East Point > Jumbo Mine (PILOT-ONE-2, owed): ' + (L2 ? (L2.ok ? 'TAKES OFF - fold East Point into ORDERS.land' : L2.faults.map(f => f.k).join(', ') + ' - ' + L2.verdicts.filter(v => /reject|abort|off-the-strip/.test(v)).join('; ')) : 'not flown'));
   }
 }
 console.log('GATE TOUR' + SHD.tag + ': ' + (bad ? 'FAIL (' + bad + ')' : 'PASS'));

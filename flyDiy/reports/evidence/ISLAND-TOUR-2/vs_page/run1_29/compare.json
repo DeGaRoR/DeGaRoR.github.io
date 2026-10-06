@@ -1,0 +1,681 @@
+{
+ "legs": [
+  {
+   "leg": 1,
+   "from": "HOME",
+   "fromNode": "HOME",
+   "to": "nv_strip",
+   "landedPage": "nv_strip",
+   "landedNode": "nv_strip",
+   "page": {
+    "t": 923.1,
+    "faults": [],
+    "dep": {
+     "turned": 104.3,
+     "uturn": false,
+     "latMax": 269.7,
+     "uturnAt": {
+      "x": 221.44,
+      "z": 690.65,
+      "s": 702.4,
+      "c": 11.7,
+      "t": 77.4
+     },
+     "footprint": {
+      "s": [
+       651.9,
+       1134.6
+      ],
+      "c": [
+       -12.6,
+       37
+      ]
+     },
+     "roll": {
+      "x": 494.1,
+      "z": 912.3,
+      "s": 1053.6,
+      "c": 0.1,
+      "fromEnd": 108.9,
+      "t": 167.8
+     },
+     "lift": {
+      "x": 406.6,
+      "z": 837.4,
+      "dist": 115.2,
+      "t": 178.8
+     }
+    },
+    "arr": {
+     "final": {
+      "d": 1732,
+      "agl": 564.4,
+      "t": 665.6
+     },
+     "minFinalAgl": 11.3,
+     "td": {
+      "x": 10019.2,
+      "z": -11619.6,
+      "s": 41.8,
+      "c": 0,
+      "pastThr": 33.2,
+      "Vg": 19.1,
+      "t": 910.6
+     },
+     "stop": {
+      "x": 10044.6,
+      "z": -11714.6,
+      "s": -56.5,
+      "c": 0,
+      "phase": "STOPPED"
+     },
+     "run": 98.3
+    },
+    "stopped": true,
+    "done": true,
+    "pilot": {
+     "outcome": "completed",
+     "landing": {
+      "run": 103,
+      "sink": 0.81,
+      "V": 15.1,
+      "offCentre": 0.1,
+      "pastAim": 19,
+      "k": 0,
+      "three": false,
+      "onStrip": true,
+      "tdIn": 29,
+      "stopLeft": 19
+     },
+     "verdicts": [
+      "go-around: high on the slope 537 m out (attempt 1)"
+     ]
+    },
+    "rigFaults": [],
+    "effRate": {
+     "mean": 2,
+     "min": 1.91,
+     "simOverWall": 2
+    }
+   },
+   "node": {
+    "t": 924,
+    "faults": [],
+    "dep": {
+     "turned": 104.3,
+     "uturn": false,
+     "latMax": 275,
+     "uturnAt": {
+      "x": 221.28,
+      "z": 690.53,
+      "s": 702.2,
+      "c": 11.7,
+      "t": 79.8
+     },
+     "footprint": {
+      "s": [
+       651.8,
+       1134.6
+      ],
+      "c": [
+       -12.6,
+       37.1
+      ]
+     },
+     "roll": {
+      "x": 494.1,
+      "z": 912.3,
+      "s": 1053.6,
+      "c": 0.1,
+      "fromEnd": 108.9,
+      "t": 170.3
+     },
+     "lift": {
+      "x": 406.5,
+      "z": 837.4,
+      "dist": 115.2,
+      "t": 181.3
+     }
+    },
+    "arr": {
+     "final": {
+      "d": 1725.9,
+      "agl": 564.1,
+      "t": 668.3
+     },
+     "minFinalAgl": 10.6,
+     "td": {
+      "x": 10019.1,
+      "z": -11619.2,
+      "s": 42.2,
+      "c": 0,
+      "pastThr": 32.8,
+      "Vg": 19.1,
+      "t": 913
+     },
+     "stop": {
+      "x": 10044.7,
+      "z": -11714.7,
+      "s": -56.6,
+      "c": 0,
+      "phase": "STOPPED"
+     },
+     "run": 98.8
+    },
+    "stopped": true,
+    "done": true,
+    "pilot": {
+     "outcome": "completed",
+     "landing": {
+      "run": 103,
+      "sink": 0.84,
+      "V": 15.1,
+      "offCentre": 0.1,
+      "pastAim": 19,
+      "k": 0,
+      "three": false,
+      "onStrip": true,
+      "tdIn": 29,
+      "stopLeft": 18
+     },
+     "verdicts": [
+      "go-around: high on the slope 537 m out (attempt 1)"
+     ]
+    },
+    "libFaults": []
+   },
+   "dev": {
+    "p50": 0,
+    "p95": 0,
+    "max": 0.1,
+    "backMax": 5.3,
+    "runs": []
+   },
+   "delta": {
+    "t": -0.9,
+    "roll": 0,
+    "lift": 0.1,
+    "td": 0.4,
+    "stop": 0.1,
+    "tdPast": 0.4
+   }
+  },
+  {
+   "leg": 2,
+   "from": "nv_strip",
+   "fromNode": "nv_strip",
+   "to": "mn_strip",
+   "landedPage": "mn_strip",
+   "landedNode": "mn_strip",
+   "page": {
+    "t": 317,
+    "faults": [],
+    "dep": {
+     "turned": 722.5,
+     "uturn": true,
+     "latMax": 19,
+     "uturnAt": {
+      "x": 10055.27,
+      "z": -11745.52,
+      "s": -89.1,
+      "c": -2.3,
+      "t": 22.6
+     },
+     "footprint": {
+      "s": [
+       -79.7,
+       42.5
+      ],
+      "c": [
+       -19,
+       6.8
+      ]
+     },
+     "roll": {
+      "x": 10019.2,
+      "z": -11623.9,
+      "s": 37.7,
+      "c": 1.1,
+      "fromEnd": 37.3,
+      "t": 188.3
+     },
+     "lift": null
+    },
+    "arr": {
+     "final": null,
+     "minFinalAgl": null,
+     "td": null,
+     "stop": {
+      "x": 10051.1,
+      "z": -11738.9,
+      "s": -3920.7,
+      "c": 2469,
+      "phase": "STOPPED"
+     }
+    },
+    "stopped": true,
+    "done": false,
+    "pilot": {
+     "outcome": "rejected-takeoff",
+     "landing": null,
+     "verdicts": [
+      "pivot: a 197 deg turn tighter than the wheels steer (11.3 m) — turning on the spot",
+      "rejected-takeoff: will not reach Vr: 1.48 m/s^2 needs 59 m more, 65 m left"
+     ]
+    },
+    "rigFaults": [
+     {
+      "k": "abort",
+      "note": "the take-off was rejected at t 1124.8 (try 1)"
+     },
+     {
+      "k": "abort",
+      "note": "the take-off was rejected at t 1232.9 (try 2)"
+     }
+    ],
+    "effRate": {
+     "mean": 2,
+     "min": 1.94,
+     "simOverWall": 1.99
+    }
+   },
+   "node": {
+    "t": 296.8,
+    "faults": [],
+    "dep": {
+     "turned": 722.4,
+     "uturn": true,
+     "latMax": 19,
+     "uturnAt": {
+      "x": 10055.3,
+      "z": -11745.57,
+      "s": -89.2,
+      "c": -2.3,
+      "t": 22.3
+     },
+     "footprint": {
+      "s": [
+       -80,
+       42.5
+      ],
+      "c": [
+       -19,
+       6.8
+      ]
+     },
+     "roll": {
+      "x": 10019.3,
+      "z": -11623.8,
+      "s": 37.7,
+      "c": 1,
+      "fromEnd": 37.3,
+      "t": 187.8
+     },
+     "lift": null
+    },
+    "arr": {
+     "final": null,
+     "minFinalAgl": null,
+     "td": null,
+     "stop": {
+      "x": 10032.2,
+      "z": -11668.7,
+      "s": -3989,
+      "c": 2444,
+      "phase": "ROLL"
+     }
+    },
+    "stopped": false,
+    "done": false,
+    "pilot": {
+     "outcome": null,
+     "landing": null,
+     "verdicts": [
+      "pivot: a 197 deg turn tighter than the wheels steer (11.3 m) — turning on the spot",
+      "rejected-takeoff: will not reach Vr: 1.48 m/s^2 needs 59 m more, 65 m left"
+     ]
+    },
+    "libFaults": [
+     {
+      "k": "abort-retried",
+      "note": "the take-off was rejected",
+      "t": 195
+     },
+     {
+      "k": "abort",
+      "note": "the take-off was rejected",
+      "t": 92.1
+     }
+    ]
+   },
+   "dev": {
+    "p50": 0,
+    "p95": 1.2,
+    "max": 1.8,
+    "backMax": 3.2,
+    "runs": []
+   },
+   "delta": {
+    "t": 20.2,
+    "roll": 0.1,
+    "lift": null,
+    "td": null,
+    "stop": 72.7,
+    "tdPast": null
+   }
+  }
+ ],
+ "terrain": {
+  "n": 4978,
+  "max": 0,
+  "at": {
+   "x": 5562.4,
+   "z": -6026.4,
+   "page": 346.8,
+   "node": 346.8,
+   "phase": "INBOUND",
+   "leg": 1,
+   "where": "4964.5 m from SEA"
+  },
+  "over1": 0
+ },
+ "obstacles": {
+  "node": 324,
+  "page": 305,
+  "pageOnly": 202,
+  "pageOnlyNearTrack": 0,
+  "pageOnlyTags": {
+   "traffic": 9,
+   "house": 84,
+   "outbuilding": 12,
+   "car": 77,
+   "boat": 10,
+   "prop": 5,
+   "mast": 5
+  },
+  "pageOnlyNearList": []
+ },
+ "page": {
+  "end": "the take-off rejected twice",
+  "rateLog": [],
+  "start": {
+   "route": {
+    "from": "HOME",
+    "dest": "nv_strip",
+    "to": "nv_strip",
+    "base": "HOME",
+    "spawn": null
+   },
+   "where": {
+    "kind": "stand",
+    "aero": {
+     "id": "HOME",
+     "name": "Jolene AFB 13/31",
+     "kind": "strip",
+     "x": -301,
+     "z": 221,
+     "hdg": 0.7156,
+     "len": 2325,
+     "wid": 45,
+     "surface": 5,
+     "look": "worn",
+     "elev": 31.683077650974106,
+     "tdz": [
+      135.78247155506182,
+      600.7007177268059
+     ],
+     "spawn": [
+      -154,
+      712
+     ],
+     "spawnElev": 30.6,
+     "flyIn": false,
+     "premises": true,
+     "band": 40,
+     "pav": {
+      "rubberK": 0,
+      "laneW": 6.1
+     },
+     "landHdg": null,
+     "altiport": false,
+     "treeBox": true,
+     "treeClear": null,
+     "takeoffHdg": null,
+     "turn": null,
+     "slope": 0,
+     "disp": [
+      0,
+      0
+     ],
+     "papi": [
+      "vasi",
+      "vasi"
+     ],
+     "circuit": null
+    },
+    "id": "HOME",
+    "d": 247.43318624355965,
+    "along": 432.71088910484235,
+    "cross": 269.93318624355965
+   },
+   "span": 10.7,
+   "dmgPage": false,
+   "substeps": 74,
+   "mass": 462,
+   "cg": [
+    -151.5,
+    31.6,
+    708.6
+   ],
+   "phase": "TAXI",
+   "apRoute": {
+    "from": {
+     "id": "HOME",
+     "name": "Jolene AFB 13/31",
+     "kind": "strip",
+     "x": -301,
+     "z": 221,
+     "hdg": 0.7156,
+     "len": 2325,
+     "wid": 45,
+     "surface": 5,
+     "look": "worn",
+     "elev": 31.683077650974106,
+     "tdz": [
+      135.78247155506182,
+      600.7007177268059
+     ],
+     "spawn": [
+      -154,
+      712
+     ],
+     "spawnElev": 30.6,
+     "flyIn": false,
+     "premises": true,
+     "band": 40,
+     "pav": {
+      "rubberK": 0,
+      "laneW": 6.1
+     },
+     "landHdg": null,
+     "altiport": false,
+     "treeBox": true,
+     "treeClear": null,
+     "takeoffHdg": null,
+     "turn": null,
+     "slope": 0,
+     "disp": [
+      0,
+      0
+     ],
+     "papi": [
+      "vasi",
+      "vasi"
+     ],
+     "circuit": null
+    },
+    "to": {
+     "id": "nv_strip",
+     "name": "East Point Clearing",
+     "kind": "strip",
+     "x": 10030,
+     "z": -11660,
+     "hdg": 1.8326,
+     "len": 150,
+     "wid": 12,
+     "surface": 6,
+     "look": "gravel",
+     "elev": 21.136829365271517,
+     "tdz": [
+      10020.941188543045,
+      -11626.192634900257
+     ],
+     "spawn": [
+      10063.83,
+      -11724.44
+     ],
+     "spawnElev": 21.14,
+     "flyIn": false,
+     "premises": true,
+     "band": 3,
+     "pav": {
+      "marks": "none",
+      "mossK": 0.8,
+      "wet": 0.35
+     },
+     "landHdg": 4.974192653589793,
+     "altiport": false,
+     "treeBox": false,
+     "treeClear": null,
+     "takeoffHdg": 1.8326,
+     "turn": [
+      {
+       "r": 9,
+       "side": -1
+      },
+      {
+       "r": 9,
+       "side": -1
+      }
+     ],
+     "slope": 0,
+     "disp": [
+      0,
+      0
+     ],
+     "papi": [
+      false,
+      false
+     ],
+     "circuit": null
+    }
+   },
+   "manual": false,
+   "simw": true,
+   "t": 2.433333333333358,
+   "timeOrigin": 1791270005101.5,
+   "weather": null,
+   "day": {
+    "cloudCover": 0.25,
+    "cloudSeed": 1,
+    "cloudType": "cuh",
+    "date": "2026-06-22",
+    "groundAlbedo": 0.15,
+    "ozone": 300,
+    "rate": 1,
+    "rh": 0.5,
+    "turbidity": 2.8,
+    "utc": 18.389266666666753,
+    "wind": {
+     "kts": 8,
+     "dirDeg": 250,
+     "gust": 0.15,
+     "refH": 10,
+     "breeze": 1
+    }
+   },
+   "woodSolid": false,
+   "obstacles": 249,
+   "treeHits": 59559
+  },
+  "env": {
+   "gpu": "ANGLE (NVIDIA, NVIDIA GeForce RTX 3080 (0x00002216) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+   "gfx": {
+    "preset": "gamer",
+    "build": "gamer",
+    "pv": 8,
+    "fps": 30,
+    "fpsOwn": false,
+    "ground": "far1",
+    "scale": 1,
+    "cover": "full",
+    "scenery": "full",
+    "drawDist": "vis",
+    "terrain": 1,
+    "aa": "msaa",
+    "density": 128,
+    "bands": "mid",
+    "shadows": "full",
+    "canopy": "on",
+    "rails": "on",
+    "poles": "on",
+    "glare": "on",
+    "sway": "on",
+    "mist": "land",
+    "clouds": "half",
+    "water": "simple",
+    "mirror": "off",
+    "lighting": "sunset",
+    "tone": "cineon",
+    "exposure": 1,
+    "colour": "managed",
+    "bloom": "soft",
+    "look": "off",
+    "lens": "off",
+    "rays": "off",
+    "ao": "off",
+    "eye": "off",
+    "compositing": "linear",
+    "town": "nearby"
+   },
+   "build": "b8d949466587",
+   "route": {
+    "from": "HOME",
+    "dest": "nv_strip",
+    "to": "nv_strip",
+    "base": "HOME",
+    "spawn": null
+   },
+   "ua": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36",
+   "webdriver": false
+  }
+ },
+ "node": {
+  "done": false,
+  "world": {
+   "weather": null,
+   "day": {
+    "cloudCover": 0.25,
+    "cloudSeed": 1,
+    "cloudType": "cuh",
+    "date": "2026-06-22",
+    "groundAlbedo": 0.15,
+    "ozone": 300,
+    "rate": 1,
+    "rh": 0.5,
+    "turbidity": 2.8,
+    "utc": 1239.489266665868,
+    "wind": {
+     "kts": 8,
+     "dirDeg": 250,
+     "gust": 0.15,
+     "refH": 10,
+     "breeze": 1
+    }
+   },
+   "woodSolid": true,
+   "obstacles": 324,
+   "trunks": 0
+  }
+ }
+}

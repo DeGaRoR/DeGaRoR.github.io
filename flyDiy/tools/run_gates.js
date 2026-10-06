@@ -119,7 +119,8 @@ const GATES = [
   // mine's apron; ~1 min, shard 0) and THE TOUR - the user's Cub, the aluminium C172 and the float Cessna round every
   // location they may use, damage ON, landing, turning round on the pad, taking off, back at HOME (one tour a shard,
   // ~10-20 min each)
-  { id: 'TOUR', file: '_tour_check.js', tier: 'full', shards: 3, timeout: 3600_000, wall: 1500 },
+  // G1970 ISLAND-TOUR-2: the game's flight (the worker's host, the game's day, the load door's aeroplane), East Point a fourth job
+  { id: 'TOUR', file: '_tour_check.js', tier: 'full', shards: 4, timeout: 3600_000, wall: 1500 },
   // G710: the plan published (ap.intent) - the legs' planned heights over the ground, the live target
   // and the TECS limits the law used, the path; a stock HOME circuit and a Jolene circuit (~7 min)
   { id: 'PLAN', file: '_plan_check.js', tier: 'core', wall: 420 },

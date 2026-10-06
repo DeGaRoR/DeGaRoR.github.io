@@ -252,7 +252,25 @@ function mapSvg(x0, z0, x1, z1, PX, widthPx, title, opts) {
   S.push('</svg>');
   return S.join('\n');
 }
-const toPng = (svg, png, w) => { try { execFileSync('magick', ['-density', '96', svg, '-resize', w + 'x', png], { stdio: 'ignore' }); return true; } catch (e) { console.log('  (png: ' + e.message.split('\n')[0] + ')'); return false; } };
+// the PNG through ImageMagick, else (G1970: a cloud box has none) queued for headless Chromium at the end (pngLater)
+const PNG_LATER = [];
+const toPng = (svg, png, w) => { try { execFileSync('magick', ['-density', '96', svg, '-resize', w + 'x', png], { stdio: 'ignore' }); return true; } catch (e) { PNG_LATER.push([svg, png, w]); return false; } };
+async function pngLater() {
+  if (!PNG_LATER.length) return;
+  let chromium = null;
+  try { chromium = require('playwright').chromium; } catch (e) { console.log('  (png: no magick, no playwright - the SVGs only)'); return; }
+  const b = await chromium.launch();
+  for (const [svg, png, w] of PNG_LATER) {
+    const txt = fs.readFileSync(svg, 'utf8'), mw = /width="(\d+)" height="(\d+)"/.exec(txt);
+    const W0 = mw ? +mw[1] : w, H0 = mw ? +mw[2] : w;
+    const pg = await b.newPage({ viewport: { width: W0, height: H0 } });
+    await pg.setContent('<html><body style="margin:0">' + txt + '</body></html>');
+    await pg.screenshot({ path: png, clip: { x: 0, y: 0, width: W0, height: H0 } });
+    await pg.close();
+  }
+  await b.close();
+  console.log('  png: ' + PNG_LATER.length + ' maps through headless Chromium');
+}
 {
   let x0 = Infinity, x1 = -Infinity, z0 = Infinity, z1 = -Infinity;
   for (const p of allTrack) { x0 = Math.min(x0, p.x); x1 = Math.max(x1, p.x); z0 = Math.min(z0, p.z); z1 = Math.max(z1, p.z); }
@@ -304,4 +322,4 @@ if (!flag('no-media')) {
     if ((L.faults || []).some(f => f.k === 'abort') && L.tStop != null) cut('cast_L' + L.leg + '_ground', L.tStart, L.tStop + 2);
   }
 }
-console.log('tour_real_report: wrote ' + OUT);
+pngLater().then(() => console.log('tour_real_report: wrote ' + OUT));
