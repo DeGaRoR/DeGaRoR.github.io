@@ -50,12 +50,15 @@ const log = s => { console.log(s); lines.push(s); };
     }
     if (k === 'prefs') ck(room.HW === 16 && room.HD === 13 && room.EAVE === 7.5 && doc.sheds.HOME.parts && doc.sheds.HOME.parts.ground, 'the pre-S1 prefs are lifted into the room');
     if (k === 'fresh') ck(room.shell === 'club' && room.HW === 15 && room.HD === 12.5, 'a fresh profile stands in the club at its own size');
-    ck(!P.errors.length, 'no page error (' + P.errors.length + ')');
+    // the page's own errors (a script, a timer, a frame, the boot) - GATE ROUNDTRIP's filter: the recording GL
+    // draws nothing, so the impostor bakes' read-backs log 'sheet EMPTY' in every node page and are not the save's
+    const errs = P.errors.filter(e => /^(script |timer: |frame: |FLYDIY_BOOT)/.test(e));
+    ck(!errs.length, 'no page error (' + errs.length + '; ' + (P.errors.length - errs.length) + ' GL-less bake notes)');
     log('== ' + k + '  (' + Math.round((Date.now() - t0) / 1000) + ' s)');
     log('   stored : ' + JSON.stringify(doc && { v: doc.v, mode: doc.mode, here: doc.here, wallet: doc.wallet, clock: doc.clock, fleet: doc.fleet, HOME: doc.sheds.HOME }));
     log('   room   : ' + JSON.stringify(room));
     for (const c of checks) log('   ' + c);
-    for (const e of P.errors.slice(0, 5)) log('   error: ' + e);
+    for (const e of errs.slice(0, 5)) log('   error: ' + e);
     P.close();
   }
   log('GAMEPREM PAGE: ' + (bad ? 'FAIL (' + bad + ')' : 'PASS'));
