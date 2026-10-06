@@ -131,6 +131,8 @@ function runCase(k, c, damage, opt) {
   const onFrame = (f) => {
     const PL = SH.simDmgHop(sim, hop, core, 0);
     if (PL) { SV.simViewDmgApply(st, PL); payloads++; }
+    // (G1862.1: the live cabin bays of the core are solid to the bodies - the page's rule, app.js wreckFrame)
+    IN.env.solid = W.bodies.some(B => !B.asleep) ? WD.solidOf(sim.p, BY.filter(B => B.n.every(i => !st.pc || st.pc[i] === 0)), sim.v) : null;
     // the strikes (a seized engine, once; or DMG-DRIVE's grade as it rises - G1861.5, the page's rule): its rpm the frame
     // before, the hub's speed, the aeroplane's mass
     const DV = (sim.damage() || {}).drive || null;

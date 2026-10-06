@@ -4311,6 +4311,8 @@
     wreckStrikes(vel);
     const ids = WD.watch(WK.W, WK.P, D, sim.p, WK.T.adj);
     for (const id of ids) wreckRelease(WK.P.parts[id], vel);
+    // (G1862.1: the live cabin bays of the core are solid to the bodies while any moves - a pane does not settle in the cabin)
+    WK.env.solid = WK.W.bodies.some(B => !B.asleep) ? WD.solidOf(sim.p, (WK.bays || (WK.bays = WD.bays(def))).filter(B => B.n.every(i => !D.pc || D.pc[i] === 0)), vel) : null;
     WD.step(WK.W, dtS, WK.env);
     for (const B of WK.W.bodies) if (B.obj) {
       const R = WD.rotOf(B.q, wreckR);
@@ -4673,7 +4675,7 @@
     if (mdl) for (const p of mdl.props || []) if (p.userData) p.userData.seizeRate = null;
     if (WK.autoOf) { for (const o of WK.autoOf) { o.matrixAutoUpdate = true; o.updateMatrix(); } WK.autoOf = null; }
     WK.g0 = null; WK.ride = null;
-    WK.posOf = null; WK.bladeGone = null;
+    WK.posOf = null; WK.bladeGone = null; WK.bays = null;
     WK.hid = []; WK.idx = []; WK.pos = []; WK.model = null; WK.P = null; WK.W = null; WK.t = null; WK.rigs = null; WK.cab = null;
   }
   // G1002 (A6-GROUND, the playtest's "floaty" taxi): THE CONTACT SHADOWS. One instanced draw of soft dark blobs on
