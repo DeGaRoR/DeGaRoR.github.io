@@ -1696,10 +1696,17 @@ function makePilot(sim, def, world, opts) {
           .concat(patternLegs(P, sA, P.side)));
         return 'CROSSWIND';
       }
+      // G1949 (PILOT-ONE-2): A SHORT FIELD'S LONG FINAL DOES NOT TURN A STRAIGHT-IN INTO A CIRCUIT. Its IAF sits 900 m
+      // before the slope (G1936) where a long strip's is 400 m; an arrival already lined up between the two read as
+      // 'not past the IAF' and joined a circuit - the Cub from w3 into tw_ski (ISLAND-TOUR's one-way w3) then
+      // orbited the downwind's start for 420 s (1390 s for a 480 s leg). Straight in, the inbound IS the long
+      // aligned approach: when the straight-in fits the normal IAF and not the short one, the IAF is the normal one
+      const sIafN = P.sFaf - Math.max(400, 10 * VTurn);
+      const inBy = (sI) => { const t = wp(FL, sI, 0), dx = t[0] - cg[0], dz = t[1] - cg[2], dl = Math.hypot(dx, dz) || 1e-9;
+        return P.join !== 'downwind' && sNow < sI - 300 && (dx * FL.ux + dz * FL.uz) / dl > 0.5; };   // P1.E: a 'downwind' protocol never straight-in
+      if (ap.shortFld && P.sIaf < sIafN && !inBy(P.sIaf) && inBy(sIafN)) P.sIaf = sIafN;
       const toIaf = wp(FL, P.sIaf, 0);
-      const vx = toIaf[0] - cg[0], vz = toIaf[1] - cg[2], vl = Math.hypot(vx, vz) || 1e-9;
-      const cosA = (vx * FL.ux + vz * FL.uz) / vl;
-      const straightIn = P.join !== 'downwind' && sNow < P.sIaf - 300 && cosA > 0.5;   // P1.E: a 'downwind' protocol never straight-in
+      const straightIn = inBy(P.sIaf);
       // P1: the first leg begins two turn radii AHEAD along the track, the
       // path from the aeroplane — the turn onto the leg is a corner the
       // path fillets (a leg through the aeroplane's own position, flown at
