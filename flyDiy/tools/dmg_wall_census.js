@@ -265,14 +265,19 @@ function pageHeal(mode) {
         const e = (i, j) => Math.hypot(A[i*3] - A[j*3], A[i*3+1] - A[j*3+1], A[i*3+2] - A[j*3+2]); if (Math.max(e(a, b), e(b, c), e(a, c)) > 2) gi++; } }
     H[name] = { idx: g.index ? fnv(g.index.array) : 0, pos: statics.has(pa) ? fnv(pa.array) : 0, ext: ext(pa.array), giant: gi,
                 mat: mesh.material && mesh.material.color ? '#' + mesh.material.color.getHexString() : '', kind: statics.has(pa) ? 'static' : (keyOf.get(mesh) ? 'posed' : 'part') }; }
-  if (mode === 'fresh') { window.__dwFresh = H; return { n: Object.keys(H).length }; }
+  // (the SNAPSHOT itself - window.CAGE_VISUAL's groups and parts, positions and index: never written by a wreck, G1858.2)
+  let sh = 2166136261 >>> 0; const D0 = m.data || {};
+  const snapArrs = []; for (const G of [D0.groups].concat((D0.parts || []).map(p => p.groups))) if (G) for (const k of Object.keys(G).sort()) for (const f of ['pos', 'idx']) if (G[k] && G[k][f] && G[k][f].buffer) snapArrs.push(G[k][f]);
+  for (const a of snapArrs) sh = (Math.imul(sh ^ fnv(a), 16777619)) >>> 0;
+  if (mode === 'fresh') { window.__dwFresh = H; window.__dwFreshSnap = sh; return { n: Object.keys(H).length, snap: sh }; }
+  const snapSame = window.__dwFreshSnap === sh;
   const F = window.__dwFresh || {}, bad = [], grown = [];
   for (const k in H) { const f = F[k]; if (!f) continue;
     if (f.idx !== H[k].idx || f.pos !== H[k].pos) bad.push(k + (f.idx !== H[k].idx ? ' idx' : '') + (f.pos !== H[k].pos ? ' pos' : ''));
     if (f.ext > 0.02 && H[k].ext > 1.3 * f.ext) grown.push([k, +(H[k].ext / f.ext).toFixed(2), +f.ext.toFixed(2)]); }
   grown.sort((a, b) => b[1] - a[1]);
   const giant = Object.entries(H).filter(([, h]) => h.giant).map(([k, h]) => k + ' ' + h.kind + ' ' + h.mat + ' x' + h.giant);
-  return { giant: giant.slice(0, 12), nGiant: giant.length, n: Object.keys(H).length, healed: bad.length === 0, bad: bad.slice(0, 20), nBad: bad.length, grown: grown.slice(0, 12), nGrown: grown.length };
+  return { snapSame, giant: giant.slice(0, 12), nGiant: giant.length, n: Object.keys(H).length, healed: bad.length === 0, bad: bad.slice(0, 20), nBad: bad.length, grown: grown.slice(0, 12), nGrown: grown.length };
 }
 // THE TEARS, BY WING AND BY REASON (the coordinator, the user's review of a nose-over that combed both wings into strips):
 // every removed triangle of the WING layer's covering, left and right (the design frame's z), by its dead code - 1 the event
@@ -393,6 +398,9 @@ if (require.main === module) (async () => {
       for (let i = 0; i < 60; i++) { const bs = await run(pageBootStep, 'state'); if (bs === 'gone' || bs === 'none') break; await sleep(1000); }
       await sleep(2000);
       out.healNext = await run(pageHeal, 'check'); console.log(k + ' after the shed + roll-out: heal ' + JSON.stringify(out.healNext));
+      const ok = out.healNext && out.healNext.snapSame && out.healNext.healed && out.healNext.nGiant === 0;
+      console.log('  ' + (ok ? 'ok  ' : 'FAIL') + '  ' + k + ': crash -> the shed -> roll-out: the snapshot unwritten ' + (out.healNext && out.healNext.snapSame) + ', healed ' + (out.healNext && out.healNext.healed) + ', triangles past 2 m ' + (out.healNext && out.healNext.nGiant));
+      RW.fails = (RW.fails || 0) + (ok ? 0 : 1);
       fs.writeFileSync(path.join(OUT, 'census_worker.json'), JSON.stringify(RW, null, 1));
     }
     const wl = ['# DMG-WALL - ' + path.basename(OUT) + ' - FLOWN, DEFAULT MODE', '', '**Flown, default mode** (the physics worker): the page\'s own loop flies each crash once (placed with its speed, the trunk / stump in world.treeHits). tools/dmg_wall_census.js --worker.', ''];
@@ -402,6 +410,7 @@ if (require.main === module) (async () => {
       wl.push('');
     }
     fs.writeFileSync(path.join(OUT, 'README.md'), wl.join('\n'));
+    console.log('GATE WALLPATH: ' + (RW.fails ? 'FAIL' : 'PASS') + ' (crash -> the shed -> roll-out, flown, default mode)');
     console.log('WALL_CENSUS done ' + OUT);
     return;
   }

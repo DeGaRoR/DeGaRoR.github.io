@@ -1790,12 +1790,6 @@
   // of the very fiche the sim is running, so it must be that object and not a
   // second call to the builder.
   function buildModel(key, curDef) {
-    // G1858.2 (DMG-WALL): A WRECK LEFT WITHOUT A RESET IS PUT BACK FIRST. The flown model's geometries wrap the cage
-    // snapshot's OWN position and index arrays (mkGeo), so a wreck's riding and its removed triangles were written into the
-    // snapshot itself; a roll-out after the shed (no reset, no heal) built the next model from them and took them as its
-    // rest - giant sheets for good (DMG-D4b's worker paths). Every live record's arrays back as built before any build
-    // (try: a build during the script's own start meets BRK before its line)
-    try { if (BRK.recs.length) brkRestore(); } catch (e) {}
     // the generated model is never cached — the whole point is that a slider
     // rebuilds it. Everything else decodes once and is kept forever.
     if (key !== 'gen' && modelCache[key]) return modelCache[key];
@@ -3958,6 +3952,27 @@
   // (G1864: the normals a riding vertex turned, back as built)
   function brkNrm(R) { if (R.nAttr && R.nRest) { R.nAttr.array.set(R.nRest); R.nAttr.needsUpdate = true; }
     if (R.base0 && R.paRef && R.paRef.array && R.paRef.array.length === R.base0.length) { R.paRef.array.set(R.base0); R.paRef.needsUpdate = true; brkPosMirror(R, R.base0, R.nRest || null); } }
+  // G1858.2 (DMG-WALL): THE SNAPSHOT IS NEVER WRITTEN BY A WRECK. The flown geometries WRAP the cage snapshot's own
+  // arrays (mkGeo: its positions and index, no copy - and the parts' groups likewise), so a wreck's riding and its removed
+  // triangles were written into window.CAGE_VISUAL itself: crash -> the shed -> roll-out (no reset, so no heal) built the
+  // next model from them and took them as its rest - giant sheets for good (DMG-D4b's worker paths). Copy on the first
+  // break: before a record is made, the snapshot's group that owns its arrays takes COPIES of them (position, index,
+  // normal), and the flown model keeps riding the arrays every view of it already shares. An intact aeroplane pays
+  // nothing; a crash pays one copy of the arrays it rides. brkRestore still puts the flown model itself back at a reset
+  function brkDetach(pa, geo) {
+    const data = model && model.data; if (!data || !pa || !pa.array) return;
+    let M = BRK.snapOf;
+    if (!M || BRK.snapData !== data) {                  // (the snapshot's arrays by identity, made at the first break)
+      M = BRK.snapOf = new Map(); BRK.snapData = data;
+      const add = G => { if (!G) return; for (const k in G) { const g = G[k]; if (!g) continue; for (const f of ['pos', 'idx', 'nrm']) if (g[f] && g[f].buffer) M.set(g[f], [g, f]); } };
+      add(data.groups); for (const pt of data.parts || []) add(pt.groups);
+    }
+    const arrs = [pa.array, geo && geo.index ? geo.index.array : null, geo && geo.attributes.normal ? geo.attributes.normal.array : null];
+    for (const a of arrs) { const hit = a && M.get(a); if (!hit) continue;
+      const [g, f] = hit, c = a.slice(); g[f] = c; M.delete(a); M.set(c, hit);
+      // (the part's G58.4 rest copy follows its group: it was taken from the same array)
+    }
+  }
   // G1859 (DMG-WALL): a still-merged bucket's riding (or its rest, at a heal) copied into the merged copy that draws it
   function brkPosMirror(R, P, N) {
     const M = R.geo && R.geo.userData && R.geo.userData.ixMirror; if (!M) return;
@@ -4090,6 +4105,7 @@
         const fx = (off ? off[0] : 0) + o[0], fy = (off ? off[1] : 0) + o[1], fz = (off ? off[2] : 0) + o[2];
         for (let v = 0; v < nv; v++) { const a = base[v*3] + fx, b = base[v*3+1] + fy, c = base[v*3+2] + fz;
           bD[v*3] = og[0] + B0[0]*a + B0[1]*b + B0[2]*c; bD[v*3+1] = og[1] + B0[3]*a + B0[4]*b + B0[5]*c; bD[v*3+2] = og[2] + B0[6]*a + B0[7]*b + B0[8]*c; }
+        brkDetach(pa, geo);                                // G1858.2: the snapshot never ridden
         const R = brkRec(own, { nv, idx: geo.index.array }, geo, bD, K.rest, fab, true, inhOn ? SB.INH_K : SB.NEAR_K);
         R.baseD = bD; R.w = new Float64Array(nv * 3);
         // (G1858.1: its as-built positions - the rig's own rest array, the drawn attribute's content before any pose - and
@@ -7252,7 +7268,6 @@
   // player's own aeroplane in it (the shed, the editor, the sync) finish it first (parked.js flush)
   function parkedFlush() { if (typeof window !== 'undefined' && window.PARKED && window.PARKED.flush) window.PARKED.flush(); }   // hoisted: no TDZ
   function enterGarage() {
-    try { if (BRK.recs.length) brkRestore(); } catch (e) {}   // G1858.2: the wreck put back as built in the shed (above)
     parkedFlush();
     // G1490 (HYBRID-TRIPS): the flown model back AT REST on its bake - the hybrid's t is the flight's, and a model left in
     // the band met the shed and the next roll-out shot on programs keyed in no compile (a 5.2 s link) - flown_bake.js rest
