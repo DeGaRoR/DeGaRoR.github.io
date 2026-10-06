@@ -259,14 +259,20 @@ function pageHeal(mode) {
   const H = {}; let i = 0;
   for (const [mesh, par] of B.parentOf) { const g = mesh.geometry, pa = g && g.attributes.position; if (!pa) continue;
     const name = keyOf.get(mesh) || ((par && par.name) || 'part') + '#' + (i++);
-    H[name] = { idx: g.index ? fnv(g.index.array) : 0, pos: statics.has(pa) ? fnv(pa.array) : 0, ext: ext(pa.array) }; }
+    // (the giant sheets: its triangles with an edge past 2 m, drawn now - DMG-D4b's measure)
+    let gi = 0; if (mode !== 'fresh') { const ix = g.index ? g.index.array : null, A = pa.array, nt = ix ? g.index.count / 3 : A.length / 9;
+      for (let t = 0; t < nt; t++) { const a = ix ? ix[t*3] : t*3, b = ix ? ix[t*3+1] : t*3+1, c = ix ? ix[t*3+2] : t*3+2; if (a === b && b === c) continue;
+        const e = (i, j) => Math.hypot(A[i*3] - A[j*3], A[i*3+1] - A[j*3+1], A[i*3+2] - A[j*3+2]); if (Math.max(e(a, b), e(b, c), e(a, c)) > 2) gi++; } }
+    H[name] = { idx: g.index ? fnv(g.index.array) : 0, pos: statics.has(pa) ? fnv(pa.array) : 0, ext: ext(pa.array), giant: gi,
+                mat: mesh.material && mesh.material.color ? '#' + mesh.material.color.getHexString() : '', kind: statics.has(pa) ? 'static' : (keyOf.get(mesh) ? 'posed' : 'part') }; }
   if (mode === 'fresh') { window.__dwFresh = H; return { n: Object.keys(H).length }; }
   const F = window.__dwFresh || {}, bad = [], grown = [];
   for (const k in H) { const f = F[k]; if (!f) continue;
     if (f.idx !== H[k].idx || f.pos !== H[k].pos) bad.push(k + (f.idx !== H[k].idx ? ' idx' : '') + (f.pos !== H[k].pos ? ' pos' : ''));
     if (f.ext > 0.02 && H[k].ext > 1.3 * f.ext) grown.push([k, +(H[k].ext / f.ext).toFixed(2), +f.ext.toFixed(2)]); }
   grown.sort((a, b) => b[1] - a[1]);
-  return { n: Object.keys(H).length, healed: bad.length === 0, bad: bad.slice(0, 20), nBad: bad.length, grown: grown.slice(0, 12), nGrown: grown.length };
+  const giant = Object.entries(H).filter(([, h]) => h.giant).map(([k, h]) => k + ' ' + h.kind + ' ' + h.mat + ' x' + h.giant);
+  return { giant: giant.slice(0, 12), nGiant: giant.length, n: Object.keys(H).length, healed: bad.length === 0, bad: bad.slice(0, 20), nBad: bad.length, grown: grown.slice(0, 12), nGrown: grown.length };
 }
 // THE TEARS, BY WING AND BY REASON (the coordinator, the user's review of a nose-over that combed both wings into strips):
 // every removed triangle of the WING layer's covering, left and right (the design frame's z), by its dead code - 1 the event
@@ -386,7 +392,7 @@ if (require.main === module) (async () => {
       for (let a = 0; a < 6; a++) { await run(pageBootStep, 'go'); await sleep(5000); if (await run(pageBootStep, 'flying')) break; }
       for (let i = 0; i < 60; i++) { const bs = await run(pageBootStep, 'state'); if (bs === 'gone' || bs === 'none') break; await sleep(1000); }
       await sleep(2000);
-      out.healNext = await run(pageHeal, 'check');
+      out.healNext = await run(pageHeal, 'check'); console.log(k + ' after the shed + roll-out: heal ' + JSON.stringify(out.healNext));
       fs.writeFileSync(path.join(OUT, 'census_worker.json'), JSON.stringify(RW, null, 1));
     }
     const wl = ['# DMG-WALL - ' + path.basename(OUT) + ' - FLOWN, DEFAULT MODE', '', '**Flown, default mode** (the physics worker): the page\'s own loop flies each crash once (placed with its speed, the trunk / stump in world.treeHits). tools/dmg_wall_census.js --worker.', ''];

@@ -1790,6 +1790,12 @@
   // of the very fiche the sim is running, so it must be that object and not a
   // second call to the builder.
   function buildModel(key, curDef) {
+    // G1858.2 (DMG-WALL): A WRECK LEFT WITHOUT A RESET IS PUT BACK FIRST. The flown model's geometries wrap the cage
+    // snapshot's OWN position and index arrays (mkGeo), so a wreck's riding and its removed triangles were written into the
+    // snapshot itself; a roll-out after the shed (no reset, no heal) built the next model from them and took them as its
+    // rest - giant sheets for good (DMG-D4b's worker paths). Every live record's arrays back as built before any build
+    // (try: a build during the script's own start meets BRK before its line)
+    try { if (BRK.recs.length) brkRestore(); } catch (e) {}
     // the generated model is never cached — the whole point is that a slider
     // rebuilds it. Everything else decodes once and is kept forever.
     if (key !== 'gen' && modelCache[key]) return modelCache[key];
@@ -7246,6 +7252,7 @@
   // player's own aeroplane in it (the shed, the editor, the sync) finish it first (parked.js flush)
   function parkedFlush() { if (typeof window !== 'undefined' && window.PARKED && window.PARKED.flush) window.PARKED.flush(); }   // hoisted: no TDZ
   function enterGarage() {
+    try { if (BRK.recs.length) brkRestore(); } catch (e) {}   // G1858.2: the wreck put back as built in the shed (above)
     parkedFlush();
     // G1490 (HYBRID-TRIPS): the flown model back AT REST on its bake - the hybrid's t is the flight's, and a model left in
     // the band met the shed and the next roll-out shot on programs keyed in no compile (a 5.2 s link) - flown_bake.js rest
