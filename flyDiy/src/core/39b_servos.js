@@ -85,6 +85,10 @@ const SERVO_GAINS = {
   // G1937: THE STEP-ATTITUDE HOLD (servoStepHold): de = stepDe0 + stepK (stepTrim - trim) - stepD trim-rate, trim in
   // deg, from stepV (m/s) on the step - DAMP's GATE FLOATS script law, owned here as a technique the gates call
   stepDe0: 0.2, stepK: 0.04, stepD: 0.01, stepTrim: 6, stepV: 9,
+  // G1949 (PILOT-ONE-2): THE PITCH LIMIT CYCLE (S.holdPitch): in the air, an elevator swing of oscAmp or more between
+  // two reversals scores one; the score decays over oscWin s; at oscN the pitch gains step down by oscStep (oscKMin
+  // at least) and the score restarts
+  oscAmp: 0.15, oscWin: 2.0, oscN: 4, oscStep: 0.85, oscKMin: 0.45,
 };
 
 // ONE TABLE PER PILOT (A0, 2026-10-04: the Deform Coordinator's DMG-DAMP fixes the
@@ -134,11 +138,12 @@ function makeServos(sim, def, opts) {
     beta: 0, V: 0, Vg: 0, vy: 0, onG: 0, accF: 0, vsSlow: 0, out: null,
     // the servos' memory a phase may set
     thCA: 0, phCA: 0, vsF: 0, thcI: 0.06, Ith: 0, It: 0, thrC: 0.6,
-    IthMax: G.IthMax0, IthMaxT: G.IthMax0, IthGain: null, pitchK: 1, pitchDK: 1, deFloor: 0,
+    IthMax: G.IthMax0, IthMaxT: G.IthMax0, IthGain: null, pitchK: 1, pitchDK: 1, deFloor: 0, oscK: 1, oscScore: 0,
     eTrim: 0, aDe: 0, aDa: 0, aDr: 0, tailUp: false,
     dcI: 0, dcT: -1, taxiI: 0, taxiLastT: -1e9, taxiHdgF: null, taxiHdgT: -1e9,
   };
   let init = false, thF = 0, phF = 0, thP = 0, phP = 0, eP = 0, eAP = 0;
+  let oscPrev = null, oscDir = 0, oscExt = 0;   // G1949: the elevator's last value, its direction, its last extremum
   let tgtHP = null, tgtMovedT = -1e9, vPrev = null, pend = false;
   let holdActive = false, holdWas = false;
 
@@ -219,8 +224,29 @@ function makeServos(sim, def, opts) {
     // water again (a second skip). G396.2's own reading: this lift-off asks
     // ~0.5 of stick. The water's top holds through LIFTOFF
     const deTop = FT.deTop ? FT.deTop(S.onG) : G.deMax;
-    c.de = clamp(g('pitchP') * S.pitchK * (S.thCA - th) - g('pitchD') * S.pitchDK * S.q + S.Ith, G.deMin, deTop);
+    c.de = clamp(g('pitchP') * S.pitchK * S.oscK * (S.thCA - th) - g('pitchD') * S.pitchDK * S.oscK * S.q + S.Ith, G.deMin, deTop);
     if (S.deFloor > 0 && S.deFloor > c.de) c.de = S.deFloor;
+    // G1949 (PILOT-ONE-2, the owed FLEX settle): A PILOT WHO FEELS THE NOSE PUMP RELAXES THE GRIP. On the 6061 tube +
+    // Dacron build (GEN_DEFAULT, aluTube) THE PILOT's cruise held the elevator in a slew-limited triangle, +-0.29 at
+    // ~2.3 Hz, the pitch -0.3 <-> +5.8 deg at 36 m/s and the floppy wing riding it (FLEX's cruise hold 1.20 % p2p,
+    // was 0.17 on the classic): its tuned gains (genTuneAP: P 2.2, D 0.99) close a loop round the airframe's own
+    // bending. Halving D alone halved it; D 0.5 with P 1.5 left it dead quiet (0.001 / 0.04 deg; scratch flail).
+    // So in the air the swings between the elevator's reversals are counted (oscAmp, decaying over oscWin) and at
+    // oscN of them the pitch gains step down by oscStep - the airframe that does not pump never scores, and its
+    // flight is the old one to the bit (oscK stays exactly 1)
+    if (S.onG === 0) {
+      if (oscPrev !== null) {
+        const d = c.de - oscPrev, sg = d > 0 ? 1 : d < 0 ? -1 : 0;
+        if (sg !== 0 && oscDir !== 0 && sg !== oscDir) {
+          if (Math.abs(oscPrev - oscExt) >= G.oscAmp) S.oscScore += 1;
+          oscExt = oscPrev;
+        }
+        if (sg !== 0) oscDir = sg;
+      }
+      oscPrev = c.de;
+      S.oscScore -= S.oscScore * S.dt / G.oscWin;
+      if (S.oscScore >= G.oscN) { S.oscK = Math.max(G.oscKMin, S.oscK * G.oscStep); S.oscScore = 0; }
+    } else { oscPrev = null; oscDir = 0; S.oscScore = 0; }
   };
   S.holdVS = (VSc, thMax = 0.16) => {
     S.vsF += g('vsFilt') * (S.vy - S.vsF);
