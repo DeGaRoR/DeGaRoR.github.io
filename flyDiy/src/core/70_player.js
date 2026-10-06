@@ -124,6 +124,18 @@ function playerNormalise(r) {
     if (typeof s.base !== 'string' || !s.base) s.base = id;
     if (s.tenure !== 'own' && s.tenure !== 'rent') s.tenure = 'own';
   }
+  // GQ4 (G2230, GAME-2026-10-06.md §R): the main hangar (HOME) and at most
+  // two side hangars. An older document holding more keeps EVERY one - the
+  // extra ones (the newest: `since`, then the id) are marked `legacy`: still
+  // usable, counted by the cap, never offered again. Refuse nothing, and no
+  // PLAYER_V step: the v2 shape holds (a v2 game reads `legacy` as one more
+  // field riding along).
+  {
+    const max = typeof PREM_SIDE_MAX === 'number' ? PREM_SIDE_MAX : 2;
+    const sides = Object.keys(r.sheds).filter(id => id !== 'HOME' && r.sheds[id] && typeof r.sheds[id] === 'object')
+      .sort((a, b) => ((+r.sheds[a].since || 0) - (+r.sheds[b].since || 0)) || (a < b ? -1 : a > b ? 1 : 0));
+    for (const id of sides.slice(max)) r.sheds[id].legacy = true;
+  }
   if (r.mode !== 'sandbox' && r.mode !== 'career') r.mode = 'sandbox';
   if (typeof r.here !== 'string' || !r.sheds[r.here] || typeof r.sheds[r.here] !== 'object')
     r.here = 'HOME';

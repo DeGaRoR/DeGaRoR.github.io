@@ -583,6 +583,12 @@ function garageInit(api) {
     } catch (e) {}
     return out.sort();
   };
+  // PREM-S2 (G2230): THE SLOTS ARE THE FLEET. Every door that changes which builds are saved - save, save as, delete,
+  // import - tells the player's document (app.js playerSlotsChanged -> playerFleetReconcile: a new slot is an airframe
+  // that stands somewhere, a deleted one leaves the ledger). `info.saved` names the slot just written (the page
+  // measures its footprint), `info.repainted` says its finish changed (Paint resets the outside wear). Optional:
+  // the gates boot this file with no such door.
+  const slotsChanged = info => { try { if (api.slotsChanged) api.slotsChanged(slotNames(), info || {}); } catch (e) {} };
   // The envelope carries the spec version so a future migration has something
   // to branch on. Nothing reads it today — genNormaliseSpec does the work — and
   // that is deliberate; see the note on GEN_SPEC_V in 60_gen_spec.js.
@@ -1046,9 +1052,28 @@ function garageInit(api) {
     };
     for (const n of names) {
       const row = document.createElement('div');
-      row.className = 'gfRow' + (n === slotName ? ' cur' : '');
-      const b = rowBtn(n, n === slotName ? 'on the stand' : slotMeta(n));
-      b.addEventListener('click', () => { closeFleet(); loadSlot(n); });
+      // PREM-S2 (G2230): WHERE IT STANDS, on its row ("in HOME", "out at w3", "away at Jumbo Mine" - the player's
+      // fleet ledger, app.js -> playerPlace). An aeroplane standing at another base than the garage's is GREYED:
+      // it can be flown from there, and loading it asks "fly from there?" (its roll-out starts where it stands).
+      let P = null;
+      try { P = api.place ? api.place(n) : null; } catch (e) { P = null; }
+      const away = !!(P && P.kind !== 'none' && !P.here);
+      row.className = 'gfRow' + (n === slotName ? ' cur' : '') + (away ? ' gfAway' : '');
+      const meta = n === slotName ? 'on the stand' : slotMeta(n);
+      const b = rowBtn(n, meta);
+      if (P && P.text) {
+        const pl = document.createElement('i');
+        pl.className = 'gfPlace gfPlace-' + P.kind; pl.textContent = P.text;
+        if (P.wear >= 0.05) pl.title = 'weathered outside: ' + Math.round(P.wear * 100) + ' %';
+        b.appendChild(pl);
+      }
+      if (away) b.title = 'at ' + P.aero + ' — fly from there?';
+      b.addEventListener('click', () => {
+        if (away && !confirm('“' + n + '” is ' + P.text + ' — fly from there?')) return;
+        closeFleet();
+        if (away && api.flyFrom) { try { api.flyFrom(n); } catch (e) {} }
+        loadSlot(n);
+      });
       const del = document.createElement('button');
       del.type = 'button'; del.className = 'gfDel'; del.textContent = '✕';
       del.title = 'Delete this saved build';
@@ -1056,9 +1081,19 @@ function garageInit(api) {
         if (!confirm('Delete the saved build "' + n + '"?')) return;
         lsDel(SLOT + n);
         if (slotName === n) slotName = '';
+        slotsChanged({ deleted: n });
         syncRibbon();
       });
-      row.appendChild(b); row.appendChild(del);
+      row.appendChild(b);
+      // "bring it home" (GQ5: free, instant) on an aeroplane standing outside - tied down at a base or away
+      if (P && (P.kind === 'out' || P.kind === 'away') && api.bringHome) {
+        const hb = document.createElement('button');
+        hb.type = 'button'; hb.className = 'gfHome'; hb.textContent = '⌂';
+        hb.title = 'Bring it home (free): back into the hangar it last left, else the main hangar';
+        hb.addEventListener('click', () => { try { api.bringHome(n); } catch (e) {} renderFleet(); });
+        row.appendChild(hb);
+      }
+      row.appendChild(del);
       mine.appendChild(row);
     }
     for (const s of STOCK) {          // stock is not yours to delete: no ✕
@@ -1109,9 +1144,14 @@ function garageInit(api) {
     // shelf row wins, because it is the one you typed.
     if (!spec.meta || typeof spec.meta !== 'object') spec.meta = {};
     spec.meta.name = name;
+    // PREM-S2: a save over this slot whose FINISH changed is a repaint (it resets the airframe's outside wear)
+    let repainted = false;
+    try { const prev = JSON.parse(lsGet(SLOT + name) || 'null');
+          repainted = !!(prev && prev.spec && JSON.stringify(prev.spec.finish || null) !== JSON.stringify(spec.finish || null)); } catch (e) {}
     if (!lsSet(SLOT + name, envelope(name, spec, plaque, log)))
       return void alert('Could not save — browser storage is full or disabled.');
     slotName = name;
+    slotsChanged({ saved: name, repainted });
     // the working build now belongs to a slot, and has to say so: that
     // association is what makes a reload come back as unsaved changes TO THIS
     // AEROPLANE rather than as an orphan.
@@ -1157,6 +1197,7 @@ function garageInit(api) {
         const got = unwrap(String(r.result));
         loadSpec(got.spec, got.name || f.name.replace(/\.json$/i, ''),
                  got.plaque, got.log, got.images);
+        slotsChanged({ imported: got.name || null });
       } catch (e) { alert('That file is not a flyDiy build: ' + e.message); }
     };
     r.readAsText(f);
@@ -1277,8 +1318,16 @@ function garageInit(api) {
       // design is a cage and nothing else; `whole` fills the rest), as a copy.
       stockSpec: n => { const st = stockByName(n);
                         return st ? JSON.parse(JSON.stringify(whole(st.spec))) : null; },
-      slotSpec: n => { const t = lsGet(SLOT + n); if (!t) return null;
-                       try { return JSON.parse(JSON.stringify(whole(unwrap(t).spec))); }
+      // PREM-S2 (G2230, GQ7): ...WEARING ITS OUTSIDE WEAR (the airframe stationed outside chalks with the flown hours:
+      // playerWearSpec's copy, `finish.weather` raised, quantised - visual only), so a parked prop signed by its
+      // finish shows it; `{ bare: true }` is the saved spec as it was saved
+      slotSpec: (n, o) => { const t = lsGet(SLOT + n); if (!t) return null;
+                       try {
+                         let sp = whole(unwrap(t).spec);
+                         const w = (!(o && o.bare) && api.wear) ? (+api.wear(n) || 0) : 0;
+                         if (w > 0 && typeof playerWearSpec === 'function') sp = playerWearSpec(sp, w);
+                         return JSON.parse(JSON.stringify(sp));
+                       }
                        catch (e) { return null; } },
       // G2220: ...AND ITS PICTURE PAGES (the envelope's images, or null): a parked capture of a slot wears its own
       slotImages: n => { const t = lsGet(SLOT + n); if (!t) return null;

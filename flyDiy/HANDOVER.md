@@ -80266,3 +80266,153 @@ FOR THE INTEGRATOR / THE NEXT SLICE
   `?parkclean=0` / cleanCapture switch should go once a train has run on the clean capture.
 
 READY for the GAME COORDINATOR: claude/fleet-props-g2220 b51430c (the work; this HANDOVER section rides on it)
+
+## G2230-G2239 - PREM-S2: THE PAGE HOLDS THE FLEET LEDGER, UNDER THE USER'S RULINGS (2 SIDE HANGARS, FREE "BRING IT HOME", NO RUNNING COSTS, SLOTS ON TOP OF GEOMETRY, OUTSIDE WEAR) (2026-10-06, PREM-S2 for the GAME COORDINATOR, cloud - node + the page in node, no GPU; branch claude/prem-s2-g2230 off origin/claude/game-integration 3a1249ac; G2235-G2239 unused)
+
+The brief: GAME-2026-10-06.md §R (binding), §3, §4, §13, §15 row 2; GAME-PREMISES §3 / §9 (S2). Step 0 (GAME-PREMISES S1
+made READY with the calls' rule amendments) and S2 (the page holds it) in one branch. **No PLAYER_V step**: the v2 shape
+holds (the new fleet-row fields `outSince` / `wearOut` / `left` and the shed field `legacy` are optional and ride along
+in an older game). No generated file committed. parked.js untouched (FLEET-PROPS A owns it).
+
+**G2230 THE RULES, AMENDED** (`src/core/71_player_bases.js`, `70_player.js`; GATE GAMEPREM extended, each negative-verified):
+- **GQ4 - at most two side hangars.** `PREM_MAIN` 'HOME' (HOME's starter shed is the main hangar), `PREM_SIDE_MAX` 2,
+  `playerSideIds`. `playerAcquire` refuses a third ("two side hangars are held already (..): release one first");
+  `playerOffers` marks every free plot `capped` once two are held; `playerRelease` refuses the main hangar. An older
+  document holding more keeps every one: `playerNormalise` marks the extra ones (the newest by `since`, then id)
+  `legacy: true` - still usable (the garage opens there, an aeroplane arrives there), counted by the cap, a fixpoint.
+- **GQ5 - "bring it home" is free in both modes.** `PREM_RATES.recoverBase = recoverKm = 0`; `playerRecover` writes its
+  ledger line at 0 (`playerLedger`: a line even at 0 - `playerCharge` writes nothing for 0). NEW `playerBringHome(doc,
+  slot)`: the hangar it last left (`fleet[slot].left`, recorded by `playerArrive` / `playerWheelOut` when it leaves a
+  hangar), else the main hangar - a free slot and the floor, as any arrival - else stationed outside at HOME; an
+  aeroplane inside a hangar of yours is home already (nothing moves). Free, the recovery line at 0.
+- **G-COST - no running costs.** `rentPerHour` is gone; `playerAcquire(.., 'rent')` is refused ("hangars are bought,
+  never rented"), `playerOffers` carries no rent; `playerClock` only advances the clock (`dues` always 0) - an old
+  document's rented shed (the v2 vintage's w3) is kept as it was and costs nothing.
+- **GQ7 - slots on top of geometry.** `PREM_SLOTS` / `playerSlots(doc, id)`: the main hangar the build bay + 2 parked
+  (3), a side hangar 1, a side club 2. `playerFits` = the slot cap THEN `hangarPark` - used by the lift, store, arrive,
+  bring-home; `playerUpgrade` refuses a rebuild that would lose a slot under its residents (a side club with two
+  inside rebuilt as a field shed). Measured: a bare works main hangar's floor takes 15 Cubs, the lift puts 3 inside.
+- **GQ7 - outside wear, visual only.** A fleet row stationed outside carries `outSince` (the flown clock it went out
+  at); `wearOut` is what a hangar stop froze. `playerWearNow` = min(1, wearOut + flown hours outside / 10)
+  (`PREM_WEAR.hours` 10: full at ~10 flown hours outside); `pbOut` / `pbIn` start and freeze it (arrive, store, wheel
+  out, the lift, bring-home); `playerWearReset` (Repair / Paint) clears it at no cost. `playerWearMacro(macro, w)`: the
+  G345 macros with age + 0.6 w (the chalk layer 0.70 x age -> 0.42 at full wear) and rain + 0.5 w (drips);
+  `playerWearSpec(spec, w)`: a COPY whose `finish.weather` carries the worn macros, quantised to 0.05 (a bake signed by
+  the finish re-bakes per step, never per flown second) - the spec that flies is untouched.
+- Also NEW (pure): `playerFootOfDef(def)` (the plan box off the built nodes - TAXICLEAR's reading of GP_PARKED_FOOT,
+  + the height), `playerPlace(doc, slot, world)` (the badge: 'in HOME' | 'out at w3' | 'away at Jumbo Mine', and
+  whether it stands at the garage's base), `playerRollFrom(doc, slot)` (where the next roll-out starts: its fleet
+  row's aerodrome, else `here`'s base).
+- **gp1 - FLIGHT_BASES derived** (`src/core/38b_dest.js`): `flightBasesOf(doc)` - a base per aerodrome where a hangar is
+  held (HOME first, then by id), each with its `hangars`; HOME's row is `FLIGHT_BASES.HOME`'s words verbatim.
+  `flightBases(world, doc)` / `flightBase(world, id, doc)` take the document; without it the registry answers (the
+  gates, the rigs), as before.
+
+**G2231-G2233 THE PAGE** (`src/viewer/app.js`, `garage.js`, `body.html`, `editor.css`):
+- **The lift at load** (`playerLoad` -> `playerFleetReconcile(player, playerSlotNames())`, then stored) **and on every
+  slot door**: garage.js save / save as / delete / import call `api.slotsChanged(slotNames(), info)` ->
+  `playerSlotsChanged` (the lift again; a SAVE measures the aeroplane on the stand, `playerFootOfDef(def)`; a save whose
+  FINISH changed is a repaint -> `playerWearReset`). Import only loads the stand (no slot until a save), so its call is
+  the lift with the names unchanged.
+- **`foot` measured** at save (above) and at roll-out (`playerFlightStart`, in `rollOutStand`).
+- **The roll-out from where the aeroplane stands**: `rollFromId()` = the rigs' spawn, else `playerRollFrom(doc,
+  slotOnStand())`, else the base; `applyRoute` and `standAnchor` (the world grown round that stand under the roll-out
+  screen) read it; the stand at a field is walked out of the hangar held there, else the site's own (`shedDimsAt`;
+  HOME's is the player's room, as before). The roll-out SHOT plays only from HOME's door; an aeroplane standing
+  elsewhere is cut to its stand / lined up on its strip (`trip.anim = 'away'`).
+- **The flight's end** (`playerFlightEnd`, once per leg - the logbook's latch, cleared by `nextLeg` / `fullReset`):
+  `playerClock(ap.t)`, then, on a STOP (the HUD's STOPPED branch, right after `logFlight`) on an aerodrome
+  (`flightWhere` + `flightCanDepart`: strip, lane, stand, apron) of a whole aeroplane, `playerArrive`. A crash or a
+  give-up (`endFlight`), a stop out in a field, a Restart or the shed door mid-flight: the clock only - nothing moves
+  (gp4); the arrival card then offers **Bring it home** (`#bBring`: free, then the shed).
+- **The garage's base line + select**: `routeBuild` reads `flightBases(world, playerLoad())`; one hangar held = today's
+  line ("Home base · the WWII hangar"); two or more = a select of the hangars, picking one = `playerGoTo` (the base
+  follows `here`; the room drawn is still HOME's until PREM-S3 / S4). `FLYDIY_PLAYER.onChange` redraws it.
+- **The fleet popup**: each row its place badge (`.gfPlace`: in / out at / away at, a tooltip with the wear); a row at
+  another base than the garage's is greyed (`.gfAway`) and asks "fly from there?" (yes: the garage goes to that base
+  when a hangar is held there, the build loads, its roll-out starts where it stands); a house button (`.gfHome`) on
+  every aeroplane outside brings it home.
+- **The wear on the airframe**: `setAircraft` lays `playerWearMacro` over the spec's macros for the build on the stand;
+  the flown bake is handed `playerWearSpec`'s copy (its step key carries the wear step, so it re-bakes per 0.05);
+  `GARAGE_SPEC.slotSpec(n)` hands a worn copy (`{ bare: true }` the saved one) - **parked.js's `mine:` props read
+  slotSpec, so the apron prop shows the wear with no edit of parked.js** (FLEET-PROPS A: its bake signature must
+  include the finish, as the study says; `slotSpec(n, { bare: true })` is the unworn spec if a fingerprint wants it).
+- `window.FLYDIY_PLAYER` (doc / set / place / wear / rollFrom / slot / last / bringHome / slotsChanged / onChange) and
+  `FLYDIY_ROUTE.baseRow(where)` for the gates and rigs.
+
+**THE SANDBOX IS TODAY'S GAME, apart from the fleet standing where it was left**: mode sandbox, nothing charged
+(no rent, recovery 0), the same boot path (`playerLoad` + the lift), HOME the only base, today's base line. What
+changes: every saved build is an airframe at HOME (inside up to the club's slots and floor, the rest outside); a saved
+build landed elsewhere rolls out there next time (away), until it is flown home or brought home (free).
+
+**G2234 THE GATES** (this branch, `node tools/run_gates.js --only=GAMEPREM,PLAYER,SAVE,ROUNDTRIP,DESTTO,UISMOKE --jobs=4`):
+**BATTERY PASS** - DESTTO 864 s (3 shards), UISMOKE 131 s, ROUNDTRIP 1043 s, SAVE, PLAYER, GAMEPREM
+(`reports/evidence/PREM-S2/gates.txt`). Then every other gate that reads a file this branch touches (app.js, garage.js,
+body.html, editor.css, 38b / 70 / 71: 40 gates, `--no-build --jobs=3`, `gates_touched.txt`): all PASS but two -
+**WEATHER** (its source scan wants the flown build's literal `aeroWxSetMacro(THREE, aeroWxMacroFromSpec(genSpec))`;
+my first cut folded the wear into that call - fixed: the spec's macros are set as before, the wear laid on in a second
+call only when the airframe is worn; WEATHER, UISMOKE, BUILD, SKIN, SKINMAT, LIVERY, FLOWNBAKE, SAVE, PLAYER, GAMEPREM
+re-run after it: PASS, `gates_after_weather_fix.txt`), and **FRAMECOST** = THE STALE PARKED COOK, to the unit DEST-TO's
+and G2095's control (cub stand draws.main 914 -> 1046, draws.shadow 169.5 -> 259.5, uniform4f 6 -> 222;
+`parked_cook --check`: STALE, manifest 99b31ec38a57 vs this tree - any viewer edit moves the build id;
+`parked_cook_check.txt`): A0's re-cook clears it. The full tier was not run (nothing it flies reads the player
+document beyond what DESTTO flies).
+- **GAMEPREM** (533 checks, was 458): THE CALLS block (GQ4 cap + legacy, GQ5 free recovery + bring-home's three
+  outcomes, G-COST no rent / no per-hour, GQ7 slots + the outside wear's run / freeze / reset / macros / spec, the
+  measured footprint, the badge, the roll-out place, gp1's derived bases) and THE PAGE block (the doors, source-scanned:
+  the lift at load and on save / delete / import, the footprint at save and roll-out, the roll-out from where it stands,
+  playerArrive on STOPPED after the logbook row, playerClock, endFlight, bring-home, the derived base line, playerGoTo,
+  the popup's badge / greying / "fly from there?"). `--selftest`: **39 of 39 caught** - S1's 16, plus 16 rule
+  amendments broken in their own sources (a third side hangar bought, the extra hangar dropped, the main one released,
+  a hangar rented, rent per hour, recovery charging again, a free recovery leaving no line, bring-home forgetting the
+  hangar it left or ignoring the room, the slots ignored, a side club holding one, the wear never freezing, the wear not
+  reaching the macros, Repair leaving the wear, the bases not derived, the roll-out always from the base) and 7 page
+  doors (the lift at load, save, delete, the stop's arrive, the clock, the roll-out place, the popup's place).
+- **DESTTO** + `prem:cub@w3` (in the `ltd:cub` case, on the Cub's own flight HOME -> circuit -> w3): a side hangar held
+  at Tamgas Hill; the Cub departs from HOME's hangar; it stops on w3's strip; the page's chain (the clock 714 s, then
+  flightWhere -> playerArrive) puts it **in w3** (a slot free, the floor packs it, 10.8 m through the 12 m door), HOME
+  its `left`, nothing charged; **a reload** (the stored text, the walk, the lift) keeps it in w3 byte for byte, and
+  **rolls it out at w3**: placed on Tamgas Hill's stand (walked out of the hangar held there) - flightWhere `stand w3`,
+  and the next flight is planned FROM w3. (The departure from w3's stand itself is the pilot's known case - DEST-TO's
+  `master_w3.txt`: the Cub "could not line up" there on master; not this branch's, not asked.)
+- **UISMOKE** + a PREM-S2 block: the page's sandbox player and today's base line on both hosts; a second hangar held ->
+  a select of both, picking one moves the garage (and FLYDIY_ROUTE's base); the place badges; the FLEET POPUP (garage.js
+  from its own source on a shelf of three saved aeroplanes, its doors this page's garageInit api): the badges ("in
+  HOME" / "out at A0" / "away at ..."), the greyed rows, the house button only outside, bring-home from the popup
+  (redrawn: in HOME), "fly from there?" asked and the garage moved; the unsaved build's roll-out = the garage's base.
+- **SAVE** + a slots-door block: a save tells the ledger the slots and the slot written (no repaint on a new or an
+  unchanged save; a new finish = a repaint), save as hands both, the envelope carries nothing of the ledger; its
+  selftest catches a save that never tells the ledger. (The SAVE selftest's "a cage deep-merged" row is MISSED on the
+  base too - its anchor moved to the core's genSpecMerge in G1550 - not this branch's; reported, not touched.)
+- **PLAYER**: unchanged and green (the vintage shelf, the walk, the write-stop).
+- **ROUNDTRIP**: PASS - the three round trips skip every world step as before (a sandbox build with no slot rolls
+  out from the base; the shed's stand anchor reads the same place), nothing ticks the world in the shed, the physics
+  worker flew all three flights, no page error.
+
+**THE PAGE ITSELF** (`tools/prem_s2_page.js`, the page in node, `reports/evidence/PREM-S2/page.txt`): **PASS**, both boots, 0 page errors.
+  `lift` (G2095's v1 save + the user's Cub, Jodel and Cessna saved): the stored document the same sandbox (the shed's
+  shell / kits / dims / parts / name, the wallet, the 18 x 14 x 8 room unchanged, nothing charged) with three airframes
+  at HOME - **Cessna in HOME, Cub in HOME, Jodel out at HOME** (the fully fitted club's floor takes two: geometry
+  below the main hangar's three slots) - the one outside starting its wear clock; the base row today's line.
+  `away` (a sandbox whose saved Cub landed at Tamgas Hill earlier: `away` there, the Cub on the stand): its roll-out
+  starts at w3 - **the page placed it on w3's stand** (`stand w3`, the leg's From w3, the roll-out shot cut: `away`);
+  the shed door mid-flight ended that flight for the clock and moved nothing (still away at w3, gp4); the footprint
+  measured at the roll-out ({half 5.4, fwd 1.2, aft 5.5, h 2.8}); "bring it home" -> in HOME, free (the ledger line at
+  0, its 1.0 h outside frozen as wearOut 0.10), and the next roll-out HOME again. (The rig's first cut asked for the
+  analytic world's A0 on the island page, which has none - the page fell back to HOME, as it should for a field the
+  world lacks; the rig was right to fail and now uses w3.)
+
+**OPEN / FOR THE COORDINATOR**
+- The base select moves `here` (the base line, the popup's greying, an unsaved build's roll-out), but the garage ROOM
+  drawn is still HOME's shell: the room at a side hangar and the roll-out / roll-in at its door are PREM-S3 (+ S4's
+  screen). A side hangar can only be held through the rules today (no page door buys one: S4).
+- Repair has no page door yet (DMG-D5 / S4): `playerWearReset` is the rule they call; Paint = a save with a new finish.
+- FLEET-PROPS A: `GARAGE_SPEC.slotSpec(n)` now returns the WORN spec (finish.weather raised, quantised 0.05); sign the
+  bake by the finish (the study's rule) and the apron prop shows the wear; `{ bare: true }` for the saved one.
+  `FLYDIY_PLAYER.place(n)` / `playerPlace` say where each stands (the tie-down spot is still yours).
+- Old-document "legacy" side hangars count toward the cap; a legacy mark is sticky (never cleared on a release).
+- The flight clock counts each leg's `ap.t` (taxi included, as the logbook's `t`); a flight abandoned counts too.
+- A0 at the train: rebuild; FRAMECOST / HITBOX may read the parked cook stale (any viewer edit moves the build id -
+  DEST-TO's note); nothing new per frame (the ledger runs at a roll-out, a stop, a save; the wear macro at setAircraft).
+
+READY for the GAME COORDINATOR: claude/prem-s2-g2230 d9465f6 (the code and the evidence; this line rides one docs-only commit on top)
