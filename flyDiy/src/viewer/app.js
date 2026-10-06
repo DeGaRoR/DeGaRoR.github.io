@@ -4550,7 +4550,7 @@
   }
   function wreckHide(o) {
     if (WK.hid.some(h => h.o === o)) return;
-    WK.hid.push({ o, auto: o.matrixAutoUpdate, vis: o.visible });
+    WK.hid.push({ o, auto: o.matrixAutoUpdate, vis: o.visible, m: o.matrix.clone() });   // (the matrix itself kept: a hand-posed part's is not re-composed)
     const mine = r => r.obj === o || !!(r.mesh && model.wreckBuild.parentOf.get(r.mesh) === o);
     for (const r of model.stretchRigs || []) if (mine(r)) r.wreckGone = true;   // DMG-WALL's binding skips a leg the debris took
     const out = a => a ? a.filter(r => !mine(r)) : a;
@@ -4661,7 +4661,7 @@
   // A HEAL: the bodies gone, every part as built (its rigs, its matrix, its triangles, its prop's shape)
   function wreckHeal() {
     if (WK.W) for (const B of WK.W.bodies) if (B.obj) { scene.remove(B.obj); B.obj.traverse(o => { if (o.isMesh) o.geometry.dispose(); }); B.obj = null; }
-    for (const h of WK.hid) { h.o.visible = h.vis; h.o.matrixAutoUpdate = h.auto; if (h.auto) h.o.updateMatrix(); h.o.matrixWorldNeedsUpdate = true; }
+    for (const h of WK.hid) { h.o.visible = h.vis; h.o.matrixAutoUpdate = h.auto; if (h.auto) h.o.updateMatrix(); else if (h.m) h.o.matrix.copy(h.m); h.o.matrixWorldNeedsUpdate = true; }
     const mdl = WK.model;
     if (mdl && WK.rigs) { mdl.engRigs = WK.rigs.engRigs; mdl.props = WK.rigs.props; mdl.wheelParts = WK.rigs.wheelParts; mdl.stretchRigs = WK.rigs.stretchRigs; mdl.castorRig = WK.rigs.castorRig;
       for (const r of mdl.stretchRigs || []) r.wreckGone = false;
