@@ -80109,3 +80109,160 @@ OPEN / FOR THE GAME COORDINATOR
   Settings row names the `?gfx=` preset.
 
 READY for the GAME COORDINATOR: claude/welcome-modes-g2210 d780bbf9 (the code, tools and evidence; this HANDOVER section is the one commit on top)
+
+## G2220-G2224 - FLEET-PROPS A: THE CAPTURE LEAK CLOSED (BYTE-FOR-BYTE, GATED WITH ITS NEGATIVE CONTROL); BAKE ON SAVE, DECODE AT THE ROLL-OUT, NOTHING IN THE WORLD; 8 RESIDENT; THE TIE-DOWN SPOTS; THE DRAW RULES - ALL BEHIND FLYDIY_FLEET (2026-10-06, FLEET-PROPS A for the GAME COORDINATOR, cloud - node + the page in node, no GPU; branch claude/fleet-props-g2220 off origin/claude/game-integration 3a1249a, also pushed as claude/fervent-johnson-vh03q0)
+
+THE BRIEF: GAME-2026-10-06 §4 (the fleet as props at its last base), slice A: the leak first, bake on save, tie-down
+spots per aerodrome, the draw rules as data + logic. The perf proof is slice B (LOCAL-GPU, G2225-G2229). Out of scope
+and untouched: the fleet ledger (PREM-S2), any GPU number, anything on screen with the flag off.
+
+G2220 THE CAPTURE LEAK (HANDOVER G809 finding 2) - FIVE CHANNELS, ALL CLOSED (src/viewer/parked.js batchSteps / holdEditor)
+- REPRODUCED in the page in node before any change: arch:c172 captured 325 544 tris under the Cub and 315 378 under the
+  metal Cessna (G809's own numbers, to the triangle). The editor's parameters (CAGE_UI.P) were IDENTICAL both ways: the
+  leak is not applySpec's rows, it is state OUTSIDE them that the layers read while they build:
+  1. **The garage's doors answered for the player.** While a parked aeroplane stands in the editor, GARAGE_SPEC.get()
+     still returned the PLAYER's spec. The hinge kit picks its family off get().fuselage.material (_cage_hinge.js:711):
+     the metal Cessna's piano hinges went onto the C172's ailerons, flaps, rudder and elevators (the 10 166 tris). The
+     crew, the access doors and the panel read get() too; the energy layer reads resolved(); and the snapshot's spec
+     was GARAGE_SPEC.preview(spec) = the parked spec merged OVER the player's (the player's measured cabin.glazedM2
+     rode in). FIX (`as` / `unAs`): for the hold, get / preview / resolved / images answer for the parked aeroplane
+     (its normalised spec; resolveSpec of it; its own picture pages), handed back before the player's restore; the
+     snapshot takes the parked spec alone, normalised.
+  2. **The flown CG.** The float layer stands its step 12 deg aft of window.FLYDIY_CG_MODEL, which app.js publishes off
+     the PLAYER's def. FIX: for the hold, the parked aeroplane's own CG and mass (the same node sum, off buildGen of its
+     spec), the player's put back after.
+  3. **The join's datums.** CAGE_DATUM (the float layer's other input) is written only by the join's measure, AFTER the
+     layers built: a floatplane's first build stood its floats on the previous aeroplane's datums. FIX: a floatplane
+     (CAGE_FLOAT up after the build) is measured and built once more on its own datums; the player's datums are put back
+     before the restore (before this, every capture left the parked aeroplane's datums for the PLAYER's floats - a
+     pre-existing bug on the player's side, closed with it).
+  4. **The sit-pitch mount.** Every mesh reaches the snapshot through inv(mount.matrixWorld) x mesh.matrixWorld, and the
+     editor's mount (edSitP) still held the PLAYER's resting pitch (11.2 deg Cub, -0.7 deg C172): the same frame, other
+     last digits - every normal 1 ulp apart, the hinge pivots in their 16th digit. FIX (`neutralMount`, every held step):
+     the mount level at its holder's origin, the holder at the scene's origin, the holder's TURN kept. Measured: taking
+     the turn off too breaks the hinge kit's stations (311 190 tris); with it kept the clean capture equals the C172
+     captured as ITSELF in the garage (315 542 = 315 542, `native` probe).
+  5. **The atlas.** The decal atlas is shared: the pages the parked aeroplane does not draw are the player's, and the
+     copy took the whole atlas. FIX (`usedPages`): the copy holds only the pages its decals read (the block's uDecB
+     rects back to page indices); the rest of the copy is clear (never sampled: nothing visible changes). And its
+     PICTURE PAGES (atlas pages 1-2, the livery images): the parked build's own (decoded beforehand by the fleet's
+     queue; GARAGE_SPEC.slotImages(n), a new door) or cleared - never the player's; the player's put back at once when
+     the caller decoded them (the fleet's path), else through the editor's door as before.
+- AFTER: arch:c172 315 542 / 315 542 tris and mine:parkC172 (the C172 wipline fixture, a floatplane, saved as a slot)
+  314 568 / 314 568, geometry and atlas hashes EQUAL under the Cub and the metal Cessna.
+- `PARKED.cleanCapture = false` (or `?parkclean=0`) is the capture as it was: the negative control, and the A/B switch.
+
+GATE PARKED 11 (tools/_parked_check.js, the page in node with its 2D canvases DIGESTED):
+- **tools/_c2d_digest.js** (new; `openPage({ c2d: 'digest' })`, tools/_page_node.js; tools/_page_dom.js clears a canvas
+  on a size set): the node page's 2D context draws nothing, so the atlas had no pixels to hash. This context keeps, per
+  canvas, the draws still visible - each with everything that decides its pixels (the call, its arguments, the
+  transform, the clip, the styles, a source canvas's or image's own digest) and its box clamped to the canvas - and a
+  draw is retired once later certain occluders (clearRect, an opaque unclipped fillRect, putImageData, a 'copy' draw)
+  cover its box TOGETHER; a sub-rectangle read (an atlas page) counts only the draws still seen inside it; text is laid
+  out and boxed by font-relative metrics (the plain node context's 6 px a glyph made aeroskin scale a 96 px line 24x
+  across its page edge). Conservative: equal digests mean equal draws; an unbounded draw is never retired.
+- THE ROW, every run: mine:parkC172 and arch:c172 each captured under the Cub and under the metal Cessna (G.set between):
+  the GEOMETRY bytes (every bucket's and part's pos / nrm / idx / uv / srf, the pivots, the material records) and the
+  ATLAS (the copy's digest, every block uniform but the per-placement craft frame, the instrument faces' canvases) equal.
+- THE NEGATIVE CONTROL, every run: cleanCapture = false and the same pair must DIFFER - it does: mine:parkC172
+  324 286 tris under the Cub, 314 752 under the metal Cessna, both hashes apart (the row goes red). Before the
+  fix (the first run of the row) all four rows were red: 314 632 / 314 752 tris for the slot, equal tris but other bytes
+  for the archetype.
+- `--pure` (PARKED_PURE=1) runs 1-10 and 12 only (seconds); the full gate is ~10 min on the 4-core box (the page boot
+  ~3 min, ten captures, the fleet rows' virtual clock; 7.6 min measured): run_gates wall 600.
+
+G2221 BAKE ON SAVE, NEVER IN THE WORLD (parked.js FLEET; garage.js saveAs)
+- garage.js saveAs -> PARKED.fleetQueue(name) (nothing with the flag off). The queue runs on the garage's IDLE PATH:
+  fleetStep, FLEET.idleMs (1.5 s) after the save, only with the garage open and nothing held (FLYDIY_HOLDS: inGarage,
+  no holdRender / rollHold / craftAway) and no roll-out batch in flight. One key: its pages decoded, the capture in ONE
+  task (batchSteps with the clean doors - nothing is drawn between, a task is not a frame), bakeData (the far rungs on
+  one atlas, as the cook), packed in the COOK's own container (cookEncode, stance + hitbox + spec shape), gzip, into
+  IndexedDB `flydiy.parked` store `fleet` (PARKED_V 2 -> 3 creates it) under the SIGNATURE.
+- THE SIGNATURE (fleetSig): benchFingerprint(spec, the garage's cage defaults) - the bench's own: the spec minus the
+  cosmetics, GEN_SPEC_V and PHYSICS_V folded in - PLUS the look the fingerprint leaves out (paint, finish, meta, the
+  energy / vessel / systems look rows, the picture pages) PLUS the bake's and the container's versions and dials. NOT
+  FLYDIY_BUILD: a game update does not re-bake the fleet (the prop stays the right aeroplane; a shader change reaches
+  it at its next save). A save of an unchanged aeroplane is a hit: nothing captured.
+- THE ROLL-OUT ONLY DECODES: with the flag, place() hands a `mine:` key to fleetLoad - the bytes, the signature against
+  the slot as it is now, cookDecode, cookRecord - and NEVER to capture. A stale or missing bake stands nothing and is
+  queued for the garage. Under the world (flying, or the roll-out screen) fleetStep refuses (stats.worldRefused) and
+  looks again every 5 s doing nothing; a decode is refused in flight (stats.flightRefused: the set changes at the
+  roll-out only). A bake that outlives the garage is counted (stats.bakeInWorld; the gate holds it 0).
+- AT MOST 8 RESIDENT (FLEET_DRAW.resident): stood keys LRU; the least recent's record dropped, its textures and rung
+  geometry disposed, its holders emptied back to pending (the next roll-out's decode stands them again).
+- GATE PARKED 12 (headless) + 12p (the page): the flag off queues nothing; a save queues; the idle path captures, bakes
+  (a synthetic bake: no GPU here) and stores under its signature; FLYING: no capture, no bake, no decode; THE ROLL-OUT
+  SCREEN: the baked slot stands from its bytes (decodes 1), the unbaked one stands nothing ('not baked'); "NO CAPTURE OR
+  BAKE RAN WHILE THE WORLD WAS UP" (the counters across both phases, bakeInWorld 0); back in the garage the queue drains;
+  a second save is a hit. A SOURCE SCAN: fleetLoad, the place() branch, fleetGate, fleetDrawn and fleetEvict call no
+  capture / batchSteps / bakeData / bakeNow / farBaked / enqueue / cutFar / captureAll / fleetBake; fleetStep and
+  fleetBake start only on garageIdle(). The LRU: ten slots stood, 8 resident, the two least recent out, an evicted
+  holder emptied and pending, stood again it decodes again. The signature moves with the spec, the finish, the pages.
+
+G2223 THE TIE-DOWN SPOTS (src/core/25_airfield.js fleetSpots / fleetField / fleetSpotDist / fleetSpotPts, FLEET_SPOT,
+FLEET_SPOT_FOOT; exported for node)
+- PURE: (aerodrome, site, { pave: the record's stand polygons in the world frame, solid(x, z, reach), ground, wet,
+  pattern?, taxiHalf?, max? }) -> { spots, why, foot, ref }, the same list every call. A spot { id, kind, x, z, ry
+  (the record's yaw: nose along (cos ry, -sin ry)), half, fwd, aft } - its box is every archetype's envelope
+  (GP_PARKED_FOOT + GP_PARKED_DEFAULT: 8.0 half, 2.1 ahead, 7.1 behind), so any archetype fits any spot.
+- THE ORDER: (1) the record's painted STANDS (premises v1.21: PAVEMENT.standMarks' frame, the nose at the stop) of the
+  polygons inside this field; (2) the APRON RING off the site: rings round the site's stand (22-70 m, every 15 deg),
+  the nose toward it, nearest first; (3) ROWS along the runway, the stand's side first, the nose to the strip - 25 m past
+  a paved runway's edge, 8 m past a narrow strip's, 40 m off a water lane's centreline. Max 12.
+- THE RULES (MILL-TAXI's, the census's numbers): the box 3 m off every solid thing the caller names and off the site's
+  hangar; every route of the site's pattern (out[0], out[1], back[0], back[1], sampled as THE PILOT's path) 5.5 + 3 m
+  off; inside the field (the strip's zone, the stand's 150 m, the site's apron, the stand polygons near it); flat
+  (corners and mount within 0.6 m); dry on land, afloat on water; no two boxes within 1.5 m. Refusals are counted by
+  reason (and traced with opts.trace).
+- JOLENE (tools/fleet_spots.js prints it): w2 12 (apron + a row), HOME 12 - af_m_park:5 first (its stands 0-4 stand
+  next to the record's own parked af_park1 / af_park2 and cars: refused by the 3 m rule, honestly), then the apron
+  round the stand -, w3 12, SEA 12 and mk_sea 12 (afloat rows), nv_strip 5, mn_strip 0 and tw_ski 0: their stand pads
+  and sides fall 5-20 m across a box (refused: flat 115 / 136, the street's houses) - NO ROOM, and no bad spot.
+- GATE TAXICLEAR 10 (tools/_taxiclear_check.js + _taxiclear_lib.js spotCensus): the eight runways; each has spots or
+  every candidate was refused by a rule; deterministic (two calls equal); six or more runways and 50+ spots; HOME's
+  painted stand first; then, INDEPENDENTLY of the planner, for every spot x every archetype footprint (+ the default)
+  that fits it: inside the field, flat, dry / afloat, 3 m off every solid thing (the shipped census set: the cooked
+  grids, props, cars, objects, trunks; outline every 0.25 m, inside every 2 m), every VALIDATED BUILD's own routes
+  (stock, aluminium C172, the user's Cub: HOME bends per span) its half-span + 3 m off; no two spots overlapping -
+  12 408 rows, 0 failing; CALIBRATION: a box on HOME's stand reads inside its routes, a box on the mill inside 3 m of a
+  solid thing. ~1 s of the gate's 3.8 min.
+
+G2222 / G2224 THE DRAW RULES (parked.js, data + logic; no GPU proof here: slice B)
+- FLEET_DRAW = { max: 6, l1: 30, light: ['potato', 'laptop', 'pocket'], lightMax: 4, resident: 8 }.
+- A fleet record stands the FLEET LADDER (fleetLadder): L1 from 0 to 30 m, L2 to 450 m, L3 to the cull (2.5 km); on a
+  light preset (GFX.get().build) L3 ALONE from 0 m. THE COUNT (fleetGate / fleetDrawn on each placement's LOD.update,
+  re-ranked at most every 200 ms or on a camera change): the nearest `max` (6; 4 on a light preset) drawn, the others'
+  levels hidden. fleetPick is the pure core of it (nearest first, ties by order).
+- FRIENDLY-WELCOME-BUDGETS builds no parked bake on the light presets (budget `parked: false`); this L3-only fleet path
+  is the agreed exception (GAME §4.3, GQ9) - and it is the GARAGE that bakes (on save), on those machines too.
+- BEHIND FLYDIY_FLEET (default OFF; `?fleet=1` or window.FLYDIY_FLEET = true). Nothing places fleet props by itself
+  yet: with the flag a premises object keyed `mine:<slot>` takes the fleet's door; WHERE each airframe stands (the
+  spots' consumer) is the ledger's (PREM-S2), held.
+
+FRAMECOST (read-only, as asked): the Cub's census, base (this branch's base, built) vs this branch, both
+`?parkcook=0` (the shipped cook is stale on any branch that edits parked.js) and this side `&parkclean=0`: NOTHING
+MOVED - stand, taxi and boot all equal (memory figures only). With the clean capture on (`?parkcook=0` alone) the
+frame views are still equal; only the garage boot's `parked` step moves (drawImage 53 -> 60: the atlas copied page by
+page; updateMatrixWorld 67 684 -> 82 490: the canonical mount each held step; readBytes and bufferData down) - a row
+FRAMECOST already admits (G1020, boot/garage:parked/, '*').
+
+GATES (this tree, the build run locally and not committed): PARKED PASS (163 checks; 11 + 12p in the page, 7.6 min),
+TAXICLEAR PASS (+ 10), SITE PASS, STAND PASS, SAVE PASS, BUILT PASS (the outputs lag the sources, as a source branch
+does), HITBOX PASS (its live captures through the clean doors), FLOWNBAKE PASS. GATE PARKED's cook line reads STALE:
+parked.js is in the cook's signature.
+
+FOR THE INTEGRATOR / THE NEXT SLICE
+- **RE-COOK** (tools/parked_cook.js, GPU box) with the train: parked.js changed (stale until then: the roll-out captures
+  the cooked keys live), and the cook's bytes WILL differ from today's - the clean capture is the aeroplane itself (the
+  old cook carried whatever build its page held).
+- Slice B (LOCAL-GPU): FRAMECOST / rollout_perf with 0 / 3 / 6 fleet props (FLYDIY_FLEET, premises objects keyed
+  `mine:`, or the ledger once PREM-S2 lands) on gamer / retro / potato; the bake's own cost in the garage idle (5-7 s
+  of GPU a key cold, as the cook's), and a still pair.
+- Known limits: the bake starts in the garage and runs to its end (async GPU passes) - a roll-out in the middle of it is
+  counted (bakeInWorld), not stopped; the capture is ONE long task in the garage (2-5 s on the reference box, after an
+  idle 1.5 s); a slot whose livery has picture pages captured by any door but the fleet's (a premises `mine:` object
+  with the flag off) stands with those pages cleared, not the player's.
+- Two CLOUD notes: tools/_c2d_digest.js is a reusable "what does this canvas hold" for any node-page gate; the
+  `?parkclean=0` / cleanCapture switch should go once a train has run on the clean capture.
+
+READY for the GAME COORDINATOR: claude/fleet-props-g2220 b51430c (the work; this HANDOVER section rides on it)

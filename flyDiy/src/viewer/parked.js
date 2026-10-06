@@ -117,7 +117,7 @@
 // builds are captured live, always. ?parkcook=0 turns the cook off.
 'use strict';
 (function parkedJs() {   // named (G805): the cook's signature hashes this file's own source - the world pack is not in FLYDIY_BUILD
-  const PARKED_V = 2;                      // the IndexedDB schema (2: the `bake` store)
+  const PARKED_V = 3;                      // the IndexedDB schema (2: the `bake` store; 3, G2221: the `fleet` store)
   const LEVELS = { L1: 30, L2: 120, L3: 450, cull: 2500 };
   const CUT = { L2: [0.12, 6000], L3: [0.025, 1500] };   // [share of the exterior, floor]
   const ATLAS_PX = 2048;                    // the per-craft atlas copy (the shared one is 4096)
@@ -205,25 +205,68 @@
   // of the aeroplane the editor holds INTO THE PLAYER'S BUILD); a timer the capture's own calls arm is held until
   // the player's aeroplane is back (the order the synchronous capture had); and nothing is drawn (the roll-out
   // screen's holdRender) - the shared block and the decal atlas are the foreign aeroplane's in between.
+  // G2220 (FLEET-PROPS A): THE GARAGE ANSWERS FOR THE AEROPLANE THE EDITOR HOLDS. The capture LEAKED the player's build
+  // (G809 finding 2: the C172 archetype 325 544 tris captured under the Cub, 315 378 under the metal Cessna), because
+  // the editor's layers read the GARAGE's spec while they build, and the garage's spec stayed the PLAYER's: the hinge
+  // kit picks its family off GARAGE_SPEC.get().fuselage.material (the metal Cessna's piano hinges on the C172's
+  // ailerons, flaps, rudder and elevators, its bellcranks in the steel tube bucket), the crew, the access doors and the
+  // panel read get(), the energy layer resolved(), the float layer the flown CG (FLYDIY_CG_MODEL), the snapshot's spec
+  // was GARAGE_SPEC.preview(spec): the PARKED spec merged over the PLAYER's (the player's measured glazing rode in), and
+  // the snapshot carried every mesh through the editor's sit-pitch mount, still at the player's pitch (neutralMount). While a parked aeroplane stands in the
+  // editor these four doors answer for IT (`as`): get / preview / resolved off its own normalised spec, images off its
+  // own pages (none for an archetype). `unAs` hands them back before the player's restore. PARKED.cleanCapture =
+  // false re-opens the leak (GATE PARKED 11's negative control: the row must go red with it).
+  const normSpec = s => { try { return (typeof genNormaliseSpec === 'function') ? genNormaliseSpec(JSON.parse(JSON.stringify(s))) : JSON.parse(JSON.stringify(s)); } catch (e) { return JSON.parse(JSON.stringify(s)); } };
+  const mergeSpec = (a, b) => (typeof genSpecMerge === 'function') ? genSpecMerge(a, b) : Object.assign({}, a, b);
   function holdEditor() {
     const J = W.CAGE_JOIN, G = W.GARAGE_SPEC;
     const onBuild = W.CAGE_ON_BUILD, upd = G && G.update;
     W.CAGE_ON_BUILD = () => {};
     let refused = 0;
+    const doors = G ? { get: G.get, preview: G.preview, resolved: G.resolved, images: G.images } : null;
+    let asOn = false;
+    const as = (s, images) => {
+      if (!G || !doors || !(W.PARKED && W.PARKED.cleanCapture !== false)) return;
+      const cl = () => JSON.parse(JSON.stringify(s));
+      let res = null;
+      G.get = cl;
+      G.preview = j => mergeSpec(cl(), JSON.parse(JSON.stringify(j)));
+      G.resolved = () => res || (res = (typeof resolveSpec === 'function') ? resolveSpec(cl()) : cl());
+      G.images = () => images || null;
+      asCg(cl());
+      asOn = true;
+    };
+    // ...AND THE FLOWN AEROPLANE'S CG AND MASS (app.js publishes them off the player's def; the float layer stands its
+    // step 12 deg aft of that CG): the parked aeroplane's own, off its own frame (the same node sum), for the hold
+    const cg0 = W.FLYDIY_CG_MODEL, mass0 = W.FLYDIY_MASS_MODEL, datum0 = W.CAGE_DATUM;
+    const asCg = s => {
+      let cg = null, mm = 0;
+      try { if (typeof buildGen === 'function') { const def = buildGen(s); let cx = 0, cy = 0; for (const n of def.nodes) { cx += n.p[0] * n.m; cy += n.p[1] * n.m; mm += n.m; } if (mm > 0) cg = [cx / mm, cy / mm]; } } catch (e) { cg = null; }
+      W.FLYDIY_CG_MODEL = cg || undefined; W.FLYDIY_MASS_MODEL = cg ? mm : undefined;
+    };
+    // (the join's datums too: a capture's measure leaves the PARKED aeroplane's, and the player's restore would stand its
+    // floats on them)
+    const unAs = () => { if (asOn && G && doors) { Object.assign(G, doors); W.FLYDIY_CG_MODEL = cg0; W.FLYDIY_MASS_MODEL = mass0; W.CAGE_DATUM = datum0; } asOn = false; };
     if (upd) G.update = () => { refused++; return G.get ? G.get() : null; };
     let viewHeld = !!(J && J.viewHold && J.viewHold());
     // (G999) the view and the spec door back ahead of the release: the player's restore is sliced under the hold
     const releaseView = () => { if (viewHeld && J.viewRelease) J.viewRelease(); viewHeld = false; };
-    const unrefuse = () => { if (upd) G.update = upd; };
+    const unrefuse = () => { unAs(); if (upd) G.update = upd; };
     const later = []; let open = true;
     const realST = W.setTimeout;
+    // G2220: while a parked aeroplane is held, every step runs with the editor's sit-pitch mount at the identity (the
+    // layers measure hinge lines and datums through it; the player's pitch moved their last digits)
     const run = fn => {
+      const unmount = asOn && W.PARKED.neutralSteps !== false ? neutralMount(J) : null;
+      try { return run0(fn); } finally { if (unmount) unmount(); }
+    };
+    const run0 = fn => {
       W.setTimeout = function (cb, ms) { const a = Array.prototype.slice.call(arguments, 2);
         return realST.call(W, function () { if (open) later.push(() => cb.apply(null, a)); else cb.apply(null, a); }, ms); };
       try { return fn(); } finally { W.setTimeout = realST; }
     };
     const release = fn => {
-      W.CAGE_ON_BUILD = onBuild; if (upd) G.update = upd;
+      W.CAGE_ON_BUILD = onBuild; unAs(); if (upd) G.update = upd;
       releaseView();
       open = false;
       try { fn(); } finally {
@@ -231,11 +274,31 @@
         if (refused) log('held', refused, 'spec write(s) made while the editor held a parked aeroplane');
       }
     };
-    return { run, release, releaseView, unrefuse };
+    return { run, release, releaseView, unrefuse, as };
+  }
+  // G2220: THE PICTURE PAGES (the livery's images, atlas pages 1 and 2) are the aeroplane's too: the capture draws the
+  // parked build's own (decoded beforehand: the fleet's queue, PARKED.decodeImages) or clears them - never the player's
+  const IMG_PAGES = [1, 2];
+  function setPages(A, THREE, dec) {
+    if (!A) return;
+    for (const pg of IMG_PAGES) {
+      const d = dec && dec[pg];
+      try { if (d && d.img && A.aeroDecalImage) A.aeroDecalImage(THREE, pg, d.img); else if (A.aeroDecalImageClear) A.aeroDecalImageClear(THREE, pg); } catch (e) {}
+    }
+  }
+  // images (the envelope's { 1: { data: dataURL, aspect }, 2: ... }) -> a promise of { pg: { img, aspect } } (null: none)
+  function decodeImages(images) {
+    if (!images || typeof images !== 'object' || typeof Image === 'undefined') return Promise.resolve(null);
+    const pgs = IMG_PAGES.filter(pg => images[pg] && typeof images[pg].data === 'string' && /^data:image\//.test(images[pg].data));
+    if (!pgs.length) return Promise.resolve(null);
+    return Promise.all(pgs.map(pg => new Promise(res => {
+      const im = new Image(); im.onload = () => res([pg, { img: im, aspect: +images[pg].aspect || 1 }]); im.onerror = () => res(null); im.src = images[pg].data;
+    }))).then(l => { const o = {}; for (const e of l) if (e) o[e[0]] = e[1]; return Object.keys(o).length ? o : null; });
   }
   // keys: the list the batch takes from (the async queue, live: a key queued while the batch runs joins it; or one
   // key); specs: key -> a spec handed in (capture(key, spec0), the world editor's new aeroplane)
-  function* batchSteps(keys, specs) {
+  // opt (G2220): { images: key -> { raw, dec } that key's picture pages, mine: the player's decoded pages (restored at once) }
+  function* batchSteps(keys, specs, opt) {
     if (!canCapture()) return 0;
     const THREE = W.THREE, A = W.AEROSKIN, WX = (typeof W.AEROWX !== 'undefined') ? W.AEROWX : null;
     const E = W.CAGE_UI, J = W.CAGE_JOIN, G = W.GARAGE_SPEC;
@@ -265,19 +328,40 @@
         const spec = (specs && specs[key]) || specOf(key);
         if (!spec) { console.warn('parked: no spec for', key); continue; }
         const t0 = performance.now();
+        // G2220: the garage's doors answer for this aeroplane, and its picture pages are its own, before it is applied
+        const clean = W.PARKED.cleanCapture !== false;
+        const im = opt && opt.images ? opt.images[key] || null : null;     // { raw: the envelope's pages, dec: decoded }
+        if (clean) { H.as(normSpec(spec), im ? im.raw : null); setPages(A, THREE, im ? im.dec : null); }
         // the editor's build in two tasks where it can (CAGE_UI.applySpecSteps: the sheet | the layers), each inside the hold
         let tA = 0;
         try {
-          if (E.applySpecSteps) { const g = H.run(() => E.applySpecSteps(spec)); for (;;) { const t1 = performance.now(); const r = H.run(() => g.next()); tA += performance.now() - t1; if (r.done) break; yield key; } }
-          else { H.run(() => E.applySpec(spec)); tA = performance.now() - t0; }
+          // G2220: A FLOATPLANE IS BUILT TWICE. The float layer stands its step off the join's datums (CAGE_DATUM), which
+          // only the join's measure writes - after the layers built: the first build stands the floats on the aeroplane
+          // the editor held before. Clean, the parked one is measured and built again on its own datums
+          for (let pass = 0; pass < 2; pass++) {
+            if (E.applySpecSteps) { const g = H.run(() => E.applySpecSteps(spec)); for (;;) { const t1 = performance.now(); const r = H.run(() => g.next()); tA += performance.now() - t1; if (r.done) break; yield key; } }
+            else { const t1 = performance.now(); H.run(() => E.applySpec(spec)); tA += performance.now() - t1; }
+            if (!clean || pass || !W.CAGE_FLOAT || !J.export) break;
+            const d0 = JSON.stringify(W.CAGE_DATUM || null);
+            H.run(() => J.export());
+            if (JSON.stringify(W.CAGE_DATUM || null) === d0) break;
+            yield key;
+          }
         } catch (e) { console.error('parked: capture', key, e); continue; }
         yield key;
         const t1 = performance.now();
         let vis = null, block = null, atlas = null, panel = {};
         try {
           H.run(() => {
-            const flown = G.preview ? G.preview(spec) : spec;
-            vis = J.snapshot(flown);
+            // G2220: clean, the PARKED spec alone, normalised (merged over the PLAYER's it took the player's measured
+            // glazing; merged under the join's export it took that build's floats - the export's last digits move
+            // with what the editor built before); the leak's way, the parked spec over the player's
+            const flown = clean ? normSpec(spec) : (G.preview ? G.preview(spec) : spec);
+            // G2220: the snapshot carries every mesh into the mount's frame through inv(mount.matrixWorld) x
+            // mesh.matrixWorld - and the mount (edSitP, the editor's sit pitch) still holds the PLAYER's resting pitch
+            // while a parked aeroplane stands in it: the same frame, other floats (every normal 1 ulp apart). Clean, the
+            // mount and its holder stand at the identity for every held step (holdEditor's run)
+            vis = J.snapshot(flown);                // (inside H.run: the mount at the identity, clean)
             if (vis && U) {
               // the block as the editor left it for THIS aeroplane, made explicit with
               // the payload's own numbers (the flight side's calls, on the same door)
@@ -290,7 +374,9 @@
               if (WX && WX.aeroWxSetSpiral && A.aeroDecalMerge) WX.aeroWxSetSpiral(THREE, A.aeroDecalMerge(flown));
               if (WX && WX.aeroWxSetMacro) WX.aeroWxSetMacro(THREE, WEAR);
               block = cloneBlock(U);
-              atlas = copyAtlas(THREE, A);
+              // G2220: clean, the copy holds the pages THIS aeroplane's decals read and nothing else (the atlas is shared:
+              // the pages it does not draw are the player's)
+              atlas = copyAtlas(THREE, A, clean ? usedPages(A, block) : null);
               block.tAtlas = { value: atlas };
               // the instrument faces: the atlas the editor painted for THIS panel, copied
               panel = capturePanel(THREE, vis);
@@ -328,7 +414,10 @@
         const t0 = performance.now() - restored;
         if (!restored) try { dropForeign(); E.applySpec(mine); } catch (e) { console.error('parked: restore', e); }
         else if (typeof W.CAGE_ON_BUILD === 'function') try { W.CAGE_ON_BUILD(); } catch (e) { console.error('parked: restore (on build)', e); }
-        try { if (E.decalImagesFrom && G.images) E.decalImagesFrom(G.images() || {}); } catch (e) {}
+        // G2220: the player's picture pages back - at once when the caller decoded them (the garage's fleet queue: no
+        // frame of the player's aeroplane without its livery), else through the editor's own (asynchronous) door
+        if (opt && opt.mine !== undefined) setPages(A, THREE, opt.mine);
+        else try { if (E.decalImagesFrom && G.images) E.decalImagesFrom(G.images() || {}); } catch (e) {}
         if (U && saved) copyBlock(U, saved);
         if (WX && macro0) WX.aeroWxSetMacro(THREE, macro0);
         if (n) log("restored the player's aeroplane in", Math.round(performance.now() - t0), 'ms');
@@ -395,12 +484,36 @@
       tick();
     });
   }
-  function copyAtlas(THREE, A) {
+  // G2220: THE CANONICAL MOUNT - the editor's sit-pitch mount (CAGE_JOIN.mount) level and at its holder's origin, the
+  // holder at the scene's origin; the holder keeps its TURN (the garage's constant quarter turn: the layers measure
+  // in that orientation - the hinge kit's stations moved with it, 4 352 triangles); returns the undo
+  function neutralMount(J) {
+    const m = J && J.mount ? J.mount() : null;
+    if (!m) return null;
+    const objs = [m, m.parent].filter(o => o && !o.isScene);
+    const keep = objs.map(o => ({ o, p: o.position.clone(), q: o.quaternion.clone(), s: o.scale.clone() }));
+    const top = objs[objs.length - 1];
+    for (const o of objs) { o.position.set(0, 0, 0); if (o === m) o.quaternion.identity(); o.scale.set(1, 1, 1); o.updateMatrix(); }
+    top.updateMatrixWorld(true);
+    return () => { for (const k of keep) { k.o.position.copy(k.p); k.o.quaternion.copy(k.q); k.o.scale.copy(k.s); k.o.updateMatrix(); } top.updateMatrixWorld(true); };
+  }
+  // the atlas pages a block's decals read (aeroPageRect's rects back to page indices)
+  function usedPages(A, block) {
+    const N = (A && A.AERO_ATLAS_N) || 4, out = new Set();
+    const n = block && block.uDecN ? block.uDecN.value | 0 : 0, B = block && block.uDecB ? block.uDecB.value : null;
+    for (let i = 0; i < n && B && B[i]; i++) { const r = B[i]; const px = Math.round(r.x * N), py = N - 1 - Math.round(r.y * N); if (px >= 0 && px < N && py >= 0 && py < N) out.add(py * N + px); }
+    return Array.from(out).sort((a, b) => a - b);
+  }
+  function copyAtlas(THREE, A, pages) {
     try {
       const src = A.aeroAtlas(THREE), cv0 = src.image;
       const cv = document.createElement('canvas');
       cv.width = cv.height = ATLAS_PX;
-      cv.getContext('2d').drawImage(cv0, 0, 0, cv0.width, cv0.height, 0, 0, ATLAS_PX, ATLAS_PX);
+      const g = cv.getContext('2d');
+      if (pages) {
+        const N = A.AERO_ATLAS_N || 4, P0 = cv0.width / N, P1 = ATLAS_PX / N;
+        for (const pg of pages) { const px = pg % N, py = Math.floor(pg / N); g.drawImage(cv0, px * P0, py * P0, P0, P0, px * P1, py * P1, P1, P1); }
+      } else g.drawImage(cv0, 0, 0, cv0.width, cv0.height, 0, 0, ATLAS_PX, ATLAS_PX);
       const t = new THREE.CanvasTexture(cv);
       t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping;
       t.colorSpace = THREE.SRGBColorSpace;
@@ -806,7 +919,7 @@ self.onmessage = function (e) {
     DB.p = new Promise((res, rej) => {
       try {
         const rq = indexedDB.open(DB.name, PARKED_V);
-        rq.onupgradeneeded = () => { const d = rq.result; for (const st of [DB.store, 'bake']) if (!d.objectStoreNames.contains(st)) d.createObjectStore(st); };
+        rq.onupgradeneeded = () => { const d = rq.result; for (const st of [DB.store, 'bake', 'fleet']) if (!d.objectStoreNames.contains(st)) d.createObjectStore(st); };
         rq.onsuccess = () => res(rq.result);
         rq.onerror = () => rej(rq.error);
       } catch (e) { rej(e); }
@@ -1568,8 +1681,12 @@ self.onmessage = function (e) {
     // G805: A COOKED RECORD is its baked rungs and nothing else (no snapshot, no block, no materials of its own):
     // the ladder the live bake ends in, stood at once - L1 from 0 m, L2, L3, then nothing
     if (rec.cooked) {
-      [0, LEVELS.L2, LEVELS.L3].forEach((d, i) => lod.addLevel(frame(bakedLevel(THREE, rec.baked, i)), d));
+      // G2222: a FLEET record stands the fleet's ladder (L1 only inside FLEET_DRAW.l1; on a light preset L3 alone) and
+      // answers to the fleet's count (the nearest FLEET_DRAW.max drawn)
+      const rungs = rec.fleet ? fleetLadder() : [[0, 0], [1, LEVELS.L2], [2, LEVELS.L3]];
+      for (const [i, d] of rungs) lod.addLevel(frame(bakedLevel(THREE, rec.baked, i)), d);
       lod.addLevel(new THREE.Group(), LEVELS.cull);
+      if (rec.fleet) fleetGate(lod);
       lod.userData.hitbox = rec.hitbox; lod.userData.parked = rec.key; lod.userData.stance = st; lod.userData.cooked = 1;
       if (W.PARKED.boxes) drawBoxes(THREE, lod);
       if (grp) { grp.add(lod); grp.updateWorldMatrix(true, true); lod.userData.craftInv = null; }
@@ -1692,6 +1809,14 @@ self.onmessage = function (e) {
     grp.name = 'parkedAt:' + key;
     grp.position.set(x, y, z); grp.rotation.y = yaw || 0;
     grp.userData.parkedKey = key;
+    // G2222: with FLYDIY_FLEET a `mine:` key is the FLEET's - decoded from its bake (made in the garage when it was saved),
+    // never captured here; a key with no bake (or a stale one) leaves its holder empty
+    if (fleetOn() && isMine(key)) {
+      const r = REC[key] && REC[key].fleet ? REC[key] : null;
+      if (r) { fleetTouch(key); build(THREE, r, grp); }
+      else { PENDING.push({ key, grp, THREE }); fleetLoad(key); }
+      return grp;
+    }
     // G680: under the roll-out screen (PARKED.async) a capture is queued and runs a step a task; elsewhere on the spot
     const rec = REC[key] || (W.PARKED.ready && !W.PARKED.async ? capture(key) : null);
     if (rec) build(THREE, rec, grp);
@@ -1718,11 +1843,188 @@ self.onmessage = function (e) {
     for (const p of PENDING.slice()) if (!REC[p.key]) console.warn('parked: nothing to stand for', p.key);
     return n;
   }
+  // ---- G2220-G2224 THE FLEET (FLEET-PROPS A; GAME-2026-10-06 §4): your own aeroplanes as props --------------------
+  // BAKE ON SAVE, NEVER IN THE WORLD. When the garage saves a slot (GARAGE_SPEC.save -> fleetQueue) its `mine:` key is
+  // queued, and on the garage's idle path (fleetStep: the garage open, nothing held, no batch in flight, FLEET.idleMs
+  // after the last save) it is captured - ONE task, the editor's round trip, the garage's doors answering for it (G2220)
+  // and its own picture pages - and baked (bakeData: the far rungs on one atlas), then packed in the cook's own
+  // container (cookEncode) and kept in IndexedDB `flydiy.parked`, store `fleet`, under its SIGNATURE: the bench's
+  // fingerprint of the spec (spec minus the cosmetics, + GEN_SPEC_V and PHYSICS_V: benchFingerprint) PLUS the look the
+  // fingerprint leaves out (paint, finish, meta, the energy and systems look rows, the picture pages), and the bake's and
+  // the container's versions and dials. Not FLYDIY_BUILD: a game update does not re-bake the fleet (the prop is the
+  // right aeroplane; a shader change shows on it at its next save). A ROLL-OUT ONLY DECODES (fleetLoad: the bytes, the
+  // signature against the slot as it is now, cookDecode, cookRecord): a stale or missing bake stands nothing and is
+  // queued for the garage. Under the world (flying, or the roll-out screen) no capture or bake starts: fleetStep refuses
+  // and counts it (FLEET.stats.worldRefused); a decode is refused in flight (the set changes at roll-out / roll-in only).
+  // AT MOST FLEET_DRAW.resident (8) keys resident, least recently stood first out (their holders emptied, back to pending).
+  // THE DRAW RULES (FLEET_DRAW, fleetPick): the nearest `max` (6) fleet props drawn, the rest culled; L1 only within `l1`
+  // (30 m), L2 out to L3's 450 m, L3 to the cull; on a LIGHT preset (potato / laptop / pocket) L3 alone and at most
+  // `lightMax` (4) - FRIENDLY-WELCOME-BUDGETS builds no parked bake there (GFX budget `parked: false`); this L3-only
+  // fleet path is the agreed exception (GAME §4.3, §16 GQ9). ALL OF IT BEHIND FLYDIY_FLEET (default OFF; ?fleet=1 or
+  // window.FLYDIY_FLEET = true): with it off nothing is queued, baked, stood or drawn differently.
+  const FLEET_DRAW = { max: 6, l1: 30, light: ['potato', 'laptop', 'pocket'], lightMax: 4, resident: 8 };
+  const FLEET = { V: 1, queue: [], busy: false, timer: null, idleMs: 1500, worldMs: 5000, lru: [], placed: [], drawn: new Set(), rankAt: -1e9, why: {},
+                  stats: { queued: 0, captures: 0, bakes: 0, hits: 0, stored: 0, decodes: 0, worldRefused: 0, flightRefused: 0, evicted: 0, bakeInWorld: 0 },
+                  store: null, bake: null };
+  // ?parkclean=0: the capture as it was before G2220 (the leak re-opened) - FRAMECOST's A/B against the base holds the rest
+  try { if (W.location && /[?&]parkclean=0(?:&|$)/.test(W.location.search || '')) W.__parkClean0 = true; } catch (e) {}
+  const fleetOn = () => { if (W.FLYDIY_FLEET === true) return true; try { return !!(W.location && /[?&]fleet=1(?:&|$)/.test(W.location.search || '')); } catch (e) { return false; } };
+  const isMine = key => typeof key === 'string' && key.lastIndexOf('mine:', 0) === 0;
+  // the game's state (app.js FLYDIY_HOLDS): no handle (a gate's vm) = a garage at rest
+  const holds = () => { try { return W.FLYDIY_HOLDS ? W.FLYDIY_HOLDS() : null; } catch (e) { return null; } };
+  const garageIdle = () => { const H = holds(); return !H || !!(H.inGarage && !H.holdRender && !H.rollHold && !H.craftAway); };
+  const mayDecode = () => { const H = holds(); return !H || !!(H.inGarage || H.holdRender); };
+  const slotImages = name => { try { const G = W.GARAGE_SPEC; return G && G.slotImages ? G.slotImages(name) : null; } catch (e) { return null; } };
+  function fleetSig(spec, images) {
+    if (!spec) return null;
+    let D = null; try { D = W.GARAGE_SPEC && W.GARAGE_SPEC.cageDefaults ? W.GARAGE_SPEC.cageDefaults() : null; } catch (e) { D = null; }
+    const fp = (typeof benchFingerprint === 'function') ? benchFingerprint(spec, D) : 'h' + hash(JSON.stringify(spec));
+    const canon = (typeof benchCanon === 'function') ? benchCanon : JSON.stringify;
+    const LK = (typeof BENCH_LOOK !== 'undefined') ? BENCH_LOOK : { energy: [], vessel: [], systems: [] };
+    const pick = (o, ks) => { const r = {}; if (o && typeof o === 'object') for (const k of ks || []) if (o[k] !== undefined) r[k] = o[k]; return r; };
+    const look = { paint: spec.paint || null, finish: spec.finish || null, meta: spec.meta || null, energy: pick(spec.energy, LK.energy),
+                   vessels: spec.energy && Array.isArray(spec.energy.vessels) ? spec.energy.vessels.map(v => pick(v, LK.vessel)) : null,
+                   systems: pick(spec.systems, LK.systems), img: images ? hash(JSON.stringify(images)) : null };
+    return hash(['fleet', FLEET.V, COOK.V, BAKE.V, BAKE.S, BAKE.gutter, BAKE.glassK, BAKE.seam, JSON.stringify(CUT), JSON.stringify(WEAR), fp, canon(look)].join('|'));
+  }
+  const idbStore = {
+    get: key => db().then(d => new Promise((res, rej) => { const tx = d.transaction('fleet', 'readonly'); const rq = tx.objectStore('fleet').get(key); rq.onsuccess = () => res(rq.result || null); rq.onerror = () => rej(rq.error); })).catch(() => null),
+    put: (key, v) => db().then(d => new Promise((res, rej) => { const tx = d.transaction('fleet', 'readwrite'); tx.objectStore('fleet').put(v, key); tx.oncomplete = res; tx.onerror = () => rej(tx.error); })),
+  };
+  const store = () => FLEET.store || idbStore;
+  // the garage's save: queue the slot's key (nothing with the flag off)
+  function fleetQueue(slot) {
+    if (!fleetOn() || !slot) return false;
+    const key = 'mine:' + slot;
+    if (!FLEET.queue.includes(key)) { FLEET.queue.push(key); FLEET.stats.queued++; }
+    fleetKick(FLEET.idleMs);
+    return true;
+  }
+  function fleetKick(ms) { if (FLEET.timer || FLEET.busy || !FLEET.queue.length) return; FLEET.timer = setTimeout(fleetStep, ms); }
+  function fleetStep() {
+    FLEET.timer = null;
+    if (FLEET.busy || !FLEET.queue.length) return;
+    // UNDER THE WORLD NOTHING STARTS: looked at again later (a timer that does nothing in flight), drained in the garage
+    if (!garageIdle()) { FLEET.stats.worldRefused++; fleetKick(FLEET.worldMs); return; }
+    if (ASYNC.run || ASYNC.queue.length) { fleetKick(FLEET.idleMs); return; }    // the roll-out's batch holds the editor
+    const key = FLEET.queue.shift();
+    FLEET.busy = true;
+    fleetBake(key).catch(e => console.warn('parked: the fleet bake of', key, 'failed:', e && e.message || e))
+      .then(() => { FLEET.busy = false; fleetKick(FLEET.idleMs); });
+  }
+  async function fleetBake(key) {
+    const spec = specOf(key);
+    if (!spec) { FLEET.why[key] = 'no slot'; return null; }
+    const raw = slotImages(key.slice(5)), sig = fleetSig(spec, raw);
+    const have = await store().get(key);
+    if (have && have.sig === sig) { FLEET.stats.hits++; return have; }           // this aeroplane, baked already
+    const G = W.GARAGE_SPEC;
+    const dec = await decodeImages(raw), mine = await decodeImages(G && G.images ? G.images() : null);
+    if (!garageIdle() || !canCapture()) { FLEET.stats.worldRefused++; FLEET.queue.unshift(key); return null; }
+    // THE CAPTURE, one task: the record is kept only as the bytes (REC keeps what it held)
+    const keep = REC[key]; delete REC[key];
+    let rec = null;
+    try {
+      flush();
+      const g = batchSteps([key], { [key]: spec }, { images: { [key]: { raw, dec } }, mine });
+      while (!g.next().done);
+      rec = REC[key] || null;
+    } finally { if (keep) REC[key] = keep; else delete REC[key]; }
+    if (!rec) { FLEET.why[key] = 'no capture'; return null; }
+    FLEET.stats.captures++;
+    const data = await (FLEET.bake || bakeData)(W.THREE, rec);
+    if (!garageIdle()) FLEET.stats.bakeInWorld++;                                 // a bake that outlived the garage (counted; the gate holds it 0)
+    if (!data) { FLEET.why[key] = 'no bake (no WebGL renderer)'; return null; }
+    FLEET.stats.bakes++;
+    const st = rec.stance || (rec.stance = stance(rec.vis));
+    const shape = { spec: rec.spec, parts: rec.vis.parts.filter(p => p.kind === 'mainsL' || p.kind === 'mainsR' || p.kind === 'prop').map(p => ({ kind: p.kind, pivot: p.pivot.slice() })) };
+    const u8 = cookEncode({ key, sig, build: W.FLYDIY_BUILD || 'dev', stance: st, hitbox: hitboxOf(rec, st), tris: rec.tris, shape, data });
+    const v = { sig, n: u8.length, bytes: await squeeze(u8), when: Date.now() };
+    await store().put(key, v);
+    FLEET.stats.stored++;
+    log(key, 'fleet: baked and kept,', Math.round(u8.length / 1024), 'KB');
+    return v;
+  }
+  // THE ROLL-OUT'S DOOR: the bytes decoded, or nothing (queued for the garage)
+  function fleetLoad(key) {
+    if (REC[key] && REC[key].fleet) { fleetTouch(key); fillPending(key); return Promise.resolve(REC[key]); }
+    if (!mayDecode()) { FLEET.stats.flightRefused++; return Promise.resolve(null); }
+    const spec = specOf(key);
+    if (!spec) { FLEET.why[key] = 'no slot'; return Promise.resolve(null); }
+    const sig = fleetSig(spec, slotImages(key.slice(5)));
+    return store().get(key).then(v => {
+      if (!v || v.sig !== sig) { FLEET.why[key] = v ? 'stale' : 'not baked'; fleetQueue(key.slice(5)); return null; }
+      return unsqueeze(v.bytes, v.n).then(u8 => {
+        const t0 = performance.now(), d = cookDecode(u8);
+        if (d.hdr.key !== key || d.hdr.sig !== sig) { FLEET.why[key] = 'stale'; return null; }
+        const rec = cookRecord(W.THREE, d);
+        rec.fleet = true; rec.t = Math.round(performance.now() - t0);
+        REC[key] = rec; FLEET.stats.decodes++;
+        bootRec({ key, how: 'fleet', ms: rec.t, kb: Math.round(u8.length / 1024) });
+        fleetTouch(key);
+        fillPending(key);
+        return rec;
+      });
+    }).catch(e => { FLEET.why[key] = 'decode failed'; console.warn('parked: the fleet prop', key, 'did not decode:', e && e.message || e); return null; });
+  }
+  function fleetTouch(key) {
+    const i = FLEET.lru.indexOf(key);
+    if (i >= 0) FLEET.lru.splice(i, 1);
+    FLEET.lru.push(key);
+    while (FLEET.lru.length > FLEET_DRAW.resident) fleetEvict(FLEET.lru.shift());
+  }
+  function fleetEvict(key) {
+    const rec = REC[key];
+    if (!rec || !rec.fleet) return;
+    delete REC[key];
+    FLEET.stats.evicted++;
+    // its placements emptied and back to pending (the next roll-out's decode stands them again)
+    FLEET.placed = FLEET.placed.filter(lod => {
+      if (lod.userData.parked !== key) return true;
+      const grp = lod.parent;
+      if (grp) { grp.remove(lod); PENDING.push({ key, grp, THREE: W.THREE }); }
+      return false;
+    });
+    const bk = rec.baked;
+    if (bk) { for (const g of bk.geos || []) if (g && g.dispose) g.dispose(); const m = bk.mat; if (m) { for (const t of [m.map, m.normalMap, m.roughnessMap, m.metalnessMap, m.clearcoatMap]) if (t && t.dispose) t.dispose(); if (m.dispose) m.dispose(); } }
+  }
+  const lightPreset = () => { try { const g = W.GFX && W.GFX.get ? W.GFX.get() : null; const p = g ? (g.build || g.preset) : null; return FLEET_DRAW.light.indexOf(p) >= 0; } catch (e) { return false; } };
+  // the ladder a fleet record stands: [rung index, distance] (bakedLevel's rungs: 0 = L1, 1 = L2, 2 = L3)
+  const fleetLadder = light => ((light === undefined ? lightPreset() : light) ? [[2, 0]] : [[0, 0], [1, FLEET_DRAW.l1], [2, LEVELS.L3]]);
+  // THE COUNT, pure: which of `pts` ([x, y, z]) are drawn from `cam` ([x, y, z]) - the nearest `max` (lightMax on a
+  // light preset), nearest first; ties by index (deterministic)
+  function fleetPick(cam, pts, light) {
+    const max = light ? FLEET_DRAW.lightMax : FLEET_DRAW.max;
+    const order = pts.map((p, i) => [Math.hypot(p[0] - cam[0], p[1] - cam[1], p[2] - cam[2]), i]).sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+    return { max, light: !!light, drawn: order.slice(0, max).map(o => o[1]), d: order.map(o => +o[0].toFixed(2)) };
+  }
+  function fleetGate(lod) {
+    FLEET.placed.push(lod);
+    const up = lod.update;
+    lod.update = function (camera) {
+      up.call(this, camera);
+      if (!fleetDrawn(this, camera)) for (const l of this.levels) l.object.visible = false;
+    };
+  }
+  const _v = { x: 0, y: 0, z: 0 };
+  function fleetDrawn(lod, cam) {
+    const now = performance.now();
+    if (now - FLEET.rankAt > 200 || FLEET.rankCam !== cam) {
+      FLEET.rankAt = now; FLEET.rankCam = cam;
+      FLEET.placed = FLEET.placed.filter(l => l.parent && l.parent.parent);   // torn-down holders leave the count
+      const e = cam.matrixWorld.elements, c = [e[12], e[13], e[14]];
+      const pts = FLEET.placed.map(l => { const m = l.matrixWorld.elements; return [m[12], m[13], m[14]]; });
+      const pk = fleetPick(c, pts, lightPreset());
+      FLEET.drawn = new Set(pk.drawn.map(i => FLEET.placed[i]));
+    }
+    return FLEET.drawn.has(lod);
+  }
+
   const trisOf = grp => { let n = 0; grp.traverse(o => { if (o.isMesh && o.geometry && o.visible) { const g = o.geometry; n += (g.index ? g.index.count : g.attributes.position.count) / 3; } }); return n; };
 
   W.PARKED = { keys, specOf, capture, captureAll, place, build, stance, hitboxOf, records: REC, pending: PENDING,
                async: false, flush, whenIdle, queued: () => ASYNC.queue.length + (ASYNC.run ? 1 : 0),   // G680: the roll-out screen's door
-               LEVELS, CUT, WEAR, ready: false, boxes: false, L0: false /* the interior rung, shelved: G571 */, quiet: false, trisOf, drawBoxes, exteriorMesh, cloneBlock, copyBlock,
+               LEVELS, CUT, WEAR, ready: false, boxes: false, cleanCapture: !W.__parkClean0 /* G2220: false re-opens the capture leak (the gate's negative control; ?parkclean=0) */, decodeImages, L0: false /* the interior rung, shelved: G571 */, quiet: false, trisOf, drawBoxes, exteriorMesh, cloneBlock, copyBlock,
                dupe, levelMeshes, farLevel, cutFar, isInterior, PART_L1,   // GATE PARKED drives these headless
                // G569, the baked far rungs: the dials, the unwrap, the assembly, the bake's own hook, and
                // the cache's key and door (bakeClear drops every build's bake: the next boot bakes again)
@@ -1730,6 +2032,8 @@ self.onmessage = function (e) {
                // G805, the cook: its dials and state, the signature, the container both ways, the record, the loads,
                // the offline tool's door (cookPack) and the A/B's live twin (abLive)
                COOK, cookable, cookSig, cookEncode, cookDecode, cookRecord, cookLoad, cookAll, cookPack, abLive, bakeData, cutBaked,
+               // G2220-G2224, the fleet: the rules, the state, the doors (the garage's queue, the roll-out's decode), the pure pick
+               FLEET_DRAW, fleet: FLEET, fleetOn, fleetSig, fleetQueue, fleetStep, fleetBake, fleetLoad, fleetTouch, fleetEvict, fleetPick, fleetLadder, garageIdle, mayDecode,
                bakeClear: () => db().then(d => new Promise((res, rej) => { const tx = d.transaction('bake', 'readwrite'); tx.objectStore('bake').clear(); tx.oncomplete = res; tx.onerror = () => rej(tx.error); })),
                // the record's far levels as the object holds them, for the gate's numbers
                hitbox: grp => { let hb = null; grp.traverse(o => { if (!hb && o.userData && o.userData.hitbox) hb = o.userData.hitbox; }); return hb; } };

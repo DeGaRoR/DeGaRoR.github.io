@@ -548,7 +548,7 @@ const GATES = [
   // snapshot - the record, the stance off the wheels, the hitbox by identity,
   // the ladder's membership, the cut (one bucket per triangle), the far rungs
   // on the same ground, the material dupe, the island's parked objects (~2 s)
-  { id: 'PARKED', file: '_parked_check.js', tier: 'core' },
+  { id: 'PARKED', file: '_parked_check.js', tier: 'core', wall: 600 },   // G2220-G2224: + the page in node (11 the capture leak and its negative control, 12p the fleet); --pure: seconds
   // C4a (G870): the flown aeroplane's texture bake - what bakes, the atlas uv per vertex (and the split), the key,
   // the tangent frame riding the flex, the Toksvig mips, the dilation, the wiring (~1 s)
   { id: 'FLOWNBAKE', file: '_flown_bake_check.js', tier: 'core' },
