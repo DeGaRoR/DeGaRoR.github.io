@@ -1,0 +1,8 @@
+fly (76 s)
+  ok   fly: the screen lifted at compile (the chain still running: true)
+  ok   fly: Fly mid-chain - the roll-out landed (trip {"kind":"rollout","done":true,"ran":["craft","frames"]})
+  FAIL fly: the world drawn after the roll-out (0 renders in 60 frames)
+  FAIL fly: a reveal marked (0)
+  FAIL fly: no roll-out screen gave up (["hard timeout (GATE BOOTLIFT)","nothing landed for 20 s","nothing landed for 20 s"])
+  ok   fly: no page error ([])
+GATE BOOTLIFT: FAIL (3)
