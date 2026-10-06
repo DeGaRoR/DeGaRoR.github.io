@@ -372,6 +372,11 @@ const GATES = [
   // the same lattice as the stand - on the five validated builds and an offset / envelope / null corpus; and the
   // page's join headless, on -> off -> commit through the garage's merge, back to never-on. ~70 s (the joins).
   { id: 'SPECFIX', file: '_specfix_check.js', tier: 'core', wall: 75 },
+  // NODE FLIES THE GAME'S AEROPLANE (G1985-G1989, JOIN-PARITY): tools/_load_build.js - the page's load chain under node
+  // (the join, the energy layer's tanks, the pilots' characters) - against the real page's spec for the five validated
+  // builds (tools/fixtures/join_parity_page.json, tools/join_parity_page.js), def to def to 1e-9; the file as written
+  // differs; the chain is pure; a save is a fixed point; every loader of a validated build goes through it. ~40 s cold.
+  { id: 'JOINPARITY', file: '_joinparity_check.js', tier: 'core', wall: 60 },
   // G134: the custom engine — thermo laws over the registry, the clamp
   // door, and the row reaching the frame; ENGID is the identity ruling
   // (untouched preset = the certified row; deviated = modified/custom)

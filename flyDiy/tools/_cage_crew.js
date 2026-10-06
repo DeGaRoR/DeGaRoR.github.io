@@ -3165,6 +3165,18 @@ const charRebuild = () => {
     finally { if (window.BOOT) window.BOOT.landed('crewBuild'); }
   }, 60);
 };
+// THE CREW IS PENDING while a character is on the wire or its rebuild is
+// armed (G1985, JOIN-PARITY): the layer stands the ATD (or a half-dressed
+// rig) in the meantime, and the energy layer must not SHAPE a tank to that
+// stand-in - measured in the game on the user's Cub, a nose tank shaped at
+// t = 18 s of the boot against the waiting crew (feet splayed 16 cm off the
+// centreline, 3 cm low) was 29 L and kept, the same file loaded after the
+// character landed 27 L. _cage_energy.js asks this before it writes a shape.
+// (A page or harness with no fetch door can never land a character - _cage_char.js rejects at once: nothing is pending
+// there, or a headless bench without ASSET_FETCH would never shape a tank again.)
+if (typeof window !== 'undefined')
+  window.CAGE_CREW_PENDING = () => (typeof window.ASSET_FETCH === 'function' || typeof window.ASSET_FETCH_FRESH === 'function') &&
+    (!!charRebuildT || Object.keys(CHAR_WAIT).some(k => CHAR_WAIT[k]));
 if (typeof window !== 'undefined')
   window.CHAR_TEX_LANDED = () => {
     if (window.CAGE_UI && window.CAGE_UI.draw) window.CAGE_UI.draw();
@@ -3441,7 +3453,9 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
       if (window.BOOT) window.BOOT.expect('crew');   // the loading screen waits for the character
       C.load(c.key).then(d => {
         CHAR_WAIT[c.key] = 0;
-        if (d && window.CAGE_UI && window.CAGE_UI.build) charRebuild();   // arms crewBuild before crew lands
+        // G1985: a FAILED character rebuilds too - the crew stays the ATD, and the layers that waited on the crew
+        // (the energy layer's tank shape) settle on it now rather than on the next edit
+        if (window.CAGE_UI && window.CAGE_UI.build) charRebuild();   // arms crewBuild before crew lands
         if (window.BOOT) window.BOOT.landed('crew', !!d, c.key);
       });
     }

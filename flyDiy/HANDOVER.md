@@ -78087,3 +78087,200 @@ recorder marks a reveal with no roll-out screen), build.js lazy row, analyze_log
 Light pass (test proportional to risk): the cut's gates BUILD FLIGHTREC BOOT GFX UISMOKE BUILT MEDIA PASS (HW-COVERAGE), GATE
 BOOTLIFT 4/4 on its full branch; A0: parked re-cook, MEDIA, BUILT strict. No strict-gate run (nothing per-frame but the reveal mark).
 For the user: index.html?diag=bench (~15 s) then index.html?diag (~5 min) on the gaming laptop, each a downloaded .json.
+
+
+## G1985 - JOIN-PARITY: NODE FLIES THE GAME'S AEROPLANE - ONE LOAD PATH (tools/_load_build.js, the page's own code in the page's order), GATE JOINPARITY EXACT ON THE FIVE VALIDATED BUILDS, THE PAGE'S LOAD DOOR MADE DETERMINISTIC (2026-10-05/06, JOIN-PARITY for A0, cloud: node, plus headless Chromium + SwiftShader to capture the real page's answer; branch claude/join-parity-g1985 off origin/master e9e14880 = train 35; G1985-G1988 used, G1989 unused)
+
+**READY for A0.** Source and tools only: nothing generated is committed (index.html, dev.html, sw.js, version.json,
+tools/flight_core.js are A0's to build; the core is untouched - flight_core.js builds byte-identical). The user's build
+files under bugReports/ and builds/ are untouched.
+
+### THE FINDING, AND WHAT THE CENSUS ADDED
+
+DMG-D4b (the Deform Coordinator) found two: (A) the metal Cessna's engine (and the Cessna on floats') 65 cm apart -
+node ran buildGen on the file, the game runs the join, which writes the drawn flange into `engines[0].x` (G445.1); (B)
+the Cub's nose tank: VSNL/VSNR at the top of the firewall in node, the bottom in the game, 476.2 vs 462.3 kg. Both
+reproduced. The census found the rest: the game NEVER flies a file as written - its load door (garage.js loadSpec ->
+_cage_ui applySpec -> the editor's layers -> app.js BUILD_SYNC (the join) -> GARAGE_SPEC.update (genSpecMerge) -> the
+energy layer's write-back, 120 ms later) rewrites, on every open:
+
+| what the page writes | where | the user's builds |
+|---|---|---|
+| `engines[i].x/y/z` - the drawn engine's station | _cage_join (M.engUnits off CAGE_ENG) | metal + floats: -0.510 -> -1.162 m |
+| the energy layer's tank: a vessel with no box of its own is SHAPED to its bay and capped above the crew's feet, its level settled (`dims`, `capacity`, `lv`, `along`), `fuel.litres` re-derived | _cage_energy placeAll + commit | Cub: 45 L at the firewall's top -> 27 L at its foot; Jodel: placed |
+| `cabin.glazedM2` - the glazed area off the built sheet | _cage_ui build (UI-only!) | every build: the rule's glass -> the drawn glass (Cub 1.876 m2) |
+| the floats' drawn hull (`mFloat`, `volDeck`, the rows) and its STEP station (12 deg aft of the flown CG) | _cage_float + the CG handshake | Cessna floats: 1.89 -> 1.02 m3 to the deck, -66.7 kg; the step 1.63 -> 1.21 m |
+| the tail's drawn areas and seat (`Sv`, `hSpan`, `stabH`...), `cabin.glazing`, the cage's stated rows | _cage_join | small, every build |
+
+Node's loaders - _treecrash_lib (every DMG gate), pilot_trace (PILOTACT / PLAN / RWYTREES / TAXICLEAR / the matrix's file
+cells), tanks_float*, TAKEOFF, FLOATS, SEAPLANE, PILOT, SITE, SIMWORKER, LINEUP, HONESTY, HYDRODYN, STRIPSURF - ran none
+of it. tools/_bake_joined.js (ARCHETYPES, the perf study, LINEUP's and STRIPSURF's Cub card, SPECFIX's join test, the
+ground tools) ran the join but not the energy layer, the crew's characters, the glazed area or the second round.
+
+### G1985 - THE ONE PATH: tools/_load_build.js
+
+`LB.loadBuild(file, {patch})`, `LB.loadValidated(key)`, `LB.gameSpec(rawOrEnvelope)`, `LB.VALIDATED` (the one table of
+the user's five: Cub, Jodel, metal Cessna, Cessna floats, twin floats - _treecrash_lib's BUILDS IS it now). In a CHILD
+process per build (the layers keep state across builds, G1106.2: one build, one process, as one page load), on the
+page's own files (tools/_scene_headless.js + the energy, bay, vessel, crew, character and panel layers), in loadSpec's
+order: genNormaliseSpec; the energy and panel layers seeded from the spec; the editor's pre-build rows (the aft mirror,
+PAGE.coerce, the hinge-finish row - _cage_ui build()'s); a build; the join (with `CAGE_UI.glazedM2` from the pure
+`CAGE2.cageGlazedM2`); genSpecMerge; the second round (the CG app.js would publish, a build, the join); the CG
+handshake (G396: a floatplane builds again while the flown CG moves > 2 cm); the energy layer's write-back. The pilots'
+characters load from media/ exactly as the page fetches them (assets.js's gunzip) and are registered BEFORE the editor's
+files (_cage_page5's default pilot reads the registry when it loads: 0 without it, the page's 7). Cached by content in
+tools/.joincache/ (gitignored): the key hashes the input and every file the chain reads (the core, the editor's
+MANIFEST, three.js, the characters, this file), so a hit is what the chain would compute now. 4-7 s a build cold.
+FLYDIY_RAW_BUILDS=1 makes every retrofitted loader fly the file as written (the before/after rig);
+FLYDIY_JOIN_NOCACHE=1 recomputes; FLYDIY_JOIN_PROBE=<file> runs a probe in the page context after the last build.
+
+### G1986 - THE PAGE'S LOAD DOOR WAS NOT ONE THING (found capturing it; fixed)
+
+Captured headless (tools/join_parity_page.js: Chromium, SwiftShader, a fresh profile per build), the page gave
+DIFFERENT aeroplanes from the same file depending on the door and on what was open before:
+1. **The tank shaped against a crew still loading** (the Cub: 29 L booted from the autosave - the shape cut at t = 18 s
+   against the waiting crew, feet splayed 16 cm, 3 cm low - 27 L loaded from the shelf). _cage_crew.js publishes
+   `CAGE_CREW_PENDING()` (a character on the wire or its rebuild armed; false where no fetch door exists, so the
+   headless benches still shape); _cage_energy.js places a body tank PROVISIONALLY (drawn, not written back) while it
+   is true; a character that fails to load now rebuilds too, so the shape always settles. Boot = shelf = 27 L, measured.
+2. **A load inherited rows from the aeroplane open before.** applySpec assigned cageFromSpec over the current P, so a
+   row no table declares kept the last aeroplane's value: the twin floatplane opened after the boot's stock design flew
+   that design's float bows (fltBow 0.36, fltBowB 0.15, fltSide 0.22) and its cowl stub (cw_stub*). applySpec now drops
+   every key cageFromSpec does not return (view keys kept): the G63 rule, "a build fully determines the aeroplane".
+3. **One build read another aeroplane's drawing.** The chain draws crew, cowl, engine, wing...: the engine layer hangs a
+   wing mount's nacelles off the wing layer's LAST wing, the float layer stands its step on the last join's datum
+   (CAGE_DATUM) and the flown CG. loadSpec now forgets CAGE_DATUM and runs a SECOND ROUND (the join, the aeroplane
+   rebuilt - app.js publishes its CG -, the editor built again) before the sync. Without it node's single build had no
+   wing, no nacelle stations, and genSpecMerge (which replaces `engines` whole) dropped the twin's engines[].x.
+4. **The tailplane's measured height read the hinge brackets.** tailSurfBounds counted `edHinge_*` (the hinge layer's
+   brackets and horns, shaped by ray probes of the drawn skin: +144 vertices a surface on the page against node) -
+   `tail.stabH` 3-4e-5 apart. Hinges are hardware, like G307's saddle: excluded.
+5. **The glazed area was the UI's alone** (`CAGE_UI.glazedM2`, measured inside _cage_ui's build): every headless join
+   billed the rule's glass, +1.1..1.3 kg against the game. Now `CAGE2.cageGlazedM2(mesh, FS)` (_cage_gen.js, with
+   `CAGE_GLASS_MATS`), called by the UI's build and by node's chain.
+
+**NOT FIXED, measured and declared:**
+- **The floatplanes' step is timed by the balance worker** (G396's handshake acts on whichever CG answer arrives, inside
+  its 2 cm deadband): the twin's float station is 0.44 mm (x) / 0.08 mm (y) from node's deterministic handshake; the
+  Cessna floats' matched to 1e-16 on this capture. GATE JOINPARITY holds these two rows to 5 mm and carries them.
+  A pure step (the fixed point solved in the spec, not by rebuilds) is the clean fix - the float layer's owner's call.
+- **The boot door (flydiy.wip) is not the load door.** Captured before the fixes above
+  (reports/evidence/JOIN-PARITY/page_boot_door.json): the metal Cessna and the floats booted with
+  `cage.frWinBotY` = -0.8936 (the default Jodel's windscreen-frame bottom; the file has none) and a datum 3.1e-5 m off.
+  The fixture is the LOAD door (GARAGE_SPEC.set, which the shelf, the fleet, a file import and a new design enter by).
+  Re-captured with `--door boot` AFTER the fixes: the Cub, the Jodel and the metal Cessna booted to the load door's masses
+  to the gram (460.387 / 463.890 / 887.242 kg); the run was cut by a container restart before the two floatplanes (and
+  before a def-level comparison) - re-run `node tools/join_parity_page.js --door boot --out <file>` to close it.
+
+### G1987 - GATE JOINPARITY (core, tools/_joinparity_check.js, ~45 s cold / ~10 s cached)
+
+1. node = the page: tools/fixtures/join_parity_page.json is the real page's spec per validated build (the load door,
+   tools/join_parity_page.js); the two defs compared field by field - n, nb, every node (position, mass, radius, tag),
+   every member (ends, rest length, stiffness, class, ...), the refs, the total mass - to 1e-9 (relative past 1).
+   Measured: Cub 0, Jodel 3.3e-16, metal Cessna 2.2e-16, Cessna floats 1.9e-16, twin floats 0 (the float station
+   declared, see above).
+2. The file as written is NOT the game's: the metal Cessna's engine nodes -0.510 vs -1.162; the Cub's tank nodes 0.924 m
+   vs 0.000 over the firewall's foot, 476.19 vs 460.39 kg.
+3. Pure: two fresh computations and the cache agree to the byte (metal, Cub).
+4. A save is a fixed point (question 4): the game's spec saved and opened again flies the same def and carries
+   engines[0].x on all four nose mounts.
+5. THE CENSUS: every tool naming a validated file (or tools/fixtures/build_v10_cessnaMetal_2026-09-26.json, the metal
+   Cessna's spec byte for byte) loads it through tools/_load_build.js or is declared with its door (the real page, via
+   pilot_trace / _treecrash_lib, a spec-level reader, a join under test); a new raw loader fails.
+NEGATIVE-VERIFIED (--selftest): the metal Cessna flown as written, one Cub member 1e-6 stiffer, a planted raw loader -
+three FAILs, all caught. RE-CAPTURE RULE: a change MEANT to move what the game flies (a layer, the join, garage.js's load,
+the energy write-back) re-runs `node tools/join_parity_page.js` (~10 min a build under SwiftShader, --jobs 2) and says so
+here; the gate prints when the chain's files changed since the capture.
+
+### G1988 - QUESTION 4: WHY THE v10 SAVES HAVE NO engines[0].x
+
+They PREDATE it. Both Cessna files were built 2026-09-17 (their logbooks); G445.1 taught the join to write a NOSE
+engine's drawn station on 2026-09-20. Nothing drops it: genNormaliseSpec, genMigrateSpec and resolveSpec keep it, and
+the save writes the spec as it stands. The join re-runs on EVERY load (garage.js loadSpec -> BUILD_SYNC), so the game
+always flew the measured station; a save after an open carries it (check 4). One real hazard, found on the way and
+closed by G1986.3: genSpecMerge REPLACES `engines` whole, so a join that measured no engine unit (a wing mount drawn
+before its wing existed) wrote the array without x/y/z and the next save lost them.
+
+### THE SHIFT - WHAT THE GATES SEE NOW (NAMED CHANGES: the gates fly the game's aeroplane)
+
+tools/join_parity_shift.js -> reports/evidence/JOIN-PARITY/shift.txt (the file as written -> the game's):
+
+| build | mass kg | CG x m (model) | engine x m | static margin | Vs m/s | TO run (shakedown) m | prop low point, settled |
+|---|---|---|---|---|---|---|---|
+| Cub | 476.19 -> 460.39 | 0.669 -> 0.703 | -0.892 (same) | 0.175 -> 0.157 | 15.98 -> 15.72 | 156 -> 142 | 35.5 -> 35.6 cm |
+| Jodel | 462.96 -> 463.89 | 0.432 -> 0.424 | -0.986 (same) | 0.042 -> 0.047 | 18.81 -> 18.83 | 205 -> 206 | 51.5 (same) |
+| metal Cessna | 883.41 -> 887.24 | 0.818 -> 0.640 | -0.510 -> -1.162 | 0.144 -> 0.245 | 22.11 -> 22.16 | 147 (same) | **-1.1 -> -2.3 cm** |
+| Cessna floats | 1018.19 -> 951.51 | 0.895 -> 0.646 | -0.510 -> -1.162 | 0.176 -> 0.318 | 25.18 -> 24.34 | 1207 -> 1080 | 52.7 -> 53.9 cm |
+| twin floats | 475.42 -> 489.27 | 0.946 -> 0.936 | 0.425 (same) | 0.147 -> 0.120 | 16.08 -> 16.33 | 310 -> 339 | 110.2 -> 68.8 cm |
+
+The tanks: the Cub's 45 L -> 27 L (shaped to the bay above the pilot's feet), the Jodel's 45 L placed (0.305 x 0.759 x
+0.229 at -0.172 m); the glazed area billed as drawn on all five (Cub 1.876 m2 ... twin 0.440); the Cessna floats fly the
+drawn catalogue hulls (2 x 27.2 kg, 1.02 m3 to the deck, the step 1.63 -> 1.21 m; the file predates the float layer
+writing them), the twin its drawn floats (4.60 m, 27.2 kg each, 2.96 x gross against the rule's 4.01 m / 20.5 kg).
+
+TANKS-FLOAT (tools/tanks_float.js, full tanks, 600 s; reports/evidence/JOIN-PARITY/tanks_float/summary.md): the Cub
+sinks at 218 s settling (219.5 as written - G1385's own number reproduced), 301.5 s ditched (301); the wing-tank Cub
+208.5 / 291 (209.5 / 290.5); the Jodel 424.5 s settling (421.5), afloat ditched (afloat); **the metal Cessna puts its
+wing roots under at 2.5 s settling (362 s as written) and 169 s ditched (358.5)** - the engine 65 cm forward - still
+afloat at 600 s.
+
+**DMG-DRIVE's open question 2, re-measured:** the metal Cessna settled 12 s on its gear (brakes, idle, flat ground): the
+disc's lowest point -1.1 cm as written (DMG-DRIVE's own number, reproduced) -> **-2.3 cm** in the game's aeroplane (the
+engine 65 cm further forward: the stance pitches -1.00 deg, was -0.80). The question stands, worse: on a paved strip
+the game's metal Cessna brushes its prop on every taxi (the 5 cm turf allowance still hides it on grass).
+
+**THE GATES, before (origin/master e9e14880, a worktree, `run_gates --no-build --only=...`, the 23 gates whose loaders
+changed) and after (this branch; generated files built locally, not committed).** Every before/after log and diff:
+reports/evidence/JOIN-PARITY/gates/ (before_<ID>.txt, after_<ID>.txt). Before: 23/23 PASS.
+
+After - PASS: JOINPARITY, GEN, PILOT, PILOTMATRIX (the ratchet: its quick set flies archetype CARDS, not these files - unmoved,
+see "NOT DONE"), TAKEOFF, UISMOKE, ROUNDTRIP, BUILD, SEAPLANE, SITE, SIMWORKER, LINEUP, HONESTY, HYDRODYN, STRIPSURF,
+PILOTACT, PLAN, RWYTREES, TAXICLEAR, DMGMEMBERS, DMGCERT, DMGINST, DMGFPS, DMGINTEGRITY, DMGSKIN, and the page-side
+regressions SPECFIX, JOIN, ENERGY, ENERGYBASE, TANKMOUNT, CLIP, BAY, STARTER, SAVE, DEFAULT, PARTS, UPDATE.
+INSTANT PASS too (alone, 2978 s on this box: every drag ended on the plain build's aeroplane - the second load round and P's replacement change nothing a drag compares). A container restart cut the first after-run at 37/44; the rest were re-run gate by gate (one log each).
+
+The numbers that MOVED (named changes - the gates now see the game's aeroplane):
+- TAKEOFF (the twin-582 fixture on wheels): the crosswind limit 4.5 -> **4.0 m/s** (first failure 4.5 m/s, 19.74 m out
+  of the 12.5 m band; was 5 m/s, 12.84 m). The gate measures the number, it holds no baseline: PASS.
+- PILOT (the same fixture, flaps/status): the Vx climb clear of the ground at 50.4 s (50.1).
+- PILOTACT (the metal Cessna off HOME's stand): the circuit **312.5 -> 383.7 s**, the landing sink **1.11 -> 1.89 m/s**,
+  1.15 -> 1.38 Vs, the aim +44 -> -23 m: the cell goes good -> WARN (the gate fails only on bad: PASS). The pilot flying
+  the nose-heavy game aeroplane (margin 0.144 -> 0.245) - a pilot-track item.
+- RWYTREES: the metal Cessna's Jolene circuit to a stop 442 -> 493 s (no tree touched). PLAN: its downwind 0.5 -> 0.8 m
+  off the plan. TAXICLEAR: its nearest wing to a parked footprint 1.74 -> 1.73 m. SIMWORKER: the host's metal Cessna is
+  the page's (103:94f7c38c, 887.20 kg; it was 883.37) - every step's FNV equal, as before.
+- SEAPLANE (the twin on floats, now the drawn floats): lift-off 7.9 -> 7.4 s, stopped 291.7 -> 301.0 s.
+- DMGCERT: the certificates move with the aeroplanes (e.g. the Jodel's bench to destruction BROKE AT 6.06 g at the right
+  wing root, was 6.02 g left - inside [5.70, 5.99] +2.5 %; the metal Cessna's flown pull 0.95 -> 0.97 of its certified
+  limit); every check holds.
+- HYDRODYN: two lines asserted the FILE's tank ("45 L", rho g x 0.045) - now the spec's capacity (27 L: 264.87 N = rho g
+  27 L, exactly). The rule (the tanks are the vessel, Archimedes fully under) is unchanged; this is the one gate edited
+  to read the aeroplane instead of a literal.
+
+**RED - real, on the game's aeroplanes, NOT rebaselined (each a rule, not a baseline; for the Deform Coordinator / the
+hydro owner / A0):**
+- **TREECRASH** (1 of 50): the metal Cessna taxied at 3 m/s into a trunk now CRASHES - "the airframe crushed (1.9 kJ of
+  plastic work)", 2984 J (758 as written), the engine pair's cross-member ENGL-ENGR broken. This is DMG-D4b's own page
+  observation (the page's taxi did ~3x node's plastic work) - node now agrees with the page. Its circuit in the rig no
+  longer completes in 340 s (null; 271 s as written) - a check that only asks "nothing yields", PASS.
+- **DMGGEAR** (dm14 headroom, every ordinary operation at most 2/3 of its certified yield): the Cessna floats' engine-mount
+  member CGE-S0BL at 1.00 / 1.04 of yield on 1.0 / 1.5 m/s touchdowns and 1.33 at the 23.473 sink (0.34-0.38 on the
+  file's aeroplane), its circuit 0.96, the float dig-in's strut fittings; the twin's MNTR/MNTL-WF 0.85-0.94, its 1.2 x
+  drop and its water nose-in; the metal Cessna's crosswind circuit 0.92 (gear). The engine 65 cm forward on its two-node
+  rig is the common factor on the Cessnas.
+- **DMGCLUSTERS**: the twin's float nose-in breaks the ROD root (1.169, 2.17 of first yield) and the aeroplane breaks up.
+- **FLOATS**: the twin on its drawn floats skims in at 0.12 m/s (bound 0.35-1.6) and takes a 0.695 W one-frame step in
+  the water's lift (bound 0.35) - the drawn floats float it higher (keel -0.88 -> -0.46 m, 2.96 x gross).
+These four are the finding's consequence, measured: the damage and water calibrations were made on aeroplanes the game
+does not fly. They want their owners' calls (the crush threshold, the nose-engine rig's member, the floats' touch), not
+a looser bound from this session.
+
+### NOT DONE - THE NEXT DIVERGENCE (for A0)
+
+- **The archetype cards** fly through `designBake` (pilot_trace specOf -> PILOT / PILOTMATRIX / PLAN / TAXICLEAR /
+  RWYTREES) or `_bake_joined.bakeCard` (ARCHETYPES, the perf study) - never the game's load door, which a card enters
+  by too (design_flow.js -> GARAGE_SPEC.set). Measured, designBake -> the game: the Cub card 476.19 -> 460.39 kg (the
+  same tank), the Stearman **165 -> 155 nodes**, 1133.5 -> 1162.4 kg, its engine 24 cm forward; c172 993.9 -> 993.3;
+  jodel 440.9 -> 441.8. Routing them through `LB.gameSpec(designBake(...))` is one line in pilot_trace and in
+  _bake_joined, and moves PILOTMATRIX's ratchet and ARCHETYPES wholesale - A0's call (G1989 is free for it).
+- master_bench and the other page-run rigs boot through the AUTOSAVE (the boot door), see G1986's last item.
