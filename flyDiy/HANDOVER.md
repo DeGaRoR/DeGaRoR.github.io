@@ -78978,3 +78978,126 @@ as far. Each candidate below is testable in node with one change, then a re-fly 
 GATE TOUR should take the page's day and load before it is read as "the game's tour". Not landed by this session.
 Box: GPU 08:45-08:48 (shake-down), 09:00-09:37 (two runs; dropped 23 min early); CPU: node re-flies 04:00-04:16 (lock),
 08:50-08:59 and 09:00-09:47 (lockless, beside my own GPU slot; reported to A0).
+
+## G1970 - ISLAND-TOUR-2: THE NODE TOUR FLIES THE GAME'S FLIGHT - THE GAME'S DAY, THE LOAD DOOR'S AEROPLANE, THE WORKER'S HOST AND ITS PILOT; THE INBOUND GAP EXPLAINED; NODE WITHIN 1.8 M OF TOUR-REAL'S PAGE ON EVERY LEG (2026-10-06, ISLAND-TOUR-2 for A0, a CLOUD session: node only; branch claude/island-tour-2-g1975x off origin/master 068584d6 = train 37b, train 38 not landed: + ISLAND-TOUR 817115e1, PILOT-ONE-2 0fcf1a42, JOIN-PARITY aba8187f, TOUR-REAL fa3d4e0c merged; G1971-G1974 unused)
+
+THE ASK (A0, from TOUR-REAL's verdict): (1) GATE TOUR flies the game's day, the game's load and the page's own placement;
+(2) each landing is judged on the strip it was made on; (3) explain the INBOUND gap; (4) re-fly the Cub (East Point
+first), the C172 and the floats tours against TOUR-REAL's page tracks: node within ~20 m a leg, or each divergence named.
+
+THE BRANCH. Train 38 had not landed, so the branch is master (train 37b) plus the four READY branches the work stands on, each
+a plain merge so git drops whichever train 38 already carries. ISLAND-TOUR (the tour, GATE TOUR). PILOT-ONE-2 (the pilot
+TOUR-REAL's page flew; 90_node_exports the union less the retired makeAutopilot / makeTestPilot, the resolution TOUR-REAL's
+worktree made). JOIN-PARITY (tools/_load_build.js: pilot_trace specOf now returns the load door's spec - the game's
+aeroplane). TOUR-REAL (the page rig, tour_real_node.js, tour_real_report.js and the page's tracks). The merges' only
+conflicts were HANDOVER (both kept), 90_node_exports (the union) and the generated files (left at master's - A0 builds;
+nothing generated is committed here). This session's own change is tools/ and reports/ only; no src/ change.
+
+### G1970.1 - THE INBOUND GAP, BISECTED (reports/evidence/ISLAND-TOUR-2/bisect_leg1/)
+Leg 1 of TOUR-REAL run 2 (HOME > Jumbo Mine, 15.6 km, the page's day), one switch added at a time, against the page's
+4 Hz track:
+  v0 the old rig (the file's 45 L / 476.2 kg, no shakedown)    max 324.5 m, p95 63.6; touchdown 19.2 m/s, roll-out 131 m
+                                                              (TOUR-REAL's node, reproduced)
+  v1 + the load door's aeroplane (27 L / 460.4 kg)              max 269.3 m;          13.1 m/s, 47 m
+  v2 + the garage's shakedown behind the pilot                  max  39.5 m, p95 36.8; 13.7 m/s, 50 m
+  v3 + the worker's host (placement, nav, the day ticked)       max  40.7 m;          13.8 m/s, 51 m
+  v4 + hCruise 115 m                                            max  13.4 m, p95 12.5; 13.7 m/s, 50 m
+  the page                                                                             13.8 m/s, 50 m
+THE THREE CAUSES:
+- THE AEROPLANE (JOIN-PARITY's finding, here in the air). The load door shapes the Cub's nose tank to its bay (27-29 L).
+  The measured landing-configuration stall Vs0 goes 16.0 -> 13.5 m/s, so the sheet's Vref goes 20.8 -> 17.5. That is the
+  touchdown speed and the doubled roll-out.
+- THE PILOT'S SHEET. app.js mkPilot / sim_host hand makePilot the garage's shakedown (genShakedown(def, {corners: false})).
+  Node's tour pilot had none: no LDbest (the steepest approach it may plan is 1.4 / LDbest, else 0.105) and no idle sink
+  (the TECS descent). That is the 300-460 m base / final gap. TOUR-REAL's "faster, lower INBOUND" is the same descent
+  planned differently.
+- THE CRUISE HEIGHT'S ROUNDING STEP (62_gen_aero.js genAP: hCruise = round(min(7 Vs, 90 VClimb gamma) / 5) * 5).
+  TOUR-REAL's page flew 29 L (462.3 kg: the tank shaped against a crew still loading, G1986's pre-fix boot): Vs 16.079,
+  7 Vs = 112.55 -> 115 m. The load door's 27 L: 112.32 -> 110 m. The climb turned on course at 107.5 m against 102.5 m:
+  a parallel 37 m en route. About 1.5 kg of fuel moves the circuit by 5 m. This is a cliff in genAP; no change made here
+  (the generator's owner's call).
+MEASURED AND NOT NEEDED for these legs (TOUR-REAL's candidates 2-4): the page's obstacle registry (305-345 streamed, against
+node's 324; no page-only thing within 60 m of either track), the trees (the page: woodland cylinders off and 59 559 drawn
+trunks; node: solid woodland), the viewers' wind queries and the climate's convection seed. Node matches to 0.1 m without them.
+
+### G1970.2 - THE GAME'S FLIGHT (tools/_tour_lib.js gameDay / gameHost; flyTour `opt.game`, flyLeg `opt.host`)
+The page's own code, run in node:
+- THE DAY: src/viewer/day_clock.js in a vm, DAY_CLOCK.bind(world) on a probe world -> GAME_DAY (a new player's: 8 kt from
+  250 deg, gust 0.15, the sea breeze, 16:00 local on 22 Jun UT). Ticked every step by the host (H.dayTick: world.dayTick
+  (1/60, sim.t, the CG) - the worker's real-time clock does the same), so the wind is the game's at every sim.t.
+- THE AEROPLANE: the spec pilot_trace specOf returns (JOIN-PARITY: the load door's), built by the host as the worker builds it.
+- THE FLIGHT: src/viewer/sim_host.js makeSimHost - the worker's own host. app.js applyRoute's placement: the stand walked
+  out of the default player's shed (standFor), the wheels seated, no settling steps, the site's departure. The pilot
+  is app.js mkPilot's (the shakedown, the nav). One step is the queued commands, ap.update, sim.step and the day's tick.
+  The first leg is the host's 'start'; each next leg is its 'leg' command (app.js nextLeg -> SIMW.leg) with flightLeg's
+  From under the aeroplane.
+- `opt.game = { day: null }` holds the day calm (no tick); without `opt.game` the ISLAND-TOUR rig is unchanged (the before).
+THE LANDING ON THE STRIP IT WAS MADE ON (G1970.2b, flyLeg): the first sample on the wheels in FLARE / ROLLOUT after the
+climb-out asks 38b_dest flightWhere, and the strip under the aeroplane (else the pilot's current To) is the strip the
+roll-out is judged on (the ground loop, the box). L.landedOn records it. A diversion is still a fault ('diverted'), but its
+roll is no longer measured on the planned To's box (TOUR-REAL's phantom ground loops).
+TOOLS: island_tour.js flies the game's flight by default (--calm; --rig old for the before; --tmax). tour_real_node.js
+--game (--calm; --day @legs.json replaces the game's day with a run's own), --capacity <L> (the tank at another capacity:
+29 is TOUR-REAL's page). tour_real_report.js renders its PNG maps through headless Chromium when there is no ImageMagick.
+
+### G1970.3 - NODE AGAINST THE PAGE (reports/evidence/ISLAND-TOUR-2/vs_page/, tour_real_report.js's own measure)
+With the page's aeroplane (--capacity 29), the page's day and the game's flight:
+  HOME > East Point          dev p50 / p95 / max 0 / 0 / 0.1 m; both: go-around 'high on the slope 537 m out'; td 33.2 / 32.8 m in
+  East Point > Jumbo Mine    0 / 1.2 / 1.8 m; both: pivot 197 deg, 'rejected-takeoff: will not reach Vr: 1.48 m/s^2 needs
+                             59 m more, 65 m left', rolls from 37.3 m in, twice
+  HOME > Jumbo Mine          0 / 0 / 0.1 m;  roll-out 49.3 / 48.9 m
+  Jumbo Mine > the altiport  0.3 / 1.3 / 1.7 m; td 87.0 / 88.0 m in, 1.3 m off in both
+  the altiport > Tamgas Hill 0.1 / 0.3 / 0.9 m
+  Tamgas Hill > HOME         0 / 0.8 / 1.6 m
+No stretch more than 20 m apart; the ground under the page's samples = node's terrainH (0 m).
+With today's load door (27 L): the same verdicts and outcomes, touchdowns within 4 m; the air work 37-67 m apart, all of it
+the 110 / 115 m cruise height. Once JOIN-PARITY lands the game flies 27 L, so this is no node / page difference.
+
+### G1970.4 - THE TOURS IN THE GAME'S FLIGHT, DAMAGE ON (GATE TOUR's jobs; evidence tours/, c172_tamgas/)
+Four tours. Three fail, and each failure is the game's own, not the rig's:
+- THE CUB, HOME > Tamgas Hill > THE ALTIPORT > ...: HOME > Tamgas Hill clean (13.7 m/s, 60 m). TAMGAS HILL > THE ALTIPORT:
+  the straight-in final sinks to 0.2 m over the hillside 294 m out, touches down 62 m off the centreline past the strip,
+  ground-loops; with the damage on, a wing breaks (1409 yields). The same with the damage OFF (5.7 m/s sink, 62 m off). On
+  a CALM day it lands (14.7 m clear, 12.4 m/s, 42 m). The default breeze at the altiport is a pilot item (the arrival's
+  final into the summit strip in the 8 kt westerly). The page has never flown this leg: TOUR-REAL's run 2 went the other
+  way round, and its altiport arrival from the mine is clean in node too (above).
+- THE CUB, EAST POINT (GATE TOUR 6, new): lands, then cannot take off - the page's own result, to the metre. The
+  departure is TOUR-REAL's routed item 1, PILOT-ONE-2's.
+- THE C172, HOME > TAMGAS HILL: 'vref-raised: the elevator cannot hold 28.9 m/s at this power'; touchdown at 31.1 m/s,
+  stopped 53 m past the end of the 520 m strip. The same on a calm day (32.3 m/s) and in the old rig (33 m/s). THE
+  FILE'S C172 in the game's flight lands clean (21.7 m/s, 195 m). This is the load door's C172 with the engine at its
+  drawn station 65 cm forward (JOIN-PARITY: margin 0.144 -> 0.245; its PILOTACT row went WARN on this). On the 520 m
+  strip it is a hard overrun.
+- THE FLOAT CESSNA, ANNETTE DOCK > METLAKATLA: 'vref-raised: ... 31.7 m/s'; touchdown at 40.7 m/s, 2.2 m/s sink, 444
+  yields, dent. THE FILE'S floatplane in the game's flight lands (25.6 m/s). The same family as the C172: the load door's
+  aeroplane (the engine forward, the drawn hulls, margin 0.176 -> 0.318; JOIN-PARITY's DMGGEAR reds on its mount).
+ROUTED, NOT FIXED (pilot / airframe, outside this session's tools/ scope):
+  PILOT-ONE-2 / the pilot track: (a) the Cub's straight-in final into the altiport from Tamgas Hill in the default breeze;
+  (b) East Point's departure (TOUR-REAL item 1); (c) the nose-heavy Cessnas' approach - the elevator saturates at Vref,
+  vref-raised and a touchdown at 1.4-1.7 Vs. The Deform coordinator / JOIN-PARITY: whether the nose-engine rig's station is
+  the intended aeroplane (c). genAP's owner: the hCruise rounding cliff (G1970.1).
+
+### G1970.5 - GATE TOUR (tools/_tour_check.js; run_gates row shards 3 -> 4)
+- 5: every tour flies the game's flight (`game: {}`). New checks: the damage on in the host; the game's day and the page's
+  pilot (the 8 kt / 250 deg wind, the shakedown); the load door's aeroplane flies (the host's mass = tools/_load_build.js
+  gameSpec's build, asked directly, not through the loader the tour used); each leg landed on its To (L.landedOn).
+- 6 (new, the fourth job): HOME > East Point > Jumbo Mine. Held: the landing at East Point (stopped on it, no fault).
+  Printed, not gated: the departure ('INFO 6 ... PILOT-ONE-2, owed'). When it takes off, fold East Point into ORDERS.land.
+- The strips' block (shard 0) is unchanged: `--strips` PASS.
+- THE RUN (`run_gates --only=TOUR --no-build`, this box, 4 shards, 574 s wall; reports/evidence/ISLAND-TOUR-2/gate_tour.log):
+  RED, on exactly the three findings of G1970.4 and nothing else. Shard 0 (the strips + the Cub): the strips pass; the Cub
+  w3 > tw_ski fails (stopped with faults; the final's 0.2 m; the tour incomplete). Shard 1: the C172 HOME > w3 (off-strip;
+  the tour incomplete). Shard 2: the floats SEA > mk_sea (444 yields, dent). Shard 3 (East Point): PASS, the landing
+  held; INFO 'rejected-takeoff: will not reach Vr: 1.49 m/s^2 needs 58 m more, 65 m left' (damage on; the page's 1.48 /
+  59 m with damage off). Every new check (the game's day, the pilot, the load door's mass, landed on the To) passed in
+  every shard it ran in.
+
+FILES. tools/_tour_lib.js (gameDay, gameHost, flyTour opt.game, flyLeg opt.host and the landing's strip), island_tour.js,
+_tour_check.js, tour_real_node.js (--game, --capacity), tour_real_report.js (the PNG fallback), run_gates.js (TOUR shards 4).
+Evidence: reports/evidence/ISLAND-TOUR-2/ (README.md; bisect_leg1/, vs_page/, tours/, c172_tamgas/).
+STATUS: READY for A0 (2026-10-06). Tools and evidence only; nothing generated committed. The node tour now IS the game's
+flight (TOUR-REAL's page reproduced to within 1.8 m a leg). GATE TOUR is RED on three real findings of the game's own
+flight (above), routed; no bound was loosened and no leg was dropped to make it green.
+A0: land with or after ISLAND-TOUR, PILOT-ONE-2, JOIN-PARITY and TOUR-REAL. GATE TOUR needs JOIN-PARITY: it asks
+tools/_load_build.js directly. The C172's and the floats' reds are JOIN-PARITY's aeroplanes; their owners' call is
+whether TOUR is held to them now or carried as known reds.
