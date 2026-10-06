@@ -3596,9 +3596,10 @@
     // nodes' frames, from the record's own rest; its normals turned from R.nB) overwrites every position and normal the
     // rows below would write, on the GPU and on the CPU alike (brkCage, after them). They were ~165 ms of applySkinDeform
     // and ~55 ms of turnNormals over a crash on the box, all of it thrown away. Asked only while breaks are on the page
-    // (dmgNow): the heal's frame poses the rows again before brkCage lets the records go
-    const brkW = !still && !model.gen && window.FLYDIY_SKINBREAK !== false && BRK.recs.length > 0 && (() => { const D = dmgNow(); return !!(D && D.br.length); })();
-    const brkWhole = brkW ? (r => { const R = r.brkR; return !!(R && R.active && R.rideAll && R.nB); }) : () => false;
+    // (dmgNow): the heal's frame poses the rows again before brkCage lets the records go. window.FLYDIY_BRK_RIGSKIP = false:
+    // every row posed as before (the box's still pairs: the GPU with the skip against the CPU without it)
+    const brkW = !still && !model.gen && window.FLYDIY_SKINBREAK !== false && window.FLYDIY_BRK_RIGSKIP !== false && BRK.recs.length > 0 && (() => { const D = dmgNow(); return !!(D && D.br.length); })();
+    const brkWhole = brkW ? (r => { const R = r.brkR; return !!(R && R.active && R.rideAll && R.nB && R.nAttr); }) : () => false;
     if (!still) {
     if (model.deltaSets) for (const D of model.deltaSets) sparDeltas(D.bind, sim, D);   // B20: per station table
     else sparDeltas(model.rigs[0].bind, sim, model.deltas);

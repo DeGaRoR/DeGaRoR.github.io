@@ -322,8 +322,8 @@ const yes = (ok, msg) => { checks++; if (!ok) fails++; console.log('  ' + (ok ? 
     // G1818: the rows a wreck rides whole are not posed by the rig loops - only while breaks are on the page, only a
     // record that overwrites every position and normal (active, rideAll, its rest normals); nothing broken: the base's loops
     const pm = code(app.slice(app.indexOf('const brkW = '), app.indexOf('// G239: ...AND THE RODS AND CABLES') + 400));
-    const wOk = /const brkW = !still && !model\.gen && window\.FLYDIY_SKINBREAK !== false && BRK\.recs\.length > 0 && \(\(\) => \{ const D = dmgNow\(\); return !!\(D && D\.br\.length\); \}\)\(\);/.test(pm)
-      && /const brkWhole = brkW \? \(r => \{ const R = r\.brkR; return !!\(R && R\.active && R\.rideAll && R\.nB\); \}\) : \(\) => false;/.test(pm);
+    const wOk = /const brkW = !still && !model\.gen && window\.FLYDIY_SKINBREAK !== false && window\.FLYDIY_BRK_RIGSKIP !== false && BRK\.recs\.length > 0 && \(\(\) => \{ const D = dmgNow\(\); return !!\(D && D\.br\.length\); \}\)\(\);/.test(pm)
+      && /const brkWhole = brkW \? \(r => \{ const R = r\.brkR; return !!\(R && R\.active && R\.rideAll && R\.nB && R\.nAttr\); \}\) : \(\) => false;/.test(pm);
     const skips = (pm.match(/if \(brkWhole\((r|s)\)\) continue;/g) || []).length;
     yes(wOk && skips === 6, 'app.js poseModel: a group the wreck rides whole skips its rig row (' + skips + ' rows: rigs, struts, legs, surfaces, anchored, links) only while the page holds a break, only for an active whole-riding record with its rest normals; nothing broken: every row as the base');
     // G1818 (the box, 12:50): under the physics worker the page's sim is the view's mirror - its damage state too

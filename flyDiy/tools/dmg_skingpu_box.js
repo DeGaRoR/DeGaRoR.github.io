@@ -101,7 +101,7 @@ async function pageFlown(o) {
 // screenshot (a WebGL canvas reads back black without a preserved drawing buffer: the first pairs were blank) - two
 // JPEGs and their difference made in the page: the pixels whose colour moved by more than 24 (of 255) on a channel
 async function pageFlip(on) {
-  window.FLYDIY_SKINGPU = on;
+  window.FLYDIY_SKINGPU = on; window.FLYDIY_BRK_RIGSKIP = on;   // (the CPU's shot: the base's way - the rig rows posed, then the CPU's riding)
   for (let i = 0; i < 8; i++) await new Promise(r => requestAnimationFrame(() => r()));
   await new Promise(r => setTimeout(r, 150));
   const S = window.FLYDIY_SKINBREAK_STATS();
