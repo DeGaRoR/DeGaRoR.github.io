@@ -79144,3 +79144,16 @@ GATES (this branch's head): AUDIO PASS (351/351 mutations; +MIX block: the row a
   reads the animals' model, not touched here; likewise MUSIC_BUDGET read 71 KB over 100 000 frames once in a 3-job
   battery (budget 16 KB) and 4-6 KB in every solo run (4120 B in full runs, = the train-36 baseline) and in the re-run
   battery, which is the one recorded above (EXIT 0).
+
+colour in. **NOT PIXEL-IDENTICAL: THE WINDOW FRINGE, 698 px** (0.13 % of the frame, max 184, the GPU re-proof at 12:15) -
+A0, train 38: kept ON (invisible in play, ~800 CPU draws on the laptop); ?shedglass=0 is the escape. Checked every frame,
+else the full pass: every visible transmissive mesh's panes
+THE 12:15 STILLS (untimed, A0's slot; garage_lampstill.txt, shots/retro/lamps_*): (1) THE GLASS BY PANE re-proved on the
+GPU, same task: the shadow cache 0 px again; the glass skip **698 px (0.13 %, max 184)** - more than the room box's 183
+because it leaves out more (661 objects, 19 panes): the 0.7-mip fringe at window silhouettes. NOT pixel-identical; if
+that is unwanted, ?shedglass=0 / SHED_SHADOW.G.on = false brings the full pass back (the cache alone stays exact).
+(2) RETRO WITHOUT THE LAMPS' SHADOWS (the user's question, A0 to put): lamps_shadow_on / _off / on_again (two 'on' 8 s
+apart: 3 px over 8 differ) and diff_lamps_on_off.png, lamps_on_off_side_by_side.png: off loses the aeroplane's big
+shadow on the floor under the lamps, the trestle's and the tool rack's (106 k px over 8, max 82); it saves ~2.1 ms of
+the box's ~7.6 ms GPU in the shed (no draw: the maps are cached).
+
