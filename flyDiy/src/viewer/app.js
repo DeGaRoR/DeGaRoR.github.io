@@ -4212,24 +4212,9 @@
     const K = brkK();
     if (ev) { at.vB = D.vB; at.vS = D.vS; at.F = S.fields(def, D, { X0: K.X0, Y0: K.Y0 }); at.req = true; }
     const tK = performance.now(); PM.fields = Math.max(PM.fields, tK - t0);
-    // the records: the break path's own (brkCageRec - the same record a break would make, off the break list until one
-    // comes), only for groups something draws with a pair; ~4 ms of them a frame
-    if (!at.made) {
-      if (!at.todo) at.todo = brkGroups().filter(G => { const geo = K.geoOf.get(G[2]); return geo && geo.index && scuffTargets(at, geo).length; });
-      const fin = model.wreckBuild && model.wreckBuild.finOf;
-      while (at.todo.length && performance.now() - t0 < 4) {
-        const [own, , pa, base, off, fab] = at.todo.shift(), tR = performance.now();
-        const R = brkCageRec(own, pa, base, off, fab, o, true);
-        PM.rec1 = Math.max(PM.rec1, performance.now() - tR);
-        if (!R) continue;
-        if (!R.sc) S.prep(R, { cls: S.clsOf(fin ? fin.get(R.geo) : ''), nrm: R.nB || S.restNormals(R.baseD, R.idx0 || R.idx, R.nv, R.rep),
-                               base: R.baseD, Mi: K.Mi0, nA: R.nRest || null });
-        R.restN = K.rest; R.scA = base; R.scT = scuffTargets(at, R.geo);
-        at.recs.push(R);
-      }
-      at.mkMs += performance.now() - tK; PM.recs = Math.max(PM.recs, performance.now() - tK);
-      if (!at.todo.length) { at.made = true; at.req = true; }
-    }
+    // the records: made at the roll-out (scuffPrelink, under its screen); here only where it could not run - ~4 ms of
+    // them a frame from the first event
+    if (!at.made) { scuffRecs(at, o, 4, K, PM); at.mkMs += performance.now() - tK; PM.recs = Math.max(PM.recs, performance.now() - tK); }
     if (at.made) {
       // the binding the pass reads: with nothing broken, skin_break's own where the damage is (bindWanted); broken, the
       // break path's budgeted binding - a pass again once either has moved
@@ -4285,6 +4270,13 @@
     const at = model && model.scuff;
     if (!at || !at.W || typeof SKIN_SCUFF === 'undefined') return null;
     const W = at.W, S = SKIN_SCUFF, tgt = aa && aa.target ? aa.target() : null;
+    // the records too, here under the screen (the biggest group's alone was 16-31 ms on the SwiftShader page: at the
+    // first event that was a frame over budget, once)
+    if (!at.made && !model.gen) {
+      const t1 = performance.now(), O = model.off || SKIN_CFG[curKey].off, oR = model.oRest || [0, 0, 0];
+      try { scuffRecs(at, [O[0] + oR[0], O[1] + oR[1], oR[2]], Infinity, brkK(), null); } catch (e) { console.warn('scuff records:', e && e.message); }
+      at.premade = +(performance.now() - t1).toFixed(1);
+    }
     W.pre++; S.wakeSet(W);
     const done = () => { W.pre--; S.wakeSet(W); at.pre++; };
     let job;
@@ -4298,6 +4290,25 @@
     } catch (e) { job = Promise.reject(e); }
     return shaderProgress(job.then(done, e => { done(); console.warn('scuff prelink:', e && e.message); }), 'world', 60000);
   }
+  // THE RECORDS: the break path's own (brkCageRec - the same record a break would make, off the break list until one
+  // comes), only for groups something draws with a pair; ms: the time they may take (Infinity: all of them). The pose
+  // offset they are made with is the model's own constant (poseModel's oB: model.off + model.oRest), not a frame's
+  function scuffRecs(at, o, ms, K, PM) {
+    const S = SKIN_SCUFF, t0 = performance.now();
+    if (!at.todo) at.todo = brkGroups().filter(G => { const geo = K.geoOf.get(G[2]); return geo && geo.index && scuffTargets(at, geo).length; });
+    const fin = model.wreckBuild && model.wreckBuild.finOf;
+    while (at.todo.length && performance.now() - t0 < ms) {
+      const [own, , pa, base, off, fab] = at.todo.shift(), tR = performance.now();
+      const R = brkCageRec(own, pa, base, off, fab, o, true);
+      if (PM) PM.rec1 = Math.max(PM.rec1, performance.now() - tR);
+      if (!R) continue;
+      if (!R.sc) S.prep(R, { cls: S.clsOf(fin ? fin.get(R.geo) : ''), nrm: R.nB || S.restNormals(R.baseD, R.idx0 || R.idx, R.nv, R.rep),
+                             base: R.baseD, Mi: K.Mi0, nA: R.nRest || null });
+      R.restN = K.rest; R.scA = base; R.scT = scuffTargets(at, R.geo);
+      at.recs.push(R);
+    }
+    if (!at.todo.length) { at.made = true; at.req = !!at.F; }   // (made before any event: no pass wanted, nothing per frame)
+  }
   const SCUFF_U = () => SKIN_SCUFF.uniforms(THREE);
   // the hooks: the A/B on the same page (the block's branch off and on: no program changes) and the numbers
   window.FLYDIY_SCUFF_SHOW = on => { const at = model && model.scuff; if (!at) return null; at.show = on !== false; SCUFF_U().uDmgOn.value = at.any && at.show ? 1 : 0; return at.show; };
@@ -4308,7 +4319,7 @@
     for (const R of at.recs) { const r = R.sc.rec; for (let v = 0; v < R.nv; v++) { cnt.verts++; if (R.sc.cls === 4) continue; if (r[v * 4]) cnt.crush++; if (r[v * 4 + 1]) cnt.scrape++; if (r[v * 4 + 2]) cnt.torn++; } }
     return { on: true, recs: at.recs.length, attrVerts: at.verts, passes: st.passes, places: st.places, frameMs: +at.frameMax.toFixed(2), tickMs: +st.ms.frameMax.toFixed(2),
              tornMs: +st.ms.torn.toFixed(2), mkMs: +at.mkMs.toFixed(1), bound: at.bound, uploads: at.uploads, bytes: at.bytes, any: at.any, uOn: SCUFF_U().uDmgOn.value,
-             awake: at.W.on, flips: at.W.flips, mats: at.W.mats.size, prelinks: at.pre,
+             awake: at.W.on, flips: at.W.flips, mats: at.W.mats.size, prelinks: at.pre, premade: at.premade == null ? null : at.premade, made: at.made,
              phases: Object.fromEntries(Object.entries(at.ms).map(([k, v]) => [k, +v.toFixed(2)])), bindUs: +at.bindUs.toFixed(2),
              panes: st.panes.map(P => ({ sev: +P.sev.toFixed(3), slot: P.slot })), counts: cnt, busy: S_busy(st) };
   };
