@@ -78500,3 +78500,49 @@ Tools: `tools/_dmg_wind_lib.js` (the runs), `tools/_dmg_wind_check.js` (the gate
    springback rows read 0.23-0.37 m with it.
 5. The node contact's stiffness scales with the node's mass (KGn = 1.5e4 m, the ground's support law); against a trunk a heavy node (the
    engine's CG, 90 kg) meets it at 1.36 MN/m. Reported, not changed.
+
+## G1996-G1997 - THE ?diag SELF-TEST AND ITS GPU CALIBRATION; THE REVEAL WITH OR WITHOUT A SCREEN (2026-10-06, HW-COVERAGE for A0, local GPU; branch claude/hw-diag-g1997 off train 37 = 68386adc - the diag-only cut of claude/hw-coverage-g1995 for train 37b; the runtime step-down, the boot watchdog, GATE HWCOV / BOOTLIFT and the weak rung ride train 38 with the full G1995 entry)
+READY for A0 (2026-10-06 04:52).
+
+WHY: the user's GTX 1660 Ti laptop draws Jolene at 3-4 fps on retro. Its DevTools trace (10 s of taxi): the GPU process's GPUTask
+8 138 ms wall for 471 ms of thread CPU - the GPU itself is the wall. Per triangle (the recorder's GPU timer, a + b x M tris) the
+laptop's SHED is no faster than the user's GTX 660 (a 1660 Ti mobile should be ~2.4x it), the world ~2x worse again. Machines we
+cannot reach are diagnosed by a page the user opens.
+
+- src/viewer/diag.js (NEW, lazy: build.js MANIFEST.lazy + the loader's own ?diag test - zero bytes and zero cost without ?diag).
+  index.html?diag: the load, the roll-out, the flight paused on its stand (FLYDIY_HELD) and the camera fixed - both re-asserted
+  before every row - then 5 s per VARIANT read from the flight recorder (fps, frame, GPU timer, loop JS, draws, triangles): a
+  settling row (not scored), as it is, each heavy row off (shadows, glare, cover, mist, plain ground, rough terrain, low town,
+  rails, poles, clouds, water, mirror, AA, bloom, eye, scale 0.5), the frame catcher off, the biggest OWNERS of the frame's
+  triangles hidden (a one-frame census by the first named node), the aeroplane hidden, the GPU timer off, the two presets below,
+  as it is again (drift); the graphics put back exactly. THE CALIBRATION on a WebGL2 context of its own, the game's renders
+  muted: ~1 s of sustained load, then ALU (a dependent FMA chain - an index), 32 texture taps, 2 M half-pixel triangles, half-float
+  blend fill, each batch grown to >= 25 ms and the median of 5, under the GPU timer; against the card's rating (a small TFLOPS
+  table; the mobile 1660 Ti by device id 0x2191) and the reference 3080 (REF) -> 'this card runs at X % of its class'. The report
+  on screen, as JSON / text downloads and in localStorage flydiy.diag.last; 'again without KTX2' reloads with ?ktx2=0 and merges.
+  ?diag=quick: the rows only (~3 min after the load); ?diag=bench: the calibration alone (~20 s after the load).
+- src/viewer/flight_recorder.js: FLIGHT_REC.reveal(how) - app.js flRevealStart marks the reveal with or without a roll-out screen
+  (since B9 a roll-out with nothing to build has none: the GTX 660 log of 4 Oct and the 1660 Ti's of 5 Oct read NO REVEAL and
+  the analyzer scored nothing); one per hand-over (2 s). FLIGHT_REC.gpuTimer(on): the GPU timer live (the self-test's row).
+- src/viewer/app.js: one line (flRevealStart -> FLIGHT_REC.reveal).
+- tools/analyze_log.js: a log with no reveal gets one INFERRED (the first running flight frame, and says so); hwstep events printed.
+- tools/perf/diag_run.js (NEW): runs ?diag[=quick|bench] on the box (a headed Chrome, its own profile) to its report.
+
+FIRST RUNS (box: RTX 3080, i7-13700KF; retro, 1920x1080; the pause + camera fixes in): the 3080 REF ALU 48 581, texture 134
+Gtexel/s, tiny triangles 10 232 Mtri/s, fill 87.6 Gpix/s (the bench-only run within 3 %; the first untimed run, 2 ms batches on
+ramping clocks, read 1.7x low - fixed). The retro stand frame: GPU 12.8 ms, of which THE LEAN GROUND 8 ms (ground 'plain' 4.9 ms);
+terrain 6 / town low / scale 0.5 -2.6 / -2.7 / -3.5; shadows, glare, mist ~0 (drift between the two base rows 2.8 ms: trust only
+big deltas); potato 8.9, laptop 7.3. -> GROUND-COST (G2075, its own session). Gates on the cut: BUILD, FLIGHTREC, BOOT, GFX,
+UISMOKE, BUILT, MEDIA PASS; GATE BOOTLIFT's diag child (the page in node, ?diag=quick to its report, the graphics restored) PASS
+on claude/hw-coverage-g1995.
+
+FOR THE USER (the laptop, once live): index.html?diag=bench (the card against its class, ~20 s after the load) and index.html?diag
+(~4-5 min: which pass carries the world's extra cost) - each a downloaded .json for HW-COVERAGE.
+
+## TRAIN 37b LANDED (2026-10-06, A0 the coordinator) - ?diag for the user's laptop
+Cargo: HW-COVERAGE's diag-only cut G1996-G1997 (claude/hw-diag-g1997 81b8a389, 3faccb86, ffd3f1ba): src/viewer/diag.js (lazy,
+fetched only with ?diag), flight_recorder reveal() + gpuTimer(), app.js one line (flRevealStart -> FLIGHT_REC.reveal: the
+recorder marks a reveal with no roll-out screen), build.js lazy row, analyze_log inferred reveal, tools/perf/diag_run.js.
+Light pass (test proportional to risk): the cut's gates BUILD FLIGHTREC BOOT GFX UISMOKE BUILT MEDIA PASS (HW-COVERAGE), GATE
+BOOTLIFT 4/4 on its full branch; A0: parked re-cook, MEDIA, BUILT strict. No strict-gate run (nothing per-frame but the reveal mark).
+For the user: index.html?diag=bench (~15 s) then index.html?diag (~5 min) on the gaming laptop, each a downloaded .json.

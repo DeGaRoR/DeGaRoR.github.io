@@ -280,7 +280,8 @@ const MANIFEST = {
   // itself, by its URL)
   lazy: [['tools', '_sport_gen.js'], ['tools', '_marine_gen.js'], ['src/viewer', 'premises_host.js'], ['src/viewer', 'premises_ui.js'],
          ['src/viewer', 'world_rail.js'], ['vendor/ktx2', 'ktx2_loader.js'],
-         ['src/viewer', 'townkit.js'], ['src/viewer', 'kit_lot.js']].filter(([d, f]) => fs.existsSync(path.join(ROOT, d, f))),
+         ['src/viewer', 'townkit.js'], ['src/viewer', 'kit_lot.js'],
+         ['src/viewer', 'diag.js']].filter(([d, f]) => fs.existsSync(path.join(ROOT, d, f))),
   // THE SOUND'S MODULES (G1600, SOUND-2026-10-04 §2.1): src/viewer/audio/'s AudioWorklet modules. The audio thread loads
   // a module BY URL (ctx.audioWorklet.addModule), so they are never inlined and never a <script> tag: each is served as
   // its own file and the build publishes the content-versioned URLs as window.FLYDIY_AUDIO_SRC (stem -> url, in both
@@ -1030,6 +1031,8 @@ window.FLYDIY_BOOT.then(function () {
   // the WORLD rail applies this browser's saved look at boot: loaded now when there is one (or a shown rail, or
   // ?scenery=1); otherwise F9 fetches it (its own F9 handler takes over once it is in)
   try { if (localStorage.getItem('flydiy.worldlook.v1') || /"shown":true/.test(localStorage.getItem('flydiy.worldrail.ui') || '') || /[?&]scenery=1/.test(location.search)) lazy('world_rail'); } catch (e) {}
+  // G1995 (HW-COVERAGE): THE SELF-TEST, ?diag - its module loads only when the URL asks (zero cost otherwise)
+  try { if (/[?&]diag(=[^&]*)?(&|$)/.test(location.search)) lazy('diag'); } catch (e) {}
   window.addEventListener('keydown', function (e) {
     if (e.code !== 'F9' || window.WORLD_RAIL) return;
     e.preventDefault(); lazy('world_rail').then(function () { if (window.WORLD_RAIL) window.WORLD_RAIL.show(true); });
