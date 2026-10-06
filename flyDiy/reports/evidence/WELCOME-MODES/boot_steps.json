@@ -1,0 +1,794 @@
+{
+ "at": "2026-10-06T19:36:57.580Z",
+ "pages": {
+  "before": "index_before.html",
+  "after": "index.html"
+ },
+ "runs": [
+  {
+   "steps": [
+    [
+     "treeBins",
+     10844
+    ],
+    [
+     "aircraft",
+     11213
+    ],
+    [
+     "garage",
+     15388
+    ],
+    [
+     "editor",
+     25968
+    ],
+    [
+     "seed",
+     27487
+    ],
+    [
+     "world",
+     34798
+    ],
+    [
+     "town",
+     119258
+    ],
+    [
+     "parking",
+     133794
+    ],
+    [
+     "trees",
+     137403
+    ],
+    [
+     "ring",
+     137532
+    ],
+    [
+     "settle",
+     143996
+    ],
+    [
+     "parked",
+     191083
+    ],
+    [
+     "snapshot",
+     191088
+    ],
+    [
+     "bake",
+     197845
+    ],
+    [
+     "spec",
+     197945
+    ],
+    [
+     "restore",
+     204223
+    ],
+    [
+     "images",
+     204453
+    ],
+    [
+     "upload",
+     204707
+    ],
+    [
+     "worldCompile",
+     221752
+    ],
+    [
+     "compile",
+     221874
+    ],
+    [
+     "firstFrame",
+     265742
+    ],
+    [
+     "frames",
+     286599
+    ],
+    [
+     "craft",
+     361865
+    ],
+    [
+     "recheck",
+     364100
+    ]
+   ],
+   "ready": 373354,
+   "state": "gone",
+   "mode": "undefined",
+   "held": false,
+   "world": "jolene",
+   "dur": {
+    "treeBins": 369,
+    "aircraft": 4175,
+    "garage": 10580,
+    "editor": 1519,
+    "seed": 7311,
+    "world": 84460,
+    "town": 14536,
+    "parking": 3609,
+    "trees": 129,
+    "ring": 6464,
+    "settle": 47087,
+    "parked": 5,
+    "snapshot": 6757,
+    "bake": 100,
+    "spec": 6278,
+    "restore": 230,
+    "images": 254,
+    "upload": 17045,
+    "worldCompile": 122,
+    "compile": 43868,
+    "firstFrame": 20857,
+    "frames": 75266,
+    "craft": 2235,
+    "recheck": 9254
+   },
+   "which": "before",
+   "page": "index_before.html",
+   "menu": false,
+   "menuMs": 0,
+   "wall": 373,
+   "wallFromChoice": 372,
+   "errors": 0,
+   "path": "local",
+   "firstStepAt": 10844,
+   "runAt": null
+  },
+  {
+   "steps": [
+    [
+     "treeBins",
+     12846
+    ],
+    [
+     "aircraft",
+     13175
+    ],
+    [
+     "garage",
+     17984
+    ],
+    [
+     "editor",
+     23769
+    ],
+    [
+     "seed",
+     28597
+    ],
+    [
+     "world",
+     34852
+    ],
+    [
+     "town",
+     99162
+    ],
+    [
+     "parking",
+     117648
+    ],
+    [
+     "trees",
+     117883
+    ],
+    [
+     "ring",
+     117896
+    ],
+    [
+     "settle",
+     123012
+    ],
+    [
+     "parked",
+     175767
+    ],
+    [
+     "snapshot",
+     175785
+    ],
+    [
+     "bake",
+     179116
+    ],
+    [
+     "spec",
+     179325
+    ],
+    [
+     "restore",
+     186935
+    ],
+    [
+     "images",
+     187148
+    ],
+    [
+     "upload",
+     187367
+    ],
+    [
+     "worldCompile",
+     205246
+    ],
+    [
+     "compile",
+     205386
+    ],
+    [
+     "firstFrame",
+     248398
+    ],
+    [
+     "frames",
+     269275
+    ],
+    [
+     "craft",
+     344355
+    ],
+    [
+     "recheck",
+     346774
+    ]
+   ],
+   "ready": 354426,
+   "state": "gone",
+   "mode": "sandbox",
+   "held": false,
+   "world": "jolene",
+   "dur": {
+    "treeBins": 329,
+    "aircraft": 4809,
+    "garage": 5785,
+    "editor": 4828,
+    "seed": 6255,
+    "world": 64310,
+    "town": 18486,
+    "parking": 235,
+    "trees": 13,
+    "ring": 5116,
+    "settle": 52755,
+    "parked": 18,
+    "snapshot": 3331,
+    "bake": 209,
+    "spec": 7610,
+    "restore": 213,
+    "images": 219,
+    "upload": 17879,
+    "worldCompile": 140,
+    "compile": 43012,
+    "firstFrame": 20877,
+    "frames": 75080,
+    "craft": 2419,
+    "recheck": 7652
+   },
+   "which": "after",
+   "page": "index.html",
+   "menu": false,
+   "menuMs": 0,
+   "wall": 355,
+   "wallFromChoice": 352,
+   "errors": 0,
+   "path": "local",
+   "firstStepAt": 12846,
+   "runAt": null
+  },
+  {
+   "steps": [
+    [
+     "treeBins",
+     11443
+    ],
+    [
+     "aircraft",
+     11764
+    ],
+    [
+     "garage",
+     16090
+    ],
+    [
+     "editor",
+     25650
+    ],
+    [
+     "seed",
+     27234
+    ],
+    [
+     "world",
+     33879
+    ],
+    [
+     "town",
+     99259
+    ],
+    [
+     "parking",
+     121469
+    ],
+    [
+     "trees",
+     121576
+    ],
+    [
+     "ring",
+     121580
+    ],
+    [
+     "settle",
+     123979
+    ],
+    [
+     "parked",
+     178959
+    ],
+    [
+     "snapshot",
+     179052
+    ],
+    [
+     "bake",
+     186252
+    ],
+    [
+     "spec",
+     186347
+    ],
+    [
+     "restore",
+     189129
+    ],
+    [
+     "images",
+     189253
+    ],
+    [
+     "upload",
+     189439
+    ],
+    [
+     "worldCompile",
+     205586
+    ],
+    [
+     "compile",
+     205927
+    ],
+    [
+     "firstFrame",
+     251071
+    ],
+    [
+     "frames",
+     272904
+    ],
+    [
+     "craft",
+     354489
+    ],
+    [
+     "recheck",
+     361215
+    ]
+   ],
+   "ready": 369987,
+   "state": "gone",
+   "mode": "undefined",
+   "held": false,
+   "world": "jolene",
+   "dur": {
+    "treeBins": 321,
+    "aircraft": 4326,
+    "garage": 9560,
+    "editor": 1584,
+    "seed": 6645,
+    "world": 65380,
+    "town": 22210,
+    "parking": 107,
+    "trees": 4,
+    "ring": 2399,
+    "settle": 54980,
+    "parked": 93,
+    "snapshot": 7200,
+    "bake": 95,
+    "spec": 2782,
+    "restore": 124,
+    "images": 186,
+    "upload": 16147,
+    "worldCompile": 341,
+    "compile": 45144,
+    "firstFrame": 21833,
+    "frames": 81585,
+    "craft": 6726,
+    "recheck": 8772
+   },
+   "which": "before",
+   "page": "index_before.html",
+   "menu": false,
+   "menuMs": 0,
+   "wall": 372,
+   "wallFromChoice": 369,
+   "errors": 0,
+   "path": "host",
+   "firstStepAt": 11443,
+   "runAt": null
+  },
+  {
+   "steps": [
+    [
+     "treeBins",
+     12280
+    ],
+    [
+     "aircraft",
+     12999
+    ],
+    [
+     "garage",
+     17109
+    ],
+    [
+     "editor",
+     22916
+    ],
+    [
+     "seed",
+     27260
+    ],
+    [
+     "world",
+     34376
+    ],
+    [
+     "town",
+     96910
+    ],
+    [
+     "parking",
+     116823
+    ],
+    [
+     "trees",
+     116929
+    ],
+    [
+     "ring",
+     116934
+    ],
+    [
+     "settle",
+     122599
+    ],
+    [
+     "parked",
+     183210
+    ],
+    [
+     "snapshot",
+     183219
+    ],
+    [
+     "bake",
+     186764
+    ],
+    [
+     "spec",
+     190602
+    ],
+    [
+     "restore",
+     194750
+    ],
+    [
+     "images",
+     195740
+    ],
+    [
+     "upload",
+     196050
+    ],
+    [
+     "worldCompile",
+     208790
+    ],
+    [
+     "compile",
+     208990
+    ],
+    [
+     "firstFrame",
+     252482
+    ],
+    [
+     "frames",
+     276348
+    ],
+    [
+     "craft",
+     352051
+    ],
+    [
+     "recheck",
+     358011
+    ]
+   ],
+   "ready": 364562,
+   "state": "gone",
+   "mode": "sandbox",
+   "held": true,
+   "world": "jolene",
+   "dur": {
+    "treeBins": 719,
+    "aircraft": 4110,
+    "garage": 5807,
+    "editor": 4344,
+    "seed": 7116,
+    "world": 62534,
+    "town": 19913,
+    "parking": 106,
+    "trees": 5,
+    "ring": 5665,
+    "settle": 60611,
+    "parked": 9,
+    "snapshot": 3545,
+    "bake": 3838,
+    "spec": 4148,
+    "restore": 990,
+    "images": 310,
+    "upload": 12740,
+    "worldCompile": 200,
+    "compile": 43492,
+    "firstFrame": 23866,
+    "frames": 75703,
+    "craft": 5960,
+    "recheck": 6551
+   },
+   "which": "after",
+   "page": "index.html",
+   "menu": true,
+   "menuMs": 5,
+   "wall": 365,
+   "wallFromChoice": 364,
+   "errors": 0,
+   "path": "host",
+   "firstStepAt": 12280,
+   "runAt": null
+  }
+ ],
+ "table": {
+  "local": {
+   "run_ms": null,
+   "ready_ms": [
+    373354,
+    354426
+   ],
+   "steps": {
+    "treeBins": [
+     369,
+     329
+    ],
+    "aircraft": [
+     4175,
+     4809
+    ],
+    "garage": [
+     10580,
+     5785
+    ],
+    "editor": [
+     1519,
+     4828
+    ],
+    "seed": [
+     7311,
+     6255
+    ],
+    "world": [
+     84460,
+     64310
+    ],
+    "town": [
+     14536,
+     18486
+    ],
+    "parking": [
+     3609,
+     235
+    ],
+    "trees": [
+     129,
+     13
+    ],
+    "ring": [
+     6464,
+     5116
+    ],
+    "settle": [
+     47087,
+     52755
+    ],
+    "parked": [
+     5,
+     18
+    ],
+    "snapshot": [
+     6757,
+     3331
+    ],
+    "bake": [
+     100,
+     209
+    ],
+    "spec": [
+     6278,
+     7610
+    ],
+    "restore": [
+     230,
+     213
+    ],
+    "images": [
+     254,
+     219
+    ],
+    "upload": [
+     17045,
+     17879
+    ],
+    "worldCompile": [
+     122,
+     140
+    ],
+    "compile": [
+     43868,
+     43012
+    ],
+    "firstFrame": [
+     20857,
+     20877
+    ],
+    "frames": [
+     75266,
+     75080
+    ],
+    "craft": [
+     2235,
+     2419
+    ],
+    "recheck": [
+     9254,
+     7652
+    ]
+   },
+   "firstStep_ms": [
+    10844,
+    12846
+   ]
+  },
+  "host": {
+   "run_ms": null,
+   "ready_ms": [
+    369987,
+    364562
+   ],
+   "steps": {
+    "treeBins": [
+     321,
+     719
+    ],
+    "aircraft": [
+     4326,
+     4110
+    ],
+    "garage": [
+     9560,
+     5807
+    ],
+    "editor": [
+     1584,
+     4344
+    ],
+    "seed": [
+     6645,
+     7116
+    ],
+    "world": [
+     65380,
+     62534
+    ],
+    "town": [
+     22210,
+     19913
+    ],
+    "parking": [
+     107,
+     106
+    ],
+    "trees": [
+     4,
+     5
+    ],
+    "ring": [
+     2399,
+     5665
+    ],
+    "settle": [
+     54980,
+     60611
+    ],
+    "parked": [
+     93,
+     9
+    ],
+    "snapshot": [
+     7200,
+     3545
+    ],
+    "bake": [
+     95,
+     3838
+    ],
+    "spec": [
+     2782,
+     4148
+    ],
+    "restore": [
+     124,
+     990
+    ],
+    "images": [
+     186,
+     310
+    ],
+    "upload": [
+     16147,
+     12740
+    ],
+    "worldCompile": [
+     341,
+     200
+    ],
+    "compile": [
+     45144,
+     43492
+    ],
+    "firstFrame": [
+     21833,
+     23866
+    ],
+    "frames": [
+     81585,
+     75703
+    ],
+    "craft": [
+     6726,
+     5960
+    ],
+    "recheck": [
+     8772,
+     6551
+    ]
+   },
+   "firstStep_ms": [
+    11443,
+    12280
+   ]
+  }
+ },
+ "note": "runAt (BOOT.run) was lost to a field collision in the first version of the tool (fixed); firstStepAt (the first step, treeBins, starting) stands for the scripts share"
+}

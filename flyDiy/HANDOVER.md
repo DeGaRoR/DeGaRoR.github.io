@@ -79947,3 +79947,165 @@ looking only.
 Build 53f482316b37 (assembly c22f17e2). Sessions: JOIN-PARITY OUT (reverted, -> train 39 with DMG-RECAL, the user's call); PILOT-ONE + PILOT-ONE-2 (G1935-G1949), HW-COVERAGE G1995-G1999 + ?diag v2 G1997b, POTATO-DEEP G1528-G1531 (the 6 px premises patch on every preset - the user's OK; the G1521 root fix: three's cached program kept the plain compile's uniforms, the interim reload removed), METLA-COOK G2060-G2062, WHEEL-AO G2055, JODEL-TAIL G2050, GARAGE-LAPTOP G2070-G2074 (shed shadow cache, glass by pane, the room merged 523 -> 16), SND-MIX G1720-G1724 + GATE AUDIO robust, DEADWOOD-BRIGHT G1975, SHORES-2 G1955-G1964, WATER-LOOK G2090-G2094 (splash waves from entry energy), MOBILE-GARAGE 1 G2100-G2104 (?profile=phone; desktop untouched); exports without makeAutopilot / makeTestPilot.
 Smokes after assembly: SIMWORKER, INPUT, UISMOKE, UISMOKE-PHONE, SPLAT PASS. Battery (--all, 6 jobs): every gate PASS, SOFTGPU SKIP (no basisu here). Strict gate (full, vs baseline 5a2c2e7e of 3 Oct): 95 within slack, 47 better, 15 RED - exactly train 37's standing set minus two (fuseLen busy, metal frame busy now within slack): the 30 fps cap rows (the user's stable-30 target: chase/cockpit/garage/taxi/water fps -> 30, loop/render +2 ms under the cap's pacing), the first garage -> world 12.0 s / warm first flight 58.7 s / round trip 11.8 s (37: 12.06 / 59.1 / 11.76). No row worse than live train 37. FRAMECOST named allowances: WHEEL-AO's bufferSubData, WATER-LOOK's garage:town +1 link / +11 calls and garage:snapshot +2 links.
 Next: re-baseline the accepted strict rows by name (the user: no standing reds).
+
+## G2210-G2219 - WELCOME-MODES: THE MODE MENU ON THE WELCOME SCREEN (CONTINUE HIDDEN, NEW CAREER "COMING", SANDBOX = TODAY'S GAME, GARAGE ONLY "COMING", SETTINGS = THE GRAPHICS CARD); ?mode=; window.FLYDIY_MODE; THE RIGS AND LOCALHOST UNCHANGED (2026-10-06, WELCOME-MODES for the GAME COORDINATOR, cloud - node + headless Chromium / SwiftShader, no GPU; branch claude/welcome-modes-g2210 off origin/claude/game-integration 3a1249a = origin/master 068584d6 + the game study docs; G2215-G2219 unused)
+
+THE ASK (the user, 6 Oct: "We'll also need a welcome screen, the current game under a sandbox option"; GAME-2026-10-06 §14,
+§15 row 1). Files touched: `src/viewer/welcome.js` (the menu), `tools/_gfx_check.js` (GATE GFX §11), `tools/test_ui_smoke.js`
+(one UISMOKE row), `tools/update_shot.js` (one URL), new `tools/welcome_modes_shot.js` (the stills + a browser probe), new
+`tools/perf/welcome_modes_boot.js` (the boot-step comparison), `reports/evidence/WELCOME-MODES/`. No generated file is
+committed. boot.js, app.js, build.js, gfx_settings.js and every per-frame path are untouched.
+
+WHAT A PLAYER SEES (a real host: not localhost, not a rig)
+- **Every load: the menu**, before anything heavy runs. The island loader already waited on `window.FLYDIY_WELCOME`
+  (build.js ISLAND_LOADER, G1210), so the island (~35 MB), the vendor parse and every script's promote wait for the choice.
+  Rows, top to bottom:
+  - **Continue**: hidden until a career exists. `career()` in welcome.js returns null (CAREER-START, §15 row 13, fills it),
+    so it is never shown in this slice.
+  - **New career**: shown, disabled, tagged COMING ("contracts, money, your own fleet").
+  - **Sandbox**: the accent row and the focused default (Enter plays). Today's game, exactly.
+  - **Garage only**: shown, disabled, tagged COMING ("build without loading the island: not built yet"). See GARAGE ONLY
+    below for why and for what M1 needs.
+  - **Settings** ("graphics: <the preset>"): today's graphics card, in place, opened on the saved preset, with a "back"
+    link. A preset chosen there becomes `WELCOME.pick`, which gfx_settings.js takes exactly as it takes the first run's.
+    Confirming the preset already saved is no choice, so a custom mix made in GRAPHICS is kept.
+- **A first run (or a new graphics card): the graphics card first, then the menu.** Its button reads "Use <preset>" when
+  the menu follows, and "Play on <preset>" (today's words) when it is the last screen (`?mode=` given, or GRAPHICS'
+  "re-check my computer").
+- **A phone or no WebGL2: the device gate first** (unchanged), then "try anyway" (potato), then the menu.
+- **The look**: IBM Plex Sans, three greys (`--w-ink` #f4efe6, `--w-mid` #a59d8f, `--w-dim` #7d766a) and the one accent
+  (`--w-acc` #e6a15a), over the hangar backdrop (train 27's). Each row is a 56 px target, 8 px apart (MOBILE-GARAGE R1/R3).
+  What a row would say on hover is written on it, and disabled rows say why on their face (R17: no `title=`). The page's
+  global `button` style (small capitals, style.css) is reset for the rows. On a coarse pointer the card's pills, its Use /
+  Play button and its links grow to 48 px; with a mouse the card is pixel-for-pixel today's.
+- The build stamp sits at the foot (UPDATE-NOW), as on the card.
+
+THE CONTRACT
+- **`?mode=sandbox|career|garage`** picks the mode and skips the menu. A mode that is not built yet (career, garage) boots
+  the sandbox and says so in the console (`flyDiy: ?mode=garage is not built yet - the sandbox boots`). An unknown
+  `?mode=` is ignored. `?gfx=` picks the preset, not the mode: the menu still shows.
+- **The rigs and localhost skip the menu exactly as they skip the card** (implicitly the sandbox), so every rig and gate
+  runs unchanged. `?welcome=1` / `?devgate=1` still force the screens there: the card (or gate), then the menu.
+  `?welcome=1&mode=sandbox` is today's forced path exactly: the card alone, "Play on <preset>", and FLYDIY_WELCOME resolving
+  with the pick. `tools/update_shot.js` (the only tool that forced the welcome) now adds `&mode=sandbox`.
+- **`window.FLYDIY_MODE`**: 'sandbox' | 'career' | 'garage'. It is null while the menu is up, and is written by welcome.js
+  alone (GATE GFX holds that). It is set synchronously on every skip path and on the choice before FLYDIY_WELCOME resolves,
+  so anything after FLYDIY_BOOT sees it final. **Nothing reads it yet**: the sandbox is today's page, so there is nothing to
+  branch on. The one place meant to read it is M1's PROFILES table, and the island loader through it (below).
+  `WELCOME.mode` keeps the decision and its reason.
+- **No device test outside welcome.js**: GATE GFX now ratchets the six that stood on 6 Oct:
+  - the three G528 rig tests (app.js PACE, update_now.js, gfx_settings.js);
+  - update_now.js's pill CSS;
+  - the two records that only report the browser (flight_recorder.js, diag.js).
+
+  A new `navigator.userAgent` / `userAgentData` / `location.hostname` / `pointer: coarse` / `innerWidth <` test anywhere
+  in src/ fails the gate (mutation-checked: one line added to boot.js turned both new rows red).
+
+GARAGE ONLY: SHOWN DISABLED. THE BOOT CANNOT DO IT CHEAPLY TODAY. WHAT MOBILE-GARAGE M1 NEEDS, PRECISELY
+The garage-only boot exists only as a rig's source transform (`tools/perf/mobile_garage_node.js` GARAGE_ONLY: ten string
+replacements of app.js). It is not a path of the page, and the transform is already **stale on this base**: the
+replacement `'if (SIMW) SIMW.prewarm(); }'` matches 0 times (app.js:12997 now reads `if (SIMW) SIMW.prewarm(); startLoop(); },`),
+so the rig stops with "the prototype is stale". M1 needs, in the page itself:
+1. **The island loader reads the mode** (build.js ISLAND_LOADER, the one reader through the PROFILES table): on
+   `FLYDIY_MODE === 'garage'` it fetches neither `world_packs.json`'s island, nor `premises_packs.json`'s cook, nor
+   `island_<id>.json`. It sets `FLYDIY_WORLD = 'none'` and `ISLAND_BOOT = null`, so `FLYDIY_WORLD_COMPOSE` makes the cheap
+   analytic world app.js needs at its evaluation (app.js:19). This is the prototype's `?world=none`. The read must happen
+   after FLYDIY_WELCOME resolves (the loader's `name` is read synchronously today, before the menu).
+2. **app.js's boot list takes the world out** (today ten literal lines, to become one `PROFILE.is('boot', 'garage')`
+   test). Current lines: `treeWarm()` 12326; `['world','town','parking','trees','ring','settle']` 12428;
+   `PARKED.captureAll()` 12435; `setTimeout(worldPrelinkSettled, 0)` 12445; `bootTripStep('bake')` 12447;
+   `['images','upload','worldCompile']` 12468; `bootTripStep('frames')` 12942; `bootTripStep('craft')` 12947; the
+   recheck's `tripPlan('craft')` 12954 must re-plan nothing (else it runs the flown bake: SwiftShader 140 → 340 s,
+   MOBILE-GARAGE §1.3); `SIMW.prewarm()` in bootOpts.done 12997.
+3. **The roll-out in garage mode.** The world was composed analytic, so the first roll-out cannot build the island lazily
+   in place. v1 should make Roll out either reload as `?mode=sandbox` (the build is saved) or, on a phone, become **Send to
+   computer** (M5). The LOADING-S3 lazy path builds the world's TRIP_STEPS, but not the island fetch nor a recomposed
+   `world`.
+4. **GATE MOBILE's first rows** (MOBILE-GARAGE §6.2):
+   - no world step ran;
+   - 0 island bytes;
+   - the resolved-spec hash equals the desktop boot's;
+   - FLYDIY_MODE read only through PROFILES.
+5. **Then flip `READY.garage`** in welcome.js. The row and `?mode=garage` go live with no other change here.
+
+THE BOOT: THE SANDBOX ADDS NO LOAD TIME (SwiftShader, relative only)
+`tools/perf/welcome_modes_boot.js`: the garage boot's own step log (BOOT.log) in headless Chromium on SwiftShader, one fresh
+context per run (no HTTP cache, no service worker), `?audio=0&gfx=potato`. It compares the page before the menu (the
+build of 3a1249a) with the page after it, on both paths:
+- **local** (127.0.0.1, the rig browser): no screen on either page.
+- **host** (flydiy.test mapped to the server, a browser's own UA, webdriver off): before = no screen, after = the menu,
+  Sandbox pressed the moment it is up.
+
+The menu's wait is taken out by the page itself (BOOT.shift, as for the card). One run each, sequential, on the cloud's
+4 cores. Evidence: `reports/evidence/WELCOME-MODES/boot_steps.json`.
+
+| path | page | menu | scripts' share (navigation → the first step, BOOT clock) | ready (BOOT clock) | wall from the choice | errors |
+|---|---|---|---:|---:|---:|---:|
+| local | before | none | 10.8 s | 373.4 s | 372 s | 0 |
+| local | after | none (the skip) | 12.8 s | 354.4 s | 352 s | 0 |
+| host | before | none (`?gfx=` chose) | 11.4 s | 370.0 s | 369 s | 0 |
+| host | **after** | **the menu → Sandbox** | 12.3 s | **364.6 s** | 364 s | 0 |
+
+- **Read as: no load time added.** The ready times are within SwiftShader's run-to-run noise, and the "after" page came
+  out faster on both paths.
+- **Single steps swing by seconds both ways**, unrelated to the welcome: garage 10.6 → 5.8 s, editor 1.5 → 4.8 s,
+  world 84 → 64 s, settle 47 → 53 s on the same local path.
+- **The scripts' share is +0.9 to +2.0 s, and that is noise too**: the local path runs the very same skip on both pages
+  (welcome.js grows by ~7 KB of inline text).
+- **The menu itself held the load 5 ms** (pressed at once); BOOT.shift removes a player's real wait from the clock.
+- The step-by-step table, both paths, is in boot_steps.json. Its first version lost BOOT.run's time to a field collision
+  (fixed in the tool); `firstStepAt` stands for it.
+- **The island and every promote stay behind the choice**: the stills' probe asserts no ISLAND_BOOT and no GARAGE_SPEC
+  while the card or the menu is up.
+
+STILLS (UISMOKE's, on SwiftShader; `tools/welcome_modes_shot.js`, `reports/evidence/WELCOME-MODES/`, index in shots.json)
+The page is loaded the way a player loads it: flydiy.test, a browser's UA, webdriver off, so no forcing flag is used.
+`modes_desktop_first_card.jpg` (a first visit: the card, "Use potato") → `modes_desktop_first_menu.jpg` (then the menu)
+→ `modes_desktop_menu.jpg` (a second visit: the menu at once) → `modes_desktop_settings.jpg` (Settings: the card with
+"back") → `modes_desktop_sandbox_go.jpg` (Sandbox: the loading screen, the island fetched) → `modes_desktop_mode_sandbox.jpg`
+(`?mode=sandbox`: no screen, nothing held) → `modes_desktop_mode_garage.jpg` (`?mode=garage` → the sandbox, the console says
+so) → `modes_rig_localhost.jpg` (127.0.0.1, the rig browser: today's skip) → `modes_phone_menu.jpg` (390 × 844 touch: the
+gate's "try anyway", then the menu). The tool asserts 16 rows in the browser (all ok), among them:
+- every row ≥ 48 px with no `title=`;
+- nothing fetched or promoted behind the card or the menu;
+- `?welcome=1` on localhost: the card first;
+- `?welcome=1&mode=sandbox`: "Play on" and no menu.
+
+GATES (the files touched, plus BOOT / UISMOKE / GFX / BUILT)
+- Before (3a1249a) and after (this branch), `node tools/run_gates.js --only=BOOT,UISMOKE,GFX,BUILT`:
+  **BATTERY PASS both** (UISMOKE 226 → 220 s, BOOT, GFX, BUILT).
+  - BUILT (non-strict) names welcome.js and the base's own 70_player.js / 71_player_bases.js / 90_node_exports.js as
+    inputs moved since 068584d (a source commit; the train's (built) commit closes it).
+- **GATE GFX §11** (new, node, ~0.2 s), in two parts:
+  - **`decideMode`'s table**: a real host shows the menu (`?gfx=` too); `?mode=sandbox` skips it; career / garage fall
+    back to the sandbox with the ask kept; an unknown mode is no mode; localhost and the rigs mean the sandbox; `?welcome=1`
+    / `?devgate=1` force it, and `?mode=` wins over them.
+  - **welcome.js run whole, in a vm over a small DOM, pressed like a player**:
+    - localhost, 127.0.0.1, a rig on Pages, and `?mode=sandbox` on Pages: no screen, FLYDIY_WELCOME unset, FLYDIY_MODE
+      'sandbox' (**the localhost skip holds**);
+    - a returning player gets the menu; its rows and their state; no `title=`; Sandbox gives 'sandbox' and forces no
+      preset;
+    - a first visit gets the card ("Use"), then the menu, with the pick remembered and passed on;
+    - Settings: opens on the saved preset; back changes nothing; a new preset becomes the pick;
+    - **`?welcome=1&mode=sandbox` on localhost = today's boot path** (the card alone, "Play on", FLYDIY_WELCOME resolving
+      with the pick, no menu); `?welcome=1` alone gives the card, then the menu;
+    - `?mode=garage` gives the sandbox and the console line;
+    - a phone gets the gate, then "try anyway" (potato), then the menu;
+    - the CSS: rows ≥ 48 px and 8 px apart, three greys + one accent, Plex;
+    - FLYDIY_MODE has one writer;
+    - the device-test ratchet.
+- **GATE UISMOKE** (+1 row): the artifact's own welcome.js block (from index.html) run as a rig on localhost and as
+  `?mode=sandbox` on a real host: no screen, nothing held, FLYDIY_MODE 'sandbox'.
+- The per-train strict gate was not run: nothing on the per-frame path is touched.
+
+OPEN / FOR THE GAME COORDINATOR
+- **The menu at every load is now in front of every Pages visit**, including the user's own, as asked. A bookmark with
+  `?mode=sandbox` skips it.
+- **Not done, deliberately:**
+  - prefetching the island while the menu is up. It would make Sandbox's load *shorter*, but it spends ~35 MB before
+    the choice and breaks Garage-only's "never fetches the island";
+  - credits on the menu (§14's sketch names them; CREDITS.md has no in-page form yet).
+- `?gfx=` in the URL and a preset changed in the menu's Settings: `?gfx=` still wins (gfx_settings.js, unchanged), and the
+  Settings row names the `?gfx=` preset.
+
+READY for the GAME COORDINATOR: claude/welcome-modes-g2210 d780bbf9 (the code, tools and evidence; this HANDOVER section is the one commit on top)

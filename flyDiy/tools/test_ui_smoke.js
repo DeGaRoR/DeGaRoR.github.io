@@ -51,6 +51,25 @@ if (html.indexOf('window.BOOT = B') > html.indexOf('function makePilot('))
   throw new Error('boot.js must precede the core in index.html (the overlay speaks before the vendor parses)');
 if (html.indexOf('id="boot"') < 0 || html.indexOf('id="boot"') > html.indexOf('<canvas id="c">'))
   throw new Error('#boot must be the first thing in <body>, ahead of the canvas');
+// THE WELCOME'S MODE (G2213, WELCOME-MODES): the artifact's welcome.js block, run as the rigs run it (a driven browser, on
+// localhost): no screen, nothing held - the island loader does not wait on FLYDIY_WELCOME - and FLYDIY_MODE 'sandbox'
+// (implicitly: the page this gate smokes IS the sandbox). ?mode=sandbox on a real host is the same skip; the menu itself
+// is GATE GFX's (welcome.js in a vm over a small DOM) and the stills' (tools/welcome_modes_shot.js)
+{
+  const welcomeBlock = pick('W.WELCOME = {', 'welcome');
+  // a returning player's record (this harness has no WebGL2: the record says the gate was passed), so only the mode decides
+  const seen = JSON.stringify({ gpu: '', preset: 'potato', tried: true });
+  const run = (search, hostname, navigator) => {
+    const box = { navigator, location: { search, hostname }, localStorage: { getItem: k => (k === 'flydiy.welcome' ? seen : null), setItem() {} },
+      document: { createElement: () => { throw new Error('the welcome built a screen'); }, getElementById: () => null }, addEventListener() {} };
+    box.window = box; vm.createContext(box); vm.runInContext(welcomeBlock, box, { filename: 'welcome.js' }); return box;
+  };
+  const rig = run('', 'localhost', { webdriver: true, userAgent: 'Mozilla/5.0 HeadlessChrome/141' });
+  const pages = run('?mode=sandbox', 'degaror.github.io', { userAgent: 'Mozilla/5.0 Chrome/141' });
+  if (rig.FLYDIY_MODE !== 'sandbox' || rig.FLYDIY_WELCOME || pages.FLYDIY_MODE !== 'sandbox' || pages.FLYDIY_WELCOME)
+    throw new Error('the welcome block: a rig on localhost / ?mode=sandbox must skip every screen as the sandbox (' + rig.FLYDIY_MODE + ', ' + pages.FLYDIY_MODE + ')');
+  console.log("the welcome: a rig on localhost and ?mode=sandbox skip every screen, FLYDIY_MODE 'sandbox', nothing held");
+}
 
 // ---- THE PANELS ARE PLACEABLE AND THEIR CONTROLS STILL PRESS (2026-09-04) --
 // Chrome 148 retargets pointerup and the click after it to whatever element
