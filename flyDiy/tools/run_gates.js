@@ -216,6 +216,12 @@ const GATES = [
   // and the metal Cessna, the page's own wind (steady and the climate's gust field), the floatplanes on the water; the
   // per-substep reader changes nothing; REPORTs the page's impact speed and the trunk's offset. Three at once
   { id: 'DMGWIND', file: '_dmg_wind_check.js', tier: 'core', weight: 3, wall: 1500 },
+  // G2013-G2015 (DMG-NOSE): the crushable nose (the spinner, the propeller at its hub, the nose bowl ahead of the engine's
+  // nodes) and the nose's 9 g at either corner on the certificate - the stack's numbers, the corner cases and the mount's
+  // mirror pairs (no limit lowered), the 3 m/s taxi into a trunk at the page's impact speed in 49 winds and 19 offsets on
+  // the Cub, the Jodel and the metal Cessna (no mount comes off), one physics with DMG-DRIVE's strike, nothing in the nose's
+  // reach in a circuit, the 30 m/s trunks still crash. Three at once
+  { id: 'DMGNOSE', file: '_dmg_nose_check.js', tier: 'core', weight: 3, wall: 1500 },
   // G1840-G1843 (DMG-D3 CLUSTERS): a shape-matched cluster is one breakable part - the fin, the twin's rod, the floats (and
   // the twin-boom fixture, reported): its root load read off the cut equals the statics; nothing parts in normal
   // operations (the load test, the pull, the drops, a circuit, parked, the ordinary water cases); a scripted pull takes

@@ -48,7 +48,9 @@ if (argv[0] === '--part') {
     out.dive = [['VNE full', VNE, 1, false], ['1.1 VD full', 1.1 * VS.VD, 1, false], ['VNE cruise', VNE, def.params.ap.thrCruise, false], ['VNE idle', VNE, 0, false], ['VNE off', VNE, 0, true]]
       .map(([nm, V, thr, off]) => { const r = D.dive(k, Object.assign({ V, thr, off, hold: 8, secs: 90 }, o));
         return { nm, V, thr, reached: r.reached != null, rpmEng: r.rpmEngMax, rated: def.params.engine.rpm, rpmMax: C.genDriveSpec(def).rpmMax, tipMach: r.tipMach,
-          running: r.running, d: (r.drive || []).map(slim), finite: r.finite }; });
+          running: r.running, d: (r.drive || []).map(slim), finite: r.finite,
+          // G2015 (DMG-NOSE): did the airframe break up on the way (the time, the members broken)? A wreck's windmill is no engine's band
+          wreck: r.crashed ? { at: (r.sim.damage().at || 0), breaks: r.breaks, why: r.sim.damage().reason, reached: r.reached } : null }; });
   } else if (part === 'strike') {
     if (!hydro) {
       out.nose = [2, 4, 8].map(V => { const r = D.noseOver(k, Object.assign({ V, thr: 0.2, secs: 2 }, o));
@@ -162,7 +164,10 @@ const rep = msg => console.log('  --    ' + msg);
         const d = v.d[0], r = v.rpmEng / v.rpmMax, b = band(r), b2 = band(d.osPeak);   // (the band of the held peak, or of the approach's overshoot)
         const what = v.nm + ' (' + f2(v.V) + ' m/s, throttle ' + f2(v.thr) + '): ' + Math.round(v.rpmEng) + ' rpm against ' + v.rpmMax + ' (' + pc(r) + '), tip Mach ' + f2(v.tipMach) + ' -> \'' + (d.os || 'none') + '\'';
         if (!v.reached) { yes(false, what + ' - the speed was not reached'); continue; }
-        if (/full/.test(v.nm)) yes(v.finite && (d.os === b || d.os === b2) && !d.failed && (d.os !== 'overhaul' || d.thrustK < 1), what + (b === 'overhaul' ? ', rough (thrust x ' + f2(d.thrustK) + ', the teardown owed)' : b === 'inspect' ? ' (SB 369: an inspection)' : '') + ' ' + FLAG);
+        // G2015 (DMG-NOSE): a dive the airframe broke up in before it reached its speed (the Jodel at 1.1 V_D: its fin's attach
+        // lets go at 10.8 s, on the base as on DMG-NOSE) reads a falling wreck's windmill, whose speed is the wreck's: REPORTED
+        if (/full/.test(v.nm) && v.wreck && v.wreck.at < v.wreck.reached) rep('REPORT ' + what + ' - the airframe broke up first (' + v.wreck.why + ' at ' + f2(v.wreck.at) + ' s, ' + v.wreck.breaks + ' members; the speed reached at ' + f2(v.wreck.reached) + ' s): a wreck\'s windmill, not the drivetrain\'s band');
+        else if (/full/.test(v.nm)) yes(v.finite && (d.os === b || d.os === b2) && !d.failed && (d.os !== 'overhaul' || d.thrustK < 1), what + (b === 'overhaul' ? ', rough (thrust x ' + f2(d.thrustK) + ', the teardown owed)' : b === 'inspect' ? ' (SB 369: an inspection)' : '') + ' ' + FLAG);
         else yes(v.finite && !(d.osExc > 0) && !d.failed && !d.strike && (d.os == null || d.os === 'logged'), what + (d.os === 'logged' ? ' (inside SB 369\'s no-action band: ' + f2(d.osSec) + ' s logged)' : '') + ' - no exceedance');
       }
     }

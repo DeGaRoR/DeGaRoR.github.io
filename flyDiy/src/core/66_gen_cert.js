@@ -110,11 +110,12 @@ const GEN_CERT = {
 const GEN_CERT_LAND = /^(drop|bow|taxiRough|g[A-Z]|w[A-Z])/;
 // the controls flown (genCertFlownCtl): a member's larger peak certifies it both ways
 const GEN_CERT_RING = /^flown(Elev|Rud)/;
-const GEN_CERT_V = 4;        // the certificate's own version (a cached answer is only valid for the rules that made it);
+const GEN_CERT_V = 5;        // the certificate's own version (a cached answer is only valid for the rules that made it);
                              // 2: G1835-G1836 (DMG-D2b) - the gear's cases, the ground and water loads, the flaps;
                              // 3: G1891 (DMG-CERTCOST) - the settle shared, a wheel landing's window 1.2 s (the same envelope);
                              // 4: G1826 (DMG-DRIVE) - the engine's torque, side and gyroscopic loads on its mount (23.361 / .363 / .371)
                              //    (merged after CERTCOST, which had also taken 3: a stored certificate without the drive cases is stale)
+                             // 5: G2014 (DMG-NOSE) - the nose's 9 g reacted at either corner (impactNoseL / R), the mount's mirror pairs alike
 
 // is the damage layer on for this def? (30_solver's own DMG_ON: params.damage, else the page's ?damage, else the
 // default) - the page asks before it spends a thread on a certificate
@@ -919,6 +920,20 @@ function* genCertifySteps(def, opt) {
         let Mt = 0; for (let i = 0; i < n; i++) { F[i * 3] = def.nodes[i].m * k9; Mt += def.nodes[i].m; }
         for (const i of R) F[i * 3] -= Mt * k9 / R.length;
         put('impactNose', genCertForces(flight, genCertRelieve(def, F)));
+        // G2014 (DMG-NOSE): ...AND AT EITHER CORNER. A trunk is not always met on the centreline: off it (a crosswind's
+        // weathercock, a drift on the roll) the nose meets it at the engine's corner, and the reaction's moment loads the
+        // mount's two sides unequally - at 7.5 m/s from 210 deg the Cub's CGE-S0TR, certified 2.03 kN in compression (no
+        // case had loaded it), gave way where its mirror held (DMG-WINDBREAK open 1). The same 9 g, reacted at the thrust
+        // nodes of ONE side (the engine's corner: z < 0 left, as the generator's L tags; z > 0 right), so the mount
+        // members on both sides are certified for a corner hit
+        if (eng.length >= 2) for (const [nm, sd] of [['impactNoseL', -1], ['impactNoseR', 1]]) {
+          const Rc = eng.filter(i => sd * def.nodes[i].p[2] > 0.01);
+          if (!Rc.length) continue;
+          const F2 = new Float64Array(n * 3);
+          for (let i = 0; i < n; i++) F2[i * 3] = def.nodes[i].m * k9;
+          for (const i of Rc) F2[i * 3] -= Mt * k9 / Rc.length;
+          put(nm, genCertForces(flight, genCertRelieve(def, F2)));
+        }
       }
       // G1826 (DMG-DRIVE): THE ENGINE'S OWN LOADS ON ITS MOUNT - 23.361's torque, 23.363's side load, 23.371's
       // gyroscopic couple (33_drive.js; FAR 23 as recalled, A0 to open it) - on the same pinned airframe
@@ -988,7 +1003,7 @@ function* genCertifySteps(def, opt) {
 // THE ENVELOPE from the cases (each { t, c }: every member's peak at limit, tension and compression), in the cases' own
 // order (byT / byC: the governing case's index in `names`). G1890: its own function - the evidence re-reads it with a
 // case's window cut short
-function genCertCombine(def, cases) {
+function genCertCombine(def, cases, opt) {
   const nb = def.beams.length;
   const Ft = new Float64Array(nb), Fc = new Float64Array(nb), byT = new Int8Array(nb).fill(-1), byC = new Int8Array(nb).fill(-1);
   const names = Object.keys(cases);
@@ -1010,7 +1025,43 @@ function genCertCombine(def, cases) {
     const k = def.beams[bi].cls === 'gear' ? 1 : kL, r = ringC[ci] ? Math.max(C.t[bi], C.c[bi]) : 0;
     const t = Math.max(C.t[bi], r) * k, c = (def.beams[bi].tens ? C.c[bi] : Math.max(C.c[bi], r)) * k;
     if (t > Ft[bi]) { Ft[bi] = t; byT[bi] = ci; } if (c > Fc[bi]) { Fc[bi] = c; byC[bi] = ci; } } });
+  // G2014 (DMG-NOSE): THE MOUNT IS BUILT SYMMETRIC. A member of an engine's mount (an end on its ENG / CGE / MNT nodes)
+  // takes the larger envelope of itself and its mirror (the node across the centreline, to a millimetre): a builder
+  // welds both sides of a mount from one tube, and a case that loads one side only (the one-wheel drop rolls one way,
+  // the engine's torque turns one way) left the Cub's CGE-S0TR at 3.20 kN in tension where CGE-S0TL held 3.93. Only
+  // ever raises a limit
+  if (!(opt && opt.mirror === false)) for (const [i, j] of genCertMirror(def)) {   // (opt.mirror false: the rules before, GATE DMGNOSE)
+    if (Ft[j] > Ft[i]) { Ft[i] = Ft[j]; byT[i] = byT[j]; } else if (Ft[i] > Ft[j]) { Ft[j] = Ft[i]; byT[j] = byT[i]; }
+    if (Fc[j] > Fc[i]) { Fc[i] = Fc[j]; byC[i] = byC[j]; } else if (Fc[i] > Fc[j]) { Fc[j] = Fc[i]; byC[j] = byC[i]; }
+  }
   return { Ft, Fc, byT, byC, names };
+}
+// the engine mount's mirror pairs [i, j] (G2014): members with an end on an ENG / CGE / MNT node whose mirror (each end's
+// node across z = 0 within a millimetre) is another member; computed once per def
+const GEN_CERT_MIRROR = typeof WeakMap !== 'undefined' ? new WeakMap() : null;
+function genCertMirror(def) {
+  const hit = GEN_CERT_MIRROR && GEN_CERT_MIRROR.get(def.beams); if (hit) return hit;
+  const N = def.nodes, n = N.length, mir = new Int32Array(n).fill(-1), key = (a, b) => a < b ? a + ',' + b : b + ',' + a;
+  const grid = new Map(), cell = p => Math.round(p[0] * 1000) + ':' + Math.round(p[1] * 1000) + ':' + Math.round(p[2] * 1000);
+  for (let i = 0; i < n; i++) { const c = cell(N[i].p); if (!grid.has(c)) grid.set(c, []); grid.get(c).push(i); }
+  for (let i = 0; i < n; i++) {
+    const q = N[i].p, want = [q[0], q[1], -q[2]];
+    let best = -1, bd = 1e-3;
+    for (let dx = -1; dx <= 1 && best < 0; dx++) for (let dy = -1; dy <= 1; dy++) for (let dz = -1; dz <= 1; dz++) {
+      const c = (Math.round(want[0] * 1000) + dx) + ':' + (Math.round(want[1] * 1000) + dy) + ':' + (Math.round(want[2] * 1000) + dz);
+      for (const j of grid.get(c) || []) { const p = N[j].p, d = Math.hypot(p[0] - want[0], p[1] - want[1], p[2] - want[2]); if (d <= bd) { bd = d; best = j; } }
+    }
+    mir[i] = best;
+  }
+  const at = new Map(); def.beams.forEach((b, bi) => at.set(key(b.a, b.b), bi));
+  const item = i => /^(ENG|CGE|MNT)/.test(N[i].tag || ''), out = [];
+  def.beams.forEach((b, bi) => {
+    if (!(item(b.a) || item(b.b)) || mir[b.a] < 0 || mir[b.b] < 0) return;
+    const bj = at.get(key(mir[b.a], mir[b.b]));
+    if (bj != null && bj > bi) out.push([bi, bj]);
+  });
+  if (GEN_CERT_MIRROR) GEN_CERT_MIRROR.set(def.beams, out);
+  return out;
 }
 // G1890 (DMG-CERTCOST): THE EVIDENCE'S TAP - `frame(name, f, sim)` after every measured frame of a dynamic case (the
 // case's name, the frame since its window opened, the sim under the probe); null in the game (one compare a frame)

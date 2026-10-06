@@ -80354,3 +80354,147 @@ Outside the list, run because this branch touched its loader: ROLLSND PASS -> PA
 - The generated files (index.html, dev.html, sw.js, version.json, tools/flight_core.js) are NOT committed. Damage
   stays OFF by default; nothing here touches the switch.
 
+
+## G2013-G2015 DMG-NOSE - THE CRUSHABLE NOSE (THE SPINNER, THE PROPELLER AT ITS HUB, THE NOSE BOWL AHEAD OF THE ENGINE) AND THE NOSE'S 9 G AT EITHER CORNER ON THE CERTIFICATE; NO ENGINE MOUNT COMES OFF IN A 3 M/S TRUNK HIT; GATE DMGNOSE (2026-10-06, DMG-NOSE for the DEFORM COORDINATOR, cloud, node only; branch claude/dmg-nose off claude/dmg-integration d3d5e24 (DMG-DRIVE and DMG-WINDBREAK already merged there: 4f6200e5 is in it, so nothing merged by hand); A0's JOIN-PARITY (claude/join-parity-g1985) has NOT landed: the Cessna rows below are on node's own def - PROVISIONAL)
+
+READY for the coordinator. Damage OFF = the base's bytes (LOAD / BENCH / UISMOKE / BUILD / JOIN whole outputs identical, nothing
+masked; the solver's hashes on six trunk runs identical). GEN_DAMAGE_DEFAULT untouched.
+
+### The brief (DMG-WINDBREAK's open 1 and 2)
+At the page's impact speed (a 3 m/s taxi into a 0.6 m trunk) the user's Cub lost its engine mount in 17 of 49 winds and at 11 of 19
+offsets of the trunk across the nose, mostly after the crankcase stand-in (CGE-ENGL / R, a thin 4130 tube's M_p) folded round the trunk;
+at 7.5 m/s from 210 deg the trunk met the engine's corner, where CGE-S0TR (certified 2.03 kN in compression, 5.05 kN in tension) gave way
+and its mirror (6.19 kN) held. Measured again here on the base: **the Cub 17/49 winds and 11/19 offsets, the Jodel 0/49 and 2/19, the
+metal Cessna 4/49 and 8/19** (the Jodel's and the Cessna's offsets were never measured before: DMGWIND's offset part flies the Cub only).
+
+### G2013 - THE CRUSHABLE NOSE (src/core/33_drive.js GEN_NOSE / genNoseSpec / genNoseF; 30_solver.js noseFrame / nosePass / noseIn)
+One crush element per tractor engine (a pusher has none): a circle (a sphere against the ground) of the nose bowl's radius whose front is
+the spinner's tip, on the engine's own axis (its mass centre to its thrust nodes - the disc DMG-DRIVE strikes; a bent mount tilts it).
+An obstacle inside it crushes it: the crush depth (permanent, from the tip) runs through the STACK, each layer a plateau over a depth -
+- **spinner**: the spun shell ahead of the hub, Alexander's mean crush load P = 6.08 sigma_0 t^1.5 sqrt(D) at the cone's local diameter;
+- **prop**: the propeller at its hub, its blade roots folded back (alloy) or broken off (wood, carbon): n blades x sigma Z / (2 x the
+  root station), over the hub's protrusion ahead of the flange;
+- **bowl**: the cowl's nose bowl, Alexander's load at the cowl's width at the engine, over its depth ahead of the crankcase;
+- **core**: used up - the engine block against the obstacle: the node contact's own spring and damper on the engine (1.5e4 x its mass),
+  unloading at TK_RU x (DMG-WINDBREAK's crush law). The residual is the mount's.
+Unloaded, the crushed nose comes back along TK_RU x the core's spring (a tenth of nothing). The numbers and their sources are in
+reports/evidence/DMG-NOSE/README.md: Alexander (1960), MIL-HDBK-5J (6061-T6 spinner, 5052-H32 bowl, 2025-T6 blade), the Wood Handbook
+(yellow birch's MOR) - **all AS RECALLED, A0 to open**; the gauges as recalled; **GAME**: the hub's protrusion (wood 12 / carbon 10 / alloy
+7 cm), the blade root's thickness ratio and arm, the bowl's depth (8 cm), carbon's root stress, the nacelle radius on a wing engine, the
+bark friction (below).
+Per build (GATE DMGNOSE 1): the Cub's spinner 24 cm to 17.4 kN, prop 12 cm at 17.3 kN, bowl 8 cm at 19.1 kN - 6.36 kJ in 44 cm; the
+Jodel 22 / 12 / 8 cm, 6.29 kJ; the metal Cessna 32 / 7 / 8 cm to 20.0 / 9.5 / 23.8 kN, 6.78 kJ; the twin's nacelles 9.7 kJ (no trunk
+case on the water). A 3 m/s taxi carries 2.1 (the Cub) - 4.0 kJ (the metal Cessna); every plateau sits under what the mount is certified
+to carry on the nose (9 g / 1.5 of the whole aeroplane: 28 / 27 / 52 kN).
+- **Where the push lands: the THRUST NODES**, shared by where the obstacle meets the nose across the engine (clamped: a corner hit is the
+  corner case) - exactly where the certificate's nose cases react it. First built by mass share (the engine as one body): 81 % landed on
+  the Cub's 90 kg crankcase node, whose top tubes (CGE-S0T*, crush 2.7 kN: no case loads them that way) crushed and its bottom fittings
+  tore - 10 of 49 winds. On the thrust nodes: 0.
+- **The trunk pass leaves the engine's own members to the nose** (noseIn): a member with both ends in the engine (the crankcase stand-in
+  CGE-ENGL / R, the flange bar), or one end there with the contact point inside the nose's circle (a mount tube's engine end). Past the
+  circle - the cowl's side towards the firewall - the members meet the trunk as before. So the crankcase never folds round a trunk.
+- **Friction on the bark, mu 0.3 (GAME)**: without it a corner hit slid off the trunk keeping its energy and swung the Cub's cabin corner
+  into it (7.5 m/s across: a 7 kN blow on VSNR, a mount fitting torn - cells the base had held). Measured on the Cub's five worst winds:
+  mu 0 loses one, 0.5 loses two (the hub's sideways grip tears a top fitting at 1.01 of its 4.95 kN floor), 0.2 / 0.3 / 0.4 hold all.
+  0.3 is the middle of that window, inside dry wood on metal's 0.2-0.6 (as recalled). It is a tuned GAME number and is said so.
+- **Against the ground** (a nose-over): the same stack, no core (the engine's nodes meet the ground themselves once the nose is crushed
+  past them), scraping at the solver's 0.8. Armed only when DMG-DRIVE's own disc sample shows the ground within 0.5 m of the nose.
+- **One physics with DMG-DRIVE**: the prop layer x (blades - bladeLost) / blades (a separation leaves less: the Cub 17.3 -> 14.3 kN); the
+  crush reaching the prop stops a prop still turning (driveStrike: a stoppage, or a separation at a tip faster than its blade). In the
+  204 acceptance runs the crush never passed the spinner (the strike had already stopped the prop: 198 stoppages, 4 brushes, 2 none).
+- **Costs nothing until something is within reach**: once a frame, one loop over the engines (a trunk trunkFrame gathered, within the
+  nose's circle and a frame's travel; the ground under DMG-DRIVE's disc sample within 0.5 m + a frame's descent); only then a substep
+  pass. In a circuit the nose armed 0 frames on all five builds.
+- **The shared fields** (sim.damage().drive[k], and meta.drv under the worker - sim_host.js simDrvOf, viewer code):
+  `crush` (m from the spinner's tip, the deepest - **DMG-D4b: read this for the cowl's 'crushed past 25 cm' rule instead of your
+  estimate**), `crushOf` (the stack's depth), `crushLayer` ('spinner' / 'prop' / 'bowl' / 'core'), `crushJ` (J), `crushF` (N, peak),
+  `crushOn` ('trunk' / 'ground'), `crushArm` (frames armed). A crushed nose makes snap() refuse (not a whole aeroplane).
+- **The crush's work is NOT in DMG.work**: TREE-CRASH's crash rule counts 1.5 kJ of plastic work as a crash, and a 3 m/s taxi's crush is
+  2 kJ - a dent (§12 dm3), as TREE-CRASH's own nose rule says. It is crushJ, for D5's bill.
+
+### G2014 - THE NOSE'S 9 G AT EITHER CORNER (66_gen_cert.js; GEN_CERT_V 4 -> 5)
+- `impactNoseL` / `impactNoseR`: impactNose's case (every node 9 g forward / 1.5, relieved) with the reaction at ONE side's thrust nodes
+  (z < 0 left, as the generator's L tags), on every build with a nose engine (the twin's engines are on the wing: no corner, as before).
+- **The mount is built symmetric**: a member with an end on an ENG / CGE / MNT node takes the larger envelope of itself and its mirror
+  (genCertMirror: each end's node across z = 0 to a millimetre). A case that loads one side (dropOne rolls one way, the torque turns one
+  way) had left the Cub's CGE-S0TR at 3.20 kN in tension where CGE-S0TL held 3.93.
+- **No case removed, no limit lowered** (GATE DMGNOSE 2: every member's envelope against the same cases less the corners, no mirror):
+  raised 35 of 394 members on the Cub, 30 / 492 the Jodel, 47 / 442 the metal Cessna, 19 / 533 the floats, 18 / 519 the twin. The Cub's
+  mount, FY / FC kN before -> after: ENGL / ENGR-S0BL / S0BR 5.0/7.3 -> 5.0/12.7 and 5.0/4.4 -> 5.0/8.5, -S0T* 11.7 -> 12.9 in compression,
+  CGE-S0TR 5.0/2.0 -> 6.2/2.7, CGE-S0TL 6.2/2.0 -> 6.2/2.7 (mirror pairs equal on all five builds).
+- DMGCERT's broke-at unchanged in verdict: 6.01 / 6.02 / 6.06 / 6.08 / 6.01 g, a fitting first. DMGCERTCOST's stored reference rewritten
+  (--write-ref; frames unchanged, the envelope to the bit).
+
+### G2015 - GATE DMGNOSE (tools/_dmg_nose_check.js, run_gates core, weight 3, wall 1500; ~21 min with 4 children) - PASS 41/41
+1. the stack per build, its sources printed: every plateau under the certificate's nose reaction at limit; it takes a 3 m/s taxi's
+   energy; a separation leaves less;
+2. the certificate: the corner cases present, every mirror pair alike, no member's envelope under the rules before;
+3. **THE ACCEPTANCE** at the page's impact speed (DMG-WINDBREAK's staging, started at 3.6 m/s, met at 2.2-3.2 m/s): 49 winds (0-10 m/s
+   from 12 directions) and 19 offsets (the trunk across the nose, no wind) on the Cub, the Jodel and the metal Cessna, every run
+   printed (mount broken / the nose's crush): **no engine mount comes off in any of 204 runs**;
+4. one physics with DMG-DRIVE (the crush past the spinner only with a stopped prop);
+5. normal operations: the circuit on all five builds, the nose never armed (0 frames, 0 J, 0 yields);
+6. the 30 m/s trunk still crashes (the three land builds; each nose crushed to its core).
+REPORTs: the twin's stacks, the mount's limits before / after, the runs where a mount member took a set, the nose-overs.
+
+**Before / after** (reports/evidence/DMG-NOSE/sweep.svg) - mount off, winds / offsets:
+
+| | before (d3d5e24) | after |
+|---|---|---|
+| the user's Cub | 17 / 49, 11 / 19 | **0 / 49, 0 / 19** |
+| Jodel | 0 / 49, 2 / 19 | **0 / 49, 0 / 19** |
+| metal Cessna (PROVISIONAL: node's def, JOIN-PARITY not landed) | 4 / 49, 8 / 19 | **0 / 49, 0 / 19** |
+| the Cub at the page's staging (DMGWIND's 7.5-10 m/s REPORT, open 1) | 1 / 24 (7.5 m/s from 210) | 0 / 24 |
+
+**What is left, with numbers (not hidden):** the Cub's mount takes a SET (nothing breaks) in 14 of 49 winds - CGE-S0TL / S0TR at 1.01-1.04
+of their 2.70 kN crush, the 5-10 m/s crosswinds (the Cub weathercocks, meets the trunk at an angle, its 90 kg crankcase swings on its
+top tubes). Those tubes' compression limit is the certificate's (impactNoseR 1.49 kN x 1.5 x 1.05 x 1.15): no case loads them harder.
+The Jodel's worst 0.84, the metal Cessna's 0.73. The Jodel's VSNR-S0TR (a cabin-front tube, not the mount) kinks in 6 crosswinds at
+7.5 m/s - the cabin's corner meeting the trunk after the nose.
+
+### The targeted battery (§11.3; reports/evidence/DMG-NOSE/battery.txt)
+DMGNOSE 41/41, DMGWIND 12/12, TREECRASH 50/50, DMGDRIVE 131/131, DMGCERT 70/70, DMGCERTCOST, DMGGEAR 72/72, DMGINST 33/33: **PASS**.
+LOAD, BENCH, UISMOKE, BUILD, JOIN: PASS and **the base's bytes** (off_bytes.txt). Two gates' rows were changed, said here:
+- **TREECRASH's 3 m/s taxi** (the base, measured on d3d5e24: the Cub 5 set / 722 J / back 0.37 m, the Jodel 10 / 766 J / 0.23, the metal Cessna 7 set + 1 broken / 1012 J / 0.35) required "a dent" as members SET > 0. With the nose the taxi sets no member (the crush takes it before the
+  lattice): the row accepts the nose's crush as the dent and prints it (the Cub 17 cm, the Jodel 15, the metal Cessna 25; springback
+  0.12 / 0.34 / 0.14 m, under its 2 m). Its other conditions unchanged.
+- **DMGDRIVE's dives**: a 'full' row whose airframe broke up before the dive reached its speed is a REPORT (a falling wreck's windmill is
+  no engine's band). Two rows, both the Jodel's: **on the base too, the Jodel loses its fin (VR-TPB, fin:attach) at 9.87 s in the V_NE
+  full-throttle dive** (the same bits on both: 16 members, 'inspect') **and at 10.8 s in the 1.1 V_D dive** (240 members broken on the base,
+  200 here: the certificate's raised limits change how the wreck comes apart, and its faster fall over-revved the windmill to 'failed').
+  133 -> 131 checks. See open 1.
+Runs: DMGGEAR was killed at the runner's 1800 s beside three other gates and passed alone in 1540 s; DMGCERTCOST's node-time ceiling
+failed on the two floatplanes beside the battery (46.9 / 51.8 s) and passed alone (40.8 / 43.6 s against 42 / 48).
+
+### Perf (tools/dmg_drive_perf.js: TREE-CRASH's perf child, nothing touching, a far 4000-trunk set; base d3d5e24's core against this one,
+12 alternating pairs a row; reports/evidence/DMG-NOSE/perf.txt)
+| damage | build | mode | A/B run 1 | A/A (base vs base) | A/B run 3 |
+|---|---|---|---|---|---|
+| OFF | Cub | ground | +3.20 % | -0.63 % | -0.41 % |
+| OFF | Cub | air | +2.04 % | +2.86 % | +0.62 % |
+| OFF | metal | ground / air | +0.63 / -0.25 % | - | - |
+| ON | Cub | ground | +0.65 % | +3.22 % | +1.00 % |
+| ON | Cub | air | -1.20 % | -0.06 % | +0.70 % |
+| ON | metal | ground / air | +1.57 / -1.27 % | - | - |
+Pooled: run 1 OFF +1.33 %, ON -0.27 %; run 3 OFF +0.10 %, ON +0.85 %. The box's own noise (identical cores) reaches +3.2 % on a row: the one
+A/B row past 2 % read -0.41 % on its repeat. The OFF path adds one null compare a frame and one false boolean a substep (the nose pass
+lives in its own function, as G1884's trunk pass). **Re-run the pinned pairs on the box.**
+
+### Evidence (flyDiy/reports/evidence/DMG-NOSE/, README.md captions each)
+crush_curve.svg (the nose's force against its crush, per build), mount_worst.svg (the worst mount member over its limit: a trace before
+/ after, and every run's peak), sweep.svg (the wind grids and the offsets, before / after), gate_dmgnose.txt / .json, battery.txt (+ the
+two battery logs, dmgcertcost.log), off_bytes.txt, perf.txt, summary.json, traces.json. Tools: tools/_dmg_nose_check.js (the gate),
+tools/dmg_nose_evidence.js (the pictures).
+
+### Open (the coordinator / A0)
+1. **The Jodel loses its fin in DMGDRIVE's V_NE full-throttle dive, on the base** (fin:attach at 9.87 s, VR-TPB in tension). V_NE is inside
+   the envelope; that is a certificate / flutter / dive-pilot question (dm14's headroom?) for D2b or DRIVE's owner, not the nose's. Found
+   because the 1.1 V_D row's wreck went 'failed' here.
+2. **Open the sources** (README's table): Alexander's constant, the spinner's and the bowl's gauges and alloys, the blade root's stresses.
+   The GAME numbers want a ruling: the hub's protrusion, the root's thickness ratio and arm, the bowl's depth, mu 0.3 on bark (tuned in a
+   measured window), carbon's 600 MPa (the twin's nacelle prop layer reads 51 kN: high, no trunk case on the water to test it).
+3. **JOIN-PARITY**: the Cessna rows are node's def (its engine 65 cm aft of the game's). Re-run GATE DMGNOSE once A0 lands it.
+4. The Cub's top crankcase tubes (CGE-S0T*) set in 14 crosswinds at 1.01-1.04 of their 2.70 kN: no case asks more of them. A lateral nose
+   case (the trunk sideways at the hub) would certify them; not in this brief.
+5. The stack is crushed in its order whichever way it is met (a corner meets the bowl's side first in life; the energies are of a size).
+6. GATE DMGWIND's offset part flies the Cub whatever key it is given (harmless: it is only called with 'cub').
