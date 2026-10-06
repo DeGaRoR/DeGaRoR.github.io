@@ -3580,6 +3580,9 @@ function make(THREE, scene, world, rec0, opts) {
     previewEnd();   // G1400: a drag's carried groups back where they were built, before anything compares seeds
     if (!(composedFresh && dirty === undefined)) { O = composeNow(); hwCompose(); }
     composedFresh = false;
+    // G2063: a stand within the town's reach (a place in Metlakatla, the one loading's anchor) builds the town at once
+    if (GEO.split && o.anchor && o.geoReach > 0) { GEO.box = undefined; let a = null; try { a = o.anchor(); } catch (e) { a = null; }
+      if (a && isFinite(a[0]) && isFinite(a[2]) && geoDist(a[0], a[2]) < o.geoReach) GEO.split = GEO.pending = false; }
     refreshBounds();
     let n = 0;
     const groundDirty = !dirty || !dirty.bbox || dirty.ground !== false;

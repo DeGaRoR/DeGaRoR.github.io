@@ -6270,7 +6270,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         focalPx: () => ((renderer && renderer.domElement && renderer.domElement.height) || 1080) / (2 * Math.tan((camera.fov || 46) * Math.PI / 360)),   // a metre at a metre, in pixels (the houses' detail cull)
         renderer: premRenderer, camera: premCamera,
         // G2063 (TOWN-GEO): with the town on, its patch and roads wait (render_premises GEO) until the eye nears it - geoTick
-        defer: townGeoDefer(),
+        defer: townGeoDefer(), geoReach: geoQ('reach'),
       });
       yield 'premises made';
       if (BUD && BUD.townReach > 0 && premisesR.streamState) premisesR.streamState.reach = BUD.townReach;   // G1230: the stream's reach, the budget's
@@ -6667,10 +6667,12 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
   function geoTick(cg) {
     if (!premisesR || !(geoGen || geoRefresh || (premisesR.geoPending && premisesR.geoPending()))) return;
     if (!GEO_REACH) GEO_REACH = geoQ('reach');
-    if (!geoGen && !geoRefresh && !(premisesR.geoDist(camera.position.x, camera.position.z) < GEO_REACH)) return;
+    const dEye = premisesR.geoPending && premisesR.geoPending() ? premisesR.geoDist(camera.position.x, camera.position.z) : Infinity;
+    if (!geoGen && !geoRefresh && !(dEye < GEO_REACH)) return;
     const FRw = (typeof window !== 'undefined' && window.FLIGHT_REC) || null;
     if (FRw) FRw.push(FRw.S.prem);
-    try { geoStep(GEO_MS, false); } catch (e) { console.warn('premises: the town geometry', e); geoGen = geoRefresh = null; }
+    // (the eye ARRIVED near it - a location switch, a placement: the rest at once, under the trip's screen when there is one)
+    try { geoStep(GEO_MS, dEye < 2500); } catch (e) { console.warn('premises: the town geometry', e); geoGen = geoRefresh = null; }
     finally { if (FRw) FRw.pop(); }
   }
   let premTramLast = 0, premStreamTick = 0;
