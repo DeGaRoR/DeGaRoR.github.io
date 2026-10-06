@@ -77405,11 +77405,16 @@ tightest turn was the tailwheel's steering (groundRmin: the Cub 9.4 m, the Jodel
   ONCE (a target 180 deg behind the nose is left or right by a degree of wobble), done within ~9 deg - the taxi's own
   steering takes the rest. THE SIGN: e > 0 is turned by NEGATIVE rudder (groundSteer's -kP x e) - the first cut had
   it backwards and overshot 35 deg.
-- where: a taxi path's hairpin tighter than 1/(1.1 Rmin) turning > 60 deg (on a strip under 300 m: any U-turn over
-  150 deg for every aeroplane, the site's lane U-turn being a 12 m arc 15 m from the end); a taxi point behind the
-  aeroplane; LINEUP facing > 100 deg away on a strip narrower than the turn; and on a strip under 300 m with 3/4 of it
+- where (A TAILDRAGGER ON A STRIP UNDER 300 m - the battery set the scope): a taxi path's U-turn (> 150 deg, a bend
+  tighter than 1/(1.1 x max(Rmin, 13 m)) - the site's lane U-turn is a 12 m arc 15 m from the end); a taxi point
+  behind the aeroplane; LINEUP facing > 100 deg away on a strip narrower than the turn; and with 3/4 of the strip
   ahead, the departure turns WHERE THE AEROPLANE STOPPED (planDeparture -> LINEUP) instead of the lane U-turn to the
-  hold a quarter in (which left the Cub 113 m of East Point's 150 and a rightly rejected roll).
+  hold a quarter in (which left the Cub 113 m of East Point's 150 and a rightly rejected roll). WHAT THE BATTERY
+  CUT: at 90 deg taxi corners the pivot beat the stock's taxi rudder to 62 reversals / min (GATE PILOTACT) and swung
+  the Cub's wing toward Jolene's apron fence; at Jolene HOME's lane U-turn (a fillet a hair under the Cub's 9.4 m)
+  it cost GATE LINEUP 26 s and a roll 12.7 m off the skip's pose; a TRICYCLE's pivot at East Point's lane U-turn
+  looped its replanning (never rolled). So: U-turns only, short strips only, taildraggers only - on every long strip
+  and for every tricycle the taxi is the base's to the bit.
 MEASURED (tools/pilot_one_turnaround.js: stopped 20 m from the closed end, nose to it, departFrom; the strip's own
 SURFACE is the judge - a site may lay its lane beside the strip on the same surface, G710):
 ```
@@ -77420,8 +77425,8 @@ Jodel, East Point      16.7 m off, 11.3 s off the strip, rejected roll         p
 C172, East Point       9.1 m, 0 s off, rejected roll                          the same (a nosewheel turns there; the roll rejected: 219 m needed)
 Cub, Jumbo Mine        17.8 m off, 14.3 m past the end, 19.2 s off            pivot at the far end; 0 s off the strip; airborne
 Jodel, Jumbo Mine      13.7 m off, 12.1 m past the end, 15.8 s off            pivot; 2.5 s off, 0.1 m past the end; roll rejected
-C172, Jumbo Mine       7.7 m past the end, 10.7 s off                         pivot; 1.3 m past the end, 5.7 s off (PARTIAL: a tricycle's
-                                                                             pivot still swings wide of the lane)
+C172, Jumbo Mine       7.7 m past the end, 10.7 s off                         the same - OWED: a tricycle's lane U-turn at a short strip's
+                                                                             end swings past it (its pivot is not yet sound, above)
 ```
 
 ### G1940-G1942 ONE PILOT (the retirement)
@@ -77436,7 +77441,77 @@ knows 43's phases. GATE TAKEOFF's fork check became "one pilot".
 `makePilot(.., { profile })`: PILOT_PROFILES expert (today's pilot, every hook bypassed - bit-identical) / club /
 student / bush / hamfist; hooks live today: reaction delay, smoothness (SV.slewK), ham-fisted inputs (seeded), over-
 rotation, late flare, bank / comfort-g limits, the field technique, the slip, the step hold. GATE INPUT's second slot
-flies 'club'. The menu row is owed (the design's §5).
+flies 'club'. The menu row is owed (the design's §5). THE REACTION ON THE WHEELS IS 0.15 s AT MOST: the student's
+0.45 s inside the ground steer swerved the stock 31 deg on the roll and it rejected every take-off. The five on the
+stock build's HOME circuit (calm; scratch): expert 1.05 m/s, 8 m short of the aim; club 2.11 m/s (a 0.25 s delay in
+the flare scatters it: 0.41 on another run); student 1.64 m/s, the roll's swerve 15.9 deg; bush (short everywhere)
+0.82 m/s, 6 m past the aim, slipped, a 130 m roll; ham-fist 0.90 m/s. Bands per profile are the design's §6 - owed.
+
+### G1944 THE GATES - every number the retirement and the techniques move (base = train 34 untouched in a worktree,
+`run_gates --only=... --verbose` on both sides with the SAME flags - `--only` implies the full tier; the printed blocks
+diffed, timings filtered; order-free for the sharded / tabled gates)
+```
+gate        pilot (base -> branch)   what moved (base -> branch)                                         why
+GEN         40 -> 43                 the circuit: TOUCHDOWN sink 1.22 -> 0.67 m/s (bound back to 1.2 from    THE PILOT's hold-off flare and rectangular circuit;
+                                     1.3 - the ruling's tightening), stop x -587 -> -419, rolloutPitchMin   the bound was widened FOR the classic (G457 note)
+                                     1.5 -> 8.8 (three-point), chatter 0.4 -> 0.0, touch 297 -> 338 s
+                                     (clock 300 -> 420 s: the longer circuit)
+                                     configurations' land sink: stock 1.22->0.67, tricycle 1.32->0.64,       43 lands each as the game lands it; every one
+                                     wing twin 1.52->0.67, high cantilever 0.91->0.69, low+trike+cargo      under the 2.0 bound; the firmer ones are 43's
+                                     1.18->1.11, pusher 1.16->1.22, twin boom 0.89->1.38, low cantilever    flare on those airframes (OWED to DMG-DAMP's
+                                     0.84->1.01, over the wing 1.30->1.44, mid wing 0.94->1.09, low wing    re-tune, which moves every flare anyway)
+                                     0.86->1.15
+                                     the extreme 30 deg sweep: 'gave-up' (3 verdicts) -> 'completed'        41 -> 43
+                                     (vref-raised)
+                                     CRUISE QUIET (3 m/s + gusts): bank p2p 0.94 -> 1.25 deg, aileron        43's DOWNWIND, measured once the arc is flown
+                                     0.06 -> 0.15, elevator 0.28 -> 0.37 deg/s (bounds 3 / 2 / 3)          (wings level 3 s)
+                                     flyLeg: 'flies to CRUISE' -> 'flies to CROSSWIND' (the leg reached)
+FLEX        40 -> 43                 peak loads +2-9 % (stock-class fus 4.28 -> 4.42 kN, wing 4.90 -> 5.02;  43's circuit (into-wind rectangle, steeper
+                                     the 6061 + Dacron: tail 1.32 -> 1.93 kN, fus 4.47 -> 5.08); cruise     final); the reference waits for the straight
+                                     hold at n 1.00 (was 1.03); THE 6061 + DACRON CRUISE HOLD p2p 0.17 ->   downwind. THE FLAIL IS 43's (OWED, below)
+                                     1.20 % of the semispan
+INPUT       40, 41 -> 43 (expert, club)  pilot/ctl, pilot/keys, club/ctl, club/keys all re-engage clean;   the club profile through the handoff; 43
+                                     the bank at 20-25 s 0-1.7 -> 13.5-23.0 deg (bound 25)                  re-joins its circuit path with an arc turn
+BENCH       41 -> 43                 phases 19 -> 22; the circuit ROLL..CRUISE TURNBACK INBOUND APPROACH..   43's phases; the run
+                                     -> ROLL..CROSSWIND DOWNWIND BASE FINAL..; the landing run 296 -> 219 m
+GE          40 -> 43                 the A/B flight ends in CROSSWIND (was CLIMB), 1355 -> 1484 airborne     A == B still identical
+                                     frames
+HOTHIGH     40 -> 43                 the run 357 -> 278 m standard, 431 -> 325 hot (ratio 1.208 -> 1.169,   43's take-off; the circuit 43's
+                                     EAS 1.004 -> 0.994, TAS 1.041 -> 1.030 - all in band); the circuit
+                                     sink 1.24 -> 1.11, rolloutPitchMin 1.8 -> 7.8, gear 11 -> 10 %
+SEAPLANE    43                       calm lift-off 7.9 -> 9.5 s; crosswind lift-off 7.8 -> 8.8 s, the run   G1937's 4 s throttle ramp on the water
+                                     5.6 -> 8.3 m off (bound 30), heading swing 28.0 -> 23.9 deg (bound 30)
+PILOTMATRIX 43                       one cell: cub HOME -> A5 (340 m, short): aim 30 -> 20 m in, touch      G1936 (A5 is a short strip in the analytic world)
+                                     44 -> 33 m in, sink 0.57 -> 0.58, the run 145 -> 112 m, +38 s
+TAKEOFF     40/41/43 source -> 43    + THE TECHNIQUE (7 builds) + THE TURN-AROUND; the fork check -> "one    G1942 (base would FAIL the technique: the
+                                     pilot"                                                               ultralight's 14.6 deg/s, the twin's dig, c172f)
+same at printed precision: PILOT, PILOTACT, LINEUP, TAXICLEAR, PLAN, SOAR, NAV, STRESS, FLAPS, MASS, STRIPSURF (the
+game's pilot flies every one of those flights exactly as train 34 does; STRESS / FLAPS / MASS / STRIPSURF's numbers
+did not move with the pilot change)
+ARCHETYPES  PASS on the branch (1166 s, 4 shards); base TIMED OUT at the runner's 3600 s cap on one shard at jobs=1
+            under load - no base numbers to diff; the archetypes fly 43 on both sides (the change there is G1936 only)
+```
+THE BATTERY (`node tools/run_gates.js --verbose`, the CORE battery on the final core, 4 jobs): 146 of 148 jobs PASS;
+red: FRAMECOST (24 - THE PARKED COOK IS STALE: `parked_cook --check`: manifest c8f3b024 vs this tree 2691d7e8, every
+key captured live - the gate's own HINT; A0 re-cooks on the train's final build, as PILOT-FORKS had it) and INSTANT
+(the runner's 1800 s cap - and the SAME on untouched base, re-run alone on both sides: 1800.4 s each; GATE INSTANT is the garage's drag-preview fingerprint and flies no pilot). The 21 pilot gates with `--only` (the full tier for ARCHETYPES / PILOTMATRIX / SEAPLANE / HOTHIGH /
+SOAR included): 21 of 21 PASS. AUDIO went red once in the first pass (one self-test mutation) and green in the
+clean pass; it is red on untouched base on this box too (4 failures, RADIO_BUDGET: a timing budget).
+
+OWED (seen, measured, not done here):
+- THE 6061 + DACRON BUILD'S CRUISE PITCH CYCLE: on 43's TECS the elevator limit-cycles at ~2.3 Hz, +-0.27 (slew-
+  limited, a triangle), the commanded pitch +-1.2 deg in step with the airframe, the pitch -0.3 <-> +5.8 deg at 36 m/s;
+  the floppy wing rides it (1.20 % p2p). It is 43's on base too (the game flies this build so today); the classic's
+  hold was quiet (0.17 %). The cure is the doctrine's (lower D + command slew / a slower TECS hdot filter: tHdot runs
+  at 0.5 a step) and it moves every flight of every aeroplane - DMG-DAMP re-tunes the pitch loop with the solver's
+  rigid-rotation damper removed right after this lands, so it is theirs to fold in (scratch probe: flail.js in this
+  session; the numbers above).
+- 43's flare on the twin boom / low wing / over-the-wing pairs is firmer than the classic's ramp was (table above).
+- A TRICYCLE's turn on the spot (its pivot looped the replanning at East Point; the C172's lane U-turn swings 7.7 m
+  past Jumbo Mine's end).
+- The solver's slip drag (D7) and the user's Cub's elevator authority at idle on final (G1936).
+- The profile row in the flight menu; per-profile bands in a gate (futureDesigns/PILOT-PERSONALITY §5-6).
+
 ## G573.2 - THE BLUEPRINT LIBRARY, and the Chinook 2S in it until release (2026-10-05)
 
 The user: "Start a blueprint library, like we have one for 3d planes, add this one and we'll delete it before release,
