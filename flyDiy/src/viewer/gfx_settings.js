@@ -687,7 +687,7 @@
   if (!('hw' in S)) S.hw = null;
   const HW = (() => {
     const ORDER = ['laptop', 'potato', 'retro', 'current', 'gamer', 'ultra'];   // GATE GFX holds welcome.js's ORDER to the presets
-    const P = { FLOOR_FPS: 15, WIN_MS: 8000, SETTLE_MS: 5000, TICK_MS: 1000, MIN_FRAMES: 12 };
+    const P = { FLOOR_FPS: 15, WIN_MS: 8000, SETTLE_MS: 5000, TICK_MS: 1000, MIN_FRAMES: 12, READINGS: 2 };
     const q = () => (W.location && W.location.search) || '';
     const host = () => (W.location && W.location.hostname) || '';
     const st = { on: false, why: '', kind: null, since: 0, stepped: [], last: null, ticks: 0, iv: 0, reading: null, inputT: -1e9 };
@@ -798,7 +798,7 @@
       st.ticks++;
       if (st.held) { st.kind = null; return; }   // (the self-test holds it: its variants are not the player's frame)
       const k = kindNow(), t = performance.now();
-      if (k !== st.kind) { st.kind = k; st.since = t; return; }
+      if (k !== st.kind) { st.kind = k; st.since = t; st.below = 0; return; }
       if (!k || !st.since || t - st.since < P.SETTLE_MS + P.WIN_MS) return;
       // the SHED with the player's hands on the editor (a slider dragged, a click, the wheel) in the window: the frames are the
       // editor's rebuilds, not the picture's - no reading (GARAGE-LAG's case is not the graphics card's)
@@ -806,7 +806,10 @@
       const m = measure(P.WIN_MS);
       const r = Object.assign({ preset: S.preset, kind: k, stepped: st.stepped, explicit: explicit() }, m);
       const d = decide(r); st.reading = Object.assign({ verdict: d.why }, m, { kind: k });
-      if (d.to) step(d.to, r);
+      // G1997b THE PLATEAU (A0, the laptop's ?diag: its card changed state mid-run, ~3x): a step needs TWO readings running under the
+      // floor in the same state - one slow window (a clock ramp, a transient) is not a machine's class
+      st.below = d.to ? (st.below || 0) + 1 : 0;
+      if (d.to && st.below >= P.READINGS) { st.below = 0; step(d.to, r); }
       else st.since = t - P.SETTLE_MS;       // (judged: the next reading is a fresh window, WIN_MS on)
     }
     function start() {

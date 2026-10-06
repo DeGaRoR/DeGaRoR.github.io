@@ -125,6 +125,7 @@ function fakeRec(env, ms, agl) {
   env.C.setInterval(() => { rows.push({ t: env.C.t, dt: env.C.t - last, gpu: ms * 0.95, work: 30, flags: 2, agl: agl == null ? 1 : agl, spd: 0 }); last = env.C.t; }, ms);
   return R;
 }
+let S_ONE = null;
 async function stepdown(src) {
   const R = {};
   const { G } = gfxIn(src);
@@ -156,12 +157,18 @@ async function stepdown(src) {
   { // the loop: retro, 4 fps on the ground
     const env = gfxIn(src, { store: { 'flydiy.gfx': retro } });
     fakeRec(env, 250);
-    await env.C.run(20000);
+    await env.C.run(30000);
     const g = env.G.get();
     R.loop = { preset: g.preset, build: g.build, own: g.own, hw: g.hw, hwclass: env.store.get('flydiy.hwclass') || null, saved: JSON.parse(env.store.get('flydiy.gfx') || '{}').preset,
       events: env.events.filter(e => e.k === 'hwstep').length, settles: env.settles.slice(), state: env.G.hw.state() };
-    await env.C.run(60000);   // still 4 fps on the ground: once per state
+    await env.C.run(90000);   // still 4 fps on the ground: once per state
     R.loop.after = env.G.get().preset;
+  }
+  { // ONE slow reading is not enough (G1997b, the plateau): 4 fps for 13 s then 30 fps -> no step
+    const env = gfxIn(src, { store: { 'flydiy.gfx': retro } });
+    const rows = []; const R = { F: { away: 16, boot: 64 }, N: 65536, get frame() { return rows.length; }, row: f => rows[f] }; env.sb.FLIGHT_REC.rec = R;
+    let last = 0; env.C.setInterval(() => { const ms = env.C.t < 13500 ? 250 : 33; if (env.C.t - last >= ms) { rows.push({ t: env.C.t, dt: env.C.t - last, gpu: 20, work: 10, flags: 2, agl: 1, spd: 0 }); last = env.C.t; } }, 33);
+    await env.C.run(40000); R.oneSlow = env.G.get().preset; S_ONE = R.oneSlow;
   }
   { // a fast frame never steps
     const env = gfxIn(src, { store: { 'flydiy.gfx': retro } }); fakeRec(env, 33); await env.C.run(30000); R.fast = env.G.get().preset;
@@ -176,7 +183,7 @@ async function stepdown(src) {
     const env = gfxIn(src, { store: { 'flydiy.gfx': retro } }); env.G.hw.hold(true); fakeRec(env, 250); await env.C.run(30000); R.held = env.G.get().preset;
   }
   { // the shed at 4 fps: idle -> a step; the player's hands on the editor (an input every 2 s) -> no reading, no step
-    const idle = gfxIn(src, { shed: true, store: { 'flydiy.gfx': retro } }); fakeRec(idle, 250); await idle.C.run(20000);
+    const idle = gfxIn(src, { shed: true, store: { 'flydiy.gfx': retro } }); fakeRec(idle, 250); await idle.C.run(30000);
     const busy = gfxIn(src, { shed: true, store: { 'flydiy.gfx': retro } }); fakeRec(busy, 250);
     busy.C.setInterval(() => (busy.sb.__ev.input || []).forEach(f => f({})), 2000); await busy.C.run(30000);
     R.shed = { idle: idle.G.get().preset, idleKind: (idle.G.get().hw || {}).kind, editing: busy.G.get().preset };
@@ -235,6 +242,7 @@ async function verdicts(boot, gfx, rec, app, ana) {
   check(S.loop.after === 'potato', '2i ...and not again in the same state (still potato a minute on)');
   check(S.fast === 'retro' && S.ownLoop === 'retro' && S.air === 'retro' && S.held === 'retro', '2j a 30 fps frame, an explicit pick, the air, the self-test\'s hold: never a step');
   check(S.shed.idle === 'potato' && S.shed.idleKind === 'shed' && S.shed.editing === 'retro', '2l the shed at 4 fps steps when idle, never while the player edits (' + JSON.stringify(S.shed) + ')');
+  check(S_ONE === 'retro', '2m one slow reading then a steady 30 fps: no step - the plateau needs two readings running (' + S_ONE + ')');
   check(S.local.preset === 'retro' && S.local.ticks === 0, '2k localhost: no timer at all (' + JSON.stringify(S.local) + ')');
   const RV = revealIn(rec);
   out.push('3 THE REVEAL: ' + JSON.stringify(RV));

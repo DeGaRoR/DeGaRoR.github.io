@@ -78126,7 +78126,8 @@ THE CHANGES
   2 s); FLIGHT_REC.gpuTimer(on) switches the GPU timer live (the self-test's variant). tools/analyze_log.js: a log with no reveal
   gets one INFERRED (the first running flight frame, and says so); the step-downs printed.
 - G1995 gfx_settings.js GFX.hw THE RUNTIME STEP-DOWN: in the SHED (no editor input in the window) or ON THE GROUND (the stand,
-  the taxi), the delivered fps over 8 s (after 5 s in the state) under 15 -> the preset one rung down (ultra > gamer > current >
+  the taxi), the delivered fps under 15 in TWO 8 s readings running (after 5 s in the state; G1997b: one slow window - a clock
+  ramp - is not a class) -> the preset one rung down (ultra > gamer > current >
   retro > potato > laptop) through set('preset') + FLYDIY_SETTLE (the settings screen), once per state a page; an on-screen note
   ('Your machine measured slower than its class ... Change it in GRAPHICS', with 'reload to build lighter' when the new row's
   BUILD-time budget levers differ - POTATO-DEEP's list: mipSkip townBoot parked forestK impTile aeroAtlas flownBake islandHalf
