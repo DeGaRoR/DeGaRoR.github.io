@@ -77891,3 +77891,6 @@ THE BATTERY (`node tools/run_gates.js --all --jobs=3`, this cloud box: 4 cores, 
   - BIOME: "surface perf < 5 us" under three jobs; alone: PASS, 3.9 us/call.
 Run alone before the battery: PREMISES PASS (372 checks), PREMCOOK, PREMRASTER, STRIPGROUND, TAXICLEAR, WORLD, CONTACT, AUDIO,
 SETTLE all PASS on this branch.
+STATUS: READY (2026-10-06). The strips, the tour, GATE TOUR and the evidence on train 36 + DEST-TO; PILOT-ONE-2 verified on a
+merge, not merged (see THE DEPENDENCIES). Owed / for A0: the parked re-cook (FRAMECOST); PILOT-ONE-2's merge and a GATE TOUR
+re-run on it; East Point's slope (or a flapped build) if the user wants a land tour to include it - the user's call.
