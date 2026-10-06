@@ -1,0 +1,3 @@
+cub:ground    base 4.991 ms, now 4.913 ms: -1.6 % (pair median -0.9 %, armed 0/0/0/0/0/0/0/0/0/0/0/0)
+metal:ground  base 8.566 ms, now 8.438 ms: -1.5 % (pair median 1.3 %, armed 0/0/0/0/0/0/0/0/0/0/0/0)
+metal:air     base 8.001 ms, now 8.029 ms: 0.4 % (pair median 0.6 %, armed 0/0/0/0/0/0/0/0/0/0/0/0)
