@@ -25,14 +25,55 @@
     "cub_nose_before.jpg",
     "cub_belly_before.jpg",
     "cub_wing_before.jpg",
-    "cub_pane_before.jpg"
+    "cub_pane_before.jpg",
+    "cub_overview_after.jpg",
+    "cub_under_after.jpg",
+    "cub_nose_after.jpg",
+    "cub_belly_after.jpg",
+    "cub_wing_after.jpg",
+    "cub_pane_after.jpg"
    ],
    "arm": {
     "meshes": 466,
     "links": 9,
     "front": true,
     "uDmgM": 0.68
-   }
+   },
+   "crashLinks": 0,
+   "measure": [
+    {
+     "pct": 8.7158203125,
+     "mean": 2.550166015625,
+     "lum": -0.9807374550781384,
+     "layer": "crush",
+     "view": "nose",
+     "ok": true
+    },
+    {
+     "pct": 31.392578125,
+     "mean": 8.805517578125,
+     "lum": 1.1319919218750185,
+     "layer": "scrape",
+     "view": "belly",
+     "ok": true
+    },
+    {
+     "pct": 23.8759765625,
+     "mean": 11.729716796875,
+     "lum": -3.802025351562462,
+     "layer": "torn",
+     "view": "wing",
+     "ok": true
+    },
+    {
+     "pct": 3.802734375,
+     "mean": 1.95171875,
+     "lum": 1.7694007324219008,
+     "layer": "glass",
+     "view": "pane",
+     "ok": true
+    }
+   ]
   }
  }
 }
