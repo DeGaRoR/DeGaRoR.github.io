@@ -78034,3 +78034,10 @@ is not node's - the same on D2b's code; D2a's "bit-equal" compared sums at 1e-6)
   gate computes the uncut certificate again (the slow path, ~3 min); `--write-ref` refreshes it. Re-run the window scan then: the
   wheel window's margin (30 frames over the worst) is the validated builds' - a damped bounce peaks no later, an undamped one could.
 
+
+## TRAIN 37 LANDED (2026-10-06, A0 the coordinator; landed by A0 after AUDIO's re-run alone)
+Cargo: SND-ROLLOUT G1715-G1717 (the roll-out shot starts its engines the way the aeroplane does: +2.9 s single, +5.4 s twin -
+LENGTH, not load: the strict gate's garage->world rows +2.9-3.0 s, first flight +4.0 s, named); POTATO-DEEP G1527 (the premises
+patch at 3 px on potato / laptop: taxi 4.13 -> 3.71 M tris); FLOAT-SHAPE G1930-G1934 (the Wipline afterbody); DEST-TO
+G1945-G1954 (one To); DMG-CERTCOST G1890-G1892 (the certificate 35-46 % cheaper, damage ON only); boxlock.sh CPU locks
+exclusive. Strict gate: the known 30-fps-cap rows + the shot length above. Battery: all PASS but AUDIO (its ANIALLOC allocation self-tests red under the 6-job load + a peer's node work 02:08-02:43), AUDIO PASS alone (03:39).
