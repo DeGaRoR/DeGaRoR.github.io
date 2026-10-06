@@ -235,10 +235,10 @@ const SIM_DMG_SET_MIN = 1e-4;
 function simDmgSigs(sim) {
   const D = sim.damage && sim.damage();
   if (!D) return null;
-  // G2001 (DMG-SCUFF): the slide work joins the set's signature in coarse steps (each ~19 % more work, from 1 J), and
-  // only once there is some - with nothing slid (and always with the layer off) the signature is the base's string
+  // G2001 (DMG-SCUFF): the slide work, a THIRD signature of its own in coarse steps (each ~19 % more work, from 1 J) -
+  // never in the sets' (sS: the sets' timing, and DMG-WALL's wall key, stay the base's); '0' with nothing slid
   const q = D.scW >= 1 ? Math.floor(4 * Math.log2(D.scW)) + 1 : 0;
-  return [D.breaks + ':' + (D.cl ? D.cl.length : 0), D.yields + ':' + D.dents + (q ? ':' + q : '')];
+  return [D.breaks + ':' + (D.cl ? D.cl.length : 0), D.yields + ':' + D.dents, String(q)];
 }
 // G2001 (DMG-SCUFF): WHAT THE SKIN'S DAMAGE RECORDS READ, beside the sets - each member's plastic work (D0's DMG.wB, J)
 // and each node's slide work with its direction, the side it was pushed from (both in the body frame) and its share on
@@ -284,13 +284,18 @@ function simDmgHop(sim, hop, coreNode, win) {
   if (!sg) return null;
   const clk = typeof performance !== 'undefined' ? performance : Date, t0 = clk.now();
   let out = null;
+  const W = win == null ? SIM_DMG_SET_S : win;
   if (sg[0] !== hop.sB) {
-    hop.sB = sg[0]; hop.sS = sg[1]; hop.t = sim.t;
+    hop.sB = sg[0]; hop.sS = sg[1]; hop.t = sim.t; hop.sC = sg[2]; hop.tC = sim.t;
     const D = sim.damage(), pc = D.breaks ? simDmgPieces(sim, coreNode) : null;
     out = simDmgScuff(sim, { sB: sg[0], sS: sg[1], br: D.broken.slice(), pc: pc ? Array.from(pc) : null, st: simDmgSets(sim) });
-  } else if (sg[1] !== hop.sS && !(sim.t - hop.t < (win == null ? SIM_DMG_SET_S : win))) {
-    hop.sS = sg[1]; hop.t = sim.t;
+  } else if (sg[1] !== hop.sS && !(sim.t - hop.t < W)) {
+    hop.sS = sg[1]; hop.t = sim.t; hop.sC = sg[2]; hop.tC = sim.t;
     out = simDmgScuff(sim, { sS: sg[1], st: simDmgSets(sim) });
+  } else if (sg[2] !== (hop.sC || '0') && !(sim.t - (hop.tC == null ? -Infinity : hop.tC) < W)) {
+    // G2001 (DMG-SCUFF): the slide moved on, nothing else - its records only (wb, sc), on a clock of its own
+    hop.sC = sg[2]; hop.tC = sim.t;
+    out = simDmgScuff(sim, { sC: sg[2] });
   } else return null;
   hop.ms = clk.now() - t0;          // the payload's build (the union-find, the sets): GATE DMGSKIN reads it
   return out;

@@ -74,7 +74,8 @@ function simViewDmgApply(D, P) {
   if (P.st) { D.set.fill(0); for (let j = 0; j + 1 < P.st.length; j += 2) if (P.st[j] < D.nb) D.set[P.st[j]] = P.st[j + 1]; }
   if (P.sS) D.sS = P.sS;
   // G2001: the scuff's inputs, whole each time they come (a payload of the base's kind carries neither key)
-  if (P.wb || P.sc || (P.st && D.vS)) {
+  if (P.sC != null) D.sC = P.sC;
+  if (P.wb || P.sc || ((P.st || P.sC != null) && D.vS)) {   // (a payload with neither, once there was some: the heal)
     D.wB.fill(0); D.sW.fill(0); D.sD.fill(0); D.sN.fill(0); D.sG.fill(0);
     if (P.wb) for (let j = 0; j + 1 < P.wb.length; j += 2) if (P.wb[j] < D.nb) D.wB[P.wb[j]] = P.wb[j + 1];
     if (P.sc) for (let j = 0; j + 8 < P.sc.length; j += 9) { const i = P.sc[j]; if (!(i < D.n)) continue;
