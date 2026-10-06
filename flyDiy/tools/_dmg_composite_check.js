@@ -131,7 +131,8 @@ async function runAll(extra) {
       (missed.length ? ' (missed ' + missed.join(', ') + ')' : '') + '; the glass row made ductile (etu 0.02, ecu 0.03, a fold): ' +
       (D[0].crashes ? D[0].crashes.map(c => c.id + ' ' + c.lamSet + ' set').join(', ') : 'ERR') + ' - ' + (ductCaught ? 'caught' : 'MISSED'));
     const ok = clean && !missed.length && ductCaught;
-    console.log('GATE DMGCOMPOSITE: ' + (ok ? 'PASS' : 'FAIL') + ' (selftest, ' + ((Date.now() - t0) / 1000).toFixed(0) + ' s)');
+    console.log('(selftest, ' + ((Date.now() - t0) / 1000).toFixed(0) + ' s)');
+    console.log('GATE DMGCOMPOSITE: ' + (ok ? 'PASS' : 'FAIL'));
     process.exit(ok ? 0 : 1);
   }
   const R = await runAll();
@@ -142,6 +143,7 @@ async function runAll(extra) {
   for (const r of R.crashes) console.log('  REPORT  ' + r.id + ': ' + r.broken + ' broken, ' + (r.work / 1000).toFixed(1) + ' kJ of member work, steel set ' + r.steelSet + (r.crashed ? ', CRASHED (' + r.reason + ')' : '') + (r.back != null ? ', back ' + r.back.toFixed(2) + ' m' : ''));
   if (argv.includes('--out')) fs.writeFileSync(argv[argv.indexOf('--out') + 1], JSON.stringify(R, null, 1));
   const ok = res.every(x => x.ok);
-  console.log('GATE DMGCOMPOSITE: ' + (ok ? 'PASS' : 'FAIL') + ' (' + res.filter(x => x.ok).length + '/' + res.length + ', ' + ((Date.now() - t0) / 1000).toFixed(0) + ' s)');
+  console.log(res.filter(x => x.ok).length + '/' + res.length + ' checks, ' + ((Date.now() - t0) / 1000).toFixed(0) + ' s');
+  console.log('GATE DMGCOMPOSITE: ' + (ok ? 'PASS' : 'FAIL'));   // (run_gates reads the bare line)
   process.exit(ok ? 0 : 1);
 })();
