@@ -52,7 +52,7 @@ const PL = load('src/viewer/plaque.js');
 const BE = load('src/viewer/bench.js');
 const ST = load('src/viewer/stickers.js');
 const APP = rd('src/viewer/app.js');
-const PILOT = rd('src/core/41_test_pilot.js');
+const PILOT = rd('src/core/43_pilot.js');   // G1940: THE PILOT (the test pilot, 41, retired)
 const SKIN = rd('src/viewer/aeroskin.js');
 const BUILD = rd('tools/build.js');
 
@@ -199,8 +199,11 @@ console.log('THE WORD');
 console.log('THE STRIP');
 {
   const phases = new Set();
-  for (const m of PILOT.matchAll(/ap\.phase = '([A-Z_-]+)'/g)) phases.add(m[1]);
-  const unknown = [...phases].filter(p => BE.benchFlightStep(p) === 3 && !/DEPART|ENROUTE|CRUISE|HOLD|TURNBACK/.test(p));
+  // G1940: 43 changes phase through go('X') and names every phase in PILOT_PHASES
+  for (const m of PILOT.matchAll(/\bgo\('([A-Z_-]+)'\)/g)) phases.add(m[1]);
+  { const i = PILOT.indexOf('const PILOT_PHASES = {'), j = PILOT.indexOf('};', i);
+    for (const m of PILOT.slice(i, j).matchAll(/\b([A-Z]+): \[/g)) phases.add(m[1]); }
+  const unknown = [...phases].filter(p => BE.benchFlightStep(p) === 3 && !/DEPART|ENROUTE|CRUISE|HOLD|TURNBACK|DOWNWIND|BOX|CROSSWIND/.test(p));
   ok(phases.size >= 15 && !unknown.length, 'the phase strip knows all ' + phases.size + ' pilot phases' + (unknown.length ? ' — not ' + unknown.join(', ') : ''));
   ok(BE.benchFlightStep('CROSSWIND 3.0 m/s') === 3 && BE.benchFlightStep('TAXI') === 0 && BE.benchFlightStep('STOPPED') === 5, 'the crosswind leg is cruise, taxi and stopped map to their steps (A9: the ladder has its own card)');
   // the stickers: a stub context that records calls and throws on nothing
@@ -339,13 +342,13 @@ console.log('THE FLIGHT');
 {
   let core = null;
   try { core = require(path.join(ROOT, 'tools', 'flight_core.js')); } catch (e) {}
-  if (!core || !core.makeTestPilot) console.log('  skip  tools/flight_core.js not built');
+  if (!core || !core.makePilot) console.log('  skip  tools/flight_core.js not built');
   else {
     const spec = JSON.parse(rd('tools/_bench_fixture_build.json')).spec;
     const def = core.buildGen(spec), world = core.makeWorld();
     const sim = core.makeSim(def, world); sim.reset(0);
     for (let i = 0; i < 600; i++) sim.step(1 / 60);
-    const ap = core.makeTestPilot(sim, def, world);
+    const ap = core.makePilot(sim, def, world);   // G1940: THE PILOT (the test pilot retired)
     const phases = []; let last = null, t = 0, fin = null, tLift = null, tClimb = null;
     while (t < 700) {
       ap.update(1 / 60); sim.step(1 / 60); t += 1 / 60;

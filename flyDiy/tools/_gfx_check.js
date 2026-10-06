@@ -292,7 +292,7 @@ console.log('GATE GFX');
   ok(rows.includes('this computer') && !rows2.includes('this computer'), 'the menu carries "re-check my computer" (not on the loading screen)');
   // the page: the welcome's block right after boot.js's, ahead of the vendor; the island loader waits on it
   const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
-  const iB = html.indexOf('window.BOOT = B'), iW = html.indexOf('W.WELCOME = {'), iV = html.indexOf('function makeAutopilot'), iL = html.indexOf('return window.FLYDIY_WELCOME;');
+  const iB = html.indexOf('window.BOOT = B'), iW = html.indexOf('W.WELCOME = {'), iV = html.indexOf('function makePilot('), iL = html.indexOf('return window.FLYDIY_WELCOME;');
   ok(iB > 0 && iW > iB && iW < iV && iL > iW && iL < html.indexOf("fetch('src/core/world_packs.json')"),
      'index.html: welcome.js after boot.js and before the core; the island loader holds on FLYDIY_WELCOME before its first fetch');
 }

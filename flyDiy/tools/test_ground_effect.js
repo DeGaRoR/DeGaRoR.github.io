@@ -5,7 +5,7 @@
 // Asserts the McCormick-shaped behaviour: total drag at fixed alpha falls
 // monotonically as the wing approaches the ground, lift rises, and both
 // converge to free-air values far from it.
-const { buildGen, makeSim, makeWorld, makeAutopilot } = require('./flight_core.js');
+const { buildGen, makeSim, makeWorld, makePilot } = require('./flight_core.js');
 const world = makeWorld();
 const def = buildGen();
 
@@ -114,7 +114,7 @@ const checks = {
   const flyAB = (W, cone) => {
     const s = makeSim(def, W); s.setGroundCone(cone); s.reset(0);
     for (let i = 0; i < 600; i++) s.step(1 / 60);
-    return { s, ap: makeAutopilot(s, def, W) };
+    return { s, ap: makePilot(s, def, W) };   // G1940: THE PILOT (the classic retired)
   };
   const compare = (A, B, frames) => {
     let first = null, skipped = 0, sampled = 0, airborne = 0, airSkipped = 0, airSampled = 0;

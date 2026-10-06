@@ -1,0 +1,17 @@
+piperCub (file tail) mn_strip calm · normal
+  ROLL@0 LIFTOFF@13.1 CLIMB@28.7 CROSSWIND@49 DOWNWIND@68.5 BASE@75.2 FINAL@100.4 FLARE@163.5 ROLLOUT@169 STOPPED@179.8
+  take-off: run 115 m, lift-off 17.4 m/s · crosswind turn at 69 m
+  CROSSWIND overshoot    2 m  settle 8.9 s  roll reversals 0.5/min
+  DOWNWIND  overshoot    0 m  settle   —  roll reversals 0/min
+  BASE      overshoot   98 m  settle 8.9 s  roll reversals 0/min
+  final: captured at 119.3 s · above-slope rms 12.9 m · V-VAppr rms 5.27 (mean 4.85) · thr 0.05..0.05
+  flare: from 5.12 m at -3.19 m/s, 5.5 s
+  departure: short · Vx 19.6 m/s · run needed 156 m of 250
+  circuit: left-hand at 115 m, join straight
+  approach: short · Vref 19.2 m/s · aim 30 m in · flap 0 · run needed 135 m of 250
+  landing: sink 0.2 m/s · 23.3 m/s = 1.43 Vs · 321 m past the aim · 0.2 m off · run 158 m
+  control reversals /min (da dr de): takeoff 4 14 10 · climb 0 0 10 · legs 6 4 14 · downwind 0 2 0 · base 2 164 8 · final 5.7 3.8 12.4 · landing 16 30 28
+  rollout: max heading 52.2 deg, 0 reversals, rudder 0.95 · -6.5 m off at the stop
+  ! 10.9s committed-takeoff: past the point of stopping at V=14.9 with 159 m left — Vr in 17 m, continuing
+  completed at 179.8 s (68 s wall)
+{"key":"builds/cub_2026-09-20_corrected.json","name":"piperCub","from":"mn_strip","to":"mn_strip","style":"normal","tail":"file","slope":0,"surface":null,"weather":null,"day":"2026-06-21 10:00:00 AKDT","outcome":"completed","phase":"STOPPED","t":179.8,"phases":["ROLL@0","LIFTOFF@13.1","CLIMB@28.7","CROSSWIND@49","DOWNWIND@68.5","BASE@75.2","FINAL@100.4","FLARE@163.5","ROLLOUT@169","STOPPED@179.8"],"goArounds":0,"verdicts":["10.9s committed-takeoff: past the point of stopping at V=14.9 with 159 m left — Vr in 17 m, continuing"],"takeoff":{"run":115,"Vlo":17.4},"climb":{"hTurn":69,"vsMean":2.04},"legs":[{"name":"CROSSWIND","overshoot":2,"settleT":8.9,"rollRev":0.5},{"name":"DOWNWIND","overshoot":0,"settleT":null,"rollRev":0},{"name":"BASE","overshoot":98,"settleT":8.9,"rollRev":0}],"final":{"captureT":119.3,"aboveRms":12.9,"vRms":5.27,"vErrMean":4.85,"thrMin":0.05,"thrMax":0.05},"flare":{"entryAgl":5.12,"entryVs":-3.19,"t0":163.53333333333333,"dur":5.5},"landing":{"sink":0.2,"V":23.3,"VoverVs":1.43,"pastAim":321,"off":0.2,"run":158,"three":false,"drift":-0.09},"activity":{"takeoff":{"s":29,"da":4,"dr":14,"de":10},"climb":{"s":20,"da":0,"dr":0,"de":10},"legs":{"s":20,"da":6,"dr":4,"de":14},"downwind":{"s":7,"da":0,"dr":2,"de":0},"base":{"s":25,"da":2,"dr":164,"de":8},"final":{"s":63,"da":5.7,"dr":3.8,"de":12.4},"landing":{"s":16,"da":16,"dr":30,"de":28}},"rollout":{"maxE":52.2,"zeroX":0,"maxDr":0.95,"xtEnd":-6.5},"Vs":16.3,"VsLanding":16.3,"VAppr":19.2,"appr":{"technique":"short","Vref":19.2,"Vbase":19.2,"gust":0,"aimIn":30,"flap":0,"len":250,"surface":6,"runNeed":135},"dep":{"technique":"short","Vx":19.6,"runNeed":156,"len":250,"surface":6},"circuit":{"hand":"left","hC":115,"join":"straight","declared":null},"mass":476,"sheet":{"Vs":15.98,"Vs0":15.98,"Vref":20.78,"Vrot":16.2,"Vx":19.58,"Vy":22.5,"Vbg":22.61,"Vms":17.19,"Vcruise":31.4,"climbMax":2.97,"sinkMin":2.11,"LDbest":9.4,"TORun":156,"LDGrun":134.73,"mass":476.19},"tecs":true,"path":true,"wall":68,"csv":"/tmp/claude-0/-home-user-DeGaRoR-github-io/e7e858f3-5d06-56b7-b9c9-c9722c2634d1/scratchpad/ep6/cub_mn_base.csv"}
