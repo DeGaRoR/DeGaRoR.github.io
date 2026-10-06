@@ -71,6 +71,25 @@ function pageOld() {
       const e = (i, j) => Math.hypot(pa[i * 3] - pa[j * 3], pa[i * 3 + 1] - pa[j * 3 + 1], pa[i * 3 + 2] - pa[j * 3 + 2]); if (Math.max(e(a, b), e(b, c), e(c, a)) > 2) big++; } });
   return { sameModel: O === m, inScene: !!sc, scene: sc ? (sc === (FLIGHT_PROBE.hangarScene ? FLIGHT_PROBE.hangarScene() : null) ? 'hangar' : 'world') : null, visible: vis, meshes, tris: tris | 0, big };
 }
+// THE SCENES' GROUPS (A0: "list scene.children by name, uuid and triangle count after the rebuild, and diff against a fresh
+// load"): every group down to depth 3 of the world's scene and the hangar's, its drawn triangles (visible meshes under it)
+// and how many are past 2 m. A group after a path that a fresh load did not have, holding giant triangles, is the survivor
+function pageScene() {
+  const P = FLIGHT_PROBE, out = [];
+  const tri = o => { let n = 0, big = 0; o.traverse(q => { if (!q.isMesh || !q.geometry || !q.geometry.attributes.position) return;
+      let vis = q.visible; for (let a = q.parent; a && a !== o.parent && vis; a = a.parent) vis = a.visible; if (!vis) return;
+      const g = q.geometry, pa = g.attributes.position.array, ix = g.index ? g.index.array : null, nt = ix ? g.index.count / 3 : pa.length / 9; n += nt;
+      if (nt > 200000) return;
+      for (let t = 0; t < nt; t++) { const a = ix ? ix[t * 3] : t * 3, b = ix ? ix[t * 3 + 1] : t * 3 + 1, c = ix ? ix[t * 3 + 2] : t * 3 + 2; if (a === b && b === c) continue;
+        const e = (i, j) => Math.hypot(pa[i * 3] - pa[j * 3], pa[i * 3 + 1] - pa[j * 3 + 1], pa[i * 3 + 2] - pa[j * 3 + 2]); if (Math.max(e(a, b), e(b, c), e(c, a)) > 2) big++; } });
+    return [n | 0, big]; };
+  const walk = (sn, o, path, d) => { for (const c of o.children) { const nm = c.name || c.type, pth = path + '/' + nm; const [n, big] = tri(c);
+      if (n) out.push({ scene: sn, path: pth, uuid: c.uuid, visible: c.visible, tris: n, big, isModel: c === (P.model() && P.model().grp) });
+      if (d < 3 && c.children && c.children.length && c.children.length < 60) walk(sn, c, pth, d + 1); } };
+  const W = P.craft() && P.craft().parent, H = P.hangarScene ? P.hangarScene() : null;
+  if (W) walk('world', W, '', 1); if (H && H !== W) walk('hangar', H, '', 1);
+  return out;
+}
 function pageWreck() {
   const P = FLIGHT_PROBE, m = P.model(), scene = P.craft().parent, W = window.FLYDIY_WRECK_STATS ? FLYDIY_WRECK_STATS() : {};
   const debris = scene.children.filter(c => /^wreckDebris:/.test(c.name || '')).length;
@@ -89,6 +108,7 @@ const inShed = "document.body.classList.contains('mode-ws')";
   const R = { at: new Date().toISOString(), paths: {} };
   const pl0 = await ev(MB.A.places), places = typeof pl0 === 'string' ? JSON.parse(pl0) : pl0;
   const strips = places.filter(p => p.kind === 'strip');
+  R.fresh = await S.run(pageScene);   // (a fresh load: the stand, before any crash)
   for (const k of opt('paths', 'retry,garage,place').split(',')) {
     const r = { path: k };
     // (a staged crash that breaks nothing proves nothing about the path: staged once more, the why kept - the hits, the
@@ -113,6 +133,10 @@ const inShed = "document.body.classList.contains('mode-ws')";
     r.after = await S.run(pageWreck);
     r.giant = await S.run(pageGiant);
     r.old = await S.run(pageOld);
+    r.scene = await S.run(pageScene);
+    { const key = e => e.scene + e.path + '#' + e.tris, F = new Set((R.fresh || []).map(key)), U = new Set((R.fresh || []).map(e => e.uuid));
+      r.survivors = r.scene.filter(e => e.big > 0 && !F.has(key(e))).map(e => Object.assign({ newUuid: !U.has(e.uuid) }, e));
+      console.log('  ' + k + ' groups with giant triangles not in a fresh load: ' + JSON.stringify(r.survivors.slice(0, 20))); }
     console.log('  ' + k + ' the crashed model after the path: ' + JSON.stringify(r.old));
     console.log('  ' + k + ' giant triangles (an edge past 2 m): ' + JSON.stringify(r.giant));
     r.ok = r.exercised && !r.after.active && r.after.bodies === 0 && r.after.debris === 0 && r.after.hidden === 0 && r.after.collapsed === 0 && !r.after.broken;
