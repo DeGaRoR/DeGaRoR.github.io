@@ -150,6 +150,14 @@ async function pageStageW(o) {
   const P = FLIGHT_PROBE, world = P.world(), wait = ms => new Promise(r => setTimeout(r, ms));
   const SW = window.FLYDIY_SIMW, live = () => !!(SW && SW.state().phase === 'live' && SW.state().flight && SW.state().flight.live);
   if (o.kind !== 'trunk') return { err: 'worker: a ' + o.kind + ' case needs the aeroplane turned (only trunk cases under the worker)' };
+  // (DMG-DRIVE2's find: a case staged on the last case's wreck - its flight 'over' - ran 0.8 s on the same broken members:
+  // a fresh flight first - the card's own `Fly again` (fullReset) - and none staged on a sim still over)
+  if (P.over() || (P.damage() && (P.damage().crashed || P.damage().over))) {
+    if (!P.over()) P.endFlight('crashed');
+    const g = document.getElementById('bGo'); if (g) g.click();
+    for (let i = 0; i < 80 && (P.over() || (P.damage() && P.damage().crashed)); i++) await wait(250);
+    if (P.over() || (P.damage() && P.damage().crashed)) return { err: 'worker: the wreck of the last case is still flying (the reset did not take) - not staged on it' };
+  }
   window.FLYDIY_WRECK = !window.__d4bWreckOff; window.FLYDIY_SKINBREAK = true;
   const cond = document.getElementById('selCond');
   if (cond && [...cond.options].some(x => x.value === 'calm') && cond.value !== 'calm') { cond.value = 'calm'; cond.onchange({ target: cond }); }
@@ -243,7 +251,10 @@ async function pageStage(o) {
     const hl = Math.hypot(xA[0], xA[2]);
     for (let i = 0; i < n; i++) { p[i*3+1] += ground + 0.3 - y2; v[i*3] = -o.V * xA[0] / hl; v[i*3+1] = -o.sink; v[i*3+2] = -o.V * xA[2] / hl; }
   }
-  sim.ctl.thr = o.thr || 0;
+  // (DMG-DRIVE2's find: the page's own loop writes the controls every frame from the input - input.js write(): ctl.thr =
+  // S.throttle.out - so a throttle set once ran at 0.62 between the steps: hands on, as the worker path, and the controls
+  // zeroed before every step pair in pageRunOn)
+  P.setManual(true); sim.ctl.thr = o.thr || 0; sim.ctl.brake = 0;
   window.__d4bO = o;
   // (the placement held: the page draws it still for the intact census, then pageRunOn steps it)
   if (o.placeOnly) { const raf0 = () => new Promise(r => requestAnimationFrame(() => r())); for (let f = 0; f < 6; f++) await raf0(); return { placed: true }; }
@@ -256,6 +267,7 @@ async function pageRunOn(o) {
   const FRr = window.FLIGHT_REC && window.FLIGHT_REC.rec, C = FRr ? FRr.COLS : null, col = k => C ? C.indexOf(k) : -1;
   let s = 0, settled = 0, t1 = performance.now(); window.__d4bMountT = null;
   for (; s < (o.steps || 1200); s += 2) {
+    sim.ctl.thr = (window.__d4bO && window.__d4bO.thr) || 0;
     const p0 = performance.now(); step(1 / 60); step(1 / 60); const phys = performance.now() - p0;
     await raf();
     const t2 = performance.now(); ms.push(t2 - t1); t1 = t2;
