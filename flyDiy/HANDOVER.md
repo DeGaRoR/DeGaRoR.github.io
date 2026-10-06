@@ -77200,3 +77200,11 @@ same patch geometry (the 'lean' ground program on it), so gamer's geometric evid
 PROPOSAL (A0 relays; the user decides - every desktop preset's budget is frozen in GATE GFX §10 until then): `patchTolPx: 6` on
 retro, current, gamer and ultra too (the -0.57 M everywhere; nothing visible at 1-50 m or from 400-1 200 m, the pavement held
 by G1528's sink and 1 px pavement tolerance). The conservative step is 3 px (-0.42 M). One BUDGETS field per row + §10's freeze.
+
+**G1529 CORRECTION - HW-COVERAGE's throttled retro load WITH A FRESH COOK** (their tree re-cooked, `parked_cook.js --check` same,
+every parked aeroplane 'cook'; --cpu-throttle 4, 1920 x 1080, warm, 6 Oct 12:35-12:47; JSONs tools/perf/hwcov/
+rollout_load_{retro,potato}_cooked.json on claude/hw-coverage-g1995 71b02a70) - REPLACES their 04:34 row (169 s, a stale cook):
+to the shed retro 150.6 s, potato 94.1 s (+56.5). Retro / potato: town 30.3 / 4.0, settle 29.7 / 23.6, world 27.8 / 25.8, bake
+7.1 / 0, ring 8.0 / 6.9, upload 6.9 / 6.2, frames 5.0 / 1.8, spec 3.0 / 1.0, firstFrame 2.4 / 0.5, parked 0 / 0. Retro's gap to
+potato on a slow CPU is the town (+26 s - the 4 km boot town, kept: nearer moves it into the taxi), the settle (+6), the bake (+7,
+gone with G1529) and the first frames (+6).
