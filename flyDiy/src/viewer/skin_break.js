@@ -993,29 +993,6 @@
     R.removed += n; R.torn += n; R.islN = (R.islN || 0) + n;   // (islN: the census tells the confetti from the tear)
     return n;
   }
-  function over(pos, base, a, b) {
-    const l = Math.hypot(pos[a] - pos[b], pos[a + 1] - pos[b + 1], pos[a + 2] - pos[b + 2]);
-    const r = Math.hypot(base[a] - base[b], base[a + 1] - base[b + 1], base[a + 2] - base[b + 2]);
-    return !(l <= (1 + TEAR) * r + TEAR_ABS);          // (a NaN edge is torn too)
-  }
-  // the gate's measure over every live triangle of a group: the worst edge past its bound (m: l - (1 + TEAR) r - TEAR_ABS,
-  // <= 0 everywhere when the skin holds), and the worst stretch l / r among edges of 2 cm or more
-  function worstStretch(R, base, pos) {
-    const i0 = R.idx0 || R.idx, dead = R.dead; let ex = -Infinity, m = 0, at = -1;
-    for (let t = 0; t < R.nt; t++) {
-      if (dead && dead[t]) continue;
-      for (let e = 0; e < 3; e++) {
-        const a = i0[t * 3 + e] * 3, b = i0[t * 3 + (e + 1) % 3] * 3;
-        const r = Math.hypot(base[a] - base[b], base[a + 1] - base[b + 1], base[a + 2] - base[b + 2]);
-        const l = Math.hypot(pos[a] - pos[b], pos[a + 1] - pos[b + 1], pos[a + 2] - pos[b + 2]);
-        if (l !== l) return { ex: Infinity, m: Infinity, t };
-        const x = l - (1 + TEAR) * r - TEAR_ABS;
-        if (x > ex) { ex = x; at = t; }
-        if (r >= 0.02 && l / r > m) m = l / r;
-      }
-    }
-    return { ex, m, t: at };
-  }
   const API = { TEAR, TEAR_ABS, DRAPE_K, WRINKLE_L, WRINKLE_A, NEAR_K, SET_HOT, INH_K, INH, inhClass, inhSteps, bindInherit, wallSync, wallFollow, frameSegs, coverGrid, closestCover, triClosest, topo, brokenPairs, bindNearest, dupOf, make, event, bindMore, nodeFrames, polar, poseGen, poseCage, tear, worstStretch, hotNodes, cutWall, islands };
   if (typeof module !== 'undefined' && module.exports) module.exports = API;
   if (typeof window !== 'undefined') window.SKIN_BREAK = API;
