@@ -18,7 +18,21 @@
     "hash": "226e0692",
     "links": 31
    },
-   "sameAsNoscuff": true
+   "sameAsNoscuff": true,
+   "stills": [
+    "cub_overview_before.jpg",
+    "cub_under_before.jpg",
+    "cub_nose_before.jpg",
+    "cub_belly_before.jpg",
+    "cub_wing_before.jpg",
+    "cub_pane_before.jpg"
+   ],
+   "arm": {
+    "meshes": 466,
+    "links": 9,
+    "front": true,
+    "uDmgM": 0.68
+   }
   }
  }
 }

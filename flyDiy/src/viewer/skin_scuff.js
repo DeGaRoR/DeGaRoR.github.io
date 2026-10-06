@@ -53,7 +53,7 @@
     paneSet1: 0.06,   // ...and is full: DMG-D4b's CRUSH (6 cm) - the pane leaves as debris there
     paneHit0: 0.12,   // the least severity drawn (its nodes' hit or its frame's set) - below it the pane is clean
     panes: 8,         // the pane slots (uDmgPane)
-    budget: 12000,    // places a frame (a pass over a record is ~0.1-0.4 us a place: ~2-5 ms; GATE DMGSCUFF times it)
+    budget: 8000,     // places a frame (a place is ~0.3 us in node - GATE DMGSCUFF times it: ~2.5 ms a frame; the torn band a tick of its own)
     bindBudget: 1500, // places a frame bound through skin_break's own binding when a no-break scuff needs them
   };
   // the finish -> the record's class (what the block draws: 0 metal, 1 fabric, 2 wood, 3 other, 4 glass)
