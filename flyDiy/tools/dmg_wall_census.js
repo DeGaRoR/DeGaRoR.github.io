@@ -352,6 +352,14 @@ function pageScenes() {
   try { const mt = window.CAGE_JOIN && CAGE_JOIN.mount && CAGE_JOIN.mount(); if (mt) roots.push(['stand', mt]); } catch (e) {}
   let cur = null; try { cur = FP.model() && FP.model().grp; } catch (e) {}
   for (const g of seen) if (g.parent) roots.push([g === cur ? 'flown' : 'OLD-MODEL-IN-A-SCENE', g]);
+  // (and every mesh in the shed's or the world's scene whose positions SHARE A BUFFER with the snapshot - a parked copy,
+  // the stand, a bake built from it: the coordinator's candidates)
+  const snapBufs = new Set(), D0 = (FP.model() && FP.model().data) || window.CAGE_VISUAL || {};
+  for (const G of [D0.groups].concat((D0.parts || []).map(p => p.groups))) if (G) for (const k in G) for (const f of ['pos', 'idx']) if (G[k] && G[k][f] && G[k][f].buffer) snapBufs.add(G[k][f].buffer);
+  const shared = new Set();
+  for (const sc of [(() => { try { return FP.hangarScene(); } catch (e) { return null; } })(), (() => { try { return FP.craft().parent; } catch (e) { return null; } })()]) if (sc) sc.traverse(o => {
+    if (o.isMesh && o.geometry && o.geometry.attributes.position && o.geometry.attributes.position.array && snapBufs.has(o.geometry.attributes.position.array.buffer)) shared.add(o); });
+  for (const o of shared) roots.push(['SNAPSHOT-SHARED', o]);
   for (const [tag, root] of roots) root.traverse(o => {
     if (!o.isMesh || !o.geometry || !o.geometry.attributes.position || !o.visible) return;
     const g = o.geometry, A = g.attributes.position.array, ix = g.index ? g.index.array : null, nt = ix ? g.index.count / 3 : A.length / 9; let n = 0;
