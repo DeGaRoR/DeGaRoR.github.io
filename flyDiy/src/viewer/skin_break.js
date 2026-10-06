@@ -681,7 +681,7 @@
   const FRAME_SEC = new Set(['fuselage', 'wings', 'tail']);
   function frameSegs(T, rest, all) {
     const L = [];
-    T.beams.forEach((b, bi) => { if (!all && (b.cls === 'wire' || (b.sec && !FRAME_SEC.has(b.sec)))) return;
+    T.beams.forEach((b, bi) => { if (all === 'engines' ? b.sec !== 'engines' : (!all && (b.cls === 'wire' || (b.sec && !FRAME_SEC.has(b.sec))))) return;
       const ax = rest[b.a * 3], ay = rest[b.a * 3 + 1], az = rest[b.a * 3 + 2], ex = rest[b.b * 3] - ax, ey = rest[b.b * 3 + 1] - ay, ez = rest[b.b * 3 + 2] - az;
       const L2 = ex * ex + ey * ey + ez * ez; if (L2 > 1e-8) L.push({ bi, a: b.a, b: b.b, ax, ay, az, ex, ey, ez, L2 }); });
     return L;
@@ -778,7 +778,7 @@
   }
   function* inhSteps(L, T, rest, st, every) {
     Object.assign(st, { places: 0, tube: 0, tubeFar: 0, cover: 0, wall: 0, wallFar: 0, rigid: 0, parts: 0, bigParts: 0, keep: 0, over8: 0, done: false });
-    const S = frameSegs(T, rest), Sall = frameSegs(T, rest, true); let _n = 0;
+    const S = frameSegs(T, rest), Sall = frameSegs(T, rest, true), Seng = frameSegs(T, rest, 'engines'); let _n = 0;
     for (const E of L) if (!E.cv) E.cv = new Uint8Array(E.R.nv).fill(INH[E.cls] || 0);
     // a welded place never spans two classes or two part objects (two panels touching at a seam are two places: each
     // goes with its own part) - the record's rep split there, before any event reads it
@@ -824,14 +824,18 @@
         continue;
       }
       for (const v of list) { const id = obj ? obj[v] : 0; let b = box.get(id);
-        if (!b) box.set(id, b = { n: 0, x: 0, y: 0, z: 0, x0: Infinity, y0: Infinity, z0: Infinity, x1: -Infinity, y1: -Infinity, z1: -Infinity, wi: null, ww: null });
+        if (!b) box.set(id, b = { v0: v, n: 0, x: 0, y: 0, z: 0, x0: Infinity, y0: Infinity, z0: Infinity, x1: -Infinity, y1: -Infinity, z1: -Infinity, wi: null, ww: null });
         const x = P[v * 3], y = P[v * 3 + 1], z = P[v * 3 + 2]; b.n++; b.x += x; b.y += y; b.z += z;
         b.x0 = Math.min(b.x0, x); b.y0 = Math.min(b.y0, y); b.z0 = Math.min(b.z0, z); b.x1 = Math.max(b.x1, x); b.y1 = Math.max(b.y1, y); b.z1 = Math.max(b.z1, z); }
       for (const b of box.values()) { b.wi = new Int32Array(K); b.ww = new Float32Array(K);
         b.big = Math.hypot(b.x1 - b.x0, b.y1 - b.y0, b.z1 - b.z0) > RIGID_D;
         // (a part rides what carries it - every member, the engine mount and the gear's too: a nose bowl on the engine and
         // its mount, a side panel on the firewall's frame, a gear plate on its leg)
-        if (!b.big) { _acc.clear(); coverInto(_acc, Sall, b.x / b.n, b.y / b.n, b.z / b.n); _acc.put(b.wi, b.ww, 0, K); st.parts++; } else st.bigParts++; }
+        // (G1859.5: a COWL panel rides the engine mount's members - it encloses the engine and is fastened round it: a
+        // mount broken in a crash took the engine to the ground while a cowl blended over the firewall's frame stayed on
+        // the nose, the coordinator's catch in census4)
+        const SS = E.cowl && E.cowl[b.v0] && Seng.length ? Seng : Sall;
+        if (!b.big) { _acc.clear(); coverInto(_acc, SS, b.x / b.n, b.y / b.n, b.z / b.n); _acc.put(b.wi, b.ww, 0, K); st.parts++; } else st.bigParts++; }
       for (const v of list) { if (++_n >= every) { _n = 0; yield st.places; } const b = box.get(obj ? obj[v] : 0); st.places++;
         if (b.big) { _acc.clear(); coverInto(_acc, S, P[v * 3], P[v * 3 + 1], P[v * 3 + 2]); if (_acc.put(R.wi, R.ww, v * K, K)) st.over8++; st.cover++; }
         else { for (let k = 0; k < K; k++) { R.wi[v * K + k] = b.wi[k]; R.ww[v * K + k] = b.ww[k]; } st.rigid++; } }
