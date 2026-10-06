@@ -67,7 +67,16 @@ const GEN_DRIVE = {
   strike: { turf: 0.05, brush: 0.04, stop: { soft: 0.15, water: 0.25, rigid: 0.04 }, sep: { wood: 120, maple: 120, walnut: 120, carbon: 120, alu: 200 },
             sepWater: 1.6,   // the water gives more than the soil: a blade breaks there only past 1.6 x its tip speed (an
                              // ordinary bow-in at 0.2 throttle dipped the twin's carbon tips 4.6 % of R at 128 m/s)
-            bentK: 0.6, vib: { brush: 0.1, bent: 0.6, stoppage: 0, separation: 1 } },
+            bentK: 0.6, vib: { brush: 0.1, bent: 0.6, stoppage: 0, separation: 1 },
+            // G2036 (DMG-DRIVE2): A BRITTLE BLADE INTO A RIGID OBSTACLE breaks on ENERGY, not on a tip speed. Its root takes
+            // U = sigma^2 c t Lr / (18 E) of elastic work before it ruptures (a cantilever loaded at 0.75 R: Mr = sigma c t^2 / 6
+            // over Lr = (0.75 - root) R, EI = E c t^3 / 12 - DMG-NOSE's blade, GEN_NOSE.blade); the wood a trunk offers it
+            // (compression across the grain, ~3-7 MPa green, as recalled) over the blade's span loads it far past that, so
+            // the blade breaks whenever the turning prop holds more than U (0.5 I w^2 >= U: ~130 rpm on the Cub's 74 in prop,
+            // its idle holds 25 x U), and stops whole only when it holds less (a stopped or hand-turned prop). The moduli
+            // (USDA Wood Handbook FPL-GTR-190 Table 5-3a, as recalled: yellow birch 13.9 GPa, sugar maple 12.6, black walnut
+            // 11.6; carbon GAME). Alloy bends (ductile): its rigid grade stays on the tip speed above
+            E: { wood: 13.9e9, maple: 12.6e9, walnut: 11.6e9, carbon: 70e9 }, Eat: 0.75 },
   // a lost blade: the share of one blade's mass gone and where its centre was (x R): the rotating force m e w^2
   imb: { frac: 0.35, at: 0.75 },
   internalP: 0.15,                    // the seeded share of teardowns that find internal damage (AOPA 2007, 10-20 %)
@@ -102,7 +111,17 @@ function genDriveSpec(def) {
   const Q = (E.powerW || 0) / (2 * Math.PI * rated / 60);       // the engine's mean torque at rated (N m, crank)
   return { rated, rpmMax: row.rpmMax || rated, gear, cyl, family: E.family || 'four', cs: !!E.cs, powerW: E.powerW || 0,
            Q, Qprop: Q * gear, tqK: genDriveTorqueFactor(cyl, E.family), D, R, mass, blades, mat, omegaR,
-           I: GEN_DRIVE.Ik * mass * R * R, sepTip: GEN_DRIVE.strike.sep[mat] || GEN_DRIVE.strike.sep.wood };
+           I: GEN_DRIVE.Ik * mass * R * R, sepTip: GEN_DRIVE.strike.sep[mat] || GEN_DRIVE.strike.sep.wood,
+           hub: GEN_NOSE.hub[mat] != null ? GEN_NOSE.hub[mat] : GEN_NOSE.hub.wood,   // G2035: the hub's depth (the disc's band)
+           Ub: genDriveBladeU(SP, R, mat) };                            // G2036: a brittle blade's work to rupture (J; 0 alloy)
+}
+// G2036: the elastic work a brittle blade's root takes before it ruptures (J), loaded at GEN_DRIVE.strike.Eat x R; 0 for a
+// ductile (alloy) blade - DMG-NOSE's blade root (its chord, thickness ratio, root station and stress: GEN_NOSE.blade)
+function genDriveBladeU(SP, R, mat) {
+  const Em = GEN_DRIVE.strike.E[mat]; if (!(Em > 0)) return 0;
+  const B = GEN_NOSE.blade, c = ((SP && SP.chord > 0) ? SP.chord : 0.1) * R, t = (B.tc[mat] || B.tc.wood) * c, sg = B.sig[mat] || B.sig.wood;
+  const Lr = Math.max(0.05 * R, (GEN_DRIVE.strike.Eat - ((SP && SP.root > 0) ? SP.root : 0.16)) * R);
+  return sg * sg * c * t * Lr / (18 * Em);
 }
 // a fresh per-engine state (the fields sim.damage().drive[k] carries)
 // (G2013, DMG-NOSE: `crush` the nose's deepest crush (m, from the spinner's tip - DMG-D4b's cowl debris reads it in place of
@@ -137,10 +156,13 @@ function genDriveOverspeed(st, ratio, dt) {
 // THE STRIKE'S TIER from the bite (m), the disc's radius, the surface ('soft' | 'water' | 'rigid') and the tip speed at
 // contact (m/s) against the blade's own (genDriveSpec sepTip): 1 brush, 2 bent, 3 stoppage, 4 separation
 const GEN_DRIVE_STRIKE = [null, 'brush', 'bent', 'stoppage', 'separation'];
-function genDriveStrikeTier(bite, R, surf, tip, sepTip) {
+// (G2036: `eR` the turning prop's energy over a brittle blade's rupture work, 0.5 I w^2 / Ub - given for a brittle blade on
+// a rigid obstacle, where it grades past the brush alone: >= 1 the blade breaks (separation), < 1 the prop stops whole)
+function genDriveStrikeTier(bite, R, surf, tip, sepTip, eR) {
   const S = GEN_DRIVE.strike, r = bite / (R || 1);
   if (!(r > 0)) return 0;
   if (r <= S.brush) return tip > sepTip && surf === 'rigid' ? 4 : 1;
+  if (surf === 'rigid' && eR != null) return eR >= 1 ? 4 : 3;
   const stop = S.stop[surf] != null ? S.stop[surf] : S.stop.soft;
   if (tip > sepTip * (surf === 'water' ? S.sepWater : 1)) return 4;
   return r > stop ? 3 : 2;

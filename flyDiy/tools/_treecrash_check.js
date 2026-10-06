@@ -67,7 +67,8 @@ if (argv[0] === '--build') {
     const KE = r => r.trace.reduce((m, x) => Math.max(m, x.ke || 0), 0);
     const tx = L.atTrunk(k, { D: 4, V: 3, thr: 0, secs: 8 });
     out.taxi = { dmg: tx.dmg, reach: tx.reach, end: tx.end, finite: tx.finite, eng: tx.eng,
-      crush: ((tx.sim.damage().drive || [])[0] || {}).crush || 0 };   // G2015 (DMG-NOSE): the nose's crush (m) - the dent's home now
+      crush: ((tx.sim.damage().drive || [])[0] || {}).crush || 0,   // G2015 (DMG-NOSE): the nose's crush (m) - the dent's home now
+      crushLayer: ((tx.sim.damage().drive || [])[0] || {}).crushLayer || null };   // G2035 (DMG-DRIVE2): how far it went
     const br = L.atTrunk(k, { D: 6, V: 1.4, walk: 1.4, secs: 12, off: 0.85 * g.span / 2 });
     out.brush = { dmg: br.dmg, hits: br.hits, finite: br.finite };
     out.fly = [0, 2.5].map(off => { const r = L.atTrunk(k, { D: 40, agl: 4, V: 30, thr: 0, secs: 5, off });
@@ -125,8 +126,13 @@ const pk = p => (p ? f2(p.max) + ' (' + (p.t >= p.c ? p.clsT + ', tension' : p.c
     const tx = r.taxi;
     // (G2015, DMG-NOSE: the dent is the crushable nose's - the spinner crushed - or a member's set; with the nose the 3 m/s
     // taxi sets no member at all: the crush takes it before the engine's lattice is reached)
-    yes(tx.finite && (tx.dmg.members > 0 || tx.crush > 0) && !tx.dmg.crashed && tx.dmg.propStrike && tx.eng.every(e => !e.running) && tx.reach - tx.end < 2,
-      'taxied at 3 m/s into a trunk: a dent (the nose crushed ' + (100 * (tx.crush || 0)).toFixed(0) + ' cm; ' + tx.dmg.members + ' members set, ' + tx.dmg.breaks + ' of the nose broken, ' + tx.dmg.work.toFixed(0) + ' J), no crash; the prop struck, the engine stopped; back ' + (tx.reach - tx.end).toFixed(2) + ' m from where it stopped');
+    // (G2035, DMG-DRIVE2: the prop strikes where its blades are - the base graded it with the trunk 0.9 m out. One physics with
+    // DMG-NOSE: the prop struck, and the engine stopped, exactly when the crush passed the spinner; a taxi the spinner takes whole
+    // leaves the blades clear of the trunk and the engine idling)
+    const struck = !!tx.dmg.propStrike, pastSpinner = !!tx.crushLayer && tx.crushLayer !== 'spinner';
+    yes(tx.finite && (tx.dmg.members > 0 || tx.crush > 0) && !tx.dmg.crashed && struck === pastSpinner && (!struck || tx.eng.every(e => !e.running)) && tx.reach - tx.end < 2,
+      'taxied at 3 m/s into a trunk: a dent (the nose crushed ' + (100 * (tx.crush || 0)).toFixed(0) + ' cm, its ' + tx.crushLayer + '; ' + tx.dmg.members + ' members set, ' + tx.dmg.breaks + ' of the nose broken, ' + tx.dmg.work.toFixed(0) + ' J), no crash; ' +
+      (struck ? 'the prop struck, the engine stopped' : 'the spinner took it - the blades never met the trunk, the engine ' + (tx.eng.every(e => e.running) ? 'idling' : 'stopped')) + '; back ' + (tx.reach - tx.end).toFixed(2) + ' m from where it stopped');
     yes(r.brush.finite && r.brush.hits > 0 && !r.brush.dmg.crashed, 'a wingtip into a trunk at walking pace (1.4 m/s): touched (' + r.brush.hits + ' contacts), ' + r.brush.dmg.members + ' members set, no crash');
     console.log('4. a flight into a trunk at 30 m/s');
     for (const fl of r.fly) {

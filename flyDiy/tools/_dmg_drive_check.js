@@ -58,7 +58,8 @@ if (argv[0] === '--part') {
       const T = C.GEN_DRIVE.strike.turf;
       // (the disc set 2 cm past the turf with the nose RISING at 0.3 m/s: one touch, then the tail settles - at rest the Jodel's would tip on over)
       { const r = D.noseOver(k, Object.assign({ V: -0.3, gap: -(T + 0.02), thr: 0.2, secs: 2 }, o)); out.brush = { running: r.running, d: (r.drive || []).map(slim), finite: r.finite }; }
-      { const r = D.trunkStrike(k, Object.assign({ V: 3, thr: 0.3 }, o)); out.trunk3 = { running: r.running, d: (r.drive || []).map(slim), groups: r.groups, finite: r.finite }; }
+      // (G2035: the trunk in the disc, 0.75 m across - clear of the spinner, which takes a centred 3 m/s taxi before the blades reach it)
+      { const r = D.trunkStrike(k, Object.assign({ V: 3, thr: 0.3, across: 0.75 }, o)); out.trunk3 = { running: r.running, d: (r.drive || []).map(slim), groups: r.groups, finite: r.finite }; }
     } else {
       out.noseIn = [{ V: 25, sink: 5, pitch: 20 }, { V: 41.7, sink: 10, pitch: 60 }].map(c => { const r = D.noseIn(k, Object.assign({ thr: 0.2 }, c, o));
         return Object.assign({}, c, { running: r.running, d: (r.drive || []).map(slim), groups: r.groups, finite: r.finite }); });
@@ -133,10 +134,15 @@ const rep = msg => console.log('  --    ' + msg);
   console.log('  (' + R369.source + ')');
   for (const [cyl, fam, want] of [[4, 'four', 2], [3, 'four', 3], [2, 'two', 4], [6, 'four', 1.33], [9, 'four', 1.33], [0, 'turbine', 1.25]])
     yes(C.genDriveTorqueFactor(cyl, fam) === want, '23.361(c): ' + (fam === 'turbine' ? 'a turboprop' : cyl + ' cylinders') + ' -> limit torque = mean x ' + want + ' ' + FLAG);
-  for (const [bite, surf, tip, sep, want, why] of [[0.02, 'soft', 200, 120, 1, 'tips dressed on the ground (no separation on a soft brush)'], [0.10, 'soft', 80, 120, 2, 'a bite of 10 % into the ground at idle: bent'],
+  for (const [bite, surf, tip, sep, want, why, eR] of [[0.02, 'soft', 200, 120, 1, 'tips dressed on the ground (no separation on a soft brush)'], [0.10, 'soft', 80, 120, 2, 'a bite of 10 % into the ground at idle: bent'],
     [0.30, 'soft', 80, 120, 3, '30 %: the prop stopped (SB 533\'s sudden stoppage)'], [0.10, 'rigid', 80, 120, 3, 'a trunk 10 % into the disc stops it'], [0.20, 'water', 80, 120, 2, 'the water gives: bent at 20 %'],
-    [0.03, 'rigid', 211, 120, 4, 'a wood tip grazing a trunk at full power breaks off'], [0.03, 'rigid', 150, 200, 1, 'an alloy tip at 150 m/s only dents'], [0.10, 'soft', 211, 120, 4, 'wood into the ground at full power: a blade breaks'], [0.05, 'water', 150, 120, 2, 'carbon into the water at 150 m/s bends (the water gives: 1.6 x the tip speed)']])
-    yes(C.genDriveStrikeTier(bite, 1, surf, tip, sep) === want, 'a strike ' + (bite * 100).toFixed(0) + ' % into the disc (' + surf + ', tip ' + tip + ' m/s, the blade\'s ' + sep + '): ' + C.GEN_DRIVE_STRIKE[want] + ' - ' + why + ' ' + GAME);
+    [0.03, 'rigid', 211, 120, 4, 'a wood tip grazing a trunk at full power breaks off'], [0.03, 'rigid', 150, 200, 1, 'an alloy tip at 150 m/s only dents'], [0.10, 'soft', 211, 120, 4, 'wood into the ground at full power: a blade breaks'], [0.05, 'water', 150, 120, 2, 'carbon into the water at 150 m/s bends (the water gives: 1.6 x the tip speed)'],
+    // G2036 (DMG-DRIVE2): a brittle blade on a rigid obstacle past the brush grades on its energy (eR = 0.5 I w^2 / its root's
+    // rupture work), not the tip speed: the Cub's idle 650 rpm holds 25 x it, a prop turned by hand 0.5 x
+    [1.0, 'rigid', 65, 120, 4, 'a wood prop at idle into a trunk: its blades break (the engine stops; the hub stays on its flange)', 24.7],
+    [1.0, 'rigid', 13, 120, 3, 'a wood prop barely turning (eR 0.5) into a trunk stops whole', 0.5],
+    [0.03, 'rigid', 65, 120, 1, 'a wood tip grazing a trunk at idle: a brush still (the energy grades past the brush only)', 24.7]])
+    yes(C.genDriveStrikeTier(bite, 1, surf, tip, sep, eR) === want, 'a strike ' + (bite * 100).toFixed(0) + ' % into the disc (' + surf + ', tip ' + tip + ' m/s, the blade\'s ' + sep + (eR != null ? ', eR ' + eR : '') + '): ' + C.GEN_DRIVE_STRIKE[want] + ' - ' + why + ' ' + (eR != null ? FLAG : GAME));
 
   // ---- the children ----
   const { spawn } = require('child_process');
@@ -181,7 +187,7 @@ const rep = msg => console.log('  --    ' + msg);
     if (S.brush) { const d = S.brush.d[0];
       yes(S.brush.finite && d.strike === 'brush' && S.brush.running[0] && d.teardown, 'a brush (2 cm of soil past the turf\'s ' + C.GEN_DRIVE.strike.turf * 100 + ' cm): \'' + d.strike + '\', the engine runs on, a teardown still owed (SB 533: any strike that needs the prop repaired)'); }
     if (S.trunk3) { const d = S.trunk3.d[0];
-      yes(S.trunk3.finite && (d.strike === 'stoppage' || d.strike === 'separation') && !S.trunk3.running[0], 'a trunk in the disc at 3 m/s: \'' + d.strike + '\' (tip ' + Math.round((d.strikeAt || {}).tip || 0) + ' m/s' + (d.strike === 'separation' ? ': the blades broke off' : '') + '), the engine stopped (a sudden stoppage)'); }
+      yes(S.trunk3.finite && (d.strike === 'stoppage' || d.strike === 'separation') && !S.trunk3.running[0], 'a trunk in the disc at 3 m/s (0.75 m across the nose, clear of the spinner - G2035): \'' + d.strike + '\' (tip ' + Math.round((d.strikeAt || {}).tip || 0) + ' m/s' + (d.strike === 'separation' ? ': the blades broke off' : '') + '), the engine stopped (a sudden stoppage)'); }
     for (const n of (S.noseIn || [])) { const d = n.d[0], lab = 'the bow digging in at ' + Math.round(n.V * 3.6) + ' km/h, ' + n.sink + ' m/s, ' + n.pitch + ' deg';
       if (n.pitch < 40) yes(n.finite && (!!d.strike === d.gapMin < 0) && (!d.strike || (d.strikeAt || {}).surf === 'water'), lab + ' (the ordinary water case): ' + (d.strike ? 'the disc strikes the WATER (the base: no strike on water at all) - \'' + d.strike + '\'' : 'the disc clears the water by ' + f2(d.gapMin) + ' m - no strike') + ', the engine ' + (n.running[0] ? 'running' : 'stopped'));
       else yes(n.finite && !!d.strike && (d.strikeAt || {}).surf === 'water' && !n.running[0], lab + ' (TREECRASH\'s severe nose-in): the disc strikes the WATER - \'' + d.strike + '\', the engine stopped'); }

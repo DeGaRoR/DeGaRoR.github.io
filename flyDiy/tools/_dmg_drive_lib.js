@@ -176,6 +176,9 @@ function trunkStrike(key, o) {
   const E = d0.refs.engine || [], EO = d0.refs.engineOf || E.map(() => 0); let ez = 0, c = 0;
   E.forEach((i, j) => { if ((EO[j] | 0) === 0) { ez += d0.nodes[i].p[2]; c++; } }); ez = c ? ez / c : 0;
   if (o.off == null && Math.abs(ez) > 0.3) o = Object.assign({}, o, { off: -ez });
+  // G2035 (DMG-DRIVE2): `across` m to the left of the engine's line (a trunk in the disc clear of the spinner: on the
+  // centreline at 3 m/s the spinner and the hub take the taxi before the blades reach the trunk)
+  if (o.across) o = Object.assign({}, o, { off: (o.off || 0) + o.across });
   const r = L.atTrunk(key, Object.assign({ D: o.Dist || (flown ? 8 : 4), V, off: o.off || 0, thr: o.thr == null ? (flown ? 1 : 0.3) : o.thr, secs: o.secs || 3, agl: flown ? 4 : 0,
     trunk: o.trunk }, o.elastic ? { elastic: true } : {}, o.cert ? { cert: true } : {}));
   const sim = r.sim, Dm = sim.damage();
@@ -186,7 +189,7 @@ function trunkStrike(key, o) {
 
 // ---- A TRUNK IN THE DISC, TIED DOWN (the separation and the gearbox rows): settled on its wheels on the flat (a floatplane
 // too: its floats on the grass), brakes on, the throttle run up to `thr` over 1 s and held 2 s, then a trunk set `fwd` m
-// ahead of engine `eng`'s hub with its circle reaching `bite` m into the disc from the side (bite >= R: through the hub)
+// ahead of engine `eng`'s hub (G2035: by default just past the disc's band - see below) with its circle reaching `bite` m into the disc from the side (bite >= R: through the hub)
 // and the run held `secs` s: the strike's tier, the engine, the imbalance, the mount
 function tipStrike(key, o) {
   const C = L.core(), def = L.defOf(key, o), elev = 0, { W, TH, strip } = L.flatWorld(elev);
@@ -198,9 +201,15 @@ function tipStrike(key, o) {
   const k = o.eng || 0, E = def.refs.engine || [], EO = def.refs.engineOf || E.map(() => 0);
   let hx = 0, hy = 0, hz = 0, c = 0; E.forEach((i, j) => { if ((EO[j] | 0) === k) { hx += sim.p[i*3]; hy += sim.p[i*3+1]; hz += sim.p[i*3+2]; c++; } }); hx /= c; hy /= c; hz /= c;
   const ax = sim.axes(), fx = -ax[0][0], fz = -ax[0][2], fl = Math.hypot(fx, fz), ux = fx / fl, uz = fz / fl, R = (def.params.prop || {}).D / 2, rt = 0.15;
-  const lat = Math.max(0, R + rt - o.bite), fw = o.fwd == null ? 0.3 : o.fwd;
+  // G2035 (DMG-DRIVE2): the disc is the hub's band (0..hub ahead of the thrust nodes) - the trunk stood 0.3 m ahead, which only
+  // the old 1 m band reached; now by default half its radius past the band's front, its chord there reaching `bite` into the
+  // disc (ahead of the wing: a trunk through the leading edge pushed the twin's disc 8 mm further in within five frames)
+  const hub = C.genDriveSpec(def).hub, fw = o.fwd == null ? hub + rt / 2 : o.fwd, e = Math.max(0, fw - hub), hc = e < rt ? Math.sqrt(rt * rt - e * e) : 0;
+  const lat = Math.max(0, R + hc - o.bite);
   // to the aeroplane's left of the hub (away from the cabin on the twin's left engine: -z is its side)
-  const sd = hz < -0.3 ? -1 : (hz > 0.3 ? 1 : -1), lx = -uz * sd, lz = ux * sd;
+  // (G2035: (lx, lz) is the body's right for sd -1, its left for +1 - the off-centre engine's side was inverted: the twin's left
+  // engine's trunk stood inboard, 0.4 m from the cabin pod, which it touched; the centreline engines keep their side)
+  const sd = hz < -0.3 ? 1 : (hz > 0.3 ? -1 : -1), lx = -uz * sd, lz = ux * sd;
   TH.set('fill:test', [hx + ux * fw + lx * lat, hz + uz * fw + lz * lat, elev - 0.5, rt, elev + 10]);
   const t0 = sim.t, before = sim.out.rpm.slice();
   let mountAt = null, imbMax = 0, failAt = null, peakEng = 0;
