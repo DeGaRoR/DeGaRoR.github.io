@@ -377,8 +377,8 @@
     free(D);
   }
 
-  const API = { RIDE_VS, RIDE_FS, PW_W, TXK, G, packStale, prepare: kept(prepare), ready: kept(ready), drawer: kept(drawer), layout: kept(layout),
-                frame: kept(frame), poll: kept(poll), readBack: kept(readBack), release: kept(release) };
+  const API = { RIDE_VS, RIDE_FS, PW_W, TXK, G, packStale, prepare, ready, drawer: kept(drawer), layout: kept(layout),
+                frame: kept(frame), poll, readBack: kept(readBack), release: kept(release) };   // (poll binds only COPY_READ_BUFFER, which three never caches: unwrapped - wrapped, its 39 calls a frame were ~800 getParameter, ~5 ms a frame on the box)
   if (typeof module !== 'undefined' && module.exports) module.exports = API;
   if (W) W.SKIN_GPU = API;
 })();
