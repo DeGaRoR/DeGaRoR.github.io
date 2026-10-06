@@ -78700,3 +78700,144 @@ riding to the GPU (format agreed: R.K, wi / ww / w2, dead >= 2; the still-merged
   places turning differently over a lever. The coordinator's idea - each window assembly (frame, bead, pane) one rigid part
   on its frame's nodes - is the next step if the census shows it.
 - The 3 m/s taxi breaks fuselage members on the page and nothing in node (DMG-D4b's parity hunt).
+
+## G1893-G1897 DMG-TUNE - THE WRECK THAT LOOKS RIGHT: THE CERTIFICATE'S FLOOR WAS A TENTH OF THE MATERIAL, ONE MEMBER TOOK A WHOLE GROUP; THE FLOOR BY ROLE (THE WING THE CARD'S, THE REST HALF ITS MATERIAL), A GROUP LETS GO AT A THIRD OF ITS STRENGTH; THE SANITY TABLE (2026-10-06, DMG-TUNE for the DEFORM COORDINATOR, cloud, node only; branch claude/dmg-tune off claude/dmg-integration 4300dc58; G1897 the evidence)
+
+**The finding (the coordinator, tools/_treecrash_lib.js atTrunk, the Jodel 30 m/s 2.5 m out, the certificate stamped): 150-169
+members broken, the engine off on the first contact frame; the user: "why are the wings lacerated like this?" after a nose-over.**
+Reproduced (153 broken, 4.2 kJ). Damage stays OFF by default (GEN_DAMAGE_DEFAULT untouched). The Cessnas are flown on
+JOIN-PARITY's page-loaded spec (READY on claude/join-parity-g1985, not landed: its tools/_load_build.js run on its own branch and
+the two specs dumped to reports/evidence/DMG-TUNE/specs/; `FLYDIY_SPEC_DIR` in _treecrash_lib.defOf reads them - unset, the
+file as written, so every gate is unchanged in what it flies). The gates still fly node's raw files.
+
+### 1. THE CERTIFICATE'S LIMITS (Q1) - limit vs break is right; the FLOOR made the airframe a tenth of its material
+The chain, per material (allowables AS RECALLED - A0 opens the sources; the code's own GEN_CRASH row beside):
+| material | handbook (as recalled) | GEN_CRASH (the physics) | note |
+|---|---|---|---|
+| Sitka spruce | ANC-18 (1951): MOR 9,400 psi (64.8 MPa), compression parallel 5,000 psi (34.5 MPa), tension parallel taken at the MOR; Wood Handbook FPL-GTR-190: MOR 70, crush 38.7 MPa | ty = tu 70 MPa (brittle), cy 39 | break values, no yield - right for a brittle wood |
+| aircraft plywood | ANC-18 / MIL-P-6070 birch ply - not opened | no row: the lattice's ply is the 'wood' row (spruce's numbers) | a simplification, reported |
+| 4130 N tube | MIL-HDBK-5: Ftu 95 / Fty 75 ksi (655 / 517 MPa), welded ~80 ksi | ty 460, tu 583 MPa (the 95/75 ratio on GEN_MATERIALS' 460) | ~11 % under the handbook (near the welded value): not changed |
+| 2024-T3 sheet | MIL-HDBK-5 A-basis Ftu 64 / Fty 47 ksi (441 / 324 MPa) | ty 345, tu 470 MPa | ~6 % over: not changed |
+- **genCertify** records each member's peak force at LIMIT (F_l, tension and compression); **certStamp**: yield at F_l x 1.01 (FAR
+  23.305: no set at limit), break at 1.5 F_l x m 1.05 (23.303's ultimate) x 1.15 for a member between joints / x 1.0 for a joint
+  (dm13), crush at 1.5 F_l,c x m x 1.15; every one between kappa x its physics and its physics. 23.561's crash cases are taken as
+  ULTIMATE (/1.5 to the limit, x 1.5 back). **No limit load stands where a break load belongs.**
+- **Where the certificate made members weaker than their material: the floor.** kappa = 0.1 (D2a's census: from 0.2 the floor takes
+  the WING's joints off the certificate) applied to every member. On the five builds 40-77 % of the members sat on it - the median
+  stamped break over the physics break was **0.10 for nearly every class** (stamp_ratio.svg): the Cub's 4130 fuselage tubes at 3-4 kN
+  in tension (a 1/2 x 0.035 in tube - the smallest in a Cub's truss, as recalled - yields at ~16 kN), every engine mount's tubes and
+  bolts at ~5 kN (one yaw jerk takes them), the Jodel's fuselage and tail at a tenth of their wood. The certificate is a LOWER bound
+  (every member at a margin of zero); a real aeroplane's members away from the critical path are minimum gauge.
+- **Fix (G1895, 66_gen_cert.js GEN_CERT_FLOOR, 30_solver.js certStamp):** the floor BY ROLE. The WING (both ends on a wing part, its
+  root / strut / interplane joints and their links) keeps kappa 0.1 - the card's load path (the broke-at, the set past the limit).
+  Everywhere else (fuselage, mount, tail, tanks) the floor is **0.5 x the member's physics**: the smallest real member of a class is
+  about half the section the generator bills the class at (the Cub's 1/2-5/8 in diagonals against its 1 in longerons' 74 mm2, as
+  recalled), and a mount at 0.5 x its tube's fitting break (~25 kN) is one AN5 bolt in single shear (25.6 kN, the AN table as
+  recalled). Kept out of GEN_CERT: the envelope, its cache key and DMGCERTCOST's reference do not move (DMGCERTCOST PASS, its
+  reference NOT rewritten). `sim.damageCaps().KAP` reads each member's floor (DMGCERT's floor count uses it).
+- After (stamp_ratio.svg): the wing's classes unchanged; every other class's median 0.50 (or its certificate, where higher).
+
+### 2. ONE KINK TAKES THE WHOLE GROUP, EVERYWHERE (Q2) - the census and the rule fixed at its cause
+- **The census** (groups.md, the standard crashes, the certificate): **93 groups let go; 35 of them on ONE member while every other
+  member of the group was under 0.9 of its limit** (a stab fitting of 32 at its 1.06 kN floor taking the tailplane in a nose-over;
+  one Jodel mount tube at 1.02 of its 4.95 kN taking the 111 kg engine 10 ms into a wing strike; the Cub's mount by one fold); 3 by a
+  kink (WINDBREAK's), 11 by a cluster's root cut (D3, a whole-section judgement - kept). D1a's rule: any member broken takes its
+  group (BeamNG's breakGroupType 0) - right for a group that is one bolt, wrong for a mount of 10-12 members, a wing root of 8-10,
+  a stab of 32.
+- **Fix (G1894, 60_gen_spec.js GEN_DMG_GROUP, 30_solver.js beamBreak):** a group lets go once its broken members carry **a third of
+  its tension capacity** (the sum of its members' break forces): severed (a lug at its ultimate, spruce's last stage, a tube torn at
+  its fold) or kinked (the kink floor pushes only - its pull is gone, so its share is lost; a single kink never takes a group of
+  several). The third: with a third of its strength gone the rest carries 1.5 x its share, and a joint sized to its ultimate has
+  nothing left past it. A cluster's root cut and a gate's hook (`sim.damageBreak(i)`: "this joint let go") release whole as before;
+  `sim.damageBreak(i, 'tension' | 'kink')` breaks a member under the rule. Measured: at a half the Jodel's card read 6.14 g (the
+  band's edge), at a third 6.05, at a quarter 6.05; the crashes alike. **First version counted only severed members: the DMGDRIVE
+  graze kinked all ten of the Cub's mount members under a lost blade's imbalance and the group never let go - the engine hanging on
+  floors that only push. Kinks count now.**
+- After: 54 releases, **none by one member**.
+
+### 3. THE SANITY TABLE (Q3) - reports/evidence/DMG-TUNE/sanity_table.md, broken_by_part.svg
+Five builds x the standard crashes (land: a 3 m/s taxi into a trunk; the nose-over, DMG-WALL's staging, 12 m/s into a 35 cm stump; 30
+m/s on the centreline; 30 m/s 2.5 m out on the wing; a drop at 1.5 x the build's FAR 23.473 sink, V_S0 forward, no lift; floats:
+the two trunks, the water drop, a 120 km/h / 7 m/s / 30 deg dig-in), members broken by ledger section, plastic work, what came off,
+before / after / D1a's physics, against a reference in words (NTSB / AAIB nose-over and tree-strike descriptions, NASA Langley's
+GA crash tests, FAR 23.473-.727 - ALL AS RECALLED, marked; no number invented) and a mechanical rule per crash. **Plausible: 15 of
+23 runs before, 21 of 23 after.** Members broken, before -> after:
+| crash | Cub | Jodel | metal Cessna | Cessna floats | twin floats |
+|---|---|---|---|---|---|
+| taxi 3 m/s | 0 -> 0 | 0 -> 0 | 1 -> 1 | - | - |
+| nose-over | 50 -> **7** | 97 (engine off) -> **3** | 35 (engine off) -> **7** | - | - |
+| 30 m/s centreline | 177 -> 125 | 197 -> 154 | 213 -> 154 | 189 -> 167 | 208 -> 89 |
+| 30 m/s, 2.5 m out | 118 (engine off) -> **49** | 153 (engine off) -> **96** | 44 (engine off) -> **28** | 10 -> 10 | 136 (both engines off) -> **78** |
+| drop 1.5 x 23.473 | 0 -> 0 | 0 -> 0 | 0 -> 0 | 0 -> 0 | 0 -> 0 |
+| dig-in | - | - | - | 11 (engine off) -> **2** | 179 -> **80** |
+- **The nose-over** breaks the gear and the nose and nothing else on all three land builds: no wing member, no engine off (the
+  user's "lacerated wings" on the page were the tail's 32-member group and the 0.1 floor - the Cub's 50 broken were 40 tail).
+- **The wing strike** keeps every engine on the Cub, the Jodel and the Cessnas and takes the struck wing (the Cub's outer panel, the
+  Cessnas' outer wing at the strut); the metal Cessna's mains go because the run (4 m up, power off, untrimmed) sinks ~6 m/s onto the
+  runway at the trunk - a NASA-Test-1 landing, not the strike.
+- **NOT plausible after (reported, not retuned):** (1) **the Jodel's wing strike: 96 broken, 71 of them its wood wings** - the struck
+  wing at impact, ~12 glue lines of the far wing at impact and ~20 when it meets the ground. The wing's glue lines are the card's
+  (experiments/README.md: lifting them to 0.3-0.5 moves the Jodel's BROKE AT to 11-14 g; a 'built like its most loaded sibling' rule
+  to 6.16-8.4 g; the card rests on the inboard glue lines), so they stay at 0.1. The lever is a crash floor the card does not read -
+  e.g. a glue line's floor tied to its station's own certified strength, or the plywood skin (not a member) as a shear member: the
+  coordinator's / D2's. With D1a's physics the Jodel's wing does not break at all (16, the fin's cluster). (2) **the twin's wing
+  strike: the left engine pod (1.65 m out, beside the trunk) and the tail boom go** - the boom's mid-span station (D3) breaks in
+  every twin crash, physics or certificate.
+- **The drop at 1.5 x the limit sink yields nothing** on any build (0-0.23 kJ): D2b's bracket holds it (no lift is harsher, the 10
+  ft/s cap is 1.18-1.43 x these builds' 23.473 sink). Plausible (23.727 asks no failure at 1.2 V), reported.
+- **The JOIN-PARITY Cessna's 3 m/s taxi CRASHES** (1.7 kJ of airframe work > CRASH_J 1.5 kJ; the engine 65 cm forward meets the trunk:
+  one mount member) - before and after alike: TREE-CRASH's CRASH_J knob (its own open point), not a member limit.
+
+### THE GATES (targeted, §11.3; reports/evidence/DMG-TUNE/gates/)
+`GATES_CORE=1 run_gates --only=TREECRASH,DMGCERT,DMGCERTCOST,DMGGEAR,DMGINST,DMGFPS,DMGINTEGRITY,DMGMEMBERS,DMGCLUSTERS,DMGWIND,DMGDRIVE,
+DMGSKIN,DMGWALL,LOAD,BENCH,UISMOKE,BUILD,JOIN --verbose --jobs=3` on the final code: **17 PASS, 1 FAIL (DMGWALL, one case - below).**
+- **Damage OFF = the base's bytes** (4300dc58 built in a worktree, each gate's whole output): UISMOKE, BUILD, JOIN, LOAD the same bytes;
+  BENCH the same once the runner's interleaved progress lines are dropped (battery_vs_base.txt).
+- **DMGCERT PASS 70/70**: BROKE AT 6.01 / 6.05 / 6.06 / 6.08 / 6.03 g (the base 6.01 / 6.10 / 6.06 / 6.10 / 6.01), a fitting first on every
+  build, the page's bench thread the same; the flown pull 0.56-0.95 of the certified limit; the metal wings' set past the limit kept
+  (16 members at 1.2 x). Its floor count reads each member's own floor (KAP).
+- **TREECRASH PASS 50/50**: the taxi dents and does not crash (Cub 3 set / 727 J / back 0.37 m; Jodel 7 / 722 J; metal 7 / 1012 J);
+  the 30 m/s trunks crash (centreline 125 / 159 / 178 broken, 2.5 m out 38 / 105 / 30 - the raw-file Cessna); normal operations
+  unchanged in verdict (flown pull 0.56-0.95, circuits 0.23-0.35).
+- **DMGGEAR PASS 72/72**: the headroom (dm14) at most 2/3 on every row; the bracket; the porpoise (the nose gear on the third bounce),
+  the dig-in; the Cub's ground loop at 30 deg / 180 deg/s folds gearL and the low wing strikes (the base's 20 deg / 120 deg/s
+  REPORTED: the wheels slide - open 4). The first full run FAILED the porpoise too: kinks did not yet count (the gear gives by kinking).
+- **DMGMEMBERS PASS 84/84** with the new check (one kink lets no group of several go; severed weakest-first, each group lets go exactly
+  at the member that passes a third: eng:mount 4/10, wing roots 3/8, struts 2/6, stab 12/32, fin 6/16, gear 2/4, floats 3/8). Its
+  break-order row on D1a's physics: the Jodel's wing parts at the carry-through (a type-1 link of both roots, brittle) and no
+  group lets go after it - printed as that, not a fitting group (the base's root fitting broke 0.3 g later by ONE member).
+- **DMGDRIVE PASS** (a lost blade's imbalance kinks the mount and it lets go; failed in the first run, before kinks counted).
+  **DMGCLUSTERS PASS** (the floats' dig-in parts the float - failed before kinks counted). **DMGWIND PASS**, and WINDBREAK's open 1
+  answered: the Cub at 7.5-10 m/s, **0 of 24 winds break the mount** (1 of 24 before). **DMGCERTCOST PASS** (its reference NOT
+  rewritten: the envelope does not move). DMGINST, DMGFPS, DMGINTEGRITY, DMGSKIN PASS.
+- **DMGWALL FAIL on one case, the Jodel's 30 m/s centreline: the wall out past 1 mm 2.22 % (gate 2 %), past 1 cm 0.52 % (0.1 %), past
+  5 cm 1923 place-frames, worst 7.6 cm** - its 'plywood' layer 16.0k, 'joint' 6.5k, 'shoulder' 3.2k place-frames out (every other
+  build and case PASS, 102/105). The base's wreck of that case broke 204 members (DMG-WALL's own run); this one 154 in 12 pieces,
+  more of the cabin held together and folded, the covering tighter than the lining's depth - DMG-WALL's own documented limit of
+  the inherited binding ("it cannot come out unless the covering folds tighter than its depth"). Not changed here (viewer code, the
+  box's census): DMG-WALL's G1858 lining cut, today only on the old binding, applied to the inherited one where a bay has crushed,
+  is the candidate. **Not hidden: the gate is red on this branch for that one case.**
+
+### PERF (node sim.step(1/60), nothing touching, a far 4000-trunk set; base = 4300dc58's core; reports/evidence/DMG-TUNE/perf/)
+The step's code is the base's: nothing new runs per substep (the stamp is build time, the group rule an event). Two runs of 5
+processes a side pooled, damage ON (the certificate from FLYDIY_CERT_DIR): the Cub ground -1.6 %, air -3.6 %, the metal Cessna
+ground +3.1 %, air +1.6 %; damage OFF (one run): +0.5 / +3.9 / +3.1 / -1.5 %. Pinned alternating pairs, the metal Cessna on the
+ground, damage ON: 16 pairs +3.5 % (pair median +0.9 %), again +4.7 % (+5.2 %); **the base's core against a byte copy of itself:
++1.7 % (pair median +2.8 %)** - the cloud box's noise is the size of the 2 % gate. Armed frames: 0 in every timed run. **Re-measure
+the pinned pairs on the box.**
+
+### Open (the coordinator / A0)
+1. **The Jodel's wood wing in the wing strike** (above): the card lives on the wing's inboard glue lines; a crash floor the card does
+   not read is the coordinator's call (D2's envelope per station, or the ply skin as a member).
+2. **JOIN-PARITY:** the table's Cessnas are its spec; the gates fly the raw file until it lands - TREECRASH / DMGCERT will re-read on
+   the moved engine then. `FLYDIY_SPEC_DIR` in _treecrash_lib.defOf is a 3-line hook that conflicts textually with its defOf rewrite:
+   keep JOIN-PARITY's and drop mine.
+3. **DMG-NOSE (G2013-G2015)** adds certificate cases (the nose's 9 g at either corner) and a crush layer: its envelope moves every
+   mount member's F_l; with the body floor at 0.5 the mount is no longer on the floor's 5 kN, so WINDBREAK's open 1 (the corner
+   wind at 7.5 m/s) is likely answered here as well - re-read DMGWIND / DMGNOSE once both are in. 90_node_exports.js conflicts on
+   one line (both add an export).
+4. GATE DMGGEAR's ground loop: the Cub's gated swing is now 30 deg at 180 deg/s; the base's 20 deg / 120 deg/s folded the gear only
+   after the stab group (one fitting of 32 at its 1.06 kN floor) had taken the tailplane - now that swing slides the wheels, REPORTED,
+   as D2b found for the Jodel.
+5. **Perf on the box**: the cloud's process noise (an identical core against itself reads +1.7 % / pair +2.8 %) is the size of the gate.
+6. The materials' rows (4130 ~11 % under MIL-HDBK-5, 2024 ~6 % over; no plywood row) - reported, not changed.
