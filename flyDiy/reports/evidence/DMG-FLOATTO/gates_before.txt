@@ -1,0 +1,335 @@
+=== TAKEOFF ===
+crosswind limit 4 m/s (band 12.5 m, roll 9.74 m at the limit; first failure 4.5 m/s, 14.05 m) in 34.5 s CPU, 34.6 s wall
+THE TECHNIQUE (pilot_one_trace: Vr, Vlof, the lift-offs, the pitch rate, the run)
+  cub    wheels Vs 16.0 Vr 16.2 Vlof 17.2 (1.08 Vs)  lifts 1 (first at 17.2)  touch-after 0  qMax -5.0 deg/s  run 106 m  to 15 m 216 m
+  jodel  wheels Vs 18.8 Vr 18.7 Vlof 20.8 (1.11 Vs)  lifts 1 (first at 20.8)  touch-after 0  qMax -6.9 deg/s  run 178 m  to 15 m 297 m
+  c172   wheels Vs 24.4 Vr 24.8 Vlof 27.3 (1.12 Vs)  lifts 1 (first at 27.3)  touch-after 0  qMax 8.0 deg/s  run 260 m  to 15 m 431 m
+  wip    water  Vs 24.5 Vr 24.8 Vlof 27.5 (1.12 Vs)  lifts 1 (first at 27.5)  touch-after 0  qMax -11.5 deg/s  run 335 m  to 15 m 478 m
+  ultraf water  Vs 16.1 Vr 16.2 Vlof 20.7 (1.29 Vs)  lifts 1 (first at 20.7)  touch-after 0  qMax 10.7 deg/s  run 84 m  to 15 m 176 m
+  twinf  water  Vs 18.4 Vr 18.7 Vlof 28.1 (1.53 Vs)  lifts 1 (first at 28.1)  touch-after 0  qMax 9.1 deg/s  run 180 m  to 15 m 308 m
+  c172f  water  Vs 26.1 Vr - Vlof - (0.00 Vs)  lifts 0 (first at -)  touch-after 0  qMax 0.9 deg/s  run - m  to 15 m - m  ABORT rejected-takeoff
+THE TURN-AROUND (pilot_one_turnaround: the Cub at East Point, 150 x 12 m, stopped 20 m from the closed end)
+  roll at 24.5 s; max |cross| 2.7 m, past an end -18.8 m, off the surface 0.0 s; LIFTOFF (airborne); pivot,committed-takeoff
+GATE TAKEOFF: PASS
+=== PILOTACT ===
+PILOT MATRIX: 3 cells, 3 at a time (activity) on core_1791290014733.js
+  ok stock:HOME:calm:stand       completed 380.2 s · sink 0.66 · 1.2 Vs · aim 45 · swing 0
+  ~  fixtures/build_v10_cessnaMetal_2026-09-26.json:HOME:calm:standcompleted 383.3 s · sink 1.83 · 1.38 Vs · aim -19 · swing 0.7
+  ok c172:HOME:calm:stand        completed 376.2 s · sink 1.1 · 1.08 Vs · aim 38 · swing 0.2
+
+cell                              outcome go-arounds  overshoot   roll rev    ctl rev  slope rms  speed rms       sink       V/Vs        aim        off      swing  reversals   t
+  stock:HOME:calm:stand         completed          0        6 m    0.9/min  taxi 14.6      0.8 m   0.16 m/s   0.66 m/s        1.2       45 m        0 m      0 deg          0 380.2
+  c172:HOME:calm:stand          completed          0        9 m    1.2/min  taxi 17.5      0.9 m   0.07 m/s    1.1 m/s       1.08       38 m      0.1 m    0.2 deg          0 376.2
+ ~fixtures/build_v10_cessnaMetal_2026-09-26.json:HOME:calm:stand  completed          0        4 m    0.7/min  taxi 16.2      0.8 m  ~2.57 m/s  ~1.83 m/s      ~1.38      -19 m      0.3 m    0.7 deg          0 383.3
+
+3 cells: 2 good, 1 warn, 0 bad
+wall 151 s
+  stock:HOME:calm:stand                                taxi 1.5/14.6  takeoff 0/0  climb 0/0  legs 6/6  downwind 0.6/0  base 2/4  final 4.8/1  landing 0/0
+  c172:HOME:calm:stand                                 taxi 0/17.5  takeoff 0/0  climb 0/0  legs 7.5/3.7  downwind 0/0  base 3.3/3.3  final 1.2/1.2  landing 0/0
+  fixtures/build_v10_cessnaMetal_2026-09-26.json:HOME:calm:stand taxi 0/16.2  takeoff 0/0  climb 0/0  legs 4/4  downwind 0/0  base 3.7/1.9  final 1/1.9  landing 0/0
+GATE PILOTACT: PASS
+=== DMGDAMP ===
+GATE DMGDAMP: PASS
+=== DMGHULL ===
+LAW (the rigid bench: each build's own float at the hump and on the step of its calm take-off)
+   twin on floats hump: V 7.1 m/s, step keel 0.264 m deep, trim 7.1 deg; at 3 deg of slip the side force 285.2 N (the base's panels 89.6 N), centre -0.688 m from the step; slender body on the step keel 287.4 N
+   twin on floats step: V 12.0 m/s, step keel 0.127 m deep, trim 2.5 deg; at 3 deg of slip the side force 189.0 N (the base's panels 124.8 N), centre -0.834 m from the step; slender body on the step keel 189.2 N
+PASS twin on floats hump: at rest (U 0, slip 0.5 m/s) the side force is 0 N (0)
+PASS twin on floats hump: a metre over the water the side force is 0 N, the hull's 0 N (0, 0)
+PASS twin on floats hump: F(2v) / 2F(v) = 1.0000 at 3 -> 6 deg of slip (1 +- 1 %)
+PASS twin on floats hump: F(2U) / 2F(U) = 1.0000 at the same slip velocity (1 +- 1 %)
+PASS twin on floats hump: the side term peaks at 45 deg of slip (45: Jones' U w = V^2 sin b cos b)
+PASS twin on floats hump: at 90 deg the side term is 0 N and the cross-flow carries 20524.08 N
+PASS twin on floats step: at rest (U 0, slip 0.5 m/s) the side force is 0 N (0)
+PASS twin on floats step: a metre over the water the side force is 0 N, the hull's 0 N (0, 0)
+PASS twin on floats step: F(2v) / 2F(v) = 1.0000 at 3 -> 6 deg of slip (1 +- 1 %)
+PASS twin on floats step: F(2U) / 2F(U) = 1.0000 at the same slip velocity (1 +- 1 %)
+PASS twin on floats step: 189.0 N against the slender body's (pi/2) rho T^2 U v = 189.2 N on T = 0.127 m (2 %)
+PASS twin on floats step: the side term peaks at 45 deg of slip (45: Jones' U w = V^2 sin b cos b)
+PASS twin on floats step: at 90 deg the side term is 0 N and the cross-flow carries 4971.78 N
+PASS twin on floats step: the side force's centre -0.834 m from the step (ahead of it, on the forebody: -2.22..0)
+   Cessna on floats hump: V 10.7 m/s, step keel 0.343 m deep, trim 10.3 deg; at 3 deg of slip the side force 1099.1 N (the base's panels 440.1 N), centre -0.654 m from the step; slender body on the step keel 1117.1 N
+   Cessna on floats step: V 18.2 m/s, step keel 0.114 m deep, trim 7.9 deg; at 3 deg of slip the side force 349.1 N (the base's panels 198.0 N), centre -0.310 m from the step; slender body on the step keel 352.4 N
+PASS Cessna on floats hump: at rest (U 0, slip 0.5 m/s) the side force is 0 N (0)
+PASS Cessna on floats hump: a metre over the water the side force is 0 N, the hull's 0 N (0, 0)
+PASS Cessna on floats hump: F(2v) / 2F(v) = 1.0000 at 3 -> 6 deg of slip (1 +- 1 %)
+PASS Cessna on floats hump: F(2U) / 2F(U) = 1.0000 at the same slip velocity (1 +- 1 %)
+FAIL Cessna on floats hump: the side term peaks at 50 deg of slip (45: Jones' U w = V^2 sin b cos b)
+PASS Cessna on floats hump: at 90 deg the side term is 0 N and the cross-flow carries 53382.68 N
+PASS Cessna on floats step: at rest (U 0, slip 0.5 m/s) the side force is 0 N (0)
+PASS Cessna on floats step: a metre over the water the side force is 0 N, the hull's 0 N (0, 0)
+PASS Cessna on floats step: F(2v) / 2F(v) = 1.0000 at 3 -> 6 deg of slip (1 +- 1 %)
+PASS Cessna on floats step: F(2U) / 2F(U) = 1.0000 at the same slip velocity (1 +- 1 %)
+PASS Cessna on floats step: 349.1 N against the slender body's (pi/2) rho T^2 U v = 352.4 N on T = 0.114 m (2 %)
+PASS Cessna on floats step: the side term peaks at 45 deg of slip (45: Jones' U w = V^2 sin b cos b)
+PASS Cessna on floats step: at 90 deg the side term is 0 N and the cross-flow carries 19449.54 N
+PASS Cessna on floats step: the side force's centre -0.310 m from the step (ahead of it, on the forebody: -3.68..0)
+
+SWEEP (GATE SEAPLANE's crosswind take-off, THE PILOT, the SEA lane; swing from the roll's own heading)
+   twin on floats:  wind | lift-off s | swing deg | |x| m | lowest pitch deg | skips | class
+      0.0 |    9.4 |    0.0 |    0.0 |   -0.3 | 0 | ok
+      0.5 |    9.5 |    1.3 |    0.9 |   -0.3 | 0 | ok
+      1.0 |    9.2 |    2.9 |    1.9 |   -0.7 | 0 | ok
+      1.5 |    9.8 |    4.2 |    3.4 |   -2.6 | 0 | ok
+      2.0 |    9.2 |    6.1 |    4.0 |   -2.0 | 0 | ok
+      2.5 |    9.7 |   11.4 |    6.5 |   -6.7 | 2 | ok
+      3.0 |    8.6 |    9.0 |    5.8 |   -5.2 | 1 | ok
+      3.5 |    8.7 |    8.4 |    6.3 |   -1.7 | 0 | ok
+      4.0 |    -   |  179.9 |  168.9 |  -87.7 | 0 | NOSE-OVER at the plough (pitch -88 deg)
+      4.5 |    -   |  179.9 |  136.9 |  -73.0 | 1 | YAW WATER LOOP
+      5.0 |    -   |  180.0 |   85.0 |  -83.6 | 1 | NOSE-OVER at the plough (pitch -84 deg)
+PASS twin on floats: 0-1.5 m/s across clean (the base's clean band)
+OWED twin on floats: YAW swing past 30 deg at 4.5 m/s (179.9 deg) - the side force's centre is ahead of the CG on the step (HANDOVER G1847-G1849, open question 2)
+OWED twin on floats: NOSE-OVER at the plough at 4, 5 m/s across (the bows bury at 6-7 m/s, the pitch past -30 deg; not a yaw loop - HANDOVER G1847-G1849, open question 1)
+   Cessna on floats:  wind | lift-off s | swing deg | |x| m | lowest pitch deg | skips | class
+      0.0 |   24.1 |    0.0 |    0.0 |   -0.5 | 0 | ok
+      0.5 |   24.3 |    0.5 |    0.6 |   -0.5 | 0 | ok
+      1.0 |   24.5 |    1.0 |    1.2 |   -0.5 | 0 | ok
+      1.5 |   25.4 |    4.2 |    4.0 |   -3.4 | 1 | ok
+      2.0 |   24.4 |    4.8 |    2.4 |   -0.5 | 0 | ok
+      2.5 |   25.1 |    7.8 |    3.9 |   -0.5 | 2 | ok
+      3.0 |   23.7 |    8.5 |    3.2 |   -0.5 | 4 | ok
+      3.5 |   24.1 |   11.3 |    4.7 |   -0.5 | 2 | ok
+      4.0 |   25.3 |   12.1 |    5.5 |   -0.5 | 1 | ok
+      4.5 |   25.7 |   12.3 |    5.8 |   -0.5 | 1 | ok
+      5.0 |   25.8 |   19.0 |    7.2 |   -0.5 | 3 | ok
+PASS Cessna on floats: no yaw water loop at any crosswind 0-5 m/s
+PASS Cessna on floats: every take-off off the water, swing and lane under 30 (worst 19.0 deg, 7.2 m)
+
+KICK (0.3 rad/s of yaw rate on the water, kicked minus unkicked, controls frozen, rudder neutral)
+   twin on floats rest (V 0.0 m/s): after 1 / 2 / 6 s - before 0.143 / 0.078 / 0.009 rad/s (t1/2 0.93 s); after 0.235 / 0.197 / 0.120 rad/s (t1/2 3.97 s); now 0.223 / 0.181 / 0.103 rad/s (t1/2 3.08 s)
+PASS twin on floats at rest: the kick decays no slower than DMG-DAMP's after: 0.1026 against 0.1201 rad/s at 6 s
+   twin on floats hump (V 7.1 m/s): after 1 / 2 s - before 0.168 / 0.143 rad/s (t1/2 1.53 s); after 0.226 / 0.212 rad/s (t1/2 >2 s); now 0.262 / 0.344 rad/s (t1/2 >2 s)
+OWED twin on floats hump: 0.262 rad/s left after 1 s against 0.226 without the side force (LESS stable: the centre ahead of the CG)
+   twin on floats step (V 12.0 m/s): after 1 / 2 s - before 0.259 / 0.251 rad/s (t1/2 >2 s); after 0.236 / 0.112 rad/s (t1/2 1.85 s); now 0.378 / 0.539 rad/s (t1/2 >2 s)
+OWED twin on floats step: 0.378 rad/s left after 1 s against 0.236 without the side force (LESS stable: the centre ahead of the CG)
+   Cessna on floats rest (V 0.0 m/s): after 1 / 2 / 6 s - before 0.084 / 0.039 / 0.003 rad/s (t1/2 0.43 s); after 0.127 / 0.083 / 0.036 rad/s (t1/2 0.72 s); now 0.120 / 0.078 / 0.033 rad/s (t1/2 0.65 s)
+PASS Cessna on floats at rest: the kick decays no slower than DMG-DAMP's after: 0.0328 against 0.0359 rad/s at 6 s
+   Cessna on floats hump (V 10.7 m/s): after 1 / 2 s - before 0.071 / 0.012 rad/s (t1/2 0.50 s); after 0.110 / 0.026 rad/s (t1/2 0.77 s); now 0.119 / 0.043 rad/s (t1/2 0.78 s)
+OWED Cessna on floats hump: 0.119 rad/s left after 1 s against 0.110 without the side force (LESS stable: the centre ahead of the CG)
+   Cessna on floats step (V 18.2 m/s): after 1 / 2 s - before 0.080 / -0.047 rad/s (t1/2 0.47 s); after 0.117 / -0.085 rad/s (t1/2 0.62 s); now 0.155 / -0.092 rad/s (t1/2 1.05 s)
+OWED Cessna on floats step: 0.155 rad/s left after 1 s against 0.117 without the side force (LESS stable: the centre ahead of the CG)
+
+(42 runs in 336 s on 4 processes)
+GATE DMGHULL: FAIL (1)
+(exit code 1)
+=== DMGPLOUGH ===
+LAW (the plough wave G1807 on the rigid bench, FORCED ON: each build's float, the keel 4 deg nose-up at its share of the weight)
+   twin on floats: float L 4.01 m, B 0.50 m; Fn | U m/s | amplitude m | env | tan(alpha_E) | the wave's lift N | its pitching moment N m (+ nose-down)
+      0.00 |  0.00 | 0.000 | 0.00 | 0.00 |      0 |      0
+      0.12 |  0.75 | 0.063 | 1.00 | 0.72 |    -10 |    -28
+      0.25 |  1.50 | 0.194 | 1.00 | 0.72 |   -187 |   -391
+      0.37 |  2.26 | 0.353 | 1.00 | 0.72 |   -482 |   -819
+      0.49 |  3.01 | 0.528 | 1.00 | 0.72 |     79 |  -2412
+      0.62 |  3.76 | 0.620 | 0.87 | 0.72 |   1362 |  -2134
+      0.74 |  4.51 | 0.478 | 0.53 | 0.72 |   1461 |  -1986
+      0.86 |  5.27 | 0.190 | 0.17 | 0.72 |   1444 |  -1867
+      0.99 |  6.02 | 0.002 | 0.00 | 0.72 |     18 |    -21
+      1.11 |  6.77 | 0.000 | 0.00 | 0.00 |      0 |      0
+      1.23 |  7.52 | 0.000 | 0.00 | 0.00 |      0 |      0
+      1.36 |  8.28 | 0.000 | 0.00 | 0.00 |      0 |      0
+      1.48 |  9.03 | 0.000 | 0.00 | 0.00 |      0 |      0
+PASS twin on floats the shipped default: DEF.kWave 0 (0: OFF)
+PASS twin on floats the generator's float carries kWave 0 (OFF)
+PASS twin on floats at rest (U 0): amplitude 0 m, the forces bit-identical to the wave off: true
+PASS twin on floats a metre over the water at 3 m/s: amplitude 0 m, 0 N
+PASS twin on floats the amplitude peaks at Fn 0.617 (0.62 m at 3.761 m/s): inside 0.5..0.8
+PASS twin on floats on the step (Fn >= 1: 16 speeds) the wave is 0 m, 0 N, 0 N m
+PASS twin on floats in the displacement regime (0 < Fn < 0.5) the amplitude is positive at every speed (16)
+   Cessna on floats: float L 6.95 m, B 0.68 m; Fn | U m/s | amplitude m | env | tan(alpha_E) | the wave's lift N | its pitching moment N m (+ nose-down)
+      0.00 |  0.00 | 0.000 | 0.00 | 0.00 |      0 |      0
+      0.13 |  0.99 | 0.063 | 1.00 | 0.45 |    -23 |   -105
+      0.25 |  1.98 | 0.187 | 1.00 | 0.45 |   -284 |  -1759
+      0.37 |  2.97 | 0.333 | 1.00 | 0.45 |   -595 |  -4476
+      0.50 |  3.96 | 0.491 | 1.00 | 0.45 |   2940 | -10472
+      0.62 |  4.95 | 0.562 | 0.86 | 0.45 |   4556 | -10114
+      0.75 |  5.95 | 0.417 | 0.51 | 0.45 |   4468 | -10457
+      0.87 |  6.94 | 0.151 | 0.15 | 0.45 |   2696 |  -5327
+      1.00 |  7.93 | 0.000 | 0.00 | 0.45 |      2 |     -4
+      1.12 |  8.92 | 0.000 | 0.00 | 0.00 |      0 |      0
+      1.25 |  9.91 | 0.000 | 0.00 | 0.00 |      0 |      0
+      1.37 | 10.90 | 0.000 | 0.00 | 0.00 |      0 |      0
+      1.50 | 11.89 | 0.000 | 0.00 | 0.00 |      0 |      0
+PASS Cessna on floats the shipped default: DEF.kWave 0 (0: OFF)
+PASS Cessna on floats the generator's float carries kWave 0 (OFF)
+PASS Cessna on floats at rest (U 0): amplitude 0 m, the forces bit-identical to the wave off: true
+PASS Cessna on floats a metre over the water at 3 m/s: amplitude 0 m, 0 N
+PASS Cessna on floats the amplitude peaks at Fn 0.592 (0.5636 m at 4.707 m/s): inside 0.5..0.8
+PASS Cessna on floats on the step (Fn >= 1: 16 speeds) the wave is 0 m, 0 N, 0 N m
+PASS Cessna on floats in the displacement regime (0 < Fn < 0.5) the amplitude is positive at every speed (16)
+
+HUMP (the calm take-off, THE PILOT, the SEA lane; the band 8-12 deg nose-up at the hump)
+   twin on floats (as built): hump at 8.8 m/s (C_V 3.98, Fn_L 1.40, R/W 0.136): keel trim 1.7 deg (pitch 2.1); lowest keel trim on the run -0.5 deg at 15.9 m/s; highest before the hump 9.0, over C_V 1.5-4 9.0; lift-off 9.4 s
+   twin on floats (INSTRUMENT: thrust at the nose frame, 0.17 m over the CG): hump at 4.1 m/s (C_V 1.84, Fn_L 0.65, R/W 0.034): keel trim 4.9 deg (pitch 5.5); lowest keel trim on the run 1.3 deg at 1.4 m/s; highest before the hump 4.9, over C_V 1.5-4 11.7; lift-off 8.2 s
+   twin on floats (the plough wave ON, kWave 1): hump at 4.2 m/s (C_V 1.92, Fn_L 0.68, R/W 0.739): keel trim -62.0 deg (pitch -61.6); lowest keel trim on the run -68.3 deg at 4.0 m/s; highest before the hump 0.9, over C_V 1.5-4 15.5; lift-off - - NOSE-OVER (pitch -89)
+   Cessna on floats (as built): hump at 6.7 m/s (C_V 2.60, Fn_L 0.81, R/W 0.082): keel trim 7.4 deg (pitch 6.5); lowest keel trim on the run 2.1 deg at 1.9 m/s; highest before the hump 7.4, over C_V 1.5-4 13.7; lift-off 24.1 s
+   Cessna on floats (the plough wave ON, kWave 1): hump at 7.7 m/s (C_V 2.97, Fn_L 0.93, R/W 0.070): keel trim 9.1 deg (pitch 8.2); lowest keel trim on the run 2.4 deg at 1.0 m/s; highest before the hump 12.0, over C_V 1.5-4 14.0; lift-off 25.1 s
+FAIL Cessna on floats: keel trim at the hump 7.4 deg inside 8-12
+PASS Cessna on floats: never nose-down on the run (lowest keel trim 2.1 deg)
+PASS twin on floats with the thrust at the nose frame (INSTRUMENT): lowest keel trim 1.3 deg (> 0), at the hump 4.9 deg: the base's hydro carries the plough's bow-up trim
+OWED twin on floats (as built): keel trim at the hump 1.7 deg, lowest -0.5 deg at 15.9 m/s - its thrust couple (0.57 m over the CG) and the water drag (1.5 m under it) beat the floats' nose-down restoring once the afterbody unwets (HANDOVER G1807-G1809, open question 1)
+NOTE twin on floats with the plough wave ON: NOSES OVER in calm air (pitch -89 deg) - the wave's crest on the narrow bow, its trough on the wide forebody ahead of the CG: why it ships OFF
+
+SWEEP (GATE SEAPLANE's crosswind take-off, THE PILOT, the SEA lane; swing from the roll's own heading)
+   twin on floats:  wind | lift-off s | swing deg | |x| m | lowest pitch deg | lowest keel trim deg | skips | class
+      0.0 |    9.4 |    0.0 |    0.0 |   -0.3 |   -0.5 | 0 | ok
+      0.5 |    9.5 |    1.3 |    0.9 |   -0.3 |   -0.6 | 0 | ok
+      1.0 |    9.2 |    2.9 |    1.9 |   -0.7 |   -0.7 | 0 | ok
+      1.5 |    9.8 |    4.2 |    3.4 |   -2.6 |   -1.9 | 0 | ok
+      2.0 |    9.2 |    6.1 |    4.0 |   -2.0 |   -1.0 | 0 | ok
+      2.5 |    9.7 |   11.4 |    6.5 |   -6.7 |   -3.7 | 2 | ok
+      3.0 |    8.6 |    9.0 |    5.8 |   -5.2 |   -1.4 | 1 | ok
+      3.5 |    8.7 |    8.4 |    6.3 |   -1.7 |   -0.9 | 0 | ok
+      4.0 |    -   |  179.9 |  168.9 |  -87.7 |  -62.2 | 0 | NOSE-OVER at the plough
+      4.5 |    -   |  179.9 |  136.9 |  -73.0 |  -59.8 | 1 | YAW WATER LOOP
+      5.0 |    -   |  180.0 |   85.0 |  -83.6 |  -63.5 | 1 | NOSE-OVER at the plough
+PASS twin on floats: 0-1.5 m/s across clean (DMG-HULL's clean band)
+OWED twin on floats: NOSE-OVER at the plough at 4, 5 m/s across (HANDOVER G1807-G1809, open question 1: the thrust couple, not a missing wave)
+OWED twin on floats: YAW swing past 30 deg at 4.5 m/s (179.9 deg) (HANDOVER G1847-G1849, open question 2)
+   twin on floats (INSTRUMENT: thrust at the nose frame):  wind | lift-off s | swing deg | |x| m | lowest pitch deg | lowest keel trim deg | skips | class
+      0.0 |    8.2 |    0.0 |    0.0 |    0.0 |    1.3 | 0 | ok
+      0.5 |    8.2 |    1.1 |    0.8 |    0.0 |    1.3 | 0 | ok
+      1.0 |    8.1 |    2.3 |    1.6 |    0.0 |    1.3 | 0 | ok
+      1.5 |    7.4 |    3.0 |    1.3 |    0.0 |    1.2 | 0 | ok
+      2.0 |    8.1 |    6.8 |    3.0 |    0.0 |    1.2 | 1 | ok
+      2.5 |    7.0 |    5.3 |    1.6 |    0.0 |    0.8 | 1 | ok
+      3.0 |    7.4 |    5.7 |    2.6 |    0.0 |    1.3 | 0 | ok
+      3.5 |    7.7 |    8.5 |    4.1 |   -1.1 |    1.6 | 1 | ok
+      4.0 |    7.0 |    8.0 |    2.4 |    0.0 |    0.8 | 0 | ok
+      4.5 |    8.6 |   25.9 |    9.8 |   -1.2 |   -0.3 | 1 | ok
+      5.0 |    6.9 |   15.8 |    2.3 |   -2.6 |    0.1 | 1 | ok
+NOTE twin on floats with the thrust at the nose frame: no nose-over at any wind; no yaw loop
+   Cessna on floats:  wind | lift-off s | swing deg | |x| m | lowest pitch deg | lowest keel trim deg | skips | class
+      0.0 |   24.1 |    0.0 |    0.0 |   -0.5 |    2.1 | 0 | ok
+      0.5 |   24.3 |    0.5 |    0.6 |   -0.5 |    2.1 | 0 | ok
+      1.0 |   24.5 |    1.0 |    1.2 |   -0.5 |    2.2 | 0 | ok
+      1.5 |   25.4 |    4.2 |    4.0 |   -3.4 |    2.3 | 1 | ok
+      2.0 |   24.4 |    4.8 |    2.4 |   -0.5 |    2.2 | 0 | ok
+      2.5 |   25.1 |    7.8 |    3.9 |   -0.5 |    2.2 | 2 | ok
+      3.0 |   23.7 |    8.5 |    3.2 |   -0.5 |    2.0 | 4 | ok
+      3.5 |   24.1 |   11.3 |    4.7 |   -0.5 |    2.3 | 2 | ok
+      4.0 |   25.3 |   12.1 |    5.5 |   -0.5 |    1.8 | 1 | ok
+      4.5 |   25.7 |   12.3 |    5.8 |   -0.5 |    1.8 | 1 | ok
+      5.0 |   25.8 |   19.0 |    7.2 |   -0.5 |    1.4 | 3 | ok
+PASS Cessna on floats: every take-off off the water, no nose-over, swing and lane under 30 (worst 19.0 deg, 7.2 m)
+
+(37 runs in 283 s on 4 processes)
+GATE DMGPLOUGH: FAIL (1)
+(exit code 1)
+=== DMGTYRE ===
+FAIL the Cub's crosswind roll-out at 4 m/s across: completed, the heading's largest error 19.5 deg (<= 15), 0 reversals (<= 3), touchdown 1 m off the centre line (<= 3) at 1.44 m/s, rudder peak 0.95
+FAIL the Cub's crosswind roll-out at 5 m/s across: completed, the heading's largest error 28.5 deg (<= 15), 0 reversals (<= 3), touchdown 1.1 m off the centre line (<= 3) at 1.54 m/s, rudder peak 0.95
+GATE DMGTYRE: FAIL (2)
+(exit code 1)
+=== PILOTMATRIX ===
+PILOT MATRIX: 14 cells, 2 at a time (quick) on core_1791288558720.js
+  ok cub:HOME:calm               completed 334.6 s · sink 0.67 · 1.15 Vs · aim 30 · swing 0
+  ok c172:HOME:calm              completed 334 s · sink 1.1 · 1.08 Vs · aim 38 · swing 0.2
+  ok cub:HOME:x2                 completed 343.7 s · sink 0.83 · 1.13 Vs · aim 18 · swing 5.5
+  ok stearman:HOME:calm          completed 318.8 s · sink 0.85 · 1.15 Vs · aim 21 · swing 0.1
+  ok c172:HOME:x2                completed 340.6 s · sink 1.2 · 1.07 Vs · aim 26 · swing 3.5
+  X  stearman:HOME:x2            completed 326.9 s · sink 1.03 · 1.15 Vs · aim 10 · swing 1.8
+  ok cub:HOME-A3:calm            completed 625 s · sink 0.63 · 1.15 Vs · aim 32 · swing 0
+  ok cub:HOME:calm:up4           completed 321.5 s · sink 0.39 · 1.21 Vs · aim 6 · swing 0
+  ok cub:HOME:calm:dn4           completed 317.2 s · sink 0.35 · 1.23 Vs · aim 8 · swing 0
+  ~  cub:HOME:x4                 completed 344.9 s · sink 0.66 · 1.16 Vs · aim 14 · swing 9.4
+  ok cub:HOME-A5:calm            completed 709.1 s · sink 0.56 · 1.13 Vs · aim 11 · swing 0
+  ok cub:HOME:calm:sand          completed 334.4 s · sink 0.67 · 1.15 Vs · aim 30 · swing 0
+  X  stearman:HOME:x4            completed 329.3 s · sink 1.2 · 1.13 Vs · aim 12 · swing 3.7
+  ok c172:HOME:calm:rh           completed 335.5 s · sink 1.1 · 1.08 Vs · aim 38 · swing 0.2
+
+cell                              outcome go-arounds  overshoot   roll rev    ctl rev  slope rms  speed rms       sink       V/Vs        aim        off      swing  reversals   t
+  cub:HOME:calm                 completed          0        5 m    1.1/min    legs 10      0.7 m   0.14 m/s   0.67 m/s       1.15       30 m        0 m      0 deg          0 334.6   Δ sink 1.21->0.67, aim -7->30
+  c172:HOME:calm                completed          0        9 m    1.2/min   legs 7.5      0.9 m   0.07 m/s    1.1 m/s       1.08       38 m      0.1 m    0.2 deg          0   334
+  stearman:HOME:calm            completed          0        6 m    0.8/min     base 8      0.7 m   0.08 m/s   0.85 m/s       1.15       21 m        0 m    0.1 deg          0 318.8   Δ swing 7->0.1
+  cub:HOME:x2                   completed          0        4 m      2/min    legs 10      0.7 m   0.16 m/s   0.83 m/s       1.13       18 m      0.5 m    5.5 deg          0 343.7   Δ sink 1.33->0.83, aim -19->18
+ Xstearman:HOME:x2              completed          0        4 m    1.5/min*takeoff 60      0.6 m    0.1 m/s   1.03 m/s       1.15       10 m      0.7 m    1.8 deg          1 326.9   Δ sink 1.28->1.03, swing 7->1.8
+  c172:HOME:x2                  completed          0        3 m    1.2/min   legs 7.2      0.9 m   0.06 m/s    1.2 m/s       1.07       26 m      0.8 m    3.5 deg          1 340.6
+  cub:HOME-A3:calm              completed          0        5 m    0.5/min    base 10      0.7 m   0.14 m/s   0.63 m/s       1.15       32 m        0 m      0 deg          0   625   Δ sink 1.49->0.63, aim -9->32
+  cub:HOME:calm:up4             completed          0        8 m      1/min     legs 8      0.7 m   0.14 m/s   0.39 m/s       1.21        6 m        0 m      0 deg          0 321.5   Δ sink 1.04->0.39
+  cub:HOME:calm:dn4             completed          0        5 m    0.5/min     legs 8      0.7 m   0.13 m/s   0.35 m/s       1.23        8 m        0 m      0 deg          0 317.2   Δ sink 1.76->0.35
+ ~cub:HOME:x4                   completed          0        4 m      1/min takeoff 18      0.7 m   0.27 m/s   0.66 m/s       1.16       14 m      0.9 m   ~9.4 deg          1 344.9   (new)
+ Xstearman:HOME:x4              completed          0        3 m    0.7/min*takeoff 122      0.7 m   0.26 m/s    1.2 m/s       1.13       12 m      1.1 m    3.7 deg          1 329.3   (new)
+  cub:HOME-A5:calm              completed          0        4 m    0.9/min     base 4      0.7 m   0.14 m/s   0.56 m/s       1.13       11 m        0 m      0 deg          0 709.1   (new)
+  cub:HOME:calm:sand            completed          0        5 m    1.1/min     legs 8      0.7 m   0.14 m/s   0.67 m/s       1.15       30 m        0 m      0 deg          0 334.4   (new)
+  c172:HOME:calm:rh             completed          0        9 m    1.2/min   legs 8.9      0.9 m   0.07 m/s    1.1 m/s       1.08       38 m      0.1 m    0.2 deg          0 335.5   (new)
+
+14 cells: 11 good, 1 warn, 2 bad
+wall 1199 s
+  ratchet: no cell worse than pilot_baseline.json; 2 known bad, 1 warn
+GATE PILOTMATRIX: PASS
+=== FLOATS ===
+BUILD
+   127 nodes, 519 beams, gross 486.3 kg; floats: L 4.60 m, beam 0.64 m, scale 1.000, 27.2 kg each, the pair displaces 1448 kg to the deck (2.98 x gross); step at x 1.22, keel y -0.46, track 1.60 m; substeps 105
+PASS two floats, two rigid clusters of 15 nodes (five stations, G451)
+PASS the step keels are the mains' refs, no third wheel
+PASS the pair displaces 2.98 x the gross (bound 1.5; the rule is 1.8)
+PASS the sea at (0, 1600): level 0, bed -44.5 m
+
+SETTLE (dropped from 0.3 m, throttle 0)
+   at rest: L/W 1.000, draft at the step 0.266 m, trim 2.94 deg, roll 0.00 deg (max 0.01 through the drop), max beam strain 0.0030
+PASS the settle stays finite
+PASS the water carries the weight: L/W 1.000 (bound +-3 %)
+PASS draft at the step 0.266 m (bound 0.15-0.40)
+PASS trim 2.94 deg nose-up at rest (bound 0.5-10)
+PASS level in roll: 0.00 deg at rest, 0.01 max
+PASS the frame's max strain 0.0030 (bound 0.06)
+
+TAKEOFF (full throttle from rest, stick back, the planing attitude held from 9 m/s)
+   hump R/W 0.211 at 13.3 m/s; steps ventilated to 1.00 before lift-off; airborne at 8.7 s, 26.3 m/s; max roll 0.01 deg
+PASS the take-off stays finite
+PASS a hump of R/W 0.211 at 13.3 m/s (bound 0.10-0.45, under 14 m/s)
+PASS on the step: R/W 0.208 at most (at 16.5 m/s; bound 0.35), the trim between 1.1 and 8.0 deg (bound -1..12)
+PASS the steps ventilate before lift-off (1.00)
+PASS airborne inside 30 s (8.7 s)
+PASS roll under 5 deg through the run (0.01)
+
+LANDING (trimmed approach at 1.3 Vs, quarter throttle, 1 m/s down; throttle to idle at the touch)
+   Vs 16.6 -> approach 21.5 m/s; elevator 0.189 trims -1.02 m/s down
+   touch at 24.45 s, sinking 0.95 m/s; the water's lift frame by frame: 0.01 0.09 0.24 0.38 0.54 0.67 0.77 0.85 0.90 0.90 ... first peak 0.899 W after 10 frames; largest one-frame change 1.656 W; peak 2.597 W; 20 s on: V 3.0 m/s
+PASS the landing stays finite
+PASS the touch at 0.95 m/s down (bound 0.35-1.6)
+PASS the water's lift climbs over 10 frames to its first peak (bound 3)
+FAIL no frame adds more than 1.656 W (bound 0.35)
+FAIL the touchdown peaks at 2.597 W (bound 2)
+PASS an idle taxi 20 s after the touch: 3.0 m/s (bound 5)
+
+GATE FLOATS: FAIL (2)
+(exit code 1)
+=== SEAPLANE ===
+CIRCUIT (calm, the pilot, SEA -> SEA)
+   lift-off 8.9 s; touch 253.8 s at (0, 2611), water 94.3 m deep; stopped 302.0 s; max |x| on the water 0.1 m; phases: ROLL LIFTOFF CLIMB CROSSWIND DOWNWIND BASE FINAL FLARE ROLLOUT STOPPED
+PASS the circuit stays finite
+PASS off the water inside 25 s (8.9)
+PASS the touch is on the lane's deep water (94.3 m, 0 m off the centreline)
+PASS rolled out to STOPPED (302.0 s)
+PASS never more than 0.1 m off the centreline on the water (bound 30)
+
+CROSSWIND TAKE-OFF (3.3 m/s across the lane = 0.2 V_SO, FAR 23.233)
+   lift-off 8.9 s (airborne = dry 2 s; 1 skip before it); the run: max |x| 5.5 m, max heading swing 14.8 deg from the roll's -0; phases: ROLL LIFTOFF ROLL LIFTOFF CLIMB
+PASS off the water inside 25 s (8.9)
+PASS 1 skip before the aeroplane is away (bound 2)
+PASS the run holds the lane: 5.5 m off (bound 30)
+PASS the heading swings 14.8 deg at most (bound 30)
+
+TAXI (5 m/s across, throttle held at idle, 60 s)
+   max |hdg| 9.5 deg, max |x| 0.9 m
+PASS the water rudder holds the heading within 9.5 deg (bound 20)
+PASS the track within 0.9 m (bound 10)
+
+GATE SEAPLANE: PASS
+
+──────── summary ────────
+TAKEOFF   PASS   397.7 s
+PILOTACT  PASS   151.1 s
+DMGDAMP   PASS   253.6 s
+DMGHULL   FAIL   336.6 s
+DMGPLOUGH FAIL   283.0 s
+DMGTYRE   FAIL   180.5 s
+PILOTMATRIX PASS  1199.2 s
+FLOATS    FAIL    77.8 s
+SEAPLANE  PASS   256.8 s
+total           3136.3 s
+wall            2407.2 s  (jobs 4)
+
+BATTERY: FAIL — never deliver red.

@@ -79849,3 +79849,185 @@ a looser bound from this session.
   jodel 440.9 -> 441.8. Routing them through `LB.gameSpec(designBake(...))` is one line in pilot_trace and in
   _bake_joined, and moves PILOTMATRIX's ratchet and ARCHETYPES wholesale - A0's call (G1989 is free for it).
 - master_bench and the other page-run rigs boot through the AUTOSAVE (the boot door), see G1986's last item.
+
+## G1880-G1882 DMG-FLOATTO: THE FLOATPLANE'S CROSSWIND TAKE-OFF - THE NOSE-OVERS WERE THE CHOP THE WIND RAISES, NOT THE PLOUGH; THE PILOT DAMPS THE PORPOISE WITH BOTH HANDS; GATE DMGFLOATTO; SEAPLANE BACK AT 5 m/s; THE HELD BUNDLE ASSEMBLED (2026-10-06, DMG-FLOATTO for the DEFORM COORDINATOR, a CLOUD session: node only; branch claude/dmg-floatto; G1880-G1882, borrowed from DMG-D5's range)
+
+**READY for the coordinator (train 38/39).** Source and tools only: nothing generated is committed (index.html, dev.html,
+sw.js, version.json, tools/flight_core.js are A0's to build). Damage stays OFF by default. The core change is two files,
+src/core/43_pilot.js and src/core/39b_servos.js.
+
+**Read this first.** On the assembled bundle the brief's premise did not hold. PILOT-ONE-2's water power ramp (G1937)
+already carries the twin over the plough nose-up (its lowest pitch in the plough is -1..-3 deg at every wind). The
+nose-overs are later, on the step, and their cause is the **chop the wind raises on the SEA lane**. At 2 m/s across the
+waves are 0.07 m crest to trough (L 5.8 m), at 5 m/s 0.18 m (L 10 m), beam-on to the run. **With the same wind and the
+sea flattened, every crosswind run is the calm run** (`cause.svg`). The chop drives a porpoise on the step. The solver
+used to damp it (DMG-DAMP removed that, G1885) and nothing else does now: it grows until the water throws the hull out
+below Vs, the thrust couple (~1.3 kN m at full power) beats the elevator (the nose fell from +31 to -50 deg in the air
+with the stick on its stop), and the bow goes in. So the fix is the pilot's, as the brief asked, but it is not the
+plough technique: **the porpoise is damped with both hands.** The power comes off as the nose falls, and the stick goes
+forward as it rises. The brief's plough technique (power 0.7-0.8 to 6 m/s, full aft stick) was measured and changes
+nothing here; it is not shipped (below).
+
+### THE BUNDLE (the held assembly; every merge built with `node tools/build.js`, exit 0, then checked for duplicated
+top-level declarations: none new, the four in 27_premises / 32_hydro are pre-existing and scoped)
+1. `ff151a81` origin/claude/dmg-plough f0399d4f + **origin/claude/dmg-tyre a1ac9f31**. Conflicts:
+   90_node_exports.js (the union: + TYRE_CN), run_gates.js (DMGHULL + DMGPLOUGH rows and the DMGTYRE row, all kept),
+   HANDOVER.md (both entries kept whole). Generated files: ours (train 34; dmg-tyre's are older).
+2. `b6d8c218` + **origin/claude/dmg-integration d3d5e24e** (train 37b + DMG-DRIVE + DMG-WINDBREAK + DMG-WALL).
+   Conflicts: **30_solver.js**, two independent insertions at the same place: DMG-DAMP's `integrate(dt)` and the damage
+   passes `floorPass` / `suppPass` / `tkHit`. Both kept. `substep()` keeps DAMP's `integrate(dt)` call; integration had
+   not touched the old mean-damper loop it replaces. 90_node_exports.js: the union (-> 312). run_gates.js: integration's
+   TREECRASH row (wall 900, its certificate comment) and its DMG rows, then DMGDAMP / DMGHULL / DMGPLOUGH / DMGTYRE.
+   HANDOVER.md: both, whole entries (each conflict block began on an entry heading). Generated files: integration's
+   (train 37b). Auto-merged on both sides: 32_hydro.js, 42_crosswind.js, 65_gen_loadtest.js.
+3. `ed2d5d36` + **origin/claude/pilot-one-2-g1949 0fcf1a42**. Conflicts: **39b_servos.js** (3 blocks). PILOT-ONE-2 had
+   laid DAMP's water-step entry already (`waterStepK: 1` in SERVO_GAINS, kP x waterStepK on the water on the step).
+   **DAMP's waterStepK survives** as the one pilot row, `SERVO_TUNE.pilot = { waterStepK: 0.6 }` (the classic and test
+   rows retired with their pilots, G1940). The steering line keeps DAMP's G1888 comment and its single expression,
+   identical in effect to PILOT-ONE-2's two lines. 90_node_exports.js: the union (+ servoStepHold, PILOT_PROFILES,
+   pilotProfile) **less makeAutopilot and makeTestPilot**. PILOT-ONE-2 deletes 40_autopilot.js and 41_test_pilot.js, so
+   exporting them would throw; nothing on the other side calls either, and every exported name is checked declared.
+   HANDOVER.md: both. Auto-merged on both sides: 30_solver.js, 43_pilot.js, viewer app.js / body.html / sim_host.js,
+   tools _gfx_check, _takeoff_check, build.js, test_ui_smoke.
+4. `7eacfba1` + **origin/claude/join-parity-g1985 aba8187f** (READY in its HANDOVER; not on master). Conflicts:
+   HANDOVER.md only.
+
+### G1880 - THE LAW (39b `S.porpoise`, gains `porp*` in SERVO_GAINS; 43's FEATURE `porpoise`)
+- **Armed** on the pilot's water take-off (ROLL / LIFTOFF on floats, until CLIMB) when the aeroplane's **thrust lever**
+  `THRUST_ARM x T_static / W` (how far forward full power moves the CG, in effect) exceeds `porpLever` 0.10 m.
+  The twin on floats measures 0.27 m (two 582s 0.54 m over the CG, T/W 0.51), the Cessna on floats 0.003, the Cub
+  -0.006 and the Jodel 0.017. It depends on the build's geometry and thrust, never on its name. Off the water, or with
+  the thrust line through the CG, it never arms: the base's controls to the bit.
+- **The power:** the throttle's ceiling is `1 - porpKq (0.015) x the nose-down rate (deg/s) - porpKth (0.05) x the
+  degrees under porpTh0 (-2)`, never under porpMin 0.3, followed by the hand in porpS 0.1 s. Its second term is the
+  brief's "pitch error in the plough", closed-loop.
+- **The stick:** while a float is wet above porpDeV 6 m/s, the stick goes forward by `porpDeQ 0.02` per deg/s of nose-up
+  rate, to deMin at most. This is a rate damper, not G396.4's constant forward push. Through LIFTOFF it also softens the
+  hold-off's full aft stick (G396.4) when a hull that has hopped re-contacts nose-down: that yank was the +45..55 deg
+  balloon below Vs.
+- **Why both hands** (all measured, the strict sweep below, the twin's 11 winds):
+  - an instrument pitch-only damper of 2 /s bounds the 5 m/s porpoise; roll or yaw damping does nothing; 0.5 /s is not
+    enough;
+  - the power alone (it can only come OFF from full: the nose-down half) leaves 3-6 nose-overs;
+  - the stick alone leaves 3;
+  - aft stick and less power both GROW the porpoise (the twin's is upper-limit porpoising, its trim already high: the
+    thrust couple holds it down);
+  - the brief's plough hold (0.75 to 6 m/s, de 0.7) measured equal to without it.
+- What it costs the run: the calm water run lengthens a little, because the power is trimmed on the porpoise's
+  nose-down halves (the twin 8.9 -> 9.3 s; PILOT-ONE-2's trace rig: ultraf 84 -> 96 m, twinf 180 -> 186 m).
+- `ap.thrCap` is a getter on the law's ceiling, for the gate. A double stored on `ap` every frame measured +4-8 % on the
+  pilot's update in one series, so it was taken out (with the instrument's noise as it is - perf, below - that number
+  is not conclusive, but the getter costs nothing).
+
+### G1881 - THE INTO-WIND BANK AFLOAT, BOUNDED (39b groundSteer)
+The water had no bound on xwBank's bank target. `0.06 x the wind x (vRef / V)` asked the twin for 17-27 deg of bank at
+5 m/s across, so the aileron sat on its stop the whole run. As the speed built it rolled the floats onto their windward
+chines (roll -9 <-> +7.5 deg, the floats' loads swapping 0.03 / 0.45 W) and fed the porpoise. Afloat the bank now gets
+the wheels' bound (xwBankGround, 0.035 rad). Without it the law leaves 3 nose-overs. A wheeled roll is bit-identical.
+
+### G1882 - GATE DMGFLOATTO (tools/_dmgfloatto_check.js, tier full, weight 4, ~2.5 min) and GATE SEAPLANE
+- **Judged to CLIMB.** Every float contact from the throttle to CLIMB counts. GATE SEAPLANE's "airborne = dry 2 s"
+  read a hop that settled back and was REJECTED as a take-off: on the base, 3 and 3.5 m/s "passed" that way, and so did
+  SEAPLANE's own 5 m/s row.
+- **SWEEP:** both validated floatplanes, as the game flies them (tools/_load_build.js `twinFloats`, `floats`), at
+  0-5 m/s in 0.5 steps. Every run reaches CLIMB, no nose-over (the pitch at a float contact >= -20 deg), and the run's
+  swing and lane are under 30 (SEAPLANE's measure: until first dry for 2 s; the worst at any later touch printed beside).
+- **LAND:** the technique never arms on a wheeled take-off (the Cub, the metal Cessna).
+- **SEAPLANE:** the crosswind bar is back at **5 m/s** (0.30 V_SO, over FAR 23.233's 0.2), and the crosswind run must
+  reach CLIMB. At 5 m/s: lift-off 8.9 s, 0 skips, lane 7.2 m, swing 11.2 deg, ROLL LIFTOFF CLIMB.
+- Instruments (never the gate's default): `--ap=k:v` (the pilot's per-aeroplane keys), `--thrCap/--capUntil`
+  (PLOUGH's), `--flatSea` (the cause).
+
+### THE ACCEPTANCE
+1. **No nose-over, completing, 0-5 m/s** (GATE DMGFLOATTO; `sweep.svg`, `pitch_twin.svg`; `sweep_before.txt` /
+   `sweep_after.txt`):
+
+| across (m/s) | twin BEFORE: lowest pitch on the water / class | twin AFTER: lowest / swing (lane) / class | Cessna on floats AFTER: lowest / swing (lane) |
+|---|---|---|---|
+| 0 | -1.3 / ok | 0.0 / 0.0 (0.0) / ok | -0.5 / 0.0 (0.0) |
+| 0.5 | -1.3 / ok | 0.0 / 1.1 (0.6) / ok | -0.5 / 0.5 (0.6) |
+| 1 | -2.3 / ok | 0.0 / 2.3 (1.3) / ok | -0.5 / 1.0 (1.1) |
+| 1.5 | -2.9 / ok | -4.3 / 3.9 (2.1) / ok | -0.5 / 1.6 (1.4) |
+| 2 | **-75.7 NOSE-OVER** | -6.1 / 4.9 (2.6) / ok | -0.5 / 2.2 (1.8) |
+| 2.5 | **-70.3 NOSE-OVER** | -1.1 / 5.8 (3.3) / ok | -0.5 / 2.6 (2.1) |
+| 3 | **-28.9 NOSE-OVER** (after a hop) | -4.7 / 7.1 (4.4) / ok | -0.5 / 7.9 (2.7) |
+| 3.5 | **-46.0 NOSE-OVER** (after a hop) | -0.2 / 8.1 (4.6) / ok | -1.1 / 10.1 (3.0) |
+| 4 | -18.7 / away (a 35 deg touch) | -4.8 / 8.8 (5.6) / ok | -0.5 / 6.3 (3.4) |
+| 4.5 | **-58.9 NOSE-OVER** | -7.7 / 15.9 (9.3) / ok * | -0.5 / 4.7 (3.9) |
+| 5 | **-89.2 NOSE-OVER** | -3.7 / 11.3 (7.2) / ok | -0.5 / 18.6 (5.6) |
+
+   \* At 4.5 m/s a float touches 31 deg off the roll's heading at 10.5 s. The aeroplane has then been airborne 3 s,
+   crabbing into the wind, and flies away from the touch (OPEN, below). The Cessna is clean before and after; its
+   lowest pitch before was -3.4 / -3.3 deg at 1.5 / 3.5 m/s.
+2. **The land take-off traces identical to the digit** (PILOT-ONE-2's rig, `tools/pilot_one_trace.js --csv`, calm): the
+   Cub, the Jodel and the C172 10 Hz CSVs are **byte-identical** before / after. So are the Wipline C172 and the
+   C172-on-floats-for-wheels (lever under 0.10). Only the two high-thrust-line float builds move (ultraf, twinf, above).
+   GATE TAKEOFF's crosswind limit is unchanged (4 m/s).
+3. **GATE SEAPLANE's crosswind bar: 5 m/s is met** by every validated floatplane, so it is raised back (G1882).
+4. **The water take-off times (calm):** the twin's water run 8.9 -> 9.3 s; the Cessna on floats 24.1 -> 24.1 s
+   (bit-identical in calm). SEAPLANE's circuit lift-off 8.9 -> 9.3 s.
+5. **Perf: NOT DEMONSTRATED within 2 % on the water** (`perf.txt`). This VM's alternating A/B (15-21 processes a side)
+   reads the NULL - the base against an identical copy of itself - at -3.1 / -0.4 / +4.2 %. The law on an identical
+   trajectory (a compute-only core) reads -0.2 / +4.6 / +7.5 %. The step, whose code is identical, moves up to +3.6 %
+   in the same series. The law itself, micro-benchmarked, costs **16.7 ns a call armed and 6.8 ns unarmed**: 0.02 % of
+   the ~90 us update. On land (unarmed, every wheel take-off), the real cores read +0.2 % (15 a side). **A0 to
+   re-measure on a quiet machine.**
+
+### FOR THE BUNDLE (the integration base d3d5e24e -> this branch, unless said)
+- **The targeted gates** (`gates_before.txt` = the assembled base 7eacfba1, `gates_after.txt`, `gates_int.txt`).
+  - Base and after alike: PASS on TAKEOFF, PILOTACT, PILOTMATRIX, DMGDAMP and SEAPLANE; DMGFLOATTO (new) PASS after.
+  - **RED ON THE BASE AND AFTER, identically (the bundle's, not this change's):**
+    - DMGHULL: "Cessna on floats hump: the side term peaks at 50 deg of slip (45)".
+    - DMGPLOUGH: "Cessna on floats: keel trim at the hump 7.4 deg inside 8-12". Bit-identical in calm after. DMG-PLOUGH read
+      8.2; the bundle moved it (JOIN-PARITY's drawn hulls are the likely cause - not traced here).
+    - DMGTYRE: "the Cub's crosswind roll-out at 4 / 5 m/s: 19.5 / 28.5 deg (<= 15)" (wheels; nothing here touches them).
+    - FLOATS: "no frame adds more than 1.656 W (0.35); the touchdown peaks at 2.597 W (2)". JOIN-PARITY's own red (the
+      twin's drawn floats).
+  - These four want their owners: they follow from JOIN-PARITY flying the game's aeroplane, which DAMP / HULL / PLOUGH /
+    TYRE were calibrated without.
+- **The moved pilot numbers**, base -> after:
+  - PILOTMATRIX: unchanged, every cell to the digit.
+  - PILOTACT: unchanged to the digit.
+  - TAKEOFF: the land rows and the crosswind limit unchanged; ultraf / twinf water traces as above.
+  - DMGHULL's and DMGPLOUGH's own sweeps fly the RAW fixture twin (the pre-JOIN-PARITY aeroplane). Before: nose-over at
+    4 / 5, a yaw loop at 4.5. After: **no nose-over anywhere**, but yaw loops at 4.5 (49 deg) and 5 m/s (180). Its heading
+    drifts into wind on the step from 5 s, the rudder on its stop: DMG-HULL's open question 2, masked before by the
+    nose-over. With the bank bound removed or loosened (0.07, 0.12 rad) that aeroplane still swings 38-65 deg at 4.5 / 5.
+  - **Integration base -> this branch** (`gates_int.txt`: every gate PASS there, FLOATS included). The moves are the
+    bundle's: none of them differs between the assembled base and this branch.
+    - TAKEOFF's wheeled crosswind limit 4.5 -> 4 m/s (JOIN-PARITY's documented move, the twin-582 fixture's engine).
+    - **PILOTACT's metal Cessna** (fixtures/build_v10_cessnaMetal) ok -> WARN: sink 1.11 -> 1.83 m/s, 1.15 -> 1.38 Vs at
+      the touch, aim 44 -> -19 m (OPEN for A0).
+    - PILOTMATRIX within its ratchet: the Cub HOME-A5 671.7 -> 709.1 s, stearman x4 swing 13.7 -> 3.7, c172 x2 1.4 -> 3.5,
+      the rest within a few tenths.
+    - SEAPLANE's calm circuit lift-off 7.9 -> 9.3 s (8.9 on the assembled base). The integration base still flew the
+      pre-DAMP 5 m/s crosswind with the hidden damper: 2 skips, swing 28.0 deg. This branch: 0 skips, 11.2.
+    - FLOATS PASS -> FAIL (JOIN-PARITY's red, above).
+- **TANKS-FLOAT ditch** (tools/tanks_float.js, full tanks, 600 s; no pilot flies a ditch, so this change cannot move it;
+  the bundle against integration; `tanks_float/`):
+
+| build | integration | this branch |
+|---|---|---|
+| the user's Cub | sunk 301.5 s | sunk 302 s |
+| the Cub, 45 L in the wing roots | sunk 291 s | sunk 288.5 s |
+| the metal Cessna | afloat at 600 s (roots under 169 s) | afloat (roots under 167 s) |
+| the Jodel | afloat at 600 s | afloat |
+
+- **The step perf, damage OFF / ON, integration -> this branch** (11 processes a side; the instrument's noise is the
+  +-4 % above):
+  - damage OFF: air +4.5 %, ground (the metal Cessna's roll) -1.0 %, the twin's water run +6.6 %;
+  - damage ON: air +0.3 %, ground +1.8 %, water +4.3 %;
+  - the bundle's solver change is DAMP's `integrate` and HULL's side term.
+
+### OPEN QUESTIONS (for the user)
+1. **The chop is the crosswind take-off's real limit.** The wind-driven sea on the SEA lane is 0.18 m crest to trough at
+   5 m/s, beam-on to a crosswind run, on undersized floats (floatAdvice: reserve 1.78 < 1.8). Is that sea right for a
+   5 m/s wind over a sheltered lane? Real pilots would also take off into the waves rather than along them.
+2. **The 4.5 m/s touch** (31 deg off, after 3 s airborne, crabbed): the pilot lets the aeroplane settle once near Vs at
+   the lift-off. Should the lift-off on the water hold the aeroplane off (ground effect) instead? That is PILOT-ONE-2's
+   rotation, not this law.
+3. **The raw-fixture twin's yaw at 4.5-5 m/s** (DMGHULL / DMGPLOUGH's rows): the hull's side-force centre ahead of the
+   CG on the step (DMG-HULL's question 2). The game no longer flies that aeroplane; should those gates move to
+   `twinFloats`?
+4. **The plough technique** of the brief is not shipped (measured no effect on this bundle). Say if you want it anyway,
+   as a FEATURE flag at 0.
