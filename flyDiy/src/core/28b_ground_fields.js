@@ -126,11 +126,12 @@ const GROUND_FIELDS = (() => {
       16: { tex: ['forestAir', 'dirt', 'grassRock'], scale: [81, 2.4, 15], far: ['forestAir', null, 'grassRock'], farScale: [81, 0, 15], mix: [20, 3, -0.15, -0.1], vary: [7, 0.14, 26], para: 0.28 },
       // 17 THE BANK (SHORES-2 G1955, the user 2026-10-05: "you just need a good cliff texture, ideally oriented with respect
       // to the slope ... we need good blending"): DERIVED in the shader, like 12-14 - the steep faces within bankReach of a
-      // lake's line or the coast, whatever their own code, take it by a soft, noise-broken weight (splat_ground sSplat). Its
-      // own rock: darkRock (Poly Haven dark_rock_02, CC0, a 2 m tile - wet, dark, fractured: the island's own stone), the
-      // dark gravel at its foot (dirt; rocksG's pale stones read as a white blotch at the waterline, it2 sea_beach). The oriented two-axis triplanar keeps it unstretched. HEX KEPT ON: the coast's step is
-      // a band kilometres long and a plain 3 m tile read as a row of bricks along it (it1, close_shingle)
-      17: { tex: ['darkRock', 'dirt', null], scale: [3.2, 1.8, 0], far: [null, null, null], farScale: [0, 0, 0], mix: [9, 2.2, -0.25, 0], vary: [4, 0.14, 12], para: 0.6 },
+      // lake's line or the coast, whatever their own code, take it by a soft, noise-broken weight (splat_ground sSplat), read
+      // through the triplanar oriented to the face. ITS SETS ARE THE ROCKY SHORE'S (11), the colour SHORES' banks wore: the
+      // user on the first sheets (2026-10-06): "the blending is good, but the new colour and lightness is not. We have lost the
+      // nice colour of the original texture, and the new one is too dark" - darkRock (Poly Haven dark_rock_02) stays in the
+      // library, a pick in the world rail's bank slots. Hex kept on: the coast's step is a band kilometres long.
+      17: { tex: ['coastA', 'rocksG', 'coastSand'], scale: [19.94, 2, 15.2], far: ['coastA', null, 'coastSand'], farScale: [19.94, 0, 15.2], mix: [14, 3, -0.2, -0.3], vary: [3, 0.08, 15], para: 0.6 },
     },
     // the map's code names (0-11 from island_prep's ttype) and the three derived in the shader
     names: { 0: 'sea', 1: 'lake', 2: 'heath', 3: 'muskeg', 4: 'sand', 5: 'scree', 6: 'rock', 7: 'scrub', 8: 'forest', 9: 'snow', 10: 'built', 11: 'shingle', 12: 'cliff', 13: 'forest old', 14: 'scrub dense', 15: 'lush', 16: 'city trees', 17: 'bank' },
