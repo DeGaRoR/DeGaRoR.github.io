@@ -459,13 +459,15 @@ vec3 dmgCell(vec3 x) {
         // metal: the paint CRAZES - a crack network on cells of ~1.8 cm, broken by a noise so it is a network in places,
         // not a tiling - and where the crush is worst whole cells FLAKE off (polygons along the network, not discs),
         // clustered by the buckle field: zinc-chromate primer at a flake's edge, bare alloy in it; the sheet dents
-        vec3 cc = dmgCell(dP * 55.0);
+        // (the cells read through a warp - the buckle and crease fields bend them - so the network is a craquelure, not
+        // a honeycomb)
+        vec3 cc = dmgCell(dP * 55.0 + 1.6 * vec3(nF.x - 0.5, nB.x - 0.5, nF.y * 0.02));
         float edgeD = cc.y - cc.x;
-        float crack = 1.0 - smoothstep(0.0, 0.05 + 55.0 * dFw, edgeD);
+        float crack = 1.0 - smoothstep(0.0, 0.035 + 55.0 * dFw, edgeD);
         float crz = crack * smoothstep(0.30, 0.75, cr) * smoothstep(0.35, 0.65, nF.x + 0.25 * cr);
         float flake = step(cc.z, 0.24 * smoothstep(0.55, 1.0, cr)) * step(0.42 - 0.2 * cr, nB.x);
         float rim = flake * (1.0 - smoothstep(0.03, 0.10, edgeD));
-        col = mix(col, col * 0.35, dMet * crz * (1.0 - flake));
+        col = mix(col, col * 0.5, dMet * crz * (1.0 - flake));
         col = mix(col, dSub, dMet * flake);
         col = mix(col, uDmgCol[0].rgb, dMet * rim);
         met = mix(met, dSubM, dMet * flake * (1.0 - rim));

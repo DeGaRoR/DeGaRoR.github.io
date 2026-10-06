@@ -87,16 +87,21 @@
       const vc = vclsOf(o); if (!vc.includes(SV.CLS.glass)) continue;
       const { M, N } = craftOf(o), pa = o.geometry.attributes.position, na = o.geometry.attributes.normal; if (!na) continue;
       const q = new T.Vector3(), p = new T.Vector3();
+      // (the cabin's glass only: above the aeroplane's mid-height - the metal Cessna's landing-light lens in the cowl is
+      // further forward and faces forward too)
+      const zMid = box.min.z + 0.5 * (box.max.z - box.min.z);
       for (let i = 0; i < na.count; i++) { if (vc[i] !== SV.CLS.glass) continue; q.fromBufferAttribute(na, i).applyMatrix3(N).normalize(); if (-q.y <= 0.35) continue;
-        const y = p.fromBufferAttribute(pa, i).applyMatrix4(M).y; if (y < fy) { fy = y; front = o; best = i; } }
+        p.fromBufferAttribute(pa, i).applyMatrix4(M); if (p.z < zMid) continue; const y = p.y; if (y < fy) { fy = y; front = o; best = i; } }
     }
     // the impact: the windscreen's middle - the forward-facing glass within 0.25 m of its most forward point, their mean
     let paneObj = null, paneAt = null;
     if (front) {
       const vc = vclsOf(front), { M, N } = craftOf(front), pa = front.geometry.attributes.position, na = front.geometry.attributes.normal, n = pa.count, q = new T.Vector3(), p = new T.Vector3();
       const c0 = new T.Vector3(); let k = 0; const ok = new Uint8Array(n);
+      const zMid2 = box.min.z + 0.5 * (box.max.z - box.min.z);
       for (let i = 0; i < n; i++) { if (vc[i] !== SV.CLS.glass) continue; q.fromBufferAttribute(na, i).applyMatrix3(N).normalize(); if (-q.y <= 0.35) continue;
-        if (p.fromBufferAttribute(pa, i).applyMatrix4(M).y < fy + 0.25) { ok[i] = 1; c0.add(p.fromBufferAttribute(pa, i)); k++; } }
+        p.fromBufferAttribute(pa, i).applyMatrix4(M); if (p.z < zMid2) continue;
+        if (p.y < fy + 0.25) { ok[i] = 1; c0.add(p.fromBufferAttribute(pa, i)); k++; } }
       c0.multiplyScalar(1 / Math.max(1, k));
       let bd = Infinity; for (let i = 0; i < n; i++) { if (!ok[i]) continue; const dd = p.fromBufferAttribute(pa, i).distanceTo(c0); if (dd < bd) { bd = dd; best = i; } }
       paneObj = new T.Vector3().fromBufferAttribute(pa, best); front.updateMatrixWorld(true); paneAt = paneObj.clone().applyMatrix4(front.matrixWorld);
