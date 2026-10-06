@@ -177,6 +177,27 @@ const yes = (ok, msg) => { checks++; if (!ok) fails++; console.log('  ' + (ok ? 
     console.log('  cost: ' + r.placeUs.toFixed(3) + ' us a place (' + r.places + ' places), the worst torn band ' + r.tornMs.toFixed(2) + ' ms, a tick of 2000 places at worst ' + r.tick2000.worst.toFixed(2) + ' ms (' + r.tick2000.ticks + ' ticks)');
     yes(r.placeUs < 3 && r.tick2000.worst < 25, 'the pass is cheap enough to budget (a place under 3 us, a 2000-place tick under 25 ms in node)');
   }
+  // ---- 8b. THE BLOCK ASLEEP UNTIL THE FIRST DAMAGE (skin_scuff.js waker / wakeSet): asleep the wrapper is its hook and
+  // nothing more (the plain source, its own key), awake the block; a flip bumps every material it compiled ----
+  {
+    const SS = require('../src/viewer/skin_scuff.js'), W = SS.waker(), U = { uDmgOn: { value: 0 } };
+    const h = function (sh) { sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\n// own'); };
+    h.toString = () => 'own.hook';
+    const w = SS.wrap(h, 'live', U, W);
+    const sh0 = () => ({ uniforms: {}, vertexShader: '#include <common>\nvoid main() {\n#include <begin_vertex>\n}\n', fragmentShader: '#include <common>\nvoid main() {\n#include <lights_physical_fragment>\n}\n' });
+    const ref = sh0(); h(ref);
+    const mat = { v: 0, set needsUpdate(x) { if (x) this.v++; } };
+    const k0 = w.toString(), a = sh0(); w.call(mat, a);
+    yes(a.vertexShader === ref.vertexShader && a.fragmentShader === ref.fragmentShader && a.uniforms.uDmgOn === U.uDmgOn && /asleep/.test(k0) && W.mats.has(mat),
+        'asleep: the wrapper hands three the hook\'s own source (no attribute, no varying, no branch) under its own key (' + k0 + ')');
+    W.awake = true; const f1 = SS.wakeSet(W);
+    const k1 = w.toString(), b = sh0(); w.call(mat, b);
+    yes(f1 && mat.v === 1 && k1 !== k0 && /DMG_SCUFF/.test(b.vertexShader) && /aDmg/.test(b.vertexShader) && /uDmgOn/.test(b.fragmentShader),
+        'awake: the key flips, the material it compiled bumped once, the block spliced (' + k1 + ')');
+    W.awake = false; W.pre = 1; const f2 = SS.wakeSet(W); W.pre = 0; const f3 = SS.wakeSet(W);
+    yes(!f2 && f3 && mat.v === 2 && w.toString() === k0, 'the roll-out\'s prelink holds it awake, and it sleeps again after (a reset sleeps it too)');
+    yes(SS.wrap(h, 'live', U).toString() === 'dmg.scuff|live|own.hook', 'without a waker (the bench\'s legacy) the wrapper is always awake');
+  }
   // ---- 9. the page, static ----
   const app = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'app.js'), 'utf8');
   const lines = app.split('\n');
@@ -186,6 +207,8 @@ const yes = (ok, msg) => { checks++; if (!ok) fails++; console.log('  ' + (ok ? 
   yes(/const scuffMat = \(m, kind\) => \{\n\s+if \(!SCUFF \|\|/.test(app) && /const SCUFF = data\.cage \? scuffFor\(curDef\) : null;/.test(app), 'buildModel: scuffMat hands back the material it was given unless the layer is on (scuffFor)');
   yes(/function scuffFrame\(o\) \{\n\s+const at = model && model\.scuff;\n\s+if \(!at \|\| model\.gen\) return;/.test(app), 'scuffFrame returns on its first test with the layer off (no model.scuff)');
   yes(/const SCUFF = data\.cage \? scuffFor[\s\S]*?scuff: scuffAt,/.test(app) && /const scuffAt = SCUFF \? scuffAttach\(/.test(app), 'the attributes are attached only with the layer on (scuffAttach behind SCUFF)');
+  yes(/\.then\(\(\) => scuffPrelink\(inW\)\)/.test(app) && /function scuffPrelink\(inW\) \{\n\s+const at = model && model\.scuff;\n\s+if \(!at \|\| !at\.W/.test(app) && /at\.W\.awake = at\.any; S\.wakeSet\(at\.W\);/.test(app),
+      'the roll-out links the awake programs (compileCraftLinks -> scuffPrelink, nothing with the layer off); the block wakes with the first damage drawn');
   const fb = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'flown_bake.js'), 'utf8');
   yes(/const re = m\.userData && m\.userData\.scuffRe;\n\s+b = m\.userData && m\.userData\.flownBaked \? copyMat\(m, re \? re\(FB_BAND_HOOK\) : FB_BAND_HOOK/.test(fb), 'flown_bake.js: the baked band keeps a wrapper only a damage material carries (scuffRe)');
   const sol = fs.readFileSync(path.join(ROOT, 'src', 'core', '30_solver.js'), 'utf8');

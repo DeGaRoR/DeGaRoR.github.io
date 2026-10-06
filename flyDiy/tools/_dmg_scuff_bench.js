@@ -6,8 +6,8 @@
 //                       the programs compiled here (renderer.compile): the links counted
 //   DS.set(o)           the gains: { crush, scrape, torn, glass, relief, on }
 //   DS.measure(layer)   the layer alone at 0 then 1 on its preset: { pct changed, mean } (under 0.5 % a FAIL)
-//   DS.cost(view)       frames timed (median of several, a readback a frame): plain (unarmed), armed + intact (the
-//                       branch only), armed + every vertex fully damaged - SwiftShader's rasteriser is the CPU, so the
+//   DS.cost(view)       frames timed (median of several, a readback a frame): plain (unarmed), armed ASLEEP (the game's
+//                       intact aeroplane: the plain source), awake + intact (the branch only), awake + every vertex fully damaged - SwiftShader's rasteriser is the CPU, so the
 //                       ratio is a fragment-cost estimate, not a frame time
 //   DS.still(w, h)      the current view as a JPEG data URL (a render target, as WX_BENCH.snap)
 //   DS.sources()        the hash of every shader source compiled since the page loaded, and the links
@@ -147,6 +147,7 @@
   // THE ARMING: wrapped copies (as the game's buildModel makes them), the patterns, the programs compiled
   function arm() {
     if (!S) return { err: 'skin_scuff.js not loaded (?noscuff)' };
+    if (!DS.W) DS.W = S.waker();   // (the game's: asleep until the first damage, both programs linked at the roll-out)
     const all = skins(), P = DS.P = pattern(all);
     const l0 = CEN.links;
     const copyOf = m => {
@@ -159,7 +160,7 @@
         c.userData = Object.assign({}, ud, { scuff: k });
         if (m.defines) c.defines = Object.assign({}, m.defines);
         for (const q of ['clearcoat', 'clearcoatRoughness', 'transmission', 'envMapIntensity', 'blendDst']) if (m[q] !== undefined) c[q] = m[q];
-        c.onBeforeCompile = S.wrap(Object.prototype.hasOwnProperty.call(m, 'onBeforeCompile') ? m.onBeforeCompile : (m._atmoHook || null), k, DS.U);   // (ATMO's accessor: app.js scuffMat)
+        c.onBeforeCompile = S.wrap(Object.prototype.hasOwnProperty.call(m, 'onBeforeCompile') ? m.onBeforeCompile : (m._atmoHook || null), k, DS.U, DS.W);   // (ATMO's accessor: app.js scuffMat)
         c.needsUpdate = true;
         DS.copies.set(m, c); c.userData.scuffOrig = m;
       }
@@ -174,11 +175,16 @@
     if (all.length) DS.U.uDmgM.value = craftOf(all[0]).sc;
     DS.meshes = all; DS.P = P; DS.armed = true;
     DS.U.uDmgOn.value = 1;
-    UI.renderer.compile(UI.scene, UI.camera);
+    // as the game's roll-out (app.js scuffPrelink): compiled asleep, then awake, then left awake for the bench's pictures
+    const W = DS.W, aw = W.awake;
+    W.awake = false; S.wakeSet(W); UI.renderer.compile(UI.scene, UI.camera);
+    W.pre++; S.wakeSet(W); UI.renderer.compile(UI.scene, UI.camera); W.pre--;
+    W.awake = aw || !DS.armed0; DS.armed0 = true; S.wakeSet(W);
     draw();
     DS.links.arm = CEN.links - l0;
-    return { meshes: all.length, links: DS.links.arm, front: !!P.front, uDmgM: DS.U.uDmgM.value };
+    return { meshes: all.length, links: DS.links.arm, front: !!P.front, uDmgM: DS.U.uDmgM.value, awake: W.on };
   }
+  function wake(on) { if (!DS.W) return null; DS.W.awake = !!on; S.wakeSet(DS.W); draw(); return DS.W.on; }
   function disarm() { for (const o of DS.meshes) if (o.userData.scuffOrig) o.material = o.userData.scuffOrig; DS.armed = false; draw(); }
   function set(o) {
     const U = DS.U, K = U.uDmgK.value;
@@ -221,22 +227,29 @@
     look(view || 'flank');
     const l0 = CEN.links, out = {};
     disarm(); timeFrames(2); out.plain = timeFrames(N);
-    arm(); set({ crush: 1, scrape: 1, torn: 1, glass: 1, on: false }); timeFrames(2); out.armedOff = timeFrames(N);
+    arm();
     for (const o of DS.meshes) { const r = o.geometry.attributes.aDmg; r.array.fill(0); r.needsUpdate = true; }
+    // the game's intact aeroplane: the wrapped copies ASLEEP (their programs the plain source) - the rule's case
+    wake(false); set({ on: false }); timeFrames(2); out.armedAsleep = timeFrames(N);
+    // awake (what sleeping saves): the branch closed, then open on zero records
+    wake(true); set({ crush: 1, scrape: 1, torn: 1, glass: 1, on: false }); timeFrames(2); out.armedOff = timeFrames(N);
     set({ on: true }); timeFrames(2); out.armedIntact = timeFrames(N);
     for (const o of DS.meshes) fill(o, DS.P, true);
     timeFrames(2); out.armedFull = timeFrames(N);
     for (const o of DS.meshes) fill(o, DS.P, false);
     out.links = CEN.links - l0 - DS.links.arm;   // the links after the first arm (none: the programs were compiled at arm)
     out.ratioFull = +(out.armedFull / out.plain).toFixed(3); out.ratioIntact = +(out.armedIntact / out.plain).toFixed(3);
+    out.ratioAsleep = +(out.armedAsleep / out.plain).toFixed(3);
     draw();
     return out;
   }
   // a crash on an armed aeroplane: the records rewritten (an upload), the branch opened - the links counted
   function crashWindow() {
+    // from the intact aeroplane (asleep, a frame drawn so), the crash: the records written, the block WOKEN, the branch open
+    set({ on: false }); wake(false); UI.renderer.render(UI.scene, UI.camera);
     const l0 = CEN.links;
-    set({ on: false });
     for (const o of DS.meshes) fill(o, DS.P, false);
+    wake(true);
     set({ on: true, crush: 1, scrape: 1, torn: 1, glass: 1 });
     for (let i = 0; i < 5; i++) UI.renderer.render(UI.scene, UI.camera);
     DS.links.crash = CEN.links - l0;
@@ -261,6 +274,6 @@
     let h = 0x811c9dc5; for (const s of CEN.src) for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; }
     return { n: CEN.src.length, hash: h.toString(16), links: CEN.links };
   }
-  Object.assign(DS, { load, arm, disarm, set, measure, cost, crashWindow, still, sources, skins, VIEW, look });
+  Object.assign(DS, { load, arm, disarm, wake, set, measure, cost, crashWindow, still, sources, skins, VIEW, look });
   window.DS = DS;
 })();

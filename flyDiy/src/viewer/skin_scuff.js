@@ -31,9 +31,13 @@
 // THE SHADER (AERO_DMG_*): ONE block, the same text in the three programs a flown exterior draws with (the live
 // AEROSKIN, the flown bake's baked one, the glass), spliced by a hook WRAPPER (wrap) - so with damage OFF no material is
 // wrapped and no program's source or key moves by one byte (the wrapper is never made). With damage ON the flown model's
-// exterior materials are wrapped COPIES from the build (app.js), linked with the rest at the roll-out; behind ONE uniform
-// branch (uDmgOn, 0 until the first record is written): an intact aeroplane pays the compare. Inside, a fragment with no
-// record pays one more compare; the derivatives the block needs are taken before that divergent test (textureGrad).
+// exterior materials are wrapped COPIES from the build (app.js) that SLEEP until the first damage (waker / wakeSet):
+// asleep the wrapper adds nothing, so an intact aeroplane draws the plain programs (not even the branch - the bench
+// measured the awake block's attributes and varyings at +6-13 % of a SwiftShader frame on an intact Cub / Cessna, so it
+// never draws them intact). The roll-out links both programs of every wrapped material (app.js scuffPrelink); the first
+// record written wakes them (a key flip three finds in each material's own programs: no link). Awake, the block sits
+// behind ONE uniform branch (uDmgOn); inside, a fragment with no record pays one more compare; the derivatives the
+// block needs are taken before that divergent test (textureGrad).
 // The grammar is the weathering's: its palette (uWxC: dirt, mud, grime), its substrates, its grunge sheet (the scratch
 // read stretched along the slide, as aeroweather's scratches are), its rule that dirt is never shiny.
 //
@@ -630,14 +634,33 @@ vec3 dmgCell(vec3 x) {
   // kind: 'live' (AEROSKIN: vObjPos / vObjNrm exist), 'glass' (AEROGLASS: likewise), 'baked' (the flown bake's: its own
   // varyings). U: the shared uniform block (uniforms()). The wrapper's text names the hook it wraps, so its program key
   // is its own (three keys a program on the hook's toString) - and every material wrapped round the same hook shares one
+  // W (waker(): the flight's own, app.js scuffFor): THE BLOCK SLEEPS UNTIL THE FIRST DAMAGE. Asleep the wrapper is the
+  // hook it wraps and nothing more - the plain program's source under its own key ('dmg.scuff|asleep|'): an intact
+  // aeroplane draws exactly what it draws with damage off (no attribute read, no varying, no branch). Awake it splices
+  // the block. three keeps EVERY program a material was compiled to, by key (its properties' programs map), so the
+  // roll-out compiles each wrapped material both ways (app.js scuffPrelink) and waking (wakeSet: the key flips, each
+  // material's version bumped) finds its program linked: no link at the crash. Without W (the bench's legacy, the
+  // GLSL test) the wrapper is always awake
   const WRAPS = new Map();
-  function wrap(h, kind, U) {
+  function waker() { return { on: false, awake: false, pre: 0, mats: new Set(), wraps: new Map(), flips: 0 }; }
+  // asleep or awake: awake once the records hold damage (W.awake) or while the roll-out links the awake programs (W.pre)
+  function wakeSet(W) {
+    const v = W.awake || W.pre > 0;
+    if (v === W.on) return false;
+    W.on = v; W.flips++;
+    for (const m of W.mats) m.needsUpdate = true;
+    return true;
+  }
+  function wrap(h, kind, U, W) {
     const key = kind + '|' + (h ? h.toString() : '');
-    let w = WRAPS.get(key);
+    const C = W ? W.wraps : WRAPS;
+    let w = C.get(key);
     if (w) return w;
     w = function (sh, r) {
       if (h) h.call(this, sh, r);
+      // (the uniforms asleep too: a program found in the material's map keeps the LAST compile's uniforms object)
       for (const k in U) sh.uniforms[k] = U[k];
+      if (W) { W.mats.add(this); if (!W.on) return; }
       const obj = kind !== 'baked';
       const def = '#define DMG_SCUFF 1\n' + (obj ? '#define DMG_OBJ 1\n' : '');
       sh.vertexShader = sh.vertexShader
@@ -649,9 +672,9 @@ vec3 dmgCell(vec3 x) {
         .replace('#include <lights_physical_fragment>', (kind === 'glass' ? AERO_DMG_GLASS_FS : AERO_DMG_SURF_FS)
                  + '#include <lights_physical_fragment>\n' + AERO_DMG_CC_FS);
     };
-    w.toString = () => 'dmg.scuff|' + key;
+    w.toString = W ? () => 'dmg.scuff|' + (W.on ? '' : 'asleep|') + key : () => 'dmg.scuff|' + key;
     w.scuffKind = kind;
-    WRAPS.set(key, w);
+    C.set(key, w);
     return w;
   }
   // the shared uniforms (one object: one write reaches every wrapped program). THREE and the weathering's module (for
@@ -679,7 +702,7 @@ vec3 dmgCell(vec3 x) {
     return UNI;
   }
   const API = { SC, CLS, FIN_CLS, clsOf, fields, prep, incidence, weightsOf, place, tornBand, panesOf, state, request, begin, tick, busy, finish, glassBytes,
-                paneVec, bindWanted, restNormals, wrap, uniforms,
+                paneVec, bindWanted, restNormals, wrap, waker, wakeSet, uniforms,
                 AERO_DMG_VS_PARS, AERO_DMG_VS_MAIN, AERO_DMG_FS_PARS, AERO_DMG_SURF_FS, AERO_DMG_GLASS_FS, AERO_DMG_CC_FS };
   if (typeof module !== 'undefined' && module.exports) module.exports = API;
   if (typeof window !== 'undefined') window.SKIN_SCUFF = API;

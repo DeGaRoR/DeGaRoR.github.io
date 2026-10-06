@@ -1928,7 +1928,7 @@
       const k = kind || (m.userData && m.userData.aeroFinish === 'glass' ? 'glass' : 'live');
       const ud = m.userData; m.userData = {};
       let c; try { c = new m.constructor(); c.copy(m); } finally { m.userData = ud; }
-      c.userData = Object.assign({}, ud, { scuff: k, scuffRe: h => SCUFF.wrap(h, k, SCUFF.U) });
+      c.userData = Object.assign({}, ud, { scuff: k, scuffRe: h => SCUFF.wrap(h, k, SCUFF.U, SCUFF.W) });
       if (m.defines) c.defines = Object.assign({}, m.defines);
       for (const q of ['clearcoat', 'clearcoatRoughness', 'transmission', 'envMapIntensity']) if (m[q] !== undefined && c[q] !== undefined) c[q] = m[q];
       // the glass's blend follows the pooled pane's (aeroSetGlassBlend flips the pool's, live)
@@ -1937,7 +1937,7 @@
       // hook in _atmoHook and serves it wrapped (atmo.js install; flown_bake.js hookOf) - an own-property test alone found
       // none, and the copy drew without AEROSKIN's hook (its programs failed to compile: the soft-still run, 2026-10-06)
       const own = Object.prototype.hasOwnProperty.call(m, 'onBeforeCompile') ? m.onBeforeCompile : (m._atmoHook || null);
-      c.onBeforeCompile = SCUFF.wrap(own, k, SCUFF.U);
+      c.onBeforeCompile = SCUFF.wrap(own, k, SCUFF.U, SCUFF.W);   // (asleep until the first damage: the plain program)
       c.name = (m.name || 'aeroskin') + ':scuff';
       c.needsUpdate = true;
       return c;
@@ -3186,7 +3186,7 @@
     relive(foldEye, k => FBK.has(k) && !FBK.inner(k), 'eye');
     // G2004 (DMG-SCUFF): the baked exterior on its wrapped copy, and the record attributes on every geometry a wrapped
     // material draws - now, while the hybrid's views are still in the graph (they park below)
-    const scuffAt = SCUFF ? scuffAttach(grp, FBK, scuffMat) : null;
+    const scuffAt = SCUFF ? scuffAttach(grp, FBK, scuffMat, SCUFF.W) : null;
     // G1121: the kept live meshes (the cabin's; the hybrid's exterior) out of the graph until they are drawn
     for (const F of [fold, foldIn, foldEye]) if (F && F.park) F.park();
     const people = buildPeople(data, grp, ctlMoves);   // live crew
@@ -4152,15 +4152,15 @@
                : (typeof GEN_DAMAGE_DEFAULT !== 'undefined' && GEN_DAMAGE_DEFAULT))) === true;
     if (!on) return null;
     const S = window.SKIN_SCUFF;
-    return { S, wrap: S.wrap, U: S.uniforms(THREE) };
+    return { S, wrap: S.wrap, U: S.uniforms(THREE), W: S.waker() };   // W: this flight's wrappers asleep / awake (skin_scuff.js wrap)
   }
   // at the build: the baked exterior on its wrapped copy; every geometry a wrapped material draws gets the two record
   // attributes, ZERO (aDmg Uint8 x4, aDmgD Int8 x4: 8 bytes a vertex) - one pair per position attribute (the fold and its
   // views share theirs). A wrapped program draws nothing without them (a missing attribute reads the context's generic
   // value, which another program may have set), so every one has them from the start
-  function scuffAttach(grp, FBK, scuffMat) {
+  function scuffAttach(grp, FBK, scuffMat, W) {
     const S = window.SKIN_SCUFF;
-    const at = { byPos: new Map(), byGeo: new Map(), byIdx: new Map(), st: S.state(), vB: 0, vS: 0, F: null, req: false, work: false,
+    const at = { W, pre: 0, byPos: new Map(), byGeo: new Map(), byIdx: new Map(), st: S.state(), vB: 0, vS: 0, F: null, req: false, work: false,
                  recs: [], todo: null, made: false, pend: 0, bound: 0, show: true, any: false, bytes: 0, uploads: 0, mkMs: 0, frameMax: 0, verts: 0 };
     const bk = FBK && FBK.mat, bkC = bk ? scuffMat(bk, 'baked') : null;
     grp.traverse(o => {
@@ -4249,10 +4249,34 @@
         if (!S.busy(at.st)) at.any = at.recs.some(R => R.sc.any);
         else if (fin.some(R => R.sc.any)) at.any = true;
         SCUFF_U().uDmgOn.value = at.any && at.show ? 1 : 0;
+        // the block wakes with the first damage drawn (its programs linked at the roll-out: scuffPrelink) and sleeps
+        // again when the records are zero (a reset)
+        at.W.awake = at.any; S.wakeSet(at.W);
       }
     }
     at.work = !at.made || at.req || S.busy(at.st) || at.pend > 0 || at.lastBound > 0;   // (bound places this frame: maybe more next)
     at.frameMax = Math.max(at.frameMax, performance.now() - t0);
+  }
+  // G2004.1: THE DAMAGE'S PROGRAMS AT THE ROLL-OUT (compileCraftLinks, after the craft's own). The wrapped materials draw asleep (the plain program)
+  // until the first damage; here, under the craft step's screen, the same walk again with the block awake - the craft and
+  // the hybrid's kept meshes and band twins by stand-in, compiled and drawn once - then asleep again. Every material
+  // keeps both programs (three's per-material map), so the wake at the crash links nothing. Damage off: no model.scuff
+  function scuffPrelink(inW) {
+    const at = model && model.scuff;
+    if (!at || !at.W || typeof SKIN_SCUFF === 'undefined') return null;
+    const W = at.W, S = SKIN_SCUFF, tgt = aa && aa.target ? aa.target() : null;
+    W.pre++; S.wakeSet(W);
+    const done = () => { W.pre--; S.wakeSet(W); at.pre++; };
+    let job;
+    try {
+      const { KG, KEPT } = keptGroup();
+      const mine = [];   // the craft's meshes on a wrapped material (their first draws awake), and the kept stand-ins
+      craft.traverse(o => { if (o.isMesh && o.material && (Array.isArray(o.material) ? o.material : [o.material]).some(m => m && m.userData && m.userData.scuff)) mine.push(o); });
+      job = compileSliced(craft, tgt, scene, false, inW)
+        .then(() => KG.children.length ? compileSliced(KG, tgt, scene, false, inW) : null)
+        .then(() => warmDrawSliced(scene, tgt, null, mine.concat(KEPT), inW));
+    } catch (e) { job = Promise.reject(e); }
+    return shaderProgress(job.then(done, e => { done(); console.warn('scuff prelink:', e && e.message); }), 'world', 60000);
   }
   const SCUFF_U = () => SKIN_SCUFF.uniforms(THREE);
   // the hooks: the A/B on the same page (the block's branch off and on: no program changes) and the numbers
@@ -4264,6 +4288,7 @@
     for (const R of at.recs) { const r = R.sc.rec; for (let v = 0; v < R.nv; v++) { cnt.verts++; if (R.sc.cls === 4) continue; if (r[v * 4]) cnt.crush++; if (r[v * 4 + 1]) cnt.scrape++; if (r[v * 4 + 2]) cnt.torn++; } }
     return { on: true, recs: at.recs.length, attrVerts: at.verts, passes: st.passes, places: st.places, frameMs: +at.frameMax.toFixed(2), tickMs: +st.ms.frameMax.toFixed(2),
              tornMs: +st.ms.torn.toFixed(2), mkMs: +at.mkMs.toFixed(1), bound: at.bound, uploads: at.uploads, bytes: at.bytes, any: at.any, uOn: SCUFF_U().uDmgOn.value,
+             awake: at.W.on, flips: at.W.flips, mats: at.W.mats.size, prelinks: at.pre,
              panes: st.panes.map(P => ({ sev: +P.sev.toFixed(3), slot: P.slot })), counts: cnt, busy: S_busy(st) };
   };
   const S_busy = st => (window.SKIN_SCUFF ? SKIN_SCUFF.busy(st) : false);
@@ -7739,6 +7764,7 @@
       catch (e) { console.warn('craft depth compile:', e && e.message); }
     }
     return shaderProgress(Promise.all(jobs).catch(e => console.warn('craft compile:', e && e.message)), 'world', 60000)
+      .then(() => scuffPrelink(inW))
       .then(() => compileCraftShed());
   }
   // the craft's programs STARTED, not awaited: the one loading's 'spec' fires it (the model it flies is built there); the

@@ -3,11 +3,11 @@
 // software GL - a picture and a relative cost, never a frame time), for each build:
 //   1. the page with ?noscuff and without: every shader source compiled before arming, hashed - the same (the module's
 //      presence changes no program: in the game, damage off wraps nothing);
-//   2. DS.arm(): the wrapped copies compiled (the links counted - the roll-out's, in the game); then a crash window
-//      (the records rewritten, the branch opened, frames drawn): ZERO links;
+//   2. DS.arm(): the wrapped copies compiled asleep and awake (the links counted - the roll-out's, in the game); then a
+//      crash window from asleep (the records rewritten, the block woken, the branch opened, frames drawn): ZERO links;
 //   3. DS.measure(layer) for crush / scrape / torn / glass on its preset: the changed pixels (FAIL under 0.5 %);
-//   4. DS.cost(): the frame's median with the block absent, present + intact (the uniform branch only), present + every
-//      vertex fully damaged (the fragment-cost estimate);
+//   4. DS.cost(): the frame's median with the block absent, present ASLEEP (the game's intact aeroplane: the plain
+//      source), awake + intact (the uniform branch only), awake + every vertex fully damaged (the fragment-cost estimate);
 //   5. stills: each preset before (unarmed) and after (the test patterns), + close-ups.
 // Run: node tools/dmg_scuff_bench.js [--out reports/evidence/DMG-SCUFF/scuffbench] [--builds cub,metal] [--size 960x540]
 'use strict';
