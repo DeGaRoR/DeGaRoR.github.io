@@ -4,6 +4,304 @@
 // Units: m, kg, N, s, rad. Axes: x aft (nose -x), y up, z right.
 // ============================================================
 
+// ---- G2355 (DMG-DETERMINISM): ONE Math IN EVERY ENGINE - sin, cos and pow in plain JS (fdlibm), the rest the builtin ----
+// A crash flown in the page is not the crash flown in node: measured (GATE DMGDETERMINISM 4), Chrome 141 (V8 14.1) and
+// node 22 (V8 12.4) disagree in the last bit on Math.sin / Math.cos (2-4 % of arguments: Chrome's are glibc-derived,
+// node's fdlibm) and Math.pow with a general exponent (4-8 %: Chrome's ~correctly rounded, node's not); every other
+// Math function, x ** 2 and the hyp2 / hyp3 below agree to the bit. The solver calls them every substep (the polar's
+// sin: 15 million calls in one 30 m/s crash; the atmosphere's pow), so the page's wreck was its own from the first
+// frame - the open page-vs-node gaps (the Cub's 3 m/s taxi, the nose-over) were never comparable bit for bit. Plain JS
+// on doubles (+ - * / and the bits of a double, strict IEEE in every tier of every engine) is the same everywhere, so
+// the core shadows Math with a frozen copy of the builtin whose sin, cos and pow are these: fdlibm 5.3's (V8's own
+// ieee754.cc / FreeBSD msun: e_rem_pio2 + k_rem_pio2 (2/pi's 1584 bits generated, not typed), k_sin, k_cos, e_pow),
+// ECMAScript's NaN cases for pow first. sin / cos equal node's Math.sin / cos to the bit (node's ARE fdlibm: 0 of 3
+// million arguments differ, the huge reductions and the specials among them), so nothing node flies moves; pow is
+// V8 12.4's e_pow - fdlibm's with one change read off node's own binary (gdb on v8::base::ieee754::pow): the
+// polynomial's tail (w + z w) taken inside the divisor - node's Math.pow to the bit (0 of 4 million arguments differ:
+// random, integer and arbitrary-bit exponents, the specials). So NOTHING node computes moves (GATE DMGDETERMINISM:
+// the validated hashes before / after), and a page computes node's numbers. In node the shadow is the module's own;
+// in a page it is the scripts' shared global scope, so the viewer's Math.sin / cos / pow are these too. Cost: sin / cos ~the builtin's in the polar's range,
+// ~+20 ns past pi/4 x 2^19 (the long reduction), pow ~+60 ns (GATE DMGDETERMINISM's evidence: the step before / after).
+const Math = Object.freeze(Object.assign(Object.create(null), (() => { const M = globalThis.Math, o = {};
+  for (const k of Object.getOwnPropertyNames(M)) o[k] = M[k]; o.sin = fsin; o.cos = fcos; o.pow = fpow; return o; })()));
+const _fdF = new Float64Array(1), _fdU = new Int32Array(_fdF.buffer);
+const _fdLE = new Uint8Array(new Uint16Array([1]).buffer)[0] === 1, _FD_HI = _fdLE ? 1 : 0, _FD_LO = _fdLE ? 0 : 1;
+const _fdHi = x => { _fdF[0] = x; return _fdU[_FD_HI]; };
+const _fdLo = x => { _fdF[0] = x; return _fdU[_FD_LO]; };
+const _fdWithHi = (x, h) => { _fdF[0] = x; _fdU[_FD_HI] = h; return _fdF[0]; };
+const _fdWithLo = (x, l) => { _fdF[0] = x; _fdU[_FD_LO] = l; return _fdF[0]; };
+const _fdWords = (h, l) => { _fdU[_FD_HI] = h; _fdU[_FD_LO] = l; return _fdF[0]; };
+// x * 2^n exactly (one rounding, as fdlibm's _fdScalbn for these callers)
+function _fdScalbn(x, n) {   // musl's: the last multiply the only rounding (a subnormal result rounded once)
+  if (n > 1023) { x *= 8.98846567431158e307; n -= 1023; if (n > 1023) { x *= 8.98846567431158e307; n -= 1023; if (n > 1023) n = 1023; } }
+  else if (n < -1022) { x *= 2.0041683600089728e-292; n += 969; if (n < -1022) { x *= 2.0041683600089728e-292; n += 969; if (n < -1022) n = -1022; } }
+  return x * _fdWords((n + 1023) << 20, 0);
+}
+const _FD_2OPI = [0xA2F983, 0x6E4E44, 0x1529FC, 0x2757D1, 0xF534DD, 0xC0DB62, 0x95993C, 0x439041, 0xFE5163, 0xABDEBB, 0xC561B7, 0x246E3A, 0x424DD2, 0xE00649, 0x2EEA09, 0xD1921C, 0xFE1DEB, 0x1CB129, 0xA73EE8, 0x8235F5, 0x2EBB44, 0x84E99C, 0x7026B4, 0x5F7E41, 0x3991D6, 0x398353, 0x39F49C, 0x845F8B, 0xBDF928, 0x3B1FF8, 0x97FFDE, 0x05980F, 0xEF2F11, 0x8B5A0A, 0x6D1F6D, 0x367ECF, 0x27CB09, 0xB74F46, 0x3F669E, 0x5FEA2D, 0x7527BA, 0xC7EBE5, 0xF17B3D, 0x0739F7, 0x8A5292, 0xEA6BFB, 0x5FB11F, 0x8D5D08, 0x560330, 0x46FC7B, 0x6BABF0, 0xCFBC20, 0x9AF436, 0x1DA9E3, 0x91615E, 0xE61B08, 0x659985, 0x5F14A0, 0x68408D, 0xFFD880, 0x4D7327, 0x310606, 0x1556CA, 0x73A8C9, 0x60E27B, 0xC08C6B];
+const _FD_NPIO2 = [0x3FF921FB, 0x400921FB, 0x4012D97C, 0x401921FB, 0x401F6A7A, 0x4022D97C, 0x4025FDBB, 0x402921FB, 0x402C463A, 0x402F6A7A, 0x4031475C, 0x4032D97C, 0x40346B9C, 0x4035FDBB, 0x40378FDB, 0x403921FB, 0x403AB41B, 0x403C463A, 0x403DD85A, 0x403F6A7A, 0x40407E4C, 0x4041475C, 0x4042106C, 0x4042D97C, 0x4043A28C, 0x40446B9C, 0x404534AC, 0x4045FDBB, 0x4046C6CB, 0x40478FDB, 0x404858EB, 0x404921FB];
+const _FD_PIO2 = [1.57079625129699707031e+00, 7.54978941586159635335e-08, 5.39030252995776476554e-15, 3.28200341580791294123e-22, 1.27065575308067607349e-29, 1.22933308981111328932e-36, 2.73370053816464559624e-44, 2.16741683877804819444e-51];
+const _FD_2P24 = 1.67772160000000000000e+07, _FD_2M24 = 5.96046447753906250000e-08;
+const _fdKx = new Float64Array(3), _fdKy = new Float64Array(2), _fdKf = new Float64Array(20), _fdKq = new Float64Array(20), _fdKfq = new Float64Array(20), _fdKiq = new Int32Array(20);
+// k_rem_pio2.c, prec 2 (jk 4)
+function _fdKRem(x, y, e0, nx) {
+  const jk = 4, jp = jk, jx = nx - 1, f = _fdKf, q = _fdKq, fq = _fdKfq, iq = _fdKiq, ip = _FD_2OPI;
+  let jv = ((e0 - 3) / 24) | 0; if (jv < 0) jv = 0;
+  let q0 = e0 - 24 * (jv + 1), jz, i, j, k, m, n, ih, carry, z, fw;
+  j = jv - jx; m = jx + jk;
+  for (i = 0; i <= m; i++, j++) f[i] = j < 0 ? 0 : ip[j];
+  for (i = 0; i <= jk; i++) { for (j = 0, fw = 0.0; j <= jx; j++) fw += x[j] * f[jx + i - j]; q[i] = fw; }
+  jz = jk;
+  for (;;) {   // recompute
+    for (i = 0, j = jz, z = q[jz]; j > 0; i++, j--) { fw = (_FD_2M24 * z) | 0; iq[i] = (z - _FD_2P24 * fw) | 0; z = q[j - 1] + fw; }
+    z = _fdScalbn(z, q0);
+    z -= 8.0 * Math.floor(z * 0.125);
+    n = z | 0;
+    z -= n;
+    ih = 0;
+    if (q0 > 0) { i = iq[jz - 1] >> (24 - q0); n += i; iq[jz - 1] -= i << (24 - q0); ih = iq[jz - 1] >> (23 - q0); }
+    else if (q0 === 0) ih = iq[jz - 1] >> 23;
+    else if (z >= 0.5) ih = 2;
+    if (ih > 0) {
+      n += 1; carry = 0;
+      for (i = 0; i < jz; i++) { j = iq[i]; if (carry === 0) { if (j !== 0) { carry = 1; iq[i] = 0x1000000 - j; } } else iq[i] = 0xffffff - j; }
+      if (q0 > 0) { if (q0 === 1) iq[jz - 1] &= 0x7fffff; else if (q0 === 2) iq[jz - 1] &= 0x3fffff; }
+      if (ih === 2) { z = 1 - z; if (carry !== 0) z -= _fdScalbn(1, q0); }
+    }
+    if (z === 0) {
+      j = 0; for (i = jz - 1; i >= jk; i--) j |= iq[i];
+      if (j === 0) {
+        for (k = 1; iq[jk - k] === 0; k++) { /* k = the terms needed */ }
+        for (i = jz + 1; i <= jz + k; i++) { f[jx + i] = ip[jv + i]; for (j = 0, fw = 0.0; j <= jx; j++) fw += x[j] * f[jx + i - j]; q[i] = fw; }
+        jz += k; continue;
+      }
+    }
+    break;
+  }
+  if (z === 0) { jz -= 1; q0 -= 24; while (iq[jz] === 0) { jz--; q0 -= 24; } }
+  else {
+    z = _fdScalbn(z, -q0);
+    if (z >= _FD_2P24) { fw = (_FD_2M24 * z) | 0; iq[jz] = (z - _FD_2P24 * fw) | 0; jz += 1; q0 += 24; iq[jz] = fw; }
+    else iq[jz] = z | 0;
+  }
+  fw = _fdScalbn(1, q0);
+  for (i = jz; i >= 0; i--) { q[i] = fw * iq[i]; fw *= _FD_2M24; }
+  for (i = jz; i >= 0; i--) { for (fw = 0.0, k = 0; k <= jp && k <= jz - i; k++) fw += _FD_PIO2[k] * q[i + k]; fq[jz - i] = fw; }
+  fw = 0.0; for (i = jz; i >= 0; i--) fw += fq[i];
+  y[0] = ih === 0 ? fw : -fw;
+  fw = fq[0] - fw; for (i = 1; i <= jz; i++) fw += fq[i];
+  y[1] = ih === 0 ? fw : -fw;
+  return n & 7;
+}
+const _FD_INVPIO2 = 6.36619772367581382433e-01, _FD_PIO2_1 = 1.57079632673412561417e+00, _FD_PIO2_1T = 6.07710050650619224932e-11,
+  _FD_PIO2_2 = 6.07710050630396597660e-11, _FD_PIO2_2T = 2.02226624879595063154e-21, _FD_PIO2_3 = 2.02226624871116645580e-21, _FD_PIO2_3T = 8.47842766036889956997e-32;
+// e_rem_pio2.c: x reduced to y[0] + y[1] in [-pi/4, pi/4], returns n
+function _fdRem(x, y) {
+  const hx = _fdHi(x), ix = hx & 0x7fffffff;
+  let z, w, t, r, fn, n, i, j;
+  if (ix <= 0x3fe921fb) { y[0] = x; y[1] = 0; return 0; }
+  if (ix < 0x4002d97c) {
+    if (hx > 0) { z = x - _FD_PIO2_1; if (ix !== 0x3ff921fb) { y[0] = z - _FD_PIO2_1T; y[1] = (z - y[0]) - _FD_PIO2_1T; } else { z -= _FD_PIO2_2; y[0] = z - _FD_PIO2_2T; y[1] = (z - y[0]) - _FD_PIO2_2T; } return 1; }
+    z = x + _FD_PIO2_1; if (ix !== 0x3ff921fb) { y[0] = z + _FD_PIO2_1T; y[1] = (z - y[0]) + _FD_PIO2_1T; } else { z += _FD_PIO2_2; y[0] = z + _FD_PIO2_2T; y[1] = (z - y[0]) + _FD_PIO2_2T; } return -1;
+  }
+  if (ix <= 0x413921fb) {
+    t = Math.abs(x);
+    n = (t * _FD_INVPIO2 + 0.5) | 0;
+    fn = n;
+    r = t - fn * _FD_PIO2_1;
+    w = fn * _FD_PIO2_1T;
+    if (n < 32 && ix !== _FD_NPIO2[n - 1]) y[0] = r - w;
+    else {
+      j = ix >> 20;
+      y[0] = r - w;
+      i = j - ((_fdHi(y[0]) >> 20) & 0x7ff);
+      if (i > 16) {
+        t = r; w = fn * _FD_PIO2_2; r = t - w; w = fn * _FD_PIO2_2T - ((t - r) - w); y[0] = r - w;
+        i = j - ((_fdHi(y[0]) >> 20) & 0x7ff);
+        if (i > 49) { t = r; w = fn * _FD_PIO2_3; r = t - w; w = fn * _FD_PIO2_3T - ((t - r) - w); y[0] = r - w; }
+      }
+    }
+    y[1] = (r - y[0]) - w;
+    if (hx < 0) { y[0] = -y[0]; y[1] = -y[1]; return -n; }
+    return n;
+  }
+  if (ix >= 0x7ff00000) { y[0] = y[1] = x - x; return 0; }
+  const e0 = (ix >> 20) - 1046;
+  z = _fdWords(ix - (e0 << 20), _fdLo(x));
+  for (i = 0; i < 2; i++) { _fdKx[i] = z | 0; z = (z - _fdKx[i]) * _FD_2P24; }
+  _fdKx[2] = z;
+  let nx = 3; while (_fdKx[nx - 1] === 0) nx--;
+  n = _fdKRem(_fdKx, y, e0, nx);
+  if (hx < 0) { y[0] = -y[0]; y[1] = -y[1]; return -n; }
+  return n;
+}
+const _FD_S1 = -1.66666666666666324348e-01, _FD_S2 = 8.33333333332248946124e-03, _FD_S3 = -1.98412698298579493134e-04, _FD_S4 = 2.75573137070700676789e-06, _FD_S5 = -2.50507602534068634195e-08, _FD_S6 = 1.58969099521155010221e-10;
+function _fdKSin(x, y, iy) {
+  const ix = _fdHi(x) & 0x7fffffff;
+  if (ix < 0x3e400000) { if ((x | 0) === 0) return x; }
+  const z = x * x, v = z * x, r = _FD_S2 + z * (_FD_S3 + z * (_FD_S4 + z * (_FD_S5 + z * _FD_S6)));
+  if (iy === 0) return x + v * (_FD_S1 + z * r);
+  return x - ((z * (0.5 * y - v * r) - y) - v * _FD_S1);
+}
+const _FD_C1 = 4.16666666666666019037e-02, _FD_C2 = -1.38888888888741095749e-03, _FD_C3 = 2.48015872894767294178e-05, _FD_C4 = -2.75573143513906633035e-07, _FD_C5 = 2.08757232129817482790e-09, _FD_C6 = -1.13596475577881948265e-11;
+function _fdKCos(x, y) {
+  const ix = _fdHi(x) & 0x7fffffff;
+  if (ix < 0x3e400000) { if ((x | 0) === 0) return 1; }
+  const z = x * x, r = z * (_FD_C1 + z * (_FD_C2 + z * (_FD_C3 + z * (_FD_C4 + z * (_FD_C5 + z * _FD_C6)))));
+  if (ix < 0x3FD33333) return 1 - (0.5 * z - (z * r - x * y));
+  const qx = ix > 0x3fe90000 ? 0.28125 : _fdWords(ix - 0x00200000, 0), hz = 0.5 * z - qx, a = 1 - qx;
+  return a - (hz - (z * r - x * y));
+}
+function fsin(x) {
+  const ix = _fdHi(x) & 0x7fffffff;
+  if (ix <= 0x3fe921fb) return _fdKSin(x, 0, 0);
+  if (ix >= 0x7ff00000) return x - x;
+  const n = _fdRem(x, _fdKy), y0 = _fdKy[0], y1 = _fdKy[1];
+  switch (n & 3) { case 0: return _fdKSin(y0, y1, 1); case 1: return _fdKCos(y0, y1); case 2: return -_fdKSin(y0, y1, 1); default: return -_fdKCos(y0, y1); }
+}
+function fcos(x) {
+  const ix = _fdHi(x) & 0x7fffffff;
+  if (ix <= 0x3fe921fb) return _fdKCos(x, 0);
+  if (ix >= 0x7ff00000) return x - x;
+  const n = _fdRem(x, _fdKy), y0 = _fdKy[0], y1 = _fdKy[1];
+  switch (n & 3) { case 0: return _fdKCos(y0, y1); case 1: return -_fdKSin(y0, y1, 1); case 2: return -_fdKCos(y0, y1); default: return _fdKSin(y0, y1, 1); }
+}
+// e_pow.c
+const _FD_BP = [1.0, 1.5], _FD_DPH = [0.0, 5.84962487220764160156e-01], _FD_DPL = [0.0, 1.35003920212974897128e-08],
+  _FD_2P53 = 9007199254740992.0, _FD_HUGE = 1.0e300, _FD_TINY = 1.0e-300,
+  _FD_L1 = 5.99999999999994648725e-01, _FD_L2 = 4.28571428578550184252e-01, _FD_L3 = 3.33333329818377432918e-01, _FD_L4 = 2.72728123808534006489e-01, _FD_L5 = 2.30660745775561754067e-01, _FD_L6 = 2.06975017800338417784e-01,
+  _FD_P1 = 1.66666666666666019037e-01, _FD_P2 = -2.77777777770155933842e-03, _FD_P3 = 6.61375632143793436117e-05, _FD_P4 = -1.65339022054652515390e-06, _FD_P5 = 4.13813679705723846039e-08,
+  _FD_LG2 = 6.93147180559945286227e-01, _FD_LG2H = 6.93147182464599609375e-01, _FD_LG2L = -1.90465429995776804525e-09, _FD_OVT = 8.0085662595372944372e-17,
+  _FD_CP = 9.61796693925975554329e-01, _FD_CPH = 9.61796700954437255859e-01, _FD_CPL = -7.02846165095275826516e-09,
+  _FD_IVLN2 = 1.44269504088896338700e+00, _FD_IVLN2H = 1.44269502162933349609e+00, _FD_IVLN2L = 1.92596299112661746887e-08;
+function fpow(x, y) {
+  // ECMAScript's own cases first (C's pow differs): y NaN -> NaN; |x| = 1 with y infinite -> NaN
+  if (y !== y) return NaN;
+  if ((y === Infinity || y === -Infinity) && (x === 1 || x === -1)) return NaN;
+  let z, ax, z_h, z_l, p_h, p_l, y1, t1, t2, r, s, t, u, v, w, i, j, k, yisint, n;
+  _fdF[0] = x; const hx = _fdU[_FD_HI], lx = _fdU[_FD_LO] >>> 0;
+  _fdF[0] = y; const hy = _fdU[_FD_HI], ly = _fdU[_FD_LO] >>> 0;
+  let ix = hx & 0x7fffffff; const iy = hy & 0x7fffffff;
+  if ((iy | ly) === 0) return 1;
+  if (hx === 0x3ff00000 && lx === 0) return 1;
+  if (ix > 0x7ff00000 || (ix === 0x7ff00000 && lx !== 0) || iy > 0x7ff00000 || (iy === 0x7ff00000 && ly !== 0)) return (x + 0.0) + (y + 0.0);
+  yisint = 0;
+  if (hx < 0) {
+    if (iy >= 0x43400000) yisint = 2;
+    else if (iy >= 0x3ff00000) {
+      k = (iy >> 20) - 0x3ff;
+      if (k > 20) { j = ly >>> (52 - k); if (((j << (52 - k)) >>> 0) === ly) yisint = 2 - (j & 1); }
+      else if (ly === 0) { j = iy >> (20 - k); if ((j << (20 - k)) === iy) yisint = 2 - (j & 1); }
+    }
+  }
+  if (ly === 0) {
+    if (iy === 0x7ff00000) {
+      if (((ix - 0x3ff00000) | lx) === 0) return 1;
+      else if (ix >= 0x3ff00000) return hy >= 0 ? y : 0;
+      else return hy < 0 ? -y : 0;
+    }
+    if (iy === 0x3ff00000) return hy < 0 ? 1 / x : x;
+    if (hy === 0x40000000) return x * x;
+    if (hy === 0x3fe00000) { if (hx >= 0) return Math.sqrt(x); }
+  }
+  ax = Math.abs(x);
+  if (lx === 0) {
+    if (ix === 0x7ff00000 || ix === 0 || ix === 0x3ff00000) {
+      z = ax;
+      if (hy < 0) z = 1 / z;
+      if (hx < 0) { if (((ix - 0x3ff00000) | yisint) === 0) z = (z - z) / (z - z); else if (yisint === 1) z = -z; }
+      return z;
+    }
+  }
+  n = (hx >>> 31) - 1;
+  if ((n | yisint) === 0) return (x - x) / (x - x);
+  s = 1;
+  if ((n | (yisint - 1)) === 0) s = -1;
+  if (iy > 0x41e00000) {
+    if (iy > 0x43f00000) {
+      if (ix <= 0x3fefffff) return hy < 0 ? _FD_HUGE * _FD_HUGE : _FD_TINY * _FD_TINY;
+      if (ix >= 0x3ff00000) return hy > 0 ? _FD_HUGE * _FD_HUGE : _FD_TINY * _FD_TINY;
+    }
+    if (ix < 0x3fefffff) return hy < 0 ? s * _FD_HUGE * _FD_HUGE : s * _FD_TINY * _FD_TINY;
+    if (ix > 0x3ff00000) return hy > 0 ? s * _FD_HUGE * _FD_HUGE : s * _FD_TINY * _FD_TINY;
+    t = ax - 1;
+    w = (t * t) * (0.5 - t * (0.3333333333333333333333 - t * 0.25));
+    u = _FD_IVLN2H * t;
+    v = t * _FD_IVLN2L - w * _FD_IVLN2;
+    t1 = _fdWithLo(u + v, 0);
+    t2 = v - (t1 - u);
+  } else {
+    let ss, s2, s_h, s_l, t_h, t_l;
+    n = 0;
+    if (ix < 0x00100000) { ax *= _FD_2P53; n -= 53; ix = _fdHi(ax); }
+    n += (ix >> 20) - 0x3ff;
+    j = ix & 0x000fffff;
+    ix = j | 0x3ff00000;
+    if (j <= 0x3988E) k = 0;
+    else if (j < 0xBB67A) k = 1;
+    else { k = 0; n += 1; ix -= 0x00100000; }
+    ax = _fdWithHi(ax, ix);
+    u = ax - _FD_BP[k];
+    v = 1 / (ax + _FD_BP[k]);
+    ss = u * v;
+    s_h = _fdWithLo(ss, 0);
+    t_h = _fdWords(((ix >> 1) | 0x20000000) + 0x00080000 + (k << 18), 0);
+    t_l = ax - (t_h - _FD_BP[k]);
+    s_l = v * ((u - s_h * t_h) - s_h * t_l);
+    s2 = ss * ss;
+    r = s2 * s2 * (_FD_L1 + s2 * (_FD_L2 + s2 * (_FD_L3 + s2 * (_FD_L4 + s2 * (_FD_L5 + s2 * _FD_L6)))));
+    r += s_l * (s_h + ss);
+    s2 = s_h * s_h;
+    t_h = _fdWithLo(3.0 + s2 + r, 0);
+    t_l = r - ((t_h - 3.0) - s2);
+    u = s_h * t_h;
+    v = s_l * t_h + t_l * ss;
+    p_h = _fdWithLo(u + v, 0);
+    p_l = v - (p_h - u);
+    z_h = _FD_CPH * p_h;
+    z_l = _FD_CPL * p_h + p_l * _FD_CP + _FD_DPL[k];
+    t = n;
+    t1 = _fdWithLo(((z_h + z_l) + _FD_DPH[k]) + t, 0);
+    t2 = z_l - (((t1 - t) - _FD_DPH[k]) - z_h);
+  }
+  y1 = _fdWithLo(y, 0);
+  p_l = (y - y1) * t1 + y * t2;
+  p_h = y1 * t1;
+  z = p_l + p_h;
+  _fdF[0] = z; j = _fdU[_FD_HI]; i = _fdU[_FD_LO];
+  if (j >= 0x40900000) {
+    if (((j - 0x40900000) | i) !== 0) return s * _FD_HUGE * _FD_HUGE;
+    if (p_l + _FD_OVT > z - p_h) return s * _FD_HUGE * _FD_HUGE;
+  } else if ((j & 0x7fffffff) >= 0x4090cc00) {
+    if (((j - 0xc090cc00) | i) !== 0) return s * _FD_TINY * _FD_TINY;
+    if (p_l <= z - p_h) return s * _FD_TINY * _FD_TINY;
+  }
+  i = j & 0x7fffffff;
+  k = (i >> 20) - 0x3ff;
+  n = 0;
+  if (i > 0x3fe00000) {
+    n = j + (0x00100000 >> (k + 1));
+    k = ((n & 0x7fffffff) >> 20) - 0x3ff;
+    t = _fdWords(n & ~(0x000fffff >> k), 0);
+    n = ((n & 0x000fffff) | 0x00100000) >> (20 - k);
+    if (j < 0) n = -n;
+    p_h -= t;
+  }
+  t = _fdWithLo(p_l + p_h, 0);
+  u = t * _FD_LG2H;
+  v = (p_l - (t - p_h)) * _FD_LG2 + t * _FD_LG2L;
+  z = u + v;
+  w = v - (z - u);
+  t = z * z;
+  t1 = z - t * (_FD_P1 + t * (_FD_P2 + t * (_FD_P3 + t * (_FD_P4 + t * _FD_P5))));
+  r = (z * t1) / ((t1 - 2) - (w + z * w));   // (V8's e_pow: the tail inside the divisor - read off node's binary; fdlibm's is (z t1)/(t1 - 2) - (w + z w))
+  z = 1 - (r - z);
+  j = _fdHi(z);
+  j += (n << 20) | 0;
+  if ((j >> 20) <= 0) z = _fdScalbn(z, n);
+  else z = _fdWithHi(z, j);
+  return s * z;
+}
+
 // THE REFERENCE DENSITY, and it is a datum rather than "the density". Every
 // design-time number in this project is computed in this air — Vs, the plant
 // gains and their derivatives, the synthesised propeller, every anchored gate

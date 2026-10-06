@@ -10,7 +10,11 @@ const T = __dirname;
 let C = null;
 function core() {
   if (C) return C;
-  C = require(path.join(T, 'flight_core.js'));
+  // G2353 (DMG-DETERMINISM): never a stale generated core (tools/_core_fresh.js); FLYDIY_CORE=<file> flies another core
+  // on purpose (GATE DMGDETERMINISM's doctored and branch cores, an older tree's for a comparison)
+  const coreFile = process.env.FLYDIY_CORE ? path.resolve(process.env.FLYDIY_CORE) : path.join(T, 'flight_core.js');
+  if (!process.env.FLYDIY_CORE) require('./_core_fresh.js').assertFresh(coreFile);
+  C = require(coreFile);
   for (const k of Object.keys(C)) global[k] = C[k];
   // the cage / gear / engine kits a saved build's join needs (tools/physics_perf.js's loader)
   const noop = function () { return this; };
@@ -197,6 +201,9 @@ function flyRun(C, sim, def, TH, strip, elev, o) {
   C.placeAtAerodrome(sim, Object.assign({}, strip, { elev, spawnElev: elev + (o.agl || 0) }));
   const fx = Math.cos(strip.hdg), fz = Math.sin(strip.hdg);
   if (!o.agl) for (let f = 0; f < 120; f++) sim.step(1 / 60);
+  // G2354 (DMG-DETERMINISM): `perturb` {seed, amp} - the ensemble's member: every node's start nudged by up to amp m
+  // (seeded, uniform per coordinate; seed 0 the run as it was)
+  if (o.perturb && o.perturb.seed) perturbPose(sim, o.perturb.seed, o.perturb.amp == null ? ENS_AMP : o.perturb.amp);
   if (o.V) for (let i = 0; i < sim.n; i++) { sim.v[i*3] = o.V * fx; sim.v[i*3+2] = o.V * fz; }
   const c0 = sim.cgPos().slice(), off = o.off || 0;
   const tk = o.trunk || { r: 0.3, h: 10.05, sink: 0 };
@@ -262,9 +269,128 @@ function waterCase(key, o) {
     yieldedCls: sim.beams.filter(b => b.yielded).reduce((a, b) => (a[b.cls] = (a[b.cls] || 0) + 1, a), {}) };
 }
 
+// G2353 (DMG-DETERMINISM): THE STANDARD CRASHES (DMG-TUNE's sanity table, tools/_dmg_tune_lib.js CRASHES - the same
+// options) flown by atTrunk, and the state's fingerprint: sha1 of sim.p then sim.v as float64, 16 hex (DMG-COMPOSITE's
+// validated_hashes.txt) - equal is the same bits
+const STANDARD = {
+  taxi:     { label: '3 m/s taxi into a trunk', o: { D: 4, V: 3, thr: 0, secs: 8 } },
+  noseover: { label: 'nose-over: 12 m/s into a 35 cm stump', o: { D: 12, V: 12, thr: 0, secs: 6, trunk: { r: 0.25, h: 0.35, sink: 0 } } },
+  trunk0:   { label: '30 m/s trunk, the centreline', o: { D: 40, agl: 4, V: 30, thr: 0, secs: 6, off: 0 } },
+  trunk25:  { label: '30 m/s trunk, 2.5 m out', o: { D: 40, agl: 4, V: 30, thr: 0, secs: 6, off: 2.5 } },
+  flight:   { label: 'damage-OFF flight: 20 s at full power from 30 m/s, 60 m up, no trunk', o: { D: 40, agl: 60, V: 30, thr: 1, secs: 20, noTrunk: true } },
+};
+const stateHash = sim => require('crypto').createHash('sha1').update(Buffer.from(sim.p.buffer, sim.p.byteOffset, sim.p.byteLength))
+  .update(Buffer.from(sim.v.buffer, sim.v.byteOffset, sim.v.byteLength)).digest('hex').slice(0, 16);
+
+// ---- G2354 (DMG-DETERMINISM): THE ENSEMBLE ----
+// A 30 m/s crash is chaotic: one member broken a substep earlier sends the wreck another way, and a 1-ulp nudge of one
+// coordinate moves the Jodel's centreline from 124 broken to 100-odd or 150-odd (GATE DMGDETERMINISM's selftest). One
+// run's count is one draw. The ensemble flies N members, member 0 the run as it was and member s every node's start
+// nudged by up to ENS_AMP (1e-9 m, a nanometre: nothing physical) from a seeded generator, and reads the distribution:
+// median, p10-p90, spread, of the members broken, the pieces, the member work, the engine mount off, the cowl off.
+// A REGRESSION is called only when the distribution moves: a two-sided Mann-Whitney rank test at p < ENS_P (ties
+// corrected, the normal approximation), not a single count.
+const ENS_AMP = 1e-9, ENS_P = 0.01;
+const mulberry = seed => () => { seed = (seed + 0x6D2B79F5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+function perturbPose(sim, seed, amp) { const r = mulberry(seed * 2654435761 >>> 0); for (let i = 0; i < sim.n * 3; i++) sim.p[i] += amp * (2 * r() - 1); }
+// what the wreck is: the members broken, the pieces (the live members' and the whole clusters' union-find, pieces of
+// 0.5 kg and more - DMG-TUNE's "what came off"), the member work (J), the engine mount off (a group `*:mount` let go),
+// the cowl off (the cowl rides the engine and its nose bowl: off with the mount, or the bowl crushed through - the nose's
+// crush to the stack's depth, DMG-NOSE's layers)
+function crashStats(sim) {
+  const D = dmgSim(sim), n = sim.n, P = new Int32Array(n); for (let i = 0; i < n; i++) P[i] = i;
+  const f = i => { while (P[i] !== i) { P[i] = P[P[i]]; i = P[i]; } return i; };
+  for (const b of sim.beams) if (!b.broken) { const x = f(b.a), y = f(b.b); if (x !== y) P[x] = y; }
+  const cc = sim.clusterCuts ? sim.clusterCuts().clusters : [];
+  for (const C of cc) if (!C.off && C.nodes && C.nodes.length) for (const i of C.nodes) { const x = f(i), y = f(C.nodes[0]); if (x !== y) P[x] = y; }
+  const m = new Map(); for (let i = 0; i < n; i++) { const r = f(i); m.set(r, (m.get(r) || 0) + sim.m[i]); }
+  let pieces = 0; for (const v of m.values()) if (v >= 0.5) pieces++;
+  const mountOff = (D.groups || []).some(g => /:mount$/.test(g.key));
+  const bowl = (D.drive || []).some(x => x.crushOf > 0 && x.crush >= x.crushOf - 1e-9);
+  return { broken: D.broken.length, pieces, work: D.work, mountOff: mountOff ? 1 : 0, cowlOff: mountOff || bowl ? 1 : 0, crashed: D.crashed ? 1 : 0 };
+}
+const ENS_FIELDS = ['broken', 'pieces', 'work', 'mountOff', 'cowlOff'];
+const quant = (s, q) => { if (!s.length) return NaN; const x = (s.length - 1) * q, i = Math.floor(x), f = x - i; return i + 1 < s.length ? s[i] + f * (s[i + 1] - s[i]) : s[i]; };
+function ensStats(vals) {
+  const s = vals.slice().sort((a, b) => a - b), p10 = quant(s, 0.1), p90 = quant(s, 0.9);
+  return { n: s.length, median: quant(s, 0.5), p10, p90, spread: p90 - p10, min: s[0], max: s[s.length - 1], mean: s.reduce((a, b) => a + b, 0) / s.length };
+}
+// the two-sided Mann-Whitney U test (average ranks over ties, the tie-corrected variance, continuity 0.5)
+function rankTest(a, b) {
+  const all = a.map(v => [v, 0]).concat(b.map(v => [v, 1])).sort((x, y) => x[0] - y[0]), N = all.length, r = new Float64Array(N);
+  let tie = 0;
+  for (let i = 0; i < N;) { let j = i; while (j + 1 < N && all[j + 1][0] === all[i][0]) j++; const t = j - i + 1; for (let k = i; k <= j; k++) r[k] = (i + j) / 2 + 1; tie += t * t * t - t; i = j + 1; }
+  let Ra = 0; for (let k = 0; k < N; k++) if (all[k][1] === 0) Ra += r[k];
+  const n1 = a.length, n2 = b.length, U = Ra - n1 * (n1 + 1) / 2, mu = n1 * n2 / 2, sd = Math.sqrt(n1 * n2 / 12 * ((N + 1) - tie / (N * (N - 1))));
+  if (!(sd > 0)) return { U, z: 0, p: 1 };
+  const z = (Math.abs(U - mu) - 0.5) / sd, p = Math.min(1, 2 * (1 - normCdf(Math.max(0, z))));
+  return { U, z: Math.sign(U - mu) * Math.max(0, z), p };
+}
+function normCdf(x) { const t = 1 / (1 + 0.2316419 * Math.abs(x)), d = 0.3989422804014327 * Math.exp(-x * x / 2);
+  const q = d * t * (0.31938153 + t * (-0.356563782 + t * (1.781477937 + t * (-1.821255978 + t * 1.330274429)))); return x >= 0 ? 1 - q : q; }
+// two ensembles, field by field: moved = the rank test's p < ENS_P (and the medians' shift against the pooled spread, reported)
+function ensCompare(A, B, fields) {
+  const out = {};
+  for (const f of fields || ENS_FIELDS) {
+    const a = A.members.map(x => x[f]), b = B.members.map(x => x[f]), sa = ensStats(a), sb = ensStats(b), t = rankTest(a, b);
+    const pooled = Math.max(sa.spread, sb.spread);
+    out[f] = { a: sa, b: sb, dMedian: sb.median - sa.median, pooled, p: t.p, z: t.z, moved: t.p < ENS_P };
+  }
+  return out;
+}
+// ONE MEMBER (in this process): atTrunk with its seed; { seed, hash, ...crashStats }
+function member(key, id, seed, o) {
+  const sc = STANDARD[id] ? STANDARD[id].o : {};
+  const r = atTrunk(key, Object.assign({}, sc, o || {}, { perturb: { seed, amp: o && o.amp != null ? o.amp : ENS_AMP } }));
+  return Object.assign({ seed, hash: stateHash(r.sim), finite: r.finite, keMax: r.keMax, ke0: r.ke0, wing: r.dmg.brokenCls.filter(c => c === 'wing').length }, crashStats(r.sim));
+}
+// THE ENSEMBLE: N members (seeds 0..N-1) in child processes, `jobs` at once, the certificate computed once in its own
+// child (o.cert: FLYDIY_CERT_DIR - the game's bench thread hands the flight its envelope) unless one is given;
+// o.core flies another core (FLYDIY_CORE); returns { key, id, members, stats: { field: ensStats }, s }
+async function ensemble(key, id, o) {
+  o = o || {};
+  const { spawn } = require('child_process'), os = require('os'), N = o.n || 16, J = o.jobs || 3, t0 = Date.now();
+  const env = Object.assign({}, process.env, o.core ? { FLYDIY_CORE: o.core } : {});
+  const runChild = args => new Promise(res => {
+    const c = spawn(process.execPath, (o.flags || []).concat([__filename], args), { stdio: ['ignore', 'pipe', 'pipe'], env });
+    let so = '', se = ''; c.stdout.on('data', d => { so += d; }); c.stderr.on('data', d => { se += d; });
+    c.on('close', code => { const l = so.split('\n').reverse().find(x => x.indexOf('RESULT ') === 0); res(l ? JSON.parse(l.slice(7)) : { err: (se || so).slice(-600), code }); });
+  });
+  const dmgOn = o.dmg !== 'off';
+  // (o.certDir: the certificates' directory shared across ensembles - computed into it when missing)
+  let tmp = null;
+  if (o.certDir) env.FLYDIY_CERT_DIR = o.certDir;
+  if (dmgOn && !(env.FLYDIY_CERT_DIR && fs.existsSync(path.join(env.FLYDIY_CERT_DIR, key + '.json')))) {
+    const d = env.FLYDIY_CERT_DIR || (tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'ens-')));
+    const c = await runChild(['--ens-cert', key, d]);
+    if (c.err) throw new Error('the certificate: ' + c.err);
+    env.FLYDIY_CERT_DIR = d;
+  }
+  const seeds = Array.from({ length: N }, (_, i) => i), members = new Array(N); let q = 0;
+  await Promise.all(Array.from({ length: Math.min(J, N) }, async () => { while (q < N) { const i = q++;
+    members[i] = await runChild(['--ens-member', key, id, String(seeds[i]), dmgOn ? 'on' : 'off', JSON.stringify(o.o || {})]); } }));
+  if (tmp) try { fs.rmSync(tmp, { recursive: true, force: true }); } catch (e) { /* stays */ }
+  const bad = members.filter(m => m.err);
+  if (bad.length) throw new Error(key + '/' + id + ': ' + bad.length + ' members failed: ' + bad[0].err);
+  const stats = {}; for (const f of ENS_FIELDS) stats[f] = ensStats(members.map(m => m[f]));
+  return { key, id, n: N, amp: ENS_AMP, members, stats, s: (Date.now() - t0) / 1000 };
+}
+const ensLine = (E, f) => { const s = E.stats[f], k = f === 'work' ? 1e-3 : 1, d = f === 'work' ? 1 : (f === 'mountOff' || f === 'cowlOff' ? 2 : 0);
+  return f === 'mountOff' || f === 'cowlOff' ? (s.mean * E.n).toFixed(0) + '/' + E.n : (s.median * k).toFixed(d) + ' [' + (s.p10 * k).toFixed(d) + '-' + (s.p90 * k).toFixed(d) + ']'; };
+// the children's entry points
+if (require.main === module && process.argv[2] === '--ens-cert') {
+  const c = certOf(process.argv[3]);
+  fs.writeFileSync(path.join(process.argv[4], process.argv[3] + '.json'), JSON.stringify({ nb: c.nb, Ft: Array.from(c.Ft), Fc: Array.from(c.Fc) }));
+  process.stdout.write('RESULT {"ok":1}\n', () => process.exit(0));
+} else if (require.main === module && process.argv[2] === '--ens-member') {
+  const [key, id, seed, dmg, oj] = process.argv.slice(3), oo = JSON.parse(oj || '{}');
+  const r = member(key, id, +seed, Object.assign(oo, dmg === 'off' ? { elastic: true, cert: false } : { cert: true }));
+  process.stdout.write('RESULT ' + JSON.stringify(r) + '\n', () => process.exit(0));
+}
+
 // FAR 23.473(d): the limit descent velocity V = 4.4 (W/S)^(1/4) ft/s (W/S in lb/ft2), at least 7 and at most 10 ft/s
 function far473(key) {
   const g = defOf(key).params.gen, WS = (g.W / 4.4482) / (g.Sw * 10.7639);
   return Math.min(10, Math.max(7, 4.4 * Math.pow(WS, 0.25))) * 0.3048;
 }
-module.exports = { certOf, lastRun, far473, waterCase, core, BUILDS, defOf, flatWorld, loadTest, pull, hardLanding, circuit, atTrunk, peakOf, dmgOf, finite };
+module.exports = { STANDARD, stateHash, perturbPose, ENS_AMP, ENS_P, ENS_FIELDS, crashStats, ensStats, rankTest, ensCompare, member, ensemble, ensLine, certOf, lastRun, far473, waterCase, core, BUILDS, defOf, flatWorld, loadTest, pull, hardLanding, circuit, atTrunk, peakOf, dmgOf, finite };
