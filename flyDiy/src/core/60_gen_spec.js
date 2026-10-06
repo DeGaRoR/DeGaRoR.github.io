@@ -359,6 +359,24 @@ const GEN_CRASH_TUBE_DT = 30;
 // else the page's ?damage=1|0 (FLYDIY_DAMAGE, the worker's from its init); else this. Off until DMG-D2 anchors the
 // limits on the certificate (DEFORM-AND-BREAK §11.4: train 35 flips it); params.damage === false stays master's bits.
 const GEN_DAMAGE_DEFAULT = false;
+// G1894 (DMG-TUNE): WHEN A BREAK GROUP LETS GO (DEFORM §4.4; the solver's beamBreak). A group is a part's attachment:
+// the members joining it to the rest (D1a's fittings - in the lattice the bolt and the tube end are one member) - an
+// engine mount's 10-12 tubes and bolts, a stab's 32, a wing root's 8-10. D1a let a group go WHOLE on ANY ONE member's
+// break (BeamNG's breakGroupType 0), which is right for a group that is one bolt and wrong for one that is many:
+// measured (reports/evidence/DMG-TUNE/groups.md), every group that let go in the standard crashes went on one member,
+// most with the others at 0.2-0.6 of their limits - one mount tube kinking or one lug at its ultimate took the
+// engine, one stab fitting of 32 the tailplane. Now:
+//   - one member never lets a group of many go: a mount tube KINKING (crushed past its kink strain) is a bent joint,
+//     not a released one - the rest of the joint still pulls, its own floor still pushes;
+//   - the group lets go once its broken members carry `rel` of the group's tension capacity (the sum of its members'
+//     break forces) - severed (a lug or bolt at its ultimate in tension, spruce's last ragged stage, a tube torn
+//     through at its fold angle) or kinked (the kink floor pushes only: its pull is gone, so its share is lost): a
+//     THIRD - with a third of its strength gone the rest carries 1.5 x its share, and a joint sized to its ultimate
+//     (1.5 x its limit, FAR 23.303) has nothing left past it: the joint, not a member, has failed. (Measured: at a half
+//     the Jodel's card read 6.14 g against the band's 6.14; at a third 6.06; at a quarter 6.05 - the crashes alike);
+//   - a cluster's root cut (DMG-D3: the section's moment or torque, the joint judged whole) and a gate's hook
+//     (sim.damageBreak: "this joint let go") release it whole, as before.
+const GEN_DMG_GROUP = { rel: 1 / 3 };
 const GEN_CRASH = {
   tubeFabric: { ty: 460e6, tu: 460e6 * 95 / 75, etu: 0.08, cy: 460e6, ecu: 0.03, thf: 1.2 },
   wood:       { ty: 70e6,  tu: 70e6,            etu: 0,    cy: 39e6,  ecu: 0.03, thf: 0.12 },
