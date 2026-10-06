@@ -4128,6 +4128,14 @@
   // in the WORLD (the group's matrix maps a drawn difference back by B, a drawn normal by Mi^T: the drawn frame is the
   // body's oblique basis, near-singular on a broken-up wreck); `over`: past both 0.1 mm and 8 float32 steps of the drawn
   // coordinate (where the CPU's own storage is that coarse); `ambiguous`: two kept turns 180 degrees apart (either blend)
+  // the box's probe (a rig's read, never the game's): the drawers' CPU arrays and the riding records' own attributes - a
+  // visible mesh drawing either while the GPU rides draws the CPU's stale pose (tools/dmg_skingpu_box.js's still pairs)
+  window.FLYDIY_SKINGPU_DEBUG = () => {
+    const GS = BRK.gpu; if (!GS) return null;
+    const D = [...GS.drawers.values()];
+    return { cpuBuffers: D.map(d => d.A.array.buffer), recordAttrs: [...GS.ents.values()].filter(e => e && !e.cpu).map(e => e.pa),
+      drawers: D.map(d => ({ nV: d.nV, geos: d.geos.length, recs: d.recs.length, fold: !!d.views, viewMode: d.F ? !!d.F.viewMode : null })) };
+  };
   window.FLYDIY_SKINGPU_CHECK = () => {
     const GS = BRK.gpu, K = model && model.brk;
     if (!GS || !K || !BRK.X) return { err: 'nothing rides on the GPU' };
