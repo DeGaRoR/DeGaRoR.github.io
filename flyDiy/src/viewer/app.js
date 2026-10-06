@@ -4191,7 +4191,7 @@
         const has = c => cv.indexOf(c) >= 0, fabric = R.fabric;
         R.noTear = has(SB.INH.tube) || (has(SB.INH.rigid) && !has(SB.INH.cover)) || (has(SB.INH.cover) && !fabric);
         R.tubeTear = has(SB.INH.tube) && !has(SB.INH.cover); R.sheetTear = has(SB.INH.cover) && !fabric;   // (G1859.3: a tube tears at 1.2 x + 3 mm, never drawn longer)
-        R.inhRec = true; L.push(E);
+        R.inhRec = true; E.name = own.name || kind || ''; L.push(E);   // (the name: the rigs' tear accounting)
       }
       K.inhL = L; K.inhSt = {}; K.inhGone = -1;
       K.inhIt = SB.inhSteps(L, K.T, K.rest, K.inhSt, BRK_INH);

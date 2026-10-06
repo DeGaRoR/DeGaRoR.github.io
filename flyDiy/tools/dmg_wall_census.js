@@ -38,7 +38,7 @@ const CASES = {
   'trunk-0':   { label: 'a trunk at 30 m/s, the centreline', o: { kind: 'trunk', D: 40, agl: 4, V: 30, off: 0, steps: 1500 }, cams: [[200, 22, 14], [300, 45, 20], [120, 12, 7]] },
   'trunk-2.5': { label: 'a trunk at 30 m/s, the wing 2.5 m out', o: { kind: 'trunk', D: 40, agl: 4, V: 30, off: 2.5, steps: 1500 }, cams: [[200, 22, 16], [250, 55, 26], [140, 15, 7]] },
   'taxi':      { label: 'a taxi into a trunk at 3 m/s, the throttle shut', o: { kind: 'trunk', D: 6, agl: 0, V: 3, off: 0, steps: 700, thr: 0 }, cams: [[150, 8, 4.5], [215, 14, 6]] },
-  'noseover':  { label: 'a nose-over: 12 m/s on the ground into a 35 cm stump (the wheels stopped)', o: { kind: 'trunk', D: 12, agl: 0, V: 12, off: 0, top: 0.35, r: 0.25, steps: 1200, thr: 0 }, cams: [[200, 22, 9], [90, 15, 7], [300, 40, 10]] },
+  'noseover':  { label: 'a nose-over: 12 m/s on the ground into a 35 cm stump (the wheels stopped)', o: { kind: 'trunk', D: 12, agl: 0, V: 12, off: 0, top: 0.35, r: 0.25, steps: 1200, thr: 0 }, cams: [[200, 22, 9], [90, 15, 7], [300, 40, 10], [180, 72, 11]] },
 };
 
 // ---- in the page ----
@@ -261,6 +261,33 @@ function pageHeal(mode) {
   grown.sort((a, b) => b[1] - a[1]);
   return { n: Object.keys(H).length, healed: bad.length === 0, bad: bad.slice(0, 20), nBad: bad.length, grown: grown.slice(0, 12), nGrown: grown.length };
 }
+// THE TEARS, BY WING AND BY REASON (the coordinator, the user's review of a nose-over that combed both wings into strips):
+// every removed triangle of the WING layer's covering, left and right (the design frame's z), by its dead code - 1 the event
+// (two pieces / across a broken member), 2 the stretch tear, 3 G1858's cut, 4 gone with its covering, 5 DMG-D4b's debris -
+// and the live ones posed STALE: a vertex whose distance to its dominant node moved by more than 0.3 m against the rest
+// (a fragment not riding its piece). The inherited records only (K.inhL; the old binding's records carry no layers)
+function pageTears() {
+  const m = FLIGHT_PROBE.model(), K = m.brk, sim = FLIGHT_PROBE.sim();
+  if (!K || !K.inhL) return { none: true };
+  const lay = new Map(); for (const r of (m.data && m.data.layers) || []) { let L = lay.get(r[1]); if (!L) lay.set(r[1], L = []); L.push(r); }
+  const out = { L: { live: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, stale: 0 }, R: { live: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, stale: 0 }, staleAt: [] };
+  for (const E of K.inhL) {
+    const R = E.R, rg = lay.get(E.name); if (!rg || !R.dead) continue;
+    const layer = new Array(R.nv).fill(''); for (const r of rg) for (let v = r[2]; v < r[3] && v < R.nv; v++) layer[v] = r[0];
+    const ix = R.idx0 || R.idx, B = R.baseD, W = R.w, Kk = R.K, rest = K.rest, live = sim.p;
+    for (let t = 0; t < R.nt; t++) { const a = ix[t * 3]; if (layer[a] !== 'wing' || E.cv[a] !== 2) continue;
+      const side = B[a * 3 + 2] >= 0 ? 'R' : 'L', d = R.dead[t];
+      if (d) { out[side][d] = (out[side][d] || 0) + 1; continue; }
+      out[side].live++;
+      let st = false;
+      for (let q = 0; q < 3 && !st; q++) { const v = ix[t * 3 + q], dn = R.dom ? R.dom[v] : R.wi[v * Kk];
+        const r0 = Math.hypot(B[v*3] - rest[dn*3], B[v*3+1] - rest[dn*3+1], B[v*3+2] - rest[dn*3+2]);
+        const l0 = Math.hypot(W[v*3] - live[dn*3], W[v*3+1] - live[dn*3+1], W[v*3+2] - live[dn*3+2]);
+        if (Math.abs(l0 - r0) > 0.3) { st = true; if (out.staleAt.length < 8) out.staleAt.push({ name: E.name, t, v, dom: dn, rest: +r0.toFixed(2), live: +l0.toFixed(2) }); } }
+      if (st) out[side].stale++; }
+  }
+  return out;
+}
 // THE BOOT: the page up, the build kept, rolled out, the roll-out screen gone
 async function pageBootStep(k) {
   if (k === 'ready') return await Promise.race([(window.BOOT && BOOT.whenReady) ? BOOT.whenReady().then(() => 'ready') : new Promise(r => setTimeout(() => r('no BOOT'), 18500)), new Promise(r => setTimeout(() => r('boot timeout'), 240000))]);
@@ -320,6 +347,8 @@ if (require.main === module) (async () => {
       await post('/run', 'window.FLYDIY_WALLBIND = ' + (mode === 'after') + '; window.FLYDIY_SKINWALL = ' + (mode !== 'before') + '; return 1;');
       const st = out.stage[mode] = await run(pageReplay);
       st.stretch = await run(pageHeal, 'check');
+      st.tears = await run(pageTears);
+      console.log('  ' + mode + ' tears ' + JSON.stringify(st.tears));
       console.log(k + ' ' + mode, JSON.stringify(st).slice(0, 900));
       await sleep(1500);
       for (const [ci, c] of C.cams.entries()) {
