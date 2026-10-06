@@ -117,6 +117,31 @@ function pageSnap() {
   const drawn = out.filter(e => e.visible);
   return { snapTris: snapTris | 0, snapBig, meshes: drawn.length, meshesBig: drawn.filter(e => e.big).length, bigNotModel: drawn.filter(e => e.big && !e.inFlightModel).slice(0, 12), bigInModel: drawn.filter(e => e.big && e.inFlightModel).length };
 }
+// THE GPU'S COPY (19:15: a crashed Cub still drawn at the stand while every CPU array of the aeroplane is clean - with and
+// without DMG-WALL's copy on the first break): (1) the skinned meshes whose bones stand away from their bind pose (the
+// flown bake's fold poses a bone per part: the shader would draw a wreck the CPU arrays never hold); (2) then every
+// attribute and index of every visible mesh flagged for upload again - a still after it tells a stale upload apart
+function pageBones() {
+  const P = FLIGHT_PROBE, out = [], seen = new Set();
+  for (const sc of [P.craft() && P.craft().parent, P.hangarScene ? P.hangarScene() : null]) { if (!sc) continue;
+    sc.traverse(o => { if (!o.isSkinnedMesh || !o.skeleton || seen.has(o)) return; seen.add(o);
+      let vis = o.visible; for (let q = o.parent; q && vis; q = q.parent) vis = q.visible; if (!vis) return;
+      const B = o.skeleton.bones; let far = 0, worst = 0;
+      // (the bones' spread: the distance from each bone's world place to the mesh's own - a wreck flings them apart)
+      const c = new THREE.Vector3(); o.getWorldPosition(c); const bp = new THREE.Vector3();
+      for (const b of B) { b.getWorldPosition(bp); const d = bp.distanceTo(c); if (d > worst) worst = d; if (d > 8) far++; }
+      const chain = []; for (let q = o; q && chain.length < 5; q = q.parent) chain.push(q.name || q.type);
+      out.push({ chain: chain.join(' < '), bones: B.length, farBones: far, worstBoneM: +worst.toFixed(2) }); }); }
+  return out;
+}
+function pageReupload() {
+  const P = FLIGHT_PROBE; let n = 0;
+  for (const sc of [P.craft() && P.craft().parent, P.hangarScene ? P.hangarScene() : null]) { if (!sc) continue;
+    sc.traverse(o => { if (!o.isMesh || !o.geometry) return; const g = o.geometry;
+      for (const k in g.attributes) { const a = g.attributes[k]; if (a && !a.isInterleavedBufferAttribute) { a.needsUpdate = true; n++; } }
+      if (g.index) g.index.needsUpdate = true; }); }
+  return new Promise(r => requestAnimationFrame(() => requestAnimationFrame(() => r(n))));
+}
 function pageWreck() {
   const P = FLIGHT_PROBE, m = P.model(), scene = P.craft().parent, W = window.FLYDIY_WRECK_STATS ? FLYDIY_WRECK_STATS() : {};
   const debris = scene.children.filter(c => /^wreckDebris:/.test(c.name || '')).length;
@@ -162,6 +187,8 @@ const inShed = "document.body.classList.contains('mode-ws')";
     r.giant = await S.run(pageGiant);
     r.old = await S.run(pageOld);
     r.snap = await S.run(pageSnap);
+    r.bones = await S.run(pageBones);
+    console.log('  ' + k + ' skinned meshes and their bones: ' + JSON.stringify(r.bones.slice(0, 12)));
     console.log('  ' + k + ' the aeroplane snapshot after the path: ' + JSON.stringify(r.snap));
     r.scene = await S.run(pageScene);
     { const key = e => e.scene + e.path + '#' + e.tris, F = new Set((R.fresh || []).map(key)), U = new Set((R.fresh || []).map(e => e.uuid));
@@ -176,6 +203,10 @@ const inShed = "document.body.classList.contains('mode-ws')";
       await S.run(S.pageView, cam); await sleep(800);
       const f = path.join(OUT, 'path_' + k + '_after_' + (i + 1) + '.png'); await S.get('/shot?f=' + encodeURIComponent(f)); r.shots.push(f);
     }
+    r.reuploaded = await S.run(pageReupload);
+    await S.run(S.pageView, [235, 30, 18]); await sleep(800);
+    { const f = path.join(OUT, 'path_' + k + '_after_reupload.png'); await S.get('/shot?f=' + encodeURIComponent(f)); r.shots.push(f); }
+    console.log('  ' + k + ' re-uploaded ' + r.reuploaded + ' attributes, a still again: path_' + k + '_after_reupload.png');
     console.log(k + ': crash ' + JSON.stringify(r.crash) + ' wreck ' + JSON.stringify(r.wreck) + ' -> after ' + JSON.stringify(r.after) + ' ' + (!r.exercised ? 'NOT EXERCISED (the staged crash broke nothing)' : r.ok ? 'CLEAN' : 'LEFT OVER'));
     R.paths[k] = r;
     // (back to the home strip for the next path)
