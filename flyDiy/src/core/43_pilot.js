@@ -1856,6 +1856,9 @@ function makePilot(sim, def, world, opts) {
       // (a tricycle's at 0.6 at most: at 0.75 the C172 swung 5.4 m, at 0.6 4.3 m - scratch trk)
       if (slow) piv.thr = clamp(piv.thr + (r < rT ? 0.15 : -0.30) * dt, 0.15, A.pivotThrMax ?? (trike ? 0.60 : 0.75));
       const noseDown = thRest != null && th < thRest - 0.10;      // the tail coming up: no power
+      // G1949: ON THE HEADING (within the 9 deg the end asks) the power stays off and the brakes stop it - a burst
+      // there kept the Cub creeping at 1.2 m/s, never 'done', 6 m along a teardrop's diagonal (ISLAND-TOUR, Jumbo Mine)
+      if (Math.abs(err) < 0.15) { engage('TAXI', 'DE', 'SET', { dr: 0, de: trike ? (A.taxiDe ?? 0.30) : 0, thr: 0 }); c.brakeD = 0; c.brake = 0.6; c.da = groundAil(0, 0.25); return false; }
       // near the heading the power comes off while the nose still swings, and back on (60 %) if it has stopped short
       const thr = (!slow || noseDown || (near && r > rT)) ? 0 : piv.thr;
       // the last 25 deg proportional (bang-bang there hunted +-4 deg about the heading for 60 s)
@@ -1958,7 +1961,18 @@ function makePilot(sim, def, world, opts) {
               const fr = ap.route.from, fh = fr.hdg || 0;
               const crB0 = -(P[b0].x - fr.x) * Math.sin(fh) + (P[b0].z - fr.z) * Math.cos(fh);
               if (Math.abs(turn) > 2.6 && Math.abs(crB0) <= 2) {   // (Rpiv: 13 m at least - the site's lane U-turn is a 12 m arc)
-                piv = { hdg: P[b1].hdg, j: b1, t0: ap.t, thr: 0, sg: turn >= 0 ? 1 : -1 }; pivN++;
+                // G1949: WHERE THE TURN COMES BACK BY THE AEROPLANE, the pivot resumes there. A teardrop (MILL-TAXI's at
+                // Jumbo Mine: out 6 m one side, round 13 m the other, back on a diagonal) ends its tight part on the far
+                // lobe - resumed at b1, 11 m west of where the Cub had turned, the follower drove it across into the
+                // clinic (ISLAND-TOUR, the chained leg mn_strip > w2: crashed 48 s in). The resume point is the first
+                // one past b1, within 80 m of path, heading straight back (15 deg of the way it came: the diagonal
+                // back at 30 deg, resumed, walked the Cub 6 m off on it) and within 12 m of the aeroplane; none (East
+                // Point's lane U-turn beside the strip): b1, as before
+                let kR = b1;
+                const hBack = P[b0].hdg + Math.PI;
+                for (let j = b1; j < P.length && P[j].s - P[b1].s < 80; j++)
+                  if (Math.abs(wrapPi(P[j].hdg - hBack)) <= 0.26 && Math.hypot(P[j].x - cg[0], P[j].z - cg[2]) < 12) { kR = j; break; }
+                piv = { hdg: P[kR].hdg, j: kR, t0: ap.t, thr: 0, sg: turn >= 0 ? 1 : -1 }; pivN++;
                 if (!pivSaid) { pivSaid = true; say('pivot', 'a ' + Math.round(Math.abs(turn) * 57.3) + ' deg turn tighter than the wheels steer (' + RgMin.toFixed(1) + ' m) — turning on the spot'); }
                 pivotFly(piv.hdg);
                 break;
